@@ -71,6 +71,7 @@ Programs_TestWebKitAPI_TestWTF_SOURCES = \
 	Tools/TestWebKitAPI/Tests/WTF/StringHasher.cpp \
 	Tools/TestWebKitAPI/Tests/WTF/StringImpl.cpp \
 	Tools/TestWebKitAPI/Tests/WTF/StringOperators.cpp \
+	Tools/TestWebKitAPI/Tests/WTF/Threading.cpp \
 	Tools/TestWebKitAPI/Tests/WTF/TemporaryChange.cpp \
 	Tools/TestWebKitAPI/Tests/WTF/Vector.cpp \
 	Tools/TestWebKitAPI/Tests/WTF/VectorBasic.cpp \
