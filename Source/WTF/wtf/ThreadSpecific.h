@@ -47,13 +47,17 @@
 
 #if USE(PTHREADS)
 #include <pthread.h>
-#elif OS(WINDOWS)
+#elif USE(STDTHREAD)
+#include <thread>
+#include <wtf/OwnPtr.h>
+#include "HashMap.h"
+#elif OS(WINDOWS) && !OS(WINDOWS_PHONE)
 #include <windows.h>
 #endif
 
 namespace WTF {
 
-#if OS(WINDOWS)
+#if OS(WINDOWS) && OS(WINDOWS_PHONE)
 // ThreadSpecificThreadExit should be called each time when a thread is detached.
 // This is done automatically for threads created with WTF::createThread.
 void ThreadSpecificThreadExit();
@@ -69,7 +73,7 @@ public:
     T& operator*();
 
 private:
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !OS(WINDOWS_PHONE)
     friend void ThreadSpecificThreadExit();
 #endif
 
@@ -81,6 +85,7 @@ private:
 
     T* get();
     void set(T*);
+#if !USE(STDTHREAD)
     void static destroy(void* ptr);
 
     struct Data {
@@ -90,14 +95,17 @@ private:
 
         T* value;
         ThreadSpecific<T>* owner;
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !OS(WINDOWS_PHONE)
         void (*destructor)(void*);
 #endif
     };
+#endif
 
 #if USE(PTHREADS)
     pthread_key_t m_key;
-#elif OS(WINDOWS)
+#elif USE(STDTHREAD)
+    static thread_local HashMap<ThreadSpecific<T>*, OwnPtr<T>> m_values;
+#elif OS(WINDOWS) && !OS(WINDOWS_PHONE)
     int m_index;
 #endif
 };
@@ -152,7 +160,26 @@ inline void ThreadSpecific<T>::set(T* ptr)
     pthread_setspecific(m_key, new Data(ptr, this));
 }
 
-#elif OS(WINDOWS)
+#elif USE(STDTHREAD)
+
+template<typename T>
+inline ThreadSpecific<T>::ThreadSpecific()
+{
+}
+
+template<typename T>
+inline T* ThreadSpecific<T>::get()
+{
+    return m_values.get(this);
+}
+
+template<typename T>
+inline void ThreadSpecific<T>::set(T* ptr)
+{
+    m_values.add(this, adoptPtr(ptr));
+}
+
+#elif OS(WINDOWS) && !OS(WINDOWS_PHONE)
 
 // TLS_OUT_OF_INDEXES is not defined on WinCE.
 #ifndef TLS_OUT_OF_INDEXES
@@ -216,6 +243,7 @@ inline void ThreadSpecific<T>::set(T* ptr)
 #error ThreadSpecific is not implemented for this platform.
 #endif
 
+#if !USE(STDTHREAD)
 template<typename T>
 inline void ThreadSpecific<T>::destroy(void* ptr)
 {
@@ -232,7 +260,7 @@ inline void ThreadSpecific<T>::destroy(void* ptr)
 
 #if USE(PTHREADS)
     pthread_setspecific(data->owner->m_key, 0);
-#elif OS(WINDOWS)
+#elif OS(WINDOWS) && !OS(WINDOWS_PHONE)
     TlsSetValue(tlsKeys()[data->owner->m_index], 0);
 #else
 #error ThreadSpecific is not implemented for this platform.
@@ -240,6 +268,7 @@ inline void ThreadSpecific<T>::destroy(void* ptr)
 
     delete data;
 }
+#endif
 
 template<typename T>
 inline bool ThreadSpecific<T>::isSet()
@@ -254,7 +283,13 @@ inline ThreadSpecific<T>::operator T*()
     if (!ptr) {
         // Set up thread-specific value's memory pointer before invoking constructor, in case any function it calls
         // needs to access the value, to avoid recursion.
+#if USE(STDTHREAD)
+        // we use OwnPtr to make sure values will be deleted at thread
+        // termination, so we need to allocate with new.
+        ptr = static_cast<T*>(::operator new (sizeof(T), std::nothrow));
+#else
         ptr = static_cast<T*>(fastZeroedMalloc(sizeof(T)));
+#endif
         set(ptr);
         new (NotNull, ptr) T;
     }
