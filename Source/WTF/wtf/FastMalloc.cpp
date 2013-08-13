@@ -121,7 +121,28 @@
 #ifndef NDEBUG
 namespace WTF {
 
-#if OS(WINDOWS)
+#if USE(STDTHREAD) && OS(WINDOWS_PHONE)
+
+__declspec(thread) static bool g_isForbidden = false;
+
+#if !ASSERT_DISABLED
+static bool isForbidden()
+{
+    return !!g_isForbidden;
+}
+#endif
+
+void fastMallocForbid()
+{
+    g_isForbidden = true;
+}
+
+void fastMallocAllow()
+{
+    g_isForbidden = false;
+}
+
+#elif OS(WINDOWS)
 
 // TLS_OUT_OF_INDEXES is not defined on WinCE.
 #ifndef TLS_OUT_OF_INDEXES
