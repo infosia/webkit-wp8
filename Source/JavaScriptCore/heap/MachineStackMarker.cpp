@@ -267,6 +267,7 @@ static inline void suspendThread(const PlatformThread& platformThread)
 {
 #if OS(DARWIN)
     thread_suspend(platformThread);
+#elif OS(WINDOWS_PHONE)
 #elif OS(WINDOWS)
     SuspendThread(platformThread);
 #elif USE(PTHREADS)
@@ -280,6 +281,7 @@ static inline void resumeThread(const PlatformThread& platformThread)
 {
 #if OS(DARWIN)
     thread_resume(platformThread);
+#elif OS(WINDOWS_PHONE)
 #elif OS(WINDOWS)
     ResumeThread(platformThread);
 #elif USE(PTHREADS)
@@ -349,6 +351,9 @@ static size_t getPlatformThreadRegisters(const PlatformThread& platformThread, P
     return user_count * sizeof(usword_t);
 // end OS(DARWIN)
 
+#elif OS(WINDOWS_PHONE)
+    regs.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
+    return sizeof(CONTEXT);
 #elif OS(WINDOWS)
     regs.ContextFlags = CONTEXT_INTEGER | CONTEXT_CONTROL;
     GetThreadContext(platformThread, &regs);
