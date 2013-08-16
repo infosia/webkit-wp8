@@ -50,7 +50,9 @@
 #elif USE(STDTHREAD)
 #include <thread>
 #include <wtf/OwnPtr.h>
+#include <wtf/PassOwnPtr.h>
 #include "HashMap.h"
+#include "Atomics.h"
 #elif OS(WINDOWS) && !OS(WINDOWS_PHONE)
 #include <windows.h>
 #endif
@@ -161,6 +163,85 @@ inline void ThreadSpecific<T>::set(T* ptr)
 }
 
 #elif USE(STDTHREAD)
+
+typedef int ThreadSpecificKey;
+
+
+class ThreadSpecificStore {
+public:
+    static ThreadSpecificStore &store()
+    {
+        static ThreadSpecificStore instance;
+
+        return instance;
+    }
+
+    void keyCreate(ThreadSpecificKey *key, void (*destructor) (void *))
+    {
+        *key = atomicIncrement(&m_last_key);
+        m_map.set(*key, StoreValue(0, destructor));
+    }
+
+    void keyDelete(ThreadSpecificKey key)
+    {
+        m_map.remove(key);
+    }
+
+    void set(ThreadSpecificKey key, void *value)
+    {
+        void (*destructor)(void *) = m_map.get(key).second;
+        m_map.set(key, StoreValue(value, destructor));
+    }
+
+    void * get(ThreadSpecificKey key)
+    {
+        return m_map.get(key).first;
+    }
+
+private:
+    ThreadSpecificStore()
+        : m_last_key(1)
+    {}
+    ThreadSpecificStore(ThreadSpecificStore const&);
+    void operator=(ThreadSpecificStore const&);
+
+    typedef void(*ValueDestructor)(void *);
+
+    class StoreValue : public std::pair<void*, ValueDestructor> {
+    public:
+        StoreValue(void *value, ValueDestructor destructor) : std::pair<void *, ValueDestructor>(value, destructor) {}
+        StoreValue() : std::pair<void *, ValueDestructor>() {}
+        ~StoreValue()
+        {
+            if (first && second)
+                second(first);
+        }
+    };
+
+    ThreadSpecificKey m_last_key;
+    static thread_local HashMap<ThreadSpecificKey, StoreValue> m_map;
+};
+
+
+inline void threadSpecificKeyCreate(ThreadSpecificKey *key, void (*destructor)(void *))
+{
+    ThreadSpecificStore::store().keyCreate(key, destructor);
+}
+
+inline void threadSpecificKeyDelete(ThreadSpecificKey key)
+{
+    ThreadSpecificStore::store().keyDelete(key);
+}
+
+inline void threadSpecificSet(ThreadSpecificKey key, void *value)
+{
+    ThreadSpecificStore::store().set(key, value);
+}
+
+inline void* threadSpecificGet(ThreadSpecificKey key)
+{
+    return ThreadSpecificStore::store().get(key);
+}
 
 template<typename T>
 inline ThreadSpecific<T>::ThreadSpecific()
