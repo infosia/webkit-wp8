@@ -41,7 +41,7 @@
 // that reference a particular JSContext have been deallocated the JSContext 
 // will be deallocated unless it has been previously retained.
 
-NS_CLASS_AVAILABLE(10_9, NA)
+NS_CLASS_AVAILABLE(10_8, NA)
 @interface JSContext : NSObject
 
 // Create a JSContext.

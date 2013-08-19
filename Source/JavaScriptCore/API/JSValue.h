@@ -87,7 +87,7 @@
 // class methods will be returned. See JSExport.h for more information on
 // constructor objects.
 
-NS_CLASS_AVAILABLE(10_9, NA)
+NS_CLASS_AVAILABLE(10_8, NA)
 @interface JSValue : NSObject
 
 // Create a JSValue by converting an Objective-C object.
