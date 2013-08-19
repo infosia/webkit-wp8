@@ -39,6 +39,10 @@
 #include <sched.h>
 #endif
 
+#if OS(WINDOWS_PHONE)
+#include <thread>
+#endif
+
 #if ENABLE(COMPARE_AND_SWAP)
 
 static void TCMalloc_SlowLock(unsigned* lockword);
@@ -74,7 +78,9 @@ struct TCMalloc_SpinLock {
 
 static void TCMalloc_SlowLock(unsigned* lockword) {
   do {
-#if OS(WINDOWS)
+#if OS(WINDOWS_PHONE)
+    std::this_thread::yield();
+#elif OS(WINDOWS)
     Sleep(0);
 #else
     sched_yield();

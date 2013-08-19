@@ -79,7 +79,7 @@ static bool parse(const char* string, OptionRange& value)
 template<typename T>
 void overrideOptionWithHeuristic(T& variable, const char* name)
 {
-#if !OS(WINCE)
+#if !OS(WINCE) && !OS(WINDOWS_PHONE)
     const char* stringValue = getenv(name);
     if (!stringValue)
         return;
