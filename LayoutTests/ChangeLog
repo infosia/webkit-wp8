@@ -1,3 +1,62 @@
+2013-08-19  Alexey Proskuryakov  <ap@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119915
+        REGRESSION(r154144): ASSERTION FAILED: m_history->provisionalItem() == m_requestedHistoryItem.get()
+
+        Reviewed by Darin Adler.
+
+        * platform/mac-wk2/TestExpectations: Unskipping the failing test.
+
+2013-08-19  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119995
+        Start removing custom implementations of getOwnPropertyDescriptor
+
+        Reviewed by Sam Weinig.
+
+        This can now typically implemented in terms of getOwnPropertySlot.
+        Add a macro to PropertyDescriptor to define an implementation of GOPD in terms of GOPS.
+        Switch over most classes in JSC & the WebCore bindings generator to use this.
+
+        * http/tests/security/xss-DENIED-defineProperty-expected.txt:
+            - Remove erroneous error messages - cross frame access to reload is allowed - it's just read-only, non-configurable.
+
+2013-08-19  Jer Noble  <jer.noble@apple.com>
+
+        <https://bugs.webkit.org/show_bug.cgi?id=120025> REGRESSION (r154254): fast/frames/frameset-frameborder-inheritance.html failing on Apple MountainLion Debug WK1 (Tests)
+
+        Unreviewed gardening. Add failing test to TestExpectations.
+
+        * platform/mac/TestExpectations:
+
+2013-08-19  Antti Koivisto  <antti@apple.com>
+
+        Skip these failing tests pending fix:
+        
+        svg/custom/bug78807.svg
+        svg/custom/use-invalid-style.svg
+
+        * TestExpectations:
+
+2013-08-19  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed gardening. Partial revert of r154283 which caused test failures on all Mac ports.
+
+        * platform/mac/accessibility/lists-expected.txt:
+
+2013-08-16  Oliver Hunt  <oliver@apple.com>
+
+        <https://webkit.org/b/119860> Crash during exception unwinding
+
+        Reviewed by Filip Pizlo.
+
+        Add a test
+
+        * fast/js/dfg-activation-register-overwritten-in-throw-expected.txt: Added.
+        * fast/js/dfg-activation-register-overwritten-in-throw.html: Added.
+        * fast/js/script-tests/dfg-activation-register-overwritten-in-throw.js: Added.
+        (g):
+
 2013-08-19  Chris Fleizach  <cfleizach@apple.com>
 
         <https://webkit.org/b/119916> AX: WebKit is not exposing AXLanguage correctly
