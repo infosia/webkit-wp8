@@ -45,10 +45,13 @@
 #include <windows.h>
 #endif
 
+#if OS(WINDOWS_PHONE)
+#include <thread>
+#endif
+
 #if USE(PTHREADS)
 #include <pthread.h>
 #endif
-
 
 namespace WTF {
 
@@ -139,7 +142,9 @@ WTF_EXPORT_PRIVATE DWORD absoluteTimeToWaitTimeoutInterval(double absoluteTime);
 
 inline void pauseBriefly()
 {
-#if OS(WINDOWS)
+#if OS(WINDOWS_PHONE)
+    std::this_thread::yield();
+#elif OS(WINDOWS)
     Sleep(0);
 #else
     sched_yield();

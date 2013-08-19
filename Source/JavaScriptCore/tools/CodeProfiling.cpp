@@ -92,7 +92,7 @@ void CodeProfiling::sample(void* pc, void** framePointer)
 
 void CodeProfiling::notifyAllocator(WTF::MetaAllocator* allocator)
 {
-#if !OS(WINCE)
+#if !OS(WINCE) && !OS(WINDOWS_PHONE)
     // Check for JSC_CODE_PROFILING.
     const char* codeProfilingMode = getenv("JSC_CODE_PROFILING");
     if (!codeProfilingMode)

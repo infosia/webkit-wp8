@@ -172,6 +172,8 @@ inline float log2f(float num)
 inline long long abs(long long num) { return _abs64(num); }
 #endif
 
+inline bool isnan(double x) { return _isnan(x); }
+
 namespace std {
 
 inline bool isinf(double num) { return !_finite(num) && !_isnan(num); }

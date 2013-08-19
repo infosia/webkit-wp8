@@ -410,6 +410,10 @@
 #define WTF_OS_WINDOWS 1
 #endif
 
+#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_PHONE_APP)
+#define WTF_OS_WINDOWS_PHONE 1
+#endif
+
 #define WTF_OS_WIN ERROR "USE WINDOWS WITH OS NOT WIN"
 #define WTF_OS_MAC ERROR "USE MAC_OS_X WITH OS NOT MAC"
 
@@ -492,7 +496,7 @@
 #endif
 
 /* On Windows, use QueryPerformanceCounter by default */
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !OS(WINDOWS_PHONE)
 #define WTF_USE_QUERY_PERFORMANCE_COUNTER  1
 #endif
 
@@ -506,6 +510,17 @@
 #define assert(x)
 
 #endif  /* OS(WINCE) && !PLATFORM(QT) */
+
+#if OS(WINDOWS_PHONE)
+#define NOSHLWAPI
+#define USE_SYSTEM_MALLOC 1
+#define WTF_USE_QUERY_PERFORMANCE_COUNTER 0
+#define ENABLE_ASSEMBLER 0
+#define WTF_USE_WCHAR_UNICODE 1
+#define WTF_USE_ICU_UNICODE 0
+#define WTF_USE_STDTHREAD 1
+#define HAVE_VIRTUALALLOC 0
+#endif
 
 #if !USE(WCHAR_UNICODE)
 #define WTF_USE_ICU_UNICODE 1
@@ -551,7 +566,7 @@
 #define WTF_USE_WEB_THREAD 1
 #endif /* PLATFORM(IOS) */
 
-#if PLATFORM(WIN) && !USE(WINGDI)
+#if PLATFORM(WIN) && !USE(WINGDI) && !OS(WINDOWS_PHONE)
 #define WTF_USE_CF 1
 #endif
 
@@ -626,13 +641,13 @@
 #define HAVE_ALIGNED_MALLOC 1
 #define HAVE_ISDEBUGGERPRESENT 1
 
-#if !PLATFORM(QT)
+#if !PLATFORM(QT) && !OS(WINDOWS_PHONE)
 #include <WTF/WTFHeaderDetection.h>
 #endif
 
 #endif
 
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !OS(WINDOWS_PHONE)
 #define HAVE_VIRTUALALLOC 1
 #endif
 
@@ -701,6 +716,11 @@
 
 #if !defined(ENABLE_JIT) && CPU(SH4) && PLATFORM(QT)
 #define ENABLE_JIT 1
+#endif
+
+#if !defined(ENABLE_JIT) && OS(WINDOWS_PHONE)
+#define ENABLE_JIT 0
+#define ENABLE_YARR_JIT 0
 #endif
 
 /* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms. */
