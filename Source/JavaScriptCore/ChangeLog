@@ -1,9 +1,76 @@
+2013-08-17  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG should inline typedArray.byteOffset
+        https://bugs.webkit.org/show_bug.cgi?id=119962
+
+        Reviewed by Oliver Hunt.
+        
+        This adds a new node, GetTypedArrayByteOffset, which inlines
+        typedArray.byteOffset.
+        
+        Also, I improved a bunch of the clobbering logic related to typed arrays
+        and clobbering in general. For example, PutByOffset/PutStructure are not
+        clobber-world so they can be handled by most default cases in CSE. Also,
+        It's better to use the 'Class_field' notation for typed arrays now that
+        they no longer involve magical descriptor thingies.
+
+        * bytecode/SpeculatedType.h:
+        * dfg/DFGAbstractHeap.h:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGArrayMode.h:
+        (JSC::DFG::neverNeedsStorage):
+        * dfg/DFGCSEPhase.cpp:
+        (JSC::DFG::CSEPhase::getByValLoadElimination):
+        (JSC::DFG::CSEPhase::getByOffsetLoadElimination):
+        (JSC::DFG::CSEPhase::getPropertyStorageLoadElimination):
+        (JSC::DFG::CSEPhase::checkArrayElimination):
+        (JSC::DFG::CSEPhase::getIndexedPropertyStorageLoadElimination):
+        (JSC::DFG::CSEPhase::getTypedArrayByteOffsetLoadElimination):
+        (JSC::DFG::CSEPhase::performNodeCSE):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::attemptToMakeGetTypedArrayByteLength):
+        (JSC::DFG::FixupPhase::convertToGetArrayLength):
+        (JSC::DFG::FixupPhase::attemptToMakeGetTypedArrayByteOffset):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::propagate):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileGetTypedArrayByteOffset):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGTypeCheckHoistingPhase.cpp:
+        (JSC::DFG::TypeCheckHoistingPhase::identifyRedundantStructureChecks):
+        * runtime/ArrayBuffer.h:
+        (JSC::ArrayBuffer::offsetOfData):
+        * runtime/Butterfly.h:
+        (JSC::Butterfly::offsetOfArrayBuffer):
+        * runtime/IndexingHeader.h:
+        (JSC::IndexingHeader::offsetOfArrayBuffer):
+
+2013-08-18  Filip Pizlo  <fpizlo@apple.com>
+
+        <https://webkit.org/b/119994> DFG new Array() inlining could get confused about global objects
+
+        Reviewed by Geoffrey Garen.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleConstantInternalFunction):
+
 2013-08-18  Gavin Barraclough  <barraclough@apple.com>
 
         https://bugs.webkit.org/show_bug.cgi?id=119995
         Start removing custom implementations of getOwnPropertyDescriptor
 
-        Reviewed by Sam Weinig.
+        Reviewed by Oliver Hunt.
 
         This can now typically implemented in terms of getOwnPropertySlot.
         Add a macro to PropertyDescriptor to define an implementation of GOPD in terms of GOPS.
@@ -58,6 +125,17 @@
 
 2013-08-19  Michael Saboff  <msaboff@apple.com>
 
+        https://bugs.webkit.org/show_bug.cgi?id=120015 DFG 32Bit: Crash loading "Classic" site @ translate.google.com
+
+        Reviewed by Sam Weinig.
+
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateCell): Added checks for spillFormat being
+        DataFormatInteger or DataFormatDouble similar to what is in the 64 bit code and in
+        all versions of fillSpeculateBoolean().
+
+2013-08-19  Michael Saboff  <msaboff@apple.com>
+
         https://bugs.webkit.org/show_bug.cgi?id=120020 Change Set 154207 causes wrong register to be used for 32 bit tests
 
         Reviewed by Benjamin Poulain.
@@ -67,8 +145,6 @@
 
         * assembler/MacroAssemblerX86Common.h:
         (JSC::MacroAssemblerX86Common::branchTest32):
-        * dfg/DFGSpeculativeJIT32_64.cpp:
-        (JSC::DFG::SpeculativeJIT::fillSpeculateCell):
 
 2013-08-16  Oliver Hunt  <oliver@apple.com>
 
