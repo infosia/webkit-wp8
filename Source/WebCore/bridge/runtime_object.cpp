@@ -134,14 +134,14 @@ bool RuntimeObject::getOwnPropertySlot(JSObject* object, ExecState *exec, Proper
         // See if the instance has a field with the specified name.
         Field *aField = aClass->fieldNamed(propertyName, instance.get());
         if (aField) {
-            slot.setCustom(thisObject, thisObject->fieldGetter);
+            slot.setCustom(thisObject, DontDelete, thisObject->fieldGetter);
             instance->end();
             return true;
         } else {
             // Now check if a method with specified name exists, if so return a function object for
             // that method.
             if (aClass->methodNamed(propertyName, instance.get())) {
-                slot.setCustom(thisObject, thisObject->methodGetter);
+                slot.setCustom(thisObject, DontDelete | ReadOnly, thisObject->methodGetter);
                 
                 instance->end();
                 return true;
@@ -150,7 +150,7 @@ bool RuntimeObject::getOwnPropertySlot(JSObject* object, ExecState *exec, Proper
 
         // Try a fallback object.
         if (!aClass->fallbackObject(exec, instance.get(), propertyName).isUndefined()) {
-            slot.setCustom(thisObject, thisObject->fallbackObjectGetter);
+            slot.setCustom(thisObject, DontDelete | ReadOnly | DontEnum, thisObject->fallbackObjectGetter);
             instance->end();
             return true;
         }
@@ -161,54 +161,7 @@ bool RuntimeObject::getOwnPropertySlot(JSObject* object, ExecState *exec, Proper
     return instance->getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-bool RuntimeObject::getOwnPropertyDescriptor(JSObject* object, ExecState *exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    RuntimeObject* thisObject = jsCast<RuntimeObject*>(object);
-    if (!thisObject->m_instance) {
-        throwInvalidAccessError(exec);
-        return false;
-    }
-    
-    RefPtr<Instance> instance = thisObject->m_instance;
-    instance->begin();
-    
-    Class *aClass = instance->getClass();
-    
-    if (aClass) {
-        // See if the instance has a field with the specified name.
-        Field *aField = aClass->fieldNamed(propertyName, instance.get());
-        if (aField) {
-            PropertySlot slot(thisObject);
-            slot.setCustom(thisObject, fieldGetter);
-            instance->end();
-            descriptor.setDescriptor(slot.getValue(exec, propertyName), DontDelete);
-            return true;
-        } else {
-            // Now check if a method with specified name exists, if so return a function object for
-            // that method.
-            if (aClass->methodNamed(propertyName, instance.get())) {
-                PropertySlot slot(thisObject);
-                slot.setCustom(thisObject, methodGetter);
-                instance->end();
-                descriptor.setDescriptor(slot.getValue(exec, propertyName), DontDelete | ReadOnly);
-                return true;
-            }
-        }
-        
-        // Try a fallback object.
-        if (!aClass->fallbackObject(exec, instance.get(), propertyName).isUndefined()) {
-            PropertySlot slot(thisObject);
-            slot.setCustom(thisObject, fallbackObjectGetter);
-            instance->end();
-            descriptor.setDescriptor(slot.getValue(exec, propertyName), DontDelete | ReadOnly | DontEnum);
-            return true;
-        }
-    }
-    
-    instance->end();
-    
-    return instance->getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(RuntimeObject)
 
 void RuntimeObject::put(JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value, PutPropertySlot& slot)
 {

@@ -403,8 +403,8 @@ private:
 
     void addConstant(JSValue value)
     {
-        initializeLazyWriteBarrier(
-            m_codeBlock->addConstantLazily(), 
+        initializeLazyWriteBarrierForConstant(
+            m_codeBlock,
             m_graph.m_plan.writeBarriers, 
             m_codeBlock->ownerExecutable(), 
             value);
@@ -2864,13 +2864,15 @@ bool ByteCodeParser::parseBlock(unsigned limit)
             LAST_OPCODE(op_end);
 
         case op_throw:
-            flushAllArgumentsAndCapturedVariablesInInlineStack();
             addToGraph(Throw, get(currentInstruction[1].u.operand));
+            flushAllArgumentsAndCapturedVariablesInInlineStack();
+            addToGraph(Unreachable);
             LAST_OPCODE(op_throw);
             
         case op_throw_static_error:
-            flushAllArgumentsAndCapturedVariablesInInlineStack();
             addToGraph(ThrowReferenceError);
+            flushAllArgumentsAndCapturedVariablesInInlineStack();
+            addToGraph(Unreachable);
             LAST_OPCODE(op_throw_static_error);
             
         case op_call:

@@ -280,7 +280,7 @@ void FrameSelection::setSelection(const VisibleSelection& newSelection, SetSelec
         Document* document = s.base().anchorNode()->document();
         if (document && document->frame() && document->frame() != m_frame && document != m_frame->document()) {
             RefPtr<Frame> guard = document->frame();
-            document->frame()->selection()->setSelection(s, options, align, granularity);
+            document->frame()->selection().setSelection(s, options, align, granularity);
             // It's possible that during the above set selection, this FrameSelection has been modified by
             // selectFrameElementInParentIfFullySelected, but that the selection is no longer valid since
             // the frame is about to be destroyed. If this is the case, clear our selection.
@@ -560,8 +560,7 @@ void FrameSelection::willBeModified(EAlteration alter, SelectionDirection direct
 
 VisiblePosition FrameSelection::positionForPlatform(bool isGetStart) const
 {
-    Settings* settings = m_frame ? m_frame->settings() : 0;
-    if (settings && settings->editingBehaviorType() == EditingMacBehavior)
+    if (m_frame && m_frame->settings().editingBehaviorType() == EditingMacBehavior)
         return isGetStart ? m_selection.visibleStart() : m_selection.visibleEnd();
     // Linux and Windows always extend selections from the extent endpoint.
     // FIXME: VisibleSelection should be fixed to ensure as an invariant that
@@ -1413,7 +1412,7 @@ bool CaretBase::shouldRepaintCaret(const RenderView* view, bool isContentEditabl
 {
     ASSERT(view);
     Frame* frame = view->frameView() ? &view->frameView()->frame() : 0; // The frame where the selection started.
-    bool caretBrowsing = frame && frame->settings() && frame->settings()->caretBrowsingEnabled();
+    bool caretBrowsing = frame && frame->settings().caretBrowsingEnabled();
     return (caretBrowsing || isContentEditable);
 }
 
@@ -1626,9 +1625,9 @@ void FrameSelection::selectFrameElementInParentIfFullySelected()
 
     // Focus on the parent frame, and then select from before this element to after.
     VisibleSelection newSelection(beforeOwnerElement, afterOwnerElement);
-    if (parent->selection()->shouldChangeSelection(newSelection)) {
+    if (parent->selection().shouldChangeSelection(newSelection)) {
         page->focusController().setFocusedFrame(parent);
-        parent->selection()->setSelection(newSelection);
+        parent->selection().setSelection(newSelection);
     }
 }
 
@@ -1770,7 +1769,7 @@ void FrameSelection::updateAppearance()
 #if ENABLE(TEXT_CARET)
     bool caretRectChangedOrCleared = recomputeCaretRect();
 
-    bool caretBrowsing = m_frame->settings() && m_frame->settings()->caretBrowsingEnabled();
+    bool caretBrowsing = m_frame->settings().caretBrowsingEnabled();
     bool shouldBlink = caretIsVisible() && isCaret() && (isContentEditable() || caretBrowsing) && forwardPosition.isNull();
 
     // If the caret moved, stop the blink timer so we can restart with a
@@ -1884,7 +1883,7 @@ void FrameSelection::setFocusedElementIfNeeded()
     if (isNone() || !isFocused())
         return;
 
-    bool caretBrowsing = m_frame->settings() && m_frame->settings()->caretBrowsingEnabled();
+    bool caretBrowsing = m_frame->settings().caretBrowsingEnabled();
     if (caretBrowsing) {
         if (Element* anchor = enclosingAnchorElement(base())) {
             m_frame->page()->focusController().setFocusedElement(anchor, m_frame);
@@ -2037,7 +2036,7 @@ void FrameSelection::setSelectionFromNone()
     // entire WebView is editable or designMode is on for this document).
 
     Document* document = m_frame->document();
-    bool caretBrowsing = m_frame->settings() && m_frame->settings()->caretBrowsingEnabled();
+    bool caretBrowsing = m_frame->settings().caretBrowsingEnabled();
     if (!isNone() || !(document->rendererIsEditable() || caretBrowsing))
         return;
 
@@ -2064,8 +2063,9 @@ bool FrameSelection::dispatchSelectStart()
 
 inline bool FrameSelection::visualWordMovementEnabled() const
 {
-    Settings* settings = m_frame ? m_frame->settings() : 0;
-    return settings && settings->visualWordMovementEnabled();
+    if (!m_frame)
+        return false;
+    return m_frame->settings().visualWordMovementEnabled();
 }
 
 void FrameSelection::setShouldShowBlockCursor(bool shouldShowBlockCursor)

@@ -71,27 +71,14 @@ bool JSArrayBuffer::getOwnPropertySlot(
     JSArrayBuffer* thisObject = jsCast<JSArrayBuffer*>(object);
     
     if (propertyName == exec->propertyNames().byteLength) {
-        slot.setValue(thisObject, jsNumber(thisObject->impl()->byteLength()));
+        slot.setValue(thisObject, DontDelete | ReadOnly, jsNumber(thisObject->impl()->byteLength()));
         return true;
     }
     
     return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-bool JSArrayBuffer::getOwnPropertyDescriptor(
-    JSObject* object, ExecState* exec, PropertyName propertyName,
-    PropertyDescriptor& descriptor)
-{
-    JSArrayBuffer* thisObject = jsCast<JSArrayBuffer*>(object);
-    
-    if (propertyName == exec->propertyNames().byteLength) {
-        descriptor.setDescriptor(
-            jsNumber(thisObject->impl()->byteLength()), DontDelete | ReadOnly);
-        return true;
-    }
-    
-    return Base::getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSArrayBuffer)
 
 void JSArrayBuffer::put(
     JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value,

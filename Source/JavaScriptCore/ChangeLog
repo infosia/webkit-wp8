@@ -1,3 +1,300 @@
+2013-08-18  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119995
+        Start removing custom implementations of getOwnPropertyDescriptor
+
+        Reviewed by Sam Weinig.
+
+        This can now typically implemented in terms of getOwnPropertySlot.
+        Add a macro to PropertyDescriptor to define an implementation of GOPD in terms of GOPS.
+        Switch over most classes in JSC & the WebCore bindings generator to use this.
+
+        * API/JSCallbackObjectFunctions.h:
+        * debugger/DebuggerActivation.cpp:
+        * runtime/Arguments.cpp:
+        * runtime/ArrayConstructor.cpp:
+        * runtime/ArrayPrototype.cpp:
+        * runtime/BooleanPrototype.cpp:
+        * runtime/DateConstructor.cpp:
+        * runtime/DatePrototype.cpp:
+        * runtime/ErrorPrototype.cpp:
+        * runtime/JSActivation.cpp:
+        * runtime/JSArray.cpp:
+        * runtime/JSArrayBuffer.cpp:
+        * runtime/JSArrayBufferView.cpp:
+        * runtime/JSCell.cpp:
+        * runtime/JSDataView.cpp:
+        * runtime/JSDataViewPrototype.cpp:
+        * runtime/JSFunction.cpp:
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        * runtime/JSNotAnObject.cpp:
+        * runtime/JSONObject.cpp:
+        * runtime/JSObject.cpp:
+        * runtime/NamePrototype.cpp:
+        * runtime/NumberConstructor.cpp:
+        * runtime/NumberPrototype.cpp:
+        * runtime/ObjectConstructor.cpp:
+            - Implement getOwnPropertySlot in terms of GET_OWN_PROPERTY_DESCRIPTOR_IMPL.
+        * runtime/PropertyDescriptor.h:
+            - Added GET_OWN_PROPERTY_DESCRIPTOR_IMPL macro.
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::isValue):
+        (JSC::PropertySlot::isGetter):
+        (JSC::PropertySlot::isCustom):
+        (JSC::PropertySlot::isCacheableValue):
+        (JSC::PropertySlot::isCacheableGetter):
+        (JSC::PropertySlot::isCacheableCustom):
+        (JSC::PropertySlot::attributes):
+        (JSC::PropertySlot::getterSetter):
+            - Add accessors necessary to convert PropertySlot to descriptor.
+        * runtime/RegExpConstructor.cpp:
+        * runtime/RegExpMatchesArray.cpp:
+        * runtime/RegExpMatchesArray.h:
+        * runtime/RegExpObject.cpp:
+        * runtime/RegExpPrototype.cpp:
+        * runtime/StringConstructor.cpp:
+        * runtime/StringObject.cpp:
+            - Implement getOwnPropertySlot in terms of GET_OWN_PROPERTY_DESCRIPTOR_IMPL.
+
+2013-08-19  Michael Saboff  <msaboff@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=120020 Change Set 154207 causes wrong register to be used for 32 bit tests
+
+        Reviewed by Benjamin Poulain.
+
+        Change branshTest32 to only use the byte for 8 bit test on the lower 4 registers.
+        Registers 4 through 7 as byte regisers are ah, ch, dh and bh instead of sp, bp, si and di.
+
+        * assembler/MacroAssemblerX86Common.h:
+        (JSC::MacroAssemblerX86Common::branchTest32):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateCell):
+
+2013-08-16  Oliver Hunt  <oliver@apple.com>
+
+        <https://webkit.org/b/119860> Crash during exception unwinding
+
+        Reviewed by Filip Pizlo.
+
+        Add an "Unreachable" NodeType, and then rearrange op_throw and op_throw_reference_error
+        to plant Throw or ThrowReferenceError followed by a flush and then the Unreachable node.
+
+        We need this so that Throw and ThrowReferenceError no longer need to be treated as
+        terminals and the subsequent flush keeps the activation (and other registers) live.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::isTerminal):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::propagate):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+
+2013-08-19  Víctor Manuel Jáquez Leal  <vjaquez@igalia.com>
+
+        <https://webkit.org/b/120008> [GTK][ARM] javascriptcore compilation is broken
+
+        Reviewed by Oliver Hunt.
+
+        Guard the compilation of these files only if DFG_JIT is enabled.
+
+        * dfg/DFGDesiredTransitions.cpp:
+        * dfg/DFGDesiredTransitions.h:
+        * dfg/DFGDesiredWeakReferences.cpp:
+        * dfg/DFGDesiredWeakReferences.h:
+        * dfg/DFGDesiredWriteBarriers.cpp:
+        * dfg/DFGDesiredWriteBarriers.h:
+
+2013-08-17  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(r154218): DFG::FixupPhase no longer turns GetById's child1 into CellUse
+        https://bugs.webkit.org/show_bug.cgi?id=119961
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+
+2013-08-18  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119972
+        Add attributes field to PropertySlot
+
+        Reviewed by Geoff Garen.
+
+        For all JSC types, this makes getOwnPropertyDescriptor redundant.
+        There will be a bit more hacking required in WebCore to remove GOPD whilst maintaining current behaviour.
+        (Current behaviour is in many ways broken, particularly in that GOPD & GOPS are inconsistent, but we should fix incrementally).
+
+        No performance impact.
+
+        * runtime/PropertySlot.h:
+        (JSC::PropertySlot::setValue):
+        (JSC::PropertySlot::setCustom):
+        (JSC::PropertySlot::setCacheableCustom):
+        (JSC::PropertySlot::setCustomIndex):
+        (JSC::PropertySlot::setGetterSlot):
+        (JSC::PropertySlot::setCacheableGetterSlot):
+            - These mathods now all require 'attributes'.
+        * runtime/JSObject.h:
+        (JSC::JSObject::getDirect):
+        (JSC::JSObject::getDirectOffset):
+        (JSC::JSObject::inlineGetOwnPropertySlot):
+            - Added variants of getDirect, getDirectOffset that return the attributes.
+        * API/JSCallbackObjectFunctions.h:
+        (JSC::::getOwnPropertySlot):
+        * runtime/Arguments.cpp:
+        (JSC::Arguments::getOwnPropertySlotByIndex):
+        (JSC::Arguments::getOwnPropertySlot):
+        * runtime/JSActivation.cpp:
+        (JSC::JSActivation::symbolTableGet):
+        (JSC::JSActivation::getOwnPropertySlot):
+        * runtime/JSArray.cpp:
+        (JSC::JSArray::getOwnPropertySlot):
+        * runtime/JSArrayBuffer.cpp:
+        (JSC::JSArrayBuffer::getOwnPropertySlot):
+        * runtime/JSArrayBufferView.cpp:
+        (JSC::JSArrayBufferView::getOwnPropertySlot):
+        * runtime/JSDataView.cpp:
+        (JSC::JSDataView::getOwnPropertySlot):
+        * runtime/JSFunction.cpp:
+        (JSC::JSFunction::getOwnPropertySlot):
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::::getOwnPropertySlot):
+        (JSC::::getOwnPropertySlotByIndex):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::getOwnPropertySlotByIndex):
+        (JSC::JSObject::fillGetterPropertySlot):
+        * runtime/JSString.h:
+        (JSC::JSString::getStringPropertySlot):
+        * runtime/JSSymbolTableObject.h:
+        (JSC::symbolTableGet):
+        * runtime/Lookup.cpp:
+        (JSC::setUpStaticFunctionSlot):
+        * runtime/Lookup.h:
+        (JSC::getStaticPropertySlot):
+        (JSC::getStaticPropertyDescriptor):
+        (JSC::getStaticValueSlot):
+        (JSC::getStaticValueDescriptor):
+        * runtime/RegExpObject.cpp:
+        (JSC::RegExpObject::getOwnPropertySlot):
+        * runtime/SparseArrayValueMap.cpp:
+        (JSC::SparseArrayEntry::get):
+            - Pass attributes to PropertySlot::set* methods.
+
+2013-08-17  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        <https://webkit.org/b/119919> Concurrent JIT crashes in various fast/js/dfg-* tests while the main thread is setting innerHTML
+
+        Reviewed by Filip Pizlo.
+
+        Added a new mode for DesiredWriteBarrier that allows it to track a position in a 
+        Vector of WriteBarriers rather than the specific address. The fact that we were 
+        arbitrarily storing into a Vector's backing store for constants at the end of 
+        compilation after the Vector could have resized was causing crashes.
+
+        * bytecode/CodeBlock.h:
+        (JSC::CodeBlock::constants):
+        (JSC::CodeBlock::addConstantLazily):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::addConstant):
+        * dfg/DFGDesiredWriteBarriers.cpp:
+        (JSC::DFG::DesiredWriteBarrier::DesiredWriteBarrier):
+        (JSC::DFG::DesiredWriteBarrier::trigger):
+        (JSC::DFG::initializeLazyWriteBarrierForConstant):
+        * dfg/DFGDesiredWriteBarriers.h:
+        (JSC::DFG::DesiredWriteBarriers::add):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::truncateConstantToInt32):
+        * dfg/DFGGraph.h:
+        (JSC::DFG::Graph::constantRegisterForConstant):
+
+2013-08-16  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG should optimize typedArray.byteLength
+        https://bugs.webkit.org/show_bug.cgi?id=119909
+
+        Reviewed by Oliver Hunt.
+        
+        This adds typedArray.byteLength inlining to the DFG, and does so without changing
+        the IR: byteLength is turned into GetArrayLength followed by BitLShift. This is
+        legal since the byteLength of a typed array cannot exceed
+        numeric_limits<int32_t>::max().
+
+        * bytecode/SpeculatedType.cpp:
+        (JSC::typedArrayTypeFromSpeculation):
+        * bytecode/SpeculatedType.h:
+        * dfg/DFGArrayMode.cpp:
+        (JSC::DFG::toArrayType):
+        * dfg/DFGArrayMode.h:
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::attemptToMakeGetArrayLength):
+        (JSC::DFG::FixupPhase::attemptToMakeGetByteLength):
+        (JSC::DFG::FixupPhase::convertToGetArrayLength):
+        (JSC::DFG::FixupPhase::prependGetArrayLength):
+        * dfg/DFGGraph.h:
+        (JSC::DFG::Graph::constantRegisterForConstant):
+        (JSC::DFG::Graph::convertToConstant):
+        * runtime/TypedArrayType.h:
+        (JSC::logElementSize):
+        (JSC::elementSize):
+
+2013-08-16  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG optimizes out strict mode arguments tear off
+        https://bugs.webkit.org/show_bug.cgi?id=119504
+
+        Reviewed by Mark Hahnenberg and Oliver Hunt.
+        
+        Don't do the optimization for strict mode.
+
+        * dfg/DFGArgumentsSimplificationPhase.cpp:
+        (JSC::DFG::ArgumentsSimplificationPhase::run):
+        (JSC::DFG::ArgumentsSimplificationPhase::pruneObviousArgumentCreations):
+
+2013-08-16  Benjamin Poulain  <benjamin@webkit.org>
+
+        [JSC] x86: improve code generation for xxxTest32
+        https://bugs.webkit.org/show_bug.cgi?id=119876
+
+        Reviewed by Geoffrey Garen.
+
+        Try to use testb whenever possible when testing for an immediate value.
+
+        When the input is an address and an offset, we can tweak the mask
+        and offset to be able to generate testb for any byte of the mask.
+
+        When the input is a register, we can use testb if we are only interested
+        in testing the low bits.
+
+        * assembler/MacroAssemblerX86Common.h:
+        (JSC::MacroAssemblerX86Common::branchTest32):
+        (JSC::MacroAssemblerX86Common::test32):
+        (JSC::MacroAssemblerX86Common::generateTest32):
+
+2013-08-16  Mark Lam  <mark.lam@apple.com>
+
+        <https://bugs.webkit.org/show_bug.cgi?id=119913> Baseline JIT gives erroneous
+        error message that an object is not a constructor though it expects a function
+
+        Reviewed by Michael Saboff.
+
+        * jit/JITStubs.cpp:
+        (JSC::DEFINE_STUB_FUNCTION):
+
 2013-08-16  Filip Pizlo  <fpizlo@apple.com>
 
         Object properties added using dot syntax (o.f = ...) from code that isn't in eval should be less likely to cause an object to become a dictionary

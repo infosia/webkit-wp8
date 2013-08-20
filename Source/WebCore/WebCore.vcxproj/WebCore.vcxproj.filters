@@ -1227,9 +1227,6 @@
     <ClCompile Include="..\platform\win\ClipboardUtilitiesWin.cpp">
       <Filter>platform\win</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\win\ClipboardWin.cpp">
-      <Filter>platform\win</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\win\ContextMenuItemWin.cpp">
       <Filter>platform\win</Filter>
     </ClCompile>
@@ -1255,9 +1252,6 @@
       <Filter>platform\win</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\win\DragImageWin.cpp">
-      <Filter>platform\win</Filter>
-    </ClCompile>
-    <ClCompile Include="..\platform\win\EditorWin.cpp">
       <Filter>platform\win</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\win\EventLoopWin.cpp">
@@ -8314,9 +8308,6 @@
     <ClInclude Include="..\platform\win\ClipboardUtilitiesWin.h">
       <Filter>platform\win</Filter>
     </ClInclude>
-    <ClInclude Include="..\platform\win\ClipboardWin.h">
-      <Filter>platform\win</Filter>
-    </ClInclude>
     <ClInclude Include="..\platform\win\COMPtr.h">
       <Filter>platform\win</Filter>
     </ClInclude>
@@ -14822,6 +14813,9 @@
     <ClInclude Include="..\css\CSSFilterImageValue.h" />
     <ClInclude Include="..\platform\win\WebCoreBundleWin.h">
       <Filter>platform\win</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\graphics\ca\PlatformCAFilters.h">
+      <Filter>platform\graphics\ca</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

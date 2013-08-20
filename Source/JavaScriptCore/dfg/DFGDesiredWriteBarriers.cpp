@@ -24,21 +24,47 @@
  */
 
 #include "config.h"
+
+#if ENABLE(DFG_JIT)
+
 #include "DFGDesiredWriteBarriers.h"
 
+#include "CodeBlock.h"
 #include "JSCJSValueInlines.h"
 
 namespace JSC { namespace DFG {
 
 DesiredWriteBarrier::DesiredWriteBarrier(WriteBarrier<Unknown>* barrier, JSCell* owner)
-    : m_barrier(barrier)
-    , m_owner(owner)
+    : m_owner(owner)
+    , m_type(NormalType)
 {
+    u.m_barrier = barrier;
+}
+
+DesiredWriteBarrier::DesiredWriteBarrier(Vector<WriteBarrier<Unknown> >* barriers, unsigned index, JSCell* owner)
+    : m_owner(owner)
+    , m_type(VectorType)
+{
+    u.barrier_vector.m_barriers = barriers;
+    u.barrier_vector.m_index = index;
 }
 
 void DesiredWriteBarrier::trigger(VM& vm)
 {
-    m_barrier->set(vm, m_owner, m_barrier->get());
+    switch (m_type) {
+    case NormalType: {
+        u.m_barrier->set(vm, m_owner, u.m_barrier->get());
+        break;
+    }
+
+    case VectorType: {
+        unsigned index = u.barrier_vector.m_index;
+        WriteBarrier<Unknown>& barrier = u.barrier_vector.m_barriers->at(index);
+        barrier.set(vm, m_owner, barrier.get());
+        break;
+    }
+
+    }
 }
 
 DesiredWriteBarriers::DesiredWriteBarriers()
@@ -61,4 +87,14 @@ void DesiredWriteBarriers::trigger(VM& vm)
         m_barriers[i].trigger(vm);
 }
 
+void initializeLazyWriteBarrierForConstant(CodeBlock* codeBlock, DesiredWriteBarriers& barriers, JSCell* owner, JSValue value)
+{
+    unsigned constantIndex = codeBlock->addConstantLazily();
+    WriteBarrier<Unknown>& barrier = codeBlock->constants()[constantIndex];
+    barrier = WriteBarrier<Unknown>(
+        barriers.add(codeBlock->constants(), constantIndex, owner), value);
+}
+
 } } // namespace JSC::DFG
+
+#endif // ENABLE(DFG_JIT)

@@ -65,25 +65,14 @@ bool RuntimeMethod::getOwnPropertySlot(JSObject* object, ExecState* exec, Proper
 {
     RuntimeMethod* thisObject = jsCast<RuntimeMethod*>(object);
     if (propertyName == exec->propertyNames().length) {
-        slot.setCacheableCustom(thisObject, thisObject->lengthGetter);
+        slot.setCacheableCustom(thisObject, DontDelete | ReadOnly | DontEnum, thisObject->lengthGetter);
         return true;
     }
     
     return InternalFunction::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-bool RuntimeMethod::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor &descriptor)
-{
-    RuntimeMethod* thisObject = jsCast<RuntimeMethod*>(object);
-    if (propertyName == exec->propertyNames().length) {
-        PropertySlot slot(thisObject);
-        slot.setCustom(thisObject, lengthGetter);
-        descriptor.setDescriptor(slot.getValue(exec, propertyName), ReadOnly | DontDelete | DontEnum);
-        return true;
-    }
-    
-    return InternalFunction::getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(RuntimeMethod)
 
 static EncodedJSValue JSC_HOST_CALL callRuntimeMethod(ExecState* exec)
 {

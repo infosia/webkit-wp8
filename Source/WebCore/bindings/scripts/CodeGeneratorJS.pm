@@ -361,7 +361,7 @@ sub GenerateGetOwnPropertySlotBody
         if ($requiresManualLookup) {
             push(@getOwnPropertySlotImpl, "    const ${namespaceMaybe}HashEntry* entry = getStaticValueSlotEntryWithoutCaching<$className>(exec, propertyName);\n");
             push(@getOwnPropertySlotImpl, "    if (entry) {\n");
-            push(@getOwnPropertySlotImpl, "        slot.setCustom(thisObject, entry->propertyGetter());\n");
+            push(@getOwnPropertySlotImpl, "        slot.setCustom(thisObject, entry->attributes(), entry->propertyGetter());\n");
             push(@getOwnPropertySlotImpl, "        return true;\n");
             push(@getOwnPropertySlotImpl, "    }\n");
         }
@@ -381,10 +381,16 @@ sub GenerateGetOwnPropertySlotBody
         } else {
             push(@getOwnPropertySlotImpl, "    if (index != PropertyName::NotAnIndex && index < static_cast<$interfaceName*>(thisObject->impl())->length()) {\n");
         }
-        if ($hasNumericIndexedGetter) {
-            push(@getOwnPropertySlotImpl, "        slot.setValue(thisObject, thisObject->getByIndex(exec, index));\n");
+        # Assume that if there's a setter, the index will be writable
+        if ($interface->extendedAttributes->{"CustomIndexedSetter"}) {
+            push(@getOwnPropertySlotImpl, "        unsigned attributes = ${namespaceMaybe}DontDelete;\n");
         } else {
-            push(@getOwnPropertySlotImpl, "        slot.setCustomIndex(thisObject, index, indexGetter);\n");
+            push(@getOwnPropertySlotImpl, "        unsigned attributes = ${namespaceMaybe}DontDelete | ${namespaceMaybe}ReadOnly;\n");
+        }
+        if ($hasNumericIndexedGetter) {
+            push(@getOwnPropertySlotImpl, "        slot.setValue(thisObject, attributes, thisObject->getByIndex(exec, index));\n");
+        } else {
+            push(@getOwnPropertySlotImpl, "        slot.setCustomIndex(thisObject, attributes, index, indexGetter);\n");
         }
         push(@getOwnPropertySlotImpl, "        return true;\n");
         push(@getOwnPropertySlotImpl, "    }\n");
@@ -392,7 +398,7 @@ sub GenerateGetOwnPropertySlotBody
 
     if ($namedGetterFunction || $interface->extendedAttributes->{"CustomNamedGetter"}) {
         push(@getOwnPropertySlotImpl, "    if (canGetItemsForName(exec, static_cast<$interfaceName*>(thisObject->impl()), propertyName)) {\n");
-        push(@getOwnPropertySlotImpl, "        slot.setCustom(thisObject, thisObject->nameGetter);\n");
+        push(@getOwnPropertySlotImpl, "        slot.setCustom(thisObject, ReadOnly | DontDelete | DontEnum, thisObject->nameGetter);\n");
         push(@getOwnPropertySlotImpl, "        return true;\n");
         push(@getOwnPropertySlotImpl, "    }\n");
         if ($inlined) {
@@ -423,111 +429,6 @@ sub GenerateGetOwnPropertySlotBody
     }
 
     return @getOwnPropertySlotImpl;
-}
-
-sub GenerateGetOwnPropertyDescriptorBody
-{
-    my ($interface, $interfaceName, $className, $hasAttributes, $inlined) = @_;
-    
-    my $namespaceMaybe = ($inlined ? "JSC::" : "");
-    my $namedGetterFunction = GetNamedGetterFunction($interface);
-    my $indexedGetterFunction = GetIndexedGetterFunction($interface);
-    my $hasNumericIndexedGetter = $indexedGetterFunction ? $codeGenerator->IsNumericType($indexedGetterFunction->signature->type) : 0;
-
-    
-    my @getOwnPropertyDescriptorImpl = ();
-    if ($interface->extendedAttributes->{"CheckSecurity"}) {
-        if ($interfaceName eq "DOMWindow") {
-            $implIncludes{"BindingSecurity.h"} = 1;
-            push(@implContent, "    if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, jsCast<$className*>(thisObject)->impl()))\n");
-        } else {
-            push(@implContent, "    if (!shouldAllowAccessToFrame(exec, thisObject->impl()->frame()))\n");
-        }
-        push(@implContent, "        return false;\n");
-    }
-    
-    if ($interfaceName eq "NamedNodeMap" or $interfaceName =~ /^HTML\w*Collection$/) {
-        push(@getOwnPropertyDescriptorImpl, "    ${namespaceMaybe}JSValue proto = thisObject->prototype();\n");
-        push(@getOwnPropertyDescriptorImpl, "    if (proto.isObject() && jsCast<${namespaceMaybe}JSObject*>(asObject(proto))->hasProperty(exec, propertyName))\n");
-        push(@getOwnPropertyDescriptorImpl, "        return false;\n\n");
-    }
-    
-    my $manualLookupGetterGeneration = sub {
-        my $requiresManualLookup = ($indexedGetterFunction && !$hasNumericIndexedGetter) || $namedGetterFunction;
-        if ($requiresManualLookup) {
-            push(@getOwnPropertyDescriptorImpl, "    const ${namespaceMaybe}HashEntry* entry = ${className}Table.entry(exec, propertyName);\n");
-            push(@getOwnPropertyDescriptorImpl, "    if (entry) {\n");
-            push(@getOwnPropertyDescriptorImpl, "        PropertySlot slot(thisObject);\n");
-            push(@getOwnPropertyDescriptorImpl, "        slot.setCustom(thisObject, entry->propertyGetter());\n");
-            push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(slot.getValue(exec, propertyName), entry->attributes());\n");
-            push(@getOwnPropertyDescriptorImpl, "        return true;\n");
-            push(@getOwnPropertyDescriptorImpl, "    }\n");
-        }
-    };
-
-    if (!$interface->extendedAttributes->{"CustomNamedGetter"}) {
-        &$manualLookupGetterGeneration();
-    }
-
-    if ($indexedGetterFunction) {
-        push(@getOwnPropertyDescriptorImpl, "    unsigned index = propertyName.asIndex();\n");
-        push(@getOwnPropertyDescriptorImpl, "    if (index != PropertyName::NotAnIndex && index < static_cast<$interfaceName*>(thisObject->impl())->length()) {\n");
-        if ($hasNumericIndexedGetter) {
-            # Assume that if there's a setter, the index will be writable
-            if ($interface->extendedAttributes->{"CustomIndexedSetter"}) {
-                push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(thisObject->getByIndex(exec, index), ${namespaceMaybe}DontDelete);\n");
-            } else {
-                push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(thisObject->getByIndex(exec, index), ${namespaceMaybe}DontDelete | ${namespaceMaybe}ReadOnly);\n");
-            }
-        } else {
-            push(@getOwnPropertyDescriptorImpl, "        ${namespaceMaybe}PropertySlot slot(thisObject);\n");
-            push(@getOwnPropertyDescriptorImpl, "        slot.setCustomIndex(thisObject, index, indexGetter);\n");
-            # Assume that if there's a setter, the index will be writable
-            if ($interface->extendedAttributes->{"CustomIndexedSetter"}) {
-                push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(slot.getValue(exec, propertyName), ${namespaceMaybe}DontDelete);\n");
-            } else {
-                push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(slot.getValue(exec, propertyName), ${namespaceMaybe}DontDelete | ${namespaceMaybe}ReadOnly);\n");
-            }
-        }
-        push(@getOwnPropertyDescriptorImpl, "        return true;\n");
-        push(@getOwnPropertyDescriptorImpl, "    }\n");
-    }
-
-    if ($namedGetterFunction || $interface->extendedAttributes->{"CustomNamedGetter"}) {
-        push(@getOwnPropertyDescriptorImpl, "    if (canGetItemsForName(exec, static_cast<$interfaceName*>(thisObject->impl()), propertyName)) {\n");
-        push(@getOwnPropertyDescriptorImpl, "        ${namespaceMaybe}PropertySlot slot(thisObject);\n");
-        push(@getOwnPropertyDescriptorImpl, "        slot.setCustom(thisObject, nameGetter);\n");
-        push(@getOwnPropertyDescriptorImpl, "        descriptor.setDescriptor(slot.getValue(exec, propertyName), ReadOnly | DontDelete | DontEnum);\n");
-        push(@getOwnPropertyDescriptorImpl, "        return true;\n");
-        push(@getOwnPropertyDescriptorImpl, "    }\n");
-        if ($inlined) {
-            $headerIncludes{"wtf/text/AtomicString.h"} = 1;
-        } else {
-            $implIncludes{"wtf/text/AtomicString.h"} = 1;
-        }
-    }
-
-    if ($interface->extendedAttributes->{"CustomNamedGetter"}) {
-        &$manualLookupGetterGeneration();
-    }
-
-    if ($interface->extendedAttributes->{"JSCustomGetOwnPropertySlotAndDescriptor"}) {
-        push(@getOwnPropertyDescriptorImpl, "    if (thisObject->getOwnPropertyDescriptorDelegate(exec, propertyName, descriptor))\n");
-        push(@getOwnPropertyDescriptorImpl, "        return true;\n");
-    }
-
-    if ($hasAttributes) {
-        if ($inlined) {
-            die "Cannot inline if NoStaticTables is set." if ($interface->extendedAttributes->{"JSNoStaticTables"});
-            push(@getOwnPropertyDescriptorImpl, "    return ${namespaceMaybe}getStaticValueDescriptor<$className, Base>(exec, info()->staticPropHashTable, thisObject, propertyName, descriptor);\n");
-        } else {
-            push(@getOwnPropertyDescriptorImpl, "    return ${namespaceMaybe}getStaticValueDescriptor<$className, Base>(exec, " . hashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $className) . ", thisObject, propertyName, descriptor);\n");
-        }
-    } else {
-        push(@getOwnPropertyDescriptorImpl, "    return Base::getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);\n");
-    }
-    
-    return @getOwnPropertyDescriptorImpl;
 }
 
 sub GenerateHeaderContentHeader
@@ -788,7 +689,6 @@ sub GenerateHeader
         push(@headerContent, "    static bool getOwnPropertyDescriptor(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertyDescriptor&);\n");
         push(@headerContent, "    static bool getOwnPropertySlotByIndex(JSC::JSObject*, JSC::ExecState*, unsigned propertyName, JSC::PropertySlot&);\n") if ($hasComplexGetter);
         push(@headerContent, "    bool getOwnPropertySlotDelegate(JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);\n") if $interface->extendedAttributes->{"JSCustomGetOwnPropertySlotAndDescriptor"};
-        push(@headerContent, "    bool getOwnPropertyDescriptorDelegate(JSC::ExecState*, JSC::PropertyName, JSC::PropertyDescriptor&);\n") if $interface->extendedAttributes->{"JSCustomGetOwnPropertySlotAndDescriptor"};
         $structureFlags{"JSC::OverridesGetOwnPropertySlot"} = 1;
         $structureFlags{"JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero"} = 1;
     }
@@ -1005,12 +905,6 @@ sub GenerateHeader
         push(@headerContent, "    ${className}* thisObject = JSC::jsCast<${className}*>(object);\n");
         push(@headerContent, "    ASSERT_GC_OBJECT_INHERITS(thisObject, info());\n");
         push(@headerContent, GenerateGetOwnPropertySlotBody($interface, $interfaceName, $className, $numAttributes > 0, 1));
-        push(@headerContent, "}\n\n");
-        push(@headerContent, "ALWAYS_INLINE bool ${className}::getOwnPropertyDescriptor(JSC::JSObject* object, JSC::ExecState* exec, JSC::PropertyName propertyName, JSC::PropertyDescriptor& descriptor)\n");
-        push(@headerContent, "{\n");
-        push(@headerContent, "    ${className}* thisObject = JSC::jsCast<${className}*>(object);\n");
-        push(@headerContent, "    ASSERT_GC_OBJECT_INHERITS(thisObject, info());\n");
-        push(@headerContent, GenerateGetOwnPropertyDescriptorBody($interface, $interfaceName, $className, $numAttributes > 0, 1));
         push(@headerContent, "}\n\n");
     }
 
@@ -1764,20 +1658,7 @@ sub GenerateImplementation
         }
         push(@implContent, "}\n\n");
 
-        push(@implContent, "bool ${className}Prototype::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)\n");
-        push(@implContent, "{\n");
-        push(@implContent, "    ${className}Prototype* thisObject = jsCast<${className}Prototype*>(object);\n");
-
-        if ($numConstants eq 0 && $numFunctions eq 0) {
-            push(@implContent, "    return Base::getOwnPropertyDescriptor(thisObject, exec, propertyName, descriptor);\n");        
-        } elsif ($numConstants eq 0) {
-            push(@implContent, "    return getStaticFunctionDescriptor<JSObject>(exec, " . prototypeHashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $className) . ", thisObject, propertyName, descriptor);\n");
-        } elsif ($numFunctions eq 0) {
-            push(@implContent, "    return getStaticValueDescriptor<${className}Prototype, JSObject>(exec, " . prototypeHashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $className) . ", thisObject, propertyName, descriptor);\n");
-        } else {
-            push(@implContent, "    return getStaticPropertyDescriptor<${className}Prototype, JSObject>(exec, " . prototypeHashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $className) . ", thisObject, propertyName, descriptor);\n");
-        }
-        push(@implContent, "}\n\n");
+        push(@implContent, "GET_OWN_PROPERTY_DESCRIPTOR_IMPL(${className}Prototype)\n\n");
     }
 
     if ($interface->extendedAttributes->{"JSCustomNamedGetterOnPrototype"}) {
@@ -1894,19 +1775,16 @@ sub GenerateImplementation
 
     # Attributes
     if ($hasGetter) {
-        if (!$interface->extendedAttributes->{"JSInlineGetOwnPropertySlot"} && !$interface->extendedAttributes->{"CustomGetOwnPropertySlot"}) {
-            push(@implContent, "bool ${className}::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)\n");
-            push(@implContent, "{\n");
-            push(@implContent, "    ${className}* thisObject = jsCast<${className}*>(object);\n");
-            push(@implContent, "    ASSERT_GC_OBJECT_INHERITS(thisObject, info());\n");
-            push(@implContent, GenerateGetOwnPropertySlotBody($interface, $interfaceName, $className, $numAttributes > 0, 0));
-            push(@implContent, "}\n\n");
-            push(@implContent, "bool ${className}::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)\n");
-            push(@implContent, "{\n");
-            push(@implContent, "    ${className}* thisObject = jsCast<${className}*>(object);\n");
-            push(@implContent, "    ASSERT_GC_OBJECT_INHERITS(thisObject, info());\n");
-            push(@implContent, GenerateGetOwnPropertyDescriptorBody($interface, $interfaceName, $className, $numAttributes > 0, 0));
-            push(@implContent, "}\n\n");
+        if (!$interface->extendedAttributes->{"CustomGetOwnPropertySlot"}) {
+            if (!$interface->extendedAttributes->{"JSInlineGetOwnPropertySlot"}) {
+                push(@implContent, "bool ${className}::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)\n");
+                push(@implContent, "{\n");
+                push(@implContent, "    ${className}* thisObject = jsCast<${className}*>(object);\n");
+                push(@implContent, "    ASSERT_GC_OBJECT_INHERITS(thisObject, info());\n");
+                push(@implContent, GenerateGetOwnPropertySlotBody($interface, $interfaceName, $className, $numAttributes > 0, 0));
+                push(@implContent, "}\n\n");
+            }
+            push(@implContent, "GET_OWN_PROPERTY_DESCRIPTOR_IMPL(${className})\n\n");
         }
 
         if ($indexedGetterFunction || $namedGetterFunction
@@ -1934,10 +1812,16 @@ sub GenerateImplementation
                 } else {
                     push(@implContent, "    if (index < static_cast<$interfaceName*>(thisObject->impl())->length()) {\n");
                 }
-                if ($hasNumericIndexedGetter) {
-                    push(@implContent, "        slot.setValue(thisObject, thisObject->getByIndex(exec, index));\n");
+                # Assume that if there's a setter, the index will be writable
+                if ($interface->extendedAttributes->{"CustomIndexedSetter"}) {
+                    push(@implContent, "        unsigned attributes = DontDelete;\n");
                 } else {
-                    push(@implContent, "        slot.setCustomIndex(thisObject, index, thisObject->indexGetter);\n");
+                    push(@implContent, "        unsigned attributes = DontDelete | ReadOnly;\n");
+                }
+                if ($hasNumericIndexedGetter) {
+                    push(@implContent, "        slot.setValue(thisObject, attributes, thisObject->getByIndex(exec, index));\n");
+                } else {
+                    push(@implContent, "        slot.setCustomIndex(thisObject, attributes, index, thisObject->indexGetter);\n");
                 }
                 push(@implContent, "        return true;\n");
                 push(@implContent, "    }\n");
@@ -1946,7 +1830,7 @@ sub GenerateImplementation
             if ($namedGetterFunction || $interface->extendedAttributes->{"CustomNamedGetter"}) {
                 &$propertyNameGeneration();
                 push(@implContent, "    if (canGetItemsForName(exec, static_cast<$interfaceName*>(thisObject->impl()), propertyName)) {\n");
-                push(@implContent, "        slot.setCustom(thisObject, thisObject->nameGetter);\n");
+                push(@implContent, "        slot.setCustom(thisObject, ReadOnly | DontDelete | DontEnum, thisObject->nameGetter);\n");
                 push(@implContent, "        return true;\n");
                 push(@implContent, "    }\n");
                 $implIncludes{"wtf/text/AtomicString.h"} = 1;
@@ -1994,8 +1878,10 @@ sub GenerateImplementation
                         AddToImplIncludes("Frame.h");
                         AddToImplIncludes("Settings.h");
                         my $enable_function = ToMethodName($attribute->signature->extendedAttributes->{"EnabledBySetting"}) . "Enabled";
-                        push(@implContent, "    Settings* settings = castedThis->impl()->frame() ? castedThis->impl()->frame()->settings() : 0;\n");
-                        push(@implContent, "    if (!settings || !settings->$enable_function())\n");
+                        push(@implContent, "    if (!castedThis->impl()->frame())\n");
+                        push(@implContent, "        return jsUndefined();\n");
+                        push(@implContent, "    Settings& settings = castedThis->impl()->frame()->settings();\n");
+                        push(@implContent, "    if (!settings.$enable_function())\n");
                         push(@implContent, "        return jsUndefined();\n");
                     }
                 }
@@ -4228,10 +4114,7 @@ sub GenerateConstructorHelperMethods
         push(@$outputArray, "    return getStatic${kind}Slot<${constructorClassName}, JSDOMWrapper>(exec, " . constructorHashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $constructorClassName) . ", jsCast<${constructorClassName}*>(object), propertyName, slot);\n");
         push(@$outputArray, "}\n\n");
 
-        push(@$outputArray, "bool ${constructorClassName}::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)\n");
-        push(@$outputArray, "{\n");
-        push(@$outputArray, "    return getStatic${kind}Descriptor<${constructorClassName}, JSDOMWrapper>(exec, " . constructorHashTableAccessor($interface->extendedAttributes->{"JSNoStaticTables"}, $constructorClassName) . ", jsCast<${constructorClassName}*>(object), propertyName, descriptor);\n");
-        push(@$outputArray, "}\n\n");
+        push(@$outputArray, "GET_OWN_PROPERTY_DESCRIPTOR_IMPL(${constructorClassName})\n\n");
     }
 
     if (IsConstructable($interface)) {

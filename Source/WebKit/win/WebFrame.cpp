@@ -518,7 +518,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::currentForm(
     *currentForm = 0;
 
     if (Frame* coreFrame = core(this)) {
-        if (HTMLFormElement* formElement = coreFrame->selection()->currentForm())
+        if (HTMLFormElement* formElement = coreFrame->selection().currentForm())
             *currentForm = DOMElement::createInstance(formElement);
     }
 
@@ -1882,8 +1882,7 @@ void WebFrame::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld* world)
     Frame* coreFrame = core(this);
     ASSERT(coreFrame);
 
-    Settings* settings = coreFrame->settings();
-    if (!settings || !settings->isScriptEnabled())
+    if (!coreFrame->settings().isScriptEnabled())
         return;
 
     COMPtr<IWebFrameLoadDelegate> frameLoadDelegate;

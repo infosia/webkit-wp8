@@ -330,24 +330,9 @@ bool JSCSSStyleDeclaration::getOwnPropertySlotDelegate(ExecState*, PropertyName 
         return false;
 
     if (propertyInfo.hadPixelOrPosPrefix)
-        slot.setCustomIndex(this, static_cast<unsigned>(propertyInfo.propertyID), cssPropertyGetterPixelOrPosPrefixCallback);
+        slot.setCustomIndex(this, ReadOnly | DontDelete | DontEnum, static_cast<unsigned>(propertyInfo.propertyID), cssPropertyGetterPixelOrPosPrefixCallback);
     else
-        slot.setCustomIndex(this, static_cast<unsigned>(propertyInfo.propertyID), cssPropertyGetterCallback);
-    return true;
-}
-
-bool JSCSSStyleDeclaration::getOwnPropertyDescriptorDelegate(JSC::ExecState* exec, JSC::PropertyName propertyIdentifier, JSC::PropertyDescriptor& descriptor)
-{
-    CSSPropertyInfo propertyInfo = cssPropertyIDForJSCSSPropertyName(propertyIdentifier);
-    if (!propertyInfo.propertyID)
-        return false;
-
-    JSValue value;
-    if (propertyInfo.hadPixelOrPosPrefix)
-        value = cssPropertyGetterPixelOrPosPrefix(exec, this, propertyInfo.propertyID);
-    else
-        value = cssPropertyGetter(exec, this, propertyInfo.propertyID);
-    descriptor.setDescriptor(value, ReadOnly | DontDelete | DontEnum);
+        slot.setCustomIndex(this, ReadOnly | DontDelete | DontEnum, static_cast<unsigned>(propertyInfo.propertyID), cssPropertyGetterCallback);
     return true;
 }
 

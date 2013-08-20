@@ -210,10 +210,6 @@ void Pasteboard::writePlainText(const String&, SmartReplaceOption)
 {
 }
 
-void Pasteboard::writeClipboard(Clipboard*)
-{
-}
-
 void Pasteboard::writePasteboard(const Pasteboard&)
 {
 }
@@ -388,7 +384,7 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragmentForPasteboardItemAtInde
             NSURL *url = (NSURL *)value;
 
             if (!frame->editor().client()->hasRichlyEditableSelection()) {
-                fragment = createFragmentFromText(frame->selection()->toNormalizedRange().get(), [url absoluteString]);
+                fragment = createFragmentFromText(frame->selection().toNormalizedRange().get(), [url absoluteString]);
                 if (fragment)
                     return fragment.release();
             }
@@ -418,7 +414,7 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragmentForPasteboardItemAtInde
             }
 
             chosePlainText = true;
-            fragment = createFragmentFromText(frame->selection()->toNormalizedRange().get(), (NSString*)value);
+            fragment = createFragmentFromText(frame->selection().toNormalizedRange().get(), (NSString*)value);
             if (fragment)
                 return fragment.release();
         }

@@ -75,10 +75,7 @@ bool JSTestEventTargetConstructor::getOwnPropertySlot(JSObject* object, ExecStat
     return getStaticValueSlot<JSTestEventTargetConstructor, JSDOMWrapper>(exec, &JSTestEventTargetConstructorTable, jsCast<JSTestEventTargetConstructor*>(object), propertyName, slot);
 }
 
-bool JSTestEventTargetConstructor::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    return getStaticValueDescriptor<JSTestEventTargetConstructor, JSDOMWrapper>(exec, &JSTestEventTargetConstructorTable, jsCast<JSTestEventTargetConstructor*>(object), propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSTestEventTargetConstructor)
 
 /* Hash table for prototype */
 
@@ -105,11 +102,7 @@ bool JSTestEventTargetPrototype::getOwnPropertySlot(JSObject* object, ExecState*
     return getStaticFunctionSlot<JSObject>(exec, &JSTestEventTargetPrototypeTable, thisObject, propertyName, slot);
 }
 
-bool JSTestEventTargetPrototype::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    JSTestEventTargetPrototype* thisObject = jsCast<JSTestEventTargetPrototype*>(object);
-    return getStaticFunctionDescriptor<JSObject>(exec, &JSTestEventTargetPrototypeTable, thisObject, propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSTestEventTargetPrototype)
 
 const ClassInfo JSTestEventTarget::s_info = { "TestEventTarget", &Base::s_info, &JSTestEventTargetTable, 0 , CREATE_METHOD_TABLE(JSTestEventTarget) };
 
@@ -147,59 +140,36 @@ bool JSTestEventTarget::getOwnPropertySlot(JSObject* object, ExecState* exec, Pr
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
     const HashEntry* entry = getStaticValueSlotEntryWithoutCaching<JSTestEventTarget>(exec, propertyName);
     if (entry) {
-        slot.setCustom(thisObject, entry->propertyGetter());
+        slot.setCustom(thisObject, entry->attributes(), entry->propertyGetter());
         return true;
     }
     unsigned index = propertyName.asIndex();
     if (index != PropertyName::NotAnIndex && index < static_cast<TestEventTarget*>(thisObject->impl())->length()) {
-        slot.setCustomIndex(thisObject, index, indexGetter);
+        unsigned attributes = DontDelete | ReadOnly;
+        slot.setCustomIndex(thisObject, attributes, index, indexGetter);
         return true;
     }
     if (canGetItemsForName(exec, static_cast<TestEventTarget*>(thisObject->impl()), propertyName)) {
-        slot.setCustom(thisObject, thisObject->nameGetter);
+        slot.setCustom(thisObject, ReadOnly | DontDelete | DontEnum, thisObject->nameGetter);
         return true;
     }
     return getStaticValueSlot<JSTestEventTarget, Base>(exec, &JSTestEventTargetTable, thisObject, propertyName, slot);
 }
 
-bool JSTestEventTarget::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    JSTestEventTarget* thisObject = jsCast<JSTestEventTarget*>(object);
-    ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    const HashEntry* entry = JSTestEventTargetTable.entry(exec, propertyName);
-    if (entry) {
-        PropertySlot slot(thisObject);
-        slot.setCustom(thisObject, entry->propertyGetter());
-        descriptor.setDescriptor(slot.getValue(exec, propertyName), entry->attributes());
-        return true;
-    }
-    unsigned index = propertyName.asIndex();
-    if (index != PropertyName::NotAnIndex && index < static_cast<TestEventTarget*>(thisObject->impl())->length()) {
-        PropertySlot slot(thisObject);
-        slot.setCustomIndex(thisObject, index, indexGetter);
-        descriptor.setDescriptor(slot.getValue(exec, propertyName), DontDelete | ReadOnly);
-        return true;
-    }
-    if (canGetItemsForName(exec, static_cast<TestEventTarget*>(thisObject->impl()), propertyName)) {
-        PropertySlot slot(thisObject);
-        slot.setCustom(thisObject, nameGetter);
-        descriptor.setDescriptor(slot.getValue(exec, propertyName), ReadOnly | DontDelete | DontEnum);
-        return true;
-    }
-    return getStaticValueDescriptor<JSTestEventTarget, Base>(exec, &JSTestEventTargetTable, thisObject, propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSTestEventTarget)
 
 bool JSTestEventTarget::getOwnPropertySlotByIndex(JSObject* object, ExecState* exec, unsigned index, PropertySlot& slot)
 {
     JSTestEventTarget* thisObject = jsCast<JSTestEventTarget*>(object);
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
     if (index < static_cast<TestEventTarget*>(thisObject->impl())->length()) {
-        slot.setCustomIndex(thisObject, index, thisObject->indexGetter);
+        unsigned attributes = DontDelete | ReadOnly;
+        slot.setCustomIndex(thisObject, attributes, index, thisObject->indexGetter);
         return true;
     }
     PropertyName propertyName = Identifier::from(exec, index);
     if (canGetItemsForName(exec, static_cast<TestEventTarget*>(thisObject->impl()), propertyName)) {
-        slot.setCustom(thisObject, thisObject->nameGetter);
+        slot.setCustom(thisObject, ReadOnly | DontDelete | DontEnum, thisObject->nameGetter);
         return true;
     }
     return Base::getOwnPropertySlotByIndex(thisObject, exec, index, slot);

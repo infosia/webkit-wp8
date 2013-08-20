@@ -93,21 +93,14 @@ bool RegExpObject::getOwnPropertySlot(JSObject* object, ExecState* exec, Propert
 {
     if (propertyName == exec->propertyNames().lastIndex) {
         RegExpObject* regExp = asRegExpObject(object);
-        slot.setValue(regExp, regExp->getLastIndex());
+        unsigned attributes = regExp->m_lastIndexIsWritable ? DontDelete | DontEnum : DontDelete | DontEnum | ReadOnly;
+        slot.setValue(regExp, attributes, regExp->getLastIndex());
         return true;
     }
     return getStaticValueSlot<RegExpObject, JSObject>(exec, ExecState::regExpTable(exec), jsCast<RegExpObject*>(object), propertyName, slot);
 }
 
-bool RegExpObject::getOwnPropertyDescriptor(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor)
-{
-    if (propertyName == exec->propertyNames().lastIndex) {
-        RegExpObject* regExp = asRegExpObject(object);
-        descriptor.setDescriptor(regExp->getLastIndex(), regExp->m_lastIndexIsWritable ? DontDelete | DontEnum : DontDelete | DontEnum | ReadOnly);
-        return true;
-    }
-    return getStaticValueDescriptor<RegExpObject, JSObject>(exec, ExecState::regExpTable(exec), jsCast<RegExpObject*>(object), propertyName, descriptor);
-}
+GET_OWN_PROPERTY_DESCRIPTOR_IMPL(RegExpObject)
 
 bool RegExpObject::deleteProperty(JSCell* cell, ExecState* exec, PropertyName propertyName)
 {

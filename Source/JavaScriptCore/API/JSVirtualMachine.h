@@ -32,7 +32,7 @@
 // virtual machine, with concurrent JavaScript execution supported by allocating
 // separate instances of JSVirtualMachine.
 
-NS_CLASS_AVAILABLE(10_9, NA)
+NS_CLASS_AVAILABLE(10_8, NA)
 @interface JSVirtualMachine : NSObject
 
 // Create a new JSVirtualMachine.

@@ -204,11 +204,10 @@ WebView* kit(Page* page)
     if (!page)
         return 0;
     
-    ChromeClient* chromeClient = page->chrome().client();
-    if (chromeClient->isEmptyChromeClient())
+    if (page->chrome().client().isEmptyChromeClient())
         return 0;
     
-    return static_cast<WebChromeClient*>(chromeClient)->webView();
+    return static_cast<WebChromeClient&>(page->chrome().client()).webView();
 }
 
 static inline AtomicString toAtomicString(BSTR bstr)
@@ -1334,7 +1333,7 @@ bool WebView::handleContextMenuEvent(WPARAM wParam, LPARAM lParam)
         // through the DOM so that we can detect if we create a new menu for this event, since we
         // won't create a new menu if the DOM swallows the event and the defaultEventHandler does
         // not run.
-        m_page->contextMenuController()->clearContextMenu();
+        m_page->contextMenuController().clearContextMenu();
 
         Frame* focusedFrame = m_page->focusController().focusedOrMainFrame();
         return focusedFrame->eventHandler().sendContextMenuEventForKey();
@@ -1346,7 +1345,7 @@ bool WebView::handleContextMenuEvent(WPARAM wParam, LPARAM lParam)
 
     lParam = MAKELPARAM(coords.x, coords.y);
 
-    m_page->contextMenuController()->clearContextMenu();
+    m_page->contextMenuController().clearContextMenu();
 
     IntPoint documentPoint(m_page->mainFrame()->view()->windowToContents(coords));
     HitTestResult result = m_page->mainFrame()->eventHandler().hitTestResultAtPoint(documentPoint);
@@ -1358,14 +1357,14 @@ bool WebView::handleContextMenuEvent(WPARAM wParam, LPARAM lParam)
     if (!handledEvent)
         return false;
 
-    ContextMenuController* contextMenuController = m_page->contextMenuController();
+    ContextMenuController& contextMenuController = m_page->contextMenuController();
 
     // Show the menu
-    ContextMenu* coreMenu = contextMenuController->contextMenu();
+    ContextMenu* coreMenu = contextMenuController.contextMenu();
     if (!coreMenu)
         return false;
 
-    Frame* frame = contextMenuController->hitTestResult().innerNodeFrame();
+    Frame* frame = contextMenuController.hitTestResult().innerNodeFrame();
     if (!frame)
         return false;
 
@@ -1373,7 +1372,7 @@ bool WebView::handleContextMenuEvent(WPARAM wParam, LPARAM lParam)
     if (!view)
         return false;
 
-    POINT point(view->contentsToWindow(contextMenuController->hitTestResult().roundedPointInInnerNodeFrame()));
+    POINT point(view->contentsToWindow(contextMenuController.hitTestResult().roundedPointInInnerNodeFrame()));
 
     // Translate the point to screen coordinates
     if (!::ClientToScreen(m_viewWindow, &point))
@@ -1461,13 +1460,13 @@ bool WebView::onUninitMenuPopup(WPARAM wParam, LPARAM /*lParam*/)
 
 void WebView::performContextMenuAction(WPARAM wParam, LPARAM lParam, bool byPosition)
 {
-    ContextMenu* menu = m_page->contextMenuController()->contextMenu();
+    ContextMenu* menu = m_page->contextMenuController().contextMenu();
     ASSERT(menu);
 
     ContextMenuItem* item = byPosition ? menu->itemAtIndex((unsigned)wParam) : menu->itemWithAction((ContextMenuAction)wParam);
     if (!item)
         return;
-    m_page->contextMenuController()->contextMenuItemSelected(item);
+    m_page->contextMenuController().contextMenuItemSelected(item);
 }
 
 bool WebView::handleMouseEvent(UINT message, WPARAM wParam, LPARAM lParam)
@@ -3487,7 +3486,7 @@ HRESULT STDMETHODCALLTYPE WebView::updateFocusedAndActiveState()
     bool active = m_page->focusController().isActive();
     Frame* mainFrame = m_page->mainFrame();
     Frame* focusedFrame = m_page->focusController().focusedOrMainFrame();
-    mainFrame->selection()->setFocused(active && mainFrame == focusedFrame);
+    mainFrame->selection().setFocused(active && mainFrame == focusedFrame);
 
     return S_OK;
 }
@@ -3575,7 +3574,7 @@ HRESULT STDMETHODCALLTYPE WebView::selectionRect(RECT* rc)
     WebCore::Frame* frame = m_page->focusController().focusedOrMainFrame();
 
     if (frame) {
-        IntRect ir = enclosingIntRect(frame->selection()->bounds());
+        IntRect ir = enclosingIntRect(frame->selection().bounds());
         ir = frame->view()->convertToContainingWindow(ir);
         ir.move(-frame->view()->scrollOffset().width(), -frame->view()->scrollOffset().height());
         rc->left = ir.x();
@@ -3621,7 +3620,7 @@ HRESULT STDMETHODCALLTYPE WebView::groupName(
 HRESULT STDMETHODCALLTYPE WebView::estimatedProgress( 
         /* [retval][out] */ double* estimatedProgress)
 {
-    *estimatedProgress = m_page->progress()->estimatedProgress();
+    *estimatedProgress = m_page->progress().estimatedProgress();
     return S_OK;
 }
     
@@ -3735,7 +3734,7 @@ HRESULT STDMETHODCALLTYPE WebView::centerSelectionInVisibleArea(
     if (!coreFrame)
         return E_FAIL;
 
-    coreFrame->selection()->revealSelection(ScrollAlignment::alignCenterAlways);
+    coreFrame->selection().revealSelection(ScrollAlignment::alignCenterAlways);
     return S_OK;
 }
 
@@ -4299,7 +4298,7 @@ HRESULT STDMETHODCALLTYPE WebView::styleDeclarationWithText(
 HRESULT STDMETHODCALLTYPE WebView::hasSelectedRange( 
         /* [retval][out] */ BOOL* hasSelectedRange)
 {
-    *hasSelectedRange = m_page->mainFrame()->selection()->isRange();
+    *hasSelectedRange = m_page->mainFrame()->selection().isRange();
     return S_OK;
 }
     
@@ -4388,9 +4387,9 @@ HRESULT STDMETHODCALLTYPE WebView::replaceSelectionWithNode(
 HRESULT STDMETHODCALLTYPE WebView::replaceSelectionWithText( 
         /* [in] */ BSTR text)
 {
-    Position start = m_page->mainFrame()->selection()->selection().start();
+    Position start = m_page->mainFrame()->selection().selection().start();
     m_page->focusController().focusedOrMainFrame()->editor().insertText(toString(text), 0);
-    m_page->mainFrame()->selection()->setBase(start);
+    m_page->mainFrame()->selection().setBase(start);
     return S_OK;
 }
     
@@ -4417,7 +4416,7 @@ HRESULT STDMETHODCALLTYPE WebView::deleteSelection( void)
 
 HRESULT STDMETHODCALLTYPE WebView::clearSelection( void)
 {
-    m_page->focusController().focusedOrMainFrame()->selection()->clear();
+    m_page->focusController().focusedOrMainFrame()->selection().clear();
     return S_OK;
 }
     
@@ -5186,7 +5185,7 @@ DragOperation WebView::keyStateToDragOperation(DWORD grfKeyState) const
     // IDropTarget::DragOver. Note, grfKeyState is the current 
     // state of the keyboard modifier keys on the keyboard. See:
     // <http://msdn.microsoft.com/en-us/library/ms680129(VS.85).aspx>.
-    DragOperation operation = m_page->dragController()->sourceDragOperation();
+    DragOperation operation = m_page->dragController().sourceDragOperation();
 
     if ((grfKeyState & (MK_CONTROL | MK_SHIFT)) == (MK_CONTROL | MK_SHIFT))
         operation = DragOperationLink;
@@ -5210,7 +5209,7 @@ HRESULT STDMETHODCALLTYPE WebView::DragEnter(
     ::ScreenToClient(m_viewWindow, (LPPOINT)&localpt);
     DragData data(pDataObject, IntPoint(localpt.x, localpt.y), 
         IntPoint(pt.x, pt.y), keyStateToDragOperation(grfKeyState));
-    *pdwEffect = dragOperationToDragCursor(m_page->dragController()->dragEntered(&data).operation);
+    *pdwEffect = dragOperationToDragCursor(m_page->dragController().dragEntered(&data).operation);
 
     m_lastDropEffect = *pdwEffect;
     m_dragData = pDataObject;
@@ -5229,7 +5228,7 @@ HRESULT STDMETHODCALLTYPE WebView::DragOver(
         ::ScreenToClient(m_viewWindow, (LPPOINT)&localpt);
         DragData data(m_dragData.get(), IntPoint(localpt.x, localpt.y), 
             IntPoint(pt.x, pt.y), keyStateToDragOperation(grfKeyState));
-        *pdwEffect = dragOperationToDragCursor(m_page->dragController()->dragUpdated(&data).operation);
+        *pdwEffect = dragOperationToDragCursor(m_page->dragController().dragUpdated(&data).operation);
     } else
         *pdwEffect = DROPEFFECT_NONE;
 
@@ -5245,7 +5244,7 @@ HRESULT STDMETHODCALLTYPE WebView::DragLeave()
     if (m_dragData) {
         DragData data(m_dragData.get(), IntPoint(), IntPoint(), 
             DragOperationNone);
-        m_page->dragController()->dragExited(&data);
+        m_page->dragController().dragExited(&data);
         m_dragData = 0;
     }
     return S_OK;
@@ -5263,7 +5262,7 @@ HRESULT STDMETHODCALLTYPE WebView::Drop(
     ::ScreenToClient(m_viewWindow, (LPPOINT)&localpt);
     DragData data(pDataObject, IntPoint(localpt.x, localpt.y), 
         IntPoint(pt.x, pt.y), keyStateToDragOperation(grfKeyState));
-    m_page->dragController()->performDrag(&data);
+    m_page->dragController().performDrag(&data);
     return S_OK;
 }
 
@@ -5511,7 +5510,7 @@ void WebView::releaseIMMContext(HIMC hIMC)
 void WebView::prepareCandidateWindow(Frame* targetFrame, HIMC hInputContext) 
 {
     IntRect caret;
-    if (RefPtr<Range> range = targetFrame->selection()->selection().toNormalizedRange()) {
+    if (RefPtr<Range> range = targetFrame->selection().selection().toNormalizedRange()) {
         ExceptionCode ec = 0;
         RefPtr<Range> tempRange = range->cloneRange(ec);
         caret = targetFrame->editor().firstRectForRange(tempRange.get());
@@ -5775,7 +5774,7 @@ LRESULT WebView::onIMERequestCharPosition(Frame* targetFrame, IMECHARPOSITION* c
     if (charPos->dwCharPos && !targetFrame->editor().hasComposition())
         return 0;
     IntRect caret;
-    if (RefPtr<Range> range = targetFrame->editor().hasComposition() ? targetFrame->editor().compositionRange() : targetFrame->selection()->selection().toNormalizedRange()) {
+    if (RefPtr<Range> range = targetFrame->editor().hasComposition() ? targetFrame->editor().compositionRange() : targetFrame->selection().selection().toNormalizedRange()) {
         ExceptionCode ec = 0;
         RefPtr<Range> tempRange = range->cloneRange(ec);
         tempRange->setStart(tempRange->startContainer(ec), tempRange->startOffset(ec) + charPos->dwCharPos, ec);
@@ -5792,7 +5791,7 @@ LRESULT WebView::onIMERequestCharPosition(Frame* targetFrame, IMECHARPOSITION* c
 
 LRESULT WebView::onIMERequestReconvertString(Frame* targetFrame, RECONVERTSTRING* reconvertString)
 {
-    RefPtr<Range> selectedRange = targetFrame->selection()->toNormalizedRange();
+    RefPtr<Range> selectedRange = targetFrame->selection().toNormalizedRange();
     String text = selectedRange->text();
     if (!reconvertString)
         return sizeof(RECONVERTSTRING) + text.length() * sizeof(UChar);
@@ -7046,7 +7045,7 @@ HRESULT STDMETHODCALLTYPE WebView::firstRectForCharacterRangeForTesting(
     if (length > INT_MAX || location + length > INT_MAX)
         length = INT_MAX - location;
         
-    RefPtr<Range> range = TextIterator::rangeFromLocationAndLength(frame->selection()->rootEditableElementOrDocumentElement(), location, length);
+    RefPtr<Range> range = TextIterator::rangeFromLocationAndLength(frame->selection().rootEditableElementOrDocumentElement(), location, length);
 
     if (!range)
         return E_FAIL;
@@ -7078,7 +7077,7 @@ HRESULT STDMETHODCALLTYPE WebView::selectedRangeForTesting(/* [out] */ UINT* loc
 
     size_t locationSize;
     size_t lengthSize;
-    if (range && TextIterator::getLocationAndLengthFromRange(frame->selection()->rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize)) {
+    if (range && TextIterator::getLocationAndLengthFromRange(frame->selection().rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize)) {
         *location = static_cast<UINT>(locationSize);
         *length = static_cast<UINT>(lengthSize);
     }
