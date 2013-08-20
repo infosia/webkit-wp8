@@ -1,3 +1,191 @@
+2013-08-20  Antti Koivisto  <antti@apple.com>
+
+        <https://webkit.org/b/120025> REGRESSION (r154254): fast/frames/frameset-frameborder-inheritance.html failing on Apple MountainLion Debug WK1 (Tests)
+
+        Reviewed by Anders Carlsson.
+
+        * html/HTMLDocument.cpp:
+        (WebCore::HTMLDocument::isFrameSet):
+        * html/HTMLFrameElement.cpp:
+        (WebCore::HTMLFrameElement::didAttachRenderers):
+        
+            Make helper public in HTMLFrameSetElement.
+
+        * html/HTMLFrameSetElement.cpp:
+        (WebCore::HTMLFrameSetElement::findContaining):
+        
+            Static function for finding containing frameset, if any.
+
+        (WebCore::HTMLFrameSetElement::willAttachRenderers):
+        
+            This broke in refactoring. We should exit the loop when the first containing frameset is found. Fix by refactoring more.
+
+        * html/HTMLFrameSetElement.h:
+        (WebCore::isHTMLFrameSetElement):
+        (WebCore::toHTMLFrameSetElement):
+        
+            Add casting functions.
+
+        * rendering/RenderFrameSet.cpp:
+        (WebCore::RenderFrameSet::frameSet):
+
+2013-08-20  Antti Koivisto  <antti@apple.com>
+
+        <https://webkit.org/b/120023> REGRESSION(r154257): svg/custom/bug78807.svg and svg/custom/use-invalid-style.svg failing
+
+        Reviewed by Andreas Kling.
+
+        * xml/XMLErrors.cpp:
+        (WebCore::XMLErrors::insertErrorMessageBlock): "reattach" had accidentally turned into "detach" in refactoring.
+
+2013-08-20  Antti Koivisto  <antti@apple.com>
+
+        <https://webkit.org/b/119969> REGRESSION (r154232): Crash on the japantimes.co.jp
+
+        Reviewed by Andreas Kling.
+        
+        PseudoElement no longer has parent and calling Element::insertedInto for them crashes as it tries to access it.
+
+        Normally there are no pseudo elements when Element::insertedInto() is invoked as they get detached and attached
+        along with rendering. However in this case the page inserts a <style> that uses ::before along with an element
+        that it applies to. Stylesheet insertion triggers synchronous style recalc that attaches rendering to all newly
+        insered elements. Later Element::insertedInto gets called for the element that has pseudo element and we crash.
+
+        Test: fast/css-generated-content/insert-stylesheet-and-pseudo-crash.html
+
+        * dom/Element.cpp:
+        (WebCore::Element::insertedInto):
+        (WebCore::Element::removedFrom):
+        
+            Remove calls to insertedInto/removedFrom for pseudo elements. They are not considered to be in document.
+            When they are added normally during render tree attach these calls don't happen either.
+
+2013-08-20  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Windows build fix after r154314.
+
+        * platform/graphics/cg/PathCG.cpp:
+        (WebCore::Path::platformAddPathForRoundedRect):
+
+2013-08-19  Hurnjoo Lee  <hurnjoo.lee@samsung.com>
+
+        [Cairo] Canvas putImageData is not working as expected
+        https://bugs.webkit.org/show_bug.cgi?id=119992
+
+        Reviewed by Darin Adler.
+
+        ImageBufferCairo::putImageArray didn't perform pre-multiply in case of zero alpha value.
+        If the alpha value is not 255, image data should always be pre-multiplied.
+
+        Test: fast/canvas/canvas-putImageData-zero-alpha.html
+
+        * platform/graphics/cairo/ImageBufferCairo.cpp:
+        (WebCore::ImageBuffer::putByteArray):
+
+2013-08-19  Santosh Mahto  <santosh.ma@samsung.com>
+
+        <https://webkit.org/b/119991> change usage of calculateUTCOffset()/calculateDSTOffset  to calculateLocalTimeOffset
+
+        Reviewed by Darin Adler.
+
+        Resolving code error.
+
+        * html/BaseDateAndTimeInputType.cpp:
+        (WebCore::BaseDateAndTimeInputType::defaultValueForStepUp):
+        * html/MonthInputType.cpp:
+        (WebCore::MonthInputType::defaultValueForStepUp):
+        * html/TimeInputType.cpp:
+        (WebCore::TimeInputType::defaultValueForStepUp):
+
+2013-08-19  Ryosuke Niwa  <rniwa@webkit.org>
+
+        <https://webkit.org/b/120049> Delete code for Snow Leopard
+
+        Reviewed by Benjamin Poulain.
+
+        Delete all the code for Mac OS 10.6. Nobody builds on Snow Leopard at this point.
+
+        * WebCore.exp.in:
+        * WebCore.xcodeproj/project.pbxproj:
+        * editing/mac/EditorMac.mm:
+        (WebCore::Editor::pasteWithPasteboard):
+        * page/ContextMenuController.cpp:
+        (WebCore::ContextMenuController::populate):
+        * platform/LocalizedStrings.cpp:
+        (WebCore::truncatedStringForLookupMenuItem):
+        (WebCore::contextMenuItemTagSearchWeb):
+        (WebCore::contextMenuItemTagLookUpInDictionary):
+        * platform/MemoryPressureHandler.cpp:
+        * platform/audio/mac/AudioBusMac.mm:
+        (WebCore::AudioBus::loadPlatformResource):
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayerCA::createTransformAnimationsFromKeyframes):
+        * platform/graphics/ca/PlatformCALayer.h:
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (PlatformCALayer::acceleratesDrawing):
+        (PlatformCALayer::setAcceleratesDrawing):
+        (PlatformCALayer::contentsScale):
+        (PlatformCALayer::setContentsScale):
+        (PlatformCALayer::synchronouslyDisplayTilesInRect):
+        * platform/graphics/ca/mac/TileController.mm:
+        (WebCore::TileController::setScale):
+        (WebCore::TileController::setAcceleratesDrawing):
+        (WebCore::TileController::createTileLayer):
+        * platform/graphics/cg/ImageBufferDataCG.cpp:
+        (WebCore::ImageBufferData::getData):
+        (WebCore::ImageBufferData::putData):
+        * platform/graphics/cg/ImageBufferDataCG.h:
+        * platform/graphics/cg/PathCG.cpp:
+        (WebCore::Path::platformAddPathForRoundedRect):
+        * platform/graphics/cocoa/FontPlatformDataCocoa.mm:
+        (WebCore::FontPlatformData::FontPlatformData):
+        (WebCore::FontPlatformData::setFont):
+        * platform/graphics/mac/FontMac.mm:
+        (WebCore::showGlyphsWithAdvances):
+        * platform/graphics/mac/GraphicsContextMac.mm:
+        (WebCore::GraphicsContext::drawLineForDocumentMarker):
+        * platform/graphics/mac/MediaPlayerPrivateQTKit.mm:
+        (WebCore::MediaPlayerPrivateQTKit::createQTMovie):
+        (WebCore::MediaPlayerPrivateQTKit::layerHostChanged):
+        * platform/graphics/mac/WebLayer.mm:
+        (drawLayerContents):
+        * platform/mac/CursorMac.mm:
+        (WebCore::Cursor::ensurePlatformCursor):
+        * platform/mac/EmptyProtocolDefinitions.h: Removed.
+        * platform/mac/MemoryPressureHandlerMac.mm:
+        (WebCore::MemoryPressureHandler::releaseMemory):
+        * platform/mac/NSScrollerImpDetails.h:
+        * platform/mac/PlatformEventFactoryMac.mm:
+        (WebCore::momentumPhaseForEvent):
+        (WebCore::phaseForEvent):
+        * platform/mac/ScrollAnimatorMac.mm:
+        * platform/mac/SharedTimerMac.mm:
+        * platform/mac/WebCoreSystemInterface.h:
+        * platform/mac/WebCoreSystemInterface.mm:
+        * platform/network/mac/ResourceHandleMac.mm:
+        * platform/network/mac/ResourceRequestMac.mm:
+        (WebCore::ResourceRequest::doUpdateResourceRequest):
+        (WebCore::ResourceRequest::doUpdatePlatformRequest):
+        * platform/text/cf/HyphenationCF.cpp:
+        * platform/text/mac/HyphenationMac.mm: Removed.
+        * rendering/RenderLayerBacking.cpp:
+        (WebCore::RenderLayerBacking::containsPaintedContent):
+        * rendering/RenderThemeMac.mm:
+        (WebCore::RenderThemeMac::shouldShowPlaceholderWhenFocused):
+
+2013-08-19  Ryosuke Niwa  <rniwa@webkit.org>
+
+        <https://webkit.org/b/120041> Remove superfluous min calls in RenderBlock::computeOverflow
+
+        Reviewed by Simon Fraser.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/29cad35d6b4642804e6b7c1a30f0b4435dd7a71d
+
+        They are contained in an "if" statement that ensures that textIndent < 0 and so the min will never be 0.
+
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::computeOverflow):
+
 2013-08-19  Ryosuke Niwa  <rniwa@webkit.org>
 
         <https://webkit.org/b/119930> input[type=range]: Fix a crash by changing input type in 'input' event handler
@@ -37,6 +225,20 @@
         Now that we always set m_requestedHistoryItem, there is no need to traverse frame
         tree to see if this document is being loaded as part of b/f navigation (which was
         add in bug 90870).
+
+2013-08-19  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=120034
+        Remove custom getOwnPropertyDescriptor for global objects
+
+        Reviewed by Geoff Garen.
+
+        Fix attributes of JSC SynbolTableObject entries, ensure that cross frame access is safe, and suppress prototype chain walk.
+
+        * bindings/js/JSDOMWindowCustom.cpp:
+        (WebCore::JSDOMWindow::getOwnPropertySlot):
+            - Remove custom getOwnPropertyDescriptor implementation, on cross-frame access ensure
+              all properties are marked as read-only, non-configurable to prevent defineProperty.
 
 2013-08-19  Gavin Barraclough  <barraclough@apple.com>
 
