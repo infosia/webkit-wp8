@@ -545,7 +545,7 @@ void HTMLMediaElement::finishParsingChildren()
 #endif
 }
 
-bool HTMLMediaElement::rendererIsNeeded(const NodeRenderingContext& context)
+bool HTMLMediaElement::rendererIsNeeded(const RenderStyle& style)
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     UNUSED_PARAM(context);
@@ -555,7 +555,7 @@ bool HTMLMediaElement::rendererIsNeeded(const NodeRenderingContext& context)
 
     return true;
 #else
-    return controls() ? HTMLElement::rendererIsNeeded(context) : false;
+    return controls() && HTMLElement::rendererIsNeeded(style);
 #endif
 }
 
@@ -4651,7 +4651,7 @@ bool HTMLMediaElement::createMediaControls()
     if (isFullscreen())
         mediaControls->enteredFullscreen();
 
-    ensureUserAgentShadowRoot().appendChild(mediaControls, ASSERT_NO_EXCEPTION);
+    ensureUserAgentShadowRoot().appendChild(mediaControls, ASSERT_NO_EXCEPTION, AttachLazily);
 
     if (!controls() || !inDocument())
         mediaControls->hide();

@@ -668,14 +668,10 @@ String Internals::shadowRootType(const Node* root, ExceptionCode& ec) const
     }
 }
 
-Element* Internals::includerFor(Node* node, ExceptionCode& ec)
+Element* Internals::includerFor(Node*, ExceptionCode& ec)
 {
-    if (!node) {
-        ec = INVALID_ACCESS_ERR;
-        return 0;
-    }
-
-    return NodeRenderingContext(node).insertionPoint();
+    ec = INVALID_ACCESS_ERR;
+    return 0;
 }
 
 String Internals::shadowPseudoId(Element* element, ExceptionCode& ec)
@@ -821,7 +817,7 @@ unsigned Internals::markerCountForNode(Node* node, const String& markerType, Exc
         return 0;
     }
 
-    return node->document()->markers()->markersFor(node, markerTypes).size();
+    return node->document()->markers().markersFor(node, markerTypes).size();
 }
 
 DocumentMarker* Internals::markerAt(Node* node, const String& markerType, unsigned index, ExceptionCode& ec)
@@ -837,7 +833,7 @@ DocumentMarker* Internals::markerAt(Node* node, const String& markerType, unsign
         return 0;
     }
 
-    Vector<DocumentMarker*> markers = node->document()->markers()->markersFor(node, markerTypes);
+    Vector<DocumentMarker*> markers = node->document()->markers().markersFor(node, markerTypes);
     if (markers.size() <= index)
         return 0;
     return markers[index];
@@ -862,7 +858,7 @@ String Internals::markerDescriptionForNode(Node* node, const String& markerType,
 void Internals::addTextMatchMarker(const Range* range, bool isActive)
 {
     range->ownerDocument()->updateLayoutIgnorePendingStylesheets();
-    range->ownerDocument()->markers()->addTextMatchMarker(range, isActive);
+    range->ownerDocument()->markers().addTextMatchMarker(range, isActive);
 }
 
 void Internals::setScrollViewPosition(Document* document, long x, long y, ExceptionCode& ec)
