@@ -1,0 +1,65 @@
+diff --git a/Source/JavaScriptCore/API/JSBase.h b/Source/JavaScriptCore/API/JSBase.h
+index 50e8f1e..4442e21 100644
+--- a/Source/JavaScriptCore/API/JSBase.h
++++ b/Source/JavaScriptCore/API/JSBase.h
+@@ -141,7 +141,7 @@ JS_EXPORT void JSGarbageCollect(JSContextRef ctx);
+ 
+ /* Enable the Objective-C API for platforms with a modern runtime. */
+ #if !defined(JSC_OBJC_API_ENABLED)
+-#define JSC_OBJC_API_ENABLED (defined(__clang__) && defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090 && !defined(__i386__))
++#define JSC_OBJC_API_ENABLED (defined(__clang__) && defined(__APPLE__) && defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080 && !defined(__i386__))
+ #endif
+ 
+ #endif /* JSBase_h */
+diff --git a/Source/JavaScriptCore/API/JSContext.h b/Source/JavaScriptCore/API/JSContext.h
+index ef3e51f..14dce4f 100644
+--- a/Source/JavaScriptCore/API/JSContext.h
++++ b/Source/JavaScriptCore/API/JSContext.h
+@@ -41,7 +41,7 @@
+ // that reference a particular JSContext have been deallocated the JSContext 
+ // will be deallocated unless it has been previously retained.
+ 
+-NS_CLASS_AVAILABLE(10_9, NA)
++NS_CLASS_AVAILABLE(10_8, NA)
+ @interface JSContext : NSObject
+ 
+ // Create a JSContext.
+diff --git a/Source/JavaScriptCore/API/JSManagedValue.h b/Source/JavaScriptCore/API/JSManagedValue.h
+index 5ff3f83..eeb14af 100644
+--- a/Source/JavaScriptCore/API/JSManagedValue.h
++++ b/Source/JavaScriptCore/API/JSManagedValue.h
+@@ -46,7 +46,7 @@
+ // from the Objective-C heap. It is incorrect to store a JSValue into an 
+ // Objective-C heap object, as this can very easily create a reference cycle, 
+ // keeping the entire JSContext alive. 
+-NS_CLASS_AVAILABLE(10_9, NA)
++NS_CLASS_AVAILABLE(10_8, NA)
+ @interface JSManagedValue : NSObject
+ 
+ // Convenience method for creating JSManagedValues from JSValues.
+diff --git a/Source/JavaScriptCore/API/JSValue.h b/Source/JavaScriptCore/API/JSValue.h
+index c777075..1fbbe5f 100644
+--- a/Source/JavaScriptCore/API/JSValue.h
++++ b/Source/JavaScriptCore/API/JSValue.h
+@@ -87,7 +87,7 @@
+ // class methods will be returned. See JSExport.h for more information on
+ // constructor objects.
+ 
+-NS_CLASS_AVAILABLE(10_9, NA)
++NS_CLASS_AVAILABLE(10_8, NA)
+ @interface JSValue : NSObject
+ 
+ // Create a JSValue by converting an Objective-C object.
+diff --git a/Source/JavaScriptCore/API/JSVirtualMachine.h b/Source/JavaScriptCore/API/JSVirtualMachine.h
+index b50616f..b64bc35 100644
+--- a/Source/JavaScriptCore/API/JSVirtualMachine.h
++++ b/Source/JavaScriptCore/API/JSVirtualMachine.h
+@@ -32,7 +32,7 @@
+ // virtual machine, with concurrent JavaScript execution supported by allocating
+ // separate instances of JSVirtualMachine.
+ 
+-NS_CLASS_AVAILABLE(10_9, NA)
++NS_CLASS_AVAILABLE(10_8, NA)
+ @interface JSVirtualMachine : NSObject
+ 
+ // Create a new JSVirtualMachine.
