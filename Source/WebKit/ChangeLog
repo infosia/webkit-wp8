@@ -1,3 +1,30 @@
+2013-08-21  Alex Christensen  <achristensen@apple.com>
+
+        <https://webkit.org/b/120137> Separating Win32 and Win64 builds.
+
+        Reviewed by Brent Fulgham.
+
+        * WebKit.vcxproj/WebKit/WebKitPostBuild.cmd:
+        * WebKit.vcxproj/WebKitExportGenerator/WebKitExportGeneratorBuildCmd.cmd:
+        * WebKit.vcxproj/WebKitExportGenerator/WebKitExportGeneratorPostBuild.cmd:
+        * WebKit.vcxproj/WebKitExportGenerator/WebKitExportGeneratorPreBuild.cmd:
+        Use PlatformArchitecture to determine correct object directory (obj32 or obj64).
+
+2013-08-20  Brent Fulgham  <bfulgham@apple.com>
+
+        <https://webkit.org/b/120098> [Windows] Enable the new Web Inspector
+
+        Reviewed by Brian Weinstein.
+
+        * WebKit.vcxproj/WebKit.sln: Add reference to the new WebInspectorUI
+        project so that it will be included in new distributions.
+
+2013-08-20  Alex Christensen  <achristensen@apple.com>
+
+        [Windows] Unreviewed build fix for Win64 after r154118.
+
+        * WebKit.vcxproj/WebKitExportGenerator/WebKitExports.def.in:
+
 2013-08-20  Alex Christensen  <achristensen@apple.com>
 
         <https://webkit.org/b/120076> More work towards a Win64 build

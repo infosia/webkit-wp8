@@ -78,8 +78,6 @@ bool JSArrayBuffer::getOwnPropertySlot(
     return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSArrayBuffer)
-
 void JSArrayBuffer::put(
     JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value,
     PutPropertySlot& slot)
@@ -96,7 +94,7 @@ void JSArrayBuffer::put(
 
 bool JSArrayBuffer::defineOwnProperty(
     JSObject* object, ExecState* exec, PropertyName propertyName,
-    PropertyDescriptor& descriptor, bool shouldThrow)
+    const PropertyDescriptor& descriptor, bool shouldThrow)
 {
     JSArrayBuffer* thisObject = jsCast<JSArrayBuffer*>(object);
     

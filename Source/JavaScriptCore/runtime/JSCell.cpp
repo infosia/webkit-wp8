@@ -212,17 +212,16 @@ void JSCell::putDirectVirtual(JSObject*, ExecState*, PropertyName, JSValue, unsi
     RELEASE_ASSERT_NOT_REACHED();
 }
 
-bool JSCell::defineOwnProperty(JSObject*, ExecState*, PropertyName, PropertyDescriptor&, bool)
+bool JSCell::defineOwnProperty(JSObject*, ExecState*, PropertyName, const PropertyDescriptor&, bool)
 {
     RELEASE_ASSERT_NOT_REACHED();
     return false;
 }
 
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSCell)
-
-void JSCell::slowDownAndWasteMemory(JSArrayBufferView*)
+ArrayBuffer* JSCell::slowDownAndWasteMemory(JSArrayBufferView*)
 {
     RELEASE_ASSERT_NOT_REACHED();
+    return 0;
 }
 
 PassRefPtr<ArrayBufferView> JSCell::getTypedArrayImpl(JSArrayBufferView*)
