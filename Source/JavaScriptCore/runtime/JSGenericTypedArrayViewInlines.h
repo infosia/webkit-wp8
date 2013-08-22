@@ -234,9 +234,6 @@ bool JSGenericTypedArrayView<Adaptor>::getOwnPropertySlot(
 }
 
 template<typename Adaptor>
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSGenericTypedArrayView<Adaptor>)
-
-template<typename Adaptor>
 void JSGenericTypedArrayView<Adaptor>::put(
     JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value,
     PutPropertySlot& slot)
@@ -261,7 +258,7 @@ void JSGenericTypedArrayView<Adaptor>::put(
 template<typename Adaptor>
 bool JSGenericTypedArrayView<Adaptor>::defineOwnProperty(
     JSObject* object, ExecState* exec, PropertyName propertyName,
-    PropertyDescriptor& descriptor, bool shouldThrow)
+    const PropertyDescriptor& descriptor, bool shouldThrow)
 {
     JSGenericTypedArrayView* thisObject = jsCast<JSGenericTypedArrayView*>(object);
     
@@ -382,6 +379,10 @@ void JSGenericTypedArrayView<Adaptor>::visitChildren(JSCell* cell, SlotVisitor& 
         
     case WastefulTypedArray:
         break;
+        
+    case DataViewMode:
+        RELEASE_ASSERT_NOT_REACHED();
+        break;
     }
     
     Base::visitChildren(thisObject, visitor);
@@ -406,7 +407,7 @@ void JSGenericTypedArrayView<Adaptor>::copyBackingStore(
 }
 
 template<typename Adaptor>
-void JSGenericTypedArrayView<Adaptor>::slowDownAndWasteMemory(JSArrayBufferView* object)
+ArrayBuffer* JSGenericTypedArrayView<Adaptor>::slowDownAndWasteMemory(JSArrayBufferView* object)
 {
     JSGenericTypedArrayView* thisObject = jsCast<JSGenericTypedArrayView*>(object);
     
@@ -454,7 +455,7 @@ void JSGenericTypedArrayView<Adaptor>::slowDownAndWasteMemory(JSArrayBufferView*
         buffer = ArrayBuffer::createAdopted(thisObject->m_vector, thisObject->byteLength());
         break;
         
-    case WastefulTypedArray:
+    default:
         RELEASE_ASSERT_NOT_REACHED();
         break;
     }
@@ -463,6 +464,8 @@ void JSGenericTypedArrayView<Adaptor>::slowDownAndWasteMemory(JSArrayBufferView*
     thisObject->m_vector = buffer->data();
     thisObject->m_mode = WastefulTypedArray;
     heap->addReference(thisObject, buffer.get());
+    
+    return buffer.get();
 }
 
 template<typename Adaptor>

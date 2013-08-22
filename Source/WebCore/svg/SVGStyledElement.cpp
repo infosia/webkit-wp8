@@ -69,8 +69,8 @@ void mapAttributeToCSSProperty(HashMap<AtomicStringImpl*, CSSPropertyID>* proper
     propertyNameToIdMap->set(attrName.localName().impl(), propertyId);
 }
 
-SVGStyledElement::SVGStyledElement(const QualifiedName& tagName, Document* document, ConstructionType constructionType)
-    : SVGElement(tagName, document, constructionType)
+SVGStyledElement::SVGStyledElement(const QualifiedName& tagName, Document* document)
+    : SVGElement(tagName, document)
 {
     registerAnimatedPropertiesForSVGStyledElement();
 }
@@ -115,7 +115,7 @@ String SVGStyledElement::title() const
     return String();
 }
 
-bool SVGStyledElement::rendererIsNeeded(const NodeRenderingContext& context)
+bool SVGStyledElement::rendererIsNeeded(const RenderStyle& style)
 {
     // http://www.w3.org/TR/SVG/extend.html#PrivateData
     // Prevent anything other than SVG renderers from appearing in our render tree
@@ -123,7 +123,7 @@ bool SVGStyledElement::rendererIsNeeded(const NodeRenderingContext& context)
     // with the SVG content. In general, the SVG user agent will include the unknown
     // elements in the DOM but will otherwise ignore unknown elements. 
     if (!parentOrShadowHostElement() || parentOrShadowHostElement()->isSVGElement())
-        return StyledElement::rendererIsNeeded(context);
+        return StyledElement::rendererIsNeeded(style);
 
     return false;
 }

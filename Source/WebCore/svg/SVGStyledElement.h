@@ -60,8 +60,8 @@ public:
     virtual bool needsPendingResourceHandling() const { return true; }
 
 protected: 
-    SVGStyledElement(const QualifiedName&, Document*, ConstructionType = CreateSVGElement);
-    virtual bool rendererIsNeeded(const NodeRenderingContext&);
+    SVGStyledElement(const QualifiedName&, Document*);
+    virtual bool rendererIsNeeded(const RenderStyle&);
 
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;

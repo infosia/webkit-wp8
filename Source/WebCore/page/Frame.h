@@ -117,10 +117,10 @@ namespace WebCore {
         Editor& editor() const;
         EventHandler& eventHandler() const;
         FrameLoader& loader() const;
-        NavigationScheduler* navigationScheduler() const;
+        NavigationScheduler& navigationScheduler() const;
         FrameSelection& selection() const;
         FrameTree* tree() const;
-        AnimationController* animation() const;
+        AnimationController& animation() const;
         ScriptController& script();
         
         RenderView* contentRenderer() const; // Root of the render tree for the document contained in this frame.
@@ -219,11 +219,11 @@ namespace WebCore {
         RefPtr<FrameView> m_view;
         RefPtr<Document> m_doc;
 
-        OwnPtr<ScriptController> m_script;
+        const OwnPtr<ScriptController> m_script;
         const OwnPtr<Editor> m_editor;
-        OwnPtr<FrameSelection> m_selection;
+        const OwnPtr<FrameSelection> m_selection;
         const OwnPtr<EventHandler> m_eventHandler;
-        OwnPtr<AnimationController> m_animationController;
+        const OwnPtr<AnimationController> m_animationController;
 
         float m_pageZoomFactor;
         float m_textZoomFactor;
@@ -266,9 +266,9 @@ namespace WebCore {
         return m_loader;
     }
 
-    inline NavigationScheduler* Frame::navigationScheduler() const
+    inline NavigationScheduler& Frame::navigationScheduler() const
     {
-        return &m_navigationScheduler;
+        return m_navigationScheduler;
     }
 
     inline FrameView* Frame::view() const
@@ -296,9 +296,9 @@ namespace WebCore {
         return *m_editor;
     }
 
-    inline AnimationController* Frame::animation() const
+    inline AnimationController& Frame::animation() const
     {
-        return m_animationController.get();
+        return *m_animationController;
     }
 
     inline HTMLFrameOwnerElement* Frame::ownerElement() const

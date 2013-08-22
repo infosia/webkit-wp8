@@ -72,7 +72,6 @@
 #include "MallocStatistics.h"
 #include "MemoryCache.h"
 #include "MemoryInfo.h"
-#include "NodeRenderingContext.h"
 #include "Page.h"
 #include "PrintContext.h"
 #include "PseudoElement.h"
@@ -404,10 +403,7 @@ unsigned Internals::lastSpatialNavigationCandidateCount(ExceptionCode& ec) const
 
 unsigned Internals::numberOfActiveAnimations() const
 {
-    Frame* contextFrame = frame();
-    if (AnimationController* controller = contextFrame->animation())
-        return controller->numberOfActiveAnimations(contextFrame->document());
-    return 0;
+    return frame()->animation().numberOfActiveAnimations(frame()->document());
 }
 
 bool Internals::animationsAreSuspended(Document* document, ExceptionCode& ec) const
@@ -417,11 +413,7 @@ bool Internals::animationsAreSuspended(Document* document, ExceptionCode& ec) co
         return false;
     }
 
-    AnimationController* controller = document->frame()->animation();
-    if (!controller)
-        return false;
-
-    return controller->isSuspended();
+    return document->frame()->animation().isSuspended();
 }
 
 void Internals::suspendAnimations(Document* document, ExceptionCode& ec) const
@@ -431,11 +423,7 @@ void Internals::suspendAnimations(Document* document, ExceptionCode& ec) const
         return;
     }
 
-    AnimationController* controller = document->frame()->animation();
-    if (!controller)
-        return;
-
-    controller->suspendAnimations();
+    document->frame()->animation().suspendAnimations();
 }
 
 void Internals::resumeAnimations(Document* document, ExceptionCode& ec) const
@@ -445,11 +433,7 @@ void Internals::resumeAnimations(Document* document, ExceptionCode& ec) const
         return;
     }
 
-    AnimationController* controller = document->frame()->animation();
-    if (!controller)
-        return;
-
-    controller->resumeAnimations();
+    document->frame()->animation().resumeAnimations();
 }
 
 bool Internals::pauseAnimationAtTimeOnElement(const String& animationName, double pauseTime, Element* element, ExceptionCode& ec)
@@ -458,8 +442,7 @@ bool Internals::pauseAnimationAtTimeOnElement(const String& animationName, doubl
         ec = INVALID_ACCESS_ERR;
         return false;
     }
-    AnimationController* controller = frame()->animation();
-    return controller->pauseAnimationAtTime(element->renderer(), AtomicString(animationName), pauseTime);
+    return frame()->animation().pauseAnimationAtTime(element->renderer(), AtomicString(animationName), pauseTime);
 }
 
 bool Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName, double pauseTime, Element* element, const String& pseudoId, ExceptionCode& ec)
@@ -480,7 +463,7 @@ bool Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName,
         return false;
     }
 
-    return frame()->animation()->pauseAnimationAtTime(pseudoElement->renderer(), AtomicString(animationName), pauseTime);
+    return frame()->animation().pauseAnimationAtTime(pseudoElement->renderer(), AtomicString(animationName), pauseTime);
 }
 
 bool Internals::pauseTransitionAtTimeOnElement(const String& propertyName, double pauseTime, Element* element, ExceptionCode& ec)
@@ -489,8 +472,7 @@ bool Internals::pauseTransitionAtTimeOnElement(const String& propertyName, doubl
         ec = INVALID_ACCESS_ERR;
         return false;
     }
-    AnimationController* controller = frame()->animation();
-    return controller->pauseTransitionAtTime(element->renderer(), propertyName, pauseTime);
+    return frame()->animation().pauseTransitionAtTime(element->renderer(), propertyName, pauseTime);
 }
 
 bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, double pauseTime, Element* element, const String& pseudoId, ExceptionCode& ec)
@@ -511,7 +493,7 @@ bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, dou
         return false;
     }
 
-    return frame()->animation()->pauseTransitionAtTime(pseudoElement->renderer(), property, pauseTime);
+    return frame()->animation().pauseTransitionAtTime(pseudoElement->renderer(), property, pauseTime);
 }
 
 bool Internals::attached(Node* node, ExceptionCode& ec)
@@ -668,14 +650,10 @@ String Internals::shadowRootType(const Node* root, ExceptionCode& ec) const
     }
 }
 
-Element* Internals::includerFor(Node* node, ExceptionCode& ec)
+Element* Internals::includerFor(Node*, ExceptionCode& ec)
 {
-    if (!node) {
-        ec = INVALID_ACCESS_ERR;
-        return 0;
-    }
-
-    return NodeRenderingContext(node).insertionPoint();
+    ec = INVALID_ACCESS_ERR;
+    return 0;
 }
 
 String Internals::shadowPseudoId(Element* element, ExceptionCode& ec)
@@ -821,7 +799,7 @@ unsigned Internals::markerCountForNode(Node* node, const String& markerType, Exc
         return 0;
     }
 
-    return node->document()->markers()->markersFor(node, markerTypes).size();
+    return node->document()->markers().markersFor(node, markerTypes).size();
 }
 
 DocumentMarker* Internals::markerAt(Node* node, const String& markerType, unsigned index, ExceptionCode& ec)
@@ -837,7 +815,7 @@ DocumentMarker* Internals::markerAt(Node* node, const String& markerType, unsign
         return 0;
     }
 
-    Vector<DocumentMarker*> markers = node->document()->markers()->markersFor(node, markerTypes);
+    Vector<DocumentMarker*> markers = node->document()->markers().markersFor(node, markerTypes);
     if (markers.size() <= index)
         return 0;
     return markers[index];
@@ -862,7 +840,7 @@ String Internals::markerDescriptionForNode(Node* node, const String& markerType,
 void Internals::addTextMatchMarker(const Range* range, bool isActive)
 {
     range->ownerDocument()->updateLayoutIgnorePendingStylesheets();
-    range->ownerDocument()->markers()->addTextMatchMarker(range, isActive);
+    range->ownerDocument()->markers().addTextMatchMarker(range, isActive);
 }
 
 void Internals::setScrollViewPosition(Document* document, long x, long y, ExceptionCode& ec)

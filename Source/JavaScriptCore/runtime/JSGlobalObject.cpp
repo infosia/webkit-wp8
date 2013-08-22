@@ -186,7 +186,7 @@ void JSGlobalObject::putDirectVirtual(JSObject* object, ExecState* exec, Propert
     }
 }
 
-bool JSGlobalObject::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName propertyName, PropertyDescriptor& descriptor, bool shouldThrow)
+bool JSGlobalObject::defineOwnProperty(JSObject* object, ExecState* exec, PropertyName propertyName, const PropertyDescriptor& descriptor, bool shouldThrow)
 {
     JSGlobalObject* thisObject = jsCast<JSGlobalObject*>(object);
     PropertySlot slot(thisObject);
@@ -196,6 +196,20 @@ bool JSGlobalObject::defineOwnProperty(JSObject* object, ExecState* exec, Proper
     return Base::defineOwnProperty(thisObject, exec, propertyName, descriptor, shouldThrow);
 }
 
+int JSGlobalObject::addGlobalVar(const Identifier& ident, ConstantMode constantMode, FunctionMode functionMode)
+{
+    ConcurrentJITLocker locker(symbolTable()->m_lock);
+    int index = symbolTable()->size(locker);
+    SymbolTableEntry newEntry(index, (constantMode == IsConstant) ? ReadOnly : 0);
+    if (functionMode == IsFunctionToSpecialize)
+        newEntry.attemptToWatch();
+    SymbolTable::Map::AddResult result = symbolTable()->add(locker, ident.impl(), newEntry);
+    if (!result.isNewEntry) {
+        result.iterator->value.notifyWrite();
+        index = result.iterator->value.getIndex();
+    }
+    return index;
+}
 
 static inline JSObject* lastInPrototypeChain(JSObject* object)
 {
@@ -640,8 +654,6 @@ bool JSGlobalObject::getOwnPropertySlot(JSObject* object, ExecState* exec, Prope
         return true;
     return symbolTableGet(thisObject, propertyName, slot);
 }
-
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSGlobalObject)
 
 void JSGlobalObject::clearRareData(JSCell* cell)
 {

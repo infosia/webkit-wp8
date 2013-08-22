@@ -673,6 +673,15 @@ private:
             break;
         }
             
+        case NewTypedArray: {
+            if (node->child1()->shouldSpeculateInteger()) {
+                setUseKindAndUnboxIfProfitable<Int32Use>(node->child1());
+                node->clearFlags(NodeMustGenerate | NodeClobbersWorld);
+                break;
+            }
+            break;
+        }
+            
         case NewArrayWithSize: {
             setUseKindAndUnboxIfProfitable<Int32Use>(node->child1());
             break;
@@ -1380,9 +1389,12 @@ private:
         ASSERT(value.isInt32());
         unsigned constantRegister;
         if (!codeBlock()->findConstant(value, constantRegister)) {
+            constantRegister = codeBlock()->addConstantLazily();
             initializeLazyWriteBarrierForConstant(
-                codeBlock(),
                 m_graph.m_plan.writeBarriers,
+                codeBlock()->constants()[constantRegister],
+                codeBlock(),
+                constantRegister,
                 codeBlock()->ownerExecutable(),
                 value);
         }

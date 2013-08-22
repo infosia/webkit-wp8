@@ -1952,7 +1952,7 @@ IntRect AccessibilityRenderObject::boundsForVisiblePositionRange(const VisiblePo
             ourrect = boundingBox;
     }
     
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     return m_renderer->document()->view()->contentsToScreen(pixelSnappedIntRect(ourrect));
 #else
     return pixelSnappedIntRect(ourrect);
@@ -3143,6 +3143,7 @@ void AccessibilityRenderObject::tabChildren(AccessibilityChildrenVector& result)
     
 const String& AccessibilityRenderObject::actionVerb() const
 {
+#if !PLATFORM(IOS)
     // FIXME: Need to add verbs for select elements.
     DEFINE_STATIC_LOCAL(const String, buttonAction, (AXButtonActionVerb()));
     DEFINE_STATIC_LOCAL(const String, textFieldAction, (AXTextFieldActionVerb()));
@@ -3150,8 +3151,7 @@ const String& AccessibilityRenderObject::actionVerb() const
     DEFINE_STATIC_LOCAL(const String, checkedCheckBoxAction, (AXCheckedCheckBoxActionVerb()));
     DEFINE_STATIC_LOCAL(const String, uncheckedCheckBoxAction, (AXUncheckedCheckBoxActionVerb()));
     DEFINE_STATIC_LOCAL(const String, linkAction, (AXLinkActionVerb()));
-    DEFINE_STATIC_LOCAL(const String, noAction, ());
-    
+
     switch (roleValue()) {
     case ButtonRole:
     case ToggleButtonRole:
@@ -3167,8 +3167,11 @@ const String& AccessibilityRenderObject::actionVerb() const
     case WebCoreLinkRole:
         return linkAction;
     default:
-        return noAction;
+        return nullAtom;
     }
+#else
+    return nullAtom;
+#endif
 }
     
 void AccessibilityRenderObject::setAccessibleName(const AtomicString& name)
