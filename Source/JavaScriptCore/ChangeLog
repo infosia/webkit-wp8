@@ -1,3 +1,143 @@
+2013-08-22  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        JSObject and JSArray code shouldn't have to tiptoe around garbage collection
+        https://bugs.webkit.org/show_bug.cgi?id=120179
+
+        Reviewed by Geoffrey Garen.
+
+        There are many places in the code for JSObject and JSArray where they are manipulating their 
+        Butterfly/Structure, e.g. after expanding their out-of-line backing storage via allocating. Within 
+        these places there are certain "critical sections" where a GC would be disastrous. Gen GC looks 
+        like it will make this dance even more intricate. To make everybody's lives easier we should use 
+        the DeferGC mechanism in these functions to make these GC critical sections both obvious in the 
+        code and trivially safe. Deferring collections will usually only last marginally longer, thus we 
+        should not incur any additional overhead.
+
+        * heap/Heap.h:
+        * runtime/JSArray.cpp:
+        (JSC::JSArray::unshiftCountSlowCase):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::enterDictionaryIndexingModeWhenArrayStorageAlreadyExists):
+        (JSC::JSObject::createInitialUndecided):
+        (JSC::JSObject::createInitialInt32):
+        (JSC::JSObject::createInitialDouble):
+        (JSC::JSObject::createInitialContiguous):
+        (JSC::JSObject::createArrayStorage):
+        (JSC::JSObject::convertUndecidedToArrayStorage):
+        (JSC::JSObject::convertInt32ToArrayStorage):
+        (JSC::JSObject::convertDoubleToArrayStorage):
+        (JSC::JSObject::convertContiguousToArrayStorage):
+        (JSC::JSObject::increaseVectorLength):
+        (JSC::JSObject::ensureLengthSlow):
+        * runtime/JSObject.h:
+        (JSC::JSObject::putDirectInternal):
+        (JSC::JSObject::setStructureAndReallocateStorageIfNecessary):
+        (JSC::JSObject::putDirectWithoutTransition):
+
+2013-08-22  Filip Pizlo  <fpizlo@apple.com>
+
+        Update LLVM binary drops and scripts to the latest version from SVN
+        https://bugs.webkit.org/show_bug.cgi?id=120184
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::compileInThreadImpl):
+
+2013-08-22  Gavin Barraclough  <barraclough@apple.com>
+
+        Don't leak registers for redeclared variables
+        https://bugs.webkit.org/show_bug.cgi?id=120174
+
+        Reviewed by Geoff Garen.
+
+        We currently always allocate registers for new global variables, but these are wasted when the variable is being redeclared.
+        Only allocate new registers when necessary.
+
+        No performance impact.
+
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::execute):
+        * runtime/Executable.cpp:
+        (JSC::ProgramExecutable::initializeGlobalProperties):
+            - Don't allocate the register here.
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::addGlobalVar):
+            - Allocate the register here instead.
+
+2013-08-22  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=120128
+        Remove putDirectVirtual
+
+        Unreviewed, checked in commented out code. :-(
+
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::execute):
+            - delete commented out code
+
+2013-08-22  Gavin Barraclough  <barraclough@apple.com>
+
+        Error.stack should not be enumerable
+        https://bugs.webkit.org/show_bug.cgi?id=120171
+
+        Reviewed by Oliver Hunt.
+
+        Breaks ECMA tests.
+
+        * runtime/ErrorInstance.cpp:
+        (JSC::ErrorInstance::finishCreation):
+            - None -> DontEnum
+
+2013-08-21  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=120128
+        Remove putDirectVirtual
+
+        Reviewed by Sam Weinig.
+
+        This could most generously be described as 'vestigial'.
+        No performance impact.
+
+        * API/JSObjectRef.cpp:
+        (JSObjectSetProperty):
+            - changed to use defineOwnProperty
+        * debugger/DebuggerActivation.cpp:
+        * debugger/DebuggerActivation.h:
+            - remove putDirectVirtual
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::execute):
+            - changed to use defineOwnProperty
+        * runtime/ClassInfo.h:
+        * runtime/JSActivation.cpp:
+        * runtime/JSActivation.h:
+        * runtime/JSCell.cpp:
+        * runtime/JSCell.h:
+        * runtime/JSGlobalObject.cpp:
+        * runtime/JSGlobalObject.h:
+        * runtime/JSObject.cpp:
+        * runtime/JSObject.h:
+        * runtime/JSProxy.cpp:
+        * runtime/JSProxy.h:
+        * runtime/JSSymbolTableObject.cpp:
+        * runtime/JSSymbolTableObject.h:
+            - remove putDirectVirtual
+        * runtime/PropertyDescriptor.h:
+        (JSC::PropertyDescriptor::PropertyDescriptor):
+            - added constructor for convenience
+
+2013-08-22  Chris Curtis  <chris_curtis@apple.com>
+
+        errorDescriptionForValue() should not assume error value is an Object
+        https://bugs.webkit.org/show_bug.cgi?id=119812
+
+        Reviewed by Geoffrey Garen.
+
+        Added a check to make sure that the JSValue was an object before casting it as an object. Also, in case the parameterized JSValue
+        has no type, the function now returns the empty string. 
+        * runtime/ExceptionHelpers.cpp:
+        (JSC::errorDescriptionForValue):
+
 2013-08-22  Julien Brianceau  <jbrianceau@nds.com>
 
         Fix P_DFGOperation_EJS call for MIPS and ARM EABI.
