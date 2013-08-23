@@ -1,3 +1,378 @@
+2013-08-22  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Introduce toSVGLinearGradientElement(), and use it
+        https://bugs.webkit.org/show_bug.cgi?id=120154
+
+        Reviewed by Andreas Kling.
+
+        As a step to clean-up static_cast<SVGXXX>, toSVGLinearGradientElement() is added to clean-up
+        static_cast<SVGLinearGradientElement*>.
+
+        * rendering/svg/RenderSVGResourceLinearGradient.cpp:
+        (WebCore::RenderSVGResourceLinearGradient::collectGradientAttributes):
+        * rendering/svg/SVGRenderTreeAsText.cpp:
+        (WebCore::writeSVGResourceContainer):
+        * svg/SVGLinearGradientElement.cpp:
+        (WebCore::SVGLinearGradientElement::collectGradientAttributes):
+        * svg/SVGLinearGradientElement.h:
+        (WebCore::toSVGLinearGradientElement):
+
+2013-08-22  Simon Fraser  <simon.fraser@apple.com>
+
+        compositing/geometry/bounds-ignores-hidden-dynamic.html has incorrect initial rendering
+        https://bugs.webkit.org/show_bug.cgi?id=119825
+
+        Reviewed by Tim Horton.
+        
+        r137526 and some earlier commits attempted to avoid unconditionally
+        repainting layers when their size changes, because this was causing
+        TiledBacking layers to repaint when the document size changed.
+        
+        However, the approach required that we have good information about
+        whether size changes require a repaint, which in some cases is hard
+        to determine, especially when RenderLayer changes affect our
+        decisions about which layers are composited.
+        
+        Fix by pushing the decision about whether to repaint on size change
+        into GraphicsLayer. The default is to repaint on size change,
+        but GraphicsLayer provides a function that can be overridden to
+        modify this behavior; GraphicsLayerCA does so to avoid repaints
+        when layers with TiledBackings get resized.
+
+        Test: compositing/repaint/repaint-on-layer-grouping-change.html
+
+        * WebCore.exp.in: WebKit2 needs GraphicsLayer::setSize, which is no longer inline.
+        * platform/graphics/GraphicsLayer.cpp:
+        (WebCore::GraphicsLayer::setOffsetFromRenderer):
+        (WebCore::GraphicsLayer::setSize):
+        * platform/graphics/GraphicsLayer.h:
+        (WebCore::GraphicsLayer::shouldRepaintOnSizeChange):
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayerCA::shouldRepaintOnSizeChange):
+        * platform/graphics/ca/GraphicsLayerCA.h:
+        * rendering/RenderLayerBacking.h: No longer need m_boundsConstrainedByClipping
+        * rendering/RenderLayerBacking.cpp:
+        (WebCore::RenderLayerBacking::RenderLayerBacking):
+        (WebCore::RenderLayerBacking::updateCompositedBounds):
+        (WebCore::RenderLayerBacking::updateGraphicsLayerGeometry): setSize takes
+        care of repainting for us now, so we can remove all the conditional code.
+
+2013-08-22  Simon Fraser  <simon.fraser@apple.com>
+
+        Repaint counters are sometimes not in the corner of the compositing layer
+        https://bugs.webkit.org/show_bug.cgi?id=120176
+
+        Reviewed by Beth Dakin.
+
+        Sometimes the repaint counters are not in the corner of the compositing layer;
+        they are either inset, or partially or entirely outside the layer.
+        
+        Fix by making sure that we restore the CGContext before drawing
+        the counter, since the WebCore code may have translated the CTM.
+        
+        The counter-painting code saves and restores the context itself,
+        so this is safe.
+
+        * platform/graphics/mac/WebLayer.mm:
+        (drawLayerContents):
+
+2013-08-22  Tim Horton  <timothy_horton@apple.com>
+
+        Unavailable plug-in indicator text is one pixel too low
+        https://bugs.webkit.org/show_bug.cgi?id=120177
+        <rdar://problem/14811951>
+
+        Reviewed by Kevin Decker.
+
+        Move the unavailable plug-in indicator text up one pixel.
+
+        * rendering/RenderEmbeddedObject.cpp:
+        (WebCore::RenderEmbeddedObject::paintReplaced):
+
+2013-08-22  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        [SVG2] Merge SVGStyledElement and SVGElement
+        https://bugs.webkit.org/show_bug.cgi?id=107386
+
+        Reviewed by Andreas Kling.
+
+        Merge SVGStyledElement into SVGElement to simplify the SVG inheritance
+        model and match the SVG2 specification:
+        https://svgwg.org/svg2-draft/single-page.html#types-InterfaceSVGElement
+
+        Test: svg/dom/svg2-inheritance.html
+
+        * CMakeLists.txt:
+        * DerivedSources.cpp:
+        * DerivedSources.make:
+        * DerivedSources.pri:
+        * GNUmakefile.list.am:
+        * Target.pri:
+        * WebCore.order:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.vcxproj/WebCore.vcxproj.filters:
+        * WebCore.xcodeproj/project.pbxproj:
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::alternativeText):
+        (WebCore::AccessibilityNodeObject::accessibilityDescription):
+        * css/SVGCSSStyleSelector.cpp:
+        * rendering/style/SVGRenderStyle.cpp:
+        * rendering/svg/RenderSVGContainer.cpp:
+        (WebCore::RenderSVGContainer::RenderSVGContainer):
+        * rendering/svg/RenderSVGContainer.h:
+        * rendering/svg/RenderSVGHiddenContainer.cpp:
+        (WebCore::RenderSVGHiddenContainer::RenderSVGHiddenContainer):
+        * rendering/svg/RenderSVGHiddenContainer.h:
+        * rendering/svg/RenderSVGModelObject.cpp:
+        (WebCore::RenderSVGModelObject::RenderSVGModelObject):
+        (WebCore::getElementCTM):
+        * rendering/svg/RenderSVGModelObject.h:
+        * rendering/svg/RenderSVGResourceClipper.cpp:
+        (WebCore::RenderSVGResourceClipper::drawContentIntoMaskImage):
+        (WebCore::RenderSVGResourceClipper::calculateClipContentRepaintRect):
+        (WebCore::RenderSVGResourceClipper::hitTestClipContent):
+        * rendering/svg/RenderSVGResourceContainer.cpp:
+        (WebCore::RenderSVGResourceContainer::RenderSVGResourceContainer):
+        * rendering/svg/RenderSVGResourceContainer.h:
+        * rendering/svg/RenderSVGResourceFilter.cpp:
+        * rendering/svg/RenderSVGResourceFilterPrimitive.h:
+        * rendering/svg/RenderSVGResourceMarker.cpp:
+        * rendering/svg/RenderSVGResourceMarker.h:
+        * rendering/svg/RenderSVGResourceMasker.cpp:
+        (WebCore::RenderSVGResourceMasker::drawContentIntoMaskImage):
+        (WebCore::RenderSVGResourceMasker::calculateMaskContentRepaintRect):
+        * rendering/svg/RenderSVGResourcePattern.cpp:
+        (WebCore::RenderSVGResourcePattern::createTileImage):
+        * rendering/svg/RenderSVGRoot.cpp:
+        (WebCore::RenderSVGRoot::RenderSVGRoot):
+        * rendering/svg/RenderSVGRoot.h:
+        * rendering/svg/RenderSVGViewportContainer.cpp:
+        (WebCore::RenderSVGViewportContainer::RenderSVGViewportContainer):
+        * rendering/svg/RenderSVGViewportContainer.h:
+        * rendering/svg/SVGRenderSupport.cpp:
+        (WebCore::SVGRenderSupport::layoutChildren):
+        * rendering/svg/SVGRenderTreeAsText.cpp:
+        * rendering/svg/SVGResources.cpp:
+        (WebCore::registerPendingResource):
+        * rendering/svg/SVGResourcesCache.cpp:
+        * svg/SVGAElement.cpp:
+        (WebCore::SVGAElement::title):
+        * svg/SVGAllInOne.cpp:
+        * svg/SVGAltGlyphDefElement.h:
+        * svg/SVGAltGlyphItemElement.h:
+        * svg/SVGAnimateElement.cpp:
+        * svg/SVGAnimatedType.cpp:
+        (WebCore::SVGAnimatedType::valueAsString):
+        (WebCore::SVGAnimatedType::setValueAsString):
+        * svg/SVGAnimationElement.cpp:
+        (WebCore::SVGAnimationElement::isTargetAttributeCSSProperty):
+        (WebCore::SVGAnimationElement::computeCSSPropertyValue):
+        (WebCore::SVGAnimationElement::adjustForInheritance):
+        (WebCore::inheritsFromProperty):
+        * svg/SVGComponentTransferFunctionElement.h:
+        * svg/SVGCursorElement.h:
+        * svg/SVGDescElement.cpp:
+        (WebCore::SVGDescElement::SVGDescElement):
+        * svg/SVGDescElement.h:
+        * svg/SVGDescElement.idl:
+        * svg/SVGElement.cpp:
+        (WebCore::mapAttributeToCSSProperty):
+        (WebCore::cssPropertyToTypeMap):
+        (WebCore::SVGElement::SVGElement):
+        (WebCore::SVGElement::~SVGElement):
+        (WebCore::SVGElement::removedFrom):
+        (WebCore::SVGElement::parseAttribute):
+        (WebCore::SVGElement::animatedPropertyTypeForAttribute):
+        (WebCore::collectInstancesForSVGElement):
+        (WebCore::SVGElement::isAnimatableAttribute):
+        (WebCore::SVGElement::title):
+        (WebCore::SVGElement::rendererIsNeeded):
+        (WebCore::SVGElement::cssPropertyIdForSVGAttributeName):
+        (WebCore::SVGElement::isAnimatableCSSProperty):
+        (WebCore::SVGElement::isPresentationAttribute):
+        (WebCore::SVGElement::collectStyleForPresentationAttribute):
+        (WebCore::SVGElement::isKnownAttribute):
+        (WebCore::SVGElement::svgAttributeChanged):
+        (WebCore::SVGElement::insertedInto):
+        (WebCore::SVGElement::buildPendingResourcesIfNeeded):
+        (WebCore::SVGElement::childrenChanged):
+        (WebCore::SVGElement::getPresentationAttribute):
+        (WebCore::SVGElement::instanceUpdatesBlocked):
+        (WebCore::SVGElement::setInstanceUpdatesBlocked):
+        (WebCore::SVGElement::localCoordinateSpaceTransform):
+        (WebCore::SVGElement::updateRelativeLengthsInformation):
+        (WebCore::SVGElement::isMouseFocusable):
+        (WebCore::SVGElement::isKeyboardFocusable):
+        * svg/SVGElement.h:
+        (WebCore::SVGElement::supportsMarkers):
+        (WebCore::SVGElement::hasRelativeLengths):
+        (WebCore::SVGElement::needsPendingResourceHandling):
+        (WebCore::SVGElement::selfHasRelativeLengths):
+        (WebCore::SVGElement::updateRelativeLengthsInformation):
+        * svg/SVGElement.idl:
+        * svg/SVGElementInstance.cpp:
+        (WebCore::SVGElementInstance::invalidateAllInstancesOfElement):
+        (WebCore::SVGElementInstance::InstanceUpdateBlocker::InstanceUpdateBlocker):
+        * svg/SVGElementInstance.h:
+        * svg/SVGFEBlendElement.idl:
+        * svg/SVGFEColorMatrixElement.idl:
+        * svg/SVGFEComponentTransferElement.idl:
+        * svg/SVGFECompositeElement.idl:
+        * svg/SVGFEConvolveMatrixElement.idl:
+        * svg/SVGFEDiffuseLightingElement.idl:
+        * svg/SVGFEDisplacementMapElement.idl:
+        * svg/SVGFEDropShadowElement.idl:
+        * svg/SVGFEFloodElement.idl:
+        * svg/SVGFEGaussianBlurElement.idl:
+        * svg/SVGFEImageElement.idl:
+        * svg/SVGFELightElement.h:
+        * svg/SVGFEMergeElement.idl:
+        * svg/SVGFEMergeNodeElement.h:
+        * svg/SVGFEMorphologyElement.idl:
+        * svg/SVGFEOffsetElement.idl:
+        * svg/SVGFESpecularLightingElement.idl:
+        * svg/SVGFETileElement.idl:
+        * svg/SVGFETurbulenceElement.idl:
+        * svg/SVGFilterElement.cpp:
+        (WebCore::SVGFilterElement::SVGFilterElement):
+        (WebCore::SVGFilterElement::parseAttribute):
+        (WebCore::SVGFilterElement::svgAttributeChanged):
+        (WebCore::SVGFilterElement::childrenChanged):
+        * svg/SVGFilterElement.h:
+        * svg/SVGFilterElement.idl:
+        * svg/SVGFilterPrimitiveStandardAttributes.cpp:
+        (WebCore::SVGFilterPrimitiveStandardAttributes::SVGFilterPrimitiveStandardAttributes):
+        (WebCore::SVGFilterPrimitiveStandardAttributes::parseAttribute):
+        (WebCore::SVGFilterPrimitiveStandardAttributes::svgAttributeChanged):
+        (WebCore::SVGFilterPrimitiveStandardAttributes::childrenChanged):
+        (WebCore::SVGFilterPrimitiveStandardAttributes::rendererIsNeeded):
+        * svg/SVGFilterPrimitiveStandardAttributes.h:
+        * svg/SVGFontElement.cpp:
+        (WebCore::SVGFontElement::SVGFontElement):
+        * svg/SVGFontElement.h:
+        * svg/SVGFontFaceElement.cpp:
+        * svg/SVGFontFaceElement.h:
+        * svg/SVGFontFaceFormatElement.h:
+        * svg/SVGFontFaceNameElement.h:
+        * svg/SVGFontFaceSrcElement.h:
+        * svg/SVGFontFaceUriElement.h:
+        * svg/SVGGElement.cpp:
+        (WebCore::SVGGElement::rendererIsNeeded):
+        * svg/SVGGlyphElement.cpp:
+        (WebCore::SVGGlyphElement::SVGGlyphElement):
+        (WebCore::SVGGlyphElement::parseAttribute):
+        (WebCore::SVGGlyphElement::insertedInto):
+        (WebCore::SVGGlyphElement::removedFrom):
+        * svg/SVGGlyphElement.h:
+        * svg/SVGGlyphRefElement.cpp:
+        (WebCore::SVGGlyphRefElement::SVGGlyphRefElement):
+        (WebCore::SVGGlyphRefElement::parseAttribute):
+        * svg/SVGGlyphRefElement.h:
+        * svg/SVGGlyphRefElement.idl:
+        * svg/SVGGradientElement.cpp:
+        (WebCore::SVGGradientElement::SVGGradientElement):
+        (WebCore::SVGGradientElement::parseAttribute):
+        (WebCore::SVGGradientElement::svgAttributeChanged):
+        (WebCore::SVGGradientElement::childrenChanged):
+        * svg/SVGGradientElement.h:
+        * svg/SVGGradientElement.idl:
+        * svg/SVGGraphicsElement.cpp:
+        (WebCore::SVGGraphicsElement::SVGGraphicsElement):
+        (WebCore::SVGGraphicsElement::parseAttribute):
+        (WebCore::SVGGraphicsElement::svgAttributeChanged):
+        * svg/SVGGraphicsElement.h:
+        * svg/SVGGraphicsElement.idl:
+        * svg/SVGLocatable.cpp:
+        (WebCore::SVGLocatable::computeCTM):
+        * svg/SVGMPathElement.h:
+        * svg/SVGMarkerElement.cpp:
+        (WebCore::SVGMarkerElement::SVGMarkerElement):
+        (WebCore::SVGMarkerElement::parseAttribute):
+        (WebCore::SVGMarkerElement::svgAttributeChanged):
+        (WebCore::SVGMarkerElement::childrenChanged):
+        * svg/SVGMarkerElement.h:
+        * svg/SVGMarkerElement.idl:
+        * svg/SVGMaskElement.cpp:
+        (WebCore::SVGMaskElement::SVGMaskElement):
+        (WebCore::SVGMaskElement::parseAttribute):
+        (WebCore::SVGMaskElement::svgAttributeChanged):
+        (WebCore::SVGMaskElement::childrenChanged):
+        * svg/SVGMaskElement.h:
+        * svg/SVGMaskElement.idl:
+        * svg/SVGMetadataElement.h:
+        * svg/SVGMissingGlyphElement.cpp:
+        (WebCore::SVGMissingGlyphElement::SVGMissingGlyphElement):
+        * svg/SVGMissingGlyphElement.h:
+        * svg/SVGMissingGlyphElement.idl:
+        * svg/SVGPatternElement.cpp:
+        (WebCore::SVGPatternElement::SVGPatternElement):
+        (WebCore::SVGPatternElement::parseAttribute):
+        (WebCore::SVGPatternElement::svgAttributeChanged):
+        (WebCore::SVGPatternElement::childrenChanged):
+        * svg/SVGPatternElement.h:
+        * svg/SVGPatternElement.idl:
+        * svg/SVGScriptElement.h:
+        * svg/SVGStopElement.cpp:
+        (WebCore::SVGStopElement::SVGStopElement):
+        (WebCore::SVGStopElement::parseAttribute):
+        (WebCore::SVGStopElement::svgAttributeChanged):
+        * svg/SVGStopElement.h:
+        * svg/SVGStopElement.idl:
+        * svg/SVGStyleElement.h:
+        * svg/SVGStyledElement.cpp: Removed.
+        * svg/SVGStyledElement.h: Removed.
+        * svg/SVGStyledElement.idl: Removed.
+        * svg/SVGSymbolElement.cpp:
+        (WebCore::SVGSymbolElement::SVGSymbolElement):
+        (WebCore::SVGSymbolElement::parseAttribute):
+        (WebCore::SVGSymbolElement::svgAttributeChanged):
+        * svg/SVGSymbolElement.h:
+        * svg/SVGSymbolElement.idl:
+        * svg/SVGTRefElement.cpp:
+        (WebCore::SVGTRefElement::insertedInto):
+        (WebCore::SVGTRefElement::removedFrom):
+        * svg/SVGTitleElement.cpp:
+        (WebCore::SVGTitleElement::SVGTitleElement):
+        (WebCore::SVGTitleElement::insertedInto):
+        * svg/SVGTitleElement.h:
+        * svg/SVGTitleElement.idl:
+        * svg/SVGTransformable.cpp:
+        * svg/SVGUseElement.cpp:
+        (WebCore::SVGUseElement::selfHasRelativeLengths):
+        * svg/SVGViewElement.cpp:
+        (WebCore::SVGViewElement::SVGViewElement):
+        (WebCore::SVGViewElement::parseAttribute):
+        * svg/SVGViewElement.h:
+        * svg/animation/SVGSMILElement.h:
+        * svg/graphics/filters/SVGFEImage.cpp:
+        (WebCore::FEImage::platformApplySoftware):
+
+2013-08-22  Andreas Kling  <akling@apple.com>
+
+        FrameLoader::history() should return a reference.
+        <https://webkit.org/b/120163>
+
+        Reviewed by Anders Carlsson.
+
+        Rehued by Anders Carlsson.
+
+        FrameLoader::m_history is never null, so make history() return a reference.
+        Also made HistoryController::m_frame a reference, since HistoryController's
+        lifetime is tied to FrameLoader, which is tied to the Frame.
+
+2013-08-21  Simon Fraser  <simon.fraser@apple.com>
+
+        Reloading this video test shows garbage briefly
+        https://bugs.webkit.org/show_bug.cgi?id=119377
+
+        Reviewed by Anders Carlson.
+
+        RenderVideo should not claim that it's foreground is opaque
+        unless it has a video frame to display.
+
+        * rendering/RenderVideo.cpp:
+        (WebCore::RenderVideo::foregroundIsKnownToBeOpaqueInRect):
+
 2013-08-22  Andreas Kling  <akling@apple.com>
 
         Remove accidental cruft from r154449.

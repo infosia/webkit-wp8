@@ -1085,6 +1085,11 @@
 		C2F0F2D116BAEEE900187C19 /* StructureRareData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C2F0F2D016BAEEE900187C19 /* StructureRareData.cpp */; };
 		C2FC9BD316644DFB00810D33 /* CopiedBlockInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = C2FC9BD216644DFB00810D33 /* CopiedBlockInlines.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		C2FE18A416BAEC4000AF3061 /* StructureRareData.h in Headers */ = {isa = PBXBuildFile; fileRef = C2FE18A316BAEC4000AF3061 /* StructureRareData.h */; settings = {ATTRIBUTES = (Private, ); }; };
+		C905AF9917C6D5020067E66A /* JSManagedValueRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C905AF9817C6D5020067E66A /* JSManagedValueRef.h */; };
+		C905AF9B17C6D5150067E66A /* JSManagedValueRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */; };
+		C911AAEE17C69AD400FFB86F /* JSVirtualMachineRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */; };
+		C911AAF017C69EC400FFB86F /* JSVirtualMachineRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */; };
+		C911AAF217C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */; };
 		DDF7ABD411F60ED200108E36 /* GCActivityCallback.h in Headers */ = {isa = PBXBuildFile; fileRef = DDF7ABD211F60ED200108E36 /* GCActivityCallback.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E124A8F70E555775003091F1 /* OpaqueJSString.h in Headers */ = {isa = PBXBuildFile; fileRef = E124A8F50E555775003091F1 /* OpaqueJSString.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E124A8F80E555775003091F1 /* OpaqueJSString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E124A8F60E555775003091F1 /* OpaqueJSString.cpp */; };
@@ -2226,6 +2231,11 @@
 		C2F0F2D016BAEEE900187C19 /* StructureRareData.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StructureRareData.cpp; sourceTree = "<group>"; };
 		C2FC9BD216644DFB00810D33 /* CopiedBlockInlines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CopiedBlockInlines.h; sourceTree = "<group>"; };
 		C2FE18A316BAEC4000AF3061 /* StructureRareData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StructureRareData.h; sourceTree = "<group>"; };
+		C905AF9817C6D5020067E66A /* JSManagedValueRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSManagedValueRef.h; sourceTree = "<group>"; };
+		C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSManagedValueRef.cpp; sourceTree = "<group>"; };
+		C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineRef.h; sourceTree = "<group>"; };
+		C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVirtualMachineRef.cpp; sourceTree = "<group>"; };
+		C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineRefPrivate.h; sourceTree = "<group>"; };
 		D21202280AD4310C00ED79B6 /* DateConversion.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DateConversion.cpp; sourceTree = "<group>"; };
 		D21202290AD4310C00ED79B6 /* DateConversion.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DateConversion.h; sourceTree = "<group>"; };
 		DDF7ABD211F60ED200108E36 /* GCActivityCallback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCActivityCallback.h; sourceTree = "<group>"; };
@@ -2741,6 +2751,7 @@
 			children = (
 				C211B574176A224D000E2A23 /* APICallbackFunction.h */,
 				1482B78A0A4305AB00517CFC /* APICast.h */,
+				C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */,
 				865F408710E7D56300947361 /* APIShims.h */,
 				1CAA8B4A0D32C39A0041BCFF /* JavaScript.h */,
 				1CAA8B4B0D32C39A0041BCFF /* JavaScriptCore.h */,
@@ -2770,6 +2781,8 @@
 				A72028B51797601E0098028C /* JSCTestRunnerUtils.h */,
 				86E3C60A167BAB87006D760A /* JSExport.h */,
 				C25D709A16DE99F400FCA6BC /* JSManagedValue.h */,
+				C905AF9817C6D5020067E66A /* JSManagedValueRef.h */,
+				C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */,
 				C25D709916DE99F400FCA6BC /* JSManagedValue.mm */,
 				1482B7E20A43076000517CFC /* JSObjectRef.cpp */,
 				1482B7E10A43076000517CFC /* JSObjectRef.h */,
@@ -2790,6 +2803,8 @@
 				14BD5A2B0A3E91F600BAF59C /* JSValueRef.cpp */,
 				1482B6EA0A4300B300517CFC /* JSValueRef.h */,
 				86E3C60F167BAB87006D760A /* JSVirtualMachine.h */,
+				C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */,
+				C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */,
 				86E3C610167BAB87006D760A /* JSVirtualMachine.mm */,
 				86E3C611167BAB87006D760A /* JSVirtualMachineInternal.h */,
 				A7482E37116A697B003B0712 /* JSWeakObjectMapRefInternal.h */,
@@ -3734,6 +3749,7 @@
 				0FBD7E691447999600481315 /* CodeOrigin.h in Headers */,
 				0F21C27D14BE727A00ADC64B /* CodeSpecializationKind.h in Headers */,
 				0F2B66F417B6B5AB00A7AE3F /* JSGenericTypedArrayViewInlines.h in Headers */,
+				C911AAF217C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h in Headers */,
 				0F0B83A714BCF50700885B4F /* CodeType.h in Headers */,
 				BC18C3F30E16F5CD00B34460 /* CommonIdentifiers.h in Headers */,
 				0F15F15F14B7A73E005DE37D /* CommonSlowPaths.h in Headers */,
@@ -3857,6 +3873,7 @@
 				0FEFC9AB1681A3B600567F53 /* DFGOSRExitJumpPlaceholder.h in Headers */,
 				0F235BEE17178E7300690C7F /* DFGOSRExitPreparation.h in Headers */,
 				0FFFC95C14EF90AF00C72532 /* DFGPhase.h in Headers */,
+				C905AF9917C6D5020067E66A /* JSManagedValueRef.h in Headers */,
 				A78A977B179738B8009DF744 /* DFGPlan.h in Headers */,
 				0F2B66F717B6B5AB00A7AE3F /* JSInt8Array.h in Headers */,
 				0F2B66EA17B6B5AB00A7AE3F /* JSArrayBufferViewInlines.h in Headers */,
@@ -4076,6 +4093,7 @@
 				A72FFD64139985A800E5365A /* KeywordLookup.h in Headers */,
 				969A072A0ED1CE6900F1F681 /* Label.h in Headers */,
 				960097A60EBABB58007A7297 /* LabelScope.h in Headers */,
+				C911AAEE17C69AD400FFB86F /* JSVirtualMachineRef.h in Headers */,
 				0FB5467714F59B5C002C2989 /* LazyOperandValueProfile.h in Headers */,
 				BC18C4520E16F5CD00B34460 /* LegacyProfiler.h in Headers */,
 				BC18C4310E16F5CD00B34460 /* Lexer.h in Headers */,
@@ -4719,6 +4737,7 @@
 				0FE8534B1723CDA500B618F5 /* DFGDesiredWatchpoints.cpp in Sources */,
 				0FF427641591A1CC004CB9FF /* DFGDisassembler.cpp in Sources */,
 				0FD81AD2154FB4EE00983E72 /* DFGDominators.cpp in Sources */,
+				C905AF9B17C6D5150067E66A /* JSManagedValueRef.cpp in Sources */,
 				0FD3C82614115D4000FD81CB /* DFGDriver.cpp in Sources */,
 				0FF0F19E16B72A0B005DF95B /* DFGEdge.cpp in Sources */,
 				0FBC0AE71496C7C400D4FBDD /* DFGExitProfile.cpp in Sources */,
@@ -4805,6 +4824,7 @@
 				0F235BDF17178E1C00690C7F /* FTLOSRExitCompiler.cpp in Sources */,
 				0FEA0A2A1709629600BB722C /* FTLOutput.cpp in Sources */,
 				0FEA0A161706BB9000BB722C /* FTLState.cpp in Sources */,
+				C911AAF017C69EC400FFB86F /* JSVirtualMachineRef.cpp in Sources */,
 				0F235BE117178E1C00690C7F /* FTLThunks.cpp in Sources */,
 				0F235BE317178E1C00690C7F /* FTLValueFormat.cpp in Sources */,
 				0F235BE517178E1C00690C7F /* FTLValueSource.cpp in Sources */,
