@@ -1,5 +1,5 @@
 //
-//  JSVirtualMachineRef.cpp
+//  JSVirtualMachineXRef.cpp
 //  JavaScriptCore
 //
 //  Created by Matt Langston on 8/22/13.
@@ -7,8 +7,8 @@
 //
 
 #include "config.h"
-#include "JSVirtualMachineRef.h"
-#include "JSVirtualMachineRefPrivate.h"
+#include "JSVirtualMachineXRef.h"
+#include "JSVirtualMachineXPrivateRef.h"
 #include "JSContextRef.h"
 //#include <wtf/Forward.h>
 #include <wtf/PassRefPtr.h>
@@ -57,46 +57,56 @@ namespace Appcelerator {
     JSVirtualMachine::~JSVirtualMachine() {
         JSContextGroupRelease(m_group);
     }
-
+    
+    PassRefPtr<JSVirtualMachine> JSVirtualMachine::createJSVirtualMachine() {
+        return adoptRef(new JSVirtualMachine());
+    }
+    
+    PassRefPtr<JSVirtualMachine> JSVirtualMachine::createJSVirtualMachine(JSContextGroupRef group) {
+        return adoptRef(new JSVirtualMachine(group));
+    }
+    
 } // namespace Appcelerator
 
 // TODO: This should go in APICast.h
-inline Appcelerator::JSVirtualMachine* toJS(JSVirtualMachineRef virtualMachine)
+inline Appcelerator::JSVirtualMachine* toJS(JSVirtualMachineXRef virtualMachine)
 {
-    return reinterpret_cast<Appcelerator::JSVirtualMachine*>(const_cast<OpaqueJSVirtualMachine*>(virtualMachine));
+    return reinterpret_cast<Appcelerator::JSVirtualMachine*>(const_cast<OpaqueJSVirtualMachineX*>(virtualMachine));
 }
 
 // TODO: This should go in APICast.h
-inline JSVirtualMachineRef toRef(Appcelerator::JSVirtualMachine* virtualMachine)
+inline JSVirtualMachineXRef toRef(Appcelerator::JSVirtualMachine* virtualMachine)
 {
-    return reinterpret_cast<JSVirtualMachineRef>(virtualMachine);
+    return reinterpret_cast<JSVirtualMachineXRef>(virtualMachine);
 }
 
-using namespace Appcelerator;
+//using namespace Appcelerator;
 
 // From the API's perspective, a JSVirtualMachine remains alive iff
 //     (a) it has been retained via JSVirtualMachineRetained
 //     OR
 //     (b) one of its JSContexts has been JSContextRetained
 
-JSVirtualMachineRef JSVirtualMachineCreate()
+JSVirtualMachineXRef JSVirtualMachineXCreate()
 {
     // TODO
     //    initializeThreading();
-    return toRef(JSVirtualMachine::createJSVirtualMachine().leakRef());
+    return toRef(Appcelerator::JSVirtualMachine::createJSVirtualMachine().leakRef());
 }
 
-JSVirtualMachineRef JSVirtualMachineCreateWithContextGroupRef(JSContextGroupRef group) {
-    return toRef(JSVirtualMachine::createJSVirtualMachine(group).leakRef());
+JSVirtualMachineXRef JSVirtualMachineXCreateWithContextGroupRef(JSContextGroupRef group) {
+    return toRef(Appcelerator::JSVirtualMachine::createJSVirtualMachine(group).leakRef());
 }
 
-JSVirtualMachineRef JSVirtualMachineRetain(JSVirtualMachineRef virtualMachine) {
+JSVirtualMachineXRef JSVirtualMachineXRetain(JSVirtualMachineXRef virtualMachine) {
     toJS(virtualMachine)->ref();
     return virtualMachine;
 }
 
-void JJSVirtualMachineRelease(JSVirtualMachineRef virtualMachine) {
-    JSVirtualMachine& vm = *toJS(virtualMachine);
-    vm.deref();
+void JSVirtualMachineXRelease(JSVirtualMachineXRef jsVirtualMachine) {
+    Appcelerator::JSVirtualMachine *virtualMachine = toJS(jsVirtualMachine);
+    if (virtualMachine) {
+        virtualMachine->deref();
+    }
 }
 

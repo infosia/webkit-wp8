@@ -1,13 +1,13 @@
 //
-//  JSManagedValueRef.h
+//  JSManagedValueXRef.h
 //  JavaScriptCore
 //
 //  Created by Matt Langston on 8/22/13.
 //
 //
 
-#ifndef JSManagedValueRef_h
-#define JSManagedValueRef_h
+#ifndef JSManagedValueXRef_h
+#define JSManagedValueXRef_h
 
 #include <JavaScriptCore/JSBase.h>
 //#include <JavaScriptCore/WebKitAvailability.h>
@@ -16,8 +16,24 @@
 extern "C" {
 #endif
     
-    /*! @typedef JSManagedValueRef An instance of JSManagedValue represents a
-     "conditionally retained" JSValue. "Conditionally retained" means that as
+    /*! @typedef JSManagedValueXRefX An instance of a JSManagedValueXRefX
+     by itself represents a weak reference to a JSValueRefX, whereas a
+     JSValueRefX represents a strong reference to a JavaScript value.
+     
+     meaning that the
+     JavaScript garbage collector will reclaim this JSValueRefX when there are
+     no references to it from JavaScript.
+     
+     However, a JSManagedValueXRefX can be transformed from a weak reference to a
+     garbage collected referene if it is registered with a
+     JSVirtualMachineRefX.
+     
+     Without a this new type of reference, What this means is that The idea is that a
+     
+     "conditionally retained" JSValue.
+     
+     
+     "Conditionally retained" means that as
      long as either the JSManagedValue JavaScript value is reachable through the
      JavaScript object graph or the JSManagedValue external object is reachable
      through the external object graph as reported to the JSVirtualMachine using
@@ -31,11 +47,11 @@ extern "C" {
      heap object, as this can very easily create a reference cycle, keeping the
      entire JSContext alive.
      */
-    typedef const struct OpaqueJSManagedValue* JSManagedValueRef;
+    typedef const struct OpaqueJSManagedValueX* JSManagedValueXRef;
     
 #ifdef __cplusplus
 }
 #endif
 
-#endif // JSManagedValueRef_h
+#endif /* JSManagedValueXRef_h */
 
