@@ -1085,11 +1085,16 @@
 		C2F0F2D116BAEEE900187C19 /* StructureRareData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C2F0F2D016BAEEE900187C19 /* StructureRareData.cpp */; };
 		C2FC9BD316644DFB00810D33 /* CopiedBlockInlines.h in Headers */ = {isa = PBXBuildFile; fileRef = C2FC9BD216644DFB00810D33 /* CopiedBlockInlines.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		C2FE18A416BAEC4000AF3061 /* StructureRareData.h in Headers */ = {isa = PBXBuildFile; fileRef = C2FE18A316BAEC4000AF3061 /* StructureRareData.h */; settings = {ATTRIBUTES = (Private, ); }; };
-		C905AF9917C6D5020067E66A /* JSManagedValueRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C905AF9817C6D5020067E66A /* JSManagedValueRef.h */; };
-		C905AF9B17C6D5150067E66A /* JSManagedValueRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */; };
-		C911AAEE17C69AD400FFB86F /* JSVirtualMachineRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */; };
-		C911AAF017C69EC400FFB86F /* JSVirtualMachineRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */; };
-		C911AAF217C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */; };
+		C905AF9917C6D5020067E66A /* JSManagedValueXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C905AF9817C6D5020067E66A /* JSManagedValueXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		C905AF9B17C6D5150067E66A /* JSManagedValueXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C905AF9A17C6D5150067E66A /* JSManagedValueXRef.cpp */; };
+		C911AAEE17C69AD400FFB86F /* JSVirtualMachineXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		C911AAF017C69EC400FFB86F /* JSVirtualMachineXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */; };
+		C911AAF217C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */; };
+		C99F296517C7FB2E00B1544E /* JSValueXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C99F296417C7FB2E00B1544E /* JSValueXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		C99F296717C7FB4F00B1544E /* JSValueXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */; };
+		C99F296917C7FB8200B1544E /* JavaScriptCoreX.h in Headers */ = {isa = PBXBuildFile; fileRef = C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		C99F296B17C7FBE100B1544E /* JSContextXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C99F296A17C7FBE100B1544E /* JSContextXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		C99F296E17C7FF0500B1544E /* JSContextXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C99F296C17C7FF0500B1544E /* JSContextXRef.cpp */; };
 		DDF7ABD411F60ED200108E36 /* GCActivityCallback.h in Headers */ = {isa = PBXBuildFile; fileRef = DDF7ABD211F60ED200108E36 /* GCActivityCallback.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E124A8F70E555775003091F1 /* OpaqueJSString.h in Headers */ = {isa = PBXBuildFile; fileRef = E124A8F50E555775003091F1 /* OpaqueJSString.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		E124A8F80E555775003091F1 /* OpaqueJSString.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E124A8F60E555775003091F1 /* OpaqueJSString.cpp */; };
@@ -2231,11 +2236,16 @@
 		C2F0F2D016BAEEE900187C19 /* StructureRareData.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StructureRareData.cpp; sourceTree = "<group>"; };
 		C2FC9BD216644DFB00810D33 /* CopiedBlockInlines.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CopiedBlockInlines.h; sourceTree = "<group>"; };
 		C2FE18A316BAEC4000AF3061 /* StructureRareData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StructureRareData.h; sourceTree = "<group>"; };
-		C905AF9817C6D5020067E66A /* JSManagedValueRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSManagedValueRef.h; sourceTree = "<group>"; };
-		C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSManagedValueRef.cpp; sourceTree = "<group>"; };
-		C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineRef.h; sourceTree = "<group>"; };
-		C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVirtualMachineRef.cpp; sourceTree = "<group>"; };
-		C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineRefPrivate.h; sourceTree = "<group>"; };
+		C905AF9817C6D5020067E66A /* JSManagedValueXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSManagedValueXRef.h; sourceTree = "<group>"; };
+		C905AF9A17C6D5150067E66A /* JSManagedValueXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSManagedValueXRef.cpp; sourceTree = "<group>"; };
+		C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineXRef.h; sourceTree = "<group>"; };
+		C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVirtualMachineXRef.cpp; sourceTree = "<group>"; };
+		C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineXPrivateRef.h; sourceTree = "<group>"; };
+		C99F296417C7FB2E00B1544E /* JSValueXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSValueXRef.h; sourceTree = "<group>"; };
+		C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSValueXRef.cpp; sourceTree = "<group>"; };
+		C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JavaScriptCoreX.h; sourceTree = "<group>"; };
+		C99F296A17C7FBE100B1544E /* JSContextXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSContextXRef.h; sourceTree = "<group>"; };
+		C99F296C17C7FF0500B1544E /* JSContextXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSContextXRef.cpp; sourceTree = "<group>"; };
 		D21202280AD4310C00ED79B6 /* DateConversion.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = DateConversion.cpp; sourceTree = "<group>"; };
 		D21202290AD4310C00ED79B6 /* DateConversion.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DateConversion.h; sourceTree = "<group>"; };
 		DDF7ABD211F60ED200108E36 /* GCActivityCallback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GCActivityCallback.h; sourceTree = "<group>"; };
@@ -2751,10 +2761,10 @@
 			children = (
 				C211B574176A224D000E2A23 /* APICallbackFunction.h */,
 				1482B78A0A4305AB00517CFC /* APICast.h */,
-				C911AAF117C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h */,
 				865F408710E7D56300947361 /* APIShims.h */,
 				1CAA8B4A0D32C39A0041BCFF /* JavaScript.h */,
 				1CAA8B4B0D32C39A0041BCFF /* JavaScriptCore.h */,
+				C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */,
 				BC0894D50FAFBA2D00001865 /* JSAPIValueWrapper.cpp */,
 				BC0894D60FAFBA2D00001865 /* JSAPIValueWrapper.h */,
 				C2CF39C016E15A8100DD69BE /* JSAPIWrapperObject.h */,
@@ -2773,6 +2783,8 @@
 				1440FCE10A51E46B0005F061 /* JSClassRef.h */,
 				86E3C607167BAB87006D760A /* JSContext.h */,
 				86E3C608167BAB87006D760A /* JSContext.mm */,
+				C99F296A17C7FBE100B1544E /* JSContextXRef.h */,
+				C99F296C17C7FF0500B1544E /* JSContextXRef.cpp */,
 				86E3C609167BAB87006D760A /* JSContextInternal.h */,
 				14BD5A290A3E91F600BAF59C /* JSContextRef.cpp */,
 				14BD5A2A0A3E91F600BAF59C /* JSContextRef.h */,
@@ -2781,9 +2793,9 @@
 				A72028B51797601E0098028C /* JSCTestRunnerUtils.h */,
 				86E3C60A167BAB87006D760A /* JSExport.h */,
 				C25D709A16DE99F400FCA6BC /* JSManagedValue.h */,
-				C905AF9817C6D5020067E66A /* JSManagedValueRef.h */,
-				C905AF9A17C6D5150067E66A /* JSManagedValueRef.cpp */,
 				C25D709916DE99F400FCA6BC /* JSManagedValue.mm */,
+				C905AF9817C6D5020067E66A /* JSManagedValueXRef.h */,
+				C905AF9A17C6D5150067E66A /* JSManagedValueXRef.cpp */,
 				1482B7E20A43076000517CFC /* JSObjectRef.cpp */,
 				1482B7E10A43076000517CFC /* JSObjectRef.h */,
 				A79EDB0811531CD60019E912 /* JSObjectRefPrivate.h */,
@@ -2799,13 +2811,16 @@
 				1A28D4A7177B71C80007FA3C /* JSStringRefPrivate.h */,
 				86E3C606167BAB87006D760A /* JSValue.h */,
 				86E3C60D167BAB87006D760A /* JSValue.mm */,
+				C99F296417C7FB2E00B1544E /* JSValueXRef.h */,
+				C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */,
 				86E3C60E167BAB87006D760A /* JSValueInternal.h */,
 				14BD5A2B0A3E91F600BAF59C /* JSValueRef.cpp */,
 				1482B6EA0A4300B300517CFC /* JSValueRef.h */,
 				86E3C60F167BAB87006D760A /* JSVirtualMachine.h */,
-				C911AAED17C69AD400FFB86F /* JSVirtualMachineRef.h */,
-				C911AAEF17C69EC400FFB86F /* JSVirtualMachineRef.cpp */,
 				86E3C610167BAB87006D760A /* JSVirtualMachine.mm */,
+				C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */,
+				C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */,
+				C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */,
 				86E3C611167BAB87006D760A /* JSVirtualMachineInternal.h */,
 				A7482E37116A697B003B0712 /* JSWeakObjectMapRefInternal.h */,
 				A7482B7A1166CDEA003B0712 /* JSWeakObjectMapRefPrivate.cpp */,
@@ -3692,8 +3707,21 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BC18C4130E16F5CD00B34460 /* JavaScript.h in Headers */,
+				C99F296917C7FB8200B1544E /* JavaScriptCoreX.h in Headers */,
+				BC18C4140E16F5CD00B34460 /* JavaScriptCore.h in Headers */,
+				BC18C4180E16F5CD00B34460 /* JSBase.h in Headers */,
+				86E3C613167BABD7006D760A /* JSContext.h in Headers */,
+				C99F296B17C7FBE100B1544E /* JSContextXRef.h in Headers */,
+				BC18C41E0E16F5CD00B34460 /* JSContextRef.h in Headers */,
+				86E3C612167BABD7006D760A /* JSValue.h in Headers */,
+				C99F296517C7FB2E00B1544E /* JSValueXRef.h in Headers */,
+				BC18C42C0E16F5CD00B34460 /* JSValueRef.h in Headers */,
 				0FFB921F16D033050055A5DB /* (null) in Headers */,
+				C25D709C16DE99F400FCA6BC /* JSManagedValue.h in Headers */,
+				C905AF9917C6D5020067E66A /* JSManagedValueXRef.h in Headers */,
 				860161E30F3A83C100F84710 /* AbstractMacroAssembler.h in Headers */,
+				86E3C615167BABD7006D760A /* JSVirtualMachine.h in Headers */,
 				0F55F0F514D1063C00AC7649 /* AbstractPC.h in Headers */,
 				2A48D1911772365B00C65A5F /* APICallbackFunction.h in Headers */,
 				BC18C3E50E16F5CD00B34460 /* APICast.h in Headers */,
@@ -3705,6 +3733,7 @@
 				65C0285D1717966800351E35 /* ARMv7DOpcode.h in Headers */,
 				0F8335B81639C1EA001443B5 /* ArrayAllocationProfile.h in Headers */,
 				A7A8AF3517ADB5F3005AB174 /* ArrayBuffer.h in Headers */,
+				C911AAEE17C69AD400FFB86F /* JSVirtualMachineXRef.h in Headers */,
 				A7A8AF3717ADB5F3005AB174 /* ArrayBufferView.h in Headers */,
 				BC18C3E60E16F5CD00B34460 /* ArrayConstructor.h in Headers */,
 				0FB7F39515ED8E4600F167B2 /* ArrayConventions.h in Headers */,
@@ -3742,7 +3771,7 @@
 				0FBD7E691447999600481315 /* CodeOrigin.h in Headers */,
 				0F21C27D14BE727A00ADC64B /* CodeSpecializationKind.h in Headers */,
 				0F2B66F417B6B5AB00A7AE3F /* JSGenericTypedArrayViewInlines.h in Headers */,
-				C911AAF217C6AD6100FFB86F /* JSVirtualMachineRefPrivate.h in Headers */,
+				C911AAF217C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h in Headers */,
 				0F0B83A714BCF50700885B4F /* CodeType.h in Headers */,
 				BC18C3F30E16F5CD00B34460 /* CommonIdentifiers.h in Headers */,
 				0F15F15F14B7A73E005DE37D /* CommonSlowPaths.h in Headers */,
@@ -3865,7 +3894,6 @@
 				0FEFC9AB1681A3B600567F53 /* DFGOSRExitJumpPlaceholder.h in Headers */,
 				0F235BEE17178E7300690C7F /* DFGOSRExitPreparation.h in Headers */,
 				0FFFC95C14EF90AF00C72532 /* DFGPhase.h in Headers */,
-				C905AF9917C6D5020067E66A /* JSManagedValueRef.h in Headers */,
 				A78A977B179738B8009DF744 /* DFGPlan.h in Headers */,
 				0FBE0F7516C1DB0B0082C5E8 /* DFGPredictionInjectionPhase.h in Headers */,
 				0FFFC95E14EF90B700C72532 /* DFGPredictionPropagationPhase.h in Headers */,
@@ -3986,8 +4014,6 @@
 				BC11667B0E199C05008066DD /* InternalFunction.h in Headers */,
 				1429D77C0ED20D7300B89619 /* Interpreter.h in Headers */,
 				860BD801148EA6F200112B2F /* Intrinsic.h in Headers */,
-				BC18C4130E16F5CD00B34460 /* JavaScript.h in Headers */,
-				BC18C4140E16F5CD00B34460 /* JavaScriptCore.h in Headers */,
 				BC18C4150E16F5CD00B34460 /* JavaScriptCorePrefix.h in Headers */,
 				1429D9300ED22D7000B89619 /* JIT.h in Headers */,
 				86CCEFDE0F413F8900FD7F9E /* JITCode.h in Headers */,
@@ -4018,7 +4044,6 @@
 				0F2B66E717B6B5AB00A7AE3F /* JSArrayBufferPrototype.h in Headers */,
 				0F2B66E917B6B5AB00A7AE3F /* JSArrayBufferView.h in Headers */,
 				0F2B66EA17B6B5AB00A7AE3F /* JSArrayBufferViewInlines.h in Headers */,
-				BC18C4180E16F5CD00B34460 /* JSBase.h in Headers */,
 				140D17D70E8AD4A9000CD17D /* JSBasePrivate.h in Headers */,
 				86FA9E92142BBB2E001773B7 /* JSBoundFunction.h in Headers */,
 				BC18C4190E16F5CD00B34460 /* JSCallbackConstructor.h in Headers */,
@@ -4030,9 +4055,7 @@
 				BC18C42B0E16F5CD00B34460 /* JSCJSValue.h in Headers */,
 				865A30F1135007E100CDB49E /* JSCJSValueInlines.h in Headers */,
 				BC18C41D0E16F5CD00B34460 /* JSClassRef.h in Headers */,
-				86E3C613167BABD7006D760A /* JSContext.h in Headers */,
 				86E3C617167BABEE006D760A /* JSContextInternal.h in Headers */,
-				BC18C41E0E16F5CD00B34460 /* JSContextRef.h in Headers */,
 				148CD1D8108CF902008163C6 /* JSContextRefPrivate.h in Headers */,
 				A72028B81797601E0098028C /* JSCTestRunnerUtils.h in Headers */,
 				0F2B66EC17B6B5AB00A7AE3F /* JSDataView.h in Headers */,
@@ -4058,7 +4081,6 @@
 				0F2B66F717B6B5AB00A7AE3F /* JSInt8Array.h in Headers */,
 				A76C51761182748D00715B05 /* JSInterfaceJIT.h in Headers */,
 				BC18C4230E16F5CD00B34460 /* JSLock.h in Headers */,
-				C25D709C16DE99F400FCA6BC /* JSManagedValue.h in Headers */,
 				14874AE415EBDE4A002E3587 /* JSNameScope.h in Headers */,
 				BC18C4240E16F5CD00B34460 /* JSObject.h in Headers */,
 				BC18C4250E16F5CD00B34460 /* JSObjectRef.h in Headers */,
@@ -4089,11 +4111,8 @@
 				0F2B670317B6B5AB00A7AE3F /* JSUint32Array.h in Headers */,
 				0F2B670017B6B5AB00A7AE3F /* JSUint8Array.h in Headers */,
 				0F2B670117B6B5AB00A7AE3F /* JSUint8ClampedArray.h in Headers */,
-				86E3C612167BABD7006D760A /* JSValue.h in Headers */,
 				86E3C61B167BABEE006D760A /* JSValueInternal.h in Headers */,
-				BC18C42C0E16F5CD00B34460 /* JSValueRef.h in Headers */,
 				BC18C42D0E16F5CD00B34460 /* JSVariableObject.h in Headers */,
-				86E3C615167BABD7006D760A /* JSVirtualMachine.h in Headers */,
 				86E3C61D167BABEE006D760A /* JSVirtualMachineInternal.h in Headers */,
 				A7482E93116A7CAD003B0712 /* JSWeakObjectMapRefInternal.h in Headers */,
 				A7482B9311671147003B0712 /* JSWeakObjectMapRefPrivate.h in Headers */,
@@ -4105,7 +4124,6 @@
 				A72FFD64139985A800E5365A /* KeywordLookup.h in Headers */,
 				969A072A0ED1CE6900F1F681 /* Label.h in Headers */,
 				960097A60EBABB58007A7297 /* LabelScope.h in Headers */,
-				C911AAEE17C69AD400FFB86F /* JSVirtualMachineRef.h in Headers */,
 				0FB5467714F59B5C002C2989 /* LazyOperandValueProfile.h in Headers */,
 				BC18C4520E16F5CD00B34460 /* LegacyProfiler.h in Headers */,
 				BC18C4310E16F5CD00B34460 /* Lexer.h in Headers */,
@@ -4740,7 +4758,7 @@
 				C2981FDC17BAFF4400A3BC98 /* DFGDesiredWriteBarriers.cpp in Sources */,
 				0FF427641591A1CC004CB9FF /* DFGDisassembler.cpp in Sources */,
 				0FD81AD2154FB4EE00983E72 /* DFGDominators.cpp in Sources */,
-				C905AF9B17C6D5150067E66A /* JSManagedValueRef.cpp in Sources */,
+				C905AF9B17C6D5150067E66A /* JSManagedValueXRef.cpp in Sources */,
 				0FD3C82614115D4000FD81CB /* DFGDriver.cpp in Sources */,
 				0FF0F19E16B72A0B005DF95B /* DFGEdge.cpp in Sources */,
 				0FBC0AE71496C7C400D4FBDD /* DFGExitProfile.cpp in Sources */,
@@ -4826,7 +4844,7 @@
 				0F235BDF17178E1C00690C7F /* FTLOSRExitCompiler.cpp in Sources */,
 				0FEA0A2A1709629600BB722C /* FTLOutput.cpp in Sources */,
 				0FEA0A161706BB9000BB722C /* FTLState.cpp in Sources */,
-				C911AAF017C69EC400FFB86F /* JSVirtualMachineRef.cpp in Sources */,
+				C911AAF017C69EC400FFB86F /* JSVirtualMachineXRef.cpp in Sources */,
 				0F235BE117178E1C00690C7F /* FTLThunks.cpp in Sources */,
 				0F235BE317178E1C00690C7F /* FTLValueFormat.cpp in Sources */,
 				0F235BE517178E1C00690C7F /* FTLValueSource.cpp in Sources */,
@@ -5015,6 +5033,7 @@
 				A7C1EAF117987AB600299DB2 /* StackIterator.cpp in Sources */,
 				A730B6131250068F009D25B1 /* StrictEvalActivation.cpp in Sources */,
 				14469DEB107EC7E700650446 /* StringConstructor.cpp in Sources */,
+				C99F296717C7FB4F00B1544E /* JSValueXRef.cpp in Sources */,
 				14469DEC107EC7E700650446 /* StringObject.cpp in Sources */,
 				14469DED107EC7E700650446 /* StringPrototype.cpp in Sources */,
 				9335F24D12E6765B002B5553 /* StringRecursionChecker.cpp in Sources */,
@@ -5032,6 +5051,7 @@
 				0FF42740158EBE8B004CB9FF /* udis86_decode.c in Sources */,
 				0FF42743158EBE91004CB9FF /* udis86_input.c in Sources */,
 				0FF4274D158EBFE6004CB9FF /* udis86_itab_holder.c in Sources */,
+				C99F296E17C7FF0500B1544E /* JSContextXRef.cpp in Sources */,
 				0FF42745158EBE91004CB9FF /* udis86_syn-att.c in Sources */,
 				0FF42746158EBE91004CB9FF /* udis86_syn-intel.c in Sources */,
 				0FF42747158EBE91004CB9FF /* udis86_syn.c in Sources */,
