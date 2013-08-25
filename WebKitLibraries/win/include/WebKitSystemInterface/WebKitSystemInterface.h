@@ -84,6 +84,7 @@ void wkSetUpFontCache(size_t s);
 void wkSetBaseCTM(CGContextRef, CGAffineTransform);
 void wkSetPatternPhaseInUserSpace(CGContextRef, CGPoint phasePoint);
 CGAffineTransform wkGetUserToBaseCTM(CGContextRef);
+bool wkCGContextIsPDFContext(CGContextRef);
 
 void wkDrawFocusRing(CGContextRef, CGColorRef, float radius);
 
@@ -192,6 +193,8 @@ typedef enum {
 } wkPatternTiling;
 
 CGPatternRef wkCGPatternCreateWithImageAndTransform(CGImageRef image, CGAffineTransform transform, int tiling);
+
+bool wkCGContextDrawsWithCorrectShadowOffsets(CGContextRef);
 
 CFDictionaryRef wkCFURLRequestCreateSerializableRepresentation(CFURLRequestRef cfRequest, CFTypeRef tokenNull);
 CFURLRequestRef wkCFURLRequestCreateFromSerializableRepresentation(CFDictionaryRef representation, CFTypeRef tokenNull);

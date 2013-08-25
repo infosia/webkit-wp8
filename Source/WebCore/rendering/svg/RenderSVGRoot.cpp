@@ -162,7 +162,7 @@ LayoutUnit RenderSVGRoot::computeReplacedLogicalWidth(ShouldComputePreferred sho
         return RenderReplaced::computeReplacedLogicalWidth(shouldComputePreferred);
 
     if (svg->widthAttributeEstablishesViewport())
-        return resolveLengthAttributeForSVG(svg->intrinsicWidth(SVGSVGElement::IgnoreCSSProperties), style()->effectiveZoom(), containingBlock()->availableLogicalWidth(), view());
+        return resolveLengthAttributeForSVG(svg->intrinsicWidth(SVGSVGElement::IgnoreCSSProperties), style()->effectiveZoom(), containingBlock()->availableLogicalWidth(), &view());
 
     // SVG embedded through object/embed/iframe.
     if (isEmbeddedThroughFrameContainingSVGDocument())
@@ -196,7 +196,7 @@ LayoutUnit RenderSVGRoot::computeReplacedLogicalHeight() const
         } else
             RenderBlock::removePercentHeightDescendant(const_cast<RenderSVGRoot*>(this));
 
-        return resolveLengthAttributeForSVG(height, style()->effectiveZoom(), containingBlock()->availableLogicalHeight(IncludeMarginBorderPadding), view());
+        return resolveLengthAttributeForSVG(height, style()->effectiveZoom(), containingBlock()->availableLogicalHeight(IncludeMarginBorderPadding), &view());
     }
 
     // SVG embedded through object/embed/iframe.
@@ -215,7 +215,7 @@ void RenderSVGRoot::layout()
     m_resourcesNeedingToInvalidateClients.clear();
 
     // Arbitrary affine transforms are incompatible with LayoutState.
-    LayoutStateDisabler layoutStateDisabler(view());
+    LayoutStateDisabler layoutStateDisabler(&view());
 
     bool needsLayout = selfNeedsLayout();
     LayoutRepainter repainter(*this, checkForRepaintDuringLayout() && needsLayout);
@@ -271,9 +271,7 @@ void RenderSVGRoot::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paint
     if (svg->hasEmptyViewBox())
         return;
 
-    Page* page = 0;
-    if (Frame* frame = this->frame())
-        page = frame->page();
+    Page* page = frame().page();
 
     // Don't paint if we don't have kids, except if we have filters we should paint those.
     if (!firstChild()) {

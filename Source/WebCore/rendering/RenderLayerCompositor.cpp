@@ -463,8 +463,8 @@ void RenderLayerCompositor::layerTiledBackingUsageChanged(const GraphicsLayer*, 
 
 RenderLayerCompositor* RenderLayerCompositor::enclosingCompositorFlushingLayers() const
 {
-    for (Frame* frame = &m_renderView.frameView().frame(); frame; frame = frame->tree()->parent()) {
-        RenderLayerCompositor* compositor = frame->contentRenderer() ? frame->contentRenderer()->compositor() : 0;
+    for (Frame* frame = &m_renderView.frameView().frame(); frame; frame = frame->tree().parent()) {
+        RenderLayerCompositor* compositor = frame->contentRenderer() ? &frame->contentRenderer()->compositor() : 0;
         if (compositor->isFlushingLayers())
             return compositor;
     }
@@ -572,7 +572,7 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
 
         Frame& frame = m_renderView.frameView().frame();
         bool isMainFrame = !m_renderView.document()->ownerElement();
-        LOG(Compositing, "\nUpdate %d of %s.\n", m_rootLayerUpdateCount, isMainFrame ? "main frame" : frame.tree()->uniqueName().string().utf8().data());
+        LOG(Compositing, "\nUpdate %d of %s.\n", m_rootLayerUpdateCount, isMainFrame ? "main frame" : frame.tree().uniqueName().string().utf8().data());
     }
 #endif
 
@@ -876,9 +876,9 @@ void RenderLayerCompositor::addToOverlapMap(OverlapMap& overlapMap, RenderLayer*
     }
 
     IntRect clipRect = pixelSnappedIntRect(layer->backgroundClipRect(RenderLayer::ClipRectsContext(rootRenderLayer(), 0, AbsoluteClipRects)).rect()); // FIXME: Incorrect for CSS regions.
-    if (Settings* settings = m_renderView.document()->settings())
-        if (!settings->applyPageScaleFactorInCompositor())
-            clipRect.scale(pageScaleFactor());
+    const Settings& settings = m_renderView.frameView().frame().settings();
+    if (!settings.applyPageScaleFactorInCompositor())
+        clipRect.scale(pageScaleFactor());
     clipRect.intersect(layerBounds);
     overlapMap.add(layer, clipRect);
 }
@@ -1414,7 +1414,7 @@ RenderLayerCompositor* RenderLayerCompositor::frameContentsCompositor(RenderPart
     HTMLFrameOwnerElement* element = toFrameOwnerElement(renderer->node());
     if (Document* contentDocument = element->contentDocument()) {
         if (RenderView* view = contentDocument->renderView())
-            return view->compositor();
+            return &view->compositor();
     }
     return 0;
 }
@@ -2260,10 +2260,9 @@ bool RenderLayerCompositor::requiresCompositingForPosition(RenderObject* rendere
         return false;
 
     // FIXME: acceleratedCompositingForFixedPositionEnabled should probably be renamed acceleratedCompositingForViewportConstrainedPositionEnabled().
-    if (Settings* settings = m_renderView.document()->settings()) {
-        if (!settings->acceleratedCompositingForFixedPositionEnabled())
-            return false;
-    }
+    const Settings& settings = m_renderView.frameView().frame().settings();
+    if (!settings.acceleratedCompositingForFixedPositionEnabled())
+        return false;
 
     if (isSticky)
         return hasCoordinatedScrolling() && isViewportConstrainedFixedOrStickyLayer(layer);
@@ -2979,7 +2978,7 @@ void RenderLayerCompositor::notifyIFramesOfCompositingChange()
 {
     Frame& frame = m_renderView.frameView().frame();
 
-    for (Frame* child = frame.tree()->firstChild(); child; child = child->tree()->traverseNext(&frame)) {
+    for (Frame* child = frame.tree().firstChild(); child; child = child->tree().traverseNext(&frame)) {
         if (child->document() && child->document()->ownerElement())
             child->document()->ownerElement()->scheduleSetNeedsStyleRecalc(SyntheticStyleChange);
     }

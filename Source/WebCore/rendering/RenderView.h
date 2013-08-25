@@ -190,7 +190,7 @@ public:
     void setIsInWindow(bool);
 
 #if USE(ACCELERATED_COMPOSITING)
-    RenderLayerCompositor* compositor();
+    RenderLayerCompositor& compositor();
     bool usesCompositing() const;
 #endif
 
@@ -214,7 +214,7 @@ public:
 
     IntervalArena* intervalArena();
 
-    IntSize viewportSize() const { return document()->viewportSize(); }
+    IntSize viewportSize() const;
 
     void setRenderQuoteHead(RenderQuote* head) { m_renderQuoteHead = head; }
     RenderQuote* renderQuoteHead() const { return m_renderQuoteHead; }
@@ -464,6 +464,11 @@ private:
     LayoutState* m_layoutState;
 #endif
 };
+
+inline Frame& RenderObject::frame() const
+{
+    return view().frameView().frame();
+}
 
 } // namespace WebCore
 

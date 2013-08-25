@@ -340,6 +340,8 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document* docum
 
 #if ENABLE(VIDEO_TRACK)
     document->registerForCaptionPreferencesChangedCallbacks(this);
+    if (document->page())
+        m_captionDisplayMode = document->page()->group().captionPreferences()->captionDisplayMode();
 #endif
 }
 
@@ -922,18 +924,12 @@ void HTMLMediaElement::selectMediaResource()
     // 3 - If the media element has a src attribute, then let mode be attribute.
     Mode mode = attribute;
     if (!fastHasAttribute(srcAttr)) {
-        Node* node;
-        for (node = firstChild(); node; node = node->nextSibling()) {
-            if (node->hasTagName(sourceTag))
-                break;
-        }
-
         // Otherwise, if the media element does not have a src attribute but has a source 
         // element child, then let mode be children and let candidate be the first such 
         // source element child in tree order.
-        if (node) {
+        if (auto sourceElement = Traversal<HTMLSourceElement>::firstChild(this)) {
             mode = children;
-            m_nextChildNodeToConsider = node;
+            m_nextChildNodeToConsider = sourceElement;
             m_currentSourceNode = 0;
         } else {
             // Otherwise the media element has neither a src attribute nor a source element 
@@ -1421,11 +1417,7 @@ void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
     bool trackIsLoaded = true;
     if (track->trackType() == TextTrack::TrackElement) {
         trackIsLoaded = false;
-        for (Node* node = firstChild(); node; node = node->nextSibling()) {
-            if (!node->hasTagName(trackTag))
-                continue;
-
-            HTMLTrackElement* trackElement = static_cast<HTMLTrackElement*>(node);
+        for (auto trackElement = Traversal<HTMLTrackElement>::firstChild(this); trackElement; trackElement = Traversal<HTMLTrackElement>::nextSibling(trackElement)) {
             if (trackElement->track() == track) {
                 if (trackElement->readyState() == HTMLTrackElement::LOADING || trackElement->readyState() == HTMLTrackElement::LOADED)
                     trackIsLoaded = true;
@@ -1657,10 +1649,8 @@ void HTMLMediaElement::cancelPendingEventsAndCallbacks()
     LOG(Media, "HTMLMediaElement::cancelPendingEventsAndCallbacks");
     m_asyncEventQueue->cancelAllEvents();
 
-    for (Node* node = firstChild(); node; node = node->nextSibling()) {
-        if (node->hasTagName(sourceTag))
-            static_cast<HTMLSourceElement*>(node)->cancelPendingErrorEvent();
-    }
+    for (auto source = Traversal<HTMLSourceElement>::firstChild(this); source; source = Traversal<HTMLSourceElement>::nextSibling(source))
+        source->cancelPendingErrorEvent();
 }
 
 Document* HTMLMediaElement::mediaPlayerOwningDocument()
@@ -3225,6 +3215,7 @@ void HTMLMediaElement::configureTextTrackGroup(const TrackGroup& group)
 
     Page* page = document()->page();
     CaptionUserPreferences* captionPreferences = page? page->group().captionPreferences() : 0;
+    CaptionUserPreferences::CaptionDisplayMode displayMode = captionPreferences ? captionPreferences->captionDisplayMode() : CaptionUserPreferences::Automatic;
 
     // First, find the track in the group that should be enabled (if any).
     Vector<RefPtr<TextTrack> > currentlyEnabledTracks;
@@ -3271,27 +3262,34 @@ void HTMLMediaElement::configureTextTrackGroup(const TrackGroup& group)
             // * If the track element has a default attribute specified, and there is no other text track in the media
             // element's list of text tracks whose text track mode is showing or showing by default
             //    Let the text track mode be showing by default.
-            defaultTrack = textTrack;
+            if (group.kind != TrackGroup::CaptionsAndSubtitles || displayMode != CaptionUserPreferences::ForcedOnly)
+                defaultTrack = textTrack;
         }
     }
 
     if (!trackToEnable && defaultTrack)
         trackToEnable = defaultTrack;
-
+    
     // If no track matches the user's preferred language, none was marked as 'default', and there is a forced subtitle track
     // in the same language as the language of the primary audio track, enable it.
     if (!trackToEnable && forcedSubitleTrack)
         trackToEnable = forcedSubitleTrack;
 
+    // If no track matches, don't disable an already visible track unless preferences say they all should be off.
+    if (group.kind != TrackGroup::CaptionsAndSubtitles || displayMode != CaptionUserPreferences::ForcedOnly) {
+        if (!trackToEnable && !defaultTrack && group.visibleTrack)
+            trackToEnable = group.visibleTrack;
+    }
+    
     // If no track matches the user's preferred language and non was marked 'default', enable the first track
     // because the user has explicitly stated a preference for this kind of track.
     if (!trackToEnable && fallbackTrack)
         trackToEnable = fallbackTrack;
 
-    if (!defaultTrack && trackToEnable && trackToEnable != fallbackTrack && m_captionDisplayMode != CaptionUserPreferences::AlwaysOn)
-        m_forcedOrAutomaticSubtitleTrackLanguage = trackToEnable->language();
+    if (trackToEnable)
+        m_subtitleTrackLanguage = trackToEnable->language();
     else
-        m_forcedOrAutomaticSubtitleTrackLanguage = emptyString();
+        m_subtitleTrackLanguage = emptyString();
     
     if (currentlyEnabledTracks.size()) {
         for (size_t i = 0; i < currentlyEnabledTracks.size(); ++i) {
@@ -3797,10 +3795,8 @@ void HTMLMediaElement::mediaPlayerSizeChanged(MediaPlayer*)
 #if USE(ACCELERATED_COMPOSITING)
 bool HTMLMediaElement::mediaPlayerRenderingCanBeAccelerated(MediaPlayer*)
 {
-    if (renderer() && renderer()->isVideo()) {
-        ASSERT(renderer()->view());
-        return renderer()->view()->compositor()->canAccelerateVideoRendering(toRenderVideo(renderer()));
-    }
+    if (renderer() && renderer()->isVideo())
+        return renderer()->view().compositor().canAccelerateVideoRendering(toRenderVideo(renderer()));
     return false;
 }
 
@@ -3852,7 +3848,7 @@ void HTMLMediaElement::mediaPlayerCharacteristicChanged(MediaPlayer*)
     beginProcessingMediaPlayerCallback();
 
 #if ENABLE(VIDEO_TRACK)
-    if (m_forcedOrAutomaticSubtitleTrackLanguage != m_player->languageOfPrimaryAudioTrack())
+    if (m_captionDisplayMode == CaptionUserPreferences::Automatic && m_subtitleTrackLanguage != m_player->languageOfPrimaryAudioTrack())
         markCaptionAndSubtitleTracksAsUnconfigured(AfterDelay);
 #endif
 

@@ -269,7 +269,7 @@ void AnimationControllerPrivate::suspendAnimations()
     suspendAnimationsForDocument(m_frame->document());
 
     // Traverse subframes
-    for (Frame* child = m_frame->tree()->firstChild(); child; child = child->tree()->nextSibling())
+    for (Frame* child = m_frame->tree().firstChild(); child; child = child->tree().nextSibling())
         child->animation().suspendAnimations();
 
     m_isSuspended = true;
@@ -283,7 +283,7 @@ void AnimationControllerPrivate::resumeAnimations()
     resumeAnimationsForDocument(m_frame->document());
 
     // Traverse subframes
-    for (Frame* child = m_frame->tree()->firstChild(); child; child = child->tree()->nextSibling())
+    for (Frame* child = m_frame->tree().firstChild(); child; child = child->tree().nextSibling())
         child->animation().resumeAnimations();
 
     m_isSuspended = false;
@@ -525,7 +525,7 @@ PassRefPtr<RenderStyle> AnimationController::updateAnimations(RenderObject* rend
         return newStyle;
 
     // Don't run transitions when printing.
-    if (renderer->view()->printing())
+    if (renderer->view().printing())
         return newStyle;
 
     // Fetch our current set of implicit animations from a hashtable.  We then compare them

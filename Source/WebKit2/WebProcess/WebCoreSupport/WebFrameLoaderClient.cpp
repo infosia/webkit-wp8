@@ -95,6 +95,9 @@ WebFrameLoaderClient::~WebFrameLoaderClient()
     
 void WebFrameLoaderClient::frameLoaderDestroyed()
 {
+    if (WebPage* webPage = m_frame->page())
+        webPage->injectedBundleLoaderClient().willDestroyFrame(webPage, m_frame);
+
     m_frame->invalidate();
 
     // Balances explicit ref() in WebFrame::createMainFrame and WebFrame::createSubframe.
@@ -1273,7 +1276,7 @@ PassRefPtr<Frame> WebFrameLoaderClient::createFrame(const KURL& url, const Strin
     if (!subframe->coreFrame())
         return 0;
     ASSERT(subframe->coreFrame() == coreSubframe);
-    if (!coreSubframe->tree()->parent())
+    if (!coreSubframe->tree().parent())
         return 0;
 
     return coreSubframe;

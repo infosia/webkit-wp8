@@ -1,3 +1,223 @@
+2013-08-24  Filip Pizlo  <fpizlo@apple.com>
+
+        FloatTypedArrayAdaptor::toJSValue should almost certainly not use jsNumber() since that attempts int conversions
+        https://bugs.webkit.org/show_bug.cgi?id=120228
+
+        Reviewed by Oliver Hunt.
+        
+        Add coverage for three things:
+        
+        - Typed array accesses with corner-case values.
+        
+        - Typed array set() (i.e. copy) between arrays of different types.
+        
+        - Performance of typedArray.set() involving different types.
+        
+        This required some changes to our test harnesses, since they previously
+        couldn't consistently do numerical array comparisons in a reliable way.
+
+        * fast/js/regress/Float32Array-to-Float64Array-set-expected.txt: Added.
+        * fast/js/regress/Float32Array-to-Float64Array-set.html: Added.
+        * fast/js/regress/Float64Array-to-Int16Array-set-expected.txt: Added.
+        * fast/js/regress/Float64Array-to-Int16Array-set.html: Added.
+        * fast/js/regress/Int16Array-to-Int32Array-set-expected.txt: Added.
+        * fast/js/regress/Int16Array-to-Int32Array-set.html: Added.
+        * fast/js/regress/script-tests/Float32Array-to-Float64Array-set.js: Added.
+        * fast/js/regress/script-tests/Float64Array-to-Int16Array-set.js: Added.
+        * fast/js/regress/script-tests/Int16Array-to-Int32Array-set.js: Added.
+        * fast/js/resources/js-test-pre.js:
+        (areNumbersEqual):
+        (areArraysEqual):
+        (isResultCorrect):
+        * fast/js/resources/standalone-pre.js:
+        (areNumbersEqual):
+        (areArraysEqual):
+        (isTypedArray):
+        (isResultCorrect):
+        (stringify):
+        (shouldBe):
+        * fast/js/script-tests/typed-array-access.js: Added.
+        (bitsToString):
+        (bitsToValue):
+        (valueToBits):
+        (roundTrip):
+        * fast/js/script-tests/typed-array-set-different-types.js: Added.
+        (MyRandom):
+        (.reference):
+        (.usingConstruct):
+        * fast/js/typed-array-access-expected.txt: Added.
+        * fast/js/typed-array-access.html: Added.
+        * fast/js/typed-array-set-different-types-expected.txt: Added.
+        * fast/js/typed-array-set-different-types.html: Added.
+
+2013-08-25  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed EFL gardening.
+
+        * platform/efl/TestExpectations:
+        Unskipped some accessibility tests which are already passed. 
+
+2013-08-24  Yoav Weiss  <yoav@yoav.ws>
+
+        Eliminate a useless comparison in srcset's candidate selection algorithm
+        https://bugs.webkit.org/show_bug.cgi?id=120235
+
+        Removed MIME types from the test's output, since they're irrelevant for the test, and make it fragile.
+
+        Reviewed by Andreas Kling.
+
+        * fast/hidpi/image-srcset-fraction-expected.txt:
+        * fast/hidpi/image-srcset-fraction.html:
+
+2013-08-23  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Rebaseline after r154518.  Also fix the test to expect "0" instead of "-0".
+
+        Reviewed by Gavin Barraclough.
+
+        * fast/js/dfg-div-by-neg1-and-then-or-zero-interesting-reg-alloc-expected.txt:
+        * fast/js/script-tests/dfg-div-by-neg1-and-then-or-zero-interesting-reg-alloc.js:
+
+2013-08-23  Jer Noble  <jer.noble@apple.com>
+
+        REGRESSION (r150516): Media controls are messed up on right-to-left webpages
+        https://bugs.webkit.org/show_bug.cgi?id=120234
+
+        Reviewed by Dan Bernstein.
+
+        * media/video-rtl-expected.html: Added.
+        * media/video-rtl.html: Added.
+
+2013-08-23  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] some track language tags are not recognized
+        https://bugs.webkit.org/show_bug.cgi?id=119643
+
+        Reviewed by Jer Noble.
+
+        Explicitly set caption mode to "Automatic" so the track 'default' attribute works.
+
+        * media/track/text-track-cue-is-reachable.html: 
+        * media/track/text-track-is-reachable.html: 
+        * media/track/track-active-cues.html:
+        * media/track/track-cue-overlap-snap-to-lines-not-set.html:
+        * media/track/track-cue-rendering-horizontal.html:
+        * media/track/track-cue-rendering-vertical.html:
+        * media/track/track-kind.html:
+        * media/track/track-large-timestamp.html:
+        * media/track/track-mode.html:
+        * media/track/track-text-track-cue-list.html:
+        * media/track/track-webvtt-tc000-empty.html:
+        * media/track/track-webvtt-tc002-bom.html:
+        * media/track/track-webvtt-tc010-no-timings.html:
+        * media/track/track-webvtt-tc027-empty-cue.html:
+        * media/track/track-webvtt-tc028-unsupported-markup.html:
+        * media/track/track-word-breaking.html:
+        * media/video-test.js:
+        (setCaptionDisplayMode):
+
+2013-08-23  Filip Pizlo  <fpizlo@apple.com>
+
+        Incorrect TypedArray#set behavior
+        https://bugs.webkit.org/show_bug.cgi?id=83818
+
+        Reviewed by Oliver Hunt and Mark Hahnenberg.
+        
+        Made it possible for shouldBe() to compare typed arrays to each other and to any array-like
+        object.
+        
+        Added a bunch of tests for different kinds of overlapping typedArray.set()'s.
+        
+        For sanity, also added the reduced test case from the bug. Interestingly, though, that test
+        case already passed on trunk - probably by luck (we had incidentally changed the default
+        copy direction from one that happened to not work to one that happened to be fine, but only
+        for this test).
+
+        * fast/js/jsc-test-list:
+        * fast/js/resources/js-test-pre.js:
+        (isTypedArray):
+        (isResultCorrect):
+        (stringify):
+        (shouldBe):
+        * fast/js/script-tests/typed-array-copy.js: Added.
+        * fast/js/script-tests/typedarray-set-destination-smaller-than-source.js: Added.
+        * fast/js/script-tests/typedarray-set-overlapping-elements-of-same-size.js: Added.
+        * fast/js/script-tests/typedarray-set-same-type-memmove.js: Added.
+        (arraysEqual):
+        * fast/js/script-tests/typedarray-set-source-smaller-than-destination.js: Added.
+        * fast/js/typed-array-copy-expected.txt: Added.
+        * fast/js/typed-array-copy.html: Added.
+        * fast/js/typedarray-set-destination-smaller-than-source-expected.txt: Added.
+        * fast/js/typedarray-set-destination-smaller-than-source.html: Added.
+        * fast/js/typedarray-set-overlapping-elements-of-same-size-expected.txt: Added.
+        * fast/js/typedarray-set-overlapping-elements-of-same-size.html: Added.
+        * fast/js/typedarray-set-same-type-memmove-expected.txt: Added.
+        * fast/js/typedarray-set-same-type-memmove.html: Added.
+        * fast/js/typedarray-set-source-smaller-than-destination-expected.txt: Added.
+        * fast/js/typedarray-set-source-smaller-than-destination.html: Added.
+
+2013-08-23  Andre Moreira Magalhaes   <andre.magalhaes@collabora.co.uk>
+
+        LayoutTests/http/tests/media/video-throttled-load.cgi issue on range support
+        https://bugs.webkit.org/show_bug.cgi?id=120219
+
+        Reviewed by Eric Carlson.
+
+        Properly count bytes when handling range requests.
+
+        * http/tests/media/video-throttled-load.cgi:
+
+2013-08-23  Alexey Proskuryakov  <ap@apple.com>
+
+        http/tests/cache/partitioned-cache.html breaks subsequent cookie tests
+        https://bugs.webkit.org/show_bug.cgi?id=120212
+
+        Updating test results for a last minute change that moved lines.
+
+        * http/tests/cache/partitioned-cache-expected.txt:
+        * platform/qt/http/tests/cache/partitioned-cache-expected.txt:
+
+2013-08-23  Michael Saboff  <msaboff@apple.com>
+
+        regexp-match-reify-before-putbyval is not a JSRegress test
+        https://bugs.webkit.org/show_bug.cgi?id=120181
+
+        Reviewed by Geoffrey Garen.
+
+        Moved and re-baselined regexp-match-reify-before-putbyval test into fast/js.
+
+        * fast/js/regexp-match-reify-before-putbyval-expected.txt: Copied from LayoutTests/fast/js/regress/regexp-match-reify-before-putbyval-expected.txt.
+        * fast/js/regexp-match-reify-before-putbyval.html: Copied from LayoutTests/fast/js/regress/regexp-match-reify-before-putbyval.html.
+        * fast/js/regress/regexp-match-reify-before-putbyval-expected.txt: Removed.
+        * fast/js/regress/regexp-match-reify-before-putbyval.html: Removed.
+        * fast/js/regress/script-tests/regexp-match-reify-before-putbyval.js: Removed.
+        * fast/js/script-tests/regexp-match-reify-before-putbyval.js: Copied from LayoutTests/fast/js/regress/script-tests/regexp-match-reify-before-putbyval.js.
+
+2013-08-23  Alexey Proskuryakov  <ap@apple.com>
+
+        http/tests/cache/partitioned-cache.html breaks subsequent cookie tests
+        https://bugs.webkit.org/show_bug.cgi?id=120212
+
+        Reviewed by Tim Horton.
+
+        The test never deleted its localhost cookie, so subsequent third party cookie
+        relaxing tests saw the existing cookie and failed.
+
+        There is no need to use cookies in this test, and it's actually slightly incorrect,
+        as the network layer may refuse to use a cached result simply because cookies changed,
+        and then we wouldn't test 3rd party data blocking.
+
+        * platform/qt/http/tests/cache/partitioned-cache-expected.txt:
+        * http/tests/cache/partitioned-cache-expected.txt: Updated results. It took me 
+        a long time to understand what the test was doing, so made it a bit more self-descriptive.
+
+        * http/tests/cache/partitioned-cache.html: Tabs to spaces.
+
+        * http/tests/cache/resources/echo-cookie.cgi: Removed.
+        * http/tests/cache/resources/partitioned-cache-echo-state.php: Added.
+        * http/tests/cache/resources/partitioned-cache-loader.html:
+        Changed to use a local file on the server to modify resource content.
+
 2013-08-23  Bear Travis  <betravis@adobe.com>
 
         <https://webkit.org/b/119864> [CSS Shapes] Remove extraneous window.internals calls in layout tests
@@ -1724,8 +1944,7 @@
         * fast/js/exception-properties-expected.txt:
         * fast/js/script-tests/exception-properties.js:
             - Update test expectations.
-2
-013-08-22  Anton Obzhirov  <a.obzhirov@samsung.com>
+2013-08-22  Anton Obzhirov  <a.obzhirov@samsung.com>
 
         [CSSRegions] Min-width and max-width for a region should support values other than length
         https://bugs.webkit.org/show_bug.cgi?id=115248

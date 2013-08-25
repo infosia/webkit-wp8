@@ -457,7 +457,7 @@ bool Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName,
         return false;
     }
 
-    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    PseudoElement* pseudoElement = pseudoId == "before" ? element->beforePseudoElement() : element->afterPseudoElement();
     if (!pseudoElement) {
         ec = INVALID_ACCESS_ERR;
         return false;
@@ -487,7 +487,7 @@ bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, dou
         return false;
     }
 
-    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    PseudoElement* pseudoElement = pseudoId == "before" ? element->beforePseudoElement() : element->afterPseudoElement();
     if (!pseudoElement) {
         ec = INVALID_ACCESS_ERR;
         return false;
@@ -705,7 +705,7 @@ Vector<String> Internals::formControlStateOfPreviousHistoryItem(ExceptionCode& e
         ec = INVALID_ACCESS_ERR;
         return Vector<String>();
     }
-    String uniqueName = frame()->tree()->uniqueName();
+    String uniqueName = frame()->tree().uniqueName();
     if (mainItem->target() != uniqueName && !mainItem->childItemWithTarget(uniqueName)) {
         ec = INVALID_ACCESS_ERR;
         return Vector<String>();
@@ -720,7 +720,7 @@ void Internals::setFormControlStateOfPreviousHistoryItem(const Vector<String>& s
         ec = INVALID_ACCESS_ERR;
         return;
     }
-    String uniqueName = frame()->tree()->uniqueName();
+    String uniqueName = frame()->tree().uniqueName();
     if (mainItem->target() == uniqueName)
         mainItem->setDocumentState(state);
     else if (HistoryItem* subItem = mainItem->childItemWithTarget(uniqueName))
@@ -1578,7 +1578,7 @@ unsigned Internals::numberOfScrollableAreas(Document* document, ExceptionCode&)
     if (frame->view()->scrollableAreas())
         count += frame->view()->scrollableAreas()->size();
 
-    for (Frame* child = frame->tree()->firstChild(); child; child = child->tree()->nextSibling()) {
+    for (Frame* child = frame->tree().firstChild(); child; child = child->tree().nextSibling()) {
         if (child->view() && child->view()->scrollableAreas())
             count += child->view()->scrollableAreas()->size();
     }

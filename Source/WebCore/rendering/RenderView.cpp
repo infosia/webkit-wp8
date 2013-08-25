@@ -191,7 +191,7 @@ bool RenderView::initializeLayoutState(LayoutState& state)
     // Check the writing mode of the seamless ancestor. It has to match our document's writing mode, or we won't inherit any
     // pagination information.
     RenderBox* seamlessAncestor = enclosingSeamlessRenderer(document());
-    LayoutState* seamlessLayoutState = seamlessAncestor ? seamlessAncestor->view()->layoutState() : 0;
+    LayoutState* seamlessLayoutState = seamlessAncestor ? seamlessAncestor->view().layoutState() : 0;
     bool shouldInheritPagination = seamlessLayoutState && !m_pageLogicalHeight && seamlessAncestor->style()->writingMode() == style()->writingMode();
     
     state.m_pageLogicalHeight = shouldInheritPagination ? seamlessLayoutState->m_pageLogicalHeight : m_pageLogicalHeight;
@@ -214,7 +214,7 @@ bool RenderView::initializeLayoutState(LayoutState& state)
         // Set the current render flow thread to point to our ancestor. This will allow the seamless document to locate the correct
         // regions when doing a layout.
         if (seamlessAncestor->flowThreadContainingBlock()) {
-            flowThreadController()->setCurrentRenderFlowThread(seamlessAncestor->view()->flowThreadController()->currentRenderFlowThread());
+            flowThreadController()->setCurrentRenderFlowThread(seamlessAncestor->view().flowThreadController()->currentRenderFlowThread());
             isSeamlessAncestorInFlowThread = true;
         }
     }
@@ -472,7 +472,7 @@ void RenderView::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&)
     // FIXME: This needs to be dynamic.  We should be able to go back to blitting if we ever stop being inside
     // a transform, transparency layer, etc.
     Element* elt;
-    for (elt = document()->ownerElement(); view() && elt && elt->renderer(); elt = elt->document()->ownerElement()) {
+    for (elt = document()->ownerElement(); elt && elt->renderer(); elt = elt->document()->ownerElement()) {
         RenderLayer* layer = elt->renderer()->enclosingLayer();
         if (layer->cannotBlitToWindow()) {
             frameView().setCannotBlitToWindow();
@@ -489,7 +489,7 @@ void RenderView::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&)
 #endif
     }
 
-    if (document()->ownerElement() || !view())
+    if (document()->ownerElement())
         return;
 
     if (paintInfo.skipRootBackground())
@@ -584,9 +584,10 @@ void RenderView::repaintRectangleInViewAndCompositedLayers(const LayoutRect& ur,
     repaintViewRectangle(ur, immediate);
     
 #if USE(ACCELERATED_COMPOSITING)
-    if (compositor()->inCompositingMode()) {
+    RenderLayerCompositor& compositor = this->compositor();
+    if (compositor.inCompositingMode()) {
         IntRect repaintRect = pixelSnappedIntRect(ur);
-        compositor()->repaintCompositedLayers(&repaintRect);
+        compositor.repaintCompositedLayers(&repaintRect);
     }
 #endif
 }
@@ -595,8 +596,9 @@ void RenderView::repaintViewAndCompositedLayers()
 {
     repaintRootContents();
 #if USE(ACCELERATED_COMPOSITING)
-    if (compositor()->inCompositingMode())
-        compositor()->repaintCompositedLayers();
+    RenderLayerCompositor& compositor = this->compositor();
+    if (compositor.inCompositingMode())
+        compositor.repaintCompositedLayers();
 #endif
 }
 
@@ -731,7 +733,7 @@ void RenderView::setMaximalOutlineSize(int o)
         m_maximalOutlineSize = o;
 
         // maximalOutlineSize affects compositing layer dimensions.
-        compositor()->setCompositingLayersNeedRebuild();    // FIXME: this really just needs to be a geometry update.
+        compositor().setCompositingLayersNeedRebuild();    // FIXME: this really just needs to be a geometry update.
     }
 }
 #endif
@@ -743,8 +745,8 @@ void RenderView::setSelection(RenderObject* start, int startPos, RenderObject* e
     if ((start && !end) || (end && !start))
         return;
 
-    bool caretChanged = m_selectionWasCaret != view()->frame()->selection().isCaret();
-    m_selectionWasCaret = view()->frame()->selection().isCaret();
+    bool caretChanged = m_selectionWasCaret != view().frame().selection().isCaret();
+    m_selectionWasCaret = view().frame().selection().isCaret();
     // Just return if the selection hasn't changed.
     if (m_selectionStart == start && m_selectionStartPos == startPos &&
         m_selectionEnd == end && m_selectionEndPos == endPos && !caretChanged)
@@ -1084,6 +1086,11 @@ bool RenderView::shouldDisableLayoutStateForSubtree(RenderObject* renderer) cons
     return false;
 }
 
+IntSize RenderView::viewportSize() const
+{
+    return frameView().visibleContentRect(ScrollableArea::IncludeScrollbars).size();
+}
+
 void RenderView::updateHitTestResult(HitTestResult& result, const LayoutPoint& point)
 {
     if (result.innerNode())
@@ -1133,12 +1140,12 @@ bool RenderView::usesCompositing() const
     return m_compositor && m_compositor->inCompositingMode();
 }
 
-RenderLayerCompositor* RenderView::compositor()
+RenderLayerCompositor& RenderView::compositor()
 {
     if (!m_compositor)
         m_compositor = adoptPtr(new RenderLayerCompositor(*this));
 
-    return m_compositor.get();
+    return *m_compositor;
 }
 #endif
 
@@ -1217,10 +1224,7 @@ RenderBlock::IntervalArena* RenderView::intervalArena()
 
 FragmentationDisabler::FragmentationDisabler(RenderObject* root)
 {
-    RenderView* renderView = root->view();
-    ASSERT(renderView);
-
-    LayoutState* layoutState = renderView->layoutState();
+    LayoutState* layoutState = root->view().layoutState();
 
     m_root = root;
     m_fragmenting = layoutState && layoutState->isPaginated();
@@ -1238,10 +1242,7 @@ FragmentationDisabler::FragmentationDisabler(RenderObject* root)
 
 FragmentationDisabler::~FragmentationDisabler()
 {
-    RenderView* renderView = m_root->view();
-    ASSERT(renderView);
-
-    LayoutState* layoutState = renderView->layoutState();
+    LayoutState* layoutState = m_root->view().layoutState();
 #ifndef NDEBUG
     ASSERT(m_layoutState == layoutState);
 #endif

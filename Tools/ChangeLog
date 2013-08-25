@@ -1,3 +1,90 @@
+2013-08-25  Zan Dobersek  <zdobersek@igalia.com>
+
+        [gdb] Remove the pretty printer for KURLGooglePrivate
+        https://bugs.webkit.org/show_bug.cgi?id=120263
+
+        Reviewed by Benjamin Poulain.
+
+        Remove the pretty printer for the WebCore::KURLGooglePrivate structure that
+        was usable inside the gdb debugger. The structure was remove from the codebase
+        along with the GoogleURL backend for KURL.
+
+        * gdb/webkit.py:
+        (JSCJSStringPrinter.to_string):
+        (add_pretty_printers):
+
+2013-08-24  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, fix build-webkit --ftl-jit in the case that you have your own llvm directory. We need to
+        prune 'libgtest' and friends from the llvm build, since WebKit builds its own and none of the llvm
+        libraries depend on libgtest anyway.
+
+        * Scripts/copy-webkitlibraries-to-product-directory:
+
+2013-08-24  Darin Adler  <darin@apple.com>
+
+        RetainPtr lacks move constructor for case when argument is a RetainPtr of a different type
+        https://bugs.webkit.org/show_bug.cgi?id=120255
+
+        Reviewed by Andreas Kling.
+
+        * TestWebKitAPI/Tests/WTF/ns/RetainPtr.mm: Added four tests covering move assignment and construction.
+
+2013-08-24  Anders Carlsson  <andersca@apple.com>
+
+        Don't treat NSLocalizedDescriptionKey and NSLocalizedRecoverySuggestionErrorKey as NSLocalized macros
+        https://bugs.webkit.org/show_bug.cgi?id=120249
+
+        Reviewed by Andreas Kling.
+
+        * Scripts/extract-localizable-strings:
+
+2013-08-24  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Expose WebKitFrame in WebKit2GTK+ web extensions API
+        https://bugs.webkit.org/show_bug.cgi?id=119743
+
+        Reviewed by Anders Carlsson.
+
+        * WebKitTestRunner/InjectedBundle/InjectedBundlePage.cpp:
+        (WTR::InjectedBundlePage::InjectedBundlePage): Add
+        willDestroyFrame.
+
+2013-08-23  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        Move TestWebKitAPI_LIBRARIES before platform specific cmake include
+        https://bugs.webkit.org/show_bug.cgi?id=120220
+
+        Reviewed by Martin Robinson.
+
+        * TestWebKitAPI/CMakeLists.txt:
+
+2013-08-22  Filip Pizlo  <fpizlo@apple.com>
+
+        build-jsc --ftl-jit should work
+        https://bugs.webkit.org/show_bug.cgi?id=120194
+
+        Reviewed by Oliver Hunt.
+
+        * Scripts/build-jsc: Need to pass the feature flag to xcodebuild
+
+2013-08-23  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r153534.
+        http://trac.webkit.org/changeset/153534
+        https://bugs.webkit.org/show_bug.cgi?id=120216
+
+        Too many tests failing just WinEWS bots (Requested by rfong on
+        #webkit).
+
+        * Scripts/webkitpy/common/config/ews.json:
+
+2013-08-23  Alex Christensen  <alex.christensen@flexsim.com>
+
+        Unreviewed.  Added my webkit.org email address.
+
+        * Scripts/webkitpy/common/config/contributors.json:
+
 2013-08-23  Peter Gal  <galpeter@inf.u-szeged.hu>
 
         [WTR] Should dump as text when the mimetype is text/plain

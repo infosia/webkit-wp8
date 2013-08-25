@@ -71,13 +71,11 @@ namespace WebCore {
     class ScriptController;
     class Settings;
     class TiledBackingStore;
-    class TreeScope;
     class VisiblePosition;
 
 #if !USE(TILED_BACKING_STORE)
     class TiledBackingStoreClient { };
 #endif
-
 
     enum {
         LayerTreeFlagsIncludeDebugInfo = 1 << 0,
@@ -119,20 +117,14 @@ namespace WebCore {
         FrameLoader& loader() const;
         NavigationScheduler& navigationScheduler() const;
         FrameSelection& selection() const;
-        FrameTree* tree() const;
+        FrameTree& tree() const;
         AnimationController& animation() const;
         ScriptController& script();
         
         RenderView* contentRenderer() const; // Root of the render tree for the document contained in this frame.
         RenderPart* ownerRenderer() const; // Renderer for the element that contains this frame.
 
-#if ENABLE(PAGE_VISIBILITY_API)
-        void dispatchVisibilityStateChangeEvent();
-#endif
-
     // ======== All public functions below this point are candidates to move out of Frame into another class. ========
-
-        bool inScope(TreeScope*) const;
 
         void injectUserScripts(UserScriptInjectionTime);
         
@@ -176,8 +168,6 @@ namespace WebCore {
         void clearTimers();
         static void clearTimers(FrameView*, Document*);
 
-        String documentTypeString() const;
-
         String displayStringModifiedByEncoding(const String&) const;
 
         DragImageRef nodeImage(Node*);
@@ -194,9 +184,6 @@ namespace WebCore {
         void suspendActiveDOMObjectsAndAnimations();
         void resumeActiveDOMObjectsAndAnimations();
         bool activeDOMObjectsAndAnimationsSuspended() const { return m_activeDOMObjectsAndAnimationsSuspendedCount > 0; }
-
-        // Should only be called on the main frame of a page.
-        void notifyChromeClientWheelEventHandlerCountChanged() const;
 
         bool isURLAllowed(const KURL&) const;
 
@@ -316,9 +303,9 @@ namespace WebCore {
         m_inViewSourceMode = mode;
     }
 
-    inline FrameTree* Frame::tree() const
+    inline FrameTree& Frame::tree() const
     {
-        return &m_treeNode;
+        return m_treeNode;
     }
 
     inline Page* Frame::page() const

@@ -1,3 +1,803 @@
+2013-08-25  David Kilzer  <ddkilzer@apple.com>
+
+        Unreviewed rollout of r154571. Broke internal iOS build.
+
+        Reopened: No need for clearTimers function in Frame
+        https://bugs.webkit.org/show_bug.cgi?id=120265
+
+        * history/CachedFrame.cpp:
+        (WebCore::CachedFrame::CachedFrame):
+        (WebCore::CachedFrame::destroy):
+        * page/Frame.cpp:
+        (WebCore::Frame::clearTimers):
+        * page/Frame.h:
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        No need for hasData in Clipboard
+        https://bugs.webkit.org/show_bug.cgi?id=120269
+
+        Reviewed by Andreas Kling.
+
+        This simple forwarder does not belong in the Clipboard class.
+        The drag code that uses it already works directly with Pasteboard.
+
+        * dom/Clipboard.cpp: Removed hasData.
+        * dom/Clipboard.h: Ditto.
+
+        * page/DragController.cpp:
+        (WebCore::DragController::startDrag): Call through the pasteboard.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        No need for documentTypeString function in Frame
+        https://bugs.webkit.org/show_bug.cgi?id=120262
+
+        Reviewed by Andreas Kling.
+
+        * WebCore.exp.in: Removed export of Frame::documentTypeString.
+
+        * editing/markup.cpp:
+        (WebCore::documentTypeString): Added. Replaces the old Frame member function.
+        Makes more sense to have this here since it is both called by and calls code
+        in this file; somehow this function was left behind.
+        (WebCore::createFullMarkup): Changed to call the new function.
+        * editing/markup.h: Added documentTypeString function. Has to be exported
+        because LegacyWebArchive uses it; might be worth fixing that later.
+        * loader/archive/cf/LegacyWebArchive.cpp:
+        (WebCore::LegacyWebArchive::create): Changed to call the new function.
+        (WebCore::LegacyWebArchive::createFromSelection): Ditto.
+
+        * page/Frame.cpp: Removed Frame::documentTypeString.
+        * page/Frame.h: Ditto.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        Clipboard is in DOM directory, but ClipboardMac is in platform directory
+        https://bugs.webkit.org/show_bug.cgi?id=120267
+
+        Reviewed by Andreas Kling.
+
+        This file is almost gone; has just one function in it. Move it for now, and later
+        we can delete it entirely.
+
+        * WebCore.xcodeproj/project.pbxproj: Updated for new file location.
+        * dom/ClipboardMac.mm: Moved from Source/WebCore/platform/mac/ClipboardMac.mm.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        No need for notifyChromeClientWheelEventHandlerCountChanged in Frame
+        https://bugs.webkit.org/show_bug.cgi?id=120264
+
+        Reviewed by Andreas Kling.
+
+        * dom/Document.cpp:
+        (WebCore::Document::createRenderTree): Renamed attach to this.
+        This made it practical to remove a comment that says the same thing and
+        also helps make the purpose of the function considerably more clear,
+        although the relationship to the attached and detach functions is now
+        less clear; should fix that soon.
+        (WebCore::pageWheelEventHandlerCountChanged): Added. Contains the code
+        from Frame::notifyChromeClientWheelEventHandlerCountChanged, minus some
+        assertions that were only needed because the function was passed a frame
+        rather than a page.
+        (WebCore::Document::didBecomeCurrentDocumentInFrame): Added. Contains
+        most of the code from Frame::setDocument. Looking at before and after,
+        we can see that most of the work is within the document class and matches
+        up with other code already in this class. Added FIXMEs about many problems
+        spotted in the code.
+        (WebCore::Document::topDocument): Added FIXME and tweaked formatting.
+        (WebCore::wheelEventHandlerCountChanged): Moved the call to the
+        pageWheelEventHandlerCountChanged in here from the two call sites.
+        Also added a FIXME.
+        (WebCore::Document::didAddWheelEventHandler): Removed the call to
+        notifyChromeClientWheelEventHandlerCountChanged, since that's now handled
+        inside wheelEventHandlerCountChanged.
+        (WebCore::Document::didRemoveWheelEventHandler): Ditto.
+
+        * dom/Document.h: Renamed attach to createRenderTree, made it private,
+        and added a new didBecomeCurrentDocumentInFrame function.
+
+        * loader/PlaceholderDocument.cpp:
+        (WebCore::PlaceholderDocument::createRenderTree): Renamed from attach.
+        * loader/PlaceholderDocument.h: Did the rename and made the function a
+        private override.
+
+        * page/Frame.cpp:
+        (WebCore::Frame::setDocument): Moved most of this function out of here
+        into the new Document::didBecomeCurrentDocumentInFrame function.
+        Also deleted notifyChromeClientWheelEventHandlerCountChanged.
+
+        * page/Frame.h: Deleted notifyChromeClientWheelEventHandlerCountChanged.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        No need for dispatchVisibilityStateChangeEvent function
+        https://bugs.webkit.org/show_bug.cgi?id=120261
+
+        Reviewed by Andreas Kling.
+
+        * dom/Document.cpp: Removed dispatchVisibilityStateChangeEvent.
+        * dom/Document.h: Ditto.
+        * page/Frame.cpp: Ditto.
+        * page/Frame.h: Ditto.
+
+        * page/Page.cpp:
+        (WebCore::Page::setVisibilityState): Put all the logic for dispatching the
+        visibility state change event. Nothing here requires any special information
+        about the internals of Frame or Document.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        No need for clearTimers function in Frame
+        https://bugs.webkit.org/show_bug.cgi?id=120265
+
+        Reviewed by Andreas Kling.
+
+        * history/CachedFrame.cpp:
+        (WebCore::clearTimers): Added. Moved here from Frame.
+        (WebCore::CachedFrame::CachedFrame): Call above function.
+        (WebCore::CachedFrame::destroy): Ditto.
+
+        * page/Frame.cpp: Removed the two clearTimers functions.
+        * page/Frame.h: Ditto.
+
+2013-08-24  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix after r154560
+
+        * page/FrameTree.cpp:
+        (WebCore::FrameTree::scopedChild): 
+        Use tree(). instead of tree()->.
+
+2013-08-24  Benjamin Poulain  <benjamin@webkit.org>
+
+        <https://webkit.org/b/120102> Inline SelectorQuery's execution traits
+
+        Reviewed by Sam Weinig.
+
+        For some reason, clang does not always inline the trait. The operations are so simple
+        that it shows up in profile.
+        Force the inlining to match the original speed.
+
+        * dom/SelectorQuery.cpp:
+        (WebCore::AllElementExtractorSelectorQueryTrait::appendOutputForElement):
+        (WebCore::SingleElementExtractorSelectorQueryTrait::appendOutputForElement):
+
+2013-08-24  Benjamin Poulain  <benjamin@webkit.org>
+
+        Remove a useless #include from StyledElement
+        https://bugs.webkit.org/show_bug.cgi?id=120245
+
+        Reviewed by Andreas Kling.
+
+        * dom/StyledElement.cpp:
+
+2013-08-24  Darin Adler  <darin@apple.com>
+
+        Move Frame::inScope into FrameTree
+        https://bugs.webkit.org/show_bug.cgi?id=120257
+
+        Reviewed by Sam Weinig.
+
+        * page/Frame.cpp: Removed inScope.
+        * page/Frame.h: Ditto.
+
+        * page/FrameTree.cpp:
+        (WebCore::inScope): Moved it here.
+        (WebCore::FrameTree::scopedChild): Changed to call new function.
+        (WebCore::FrameTree::scopedChildCount): Ditto.
+
+2013-08-24  David Kilzer  <ddkilzer@apple.com>
+
+        BUILD FIX: Include HTMLPlugInImageElement.h for ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+
+        Fixes the following build failure for iOS:
+
+            In file included from Source/WebCore/accessibility/AccessibilityAllInOne.cpp:28:
+            In file included from Source/WebCore/accessibility/AXObjectCache.cpp:42:
+            In file included from Source/WebCore/accessibility/AccessibilityMediaControls.h:36:
+            In file included from Source/WebCore/html/shadow/MediaControlElements.h:34:
+            In file included from Source/WebCore/html/shadow/MediaControlElementTypes.h:37:
+            Source/WebCore/html/HTMLMediaElement.h:324:23: error: unknown type name 'PluginCreationOption'
+                void updateWidget(PluginCreationOption);
+                                  ^
+
+        * html/HTMLMediaElement.h:
+
+2013-08-24  Darin Adler  <darin@apple.com>
+
+        Frame::tree should return a reference instead of a pointer
+        https://bugs.webkit.org/show_bug.cgi?id=120259
+
+        Reviewed by Andreas Kling.
+
+        * page/Frame.h:
+        (WebCore::Frame::tree): Return a reference instead of a pointer.
+
+        * bindings/js/JSDOMWindowCustom.cpp:
+        (WebCore::childFrameGetter):
+        (WebCore::indexGetter):
+        (WebCore::JSDOMWindow::getOwnPropertySlot):
+        (WebCore::JSDOMWindow::getOwnPropertySlotByIndex):
+        (WebCore::JSDOMWindow::setLocation):
+        * bindings/js/PageScriptDebugServer.cpp:
+        (WebCore::PageScriptDebugServer::setJavaScriptPaused):
+        * dom/Document.cpp:
+        (WebCore::canAccessAncestor):
+        (WebCore::Document::adoptNode):
+        (WebCore::Document::canNavigate):
+        (WebCore::Document::findUnsafeParentScrollPropagationBoundary):
+        (WebCore::Document::notifySeamlessChildDocumentsOfStylesheetUpdate):
+        (WebCore::Document::openSearchDescriptionURL):
+        (WebCore::Document::setDesignMode):
+        (WebCore::Document::parentDocument):
+        (WebCore::Document::initSecurityContext):
+        (WebCore::Document::initContentSecurityPolicy):
+        (WebCore::Document::requestFullScreenForElement):
+        (WebCore::Document::webkitExitFullscreen):
+        (WebCore::Document::didRemoveTouchEventHandler):
+        * dom/TreeScope.cpp:
+        (WebCore::focusedFrameOwnerElement):
+        * editing/FrameSelection.cpp:
+        (WebCore::FrameSelection::selectFrameElementInParentIfFullySelected):
+        * history/CachedFrame.cpp:
+        (WebCore::CachedFrameBase::CachedFrameBase):
+        (WebCore::CachedFrameBase::restore):
+        (WebCore::CachedFrame::CachedFrame):
+        * history/CachedPage.cpp:
+        (WebCore::CachedPage::restore):
+        * history/PageCache.cpp:
+        (WebCore::logCanCacheFrameDecision):
+        (WebCore::PageCache::canCachePageContainingThisFrame):
+        * html/HTMLDocument.cpp:
+        (WebCore::HTMLDocument::hasFocus):
+        * html/HTMLPlugInImageElement.cpp:
+        (WebCore::HTMLPlugInImageElement::restartSimilarPlugIns):
+        * inspector/InspectorApplicationCacheAgent.cpp:
+        (WebCore::InspectorApplicationCacheAgent::getFramesWithManifests):
+        * inspector/InspectorCanvasAgent.cpp:
+        (WebCore::InspectorCanvasAgent::findFramesWithUninstrumentedCanvases):
+        (WebCore::InspectorCanvasAgent::frameNavigated):
+        * inspector/InspectorDOMAgent.cpp:
+        (WebCore::InspectorDOMAgent::documents):
+        * inspector/InspectorFileSystemAgent.cpp:
+        (WebCore::InspectorFileSystemAgent::assertScriptExecutionContextForOrigin):
+        * inspector/InspectorPageAgent.cpp:
+        (WebCore::InspectorPageAgent::getCookies):
+        (WebCore::InspectorPageAgent::deleteCookie):
+        (WebCore::InspectorPageAgent::searchInResources):
+        (WebCore::InspectorPageAgent::findFrameWithSecurityOrigin):
+        (WebCore::InspectorPageAgent::buildObjectForFrame):
+        (WebCore::InspectorPageAgent::buildObjectForFrameTree):
+        * inspector/PageRuntimeAgent.cpp:
+        (WebCore::PageRuntimeAgent::reportExecutionContextCreation):
+        * loader/DocumentLoader.cpp:
+        (WebCore::DocumentLoader::willSendRequest):
+        (WebCore::DocumentLoader::mainResource):
+        * loader/DocumentWriter.cpp:
+        (WebCore::DocumentWriter::createDecoderIfNeeded):
+        * loader/FrameLoader.cpp:
+        (WebCore::FrameLoader::submitForm):
+        (WebCore::FrameLoader::allChildrenAreComplete):
+        (WebCore::FrameLoader::allAncestorsAreComplete):
+        (WebCore::FrameLoader::loadURLIntoChildFrame):
+        (WebCore::FrameLoader::outgoingReferrer):
+        (WebCore::FrameLoader::updateFirstPartyForCookies):
+        (WebCore::FrameLoader::setFirstPartyForCookies):
+        (WebCore::FrameLoader::completed):
+        (WebCore::FrameLoader::started):
+        (WebCore::FrameLoader::loadURL):
+        (WebCore::FrameLoader::loadWithDocumentLoader):
+        (WebCore::FrameLoader::stopAllLoaders):
+        (WebCore::FrameLoader::commitProvisionalLoad):
+        (WebCore::FrameLoader::closeOldDataSources):
+        (WebCore::FrameLoader::prepareForCachedPageRestore):
+        (WebCore::FrameLoader::subframeIsLoading):
+        (WebCore::FrameLoader::subresourceCachePolicy):
+        (WebCore::FrameLoader::detachChildren):
+        (WebCore::FrameLoader::closeAndRemoveChild):
+        (WebCore::FrameLoader::checkLoadComplete):
+        (WebCore::FrameLoader::numPendingOrLoadingRequests):
+        (WebCore::FrameLoader::detachFromParent):
+        (WebCore::FrameLoader::shouldClose):
+        (WebCore::FrameLoader::handleBeforeUnloadEvent):
+        (WebCore::FrameLoader::continueLoadAfterNewWindowPolicy):
+        (WebCore::FrameLoader::shouldInterruptLoadForXFrameOptions):
+        (WebCore::FrameLoader::findFrameForNavigation):
+        (WebCore::FrameLoader::effectiveSandboxFlags):
+        (WebCore::createWindow):
+        * loader/HistoryController.cpp:
+        (WebCore::HistoryController::saveDocumentState):
+        (WebCore::HistoryController::saveDocumentAndScrollState):
+        (WebCore::HistoryController::restoreDocumentState):
+        (WebCore::HistoryController::goToItem):
+        (WebCore::HistoryController::updateForRedirectWithLockedBackForwardList):
+        (WebCore::HistoryController::recursiveUpdateForCommit):
+        (WebCore::HistoryController::recursiveUpdateForSameDocumentNavigation):
+        (WebCore::HistoryController::initializeItem):
+        (WebCore::HistoryController::createItemTree):
+        (WebCore::HistoryController::recursiveSetProvisionalItem):
+        (WebCore::HistoryController::recursiveGoToItem):
+        (WebCore::HistoryController::currentFramesMatchItem):
+        * loader/NavigationScheduler.cpp:
+        (WebCore::NavigationScheduler::mustLockBackForwardList):
+        (WebCore::NavigationScheduler::scheduleFormSubmission):
+        * loader/ProgressTracker.cpp:
+        (WebCore::ProgressTracker::progressStarted):
+        (WebCore::ProgressTracker::progressCompleted):
+        (WebCore::ProgressTracker::isMainLoadProgressing):
+        * loader/appcache/ApplicationCacheGroup.cpp:
+        (WebCore::ApplicationCacheGroup::selectCache):
+        (WebCore::ApplicationCacheGroup::selectCacheWithoutManifestURL):
+        * loader/archive/cf/LegacyWebArchive.cpp:
+        (WebCore::LegacyWebArchive::create):
+        * loader/cache/CachedResourceLoader.cpp:
+        (WebCore::CachedResourceLoader::checkInsecureContent):
+        * loader/icon/IconController.cpp:
+        (WebCore::IconController::urlsForTypes):
+        (WebCore::IconController::startLoader):
+        * page/Chrome.cpp:
+        (WebCore::canRunModalIfDuringPageDismissal):
+        (WebCore::Chrome::windowScreenDidChange):
+        * page/DOMWindow.cpp:
+        (WebCore::DOMWindow::length):
+        (WebCore::DOMWindow::name):
+        (WebCore::DOMWindow::setName):
+        (WebCore::DOMWindow::parent):
+        (WebCore::DOMWindow::top):
+        (WebCore::DOMWindow::open):
+        * page/EventHandler.cpp:
+        (WebCore::EventHandler::scrollRecursively):
+        (WebCore::EventHandler::logicalScrollRecursively):
+        (WebCore::EventHandler::handleMouseMoveEvent):
+        * page/FocusController.cpp:
+        (WebCore::FocusController::setContainingWindowIsVisible):
+        * page/Frame.cpp:
+        (WebCore::parentPageZoomFactor):
+        (WebCore::parentTextZoomFactor):
+        (WebCore::Frame::setPrinting):
+        (WebCore::Frame::shouldUsePrintingLayout):
+        (WebCore::Frame::dispatchVisibilityStateChangeEvent):
+        (WebCore::Frame::willDetachPage):
+        (WebCore::Frame::setPageAndTextZoomFactors):
+        (WebCore::Frame::deviceOrPageScaleFactorChanged):
+        (WebCore::Frame::notifyChromeClientWheelEventHandlerCountChanged):
+        (WebCore::Frame::isURLAllowed):
+        * page/FrameTree.cpp:
+        (WebCore::FrameTree::~FrameTree):
+        (WebCore::FrameTree::setName):
+        (WebCore::FrameTree::transferChild):
+        (WebCore::FrameTree::appendChild):
+        (WebCore::FrameTree::actuallyAppendChild):
+        (WebCore::FrameTree::removeChild):
+        (WebCore::FrameTree::uniqueChildName):
+        (WebCore::FrameTree::scopedChild):
+        (WebCore::FrameTree::scopedChildCount):
+        (WebCore::FrameTree::childCount):
+        (WebCore::FrameTree::child):
+        (WebCore::FrameTree::find):
+        (WebCore::FrameTree::isDescendantOf):
+        (WebCore::FrameTree::traverseNext):
+        (WebCore::FrameTree::traversePreviousWithWrap):
+        (WebCore::FrameTree::deepLastChild):
+        (WebCore::FrameTree::top):
+        (printFrames):
+        (showFrameTree):
+        * page/FrameView.cpp:
+        (WebCore::FrameView::setFrameRect):
+        (WebCore::FrameView::hasCompositedContentIncludingDescendants):
+        (WebCore::FrameView::hasCompositingAncestor):
+        (WebCore::FrameView::flushCompositingStateIncludingSubframes):
+        (WebCore::FrameView::updateCanBlitOnScrollRecursively):
+        (WebCore::FrameView::setIsOverlapped):
+        (WebCore::FrameView::shouldUseLoadTimeDeferredRepaintDelay):
+        (WebCore::FrameView::updateLayerFlushThrottlingInAllFrames):
+        (WebCore::FrameView::serviceScriptedAnimations):
+        (WebCore::FrameView::updateBackgroundRecursively):
+        (WebCore::FrameView::parentFrameView):
+        (WebCore::FrameView::paintContentsForSnapshot):
+        (WebCore::FrameView::setTracksRepaints):
+        (WebCore::FrameView::notifyWidgetsInAllFrames):
+        * page/Location.cpp:
+        (WebCore::Location::ancestorOrigins):
+        * page/Page.cpp:
+        (WebCore::networkStateChanged):
+        (WebCore::Page::~Page):
+        (WebCore::Page::renderTreeSize):
+        (WebCore::Page::updateStyleForAllPagesAfterGlobalChangeInEnvironment):
+        (WebCore::Page::setNeedsRecalcStyleInAllFrames):
+        (WebCore::Page::refreshPlugins):
+        (WebCore::Page::takeAnyMediaCanStartListener):
+        (WebCore::incrementFrame):
+        (WebCore::Page::setDefersLoading):
+        (WebCore::Page::setMediaVolume):
+        (WebCore::Page::setDeviceScaleFactor):
+        (WebCore::Page::setShouldSuppressScrollbarAnimations):
+        (WebCore::Page::didMoveOnscreen):
+        (WebCore::Page::willMoveOffscreen):
+        (WebCore::Page::setIsInWindow):
+        (WebCore::Page::suspendScriptedAnimations):
+        (WebCore::Page::resumeScriptedAnimations):
+        (WebCore::Page::userStyleSheetLocationChanged):
+        (WebCore::Page::allVisitedStateChanged):
+        (WebCore::Page::visitedStateChanged):
+        (WebCore::Page::setDebugger):
+        (WebCore::Page::setMemoryCacheClientCallsEnabled):
+        (WebCore::Page::setMinimumTimerInterval):
+        (WebCore::Page::setTimerAlignmentInterval):
+        (WebCore::Page::dnsPrefetchingStateChanged):
+        (WebCore::Page::collectPluginViews):
+        (WebCore::Page::storageBlockingStateChanged):
+        (WebCore::Page::privateBrowsingStateChanged):
+        (WebCore::Page::checkSubframeCountConsistency):
+        (WebCore::Page::suspendActiveDOMObjectsAndAnimations):
+        (WebCore::Page::resumeActiveDOMObjectsAndAnimations):
+        (WebCore::Page::captionPreferencesChanged):
+        * page/PageGroup.cpp:
+        (WebCore::PageGroup::invalidateInjectedStyleSheetCacheInAllFrames):
+        * page/PageGroupLoadDeferrer.cpp:
+        (WebCore::PageGroupLoadDeferrer::PageGroupLoadDeferrer):
+        (WebCore::PageGroupLoadDeferrer::~PageGroupLoadDeferrer):
+        * page/PageSerializer.cpp:
+        (WebCore::PageSerializer::serializeFrame):
+        * page/PageThrottler.cpp:
+        (WebCore::PageThrottler::throttlePage):
+        (WebCore::PageThrottler::unthrottlePage):
+        * page/Settings.cpp:
+        (WebCore::setImageLoadingSettings):
+        (WebCore::Settings::setTextAutosizingFontScaleFactor):
+        * page/SpatialNavigation.cpp:
+        (WebCore::rectToAbsoluteCoordinates):
+        * page/animation/AnimationController.cpp:
+        (WebCore::AnimationControllerPrivate::suspendAnimations):
+        (WebCore::AnimationControllerPrivate::resumeAnimations):
+        * page/mac/PageMac.cpp:
+        (WebCore::Page::addSchedulePair):
+        (WebCore::Page::removeSchedulePair):
+        * page/scrolling/ScrollingCoordinator.cpp:
+        (WebCore::ScrollingCoordinator::computeNonFastScrollableRegion):
+        (WebCore::ScrollingCoordinator::computeCurrentWheelEventHandlerCount):
+        * plugins/PluginView.cpp:
+        (WebCore::PluginView::performRequest):
+        (WebCore::PluginView::load):
+        * rendering/HitTestResult.cpp:
+        (WebCore::HitTestResult::targetFrame):
+        * rendering/RenderLayerCompositor.cpp:
+        (WebCore::RenderLayerCompositor::enclosingCompositorFlushingLayers):
+        (WebCore::RenderLayerCompositor::updateCompositingLayers):
+        (WebCore::RenderLayerCompositor::notifyIFramesOfCompositingChange):
+        * rendering/TextAutosizer.cpp:
+        (WebCore::TextAutosizer::processSubtree):
+        * storage/StorageEventDispatcher.cpp:
+        (WebCore::StorageEventDispatcher::dispatchSessionStorageEvents):
+        (WebCore::StorageEventDispatcher::dispatchLocalStorageEvents):
+        * svg/SVGSVGElement.cpp:
+        (WebCore::SVGSVGElement::currentScale):
+        (WebCore::SVGSVGElement::setCurrentScale):
+        * testing/Internals.cpp:
+        (WebCore::Internals::formControlStateOfPreviousHistoryItem):
+        (WebCore::Internals::setFormControlStateOfPreviousHistoryItem):
+        (WebCore::Internals::numberOfScrollableAreas):
+        * xml/parser/XMLDocumentParserLibxml2.cpp:
+        (WebCore::hasNoStyleInformation):
+        Use tree(). instead of tree()->.
+
+2013-08-24  Andreas Kling  <akling@apple.com>
+
+        Merge Document::viewportSize() logic into RenderView::viewportSize().
+        <https://webkit.org/b/120254>
+
+        Reviewed by Darin Adler.
+
+        RenderView can just ask FrameView (the viewport) about its size directly, no need for
+        a weirdly-placed method on Document.
+
+        * dom/Document.cpp:
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::viewportSize):
+        * rendering/RenderView.h:
+
+2013-08-24  Andreas Kling  <akling@apple.com>
+
+        RenderObject::frame() should return a reference.
+        <https://webkit.org/b/120251>
+
+        Reviewed by Darin Adler.
+
+        There is now always a Frame, and we can get to it by walking this path:
+
+            RenderObject -> Document -> RenderView -> FrameView -> Frame
+
+        Removed the customary horde of null checks.
+
+2013-08-24  Andreas Kling  <akling@apple.com>
+
+        RenderLayer::compositor() should return a reference.
+        <https://webkit.org/b/120250>
+
+        Reviewed by Anders Carlsson.
+
+        It was already converting from a reference to a pointer.
+
+2013-08-24  Yoav Weiss  <yoav@yoav.ws>
+
+        Eliminate a useless comparison in srcset's candidate selection algorithm
+        https://bugs.webkit.org/show_bug.cgi?id=120235
+
+        There is no point in comparing the last item in the candidates vector to the DPR, since it will be returned anyway. Therefore, the
+        iteration on the candidates vector now skips the last candidate.
+
+        Reviewed by Andreas Kling.
+
+        * html/parser/HTMLParserIdioms.cpp:
+        (WebCore::bestFitSourceForImageAttributes):
+
+2013-08-24  Andreas Kling  <akling@apple.com>
+
+        RenderObject::view() should return a reference.
+        <https://webkit.org/b/120247>
+
+        Reviewed by Antti Koivisto.
+
+        Now that the lifetime and accessibility characteristics of RenderView are well-defined,
+        we can make RenderObject::view() return a reference, exposing a plethora of unnecessary
+        null checks.
+
+2013-08-24  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Cleanup Inspector Agents a bit
+        https://bugs.webkit.org/show_bug.cgi?id=120218
+
+        Reviewed by Andreas Kling.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/8693dcb8ba42a5c225f516c664fb0f453c8ba6f0.
+
+        * inspector/InspectorCSSAgent.cpp:
+        (WebCore::InspectorCSSAgent::elementForId):
+        * inspector/InspectorStyleSheet.cpp:
+        (ParsedStyleSheet::ParsedStyleSheet):
+        (WebCore::InspectorStyle::setPropertyText):
+        (WebCore::InspectorStyle::populateAllProperties):
+        (WebCore::InspectorStyleSheet::inlineStyleSheetText):
+
+2013-08-24  Andreas Kling  <akling@apple.com>
+
+        Let Document keep its RenderView during render tree detach.
+        <https://webkit.org/b/120233>
+
+        Reviewed by Antti Koivisto.
+
+        Instead of having "Document::renderer() == NULL" signify that the render tree is being
+        torn down, give Document an explicit flag for this instead.
+
+        This way, we can keep Document's RenderView in place during tree detach.
+
+        * dom/Document.cpp:
+        (WebCore::Document::Document):
+        (WebCore::Document::detach):
+        * dom/Document.h:
+        (WebCore::Document::renderTreeBeingDestroyed):
+        * rendering/RenderObject.h:
+        (WebCore::RenderObject::documentBeingDestroyed):
+
+2013-08-24  Antti Koivisto  <antti@apple.com>
+
+        Tighten before/after pseudo element accessors
+        https://bugs.webkit.org/show_bug.cgi?id=120204
+
+        Reviewed by Andreas Kling.
+
+        We have generic looking Element::pseudoElement(PseudoID) which only returns before/after pseudo elements.
+        
+        Switch to Element::before/afterPseudoElement(), similarly for setters.
+
+        * WebCore.exp.in:
+        * css/CSSComputedStyleDeclaration.cpp:
+        (WebCore::ComputedStyleExtractor::styledNode):
+        * dom/Element.cpp:
+        (WebCore::Element::~Element):
+        (WebCore::beforeOrAfterPseudeoElement):
+        (WebCore::Element::computedStyle):
+        (WebCore::Element::updatePseudoElement):
+        (WebCore::Element::createPseudoElementIfNeeded):
+        (WebCore::Element::updateBeforePseudoElement):
+        (WebCore::Element::updateAfterPseudoElement):
+        (WebCore::Element::beforePseudoElement):
+        (WebCore::Element::afterPseudoElement):
+        (WebCore::Element::setBeforePseudoElement):
+        (WebCore::Element::setAfterPseudoElement):
+        (WebCore::disconnectPseudoElement):
+        (WebCore::Element::clearBeforePseudoElement):
+        (WebCore::Element::clearAfterPseudoElement):
+        (WebCore::Element::clearStyleDerivedDataBeforeDetachingRenderer):
+        * dom/Element.h:
+        * dom/ElementRareData.h:
+        (WebCore::ElementRareData::beforePseudoElement):
+        (WebCore::ElementRareData::afterPseudoElement):
+        (WebCore::ElementRareData::hasPseudoElements):
+        (WebCore::ElementRareData::~ElementRareData):
+        (WebCore::ElementRareData::clearBeforePseudoElement):
+        (WebCore::ElementRareData::clearAfterPseudoElement):
+        (WebCore::ElementRareData::setBeforePseudoElement):
+        (WebCore::ElementRareData::setAfterPseudoElement):
+        
+            Move detach logic to Element. ElementRareData should not implement semantics.
+
+        * dom/Node.cpp:
+        (WebCore::Node::pseudoAwarePreviousSibling):
+        (WebCore::Node::pseudoAwareNextSibling):
+        (WebCore::Node::pseudoAwareFirstChild):
+        (WebCore::Node::pseudoAwareLastChild):
+        * dom/NodeRenderingTraversal.cpp:
+        (WebCore::NodeRenderingTraversal::nextSiblingSlow):
+        (WebCore::NodeRenderingTraversal::previousSiblingSlow):
+        * rendering/RenderTreeAsText.cpp:
+        (WebCore::writeCounterValuesFromChildren):
+        (WebCore::counterValueForElement):
+        * style/StyleResolveTree.cpp:
+        (WebCore::Style::attachRenderTree):
+        (WebCore::Style::resolveTree):
+        * testing/Internals.cpp:
+        (WebCore::Internals::pauseAnimationAtTimeOnPseudoElement):
+        (WebCore::Internals::pauseTransitionAtTimeOnPseudoElement):
+
+2013-08-23  Simon Fraser  <simon.fraser@apple.com>
+
+        Improve scrolling behavior in iTunes
+        https://bugs.webkit.org/show_bug.cgi?id=120241
+        <rdar://problem/14825344>
+
+        Reviewed by Sam Weinig.
+
+        When vertically scrolling a page with horizontally scrollable overflow areas,
+        vertical scroll gestures would be interrupted when wheel events with non-zero
+        X deltas were intercepted by the overflow areas.
+        
+        Fix by storing a small history of wheel events deltas and using
+        it to determine of the scroll gesture is primarily vertical or horizontal.
+        When this is detected, avoid dispatching scroll events on the on the
+        non-dominant axis.
+        
+        Currently this behavior is conditionalized to only apply in iTunes.
+
+        * page/EventHandler.cpp:
+        (WebCore::EventHandler::EventHandler):
+        (WebCore::EventHandler::recordWheelEventDelta):
+        (WebCore::deltaIsPredominantlyVertical):
+        (WebCore::EventHandler::dominantScrollGestureDirection):
+        (WebCore::EventHandler::handleWheelEvent):
+        (WebCore::EventHandler::defaultWheelEventHandler):
+        * page/EventHandler.h:
+        * platform/RuntimeApplicationChecks.cpp:
+        (WebCore::applicationIsITunes):
+        * platform/RuntimeApplicationChecks.h:
+
+2013-08-23  Pratik Solanki  <psolanki@apple.com>
+
+        MediaQuery::expressions() should return a reference
+        <https://webkit.org/b/120215>
+
+        Reviewed by Anders Carlsson.
+
+        m_expressions is never NULL so we can just return a reference.
+
+        * css/MediaList.cpp:
+        (WebCore::reportMediaQueryWarningIfNeeded):
+        * css/MediaQuery.cpp:
+        (WebCore::MediaQuery::MediaQuery):
+        * css/MediaQuery.h:
+        (WebCore::MediaQuery::expressions):
+        * css/MediaQueryEvaluator.cpp:
+        (WebCore::MediaQueryEvaluator::eval):
+
+2013-08-23  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Build fix after r154515.
+
+        * dom/ElementTraversal.h:
+        (WebCore::Traversal<ElementType>::firstChild):
+        (WebCore::Traversal<ElementType>::lastChild):
+
+2013-08-23  Andreas Kling  <akling@apple.com>
+
+        Simplify some Settings access where we have a Frame in reach.
+        <http://webkit.org/b/120239>
+
+        Reviewed by Anders Carlsson.
+
+        In three cases where we can grab at a Frame, we can reach all the way to some Settings
+        without having to use pointers.
+
+        * loader/FrameLoader.cpp:
+        (WebCore::FrameLoader::didBeginDocument):
+        * rendering/RenderLayerCompositor.cpp:
+        (WebCore::RenderLayerCompositor::addToOverlapMap):
+        (WebCore::RenderLayerCompositor::requiresCompositingForPosition):
+
+2013-08-23  Jer Noble  <jer.noble@apple.com>
+
+        REGRESSION (r150516): Media controls are messed up on right-to-left webpages
+        https://bugs.webkit.org/show_bug.cgi?id=120234
+
+        Reviewed by Dan Bernstein.
+
+        Test: media/video-rtl.html
+
+        Make the media control panel explicitly direction:ltr. The captions menu and captions
+        display are unaffected, so rtl content will continue to appear rtl there.
+
+        * css/mediaControls.css:
+        (audio::-webkit-media-controls-panel, video::-webkit-media-controls-panel):
+
+2013-08-23  Beth Dakin  <bdakin@apple.com>
+
+        REGRESSION (r132545): Some PDFs generated by WebKit are blank when viewed in 
+        Adobe Reader
+        https://bugs.webkit.org/show_bug.cgi?id=120240
+        -and corresponding-
+        <rdar://problem/14634453>
+
+        Reviewed by Anders Carlsson.
+
+        This patch makes it so that we don’t use the infinite rect for the PDF context, 
+        and it adds WebCoreSystemInterface API to find out if the current content is the 
+        PDF context. 
+
+        * WebCore.exp.in:
+        * platform/graphics/cg/GraphicsContextCG.cpp:
+        (WebCore::GraphicsContext::clipOut):
+        * platform/mac/WebCoreSystemInterface.h:
+        * platform/mac/WebCoreSystemInterface.mm:
+
+2013-08-23  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] some track language tags are not recognized
+        https://bugs.webkit.org/show_bug.cgi?id=119643
+
+        Reviewed by Jere Noble.
+
+        No new tests, existing tests updated.
+
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::HTMLMediaElement): Initialize m_captionDisplayMode from settings
+            if possible.
+        (WebCore::HTMLMediaElement::configureTextTrackGroup): Don't enable a default track when preferences
+            say captions should be disabled. Don't disable an already visible track if we don't find
+            a match unless preferences say captions should be disabled. m_forcedOrAutomaticSubtitleTrackLanguage ->
+            m_subtitleTrackLanguage.
+        (WebCore::HTMLMediaElement::mediaPlayerCharacteristicChanged): If the language of the primary
+            audio track changes, only kick off a text track recalc if caption preference are set to "automatic".
+        * html/HTMLMediaElement.h:
+
+        * platform/graphics/avfoundation/MediaPlayerPrivateAVFoundation.cpp:
+        (WebCore::MediaPlayerPrivateAVFoundation::MediaPlayerPrivateAVFoundation): Initialize m_characteristicsChanged
+            and m_delayCharacteristicsChangedNotification.
+        (WebCore::MediaPlayerPrivateAVFoundation::setHasVideo): Call characteristicsChanged.
+        (WebCore::MediaPlayerPrivateAVFoundation::setHasAudio): Ditto.
+        (WebCore::MediaPlayerPrivateAVFoundation::setHasClosedCaptions): Ditto.
+        (WebCore::MediaPlayerPrivateAVFoundation::characteristicsChanged): New, allows us to coalesce 
+            calls to the media player when we know several characteristics may change.
+        (WebCore::MediaPlayerPrivateAVFoundation::setDelayCharacteristicsChangedNotification): Enable or
+            disable notification delay.
+        * platform/graphics/avfoundation/MediaPlayerPrivateAVFoundation.h:
+
+        * platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm:
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::tracksChanged): Always call languageOfPrimaryAudioTrack(),
+            a track may have changed so we may have a new language.
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::languageOfPrimaryAudioTrack): Call [AVAssetTrack languageCode]
+            if [AVAssetTrack extendedLanguageTag] returns NULL in case the media file has an old
+            QuickTime language code.
+
+2013-08-23  Andreas Kling  <akling@apple.com>
+
+        RenderView::compositor() should return a reference.
+        <https://webkit.org/b/120217>
+
+        Reviewed by Beth Dakin.
+
+        The RenderLayerCompositor is lazily constructed by compositor() and never returns null.
+
 2013-08-23  Yoav Weiss  <yoav@yoav.ws>
 
         Fix srcset's image candidate algorithm when DPR exceeds all candidates

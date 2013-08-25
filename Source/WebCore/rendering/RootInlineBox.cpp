@@ -179,10 +179,7 @@ void RootInlineBox::paintEllipsisBox(PaintInfo& paintInfo, const LayoutPoint& pa
 
 void RootInlineBox::addHighlightOverflow()
 {
-    Frame* frame = renderer()->frame();
-    if (!frame)
-        return;
-    Page* page = frame->page();
+    Page* page = renderer()->frame().page();
     if (!page)
         return;
 
@@ -197,10 +194,7 @@ void RootInlineBox::paintCustomHighlight(PaintInfo& paintInfo, const LayoutPoint
     if (!paintInfo.shouldPaintWithinRoot(renderer()) || renderer()->style()->visibility() != VISIBLE || paintInfo.phase != PaintPhaseForeground)
         return;
 
-    Frame* frame = renderer()->frame();
-    if (!frame)
-        return;
-    Page* page = frame->page();
+    Page* page = renderer()->frame().page();
     if (!page)
         return;
 
@@ -390,7 +384,7 @@ LayoutUnit RootInlineBox::lineSnapAdjustment(LayoutUnit delta) const
         return 0;
 
     // Get the current line grid and offset.
-    LayoutState* layoutState = block()->view()->layoutState();
+    LayoutState* layoutState = block()->view().layoutState();
     RenderBlock* lineGrid = layoutState->lineGrid();
     LayoutSize lineGridOffset = layoutState->lineGridOffset();
     if (!lineGrid || lineGrid->style()->writingMode() != block()->style()->writingMode())
@@ -940,7 +934,7 @@ LayoutUnit RootInlineBox::verticalPositionForBox(InlineBox* box, VerticalPositio
                 lineHeight = renderer->style()->computedLineHeight();
             else
                 lineHeight = renderer->lineHeight(firstLine, lineDirection);
-            verticalPosition -= valueForLength(renderer->style()->verticalAlignLength(), lineHeight, renderer->view());
+            verticalPosition -= valueForLength(renderer->style()->verticalAlignLength(), lineHeight, &renderer->view());
         }
     }
 

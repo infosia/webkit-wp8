@@ -1,3 +1,162 @@
+2013-08-24  Filip Pizlo  <fpizlo@apple.com>
+
+        FloatTypedArrayAdaptor::toJSValue should almost certainly not use jsNumber() since that attempts int conversions
+        https://bugs.webkit.org/show_bug.cgi?id=120228
+
+        Reviewed by Oliver Hunt.
+        
+        It turns out that there were three problems:
+        
+        - Using jsNumber() meant that we were converting doubles to integers and then
+          possibly back again whenever doing a set() between floating point arrays.
+        
+        - Slow-path accesses to double typed arrays were slower than necessary because
+          of the to-int conversion attempt.
+        
+        - The use of JSValue as an intermediate for converting between differen types
+          in typedArray.set() resulted in worse code than I had previously expected.
+        
+        This patch solves the problem by using template double-dispatch to ensure that
+        that C++ compiler sees the simplest possible combination of casts between any
+        combination of typed array types, while still preserving JS and typed array
+        conversion semantics. Conversions are done as follows:
+        
+            SourceAdaptor::convertTo<TargetAdaptor>(value)
+        
+        Internally, convertTo() calls one of three possible methods on TargetAdaptor,
+        with one method for each of int32_t, uint32_t, and double. This means that the
+        C++ compiler will at worst see a widening cast to one of those types followed
+        by a narrowing conversion (not necessarily a cast - may have clamping or the
+        JS toInt32() function).
+        
+        This change doesn't just affect typedArray.set(); it also affects slow-path
+        accesses to typed arrays as well. This patch also adds a bunch of new test
+        coverage.
+        
+        This change is a ~50% speed-up on typedArray.set() involving floating point
+        types.
+
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * runtime/GenericTypedArrayView.h:
+        (JSC::GenericTypedArrayView::set):
+        * runtime/JSDataViewPrototype.cpp:
+        (JSC::setData):
+        * runtime/JSGenericTypedArrayView.h:
+        (JSC::JSGenericTypedArrayView::setIndexQuicklyToDouble):
+        (JSC::JSGenericTypedArrayView::setIndexQuickly):
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::::setWithSpecificType):
+        (JSC::::set):
+        * runtime/ToNativeFromValue.h: Added.
+        (JSC::toNativeFromValue):
+        * runtime/TypedArrayAdaptors.h:
+        (JSC::IntegralTypedArrayAdaptor::toJSValue):
+        (JSC::IntegralTypedArrayAdaptor::toDouble):
+        (JSC::IntegralTypedArrayAdaptor::toNativeFromInt32):
+        (JSC::IntegralTypedArrayAdaptor::toNativeFromUint32):
+        (JSC::IntegralTypedArrayAdaptor::toNativeFromDouble):
+        (JSC::IntegralTypedArrayAdaptor::convertTo):
+        (JSC::FloatTypedArrayAdaptor::toJSValue):
+        (JSC::FloatTypedArrayAdaptor::toDouble):
+        (JSC::FloatTypedArrayAdaptor::toNativeFromInt32):
+        (JSC::FloatTypedArrayAdaptor::toNativeFromUint32):
+        (JSC::FloatTypedArrayAdaptor::toNativeFromDouble):
+        (JSC::FloatTypedArrayAdaptor::convertTo):
+        (JSC::Uint8ClampedAdaptor::toJSValue):
+        (JSC::Uint8ClampedAdaptor::toDouble):
+        (JSC::Uint8ClampedAdaptor::toNativeFromInt32):
+        (JSC::Uint8ClampedAdaptor::toNativeFromUint32):
+        (JSC::Uint8ClampedAdaptor::toNativeFromDouble):
+        (JSC::Uint8ClampedAdaptor::convertTo):
+
+2013-08-24  Dan Bernstein  <mitz@apple.com>
+
+        [mac] link against libz in a more civilized manner
+        https://bugs.webkit.org/show_bug.cgi?id=120258
+
+        Reviewed by Darin Adler.
+
+        * Configurations/JavaScriptCore.xcconfig: Removed “-lz” from OTHER_LDFLAGS_BASE.
+        * JavaScriptCore.xcodeproj/project.pbxproj: Added libz.dylib to the JavaScriptCore target’s
+        Link Binary With Libraries build phase.
+
+2013-08-23  Laszlo Papp  <lpapp@kde.org>
+
+        Failure building with python3
+        https://bugs.webkit.org/show_bug.cgi?id=106645
+
+        Reviewed by Benjamin Poulain.
+
+        Use print functions instead of python statements to be compatible with python 3.X and 2.7 as well.
+        Archlinux has been using python3 and that is what causes issues while packaging QtWebKit along with Qt5.
+
+        * disassembler/udis86/itab.py:
+        (UdItabGenerator.genInsnTable):
+        * disassembler/udis86/ud_opcode.py:
+        (UdOpcodeTables.print_table):
+        * disassembler/udis86/ud_optable.py:
+        (UdOptableXmlParser.parseDef):
+        (UdOptableXmlParser.parse):
+        (printFn):
+
+2013-08-23  Filip Pizlo  <fpizlo@apple.com>
+
+        Incorrect TypedArray#set behavior
+        https://bugs.webkit.org/show_bug.cgi?id=83818
+
+        Reviewed by Oliver Hunt and Mark Hahnenberg.
+        
+        This was so much fun! typedArray.set() is like a memmove on steroids, and I'm
+        not smart enough to figure out optimal versions for *all* of the cases. But I
+        did come up with optimal implementations for most of the cases, and I wrote
+        spec-literal code (i.e. copy via a transfer buffer) for the cases I'm not smart
+        enough to write optimal code for.
+
+        * runtime/JSArrayBufferView.h:
+        (JSC::JSArrayBufferView::hasArrayBuffer):
+        * runtime/JSArrayBufferViewInlines.h:
+        (JSC::JSArrayBufferView::buffer):
+        (JSC::JSArrayBufferView::existingBufferInButterfly):
+        (JSC::JSArrayBufferView::neuter):
+        (JSC::JSArrayBufferView::byteOffset):
+        * runtime/JSGenericTypedArrayView.h:
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::::setWithSpecificType):
+        (JSC::::set):
+        (JSC::::existingBuffer):
+
+2013-08-23  Alex Christensen  <achristensen@apple.com>
+
+        Re-separating Win32 and Win64 builds.
+        https://bugs.webkit.org/show_bug.cgi?id=120178
+
+        Reviewed by Brent Fulgham.
+
+        * JavaScriptCore.vcxproj/JavaScriptCoreGenerated.make:
+        * JavaScriptCore.vcxproj/LLInt/LLIntAssembly/LLIntAssembly.make:
+        * JavaScriptCore.vcxproj/LLInt/LLIntDesiredOffsets/LLIntDesiredOffsets.make:
+        Pass PlatformArchitecture as a command line parameter to bash scripts.
+        * JavaScriptCore.vcxproj/LLInt/LLIntAssembly/build-LLIntAssembly.sh:
+        * JavaScriptCore.vcxproj/LLInt/LLIntDesiredOffsets/build-LLIntDesiredOffsets.sh:
+        * JavaScriptCore.vcxproj/build-generated-files.sh:
+        Use PlatformArchitecture from command line to determine which object directory to use (obj32 or obj64).
+
+2013-08-22  Filip Pizlo  <fpizlo@apple.com>
+
+        build-jsc --ftl-jit should work
+        https://bugs.webkit.org/show_bug.cgi?id=120194
+
+        Reviewed by Oliver Hunt.
+
+        * Configurations/Base.xcconfig: CPPFLAGS should include FEATURE_DEFINES
+        * Configurations/JSC.xcconfig: The 'jsc' tool includes headers where field layout may depend on FEATURE_DEFINES
+        * Configurations/ToolExecutable.xcconfig: All other tools include headers where field layout may depend on FEATURE_DEFINES
+        * ftl/FTLLowerDFGToLLVM.cpp: Build fix
+        (JSC::FTL::LowerDFGToLLVM::compilePutStructure):
+        (JSC::FTL::LowerDFGToLLVM::compilePhantomPutStructure):
+
 2013-08-23  Oliver Hunt  <oliver@apple.com>
 
         Re-sort xcode project file

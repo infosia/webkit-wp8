@@ -474,7 +474,7 @@ AccessibilityObject* AccessibilityRenderObject::parentObjectIfExists() const
 {
     // WebArea's parent should be the scroll view containing it.
     if (isWebArea() || isSeamlessWebArea())
-        return axObjectCache()->get(m_renderer->frame()->view());
+        return axObjectCache()->get(&m_renderer->view().frameView());
 
     return axObjectCache()->get(renderParentObject());
 }
@@ -500,7 +500,7 @@ AccessibilityObject* AccessibilityRenderObject::parentObject() const
     
     // WebArea's parent should be the scroll view containing it.
     if (isWebArea() || isSeamlessWebArea())
-        return axObjectCache()->getOrCreate(m_renderer->frame()->view());
+        return axObjectCache()->getOrCreate(&m_renderer->view().frameView());
     
     return 0;
 }
@@ -549,8 +549,7 @@ bool AccessibilityRenderObject::isOffScreen() const
 {
     ASSERT(m_renderer);
     IntRect contentRect = pixelSnappedIntRect(m_renderer->absoluteClippedOverflowRect());
-    FrameView* view = m_renderer->frame()->view();
-    IntRect viewRect = view->visibleContentRect();
+    IntRect viewRect = m_renderer->view().frameView().visibleContentRect();
     viewRect.intersect(contentRect);
     return viewRect.isEmpty();
 }
@@ -716,13 +715,8 @@ String AccessibilityRenderObject::stringValue() const
     if (m_renderer->isListMarker())
         return toRenderListMarker(m_renderer)->text();
     
-    if (isWebArea()) {
-        // FIXME: Why would a renderer exist when the Document isn't attached to a frame?
-        if (m_renderer->frame())
-            return String();
-
-        ASSERT_NOT_REACHED();
-    }
+    if (isWebArea())
+        return String();
     
     if (isTextControl())
         return text();
@@ -802,8 +796,8 @@ LayoutRect AccessibilityRenderObject::boundingBoxRect() const
 #endif
     
     // The size of the web area should be the content size, not the clipped size.
-    if ((isWebArea() || isSeamlessWebArea()) && obj->frame()->view())
-        result.setSize(obj->frame()->view()->contentsSize());
+    if (isWebArea() || isSeamlessWebArea())
+        result.setSize(obj->view().frameView().contentsSize());
     
     return result;
 }
@@ -1266,7 +1260,7 @@ bool AccessibilityRenderObject::computeAccessibilityIsIgnored() const
             
             // check whether rendered image was stretched from one-dimensional file image
             if (image->cachedImage()) {
-                LayoutSize imageSize = image->cachedImage()->imageSizeForRenderer(m_renderer, image->view()->zoomFactor());
+                LayoutSize imageSize = image->cachedImage()->imageSizeForRenderer(m_renderer, image->view().zoomFactor());
                 return imageSize.height() <= 1 || imageSize.width() <= 1;
             }
         }
@@ -1417,7 +1411,7 @@ const AtomicString& AccessibilityRenderObject::accessKey() const
 
 VisibleSelection AccessibilityRenderObject::selection() const
 {
-    return m_renderer->frame()->selection().selection();
+    return m_renderer->frame().selection().selection();
 }
 
 PlainTextRange AccessibilityRenderObject::selectedTextRange() const
@@ -1698,9 +1692,9 @@ Document* AccessibilityRenderObject::topDocument() const
 FrameView* AccessibilityRenderObject::topDocumentFrameView() const
 {
     RenderView* renderView = topRenderer();
-    if (!renderView || !renderView->view())
+    if (!renderView)
         return 0;
-    return &renderView->view()->frameView();
+    return &renderView->view().frameView();
 }
 
 Widget* AccessibilityRenderObject::widget() const
@@ -1770,7 +1764,7 @@ FrameView* AccessibilityRenderObject::frameViewIfRenderView() const
     if (!m_renderer->isRenderView())
         return 0;
     // this is the RenderObject's Document's renderer's FrameView
-    return &m_renderer->view()->frameView();
+    return &m_renderer->view().frameView();
 }
 
 // This function is like a cross-platform version of - (WebCoreTextMarkerRange*)textMarkerRange. It returns
@@ -1966,11 +1960,11 @@ void AccessibilityRenderObject::setSelectedVisiblePositionRange(const VisiblePos
     
     // make selection and tell the document to use it. if it's zero length, then move to that position
     if (range.start == range.end)
-        m_renderer->frame()->selection().moveTo(range.start, UserTriggered);
+        m_renderer->frame().selection().moveTo(range.start, UserTriggered);
     else {
         VisibleSelection newSelection = VisibleSelection(range.start, range.end);
-        m_renderer->frame()->selection().setSelection(newSelection);
-    }    
+        m_renderer->frame().selection().setSelection(newSelection);
+    }
 }
 
 VisiblePosition AccessibilityRenderObject::visiblePositionForPoint(const IntPoint& point) const
