@@ -1,3 +1,266 @@
+2013-08-26  David Kilzer  <ddkilzer@apple.com>
+
+        BUILD FIX (r154580): RenderObject::document() returns a reference
+
+        See: <https://webkit.org/b/120272>
+
+        * accessibility/ios/WebAccessibilityObjectWrapperIOS.mm:
+        (-[WebAccessibilityObjectWrapper _accessibilityParentForSubview:]):
+        (AXAttributeStringSetHeadingLevel):
+
+2013-08-26  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r154578.  Return Vector<String>() instead
+        of ListHashSet<String>().
+
+        * platform/win/PasteboardWin.cpp:
+        (WebCore::Pasteboard::types):
+
+2013-08-26  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r154580.
+
+        * rendering/RenderThemeWin.cpp: Mirror changes made for other ports now that
+        Frame is known to always be valid when in a render tree. This allows us to
+        get rid of some unneeded null checks.
+        (WebCore::RenderThemeWin::getThemeData):
+        (WebCore::RenderThemeWin::paintMenuList):
+
+2013-08-26  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r154554.
+
+        * page/AutoscrollController.cpp: Correct various places where pointers are now
+        references.
+        (WebCore::AutoscrollController::stopAutoscrollTimer):
+        (WebCore::AutoscrollController::startPanScrolling):
+        (WebCore::AutoscrollController::autoscrollTimerFired):
+
+2013-08-26  Andreas Kling  <akling@apple.com>
+
+        Move DocumentTiming inside ENABLE(WEB_TIMING) guards.
+        <https://webkit.org/b/120281>
+
+        Reviewed by Anders Carlsson.
+
+        Looks like this struct is only used by other ENABLE(WEB_TIMING) code, so don't bother
+        filling it in if we're not building like that.
+
+        * dom/Document.cpp:
+        (WebCore::Document::setReadyState):
+        (WebCore::Document::finishedParsing):
+        * dom/Document.h:
+        * dom/DocumentTiming.h:
+
+2013-08-26  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Fix compile warning in WebKitDOMCustom
+        https://bugs.webkit.org/show_bug.cgi?id=120286
+
+        Reviewed by Philippe Normand.
+
+        * bindings/gobject/WebKitDOMCustom.cpp:
+        (webkit_dom_html_element_get_item_type): Add return 0.
+
+2013-08-25  Ryosuke Niwa  <rniwa@webkit.org>
+
+        JSHTMLFormElement::canGetItemsForName needlessly allocates a Vector
+        https://bugs.webkit.org/show_bug.cgi?id=120277
+
+        Reviewed by Sam Weinig.
+
+        Added HTMLFormElement::hasNamedElement and used it in JSHTMLFormElement::canGetItemsForName.
+
+        This required fixing a bug in HTMLFormElement::getNamedElements that the first call to getNamedElements
+        after replacing an element A with another element B of the same name caused it to erroneously append A
+        to namedItems via the aliases mapping. Because getNamedElements used to be always called in pairs, this
+        wrong behavior was never visible to the Web. Fixed the bug by not adding the old element to namedItem
+        when namedItem's size is 1.
+
+        Also renamed m_elementAliases to m_pastNamesMap along with related member functions.
+
+        No new tests are added since there should be no Web exposed behavioral change.
+
+        * bindings/js/JSHTMLFormElementCustom.cpp:
+        (WebCore::JSHTMLFormElement::canGetItemsForName):
+        * html/HTMLFormElement.cpp:
+        (WebCore::HTMLFormElement::elementFromPastNamesMap):
+        (WebCore::HTMLFormElement::addElementToPastNamesMap):
+        (WebCore::HTMLFormElement::hasNamedElement):
+        (WebCore::HTMLFormElement::getNamedElements):
+        * html/HTMLFormElement.h:
+
+2013-08-25  Andreas Kling  <akling@apple.com>
+
+        RenderLayerBacking::renderer() should return a reference.
+        <https://webkit.org/b/120280>
+
+        Reviewed by Anders Carlsson.
+
+        It's just a forwarding call to RenderLayer::renderer() which already returns a reference.
+
+2013-08-25  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Add toSVGMissingGlyphElement(), and use it.
+        https://bugs.webkit.org/show_bug.cgi?id=120197
+
+        Reviewed by Andreas Kling.
+
+        As a step to clean-up static_cast<SVGXXX>, toSVGMissingGlyphElement() is added to clean-up
+        static_cast<SVGMissingGlyphElement*>.
+
+        * svg/SVGFontElement.cpp:
+        (WebCore::SVGFontElement::firstMissingGlyphElement):
+        (WebCore::SVGFontElement::ensureGlyphCache):
+        * svg/SVGMissingGlyphElement.h:
+        (WebCore::toSVGMissingGlyphElement):
+
+2013-08-25  Andreas Kling  <akling@apple.com>
+
+        RenderLayer::renderer() should return a reference.
+        <https://webkit.org/b/120276>
+
+        Reviewed by Anders Carlsson.
+
+        RenderLayer is always created with a renderer, so make renderer() (and m_renderer) references.
+        Nuked an assortment of useless null checks.
+
+2013-08-25  Antti Koivisto  <antti@apple.com>
+
+        Element child and descendant iterators
+        https://bugs.webkit.org/show_bug.cgi?id=120248
+
+        Reviewed by Sam Weinig and Andreas Kling.
+
+        Add iterators for Element children and descendants.
+        
+        To iterate over element children:
+        
+        #include "ChildIterator.h"
+        
+        for (auto it = elementChildren(this).begin(), end = elementChildren(this).end(); it != end; ++it) {
+            Element& element = *it;
+            ...
+
+        for (auto it = childrenOfType<HTMLAreaElement>(this).begin(), end = childrenOfType<HTMLAreaElement>(this).end(); it != end; ++it) {
+            HTMLAreaElement& area = *it;
+            ...
+
+        To iteratate over element descendants in pre-order:
+        
+        #include "DescendantIterator.h"
+        
+        for (auto it = elementDescendants(this).begin(), end = elementDescendants(this).end(); it != end; ++it) {
+            Element& element = *it;
+            ...
+
+        for (auto it = descendantsOfType<HTMLAreaElement>(this).begin(), end = descendantsOfType<HTMLAreaElement>(this).end(); it != end; ++it) {
+            HTMLAreaElement& area = *it;
+            ...
+            
+        The iterators assert against DOM mutations and event dispatch while iterating in debug builds.
+            
+        They are compatible with C++11 range-based for loops. In the future we can use
+        
+        for (auto& element : elementChildren(this))
+            ...
+
+        etc.
+        
+        The patch all uses the new iterators in a few places.
+
+        * WebCore.xcodeproj/project.pbxproj:
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::canvasHasFallbackContent):
+        (WebCore::siblingWithAriaRole):
+        * accessibility/AccessibilityRenderObject.cpp:
+        * accessibility/AccessibilityTable.cpp:
+        (WebCore::AccessibilityTable::isDataTable):
+        * dom/ChildIterator.h: Added.
+        (WebCore::ChildIterator::operator*):
+        (WebCore::ChildIterator::operator->):
+        (WebCore::::ChildIterator):
+        (WebCore::::operator):
+        (WebCore::=):
+        (WebCore::::ChildIteratorAdapter):
+        (WebCore::::begin):
+        (WebCore::::end):
+        (WebCore::elementChildren):
+        (WebCore::childrenOfType):
+        * dom/DescendantIterator.h: Added.
+        (WebCore::DescendantIterator::operator*):
+        (WebCore::DescendantIterator::operator->):
+        (WebCore::::DescendantIterator):
+        (WebCore::::operator):
+        (WebCore::=):
+        (WebCore::::DescendantIteratorAdapter):
+        (WebCore::::begin):
+        (WebCore::::end):
+        (WebCore::elementDescendants):
+        (WebCore::descendantsOfType):
+        * dom/Document.cpp:
+        (WebCore::Document::buildAccessKeyMap):
+        (WebCore::Document::childrenChanged):
+        (WebCore::Document::attach):
+        (WebCore::Document::detach):
+        * editing/ApplyStyleCommand.cpp:
+        (WebCore::ApplyStyleCommand::cleanupUnstyledAppleStyleSpans):
+        * editing/markup.cpp:
+        (WebCore::completeURLs):
+        * html/HTMLMapElement.cpp:
+        (WebCore::HTMLMapElement::mapMouseEvent):
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::selectMediaResource):
+        (WebCore::HTMLMediaElement::textTrackModeChanged):
+
+2013-08-25  Andreas Kling  <akling@apple.com>
+
+        RenderObject::document() should return a reference.
+        <https://webkit.org/b/120272>
+
+        Reviewed by Antti Koivisto.
+
+        There's always a Document. We were allocated in someone's arena, after all.
+        Various null checks and assertions neutralized.
+
+2013-08-25  David Kilzer  <ddkilzer@apple.com>
+
+        BUILD FIX (r154578): Return Vector<String>() from Pasteboard::types() for iOS
+
+        * platform/ios/PasteboardIOS.mm:
+        (WebCore::Pasteboard::types): Return Vector<String>() instead of
+        ListHashSet<String>() after r154578.
+
+2013-08-25  Darin Adler  <darin@apple.com>
+
+        Make JavaScript binding for Clipboard::types more normal
+        https://bugs.webkit.org/show_bug.cgi?id=120271
+
+        Reviewed by Anders Carlsson.
+
+        * bindings/js/JSClipboardCustom.cpp:
+        (WebCore::JSClipboard::types): Make a simple custom binding. Only needed because
+        there is a special value, null, this can return.
+
+        * dom/Clipboard.cpp:
+        (WebCore::Clipboard::types): Return Vector<String> instead of ListHashSet<String>.
+        * dom/Clipboard.h: Ditto.
+        * platform/Pasteboard.h: Ditto.
+        * platform/blackberry/PasteboardBlackBerry.cpp:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/efl/PasteboardEfl.cpp:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/gtk/PasteboardGtk.cpp:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/ios/PasteboardIOS.mm:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/mac/PasteboardMac.mm:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/qt/PasteboardQt.cpp:
+        (WebCore::Pasteboard::types): Ditto.
+        * platform/win/PasteboardWin.cpp:
+        (WebCore::Pasteboard::types): Ditto.
+
 2013-08-25  David Kilzer  <ddkilzer@apple.com>
 
         Unreviewed rollout of r154571. Broke internal iOS build.
