@@ -28,7 +28,6 @@
 #include "EventNames.h"
 #include "ExceptionCodePlaceholder.h"
 #include "MutationEvent.h"
-#include "NodeRenderingContext.h"
 #include "RenderSVGInline.h"
 #include "RenderSVGInlineText.h"
 #include "RenderSVGResource.h"
@@ -226,12 +225,12 @@ RenderObject* SVGTRefElement::createRenderer(RenderArena* arena, RenderStyle*)
     return new (arena) RenderSVGInline(this);
 }
 
-bool SVGTRefElement::childShouldCreateRenderer(const NodeRenderingContext& childContext) const
+bool SVGTRefElement::childShouldCreateRenderer(const Node* child) const
 {
-    return childContext.node()->isInShadowTree();
+    return child->isInShadowTree();
 }
 
-bool SVGTRefElement::rendererIsNeeded(const NodeRenderingContext& context)
+bool SVGTRefElement::rendererIsNeeded(const RenderStyle& style)
 {
     if (parentNode()
         && (parentNode()->hasTagName(SVGNames::aTag)
@@ -241,7 +240,7 @@ bool SVGTRefElement::rendererIsNeeded(const NodeRenderingContext& context)
             || parentNode()->hasTagName(SVGNames::textTag)
             || parentNode()->hasTagName(SVGNames::textPathTag)
             || parentNode()->hasTagName(SVGNames::tspanTag)))
-        return StyledElement::rendererIsNeeded(context);
+        return StyledElement::rendererIsNeeded(style);
 
     return false;
 }
@@ -278,7 +277,7 @@ void SVGTRefElement::buildPendingResource()
 
 Node::InsertionNotificationRequest SVGTRefElement::insertedInto(ContainerNode* rootParent)
 {
-    SVGStyledElement::insertedInto(rootParent);
+    SVGElement::insertedInto(rootParent);
     if (rootParent->inDocument())
         buildPendingResource();
     return InsertionDone;
@@ -286,7 +285,7 @@ Node::InsertionNotificationRequest SVGTRefElement::insertedInto(ContainerNode* r
 
 void SVGTRefElement::removedFrom(ContainerNode* rootParent)
 {
-    SVGStyledElement::removedFrom(rootParent);
+    SVGElement::removedFrom(rootParent);
     if (rootParent->inDocument())
         m_targetListener->detach();
 }

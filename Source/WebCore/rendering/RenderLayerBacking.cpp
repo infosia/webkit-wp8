@@ -110,7 +110,6 @@ RenderLayerBacking::RenderLayerBacking(RenderLayer* layer)
     : m_owningLayer(layer)
     , m_scrollLayerID(0)
     , m_artificiallyInflatedBounds(false)
-    , m_boundsConstrainedByClipping(false)
     , m_isMainFrameRenderViewLayer(false)
     , m_usingTiledCacheLayer(false)
     , m_requiresOwnBackingStore(true)
@@ -121,7 +120,7 @@ RenderLayerBacking::RenderLayerBacking(RenderLayer* layer)
     , m_didSwitchToFullTileCoverageDuringLoading(false)
 {
     if (layer->isRootLayer()) {
-        Frame& frame = toRenderView(renderer())->frameView()->frame();
+        Frame& frame = toRenderView(renderer())->frameView().frame();
         Page* page = frame.page();
         if (page && page->mainFrame() == &frame) {
             m_isMainFrameRenderViewLayer = true;
@@ -436,7 +435,7 @@ void RenderLayerBacking::updateCompositedBounds()
 
         LayoutRect clippingBounds;
         if (renderer()->style()->position() == FixedPosition && renderer()->container() == view)
-            clippingBounds = view->frameView()->viewportConstrainedVisibleContentRect();
+            clippingBounds = view->frameView().viewportConstrainedVisibleContentRect();
         else
             clippingBounds = view->unscaledDocumentRect();
 
@@ -448,9 +447,7 @@ void RenderLayerBacking::updateCompositedBounds()
         clippingBounds.move(-delta.x(), -delta.y());
 
         layerBounds.intersect(clippingBounds);
-        m_boundsConstrainedByClipping = true;
-    } else
-        m_boundsConstrainedByClipping = false;
+    }
     
     // If the element has a transform-origin that has fixed lengths, and the renderer has zero size,
     // then we need to ensure that the compositing layer has non-zero size so that we can apply
@@ -608,11 +605,11 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
 
     // Set transform property, if it is not animating. We have to do this here because the transform
     // is affected by the layer dimensions.
-    if (!renderer()->animation()->isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyWebkitTransform))
+    if (!renderer()->animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyWebkitTransform))
         updateTransform(renderer()->style());
 
     // Set opacity, if it is not animating.
-    if (!renderer()->animation()->isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyOpacity))
+    if (!renderer()->animation().isRunningAcceleratedAnimationOnRenderer(renderer(), CSSPropertyOpacity))
         updateOpacity(renderer()->style());
         
 #if ENABLE(CSS_FILTERS)
@@ -705,17 +702,9 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
     }
 
     m_graphicsLayer->setPosition(FloatPoint(relativeCompositingBounds.location() - graphicsLayerParentLocation));
+    m_graphicsLayer->setSize(contentsSize);
     m_graphicsLayer->setOffsetFromRenderer(toIntSize(localCompositingBounds.location()));
 
-    FloatSize oldSize = m_graphicsLayer->size();
-    if (oldSize != contentsSize) {
-        m_graphicsLayer->setSize(contentsSize);
-        // Usually invalidation will happen via layout etc, but if we've affected the layer
-        // size by constraining relative to a clipping ancestor or the viewport, we
-        // have to invalidate to avoid showing stretched content.
-        if (m_boundsConstrainedByClipping)
-            m_graphicsLayer->setNeedsDisplay();
-    }
     if (!m_isMainFrameRenderViewLayer) {
         // For non-root layers, background is always painted by the primary graphics layer.
         ASSERT(!m_backgroundLayer);
@@ -732,10 +721,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
     }
     
     if (m_maskLayer) {
-        if (m_maskLayer->size() != m_graphicsLayer->size()) {
-            m_maskLayer->setSize(m_graphicsLayer->size());
-            m_maskLayer->setNeedsDisplay();
-        }
+        m_maskLayer->setSize(m_graphicsLayer->size());
         m_maskLayer->setPosition(FloatPoint());
         m_maskLayer->setOffsetFromRenderer(m_graphicsLayer->offsetFromRenderer());
     }
@@ -792,10 +778,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
         }
 
         m_foregroundLayer->setPosition(foregroundPosition);
-        if (foregroundSize != m_foregroundLayer->size()) {
-            m_foregroundLayer->setSize(foregroundSize);
-            m_foregroundLayer->setNeedsDisplay();
-        }
+        m_foregroundLayer->setSize(foregroundSize);
         m_foregroundLayer->setOffsetFromRenderer(foregroundOffset);
     }
 
@@ -803,15 +786,12 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
         FloatPoint backgroundPosition;
         FloatSize backgroundSize = contentsSize;
         if (backgroundLayerPaintsFixedRootBackground()) {
-            FrameView* frameView = toRenderView(renderer())->frameView();
-            backgroundPosition = IntPoint(frameView->scrollOffsetForFixedPosition());
-            backgroundSize = frameView->visibleContentRect().size();
+            const FrameView& frameView = toRenderView(renderer())->frameView();
+            backgroundPosition = IntPoint(frameView.scrollOffsetForFixedPosition());
+            backgroundSize = frameView.visibleContentRect().size();
         }
         m_backgroundLayer->setPosition(backgroundPosition);
-        if (backgroundSize != m_backgroundLayer->size()) {
-            m_backgroundLayer->setSize(backgroundSize);
-            m_backgroundLayer->setNeedsDisplay();
-        }
+        m_backgroundLayer->setSize(backgroundSize);
         m_backgroundLayer->setOffsetFromRenderer(m_graphicsLayer->offsetFromRenderer());
     }
 
@@ -855,9 +835,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
         m_scrollingContentsLayer->setOffsetFromRenderer(scrollingContentsOffset, GraphicsLayer::DontSetNeedsDisplay);
 
         if (m_foregroundLayer) {
-            if (m_foregroundLayer->size() != m_scrollingContentsLayer->size())
-                m_foregroundLayer->setSize(m_scrollingContentsLayer->size());
-            m_foregroundLayer->setNeedsDisplay();
+            m_foregroundLayer->setSize(m_scrollingContentsLayer->size());
             m_foregroundLayer->setOffsetFromRenderer(m_scrollingContentsLayer->offsetFromRenderer());
         }
     }
@@ -2243,7 +2221,7 @@ void RenderLayerBacking::transitionFinished(CSSPropertyID property)
 
 void RenderLayerBacking::notifyAnimationStarted(const GraphicsLayer*, double time)
 {
-    renderer()->animation()->notifyAnimationStarted(renderer(), time);
+    renderer()->animation().notifyAnimationStarted(renderer(), time);
 }
 
 void RenderLayerBacking::notifyFlushRequired(const GraphicsLayer* layer)

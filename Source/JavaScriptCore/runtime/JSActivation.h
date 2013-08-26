@@ -64,11 +64,9 @@ namespace JSC {
 
         static bool getOwnPropertySlot(JSObject*, ExecState*, PropertyName, PropertySlot&);
         static void getOwnNonIndexPropertyNames(JSObject*, ExecState*, PropertyNameArray&, EnumerationMode);
-        JS_EXPORT_PRIVATE static bool getOwnPropertyDescriptor(JSObject*, ExecState*, PropertyName, PropertyDescriptor&);
 
         static void put(JSCell*, ExecState*, PropertyName, JSValue, PutPropertySlot&);
 
-        static void putDirectVirtual(JSObject*, ExecState*, PropertyName, JSValue, unsigned attributes);
         static bool deleteProperty(JSCell*, ExecState*, PropertyName);
 
         static JSValue toThis(JSCell*, ExecState*, ECMAMode);

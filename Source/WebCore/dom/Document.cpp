@@ -78,6 +78,7 @@
 #include "History.h"
 #include "HTMLAllCollection.h"
 #include "HTMLAnchorElement.h"
+#include "HTMLBaseElement.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLCollection.h"
 #include "HTMLDocument.h"
@@ -420,6 +421,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_updateFocusAppearanceRestoresSelection(false)
     , m_ignoreDestructiveWriteCount(0)
     , m_titleSetExplicitly(false)
+    , m_markers(adoptPtr(new DocumentMarkerController))
     , m_updateFocusAppearanceTimer(this, &Document::updateFocusAppearanceTimerFired)
     , m_cssTarget(0)
     , m_processingLoadEvent(false)
@@ -489,8 +491,6 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     // FIXME: Can/should we unify this behavior?
     if ((frame && frame->ownerElement()) || !url.isEmpty())
         setURL(url);
-
-    m_markers = adoptPtr(new DocumentMarkerController);
 
     if (m_frame)
         m_cachedResourceLoader = m_frame->loader().activeDocumentLoader()->cachedResourceLoader();
@@ -1560,13 +1560,8 @@ void Document::removeTitle(Element* titleElement)
 
     // Update title based on first title element in the head, if one exists.
     if (HTMLElement* headElement = head()) {
-        for (Element* element = ElementTraversal::firstWithin(headElement); element; element = ElementTraversal::nextSibling(element)) {
-            if (isHTMLTitleElement(element)) {
-                HTMLTitleElement* titleElement = toHTMLTitleElement(element);
-                setTitleElement(titleElement->textWithDirection(), titleElement);
-                break;
-            }
-        }
+        if (HTMLTitleElement* titleElement = Traversal<HTMLTitleElement>::firstWithin(headElement))
+            setTitleElement(titleElement->textWithDirection(), titleElement);
     }
 
     if (!m_titleElement)
@@ -1829,7 +1824,7 @@ void Document::updateStyleIfNeeded()
     if ((!m_pendingStyleRecalcShouldForce && !childNeedsStyleRecalc()) || inPageCache())
         return;
 
-    AnimationUpdateBlock animationUpdateBlock(m_frame ? m_frame->animation() : 0);
+    AnimationUpdateBlock animationUpdateBlock(m_frame ? &m_frame->animation() : 0);
     recalcStyle(Style::NoChange);
 }
 
@@ -2326,7 +2321,7 @@ void Document::implicitClose()
         return;
     }
 
-    bool wasLocationChangePending = frame() && frame()->navigationScheduler()->locationChangePending();
+    bool wasLocationChangePending = frame() && frame()->navigationScheduler().locationChangePending();
     bool doload = !parsing() && m_parser && !m_processingLoadEvent && !wasLocationChangePending;
     
     if (!doload)
@@ -2353,7 +2348,7 @@ void Document::implicitClose()
     Frame* f = frame();
     if (f) {
         f->loader().icon()->startLoader();
-        f->animation()->startAnimationsIfNotSuspended(this);
+        f->animation().startAnimationsIfNotSuspended(this);
     }
 
     ImageLoader::dispatchPendingBeforeLoadEvents();
@@ -2392,7 +2387,7 @@ void Document::implicitClose()
     // fires. This will improve onload scores, and other browsers do it.
     // If they wanna cheat, we can too. -dwh
 
-    if (frame()->navigationScheduler()->locationChangePending() && elapsedTime() < cLayoutScheduleThreshold) {
+    if (frame()->navigationScheduler().locationChangePending() && elapsedTime() < cLayoutScheduleThreshold) {
         // Just bail out. Before or during the onload we were shifted to another page.
         // The old i-Bench suite does this. When this happens don't bother painting or laying out.        
         m_processingLoadEvent = false;
@@ -2614,10 +2609,8 @@ void Document::updateBaseURL()
     if (!equalIgnoringFragmentIdentifier(oldBaseURL, m_baseURL)) {
         // Base URL change changes any relative visited links.
         // FIXME: There are other URLs in the tree that would need to be re-evaluated on dynamic base URL change. Style should be invalidated too.
-        for (Element* element = ElementTraversal::firstWithin(this); element; element = ElementTraversal::next(element)) {
-            if (isHTMLAnchorElement(element))
-                toHTMLAnchorElement(element)->invalidateCachedVisitedLinkHash();
-        }
+        for (HTMLAnchorElement* anchor = Traversal<HTMLAnchorElement>::firstWithin(this); anchor; anchor = Traversal<HTMLAnchorElement>::next(anchor))
+            anchor->invalidateCachedVisitedLinkHash();
     }
 }
 
@@ -2632,18 +2625,16 @@ void Document::processBaseElement()
     // Find the first href attribute in a base element and the first target attribute in a base element.
     const AtomicString* href = 0;
     const AtomicString* target = 0;
-    for (Element* element = ElementTraversal::firstWithin(this); element && (!href || !target); element = ElementTraversal::next(element)) {
-        if (element->hasTagName(baseTag)) {
-            if (!href) {
-                const AtomicString& value = element->fastGetAttribute(hrefAttr);
-                if (!value.isNull())
-                    href = &value;
-            }
-            if (!target) {
-                const AtomicString& value = element->fastGetAttribute(targetAttr);
-                if (!value.isNull())
-                    target = &value;
-            }
+    for (HTMLBaseElement* base = Traversal<HTMLBaseElement>::firstWithin(this); base && (!href || !target); base = Traversal<HTMLBaseElement>::next(base)) {
+        if (!href) {
+            const AtomicString& value = base->fastGetAttribute(hrefAttr);
+            if (!value.isNull())
+                href = &value;
+        }
+        if (!target) {
+            const AtomicString& value = base->fastGetAttribute(targetAttr);
+            if (!value.isNull())
+                target = &value;
         }
     }
 
@@ -2802,7 +2793,7 @@ void Document::processHttpEquiv(const String& equiv, const String& content)
                 url = m_url.string();
             else
                 url = completeURL(url).string();
-            frame->navigationScheduler()->scheduleRedirect(delay, url);
+            frame->navigationScheduler().scheduleRedirect(delay, url);
         }
     } else if (equalIgnoringCase(equiv, "set-cookie")) {
         // FIXME: make setCookie work on XML documents too; e.g. in case of <html:meta .....>
@@ -2826,7 +2817,7 @@ void Document::processHttpEquiv(const String& equiv, const String& content)
                 // Stopping the loader isn't enough, as we're already parsing the document; to honor the header's
                 // intent, we must navigate away from the possibly partially-rendered document to a location that
                 // doesn't inherit the parent's SecurityOrigin.
-                frame->navigationScheduler()->scheduleLocationChange(securityOrigin(), SecurityOrigin::urlWithUniqueSecurityOrigin(), String());
+                frame->navigationScheduler().scheduleLocationChange(securityOrigin(), SecurityOrigin::urlWithUniqueSecurityOrigin(), String());
                 addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, message, requestIdentifier);
             }
         }
@@ -3159,7 +3150,7 @@ void Document::styleResolverChanged(StyleResolverUpdateFlag updateFlag)
     // This recalcStyle initiates a new recalc cycle. We need to bracket it to
     // make sure animations get the correct update time
     {
-        AnimationUpdateBlock animationUpdateBlock(m_frame ? m_frame->animation() : 0);
+        AnimationUpdateBlock animationUpdateBlock(m_frame ? &m_frame->animation() : 0);
         recalcStyle(Style::Force);
     }
 
@@ -4025,7 +4016,7 @@ void Document::documentDidResumeFromPageCache()
         frameView->setAnimatorsAreActive();
 
     ASSERT(m_frame);
-    m_frame->loader().client()->dispatchDidBecomeFrameset(isFrameSet());
+    m_frame->loader().client().dispatchDidBecomeFrameset(isFrameSet());
 }
 
 void Document::registerForPageCacheSuspensionCallbacks(Element* e)
@@ -4533,7 +4524,7 @@ void Document::initSecurityContext()
             // harnesses for web sites.
             securityOrigin()->grantUniversalAccess();
         } else if (securityOrigin()->isLocal()) {
-            if (settings->allowUniversalAccessFromFileURLs() || m_frame->loader().client()->shouldForceUniversalAccessFromLocalURL(m_url)) {
+            if (settings->allowUniversalAccessFromFileURLs() || m_frame->loader().client().shouldForceUniversalAccessFromLocalURL(m_url)) {
                 // Some clients want local URLs to have universal access, but that setting is dangerous for other clients.
                 securityOrigin()->grantUniversalAccess();
             } else if (!settings->allowFileAccessFromFileURLs()) {

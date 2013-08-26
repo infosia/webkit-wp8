@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C95CC2A617C82F6500995D6E /* JSContextXTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C95CC2A517C82F6500995D6E /* JSContextXTests.mm */; };
+		C95CC2A817C831E800995D6E /* JSVirtualMachineXTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C95CC2A717C831E800995D6E /* JSVirtualMachineXTests.mm */; };
 		C9BFC42A17C2C4A400C97C7F /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9BFC41517C2C43B00C97C7F /* XCTest.framework */; };
 		C9BFC43017C2C4A400C97C7F /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = C9BFC42E17C2C4A400C97C7F /* InfoPlist.strings */; };
 		C9BFC44217C2C5A500C97C7F /* ParentObject.m in Sources */ = {isa = PBXBuildFile; fileRef = C9BFC43B17C2C5A500C97C7F /* ParentObject.m */; };
@@ -35,6 +37,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C95CC2A517C82F6500995D6E /* JSContextXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSContextXTests.mm; sourceTree = "<group>"; };
+		C95CC2A717C831E800995D6E /* JSVirtualMachineXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSVirtualMachineXTests.mm; sourceTree = "<group>"; };
 		C9BFC40217C2C32500C97C7F /* libAPI.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libAPI.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
 		C9BFC41517C2C43B00C97C7F /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		C9BFC42917C2C4A400C97C7F /* tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = tests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -159,6 +163,8 @@
 			isa = PBXGroup;
 			children = (
 				C9BFC47317C2D13D00C97C7F /* FooTests.mm */,
+				C95CC2A517C82F6500995D6E /* JSContextXTests.mm */,
+				C95CC2A717C831E800995D6E /* JSVirtualMachineXTests.mm */,
 			);
 			name = OOAPITests;
 			sourceTree = "<group>";
@@ -272,10 +278,12 @@
 			files = (
 				C9BFC44417C2C5A500C97C7F /* TextXYZ.m in Sources */,
 				C9BFC44217C2C5A500C97C7F /* ParentObject.m in Sources */,
+				C95CC2A617C82F6500995D6E /* JSContextXTests.mm in Sources */,
 				C9BFC47417C2D13D00C97C7F /* FooTests.mm in Sources */,
 				C9BFC44317C2C5A500C97C7F /* TestObject.m in Sources */,
 				C9BFC44717C2C67300C97C7F /* ObjectiveCAPITests.mm in Sources */,
 				C9BFC44517C2C5A500C97C7F /* TinyDOMNode.m in Sources */,
+				C95CC2A817C831E800995D6E /* JSVirtualMachineXTests.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,6 +467,7 @@
 				C9BFC43817C2C4A400C97C7F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

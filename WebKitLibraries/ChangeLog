@@ -1,3 +1,45 @@
+2013-08-22  Filip Pizlo  <fpizlo@apple.com>
+
+        Update LLVM binary drops and scripts to the latest version from SVN
+        https://bugs.webkit.org/show_bug.cgi?id=120184
+
+        Reviewed by Mark Hahnenberg.
+
+        Updated binary drops to r189066.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-08-21  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154416.
+        http://trac.webkit.org/changeset/154416
+        https://bugs.webkit.org/show_bug.cgi?id=120147
+
+        Broke Windows builds (Requested by rniwa on #webkit).
+
+        * win/tools/vsprops/common.props:
+
+2013-08-21  Alex Christensen  <achristensen@apple.com>
+
+        <https://webkit.org/b/120137> Separating Win32 and Win64 builds.
+
+        Reviewed by Brent Fulgham.
+
+        * win/tools/vsprops/common.props:
+        Export PlatformArchitecture to be used by make and cmd scripts.
+        Use PlatformArchitecture to determine correct build directory
+        (lib32/bin32/obj32 or lib64/bin64/obj64).
+
+2013-08-21  Brent Fulgham  <bfulgham@apple.com>
+
+        <https://webkit.org/b/120113> [Windows] Enable CSS_IMAGE_SET
+
+        Reviewed by Anders Carlsson.
+
+        * win/tools/vsprops/FeatureDefines.props: Enable CSS_IMAGE_SET feature.
+        * win/tools/vsprops/FeatureDefinesCairo.props: Ditto.
+
 2013-08-15  Eric Carlson  <eric.carlson@apple.com>
 
         [Mac] Remove "legacy" media UI

@@ -331,8 +331,6 @@ bool JSDOMWindow::getOwnPropertySlotByIndex(JSObject* object, ExecState* exec, u
     return Base::getOwnPropertySlotByIndex(thisObject, exec, index, slot);
 }
 
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSDOMWindow)
-
 void JSDOMWindow::put(JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value, PutPropertySlot& slot)
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(cell);
@@ -408,7 +406,7 @@ void JSDOMWindow::getOwnPropertyNames(JSObject* object, ExecState* exec, Propert
     Base::getOwnPropertyNames(thisObject, exec, propertyNames, mode);
 }
 
-bool JSDOMWindow::defineOwnProperty(JSC::JSObject* object, JSC::ExecState* exec, JSC::PropertyName propertyName, JSC::PropertyDescriptor& descriptor, bool shouldThrow)
+bool JSDOMWindow::defineOwnProperty(JSC::JSObject* object, JSC::ExecState* exec, JSC::PropertyName propertyName, const JSC::PropertyDescriptor& descriptor, bool shouldThrow)
 {
     JSDOMWindow* thisObject = jsCast<JSDOMWindow*>(object);
     // Only allow defining properties in this way by frames in the same origin, as it allows setters to be introduced.

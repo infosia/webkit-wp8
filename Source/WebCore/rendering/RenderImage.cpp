@@ -174,7 +174,7 @@ void RenderImage::imageChanged(WrappedImagePtr newImage, const IntRect* rect)
     
     if (!m_didIncrementVisuallyNonEmptyPixelCount) {
         // At a zoom level of 1 the image is guaranteed to have an integer size.
-        view()->frameView()->incrementVisuallyNonEmptyPixelCount(flooredIntSize(m_imageResource->imageSize(1.0f)));
+        view()->frameView().incrementVisuallyNonEmptyPixelCount(flooredIntSize(m_imageResource->imageSize(1.0f)));
         m_didIncrementVisuallyNonEmptyPixelCount = true;
     }
 
@@ -353,7 +353,13 @@ void RenderImage::paintReplaced(PaintInfo& paintInfo, const LayoutPoint& paintOf
                 if (centerY < 0)
                     centerY = 0;
                 imageOffset = LayoutSize(leftBorder + leftPad + centerX + borderWidth, topBorder + topPad + centerY + borderWidth);
-                context->drawImage(image.get(), style()->colorSpace(), pixelSnappedIntRect(LayoutRect(paintOffset + imageOffset, imageSize)), CompositeSourceOver, ImageOrientationDescription(shouldRespectImageOrientation()));
+
+                ImageOrientationDescription orientationDescription;
+#if ENABLE(CSS_IMAGE_ORIENTATION)
+                orientationDescription.setImageOrientationEnum(style()->imageOrientation());
+                orientationDescription.setRespectImageOrientation(shouldRespectImageOrientation());
+#endif
+                context->drawImage(image.get(), style()->colorSpace(), pixelSnappedIntRect(LayoutRect(paintOffset + imageOffset, imageSize)), CompositeSourceOver, orientationDescription);
                 errorPictureDrawn = true;
             }
 
@@ -475,7 +481,12 @@ void RenderImage::paintIntoRect(GraphicsContext* context, const LayoutRect& rect
     CompositeOperator compositeOperator = imageElt ? imageElt->compositeOperator() : CompositeSourceOver;
     Image* image = m_imageResource->image().get();
     bool useLowQualityScaling = shouldPaintAtLowQuality(context, image, image, alignedRect.size());
-    context->drawImage(m_imageResource->image(alignedRect.width(), alignedRect.height()).get(), style()->colorSpace(), alignedRect, compositeOperator, ImageOrientationDescription(shouldRespectImageOrientation()), useLowQualityScaling);
+    ImageOrientationDescription orientationDescription;
+#if ENABLE(CSS_IMAGE_ORIENTATION)
+    orientationDescription.setImageOrientationEnum(style()->imageOrientation());
+    orientationDescription.setRespectImageOrientation(shouldRespectImageOrientation());
+#endif
+    context->drawImage(m_imageResource->image(alignedRect.width(), alignedRect.height()).get(), style()->colorSpace(), alignedRect, compositeOperator, orientationDescription, useLowQualityScaling);
 }
 
 bool RenderImage::boxShadowShouldBeAppliedToBackground(BackgroundBleedAvoidance bleedAvoidance, InlineFlowBox*) const

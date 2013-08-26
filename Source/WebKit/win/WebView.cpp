@@ -2811,7 +2811,8 @@ void WebView::setToolTip(const String& toolTip)
         info.cbSize = sizeof(info);
         info.uFlags = TTF_IDISHWND;
         info.uId = reinterpret_cast<UINT_PTR>(m_viewWindow);
-        info.lpszText = const_cast<UChar*>(m_toolTip.charactersWithNullTermination().data());
+        Vector<UChar> toolTipCharacters = m_toolTip.charactersWithNullTermination(); // Retain buffer long enough to make the SendMessage call
+        info.lpszText = const_cast<UChar*>(toolTipCharacters.data());
         ::SendMessage(m_toolTipHwnd, TTM_UPDATETIPTEXT, 0, reinterpret_cast<LPARAM>(&info));
     }
 
@@ -3538,7 +3539,7 @@ HRESULT STDMETHODCALLTYPE WebView::rectsForTextMatches(
     do {
         if (Document* document = frame->document()) {
             IntRect visibleRect = frame->view()->visibleContentRect();
-            Vector<IntRect> frameRects = document->markers()->renderedRectsForMarkers(DocumentMarker::TextMatch);
+            Vector<IntRect> frameRects = document->markers().renderedRectsForMarkers(DocumentMarker::TextMatch);
             IntPoint frameOffset(-frame->view()->scrollOffset().width(), -frame->view()->scrollOffset().height());
             frameOffset = frame->view()->convertToContainingWindow(frameOffset);
 
@@ -5382,7 +5383,7 @@ HRESULT STDMETHODCALLTYPE WebView::loadBackForwardListFromOtherView(
             // If this item is showing , save away its current scroll and form state,
             // since that might have changed since loading and it is normally not saved
             // until we leave that page.
-            otherWebView->m_page->mainFrame()->loader().history()->saveDocumentAndScrollState();
+            otherWebView->m_page->mainFrame()->loader().history().saveDocumentAndScrollState();
         }
         RefPtr<HistoryItem> newItem = otherBackForwardList->itemAtIndex(i)->copy();
         if (!i) 

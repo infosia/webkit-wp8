@@ -41,6 +41,14 @@ namespace JSC {
             , m_seenAttributes(0)
         {
         }
+        PropertyDescriptor(JSValue value, unsigned attributes)
+            : m_value(value)
+            , m_attributes(attributes)
+            , m_seenAttributes(EnumerablePresent | ConfigurablePresent | WritablePresent)
+        {
+            ASSERT(m_value);
+            ASSERT(!m_value.isGetterSetter());
+        }
         JS_EXPORT_PRIVATE bool writable() const;
         JS_EXPORT_PRIVATE bool enumerable() const;
         JS_EXPORT_PRIVATE bool configurable() const;
@@ -83,22 +91,6 @@ namespace JSC {
         unsigned m_attributes;
         unsigned m_seenAttributes;
     };
-}
-
-#define GET_OWN_PROPERTY_DESCRIPTOR_IMPL(ClassName) \
-bool ClassName::getOwnPropertyDescriptor(JSC::JSObject* object, JSC::ExecState* exec, JSC::PropertyName propertyName, JSC::PropertyDescriptor& descriptor) \
-{ \
-    JSC::PropertySlot slot(object); \
-    if (!getOwnPropertySlot(object, exec, propertyName, slot)) \
-        return false; \
-    /* Workaround, JSDOMWindow::getOwnPropertySlot searches the prototype chain. :-( */ \
-    if (slot.slotBase() && slot.slotBase() != object) \
-        return false; \
-    if (slot.isGetter()) \
-        descriptor.setAccessorDescriptor(slot.getterSetter(), slot.attributes()); \
-    else \
-        descriptor.setDescriptor(slot.getValue(exec, propertyName), slot.attributes()); \
-    return true; \
 }
 
 #endif

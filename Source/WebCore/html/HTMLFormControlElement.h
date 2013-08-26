@@ -128,7 +128,7 @@ protected:
     void setNeedsWillValidateCheck();
     virtual bool recalcWillValidate() const;
 
-    bool validationMessageShadowTreeContains(Node*) const;
+    bool validationMessageShadowTreeContains(const Node*) const;
 
 private:
     virtual void refFormAssociatedElement() { ref(); }
@@ -180,9 +180,11 @@ inline HTMLFormControlElement* toHTMLFormControlElement(Node* node)
     ASSERT_WITH_SECURITY_IMPLICATION(!node || isHTMLFormControlElement(node));
     return static_cast<HTMLFormControlElement*>(node);
 }
-
 // This will catch anyone doing an unnecessary cast.
 void toHTMLFormControlElement(const HTMLFormControlElement*);
+
+template <> inline bool isElementOfType<HTMLFormControlElement>(const Element* element) { return isHTMLFormControlElement(element); }
+
 
 } // namespace
 

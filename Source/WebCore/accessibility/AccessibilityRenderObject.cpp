@@ -1345,7 +1345,7 @@ int AccessibilityRenderObject::layoutCount() const
 {
     if (!m_renderer->isRenderView())
         return 0;
-    return toRenderView(m_renderer)->frameView()->layoutCount();
+    return toRenderView(m_renderer)->frameView().layoutCount();
 }
 
 String AccessibilityRenderObject::text() const
@@ -1700,7 +1700,7 @@ FrameView* AccessibilityRenderObject::topDocumentFrameView() const
     RenderView* renderView = topRenderer();
     if (!renderView || !renderView->view())
         return 0;
-    return renderView->view()->frameView();
+    return &renderView->view()->frameView();
 }
 
 Widget* AccessibilityRenderObject::widget() const
@@ -1770,7 +1770,7 @@ FrameView* AccessibilityRenderObject::frameViewIfRenderView() const
     if (!m_renderer->isRenderView())
         return 0;
     // this is the RenderObject's Document's renderer's FrameView
-    return m_renderer->view()->frameView();
+    return &m_renderer->view()->frameView();
 }
 
 // This function is like a cross-platform version of - (WebCoreTextMarkerRange*)textMarkerRange. It returns
@@ -1952,7 +1952,7 @@ IntRect AccessibilityRenderObject::boundsForVisiblePositionRange(const VisiblePo
             ourrect = boundingBox;
     }
     
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     return m_renderer->document()->view()->contentsToScreen(pixelSnappedIntRect(ourrect));
 #else
     return pixelSnappedIntRect(ourrect);
@@ -1983,9 +1983,9 @@ VisiblePosition AccessibilityRenderObject::visiblePositionForPoint(const IntPoin
     if (!renderView)
         return VisiblePosition();
 
-    FrameView* frameView = renderView->frameView();
-    if (!frameView)
-        return VisiblePosition();
+#if PLATFORM(MAC)
+    FrameView* frameView = &renderView->frameView();
+#endif
 
     Node* innerNode = 0;
     
@@ -2022,7 +2022,9 @@ VisiblePosition AccessibilityRenderObject::visiblePositionForPoint(const IntPoin
             break;
         Frame& frame = toFrameView(widget)->frame();
         renderView = frame.document()->renderView();
+#if PLATFORM(MAC)
         frameView = toFrameView(widget);
+#endif
     }
     
     return innerNode->renderer()->positionForPoint(pointResult);
@@ -2753,9 +2755,9 @@ void AccessibilityRenderObject::addImageMapChildren()
     if (!map)
         return;
 
-    for (Element* current = ElementTraversal::firstWithin(map); current; current = ElementTraversal::next(current, map)) {
+    for (HTMLAreaElement* current = Traversal<HTMLAreaElement>::firstWithin(map); current; current = Traversal<HTMLAreaElement>::next(current, map)) {
         // add an <area> element for this child if it has a link
-        if (isHTMLAreaElement(current) && current->isLink()) {
+        if (current->isLink()) {
             AccessibilityImageMapLink* areaObject = static_cast<AccessibilityImageMapLink*>(axObjectCache()->getOrCreate(ImageMapLinkRole));
             areaObject->setHTMLAreaElement(toHTMLAreaElement(current));
             areaObject->setHTMLMapElement(map);
@@ -3143,6 +3145,7 @@ void AccessibilityRenderObject::tabChildren(AccessibilityChildrenVector& result)
     
 const String& AccessibilityRenderObject::actionVerb() const
 {
+#if !PLATFORM(IOS)
     // FIXME: Need to add verbs for select elements.
     DEFINE_STATIC_LOCAL(const String, buttonAction, (AXButtonActionVerb()));
     DEFINE_STATIC_LOCAL(const String, textFieldAction, (AXTextFieldActionVerb()));
@@ -3150,8 +3153,7 @@ const String& AccessibilityRenderObject::actionVerb() const
     DEFINE_STATIC_LOCAL(const String, checkedCheckBoxAction, (AXCheckedCheckBoxActionVerb()));
     DEFINE_STATIC_LOCAL(const String, uncheckedCheckBoxAction, (AXUncheckedCheckBoxActionVerb()));
     DEFINE_STATIC_LOCAL(const String, linkAction, (AXLinkActionVerb()));
-    DEFINE_STATIC_LOCAL(const String, noAction, ());
-    
+
     switch (roleValue()) {
     case ButtonRole:
     case ToggleButtonRole:
@@ -3167,8 +3169,11 @@ const String& AccessibilityRenderObject::actionVerb() const
     case WebCoreLinkRole:
         return linkAction;
     default:
-        return noAction;
+        return nullAtom;
     }
+#else
+    return nullAtom;
+#endif
 }
     
 void AccessibilityRenderObject::setAccessibleName(const AtomicString& name)

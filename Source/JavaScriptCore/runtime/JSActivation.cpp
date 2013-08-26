@@ -178,8 +178,6 @@ bool JSActivation::getOwnPropertySlot(JSObject* object, ExecState* exec, Propert
     return false;
 }
 
-GET_OWN_PROPERTY_DESCRIPTOR_IMPL(JSActivation)
-
 void JSActivation::put(JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value, PutPropertySlot& slot)
 {
     JSActivation* thisObject = jsCast<JSActivation*>(cell);
@@ -193,22 +191,6 @@ void JSActivation::put(JSCell* cell, ExecState* exec, PropertyName propertyName,
     // expose in the activation object.
     ASSERT(!thisObject->hasGetterSetterProperties());
     thisObject->putOwnDataProperty(exec->vm(), propertyName, value, slot);
-}
-
-// FIXME: Make this function honor ReadOnly (const) and DontEnum
-void JSActivation::putDirectVirtual(JSObject* object, ExecState* exec, PropertyName propertyName, JSValue value, unsigned attributes)
-{
-    JSActivation* thisObject = jsCast<JSActivation*>(object);
-    ASSERT(!Heap::heap(value) || Heap::heap(value) == Heap::heap(thisObject));
-
-    if (thisObject->symbolTablePutWithAttributes(exec->vm(), propertyName, value, attributes))
-        return;
-
-    // We don't call through to JSObject because __proto__ and getter/setter 
-    // properties are non-standard extensions that other implementations do not
-    // expose in the activation object.
-    ASSERT(!thisObject->hasGetterSetterProperties());
-    JSObject::putDirectVirtual(thisObject, exec, propertyName, value, attributes);
 }
 
 bool JSActivation::deleteProperty(JSCell* cell, ExecState* exec, PropertyName propertyName)

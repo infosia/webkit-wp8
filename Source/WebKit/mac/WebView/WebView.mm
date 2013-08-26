@@ -1296,7 +1296,7 @@ static bool fastDocumentTeardownEnabled()
             // If this item is showing , save away its current scroll and form state,
             // since that might have changed since loading and it is normally not saved
             // until we leave that page.
-            otherView->_private->page->mainFrame()->loader().history()->saveDocumentAndScrollState();
+            otherView->_private->page->mainFrame()->loader().history().saveDocumentAndScrollState();
         }
         RefPtr<HistoryItem> newItem = otherBackForwardList->itemAtIndex(i)->copy();
         if (i == 0) 
@@ -2779,7 +2779,7 @@ static Vector<String> toStringVector(NSArray* patterns)
 {
     Frame* frame = core([self mainFrame]);
     if (frame)
-        return frame->animation()->allowsNewAnimationsWhileSuspended();
+        return frame->animation().allowsNewAnimationsWhileSuspended();
 
     return false;
 }
@@ -2788,7 +2788,7 @@ static Vector<String> toStringVector(NSArray* patterns)
 {
     Frame* frame = core([self mainFrame]);
     if (frame)
-        frame->animation()->setAllowsNewAnimationsWhileSuspended(allowed);
+        frame->animation().setAllowsNewAnimationsWhileSuspended(allowed);
 }
 
 - (BOOL)cssAnimationsSuspended
@@ -2796,7 +2796,7 @@ static Vector<String> toStringVector(NSArray* patterns)
     // should ask the page!
     Frame* frame = core([self mainFrame]);
     if (frame)
-        return frame->animation()->isSuspended();
+        return frame->animation().isSuspended();
 
     return false;
 }
@@ -2804,13 +2804,13 @@ static Vector<String> toStringVector(NSArray* patterns)
 - (void)setCSSAnimationsSuspended:(BOOL)suspended
 {
     Frame* frame = core([self mainFrame]);
-    if (suspended == frame->animation()->isSuspended())
+    if (suspended == frame->animation().isSuspended())
         return;
         
     if (suspended)
-        frame->animation()->suspendAnimations();
+        frame->animation().suspendAnimations();
     else
-        frame->animation()->resumeAnimations();
+        frame->animation().resumeAnimations();
 }
 
 + (void)_setDomainRelaxationForbidden:(BOOL)forbidden forURLScheme:(NSString *)scheme

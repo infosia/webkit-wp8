@@ -228,11 +228,11 @@ WebFrame *kit(Frame* frame)
     if (!frame)
         return nil;
 
-    FrameLoaderClient* frameLoaderClient = frame->loader().client();
-    if (frameLoaderClient->isEmptyFrameLoaderClient())
+    FrameLoaderClient& frameLoaderClient = frame->loader().client();
+    if (frameLoaderClient.isEmptyFrameLoaderClient())
         return nil;
 
-    return static_cast<WebFrameLoaderClient*>(frameLoaderClient)->webFrame();
+    return static_cast<WebFrameLoaderClient&>(frameLoaderClient).webFrame();
 }
 
 Page* core(WebView *webView)
@@ -393,7 +393,7 @@ WebView *getWebView(WebFrame *webFrame)
     Frame* coreFrame = _private->coreFrame;
     for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame)) {
         if (Document* document = frame->document())
-            document->markers()->removeMarkers(DocumentMarker::Grammar);
+            document->markers().removeMarkers(DocumentMarker::Grammar);
     }
 }
 
@@ -402,7 +402,7 @@ WebView *getWebView(WebFrame *webFrame)
     Frame* coreFrame = _private->coreFrame;
     for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame)) {
         if (Document* document = frame->document())
-            document->markers()->removeMarkers(DocumentMarker::Spelling);
+            document->markers().removeMarkers(DocumentMarker::Spelling);
     }
 }
 

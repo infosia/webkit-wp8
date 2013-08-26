@@ -426,10 +426,10 @@ void Page::goToItem(HistoryItem* item, FrameLoadType type)
     // being deref()-ed. Make sure we can still use it with HistoryController::goToItem later.
     RefPtr<HistoryItem> protector(item);
 
-    if (m_mainFrame->loader().history()->shouldStopLoadingForHistoryItem(item))
+    if (m_mainFrame->loader().history().shouldStopLoadingForHistoryItem(item))
         m_mainFrame->loader().stopAllLoaders();
 
-    m_mainFrame->loader().history()->goToItem(item, type);
+    m_mainFrame->loader().history().goToItem(item, type);
 }
 
 int Page::getHistoryLength()
@@ -698,7 +698,7 @@ void Page::unmarkAllTextMatches()
 
     Frame* frame = mainFrame();
     do {
-        frame->document()->markers()->removeMarkers(DocumentMarker::TextMatch);
+        frame->document()->markers().removeMarkers(DocumentMarker::TextMatch);
         frame = incrementFrame(frame, true, false);
     } while (frame);
 }
@@ -1290,11 +1290,11 @@ void Page::setVisibilityState(PageVisibilityState visibilityState, bool isInitia
         if (m_pageThrottler->shouldThrottleTimers())
             throttleTimers();
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
-            mainFrame()->animation()->suspendAnimations();
+            mainFrame()->animation().suspendAnimations();
     } else {
         unthrottleTimers();
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
-            mainFrame()->animation()->resumeAnimations();
+            mainFrame()->animation().resumeAnimations();
     }
 #if !ENABLE(PAGE_VISIBILITY_API)
     UNUSED_PARAM(isInitialState);
@@ -1555,9 +1555,9 @@ void Page::hiddenPageCSSAnimationSuspensionStateChanged()
 {
     if (m_visibilityState == WebCore::PageVisibilityStateHidden) {
         if (m_settings->hiddenPageCSSAnimationSuspensionEnabled())
-            mainFrame()->animation()->suspendAnimations();
+            mainFrame()->animation().suspendAnimations();
         else
-            mainFrame()->animation()->resumeAnimations();
+            mainFrame()->animation().resumeAnimations();
     }
 }
 #endif

@@ -59,6 +59,7 @@
 #include "RenderSVGText.h"
 #include "RenderTreeAsText.h"
 #include "SVGCircleElement.h"
+#include "SVGElement.h"
 #include "SVGEllipseElement.h"
 #include "SVGInlineTextBox.h"
 #include "SVGLineElement.h"
@@ -73,7 +74,6 @@
 #include "SVGRectElement.h"
 #include "SVGRootInlineBox.h"
 #include "SVGStopElement.h"
-#include "SVGStyledElement.h"
 
 #include <math.h>
 
@@ -552,7 +552,7 @@ void writeSVGResourceContainer(TextStream& ts, const RenderObject& object, int i
 
         // Dump final results that are used for rendering. No use in asking SVGGradientElement for its gradientUnits(), as it may
         // link to other gradients using xlink:href, we need to build the full inheritance chain, aka. collectGradientProperties()
-        SVGLinearGradientElement* linearGradientElement = static_cast<SVGLinearGradientElement*>(gradient->node());
+        SVGLinearGradientElement* linearGradientElement = toSVGLinearGradientElement(gradient->node());
 
         LinearGradientAttributes attributes;
         linearGradientElement->collectGradientAttributes(attributes);
@@ -564,10 +564,8 @@ void writeSVGResourceContainer(TextStream& ts, const RenderObject& object, int i
 
         // Dump final results that are used for rendering. No use in asking SVGGradientElement for its gradientUnits(), as it may
         // link to other gradients using xlink:href, we need to build the full inheritance chain, aka. collectGradientProperties()
-        SVGRadialGradientElement* radialGradientElement = static_cast<SVGRadialGradientElement*>(gradient->node());
-
         RadialGradientAttributes attributes;
-        radialGradientElement->collectGradientAttributes(attributes);
+        toSVGRadialGradientElement(gradient->node())->collectGradientAttributes(attributes);
         writeCommonGradientProperties(ts, attributes.spreadMethod(), attributes.gradientTransform(), attributes.gradientUnits());
 
         FloatPoint focalPoint = gradient->focalPoint(attributes);

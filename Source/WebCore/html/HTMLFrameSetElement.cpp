@@ -35,7 +35,6 @@
 #include "HTMLNames.h"
 #include "Length.h"
 #include "MouseEvent.h"
-#include "NodeRenderingContext.h"
 #include "RenderFrameSet.h"
 #include "ScriptEventListener.h"
 #include "Text.h"
@@ -149,11 +148,11 @@ void HTMLFrameSetElement::parseAttribute(const QualifiedName& name, const Atomic
         HTMLElement::parseAttribute(name, value);
 }
 
-bool HTMLFrameSetElement::rendererIsNeeded(const NodeRenderingContext& context)
+bool HTMLFrameSetElement::rendererIsNeeded(const RenderStyle& style)
 {
     // For compatibility, frames render even when display: none is set.
     // However, we delay creating a renderer until stylesheets have loaded. 
-    return context.style()->isStyleAvailable();
+    return style.isStyleAvailable();
 }
 
 RenderObject *HTMLFrameSetElement::createRenderer(RenderArena *arena, RenderStyle *style)
@@ -217,7 +216,7 @@ Node::InsertionNotificationRequest HTMLFrameSetElement::insertedInto(ContainerNo
     HTMLElement::insertedInto(insertionPoint);
     if (insertionPoint->inDocument()) {
         if (Frame* frame = document()->frame())
-            frame->loader().client()->dispatchDidBecomeFrameset(document()->isFrameSet());
+            frame->loader().client().dispatchDidBecomeFrameset(document()->isFrameSet());
     }
 
     return InsertionDone;
@@ -228,7 +227,7 @@ void HTMLFrameSetElement::removedFrom(ContainerNode* insertionPoint)
     HTMLElement::removedFrom(insertionPoint);
     if (insertionPoint->inDocument()) {
         if (Frame* frame = document()->frame())
-            frame->loader().client()->dispatchDidBecomeFrameset(document()->isFrameSet());
+            frame->loader().client().dispatchDidBecomeFrameset(document()->isFrameSet());
     }
 }
 

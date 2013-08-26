@@ -1,3 +1,91 @@
+2013-08-23  Oliver Hunt  <oliver@apple.com>
+
+        Re-sort xcode project file
+
+        * WTF.xcodeproj/project.pbxproj:
+
+2013-08-23  Oliver Hunt  <oliver@apple.com>
+
+        Support in memory compression of rarely used data
+        https://bugs.webkit.org/show_bug.cgi?id=120143
+
+        Reviewed by Gavin Barraclough.
+
+        Adds a set of utility functions to wrap the use of zlib over a generic
+        type or a Vector<> as well as adding CompressibleVector that wraps
+        either a Vector<> or compressed data.
+
+        * GNUmakefile.list.am:
+        * WTF.pro:
+        * WTF.vcxproj/WTF.vcxproj:
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        * wtf/CheckedArithmetic.h:
+        * wtf/Compression.cpp: Added.
+        (WTF::zAlloc):
+        (WTF::zFree):
+        (WTF::GenericCompressedData::create):
+        (WTF::GenericCompressedData::decompress):
+        * wtf/Compression.h: Added.
+        (WTF::GenericCompressedData::compressedSize):
+        (WTF::GenericCompressedData::originalSize):
+        (WTF::GenericCompressedData::GenericCompressedData):
+        (WTF::CompressedVector::create):
+        (WTF::CompressedVector::decompress):
+        (WTF::CompressedVector::size):
+        (WTF::CompressibleVector::CompressibleVector):
+        (WTF::CompressibleVector::shrinkToFit):
+        (WTF::CompressibleVector::size):
+        (WTF::CompressibleVector::operator[]):
+        (WTF::CompressibleVector::at):
+        (WTF::CompressibleVector::begin):
+        (WTF::CompressibleVector::end):
+        (WTF::CompressibleVector::data):
+        (WTF::CompressibleVector::decompressIfNecessary):
+
+2013-08-21  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154416.
+        http://trac.webkit.org/changeset/154416
+        https://bugs.webkit.org/show_bug.cgi?id=120147
+
+        Broke Windows builds (Requested by rniwa on #webkit).
+
+        * WTF.vcxproj/WTFGenerated.make:
+        * WTF.vcxproj/build-generated-files.sh:
+
+2013-08-21  Alex Christensen  <achristensen@apple.com>
+
+        <https://webkit.org/b/120137> Separating Win32 and Win64 builds.
+
+        Reviewed by Brent Fulgham.
+
+        * WTF.vcxproj/WTFGenerated.make:
+        Pass PlatformArchitecture as a command line parameter to bash scripts.
+        * WTF.vcxproj/build-generated-files.sh:
+        Use PlatformArchitecture from command line to determine which object directory to use (obj32 or obj64).
+
+2013-08-21  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Disable maybe-uninitialized warning in GCC 4.8
+        https://bugs.webkit.org/show_bug.cgi?id=119835
+
+        Reviewed by Anders Carlsson.
+
+        Disable the maybe-uninitialized warning.
+
+        * wtf/Compiler.h:
+
+2013-08-20  Alex Christensen  <achristensen@apple.com>
+
+        Use PlatformArchitecture to distinguish between 32-bit and 64-bit builds on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=119512
+
+        Reviewed by Brent Fulgham.
+
+        * WTF.vcxproj/WTFGeneratedCommon.props:
+        Replaced obj32, bin32, and lib32 with macros for 64-bit build.
+
 2013-08-20  Víctor Manuel Jáquez Leal  <vjaquez@igalia.com>
 
         <https://webkit.org/b/120056> [GTK][ARM] enable DFG_JIT

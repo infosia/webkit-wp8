@@ -1,3 +1,179 @@
+2013-08-23  Peter Gal  <galpeter@inf.u-szeged.hu>
+
+        [WTR] Should dump as text when the mimetype is text/plain
+        https://bugs.webkit.org/show_bug.cgi?id=118306
+
+        Reviewed by Christophe Dumez.
+
+        Check for the text/plain mimetype and if true then mark it as
+        text dump.
+
+        * WebKitTestRunner/InjectedBundle/InjectedBundlePage.cpp:
+        (WTR::InjectedBundlePage::dump):
+
+2013-08-22  Filip Pizlo  <fpizlo@apple.com>
+
+        Update LLVM binary drops and scripts to the latest version from SVN
+        https://bugs.webkit.org/show_bug.cgi?id=120184
+
+        Reviewed by Mark Hahnenberg.
+
+        * ReducedFTL/build.sh:
+        * Scripts/configure-llvm: Added.
+        * Scripts/copy-webkitlibraries-to-product-directory:
+        * Scripts/export-llvm-build:
+
+2013-08-22  Andy Estes  <aestes@apple.com>
+
+        <https://webkit.org/b/120180> Fix issues with OTHER_LDFLAGS in various .xcconfig files
+
+        Reviewed by David Kilzer.
+
+        * TestWebKitAPI/Configurations/Base.xcconfig: Removed the definition of
+        OTHER_CPLUSPLUSFLAGS since -ftemplate-depth=256 is already set in
+        DebugRelease.xcconfig and TestWebKitAPI isn't built in Production.
+
+2013-08-22  Ryosuke Niwa  <rniwa@webkit.org>
+
+        NRWT: Add the ability to upload test results to new test results server
+        https://bugs.webkit.org/show_bug.cgi?id=120146
+
+        Reviewed by Andreas Kling.
+        
+        For the upcoming replacement for webkit-test-results.appspot.com, new-run-webkit-tests needs to use a new JSON format
+        that contains the full summary of the test run including information about passed tests.
+
+        Add this ability to NRWT so that I can start testing this feature. This patch adds the following optoins to NRWT:
+        --build-slave
+        --got-revision
+        --results-server-host
+
+        The last option is somewhat ambigious with --test-results-server but we're intending to deprecate the old server
+        so we should be able to delete --test-results-server in time.
+
+        * Scripts/webkitpy/layout_tests/controllers/manager.py:
+        (Manager.run):
+        (Manager._upload_json_files):
+        (Manager):
+        (Manager.upload_results):
+        * Scripts/webkitpy/layout_tests/models/test_run_results.py:
+        (summarize_results):
+        * Scripts/webkitpy/layout_tests/models/test_run_results_unittest.py:
+        (summarized_results):
+        (SummarizedResultsTest.test_summarized_results_wontfix):
+        (SummarizedResultsTest):
+        (SummarizedResultsTest.test_summarized_results_include_passes):
+        * Scripts/webkitpy/layout_tests/run_webkit_tests.py:
+        (parse_args):
+
+2013-08-22  Ryosuke Niwa  <rniwa@webkit.org>
+
+        WKR build fix. Somehow tool.bugs.quips() doesn't work in WKR so work around that.
+
+        * Scripts/webkitpy/tool/bot/irc_command.py:
+        (Hi.execute):
+
+2013-08-22  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt] DRT bug revealed/caused by r154300
+        https://bugs.webkit.org/show_bug.cgi?id=120151
+
+        Reviewed by Simon Hausmann.
+
+        Since QtInstance had an implementation of getOwnPropertySlot and not getOwnPropertyDescriptor,
+        the behavior of getOwnPropertyDescriptor changed when it got implemented using getOwnPropertySlot
+        in r154300.
+
+        DRT relied on getOwnPropertyDescriptor returning undefined for JS set properties to distinguish
+        between native Qt methods and JSC bound methods. This patch changes the check to see if the 
+        property is writable since the Qt methods are ReadOnly.
+
+        * DumpRenderTree/qt/DumpRenderTreeQt.cpp:
+        (DumpRenderTree::initJSObjects):
+
+2013-08-21  Joseph Pecoraro  <pecoraro@apple.com>
+
+        <https://webkit.org/b/120134> [Tools] lldb_webkit.py helpers is incorrectly printing 8bit Strings
+
+        Reviewed by Benjamin Poulain.
+
+        WTFString moved the is8bit bit by one in r152201.
+
+        * lldb/lldb_webkit.py:
+        (WTFStringImplProvider.is_8bit):
+
+2013-08-21  Tim Horton  <timothy_horton@apple.com>
+
+        Revert http://trac.webkit.org/changeset/154022, as it failed to update
+        a variety of scripts that depended on the old format.
+
+        See https://bugs.webkit.org/show_bug.cgi?id=120131 for one such example.
+
+        * Scripts/prepare-ChangeLog:
+        (main):
+        (generateNewChangeLogs):
+
+2013-08-21  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Unreviewed gardening: WebInspector should always be enabled for WinLauncher.
+
+        * WinLauncher/WinLauncher.cpp:
+        (setToDefaultPreferences): Activate Developer Extras on Release (as well as Debug) builds.
+
+2013-08-21  Zan Dobersek  <zdobersek@igalia.com>
+
+        <https://webkit.org/b/120116> [GTK] Fix a typo in ActivateFontsGtk.cpp
+
+        Reviewed by Andreas Kling.
+
+        * WebKitTestRunner/InjectedBundle/gtk/ActivateFontsGtk.cpp:
+        (WTR::initializeFontConfigSetting): Fix a typo - inititialize -> initialize.
+        (WTR::activateFonts): Ditto.
+
+2013-08-21  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] Suppress irrelevant or known leaks for Valgrind
+        https://bugs.webkit.org/show_bug.cgi?id=119448
+
+        Reviewed by Martin Robinson.
+
+        Add a suppressions file to suppress known leaks for Valgrind.
+        Valgrind also takes longer when using suppressions and
+        times out unless the driver timeout is increased.
+
+        * Scripts/valgrind/suppressions.txt: Added.
+        * Scripts/webkitpy/port/gtk.py:
+        (GtkPort.driver_stop_timeout):
+        (GtkPort.setup_environ_for_server):
+
+2013-08-20  Alex Christensen  <achristensen@apple.com>
+
+        [Windows] Linking fix for Win64.
+
+        Rubberstamped by Brent Fulgham.
+
+        * win/DLLLauncher/DLLLauncherMain.cpp:
+        (wWinMain): Corrected 64-bit linker symbol for dllLauncherEntryPoint.
+
+2013-08-20  Brent Fulgham  <bfulgham@apple.com>
+
+        <https://webkit.org/b/120090> Report better error messages from WinLauncher/DRT
+
+        Reviewed by Tim Horton.
+
+        * win/DLLLauncher/DLLLauncherMain.cpp:
+        (getLastErrorString): New method to convert GetLastError to text.
+        (wWinMain): Use new error formatter to provide useful diagnostic text to user.
+
+2013-08-19  Gustavo Noronha Silva  <gns@gnome.org>
+
+        <https://webkit.org/b/120048> [GTK] Add stubs for APIs that went missing in the DOM bindings
+
+        Reviewed by Martin Robinson.
+
+        * Scripts/webkitpy/style/checker.py: add the bindings custom implementation files to be exempt
+        from naming/enum_casing rules, since it needs to provide GObject-style APIs.
+
 2013-08-20  Anton Obzhirov  <a.obzhirov@samsung.com>
 
         <https://webkit.org/b/120009> [GTK] Stop button should be added to MiniBrowser

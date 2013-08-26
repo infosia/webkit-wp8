@@ -154,10 +154,9 @@ WebFrame* kit(Frame* frame)
     if (!frame)
         return 0;
 
-    FrameLoaderClient* frameLoaderClient = frame->loader().client();
-    if (frameLoaderClient)
-        return static_cast<WebFrame*>(frameLoaderClient);  // eek, is there a better way than static cast?
-    return 0;
+    // FIXME: Doesn't this need to be aware of EmptyFrameLoaderClient?
+    FrameLoaderClient& frameLoaderClient = frame->loader().client();
+    return static_cast<WebFrame*>(&frameLoaderClient);
 }
 
 Frame* core(WebFrame* webFrame)
@@ -1193,7 +1192,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::resumeAnimations()
     if (!frame)
         return E_FAIL;
 
-    frame->animation()->resumeAnimations();
+    frame->animation().resumeAnimations();
     return S_OK;
 }
 
@@ -1203,7 +1202,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::suspendAnimations()
     if (!frame)
         return E_FAIL;
 
-    frame->animation()->suspendAnimations();
+    frame->animation().suspendAnimations();
     return S_OK;
 }
 
@@ -1218,15 +1217,11 @@ HRESULT WebFrame::pauseAnimation(BSTR animationName, IDOMNode* node, double seco
     if (!frame)
         return E_FAIL;
 
-    AnimationController* controller = frame->animation();
-    if (!controller)
-        return E_FAIL;
-
     COMPtr<DOMNode> domNode(Query, node);
     if (!domNode)
         return E_FAIL;
 
-    *animationWasRunning = controller->pauseAnimationAtTime(domNode->node()->renderer(), String(animationName, SysStringLen(animationName)), secondsFromNow);
+    *animationWasRunning = frame->animation().pauseAnimationAtTime(domNode->node()->renderer(), String(animationName, SysStringLen(animationName)), secondsFromNow);
     return S_OK;
 }
 
@@ -1241,15 +1236,11 @@ HRESULT WebFrame::pauseTransition(BSTR propertyName, IDOMNode* node, double seco
     if (!frame)
         return E_FAIL;
 
-    AnimationController* controller = frame->animation();
-    if (!controller)
-        return E_FAIL;
-
     COMPtr<DOMNode> domNode(Query, node);
     if (!domNode)
         return E_FAIL;
 
-    *transitionWasRunning = controller->pauseTransitionAtTime(domNode->node()->renderer(), String(propertyName, SysStringLen(propertyName)), secondsFromNow);
+    *transitionWasRunning = frame->animation().pauseTransitionAtTime(domNode->node()->renderer(), String(propertyName, SysStringLen(propertyName)), secondsFromNow);
     return S_OK;
 }
 
@@ -1282,11 +1273,7 @@ HRESULT WebFrame::numberOfActiveAnimations(UINT* number)
     if (!frame)
         return E_FAIL;
 
-    AnimationController* controller = frame->animation();
-    if (!controller)
-        return E_FAIL;
-
-    *number = controller->numberOfActiveAnimations(frame->document());
+    *number = frame->animation().numberOfActiveAnimations(frame->document());
     return S_OK;
 }
 
@@ -2550,7 +2537,7 @@ void WebFrame::unmarkAllMisspellings()
         if (!doc)
             return;
 
-        doc->markers()->removeMarkers(DocumentMarker::Spelling);
+        doc->markers().removeMarkers(DocumentMarker::Spelling);
     }
 }
 
@@ -2562,7 +2549,7 @@ void WebFrame::unmarkAllBadGrammar()
         if (!doc)
             return;
 
-        doc->markers()->removeMarkers(DocumentMarker::Grammar);
+        doc->markers().removeMarkers(DocumentMarker::Grammar);
     }
 }
 

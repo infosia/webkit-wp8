@@ -876,7 +876,7 @@ void DOMWindow::postMessageTimerFired(PassOwnPtr<PostMessageTimer> t)
     // Give the embedder a chance to intercept this postMessage because this
     // DOMWindow might be a proxy for another in browsers that support
     // postMessage calls across WebKit instances.
-    if (m_frame->loader().client()->willCheckAndDispatchMessageEvent(timer->targetOrigin(), event.get()))
+    if (m_frame->loader().client().willCheckAndDispatchMessageEvent(timer->targetOrigin(), event.get()))
         return;
 
     dispatchMessageEventWithOriginCheck(timer->targetOrigin(), event, timer->stackTrace());
@@ -1270,7 +1270,7 @@ void DOMWindow::setName(const String& string)
         return;
 
     m_frame->tree()->setName(string);
-    m_frame->loader().client()->didChangeName(string);
+    m_frame->loader().client().didChangeName(string);
 }
 
 void DOMWindow::setStatus(const String& string) 
@@ -1810,7 +1810,7 @@ void DOMWindow::setLocation(const String& urlString, DOMWindow* activeWindow, DO
         return;
 
     // We want a new history item if we are processing a user gesture.
-    m_frame->navigationScheduler()->scheduleLocationChange(activeDocument->securityOrigin(),
+    m_frame->navigationScheduler().scheduleLocationChange(activeDocument->securityOrigin(),
         // FIXME: What if activeDocument()->frame() is 0?
         completedURL, activeDocument->frame()->loader().outgoingReferrer(),
         locking != LockHistoryBasedOnGestureState || !ScriptController::processingUserGesture(),
@@ -1929,7 +1929,7 @@ PassRefPtr<Frame> DOMWindow::createWindow(const String& urlString, const AtomicS
         newFrame->loader().changeLocation(activeWindow->document()->securityOrigin(), completedURL, referrer, false, false);
     else if (!urlString.isEmpty()) {
         bool lockHistory = !ScriptController::processingUserGesture();
-        newFrame->navigationScheduler()->scheduleLocationChange(activeWindow->document()->securityOrigin(), completedURL.string(), referrer, lockHistory, false);
+        newFrame->navigationScheduler().scheduleLocationChange(activeWindow->document()->securityOrigin(), completedURL.string(), referrer, lockHistory, false);
     }
 
     // Navigating the new frame could result in it being detached from its page by a navigation policy delegate.
@@ -1984,7 +1984,7 @@ PassRefPtr<DOMWindow> DOMWindow::open(const String& urlString, const AtomicStrin
         // For whatever reason, Firefox uses the first window rather than the active window to
         // determine the outgoing referrer. We replicate that behavior here.
         bool lockHistory = !ScriptController::processingUserGesture();
-        targetFrame->navigationScheduler()->scheduleLocationChange(
+        targetFrame->navigationScheduler().scheduleLocationChange(
             activeDocument->securityOrigin(),
             completedURL,
             firstFrame->loader().outgoingReferrer(),

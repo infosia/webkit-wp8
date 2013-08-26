@@ -301,7 +301,7 @@ public:
     void lazyReattach(ShouldSetAttached = SetAttached);
 
     virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
-    virtual bool rendererIsNeeded(const NodeRenderingContext&);
+    virtual bool rendererIsNeeded(const RenderStyle&);
     void didAffectSelector(AffectedSelectorMask);
 
     ShadowRoot* shadowRoot() const;
@@ -481,7 +481,7 @@ public:
 #endif
 
 #if ENABLE(SVG)
-    virtual bool childShouldCreateRenderer(const NodeRenderingContext&) const;
+    virtual bool childShouldCreateRenderer(const Node*) const;
     bool hasPendingResources() const;
     void setHasPendingResources();
     void clearHasPendingResources();
@@ -691,6 +691,10 @@ inline const Element* toElement(const Node* node)
 
 // This will catch anyone doing an unnecessary cast.
 void toElement(const Element*);
+
+template <typename Type> bool isElementOfType(const Element*);
+template <typename Type> bool isElementOfType(const Node* node) { return node->isElementNode() && isElementOfType<Type>(toElement(node)); }
+template <> inline bool isElementOfType<Element>(const Element*) { return true; }
 
 inline bool isDisabledFormControl(const Node* node)
 {

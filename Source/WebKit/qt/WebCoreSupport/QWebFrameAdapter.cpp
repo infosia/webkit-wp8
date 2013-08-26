@@ -364,7 +364,7 @@ void QWebFrameAdapter::init(QWebPageAdapter* pageAdapter, QWebFrameData* frameDa
 
 QWebFrameAdapter* QWebFrameAdapter::kit(const Frame* frame)
 {
-    return static_cast<FrameLoaderClientQt*>(frame->loader().client())->webFrame();
+    return static_cast<FrameLoaderClientQt&>(frame->loader().client()).webFrame();
 }
 
 QUrl QWebFrameAdapter::ensureAbsoluteUrl(const QUrl& url)
@@ -808,7 +808,7 @@ void QWebFrameAdapter::updateBackgroundRecursively(const QColor& backgroundColor
 
 void QWebFrameAdapter::cancelLoad()
 {
-    frame->navigationScheduler()->cancel();
+    frame->navigationScheduler().cancel();
 }
 
 // ========== QWebHitTestResultPrivate implementation ===========
