@@ -1,3 +1,332 @@
+2013-08-27  Ádám Kallai  <kadam@inf.u-szeged.hu>
+
+        [Qt] Delete unnecessary empty directory.
+        Unreviewed gardening.
+
+        * platform/qt-5.0-wk2/tables: Removed.
+        * platform/qt-5.0-wk2/tables/layering: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/bugs: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/collapsing_borders: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/core: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/dom: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/marvin: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla/other: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/bugs: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/collapsing_borders: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/core: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/dom: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/marvin: Removed.
+        * platform/qt-5.0-wk2/tables/mozilla_expected_failures/other: Removed.
+
+2013-08-27  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Added new accessibility expectations after r154332
+        https://bugs.webkit.org/show_bug.cgi?id=120359
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk1/accessibility/file-upload-button-stringvalue-expected.txt: Added.
+        * platform/efl-wk2/accessibility/file-upload-button-stringvalue-expected.txt: Added.
+
+2013-08-27  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Column Breakpoint not working, may be off by 1
+        https://bugs.webkit.org/show_bug.cgi?id=120334
+
+        Reviewed by David Kilzer.
+
+        Write a protocol test for setting a breakpoint at a line:column.
+
+        * inspector-protocol/debugger/column-breakpoint-expected.txt: Added.
+        * inspector-protocol/debugger/column-breakpoint.html: Added.
+
+2013-08-27  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Added new accessibility expectations after r153798.
+        https://bugs.webkit.org/show_bug.cgi?id=120354
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk1/accessibility/image-link-expected.txt: Added.
+        * platform/efl-wk1/accessibility/image-map2-expected.txt: Added.
+        * platform/efl-wk1/accessibility/table-cell-spans-expected.txt: Added.
+        * platform/efl-wk1/accessibility/table-cells-expected.txt: Added.
+        * platform/efl-wk2/accessibility/image-link-expected.txt: Added.
+        * platform/efl-wk2/accessibility/image-map2-expected.txt: Added.
+        * platform/efl-wk2/accessibility/table-cell-spans-expected.txt:
+        * platform/efl-wk2/accessibility/table-cells-expected.txt:
+        * platform/efl/TestExpectations:
+        * platform/efl/accessibility/image-link-expected.txt: Removed.
+        * platform/efl/accessibility/image-map2-expected.txt: Removed.
+
+2013-08-27  Grzegorz Czajkowski  <g.czajkowski@samsung.com>
+
+        grammar-markers.html and grammar-markers-hidpi.html pass even if element does not have grammar marker
+        https://bugs.webkit.org/show_bug.cgi?id=119797
+
+        Reviewed by Ryosuke Niwa.
+
+        After tenth attempts of verifying the grammar marker, the tests call'notifyDone'
+        even if grammar marker was not be found.
+
+        Both grammar-marker.html and grammar-marker-hidpi.html call the text checker
+        asynchronously. Therefore, we need to wait until either the grammar marker
+        is found or number of attempts is reached.
+
+        Dump more information whether the grammar marker was found to be sure that
+        the tests do not pass when the element does not have the marker.
+
+        * editing/spelling/grammar-markers-expected.txt:
+        * editing/spelling/grammar-markers-hidpi-expected.txt:
+        Update the expectations.
+
+        * editing/spelling/grammar-markers-hidpi.html:
+        * editing/spelling/grammar-markers.html:
+        Dump more information.
+        Additionally, pass 'document' to hasGrammarMarker instead of
+        'target' as the method does not work for target/source elements.
+
+        * platform/mac/editing/spelling/grammar-markers-expected.png:
+        * platform/mac/editing/spelling/grammar-markers-hidpi-expected.png: Added.
+        Update the expectations for Mac.
+
+2013-08-27  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        Implement DOM3 wheel event
+        https://bugs.webkit.org/show_bug.cgi?id=94081
+
+        Reviewed by Darin Adler.
+
+        Add several layout tests to check support for DOM3 wheel event.
+
+        * fast/events/wheelevent-basic-expected.txt: Added.
+        * fast/events/wheelevent-basic.html: Added.
+        * fast/events/wheelevent-constructor-expected.txt: Added.
+        * fast/events/wheelevent-constructor.html: Added.
+        * fast/events/wheelevent-mousewheel-interaction-expected.txt: Added.
+        * fast/events/wheelevent-mousewheel-interaction.html: Added.
+        * platform/efl/fast/events/wheelevent-basic-expected.txt: Added.
+
+2013-08-26  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Elements in a node list of the form element's name getter should not be added to the past names map
+        https://bugs.webkit.org/show_bug.cgi?id=120279
+
+        Reviewed by Darin Adler.
+
+        Add a regression test.
+
+        * fast/forms/past-names-map-should-not-contain-nodelist-item-expected.txt: Added.
+        * fast/forms/past-names-map-should-not-contain-nodelist-item.html: Added.
+
+2013-08-26  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] can-read-in-dragstart-event.html and can-read-in-copy-and-cut-events.html fail
+        https://bugs.webkit.org/show_bug.cgi?id=113094
+
+        * platform/mac-wk2/TestExpectations:
+        * platform/mac/TestExpectations:
+        Updated expectations, these tests should be good now.
+
+2013-08-26  Rob Buis  <rwlbuis@webkit.org>
+
+        Lonely stop crashes
+        https://bugs.webkit.org/show_bug.cgi?id=87964
+
+        Reviewed by Darin Adler.
+
+        Add testcase by taking stop-crash.svg and adding hittest instructions.
+
+        * svg/custom/stop-crash-hittest-expected.txt: Added.
+        * svg/custom/stop-crash-hittest.svg: Added.
+
+2013-08-26  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Optimize FloatIntervalSearchAdapter::collectIfNeeded
+        https://bugs.webkit.org/show_bug.cgi?id=120237
+
+        Reviewed by David Hyatt.
+
+        Test shape-outside behavior when there is more than one float on a
+        given line.
+
+        * fast/shapes/shape-outside-floats/shape-outside-floats-outermost-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-outermost.html: Added.
+
+2013-08-26  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        JSObject::putDirectIndexBeyondVectorLengthWithArrayStorage does a check on the length of the ArrayStorage after possible reallocing it
+        https://bugs.webkit.org/show_bug.cgi?id=120278
+
+        Reviewed by Geoffrey Garen.
+
+        * fast/js/put-direct-index-beyond-vector-length-resize-expected.txt: Added.
+        * fast/js/put-direct-index-beyond-vector-length-resize.html: Added.
+        * fast/js/script-tests/put-direct-index-beyond-vector-length-resize.js: Added.
+
+2013-08-24  Sam Weinig  <sam@webkit.org>
+
+        Add support for Promises
+        https://bugs.webkit.org/show_bug.cgi?id=120260
+
+        Reviewed by Darin Adler.
+
+        Add tests adapted from the Mozilla and Blink projects.
+
+        * fast/js/Promise-already-fulfilled-expected.txt: Added.
+        * fast/js/Promise-already-fulfilled.html: Added.
+        * fast/js/Promise-already-rejected-expected.txt: Added.
+        * fast/js/Promise-already-rejected.html: Added.
+        * fast/js/Promise-already-resolved-expected.txt: Added.
+        * fast/js/Promise-already-resolved.html: Added.
+        * fast/js/Promise-catch-expected.txt: Added.
+        * fast/js/Promise-catch-in-workers-expected.txt: Added.
+        * fast/js/Promise-catch-in-workers.html: Added.
+        * fast/js/Promise-catch.html: Added.
+        * fast/js/Promise-chain-expected.txt: Added.
+        * fast/js/Promise-chain.html: Added.
+        * fast/js/Promise-exception-expected.txt: Added.
+        * fast/js/Promise-exception.html: Added.
+        * fast/js/Promise-expected.txt: Added.
+        * fast/js/Promise-fulfill-expected.txt: Added.
+        * fast/js/Promise-fulfill-in-workers-expected.txt: Added.
+        * fast/js/Promise-fulfill-in-workers.html: Added.
+        * fast/js/Promise-fulfill.html: Added.
+        * fast/js/Promise-init-expected.txt: Added.
+        * fast/js/Promise-init-in-workers-expected.txt: Added.
+        * fast/js/Promise-init-in-workers.html: Added.
+        * fast/js/Promise-init.html: Added.
+        * fast/js/Promise-reject-expected.txt: Added.
+        * fast/js/Promise-reject-in-workers-expected.txt: Added.
+        * fast/js/Promise-reject-in-workers.html: Added.
+        * fast/js/Promise-reject.html: Added.
+        * fast/js/Promise-resolve-chain-expected.txt: Added.
+        * fast/js/Promise-resolve-chain.html: Added.
+        * fast/js/Promise-resolve-expected.txt: Added.
+        * fast/js/Promise-resolve-in-workers-expected.txt: Added.
+        * fast/js/Promise-resolve-in-workers.html: Added.
+        * fast/js/Promise-resolve-with-then-exception-expected.txt: Added.
+        * fast/js/Promise-resolve-with-then-exception.html: Added.
+        * fast/js/Promise-resolve-with-then-fulfill-expected.txt: Added.
+        * fast/js/Promise-resolve-with-then-fulfill.html: Added.
+        * fast/js/Promise-resolve-with-then-reject-expected.txt: Added.
+        * fast/js/Promise-resolve-with-then-reject.html: Added.
+        * fast/js/Promise-resolve.html: Added.
+        * fast/js/Promise-simple-expected.txt: Added.
+        * fast/js/Promise-simple-fulfill-expected.txt: Added.
+        * fast/js/Promise-simple-fulfill-inside-callback-expected.txt: Added.
+        * fast/js/Promise-simple-fulfill-inside-callback.html: Added.
+        * fast/js/Promise-simple-fulfill.html: Added.
+        * fast/js/Promise-simple-in-workers-expected.txt: Added.
+        * fast/js/Promise-simple-in-workers.html: Added.
+        * fast/js/Promise-simple.html: Added.
+        * fast/js/Promise-static-fulfill-expected.txt: Added.
+        * fast/js/Promise-static-fulfill.html: Added.
+        * fast/js/Promise-static-reject-expected.txt: Added.
+        * fast/js/Promise-static-reject.html: Added.
+        * fast/js/Promise-static-resolve-expected.txt: Added.
+        * fast/js/Promise-static-resolve.html: Added.
+        * fast/js/Promise-then-expected.txt: Added.
+        * fast/js/Promise-then-in-workers-expected.txt: Added.
+        * fast/js/Promise-then-in-workers.html: Added.
+        * fast/js/Promise-then-without-callbacks-expected.txt: Added.
+        * fast/js/Promise-then-without-callbacks-in-workers-expected.txt: Added.
+        * fast/js/Promise-then-without-callbacks-in-workers.html: Added.
+        * fast/js/Promise-then-without-callbacks.html: Added.
+        * fast/js/Promise-then.html: Added.
+        * fast/js/Promise-types-expected.txt: Added.
+        * fast/js/Promise-types.html: Added.
+        * fast/js/Promise.html: Added.
+        * fast/js/resources/Promise-catch-in-workers.js: Added.
+        * fast/js/resources/Promise-fulfill-in-workers.js: Added.
+        * fast/js/resources/Promise-init-in-workers.js: Added.
+        * fast/js/resources/Promise-reject-in-workers.js: Added.
+        * fast/js/resources/Promise-resolve-in-workers.js: Added.
+        * fast/js/resources/Promise-simple-in-workers.js: Added.
+        * fast/js/resources/Promise-then-in-workers.js: Added.
+        * fast/js/resources/Promise-then-without-callbacks-in-workers.js: Added.
+
+2013-08-26  Rob Buis  <rwlbuis@webkit.org>
+
+        Computed style of fill/stroke properties incorrect on references
+        https://bugs.webkit.org/show_bug.cgi?id=114761
+
+        Reviewed by Darin Adler.
+
+        Add tests to verify that url function is included for references.
+
+        * svg/css/script-tests/svg-attribute-parser-mode.js:
+        * svg/css/svg-attribute-parser-mode-expected.txt:
+        * transitions/svg-transitions-expected.txt:
+
+2013-08-26  Robert Hogan  <robert@webkit.org>
+
+        Avoid painting every non-edge collapsed border twice over
+        https://bugs.webkit.org/show_bug.cgi?id=119759
+
+        Reviewed by David Hyatt.
+
+        * fast/table/border-collapsing/collapsed-borders-adjoining-sections-expected.html: Added.
+        * fast/table/border-collapsing/collapsed-borders-adjoining-sections-vertical-rl-expected.png: Added.
+        * fast/table/border-collapsing/collapsed-borders-adjoining-sections-vertical-rl-expected.txt: Added.
+            The painting here, though still wrong, is a progression on the behaviour prior to bug 11759 where
+            the left border was painted twice. The painting can be resolved completely when we no longer paint
+            twice at the border joins.
+        * fast/table/border-collapsing/collapsed-borders-adjoining-sections-vertical-rl.html: Added.
+        * fast/table/border-collapsing/collapsed-borders-adjoining-sections.html: Added.
+        * fast/table/border-collapsing/collapsed-borders-painted-once-on-inner-cells-expected.png: Added.
+        * fast/table/border-collapsing/collapsed-borders-painted-once-on-inner-cells-expected.txt: Added.
+        * fast/table/border-collapsing/collapsed-borders-painted-once-on-inner-cells.html: Added.
+
+2013-08-26  Gurpreet Kaur  <gur.trio@gmail.com>
+
+        <https://webkit.org/b/106133> document.body.scrollTop & document.documentElement.scrollTop differ cross-browser
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/Element/scrollLeft-Quirks-expected.txt: Added.
+        * fast/dom/Element/scrollLeft-Quirks.html: Added.
+        * fast/dom/Element/scrollLeft-expected.txt: Added.
+        * fast/dom/Element/scrollLeft.html: Added.
+        * fast/dom/Element/scrollTop-Quirks-expected.txt: Added.
+        * fast/dom/Element/scrollTop-Quirks.html: Added.
+        * fast/dom/Element/scrollTop-expected.txt: Added.
+        * fast/dom/Element/scrollTop.html: Added.
+        Added new tests for verifying our behavior for document.body.scrollTop/scrollLeft and
+        document.documentElement.scrollTop/scrollLeft for both Quirks as well as Standard mode.
+
+        * fast/css/zoom-body-scroll-expected.txt:
+        * fast/css/zoom-body-scroll.html:
+        * fast/events/mouse-cursor.html:
+        * http/tests/navigation/anchor-frames-expected.txt:
+        * http/tests/navigation/anchor-frames-gbk-expected.txt:
+        * http/tests/navigation/resources/frame-with-anchor-gbk.html:
+        * http/tests/navigation/resources/frame-with-anchor-same-origin.html:
+        * http/tests/navigation/resources/frame-with-anchor.html:
+        * platform/mac-wk2/tiled-drawing/resources/scroll-and-load-page.html:
+        * platform/mac-wk2/tiled-drawing/tiled-drawing-scroll-position-page-cache-restoration.html:
+        * platform/win/fast/css/zoom-body-scroll-expected.txt: 
+        Rebaselining existing tests as per the new behavior. The test cases are changed to use
+        quirks mode because it uses document.body.scrollTop/scrollLeft and as per the new code 
+        document.body.scrollTop/scrollLeft will return correct value if document is in quirk mode
+        Also test cases have been modified so that it tests what it used to.
+
+2013-08-26  Gavin Barraclough  <barraclough@apple.com>
+
+        RegExpMatchesArray should not call [[put]]
+        https://bugs.webkit.org/show_bug.cgi?id=120317
+
+        Reviewed by Oliver Hunt.
+
+        This will call accessors on the JSObject/JSArray prototypes - so adding an accessor or read-only
+        property called index or input to either of these prototypes will result in broken behavior.
+
+        * fast/regex/lastIndex-expected.txt:
+        * fast/regex/script-tests/lastIndex.js:
+            - Added test
+
 2013-08-26  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
 
         Unreviewed, EFL gardening. EFL WK1 DRT doesn't support exif-orientation tests

@@ -1,3 +1,52 @@
+2013-08-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK build fix.
+
+        * WebCoreSupport/FrameLoaderClientGtk.cpp:
+        (WebKit::FrameLoaderClient::FrameLoaderClient): Remove an assertion that was not removed in r154658.
+
+2013-08-26  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Another GTK+ build fix.
+
+        * WebCoreSupport/FrameLoaderClientGtk.cpp:
+
+2013-08-26  Ryosuke Niwa  <rniwa@webkit.org>
+
+        GTK+ build fix. Like r154620.
+
+        * webkit/webkitwebframe.cpp:
+        (webkit_web_frame_new):
+
+2013-08-26  Pratik Solanki  <psolanki@apple.com>
+
+        PageGroup::groupSettings() should return a reference
+        https://bugs.webkit.org/show_bug.cgi?id=120319
+
+        Reviewed by Andreas Kling.
+
+        PageGroup::m_groupSettings is never NULL so we can just return a reference from groupSettings().
+
+        * webkit/webkitwebdatabase.cpp:
+        (webkit_set_web_database_directory_path):
+
+2013-08-26  Andreas Kling  <akling@apple.com>
+
+        WebCore: Let Page create the main Frame.
+        <https://webkit.org/b/119964>
+
+        Tweak WebKit1/GTK for changes in WebCore.
+
+        Patch by Zan Dobersek <zdobersek@igalia.com>
+        Reviewed by Gustavo Noronha Silva.
+
+        * WebCoreSupport/FrameLoaderClientGtk.h:
+        (WebKit::FrameLoaderClient::setWebFrame):
+        * webkit/webkitwebframe.cpp:
+        (webkit_web_frame_new):
+        * webkit/webkitwebview.cpp:
+        (webkit_web_view_init):
+
 2013-08-24  Darin Adler  <darin@apple.com>
 
         Frame::tree should return a reference instead of a pointer

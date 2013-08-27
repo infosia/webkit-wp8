@@ -29,7 +29,7 @@
 
 #include "CheckedArithmetic.h"
 
-#if USE(ZLIB)
+#if USE(ZLIB) && !COMPILER(MSVC)
 
 #include <zlib.h>
 
@@ -170,7 +170,7 @@ PassOwnPtr<GenericCompressedData> GenericCompressedData::create(const uint8_t*, 
     return nullptr;
 }
 
-bool GenericCompressedData::decompress(uint8_t*, size_t)
+bool GenericCompressedData::decompress(uint8_t*, size_t, size_t*)
 {
     return false;
 }

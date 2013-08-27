@@ -1,3 +1,138 @@
+2013-08-26  Santosh Mahto  <santosh.ma@samsung.com>
+
+        Fixing compilation warning "unused parameter" in WebPageProxy.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120205
+
+        Reviewed by Anders Carlsson.
+
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::findPlugin):
+        (WebKit::WebPageProxy::didBlockInsecurePluginVersion):
+        Added UNUSED_PARAM to avoid warning.
+
+2013-08-23  Andy Estes  <aestes@apple.com>
+
+        Fix issues found by the Clang Static Analyzer
+        https://bugs.webkit.org/show_bug.cgi?id=120230
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/API/mac/WKBrowsingContextController.mm:
+        (autoreleased): Don't leak CFURLs when in Objective-C GC.
+        * WebProcess/WebPage/mac/WKAccessibilityWebPageObject.mm:
+        (-[WKAccessibilityWebPageObject accessibilityAttributeValue:forParameter:]):
+        Don't leak CFStrings when in Objective-C GC.
+
+2013-08-26  Csaba Osztrogonác  <ossy@webkit.org>
+
+        [WK2] Buildfix for non Mac platforms
+        https://bugs.webkit.org/show_bug.cgi?id=120294
+
+        Reviewed by Darin Adler.
+
+        * NetworkProcess/AsynchronousNetworkLoaderClient.cpp:
+        (WebKit::AsynchronousNetworkLoaderClient::didReceiveBuffer):
+        * NetworkProcess/NetworkResourceLoader.h:
+
+2013-08-26  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] can-read-in-dragstart-event.html and can-read-in-copy-and-cut-events.html fail
+        https://bugs.webkit.org/show_bug.cgi?id=113094
+
+        Reviewed by Darin Adler.
+
+        Return new pasteboard change count from all functions that change it.
+
+        * UIProcess/WebContext.h:
+        * UIProcess/WebContext.messages.in:
+        * UIProcess/mac/WebContextMac.mm:
+        (WebKit::WebContext::pasteboardCopy):
+        (WebKit::WebContext::addPasteboardTypes):
+        (WebKit::WebContext::setPasteboardTypes):
+        (WebKit::WebContext::setPasteboardPathnamesForType):
+        (WebKit::WebContext::setPasteboardStringForType):
+        (WebKit::WebContext::setPasteboardBufferForType):
+        * WebProcess/Plugins/PDF/PDFPlugin.mm:
+        (WebKit::PDFPlugin::writeItemsToPasteboard):
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.cpp:
+        (WebKit::WebPlatformStrategies::copy):
+        (WebKit::WebPlatformStrategies::changeCount):
+        (WebKit::WebPlatformStrategies::addTypes):
+        (WebKit::WebPlatformStrategies::setTypes):
+        (WebKit::WebPlatformStrategies::setBufferForType):
+        (WebKit::WebPlatformStrategies::setPathnamesForType):
+        (WebKit::WebPlatformStrategies::setStringForType):
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.h:
+
+2013-08-26  Andreas Kling  <akling@apple.com>
+
+        Unreviewed build fix.
+
+        * WebProcess/WebPage/WebFrame.cpp:
+        (WebKit::WebFrame::createWithCoreMainFrame):
+        (WebKit::WebFrame::createSubframe):
+
+2013-08-26  Pratik Solanki  <psolanki@apple.com>
+
+        PageGroup::groupSettings() should return a reference
+        https://bugs.webkit.org/show_bug.cgi?id=120319
+
+        Reviewed by Andreas Kling.
+
+        PageGroup::m_groupSettings is never NULL so we can just return a reference from groupSettings().
+
+        * WebProcess/Storage/StorageNamespaceImpl.cpp:
+        (WebKit::StorageNamespaceImpl::createLocalStorageNamespace):
+
+2013-08-26  Andreas Kling  <akling@apple.com>
+
+        WebCore: Let Page create the main Frame.
+        <https://webkit.org/b/119964>
+
+        Reviewed by Anders Carlsson.
+
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.h:
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebKit::WebFrameLoaderClient::WebFrameLoaderClient):
+
+            This starts out with a null WebFrame* pointer now.
+
+        (WebKit::WebFrameLoaderClient::setWebFrame):
+
+            WebFrame hooks itself up through this as soon as it's constructed.
+
+        (WebKit::WebFrameLoaderClient::frameLoaderDestroyed):
+
+            Tweak an out-of-date comment. The ref() we're balancing out comes from
+            WebFrame::create().
+
+        * WebProcess/WebPage/WebFrame.cpp:
+        (WebKit::WebFrame::createWithCoreMainFrame):
+
+            Rewrote createMainFrame() as createWithCoreMainFrame(). The new method wraps
+            an existing WebCore::Frame instead of creating a new one.
+
+        (WebKit::WebFrame::createSubframe):
+
+            Merged WebFrame::init() into here since the logic isn't shared with main
+            Frame creation anymore.
+
+        (WebKit::WebFrame::create):
+        (WebKit::WebFrame::WebFrame):
+
+            Call WebFrameLoaderClient::setWebFrame(this).
+
+        * WebProcess/WebPage/WebFrame.h:
+
+            WebFrame::m_frameLoaderClient is now an OwnPtr rather than an inline member.
+            This way it can be created before the WebFrame.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+
+            Set up a WebFrameLoaderClient and pass it to the Page constructor along with
+            the other PageClients.
+
 2013-08-24  Carlos Garcia Campos  <cgarcia@igalia.com>
 
         [GTK] Add WebKit2 API for isolated worlds
