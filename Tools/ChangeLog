@@ -1,3 +1,79 @@
+2013-08-28  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Http tests fails on Debian with Apache 2.4
+        https://bugs.webkit.org/show_bug.cgi?id=120352
+
+        Unreviewed fix-up.
+
+        Remember to update unit-test expectations and old-run-webkit-tests as well.
+
+        * Scripts/webkitperl/httpd.pm:
+        (getHTTPDConfigPathForTestDirectory):
+        * Scripts/webkitpy/port/port_testcase.py:
+        (test_apache_config_file_name_for_platform):
+
+2013-08-28  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Http tests fails on Debian with Apache 2.4
+        https://bugs.webkit.org/show_bug.cgi?id=120352
+
+        Reviewed by Andreas Kling.
+
+        Select httpd.conf file for debian based on version, matching Fedora behavior.
+
+        * Scripts/webkitpy/port/base.py:
+        (Port._apache_config_file_name_for_platform):
+
+2013-08-28  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154593.
+        http://trac.webkit.org/changeset/154593
+        https://bugs.webkit.org/show_bug.cgi?id=120403
+
+        Caused 50+ flaky tests on WebKit1 bots (Requested by carewolf
+        on #webkit).
+
+        * DumpRenderTree/qt/DumpRenderTreeQt.cpp:
+        (WebPage::~WebPage):
+
+2013-08-28  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt][Wk2] Many tests are flaky on Qt 5.1
+        https://bugs.webkit.org/show_bug.cgi?id=118232
+
+        Reviewed by Jocelyn Turcotte.
+
+        We need to set renderToOffscreenBuffer since we won't otherwise get
+        the paint calls necessary to synchronize UI- and Web-Process. It was
+        only disabled in Qt 5.0 because it conflicted with setRenderWithoutShowing
+        which is no longer supported or needed.
+
+        * WebKitTestRunner/qt/PlatformWebViewQt.cpp:
+        (WTR::WrapperWindow::handleStatusChanged):
+
+2013-08-27  Alexey Proskuryakov  <ap@apple.com>
+
+        [WK2] Remove USE_WEBPROCESS_EVENT_SIMULATION
+        https://bugs.webkit.org/show_bug.cgi?id=120379
+
+        Reviewed by Darin Adler.
+
+        All major platforms have implemented UI process eventSender support, keeping old
+        web process side code only adds confusion.
+
+        * WebKitTestRunner/InjectedBundle/EventSendingController.cpp:
+        (WTR::EventSendingController::EventSendingController):
+        (WTR::EventSendingController::mouseDown):
+        (WTR::EventSendingController::mouseUp):
+        (WTR::EventSendingController::mouseMoveTo):
+        (WTR::EventSendingController::leapForward):
+        * WebKitTestRunner/InjectedBundle/EventSendingController.h:
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetStateToConsistentValues):
+        (WTR::TestController::didReceiveMessageFromInjectedBundle):
+        (WTR::TestController::didReceiveSynchronousMessageFromInjectedBundle):
+        * WebKitTestRunner/TestController.h:
+
 2013-08-27  Roger Fong  <roger_fong@apple.com>
 
         NRWT on AppleWin port should delete semaphore lock files during cleanup tasks.

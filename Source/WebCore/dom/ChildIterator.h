@@ -28,8 +28,8 @@
 
 #include "ElementTraversal.h"
 
-#ifndef NDEBUG
-#include "Document.h"
+#if !ASSERT_DISABLED
+#include "DescendantIteratorAssertions.h"
 #endif
 
 namespace WebCore {
@@ -47,66 +47,50 @@ public:
 private:
     ElementType* m_current;
 
-#ifndef NDEBUG
-    bool domTreeHasMutated() const;
-    OwnPtr<NoEventDispatchAssertion> m_noEventDispatchAssertion;
-    uint64_t m_initialDOMTreeVersion;
+#if !ASSERT_DISABLED
+    DescendantIteratorAssertions m_assertions;
 #endif
 };
 
-template <typename ElementType, typename ContainerType>
+template <typename ElementType>
 class ChildIteratorAdapter {
 public:
-    ChildIteratorAdapter(ContainerType* root);
+    ChildIteratorAdapter(ContainerNode* root);
     ChildIterator<ElementType> begin();
     ChildIterator<ElementType> end();
 
 private:
-    const ContainerType* m_root;
+    const ContainerNode* m_root;
 };
 
-ChildIteratorAdapter<Element, ContainerNode> elementChildren(ContainerNode* root);
-ChildIteratorAdapter<Element, Node> elementChildren(Node* root);
-template <typename ElementType> ChildIteratorAdapter<ElementType, ContainerNode> childrenOfType(ContainerNode* root);
-template <typename ElementType> ChildIteratorAdapter<ElementType, Node> childrenOfType(Node* root);
+ChildIteratorAdapter<Element> elementChildren(ContainerNode* root);
+template <typename ElementType> ChildIteratorAdapter<ElementType> childrenOfType(ContainerNode* root);
 
 template <typename ElementType>
 inline ChildIterator<ElementType>::ChildIterator()
     : m_current(nullptr)
-#ifndef NDEBUG
-    , m_initialDOMTreeVersion(0)
-#endif
 {
 }
 
 template <typename ElementType>
 inline ChildIterator<ElementType>::ChildIterator(ElementType* current)
     : m_current(current)
-#ifndef NDEBUG
-    , m_noEventDispatchAssertion(adoptPtr(new NoEventDispatchAssertion))
-    , m_initialDOMTreeVersion(m_current ? m_current->document()->domTreeVersion() : 0)
+#if !ASSERT_DISABLED
+    , m_assertions(current)
 #endif
 {
 }
-
-#ifndef NDEBUG
-template <typename ElementType>
-inline bool ChildIterator<ElementType>::domTreeHasMutated() const
-{
-    return m_initialDOMTreeVersion && m_current && m_current->document()->domTreeVersion() != m_initialDOMTreeVersion;
-}
-#endif
 
 template <typename ElementType>
 inline ChildIterator<ElementType>& ChildIterator<ElementType>::operator++()
 {
     ASSERT(m_current);
-    ASSERT(!domTreeHasMutated());
+    ASSERT(!m_assertions.domTreeHasMutated());
     m_current = Traversal<ElementType>::nextSibling(m_current);
-#ifndef NDEBUG
+#if !ASSERT_DISABLED
     // Drop the assertion when the iterator reaches the end.
     if (!m_current)
-        m_noEventDispatchAssertion = nullptr;
+        m_assertions.dropEventDispatchAssertion();
 #endif
     return *this;
 }
@@ -115,7 +99,7 @@ template <typename ElementType>
 inline ElementType& ChildIterator<ElementType>::operator*()
 {
     ASSERT(m_current);
-    ASSERT(!domTreeHasMutated());
+    ASSERT(!m_assertions.domTreeHasMutated());
     return *m_current;
 }
 
@@ -123,55 +107,44 @@ template <typename ElementType>
 inline ElementType* ChildIterator<ElementType>::operator->()
 {
     ASSERT(m_current);
-    ASSERT(!domTreeHasMutated());
+    ASSERT(!m_assertions.domTreeHasMutated());
     return m_current;
 }
 
 template <typename ElementType>
 inline bool ChildIterator<ElementType>::operator!=(const ChildIterator& other) const
 {
-    ASSERT(!domTreeHasMutated());
+    ASSERT(!m_assertions.domTreeHasMutated());
     return m_current != other.m_current;
 }
 
-template <typename ElementType, typename ContainerType>
-inline ChildIteratorAdapter<ElementType, ContainerType>::ChildIteratorAdapter(ContainerType* root)
+template <typename ElementType>
+inline ChildIteratorAdapter<ElementType>::ChildIteratorAdapter(ContainerNode* root)
     : m_root(root)
 {
 }
 
-template <typename ElementType, typename ContainerType>
-inline ChildIterator<ElementType> ChildIteratorAdapter<ElementType, ContainerType>::begin()
+template <typename ElementType>
+inline ChildIterator<ElementType> ChildIteratorAdapter<ElementType>::begin()
 {
     return ChildIterator<ElementType>(Traversal<ElementType>::firstChild(m_root));
 }
 
-template <typename ElementType, typename ContainerType>
-inline ChildIterator<ElementType> ChildIteratorAdapter<ElementType, ContainerType>::end()
+template <typename ElementType>
+inline ChildIterator<ElementType> ChildIteratorAdapter<ElementType>::end()
 {
     return ChildIterator<ElementType>();
 }
 
-inline ChildIteratorAdapter<Element, ContainerNode> elementChildren(ContainerNode* root)
+inline ChildIteratorAdapter<Element> elementChildren(ContainerNode* root)
 {
-    return ChildIteratorAdapter<Element, ContainerNode>(root);
-}
-
-inline ChildIteratorAdapter<Element, Node> elementChildren(Node* root)
-{
-    return ChildIteratorAdapter<Element, Node>(root);
+    return ChildIteratorAdapter<Element>(root);
 }
 
 template <typename ElementType>
-inline ChildIteratorAdapter<ElementType, ContainerNode> childrenOfType(ContainerNode* root)
+inline ChildIteratorAdapter<ElementType> childrenOfType(ContainerNode* root)
 {
-    return ChildIteratorAdapter<ElementType, ContainerNode>(root);
-}
-
-template <typename ElementType>
-inline ChildIteratorAdapter<ElementType, Node> childrenOfType(Node* root)
-{
-    return ChildIteratorAdapter<ElementType, Node>(root);
+    return ChildIteratorAdapter<ElementType>(root);
 }
 
 }

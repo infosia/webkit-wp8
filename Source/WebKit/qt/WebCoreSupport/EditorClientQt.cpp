@@ -203,12 +203,8 @@ void EditorClientQt::respondToChangedSelection(Frame* frame)
 //     selection.formatForDebugger(buffer, sizeof(buffer));
 //     printf("%s\n", buffer);
 
-    if (supportsGlobalSelection() && frame->selection().isRange()) {
-        bool oldSelectionMode = Pasteboard::generalPasteboard()->isSelectionMode();
-        Pasteboard::generalPasteboard()->setSelectionMode(true);
-        Pasteboard::generalPasteboard()->writeSelection(frame->selection().toNormalizedRange().get(), frame->editor().canSmartCopyOrDelete(), frame);
-        Pasteboard::generalPasteboard()->setSelectionMode(oldSelectionMode);
-    }
+    if (supportsGlobalSelection() && frame->selection().isRange())
+        Pasteboard::createForGlobalSelection()->writeSelection(frame->selection().toNormalizedRange().get(), frame->editor().canSmartCopyOrDelete(), frame);
 
     m_page->respondToChangedSelection();
     if (!frame->editor().ignoreCompositionSelectionChange())
@@ -483,7 +479,7 @@ void EditorClientQt::handleKeyboardEvent(KeyboardEvent* event)
                     if (kevent->altKey())
                         shouldInsertText = true;
                 } else {
-#ifndef Q_WS_MAC
+#ifndef Q_OS_MAC
                 // We need to exclude checking for Alt because it is just a different Shift
                 if (!kevent->altKey())
 #endif
