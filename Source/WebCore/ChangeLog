@@ -1,3 +1,317 @@
+2013-08-27  Andreas Kling  <akling@apple.com>
+
+        Make it less awkward to check if a Frame is the main Frame.
+        <https://webkit.org/b/120382>
+
+        Reviewed by Anders Carlsson.
+
+        Added Page::frameIsMainFrame(const Frame*) so code that wants to find out if a given
+        Frame is a Page's main frame doesn't have to do a manual pointer compare.
+
+        * page/Page.h:
+        (WebCore::Page::frameIsMainFrame):
+
+            Added. Replaces (frame == &page->mainFrame()) idiom.
+
+2013-08-27  Morten Stenshorne  <mstensho@opera.com>
+
+        Improve multicol intrinsic width calculation
+        https://bugs.webkit.org/show_bug.cgi?id=116677
+
+        Reviewed by David Hyatt.
+
+        Test: fast/css-intrinsic-dimensions/multicol.html
+
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::computeIntrinsicLogicalWidths):
+        (WebCore::RenderBlock::adjustIntrinsicLogicalWidthsForColumns):
+        * rendering/RenderBlock.h:
+
+2013-08-27  Rob Buis  <rwlbuis@webkit.org>
+
+        feImage fails if referenced node contains radialGradient declaration
+        https://bugs.webkit.org/show_bug.cgi?id=118735
+
+        Reviewed by Darin Adler.
+
+        Only call parent's updateRelativeLengthsInformation for graphics elements.
+
+        Tests: svg/custom/feImage-pserver-with-percentage-expected.svg
+               svg/custom/feImage-pserver-with-percentage.svg
+
+        * svg/SVGElement.cpp:
+        (WebCore::SVGElement::updateRelativeLengthsInformation):
+
+2013-08-27  Darin Adler  <darin@apple.com>
+
+        No need for generalPasteboard (aside from "global selection mode")
+        https://bugs.webkit.org/show_bug.cgi?id=120367
+
+        Reviewed by Alexey Proskuryakov.
+
+        * editing/Editor.cpp:
+        (WebCore::Editor::pasteAsPlainTextBypassingDHTML):
+        (WebCore::Editor::dispatchCPPEvent):
+        (WebCore::Editor::cut):
+        (WebCore::Editor::copy):
+        (WebCore::Editor::paste):
+        (WebCore::Editor::pasteAsPlainText):
+        (WebCore::Editor::copyURL):
+        (WebCore::Editor::copyImage):
+        Use Pasteboard::createForCopyAndPaste rather than the single general pasteboard
+        for editing operations.
+
+2013-08-27  Chris Fleizach  <cfleizach@apple.com>
+
+        <https://webkit.org/b/120117> AX: <noscript> contents are exposed as static text
+
+        Reviewed by Tim Horton.
+
+        If <noscript> is not being used (because there is script) then we need to ignore its contents for AX.
+
+        Test: accessibility/noscript-ignored.html
+
+        * accessibility/AccessibilityRenderObject.cpp:
+        (WebCore::AccessibilityRenderObject::addCanvasChildren):
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::canHaveChildren):
+
+2013-08-27  Anders Carlsson  <andersca@apple.com>
+
+        Stop using deleteAllValues in CClass
+        https://bugs.webkit.org/show_bug.cgi?id=120376
+
+        Reviewed by Andreas Kling.
+
+        * bridge/c/c_class.cpp:
+        (JSC::Bindings::CClass::CClass):
+        (JSC::Bindings::CClass::~CClass):
+        (JSC::Bindings::CClass::methodNamed):
+        (JSC::Bindings::CClass::fieldNamed):
+        * bridge/c/c_class.h:
+        * bridge/jsc/BridgeJSC.h:
+
+2013-08-27  Benjamin Poulain  <benjamin@webkit.org>
+
+        Clean ClassList and DOMSettableTokenList
+        https://bugs.webkit.org/show_bug.cgi?id=120344
+
+        Reviewed by Ryosuke Niwa.
+
+        This patch cleans ClassList and DOMSettableTokenList to make it simpler to update
+        SpaceSplitString:
+        - Move the implementation of virtual functions to the cpp file.
+        - Clean the #includes.
+        - Make the implemented pure virtual methods final.
+        - Make the element() accessor const.
+
+        * html/ClassList.cpp:
+        (WebCore::ClassList::create):
+        (WebCore::ClassList::element):
+        (WebCore::ClassList::value):
+        (WebCore::ClassList::setValue):
+        (WebCore::ClassList::classNames):
+        * html/ClassList.h:
+        * html/DOMSettableTokenList.cpp:
+        (WebCore::DOMSettableTokenList::create):
+        (WebCore::DOMSettableTokenList::ref):
+        (WebCore::DOMSettableTokenList::deref):
+        (WebCore::DOMSettableTokenList::length):
+        (WebCore::DOMSettableTokenList::value):
+        * html/DOMSettableTokenList.h:
+        * html/DOMTokenList.h:
+        (WebCore::DOMTokenList::element):
+
+2013-08-27  Arunprasad Rajkumar  <arurajku@cisco.com>
+
+        Replace currentTime() with monotonicallyIncreasingTime() in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=119958
+
+        Reviewed by Alexey Proskuryakov.
+
+        WTF::currentTime() is prone to NTP and manual adjustments, so use
+        WTF::monotonicallyIncreasingTime() to measure elapsed time.
+
+        It is a continuation of r154201.
+
+        * history/CachedPage.cpp:
+        (WebCore::CachedPage::CachedPage):
+        (WebCore::CachedPage::hasExpired):
+        * html/parser/HTMLParserScheduler.h:
+        (WebCore::HTMLParserScheduler::checkForYieldBeforeToken):
+        * loader/CrossOriginPreflightResultCache.cpp:
+        (WebCore::CrossOriginPreflightResultCacheItem::parse):
+        (WebCore::CrossOriginPreflightResultCacheItem::allowsRequest):
+        * loader/FrameLoader.cpp:
+        (WebCore::FrameLoader::setState):
+        * loader/ProgressTracker.cpp:
+        (WebCore::ProgressTracker::incrementProgress):
+        * loader/cache/CachedCSSStyleSheet.cpp:
+        (WebCore::CachedCSSStyleSheet::restoreParsedStyleSheet):
+        * loader/cache/CachedImage.cpp:
+        (WebCore::CachedImage::didDraw):
+        * loader/cache/MemoryCache.cpp:
+        (WebCore::MemoryCache::pruneLiveResourcesToSize):
+        * loader/icon/IconDatabase.cpp:
+        (WebCore::IconDatabase::iconDatabaseSyncThread):
+        (WebCore::IconDatabase::syncThreadMainLoop):
+        (WebCore::IconDatabase::readFromDatabase):
+        (WebCore::IconDatabase::writeToDatabase):
+        (WebCore::IconDatabase::cleanupSyncThread):
+        * page/animation/AnimationBase.cpp:
+        (WebCore::AnimationBase::freezeAtTime):
+        * page/animation/AnimationController.cpp:
+        (WebCore::AnimationControllerPrivate::beginAnimationUpdateTime):
+        * platform/graphics/GraphicsLayerAnimation.cpp:
+        (WebCore::GraphicsLayerAnimation::computeTotalRunningTime):
+        (WebCore::GraphicsLayerAnimation::resume):
+        * platform/graphics/avfoundation/cf/MediaPlayerPrivateAVFoundationCF.cpp:
+        (WebCore::AVFWrapper::createImageForTimeInRect):
+        * platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm:
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::createImageForTimeInRect):
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::createPixelBuffer):
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayerCA::suspendAnimations):
+        * platform/graphics/ca/PlatformCALayer.h:
+        (WebCore::PlatformCALayer::currentTimeToMediaTime):
+        * platform/graphics/ca/mac/LayerPool.mm:
+        (WebCore::LayerPool::addLayer):
+        (WebCore::LayerPool::decayedCapacity):
+        (WebCore::LayerPool::pruneTimerFired):
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (mediaTimeToCurrentTime):
+        * platform/graphics/ca/win/CACFLayerTreeHost.cpp:
+        (WebCore::CACFLayerTreeHost::notifyAnimationsStarted):
+        * platform/graphics/ca/win/PlatformCALayerWin.cpp:
+        (PlatformCALayer::printTree):
+        * platform/graphics/texmap/GraphicsLayerTextureMapper.cpp:
+        (WebCore::GraphicsLayerTextureMapper::addAnimation):
+        * platform/graphics/texmap/TextureMapperFPSCounter.cpp:
+        (WebCore::TextureMapperFPSCounter::TextureMapperFPSCounter):
+        (WebCore::TextureMapperFPSCounter::updateFPSAndDisplay):
+        * platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.cpp:
+        (WebCore::CoordinatedGraphicsLayer::addAnimation):
+        * platform/network/DNSResolveQueue.cpp:
+        (WebCore::DNSResolveQueue::isUsingProxy):
+        * plugins/win/PluginMessageThrottlerWin.cpp:
+        (WebCore::PluginMessageThrottlerWin::appendMessage):
+        * rendering/RenderLayerCompositor.cpp:
+        (WebCore::RenderLayerCompositor::didPaintBacking):
+        (WebCore::RenderLayerCompositor::updateCompositingLayers):
+        * rendering/RenderProgress.cpp:
+        (WebCore::RenderProgress::animationProgress):
+        (WebCore::RenderProgress::updateAnimationState):
+        * svg/animation/SMILTimeContainer.cpp:
+        (WebCore::SMILTimeContainer::elapsed):
+        (WebCore::SMILTimeContainer::begin):
+        (WebCore::SMILTimeContainer::pause):
+        (WebCore::SMILTimeContainer::resume):
+        (WebCore::SMILTimeContainer::setElapsed):
+
+2013-08-27  Robert Hogan  <robert@webkit.org>
+
+        cell width / offsetTop incorrect
+        https://bugs.webkit.org/show_bug.cgi?id=11582
+
+        Reviewed by David Hyatt.
+
+        The offsetTop and offsetLeft of sections, rows and cells should include the table's border. There are separate
+        problems with the offset[Top|Left] of table sections and the offsetLeft of rows which are covered under bugs 119020
+        and 119021 respectively - here we stick to just fixing the inclusion of the border as it doesn't require rebaselining
+        a lot of tests.
+
+        Test: fast/table/offset-top-includes-border.html
+
+        * rendering/RenderBoxModelObject.cpp:
+        (WebCore::RenderBoxModelObject::adjustedPositionRelativeToOffsetParent):
+        * rendering/RenderTableSection.cpp:
+        (WebCore::RenderTableSection::layoutRows):
+
+2013-08-27  Jacky Jiang  <zhajiang@blackberry.com>
+
+        [BlackBerry] Rotate device from landscape to portrait during youtube streaming will cause device screen flash with video list page
+        https://bugs.webkit.org/show_bug.cgi?id=120364
+
+        Reviewed by Rob Buis.
+        Internally reviewed by Arvid Nilsson.
+
+        JIRA 461232
+        When rotating device from landscape mode to portrait mode, we updated
+        texture contents based on landscape mode front visibility and back
+        visibility on WebKit thread at the very beginning and the landscape mode
+        tiles wouldn't be able to cover the portrait mode screen which resulted
+        in the screen flash.
+        It's hard to compute front visibility information on WebKit thread because
+        it doesn't know where the layers will be on the screen. Therefore, the
+        front visibility won't be updated until the first time we draw textures
+        on compositing thread.
+        The patch traverses through LayerWebKitThread and LayerCompositingThread
+        and discards back visibility and front visibility respectively if there
+        is a pending orientation. In this way, we can pick up layerTilerPrefillRect
+        as visibleRect instead of the visibleRect from the stale visibilities
+        and add more tiles for uncovered screen when updating texture contents
+        on WebKit thread.
+        The patch also fixes a bug that we prune tiles based on the stale
+        m_requiredTextureSize in pruneTextures(). We should prune tiles based
+        on the updated pendingTextureSize instead.
+
+        * platform/graphics/blackberry/LayerCompositingThread.cpp:
+        (WebCore::LayerCompositingThread::discardFrontVisibility):
+        * platform/graphics/blackberry/LayerCompositingThread.h:
+        * platform/graphics/blackberry/LayerCompositingThreadClient.h:
+        (WebCore::LayerCompositingThreadClient::discardFrontVisibility):
+        * platform/graphics/blackberry/LayerRenderer.cpp:
+        (WebCore::LayerRenderer::discardFrontVisibility):
+        * platform/graphics/blackberry/LayerRenderer.h:
+        * platform/graphics/blackberry/LayerTiler.cpp:
+        (WebCore::LayerTiler::discardFrontVisibility):
+        (WebCore::LayerTiler::processTextureJob):
+        (WebCore::LayerTiler::pruneTextures):
+        (WebCore::LayerTiler::discardBackVisibility):
+        * platform/graphics/blackberry/LayerTiler.h:
+        * platform/graphics/blackberry/LayerWebKitThread.cpp:
+        (WebCore::LayerWebKitThread::discardBackVisibility):
+        * platform/graphics/blackberry/LayerWebKitThread.h:
+
+2013-08-27  Antti Koivisto  <antti@apple.com>
+
+        Better mutation and event assertions for descendant iterators
+        https://bugs.webkit.org/show_bug.cgi?id=120368
+
+        Reviewed by Andreas Kling.
+
+        Add mutation assertions to all functions.
+        Drop the no-event-dispatch assertion when the iterator reaches the end. This reduces need for iterator scoping
+        just to avoid assertions.
+
+        * dom/ChildIterator.h:
+        (WebCore::::domTreeHasMutated):
+        (WebCore::::operator):
+        (WebCore::=):
+        * dom/DescendantIterator.h:
+        (WebCore::::domTreeHasMutated):
+        (WebCore::::operator):
+        (WebCore::=):
+        * dom/Document.cpp:
+        (WebCore::Document::childrenChanged):
+        
+            Make idiomatic.
+
+2013-08-27  Renata Hodovan  <reni@webkit.org>
+
+        Missing null-check of parent renderer in WebCore::HTMLEmbedElement::rendererIsNeeded()
+        https://bugs.webkit.org/show_bug.cgi?id=120343
+
+        Reviewed by Darin Adler.
+
+        Null-check the parent renderer of HTMLEmbedElement in WebCore::HTMLEmbedElement::rendererIsNeeded()
+        and early return.
+
+        Test: fast/html/HTMLEmbedElement_without_parent_renderer_assert_crash.html
+
+        * html/HTMLEmbedElement.cpp:
+        (WebCore::HTMLEmbedElement::rendererIsNeeded):
+
 2013-08-27  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] Correct method call for characteristic update.

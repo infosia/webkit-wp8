@@ -1,3 +1,98 @@
+2013-08-27  Dean Jackson  <dino@apple.com>
+
+        svg/animations/svglengthlist-animation-3.html is flakey on Mac
+        http://webkit.org/b/120387
+
+        Marking this as flakey.
+
+        * platform/mac/TestExpectations:
+
+2013-08-27  Morten Stenshorne  <mstensho@opera.com>
+
+        Improve multicol intrinsic width calculation
+        https://bugs.webkit.org/show_bug.cgi?id=116677
+
+        Reviewed by David Hyatt.
+
+        * css3/unicode-bidi-isolate-basic.html: The expectation seems to
+        be that the columns should be as many as necessary and narrow as
+        possible, and that the multicol container's width should be that
+        of one column. The previous CSS didn't really ask for this,
+        although that's how it happened to be rendered without this fix.
+        * fast/css-intrinsic-dimensions/multicol-expected.txt: Added.
+        * fast/css-intrinsic-dimensions/multicol.html: Added.
+        * fast/multicol/positioned-with-constrained-height-expected.html: Copied from LayoutTests/fast/multicol/positioned-with-constrained-height.html.
+        * fast/multicol/positioned-with-constrained-height.html: Turn into a reftest.
+        * platform/efl/fast/multicol/positioned-with-constrained-height-expected.png: Removed.
+        * platform/efl/fast/multicol/positioned-with-constrained-height-expected.txt: Removed.
+        * platform/gtk/fast/multicol/positioned-with-constrained-height-expected.png: Removed.
+        * platform/gtk/fast/multicol/positioned-with-constrained-height-expected.txt: Removed.
+        * platform/mac/fast/multicol/positioned-with-constrained-height-expected.png: Removed.
+        * platform/mac/fast/multicol/positioned-with-constrained-height-expected.txt: Removed.
+        * platform/qt/fast/multicol/positioned-with-constrained-height-expected.png: Removed.
+        * platform/qt/fast/multicol/positioned-with-constrained-height-expected.txt: Removed.
+
+2013-08-27  Rob Buis  <rwlbuis@webkit.org>
+
+        feImage fails if referenced node contains radialGradient declaration
+        https://bugs.webkit.org/show_bug.cgi?id=118735
+
+        Reviewed by Darin Adler.
+
+        Add testcase from bug with small adjustments.
+
+        * svg/custom/feImage-pserver-with-percentage-expected.svg: Added.
+        * svg/custom/feImage-pserver-with-percentage.svg: Added.
+
+2013-08-27  Chris Fleizach  <cfleizach@apple.com>
+
+        <https://webkit.org/b/120117> AX: <noscript> contents are exposed as static text
+
+        Reviewed by Tim Horton.
+
+        * accessibility/noscript-ignored-expected.txt: Added.
+        * accessibility/noscript-ignored.html: Added.
+
+2013-08-27  Robert Hogan  <robert@webkit.org>
+
+        cell width / offsetTop incorrect
+        https://bugs.webkit.org/show_bug.cgi?id=11582
+
+        Reviewed by David Hyatt.
+
+        * fast/dom/Element/offsetTop-table-cell-expected.txt:
+        * fast/dom/Element/offsetTop-table-cell.html:
+        * fast/table/offset-top-includes-border-expected.txt: Added.
+        * fast/table/offset-top-includes-border.html: Added.
+        * platform/mac/editing/selection/5057506-2-expected.txt:
+        * platform/mac/editing/selection/5057506-expected.txt:
+        * platform/qt/editing/selection/5057506-2-expected.txt:
+        * platform/qt/editing/selection/5057506-expected.txt:
+
+2013-08-27  Renata Hodovan  <reni@webkit.org>
+
+        Missing null-check of parent renderer in WebCore::HTMLEmbedElement::rendererIsNeeded()
+        https://bugs.webkit.org/show_bug.cgi?id=120343
+
+        Reviewed by Darin Adler.
+
+        Test for the handling of null parent renderer.
+
+        * fast/html/HTMLEmbedElement_without_parent_renderer_assert_crash-expected.txt: Added.
+        * fast/html/HTMLEmbedElement_without_parent_renderer_assert_crash.html: Added.
+
+2013-08-27  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] Missing DRT AccessibilityUIElement::addNotificationListener implementation
+        https://bugs.webkit.org/show_bug.cgi?id=119883
+
+        Unskipped the checkbox notification test in a11y and added the expected results.
+
+        Reviewed by Chris Fleizach.
+
+        * platform/gtk/TestExpectations: Unskipped the checkbox notification test in a11y.
+        * platform/gtk/accessibility/aria-checkbox-sends-notification-expected.txt: Added.
+
 2013-08-27  Ádám Kallai  <kadam@inf.u-szeged.hu>
 
         [Qt] Delete unnecessary empty directory.

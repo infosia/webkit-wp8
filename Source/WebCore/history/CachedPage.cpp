@@ -51,7 +51,7 @@ PassRefPtr<CachedPage> CachedPage::create(Page* page)
 }
 
 CachedPage::CachedPage(Page* page)
-    : m_timeStamp(currentTime())
+    : m_timeStamp(monotonicallyIncreasingTime())
     , m_expirationTime(m_timeStamp + page->settings().backForwardCacheExpirationInterval())
     , m_cachedMainFrame(CachedFrame::create(&page->mainFrame()))
     , m_needStyleRecalcForVisitedLinks(false)
@@ -77,7 +77,7 @@ CachedPage::~CachedPage()
 void CachedPage::restore(Page* page)
 {
     ASSERT(m_cachedMainFrame);
-    ASSERT(page && &page->mainFrame() == &m_cachedMainFrame->view()->frame());
+    ASSERT(page && page->frameIsMainFrame(&m_cachedMainFrame->view()->frame()));
     ASSERT(!page->subframeCount());
 
     m_cachedMainFrame->open();
@@ -129,7 +129,7 @@ void CachedPage::destroy()
 
 bool CachedPage::hasExpired() const
 {
-    return currentTime() > m_expirationTime;
+    return monotonicallyIncreasingTime() > m_expirationTime;
 }
 
 } // namespace WebCore
