@@ -1104,6 +1104,23 @@
 		C911AAEE17C69AD400FFB86F /* JSVirtualMachineXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C911AAF017C69EC400FFB86F /* JSVirtualMachineXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */; };
 		C911AAF217C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */; };
+		C91CFBEA17CD82AA003AE959 /* JSVMWrapperCacheXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C91CFBE917CD82AA003AE959 /* JSVMWrapperCacheXRef.h */; };
+		C91CFBEC17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C91CFBEB17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp */; };
+		C91CFBF317CD9BD7003AE959 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C91CFBF217CD9BD7003AE959 /* XCTest.framework */; };
+		C91CFBF917CD9BD7003AE959 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = C91CFBF717CD9BD7003AE959 /* InfoPlist.strings */; };
+		C91CFC0517CD9D89003AE959 /* JSVMWrapperCacheXTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0417CD9D89003AE959 /* JSVMWrapperCacheXTests.mm */; };
+		C91CFC0717CDA0E7003AE959 /* JSVirtualMachineXTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0617CDA0E7003AE959 /* JSVirtualMachineXTests.mm */; };
+		C91CFC0817CDAB13003AE959 /* JavaScriptCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 932F5BD90822A1C700736975 /* JavaScriptCore.framework */; };
+		C91CFC0A17CDAB49003AE959 /* JSContextXTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0917CDAB49003AE959 /* JSContextXTests.mm */; };
+		C91CFC1517CDAD18003AE959 /* ObjectiveCAPITests.mm in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */; };
+		C91CFC1617CDAD18003AE959 /* ParentObject.h in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC0C17CDAD18003AE959 /* ParentObject.h */; };
+		C91CFC1717CDAD18003AE959 /* ParentObject.m in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC0D17CDAD18003AE959 /* ParentObject.m */; };
+		C91CFC1817CDAD18003AE959 /* TestObject.h in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC0E17CDAD18003AE959 /* TestObject.h */; };
+		C91CFC1917CDAD18003AE959 /* TestObject.m in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC0F17CDAD18003AE959 /* TestObject.m */; };
+		C91CFC1A17CDAD18003AE959 /* TextXYZ.h in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC1017CDAD18003AE959 /* TextXYZ.h */; };
+		C91CFC1B17CDAD18003AE959 /* TextXYZ.m in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC1117CDAD18003AE959 /* TextXYZ.m */; };
+		C91CFC1C17CDAD18003AE959 /* TinyDOMNode.h in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC1217CDAD18003AE959 /* TinyDOMNode.h */; };
+		C91CFC1D17CDAD18003AE959 /* TinyDOMNode.m in Resources */ = {isa = PBXBuildFile; fileRef = C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */; };
 		C99F296517C7FB2E00B1544E /* JSValueXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C99F296417C7FB2E00B1544E /* JSValueXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C99F296717C7FB4F00B1544E /* JSValueXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */; };
 		C99F296917C7FB8200B1544E /* JavaScriptCoreX.h in Headers */ = {isa = PBXBuildFile; fileRef = C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -1195,6 +1212,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 932F5B3E0822A1C700736975;
 			remoteInfo = "JavaScriptCore (Upgraded)";
+		};
+		C91CFBFD17CD9BD8003AE959 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0867D690FE84028FC02AAC07 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 932F5B3E0822A1C700736975;
+			remoteInfo = JavaScriptCore;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -2271,6 +2295,25 @@
 		C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineXRef.h; sourceTree = "<group>"; };
 		C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVirtualMachineXRef.cpp; sourceTree = "<group>"; };
 		C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineXPrivateRef.h; sourceTree = "<group>"; };
+		C91CFBE917CD82AA003AE959 /* JSVMWrapperCacheXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVMWrapperCacheXRef.h; sourceTree = "<group>"; };
+		C91CFBEB17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVMWrapperCacheXRef.cpp; sourceTree = "<group>"; };
+		C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JavaScriptCoreXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C91CFBF217CD9BD7003AE959 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		C91CFBF617CD9BD7003AE959 /* JavaScriptCoreXTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "JavaScriptCoreXTests-Info.plist"; sourceTree = "<group>"; };
+		C91CFBF817CD9BD7003AE959 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		C91CFBFC17CD9BD7003AE959 /* JavaScriptCoreXTests-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "JavaScriptCoreXTests-Prefix.pch"; sourceTree = "<group>"; };
+		C91CFC0417CD9D89003AE959 /* JSVMWrapperCacheXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSVMWrapperCacheXTests.mm; sourceTree = "<group>"; };
+		C91CFC0617CDA0E7003AE959 /* JSVirtualMachineXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSVirtualMachineXTests.mm; sourceTree = "<group>"; };
+		C91CFC0917CDAB49003AE959 /* JSContextXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSContextXTests.mm; sourceTree = "<group>"; };
+		C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ObjectiveCAPITests.mm; sourceTree = "<group>"; };
+		C91CFC0C17CDAD18003AE959 /* ParentObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ParentObject.h; sourceTree = "<group>"; };
+		C91CFC0D17CDAD18003AE959 /* ParentObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ParentObject.m; sourceTree = "<group>"; };
+		C91CFC0E17CDAD18003AE959 /* TestObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TestObject.h; sourceTree = "<group>"; };
+		C91CFC0F17CDAD18003AE959 /* TestObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TestObject.m; sourceTree = "<group>"; };
+		C91CFC1017CDAD18003AE959 /* TextXYZ.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TextXYZ.h; sourceTree = "<group>"; };
+		C91CFC1117CDAD18003AE959 /* TextXYZ.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TextXYZ.m; sourceTree = "<group>"; };
+		C91CFC1217CDAD18003AE959 /* TinyDOMNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TinyDOMNode.h; sourceTree = "<group>"; };
+		C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TinyDOMNode.m; sourceTree = "<group>"; };
 		C99F296417C7FB2E00B1544E /* JSValueXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSValueXRef.h; sourceTree = "<group>"; };
 		C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSValueXRef.cpp; sourceTree = "<group>"; };
 		C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JavaScriptCoreX.h; sourceTree = "<group>"; };
@@ -2391,6 +2434,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C91CFBEE17CD9BD7003AE959 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C91CFC0817CDAB13003AE959 /* JavaScriptCore.framework in Frameworks */,
+				C91CFBF317CD9BD7003AE959 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -2403,6 +2455,7 @@
 				141211200A48793C00480255 /* minidom */,
 				14BD59BF0A3E8F9000BAF59C /* testapi */,
 				6511230514046A4C002B101D /* testRegExp */,
+				C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -2457,6 +2510,7 @@
 				51F0EC0705C86C9A00E6DF1B /* libobjc.dylib */,
 				A8A4748D151A8306004123FF /* libWTF.a */,
 				371D842C17C98B6E00ECF994 /* libz.dylib */,
+				C91CFBF217CD9BD7003AE959 /* XCTest.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -2596,6 +2650,8 @@
 		141211000A48772600480255 /* tests */ = {
 			isa = PBXGroup;
 			children = (
+				C91CFC1417CDAD18003AE959 /* ObjectiveCAPITests */,
+				C91CFBF417CD9BD7003AE959 /* JavaScriptCoreXTests */,
 				144005170A531CB50005F061 /* minidom */,
 				14BD5A2D0A3E91F600BAF59C /* testapi.c */,
 				14D857740A4696C80032146C /* testapi.js */,
@@ -2853,6 +2909,8 @@
 				C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */,
 				C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */,
 				C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */,
+				C91CFBE917CD82AA003AE959 /* JSVMWrapperCacheXRef.h */,
+				C91CFBEB17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp */,
 				86E3C611167BAB87006D760A /* JSVirtualMachineInternal.h */,
 				A7482E37116A697B003B0712 /* JSWeakObjectMapRefInternal.h */,
 				A7482B7A1166CDEA003B0712 /* JSWeakObjectMapRefPrivate.cpp */,
@@ -3735,6 +3793,45 @@
 			path = bytecode;
 			sourceTree = "<group>";
 		};
+		C91CFBF417CD9BD7003AE959 /* JavaScriptCoreXTests */ = {
+			isa = PBXGroup;
+			children = (
+				C91CFC0917CDAB49003AE959 /* JSContextXTests.mm */,
+				C91CFC0617CDA0E7003AE959 /* JSVirtualMachineXTests.mm */,
+				C91CFC0417CD9D89003AE959 /* JSVMWrapperCacheXTests.mm */,
+				C91CFBF517CD9BD7003AE959 /* Supporting Files */,
+			);
+			name = JavaScriptCoreXTests;
+			path = API/tests/JavaScriptCoreXTests;
+			sourceTree = "<group>";
+		};
+		C91CFBF517CD9BD7003AE959 /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				C91CFBF617CD9BD7003AE959 /* JavaScriptCoreXTests-Info.plist */,
+				C91CFBF717CD9BD7003AE959 /* InfoPlist.strings */,
+				C91CFBFC17CD9BD7003AE959 /* JavaScriptCoreXTests-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		C91CFC1417CDAD18003AE959 /* ObjectiveCAPITests */ = {
+			isa = PBXGroup;
+			children = (
+				C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */,
+				C91CFC0C17CDAD18003AE959 /* ParentObject.h */,
+				C91CFC0D17CDAD18003AE959 /* ParentObject.m */,
+				C91CFC0E17CDAD18003AE959 /* TestObject.h */,
+				C91CFC0F17CDAD18003AE959 /* TestObject.m */,
+				C91CFC1017CDAD18003AE959 /* TextXYZ.h */,
+				C91CFC1117CDAD18003AE959 /* TextXYZ.m */,
+				C91CFC1217CDAD18003AE959 /* TinyDOMNode.h */,
+				C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */,
+			);
+			name = ObjectiveCAPITests;
+			path = API/tests;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -3874,6 +3971,7 @@
 				0F8364B7164B0C110053329A /* DFGBranchDirection.h in Headers */,
 				86EC9DC51328DF82002B2AD7 /* DFGByteCodeParser.h in Headers */,
 				0F256C361627B0AD007F2783 /* DFGCallArrayAllocatorSlowPathGenerator.h in Headers */,
+				C91CFBEA17CD82AA003AE959 /* JSVMWrapperCacheXRef.h in Headers */,
 				0F7B294B14C3CD2F007C3DB1 /* DFGCapabilities.h in Headers */,
 				0F7B294A14C3CD29007C3DB1 /* DFGCCallHelpers.h in Headers */,
 				0FFFC95814EF90A200C72532 /* DFGCFAPhase.h in Headers */,
@@ -4513,6 +4611,24 @@
 			productReference = 932F5BE10822A1C700736975 /* jsc */;
 			productType = "com.apple.product-type.tool";
 		};
+		C91CFBF017CD9BD7003AE959 /* XCTestAPI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C91CFBFF17CD9BD8003AE959 /* Build configuration list for PBXNativeTarget "XCTestAPI" */;
+			buildPhases = (
+				C91CFBED17CD9BD7003AE959 /* Sources */,
+				C91CFBEE17CD9BD7003AE959 /* Frameworks */,
+				C91CFBEF17CD9BD7003AE959 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C91CFBFE17CD9BD8003AE959 /* PBXTargetDependency */,
+			);
+			name = XCTestAPI;
+			productName = JavaScriptCoreXTests;
+			productReference = C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -4521,6 +4637,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 0440;
+				TargetAttributes = {
+					C91CFBF017CD9BD7003AE959 = {
+						TestTargetID = 932F5B3E0822A1C700736975;
+					};
+				};
 			};
 			buildConfigurationList = 149C277108902AFE008A9EFC /* Build configuration list for PBXProject "JavaScriptCore" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -4531,6 +4652,7 @@
 				Japanese,
 				French,
 				German,
+				en,
 			);
 			mainGroup = 0867D691FE84028FC02AAC07 /* JavaScriptCore */;
 			productRefGroup = 034768DFFF38A50411DB9C8B /* Products */;
@@ -4547,9 +4669,30 @@
 				0F4680A914BA7FD900BFE272 /* LLInt Offsets */,
 				0FF922C314F46B130041A24E /* JSCLLIntOffsetsExtractor */,
 				5D6B2A47152B9E17005231DE /* Test Tools */,
+				C91CFBF017CD9BD7003AE959 /* XCTestAPI */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C91CFBEF17CD9BD7003AE959 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C91CFC1517CDAD18003AE959 /* ObjectiveCAPITests.mm in Resources */,
+				C91CFBF917CD9BD7003AE959 /* InfoPlist.strings in Resources */,
+				C91CFC1817CDAD18003AE959 /* TestObject.h in Resources */,
+				C91CFC1A17CDAD18003AE959 /* TextXYZ.h in Resources */,
+				C91CFC1D17CDAD18003AE959 /* TinyDOMNode.m in Resources */,
+				C91CFC1C17CDAD18003AE959 /* TinyDOMNode.h in Resources */,
+				C91CFC1B17CDAD18003AE959 /* TextXYZ.m in Resources */,
+				C91CFC1717CDAD18003AE959 /* ParentObject.m in Resources */,
+				C91CFC1917CDAD18003AE959 /* TestObject.m in Resources */,
+				C91CFC1617CDAD18003AE959 /* ParentObject.h in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		0F4680AA14BA7FD900BFE272 /* Generate Derived Sources */ = {
@@ -4823,6 +4966,7 @@
 				A78A9776179738B8009DF744 /* DFGFinalizer.cpp in Sources */,
 				0F2BDC15151C5D4D00CD8910 /* DFGFixupPhase.cpp in Sources */,
 				A7D89CF717A0B8CC00773AD8 /* DFGFlushFormat.cpp in Sources */,
+				C91CFBEC17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp in Sources */,
 				A7D89CF917A0B8CC00773AD8 /* DFGFlushLivenessAnalysisPhase.cpp in Sources */,
 				86EC9DC71328DF82002B2AD7 /* DFGGraph.cpp in Sources */,
 				A704D90517A0BAA8006BA554 /* DFGInPlaceAbstractState.cpp in Sources */,
@@ -5149,6 +5293,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C91CFBED17CD9BD7003AE959 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C91CFC0517CD9D89003AE959 /* JSVMWrapperCacheXTests.mm in Sources */,
+				C91CFC0717CDA0E7003AE959 /* JSVirtualMachineXTests.mm in Sources */,
+				C91CFC0A17CDAB49003AE959 /* JSContextXTests.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -5197,7 +5351,23 @@
 			target = 932F5B3E0822A1C700736975 /* JavaScriptCore */;
 			targetProxy = 932F5BE60822A1C700736975 /* PBXContainerItemProxy */;
 		};
+		C91CFBFE17CD9BD8003AE959 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 932F5B3E0822A1C700736975 /* JavaScriptCore */;
+			targetProxy = C91CFBFD17CD9BD8003AE959 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		C91CFBF717CD9BD7003AE959 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C91CFBF817CD9BD7003AE959 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		0F4680AD14BA7FD900BFE272 /* Debug */ = {
@@ -5518,6 +5688,180 @@
 			};
 			name = Profiling;
 		};
+		C91CFC0017CD9BD8003AE959 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_ENABLE_OBJC_GC_macosx = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Debug;
+		};
+		C91CFC0117CD9BD8003AE959 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_ENABLE_OBJC_GC_macosx = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Prefix.pch";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Release;
+		};
+		C91CFC0217CD9BD8003AE959 /* Profiling */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_ENABLE_OBJC_GC_macosx = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Prefix.pch";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Profiling;
+		};
+		C91CFC0317CD9BD8003AE959 /* Production */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(DEVELOPER_FRAMEWORKS_DIR)",
+					"$(inherited)",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_ENABLE_OBJC_GC_macosx = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Prefix.pch";
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INFOPLIST_FILE = "API/tests/JavaScriptCoreXTests/JavaScriptCoreXTests-Info.plist";
+				MACOSX_DEPLOYMENT_TARGET = 10.8;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				WRAPPER_EXTENSION = xctest;
+			};
+			name = Production;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -5641,6 +5985,16 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Production;
+		};
+		C91CFBFF17CD9BD8003AE959 /* Build configuration list for PBXNativeTarget "XCTestAPI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C91CFC0017CD9BD8003AE959 /* Debug */,
+				C91CFC0117CD9BD8003AE959 /* Release */,
+				C91CFC0217CD9BD8003AE959 /* Profiling */,
+				C91CFC0317CD9BD8003AE959 /* Production */,
+			);
+			defaultConfigurationIsVisible = 0;
 		};
 /* End XCConfigurationList section */
 	};

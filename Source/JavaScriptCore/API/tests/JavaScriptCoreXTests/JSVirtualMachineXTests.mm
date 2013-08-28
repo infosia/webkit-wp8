@@ -29,14 +29,14 @@
 
 - (void)testJSVirtualMachineX
 {
-    JSVirtualMachineXRef jsVirtualMachineX = JSVirtualMachineXCreate();
-    XCTAssertTrue(jsVirtualMachineX);
+    JSVirtualMachineXRef virtualMachineX = JSVirtualMachineXCreate();
+    XCTAssertTrue(virtualMachineX);
     
-//    JSVirtualMachineXRetain(jsVirtualMachineX);
-    JSVirtualMachineXRelease(jsVirtualMachineX);
-//    JSVirtualMachineXRelease(jsVirtualMachineX);
-//    JSVirtualMachineXRelease(jsVirtualMachineX);
-    //XCTAssertFalse(jsVirtualMachineX);
+//    JSVirtualMachineXRetain(virtualMachineX);
+    JSVirtualMachineXRelease(virtualMachineX);
+//    JSVirtualMachineXRelease(virtualMachineX);
+//    JSVirtualMachineXRelease(virtualMachineX);
+    //XCTAssertFalse(virtualMachineX);
 }
 
 @end
