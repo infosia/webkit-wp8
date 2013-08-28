@@ -61,6 +61,7 @@
 #import "WebEditorClient.h"
 #import "WebFormDelegatePrivate.h"
 #import "WebFrameInternal.h"
+#import "WebFrameLoaderClient.h"
 #import "WebFrameNetworkingContext.h"
 #import "WebFrameViewInternal.h"
 #import "WebFullScreenController.h"
@@ -195,6 +196,7 @@
 #import <wtf/Assertions.h>
 #import <wtf/HashTraits.h>
 #import <wtf/MainThread.h>
+#import <wtf/ObjcRuntimeExtras.h>
 #import <wtf/RefCountedLeakCounter.h>
 #import <wtf/RefPtr.h>
 #import <wtf/StdLibExtras.h>
@@ -752,6 +754,7 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
 #endif
     pageClients.inspectorClient = new WebInspectorClient(self);
     pageClients.alternativeTextClient = new WebAlternativeTextClient(self);
+    pageClients.loaderClientForMainFrame = new WebFrameLoaderClient;
     _private->page = new Page(pageClients);
 #if ENABLE(GEOLOCATION)
     WebCore::provideGeolocationTo(_private->page, new WebGeolocationClient(self));
@@ -1296,7 +1299,7 @@ static bool fastDocumentTeardownEnabled()
             // If this item is showing , save away its current scroll and form state,
             // since that might have changed since loading and it is normally not saved
             // until we leave that page.
-            otherView->_private->page->mainFrame()->loader().history().saveDocumentAndScrollState();
+            otherView->_private->page->mainFrame().loader().history().saveDocumentAndScrollState();
         }
         RefPtr<HistoryItem> newItem = otherBackForwardList->itemAtIndex(i)->copy();
         if (i == 0) 
@@ -2002,7 +2005,7 @@ static inline IMP getMethod(id o, SEL s)
     if (!_private->page)
         return nil;
 
-    if (CFURLStorageSessionRef storageSession = _private->page->mainFrame()->loader().networkingContext()->storageSession().platformSession())
+    if (CFURLStorageSessionRef storageSession = _private->page->mainFrame().loader().networkingContext()->storageSession().platformSession())
         cachedResponse = WKCachedResponseForRequest(storageSession, request.get());
     else
         cachedResponse = [[NSURLCache sharedURLCache] cachedResponseForRequest:request.get()];
@@ -2332,13 +2335,13 @@ static inline IMP getMethod(id o, SEL s)
 
 - (void)_attachScriptDebuggerToAllFrames
 {
-    for (Frame* frame = [self _mainCoreFrame]; frame; frame = frame->tree()->traverseNext())
+    for (Frame* frame = [self _mainCoreFrame]; frame; frame = frame->tree().traverseNext())
         [kit(frame) _attachScriptDebugger];
 }
 
 - (void)_detachScriptDebuggerFromAllFrames
 {
-    for (Frame* frame = [self _mainCoreFrame]; frame; frame = frame->tree()->traverseNext())
+    for (Frame* frame = [self _mainCoreFrame]; frame; frame = frame->tree().traverseNext())
         [kit(frame) _detachScriptDebugger];
 }
 
@@ -2454,7 +2457,7 @@ static inline IMP getMethod(id o, SEL s)
 
 - (void)_clearMainFrameName
 {
-    _private->page->mainFrame()->tree()->clearName();
+    _private->page->mainFrame().tree().clearName();
 }
 
 - (void)setSelectTrailingWhitespaceEnabled:(BOOL)flag
@@ -2505,7 +2508,7 @@ static inline IMP getMethod(id o, SEL s)
 {
 #if USE(ACCELERATED_COMPOSITING)
     Frame* coreFrame = [self _mainCoreFrame];
-    for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame)) {
+    for (Frame* frame = coreFrame; frame; frame = frame->tree().traverseNext(coreFrame)) {
         NSView *documentView = [[kit(frame) frameView] documentView];
         if ([documentView isKindOfClass:[WebHTMLView class]] && [(WebHTMLView *)documentView _isUsingAcceleratedCompositing])
             return YES;
@@ -2543,7 +2546,7 @@ static inline IMP getMethod(id o, SEL s)
 {
 #if USE(ACCELERATED_COMPOSITING)
     Frame* coreFrame = [self _mainCoreFrame];
-    for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame)) {
+    for (Frame* frame = coreFrame; frame; frame = frame->tree().traverseNext(coreFrame)) {
         if (FrameView* view = frame->view()) {
             if (!view->isSoftwareRenderable())
                 return NO;
@@ -3915,7 +3918,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     // This can be called in initialization, before _private has been set up (3465613)
     if (!_private || !_private->page)
         return nil;
-    return kit(_private->page->mainFrame());
+    return kit(&_private->page->mainFrame());
 }
 
 - (WebFrame *)selectedFrame
@@ -4212,7 +4215,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
         return;
 
     Frame* coreFrame = [self _mainCoreFrame];
-    for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame))
+    for (Frame* frame = coreFrame; frame; frame = frame->tree().traverseNext(coreFrame))
         [[[kit(frame) frameView] documentView] viewWillMoveToHostWindow:hostWindow];
     if (_private->hostWindow && [self window] != _private->hostWindow)
         [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowWillCloseNotification object:_private->hostWindow];
@@ -4220,7 +4223,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowWillClose:) name:NSWindowWillCloseNotification object:hostWindow];
     [_private->hostWindow release];
     _private->hostWindow = [hostWindow retain];
-    for (Frame* frame = coreFrame; frame; frame = frame->tree()->traverseNext(coreFrame))
+    for (Frame* frame = coreFrame; frame; frame = frame->tree().traverseNext(coreFrame))
         [[[kit(frame) frameView] documentView] viewDidMoveToHostWindow];
     _private->page->setDeviceScaleFactor([self _deviceScaleFactor]);
 }
@@ -4416,8 +4419,8 @@ static WebFrame *incrementFrame(WebFrame *frame, WebFindOptions options = 0)
 {
     Frame* coreFrame = core(frame);
     return kit((options & WebFindOptionsBackwards)
-        ? coreFrame->tree()->traversePreviousWithWrap(options & WebFindOptionsWrapAround)
-        : coreFrame->tree()->traverseNextWithWrap(options & WebFindOptionsWrapAround));
+        ? coreFrame->tree().traversePreviousWithWrap(options & WebFindOptionsWrapAround)
+        : coreFrame->tree().traverseNextWithWrap(options & WebFindOptionsWrapAround));
 }
 
 - (BOOL)searchFor:(NSString *)string direction:(BOOL)forward caseSensitive:(BOOL)caseFlag wrap:(BOOL)wrapFlag
@@ -5415,7 +5418,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
     Page* page = core(self);
     if (!page)
         return nil;
-    return kit(page->mainFrame()->editor().rangeForPoint(IntPoint([self convertPoint:point toView:nil])).get());
+    return kit(page->mainFrame().editor().rangeForPoint(IntPoint([self convertPoint:point toView:nil])).get());
 }
 
 - (BOOL)_shouldChangeSelectedDOMRange:(DOMRange *)currentRange toDOMRange:(DOMRange *)proposedRange affinity:(NSSelectionAffinity)selectionAffinity stillSelecting:(BOOL)flag
@@ -5903,7 +5906,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     if (s_didSetCacheModel && cacheModel == s_cacheModel)
         return;
 
-    NSString *nsurlCacheDirectory = (NSString *)WebCFAutorelease(WKCopyFoundationCacheDirectory());
+    NSString *nsurlCacheDirectory = (NSString *)HardAutorelease(WKCopyFoundationCacheDirectory());
     if (!nsurlCacheDirectory)
         nsurlCacheDirectory = NSHomeDirectory();
 
@@ -6337,7 +6340,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     // and we should release the web view. Autorelease rather than release in order to
     // avoid re-entering this method beneath -dealloc with the same identifier. <rdar://problem/10523721>
     if (_private->identifierMap.isEmpty())
-        WebCFAutorelease(self);
+        [self autorelease];
 }
 
 - (void)_retrieveKeyboardUIModeFromPreferences:(NSNotification *)notification
@@ -6382,7 +6385,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
 
 - (Frame*)_mainCoreFrame
 {
-    return (_private && _private->page) ? _private->page->mainFrame() : 0;
+    return (_private && _private->page) ? &_private->page->mainFrame() : 0;
 }
 
 - (WebFrame *)_selectedOrMainFrame

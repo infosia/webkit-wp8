@@ -492,14 +492,14 @@ void InspectorPageAgent::reload(ErrorString*, const bool* const optionalIgnoreCa
 {
     m_pendingScriptToEvaluateOnLoadOnce = optionalScriptToEvaluateOnLoad ? *optionalScriptToEvaluateOnLoad : "";
     m_pendingScriptPreprocessor = optionalScriptPreprocessor ? *optionalScriptPreprocessor : "";
-    m_page->mainFrame()->loader().reload(optionalIgnoreCache ? *optionalIgnoreCache : false);
+    m_page->mainFrame().loader().reload(optionalIgnoreCache ? *optionalIgnoreCache : false);
 }
 
 void InspectorPageAgent::navigate(ErrorString*, const String& url)
 {
     UserGestureIndicator indicator(DefinitelyProcessingUserGesture);
-    Frame* frame = m_page->mainFrame();
-    frame->loader().changeLocation(frame->document()->securityOrigin(), frame->document()->completeURL(url), "", false, false);
+    Frame& frame = m_page->mainFrame();
+    frame.loader().changeLocation(frame.document()->securityOrigin(), frame.document()->completeURL(url), "", false, false);
 }
 
 static PassRefPtr<TypeBuilder::Page::Cookie> buildObjectForCookie(const Cookie& cookie)
@@ -583,7 +583,7 @@ void InspectorPageAgent::getCookies(ErrorString*, RefPtr<TypeBuilder::Array<Type
     // always return the same true/false value.
     bool rawCookiesImplemented = false;
 
-    for (Frame* frame = mainFrame(); frame; frame = frame->tree()->traverseNext(mainFrame())) {
+    for (Frame* frame = mainFrame(); frame; frame = frame->tree().traverseNext(mainFrame())) {
         Document* document = frame->document();
         Vector<KURL> allURLs = allResourcesURLsForFrame(frame);
         for (Vector<KURL>::const_iterator it = allURLs.begin(); it != allURLs.end(); ++it) {
@@ -618,13 +618,13 @@ void InspectorPageAgent::getCookies(ErrorString*, RefPtr<TypeBuilder::Array<Type
 void InspectorPageAgent::deleteCookie(ErrorString*, const String& cookieName, const String& url)
 {
     KURL parsedURL(ParsedURLString, url);
-    for (Frame* frame = m_page->mainFrame(); frame; frame = frame->tree()->traverseNext(m_page->mainFrame()))
+    for (Frame* frame = &m_page->mainFrame(); frame; frame = frame->tree().traverseNext(&m_page->mainFrame()))
         WebCore::deleteCookie(frame->document(), parsedURL, cookieName);
 }
 
 void InspectorPageAgent::getResourceTree(ErrorString*, RefPtr<TypeBuilder::Page::FrameResourceTree>& object)
 {
-    object = buildObjectForFrameTree(m_page->mainFrame());
+    object = buildObjectForFrameTree(&m_page->mainFrame());
 }
 
 void InspectorPageAgent::getResourceContent(ErrorString* errorString, const String& frameId, const String& url, String* content, bool* base64Encoded)
@@ -700,7 +700,7 @@ void InspectorPageAgent::searchInResources(ErrorString*, const String& text, con
     bool caseSensitive = optionalCaseSensitive ? *optionalCaseSensitive : false;
     RegularExpression regex = ContentSearchUtils::createSearchRegex(text, caseSensitive, isRegex);
 
-    for (Frame* frame = m_page->mainFrame(); frame; frame = frame->tree()->traverseNext(m_page->mainFrame())) {
+    for (Frame* frame = &m_page->mainFrame(); frame; frame = frame->tree().traverseNext(&m_page->mainFrame())) {
         String content;
         Vector<CachedResource*> allResources = cachedResourcesForFrame(frame);
         for (Vector<CachedResource*>::const_iterator it = allResources.begin(); it != allResources.end(); ++it) {
@@ -868,7 +868,7 @@ void InspectorPageAgent::didClearWindowObjectInWorld(Frame* frame, DOMWrapperWor
     if (world != mainThreadNormalWorld())
         return;
 
-    if (frame == m_page->mainFrame())
+    if (frame == &m_page->mainFrame())
         m_injectedScriptManager->discardInjectedScripts();
 
     if (!m_frontend)
@@ -900,7 +900,7 @@ void InspectorPageAgent::loadEventFired()
 
 void InspectorPageAgent::frameNavigated(DocumentLoader* loader)
 {
-    if (loader->frame() == m_page->mainFrame()) {
+    if (loader->frame() == &m_page->mainFrame()) {
         m_scriptToEvaluateOnLoadOnce = m_pendingScriptToEvaluateOnLoadOnce;
         m_scriptPreprocessor = m_pendingScriptPreprocessor;
         m_pendingScriptToEvaluateOnLoadOnce = String();
@@ -921,7 +921,8 @@ void InspectorPageAgent::frameDetached(Frame* frame)
 
 Frame* InspectorPageAgent::mainFrame()
 {
-    return m_page->mainFrame();
+    // FIXME: This should return a Frame&
+    return &m_page->mainFrame();
 }
 
 Frame* InspectorPageAgent::frameForId(const String& frameId)
@@ -961,7 +962,7 @@ String InspectorPageAgent::loaderId(DocumentLoader* loader)
 
 Frame* InspectorPageAgent::findFrameWithSecurityOrigin(const String& originRawString)
 {
-    for (Frame* frame = m_page->mainFrame(); frame; frame = frame->tree()->traverseNext()) {
+    for (Frame* frame = &m_page->mainFrame(); frame; frame = frame->tree().traverseNext()) {
         RefPtr<SecurityOrigin> documentOrigin = frame->document()->securityOrigin();
         if (documentOrigin->toRawString() == originRawString)
             return frame;
@@ -1102,8 +1103,8 @@ PassRefPtr<TypeBuilder::Page::Frame> InspectorPageAgent::buildObjectForFrame(Fra
         .setUrl(frame->document()->url().string())
         .setMimeType(frame->loader().documentLoader()->responseMIMEType())
         .setSecurityOrigin(frame->document()->securityOrigin()->toRawString());
-    if (frame->tree()->parent())
-        frameObject->setParentId(frameId(frame->tree()->parent()));
+    if (frame->tree().parent())
+        frameObject->setParentId(frameId(frame->tree().parent()));
     if (frame->ownerElement()) {
         String name = frame->ownerElement()->getNameAttribute();
         if (name.isEmpty())
@@ -1141,7 +1142,7 @@ PassRefPtr<TypeBuilder::Page::FrameResourceTree> InspectorPageAgent::buildObject
     }
 
     RefPtr<TypeBuilder::Array<TypeBuilder::Page::FrameResourceTree> > childrenArray;
-    for (Frame* child = frame->tree()->firstChild(); child; child = child->tree()->nextSibling()) {
+    for (Frame* child = frame->tree().firstChild(); child; child = child->tree().nextSibling()) {
         if (!childrenArray) {
             childrenArray = TypeBuilder::Array<TypeBuilder::Page::FrameResourceTree>::create();
             result->setChildFrames(childrenArray);
@@ -1290,9 +1291,7 @@ void InspectorPageAgent::setEmulatedMedia(ErrorString*, const String& media)
         return;
 
     m_state->setString(PageAgentState::pageAgentEmulatedMedia, media);
-    Document* document = 0;
-    if (m_page->mainFrame())
-        document = m_page->mainFrame()->document();
+    Document* document = m_page->mainFrame().document();
     if (document) {
         document->styleResolverChanged(RecalcStyleImmediately);
         document->updateLayout();

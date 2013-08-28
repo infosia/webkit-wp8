@@ -102,6 +102,7 @@ SOURCES += \
      bindings/js/JSDOMBinding.cpp \
      bindings/js/JSDOMFormDataCustom.cpp \
      bindings/js/JSDOMGlobalObject.cpp \
+     bindings/js/JSDOMGlobalObjectTask.cpp \
      bindings/js/JSDOMImplementationCustom.cpp \
      bindings/js/JSDOMMimeTypeArrayCustom.cpp \
      bindings/js/JSDOMPluginArrayCustom.cpp \
@@ -1353,6 +1354,7 @@ HEADERS += \
     bindings/js/JSDictionary.h \
     bindings/js/JSDOMBinding.h \
     bindings/js/JSDOMGlobalObject.h \
+    bindings/js/JSDOMGlobalObjectTask.h \
     bindings/js/JSDOMWindowBase.h \
     bindings/js/JSDOMWindowCustom.h \
     bindings/js/JSDOMWindowShell.h \
@@ -1575,6 +1577,7 @@ HEADERS += \
     dom/CDATASection.h \
     dom/CharacterData.h \
     dom/CheckedRadioButtons.h \
+    dom/ChildIterator.h \
     dom/ChildNodeList.h \
     dom/ClassNodeList.h \
     dom/ClientRect.h \
@@ -1588,6 +1591,7 @@ HEADERS += \
     dom/ContextFeatures.h \
     dom/CustomEvent.h \
     dom/default/PlatformMessagePortChannel.h \
+    dom/DescendantIterator.h \
     dom/DeviceMotionClient.h \
     dom/DeviceMotionController.h \
     dom/DeviceMotionData.h \

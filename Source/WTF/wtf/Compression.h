@@ -33,12 +33,13 @@ namespace WTF {
 
 class GenericCompressedData {
     WTF_MAKE_NONCOPYABLE(GenericCompressedData)
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     WTF_EXPORT_PRIVATE static PassOwnPtr<GenericCompressedData> create(const uint8_t*, size_t);
     uint32_t compressedSize() const { return m_compressedSize; }
     uint32_t originalSize() const { return m_originalSize; }
 
-    WTF_EXPORT_PRIVATE bool decompress(uint8_t* destination, size_t bufferSize);
+    WTF_EXPORT_PRIVATE bool decompress(uint8_t* destination, size_t bufferSize, size_t* decompressedByteCount = 0);
     
 private:
     GenericCompressedData(size_t originalSize, size_t compressedSize)
@@ -51,10 +52,10 @@ private:
     }
     uint32_t m_originalSize;
     uint32_t m_compressedSize;
-    uint8_t m_data[];
+    uint8_t m_data[1];
 };
 
-template <typename T> class CompressedVector : private GenericCompressedData {
+template <typename T> class CompressedVector : public GenericCompressedData {
 public:
     static PassOwnPtr<CompressedVector> create(const Vector<T>& source)
     {
@@ -65,7 +66,12 @@ public:
     void decompress(Vector<T>& destination)
     {
         Vector<T> output(originalSize() / sizeof(T));
-        GenericCompressedData::decompress(reinterpret_cast<uint8_t*>(output.data()), originalSize());
+        ASSERT(output.size() * sizeof(T) == originalSize());
+        size_t decompressedByteCount = 0;
+        GenericCompressedData::decompress(reinterpret_cast<uint8_t*>(output.data()), originalSize(), &decompressedByteCount);
+        ASSERT(decompressedByteCount == originalSize());
+        ASSERT(output.size() * sizeof(T) == decompressedByteCount);
+
         destination.swap(output);
     }
 

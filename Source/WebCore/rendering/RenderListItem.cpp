@@ -225,7 +225,7 @@ static RenderObject* getParentOfFirstLineBox(RenderBlock* curr, RenderObject* ma
     if (!firstChild)
         return 0;
 
-    bool inQuirksMode = curr->document()->inQuirksMode();
+    bool inQuirksMode = curr->document().inQuirksMode();
     for (RenderObject* currChild = firstChild; currChild; currChild = currChild->nextSibling()) {
         if (currChild == marker)
             continue;
@@ -289,7 +289,7 @@ void RenderListItem::insertOrMoveMarkerRendererIfNeeded()
     if (newParent != currentParent) {
         // Removing and adding the marker can trigger repainting in
         // containers other than ourselves, so we need to disable LayoutState.
-        LayoutStateDisabler layoutStateDisabler(view());
+        LayoutStateDisabler layoutStateDisabler(&view());
         m_marker->remove();
         newParent->addChild(m_marker, firstNonMarkerChild(newParent));
         m_marker->updateMarginsAndContent();

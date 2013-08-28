@@ -73,6 +73,7 @@
 #import "WebCoreObjCExtras.h"
 #import "WebCoreSystemInterface.h"
 #import "htmlediting.h"
+#import <wtf/ObjcRuntimeExtras.h>
 
 using namespace WebCore;
 using namespace HTMLNames;
@@ -403,14 +404,6 @@ using namespace std;
 
 #pragma mark SystemInterface wrappers
 
-static inline id CFAutoreleaseHelper(CFTypeRef obj)
-{
-    if (obj)
-        CFMakeCollectable(obj);
-    [(id)obj autorelease];
-    return (id)obj;
-}
-
 static inline BOOL AXObjectIsTextMarker(id obj)
 {
     return obj != nil && CFGetTypeID(obj) == wkGetAXTextMarkerTypeID();
@@ -427,21 +420,21 @@ static id AXTextMarkerRange(id startMarker, id endMarker)
     ASSERT(endMarker != nil);
     ASSERT(CFGetTypeID(startMarker) == wkGetAXTextMarkerTypeID());
     ASSERT(CFGetTypeID(endMarker) == wkGetAXTextMarkerTypeID());
-    return CFAutoreleaseHelper(wkCreateAXTextMarkerRange((CFTypeRef)startMarker, (CFTypeRef)endMarker));
+    return HardAutorelease(wkCreateAXTextMarkerRange((CFTypeRef)startMarker, (CFTypeRef)endMarker));
 }
 
 static id AXTextMarkerRangeStart(id range)
 {
     ASSERT(range != nil);
     ASSERT(CFGetTypeID(range) == wkGetAXTextMarkerRangeTypeID());
-    return CFAutoreleaseHelper(wkCopyAXTextMarkerRangeStart(range));
+    return HardAutorelease(wkCopyAXTextMarkerRangeStart(range));
 }
 
 static id AXTextMarkerRangeEnd(id range)
 {
     ASSERT(range != nil);
     ASSERT(CFGetTypeID(range) == wkGetAXTextMarkerRangeTypeID());
-    return CFAutoreleaseHelper(wkCopyAXTextMarkerRangeEnd(range));
+    return HardAutorelease(wkCopyAXTextMarkerRangeEnd(range));
 }
 
 #pragma mark Search helpers
@@ -526,7 +519,7 @@ static id textMarkerForVisiblePosition(AXObjectCache* cache, const VisiblePositi
     if (!textMarkerData.axID)
         return nil;
     
-    return CFAutoreleaseHelper(wkCreateAXTextMarker(&textMarkerData, sizeof(textMarkerData)));
+    return HardAutorelease(wkCreateAXTextMarker(&textMarkerData, sizeof(textMarkerData)));
 }
 
 - (id)textMarkerForVisiblePosition:(const VisiblePosition &)visiblePos
@@ -713,7 +706,7 @@ static void AXAttributeStringSetBlockquoteLevel(NSMutableAttributedString* attrS
     if (!AXAttributedStringRangeIsValid(attrString, range))
         return;
     
-    AccessibilityObject* obj = renderer->document()->axObjectCache()->getOrCreate(renderer);
+    AccessibilityObject* obj = renderer->document().axObjectCache()->getOrCreate(renderer);
     int quoteLevel = obj->blockquoteLevel();
     
     if (quoteLevel)
@@ -776,7 +769,7 @@ static void AXAttributeStringSetHeadingLevel(NSMutableAttributedString* attrStri
     // Sometimes there are objects between the text and the heading.
     // In those cases the parent hierarchy should be queried to see if there is a heading level.
     int parentHeadingLevel = 0;
-    AccessibilityObject* parentObject = renderer->document()->axObjectCache()->getOrCreate(renderer->parent());
+    AccessibilityObject* parentObject = renderer->document().axObjectCache()->getOrCreate(renderer->parent());
     for (; parentObject; parentObject = parentObject->parentObject()) {
         parentHeadingLevel = parentObject->headingLevel();
         if (parentHeadingLevel)
@@ -801,11 +794,7 @@ static void AXAttributeStringSetElement(NSMutableAttributedString* attrString, N
         if (!renderer)
             return;
         
-        Document* doc = renderer->document();
-        if (!doc)
-            return;
-        
-        AXObjectCache* cache = doc->axObjectCache();
+        AXObjectCache* cache = renderer->document().axObjectCache();
         if (!cache)
             return;
         
@@ -862,7 +851,7 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
     }
     
     // create an AX object, but skip it if it is not supposed to be seen
-    RefPtr<AccessibilityObject> obj = replacedNode->renderer()->document()->axObjectCache()->getOrCreate(replacedNode->renderer());
+    RefPtr<AccessibilityObject> obj = replacedNode->renderer()->document().axObjectCache()->getOrCreate(replacedNode->renderer());
     if (obj->accessibilityIsIgnored())
         return nil;
     
@@ -917,7 +906,7 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
                 [attrString setAttributes:nil range:attrStringRange];
                 
                 // add the attachment attribute
-                AccessibilityObject* obj = replacedNode->renderer()->document()->axObjectCache()->getOrCreate(replacedNode->renderer());
+                AccessibilityObject* obj = replacedNode->renderer()->document().axObjectCache()->getOrCreate(replacedNode->renderer());
                 AXAttributeStringSetElement(attrString, NSAccessibilityAttachmentTextAttribute, obj, attrStringRange);
             }
         }
@@ -2577,9 +2566,9 @@ static NSString* roleValueToNSString(AccessibilityRole value)
     
     if (m_object->renderer()) {
         if ([attributeName isEqualToString: @"AXStartTextMarker"])
-            return [self textMarkerForVisiblePosition:startOfDocument(m_object->renderer()->document())];
+            return [self textMarkerForVisiblePosition:startOfDocument(&m_object->renderer()->document())];
         if ([attributeName isEqualToString: @"AXEndTextMarker"])
-            return [self textMarkerForVisiblePosition:endOfDocument(m_object->renderer()->document())];
+            return [self textMarkerForVisiblePosition:endOfDocument(&m_object->renderer()->document())];
     }
     
     if ([attributeName isEqualToString:NSAccessibilityBlockQuoteLevelAttribute])
@@ -3020,7 +3009,7 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         }
     }
     
-    page->contextMenuController().showContextMenuAt(page->mainFrame(), rect.center());
+    page->contextMenuController().showContextMenuAt(&page->mainFrame(), rect.center());
 }
 
 - (void)accessibilityScrollToVisible
@@ -3157,7 +3146,7 @@ static RenderObject* rendererForView(NSView* view)
     if (!renderer)
         return nil;
     
-    AccessibilityObject* obj = renderer->document()->axObjectCache()->getOrCreate(renderer);
+    AccessibilityObject* obj = renderer->document().axObjectCache()->getOrCreate(renderer);
     if (obj)
         return obj->parentObjectUnignored()->wrapper();
     return nil;

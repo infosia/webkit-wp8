@@ -229,14 +229,6 @@ static bool markerTypesFrom(const String& markerType, DocumentMarker::MarkerType
     return true;
 }
 
-static SpellChecker* spellchecker(Document* document)
-{
-    if (!document || !document->frame())
-        return 0;
-
-    return document->frame()->editor().spellChecker();
-}
-
 const char* Internals::internalsId = "internals";
 
 PassRefPtr<Internals> Internals::create(Document* document)
@@ -256,7 +248,7 @@ void Internals::resetToConsistentState(Page* page)
     page->setPagination(Pagination());
 
 #if USE(ACCELERATED_COMPOSITING)
-    FrameView* mainFrameView = page->mainFrame()->view();
+    FrameView* mainFrameView = page->mainFrame().view();
     if (mainFrameView) {
         mainFrameView->setHeaderHeight(0);
         mainFrameView->setFooterHeight(0);
@@ -273,10 +265,10 @@ void Internals::resetToConsistentState(Page* page)
     page->group().captionPreferences()->setCaptionsStyleSheetOverride(emptyString());
     page->group().captionPreferences()->setTestingMode(false);
 #endif
-    if (!page->mainFrame()->editor().isContinuousSpellCheckingEnabled())
-        page->mainFrame()->editor().toggleContinuousSpellChecking();
-    if (page->mainFrame()->editor().isOverwriteModeEnabled())
-        page->mainFrame()->editor().toggleOverwriteModeEnabled();
+    if (!page->mainFrame().editor().isContinuousSpellCheckingEnabled())
+        page->mainFrame().editor().toggleContinuousSpellChecking();
+    if (page->mainFrame().editor().isOverwriteModeEnabled())
+        page->mainFrame().editor().toggleOverwriteModeEnabled();
 }
 
 Internals::Internals(Document* document)
@@ -457,7 +449,7 @@ bool Internals::pauseAnimationAtTimeOnPseudoElement(const String& animationName,
         return false;
     }
 
-    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    PseudoElement* pseudoElement = pseudoId == "before" ? element->beforePseudoElement() : element->afterPseudoElement();
     if (!pseudoElement) {
         ec = INVALID_ACCESS_ERR;
         return false;
@@ -487,7 +479,7 @@ bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, dou
         return false;
     }
 
-    PseudoElement* pseudoElement = element->pseudoElement(pseudoId == "before" ? BEFORE : AFTER);
+    PseudoElement* pseudoElement = pseudoId == "before" ? element->beforePseudoElement() : element->afterPseudoElement();
     if (!pseudoElement) {
         ec = INVALID_ACCESS_ERR;
         return false;
@@ -705,7 +697,7 @@ Vector<String> Internals::formControlStateOfPreviousHistoryItem(ExceptionCode& e
         ec = INVALID_ACCESS_ERR;
         return Vector<String>();
     }
-    String uniqueName = frame()->tree()->uniqueName();
+    String uniqueName = frame()->tree().uniqueName();
     if (mainItem->target() != uniqueName && !mainItem->childItemWithTarget(uniqueName)) {
         ec = INVALID_ACCESS_ERR;
         return Vector<String>();
@@ -720,7 +712,7 @@ void Internals::setFormControlStateOfPreviousHistoryItem(const Vector<String>& s
         ec = INVALID_ACCESS_ERR;
         return;
     }
-    String uniqueName = frame()->tree()->uniqueName();
+    String uniqueName = frame()->tree().uniqueName();
     if (mainItem->target() == uniqueName)
         mainItem->setDocumentState(state);
     else if (HistoryItem* subItem = mainItem->childItemWithTarget(uniqueName))
@@ -1068,7 +1060,7 @@ String Internals::rangeAsText(const Range* range, ExceptionCode& ec)
 void Internals::setDelegatesScrolling(bool enabled, Document* document, ExceptionCode& ec)
 {
     // Delegate scrolling is valid only on mainframe's view.
-    if (!document || !document->view() || !document->page() || document->page()->mainFrame() != document->frame()) {
+    if (!document || !document->view() || !document->page() || &document->page()->mainFrame() != document->frame()) {
         ec = INVALID_ACCESS_ERR;
         return;
     }
@@ -1172,26 +1164,22 @@ PassRefPtr<ClientRect> Internals::bestZoomableAreaForTouchPoint(long x, long y, 
 
 int Internals::lastSpellCheckRequestSequence(Document* document, ExceptionCode& ec)
 {
-    SpellChecker* checker = spellchecker(document);
-
-    if (!checker) {
+    if (!document || !document->frame()) {
         ec = INVALID_ACCESS_ERR;
         return -1;
     }
 
-    return checker->lastRequestSequence();
+    return document->frame()->editor().spellChecker().lastRequestSequence();
 }
 
 int Internals::lastSpellCheckProcessedSequence(Document* document, ExceptionCode& ec)
 {
-    SpellChecker* checker = spellchecker(document);
-
-    if (!checker) {
+    if (!document || !document->frame()) {
         ec = INVALID_ACCESS_ERR;
         return -1;
     }
 
-    return checker->lastProcessedSequence();
+    return document->frame()->editor().spellChecker().lastProcessedSequence();
 }
 
 Vector<String> Internals::userPreferredLanguages() const
@@ -1507,7 +1495,7 @@ PassRefPtr<DOMWindow> Internals::openDummyInspectorFrontend(const String& url)
     Page* page = contextDocument()->frame()->page();
     ASSERT(page);
 
-    DOMWindow* window = page->mainFrame()->document()->domWindow();
+    DOMWindow* window = page->mainFrame().document()->domWindow();
     ASSERT(window);
 
     m_frontendWindow = window->open(url, "", "", window, window);
@@ -1578,7 +1566,7 @@ unsigned Internals::numberOfScrollableAreas(Document* document, ExceptionCode&)
     if (frame->view()->scrollableAreas())
         count += frame->view()->scrollableAreas()->size();
 
-    for (Frame* child = frame->tree()->firstChild(); child; child = child->tree()->nextSibling()) {
+    for (Frame* child = frame->tree().firstChild(); child; child = child->tree().nextSibling()) {
         if (child->view() && child->view()->scrollableAreas())
             count += child->view()->scrollableAreas()->size();
     }

@@ -608,14 +608,14 @@ bool Pasteboard::writeString(const String& type, const String& data)
     return true;
 }
 
-ListHashSet<String> Pasteboard::types()
+Vector<String> Pasteboard::types()
 {
     NSArray* types = supportedPasteboardTypes();
 
     // Enforce changeCount ourselves for security. We check after reading instead of before to be
     // sure it doesn't change between our testing the change count and accessing the data.
     if (m_changeCount != m_frame->editor().client()->pasteboardChangeCount())
-        return ListHashSet<String>();
+        return Vector<String>();
 
     ListHashSet<String> result;
     NSUInteger count = [types count];
@@ -624,7 +624,9 @@ ListHashSet<String> Pasteboard::types()
         addHTMLClipboardTypesForCocoaType(result, type);
     }
 
-    return result;
+    Vector<String> vector;
+    copyToVector(result, vector);
+    return vector;
 }
 
 Vector<String> Pasteboard::readFilenames()

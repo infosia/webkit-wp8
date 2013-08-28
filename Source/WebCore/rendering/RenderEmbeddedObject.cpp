@@ -109,7 +109,7 @@ RenderEmbeddedObject::RenderEmbeddedObject(Element* element)
     , m_mouseDownWasInUnavailablePluginIndicator(false)
 {
     // Actual size is not known yet, report the default intrinsic size.
-    view()->frameView().incrementVisuallyNonEmptyPixelCount(roundedIntSize(intrinsicSize()));
+    view().frameView().incrementVisuallyNonEmptyPixelCount(roundedIntSize(intrinsicSize()));
 }
 
 RenderEmbeddedObject::~RenderEmbeddedObject()
@@ -150,9 +150,9 @@ static String unavailablePluginReplacementText(RenderEmbeddedObject::PluginUnava
     return String();
 }
 
-static bool shouldUnavailablePluginMessageBeButton(Document* document, RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)
+static bool shouldUnavailablePluginMessageBeButton(Document& document, RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)
 {
-    Page* page = document->page();
+    Page* page = document.page();
     return page && page->chrome().client().shouldUnavailablePluginMessageBeButton(pluginUnavailabilityReason);
 }
 
@@ -227,9 +227,7 @@ void RenderEmbeddedObject::paintContents(PaintInfo& paintInfo, const LayoutPoint
 
 void RenderEmbeddedObject::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    Page* page = 0;
-    if (Frame* frame = this->frame())
-        page = frame->page();
+    Page* page = frame().page();
 
     if (isPluginUnavailable()) {
         if (page && paintInfo.phase == PaintPhaseForeground)
@@ -342,11 +340,7 @@ bool RenderEmbeddedObject::getReplacementTextGeometry(const LayoutPoint& accumul
     FontDescription fontDescription;
     RenderTheme::defaultTheme()->systemFont(CSSValueWebkitSmallControl, fontDescription);
     fontDescription.setWeight(FontWeightBold);
-    Settings* settings = document()->settings();
-    ASSERT(settings);
-    if (!settings)
-        return false;
-    fontDescription.setRenderingMode(settings->fontRenderingMode());
+    fontDescription.setRenderingMode(frame().settings().fontRenderingMode());
     fontDescription.setComputedSize(12);
     font = Font(fontDescription, 0, 0);
     font.update(0);
@@ -394,9 +388,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     // Check the opacity of each layer containing the element or its ancestors.
     float opacity = 1.0;
     for (RenderLayer* layer = enclosingLayer(); layer; layer = layer->parent()) {
-        RenderLayerModelObject* renderer = layer->renderer();
-        RenderStyle* style = renderer->style();
-        opacity *= style->opacity();
+        opacity *= layer->renderer().style()->opacity();
         if (opacity < 0.1)
             return true;
     }
@@ -408,7 +400,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     if (rect.isEmpty())
         return true;
 
-    RenderView* rootRenderView = document()->topDocument()->renderView();
+    RenderView* rootRenderView = document().topDocument()->renderView();
     ASSERT(rootRenderView);
     if (!rootRenderView)
         return true;
@@ -486,9 +478,9 @@ void RenderEmbeddedObject::layout()
         Element* element = toElement(node());
         if (element && element->isPluginElement() && toHTMLPlugInElement(element)->isPlugInImageElement()) {
             HTMLPlugInImageElement* plugInImageElement = toHTMLPlugInImageElement(element);
-            if (plugInImageElement->displayState() > HTMLPlugInElement::DisplayingSnapshot && plugInImageElement->snapshotDecision() == HTMLPlugInImageElement::MaySnapshotWhenResized && document()->view()) {
+            if (plugInImageElement->displayState() > HTMLPlugInElement::DisplayingSnapshot && plugInImageElement->snapshotDecision() == HTMLPlugInImageElement::MaySnapshotWhenResized) {
                 plugInImageElement->setNeedsCheckForSizeChange();
-                document()->view()->addWidgetToUpdate(this);
+                view().frameView().addWidgetToUpdate(this);
             }
         }
     }
@@ -513,7 +505,7 @@ void RenderEmbeddedObject::layout()
     // When calling layout() on a child node, a parent must either push a LayoutStateMaintainter, or
     // instantiate LayoutStateDisabler. Since using a LayoutStateMaintainer is slightly more efficient,
     // and this method will be called many times per second during playback, use a LayoutStateMaintainer:
-    LayoutStateMaintainer statePusher(view(), this, locationOffset(), hasTransform() || hasReflection() || style()->isFlippedBlocksWritingMode());
+    LayoutStateMaintainer statePusher(&view(), this, locationOffset(), hasTransform() || hasReflection() || style()->isFlippedBlocksWritingMode());
     
     childBox->setLocation(LayoutPoint(borderLeft(), borderTop()) + LayoutSize(paddingLeft(), paddingTop()));
     childBox->style()->setHeight(Length(newSize.height(), Fixed));
@@ -618,24 +610,20 @@ void RenderEmbeddedObject::handleUnavailablePluginIndicatorEvent(Event* event)
     if (event->type() == eventNames().mousedownEvent && static_cast<MouseEvent*>(event)->button() == LeftButton) {
         m_mouseDownWasInUnavailablePluginIndicator = isInUnavailablePluginIndicator(mouseEvent);
         if (m_mouseDownWasInUnavailablePluginIndicator) {
-            if (Frame* frame = document()->frame()) {
-                frame->eventHandler().setCapturingMouseEventsNode(element);
-                element->setIsCapturingMouseEvents(true);
-            }
+            frame().eventHandler().setCapturingMouseEventsNode(element);
+            element->setIsCapturingMouseEvents(true);
             setUnavailablePluginIndicatorIsPressed(true);
         }
         event->setDefaultHandled();
     }
     if (event->type() == eventNames().mouseupEvent && static_cast<MouseEvent*>(event)->button() == LeftButton) {
         if (m_unavailablePluginIndicatorIsPressed) {
-            if (Frame* frame = document()->frame()) {
-                frame->eventHandler().setCapturingMouseEventsNode(0);
-                element->setIsCapturingMouseEvents(false);
-            }
+            frame().eventHandler().setCapturingMouseEventsNode(0);
+            element->setIsCapturingMouseEvents(false);
             setUnavailablePluginIndicatorIsPressed(false);
         }
         if (m_mouseDownWasInUnavailablePluginIndicator && isInUnavailablePluginIndicator(mouseEvent)) {
-            if (Page* page = document()->page())
+            if (Page* page = document().page())
                 page->chrome().client().unavailablePluginButtonClicked(element, m_pluginUnavailabilityReason);
         }
         m_mouseDownWasInUnavailablePluginIndicator = false;

@@ -279,7 +279,7 @@ void InspectorDOMAgent::restore()
 Vector<Document*> InspectorDOMAgent::documents()
 {
     Vector<Document*> result;
-    for (Frame* frame = m_document->frame(); frame; frame = frame->tree()->traverseNext()) {
+    for (Frame* frame = m_document->frame(); frame; frame = frame->tree().traverseNext()) {
         Document* document = frame->document();
         if (!document)
             continue;
@@ -1750,7 +1750,7 @@ void InspectorDOMAgent::frameDocumentUpdated(Frame* frame)
 
     Page* page = frame->page();
     ASSERT(page);
-    if (frame != page->mainFrame())
+    if (frame != &page->mainFrame())
         return;
 
     // Only update the main frame document, nested frame document updates are not required

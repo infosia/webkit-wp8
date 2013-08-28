@@ -381,7 +381,7 @@ void FrameLoader::submitForm(PassRefPtr<FormSubmission> submission)
     // than replacing this frame's content, so this check is flawed. On the other hand, the check is hardly
     // needed any more now that we reset m_submittedFormURL on each mouse or key down event.
 
-    if (m_frame.tree()->isDescendantOf(targetFrame)) {
+    if (m_frame.tree().isDescendantOf(targetFrame)) {
         if (m_submittedFormURL == submission->requestURL())
             return;
         m_submittedFormURL = submission->requestURL();
@@ -669,11 +669,9 @@ void FrameLoader::didBeginDocument(bool dispatch)
     updateFirstPartyForCookies();
     m_frame.document()->initContentSecurityPolicy();
 
-    Settings* settings = m_frame.document()->settings();
-    if (settings) {
-        m_frame.document()->cachedResourceLoader()->setImagesEnabled(settings->areImagesEnabled());
-        m_frame.document()->cachedResourceLoader()->setAutoLoadImages(settings->loadsImagesAutomatically());
-    }
+    const Settings& settings = m_frame.settings();
+    m_frame.document()->cachedResourceLoader()->setImagesEnabled(settings.areImagesEnabled());
+    m_frame.document()->cachedResourceLoader()->setAutoLoadImages(settings.loadsImagesAutomatically());
 
     if (m_documentLoader) {
         String dnsPrefetchControl = m_documentLoader->response().httpHeaderField("X-DNS-Prefetch-Control");
@@ -741,7 +739,7 @@ void FrameLoader::loadDone()
 
 bool FrameLoader::allChildrenAreComplete() const
 {
-    for (Frame* child = m_frame.tree()->firstChild(); child; child = child->tree()->nextSibling()) {
+    for (Frame* child = m_frame.tree().firstChild(); child; child = child->tree().nextSibling()) {
         if (!child->loader().m_isComplete)
             return false;
     }
@@ -750,7 +748,7 @@ bool FrameLoader::allChildrenAreComplete() const
 
 bool FrameLoader::allAncestorsAreComplete() const
 {
-    for (Frame* ancestor = &m_frame; ancestor; ancestor = ancestor->tree()->parent()) {
+    for (Frame* ancestor = &m_frame; ancestor; ancestor = ancestor->tree().parent()) {
         if (!ancestor->loader().m_isComplete)
             return false;
     }
@@ -855,7 +853,7 @@ void FrameLoader::loadURLIntoChildFrame(const KURL& url, const String& referer, 
     ASSERT(childFrame);
 
 #if ENABLE(WEB_ARCHIVE) || ENABLE(MHTML)
-    RefPtr<Archive> subframeArchive = activeDocumentLoader()->popArchiveForSubframe(childFrame->tree()->uniqueName(), url);    
+    RefPtr<Archive> subframeArchive = activeDocumentLoader()->popArchiveForSubframe(childFrame->tree().uniqueName(), url);
     if (subframeArchive) {
         childFrame->loader().loadArchive(subframeArchive.release());
         return;
@@ -867,7 +865,7 @@ void FrameLoader::loadURLIntoChildFrame(const KURL& url, const String& referer, 
     // of this child frame with whatever was there at that point.
     if (parentItem && parentItem->children().size() && isBackForwardLoadType(loadType()) 
         && !m_frame.document()->loadEventFinished()) {
-        HistoryItem* childItem = parentItem->childItemWithTarget(childFrame->tree()->uniqueName());
+        HistoryItem* childItem = parentItem->childItemWithTarget(childFrame->tree().uniqueName());
         if (childItem) {
             childFrame->loader().m_requestedHistoryItem = childItem;
             childFrame->loader().loadDifferentDocumentItem(childItem, loadType(), MayAttemptCacheOnlyLoadForFormSubmissionItem);
@@ -940,7 +938,7 @@ String FrameLoader::outgoingReferrer() const
     // for why we walk the parent chain for srcdoc documents.
     Frame* frame = &m_frame;
     while (frame->document()->isSrcdocDocument()) {
-        frame = frame->tree()->parent();
+        frame = frame->tree().parent();
         // Srcdoc documents cannot be top-level documents, by definition,
         // because they need to be contained in iframes with the srcdoc.
         ASSERT(frame);
@@ -1005,15 +1003,15 @@ void FrameLoader::resetMultipleFormSubmissionProtection()
 
 void FrameLoader::updateFirstPartyForCookies()
 {
-    if (m_frame.tree()->parent())
-        setFirstPartyForCookies(m_frame.tree()->parent()->document()->firstPartyForCookies());
+    if (m_frame.tree().parent())
+        setFirstPartyForCookies(m_frame.tree().parent()->document()->firstPartyForCookies());
     else
         setFirstPartyForCookies(m_frame.document()->url());
 }
 
 void FrameLoader::setFirstPartyForCookies(const KURL& url)
 {
-    for (Frame* frame = &m_frame; frame; frame = frame->tree()->traverseNext(&m_frame))
+    for (Frame* frame = &m_frame; frame; frame = frame->tree().traverseNext(&m_frame))
         frame->document()->setFirstPartyForCookies(url);
 }
 
@@ -1093,10 +1091,10 @@ void FrameLoader::completed()
 {
     RefPtr<Frame> protect(&m_frame);
 
-    for (Frame* descendant = m_frame.tree()->traverseNext(&m_frame); descendant; descendant = descendant->tree()->traverseNext(&m_frame))
+    for (Frame* descendant = m_frame.tree().traverseNext(&m_frame); descendant; descendant = descendant->tree().traverseNext(&m_frame))
         descendant->navigationScheduler().startTimer();
 
-    if (Frame* parent = m_frame.tree()->parent())
+    if (Frame* parent = m_frame.tree().parent())
         parent->loader().checkCompleted();
 
     if (m_frame.view())
@@ -1108,7 +1106,7 @@ void FrameLoader::started()
 {
     if (m_frame.page())
         m_activityAssertion = m_frame.page()->createActivityToken();
-    for (Frame* frame = &m_frame; frame; frame = frame->tree()->parent())
+    for (Frame* frame = &m_frame; frame; frame = frame->tree().parent())
         frame->loader().m_isComplete = false;
 }
 
@@ -1215,8 +1213,8 @@ void FrameLoader::loadURL(const KURL& newURL, const String& referrer, const Stri
         addHTTPOriginIfNeeded(request, referrerOrigin->toString());
     }
 #if ENABLE(CACHE_PARTITIONING)
-    if (m_frame.tree()->top() != &m_frame)
-        request.setCachePartition(m_frame.tree()->top()->document()->securityOrigin()->cachePartition());
+    if (m_frame.tree().top() != &m_frame)
+        request.setCachePartition(m_frame.tree().top()->document()->securityOrigin()->cachePartition());
 #endif
     addExtraFieldsToRequest(request, newLoadType, true);
     if (newLoadType == FrameLoadTypeReload || newLoadType == FrameLoadTypeReloadFromOrigin)
@@ -1398,7 +1396,7 @@ void FrameLoader::loadWithDocumentLoader(DocumentLoader* loader, FrameLoadType t
         policyChecker()->checkNavigationPolicy(loader->request(), oldDocumentLoader.get(), formState,
             callContinueFragmentScrollAfterNavigationPolicy, this);
     } else {
-        if (Frame* parent = m_frame.tree()->parent())
+        if (Frame* parent = m_frame.tree().parent())
             loader->setOverrideEncoding(parent->loader().documentLoader()->overrideEncoding());
 
         policyChecker()->stopCheck();
@@ -1575,7 +1573,7 @@ void FrameLoader::stopAllLoaders(ClearProvisionalItemPolicy clearProvisionalItem
     if (clearProvisionalItemPolicy == ShouldClearProvisionalItem)
         history().setProvisionalItem(0);
 
-    for (RefPtr<Frame> child = m_frame.tree()->firstChild(); child; child = child->tree()->nextSibling())
+    for (RefPtr<Frame> child = m_frame.tree().firstChild(); child; child = child->tree().nextSibling())
         child->loader().stopAllLoaders(clearProvisionalItemPolicy);
     if (m_provisionalDocumentLoader)
         m_provisionalDocumentLoader->stopLoading();
@@ -1704,7 +1702,7 @@ void FrameLoader::commitProvisionalLoad()
     RefPtr<DocumentLoader> pdl = m_provisionalDocumentLoader;
     RefPtr<Frame> protect(&m_frame);
 
-    LOG(PageCache, "WebCoreLoading %s: About to commit provisional load from previous URL '%s' to new URL '%s'", m_frame.tree()->uniqueName().string().utf8().data(),
+    LOG(PageCache, "WebCoreLoading %s: About to commit provisional load from previous URL '%s' to new URL '%s'", m_frame.tree().uniqueName().string().utf8().data(),
         m_frame.document() ? m_frame.document()->url().stringCenterEllipsizedToLength().utf8().data() : "",
         pdl ? pdl->url().stringCenterEllipsizedToLength().utf8().data() : "<no provisional DocumentLoader>");
 
@@ -1713,7 +1711,7 @@ void FrameLoader::commitProvisionalLoad()
     // Check to see if we need to cache the page we are navigating away from into the back/forward cache.
     // We are doing this here because we know for sure that a new page is about to be loaded.
     HistoryItem* item = history().currentItem();
-    if (!m_frame.tree()->parent() && pageCache()->canCache(m_frame.page()) && !item->isInPageCache())
+    if (!m_frame.tree().parent() && pageCache()->canCache(m_frame.page()) && !item->isInPageCache())
         pageCache()->add(item, m_frame.page());
 
     if (m_loadType != FrameLoadTypeReplace)
@@ -1758,7 +1756,7 @@ void FrameLoader::commitProvisionalLoad()
         didOpenURL();
     }
 
-    LOG(Loading, "WebCoreLoading %s: Finished committing provisional load to URL %s", m_frame.tree()->uniqueName().string().utf8().data(),
+    LOG(Loading, "WebCoreLoading %s: Finished committing provisional load to URL %s", m_frame.tree().uniqueName().string().utf8().data(),
         m_frame.document() ? m_frame.document()->url().stringCenterEllipsizedToLength().utf8().data() : "");
 
     if (m_loadType == FrameLoadTypeStandard && m_documentLoader->isClientRedirect())
@@ -1948,7 +1946,7 @@ void FrameLoader::closeOldDataSources()
     // FIXME: Is it important for this traversal to be postorder instead of preorder?
     // If so, add helpers for postorder traversal, and use them. If not, then lets not
     // use a recursive algorithm here.
-    for (Frame* child = m_frame.tree()->firstChild(); child; child = child->tree()->nextSibling())
+    for (Frame* child = m_frame.tree().firstChild(); child; child = child->tree().nextSibling())
         child->loader().closeOldDataSources();
     
     if (m_documentLoader)
@@ -1959,9 +1957,9 @@ void FrameLoader::closeOldDataSources()
 
 void FrameLoader::prepareForCachedPageRestore()
 {
-    ASSERT(!m_frame.tree()->parent());
+    ASSERT(!m_frame.tree().parent());
     ASSERT(m_frame.page());
-    ASSERT(m_frame.page()->mainFrame() == &m_frame);
+    ASSERT(&m_frame.page()->mainFrame() == &m_frame);
 
     m_frame.navigationScheduler().cancel();
 
@@ -2030,7 +2028,7 @@ bool FrameLoader::isHostedByObjectElement() const
 
 bool FrameLoader::isLoadingMainFrame() const
 {
-    return m_frame.page() && m_frame.page()->mainFrame() == &m_frame;
+    return m_frame.page() && &m_frame.page()->mainFrame() == &m_frame;
 }
 
 bool FrameLoader::isReplacing() const
@@ -2046,7 +2044,7 @@ void FrameLoader::setReplacing()
 bool FrameLoader::subframeIsLoading() const
 {
     // It's most likely that the last added frame is the last to load so we walk backwards.
-    for (Frame* child = m_frame.tree()->lastChild(); child; child = child->tree()->previousSibling()) {
+    for (Frame* child = m_frame.tree().lastChild(); child; child = child->tree().previousSibling()) {
         FrameLoader& childLoader = child->loader();
         DocumentLoader* documentLoader = childLoader.documentLoader();
         if (documentLoader && documentLoader->isLoadingInAPISense())
@@ -2079,7 +2077,7 @@ CachePolicy FrameLoader::subresourceCachePolicy() const
     if (m_loadType == FrameLoadTypeReloadFromOrigin)
         return CachePolicyReload;
 
-    if (Frame* parentFrame = m_frame.tree()->parent()) {
+    if (Frame* parentFrame = m_frame.tree().parent()) {
         CachePolicy parentCachePolicy = parentFrame->loader().subresourceCachePolicy();
         if (parentCachePolicy != CachePolicyVerify)
             return parentCachePolicy;
@@ -2123,7 +2121,7 @@ void FrameLoader::checkLoadCompleteForThisFrame()
             if (Page* page = m_frame.page())
                 if (isBackForwardLoadType(loadType()))
                     // Reset the back forward list to the last committed history item at the top level.
-                    item = page->mainFrame()->loader().history().currentItem();
+                    item = page->mainFrame().loader().history().currentItem();
                 
             // Only reset if we aren't already going to a new provisional item.
             bool shouldReset = !history().provisionalItem();
@@ -2180,7 +2178,7 @@ void FrameLoader::checkLoadCompleteForThisFrame()
 
             m_progressTracker->progressCompleted();
             if (Page* page = m_frame.page()) {
-                if (&m_frame == page->mainFrame())
+                if (&m_frame == &page->mainFrame())
                     page->resetRelevantPaintedObjectCounter();
             }
 
@@ -2289,7 +2287,7 @@ void FrameLoader::didLayout(LayoutMilestones milestones)
 {
 #if !ASSERT_DISABLED
     if (Page* page = m_frame.page())
-        ASSERT(page->mainFrame() == &m_frame);
+        ASSERT(&page->mainFrame() == &m_frame);
 #endif
 
     m_client.dispatchDidLayout(milestones);
@@ -2322,8 +2320,8 @@ void FrameLoader::detachChildren()
 {
     typedef Vector<RefPtr<Frame> > FrameVector;
     FrameVector childrenToDetach;
-    childrenToDetach.reserveCapacity(m_frame.tree()->childCount());
-    for (Frame* child = m_frame.tree()->lastChild(); child; child = child->tree()->previousSibling())
+    childrenToDetach.reserveCapacity(m_frame.tree().childCount());
+    for (Frame* child = m_frame.tree().lastChild(); child; child = child->tree().previousSibling())
         childrenToDetach.append(child);
     FrameVector::iterator end = childrenToDetach.end();
     for (FrameVector::iterator it = childrenToDetach.begin(); it != end; ++it)
@@ -2332,7 +2330,7 @@ void FrameLoader::detachChildren()
 
 void FrameLoader::closeAndRemoveChild(Frame* child)
 {
-    child->tree()->detachFromParent();
+    child->tree().detachFromParent();
 
     child->setView(0);
     if (child->ownerElement() && child->page())
@@ -2340,7 +2338,7 @@ void FrameLoader::closeAndRemoveChild(Frame* child)
     child->willDetachPage();
     child->detachFromPage();
 
-    m_frame.tree()->removeChild(child);
+    m_frame.tree().removeChild(child);
 }
 
 // Called every time a resource is completely loaded or an error is received.
@@ -2354,7 +2352,7 @@ void FrameLoader::checkLoadComplete()
     // is currently needed in order to null out the previous history item for all frames.
     if (Page* page = m_frame.page()) {
         Vector<RefPtr<Frame>, 10> frames;
-        for (RefPtr<Frame> frame = page->mainFrame(); frame; frame = frame->tree()->traverseNext())
+        for (RefPtr<Frame> frame = &page->mainFrame(); frame; frame = frame->tree().traverseNext())
             frames.append(frame);
         // To process children before their parents, iterate the vector backwards.
         for (size_t i = frames.size(); i; --i)
@@ -2368,7 +2366,7 @@ int FrameLoader::numPendingOrLoadingRequests(bool recurse) const
         return m_frame.document()->cachedResourceLoader()->requestCount();
 
     int count = 0;
-    for (Frame* frame = &m_frame; frame; frame = frame->tree()->traverseNext(&m_frame))
+    for (Frame* frame = &m_frame; frame; frame = frame->tree().traverseNext(&m_frame))
         count += frame->document()->cachedResourceLoader()->requestCount();
     return count;
 }
@@ -2413,7 +2411,7 @@ void FrameLoader::detachFromParent()
 
     m_progressTracker.clear();
 
-    if (Frame* parent = m_frame.tree()->parent()) {
+    if (Frame* parent = m_frame.tree().parent()) {
         parent->loader().closeAndRemoveChild(&m_frame);
         parent->loader().scheduleCheckCompleted();
     } else {
@@ -2588,7 +2586,7 @@ unsigned long FrameLoader::loadResourceSynchronously(const ResourceRequest& requ
     addHTTPOriginIfNeeded(initialRequest, outgoingOrigin());
 
     if (Page* page = m_frame.page())
-        initialRequest.setFirstPartyForCookies(page->mainFrame()->loader().documentLoader()->request().url());
+        initialRequest.setFirstPartyForCookies(page->mainFrame().loader().documentLoader()->request().url());
     
     addExtraFieldsToSubresourceRequest(initialRequest);
 
@@ -2726,7 +2724,7 @@ bool FrameLoader::shouldClose()
     // Store all references to each subframe in advance since beforeunload's event handler may modify frame
     Vector<RefPtr<Frame> > targetFrames;
     targetFrames.append(&m_frame);
-    for (Frame* child = m_frame.tree()->firstChild(); child; child = child->tree()->traverseNext(&m_frame))
+    for (Frame* child = m_frame.tree().firstChild(); child; child = child->tree().traverseNext(&m_frame))
         targetFrames.append(child);
 
     bool shouldClose = false;
@@ -2735,7 +2733,7 @@ bool FrameLoader::shouldClose()
         size_t i;
 
         for (i = 0; i < targetFrames.size(); i++) {
-            if (!targetFrames[i]->tree()->isDescendantOf(&m_frame))
+            if (!targetFrames[i]->tree().isDescendantOf(&m_frame))
                 continue;
             if (!targetFrames[i]->loader().handleBeforeUnloadEvent(page->chrome(), this))
                 break;
@@ -2788,7 +2786,7 @@ bool FrameLoader::handleBeforeUnloadEvent(Chrome& chrome, FrameLoader* frameLoad
     // We should only display the beforeunload dialog for an iframe if its SecurityOrigin matches all
     // ancestor frame SecurityOrigins up through the navigating FrameLoader.
     if (frameLoaderBeingNavigated != this) {
-        Frame* parentFrame = m_frame.tree()->parent();
+        Frame* parentFrame = m_frame.tree().parent();
         while (parentFrame) {
             Document* parentDocument = parentFrame->document();
             if (!parentDocument)
@@ -2801,7 +2799,7 @@ bool FrameLoader::handleBeforeUnloadEvent(Chrome& chrome, FrameLoader* frameLoad
             if (&parentFrame->loader() == frameLoaderBeingNavigated)
                 break;
             
-            parentFrame = parentFrame->tree()->parent();
+            parentFrame = parentFrame->tree().parent();
         }
         
         // The navigatingFrameLoader should always be in our ancestory.
@@ -2843,8 +2841,7 @@ void FrameLoader::continueLoadAfterNavigationPolicy(const ResourceRequest&, Pass
         // we only do this when punting a navigation for the target frame or top-level frame.  
         if ((isTargetItem || isLoadingMainFrame()) && isBackForwardLoadType(policyChecker()->loadType())) {
             if (Page* page = m_frame.page()) {
-                Frame* mainFrame = page->mainFrame();
-                if (HistoryItem* resetItem = mainFrame->loader().history().currentItem()) {
+                if (HistoryItem* resetItem = page->mainFrame().loader().history().currentItem()) {
                     page->backForward()->setCurrentItem(resetItem);
                     m_frame.loader().client().updateGlobalHistoryItemForPage();
                 }
@@ -2864,7 +2861,7 @@ void FrameLoader::continueLoadAfterNavigationPolicy(const ResourceRequest&, Pass
 
 #if ENABLE(JAVASCRIPT_DEBUGGER) && ENABLE(INSPECTOR)
     if (Page* page = m_frame.page()) {
-        if (page->mainFrame() == &m_frame)
+        if (&page->mainFrame() == &m_frame)
             page->inspectorController()->resume();
     }
 #endif
@@ -2905,7 +2902,7 @@ void FrameLoader::continueLoadAfterNewWindowPolicy(const ResourceRequest& reques
         return;
 
     if (frameName != "_blank")
-        mainFrame->tree()->setName(frameName);
+        mainFrame->tree().setName(frameName);
 
     mainFrame->page()->setOpenedByDOM();
     mainFrame->loader().m_client.dispatchShow();
@@ -2983,7 +2980,7 @@ bool FrameLoader::shouldInterruptLoadForXFrameOptions(const String& content, con
 {
     FeatureObserver::observe(m_frame.document(), FeatureObserver::XFrameOptions);
 
-    Frame* topFrame = m_frame.tree()->top();
+    Frame* topFrame = m_frame.tree().top();
     if (&m_frame == topFrame)
         return false;
 
@@ -2995,7 +2992,7 @@ bool FrameLoader::shouldInterruptLoadForXFrameOptions(const String& content, con
         RefPtr<SecurityOrigin> origin = SecurityOrigin::create(url);
         if (!origin->isSameSchemeHostPort(topFrame->document()->securityOrigin()))
             return true;
-        for (Frame* frame = m_frame.tree()->parent(); frame; frame = frame->tree()->parent()) {
+        for (Frame* frame = m_frame.tree().parent(); frame; frame = frame->tree().parent()) {
             if (!origin->isSameSchemeHostPort(frame->document()->securityOrigin())) {
                 FeatureObserver::observe(m_frame.document(), FeatureObserver::XFrameOptionsSameOriginWithBadAncestorChain);
                 break;
@@ -3070,7 +3067,7 @@ void FrameLoader::checkDidPerformFirstNavigation()
 
 Frame* FrameLoader::findFrameForNavigation(const AtomicString& name, Document* activeDocument)
 {
-    Frame* frame = m_frame.tree()->find(name);
+    Frame* frame = m_frame.tree().find(name);
 
     // From http://www.whatwg.org/specs/web-apps/current-work/#seamlessLinks:
     //
@@ -3082,7 +3079,7 @@ Frame* FrameLoader::findFrameForNavigation(const AtomicString& name, Document* a
     // browsing context flag set, and continue these steps as if that
     // browsing context was the one that was going to be navigated instead.
     if (frame == &m_frame && name != "_self" && m_frame.document()->shouldDisplaySeamlesslyWithParent()) {
-        for (Frame* ancestor = &m_frame; ancestor; ancestor = ancestor->tree()->parent()) {
+        for (Frame* ancestor = &m_frame; ancestor; ancestor = ancestor->tree().parent()) {
             if (!ancestor->document()->shouldDisplaySeamlesslyWithParent()) {
                 frame = ancestor;
                 break;
@@ -3291,7 +3288,7 @@ void FrameLoader::dispatchGlobalObjectAvailableInAllWorlds()
 SandboxFlags FrameLoader::effectiveSandboxFlags() const
 {
     SandboxFlags flags = m_forcedSandboxFlags;
-    if (Frame* parentFrame = m_frame.tree()->parent())
+    if (Frame* parentFrame = m_frame.tree().parent())
         flags |= parentFrame->document()->sandboxFlags();
     if (HTMLFrameOwnerElement* ownerElement = m_frame.ownerElement())
         flags |= ownerElement->sandboxFlags();
@@ -3331,7 +3328,7 @@ void FrameLoader::dispatchDidCommitLoad()
 
     InspectorInstrumentation::didCommitLoad(&m_frame, m_documentLoader.get());
 
-    if (m_frame.page()->mainFrame() == &m_frame)
+    if (&m_frame.page()->mainFrame() == &m_frame)
         m_frame.page()->featureObserver()->didCommitLoad();
 
 }
@@ -3370,7 +3367,7 @@ NetworkingContext* FrameLoader::networkingContext() const
 
 void FrameLoader::loadProgressingStatusChanged()
 {
-    FrameView* view = m_frame.page()->mainFrame()->view();
+    FrameView* view = m_frame.page()->mainFrame().view();
     view->updateLayerFlushThrottlingInAllFrames();
     view->adjustTiledBackingCoverage();
 }
@@ -3428,12 +3425,10 @@ PassRefPtr<Frame> createWindow(Frame* openerFrame, Frame* lookupFrame, const Fra
     if (!page)
         return 0;
 
-    Frame* frame = page->mainFrame();
-
-    frame->loader().forceSandboxFlags(openerFrame->document()->sandboxFlags());
+    page->mainFrame().loader().forceSandboxFlags(openerFrame->document()->sandboxFlags());
 
     if (request.frameName() != "_blank")
-        frame->tree()->setName(request.frameName());
+        page->mainFrame().tree().setName(request.frameName());
 
     page->chrome().setToolbarsVisible(features.toolBarVisible || features.locationBarVisible);
     page->chrome().setStatusbarVisible(features.statusBarVisible);
@@ -3465,7 +3460,7 @@ PassRefPtr<Frame> createWindow(Frame* openerFrame, Frame* lookupFrame, const Fra
     page->chrome().show();
 
     created = true;
-    return frame;
+    return &page->mainFrame();
 }
 
 } // namespace WebCore

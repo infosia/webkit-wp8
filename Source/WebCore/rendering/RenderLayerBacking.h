@@ -207,8 +207,8 @@ private:
     
     PassOwnPtr<GraphicsLayer> createGraphicsLayer(const String&);
 
-    RenderLayerModelObject* renderer() const { return m_owningLayer->renderer(); }
-    RenderLayerCompositor* compositor() const { return m_owningLayer->compositor(); }
+    RenderLayerModelObject& renderer() const { return m_owningLayer->renderer(); }
+    RenderLayerCompositor& compositor() const { return m_owningLayer->compositor(); }
 
     void updateInternalHierarchy();
     bool updateClippingLayers(bool needsAncestorClip, bool needsDescendantClip);

@@ -1,0 +1,4 @@
+ -*- mode: Org -*-
+
+https://developer.apple.com/legacy/library/documentation/DeveloperTools/gcc-4.2.1/cpp/Preprocessor-Output.html
+

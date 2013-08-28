@@ -75,6 +75,7 @@
 #include "RenderTextControlSingleLine.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
+#include "RuntimeApplicationChecks.h"
 #include "ScrollAnimator.h"
 #include "Scrollbar.h"
 #include "Settings.h"
@@ -332,6 +333,7 @@ EventHandler::EventHandler(Frame* frame)
     , m_clickCount(0)
     , m_mousePositionIsUnknown(true)
     , m_mouseDownTimestamp(0)
+    , m_inTrackingScrollGesturePhase(false)
     , m_widgetIsLatched(false)
 #if PLATFORM(MAC)
     , m_mouseDownView(nil)
@@ -1034,13 +1036,13 @@ HitTestResult EventHandler::hitTestResultAtPoint(const LayoutPoint& point, HitTe
     // We always send hitTestResultAtPoint to the main frame if we have one,
     // otherwise we might hit areas that are obscured by higher frames.
     if (Page* page = m_frame->page()) {
-        Frame* mainFrame = page->mainFrame();
-        if (m_frame != mainFrame) {
+        Frame& mainFrame = page->mainFrame();
+        if (m_frame != &mainFrame) {
             FrameView* frameView = m_frame->view();
-            FrameView* mainView = mainFrame->view();
+            FrameView* mainView = mainFrame.view();
             if (frameView && mainView) {
                 IntPoint mainFramePoint = mainView->rootViewToContents(frameView->contentsToRootView(roundedIntPoint(point)));
-                return mainFrame->eventHandler().hitTestResultAtPoint(mainFramePoint, hitType, padding);
+                return mainFrame.eventHandler().hitTestResultAtPoint(mainFramePoint, hitType, padding);
             }
         }
     }
@@ -1130,7 +1132,7 @@ bool EventHandler::scrollRecursively(ScrollDirection direction, ScrollGranularit
     FrameView* view = frame->view();
     if (view && view->scroll(direction, granularity))
         return true;
-    frame = frame->tree()->parent();
+    frame = frame->tree().parent();
     if (!frame)
         return false;
     return frame->eventHandler().scrollRecursively(direction, granularity, m_frame->ownerElement());
@@ -1158,7 +1160,7 @@ bool EventHandler::logicalScrollRecursively(ScrollLogicalDirection direction, Sc
     if (scrolled)
         return true;
     
-    frame = frame->tree()->parent();
+    frame = frame->tree().parent();
     if (!frame)
         return false;
 
@@ -1290,7 +1292,7 @@ OptionalCursor EventHandler::selectCursor(const HitTestResult& result, bool shif
     if (!page)
         return NoCursorChange;
 #if ENABLE(PAN_SCROLLING)
-    if (page->mainFrame()->eventHandler().panScrollInProgress())
+    if (page->mainFrame().eventHandler().panScrollInProgress())
         return NoCursorChange;
 #endif
 
@@ -1565,7 +1567,7 @@ bool EventHandler::handleMousePressEvent(const PlatformMouseEvent& mouseEvent)
 #if ENABLE(PAN_SCROLLING)
     // We store whether pan scrolling is in progress before calling stopAutoscrollTimer()
     // because it will set m_autoscrollType to NoAutoscroll on return.
-    bool isPanScrollInProgress = m_frame->page() && m_frame->page()->mainFrame()->eventHandler().panScrollInProgress();
+    bool isPanScrollInProgress = m_frame->page() && m_frame->page()->mainFrame().eventHandler().panScrollInProgress();
     stopAutoscrollTimer();
     if (isPanScrollInProgress) {
         // We invalidate the click when exiting pan scrolling so that we don't inadvertently navigate
@@ -1802,7 +1804,7 @@ bool EventHandler::handleMouseMoveEvent(const PlatformMouseEvent& mouseEvent, Hi
     RefPtr<Frame> newSubframe = m_capturingMouseEventsNode.get() ? subframeForTargetNode(m_capturingMouseEventsNode.get()) : subframeForHitTestResult(mev);
  
     // We want mouseouts to happen first, from the inside out.  First send a move event to the last subframe so that it will fire mouseouts.
-    if (m_lastMouseMoveEventSubframe && m_lastMouseMoveEventSubframe->tree()->isDescendantOf(m_frame) && m_lastMouseMoveEventSubframe != newSubframe)
+    if (m_lastMouseMoveEventSubframe && m_lastMouseMoveEventSubframe->tree().isDescendantOf(m_frame) && m_lastMouseMoveEventSubframe != newSubframe)
         passMouseMoveEventToSubframe(mev, m_lastMouseMoveEventSubframe.get());
 
     if (newSubframe) {
@@ -1963,9 +1965,9 @@ bool EventHandler::handlePasteGlobalSelection(const PlatformMouseEvent& mouseEve
 
     if (!m_frame->page())
         return false;
-    Frame* focusFrame = m_frame->page()->focusController().focusedOrMainFrame();
+    Frame& focusFrame = m_frame->page()->focusController().focusedOrMainFrame();
     // Do not paste here if the focus was moved somewhere else.
-    if (m_frame == focusFrame && m_frame->editor().client()->supportsGlobalSelection())
+    if (m_frame == &focusFrame && m_frame->editor().client()->supportsGlobalSelection())
         return m_frame->editor().command(ASCIILiteral("PasteGlobalSelection")).execute();
 
     return false;
@@ -2435,6 +2437,41 @@ bool EventHandler::shouldTurnVerticalTicksIntoHorizontal(const HitTestResult&, c
 }
 #endif
 
+void EventHandler::recordWheelEventDelta(const PlatformWheelEvent& event)
+{
+    const size_t recentEventCount = 3;
+    
+    m_recentWheelEventDeltas.append(FloatSize(event.deltaX(), event.deltaY()));
+    if (m_recentWheelEventDeltas.size() > recentEventCount)
+        m_recentWheelEventDeltas.removeFirst();
+}
+
+static bool deltaIsPredominantlyVertical(const FloatSize& delta)
+{
+    return fabs(delta.height()) > fabs(delta.width());
+}
+
+EventHandler::DominantScrollGestureDirection EventHandler::dominantScrollGestureDirection() const
+{
+    bool allVertical = m_recentWheelEventDeltas.size();
+    bool allHorizontal = m_recentWheelEventDeltas.size();
+
+    Deque<FloatSize>::const_iterator end = m_recentWheelEventDeltas.end();
+    for (Deque<FloatSize>::const_iterator it = m_recentWheelEventDeltas.begin(); it != end; ++it) {
+        bool isVertical = deltaIsPredominantlyVertical(*it);
+        allVertical &= isVertical;
+        allHorizontal &= !isVertical;
+    }
+    
+    if (allVertical)
+        return DominantScrollDirectionVertical;
+
+    if (allHorizontal)
+        return DominantScrollDirectionHorizontal;
+    
+    return DominantScrollDirectionNone;
+}
+
 bool EventHandler::handleWheelEvent(const PlatformWheelEvent& e)
 {
     Document* doc = m_frame->document();
@@ -2490,6 +2527,22 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& e)
     if (m_baseEventType == PlatformEvent::NoType && shouldTurnVerticalTicksIntoHorizontal(result, e))
         event = event.copyTurningVerticalTicksIntoHorizontalTicks();
 
+#if PLATFORM(MAC)
+    switch (event.phase()) {
+    case PlatformWheelEventPhaseBegan:
+        m_recentWheelEventDeltas.clear();
+        m_inTrackingScrollGesturePhase = true;
+        break;
+    case PlatformWheelEventPhaseEnded:
+        m_inTrackingScrollGesturePhase = false;
+        break;
+    default:
+        break;
+    }
+#endif
+
+    recordWheelEventDelta(event);
+
     if (node) {
         // Figure out which view to send the event to.
         RenderObject* target = node->renderer();
@@ -2524,12 +2577,17 @@ void EventHandler::defaultWheelEventHandler(Node* startNode, WheelEvent* wheelEv
     Node* stopNode = m_previousWheelScrolledNode.get();
     ScrollGranularity granularity = wheelGranularityToScrollGranularity(wheelEvent->deltaMode());
     
+    DominantScrollGestureDirection dominantDirection = DominantScrollDirectionNone;
+    // Workaround for scrolling issues in iTunes (<rdar://problem/14758615>).
+    if (m_inTrackingScrollGesturePhase && applicationIsITunes())
+        dominantDirection = dominantScrollGestureDirection();
+    
     // Break up into two scrolls if we need to.  Diagonal movement on 
     // a MacBook pro is an example of a 2-dimensional mouse wheel event (where both deltaX and deltaY can be set).
-    if (scrollNode(wheelEvent->rawDeltaX(), granularity, ScrollLeft, ScrollRight, startNode, &stopNode))
+    if (dominantDirection != DominantScrollDirectionVertical && scrollNode(wheelEvent->deltaX(), granularity, ScrollRight, ScrollLeft, startNode, &stopNode))
         wheelEvent->setDefaultHandled();
     
-    if (scrollNode(wheelEvent->rawDeltaY(), granularity, ScrollUp, ScrollDown, startNode, &stopNode))
+    if (dominantDirection != DominantScrollDirectionHorizontal && scrollNode(wheelEvent->deltaY(), granularity, ScrollDown, ScrollUp, startNode, &stopNode))
         wheelEvent->setDefaultHandled();
     
     if (!m_latchedWheelEventNode)
@@ -3226,7 +3284,7 @@ bool EventHandler::keyEvent(const PlatformKeyboardEvent& initialKeyEvent)
 
 #if ENABLE(PAN_SCROLLING)
     if (Page* page = m_frame->page()) {
-        if (page->mainFrame()->eventHandler().panScrollInProgress()) {
+        if (page->mainFrame().eventHandler().panScrollInProgress()) {
             // If a key is pressed while the panScroll is in progress then we want to stop
             if (initialKeyEvent.type() == PlatformEvent::KeyDown || initialKeyEvent.type() == PlatformEvent::RawKeyDown) 
                 stopAutoscrollTimer();
@@ -3244,7 +3302,7 @@ bool EventHandler::keyEvent(const PlatformKeyboardEvent& initialKeyEvent)
         return false;
 
     UserGestureIndicator gestureIndicator(DefinitelyProcessingUserGesture);
-    UserTypingGestureIndicator typingGestureIndicator(m_frame);
+    UserTypingGestureIndicator typingGestureIndicator(*m_frame);
 
     if (FrameView* view = m_frame->view())
         view->resetDeferredRepaintDelay();
@@ -3278,7 +3336,7 @@ bool EventHandler::keyEvent(const PlatformKeyboardEvent& initialKeyEvent)
     if (initialKeyEvent.type() == PlatformEvent::RawKeyDown) {
         node->dispatchEvent(keydown, IGNORE_EXCEPTION);
         // If frame changed as a result of keydown dispatch, then return true to avoid sending a subsequent keypress message to the new frame.
-        bool changedFocusedFrame = m_frame->page() && m_frame != m_frame->page()->focusController().focusedOrMainFrame();
+        bool changedFocusedFrame = m_frame->page() && m_frame != &m_frame->page()->focusController().focusedOrMainFrame();
         return keydown->defaultHandled() || keydown->defaultPrevented() || changedFocusedFrame;
     }
 
@@ -3300,7 +3358,7 @@ bool EventHandler::keyEvent(const PlatformKeyboardEvent& initialKeyEvent)
 
     node->dispatchEvent(keydown, IGNORE_EXCEPTION);
     // If frame changed as a result of keydown dispatch, then return early to avoid sending a subsequent keypress message to the new frame.
-    bool changedFocusedFrame = m_frame->page() && m_frame != m_frame->page()->focusController().focusedOrMainFrame();
+    bool changedFocusedFrame = m_frame->page() && m_frame != &m_frame->page()->focusController().focusedOrMainFrame();
     bool keydownResult = keydown->defaultHandled() || keydown->defaultPrevented() || changedFocusedFrame;
     if (handledByInputMethod || (keydownResult && !backwardCompatibilityMode))
         return keydownResult;

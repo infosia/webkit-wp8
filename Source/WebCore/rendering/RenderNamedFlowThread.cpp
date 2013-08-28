@@ -82,7 +82,7 @@ void RenderNamedFlowThread::clearContentNodes()
         
         ASSERT(contentNode && contentNode->isElementNode());
         ASSERT(contentNode->inNamedFlow());
-        ASSERT(contentNode->document() == document());
+        ASSERT(contentNode->document() == &document());
         
         contentNode->clearInNamedFlow();
     }
@@ -412,7 +412,7 @@ void RenderNamedFlowThread::addDependencyOnFlowThread(RenderNamedFlowThread* oth
     RenderNamedFlowThreadCountedSet::AddResult result = m_layoutBeforeThreadsSet.add(otherFlowThread);
     if (result.isNewEntry) {
         // This is the first time we see this dependency. Make sure we recalculate all the dependencies.
-        view()->flowThreadController()->setIsRenderNamedFlowThreadOrderDirty(true);
+        view().flowThreadController().setIsRenderNamedFlowThreadOrderDirty(true);
     }
 }
 
@@ -421,7 +421,7 @@ void RenderNamedFlowThread::removeDependencyOnFlowThread(RenderNamedFlowThread* 
     bool removed = m_layoutBeforeThreadsSet.remove(otherFlowThread);
     if (removed) {
         checkInvalidRegions();
-        view()->flowThreadController()->setIsRenderNamedFlowThreadOrderDirty(true);
+        view().flowThreadController().setIsRenderNamedFlowThreadOrderDirty(true);
     }
 }
 
@@ -442,7 +442,7 @@ void RenderNamedFlowThread::pushDependencies(RenderNamedFlowThreadList& list)
 void RenderNamedFlowThread::registerNamedFlowContentNode(Node* contentNode)
 {
     ASSERT(contentNode && contentNode->isElementNode());
-    ASSERT(contentNode->document() == document());
+    ASSERT(contentNode->document() == &document());
 
     contentNode->setInNamedFlow();
 
@@ -465,7 +465,7 @@ void RenderNamedFlowThread::unregisterNamedFlowContentNode(Node* contentNode)
     ASSERT(contentNode && contentNode->isElementNode());
     ASSERT(m_contentNodes.contains(contentNode));
     ASSERT(contentNode->inNamedFlow());
-    ASSERT(contentNode->document() == document());
+    ASSERT(contentNode->document() == &document());
 
     contentNode->clearInNamedFlow();
     m_contentNodes.remove(contentNode);
@@ -496,7 +496,7 @@ bool RenderNamedFlowThread::isChildAllowed(RenderObject* child, RenderStyle* sty
 void RenderNamedFlowThread::dispatchRegionLayoutUpdateEvent()
 {
     RenderFlowThread::dispatchRegionLayoutUpdateEvent();
-    InspectorInstrumentation::didUpdateRegionLayout(document(), m_namedFlow.get());
+    InspectorInstrumentation::didUpdateRegionLayout(&document(), m_namedFlow.get());
 
     if (!m_regionLayoutUpdateEventTimer.isActive() && m_namedFlow->hasEventListeners())
         m_regionLayoutUpdateEventTimer.startOneShot(0);
@@ -505,7 +505,7 @@ void RenderNamedFlowThread::dispatchRegionLayoutUpdateEvent()
 void RenderNamedFlowThread::dispatchRegionOversetChangeEvent()
 {
     RenderFlowThread::dispatchRegionOversetChangeEvent();
-    InspectorInstrumentation::didChangeRegionOverset(document(), m_namedFlow.get());
+    InspectorInstrumentation::didChangeRegionOverset(&document(), m_namedFlow.get());
     
     if (!m_regionOversetChangeEventTimer.isActive() && m_namedFlow->hasEventListeners())
         m_regionOversetChangeEventTimer.startOneShot(0);

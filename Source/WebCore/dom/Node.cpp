@@ -895,7 +895,7 @@ Node* Node::pseudoAwarePreviousSibling() const
         if (isAfterPseudoElement() && parentOrHost->lastChild())
             return parentOrHost->lastChild();
         if (!isBeforePseudoElement())
-            return parentOrHost->pseudoElement(BEFORE);
+            return parentOrHost->beforePseudoElement();
     }
     return previousSibling();
 }
@@ -907,7 +907,7 @@ Node* Node::pseudoAwareNextSibling() const
         if (isBeforePseudoElement() && parentOrHost->firstChild())
             return parentOrHost->firstChild();
         if (!isAfterPseudoElement())
-            return parentOrHost->pseudoElement(AFTER);
+            return parentOrHost->afterPseudoElement();
     }
     return nextSibling();
 }
@@ -916,12 +916,12 @@ Node* Node::pseudoAwareFirstChild() const
 {
     if (isElementNode()) {
         const Element* currentElement = toElement(this);
-        Node* first = currentElement->pseudoElement(BEFORE);
+        Node* first = currentElement->beforePseudoElement();
         if (first)
             return first;
         first = currentElement->firstChild();
         if (!first)
-            first = currentElement->pseudoElement(AFTER);
+            first = currentElement->afterPseudoElement();
         return first;
     }
     return firstChild();
@@ -931,12 +931,12 @@ Node* Node::pseudoAwareLastChild() const
 {
     if (isElementNode()) {
         const Element* currentElement = toElement(this);
-        Node* last = currentElement->pseudoElement(AFTER);
+        Node* last = currentElement->afterPseudoElement();
         if (last)
             return last;
         last = currentElement->lastChild();
         if (!last)
-            last = currentElement->pseudoElement(BEFORE);
+            last = currentElement->beforePseudoElement();
         return last;
     }
     return lastChild();
@@ -977,7 +977,7 @@ bool Node::canStartSelection() const
 
 bool Node::isRegisteredWithNamedFlow() const
 {
-    return document()->renderView()->flowThreadController()->isContentNodeRegisteredWithAnyNamedFlow(this);
+    return document()->renderView()->flowThreadController().isContentNodeRegisteredWithAnyNamedFlow(this);
 }
 
 Element* Node::shadowHost() const
@@ -1063,7 +1063,14 @@ void Node::removedFrom(ContainerNode* insertionPoint)
 
 bool Node::needsShadowTreeWalkerSlow() const
 {
-    return (isShadowRoot() || (isElementNode() && (isInsertionPoint() || isPseudoElement() || toElement(this)->hasPseudoElements() || toElement(this)->shadowRoot())));
+    if (isShadowRoot())
+        return true;
+    if (!isElementNode())
+        return false;
+    const Element* asElement = toElement(this);
+    if (asElement->isPseudoElement() || asElement->beforePseudoElement() || asElement->afterPseudoElement())
+        return true;
+    return asElement->isInsertionPoint() || asElement->shadowRoot();
 }
 
 bool Node::isRootEditableElement() const
@@ -1871,7 +1878,13 @@ void Node::didMoveToNewDocument(Document* oldDocument)
         if (AXObjectCache* cache = oldDocument->existingAXObjectCache())
             cache->remove(this);
 
-    const EventListenerVector& wheelListeners = getEventListeners(eventNames().mousewheelEvent);
+    const EventListenerVector& mousewheelListeners = getEventListeners(eventNames().mousewheelEvent);
+    for (size_t i = 0; i < mousewheelListeners.size(); ++i) {
+        oldDocument->didRemoveWheelEventHandler();
+        document()->didAddWheelEventHandler();
+    }
+
+    const EventListenerVector& wheelListeners = getEventListeners(eventNames().wheelEvent);
     for (size_t i = 0; i < wheelListeners.size(); ++i) {
         oldDocument->didRemoveWheelEventHandler();
         document()->didAddWheelEventHandler();
@@ -1906,7 +1919,7 @@ static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eve
 
     if (Document* document = targetNode->document()) {
         document->addListenerTypeIfNeeded(eventType);
-        if (eventType == eventNames().mousewheelEvent)
+        if (eventType == eventNames().wheelEvent || eventType == eventNames().mousewheelEvent)
             document->didAddWheelEventHandler();
         else if (eventNames().isTouchEventType(eventType))
             document->didAddTouchEventHandler(targetNode);
@@ -1928,7 +1941,7 @@ static inline bool tryRemoveEventListener(Node* targetNode, const AtomicString& 
     // FIXME: Notify Document that the listener has vanished. We need to keep track of a number of
     // listeners for each type, not just a bool - see https://bugs.webkit.org/show_bug.cgi?id=33861
     if (Document* document = targetNode->document()) {
-        if (eventType == eventNames().mousewheelEvent)
+        if (eventType == eventNames().wheelEvent || eventType == eventNames().mousewheelEvent)
             document->didRemoveWheelEventHandler();
         else if (eventNames().isTouchEventType(eventType))
             document->didRemoveTouchEventHandler(targetNode);
@@ -2236,7 +2249,7 @@ void Node::defaultEventHandler(Event* event)
             }
         }
 #endif
-    } else if (eventType == eventNames().mousewheelEvent && event->hasInterface(eventNames().interfaceForWheelEvent)) {
+    } else if ((eventType == eventNames().wheelEvent || eventType == eventNames().mousewheelEvent) && event->hasInterface(eventNames().interfaceForWheelEvent)) {
         WheelEvent* wheelEvent = static_cast<WheelEvent*>(event);
         
         // If we don't have a renderer, send the wheel event to the first node we find with a renderer.

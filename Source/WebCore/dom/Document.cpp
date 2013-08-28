@@ -37,6 +37,7 @@
 #include "CSSStyleSheet.h"
 #include "CachedCSSStyleSheet.h"
 #include "CachedResourceLoader.h"
+#include "ChildIterator.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
 #include "Comment.h"
@@ -49,6 +50,7 @@
 #include "DOMNamedFlowCollection.h"
 #include "DOMWindow.h"
 #include "DateComponents.h"
+#include "DescendantIterator.h"
 #include "Dictionary.h"
 #include "DocumentEventQueue.h"
 #include "DocumentFragment.h"
@@ -59,7 +61,6 @@
 #include "DocumentType.h"
 #include "Editor.h"
 #include "Element.h"
-#include "ElementTraversal.h"
 #include "EntityReference.h"
 #include "Event.h"
 #include "EventFactory.h"
@@ -165,6 +166,7 @@
 #include <wtf/CurrentTime.h>
 #include <wtf/MainThread.h>
 #include <wtf/PassRefPtr.h>
+#include <wtf/TemporaryChange.h>
 #include <wtf/text/StringBuffer.h>
 
 #if USE(ACCELERATED_COMPOSITING)
@@ -351,7 +353,7 @@ static bool canAccessAncestor(const SecurityOrigin* activeSecurityOrigin, Frame*
         return false;
 
     const bool isLocalActiveOrigin = activeSecurityOrigin->isLocal();
-    for (Frame* ancestorFrame = targetFrame; ancestorFrame; ancestorFrame = ancestorFrame->tree()->parent()) {
+    for (Frame* ancestorFrame = targetFrame; ancestorFrame; ancestorFrame = ancestorFrame->tree().parent()) {
         Document* ancestorDocument = ancestorFrame->document();
         // FIXME: Should be an ASSERT? Frames should alway have documents.
         if (!ancestorDocument)
@@ -432,7 +434,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_xmlVersion(ASCIILiteral("1.0"))
     , m_xmlStandalone(StandaloneUnspecified)
     , m_hasXMLDeclaration(0)
-    , m_savedRenderer(0)
+    , m_savedRenderView(0)
     , m_designMode(inherit)
 #if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
     , m_hasAnnotatedRegions(false)
@@ -445,7 +447,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_isViewSource(false)
     , m_sawElementsInKnownNamespaces(false)
     , m_isSrcdocDocument(false)
-    , m_renderer(0)
+    , m_renderView(0)
     , m_eventQueue(DocumentEventQueue::create(this))
     , m_weakFactory(this)
     , m_idAttributeName(idAttr)
@@ -480,6 +482,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
 #endif
     , m_didAssociateFormControlsTimer(this, &Document::didAssociateFormControlsTimerFired)
     , m_hasInjectedPlugInsScript(false)
+    , m_renderTreeBeingDestroyed(false)
 {
     if (m_frame)
         provideContextFeaturesToDocumentFrom(this, m_frame->page());
@@ -542,7 +545,7 @@ Document::~Document()
 {
     ASSERT(!renderer());
     ASSERT(!m_inPageCache);
-    ASSERT(!m_savedRenderer);
+    ASSERT(!m_savedRenderView);
     ASSERT(m_ranges.isEmpty());
     ASSERT(!m_styleRecalcTimer.isActive());
     ASSERT(!m_parentTreeScope);
@@ -675,10 +678,10 @@ void Document::buildAccessKeyMap(TreeScope* scope)
 {
     ASSERT(scope);
     ContainerNode* rootNode = scope->rootNode();
-    for (Element* element = ElementTraversal::firstWithin(rootNode); element; element = ElementTraversal::next(element, rootNode)) {
+    for (auto element = elementDescendants(rootNode).begin(), end = elementDescendants(rootNode).end(); element != end; ++element) {
         const AtomicString& accessKey = element->fastGetAttribute(accesskeyAttr);
         if (!accessKey.isEmpty())
-            m_elementsByAccessKey.set(accessKey.impl(), element);
+            m_elementsByAccessKey.set(accessKey.impl(), &*element);
 
         if (ShadowRoot* root = element->shadowRoot())
             buildAccessKeyMap(root);
@@ -774,7 +777,7 @@ void Document::childrenChanged(bool changedByParser, Node* beforeChange, Node* a
 {
     ContainerNode::childrenChanged(changedByParser, beforeChange, afterChange, childCountDelta);
     
-    Element* newDocumentElement = ElementTraversal::firstWithin(this);
+    Element* newDocumentElement = &*elementChildren(this).begin();
     if (newDocumentElement == m_documentElement)
         return;
     m_documentElement = newDocumentElement;
@@ -1036,7 +1039,7 @@ PassRefPtr<Node> Document::adoptNode(PassRefPtr<Node> source, ExceptionCode& ec)
 
         if (source->isFrameOwnerElement()) {
             HTMLFrameOwnerElement* frameOwnerElement = toFrameOwnerElement(source.get());
-            if (frame() && frame()->tree()->isDescendantOf(frameOwnerElement->contentFrame())) {
+            if (frame() && frame()->tree().isDescendantOf(frameOwnerElement->contentFrame())) {
                 ec = HIERARCHY_REQUEST_ERR;
                 return 0;
             }
@@ -1196,6 +1199,7 @@ void Document::setReadyState(ReadyState readyState)
     if (readyState == m_readyState)
         return;
 
+#if ENABLE(WEB_TIMING)
     switch (readyState) {
     case Loading:
         if (!m_documentTiming.domLoading)
@@ -1210,6 +1214,7 @@ void Document::setReadyState(ReadyState readyState)
             m_documentTiming.domComplete = monotonicallyIncreasingTime();
         break;
     }
+#endif
 
     m_readyState = readyState;
     dispatchEvent(Event::create(eventNames().readystatechangeEvent, false, false));
@@ -1265,7 +1270,7 @@ void Document::setVisualUpdatesAllowed(bool visualUpdatesAllowed)
         updateLayout();
 
     if (Page* page = this->page()) {
-        if (frame() == page->mainFrame()) {
+        if (frame() == &page->mainFrame()) {
             frameView->addPaintPendingMilestones(DidFirstPaintAfterSuppressedIncrementalRendering);
             if (page->requestedLayoutMilestones() & DidFirstLayoutAfterSuppressedIncrementalRendering)
                 frame()->loader().didLayout(DidFirstLayoutAfterSuppressedIncrementalRendering);
@@ -1560,8 +1565,9 @@ void Document::removeTitle(Element* titleElement)
 
     // Update title based on first title element in the head, if one exists.
     if (HTMLElement* headElement = head()) {
-        if (HTMLTitleElement* titleElement = Traversal<HTMLTitleElement>::firstWithin(headElement))
-            setTitleElement(titleElement->textWithDirection(), titleElement);
+        auto firstTitle = childrenOfType<HTMLTitleElement>(headElement).begin();
+        if (firstTitle != childrenOfType<HTMLTitleElement>(headElement).end())
+            setTitleElement(firstTitle->textWithDirection(), &*firstTitle);
     }
 
     if (!m_titleElement)
@@ -1588,11 +1594,6 @@ String Document::visibilityState() const
 bool Document::hidden() const
 {
     return pageVisibilityState() != PageVisibilityStateVisible;
-}
-
-void Document::dispatchVisibilityStateChangeEvent()
-{
-    dispatchEvent(Event::create(eventNames().visibilitychangeEvent, false, false));
 }
 #endif
 
@@ -1963,7 +1964,13 @@ void Document::clearStyleResolver()
     m_styleResolver.clear();
 }
 
-void Document::attach()
+void Document::setRenderView(RenderView* renderView)
+{
+    m_renderView = renderView;
+    Node::setRenderer(renderView);
+}
+
+void Document::createRenderTree()
 {
     ASSERT(!attached());
     ASSERT(!m_inPageCache);
@@ -1972,22 +1979,63 @@ void Document::attach()
     if (!m_renderArena)
         m_renderArena = RenderArena::create();
     
-    // Create the rendering tree
-    setRenderer(new (m_renderArena.get()) RenderView(this));
+    setRenderView(new (m_renderArena.get()) RenderView(this));
 #if USE(ACCELERATED_COMPOSITING)
     renderView()->setIsInWindow(true);
 #endif
 
     recalcStyle(Style::Force);
 
-    RenderObject* render = renderer();
-    setRenderer(0);
+    if (m_documentElement)
+        Style::attachRenderTree(m_documentElement.get());
 
-    for (Element* child = ElementTraversal::firstWithin(this); child; child = ElementTraversal::nextSibling(child))
-        Style::attachRenderTree(child);
-
-    setRenderer(render);
     setAttached(true);
+}
+
+static void pageWheelEventHandlerCountChanged(Page& page)
+{
+    unsigned count = 0;
+    for (const Frame* frame = &page.mainFrame(); frame; frame = frame->tree().traverseNext()) {
+        if (Document* document = frame->document())
+            count += document->wheelEventHandlerCount();
+    }
+    page.chrome().client().numWheelEventHandlersChanged(count);
+}
+
+void Document::didBecomeCurrentDocumentInFrame()
+{
+    // FIXME: Are there cases where the document can be dislodged from the frame during the event handling below?
+    // If so, then m_frame could become 0, and we need to do something about that.
+
+    m_frame->script().updateDocument();
+
+    if (!attached())
+        createRenderTree();
+
+    updateViewportArguments();
+
+    // FIXME: Doing this only for the main frame is insufficient.
+    // Changing a subframe can also change the wheel event handler count.
+    // FIXME: Doing this only when a document goes into the frame is insufficient.
+    // Removing a document can also change the wheel event handler count.
+    // FIXME: Doing this every time is a waste. If the current document and its
+    // subframes' documents have no wheel event handlers, then the count did not change,
+    // unless the documents they are replacing had wheel event handlers.
+    if (page() && &page()->mainFrame() == m_frame)
+        pageWheelEventHandlerCountChanged(*page());
+
+#if ENABLE(TOUCH_EVENTS)
+    // FIXME: Doing this only for the main frame is insufficient.
+    // A subframe could have touch event handlers.
+    if (hasTouchEventHandlers() && page() && &page()->mainFrame() == m_frame)
+        page()->chrome().client().needTouchEvents(true);
+#endif
+
+    if (m_frame->activeDOMObjectsAndAnimationsSuspended()) {
+        suspendScriptedAnimationControllerCallbacks();
+        m_frame->animation().suspendAnimationsForDocument(this);
+        suspendActiveDOMObjects(ActiveDOMObject::PageWillBeSuspended);
+    }
 }
 
 void Document::detach()
@@ -2014,8 +2062,6 @@ void Document::detach()
     clearScriptedAnimationController();
 #endif
 
-    RenderObject* render = renderer();
-
     documentWillBecomeInactive();
 
 #if ENABLE(SHARED_WORKERS)
@@ -2029,9 +2075,6 @@ void Document::detach()
 
     }
 
-    // indicate destruction mode,  i.e. attached() but renderer == 0
-    setRenderer(0);
-    
 #if ENABLE(FULLSCREEN_API)
     if (m_fullScreenRenderer)
         setFullScreenRenderer(0);
@@ -2041,16 +2084,19 @@ void Document::detach()
     m_focusedElement = 0;
     m_activeElement = 0;
 
-    for (Element* child = ElementTraversal::firstWithin(this); child; child = ElementTraversal::nextSibling(child))
-        Style::detachRenderTree(child);
+    TemporaryChange<bool> change(m_renderTreeBeingDestroyed, true);
+
+    if (m_documentElement)
+        Style::detachRenderTree(m_documentElement.get());
 
     clearChildNeedsStyleRecalc();
     setAttached(false);
 
     unscheduleStyleRecalc();
 
-    if (render)
-        render->destroy();
+    if (renderView())
+        renderView()->destroy();
+    setRenderView(0);
 
 #if ENABLE(TOUCH_EVENTS)
     if (m_touchEventTargets && m_touchEventTargets->size() && parentDocument())
@@ -2609,7 +2655,8 @@ void Document::updateBaseURL()
     if (!equalIgnoringFragmentIdentifier(oldBaseURL, m_baseURL)) {
         // Base URL change changes any relative visited links.
         // FIXME: There are other URLs in the tree that would need to be re-evaluated on dynamic base URL change. Style should be invalidated too.
-        for (HTMLAnchorElement* anchor = Traversal<HTMLAnchorElement>::firstWithin(this); anchor; anchor = Traversal<HTMLAnchorElement>::next(anchor))
+        auto anchorDescendants = descendantsOfType<HTMLAnchorElement>(this);
+        for (auto anchor = anchorDescendants.begin(), end = anchorDescendants.end(); anchor != end; ++anchor)
             anchor->invalidateCachedVisitedLinkHash();
     }
 }
@@ -2625,7 +2672,8 @@ void Document::processBaseElement()
     // Find the first href attribute in a base element and the first target attribute in a base element.
     const AtomicString* href = 0;
     const AtomicString* target = 0;
-    for (HTMLBaseElement* base = Traversal<HTMLBaseElement>::firstWithin(this); base && (!href || !target); base = Traversal<HTMLBaseElement>::next(base)) {
+    auto baseDescendants = descendantsOfType<HTMLBaseElement>(this);
+    for (auto base = baseDescendants.begin(), end = baseDescendants.end(); base != end && (!href || !target); ++base) {
         if (!href) {
             const AtomicString& value = base->fastGetAttribute(hrefAttr);
             if (!value.isNull())
@@ -2678,15 +2726,15 @@ bool Document::canNavigate(Frame* targetFrame)
         return true;
 
     // Frame-busting is generally allowed, but blocked for sandboxed frames lacking the 'allow-top-navigation' flag.
-    if (!isSandboxed(SandboxTopNavigation) && targetFrame == m_frame->tree()->top())
+    if (!isSandboxed(SandboxTopNavigation) && targetFrame == m_frame->tree().top())
         return true;
 
     if (isSandboxed(SandboxNavigation)) {
-        if (targetFrame->tree()->isDescendantOf(m_frame))
+        if (targetFrame->tree().isDescendantOf(m_frame))
             return true;
 
         const char* reason = "The frame attempting navigation is sandboxed, and is therefore disallowed from navigating its ancestors.";
-        if (isSandboxed(SandboxTopNavigation) && targetFrame == m_frame->tree()->top())
+        if (isSandboxed(SandboxTopNavigation) && targetFrame == m_frame->tree().top())
             reason = "The frame attempting navigation of the top-level window is sandboxed, but the 'allow-top-navigation' flag is not set.";
 
         printNavigationErrorMessage(targetFrame, url(), reason);
@@ -2714,7 +2762,7 @@ bool Document::canNavigate(Frame* targetFrame)
     // some way related to the frame being navigate (e.g., by the "opener"
     // and/or "parent" relation). Requiring some sort of relation prevents a
     // document from navigating arbitrary, unrelated top-level frames.
-    if (!targetFrame->tree()->parent()) {
+    if (!targetFrame->tree().parent()) {
         if (targetFrame == m_frame->loader().opener())
             return true;
 
@@ -2732,13 +2780,13 @@ Frame* Document::findUnsafeParentScrollPropagationBoundary()
     if (!currentFrame)
         return 0;
 
-    Frame* ancestorFrame = currentFrame->tree()->parent();
+    Frame* ancestorFrame = currentFrame->tree().parent();
 
     while (ancestorFrame) {
         if (!ancestorFrame->document()->securityOrigin()->canAccess(securityOrigin()))
             return currentFrame;
         currentFrame = ancestorFrame;
-        ancestorFrame = ancestorFrame->tree()->parent();
+        ancestorFrame = ancestorFrame->tree().parent();
     }
     return 0;
 }
@@ -2903,7 +2951,7 @@ void Document::processViewport(const String& features, ViewportArguments::Type o
 
 void Document::updateViewportArguments()
 {
-    if (page() && page()->mainFrame() == frame()) {
+    if (page() && &page()->mainFrame() == frame()) {
 #ifndef NDEBUG
         m_didDispatchViewportPropertiesChanged = true;
 #endif
@@ -3175,7 +3223,7 @@ void Document::notifySeamlessChildDocumentsOfStylesheetUpdate() const
         return;
 
     // Seamless child frames are expected to notify their seamless children recursively, so we only do direct children.
-    for (Frame* child = frame()->tree()->firstChild(); child; child = child->tree()->nextSibling()) {
+    for (Frame* child = frame()->tree().firstChild(); child; child = child->tree().nextSibling()) {
         Document* childDocument = child->document();
         if (childDocument->shouldDisplaySeamlesslyWithParent()) {
             ASSERT(childDocument->seamlessParentIFrame()->document() == this);
@@ -3946,8 +3994,8 @@ void Document::setInPageCache(bool flag)
     Page* page = this->page();
 
     if (flag) {
-        ASSERT(!m_savedRenderer);
-        m_savedRenderer = renderer();
+        ASSERT(!m_savedRenderView);
+        m_savedRenderView = renderView();
         if (v) {
             // FIXME: There is some scrolling related work that needs to happen whenever a page goes into the
             // page cache and similar work that needs to occur when it comes out. This is where we do the work
@@ -3957,7 +4005,7 @@ void Document::setInPageCache(bool flag)
             // function. It would be nice if there was more symmetry here.
             // https://bugs.webkit.org/show_bug.cgi?id=98698
             v->cacheCurrentScrollPosition();
-            if (page && page->mainFrame() == m_frame) {
+            if (page && &page->mainFrame() == m_frame) {
                 v->resetScrollbarsAndClearContentsSize();
                 if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
                     scrollingCoordinator->clearStateTree();
@@ -3966,10 +4014,10 @@ void Document::setInPageCache(bool flag)
         }
         m_styleRecalcTimer.stop();
     } else {
-        ASSERT(!renderer() || renderer() == m_savedRenderer);
+        ASSERT(!renderView() || renderView() == m_savedRenderView);
         ASSERT(m_renderArena);
-        setRenderer(m_savedRenderer);
-        m_savedRenderer = 0;
+        setRenderView(m_savedRenderView);
+        m_savedRenderView = 0;
 
         if (childNeedsStyleRecalc())
             scheduleStyleRecalc();
@@ -4151,7 +4199,7 @@ KURL Document::openSearchDescriptionURL()
     static const char* const openSearchRelation = "search";
 
     // FIXME: Why do only top-level frames have openSearchDescriptionURLs?
-    if (!frame() || frame()->tree()->parent())
+    if (!frame() || frame()->tree().parent())
         return KURL();
 
     // FIXME: Why do we need to wait for FrameStateComplete?
@@ -4215,7 +4263,7 @@ void Document::setTransformSource(PassOwnPtr<TransformSource> source)
 void Document::setDesignMode(InheritedBool value)
 {
     m_designMode = value;
-    for (Frame* frame = m_frame; frame && frame->document(); frame = frame->tree()->traverseNext(m_frame))
+    for (Frame* frame = m_frame; frame && frame->document(); frame = frame->tree().traverseNext(m_frame))
         frame->document()->scheduleForcedStyleRecalc();
 }
 
@@ -4237,7 +4285,7 @@ Document* Document::parentDocument() const
 {
     if (!m_frame)
         return 0;
-    Frame* parent = m_frame->tree()->parent();
+    Frame* parent = m_frame->tree().parent();
     if (!parent)
         return 0;
     return parent->document();
@@ -4245,12 +4293,12 @@ Document* Document::parentDocument() const
 
 Document* Document::topDocument() const
 {
-    Document* doc = const_cast<Document *>(this);
-    Element* element;
-    while ((element = doc->ownerElement()))
-        doc = element->document();
-    
-    return doc;
+    // FIXME: Why does this walk up owner elements instead using the frame tree as parentDocument does?
+    // The frame tree even has a top() function.
+    Document* document = const_cast<Document*>(this);
+    while (Element* element = document->ownerElement())
+        document = element->document();
+    return document;
 }
 
 PassRefPtr<Attr> Document::createAttribute(const String& name, ExceptionCode& ec)
@@ -4359,11 +4407,18 @@ void Document::finishedParsing()
     ASSERT(!scriptableDocumentParser() || !m_parser->isParsing());
     ASSERT(!scriptableDocumentParser() || m_readyState != Loading);
     setParsing(false);
+
+#if ENABLE(WEB_TIMING)
     if (!m_documentTiming.domContentLoadedEventStart)
         m_documentTiming.domContentLoadedEventStart = monotonicallyIncreasingTime();
+#endif
+
     dispatchEvent(Event::create(eventNames().DOMContentLoadedEvent, true, false));
+
+#if ENABLE(WEB_TIMING)
     if (!m_documentTiming.domContentLoadedEventEnd)
         m_documentTiming.domContentLoadedEventEnd = monotonicallyIncreasingTime();
+#endif
 
     if (RefPtr<Frame> f = frame()) {
         // FrameLoader::finishedParsing() might end up calling Document::implicitClose() if all
@@ -4553,7 +4608,7 @@ void Document::initSecurityContext()
     // If we do not obtain a meaningful origin from the URL, then we try to
     // find one via the frame hierarchy.
 
-    Frame* ownerFrame = m_frame->tree()->parent();
+    Frame* ownerFrame = m_frame->tree().parent();
     if (!ownerFrame)
         ownerFrame = m_frame->loader().opener();
 
@@ -4580,10 +4635,10 @@ void Document::initSecurityContext()
 
 void Document::initContentSecurityPolicy()
 {
-    if (!m_frame->tree()->parent() || (!shouldInheritSecurityOriginFromOwner(m_url) && !isPluginDocument()))
+    if (!m_frame->tree().parent() || (!shouldInheritSecurityOriginFromOwner(m_url) && !isPluginDocument()))
         return;
 
-    contentSecurityPolicy()->copyStateFrom(m_frame->tree()->parent()->document()->contentSecurityPolicy());
+    contentSecurityPolicy()->copyStateFrom(m_frame->tree().parent()->document()->contentSecurityPolicy());
 }
 
 bool Document::isContextThread() const
@@ -4703,7 +4758,7 @@ void Document::addConsoleMessage(MessageSource source, MessageLevel level, const
     }
 
     if (Page* page = this->page())
-        page->console()->addMessage(source, level, message, requestIdentifier, this);
+        page->console().addMessage(source, level, message, requestIdentifier, this);
 }
 
 void Document::addMessage(MessageSource source, MessageLevel level, const String& message, const String& sourceURL, unsigned lineNumber, unsigned columnNumber, PassRefPtr<ScriptCallStack> callStack, ScriptState* state, unsigned long requestIdentifier)
@@ -4714,7 +4769,7 @@ void Document::addMessage(MessageSource source, MessageLevel level, const String
     }
 
     if (Page* page = this->page())
-        page->console()->addMessage(source, level, message, sourceURL, lineNumber, columnNumber, callStack, state, requestIdentifier);
+        page->console().addMessage(source, level, message, sourceURL, lineNumber, columnNumber, callStack, state, requestIdentifier);
 }
 
 SecurityOrigin* Document::topOrigin() const
@@ -4842,7 +4897,7 @@ void Document::windowScreenDidChange(PlatformDisplayID displayID)
 #if USE(ACCELERATED_COMPOSITING)
     if (RenderView* view = renderView()) {
         if (view->usesCompositing())
-            view->compositor()->windowScreenDidChange(displayID);
+            view->compositor().windowScreenDidChange(displayID);
     }
 #endif
 }
@@ -4952,7 +5007,7 @@ void Document::requestFullScreenForElement(Element* element, unsigned short flag
 
         // A descendant browsing context's document has a non-empty fullscreen element stack.
         bool descendentHasNonEmptyStack = false;
-        for (Frame* descendant = frame() ? frame()->tree()->traverseNext() : 0; descendant; descendant = descendant->tree()->traverseNext()) {
+        for (Frame* descendant = frame() ? frame()->tree().traverseNext() : 0; descendant; descendant = descendant->tree().traverseNext()) {
             if (descendant->document()->webkitFullscreenElement()) {
                 descendentHasNonEmptyStack = true;
                 break;
@@ -5075,7 +5130,7 @@ void Document::webkitExitFullscreen()
     // element stack (if any), ordered so that the child of the doc is last and the document furthest
     // away from the doc is first.
     Deque<RefPtr<Document> > descendants;
-    for (Frame* descendant = frame() ? frame()->tree()->traverseNext() : 0; descendant; descendant = descendant->tree()->traverseNext()) {
+    for (Frame* descendant = frame() ? frame()->tree().traverseNext() : 0; descendant; descendant = descendant->tree().traverseNext()) {
         if (descendant->document()->webkitFullscreenElement())
             descendants.prepend(descendant->document());
     }
@@ -5496,6 +5551,8 @@ static void wheelEventHandlerCountChanged(Document* document)
     if (!page)
         return;
 
+    pageWheelEventHandlerCountChanged(*page);
+
     ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator();
     if (!scrollingCoordinator)
         return;
@@ -5504,16 +5561,13 @@ static void wheelEventHandlerCountChanged(Document* document)
     if (!frameView)
         return;
 
+    // FIXME: Why doesn't this need to be called in didBecomeCurrentDocumentInFrame?
     scrollingCoordinator->frameViewWheelEventHandlerCountChanged(frameView);
 }
 
 void Document::didAddWheelEventHandler()
 {
     ++m_wheelEventHandlerCount;
-    Frame* mainFrame = page() ? page()->mainFrame() : 0;
-    if (mainFrame)
-        mainFrame->notifyChromeClientWheelEventHandlerCountChanged();
-
     wheelEventHandlerCountChanged(this);
 }
 
@@ -5521,10 +5575,6 @@ void Document::didRemoveWheelEventHandler()
 {
     ASSERT(m_wheelEventHandlerCount > 0);
     --m_wheelEventHandlerCount;
-    Frame* mainFrame = page() ? page()->mainFrame() : 0;
-    if (mainFrame)
-        mainFrame->notifyChromeClientWheelEventHandlerCountChanged();
-
     wheelEventHandlerCountChanged(this);
 }
 
@@ -5572,7 +5622,7 @@ void Document::didRemoveTouchEventHandler(Node* handler)
 #endif
     if (m_touchEventTargets->size())
         return;
-    for (const Frame* frame = page->mainFrame(); frame; frame = frame->tree()->traverseNext()) {
+    for (const Frame* frame = &page->mainFrame(); frame; frame = frame->tree().traverseNext()) {
         if (frame->document() && frame->document()->hasTouchEventHandlers())
             return;
     }
@@ -5633,13 +5683,6 @@ DocumentLoader* Document::loader() const
         return 0;
     
     return loader;
-}
-
-IntSize Document::viewportSize() const
-{
-    if (!view())
-        return IntSize();
-    return view()->visibleContentRect(ScrollableArea::IncludeScrollbars).size();
 }
 
 #if ENABLE(CSS_DEVICE_ADAPTATION)
@@ -5963,7 +6006,7 @@ void Document::ensurePlugInsInjectedScript(DOMWrapperWorld* world)
     if (!jsString)
         jsString = plugInsJavaScript;
 
-    page()->mainFrame()->script().evaluateInWorld(ScriptSourceCode(jsString), world);
+    page()->mainFrame().script().evaluateInWorld(ScriptSourceCode(jsString), world);
 
     m_hasInjectedPlugInsScript = true;
 }
