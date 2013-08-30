@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugSuffix|Win32">
@@ -7014,6 +7014,20 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
+    <ClCompile Include="..\accessibility\AccessibilitySearchFieldButtons.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="..\accessibility\AccessibilitySlider.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -7748,9 +7762,7 @@
     <ClCompile Include="..\platform\graphics\win\IntRectWin.cpp" />
     <ClCompile Include="..\platform\graphics\win\IntSizeWin.cpp" />
     <ClCompile Include="..\platform\graphics\win\MediaPlayerPrivateFullscreenWindow.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\platform\graphics\win\MediaPlayerPrivateQuickTimeVisualContext.cpp">
@@ -12969,20 +12981,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\dom\NodeRareData.cpp" />
-    <ClCompile Include="..\dom\NodeRenderingContext.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\dom\NodeTraversal.cpp" />
     <ClCompile Include="..\dom\Notation.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -19002,6 +19000,7 @@
     <ClInclude Include="..\accessibility\AccessibilityRenderObject.h" />
     <ClInclude Include="..\accessibility\AccessibilityScrollbar.h" />
     <ClInclude Include="..\accessibility\AccessibilityScrollView.h" />
+    <ClInclude Include="..\accessibility\AccessibilitySearchFieldButtons.h" />
     <ClInclude Include="..\accessibility\AccessibilitySlider.h" />
     <ClInclude Include="..\accessibility\AccessibilitySpinButton.h" />
     <ClInclude Include="..\accessibility\AccessibilitySVGRoot.h" />
@@ -20310,7 +20309,6 @@
     <ClInclude Include="..\dom\NodeFilter.h" />
     <ClInclude Include="..\dom\NodeFilterCondition.h" />
     <ClInclude Include="..\dom\NodeIterator.h" />
-    <ClInclude Include="..\dom\NodeRenderingContext.h" />
     <ClInclude Include="..\dom\NodeTraversal.h" />
     <ClInclude Include="..\dom\Notation.h" />
     <ClInclude Include="..\dom\OverflowEvent.h" />
@@ -20490,6 +20488,7 @@
     <ClInclude Include="..\html\FormAssociatedElement.h" />
     <ClInclude Include="..\html\FormController.h" />
     <ClInclude Include="..\html\FormDataList.h" />
+    <ClInclude Include="..\html\FormNamedItem.h" />
     <ClInclude Include="..\html\FTPDirectoryDocument.h" />
     <ClInclude Include="..\html\HiddenInputType.h" />
     <ClInclude Include="..\html\HTMLAllCollection.h" />
@@ -21110,9 +21109,15 @@
     <None Include="..\css\fullscreen.css" />
     <None Include="..\css\fullscreenQuickTime.css" />
     <None Include="..\css\html.css" />
+    <None Include="..\css\mathml.css" />
     <None Include="..\css\mediaControls.css" />
+    <None Include="..\css\mediaControlsQuickTime.css" />
     <None Include="..\css\plugIns.css" />
     <None Include="..\css\quirks.css" />
+    <None Include="..\css\svg.css" />
+    <None Include="..\css\themeWin.css" />
+    <None Include="..\css\themeWinQuirks.css" />
+    <None Include="..\css\view-source.css" />
     <None Include="..\xml\XPathGrammar.y" />
     <None Include="..\bindings\scripts\CodeGenerator.pm" />
     <None Include="..\bindings\scripts\CodeGeneratorJS.pm" />

@@ -30,9 +30,12 @@
 #include "Element.h"
 #include "ElementRareData.h"
 #include "ElementTraversal.h"
+#include "FlowThreadController.h"
 #include "NodeRenderStyle.h"
-#include "NodeRenderingContext.h"
+#include "NodeRenderingTraversal.h"
 #include "NodeTraversal.h"
+#include "RenderFullScreen.h"
+#include "RenderNamedFlowThread.h"
 #include "RenderObject.h"
 #include "RenderText.h"
 #include "RenderWidget.h"
@@ -41,6 +44,11 @@
 #include "StyleResolveForDocument.h"
 #include "StyleResolver.h"
 #include "Text.h"
+
+#if PLATFORM(IOS)
+#include "CSSFontSelector.h"
+#include "WKContentObservation.h"
+#endif
 
 namespace WebCore {
 
@@ -104,11 +112,6 @@ Change determineChange(const RenderStyle* s1, const RenderStyle* s2, Settings* s
     return NoChange;
 }
 
-static void createRendererIfNeeded(Element* element, const AttachContext& context)
-{
-    NodeRenderingContext(element, context).createRendererForElementIfNeeded();
-}
-
 static bool isRendererReparented(const RenderObject* renderer)
 {
     if (!renderer->node()->isElementNode())
@@ -116,6 +119,134 @@ static bool isRendererReparented(const RenderObject* renderer)
     if (renderer->style() && !renderer->style()->flowThread().isEmpty())
         return true;
     return false;
+}
+
+static RenderObject* nextSiblingRenderer(const Element& element, const ContainerNode* renderingParentNode)
+{
+    // Avoid an O(N^2) problem with this function by not checking for
+    // nextRenderer() when the parent element hasn't attached yet.
+    // FIXME: Why would we get here anyway if parent is not attached?
+    if (renderingParentNode && !renderingParentNode->attached())
+        return 0;
+    for (Node* sibling = NodeRenderingTraversal::nextSibling(&element); sibling; sibling = NodeRenderingTraversal::nextSibling(sibling)) {
+        RenderObject* renderer = sibling->renderer();
+        if (renderer && !isRendererReparented(renderer))
+            return renderer;
+    }
+    return 0;
+}
+
+static bool shouldCreateRenderer(const Element& element, const ContainerNode* renderingParent)
+{
+    if (!element.document()->shouldCreateRenderers())
+        return false;
+    if (!renderingParent)
+        return false;
+    RenderObject* parentRenderer = renderingParent->renderer();
+    if (!parentRenderer)
+        return false;
+    if (!parentRenderer->canHaveChildren() && !(element.isPseudoElement() && parentRenderer->canHaveGeneratedChildren()))
+        return false;
+    if (!renderingParent->childShouldCreateRenderer(&element))
+        return false;
+    return true;
+}
+
+// Check the specific case of elements that are children of regions but are flowed into a flow thread themselves.
+static bool elementInsideRegionNeedsRenderer(Element& element, const ContainerNode* renderingParentNode, RefPtr<RenderStyle>& style)
+{
+#if ENABLE(CSS_REGIONS)
+    const RenderObject* parentRenderer = renderingParentNode ? renderingParentNode->renderer() : 0;
+
+    bool parentIsRegion = parentRenderer && !parentRenderer->canHaveChildren() && parentRenderer->isRenderRegion();
+    bool parentIsNonRenderedInsideRegion = !parentRenderer && element.parentElement() && element.parentElement()->isInsideRegion();
+    if (!parentIsRegion && !parentIsNonRenderedInsideRegion)
+        return false;
+
+    if (!style)
+        style = element.styleForRenderer();
+
+    // Children of this element will only be allowed to be flowed into other flow-threads if display is NOT none.
+    if (element.rendererIsNeeded(*style))
+        element.setIsInsideRegion(true);
+
+    if (element.shouldMoveToFlowThread(*style))
+        return true;
+#endif
+    return false;
+}
+
+#if ENABLE(CSS_REGIONS)
+static RenderNamedFlowThread* moveToFlowThreadIfNeeded(Element& element, const RenderStyle& style)
+{
+    if (!element.shouldMoveToFlowThread(style))
+        return 0;
+    FlowThreadController& flowThreadController = element.document()->renderView()->flowThreadController();
+    RenderNamedFlowThread& parentFlowRenderer = flowThreadController.ensureRenderFlowThreadWithName(style.flowThread());
+    flowThreadController.registerNamedFlowContentNode(&element, &parentFlowRenderer);
+    return &parentFlowRenderer;
+}
+#endif
+
+static void createRendererIfNeeded(Element& element, const AttachContext& context)
+{
+    ASSERT(!element.renderer());
+
+    Document& document = *element.document();
+    ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(&element);
+
+    RefPtr<RenderStyle> style = context.resolvedStyle;
+
+    element.setIsInsideRegion(false);
+
+    if (!shouldCreateRenderer(element, renderingParentNode) && !elementInsideRegionNeedsRenderer(element, renderingParentNode, style))
+        return;
+
+    if (!style)
+        style = element.styleForRenderer();
+
+    RenderNamedFlowThread* parentFlowRenderer = 0;
+#if ENABLE(CSS_REGIONS)
+    parentFlowRenderer = moveToFlowThreadIfNeeded(element, *style);
+#endif
+
+    if (!element.rendererIsNeeded(*style))
+        return;
+
+    RenderObject* parentRenderer;
+    RenderObject* nextRenderer;
+    if (parentFlowRenderer) {
+        parentRenderer = parentFlowRenderer;
+        nextRenderer = parentFlowRenderer->nextRendererForNode(&element);
+    } else {
+        parentRenderer = renderingParentNode->renderer();
+        nextRenderer = nextSiblingRenderer(element, renderingParentNode);
+    }
+
+    RenderObject* newRenderer = element.createRenderer(document.renderArena(), style.get());
+    if (!newRenderer)
+        return;
+    if (!parentRenderer->isChildAllowed(newRenderer, style.get())) {
+        newRenderer->destroy();
+        return;
+    }
+
+    // Make sure the RenderObject already knows it is going to be added to a RenderFlowThread before we set the style
+    // for the first time. Otherwise code using inRenderFlowThread() in the styleWillChange and styleDidChange will fail.
+    newRenderer->setFlowThreadState(parentRenderer->flowThreadState());
+
+    element.setRenderer(newRenderer);
+    newRenderer->setAnimatableStyle(style.release()); // setAnimatableStyle() can depend on renderer() already being set.
+
+#if ENABLE(FULLSCREEN_API)
+    if (document.webkitIsFullScreen() && document.webkitCurrentFullScreenElement() == &element) {
+        newRenderer = RenderFullScreen::wrapRenderer(newRenderer, parentRenderer, &document);
+        if (!newRenderer)
+            return;
+    }
+#endif
+    // Note: Adding newRenderer instead of renderer(). renderer() may be a child of newRenderer.
+    parentRenderer->addChild(newRenderer, nextRenderer);
 }
 
 static RenderObject* previousSiblingRenderer(const Text& textNode)
@@ -222,7 +353,7 @@ static void createTextRendererIfNeeded(Text& textNode)
 
     Document* document = textNode.document();
     RefPtr<RenderStyle> style;
-    bool resetStyleInheritance = renderingParentNode->isShadowRoot() && toShadowRoot(renderingParentNode)->resetStyleInheritance();
+    bool resetStyleInheritance = textNode.parentNode()->isShadowRoot() && toShadowRoot(textNode.parentNode())->resetStyleInheritance();
     if (resetStyleInheritance)
         style = document->ensureStyleResolver().defaultStyleForElement();
     else
@@ -341,7 +472,7 @@ void attachRenderTree(Element* current, const AttachContext& context)
     if (current->hasCustomStyleResolveCallbacks())
         current->willAttachRenderers();
 
-    createRendererIfNeeded(current, context);
+    createRendererIfNeeded(*current, context);
 
     if (current->parentElement() && current->parentElement()->isInCanvasSubtree())
         current->setIsInCanvasSubtree(true);
@@ -559,6 +690,60 @@ static void resolveShadowTree(ShadowRoot* shadowRoot, RenderStyle* parentElement
     shadowRoot->clearChildNeedsStyleRecalc();
 }
 
+#if PLATFORM(IOS)
+static EVisibility elementImplicitVisibility(const Element* element)
+{
+    RenderObject* renderer = element->renderer();
+    if (!renderer)
+        return VISIBLE;
+
+    RenderStyle* style = renderer->style();
+    if (!style)
+        return VISIBLE;
+
+    Length width(style->width());
+    Length height(style->height());
+    if ((width.isFixed() && width.value() <= 0) || (height.isFixed() && height.value() <= 0))
+        return HIDDEN;
+
+    Length top(style->top());
+    Length left(style->left());
+    if (left.isFixed() && width.isFixed() && -left.value() >= width.value())
+        return HIDDEN;
+
+    if (top.isFixed() && height.isFixed() && -top.value() >= height.value())
+        return HIDDEN;
+    return VISIBLE;
+}
+
+class CheckForVisibilityChangeOnRecalcStyle {
+public:
+    CheckForVisibilityChangeOnRecalcStyle(Element* element, RenderStyle* currentStyle)
+        : m_element(element)
+        , m_previousDisplay(currentStyle ? currentStyle->display() : NONE)
+        , m_previousVisibility(currentStyle ? currentStyle->visibility() : HIDDEN)
+        , m_previousImplicitVisibility(WKObservingContentChanges() && WKContentChange() != WKContentVisibilityChange ? elementImplicitVisibility(element) : VISIBLE)
+    {
+    }
+    ~CheckForVisibilityChangeOnRecalcStyle()
+    {
+        if (!WKObservingContentChanges())
+            return;
+        RenderStyle* style = m_element->renderStyle();
+        if (!style)
+            return;
+        if ((m_previousDisplay == NONE && style->display() != NONE) || (m_previousVisibility == HIDDEN && style->visibility() != HIDDEN)
+            || (m_previousImplicitVisibility == HIDDEN && elementImplicitVisibility(m_element.get()) == VISIBLE))
+            WKSetObservedContentChange(WKContentVisibilityChange);
+    }
+private:
+    RefPtr<Element> m_element;
+    EDisplay m_previousDisplay;
+    EVisibility m_previousVisibility;
+    EVisibility m_previousImplicitVisibility;
+};
+#endif // PLATFORM(IOS)
+
 void resolveTree(Element* current, Change change)
 {
     ASSERT(change != Detach);
@@ -568,9 +753,14 @@ void resolveTree(Element* current, Change change)
             return;
     }
 
-    bool hasParentStyle = current->parentNodeForRenderingAndStyle() && current->parentNodeForRenderingAndStyle()->renderStyle();
+    ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(current);
+    bool hasParentStyle = renderingParentNode && renderingParentNode->renderStyle();
     bool hasDirectAdjacentRules = current->childrenAffectedByDirectAdjacentRules();
     bool hasIndirectAdjacentRules = current->childrenAffectedByForwardPositionalRules();
+
+#if PLATFORM(IOS)
+    CheckForVisibilityChangeOnRecalcStyle checkForVisibilityChange(current, current->renderStyle());
+#endif
 
     if (change > NoChange || current->needsStyleRecalc())
         current->resetComputedStyle();
@@ -631,6 +821,16 @@ void resolveTree(Document* document, Change change)
     bool resolveRootStyle = change == Force || (document->shouldDisplaySeamlesslyWithParent() && change >= Inherit);
     if (resolveRootStyle) {
         RefPtr<RenderStyle> documentStyle = resolveForDocument(document);
+
+#if PLATFORM(IOS)
+        // Inserting the pictograph font at the end of the font fallback list is done by the
+        // font selector, so set a font selector if needed.
+        if (Settings* settings = document->settings()) {
+            StyleResolver* styleResolver = document->styleResolverIfExists();
+            if (settings->fontFallbackPrefersPictographs() && styleResolver)
+                documentStyle->font().update(styleResolver->fontSelector());
+        }
+#endif
 
         Style::Change documentChange = determineChange(documentStyle.get(), document->renderer()->style(), document->settings());
         if (documentChange != NoChange)

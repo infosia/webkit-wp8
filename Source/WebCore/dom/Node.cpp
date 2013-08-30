@@ -44,12 +44,12 @@
 #include "ContextMenuController.h"
 #include "DOMImplementation.h"
 #include "DOMSettableTokenList.h"
+#include "DescendantIterator.h"
 #include "Document.h"
 #include "DocumentFragment.h"
 #include "DocumentType.h"
 #include "Element.h"
 #include "ElementRareData.h"
-#include "ElementTraversal.h"
 #include "Event.h"
 #include "EventContext.h"
 #include "EventDispatchMediator.h"
@@ -79,7 +79,6 @@
 #include "NameNodeList.h"
 #include "NamedNodeMap.h"
 #include "NodeRareData.h"
-#include "NodeRenderingContext.h"
 #include "NodeTraversal.h"
 #include "Page.h"
 #include "PlatformMouseEvent.h"
@@ -940,11 +939,6 @@ Node* Node::pseudoAwareLastChild() const
         return last;
     }
     return lastChild();
-}
-
-ContainerNode* Node::parentNodeForRenderingAndStyle()
-{
-    return NodeRenderingContext(this).parentNodeForRenderingAndStyle();
 }
 
 RenderStyle* Node::virtualComputedStyle(PseudoId pseudoElementSpecifier)
@@ -2392,8 +2386,11 @@ void Node::unregisterScopedHTMLStyleChild()
 
 size_t Node::numberOfScopedHTMLStyleChildren() const
 {
+    if (!isContainerNode())
+        return 0;
     size_t count = 0;
-    for (HTMLStyleElement* style = Traversal<HTMLStyleElement>::firstWithin(this); style; style = Traversal<HTMLStyleElement>::next(style, this)) {
+    auto styleDescendants = descendantsOfType<HTMLStyleElement>(toContainerNode(this));
+    for (auto style = styleDescendants.begin(), end = styleDescendants.end(); style != end; ++style) {
         if (style->isRegisteredAsScoped())
             count++;
     }

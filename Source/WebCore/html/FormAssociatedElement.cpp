@@ -114,7 +114,7 @@ HTMLFormElement* FormAssociatedElement::findAssociatedForm(const HTMLElement* el
     }
 
     if (!currentAssociatedForm)
-        return element->findFormAncestor();
+        return HTMLFormElement::findClosestFormAncestor(*element);
 
     return currentAssociatedForm;
 }
@@ -172,7 +172,7 @@ void FormAssociatedElement::formAttributeChanged()
     if (!element->fastHasAttribute(formAttr)) {
         // The form attribute removed. We need to reset form owner here.
         HTMLFormElement* originalForm = m_form;
-        setForm(element->findFormAncestor());
+        setForm(HTMLFormElement::findClosestFormAncestor(*element));
         HTMLElement* element = toHTMLElement(this);
         if (m_form && m_form != originalForm && m_form->inDocument())
             element->document()->didAssociateFormControl(element);
@@ -271,21 +271,6 @@ const AtomicString& FormAssociatedElement::name() const
 bool FormAssociatedElement::isFormControlElementWithState() const
 {
     return false;
-}
-
-const HTMLElement* toHTMLElement(const FormAssociatedElement* associatedElement)
-{
-    if (associatedElement->isFormControlElement())
-        return static_cast<const HTMLFormControlElement*>(associatedElement);
-    // Assumes the element is an HTMLObjectElement
-    const HTMLElement* element = static_cast<const HTMLObjectElement*>(associatedElement);
-    ASSERT(element->hasTagName(objectTag));
-    return element;
-}
-
-HTMLElement* toHTMLElement(FormAssociatedElement* associatedElement)
-{
-    return const_cast<HTMLElement*>(toHTMLElement(static_cast<const FormAssociatedElement*>(associatedElement)));
 }
 
 PassOwnPtr<FormAttributeTargetObserver> FormAttributeTargetObserver::create(const AtomicString& id, FormAssociatedElement* element)

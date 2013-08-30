@@ -28,6 +28,7 @@
 namespace WebCore {
 
 class DocumentFragment;
+class FormNamedItem;
 class HTMLCollection;
 class HTMLFormElement;
 
@@ -85,14 +86,13 @@ public:
 
     HTMLFormElement* form() const { return virtualForm(); }
 
-    HTMLFormElement* findFormAncestor() const;
-
     bool hasDirectionAuto() const;
     TextDirection directionalityIfhasDirAutoAttribute(bool& isAuto) const;
 
     virtual bool isHTMLUnknownElement() const { return false; }
 
     virtual bool isLabelable() const { return false; }
+    virtual FormNamedItem* asFormNamedItem() { return 0; }
 
 protected:
     HTMLElement(const QualifiedName& tagName, Document*, ConstructionType);

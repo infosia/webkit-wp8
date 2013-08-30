@@ -469,16 +469,14 @@ public:
     virtual bool isInRange() const { return false; }
     virtual bool isOutOfRange() const { return false; }
     virtual bool isFrameElementBase() const { return false; }
+    virtual bool isSearchFieldCancelButtonElement() const { return false; }
 
     virtual bool canContainRangeEndPoint() const { return true; }
 
     // Used for disabled form elements; if true, prevents mouse events from being dispatched
     // to event listeners, and prevents DOMActivate events from being sent at all.
-    virtual bool isDisabledFormControl() const;
+    virtual bool isDisabledFormControl() const { return false; }
 
-#if ENABLE(DIALOG_ELEMENT)
-    bool isInert() const;
-#endif
 
 #if ENABLE(SVG)
     virtual bool childShouldCreateRenderer(const Node*) const;
@@ -503,11 +501,6 @@ public:
     void webkitRequestFullscreen();
 #endif
 
-#if ENABLE(DIALOG_ELEMENT)
-    bool isInTopLayer() const;
-    void setIsInTopLayer(bool);
-#endif
-
 #if ENABLE(POINTER_LOCK)
     void webkitRequestPointerLock();
 #endif
@@ -524,7 +517,7 @@ public:
     RenderRegion* renderRegion() const;
 
 #if ENABLE(CSS_REGIONS)
-    virtual bool shouldMoveToFlowThread(RenderStyle*) const;
+    virtual bool shouldMoveToFlowThread(const RenderStyle&) const;
     
     const AtomicString& webkitRegionOverset() const;
     Vector<RefPtr<Range> > webkitGetRegionFlowRanges() const;

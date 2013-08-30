@@ -1,3 +1,450 @@
+2013-08-29  Michael Saboff  <msaboff@apple.com>
+
+        REGRESSION (r153222, 32-bit): NULL JSValue() seen when running peacekeeper benchmark
+        https://bugs.webkit.org/show_bug.cgi?id=120080
+
+        Rubber stamped by Oliver Hunt.
+
+        Added layout test that crashes without the fix in bug 120080.
+
+        * fast/js/lazy-create-arguments-from-get-by-val-expected.txt: Added.
+        * fast/js/lazy-create-arguments-from-get-by-val.html: Added.
+        * fast/js/script-tests/lazy-create-arguments-from-get-by-val.js: Added.
+
+2013-08-29  Dean Jackson  <dino@apple.com>
+
+        XMLSerializer-attribute-namespace-prefix-conflicts can't produce reliable results
+        https://bugs.webkit.org/show_bug.cgi?id=120490
+
+        Marking as [ Pass Failure ] for the moment.
+
+        * TestExpectations:
+
+2013-08-29  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        According to DOM4, all DocType nodes should have a document
+        https://bugs.webkit.org/show_bug.cgi?id=99244
+
+        Reviewed by Darin Adler.
+
+        Add layout test to check that DocumentType Nodes have a document after being
+        created. Also update a few existing test cases to reflect this change.
+
+        * fast/dom/DOMImplementation/createDocument-with-used-doctype-expected.txt:
+        * fast/dom/DOMImplementation/createDocument-with-used-doctype.html:
+        * fast/dom/DOMImplementation/resources/createDocument-with-used-doctype-frame.html:
+        * fast/dom/XMLSerializer-doctype2-expected.txt:
+        * fast/dom/XMLSerializer-doctype2.html:
+        * fast/dom/createDocumentType-ownerDocument-expected.txt: Added.
+        * fast/dom/createDocumentType-ownerDocument.html: Added.
+        * fast/dom/move-nodes-across-documents.html:
+        * fast/dom/node-iterator-with-doctype-root-expected.txt:
+        * fast/dom/node-iterator-with-doctype-root.html:
+        * fast/events/dispatch-event-no-document-expected.txt:
+        * fast/events/dispatch-event-no-document.html:
+
+2013-08-29  Dean Jackson  <dino@apple.com>
+
+        Reverting a change that was made in https://bugs.webkit.org/show_bug.cgi?id=120472.
+
+        * media/track/track-cue-rendering-on-resize-expected.txt:
+
+2013-08-29  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Consolidate inspector-protocol tests into domains
+        https://bugs.webkit.org/show_bug.cgi?id=120450
+
+        Reviewed by Timothy Hatcher.
+
+        Move around tests and clean them up in the process.
+
+        * http/tests/inspector-protocol/resources/protocol-test.js:
+        * inspector-protocol/css/getSupportedCSSProperties-expected.txt: Renamed from LayoutTests/inspector-protocol/css-getSupportedCSSProperties-expected.txt.
+        * inspector-protocol/css/getSupportedCSSProperties.html: Renamed from LayoutTests/inspector-protocol/css-getSupportedCSSProperties.html.
+        * inspector-protocol/dom/focus-expected.txt: Renamed from LayoutTests/inspector-protocol/dom-focus-expected.txt.
+        * inspector-protocol/dom/focus.html: Renamed from LayoutTests/inspector-protocol/dom-focus.html.
+        * inspector-protocol/dom/request-child-nodes-depth-expected.txt: Renamed from LayoutTests/inspector-protocol/dom-request-child-nodes-depth-expected.txt.
+        * inspector-protocol/dom/request-child-nodes-depth.html: Renamed from LayoutTests/inspector-protocol/dom-request-child-nodes-depth.html.
+        * inspector-protocol/heap-profiler/heap-snapshot-with-detached-dom-tree.html:
+        * inspector-protocol/heap-profiler/heap-snapshot-with-event-listener.html:
+        * inspector-protocol/heap-profiler/take-heap-snapshot.html:
+        * inspector-protocol/nmi-webaudio-expected.txt: Removed.
+        * inspector-protocol/nmi-webaudio-leak-test-expected.txt: Removed.
+        * inspector-protocol/nmi-webaudio-leak-test.html: Removed.
+        * inspector-protocol/nmi-webaudio.html: Removed.
+        * inspector-protocol/page/frameScheduledNavigation.html:
+        * inspector-protocol/page/frameStartedLoading.html:
+        * inspector-protocol/page/resources/blank.html: Renamed from LayoutTests/inspector-protocol/resources/blank.html.
+        * inspector-protocol/page/setEmulatedMedia-expected.txt: Renamed from LayoutTests/inspector-protocol/media-query-listener-exception-expected.txt.
+        * inspector-protocol/page/setEmulatedMedia.html: Renamed from LayoutTests/inspector-protocol/media-query-listener-exception.html.
+        * inspector-protocol/resources/audio-context.html: Removed.
+        * inspector-protocol/runtime/getProperties-expected.txt: Renamed from LayoutTests/inspector-protocol/runtime-getProperties-expected.txt.
+        * inspector-protocol/runtime/getProperties.html: Renamed from LayoutTests/inspector-protocol/runtime-getProperties.html.
+        * platform/efl/TestExpectations:
+        * platform/gtk-wk1/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/mac/TestExpectations:
+        * platform/qt/TestExpectations:
+        * platform/win/TestExpectations:
+        * platform/wincairo/TestExpectations:
+
+2013-08-29  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Download Web Archive of Inspected Page
+        https://bugs.webkit.org/show_bug.cgi?id=119774
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector-protocol/page/archive-expected.txt: Added.
+        * inspector-protocol/page/archive.html: Added.
+
+2013-08-29  Robert Hogan  <robert@webkit.org>
+
+        Positioned Replaced Elements That Aren't RenderReplaced get Incorrect Width
+        https://bugs.webkit.org/show_bug.cgi?id=93735
+
+        Reviewed by David Hyatt.
+
+        * fast/replaced/intrinsic-button-and-input-height-expected.txt: Added.
+        * fast/replaced/intrinsic-button-and-input-height.html: Added.
+        * fast/replaced/width-and-height-of-positioned-replaced-elements.html: Added.
+        * platform/qt/fast/replaced/width-and-height-of-positioned-replaced-elements-expected.png: Added.
+        * platform/qt/fast/replaced/width-and-height-of-positioned-replaced-elements-expected.txt: Added.
+
+2013-08-29  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Consolidate inspector-protocol Debugger tests
+        https://bugs.webkit.org/show_bug.cgi?id=120449
+
+        Reviewed by Timothy Hatcher.
+
+        Move the tests, and clean-up their syntax a bit to be more
+        consistent, readable, and compact.
+
+        * inspector-protocol/debugger/column-breakpoint.html:
+        * inspector-protocol/debugger/pause-dedicated-worker-expected.txt: Renamed from LayoutTests/inspector-protocol/debugger-pause-dedicated-worker-expected.txt.
+        * inspector-protocol/debugger/pause-dedicated-worker.html: Renamed from LayoutTests/inspector-protocol/debugger-pause-dedicated-worker.html.
+        * inspector-protocol/debugger/resources/dedicated-worker.js: Renamed from LayoutTests/inspector-protocol/resources/dedicated-worker.js.
+        * inspector-protocol/debugger/setVariableValue-expected.txt: Renamed from LayoutTests/inspector-protocol/debugger-setVariableValue-expected.txt.
+        * inspector-protocol/debugger/setVariableValue.html: Renamed from LayoutTests/inspector-protocol/debugger-setVariableValue.html.
+        * inspector-protocol/debugger/terminate-dedicated-worker-while-paused-expected.txt: Renamed from LayoutTests/inspector-protocol/debugger-terminate-dedicated-worker-while-paused-expected.txt.
+        * inspector-protocol/debugger/terminate-dedicated-worker-while-paused.html: Renamed from LayoutTests/inspector-protocol/debugger-terminate-dedicated-worker-while-paused.html.
+        * platform/efl/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * platform/mac/TestExpectations:
+        * platform/qt/TestExpectations:
+        * platform/win/TestExpectations:
+        * platform/wincairo/TestExpectations:
+
+2013-08-29  Chris Curtis  <chris_curtis@apple.com>
+
+        VM::throwException() crashes reproducibly in testapi with !ENABLE(JIT)
+        https://bugs.webkit.org/show_bug.cgi?id=120472
+        
+        Reviewed by Filip Pizlo.
+        An error that was not being reported before is now caught and being reported.
+        * media/track/track-cue-rendering-on-resize-expected.txt:
+
+2013-08-29  Simon Pena  <simon.pena@samsung.com>
+
+        Follow-up to r154810 and r154810: Missing tests and fix one misplaced call to setCaptionDisplayMode
+        https://bugs.webkit.org/show_bug.cgi?id=120474
+
+        Reviewed by Eric Carlson.
+
+        I previously used a regular expression that didn't catch all the tests needing this
+        update. Additionally, in one of them I put the setCaptionDisplayMode in the wrong place,
+        before the function was defined by video-test.js. This new patch addresses all of that.
+
+        * media/track/media-element-enqueue-event-crash.html:
+        * media/track/regions-webvtt/text-track-cue-region-attribute.html:
+        * media/track/regions-webvtt/text-track-region-parser.html:
+        * media/track/track-add-remove-cue.html:
+        * media/track/track-cue-mutable-fragment.html:
+        * media/track/track-cue-mutable-text.html:
+        * media/track/track-cue-mutable.html:
+        * media/track/track-cue-negative-timestamp.html:
+        * media/track/track-cue-rendering-on-resize.html:
+        * media/track/track-cues-cuechange.html:
+        * media/track/track-cues-enter-exit.html:
+        * media/track/track-cues-missed.html:
+        * media/track/track-cues-pause-on-exit.html:
+        * media/track/track-cues-seeking.html:
+        * media/track/track-cues-sorted-before-dispatch.html:
+        * media/track/track-default-attribute.html:
+        * media/track/track-load-from-element-readyState.html:
+        * media/track/track-mode-disabled-crash.html:
+        * media/track/track-remove-quickly.html:
+
+2013-08-29  Simon Pena  <simon.pena@samsung.com>
+
+        [GTK] Unreviewed gardening. Rebaselining after r154479 and r154702
+
+        * platform/gtk/editing/deleting/delete-br-004-expected.txt: Rebaseline after r154479.
+        * platform/gtk/editing/deleting/delete-br-005-expected.txt: Ditto.
+        * platform/gtk/editing/deleting/delete-br-006-expected.txt: Ditto.
+        * platform/gtk/editing/selection/5057506-2-expected.txt: Rebaseline after r154702.
+        * platform/gtk/editing/selection/5057506-expected.txt: Ditto.
+
+2013-08-29  Simon Pena  <simon.pena@samsung.com>
+
+        Add setCaptionDisplayMode('Automatic') to remaining tests with track 'default' attribute after r154527
+        https://bugs.webkit.org/show_bug.cgi?id=120471
+
+        Reviewed by Eric Carlson.
+
+        As done in r154527, some LayoutTests with track 'default' attribute
+        need the caption mode set to automatic.
+
+        * media/track/track-css-all-cues.html:
+        * media/track/track-css-cue-lifetime.html:
+        * media/track/track-css-matching-default.html:
+        * media/track/track-css-matching-lang.html:
+        * media/track/track-css-matching-timestamps.html:
+        * media/track/track-css-matching.html:
+        * media/track/track-css-property-whitelist.html:
+        * media/track/track-css-user-override.html:
+        * media/track/track-cue-container-rendering-position.html:
+        * media/track/track-cue-nothing-to-render.html:
+        * media/track/track-cue-rendering-on-resize.html:
+        * media/track/track-cue-rendering-rtl.html:
+        * media/track/track-cue-rendering-snap-to-lines-not-set.html:
+        * media/track/track-cue-rendering-with-padding.html:
+        * media/track/track-cue-rendering.html:
+
+2013-08-29  Grzegorz Czajkowski  <g.czajkowski@samsung.com>
+
+        [GTK] Skip grammar checking tests.
+        Unreviewed gardening after r154675.
+
+        * platform/gtk/TestExpectations:
+        Skip failing tests after r154675 until GTK+ implements
+        grammar checking feature.
+
+2013-08-16  Ryosuke Niwa  <rniwa@webkit.org>
+
+        <https://webkit.org/b/119806> [Mac] Add a way to easily test attributed string generation
+
+        Reviewed by Darin Adler.
+
+        Add basic tests for textInputController.legacyAttributedString.
+
+        * platform/mac-wk2/TestExpectations:
+        * platform/mac/editing/attributed-string: Added.
+        * platform/mac/editing/attributed-string/anchor-element-expected.txt: Added.
+        * platform/mac/editing/attributed-string/anchor-element.html: Added.
+        * platform/mac/editing/attributed-string/basic-expected.txt: Added.
+        * platform/mac/editing/attributed-string/basic.html: Added.
+        * platform/mac/editing/attributed-string/font-size-expected.txt: Added.
+        * platform/mac/editing/attributed-string/font-size.html: Added.
+        * platform/mac/editing/attributed-string/font-style-variant-effect-expected.txt: Added.
+        * platform/mac/editing/attributed-string/font-style-variant-effect.html: Added.
+        * platform/mac/editing/attributed-string/font-weight-expected.txt: Added.
+        * platform/mac/editing/attributed-string/font-weight.html: Added.
+        * platform/mac/editing/attributed-string/letter-spacing-expected.txt: Added.
+        * platform/mac/editing/attributed-string/letter-spacing.html: Added.
+        * platform/mac/editing/attributed-string/resources: Added.
+        * platform/mac/editing/attributed-string/resources/dump-attributed-string.js: Added.
+        (.):
+        * platform/mac/editing/attributed-string/text-decorations-expected.txt: Added.
+        * platform/mac/editing/attributed-string/text-decorations.html: Added.
+        * platform/mac/editing/attributed-string/vertical-align-expected.txt: Added.
+        * platform/mac/editing/attributed-string/vertical-align.html: Added.
+
+2013-08-28  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Expand classList test to cover exception in toString
+        https://bugs.webkit.org/show_bug.cgi?id=120444
+
+        Reviewed by Benjamin Poulain.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/825fefb837133d5545964c17f6aa4b62bfe3df0c
+
+        When add and remove is called and there is an exception being thrown
+        in one of the arguments we need to ensure that we are not calling the
+        implementation of add and remove.
+
+        * fast/dom/HTMLElement/class-list-expected.txt:
+        * fast/dom/HTMLElement/class-list-quirks-expected.txt:
+        * fast/dom/HTMLElement/script-tests/class-list.js:
+        (shouldBeEqualToString):
+
+2013-08-28  Chris Curtis  <chris_curtis@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119548
+        Refactoring Exception throws.
+        
+        Reviewed by Geoffrey Garen.
+
+        Column/line information was added into these results.
+        * fast/events/window-onerror4-expected.txt:
+        * fast/js/global-recursion-on-full-stack-expected.txt:
+        
+        fixed a variable name in a case when shouldThrowType failed.
+        * fast/js/mozilla/resources/js-test-pre.js:
+        (shouldThrowType):
+        
+        Sorted the properties to allow the results always show in the same order.
+        * fast/js/script-tests/exception-properties.js:
+        * fast/js/exception-properties-expected.txt:
+        
+        This test needed to be modified to have the line numbers match on the output across
+        wk and wk2. This test is inherently flaky because is relies on size of the available
+        native stack. To account for the flakiness an additional call was made to force the 
+        results to match. 
+        This patch now records and outputs the line number where the errors were occurring. 
+        This was causing the test results to no longer match because of the line numbers.
+        By changing how to account for the flakiness, the results match again. 
+        * fast/xmlhttprequest/xmlhttprequest-recursive-sync-event-expected.txt:
+        * fast/xmlhttprequest/xmlhttprequest-recursive-sync-event.html:
+
+
+2013-08-28  Dean Jackson  <dino@apple.com>
+
+        [WebGL] CoreGraphics can provide greyscale image data
+        https://webkit.org/b/120443
+
+        Reviewed by Simon Fraser.
+
+        New test that attempts to load and draw an image that only has grey
+        and alpha channels.
+
+        * fast/canvas/webgl/resources/greyscale.png: Added.
+        * fast/canvas/webgl/tex-image-with-greyscale-image-expected.txt: Added.
+        * fast/canvas/webgl/tex-image-with-greyscale-image.html: Added.
+
+2013-08-28  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix compositing layers in columns
+        https://bugs.webkit.org/show_bug.cgi?id=120436
+
+        Reviewed by Dave Hyatt.
+        
+        Various testcases for compositing in columns.
+
+        * compositing/columns/ancestor-clipped-in-paginated-expected.txt: Added.
+        * compositing/columns/ancestor-clipped-in-paginated.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/clipped-in-paginated-expected.txt: Added.
+        * compositing/columns/clipped-in-paginated.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/composited-columns-expected.txt: Added.
+        * compositing/columns/composited-columns-vertical-rl-expected.txt: Added.
+        * compositing/columns/composited-columns-vertical-rl.html: Added.
+        * compositing/columns/composited-columns.html: Added.
+        * compositing/columns/composited-in-paginated-rl-expected.txt: Added.
+        * compositing/columns/composited-in-paginated-rl.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/composited-in-paginated-writing-mode-rl-expected.txt: Added.
+        * compositing/columns/composited-in-paginated-writing-mode-rl.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/composited-in-paginated.html:
+        * compositing/columns/composited-lr-paginated-repaint-expected.txt: Added.
+        * compositing/columns/composited-lr-paginated-repaint.html: Added.
+        * compositing/columns/composited-nested-columns-expected.txt: Added.
+        * compositing/columns/composited-nested-columns.html: Added.
+        * compositing/columns/composited-rl-paginated-repaint-expected.txt: Added.
+        * compositing/columns/composited-rl-paginated-repaint.html: Added.
+        * compositing/columns/hittest-composited-in-paginated-expected.txt: Added.
+        * compositing/columns/hittest-composited-in-paginated.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/rotated-in-paginated-expected.txt: Added.
+        * compositing/columns/rotated-in-paginated.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+        * compositing/columns/untransformed-composited-in-paginated-expected.txt: Added.
+        * compositing/columns/untransformed-composited-in-paginated.html: Copied from LayoutTests/compositing/columns/composited-in-paginated.html.
+
+2013-08-28  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] accessibility/menu-list-sends-change-notification.html has incorrect expected results
+        https://bugs.webkit.org/show_bug.cgi?id=120419
+
+        Reviewed by Chris Fleizach.
+
+        Updated the expected results according to the fix added to AccessibilityCallbacksAtk.cpp
+        where a notification was added for AXFocusedUIElementChanged.
+
+        * platform/gtk/accessibility/menu-list-sends-change-notification-expected.txt:
+
+2013-08-28  Rob Buis  <rwlbuis@webkit.org>
+
+        Namespace prefix is blindly followed when serializing
+        https://bugs.webkit.org/show_bug.cgi?id=19121
+        Serializer doesn't handling inconsistent prefixes properly
+        https://bugs.webkit.org/show_bug.cgi?id=117764
+        Attribute namespaces are serialized as if they were element ones
+        https://bugs.webkit.org/show_bug.cgi?id=22958
+
+        Reviewed by Ryosuke Niwa.
+
+        Add tests to make sure unique prefixes and namespace declarations are generated for the
+        case when the same prefix is used to map to different namespaces. All testcases are based
+        on the testcases attached to the bugs.
+
+        * fast/dom/XMLSerializer-attribute-namespace-prefix-conflicts-expected.txt: Added.
+        * fast/dom/XMLSerializer-attribute-namespace-prefix-conflicts.html: Added.
+        * fast/dom/XMLSerializer-same-prefix-different-namespaces-conflict-expected.txt: Added.
+        * fast/dom/XMLSerializer-same-prefix-different-namespaces-conflict.html: Added.
+        * fast/dom/XMLSerializer-setAttributeNS-namespace-no-prefix-expected.txt: Added.
+        * fast/dom/XMLSerializer-setAttributeNS-namespace-no-prefix.html: Added.
+        * svg/custom/xlink-prefix-generation-in-attributes-expected.txt: Added.
+        * svg/custom/xlink-prefix-generation-in-attributes.html: Added.
+
+2013-08-28  Sam White  <samuel_white@apple.com>
+
+        AX: Cancel button in search field not accessible.
+        <https://webkit.org/b/120322>
+
+        Make sure the cancel button that shows in an input element of
+        type search is accessible and actionable.
+
+        Reviewed by Chris Fleizach.
+
+        * platform/mac/accessibility/search-field-cancel-button-expected.txt: Added.
+        * platform/mac/accessibility/search-field-cancel-button.html: Added.
+
+2013-08-28  Ryosuke Niwa  <rniwa@webkit.org>
+
+        REGRESSION(r154586): Past names map should only be used when named item is empty
+        https://bugs.webkit.org/show_bug.cgi?id=120432
+
+        Reviewed by Anders Carlsson.
+
+        Add a regression test so that we never regress again.
+
+        * fast/forms/past-names-map-should-be-used-only-when-named-item-is-empty-expected.txt: Added.
+        * fast/forms/past-names-map-should-be-used-only-when-named-item-is-empty.html: Added.
+
+2013-08-28  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Fix a typo in the test name.
+
+        * fast/forms/past-names-map-should-not-contain-disassociated-elements-expected.txt: Copied from LayoutTests/fast/forms/past-names-map-should-not-contained-disassociated-elements-expected.txt.
+        * fast/forms/past-names-map-should-not-contain-disassociated-elements.html: Copied from LayoutTests/fast/forms/past-names-map-should-not-contained-disassociated-elements.html.
+        * fast/forms/past-names-map-should-not-contained-disassociated-elements-expected.txt: Removed.
+        * fast/forms/past-names-map-should-not-contained-disassociated-elements.html: Removed.
+
+2013-08-27  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Don't keep unassociated elements in the past names map
+        https://bugs.webkit.org/show_bug.cgi?id=120328
+
+        Reviewed by Darin Adler.
+
+        Add a regression test. Also Updated the tests to expect the new behavior in which elements are not accessible via
+        their past names in a form element's name getter once they're disassociated with the form element.
+
+        * fast/forms/form-image-access-by-name-expected.txt:
+        * fast/forms/form-image-access-by-name.html:
+        * fast/forms/old-names-expected.txt:
+        * fast/forms/old-names.html:
+        * fast/forms/past-names-map-should-not-contained-disassociated-elements-expected.txt: Added.
+        * fast/forms/past-names-map-should-not-contained-disassociated-elements.html: Added.
+
+2013-08-28  Brendan Long  <b.long@cablelabs.com>
+
+        Duplicate in-band tracks when switching <source> elements
+        https://bugs.webkit.org/show_bug.cgi?id=120369
+
+        Reviewed by Eric Carlson.
+
+        * media/track/track-in-band-duplicate-tracks-when-source-changes.html: Added.
+        * media/track/track-in-band-duplicate-tracks-when-source-changes-expected.txt: Added.
+
 2013-08-28  Niklas Nielsen  <nnielsen@adobe.com>
 
         [CSS Exclusions] Differentiate names in the simple rectangle test script

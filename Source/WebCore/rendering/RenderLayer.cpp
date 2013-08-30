@@ -1258,18 +1258,6 @@ bool RenderLayer::updateLayerPosition()
             localPoint += offset;
         }
     } else if (parent()) {
-        if (isComposited()) {
-            // FIXME: Composited layers ignore pagination, so about the best we can do is make sure they're offset into the appropriate column.
-            // They won't split across columns properly.
-            LayoutSize columnOffset;
-            if (!parent()->renderer().hasColumns() && parent()->renderer().isRoot() && renderer().view().hasColumns())
-                renderer().view().adjustForColumns(columnOffset, localPoint);
-            else
-                parent()->renderer().adjustForColumns(columnOffset, localPoint);
-
-            localPoint += columnOffset;
-        }
-
         if (parent()->renderer().hasOverflowClip()) {
             IntSize scrollOffset = parent()->scrolledContentOffset();
             localPoint -= scrollOffset;
@@ -1891,22 +1879,22 @@ void RenderLayer::insertOnlyThisLayer()
     clearClipRectsIncludingDescendants();
 }
 
-void RenderLayer::convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntPoint& roundedLocation) const
+void RenderLayer::convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntPoint& roundedLocation, ColumnOffsetAdjustment adjustForColumns) const
 {
     LayoutPoint location = roundedLocation;
-    convertToLayerCoords(ancestorLayer, location);
+    convertToLayerCoords(ancestorLayer, location, adjustForColumns);
     roundedLocation = roundedIntPoint(location);
 }
 
-void RenderLayer::convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntRect& roundedRect) const
+void RenderLayer::convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntRect& roundedRect, ColumnOffsetAdjustment adjustForColumns) const
 {
     LayoutRect rect = roundedRect;
-    convertToLayerCoords(ancestorLayer, rect);
+    convertToLayerCoords(ancestorLayer, rect, adjustForColumns);
     roundedRect = pixelSnappedIntRect(rect);
 }
 
 // Returns the layer reached on the walk up towards the ancestor.
-static inline const RenderLayer* accumulateOffsetTowardsAncestor(const RenderLayer* layer, const RenderLayer* ancestorLayer, LayoutPoint& location)
+static inline const RenderLayer* accumulateOffsetTowardsAncestor(const RenderLayer* layer, const RenderLayer* ancestorLayer, LayoutPoint& location, RenderLayer::ColumnOffsetAdjustment adjustForColumns)
 {
     ASSERT(ancestorLayer != layer);
 
@@ -2011,23 +1999,32 @@ static inline const RenderLayer* accumulateOffsetTowardsAncestor(const RenderLay
         return 0;
 
     location += toSize(layer->location());
+
+    if (adjustForColumns == RenderLayer::AdjustForColumns) {
+        if (RenderLayer* parentLayer = layer->parent()) {
+            LayoutSize layerColumnOffset;
+            parentLayer->renderer().adjustForColumns(layerColumnOffset, location);
+            location += layerColumnOffset;
+        }
+    }
+
     return parentLayer;
 }
 
-void RenderLayer::convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutPoint& location) const
+void RenderLayer::convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutPoint& location, ColumnOffsetAdjustment adjustForColumns) const
 {
     if (ancestorLayer == this)
         return;
 
     const RenderLayer* currLayer = this;
     while (currLayer && currLayer != ancestorLayer)
-        currLayer = accumulateOffsetTowardsAncestor(currLayer, ancestorLayer, location);
+        currLayer = accumulateOffsetTowardsAncestor(currLayer, ancestorLayer, location, adjustForColumns);
 }
 
-void RenderLayer::convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutRect& rect) const
+void RenderLayer::convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutRect& rect, ColumnOffsetAdjustment adjustForColumns) const
 {
     LayoutPoint delta;
-    convertToLayerCoords(ancestorLayer, delta);
+    convertToLayerCoords(ancestorLayer, delta, adjustForColumns);
     rect.move(-delta.x(), -delta.y());
 }
 
@@ -4383,23 +4380,6 @@ Node* RenderLayer::enclosingElement() const
     return 0;
 }
 
-#if ENABLE(DIALOG_ELEMENT)
-bool RenderLayer::isInTopLayer() const
-{
-    Node* node = renderer().node();
-    return node && node->isElementNode() && toElement(node)->isInTopLayer();
-}
-
-bool RenderLayer::isInTopLayerSubtree() const
-{
-    for (const RenderLayer* layer = this; layer; layer = layer->parent()) {
-        if (layer->isInTopLayer())
-            return true;
-    }
-    return false;
-}
-#endif
-
 // Compute the z-offset of the point in the transformState.
 // This is effectively projecting a ray normal to the plane of ancestor, finding where that
 // ray intersects target, and computing the z delta between those two points.
@@ -5685,22 +5665,6 @@ void RenderLayer::rebuildZOrderLists(CollectLayersBehavior behavior, OwnPtr<Vect
 
     if (negZOrderList)
         std::stable_sort(negZOrderList->begin(), negZOrderList->end(), compareZIndex);
-
-#if ENABLE(DIALOG_ELEMENT)
-    // Append layers for top layer elements after normal layer collection, to ensure they are on top regardless of z-indexes.
-    // The renderers of top layer elements are children of the view, sorted in top layer stacking order.
-    if (isRootLayer()) {
-        RenderObject* view = renderer().view();
-        for (RenderObject* child = view->firstChild(); child; child = child->nextSibling()) {
-            Element* childElement = (child->node() && child->node()->isElementNode()) ? toElement(child->node()) : 0;
-            if (childElement && childElement->isInTopLayer()) {
-                RenderLayer* layer = toRenderLayerModelObject(child)->layer();
-                posZOrderList->append(layer);
-            }
-        }
-    }
-#endif
-
 }
 
 void RenderLayer::updateNormalFlowList()
@@ -5724,11 +5688,6 @@ void RenderLayer::updateNormalFlowList()
 
 void RenderLayer::collectLayers(bool includeHiddenLayers, CollectLayersBehavior behavior, OwnPtr<Vector<RenderLayer*> >& posBuffer, OwnPtr<Vector<RenderLayer*> >& negBuffer)
 {
-#if ENABLE(DIALOG_ELEMENT)
-    if (isInTopLayer())
-        return;
-#endif
-
     updateDescendantDependentFlags();
 
     bool isStacking = behavior == StopAtStackingContexts ? isStackingContext() : isStackingContainer();
