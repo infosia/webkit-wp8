@@ -2297,7 +2297,7 @@
 		C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVirtualMachineXPrivateRef.h; sourceTree = "<group>"; };
 		C91CFBE917CD82AA003AE959 /* JSVMWrapperCacheXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSVMWrapperCacheXRef.h; sourceTree = "<group>"; };
 		C91CFBEB17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSVMWrapperCacheXRef.cpp; sourceTree = "<group>"; };
-		C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JavaScriptCoreXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C91CFBF117CD9BD7003AE959 /* XCTestAPI.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XCTestAPI.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C91CFBF217CD9BD7003AE959 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
 		C91CFBF617CD9BD7003AE959 /* JavaScriptCoreXTests-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "JavaScriptCoreXTests-Info.plist"; sourceTree = "<group>"; };
 		C91CFBF817CD9BD7003AE959 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -2305,15 +2305,15 @@
 		C91CFC0417CD9D89003AE959 /* JSVMWrapperCacheXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSVMWrapperCacheXTests.mm; sourceTree = "<group>"; };
 		C91CFC0617CDA0E7003AE959 /* JSVirtualMachineXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSVirtualMachineXTests.mm; sourceTree = "<group>"; };
 		C91CFC0917CDAB49003AE959 /* JSContextXTests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = JSContextXTests.mm; sourceTree = "<group>"; };
-		C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ObjectiveCAPITests.mm; sourceTree = "<group>"; };
-		C91CFC0C17CDAD18003AE959 /* ParentObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ParentObject.h; sourceTree = "<group>"; };
-		C91CFC0D17CDAD18003AE959 /* ParentObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = ParentObject.m; sourceTree = "<group>"; };
-		C91CFC0E17CDAD18003AE959 /* TestObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TestObject.h; sourceTree = "<group>"; };
-		C91CFC0F17CDAD18003AE959 /* TestObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TestObject.m; sourceTree = "<group>"; };
-		C91CFC1017CDAD18003AE959 /* TextXYZ.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TextXYZ.h; sourceTree = "<group>"; };
-		C91CFC1117CDAD18003AE959 /* TextXYZ.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TextXYZ.m; sourceTree = "<group>"; };
-		C91CFC1217CDAD18003AE959 /* TinyDOMNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TinyDOMNode.h; sourceTree = "<group>"; };
-		C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file; path = TinyDOMNode.m; sourceTree = "<group>"; };
+		C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = ObjectiveCAPITests.mm; sourceTree = "<group>"; };
+		C91CFC0C17CDAD18003AE959 /* ParentObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ParentObject.h; sourceTree = "<group>"; };
+		C91CFC0D17CDAD18003AE959 /* ParentObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ParentObject.m; sourceTree = "<group>"; };
+		C91CFC0E17CDAD18003AE959 /* TestObject.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestObject.h; sourceTree = "<group>"; };
+		C91CFC0F17CDAD18003AE959 /* TestObject.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TestObject.m; sourceTree = "<group>"; };
+		C91CFC1017CDAD18003AE959 /* TextXYZ.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TextXYZ.h; sourceTree = "<group>"; };
+		C91CFC1117CDAD18003AE959 /* TextXYZ.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TextXYZ.m; sourceTree = "<group>"; };
+		C91CFC1217CDAD18003AE959 /* TinyDOMNode.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TinyDOMNode.h; sourceTree = "<group>"; };
+		C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = TinyDOMNode.m; sourceTree = "<group>"; };
 		C99F296417C7FB2E00B1544E /* JSValueXRef.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSValueXRef.h; sourceTree = "<group>"; };
 		C99F296617C7FB4F00B1544E /* JSValueXRef.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSValueXRef.cpp; sourceTree = "<group>"; };
 		C99F296817C7FB8200B1544E /* JavaScriptCoreX.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JavaScriptCoreX.h; sourceTree = "<group>"; };
@@ -2455,7 +2455,7 @@
 				141211200A48793C00480255 /* minidom */,
 				14BD59BF0A3E8F9000BAF59C /* testapi */,
 				6511230514046A4C002B101D /* testRegExp */,
-				C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */,
+				C91CFBF117CD9BD7003AE959 /* XCTestAPI.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -4626,7 +4626,7 @@
 			);
 			name = XCTestAPI;
 			productName = JavaScriptCoreXTests;
-			productReference = C91CFBF117CD9BD7003AE959 /* JavaScriptCoreXTests.xctest */;
+			productReference = C91CFBF117CD9BD7003AE959 /* XCTestAPI.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -5995,6 +5995,7 @@
 				C91CFC0317CD9BD8003AE959 /* Production */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Production;
 		};
 /* End XCConfigurationList section */
 	};

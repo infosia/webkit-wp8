@@ -35,7 +35,7 @@
     //    JSVMWrapperCacheXRetain(wrapperCache);
     JSVMWrapperCacheXRelease(wrapperCache);
     //    JSVMWrapperCacheXRelease(wrapperCache);
-    //    JSVMWrapperCacheXRelease(jsVirtualMachineX);
+    //    JSVMWrapperCacheXRelease(wrapperCache);
     //XCTAssertFalse(wrapperCache);
 }
 
