@@ -38,7 +38,6 @@ namespace WebCore {
 
 RenderTextControl::RenderTextControl(Element* element)
     : RenderBlock(element)
-    , m_intrinsicLogicalHeight(0)
 {
     ASSERT(isHTMLTextFormControlElement(element));
 }
@@ -126,37 +125,27 @@ void RenderTextControl::updateFromElement()
         updateUserModifyProperty(node(), innerText->renderer()->style());
 }
 
-VisiblePosition RenderTextControl::visiblePositionForIndex(int index) const
-{
-    if (index <= 0)
-        return VisiblePosition(firstPositionInNode(innerTextElement()), DOWNSTREAM);
-    RefPtr<Range> range = Range::create(&document());
-    range->selectNodeContents(innerTextElement(), ASSERT_NO_EXCEPTION);
-    CharacterIterator it(range.get());
-    it.advance(index - 1);
-    return VisiblePosition(it.range()->endPosition(), UPSTREAM);
-}
-
 int RenderTextControl::scrollbarThickness() const
 {
     // FIXME: We should get the size of the scrollbar from the RenderTheme instead.
     return ScrollbarTheme::theme()->scrollbarThickness();
 }
 
-void RenderTextControl::computeLogicalHeight(LayoutUnit, LayoutUnit logicalTop, LogicalExtentComputedValues& computedValues) const
+void RenderTextControl::computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues& computedValues) const
 {
     HTMLElement* innerText = innerTextElement();
     ASSERT(innerText);
     if (RenderBox* innerTextBox = innerText->renderBox()) {
         LayoutUnit nonContentHeight = innerTextBox->borderAndPaddingHeight() + innerTextBox->marginHeight();
-        m_intrinsicLogicalHeight = computeControlLogicalHeight(innerTextBox->lineHeight(true, HorizontalLine, PositionOfInteriorLineBoxes), nonContentHeight) + borderAndPaddingLogicalHeight();
+        logicalHeight = computeControlLogicalHeight(innerTextBox->lineHeight(true, HorizontalLine, PositionOfInteriorLineBoxes), nonContentHeight) + borderAndPaddingHeight();
 
         // We are able to have a horizontal scrollbar if the overflow style is scroll, or if its auto and there's no word wrap.
         if ((isHorizontalWritingMode() && (style()->overflowX() == OSCROLL ||  (style()->overflowX() == OAUTO && innerText->renderer()->style()->overflowWrap() == NormalOverflowWrap)))
             || (!isHorizontalWritingMode() && (style()->overflowY() == OSCROLL ||  (style()->overflowY() == OAUTO && innerText->renderer()->style()->overflowWrap() == NormalOverflowWrap))))
-            m_intrinsicLogicalHeight += scrollbarThickness();
+            logicalHeight += scrollbarThickness();
     }
-    RenderBox::computeLogicalHeight(m_intrinsicLogicalHeight, logicalTop, computedValues);
+
+    RenderBox::computeLogicalHeight(logicalHeight, logicalTop, computedValues);
 }
 
 void RenderTextControl::hitInnerTextElement(HitTestResult& result, const LayoutPoint& pointInContainer, const LayoutPoint& accumulatedOffset)

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugSuffix|Win32">
@@ -11011,7 +11011,6 @@
     <ClCompile Include="..\rendering\shapes\RectangleShape.cpp" />
     <ClCompile Include="..\rendering\shapes\Shape.cpp" />
     <ClCompile Include="..\rendering\shapes\ShapeInsideInfo.cpp" />
-    <ClCompile Include="..\rendering\shapes\ShapeInterval.cpp" />
     <ClCompile Include="..\rendering\shapes\ShapeOutsideInfo.cpp" />
     <ClCompile Include="..\rendering\svg\SVGPathData.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -15631,7 +15630,9 @@
     <ClCompile Include="..\html\shadow\SliderThumbElement.cpp" />
     <ClCompile Include="..\html\shadow\SpinButtonElement.cpp" />
     <ClCompile Include="..\html\shadow\TextControlInnerElements.cpp" />
+    <ClCompile Include="..\html\track\InbandGenericTextTrack.cpp" />
     <ClCompile Include="..\html\track\InbandTextTrack.cpp" />
+    <ClCompile Include="..\html\track\InbandWebVTTTextTrack.cpp" />
     <ClCompile Include="..\html\track\LoadableTextTrack.cpp" />
     <ClCompile Include="..\html\track\TextTrack.cpp" />
     <ClCompile Include="..\html\track\TextTrackCue.cpp" />
@@ -18240,6 +18241,7 @@
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\ExceptionHeaders.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\ExceptionInterfaces.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\HTMLElementFactory.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\HTMLElementTypeChecks.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\HTMLNames.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\InjectedScriptCanvasModuleSource.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\InjectedScriptSource.h" />
@@ -18697,6 +18699,7 @@
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\MathMLElementFactory.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\MathMLNames.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SVGElementFactory.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SVGElementTypeChecks.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SVGNames.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\UserAgentStyleSheets.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\WebKitFontFamilyNames.h" />
@@ -20216,7 +20219,6 @@
     <ClInclude Include="..\dom\CDATASection.h" />
     <ClInclude Include="..\dom\CharacterData.h" />
     <ClInclude Include="..\dom\CheckedRadioButtons.h" />
-    <ClInclude Include="..\dom\ChildIterator.h" />
     <ClInclude Include="..\dom\ChildListMutationScope.h" />
     <ClInclude Include="..\dom\ChildNodeList.h" />
     <ClInclude Include="..\dom\ClassNodeList.h" />
@@ -20236,8 +20238,6 @@
     <ClInclude Include="..\dom\DataTransferItem.h" />
     <ClInclude Include="..\dom\DataTransferItemList.h" />
     <ClInclude Include="..\dom\DecodedDataDocumentParser.h" />
-    <ClInclude Include="..\dom\DescendantIterator.h" />
-    <ClInclude Include="..\dom\DescendantIteratorAssertions.h" />
     <ClInclude Include="..\dom\DeviceMotionClient.h" />
     <ClInclude Include="..\dom\DeviceMotionController.h" />
     <ClInclude Include="..\dom\DeviceMotionData.h" />
@@ -20264,7 +20264,12 @@
     <ClInclude Include="..\dom\DOMStringMap.h" />
     <ClInclude Include="..\dom\DOMTimeStamp.h" />
     <ClInclude Include="..\dom\Element.h" />
+    <ClInclude Include="..\dom\ElementAncestorIterator.h" />
+    <ClInclude Include="..\dom\ElementChildIterator.h" />
     <ClInclude Include="..\dom\ElementData.h" />
+    <ClInclude Include="..\dom\ElementDescendantIterator.h" />
+    <ClInclude Include="..\dom\ElementIterator.h" />
+    <ClInclude Include="..\dom\ElementIteratorAssertions.h" />
     <ClInclude Include="..\dom\ElementTraversal.h" />
     <ClInclude Include="..\dom\Entity.h" />
     <ClInclude Include="..\dom\EntityReference.h" />
@@ -20661,7 +20666,9 @@
     <ClInclude Include="..\html\shadow\SliderThumbElement.h" />
     <ClInclude Include="..\html\shadow\SpinButtonElement.h" />
     <ClInclude Include="..\html\shadow\TextControlInnerElements.h" />
+    <ClInclude Include="..\html\track\InbandGenericTextTrack.h" />
     <ClInclude Include="..\html\track\InbandTextTrack.h" />
+    <ClInclude Include="..\html\track\InbandWebVTTTextTrack.h" />
     <ClInclude Include="..\html\track\LoadableTextTrack.h" />
     <ClInclude Include="..\html\track\TextTrack.h" />
     <ClInclude Include="..\html\track\TextTrackCue.h" />

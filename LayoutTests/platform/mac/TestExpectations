@@ -379,6 +379,9 @@ webkit.org/b/61487 http/tests/media/video-cross-site.html [ Failure ]
 # Styled scope element is not yet enabled.
 webkit.org/b/49142 fast/css/style-scoped
 
+# fails because of antialiasing differences.
+fast/css/object-fit/object-fit-canvas.html [ Pass ImageOnlyFailure ]
+
 # CSS Regions tests for region styling and scoped styles
 fast/regions/style-scoped-in-flow-override-container-style.html
 fast/regions/style-scoped-in-flow-override-region-styling-multiple-regions.html
@@ -1262,8 +1265,6 @@ editing/secure-input/reset-state-on-navigation.html [ Failure ]
 
 webkit.org/b/116238 css3/filters/custom/filter-fallback-to-software.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/116241 inspector/storage-panel-dom-storage-update.html [ Failure ]
-
 webkit.org/b/116244 fast/events/mouse-cursor-image-set.html [ Failure Pass ]
 
 webkit.org/b/116245 canvas/philip/tests/2d.text.draw.fontface.notinpage.html [ Pass Failure ]
@@ -1296,3 +1297,6 @@ webkit.org/b/120087 [ Lion ] fast/forms/submit-to-url-fragment.html [ Pass Crash
 webkit.org/b/117962 [ Lion ] media/video-played-collapse.html [ Failure Pass ]
 
 webkit.org/b/120387 svg/animations/svglengthlist-animation-3.html [ Pass Failure ]
+
+# Don't run ogv and mkv tests on mac
+media/track/in-band [ WontFix ]

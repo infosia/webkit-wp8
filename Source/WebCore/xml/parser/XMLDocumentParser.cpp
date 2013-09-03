@@ -50,6 +50,7 @@
 #include "TextResourceDecoder.h"
 #include "TreeDepthLimit.h"
 #include "XMLErrors.h"
+#include <wtf/Ref.h>
 #include <wtf/StringExtras.h>
 #include <wtf/Threading.h>
 #include <wtf/Vector.h>
@@ -146,7 +147,7 @@ void XMLDocumentParser::enterText()
     ASSERT(m_bufferedText.size() == 0);
 #endif
     ASSERT(!m_leafTextNode);
-    m_leafTextNode = Text::create(m_currentNode->document(), "");
+    m_leafTextNode = Text::create(&m_currentNode->document(), "");
     m_currentNode->parserAppendChild(m_leafTextNode.get());
 }
 
@@ -256,7 +257,7 @@ void XMLDocumentParser::notifyFinished(CachedResource* unusedResource)
     ASSERT(scriptElement);
 
     // JavaScript can detach this parser, make sure it's kept alive even if detached.
-    RefPtr<XMLDocumentParser> protect(this);
+    Ref<XMLDocumentParser> protect(*this);
     
     if (errorOccurred)
         scriptElement->dispatchErrorEvent();
@@ -293,7 +294,7 @@ bool XMLDocumentParser::parseDocumentFragment(const String& chunk, DocumentFragm
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-xhtml-syntax.html#xml-fragment-parsing-algorithm
     // For now we have a hack for script/style innerHTML support:
     if (contextElement && (contextElement->hasLocalName(HTMLNames::scriptTag) || contextElement->hasLocalName(HTMLNames::styleTag))) {
-        fragment->parserAppendChild(fragment->document()->createTextNode(chunk));
+        fragment->parserAppendChild(fragment->document().createTextNode(chunk));
         return true;
     }
 

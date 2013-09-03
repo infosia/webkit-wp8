@@ -1,3 +1,343 @@
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        [Mac] No need for HardAutorelease, which is same as CFBridgingRelease
+        https://bugs.webkit.org/show_bug.cgi?id=120569
+
+        Reviewed by Andy Estes.
+
+        * API/JSValue.mm:
+        (valueToString): Use CFBridgingRelease.
+
+2013-08-30  Filip Pizlo  <fpizlo@apple.com>
+
+        CodeBlock refactoring broke profile dumping
+        https://bugs.webkit.org/show_bug.cgi?id=120551
+
+        Reviewed by Michael Saboff.
+        
+        Fix the bug, and did a big clean-up of how Executable returns CodeBlocks. A lot
+        of the problems we have with code like CodeBlock::baselineVersion() is that we
+        were trying *way too hard* to side-step the fact that Executable can't return a
+        CodeBlock*. Previously it could only return CodeBlock&, so if it didn't have a
+        CodeBlock yet, you were screwed. And if you didn't know, or weren't sure, if it
+        did have a CodeBlock, you were really going to have a bad time. Also it really
+        bugs me that the methods were called generatedBytecode(). In all other contexts
+        if you ask for a CodeBlock, then method to call is codeBlock(). So I made all
+        of those changes.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::baselineVersion):
+        (JSC::ProgramCodeBlock::replacement):
+        (JSC::EvalCodeBlock::replacement):
+        (JSC::FunctionCodeBlock::replacement):
+        (JSC::CodeBlock::globalObjectFor):
+        * bytecode/CodeOrigin.cpp:
+        (JSC::InlineCallFrame::hash):
+        * dfg/DFGOperations.cpp:
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::execute):
+        (JSC::Interpreter::executeCall):
+        (JSC::Interpreter::executeConstruct):
+        (JSC::Interpreter::prepareForRepeatCall):
+        * jit/JITCode.h:
+        (JSC::JITCode::isExecutableScript):
+        (JSC::JITCode::isLowerTier):
+        * jit/JITStubs.cpp:
+        (JSC::lazyLinkFor):
+        (JSC::DEFINE_STUB_FUNCTION):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::traceFunctionPrologue):
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        (JSC::LLInt::setUpCall):
+        * runtime/ArrayPrototype.cpp:
+        (JSC::isNumericCompareFunction):
+        * runtime/CommonSlowPaths.h:
+        (JSC::CommonSlowPaths::arityCheckFor):
+        * runtime/Executable.cpp:
+        (JSC::ScriptExecutable::installCode):
+        * runtime/Executable.h:
+        (JSC::EvalExecutable::codeBlock):
+        (JSC::ProgramExecutable::codeBlock):
+        (JSC::FunctionExecutable::eitherCodeBlock):
+        (JSC::FunctionExecutable::codeBlockForCall):
+        (JSC::FunctionExecutable::codeBlockForConstruct):
+        (JSC::FunctionExecutable::codeBlockFor):
+        * runtime/FunctionExecutableDump.cpp:
+        (JSC::FunctionExecutableDump::dump):
+
+2013-08-30  Oliver Hunt  <oliver@apple.com>
+
+        Implement ES6 Set class
+        https://bugs.webkit.org/show_bug.cgi?id=120549
+
+        Reviewed by Filip Pizlo.
+
+        We simply reuse the MapData type from JSMap making the
+        it much simpler.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * runtime/CommonIdentifiers.h:
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::reset):
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+        (JSC::JSGlobalObject::setStructure):
+        * runtime/JSSet.cpp: Added.
+        (JSC::JSSet::visitChildren):
+        (JSC::JSSet::finishCreation):
+        * runtime/JSSet.h: Added.
+        (JSC::JSSet::createStructure):
+        (JSC::JSSet::create):
+        (JSC::JSSet::mapData):
+        (JSC::JSSet::JSSet):
+        * runtime/SetConstructor.cpp: Added.
+        (JSC::SetConstructor::finishCreation):
+        (JSC::callSet):
+        (JSC::constructSet):
+        (JSC::SetConstructor::getConstructData):
+        (JSC::SetConstructor::getCallData):
+        * runtime/SetConstructor.h: Added.
+        (JSC::SetConstructor::create):
+        (JSC::SetConstructor::createStructure):
+        (JSC::SetConstructor::SetConstructor):
+        * runtime/SetPrototype.cpp: Added.
+        (JSC::SetPrototype::finishCreation):
+        (JSC::getMapData):
+        (JSC::setProtoFuncAdd):
+        (JSC::setProtoFuncClear):
+        (JSC::setProtoFuncDelete):
+        (JSC::setProtoFuncForEach):
+        (JSC::setProtoFuncHas):
+        (JSC::setProtoFuncSize):
+        * runtime/SetPrototype.h: Added.
+        (JSC::SetPrototype::create):
+        (JSC::SetPrototype::createStructure):
+        (JSC::SetPrototype::SetPrototype):
+
+2013-08-30  Oliver Hunt  <oliver@apple.com>
+
+        Make JSValue bool conversion less dangerous
+        https://bugs.webkit.org/show_bug.cgi?id=120505
+
+        Reviewed by Darin Adler.
+
+        Replaces JSValue::operator bool() with a operator UnspecifiedBoolType* as
+        we do elsewhere.  Then fix the places where terrible type coercion was
+        happening.  All of the changes made had no fundamental behavioural impact
+        as they were coercion results that were ignored (returning undefined 
+        after an exception).  
+
+        * dfg/DFGOperations.cpp:
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::hadException):
+        * runtime/JSCJSValue.h:
+        * runtime/JSCJSValueInlines.h:
+        (JSC::JSValue::operator UnspecifiedBoolType*):
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::globalFuncEval):
+        * runtime/PropertyDescriptor.cpp:
+        (JSC::PropertyDescriptor::equalTo)
+
+2013-08-30  Chris Curtis  <chris_curtis@apple.com>
+
+        Cleaning errorDescriptionForValue after r154839
+        https://bugs.webkit.org/show_bug.cgi?id=120531
+        
+        Reviewed by Darin Adler.
+        
+        Changed the assert to ASSERT_NOT_REACHED, now that r154839 has landed. errorDescriptionForValue 
+        can assert again that the parameterized JSValue is !isEmpty().
+        
+        * runtime/ExceptionHelpers.cpp:
+        (JSC::errorDescriptionForValue):
+
+2013-08-30  Antti Koivisto  <antti@apple.com>
+
+        Remove code behind ENABLE(DIALOG_ELEMENT)
+        https://bugs.webkit.org/show_bug.cgi?id=120467
+
+        Reviewed by Darin Adler.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-08-29  Andreas Kling  <akling@apple.com>
+
+        De-bork Qt build.
+
+        * Target.pri:
+
+2013-08-29  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix attempt for Windows.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        Renamed JSMapConstructor and JSMapPrototype.
+
+2013-08-29  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Fix build break after r154861
+        https://bugs.webkit.org/show_bug.cgi?id=120503
+
+        Reviewed by Geoffrey Garen.
+
+        Unreviewed build fix attempt for GTK, Qt Windows and CMake based ports.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters:
+        * Target.pri:
+        * runtime/MapData.h:
+        (JSC::MapData::KeyType::KeyType):
+
+2013-08-29  Andreas Kling  <akling@apple.com>
+
+        CodeBlock: LLIntCallLinkInfo vector can be sized-to-fit at creation.
+        <https://webkit.org/b/120487>
+
+        Reviewed by Oliver Hunt.
+
+        CodeBlock::m_llintCallLinkInfos never changes size after creation, so make it a Vector
+        instead of a SegmentedVector. Use resizeToFit() instead of grow() since we know the
+        exact amount of space needed.
+
+        * bytecode/CodeBlock.h:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::CodeBlock):
+        (JSC::CodeBlock::shrinkToFit):
+
+2013-08-29  Oliver Hunt  <oliver@apple.com>
+
+        Fix issues found by MSVC (which also happily fixes an unintentional pessimisation)
+
+        * runtime/MapData.h:
+        (JSC::MapData::KeyType::KeyType):
+
+2013-08-29  Oliver Hunt  <oliver@apple.com>
+
+
+        Implement ES6 Map object
+        https://bugs.webkit.org/show_bug.cgi?id=120333
+
+        Reviewed by Geoffrey Garen.
+
+        Implement support for the ES6 Map type and related classes.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * heap/CopyToken.h: Add a new token to track copying the backing store
+        * runtime/CommonIdentifiers.h: Add new identifiers
+        * runtime/JSGlobalObject.cpp:
+        * runtime/JSGlobalObject.h:
+            Add new structures and prototypes
+
+        * runtime/JSMap.cpp: Added.
+        * runtime/JSMap.h: Added.
+            New JSMap class to represent a Map instance
+
+        * runtime/MapConstructor.cpp: Added.
+        * runtime/MapConstructor.h: Added.
+            The Map constructor
+
+        * runtime/MapData.cpp: Added.
+        * runtime/MapData.h: Added.
+            The most interesting data structure.  The roughly corresponds
+            to the ES6 notion of MapData.  It provides the core JSValue->JSValue
+            map implementation.  We implement it using 2 hashtables and a flat
+            table.  Due to the different semantics of string comparisons vs.
+            all others we need have one map keyed by String and the other by
+            generic JSValue.  The actual table is represented more or less
+            exactly as described in the ES6 draft - a single contiguous list of
+            key/value pairs.  The entire map could be achieved with just this
+            table, however we need the HashMaps in order to maintain O(1) lookup.
+
+            Deleted values are simply cleared as the draft says, however the
+            implementation compacts the storage on copy as long as the are no
+            active iterators.
+
+        * runtime/MapPrototype.cpp: Added.
+        * runtime/MapPrototype.h: Added.
+            Implement Map prototype functions
+
+        * runtime/VM.cpp:
+            Add new structures.
+
+2013-08-29  Filip Pizlo  <fpizlo@apple.com>
+
+        Teach DFG::Worklist and its clients that it may be reused for different kinds of compilations
+        https://bugs.webkit.org/show_bug.cgi?id=120489
+
+        Reviewed by Geoffrey Garen.
+        
+        If the baseline JIT hits an OSR entry trigger into the DFG and we already have a
+        DFG compilation but we've also started one or more FTL compilations, then we
+        shouldn't get confused. Previously we would have gotten confused because we would
+        see an in-process deferred compile (the FTL compile) and also an optimized
+        replacement (the DFG code).
+        
+        If the baseline JIT hits an OSR entry trigger into the DFG and we previously
+        did two things in this order: triggered a tier-up compilation from the DFG into
+        the FTL, and then jettisoned the DFG code because it exited a bunch, then we
+        shouldn't be confused by the presence of an in-process deferred compile (the FTL
+        compile). Previously we would have waited for that compile to finish; but the more
+        sensible thing to do is to let it complete and then invalidate it, while at the
+        same time enqueueing a DFG compile to create a new, more valid, DFG code block.
+        
+        If the DFG JIT hits a loop OSR entry trigger (into the FTL) and it has already
+        triggered an FTL compile for replacement, then it should fire off a second compile
+        instead of thinking that it can wait for that one to finish. Or vice-versa. We
+        need to allow for two FTL compiles to be enqueued at the same time (one for
+        replacement and one for OSR entry in a loop).
+        
+        Then there's also the problem that DFG::compile() is almost certainly going to be
+        the hook for triggering both DFG compiles and the two kinds of FTL compiles, but
+        right now there is no way to tell it which one you want.
+        
+        This fixes these problems and removes a bunch of potential confusion by making the
+        key for a compile in the DFG::Worklist be a CompilationMode (one of DFGMode,
+        FTLMode, or FTLForOSREntryMode). That mode is also passed to DFG::compile().
+        
+        Awkwardly, this still leaves us in a no DFG->FTL tier-up situation - so
+        DFG::compile() is always passed DFGMode and then it might do an FTL compile if
+        possible. Fixing that is a bigger issue for a later changeset.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Target.pri:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::checkIfOptimizationThresholdReached):
+        * dfg/DFGCompilationKey.cpp: Added.
+        (JSC::DFG::CompilationKey::dump):
+        * dfg/DFGCompilationKey.h: Added.
+        (JSC::DFG::CompilationKey::CompilationKey):
+        (JSC::DFG::CompilationKey::operator!):
+        (JSC::DFG::CompilationKey::isHashTableDeletedValue):
+        (JSC::DFG::CompilationKey::profiledBlock):
+        (JSC::DFG::CompilationKey::mode):
+        (JSC::DFG::CompilationKey::operator==):
+        (JSC::DFG::CompilationKey::hash):
+        (JSC::DFG::CompilationKeyHash::hash):
+        (JSC::DFG::CompilationKeyHash::equal):
+        * dfg/DFGCompilationMode.cpp: Added.
+        (WTF::printInternal):
+        * dfg/DFGCompilationMode.h: Added.
+        * dfg/DFGDriver.cpp:
+        (JSC::DFG::compileImpl):
+        (JSC::DFG::compile):
+        * dfg/DFGDriver.h:
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::Plan):
+        (JSC::DFG::Plan::key):
+        * dfg/DFGPlan.h:
+        * dfg/DFGWorklist.cpp:
+        (JSC::DFG::Worklist::enqueue):
+        (JSC::DFG::Worklist::compilationState):
+        (JSC::DFG::Worklist::completeAllReadyPlansForVM):
+        (JSC::DFG::Worklist::runThread):
+        * dfg/DFGWorklist.h:
+        * jit/JITStubs.cpp:
+        (JSC::DEFINE_STUB_FUNCTION):
+
 2013-08-29  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] Unreviewed build fix after r154847.

@@ -408,6 +408,7 @@ public:
         return document().inQuirksMode() && style()->logicalHeight().isAuto() && !isFloatingOrOutOfFlowPositioned() && (isRoot() || isBody()) && !document().shouldDisplaySeamlesslyWithParent() && !isInline();
     }
 
+    virtual LayoutSize intrinsicSize() const { return LayoutSize(); }
     LayoutUnit intrinsicLogicalWidth() const { return style()->isHorizontalWritingMode() ? intrinsicSize().width() : intrinsicSize().height(); }
     LayoutUnit intrinsicLogicalHeight() const { return style()->isHorizontalWritingMode() ? intrinsicSize().height() : intrinsicSize().width(); }
 
@@ -656,7 +657,6 @@ private:
 
     LayoutUnit viewLogicalHeightForPercentages() const;
 
-    virtual LayoutSize intrinsicSize() const { return LayoutSize(); }
     void computePositionedLogicalHeight(LogicalExtentComputedValues&) const;
     void computePositionedLogicalWidthUsing(Length logicalWidth, const RenderBoxModelObject* containerBlock, TextDirection containerDirection,
                                             LayoutUnit containerLogicalWidth, LayoutUnit bordersPlusPadding,
@@ -706,6 +706,18 @@ private:
     static bool s_hadOverflowClip;
 };
 
+inline RenderBox& toRenderBox(RenderObject& object)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isBox());
+    return static_cast<RenderBox&>(object);
+}
+
+inline const RenderBox& toRenderBox(const RenderObject& object)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isBox());
+    return static_cast<const RenderBox&>(object);
+}
+
 inline RenderBox* toRenderBox(RenderObject* object)
 { 
     ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isBox());
@@ -720,6 +732,7 @@ inline const RenderBox* toRenderBox(const RenderObject* object)
 
 // This will catch anyone doing an unnecessary cast.
 void toRenderBox(const RenderBox*);
+void toRenderBox(const RenderBox&);
 
 inline RenderBox* RenderBox::previousSiblingBox() const
 {

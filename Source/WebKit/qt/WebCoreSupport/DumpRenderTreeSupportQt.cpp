@@ -346,7 +346,7 @@ QVariantList DumpRenderTreeSupportQt::selectedRange(QWebPageAdapter *adapter)
     Element* selectionRoot = frame.selection().rootEditableElement();
     Element* scope = selectionRoot ? selectionRoot : frame.document()->documentElement();
 
-    RefPtr<Range> testRange = Range::create(scope->document(), scope, 0, range->startContainer(), range->startOffset());
+    RefPtr<Range> testRange = Range::create(&scope->document(), scope, 0, range->startContainer(), range->startOffset());
     ASSERT(testRange->startContainer() == scope);
     int startPosition = TextIterator::rangeLength(testRange.get());
 
@@ -891,6 +891,16 @@ void DumpRenderTreeSupportQt::clearNotificationPermissions()
 void DumpRenderTreeSupportQt::disableDefaultTypesettingFeatures()
 {
     WebCore::Font::setDefaultTypesettingFeatures(0);
+}
+
+void DumpRenderTreeSupportQt::resetPageVisibility(QWebPageAdapter* adapter)
+{
+#if ENABLE(PAGE_VISIBILITY_API)
+    // Set visibility without emitting an event.
+    adapter->page->setVisibilityState(PageVisibilityStateVisible, true);
+#else
+    UNUSED_PARAM(adapter);
+#endif
 }
 
 void DumpRenderTreeSupportQt::getJSWindowObject(QWebFrameAdapter* adapter, JSContextRef* context, JSObjectRef* object)

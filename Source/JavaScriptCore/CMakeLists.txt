@@ -96,6 +96,8 @@ set(JavaScriptCore_SOURCES
     dfg/DFGClobberize.cpp
     dfg/DFGCommon.cpp
     dfg/DFGCommonData.cpp
+    dfg/DFGCompilationKey.cpp
+    dfg/DFGCompilationMode.cpp
     dfg/DFGConstantFoldingPhase.cpp
     dfg/DFGCriticalEdgeBreakingPhase.cpp
     dfg/DFGDCEPhase.cpp
@@ -332,6 +334,7 @@ set(JavaScriptCore_SOURCES
     runtime/JSGlobalObject.cpp
     runtime/JSGlobalObjectFunctions.cpp
     runtime/JSLock.cpp
+    runtime/JSMap.cpp
     runtime/JSNameScope.cpp
     runtime/JSNotAnObject.cpp
     runtime/JSONObject.cpp
@@ -347,6 +350,7 @@ set(JavaScriptCore_SOURCES
     runtime/JSProxy.cpp
     runtime/JSScope.cpp
     runtime/JSSegmentedVariableObject.cpp
+    runtime/JSSet.cpp
     runtime/JSStaticScopeObject.cpp
     runtime/JSString.cpp
     runtime/JSStringJoiner.cpp
@@ -359,6 +363,9 @@ set(JavaScriptCore_SOURCES
     runtime/JSWrapperObject.cpp
     runtime/LiteralParser.cpp
     runtime/Lookup.cpp
+    runtime/MapConstructor.cpp
+    runtime/MapData.cpp
+    runtime/MapPrototype.cpp
     runtime/MathObject.cpp
     runtime/MemoryStatistics.cpp
     runtime/NameConstructor.cpp
@@ -386,6 +393,8 @@ set(JavaScriptCore_SOURCES
     runtime/RegExpObject.cpp
     runtime/RegExpPrototype.cpp
     runtime/SamplingCounter.cpp
+    runtime/SetConstructor.cpp
+    runtime/SetPrototype.cpp
     runtime/SimpleTypedArrayController.cpp
     runtime/SmallStrings.cpp
     runtime/SparseArrayValueMap.cpp

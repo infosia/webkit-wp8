@@ -226,6 +226,10 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/dfg/DFGCommon.h \
 	Source/JavaScriptCore/dfg/DFGCommonData.cpp \
 	Source/JavaScriptCore/dfg/DFGCommonData.h \
+	Source/JavaScriptCore/dfg/DFGCompilationKey.cpp \
+	Source/JavaScriptCore/dfg/DFGCompilationKey.h \
+	Source/JavaScriptCore/dfg/DFGCompilationMode.cpp \
+	Source/JavaScriptCore/dfg/DFGCompilationMode.h \
 	Source/JavaScriptCore/dfg/DFGConstantFoldingPhase.cpp \
 	Source/JavaScriptCore/dfg/DFGConstantFoldingPhase.h \
 	Source/JavaScriptCore/dfg/DFGCriticalEdgeBreakingPhase.cpp \
@@ -868,6 +872,7 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/runtime/JSInt8Array.h \
 	Source/JavaScriptCore/runtime/JSLock.cpp \
 	Source/JavaScriptCore/runtime/JSLock.h \
+	Source/JavaScriptCore/runtime/JSMap.cpp \
 	Source/JavaScriptCore/runtime/JSNotAnObject.cpp \
 	Source/JavaScriptCore/runtime/JSNotAnObject.h \
 	Source/JavaScriptCore/runtime/JSObject.cpp \
@@ -892,6 +897,8 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/runtime/JSPropertyNameIterator.h \
 	Source/JavaScriptCore/runtime/JSSegmentedVariableObject.cpp \
 	Source/JavaScriptCore/runtime/JSSegmentedVariableObject.h \
+	Source/JavaScriptCore/runtime/JSSet.cpp \
+	Source/JavaScriptCore/runtime/JSSet.h \
 	Source/JavaScriptCore/runtime/JSTypedArrayConstructors.cpp \
 	Source/JavaScriptCore/runtime/JSTypedArrayConstructors.h \
 	Source/JavaScriptCore/runtime/JSTypedArrayPrototypes.cpp \
@@ -928,6 +935,12 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/runtime/LiteralParser.h \
 	Source/JavaScriptCore/runtime/Lookup.cpp \
 	Source/JavaScriptCore/runtime/Lookup.h \
+	Source/JavaScriptCore/runtime/MapConstructor.cpp \
+	Source/JavaScriptCore/runtime/MapConstructor.h\
+	Source/JavaScriptCore/runtime/MapData.cpp \
+	Source/JavaScriptCore/runtime/MapData.h \
+	Source/JavaScriptCore/runtime/MapPrototype.cpp \
+	Source/JavaScriptCore/runtime/MapPrototype.h \
 	Source/JavaScriptCore/runtime/MatchResult.h \
 	Source/JavaScriptCore/runtime/MathObject.cpp \
 	Source/JavaScriptCore/runtime/MathObject.h \
@@ -992,6 +1005,10 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/runtime/Reject.h \
 	Source/JavaScriptCore/runtime/SamplingCounter.cpp \
 	Source/JavaScriptCore/runtime/SamplingCounter.h \
+	Source/JavaScriptCore/runtime/SetConstructor.cpp \
+	Source/JavaScriptCore/runtime/SetConstructor.h\
+	Source/JavaScriptCore/runtime/SetPrototype.cpp \
+	Source/JavaScriptCore/runtime/SetPrototype.h \
 	Source/JavaScriptCore/runtime/SimpleTypedArrayController.cpp \
 	Source/JavaScriptCore/runtime/SimpleTypedArrayController.h \
 	Source/JavaScriptCore/runtime/SmallStrings.cpp \

@@ -28,6 +28,7 @@
 
 #include "AXObjectCache.h"
 #include "Element.h"
+#include "ElementIterator.h"
 #include "ElementRareData.h"
 #include "ElementTraversal.h"
 #include "FlowThreadController.h"
@@ -53,6 +54,11 @@
 namespace WebCore {
 
 namespace Style {
+
+enum DetachType { NormalDetach, ReattachDetach };
+
+static void attachRenderTree(Element&, RenderStyle* resolvedStyle);
+static void detachRenderTree(Element&, DetachType);
 
 Change determineChange(const RenderStyle* s1, const RenderStyle* s2, Settings* settings)
 {
@@ -138,7 +144,7 @@ static RenderObject* nextSiblingRenderer(const Element& element, const Container
 
 static bool shouldCreateRenderer(const Element& element, const ContainerNode* renderingParent)
 {
-    if (!element.document()->shouldCreateRenderers())
+    if (!element.document().shouldCreateRenderers())
         return false;
     if (!renderingParent)
         return false;
@@ -181,21 +187,21 @@ static RenderNamedFlowThread* moveToFlowThreadIfNeeded(Element& element, const R
 {
     if (!element.shouldMoveToFlowThread(style))
         return 0;
-    FlowThreadController& flowThreadController = element.document()->renderView()->flowThreadController();
+    FlowThreadController& flowThreadController = element.document().renderView()->flowThreadController();
     RenderNamedFlowThread& parentFlowRenderer = flowThreadController.ensureRenderFlowThreadWithName(style.flowThread());
     flowThreadController.registerNamedFlowContentNode(&element, &parentFlowRenderer);
     return &parentFlowRenderer;
 }
 #endif
 
-static void createRendererIfNeeded(Element& element, const AttachContext& context)
+static void createRendererIfNeeded(Element& element, RenderStyle* resolvedStyle)
 {
     ASSERT(!element.renderer());
 
-    Document& document = *element.document();
+    Document& document = element.document();
     ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(&element);
 
-    RefPtr<RenderStyle> style = context.resolvedStyle;
+    RefPtr<RenderStyle> style = resolvedStyle;
 
     element.setIsInsideRegion(false);
 
@@ -351,17 +357,17 @@ static void createTextRendererIfNeeded(Text& textNode)
     if (!renderingParentNode->childShouldCreateRenderer(&textNode))
         return;
 
-    Document* document = textNode.document();
+    Document& document = textNode.document();
     RefPtr<RenderStyle> style;
     bool resetStyleInheritance = textNode.parentNode()->isShadowRoot() && toShadowRoot(textNode.parentNode())->resetStyleInheritance();
     if (resetStyleInheritance)
-        style = document->ensureStyleResolver().defaultStyleForElement();
+        style = document.ensureStyleResolver().defaultStyleForElement();
     else
         style = parentRenderer->style();
 
     if (!textRendererIsNeeded(textNode, *parentRenderer, *style))
         return;
-    RenderText* newRenderer = textNode.createTextRenderer(document->renderArena(), style.get());
+    RenderText* newRenderer = textNode.createTextRenderer(document.renderArena(), style.get());
     if (!newRenderer)
         return;
     if (!parentRenderer->isChildAllowed(newRenderer, style.get())) {
@@ -431,11 +437,8 @@ static bool childAttachedAllowedWhenAttachingChildren(ContainerNode& node)
 }
 #endif
 
-static void attachChildren(ContainerNode& current, const AttachContext& context)
+static void attachChildren(ContainerNode& current)
 {
-    AttachContext childrenContext(context);
-    childrenContext.resolvedStyle = 0;
-
     for (Node* child = current.firstChild(); child; child = child->nextSibling()) {
         ASSERT(!child->attached() || childAttachedAllowedWhenAttachingChildren(current));
         if (child->attached())
@@ -445,18 +448,18 @@ static void attachChildren(ContainerNode& current, const AttachContext& context)
             continue;
         }
         if (child->isElementNode())
-            attachRenderTree(toElement(child), childrenContext);
+            attachRenderTree(*toElement(child), nullptr);
     }
 }
 
-static void attachShadowRoot(ShadowRoot& shadowRoot, const AttachContext& context)
+static void attachShadowRoot(ShadowRoot& shadowRoot)
 {
     if (shadowRoot.attached())
         return;
-    StyleResolver& styleResolver = shadowRoot.document()->ensureStyleResolver();
+    StyleResolver& styleResolver = shadowRoot.document().ensureStyleResolver();
     styleResolver.pushParentShadowRoot(&shadowRoot);
 
-    attachChildren(shadowRoot, context);
+    attachChildren(shadowRoot);
 
     styleResolver.popParentShadowRoot(&shadowRoot);
 
@@ -464,115 +467,99 @@ static void attachShadowRoot(ShadowRoot& shadowRoot, const AttachContext& contex
     shadowRoot.setAttached(true);
 }
 
-void attachRenderTree(Element* current, const AttachContext& context)
+static void attachRenderTree(Element& current, RenderStyle* resolvedStyle)
 {
     PostAttachCallbackDisabler callbackDisabler(current);
     WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
 
-    if (current->hasCustomStyleResolveCallbacks())
-        current->willAttachRenderers();
+    if (current.hasCustomStyleResolveCallbacks())
+        current.willAttachRenderers();
 
-    createRendererIfNeeded(*current, context);
+    createRendererIfNeeded(current, resolvedStyle);
 
-    if (current->parentElement() && current->parentElement()->isInCanvasSubtree())
-        current->setIsInCanvasSubtree(true);
+    if (current.parentElement() && current.parentElement()->isInCanvasSubtree())
+        current.setIsInCanvasSubtree(true);
 
-    current->updateBeforePseudoElement(NoChange);
+    current.updateBeforePseudoElement(NoChange);
 
-    StyleResolverParentPusher parentPusher(current);
+    StyleResolverParentPusher parentPusher(&current);
 
     // When a shadow root exists, it does the work of attaching the children.
-    if (ShadowRoot* shadowRoot = current->shadowRoot()) {
+    if (ShadowRoot* shadowRoot = current.shadowRoot()) {
         parentPusher.push();
-        attachShadowRoot(*shadowRoot, context);
-    } else if (current->firstChild())
+        attachShadowRoot(*shadowRoot);
+    } else if (current.firstChild())
         parentPusher.push();
 
-    attachChildren(*current, context);
+    attachChildren(current);
 
-    Node* sibling = current->nextSibling();
-    if (current->renderer() && sibling && !sibling->renderer() && sibling->attached())
+    Node* sibling = current.nextSibling();
+    if (current.renderer() && sibling && !sibling->renderer() && sibling->attached())
         createTextRenderersForSiblingsAfterAttachIfNeeded(sibling);
 
-    current->setAttached(true);
-    current->clearNeedsStyleRecalc();
+    current.setAttached(true);
+    current.clearNeedsStyleRecalc();
 
-    if (Document* document = current->document()) {
-        if (AXObjectCache* cache = document->axObjectCache())
-            cache->updateCacheAfterNodeIsAttached(current);
-    }
+    if (AXObjectCache* cache = current.document().axObjectCache())
+        cache->updateCacheAfterNodeIsAttached(&current);
 
-    current->updateAfterPseudoElement(NoChange);
+    current.updateAfterPseudoElement(NoChange);
 
-    current->updateFocusAppearanceAfterAttachIfNeeded();
+    current.updateFocusAppearanceAfterAttachIfNeeded();
     
-    if (current->hasCustomStyleResolveCallbacks())
-        current->didAttachRenderers();
+    if (current.hasCustomStyleResolveCallbacks())
+        current.didAttachRenderers();
 }
 
-static void detachChildren(ContainerNode& current, const AttachContext& context)
+static void detachChildren(ContainerNode& current, DetachType detachType)
 {
-    AttachContext childrenContext(context);
-    childrenContext.resolvedStyle = 0;
-
     for (Node* child = current.firstChild(); child; child = child->nextSibling()) {
         if (child->isTextNode()) {
             Style::detachTextRenderer(*toText(child));
             continue;
         }
         if (child->isElementNode())
-            detachRenderTree(toElement(child), childrenContext);
+            detachRenderTree(*toElement(child), detachType);
     }
     current.clearChildNeedsStyleRecalc();
 }
 
-static void detachShadowRoot(ShadowRoot& shadowRoot, const AttachContext& context)
+static void detachShadowRoot(ShadowRoot& shadowRoot, DetachType detachType)
 {
     if (!shadowRoot.attached())
         return;
-    detachChildren(shadowRoot, context);
+    detachChildren(shadowRoot, detachType);
 
     shadowRoot.setAttached(false);
 }
 
-void detachRenderTree(Element* current, const AttachContext& context)
+static void detachRenderTree(Element& current, DetachType detachType)
 {
     WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
 
-    if (current->hasCustomStyleResolveCallbacks())
-        current->willDetachRenderers();
+    if (current.hasCustomStyleResolveCallbacks())
+        current.willDetachRenderers();
 
-    current->clearStyleDerivedDataBeforeDetachingRenderer();
+    current.clearStyleDerivedDataBeforeDetachingRenderer();
 
     // Do not remove the element's hovered and active status
     // if performing a reattach.
-    if (!context.performingReattach)
-        current->clearHoverAndActiveStatusBeforeDetachingRenderer();
+    if (detachType != ReattachDetach)
+        current.clearHoverAndActiveStatusBeforeDetachingRenderer();
 
-    if (ShadowRoot* shadowRoot = current->shadowRoot())
-        detachShadowRoot(*shadowRoot, context);
+    if (ShadowRoot* shadowRoot = current.shadowRoot())
+        detachShadowRoot(*shadowRoot, detachType);
 
-    detachChildren(*current, context);
+    detachChildren(current, detachType);
 
-    if (current->renderer())
-        current->renderer()->destroyAndCleanupAnonymousWrappers();
-    current->setRenderer(0);
+    if (current.renderer())
+        current.renderer()->destroyAndCleanupAnonymousWrappers();
+    current.setRenderer(0);
 
-    current->setAttached(false);
+    current.setAttached(false);
 
-    if (current->hasCustomStyleResolveCallbacks())
-        current->didDetachRenderers();
-}
-
-void reattachRenderTree(Element* current, const AttachContext& context)
-{
-    AttachContext reattachContext(context);
-    reattachContext.performingReattach = true;
-
-    if (current->attached())
-        detachRenderTree(current, reattachContext);
-
-    attachRenderTree(current, reattachContext);
+    if (current.hasCustomStyleResolveCallbacks())
+        current.didDetachRenderers();
 }
 
 static bool pseudoStyleCacheIsInvalid(RenderObject* renderer, RenderStyle* newStyle)
@@ -609,28 +596,28 @@ static bool pseudoStyleCacheIsInvalid(RenderObject* renderer, RenderStyle* newSt
     return false;
 }
 
-static Change resolveLocal(Element* current, Change inheritedChange)
+static Change resolveLocal(Element& current, Change inheritedChange)
 {
     Change localChange = Detach;
     RefPtr<RenderStyle> newStyle;
-    RefPtr<RenderStyle> currentStyle = current->renderStyle();
+    RefPtr<RenderStyle> currentStyle = current.renderStyle();
 
-    Document* document = current->document();
+    Document& document = current.document();
     if (currentStyle) {
-        newStyle = current->styleForRenderer();
-        localChange = determineChange(currentStyle.get(), newStyle.get(), document->settings());
+        newStyle = current.styleForRenderer();
+        localChange = determineChange(currentStyle.get(), newStyle.get(), document.settings());
     }
     if (localChange == Detach) {
-        AttachContext reattachContext;
-        reattachContext.resolvedStyle = newStyle.get();
-        reattachRenderTree(current, reattachContext);
+        if (current.attached())
+            detachRenderTree(current, ReattachDetach);
+        attachRenderTree(current, newStyle.get());
         return Detach;
     }
 
-    if (RenderObject* renderer = current->renderer()) {
-        if (localChange != NoChange || pseudoStyleCacheIsInvalid(renderer, newStyle.get()) || (inheritedChange == Force && renderer->requiresForcedStyleRecalcPropagation()) || current->styleChangeType() == SyntheticStyleChange)
+    if (RenderObject* renderer = current.renderer()) {
+        if (localChange != NoChange || pseudoStyleCacheIsInvalid(renderer, newStyle.get()) || (inheritedChange == Force && renderer->requiresForcedStyleRecalcPropagation()) || current.styleChangeType() == SyntheticStyleChange)
             renderer->setAnimatableStyle(newStyle.get());
-        else if (current->needsStyleRecalc()) {
+        else if (current.needsStyleRecalc()) {
             // Although no change occurred, we use the new style so that the cousin style sharing code won't get
             // fooled into believing this style is the same.
             renderer->setStyleInternal(newStyle.get());
@@ -639,50 +626,50 @@ static Change resolveLocal(Element* current, Change inheritedChange)
 
     // If "rem" units are used anywhere in the document, and if the document element's font size changes, then go ahead and force font updating
     // all the way down the tree. This is simpler than having to maintain a cache of objects (and such font size changes should be rare anyway).
-    if (document->styleSheetCollection()->usesRemUnits() && document->documentElement() == current && localChange != NoChange && currentStyle && newStyle && currentStyle->fontSize() != newStyle->fontSize()) {
+    if (document.styleSheetCollection()->usesRemUnits() && document.documentElement() == &current && localChange != NoChange && currentStyle && newStyle && currentStyle->fontSize() != newStyle->fontSize()) {
         // Cached RenderStyles may depend on the re units.
-        if (StyleResolver* styleResolver = document->styleResolverIfExists())
+        if (StyleResolver* styleResolver = document.styleResolverIfExists())
             styleResolver->invalidateMatchedPropertiesCache();
         return Force;
     }
     if (inheritedChange == Force)
         return Force;
-    if (current->styleChangeType() >= FullStyleChange)
+    if (current.styleChangeType() >= FullStyleChange)
         return Force;
 
     return localChange;
 }
 
-static void updateTextStyle(Text* text, RenderStyle* parentElementStyle, Style::Change change)
+static void updateTextStyle(Text& text, RenderStyle* parentElementStyle, Style::Change change)
 {
-    RenderText* renderer = toRenderText(text->renderer());
+    RenderText* renderer = toRenderText(text.renderer());
 
     if (change != Style::NoChange && renderer)
         renderer->setStyle(parentElementStyle);
 
-    if (!text->needsStyleRecalc())
+    if (!text.needsStyleRecalc())
         return;
     if (renderer)
-        renderer->setText(text->dataImpl());
+        renderer->setText(text.dataImpl());
     else
-        attachTextRenderer(*text);
-    text->clearNeedsStyleRecalc();
+        attachTextRenderer(text);
+    text.clearNeedsStyleRecalc();
 }
 
 static void resolveShadowTree(ShadowRoot* shadowRoot, RenderStyle* parentElementStyle, Style::Change change)
 {
     if (!shadowRoot)
         return;
-    StyleResolver& styleResolver = shadowRoot->document()->ensureStyleResolver();
+    StyleResolver& styleResolver = shadowRoot->document().ensureStyleResolver();
     styleResolver.pushParentShadowRoot(shadowRoot);
 
     for (Node* child = shadowRoot->firstChild(); child; child = child->nextSibling()) {
         if (child->isTextNode()) {
             // Current user agent ShadowRoots don't have immediate text children so this branch is never actually taken.
-            updateTextStyle(toText(child), parentElementStyle, change);
+            updateTextStyle(*toText(child), parentElementStyle, change);
             continue;
         }
-        resolveTree(toElement(child), change);
+        resolveTree(*toElement(child), change);
     }
 
     styleResolver.popParentShadowRoot(shadowRoot);
@@ -744,52 +731,52 @@ private:
 };
 #endif // PLATFORM(IOS)
 
-void resolveTree(Element* current, Change change)
+void resolveTree(Element& current, Change change)
 {
     ASSERT(change != Detach);
 
-    if (current->hasCustomStyleResolveCallbacks()) {
-        if (!current->willRecalcStyle(change))
+    if (current.hasCustomStyleResolveCallbacks()) {
+        if (!current.willRecalcStyle(change))
             return;
     }
 
-    ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(current);
+    ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(&current);
     bool hasParentStyle = renderingParentNode && renderingParentNode->renderStyle();
-    bool hasDirectAdjacentRules = current->childrenAffectedByDirectAdjacentRules();
-    bool hasIndirectAdjacentRules = current->childrenAffectedByForwardPositionalRules();
+    bool hasDirectAdjacentRules = current.childrenAffectedByDirectAdjacentRules();
+    bool hasIndirectAdjacentRules = current.childrenAffectedByForwardPositionalRules();
 
 #if PLATFORM(IOS)
     CheckForVisibilityChangeOnRecalcStyle checkForVisibilityChange(current, current->renderStyle());
 #endif
 
-    if (change > NoChange || current->needsStyleRecalc())
-        current->resetComputedStyle();
+    if (change > NoChange || current.needsStyleRecalc())
+        current.resetComputedStyle();
 
-    if (hasParentStyle && (change >= Inherit || current->needsStyleRecalc()))
+    if (hasParentStyle && (change >= Inherit || current.needsStyleRecalc()))
         change = resolveLocal(current, change);
 
     if (change != Detach) {
-        StyleResolverParentPusher parentPusher(current);
+        StyleResolverParentPusher parentPusher(&current);
 
-        RenderStyle* currentStyle = current->renderStyle();
+        RenderStyle* currentStyle = current.renderStyle();
 
-        if (ShadowRoot* shadowRoot = current->shadowRoot()) {
+        if (ShadowRoot* shadowRoot = current.shadowRoot()) {
             if (change >= Inherit || shadowRoot->childNeedsStyleRecalc() || shadowRoot->needsStyleRecalc()) {
                 parentPusher.push();
                 resolveShadowTree(shadowRoot, currentStyle, change);
             }
         }
 
-        current->updateBeforePseudoElement(change);
+        current.updateBeforePseudoElement(change);
 
         // FIXME: This check is good enough for :hover + foo, but it is not good enough for :hover + foo + bar.
         // For now we will just worry about the common case, since it's a lot trickier to get the second case right
         // without doing way too much re-resolution.
         bool forceCheckOfNextElementSibling = false;
         bool forceCheckOfAnyElementSibling = false;
-        for (Node* child = current->firstChild(); child; child = child->nextSibling()) {
+        for (Node* child = current.firstChild(); child; child = child->nextSibling()) {
             if (child->isTextNode()) {
-                updateTextStyle(toText(child), currentStyle, change);
+                updateTextStyle(*toText(child), currentStyle, change);
                 continue;
             }
             if (!child->isElementNode())
@@ -800,48 +787,71 @@ void resolveTree(Element* current, Change change)
                 childElement->setNeedsStyleRecalc();
             if (change >= Inherit || childElement->childNeedsStyleRecalc() || childElement->needsStyleRecalc()) {
                 parentPusher.push();
-                resolveTree(childElement, change);
+                resolveTree(*childElement, change);
             }
             forceCheckOfNextElementSibling = childRulesChanged && hasDirectAdjacentRules;
             forceCheckOfAnyElementSibling = forceCheckOfAnyElementSibling || (childRulesChanged && hasIndirectAdjacentRules);
         }
 
-        current->updateAfterPseudoElement(change);
+        current.updateAfterPseudoElement(change);
     }
 
-    current->clearNeedsStyleRecalc();
-    current->clearChildNeedsStyleRecalc();
+    current.clearNeedsStyleRecalc();
+    current.clearChildNeedsStyleRecalc();
     
-    if (current->hasCustomStyleResolveCallbacks())
-        current->didRecalcStyle(change);
+    if (current.hasCustomStyleResolveCallbacks())
+        current.didRecalcStyle(change);
 }
 
-void resolveTree(Document* document, Change change)
+void resolveTree(Document& document, Change change)
 {
-    bool resolveRootStyle = change == Force || (document->shouldDisplaySeamlesslyWithParent() && change >= Inherit);
+    bool resolveRootStyle = change == Force || (document.shouldDisplaySeamlesslyWithParent() && change >= Inherit);
     if (resolveRootStyle) {
         RefPtr<RenderStyle> documentStyle = resolveForDocument(document);
 
 #if PLATFORM(IOS)
         // Inserting the pictograph font at the end of the font fallback list is done by the
         // font selector, so set a font selector if needed.
-        if (Settings* settings = document->settings()) {
-            StyleResolver* styleResolver = document->styleResolverIfExists();
+        if (Settings* settings = document.settings()) {
+            StyleResolver* styleResolver = document.styleResolverIfExists();
             if (settings->fontFallbackPrefersPictographs() && styleResolver)
                 documentStyle->font().update(styleResolver->fontSelector());
         }
 #endif
 
-        Style::Change documentChange = determineChange(documentStyle.get(), document->renderer()->style(), document->settings());
+        Style::Change documentChange = determineChange(documentStyle.get(), document.renderer()->style(), document.settings());
         if (documentChange != NoChange)
-            document->renderer()->setStyle(documentStyle.release());
+            document.renderer()->setStyle(documentStyle.release());
     }
 
-    for (Element* child = ElementTraversal::firstWithin(document); child; child = ElementTraversal::nextSibling(child)) {
-        if (change < Inherit && !child->childNeedsStyleRecalc() && !child->needsStyleRecalc())
-            continue;
-        resolveTree(child, change);
-    }
+    Element* documentElement = document.documentElement();
+    if (!documentElement)
+        return;
+    if (change < Inherit && !documentElement->childNeedsStyleRecalc() && !documentElement->needsStyleRecalc())
+        return;
+    resolveTree(*documentElement, change);
+}
+
+void attachRenderTree(Element& element)
+{
+    attachRenderTree(element, nullptr);
+}
+
+void detachRenderTree(Element& element)
+{
+    detachRenderTree(element, NormalDetach);
+}
+
+void detachRenderTreeInReattachMode(Element& element)
+{
+    detachRenderTree(element, ReattachDetach);
+}
+
+void reattachRenderTree(Element& current)
+{
+    if (current.attached())
+        detachRenderTree(current, ReattachDetach);
+    attachRenderTree(current, nullptr);
 }
 
 }

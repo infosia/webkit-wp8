@@ -57,7 +57,7 @@ private:
 
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void removedFrom(ContainerNode*) OVERRIDE;
 
@@ -66,18 +66,6 @@ private:
     RefPtr<StyleRuleFontFace> m_fontFaceRule;
     SVGFontElement* m_fontElement;
 };
-
-inline bool isSVGFontFaceElement(const Node* node)
-{
-    return node->hasTagName(SVGNames::font_faceTag);
-}
-
-inline bool isSVGFontFaceElement(const Element* element)
-{
-    return element->hasTagName(SVGNames::font_faceTag);
-}
-
-template <> inline bool isElementOfType<SVGFontFaceElement>(const Element* element) { return isSVGFontFaceElement(element); }
 
 inline SVGFontFaceElement* toSVGFontFaceElement(Node* node)
 {

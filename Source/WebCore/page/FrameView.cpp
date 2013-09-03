@@ -78,6 +78,7 @@
 #include "TextStream.h"
 
 #include <wtf/CurrentTime.h>
+#include <wtf/Ref.h>
 #include <wtf/TemporaryChange.h>
 
 #if USE(ACCELERATED_COMPOSITING)
@@ -1115,7 +1116,7 @@ void FrameView::layout(bool allowSubtree)
         return;
 
     // Protect the view from being deleted during layout (in recalcStyle)
-    RefPtr<FrameView> protector(this);
+    Ref<FrameView> protect(*this);
 
     // Every scroll that happens during layout is programmatic.
     TemporaryChange<bool> changeInProgrammaticScroll(m_inProgrammaticScroll, true);
@@ -1183,7 +1184,7 @@ void FrameView::layout(bool allowSubtree)
 
         // If there is only one ref to this view left, then its going to be destroyed as soon as we exit, 
         // so there's no point to continuing to layout
-        if (protector->hasOneRef())
+        if (hasOneRef())
             return;
 
         root = subtree ? m_layoutRoot : document->renderer();
@@ -1226,7 +1227,7 @@ void FrameView::layout(bool allowSubtree)
         ScrollbarMode vMode;    
         calculateScrollbarModesForLayout(hMode, vMode);
 
-        m_needsFullRepaint = !subtree && (m_firstLayout || toRenderView(root)->printing());
+        m_needsFullRepaint = !subtree && (m_firstLayout || toRenderView(*root).printing());
 
         if (!subtree) {
             // Now set our scrollbar state for the layout.
@@ -1307,7 +1308,7 @@ void FrameView::layout(bool allowSubtree)
 
     bool neededFullRepaint = m_needsFullRepaint;
 
-    if (!subtree && !toRenderView(root)->printing())
+    if (!subtree && !toRenderView(*root).printing())
         adjustViewSize();
 
     m_needsFullRepaint = neededFullRepaint;
@@ -1561,8 +1562,7 @@ void FrameView::addViewportConstrainedObject(RenderObject* object)
 
 void FrameView::removeViewportConstrainedObject(RenderObject* object)
 {
-    if (m_viewportConstrainedObjects && m_viewportConstrainedObjects->contains(object)) {
-        m_viewportConstrainedObjects->remove(object);
+    if (m_viewportConstrainedObjects && m_viewportConstrainedObjects->remove(object)) {
         if (Page* page = frame().page()) {
             if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
                 scrollingCoordinator->frameViewFixedObjectsDidChange(this);
@@ -2759,7 +2759,7 @@ void FrameView::performPostLayoutTasks()
     
     // layout() protects FrameView, but it still can get destroyed when updateWidgets()
     // is called through the post layout timer.
-    RefPtr<FrameView> protector(this);
+    Ref<FrameView> protect(*this);
     for (unsigned i = 0; i < maxUpdateWidgetsIterations; i++) {
         if (updateWidgets())
             break;
@@ -3011,8 +3011,7 @@ IntRect FrameView::windowClipRect(bool clipToContents) const
 
     // Take our owner element and get its clip rect.
     HTMLFrameOwnerElement* ownerElement = frame().ownerElement();
-    FrameView* parentView = ownerElement->document()->view();
-    if (parentView)
+    if (FrameView* parentView = ownerElement->document().view())
         clipRect.intersect(parentView->windowClipRectForFrameOwner(ownerElement, true));
     return clipRect;
 }
@@ -4060,22 +4059,12 @@ bool FrameView::addScrollableArea(ScrollableArea* scrollableArea)
 
 bool FrameView::removeScrollableArea(ScrollableArea* scrollableArea)
 {
-    if (!m_scrollableAreas)
-        return false;
-
-    ScrollableAreaSet::iterator it = m_scrollableAreas->find(scrollableArea);
-    if (it == m_scrollableAreas->end())
-        return false;
-
-    m_scrollableAreas->remove(it);
-    return true;
+    return m_scrollableAreas && m_scrollableAreas->remove(scrollableArea);
 }
 
 bool FrameView::containsScrollableArea(ScrollableArea* scrollableArea) const
 {
-    if (!m_scrollableAreas)
-        return false;
-    return m_scrollableAreas->contains(scrollableArea);
+    return m_scrollableAreas && m_scrollableAreas->contains(scrollableArea);
 }
 
 void FrameView::removeChild(Widget* widget)

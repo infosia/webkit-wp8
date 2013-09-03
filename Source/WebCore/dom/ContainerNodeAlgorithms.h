@@ -30,6 +30,7 @@
 #include "NodeTraversal.h"
 #include "ShadowRoot.h"
 #include <wtf/Assertions.h>
+#include <wtf/Ref.h>
 
 namespace WebCore {
 
@@ -183,7 +184,7 @@ namespace Private {
 
                 tail = n;
             } else {
-                RefPtr<GenericNode> protect(n); // removedFromDocument may remove remove all references to this node.
+                Ref<GenericNode> protect(*n); // removedFromDocument may remove remove all references to this node.
                 NodeRemovalDispatcher<GenericNode, GenericNodeContainer, ShouldDispatchRemovalNotification<GenericNode>::value>::dispatch(n, container);
             }
         }
@@ -196,7 +197,7 @@ namespace Private {
 inline void ChildNodeInsertionNotifier::notifyNodeInsertedIntoDocument(Node* node)
 {
     ASSERT(m_insertionPoint->inDocument());
-    RefPtr<Node> protect(node);
+    Ref<Node> protect(*node);
     if (Node::InsertionShouldCallDidNotifySubtreeInsertions == node->insertedInto(m_insertionPoint))
         m_postInsertionNotificationTargets.append(node);
     if (node->isContainerNode())
@@ -218,11 +219,11 @@ inline void ChildNodeInsertionNotifier::notify(Node* node)
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
 
 #if ENABLE(INSPECTOR)
-    InspectorInstrumentation::didInsertDOMNode(node->document(), node);
+    InspectorInstrumentation::didInsertDOMNode(&node->document(), node);
 #endif
 
-    RefPtr<Document> protectDocument(node->document());
-    RefPtr<Node> protectNode(node);
+    Ref<Document> protectDocument(node->document());
+    Ref<Node> protectNode(*node);
 
     if (m_insertionPoint->inDocument())
         notifyNodeInsertedIntoDocument(node);
@@ -256,7 +257,7 @@ inline void ChildNodeRemovalNotifier::notify(Node* node)
 {
     if (node->inDocument()) {
         notifyNodeRemovedFromDocument(node);
-        node->document()->notifyRemovePendingSheetIfNeeded();
+        node->document().notifyRemovePendingSheetIfNeeded();
     } else if (node->isContainerNode())
         notifyNodeRemovedFromTree(toContainerNode(node));
 }

@@ -1,3 +1,179 @@
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        Cut down on double hashing and code needlessly using hash table iterators
+        https://bugs.webkit.org/show_bug.cgi?id=120611
+
+        Reviewed by Andreas Kling.
+
+        * Platform/CoreIPC/Connection.cpp:
+        (CoreIPC::Connection::waitForMessage): Use take instead of find/remove.
+
+        * UIProcess/WebPreferences.cpp:
+        (WebKit::WebPreferences::removePageGroup): Use the return value from remove
+        instead of find/remove.
+
+        * WebProcess/Geolocation/GeolocationPermissionRequestManager.cpp:
+        (WebKit::GeolocationPermissionRequestManager::cancelRequestForGeolocation):
+        (WebKit::GeolocationPermissionRequestManager::didReceiveGeolocationPermissionDecision):
+        Use take instead of find/remove.
+
+        * WebProcess/Plugins/Netscape/NetscapePlugin.cpp:
+        (WebKit::NetscapePlugin::frameDidFinishLoading): Use take instead of find/remove.
+        (WebKit::NetscapePlugin::frameDidFail): Use take instead of find/remove.
+
+        * WebProcess/WebPage/WebBackForwardListProxy.cpp:
+        (WebKit::WebBackForwardListProxy::removeItem): Use take instead of find/remove.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::didFinishCheckingText): Use take instead of get/remove so we
+        hash only once.
+        (WebKit::WebPage::didCancelCheckingText): Ditto.
+        (WebKit::WebPage::stopExtendingIncrementalRenderingSuppression): Use the return
+        value from remove instead of contains/remove so we hash only once.
+
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        [Mac] No need for HardAutorelease, which is same as CFBridgingRelease
+        https://bugs.webkit.org/show_bug.cgi?id=120569
+
+        Reviewed by Andy Estes.
+
+        * Platform/mac/StringUtilities.mm:
+        (WebKit::nsStringFromWebCoreString): Use CFBridgingRelease. Also
+        changed condition to be a little cleaner and use a constant string for empty
+        strings as well as null strings.
+
+        * UIProcess/API/mac/WKBrowsingContextController.mm:
+        (autoreleased): Switched from autorelease to CFBridgingRelease for strings,
+        which eliminates a type cast and makes this work under GC, although I don't
+        think we should compile WebKit2 for GC.
+
+        * WebProcess/WebPage/mac/WKAccessibilityWebPageObject.mm:
+        (-[WKAccessibilityWebPageObject accessibilityAttributeValue:forParameter:]):
+        Use CFBridgingRelease.
+
+2013-09-02  Csaba Osztrogonác  <ossy@webkit.org>
+
+        REGRESSION(r154909): caused many crashes on Qt WK2, EFL WK2
+        https://bugs.webkit.org/show_bug.cgi?id=120600
+
+        Reviewed by Andreas Kling.
+
+        * Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp:
+        (CoreIPC::::decode): keyTime should be double here too.
+
+2013-09-01  Alexey Proskuryakov  <ap@apple.com>
+
+        [WK2][Mac] Drag and drop tests interfere with user's UI
+        https://bugs.webkit.org/show_bug.cgi?id=120538
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/API/mac/WKView.mm: (-[WKView _setDragImage:at:linkDrag:]): Make it possible
+        to override drag initiation in subclasses. It is a bit unfortunate that this exposes
+        a deprecated API that we call, but probably not unfortunate enough to invent a new
+        scary looking name for the same function, and conditionally call that if implemented
+        by subclass.
+
+2013-08-31  Santosh Mahto  <santosh.ma@samsung.com>
+
+        warning: unused parameter point and area in EwkView.cpp:1390
+        https://bugs.webkit.org/show_bug.cgi?id=120545
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/API/efl/EwkView.cpp:
+        (EwkView::didFindZoomableArea): Added UNUSED_PARAM.
+
+2013-08-31  Jae Hyun Park  <jae.park@company100.net>
+
+        Remove unused variable in LayerTreeHost
+        https://bugs.webkit.org/show_bug.cgi?id=118950
+
+        Reviewed by Anders Carlsson.
+
+        m_waitingForUIProcess has been renamed to m_isWaitingForRenderer as of
+        r152183, and it is a private variable in CoordinatedLayerTreeHost. Thus,
+        we don't need m_waitingForUIProcess in LayerTreeHost.
+
+        * WebProcess/WebPage/LayerTreeHost.h:
+
+2013-08-30  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] [WK2] TestWebKitWebView snapshot fails
+        https://bugs.webkit.org/show_bug.cgi?id=120404
+
+        Reviewed by Darin Adler.
+
+        Fixed the snapshot test failure caused by GTK no longer allowing
+        widgets to resize.  Instead, resize the WebView by resizing the
+        window and waiting for the event to complete asynchronously.
+
+        * UIProcess/API/gtk/tests/WebViewTest.cpp:
+        (WebViewTest::resizeView):
+
+2013-08-30  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Add USE(PROTECTION_SPACE_AUTH_CALLBACK) guards to canAuthenticateAgainstProtectionSpace()
+        https://bugs.webkit.org/show_bug.cgi?id=120351
+
+        Reviewed by Darin Adler.
+
+        * NetworkProcess/AsynchronousNetworkLoaderClient.cpp:
+        * NetworkProcess/AsynchronousNetworkLoaderClient.h:
+        * NetworkProcess/NetworkLoaderClient.h:
+        * NetworkProcess/SynchronousNetworkLoaderClient.cpp:
+        * NetworkProcess/SynchronousNetworkLoaderClient.h:
+
+2013-08-30  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        Fix, remove unused parameter in UIProcess/WebColorPicker.cpp.
+        https://bugs.webkit.org/show_bug.cgi?id=120525
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/WebColorPicker.cpp:
+        (WebKit::WebColorPicker::showColorPicker):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in WebPlatformStrategies.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120515
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebPage/TapHighlightController.cpp:
+        (WebKit::TapHighlightController::drawRect):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in FindController.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120516
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebPage/FindController.cpp:
+        (WebKit::FindController::drawRect):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in WKBundlePageOverlay.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120521
+
+        Reviewed by Andreas Kling.
+
+        * WebProcess/InjectedBundle/API/c/WKBundlePageOverlay.cpp:
+        (WKBundlePageOverlayFractionFadedIn):
+
+2013-08-30  Antti Koivisto  <antti@apple.com>
+
+        Remove code behind ENABLE(DIALOG_ELEMENT)
+        https://bugs.webkit.org/show_bug.cgi?id=120467
+
+        Reviewed by Darin Adler.
+
+        * Configurations/FeatureDefines.xcconfig:
+
 2013-08-29  Sam Weinig  <sam@webkit.org>
 
         Add ENABLE gaurds for Promises

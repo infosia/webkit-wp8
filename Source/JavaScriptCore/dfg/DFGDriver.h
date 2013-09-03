@@ -27,6 +27,7 @@
 #define DFGDriver_h
 
 #include "CallFrame.h"
+#include "DFGCompilationMode.h"
 #include "DFGPlan.h"
 #include <wtf/Platform.h>
 
@@ -45,7 +46,7 @@ JS_EXPORT_PRIVATE unsigned getNumCompilations();
 
 // If the worklist is non-null, we do a concurrent compile. Otherwise we do a synchronous
 // compile. Even if we do a synchronous compile, we call the callback with the result.
-CompilationResult compile(ExecState*, CodeBlock*, unsigned osrEntryBytecodeIndex, PassRefPtr<DeferredCompilationCallback>, Worklist*);
+CompilationResult compile(ExecState*, CodeBlock*, CompilationMode, unsigned osrEntryBytecodeIndex, PassRefPtr<DeferredCompilationCallback>, Worklist*);
 
 } } // namespace JSC::DFG
 

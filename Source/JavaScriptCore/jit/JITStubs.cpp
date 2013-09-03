@@ -40,6 +40,7 @@
 #include "CodeBlock.h"
 #include "CodeProfiling.h"
 #include "CommonSlowPaths.h"
+#include "DFGCompilationMode.h"
 #include "DFGDriver.h"
 #include "DFGOSREntry.h"
 #include "DFGWorklist.h"
@@ -948,7 +949,7 @@ DEFINE_STUB_FUNCTION(void, optimize)
     // replacement.
     ASSERT(
         !vm.worklist
-        || !(vm.worklist->compilationState(codeBlock) != DFG::Worklist::NotKnown
+        || !(vm.worklist->compilationState(DFG::CompilationKey(codeBlock, DFG::DFGMode)) != DFG::Worklist::NotKnown
              && codeBlock->hasOptimizedReplacement()));
     
     DFG::Worklist::State worklistState;
@@ -972,8 +973,8 @@ DEFINE_STUB_FUNCTION(void, optimize)
         // possible in order to minimize the chances of us executing baseline code after
         // optimized code is already available.
         
-        worklistState =
-            vm.worklist->completeAllReadyPlansForVM(vm, codeBlock);
+        worklistState = vm.worklist->completeAllReadyPlansForVM(
+            vm, DFG::CompilationKey(codeBlock, DFG::DFGMode));
     } else
         worklistState = DFG::Worklist::NotKnown;
     
@@ -1043,7 +1044,8 @@ DEFINE_STUB_FUNCTION(void, optimize)
             vm.worklist = DFG::globalWorklist();
         
         CompilationResult result = DFG::compile(
-            callFrame, newCodeBlock.get(), bytecodeIndex, callback, vm.worklist.get());
+            callFrame, newCodeBlock.get(), DFG::DFGMode, bytecodeIndex, callback,
+            vm.worklist.get());
         
         if (result != CompilationSuccessful)
             return;
@@ -1274,7 +1276,7 @@ inline void* lazyLinkFor(CallFrame* callFrame, CodeSpecializationKind kind)
             callFrame->vm().throwException(callFrame, error);
             return 0;
         }
-        codeBlock = &functionExecutable->generatedBytecodeFor(kind);
+        codeBlock = functionExecutable->codeBlockFor(kind);
         if (callFrame->argumentCountIncludingThis() < static_cast<size_t>(codeBlock->numParameters())
             || callLinkInfo->callType == CallLinkInfo::CallVarargs)
             codePtr = functionExecutable->generatedJITCodeWithArityCheckFor(kind);
@@ -1333,7 +1335,7 @@ DEFINE_STUB_FUNCTION(void*, vm_lazyLinkClosureCall)
         ASSERT(executable->hasJITCodeForCall());
         codePtr = executable->generatedJITCodeForCall()->addressForCall();
         if (!callee->executable()->isHostFunction()) {
-            calleeCodeBlock = &jsCast<FunctionExecutable*>(executable)->generatedBytecodeForCall();
+            calleeCodeBlock = jsCast<FunctionExecutable*>(executable)->codeBlockForCall();
             if (callFrame->argumentCountIncludingThis() < static_cast<size_t>(calleeCodeBlock->numParameters())) {
                 shouldLink = false;
                 codePtr = executable->generatedJITCodeWithArityCheckFor(CodeForCall);

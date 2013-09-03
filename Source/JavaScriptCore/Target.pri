@@ -129,6 +129,8 @@ SOURCES += \
     dfg/DFGClobberSet.cpp \
     dfg/DFGCommon.cpp \
     dfg/DFGCommonData.cpp \
+    dfg/DFGCompilationKey.cpp \
+    dfg/DFGCompilationMode.cpp \
     dfg/DFGCFAPhase.cpp \
     dfg/DFGCFGSimplificationPhase.cpp \
     dfg/DFGCPSRethreadingPhase.cpp \
@@ -321,6 +323,8 @@ SOURCES += \
     runtime/JSGlobalObject.cpp \
     runtime/JSGlobalObjectFunctions.cpp \
     runtime/JSLock.cpp \
+    runtime/JSMap.cpp \
+    runtime/JSNameScope.cpp \
     runtime/JSNameScope.cpp \
     runtime/JSNotAnObject.cpp \
     runtime/JSONObject.cpp \
@@ -334,6 +338,7 @@ SOURCES += \
     runtime/JSPromiseResolverPrototype.cpp \
     runtime/JSPropertyNameIterator.cpp \
     runtime/JSProxy.cpp \
+    runtime/JSSet.cpp \
     runtime/JSScope.cpp \
     runtime/JSSegmentedVariableObject.cpp \
     runtime/JSString.cpp \
@@ -347,6 +352,9 @@ SOURCES += \
     runtime/JSWrapperObject.cpp \
     runtime/LiteralParser.cpp \
     runtime/Lookup.cpp \
+    runtime/MapConstructor.cpp \
+    runtime/MapData.cpp \
+    runtime/MapPrototype.cpp \
     runtime/MathObject.cpp \
     runtime/MemoryStatistics.cpp \
     runtime/NameConstructor.cpp \
@@ -374,6 +382,8 @@ SOURCES += \
     runtime/RegExpObject.cpp \
     runtime/RegExpPrototype.cpp \
     runtime/SamplingCounter.cpp \
+    runtime/SetConstructor.cpp \
+    runtime/SetPrototype.cpp \
     runtime/SimpleTypedArrayController.cpp \
     runtime/SmallStrings.cpp \
     runtime/SparseArrayValueMap.cpp \

@@ -1635,7 +1635,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     // Allocate metadata buffers for the bytecode
 #if ENABLE(LLINT)
     if (size_t size = unlinkedCodeBlock->numberOfLLintCallLinkInfos())
-        m_llintCallLinkInfos.grow(size);
+        m_llintCallLinkInfos.resizeToFit(size);
 #endif
 #if ENABLE(DFG_JIT)
     if (size_t size = unlinkedCodeBlock->numberOfArrayProfiles())
@@ -2363,22 +2363,18 @@ void CodeBlock::stronglyVisitWeakReferences(SlotVisitor& visitor)
 
 CodeBlock* CodeBlock::baselineVersion()
 {
-#if ENABLE(JIT)
-    // When we're initializing the original baseline code block, we won't be able
-    // to get its replacement. But we'll know that it's the original baseline code
-    // block because it won't have JIT code yet and it won't have an alternative.
-    if (jitType() == JITCode::None && !alternative())
+    if (JITCode::isBaselineCode(jitType()))
         return this;
-    
+#if ENABLE(JIT)
     CodeBlock* result = replacement();
-    ASSERT(result);
     while (result->alternative())
         result = result->alternative();
-    ASSERT(result);
-    ASSERT(JITCode::isBaselineCode(result->jitType()));
+    RELEASE_ASSERT(result);
+    RELEASE_ASSERT(JITCode::isBaselineCode(result->jitType()));
     return result;
 #else
-    return this;
+    RELEASE_ASSERT_NOT_REACHED();
+    return 0;
 #endif
 }
 
@@ -2442,9 +2438,6 @@ void CodeBlock::expressionRangeForBytecodeOffset(unsigned bytecodeOffset, int& d
 
 void CodeBlock::shrinkToFit(ShrinkMode shrinkMode)
 {
-#if ENABLE(LLINT)
-    m_llintCallLinkInfos.shrinkToFit();
-#endif
 #if ENABLE(JIT)
     m_structureStubInfos.shrinkToFit();
     m_callLinkInfos.shrinkToFit();
@@ -2715,17 +2708,17 @@ void CodeBlock::reoptimize()
 
 CodeBlock* ProgramCodeBlock::replacement()
 {
-    return &static_cast<ProgramExecutable*>(ownerExecutable())->generatedBytecode();
+    return jsCast<ProgramExecutable*>(ownerExecutable())->codeBlock();
 }
 
 CodeBlock* EvalCodeBlock::replacement()
 {
-    return &static_cast<EvalExecutable*>(ownerExecutable())->generatedBytecode();
+    return jsCast<EvalExecutable*>(ownerExecutable())->codeBlock();
 }
 
 CodeBlock* FunctionCodeBlock::replacement()
 {
-    return &static_cast<FunctionExecutable*>(ownerExecutable())->generatedBytecodeFor(m_isConstructor ? CodeForConstruct : CodeForCall);
+    return jsCast<FunctionExecutable*>(ownerExecutable())->codeBlockFor(m_isConstructor ? CodeForConstruct : CodeForCall);
 }
 
 DFG::CapabilityLevel ProgramCodeBlock::capabilityLevelInternal()
@@ -2776,7 +2769,7 @@ JSGlobalObject* CodeBlock::globalObjectFor(CodeOrigin codeOrigin)
 {
     if (!codeOrigin.inlineCallFrame)
         return globalObject();
-    return jsCast<FunctionExecutable*>(codeOrigin.inlineCallFrame->executable.get())->generatedBytecode().globalObject();
+    return jsCast<FunctionExecutable*>(codeOrigin.inlineCallFrame->executable.get())->eitherCodeBlock()->globalObject();
 }
 
 void CodeBlock::noticeIncomingCall(ExecState* callerFrame)
@@ -2973,10 +2966,12 @@ int32_t CodeBlock::adjustedCounterValue(int32_t desiredThreshold)
 bool CodeBlock::checkIfOptimizationThresholdReached()
 {
 #if ENABLE(DFG_JIT)
-    if (m_vm->worklist
-        && m_vm->worklist->compilationState(this) == DFG::Worklist::Compiled) {
-        optimizeNextInvocation();
-        return true;
+    if (DFG::Worklist* worklist = m_vm->worklist.get()) {
+        if (worklist->compilationState(DFG::CompilationKey(this, DFG::DFGMode))
+            == DFG::Worklist::Compiled) {
+            optimizeNextInvocation();
+            return true;
+        }
     }
 #endif
     
