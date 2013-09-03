@@ -1,3 +1,66 @@
+2013-09-03  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] Hyphenation respects regional format settings language instead of primary language
+        https://bugs.webkit.org/show_bug.cgi?id=120641
+
+        Reviewed by Dan Bernstein.
+
+        * platform/mac/fast/text/hyphenate-locale-expected.png: Added, this test only had
+        expected pixel results in mac-lion dorectory.
+
+2013-09-03  Daniel Bates  <dabates@apple.com>
+
+        Require layout when -webkit-overflow-scrolling changes
+        https://bugs.webkit.org/show_bug.cgi?id=120535
+
+        Reviewed by Darin Adler.
+
+        Add a test to ensure we perform a layout and repaint when the
+        value of -webkit-overflow-scrolling changes on an element.
+
+        At the time of writing, the iOS port enables ACCELERATED_OVERFLOW_SCROLLING.
+
+        * fast/repaint/overflow-scroll-touch-repaint-expected.txt: Added.
+        * fast/repaint/overflow-scroll-touch-repaint.html: Added.
+        * platform/efl/TestExpectations: Skip test fast/repaint/overflow-scroll-touch-repaint.html
+        since this platform doesn't enable ACCELERATED_OVERFLOW_SCROLLING.
+        * platform/gtk/TestExpectations: Ditto.
+        * platform/mac/TestExpectations: Ditto.
+        * platform/qt/TestExpectations: Ditto.
+        * platform/win/TestExpectations: Ditto.
+        * platform/wincairo/TestExpectations: Ditto.
+
+2013-09-02  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Support the "json" responseType and JSON response entity in XHR
+        https://bugs.webkit.org/show_bug.cgi?id=73648
+
+        Reviewed by Oliver Hunt.
+
+        Add regression tests for XMLHttpRequest.response of type 'json'.
+
+        Two of these tests (valid & invalid) come from Jarred Nicholls's original patch.
+
+        * fast/xmlhttprequest/resources/xmlhttprequest-responsetype-json-utf-16.json: Added.
+        * fast/xmlhttprequest/resources/xmlhttprequest-responsetype-json.json: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-invalid-expected.txt: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-invalid.html: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-utf16-expected.txt: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-utf16.html: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-valid-expected.txt: Added.
+        * fast/xmlhttprequest/xmlhttprequest-responsetype-json-valid.html: Added.
+
+2013-09-03  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154881.
+        http://trac.webkit.org/changeset/154881
+        https://bugs.webkit.org/show_bug.cgi?id=120643
+
+        Crashes on macworld.com (Requested by kling on #webkit).
+
+        * fast/dom/Element/setAttributeNode-for-existing-attribute-expected.txt: Removed.
+        * fast/dom/Element/setAttributeNode-for-existing-attribute.html: Removed.
+
 2013-09-03  Mihnea Ovidenie  <mihnea@adobe.com>
 
         [CSSRegions] Pseudo-elements as regions should not be exposed to JS

@@ -1,3 +1,145 @@
+2013-09-03  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] Hyphenation respects regional format settings language instead of primary language
+        https://bugs.webkit.org/show_bug.cgi?id=120641
+
+        Reviewed by Dan Bernstein.
+
+        Fixes hyphenation tests on my machine with non-English regional format settings.
+
+        * platform/text/cf/HyphenationCF.cpp: (createValueForNullKey):
+        Use primary UI language for hyphenation, not regional settings language.
+
+2013-09-03  Danilo Cesar Lemes de Paula  <danilo.cesar@collabora.co.uk>
+
+        [GTK][EFL] include missing localized strings for subtitle auto track
+        https://bugs.webkit.org/show_bug.cgi?id=120629
+
+        those methods are necessary to show the "Auto" track on webkitgtk
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * platform/efl/LocalizedStringsEfl.cpp:
+        (WebCore::textTrackAutomaticMenuItemText):
+        * platform/gtk/LocalizedStringsGtk.cpp:
+        (WebCore::textTrackAutomaticMenuItemText):
+
+2013-09-03  Daniel Bates  <dabates@apple.com>
+
+        Require layout when -webkit-overflow-scrolling changes
+        https://bugs.webkit.org/show_bug.cgi?id=120535
+
+        Reviewed by Darin Adler.
+
+        Test: fast/repaint/overflow-scroll-touch-repaint.html
+
+        We want to require a layout when the value of -webkit-overflow-scrolling changes
+        since -webkit-overflow-scrolling creates a stacking context.
+
+        * rendering/style/RenderStyle.cpp:
+        (WebCore::RenderStyle::changeRequiresLayout):
+
+2013-09-02  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Support the "json" responseType and JSON response entity in XHR
+        https://bugs.webkit.org/show_bug.cgi?id=73648
+
+        Reviewed by Oliver Hunt.
+
+        Based on the patch written by Jarred Nicholls.
+
+        Implement 'json' type for XMLHttpRequest.response. We cache the result on JSC side as a cached attribute
+        unlike other response types like 'document' and 'blob' for which the parsed response object is cached
+        in XMLHttpRequest itself. In the long run, we should do the same for other types of response types.
+
+        Also refactored the various code to share the code.
+
+        Tests: fast/xmlhttprequest/xmlhttprequest-responsetype-json-invalid.html
+               fast/xmlhttprequest/xmlhttprequest-responsetype-json-utf16.html
+               fast/xmlhttprequest/xmlhttprequest-responsetype-json-valid.html
+
+        * ForwardingHeaders/runtime/JSONObject.h: Added.
+
+        * bindings/js/JSXMLHttpRequestCustom.cpp:
+        (WebCore::JSXMLHttpRequest::visitChildren):
+        (WebCore::JSXMLHttpRequest::response): Use JSONParse to parse the response text and cache the result.
+        Call didCacheResponseJSON to set the cache status and clear the original response buffer.
+
+        * xml/XMLHttpRequest.cpp:
+        (WebCore::XMLHttpRequest::XMLHttpRequest): Added m_responseCacheIsValid to invalidate the cache of
+        a json response.
+        (WebCore::XMLHttpRequest::responseText):
+        (WebCore::XMLHttpRequest::didCacheResponseJSON): Added; Updates m_responseCacheIsValid and clears the
+        response buffer to save memory.
+        (WebCore::XMLHttpRequest::responseXML):
+        (WebCore::XMLHttpRequest::setResponseType):
+        (WebCore::XMLHttpRequest::responseType):
+        (WebCore::XMLHttpRequest::clearResponseBuffers):
+        (WebCore::XMLHttpRequest::didReceiveData):
+
+        * xml/XMLHttpRequest.h:
+        (WebCore::XMLHttpRequest::doneWithoutErrors): Extracted from responseXML.
+        (WebCore::XMLHttpRequest::responseTextIgnoringResponseType): Extracted from responseText.
+        (WebCore::XMLHttpRequest::responseCacheIsValid): Added.
+        (WebCore::XMLHttpRequest::shouldDecodeResponse): Extracted from didReceiveData.
+        Also modified to decode when the response type is ResponseTypeJSON.
+
+        * xml/XMLHttpRequest.idl: Added CachedAttribute IDL extention on response property. This cache is
+        used when the response type is 'json'.
+
+2013-09-03  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154881.
+        http://trac.webkit.org/changeset/154881
+        https://bugs.webkit.org/show_bug.cgi?id=120643
+
+        Crashes on macworld.com (Requested by kling on #webkit).
+
+        * dom/Element.cpp:
+        (WebCore::Element::setAttributeInternal):
+
+2013-09-03  Andre Moreira Magalhaes   <andre.magalhaes@collabora.co.uk>
+
+        [GStreamer] Don't set state to NULL until element is destroyed
+        https://bugs.webkit.org/show_bug.cgi?id=117354
+
+        Reviewed by Philippe Normand.
+
+        Don't set playbin to NULL until it is going to be destroyed or if we stay
+        for too long on the READY state. Instead only set the state to READY as this
+        allows much faster state changes to PAUSED/PLAYING again. playbin internally
+        caches some state that is destroyed when setting it to NULL.
+        This state is independent of the URI and it is even possible to change the
+        URI in READY state.
+
+        To avoid having resources (e.g. audio devices) open indefinitely,
+        when setting the state to READY we create a timeout and if the timeout
+        is reached we reset the pipeline state to NULL to free resources.
+
+        Also now all state changes use the changePipelineState method instead of setting
+        the playbin state directly with gst_element_set_state, so we have a better control
+        of when we are requesting state changes.
+
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        (WebCore::mediaPlayerPrivateReadyStateTimeoutCallback):
+        (WebCore::MediaPlayerPrivateGStreamer::MediaPlayerPrivateGStreamer):
+        (WebCore::MediaPlayerPrivateGStreamer::~MediaPlayerPrivateGStreamer):
+        (WebCore::MediaPlayerPrivateGStreamer::commitLoad):
+        (WebCore::MediaPlayerPrivateGStreamer::changePipelineState):
+        (WebCore::MediaPlayerPrivateGStreamer::setRate):
+        (WebCore::MediaPlayerPrivateGStreamer::handlePluginInstallerResult):
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h:
+
+2013-09-03  peavo@outlook.com  <peavo@outlook.com>
+
+        [WinCairo] Unneeded code in method GlyphPage::fill().
+        https://bugs.webkit.org/show_bug.cgi?id=120634
+
+        Reviewed by Andreas Kling.
+
+        * platform/graphics/win/GlyphPageTreeNodeCairoWin.cpp:
+        (WebCore::GlyphPage::fill): Remove unneeded call to GetTextMetrics() function.
+
 2013-09-03  Mihnea Ovidenie  <mihnea@adobe.com>
 
         [CSSRegions] Pseudo-elements as regions should not be exposed to JS
