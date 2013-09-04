@@ -1,3 +1,227 @@
+2013-09-04  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Move logical dimension getters/setters to FloatingObject from RenderBlock
+        https://bugs.webkit.org/show_bug.cgi?id=120686
+
+        Reviewed by David Hyatt.
+
+        This is the first step in decoupling FloatingObject, FloatingObjects,
+        et al from RenderBlock. It is not ideal that the methods take a bool;
+        however, passing down the actual writing mode would require
+        refactoring the way that RenderBlock stores this information, which is
+        a task for the future.
+
+        No new tests, no behavior change.
+
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::repaintOverhangingFloats): Use new methods.
+        (WebCore::RenderBlock::insertFloatingObject):  Ditto.
+        (WebCore::RenderBlock::removeFloatingObject): Ditto.
+        (WebCore::RenderBlock::removeFloatingObjectsBelow): Ditto.
+        (WebCore::RenderBlock::computeLogicalLocationForFloat): Ditto.
+        (WebCore::RenderBlock::positionNewFloats): Ditto.
+        (WebCore::::updateOffsetIfNeeded): Ditto.
+        (WebCore::::collectIfNeeded): Ditto.
+        (WebCore::::getHeightRemaining): Ditto.
+        (WebCore::RenderBlock::logicalLeftFloatOffsetForLine): Ditto.
+        (WebCore::RenderBlock::logicalRightFloatOffsetForLine): Ditto.
+        (WebCore::RenderBlock::nextFloatLogicalBottomBelow): Ditto.
+        (WebCore::RenderBlock::lowestFloatLogicalBottom): Ditto.
+        (WebCore::RenderBlock::clearFloats): Ditto.
+        (WebCore::RenderBlock::addOverhangingFloats): Ditto.
+        (WebCore::RenderBlock::hasOverhangingFloat): Ditto.
+        (WebCore::RenderBlock::addIntrudingFloats): Ditto.
+        * rendering/RenderBlock.h:
+        (WebCore::RenderBlock::FloatingObject::logicalTop): Moved from RenderBlock::logicalTopForFloat
+        (WebCore::RenderBlock::FloatingObject::logicalBottom): Moved from RenderBlock::logicalBottomForFloat
+        (WebCore::RenderBlock::FloatingObject::logicalLeft): Moved from RenderBlock::logicalLeftForFloat
+        (WebCore::RenderBlock::FloatingObject::logicalRight): Moved from RenderBlock::logicalRightForFloat
+        (WebCore::RenderBlock::FloatingObject::logicalWidth): Moved from RenderBlock::logicalWidthForFloat
+        (WebCore::RenderBlock::FloatingObject::pixelSnappedLogicalTop): Moved from RenderBlock::pixelSnappedLogicalTopForFloat
+        (WebCore::RenderBlock::FloatingObject::pixelSnappedLogicalBottom): Moved from RenderBlock::pixelSnappedLogicalBottomForFloat
+        (WebCore::RenderBlock::FloatingObject::pixelSnappedLogicalLeft): Moved from RenderBlock::pixelSnappedLogicalLeftForFloat
+        (WebCore::RenderBlock::FloatingObject::pixelSnappedLogicalRight): Moved from RenderBlock::pixelSnappedLogicalRightForFloat
+        (WebCore::RenderBlock::FloatingObject::setLogicalTop): Moved from RenderBlock::setLogicalTopForFloat
+        (WebCore::RenderBlock::FloatingObject::setLogicalLeft): Moved from RenderBlock::setLogicalLeftForFloat
+        (WebCore::RenderBlock::FloatingObject::setLogicalHeight): Moved from RenderBlock::setLogicalHeightForFloat
+        (WebCore::RenderBlock::FloatingObject::setLogicalWidth): Moved from RenderBlock::setLogicalWidthForFloat
+        * rendering/RenderBlockLineLayout.cpp:
+        (WebCore::LineWidth::shrinkAvailableWidthForNewFloatIfNeeded): Use new methods.
+        (WebCore::RenderBlock::checkPaginationAndFloatsAtEndLine): Ditto.
+        (WebCore::RenderBlock::LineBreaker::nextSegmentBreak): Ditto.
+        (WebCore::RenderBlock::positionNewFloatOnLine): Ditto.
+
+2013-09-04  Andre Moreira Magalhaes   <andre.magalhaes@collabora.co.uk>
+
+        REGRESSION(r154977): Do not urlencode soup message on ResourceRequest::toSoupMessage()
+        https://bugs.webkit.org/show_bug.cgi?id=120681
+
+        Reviewed by Martin Robinson.
+
+        Do not call soup_message_set_uri with soupURI() (url encoded uri) on
+        ResourceRequest::toSoupMessage().
+
+        * platform/network/soup/ResourceRequest.h:
+        * platform/network/soup/ResourceRequestSoup.cpp:
+        (WebCore::ResourceRequest::updateSoupMessageMembers):
+        (WebCore::ResourceRequest::updateSoupMessage):
+        (WebCore::ResourceRequest::toSoupMessage):
+        Split common code from updateSoupMessage/toSoupMessage into updateSoupMessageMembers.
+
+2013-09-04  Danilo Cesar Lemes de Paula  <danilo.cesar@collabora.co.uk>
+
+        [GTK] add support for subtitles on webkit2GTK
+        https://bugs.webkit.org/show_bug.cgi?id=117008
+
+        By activating subtitles support on webkit2GTK, the video player
+        recognizes and use text <tracks> inside <video> elements.
+
+        Reviewed by Martin Robinson.
+
+        Layout tests (track-menu) should cover this change.
+
+        * css/mediaControlsGtk.css:
+        (audio::-webkit-media-controls-toggle-closed-captions-button, video::-webkit-media-controls-toggle-closed-captions-button):
+        (video::-webkit-media-controls-closed-captions-container):
+        (video::-webkit-media-controls-closed-captions-track-list):
+        (video::-webkit-media-controls-closed-captions-track-list h3):
+        (video::-webkit-media-controls-closed-captions-track-list ul):
+        (video::-webkit-media-controls-closed-captions-track-list li):
+        (video::-webkit-media-controls-closed-captions-track-list li.selected):
+        * html/shadow/MediaControlElements.cpp:
+        (WebCore::MediaControlToggleClosedCaptionsButtonElement::MediaControlToggleClosedCaptionsButtonElement):
+        (WebCore::MediaControlToggleClosedCaptionsButtonElement::defaultEventHandler):
+        * html/shadow/MediaControlElements.h:
+        * html/shadow/MediaControlsGtk.cpp:
+        (WebCore::MediaControlsGtkEventListener::create):
+        (WebCore::MediaControlsGtkEventListener::cast):
+        (WebCore::MediaControlsGtkEventListener::MediaControlsGtkEventListener):
+        (WebCore::MediaControlsGtk::MediaControlsGtk):
+        (WebCore::MediaControlsGtk::initializeControls):
+        (WebCore::MediaControlsGtk::setMediaController):
+        (WebCore::MediaControlsGtk::reset):
+        (WebCore::MediaControlsGtk::makeTransparent):
+        (WebCore::MediaControlsGtk::toggleClosedCaptionTrackList):
+        (WebCore::MediaControlsGtk::showClosedCaptionTrackList):
+        (WebCore::MediaControlsGtk::hideClosedCaptionTrackList):
+        (WebCore::MediaControlsGtk::handleClickEvent):
+        (WebCore::MediaControlsGtk::eventListener):
+        (WebCore::MediaControlsGtkEventListener::handleEvent):
+        (WebCore::MediaControlsGtkEventListener::operator==):
+        * html/shadow/MediaControlsGtk.h:
+        * page/CaptionUserPreferences.cpp:
+        (WebCore::trackDisplayName):
+        * platform/gtk/LocalizedStringsGtk.cpp:
+        (WebCore::textTrackSubtitlesText):
+        (WebCore::textTrackOffMenuItemText):
+        (WebCore::textTrackNoLabelText):
+        * platform/gtk/RenderThemeGtk.h:
+
+2013-09-03  Darin Adler  <darin@apple.com>
+
+        Use OwnPtr in the RenderLayerFilterInfo map
+        https://bugs.webkit.org/show_bug.cgi?id=120619
+
+        Reviewed by Anders Carlsson.
+
+        * rendering/RenderLayer.cpp:
+        (WebCore::RenderLayer::~RenderLayer): Use FilterInfo::remove directly instead of
+        going through removeFilterInfoIfNeeded function.
+        (WebCore::RenderLayer::paintsWithFilters): Rearranged #if a little bit and tweaked
+        the comment.
+        (WebCore::RenderLayer::requiresFullLayerImageForFilters): Use && instead of ternary.
+        (WebCore::RenderLayer::filterRenderer): Use FilterInfo::getIfExists directly instead
+        of going through filterInfo function.
+        (WebCore::RenderLayer::setFilterBackendNeedsRepaintingInRect): Use FilterInfo::get
+        directly instead of going through filterInfo function. Also use references instead
+        of pointers.
+        (WebCore::shouldDoSoftwarePaint): Marked this simple function, used only once, as
+        inline.
+        (WebCore::paintForFixedRootBackground): Ditto.
+        (WebCore::RenderLayer::setupFilters): Use FilterInfo::getIfExists directly instead
+        of going through filterInfo function. Also get rendererer out of filterInfo instead
+        of calling filterRenderer.
+        (WebCore::RenderLayer::updateOrRemoveFilterClients): Use FilterInfo::get and
+        FilterInfo::getIfExists directly instead of using ensureFilterInfo and
+        filterInfo functions.
+        (WebCore::RenderLayer::updateOrRemoveFilterEffectRenderer): Use FilterInfo::getIfExists
+        and FilterInfo::get directly instead of using filterInfo function.
+
+        * rendering/RenderLayer.h: Removed the ifdefs around forward declarations; overkill,
+        since there is no harm in a few extras. Marked the RenderLayer class FINAL. Removed the
+        no-longer-needed filterInfo, ensureFilterInfo, removeFilterInfoIfNeeded, hasFilterInfo,
+        and setHasFilterInfo functions. Mark everything private instead of protected since
+        there are no classes derived from this one. Made FilterInfo an embedded class so it
+        can get at the m_hasFilterInfo data member directly and has a shorter name.
+
+        * rendering/RenderLayerFilterInfo.cpp: Removed the ifs around includes, which were
+        overkill, since there is little harm including a few extra files.
+        (WebCore::RenderLayer::FilterInfo::map): Added. Returns the single global map.
+        (WebCore::RenderLayer::FilterInfo::getIfExists): Renamed from filterInfoForRenderLayer.
+        Also changed to take a reference instead of a pointer, and to use the new filterMap.
+        (WebCore::RenderLayer::FilterInfo::get): Renamed from createFilterInfoForRenderLayerIfNeeded.
+        Also changed to take a reference instead of a pointer, to use the new filterMap, and
+        to use add to avoid hashing twice when adding a new layer to the map.
+        (WebCore::RenderLayer::FilterInfo::remove): Renamed from removeFilterInfoForRenderLayer.
+        Also changed to take a reference instead of a pointer and eliminated the explicit
+        delete since we use OwnPtr now.
+        (WebCore::RenderLayer::FilterInfo::FilterInfo): Take a reference instead of a pointer.
+        (WebCore::RenderLayer::FilterInfo::~FilterInfo): Updated class name.
+        (WebCore::RenderLayer::FilterInfo::setRenderer): Ditto.
+        (WebCore::RenderLayer::FilterInfo::notifyFinished): Update since m_layer is a reference.
+        (WebCore::RenderLayer::FilterInfo::updateReferenceFilterClients): Update to iterate in a
+        slightly more idiomatic and efficient way. Also update since m_layer is a reference.
+        (WebCore::RenderLayer::FilterInfo::removeReferenceFilterClients): Ditto.
+        (WebCore::RenderLayer::FilterInfo::notifyCustomFilterProgramLoaded): Ditto.
+        (WebCore::RenderLayer::FilterInfo::updateCustomFilterClients): Ditto. Also switched to
+        a raw pointer for CustomFilterProgram*.
+        (WebCore::RenderLayer::FilterInfo::removeCustomFilterClients): Ditto.
+
+        * rendering/RenderLayerFilterInfo.h: Removed the ifs around includes, which were
+        overkill, since there is little harm including a few extra files. Changed to be a
+        member class of RenderLayer, marked the class FINAL, and changed the style of the
+        conditionals around the base classes. Renamed functions. Made overrides private and
+        used OVERRIDE. Changed functions to take references instead of pointers. Did some
+        small style cleanup. Made deleteOwnedPtr a friend so we can keep the destructor private.
+        Moved the typedef of RenderLayerFilterInfoMap into the class and named it just Map.
+        Got rid of s_filterMap and instead added a function named just map().
+
+2013-09-04  Andreas Kling  <akling@apple.com>
+
+        Simplify subtree relayout scheduling a bit.
+        <https://webkit.org/b/120684>
+
+        Reviewed by Antti Koivisto.
+
+        Subtree relayout scheduling should only happen while there's a render tree up,
+        the code can freely assume that there's a RenderView present.
+
+        Added an assertion that the render tree isn't being torn down. This should catch
+        renderers doing unnecessary work during document detach and could be a source
+        of "performance freebies."
+
+        I also un-nested scheduleRelayoutOfSubtree() with early-return style to make
+        the code more human-readable.
+
+        * page/FrameView.h:
+        * page/FrameView.cpp:
+        (WebCore::FrameView::scheduleRelayoutOfSubtree):
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::scheduleRelayout):
+
+2013-09-04  Jae Hyun Park  <jae.park@company100.net>
+
+        [Coordinated Graphics] Remove unused method in CoordinatedGraphicsLayer
+        https://bugs.webkit.org/show_bug.cgi?id=120664
+
+        Reviewed by Darin Adler.
+
+        CoordinatedGraphicsLayer::hasPendingVisibleChanges is not used as of
+        r148952.
+
+        * platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.cpp:
+        * platform/graphics/texmap/coordinated/CoordinatedGraphicsLayer.h:
+
 2013-09-04  Hans Muller  <hmuller@adobe.com>
 
         [CSS Shapes] Revise the ShapeInterval set operations' implementation
