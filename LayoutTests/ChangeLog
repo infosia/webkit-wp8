@@ -1,3 +1,96 @@
+2013-09-03  Enrica Casucci  <enrica@apple.com>
+
+        Can't select Katakana word by double-clicking.
+        <rdar://problem/14654926>
+
+        Reviewed by Alexey Proskuryakov and Ryosuke Niwa.
+
+        Added new test for this scenario.
+
+        * editing/selection/doubleclick-japanese-text-expected.txt: Added.
+        * editing/selection/doubleclick-japanese-text.html: Added.
+
+2013-09-03  Benjamin Poulain  <benjamin@webkit.org>
+
+        Try unskipping compositing/images/positioned-image-content-rect.html
+
+        Unreviewed.
+
+        * platform/mac/TestExpectations:
+        The test compositing/images/positioned-image-content-rect.html seems to pass reliably
+        on the bots and locally.
+        Try to unskip it.
+
+2013-09-03  Benjamin Poulain  <benjamin@webkit.org>
+
+        The test inspector/geolocation-success.html is unreliable
+        https://bugs.webkit.org/show_bug.cgi?id=120655
+
+        Reviewed by Alexey Proskuryakov.
+
+        * inspector/geolocation-success.html:
+        The test was expecting everything would be done in the page context
+        when InspectorTest.evaluateInPage invoke the callback.
+
+        This is not the case, geolocation APIs are asynchronous.
+        The callbacks printLocation() and printError() may or may not be executed.
+
+        To fix this, the execution of each step is changed to depends on the completion
+        of the geolocation callback.
+
+2013-09-03  Oliver Hunt  <oliver@apple.com>
+
+        Support structured clone of Map and Set
+        https://bugs.webkit.org/show_bug.cgi?id=120654
+
+        Reviewed by Simon Fraser.
+
+        Tests!
+
+        * fast/dom/Window/script-tests/postmessage-clone.js:
+        (set new):
+        (set add.set add):
+
+2013-09-03  Bear Travis  <betravis@adobe.com>
+
+        [CSS Shapes] Shape's content gets extra left offset when left-border is positive on the content box
+        https://bugs.webkit.org/show_bug.cgi?id=117573
+
+        Reviewed by David Hyatt.
+
+        Test that nested children with padding correctly apply an ancestor's shape-inside
+        across different writing modes.
+
+        * fast/shapes/shape-inside/shape-inside-offset-block-children-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-offset-block-children.html: Added.
+
+2013-09-03  Antoine Quint  <graouts@apple.com>
+
+        Web Inspector: exceptions triggered from console evaluation do not pause the debugger
+        https://bugs.webkit.org/show_bug.cgi?id=120460
+
+        Reviewed by Timothy Hatcher.
+
+        * platform/mac/inspector/console/command-line-api-expected.txt:
+        Take into account the addition of a sourceURL to inspector/InjectedScriptSource.js.
+
+2013-08-28  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Add parsing for named grid lines
+        https://bugs.webkit.org/show_bug.cgi?id=119540
+
+        Reviewed by Andreas Kling.
+
+        From Blink r150381,r150587 by <jchaffraix@chromium.org>
+
+        Added several new test cases which include different types of
+        named grid lines, this means including the names at different
+        positions, multiple names per line or mixing names with keywords
+        like 'span'.
+
+        * fast/css-grid-layout/grid-item-column-row-get-set-expected.txt:
+        * fast/css-grid-layout/grid-item-column-row-get-set.html:
+
 2013-09-03  Alexey Proskuryakov  <ap@apple.com>
 
         [Mac] Hyphenation respects regional format settings language instead of primary language
