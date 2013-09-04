@@ -1479,6 +1479,7 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
     , m_numVars(other.m_numVars)
     , m_isConstructor(other.m_isConstructor)
     , m_shouldAlwaysBeInlined(true)
+    , m_didFailFTLCompilation(false)
     , m_unlinkedCode(*other.m_vm, other.m_ownerExecutable.get(), other.m_unlinkedCode.get())
     , m_ownerExecutable(*other.m_vm, other.m_ownerExecutable.get(), other.m_ownerExecutable.get())
     , m_vm(other.m_vm)
@@ -1529,6 +1530,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     , m_numVars(unlinkedCodeBlock->m_numVars)
     , m_isConstructor(unlinkedCodeBlock->isConstructor())
     , m_shouldAlwaysBeInlined(true)
+    , m_didFailFTLCompilation(false)
     , m_unlinkedCode(m_globalObject->vm(), ownerExecutable, unlinkedCodeBlock)
     , m_ownerExecutable(m_globalObject->vm(), ownerExecutable, ownerExecutable)
     , m_vm(unlinkedCodeBlock->vm())
@@ -1847,7 +1849,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     if (Options::dumpGeneratedBytecodes())
         dumpBytecode();
     m_heap->m_codeBlocks.add(this);
-    m_heap->reportExtraMemoryCost(sizeof(CodeBlock));
+    m_heap->reportExtraMemoryCost(sizeof(CodeBlock) + m_instructions.size() * sizeof(Instruction));
 }
 
 CodeBlock::~CodeBlock()
@@ -1902,6 +1904,18 @@ void EvalCodeCache::visitAggregate(SlotVisitor& visitor)
         visitor.append(&ptr->value);
 }
 
+CodeBlock* CodeBlock::specialOSREntryBlockOrNull()
+{
+#if ENABLE(FTL_JIT)
+    if (jitType() != JITCode::DFGJIT)
+        return 0;
+    DFG::JITCode* jitCode = m_jitCode->dfg();
+    return jitCode->osrEntryBlock.get();
+#else // ENABLE(FTL_JIT)
+    return 0;
+#endif // ENABLE(FTL_JIT)
+}
+
 void CodeBlock::visitAggregate(SlotVisitor& visitor)
 {
 #if ENABLE(PARALLEL_GC)
@@ -1930,6 +1944,20 @@ void CodeBlock::visitAggregate(SlotVisitor& visitor)
     
     if (!!m_alternative)
         m_alternative->visitAggregate(visitor);
+    
+    if (CodeBlock* otherBlock = specialOSREntryBlockOrNull())
+        otherBlock->visitAggregate(visitor);
+
+    visitor.reportExtraMemoryUsage(sizeof(CodeBlock));
+    if (m_jitCode)
+        visitor.reportExtraMemoryUsage(m_jitCode->size());
+    if (m_instructions.size()) {
+        // Divide by refCount() because m_instructions points to something that is shared
+        // by multiple CodeBlocks, and we only want to count it towards the heap size once.
+        // Having each CodeBlock report only its proportional share of the size is one way
+        // of accomplishing this.
+        visitor.reportExtraMemoryUsage(m_instructions.size() * sizeof(Instruction) / m_instructions.refCount());
+    }
 
     visitor.append(&m_unlinkedCode);
 
@@ -2374,17 +2402,14 @@ CodeBlock* CodeBlock::baselineVersion()
 }
 
 #if ENABLE(JIT)
+bool CodeBlock::hasOptimizedReplacement(JITCode::JITType typeToReplace)
+{
+    return JITCode::isHigherTier(replacement()->jitType(), typeToReplace);
+}
+
 bool CodeBlock::hasOptimizedReplacement()
 {
-    ASSERT(JITCode::isBaselineCode(jitType()));
-    bool result = JITCode::isHigherTier(replacement()->jitType(), jitType());
-    if (result)
-        ASSERT(JITCode::isOptimizingJIT(replacement()->jitType()));
-    else {
-        ASSERT(JITCode::isBaselineCode(replacement()->jitType()));
-        ASSERT(replacement() == this);
-    }
-    return result;
+    return hasOptimizedReplacement(jitType());
 }
 #endif
 
@@ -2650,6 +2675,8 @@ void CodeBlock::clearEvalCache()
 {
     if (!!m_alternative)
         m_alternative->clearEvalCache();
+    if (CodeBlock* otherBlock = specialOSREntryBlockOrNull())
+        otherBlock->clearEvalCache();
     if (!m_rareData)
         return;
     m_rareData->m_evalCodeCache.clear();
@@ -3019,10 +3046,10 @@ void CodeBlock::setOptimizationThresholdBasedOnCompilationResult(CompilationResu
     case CompilationSuccessful:
         RELEASE_ASSERT(JITCode::isOptimizingJIT(replacement()->jitType()));
         optimizeNextInvocation();
-        break;
+        return;
     case CompilationFailed:
         dontOptimizeAnytimeSoon();
-        break;
+        return;
     case CompilationDeferred:
         // We'd like to do dontOptimizeAnytimeSoon() but we cannot because
         // forceOptimizationSlowPathConcurrently() is inherently racy. It won't
@@ -3030,16 +3057,14 @@ void CodeBlock::setOptimizationThresholdBasedOnCompilationResult(CompilationResu
         // function ends up being a no-op, we still eventually retry and realize
         // that we have optimized code ready.
         optimizeAfterWarmUp();
-        break;
+        return;
     case CompilationInvalidated:
         // Retry with exponential backoff.
         countReoptimization();
         optimizeAfterWarmUp();
-        break;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
+        return;
     }
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 #endif

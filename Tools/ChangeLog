@@ -1,3 +1,54 @@
+2013-09-04  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Adds an accessibility support to access a value of the color control element
+        https://bugs.webkit.org/show_bug.cgi?id=114354
+
+        Reviewed by Mario Sanchez Prada.
+
+        Added accessibility role of the color control element.
+
+        * DumpRenderTree/atk/AccessibilityUIElementAtk.cpp:
+        (roleToString):
+        * WebKitTestRunner/InjectedBundle/atk/AccessibilityUIElementAtk.cpp:
+        (WTR::roleToString):
+
+2013-09-04  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        REGRESSION (r132328): /WebKit2APITests/TestWebKitAccessibility unit test is failing
+        https://bugs.webkit.org/show_bug.cgi?id=100408
+
+        Unreviewed gardening. Unskip TestWebKitAccessibility after
+        manually checking that it's running properly in the bot.
+
+        * Scripts/run-gtk-tests:
+        (TestRunner): Unskipped TestWebKitAccessibility.
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Add support for the Wayland build target
+        https://bugs.webkit.org/show_bug.cgi?id=120627
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * GNUmakefile.am: Define the additional macros also if building the Wayland target.
+
+2013-09-04  Andre Moreira Magalhaes   <andre.magalhaes@collabora.co.uk>
+
+        [GStreamer] cannot play live streams
+        https://bugs.webkit.org/show_bug.cgi?id=116831
+
+        Reviewed by Philippe Normand.
+
+        Fix timeout issues with rtspsrc/udpsrc gstreamer elements.
+
+        * gtk/jhbuild.modules:
+        * gtk/patches/rtspsrc-timeout-on-udpsrc-is-in-nanoseconds.patch: Added.
+        * gtk/patches/udpsrc-improve-timeouts.patch: Added.
+        Changed gstreamer jhbuild modules to use tarball repos (required to add patches)
+        and added 2 patches to gst-plugins-good to fix timeout issues with rtsp streams.
+        Both patches are applied upstream and can be removed once a new gstreamer release
+        is out (up to 1.0.10 the patches are not included) and we bump the requirements.
+
 2013-09-03  Alexey Proskuryakov  <ap@apple.com>
 
         [Mac] WebKitTestRunner still beeps sometimes

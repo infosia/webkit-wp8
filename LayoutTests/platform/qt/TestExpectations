@@ -473,6 +473,9 @@ webkit.org/b/84893 http/tests/w3c/webperf/submission/Intel/user-timing
 # Resource Timing is not enable yet, skip it.
 webkit.org/b/61138 http/tests/w3c/webperf/submission/Intel/resource-timing
 
+# WEB_TIMING doesn't support on Qt.
+webkit.org/b/118395 http/tests/misc/webtiming-ssl.php [ Skip ]
+
 # Missing eventSender.scheduleAsynchronousKeyDown() implementation
 fast/dom/MutationObserver/inline-event-listener.html
 
@@ -635,6 +638,8 @@ http/tests/media
 http/tests/navigation/javascriptlink-goback.html
 http/tests/navigation/metaredirect-goback.html
 http/tests/navigation/timerredirect-goback.html
+
+webkit.org/b/120028 http/tests/navigation/post-frames-goback1-uncached.html [ Skip ]
 
 # Advanced credential handling
 http/tests/security/401-logout/401-logout.php
@@ -2632,6 +2637,9 @@ webkit.org/b/101539 editing/execCommand/switch-list-type-with-orphaned-li.html [
 webkit.org/b/100846 inspector-protocol/debugger/pause-dedicated-worker.html [ Skip ]
 webkit.org/b/100846 inspector-protocol/debugger/terminate-dedicated-worker-while-paused.html [ Skip ]
 
+# New test inspector-protocol/page/archive.html added in r154828 fails on EFL, Qt, GTK
+webkit.org/b/120682 inspector-protocol/page/archive.html [ Skip ]
+
 # QT still has the CC toggle button, not the menu of tracks.
 webkit.org/b/101670 media/video-controls-captions-trackmenu.html [ Skip ]
 webkit.org/b/101670 media/video-controls-captions-trackmenu-sorted.html [ Skip ]
@@ -2785,3 +2793,10 @@ webkit.org/b/117185 fast/forms/control-clip-overflow.html [ Skip ]
 
 # Synthesized italics not supported
 fast/text/international/synthesized-italic-vertical-latin.html [ Skip ]
+
+# Failing tests after r155014
+webkit.org/b/120671 editing/selection/doubleclick-japanese-text.html [ Skip ]
+webkit.org/b/120671 editing/style/make-text-writing-direction-inline-win.html [ Skip ]
+
+# [EFL][GTK][Qt] The layout test fast/storage/serialized-script-value.html is failing after r155008.
+webkit.org/b/120677 fast/storage/serialized-script-value.html [ Skip ]

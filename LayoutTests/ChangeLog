@@ -1,3 +1,170 @@
+2013-09-04  Zoltan Arvai  <zarvai@inf.u-szeged.hu>
+
+        [Qt] Unreviewed bot greening.
+
+        * platform/qt-wk1/TestExpectations: Skipping after r154988.
+        * platform/qt/TestExpectations: Skipping after r154828.
+
+2013-09-04  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Adds an accessibility support to access a value of the color control element
+        https://bugs.webkit.org/show_bug.cgi?id=114354
+
+        Reviewed by Mario Sanchez Prada.
+
+        Moving mac's color-well-expected.txt result to base accessibility folder.
+        Unskipping accessibility/color-well.html for EFL port.
+
+        * accessibility/color-well-expected.txt: Renamed from LayoutTests/platform/mac/accessibility/color-well-expected.txt.
+        * platform/efl-wk1/TestExpectations:
+        * platform/efl-wk2/TestExpectations:
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening.
+
+        * platform/gtk/TestExpectations: Adding failure expectation for accessibility/image-map1.html after r155022.
+        * platform/gtk/fast/dom/Window/window-postmessage-clone-expected.txt: Rebaselining after 155008.
+
+2013-09-04  Zoltan Arvai  <zarvai@inf.u-szeged.hu>
+
+        [Qt] Unreviewed bot greening.
+
+        * platform/qt-wk2/compositing/images/direct-image-object-fit-expected.txt: Rebaselining after r154921.
+        * platform/qt-wk2/compositing/reflections/direct-image-object-fit-reflected-expected.txt: Ditto.
+        * platform/qt/TestExpectations: Skip after r155008.
+
+2013-09-04  Ádám Kallai  <kadam@inf.u-szeged.hu>
+
+        [Qt] Unreviewed gardening. Skip failing tests and added platform specifix expected result.
+
+        * platform/qt-wk1/inspector/console/command-line-api-expected.txt: Added after r154998.
+        * platform/qt/TestExpectations:
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening. Rebaselining 7 accessibility tests after r154976.
+
+        * platform/gtk/accessibility/lists-expected.txt:
+        * platform/gtk/accessibility/plugin-expected.txt:
+        * platform/gtk/accessibility/table-detection-expected.txt:
+        * platform/gtk/accessibility/table-one-cell-expected.txt:
+        * platform/gtk/accessibility/table-with-aria-role-expected.txt:
+        * platform/gtk/accessibility/table-with-rules-expected.txt:
+        * platform/gtk/accessibility/transformed-element-expected.txt:
+
+2013-09-04  Andrei Bucur  <abucur@adobe.com>
+
+        [CSS Regions] Fix failing tests on ML WK2 after r154973
+        https://bugs.webkit.org/show_bug.cgi?id=120672
+
+        Reviewed by Antti Koivisto.
+
+        The two tests are failing because the reference tests create backings for the fixed elements layers.
+        Regions are not yet accelerated, don't create backings and this difference of behaviour causes a
+        slight shift in the background color of the fixed elements.
+
+        * fast/regions/fixed-inside-named-flow-zIndex-expected.html:
+        * fast/regions/fixed-inside-named-flow-zIndex.html:
+        * fast/regions/fixed-pos-region-in-nested-flow-expected.html:
+        * fast/regions/fixed-pos-region-in-nested-flow.html:
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening.
+
+        * platform/gtk/TestExpectations: Adding failure expectations for tests introduced in r154875, r154906 and r154954.
+        * platform/gtk/animations/cross-fade-background-image-expected.png: Rebaselining after r154906.
+        * platform/gtk/animations/cross-fade-background-image-expected.txt: Ditto.
+        * platform/gtk/animations/cross-fade-border-image-source-expected.png: Ditto.
+        * platform/gtk/animations/cross-fade-border-image-source-expected.txt: Ditto.
+        * platform/gtk/animations/cross-fade-list-style-image-expected.png: Ditto.
+        * platform/gtk/animations/cross-fade-list-style-image-expected.txt: Ditto.
+        * platform/gtk/animations/cross-fade-webkit-mask-box-image-expected.png: Ditto.
+        * platform/gtk/animations/cross-fade-webkit-mask-box-image-expected.txt: Ditto.
+        * platform/gtk/animations/cross-fade-webkit-mask-image-expected.png: Ditto.
+        * platform/gtk/animations/cross-fade-webkit-mask-image-expected.txt: Ditto.
+
+2013-09-04  Zoltan Arvai  <zarvai@inf.u-szeged.hu>
+
+        [Qt] Unreviewed bot greening.
+
+        * platform/qt-wk2/fast/regions/element-in-named-flow-absolute-from-fixed-expected.txt: Added.
+        * platform/qt-wk2/fast/regions/element-in-named-flow-fixed-from-absolute-expected.txt: Added.
+        * platform/qt-wk2/fast/regions/element-inflow-fixed-from-outflow-static-expected.txt: Added.
+        * platform/qt-wk2/fast/regions/element-outflow-static-from-inflow-fixed-expected.txt: Added.
+        * platform/qt/TestExpectations: Skip after r155014.
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening.
+
+        * platform/gtk/TestExpectations: Manage the current accessibility layout test failures
+        after r154697, r154781 and r154976.
+
+2013-09-04  Andrei Bucur  <abucur@adobe.com>
+
+        [CSS Regions] Extend the RenderRegionRange class to include overflow information + apply the layout overflow
+        https://bugs.webkit.org/show_bug.cgi?id=116299
+
+        Reviewed by David Hyatt.
+
+        Add tests for layout overflow propagation. Some tests disable the visual representation of the overflow.
+        This is because the visual overflow in regions is not yet fixed. The tests will be revisited when the
+        visual overflow is implemented.
+        Some repaint tests are rebased because a new repaint is issued on the regions when they compute the layout
+        overflow.
+
+        * fast/regions/element-in-named-flow-absolute-from-fixed-expected.txt: Rebased.
+        * fast/regions/element-in-named-flow-fixed-from-absolute-expected.txt: Rebased.
+        * fast/regions/element-inflow-fixed-from-outflow-static-expected.txt: Rebased.
+        * fast/regions/element-outflow-static-from-inflow-fixed-expected.txt: Rebased.
+        * fast/regions/overflow-scrollable-rel-pos-fragment-expected.html: Added.
+        * fast/regions/overflow-scrollable-rel-pos-fragment.html: Added.
+        * fast/regions/overflow-scrollable-rotated-fragment-expected.html: Added.
+        * fast/regions/overflow-scrollable-rotated-fragment.html: Added.
+        * fast/regions/overflow-scrollable-unsplittable-fragment-expected.html: Added.
+        * fast/regions/overflow-scrollable-unsplittable-fragment.html: Added.
+        * fast/regions/overflow-scrollable-varying-width-1-expected.html: Added.
+        * fast/regions/overflow-scrollable-varying-width-1.html: Added.
+        * fast/regions/overflow-scrollable-varying-width-2-expected.html: Added.
+        * fast/regions/overflow-scrollable-varying-width-2.html: Added.
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening.
+
+        * platform/gtk/TestExpectations: Skipping the media/track/in-band test set that's failing on the GTK port.
+
+2013-09-03  Filip Pizlo  <fpizlo@apple.com>
+
+        The DFG should be able to tier-up and OSR enter into the FTL
+        https://bugs.webkit.org/show_bug.cgi?id=112838
+
+        Reviewed by Mark Hahnenberg.
+        
+        Fix marsaglia to check the result instead of printing, and add a second
+        version that relies on OSR entry.
+
+        * fast/js/regress/marsaglia-osr-entry-expected.txt: Added.
+        * fast/js/regress/marsaglia-osr-entry.html: Added.
+        * fast/js/regress/script-tests/marsaglia-osr-entry.js: Added.
+        (marsaglia):
+        * fast/js/regress/script-tests/marsaglia.js:
+
+2013-09-03  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: REGRESSION: @title is exposed as AXDescription when label label from contents already exists.
+        https://bugs.webkit.org/show_bug.cgi?id=120550
+
+        Reviewed by Mario Sanchez Prada.
+
+        * accessibility/image-map1.html:
+        * platform/mac/accessibility/document-links-expected.txt:
+        * platform/mac/accessibility/image-map1-expected.txt:
+        * platform/mac/accessibility/link-with-title-expected.txt: Added.
+        * platform/mac/accessibility/link-with-title.html: Added.
+
 2013-09-03  Enrica Casucci  <enrica@apple.com>
 
         Can't select Katakana word by double-clicking.
