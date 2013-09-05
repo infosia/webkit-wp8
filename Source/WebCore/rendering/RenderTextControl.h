@@ -22,21 +22,19 @@
 #ifndef RenderTextControl_h
 #define RenderTextControl_h
 
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include "RenderFlexibleBox.h"
 
 namespace WebCore {
 
 class HTMLTextFormControlElement;
 
-class RenderTextControl : public RenderBlock {
+class RenderTextControl : public RenderBlockFlow {
 public:
     virtual ~RenderTextControl();
 
     HTMLTextFormControlElement* textFormControlElement() const;
     virtual PassRefPtr<RenderStyle> createInnerTextStyle(const RenderStyle* startStyle) const = 0;
-
-    VisiblePosition visiblePositionForIndex(int index) const;
 
 protected:
     RenderTextControl(Element*);

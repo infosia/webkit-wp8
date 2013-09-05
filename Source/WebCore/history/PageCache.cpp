@@ -399,7 +399,7 @@ void PageCache::markPagesForFullStyleRecalc(Page* page)
 {
     for (HistoryItem* current = m_head; current; current = current->m_next) {
         CachedPage* cachedPage = current->m_cachedPage.get();
-        if (&cachedPage->cachedMainFrame()->view()->frame() == &page->mainFrame())
+        if (page->frameIsMainFrame(&cachedPage->cachedMainFrame()->view()->frame()))
             cachedPage->markForFullStyleRecalc();
     }
 }
@@ -410,7 +410,7 @@ void PageCache::markPagesForDeviceScaleChanged(Page* page)
 {
     for (HistoryItem* current = m_head; current; current = current->m_next) {
         CachedPage* cachedPage = current->m_cachedPage.get();
-        if (&cachedPage->cachedMainFrame()->view()->frame() == &page->mainFrame())
+        if (page->frameIsMainFrame(&cachedPage->cachedMainFrame()->view()->frame()))
             cachedPage->markForDeviceScaleChanged();
     }
 }
@@ -424,11 +424,10 @@ void PageCache::markPagesForCaptionPreferencesChanged()
 }
 #endif
 
-void PageCache::add(PassRefPtr<HistoryItem> prpItem, Page* page)
+void PageCache::add(PassRefPtr<HistoryItem> prpItem, Page& page)
 {
     ASSERT(prpItem);
-    ASSERT(page);
-    ASSERT(canCache(page));
+    ASSERT(canCache(&page));
     
     HistoryItem* item = prpItem.leakRef(); // Balanced in remove().
 

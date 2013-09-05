@@ -73,8 +73,8 @@ static const Animation* getAnimationFromStyleByName(const RenderStyle* style, co
         return 0;
 
     for (size_t i = 0; i < style->animations()->size(); i++) {
-        if (name == style->animations()->animation(i)->name())
-            return style->animations()->animation(i);
+        if (name == style->animations()->animation(i).name())
+            return &style->animations()->animation(i);
     }
 
     return 0;
@@ -312,7 +312,7 @@ bool KeyframeAnimation::sendAnimationEvent(const AtomicString& eventType, double
         if (m_object->node() && m_object->node()->isElementNode())
             element = toElement(m_object->node());
 
-        ASSERT(!element || (element->document() && !element->document()->inPageCache()));
+        ASSERT(!element || !element->document().inPageCache());
         if (!element)
             return false;
 

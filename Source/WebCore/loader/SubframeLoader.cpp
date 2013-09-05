@@ -167,12 +167,10 @@ static String findPluginMIMETypeFromURL(Page* page, const String& url)
 
     String extension = url.substring(dotIndex + 1);
 
-    PluginData* pluginData = page->pluginData();
-    if (!pluginData)
-        return String();
+    const PluginData& pluginData = page->pluginData();
 
-    for (size_t i = 0; i < pluginData->mimes().size(); ++i) {
-        const MimeClassInfo& mimeClassInfo = pluginData->mimes()[i];
+    for (size_t i = 0; i < pluginData.mimes().size(); ++i) {
+        const MimeClassInfo& mimeClassInfo = pluginData.mimes()[i];
         for (size_t j = 0; j < mimeClassInfo.extensions.size(); ++j) {
             if (equalIgnoringCase(extension, mimeClassInfo.extensions[j]))
                 return mimeClassInfo.type;
@@ -195,8 +193,7 @@ static void logPluginRequest(Page* page, const String& mimeType, const String& u
             return;
     }
 
-    PluginData* pluginData = page->pluginData();
-    String pluginFile = pluginData ? pluginData->pluginFileForMimeType(newMIMEType) : String();
+    String pluginFile = page->pluginData().pluginFileForMimeType(newMIMEType);
     String description = !pluginFile ? newMIMEType : pluginFile;
 
     ChromeClient& chromeClient = page->chrome().client();
@@ -296,14 +293,14 @@ PassRefPtr<Widget> SubframeLoader::createJavaAppletWidget(const IntSize& size, H
 
     if (!codeBaseURLString.isEmpty()) {
         KURL codeBaseURL = completeURL(codeBaseURLString);
-        if (!element->document()->securityOrigin()->canDisplay(codeBaseURL)) {
+        if (!element->document().securityOrigin()->canDisplay(codeBaseURL)) {
             FrameLoader::reportLocalLoadFailed(m_frame, codeBaseURL.string());
             return 0;
         }
 
         const char javaAppletMimeType[] = "application/x-java-applet";
-        if (!element->document()->contentSecurityPolicy()->allowObjectFromSource(codeBaseURL)
-            || !element->document()->contentSecurityPolicy()->allowPluginType(javaAppletMimeType, javaAppletMimeType, codeBaseURL))
+        if (!element->document().contentSecurityPolicy()->allowObjectFromSource(codeBaseURL)
+            || !element->document().contentSecurityPolicy()->allowPluginType(javaAppletMimeType, javaAppletMimeType, codeBaseURL))
             return 0;
     }
 
@@ -355,12 +352,12 @@ Frame* SubframeLoader::loadSubframe(HTMLFrameOwnerElement* ownerElement, const K
         marginHeight = frameElementBase->marginHeight();
     }
 
-    if (!ownerElement->document()->securityOrigin()->canDisplay(url)) {
+    if (!ownerElement->document().securityOrigin()->canDisplay(url)) {
         FrameLoader::reportLocalLoadFailed(m_frame, url.string());
         return 0;
     }
 
-    String referrerToUse = SecurityPolicy::generateReferrerHeader(ownerElement->document()->referrerPolicy(), url, referrer);
+    String referrerToUse = SecurityPolicy::generateReferrerHeader(ownerElement->document().referrerPolicy(), url, referrer);
     RefPtr<Frame> frame = m_frame->loader().client().createFrame(url, name, ownerElement, referrerToUse, allowsScrolling, marginWidth, marginHeight);
 
     if (!frame)  {
@@ -416,8 +413,7 @@ bool SubframeLoader::shouldUsePlugin(const KURL& url, const String& mimeType, bo
     // Allow other plug-ins to win over QuickTime because if the user has installed a plug-in that
     // can handle TIFF (which QuickTime can also handle) they probably intended to override QT.
     if (m_frame->page() && (mimeType == "image/tiff" || mimeType == "image/tif" || mimeType == "image/x-tiff")) {
-        const PluginData* pluginData = m_frame->page()->pluginData();
-        String pluginName = pluginData ? pluginData->pluginNameForMimeType(mimeType) : String();
+        String pluginName = m_frame->page()->pluginData().pluginNameForMimeType(mimeType);
         if (!pluginName.isEmpty() && !pluginName.contains("QuickTime", false)) 
             return true;
     }

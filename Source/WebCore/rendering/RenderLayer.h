@@ -51,17 +51,16 @@
 
 namespace WebCore {
 
-#if ENABLE(CSS_FILTERS)
 class FilterEffectRenderer;
 class FilterEffectRendererHelper;
 class FilterOperations;
-class RenderLayerFilterInfo;
-#endif
 class HitTestRequest;
 class HitTestResult;
 class HitTestingTransformState;
 class RenderFlowThread;
 class RenderGeometryMap;
+class RenderLayerBacking;
+class RenderLayerCompositor;
 class RenderMarquee;
 class RenderReplica;
 class RenderScrollbarPart;
@@ -69,11 +68,6 @@ class RenderStyle;
 class RenderView;
 class Scrollbar;
 class TransformationMatrix;
-
-#if USE(ACCELERATED_COMPOSITING)
-class RenderLayerBacking;
-class RenderLayerCompositor;
-#endif
 
 enum BorderRadiusClippingRule { IncludeSelfForBorderRadius, DoNotIncludeSelfForBorderRadius };
 enum IncludeSelfOrNot { IncludeSelf, ExcludeSelf };
@@ -314,7 +308,7 @@ public:
 
 typedef Vector<LayerFragment, 1> LayerFragments;
 
-class RenderLayer : public ScrollableArea {
+class RenderLayer FINAL : public ScrollableArea {
 public:
     friend class RenderReplica;
 
@@ -324,7 +318,7 @@ public:
     String name() const;
 
     RenderLayerModelObject& renderer() const { return m_renderer; }
-    RenderBox* renderBox() const { return renderer().isBox() ? toRenderBox(&renderer()) : 0; }
+    RenderBox* renderBox() const { return renderer().isBox() ? &toRenderBox(renderer()) : 0; }
     RenderLayer* parent() const { return m_parent; }
     RenderLayer* previousSibling() const { return m_previous; }
     RenderLayer* nextSibling() const { return m_next; }
@@ -598,10 +592,12 @@ public:
             ;
     }
 
-    void convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntPoint& location) const;
-    void convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntRect&) const;
-    void convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutPoint& location) const;
-    void convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutRect&) const;
+    // FIXME: adjustForColumns allows us to position compositing layers in columns correctly, but eventually they need to be split across columns too.
+    enum ColumnOffsetAdjustment { DontAdjustForColumns, AdjustForColumns };
+    void convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntPoint& location, ColumnOffsetAdjustment adjustForColumns = DontAdjustForColumns) const;
+    void convertToPixelSnappedLayerCoords(const RenderLayer* ancestorLayer, IntRect&, ColumnOffsetAdjustment adjustForColumns = DontAdjustForColumns) const;
+    void convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutPoint&, ColumnOffsetAdjustment adjustForColumns = DontAdjustForColumns) const;
+    void convertToLayerCoords(const RenderLayer* ancestorLayer, LayoutRect&, ColumnOffsetAdjustment adjustForColumns = DontAdjustForColumns) const;
 
     int zIndex() const { return renderer().style()->zIndex(); }
 
@@ -803,13 +799,6 @@ public:
     bool paintsWithFilters() const;
     bool requiresFullLayerImageForFilters() const;
     FilterEffectRenderer* filterRenderer() const;
-
-    RenderLayerFilterInfo* filterInfo() const;
-    RenderLayerFilterInfo* ensureFilterInfo();
-    void removeFilterInfoIfNeeded();
-    
-    bool hasFilterInfo() const { return m_hasFilterInfo; }
-    void setHasFilterInfo(bool hasFilterInfo) { m_hasFilterInfo = hasFilterInfo; }
 #endif
 
 #if !ASSERT_DISABLED
@@ -818,11 +807,6 @@ public:
 #endif
 
     Node* enclosingElement() const;
-
-#if ENABLE(DIALOG_ELEMENT)
-    bool isInTopLayer() const;
-    bool isInTopLayerSubtree() const;
-#endif
 
 #if USE(ACCELERATED_COMPOSITING)
     enum ViewportConstrainedNotCompositedReason {
@@ -912,7 +896,7 @@ private:
     void setFirstChild(RenderLayer* first) { m_first = first; }
     void setLastChild(RenderLayer* last) { m_last = last; }
 
-    LayoutPoint renderBoxLocation() const { return renderer().isBox() ? toRenderBox(&renderer())->location() : LayoutPoint(); }
+    LayoutPoint renderBoxLocation() const { return renderer().isBox() ? toRenderBox(renderer()).location() : LayoutPoint(); }
 
     void collectLayers(bool includeHiddenLayers, CollectLayersBehavior, OwnPtr<Vector<RenderLayer*> >&, OwnPtr<Vector<RenderLayer*> >&);
 
@@ -947,6 +931,7 @@ private:
 #endif
 
     void paintLayer(GraphicsContext*, const LayerPaintingInfo&, PaintLayerFlags);
+    void paintFixedLayersInNamedFlows(GraphicsContext*, const LayerPaintingInfo&, PaintLayerFlags);
     void paintLayerContentsAndReflection(GraphicsContext*, const LayerPaintingInfo&, PaintLayerFlags);
     void paintLayerByApplyingTransform(GraphicsContext*, const LayerPaintingInfo&, PaintLayerFlags, const LayoutPoint& translationOffset = LayoutPoint());
     void paintLayerContents(GraphicsContext*, const LayerPaintingInfo&, PaintLayerFlags);
@@ -986,6 +971,14 @@ private:
                                           const LayoutRect& hitTestRect, const HitTestLocation&,
                                           const HitTestingTransformState* transformState, double* zOffset,
                                           const Vector<RenderLayer*>& columnLayers, size_t columnIndex);
+
+    RenderLayer* hitTestFixedLayersInNamedFlows(RenderLayer* rootLayer,
+        const HitTestRequest&, HitTestResult&,
+        const LayoutRect& hitTestRect, const HitTestLocation&,
+        const HitTestingTransformState*,
+        double* zOffsetForDescendants, double* zOffset,
+        const HitTestingTransformState* unflattenedTransformState,
+        bool depthSortDescendants);
 
     PassRefPtr<HitTestingTransformState> createLocalTransformState(RenderLayer* rootLayer, RenderLayer* containerLayer,
                             const LayoutRect& hitTestRect, const HitTestLocation&,
@@ -1138,7 +1131,7 @@ private:
 
     bool overflowControlsIntersectRect(const IntRect& localRect) const;
 
-protected:
+private:
     // The bitfields are up here so they will fall into the padding from ScrollableArea on 64-bit.
 
     // Keeps track of whether the layer is currently resizing, so events can cause resizing to start and stop.
@@ -1272,12 +1265,13 @@ protected:
     // Pointer to the enclosing RenderLayer that caused us to be paginated. It is 0 if we are not paginated.
     RenderLayer* m_enclosingPaginationLayer;
 
-private:
     IntRect m_blockSelectionGapsBounds;
 
 #if USE(ACCELERATED_COMPOSITING)
     OwnPtr<RenderLayerBacking> m_backing;
 #endif
+
+    class FilterInfo;
 };
 
 inline void RenderLayer::clearZOrderLists()

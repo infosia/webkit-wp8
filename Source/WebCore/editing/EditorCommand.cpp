@@ -97,7 +97,7 @@ static Frame* targetFrame(Frame& frame, Event* event)
     Node* node = event->target()->toNode();
     if (!node)
         return &frame;
-    return node->document()->frame();
+    return node->document().frame();
 }
 
 static bool applyCommandToFrame(Frame& frame, EditorCommandSource source, EditAction action, StylePropertySet* style)
@@ -193,7 +193,8 @@ static bool executeApplyParagraphStyle(Frame& frame, EditorCommandSource source,
 
 static bool executeInsertFragment(Frame& frame, PassRefPtr<DocumentFragment> fragment)
 {
-    applyCommand(ReplaceSelectionCommand::create(frame.document(), fragment, ReplaceSelectionCommand::PreventNesting, EditActionUnspecified));
+    ASSERT(frame.document());
+    applyCommand(ReplaceSelectionCommand::create(*frame.document(), fragment, ReplaceSelectionCommand::PreventNesting, EditActionUnspecified));
     return true;
 }
 
@@ -290,7 +291,8 @@ static bool executeCreateLink(Frame& frame, Event*, EditorCommandSource, const S
     // FIXME: If userInterface is true, we should display a dialog box to let the user enter a URL.
     if (value.isEmpty())
         return false;
-    applyCommand(CreateLinkCommand::create(frame.document(), value));
+    ASSERT(frame.document());
+    applyCommand(CreateLinkCommand::create(*frame.document(), value));
     return true;
 }
 
@@ -447,7 +449,8 @@ static bool executeFormatBlock(Frame& frame, Event*, EditorCommandSource, const 
         return false;
     QualifiedName qualifiedTagName(prefix, localName, xhtmlNamespaceURI);
 
-    RefPtr<FormatBlockCommand> command = FormatBlockCommand::create(frame.document(), qualifiedTagName);
+    ASSERT(frame.document());
+    RefPtr<FormatBlockCommand> command = FormatBlockCommand::create(*frame.document(), qualifiedTagName);
     applyCommand(command);
     return command->didApply();
 }
@@ -478,7 +481,8 @@ static bool executeIgnoreSpelling(Frame& frame, Event*, EditorCommandSource, con
 
 static bool executeIndent(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    applyCommand(IndentOutdentCommand::create(frame.document(), IndentOutdentCommand::Indent));
+    ASSERT(frame.document());
+    applyCommand(IndentOutdentCommand::create(*frame.document(), IndentOutdentCommand::Indent));
     return true;
 }
 
@@ -539,7 +543,8 @@ static bool executeInsertNewlineInQuotedContent(Frame& frame, Event*, EditorComm
 
 static bool executeInsertOrderedList(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    applyCommand(InsertListCommand::create(frame.document(), InsertListCommand::OrderedList));
+    ASSERT(frame.document());
+    applyCommand(InsertListCommand::create(*frame.document(), InsertListCommand::OrderedList));
     return true;
 }
 
@@ -562,7 +567,8 @@ static bool executeInsertText(Frame& frame, Event*, EditorCommandSource, const S
 
 static bool executeInsertUnorderedList(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    applyCommand(InsertListCommand::create(frame.document(), InsertListCommand::UnorderedList));
+    ASSERT(frame.document());
+    applyCommand(InsertListCommand::create(*frame.document(), InsertListCommand::UnorderedList));
     return true;
 }
 
@@ -898,7 +904,8 @@ static bool executeMoveToRightEndOfLineAndModifySelection(Frame& frame, Event*, 
 
 static bool executeOutdent(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    applyCommand(IndentOutdentCommand::create(frame.document(), IndentOutdentCommand::Outdent));
+    ASSERT(frame.document());
+    applyCommand(IndentOutdentCommand::create(*frame.document(), IndentOutdentCommand::Outdent));
     return true;
 }
 
@@ -918,19 +925,21 @@ static bool executePaste(Frame& frame, Event*, EditorCommandSource source, const
     return true;
 }
 
+#if PLATFORM(GTK) || PLATFORM(QT)
+
 static bool executePasteGlobalSelection(Frame& frame, Event*, EditorCommandSource source, const String&)
 {
+    // FIXME: This check should be in an enable function, not here.
     if (!frame.editor().client()->supportsGlobalSelection())
         return false;
+
     ASSERT_UNUSED(source, source == CommandFromMenuOrKeyBinding);
     UserTypingGestureIndicator typingGestureIndicator(frame);
-
-    bool oldSelectionMode = Pasteboard::generalPasteboard()->isSelectionMode();
-    Pasteboard::generalPasteboard()->setSelectionMode(true);
-    frame.editor().paste();
-    Pasteboard::generalPasteboard()->setSelectionMode(oldSelectionMode);
+    frame.editor().paste(*Pasteboard::createForGlobalSelection());
     return true;
 }
+
+#endif
 
 static bool executePasteAndMatchStyle(Frame& frame, Event*, EditorCommandSource source, const String&)
 {
@@ -1126,7 +1135,8 @@ static bool executeUndo(Frame& frame, Event*, EditorCommandSource, const String&
 
 static bool executeUnlink(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    applyCommand(UnlinkCommand::create(frame.document()));
+    ASSERT(frame.document());
+    applyCommand(UnlinkCommand::create(*frame.document()));
     return true;
 }
 
@@ -1559,7 +1569,6 @@ static const CommandMap& createCommandMap()
         { "Paste", { executePaste, supportedPaste, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
         { "PasteAndMatchStyle", { executePasteAndMatchStyle, supportedPaste, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
         { "PasteAsPlainText", { executePasteAsPlainText, supportedPaste, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
-        { "PasteGlobalSelection", { executePasteGlobalSelection, supportedFromMenuOrKeyBinding, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
         { "Print", { executePrint, supported, enabled, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
         { "Redo", { executeRedo, supported, enabledRedo, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
         { "RemoveFormat", { executeRemoveFormat, supported, enabledRangeInEditableText, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
@@ -1593,6 +1602,10 @@ static const CommandMap& createCommandMap()
         { "UseCSS", { executeUseCSS, supported, enabled, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
         { "Yank", { executeYank, supportedFromMenuOrKeyBinding, enabledInEditableText, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
         { "YankAndSelect", { executeYankAndSelect, supportedFromMenuOrKeyBinding, enabledInEditableText, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
+
+#if PLATFORM(GTK) || PLATFORM(QT)
+        { "PasteGlobalSelection", { executePasteGlobalSelection, supportedFromMenuOrKeyBinding, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
+#endif
 
 #if PLATFORM(MAC)
         { "TakeFindStringFromSelection", { executeTakeFindStringFromSelection, supportedFromMenuOrKeyBinding, enabledTakeFindStringFromSelection, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },

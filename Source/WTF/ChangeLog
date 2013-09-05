@@ -1,3 +1,283 @@
+2013-09-05  Anders Carlsson  <andersca@apple.com>
+
+        Change StringBuffer back to not use an OwnPtr in an attempt to fix ports.
+        
+        * wtf/text/StringBuffer.h:
+
+2013-09-04  Anders Carlsson  <andersca@apple.com>
+
+        Vector::releaseBuffer should return an OwnPtr
+        https://bugs.webkit.org/show_bug.cgi?id=120718
+
+        Reviewed by Andreas Kling.
+
+        Change Vector::releaseBuffer() to return an OwnPtr. I intentionally chose
+        to use an OwnPtr over a PassOwnPtr since we're trying to move away from PassOwnPtr objects.
+        
+        Fix fallout from this change by adopting OwnPtr/PassOwnPtr in StringBuffer and the two StringImpl
+        constructors that adopt the passed in pointer.
+
+        * wtf/Vector.h:
+        * wtf/text/StringBuffer.h:
+        * wtf/text/StringImpl.h:
+
+2013-09-05  Mikhail Pozdnyakov  <mikhail.pozdnyakov@intel.com>
+
+        Remove String(RefPtr<StringImpl>) constructor
+        https://bugs.webkit.org/show_bug.cgi?id=120767
+
+        Reviewed by Anders Carlsson.
+
+        The String(RefPtr<StringImpl>) constructor should be removed for the following reasons:
+        - It almost does not have clients, so it is unneeded.
+        - RefPtr should never be passed by value
+
+        * wtf/text/StringBuilder.cpp:
+        (WTF::StringBuilder::shrinkToFit):
+        * wtf/text/WTFString.h:
+
+2013-09-05  Jaehun Lim  <ljaehun.lim@samsung.com>
+
+        Unreviewed. Fix build after r155083
+
+        Source/WTF/wtf/Vector.h:1210:48: error: ‘>>’ should be ‘> >’ within a nested template argument list
+
+        * wtf/Vector.h: Add missing space.
+
+2013-09-04  Mark Rowe  <mrowe@apple.com>
+
+        Fix AutodrainedPool.h to compile without errors under ARC.
+
+        Rubber-stamped by Anders Carlsson.
+
+        * wtf/AutodrainedPool.h: Some versions of Clang complain about any use of NSAutoreleasePool under ARC.
+        Change the type of the member variable to id to work around this. Since the implementation file is compiled
+        under manual reference counting, everything will work fine.
+
+2013-09-04  Anders Carlsson  <andersca@apple.com>
+
+        De-indent Vector.h.
+
+        Rubber-stamped by Andreas Kling.
+        
+        I'm cleaning up Vector and making it work with move-only objects, and the namespace WTF
+        indentation is driving me crazy.
+
+        * wtf/Vector.h:
+
+2013-09-03  Filip Pizlo  <fpizlo@apple.com>
+
+        CodeBlock memory cost reporting should be rationalized
+        https://bugs.webkit.org/show_bug.cgi?id=120615
+
+        Reviewed by Darin Adler.
+
+        * wtf/RefCountedArray.h:
+        (WTF::RefCountedArray::refCount):
+
+2013-09-03  Enrica Casucci  <enrica@apple.com>
+
+        Follow up to http://trac.webkit.org/changeset/155014
+
+        Reviewed by Alexey Proskuryakov.
+
+        In the r155014 I renamed hasLineBreakingPropertyComplexContext
+        to requiresComplexContextForWordBreaking but forgot to
+        make the same change in UnicodeWchar.h.
+
+        * wtf/unicode/wchar/UnicodeWchar.cpp:
+        (WTF::Unicode::requiresComplexContextForWordBreaking):
+        * wtf/unicode/wchar/UnicodeWchar.h:
+
+2013-09-03  Enrica Casucci  <enrica@apple.com>
+
+        Can't select Katakana word by double-clicking.
+        <rdar://problem/14654926>
+
+        Reviewed by Alexey Proskuryakov and Ryosuke Niwa.
+
+        For some languages, like Japanese we need
+        to use more context for word breaking.
+        I've renamed the function to better reflect its use
+        and remove the unused hasLineBreakingPropertyComplexContextOrIdeographic.
+
+        * wtf/unicode/icu/UnicodeIcu.h:
+        (WTF::Unicode::requiresComplexContextForWordBreaking):
+
+2013-09-03  Andreas Kling  <akling@apple.com>
+
+        Support Vector<Ref<T>>.
+        <https://webkit.org/b/120637>
+
+        Reviewed by Antti Koivisto.
+
+        Add a Ref(const T&) constructor to enable Vector<Ref<T>>. This looks a bit awkward
+        but is necessary for Vector::append(const T&) to find a constructor.
+
+        An alternative would be to add something like std::vector::emplace_back, but I can't
+        think of a good name for that, and it'd be nice if append() would "just work."
+
+        Also add operator->(). I initially excluded this because I felt it made for
+        unsafe-looking code. Things quickly got out of hand with .get() everywhere though.
+
+        IMO -> looks OK as long as it's only used on the first link in a dereference chain,
+        as that variable and its type will be "in context."
+
+        * wtf/Ref.h:
+        (WTF::Ref::Ref):
+        (WTF::Ref::~Ref):
+        (WTF::Ref::operator->):
+        (WTF::Ref::get):
+        * wtf/VectorTraits.h:
+
+            Add simple traits for Ref<T> so it can be moved around freely by Vector.
+
+2013-09-03  Mikhail Pozdnyakov  <mikhail.pozdnyakov@intel.com>
+
+        Check WTF::VectorFiller template argument type size in compile time
+        https://bugs.webkit.org/show_bug.cgi?id=120631
+
+        Reviewed by Darin Adler.
+
+        The template argument's type size in WTF::VectorFiller 'memset' specialization
+        should be checked during compilation rather than in runtime.
+
+        * wtf/Vector.h:
+
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        Cut down on double hashing and code needlessly using hash table iterators
+        https://bugs.webkit.org/show_bug.cgi?id=120611
+
+        Reviewed by Andreas Kling.
+
+        Double hashing is common in code that needs to combine a remove with some
+        action to only be done if the code is removed. The only way to avoid it is
+        to write code using find and a hash table iterator. To help with this, add
+        a boolean return value to remove functions to indicate if anything was removed.
+
+        Double hashing also happens in code that does a get followed by a remove.
+        The take function is helpful in this case. To help with this, add a takeFirst
+        funciton to ListHashSet.
+
+        * wtf/HashCountedSet.h:
+        (WTF::HashCountedSet::removeAll): Added a boolean return value, analogous to the one
+        that the HashCountedSet::remove function already has.
+
+        * wtf/HashMap.h:
+        (WTF::HashMap::remove): Added a boolean return value, true if something was removed.
+        * wtf/HashSet.h:
+        (WTF::HashSet::remove): Ditto.
+        * wtf/RefPtrHashMap.h:
+        (WTF::RefPtrHashMap::remove): Ditto.
+
+        * wtf/ListHashSet.h:
+        (WTF::ListHashSet::takeFirst): Added.
+        (WTF::ListHashSet::takeLast): Added.
+        (WTF::ListHashSet::remove): Added a boolean return value, true if something was removed.
+
+        * wtf/WTFThreadData.h:
+        (JSC::IdentifierTable::remove): Use the new remove return value to get rid of most of
+        the code in this function.
+
+2013-09-02  David Kilzer  <ddkilzer@apple.com>
+
+        Remove duplicate entries found by Xcode in WTF project
+
+        Platform.h was duplicated in r111778 after being added in
+        r111504.
+
+        A dangling reference to Ref.h was added in r154962.
+
+        * WTF.xcodeproj/project.pbxproj: Remove duplicate entries for
+        Platform.h and Ref.h.
+
+2013-09-02  Andreas Kling  <akling@apple.com>
+
+        Actually add Ref.h
+
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        [Mac] No need for HardAutorelease, which is same as CFBridgingRelease
+        https://bugs.webkit.org/show_bug.cgi?id=120569
+
+        Reviewed by Andy Estes.
+
+        * wtf/ObjcRuntimeExtras.h: Added a FIXME about miscapitalization of ObjC.
+        Deleted HardAutorelease.
+        (wtfObjcMsgSend): Dropped the use of abbreviations in local class and argument names.
+        (wtfCallIMP): Ditto.
+
+2013-09-01  Andreas Kling  <akling@apple.com>
+
+        Ref: A smart pointer for the reference age.
+        <https://webkit.org/b/120570>
+
+        Reviewed by Antti Koivisto.
+
+        Add a very simple simple Ref<T> smart pointer class that is never null.
+        It's initialized by passing a T& to the constructor and cannot be assigned to.
+
+        operator-> is not overloaded, to prevent unsafe-looking code.
+        The value is extracted by "T& get()", since C++ does not let you override operator.()
+
+        * wtf/Ref.h:
+
+2013-08-30  Oliver Hunt  <oliver@apple.com>
+
+        Make JSValue bool conversion less dangerous
+        https://bugs.webkit.org/show_bug.cgi?id=120505
+
+        Reviewed by Darin Adler.
+
+        Make LIKELY and UNLIKELY macros coerce to bool before
+        passing to expect.
+
+        * wtf/Compiler.h:
+
+2013-08-30  Antti Koivisto  <antti@apple.com>
+
+        Remove code behind ENABLE(DIALOG_ELEMENT)
+        https://bugs.webkit.org/show_bug.cgi?id=120467
+
+        Reviewed by Darin Adler.
+
+        * wtf/FeatureDefines.h:
+
+2013-08-29  Sam Weinig  <sam@webkit.org>
+
+        Add ENABLE guards for Promises
+        https://bugs.webkit.org/show_bug.cgi?id=120488
+
+        Reviewed by Andreas Kling.
+
+        * wtf/FeatureDefines.h:
+
+2013-08-28  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Add support for building JSC with FTL JIT enabled
+        https://bugs.webkit.org/show_bug.cgi?id=120270
+
+        Reviewed by Filip Pizlo.
+
+        * wtf/Platform.h: Define ENABLE_FTL_JIT to the value of 1 for the GTK port if building for the x86-64
+        architecture with LLVM present and the define not being previously defined. This is applicable when
+        configuring the Automake build with '--enable-ftl-jit=auto'.
+
+2013-08-27  Arunprasad Rajkumar  <arurajku@cisco.com>
+
+        Replace currentTime() with monotonicallyIncreasingTime() in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=119958
+
+        Reviewed by Alexey Proskuryakov.
+
+        WTF::currentTime() is prone to NTP and manual adjustments, so use
+        WTF::monotonicallyIncreasingTime() to measure elapsed time.
+
+        It is a continuation of r154201.
+
+        * wtf/CurrentTime.h: Edited comment.
+
 2013-08-27  Andre Moreira Magalhaes   <andre.magalhaes@collabora.co.uk>
 
         [gstreamer] Make sure gstreamer source element is thread-safe

@@ -27,9 +27,9 @@
 #include "Attribute.h"
 #include "CSSValueKeywords.h"
 #include "CachedImage.h"
-#include "ChildIterator.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "ElementIterator.h"
 #include "EventNames.h"
 #include "ExceptionCode.h"
 #include "FormDataList.h"
@@ -52,6 +52,7 @@
 #include "Settings.h"
 #include "Text.h"
 #include "Widget.h"
+#include <wtf/Ref.h>
 
 namespace WebCore {
 
@@ -63,7 +64,7 @@ inline HTMLObjectElement::HTMLObjectElement(const QualifiedName& tagName, Docume
     , m_useFallbackContent(false)
 {
     ASSERT(hasTagName(objectTag));
-    setForm(form ? form : findFormAncestor());
+    setForm(form ? form : HTMLFormElement::findClosestFormAncestor(*this));
 }
 
 inline HTMLObjectElement::~HTMLObjectElement()
@@ -77,7 +78,7 @@ PassRefPtr<HTMLObjectElement> HTMLObjectElement::create(const QualifiedName& tag
 
 RenderWidget* HTMLObjectElement::renderWidgetForJSBindings() const
 {
-    document()->updateLayoutIgnorePendingStylesheets();
+    document().updateLayoutIgnorePendingStylesheets();
     return renderPart(); // This will return 0 if the renderer is not a RenderPart.
 }
 
@@ -205,7 +206,7 @@ void HTMLObjectElement::parametersForPlugin(Vector<String>& paramNames, Vector<S
     // resource's URL to be given by a param named "src", "movie", "code" or "url"
     // if we know that resource points to a plug-in.
     if (url.isEmpty() && !urlParameter.isEmpty()) {
-        SubframeLoader* loader = document()->frame()->loader().subframeLoader();
+        SubframeLoader* loader = document().frame()->loader().subframeLoader();
         if (loader->resourceWillUsePlugin(urlParameter, serviceType, shouldPreferPlugInsForImages()))
             url = urlParameter;
     }
@@ -233,13 +234,13 @@ bool HTMLObjectElement::shouldAllowQuickTimeClassIdQuirk()
     // 'generator' meta tag is present. Only apply this quirk if there is no
     // fallback content, which ensures the quirk will disable itself if Wiki
     // Server is updated to generate an alternate embed tag as fallback content.
-    if (!document()->page()
-        || !document()->page()->settings().needsSiteSpecificQuirks()
+    if (!document().page()
+        || !document().page()->settings().needsSiteSpecificQuirks()
         || hasFallbackContent()
         || !equalIgnoringCase(classId(), "clsid:02BF25D5-8C17-4B23-BC80-D3488ABDDC6B"))
         return false;
 
-    RefPtr<NodeList> metaElements = document()->getElementsByTagName(HTMLNames::metaTag.localName());
+    RefPtr<NodeList> metaElements = document().getElementsByTagName(HTMLNames::metaTag.localName());
     unsigned length = metaElements->length();
     for (unsigned i = 0; i < length; ++i) {
         ASSERT(metaElements->item(i)->isHTMLElement());
@@ -310,12 +311,12 @@ void HTMLObjectElement::updateWidget(PluginCreationOption pluginCreationOption)
         return;
     }
 
-    RefPtr<HTMLObjectElement> protect(this); // beforeload and plugin loading can make arbitrary DOM mutations.
+    Ref<HTMLObjectElement> protect(*this); // beforeload and plugin loading can make arbitrary DOM mutations.
     bool beforeLoadAllowedLoad = guardedDispatchBeforeLoadEvent(url);
     if (!renderer()) // Do not load the plugin if beforeload removed this element or its renderer.
         return;
 
-    SubframeLoader* loader = document()->frame()->loader().subframeLoader();
+    SubframeLoader* loader = document().frame()->loader().subframeLoader();
     bool success = beforeLoadAllowedLoad && hasValidClassId() && loader->requestObject(this, url, getNameAttribute(), serviceType, paramNames, paramValues);
     if (!success && fallbackContent)
         renderFallbackContent();
@@ -324,7 +325,7 @@ void HTMLObjectElement::updateWidget(PluginCreationOption pluginCreationOption)
 bool HTMLObjectElement::rendererIsNeeded(const RenderStyle& style)
 {
     // FIXME: This check should not be needed, detached documents never render!
-    Frame* frame = document()->frame();
+    Frame* frame = document().frame();
     if (!frame)
         return false;
 
@@ -344,14 +345,14 @@ void HTMLObjectElement::removedFrom(ContainerNode* insertionPoint)
     FormAssociatedElement::removedFrom(insertionPoint);
 }
 
-void HTMLObjectElement::childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta)
+void HTMLObjectElement::childrenChanged(const ChildChange& change)
 {
     updateDocNamedItem();
     if (inDocument() && !useFallbackContent()) {
         setNeedsWidgetUpdate(true);
         setNeedsStyleRecalc();
     }
-    HTMLPlugInImageElement::childrenChanged(changedByParser, beforeChange, afterChange, childCountDelta);
+    HTMLPlugInImageElement::childrenChanged(change);
 }
 
 bool HTMLObjectElement::isURLAttribute(const Attribute& attribute) const
@@ -378,7 +379,7 @@ void HTMLObjectElement::renderFallbackContent()
         if (!isImageType()) {
             // If we don't think we have an image type anymore, then clear the image from the loader.
             m_imageLoader->setImage(0);
-            Style::reattachRenderTree(this);
+            Style::reattachRenderTree(*this);
             return;
         }
     }
@@ -386,7 +387,7 @@ void HTMLObjectElement::renderFallbackContent()
     m_useFallbackContent = true;
 
     // FIXME: Style gets recalculated which is suboptimal.
-    Style::reattachRenderTree(this);
+    Style::reattachRenderTree(*this);
 }
 
 // FIXME: This should be removed, all callers are almost certainly wrong.
@@ -435,8 +436,8 @@ void HTMLObjectElement::updateDocNamedItem()
             isNamedItem = false;
         child = child->nextSibling();
     }
-    if (isNamedItem != wasNamedItem && inDocument() && document()->isHTMLDocument()) {
-        HTMLDocument* document = toHTMLDocument(this->document());
+    if (isNamedItem != wasNamedItem && inDocument() && document().isHTMLDocument()) {
+        HTMLDocument* document = toHTMLDocument(&this->document());
 
         const AtomicString& id = getIdAttribute();
         if (!id.isEmpty()) {
@@ -461,14 +462,12 @@ bool HTMLObjectElement::containsJavaApplet() const
 {
     if (MIMETypeRegistry::isJavaAppletMIMEType(getAttribute(typeAttr)))
         return true;
-        
-    for (auto child = ElementTraversal::firstChild(this); child; child = ElementTraversal::nextSibling(child)) {
-        if (child->hasTagName(paramTag)
-                && equalIgnoringCase(child->getNameAttribute(), "type")
-                && MIMETypeRegistry::isJavaAppletMIMEType(child->getAttribute(valueAttr).string()))
+
+    for (auto child = elementChildren(this).begin(), end = elementChildren(this).end(); child != end; ++child) {
+        if (child->hasTagName(paramTag) && equalIgnoringCase(child->getNameAttribute(), "type")
+            && MIMETypeRegistry::isJavaAppletMIMEType(child->getAttribute(valueAttr).string()))
             return true;
-        if (child->hasTagName(objectTag)
-                && static_cast<HTMLObjectElement*>(child)->containsJavaApplet())
+        if (child->hasTagName(objectTag) && static_cast<const HTMLObjectElement&>(*child).containsJavaApplet())
             return true;
         if (child->hasTagName(appletTag))
             return true;
@@ -481,13 +480,13 @@ void HTMLObjectElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) con
 {
     HTMLPlugInImageElement::addSubresourceAttributeURLs(urls);
 
-    addSubresourceURL(urls, document()->completeURL(getAttribute(dataAttr)));
+    addSubresourceURL(urls, document().completeURL(getAttribute(dataAttr)));
 
     // FIXME: Passing a string that starts with "#" to the completeURL function does
     // not seem like it would work. The image element has similar but not identical code.
     const AtomicString& useMap = getAttribute(usemapAttr);
     if (useMap.startsWith('#'))
-        addSubresourceURL(urls, document()->completeURL(useMap));
+        addSubresourceURL(urls, document().completeURL(useMap));
 }
 
 void HTMLObjectElement::didMoveToNewDocument(Document* oldDocument)

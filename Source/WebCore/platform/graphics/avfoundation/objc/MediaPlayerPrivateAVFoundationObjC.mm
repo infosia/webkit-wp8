@@ -98,6 +98,8 @@ SOFT_LINK_POINTER(AVFoundation, AVMediaTypeAudio, NSString *)
 SOFT_LINK_POINTER(AVFoundation, AVPlayerItemDidPlayToEndTimeNotification, NSString *)
 SOFT_LINK_POINTER(AVFoundation, AVAssetImageGeneratorApertureModeCleanAperture, NSString *)
 SOFT_LINK_POINTER(AVFoundation, AVURLAssetReferenceRestrictionsKey, NSString *)
+SOFT_LINK_POINTER(AVFoundation, AVLayerVideoGravityResizeAspect, NSString *)
+SOFT_LINK_POINTER(AVFoundation, AVLayerVideoGravityResize, NSString *)
 
 SOFT_LINK_CONSTANT(CoreMedia, kCMTimeZero, CMTime)
 
@@ -116,6 +118,8 @@ SOFT_LINK_CONSTANT(CoreMedia, kCMTimeZero, CMTime)
 #define AVPlayerItemDidPlayToEndTimeNotification getAVPlayerItemDidPlayToEndTimeNotification()
 #define AVAssetImageGeneratorApertureModeCleanAperture getAVAssetImageGeneratorApertureModeCleanAperture()
 #define AVURLAssetReferenceRestrictionsKey getAVURLAssetReferenceRestrictionsKey()
+#define AVLayerVideoGravityResizeAspect getAVLayerVideoGravityResizeAspect()
+#define AVLayerVideoGravityResize getAVLayerVideoGravityResize()
 
 #if HAVE(AVFOUNDATION_MEDIA_SELECTION_GROUP)
 typedef AVMediaSelectionGroup AVMediaSelectionGroupType;
@@ -372,6 +376,7 @@ void MediaPlayerPrivateAVFoundationObjC::createVideoLayer()
 #ifndef NDEBUG
         [m_videoLayer.get() setName:@"Video layer"];
 #endif
+        updateVideoLayerGravity();
         LOG(Media, "MediaPlayerPrivateAVFoundationObjC::createVideoLayer(%p) - returning %p", this, m_videoLayer.get());
     }
 }
@@ -390,7 +395,10 @@ void MediaPlayerPrivateAVFoundationObjC::destroyVideoLayer()
 
 bool MediaPlayerPrivateAVFoundationObjC::hasAvailableVideoFrame() const
 {
-    return (m_videoFrameHasDrawn || (m_videoLayer && [m_videoLayer.get() isReadyForDisplay]));
+    if (currentRenderingMode() == MediaRenderingToLayer)
+        return m_videoLayer && [m_videoLayer.get() isReadyForDisplay];
+
+    return m_videoFrameHasDrawn;
 }
 
 void MediaPlayerPrivateAVFoundationObjC::createAVAssetForURL(const String& url)
@@ -787,14 +795,6 @@ void MediaPlayerPrivateAVFoundationObjC::paintCurrentFrameInContext(GraphicsCont
     if (!metaDataAvailable() || context->paintingDisabled())
         return;
 
-    paint(context, rect);
-}
-
-void MediaPlayerPrivateAVFoundationObjC::paint(GraphicsContext* context, const IntRect& rect)
-{
-    if (!metaDataAvailable() || context->paintingDisabled())
-        return;
-
     setDelayCallbacks(true);
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
@@ -808,6 +808,18 @@ void MediaPlayerPrivateAVFoundationObjC::paint(GraphicsContext* context, const I
     setDelayCallbacks(false);
 
     m_videoFrameHasDrawn = true;
+}
+
+void MediaPlayerPrivateAVFoundationObjC::paint(GraphicsContext* context, const IntRect& rect)
+{
+    if (!metaDataAvailable() || context->paintingDisabled())
+        return;
+
+    // We can ignore the request if we are already rendering to a layer.
+    if (currentRenderingMode() == MediaRenderingToLayer)
+        return;
+
+    paintCurrentFrameInContext(context, rect);
 }
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED < 1080
@@ -850,14 +862,14 @@ RetainPtr<CGImageRef> MediaPlayerPrivateAVFoundationObjC::createImageForTimeInRe
     ASSERT(m_imageGenerator);
 
 #if !LOG_DISABLED
-    double start = WTF::currentTime();
+    double start = monotonicallyIncreasingTime();
 #endif
 
     [m_imageGenerator.get() setMaximumSize:CGSize(rect.size())];
     RetainPtr<CGImageRef> image = adoptCF([m_imageGenerator.get() copyCGImageAtTime:CMTimeMakeWithSeconds(time, 600) actualTime:nil error:nil]);
 
 #if !LOG_DISABLED
-    double duration = WTF::currentTime() - start;
+    double duration = monotonicallyIncreasingTime() - start;
     LOG(Media, "MediaPlayerPrivateAVFoundationObjC::createImageForTimeInRect(%p) - creating image took %.4f", this, narrowPrecisionToFloat(duration));
 #endif
 
@@ -978,6 +990,18 @@ float MediaPlayerPrivateAVFoundationObjC::mediaTimeForTimeValue(float timeValue)
 
     // FIXME - impossible to implement until rdar://8721510 is fixed.
     return timeValue;
+}
+
+void MediaPlayerPrivateAVFoundationObjC::updateVideoLayerGravity()
+{
+    if (!m_videoLayer)
+        return;
+
+    [CATransaction begin];
+    [CATransaction setDisableActions:YES];    
+    NSString* gravity = shouldMaintainAspectRatio() ? AVLayerVideoGravityResizeAspect : AVLayerVideoGravityResize;
+    [m_videoLayer.get() setVideoGravity:gravity];
+    [CATransaction commit];
 }
 
 void MediaPlayerPrivateAVFoundationObjC::tracksChanged()
@@ -1139,7 +1163,7 @@ RetainPtr<CVPixelBufferRef> MediaPlayerPrivateAVFoundationObjC::createPixelBuffe
     ASSERT(m_videoOutput);
 
 #if !LOG_DISABLED
-    double start = WTF::currentTime();
+    double start = monotonicallyIncreasingTime();
 #endif
 
     CMTime currentTime = [m_avPlayerItem.get() currentTime];
@@ -1166,7 +1190,7 @@ RetainPtr<CVPixelBufferRef> MediaPlayerPrivateAVFoundationObjC::createPixelBuffe
 #endif
 
 #if !LOG_DISABLED
-    double duration = WTF::currentTime() - start;
+    double duration = monotonicallyIncreasingTime() - start;
     LOG(Media, "MediaPlayerPrivateAVFoundationObjC::createPixelBuffer() - creating buffer took %.4f", this, narrowPrecisionToFloat(duration));
 #endif
 

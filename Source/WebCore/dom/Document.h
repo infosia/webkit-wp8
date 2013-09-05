@@ -327,7 +327,7 @@ public:
     void setReferrerPolicy(ReferrerPolicy referrerPolicy) { m_referrerPolicy = referrerPolicy; }
     ReferrerPolicy referrerPolicy() const { return m_referrerPolicy; }
 
-    DocumentType* doctype() const { return m_docType.get(); }
+    DocumentType* doctype() const;
 
     DOMImplementation* implementation();
     
@@ -597,7 +597,7 @@ public:
     bool canNavigate(Frame* targetFrame);
     Frame* findUnsafeParentScrollPropagationBoundary();
 
-    CSSStyleSheet* elementSheet();
+    CSSStyleSheet& elementSheet();
     
     virtual PassRefPtr<DocumentParser> createParser();
     DocumentParser* parser() const { return m_parser.get(); }
@@ -675,7 +675,7 @@ public:
     void hoveredElementDidDetach(Element*);
     void elementInActiveChainDidDetach(Element*);
 
-    void updateHoverActiveState(const HitTestRequest&, Element*, const PlatformMouseEvent* = 0);
+    void updateHoverActiveState(const HitTestRequest&, Element*, const PlatformMouseEvent* = 0, StyleResolverUpdateFlag = RecalcStyleIfNeeded);
 
     // Updates for :target (CSS3 selector).
     void setCSSTarget(Element*);
@@ -884,8 +884,6 @@ public:
 
     void incDOMTreeVersion() { m_domTreeVersion = ++s_globalTreeVersion; }
     uint64_t domTreeVersion() const { return m_domTreeVersion; }
-
-    void setDocType(PassRefPtr<DocumentType>);
 
     // XPathEvaluator methods
     PassRefPtr<XPathExpression> createExpression(const String& expression,
@@ -1158,13 +1156,6 @@ public:
     // Return a Locale for the default locale if the argument is null or empty.
     Locale& getCachedLocale(const AtomicString& locale = nullAtom);
 
-#if ENABLE(DIALOG_ELEMENT)
-    void addToTopLayer(Element*);
-    void removeFromTopLayer(Element*);
-    const Vector<RefPtr<Element> >& topLayerElements() const { return m_topLayerElements; }
-    Element* activeModalDialog() const { return !m_topLayerElements.isEmpty() ? m_topLayerElements.last().get() : 0; }
-#endif
-
 #if ENABLE(TEMPLATE_ELEMENT)
     const Document* templateDocument() const;
     Document* ensureTemplateDocument();
@@ -1208,7 +1199,7 @@ private:
 
     virtual bool isDocument() const OVERRIDE { return true; }
 
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
 
     virtual String nodeName() const;
     virtual NodeType nodeType() const;
@@ -1313,10 +1304,9 @@ private:
 
     String m_baseTarget;
 
-    RefPtr<DocumentType> m_docType;
     OwnPtr<DOMImplementation> m_implementation;
 
-    RefPtr<CSSStyleSheet> m_elemSheet;
+    RefPtr<CSSStyleSheet> m_elementSheet;
 
     bool m_printing;
     bool m_paginatedForScreen;
@@ -1482,10 +1472,6 @@ private:
     RefPtr<RenderStyle> m_savedPlaceholderRenderStyle;
 #endif
 
-#if ENABLE(DIALOG_ELEMENT)
-    Vector<RefPtr<Element> > m_topLayerElements;
-#endif
-
     int m_loadEventDelayCount;
     Timer<Document> m_loadEventDelayTimer;
 
@@ -1637,5 +1623,9 @@ inline Node::Node(Document* document, ConstructionType type)
 Node* eventTargetNodeForDocument(Document*);
 
 } // namespace WebCore
+
+namespace WTF {
+inline WebCore::Document* getPtr(WebCore::Document& p) { return &p; }
+}
 
 #endif // Document_h

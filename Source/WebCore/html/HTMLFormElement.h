@@ -106,6 +106,8 @@ public:
 
     void getTextFieldValues(StringPairVector& fieldNamesAndValues) const;
 
+    static HTMLFormElement* findClosestFormAncestor(const Element&);
+
 private:
     HTMLFormElement(const QualifiedName&, Document*);
 
@@ -138,11 +140,12 @@ private:
     // are any invalid controls in this form.
     bool checkInvalidControlsAndCollectUnhandled(Vector<RefPtr<FormAssociatedElement> >&);
 
-    HTMLFormControlElement* elementFromPastNamesMap(const AtomicString&) const;
-    void addElementToPastNamesMap(HTMLFormControlElement*, const AtomicString& pastName);
+    HTMLElement* elementFromPastNamesMap(const AtomicString&) const;
+    void addToPastNamesMap(FormNamedItem*, const AtomicString& pastName);
+    void assertItemCanBeInPastNamesMap(FormNamedItem*) const;
+    void removeFromPastNamesMap(FormNamedItem*);
 
-    // FIXME: This can leak HTMLFormControlElements.
-    typedef HashMap<RefPtr<AtomicStringImpl>, RefPtr<HTMLFormControlElement> > PastNamesMap;
+    typedef HashMap<RefPtr<AtomicStringImpl>, FormNamedItem*> PastNamesMap;
 
     FormSubmission::Attributes m_attributes;
     OwnPtr<PastNamesMap> m_pastNamesMap;
@@ -162,16 +165,6 @@ private:
 
     bool m_wasDemoted;
 };
-
-inline bool isHTMLFormElement(Node* node)
-{
-    return node->hasTagName(HTMLNames::formTag);
-}
-
-inline bool isHTMLFormElement(Element* element)
-{
-    return element->hasTagName(HTMLNames::formTag);
-}
 
 inline HTMLFormElement* toHTMLFormElement(Node* node)
 {

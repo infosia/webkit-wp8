@@ -163,8 +163,8 @@ void RenderObject::operator delete(void* ptr, size_t sz)
 
 RenderObject* RenderObject::createObject(Element* element, RenderStyle* style)
 {
-    Document* doc = element->document();
-    RenderArena* arena = doc->renderArena();
+    Document& document = element->document();
+    RenderArena* arena = document.renderArena();
 
     // Minimal support for content properties replacing an entire element.
     // Works only if we have exactly one piece of content and it's a URL.
@@ -194,7 +194,7 @@ RenderObject* RenderObject::createObject(Element* element, RenderStyle* style)
     // treat <rt> as ruby text ONLY if it still has its default treatment of block
     if (element->hasTagName(rtTag) && style->display() == BLOCK)
         return new (arena) RenderRubyText(element);
-    if (doc->cssRegionsEnabled() && style->isDisplayRegionType() && !style->regionThread().isEmpty() && doc->renderView())
+    if (document.cssRegionsEnabled() && style->isDisplayRegionType() && !style->regionThread().isEmpty())
         return new (arena) RenderRegion(element, 0);
     switch (style->display()) {
     case NONE:
@@ -205,9 +205,9 @@ RenderObject* RenderObject::createObject(Element* element, RenderStyle* style)
     case INLINE_BLOCK:
     case RUN_IN:
     case COMPACT:
-        if ((!style->hasAutoColumnCount() || !style->hasAutoColumnWidth()) && doc->regionBasedColumnsEnabled())
+        if ((!style->hasAutoColumnCount() || !style->hasAutoColumnWidth()) && document.regionBasedColumnsEnabled())
             return new (arena) RenderMultiColumnBlock(element);
-        return new (arena) RenderBlock(element);
+        return new (arena) RenderBlockFlow(element);
     case LIST_ITEM:
         return new (arena) RenderListItem(element);
     case TABLE:
@@ -622,6 +622,27 @@ RenderBoxModelObject* RenderObject::enclosingBoxModelObject() const
 
     ASSERT_NOT_REACHED();
     return 0;
+}
+
+bool RenderObject::fixedPositionedWithNamedFlowContainingBlock() const
+{
+    return ((flowThreadState() == RenderObject::InsideOutOfFlowThread)
+        && (style()->position() == FixedPosition)
+        && (containingBlock()->isOutOfFlowRenderFlowThread()));
+}
+
+static bool hasFixedPosInNamedFlowContainingBlock(const RenderObject* renderer)
+{
+    ASSERT(renderer->flowThreadState() != RenderObject::NotInsideFlowThread);
+
+    RenderObject* curr = const_cast<RenderObject*>(renderer);
+    while (curr) {
+        if (curr->fixedPositionedWithNamedFlowContainingBlock())
+            return true;
+        curr = curr->containingBlock();
+    }
+
+    return false;
 }
 
 RenderFlowThread* RenderObject::locateFlowThreadContainingBlock() const
@@ -1116,7 +1137,7 @@ void RenderObject::addPDFURLRect(GraphicsContext* context, const LayoutRect& rec
     const AtomicString& href = toElement(n)->getAttribute(hrefAttr);
     if (href.isNull())
         return;
-    context->setURLForRect(n->document()->completeURL(href), pixelSnappedIntRect(rect));
+    context->setURLForRect(n->document().completeURL(href), pixelSnappedIntRect(rect));
 }
 
 void RenderObject::paintOutline(PaintInfo& paintInfo, const LayoutRect& paintRect)
@@ -1305,6 +1326,10 @@ RenderLayerModelObject* RenderObject::containerForRepaint() const
     // repainting to do individual region repaints.
     RenderFlowThread* parentRenderFlowThread = flowThreadContainingBlock();
     if (parentRenderFlowThread) {
+        // If the element has a fixed positioned element with named flow as CB along the CB chain
+        // then the repaint container is not the flow thread.
+        if (hasFixedPosInNamedFlowContainingBlock(this))
+            return repaintContainer;
         // The ancestor document will do the reparenting when the repaint propagates further up.
         // We're just a seamless child document, and we don't need to do the hacking.
         if (parentRenderFlowThread && &parentRenderFlowThread->document() != &document())
@@ -1354,7 +1379,7 @@ void RenderObject::repaintUsingContainer(const RenderLayerModelObject* repaintCo
     }
 #else
     if (repaintContainer->isRenderView())
-        toRenderView(repaintContainer)->repaintViewRectangle(r, immediate);
+        toRenderView(*repaintContainer).repaintViewRectangle(r, immediate);
 #endif
 }
 
@@ -1532,7 +1557,7 @@ void RenderObject::computeRectForRepaint(const RenderLayerModelObject* repaintCo
         return;
 
     if (RenderObject* o = parent()) {
-        if (o->isBlockFlow()) {
+        if (o->isRenderBlockFlow()) {
             RenderBlock* cb = toRenderBlock(o);
             if (cb->hasColumns())
                 cb->adjustRectForColumns(rect);
@@ -1939,7 +1964,7 @@ void RenderObject::styleWillChange(StyleDifference diff, const RenderStyle* newS
 
         s_affectsParentBlock = isFloatingOrOutOfFlowPositioned()
             && (!newStyle->isFloating() && !newStyle->hasOutOfFlowPosition())
-            && parent() && (parent()->isBlockFlow() || parent()->isRenderInline());
+            && parent() && (parent()->isRenderBlockFlow() || parent()->isRenderInline());
 
         s_noLongerAffectsParentBlock = ((!isFloating() && newStyle->isFloating()) || (!isOutOfFlowPositioned() && newStyle->hasOutOfFlowPosition()))
             && parent() && parent()->isRenderBlock();
@@ -2306,7 +2331,7 @@ bool RenderObject::isRooted(RenderView** view) const
         return false;
 
     if (view)
-        *view = const_cast<RenderView*>(toRenderView(o));
+        *view = &const_cast<RenderView&>(toRenderView(*o));
 
     return true;
 }
@@ -2740,10 +2765,10 @@ bool RenderObject::nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitT
 void RenderObject::scheduleRelayout()
 {
     if (isRenderView())
-        toRenderView(this)->frameView().scheduleRelayout();
+        toRenderView(*this).frameView().scheduleRelayout();
     else {
         if (isRooted())
-            view().frameView().scheduleRelayoutOfSubtree(this);
+            view().frameView().scheduleRelayoutOfSubtree(*this);
     }
 }
 
@@ -2771,7 +2796,7 @@ static PassRefPtr<RenderStyle> firstLineStyleForCachedUncachedType(StyleCacheSta
     if (renderer->isBeforeOrAfterContent())
         rendererForFirstLineStyle = renderer->parent();
 
-    if (rendererForFirstLineStyle->isBlockFlow()) {
+    if (rendererForFirstLineStyle->isRenderBlockFlow()) {
         if (RenderBlock* firstLineBlock = rendererForFirstLineStyle->firstLineBlock()) {
             if (type == Cached)
                 return firstLineBlock->getCachedPseudoStyle(FIRST_LINE, style);

@@ -42,6 +42,7 @@
 #include "RenderBR.h"
 #include "RenderScrollbar.h"
 #include "RenderTheme.h"
+#include "RenderView.h"
 #include "Settings.h"
 #include "StyleResolver.h"
 #include "TextRun.h"
@@ -355,8 +356,8 @@ void RenderMenuList::valueChanged(unsigned listIndex, bool fireOnChange)
 {
     // Check to ensure a page navigation has not occurred while
     // the popup was up.
-    Document* doc = toElement(node())->document();
-    if (!doc || doc != doc->frame()->document())
+    Document& document = toElement(node())->document();
+    if (&document != document.frame()->document())
         return;
     
     HTMLSelectElement* select = selectElement();
@@ -392,10 +393,12 @@ void RenderMenuList::didUpdateActiveOption(int optionIndex)
     if (listIndex < 0 || listIndex >= static_cast<int>(select->listItems().size()))
         return;
 
-    ASSERT(select->listItems()[listIndex]);
-
-    if (AccessibilityMenuList* menuList = static_cast<AccessibilityMenuList*>(document().axObjectCache()->get(this)))
-        menuList->didUpdateActiveOption(optionIndex);
+    HTMLElement* listItem = select->listItems()[listIndex];
+    ASSERT(listItem);
+    if (listItem->attached()) {
+        if (AccessibilityMenuList* menuList = static_cast<AccessibilityMenuList*>(document().axObjectCache()->get(this)))
+            menuList->didUpdateActiveOption(optionIndex);
+    }
 }
 
 String RenderMenuList::itemText(unsigned listIndex) const

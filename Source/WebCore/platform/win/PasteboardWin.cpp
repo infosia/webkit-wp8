@@ -90,12 +90,6 @@ static LRESULT CALLBACK PasteboardOwnerWndProc(HWND hWnd, UINT message, WPARAM w
     return lresult;
 }
 
-Pasteboard* Pasteboard::generalPasteboard() 
-{
-    static Pasteboard* pasteboard = new Pasteboard;
-    return pasteboard;
-}
-
 PassOwnPtr<Pasteboard> Pasteboard::createForCopyAndPaste()
 {
     OwnPtr<Pasteboard> pasteboard = adoptPtr(new Pasteboard);
@@ -438,7 +432,7 @@ void Pasteboard::writeRangeToDataObject(Range* selectedRange, Frame* frame)
 
     Vector<char> data;
     markupToCFHTML(createMarkup(selectedRange, 0, AnnotateForInterchange),
-        selectedRange->startContainer()->document()->url().string(), data);
+        selectedRange->startContainer()->document().url().string(), data);
     medium.hGlobal = createGlobalData(data);
     if (medium.hGlobal && FAILED(m_writableDataObject->SetData(htmlFormat(), &medium, TRUE)))
         ::GlobalFree(medium.hGlobal);
@@ -463,7 +457,7 @@ void Pasteboard::writeSelection(Range* selectedRange, bool canSmartCopyOrDelete,
     if (::OpenClipboard(m_owner)) {
         Vector<char> data;
         markupToCFHTML(createMarkup(selectedRange, 0, AnnotateForInterchange),
-            selectedRange->startContainer()->document()->url().string(), data);
+            selectedRange->startContainer()->document().url().string(), data);
         HGLOBAL cbData = createGlobalData(data);
         if (!::SetClipboardData(HTMLClipboardFormat, cbData))
             ::GlobalFree(cbData);

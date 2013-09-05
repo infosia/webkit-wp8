@@ -15,6 +15,7 @@ webcore_built_sources += \
 	DerivedSources/WebCore/ExceptionInterfaces.h \
 	DerivedSources/WebCore/HTMLElementFactory.cpp \
 	DerivedSources/WebCore/HTMLElementFactory.h \
+	DerivedSources/WebCore/HTMLElementTypeChecks.h \
 	DerivedSources/WebCore/HTMLEntityTable.cpp \
 	DerivedSources/WebCore/HTMLNames.cpp \
 	DerivedSources/WebCore/HTMLNames.h \
@@ -2254,6 +2255,8 @@ webcore_sources += \
 	Source/WebCore/accessibility/AccessibilityScrollbar.h \
 	Source/WebCore/accessibility/AccessibilityScrollView.cpp \
 	Source/WebCore/accessibility/AccessibilityScrollView.h \
+	Source/WebCore/accessibility/AccessibilitySearchFieldButtons.cpp \
+	Source/WebCore/accessibility/AccessibilitySearchFieldButtons.h \
 	Source/WebCore/accessibility/AccessibilitySlider.cpp \
 	Source/WebCore/accessibility/AccessibilitySlider.h \
 	Source/WebCore/accessibility/AccessibilitySpinButton.cpp \
@@ -2773,7 +2776,6 @@ webcore_sources += \
 	Source/WebCore/dom/CharacterData.h \
 	Source/WebCore/dom/CheckedRadioButtons.cpp \
 	Source/WebCore/dom/CheckedRadioButtons.h \
-	Source/WebCore/dom/ChildIterator.h \
 	Source/WebCore/dom/ChildListMutationScope.cpp \
 	Source/WebCore/dom/ChildListMutationScope.h \
 	Source/WebCore/dom/ChildNodeList.cpp \
@@ -2818,7 +2820,6 @@ webcore_sources += \
 	Source/WebCore/dom/DecodedDataDocumentParser.h \
 	Source/WebCore/dom/default/PlatformMessagePortChannel.cpp \
 	Source/WebCore/dom/default/PlatformMessagePortChannel.h \
-	Source/WebCore/dom/DescendantIterator.h \
 	Source/WebCore/dom/DeviceMotionClient.h \
 	Source/WebCore/dom/DeviceMotionController.cpp \
 	Source/WebCore/dom/DeviceMotionController.h \
@@ -2869,8 +2870,13 @@ webcore_sources += \
 	Source/WebCore/dom/DOMTimeStamp.h \
 	Source/WebCore/dom/Element.cpp \
 	Source/WebCore/dom/Element.h \
+	Source/WebCore/dom/ElementAncestorIterator.h \
+	Source/WebCore/dom/ElementChildIterator.h \
 	Source/WebCore/dom/ElementData.cpp \
 	Source/WebCore/dom/ElementData.h \
+	Source/WebCore/dom/ElementDescendantIterator.h \
+	Source/WebCore/dom/ElementIterator.h \
+	Source/WebCore/dom/ElementIteratorAssertions.h \
 	Source/WebCore/dom/ElementRareData.cpp \
 	Source/WebCore/dom/ElementRareData.h \
 	Source/WebCore/dom/ElementTraversal.h \
@@ -2965,13 +2971,11 @@ webcore_sources += \
 	Source/WebCore/dom/NodeFilter.cpp \
 	Source/WebCore/dom/NodeFilter.h \
 	Source/WebCore/dom/NodeRareData.cpp \
-	Source/WebCore/dom/NodeRenderingContext.cpp \
 	Source/WebCore/dom/Node.h \
 	Source/WebCore/dom/NodeIterator.cpp \
 	Source/WebCore/dom/NodeIterator.h \
 	Source/WebCore/dom/NodeList.h \
 	Source/WebCore/dom/NodeRareData.h \
-	Source/WebCore/dom/NodeRenderingContext.h \
 	Source/WebCore/dom/NodeRenderingTraversal.h \
 	Source/WebCore/dom/NodeRenderingTraversal.cpp \
 	Source/WebCore/dom/NodeRenderStyle.h \
@@ -3724,8 +3728,12 @@ webcore_sources += \
 	Source/WebCore/html/track/AudioTrack.h \
 	Source/WebCore/html/track/AudioTrackList.cpp \
 	Source/WebCore/html/track/AudioTrackList.h \
+	Source/WebCore/html/track/InbandGenericTextTrack.cpp \
+	Source/WebCore/html/track/InbandGenericTextTrack.h \
 	Source/WebCore/html/track/InbandTextTrack.cpp \
 	Source/WebCore/html/track/InbandTextTrack.h \
+	Source/WebCore/html/track/InbandWebVTTTextTrack.cpp \
+	Source/WebCore/html/track/InbandWebVTTTextTrack.h \
 	Source/WebCore/html/track/LoadableTextTrack.cpp \
 	Source/WebCore/html/track/LoadableTextTrack.h \
 	Source/WebCore/html/track/TextTrack.cpp \
@@ -4283,9 +4291,6 @@ webcore_sources += \
 	Source/WebCore/page/WindowFocusAllowedIndicator.h \
 	Source/WebCore/page/WorkerNavigator.cpp \
 	Source/WebCore/page/WorkerNavigator.h \
-	Source/WebCore/plugins/npapi.h \
-	Source/WebCore/plugins/npruntime.h \
-	Source/WebCore/plugins/nptypes.h \
 	Source/WebCore/plugins/DOMMimeTypeArray.cpp \
 	Source/WebCore/plugins/DOMMimeTypeArray.h \
 	Source/WebCore/plugins/DOMMimeType.cpp \
@@ -4294,8 +4299,6 @@ webcore_sources += \
 	Source/WebCore/plugins/DOMPluginArray.h \
 	Source/WebCore/plugins/DOMPlugin.cpp \
 	Source/WebCore/plugins/DOMPlugin.h \
-	Source/WebCore/plugins/npapi.cpp \
-	Source/WebCore/plugins/npfunctions.h \
 	Source/WebCore/plugins/PluginDatabase.cpp \
 	Source/WebCore/plugins/PluginDatabase.h \
 	Source/WebCore/plugins/PluginData.cpp \
@@ -4313,6 +4316,11 @@ webcore_sources += \
 	Source/WebCore/plugins/PluginViewBase.h \
 	Source/WebCore/plugins/PluginView.cpp \
 	Source/WebCore/plugins/PluginView.h \
+	Source/WebCore/plugins/npapi.cpp \
+	Source/WebCore/plugins/npapi.h \
+	Source/WebCore/plugins/npfunctions.h \
+	Source/WebCore/plugins/npruntime.h \
+	Source/WebCore/plugins/nptypes.h \
 	Source/WebCore/rendering/AutoTableLayout.cpp \
 	Source/WebCore/rendering/AutoTableLayout.h \
 	Source/WebCore/rendering/BidiRun.cpp \
@@ -4339,6 +4347,8 @@ webcore_sources += \
 	Source/WebCore/rendering/HitTestLocation.h \
 	Source/WebCore/rendering/HitTestResult.cpp \
 	Source/WebCore/rendering/HitTestResult.h \
+	Source/WebCore/rendering/ImageQualityController.cpp \
+	Source/WebCore/rendering/ImageQualityController.h \
 	Source/WebCore/rendering/InlineBox.cpp \
 	Source/WebCore/rendering/InlineBox.h \
 	Source/WebCore/rendering/InlineFlowBox.cpp \
@@ -4364,6 +4374,8 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderArena.h \
 	Source/WebCore/rendering/RenderBlock.cpp \
 	Source/WebCore/rendering/RenderBlock.h \
+    Source/WebCore/rendering/RenderBlockFlow.cpp \
+	Source/WebCore/rendering/RenderBlockFlow.h \
 	Source/WebCore/rendering/RenderBlockLineLayout.cpp \
 	Source/WebCore/rendering/RenderBox.cpp \
 	Source/WebCore/rendering/RenderBox.h \
@@ -4382,7 +4394,6 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderDeprecatedFlexibleBox.h \
 	Source/WebCore/rendering/RenderDetailsMarker.cpp \
 	Source/WebCore/rendering/RenderDetailsMarker.h \
-	Source/WebCore/rendering/RenderDialog.h \
 	Source/WebCore/rendering/RenderEmbeddedObject.cpp \
 	Source/WebCore/rendering/RenderEmbeddedObject.h \
 	Source/WebCore/rendering/RenderFieldset.cpp \
@@ -4574,7 +4585,6 @@ webcore_sources += \
 	Source/WebCore/rendering/shapes/ShapeInfo.h \
 	Source/WebCore/rendering/shapes/ShapeInsideInfo.cpp \
 	Source/WebCore/rendering/shapes/ShapeInsideInfo.h \
-	Source/WebCore/rendering/shapes/ShapeInterval.cpp \
 	Source/WebCore/rendering/shapes/ShapeInterval.h \
 	Source/WebCore/rendering/shapes/ShapeOutsideInfo.cpp \
 	Source/WebCore/rendering/shapes/ShapeOutsideInfo.h \
@@ -6256,7 +6266,20 @@ webcoregtk_sources += \
 	Source/WebCore/plugins/gtk/xembed.h
 platformgtk_sources += \
 	Source/WebCore/platform/gtk/WidgetBackingStoreGtkX11.h \
-	Source/WebCore/platform/gtk/WidgetBackingStoreGtkX11.cpp \
+	Source/WebCore/platform/gtk/WidgetBackingStoreGtkX11.cpp
+if USE_GLX
+webcoregtk_sources += \
+	Source/WebCore/platform/graphics/glx/GLContextGLX.cpp \
+	Source/WebCore/platform/graphics/glx/GLContextGLX.h
+endif # END USE_GLX
+else
+webcore_sources += \
+	Source/WebCore/plugins/PluginPackageNone.cpp \
+	Source/WebCore/plugins/PluginViewNone.cpp
+endif # END TARGET_X11
+
+if TARGET_X11_OR_WAYLAND
+platformgtk_sources += \
 	Source/WebCore/platform/cairo/WidgetBackingStoreCairo.h \
 	Source/WebCore/platform/cairo/WidgetBackingStoreCairo.cpp
 if USE_OPENGL
@@ -6271,11 +6294,6 @@ webcoregtk_sources += \
 	Source/WebCore/platform/graphics/egl/GLContextEGL.cpp \
 	Source/WebCore/platform/graphics/egl/GLContextEGL.h
 endif # END USE_EGL
-if USE_GLX
-webcoregtk_sources += \
-	Source/WebCore/platform/graphics/glx/GLContextGLX.cpp \
-	Source/WebCore/platform/graphics/glx/GLContextGLX.h
-endif # END USE_GLX
 else
 if TARGET_WIN32
 webcore_sources += \
@@ -6304,7 +6322,7 @@ webcore_sources += \
 	Source/WebCore/plugins/PluginPackageNone.cpp \
 	Source/WebCore/plugins/PluginViewNone.cpp
 endif # END TARGET_WIN32
-endif # END TARGET_X11
+endif # END TARGET_X11_OR_WAYLAND
 
 if USE_GLES2
 webcore_sources += \
@@ -6328,7 +6346,14 @@ platform_sources += \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.cpp \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h
+	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h \
+	Source/WebCore/platform/graphics/gstreamer/TextCombinerGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/TextCombinerGStreamer.h \
+	Source/WebCore/platform/graphics/gstreamer/TextSinkGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/TextSinkGStreamer.h
+webcore_platform_sources += \
+	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h
 endif
 
 # ---

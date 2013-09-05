@@ -36,6 +36,7 @@
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/Ref.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
@@ -152,7 +153,7 @@ public:
     ViewportArguments viewportArguments() const;
 
     static void refreshPlugins(bool reload);
-    PluginData* pluginData() const;
+    PluginData& pluginData() const;
 
     void setCanStartMedia(bool);
     bool canStartMedia() const { return m_canStartMedia; }
@@ -161,6 +162,7 @@ public:
     PlugInClient* plugInClient() const { return m_plugInClient; }
 
     Frame& mainFrame() const { return *m_mainFrame; }
+    bool frameIsMainFrame(const Frame* frame) { return frame == m_mainFrame.get(); }
 
     bool openedByDOM() const;
     void setOpenedByDOM();
@@ -435,7 +437,7 @@ private:
     void setTimerAlignmentInterval(double);
     double timerAlignmentInterval() const;
 
-    void collectPluginViews(Vector<RefPtr<PluginViewBase>, 32>& pluginViewBases);
+    Vector<Ref<PluginViewBase>> pluginViews();
 
     void throttleTimers();
     void unthrottleTimers();
@@ -483,7 +485,6 @@ private:
     unsigned m_defersLoadingCallCount;
 
     bool m_inLowQualityInterpolationMode;
-    bool m_cookieEnabled;
     bool m_areMemoryCacheClientCallsEnabled;
     float m_mediaVolume;
 

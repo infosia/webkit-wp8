@@ -379,6 +379,9 @@ webkit.org/b/61487 http/tests/media/video-cross-site.html [ Failure ]
 # Styled scope element is not yet enabled.
 webkit.org/b/49142 fast/css/style-scoped
 
+# fails because of antialiasing differences.
+fast/css/object-fit/object-fit-canvas.html [ Pass ImageOnlyFailure ]
+
 # CSS Regions tests for region styling and scoped styles
 fast/regions/style-scoped-in-flow-override-container-style.html
 fast/regions/style-scoped-in-flow-override-region-styling-multiple-regions.html
@@ -419,8 +422,6 @@ compositing/rtl/rtl-iframe-relative.html
 # For now, Web Audio tests are disabled
 # https://bugs.webkit.org/show_bug.cgi?id=86914
 webaudio/
-inspector-protocol/nmi-webaudio.html
-inspector-protocol/nmi-webaudio-leak-test.html
 
 # ENABLE(DRAGGABLE_REGION) is disabled
 fast/css/draggable-region-parser.html
@@ -1015,9 +1016,6 @@ webkit.org/b/88794 webaudio/codec-tests
 # Text Autosizing is not enabled.
 webkit.org/b/84186 fast/text-autosizing
 
-# Dialog element is not yet enabled.
-webkit.org/b/84635 fast/dom/HTMLDialogElement [ Skip ]
-
 # Skip tests in fast/text/shaping
 webkit.org/b/90951 fast/text/shaping
 
@@ -1041,6 +1039,9 @@ webkit.org/b/100324 css3/supports-dom-api.html
 # CSS Device Adaptation is not enabled.
 webkit.org/b/95959 css3/device-adapt [ Skip ]
 
+# Accelerated overflow scrolling (ENABLE_ACCELERATED_OVERFLOW_SCROLLING) is not enabled.
+fast/repaint/overflow-scroll-touch-repaint.html [ Skip ]
+
 # Hardware accelerated CSS transitions appear pixelated when scaled up using transform
 webkit.org/b/27684 compositing/text-on-scaled-layer.html [ ImageOnlyFailure ]
 webkit.org/b/27684 compositing/text-on-scaled-surface.html [ ImageOnlyFailure ]
@@ -1060,7 +1061,6 @@ webkit.org/b/98837 http/tests/security/svg-image-leak.html [ Skip ]
 webkit.org/b/98456 compositing/images/truncated-direct-png-image.html [ ImageOnlyFailure ]
 
 # Ref tests suffering from colorspace issues
-compositing/images/positioned-image-content-rect.html [ ImageOnlyFailure ]
 compositing/patterns/direct-pattern-compositing-add-text.html [ Pass ImageOnlyFailure ]
 compositing/patterns/direct-pattern-compositing-contain.html [ Pass ImageOnlyFailure ]
 compositing/patterns/direct-pattern-compositing-cover.html [ Pass ImageOnlyFailure ]
@@ -1085,8 +1085,8 @@ webkit.org/b/61138 http/tests/w3c/webperf/submission/Intel/resource-timing [ Ski
 fast/css/sticky/sticky-top-zoomed.html [ ImageOnlyFailure ]
 webkit.org/b/107356 [ MountainLion Release ] fast/css/sticky/sticky-top-zoomed.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/100846 inspector-protocol/debugger-pause-dedicated-worker.html [ Skip ]
-webkit.org/b/100846 inspector-protocol/debugger-terminate-dedicated-worker-while-paused.html [ Skip ]
+webkit.org/b/100846 inspector-protocol/debugger/pause-dedicated-worker.html [ Skip ]
+webkit.org/b/100846 inspector-protocol/debugger/terminate-dedicated-worker-while-paused.html [ Skip ]
 
 # Mac doesn't have a toggle for CC any more, it's based on a menu of choices.
 webkit.org/b/101670 media/video-controls-captions.html [ Skip ]
@@ -1264,8 +1264,6 @@ editing/secure-input/reset-state-on-navigation.html [ Failure ]
 
 webkit.org/b/116238 css3/filters/custom/filter-fallback-to-software.html [ Pass ImageOnlyFailure ]
 
-webkit.org/b/116241 inspector/storage-panel-dom-storage-update.html [ Failure ]
-
 webkit.org/b/116244 fast/events/mouse-cursor-image-set.html [ Failure Pass ]
 
 webkit.org/b/116245 canvas/philip/tests/2d.text.draw.fontface.notinpage.html [ Pass Failure ]
@@ -1296,3 +1294,8 @@ webkit.org/b/120085 [ Lion ] http/tests/inspector/resource-tree/resource-tree-do
 webkit.org/b/120087 [ Lion ] fast/forms/submit-to-url-fragment.html [ Pass Crash ]
 
 webkit.org/b/117962 [ Lion ] media/video-played-collapse.html [ Failure Pass ]
+
+webkit.org/b/120387 svg/animations/svglengthlist-animation-3.html [ Pass Failure ]
+
+# Don't run ogv and mkv tests on mac
+media/track/in-band [ WontFix ]

@@ -67,6 +67,11 @@ PassOwnPtr<Pasteboard> Pasteboard::createForCopyAndPaste()
     return create(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD));
 }
 
+PassOwnPtr<Pasteboard> Pasteboard::createForGlobalSelection()
+{
+    return create(gtk_clipboard_get(GDK_SELECTION_PRIMARY));
+}
+
 PassOwnPtr<Pasteboard> Pasteboard::createPrivate()
 {
     return create(DataObjectGtk::create());
@@ -80,23 +85,6 @@ PassOwnPtr<Pasteboard> Pasteboard::createForDragAndDrop()
 PassOwnPtr<Pasteboard> Pasteboard::createForDragAndDrop(const DragData& dragData)
 {
     return create(dragData.platformData());
-}
-
-static Pasteboard* selectionClipboard()
-{
-    static Pasteboard* pasteboard = Pasteboard::create(gtk_clipboard_get(GDK_SELECTION_CLIPBOARD)).leakPtr();
-    return pasteboard;
-}
-
-static Pasteboard* primaryClipboard()
-{
-    static Pasteboard* pasteboard = Pasteboard::create(gtk_clipboard_get(GDK_SELECTION_PRIMARY)).leakPtr();
-    return pasteboard;
-}
-
-Pasteboard* Pasteboard::generalPasteboard()
-{
-    return PasteboardHelper::defaultPasteboardHelper()->usePrimarySelectionClipboard() ? primaryClipboard() : selectionClipboard();
 }
 
 Pasteboard::Pasteboard(PassRefPtr<DataObjectGtk> dataObject)
@@ -210,7 +198,7 @@ static KURL getURLForImageNode(Node* node)
         Element* element = toElement(node);
         urlString = element->imageSourceURL();
     }
-    return urlString.isEmpty() ? KURL() : node->document()->completeURL(stripLeadingAndTrailingHTMLSpaces(urlString));
+    return urlString.isEmpty() ? KURL() : node->document().completeURL(stripLeadingAndTrailingHTMLSpaces(urlString));
 }
 
 void Pasteboard::writeImage(Node* node, const KURL&, const String& title)
@@ -341,16 +329,6 @@ String Pasteboard::plainText(Frame* frame)
     if (m_gtkClipboard)
         PasteboardHelper::defaultPasteboardHelper()->getClipboardContents(m_gtkClipboard);
     return m_dataObject->text();
-}
-
-bool Pasteboard::isSelectionMode() const
-{
-    return PasteboardHelper::defaultPasteboardHelper()->usePrimarySelectionClipboard();
-}
-
-void Pasteboard::setSelectionMode(bool selectionMode)
-{
-    PasteboardHelper::defaultPasteboardHelper()->setUsePrimarySelectionClipboard(selectionMode);
 }
 
 bool Pasteboard::hasData()

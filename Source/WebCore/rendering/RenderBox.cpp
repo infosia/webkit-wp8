@@ -132,6 +132,18 @@ RenderRegion* RenderBox::clampToStartAndEndRegions(RenderRegion* region) const
     return region;
 }
 
+LayoutRect RenderBox::clientBoxRectInRegion(RenderRegion* region) const
+{
+    if (!region)
+        return clientBoxRect();
+
+    LayoutRect clientBox = borderBoxRectInRegion(region);
+    clientBox.setLocation(clientBox.location() + LayoutSize(borderLeft(), borderTop()));
+    clientBox.setSize(clientBox.size() - LayoutSize(borderLeft() + borderRight() + verticalScrollbarWidth(), borderTop() + borderBottom() + horizontalScrollbarHeight()));
+
+    return clientBox;
+}
+
 LayoutRect RenderBox::borderBoxRectInRegion(RenderRegion* region, RenderBoxRegionInfoFlags cacheFlag) const
 {
     if (!region)
@@ -817,19 +829,14 @@ void RenderBox::autoscroll(const IntPoint& position)
 // There are two kinds of renderer that can autoscroll.
 bool RenderBox::canAutoscroll() const
 {
+    if (node() && node()->isDocumentNode())
+        return view().frameView().isScrollable();
+
     // Check for a box that can be scrolled in its own right.
     if (canBeScrolledAndHasScrollableArea())
         return true;
 
-    // Check for a box that represents the top level of a web page.
-    // This can be scrolled by calling Chrome::scrollRectIntoView.
-    // This only has an effect on the Mac platform in applications
-    // that put web views into scrolling containers, such as Mac OS X Mail.
-    // The code for this is in RenderLayer::scrollRectToVisible.
-    if (node() != &document())
-        return false;
-    Page* page = frame().page();
-    return page && &page->mainFrame() == &frame() && view().frameView().isScrollable();
+    return false;
 }
 
 // If specified point is in border belt, returned offset denotes direction of
@@ -1544,8 +1551,8 @@ bool RenderBox::repaintLayerRectsForImage(WrappedImagePtr image, const FillLayer
                 if (drawingRootBackground) {
                     layerRenderer = &view();
 
-                    LayoutUnit rw = toRenderView(layerRenderer)->frameView().contentsWidth();
-                    LayoutUnit rh = toRenderView(layerRenderer)->frameView().contentsHeight();
+                    LayoutUnit rw = toRenderView(*layerRenderer).frameView().contentsWidth();
+                    LayoutUnit rh = toRenderView(*layerRenderer).frameView().contentsHeight();
 
                     rendererRect = LayoutRect(-layerRenderer->marginLeft(),
                         -layerRenderer->marginTop(),
@@ -1844,7 +1851,12 @@ void RenderBox::mapLocalToContainer(const RenderLayerModelObject* repaintContain
 
     mode &= ~ApplyContainerFlip;
 
-    o->mapLocalToContainer(repaintContainer, transformState, mode, wasFixed);
+    // For fixed positioned elements inside out-of-flow named flows, we do not want to
+    // map their position further to regions based on their coordinates inside the named flows.
+    if (!o->isOutOfFlowRenderFlowThread() || !fixedPositionedWithNamedFlowContainingBlock())
+        o->mapLocalToContainer(repaintContainer, transformState, mode, wasFixed);
+    else
+        o->mapLocalToContainer(toRenderLayerModelObject(o), transformState, mode, wasFixed);
 }
 
 const RenderObject* RenderBox::pushMappingToContainer(const RenderLayerModelObject* ancestorToStopAt, RenderGeometryMap& geometryMap) const
@@ -1938,7 +1950,7 @@ LayoutSize RenderBox::offsetFromContainer(RenderObject* o, const LayoutPoint& po
 
 InlineBox* RenderBox::createInlineBox()
 {
-    return new (renderArena()) InlineBox(this);
+    return new (renderArena()) InlineBox(*this);
 }
 
 void RenderBox::dirtyLineBoxes(bool fullLayout)
@@ -1962,7 +1974,7 @@ void RenderBox::positionLineBox(InlineBox* box)
             // our object was inline originally, since otherwise it would have ended up underneath
             // the inlines.
             RootInlineBox* root = box->root();
-            root->block()->setStaticInlinePositionForChild(this, root->lineTopWithLeading(), roundedLayoutUnit(box->logicalLeft()));
+            root->block().setStaticInlinePositionForChild(this, root->lineTopWithLeading(), roundedLayoutUnit(box->logicalLeft()));
             if (style()->hasStaticInlinePosition(box->isHorizontal()))
                 setChildNeedsLayout(true, MarkOnlyThis); // Just go ahead and mark the positioned object as needing layout, so it will update its position properly.
         } else {
@@ -2091,7 +2103,7 @@ void RenderBox::computeRectForRepaint(const RenderLayerModelObject* repaintConta
         topLeft += layer()->offsetForInFlowPosition();
     }
     
-    if (position != AbsolutePosition && position != FixedPosition && o->hasColumns() && o->isBlockFlow()) {
+    if (position != AbsolutePosition && position != FixedPosition && o->hasColumns() && o->isRenderBlockFlow()) {
         LayoutRect repaintRect(topLeft, rect.size());
         toRenderBlock(o)->adjustRectForColumns(repaintRect);
         topLeft = repaintRect.location();
@@ -2972,6 +2984,9 @@ LayoutUnit RenderBox::containingBlockLogicalWidthForPositioned(const RenderBoxMo
         if (!flowThread)
             return toRenderBox(containingBlock)->clientLogicalWidth();
 
+        if (containingBlock->isRenderNamedFlowThread() && style()->position() == FixedPosition)
+            return containingBlock->view().clientLogicalWidth();
+
         const RenderBlock* cb = toRenderBlock(containingBlock);
         RenderBoxRegionInfo* boxInfo = 0;
         if (!region) {
@@ -3026,8 +3041,11 @@ LayoutUnit RenderBox::containingBlockLogicalHeightForPositioned(const RenderBoxM
         const RenderBlock* cb = toRenderBlock(containingBlock);
         LayoutUnit result = cb->clientLogicalHeight();
         RenderFlowThread* flowThread = flowThreadContainingBlock();
-        if (flowThread && containingBlock->isRenderFlowThread() && flowThread->isHorizontalWritingMode() == containingBlock->isHorizontalWritingMode())
+        if (flowThread && containingBlock->isRenderFlowThread() && flowThread->isHorizontalWritingMode() == containingBlock->isHorizontalWritingMode()) {
+            if (containingBlock->isRenderNamedFlowThread() && style()->position() == FixedPosition)
+                return containingBlock->view().clientLogicalHeight();
             return toRenderFlowThread(containingBlock)->contentLogicalHeightOfFirstRegion();
+        }
         return result;
     }
         
@@ -4075,7 +4093,7 @@ VisiblePosition RenderBox::positionForPoint(const LayoutPoint& point)
         adjustedPoint.moveBy(location());
 
     for (RenderObject* renderObject = firstChild(); renderObject; renderObject = renderObject->nextSibling()) {
-        if ((!renderObject->firstChild() && !renderObject->isInline() && !renderObject->isBlockFlow() )
+        if ((!renderObject->firstChild() && !renderObject->isInline() && !renderObject->isRenderBlockFlow() )
             || renderObject->style()->visibility() != VISIBLE)
             continue;
         
@@ -4154,10 +4172,19 @@ void RenderBox::addVisualEffectOverflow()
     if (!style()->boxShadow() && !style()->hasBorderImageOutsets())
         return;
 
+    LayoutRect borderBox = borderBoxRect();
+    addVisualOverflow(applyVisualEffectOverflow(borderBox));
+
+    RenderFlowThread* flowThread = flowThreadContainingBlock();
+    if (flowThread)
+        flowThread->addRegionsVisualEffectOverflow(this);
+}
+
+LayoutRect RenderBox::applyVisualEffectOverflow(const LayoutRect& borderBox) const
+{
     bool isFlipped = style()->isFlippedBlocksWritingMode();
     bool isHorizontal = isHorizontalWritingMode();
     
-    LayoutRect borderBox = borderBoxRect();
     LayoutUnit overflowMinX = borderBox.x();
     LayoutUnit overflowMaxX = borderBox.maxX();
     LayoutUnit overflowMinY = borderBox.y();
@@ -4191,7 +4218,7 @@ void RenderBox::addVisualEffectOverflow()
     }
 
     // Add in the final overflow with shadows and outsets combined.
-    addVisualOverflow(LayoutRect(overflowMinX, overflowMinY, overflowMaxX - overflowMinX, overflowMaxY - overflowMinY));
+    return LayoutRect(overflowMinX, overflowMinY, overflowMaxX - overflowMinX, overflowMaxY - overflowMinY);
 }
 
 void RenderBox::addOverflowFromChild(RenderBox* child, const LayoutSize& delta)
@@ -4199,6 +4226,10 @@ void RenderBox::addOverflowFromChild(RenderBox* child, const LayoutSize& delta)
     // Never allow flow threads to propagate overflow up to a parent.
     if (child->isRenderFlowThread())
         return;
+
+    RenderFlowThread* flowThread = flowThreadContainingBlock();
+    if (flowThread)
+        flowThread->addRegionsOverflowFromChild(this, child, delta);
 
     // Only propagate layout overflow from the child if the child isn't clipping its overflow.  If it is, then
     // its overflow is internal to it, and we don't care about it.  layoutOverflowRectForPropagation takes care of this
@@ -4277,6 +4308,14 @@ void RenderBox::addVisualOverflow(const LayoutRect& rect)
         m_overflow = adoptPtr(new RenderOverflow(clientBoxRect(), borderBox));
     
     m_overflow->addVisualOverflow(rect);
+}
+
+void RenderBox::clearOverflow()
+{
+    m_overflow.clear();
+    RenderFlowThread* flowThread = flowThreadContainingBlock();
+    if (flowThread)
+        flowThread->clearRegionsOverflow(this);
 }
 
 inline static bool percentageLogicalHeightIsResolvable(const RenderBox* box)

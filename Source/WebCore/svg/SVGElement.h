@@ -26,6 +26,7 @@
 #if ENABLE(SVG)
 #include "CSSPropertyNames.h"
 #include "SVGAnimatedString.h"
+#include "SVGElementTypeChecks.h"
 #include "SVGLangSpace.h"
 #include "SVGLocatable.h"
 #include "SVGParsingError.h"
@@ -135,7 +136,7 @@ public:
     virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture) OVERRIDE;
 
 #if ENABLE(CSS_REGIONS)
-    virtual bool shouldMoveToFlowThread(RenderStyle*) const OVERRIDE;
+    virtual bool shouldMoveToFlowThread(const RenderStyle&) const OVERRIDE;
 #endif
 
 protected:
@@ -160,7 +161,7 @@ protected:
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
     virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0);
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
     virtual bool selfHasRelativeLengths() const { return false; }
     void updateRelativeLengthsInformation() { updateRelativeLengthsInformation(selfHasRelativeLengths(), this); }
     void updateRelativeLengthsInformation(bool hasRelativeLengths, SVGElement*);

@@ -415,7 +415,7 @@ void RenderLayerCompositor::didFlushChangesForLayer(RenderLayer* layer, const Gr
 void RenderLayerCompositor::didPaintBacking(RenderLayerBacking*)
 {
     FrameView& frameView = m_renderView.frameView();
-    frameView.setLastPaintTime(currentTime());
+    frameView.setLastPaintTime(monotonicallyIncreasingTime());
     if (frameView.milestonesPendingPaint() && !m_paintRelatedMilestonesTimer.isActive())
         m_paintRelatedMilestonesTimer.startOneShot(0);
 }
@@ -546,7 +546,7 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
     double startTime = 0;
     if (compositingLogEnabled()) {
         ++m_rootLayerUpdateCount;
-        startTime = currentTime();
+        startTime = monotonicallyIncreasingTime();
     }
 #endif
 
@@ -598,7 +598,7 @@ void RenderLayerCompositor::updateCompositingLayers(CompositingUpdateType update
     
 #if !LOG_DISABLED
     if (compositingLogEnabled() && isFullUpdate && (needHierarchyUpdate || needGeometryUpdate)) {
-        double endTime = currentTime();
+        double endTime = monotonicallyIncreasingTime();
         LOG(Compositing, "Total layers   primary   secondary   obligatory backing (KB)   secondary backing(KB)   total backing (KB)  update time (ms)\n");
 
         LOG(Compositing, "%8d %11d %9d %20.2f %22.2f %22.2f %18.2f\n",
@@ -735,8 +735,7 @@ bool RenderLayerCompositor::updateBacking(RenderLayer* layer, CompositingChangeR
 #if ENABLE(VIDEO)
     if (layerChanged && layer->renderer().isVideo()) {
         // If it's a video, give the media player a chance to hook up to the layer.
-        RenderVideo* video = toRenderVideo(&layer->renderer());
-        video->acceleratedRenderingStateChanged();
+        toRenderVideo(layer->renderer()).acceleratedRenderingStateChanged();
     }
 #endif
 
@@ -1168,12 +1167,12 @@ void RenderLayerCompositor::removeCompositedChildren(RenderLayer* layer)
 }
 
 #if ENABLE(VIDEO)
-bool RenderLayerCompositor::canAccelerateVideoRendering(RenderVideo* o) const
+bool RenderLayerCompositor::canAccelerateVideoRendering(RenderVideo& video) const
 {
     if (!m_hasAcceleratedCompositing)
         return false;
 
-    return o->supportsAcceleratedRendering();
+    return video.supportsAcceleratedRendering();
 }
 #endif
 
@@ -1390,6 +1389,8 @@ String RenderLayerCompositor::layerTreeAsText(LayerTreeFlags flags)
         layerTreeBehavior |= LayerTreeAsTextIncludeRepaintRects;
     if (flags & LayerTreeFlagsIncludePaintingPhases)
         layerTreeBehavior |= LayerTreeAsTextIncludePaintingPhases;
+    if (flags & LayerTreeFlagsIncludeContentLayers)
+        layerTreeBehavior |= LayerTreeAsTextIncludeContentLayers;
 
     // We skip dumping the scroll and clip layers to keep layerTreeAsText output
     // similar between platforms.
@@ -1442,6 +1443,10 @@ bool RenderLayerCompositor::parentFrameContentLayers(RenderPart* renderer)
 // This just updates layer geometry without changing the hierarchy.
 void RenderLayerCompositor::updateLayerTreeGeometry(RenderLayer* layer, int depth)
 {
+    // FIXME: fixed positioned elements inside a named flow are not composited yet.
+    if (layer->isOutOfFlowRenderFlowThread())
+        return;
+
     if (RenderLayerBacking* layerBacking = layer->backing()) {
         // The compositing state of all our children has been updated already, so now
         // we can compute and cache the composited bounds for this layer.
@@ -2072,8 +2077,8 @@ bool RenderLayerCompositor::requiresCompositingForVideo(RenderObject* renderer) 
         return false;
 #if ENABLE(VIDEO)
     if (renderer->isVideo()) {
-        RenderVideo* video = toRenderVideo(renderer);
-        return video->shouldDisplayVideo() && canAccelerateVideoRendering(video);
+        RenderVideo& video = toRenderVideo(*renderer);
+        return (video.requiresImmediateCompositing() || video.shouldDisplayVideo()) && canAccelerateVideoRendering(video);
     }
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     else if (renderer->isRenderPart()) {
@@ -3116,15 +3121,15 @@ StickyPositionViewportConstraints RenderLayerCompositor::computeStickyViewportCo
 
     LayoutRect viewportRect = m_renderView.frameView().viewportConstrainedVisibleContentRect();
 
-    RenderBoxModelObject* renderer = toRenderBoxModelObject(&layer->renderer());
+    RenderBoxModelObject& renderer = toRenderBoxModelObject(layer->renderer());
 
     StickyPositionViewportConstraints constraints;
-    renderer->computeStickyPositionConstraints(constraints, viewportRect);
+    renderer.computeStickyPositionConstraints(constraints, viewportRect);
 
     GraphicsLayer* graphicsLayer = layer->backing()->graphicsLayer();
 
     constraints.setLayerPositionAtLastLayout(graphicsLayer->position());
-    constraints.setStickyOffsetAtLastLayout(renderer->stickyPositionOffset());
+    constraints.setStickyOffsetAtLastLayout(renderer.stickyPositionOffset());
 
     return constraints;
 }

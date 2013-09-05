@@ -1702,6 +1702,9 @@ double WebPagePrivate::zoomToFitScale() const
 
 bool WebPagePrivate::hasFloatLayoutSizeRoundingError() const
 {
+    if (!m_client->hasView())
+        return false;
+
     int contentsWidth = contentsSize().width();
     int contentsHeight = contentsSize().height();
     float devicePixelRatio = m_webSettings->devicePixelRatio();
@@ -3559,6 +3562,11 @@ bool WebPagePrivate::setViewportSize(const IntSize& transformedActualVisibleSize
 
     bool hasPendingOrientation = m_pendingOrientation != -1;
 
+#if USE(ACCELERATED_COMPOSITING)
+    if (hasPendingOrientation)
+        discardLayerVisibilities();
+#endif
+
     IntSize viewportSizeBefore = actualVisibleSize();
     FloatPoint centerOfVisibleContentsRect = this->centerOfVisibleContentsRect();
     bool newVisibleRectContainsOldVisibleRect = (m_actualVisibleHeight <= transformedActualVisibleSize.height())
@@ -5239,6 +5247,23 @@ void WebPagePrivate::scheduleRootLayerCommit()
 #endif
         m_rootLayerCommitTimer->startOneShot(0);
     }
+}
+
+void WebPagePrivate::discardLayerVisibilities()
+{
+    if (!isAcceleratedCompositingActive())
+        return;
+
+    if (m_frameLayers)
+        m_frameLayers->discardBackVisibility();
+
+    Platform::userInterfaceThreadMessageClient()->dispatchSyncMessage(
+        Platform::createMethodCallMessage(&WebPagePrivate::discardFrontVisibilityCompositingThread, this));
+}
+
+void WebPagePrivate::discardFrontVisibilityCompositingThread()
+{
+    m_compositor->discardFrontVisibility();
 }
 
 static bool needsLayoutRecursive(FrameView* view)

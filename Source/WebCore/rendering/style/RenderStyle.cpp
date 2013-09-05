@@ -505,6 +505,9 @@ bool RenderStyle::changeRequiresLayout(const RenderStyle* other, unsigned& chang
 #endif
             || rareInheritedData->m_lineSnap != other->rareInheritedData->m_lineSnap
             || rareInheritedData->m_lineAlign != other->rareInheritedData->m_lineAlign
+#if ENABLE(ACCELERATED_OVERFLOW_SCROLLING)
+            || rareInheritedData->useTouchOverflowScrolling != other->rareInheritedData->useTouchOverflowScrolling
+#endif
             || rareInheritedData->listStyleImage != other->rareInheritedData->listStyleImage)
             return true;
 
@@ -701,6 +704,7 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle* other, unsigned&) con
         || rareInheritedData->userSelect != other->rareInheritedData->userSelect
         || rareNonInheritedData->userDrag != other->rareNonInheritedData->userDrag
         || rareNonInheritedData->m_borderFit != other->rareNonInheritedData->m_borderFit
+        || rareNonInheritedData->m_objectFit != other->rareNonInheritedData->m_objectFit
         || rareInheritedData->m_imageRendering != other->rareInheritedData->m_imageRendering)
         return true;
 
@@ -1254,7 +1258,7 @@ void RenderStyle::adjustAnimations()
 
     // Get rid of empty animations and anything beyond them
     for (size_t i = 0; i < animationList->size(); ++i) {
-        if (animationList->animation(i)->isEmpty()) {
+        if (animationList->animation(i).isEmpty()) {
             animationList->resize(i);
             break;
         }
@@ -1277,7 +1281,7 @@ void RenderStyle::adjustTransitions()
 
     // Get rid of empty transitions and anything beyond them
     for (size_t i = 0; i < transitionList->size(); ++i) {
-        if (transitionList->animation(i)->isEmpty()) {
+        if (transitionList->animation(i).isEmpty()) {
             transitionList->resize(i);
             break;
         }
@@ -1295,7 +1299,7 @@ void RenderStyle::adjustTransitions()
     // but the lists tend to be very short, so it is probably ok
     for (size_t i = 0; i < transitionList->size(); ++i) {
         for (size_t j = i+1; j < transitionList->size(); ++j) {
-            if (transitionList->animation(i)->property() == transitionList->animation(j)->property()) {
+            if (transitionList->animation(i).property() == transitionList->animation(j).property()) {
                 // toss i
                 transitionList->remove(i);
                 j = i;
@@ -1322,9 +1326,9 @@ const Animation* RenderStyle::transitionForProperty(CSSPropertyID property) cons
 {
     if (transitions()) {
         for (size_t i = 0; i < transitions()->size(); ++i) {
-            const Animation* p = transitions()->animation(i);
-            if (p->animationMode() == Animation::AnimateAll || p->property() == property) {
-                return p;
+            const Animation& p = transitions()->animation(i);
+            if (p.animationMode() == Animation::AnimateAll || p.property() == property) {
+                return &p;
             }
         }
     }

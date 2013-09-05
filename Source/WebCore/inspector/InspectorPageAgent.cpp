@@ -83,6 +83,10 @@
 #include <wtf/text/Base64.h>
 #include <wtf/text/StringBuilder.h>
 
+#if ENABLE(WEB_ARCHIVE) && USE(CF)
+#include "LegacyWebArchive.h"
+#endif
+
 namespace WebCore {
 
 namespace PageAgentState {
@@ -868,7 +872,7 @@ void InspectorPageAgent::didClearWindowObjectInWorld(Frame* frame, DOMWrapperWor
     if (world != mainThreadNormalWorld())
         return;
 
-    if (frame == &m_page->mainFrame())
+    if (m_page->frameIsMainFrame(frame))
         m_injectedScriptManager->discardInjectedScripts();
 
     if (!m_frontend)
@@ -900,7 +904,7 @@ void InspectorPageAgent::loadEventFired()
 
 void InspectorPageAgent::frameNavigated(DocumentLoader* loader)
 {
-    if (loader->frame() == &m_page->mainFrame()) {
+    if (m_page->frameIsMainFrame(loader->frame())) {
         m_scriptToEvaluateOnLoadOnce = m_pendingScriptToEvaluateOnLoadOnce;
         m_scriptPreprocessor = m_pendingScriptPreprocessor;
         m_pendingScriptToEvaluateOnLoadOnce = String();
@@ -1326,6 +1330,29 @@ void InspectorPageAgent::handleJavaScriptDialog(ErrorString* errorString, bool a
 {
     if (!m_client->handleJavaScriptDialog(accept, promptText))
         *errorString = "Could not handle JavaScript dialog";
+}
+
+void InspectorPageAgent::archive(ErrorString* errorString, String* data)
+{
+    Frame* frame = mainFrame();
+    if (!frame) {
+        *errorString = "No main frame";
+        return;
+    }
+
+#if ENABLE(WEB_ARCHIVE) && USE(CF)
+    RefPtr<LegacyWebArchive> archive = LegacyWebArchive::create(frame);
+    if (!archive) {
+        *errorString = "Could not create web archive for main frame";
+        return;
+    }
+
+    RetainPtr<CFDataRef> buffer = archive->rawDataRepresentation();
+    *data = base64Encode(reinterpret_cast<const char*>(CFDataGetBytePtr(buffer.get())), CFDataGetLength(buffer.get()));
+#else
+    UNUSED_PARAM(data);
+    *errorString = "No support for creating archives";
+#endif
 }
 
 } // namespace WebCore

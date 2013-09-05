@@ -245,7 +245,7 @@ bool CachedImage::imageHasRelativeHeight() const
     return false;
 }
 
-LayoutSize CachedImage::imageSizeForRenderer(const RenderObject* renderer, float multiplier)
+LayoutSize CachedImage::imageSizeForRenderer(const RenderObject* renderer, float multiplier, SizeType sizeType)
 {
     ASSERT(!isPurgeable());
 
@@ -257,7 +257,7 @@ LayoutSize CachedImage::imageSizeForRenderer(const RenderObject* renderer, float
     if (m_image->isBitmapImage() && (renderer && renderer->shouldRespectImageOrientation() == RespectImageOrientation))
         imageSize = static_cast<BitmapImage*>(m_image.get())->sizeRespectingOrientation();
 #if ENABLE(SVG)
-    else if (m_image->isSVGImage()) {
+    else if (m_image->isSVGImage() && sizeType == UsedSize) {
         imageSize = m_svgImageCache->imageSizeForRenderer(renderer);
     }
 #endif
@@ -468,7 +468,7 @@ void CachedImage::didDraw(const Image* image)
     
     double timeStamp = FrameView::currentPaintTimeStamp();
     if (!timeStamp) // If didDraw is called outside of a Frame paint.
-        timeStamp = currentTime();
+        timeStamp = monotonicallyIncreasingTime();
     
     CachedResource::didAccessDecodedData(timeStamp);
 }

@@ -136,7 +136,14 @@
     macro(value) \
     macro(valueOf) \
     macro(window) \
-    macro(writable)
+    macro(writable) \
+    macro(has) \
+    macro(forEach) \
+    macro(clear) \
+    macro(size) \
+    macro(Map)\
+    macro(Set)\
+    macro(add)
 
 #define JSC_COMMON_IDENTIFIERS_EACH_KEYWORD(macro) \
     macro(null) \

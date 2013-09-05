@@ -224,7 +224,7 @@ String InspectorFrontendHost::localizedStringsURL()
 
 void InspectorFrontendHost::copyText(const String& text)
 {
-    Pasteboard::generalPasteboard()->writePlainText(text, Pasteboard::CannotSmartReplace);
+    Pasteboard::createForCopyAndPaste()->writePlainText(text, Pasteboard::CannotSmartReplace);
 }
 
 void InspectorFrontendHost::openInNewTab(const String& url)
@@ -240,10 +240,10 @@ bool InspectorFrontendHost::canSave()
     return false;
 }
 
-void InspectorFrontendHost::save(const String& url, const String& content, bool forceSaveAs)
+void InspectorFrontendHost::save(const String& url, const String& content, bool base64Encoded, bool forceSaveAs)
 {
     if (m_client)
-        m_client->save(url, content, forceSaveAs);
+        m_client->save(url, content, base64Encoded, forceSaveAs);
 }
 
 void InspectorFrontendHost::append(const String& url, const String& content)

@@ -25,12 +25,13 @@
 #include "FrameView.h"
 #include "LayoutState.h"
 #include "PODFreeListArena.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include <wtf/OwnPtr.h>
 
 namespace WebCore {
 
 class FlowThreadController;
+class ImageQualityController;
 class RenderQuote;
 class RenderWidget;
 
@@ -42,7 +43,7 @@ class RenderLayerCompositor;
 class CustomFilterGlobalContext;
 #endif
 
-class RenderView FINAL : public RenderBlock {
+class RenderView FINAL : public RenderBlockFlow {
 public:
     explicit RenderView(Document*);
     virtual ~RenderView();
@@ -231,6 +232,8 @@ public:
 
     IntRect pixelSnappedLayoutOverflowRect() const { return pixelSnappedIntRect(layoutOverflowRect()); }
 
+    ImageQualityController& imageQualityController();
+
 protected:
     virtual void mapLocalToContainer(const RenderLayerModelObject* repaintContainer, TransformState&, MapCoordinatesFlags = ApplyContainerFlip, bool* wasFixed = 0) const OVERRIDE;
     virtual const RenderObject* pushMappingToContainer(const RenderLayerModelObject* ancestorToStopAt, RenderGeometryMap&) const OVERRIDE;
@@ -250,7 +253,7 @@ private:
     {
         // We push LayoutState even if layoutState is disabled because it stores layoutDelta too.
         if (!doingFullRepaint() || m_layoutState->isPaginated() || renderer->hasColumns() || renderer->flowThreadContainingBlock()
-            || m_layoutState->lineGrid() || (renderer->style()->lineGrid() != RenderStyle::initialLineGrid() && renderer->isBlockFlow())
+            || m_layoutState->lineGrid() || (renderer->style()->lineGrid() != RenderStyle::initialLineGrid() && renderer->isRenderBlockFlow())
 #if ENABLE(CSS_SHAPES)
             || (renderer->isRenderBlock() && toRenderBlock(renderer)->shapeInsideInfo())
             || (m_layoutState->shapeInsideInfo() && renderer->isRenderBlock() && !toRenderBlock(renderer)->allowsShapeInsideInfoSharing())
@@ -329,6 +332,7 @@ protected:
 private:
     bool shouldUsePrintingLayout() const;
 
+    OwnPtr<ImageQualityController> m_imageQualityController;
     LayoutUnit m_pageLogicalHeight;
     bool m_pageLogicalHeightChanged;
     LayoutState* m_layoutState;
@@ -348,20 +352,19 @@ private:
     bool m_selectionWasCaret;
 };
 
-inline RenderView* toRenderView(RenderObject* object)
+inline RenderView& toRenderView(RenderObject& object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderView());
-    return static_cast<RenderView*>(object);
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderView());
+    return static_cast<RenderView&>(object);
 }
 
-inline const RenderView* toRenderView(const RenderObject* object)
+inline const RenderView& toRenderView(const RenderObject& object)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderView());
-    return static_cast<const RenderView*>(object);
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderView());
+    return static_cast<const RenderView&>(object);
 }
 
-// This will catch anyone doing an unnecessary cast.
-void toRenderView(const RenderView*);
+void toRenderView(const RenderView&);
 
 // Stack-based class to assist with LayoutState push/pop
 class LayoutStateMaintainer {

@@ -34,7 +34,7 @@
 #include "AccessibilityListBox.h"
 #include "AccessibilitySpinButton.h"
 #include "AccessibilityTable.h"
-#include "ChildIterator.h"
+#include "ElementIterator.h"
 #include "EventNames.h"
 #include "FloatRect.h"
 #include "Frame.h"
@@ -262,7 +262,7 @@ Document* AccessibilityNodeObject::document() const
 {
     if (!node())
         return 0;
-    return node()->document();
+    return &node()->document();
 }
 
 AccessibilityRole AccessibilityNodeObject::determineAccessibilityRole()
@@ -374,6 +374,10 @@ bool AccessibilityNodeObject::canHaveChildren() const
     if (!node() && !isAccessibilityRenderObject())
         return false;
 
+    // When <noscript> is not being used (its renderer() == 0), ignore its children.
+    if (node() && !renderer() && node()->hasTagName(noscriptTag))
+        return false;
+    
     // Elements that should not have children
     switch (roleValue()) {
     case ImageRole:
@@ -413,11 +417,11 @@ bool AccessibilityNodeObject::canvasHasFallbackContent() const
     Node* node = this->node();
     if (!node || !node->hasTagName(canvasTag))
         return false;
-
+    Element* canvasElement = toElement(node);
     // If it has any children that are elements, we'll assume it might be fallback
     // content. If it has no children or its only children are not elements
     // (e.g. just text nodes), it doesn't have fallback content.
-    return elementChildren(node).begin() != elementChildren(node).end();
+    return elementChildren(canvasElement).begin() != elementChildren(canvasElement).end();
 }
 
 bool AccessibilityNodeObject::isImageButton() const
@@ -973,21 +977,16 @@ Element* AccessibilityNodeObject::mouseButtonListener() const
         return 0;
 
     // check if our parent is a mouse button listener
-    while (node && !node->isElementNode())
-        node = node->parentNode();
-
-    if (!node)
-        return 0;
-
     // FIXME: Do the continuation search like anchorElement does
-    for (Element* element = toElement(node); element; element = element->parentElement()) {
+    auto lineage = elementLineage(node->isElementNode() ? toElement(node) : node->parentElement());
+    for (auto element = lineage.begin(), end = lineage.end(); element != end; ++element) {
         // If we've reached the body and this is not a control element, do not expose press action for this element.
         // It can cause false positives, where every piece of text is labeled as accepting press actions. 
         if (element->hasTagName(bodyTag) && isStaticText())
             break;
         
         if (element->hasEventListeners(eventNames().clickEvent) || element->hasEventListeners(eventNames().mousedownEvent) || element->hasEventListeners(eventNames().mouseupEvent))
-            return element;
+            return &*element;
     }
 
     return 0;
@@ -1095,12 +1094,9 @@ HTMLLabelElement* AccessibilityNodeObject::labelForElement(Element* element) con
             return label;
     }
 
-    for (Element* parent = element->parentElement(); parent; parent = parent->parentElement()) {
-        if (isHTMLLabelElement(parent))
-            return toHTMLLabelElement(parent);
-    }
-
-    return 0;
+    auto labelAncestors = ancestorsOfType<HTMLLabelElement>(element);
+    auto enclosingLabel = labelAncestors.begin();
+    return enclosingLabel != labelAncestors.end() ? &*enclosingLabel : nullptr;
 }
 
 String AccessibilityNodeObject::ariaAccessibilityDescription() const
@@ -1118,10 +1114,9 @@ String AccessibilityNodeObject::ariaAccessibilityDescription() const
 
 static Element* siblingWithAriaRole(String role, Node* node)
 {
-    Node* parent = node->parentNode();
+    ContainerNode* parent = node->parentNode();
     if (!parent)
         return 0;
-
     for (auto sibling = elementChildren(parent).begin(), end = elementChildren(parent).end(); sibling != end; ++sibling) {
         const AtomicString& siblingAriaRole = sibling->fastGetAttribute(roleAttr);
         if (equalIgnoringCase(siblingAriaRole, role))
@@ -1176,7 +1171,9 @@ void AccessibilityNodeObject::titleElementText(Vector<AccessibilityText>& textOr
         HTMLLabelElement* label = labelForElement(toElement(node));
         if (label) {
             AccessibilityObject* labelObject = axObjectCache()->getOrCreate(label);
-            textOrder.append(AccessibilityText(label->innerText(), LabelByElementText, labelObject));
+            String innerText = label->innerText();
+            if (!innerText.isEmpty())
+                textOrder.append(AccessibilityText(innerText, LabelByElementText, labelObject));
             return;
         }
     }

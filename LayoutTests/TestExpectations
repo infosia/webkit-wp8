@@ -37,3 +37,4 @@ webkit.org/b/119094 fast/forms/color/input-color-onchange-event.html [ Crash Pas
 
 # This test will run slowly in debug mode, but is plenty fast in release.
 [ Debug ] fast/js/regress/emscripten-memops.html [ Skip ]
+

@@ -28,8 +28,9 @@
 #include "HTMLNames.h"
 #include "KeyboardEvent.h"
 #include "MouseEvent.h"
+#include "NodeRenderingTraversal.h"
 #include "PlatformMouseEvent.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include "ShadowRoot.h"
 
 namespace WebCore {
@@ -67,7 +68,7 @@ HTMLSummaryElement::HTMLSummaryElement(const QualifiedName& tagName, Document* d
 
 RenderObject* HTMLSummaryElement::createRenderer(RenderArena* arena, RenderStyle*)
 {
-    return new (arena) RenderBlock(this);
+    return new (arena) RenderBlockFlow(this);
 }
 
 bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
@@ -80,13 +81,13 @@ bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
 
 void HTMLSummaryElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsMarkerControl::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(SummaryContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsMarkerControl::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(SummaryContentElement::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
 }
 
 HTMLDetailsElement* HTMLSummaryElement::detailsElement() const
 {
-    Node* mayDetails = const_cast<HTMLSummaryElement*>(this)->parentNodeForRenderingAndStyle();
+    Node* mayDetails = NodeRenderingTraversal::parent(this);
     if (!mayDetails || !mayDetails->hasTagName(detailsTag))
         return 0;
     return static_cast<HTMLDetailsElement*>(mayDetails);

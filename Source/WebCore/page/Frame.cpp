@@ -131,7 +131,7 @@ static inline Frame* parentFromOwnerElement(HTMLFrameOwnerElement* ownerElement)
 {
     if (!ownerElement)
         return 0;
-    return ownerElement->document()->frame();
+    return ownerElement->document().frame();
 }
 
 static inline float parentPageZoomFactor(Frame* frame)
@@ -160,7 +160,7 @@ inline Frame::Frame(Page* page, HTMLFrameOwnerElement* ownerElement, FrameLoader
     , m_script(adoptPtr(new ScriptController(this)))
     , m_editor(Editor::create(*this))
     , m_selection(adoptPtr(new FrameSelection(this)))
-    , m_eventHandler(adoptPtr(new EventHandler(this)))
+    , m_eventHandler(adoptPtr(new EventHandler(*this)))
     , m_animationController(adoptPtr(new AnimationController(this)))
     , m_pageZoomFactor(parentPageZoomFactor(this))
     , m_textZoomFactor(parentTextZoomFactor(this))
@@ -586,7 +586,7 @@ Frame* Frame::frameForWidget(const Widget* widget)
 
     if (RenderWidget* renderer = RenderWidget::find(widget))
         if (Node* node = renderer->node())
-            return node->document()->frame();
+            return node->document().frame();
 
     // Assume all widgets are either a FrameView or owned by a RenderWidget.
     // FIXME: That assumption is not right for scroll bars!
@@ -632,8 +632,18 @@ void Frame::willDetachPage()
 void Frame::disconnectOwnerElement()
 {
     if (m_ownerElement) {
-        if (Document* doc = document())
-            doc->topDocument()->clearAXObjectCache();
+        // We use the ownerElement's document to retrieve the cache, because the contentDocument for this
+        // frame is already detached (and can't access the top level AX cache).
+        // However, we pass in the current document to clearTextMarkerNodesInUse so we can identify the
+        // nodes inside this document that need to be removed from the cache.
+        
+        // We don't clear the AXObjectCache here because we don't want to clear the top level cache
+        // when a sub-frame is removed.
+#if HAVE(ACCESSIBILITY)
+        if (AXObjectCache* cache = m_ownerElement->document().existingAXObjectCache())
+            cache->clearTextMarkerNodesInUse(document());
+#endif
+        
         m_ownerElement->clearContentFrame();
         if (m_page)
             m_page->decrementSubframeCount();
@@ -671,7 +681,7 @@ Document* Frame::documentAtPoint(const IntPoint& point)
 
     if (contentRenderer())
         result = eventHandler().hitTestResultAtPoint(pt);
-    return result.innerNode() ? result.innerNode()->document() : 0;
+    return result.innerNode() ? &result.innerNode()->document() : 0;
 }
 
 PassRefPtr<Range> Frame::rangeForPoint(const IntPoint& framePoint)
@@ -706,7 +716,7 @@ void Frame::createView(const IntSize& viewportSize, const Color& backgroundColor
     ASSERT(this);
     ASSERT(m_page);
 
-    bool isMainFrame = this == &m_page->mainFrame();
+    bool isMainFrame = m_page->frameIsMainFrame(this);
 
     if (isMainFrame && view())
         view()->setParentVisible(false);
@@ -879,7 +889,7 @@ void Frame::setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor
             view->layout();
     }
 
-    if (&page->mainFrame() == this)
+    if (page->frameIsMainFrame(this))
         pageCache()->markPagesForFullStyleRecalc(page);
 }
 

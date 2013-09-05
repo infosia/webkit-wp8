@@ -25,8 +25,7 @@
 #include "config.h"
 #include "HTMLFieldSetElement.h"
 
-#include "ChildIterator.h"
-#include "DescendantIterator.h"
+#include "ElementIterator.h"
 #include "HTMLCollection.h"
 #include "HTMLLegendElement.h"
 #include "HTMLNames.h"
@@ -64,9 +63,9 @@ void HTMLFieldSetElement::disabledAttributeChanged()
     invalidateDisabledStateUnder(this);
 }
 
-void HTMLFieldSetElement::childrenChanged(bool changedByParser, Node* beforeChange, Node* afterChange, int childCountDelta)
+void HTMLFieldSetElement::childrenChanged(const ChildChange& change)
 {
-    HTMLFormControlElement::childrenChanged(changedByParser, beforeChange, afterChange, childCountDelta);
+    HTMLFormControlElement::childrenChanged(change);
 
     auto legendChildren = childrenOfType<HTMLLegendElement>(this);
     for (auto legend = legendChildren.begin(), end = legendChildren.end(); legend != end; ++legend)
@@ -89,9 +88,13 @@ RenderObject* HTMLFieldSetElement::createRenderer(RenderArena* arena, RenderStyl
     return new (arena) RenderFieldset(this);
 }
 
-HTMLLegendElement* HTMLFieldSetElement::legend() const
+const HTMLLegendElement* HTMLFieldSetElement::legend() const
 {
-    return Traversal<HTMLLegendElement>::firstWithin(this);
+    auto legendDescendants = descendantsOfType<HTMLLegendElement>(this);
+    auto firstLegend = legendDescendants.begin();
+    if (firstLegend != legendDescendants.end())
+        return &*firstLegend;
+    return nullptr;
 }
 
 PassRefPtr<HTMLCollection> HTMLFieldSetElement::elements()
@@ -101,7 +104,7 @@ PassRefPtr<HTMLCollection> HTMLFieldSetElement::elements()
 
 void HTMLFieldSetElement::refreshElementsIfNeeded() const
 {
-    uint64_t docVersion = document()->domTreeVersion();
+    uint64_t docVersion = document().domTreeVersion();
     if (m_documentVersion == docVersion)
         return;
 

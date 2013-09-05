@@ -469,16 +469,14 @@ public:
     virtual bool isInRange() const { return false; }
     virtual bool isOutOfRange() const { return false; }
     virtual bool isFrameElementBase() const { return false; }
+    virtual bool isSearchFieldCancelButtonElement() const { return false; }
 
     virtual bool canContainRangeEndPoint() const { return true; }
 
     // Used for disabled form elements; if true, prevents mouse events from being dispatched
     // to event listeners, and prevents DOMActivate events from being sent at all.
-    virtual bool isDisabledFormControl() const;
+    virtual bool isDisabledFormControl() const { return false; }
 
-#if ENABLE(DIALOG_ELEMENT)
-    bool isInert() const;
-#endif
 
 #if ENABLE(SVG)
     virtual bool childShouldCreateRenderer(const Node*) const;
@@ -503,11 +501,6 @@ public:
     void webkitRequestFullscreen();
 #endif
 
-#if ENABLE(DIALOG_ELEMENT)
-    bool isInTopLayer() const;
-    void setIsInTopLayer(bool);
-#endif
-
 #if ENABLE(POINTER_LOCK)
     void webkitRequestPointerLock();
 #endif
@@ -524,7 +517,7 @@ public:
     RenderRegion* renderRegion() const;
 
 #if ENABLE(CSS_REGIONS)
-    virtual bool shouldMoveToFlowThread(RenderStyle*) const;
+    virtual bool shouldMoveToFlowThread(const RenderStyle&) const;
     
     const AtomicString& webkitRegionOverset() const;
     Vector<RefPtr<Range> > webkitGetRegionFlowRanges() const;
@@ -566,7 +559,7 @@ protected:
 
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void removedFrom(ContainerNode*) OVERRIDE;
-    virtual void childrenChanged(bool changedByParser = false, Node* beforeChange = 0, Node* afterChange = 0, int childCountDelta = 0) OVERRIDE;
+    virtual void childrenChanged(const ChildChange&) OVERRIDE;
     virtual void removeAllEventListeners() OVERRIDE FINAL;
 
     virtual PassRefPtr<RenderStyle> customStyleForRenderer();
@@ -766,12 +759,12 @@ inline bool Element::isIdAttributeName(const QualifiedName& attributeName) const
     // with a non-null namespace, because it will return false, a false negative, if the prefixes
     // don't match but the local name and namespace both do. However, since this has been like this
     // for a while and the code paths may be hot, we'll have to measure performance if we fix it.
-    return attributeName == document()->idAttributeName();
+    return attributeName == document().idAttributeName();
 }
 
 inline const AtomicString& Element::getIdAttribute() const
 {
-    return hasID() ? fastGetAttribute(document()->idAttributeName()) : nullAtom;
+    return hasID() ? fastGetAttribute(document().idAttributeName()) : nullAtom;
 }
 
 inline const AtomicString& Element::getNameAttribute() const
@@ -781,7 +774,7 @@ inline const AtomicString& Element::getNameAttribute() const
 
 inline void Element::setIdAttribute(const AtomicString& value)
 {
-    setAttribute(document()->idAttributeName(), value);
+    setAttribute(document().idAttributeName(), value);
 }
 
 inline const SpaceSplitString& Element::classNames() const

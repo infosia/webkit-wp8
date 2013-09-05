@@ -1,3 +1,520 @@
+2013-09-05  Alberto Garcia  <berto@igalia.com>
+
+        [WK2] [GTK] Remove the test to disable AC under Wayland from WebKitWebViewGroup
+        https://bugs.webkit.org/show_bug.cgi?id=120762
+
+        Reviewed by Gustavo Noronha Silva.
+
+        The code to disable AC under Wayland is not run if we're using
+        WebKitTestRunner, so it would be better to move it to
+        WebKitWebViewBase.
+
+        However it's not really necessary to do that, instead it's much
+        simpler to disable accelerated compositing in all cases unless we
+        know we can support it.
+
+        * UIProcess/API/gtk/WebKitWebViewBase.cpp:
+        (webkitWebViewBaseUpdatePreferences):
+        * UIProcess/API/gtk/WebKitWebViewGroup.cpp:
+        (webkitWebViewGroupAttachSettingsToPageGroup):
+
+2013-09-04  Alberto Garcia  <berto@igalia.com>
+
+        [WK2][GTK] ASSERTION in WebKit::LayerTreeHostGtk::invalidate
+        https://bugs.webkit.org/show_bug.cgi?id=117733
+
+        Reviewed by Martin Robinson.
+
+        If the GL context cannot be created then an invalid
+        LayerTreeHostGtk object will be returned.
+
+        This patch disables accelerated compositing if the system doesn't
+        support it.
+
+        * UIProcess/API/gtk/WebKitWebView.cpp:
+        (webkitWebViewUpdateSettings):
+        * UIProcess/API/gtk/WebKitWebViewBase.cpp:
+        (webkitWebViewBaseUpdatePreferences):
+        (webkitWebViewBaseCreateWebPage):
+        * UIProcess/API/gtk/WebKitWebViewBasePrivate.h:
+
+2013-09-04  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r154989.
+        http://trac.webkit.org/changeset/154989
+        https://bugs.webkit.org/show_bug.cgi?id=120678
+
+        This patch might broke apps using webkitgtk not from the main
+        thread (Requested by msanchez on #webkit).
+
+        * UIProcess/API/gtk/WebKitWebView.cpp:
+        (webkitWebViewRunAsModal):
+        * UIProcess/gtk/WebPopupMenuProxyGtk.cpp:
+        (WebKit::WebPopupMenuProxyGtk::showPopupMenu):
+
+2013-09-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Add support for the Wayland build target
+        https://bugs.webkit.org/show_bug.cgi?id=120627
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * GNUmakefile.list.am: Build X11-specific NetscapePluginModule and NetscapePlugin classes if building the X11 target,
+        fall back to the generic, empty classes otherwise.
+        * PluginProcess/unix/PluginProcessMainUnix.cpp:
+        (WebKit::PluginProcessMainUnix): Guard the NetscapePluginModule::scanPlugin() invocation with PLUGIN_ARCHITECTURE(X11),
+        it's at the moment specific to the X11 implementation of the Netscape plugins.
+        * UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp: Guard PluginProcessProxy::scanPlugin() with PLUGIN_ARCHITECTURE(X11),
+        just like it's guarded in the PluginProcessProxy class declaration.
+        * UIProcess/cairo/BackingStoreCairo.cpp: Additionally guard <gdk/gdkx.h> and WidgetBackingStoreGtkX11 inclusion and use
+        with PLATFORM(X11), this code should only be built when building the X11 target.
+        (WebKit::createBackingStoreForGTK):
+        * UIProcess/gtk/WebPageProxyGtk.cpp: Guard the createPluginContainer() and windowedPluginGeometryDidChange() methods and their
+        helper functions and objects with PLUGIN_ARCHITECTURE(X11), just like they're guarded in the WebPageProxy class declaration.
+        * config.h: Only define PLUGIN_ARCHITECTURE_X11 to 1 if we're actually building the X11 target.
+
+2013-09-03  Darin Adler  <darin@apple.com>
+
+        REGRESSION (r154967) window resize is very choppy
+        https://bugs.webkit.org/show_bug.cgi?id=120653
+
+        Reviewed by Andreas Kling.
+
+        Andreas Kling spotted the bad change.
+
+        * Platform/CoreIPC/Connection.cpp:
+        (CoreIPC::Connection::waitForMessage): Roll out this incorrect change.
+        The code here is not the same as a call to take.
+
+2013-09-03  Anton Obzhirov  <a.obzhirov@samsung.com>
+
+        [GTK] gdk threads deprecated functions calls should be refactored
+        https://bugs.webkit.org/show_bug.cgi?id=120070
+
+        Reviewed by Mario Sanchez Prada.
+
+        Removed deprecated functions gdk_threads_leave()/gdk_threads_enter() functions since
+        there is no more checks for threads lock in GTK 3.6.
+
+        * UIProcess/API/gtk/WebKitWebView.cpp:
+        (webkitWebViewRunAsModal):
+        * UIProcess/gtk/WebPopupMenuProxyGtk.cpp:
+        (WebKit::WebPopupMenuProxyGtk::showPopupMenu):
+
+2013-09-03  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] [WK2] TestContextMenu default-menu fails
+        https://bugs.webkit.org/show_bug.cgi?id=120459
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Add context menu items for downloading media elements.
+
+        * UIProcess/API/gtk/WebKitContextMenuActions.cpp:
+        (webkitContextMenuActionGetActionTag):
+        (webkitContextMenuActionGetForContextMenuItem):
+        (webkitContextMenuActionGetLabel):
+        * UIProcess/API/gtk/WebKitContextMenuActions.h:
+        * UIProcess/API/gtk/tests/TestContextMenu.cpp:
+
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        Cut down on double hashing and code needlessly using hash table iterators
+        https://bugs.webkit.org/show_bug.cgi?id=120611
+
+        Reviewed by Andreas Kling.
+
+        * Platform/CoreIPC/Connection.cpp:
+        (CoreIPC::Connection::waitForMessage): Use take instead of find/remove.
+
+        * UIProcess/WebPreferences.cpp:
+        (WebKit::WebPreferences::removePageGroup): Use the return value from remove
+        instead of find/remove.
+
+        * WebProcess/Geolocation/GeolocationPermissionRequestManager.cpp:
+        (WebKit::GeolocationPermissionRequestManager::cancelRequestForGeolocation):
+        (WebKit::GeolocationPermissionRequestManager::didReceiveGeolocationPermissionDecision):
+        Use take instead of find/remove.
+
+        * WebProcess/Plugins/Netscape/NetscapePlugin.cpp:
+        (WebKit::NetscapePlugin::frameDidFinishLoading): Use take instead of find/remove.
+        (WebKit::NetscapePlugin::frameDidFail): Use take instead of find/remove.
+
+        * WebProcess/WebPage/WebBackForwardListProxy.cpp:
+        (WebKit::WebBackForwardListProxy::removeItem): Use take instead of find/remove.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::didFinishCheckingText): Use take instead of get/remove so we
+        hash only once.
+        (WebKit::WebPage::didCancelCheckingText): Ditto.
+        (WebKit::WebPage::stopExtendingIncrementalRenderingSuppression): Use the return
+        value from remove instead of contains/remove so we hash only once.
+
+2013-09-02  Darin Adler  <darin@apple.com>
+
+        [Mac] No need for HardAutorelease, which is same as CFBridgingRelease
+        https://bugs.webkit.org/show_bug.cgi?id=120569
+
+        Reviewed by Andy Estes.
+
+        * Platform/mac/StringUtilities.mm:
+        (WebKit::nsStringFromWebCoreString): Use CFBridgingRelease. Also
+        changed condition to be a little cleaner and use a constant string for empty
+        strings as well as null strings.
+
+        * UIProcess/API/mac/WKBrowsingContextController.mm:
+        (autoreleased): Switched from autorelease to CFBridgingRelease for strings,
+        which eliminates a type cast and makes this work under GC, although I don't
+        think we should compile WebKit2 for GC.
+
+        * WebProcess/WebPage/mac/WKAccessibilityWebPageObject.mm:
+        (-[WKAccessibilityWebPageObject accessibilityAttributeValue:forParameter:]):
+        Use CFBridgingRelease.
+
+2013-09-02  Csaba Osztrogonác  <ossy@webkit.org>
+
+        REGRESSION(r154909): caused many crashes on Qt WK2, EFL WK2
+        https://bugs.webkit.org/show_bug.cgi?id=120600
+
+        Reviewed by Andreas Kling.
+
+        * Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp:
+        (CoreIPC::::decode): keyTime should be double here too.
+
+2013-09-01  Alexey Proskuryakov  <ap@apple.com>
+
+        [WK2][Mac] Drag and drop tests interfere with user's UI
+        https://bugs.webkit.org/show_bug.cgi?id=120538
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/API/mac/WKView.mm: (-[WKView _setDragImage:at:linkDrag:]): Make it possible
+        to override drag initiation in subclasses. It is a bit unfortunate that this exposes
+        a deprecated API that we call, but probably not unfortunate enough to invent a new
+        scary looking name for the same function, and conditionally call that if implemented
+        by subclass.
+
+2013-08-31  Santosh Mahto  <santosh.ma@samsung.com>
+
+        warning: unused parameter point and area in EwkView.cpp:1390
+        https://bugs.webkit.org/show_bug.cgi?id=120545
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/API/efl/EwkView.cpp:
+        (EwkView::didFindZoomableArea): Added UNUSED_PARAM.
+
+2013-08-31  Jae Hyun Park  <jae.park@company100.net>
+
+        Remove unused variable in LayerTreeHost
+        https://bugs.webkit.org/show_bug.cgi?id=118950
+
+        Reviewed by Anders Carlsson.
+
+        m_waitingForUIProcess has been renamed to m_isWaitingForRenderer as of
+        r152183, and it is a private variable in CoordinatedLayerTreeHost. Thus,
+        we don't need m_waitingForUIProcess in LayerTreeHost.
+
+        * WebProcess/WebPage/LayerTreeHost.h:
+
+2013-08-30  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] [WK2] TestWebKitWebView snapshot fails
+        https://bugs.webkit.org/show_bug.cgi?id=120404
+
+        Reviewed by Darin Adler.
+
+        Fixed the snapshot test failure caused by GTK no longer allowing
+        widgets to resize.  Instead, resize the WebView by resizing the
+        window and waiting for the event to complete asynchronously.
+
+        * UIProcess/API/gtk/tests/WebViewTest.cpp:
+        (WebViewTest::resizeView):
+
+2013-08-30  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Add USE(PROTECTION_SPACE_AUTH_CALLBACK) guards to canAuthenticateAgainstProtectionSpace()
+        https://bugs.webkit.org/show_bug.cgi?id=120351
+
+        Reviewed by Darin Adler.
+
+        * NetworkProcess/AsynchronousNetworkLoaderClient.cpp:
+        * NetworkProcess/AsynchronousNetworkLoaderClient.h:
+        * NetworkProcess/NetworkLoaderClient.h:
+        * NetworkProcess/SynchronousNetworkLoaderClient.cpp:
+        * NetworkProcess/SynchronousNetworkLoaderClient.h:
+
+2013-08-30  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        Fix, remove unused parameter in UIProcess/WebColorPicker.cpp.
+        https://bugs.webkit.org/show_bug.cgi?id=120525
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/WebColorPicker.cpp:
+        (WebKit::WebColorPicker::showColorPicker):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in WebPlatformStrategies.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120515
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebPage/TapHighlightController.cpp:
+        (WebKit::TapHighlightController::drawRect):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in FindController.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120516
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebPage/FindController.cpp:
+        (WebKit::FindController::drawRect):
+
+2013-08-30  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        Resolve unused parameter warning in WKBundlePageOverlay.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120521
+
+        Reviewed by Andreas Kling.
+
+        * WebProcess/InjectedBundle/API/c/WKBundlePageOverlay.cpp:
+        (WKBundlePageOverlayFractionFadedIn):
+
+2013-08-30  Antti Koivisto  <antti@apple.com>
+
+        Remove code behind ENABLE(DIALOG_ELEMENT)
+        https://bugs.webkit.org/show_bug.cgi?id=120467
+
+        Reviewed by Darin Adler.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-08-29  Sam Weinig  <sam@webkit.org>
+
+        Add ENABLE gaurds for Promises
+        https://bugs.webkit.org/show_bug.cgi?id=120488
+
+        Reviewed by Andreas Kling.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-08-29  Zan Dobersek  <zdobersek@igalia.com>
+
+        [Automake] libWebCoreDOM.la could use a better name
+        https://bugs.webkit.org/show_bug.cgi?id=120232
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am: libWebCoreDOM has a new name - libGObjectDOMBindings.
+
+2013-08-29  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Download Web Archive of Inspected Page
+        https://bugs.webkit.org/show_bug.cgi?id=119774
+
+        Reviewed by Timothy Hatcher.
+
+        Update to support InspectorFrontendHost.save's new base64Encoded
+        parameter. It means the incoming content is binary data, not a string.
+
+        * UIProcess/WebInspectorProxy.cpp:
+        (WebKit::WebInspectorProxy::save):
+        * UIProcess/WebInspectorProxy.h:
+        * UIProcess/WebInspectorProxy.messages.in:
+        * UIProcess/efl/WebInspectorProxyEfl.cpp:
+        (WebKit::WebInspectorProxy::platformSave):
+        * UIProcess/gtk/WebInspectorProxyGtk.cpp:
+        (WebKit::WebInspectorProxy::platformSave):
+        * UIProcess/mac/WebInspectorProxyMac.mm:
+        (WebKit::WebInspectorProxy::platformSave):
+        * UIProcess/qt/WebInspectorProxyQt.cpp:
+        (WebKit::WebInspectorProxy::platformSave):
+        * WebProcess/WebCoreSupport/WebInspectorFrontendClient.cpp:
+        (WebKit::WebInspectorFrontendClient::save):
+        * WebProcess/WebCoreSupport/WebInspectorFrontendClient.h:
+        * WebProcess/WebPage/WebInspector.cpp:
+        (WebKit::WebInspector::save):
+        * WebProcess/WebPage/WebInspector.h:
+
+2013-08-29  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] [WK2] TestWebKitWebView page-visibility fails
+        https://bugs.webkit.org/show_bug.cgi?id=120406
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Removed the webkit prefix for document visibility properties.
+
+        * UIProcess/API/gtk/tests/TestWebKitWebView.cpp:
+        (testWebViewPageVisibility):
+
+2013-08-28  Chris Curtis  <chris_curtis@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=119548
+        Refactoring Exception throws.
+
+        Reviewed by Geoffrey Garen.
+        
+        Moved setting an exception into the vm, These functions changed to use the new functionality.
+
+        * WebProcess/Plugins/Netscape/JSNPObject.cpp:
+        (WebKit::JSNPObject::callMethod):
+        (WebKit::JSNPObject::callObject):
+        (WebKit::JSNPObject::callConstructor):
+        (WebKit::JSNPObject::throwInvalidAccessError):
+        * WebProcess/Plugins/Netscape/NPRuntimeObjectMap.cpp:
+        (WebKit::NPRuntimeObjectMap::moveGlobalExceptionToExecState):
+
+2013-08-28  Anders Carlsson  <andersca@apple.com>
+
+        Allow the Flash plug-in to open its preference pane
+        https://bugs.webkit.org/show_bug.cgi?id=120431
+        <rdar://problem/14857039>
+
+        Reviewed by Andreas Kling.
+
+        Forward the -[NSWorkspace openFile:] call to the UI process and allow opening
+        the Flash preference pane (if Flash asks for it).
+
+        * PluginProcess/PluginProcess.h:
+        * PluginProcess/mac/PluginProcessMac.mm:
+        (WebKit::replacedNSWorkspace_openFile):
+        (WebKit::initializeCocoaOverrides):
+        (WebKit::PluginProcess::openFile):
+        * UIProcess/Plugins/PluginProcessProxy.h:
+        * UIProcess/Plugins/PluginProcessProxy.messages.in:
+        * UIProcess/Plugins/mac/PluginProcessProxyMac.mm:
+        (WebKit::PluginProcessProxy::openURL):
+        (WebKit::shouldOpenFile):
+        (WebKit::PluginProcessProxy::openFile):
+
+2013-08-28  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        [wk2] Resolve unused parameters in WebPlatformStrategies.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120410
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.cpp:
+        (WebKit::WebPlatformStrategies::getPluginInfo):
+        (WebKit::WebPlatformStrategies::transientLocalStorageNamespace):
+
+2013-08-28  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        [wk2] Resolve unused parameter warnings in the WebProcess.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120412
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::startMemorySampler):
+
+2013-08-28  Darin Adler  <darin@apple.com>
+
+        Eliminate Pasteboard::generalPasteboard
+        https://bugs.webkit.org/show_bug.cgi?id=120392
+
+        Reviewed by Anders Carlsson.
+
+        * WebProcess/WebCoreSupport/WebEditorClient.cpp:
+        (WebKit::WebEditorClient::updateGlobalSelection):
+        Use createForGlobalSelection instead of generalPasteboard and setSelectionMode.
+
+2013-08-28  Ábrahám Gábor  <abrhm@inf.u-szeged.hu>
+
+        Fix unused variable warning.
+        https://bugs.webkit.org/show_bug.cgi?id=120396
+
+        Reviewed by Allan Sandfeld Jensen.
+
+        Fix unused variable compiler warning in PageOverlay.h
+
+        * WebProcess/WebPage/PageOverlay.h:
+        (WebKit::PageOverlay::Client::copyAccessibilityAttributeValue):
+        (WebKit::PageOverlay::Client::copyAccessibilityAttributeNames):
+
+
+2013-08-28  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][WK2] Only set up a RedirectedXCompositeWindow if running under an X11 display
+        https://bugs.webkit.org/show_bug.cgi?id=120321
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Only set up the RedirectedXCompositeWindow member of the WebKitWebViewBasePrivate struct
+        if we're running under an X11 display. This is now done in the webkitWebViewBaseConstructed
+        function rather than the constructor, which is removed.
+
+        This allows for the UIProcess to run in a Wayland environment even when built with accelerated
+        compositing enabled. Of course, at the moment there's no support yet for accelerated compositing
+        under Wayland, so we fall back to rendering the backing store. No changes are introduced to
+        the behavior under X11 - accelerated compositing will be used where possible, if supported.
+
+        * UIProcess/API/gtk/WebKitWebViewBase.cpp:
+        (webkitWebViewBaseConstructed):
+
+2013-08-28  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][WK2] Disable accelerated compositing under Wayland
+        https://bugs.webkit.org/show_bug.cgi?id=120347
+
+        Reviewed by Martin Robinson.
+
+        Accelerated compositing is not yet supported under the Wayland display protocol,
+        so it should be disabled. Since it is enabled by default and the GTK WK2 API does
+        not provide any way to change that, it's enough to disable it when attaching the
+        WebKitSettings object to the WebPageGroup if running under Wayland.
+
+        * UIProcess/API/gtk/WebKitWebViewGroup.cpp:
+        (webkitWebViewGroupAttachSettingsToPageGroup):
+
+2013-08-28  Alexandre Abreu  <alexandre.abreu@canonical.com>
+
+        Add a 'isMainFrame' parameter to QWebNavigationRequest.
+        https://bugs.webkit.org/show_bug.cgi?id=118860
+
+        Reviewed by Simon Hausmann.
+
+        * UIProcess/API/qt/qwebnavigationrequest.cpp:
+        (QWebNavigationRequestPrivate::QWebNavigationRequestPrivate):
+        (QWebNavigationRequest::QWebNavigationRequest):
+        (QWebNavigationRequest::navigationType):
+        (QWebNavigationRequest::isMainFrame):
+        * UIProcess/API/qt/qwebnavigationrequest_p.h:
+        * UIProcess/API/qt/tests/publicapi/tst_publicapi.cpp:
+        * UIProcess/qt/QtWebPagePolicyClient.cpp:
+        (WebKit::QtWebPagePolicyClient::decidePolicyForNavigationAction):
+        * UIProcess/qt/QtWebPagePolicyClient.h:
+
+2013-08-27  Luciano Wolf  <luciano.wolf@openbossa.org>
+
+        100% cpu usage for "transition: opacity" animation
+        https://bugs.webkit.org/show_bug.cgi?id=120012
+
+        Reviewed by Noam Rosenthal.
+
+        Schedule animation timer after scheduling a layer flush. This way it
+        won't overwrite animation timer with "0", thus avoiding 100% cpu usage.
+
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp:
+        (WebKit::CoordinatedLayerTreeHost::scheduleAnimation):
+
+2013-08-27  Csaba Osztrogonác  <ossy@webkit.org>
+
+        [WK2][Soup] Add WebFrameNetworkingContext::webFrameLoaderClient() after r154490
+        https://bugs.webkit.org/show_bug.cgi?id=120353
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.cpp:
+        * WebProcess/WebCoreSupport/soup/WebFrameNetworkingContext.cpp:
+        (WebKit::WebFrameNetworkingContext::webFrameLoaderClient):
+        * WebProcess/WebCoreSupport/soup/WebFrameNetworkingContext.h:
+
 2013-08-26  Santosh Mahto  <santosh.ma@samsung.com>
 
         Fixing compilation warning "unused parameter" in WebPageProxy.cpp

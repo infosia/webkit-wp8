@@ -108,6 +108,7 @@
 #include "WindowFeatures.h"
 #include "XMLDocumentParser.h"
 #include <wtf/CurrentTime.h>
+#include <wtf/Ref.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
@@ -303,7 +304,7 @@ void FrameLoader::urlSelected(const FrameLoadRequest& passedRequest, PassRefPtr<
 {
     ASSERT(!m_suppressOpenerInNewFrame);
 
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
     FrameLoadRequest frameRequest(passedRequest);
 
     if (m_frame.script().executeIfJavaScriptURL(frameRequest.resourceRequest().url(), shouldReplaceDocumentIfJavaScriptURL))
@@ -476,7 +477,7 @@ void FrameLoader::stop()
 {
     // http://bugs.webkit.org/show_bug.cgi?id=10854
     // The frame's last ref may be removed and it will be deleted by checkCompleted().
-    RefPtr<Frame> protector(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     if (DocumentParser* parser = m_frame.document()->parser()) {
         parser->stopParsing();
@@ -757,7 +758,7 @@ bool FrameLoader::allAncestorsAreComplete() const
 
 void FrameLoader::checkCompleted()
 {
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
     m_shouldCallCheckCompleted = false;
 
     if (m_frame.view())
@@ -802,7 +803,7 @@ void FrameLoader::checkCompleted()
 
 void FrameLoader::checkTimerFired(Timer<FrameLoader>*)
 {
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     if (Page* page = m_frame.page()) {
         if (page->defersLoading())
@@ -1089,7 +1090,7 @@ bool FrameLoader::isComplete() const
 
 void FrameLoader::completed()
 {
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     for (Frame* descendant = m_frame.tree().traverseNext(&m_frame); descendant; descendant = descendant->tree().traverseNext(&m_frame))
         descendant->navigationScheduler().startTimer();
@@ -1154,7 +1155,7 @@ void FrameLoader::loadFrameRequest(const FrameLoadRequest& request, bool lockHis
     PassRefPtr<Event> event, PassRefPtr<FormState> formState, ShouldSendReferrer shouldSendReferrer)
 {    
     // Protect frame from getting blown away inside dispatchBeforeLoadEvent in loadWithDocumentLoader.
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     KURL url = request.resourceRequest().url();
 
@@ -1365,7 +1366,7 @@ void FrameLoader::load(DocumentLoader* newDocumentLoader)
 void FrameLoader::loadWithDocumentLoader(DocumentLoader* loader, FrameLoadType type, PassRefPtr<FormState> prpFormState)
 {
     // Retain because dispatchBeforeLoadEvent may release the last reference to it.
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     ASSERT(m_client.hasWebView());
 
@@ -1562,7 +1563,7 @@ void FrameLoader::stopAllLoaders(ClearProvisionalItemPolicy clearProvisionalItem
     
     // Calling stopLoading() on the provisional document loader can blow away
     // the frame from underneath.
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     m_inStopAllLoaders = true;
 
@@ -1683,7 +1684,7 @@ void FrameLoader::setState(FrameState newState)
         provisionalLoadStarted();
     else if (newState == FrameStateComplete) {
         frameLoadCompleted();
-        storedTimeOfLastCompletedLoad = currentTime();
+        storedTimeOfLastCompletedLoad = monotonicallyIncreasingTime();
         if (m_documentLoader)
             m_documentLoader->stopRecordingResponses();
     }
@@ -1700,7 +1701,7 @@ void FrameLoader::commitProvisionalLoad()
 {
     RefPtr<CachedPage> cachedPage = m_loadingFromCachedPage ? pageCache()->get(history().provisionalItem()) : 0;
     RefPtr<DocumentLoader> pdl = m_provisionalDocumentLoader;
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     LOG(PageCache, "WebCoreLoading %s: About to commit provisional load from previous URL '%s' to new URL '%s'", m_frame.tree().uniqueName().string().utf8().data(),
         m_frame.document() ? m_frame.document()->url().stringCenterEllipsizedToLength().utf8().data() : "",
@@ -1712,7 +1713,7 @@ void FrameLoader::commitProvisionalLoad()
     // We are doing this here because we know for sure that a new page is about to be loaded.
     HistoryItem* item = history().currentItem();
     if (!m_frame.tree().parent() && pageCache()->canCache(m_frame.page()) && !item->isInPageCache())
-        pageCache()->add(item, m_frame.page());
+        pageCache()->add(item, *m_frame.page());
 
     if (m_loadType != FrameLoadTypeReplace)
         closeOldDataSources();
@@ -1737,7 +1738,7 @@ void FrameLoader::commitProvisionalLoad()
     
     if (cachedPage && cachedPage->document()) {
         prepareForCachedPageRestore();
-        cachedPage->restore(m_frame.page());
+        cachedPage->restore(*m_frame.page());
 
         // The page should be removed from the cache immediately after a restoration in order for the PageCache to be consistent.
         pageCache()->remove(history().currentItem());
@@ -1959,7 +1960,7 @@ void FrameLoader::prepareForCachedPageRestore()
 {
     ASSERT(!m_frame.tree().parent());
     ASSERT(m_frame.page());
-    ASSERT(&m_frame.page()->mainFrame() == &m_frame);
+    ASSERT(m_frame.page()->frameIsMainFrame(&m_frame));
 
     m_frame.navigationScheduler().cancel();
 
@@ -2028,7 +2029,7 @@ bool FrameLoader::isHostedByObjectElement() const
 
 bool FrameLoader::isLoadingMainFrame() const
 {
-    return m_frame.page() && &m_frame.page()->mainFrame() == &m_frame;
+    return m_frame.page() && m_frame.page()->frameIsMainFrame(&m_frame);
 }
 
 bool FrameLoader::isReplacing() const
@@ -2178,7 +2179,7 @@ void FrameLoader::checkLoadCompleteForThisFrame()
 
             m_progressTracker->progressCompleted();
             if (Page* page = m_frame.page()) {
-                if (&m_frame == &page->mainFrame())
+                if (page->frameIsMainFrame(&m_frame))
                     page->resetRelevantPaintedObjectCounter();
             }
 
@@ -2287,7 +2288,7 @@ void FrameLoader::didLayout(LayoutMilestones milestones)
 {
 #if !ASSERT_DISABLED
     if (Page* page = m_frame.page())
-        ASSERT(&page->mainFrame() == &m_frame);
+        ASSERT(page->frameIsMainFrame(&m_frame));
 #endif
 
     m_client.dispatchDidLayout(milestones);
@@ -2614,7 +2615,7 @@ const ResourceRequest& FrameLoader::originalRequest() const
 void FrameLoader::receivedMainResourceError(const ResourceError& error)
 {
     // Retain because the stop may release the last reference to it.
-    RefPtr<Frame> protect(&m_frame);
+    Ref<Frame> protect(m_frame);
 
     RefPtr<DocumentLoader> loader = activeDocumentLoader();
     // FIXME: Don't want to do this if an entirely new load is going, so should check
@@ -2861,7 +2862,7 @@ void FrameLoader::continueLoadAfterNavigationPolicy(const ResourceRequest&, Pass
 
 #if ENABLE(JAVASCRIPT_DEBUGGER) && ENABLE(INSPECTOR)
     if (Page* page = m_frame.page()) {
-        if (&page->mainFrame() == &m_frame)
+        if (page->frameIsMainFrame(&m_frame))
             page->inspectorController()->resume();
     }
 #endif
@@ -3328,7 +3329,7 @@ void FrameLoader::dispatchDidCommitLoad()
 
     InspectorInstrumentation::didCommitLoad(&m_frame, m_documentLoader.get());
 
-    if (&m_frame.page()->mainFrame() == &m_frame)
+    if (m_frame.page()->frameIsMainFrame(&m_frame))
         m_frame.page()->featureObserver()->didCommitLoad();
 
 }

@@ -1,3 +1,63 @@
+2013-08-30  Andreas Kling  <akling@apple.com>
+
+        Windows build fix for Document& Node::document().
+
+        * DOMCoreClasses.cpp:
+        (DOMNode::createInstance):
+
+2013-08-28  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] LayoutTests on Windows debug fails and exits early
+        https://bugs.webkit.org/show_bug.cgi?id=120438
+
+        Reviewed by Tim Horton.
+
+        Visual Studio mishandles char* containing utf8-content. Must manually
+        escape non-ASCII characters so the byte stream is correct for localized
+        string lookup.
+
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::cannotShowURLError): Replace unicode apostrophe
+        character with utf8-byte equivalent.
+        (WebFrameLoaderClient::cannotShowMIMETypeError): Ditto.
+        (WebFrameLoaderClient::dispatchDidFailToStartPlugin): Ditto.
+
+2013-08-28  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Provide useful error messages for WebKitErrorDomain errors
+        https://bugs.webkit.org/show_bug.cgi?id=120428
+
+        Reviewed by Anders Carlsson.
+
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::cancelledError): Provide text for this error.
+        (WebFrameLoaderClient::blockedError): Hook up WEB_UI_STRING for this error.
+        (WebFrameLoaderClient::cannotShowURLError): Ditto
+        (WebFrameLoaderClient::interruptedForPolicyChangeError): Ditto
+        (WebFrameLoaderClient::cannotShowMIMETypeError): Ditto
+        (WebFrameLoaderClient::fileDoesNotExistError): Provide text for this error.
+        (WebFrameLoaderClient::pluginWillHandleLoadError): Hook up WEB_UI_STRING for this error.
+        (WebFrameLoaderClient::dispatchDidFailToStartPlugin): Ditto.
+        (WebFrameLoaderClient::createJavaAppletWidget): Ditto.
+        (WebFrameLoaderClient::webHistory): Remove blank line above method.
+
+2013-08-27  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Loader is not properly determining supported MIME types
+        https://bugs.webkit.org/show_bug.cgi?id=120383
+
+        Reviewed by Eric Carlson.
+
+        * WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebFrameLoaderClient::canShowMIMEType): Modify to ask WebView if it can
+        display the media type. Use new helper function to avoid converting a String
+        to BSTR, only to immediatly be converted from BSTR back to String.
+        (WebFrameLoaderClient::canShowMIMETypeAsHTML): Ditto.
+        * WebView.cpp:
+        (WebView::canShowMIMEType): Move logic to a new (similarly named) helper function.
+        (WebView::canShowMIMETypeAsHTML): Ditto.
+        * WebView.h: Add declaration for two new helper functions.
+
 2013-08-26  Ryosuke Niwa  <rniwa@webkit.org>
 
         Another Windows build fix after r154658.

@@ -111,6 +111,7 @@
 #include <WebCore/Logging.h>
 #include <WebCore/MIMETypeRegistry.h>
 #include <WebCore/MemoryCache.h>
+#include <WebCore/NotImplemented.h>
 #include <WebCore/Page.h>
 #include <WebCore/PageCache.h>
 #include <WebCore/PageGroup.h>
@@ -1348,7 +1349,7 @@ bool WebView::handleContextMenuEvent(WPARAM wParam, LPARAM lParam)
 
     IntPoint documentPoint(m_page->mainFrame().view()->windowToContents(coords));
     HitTestResult result = m_page->mainFrame().eventHandler().hitTestResultAtPoint(documentPoint);
-    Frame* targetFrame = result.innerNonSharedNode() ? result.innerNonSharedNode()->document()->frame() : &m_page->focusController().focusedOrMainFrame();
+    Frame* targetFrame = result.innerNonSharedNode() ? result.innerNonSharedNode()->document().frame() : &m_page->focusController().focusedOrMainFrame();
 
     targetFrame->view()->setCursor(pointerCursor());
     PlatformMouseEvent mouseEvent(m_viewWindow, WM_RBUTTONUP, wParam, lParam);
@@ -1969,7 +1970,7 @@ bool WebView::handleEditingKeyboardEvent(KeyboardEvent* evt)
 {
     Node* node = evt->target()->toNode();
     ASSERT(node);
-    Frame* frame = node->document()->frame();
+    Frame* frame = node->document().frame();
     ASSERT(frame);
 
     const PlatformKeyboardEvent* keyEvent = evt->keyEvent();
@@ -2530,39 +2531,51 @@ ULONG STDMETHODCALLTYPE WebView::Release(void)
 
 // IWebView --------------------------------------------------------------------
 
-HRESULT STDMETHODCALLTYPE WebView::canShowMIMEType( 
-    /* [in] */ BSTR mimeType,
-    /* [retval][out] */ BOOL* canShow)
+HRESULT WebView::canShowMIMEType(/* [in] */ BSTR mimeType, /* [retval][out] */ BOOL* canShow)
 {
-    String mimeTypeStr = toString(mimeType);
-
     if (!canShow)
         return E_POINTER;
 
-    Frame* coreFrame = core(m_mainFrame);
-    bool allowPlugins = coreFrame && coreFrame->loader().subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin);
-
-    *canShow = MIMETypeRegistry::isSupportedImageMIMEType(mimeTypeStr)
-        || MIMETypeRegistry::isSupportedNonImageMIMEType(mimeTypeStr);
-
-    if (!*canShow && m_page && m_page->pluginData()) {
-        *canShow = (m_page->pluginData()->supportsMimeType(mimeTypeStr, PluginData::AllPlugins) && allowPlugins)
-            || m_page->pluginData()->supportsMimeType(mimeTypeStr, PluginData::OnlyApplicationPlugins);
-    }
-
-    if (!*canShow)
-        *canShow = shouldUseEmbeddedView(mimeTypeStr);
+    *canShow = canShowMIMEType(toString(mimeType));
 
     return S_OK;
 }
 
-HRESULT STDMETHODCALLTYPE WebView::canShowMIMETypeAsHTML( 
-    /* [in] */ BSTR /*mimeType*/,
-    /* [retval][out] */ BOOL* canShow)
+bool WebView::canShowMIMEType(const String& mimeType)
+{
+    Frame* coreFrame = core(m_mainFrame);
+    bool allowPlugins = coreFrame && coreFrame->loader().subframeLoader()->allowPlugins(NotAboutToInstantiatePlugin);
+
+    bool canShow = MIMETypeRegistry::isSupportedImageMIMEType(mimeType)
+        || MIMETypeRegistry::isSupportedNonImageMIMEType(mimeType)
+        || MIMETypeRegistry::isSupportedMediaMIMEType(mimeType);
+
+    if (!canShow && m_page) {
+        canShow = (m_page->pluginData().supportsMimeType(mimeType, PluginData::AllPlugins) && allowPlugins)
+            || m_page->pluginData().supportsMimeType(mimeType, PluginData::OnlyApplicationPlugins);
+    }
+
+    if (!canShow)
+        canShow = shouldUseEmbeddedView(mimeType);
+
+    return canShow;
+}
+
+HRESULT WebView::canShowMIMETypeAsHTML(/* [in] */ BSTR mimeType, /* [retval][out] */ BOOL* canShow)
+{
+    if (!canShow)
+        return E_POINTER;
+
+    *canShow = canShowMIMETypeAsHTML(toString(mimeType));
+
+    return S_OK;
+}
+
+bool WebView::canShowMIMETypeAsHTML(const String& /*mimeType*/)
 {
     // FIXME
-    *canShow = TRUE;
-    return S_OK;
+    notImplemented();
+    return true;
 }
 
 HRESULT STDMETHODCALLTYPE WebView::MIMETypesShownAsHTML( 
@@ -6891,25 +6904,25 @@ void WebView::fullScreenClientSetParentWindow(HWND hostWindow)
 void WebView::fullScreenClientWillEnterFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document()->webkitWillEnterFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitWillEnterFullScreenForElement(m_fullScreenElement.get());
 }
 
 void WebView::fullScreenClientDidEnterFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document()->webkitDidEnterFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitDidEnterFullScreenForElement(m_fullScreenElement.get());
 }
 
 void WebView::fullScreenClientWillExitFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document()->webkitWillExitFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitWillExitFullScreenForElement(m_fullScreenElement.get());
 }
 
 void WebView::fullScreenClientDidExitFullScreen()
 {
     ASSERT(m_fullScreenElement);
-    m_fullScreenElement->document()->webkitDidExitFullScreenForElement(m_fullScreenElement.get());
+    m_fullScreenElement->document().webkitDidExitFullScreenForElement(m_fullScreenElement.get());
     m_fullScreenElement = nullptr;
 }
 

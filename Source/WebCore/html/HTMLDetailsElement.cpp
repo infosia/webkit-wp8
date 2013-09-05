@@ -27,7 +27,7 @@
 #include "HTMLSummaryElement.h"
 #include "LocalizedStrings.h"
 #include "MouseEvent.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include "ShadowRoot.h"
 #include "Text.h"
 
@@ -113,13 +113,13 @@ HTMLDetailsElement::HTMLDetailsElement(const QualifiedName& tagName, Document* d
 
 RenderObject* HTMLDetailsElement::createRenderer(RenderArena* arena, RenderStyle*)
 {
-    return new (arena) RenderBlock(this);
+    return new (arena) RenderBlockFlow(this);
 }
 
 void HTMLDetailsElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsSummaryElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(DetailsContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsSummaryElement::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsContentElement::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
 }
 
 Element* HTMLDetailsElement::findMainSummary() const
@@ -138,7 +138,7 @@ void HTMLDetailsElement::parseAttribute(const QualifiedName& name, const AtomicS
         bool oldValue = m_isOpen;
         m_isOpen = !value.isNull();
         if (oldValue != m_isOpen && attached())
-            Style::reattachRenderTree(this);
+            Style::reattachRenderTree(*this);
     } else
         HTMLElement::parseAttribute(name, value);
 }

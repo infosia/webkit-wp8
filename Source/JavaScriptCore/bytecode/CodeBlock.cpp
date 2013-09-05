@@ -34,6 +34,7 @@
 #include "CallLinkStatus.h"
 #include "DFGCapabilities.h"
 #include "DFGCommon.h"
+#include "DFGDriver.h"
 #include "DFGNode.h"
 #include "DFGRepatch.h"
 #include "DFGWorklist.h"
@@ -1478,6 +1479,7 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
     , m_numVars(other.m_numVars)
     , m_isConstructor(other.m_isConstructor)
     , m_shouldAlwaysBeInlined(true)
+    , m_didFailFTLCompilation(false)
     , m_unlinkedCode(*other.m_vm, other.m_ownerExecutable.get(), other.m_unlinkedCode.get())
     , m_ownerExecutable(*other.m_vm, other.m_ownerExecutable.get(), other.m_ownerExecutable.get())
     , m_vm(other.m_vm)
@@ -1503,6 +1505,7 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
     , m_capabilityLevelState(DFG::CapabilityLevelNotSet)
 #endif
 {
+    ASSERT(m_heap->isDeferred());
     setNumParameters(other.numParameters());
     optimizeAfterWarmUp();
     jitAfterWarmUp();
@@ -1515,6 +1518,9 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
         m_rareData->m_switchJumpTables = other.m_rareData->m_switchJumpTables;
         m_rareData->m_stringSwitchJumpTables = other.m_rareData->m_stringSwitchJumpTables;
     }
+    
+    m_heap->m_codeBlocks.add(this);
+    m_heap->reportExtraMemoryCost(sizeof(CodeBlock));
 }
 
 CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlinkedCodeBlock, JSScope* scope, PassRefPtr<SourceProvider> sourceProvider, unsigned sourceOffset, unsigned firstLineColumnOffset)
@@ -1524,6 +1530,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     , m_numVars(unlinkedCodeBlock->m_numVars)
     , m_isConstructor(unlinkedCodeBlock->isConstructor())
     , m_shouldAlwaysBeInlined(true)
+    , m_didFailFTLCompilation(false)
     , m_unlinkedCode(m_globalObject->vm(), ownerExecutable, unlinkedCodeBlock)
     , m_ownerExecutable(m_globalObject->vm(), ownerExecutable, ownerExecutable)
     , m_vm(unlinkedCodeBlock->vm())
@@ -1543,7 +1550,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     , m_capabilityLevelState(DFG::CapabilityLevelNotSet)
 #endif
 {
-    m_vm->startedCompiling(this);
+    ASSERT(m_heap->isDeferred());
 
     ASSERT(m_source);
     setNumParameters(unlinkedCodeBlock->numParameters());
@@ -1634,7 +1641,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
     // Allocate metadata buffers for the bytecode
 #if ENABLE(LLINT)
     if (size_t size = unlinkedCodeBlock->numberOfLLintCallLinkInfos())
-        m_llintCallLinkInfos.grow(size);
+        m_llintCallLinkInfos.resizeToFit(size);
 #endif
 #if ENABLE(DFG_JIT)
     if (size_t size = unlinkedCodeBlock->numberOfArrayProfiles())
@@ -1841,19 +1848,14 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
 
     if (Options::dumpGeneratedBytecodes())
         dumpBytecode();
-    m_vm->finishedCompiling(this);
+    m_heap->m_codeBlocks.add(this);
+    m_heap->reportExtraMemoryCost(sizeof(CodeBlock) + m_instructions.size() * sizeof(Instruction));
 }
 
 CodeBlock::~CodeBlock()
 {
     if (m_vm->m_perBytecodeProfiler)
         m_vm->m_perBytecodeProfiler->notifyDestruction(this);
-    
-#if ENABLE(DFG_JIT)
-    // Remove myself from the set of DFG code blocks. Note that I may not be in this set
-    // (because I'm not a DFG code block), in which case this is a no-op anyway.
-    m_vm->heap.m_dfgCodeBlocks.m_set.remove(this);
-#endif
     
 #if ENABLE(VERBOSE_VALUE_PROFILE)
     dumpValueProfiles();
@@ -1902,38 +1904,60 @@ void EvalCodeCache::visitAggregate(SlotVisitor& visitor)
         visitor.append(&ptr->value);
 }
 
+CodeBlock* CodeBlock::specialOSREntryBlockOrNull()
+{
+#if ENABLE(FTL_JIT)
+    if (jitType() != JITCode::DFGJIT)
+        return 0;
+    DFG::JITCode* jitCode = m_jitCode->dfg();
+    return jitCode->osrEntryBlock.get();
+#else // ENABLE(FTL_JIT)
+    return 0;
+#endif // ENABLE(FTL_JIT)
+}
+
 void CodeBlock::visitAggregate(SlotVisitor& visitor)
 {
-#if ENABLE(PARALLEL_GC) && ENABLE(DFG_JIT)
-    if (JITCode::isOptimizingJIT(jitType())) {
-        DFG::CommonData* dfgCommon = m_jitCode->dfgCommon();
-        
-        // I may be asked to scan myself more than once, and it may even happen concurrently.
-        // To this end, use a CAS loop to check if I've been called already. Only one thread
-        // may proceed past this point - whichever one wins the CAS race.
-        unsigned oldValue;
-        do {
-            oldValue = dfgCommon->visitAggregateHasBeenCalled;
-            if (oldValue) {
-                // Looks like someone else won! Return immediately to ensure that we don't
-                // trace the same CodeBlock concurrently. Doing so is hazardous since we will
-                // be mutating the state of ValueProfiles, which contain JSValues, which can
-                // have word-tearing on 32-bit, leading to awesome timing-dependent crashes
-                // that are nearly impossible to track down.
-                
-                // Also note that it must be safe to return early as soon as we see the
-                // value true (well, (unsigned)1), since once a GC thread is in this method
-                // and has won the CAS race (i.e. was responsible for setting the value true)
-                // it will definitely complete the rest of this method before declaring
-                // termination.
-                return;
-            }
-        } while (!WTF::weakCompareAndSwap(&dfgCommon->visitAggregateHasBeenCalled, 0, 1));
-    }
-#endif // ENABLE(PARALLEL_GC) && ENABLE(DFG_JIT)
+#if ENABLE(PARALLEL_GC)
+    // I may be asked to scan myself more than once, and it may even happen concurrently.
+    // To this end, use a CAS loop to check if I've been called already. Only one thread
+    // may proceed past this point - whichever one wins the CAS race.
+    unsigned oldValue;
+    do {
+        oldValue = m_visitAggregateHasBeenCalled;
+        if (oldValue) {
+            // Looks like someone else won! Return immediately to ensure that we don't
+            // trace the same CodeBlock concurrently. Doing so is hazardous since we will
+            // be mutating the state of ValueProfiles, which contain JSValues, which can
+            // have word-tearing on 32-bit, leading to awesome timing-dependent crashes
+            // that are nearly impossible to track down.
+            
+            // Also note that it must be safe to return early as soon as we see the
+            // value true (well, (unsigned)1), since once a GC thread is in this method
+            // and has won the CAS race (i.e. was responsible for setting the value true)
+            // it will definitely complete the rest of this method before declaring
+            // termination.
+            return;
+        }
+    } while (!WTF::weakCompareAndSwap(&m_visitAggregateHasBeenCalled, 0, 1));
+#endif // ENABLE(PARALLEL_GC)
     
     if (!!m_alternative)
         m_alternative->visitAggregate(visitor);
+    
+    if (CodeBlock* otherBlock = specialOSREntryBlockOrNull())
+        otherBlock->visitAggregate(visitor);
+
+    visitor.reportExtraMemoryUsage(sizeof(CodeBlock));
+    if (m_jitCode)
+        visitor.reportExtraMemoryUsage(m_jitCode->size());
+    if (m_instructions.size()) {
+        // Divide by refCount() because m_instructions points to something that is shared
+        // by multiple CodeBlocks, and we only want to count it towards the heap size once.
+        // Having each CodeBlock report only its proportional share of the size is one way
+        // of accomplishing this.
+        visitor.reportExtraMemoryUsage(m_instructions.size() * sizeof(Instruction) / m_instructions.refCount());
+    }
 
     visitor.append(&m_unlinkedCode);
 
@@ -2362,37 +2386,30 @@ void CodeBlock::stronglyVisitWeakReferences(SlotVisitor& visitor)
 
 CodeBlock* CodeBlock::baselineVersion()
 {
-#if ENABLE(JIT)
-    // When we're initializing the original baseline code block, we won't be able
-    // to get its replacement. But we'll know that it's the original baseline code
-    // block because it won't have JIT code yet and it won't have an alternative.
-    if (jitType() == JITCode::None && !alternative())
+    if (JITCode::isBaselineCode(jitType()))
         return this;
-    
+#if ENABLE(JIT)
     CodeBlock* result = replacement();
-    ASSERT(result);
     while (result->alternative())
         result = result->alternative();
-    ASSERT(result);
-    ASSERT(JITCode::isBaselineCode(result->jitType()));
+    RELEASE_ASSERT(result);
+    RELEASE_ASSERT(JITCode::isBaselineCode(result->jitType()));
     return result;
 #else
-    return this;
+    RELEASE_ASSERT_NOT_REACHED();
+    return 0;
 #endif
 }
 
 #if ENABLE(JIT)
+bool CodeBlock::hasOptimizedReplacement(JITCode::JITType typeToReplace)
+{
+    return JITCode::isHigherTier(replacement()->jitType(), typeToReplace);
+}
+
 bool CodeBlock::hasOptimizedReplacement()
 {
-    ASSERT(JITCode::isBaselineCode(jitType()));
-    bool result = JITCode::isHigherTier(replacement()->jitType(), jitType());
-    if (result)
-        ASSERT(JITCode::isOptimizingJIT(replacement()->jitType()));
-    else {
-        ASSERT(JITCode::isBaselineCode(replacement()->jitType()));
-        ASSERT(replacement() == this);
-    }
-    return result;
+    return hasOptimizedReplacement(jitType());
 }
 #endif
 
@@ -2441,9 +2458,6 @@ void CodeBlock::expressionRangeForBytecodeOffset(unsigned bytecodeOffset, int& d
 
 void CodeBlock::shrinkToFit(ShrinkMode shrinkMode)
 {
-#if ENABLE(LLINT)
-    m_llintCallLinkInfos.shrinkToFit();
-#endif
 #if ENABLE(JIT)
     m_structureStubInfos.shrinkToFit();
     m_callLinkInfos.shrinkToFit();
@@ -2536,20 +2550,22 @@ void CodeBlock::linkIncomingCall(ExecState* callerFrame, CallLinkInfo* incoming)
     noticeIncomingCall(callerFrame);
     m_incomingCalls.push(incoming);
 }
+#endif // ENABLE(JIT)
 
 void CodeBlock::unlinkIncomingCalls()
 {
 #if ENABLE(LLINT)
     while (m_incomingLLIntCalls.begin() != m_incomingLLIntCalls.end())
         m_incomingLLIntCalls.begin()->unlink();
-#endif
+#endif // ENABLE(LLINT)
+#if ENABLE(JIT)
     if (m_incomingCalls.isEmpty())
         return;
     RepatchBuffer repatchBuffer(this);
     while (m_incomingCalls.begin() != m_incomingCalls.end())
         m_incomingCalls.begin()->unlink(*m_vm, repatchBuffer);
-}
 #endif // ENABLE(JIT)
+}
 
 #if ENABLE(LLINT)
 void CodeBlock::linkIncomingCall(ExecState* callerFrame, LLIntCallLinkInfo* incoming)
@@ -2659,6 +2675,8 @@ void CodeBlock::clearEvalCache()
 {
     if (!!m_alternative)
         m_alternative->clearEvalCache();
+    if (CodeBlock* otherBlock = specialOSREntryBlockOrNull())
+        otherBlock->clearEvalCache();
     if (!m_rareData)
         return;
     m_rareData->m_evalCodeCache.clear();
@@ -2689,6 +2707,16 @@ void CodeBlock::copyPostParseDataFromAlternative()
     copyPostParseDataFrom(m_alternative.get());
 }
 
+void CodeBlock::install()
+{
+    ownerExecutable()->installCode(this);
+}
+
+PassRefPtr<CodeBlock> CodeBlock::newReplacement()
+{
+    return ownerExecutable()->newReplacementCodeBlockFor(specializationKind());
+}
+
 #if ENABLE(JIT)
 void CodeBlock::reoptimize()
 {
@@ -2702,65 +2730,18 @@ void CodeBlock::reoptimize()
 
 CodeBlock* ProgramCodeBlock::replacement()
 {
-    return &static_cast<ProgramExecutable*>(ownerExecutable())->generatedBytecode();
+    return jsCast<ProgramExecutable*>(ownerExecutable())->codeBlock();
 }
 
 CodeBlock* EvalCodeBlock::replacement()
 {
-    return &static_cast<EvalExecutable*>(ownerExecutable())->generatedBytecode();
+    return jsCast<EvalExecutable*>(ownerExecutable())->codeBlock();
 }
 
 CodeBlock* FunctionCodeBlock::replacement()
 {
-    return &static_cast<FunctionExecutable*>(ownerExecutable())->generatedBytecodeFor(m_isConstructor ? CodeForConstruct : CodeForCall);
+    return jsCast<FunctionExecutable*>(ownerExecutable())->codeBlockFor(m_isConstructor ? CodeForConstruct : CodeForCall);
 }
-
-#if ENABLE(DFG_JIT)
-JSObject* ProgramCodeBlock::compileOptimized(ExecState* exec, JSScope* scope, CompilationResult& result, unsigned bytecodeIndex)
-{
-    if (JITCode::isHigherTier(replacement()->jitType(), jitType())) {
-        result = CompilationNotNeeded;
-        return 0;
-    }
-    JSObject* error = static_cast<ProgramExecutable*>(ownerExecutable())->compileOptimized(exec, scope, result, bytecodeIndex);
-    return error;
-}
-
-CompilationResult ProgramCodeBlock::replaceWithDeferredOptimizedCode(PassRefPtr<DFG::Plan> plan)
-{
-    return static_cast<ProgramExecutable*>(ownerExecutable())->replaceWithDeferredOptimizedCode(plan);
-}
-
-JSObject* EvalCodeBlock::compileOptimized(ExecState* exec, JSScope* scope, CompilationResult& result, unsigned bytecodeIndex)
-{
-    if (JITCode::isHigherTier(replacement()->jitType(), jitType())) {
-        result = CompilationNotNeeded;
-        return 0;
-    }
-    JSObject* error = static_cast<EvalExecutable*>(ownerExecutable())->compileOptimized(exec, scope, result, bytecodeIndex);
-    return error;
-}
-
-CompilationResult EvalCodeBlock::replaceWithDeferredOptimizedCode(PassRefPtr<DFG::Plan> plan)
-{
-    return static_cast<EvalExecutable*>(ownerExecutable())->replaceWithDeferredOptimizedCode(plan);
-}
-
-JSObject* FunctionCodeBlock::compileOptimized(ExecState* exec, JSScope* scope, CompilationResult& result, unsigned bytecodeIndex)
-{
-    if (JITCode::isHigherTier(replacement()->jitType(), jitType())) {
-        result = CompilationNotNeeded;
-        return 0;
-    }
-    JSObject* error = static_cast<FunctionExecutable*>(ownerExecutable())->compileOptimizedFor(exec, scope, result, bytecodeIndex, m_isConstructor ? CodeForConstruct : CodeForCall);
-    return error;
-}
-
-CompilationResult FunctionCodeBlock::replaceWithDeferredOptimizedCode(PassRefPtr<DFG::Plan> plan)
-{
-    return static_cast<FunctionExecutable*>(ownerExecutable())->replaceWithDeferredOptimizedCodeFor(plan, m_isConstructor ? CodeForConstruct : CodeForCall);
-}
-#endif // ENABLE(DFG_JIT)
 
 DFG::CapabilityLevel ProgramCodeBlock::capabilityLevelInternal()
 {
@@ -2781,49 +2762,14 @@ DFG::CapabilityLevel FunctionCodeBlock::capabilityLevelInternal()
 
 void CodeBlock::jettison()
 {
+    DeferGC deferGC(*m_heap);
     ASSERT(JITCode::isOptimizingJIT(jitType()));
     ASSERT(this == replacement());
     alternative()->optimizeAfterWarmUp();
     tallyFrequentExitSites();
     if (DFG::shouldShowDisassembly())
         dataLog("Jettisoning ", *this, ".\n");
-    jettisonImpl();
-}
-
-void ProgramCodeBlock::jettisonImpl()
-{
-    static_cast<ProgramExecutable*>(ownerExecutable())->jettisonOptimizedCode(*vm());
-}
-
-void EvalCodeBlock::jettisonImpl()
-{
-    static_cast<EvalExecutable*>(ownerExecutable())->jettisonOptimizedCode(*vm());
-}
-
-void FunctionCodeBlock::jettisonImpl()
-{
-    static_cast<FunctionExecutable*>(ownerExecutable())->jettisonOptimizedCodeFor(*vm(), m_isConstructor ? CodeForConstruct : CodeForCall);
-}
-
-CompilationResult ProgramCodeBlock::jitCompileImpl(ExecState* exec)
-{
-    ASSERT(jitType() == JITCode::InterpreterThunk);
-    ASSERT(this == replacement());
-    return static_cast<ProgramExecutable*>(ownerExecutable())->jitCompile(exec);
-}
-
-CompilationResult EvalCodeBlock::jitCompileImpl(ExecState* exec)
-{
-    ASSERT(jitType() == JITCode::InterpreterThunk);
-    ASSERT(this == replacement());
-    return static_cast<EvalExecutable*>(ownerExecutable())->jitCompile(exec);
-}
-
-CompilationResult FunctionCodeBlock::jitCompileImpl(ExecState* exec)
-{
-    ASSERT(jitType() == JITCode::InterpreterThunk);
-    ASSERT(this == replacement());
-    return static_cast<FunctionExecutable*>(ownerExecutable())->jitCompileFor(exec, m_isConstructor ? CodeForConstruct : CodeForCall);
+    alternative()->install();
 }
 #endif
 
@@ -2831,7 +2777,7 @@ JSGlobalObject* CodeBlock::globalObjectFor(CodeOrigin codeOrigin)
 {
     if (!codeOrigin.inlineCallFrame)
         return globalObject();
-    return jsCast<FunctionExecutable*>(codeOrigin.inlineCallFrame->executable.get())->generatedBytecode().globalObject();
+    return jsCast<FunctionExecutable*>(codeOrigin.inlineCallFrame->executable.get())->eitherCodeBlock()->globalObject();
 }
 
 void CodeBlock::noticeIncomingCall(ExecState* callerFrame)
@@ -3017,26 +2963,10 @@ static int32_t clipThreshold(double threshold)
     return static_cast<int32_t>(threshold);
 }
 
-int32_t CodeBlock::counterValueForOptimizeAfterWarmUp()
+int32_t CodeBlock::adjustedCounterValue(int32_t desiredThreshold)
 {
     return clipThreshold(
-        Options::thresholdForOptimizeAfterWarmUp() *
-        optimizationThresholdScalingFactor() *
-        (1 << reoptimizationRetryCounter()));
-}
-
-int32_t CodeBlock::counterValueForOptimizeAfterLongWarmUp()
-{
-    return clipThreshold(
-        Options::thresholdForOptimizeAfterLongWarmUp() *
-        optimizationThresholdScalingFactor() *
-        (1 << reoptimizationRetryCounter()));
-}
-
-int32_t CodeBlock::counterValueForOptimizeSoon()
-{
-    return clipThreshold(
-        Options::thresholdForOptimizeSoon() *
+        static_cast<double>(desiredThreshold) *
         optimizationThresholdScalingFactor() *
         (1 << reoptimizationRetryCounter()));
 }
@@ -3044,10 +2974,12 @@ int32_t CodeBlock::counterValueForOptimizeSoon()
 bool CodeBlock::checkIfOptimizationThresholdReached()
 {
 #if ENABLE(DFG_JIT)
-    if (m_vm->worklist
-        && m_vm->worklist->compilationState(this) == DFG::Worklist::Compiled) {
-        optimizeNextInvocation();
-        return true;
+    if (DFG::Worklist* worklist = m_vm->worklist.get()) {
+        if (worklist->compilationState(DFG::CompilationKey(this, DFG::DFGMode))
+            == DFG::Worklist::Compiled) {
+            optimizeNextInvocation();
+            return true;
+        }
     }
 #endif
     
@@ -3073,7 +3005,8 @@ void CodeBlock::optimizeAfterWarmUp()
     if (Options::verboseOSR())
         dataLog(*this, ": Optimizing after warm-up.\n");
 #if ENABLE(DFG_JIT)
-    m_jitExecuteCounter.setNewThreshold(counterValueForOptimizeAfterWarmUp(), this);
+    m_jitExecuteCounter.setNewThreshold(
+        adjustedCounterValue(Options::thresholdForOptimizeAfterWarmUp()), this);
 #endif
 }
 
@@ -3082,7 +3015,8 @@ void CodeBlock::optimizeAfterLongWarmUp()
     if (Options::verboseOSR())
         dataLog(*this, ": Optimizing after long warm-up.\n");
 #if ENABLE(DFG_JIT)
-    m_jitExecuteCounter.setNewThreshold(counterValueForOptimizeAfterLongWarmUp(), this);
+    m_jitExecuteCounter.setNewThreshold(
+        adjustedCounterValue(Options::thresholdForOptimizeAfterLongWarmUp()), this);
 #endif
 }
 
@@ -3091,7 +3025,8 @@ void CodeBlock::optimizeSoon()
     if (Options::verboseOSR())
         dataLog(*this, ": Optimizing soon.\n");
 #if ENABLE(DFG_JIT)
-    m_jitExecuteCounter.setNewThreshold(counterValueForOptimizeSoon(), this);
+    m_jitExecuteCounter.setNewThreshold(
+        adjustedCounterValue(Options::thresholdForOptimizeSoon()), this);
 #endif
 }
 
@@ -3111,10 +3046,10 @@ void CodeBlock::setOptimizationThresholdBasedOnCompilationResult(CompilationResu
     case CompilationSuccessful:
         RELEASE_ASSERT(JITCode::isOptimizingJIT(replacement()->jitType()));
         optimizeNextInvocation();
-        break;
+        return;
     case CompilationFailed:
         dontOptimizeAnytimeSoon();
-        break;
+        return;
     case CompilationDeferred:
         // We'd like to do dontOptimizeAnytimeSoon() but we cannot because
         // forceOptimizationSlowPathConcurrently() is inherently racy. It won't
@@ -3122,16 +3057,14 @@ void CodeBlock::setOptimizationThresholdBasedOnCompilationResult(CompilationResu
         // function ends up being a no-op, we still eventually retry and realize
         // that we have optimized code ready.
         optimizeAfterWarmUp();
-        break;
+        return;
     case CompilationInvalidated:
         // Retry with exponential backoff.
         countReoptimization();
         optimizeAfterWarmUp();
-        break;
-    default:
-        RELEASE_ASSERT_NOT_REACHED();
-        break;
+        return;
     }
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 #endif

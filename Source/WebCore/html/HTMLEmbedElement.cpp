@@ -37,6 +37,7 @@
 #include "RenderEmbeddedObject.h"
 #include "RenderWidget.h"
 #include "Settings.h"
+#include <wtf/Ref.h>
 
 namespace WebCore {
 
@@ -68,9 +69,9 @@ static inline RenderWidget* findWidgetRenderer(const Node* n)
 
 RenderWidget* HTMLEmbedElement::renderWidgetForJSBindings() const
 {
-    FrameView* view = document()->view();
+    FrameView* view = document().view();
     if (!view || (!view->isInLayout() && !view->isPainting()))
-        document()->updateLayoutIgnorePendingStylesheets();
+        document().updateLayoutIgnorePendingStylesheets();
     return findWidgetRenderer(this);
 }
 
@@ -154,21 +155,21 @@ void HTMLEmbedElement::updateWidget(PluginCreationOption pluginCreationOption)
     Vector<String> paramValues;
     parametersForPlugin(paramNames, paramValues);
 
-    RefPtr<HTMLEmbedElement> protect(this); // Loading the plugin might remove us from the document.
+    Ref<HTMLEmbedElement> protect(*this); // Loading the plugin might remove us from the document.
     bool beforeLoadAllowedLoad = guardedDispatchBeforeLoadEvent(m_url);
     if (!beforeLoadAllowedLoad) {
-        if (document()->isPluginDocument()) {
+        if (document().isPluginDocument()) {
             // Plugins inside plugin documents load differently than other plugins. By the time
             // we are here in a plugin document, the load of the plugin (which is the plugin document's
             // main resource) has already started. We need to explicitly cancel the main resource load here.
-            toPluginDocument(document())->cancelManualPluginLoad();
+            toPluginDocument(&document())->cancelManualPluginLoad();
         }
         return;
     }
     if (!renderer()) // Do not load the plugin if beforeload removed this element or its renderer.
         return;
 
-    SubframeLoader* loader = document()->frame()->loader().subframeLoader();
+    SubframeLoader* loader = document().frame()->loader().subframeLoader();
     // FIXME: beforeLoad could have detached the renderer!  Just like in the <object> case above.
     loader->requestObject(this, m_url, getNameAttribute(), m_serviceType, paramNames, paramValues);
 }
@@ -178,7 +179,7 @@ bool HTMLEmbedElement::rendererIsNeeded(const RenderStyle& style)
     if (isImageType())
         return HTMLPlugInImageElement::rendererIsNeeded(style);
 
-    Frame* frame = document()->frame();
+    Frame* frame = document().frame();
     if (!frame)
         return false;
 
@@ -186,7 +187,8 @@ bool HTMLEmbedElement::rendererIsNeeded(const RenderStyle& style)
     // should be ignored and not get a renderer.
     ContainerNode* p = parentNode();
     if (p && p->hasTagName(objectTag)) {
-        ASSERT(p->renderer());
+        if (!p->renderer())
+            return false;
         if (!static_cast<HTMLObjectElement*>(p)->useFallbackContent()) {
             ASSERT(!p->renderer()->isEmbeddedObject());
             return false;
@@ -216,7 +218,7 @@ void HTMLEmbedElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) cons
 {
     HTMLPlugInImageElement::addSubresourceAttributeURLs(urls);
 
-    addSubresourceURL(urls, document()->completeURL(getAttribute(srcAttr)));
+    addSubresourceURL(urls, document().completeURL(getAttribute(srcAttr)));
 }
 
 }

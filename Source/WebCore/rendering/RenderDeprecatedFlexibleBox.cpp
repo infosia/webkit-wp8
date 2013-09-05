@@ -988,7 +988,7 @@ void RenderDeprecatedFlexibleBox::applyLineClamp(FlexBoxIterator& iterator, bool
 
         child->clearOverrideSize();
         if (relayoutChildren || (child->isReplaced() && (child->style()->width().isPercent() || child->style()->height().isPercent()))
-            || (child->style()->height().isAuto() && child->isBlockFlow())) {
+            || (child->style()->height().isAuto() && child->isRenderBlockFlow())) {
             child->setChildNeedsLayout(true, MarkOnlyThis);
 
             // Dirty all the positioned objects.
@@ -998,7 +998,7 @@ void RenderDeprecatedFlexibleBox::applyLineClamp(FlexBoxIterator& iterator, bool
             }
         }
         child->layoutIfNeeded();
-        if (child->style()->height().isAuto() && child->isBlockFlow())
+        if (child->style()->height().isAuto() && child->isRenderBlockFlow())
             maxLineCount = max(maxLineCount, toRenderBlock(child)->lineCount());
     }
 
@@ -1010,7 +1010,7 @@ void RenderDeprecatedFlexibleBox::applyLineClamp(FlexBoxIterator& iterator, bool
         return;
 
     for (RenderBox* child = iterator.first(); child; child = iterator.next()) {
-        if (childDoesNotAffectWidthOrFlexing(child) || !child->style()->height().isAuto() || !child->isBlockFlow())
+        if (childDoesNotAffectWidthOrFlexing(child) || !child->style()->height().isAuto() || !child->isRenderBlockFlow())
             continue;
 
         RenderBlock* blockChild = toRenderBlock(child);
@@ -1047,7 +1047,7 @@ void RenderDeprecatedFlexibleBox::applyLineClamp(FlexBoxIterator& iterator, bool
         // Get ellipsis width, and if the last child is an anchor, it will go after the ellipsis, so add in a space and the anchor width too
         LayoutUnit totalWidth;
         InlineBox* anchorBox = lastLine->lastChild();
-        if (anchorBox && anchorBox->renderer()->style()->isLink())
+        if (anchorBox && anchorBox->renderer().style()->isLink())
             totalWidth = anchorBox->logicalWidth() + font.width(constructTextRun(this, font, ellipsisAndSpace, 2, style()));
         else {
             anchorBox = 0;
@@ -1055,26 +1055,26 @@ void RenderDeprecatedFlexibleBox::applyLineClamp(FlexBoxIterator& iterator, bool
         }
 
         // See if this width can be accommodated on the last visible line
-        RenderBlock* destBlock = toRenderBlock(lastVisibleLine->renderer());
-        RenderBlock* srcBlock = toRenderBlock(lastLine->renderer());
+        RenderBlock& destBlock = toRenderBlock(lastVisibleLine->renderer());
+        RenderBlock& srcBlock = toRenderBlock(lastLine->renderer());
 
         // FIXME: Directions of src/destBlock could be different from our direction and from one another.
-        if (!srcBlock->style()->isLeftToRightDirection())
+        if (!srcBlock.style()->isLeftToRightDirection())
             continue;
 
-        bool leftToRight = destBlock->style()->isLeftToRightDirection();
+        bool leftToRight = destBlock.style()->isLeftToRightDirection();
         if (!leftToRight)
             continue;
 
-        LayoutUnit blockRightEdge = destBlock->logicalRightOffsetForLine(lastVisibleLine->y(), false);
+        LayoutUnit blockRightEdge = destBlock.logicalRightOffsetForLine(lastVisibleLine->y(), false);
         if (!lastVisibleLine->lineCanAccommodateEllipsis(leftToRight, blockRightEdge, lastVisibleLine->x() + lastVisibleLine->logicalWidth(), totalWidth))
             continue;
 
         // Let the truncation code kick in.
         // FIXME: the text alignment should be recomputed after the width changes due to truncation.
-        LayoutUnit blockLeftEdge = destBlock->logicalLeftOffsetForLine(lastVisibleLine->y(), false);
+        LayoutUnit blockLeftEdge = destBlock.logicalLeftOffsetForLine(lastVisibleLine->y(), false);
         lastVisibleLine->placeEllipsis(anchorBox ? ellipsisAndSpaceStr : ellipsisStr, leftToRight, blockLeftEdge, blockRightEdge, totalWidth, anchorBox);
-        destBlock->setHasMarkupTruncation(true);
+        destBlock.setHasMarkupTruncation(true);
     }
 }
 
@@ -1087,7 +1087,7 @@ void RenderDeprecatedFlexibleBox::clearLineClamp()
 
         child->clearOverrideSize();
         if ((child->isReplaced() && (child->style()->width().isPercent() || child->style()->height().isPercent()))
-            || (child->style()->height().isAuto() && child->isBlockFlow())) {
+            || (child->style()->height().isAuto() && child->isRenderBlockFlow())) {
             child->setChildNeedsLayout(true);
 
             if (child->isRenderBlock()) {
