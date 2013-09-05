@@ -99,7 +99,7 @@
 {\colortbl;\red255\green255\blue255;}
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\qc
 
-\f0\fs24 \cf0 The object underlying JSWeakObjectMapRef is created via JSWeakObjectMapCreate, and takes two arguements: An opaque data pointer (void *) that is held but not internally used, and a callback that is triggered upon the object's destruction. The callback is handed both the object and the opaque pointer that was passed on creation. The remaining 3 C methods are to manipulate key/value pairs.\
+\f0\fs24 \cf0 The object underlying JSWeakObjectMapRef is created via JSWeakObjectMapCreate, and takes two arguments: An opaque data pointer (void *) that is held but not internally used, and a callback that is triggered upon the object's destruction. The callback is handed both the object and the opaque pointer that was passed on creation. The remaining 3 C methods are to manipulate key/value pairs.\
 It uses a "Curiously recurring template pattern" to inherit the reference counting from the RefCounted template, and owns a WeakCGMap for mapping functionality.}</string>
 				<key>VerticalPad</key>
 				<integer>0</integer>
@@ -1760,7 +1760,7 @@ m_callback}</string>
 {\colortbl;\red255\green255\blue255;}
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720
 
-\f0\i\fs24 \cf0 (Typedeffed)}</string>
+\f0\i\fs24 \cf0 (Type definition)}</string>
 								<key>VerticalPad</key>
 								<integer>0</integer>
 							</dict>
@@ -1878,7 +1878,7 @@ m_callback}</string>
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2013-08-30 00:59:08 +0000</string>
+	<string>2013-09-03 18:11:01 +0000</string>
 	<key>Modifier</key>
 	<string>Blain Hamon</string>
 	<key>NotesVisible</key>
@@ -1915,16 +1915,6 @@ m_callback}</string>
 		<array>
 			<string>int</string>
 			<string>0</string>
-		</array>
-		<key>NSPrinter</key>
-		<array>
-			<string>coded</string>
-			<string>BAtzdHJlYW10eXBlZIHoA4QBQISEhAlOU1ByaW50ZXIAhIQITlNPYmplY3QAhZKEhIQITlNTdHJpbmcBlIQBKwEghoY=</string>
-		</array>
-		<key>NSPrinterName</key>
-		<array>
-			<string>string</string>
-			<string> </string>
 		</array>
 		<key>NSRightMargin</key>
 		<array>
@@ -1969,7 +1959,7 @@ m_callback}</string>
 			</dict>
 		</array>
 		<key>Frame</key>
-		<string>{{1659, -50}, {1025, 1200}}</string>
+		<string>{{415, 4}, {1025, 874}}</string>
 		<key>ListView</key>
 		<true/>
 		<key>OutlineWidth</key>
@@ -1983,7 +1973,7 @@ m_callback}</string>
 		<key>SidebarWidth</key>
 		<integer>120</integer>
 		<key>VisibleRegion</key>
-		<string>{{-157, -164}, {890, 1061}}</string>
+		<string>{{-157, -1}, {890, 735}}</string>
 		<key>Zoom</key>
 		<real>1</real>
 		<key>ZoomValues</key>
