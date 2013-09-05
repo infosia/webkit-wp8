@@ -1,3 +1,315 @@
+2013-09-05  David Hyatt  <hyatt@apple.com>
+
+        Make RenderListItem inherit from RenderBlockFlow.
+        https://bugs.webkit.org/show_bug.cgi?id=120789
+
+        Reviewed by Beth Dakin.
+
+        * rendering/RenderListItem.cpp:
+        (WebCore::RenderListItem::RenderListItem):
+        (WebCore::RenderListItem::willBeDestroyed):
+        (WebCore::RenderListItem::willBeRemovedFromTree):
+        (WebCore::RenderListItem::layout):
+        (WebCore::RenderListItem::addOverflowFromChildren):
+        (WebCore::RenderListItem::computePreferredLogicalWidths):
+        (WebCore::RenderListItem::paint):
+        * rendering/RenderListItem.h:
+
+2013-09-05  David Hyatt  <hyatt@apple.com>
+
+        Make RenderBlock have a protected constructor..
+        https://bugs.webkit.org/show_bug.cgi?id=120787
+
+        Reviewed by Beth Dakin.
+
+        Make sure nobody can create a RenderBlock directly. Make sure RenderBlockFlows
+        get made when a display:block/inline-block/compact/run-in is seen.
+
+        * html/HTMLDetailsElement.cpp:
+        (WebCore::HTMLDetailsElement::createRenderer):
+        * html/HTMLSummaryElement.cpp:
+        (WebCore::HTMLSummaryElement::createRenderer):
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::createAnonymous):
+        * rendering/RenderBlock.h:
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::createObject):
+
+2013-09-05  David Hyatt  <hyatt@apple.com>
+
+        Add new RenderBlockFlow class
+        https://bugs.webkit.org/show_bug.cgi?id=120777
+
+        Reviewed by Simon Fraser.
+
+        This patch adds a new RenderBlockFlow class. The idea is to get all of the line/float/margin
+        code out of RenderBlock and into the subclass, and then we can make RenderBlock an abstract
+        base. This will save memory for all of the classes that derive from RenderBlock but have
+        their own layout systems (e.g., flexbox, grid, table), and it will let us tighten up
+        types to make it more clear when we're talking about block layout code vs. a more generic
+        block-level object that can have any kind of layout.
+
+        The only real change here is that isBlockFlow() has been renamed to isRenderBlockFlow() and
+        is now checking if the object is a RenderBlockFlow. All of the block subclasses have been patched
+        to be a RenderBlock or RenderBlockFlow.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * Target.pri:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.xcodeproj/project.pbxproj:
+        * accessibility/AccessibilityRenderObject.cpp:
+        (WebCore::AccessibilityRenderObject::computeAccessibilityIsIgnored):
+        (WebCore::AccessibilityRenderObject::determineAccessibilityRole):
+        * dom/Position.cpp:
+        (WebCore::Position::isCandidate):
+        (WebCore::Position::getInlineBoxAndOffset):
+        (WebCore::Position::primaryDirection):
+        * dom/PositionIterator.cpp:
+        (WebCore::PositionIterator::isCandidate):
+        * editing/ApplyStyleCommand.cpp:
+        (WebCore::ApplyStyleCommand::applyInlineStyleToPushDown):
+        * editing/CompositeEditCommand.cpp:
+        (WebCore::CompositeEditCommand::addBlockPlaceholderIfNeeded):
+        * editing/Editor.cpp:
+        (WebCore::Editor::baseWritingDirectionForSelectionStart):
+        * editing/FrameSelection.cpp:
+        (WebCore::caretRenderer):
+        * editing/TextIterator.cpp:
+        (WebCore::TextIterator::shouldRepresentNodeOffsetZero):
+        * editing/TypingCommand.cpp:
+        (WebCore::TypingCommand::makeEditableRootEmpty):
+        * editing/htmlediting.cpp:
+        (WebCore::isBlockFlowElement):
+        * html/shadow/SliderThumbElement.cpp:
+        (WebCore::RenderSliderThumb::RenderSliderThumb):
+        * html/shadow/SliderThumbElement.h:
+        * rendering/LayoutState.cpp:
+        (WebCore::LayoutState::LayoutState):
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::layoutBlock):
+        (WebCore::RenderBlock::collapseMargins):
+        (WebCore::RenderBlock::selectionGaps):
+        (WebCore::RenderBlock::firstLineBoxBaseline):
+        (WebCore::RenderBlock::lastLineBoxBaseline):
+        (WebCore::RenderBlock::firstLineBlock):
+        (WebCore::findFirstLetterBlock):
+        (WebCore::shouldCheckLines):
+        (WebCore::RenderBlock::adjustForBorderFit):
+        * rendering/RenderBlock.h:
+        * rendering/RenderBlockFlow.cpp: Added.
+        (WebCore::RenderBlockFlow::RenderBlockFlow):
+        (WebCore::RenderBlockFlow::~RenderBlockFlow):
+        * rendering/RenderBlockFlow.h: Added.
+        (WebCore::toRenderBlockFlow):
+        * rendering/RenderBox.cpp:
+        (WebCore::RenderBox::computeRectForRepaint):
+        (WebCore::RenderBox::positionForPoint):
+        * rendering/RenderBoxModelObject.h:
+        (WebCore::RenderBoxModelObject::canHaveBoxInfoInRegion):
+        * rendering/RenderDeprecatedFlexibleBox.cpp:
+        (WebCore::RenderDeprecatedFlexibleBox::applyLineClamp):
+        (WebCore::RenderDeprecatedFlexibleBox::clearLineClamp):
+        * rendering/RenderDetailsMarker.cpp:
+        (WebCore::RenderDetailsMarker::RenderDetailsMarker):
+        * rendering/RenderDetailsMarker.h:
+        * rendering/RenderFieldset.cpp:
+        (WebCore::RenderFieldset::RenderFieldset):
+        * rendering/RenderFieldset.h:
+        * rendering/RenderFileUploadControl.cpp:
+        (WebCore::RenderFileUploadControl::RenderFileUploadControl):
+        * rendering/RenderFileUploadControl.h:
+        * rendering/RenderFlowThread.cpp:
+        (WebCore::RenderFlowThread::RenderFlowThread):
+        * rendering/RenderFlowThread.h:
+        * rendering/RenderFullScreen.cpp:
+        * rendering/RenderInline.cpp:
+        (WebCore::RenderInline::computeRectForRepaint):
+        * rendering/RenderLineBoxList.cpp:
+        (WebCore::RenderLineBoxList::dirtyLinesFromChangedChild):
+        * rendering/RenderMeter.cpp:
+        (WebCore::RenderMeter::RenderMeter):
+        * rendering/RenderMeter.h:
+        * rendering/RenderMultiColumnBlock.cpp:
+        (WebCore::RenderMultiColumnBlock::RenderMultiColumnBlock):
+        * rendering/RenderMultiColumnBlock.h:
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::computeRectForRepaint):
+        (WebCore::RenderObject::styleWillChange):
+        (WebCore::firstLineStyleForCachedUncachedType):
+        * rendering/RenderObject.h:
+        (WebCore::RenderObject::isBR):
+        (WebCore::RenderObject::isRenderBlockFlow):
+        * rendering/RenderObjectChildList.cpp:
+        (WebCore::RenderObjectChildList::insertChildNode):
+        * rendering/RenderProgress.cpp:
+        (WebCore::RenderProgress::RenderProgress):
+        * rendering/RenderProgress.h:
+        * rendering/RenderRegion.cpp:
+        (WebCore::RenderRegion::RenderRegion):
+        * rendering/RenderRegion.h:
+        * rendering/RenderRuby.cpp:
+        (WebCore::RenderRubyAsBlock::RenderRubyAsBlock):
+        * rendering/RenderRuby.h:
+        * rendering/RenderRubyBase.cpp:
+        (WebCore::RenderRubyBase::RenderRubyBase):
+        * rendering/RenderRubyBase.h:
+        * rendering/RenderRubyRun.cpp:
+        (WebCore::RenderRubyRun::RenderRubyRun):
+        * rendering/RenderRubyRun.h:
+        * rendering/RenderRubyText.cpp:
+        (WebCore::RenderRubyText::RenderRubyText):
+        * rendering/RenderRubyText.h:
+        * rendering/RenderTableCaption.cpp:
+        (WebCore::RenderTableCaption::RenderTableCaption):
+        * rendering/RenderTableCaption.h:
+        * rendering/RenderTableCell.cpp:
+        (WebCore::RenderTableCell::RenderTableCell):
+        * rendering/RenderTableCell.h:
+        * rendering/RenderTextControl.cpp:
+        (WebCore::RenderTextControl::RenderTextControl):
+        * rendering/RenderTextControl.h:
+        * rendering/RenderTextControlSingleLine.h:
+        (WebCore::RenderTextControlInnerBlock::RenderTextControlInnerBlock):
+        * rendering/RenderTextTrackCue.cpp:
+        (WebCore::RenderTextTrackCue::RenderTextTrackCue):
+        * rendering/RenderTextTrackCue.h:
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::RenderView):
+        * rendering/RenderView.h:
+        * rendering/svg/RenderSVGBlock.cpp:
+        (WebCore::RenderSVGBlock::RenderSVGBlock):
+        * rendering/svg/RenderSVGBlock.h:
+
+2013-09-05  Tim Horton  <timothy_horton@apple.com>
+
+        iOS build broke with change to make Mac use PDFKit for PDFDocumentImage
+        https://bugs.webkit.org/show_bug.cgi?id=120771
+
+        Reviewed by Anders Carlsson.
+
+        * platform/graphics/cg/PDFDocumentImage.cpp:
+        (WebCore::PDFDocumentImage::createPDFDocument):
+        Use the (removed in r155069) PLATFORM(MAC) way of making a CGDataProvider from a SharedBuffer
+        everywhere; this is what iOS was expecting to use (where I accidentally changed behavior),
+        and it should also work for Windows, the only other USE(CG) platform.
+
+        Since we only createPDFDocument() after all data has been received, I'm not
+        restoring the comment about the SharedBuffer being secretly written to behind its back.
+
+2013-09-04  Dean Jackson  <dino@apple.com>
+
+        Rename supportsContext to probablySupportsContext
+        https://bugs.webkit.org/show_bug.cgi?id=120716
+        <rdar://problem/14914499>
+
+        Reviewed by Antoine Quint.
+
+        As decided in: http://lists.whatwg.org/htdig.cgi/whatwg-whatwg.org/2013-September/040680.html
+
+        * bindings/js/JSHTMLCanvasElementCustom.cpp:
+        (WebCore::JSHTMLCanvasElement::probablySupportsContext):
+        * html/HTMLCanvasElement.cpp:
+        (WebCore::HTMLCanvasElement::probablySupportsContext):
+        * html/HTMLCanvasElement.h:
+        * html/HTMLCanvasElement.idl:
+
+2013-09-05  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Fix build warning about unused variable.
+
+        Unreviewed build fix.
+
+        * bindings/js/ScriptDebugServer.cpp:
+        (WebCore::ScriptDebugServer::evaluateBreakpointAction):
+
+2013-09-05  Anders Carlsson  <andersca@apple.com>
+
+        Enable C++11 wherever we build C++ files that include wtf/Platform.h
+        https://bugs.webkit.org/show_bug.cgi?id=120782
+
+        Reviewed by Andreas Kling.
+
+        Pass -std=gnu++11 when preprocessing wtf/Platform.h.
+
+        * DerivedSources.make:
+
+2013-09-05  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Breakpoint Actions
+        https://bugs.webkit.org/show_bug.cgi?id=120576
+
+        Reviewed by Timothy Hatcher.
+
+        Tests: inspector-protocol/debugger/setBreakpoint-actions.html
+               inspector-protocol/debugger/setBreakpoint-options-exception.html
+
+        * inspector/ScriptBreakpoint.h:
+        (WebCore::ScriptBreakpointAction::ScriptBreakpointAction):
+        (WebCore::ScriptBreakpoint::ScriptBreakpoint):
+        Struct for a breakpoint action. Type and string of data.
+
+        * bindings/js/ScriptDebugServer.h:
+        * bindings/js/ScriptDebugServer.cpp:
+        (WebCore::ScriptDebugServer::hasBreakpoint):
+        (WebCore::ScriptDebugServer::evaluateBreakpointAction):
+        (WebCore::ScriptDebugServer::evaluateBreakpointActions):
+        (WebCore::ScriptDebugServer::updateCallFrameAndPauseIfNeeded):
+        (WebCore::ScriptDebugServer::pauseIfNeeded):
+        When a breakpoint is triggered evaluate each of its breakpoint
+        actions in order. If there are exceptions, log them.
+
+        * inspector/Inspector.json:
+        * inspector/InspectorDebuggerAgent.cpp:
+        (WebCore::buildObjectForBreakpointCookie):
+        (WebCore::InspectorDebuggerAgent::didParseSource):
+        Save and restore breakpoint actions where needed.
+
+        (WebCore::breakpointActionTypeForString):
+        (WebCore::breakpointActionsFromProtocol):
+        (WebCore::InspectorDebuggerAgent::setBreakpointByUrl):
+        (WebCore::InspectorDebuggerAgent::setBreakpoint):
+        Parse optional breakpoint actions from the protocol into
+        ScriptBreakpointAction objects.
+
+2013-09-05  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix repaint issue on "paints into ancestor" filtered layers
+        https://bugs.webkit.org/show_bug.cgi?id=120780
+
+        Reviewed by Tim Horton.
+        
+        When a repaint happened on a layer with a filter, and which paints into
+        its compositing ancestor, we'd repaint the wrong layer (and assert).
+        
+        Fix by ensuring that RenderLayer::enclosingFilterLayer() takes paintsIntoCompositedAncestor()
+        into account, by adding a function that we share between three callers who
+        check isComposited() && !paintsIntoCompositedAncestor(). I didn't use a function
+        on RenderLayer, because I wanted it to be inline but to not #include RenderLayerBacking
+        in RenderLayer.h.
+
+        Test: compositing/filters/opacity-change-on-filtered-paints-into-ancestor.html
+
+        * dom/Node.cpp: Drive-by removal of #include "RenderLayer.h"
+        * rendering/RenderLayer.cpp: 
+        (WebCore::compositedWithOwnBackingStore):
+        (WebCore::RenderLayer::enclosingCompositingLayerForRepaint):
+        (WebCore::RenderLayer::enclosingFilterRepaintLayer):
+        (WebCore::RenderLayer::clippingRootForPainting):
+
+2013-09-05  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Unreviewed build/link improvement after r155127 to be
+        consistent about using debug-build support libraries.
+
+        Now that <rdar://problem/9898937> is resolved, we should be linking
+        to debug AVFoundationCF as well.
+
+        * page/CaptionUserPreferencesMediaAF.cpp: Link to AVFoundationCF_debug
+        when building with the DEBUG_ALL target.
+        * platform/graphics/avfoundation/InbandTextTrackPrivateAVF.cpp: Ditto.
+        * platform/graphics/avfoundation/cf/AVFoundationCFSoftLinking.h: Ditto.
+
 2013-09-04  Anders Carlsson  <andersca@apple.com>
 
         Vector::releaseBuffer should return an OwnPtr
@@ -415,6 +727,16 @@
         (WebCore::FrameLoader::commitProvisionalLoad):
         (WebCore::FrameLoader::transitionToCommitted):
         * loader/FrameLoader.h:
+
+2013-09-04  Roger Fong  <roger_fong@apple.com>
+
+        Link to libdispatch_debug.lib when using DebugSuffix configuration.
+        https://bugs.webkit.org/show_bug.cgi?id=120712.
+        <rdar://problem/14883216>.
+
+        Reviewed by Brent Fulgham.
+
+        * platform/graphics/avfoundation/cf/MediaPlayerPrivateAVFoundationCF.cpp:
 
 2013-09-04  Roger Fong  <roger_fong@apple.com>
 

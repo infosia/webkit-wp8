@@ -1,3 +1,100 @@
+2013-09-04  Dean Jackson  <dino@apple.com>
+
+        Rename supportsContext to probablySupportsContext
+        https://bugs.webkit.org/show_bug.cgi?id=120716
+        <rdar://problem/14914499>
+
+        Reviewed by Antoine Quint.
+
+        As decided in: http://lists.whatwg.org/htdig.cgi/whatwg-whatwg.org/2013-September/040680.html
+
+        * fast/canvas/webgl/canvas-supports-context-expected.txt:
+        * fast/canvas/webgl/canvas-supports-context.html:
+
+2013-09-05  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Breakpoint Actions
+        https://bugs.webkit.org/show_bug.cgi?id=120576
+
+        Reviewed by Timothy Hatcher.
+
+        * inspector-protocol/debugger/resources/breakpoint.js:
+        * inspector-protocol/debugger/setBreakpoint-actions-expected.txt: Added.
+        * inspector-protocol/debugger/setBreakpoint-actions.html: Added.
+        * inspector-protocol/debugger/setBreakpoint-options-exception-expected.txt: Added.
+        * inspector-protocol/debugger/setBreakpoint-options-exception.html: Added.
+        * inspector-protocol/resources/console-helper.js: Added.
+        (ConsoleHelper.simplifiedConsoleMessage):
+
+2013-09-05  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix repaint issue on "paints into ancestor" filtered layers
+        https://bugs.webkit.org/show_bug.cgi?id=120780
+        <rdar://problem/14884148>
+
+        Reviewed by Tim Horton.
+        
+        Ref test for opacity change on a filtered layer which paints into its compositing ancestor.
+
+        * compositing/filters/opacity-change-on-filtered-paints-into-ancestor-expected.html: Added.
+        * compositing/filters/opacity-change-on-filtered-paints-into-ancestor.html: Added.
+
+2013-09-05  Danilo Cesar Lemes de Paula  <danilo.cesar@collabora.co.uk>
+
+        [GTK] improving tests expectations related to trackmenu
+        https://bugs.webkit.org/show_bug.cgi?id=120699
+
+        Adding tests expectations to the current GTK's trackmenu
+        implementation.
+
+        Also adding a in-band-track test expectation as failure since we don't
+        support in-band tracks yet.
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * platform/gtk/TestExpectations:
+        * platform/gtk/media/video-controls-captions-trackmenu-expected.txt: Added.
+        * platform/gtk/media/video-controls-captions-trackmenu-hide-on-click-expected.txt: Added.
+        * platform/gtk/media/video-controls-captions-trackmenu-localized-expected.txt: Added.
+        * platform/gtk/media/video-controls-captions-trackmenu-sorted-expected.txt: Added.
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        fast/js/dfg-* tests should wait for the concurrent JIT
+        https://bugs.webkit.org/show_bug.cgi?id=120723
+
+        Rubber stamped by Oliver Hunt.
+        
+        Convert more tests.
+
+        * fast/js/dfg-branch-logical-not-peephole-around-osr-exit-expected.txt:
+        * fast/js/dfg-branch-not-fail-expected.txt:
+        * fast/js/dfg-byte-array-put-expected.txt:
+        * fast/js/dfg-call-function-hit-watchpoint-expected.txt:
+        * fast/js/dfg-call-method-hit-watchpoint-expected.txt:
+        * fast/js/dfg-captured-var-get-local-expected.txt:
+        * fast/js/dfg-cfa-merge-with-dead-use-at-tail-expected.txt:
+        * fast/js/dfg-cfg-simplify-eliminate-set-local-type-check-then-branch-not-null-and-decrement-expected.txt:
+        * fast/js/dfg-cfg-simplify-eliminate-set-local-type-check-then-branch-not-null-expected.txt:
+        * fast/js/dfg-cfg-simplify-eliminate-set-local-type-check-then-typeof-expected.txt:
+        * fast/js/dfg-cfg-simplify-phantom-get-local-on-same-block-set-local-expected.txt:
+        * fast/js/dfg-cfg-simplify-redundant-dead-get-local-expected.txt:
+        * fast/js/dfg-check-function-change-structure-expected.txt:
+        * fast/js/jsc-test-list:
+        * fast/js/script-tests/dfg-branch-logical-not-peephole-around-osr-exit.js:
+        * fast/js/script-tests/dfg-branch-not-fail.js:
+        * fast/js/script-tests/dfg-byte-array-put.js:
+        * fast/js/script-tests/dfg-call-function-hit-watchpoint.js:
+        * fast/js/script-tests/dfg-call-method-hit-watchpoint.js:
+        * fast/js/script-tests/dfg-captured-var-get-local.js:
+        * fast/js/script-tests/dfg-cfa-merge-with-dead-use-at-tail.js:
+        * fast/js/script-tests/dfg-cfg-simplify-eliminate-set-local-type-check-then-branch-not-null-and-decrement.js:
+        * fast/js/script-tests/dfg-cfg-simplify-eliminate-set-local-type-check-then-branch-not-null.js:
+        * fast/js/script-tests/dfg-cfg-simplify-eliminate-set-local-type-check-then-typeof.js:
+        * fast/js/script-tests/dfg-cfg-simplify-phantom-get-local-on-same-block-set-local.js:
+        * fast/js/script-tests/dfg-cfg-simplify-redundant-dead-get-local.js:
+        * fast/js/script-tests/dfg-check-function-change-structure.js:
+
 2013-09-05  Mihai Maerean  <mmaerean@adobe.com>
 
         [CSS Regions] Convert existing pixel tests in ref tests
