@@ -1,3 +1,191 @@
+2013-09-04  Filip Pizlo  <fpizlo@apple.com>
+
+        jsc tests should have timeouts
+        https://bugs.webkit.org/show_bug.cgi?id=120725
+
+        Reviewed by Geoffrey Garen.
+        
+        Add the timeout logic directly to 'jsc' because that's easier to do than
+        writing shell/perl code for it.
+
+        * jsc.cpp:
+        (timeoutThreadMain):
+        (main):
+
+2013-09-04  Filip Pizlo  <fpizlo@apple.com>
+
+        fast/js/dfg-* tests should wait for the concurrent JIT
+        https://bugs.webkit.org/show_bug.cgi?id=120723
+
+        Reviewed by Geoffrey Garen.
+        
+        * runtime/TestRunnerUtils.cpp:
+        (JSC::numberOfDFGCompiles): This should also handle constructors.
+
+2013-09-04  Filip Pizlo  <fpizlo@apple.com>
+
+        run-fast-jsc should work with new-school fast/js tests that loop until the DFG tiers up
+        https://bugs.webkit.org/show_bug.cgi?id=120697
+
+        Reviewed by Mark Hahnenberg.
+
+        * API/JSCTestRunnerUtils.cpp:
+        (JSC::numberOfDFGCompiles):
+        (JSC::setNeverInline):
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Target.pri:
+        * jsc.cpp:
+        (GlobalObject::finishCreation):
+        (functionNeverInlineFunction):
+        (functionNumberOfDFGCompiles):
+        * runtime/TestRunnerUtils.cpp: Added.
+        (JSC::getExecutable):
+        (JSC::numberOfDFGCompiles):
+        (JSC::setNeverInline):
+        * runtime/TestRunnerUtils.h: Added.
+
+2013-09-04  Mark Lam  <mark.lam@apple.com>
+
+        Renamed StackIterator to StackVisitor.
+        https://bugs.webkit.org/show_bug.cgi?id=120706.
+
+        Reviewed by Geoffrey Garen.
+
+        Also did some minor refactoring:
+        - Renamed StackIterator::iterate() to StackVisitor::visit().
+        - Make StackVisitor::visit() a static method.
+        - Move the instantiation of the StackVisitor instance into StackVisitor::visit()
+          from CallFrame::iterate().
+        - Removed StackIterator::resetIterator() and inline its body into the
+          StackVisitor constructor since this is the only remaining caller of it.
+
+        * API/JSContextRef.cpp:
+        (BacktraceFunctor::operator()):
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Target.pri:
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::iterate):
+        * interpreter/Interpreter.cpp:
+        (JSC::DumpRegisterFunctor::operator()):
+        (JSC::unwindCallFrame):
+        (JSC::getStackFrameCodeType):
+        (JSC::GetStackTraceFunctor::operator()):
+        (JSC::UnwindFunctor::operator()):
+        * interpreter/Interpreter.h:
+        * interpreter/StackIterator.cpp: Removed.
+        * interpreter/StackIterator.h: Removed.
+        * interpreter/StackVisitor.cpp: Copied from Source/JavaScriptCore/interpreter/StackIterator.cpp.
+        (JSC::StackVisitor::StackVisitor):
+        (JSC::StackVisitor::gotoNextFrame):
+        (JSC::StackVisitor::readFrame):
+        (JSC::StackVisitor::readNonInlinedFrame):
+        (JSC::StackVisitor::readInlinedFrame):
+        (JSC::StackVisitor::Frame::codeType):
+        (JSC::StackVisitor::Frame::functionName):
+        (JSC::StackVisitor::Frame::sourceURL):
+        (JSC::StackVisitor::Frame::toString):
+        (JSC::StackVisitor::Frame::arguments):
+        (JSC::StackVisitor::Frame::computeLineAndColumn):
+        (JSC::StackVisitor::Frame::retrieveExpressionInfo):
+        (JSC::StackVisitor::Frame::setToEnd):
+        (JSC::StackVisitor::Frame::print):
+        (DebugPrintFrameFunctor::operator()):
+        * interpreter/StackVisitor.h: Copied from Source/JavaScriptCore/interpreter/StackIterator.h.
+        (JSC::StackVisitor::visit):
+        * jsc.cpp:
+        (FunctionJSCStackFunctor::operator()):
+        * profiler/ProfileGenerator.cpp:
+        (JSC::AddParentForConsoleStartFunctor::operator()):
+        * runtime/JSFunction.cpp:
+        (JSC::RetrieveArgumentsFunctor::operator()):
+        (JSC::RetrieveCallerFunctionFunctor::operator()):
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::GlobalFuncProtoGetterFunctor::operator()):
+        (JSC::GlobalFuncProtoSetterFunctor::operator()):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::ObjectConstructorGetPrototypeOfFunctor::operator()):
+
+2013-09-04  Roger Fong  <roger_fong@apple.com>
+
+        Unreviewed Build fix for Windows DebugSuffix configuration.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters:
+
+2013-09-04  Mark Lam  <mark.lam@apple.com>
+
+        Refining the StackIterator callback interface.
+        https://bugs.webkit.org/show_bug.cgi?id=120695.
+
+        Reviewed by Geoffrey Garen.
+
+        Introduce CallFrame::iterate() which instantiates a StackIterator and
+        invoke its iterate() method with the passed in functor. The only place
+        where the client code gets access to the StackIterator now is as an
+        argument to the client's functor.
+
+        * API/JSContextRef.cpp:
+        (JSContextCreateBacktrace):
+        * interpreter/CallFrame.cpp:
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::iterate):
+        * interpreter/Interpreter.cpp:
+        (JSC::Interpreter::dumpRegisters):
+        (JSC::Interpreter::getStackTrace):
+        (JSC::Interpreter::unwind):
+        * interpreter/StackIterator.cpp:
+        (JSC::StackIterator::StackIterator):
+        (DebugPrintFrameFunctor::DebugPrintFrameFunctor):
+        (DebugPrintFrameFunctor::operator()):
+        (debugPrintCallFrame):
+        (debugPrintStack):
+        * interpreter/StackIterator.h:
+        (JSC::StackIterator::iterate):
+        * jsc.cpp:
+        (functionJSCStack):
+        * profiler/ProfileGenerator.cpp:
+        (JSC::ProfileGenerator::addParentForConsoleStart):
+        * runtime/JSFunction.cpp:
+        (JSC::retrieveArguments):
+        (JSC::RetrieveCallerFunctionFunctor::operator()):
+        (JSC::retrieveCallerFunction):
+        * runtime/JSGlobalObjectFunctions.cpp:
+        (JSC::globalFuncProtoGetter):
+        (JSC::globalFuncProtoSetter):
+        * runtime/ObjectConstructor.cpp:
+        (JSC::objectConstructorGetPrototypeOf):
+
+2013-09-04  Benjamin Poulain  <benjamin@webkit.org>
+
+        JSGenericTypedArrayViewConstructor.h is referenced twice in the XCode project build section, causing warnings
+        https://bugs.webkit.org/show_bug.cgi?id=120698
+
+        Reviewed by Darin Adler.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2013-09-04  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        ASSERT in MarkedAllocator::allocateSlowCase is wrong
+        https://bugs.webkit.org/show_bug.cgi?id=120639
+
+        Reviewed by Oliver Hunt.
+
+        ASSERT(!m_heap->shouldCollect()) is no longer true due to our use of the GC 
+        deferral mechanism. We could technically be beyond our byte allocation limit, 
+        but still not try to collect due to deferral. This patch amends shouldCollect() 
+        to return false if GC is currently deferred.
+
+        * heap/Heap.h:
+        (JSC::Heap::shouldCollect):
+
 2013-09-03  Filip Pizlo  <fpizlo@apple.com>
 
         The DFG should be able to tier-up and OSR enter into the FTL

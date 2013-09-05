@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008 Apple Inc. All rights reserved.
+ * Copyright (C) 2006, 2007, 2008, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,10 +37,10 @@ class Page;
 
 class CachedPage : public RefCounted<CachedPage> {
 public:
-    static PassRefPtr<CachedPage> create(Page*);
+    static PassRefPtr<CachedPage> create(Page&);
     ~CachedPage();
 
-    void restore(Page*);
+    void restore(Page&);
     void clear();
 
     Document* document() const { return m_cachedMainFrame->document(); }
@@ -62,7 +62,7 @@ public:
 #endif
 
 private:
-    CachedPage(Page*);
+    explicit CachedPage(Page&);
     void destroy();
 
     double m_timeStamp;

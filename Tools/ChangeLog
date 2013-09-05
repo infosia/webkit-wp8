@@ -1,3 +1,73 @@
+2013-09-05  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Make run-fast-jsc script bash, dash and Darwin's /bin/sh friendly
+        https://bugs.webkit.org/show_bug.cgi?id=120759
+
+        Reviewed by Filip Pizlo.
+
+        * Scripts/run-fast-jsc: Remove bashisms to make bash, dash and Darwin's /bin/sh happy.
+        * Scripts/run-javascriptcore-tests: Enable run-fast-jsc tests everywhere, except Windows.
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, green the Mac bots by boosting the timeout on JSC tests. One of the
+        Mozilla tests appears to run for a longer time.
+        
+        I think we want to continue to allow a few tests here and there to be
+        longer-running, rather than excluding them. I seem to recall that those tests
+        catch good bugs.
+
+        * Scripts/run-javascriptcore-tests:
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, don't run fast/js tests in run-javascriptcore-tests on platforms that
+        can't support it because if non-bourne shells. This fixes part #2 of the Linux
+        bot breakage.
+
+        * Scripts/run-javascriptcore-tests:
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, don't rely on File::Slurp. This fixes part #1 of Linux bot breakage.
+
+        * Scripts/run-javascriptcore-tests:
+        (readAllLines):
+
+2013-09-04  Filip Pizlo  <fpizlo@apple.com>
+
+        jsc tests should have timeouts
+        https://bugs.webkit.org/show_bug.cgi?id=120725
+
+        Reviewed by Geoffrey Garen.
+        
+        Set the timeout to 20 seconds per test for now.
+
+        * Scripts/run-javascriptcore-tests:
+
+2013-09-04  Filip Pizlo  <fpizlo@apple.com>
+
+        run-javascriptcore-tests should run-fast-jsc as well
+        https://bugs.webkit.org/show_bug.cgi?id=120722
+
+        Reviewed by Geoffrey Garen.
+        
+        Makes run-javascriptcore-tests run the fast/js tests via run-fast-jsc tool.
+        Integrates run-fast-jsc's error reporting into run-javascriptcore-tests.
+
+        * Scripts/run-javascriptcore-tests:
+        (printThingsFound):
+
+2013-09-04  Sergio Correia  <sergio.correia@openbossa.org>
+
+        [EFL][WK2] Move ShouldGoToBackForwardListItem to the list of passing API tests
+        https://bugs.webkit.org/show_bug.cgi?id=120646
+
+        Reviewed by Gyuyoung Kim.
+
+        * TestWebKitAPI/PlatformEfl.cmake: Move ShouldGoToBackForwardListItem to the
+        list of passing tests, since it started to pass after r154045.
+
 2013-09-04  Krzysztof Czech  <k.czech@samsung.com>
 
         [ATK] Adds an accessibility support to access a value of the color control element

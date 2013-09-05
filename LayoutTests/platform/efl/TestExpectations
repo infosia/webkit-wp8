@@ -502,9 +502,6 @@ webkit.org/b/86080 fast/encoding/idn-security.html [ Skip ]
 # Text Autosizing is not yet enabled.
 webkit.org/b/84186 fast/text-autosizing
 
-# Dialog element is not yet enabled.
-webkit.org/b/84635 fast/dom/HTMLDialogElement [ Skip ]
-
 # HIGH_DPI_CANVAS is not enabled.
 webkit.org/b/101809 fast/canvas/canvas-resize-reset-pixelRatio.html [ Skip ]
 
@@ -1541,13 +1538,14 @@ webkit.org/b/101670 media/video-controls-captions-trackmenu-includes-enabled-tra
 # Fails until we enable the Resource Timing API.
 webkit.org/b/61138 http/tests/w3c/webperf/submission/Google/resource-timing [ Skip ]
 
-# No support for exposing in-band text tracks
+# In-band tracks only work on GStreamer >= 1.1.2
 Bug(EFL) media/track/track-in-band.html [ Skip ]
 Bug(EFL) media/track/track-in-band-cues-added-once.html [ Skip ]
 Bug(EFL) media/track/track-in-band-style.html [ Skip ]
 Bug(EFL) media/track/track-in-band-legacy-api.html [ Skip ]
 Bug(EFL) media/track/track-forced-subtitles-in-band.html [ Skip ]
 Bug(EFL) media/track/track-in-band-mode.html [ Skip ]
+Bug(EFL) media/track/in-band [ Skip ]
 
 # Rendering failure, also missing expected results:
 webkit.org/b/105093 compositing/webgl/webgl-nonpremultiplied-blend.html [ Skip ]
