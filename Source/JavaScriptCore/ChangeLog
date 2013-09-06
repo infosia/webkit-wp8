@@ -1,3 +1,105 @@
+2013-09-06  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed build fix for the GTK port when building with FTL JIT enabled.
+
+        * GNUmakefile.list.am: Add the missing files to the build.
+
+2013-09-05  Oliver Hunt  <oliver@apple.com>
+
+        Make it simpler to introduce new data types to the global object
+        https://bugs.webkit.org/show_bug.cgi?id=120801
+
+        Reviewed by Gavin Barraclough.
+
+        Add an iterator macro that lists all the "simple" ES types (e.g. type
+        consists of instance, constructor, and prototype classes).  So that
+        we don't need to have every new type litter JSGlobalObject.{cpp,h} with
+        members, accessors, and manual GC visiting.
+
+        * runtime/JSGlobalObject.cpp:
+        (JSC::JSGlobalObject::visitChildren):
+        * runtime/JSGlobalObject.h:
+
+2013-09-05  Michael Saboff  <msaboff@apple.com>
+
+        Cleanup formatting of byte code debug output
+        Source/JavaScriptCore/ChangeLog
+
+        Rubber stamped by Filip Pizlo.
+
+        Put the formatting of the byte code offset and operation into one common function to
+        simplify and unify formatting.  Changed CodeBlock::registerName() to return
+        "thist" for argument register 0, "argN" for other argument registers and "locN" for
+        local registers.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::registerName):
+        (JSC::CodeBlock::printUnaryOp):
+        (JSC::CodeBlock::printBinaryOp):
+        (JSC::CodeBlock::printConditionalJump):
+        (JSC::CodeBlock::printGetByIdOp):
+        (JSC::CodeBlock::printCallOp):
+        (JSC::CodeBlock::printPutByIdOp):
+        (JSC::CodeBlock::dumpBytecode):
+        * bytecode/CodeBlock.h:
+        (JSC::CodeBlock::printLocationAndOp):
+        (JSC::CodeBlock::printLocationOpAndRegisterOperand):
+
+2013-09-05  Anders Carlsson  <andersca@apple.com>
+
+        GCAssertions.h should use STL type traits and static_assert
+        https://bugs.webkit.org/show_bug.cgi?id=120785
+
+        Reviewed by Andreas Kling.
+
+        There's no need to rely on compiler specific support to figure out if a class is trivially destructable,
+        we can just use type traits from STL. Do this, fix the assert macro to use static_assert directly and
+        rename it from ASSERT_HAS_TRIVIAL_DESTRUCTOR to STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE to clarify that
+        it's a static assert and to match the STL nomenclature.
+        
+        * API/JSCallbackFunction.cpp:
+        * debugger/DebuggerActivation.cpp:
+        * heap/GCAssertions.h:
+        * runtime/ArrayConstructor.cpp:
+        * runtime/BooleanConstructor.cpp:
+        * runtime/BooleanObject.cpp:
+        * runtime/BooleanPrototype.cpp:
+        * runtime/DateConstructor.cpp:
+        * runtime/ErrorConstructor.cpp:
+        * runtime/ErrorInstance.cpp:
+        * runtime/ErrorPrototype.cpp:
+        * runtime/ExceptionHelpers.cpp:
+        * runtime/FunctionConstructor.cpp:
+        * runtime/FunctionPrototype.cpp:
+        * runtime/GetterSetter.cpp:
+        * runtime/InternalFunction.cpp:
+        * runtime/JSAPIValueWrapper.cpp:
+        * runtime/JSArray.cpp:
+        * runtime/JSCell.cpp:
+        * runtime/JSNotAnObject.cpp:
+        * runtime/JSONObject.cpp:
+        * runtime/JSObject.cpp:
+        * runtime/JSPromiseConstructor.cpp:
+        * runtime/JSPromisePrototype.cpp:
+        * runtime/JSPromiseResolverConstructor.cpp:
+        * runtime/JSPromiseResolverPrototype.cpp:
+        * runtime/JSProxy.cpp:
+        * runtime/JSScope.cpp:
+        * runtime/JSWrapperObject.cpp:
+        * runtime/MathObject.cpp:
+        * runtime/NameConstructor.cpp:
+        * runtime/NativeErrorConstructor.cpp:
+        * runtime/NumberConstructor.cpp:
+        * runtime/NumberObject.cpp:
+        * runtime/NumberPrototype.cpp:
+        * runtime/ObjectConstructor.cpp:
+        * runtime/ObjectPrototype.cpp:
+        * runtime/RegExpObject.cpp:
+        * runtime/StrictEvalActivation.cpp:
+        * runtime/StringConstructor.cpp:
+        * runtime/StringObject.cpp:
+        * runtime/StringPrototype.cpp:
+
 2013-09-05  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] Unreviewed build fix for DebugSuffix target.
