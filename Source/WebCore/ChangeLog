@@ -1,3 +1,44 @@
+2013-09-06  Andreas Kling  <akling@apple.com>
+
+        FrameLoader::subresourceLoader() should return a reference.
+        <https://webkit.org/b/120830>
+
+        Reviewed by Anders Carlsson.
+
+        There is always a SubresourceLoader, so this method could never return null.
+        Also made m_subresourceLoader an OwnPtr to reduce header dependencies.
+
+2013-09-06  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: aria-relevant does not expose AXARIARelevant
+        https://bugs.webkit.org/show_bug.cgi?id=120373
+
+        Reviewed by Darin Adler.
+
+        When global ARIA attributes are present on an Element we need to ignore
+        a presentational role, if set on that Element.
+
+        Test: accessibility/global-aria-attributes-invalidate-presentational.html
+
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::determineAriaRoleAttribute):
+        * accessibility/AccessibilityObject.cpp:
+        (WebCore::AccessibilityObject::supportsARIAAttributes):
+
+2013-09-06  Brendan Long  <b.long@cablelabs.com>
+
+        [Qt][BlackBerry] Text track localized string functions are named wrong
+        https://bugs.webkit.org/show_bug.cgi?id=120788
+
+        Reviewed by Philippe Normand.
+
+        This renames textTrackOffText() to textTrackOffMenuItemText(), and
+        adds textTrackAutomaticMenuItemText(), to make them match the
+        definitions in LocalizedStrings.h.
+
+        * platform/blackberry/LocalizedStringsBlackBerry.cpp:
+        * platform/qt/LocalizedStringsQt.cpp:
+
 2013-09-06  Allan Sandfeld Jensen  <allan.jensen@digia.com>
 
         [Qt][WK2] Cached credentials not cleared between tests
