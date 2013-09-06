@@ -1,3 +1,118 @@
+2013-09-06  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] AccessibilityUIElement::addNotificationListener() crashes on debug build
+        https://bugs.webkit.org/show_bug.cgi?id=120416
+
+        Reviewed by Mario Sanchez Prada.
+
+        Fixed crashes when running debug DRT on tests that require an a11y notification handler.
+
+        * platform/gtk/TestExpectations: Unskipped some a11y tests that were crashing before this fix.
+        Updated the expectation of accessibility/notification-listeners.html to expect failure on Debug build
+        since it is not crashing anymore. This other issue is tracked in a separate bug (bug 120669).
+
+2013-09-06  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: aria-relevant does not expose AXARIARelevant
+        https://bugs.webkit.org/show_bug.cgi?id=120373
+
+        Reviewed by Darin Adler.
+
+        * accessibility/global-aria-attributes-invalidate-presentational-expected.txt: Added.
+        * accessibility/global-aria-attributes-invalidate-presentational.html: Added.
+
+2013-09-06  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] Remove orphan test results
+        https://bugs.webkit.org/show_bug.cgi?id=120845
+
+        Reviewed by Antti Koivisto.
+
+        Removed remaining orphan test results after https://bugs.webkit.org/show_bug.cgi?id=120760.
+
+        * platform/efl/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.png: Removed.
+        * platform/efl/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.txt: Removed.
+        * platform/gtk/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.png: Removed.
+        * platform/gtk/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.txt: Removed.
+        * platform/mac/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.png: Removed.
+        * platform/mac/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.txt: Removed.
+        * platform/qt-wk2/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.png: Removed.
+        * platform/qt/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.png: Removed.
+        * platform/qt/fast/regions/overflow-not-moving-below-floats-in-variable-width-regions-expected.txt: Removed.
+
+2013-09-06  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        [EFL] Unreviewed gardening. Added missing results.
+
+        * platform/efl/fast/css-generated-content/details-summary-before-after-expected.txt: Added.
+        * platform/efl/fast/regions/region-dynamic-after-before-expected.txt: Added.
+        * platform/efl/fast/regions/region-generated-content-before-after-expected.txt: Added.
+
+2013-09-06  Simon Pena  <simon.pena@samsung.com>
+
+        [GTK] Unreviewed gardening. Update TestExpectations.
+
+        * platform/gtk-wk2/TestExpectations: Skip speech input tests, mark as failing drag and drop tests.
+        * platform/gtk-wk2/plugins/npruntime/object-from-destroyed-plugin-expected.txt: Added.
+        * platform/gtk-wk2/plugins/npruntime/object-from-destroyed-plugin-in-subframe-expected.txt: Added.
+        * platform/gtk/TestExpectations: Updated failing tests.
+        * platform/gtk/animations/cross-fade-background-image-expected.png: Removed.
+        * platform/gtk/animations/cross-fade-background-image-expected.txt: Removed.
+        * platform/gtk/editing/spelling/spellcheck-paste-expected.txt: Rebaseline after r154869.
+
+2013-09-06  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Resolve named grid lines
+        https://bugs.webkit.org/show_bug.cgi?id=119632
+
+        Reviewed by Andreas Kling.
+
+        From Blink r152659, r153794 by <jchaffraix@chromium.org>
+
+        Added a new test to check named grid lines resolution. This also
+        provides some more new test cases with named grid lines and
+        negative positions.
+
+        * fast/css-grid-layout/grid-item-named-grid-line-resolution-expected.txt: Added.
+        * fast/css-grid-layout/grid-item-named-grid-line-resolution.html: Added.
+        * fast/css-grid-layout/grid-item-negative-position-resolution-expected.txt:
+        * fast/css-grid-layout/grid-item-negative-position-resolution.html:
+
+2013-09-06  Dirk Schulze  <krit@webkit.org>
+
+        Allow string as image reference on filter()
+        https://bugs.webkit.org/show_bug.cgi?id=120829
+
+        Reviewed by Andreas Kling.
+
+        Check that string can be used as image reference, that we
+        interpolate between the same images once referenced by string
+        and once by url() and that other tokens are not excepted.
+
+        * fast/filter-image/filter-image-animation-expected.txt:
+        * fast/filter-image/filter-image-animation.html:
+        * fast/filter-image/parse-filter-image-expected.txt:
+        * fast/filter-image/parse-filter-image.html:
+
+2013-09-05  Dirk Schulze  <krit@webkit.org>
+
+        Support SVG filters on -webkit-filter() function
+        https://bugs.webkit.org/show_bug.cgi?id=120806
+
+        Reviewed by Darin Adler.
+
+        Test that the -webkit-filter() function can reference a SVG Filter
+        from the document.
+
+        * fast/filter-image/filter-image-svg-expected.html: Added.
+        * fast/filter-image/filter-image-svg.html: Added.
+
+2013-09-05  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        [EFL] Unreviewed gardening.
+
+        * platform/efl-wk1/TestExpectations: Failing after r155014.
+
 2013-09-04  Dean Jackson  <dino@apple.com>
 
         Rename supportsContext to probablySupportsContext

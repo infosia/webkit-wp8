@@ -80,6 +80,7 @@
 #include "StorageArea.h"
 #include "StorageNamespace.h"
 #include "StyleResolver.h"
+#include "SubframeLoader.h"
 #include "TextResourceDecoder.h"
 #include "VisitedLinkState.h"
 #include "VoidCallback.h"
@@ -501,7 +502,7 @@ void Page::refreshPlugins(bool reload)
             continue;
         
         for (Frame* frame = &page.mainFrame(); frame; frame = frame->tree().traverseNext()) {
-            if (frame->loader().subframeLoader()->containsPlugins())
+            if (frame->loader().subframeLoader().containsPlugins())
                 framesNeedingReload.append(*frame);
         }
     }
@@ -1187,10 +1188,7 @@ Vector<Ref<PluginViewBase>> Page::pluginViews()
         if (!view)
             break;
 
-        auto children = view->children();
-        ASSERT(children);
-
-        for (auto it = children->begin(), end = children->end(); it != end; ++it) {
+        for (auto it = view->children().begin(), end = view->children().end(); it != end; ++it) {
             Widget* widget = (*it).get();
             if (widget->isPluginViewBase())
                 views.append(*toPluginViewBase(widget));

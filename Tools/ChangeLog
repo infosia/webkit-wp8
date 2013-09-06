@@ -1,3 +1,117 @@
+2013-09-06  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] AccessibilityUIElement::addNotificationListener() crashes on debug build
+        https://bugs.webkit.org/show_bug.cgi?id=120416
+
+        Reviewed by Mario Sanchez Prada.
+
+        Fixed crashes when running debug DRT. Simplified loops at AccessibilityCallbackAtk.cpp where the HashMap
+        iterator was removed inside a loop. Fixed AccessibilityUIElement::addNotificationListener() where
+        m_notificationHandler expected RefPtr.
+
+        The global notification handler was stored in the HashMap with key 0. And this caused an assertion when
+        HashMap::add() or find() are called. To fix it, moved the global handler to a separated pointer.
+
+        * DumpRenderTree/atk/AccessibilityCallbacks.h: Removed the global notification key.
+        * DumpRenderTree/atk/AccessibilityCallbacksAtk.cpp:
+        (axObjectEventListener): Simplified the code by using HashMap::find() and a separate pointer for the
+        global notification handler.
+        (addAccessibilityNotificationHandler): Simplified the code by using HashMap::find() and a separate pointer
+        for the global notification handler.
+        (removeAccessibilityNotificationHandler): Added the removal for the global notification handler.
+        * DumpRenderTree/atk/AccessibilityNotificationHandlerAtk.h:
+        (AccessibilityNotificationHandler::create): Added static function to create
+        AccessibilityNotificationHandler.
+        * DumpRenderTree/atk/AccessibilityUIElementAtk.cpp:
+        (AccessibilityUIElement::addNotificationListener): Assigned m_notificationHandler with
+        AccessibilityNotificationHandler::create().
+
+2013-09-06  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        [Qt] REGRESSION(r155140) Pixel tests is still broken on Qt with QT_WEBKIT_DISABLE_UIPROCESS_DUMPPIXELS=1
+        https://bugs.webkit.org/show_bug.cgi?id=120847
+
+        Reviewed by Csaba Osztrogonác.
+
+        Move the force repaint code back to if (PlatformWebView::windowSnapshotEnabled()) block to support Qt.
+        Typo fixed: windowShapshotEnabled -> windowSnapshotEnabled.
+        Add a default PlatformWebView::windowSnapshotEnabled() to the !PLATFORM(QT).
+
+        * WebKitTestRunner/PlatformWebView.h:
+        (WTR::PlatformWebView::windowSnapshotEnabled):
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::dumpResults):
+        * WebKitTestRunner/qt/PlatformWebViewQt.cpp:
+        (WTR::WrapperWindow::handleStatusChanged):
+        (WTR::PlatformWebView::windowSnapshotEnabled):
+        * WebKitTestRunner/qt/TestInvocationQt.cpp:
+        (WTR::TestInvocation::dumpPixelsAndCompareWithExpected):
+
+2013-09-06  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        REGRESSION(r155140) Broke pixel tests on EFL/GTK/Qt
+        https://bugs.webkit.org/show_bug.cgi?id=120843
+
+        Reviewed by Csaba Osztrogonác.
+
+        Call notifyDone like the platform specific forceRepaintDoneCallback methods
+        it replaced did. The method is empty on the Apple ports.
+
+        * WebKitTestRunner/TestInvocation.cpp:
+        (WTR::TestInvocation::forceRepaintDoneCallback):
+
+2013-09-06  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt][WK2] Window used by WebKitTestRunner loses active status
+        https://bugs.webkit.org/show_bug.cgi?id=120774
+
+        Reviewed by Jocelyn Turcotte.
+
+        When focusing the PlatformWebView which is done at the start of each test, we should
+        ensure the host window of PlatformWebView is also made active, otherwise we will
+        not receive the keyboard events send by EventSenderProxy.
+
+        * WebKitTestRunner/qt/PlatformWebViewQt.cpp:
+        (WTR::PlatformWebView::focus):
+
+2013-09-05  Seokju Kwon  <seokju@webkit.org>
+
+        Unreviewed build fix. VectorReverse.cpp was removed after r155151.
+
+        * TestWebKitAPI/CMakeLists.txt:
+
+2013-09-05  Anders Carlsson  <andersca@apple.com>
+
+        Make Vector::uncheckedAppend work with move-only types
+        https://bugs.webkit.org/show_bug.cgi?id=120799
+
+        Reviewed by Andreas Kling.
+
+        * TestWebKitAPI/Tests/WTF/Vector.cpp:
+        (TestWebKitAPI::MoveOnly):
+        Add a move-only class.
+
+        (TestWebKitAPI::TEST):
+        Add a test for Vector<MoveOnly>::uncheckedAppend.
+
+2013-09-05  Anders Carlsson  <andersca@apple.com>
+
+        Move all Vector tests into Vector.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=120797
+
+        Reviewed by Andreas Kling.
+
+        * TestWebKitAPI/CMakeLists.txt:
+        * TestWebKitAPI/GNUmakefile.am:
+        * TestWebKitAPI/TestWebKitAPI.vcxproj/TestWebKitAPI.vcxproj:
+        * TestWebKitAPI/TestWebKitAPI.vcxproj/TestWebKitAPI.vcxproj.filters:
+        * TestWebKitAPI/TestWebKitAPI.xcodeproj/project.pbxproj:
+        * TestWebKitAPI/Tests/WTF/Vector.cpp:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WTF/VectorBasic.cpp: Removed.
+        * TestWebKitAPI/Tests/WTF/VectorReverse.cpp: Removed.
+        * TestWebKitAPI/Tests/WTF/WTF.pro:
+
 2013-09-05  Simon Fraser  <simon.fraser@apple.com>
 
         Expected result images are sometimes blank in WKTR
