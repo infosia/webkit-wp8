@@ -2279,7 +2279,6 @@ webcore_sources += \
 	Source/WebCore/bindings/generic/ActiveDOMCallback.h \
 	Source/WebCore/bindings/generic/BindingSecurity.cpp \
 	Source/WebCore/bindings/generic/BindingSecurity.h \
-	Source/WebCore/bindings/generic/GenericBinding.h \
 	Source/WebCore/bindings/generic/RuntimeEnabledFeatures.cpp \
 	Source/WebCore/bindings/generic/RuntimeEnabledFeatures.h \
 	Source/WebCore/bindings/js/ArrayValue.cpp \
@@ -4374,6 +4373,8 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderArena.h \
 	Source/WebCore/rendering/RenderBlock.cpp \
 	Source/WebCore/rendering/RenderBlock.h \
+    Source/WebCore/rendering/RenderBlockFlow.cpp \
+	Source/WebCore/rendering/RenderBlockFlow.h \
 	Source/WebCore/rendering/RenderBlockLineLayout.cpp \
 	Source/WebCore/rendering/RenderBox.cpp \
 	Source/WebCore/rendering/RenderBox.h \

@@ -1,3 +1,99 @@
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        The 'failed' file should report collectionName/testName rather than just
+        testName.
+
+        Rubber stamped by Mark Hahnenberg.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        Fix run-jsc-stress-tests to run on bots with old Ruby.
+        
+        Also make it create a repro file.
+
+        Rubber stamped by Mark Hahnenberg.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        Actually increment $numFailures
+
+        Reviewed by Mark Hahnenberg.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        Fix run-jsc-stress-tests to use Pathname instead of File.realpath.
+        
+        Also make it uses system() instead of popen(); that means that test output
+        will go to the console. This reduces error detection flakiness. It's fine
+        because stress tests don't print() unless they really have to.
+
+        Rubber stamped by Mark Hahnenberg.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Introduce a way to run benchmarks and JSRegress as stress tests with different jsc command-line options
+        https://bugs.webkit.org/show_bug.cgi?id=120808
+
+        Reviewed by Mark Hahnenberg and rubber stamped by Geoffrey Garen.
+        
+        Add a script for running stress tests.  A stress test is a .js file that is run
+        through different configurations of JSC.  It can control which configurations it
+        runs by using "//@ <ruby code>" to guide the script.
+        
+        This script is now run as part of run-javascriptcore-tests, on Mac only.
+
+        * Scripts/run-javascriptcore-tests:
+        * Scripts/run-jsc-stress-tests: Added.
+
+2013-09-06  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [GTK] Desktop proxy settings are ignored inside the internal jhbuild
+        https://bugs.webkit.org/show_bug.cgi?id=120833
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Add dconf as an optional module for the internal jhbuild, along
+        with vala 0.17 as a dependency, and make sure we do not explicitly
+        set always the 'memory' backend, so we can have an easy way to
+        allow apps access desktop settings from the jhbuild. This is
+        useful for example to be able to run apps such as MiniBrowser
+        inside the jhbuild (by means of run-launcher, for instance) while
+        working behind a proxy, since those network settings have to be
+        read from the system global configuration in org.gnome.system.proxy.
+
+        * gtk/jhbuild-optional.modules: Added dconf 0.14 and vala 0.17.
+        * gtk/jhbuildrc: Do not explicitly choose the GSettings memory
+        backend here, since that will make more difficult to use the dconf
+        backend from inside the jhbuild if we need to do it so.
+
+2013-09-06  Alexey Proskuryakov  <ap@apple.com>
+
+        Lots of pixel tests are failing on first run, so tests cannot finish
+        https://bugs.webkit.org/show_bug.cgi?id=120755
+
+        Reviewed by Ryosuke Niwa.
+
+        For whatever reason, many reftests are color profile sensitive, and we only set
+        color profile to a known one for pixel tests, not for reftests.
+
+        Pixel testing mode is also enabled  when retrying tests, so these failures used to
+        be essentially hidden - the tests were "flaky", but that was not reported loudly enough.
+        But now, so many tests fail that it makes run-webkit-tests stop early, and never retry.
+
+        This probably shouldn't happen, as reftests should not be color profile sensitive.
+        The fix is a stopgap measure to unblock EWS until a better fix can be investigated.
+
+        * Scripts/webkitpy/layout_tests/controllers/manager.py:
+        (Manager._set_up_run): Roll out <http://trac.webkit.org/changeset/115601>.
+
 2013-09-06  Denis Nomiyama  <d.nomiyama@samsung.com>
 
         [GTK] AccessibilityUIElement::addNotificationListener() crashes on debug build

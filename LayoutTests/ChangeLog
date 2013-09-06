@@ -1,3 +1,142 @@
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL ArithNeg Int32Use doesn't check negative zero
+        https://bugs.webkit.org/show_bug.cgi?id=120900
+
+        Reviewed by Mark Hahnenberg.
+
+        * fast/js/regress/script-tests/negative-zero-modulo.js:
+
+2013-09-06  Mike West  <mkwst@chromium.org>
+
+        Revalidation header blacklisting should be case-insensitive.
+        https://bugs.webkit.org/show_bug.cgi?id=120832
+
+        Reviewed by Alexey Proskuryakov.
+
+        Adds a new test to verify that a CSS file served initially as type
+        'text/css' maintains that type even if a revalidation response sends
+        'text/plain' along with a 304 response.
+
+        * http/tests/cache/content-type-ignored-during-revalidation-expected.txt: Added.
+        * http/tests/cache/content-type-ignored-during-revalidation.html: Added.
+        * http/tests/cache/resources/stylesheet304-bad-content-type.php: Added.
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        fast/js/dfg-* tests should wait for the concurrent JIT
+        https://bugs.webkit.org/show_bug.cgi?id=120723
+
+        Rubber stamped by Oliver Hunt.
+        
+        Convert more tests.
+
+        * fast/js/dfg-check-structure-elimination-for-non-cell-expected.txt:
+        * fast/js/dfg-check-two-structures-expected.txt:
+        * fast/js/dfg-compare-final-object-to-final-object-or-other-expected.txt:
+        * fast/js/dfg-compare-final-object-to-final-object-or-other-when-both-proven-final-object-expected.txt:
+        * fast/js/dfg-compare-final-object-to-final-object-or-other-when-proven-final-object-expected.txt:
+        * fast/js/dfg-constant-fold-first-local-read-after-block-merge-expected.txt:
+        * fast/js/dfg-constant-fold-logical-not-branch-expected.txt:
+        * fast/js/dfg-constant-fold-misprediction-expected.txt:
+        * fast/js/dfg-constant-fold-uncaptured-variable-that-is-later-captured-expected.txt:
+        * fast/js/dfg-convert-this-dom-window-expected.txt:
+        * fast/js/dfg-convert-this-object-then-exit-on-other-expected.txt:
+        * fast/js/dfg-convert-this-other-then-exit-on-object-expected.txt:
+        * fast/js/dfg-convert-this-polymorphic-object-then-exit-on-other-expected.txt:
+        * fast/js/dfg-convert-this-polymorphic-object-then-exit-on-string-expected.txt:
+        * fast/js/dfg-create-inlined-arguments-in-closure-inline-expected.txt:
+        * fast/js/dfg-cross-global-object-inline-new-array-literal-expected.txt:
+        * fast/js/dfg-cross-global-object-inline-new-array-literal-with-variables-expected.txt:
+        * fast/js/jsc-test-list:
+        * fast/js/script-tests/dfg-check-structure-elimination-for-non-cell.js:
+        * fast/js/script-tests/dfg-check-two-structures.js:
+        * fast/js/script-tests/dfg-compare-final-object-to-final-object-or-other-when-both-proven-final-object.js:
+        * fast/js/script-tests/dfg-compare-final-object-to-final-object-or-other-when-proven-final-object.js:
+        * fast/js/script-tests/dfg-compare-final-object-to-final-object-or-other.js:
+        * fast/js/script-tests/dfg-constant-fold-first-local-read-after-block-merge.js:
+        * fast/js/script-tests/dfg-constant-fold-logical-not-branch.js:
+        * fast/js/script-tests/dfg-constant-fold-misprediction.js:
+        * fast/js/script-tests/dfg-constant-fold-uncaptured-variable-that-is-later-captured.js:
+        * fast/js/script-tests/dfg-convert-this-dom-window.js:
+        * fast/js/script-tests/dfg-convert-this-object-then-exit-on-other.js:
+        * fast/js/script-tests/dfg-convert-this-other-then-exit-on-object.js:
+        * fast/js/script-tests/dfg-convert-this-polymorphic-object-then-exit-on-other.js:
+        * fast/js/script-tests/dfg-convert-this-polymorphic-object-then-exit-on-string.js:
+        * fast/js/script-tests/dfg-create-inlined-arguments-in-closure-inline.js:
+        * fast/js/script-tests/dfg-cross-global-object-inline-new-array-literal-with-variables.js:
+        (done):
+        (doit):
+        * fast/js/script-tests/dfg-cross-global-object-inline-new-array-literal.js:
+        (done):
+        (doit):
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Introduce a way to run benchmarks and JSRegress as stress tests with different jsc command-line options
+        https://bugs.webkit.org/show_bug.cgi?id=120808
+
+        Reviewed by Mark Hahnenberg and rubber stamped by Geoffrey Garen.
+        
+        Make it so that long-running tests aren't run as part of the stress test (they
+        will still run as part of benchmarks and LayoutTests) or run them with fewer
+        configurations.
+
+        * fast/js/regress/script-tests/ArrayBuffer-DataView-alloc-large-long-lived.js:
+        * fast/js/regress/script-tests/ArrayBuffer-DataView-alloc-long-lived.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int32Array-byteOffset.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc-huge-long-lived.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc-large-long-lived-fragmented.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc-large-long-lived.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc-long-lived-buffer.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc-long-lived.js:
+        * fast/js/regress/script-tests/ArrayBuffer-Int8Array-alloc.js:
+        * fast/js/regress/script-tests/DataView-custom-properties.js:
+        * fast/js/regress/script-tests/Float32Array-to-Float64Array-set.js:
+        * fast/js/regress/script-tests/Float64Array-alloc-long-lived.js:
+        * fast/js/regress/script-tests/Float64Array-to-Int16Array-set.js:
+        * fast/js/regress/script-tests/HashMap-put-get-iterate-keys.js:
+        * fast/js/regress/script-tests/HashMap-put-get-iterate.js:
+        * fast/js/regress/script-tests/HashMap-string-put-get-iterate.js:
+        * fast/js/regress/script-tests/Int16Array-alloc-long-lived.js:
+        * fast/js/regress/script-tests/Int16Array-to-Int32Array-set.js:
+        * fast/js/regress/script-tests/Int32Array-alloc-huge-long-lived.js:
+        * fast/js/regress/script-tests/Int32Array-alloc-huge.js:
+        * fast/js/regress/script-tests/Int32Array-alloc-large-long-lived.js:
+        * fast/js/regress/script-tests/Int32Array-alloc-large.js:
+        * fast/js/regress/script-tests/Int32Array-alloc-long-lived.js:
+        * fast/js/regress/script-tests/Int32Array-alloc.js:
+        * fast/js/regress/script-tests/Int8Array-alloc-long-lived.js:
+        * fast/js/regress/script-tests/array-nonarray-polymorhpic-access.js:
+        * fast/js/regress/script-tests/basic-set.js:
+        * fast/js/regress/script-tests/emscripten-memops.js:
+        * fast/js/regress/script-tests/inline-arguments-local-escape.js:
+        * fast/js/regress/script-tests/method-on-number.js:
+        * fast/js/regress/script-tests/nested-function-parsing-random.js:
+        * fast/js/regress/script-tests/nested-function-parsing.js:
+        * fast/js/regress/script-tests/new-array-buffer-push.js:
+        * fast/js/regress/script-tests/new-array-push.js:
+        * fast/js/regress/script-tests/poly-stricteq.js:
+        * fast/js/regress/script-tests/splice-to-remove.js:
+        * fast/js/regress/script-tests/string-equality.js:
+        * fast/js/regress/script-tests/string-repeat-arith.js:
+        * fast/js/regress/script-tests/string-sub.js:
+
+2013-09-06  Eric Carlson  <eric.carlson@apple.com>
+
+        [MediaStream API] Allow empty MediaStreams
+        https://bugs.webkit.org/show_bug.cgi?id=120815
+
+        Reviewed by Jer Noble.
+
+        The spec is a bit unclear ecactly what should happen with newly created MediaStreams 
+        that doesn't have any tracks. The current implementation is too strict and the spec 
+        is being worked upon to be clearer. In the meantime this patch doesn't set eneded to 
+        true in the constructor. 
+
+        * fast/mediastream/MediaStreamConstructor-expected.txt:
+        * fast/mediastream/MediaStreamConstructor.html:
+
 2013-09-06  Denis Nomiyama  <d.nomiyama@samsung.com>
 
         [GTK] AccessibilityUIElement::addNotificationListener() crashes on debug build

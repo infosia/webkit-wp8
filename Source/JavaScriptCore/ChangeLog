@@ -1,3 +1,136 @@
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL ArithMod Int32Use doesn't check for negative zero correctly
+        https://bugs.webkit.org/show_bug.cgi?id=120905
+
+        Reviewed by Mark Hahnenberg.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileArithMod):
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL ArithNeg Int32Use doesn't check negative zero
+        https://bugs.webkit.org/show_bug.cgi?id=120900
+
+        Reviewed by Mark Hahnenberg.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileArithNegate):
+
+2013-09-06  Anders Carlsson  <andersca@apple.com>
+
+        Stop using fastNew/fastDelete in JavaScriptCore
+        https://bugs.webkit.org/show_bug.cgi?id=120898
+
+        Reviewed by Oliver Hunt.
+
+        Change all the hash table members in ExecState to be OwnPtrs and use
+        adoptPtr instead. Also, since none of the hash tables can be null, change their getters
+        to return references and propagate the reference types wherever we know that a HashTable can't be null.
+
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::arrayConstructorTable):
+        (JSC::ExecState::arrayPrototypeTable):
+        (JSC::ExecState::booleanPrototypeTable):
+        (JSC::ExecState::dataViewTable):
+        (JSC::ExecState::dateTable):
+        (JSC::ExecState::dateConstructorTable):
+        (JSC::ExecState::errorPrototypeTable):
+        (JSC::ExecState::globalObjectTable):
+        (JSC::ExecState::jsonTable):
+        (JSC::ExecState::numberConstructorTable):
+        (JSC::ExecState::numberPrototypeTable):
+        (JSC::ExecState::objectConstructorTable):
+        (JSC::ExecState::privateNamePrototypeTable):
+        (JSC::ExecState::regExpTable):
+        (JSC::ExecState::regExpConstructorTable):
+        (JSC::ExecState::regExpPrototypeTable):
+        (JSC::ExecState::stringConstructorTable):
+        (JSC::ExecState::promisePrototypeTable):
+        (JSC::ExecState::promiseConstructorTable):
+        (JSC::ExecState::promiseResolverPrototypeTable):
+        * runtime/ClassInfo.h:
+        (JSC::ClassInfo::propHashTable):
+        * runtime/Lookup.h:
+        (JSC::getStaticPropertySlot):
+        (JSC::getStaticFunctionSlot):
+        (JSC::getStaticValueSlot):
+        (JSC::lookupPut):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::~VM):
+        * runtime/VM.h:
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        Concurrent FTL causes !hasOptimizedReplacement() asserts in cti_optimize
+        https://bugs.webkit.org/show_bug.cgi?id=120890
+
+        Reviewed by Mark Hahnenberg.
+        
+        Don't install an FTL code block if the DFG code block has already been jettisoned.
+
+        * dfg/DFGToFTLDeferredCompilationCallback.cpp:
+        (JSC::DFG::ToFTLDeferredCompilationCallback::compilationDidComplete):
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(149636, merged in 153145): ToThis conversion doesn't work in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=120781
+
+        Reviewed by Mark Hahnenberg.
+        
+        Roll this back in with a build fix.
+        
+        - Use some method table hacks to detect if the CheckStructure optimization is
+          valid for to_this.
+        
+        - Introduce a FinalObjectUse and use it for ToThis->Identity conversion.
+        
+        This looks like it might be perf-neutral on the major benchmarks, but it
+        introduces some horrible performance cliffs. For example if you add methods to
+        the Array prototype, you'll get horrible performance cliffs. As in virtual calls
+        to C++ every time you call a JS function even if it's inlined.
+        LongSpider/3d-cube appears to hit this.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGRepatch.cpp:
+        (JSC::DFG::emitPutTransitionStub):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::SafeToExecuteEdge::operator()):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::speculateFinalObject):
+        (JSC::DFG::SpeculativeJIT::speculate):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGUseKind.cpp:
+        (WTF::printInternal):
+        * dfg/DFGUseKind.h:
+        (JSC::DFG::typeFilterFor):
+        (JSC::DFG::isCell):
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        Introduce a way to run benchmarks and JSRegress as stress tests with different jsc command-line options
+        https://bugs.webkit.org/show_bug.cgi?id=120808
+
+        Reviewed by Mark Hahnenberg and rubber stamped by Geoffrey Garen.
+        
+        Allow --useExperimentalFTL=true even if FTL isn't built since this simplifies
+        testing.
+
+        * dfg/DFGTierUpCheckInjectionPhase.cpp:
+        (JSC::DFG::TierUpCheckInjectionPhase::run):
+
 2013-09-06  Zan Dobersek  <zdobersek@igalia.com>
 
         Unreviewed build fix for the GTK port when building with FTL JIT enabled.
@@ -19,6 +152,10 @@
         * runtime/JSGlobalObject.cpp:
         (JSC::JSGlobalObject::visitChildren):
         * runtime/JSGlobalObject.h:
+
+2013-09-05  Mark Rowe  <mrowe@apple.com>
+        
+        Roll out r155149 since it broke the build.
 
 2013-09-05  Michael Saboff  <msaboff@apple.com>
 
@@ -44,6 +181,46 @@
         * bytecode/CodeBlock.h:
         (JSC::CodeBlock::printLocationAndOp):
         (JSC::CodeBlock::printLocationOpAndRegisterOperand):
+
+2013-09-05  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(149636, merged in 153145): ToThis conversion doesn't work in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=120781
+
+        Reviewed by Mark Hahnenberg.
+        
+        - Use some method table hacks to detect if the CheckStructure optimization is
+          valid for to_this.
+        
+        - Introduce a FinalObjectUse and use it for ToThis->Identity conversion.
+        
+        This looks like it might be perf-neutral on the major benchmarks, but it
+        introduces some horrible performance cliffs. For example if you add methods to
+        the Array prototype, you'll get horrible performance cliffs. As in virtual calls
+        to C++ every time you call a JS function even if it's inlined.
+        LongSpider/3d-cube appears to hit this.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::SafeToExecuteEdge::operator()):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::speculateFinalObject):
+        (JSC::DFG::SpeculativeJIT::speculate):
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGUseKind.cpp:
+        (WTF::printInternal):
+        * dfg/DFGUseKind.h:
+        (JSC::DFG::typeFilterFor):
+        (JSC::DFG::isCell):
 
 2013-09-05  Anders Carlsson  <andersca@apple.com>
 
