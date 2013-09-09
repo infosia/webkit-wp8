@@ -1,3 +1,118 @@
+2013-09-08  Filip Pizlo  <fpizlo@apple.com>
+
+        run-jsc-stress-tests should be more paranoid about calling make
+        https://bugs.webkit.org/show_bug.cgi?id=121011
+
+        Reviewed by Oliver Hunt.
+        
+        If it returns with any kind of error then bail out.  Also print the command being used
+        in case we have to debug this, for example on the bots.  The extra verbosity isn't a
+        big deal.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-08  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, never pass Pathname to shellescape() as old versions of Ruby don't
+        like that. Pass a string instead.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-08  Filip Pizlo  <fpizlo@apple.com>
+
+        run-jsc-stress-tests should run tests in parallel if possible
+        https://bugs.webkit.org/show_bug.cgi?id=120996
+
+        Reviewed by Oliver Hunt.
+        
+        Run tests in parallel by using Makefile hacks. This lets make take care of all load
+        balancing. It's a really awesome speed-up for these tests.
+        
+        This reduces the FTL debug build stress test run time from 8m18s to 2m11s. The 
+        no-FTL debug build stress test time goes from 1m11s to 16s. This patch is pretty
+        much awesome.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-08  Filip Pizlo  <fpizlo@apple.com>
+
+        run-jsc-stress-tests should be smart enough to call JSRegress "regress/script-tests" rather than "script-tests"
+        https://bugs.webkit.org/show_bug.cgi?id=120994
+
+        Reviewed by Geoffrey Garen.
+        
+        run-jsc-stress-tests accepts a list of directories containing tests.  It needs to
+        come up with names for all of them.  Currently it uses the basename of the test
+        directory.  But that means that JSRegress gets called "script-tests", which is
+        unfortunate since any directory in LayoutTests containing .js files will be
+        called "script-tests".  So, this changes run-jsc-stress-tests to use more than
+        just the basename if the basename has the word "tests" in it.  This causes
+        JSRegress to be called "regress/script-tests".
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-08  Sergio Correia  <sergio.correia@openbossa.org>
+
+        [EFL][JHBUILD] Fix evas build with giflib5
+        https://bugs.webkit.org/show_bug.cgi?id=120863
+
+        Original patch from Doug Newgard, at https://phab.enlightenment.org/D200.
+
+        Reviewed by Anders Carlsson.
+
+        * efl/jhbuild.modules: Apply patch to fix evas build with giflib5.
+        * efl/patches/evas-fix-build-with-giflib5.patch: Added.
+
+2013-09-07  Filip Pizlo  <fpizlo@apple.com>
+
+        Only run FTL tests if we have the FTL
+        https://bugs.webkit.org/show_bug.cgi?id=120974
+
+        Reviewed by Geoffrey Garen.
+        
+        Pass --ftl-jit down into run-jsc-stress-tests so that it knows what test
+        variants to run.
+
+        * Scripts/build-jsc:
+        * Scripts/run-javascriptcore-tests:
+        * Scripts/run-jsc-stress-tests:
+
+2013-09-07  Santosh Mahto  <santosh.ma@samsung.com>
+
+        removing --dialog-element from build-webkit --help option message
+        https://bugs.webkit.org/show_bug.cgi?id=120955
+
+        Reviewed by Daniel Bates.
+
+        --dialog-element option is useless while building as
+        Dialog Element support has been removed in following changeset.
+        http://trac.webkit.org/changeset/154835
+        http://trac.webkit.org/changeset/154870
+
+        * Scripts/webkitperl/FeatureList.pm:
+        Removed --dialog-element option message.
+
+2013-09-06  Filip Pizlo  <fpizlo@apple.com>
+
+        It should be possible to run-javascriptcore-tests with only a subset of the test suites
+        https://bugs.webkit.org/show_bug.cgi?id=120918
+
+        Reviewed by Dan Bernstein.
+
+        * Scripts/run-javascriptcore-tests:
+
+2013-09-06  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r155196.
+        http://trac.webkit.org/changeset/155196
+        https://bugs.webkit.org/show_bug.cgi?id=120919
+
+        Broke 16 tests on build.webkit.org (Requested by rniwa on
+        #webkit).
+
+        * Scripts/webkitpy/layout_tests/controllers/manager.py:
+        (Manager._set_up_run):
+
 2013-09-06  Filip Pizlo  <fpizlo@apple.com>
 
         The 'failed' file should report collectionName/testName rather than just

@@ -1,3 +1,627 @@
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        FrameView::scheduleEvent() is over-engineered.
+        <https://webkit.org/b/121004>
+
+        Reviewed by Antti Koivisto.
+
+        Remove gratuitous FrameActionScheduler class that was really only being used
+        to defer the occassional "overflowchanged" event until layout had finished.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * Target.pri:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.vcxproj/WebCore.vcxproj.filters:
+        * WebCore.xcodeproj/project.pbxproj:
+        * page/FrameActionScheduler.cpp:
+        * page/FrameActionScheduler.h:
+
+            Removed FrameActionScheduler.
+
+        * page/FrameView.h:
+        * page/FrameView.cpp:
+        (WebCore::FrameView::FrameView):
+        (WebCore::FrameView::~FrameView):
+        (WebCore::FrameView::layout):
+        (WebCore::FrameView::ScheduledEvent::ScheduledEvent):
+        (WebCore::FrameView::scheduleEvent):
+        (WebCore::FrameView::pauseScheduledEvents):
+        (WebCore::FrameView::resumeScheduledEvents):
+        (WebCore::FrameView::performPostLayoutTasks):
+        (WebCore::FrameView::updateOverflowStatus):
+
+            Replaced it with a Vector<ScheduledEvent> and a suppression counter.
+            A ScheduledEvent is just a { Node, Event } pair.
+
+2013-09-08  Anders Carlsson  <andersca@apple.com>
+
+        Move WTF::notFound to Vector.h and delete NotFound.h
+        https://bugs.webkit.org/show_bug.cgi?id=120990
+
+        Reviewed by Sam Weinig.
+
+        * html/HTMLImageElement.cpp:
+        * loader/archive/mhtml/MHTMLParser.cpp:
+        * platform/graphics/cairo/GraphicsContext3DCairo.cpp:
+        * platform/graphics/win/GraphicsContext3DWin.cpp:
+        * platform/network/soup/SocketStreamHandleSoup.cpp:
+
+2013-09-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r155069 and r155138.
+        http://trac.webkit.org/changeset/155069
+        http://trac.webkit.org/changeset/155138
+        https://bugs.webkit.org/show_bug.cgi?id=121008
+
+        Seems to have broken many tests (bug 120963) (Requested by ap
+        on #webkit).
+
+        * WebCore.xcodeproj/project.pbxproj:
+        * platform/graphics/cg/PDFDocumentImage.cpp:
+        (WebCore::PDFDocumentImage::PDFDocumentImage):
+        (WebCore::PDFDocumentImage::~PDFDocumentImage):
+        (WebCore::PDFDocumentImage::size):
+        (WebCore::PDFDocumentImage::dataChanged):
+        (WebCore::PDFDocumentImage::adjustCTM):
+        (WebCore::PDFDocumentImage::setCurrentPage):
+        (WebCore::PDFDocumentImage::pageCount):
+        (WebCore::PDFDocumentImage::draw):
+        * platform/graphics/cg/PDFDocumentImage.h:
+        (WebCore::PDFDocumentImage::create):
+        (WebCore::PDFDocumentImage::hasSingleSecurityOrigin):
+        (WebCore::PDFDocumentImage::destroyDecodedData):
+        (WebCore::PDFDocumentImage::decodedSize):
+        * platform/graphics/mac/PDFDocumentImageMac.mm: Removed.
+        * platform/mac/SoftLinking.h:
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        ScriptExecutionContext: Use FINAL instead of foo() { virtualFoo() }
+        <https://webkit.org/b/120827>
+
+        Reviewed by Darin Adler.
+
+        Now that we have FINAL, we can just use that to have fast versions of url()
+        and completeURL() when calling through a Document or WorkerGlobalScope pointer.
+
+        * dom/Document.cpp:
+        * dom/Document.h:
+        * dom/ScriptExecutionContext.h:
+        * workers/WorkerGlobalScope.cpp:
+        * workers/WorkerGlobalScope.h:
+
+2013-09-08  Antti Koivisto  <antti@apple.com>
+
+        Rename needsShadowTreeWalker
+        https://bugs.webkit.org/show_bug.cgi?id=121005
+
+        Reviewed by Andreas Kling.
+
+        Rename to needsNodeRenderingTraversalSlowPath.
+
+        * dom/ContainerNode.h:
+        (WebCore::Node::needsNodeRenderingTraversalSlowPath):
+        * dom/Element.cpp:
+        (WebCore::shouldUseNodeRenderingTraversalSlowPath):
+        (WebCore::Element::resetNeedsNodeRenderingTraversalSlowPath):
+
+            Only Elements can have this flag. Move the code here from Node.
+
+        (WebCore::Element::addShadowRoot):
+        (WebCore::Element::setBeforePseudoElement):
+        (WebCore::Element::setAfterPseudoElement):
+        (WebCore::Element::clearBeforePseudoElement):
+        (WebCore::Element::clearAfterPseudoElement):
+
+            Reset after clear too.
+
+        * dom/Element.h:
+        * dom/Element.h:
+        * dom/Node.cpp:
+        * dom/Node.h:
+        (WebCore::Node::isInsertionPoint):
+        (WebCore::Node::setNeedsNodeRenderingTraversalSlowPath):
+        
+            Make protected.
+
+        * dom/NodeRenderingTraversal.h:
+        (WebCore::NodeRenderingTraversal::parent):
+        (WebCore::NodeRenderingTraversal::nextSibling):
+        (WebCore::NodeRenderingTraversal::previousSibling):
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        Render{Block,Inline}::lineBoxes() should return a reference.
+        <https://webkit.org/b/120995>
+
+        Reviewed by Antti Koivisto.
+
+        This function was already just returning the address of a member variable.
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        Move "using software CSS filters" optimization flag to RenderView.
+        <https://webkit.org/b/120999>
+
+        Reviewed by Antti Koivisto.
+
+        This flag is used to avoid an extra tree walk when there are no software CSS filters in use.
+        Move it from FrameView to RenderView where it belongs.
+
+        * page/FrameView.h:
+        * rendering/RenderLayer.cpp:
+        (WebCore::RenderLayer::updateOrRemoveFilterEffectRenderer):
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::containerForRepaint):
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::RenderView):
+        * rendering/RenderView.h:
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        FrameLoader::icon() should return a reference.
+        <https://webkit.org/b/120993>
+
+        Reviewed by Antti Koivisto.
+
+        This function never returns null. Make it return a reference!
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        Remove unused Scrollbar tickmark stuff.
+        <https://webkit.org/b/121000>
+
+        Reviewed by Antti Koivisto.
+
+        This code is no longer used by any ports.
+
+        * page/FrameView.cpp:
+        * page/FrameView.h:
+        * platform/ScrollableArea.h:
+        * platform/Scrollbar.cpp:
+        * platform/Scrollbar.h:
+        * platform/ScrollbarThemeClient.h:
+
+2013-09-08  Antti Koivisto  <antti@apple.com>
+
+        Remove ComposedShadowTreeWalker
+        https://bugs.webkit.org/show_bug.cgi?id=120997
+
+        Reviewed by Andreas Kling.
+
+        Move the code to NodeRenderingTraversal which is the only client besides Internals.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * Target.pri:
+        * WebCore.exp.in:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.xcodeproj/project.pbxproj:
+        * dom/ComposedShadowTreeWalker.cpp: Removed.
+        * dom/ComposedShadowTreeWalker.h: Removed.
+        * dom/NodeRenderingTraversal.cpp:
+        (WebCore::NodeRenderingTraversal::nodeCanBeDistributed):
+        (WebCore::NodeRenderingTraversal::findFirstSiblingEnteringInsertionPoints):
+        (WebCore::NodeRenderingTraversal::findFirstEnteringInsertionPoints):
+        (WebCore::NodeRenderingTraversal::findFirstFromDistributedNode):
+        (WebCore::NodeRenderingTraversal::findLastSiblingEnteringInsertionPoints):
+        (WebCore::NodeRenderingTraversal::findLastEnteringInsertionPoints):
+        (WebCore::NodeRenderingTraversal::findLastFromDistributedNode):
+        (WebCore::NodeRenderingTraversal::traverseParent):
+        (WebCore::NodeRenderingTraversal::traverseFirstChild):
+        (WebCore::NodeRenderingTraversal::traverseLastChild):
+        (WebCore::NodeRenderingTraversal::traverseNextSibling):
+        (WebCore::NodeRenderingTraversal::traversePreviousSibling):
+        
+            Make former members of ComposedShadowTreeWalker standalone functions in NodeRenderingTraversal.
+
+        (WebCore::NodeRenderingTraversal::parentSlow):
+        (WebCore::NodeRenderingTraversal::nextSiblingSlow):
+        (WebCore::NodeRenderingTraversal::previousSiblingSlow):
+        (WebCore::NodeRenderingTraversal::nextInScope):
+        (WebCore::NodeRenderingTraversal::previousInScope):
+        (WebCore::NodeRenderingTraversal::parentInScope):
+        (WebCore::NodeRenderingTraversal::lastChildInScope):
+        * testing/Internals.cpp:
+        * testing/Internals.h:
+        * testing/Internals.idl:
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        FrameLoader::policyChecker() should return a reference.
+        <https://webkit.org/b/120991>
+
+        Reviewed by Antti Koivisto.
+
+        This function never returns null. Make it return a reference!
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        FrameLoader::mixedContentChecker() should return a reference.
+        <https://webkit.org/b/120992>
+
+        Reviewed by Antti Koivisto.
+
+        This function was already just returning the address of a member variable.
+
+2013-09-07  Antti Koivisto  <antti@apple.com>
+
+        Separate forward and backward paths in ComposedShadowTreeWalker
+        https://bugs.webkit.org/show_bug.cgi?id=120979
+
+        Reviewed by Andreas Kling.
+
+        Have separate first/last and next/previous paths instead of using a direction enum.
+        
+        Reduce the number of helper functions and give them more understandable names.
+
+        * dom/ComposedShadowTreeWalker.cpp:
+        (WebCore::findFirstSiblingEnteringInsertionPoints):
+        (WebCore::findFirstEnteringInsertionPoints):
+        (WebCore::findFirstFromDistributedNode):
+        (WebCore::findLastSiblingEnteringInsertionPoints):
+        (WebCore::findLastEnteringInsertionPoints):
+        (WebCore::findLastFromDistributedNode):
+        (WebCore::ComposedShadowTreeWalker::firstChild):
+        (WebCore::ComposedShadowTreeWalker::traverseFirstChild):
+        (WebCore::ComposedShadowTreeWalker::lastChild):
+        (WebCore::ComposedShadowTreeWalker::traverseLastChild):
+        (WebCore::ComposedShadowTreeWalker::nextSibling):
+        (WebCore::ComposedShadowTreeWalker::previousSibling):
+        (WebCore::ComposedShadowTreeWalker::traverseNextSibling):
+        (WebCore::ComposedShadowTreeWalker::traversePreviousSibling):
+        * dom/ComposedShadowTreeWalker.h:
+
+2013-09-07  Andreas Kling  <akling@apple.com>
+
+        Beat FrameView with the FINAL stick.
+        <https://webkit.org/b/120989>
+
+        Reviewed by Anders Carlsson.
+
+        ... and mark everything virtual with OVERRIDE, exposing a couple of things
+        that didn't actually override anything.
+
+        * WebCore.exp.in:
+        * page/FrameView.h:
+
+2013-09-07  Anders Carlsson  <andersca@apple.com>
+
+        Remove NonCopyableSort.h from WTF
+        https://bugs.webkit.org/show_bug.cgi?id=120984
+
+        Reviewed by Andreas Kling.
+
+        * css/MediaQuery.cpp:
+        (WebCore::MediaQuery::MediaQuery):
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::updateActiveTextTrackCues):
+        * html/RangeInputType.cpp:
+        (WebCore::RangeInputType::updateTickMarkValues):
+        * inspector/InspectorMemoryAgent.cpp:
+        * page/CaptionUserPreferences.cpp:
+        (WebCore::CaptionUserPreferences::sortedTrackListForMenu):
+        * page/CaptionUserPreferences.h:
+        * page/CaptionUserPreferencesMediaAF.cpp:
+        (WebCore::CaptionUserPreferencesMediaAF::sortedTrackListForMenu):
+        * platform/graphics/texmap/TextureMapper.cpp:
+        (WebCore::BitmapTexturePool::releaseUnusedTexturesTimerFired):
+
+2013-09-07  Antti Koivisto  <antti@apple.com>
+
+        Simplify ComposedShadowTreeWalker parent traversal
+        https://bugs.webkit.org/show_bug.cgi?id=120971
+
+        Reviewed by Andreas Kling.
+
+        Combine a bunch of parent traversal functions into one.
+
+        * dom/ComposedShadowTreeWalker.cpp:
+        (WebCore::ComposedShadowTreeWalker::traverseParent):
+        (WebCore::ComposedShadowTreeWalker::previous):
+        * dom/ComposedShadowTreeWalker.h:
+        
+            Remove unused fromFirstChild.
+
+2013-09-07  Anders Carlsson  <andersca@apple.com>
+
+        Get rid of PassOwnArrayPtr
+        https://bugs.webkit.org/show_bug.cgi?id=120964
+
+        Reviewed by Andreas Kling.
+
+        Use OwnArrayPtr instead of PassOwnArrayPtr.
+
+        * html/canvas/WebGLRenderingContext.cpp:
+        * platform/Length.cpp:
+        (WebCore::newCoordsArray):
+        (WebCore::newLengthArray):
+        * platform/Length.h:
+        * platform/audio/FFTFrame.h:
+        * platform/graphics/GraphicsContext3D.cpp:
+        * platform/graphics/GraphicsContext3D.h:
+        * platform/graphics/texmap/TextureMapperGL.cpp:
+        * platform/graphics/wince/SharedBitmap.cpp:
+
+2013-09-07  Antti Koivisto  <antti@apple.com>
+
+        Remove unnecessary sibling text renderers after attach
+        https://bugs.webkit.org/show_bug.cgi?id=120953
+
+        Reviewed by the Swedish Review Team: Anders Carlsson and Andreas Kling.
+
+        The current createTextRenderersForSiblingsAfterAttachIfNeeded code only adds text renderers, never removes them. 
+        Style changes can go either way.
+        
+        The patch causes no visible changes in rendered output. The whitespace nodes that it affects are leftovers that
+        have no rendering effect. However it does change results of many dumpAsText and render tree dump based layout
+        tests as unnecessary text nodes disappear.
+        
+        The main goal is to make results of dynamic attach and parsing time attach produce more similar results. As
+        an added bonus we get slightly simpler rendering trees.
+        
+        Rendering tree dumps show us still leaving behind empty anonymous blocks when removing whitespace text nodes.
+        Those should collapse away too.
+
+        * style/StyleResolveTree.cpp:
+        (WebCore::Style::reattachTextRenderersForWhitespaceOnlySiblingsAfterAttachIfNeeded):
+        
+            Allow the code both create and remove text renderers.
+            Tighten to bail out faster if case is not the exact one that matters.
+            Use NodeRenderingTraversal to mirror textRendererIsNeeded.
+            Renamed for clarity.
+
+        (WebCore::Style::updateTextRendererAfterContentChange):
+        (WebCore::Style::resolveLocal):
+        (WebCore::Style::updateTextStyle):
+        (WebCore::Style::attachRenderTree):
+
+2013-09-07  Anders Carlsson  <andersca@apple.com>
+
+        Get rid of FastAllocBase.h
+        https://bugs.webkit.org/show_bug.cgi?id=120952
+
+        Reviewed by Antti Koivisto.
+
+        Include FastMalloc.h instead of FastAllocBase.h.
+
+        * Modules/webdatabase/SQLTransactionClient.h:
+        * bindings/js/GCController.h:
+        * bridge/Bridge.h:
+        * bridge/IdentifierRep.h:
+        * dom/DocumentStyleSheetCollection.h:
+        * dom/TransformSource.h:
+        * html/InputType.h:
+        * inspector/InspectorCounters.h:
+        * inspector/InstrumentingAgents.h:
+        * inspector/WorkerInspectorController.h:
+        * loader/cache/CachedResourceClient.h:
+        * page/FrameActionScheduler.h:
+        * platform/Length.h:
+        * platform/MemoryPressureHandler.h:
+        * platform/ScrollAnimator.h:
+        * platform/SharedTimer.h:
+        * platform/audio/gstreamer/FFTFrameGStreamer.cpp:
+        * platform/cairo/WidgetBackingStore.h:
+        * platform/graphics/Color.h:
+        * platform/graphics/FontData.h:
+        * platform/graphics/Path.h:
+        * platform/graphics/qt/FontCustomPlatformData.h:
+        * platform/graphics/transforms/AffineTransform.h:
+        * platform/graphics/transforms/TransformationMatrix.h:
+        * platform/gtk/GtkDragAndDropHelper.h:
+        * platform/gtk/GtkPopupMenu.h:
+        * platform/network/NetworkStateNotifier.h:
+        * platform/sql/SQLiteTransaction.h:
+        * platform/text/enchant/TextCheckerEnchant.h:
+        * rendering/RenderArena.h:
+        * rendering/TableLayout.h:
+        * rendering/style/StyleCustomFilterProgram.h:
+        * rendering/style/StyleCustomFilterProgramCache.h:
+        * svg/SVGPathConsumer.h:
+        * workers/WorkerScriptLoader.h:
+
+2013-09-07  Eric Carlson  <eric.carlson@apple.com>
+
+        MediaStream should fire ended event when all tracks are ended
+        https://bugs.webkit.org/show_bug.cgi?id=120871
+
+        Reviewed by Jer Noble.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/bebd179b65be69e46f2f434a3ec8b1e4aa85cc42
+
+        Test: fast/mediastream/MediaStream-onended.html
+
+        * Modules/mediastream/MediaStream.cpp:
+        (WebCore::MediaStream::trackEnded): New.
+        * Modules/mediastream/MediaStream.h:
+
+        * Modules/mediastream/MediaStreamTrack.cpp:
+        (WebCore::MediaStreamTrack::sourceChangedState): Call didEndTrack when state changes to ReadyStateEnded. 
+        (WebCore::MediaStreamTrack::didEndTrack): New.
+        (WebCore::MediaStreamTrack::stop): Call didEndTrack.
+        * Modules/mediastream/MediaStreamTrack.h:
+
+        * platform/mediastream/MediaStreamDescriptor.h:
+        (WebCore::MediaStreamDescriptor::MediaStreamDescriptor): Require didEndTrack.
+
+2013-09-06  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        Get MEDIA_STREAM compiling for other ports (EFL and GTK)
+        https://bugs.webkit.org/show_bug.cgi?id=120811
+
+        Reviewed by Eric Carlson.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * Modules/mediastream/LocalMediaStream.h:
+        * Modules/mediastream/MediaStreamRegistry.cpp:
+        (WebCore::MediaStreamRegistry::lookupMediaStreamDescriptor):
+        * Modules/mediastream/RTCStatsResponse.h:
+
+2013-09-06  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        [CSS Shapes] Floats with shape-outside aren't painting in the correct order
+        https://bugs.webkit.org/show_bug.cgi?id=118492
+
+        Reviewed by Darin Adler.
+
+        When removing the old positioning behavior, the code that makes a
+        float with shape-outside gain a layer was left behind. This patch
+        removes that, so now floats with shape-outside are painted just like
+        floats without shape-outside.
+
+        Also remove the isFloatingWithShapeOutside helper method because its
+        use is now somewhat redundant, and the check it does is now only
+        needed in one place.
+
+        Test: fast/shapes/shape-outside-floats/shape-outside-floats-not-a-layer.html
+
+        * rendering/RenderBox.h:
+        (WebCore::RenderBox::shapeOutsideInfo):
+        * rendering/RenderObject.h:
+        * rendering/shapes/ShapeOutsideInfo.cpp:
+        (WebCore::ShapeOutsideInfo::isEnabledFor): 
+
+2013-09-06  Anders Carlsson  <andersca@apple.com>
+
+        Add a new smart pointer type for fastMalloc'ed memory
+        https://bugs.webkit.org/show_bug.cgi?id=120911
+
+        Reviewed by Andreas Kling.
+
+        Update for WTF changes.
+
+        * platform/network/cf/FormDataStreamCFNet.cpp:
+        (WebCore::advanceCurrentStream):
+
+2013-09-06  Dirk Schulze  <krit@webkit.org>
+
+        Interpolate between CSS filter() and cached images
+        https://bugs.webkit.org/show_bug.cgi?id=120602
+
+        Reviewed by Simon Fraser.
+
+        Interpolate from a filter() image function to a url() image reference and
+        the other way around, if the input image on the filter function is the same
+        as the referenced image on url().
+
+        * page/animation/CSSPropertyAnimation.cpp: Replaced old
+            filterBlend function with blendFilter function which is more generic
+            and can be reused in multiple places.
+        (WebCore::blendFilterOperations):
+        (WebCore::blendFunc):
+        (WebCore::blendFilter):
+
+2013-09-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Elements retained by AccessibilityImageMapLink leak
+        https://bugs.webkit.org/show_bug.cgi?id=120917
+
+        Reviewed by Chris Fleizach.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/df0bd288efe65e5e38425fbdcdfc68b5a2a79e42
+
+        Unfortunately, the test added by the Blink change doesn't reproduce a leak in WebKit.
+
+        * accessibility/AccessibilityImageMapLink.cpp:
+        (WebCore::AccessibilityImageMapLink::detachFromParent):
+        * accessibility/AccessibilityImageMapLink.h:
+        * accessibility/AccessibilityMockObject.h:
+        (WebCore::AccessibilityMockObject::detachFromParent):
+
+2013-09-06  Andreas Kling  <akling@apple.com>
+
+        Make Obj-C bindings generator less #include-happy.
+        <https://webkit.org/b/120913>
+
+        Reviewed by Anders Carlsson.
+
+        Knock out an old FIXME in CodeGeneratorObjC.pm and avoid including unrelated
+        interface declarations from implementation files where they are not needed.
+
+        * bindings/scripts/CodeGeneratorObjC.pm:
+        (GenerateImplementation):
+
+            Only include DOMFooInternal.h relevant to the current interface.
+
+        * bindings/scripts/test/ObjC/*
+
+            Rebaseline Obj-C bindings tests now that they include fewer things.
+
+2013-09-06  Andreas Kling  <akling@apple.com>
+
+        Rebaseline bindings tests after Swedish breakage.
+
+2013-09-06  Andreas Kling  <akling@apple.com>
+
+        Don't include Document.h from JSDOMBinding.h
+        <https://webkit.org/b/120909>
+
+        Reviewed by Anders Carlsson.
+
+        Move DOMConstructorWithDocument out of JSDOMBinding.h to its own header.
+        This was the only part of JSDOMBinding.h that needed Document's definition.
+
+        This reduces the include dependency graph of many bindings files.
+
+        * WebCore.xcodeproj/project.pbxproj:
+        * bindings/js/DOMConstructorWithDocument.h:
+        * bindings/js/JSDOMBinding.cpp:
+        * bindings/js/JSDOMBinding.h:
+        * bindings/scripts/CodeGeneratorJS.pm:
+        * bindings/scripts/CodeGeneratorGObject.pm:
+
+2013-09-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Range::ownerDocument should return Document&
+        https://bugs.webkit.org/show_bug.cgi?id=120908
+
+        Reviewed by Andreas Kling.
+
+        Return Document& in Range::ownerDocument(). Also make setDocument take Document& so that this invariant is self-evident.
+
+        * bindings/objc/DOM.mm:
+        (-[DOMRange boundingBox]):
+        (-[DOMRange renderedImageForcingBlackText:]):
+        (-[DOMRange textRects]):
+        * dom/Range.cpp:
+        (WebCore::Range::setDocument):
+        (WebCore::Range::setStart):
+        (WebCore::Range::setEnd):
+        (WebCore::Range::selectNode):
+        (WebCore::Range::selectNodeContents):
+        * dom/Range.h:
+        (WebCore::Range::ownerDocument):
+        * editing/AlternativeTextController.cpp:
+        (WebCore::AlternativeTextController::handleAlternativeTextUIResult):
+        * editing/Editor.cpp:
+        (WebCore::Editor::avoidIntersectionWithDeleteButtonController):
+        (WebCore::isFrameInRange):
+        (WebCore::Editor::countMatchesForText):
+        * editing/EditorCommand.cpp:
+        (WebCore::unionDOMRanges):
+        * editing/TextCheckingHelper.cpp:
+        (WebCore::TextCheckingHelper::unifiedTextCheckerEnabled):
+        * editing/TextIterator.cpp:
+        (WebCore::plainText):
+        (WebCore::findPlainText):
+        * editing/htmlediting.cpp:
+        (WebCore::extendRangeToWrappingNodes):
+        * editing/markup.cpp:
+        (WebCore::createMarkup):
+        (WebCore::createFragmentFromText):
+        * page/DragController.cpp:
+        (WebCore::documentFragmentFromDragData):
+        (WebCore::DragController::concludeEditDrag):
+        * page/Page.cpp:
+        (WebCore::Page::rangeOfString):
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::absoluteBoundingBoxRectForRange):
+        * testing/Internals.cpp:
+        (WebCore::Internals::addTextMatchMarker):
+
 2013-09-06  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] StructuredExceptionHandlerSuppressor Causes Bad Interactions with Support Libraries

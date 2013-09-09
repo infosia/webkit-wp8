@@ -1259,8 +1259,7 @@ FloatRect RenderObject::absoluteBoundingBoxRectForRange(const Range* range)
     if (!range || !range->startContainer())
         return FloatRect();
 
-    if (range->ownerDocument())
-        range->ownerDocument()->updateLayout();
+    range->ownerDocument().updateLayout();
 
     Vector<FloatQuad> quads;
     range->textQuads(quads);
@@ -1312,7 +1311,7 @@ RenderLayerModelObject* RenderObject::containerForRepaint() const
 #endif
     
 #if ENABLE(CSS_FILTERS)
-    if (document().view()->hasSoftwareFilters()) {
+    if (view().hasSoftwareFilters()) {
         if (RenderLayer* parentLayer = enclosingLayer()) {
             RenderLayer* enclosingFilterLayer = parentLayer->enclosingFilterLayer();
             if (enclosingFilterLayer)

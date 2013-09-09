@@ -2396,7 +2396,7 @@ void Document::implicitClose()
     // ramifications, and we need to decide what is the Right Thing To Do(tm)
     Frame* f = frame();
     if (f) {
-        f->loader().icon()->startLoader();
+        f->loader().icon().startLoader();
         f->animation().startAnimationsIfNotSuspended(this);
     }
 
@@ -2573,16 +2573,6 @@ void Document::writeln(const String& text, Document* ownerDocument)
 {
     write(text, ownerDocument);
     write("\n", ownerDocument);
-}
-
-const KURL& Document::virtualURL() const
-{
-    return m_url;
-}
-
-KURL Document::virtualCompleteURL(const String& url) const
-{
-    return completeURL(url);
 }
 
 double Document::minimumTimerInterval() const
