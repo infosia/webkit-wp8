@@ -296,8 +296,10 @@ ThreadIdentifier currentThread()
 
 Mutex::Mutex()
     : m_mutex()
+	, m_locker(m_mutex, std::defer_lock)
 {
 }
+
 
 Mutex::~Mutex()
 {
@@ -336,8 +338,11 @@ ThreadCondition::~ThreadCondition()
 
 void ThreadCondition::wait(Mutex& mutex)
 {
-    std::unique_lock<std::mutex> lock(mutex.impl());
-    m_condition.wait(lock);
+	try {
+		m_condition.wait(mutex.m_locker);
+	} catch (...) {
+        LOG_ERROR("Failed to wait for thread condition.");
+	}
 }
 
 bool ThreadCondition::timedWait(Mutex& mutex, double absoluteTime)
@@ -353,10 +358,9 @@ bool ThreadCondition::timedWait(Mutex& mutex, double absoluteTime)
     //std::chrono::duration<double> waitDuration = currentTime() - absoluteTime;
     int durationMilliseconds = static_cast<int>((currentTime() - absoluteTime) * 1000);
     std::chrono::milliseconds waitDuration(durationMilliseconds);
-    std::unique_lock<std::mutex> lock(mutex.impl());
 
     try {
-        return m_condition.wait_for(lock, waitDuration) == std::cv_status::no_timeout;
+        return m_condition.wait_for(mutex.m_locker, waitDuration) == std::cv_status::no_timeout;
     } catch (...) {
         LOG_ERROR("Failed when attempting a timed wait on condition.");
         return false;

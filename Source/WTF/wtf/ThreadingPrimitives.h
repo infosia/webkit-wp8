@@ -96,6 +96,11 @@ public:
     PlatformMutex& impl() { return m_mutex; }
 private:
     PlatformMutex m_mutex;
+
+public:
+#if USE(STDTHREAD)
+	std::unique_lock<std::mutex> m_locker;
+#endif
 };
 
 typedef Locker<Mutex> MutexLocker;
