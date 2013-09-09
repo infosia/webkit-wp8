@@ -1,0 +1,14 @@
+﻿<xapCache source="C:\Users\Martin\WebKit\Source\JavaScriptCore\JavaScriptCore-WP8.vxcproj\ARM\Release\NativeApp\NativeApp_Release_ARM.xap" wasSigned="False" certificateThumbprint="" TimeStampUrl="" lastWriteTime="8/28/2013 5:41:49 PM">
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\JavaScriptCore-WP8.vxcproj\ARM\Release\NativeApp\WMAppManifest.xml" archivePath="WMAppManifest.xml" lastWriteTime="8/28/2013 5:41:48 PM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\JavaScriptCore-WP8.vxcproj\ARM\Release\NativeApp\NativeApp.exe" archivePath="NativeApp.exe" lastWriteTime="8/28/2013 5:41:48 PM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\JavaScriptCore-WP8.vxcproj\ARM\Release\NativeApp\SimplePixelShader.cso" archivePath="SimplePixelShader.cso" lastWriteTime="8/28/2013 5:37:42 PM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\JavaScriptCore-WP8.vxcproj\ARM\Release\NativeApp\SimpleVertexShader.cso" archivePath="SimpleVertexShader.cso" lastWriteTime="8/28/2013 5:37:42 PM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\ApplicationIcon.png" archivePath="Assets\ApplicationIcon.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\AlignmentGrid.png" archivePath="Assets\AlignmentGrid.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\Tiles\FlipCycleTileLarge.png" archivePath="Assets\Tiles\FlipCycleTileLarge.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\Tiles\FlipCycleTileMedium.png" archivePath="Assets\Tiles\FlipCycleTileMedium.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\Tiles\FlipCycleTileSmall.png" archivePath="Assets\Tiles\FlipCycleTileSmall.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\Tiles\IconicTileMediumLarge.png" archivePath="Assets\Tiles\IconicTileMediumLarge.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\Source\JavaScriptCore\NativeApp\Assets\Tiles\IconicTileSmall.png" archivePath="Assets\Tiles\IconicTileSmall.png" lastWriteTime="10/10/2012 11:03:34 AM" />
+  <file source="C:\Users\Martin\WebKit\WebKitBuild\WindowsPhone\Release\bin32\JavaScriptCore.dll" archivePath="JavaScriptCore.dll" lastWriteTime="8/28/2013 5:41:41 PM" />
+</xapCache>

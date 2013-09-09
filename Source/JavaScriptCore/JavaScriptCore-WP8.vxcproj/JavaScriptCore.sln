@@ -27,6 +27,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LLIntAssembly", "LLInt\LLIn
 		{B654C0E5-B6B3-4631-AF17-07CA9B8E45F3} = {B654C0E5-B6B3-4631-AF17-07CA9B8E45F3}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NativeApp", "..\NativeApp\NativeApp.vcxproj", "{70703E33-73C8-4FC4-8A3A-DF66C4077936}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM = Debug|ARM
@@ -83,6 +85,18 @@ Global
 		{4CFB71E3-B805-4556-9372-6076A888CC6C}.Release|ARM.Build.0 = Release|ARM
 		{4CFB71E3-B805-4556-9372-6076A888CC6C}.Release|Win32.ActiveCfg = Release|Win32
 		{4CFB71E3-B805-4556-9372-6076A888CC6C}.Release|Win32.Build.0 = Release|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|ARM.ActiveCfg = Debug|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|ARM.Build.0 = Debug|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|ARM.Deploy.0 = Debug|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|Win32.ActiveCfg = Debug|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|Win32.Build.0 = Debug|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Debug|Win32.Deploy.0 = Debug|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|ARM.ActiveCfg = Release|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|ARM.Build.0 = Release|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|ARM.Deploy.0 = Release|ARM
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|Win32.ActiveCfg = Release|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|Win32.Build.0 = Release|Win32
+		{70703E33-73C8-4FC4-8A3A-DF66C4077936}.Release|Win32.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

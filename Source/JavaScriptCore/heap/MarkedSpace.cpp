@@ -99,8 +99,8 @@ MarkedSpace::MarkedSpace(Heap* heap)
 
 MarkedSpace::~MarkedSpace()
 {
-    Free free(Free::FreeAll, this);
-    forEachBlock(free);
+    Free toFree(Free::FreeAll, this);
+    forEachBlock(toFree);
 }
 
 struct LastChanceToFinalize : MarkedBlock::VoidFunctor {
