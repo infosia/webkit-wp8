@@ -1,3 +1,55 @@
+2013-09-09  Luciano Wolf  <luciano.wolf@openbossa.org>
+
+        Nix upstreaming - Adding stubs and Nix specific platform files
+        https://bugs.webkit.org/show_bug.cgi?id=118358
+
+        Reviewed by Benjamin Poulain.
+
+        Basically adding all files that have "Nix" in their names and
+        are related to WebCore module.
+
+        * wtf/nix/FeatureDefinesNix.h: Added.
+        * wtf/nix/PlatformNix.h: Added.
+
+2013-09-08  Anders Carlsson  <andersca@apple.com>
+
+        Begin moving off of TypeTraits.h
+        https://bugs.webkit.org/show_bug.cgi?id=121006
+
+        Reviewed by Darin Adler.
+
+        The C++11 has its own type traits implementation that is more complete and handles corner cases better
+        since it ties into the compiler. Begin switching uses of WTF type traits to STL type traits.
+
+        * wtf/CheckedArithmetic.h:
+        * wtf/HashTraits.h:
+        * wtf/NeverDestroyed.h:
+        * wtf/OwnPtr.h:
+        * wtf/PassOwnPtr.h:
+        (WTF::adoptPtr):
+        * wtf/RetainPtr.h:
+
+2013-09-09  Julien Brianceau  <jbriance@cisco.com>
+
+        [Qt] Remove FastAllocBase.h from WTF.pro.
+        https://bugs.webkit.org/show_bug.cgi?id=121024
+
+        Reviewed by Jocelyn Turcotte.
+
+        * WTF.pro: Remove FastAllocBase.h as this file disappeared in r155251.
+
+2013-09-08  Darin Adler  <darin@apple.com>
+
+        Deprecate AdoptCF and AdoptNS (on all platforms except iOS for now)
+        https://bugs.webkit.org/show_bug.cgi?id=121017
+
+        Reviewed by Andreas Kling.
+
+        * wtf/RetainPtr.h: Use the preprocessor to rename AdoptCF and AdoptNS
+        to DeprecatedAdoptCF and DeprecatedAdoptNS on all platforms except
+        for iOS. Also removed an unneeded explicit conversion in the retainPtr
+        function. Also re-sorted the using lines at the end of the file.
+
 2013-09-08  Anders Carlsson  <andersca@apple.com>
 
         Move WTF::notFound to Vector.h and delete NotFound.h

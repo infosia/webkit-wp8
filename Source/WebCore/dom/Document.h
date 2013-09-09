@@ -541,10 +541,6 @@ public:
     // returns renderer so callers can avoid verbose casts.
     RenderView* renderView() const { return m_renderView; }
 
-    // FIXME: Remove this, callers that have a Document* should call renderView().
-    // Shadow the implementations on Node to provide faster access for documents.
-    RenderView* renderer() const { return m_renderView; }
-
     bool renderTreeBeingDestroyed() const { return m_renderTreeBeingDestroyed; }
 
     AXObjectCache* existingAXObjectCache() const;
@@ -1014,7 +1010,7 @@ public:
     void enqueuePageshowEvent(PageshowEventPersistence);
     void enqueueHashchangeEvent(const String& oldURL, const String& newURL);
     void enqueuePopstateEvent(PassRefPtr<SerializedScriptValue> stateObject);
-    virtual DocumentEventQueue* eventQueue() const { return m_eventQueue.get(); }
+    DocumentEventQueue& eventQueue() const { return m_eventQueue; }
 
     void addMediaCanStartListener(MediaCanStartListener*);
     void removeMediaCanStartListener(MediaCanStartListener*);
@@ -1188,6 +1184,7 @@ private:
     friend class Node;
     friend class IgnoreDestructiveWriteCountIncrementer;
 
+    RenderObject* renderer() const WTF_DELETED_FUNCTION;
     void setRenderer(RenderObject*) WTF_DELETED_FUNCTION;
     void setRenderView(RenderView*);
 
@@ -1450,7 +1447,7 @@ private:
     bool m_isSrcdocDocument;
 
     RenderView* m_renderView;
-    RefPtr<DocumentEventQueue> m_eventQueue;
+    mutable DocumentEventQueue m_eventQueue;
 
     WeakPtrFactory<Document> m_weakFactory;
 

@@ -1,5 +1,87 @@
 2013-09-08  Anders Carlsson  <andersca@apple.com>
 
+        Begin moving off of TypeTraits.h
+        https://bugs.webkit.org/show_bug.cgi?id=121006
+
+        Reviewed by Darin Adler.
+
+        Convert uses of WTF type traits to STL type traits.
+
+        * Platform/CoreIPC/ArgumentCoder.h:
+        * Platform/CoreIPC/ArgumentCoders.h:
+        * Platform/CoreIPC/ArgumentDecoder.h:
+        * Platform/CoreIPC/ArgumentEncoder.h:
+        * Platform/CoreIPC/Arguments.h:
+        * Shared/API/c/WKSharedAPICast.h:
+        (WebKit::toImpl):
+
+2013-09-09  Gustavo Noronha Silva  <gns@gnome.org>
+
+        Unreviewed build fix.
+
+        * GNUmakefile.list.am: Typo - left-over \ from a copy/paste, most likely.
+
+2013-09-09  Anton Obzhirov  <a.obzhirov@samsung.com>
+
+        [GTK] Cancel the current active WebKitAuthenticationRequest on load failed
+        https://bugs.webkit.org/show_bug.cgi?id=120350
+
+        Reviewed by Carlos Garcia Campos.
+
+        The default dialog does not get closed and the authentication is not cancelled
+        if loading fails or is stopped on a page which requires HTTP authentication.
+
+        This patch cancels the authentication request on load failed
+        and adds new authentication cancelled signal in WebKitAuthenticationRequest
+        to allow the application handling of authentication UI.
+
+        * UIProcess/API/gtk/WebKitAuthenticationDialog.cpp:
+        (authenticationCancelled):
+        (webkitAuthenticationDialogInitialize):
+        (webkitAuthenticationDialogDispose):
+        (webkitAuthenticationDialogNew):
+        * UIProcess/API/gtk/WebKitAuthenticationDialog.h:
+        * UIProcess/API/gtk/WebKitAuthenticationRequest.cpp:
+        (webkit_authentication_request_class_init):
+        (webkit_authentication_request_cancel):
+        * UIProcess/API/gtk/WebKitWebView.cpp:
+        (webkitWebViewAuthenticate):
+        (webkitWebViewLoadFailed):
+        (webkitWebViewHandleAuthenticationChallenge):
+        (webkitWebViewCancelAuthenticationRequest):
+        * UIProcess/API/gtk/tests/TestWebKitWebView.cpp:
+        (testWebViewAuthenticationLoadCancelled):
+        (beforeAll):
+
+2013-09-09  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK][WK2] Update ContextMenu Download API
+        https://bugs.webkit.org/show_bug.cgi?id=120763
+
+        Reviewed by Carlos Garcia Campos.
+
+        Mark the new Download items in the Context Menu with the Since
+        tag, and include a unit test for Context Menu audio.
+
+        * UIProcess/API/gtk/WebKitContextMenuActions.h:
+        * UIProcess/API/gtk/tests/TestContextMenu.cpp:
+        (testContextMenuDefaultMenu):
+
+2013-09-08  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        [wk2] REGRESSION (r154673): PDF scrolling moves very slowly
+        https://bugs.webkit.org/show_bug.cgi?id=120542
+
+        Reviewed by Tim Horton.
+
+        Handle 'wheel' events in addition to 'mousewheel'. This fixes
+        PDF scrolling.
+
+        * WebProcess/Plugins/PluginView.cpp:
+        (WebKit::PluginView::handleEvent):
+
+2013-09-08  Anders Carlsson  <andersca@apple.com>
+
         Move WTF::notFound to Vector.h and delete NotFound.h
         https://bugs.webkit.org/show_bug.cgi?id=120990
 

@@ -448,7 +448,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_sawElementsInKnownNamespaces(false)
     , m_isSrcdocDocument(false)
     , m_renderView(0)
-    , m_eventQueue(DocumentEventQueue::create(this))
+    , m_eventQueue(*this)
     , m_weakFactory(this)
     , m_idAttributeName(idAttr)
 #if ENABLE(FULLSCREEN_API)
@@ -543,7 +543,7 @@ static bool isAttributeOnAllOwners(const WebCore::QualifiedName& attribute, cons
 
 Document::~Document()
 {
-    ASSERT(!renderer());
+    ASSERT(!renderView());
     ASSERT(!m_inPageCache);
     ASSERT(!m_savedRenderView);
     ASSERT(m_ranges.isEmpty());
@@ -1151,7 +1151,7 @@ bool Document::cssGridLayoutEnabled() const
 
 PassRefPtr<DOMNamedFlowCollection> Document::webkitGetNamedFlows()
 {
-    if (!cssRegionsEnabled() || !renderer())
+    if (!cssRegionsEnabled() || !renderView())
         return 0;
 
     updateStyleIfNeeded();
@@ -1274,7 +1274,7 @@ void Document::setVisualUpdatesAllowed(bool visualUpdatesAllowed)
         return;
 
     FrameView* frameView = view();
-    bool needsLayout = frameView && renderer() && (frameView->layoutPending() || renderer()->needsLayout());
+    bool needsLayout = frameView && renderView() && (frameView->layoutPending() || renderView()->needsLayout());
     if (needsLayout)
         updateLayout();
 
@@ -1416,7 +1416,7 @@ String Document::suggestedMIMEType() const
 
 Element* Document::elementFromPoint(int x, int y) const
 {
-    if (!renderer())
+    if (!renderView())
         return 0;
 
     return TreeScope::elementFromPoint(x, y);
@@ -1424,7 +1424,7 @@ Element* Document::elementFromPoint(int x, int y) const
 
 PassRefPtr<Range> Document::caretRangeFromPoint(int x, int y)
 {
-    if (!renderer())
+    if (!renderView())
         return 0;
     LayoutPoint localPoint;
     Node* node = nodeFromPoint(this, x, y, &localPoint);
@@ -1851,7 +1851,7 @@ void Document::updateLayout()
     StackStats::LayoutCheckPoint layoutCheckPoint;
 
     // Only do a layout if changes have occurred that make it necessary.      
-    if (frameView && renderer() && (frameView->layoutPending() || renderer()->needsLayout()))
+    if (frameView && renderView() && (frameView->layoutPending() || renderView()->needsLayout()))
         frameView->layout();
 }
 
@@ -2057,7 +2057,7 @@ void Document::detach()
         clearAXObjectCache();
 
     stopActiveDOMObjects();
-    m_eventQueue->close();
+    m_eventQueue.close();
 #if ENABLE(FULLSCREEN_API)
     m_fullScreenChangeEventTargetQueue.clear();
     m_fullScreenErrorEventTargetQueue.clear();
@@ -2161,7 +2161,7 @@ AXObjectCache* Document::existingAXObjectCache() const
 
     // If the renderer is gone then we are in the process of destruction.
     // This method will be called before m_frame = 0.
-    if (!topDocument()->renderer())
+    if (!topDocument()->renderView())
         return 0;
 
     return topDocument()->m_axObjectCache.get();
@@ -2179,7 +2179,7 @@ AXObjectCache* Document::axObjectCache() const
     Document* topDocument = this->topDocument();
 
     // If the document has already been detached, do not make a new axObjectCache.
-    if (!topDocument->renderer())
+    if (!topDocument->renderView())
         return 0;
 
     ASSERT(topDocument == this || !m_axObjectCache);
@@ -2191,8 +2191,8 @@ AXObjectCache* Document::axObjectCache() const
 void Document::setVisuallyOrdered()
 {
     m_visuallyOrdered = true;
-    if (renderer())
-        renderer()->style()->setRTLOrdering(VisualOrder);
+    if (renderView())
+        renderView()->style()->setRTLOrdering(VisualOrder);
 }
 
 PassRefPtr<DocumentParser> Document::createParser()
@@ -2454,25 +2454,25 @@ void Document::implicitClose()
         updateStyleIfNeeded();
         
         // Always do a layout after loading if needed.
-        if (view() && renderer() && (!renderer()->firstChild() || renderer()->needsLayout()))
+        if (view() && renderView() && (!renderView()->firstChild() || renderView()->needsLayout()))
             view()->layout();
     }
 
     m_processingLoadEvent = false;
 
 #if PLATFORM(MAC) || PLATFORM(WIN)
-    if (f && renderer() && AXObjectCache::accessibilityEnabled()) {
+    if (f && renderView() && AXObjectCache::accessibilityEnabled()) {
         // The AX cache may have been cleared at this point, but we need to make sure it contains an
         // AX object to send the notification to. getOrCreate will make sure that an valid AX object
         // exists in the cache (we ignore the return value because we don't need it here). This is 
         // only safe to call when a layout is not in progress, so it can not be used in postNotification.    
-        axObjectCache()->getOrCreate(renderer());
+        axObjectCache()->getOrCreate(renderView());
         if (this == topDocument())
-            axObjectCache()->postNotification(renderer(), AXObjectCache::AXLoadComplete, true);
+            axObjectCache()->postNotification(renderView(), AXObjectCache::AXLoadComplete, true);
         else {
             // AXLoadComplete can only be posted on the top document, so if it's a document
             // in an iframe that just finished loading, post AXLayoutComplete instead.
-            axObjectCache()->postNotification(renderer(), AXObjectCache::AXLayoutComplete, true);
+            axObjectCache()->postNotification(renderView(), AXObjectCache::AXLayoutComplete, true);
         }
     }
 #endif
@@ -2968,9 +2968,7 @@ void Document::processReferrerPolicy(const String& policy)
 
 MouseEventWithHitTestResults Document::prepareMouseEvent(const HitTestRequest& request, const LayoutPoint& documentPoint, const PlatformMouseEvent& event)
 {
-    ASSERT(!renderer() || renderer()->isRenderView());
-
-    if (!renderer())
+    if (!renderView())
         return MouseEventWithHitTestResults(event, HitTestResult(LayoutPoint()));
 
     HitTestResult result(documentPoint);
@@ -3181,7 +3179,7 @@ void Document::styleResolverChanged(StyleResolverUpdateFlag updateFlag)
 
     if (didLayoutWithPendingStylesheets() && !m_styleSheetCollection->hasPendingSheets()) {
         m_pendingSheetLayout = IgnoreLayoutWithPendingSheets;
-        if (renderer())
+        if (renderView())
             renderView()->repaintViewAndCompositedLayers();
     }
 
@@ -3200,8 +3198,8 @@ void Document::styleResolverChanged(StyleResolverUpdateFlag updateFlag)
         printf("Finished update of style selector at time %d\n", elapsedTime());
 #endif
 
-    if (renderer()) {
-        renderer()->setNeedsLayoutAndPrefWidthsRecalc();
+    if (renderView()) {
+        renderView()->setNeedsLayoutAndPrefWidthsRecalc();
         if (view())
             view()->scheduleRelayout();
     }
@@ -3632,13 +3630,13 @@ void Document::dispatchWindowLoadEvent()
 void Document::enqueueWindowEvent(PassRefPtr<Event> event)
 {
     event->setTarget(domWindow());
-    m_eventQueue->enqueueEvent(event);
+    m_eventQueue.enqueueEvent(event);
 }
 
 void Document::enqueueDocumentEvent(PassRefPtr<Event> event)
 {
     event->setTarget(this);
-    m_eventQueue->enqueueEvent(event);
+    m_eventQueue.enqueueEvent(event);
 }
 
 PassRefPtr<Event> Document::createEvent(const String& eventType, ExceptionCode& ec)
@@ -4020,7 +4018,7 @@ void Document::setInPageCache(bool flag)
 void Document::documentWillBecomeInactive()
 {
 #if USE(ACCELERATED_COMPOSITING)
-    if (renderer())
+    if (renderView())
         renderView()->setIsInWindow(false);
 #endif
 }
@@ -4049,7 +4047,7 @@ void Document::documentDidResumeFromPageCache()
         (*i)->documentDidResumeFromPageCache();
 
 #if USE(ACCELERATED_COMPOSITING)
-    if (renderer())
+    if (renderView())
         renderView()->setIsInWindow(true);
 #endif
 
@@ -5761,7 +5759,7 @@ void Document::updateHoverActiveState(const HitTestRequest& request, Element* in
 
     Element* innerElementInDocument = innerElement;
     while (innerElementInDocument && &innerElementInDocument->document() != this) {
-        innerElementInDocument->document().updateHoverActiveState(request, innerElementInDocument);
+        innerElementInDocument->document().updateHoverActiveState(request, innerElementInDocument, event);
         innerElementInDocument = innerElementInDocument->document().ownerElement();
     }
 
@@ -5821,8 +5819,8 @@ void Document::updateHoverActiveState(const HitTestRequest& request, Element* in
     // Locate the common ancestor render object for the two renderers.
     RenderObject* ancestor = nearestCommonHoverAncestor(oldHoverObj, newHoverObj);
 
-    Vector<RefPtr<Node>, 32> nodesToRemoveFromChain;
-    Vector<RefPtr<Node>, 32> nodesToAddToChain;
+    Vector<RefPtr<Element>, 32> elementsToRemoveFromChain;
+    Vector<RefPtr<Element>, 32> elementsToAddToChain;
 
     // mouseenter and mouseleave events are only dispatched if there is a capturing eventhandler on an ancestor
     // or a normal eventhandler on the element itself (they don't bubble).
@@ -5849,55 +5847,54 @@ void Document::updateHoverActiveState(const HitTestRequest& request, Element* in
         // (for instance by setting display:none in the :hover pseudo-class). In this case, the old hovered element (and its ancestors)
         // must be updated, to ensure it's normal style is re-applied.
         if (oldHoveredElement && !oldHoverObj) {
-            for (Node* node = oldHoveredElement.get(); node; node = node->parentNode()) {
-                if (!mustBeInActiveChain || (node->isElementNode() && toElement(node)->inActiveChain()))
-                    nodesToRemoveFromChain.append(node);
+            for (Element* element= oldHoveredElement.get(); element; element = element->parentElement()) {
+                if (!mustBeInActiveChain || element->inActiveChain())
+                    elementsToRemoveFromChain.append(element);
             }
         }
 
         // The old hover path only needs to be cleared up to (and not including) the common ancestor;
         for (RenderObject* curr = oldHoverObj; curr && curr != ancestor; curr = curr->hoverAncestor()) {
-            if (!curr->node() || curr->isText())
+            if (!curr->node() || !curr->node()->isElementNode())
                 continue;
-            if (!mustBeInActiveChain || (curr->node()->isElementNode() && toElement(curr->node())->inActiveChain()))
-                nodesToRemoveFromChain.append(curr->node());
+            Element* element = toElement(curr->node());
+            if (!mustBeInActiveChain || element->inActiveChain())
+                elementsToRemoveFromChain.append(element);
         }
         // Unset hovered nodes in sub frame documents if the old hovered node was a frame owner.
         if (oldHoveredElement && oldHoveredElement->isFrameOwnerElement()) {
             if (Document* contentDocument = toFrameOwnerElement(oldHoveredElement.get())->contentDocument())
-                contentDocument->updateHoverActiveState(request, 0);
+                contentDocument->updateHoverActiveState(request, 0, event);
         }
     }
 
     // Now set the hover state for our new object up to the root.
     for (RenderObject* curr = newHoverObj; curr; curr = curr->hoverAncestor()) {
-        if (!curr->node() || curr->isText())
+        if (!curr->node() || !curr->node()->isElementNode())
             continue;
-        if (!mustBeInActiveChain || (curr->node()->isElementNode() && toElement(curr->node())->inActiveChain()))
-            nodesToAddToChain.append(curr->node());
+        Element* element = toElement(curr->node());
+        if (!mustBeInActiveChain || element->inActiveChain())
+            elementsToAddToChain.append(element);
     }
 
-    size_t removeCount = nodesToRemoveFromChain.size();
+    size_t removeCount = elementsToRemoveFromChain.size();
     for (size_t i = 0; i < removeCount; ++i) {
-        if (nodesToRemoveFromChain[i]->isElementNode())
-            toElement(nodesToRemoveFromChain[i].get())->setHovered(false);
-        if (event && (hasCapturingMouseLeaveListener || nodesToRemoveFromChain[i]->hasEventListeners(eventNames().mouseleaveEvent)))
-            nodesToRemoveFromChain[i]->dispatchMouseEvent(*event, eventNames().mouseleaveEvent, 0, newHoveredElement);
+        elementsToRemoveFromChain[i]->setHovered(false);
+        if (event && (hasCapturingMouseLeaveListener || elementsToRemoveFromChain[i]->hasEventListeners(eventNames().mouseleaveEvent)))
+            elementsToRemoveFromChain[i]->dispatchMouseEvent(*event, eventNames().mouseleaveEvent, 0, newHoveredElement);
     }
 
     bool sawCommonAncestor = false;
-    size_t addCount = nodesToAddToChain.size();
-    for (size_t i = 0; i < addCount; ++i) {
-        if (allowActiveChanges && nodesToAddToChain[i]->isElementNode())
-            toElement(nodesToAddToChain[i].get())->setActive(true);
-        if (ancestor && nodesToAddToChain[i] == ancestor->node())
+    for (size_t i = 0, size = elementsToAddToChain.size(); i < size; ++i) {
+        if (allowActiveChanges)
+            elementsToAddToChain[i]->setActive(true);
+        if (ancestor && elementsToAddToChain[i] == ancestor->node())
             sawCommonAncestor = true;
         if (!sawCommonAncestor) {
             // Elements after the common hover ancestor does not change hover state, but are iterated over because they may change active state.
-            if (nodesToAddToChain[i]->isElementNode())
-                toElement(nodesToAddToChain[i].get())->setHovered(true);
-            if (event && (hasCapturingMouseEnterListener || nodesToAddToChain[i]->hasEventListeners(eventNames().mouseenterEvent)))
-                nodesToAddToChain[i]->dispatchMouseEvent(*event, eventNames().mouseenterEvent, 0, oldHoveredElement.get());
+            elementsToAddToChain[i]->setHovered(true);
+            if (event && (hasCapturingMouseEnterListener || elementsToAddToChain[i]->hasEventListeners(eventNames().mouseenterEvent)))
+                elementsToAddToChain[i]->dispatchMouseEvent(*event, eventNames().mouseenterEvent, 0, oldHoveredElement.get());
         }
     }
 

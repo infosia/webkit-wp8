@@ -1,3 +1,685 @@
+2013-09-09  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, fix build.
+
+        * Modules/encryptedmedia/MediaKeySession.h:
+
+2013-09-09  Eric Carlson  <eric.carlson@apple.com>
+
+        MediaStream API: Moving Add/Remove track from WebMediaStreamCenterClient to WebMediaStream
+        https://bugs.webkit.org/show_bug.cgi?id=120872
+
+        Reviewed by Jer Noble.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/7d740fd27c1f345b59c846df01c3adce53c18e6e
+        Simple cleanup that makes the API cleaner.
+
+        * Modules/mediastream/MediaStream.cpp:
+        (WebCore::MediaStream::removeTrack):
+        (WebCore::MediaStream::addRemoteTrack):
+        (WebCore::MediaStream::removeRemoteTrack):
+        * platform/mediastream/MediaStreamCenter.cpp:
+        * platform/mediastream/MediaStreamCenter.h:
+        * platform/mediastream/MediaStreamDescriptor.h:
+        (WebCore::MediaStreamDescriptor::removeAudioComponent):
+        (WebCore::MediaStreamDescriptor::addRemoteTrack):
+        (WebCore::MediaStreamDescriptor::removeRemoteTrack):
+
+2013-09-09  ChangSeok Oh  <changseok.oh@collabora.com>
+
+        [WK2] Assertion failure in WebCore::Page::checkSubframeCountConsistency when going back
+        https://bugs.webkit.org/show_bug.cgi?id=119781
+
+        Reviewed by Alexey Proskuryakov.
+
+        We should pair restoring a cached frame and adding it to FrameTree so that
+        actual added frame count in FrameTree keeps same with restored frame count.
+        Otherwise assert failure occurs in Page::CheckSubframeCountConsistency.
+        We have added cached frames to FrameTree ahead and then restored them by tree travelsal.
+        But this way doesn't guarantee subframecount of Page and the number of child of FrameTree are equal.
+        In addition, we still make sure that adding a cached frame to FrameTree should happen
+        before opening it. Because FrameTree might be used while restoring a cached page.
+
+        Test: fast/history/go-back-to-iframe-with-plugin.html
+
+        * history/CachedFrame.cpp:
+        (WebCore::CachedFrameBase::restore):
+        (WebCore::CachedFrame::open):
+
+2013-09-09  Luciano Wolf  <luciano.wolf@openbossa.org>
+
+        Nix upstreaming - Adding stubs and Nix specific platform files
+        https://bugs.webkit.org/show_bug.cgi?id=118358
+
+        Reviewed by Benjamin Poulain.
+
+        Basically adding all files that have "Nix" in their names and
+        are related to WebCore module.
+
+        No new tests. They will be uploaded on another patch during the
+        upstreaming process.
+
+        * css/mediaControlsNix.css: Added.
+        * css/mediaControlsNixFullscreen.css: Added.
+        * page/nix/EventHandlerNix.cpp: Added.
+        * platform/graphics/egl/GLContextFromCurrentEGL.cpp: Added.
+        * platform/graphics/egl/GLContextFromCurrentEGL.h: Added.
+        * platform/graphics/gstreamer/PlatformVideoWindowNix.cpp: Added.
+        * platform/graphics/nix/IconNix.cpp: Added.
+        * platform/graphics/nix/ImageNix.cpp: Added.
+        * platform/nix/CursorNix.cpp: Added.
+        * platform/nix/DragDataNix.cpp: Added.
+        * platform/nix/DragImageNix.cpp: Added.
+        * platform/nix/GamepadsNix.cpp: Added.
+        * platform/nix/LanguageNix.cpp: Added.
+        * platform/nix/LocalizedStringsNix.cpp: Added.
+        * platform/nix/NixKeyboardUtilities.cpp: Added.
+        * platform/nix/NixKeyboardUtilities.h: Added.
+        * platform/nix/PasteboardNix.cpp: Added.
+        * platform/nix/PlatformKeyboardEventNix.cpp: Added.
+        * platform/nix/PlatformScreenNix.cpp: Added.
+        * platform/nix/SoundNix.cpp: Added.
+        * platform/nix/WidgetNix.cpp: Added.
+        * platform/text/nix/TextBreakIteratorInternalICUNix.cpp: Added.
+
+2013-09-09  Hugo Parente Lima  <hugo.lima@openbossa.org>
+
+        Preparing WebCore to receive Nix Port
+        https://bugs.webkit.org/show_bug.cgi?id=118326
+
+        Reviewed by Eric Carlson.
+
+        Only adding the compilation directives that are Nix specific, in the
+        existent WebCore files
+
+        * loader/FrameLoader.cpp:
+        (WebCore::FrameLoader::defaultObjectContentType):
+        * platform/Cursor.h:
+        * platform/DragData.h:
+        * platform/DragImage.h:
+        * platform/FileSystem.h:
+        * platform/RunLoop.h:
+        * platform/Widget.h:
+        * platform/audio/FFTFrame.h:
+        * platform/audio/HRTFElevation.cpp:
+        * platform/cairo/WidgetBackingStore.h:
+        * platform/graphics/ANGLEWebKitBridge.h:
+        * platform/graphics/FontPlatformData.h:
+        * platform/graphics/GraphicsContext3D.cpp:
+        * platform/graphics/GraphicsContext3D.h:
+        * platform/graphics/OpenGLESShims.h:
+        * platform/graphics/OpenGLShims.cpp:
+        (WebCore::getProcAddress):
+        * platform/graphics/OpenGLShims.h:
+        * platform/graphics/PlatformLayer.h:
+        * platform/graphics/cairo/GLContext.cpp:
+        (WebCore::GLContext::createContextForWindow):
+        * platform/graphics/cairo/GraphicsContext3DPrivate.cpp:
+        (WebCore::GraphicsContext3DPrivate::GraphicsContext3DPrivate):
+        * platform/graphics/freetype/FontPlatformDataFreeType.cpp:
+        * platform/graphics/opengl/Extensions3DOpenGL.cpp:
+        (WebCore::Extensions3DOpenGL::createVertexArrayOES):
+        (WebCore::Extensions3DOpenGL::deleteVertexArrayOES):
+        (WebCore::Extensions3DOpenGL::isVertexArrayOES):
+        (WebCore::Extensions3DOpenGL::bindVertexArrayOES):
+        (WebCore::Extensions3DOpenGL::supportsExtension):
+        * platform/graphics/opengl/Extensions3DOpenGL.h:
+        * platform/graphics/opengl/Extensions3DOpenGLCommon.cpp:
+        * platform/graphics/opengl/Extensions3DOpenGLES.h:
+        * platform/graphics/opengl/GraphicsContext3DOpenGL.cpp:
+        * platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp:
+        (WebCore::GraphicsContext3D::reshape):
+        * platform/graphics/texmap/TextureMapper.h:
+        * plugins/PluginPackage.cpp:
+        * plugins/PluginView.cpp:
+        (WebCore::PluginView::PluginView):
+        * plugins/PluginView.h:
+        * plugins/PluginViewNone.cpp:
+
+2013-09-08  Darin Adler  <darin@apple.com>
+
+        Tighten up EventQueue classes a bit, less indirection and memory allocation
+        https://bugs.webkit.org/show_bug.cgi?id=121016
+
+        Reviewed by Andreas Kling.
+
+        * Modules/encryptedmedia/MediaKeySession.cpp:
+        (WebCore::MediaKeySession::MediaKeySession): Updated since event queue is now
+        a member rather than an OwnPtr.
+        (WebCore::MediaKeySession::close): Ditto.
+        (WebCore::MediaKeySession::keyRequestTimerFired): Ditto.
+        (WebCore::MediaKeySession::addKeyTimerFired): Ditto.
+        * Modules/encryptedmedia/MediaKeySession.h: Ditto.
+
+        * Modules/indexeddb/IDBDatabase.cpp:
+        (WebCore::IDBDatabase::closeConnection): Updated since ScriptExecutionContext's
+        eventQueue function now returns a reference rather than a pointer. Also, the
+        cancelEvent function takes a reference instead of a pointer.
+        (WebCore::IDBDatabase::enqueueEvent): Ditto.
+        * Modules/indexeddb/IDBRequest.cpp:
+        (WebCore::IDBRequest::abort): Ditto.
+        (WebCore::IDBRequest::enqueueEvent): Ditto.
+        * Modules/indexeddb/IDBTransaction.cpp:
+        (WebCore::IDBTransaction::enqueueEvent): Ditto.
+
+        * Modules/mediasource/MediaSource.cpp:
+        (WebCore::MediaSource::MediaSource): Updated since event queue is now a
+        member rather than an OwnPtr. Also use initialization instead of assignment
+        to set up source buffers.
+        (WebCore::MediaSource::hasPendingActivity): Ditto.
+        (WebCore::MediaSource::stop): Ditto.
+        (WebCore::MediaSource::scheduleEvent): Ditto.
+        * Modules/mediasource/MediaSource.h: Ditto.
+
+        * Modules/mediasource/SourceBufferList.cpp:
+        (WebCore::SourceBufferList::SourceBufferList): Take references instead of
+        pointers.
+        (WebCore::SourceBufferList::length): Changed type to unsigned instead of
+        unsigned long. This is an IDL "unsigned long", which corresponds to "unsigned"
+        in our C++ DOM implementation.
+        (WebCore::SourceBufferList::createAndFireEvent): Updated since event queue is
+        now a reference.
+        (WebCore::SourceBufferList::scriptExecutionContext): Updated since script
+        execution context is now a reference.
+        * Modules/mediasource/SourceBufferList.h: Ditto.
+
+        * dom/Document.cpp:
+        (WebCore::Document::Document): Updated since event queue is now a member rather
+        than a RefPtr.
+        (WebCore::Document::detach): Ditto.
+        (WebCore::Document::enqueueWindowEvent): Ditto.
+        (WebCore::Document::enqueueDocumentEvent): Ditto.
+        * dom/Document.h: Ditto.
+
+        * dom/DocumentEventQueue.cpp: Renamed DocumentEventQueueTimer to just Timer and
+        made it a class member of DocumentEventQueue. Also changed it to use references
+        instead of pointers and removed unneeded ScriptExecutionContext argument.
+        (WebCore::DocumentEventQueue::DocumentEventQueue): Updated to take a document
+        reference instead of a script execution context pointer.
+        (WebCore::DocumentEventQueue::enqueueEvent): Wrote the assertions in a clearer
+        style and do the assertions even when the queue is closed.
+        (WebCore::DocumentEventQueue::enqueueOrDispatchScrollEvent): Removed the unneeded
+        ScrollEventTargetType argument, since the policy is specific to the document node.
+        Made the argument a reference instead of a PassRefPtr, and rewrote the function
+        to be more straightforward and readable.
+        (WebCore::DocumentEventQueue::cancelEvent): Use the return value recently added to
+        the remove function to avoid the need for use of iterators and a find/remove pair.
+        (WebCore::DocumentEventQueue::pendingEventTimerFired): Rewrote this to use the
+        recently added ListHashSet takeFirst function. Also protect the document instead
+        of protecting just this object during the dispatch. Can't really protect the
+        event queue since it's no longer separately reference counted.
+        (WebCore::DocumentEventQueue::dispatchEvent): Changed this to take a reference and
+        added a FIXME about some curious code in here that needs a "why" comment.
+        * dom/DocumentEventQueue.h: Removed many unneeded includes, some unneeded forward
+        declarations, marked the class final, made it no longer derive from RefCounted,
+        removed ScrollEventTargetType and create, and did the other changes mentioned above.
+
+        * dom/EventQueue.h: Got rid of many uneeded includes, changed the argument type
+        of cancelEvent to Event& and rewrote the comment for close.
+
+        * dom/GenericEventQueue.cpp:
+        (WebCore::GenericEventQueue::GenericEventQueue): Updated to take a reference.
+        (WebCore::GenericEventQueue::enqueueEvent): Ditto.
+        (WebCore::GenericEventQueue::timerFired): Ditto.
+        * dom/GenericEventQueue.h: Changed this class to no longer derive from EventQueue
+        since there was no value coming from that polymorphism. Removed all the virtual
+        keywords from the class. Switched from pointers to references. Removed the unused
+        cancelEvent function. Removed the create function since this is always used as a
+        data member, not a pointer on the heap.
+
+        * dom/ScriptExecutionContext.h: Changed the return type of eventQueue to a reference.
+
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::HTMLMediaElement): Updated since event queue is now a
+        member rather than an OwnPtr.
+        (WebCore::HTMLMediaElement::~HTMLMediaElement): Ditto.
+        (WebCore::HTMLMediaElement::scheduleEvent): Ditto.
+        (WebCore::HTMLMediaElement::updateActiveTextTrackCues): Ditto.
+        (WebCore::HTMLMediaElement::cancelPendingEventsAndCallbacks): Ditto.
+        (WebCore::HTMLMediaElement::mediaPlayerKeyAdded): Ditto.
+        (WebCore::HTMLMediaElement::mediaPlayerKeyError): Ditto.
+        (WebCore::HTMLMediaElement::mediaPlayerKeyMessage): Ditto.
+        (WebCore::HTMLMediaElement::mediaPlayerKeyNeeded): Ditto.
+        (WebCore::HTMLMediaElement::stop): Ditto.
+        (WebCore::HTMLMediaElement::hasPendingActivity): Ditto.
+        * html/HTMLMediaElement.h: Ditto.
+
+        * page/EventHandler.cpp:
+        (WebCore::EventHandler::sendScrollEvent): Updated to remove the now-uneeded
+        ScrollEventTargetType argument, and also to use references instead of pointers.
+        * rendering/RenderLayer.cpp:
+        (WebCore::RenderLayer::scrollTo): Ditto.
+        * rendering/RenderListBox.cpp:
+        (WebCore::RenderListBox::scrollTo): Ditto.
+
+        * workers/WorkerEventQueue.cpp:
+        (WebCore::WorkerEventQueue::WorkerEventQueue): Updated to work with references
+        instead of pointers.
+        (WebCore::WorkerEventQueue::enqueueEvent): Ditto.
+        (WebCore::WorkerEventQueue::cancelEvent): Use the take function instead of a
+        get/remove pair, to eliminate double hashing.
+        * workers/WorkerEventQueue.h: Removed unneeded includes, forward declarations,
+        the create function, and the private removeEvent function. Marked class final.
+
+        * workers/WorkerGlobalScope.cpp:
+        (WebCore::WorkerGlobalScope::WorkerGlobalScope): Updated since eventQueue is
+        now a data member.
+        (WebCore::WorkerGlobalScope::eventQueue): Ditto.
+        * workers/WorkerGlobalScope.h: Made m_eventQueue a queue instead of a pointer
+        to a queue. Also made the eventQueue function private and final.
+
+2013-09-09  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Heap-buffer-overflow in WebCore::ShapeInterval<float>::subtractShapeIntervals
+        https://bugs.webkit.org/show_bug.cgi?id=120802
+
+        Reviewed by Darin Adler.
+
+        Revised the implementation of subtractShapeIntervals() to isloate and check the
+        places where it dereferences ShapeInterval vector iterators.
+
+        Test: fast/shapes/shape-inside/shape-inside-subtract-intervals-crash.html
+
+        * rendering/shapes/ShapeInterval.h:
+        (WebCore::ShapeInterval::subtractShapeIntervals):
+
+2013-09-09  Darin Adler  <darin@apple.com>
+
+        matchingShorthandsForLonghand builds map using a giant function
+        https://bugs.webkit.org/show_bug.cgi?id=121029
+
+        Reviewed by Anders Carlsson.
+
+        There is no need to use a map for this; a switch statement is fine.
+        Also, these structures are simple enough that we can build them
+        every time; we don't need to keep them in globals.
+
+        * css/CSSParser.cpp:
+        (WebCore::CSSParser::addProperty): Got rid of non-helpful local in
+        CSS_VARIABLES code. Updated for change in return value of the
+        matchingShorthandsForLonghand.
+        (WebCore::CSSParser::parseShorthand): Updated for change in return
+        type of propertiesForInitialization.
+
+        * css/CSSProperty.cpp:
+        (WebCore::StylePropertyMetadata::shorthandID): Updated for change in
+        return value of matchingShorthandsForLonghand.
+
+        * css/StylePropertyShorthand.cpp:
+        (WebCore::backgroundShorthand): Got rid of local variable, constructing
+        the StylePropertyShorthand every time.
+        (WebCore::backgroundPositionShorthand): Ditto.
+        (WebCore::backgroundRepeatShorthand): Ditto.
+        (WebCore::borderShorthand): Ditto.
+        (WebCore::borderAbridgedShorthand): Ditto.
+        (WebCore::borderBottomShorthand): Ditto.
+        (WebCore::borderColorShorthand): Ditto.
+        (WebCore::borderImageShorthand): Ditto.
+        (WebCore::borderLeftShorthand): Ditto.
+        (WebCore::borderRadiusShorthand): Ditto.
+        (WebCore::webkitBorderRadiusShorthand): Ditto.
+        (WebCore::borderRightShorthand): Ditto.
+        (WebCore::borderSpacingShorthand): Ditto.
+        (WebCore::borderStyleShorthand): Ditto.
+        (WebCore::borderTopShorthand): Ditto.
+        (WebCore::borderWidthShorthand): Ditto.
+        (WebCore::listStyleShorthand): Ditto.
+        (WebCore::fontShorthand): Ditto.
+        (WebCore::marginShorthand): Ditto. Ditto.
+        (WebCore::markerShorthand): Ditto.
+        (WebCore::outlineShorthand): Ditto.
+        (WebCore::overflowShorthand): Ditto.
+        (WebCore::paddingShorthand): Ditto.
+        (WebCore::transitionShorthand): Ditto.
+        (WebCore::webkitAnimationShorthand): Ditto.
+        (WebCore::webkitAnimationShorthandForParsing): Ditto.
+        (WebCore::webkitBorderAfterShorthand): Ditto.
+        (WebCore::webkitBorderBeforeShorthand): Ditto.
+        (WebCore::webkitBorderEndShorthand): Ditto.
+        (WebCore::webkitBorderStartShorthand): Ditto.
+        (WebCore::webkitColumnsShorthand): Ditto.
+        (WebCore::webkitColumnRuleShorthand): Ditto.
+        (WebCore::webkitFlexFlowShorthand): Ditto.
+        (WebCore::webkitFlexShorthand): Ditto.
+        (WebCore::webkitMarginCollapseShorthand): Ditto.
+        (WebCore::webkitGridColumnShorthand): Ditto.
+        (WebCore::webkitGridRowShorthand): Ditto.
+        (WebCore::webkitMarqueeShorthand): Ditto.
+        (WebCore::webkitMaskShorthand): Ditto.
+        (WebCore::webkitMaskPositionShorthand): Ditto.
+        (WebCore::webkitMaskRepeatShorthand): Ditto.
+        (WebCore::webkitTextDecorationShorthand): Ditto.
+        (WebCore::webkitTextEmphasisShorthand): Ditto.
+        (WebCore::webkitTextStrokeShorthand): Ditto.
+        (WebCore::webkitTransitionShorthand): Ditto.
+        (WebCore::webkitTransformOriginShorthand): Ditto.
+        (WebCore::widthShorthand): Ditto.
+        (WebCore::heightShorthand): Ditto.
+        (WebCore::shorthandForProperty): Ditto.
+        (WebCore::makeVector): Added. Helper function for the cases in the
+        switch inside matchingShorthandsForLonghand.
+        (WebCore::matchingShorthandsForLonghand): Rewrote this to use a switch
+        instead of a map.
+        (WebCore::indexOfShorthandForLonghand): Tightened up the coding style a bit.
+
+        * css/StylePropertyShorthand.h: Changed type of StylePropertyShorthand's
+        propertiesForInitialization to be an array of shorthands rather than an
+        array of pointers to shorthands. Changed return types of the shorthand
+        functions to return a shorthand object rather than a reference. Did the same
+        for the other functions.
+
+2013-09-09  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        MouseEnter and MouseLeave may be emitted on Document nodes
+        https://bugs.webkit.org/show_bug.cgi?id=120862
+
+        Reviewed by Antonio Gomes.
+
+        Replace the overgeneric use of Nodes with Elements in updateHoverActiveState.
+        This also fixes the bug of emitting mouseenter/mouseleave events on Document,
+        since Document is not an Element.
+
+        This is tested by fast/events/mouseenterleave-on-subframe.html
+
+        * dom/Document.cpp:
+        (WebCore::Document::updateHoverActiveState):
+
+2013-09-09  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        MouseLeave not always emitted when cursor leaves subframe
+        https://bugs.webkit.org/show_bug.cgi?id=121026
+
+        Reviewed by Antonio Gomes.
+
+        Forward the PlatformMouseEvent in the recursive calls so nested documents
+        also get a chance to emit mouseleave when the hover moves out.
+
+        Test: fast/events/mouseenterleave-on-subframe.html
+
+        * dom/Document.cpp:
+        (WebCore::Document::updateHoverActiveState):
+
+2013-09-09  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        Adding username to RTCIceServer
+        https://bugs.webkit.org/show_bug.cgi?id=120861
+
+        Reviewed by Eric Carlson.
+
+        No new tests needed. Existing media stream tests already cover it
+
+        * Modules/mediastream/RTCPeerConnection.cpp:
+        (WebCore::RTCPeerConnection::parseConfiguration):
+        * platform/mediastream/RTCConfiguration.h:
+        (WebCore::RTCIceServer::create):
+        (WebCore::RTCIceServer::username):
+        (WebCore::RTCIceServer::RTCIceServer):
+
+2013-09-09  Antti Koivisto  <antti@apple.com>
+
+        Hide Document::renderer()
+        https://bugs.webkit.org/show_bug.cgi?id=121028
+
+        Reviewed by Andreas Kling.
+
+        Use less generic Document::renderView() instead.
+
+        * accessibility/AXObjectCache.cpp:
+        (WebCore::AXObjectCache::postNotification):
+        * accessibility/AccessibilityObject.cpp:
+        (WebCore::appendAccessibilityObject):
+        * accessibility/AccessibilityScrollView.cpp:
+        (WebCore::AccessibilityScrollView::webAreaObject):
+        * css/CSSFontSelector.cpp:
+        (WebCore::CSSFontSelector::dispatchInvalidationCallbacks):
+        * css/StyleResolver.cpp:
+        (WebCore::StyleResolver::appendAuthorStyleSheets):
+        * dom/Document.cpp:
+        (WebCore::Document::~Document):
+        (WebCore::Document::webkitGetNamedFlows):
+        (WebCore::Document::setVisualUpdatesAllowed):
+        (WebCore::Document::elementFromPoint):
+        (WebCore::Document::caretRangeFromPoint):
+        (WebCore::Document::updateLayout):
+        (WebCore::Document::existingAXObjectCache):
+        (WebCore::Document::axObjectCache):
+        (WebCore::Document::setVisuallyOrdered):
+        (WebCore::Document::implicitClose):
+        (WebCore::Document::prepareMouseEvent):
+        (WebCore::Document::styleResolverChanged):
+        (WebCore::Document::documentWillBecomeInactive):
+        (WebCore::Document::documentDidResumeFromPageCache):
+        * dom/Document.h:
+        * dom/DocumentStyleSheetCollection.cpp:
+        (WebCore::DocumentStyleSheetCollection::updateActiveStyleSheets):
+        * dom/Element.cpp:
+        (WebCore::Element::~Element):
+        * dom/InlineStyleSheetOwner.cpp:
+        (WebCore::InlineStyleSheetOwner::removedFromDocument):
+        * dom/ProcessingInstruction.cpp:
+        (WebCore::ProcessingInstruction::removedFrom):
+        * editing/FrameSelection.cpp:
+        (WebCore::FrameSelection::contains):
+        * html/HTMLElement.cpp:
+        (WebCore::HTMLElement::adjustDirectionalityIfNeededAfterChildrenChanged):
+        * html/HTMLLinkElement.cpp:
+        (WebCore::HTMLLinkElement::removedFrom):
+        * html/HTMLStyleElement.cpp:
+        (WebCore::HTMLStyleElement::parseAttribute):
+        (WebCore::HTMLStyleElement::registerWithScopingNode):
+        (WebCore::HTMLStyleElement::unregisterWithScopingNode):
+        * html/parser/HTMLResourcePreloader.cpp:
+        (WebCore::HTMLResourcePreloader::preload):
+        * loader/ImageLoader.cpp:
+        (WebCore::ImageLoader::updateFromElement):
+        * page/EventHandler.cpp:
+        (WebCore::EventHandler::handleWheelEvent):
+        (WebCore::EventHandler::handleGestureScrollBegin):
+        * page/Frame.cpp:
+        (WebCore::Frame::setPageAndTextZoomFactors):
+        * page/FrameView.cpp:
+        (WebCore::FrameView::layout):
+        (WebCore::FrameView::doLayoutWithFrameFlattening):
+        * page/Page.cpp:
+        (WebCore::Page::setPageScaleFactor):
+        * page/PrintContext.cpp:
+        (WebCore::PrintContext::spoolAllPagesWithBoundaries):
+        * platform/graphics/mac/MediaPlayerPrivateQTKit.mm:
+        (WebCore::MediaPlayerPrivateQTKit::paint):
+        * style/StyleResolveTree.cpp:
+        (WebCore::Style::resolveTree):
+        * svg/SVGDocument.cpp:
+        (WebCore::SVGDocument::updatePan):
+
+2013-09-09  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        [DOM4] Have ProcessingInstruction inherit CharacterData
+        https://bugs.webkit.org/show_bug.cgi?id=120691
+
+        Reviewed by Darin Adler.
+
+        Have ProcessingInstruction inherit CharacterData as per the latest DOM4
+        specification:
+        http://dom.spec.whatwg.org/#processinginstruction
+
+        Previously, ProcessingInstruction was inheriting from Node as per DOM
+        Level 3.
+
+        Firefox and Blink already follow DOM4 here but not IE10.
+        This change leads to less code duplication.
+
+        Test: fast/dom/processing-instruction-inherit-characterdata.xhtml
+
+        * bindings/objc/PublicDOMInterfaces.h:
+        * dom/CharacterData.cpp:
+        (WebCore::CharacterData::setDataAndUpdate):
+        * dom/ProcessingInstruction.cpp:
+        (WebCore::ProcessingInstruction::ProcessingInstruction):
+        (WebCore::ProcessingInstruction::cloneNode):
+        (WebCore::ProcessingInstruction::checkStyleSheet):
+        (WebCore::ProcessingInstruction::insertedInto):
+        (WebCore::ProcessingInstruction::removedFrom):
+        (WebCore::ProcessingInstruction::finishParsingChildren):
+        * dom/ProcessingInstruction.h:
+        (WebCore::toProcessingInstruction):
+        * dom/ProcessingInstruction.idl:
+
+2013-09-09  Krzysztof Czech  <k.czech@samsung.com>
+
+        [AX][ATK] AccessibilityObject representing ProgressBar element should be ATK_VALUE type
+        https://bugs.webkit.org/show_bug.cgi?id=121023
+
+        Reviewed by Mario Sanchez Prada.
+
+        Test: accessibility/progressbar.html
+
+        ProgressBar element should support ATK_VALUE interface.
+
+        * accessibility/atk/WebKitAccessibleWrapperAtk.cpp:
+        (getInterfaceMaskFromObject):
+
+2013-09-09  Claudio Saavedra  <csaavedra@igalia.com>
+
+        [GTK]  ghost cursor when mouse hovers over an image file in a tab
+        https://bugs.webkit.org/show_bug.cgi?id=120675
+
+        Reviewed by Carlos Garcia Campos.
+
+        No new tests, covered by existing.
+
+        * platform/gtk/CursorGtk.cpp:
+        (WebCore::createNamedCursor): Use new gdk_cursor_new_from_surface()
+        when compiling against GTK+ 3.9.12 or newer.
+
+2013-09-08  Santosh Mahto  <santosh.ma@samsung.com>
+
+        HTMLDocument.h : Removing unnecessary forward declaration.
+        https://bugs.webkit.org/show_bug.cgi?id=121002
+
+        Reviewed by Darin Adler.
+
+        Just code cleanup.
+        Removed the two forward declaration in HTMLDocument.h file.
+
+        * html/HTMLDocument.h:
+
+2013-09-08  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        defining line height affects height of text box
+        https://bugs.webkit.org/show_bug.cgi?id=17619
+
+        Reviewed by Darin Adler.
+
+        Giving line height to input elements increase the height
+        of the element. To make it work similiar as Mozilla and IE
+        line-height :normal should be applied for input elements.
+
+        Test: fast/dom/HTMLInputElement/input-line-height.html
+
+        * css/html.css:
+        (input):
+        Made the line-height: normal as !important so that it does not
+        consider any other line-height specified through internal or 
+        external styles.
+
+2013-09-08  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        Scrollbar width is not applied when element hidden
+        https://bugs.webkit.org/show_bug.cgi?id=90546
+
+        Reviewed by Simon Fraser.
+
+        Webkit has css properties through which custom scroll
+        bars can be added. Incase the element's visible property
+        is hidden and custom scrollbar properties are applied
+        the scrollbar width is not considered when quering the 
+        element.clientWidth. Incase of non-custom scrollbars 
+        whether the element's visible property is hidden or not
+        correct scrollbar width is considered.
+
+        Tests: fast/dom/Element/scroll-width-hidden.html
+               fast/dom/Element/scroll-width-visible.html
+
+        * rendering/RenderScrollbar.cpp:
+        (WebCore::RenderScrollbar::updateScrollbarPart):
+        Incase custom scrollbar is created there is a check whether
+        the renderer to which scrollbar is added is visible or not.
+        This check is not required since for non-custom scrollbars same
+        check is not present. Also whether element's visible property is
+        hidden or not a placeholder is set for the element. Both behavoiur
+        i.e custom and non-custom scrollbars should be same.
+
+2013-09-08  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        GStreamer 0.10 build fix after r155251.
+
+        Reviewed by Csaba Osztrogonác.
+
+        * platform/graphics/gstreamer/GStreamerVersioning.cpp:
+
+2013-09-08  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        [wk2] REGRESSION (r154673): PDF scrolling moves very slowly
+        https://bugs.webkit.org/show_bug.cgi?id=120542
+
+        Reviewed by Tim Horton.
+
+        Handle 'wheel' events in addition to 'mousewheel'.
+
+        * html/shadow/MediaControlsApple.cpp:
+        Listen for the standard 'wheel' event instead of the legacy 'mousewheel' one.
+        While not strictly needed, we should use the legacy events as little as
+        possible.
+        * plugins/PluginView.cpp:
+        Handle 'wheel' events in addition to 'mousewheel'.
+
+2013-09-08  Darin Adler  <darin@apple.com>
+
+        Make Editor::deleteButtonController a reference
+        https://bugs.webkit.org/show_bug.cgi?id=121019
+
+        Reviewed by Andreas Kling.
+
+        * dom/ContainerNode.cpp:
+        (WebCore::ContainerNode::cloneChildNodes): Updated to use . instead of ->.
+        * editing/DeleteButton.cpp:
+        (WebCore::DeleteButton::defaultEventHandler): Ditto.
+
+        * editing/DeleteButtonController.cpp:
+        (WebCore::DeleteButtonController::DeleteButtonController): Updated to take a Frame&
+        instead of a Frame*.
+        (WebCore::DeleteButtonController::respondToChangedSelection): Ditto.
+        (WebCore::DeleteButtonController::createDeletionUI): Ditto.
+        (WebCore::DeleteButtonController::show): Ditto.
+        (WebCore::DeleteButtonController::enable): Ditto.
+        (WebCore::DeleteButtonController::deleteTarget): Ditto.
+        * editing/DeleteButtonController.h: Ditto.
+
+        * editing/Editor.cpp:
+        (WebCore::Editor::avoidIntersectionWithDeleteButtonController): Removed bogus
+        null check from both versions of this function.
+        (WebCore::Editor::Editor): Use construction rather than assignment and pass
+        a reference instead of a pointer to make m_deleteButtonController.
+        (WebCore::Editor::clear): Ditto.
+
+        * editing/Editor.h: Made deleteButtonController return a reference.
+        Also reorganized the header to put all the conditional functions together,
+        and not mixed in with non-conditional ones.
+
+        * editing/markup.cpp:
+        (WebCore::createMarkup): Updated to use . instead of -> and also to use
+        emptyString() instead of constructing a new empty string.
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        InlineBox::root() should return a reference.
+        <https://webkit.org/b/121014>
+
+        Reviewed by Antti Koivisto.
+
+        There is always a root inline box, so make root() return a reference.
+        Also make some effort to cache the result in a local at call sites.
+
 2013-09-08  Andreas Kling  <akling@apple.com>
 
         FrameView::scheduleEvent() is over-engineered.

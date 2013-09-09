@@ -1,3 +1,79 @@
+2013-09-08  Anders Carlsson  <andersca@apple.com>
+
+        Begin moving off of TypeTraits.h
+        https://bugs.webkit.org/show_bug.cgi?id=121006
+
+        Reviewed by Darin Adler.
+
+        Convert uses of WTF type traits to STL type traits.
+
+        * heap/PassWeak.h:
+        * runtime/JSCell.h:
+        (JSC::jsCast):
+        (JSC::jsDynamicCast):
+        * runtime/WriteBarrier.h:
+        (JSC::validateCell):
+
+2013-09-08  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Calculating the size of the Heap should not require walking over it
+        https://bugs.webkit.org/show_bug.cgi?id=120910
+
+        Reviewed by Geoffrey Garen.
+
+        Currently Heap::size() is O(sizeof(Heap)). This is too expensive to 
+        call during a collection. We should keep a count of visited and copied 
+        bytes as each collection progresses so as to avoid re-walking the Heap 
+        at the end of collection.
+
+        * heap/GCThreadSharedData.cpp:
+        (JSC::GCThreadSharedData::childBytesVisited):
+        (JSC::GCThreadSharedData::childBytesCopied):
+        * heap/GCThreadSharedData.h:
+        * heap/Heap.cpp:
+        (JSC::Heap::Heap):
+        (JSC::Heap::markRoots):
+        (JSC::Heap::sizeAfterCollect):
+        (JSC::Heap::collect):
+        * heap/Heap.h:
+        * heap/SlotVisitor.cpp:
+        (JSC::SlotVisitor::SlotVisitor):
+        (JSC::SlotVisitor::reset):
+        * heap/SlotVisitor.h:
+        (JSC::SlotVisitor::bytesVisited):
+        (JSC::SlotVisitor::bytesCopied):
+        * heap/SlotVisitorInlines.h:
+        (JSC::SlotVisitor::internalAppend):
+        (JSC::SlotVisitor::copyLater):
+
+2013-09-08  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Clearing MarkedBlock::m_newlyAllocated should be separate from MarkedBlock::clearMarks
+        https://bugs.webkit.org/show_bug.cgi?id=121007
+
+        Reviewed by Oliver Hunt.
+
+        We call clearMarks on every MarkedBlock in the Heap, whereas we only need to clear 
+        m_newlyAllocated for the m_currentBlock at the time of the last canonicalizeCellLiveness() 
+        for each MarkedAllocator. We also need to call it on every block in the largeAllocators 
+        because each one of their blocks is canonicalized as it is used.
+
+        * heap/Heap.cpp:
+        (JSC::Heap::markRoots):
+        * heap/MarkedAllocator.h:
+        (JSC::MarkedAllocator::getAndClearCanonicalizedBlock):
+        (JSC::MarkedAllocator::MarkedAllocator):
+        (JSC::MarkedAllocator::canonicalizeCellLivenessData):
+        * heap/MarkedBlock.h:
+        (JSC::MarkedBlock::lastChanceToFinalize):
+        (JSC::MarkedBlock::clearMarks):
+        (JSC::MarkedBlock::clearNewlyAllocated):
+        * heap/MarkedSpace.cpp:
+        (JSC::clearNewlyAllocatedInBlock):
+        (JSC::ClearNewlyAllocated::operator()):
+        (JSC::MarkedSpace::clearNewlyAllocated):
+        * heap/MarkedSpace.h:
+
 2013-09-07  Filip Pizlo  <fpizlo@apple.com>
 
         FTL should support typed array PutByVal
