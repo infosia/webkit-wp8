@@ -670,7 +670,7 @@ static void writeRenderRegionList(const RenderRegionList& flowThreadRegionList, 
         writeIndent(ts, indent + 2);
         ts << "RenderRegion";
         if (renderRegion->generatingElement()) {
-            String tagName = getTagName(renderRegion->node());
+            String tagName = getTagName(renderRegion->element());
             if (!tagName.isEmpty())
                 ts << " {" << tagName << "}";
             if (renderRegion->generatingElement()->hasID())
@@ -835,14 +835,12 @@ static String nodePosition(Node* node)
     return result.toString();
 }
 
-static void writeSelection(TextStream& ts, const RenderObject* o)
+static void writeSelection(TextStream& ts, const RenderObject* renderer)
 {
-    Node* n = o->node();
-    if (!n || !n->isDocumentNode())
+    if (!renderer->isRenderView())
         return;
 
-    Document* doc = toDocument(n);
-    Frame* frame = doc->frame();
+    Frame* frame = renderer->document().frame();
     if (!frame)
         return;
 

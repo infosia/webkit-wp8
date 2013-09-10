@@ -1,3 +1,69 @@
+2013-09-10  Sergio Villar Senin  <svillar@igalia.com>
+
+        [WK2][GTK] Frequent crashes when showing context menus in Debug builds
+        https://bugs.webkit.org/show_bug.cgi?id=121099
+
+        Reviewed by Carlos Garcia Campos.
+
+        Disconnect signal handlers when destroying the context menu proxy
+        object. This avoids use-after-free crashes when opening several
+        context menus in a row.
+
+        * UIProcess/gtk/WebContextMenuProxyGtk.cpp:
+        (WebKit::WebContextMenuProxyGtk::append):
+        (WebKit::WebContextMenuProxyGtk::~WebContextMenuProxyGtk):
+        * UIProcess/gtk/WebContextMenuProxyGtk.h:
+
+2013-09-10  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt] make use of qtHaveModule() 
+        https://bugs.webkit.org/show_bug.cgi?id=121090
+
+        Reviewed by Jocelyn Turcotte.
+        Patch by Oswald Buddenhagen <oswald.buddenhagen@digia.com>
+
+        Use qtHaveModule instead of our own haveQtModule.
+
+        * WebProcess.pro:
+
+2013-09-10  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] /webkit2/WebKitWebView/default-menu fails when GtkSettings:gtk-show-input-method-menu is disabled
+        https://bugs.webkit.org/show_bug.cgi?id=121088
+
+        Reviewed by Xan Lopez.
+
+        * UIProcess/API/gtk/tests/TestContextMenu.cpp: Always check
+        Unicode submenu is present in default context menu for editable
+        content.
+
+2013-09-09  Dean Jackson  <dino@apple.com>
+
+        [WebGL] Allow multithreaded OpenGL contexts
+        https://bugs.webkit.org/show_bug.cgi?id=121062
+
+        Reviewed by Simon Fraser.
+
+        Expose a new preference "multithreadedWebGLEnabled".
+
+        * Shared/WebPreferencesStore.h:
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetMultithreadedWebGLEnabled):
+        (WKPreferencesGetMultithreadedWebGLEnabled):
+        * UIProcess/API/C/WKPreferencesPrivate.h:
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::updatePreferences):
+        * mac/WebKit2.order:
+
+2013-09-09  Dean Jackson  <dino@apple.com>
+
+        Enable WebGL for OS X nightlies
+        https://bugs.webkit.org/show_bug.cgi?id=121040
+
+        Reviewed by Beth Dakin.
+
+        * Shared/WebPreferencesStore.h: Set initial value to true.
+
 2013-09-08  Anders Carlsson  <andersca@apple.com>
 
         Begin moving off of TypeTraits.h

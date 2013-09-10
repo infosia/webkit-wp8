@@ -1,3 +1,179 @@
+2013-09-10  Filip Pizlo  <fpizlo@apple.com>
+
+        SpecType should have SpecInt48AsDouble
+        https://bugs.webkit.org/show_bug.cgi?id=121065
+
+        Reviewed by Oliver Hunt.
+
+        * bytecode/SpeculatedType.cpp:
+        (JSC::dumpSpeculation):
+        (JSC::speculationToAbbreviatedString):
+        (JSC::speculationFromValue):
+        * bytecode/SpeculatedType.h:
+        (JSC::isInt48AsDoubleSpeculation):
+        (JSC::isIntegerSpeculation):
+        (JSC::isDoubleRealSpeculation):
+
+2013-09-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Don't GC while in the OSR-triggered jettison code
+        https://bugs.webkit.org/show_bug.cgi?id=121106
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGOperations.cpp:
+
+2013-09-10  Filip Pizlo  <fpizlo@apple.com>
+
+        jsc commandline's run() function should take extra arguments
+        https://bugs.webkit.org/show_bug.cgi?id=121098
+
+        Reviewed by Michael Saboff.
+
+        * jsc.cpp:
+        (functionRun):
+
+2013-09-09  Michael Saboff  <msaboff@apple.com>
+
+        There should be one "invalid" virtual register constant
+        https://bugs.webkit.org/show_bug.cgi?id=121057
+
+        Reviewed by Filip Pizlo.
+
+        Unify all references to an invalid virtual register to be the enum InvalidVirtualRegister.
+        Changed the value of InvalidVirtualRegister to be maximum integer value.
+
+        * bytecode/CodeBlock.h:
+        (JSC::CodeBlock::setArgumentsRegister):
+        (JSC::CodeBlock::usesArguments):
+        * bytecode/LazyOperandValueProfile.h:
+        (JSC::LazyOperandValueProfileKey::LazyOperandValueProfileKey):
+        (JSC::LazyOperandValueProfileKey::operator!):
+        (JSC::LazyOperandValueProfileKey::isHashTableDeletedValue):
+        (JSC::LazyOperandValueProfile::LazyOperandValueProfile):
+        * bytecode/UnlinkedCodeBlock.cpp:
+        (JSC::UnlinkedCodeBlock::UnlinkedCodeBlock):
+        * bytecode/UnlinkedCodeBlock.h:
+        (JSC::UnlinkedCodeBlock::usesArguments):
+        (JSC::UnlinkedCodeBlock::usesGlobalObject):
+        * bytecode/VirtualRegister.h:
+
+2013-09-09  Michael Saboff  <msaboff@apple.com>
+
+        Change virtual register function arguments from unsigned to int
+        https://bugs.webkit.org/show_bug.cgi?id=121055
+
+        Reviewed by Filip Pizlo.
+
+        This is a largely mechanical change.  This changes function paramaters and local variables used to
+        represent bytecode operands from being unsigned to be int.
+
+        * bytecode/CodeOrigin.h:
+        * dfg/DFGByteCodeParser.cpp:
+        * jit/JIT.h:
+        * jit/JITArithmetic.cpp:
+        * jit/JITArithmetic32_64.cpp:
+        * jit/JITInlines.h:
+        * jit/JITOpcodes.cpp:
+        * jit/JITOpcodes32_64.cpp:
+        * jit/JITPropertyAccess.cpp:
+        * jit/JITPropertyAccess32_64.cpp:
+        * jit/JITStubCall.h:
+
+2013-09-09  Michael Saboff  <msaboff@apple.com>
+
+        Add local to/from operand helpers similar to argument to/from operand2
+        https://bugs.webkit.org/show_bug.cgi?id=121056
+
+        Reviewed by Geoffrey Garen.
+
+        Added localToOperand(), operandToLocal() and operandIsLocal() to Operands.h, very similar to
+        argumentToOperand(), et al.  Used the new helpers everywhere where an index into a data
+        structure is intended instead of the actual virtual register offset.  When the stack is
+        changed to grow down, local register offsets can be negative.  Also added the helper
+        DFG::SpeculativeJIT::generationInfoFromVirtualRegister() for the common case accessing 
+        m_generationInfo[operandToLocal(val)].
+
+        * bytecode/CodeBlock.cpp:
+        * bytecode/CodeBlock.h:
+        * bytecode/Operands.h:
+        (JSC::localToOperand):
+        (JSC::operandIsLocal):
+        (JSC::operandToLocal):
+        * bytecompiler/BytecodeGenerator.h:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        * dfg/DFGByteCodeParser.cpp:
+        * dfg/DFGCFGSimplificationPhase.cpp:
+        * dfg/DFGCPSRethreadingPhase.cpp:
+        * dfg/DFGOSREntry.cpp:
+        * dfg/DFGOSRExitCompiler32_64.cpp:
+        * dfg/DFGOSRExitCompiler64.cpp:
+        * dfg/DFGScoreBoard.h:
+        * dfg/DFGSpeculativeJIT.cpp:
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::generationInfoFromVirtualRegister):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        * dfg/DFGSpeculativeJIT64.cpp:
+        * dfg/DFGValidate.cpp:
+        * dfg/DFGVariableEventStream.cpp:
+        * dfg/DFGVirtualRegisterAllocationPhase.cpp:
+        * jit/JITInlines.h:
+        * jit/JITOpcodes.cpp:
+        * jit/JITOpcodes32_64.cpp:
+
+2013-09-09  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, disable GC logging.
+
+        * heap/Heap.cpp:
+
+2013-09-09  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        CopiedSpace::startedCopying should not call MarkedSpace::capacity
+        https://bugs.webkit.org/show_bug.cgi?id=121045
+
+        Reviewed by Geoffrey Garen.
+
+        MarkedSpace::capacity() iterates every block in MarkedSpace. Instead we should just 
+        keep track of our total capacity in MarkedSpace as we add and remove MarkedBlocks.
+
+        * heap/MarkedSpace.cpp:
+        (JSC::MarkedSpace::freeBlock):
+        * heap/MarkedSpace.h:
+        (JSC::MarkedSpace::didAddBlock):
+        (JSC::MarkedSpace::capacity):
+
+2013-09-09  Michael Saboff  <msaboff@apple.com>
+
+        Wrong for SlowPathCall to load callFrame reg from vm.topCallFrame after call
+        https://bugs.webkit.org/show_bug.cgi?id=120537
+
+        Reviewed by Geoffrey Garen.
+
+        Changed JITSlowPathCall::call() to update vm.topCallFrame from the callFrameRegister instead of the
+        other way around.
+
+        * jit/JIT.h:
+        * jit/JITInlines.h:
+        * jit/SlowPathCall.h:
+        (JSC::JITSlowPathCall::call):
+
+2013-08-29  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        JSArray::shiftCountWithArrayStorage doesn't change indexBias when shifting the last element in m_vector
+        https://bugs.webkit.org/show_bug.cgi?id=120389
+
+        Reviewed by Michael Saboff.
+
+        Went through and cleaned up shiftCountWithArrayStorage. Gave meaningful variable names
+        and commented the confusing parts. This led to realizing how to fix this bug, which has
+        been done. The issue was that we were modifying the vector length unconditionally, even
+        when we weren't logically changing the length of the vector. Instead, we should only modify
+        the vector length when we modify the index bias.
+
+        * runtime/JSArray.cpp:
+        (JSC::JSArray::shiftCountWithArrayStorage):
+
 2013-09-08  Anders Carlsson  <andersca@apple.com>
 
         Begin moving off of TypeTraits.h

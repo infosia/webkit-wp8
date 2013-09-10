@@ -157,7 +157,7 @@ inline Frame::Frame(Page* page, HTMLFrameOwnerElement* ownerElement, FrameLoader
     , m_loader(*this, *frameLoaderClient)
     , m_navigationScheduler(this)
     , m_ownerElement(ownerElement)
-    , m_script(adoptPtr(new ScriptController(this)))
+    , m_script(createOwned<ScriptController>(*this))
     , m_editor(Editor::create(*this))
     , m_selection(adoptPtr(new FrameSelection(this)))
     , m_eventHandler(adoptPtr(new EventHandler(*this)))
@@ -585,8 +585,8 @@ Frame* Frame::frameForWidget(const Widget* widget)
     ASSERT_ARG(widget, widget);
 
     if (RenderWidget* renderer = RenderWidget::find(widget))
-        if (Node* node = renderer->node())
-            return node->document().frame();
+        if (Element* element = renderer->element())
+            return element->document().frame();
 
     // Assume all widgets are either a FrameView or owned by a RenderWidget.
     // FIXME: That assumption is not right for scroll bars!

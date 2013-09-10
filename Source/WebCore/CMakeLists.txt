@@ -335,6 +335,7 @@ set(WebCore_IDL_FILES
 
     dom/Attr.idl
     dom/BeforeLoadEvent.idl
+    dom/BeforeUnloadEvent.idl
     dom/CDATASection.idl
     dom/CharacterData.idl
     dom/ChildNode.idl
@@ -2096,6 +2097,7 @@ set(WebCore_SOURCES
     rendering/EllipsisBox.cpp
     rendering/FilterEffectRenderer.cpp
     rendering/FixedTableLayout.cpp
+    rendering/FloatingObjects.cpp
     rendering/FlowThreadController.cpp
     rendering/HitTestingTransformState.cpp
     rendering/HitTestLocation.cpp

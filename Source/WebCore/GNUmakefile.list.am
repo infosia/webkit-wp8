@@ -69,6 +69,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSBatteryManager.h \
 	DerivedSources/WebCore/JSBeforeLoadEvent.cpp \
 	DerivedSources/WebCore/JSBeforeLoadEvent.h \
+	DerivedSources/WebCore/JSBeforeUnloadEvent.cpp \
+	DerivedSources/WebCore/JSBeforeUnloadEvent.h \
 	DerivedSources/WebCore/JSBiquadFilterNode.cpp \
 	DerivedSources/WebCore/JSBiquadFilterNode.h \
 	DerivedSources/WebCore/JSBlob.cpp \
@@ -1358,6 +1360,7 @@ dom_binding_idls += \
 	$(WebCore)/css/WebKitCSSViewportRule.idl \
 	$(WebCore)/dom/Attr.idl \
 	$(WebCore)/dom/BeforeLoadEvent.idl \
+	$(WebCore)/dom/BeforeUnloadEvent.idl \
 	$(WebCore)/dom/CDATASection.idl \
 	$(WebCore)/dom/CharacterData.idl \
 	$(WebCore)/dom/ChildNode.idl \
@@ -4337,6 +4340,8 @@ webcore_sources += \
 	Source/WebCore/rendering/FilterEffectRenderer.h \
 	Source/WebCore/rendering/FixedTableLayout.cpp \
 	Source/WebCore/rendering/FixedTableLayout.h \
+	Source/WebCore/rendering/FloatingObjects.cpp \
+	Source/WebCore/rendering/FloatingObjects.h \
 	Source/WebCore/rendering/FlowThreadController.cpp \
 	Source/WebCore/rendering/FlowThreadController.h \
 	Source/WebCore/rendering/GapRects.h \

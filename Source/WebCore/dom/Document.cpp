@@ -430,7 +430,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_loadEventFinished(false)
     , m_startTime(monotonicallyIncreasingTimeMS())
     , m_overMinimumLayoutThreshold(false)
-    , m_scriptRunner(ScriptRunner::create(this))
+    , m_scriptRunner(createOwned<ScriptRunner>(*this))
     , m_xmlVersion(ASCIILiteral("1.0"))
     , m_xmlStandalone(StandaloneUnspecified)
     , m_hasXMLDeclaration(0)
@@ -2460,7 +2460,7 @@ void Document::implicitClose()
 
     m_processingLoadEvent = false;
 
-#if PLATFORM(MAC) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(WIN) || PLATFORM(GTK)
     if (f && renderView() && AXObjectCache::accessibilityEnabled()) {
         // The AX cache may have been cleared at this point, but we need to make sure it contains an
         // AX object to send the notification to. getOrCreate will make sure that an valid AX object
