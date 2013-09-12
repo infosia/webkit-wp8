@@ -1968,6 +1968,9 @@
     <ClCompile Include="..\platform\network\curl\FormDataStreamCurl.cpp">
       <Filter>platform\network\curl</Filter>
     </ClCompile>
+    <ClCompile Include="..\platform\network\curl\MultipartHandle.cpp">
+      <Filter>platform\network\curl</Filter>
+    </ClCompile>
     <ClCompile Include="..\platform\network\curl\ProxyServerCurl.cpp">
       <Filter>platform\network\curl</Filter>
     </ClCompile>
@@ -2482,9 +2485,6 @@
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\PointerEventsHitRules.cpp">
-      <Filter>rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="..\rendering\RenderApplet.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\RenderArena.cpp">
@@ -9480,9 +9480,6 @@
     <ClInclude Include="..\rendering\PointerEventsHitRules.h">
       <Filter>rendering</Filter>
     </ClInclude>
-    <ClInclude Include="..\rendering\RenderApplet.h">
-      <Filter>rendering</Filter>
-    </ClInclude>
     <ClInclude Include="..\rendering\RenderArena.h">
       <Filter>rendering</Filter>
     </ClInclude>
@@ -15799,6 +15796,9 @@
       <Filter>platform\network\curl</Filter>
     </CustomBuildStep>
     <CustomBuildStep Include="..\platform\network\curl\FormDataStreamCurl.h">
+      <Filter>platform\network\curl</Filter>
+    </CustomBuildStep>
+    <CustomBuildStep Include="..\platform\network\curl\MultipartHandle.h">
       <Filter>platform\network\curl</Filter>
     </CustomBuildStep>
     <CustomBuildStep Include="..\platform\network\curl\ResourceError.h">

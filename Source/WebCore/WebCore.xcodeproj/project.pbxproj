@@ -3410,6 +3410,7 @@
 		9FA37EFD1172FDA600C4CD55 /* JSScriptProfileNode.h in Headers */ = {isa = PBXBuildFile; fileRef = 9FA37EF91172FD9300C4CD55 /* JSScriptProfileNode.h */; };
 		A024575116CEAA27000E5671 /* EXTDrawBuffers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A024574E16CEAA27000E5671 /* EXTDrawBuffers.cpp */; };
 		A024575216CEAA27000E5671 /* EXTDrawBuffers.h in Headers */ = {isa = PBXBuildFile; fileRef = A024574F16CEAA27000E5671 /* EXTDrawBuffers.h */; };
+		A06BFE2E17DFB43F008302BB /* LineInfo.h in Headers */ = {isa = PBXBuildFile; fileRef = A06BFE2C17DFB433008302BB /* LineInfo.h */; };
 		A07D3355152B630E001B6393 /* JSWebGLShaderPrecisionFormat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A07D3353152B630E001B6393 /* JSWebGLShaderPrecisionFormat.cpp */; };
 		A07D3356152B630E001B6393 /* JSWebGLShaderPrecisionFormat.h in Headers */ = {isa = PBXBuildFile; fileRef = A07D3354152B630E001B6393 /* JSWebGLShaderPrecisionFormat.h */; };
 		A07D3358152B632D001B6393 /* WebGLShaderPrecisionFormat.h in Headers */ = {isa = PBXBuildFile; fileRef = A07D3357152B632D001B6393 /* WebGLShaderPrecisionFormat.h */; };
@@ -5109,8 +5110,6 @@
 		BCEA4855097D93020094C9E4 /* break_lines.h in Headers */ = {isa = PBXBuildFile; fileRef = BCEA4816097D93020094C9E4 /* break_lines.h */; };
 		BCEA4859097D93020094C9E4 /* InlineTextBox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCEA481A097D93020094C9E4 /* InlineTextBox.cpp */; };
 		BCEA485A097D93020094C9E4 /* InlineTextBox.h in Headers */ = {isa = PBXBuildFile; fileRef = BCEA481B097D93020094C9E4 /* InlineTextBox.h */; settings = {ATTRIBUTES = (Private, ); }; };
-		BCEA485B097D93020094C9E4 /* RenderApplet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCEA481C097D93020094C9E4 /* RenderApplet.cpp */; };
-		BCEA485C097D93020094C9E4 /* RenderApplet.h in Headers */ = {isa = PBXBuildFile; fileRef = BCEA481D097D93020094C9E4 /* RenderApplet.h */; };
 		BCEA485D097D93020094C9E4 /* RenderArena.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCEA481E097D93020094C9E4 /* RenderArena.cpp */; };
 		BCEA485E097D93020094C9E4 /* RenderArena.h in Headers */ = {isa = PBXBuildFile; fileRef = BCEA481F097D93020094C9E4 /* RenderArena.h */; settings = {ATTRIBUTES = (Private, ); }; };
 		BCEA485F097D93020094C9E4 /* RenderBlock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCEA4820097D93020094C9E4 /* RenderBlock.cpp */; };
@@ -9997,6 +9996,7 @@
 		A024574E16CEAA27000E5671 /* EXTDrawBuffers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = EXTDrawBuffers.cpp; path = canvas/EXTDrawBuffers.cpp; sourceTree = "<group>"; };
 		A024574F16CEAA27000E5671 /* EXTDrawBuffers.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = EXTDrawBuffers.h; path = canvas/EXTDrawBuffers.h; sourceTree = "<group>"; };
 		A024575016CEAA27000E5671 /* EXTDrawBuffers.idl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = EXTDrawBuffers.idl; path = canvas/EXTDrawBuffers.idl; sourceTree = "<group>"; };
+		A06BFE2C17DFB433008302BB /* LineInfo.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LineInfo.h; sourceTree = "<group>"; };
 		A07D3353152B630E001B6393 /* JSWebGLShaderPrecisionFormat.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = JSWebGLShaderPrecisionFormat.cpp; sourceTree = "<group>"; };
 		A07D3354152B630E001B6393 /* JSWebGLShaderPrecisionFormat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = JSWebGLShaderPrecisionFormat.h; sourceTree = "<group>"; };
 		A07D3357152B632D001B6393 /* WebGLShaderPrecisionFormat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = WebGLShaderPrecisionFormat.h; path = canvas/WebGLShaderPrecisionFormat.h; sourceTree = "<group>"; };
@@ -11948,8 +11948,6 @@
 		BCEA4816097D93020094C9E4 /* break_lines.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = break_lines.h; sourceTree = "<group>"; };
 		BCEA481A097D93020094C9E4 /* InlineTextBox.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = InlineTextBox.cpp; sourceTree = "<group>"; };
 		BCEA481B097D93020094C9E4 /* InlineTextBox.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = InlineTextBox.h; sourceTree = "<group>"; };
-		BCEA481C097D93020094C9E4 /* RenderApplet.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = RenderApplet.cpp; sourceTree = "<group>"; };
-		BCEA481D097D93020094C9E4 /* RenderApplet.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = RenderApplet.h; sourceTree = "<group>"; };
 		BCEA481E097D93020094C9E4 /* RenderArena.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = RenderArena.cpp; sourceTree = "<group>"; };
 		BCEA481F097D93020094C9E4 /* RenderArena.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = RenderArena.h; sourceTree = "<group>"; };
 		BCEA4820097D93020094C9E4 /* RenderBlock.cpp */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.cpp.cpp; path = RenderBlock.cpp; sourceTree = "<group>"; };
@@ -20371,6 +20369,7 @@
 				A120ACA013F9983700FE4AC7 /* LayoutRepainter.h */,
 				2D9066040BE141D400956998 /* LayoutState.cpp */,
 				2D9066050BE141D400956998 /* LayoutState.h */,
+				A06BFE2C17DFB433008302BB /* LineInfo.h */,
 				A0CB002317DF81AC0017896B /* LineWidth.cpp */,
 				A0CB002117DE9CD00017896B /* LineWidth.h */,
 				9BA273F3172206BB0097CE47 /* LogicalSelectionOffsetCaches.h */,
@@ -20381,8 +20380,6 @@
 				B2B1F7140D00CAA8004AEA64 /* PointerEventsHitRules.cpp */,
 				B2B1F7150D00CAA8004AEA64 /* PointerEventsHitRules.h */,
 				6C70A81417707C49009A446E /* RegionOversetState.h */,
-				BCEA481C097D93020094C9E4 /* RenderApplet.cpp */,
-				BCEA481D097D93020094C9E4 /* RenderApplet.h */,
 				BCEA481E097D93020094C9E4 /* RenderArena.cpp */,
 				BCEA481F097D93020094C9E4 /* RenderArena.h */,
 				BCEA4820097D93020094C9E4 /* RenderBlock.cpp */,
@@ -23559,7 +23556,6 @@
 				D06C0D8F0CFD11460065F43F /* RemoveFormatCommand.h in Headers */,
 				93309E05099E64920056E581 /* RemoveNodeCommand.h in Headers */,
 				93309E07099E64920056E581 /* RemoveNodePreservingChildrenCommand.h in Headers */,
-				BCEA485C097D93020094C9E4 /* RenderApplet.h in Headers */,
 				BCEA485E097D93020094C9E4 /* RenderArena.h in Headers */,
 				BCEA4860097D93020094C9E4 /* RenderBlock.h in Headers */,
 				BCEA4862097D93020094C9E4 /* RenderBox.h in Headers */,
@@ -24537,6 +24533,7 @@
 				BE16C59517CFE17200852C04 /* InbandWebVTTTextTrack.h in Headers */,
 				BC10D76817D8EE71005E2626 /* RenderBlockFlow.h in Headers */,
 				A0CB002517DF826C0017896B /* LineWidth.h in Headers */,
+				A06BFE2E17DFB43F008302BB /* LineInfo.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -26758,7 +26755,6 @@
 				D06C0D900CFD11460065F43F /* RemoveFormatCommand.cpp in Sources */,
 				93309E04099E64920056E581 /* RemoveNodeCommand.cpp in Sources */,
 				93309E06099E64920056E581 /* RemoveNodePreservingChildrenCommand.cpp in Sources */,
-				BCEA485B097D93020094C9E4 /* RenderApplet.cpp in Sources */,
 				BCEA485D097D93020094C9E4 /* RenderArena.cpp in Sources */,
 				BCEA485F097D93020094C9E4 /* RenderBlock.cpp in Sources */,
 				BCEA4852097D93020094C9E4 /* RenderBlockLineLayout.cpp in Sources */,

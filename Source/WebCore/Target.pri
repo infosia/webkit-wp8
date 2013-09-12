@@ -1150,7 +1150,6 @@ SOURCES += \
     rendering/LayoutState.cpp \
     rendering/LayoutRepainter.cpp \
     rendering/LineWidth.cpp \
-    rendering/RenderApplet.cpp \
     rendering/RenderArena.cpp \
     rendering/RenderBlock.cpp \
     rendering/RenderBlockFlow.cpp \
@@ -2403,6 +2402,7 @@ HEADERS += \
     rendering/InlineTextBox.h \
     rendering/LayoutRepainter.h \
     rendering/LayoutState.h \
+    rendering/LineInfo.h \
     rendering/LineWidth.h \
     rendering/LogicalSelectionOffsetCaches.h \
     rendering/mathml/RenderMathMLBlock.h \
@@ -2421,7 +2421,6 @@ HEADERS += \
     rendering/PaintPhase.h \
     rendering/PointerEventsHitRules.h \
     rendering/RegionOversetState.h \
-    rendering/RenderApplet.h \
     rendering/RenderArena.h \
     rendering/RenderBlock.h \
     rendering/RenderBox.h \

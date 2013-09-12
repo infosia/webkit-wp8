@@ -65,12 +65,12 @@
 
 namespace WebCore {
 
-// FIXME: It's not great to have these both here and in WebKit.
-const char* WebArchivePboardType = "Apple Web Archive pasteboard type";
-const char* WebSmartPastePboardType = "NeXT smart paste pasteboard type";
-const char* WebURLNamePboardType = "public.url-name";
-const char* WebURLPboardType = "public.url";
-const char* WebURLsWithTitlesPboardType = "WebURLsWithTitlesPboardType";
+const char* const WebArchivePboardType = "Apple Web Archive pasteboard type";
+const char* const WebURLNamePboardType = "public.url-name";
+
+const char WebSmartPastePboardType[] = "NeXT smart paste pasteboard type";
+const char WebURLPboardType[] = "public.url";
+const char WebURLsWithTitlesPboardType[] = "WebURLsWithTitlesPboardType";
 
 static const Vector<String> writableTypesForURL()
 {
@@ -227,9 +227,7 @@ void Pasteboard::write(const PasteboardURL& pasteboardURL)
 
 static NSFileWrapper* fileWrapper(const PasteboardImage& pasteboardImage)
 {
-    NSData *data = pasteboardImage.resourceData->createNSData();
-    NSFileWrapper *wrapper = [[[NSFileWrapper alloc] initRegularFileWithContents:data] autorelease];
-    [data release];
+    NSFileWrapper *wrapper = [[[NSFileWrapper alloc] initRegularFileWithContents:pasteboardImage.resourceData->createNSData().get()] autorelease];
     [wrapper setPreferredFilename:suggestedFilenameWithMIMEType(pasteboardImage.url.url, pasteboardImage.resourceMIMEType)];
     return wrapper;
 }
@@ -273,58 +271,49 @@ bool Pasteboard::canSmartReplace()
     return types.contains(WebSmartPastePboardType);
 }
 
-String Pasteboard::plainText(Frame* frame)
+void Pasteboard::read(PasteboardPlainText& text)
 {
     Vector<String> types;
     platformStrategies()->pasteboardStrategy()->getTypes(types, m_pasteboardName);
     
-    if (types.contains(String(NSStringPboardType)))
-        return [(NSString *)platformStrategies()->pasteboardStrategy()->stringForType(NSStringPboardType, m_pasteboardName) precomposedStringWithCanonicalMapping];
+    if (types.contains(String(NSStringPboardType))) {
+        text.plainText = platformStrategies()->pasteboardStrategy()->stringForType(NSStringPboardType, m_pasteboardName);
+        return;
+    }
     
-    NSAttributedString *attributedString = nil;
-    NSString *string;
-
     if (types.contains(String(NSRTFDPboardType))) {
-        RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFDPboardType, m_pasteboardName);
-        if (data)
-            attributedString = [[NSAttributedString alloc] initWithRTFD:[data->createNSData() autorelease] documentAttributes:NULL];
+        if (RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFDPboardType, m_pasteboardName)) {
+            if (auto attributedString = adoptNS([[NSAttributedString alloc] initWithRTFD:data->createNSData().get() documentAttributes:NULL])) {
+                text.plainText = [attributedString string];
+                return;
+            }
+        }
     }
-    if (attributedString == nil && types.contains(String(NSRTFPboardType))) {
-        RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFPboardType, m_pasteboardName);
-        if (data)
-            attributedString = [[NSAttributedString alloc] initWithRTF:[data->createNSData() autorelease] documentAttributes:NULL];
+
+    if (types.contains(String(NSRTFPboardType))) {
+        if (RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFPboardType, m_pasteboardName)) {
+            if (auto attributedString = adoptNS([[NSAttributedString alloc] initWithRTF:data->createNSData().get() documentAttributes:NULL])) {
+                text.plainText = [attributedString string];
+                return;
+            }
+        }
     }
-    if (attributedString != nil) {
-        string = [[attributedString string] precomposedStringWithCanonicalMapping];
-        [attributedString release];
-        return string;
-    }
-    
+
     if (types.contains(String(NSFilenamesPboardType))) {
         Vector<String> pathnames;
         platformStrategies()->pasteboardStrategy()->getPathnamesForType(pathnames, NSFilenamesPboardType, m_pasteboardName);
         StringBuilder builder;
-        for (size_t i = 0; i < pathnames.size(); i++) {
+        for (size_t i = 0, size = pathnames.size(); i < size; i++) {
             if (i)
                 builder.append('\n');
             builder.append(pathnames[i]);
         }
-        string = builder.toString();
-        return [string precomposedStringWithCanonicalMapping];
-    }
-    
-    string = platformStrategies()->pasteboardStrategy()->stringForType(NSURLPboardType, m_pasteboardName);
-    if ([string length]) {
-        // FIXME: using the editorClient to call into webkit, for now, since 
-        // calling _web_userVisibleString from WebCore involves migrating a sizable web of 
-        // helper code that should either be done in a separate patch or figured out in another way.
-        string = frame->editor().client()->userVisibleString([NSURL URLWithString:string]);
-        if ([string length] > 0)
-            return [string precomposedStringWithCanonicalMapping];
+        text.plainText = builder.toString();
+        return;
     }
 
-    
-    return String(); 
+    // FIXME: All the other cases look at the types vector first, but this just gets the string without checking. Why?
+    text.url = platformStrategies()->pasteboardStrategy()->stringForType(NSURLPboardType, m_pasteboardName);
 }
     
 static PassRefPtr<DocumentFragment> documentFragmentWithImageResource(Frame* frame, PassRefPtr<ArchiveResource> resource)
@@ -358,12 +347,12 @@ static PassRefPtr<DocumentFragment> documentFragmentWithRTF(Frame* frame, NSStri
     if (pasteboardType == NSRTFDPboardType) {
         RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFDPboardType, pastebordName);
         if (data)
-            string = [[NSAttributedString alloc] initWithRTFD:[data->createNSData() autorelease] documentAttributes:NULL];
+            string = [[NSAttributedString alloc] initWithRTFD:data->createNSData().get() documentAttributes:NULL];
     }
     if (string == nil) {
         RefPtr<SharedBuffer> data = platformStrategies()->pasteboardStrategy()->bufferForType(NSRTFPboardType, pastebordName);
         if (data)
-            string = [[NSAttributedString alloc] initWithRTF:[data->createNSData() autorelease] documentAttributes:NULL];
+            string = [[NSAttributedString alloc] initWithRTF:data->createNSData().get() documentAttributes:NULL];
     }
     if (string == nil)
         return nil;
@@ -413,7 +402,7 @@ static PassRefPtr<DocumentFragment> fragmentFromWebArchive(Frame* frame, PassRef
         return 0;
 
     if (frame->loader().client().canShowMIMETypeAsHTML(MIMEType)) {
-        RetainPtr<NSString> markupString = adoptNS([[NSString alloc] initWithData:[mainResource->data()->createNSData() autorelease] encoding:NSUTF8StringEncoding]);
+        RetainPtr<NSString> markupString = adoptNS([[NSString alloc] initWithData:mainResource->data()->createNSData().get() encoding:NSUTF8StringEncoding]);
         // FIXME: seems poor form to do this as a side effect of getting a document fragment
         if (DocumentLoader* loader = frame->loader().documentLoader())
             loader->addAllArchiveResources(coreArchive.get());

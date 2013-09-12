@@ -397,11 +397,14 @@ public:
     NSDictionary* fontAttributesForSelectionStart() const;
     bool canCopyExcludingStandaloneImages();
     void takeFindStringFromSelection();
-    void writeSelectionToPasteboard(Pasteboard&);
     void readSelectionFromPasteboard(const String& pasteboardName);
     String stringSelectionForPasteboard();
     String stringSelectionForPasteboardWithImageAltText();
     PassRefPtr<SharedBuffer> dataSelectionForPasteboard(const String& pasteboardName);
+#endif
+
+#if PLATFORM(MAC) || PLATFORM(EFL)
+    void writeSelectionToPasteboard(Pasteboard&);
     void writeURLToPasteboard(Pasteboard&, const KURL&, const String& title);
     void writeImageToPasteboard(Pasteboard&, Element& imageElement, const KURL&, const String& title);
     String readPlainTextFromPasteboard(Pasteboard&);
@@ -414,7 +417,7 @@ private:
 
     bool canDeleteRange(Range*) const;
     bool canSmartReplaceWithPasteboard(Pasteboard*);
-    void pasteAsPlainTextWithPasteboard(Pasteboard*);
+    void pasteAsPlainTextWithPasteboard(Pasteboard&);
     void pasteWithPasteboard(Pasteboard*, bool allowPlainText);
 
     void revealSelectionAfterEditingOperation(const ScrollAlignment& = ScrollAlignment::alignCenterIfNeeded, RevealExtentOption = DoNotRevealExtent);

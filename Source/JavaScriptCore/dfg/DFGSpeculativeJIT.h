@@ -332,8 +332,8 @@ public:
 
     // Called by the speculative operand types, below, to fill operand to
     // machine registers, implicitly generating speculation checks as needed.
-    GPRReg fillSpecualteInt32(Edge, DataFormat& returnFormat);
-    GPRReg fillSpecualteInt32Strict(Edge);
+    GPRReg fillSpeculateInt32(Edge, DataFormat& returnFormat);
+    GPRReg fillSpeculateInt32Strict(Edge);
     FPRReg fillSpeculateDouble(Edge);
     GPRReg fillSpeculateCell(Edge);
     GPRReg fillSpeculateBoolean(Edge);
@@ -2141,7 +2141,7 @@ public:
     void arrayify(Node*);
     
     template<bool strict>
-    GPRReg fillSpecualteInt32Internal(Edge, DataFormat& returnFormat);
+    GPRReg fillSpeculateInt32Internal(Edge, DataFormat& returnFormat);
     
     // It is possible, during speculative generation, to reach a situation in which we
     // can statically determine a speculation will fail (for example, when two nodes
@@ -2398,10 +2398,15 @@ public:
         ASSERT(!m_isDouble);
         return m_register.pair.payloadGPR;
     }
-
+    
     JSValueRegs jsValueRegs()
     {
         return JSValueRegs(tagGPR(), payloadGPR());
+    }
+
+    GPRReg gpr(WhichValueWord which)
+    {
+        return jsValueRegs().gpr(which);
     }
 
     FPRReg fpr()
@@ -2489,24 +2494,38 @@ private:
 // currently allocated to child nodes whose value is consumed
 // by, and not live after, this operation.
 
+enum ReuseTag { Reuse };
+
 class GPRTemporary {
 public:
     GPRTemporary();
     GPRTemporary(SpeculativeJIT*);
     GPRTemporary(SpeculativeJIT*, GPRReg specific);
-    GPRTemporary(SpeculativeJIT*, SpeculateInt32Operand&);
-    GPRTemporary(SpeculativeJIT*, SpeculateInt32Operand&, SpeculateInt32Operand&);
-    GPRTemporary(SpeculativeJIT*, SpeculateStrictInt32Operand&);
-    GPRTemporary(SpeculativeJIT*, Int32Operand&);
-    GPRTemporary(SpeculativeJIT*, Int32Operand&, Int32Operand&);
-    GPRTemporary(SpeculativeJIT*, SpeculateCellOperand&);
-    GPRTemporary(SpeculativeJIT*, SpeculateBooleanOperand&);
-#if USE(JSVALUE64)
-    GPRTemporary(SpeculativeJIT*, JSValueOperand&);
-#elif USE(JSVALUE32_64)
-    GPRTemporary(SpeculativeJIT*, JSValueOperand&, bool tag = true);
+    template<typename T>
+    GPRTemporary(SpeculativeJIT* jit, ReuseTag, T& operand)
+        : m_jit(jit)
+        , m_gpr(InvalidGPRReg)
+    {
+        if (m_jit->canReuse(operand.node()))
+            m_gpr = m_jit->reuse(operand.gpr());
+        else
+            m_gpr = m_jit->allocate();
+    }
+    template<typename T1, typename T2>
+    GPRTemporary(SpeculativeJIT* jit, ReuseTag, T1& op1, T2& op2)
+        : m_jit(jit)
+        , m_gpr(InvalidGPRReg)
+    {
+        if (m_jit->canReuse(op1.node()))
+            m_gpr = m_jit->reuse(op1.gpr());
+        else if (m_jit->canReuse(op2.node()))
+            m_gpr = m_jit->reuse(op2.gpr());
+        else
+            m_gpr = m_jit->allocate();
+    }
+#if USE(JSVALUE32_64)
+    GPRTemporary(SpeculativeJIT*, ReuseTag, JSValueOperand&, WhichValueWord);
 #endif
-    GPRTemporary(SpeculativeJIT*, StorageOperand&);
 
     void adopt(GPRTemporary&);
 
@@ -2649,7 +2668,7 @@ public:
     GPRReg gpr()
     {
         if (m_gprOrInvalid == InvalidGPRReg)
-            m_gprOrInvalid = m_jit->fillSpecualteInt32(edge(), m_format);
+            m_gprOrInvalid = m_jit->fillSpeculateInt32(edge(), m_format);
         return m_gprOrInvalid;
     }
     
@@ -2697,7 +2716,7 @@ public:
     GPRReg gpr()
     {
         if (m_gprOrInvalid == InvalidGPRReg)
-            m_gprOrInvalid = m_jit->fillSpecualteInt32Strict(edge());
+            m_gprOrInvalid = m_jit->fillSpeculateInt32Strict(edge());
         return m_gprOrInvalid;
     }
     

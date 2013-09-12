@@ -1,3 +1,141 @@
+2013-09-12  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG::GenerationInfo init/fill methods shouldn't duplicate a bunch of logic
+        https://bugs.webkit.org/show_bug.cgi?id=121253
+
+        Reviewed by Oliver Hunt.
+
+        * dfg/DFGGenerationInfo.h:
+        (JSC::DFG::GenerationInfo::initGPR):
+        (JSC::DFG::GenerationInfo::initInt32):
+        (JSC::DFG::GenerationInfo::initJSValue):
+        (JSC::DFG::GenerationInfo::initCell):
+        (JSC::DFG::GenerationInfo::initBoolean):
+        (JSC::DFG::GenerationInfo::initStorage):
+        (JSC::DFG::GenerationInfo::fillGPR):
+        (JSC::DFG::GenerationInfo::fillJSValue):
+        (JSC::DFG::GenerationInfo::fillCell):
+        (JSC::DFG::GenerationInfo::fillInt32):
+        (JSC::DFG::GenerationInfo::fillBoolean):
+        (JSC::DFG::GenerationInfo::fillStorage):
+
+2013-09-12  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, fix mispelling (Specualte -> Speculate) that I introduced in an
+        earlier patch.
+
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculateInt32Operand::gpr):
+        (JSC::DFG::SpeculateStrictInt32Operand::gpr):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Internal):
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32):
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Strict):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Internal):
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32):
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Strict):
+
+2013-09-12  Filip Pizlo  <fpizlo@apple.com>
+
+        GPRTemporary's reuse constructor should be templatized to reduce code duplication, and the bool to denote tag or payload should be replaced with an enum
+        https://bugs.webkit.org/show_bug.cgi?id=121250
+
+        Reviewed by Oliver Hunt.
+
+        * dfg/DFGGPRInfo.h:
+        (JSC::DFG::JSValueRegs::gpr):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::GPRTemporary::GPRTemporary):
+        (JSC::DFG::SpeculativeJIT::compileValueToInt32):
+        (JSC::DFG::SpeculativeJIT::compileAdd):
+        (JSC::DFG::SpeculativeJIT::compileStringEquality):
+        (JSC::DFG::SpeculativeJIT::compileGetArgumentsLength):
+        (JSC::DFG::SpeculativeJIT::compileGetArrayLength):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::JSValueOperand::gpr):
+        (JSC::DFG::GPRTemporary::GPRTemporary):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeUInt32ToNumber):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeCompareNull):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeBranchNull):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeCompare):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeStrictEq):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeStrictEq):
+        (JSC::DFG::SpeculativeJIT::compileObjectEquality):
+        (JSC::DFG::SpeculativeJIT::compileLogicalNot):
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeUInt32ToNumber):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeCompareNull):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeBranchNull):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativePeepholeBranch):
+        (JSC::DFG::SpeculativeJIT::nonSpeculativeNonPeepholeCompare):
+        (JSC::DFG::SpeculativeJIT::compileObjectEquality):
+        (JSC::DFG::SpeculativeJIT::compileIntegerCompare):
+        (JSC::DFG::SpeculativeJIT::compileLogicalNot):
+        (JSC::DFG::SpeculativeJIT::compile):
+        * runtime/JSCJSValue.h:
+
+2013-09-12  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        MarkedBlocks shouldn't be put in Allocated state if they didn't produce a FreeList
+        https://bugs.webkit.org/show_bug.cgi?id=121236
+
+        Reviewed by Geoffrey Garen.
+
+        Right now, after a collection all MarkedBlocks are in the Marked block state. When lazy sweeping 
+        happens, if a block returns an empty free list after being swept, we call didConsumeFreeList(), 
+        which moves the block into the Allocated block state. This happens to both the block that was 
+        just being allocated out of (i.e. m_currentBlock) as well as any blocks who are completely full. 
+        We should distinguish between these two cases: m_currentBlock should transition to 
+        Allocated (because we were just allocating out of it) and any subsequent block that returns an 
+        empty free list should transition back to the Marked state. This will make the block state more 
+        consistent with the actual state the block is in, and it will also allow us to speed up moving 
+        all blocks to the Marked state during generational collection.
+
+        * heap/MarkedAllocator.cpp:
+        (JSC::MarkedAllocator::tryAllocateHelper):
+        * heap/MarkedBlock.h:
+        (JSC::MarkedBlock::didConsumeEmptyFreeList):
+
+2013-09-12  Mark Lam  <mark.lam@apple.com>
+
+        Change debug hooks to pass sourceID and position info via the DebuggerCallFrame.
+        https://bugs.webkit.org/show_bug.cgi?id=121214.
+
+        Reviewed by Geoffrey Garen.
+
+        * debugger/Debugger.h:
+        * debugger/DebuggerCallFrame.cpp:
+        (JSC::DebuggerCallFrame::sourceId):
+        (JSC::DebuggerCallFrame::clear):
+        * debugger/DebuggerCallFrame.h:
+        (JSC::DebuggerCallFrame::DebuggerCallFrame):
+        (JSC::DebuggerCallFrame::line):
+        (JSC::DebuggerCallFrame::column):
+        * interpreter/Interpreter.cpp:
+        (JSC::unwindCallFrame):
+        (JSC::Interpreter::unwind):
+        (JSC::Interpreter::debug):
+
+2013-09-12  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Add back c++11 features removed by buildfixes after all ports did the switch
+        https://bugs.webkit.org/show_bug.cgi?id=119266
+
+        Reviewed by Anders Carlsson.
+
+        * bytecode/GetByIdStatus.h:
+        (JSC::GetByIdStatus::GetByIdStatus):
+        * dfg/DFGWorklist.cpp:
+        (JSC::DFG::Worklist::~Worklist):
+        * interpreter/StackVisitor.cpp:
+        (JSC::StackVisitor::Frame::codeType):
+        (JSC::StackVisitor::Frame::functionName):
+        (JSC::StackVisitor::Frame::sourceURL):
+        (JSC::StackVisitor::Frame::print):
+
 2013-09-12  Mikhail Pozdnyakov  <mikhail.pozdnyakov@intel.com>
 
         Remove home-brewed nullptr

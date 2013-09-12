@@ -1,3 +1,449 @@
+2013-09-12  Anders Carlsson  <andersca@apple.com>
+
+        SharedBuffer::createNSData should return a RetainPtr<NSData>
+        https://bugs.webkit.org/show_bug.cgi?id=121237
+
+        Reviewed by Darin Adler.
+
+        This makes memory management cleared and fixes a leak in PDFDocumentImage::createPDFDocument.
+        We use a RetainPtr subclass as a stopgap measure to prevent code that does [buffer->createNSData() autorelease]
+        from compiling and crashing due to the NSData object being overreleased.
+
+        * loader/ResourceBuffer.h:
+        * loader/mac/ResourceBuffer.mm:
+        (WebCore::ResourceBuffer::createNSData):
+        * platform/SharedBuffer.h:
+        (WebCore::SharedBuffer::NSDataRetainPtr::NSDataRetainPtr):
+        * platform/graphics/mac/PDFDocumentImageMac.mm:
+        (WebCore::PDFDocumentImage::createPDFDocument):
+        * platform/mac/HTMLConverter.mm:
+        (-[WebHTMLConverter _addAttachmentForElement:URL:needsParagraph:usePlaceholder:]):
+        (fileWrapperForURL):
+        * platform/mac/PasteboardMac.mm:
+        (WebCore::fileWrapper):
+        (WebCore::Pasteboard::read):
+        (WebCore::documentFragmentWithRTF):
+        (WebCore::fragmentFromWebArchive):
+        * platform/mac/PlatformPasteboardMac.mm:
+        (WebCore::PlatformPasteboard::setBufferForType):
+        * platform/mac/SharedBufferMac.mm:
+        (WebCore::SharedBuffer::createNSData):
+
+2013-09-12  Timothy Hatcher  <timothy@apple.com>
+
+        Remove more Timeline stuff we don't use
+        https://bugs.webkit.org/show_bug.cgi?id=121246
+
+        Reviewed by Joseph Pecoraro.
+
+        * inspector/InspectorController.cpp:
+        * inspector/InspectorController.h:
+        * inspector/InspectorDOMDebuggerAgent.cpp:
+        * inspector/InspectorDOMDebuggerAgent.h:
+        * inspector/InspectorProfilerAgent.cpp:
+        (WebCore::InspectorProfilerAgent::InspectorProfilerAgent):
+        * inspector/InspectorProfilerAgent.h:
+        * inspector/InspectorTimelineAgent.cpp:
+        (WebCore::InspectorTimelineAgent::innerAddRecordToTimeline):
+        * inspector/InspectorTimelineAgent.h:
+
+2013-09-12  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        [EFL] Get rid of layering violations in PasteboardEfl.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=121241
+
+        Reviewed by Darin Adler.
+
+        Get rid of layering violations in PasteboardEfl.cpp. For now, just mimic
+        the Mac port to avoid divergences and leave port-specific functions
+        unimplemented as the EFL port does not support the pasteboard functionality
+        yet.
+
+        No new tests, no behavior change.
+
+        * PlatformEfl.cmake:
+        * editing/Editor.cpp:
+        (WebCore::Editor::pasteAsPlainTextWithPasteboard):
+        (WebCore::Editor::cut):
+        (WebCore::Editor::copy):
+        (WebCore::Editor::copyURL):
+        (WebCore::Editor::copyImage):
+        * editing/Editor.h:
+        * editing/efl/EditorEfl.cpp: Added.
+        (WebCore::Editor::writeSelectionToPasteboard):
+        (WebCore::Editor::writeURLToPasteboard):
+        (WebCore::Editor::writeImageToPasteboard):
+        (WebCore::Editor::readPlainTextFromPasteboard):
+        (WebCore::Editor::pasteWithPasteboard):
+        * page/DragController.cpp:
+        (WebCore::DragController::startDrag):
+        * platform/Pasteboard.h:
+        * platform/efl/PasteboardEfl.cpp:
+
+2013-09-12  Alberto Garcia  <berto@igalia.com>
+
+        [GTK] Unreviewed build fix after r155635.
+
+        Include DragData.h
+
+        * platform/gtk/PasteboardGtk.cpp:
+
+2013-09-12  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r155635.
+
+        Rubber Stamped by Darin Adler.
+
+        * platform/Pasteboard.h: Add missing compile guards for Windows port.
+
+2013-09-12  Darin Adler  <darin@apple.com>
+
+        Reorganize Pasteboard.h to make it easier to read, and express plan for future work
+        https://bugs.webkit.org/show_bug.cgi?id=121234
+
+        Reviewed by Anders Carlsson.
+
+        * platform/Pasteboard.h: Move Mac/iOS-specific pasteboard names to the bottom of the
+        file rather than putting them up with forward declarations before the class. Removed
+        unneeded forward class declarations. Changed #if statements about migration to the
+        more modern non-layering-violation API to list platforms not yet migrated, rather than
+        listing platforms that have migrated (Mac). Move conditional code down below the
+        uncondiditional code so it's easier to see what the class is doing. Move layering-
+        violation code down to the bottom too, so it's easier to see the future class without
+        having the design mistakes mixed in. Sort platform-specific sections in alphabetical
+        order instead of random order. Did the destructor in a cleaner way so the #if is out
+        of the way after the class rather than in the class. Removed WebSmartPastePboardType,
+        WebURLPboardType, and WebURLsWithTitlesPboard declarations, since they are only used
+        inside the PasteboardMac.mm source file.
+
+        * platform/ios/PasteboardIOS.mm: Aded a FIXME comment.
+        * platform/mac/PasteboardMac.mm: Made the constants for pasteboard types be actual
+        constants, rather than global variables.
+
+2013-09-12  Tamas Czene  <tczene@inf.u-szeged.hu>
+
+        [curl] Use utf8 for headers in CurlDownload.
+        https://bugs.webkit.org/show_bug.cgi?id=120413
+
+        Reviewed by Brent Fulgham.
+
+        * platform/network/curl/CurlDownload.cpp:
+        (WebCore::CurlDownload::headerCallback):
+
+2013-09-12  Peter Gal  <galpeter@inf.u-szeged.hu>
+
+        [curl] Improve multipart response handling
+        https://bugs.webkit.org/show_bug.cgi?id=117735
+
+        Reviewed by Brent Fulgham.
+
+        The multipart/x-mixed-replace mime type in responses are ignored
+        with the curl network backend. To handle such responses the
+        MultipartHandle is introduced which will split the content using
+        the boundary specified by the mime type.
+
+        There are already existing tests (http/tests/multipart).
+
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.vcxproj/WebCore.vcxproj.filters:
+        * platform/network/HTTPParsers.cpp:
+        (WebCore::parseHTTPHeader):
+        * platform/network/HTTPParsers.h:
+        * platform/network/ResourceHandleInternal.h:
+        * platform/network/curl/MultipartHandle.cpp: Added.
+        (WebCore::MultipartHandle::extractBoundary):
+        (WebCore::MultipartHandle::matchForBoundary):
+        (WebCore::MultipartHandle::checkForBoundary):
+        (WebCore::MultipartHandle::parseHeadersIfPossible):
+        (WebCore::MultipartHandle::contentReceived):
+        (WebCore::MultipartHandle::processContent):
+        (WebCore::MultipartHandle::contentEnded):
+        (WebCore::MultipartHandle::didReceiveData):
+        (WebCore::MultipartHandle::didReceiveResponse):
+        * platform/network/curl/MultipartHandle.h: Added.
+        (WebCore::MultipartHandle::MultipartHandle):
+        (WebCore::MultipartHandle::~MultipartHandle):
+        * platform/network/curl/ResourceHandleManager.cpp:
+        (WebCore::writeCallback):
+        (WebCore::headerCallback):
+        (WebCore::ResourceHandleManager::downloadTimerCallback):
+
+2013-09-12  Andreas Kling  <akling@apple.com>
+
+        Remove RenderApplet.
+        <https://webkit.org/b/121231>
+
+        Reviewed by Darin Adler.
+
+        Add a RenderEmbeddedObject::createForApplet(HTMLAppletElement&) and nuke
+        the RenderApplet class from orbit.
+
+2013-09-12  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r155621
+
+        Rubber-stamped by Anders Carlsson.
+
+        See also https://bugs.webkit.org/show_bug.cgi?id=121235 for
+        why this was necessary.
+
+        * css/MediaQueryEvaluator.cpp: Work around VS compiler bug.
+        * dom/make_names.pl: Ditto.
+        * loader/archive/ArchiveFactory.cpp: Ditto.
+        * rendering/svg/SVGPathData.cpp: Ditto.
+
+2013-09-12  Anders Carlsson  <andersca@apple.com>
+
+        SharedBuffer::createCFData should return RetainPtr<CFDataRef>
+        https://bugs.webkit.org/show_bug.cgi?id=121230
+
+        Reviewed by Darin Adler.
+
+        * loader/ResourceBuffer.cpp:
+        (WebCore::ResourceBuffer::createCFData):
+        * loader/ResourceBuffer.h:
+        * loader/archive/cf/LegacyWebArchive.cpp:
+        (WebCore::LegacyWebArchive::createPropertyListRepresentation):
+        (WebCore::LegacyWebArchive::create):
+        * platform/SharedBuffer.h:
+        * platform/cf/SharedBufferCF.cpp:
+        (WebCore::SharedBuffer::createCFData):
+        * platform/graphics/cg/ImageSourceCG.cpp:
+        (WebCore::ImageSource::setData):
+        * platform/graphics/cg/PDFDocumentImage.cpp:
+        (WebCore::PDFDocumentImage::createPDFDocument):
+        * platform/graphics/mac/FontCustomPlatformData.cpp:
+        (WebCore::createFontCustomPlatformData):
+        * platform/mac/SharedBufferMac.mm:
+        (WebCore::SharedBuffer::createCFData):
+
+2013-09-12  Zoltan Horvath  <zoltan@webkit.org>
+
+        Move LineInfo class into LineInfo.h
+        https://bugs.webkit.org/show_bug.cgi?id=121191
+
+        Reviewed by David Hyatt.
+
+        No new tests, no behavior change.
+
+        * GNUmakefile.list.am:
+        * Target.pri:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.xcodeproj/project.pbxproj:
+        * rendering/LineInfo.h: Added.
+        (WebCore::LineInfo::LineInfo):
+        (WebCore::LineInfo::isFirstLine):
+        (WebCore::LineInfo::isLastLine):
+        (WebCore::LineInfo::isEmpty):
+        (WebCore::LineInfo::previousLineBrokeCleanly):
+        (WebCore::LineInfo::floatPaginationStrut):
+        (WebCore::LineInfo::runsFromLeadingWhitespace):
+        (WebCore::LineInfo::resetRunsFromLeadingWhitespace):
+        (WebCore::LineInfo::incrementRunsFromLeadingWhitespace):
+        (WebCore::LineInfo::setFirstLine):
+        (WebCore::LineInfo::setLastLine):
+        (WebCore::LineInfo::setEmpty):
+        (WebCore::LineInfo::setPreviousLineBrokeCleanly):
+        (WebCore::LineInfo::setFloatPaginationStrut):
+        * rendering/RenderBlockLineLayout.cpp:
+
+2013-09-12  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        [CSS Shapes] Remove unnecessarily complex template from ShapeInfo classes
+        https://bugs.webkit.org/show_bug.cgi?id=121213
+
+        Reviewed by Darin Adler.
+
+        These classes were trying to be way too clever, and as a result were
+        hard to read and hard to debug. Replace the complex templated method
+        calls with virtual methods to make these classes much easier to
+        understand and maintain.
+
+        No new tests, no behavior change.
+
+        * rendering/shapes/ShapeInfo.cpp:
+        (WebCore::::computedShape):
+        (WebCore::::computeSegmentsForLine):
+        * rendering/shapes/ShapeInfo.h:
+        * rendering/shapes/ShapeInsideInfo.cpp:
+        (WebCore::ShapeInsideInfo::getShapeValue):
+        * rendering/shapes/ShapeInsideInfo.h:
+        (WebCore::ShapeInsideInfo::computeSegmentsForLine):
+        (WebCore::ShapeInsideInfo::ShapeInsideInfo):
+        * rendering/shapes/ShapeOutsideInfo.cpp:
+        (WebCore::ShapeOutsideInfo::computeSegmentsForLine):
+        (WebCore::ShapeOutsideInfo::getShapeValue):
+        * rendering/shapes/ShapeOutsideInfo.h:
+        (WebCore::ShapeOutsideInfo::ShapeOutsideInfo):
+
+2013-09-12  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Turn shape's logicalwidth/height into a LayoutSize
+        https://bugs.webkit.org/show_bug.cgi?id=121187
+
+        Reviewed by David Hyatt.
+
+        No new tests, no behavior change.
+
+        * rendering/shapes/ShapeInfo.cpp:
+        (WebCore::::computedShape):
+        * rendering/shapes/ShapeInfo.h:
+        (WebCore::ShapeInfo::setShapeSize):
+        (WebCore::ShapeInfo::shapeContainingBlockHeight):
+
+2013-09-12  Darin Adler  <darin@apple.com>
+
+        Move layering-violating code from Pasteboard::plainText into Editor (Mac only at first)
+        https://bugs.webkit.org/show_bug.cgi?id=121075
+
+        Reviewed by Anders Carlsson.
+
+        * editing/Editor.cpp:
+        (WebCore::Editor::pasteAsPlainTextBypassingDHTML): Pass pasteboard as a reference.
+        (WebCore::Editor::pasteAsPlainTextWithPasteboard): Use readPlainTextFromPasteboard
+        for Mac. Also update to take a reference.
+        (WebCore::Editor::paste): Pass pasteboard as a reference.
+        (WebCore::Editor::pasteAsPlainText): Ditto.
+        * editing/Editor.h: Ditto.
+
+        * editing/mac/EditorMac.mm:
+        (WebCore::Editor::readSelectionFromPasteboard): Pass pasteboard as a reference.
+        (WebCore::Editor::readPlainTextFromPasteboard): Added. The declaration of this
+        was added (by mistake) in an earlier patch. This has code that used to be inside
+        Pasteboard::plainText.
+
+        * platform/Pasteboard.h: Added PasteboardPlainText. Reorganized functions in the
+        Pasteboard class and added some FIXMEs. Sorted platforms alphabetically and grouped
+        functions together and data members separate from them.
+
+        * platform/mac/DragDataMac.mm:
+        (WebCore::DragData::asPlainText): Updated to call readPlainTextFromPasteboard.
+        (WebCore::DragData::asURL): Tweaked style of unused parameter.
+
+        * platform/mac/PasteboardMac.mm:
+        (WebCore::Pasteboard::read): Renamed this from plainText, and refactored so that
+        the data goes out in the PasteboardPlainText structure.
+
+2013-09-12  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        CSS Unit vw in border-width maps to 0px.
+        https://bugs.webkit.org/show_bug.cgi?id=109229
+
+        Reviewed by Darin Adler.
+
+        Border and outline properties were not applied incase
+        its values were given in vh/vw units.
+
+        Tests: fast/css/viewport-height-border.html
+               fast/css/viewport-height-outline.html
+               fast/css/viewport-width-border.html
+               fast/css/viewport-width-outline.html
+
+        * css/CSSPrimitiveValue.cpp:
+        (WebCore::CSSPrimitiveValue::computeLengthDouble):
+        Added case CSS_VH and CSS_VW. 
+        * css/CSSPrimitiveValue.h:
+        (WebCore::CSSPrimitiveValue::isViewportPercentageWidth):
+        (WebCore::CSSPrimitiveValue::isViewportPercentageHeight):
+        Added APIs to check the unit type(CSS_VW and CSS_VH). 
+        * css/DeprecatedStyleBuilder.cpp:
+        (WebCore::ApplyPropertyComputeLength::applyValue):
+        Calculating the border values which has been specified
+        in vh/vw units.The vh/vw units are calcultated as percent
+        of viewport height and viewport width respectively.
+
+2013-09-12  Jocelyn Turcotte  <jocelyn.turcotte@digia.com>
+
+        [Coordinated Graphics] Fix the build on MacOS 10.9
+        https://bugs.webkit.org/show_bug.cgi?id=121225
+
+        Reviewed by Darin Adler.
+
+        * platform/graphics/surfaces/mac/GraphicsSurfaceMac.cpp:
+
+2013-09-12  Mark Lam  <mark.lam@apple.com>
+
+        Change debug hooks to pass sourceID and position info via the DebuggerCallFrame.
+        https://bugs.webkit.org/show_bug.cgi?id=121214.
+
+        Reviewed by Geoffrey Garen.
+
+        No new tests.
+
+        Also changed the Inspector's JavaScriptCallFrame to get the sourceID and
+        position info from its DebuggerCallFrame instead of caching those values.
+
+        * bindings/js/JavaScriptCallFrame.cpp:
+        (WebCore::JavaScriptCallFrame::JavaScriptCallFrame):
+        * bindings/js/JavaScriptCallFrame.h:
+        (WebCore::JavaScriptCallFrame::create):
+        (WebCore::JavaScriptCallFrame::invalidate):
+        (WebCore::JavaScriptCallFrame::sourceID):
+        (WebCore::JavaScriptCallFrame::position):
+        (WebCore::JavaScriptCallFrame::line):
+        (WebCore::JavaScriptCallFrame::column):
+        (WebCore::JavaScriptCallFrame::update):
+        * bindings/js/ScriptDebugServer.cpp:
+        (WebCore::ScriptDebugServer::createCallFrame):
+        (WebCore::ScriptDebugServer::updateCallFrameAndPauseIfNeeded):
+        (WebCore::ScriptDebugServer::callEvent):
+        (WebCore::ScriptDebugServer::atStatement):
+        (WebCore::ScriptDebugServer::returnEvent):
+        (WebCore::ScriptDebugServer::exception):
+        (WebCore::ScriptDebugServer::willExecuteProgram):
+        (WebCore::ScriptDebugServer::didExecuteProgram):
+        (WebCore::ScriptDebugServer::didReachBreakpoint):
+        * bindings/js/ScriptDebugServer.h:
+        * bindings/js/WorkerScriptDebugServer.cpp:
+        (WebCore::WorkerScriptDebugServer::willExecuteProgram):
+        * bindings/js/WorkerScriptDebugServer.h:
+
+2013-09-12  peavo@outlook.com  <peavo@outlook.com>
+
+        [WinCairo] Compile errors, missing include.
+        https://bugs.webkit.org/show_bug.cgi?id=121222
+
+        Reviewed by Brent Fulgham.
+
+        * platform/graphics/win/GlyphPageTreeNodeCairoWin.cpp: Include required header.
+        * platform/win/DragImageCairoWin.cpp: Include required header.
+
+2013-09-12  Vivek Galatage  <vivek.vg@samsung.com>
+
+        XMLSerializer.serializeToString() should throw exception for invalid node value.
+        https://bugs.webkit.org/show_bug.cgi?id=121209
+
+        Reviewed by Darin Adler.
+
+        FF and Opera 12 (pre blink/webkit) throw exception in case the node value is invalid.
+        Blink sends an empty string as the result of serializeToString operation with invalid node.
+        We should match with other browsers for throwing it as an exception.
+
+        Blink review URL: https://chromiumcodereview.appspot.com/23532055/
+
+        Test: fast/dom/xmlserializer-serialize-to-string-exception.html
+
+        * xml/XMLSerializer.cpp:
+        (WebCore::XMLSerializer::serializeToString):
+
+2013-09-12  Zalan Bujtas  <zalan@apple.com>
+
+        Crash in ScrollingStateStickyNode::updateConstraints
+        https://bugs.webkit.org/show_bug.cgi?id=119638
+
+        Reviewed by Simon Fraser.
+
+        Ensure when a scrolling state node is removed from the state tree,
+        we remove both the current node and all its children from the
+        associated m_stateNodeMap lookup table.
+
+        Test: fast/css/sticky/multiple-layers-sticky-crash.html
+
+        * page/scrolling/ScrollingStateNode.cpp:
+        (WebCore::ScrollingStateNode::removeChild):
+        (WebCore::ScrollingStateNode::willBeRemovedFromStateTree):
+        * page/scrolling/ScrollingStateNode.h:
+
 2013-09-12  Zalan Bujtas  <zalan@apple.com>
 
         REGRESSION (r132516): Javascript menu text incorrectly disappearing and reappearing

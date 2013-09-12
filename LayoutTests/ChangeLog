@@ -1,3 +1,149 @@
+2013-09-12  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: plugins/mouse-events.html
+        https://bugs.webkit.org/show_bug.cgi?id=116665
+
+        Reviewed by Anders Carlsson.
+
+        * plugins/mouse-events-expected.txt:
+        * plugins/mouse-events.html:
+        This test used async calls for events, and then usually logged responses while waiting
+        for a plg.eventLoggingEnabled setter synchronously. Depending on sync/async event
+        order is not reliable, especially with old WebKit1 plug-in IPC code.
+
+        * platform/mac-wk2/plugins/mouse-events-expected.txt: For some unclear reason,
+        focus works differently in WebKit2.
+
+        * platform/gtk/plugins/mouse-events-expected.txt: Removed.
+        * platform/qt/plugins/mouse-events-expected.txt: Removed.
+        * platform/win/plugins/mouse-events-expected.txt: Removed.
+        These results looked similar to new cross-platform ones, hopefully custom results
+        won't be needed any more.
+
+2013-09-12  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        CSS Unit vw in border-width maps to 0px.
+        https://bugs.webkit.org/show_bug.cgi?id=109229
+
+        Reviewed by Darin Adler.
+
+        * fast/css/viewport-height-border-expected.txt: Added.
+        * fast/css/viewport-height-border.html: Added.
+        * fast/css/viewport-height-outline-expected.txt: Added.
+        * fast/css/viewport-height-outline.html: Added.
+        * fast/css/viewport-width-border-expected.txt: Added.
+        * fast/css/viewport-width-border.html: Added.
+        * fast/css/viewport-width-outline-expected.txt: Added.
+        * fast/css/viewport-width-outline.html: Added.
+        Added new tests for verifying that border and outline properties are
+        applied when its values are given in vh/vw units.
+        * resources/js-test-pre.js:
+        (shouldNotBeEqualToString):
+        Added this API so that can compare two strings.Similiar to 
+        shouldBeEqualToString.
+
+2013-09-12  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Changed expected results after turning on WTF_USE_TILED_BACKING_STORE (r133898)
+        https://bugs.webkit.org/show_bug.cgi?id=121227
+
+        Unreviewed EFL gardening.
+
+        * platform/efl/TestExpectations:
+        * platform/efl/editing/selection/caret-ltr-2-expected.png:
+        * platform/efl/editing/selection/caret-ltr-2-expected.txt:
+        * platform/efl/editing/selection/caret-ltr-2-left-expected.png:
+        * platform/efl/editing/selection/caret-ltr-2-left-expected.txt:
+        * platform/efl/editing/selection/caret-ltr-expected.png:
+        * platform/efl/editing/selection/caret-ltr-expected.txt:
+        * platform/efl/editing/selection/caret-rtl-2-expected.png:
+        * platform/efl/editing/selection/caret-rtl-2-expected.txt:
+        * platform/efl/editing/selection/caret-rtl-expected.png:
+        * platform/efl/editing/selection/caret-rtl-expected.txt:
+
+2013-09-12  Zalan Bujtas  <zalan@apple.com>
+
+        REGRESSION: Inline PDF that are cached fail to appear in iframe.
+        https://bugs.webkit.org/show_bug.cgi?id=75449
+
+        Reviewed by Darin Adler.
+
+        Make sure 'frame is from page cache' flag is set for subframes too.
+
+        WebFrameLoaderClient::m_frameCameFromPageCache == true forces plugins
+        to be loaded manually. It ensures that the plugin raw data is fetched again
+        while the containing frame is being restored from the page cache.
+        (Plugins get destroyed when the frame goes to page cache.)
+
+        * fast/history/history-back-while-pdf-in-pagecache-expected.html: Added.
+        * fast/history/history-back-while-pdf-in-pagecache.html: Added.
+        * fast/history/resources/history-back-for-pfd-test.html: Added.
+
+2013-09-12  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        [Qt] Unreviewed gardening. Rebase after r155253.
+
+        * platform/qt-wk2/editing/style/style-boundary-005-expected.png: Added.
+        * platform/qt/editing/pasteboard/4989774-expected.png:
+        * platform/qt/editing/pasteboard/4989774-expected.txt:
+        * platform/qt/editing/pasteboard/paste-match-style-001-expected.png:
+        * platform/qt/editing/pasteboard/paste-match-style-001-expected.txt:
+        * platform/qt/editing/selection/caret-ltr-2-expected.png:
+        * platform/qt/editing/selection/caret-ltr-2-expected.txt:
+        * platform/qt/editing/selection/caret-ltr-2-left-expected.png:
+        * platform/qt/editing/selection/caret-ltr-2-left-expected.txt:
+        * platform/qt/editing/selection/caret-ltr-expected.png:
+        * platform/qt/editing/selection/caret-ltr-expected.txt:
+        * platform/qt/editing/selection/caret-ltr-right-expected.png:
+        * platform/qt/editing/selection/caret-ltr-right-expected.txt:
+        * platform/qt/editing/selection/caret-rtl-2-expected.png:
+        * platform/qt/editing/selection/caret-rtl-2-expected.txt:
+        * platform/qt/editing/selection/caret-rtl-2-left-expected.png:
+        * platform/qt/editing/selection/caret-rtl-2-left-expected.txt:
+        * platform/qt/editing/selection/caret-rtl-expected.png:
+        * platform/qt/editing/selection/caret-rtl-expected.txt:
+        * platform/qt/editing/selection/caret-rtl-right-expected.png:
+        * platform/qt/editing/selection/caret-rtl-right-expected.txt:
+        * platform/qt/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.png:
+        * platform/qt/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.txt:
+        * platform/qt/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.png:
+        * platform/qt/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.txt:
+        * platform/qt/editing/style/style-boundary-005-expected.png:
+        * platform/qt/editing/style/style-boundary-005-expected.txt:
+        * platform/qt/fast/forms/formmove3-expected.txt:
+        * platform/qt/fast/forms/input-align-image-expected.png:
+        * platform/qt/fast/forms/input-align-image-expected.txt:
+        * platform/qt/fast/forms/preserveFormDuringResidualStyle-expected.png:
+        * platform/qt/fast/forms/preserveFormDuringResidualStyle-expected.txt:
+        * platform/qt/fast/invalid/003-expected.png:
+        * platform/qt/fast/invalid/003-expected.txt:
+        * platform/qt/tables/mozilla/bugs/bug647-expected.png:
+        * platform/qt/tables/mozilla/bugs/bug647-expected.txt:
+
+2013-09-12  Vivek Galatage  <vivek.vg@samsung.com>
+
+        XMLSerializer.serializeToString() should throw exception for invalid node value.
+        https://bugs.webkit.org/show_bug.cgi?id=121209
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/xmlserializer-serialize-to-string-exception-expected.txt: Added.
+        * fast/dom/xmlserializer-serialize-to-string-exception.html: Added.
+
+2013-09-12  Zalan Bujtas  <zalan@apple.com>
+
+        Crash in ScrollingStateStickyNode::updateConstraints
+        https://bugs.webkit.org/show_bug.cgi?id=119638
+
+        Reviewed by Simon Fraser.
+
+        Ensure when a scrolling state node is removed from the state tree,
+        we remove both the current node and all its children from the
+        associated m_stateNodeMap lookup table.
+
+        * fast/css/sticky/multiple-layers-sticky-crash-expected.txt: Added.
+        * fast/css/sticky/multiple-layers-sticky-crash.html: Added.
+
 2013-09-12  Zalan Bujtas  <zalan@apple.com>
 
         REGRESSION (r132516): Javascript menu text incorrectly disappearing and reappearing
