@@ -1158,9 +1158,6 @@
     <ClCompile Include="..\platform\PlatformEvent.cpp">
       <Filter>platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\PlatformInstrumentation.cpp">
-      <Filter>platform</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\PlatformStrategies.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -2638,9 +2635,6 @@
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\RenderObjectChildList.cpp">
-      <Filter>rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="..\rendering\RenderPart.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\RenderProgress.cpp">
@@ -4845,7 +4839,7 @@
     <ClCompile Include="..\history\BackForwardController.cpp">
       <Filter>history</Filter>
     </ClCompile>
-    <ClCompile Include="..\history\BackForwardListImpl.cpp">
+    <ClCompile Include="..\history\BackForwardList.cpp">
       <Filter>history</Filter>
     </ClCompile>
     <ClCompile Include="..\history\CachedFrame.cpp">
@@ -5352,9 +5346,6 @@
     </ClCompile>
     <ClCompile Include="..\svg\graphics\SVGImageForContainer.cpp">
       <Filter>rendering\svg\graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="..\inspector\TimelineTraceEventProcessor.cpp">
-      <Filter>inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\HitTestLocation.cpp">
       <Filter>rendering</Filter>
@@ -7097,6 +7088,8 @@
     <ClCompile Include="..\platform\win\StructuredExceptionHandlerSuppressor.cpp">
       <Filter>platform\win</Filter>
     </ClCompile>
+    <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSBeforeUnloadEvent.cpp" />
+    <ClCompile Include="..\rendering\FloatingObjects.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Modules\filesystem\AsyncFileWriter.h">
@@ -8215,9 +8208,6 @@
     <ClInclude Include="..\platform\PlatformEvent.h">
       <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="..\platform\PlatformInstrumentation.h">
-      <Filter>platform</Filter>
-    </ClInclude>
     <ClInclude Include="..\platform\PlatformKeyboardEvent.h">
       <Filter>platform</Filter>
     </ClInclude>
@@ -8579,9 +8569,6 @@
       <Filter>platform\graphics\win</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\graphics\opentype\OpenTypeVerticalData.h">
-      <Filter>platform\graphics\win</Filter>
-    </ClInclude>
-    <ClInclude Include="..\platform\graphics\win\RefCountedGDIHandle.h">
       <Filter>platform\graphics\win</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\graphics\win\UniscribeController.h">
@@ -9632,9 +9619,6 @@
       <Filter>rendering</Filter>
     </ClInclude>
     <ClInclude Include="..\rendering\RenderObjectChildList.h">
-      <Filter>rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="..\rendering\RenderPart.h">
       <Filter>rendering</Filter>
     </ClInclude>
     <ClInclude Include="..\rendering\RenderProgress.h">
@@ -12394,13 +12378,13 @@
     <ClInclude Include="..\ForwardingHeaders\heap\Strong.h">
       <Filter>ForwardingHeaders\heap</Filter>
     </ClInclude>
+    <ClInclude Include="..\history\BackForwardClient.h">
+      <Filter>history</Filter>
+    </ClInclude>
     <ClInclude Include="..\history\BackForwardController.h">
       <Filter>history</Filter>
     </ClInclude>
     <ClInclude Include="..\history\BackForwardList.h">
-      <Filter>history</Filter>
-    </ClInclude>
-    <ClInclude Include="..\history\BackForwardListImpl.h">
       <Filter>history</Filter>
     </ClInclude>
     <ClInclude Include="..\history\CachedFrame.h">
@@ -13133,9 +13117,6 @@
     </ClInclude>
     <ClInclude Include="..\svg\graphics\SVGImageForContainer.h">
       <Filter>rendering\svg\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inspector\TimelineTraceEventProcessor.h">
-      <Filter>inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\rendering\HitTestLocation.h">
       <Filter>rendering</Filter>
@@ -14897,6 +14878,11 @@
     </ClInclude>
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\HTMLElementTypeHelpers.h" />
     <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SVGElementTypeHelpers.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSBeforeUnloadEvent.h" />
+    <ClInclude Include="..\rendering\FloatingObjects.h" />
+    <ClInclude Include="..\platform\graphics\win\SharedGDIObject.h">
+      <Filter>platform\graphics\win</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\css\CSSGrammar.y.in">

@@ -20,7 +20,6 @@ wince* {
 }
 
 HEADERS += \
-    Alignment.h \
     ASCIICType.h \
     Assertions.h \
     Atomics.h \
@@ -87,7 +86,6 @@ HEADERS += \
     MetaAllocatorHandle.h \
     Ref.h \
     Noncopyable.h \
-    NullPtr.h \
     NumberOfCores.h \
     RAMSize.h \
     OSAllocator.h \
@@ -201,7 +199,6 @@ SOURCES += \
     MainThread.cpp \
     MediaTime.cpp \
     MetaAllocator.cpp \
-    NullPtr.cpp \
     NumberOfCores.cpp \
     RAMSize.cpp \
     OSRandomSource.cpp \
@@ -238,7 +235,6 @@ unix: SOURCES += \
     ThreadingPthreads.cpp
 
 win*|wince*: SOURCES += \
-    win/OwnPtrWin.cpp \
     OSAllocatorWin.cpp \
     ThreadSpecificWin.cpp \
     ThreadingWin.cpp

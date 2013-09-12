@@ -537,6 +537,16 @@ bool AccessibilityObject::isRangeControl() const
     }
 }
 
+bool AccessibilityObject::isMeter() const
+{
+#if ENABLE(METER_ELEMENT)
+    RenderObject* renderer = this->renderer();
+    return renderer && renderer->isMeter();
+#else
+    return false;
+#endif
+}
+
 IntPoint AccessibilityObject::clickPoint()
 {
     LayoutRect rect = elementRect();
@@ -1455,8 +1465,8 @@ static ARIARoleMap* createARIARoleMap()
         { "menu", MenuRole },
         { "menubar", MenuBarRole },
         { "menuitem", MenuItemRole },
-        { "menuitemcheckbox", MenuItemRole },
-        { "menuitemradio", MenuItemRole },
+        { "menuitemcheckbox", MenuItemCheckboxRole },
+        { "menuitemradio", MenuItemRadioRole },
         { "note", DocumentNoteRole },
         { "navigation", LandmarkNavigationRole },
         { "option", ListBoxOptionRole },
@@ -1693,8 +1703,13 @@ AccessibilityButtonState AccessibilityObject::checkboxOrRadioValue() const
     const AtomicString& result = getAttribute(aria_checkedAttr);
     if (equalIgnoringCase(result, "true"))
         return ButtonStateOn;
-    if (equalIgnoringCase(result, "mixed"))
+    if (equalIgnoringCase(result, "mixed")) {
+        // ARIA says that radio and menuitemradio elements must NOT expose button state mixed.
+        AccessibilityRole ariaRole = ariaRoleAttribute();
+        if (ariaRole == RadioButtonRole || ariaRole == MenuItemRadioRole)
+            return ButtonStateOff;
         return ButtonStateMixed;
+    }
     
     return ButtonStateOff;
 }

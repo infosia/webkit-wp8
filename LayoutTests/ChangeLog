@@ -1,3 +1,398 @@
+2013-09-12  Zalan Bujtas  <zalan@apple.com>
+
+        REGRESSION (r132516): Javascript menu text incorrectly disappearing and reappearing
+        https://bugs.webkit.org/show_bug.cgi?id=101047
+
+        Reviewed by Simon Fraser.
+
+        Compositing layers keep track of ancestors' clipping by constructing the RenderLayerBacking::m_ancestorClippingLayer.
+        It helps setting up the proper clipping context for the corresponding graphics layer.
+        When a RenderObject's clipping style changes, it needs to propagate this change not only
+        to the associated RenderLayer, but also to the descendants', if applicable.
+        Before r132516, it was mainly covered by initiating full style recalcs, which ensured that
+        style recalc on the descendant rendering tree took care of creating/destroying
+        RenderLayerBacking::m_ancestorClippingLayer at every compositing layer node. Without the full
+        recalc, the clipping of the compositing render layers and the corresponding render subtrees can get out of sync.
+        This patch updates the clipping context on the descendant subtree, when the clipping behaviour
+        changes on a render node.
+
+        * compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants-expected.txt: Added.
+        * compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants.html: Added.
+        * compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants2-expected.txt: Added.
+        * compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants2.html: Added.
+
+2013-09-12  Samuel White  <samuel_white@apple.com>
+
+        <meter> element text value exposed as AXTitle; should be exposing AXValueDescription
+        https://bugs.webkit.org/show_bug.cgi?id=117651
+
+        Reviewed by Mario Sanchez Prada.
+
+        Updated existing meter element test to cover platform specific output.
+
+        * accessibility/meter-element.html:
+        * platform/mac/accessibility/aria-valuetext-on-native-slider-expected.txt:
+        * platform/mac/accessibility/aria-valuetext-on-native-slider.html:
+        * platform/mac/accessibility/aria-valuetext.html:
+        * platform/mac/accessibility/meter-element-expected.txt: Renamed from LayoutTests/accessibility/meter-element-expected.txt.
+        * platform/mac/accessibility/spinbutton-valuedescription-expected.txt:
+        * platform/mac/accessibility/spinbutton-valuedescription.html:
+
+2013-09-12  Samuel White  <samuel_white@apple.com>
+
+        AX: Self-referencing aria-labelledby only uses contents.
+        https://bugs.webkit.org/show_bug.cgi?id=120814
+
+        Reviewed by Mario Sanchez Prada.
+
+        Test to verify that self-referencing aria-labelledby behavior works as expected.
+
+        * accessibility/self-referencing-aria-labelledby-expected.txt: Added.
+        * accessibility/self-referencing-aria-labelledby.html: Added.
+
+2013-09-12  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        REGRESSION(r154781): accessibility/notification-listeners.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=120669
+
+        Reviewed by Chris Fleizach.
+
+        Updated the expectation for notification-listeners.html, which was
+        failing before this fix.
+
+        * platform/gtk/TestExpectations: Removed notification-listeners.html.
+        * platform/gtk/accessibility/notification-listeners-expected.txt:
+        Updated the expectation for notification-listeners.html. There is one
+        difference from the results on the Mac port, which was used as
+        reference. The element role for <select> is AXComboBox while on Mac
+        is AXPopUpButton.
+
+2013-09-11  Rashmi Shyamasundar  <rashmi.s2@samsung.com>
+
+        Canvas fillText and measureText handle ideographic spaces differently
+        https://bugs.webkit.org/show_bug.cgi?id=108881
+
+        Reviewed by Darin Adler.
+
+        According to the text preparation algorithm defined in the spec
+        http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html#text-preparation-algorithm
+        all the spaces listed in the spec
+        http://www.whatwg.org/specs/web-apps/current-work/multipage/common-microsyntaxes.html#space-character
+        should be replaced by +U0020 space character.
+        The below listed layout tests verify the conformance to above spec.
+        These tests are passing on Ubuntu-Firefox 23.0.
+
+        * fast/canvas/canvas-measureText-ideographicSpace-expected.txt: Added.
+        * fast/canvas/canvas-measureText-ideographicSpace.html: Added.
+
+2013-09-11  Geoffrey Garen  <ggaren@apple.com>
+
+        Removed some unused functions from the debugger interface
+        https://bugs.webkit.org/show_bug.cgi?id=121194
+
+        Reviewed by Joseph Pecoraro.
+
+        We plan to use the "evaluate" API and debugger activation property access for all the features we need.
+
+        * inspector/debugger/debugger-change-variable-expected.txt: Removed.
+        * inspector/debugger/debugger-change-variable.html: Removed. This test was failing
+        because we don't support this API.
+
+        * platform/mac/inspector/console/command-line-api-expected.txt: This test changed line numbers
+        because I changed inspector .js files.
+
+2013-09-11  Vivek Galatage  <vivek.vg@samsung.com>
+
+        DOMParser.parseFromString() should support creating HTML Document with mime-type text/html
+        https://bugs.webkit.org/show_bug.cgi?id=120826
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/domparser-parsefromstring-mimetype-support-expected.txt: Added.
+        * fast/dom/domparser-parsefromstring-mimetype-support.html: Added.
+
+2013-09-11  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Flaky Test: http/tests/inspector/inspect-element.html
+        https://bugs.webkit.org/show_bug.cgi?id=78869
+
+        Reviewed by Alexey Proskuryakov.
+
+        Add a check to fix flakiness when multiple inspector tests run. The
+        issue is with the old frontend, and does not affect the new frontend.
+
+        * http/tests/inspector/inspect-element.html:
+
+2013-09-11  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        MediaStream API: Remove LocalMediaStream
+        https://bugs.webkit.org/show_bug.cgi?id=120875
+
+        blink merge: https://chromium.googlesource.com/chromium/blink/+/81643ee3fe048a64fa8931132e1294fa2c8e821a
+
+        Reviewed by Eric Carlson.
+
+        * fast/mediastream/LocalMediaStream-onended-expected.txt: Removed.
+        * fast/mediastream/LocalMediaStream-onended.html: Removed.
+        * fast/mediastream/MediaStream-onended-expected.txt:
+        * fast/mediastream/MediaStream-onended.html:
+
+2013-09-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Int32ToDouble should be predicted SpecInt48 and predictions should have nothing to do with constant folding
+        https://bugs.webkit.org/show_bug.cgi?id=121141
+
+        Reviewed by Oliver Hunt.
+        
+        Fixing this means that this test no longer recompiles.
+
+        * js/script-tests/dfg-constant-fold-misprediction.js:
+
+2013-09-11  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Fix nested unicode-bidi: isolate
+        https://bugs.webkit.org/show_bug.cgi?id=120504
+
+        Reviewed by Darin Adler.
+
+        * fast/text/international/unicode-bidi-isolate-nested-first-child-text-expected.html: Added.
+        * fast/text/international/unicode-bidi-isolate-nested-first-child-text.html: Added.
+        * fast/text/international/unicode-bidi-isolate-nested-simple-expected.html: Added.
+        * fast/text/international/unicode-bidi-isolate-nested-simple.html: Added.
+
+2013-09-11  Alexey Proskuryakov  <ap@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=121169
+        media/track/track-cue-rendering-vertical.html is flaky on Mac
+
+        Reviewed by Eric Carlson.
+
+        * media/media-reparent.html: Changed to use setTimeout directly.
+
+        * media/video-test.js:
+        (endTest): Added a zero delay timer to let text track layout do its work.
+
+2013-09-11  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r155519.
+        http://trac.webkit.org/changeset/155519
+        https://bugs.webkit.org/show_bug.cgi?id=121174
+
+        Included regression test fails, and an existing test started
+        to crash (Requested by ap on #webkit).
+
+        * fast/events/mouseenterleave-detached-element-expected.txt: Removed.
+        * fast/events/mouseenterleave-detached-element.html: Removed.
+
+2013-09-10  Simon Fraser  <simon.fraser@apple.com>
+
+        REGRESSION (143483): overflow:hidden doesn't quash big repaints from text-indent: -9999px
+        https://bugs.webkit.org/show_bug.cgi?id=121137
+
+        Reviewed by Ryosuke Niwa.
+        
+        Text-based repaint test, and test for compositing layer geometry.
+
+        * compositing/geometry/negative-text-indent-with-overflow-hidden-layer-expected.txt: Added.
+        * compositing/geometry/negative-text-indent-with-overflow-hidden-layer.html: Added.
+        * fast/repaint/negative-text-indent-with-overflow-hidden-expected.txt: Added.
+        * fast/repaint/negative-text-indent-with-overflow-hidden.html: Added.
+
+2013-09-11  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: WebKit exposes AXTitleUIElement incorrectly on checkboxes and radio buttons
+        https://bugs.webkit.org/show_bug.cgi?id=121039
+
+        Reviewed by Sam Weinig.
+
+        * accessibility/label-for-control-hittest-expected.txt: Removed.
+        * accessibility/label-for-control-hittest.html: Removed.
+              We no longer need this test since we are not combining label + control into one element anymore.
+        * accessibility/radio-button-group-members.html:
+              Rewrite this test to be more modern (don't just dump attributes). 
+              Instead test for what we want to know (whether radio button group members can identify their siblings)
+        * accessibility/radio-button-title-label-expected.txt:
+        * accessibility/radio-button-title-label.html:
+              Rewrite this test so that it understands that controls won't hide their <label> elements.
+        * platform/mac/accessibility/label-element-with-hidden-control-expected.txt:
+        * platform/mac/accessibility/label-element-with-hidden-control.html:
+              Update test to reflect that title UI elements are exposed for some controls.
+        * platform/mac/accessibility/label-elements-exposed-as-title-ui-elements-expected.txt: Added.
+        * platform/mac/accessibility/label-elements-exposed-as-title-ui-elements.html: Added.
+              New test to explicitly confirm that <label> is exposed as a title UI element.
+        * platform/mac/accessibility/radio-button-group-members-expected.txt:
+
+2013-09-11  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Changed expected results after r155253
+        https://bugs.webkit.org/show_bug.cgi?id=121157
+
+        Unreviewed EFL gardening.
+
+        * platform/efl/editing/deleting/delete-br-004-expected.png:
+        * platform/efl/editing/deleting/delete-br-004-expected.txt:
+        * platform/efl/editing/deleting/delete-br-005-expected.png:
+        * platform/efl/editing/deleting/delete-br-005-expected.txt:
+        * platform/efl/editing/deleting/delete-br-006-expected.png:
+        * platform/efl/editing/deleting/delete-br-006-expected.txt:
+        * platform/efl/editing/selection/caret-ltr-right-expected.png:
+        * platform/efl/editing/selection/caret-ltr-right-expected.txt:
+        * platform/efl/editing/selection/caret-rtl-2-left-expected.png:
+        * platform/efl/editing/selection/caret-rtl-2-left-expected.txt:
+        * platform/efl/editing/selection/caret-rtl-right-expected.png:
+        * platform/efl/editing/selection/caret-rtl-right-expected.txt:
+        * platform/efl/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.png:
+        * platform/efl/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.txt:
+        * platform/efl/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.png:
+        * platform/efl/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.txt:
+
+2013-09-11  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Mouseenter/-leave not triggered when element under cursor is moved/removed
+        https://bugs.webkit.org/show_bug.cgi?id=120786
+
+        Reviewed by Antonio Gomes.
+
+        Test of mouseenter/mouseleave events when a hovered element is removed.
+
+        * fast/events/mouseenterleave-detached-element-expected.txt: Added.
+        * fast/events/mouseenterleave-detached-element.html: Added.
+
+2013-09-11  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Adds mapping MenuItemRadioRole to ATK
+        https://bugs.webkit.org/show_bug.cgi?id=121149
+
+        Reviewed by Mario Sanchez Prada.
+
+        Corrected expectations so that they can properly test MenuItemRadioRole.
+
+        * platform/efl/accessibility/aria-menubar-menuitems-expected.txt:
+        * platform/gtk/accessibility/aria-menubar-menuitems-expected.txt:
+
+2013-09-11  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: AXValue/AXMenuItemMarkChar not defined for menuitemradio (should be false (0) with aria-checked=mixed | undefined)
+        https://bugs.webkit.org/show_bug.cgi?id=120372
+
+        Unreviewed. Layout test fix for MacOS WK2.
+
+        * platform/mac/accessibility/menu-item-values.html:
+
+2013-09-10  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream text autosizing
+        https://bugs.webkit.org/show_bug.cgi?id=121111
+
+        Reviewed by Andy Estes and Sam Weinig.
+
+        Add tests to ensure we don't regress iOS text autosizing.
+
+        * platform/iphone-simulator/text-autosizing/anonymous-block-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/anonymous-block.html: Added.
+        * platform/iphone-simulator/text-autosizing/contenteditable-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/contenteditable.html: Added.
+        * platform/iphone-simulator/text-autosizing/first-letter-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/first-letter.html: Added.
+        * platform/iphone-simulator/text-autosizing/font-family-case-insensitive-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/font-family-case-insensitive.html: Added.
+        * platform/iphone-simulator/text-autosizing/lists-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/lists.html: Added.
+        * platform/iphone-simulator/text-autosizing/overflow-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/overflow.html: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-length-line-height-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-length-line-height.html: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-number-line-height-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-number-line-height.html: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-percent-line-height-expected.txt: Added.
+        * platform/iphone-simulator/text-autosizing/percent-adjust-percent-line-height.html: Added.
+
+2013-09-10  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Unreviewed test expectation maintenance.
+
+        * platform/win/TestExpectations: Rearrange some test declarations
+        to match Mac for easier comparison. Disable some unrelated tests
+        (e.g., Ogg Vorbis tests).
+
+2013-09-10  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: AXValue/AXMenuItemMarkChar not defined for menuitemradio (should be false (0) with aria-checked=mixed | undefined)
+        https://bugs.webkit.org/show_bug.cgi?id=120372
+
+        Reviewed by Mario Sanchez Prada.
+
+        * platform/mac/accessibility/menu-item-values-expected.txt: Added.
+        * platform/mac/accessibility/menu-item-values.html: Added.
+
+2013-09-10  Marcelo Morais  <m.morais@samsung.com>
+
+        [EFL] WebInspector: Move to new webinspector
+        https://bugs.webkit.org/show_bug.cgi?id=119559
+
+        Reviewed by Gyuyoung Kim.
+        
+        Skipping the tests for the old inspector.
+
+        * platform/efl-wk1/TestExpectations:
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl/TestExpectations:
+
+2013-09-10  Oliver Hunt  <oliver@apple.com>
+
+        Support WeakMap
+        https://bugs.webkit.org/show_bug.cgi?id=120912
+
+        Reviewed by Geoffrey Garen.
+
+        Basic tests.
+
+        * js/basic-weakmap-expected.txt: Added.
+        * js/basic-weakmap.html: Added.
+        * js/script-tests/basic-weakmap.js: Added.
+
+2013-09-10  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Fix race in fast/loader/onunload-form-submit-crash.html
+        https://bugs.webkit.org/show_bug.cgi?id=121122
+
+        Reviewed by Alexey Proskuryakov.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/c7ab0900c147f9a2f4c69d62b6460f98abc5d796
+
+        The setTimeout was sometimes firing before the form was parsed, so document.myForm would be null.
+
+        * fast/loader/onunload-form-submit-crash.html:
+
+2013-09-10  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: [JSC] Caught exception is treated as uncaught
+        https://bugs.webkit.org/show_bug.cgi?id=93607
+
+        Reviewed by Geoff Garen.
+
+        Add tests for different inspector pause on exceptions states.
+
+        * inspector-protocol/debugger/resources/exception.js: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-all-expected.txt: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-all.html: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-none-expected.txt: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-none.html: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-uncaught-expected.txt: Added.
+        * inspector-protocol/debugger/setPauseOnExceptions-uncaught.html: Added.
+
+2013-09-10  Grzegorz Czajkowski  <g.czajkowski@samsung.com>
+
+        needsFocus is always undefined in grammar-paste.html
+        https://bugs.webkit.org/show_bug.cgi?id=121097
+
+        Reviewed by Darin Adler.
+
+        Remove unnecessary needsFocus parameter which is always undefined.
+        In addition, remove if (true) condition in the test.
+
+        * editing/spelling/grammar-paste.html:
+
 2013-09-10  Chris Fleizach  <cfleizach@apple.com>
 
         AX: Integrate Mac results from paragraph-with-linebreaks.html

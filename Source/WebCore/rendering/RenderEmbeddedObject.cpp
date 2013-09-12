@@ -100,8 +100,8 @@ static const Color& unavailablePluginBorderColor()
     return standard;
 }
 
-RenderEmbeddedObject::RenderEmbeddedObject(Element* element)
-    : RenderPart(element)
+RenderEmbeddedObject::RenderEmbeddedObject(HTMLFrameOwnerElement* element)
+    : RenderWidget(element)
     , m_hasFallbackContent(false)
     , m_isPluginUnavailable(false)
     , m_isUnavailablePluginIndicatorHidden(false)
@@ -115,13 +115,13 @@ RenderEmbeddedObject::RenderEmbeddedObject(Element* element)
 RenderEmbeddedObject::~RenderEmbeddedObject()
 {
     if (frameView())
-        frameView()->removeWidgetToUpdate(this);
+        frameView()->removeEmbeddedObjectToUpdate(*this);
 }
 
 #if USE(ACCELERATED_COMPOSITING)
 bool RenderEmbeddedObject::requiresLayer() const
 {
-    if (RenderPart::requiresLayer())
+    if (RenderWidget::requiresLayer())
         return true;
     
     return allowsAcceleratedCompositing();
@@ -205,13 +205,13 @@ void RenderEmbeddedObject::paintSnapshotImage(PaintInfo& paintInfo, const Layout
 
 void RenderEmbeddedObject::paintContents(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    if (!element() || !element()->isPluginElement())
+    if (!frameOwnerElement() || !frameOwnerElement()->isPluginElement())
         return;
 
-    HTMLPlugInElement* plugInElement = toHTMLPlugInElement(element());
+    HTMLPlugInElement* plugInElement = toHTMLPlugInElement(frameOwnerElement());
 
     if (plugInElement->displayState() > HTMLPlugInElement::DisplayingSnapshot) {
-        RenderPart::paintContents(paintInfo, paintOffset);
+        RenderWidget::paintContents(paintInfo, paintOffset);
         if (!plugInElement->isRestartedPlugin())
             return;
     }
@@ -238,7 +238,7 @@ void RenderEmbeddedObject::paint(PaintInfo& paintInfo, const LayoutPoint& paintO
     if (page && paintInfo.phase == PaintPhaseForeground)
         page->addRelevantRepaintedObject(this, visualOverflowRect());
 
-    RenderPart::paint(paintInfo, paintOffset);
+    RenderWidget::paint(paintInfo, paintOffset);
 }
 
 static void drawReplacementArrow(GraphicsContext* context, const FloatRect& insideRect)
@@ -420,27 +420,27 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     bool hit = false;
     location = LayoutPoint(x + width / 2, y + height / 2);
     hit = rootRenderView->hitTest(request, location, result);
-    if (!hit || result.innerNode() != element())
+    if (!hit || result.innerNode() != frameOwnerElement())
         return true;
     
     location = LayoutPoint(x, y);
     hit = rootRenderView->hitTest(request, location, result);
-    if (!hit || result.innerNode() != element())
+    if (!hit || result.innerNode() != frameOwnerElement())
         return true;
     
     location = LayoutPoint(x + width, y);
     hit = rootRenderView->hitTest(request, location, result);
-    if (!hit || result.innerNode() != element())
+    if (!hit || result.innerNode() != frameOwnerElement())
         return true;
     
     location = LayoutPoint(x + width, y + height);
     hit = rootRenderView->hitTest(request, location, result);
-    if (!hit || result.innerNode() != element())
+    if (!hit || result.innerNode() != frameOwnerElement())
         return true;
     
     location = LayoutPoint(x, y + height);
     hit = rootRenderView->hitTest(request, location, result);
-    if (!hit || result.innerNode() != element())
+    if (!hit || result.innerNode() != frameOwnerElement())
         return true;
 
     return false;
@@ -456,7 +456,7 @@ void RenderEmbeddedObject::layout()
     updateLogicalWidth();
     updateLogicalHeight();
 
-    RenderPart::layout();
+    RenderWidget::layout();
 
     clearOverflow();
     addVisualEffectOverflow();
@@ -466,7 +466,7 @@ void RenderEmbeddedObject::layout()
     bool wasMissingWidget = false;
     if (!widget() && frameView() && canHaveWidget()) {
         wasMissingWidget = true;
-        frameView()->addWidgetToUpdate(this);
+        frameView()->addEmbeddedObjectToUpdate(*this);
     }
 
     setNeedsLayout(false);
@@ -474,12 +474,12 @@ void RenderEmbeddedObject::layout()
     LayoutSize newSize = contentBoxRect().size();
 
     if (!wasMissingWidget && newSize.width() >= oldSize.width() && newSize.height() >= oldSize.height()) {
-        Element* element = this->element();
+        HTMLFrameOwnerElement* element = frameOwnerElement();
         if (element && element->isPluginElement() && toHTMLPlugInElement(element)->isPlugInImageElement()) {
             HTMLPlugInImageElement* plugInImageElement = toHTMLPlugInImageElement(element);
             if (plugInImageElement->displayState() > HTMLPlugInElement::DisplayingSnapshot && plugInImageElement->snapshotDecision() == HTMLPlugInImageElement::MaySnapshotWhenResized) {
                 plugInImageElement->setNeedsCheckForSizeChange();
-                view().frameView().addWidgetToUpdate(this);
+                view().frameView().addEmbeddedObjectToUpdate(*this);
             }
         }
     }
@@ -519,12 +519,12 @@ void RenderEmbeddedObject::layout()
 void RenderEmbeddedObject::viewCleared()
 {
     // This is required for <object> elements whose contents are rendered by WebCore (e.g. src="foo.html").
-    if (element() && widget() && widget()->isFrameView()) {
+    if (frameOwnerElement() && widget() && widget()->isFrameView()) {
         FrameView* view = toFrameView(widget());
         int marginWidth = -1;
         int marginHeight = -1;
-        if (element()->hasTagName(iframeTag)) {
-            HTMLIFrameElement* frame = toHTMLIFrameElement(element());
+        if (frameOwnerElement()->hasTagName(iframeTag)) {
+            HTMLIFrameElement* frame = toHTMLIFrameElement(frameOwnerElement());
             marginWidth = frame->marginWidth();
             marginHeight = frame->marginHeight();
         }
@@ -537,7 +537,7 @@ void RenderEmbeddedObject::viewCleared()
 
 bool RenderEmbeddedObject::nodeAtPoint(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction hitTestAction)
 {
-    if (!RenderPart::nodeAtPoint(request, result, locationInContainer, accumulatedOffset, hitTestAction))
+    if (!RenderWidget::nodeAtPoint(request, result, locationInContainer, accumulatedOffset, hitTestAction))
         return false;
 
     if (!widget() || !widget()->isPluginViewBase())
@@ -605,7 +605,7 @@ void RenderEmbeddedObject::handleUnavailablePluginIndicatorEvent(Event* event)
         return;
 
     MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
-    HTMLPlugInElement* element = toHTMLPlugInElement(this->element());
+    HTMLPlugInElement* element = toHTMLPlugInElement(frameOwnerElement());
     if (event->type() == eventNames().mousedownEvent && static_cast<MouseEvent*>(event)->button() == LeftButton) {
         m_mouseDownWasInUnavailablePluginIndicator = isInUnavailablePluginIndicator(mouseEvent);
         if (m_mouseDownWasInUnavailablePluginIndicator) {
@@ -640,7 +640,7 @@ CursorDirective RenderEmbeddedObject::getCursor(const LayoutPoint& point, Cursor
         cursor = handCursor();
         return SetCursor;
     }
-    return RenderPart::getCursor(point, cursor);
+    return RenderWidget::getCursor(point, cursor);
 }
 
 bool RenderEmbeddedObject::canHaveChildren() const

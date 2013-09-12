@@ -23,21 +23,19 @@
 
 #include <wtf/Assertions.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/NullPtr.h>
 #include <wtf/OwnPtrCommon.h>
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 
 namespace WTF {
-
-    // Unlike most of our smart pointers, OwnPtr can take either the pointer type or the pointed-to type.
 
     template<typename T> class PassOwnPtr;
     template<typename T> PassOwnPtr<T> adoptPtr(T*);
 
     template<typename T> class OwnPtr {
     public:
-        typedef typename std::remove_pointer<T>::type ValueType;
+        typedef T ValueType;
         typedef ValueType* PtrType;
 
         OwnPtr() : m_ptr(0) { }
@@ -164,21 +162,17 @@ namespace WTF {
 
     template<typename T> inline OwnPtr<T>& OwnPtr<T>::operator=(OwnPtr<T>&& o)
     {
-        PtrType ptr = m_ptr;
-        m_ptr = o.leakPtr();
-        ASSERT(!ptr || m_ptr != ptr);
-        deleteOwnedPtr(ptr);
-
+        ASSERT(!o || o != m_ptr);
+        auto ptr = std::move(o);
+        swap(ptr);
         return *this;
     }
 
     template<typename T> template<typename U> inline OwnPtr<T>& OwnPtr<T>::operator=(OwnPtr<U>&& o)
     {
-        PtrType ptr = m_ptr;
-        m_ptr = o.leakPtr();
-        ASSERT(!ptr || m_ptr != ptr);
-        deleteOwnedPtr(ptr);
-
+        ASSERT(!o || o != m_ptr);
+        auto ptr = std::move(o);
+        swap(ptr);
         return *this;
     }
 #endif

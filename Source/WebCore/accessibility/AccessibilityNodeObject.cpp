@@ -554,6 +554,8 @@ bool AccessibilityNodeObject::isMenuRelated() const
     case MenuBarRole:
     case MenuButtonRole:
     case MenuItemRole:
+    case MenuItemCheckboxRole:
+    case MenuItemRadioRole:
         return true;
     default:
         return false;
@@ -577,7 +579,14 @@ bool AccessibilityNodeObject::isMenuButton() const
 
 bool AccessibilityNodeObject::isMenuItem() const
 {
-    return roleValue() == MenuItemRole;
+    switch (roleValue()) {
+    case MenuItemRole:
+    case MenuItemRadioRole:
+    case MenuItemCheckboxRole:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool AccessibilityNodeObject::isNativeCheckboxOrRadio() const
@@ -656,6 +665,8 @@ bool AccessibilityNodeObject::isChecked() const
     case RadioButtonRole:
     case CheckBoxRole:
     case MenuItemRole:
+    case MenuItemCheckboxRole:
+    case MenuItemRadioRole:
         validRole = true;
         break;
     default:
@@ -959,6 +970,8 @@ Element* AccessibilityNodeObject::actionElement() const
     case ToggleButtonRole:
     case TabRole:
     case MenuItemRole:
+    case MenuItemCheckboxRole:
+    case MenuItemRadioRole:
     case ListItemRole:
         return toElement(node);
     default:
@@ -1173,7 +1186,8 @@ void AccessibilityNodeObject::titleElementText(Vector<AccessibilityText>& textOr
         if (label) {
             AccessibilityObject* labelObject = axObjectCache()->getOrCreate(label);
             String innerText = label->innerText();
-            if (!innerText.isEmpty())
+            // Only use the <label> text if there's no ARIA override.
+            if (!innerText.isEmpty() && !ariaAccessibilityDescription())
                 textOrder.append(AccessibilityText(innerText, LabelByElementText, labelObject));
             return;
         }
@@ -1256,6 +1270,8 @@ void AccessibilityNodeObject::visibleText(Vector<AccessibilityText>& textOrder) 
     case ListItemRole:
     case MenuButtonRole:
     case MenuItemRole:
+    case MenuItemCheckboxRole:
+    case MenuItemRadioRole:
     case RadioButtonRole:
     case TabRole:
     case ProgressIndicatorRole:
@@ -1600,7 +1616,8 @@ String AccessibilityNodeObject::title() const
 
     if (isInputTag || AccessibilityObject::isARIAInput(ariaRoleAttribute()) || isControl()) {
         HTMLLabelElement* label = labelForElement(toElement(node));
-        if (label && !exposesTitleUIElement())
+        // Use the label text as the title if 1) the title element is NOT an exposed element and 2) there's no ARIA override.
+        if (label && !exposesTitleUIElement() && !ariaAccessibilityDescription().length())
             return label->innerText();
     }
 
@@ -1620,6 +1637,8 @@ String AccessibilityNodeObject::title() const
     case ListItemRole:
     case MenuButtonRole:
     case MenuItemRole:
+    case MenuItemCheckboxRole:
+    case MenuItemRadioRole:
     case RadioButtonRole:
     case TabRole:
         return textUnderElement();
@@ -1733,18 +1752,30 @@ void AccessibilityNodeObject::colorValue(int& r, int& g, int& b) const
 // ARIA Implementer's Guide.                                                                                            
 static String accessibleNameForNode(Node* node)
 {
-    if (node->isTextNode())
-        return toText(node)->data();
-
+    if (!node->isHTMLElement())
+        return String();
+    
+    HTMLElement* element = toHTMLElement(node);
+    
+    const AtomicString& ariaLabel = element->fastGetAttribute(aria_labelAttr);
+    if (!ariaLabel.isEmpty())
+        return ariaLabel;
+    
+    const AtomicString& alt = element->fastGetAttribute(altAttr);
+    if (!alt.isEmpty())
+        return alt;
+    
     if (isHTMLInputElement(node))
         return toHTMLInputElement(node)->value();
-
-    if (node->isHTMLElement()) {
-        const AtomicString& alt = toHTMLElement(node)->getAttribute(altAttr);
-        if (!alt.isEmpty())
-            return alt;
-    }
-
+    
+    String text = node->document().axObjectCache()->getOrCreate(node)->textUnderElement();
+    if (!text.isEmpty())
+        return text;
+    
+    const AtomicString& title = element->fastGetAttribute(titleAttr);
+    if (!title.isEmpty())
+        return title;
+    
     return String();
 }
 
@@ -1753,14 +1784,10 @@ String AccessibilityNodeObject::accessibilityDescriptionForElements(Vector<Eleme
     StringBuilder builder;
     unsigned size = elements.size();
     for (unsigned i = 0; i < size; ++i) {
-        Element* idElement = elements[i];
-
-        builder.append(accessibleNameForNode(idElement));
-        for (Node* n = idElement->firstChild(); n; n = NodeTraversal::next(n, idElement))
-            builder.append(accessibleNameForNode(n));
-
-        if (i != size - 1)
+        if (i)
             builder.append(' ');
+        
+        builder.append(accessibleNameForNode(elements[i]));
     }
     return builder.toString();
 }

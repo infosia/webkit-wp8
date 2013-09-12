@@ -166,6 +166,11 @@ void dumpSpeculation(PrintStream& out, SpeculatedType value)
         else
             isTop = false;
         
+        if (value & SpecInt48)
+            myOut.print("Int48");
+        else
+            isTop = false;
+        
         if (value & SpecNonIntAsDouble)
             myOut.print("Nonintasdouble");
         else
@@ -240,6 +245,8 @@ static const char* speculationToAbbreviatedString(SpeculatedType prediction)
         return "<Int32>";
     if (isInt48AsDoubleSpeculation(prediction))
         return "<Int48AsDouble>";
+    if (isInt48Speculation(prediction))
+        return "<Int48>";
     if (isDoubleSpeculation(prediction))
         return "<Double>";
     if (isNumberSpeculation(prediction))
@@ -340,11 +347,12 @@ SpeculatedType speculationFromValue(JSValue value)
         double number = value.asNumber();
         if (number == number) {
             int64_t asInt64 = static_cast<int64_t>(number);
-            if (asInt64 == number && (!asInt64 || std::signbit(number))
+            if (asInt64 == number && (asInt64 || !std::signbit(number))
                 && asInt64 < (static_cast<int64_t>(1) << 47)
-                && asInt64 >= -(static_cast<int64_t>(1) << 47))
+                && asInt64 >= -(static_cast<int64_t>(1) << 47)) {
                 return SpecInt48AsDouble;
-            return SpecDoubleReal;
+            }
+            return SpecNonIntAsDouble;
         }
         return SpecDoubleNaN;
     }

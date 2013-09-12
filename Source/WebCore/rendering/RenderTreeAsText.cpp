@@ -44,7 +44,6 @@
 #include "RenderListItem.h"
 #include "RenderListMarker.h"
 #include "RenderNamedFlowThread.h"
-#include "RenderPart.h"
 #include "RenderRegion.h"
 #include "RenderTableCell.h"
 #include "RenderView.h"
@@ -485,12 +484,25 @@ void RenderTreeAsText::writeRenderObject(TextStream& ts, const RenderObject& o, 
         if (needsLayout)
             ts << ")";
     }
+    
+    if (behavior & RenderAsTextShowOverflow && o.isBox()) {
+        const RenderBox& box = toRenderBox(o);
+        if (box.hasRenderOverflow()) {
+            LayoutRect layoutOverflow = box.layoutOverflowRect();
+            ts << " (layout overflow " << layoutOverflow.x().toInt() << "," << layoutOverflow.y().toInt() << " " << layoutOverflow.width().toInt() << "x" << layoutOverflow.height().toInt() << ")";
+            
+            if (box.hasVisualOverflow()) {
+                LayoutRect visualOverflow = box.visualOverflowRect();
+                ts << " (visual overflow " << visualOverflow.x().toInt() << "," << visualOverflow.y().toInt() << " " << visualOverflow.width().toInt() << "x" << visualOverflow.height().toInt() << ")";
+            }
+        }
+    }
 
 #if PLATFORM(QT)
     // Print attributes of embedded QWidgets. E.g. when the WebCore::Widget
     // is invisible the QWidget should be invisible too.
-    if (o.isRenderPart()) {
-        const RenderPart* part = toRenderPart(const_cast<RenderObject*>(&o));
+    if (o.isWidget()) {
+        const RenderWidget* part = toRenderWidget(const_cast<RenderObject*>(&o));
         if (part->widget() && part->widget()->platformWidget()) {
             QObject* wid = part->widget()->platformWidget();
 
@@ -590,7 +602,8 @@ void write(TextStream& ts, const RenderObject& o, int indent, RenderAsTextBehavi
         if (widget && widget->isFrameView()) {
             FrameView* view = toFrameView(widget);
             if (RenderView* root = view->frame().contentRenderer()) {
-                view->layout();
+                if (!(behavior & RenderAsTextDontUpdateLayout))
+                    view->layout();
                 RenderLayer* l = root->layer();
                 if (l)
                     writeLayers(ts, l, l, l->rect(), indent + 1, behavior);

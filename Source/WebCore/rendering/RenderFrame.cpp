@@ -33,12 +33,11 @@ namespace WebCore {
 RenderFrame::RenderFrame(HTMLFrameElement* frame)
     : RenderFrameBase(frame)
 {
-    setInline(false);
 }
 
 FrameEdgeInfo RenderFrame::edgeInfo() const
 {
-    HTMLFrameElement* frameElement = static_cast<HTMLFrameElement*>(element());
+    HTMLFrameElement* frameElement = static_cast<HTMLFrameElement*>(frameOwnerElement());
     return FrameEdgeInfo(frameElement->noResize(), frameElement->hasFrameBorder());
 }
 
@@ -50,7 +49,7 @@ void RenderFrame::updateFromElement()
 
 void RenderFrame::viewCleared()
 {
-    HTMLFrameElement* frameElement = static_cast<HTMLFrameElement*>(element());
+    HTMLFrameElement* frameElement = static_cast<HTMLFrameElement*>(frameOwnerElement());
     if (!frameElement || !widget() || !widget()->isFrameView())
         return;
 

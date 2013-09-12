@@ -78,9 +78,6 @@
     <ClCompile Include="..\wtf\win\MainThreadWin.cpp">
       <Filter>win</Filter>
     </ClCompile>
-    <ClCompile Include="..\wtf\win\OwnPtrWin.cpp">
-      <Filter>win</Filter>
-    </ClCompile>
     <ClCompile Include="..\wtf\threads\win\BinarySemaphoreWin.cpp">
       <Filter>threads\win</Filter>
     </ClCompile>
@@ -142,9 +139,6 @@
       <Filter>wtf</Filter>
     </ClCompile>
     <ClCompile Include="..\wtf\MetaAllocator.cpp">
-      <Filter>wtf</Filter>
-    </ClCompile>
-    <ClCompile Include="..\wtf\NullPtr.cpp">
       <Filter>wtf</Filter>
     </ClCompile>
     <ClCompile Include="..\wtf\NumberOfCores.cpp">
@@ -326,9 +320,6 @@
     <ClInclude Include="..\wtf\unicode\UTF8.h">
       <Filter>wtf\unicode</Filter>
     </ClInclude>
-    <ClInclude Include="..\wtf\Alignment.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
     <ClInclude Include="..\wtf\WTFThreadData.h">
       <Filter>wtf</Filter>
     </ClInclude>
@@ -492,9 +483,6 @@
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\Noncopyable.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\NullPtr.h">
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\NumberOfCores.h">

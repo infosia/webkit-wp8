@@ -27,10 +27,10 @@
 #define GDIObject_h
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <wtf/Assertions.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/NullPtr.h>
 
 namespace WTF {
 
@@ -40,9 +40,10 @@ template<typename T> class GDIObject {
     WTF_MAKE_NONCOPYABLE(GDIObject);
 public:
     GDIObject() : m_object(0) { }
+    GDIObject(std::nullptr_t) : m_object(0) { }
     ~GDIObject() { deleteObject<T>(m_object); }
 
-    T get() { return m_object; }
+    T get() const { return m_object; }
 
     void clear();
     T leak() WARN_UNUSED_RETURN;

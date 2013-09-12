@@ -70,6 +70,9 @@ def mysys(*cmd)
 end
 
 numProcessors = `sysctl -n hw.availcpu`.to_i
+if numProcessors == 0
+    numProcessors = `nproc --all 2>/dev/null`.to_i
+end
 
 $jscPath = nil
 $enableFTL = false
@@ -203,8 +206,13 @@ def runProfiler
     end
 end
 
+def runAlwaysTriggerCopyPhase
+    run("always-trigger-copy-phase", "--minHeapUtilization=2.0", "--minCopiedBlockUtilization=2.0")
+end
+
 def defaultRun
     runDefault
+    runAlwaysTriggerCopyPhase
     runNoCJIT
     if $enableFTL
         runDefaultFTL
