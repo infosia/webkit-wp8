@@ -1,3 +1,84 @@
+2013-09-12  Tim Horton  <timothy_horton@apple.com>
+
+        [mac] Cache rendered image in PDFDocumentImage
+        https://bugs.webkit.org/show_bug.cgi?id=121207
+
+        Reviewed by Simon Fraser.
+
+        Add a test ensuring that very large PDF-in-<img> elements don't crash.
+
+        * fast/images/pdf-as-image-too-big-expected.txt: Added.
+        * fast/images/pdf-as-image-too-big.html: Added.
+
+2013-09-12  Geoffrey Garen  <ggaren@apple.com>
+
+        Web Inspector shouldn't artificially allocate the arguments object in functions that don't use it
+        https://bugs.webkit.org/show_bug.cgi?id=121206
+
+        Reviewed by Joseph Pecoraro.
+        <rdar://problem/6911886>
+
+        * inspector/debugger/debugger-expand-scope-expected.txt: Updated these
+        results to reflect the fact that it's correct to exclude the 'arguments'
+        identifier from function scopes that don't use it.
+
+        * inspector/debugger/debugger-expand-scope.html: Edited this test to
+        include one frame that uses the 'arguments' identifier and one frame
+        that doesn't, so we test both cases.
+
+2013-09-12  Samuel White  <samuel_white@apple.com>
+
+        <meter> element AXValue is listed as a writable value
+        https://bugs.webkit.org/show_bug.cgi?id=117650
+
+        Reviewed by Chris Fleizach.
+
+        Added writability check to meter element test.
+
+        * accessibility/meter-element.html:
+        * platform/mac/accessibility/meter-element-expected.txt:
+
+2013-09-12  Renata Hodovan  <reni@webkit.org>
+
+        [Qt] SHOULD NEVER BE REACHED is touched WebCore::InputType::createStepRange
+        https://bugs.webkit.org/show_bug.cgi?id=121148
+
+        Reviewed by Kent Tamura.
+
+        Trying to render text input as slider-vertical. Expecting to run without crash.
+
+        * platform/qt/fast/forms/range/slider-crash-on-input.html: Added.
+        * platform/qt/platform/qt/fast/forms/range/slider-crash-on-input-expected.txt: Added.
+
+2013-09-12  Alexey Proskuryakov  <ap@apple.com>
+
+        Canvas fillText and measureText handle ideographic spaces differently
+        https://bugs.webkit.org/show_bug.cgi?id=108881
+
+        Fixing the test:
+        1. Updated paths to js-test scripts.
+        2. Removed "meta charcode" - we don't need to specify a charset here, and it's
+        "charset", not "charcode" anyway.
+
+        * fast/canvas/canvas-measureText-ideographicSpace.html:
+
+2013-09-12  Alexey Proskuryakov  <ap@apple.com>
+
+        svg/animations/smil-leak-*.svg tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=114280
+
+        Reviewed by Tim Horton.
+
+        Moved garbage collection out of the function that touches nodes to be collected,
+        making sure that they are definitely not on the stack.
+
+        I could not reproduce locally, so this is a speculative fix.
+
+        * svg/animations/smil-leak-dynamically-added-element-instances.svg:
+        * svg/animations/smil-leak-element-instances-noBaseValRef.svg:
+        * svg/animations/smil-leak-element-instances.svg:
+        * svg/animations/smil-leak-elements.svg:
+
 2013-09-12  Alexey Proskuryakov  <ap@apple.com>
 
         Flaky Test: plugins/mouse-events.html
