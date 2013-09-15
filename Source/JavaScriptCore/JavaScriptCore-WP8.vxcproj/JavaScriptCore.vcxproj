@@ -86,7 +86,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
-      <PreprocessorDefinitions>_DEBUG=1;_CRTDBG_MAP_ALLOC=1;_CRTDBG_MAP_ALLOC_NEW=1;STATICALLY_LINKED_WITH_WTF=1;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG=1;STATICALLY_LINKED_WITH_WTF=1;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <CompileAsWinRT>false</CompileAsWinRT>
@@ -131,7 +131,7 @@ echo XX%PROJECTNAME%XX &gt; "%CONFIGURATIONBUILDDIR%\buildfailed"</Command>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <ClCompile>
-      <PreprocessorDefinitions>_DEBUG=1;_CRTDBG_MAP_ALLOC=1;_CRTDBG_MAP_ALLOC_NEW=1;STATICALLY_LINKED_WITH_WTF=1;_USRDLL;__arm__=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG=1;STATICALLY_LINKED_WITH_WTF=1;_USRDLL;__arm__=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
