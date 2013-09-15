@@ -1,3 +1,154 @@
+2013-09-14  Dan Bernstein  <mitz@apple.com>
+
+        Remove non-Apple cruft from the installed WKBase.h
+        https://bugs.webkit.org/show_bug.cgi?id=121370
+
+        Reviewed by Darin Adler.
+
+        * Configurations/WebKit2.xcconfig: Set INSTALLHDRS_SCRIPT_PHASE to YES.
+        * WebKit2.xcodeproj/project.pbxproj: Added a script build phase that runs unifdef on
+        the installed WKBase.h with __APPLE__ defined and various BUILDING_* and WTF_USE_* symbols
+        undefined.
+
+2013-09-14  Dan Bernstein  <mitz@apple.com>
+
+        Build fix after r155770.
+
+        * UIProcess/API/mac/WKViewPrivate.h: Added WKBase.h import.
+
+2013-09-14  Dan Bernstein  <mitz@apple.com>
+
+        [mac] Public header WKBase.h imports a private header, WKBaseMac.h
+        https://bugs.webkit.org/show_bug.cgi?id=121216
+
+        Reviewed by Darin Adler.
+
+        * Shared/API/c/WKBase.h: Moved definitions of enums and WK_EXPORT and WK_INLINE macros
+        out of this files.
+        * Shared/API/c/WKDeclarationSpecifiers.h: Copied from Source/WebKit2/Shared/API/c/WKBase.h.
+        Contains definitions of WK_EXPORT and WK_INLINE.
+        * Shared/API/c/WKSharedAPICast.h: Added #includes.
+        * Shared/API/c/WKUserContentInjectedFrames.h: Copied from Source/WebKit2/Shared/API/c/WKBase.h.
+        Contains enum definition.
+        * Shared/API/c/WKUserScriptInjectionTime.h: Copied from Source/WebKit2/Shared/API/c/WKBase.h.
+        Contains enum definition.
+        * UIProcess/API/C/WKPageGroup.h: Added #includes.
+        * UIProcess/API/mac/WKBrowsingContextController.h: Removed WKBase.h import from this public
+        header, replacing it with WKDeclarationSpecifiers.h import.
+        * UIProcess/API/mac/WKBrowsingContextControllerPrivate.h: Added WKBase.h import.
+        * UIProcess/API/mac/WKBrowsingContextGroup.h: Removed WKBase.h import from this public
+        header, added necessary public imports.
+        * UIProcess/API/mac/WKBrowsingContextGroupPrivate.h: Added WKBase.h import.
+        * UIProcess/API/mac/WKBrowsingContextLoadDelegate.h: Removed WKBase.h import from public
+        header.
+        * UIProcess/API/mac/WKConnection.h: Ditto. Added WKDeclarationSpecifiers.h import.
+        * UIProcess/API/mac/WKConnectionInternal.h: Added WKBase.h import.
+        * UIProcess/API/mac/WKProcessGroup.h: Removed WKBase.h import from public header, added
+        WKDeclarationSpecifiers.h import.
+        * UIProcess/API/mac/WKProcessGroupPrivate.h: Added WKBase.h import.
+        * UIProcess/API/mac/WKView.h: Removed WKBase.h import from public header, added
+        WKDeclarationSpecifiers.h import.
+        * WebKit2.xcodeproj/project.pbxproj: Added new public header files, made WKBase.h private.
+        * WebProcess/InjectedBundle/API/mac/WKDOMNode.h: Removed WKBase.h import from public header,
+        added WKDeclarationSpecifiers.h import.
+        * WebProcess/InjectedBundle/API/mac/WKDOMNodePrivate.h: Added WKBase.h import.
+        * WebProcess/InjectedBundle/API/mac/WKDOMRange.h: Removed WKBase.h import from public
+        header, added WKDeclarationSpecifiers.h import.
+        * WebProcess/InjectedBundle/API/mac/WKDOMRangePrivate.h: Added WKBase.h import.
+        * WebProcess/InjectedBundle/API/mac/WKDOMTextIterator.h: Removed WKBase.h import from public
+        header, added WKDeclarationSpecifiers.h import.
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextController.h: Ditto.
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextControllerInternal.h:
+        Added WKBase.h import.
+
+2013-09-14  Alberto Garcia  <berto@igalia.com>
+
+        [GTK] WebKitGTK+ is linking against libxslt in too many places
+        https://bugs.webkit.org/show_bug.cgi?id=121356
+
+        Reviewed by Martin Robinson.
+
+        Don't use LIBXSLT_CFLAGS when compiling libWebCoreGtk2, no source
+        files use libxslt there.
+
+        * GNUmakefile.am:
+
+2013-09-13  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix attempt for WK2 build.
+
+        * WebProcess/Plugins/PluginView.cpp: Changed ScriptState to ExecState.
+        (WebKit::PluginView::performJavaScriptURLRequest):
+
+2013-09-13  Anders Carlsson  <andersca@apple.com>
+
+        Use nullptr instead of 0 in calls to HashMap::add
+        https://bugs.webkit.org/show_bug.cgi?id=121322
+
+        Reviewed by Sam Weinig.
+
+        * Platform/CoreIPC/Connection.cpp:
+        (CoreIPC::Connection::SyncMessageState::getOrCreate):
+        * UIProcess/Storage/StorageManager.cpp:
+        (WebKit::StorageManager::createLocalStorageMap):
+        (WebKit::StorageManager::createSessionStorageMap):
+        (WebKit::StorageManager::getOrCreateLocalStorageNamespace):
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::addBackForwardItem):
+        * WebProcess/InjectedBundle/DOM/InjectedBundleNodeHandle.cpp:
+        (WebKit::InjectedBundleNodeHandle::getOrCreate):
+        * WebProcess/InjectedBundle/DOM/InjectedBundleRangeHandle.cpp:
+        (WebKit::InjectedBundleRangeHandle::getOrCreate):
+        * WebProcess/Storage/StorageNamespaceImpl.cpp:
+        (WebKit::StorageNamespaceImpl::createLocalStorageNamespace):
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::createWebPage):
+        (WebKit::WebProcess::webPageGroup):
+
+2013-09-13  Gustavo Noronha Silva  <gustavo.noronha@collabora.com>
+
+        [GTK] Move to the new web inspector
+        https://bugs.webkit.org/show_bug.cgi?id=120647
+
+        Reviewed by Carlos Garcia Campos.
+
+        * GNUmakefile.am: bundle the remote inspector page list HTML into libwebkit2gtk as a GResource.
+        * UIProcess/API/gtk/tests/GNUmakefile.am: no need to set WEBKIT_INSPECTOR_PATH anymore.
+        * UIProcess/API/gtk/tests/InspectorTestServer.cpp:
+        (main): ditto.
+        * UIProcess/API/gtk/tests/TestInspector.cpp:
+        (beforeAll): ditto.
+        * UIProcess/API/gtk/tests/TestInspectorServer.cpp:
+        (testInspectorServerPageList): update paths to the internal resource ones.
+        * UIProcess/InspectorServer/WebInspectorServer.h:
+        * UIProcess/InspectorServer/gtk/WebInspectorServerGtk.cpp:
+        (WebKit::WebInspectorServer::platformResourceForPath): ditto.
+        (WebKit::WebInspectorServer::buildPageList): ditto.
+        * UIProcess/WebInspectorProxy.cpp:
+        (WebKit::isMainInspectorPage): factor out checking for the inspector main resource, to make
+        the code more readable.
+        (WebKit::decidePolicyForNavigationAction): use SchemeRegistry to figure out whether the
+        request is for a local resource instead of KURL::isLocalFile() to allow using schemes
+        other than file:// for the inspector resources.
+        * UIProcess/gtk/WebInspectorProxyGtk.cpp:
+        (WebKit::WebInspectorProxy::inspectorPageURL): use the new internal resource URL; since it's now
+        static we no longer need to generate and store the string.
+        (WebKit::WebInspectorProxy::inspectorBaseURL): ditto.
+        * WebProcess/WebPage/gtk/WebInspectorGtk.cpp:
+        (WebKit::WebInspector::localizedStringsURL): use the new internal resource URL.
+        * UIProcess/gtk/WebContextGtk.cpp:
+        (WebKit::WebContext::platformInitializeWebProcess): register resource as a local scheme.
+
+2013-09-13  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Fix build with namespaced Qt.
+
+        Unreviewed build fix.
+
+        One forward declaration of QUrl was missing proper namespace macros.
+
+        * UIProcess/API/qt/qquickurlschemedelegate_p.h:
+
 2013-09-12  Simon Fraser  <simon.fraser@apple.com>
 
         Avoid extra scrollbar-related layouts for overlay scrollbars

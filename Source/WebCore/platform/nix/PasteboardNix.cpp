@@ -51,7 +51,7 @@ void Pasteboard::writeSelection(Range*, bool, Frame*, ShouldSerializeSelectedTex
     notImplemented();
 }
 
-void Pasteboard::writeURL(const KURL&, const String&, Frame*)
+void Pasteboard::write(const PasteboardURL&)
 {
     notImplemented();
 }
@@ -83,10 +83,9 @@ PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame*, PassRefPtr<Ran
     return 0;
 }
 
-String Pasteboard::plainText(Frame*)
+void Pasteboard::read(PasteboardPlainText&)
 {
     notImplemented();
-    return String();
 }
 
 PassOwnPtr<Pasteboard> Pasteboard::createForCopyAndPaste()

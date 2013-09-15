@@ -151,7 +151,7 @@ void SVGTRefElement::updateReferencedText(Element* target)
     ASSERT(shadowRoot());
     ShadowRoot* root = shadowRoot();
     if (!root->firstChild())
-        root->appendChild(Text::create(&document(), textContent), ASSERT_NO_EXCEPTION);
+        root->appendChild(Text::create(document(), textContent), ASSERT_NO_EXCEPTION);
     else {
         ASSERT(root->firstChild()->isTextNode());
         root->firstChild()->setTextContent(textContent, ASSERT_NO_EXCEPTION);
@@ -222,7 +222,7 @@ void SVGTRefElement::svgAttributeChanged(const QualifiedName& attrName)
 
 RenderObject* SVGTRefElement::createRenderer(RenderArena* arena, RenderStyle*)
 {
-    return new (arena) RenderSVGInline(this);
+    return new (arena) RenderSVGInline(*this);
 }
 
 bool SVGTRefElement::childShouldCreateRenderer(const Node* child) const
