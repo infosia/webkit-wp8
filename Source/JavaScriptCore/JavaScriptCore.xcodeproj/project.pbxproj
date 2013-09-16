@@ -1145,6 +1145,11 @@
 		C911AAEE17C69AD400FFB86F /* JSVirtualMachineXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAED17C69AD400FFB86F /* JSVirtualMachineXRef.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		C911AAF017C69EC400FFB86F /* JSVirtualMachineXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C911AAEF17C69EC400FFB86F /* JSVirtualMachineXRef.cpp */; };
 		C911AAF217C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C911AAF117C6AD6100FFB86F /* JSVirtualMachineXPrivateRef.h */; };
+		C919223217E627AC00EC7378 /* ObjectiveCAPITests.mm in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0B17CDAD18003AE959 /* ObjectiveCAPITests.mm */; };
+		C919223317E6280400EC7378 /* ParentObject.m in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0D17CDAD18003AE959 /* ParentObject.m */; };
+		C919223417E6280400EC7378 /* TestObject.m in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC0F17CDAD18003AE959 /* TestObject.m */; };
+		C919223517E6280400EC7378 /* TextXYZ.m in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC1117CDAD18003AE959 /* TextXYZ.m */; };
+		C919223617E6280400EC7378 /* TinyDOMNode.m in Sources */ = {isa = PBXBuildFile; fileRef = C91CFC1317CDAD18003AE959 /* TinyDOMNode.m */; };
 		C91CFBEA17CD82AA003AE959 /* JSVMWrapperCacheXRef.h in Headers */ = {isa = PBXBuildFile; fileRef = C91CFBE917CD82AA003AE959 /* JSVMWrapperCacheXRef.h */; };
 		C91CFBEC17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C91CFBEB17CD8427003AE959 /* JSVMWrapperCacheXRef.cpp */; };
 		C91CFBF317CD9BD7003AE959 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C91CFBF217CD9BD7003AE959 /* XCTest.framework */; };
@@ -5461,6 +5466,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C919223317E6280400EC7378 /* ParentObject.m in Sources */,
+				C919223417E6280400EC7378 /* TestObject.m in Sources */,
+				C919223517E6280400EC7378 /* TextXYZ.m in Sources */,
+				C919223617E6280400EC7378 /* TinyDOMNode.m in Sources */,
+				C919223217E627AC00EC7378 /* ObjectiveCAPITests.mm in Sources */,
 				C91CFC0517CD9D89003AE959 /* JSVMWrapperCacheXTests.mm in Sources */,
 				C91CFC0717CDA0E7003AE959 /* JSVirtualMachineXTests.mm in Sources */,
 				C91CFC0A17CDAB49003AE959 /* JSContextXTests.mm in Sources */,

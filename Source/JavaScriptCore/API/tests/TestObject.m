@@ -23,7 +23,7 @@
 }
 
 - (void)callback:(JSValue *)function {
-    [function callWithArguments:[NSArray arrayWithObject:[NSNumber numberWithInt:42]]];
+    [function callWithArguments:@[@42]];
 }
 
 - (void)bogusCallback:(void(^)(int))function {

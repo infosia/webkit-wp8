@@ -240,13 +240,13 @@ extern "C" const char * _Block_signature(id);
 }
 
 - (void)test_getterProperty {
-    [context[@"Object"][@"prototype"] defineProperty:@"getterProperty" descriptor:@{
-                                                                                    JSPropertyDescriptorGetKey:^{
-        return [JSContext currentThis][@"x"];
-    }
-                                                                                    }];
+    NSDictionary *descriptor =
+    @{
+      JSPropertyDescriptorGetKey:^{ return [JSContext currentThis][@"x"]; }
+      };
+    [context[@"Object"][@"prototype"] defineProperty:@"myGetterProperty" descriptor:descriptor];
     JSValue *object = [JSValue valueWithObject:@{ @"x":@101 } inContext:context];
-    int result = [object [@"getterProperty"] toInt32];
+    int result = [object[@"myGetterProperty"] toInt32];
     XCTAssertEqual(101, result);
 }
 
@@ -403,6 +403,7 @@ extern "C" const char * _Block_signature(id);
     context1[@"passValueBetweenContexts"] = value;
     JSValue *result = [context1 evaluateScript:@"passValueBetweenContexts"];
     XCTAssertTrue([value isEqualToObject:result]);
+    XCTAssertEqual(42, [result toInt32]);
 }
 
 - (void)test_handleTheDictionary {
@@ -517,6 +518,8 @@ extern "C" const char * _Block_signature(id);
         JSContext *context2 = [[JSContext alloc] initWithVirtualMachine:vm];
         context2[@"testObject"] = testObject;
         weakValue = [[JSManagedValue alloc] initWithValue:context2[@"testObject"]];
+        XCTAssertTrue(weakValue);
+        XCTAssertTrue([weakValue value]);
     }
     
     @autoreleasepool {
@@ -524,6 +527,7 @@ extern "C" const char * _Block_signature(id);
         context2[@"testObject"] = testObject;
         JSSynchronousGarbageCollectForDebugging([context2 JSGlobalContextRef]);
         // weak value == nil
+        XCTAssertTrue(weakValue);
         XCTAssertFalse([weakValue value]);
         // root is still alive
         XCTAssertFalse([context2[@"testObject"] isUndefined]);
