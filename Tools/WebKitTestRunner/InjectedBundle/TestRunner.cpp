@@ -50,7 +50,6 @@
 #include <wtf/CurrentTime.h>
 #include <wtf/HashMap.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/PassOwnArrayPtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -450,7 +449,7 @@ void TestRunner::evaluateScriptInIsolatedWorld(JSContextRef context, unsigned wo
     if (!worldID)
         world.adopt(WKBundleScriptWorldCreateWorld());
     else {
-        WKRetainPtr<WKBundleScriptWorldRef>& worldSlot = worldMap().add(worldID, 0).iterator->value;
+        WKRetainPtr<WKBundleScriptWorldRef>& worldSlot = worldMap().add(worldID, nullptr).iterator->value;
         if (!worldSlot)
             worldSlot.adopt(WKBundleScriptWorldCreateWorld());
         world = worldSlot;

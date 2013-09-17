@@ -1070,7 +1070,7 @@ compositing/patterns/direct-pattern-compositing-size.html [ Pass ImageOnlyFailur
 compositing/patterns/direct-pattern-compositing.html [ Pass ImageOnlyFailure ]
 
 # Timing out on Mountain Lion WK1 release sometimes
-webkit.org/b/99221 fast/js/random-array-gc-stress.html [ Pass Timeout ]
+webkit.org/b/99221 js/random-array-gc-stress.html [ Pass Timeout ]
 
 # User Timing is not enable yet. so skip it.
 webkit.org/b/84893 http/tests/w3c/webperf/submission/Intel/user-timing [ Skip ]
@@ -1203,6 +1203,9 @@ webkit.org/b/112176 fast/css/sticky/sticky-both-sides.html [ ImageOnlyFailure Pa
 
 webkit.org/b/76364 fast/css/lang-mapped-to-webkit-locale-dynamic.xhtml [ Pass Failure ]
 
+# Always very slow, frequently timing out (only on bots, not locally).
+webkit.org/b/121331 http/tests/misc/submit-post-keygen.html [ Pass Timeout ]
+
 # Feature not implemented
 webkit.org/b/91611 media/media-higher-prio-audio-stream.html [ Skip ]
 
@@ -1268,7 +1271,7 @@ webkit.org/b/116244 fast/events/mouse-cursor-image-set.html [ Failure Pass ]
 
 webkit.org/b/116245 canvas/philip/tests/2d.text.draw.fontface.notinpage.html [ Pass Failure ]
 
-webkit.org/b/116388 fast/js/post-message-numeric-property.html
+webkit.org/b/116388 js/post-message-numeric-property.html
 
 webkit.org/b/116582 [ Debug ] inspector/styles/import-pseudoclass-crash.html [ Pass Crash ]
 
@@ -1299,3 +1302,13 @@ webkit.org/b/120387 svg/animations/svglengthlist-animation-3.html [ Pass Failure
 
 # Don't run ogv and mkv tests on mac
 media/track/in-band [ WontFix ]
+
+webkit.org/b/120922 compositing/overlap-blending/children-opacity-huge.html [ ImageOnlyFailure ]
+webkit.org/b/120922 compositing/overlap-blending/children-opacity-no-overlap.html [ ImageOnlyFailure ]
+
+webkit.org/b/120923 animations/cross-fade-background-image.html [ ImageOnlyFailure ]
+
+webkit.org/b/121053 fast/history/go-back-to-iframe-with-plugin.html [ Crash Timeout Pass ]
+
+webkit.org/b/121343 http/tests/inspector/network/network-size-chunked.html [ Failure ]
+webkit.org/b/121343 http/tests/inspector/network/network-size-sync.html [ Failure ]

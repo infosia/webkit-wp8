@@ -80,6 +80,7 @@ struct HashTable;
     macro(Number, number, numberObject, NumberObject, Number) \
     macro(Error, error, error, ErrorInstance, Error) \
     macro(JSArrayBuffer, arrayBuffer, arrayBuffer, JSArrayBuffer, ArrayBuffer) \
+    macro(WeakMap, weakMap, weakMap, JSWeakMap, WeakMap) \
 
 #define DECLARE_SIMPLE_BUILTIN_TYPE(capitalName, lowerName, properName, instanceType, jsName) \
     class JS ## capitalName; \
@@ -139,7 +140,9 @@ private:
 
 protected:
 
-    Register m_globalCallFrame[JSStack::CallFrameHeaderSize];
+    // Add one so we don't need to index with -1 to get current frame pointer.
+    // An index of -1 is an error for some compilers.
+    Register m_globalCallFrame[JSStack::CallFrameHeaderSize + 1];
 
     WriteBarrier<JSObject> m_globalThis;
 
@@ -198,8 +201,6 @@ protected:
     WriteBarrier<Structure> m_promiseCallbackStructure;
     WriteBarrier<Structure> m_promiseWrapperCallbackStructure;
 #endif // ENABLE(PROMISES)
-
-    WriteBarrier<Structure> m_mapDataStructure;
 
 #define DEFINE_STORAGE_FOR_SIMPLE_TYPE(capitalName, lowerName, properName, instanceType, jsName) \
     WriteBarrier<capitalName ## Prototype> m_ ## lowerName ## Prototype; \
@@ -397,7 +398,6 @@ public:
     Structure* privateNameStructure() const { return m_privateNameStructure.get(); }
     Structure* internalFunctionStructure() const { return m_internalFunctionStructure.get(); }
     Structure* mapStructure() const { return m_mapStructure.get(); }
-    Structure* mapDataStructure() const { return m_mapDataStructure.get(); }
     Structure* regExpMatchesArrayStructure() const { return m_regExpMatchesArrayStructure.get(); }
     Structure* regExpStructure() const { return m_regExpStructure.get(); }
     Structure* setStructure() const { return m_setStructure.get(); }
@@ -604,6 +604,16 @@ inline JSArray* constructArray(ExecState* exec, ArrayAllocationProfile* profile,
 inline JSArray* constructArray(ExecState* exec, ArrayAllocationProfile* profile, const JSValue* values, unsigned length)
 {
     return constructArray(exec, profile, exec->lexicalGlobalObject(), values, length);
+}
+
+inline JSArray* constructArrayNegativeIndexed(ExecState* exec, ArrayAllocationProfile* profile, JSGlobalObject* globalObject, const JSValue* values, unsigned length)
+{
+    return ArrayAllocationProfile::updateLastAllocationFor(profile, constructArrayNegativeIndexed(exec, globalObject->arrayStructureForProfileDuringAllocation(profile), values, length));
+}
+
+inline JSArray* constructArrayNegativeIndexed(ExecState* exec, ArrayAllocationProfile* profile, const JSValue* values, unsigned length)
+{
+    return constructArrayNegativeIndexed(exec, profile, exec->lexicalGlobalObject(), values, length);
 }
 
 class DynamicGlobalObjectScope {

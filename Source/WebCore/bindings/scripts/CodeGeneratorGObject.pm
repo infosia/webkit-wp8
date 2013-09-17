@@ -273,7 +273,7 @@ sub SkipFunction {
         return 1;
     }
 
-    if ($function->signature->name eq "timeEnd") {
+    if ($function->signature->name eq "timeEnd" || $function->signature->name eq "profile" || $function->signature->name eq "profileEnd") {
         return 1;
     }
 
@@ -843,7 +843,7 @@ sub GetGReturnMacro {
         }
     } else {
         if (ParamCanBeNull($functionName, $paramName)) {
-            return;
+            return "";
         }
         $condition = "$paramName";
     }
@@ -939,7 +939,11 @@ sub GenerateFunction {
         # $paramType can have a trailing * in some cases
         $paramType =~ s/\*$//;
         my $paramName = $param->name;
-        push(@hBody, " * \@${paramName}: A #${paramType}\n");
+        my $paramAnnotations = "";
+        if (ParamCanBeNull($functionName, $paramName)) {
+            $paramAnnotations = " (allow-none):";
+        }
+        push(@hBody, " * \@${paramName}:${paramAnnotations} A #${paramType}\n");
     }
     push(@hBody, " * \@error: #GError\n") if $raisesException;
     push(@hBody, " *\n");
@@ -1425,6 +1429,7 @@ sub Generate {
     $implIncludes{"WebKitDOMPrivate.h"} = 1;
     $implIncludes{"gobject/ConvertToUTF8String.h"} = 1;
     $implIncludes{"${className}Private.h"} = 1;
+    $implIncludes{"Document.h"} = 1;
     $implIncludes{"JSMainThreadExecState.h"} = 1;
     $implIncludes{"ExceptionCode.h"} = 1;
     $implIncludes{"CSSImportRule.h"} = 1;

@@ -44,7 +44,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-HTMLFrameSetElement::HTMLFrameSetElement(const QualifiedName& tagName, Document* document)
+HTMLFrameSetElement::HTMLFrameSetElement(const QualifiedName& tagName, Document& document)
     : HTMLElement(tagName, document)
     , m_totalRows(1)
     , m_totalCols(1)
@@ -59,7 +59,7 @@ HTMLFrameSetElement::HTMLFrameSetElement(const QualifiedName& tagName, Document*
     setHasCustomStyleResolveCallbacks();
 }
 
-PassRefPtr<HTMLFrameSetElement> HTMLFrameSetElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<HTMLFrameSetElement> HTMLFrameSetElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new HTMLFrameSetElement(tagName, document));
 }

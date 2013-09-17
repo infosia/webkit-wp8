@@ -1068,7 +1068,6 @@ void WebPage::setSize(const WebCore::IntSize& viewSize)
 
     FrameView* view = m_page->mainFrame().view();
     view->resize(viewSize);
-    view->setNeedsLayout();
     m_drawingArea->setNeedsDisplay();
     
     m_viewSize = viewSize;
@@ -2138,6 +2137,9 @@ void WebPage::setIsInWindow(bool isInWindow, bool wantsDidUpdateViewInWindowStat
 
     m_page->setIsInWindow(isInWindow);
 
+    if (isInWindow)
+        layoutIfNeeded();
+
     if (wantsDidUpdateViewInWindowState)
         m_sendDidUpdateInWindowStateTimer.startOneShot(0);
 }
@@ -2496,6 +2498,7 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     settings.setCSSGridLayoutEnabled(store.getBoolValueForKey(WebPreferencesKey::cssGridLayoutEnabledKey()));
     settings.setRegionBasedColumnsEnabled(store.getBoolValueForKey(WebPreferencesKey::regionBasedColumnsEnabledKey()));
     settings.setWebGLEnabled(store.getBoolValueForKey(WebPreferencesKey::webGLEnabledKey()));
+    settings.setMultithreadedWebGLEnabled(store.getBoolValueForKey(WebPreferencesKey::multithreadedWebGLEnabledKey()));
     settings.setAccelerated2dCanvasEnabled(store.getBoolValueForKey(WebPreferencesKey::accelerated2dCanvasEnabledKey()));
     settings.setMediaPlaybackRequiresUserGesture(store.getBoolValueForKey(WebPreferencesKey::mediaPlaybackRequiresUserGestureKey()));
     settings.setMediaPlaybackAllowsInline(store.getBoolValueForKey(WebPreferencesKey::mediaPlaybackAllowsInlineKey()));

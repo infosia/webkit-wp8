@@ -23,16 +23,17 @@
 #ifndef RenderListItem_h
 #define RenderListItem_h
 
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 
 namespace WebCore {
 
 class HTMLOListElement;
 class RenderListMarker;
 
-class RenderListItem FINAL : public RenderBlock {
+class RenderListItem FINAL : public RenderBlockFlow {
 public:
-    explicit RenderListItem(Element*);
+    explicit RenderListItem(Element&);
+    Element& existingElement() const { return *RenderBlockFlow::element(); }
 
     int value() const { if (!m_isValueUpToDate) updateValueNow(); return m_value; }
     void updateValue();
@@ -54,6 +55,8 @@ public:
     static unsigned itemCountForOrderedList(const HTMLOListElement*);
 
 private:
+    void element() const WTF_DELETED_FUNCTION;
+
     virtual const char* renderName() const { return "RenderListItem"; }
 
     virtual bool isListItem() const { return true; }

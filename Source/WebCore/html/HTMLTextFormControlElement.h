@@ -54,7 +54,6 @@ public:
     bool placeholderShouldBeVisible() const;
     virtual HTMLElement* placeholderElement() const = 0;
     void updatePlaceholderVisibility(bool);
-    static void fixPlaceholderRenderer(HTMLElement* placeholder, HTMLElement* siblingElement);
 
     int indexForVisiblePosition(const VisiblePosition&) const;
     VisiblePosition visiblePositionForIndex(int index) const;
@@ -89,7 +88,7 @@ public:
     void setTextAsOfLastFormControlChangeEvent(const String& text) { m_textAsOfLastFormControlChangeEvent = text; }
 
 protected:
-    HTMLTextFormControlElement(const QualifiedName&, Document*, HTMLFormElement*);
+    HTMLTextFormControlElement(const QualifiedName&, Document&, HTMLFormElement*);
     bool isPlaceholderEmpty() const;
     virtual void updatePlaceholderText() = 0;
 

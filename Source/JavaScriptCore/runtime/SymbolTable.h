@@ -464,7 +464,7 @@ public:
     int captureEnd() { return m_captureEnd; }
     void setCaptureEnd(int captureEnd) { m_captureEnd = captureEnd; }
 
-    int captureCount() { return m_captureEnd - m_captureStart; }
+    int captureCount() { return -(m_captureEnd - m_captureStart); }
 
     int parameterCount() { return m_parameterCountIncludingThis - 1; }
     int parameterCountIncludingThis() { return m_parameterCountIncludingThis; }
@@ -472,7 +472,7 @@ public:
 
     // 0 if we don't capture any arguments; parameterCount() in length if we do.
     const SlowArgument* slowArguments() { return m_slowArguments.get(); }
-    void setSlowArguments(PassOwnArrayPtr<SlowArgument> slowArguments) { m_slowArguments = slowArguments; }
+    void setSlowArguments(OwnArrayPtr<SlowArgument> slowArguments) { m_slowArguments = std::move(slowArguments); }
 
     DECLARE_EXPORT_INFO;
 

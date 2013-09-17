@@ -42,7 +42,6 @@
 
 #include <runtime/ArrayBufferView.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/PassOwnArrayPtr.h>
 
 namespace WebCore {
 
@@ -1472,7 +1471,7 @@ unsigned GraphicsContext3D::getChannelBitsByFormat(GC3Denum format)
     }
 }
 
-#if !PLATFORM(BLACKBERRY) && !PLATFORM(QT) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(MAC) && !PLATFORM(WIN)
+#if !PLATFORM(BLACKBERRY) && !PLATFORM(QT) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(MAC) && !PLATFORM(WIN) && !PLATFORM(NIX)
 PlatformGraphicsContext3D GraphicsContext3D::platformGraphicsContext3D() const
 {
     return NullPlatformGraphicsContext3D;

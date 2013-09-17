@@ -30,12 +30,12 @@ namespace WebCore {
 
 class HTMLIFrameElement FINAL : public HTMLFrameElementBase {
 public:
-    static PassRefPtr<HTMLIFrameElement> create(const QualifiedName&, Document*);
+    static PassRefPtr<HTMLIFrameElement> create(const QualifiedName&, Document&);
 
     bool shouldDisplaySeamlessly() const;
 
 private:
-    HTMLIFrameElement(const QualifiedName&, Document*);
+    HTMLIFrameElement(const QualifiedName&, Document&);
 
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
@@ -47,11 +47,7 @@ private:
     virtual void didRecalcStyle(Style::Change) OVERRIDE;
 };
 
-inline HTMLIFrameElement* toHTMLIFrameElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->hasTagName(HTMLNames::iframeTag));
-    return static_cast<HTMLIFrameElement*>(node);
-}
+ELEMENT_TYPE_CASTS(HTMLIFrameElement)
 
 } // namespace WebCore
 

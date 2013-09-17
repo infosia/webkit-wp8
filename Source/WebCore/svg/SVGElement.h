@@ -77,7 +77,6 @@ public:
     SVGDocumentExtensions* accessDocumentSVGExtensions();
 
     virtual bool isSVGGraphicsElement() const { return false; }
-    virtual bool isSVGSVGElement() const { return false; }
     virtual bool isFilterEffect() const { return false; }
     virtual bool isGradientStop() const { return false; }
     virtual bool isTextContent() const { return false; }
@@ -185,7 +184,8 @@ private:
     void buildPendingResourcesIfNeeded();
     virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
     virtual bool isMouseFocusable() const OVERRIDE;
-
+    virtual void accessKeyAction(bool sendMouseEvents) OVERRIDE;
+    
     HashSet<SVGElement*> m_elementsWithRelativeLengths;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGElement)
@@ -217,6 +217,8 @@ inline const SVGElement* toSVGElement(const Node* node)
     ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
     return static_cast<const SVGElement*>(node);
 }
+
+void toSVGElement(const SVGElement*);
 
 template <> inline bool isElementOfType<SVGElement>(const Element* element) { return element->isSVGElement(); }
 

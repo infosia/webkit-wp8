@@ -72,10 +72,9 @@
 #include "UnconditionalFinalizer.h"
 #include "ValueProfile.h"
 #include "Watchpoint.h"
-#include <wtf/RefCountedArray.h>
-#include <wtf/FastAllocBase.h>
+#include <wtf/FastMalloc.h>
 #include <wtf/PassOwnPtr.h>
-#include <wtf/Platform.h>
+#include <wtf/RefCountedArray.h>
 #include <wtf/RefPtr.h>
 #include <wtf/SegmentedVector.h>
 #include <wtf/Vector.h>
@@ -87,7 +86,7 @@ class ExecState;
 class LLIntOffsetsExtractor;
 class RepatchBuffer;
 
-inline int unmodifiedArgumentsRegister(int argumentsRegister) { return argumentsRegister - 1; }
+inline int unmodifiedArgumentsRegister(int argumentsRegister) { return argumentsRegister + 1; }
 
 static ALWAYS_INLINE int missingThisObjectMarker() { return std::numeric_limits<int>::max(); }
 
@@ -325,7 +324,7 @@ public:
 
     void setArgumentsRegister(int argumentsRegister)
     {
-        ASSERT(argumentsRegister != -1);
+        ASSERT(argumentsRegister != (int)InvalidVirtualRegister);
         m_argumentsRegister = argumentsRegister;
         ASSERT(usesArguments());
     }
@@ -355,7 +354,7 @@ public:
             return InvalidVirtualRegister;
         return activationRegister();
     }
-    bool usesArguments() const { return m_argumentsRegister != -1; }
+    bool usesArguments() const { return m_argumentsRegister != (int)InvalidVirtualRegister; }
 
     bool needsActivation() const
     {
@@ -368,7 +367,7 @@ public:
             return operandToArgument(operand) && usesArguments();
 
         if (inlineCallFrame)
-            return inlineCallFrame->capturedVars.get(operand);
+            return inlineCallFrame->capturedVars.get(operandToLocal(operand));
 
         // The activation object isn't in the captured region, but it's "captured"
         // in the sense that stores to its location can be observed indirectly.
@@ -387,8 +386,8 @@ public:
         if (!symbolTable())
             return false;
 
-        return operand >= symbolTable()->captureStart()
-        && operand < symbolTable()->captureEnd();
+        return operand <= symbolTable()->captureStart()
+            && operand > symbolTable()->captureEnd();
     }
 
     CodeType codeType() const { return m_unlinkedCode->codeType(); }

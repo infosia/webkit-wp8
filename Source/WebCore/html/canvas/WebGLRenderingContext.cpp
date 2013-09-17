@@ -78,7 +78,6 @@
 #include <runtime/TypedArrayInlines.h>
 #include <runtime/Uint32Array.h>
 #include <wtf/OwnArrayPtr.h>
-#include <wtf/PassOwnArrayPtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -430,6 +429,9 @@ PassOwnPtr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasElemen
     attributes.noExtensions = true;
     attributes.shareResources = false;
     attributes.preferDiscreteGPU = true;
+
+    if (frame->settings().multithreadedWebGLEnabled())
+        attributes.multithreaded = true;
 
     RefPtr<GraphicsContext3D> context(GraphicsContext3D::create(attributes, hostWindow));
 

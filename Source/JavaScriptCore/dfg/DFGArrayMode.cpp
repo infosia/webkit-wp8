@@ -169,14 +169,14 @@ ArrayMode ArrayMode::refine(SpeculatedType base, SpeculatedType index, Speculate
         return withTypeAndConversion(Array::Contiguous, Array::Convert);
         
     case Array::Double:
-        if (flags & NodeUsedAsInt)
+        if (flags & NodeBytecodeUsesAsInt)
             return withTypeAndConversion(Array::Contiguous, Array::RageConvert);
         if (!value || isNumberSpeculation(value))
             return *this;
         return withTypeAndConversion(Array::Contiguous, Array::Convert);
         
     case Array::Contiguous:
-        if (doesConversion() && (flags & NodeUsedAsInt))
+        if (doesConversion() && (flags & NodeBytecodeUsesAsInt))
             return withConversion(Array::RageConvert);
         return *this;
         
@@ -455,6 +455,24 @@ const char* arrayConversionToString(Array::Conversion conversion)
         return "RageConvert";
     default:
         return "Unknown!";
+    }
+}
+
+IndexingType toIndexingShape(Array::Type type)
+{
+    switch (type) {
+    case Array::Int32:
+        return Int32Shape;
+    case Array::Double:
+        return DoubleShape;
+    case Array::Contiguous:
+        return ContiguousShape;
+    case Array::ArrayStorage:
+        return ArrayStorageShape;
+    case Array::SlowPutArrayStorage:
+        return SlowPutArrayStorageShape;
+    default:
+        return NoIndexingShape;
     }
 }
 

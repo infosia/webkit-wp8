@@ -60,7 +60,6 @@
 #if ENABLE(DATALIST_ELEMENT)
 #include "HTMLDataListElement.h"
 #include "HTMLOptionElement.h"
-#include <wtf/NonCopyingSort.h>
 #endif
 
 namespace WebCore {
@@ -258,7 +257,7 @@ void RangeInputType::createShadowSubtree()
     ASSERT(element()->shadowRoot());
 
     Document& document = element()->document();
-    RefPtr<HTMLDivElement> track = HTMLDivElement::create(&document);
+    RefPtr<HTMLDivElement> track = HTMLDivElement::create(document);
     track->setPseudo(AtomicString("-webkit-slider-runnable-track", AtomicString::ConstructFromLiteral));
     track->appendChild(SliderThumbElement::create(&document), IGNORE_EXCEPTION);
     RefPtr<HTMLElement> container = SliderContainerElement::create(&document);
@@ -348,11 +347,6 @@ void RangeInputType::listAttributeTargetChanged()
         sliderTrackElement->renderer()->setNeedsLayout(true);
 }
 
-static bool decimalCompare(const Decimal& a, const Decimal& b)
-{
-    return a < b;
-}
-
 void RangeInputType::updateTickMarkValues()
 {
     if (!m_tickMarkValuesDirty)
@@ -373,7 +367,7 @@ void RangeInputType::updateTickMarkValues()
         m_tickMarkValues.append(parseToNumber(optionValue, Decimal::nan()));
     }
     m_tickMarkValues.shrinkToFit();
-    nonCopyingSort(m_tickMarkValues.begin(), m_tickMarkValues.end(), decimalCompare);
+    std::sort(m_tickMarkValues.begin(), m_tickMarkValues.end());
 }
 
 Decimal RangeInputType::findClosestTickMarkValue(const Decimal& value)

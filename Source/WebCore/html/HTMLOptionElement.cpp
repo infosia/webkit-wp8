@@ -50,7 +50,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-HTMLOptionElement::HTMLOptionElement(const QualifiedName& tagName, Document* document)
+HTMLOptionElement::HTMLOptionElement(const QualifiedName& tagName, Document& document)
     : HTMLElement(tagName, document)
     , m_disabled(false)
     , m_isSelected(false)
@@ -59,12 +59,12 @@ HTMLOptionElement::HTMLOptionElement(const QualifiedName& tagName, Document* doc
     setHasCustomStyleResolveCallbacks();
 }
 
-PassRefPtr<HTMLOptionElement> HTMLOptionElement::create(Document* document)
+PassRefPtr<HTMLOptionElement> HTMLOptionElement::create(Document& document)
 {
     return adoptRef(new HTMLOptionElement(optionTag, document));
 }
 
-PassRefPtr<HTMLOptionElement> HTMLOptionElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<HTMLOptionElement> HTMLOptionElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new HTMLOptionElement(tagName, document));
 }
@@ -72,9 +72,9 @@ PassRefPtr<HTMLOptionElement> HTMLOptionElement::create(const QualifiedName& tag
 PassRefPtr<HTMLOptionElement> HTMLOptionElement::createForJSConstructor(Document* document, const String& data, const String& value,
         bool defaultSelected, bool selected, ExceptionCode& ec)
 {
-    RefPtr<HTMLOptionElement> element = adoptRef(new HTMLOptionElement(optionTag, document));
+    RefPtr<HTMLOptionElement> element = adoptRef(new HTMLOptionElement(optionTag, *document));
 
-    RefPtr<Text> text = Text::create(document, data.isNull() ? "" : data);
+    RefPtr<Text> text = Text::create(*document, data.isNull() ? "" : data);
 
     ec = 0;
     element->appendChild(text.release(), ec);
@@ -146,7 +146,7 @@ void HTMLOptionElement::setText(const String &text, ExceptionCode& ec)
         toText(child)->setData(text, ec);
     else {
         removeChildren();
-        appendChild(Text::create(&document(), text), ec);
+        appendChild(Text::create(document(), text), ec);
     }
     
     if (selectIsMenuList && select->selectedIndex() != oldSelectedIndex)

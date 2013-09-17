@@ -551,6 +551,8 @@ static AtkRole atkRole(AccessibilityRole role)
     case MenuListOptionRole:
     case MenuItemRole:
         return ATK_ROLE_MENU_ITEM;
+    case MenuItemRadioRole:
+        return ATK_ROLE_RADIO_MENU_ITEM;
     case ColumnRole:
         // return ATK_ROLE_TABLE_COLUMN_HEADER; // Is this right?
         return ATK_ROLE_UNKNOWN; // Matches Mozilla
@@ -1033,7 +1035,7 @@ static guint16 getInterfaceMaskFromObject(AccessibilityObject* coreObject)
         interfaceMask |= 1 << WAI_DOCUMENT;
 
     // Value
-    if (role == SliderRole || role == SpinButtonRole || role == ScrollBarRole)
+    if (role == SliderRole || role == SpinButtonRole || role == ScrollBarRole || role == ProgressIndicatorRole)
         interfaceMask |= 1 << WAI_VALUE;
 
 #if ENABLE(INPUT_TYPE_COLOR)

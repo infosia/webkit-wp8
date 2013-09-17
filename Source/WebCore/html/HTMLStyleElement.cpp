@@ -46,7 +46,7 @@ static StyleEventSender& styleLoadEventSender()
     return sharedLoadEventSender;
 }
 
-inline HTMLStyleElement::HTMLStyleElement(const QualifiedName& tagName, Document* document, bool createdByParser)
+inline HTMLStyleElement::HTMLStyleElement(const QualifiedName& tagName, Document& document, bool createdByParser)
     : HTMLElement(tagName, document)
     , m_styleSheetOwner(document, createdByParser)
     , m_firedLoad(false)
@@ -65,7 +65,7 @@ HTMLStyleElement::~HTMLStyleElement()
     styleLoadEventSender().cancelEvent(this);
 }
 
-PassRefPtr<HTMLStyleElement> HTMLStyleElement::create(const QualifiedName& tagName, Document* document, bool createdByParser)
+PassRefPtr<HTMLStyleElement> HTMLStyleElement::create(const QualifiedName& tagName, Document& document, bool createdByParser)
 {
     return adoptRef(new HTMLStyleElement(tagName, document, createdByParser));
 }
@@ -80,7 +80,7 @@ void HTMLStyleElement::parseAttribute(const QualifiedName& name, const AtomicStr
         m_styleSheetOwner.setMedia(value);
         if (sheet()) {
             sheet()->setMediaQueries(MediaQuerySet::createAllowingDescriptionSyntax(value));
-            if (inDocument() && document().renderer())
+            if (inDocument() && document().renderView())
                 document().styleResolverChanged(RecalcStyleImmediately);
         }
     } else if (name == typeAttr)
@@ -147,7 +147,7 @@ void HTMLStyleElement::registerWithScopingNode(bool scoped)
         scope->shadowHost()->setNeedsStyleRecalc();
     else
         scope->setNeedsStyleRecalc();
-    if (inDocument() && !document().parsing() && document().renderer())
+    if (inDocument() && !document().parsing() && document().renderView())
         document().styleResolverChanged(DeferRecalcStyle);
 
     m_scopedStyleRegistrationState = scoped ? RegisteredAsScoped : RegisteredInShadowRoot;
@@ -165,7 +165,7 @@ void HTMLStyleElement::unregisterWithScopingNode(ContainerNode* scope)
         scope->unregisterScopedHTMLStyleChild();
         scope->setNeedsStyleRecalc();
     }
-    if (inDocument() && !document().parsing() && document().renderer())
+    if (inDocument() && !document().parsing() && document().renderView())
         document().styleResolverChanged(DeferRecalcStyle);
 
     m_scopedStyleRegistrationState = NotRegistered;

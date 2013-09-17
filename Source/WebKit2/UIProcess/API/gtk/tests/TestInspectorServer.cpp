@@ -155,7 +155,7 @@ public:
 };
 
 // Test to get inspector server page list from the test server.
-// Should contain only one entry pointing to http://127.0.0.1:2999/webinspector/inspector.html?page=1
+// Should contain only one entry pointing to http://127.0.0.1:2999/webinspector/Main.html?page=1
 static void testInspectorServerPageList(InspectorServerTest* test, gconstpointer)
 {
     GOwnPtr<GError> error;
@@ -184,7 +184,7 @@ static void testInspectorServerPageList(InspectorServerTest* test, gconstpointer
     g_assert(javascriptResult);
     g_assert(!error.get());
     valueString.set(WebViewTest::javascriptResultToCString(javascriptResult));
-    String validInspectorURL = String("/inspector.html?page=") + String::number(pageId);
+    String validInspectorURL = String("/Main.html?page=") + String::number(pageId);
     ASSERT_CMP_CSTRING(valueString.get(), ==, validInspectorURL.utf8());
 }
 
@@ -240,6 +240,33 @@ static void openRemoteDebuggingSession(InspectorServerTest* test, gconstpointer)
     g_assert_cmpstr(webkit_web_view_get_title(test->m_webView), ==, "Web Inspector - http://127.0.0.1:2999/");
 }
 
+static void sendIncompleteRequest(InspectorServerTest* test, gconstpointer)
+{
+    GOwnPtr<GError> error;
+
+    // Connect to the inspector server.
+    GSocketClient* client = g_socket_client_new();
+    GSocketConnection* connection = g_socket_client_connect_to_host(client, "127.0.0.1", 2999, NULL, &error.outPtr());
+    g_assert(!error.get());
+
+    // Send incomplete request (missing blank line after headers) and check if inspector server
+    // replies. The server should not reply to an incomplete request and the test should timeout
+    // on read.
+    GOutputStream* ostream = g_io_stream_get_output_stream(G_IO_STREAM(connection));
+    // Request missing blank line after headers.
+    const gchar* incompleteRequest = "GET /devtools/page/1 HTTP/1.1\r\nHost: Localhost\r\n";
+    g_output_stream_write(ostream, incompleteRequest, strlen(incompleteRequest), NULL, &error.outPtr());
+    g_assert(!error.get());
+
+    GInputStream* istream = g_io_stream_get_input_stream(G_IO_STREAM(connection));
+    char response[16];
+    memset(response, 0, sizeof(response));
+    g_input_stream_read_async(istream, response, sizeof(response) - 1, G_PRIORITY_DEFAULT, NULL, NULL, NULL);
+    // Give a chance for the server to reply.
+    test->wait(2);
+    // If we got any answer it means the server replied to an incomplete request, lets fail.
+    g_assert(String(response).isEmpty());
+}
 
 void beforeAll()
 {
@@ -250,6 +277,7 @@ void beforeAll()
     InspectorServerTest::add("WebKitWebInspectorServer", "test-page-list", testInspectorServerPageList);
     InspectorServerTest::add("WebKitWebInspectorServer", "test-remote-debugging-message", testRemoteDebuggingMessage);
     InspectorServerTest::add("WebKitWebInspectorServer", "test-open-debugging-session", openRemoteDebuggingSession);
+    InspectorServerTest::add("WebKitWebInspectorServer", "test-incomplete-request", sendIncompleteRequest);
 
 }
 

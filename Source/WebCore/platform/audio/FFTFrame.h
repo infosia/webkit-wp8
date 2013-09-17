@@ -67,6 +67,10 @@ struct RDFTContext;
 #include <ipps.h>
 #endif // USE(WEBAUDIO_IPP)
 
+#if PLATFORM(NIX)
+#include <public/FFTFrame.h>
+#endif
+
 #include <wtf/Forward.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/Threading.h>
@@ -163,7 +167,7 @@ private:
 #if USE(WEBAUDIO_GSTREAMER)
     GstFFTF32* m_fft;
     GstFFTF32* m_inverseFft;
-    GstFFTF32Complex* m_complexData;
+    OwnArrayPtr<GstFFTF32Complex> m_complexData;
     AudioFloatArray m_realData;
     AudioFloatArray m_imagData;
 #endif // USE(WEBAUDIO_GSTREAMER)
@@ -177,6 +181,11 @@ private:
     AudioFloatArray m_realData;
     AudioFloatArray m_imagData;
 #endif // USE(WEBAUDIO_IPP)
+
+#if PLATFORM(NIX)
+    void scalePlanarData(float scale);
+    OwnPtr<Nix::FFTFrame> m_fftFrame;
+#endif // PLATFORM(NIX)
 
 #if USE(WEBAUDIO_OPENMAX_DL_FFT)
     static OMXFFTSpec_R_F32* contextForSize(unsigned log2FFTSize);

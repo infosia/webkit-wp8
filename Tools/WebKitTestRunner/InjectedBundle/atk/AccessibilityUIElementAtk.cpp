@@ -158,7 +158,7 @@ static void alterCurrentValue(PlatformUIElement element, int factor)
     atk_value_get_minimum_increment(ATK_VALUE(element.get()), &increment);
 
     GValue newValue = G_VALUE_INIT;
-    g_value_init(&newValue, G_TYPE_DOUBLE);
+    g_value_init(&newValue, G_TYPE_FLOAT);
 
     g_value_set_float(&newValue, g_value_get_float(&currentValue) + factor * g_value_get_float(&increment));
     atk_value_set_current_value(ATK_VALUE(element.get()), &newValue);
@@ -241,10 +241,14 @@ static const gchar* roleToString(AtkRole role)
         return "AXParagraph";
     case ATK_ROLE_PASSWORD_TEXT:
         return "AXPasswordField";
+    case ATK_ROLE_PROGRESS_BAR:
+        return "AXProgressIndicator";
     case ATK_ROLE_PUSH_BUTTON:
         return "AXButton";
     case ATK_ROLE_RADIO_BUTTON:
         return "AXRadioButton";
+    case ATK_ROLE_RADIO_MENU_ITEM:
+        return "AXRadioMenuItem";
     case ATK_ROLE_ROW_HEADER:
         return "AXRowHeader";
     case ATK_ROLE_RULER:
@@ -1288,6 +1292,12 @@ JSRetainPtr<JSStringRef> AccessibilityUIElement::mathPostscriptsDescription() co
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::mathPrescriptsDescription() const
+{
+    notImplemented();
+    return 0;
+}
+
+JSRetainPtr<JSStringRef> AccessibilityUIElement::classList() const
 {
     notImplemented();
     return 0;

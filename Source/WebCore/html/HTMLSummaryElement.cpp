@@ -30,7 +30,7 @@
 #include "MouseEvent.h"
 #include "NodeRenderingTraversal.h"
 #include "PlatformMouseEvent.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include "ShadowRoot.h"
 
 namespace WebCore {
@@ -39,28 +39,28 @@ using namespace HTMLNames;
 
 class SummaryContentElement : public InsertionPoint {
 public:
-    static PassRefPtr<SummaryContentElement> create(Document*);
+    static PassRefPtr<SummaryContentElement> create(Document&);
 
 private:
-    SummaryContentElement(Document* document)
-        : InsertionPoint(HTMLNames::webkitShadowContentTag, document)
+    SummaryContentElement(Document& document)
+        : InsertionPoint(webkitShadowContentTag, document)
     {
     }
 };
 
-PassRefPtr<SummaryContentElement> SummaryContentElement::create(Document* document)
+PassRefPtr<SummaryContentElement> SummaryContentElement::create(Document& document)
 {
     return adoptRef(new SummaryContentElement(document));
 }
 
-PassRefPtr<HTMLSummaryElement> HTMLSummaryElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<HTMLSummaryElement> HTMLSummaryElement::create(const QualifiedName& tagName, Document& document)
 {
     RefPtr<HTMLSummaryElement> summary = adoptRef(new HTMLSummaryElement(tagName, document));
     summary->ensureUserAgentShadowRoot();
     return summary.release();
 }
 
-HTMLSummaryElement::HTMLSummaryElement(const QualifiedName& tagName, Document* document)
+HTMLSummaryElement::HTMLSummaryElement(const QualifiedName& tagName, Document& document)
     : HTMLElement(tagName, document)
 {
     ASSERT(hasTagName(summaryTag));
@@ -68,7 +68,7 @@ HTMLSummaryElement::HTMLSummaryElement(const QualifiedName& tagName, Document* d
 
 RenderObject* HTMLSummaryElement::createRenderer(RenderArena* arena, RenderStyle*)
 {
-    return new (arena) RenderBlock(this);
+    return new (arena) RenderBlockFlow(this);
 }
 
 bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
@@ -81,8 +81,8 @@ bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
 
 void HTMLSummaryElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsMarkerControl::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(SummaryContentElement::create(&document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsMarkerControl::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(SummaryContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
 }
 
 HTMLDetailsElement* HTMLSummaryElement::detailsElement() const

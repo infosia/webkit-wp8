@@ -71,11 +71,11 @@
 #include "JSTypedArrayConstructors.h"
 #include "JSTypedArrayPrototypes.h"
 #include "JSTypedArrays.h"
+#include "JSWeakMap.h"
 #include "JSWithScope.h"
 #include "LegacyProfiler.h"
 #include "Lookup.h"
 #include "MapConstructor.h"
-#include "MapData.h"
 #include "MapPrototype.h"
 #include "MathObject.h"
 #include "NameConstructor.h"
@@ -99,6 +99,8 @@
 #include "StrictEvalActivation.h"
 #include "StringConstructor.h"
 #include "StringPrototype.h"
+#include "WeakMapConstructor.h"
+#include "WeakMapPrototype.h"
 
 #if ENABLE(PROMISES)
 #include "JSPromise.h"
@@ -306,9 +308,6 @@ void JSGlobalObject::reset(JSValue prototype)
     m_promiseCallbackStructure.set(exec->vm(), this, JSPromiseCallback::createStructure(exec->vm(), this, m_functionPrototype.get()));
     m_promiseWrapperCallbackStructure.set(exec->vm(), this, JSPromiseWrapperCallback::createStructure(exec->vm(), this, m_functionPrototype.get()));
 #endif // ENABLE(PROMISES)
-
-
-    m_mapDataStructure.set(exec->vm(), this, MapData::createStructure(exec->vm(), this, jsNull()));
 
 #define CREATE_PROTOTYPE_FOR_SIMPLE_TYPE(capitalName, lowerName, properName, instanceType, jsName) \
     m_ ## lowerName ## Prototype.set(exec->vm(), this, capitalName##Prototype::create(exec, this, capitalName##Prototype::createStructure(exec->vm(), this, m_objectPrototype.get()))); \
@@ -639,8 +638,6 @@ void JSGlobalObject::visitChildren(JSCell* cell, SlotVisitor& visitor)
 
 #undef VISIT_SIMPLE_TYPE
 
-    visitor.append(&thisObject->m_mapDataStructure);
-
     for (unsigned i = NUMBER_OF_TYPED_ARRAY_TYPES; i--;) {
         visitor.append(&thisObject->m_typedArrays[i].prototype);
         visitor.append(&thisObject->m_typedArrays[i].structure);
@@ -656,7 +653,7 @@ JSValue JSGlobalObject::toThis(JSCell*, ExecState* exec, ECMAMode ecmaMode)
 
 ExecState* JSGlobalObject::globalExec()
 {
-    return CallFrame::create(m_globalCallFrame + JSStack::CallFrameHeaderSize);
+    return CallFrame::create(m_globalCallFrame);
 }
 
 void JSGlobalObject::addStaticGlobals(GlobalPropertyInfo* globals, int count)

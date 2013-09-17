@@ -26,6 +26,7 @@
 #include "config.h"
 #include "RenderBoxModelObject.h"
 
+#include "Frame.h"
 #include "GraphicsContext.h"
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLNames.h"
@@ -158,8 +159,8 @@ bool RenderBoxModelObject::shouldPaintAtLowQuality(GraphicsContext* context, Ima
     return view().imageQualityController().shouldPaintAtLowQuality(context, this, image, layer, size);
 }
 
-RenderBoxModelObject::RenderBoxModelObject(ContainerNode* node)
-    : RenderLayerModelObject(node)
+RenderBoxModelObject::RenderBoxModelObject(Element* element)
+    : RenderLayerModelObject(element)
 {
 }
 
@@ -227,7 +228,7 @@ bool RenderBoxModelObject::hasAutoHeightOrContainingBlockWithAutoHeight() const
     // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
     // the closest non-anonymous ancestor box is used instead.
     RenderBlock* cb = containingBlock(); 
-    while (cb->isAnonymous())
+    while (cb->isAnonymous() && !cb->isRenderView())
         cb = cb->containingBlock();
 
     // Matching RenderBox::percentageLogicalHeightIsResolvableFromBlock() by
@@ -710,8 +711,8 @@ void RenderBoxModelObject::paintFillLayerExtended(const PaintInfo& paintInfo, co
         // InlineTextBoxes that they should just add their contents to the clip.
         PaintInfo info(maskImageContext, maskRect, PaintPhaseTextClip, PaintBehaviorForceBlackText, 0, paintInfo.renderRegion);
         if (box) {
-            RootInlineBox* root = box->root();
-            box->paint(info, LayoutPoint(scrolledPaintRect.x() - box->x(), scrolledPaintRect.y() - box->y()), root->lineTop(), root->lineBottom());
+            const RootInlineBox& rootBox = box->root();
+            box->paint(info, LayoutPoint(scrolledPaintRect.x() - box->x(), scrolledPaintRect.y() - box->y()), rootBox.lineTop(), rootBox.lineBottom());
         } else {
             LayoutSize localOffset = isBox() ? toRenderBox(this)->locationOffset() : LayoutSize();
             paint(info, scrolledPaintRect.location() - localOffset);
@@ -2774,9 +2775,9 @@ void RenderBoxModelObject::moveChildTo(RenderBoxModelObject* toBoxModelObject, R
     if (fullRemoveInsert && (toBoxModelObject->isRenderBlock() || toBoxModelObject->isRenderInline())) {
         // Takes care of adding the new child correctly if toBlock and fromBlock
         // have different kind of children (block vs inline).
-        toBoxModelObject->addChild(virtualChildren()->removeChildNode(this, child), beforeChild);
+        toBoxModelObject->addChild(children()->removeChildNode(this, child), beforeChild);
     } else
-        toBoxModelObject->virtualChildren()->insertChildNode(toBoxModelObject, virtualChildren()->removeChildNode(this, child, fullRemoveInsert), beforeChild, fullRemoveInsert);
+        toBoxModelObject->children()->insertChildNode(toBoxModelObject, children()->removeChildNode(this, child, fullRemoveInsert), beforeChild, fullRemoveInsert);
 }
 
 void RenderBoxModelObject::moveChildrenTo(RenderBoxModelObject* toBoxModelObject, RenderObject* startChild, RenderObject* endChild, RenderObject* beforeChild, bool fullRemoveInsert)

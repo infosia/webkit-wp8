@@ -93,7 +93,7 @@ PassRefPtr<RTCConfiguration> RTCPeerConnection::parseConfiguration(const Diction
             return 0;
         }
 
-        String urlString, credential;
+        String urlString, credential, username;
         ok = iceServer.get("url", urlString);
         if (!ok) {
             ec = TYPE_MISMATCH_ERR;
@@ -106,8 +106,9 @@ PassRefPtr<RTCConfiguration> RTCPeerConnection::parseConfiguration(const Diction
         }
 
         iceServer.get("credential", credential);
+        iceServer.get("username", username);
 
-        rtcConfiguration->appendServer(RTCIceServer::create(url, credential));
+        rtcConfiguration->appendServer(RTCIceServer::create(url, credential, username));
     }
 
     return rtcConfiguration.release();
@@ -448,11 +449,10 @@ PassRefPtr<RTCDataChannel> RTCPeerConnection::createDataChannel(String label, co
         return 0;
     }
 
-    bool reliable = true;
-    options.get("reliable", reliable);
-    RefPtr<RTCDataChannel> channel = RTCDataChannel::create(scriptExecutionContext(), m_peerHandler.get(), label, reliable, ec);
+    RefPtr<RTCDataChannel> channel = RTCDataChannel::create(scriptExecutionContext(), m_peerHandler.get(), label, options, ec);
     if (ec)
         return 0;
+
     m_dataChannels.append(channel);
     return channel.release();
 }

@@ -55,6 +55,8 @@ namespace {
 static const size_t largeHeapSize = 32 * MB; // About 1.5X the average webpage.
 static const size_t smallHeapSize = 1 * MB; // Matches the FastMalloc per-thread cache.
 
+#define ENABLE_GC_LOGGING 0
+
 #if ENABLE(GC_LOGGING)
 #if COMPILER(CLANG)
 #define DEFINE_GC_LOGGING_GLOBAL(type, name, arguments) \
@@ -251,6 +253,8 @@ Heap::Heap(VM* vm, HeapType heapType)
     , m_bytesAllocatedLimit(m_minBytesPerCycle)
     , m_bytesAllocated(0)
     , m_bytesAbandoned(0)
+    , m_totalBytesVisited(0)
+    , m_totalBytesCopied(0)
     , m_operationInProgress(NoOperation)
     , m_blockAllocator()
     , m_objectSpace(this)
@@ -467,7 +471,8 @@ void Heap::markRoots()
 #endif
 
     {
-        GCPHASE(clearMarks);
+        GCPHASE(ClearLivenessData);
+        m_objectSpace.clearNewlyAllocated();
         m_objectSpace.clearMarks();
     }
 
@@ -590,6 +595,13 @@ void Heap::markRoots()
     MARK_LOG_MESSAGE2("\nNumber of live Objects after full GC %lu, took %.6f secs\n", visitCount, WTF::monotonicallyIncreasingTime() - gcStartTime);
 #endif
 
+    m_totalBytesVisited = visitor.bytesVisited();
+    m_totalBytesCopied = visitor.bytesCopied();
+#if ENABLE(PARALLEL_GC)
+    m_totalBytesVisited += m_sharedData.childBytesVisited();
+    m_totalBytesCopied += m_sharedData.childBytesCopied();
+#endif
+
     visitor.reset();
 #if ENABLE(PARALLEL_GC)
     m_sharedData.resetChildren();
@@ -631,6 +643,16 @@ size_t Heap::size()
 size_t Heap::capacity()
 {
     return m_objectSpace.capacity() + m_storageSpace.capacity() + extraSize();
+}
+
+size_t Heap::sizeAfterCollect()
+{
+    // The result here may not agree with the normal Heap::size(). 
+    // This is due to the fact that we only count live copied bytes
+    // rather than all used (including dead) copied bytes, thus it's 
+    // always the case that m_totalBytesCopied <= m_storageSpace.size(). 
+    ASSERT(m_totalBytesCopied <= m_storageSpace.size());
+    return m_totalBytesVisited + m_totalBytesCopied + extraSize();
 }
 
 size_t Heap::protectedGlobalObjectCount()
@@ -797,7 +819,7 @@ void Heap::collect(SweepToggle sweepToggle)
         m_objectSpace.resetAllocators();
     }
     
-    size_t currentHeapSize = size();
+    size_t currentHeapSize = sizeAfterCollect();
     if (Options::gcMaxHeapSize() && currentHeapSize > Options::gcMaxHeapSize())
         HeapStatistics::exitWithFailure();
 

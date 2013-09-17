@@ -31,7 +31,6 @@
 #include "Frame.h"
 #include "FrameView.h"
 #include "HTMLFrameOwnerElement.h"
-#include "RenderPart.h"
 #include "ScrollView.h"
 #include "Widget.h"
 
@@ -189,7 +188,7 @@ AccessibilityObject* AccessibilityScrollView::webAreaObject() const
         return 0;
     
     Document* doc = toFrameView(m_scrollView)->frame().document();
-    if (!doc || !doc->renderer())
+    if (!doc || !doc->renderView())
         return 0;
 
     return axObjectCache()->getOrCreate(doc);

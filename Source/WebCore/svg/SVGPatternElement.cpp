@@ -184,7 +184,7 @@ void SVGPatternElement::childrenChanged(const ChildChange& change)
 
 RenderObject* SVGPatternElement::createRenderer(RenderArena* arena, RenderStyle*)
 {
-    return new (arena) RenderSVGResourcePattern(this);
+    return new (arena) RenderSVGResourcePattern(*this);
 }
 
 void SVGPatternElement::collectPatternAttributes(PatternAttributes& attributes) const
@@ -229,9 +229,9 @@ void SVGPatternElement::collectPatternAttributes(PatternAttributes& attributes) 
         processedPatterns.add(current);
 
         // Respect xlink:href, take attributes from referenced element
-        Node* refNode = SVGURIReference::targetElementFromIRIString(current->href(), &document());
-        if (refNode && refNode->hasTagName(SVGNames::patternTag)) {
-            current = static_cast<const SVGPatternElement*>(const_cast<const Node*>(refNode));
+        Element* refElement = SVGURIReference::targetElementFromIRIString(current->href(), &document());
+        if (refElement && isSVGPatternElement(refElement)) {
+            current = toSVGPatternElement(refElement);
 
             // Cycle detection
             if (processedPatterns.contains(current)) {

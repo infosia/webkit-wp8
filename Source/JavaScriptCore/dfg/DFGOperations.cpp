@@ -471,7 +471,15 @@ EncodedJSValue DFG_OPERATION operationToThis(ExecState* exec, EncodedJSValue enc
     VM* vm = &exec->vm();
     NativeCallFrameTracer tracer(vm, exec);
 
-    return JSValue::encode(JSValue::decode(encodedOp).toThis(exec, exec->codeBlock()->isStrictMode() ? StrictMode : NotStrictMode));
+    return JSValue::encode(JSValue::decode(encodedOp).toThis(exec, NotStrictMode));
+}
+
+EncodedJSValue DFG_OPERATION operationToThisStrict(ExecState* exec, EncodedJSValue encodedOp)
+{
+    VM* vm = &exec->vm();
+    NativeCallFrameTracer tracer(vm, exec);
+
+    return JSValue::encode(JSValue::decode(encodedOp).toThis(exec, StrictMode));
 }
 
 JSCell* DFG_OPERATION operationCreateThis(ExecState* exec, JSObject* constructor, int32_t inlineCapacity)
@@ -1414,7 +1422,7 @@ char* DFG_OPERATION operationNewArray(ExecState* exec, Structure* arrayStructure
     VM* vm = &exec->vm();
     NativeCallFrameTracer tracer(vm, exec);
     
-    return bitwise_cast<char*>(constructArray(exec, arrayStructure, static_cast<JSValue*>(buffer), size));
+    return bitwise_cast<char*>(constructArrayNegativeIndexed(exec, arrayStructure, static_cast<JSValue*>(buffer), size));
 }
 
 char* DFG_OPERATION operationNewEmptyArray(ExecState* exec, Structure* arrayStructure)
@@ -1440,7 +1448,7 @@ char* DFG_OPERATION operationNewArrayBuffer(ExecState* exec, Structure* arrayStr
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    return bitwise_cast<char*>(constructArray(exec, arrayStructure, exec->codeBlock()->constantBuffer(start), size));
+    return bitwise_cast<char*>(constructArrayNegativeIndexed(exec, arrayStructure, exec->codeBlock()->constantBuffer(start), size));
 }
 
 char* DFG_OPERATION operationNewInt8ArrayWithSize(
@@ -1984,6 +1992,10 @@ void DFG_OPERATION debugOperationPrintSpeculationFailure(ExecState* exec, void* 
 
 extern "C" void DFG_OPERATION triggerReoptimizationNow(CodeBlock* codeBlock)
 {
+    // It's sort of preferable that we don't GC while in here. Anyways, doing so wouldn't
+    // really be profitable.
+    DeferGCForAWhile deferGC(codeBlock->vm()->heap);
+    
     if (Options::verboseOSR())
         dataLog(*codeBlock, ": Entered reoptimize\n");
     // We must be called with the baseline code block.
@@ -2200,6 +2212,46 @@ char* DFG_OPERATION triggerOSREntryNow(
         jitCode->optimizeAfterWarmUp(codeBlock);
     return static_cast<char*>(address);
 }
+
+// FIXME: Make calls work well. Currently they're a pure regression.
+// https://bugs.webkit.org/show_bug.cgi?id=113621
+EncodedJSValue DFG_OPERATION operationFTLCall(ExecState* exec)
+{
+    ExecState* callerExec = exec->callerFrame();
+    
+    VM* vm = &callerExec->vm();
+    NativeCallFrameTracer tracer(vm, callerExec);
+    
+    JSValue callee = exec->calleeAsValue();
+    CallData callData;
+    CallType callType = getCallData(callee, callData);
+    if (callType == CallTypeNone) {
+        vm->throwException(callerExec, createNotAFunctionError(callerExec, callee));
+        return JSValue::encode(jsUndefined());
+    }
+    
+    return JSValue::encode(call(callerExec, callee, callType, callData, exec->thisValue(), exec));
+}
+
+// FIXME: Make calls work well. Currently they're a pure regression.
+// https://bugs.webkit.org/show_bug.cgi?id=113621
+EncodedJSValue DFG_OPERATION operationFTLConstruct(ExecState* exec)
+{
+    ExecState* callerExec = exec->callerFrame();
+    
+    VM* vm = &callerExec->vm();
+    NativeCallFrameTracer tracer(vm, callerExec);
+    
+    JSValue callee = exec->calleeAsValue();
+    ConstructData constructData;
+    ConstructType constructType = getConstructData(callee, constructData);
+    if (constructType == ConstructTypeNone) {
+        vm->throwException(callerExec, createNotAFunctionError(callerExec, callee));
+        return JSValue::encode(jsUndefined());
+    }
+    
+    return JSValue::encode(construct(callerExec, callee, constructType, constructData, exec));
+}
 #endif // ENABLE(FTL_JIT)
 
 } // extern "C"
@@ -2214,7 +2266,7 @@ asm (
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "mov -40(%r13), %r13\n"
+    "mov 40(%r13), %r13\n"
     "mov %r13, %rdi\n"
     "jmp " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
@@ -2224,7 +2276,7 @@ asm (
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "mov -40(%edi), %edi\n"
+    "mov 40(%edi), %edi\n"
     "mov %edi, 4(%esp)\n"
     "jmp " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
@@ -2237,7 +2289,7 @@ HIDE_SYMBOL(getHostCallReturnValue) "\n"
 ".thumb" "\n"
 ".thumb_func " THUMB_FUNC_PARAM(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "ldr r5, [r5, #-40]" "\n"
+    "ldr r5, [r5, #40]" "\n"
     "mov r0, r5" "\n"
     "b " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
@@ -2248,7 +2300,7 @@ asm (
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 INLINE_ARM_FUNCTION(getHostCallReturnValue)
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "ldr r5, [r5, #-40]" "\n"
+    "ldr r5, [r5, #40]" "\n"
     "mov r0, r5" "\n"
     "b " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
@@ -2259,7 +2311,7 @@ asm(
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
     LOAD_FUNCTION_TO_T9(getHostCallReturnValueWithExecState)
-    "lw $s0, -40($s0)" "\n"
+    "lw $s0, 40($s0)" "\n"
     "move $a0, $s0" "\n"
     "b " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
@@ -2269,7 +2321,7 @@ asm(
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "add #-40, r14" "\n"
+    "add #40, r14" "\n"
     "mov.l @r14, r14" "\n"
     "mov r14, r4" "\n"
     "mov.l 2f, " SH4_SCRATCH_REGISTER "\n"

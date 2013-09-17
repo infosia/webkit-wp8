@@ -28,6 +28,7 @@
 #include "JSSVGPoint.h"
 #include "JSSerializedScriptValue.h"
 #include "JSTestCallback.h"
+#include "JSTestEventTarget.h"
 #include "JSTestSubObj.h"
 #include "KURL.h"
 #include "SVGPoint.h"
@@ -98,7 +99,7 @@ void JSTestTypedefsConstructor::finishCreation(ExecState* exec, JSDOMGlobalObjec
 
 bool JSTestTypedefsConstructor::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
-    return getStaticValueSlot<JSTestTypedefsConstructor, JSDOMWrapper>(exec, &JSTestTypedefsConstructorTable, jsCast<JSTestTypedefsConstructor*>(object), propertyName, slot);
+    return getStaticValueSlot<JSTestTypedefsConstructor, JSDOMWrapper>(exec, JSTestTypedefsConstructorTable, jsCast<JSTestTypedefsConstructor*>(object), propertyName, slot);
 }
 
 ConstructType JSTestTypedefsConstructor::getConstructData(JSCell*, ConstructData& constructData)
@@ -119,6 +120,7 @@ static const HashTableValue JSTestTypedefsPrototypeTableValues[] =
     { "immutablePointFunction", DontDelete | JSC::Function, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionImmutablePointFunction), (intptr_t)0, NoIntrinsic },
     { "stringArrayFunction", DontDelete | JSC::Function, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction), (intptr_t)1, NoIntrinsic },
     { "stringArrayFunction2", DontDelete | JSC::Function, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction2), (intptr_t)1, NoIntrinsic },
+    { "callWithSequenceThatRequiresInclude", DontDelete | JSC::Function, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionCallWithSequenceThatRequiresInclude), (intptr_t)1, NoIntrinsic },
     { "methodWithException", DontDelete | JSC::Function, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionMethodWithException), (intptr_t)0, NoIntrinsic },
     { 0, 0, 0, 0, NoIntrinsic }
 };
@@ -134,7 +136,7 @@ JSObject* JSTestTypedefsPrototype::self(ExecState* exec, JSGlobalObject* globalO
 bool JSTestTypedefsPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
     JSTestTypedefsPrototype* thisObject = jsCast<JSTestTypedefsPrototype*>(object);
-    return getStaticFunctionSlot<JSObject>(exec, &JSTestTypedefsPrototypeTable, thisObject, propertyName, slot);
+    return getStaticFunctionSlot<JSObject>(exec, JSTestTypedefsPrototypeTable, thisObject, propertyName, slot);
 }
 
 const ClassInfo JSTestTypedefs::s_info = { "TestTypedefs", &Base::s_info, &JSTestTypedefsTable, 0 , CREATE_METHOD_TABLE(JSTestTypedefs) };
@@ -171,7 +173,7 @@ bool JSTestTypedefs::getOwnPropertySlot(JSObject* object, ExecState* exec, Prope
 {
     JSTestTypedefs* thisObject = jsCast<JSTestTypedefs*>(object);
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    return getStaticValueSlot<JSTestTypedefs, Base>(exec, &JSTestTypedefsTable, thisObject, propertyName, slot);
+    return getStaticValueSlot<JSTestTypedefs, Base>(exec, JSTestTypedefsTable, thisObject, propertyName, slot);
 }
 
 JSValue jsTestTypedefsUnsignedLongLongAttr(ExecState* exec, JSValue slotBase, PropertyName)
@@ -253,7 +255,7 @@ void JSTestTypedefs::put(JSCell* cell, ExecState* exec, PropertyName propertyNam
 {
     JSTestTypedefs* thisObject = jsCast<JSTestTypedefs*>(cell);
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    lookupPut<JSTestTypedefs, Base>(exec, propertyName, value, &JSTestTypedefsTable, thisObject, slot);
+    lookupPut<JSTestTypedefs, Base>(exec, propertyName, value, JSTestTypedefsTable, thisObject, slot);
 }
 
 void setJSTestTypedefsUnsignedLongLongAttr(ExecState* exec, JSObject* thisObject, JSValue value)
@@ -524,6 +526,24 @@ EncodedJSValue JSC_HOST_CALL jsTestTypedefsPrototypeFunctionStringArrayFunction2
 
     JSC::JSValue result = jsArray(exec, castedThis->globalObject(), impl->stringArrayFunction2(values, ec));
     setDOMException(exec, ec);
+    return JSValue::encode(result);
+}
+
+EncodedJSValue JSC_HOST_CALL jsTestTypedefsPrototypeFunctionCallWithSequenceThatRequiresInclude(ExecState* exec)
+{
+    JSValue thisValue = exec->hostThisValue();
+    if (!thisValue.inherits(JSTestTypedefs::info()))
+        return throwVMTypeError(exec);
+    JSTestTypedefs* castedThis = jsCast<JSTestTypedefs*>(asObject(thisValue));
+    ASSERT_GC_OBJECT_INHERITS(castedThis, JSTestTypedefs::info());
+    TestTypedefs* impl = static_cast<TestTypedefs*>(castedThis->impl());
+    if (exec->argumentCount() < 1)
+        return throwVMError(exec, createNotEnoughArgumentsError(exec));
+    Vector<RefPtr<TestEventTarget> > sequenceArg((toRefPtrNativeArray<TestEventTarget, JSTestEventTarget>(exec, exec->argument(0), &toTestEventTarget)));
+    if (exec->hadException())
+        return JSValue::encode(jsUndefined());
+
+    JSC::JSValue result = jsBoolean(impl->callWithSequenceThatRequiresInclude(sequenceArg));
     return JSValue::encode(result);
 }
 

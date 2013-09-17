@@ -162,7 +162,7 @@ PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document* docu
 Element::~Element()
 {
 #ifndef NDEBUG
-    if (document().renderer()) {
+    if (document().renderView()) {
         // When the document is not destroyed, an element that was part of a named flow
         // content nodes should have been removed from the content nodes collection
         // and the inNamedFlow flag reset.
@@ -286,7 +286,7 @@ PassRefPtr<Attr> Element::detachAttribute(unsigned index)
     if (attrNode)
         detachAttrNodeFromElementWithValue(attrNode.get(), attribute.value());
     else
-        attrNode = Attr::create(&document(), attribute.name(), attribute.value());
+        attrNode = Attr::create(document(), attribute.name(), attribute.value());
 
     removeAttributeInternal(index, NotInSynchronizationOfLazyAttribute);
     return attrNode.release();
@@ -380,7 +380,7 @@ inline void Element::synchronizeAttribute(const AtomicString& localName) const
     if (elementData()->m_animatedSVGAttributesAreDirty) {
         // We're not passing a namespace argument on purpose. SVGNames::*Attr are defined w/o namespaces as well.
         ASSERT(isSVGElement());
-        static_cast<const SVGElement*>(this)->synchronizeAnimatedSVGAttribute(QualifiedName(nullAtom, localName, nullAtom));
+        toSVGElement(this)->synchronizeAnimatedSVGAttribute(QualifiedName(nullAtom, localName, nullAtom));
     }
 #endif
 }
@@ -1408,6 +1408,20 @@ void Element::didAffectSelector(AffectedSelectorMask)
     setNeedsStyleRecalc();
 }
 
+static bool shouldUseNodeRenderingTraversalSlowPath(const Element& element)
+{
+    if (element.isShadowRoot())
+        return true;
+    if (element.isPseudoElement() || element.beforePseudoElement() || element.afterPseudoElement())
+        return true;
+    return element.isInsertionPoint() || element.shadowRoot();
+}
+
+void Element::resetNeedsNodeRenderingTraversalSlowPath()
+{
+    setNeedsNodeRenderingTraversalSlowPath(shouldUseNodeRenderingTraversalSlowPath(*this));
+}
+
 void Element::addShadowRoot(PassRefPtr<ShadowRoot> newShadowRoot)
 {
     ASSERT(!shadowRoot());
@@ -1421,8 +1435,7 @@ void Element::addShadowRoot(PassRefPtr<ShadowRoot> newShadowRoot)
 
     ChildNodeInsertionNotifier(this).notify(shadowRoot);
 
-    // Existence of shadow roots requires the host and its children to do traversal using ComposedShadowTreeWalker.
-    setNeedsShadowTreeWalker();
+    resetNeedsNodeRenderingTraversalSlowPath();
 
     // FIXME(94905): ShadowHost should be reattached during recalcStyle.
     // Set some flag here and recreate shadow hosts' renderer in
@@ -1472,7 +1485,7 @@ PassRefPtr<ShadowRoot> Element::createShadowRoot(ExceptionCode& ec)
         ec = HIERARCHY_REQUEST_ERR;
         return 0;
     }
-    addShadowRoot(ShadowRoot::create(&document(), ShadowRoot::AuthorShadowRoot));
+    addShadowRoot(ShadowRoot::create(document(), ShadowRoot::AuthorShadowRoot));
 
     return shadowRoot();
 }
@@ -1498,7 +1511,7 @@ ShadowRoot& Element::ensureUserAgentShadowRoot()
 {
     ShadowRoot* shadowRoot = userAgentShadowRoot();
     if (!shadowRoot) {
-        addShadowRoot(ShadowRoot::create(&document(), ShadowRoot::UserAgentShadowRoot));
+        addShadowRoot(ShadowRoot::create(document(), ShadowRoot::UserAgentShadowRoot));
         shadowRoot = userAgentShadowRoot();
         didAddUserAgentShadowRoot(shadowRoot);
     }
@@ -1699,7 +1712,7 @@ PassRefPtr<Attr> Element::setAttributeNode(Attr* attrNode, ExceptionCode& ec)
         if (oldAttrNode)
             detachAttrNodeFromElementWithValue(oldAttrNode.get(), elementData.attributeAt(index).value());
         else
-            oldAttrNode = Attr::create(&document(), attrNode->qualifiedName(), elementData.attributeAt(index).value());
+            oldAttrNode = Attr::create(document(), attrNode->qualifiedName(), elementData.attributeAt(index).value());
     }
 
     setAttributeInternal(index, attrNode->qualifiedName(), attrNode->value(), NotInSynchronizationOfLazyAttribute);
@@ -2349,13 +2362,13 @@ PseudoElement* Element::afterPseudoElement() const
 void Element::setBeforePseudoElement(PassRefPtr<PseudoElement> element)
 {
     ensureElementRareData().setBeforePseudoElement(element);
-    resetNeedsShadowTreeWalker();
+    resetNeedsNodeRenderingTraversalSlowPath();
 }
 
 void Element::setAfterPseudoElement(PassRefPtr<PseudoElement> element)
 {
     ensureElementRareData().setAfterPseudoElement(element);
-    resetNeedsShadowTreeWalker();
+    resetNeedsNodeRenderingTraversalSlowPath();
 }
 
 static void disconnectPseudoElement(PseudoElement* pseudoElement)
@@ -2374,6 +2387,7 @@ void Element::clearBeforePseudoElement()
         return;
     disconnectPseudoElement(elementRareData()->beforePseudoElement());
     elementRareData()->setBeforePseudoElement(nullptr);
+    resetNeedsNodeRenderingTraversalSlowPath();
 }
 
 void Element::clearAfterPseudoElement()
@@ -2382,6 +2396,7 @@ void Element::clearAfterPseudoElement()
         return;
     disconnectPseudoElement(elementRareData()->afterPseudoElement());
     elementRareData()->setAfterPseudoElement(nullptr);
+    resetNeedsNodeRenderingTraversalSlowPath();
 }
 
 // ElementTraversal API
@@ -2683,7 +2698,7 @@ bool Element::fastAttributeLookupAllowed(const QualifiedName& name) const
 
 #if ENABLE(SVG)
     if (isSVGElement())
-        return !static_cast<const SVGElement*>(this)->isAnimatableAttribute(name);
+        return !toSVGElement(this)->isAnimatableAttribute(name);
 #endif
 
     return true;
