@@ -549,14 +549,14 @@ void HTMLMediaElement::finishParsingChildren()
 bool HTMLMediaElement::rendererIsNeeded(const RenderStyle& style)
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    UNUSED_PARAM(context);
+    UNUSED_PARAM(style);
     return true;
 #else
     return controls() && HTMLElement::rendererIsNeeded(style);
 #endif
 }
 
-RenderObject* HTMLMediaElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderObject* HTMLMediaElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     // Setup the renderer if we already have a proxy widget.

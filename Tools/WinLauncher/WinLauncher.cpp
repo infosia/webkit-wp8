@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006, 2008, 2013 Apple Computer, Inc.  All rights reserved.
  * Copyright (C) 2009, 2011 Brent Fulgham.  All rights reserved.
  * Copyright (C) 2009, 2010, 2011 Appcelerator, Inc. All rights reserved.
  *
@@ -33,23 +33,41 @@
 #include "PrintWebUIDelegate.h"
 #include "WinLauncherLibResource.h"
 #include <WebKit/WebKitCOMAPI.h>
+#include <wtf/ExportMacros.h>
 #include <wtf/Platform.h>
 
 #if USE(CF)
 #include <CoreFoundation/CFRunLoop.h>
 #endif
 
+#include <algorithm>
 #include <assert.h>
+#include <comip.h>
 #include <commctrl.h>
 #include <commdlg.h>
+#include <comutil.h>
+#include <functional>
 #include <objbase.h>
 #include <shellapi.h>
 #include <shlwapi.h>
 #include <string>
+#include <vector>
 #include <wininet.h>
 
 #define MAX_LOADSTRING 100
 #define URLBAR_HEIGHT  24
+
+static const int maxHistorySize = 10;
+
+typedef _com_ptr_t<_com_IIID<IWebFrame, &__uuidof(IWebFrame)>> IWebFramePtr;
+typedef _com_ptr_t<_com_IIID<IWebHistory, &__uuidof(IWebHistory)>> IWebHistoryPtr;
+typedef _com_ptr_t<_com_IIID<IWebHistoryItem, &__uuidof(IWebHistoryItem)>> IWebHistoryItemPtr;
+typedef _com_ptr_t<_com_IIID<IWebInspector, &__uuidof(IWebInspector)>> IWebInspectorPtr;
+typedef _com_ptr_t<_com_IIID<IWebMutableURLRequest, &__uuidof(IWebMutableURLRequest)>> IWebMutableURLRequestPtr;
+typedef _com_ptr_t<_com_IIID<IWebPreferences, &__uuidof(IWebPreferences)>> IWebPreferencesPtr;
+typedef _com_ptr_t<_com_IIID<IWebPreferencesPrivate, &__uuidof(IWebPreferencesPrivate)>> IWebPreferencesPrivatePtr;
+typedef _com_ptr_t<_com_IIID<IWebView, &__uuidof(IWebView)>> IWebViewPtr;
+typedef _com_ptr_t<_com_IIID<IWebViewPrivate, &__uuidof(IWebViewPrivate)>> IWebViewPrivatePtr;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -57,15 +75,17 @@ HWND hMainWnd;
 HWND hURLBarWnd;
 WNDPROC DefEditProc = 0;
 WNDPROC DefWebKitProc = 0;
-IWebInspector* gInspector = 0;
-IWebView* gWebView = 0;
-IWebViewPrivate* gWebViewPrivate = 0;
-IWebPreferences* gStandardPreferences = 0;
-IWebPreferencesPrivate* gPrefsPrivate = 0;
+IWebInspectorPtr gInspector;
+IWebViewPtr gWebView;
+IWebViewPrivatePtr gWebViewPrivate;
+IWebPreferencesPtr gStandardPreferences;
+IWebPreferencesPrivatePtr gPrefsPrivate;
 HWND gViewWindow = 0;
 WinLauncherWebHost* gWebHost = 0;
 PrintWebUIDelegate* gPrintDelegate = 0;
 AccessibilityDelegate* gAccessibilityDelegate = 0;
+IWebHistoryPtr gWebHistory;
+std::vector<IWebHistoryItemPtr> gHistoryItems;
 TCHAR szTitle[MAX_LOADSTRING];                    // The title bar text
 TCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
@@ -114,56 +134,45 @@ private:
     wchar_t m_eventType[100];
 };
 
+typedef _com_ptr_t<_com_IIID<IWebDataSource, &__uuidof(IWebDataSource)>> IWebDataSourcePtr;
+
 HRESULT WinLauncherWebHost::updateAddressBar(IWebView* webView)
 {
-    IWebFrame* mainFrame = 0;
-    IWebDataSource* dataSource = 0;
-    IWebMutableURLRequest* request = 0;
-    BSTR frameURL = 0;
-
-    HRESULT hr = S_OK;
-
-    hr = webView->mainFrame(&mainFrame);
+    IWebFramePtr mainFrame;
+    HRESULT hr = webView->mainFrame(&mainFrame.GetInterfacePtr());
     if (FAILED(hr))
-        goto exit;
+        return 0;
 
-    hr = mainFrame->dataSource(&dataSource);
+    IWebDataSourcePtr dataSource;
+    hr = mainFrame->dataSource(&dataSource.GetInterfacePtr());
     if (FAILED(hr) || !dataSource)
-        hr = mainFrame->provisionalDataSource(&dataSource);
+        hr = mainFrame->provisionalDataSource(&dataSource.GetInterfacePtr());
     if (FAILED(hr) || !dataSource)
-        goto exit;
+        return 0;
 
-    hr = dataSource->request(&request);
+    IWebMutableURLRequestPtr request;
+    hr = dataSource->request(&request.GetInterfacePtr());
     if (FAILED(hr) || !request)
-        goto exit;
+        return 0;
 
-    hr = request->mainDocumentURL(&frameURL);
+    _bstr_t frameURL;
+    hr = request->mainDocumentURL(frameURL.GetAddress());
     if (FAILED(hr))
-        goto exit;
+        return 0;
 
-    SendMessage(hURLBarWnd, (UINT)WM_SETTEXT, 0, (LPARAM)frameURL);
+    ::SendMessage(hURLBarWnd, static_cast<UINT>(WM_SETTEXT), 0, reinterpret_cast<LPARAM>(frameURL.GetBSTR()));
 
-exit:
-    if (mainFrame)
-        mainFrame->Release();
-    if (dataSource)
-        dataSource->Release();
-    if (request)
-        request->Release();
-    SysFreeString(frameURL);
     return 0;
 }
 
-HRESULT STDMETHODCALLTYPE WinLauncherWebHost::didFailProvisionalLoadWithError(IWebView*, IWebError *error, IWebFrame*)
+HRESULT WinLauncherWebHost::didFailProvisionalLoadWithError(IWebView*, IWebError *error, IWebFrame*)
 {
-    BSTR errorDescription = 0;
-    HRESULT hr = error->localizedDescription(&errorDescription);
+    _bstr_t errorDescription;
+    HRESULT hr = error->localizedDescription(errorDescription.GetAddress());
     if (FAILED(hr))
         errorDescription = L"Failed to load page and to localize error description.";
 
     ::MessageBoxW(0, static_cast<LPCWSTR>(errorDescription), L"Error", MB_APPLMODAL | MB_OK);
-    if (SUCCEEDED(hr))
-        SysFreeString(errorDescription);
 
     return S_OK;
 }
@@ -196,32 +205,126 @@ ULONG STDMETHODCALLTYPE WinLauncherWebHost::Release(void)
     return newRef;
 }
 
+static void updateMenuItemForHistoryItem(HMENU menu, IWebHistoryItem& historyItem, int currentHistoryItem)
+{
+    UINT menuID = IDM_HISTORY_LINK0 + currentHistoryItem;
+
+    MENUITEMINFO menuItemInfo = {0};
+    menuItemInfo.cbSize = sizeof(MENUITEMINFO);
+    menuItemInfo.fMask = MIIM_TYPE;
+    menuItemInfo.fType = MFT_STRING;
+
+    _bstr_t title;
+    historyItem.title(title.GetAddress());
+    menuItemInfo.dwTypeData = static_cast<LPWSTR>(title);
+
+    ::SetMenuItemInfo(menu, menuID, FALSE, &menuItemInfo);
+    ::EnableMenuItem(menu, menuID, MF_BYCOMMAND | MF_ENABLED);
+}
+
+static void showLastVisitedSites(IWebView& webView)
+{
+    HMENU menu = ::GetMenu(hMainWnd);
+
+    _com_ptr_t<_com_IIID<IWebBackForwardList, &__uuidof(IWebBackForwardList)>> backForwardList;
+    HRESULT hr = webView.backForwardList(&backForwardList.GetInterfacePtr());
+    if (FAILED(hr))
+        return;
+
+    int capacity = 0;
+    hr = backForwardList->capacity(&capacity);
+    if (FAILED(hr))
+        return;
+
+    int backCount = 0;
+    hr = backForwardList->backListCount(&backCount);
+    if (FAILED(hr))
+        return;
+
+    UINT backSetting = MF_BYCOMMAND | (backCount) ? MF_ENABLED : MF_DISABLED;
+    ::EnableMenuItem(menu, IDM_HISTORY_BACKWARD, backSetting);
+
+    int forwardCount = 0;
+    hr = backForwardList->forwardListCount(&forwardCount);
+    if (FAILED(hr))
+        return;
+
+    UINT forwardSetting = MF_BYCOMMAND | (forwardCount) ? MF_ENABLED : MF_DISABLED;
+    ::EnableMenuItem(menu, IDM_HISTORY_FORWARD, forwardSetting);
+
+    IWebHistoryItemPtr currentItem;
+    hr = backForwardList->currentItem(&currentItem.GetInterfacePtr());
+    if (FAILED(hr))
+        return;
+
+    hr = gWebHistory->addItems(1, &currentItem.GetInterfacePtr());
+    if (FAILED(hr))
+        return;
+
+    _com_ptr_t<_com_IIID<IWebHistoryPrivate, &__uuidof(IWebHistoryPrivate)>> webHistory;
+    hr = gWebHistory->QueryInterface(IID_IWebHistoryPrivate, reinterpret_cast<void**>(&webHistory.GetInterfacePtr()));
+    if (FAILED(hr))
+        return;
+
+    int totalListCount = 0;
+    hr = webHistory->allItems(&totalListCount, 0);
+    if (FAILED(hr))
+        return;
+
+    gHistoryItems.resize(totalListCount);
+
+    std::vector<IWebHistoryItem*> historyToLoad(totalListCount);
+    hr = webHistory->allItems(&totalListCount, historyToLoad.data());
+    if (FAILED(hr))
+        return;
+
+    size_t i = 0;
+    for (auto cur = historyToLoad.begin(); cur != historyToLoad.end(); ++cur) {
+        gHistoryItems[i].Attach(*cur);
+        ++i;
+    }
+
+    int allItemsOffset = 0;
+    if (totalListCount > maxHistorySize)
+        allItemsOffset = totalListCount - maxHistorySize;
+
+    int currentHistoryItem = 0;
+    for (int i = 0; i < totalListCount; ++i) {
+        updateMenuItemForHistoryItem(menu, *(gHistoryItems[allItemsOffset + currentHistoryItem]), currentHistoryItem);
+        ++currentHistoryItem;
+    }
+
+    // Hide any history we aren't using yet.
+    for (int i = currentHistoryItem; i < maxHistorySize; ++i)
+        ::EnableMenuItem(menu, IDM_HISTORY_LINK0 + i, MF_BYCOMMAND | MF_DISABLED);
+}
+
+typedef _com_ptr_t<_com_IIID<IDOMDocument, &__uuidof(IDOMDocument)>> IDOMDocumentPtr;
+typedef _com_ptr_t<_com_IIID<IDOMElement, &__uuidof(IDOMElement)>> IDOMElementPtr;
+typedef _com_ptr_t<_com_IIID<IDOMEventTarget, &__uuidof(IDOMEventTarget)>> IDOMEventTargetPtr;
+
 HRESULT WinLauncherWebHost::didFinishLoadForFrame(IWebView* webView, IWebFrame* frame)
 {
-    IDOMDocument* doc = 0;
-    frame->DOMDocument(&doc);
+    IDOMDocumentPtr doc;
+    frame->DOMDocument(&doc.GetInterfacePtr());
 
-    IDOMElement* element = 0;
-    IDOMEventTarget* target = 0;
-    HRESULT hr = doc->getElementById(L"webkit logo", &element);
-    if (!SUCCEEDED(hr))
-        goto exit;
+    IDOMElementPtr element;
+    IDOMEventTargetPtr target;
 
-    hr = element->QueryInterface(IID_IDOMEventTarget, reinterpret_cast<void**>(&target));
+    showLastVisitedSites(*webView);
+
+    // The following is for the test page:
+    HRESULT hr = doc->getElementById(L"webkit logo", &element.GetInterfacePtr());
     if (!SUCCEEDED(hr))
-        goto exit;
+        return hr;
+
+    hr = element->QueryInterface(IID_IDOMEventTarget, reinterpret_cast<void**>(&target.GetInterfacePtr()));
+    if (!SUCCEEDED(hr))
+        return hr;
 
     hr = target->addEventListener(L"click", new SimpleEventListener (L"webkit logo click"), FALSE);
     if (!SUCCEEDED(hr))
-        goto exit;
-
-exit:
-    if (target)
-        target->Release();
-    if (element)
-        element->Release();
-    if (doc)
-        doc->Release();
+        return hr;
 
     return hr;
 }
@@ -271,7 +374,7 @@ BOOL WINAPI DllMain(HINSTANCE dllInstance, DWORD reason, LPVOID)
 
 static bool setToDefaultPreferences()
 {
-    HRESULT hr = gStandardPreferences->QueryInterface(IID_IWebPreferencesPrivate, reinterpret_cast<void**>(&gPrefsPrivate));
+    HRESULT hr = gStandardPreferences->QueryInterface(IID_IWebPreferencesPrivate, reinterpret_cast<void**>(&gPrefsPrivate.GetInterfacePtr()));
     if (!SUCCEEDED(hr))
         return false;
 
@@ -317,7 +420,7 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
     InitCtrlEx.dwICC  = 0x00004000; //ICC_STANDARD_CLASSES;
     InitCommonControlsEx(&InitCtrlEx);
 
-    BSTR requestedURL = 0;
+    _bstr_t requestedURL;
     int argc = 0;
     WCHAR** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     for (int i = 1; i < argc; ++i) {
@@ -326,7 +429,7 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
         else if (!wcsicmp(argv[i], L"--desktop"))
             s_fullDesktop = true;
         else if (!requestedURL)
-            requestedURL = ::SysAllocString(argv[i]);
+            requestedURL = argv[i];
     }
 
     // Initialize global strings
@@ -377,21 +480,25 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
 
     RECT clientRect = { s_windowPosition.x, s_windowPosition.y, s_windowPosition.x + s_windowSize.cx, s_windowPosition.y + s_windowSize.cy };
 
-    IWebPreferences* tmpPreferences = 0;
-    if (FAILED(WebKitCreateInstance(CLSID_WebPreferences, 0, IID_IWebPreferences, reinterpret_cast<void**>(&tmpPreferences))))
+    IWebPreferencesPtr tmpPreferences;
+    if (FAILED(WebKitCreateInstance(CLSID_WebPreferences, 0, IID_IWebPreferences, reinterpret_cast<void**>(&tmpPreferences.GetInterfacePtr()))))
         goto exit;
 
-    if (FAILED(tmpPreferences->standardPreferences(&gStandardPreferences)))
+    if (FAILED(tmpPreferences->standardPreferences(&gStandardPreferences.GetInterfacePtr())))
         goto exit;
 
     if (!setToDefaultPreferences())
         goto exit;
 
-    HRESULT hr = WebKitCreateInstance(CLSID_WebView, 0, IID_IWebView, reinterpret_cast<void**>(&gWebView));
+    HRESULT hr = WebKitCreateInstance(CLSID_WebView, 0, IID_IWebView, reinterpret_cast<void**>(&gWebView.GetInterfacePtr()));
     if (FAILED(hr))
         goto exit;
 
-    hr = gWebView->QueryInterface(IID_IWebViewPrivate, reinterpret_cast<void**>(&gWebViewPrivate));
+    hr = gWebView->QueryInterface(IID_IWebViewPrivate, reinterpret_cast<void**>(&gWebViewPrivate.GetInterfacePtr()));
+    if (FAILED(hr))
+        goto exit;
+
+    hr = WebKitCreateInstance(CLSID_WebHistory, 0, __uuidof(gWebHistory), reinterpret_cast<void**>(&gWebHistory.GetInterfacePtr()));
     if (FAILED(hr))
         goto exit;
 
@@ -422,14 +529,13 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
         goto exit;
 
     if (!requestedURL) {
-        IWebFrame* frame;
-        hr = gWebView->mainFrame(&frame);
+        IWebFramePtr frame;
+        hr = gWebView->mainFrame(&frame.GetInterfacePtr());
         if (FAILED(hr))
             goto exit;
 
-        static BSTR defaultHTML = SysAllocString(TEXT("<p style=\"background-color: #00FF00\">Testing</p><img id=\"webkit logo\" src=\"http://webkit.org/images/icon-gold.png\" alt=\"Face\"><div style=\"border: solid blue; background: white;\" contenteditable=\"true\">div with blue border</div><ul><li>foo<li>bar<li>baz</ul>"));
-        frame->loadHTMLString(defaultHTML, 0);
-        frame->Release();
+        _bstr_t defaultHTML(L"<p style=\"background-color: #00FF00\">Testing</p><img id=\"webkit logo\" src=\"http://webkit.org/images/icon-gold.png\" alt=\"Face\"><div style=\"border: solid blue; background: white;\" contenteditable=\"true\">div with blue border</div><ul><li>foo<li>bar<li>baz</ul>");
+        frame->loadHTMLString(defaultHTML.GetBSTR(), 0);
     }
 
     hr = gWebViewPrivate->setTransparent(usesLayeredWebView());
@@ -454,11 +560,8 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
 
     hAccelTable = LoadAccelerators(hInst, MAKEINTRESOURCE(IDC_WINLAUNCHER));
 
-    if (requestedURL) {
-        loadURL(requestedURL);
-        ::SysFreeString(requestedURL);
-        requestedURL = 0;
-    }
+    if (requestedURL.length())
+        loadURL(requestedURL.GetBSTR());
 
     // Main message loop:
 #if USE(CF)
@@ -475,22 +578,6 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
 
 exit:
     gPrintDelegate->Release();
-    if (gWebViewPrivate)
-        gWebViewPrivate->Release();
-    if (gInspector) {
-        gInspector->Release();
-        gInspector = 0;
-    }
-    gWebView->Release();
-    if (gPrefsPrivate) {
-        gPrefsPrivate->Release();
-        gPrefsPrivate = 0;
-    }
-    if (gStandardPreferences) {
-        gStandardPreferences->Release();
-        gStandardPreferences = 0;
-    }
-    tmpPreferences->Release();
 
     shutDownWebKit();
 #ifdef _CRTDBG_MAP_ALLOC
@@ -554,6 +641,8 @@ static void initDocStruct(DOCINFO* di, TCHAR* docname)
     di->lpszDocName = docname;
 }
 
+typedef _com_ptr_t<_com_IIID<IWebFramePrivate, &__uuidof(IWebFramePrivate)>> IWebFramePrivatePtr;
+
 void PrintView(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HDC printDC = getPrinterDC();
@@ -567,13 +656,13 @@ void PrintView(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return;
     }
 
-    IWebFrame* frame = 0;
-    IWebFramePrivate* framePrivate = 0;
-    if (FAILED(gWebView->mainFrame(&frame)))
-        goto exit;
+    IWebFramePtr frame;
+    IWebFramePrivatePtr framePrivate;
+    if (FAILED(gWebView->mainFrame(&frame.GetInterfacePtr())))
+        return;
 
-    if (FAILED(frame->QueryInterface(&framePrivate)))
-        goto exit;
+    if (FAILED(frame->QueryInterface(&framePrivate.GetInterfacePtr())))
+        return;
 
     framePrivate->setInPrintingMode(TRUE, printDC);
 
@@ -596,12 +685,6 @@ void PrintView(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     ::EndDoc(printDC);
     ::DeleteDC(printDC);
-
-exit:
-    if (frame)
-        frame->Release();
-    if (framePrivate)
-        framePrivate->Release();
 }
 
 static void ToggleMenuItem(HWND hWnd, UINT menuID)
@@ -660,12 +743,7 @@ static void LaunchInspector(HWND hwnd)
     if (!gWebViewPrivate)
         return;
 
-    if (gInspector) {
-        gInspector->Release();
-        gInspector = 0;
-    }
-
-    if (!SUCCEEDED(gWebViewPrivate->inspector(&gInspector)))
+    if (!SUCCEEDED(gWebViewPrivate->inspector(&gInspector.GetInterfacePtr())))
         return;
 
     gInspector->show();
@@ -681,6 +759,28 @@ static void NavigateForwardOrBackward(HWND hWnd, UINT menuID)
         gWebView->goForward(&wentBackOrForward);
     else
         gWebView->goBack(&wentBackOrForward);
+}
+
+static void NavigateToHistory(HWND hWnd, UINT menuID)
+{
+    if (!gWebView)
+        return;
+
+    int historyEntry = menuID - IDM_HISTORY_LINK0;
+    if (historyEntry > gHistoryItems.size())
+        return;
+
+    IWebHistoryItemPtr desiredHistoryItem = gHistoryItems[historyEntry];
+    if (!desiredHistoryItem)
+        return;
+
+    BOOL succeeded = FALSE;
+    gWebView->goToBackForwardItem(desiredHistoryItem, &succeeded);
+
+    _bstr_t frameURL;
+    desiredHistoryItem->URLString(frameURL.GetAddress());
+
+    ::SendMessage(hURLBarWnd, (UINT)WM_SETTEXT, 0, (LPARAM)frameURL.GetBSTR());
 }
 
 static const int dragBarHeight = 30;
@@ -710,6 +810,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND: {
         int wmId = LOWORD(wParam);
         int wmEvent = HIWORD(wParam);
+        if (wmId >= IDM_HISTORY_LINK0 && wmId <= IDM_HISTORY_LINK9) {
+            NavigateToHistory(hWnd, wmId);
+            break;
+        }
         // Parse the menu selections:
         switch (wmId) {
         case IDM_ABOUT:
@@ -773,9 +877,9 @@ LRESULT CALLBACK MyEditProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
                 *((LPWORD)strPtr) = MAX_URL_LENGTH; 
                 int strLen = SendMessage(hDlg, EM_GETLINE, 0, (LPARAM)strPtr);
 
-                BSTR bstr = SysAllocStringLen(strPtr, strLen);
+                strPtr[strLen] = 0;
+                _bstr_t bstr(strPtr);
                 loadURL(bstr);
-                SysFreeString(bstr);
 
                 return 0;
             } else
@@ -808,11 +912,6 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 static void loadURL(BSTR urlBStr)
 {
-    IWebFrame* frame = 0;
-    IWebMutableURLRequest* request = 0;
-
-    static BSTR methodBStr = SysAllocString(TEXT("GET"));
-
     if (urlBStr && urlBStr[0] && (PathFileExists(urlBStr) || PathIsUNC(urlBStr))) {
         TCHAR fileURL[INTERNET_MAX_URL_LENGTH];
         DWORD fileURLLength = sizeof(fileURL)/sizeof(fileURL[0]);
@@ -821,31 +920,28 @@ static void loadURL(BSTR urlBStr)
             SysReAllocString(&urlBStr, fileURL);
     }
 
-    HRESULT hr = gWebView->mainFrame(&frame);
+    IWebFramePtr frame;
+    HRESULT hr = gWebView->mainFrame(&frame.GetInterfacePtr());
     if (FAILED(hr))
-        goto exit;
+        return;
 
+    IWebMutableURLRequestPtr request;
     hr = WebKitCreateInstance(CLSID_WebMutableURLRequest, 0, IID_IWebMutableURLRequest, (void**)&request);
     if (FAILED(hr))
-        goto exit;
+        return;
 
     hr = request->initWithURL(urlBStr, WebURLRequestUseProtocolCachePolicy, 60);
     if (FAILED(hr))
-        goto exit;
+        return;
 
+    _bstr_t methodBStr(L"GET");
     hr = request->setHTTPMethod(methodBStr);
     if (FAILED(hr))
-        goto exit;
+        return;
 
     hr = frame->loadRequest(request);
     if (FAILED(hr))
-        goto exit;
+        return;
 
     SetFocus(gViewWindow);
-
-exit:
-    if (frame)
-        frame->Release();
-    if (request)
-        request->Release();
 }

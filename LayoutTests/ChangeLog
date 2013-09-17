@@ -1,3 +1,212 @@
+2013-09-17  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Flowed fixed element without its transformed parent positioned relative to viewport
+        https://bugs.webkit.org/show_bug.cgi?id=121478
+
+        Reviewed by Antti Koivisto.
+
+        A fixed positioned element collected into a named flow without its transformed parent should be positioned relative to the viewport instead of the transformed parent. Add a test for this behavior.
+
+        * fast/regions/flow-fixed-element-transformed-parent-expected.txt: Added.
+        * fast/regions/flow-fixed-element-transformed-parent.html: Added.
+
+2013-09-17  Ádám Kallai  <kadam@inf.u-szeged.hu>
+
+        [Qt] Unreviewed gardening. Skip failing tests.
+
+        * platform/qt-wk1/TestExpectations:
+
+2013-09-16  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: ARIA tablist is disabled, but VoiceOver does not speak the tabs as dimmed
+        https://bugs.webkit.org/show_bug.cgi?id=121408
+
+        Reviewed by Darin Adler.
+
+        * accessibility/aria-disabled-propagated-to-children-expected.txt: Added.
+        * accessibility/aria-disabled-propagated-to-children.html: Added.
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: svg/batik/masking/maskRegions.svg
+        https://bugs.webkit.org/show_bug.cgi?id=114120
+
+        Fails in the same way as many other batik tests.
+
+        * platform/mac/TestExpectations: Marking as flaky.
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        Marked a few tests that are too slow in debug builds, and frequently fail.
+
+        * platform/mac/TestExpectations:
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        svg/animations/smil-leak-*.svg tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=114280
+
+        The tests are still flaky. Ran out of ideas, so marking them as such and leaving them there.
+
+        * platform/mac/TestExpectations:
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        svg/animations/smil-leak-*.svg tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=114280
+
+        The tests were still flaky. Changed retry timeout from 0 to 100 ms as previously
+        suggested by Geoff.
+
+        * svg/animations/smil-leak-dynamically-added-element-instances.svg:
+        * svg/animations/smil-leak-element-instances-noBaseValRef.svg:
+        * svg/animations/smil-leak-element-instances.svg:
+        * svg/animations/smil-leak-elements.svg:
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: svg/batik/filters/feTile.svg
+        https://bugs.webkit.org/show_bug.cgi?id=114375
+
+        * platform/mac/TestExpectations: Marking as flaky. We already have a lot of these
+        batik tests marked as flaky, with similar symptoms.
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        svg/animations/smil-leak-*.svg tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=114280
+
+        Reviewed by Geoffrey Garen.
+
+        Try garbage collection multiple times, who knows which queues the deleted nodes
+        could still be in. Also, removed last week's experimental change to make 10x more
+        nodes to see how that affects the number of leaks (it didn't).
+
+        * svg/animations/smil-leak-dynamically-added-element-instances.svg:
+        * svg/animations/smil-leak-element-instances-noBaseValRef.svg:
+        * svg/animations/smil-leak-element-instances.svg:
+        * svg/animations/smil-leak-elements.svg:
+
+2013-09-16  Alexey Proskuryakov  <ap@apple.com>
+
+        http/tests/misc/submit-post-keygen.html is extremely slow on bots, often timing out
+        https://bugs.webkit.org/show_bug.cgi?id=121331
+
+        Marking as possibly failing too, because when DRT detects a timeout, run-webkit-tests
+        thinks that it's a failure.
+
+        * platform/mac/TestExpectations:
+
+2013-09-16  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Winding rule polygon issues
+        https://bugs.webkit.org/show_bug.cgi?id=120236
+
+        Reviewed by Dirk Schulze.
+
+        Verify that self-intersecting rectilinear shape-inside polygons work
+        correctly for the evenodd and nonzero fill rules.
+
+        The shape for tests 001 and 002 contains a loop (the vertices are
+        numbered in the figure):
+
+        0----4----1----5
+        |    |    |    |
+        |    3----2    |
+        7--------------6
+
+        When the fillRule is nonzero the entire rectangle is filled because
+        edges 7-0 and 3-4 wind in same direction. When fillRule is evenodd the
+        1-2-3-4 rectangle is not filled, leaving a U shape.
+
+        The shape for tests 003 and 004 is similar, but the adjacent vertical edges
+        wind in opposite directions. As a result both nonzero and evenodd fills
+        produce the same U shaped result.
+
+        0----2---1,5---6
+        |    |    |    |
+        |    3----4    |
+        8--------------7
+
+
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-001-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-001.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-002-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-002.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-003-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-003.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-004-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-complex-polygon-004.html: Added.
+
+2013-09-16  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r155851.
+        http://trac.webkit.org/changeset/155851
+        https://bugs.webkit.org/show_bug.cgi?id=121429
+
+        checkbox states should be exposed through AtkState, not
+        AtkValue (Requested by msanchez on #webkit).
+
+        * platform/mac/accessibility/mixed-checkbox-expected.txt: Renamed from LayoutTests/accessibility/mixed-checkbox-expected.txt.
+        * platform/mac/accessibility/mixed-checkbox.html: Renamed from LayoutTests/accessibility/mixed-checkbox.html.
+        * platform/mac/accessibility/native-vs-nonnative-checkboxes-expected.txt: Renamed from LayoutTests/accessibility/native-vs-nonnative-checkboxes-expected.txt.
+        * platform/mac/accessibility/native-vs-nonnative-checkboxes.html: Renamed from LayoutTests/accessibility/native-vs-nonnative-checkboxes.html.
+
+2013-09-16  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        [Qt] Unreviewed gardening. Skipping and rebase failing tests on Qt bots.
+
+        * platform/qt-wk1/TestExpectations:
+        * platform/qt-wk1/fast/events/before-unload-returnValue-expected.txt: Added r155367.
+        * platform/qt-wk1/inspector/console/command-line-api-expected.txt:
+        * platform/qt/TestExpectations:
+        * platform/qt/compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants-expected.txt: Added r155607.
+        * platform/qt/compositing/overflow/clipping-behaviour-change-is-not-propagated-to-descendants2-expected.txt: Added r155607.
+
+2013-09-16  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Extends atk value interface to return proper checkbox states
+        https://bugs.webkit.org/show_bug.cgi?id=121413
+
+        Reviewed by Mario Sanchez Prada.
+
+        Sharing mac tests with other ports (GTK/EFL).
+
+        * accessibility/mixed-checkbox-expected.txt: Renamed from LayoutTests/platform/mac/accessibility/mixed-checkbox-expected.txt.
+        * accessibility/mixed-checkbox.html: Renamed from LayoutTests/platform/mac/accessibility/mixed-checkbox.html.
+        * accessibility/native-vs-nonnative-checkboxes-expected.txt: Renamed from LayoutTests/platform/mac/accessibility/native-vs-nonnative-checkboxes-expected.txt.
+        * accessibility/native-vs-nonnative-checkboxes.html: Renamed from LayoutTests/platform/mac/accessibility/native-vs-nonnative-checkboxes.html.
+
+2013-09-16  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed gardening. Removed fail expectations for test in
+        the GTK & EFL ports, consistently passing after r155374.
+
+        * platform/efl/TestExpectations: Removed test.
+        * platform/gtk/TestExpectations: Ditto.
+
+2013-09-16  Wojciech Bielawski  <w.bielawski@samsung.com>
+
+        [WKTR] Add implementation of click() method of objects returned by eventSender.contextClick().
+        https://bugs.webkit.org/show_bug.cgi?id=98410
+
+        Reviewed by Darin Adler.
+
+        Unskipping tests related with click() method.
+
+        * platform/efl-wk2/TestExpectations: Corrected bug number for tests:
+         editing/pasteboard/can-read-in-copy-and-cut-events.html
+         editing/pasteboard/can-read-in-dragstart-event.html
+        * platform/gtk-wk2/TestExpectations:
+
+2013-09-15  Zalan Bujtas  <zalan@apple.com>
+
+        Attempt to fix a local flakiness on Lion.
+
+        Rubber stamped by Andreas Kling.
+
+        * fast/history/history-back-while-pdf-in-pagecache.html:
+
 2013-09-15  Frédéric Wang  <fred.wang@free.fr>
 
         Implement the mmultiscripts tag

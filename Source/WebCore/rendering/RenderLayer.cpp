@@ -1733,9 +1733,9 @@ void RenderLayer::beginTransparencyLayers(GraphicsContext* context, const Render
     }
 }
 
-void* RenderLayer::operator new(size_t sz, RenderArena* renderArena)
+void* RenderLayer::operator new(size_t sz, RenderArena& renderArena)
 {
-    return renderArena->allocate(sz);
+    return renderArena.allocate(sz);
 }
 
 void RenderLayer::operator delete(void* ptr, size_t sz)
@@ -1744,12 +1744,12 @@ void RenderLayer::operator delete(void* ptr, size_t sz)
     *(size_t *)ptr = sz;
 }
 
-void RenderLayer::destroy(RenderArena* renderArena)
+void RenderLayer::destroy(RenderArena& renderArena)
 {
     delete this;
 
     // Recover the size left there for us by operator delete and free the memory.
-    renderArena->free(*(size_t *)this, this);
+    renderArena.free(*(size_t *)this, this);
 }
 
 void RenderLayer::addChild(RenderLayer* child, RenderLayer* beforeChild)
@@ -6304,7 +6304,7 @@ void RenderLayer::updateScrollCornerStyle()
     RefPtr<RenderStyle> corner = renderer().hasOverflowClip() ? actualRenderer->getUncachedPseudoStyle(PseudoStyleRequest(SCROLLBAR_CORNER), actualRenderer->style()) : PassRefPtr<RenderStyle>(0);
     if (corner) {
         if (!m_scrollCorner) {
-            m_scrollCorner = RenderScrollbarPart::createAnonymous(&renderer().document());
+            m_scrollCorner = RenderScrollbarPart::createAnonymous(renderer().document());
             m_scrollCorner->setParent(&renderer());
         }
         m_scrollCorner->setStyle(corner.release());
@@ -6320,7 +6320,7 @@ void RenderLayer::updateResizerStyle()
     RefPtr<RenderStyle> resizer = renderer().hasOverflowClip() ? actualRenderer->getUncachedPseudoStyle(PseudoStyleRequest(RESIZER), actualRenderer->style()) : PassRefPtr<RenderStyle>(0);
     if (resizer) {
         if (!m_resizer) {
-            m_resizer = RenderScrollbarPart::createAnonymous(&renderer().document());
+            m_resizer = RenderScrollbarPart::createAnonymous(renderer().document());
             m_resizer->setParent(&renderer());
         }
         m_resizer->setStyle(resizer.release());
@@ -6338,7 +6338,7 @@ RenderLayer* RenderLayer::reflectionLayer() const
 void RenderLayer::createReflection()
 {
     ASSERT(!m_reflection);
-    m_reflection = RenderReplica::createAnonymous(&renderer().document());
+    m_reflection = RenderReplica::createAnonymous(renderer().document());
     m_reflection->setParent(&renderer()); // We create a 1-way connection.
 }
 

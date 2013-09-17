@@ -1,3 +1,124 @@
+2013-09-17  YuTeh Shen  <shenyute@hotmail.com>
+
+        BrowserMarshal.h build fail
+        https://bugs.webkit.org/show_bug.cgi?id=102938
+
+        Reviewed by Carlos Garcia Campos.
+
+        Fix variable name.
+
+        * MiniBrowser/gtk/GNUmakefile.am:
+
+2013-09-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Clean up WinLauncher by using smart pointers
+        https://bugs.webkit.org/show_bug.cgi?id=121467
+
+        Reviewed by Anders Carlsson.
+
+        * WinLauncher/PrintWebUIDelegate.cpp:
+        (PrintWebUIDelegate::webViewPrintingMarginRect): Switch to smart pointers.
+        * WinLauncher/WinLauncher.cpp:
+        (WinLauncherWebHost::updateAddressBar): Use _bstr_t and smart pointers.
+        (WinLauncherWebHost::didFailProvisionalLoadWithError): Ditto.
+        (showLastVisitedSites): Smart pointer updates.
+        (WinLauncherWebHost::didFinishLoadForFrame): Ditto.
+        (setToDefaultPreferences): Ditto.
+        (dllLauncherEntryPoint): Ditto.
+        (PrintView): Ditto.
+        (LaunchInspector): Ditto.
+        (NavigateToHistory): Ditto.
+        (MyEditProc): Ditto.
+        (loadURL): Ditto.
+
+2013-09-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Add rudimentary history to WinLauncher.
+        https://bugs.webkit.org/show_bug.cgi?id=121463
+
+        Reviewed by Anders Carlsson.
+
+        * WinLauncher/WinLauncher.cpp:
+        (updateMenuItemForHistoryItem): Added
+        (showLastVisitedSites): Added
+        (WinLauncherWebHost::didFinishLoadForFrame): Add history item once
+        a new page has been visited.
+        (dllLauncherEntryPoint): Deallocate history on exit.
+        (NavigateToHistory): Added
+        (WndProc): Add handler for history entries
+        * WinLauncher/WinLauncher.vcxproj/WinLauncherLib.rc: Add menu items to hold
+        up to 10 history slots.
+        * WinLauncher/WinLauncher.vcxproj/WinLauncherLibCommon.props: Link against
+        Windows utility library to allow use of _bstr_t type.
+        * WinLauncher/WinLauncher.vcxproj/WinLauncherLibResource.h: Add menu items
+        to hold up to 10 history slots.
+        * WinLauncher/stdafx.h: Add <comutil.h> to precompiled headers.
+
+2013-09-16  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK] Make symbol export filter more strict, and disable for dev/test builds
+        https://bugs.webkit.org/show_bug.cgi?id=120586
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am: moved GtkLauncher and documentation builds to their own
+        makefiles, so they can be included unconditionally.
+        * GtkLauncher/GNUmakefile.am: added.
+        * Scripts/webkitdirs.pm:
+        (runAutogenForAutotoolsProjectIfNecessary): always pass --enable-developer-mode
+        to configure, since we consider builds done through build-webkit to be development
+        and test builds.
+        * gtk/GNUmakefile.am: added.
+        * gtk/common.py: do not use the Scripts directory as a reference to the top path;
+        it's not necessary and it will not work now that the Scripts directory is not
+        shipped in the tarball.
+
+2013-09-16  Anders Carlsson  <andersca@apple.com>
+
+        WTF::Deque should work with move only types
+        https://bugs.webkit.org/show_bug.cgi?id=121446
+
+        Reviewed by Andreas Kling.
+
+        * TestWebKitAPI/Tests/WTF/Deque.cpp:
+        (TestWebKitAPI::TEST):
+        Add a test.
+
+2013-09-16  Wojciech Bielawski  <w.bielawski@samsung.com>
+
+        [WKTR] WebKitTestRunner's eventSender.contextClick() returns objects without implemented click() method.
+        https://bugs.webkit.org/show_bug.cgi?id=98410
+
+        Reviewed by Darin Adler.
+
+        Add implementation of click() method of objects returned by eventSender.contextClick().
+
+        * WebKitTestRunner/InjectedBundle/EventSendingController.cpp:
+        (MenuItemPrivateData):
+        (WTR::menuItemClickCallback):
+        (WTR::getMenuItemTitleCallback):
+        (WTR::staticMenuItemFinalize):
+        (WTR::getMenuItemClass):
+        (WTR::EventSendingController::contextClick):
+
+2013-09-15  Zan Dobersek  <zdobersek@igalia.com>
+
+        Make the GDB webkit.py script compatible with Python v3
+        https://bugs.webkit.org/show_bug.cgi?id=121395
+
+        Reviewed by Ryosuke Niwa.
+
+        GDB fails to load the printing helpers from the webkit.py script if Python v3 is used. To avoid that,
+        uses of xrange() in the script are replaced with range(), and the print statements are changed into
+        the print() function invocations.
+
+        * gdb/webkit.py:
+        (guess_string_length):
+        (ustring_to_string):
+        (lstring_to_string):
+        (WTFCStringPrinter.to_string):
+        (PrintPathToRootCommand.invoke):
+
 2013-09-15  Zan Dobersek  <zdobersek@igalia.com>
 
         [webkitpy] perf profiler attaches to WKTR after the WebProcess was launched

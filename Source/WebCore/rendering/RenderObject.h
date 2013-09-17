@@ -325,11 +325,11 @@ public:
     void showRenderTreeAndMark(const RenderObject* markedObject1 = 0, const char* markedLabel1 = 0, const RenderObject* markedObject2 = 0, const char* markedLabel2 = 0, int depth = 0) const;
 #endif
 
-    static RenderObject* createObject(Element*, RenderStyle*);
+    static RenderObject* createObject(Element&, RenderStyle&);
 
     // Overloaded new operator.  Derived classes must override operator new
     // in order to allocate out of the RenderArena.
-    void* operator new(size_t, RenderArena*);
+    void* operator new(size_t, RenderArena&);
 
     // Overridden to prevent the normal delete from being called.
     void operator delete(void*, size_t);
@@ -339,7 +339,7 @@ private:
     void* operator new(size_t) throw();
 
 public:
-    RenderArena* renderArena() const { return document().renderArena(); }
+    RenderArena& renderArena() const { return *document().renderArena(); }
 
     bool isPseudoElement() const { return node() && node()->isPseudoElement(); }
 
@@ -1023,14 +1023,14 @@ protected:
 
     void clearLayoutRootIfNeeded() const;
     virtual void willBeDestroyed();
-    void arenaDelete(RenderArena*, void* objectBase);
+    void arenaDelete(RenderArena&, void* objectBase);
 
     virtual bool canBeReplacedWithInlineRunIn() const;
 
     virtual void insertedIntoTree();
     virtual void willBeRemovedFromTree();
 
-    void setDocumentForAnonymous(Document* document) { ASSERT(isAnonymous()); m_node = document; }
+    void setDocumentForAnonymous(Document& document) { ASSERT(isAnonymous()); m_node = &document; }
 
 private:
     RenderFlowThread* locateFlowThreadContainingBlock() const;

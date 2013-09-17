@@ -499,6 +499,7 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/heap/GCThread.h \
 	Source/JavaScriptCore/heap/Heap.cpp \
 	Source/JavaScriptCore/heap/Heap.h \
+	Source/JavaScriptCore/heap/HeapIterationScope.h \
 	Source/JavaScriptCore/heap/HeapStatistics.cpp \
 	Source/JavaScriptCore/heap/HeapStatistics.h \
 	Source/JavaScriptCore/heap/JITStubRoutineSet.cpp \
@@ -885,6 +886,7 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/runtime/JSLock.cpp \
 	Source/JavaScriptCore/runtime/JSLock.h \
 	Source/JavaScriptCore/runtime/JSMap.cpp \
+	Source/JavaScriptCore/runtime/JSMap.h \
 	Source/JavaScriptCore/runtime/JSNotAnObject.cpp \
 	Source/JavaScriptCore/runtime/JSNotAnObject.h \
 	Source/JavaScriptCore/runtime/JSObject.cpp \

@@ -82,8 +82,8 @@ BEGIN_REGISTER_ANIMATED_PROPERTIES(SVGSVGElement)
     REGISTER_PARENT_ANIMATED_PROPERTIES(SVGGraphicsElement)
 END_REGISTER_ANIMATED_PROPERTIES
 
-inline SVGSVGElement::SVGSVGElement(const QualifiedName& tagName, Document* doc)
-    : SVGGraphicsElement(tagName, doc)
+inline SVGSVGElement::SVGSVGElement(const QualifiedName& tagName, Document& document)
+    : SVGGraphicsElement(tagName, document)
     , m_x(LengthModeWidth)
     , m_y(LengthModeHeight)
     , m_width(LengthModeWidth, "100%")
@@ -94,10 +94,10 @@ inline SVGSVGElement::SVGSVGElement(const QualifiedName& tagName, Document* doc)
 {
     ASSERT(hasTagName(SVGNames::svgTag));
     registerAnimatedPropertiesForSVGSVGElement();
-    doc->registerForPageCacheSuspensionCallbacks(this);
+    document.registerForPageCacheSuspensionCallbacks(this);
 }
 
-PassRefPtr<SVGSVGElement> SVGSVGElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<SVGSVGElement> SVGSVGElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new SVGSVGElement(tagName, document));
 }
@@ -480,7 +480,7 @@ bool SVGSVGElement::rendererIsNeeded(const RenderStyle& style)
     return StyledElement::rendererIsNeeded(style);
 }
 
-RenderObject* SVGSVGElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderObject* SVGSVGElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     if (isOutermostSVGSVGElement())
         return new (arena) RenderSVGRoot(*this);

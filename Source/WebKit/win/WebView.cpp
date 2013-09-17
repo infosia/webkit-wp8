@@ -28,7 +28,7 @@
 #include "config.h"
 #include "WebView.h"
 
-#include "CFDictionaryPropertyBag.h"
+#include "COMVariantSetter.h"
 #include "DOMCoreClasses.h"
 #include "FullscreenVideoController.h"
 #include "MarshallingHelpers.h"
@@ -396,6 +396,7 @@ WebView::WebView()
     , m_nextDisplayIsSynchronous(false)
     , m_lastSetCursor(0)
     , m_usesLayeredWindow(false)
+    , m_needsDisplay(false)
 {
     JSC::initializeThreading();
     WTF::initializeMainThread();
@@ -794,6 +795,7 @@ void WebView::repaint(const WebCore::IntRect& windowRect, bool contentChanged, b
         else
             ::UpdateWindow(m_viewWindow);
     }
+    m_needsDisplay = true;
 }
 
 void WebView::deleteBackingStore()
@@ -832,6 +834,8 @@ bool WebView::ensureBackingStore()
 
 void WebView::addToDirtyRegion(const IntRect& dirtyRect)
 {
+    m_needsDisplay = true;
+
     // FIXME: We want an assert here saying that the dirtyRect is inside the clienRect,
     // but it was being hit during our layout tests, and is being investigated in
     // http://webkit.org/b/29350.
@@ -850,6 +854,8 @@ void WebView::addToDirtyRegion(const IntRect& dirtyRect)
 
 void WebView::addToDirtyRegion(GDIObject<HRGN> newRegion)
 {
+    m_needsDisplay = true;
+
 #if USE(ACCELERATED_COMPOSITING)
     ASSERT(!isAcceleratedCompositing());
 #endif
@@ -869,6 +875,8 @@ void WebView::addToDirtyRegion(GDIObject<HRGN> newRegion)
 
 void WebView::scrollBackingStore(FrameView* frameView, int dx, int dy, const IntRect& scrollViewRect, const IntRect& clipRect)
 {
+    m_needsDisplay = true;
+
 #if USE(ACCELERATED_COMPOSITING)
     if (isAcceleratedCompositing()) {
         // FIXME: We should be doing something smarter here, like moving tiles around and painting
@@ -921,6 +929,8 @@ void WebView::scrollBackingStore(FrameView* frameView, int dx, int dy, const Int
 
 void WebView::sizeChanged(const IntSize& newSize)
 {
+    m_needsDisplay = true;
+
     deleteBackingStore();
 
     if (Frame* coreFrame = core(topLevelFrame()))
@@ -1027,6 +1037,8 @@ void WebView::updateBackingStore(FrameView* frameView, HDC dc, bool backingStore
         ::SelectObject(bitmapDC, oldBitmap);
 
     GdiFlush();
+
+    m_needsDisplay = true;
 }
 
 void WebView::performLayeredWindowUpdate()
@@ -1053,6 +1065,8 @@ void WebView::performLayeredWindowUpdate()
     ::UpdateLayeredWindow(m_viewWindow, hdcScreen, 0, &windowSize, hdcMem.get(), &layerPos, 0, &blendFunction, ULW_ALPHA);
 
     ::SelectObject(hdcMem.get(), hbmOld);
+
+    m_needsDisplay = false;
 }
 
 void WebView::paint(HDC dc, LPARAM options)
@@ -1207,6 +1221,8 @@ void WebView::paintIntoWindow(HDC bitmapDC, HDC windowDC, const IntRect& dirtyRe
     // in the destination DC.
     BitBlt(windowDC, dirtyRect.x(), dirtyRect.y(), dirtyRect.width(), dirtyRect.height(), bitmapDC,
            dirtyRect.x(), dirtyRect.y(), SRCCOPY);
+
+    m_needsDisplay = false;
 }
 
 void WebView::frameRect(RECT* rect)
@@ -2427,6 +2443,12 @@ LRESULT CALLBACK WebView::WebViewWndProc(HWND hWnd, UINT message, WPARAM wParam,
             break;
     }
 
+    if (webView->needsDisplay()) {
+        webView->paint(0, 0);
+        if (webView->usesLayeredWindow())
+            webView->performLayeredWindowUpdate();
+    }
+
     if (!handled)
         lResult = DefWindowProc(hWnd, message, wParam, lParam);
     
@@ -2842,26 +2864,19 @@ HRESULT WebView::notifyDidAddIcon(IWebNotification* notification)
     if (!propertyBag)
         return E_FAIL;
 
-    COMPtr<CFDictionaryPropertyBag> dictionaryPropertyBag;
-    hr = propertyBag->QueryInterface(&dictionaryPropertyBag);
+    COMVariant iconUserInfoURL;
+    hr = propertyBag->Read(WebIconDatabase::iconDatabaseNotificationUserInfoURLKey(), &iconUserInfoURL, 0);
     if (FAILED(hr))
         return hr;
 
-    CFDictionaryRef dictionary = dictionaryPropertyBag->dictionary();
-    if (!dictionary)
-        return E_FAIL;
-
-    CFTypeRef value = CFDictionaryGetValue(dictionary, WebIconDatabase::iconDatabaseNotificationUserInfoURLKey());
-    if (!value)
-        return E_FAIL;
-    if (CFGetTypeID(value) != CFStringGetTypeID())
+    if (iconUserInfoURL.variantType() != VT_BSTR)
         return E_FAIL;
 
     String mainFrameURL;
     if (m_mainFrame)
         mainFrameURL = m_mainFrame->url().string();
 
-    if (!mainFrameURL.isEmpty() && mainFrameURL == String((CFStringRef)value))
+    if (!mainFrameURL.isEmpty() && mainFrameURL == toString(V_BSTR(&iconUserInfoURL)))
         dispatchDidReceiveIconFromWebFrame(m_mainFrame);
 
     return hr;

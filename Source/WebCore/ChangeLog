@@ -1,3 +1,801 @@
+2013-09-17  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Do not include Returns tag in api doc for methods returning void
+        https://bugs.webkit.org/show_bug.cgi?id=121488
+
+        Reviewed by Philippe Normand.
+
+        * bindings/gobject/WebKitDOMCustom.h:
+        * bindings/scripts/CodeGeneratorGObject.pm:
+        (GenerateFunction): Only add Returns tag for methods not returning
+        void.
+        * bindings/scripts/test/GObject/WebKitDOMTestActiveDOMObject.h:
+        * bindings/scripts/test/GObject/WebKitDOMTestCustomNamedGetter.h:
+        * bindings/scripts/test/GObject/WebKitDOMTestInterface.h:
+        * bindings/scripts/test/GObject/WebKitDOMTestObj.h:
+        * bindings/scripts/test/GObject/WebKitDOMTestTypedefs.h:
+
+2013-09-17  Michael Brüning  <michael.bruning@digia.com>
+
+        Correct range used for Emoji checks.
+        https://bugs.webkit.org/show_bug.cgi?id=121486
+
+        Reviewed by Allan Sandfeld Jensen.
+
+        Found and reported by David Binderman via Qt bug tracker.
+
+        The check if a character was in the Emoji range always evaluated to
+        false due to the upper range limit being lower than the lower limit.
+
+        Changed the upper limit to the highest assigned character from the
+        "Transport and Map Symbols" (0x1F6C5) as that seems to have been the
+        intended upper range limit of this check.
+
+        * platform/graphics/Font.cpp:
+        (WebCore::Font::isCJKIdeographOrSymbol):
+
+2013-09-17  Antti Koivisto  <antti@apple.com>
+
+        Move text caret rect computation to root inline box
+        https://bugs.webkit.org/show_bug.cgi?id=121479
+
+        Reviewed by Andreas Kling.
+
+        For future code sharing.
+
+        * rendering/RenderText.cpp:
+        (WebCore::RenderText::localCaretRect):
+        * rendering/RootInlineBox.cpp:
+        (WebCore::RootInlineBox::computeCaretRect):
+        * rendering/RootInlineBox.h:
+
+2013-09-17  Alberto Garcia  <berto@igalia.com>
+
+        [GTK] Don't make the GObject DOM bindings API break test fatal
+        https://bugs.webkit.org/show_bug.cgi?id=121484
+
+        Reviewed by Carlos Garcia Campos.
+
+        The API varies depending on the compilation options, so this can
+        easily produce false positives.
+
+        Until we figure out a way to handle this situation we shouldn't
+        make this test fatal.
+
+        * bindings/scripts/gobject-run-api-break-test:
+        (check_api):
+
+2013-09-17  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Replace generatingNode() with generatingElement() for RenderRegion
+        https://bugs.webkit.org/show_bug.cgi?id=121469
+
+        Reviewed by Antti Koivisto.
+
+        The fix for https://bugs.webkit.org/show_bug.cgi?id=120397 replaced node() with generatingElement() for regions, but i forgot about replacing generatingNode() with generatingElement() in RenderNamedFlowThread::compareRenderRegions. This is needed in preparation for regions as anonymous blocks refactoring in https://bugs.webkit.org/show_bug.cgi?id=119135.
+
+        No new functionality introduced, therefore no new tests.
+
+        * rendering/RenderNamedFlowThread.cpp:
+        (WebCore::compareRenderRegions):
+
+2013-09-17  Andreas Kling  <akling@apple.com>
+
+        CTTE: Pass RenderArena around by reference.
+        <https://webkit.org/b/121470>
+
+        Reviewed by Antti Koivisto.
+
+        Pass the RenderArena around by reference in all render tree code.
+        This code will never be running without an arena.
+
+2013-09-17  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] GObject DOM symbols file is not generated for video related classes
+        https://bugs.webkit.org/show_bug.cgi?id=121476
+
+        Reviewed by Philippe Normand.
+
+        The problem is that we are using a different path for video
+        related header files in the Makefile, it's the same path in
+        practice, because we are just prepending ./ to the path, but the
+        rules that parse those paths don't expect the ./ at the beginning.
+
+        * bindings/gobject/GNUmakefile.am: Use the same path for video
+        related header files as the other paths in
+        webkitgtk_gdom_built_h_api.
+        * bindings/gobject/webkitdom.symbols: Updated to include the
+        symbols of the video related clases.
+
+2013-09-17  Andreas Kling  <akling@apple.com>
+
+        Remove ContextFeatures.
+        <https://webkit.org/b/121473>
+
+        Reviewed by Antti Koivisto.
+
+        This was only used by the chromium port, nobody implements ContextFeaturesClient.
+
+2013-09-17  Andreas Kling  <akling@apple.com>
+
+        Un-dork the build. :|
+
+2013-09-17  Andreas Kling  <akling@apple.com>
+
+        Unreviewed, fix clang warning when building without ENABLE(STYLE_SCOPED).
+
+2013-09-08  Andreas Kling  <akling@apple.com>
+
+        Move <style scoped> code behind ENABLE(STYLE_SCOPED)
+        <https://webkit.org/b/121018>
+
+        Reviewed by Darin Adler.
+
+        Move all the code for <style scoped> behind ENABLE(STYLE_SCOPED) guards.
+        It's not nice to clutter common codepaths with code that always executes
+        even though the feature is disabled at compile-time.
+
+2013-09-16  Sam Weinig  <sam@webkit.org>
+
+        CTTE: InputType should store its HTMLInputElement back pointer as a reference
+        https://bugs.webkit.org/show_bug.cgi?id=121466
+
+        Reviewed by Anders Carlsson.
+
+        - Converts InputType::create() and InputType::createText() to take a HTMLInputElement&
+          (as well as all the subclasses).
+        - Change InputType::element() to return an HTMLInputElement& and update all the callers.
+
+2013-09-16  Timothy Hatcher  <timothy@apple.com>
+
+        Make InspectorTimelineAgent use an enum for the record type instead of a string.
+
+        https://bugs.webkit.org/show_bug.cgi?id=121461
+
+        Reviewed by Joseph Pecoraro.
+
+        * inspector/Inspector.json:
+        * inspector/InspectorTimelineAgent.cpp:
+        (WebCore::InspectorTimelineAgent::addRecordToTimeline):
+        (WebCore::toProtocol):
+        (WebCore::InspectorTimelineAgent::innerAddRecordToTimeline):
+        (WebCore::InspectorTimelineAgent::didCompleteCurrentRecord):
+        (WebCore::InspectorTimelineAgent::appendRecord):
+        (WebCore::InspectorTimelineAgent::pushCurrentRecord):
+        * inspector/InspectorTimelineAgent.h:
+        (WebCore::InspectorTimelineAgent::TimelineRecordEntry::TimelineRecordEntry):
+
+2013-09-16  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Add RunLoop::isMain and use it in WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=121459
+
+        Reviewed by Anders Carlsson.
+
+        * WebCore.exp.in:
+        * platform/RunLoop.cpp:
+        (WebCore::RunLoop::isMain):
+        * platform/RunLoop.h:
+
+2013-09-16  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: ARIA tablist is disabled, but VoiceOver does not speak the tabs as dimmed
+        https://bugs.webkit.org/show_bug.cgi?id=121408
+
+        Reviewed by Darin Adler.
+
+        ARIA says that aria-disabled should propagate to children nodes.
+
+        Test: accessibility/aria-disabled-propagated-to-children.html
+
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::isEnabled):
+
+2013-09-16  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Element::createRenderer() should take references
+        https://bugs.webkit.org/show_bug.cgi?id=121449
+
+        Reviewed by Anders Carlsson.
+
+        *Many file elided*
+
+2013-09-16  Enrica Casucci  <enrica@apple.com>
+
+        iOS build fix after r155638.
+
+        Unreviewed.
+
+        * editing/Editor.cpp:
+
+2013-09-16  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Make FloatingObjects own it's FloatingObject instances
+        https://bugs.webkit.org/show_bug.cgi?id=121323
+
+        Reviewed by Alexandru Chiculita.
+
+        As part of decoupling FloatingObjects from RenderBlock, change
+        FloatingObjects to properly manage the FloatingObject instances it
+        contains.
+
+        No new tests, no behavior change.
+
+        * rendering/FloatingObjects.cpp:
+        (WebCore::FloatingObject::FloatingObject): Make the constructors
+        private so that FloatingObjects can only be created with an OwnPtr.
+        Also make a RenderBox required to create a FloatingObject.
+        (WebCore::FloatingObject::create): Factory method to create a vanilla
+        FloatingObject.
+        (WebCore::FloatingObject::copyToNewContainer): Factory method to copy
+        an existing FloatingObject in the case it is overhanging or intruding
+        and needs to be copied to the block that it overhangs or intrudes
+        into.
+        (WebCore::FloatingObject::unsafeClone): Rename this method so it is
+        more obvious that it really shouldn't be used, and to make it more
+        obvious that one should use the copyToNewContainer method for all
+        normal FloatingObject copies.
+        (WebCore::FloatingObjects::clear): Delete all the FloatingObjects in
+        the set before clearing it.
+        (WebCore::FloatingObjects::moveAllToFloatInfoMap): Move all of the
+        FloatingObjects in the set to a RendererToFloatInfoMap. This is used
+        in RenderBlockFlow::clearFloats to when it is readding floats after
+        clearing the set.
+        (WebCore::FloatingObjects::add): Take an OwnPtr.
+        (WebCore::FloatingObjects::remove): Delete the removed FloatingObject.
+        * rendering/FloatingObjects.h: Remove FloatingObject::setRenderer(),
+        since the RenderBox must be set in the constructor.
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::moveAllChildrenIncludingFloatsTo): Rename clone
+        to unsafeClone.
+        (WebCore::RenderBlock::removeFloatingObjects): Don't delete anymore,
+        since clear does it.
+        (WebCore::RenderBlock::insertFloatingObject): Handle OwnPtr properly.
+        (WebCore::RenderBlock::removeFloatingObject): Don't delete anymore,
+        since remove does it.
+        (WebCore::RenderBlock::removeFloatingObjectsBelow): Ditto.
+        (WebCore::RenderBlock::addOverhangingFloats): Use copyToNewContainer
+        and OwnPtr.
+        (WebCore::RenderBlock::addIntrudingFloats): Ditto.
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::clearFloats): Use exportToFloatInfoMap.
+
+2013-09-16  Hugo Parente Lima  <hugo.lima@openbossa.org>
+
+        Fix creation of embedded JS and CSS files on cmake based ports.
+        https://bugs.webkit.org/show_bug.cgi?id=121448
+
+        Reviewed by Joseph Pecoraro.
+
+        Just a build fix, layout tests already test this issue.
+
+        * CMakeLists.txt:
+
+2013-09-16  Anders Carlsson  <andersca@apple.com>
+
+        MessageQueue should use a Deque of OwnPtrs
+        https://bugs.webkit.org/show_bug.cgi?id=121450
+
+        Reviewed by Andreas Kling.
+
+        * Modules/webdatabase/DatabaseThread.cpp:
+        (WebCore::SameDatabasePredicate::operator()):
+        * dom/default/PlatformMessagePortChannel.h:
+        (WebCore::PlatformMessagePortChannel::MessagePortQueue::tryGetMessage):
+        * fileapi/FileThread.cpp:
+        (WebCore::SameInstancePredicate::operator()):
+        * workers/WorkerRunLoop.cpp:
+        (WebCore::ModePredicate::operator()):
+
+2013-09-16  Andreas Kling  <akling@apple.com>
+
+        CTTE: FrameTree::top() should return a reference.
+        <https://webkit.org/b/121445>
+
+        Reviewed by Anders Carlsson.
+
+        There's always a top frame in the tree.
+
+2013-09-16  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed, fixing GObject bindings tests after r155850 by adding the *.symbols files that are now also generated.
+
+        * bindings/scripts/test/GObject/WebKitDOMTestActiveDOMObject.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestCallback.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestCustomNamedGetter.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestEventConstructor.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestEventTarget.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestException.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestInterface.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestMediaQueryListListener.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestNamedConstructor.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestNode.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestObj.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestOverloadedConstructors.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestSerializedScriptValueInterface.symbols: Added.
+        * bindings/scripts/test/GObject/WebKitDOMTestTypedefs.symbols: Added.
+
+2013-09-16  Daniel Bates  <dabates@apple.com>
+
+        Fix the build following <http://trac.webkit.org/changeset/155591>
+        (https://bugs.webkit.org/show_bug.cgi?id=121200)
+
+        Fix the build for ports that enable PLUGIN_PROXY_FOR_VIDEO, such as iOS WebKit.
+
+        * html/shadow/MediaControlElements.cpp:
+        (WebCore::MediaControlTextTrackContainerElement::updateSizes): Substitute isWidget() for isRenderWidget()
+        as the latter is undefined.
+        * rendering/RenderLayerCompositor.cpp:
+        (WebCore::RenderLayerCompositor::requiresCompositingForVideo): Ditto.
+
+2013-09-16  Daniel Bates  <dabates@apple.com>
+
+        Build fix following <https://trac.webkit.org/r154358>
+        (https://bugs.webkit.org/show_bug.cgi?id=120078)
+
+        Fix the build for ports that enable PLUGIN_PROXY_FOR_VIDEO, such as iOS WebKit.
+
+        * html/HTMLMediaElement.cpp:
+        (WebCore::HTMLMediaElement::rendererIsNeeded): Substitute "style" for "context".
+
+2013-09-16  Timothy Hatcher  <timothy@apple.com>
+
+        Make InspectorTypeBuilder generate better enums in C++.
+
+        https://bugs.webkit.org/show_bug.cgi?id=121440
+
+        Reviewed by Joseph Pecoraro.
+
+        * inspector/CodeGeneratorInspector.py:
+        (fix_camel_case): Add more abbrivations.
+        (TypeBindings.create_type_declaration_.EnumBinding.get_code_generator.CodeGenerator.generate_type_builder): Use fix_camel_case
+        * inspector/ConsoleMessage.cpp:
+        (WebCore::messageSourceValue):
+        (WebCore::messageTypeValue):
+        * inspector/InspectorCSSAgent.cpp:
+        (WebCore::InspectorCSSAgent::detectOrigin):
+        * inspector/InspectorRuntimeAgent.cpp:
+        (WebCore::InspectorRuntimeAgent::parse):
+        * inspector/InspectorStyleSheet.cpp:
+        (WebCore::InspectorStyleSheet::resourceStyleSheetText):
+        * inspector/InspectorStyleSheet.h:
+        (WebCore::InspectorStyleSheet::canBind):
+
+2013-09-16  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        MediaStream API: Storing the constraints in MediaStreamSource
+        https://bugs.webkit.org/show_bug.cgi?id=120882
+
+        based on: https://chromium.googlesource.com/chromium/blink/+/04ac7655b54ae98f55774afde3f8e92b6c6302e6
+
+        Reviewed by Eric Carlson.
+
+        No new tests needed.
+
+        * Modules/mediastream/UserMediaRequest.cpp:
+        (WebCore::UserMediaRequest::succeed):
+        * platform/mediastream/MediaStreamSource.h:
+        (WebCore::MediaStreamSource::setConstraints):
+        (WebCore::MediaStreamSource::constraints):
+
+2013-09-16  Andreas Kling  <akling@apple.com>
+
+        Rebaseline bindings tests after Sam's Document& changes.
+
+2013-09-16  Andreas Kling  <akling@apple.com>
+
+        Destroying a Document's render tree shouldn't make it impossible to recreate.
+        <https://webkit.org/b/121437>
+
+        Reviewed by Antti Koivisto.
+
+        Rename Document::detach() to destroyRenderTree() and stop automatically
+        disconnecting Document from its Frame after the deforestation.
+
+        Added Document::disconnectFromFrame() and do that after every call to
+        destroyRenderTree() that we currently have.
+
+        This change doesn't alter any behavior on its own, but is a step towards
+        being able to destroy and rebuild the render tree.
+
+2013-09-16  Brent Fulgham  <bfulgham@apple.com>
+
+        Unreviewed warning correction. Avoid uninitialized renderer.
+
+        * css/CSSComputedStyleDeclaration.cpp:
+        (WebCore::ComputedStyleExtractor::propertyValue): Renderer can be uninitialized.
+
+2013-09-16  Brent Fulgham  <bfulgham@apple.com>
+
+        Unreviewed warning correction.
+
+        * css/CSSParser.cpp:
+        (WebCore::CSSParser::parseFilter): Don't use 'value' as the input argument
+        to the method, and the internal loop variable for the parser.
+
+2013-09-16  peavo@outlook.com  <peavo@outlook.com>
+
+        [Win] Compile errors in WebCore derived sources.
+        https://bugs.webkit.org/show_bug.cgi?id=121420
+
+        Reviewed by Brent Fulgham.
+
+        * dom/make_names.pl:
+        (printNamesCppFile): Added const modifier.
+        (printDefinitions): Use C style cast.
+
+2013-09-16  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Winding rule polygon issues
+        https://bugs.webkit.org/show_bug.cgi?id=120236
+
+        Reviewed by Dirk Schulze.
+
+        This patch corrects some of the problems with shape-inside and
+        self-intersecting polygons and eliminates the layout flashing behavior
+        that prompted the original bug report. The FloatPolygon::contains()
+        method now respoects the polygon's fillRule and the PolygonShape code
+        used to find shape-inside intervals for the top and bottom of a line
+        now also handles fillRule correctly.
+
+        Tests: fast/shapes/shape-inside/shape-inside-complex-polygon-001.html
+               fast/shapes/shape-inside/shape-inside-complex-polygon-002.html
+               fast/shapes/shape-inside/shape-inside-complex-polygon-003.html
+               fast/shapes/shape-inside/shape-inside-complex-polygon-004.html
+
+        * platform/graphics/FloatPolygon.cpp:
+        (WebCore::FloatPolygon::containsEvenOdd):
+        (WebCore::FloatPolygon::containsNonZero):
+        (WebCore::FloatPolygon::contains):
+        * platform/graphics/FloatPolygon.h:
+        * rendering/shapes/PolygonShape.cpp:
+        (WebCore::computeXIntersections):
+
+2013-09-16  Andreas Kling  <akling@apple.com>
+
+        AXObjectCache::m_document should be a reference.
+        <https://webkit.org/b/121425>
+
+        Reviewed by Antti Koivisto.
+
+        AXObjectCache is always owned by a Document so remove the uncertainty
+        by turning its m_document into a Document&.
+
+2013-09-16  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r155851.
+        http://trac.webkit.org/changeset/155851
+        https://bugs.webkit.org/show_bug.cgi?id=121429
+
+        checkbox states should be exposed through AtkState, not
+        AtkValue (Requested by msanchez on #webkit).
+
+        * accessibility/atk/WebKitAccessibleInterfaceValue.cpp:
+        (webkitAccessibleValueGetCurrentValue):
+        * accessibility/atk/WebKitAccessibleWrapperAtk.cpp:
+        (getInterfaceMaskFromObject):
+
+2013-09-16  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Extends atk value interface to return proper checkbox states
+        https://bugs.webkit.org/show_bug.cgi?id=121413
+
+        Reviewed by Mario Sanchez Prada.
+
+        Tests: accessibility/mixed-checkbox.html
+               accessibility/native-vs-nonnative-checkboxes.html
+
+        * accessibility/atk/WebKitAccessibleInterfaceValue.cpp:
+        (webkitAccessibleValueValueForAccessibilityObject):
+        (webkitAccessibleValueGetCurrentValue):
+        * accessibility/atk/WebKitAccessibleWrapperAtk.cpp:
+        (getInterfaceMaskFromObject):
+
+2013-09-16  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Check DOM bindings API compatibility while building
+        https://bugs.webkit.org/show_bug.cgi?id=101224
+
+        Reviewed by Gustavo Noronha Silva.
+
+        A .symbols file is now generated for every DOM binding public API
+        object. It contains the signature of all public methods. We keep a
+        single file with the signature of all public methods in the source
+        tree. When DOM bindings are generated, a new symbols file is
+        created concatenating all .symbols files generated and it's
+        compared with the symbols file in the source tree using a script
+        that checks if the changes are API compatible or not. In case of
+        API break the build finishes showing the differences found in the
+        symbol files. If API compatible changes are found, the diff is
+        shown in stdout, suggesting to run the gobject-run-api-break-test
+        with the --reset-results option to update the symbols file, and
+        the build continues. If there aren't API changes the build
+        continues silently.
+
+        * GNUmakefile.am:
+        * bindings/gobject/GNUmakefile.am:
+        * bindings/gobject/WebKitDOMCustom.symbols: Added.
+        * bindings/gobject/WebKitDOMEventTarget.symbols: Added.
+        * bindings/gobject/WebKitDOMObject.symbols: Added.
+        * bindings/gobject/webkitdom.symbols: Added.
+        * bindings/scripts/CodeGeneratorGObject.pm:
+        (GenerateFunction):
+        (WriteData):
+        * bindings/scripts/gobject-run-api-break-test: Added.
+        (check_api):
+
+2013-09-16  Andreas Kling  <akling@apple.com>
+
+        Devirtualize Document::detach().
+        <https://webkit.org/b/121418>
+
+        Reviewed by Antti Koivisto.
+
+        The only override was in PluginDocument which needs to decouple itself
+        from the plugin element at the start of detach.
+
+        Added PluginDocument::detachFromPluginElement() and call it from detach().
+
+2013-09-15  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderCombineText always has a Text node.
+        <https://webkit.org/b/121411>
+
+        Reviewed by Antti Koivisto.
+
+        This renderer is never anonymous and always has a corresponding Text node.
+        Replaced node() with a textNode() reference getter.
+
+2013-09-15  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderSVGInlineText always has a Text node.
+        <https://webkit.org/b/121409>
+
+        Reviewed by Antti Koivisto.
+
+        This renderer is never anonymous and always has a corresponding Text node.
+        Replaced node() with a textNode() reference getter.
+
+        Only one null check was harmed in the making of this patch.
+
+2013-09-15  Darin Adler  <darin@apple.com>
+
+        Try to fix the Windows build.
+
+        * dom/make_names.pl: The static_cast here was running into const-correctness
+        issues, so for now change it back to a C-style cast.
+
+2013-09-15  Santosh Mahto  <santosh.ma@samsung.com>
+
+        Adding "explicit" keyword in rendering related constructors
+        https://bugs.webkit.org/show_bug.cgi?id=121398
+
+        Reviewed by Andreas Kling.
+
+        Adding explicit in below constructor.
+        All files belong to Source/WebCore/rendering/ path.
+
+        * rendering/AutoTableLayout.h:
+        * rendering/ClipPathOperation.h:
+        (WebCore::ClipPathOperation::ClipPathOperation):
+        (WebCore::ShapeClipPathOperation::ShapeClipPathOperation):
+        * rendering/FixedTableLayout.h:
+        * rendering/FloatingObjects.h:
+        (WebCore::FloatingObject::FloatingObject):
+        * rendering/FlowThreadController.h:
+        * rendering/HitTestResult.h:
+        * rendering/ImageQualityController.h:
+        * rendering/InlineBox.h:
+        (WebCore::InlineBox::InlineBox):
+        (WebCore::InlineBox::InlineBoxBitfields::InlineBoxBitfields):
+        * rendering/InlineFlowBox.h:
+        (WebCore::InlineFlowBox::InlineFlowBox):
+        * rendering/InlineTextBox.h:
+        (WebCore::InlineTextBox::InlineTextBox):
+        * rendering/LayoutState.h:
+        * rendering/LogicalSelectionOffsetCaches.h:
+        (WebCore::LogicalSelectionOffsetCaches::LogicalSelectionOffsetCaches):
+        * rendering/RenderBoxModelObject.h:
+        * rendering/RenderFlexibleBox.h:
+        * rendering/RenderFrameSet.h:
+        (WebCore::FrameEdgeInfo::FrameEdgeInfo):
+        * rendering/RenderGeometryMap.h:
+        * rendering/RenderImage.h:
+        * rendering/RenderImageResourceStyleImage.h:
+        * rendering/RenderLayerFilterInfo.h:
+        * rendering/RenderMultiColumnSet.h:
+        * rendering/RenderNamedFlowThread.h:
+        * rendering/RenderReplaced.h:
+        * rendering/RenderSearchField.h:
+        * rendering/RenderSelectionInfo.h:
+        (WebCore::RenderSelectionInfoBase::RenderSelectionInfoBase):
+        (WebCore::RenderBlockSelectionInfo::RenderBlockSelectionInfo):
+        * rendering/RenderTableSection.h:
+        * rendering/RenderTextControl.h:
+        * rendering/RenderTextControlSingleLine.h:
+        * rendering/TrailingFloatsRootInlineBox.h:
+
+2013-09-15  Gustavo Noronha Silva  <gns@gnome.org>
+
+        Unreviewed make distcheck fix.
+
+        * GNUmakefile.am:
+        * GNUmakefile.list.am:
+
+2013-09-15  Patrick Gansterer  <paroga@webkit.org>
+
+        [WIN] Fix build without precompiled header after r154146.
+
+        * platform/win/WebCoreBundleWin.h:
+
+2013-09-15  Andreas Kling  <akling@apple.com>
+
+        CTTE: EllipsisBox owner renderer is always a RenderBlock.
+        <https://webkit.org/b/121402>
+
+        Reviewed by Antti Koivisto.
+
+        Let the constructor reflect this. Also out-of-line it because reasons.
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        CTTE: RenderObject's createAnonymous() and setDocumentForAnonymous() should take Document references
+        https://bugs.webkit.org/show_bug.cgi?id=121400
+
+        Reviewed by Andreas Kling.
+
+        The Document used for anonymous renderers is never null.
+
+        * dom/Document.cpp:
+        * page/FrameView.cpp:
+        * rendering/FlowThreadController.cpp:
+        * rendering/RenderBlock.cpp:
+        * rendering/RenderBlock.h:
+        * rendering/RenderFlexibleBox.cpp:
+        * rendering/RenderFlexibleBox.h:
+        * rendering/RenderFullScreen.cpp:
+        * rendering/RenderFullScreen.h:
+        * rendering/RenderImage.cpp:
+        * rendering/RenderInline.cpp:
+        * rendering/RenderInline.h:
+        * rendering/RenderLayer.cpp:
+        * rendering/RenderListMarker.cpp:
+        * rendering/RenderMultiColumnBlock.cpp:
+        * rendering/RenderMultiColumnFlowThread.cpp:
+        * rendering/RenderMultiColumnFlowThread.h:
+        * rendering/RenderMultiColumnSet.cpp:
+        * rendering/RenderMultiColumnSet.h:
+        * rendering/RenderNamedFlowThread.cpp:
+        * rendering/RenderNamedFlowThread.h:
+        * rendering/RenderObject.h:
+        * rendering/RenderReplica.cpp:
+        * rendering/RenderReplica.h:
+        * rendering/RenderRuby.cpp:
+        * rendering/RenderRubyBase.cpp:
+        * rendering/RenderRubyBase.h:
+        * rendering/RenderRubyRun.cpp:
+        * rendering/RenderScrollbar.cpp:
+        * rendering/RenderScrollbarPart.cpp:
+        * rendering/RenderScrollbarPart.h:
+        * rendering/RenderTable.cpp:
+        * rendering/RenderTableCell.cpp:
+        * rendering/RenderTableCell.h:
+        * rendering/RenderTableRow.cpp:
+        * rendering/RenderTableRow.h:
+        * rendering/RenderTableSection.cpp:
+        * rendering/RenderText.cpp:
+        * rendering/RenderView.cpp:
+        * rendering/RenderView.h:
+        * rendering/mathml/RenderMathMLBlock.cpp:
+        * rendering/mathml/RenderMathMLRow.cpp:
+        * rendering/mathml/RenderMathMLScripts.cpp:
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        CTTE: ContentData::createRenderer() should take references
+        https://bugs.webkit.org/show_bug.cgi?id=121399
+
+        Reviewed by Andreas Kling.
+
+        - Convert createRenderer(Document*, RenderStyle*) to createRenderer(Document&, RenderStyle&)
+        - Do a drive by final-ing of ContentData derived classes.
+
+        * dom/PseudoElement.cpp:
+        (WebCore::PseudoElement::didAttachRenderers):
+        * rendering/RenderImage.cpp:
+        (WebCore::RenderImage::createAnonymous):
+        * rendering/RenderImage.h:
+        * rendering/style/ContentData.cpp:
+        (WebCore::ImageContentData::createRenderer):
+        (WebCore::TextContentData::createRenderer):
+        (WebCore::CounterContentData::createRenderer):
+        (WebCore::QuoteContentData::createRenderer):
+        * rendering/style/ContentData.h:
+
+2013-09-15  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderFrameSet is never anonymous.
+        <https://webkit.org/b/121396>
+
+        Reviewed by Antti Koivisto.
+
+        This renderer is never anonymous, and always has a corresponding HTMLFrameSetElement.
+        Replaced element() with a frameSetElement().
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Node subclasses should take a Document by reference in their constructor (Part 10)
+        https://bugs.webkit.org/show_bug.cgi?id=121397
+
+        Reviewed by Andreas Kling.
+
+        Convert the bindings code to pass a Document reference for named constructors.
+
+        * bindings/js/JSImageConstructor.cpp:
+        (WebCore::constructImage):
+        * bindings/scripts/CodeGeneratorJS.pm:
+        (GenerateConstructorDefinition):
+        * html/HTMLAudioElement.cpp:
+        (WebCore::HTMLAudioElement::createForJSConstructor):
+        * html/HTMLAudioElement.h:
+        * html/HTMLImageElement.cpp:
+        (WebCore::HTMLImageElement::createForJSConstructor):
+        * html/HTMLImageElement.h:
+        * html/HTMLOptionElement.cpp:
+        (WebCore::HTMLOptionElement::createForJSConstructor):
+        * html/HTMLOptionElement.h:
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Node subclasses should take a Document by reference in their constructor (Part 9)
+        https://bugs.webkit.org/show_bug.cgi?id=121394
+
+        Reviewed by Andreas Kling.
+
+        Remove the 'constructorTakesDocumentReference' property. It is the default now.
+
+        * dom/make_names.pl:
+        Always use a Document reference.
+
+        * html/HTMLTagNames.in:
+        * mathml/mathtags.in:
+        * svg/svgtags.in:
+        Remove the 'constructorTakesDocumentReference' property.
+
+2013-09-15  Andreas Kling  <akling@apple.com>
+
+        RenderWidget doesn't need to cache a FrameView pointer.
+        <https://webkit.org/b/121158>
+
+        Reviewed by Antti Koivisto.
+
+        The FrameView can be found through RenderObject::view().frameView().
+        This way also gets you a reference, so no need for null-checking.
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Node subclasses should take a Document by reference in their constructor (Part 8)
+        https://bugs.webkit.org/show_bug.cgi?id=121393
+
+        Reviewed by Andreas Kling.
+
+        Converts the following to take a Document reference:
+            - All of SVG
+
+2013-09-15  Sam Weinig  <sam@webkit.org>
+
+        [CTTE] Node subclasses should take a Document by reference in their constructor (Part 7)
+        https://bugs.webkit.org/show_bug.cgi?id=121389
+
+        Reviewed by Andreas Kling.
+
+        Converts the following to take a Document reference:
+            - Element
+            - MathMLElement
+            - MathMLInlineContainerElement
+            - MathMLMathElement
+            - MathMLTextElement
+
 2013-09-15  Andreas Kling  <akling@apple.com>
 
         CTTE: RenderMedia and RenderVideo are never anonymous.

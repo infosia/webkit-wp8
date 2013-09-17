@@ -34,7 +34,7 @@ class RootInlineBox;
 // some RenderObject (i.e., it represents a portion of that RenderObject).
 class InlineBox {
 public:
-    InlineBox(RenderObject& renderer)
+    explicit InlineBox(RenderObject& renderer)
         : m_next(0)
         , m_prev(0)
         , m_parent(0)
@@ -63,9 +63,9 @@ public:
 
     virtual ~InlineBox();
 
-    virtual void destroy(RenderArena*);
+    virtual void destroy(RenderArena&);
 
-    virtual void deleteLine(RenderArena*);
+    virtual void deleteLine(RenderArena&);
     virtual void extractLine();
     virtual void attachLine();
 
@@ -98,7 +98,7 @@ public:
     virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, LayoutUnit lineTop, LayoutUnit lineBottom);
 
     // Overloaded new operator.
-    void* operator new(size_t, RenderArena*);
+    void* operator new(size_t, RenderArena&);
 
     // Overridden to prevent the normal delete from being called.
     void operator delete(void*, size_t);
@@ -323,7 +323,7 @@ public:
 
     class InlineBoxBitfields {
     public:
-        InlineBoxBitfields(bool firstLine = false, bool constructed = false, bool dirty = false, bool extracted = false, bool isHorizontal = true)
+        explicit InlineBoxBitfields(bool firstLine = false, bool constructed = false, bool dirty = false, bool extracted = false, bool isHorizontal = true)
             : m_firstLine(firstLine)
             , m_constructed(constructed)
             , m_bidiEmbeddingLevel(0)

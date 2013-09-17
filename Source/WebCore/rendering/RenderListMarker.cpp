@@ -1135,8 +1135,8 @@ RenderListMarker::~RenderListMarker()
 RenderListMarker* RenderListMarker::createAnonymous(RenderListItem& listItem)
 {
     Document& document = listItem.document();
-    RenderListMarker* renderer = new (document.renderArena()) RenderListMarker(listItem);
-    renderer->setDocumentForAnonymous(&document);
+    RenderListMarker* renderer = new (*document.renderArena()) RenderListMarker(listItem);
+    renderer->setDocumentForAnonymous(document);
     return renderer;
 }
 

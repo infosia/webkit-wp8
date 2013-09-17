@@ -992,6 +992,8 @@ webkit.org/b/85408 svg/batik/text/textLength.svg [ Failure Pass ]
 webkit.org/b/85408 svg/batik/text/textEffect.svg [ Pass Failure ]
 webkit.org/b/85408 svg/batik/paints/patternRegions-positioned-objects.svg [ Pass Failure ]
 webkit.org/b/85408 svg/batik/text/textDecoration.svg [ Pass Failure ]
+webkit.org/b/114120 svg/batik/masking/maskRegions.svg [ Pass Failure ]
+webkit.org/b/114375 svg/batik/filters/feTile.svg [ Pass Failure ]
 
 webkit.org/b/99893 svg/animations/mozilla/animateMotion-mpath-targetChange-1.svg [ ImageOnlyFailure ]
 
@@ -1204,7 +1206,7 @@ webkit.org/b/112176 fast/css/sticky/sticky-both-sides.html [ ImageOnlyFailure Pa
 webkit.org/b/76364 fast/css/lang-mapped-to-webkit-locale-dynamic.xhtml [ Pass Failure ]
 
 # Always very slow, frequently timing out (only on bots, not locally).
-webkit.org/b/121331 http/tests/misc/submit-post-keygen.html [ Pass Timeout ]
+webkit.org/b/121331 http/tests/misc/submit-post-keygen.html [ Pass Failure Timeout ]
 
 # Feature not implemented
 webkit.org/b/91611 media/media-higher-prio-audio-stream.html [ Skip ]
@@ -1312,3 +1314,12 @@ webkit.org/b/121053 fast/history/go-back-to-iframe-with-plugin.html [ Crash Time
 
 webkit.org/b/121343 http/tests/inspector/network/network-size-chunked.html [ Failure ]
 webkit.org/b/121343 http/tests/inspector/network/network-size-sync.html [ Failure ]
+
+webkit.org/b/114280 svg/animations/smil-leak-dynamically-added-element-instances.svg [ Pass Failure ]
+webkit.org/b/114280 svg/animations/smil-leak-element-instances-noBaseValRef.svg [ Pass Failure ]
+webkit.org/b/114280 svg/animations/smil-leak-element-instances.svg [ Pass Failure ]
+webkit.org/b/114280 svg/animations/smil-leak-elements.svg [ Pass Failure ]
+
+webkit.org/b/90363 [ Debug ] fast/overflow/lots-of-sibling-inline-boxes.html [ Failure Pass Timeout ]
+webkit.org/b/104511 [ Debug ] inspector/elements/edit-dom-actions.html [ Failure Pass Timeout ]
+webkit.org/b/121452 [ Debug ] fast/frames/lots-of-objects.html [ Failure Pass Timeout ]

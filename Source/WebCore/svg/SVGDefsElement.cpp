@@ -36,14 +36,14 @@ BEGIN_REGISTER_ANIMATED_PROPERTIES(SVGDefsElement)
     REGISTER_PARENT_ANIMATED_PROPERTIES(SVGGraphicsElement)
 END_REGISTER_ANIMATED_PROPERTIES
 
-inline SVGDefsElement::SVGDefsElement(const QualifiedName& tagName, Document* document)
+inline SVGDefsElement::SVGDefsElement(const QualifiedName& tagName, Document& document)
     : SVGGraphicsElement(tagName, document)
 {
     ASSERT(hasTagName(SVGNames::defsTag));
     registerAnimatedPropertiesForSVGDefsElement();
 }
 
-PassRefPtr<SVGDefsElement> SVGDefsElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<SVGDefsElement> SVGDefsElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new SVGDefsElement(tagName, document));
 }
@@ -53,7 +53,7 @@ bool SVGDefsElement::isValid() const
     return SVGTests::isValid();
 }
 
-RenderObject* SVGDefsElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderObject* SVGDefsElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     return new (arena) RenderSVGHiddenContainer(*this);
 }

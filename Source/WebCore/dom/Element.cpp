@@ -154,7 +154,7 @@ static Attr* findAttrNodeInList(AttrNodeList& attrNodeList, const QualifiedName&
     return 0;
 }
 
-PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new Element(tagName, document, CreateElement));
 }
@@ -1259,9 +1259,9 @@ bool Element::rendererIsNeeded(const RenderStyle& style)
     return style.display() != NONE;
 }
 
-RenderObject* Element::createRenderer(RenderArena*, RenderStyle* style)
+RenderObject* Element::createRenderer(RenderArena&, RenderStyle& style)
 {
-    return RenderObject::createObject(this, style);
+    return RenderObject::createObject(*this, style);
 }
 
 Node::InsertionNotificationRequest Element::insertedInto(ContainerNode* insertionPoint)

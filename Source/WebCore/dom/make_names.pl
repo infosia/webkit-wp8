@@ -127,7 +127,10 @@ if (length($fontNamesIn)) {
     print F StaticString::GenerateStringAsserts(\%parameters);
 
     while ( my ($name, $identifier) = each %parameters ) {
-        print F "    new (NotNull, static_cast<void*>(&$name)) AtomicString(${name}Impl);\n";
+        # FIXME: Would like to use static_cast here, but there are differences in const
+        # depending on whether SKIP_STATIC_CONSTRUCTORS_ON_GCC is used, so stick with a
+        # C-style cast for now.
+        print F "    new (NotNull, (void*)&$name) AtomicString(${name}Impl);\n";
     }
 
     print F "}\n}\n}\n";
@@ -181,7 +184,6 @@ sub defaultTagPropertyHash
     return (
         'constructorNeedsCreatedByParser' => 0,
         'constructorNeedsFormElement' => 0,
-        'constructorTakesDocumentReference' => $parameters{constructorTakesDocumentReference},
         'noConstructor' => 0,
         'interfaceName' => defaultInterfaceName($_[0]),
         # By default, the JSInterfaceName is the same as the interfaceName.
@@ -189,7 +191,6 @@ sub defaultTagPropertyHash
         'mapToTagName' => '',
         'wrapperOnlyIfMediaIsAvailable' => 0,
         'conditional' => 0,
-        'contextConditional' => 0,
         'runtimeConditional' => 0,
         'generateTypeHelpers' => 0
     );
@@ -206,7 +207,6 @@ sub defaultParametersHash
         'attrsNullNamespace' => 0,
         'fallbackInterfaceName' => '',
         'fallbackJSInterfaceName' => '',
-        'constructorTakesDocumentReference' => 0
     );
 }
 
@@ -407,15 +407,6 @@ END
 ;
     }
 
-    my $contextConditional = $enabledTags{$tagName}{contextConditional};
-    if ($contextConditional) {
-        print F <<END
-    if (!ContextFeatures::${contextConditional}Enabled(document))
-        return 0;
-END
-;
-    }
-
     my $runtimeConditional = $enabledTags{$tagName}{runtimeConditional};
     if ($runtimeConditional) {
         print F <<END
@@ -426,8 +417,7 @@ END
     }
 
     # Call the constructor with the right parameters.
-    print F "    return ${interfaceName}::create($constructorTagName";
-    print F ($enabledTags{$tagName}{constructorTakesDocumentReference} ? ", document" : ", &document");
+    print F "    return ${interfaceName}::create($constructorTagName, document";
     print F ", formElement" if $enabledTags{$tagName}{constructorNeedsFormElement};
     print F ", createdByParser" if $enabledTags{$tagName}{constructorNeedsCreatedByParser};
     print F ");\n}\n";
@@ -725,7 +715,7 @@ sub printNamesCppFile
         print F "\n\nconst WebCore::QualifiedName* const * get$parameters{namespace}Tags()\n";
         print F "{\n    static const WebCore::QualifiedName* const $parameters{namespace}Tags[] = {\n";
         for my $name (sort keys %allTags) {
-            print F "        reinterpret_cast<WebCore::QualifiedName*>(&${name}Tag),\n";
+            print F "        reinterpret_cast<const WebCore::QualifiedName*>(&${name}Tag),\n";
         }
         print F "    };\n";
         print F "    return $parameters{namespace}Tags;\n";
@@ -740,7 +730,7 @@ sub printNamesCppFile
         print F "\n\nconst WebCore::QualifiedName* const * get$parameters{namespace}Attrs()\n";
         print F "{\n    static const WebCore::QualifiedName* const $parameters{namespace}Attrs[] = {\n";
         for my $name (sort keys %allAttrs) {
-            print F "        reinterpret_cast<WebCore::QualifiedName*>(&${name}Attr),\n";
+            print F "        reinterpret_cast<const WebCore::QualifiedName*>(&${name}Attr),\n";
         }
         print F "    };\n";
         print F "    return $parameters{namespace}Attrs;\n";
@@ -752,7 +742,7 @@ sub printNamesCppFile
     print(F "    AtomicString ${lowerNamespace}NS(\"$parameters{namespaceURI}\", AtomicString::ConstructFromLiteral);\n\n");
 
     print(F "    // Namespace\n");
-    print(F "    new (NotNull, static_cast<void*>(&${lowerNamespace}NamespaceURI)) AtomicString(${lowerNamespace}NS);\n");
+    print(F "    new (NotNull, (void*)&${lowerNamespace}NamespaceURI) AtomicString(${lowerNamespace}NS);\n");
     print(F "\n");
     print F StaticString::GenerateStringAsserts(\%allStrings);
 
@@ -863,7 +853,7 @@ print F <<END
 END
 ;
     for my $name (sort keys %$namesRef) {
-        print F "        { &$name$shortCamelType, *${name}Impl },\n";
+        print F "        { (void*)&$name$shortCamelType, *${name}Impl },\n";
     }
 
 print F <<END
@@ -914,7 +904,6 @@ END
 
     print F <<END
 
-#include "ContextFeatures.h"
 #include "Document.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
@@ -1003,7 +992,7 @@ END
     }
 
     print F "   }\n";
-    print F "   return $parameters{fallbackInterfaceName}::create(name, " . ($parameters{constructorTakesDocumentReference} ? "" : "&") . "document);\n";
+    print F "   return $parameters{fallbackInterfaceName}::create(name, document);\n";
 
     print F <<END
 }
@@ -1102,20 +1091,6 @@ static JSDOMWrapper* create${JSInterfaceName}Wrapper(ExecState* exec, JSDOMGloba
 
 END
     ;
-        } elsif ($enabledTags{$tagName}{contextConditional}) {
-            my $contextConditional = $enabledTags{$tagName}{contextConditional};
-            print F <<END
-static JSDOMWrapper* create${JSInterfaceName}Wrapper(ExecState* exec, JSDOMGlobalObject* globalObject, PassRefPtr<$parameters{namespace}Element> element)
-{
-    if (!ContextFeatures::${contextConditional}Enabled(&element->document())) {
-        ASSERT(!element || element->is$parameters{fallbackInterfaceName}());
-        return CREATE_DOM_WRAPPER(exec, globalObject, $parameters{fallbackJSInterfaceName}, element.get());
-    }
-
-    return CREATE_DOM_WRAPPER(exec, globalObject, ${JSInterfaceName}, element.get());
-}
-END
-    ;
         } elsif ($enabledTags{$tagName}{runtimeConditional}) {
             my $runtimeConditional = $enabledTags{$tagName}{runtimeConditional};
             print F <<END
@@ -1167,7 +1142,6 @@ sub printWrapperFactoryCppFile
     print F "\n#include \"$parameters{namespace}Names.h\"\n";
     print F <<END
 
-#include "ContextFeatures.h"
 #include "Document.h"
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"

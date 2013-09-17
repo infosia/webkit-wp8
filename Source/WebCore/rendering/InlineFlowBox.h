@@ -40,7 +40,7 @@ typedef HashMap<const InlineTextBox*, pair<Vector<const SimpleFontData*>, GlyphO
 
 class InlineFlowBox : public InlineBox {
 public:
-    InlineFlowBox(RenderObject& renderer)
+    explicit InlineFlowBox(RenderObject& renderer)
         : InlineBox(renderer)
         , m_firstChild(0)
         , m_lastChild(0)
@@ -96,7 +96,7 @@ public:
     }
 
     void addToLine(InlineBox* child);
-    virtual void deleteLine(RenderArena*) OVERRIDE FINAL;
+    virtual void deleteLine(RenderArena&) OVERRIDE FINAL;
     virtual void extractLine() OVERRIDE FINAL;
     virtual void attachLine() OVERRIDE FINAL;
     virtual void adjustPosition(float dx, float dy);

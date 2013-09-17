@@ -2276,7 +2276,7 @@ void FrameView::doDeferredRepaints()
 bool FrameView::shouldUseLoadTimeDeferredRepaintDelay() const
 {
     // Don't defer after the initial load of the page has been completed.
-    if (frame().tree().top()->loader().isComplete())
+    if (frame().tree().top().loader().isComplete())
         return false;
     Document* document = frame().document();
     if (!document)
@@ -3287,7 +3287,7 @@ void FrameView::updateScrollCorner()
 
     if (cornerStyle) {
         if (!m_scrollCorner)
-            m_scrollCorner = RenderScrollbarPart::createAnonymous(&renderer->document());
+            m_scrollCorner = RenderScrollbarPart::createAnonymous(renderer->document());
         m_scrollCorner->setStyle(cornerStyle.release());
         invalidateScrollCorner(cornerRect);
     } else if (m_scrollCorner) {
@@ -4022,7 +4022,7 @@ void FrameView::setTracksRepaints(bool trackRepaints)
     }
 
 #if USE(ACCELERATED_COMPOSITING)
-    for (Frame* frame = m_frame->tree().top(); frame; frame = frame->tree().traverseNext()) {
+    for (Frame* frame = &m_frame->tree().top(); frame; frame = frame->tree().traverseNext()) {
         if (RenderView* renderView = frame->contentRenderer())
             renderView->compositor().setTracksRepaints(trackRepaints);
     }
