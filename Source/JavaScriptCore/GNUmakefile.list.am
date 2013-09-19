@@ -53,6 +53,8 @@ javascriptcore_sources += \
 	Source/JavaScriptCore/API/JSContextRefPrivate.h \
 	Source/JavaScriptCore/API/JSObjectRef.cpp \
 	Source/JavaScriptCore/API/JSObjectRefPrivate.h \
+	Source/JavaScriptCore/API/JSManagedValuecpp.h \
+	Source/JavaScriptCore/API/JSManagedValue.cpp \
 	Source/JavaScriptCore/API/JSRetainPtr.h \
 	Source/JavaScriptCore/API/JSScriptRef.cpp \
 	Source/JavaScriptCore/API/JSScriptRefPrivate.h \
