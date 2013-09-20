@@ -232,7 +232,6 @@ public:
     void linkIncomingCall(ExecState* callerFrame, LLIntCallLinkInfo*);
 #endif // ENABLE(LLINT)
 
-#if ENABLE(DFG_JIT) || ENABLE(LLINT)
     void setJITCodeMap(PassOwnPtr<CompactJITCodeMap> jitCodeMap)
     {
         m_jitCodeMap = jitCodeMap;
@@ -241,7 +240,6 @@ public:
     {
         return m_jitCodeMap.get();
     }
-#endif
     
     unsigned bytecodeOffset(Instruction* returnAddress)
     {
@@ -912,14 +910,14 @@ public:
 
 #if ENABLE(VALUE_PROFILER)
     bool shouldOptimizeNow();
-    void updateAllValueProfilePredictions(OperationInProgress = NoOperation);
+    void updateAllValueProfilePredictions(HeapOperation = NoOperation);
     void updateAllArrayPredictions();
-    void updateAllPredictions(OperationInProgress = NoOperation);
+    void updateAllPredictions(HeapOperation = NoOperation);
 #else
     bool updateAllPredictionsAndCheckIfShouldOptimizeNow() { return false; }
-    void updateAllValueProfilePredictions(OperationInProgress = NoOperation) { }
+    void updateAllValueProfilePredictions(HeapOperation = NoOperation) { }
     void updateAllArrayPredictions() { }
-    void updateAllPredictions(OperationInProgress = NoOperation) { }
+    void updateAllPredictions(HeapOperation = NoOperation) { }
 #endif
 
 #if ENABLE(JIT)
@@ -983,7 +981,7 @@ private:
 #endif
         
 #if ENABLE(VALUE_PROFILER)
-    void updateAllPredictionsAndCountLiveness(OperationInProgress, unsigned& numberOfLiveNonArgumentValueProfiles, unsigned& numberOfSamplesInProfiles);
+    void updateAllPredictionsAndCountLiveness(HeapOperation, unsigned& numberOfLiveNonArgumentValueProfiles, unsigned& numberOfSamplesInProfiles);
 #endif
 
     void setConstantRegisters(const Vector<WriteBarrier<Unknown> >& constants)
@@ -1095,9 +1093,7 @@ private:
     Vector<CallLinkInfo> m_callLinkInfos;
     SentinelLinkedList<CallLinkInfo, BasicRawSentinelNode<CallLinkInfo> > m_incomingCalls;
 #endif
-#if ENABLE(DFG_JIT) || ENABLE(LLINT)
     OwnPtr<CompactJITCodeMap> m_jitCodeMap;
-#endif
 #if ENABLE(DFG_JIT)
     // This is relevant to non-DFG code blocks that serve as the profiled code block
     // for DFG code blocks.

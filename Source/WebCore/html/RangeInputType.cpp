@@ -78,7 +78,7 @@ static Decimal ensureMaximum(const Decimal& proposedValue, const Decimal& minimu
     return proposedValue >= minimum ? proposedValue : std::max(minimum, fallbackValue);
 }
 
-PassOwnPtr<InputType> RangeInputType::create(HTMLInputElement& element)
+OwnPtr<InputType> RangeInputType::create(HTMLInputElement& element)
 {
     return adoptPtr(new RangeInputType(element));
 }
@@ -265,7 +265,7 @@ void RangeInputType::createShadowSubtree()
     element().userAgentShadowRoot()->appendChild(container.release(), IGNORE_EXCEPTION);
 }
 
-RenderObject* RangeInputType::createRenderer(RenderArena& arena, RenderStyle&) const
+RenderElement* RangeInputType::createRenderer(RenderArena& arena, RenderStyle&) const
 {
     return new (arena) RenderSlider(&element());
 }

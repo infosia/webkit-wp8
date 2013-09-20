@@ -54,6 +54,7 @@ class PseudoStyleRequest;
 class RenderBoxModelObject;
 class RenderInline;
 class RenderBlock;
+class RenderElement;
 class RenderFlowThread;
 class RenderGeometryMap;
 class RenderLayer;
@@ -145,6 +146,7 @@ const int showTreeCharacterOffset = 39;
 // Base class for all rendering tree objects.
 class RenderObject : public CachedImageClient {
     friend class RenderBlock;
+    friend class RenderBlockFlow;
     friend class RenderLayer;
     friend class RenderObjectChildList;
 public:
@@ -157,7 +159,7 @@ public:
 
     virtual const char* renderName() const = 0;
 
-    RenderObject* parent() const { return m_parent; }
+    RenderElement* parent() const { return m_parent; }
     bool isDescendantOf(const RenderObject*) const;
 
     RenderObject* previousSibling() const { return m_previous; }
@@ -277,10 +279,6 @@ public:
     //////////////////////////////////////////
     virtual bool canHaveChildren() const { return children(); }
     virtual bool canHaveGeneratedChildren() const;
-    virtual bool isChildAllowed(RenderObject*, RenderStyle*) const { return true; }
-    virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0);
-    virtual void addChildIgnoringContinuation(RenderObject* newChild, RenderObject* beforeChild = 0) { return addChild(newChild, beforeChild); }
-    virtual void removeChild(RenderObject*);
     virtual bool createsAnonymousWrapper() const { return false; }
     //////////////////////////////////////////
 
@@ -289,18 +287,7 @@ protected:
     // Helper functions. Dangerous to use!
     void setPreviousSibling(RenderObject* previous) { m_previous = previous; }
     void setNextSibling(RenderObject* next) { m_next = next; }
-    void setParent(RenderObject* parent)
-    {
-        m_parent = parent;
-        
-        // Only update if our flow thread state is different from our new parent and if we're not a RenderFlowThread.
-        // A RenderFlowThread is always considered to be inside itself, so it never has to change its state
-        // in response to parent changes.
-        FlowThreadState newState = parent ? parent->flowThreadState() : NotInsideFlowThread;
-        if (newState != flowThreadState() && !isRenderFlowThread())
-            setFlowThreadStateIncludingDescendants(newState);
-    }
-
+    void setParent(RenderElement*);
     //////////////////////////////////////////
 private:
 #ifndef NDEBUG
@@ -325,8 +312,6 @@ public:
     void showRenderTreeAndMark(const RenderObject* markedObject1 = 0, const char* markedLabel1 = 0, const RenderObject* markedObject2 = 0, const char* markedLabel2 = 0, int depth = 0) const;
 #endif
 
-    static RenderObject* createObject(Element&, RenderStyle&);
-
     // Overloaded new operator.  Derived classes must override operator new
     // in order to allocate out of the RenderArena.
     void* operator new(size_t, RenderArena&);
@@ -343,7 +328,7 @@ public:
 
     bool isPseudoElement() const { return node() && node()->isPseudoElement(); }
 
-    virtual bool isBR() const { return false; }
+    bool isRenderElement() const { return !isText(); }
     virtual bool isBoxModelObject() const { return false; }
     virtual bool isCounter() const { return false; }
     virtual bool isQuote() const { return false; }
@@ -568,6 +553,10 @@ public:
     bool isPositioned() const { return m_bitfields.isPositioned(); }
 
     bool isText() const  { return !m_bitfields.isBox() && m_bitfields.isTextOrRenderView(); }
+    bool isLineBreak() const { return m_bitfields.isLineBreak(); }
+    bool isBR() const { return isLineBreak() && !isWBR(); }
+    bool isLineBreakOpportunity() const { return isLineBreak() && isWBR(); }
+    bool isTextOrLineBreak() const { return isText() || isLineBreak(); }
     bool isBox() const { return m_bitfields.isBox(); }
     bool isRenderView() const  { return m_bitfields.isBox() && m_bitfields.isTextOrRenderView(); }
     bool isInline() const { return m_bitfields.isInline(); } // inline object
@@ -700,6 +689,7 @@ public:
     virtual bool computeBackgroundIsKnownToBeObscured() { return false; }
 
     void setIsText() { ASSERT(!isBox()); m_bitfields.setIsTextOrRenderView(true); }
+    void setIsLineBreak() { m_bitfields.setIsLineBreak(true); }
     void setIsBox() { m_bitfields.setIsBox(true); }
     void setIsRenderView() { ASSERT(isBox()); m_bitfields.setIsTextOrRenderView(true); }
     void setReplaced(bool b = true) { m_bitfields.setIsReplaced(b); }
@@ -968,7 +958,7 @@ public:
 
     void selectionStartEnd(int& spos, int& epos) const;
     
-    void remove() { if (parent()) parent()->removeChild(this); }
+    void removeFromParent();
 
     AnimationController& animation() const;
 
@@ -1002,7 +992,7 @@ public:
     RespectImageOrientationEnum shouldRespectImageOrientation() const;
 
 protected:
-    inline bool layerCreationAllowedForSubtree() const;
+    bool layerCreationAllowedForSubtree() const;
 
     // Overrides should call the superclass at the end
     virtual void styleWillChange(StyleDifference, const RenderStyle* newStyle);
@@ -1016,6 +1006,8 @@ protected:
     void paintFocusRing(PaintInfo&, const LayoutPoint&, RenderStyle*);
     void paintOutline(PaintInfo&, const LayoutRect&);
     void addPDFURLRect(GraphicsContext*, const LayoutRect&);
+    Node& nodeForNonAnonymous() const { ASSERT(!isAnonymous()); return *m_node; }
+
     
     virtual LayoutRect viewRect() const;
 
@@ -1047,6 +1039,8 @@ private:
 
     Node* generatingPseudoHostElement() const;
 
+    virtual bool isWBR() const { ASSERT_NOT_REACHED(); return false; }
+
 #if ENABLE(CSS_SHAPES)
     void removeShapeImageClient(ShapeValue*);
 #endif
@@ -1059,7 +1053,7 @@ private:
 
     Node* m_node;
 
-    RenderObject* m_parent;
+    RenderElement* m_parent;
     RenderObject* m_previous;
     RenderObject* m_next;
 
@@ -1099,6 +1093,7 @@ private:
             , m_isBox(false)
             , m_isInline(true)
             , m_isReplaced(false)
+            , m_isLineBreak(false)
             , m_horizontalWritingMode(true)
             , m_isDragging(false)
             , m_hasLayer(false)
@@ -1116,7 +1111,7 @@ private:
         {
         }
         
-        // 31 bits have been used here. There is one bit available.
+        // 32 bits have been used here. There are no bits available.
         ADD_BOOLEAN_BITFIELD(needsLayout, NeedsLayout);
         ADD_BOOLEAN_BITFIELD(needsPositionedMovementLayout, NeedsPositionedMovementLayout);
         ADD_BOOLEAN_BITFIELD(normalChildNeedsLayout, NormalChildNeedsLayout);
@@ -1130,6 +1125,7 @@ private:
         ADD_BOOLEAN_BITFIELD(isBox, IsBox);
         ADD_BOOLEAN_BITFIELD(isInline, IsInline);
         ADD_BOOLEAN_BITFIELD(isReplaced, IsReplaced);
+        ADD_BOOLEAN_BITFIELD(isLineBreak, IsLineBreak);
         ADD_BOOLEAN_BITFIELD(horizontalWritingMode, HorizontalWritingMode);
         ADD_BOOLEAN_BITFIELD(isDragging, IsDragging);
 
@@ -1201,7 +1197,7 @@ inline bool RenderObject::isBeforeContent() const
     if (style()->styleType() != BEFORE)
         return false;
     // Text nodes don't have their own styles, so ignore the style on a text node.
-    if (isText() && !isBR())
+    if (isText())
         return false;
     return true;
 }
@@ -1211,7 +1207,7 @@ inline bool RenderObject::isAfterContent() const
     if (style()->styleType() != AFTER)
         return false;
     // Text nodes don't have their own styles, so ignore the style on a text node.
-    if (isText() && !isBR())
+    if (isText())
         return false;
     return true;
 }
@@ -1298,20 +1294,6 @@ inline bool RenderObject::preservesNewline() const
 #endif
         
     return style()->preserveNewline();
-}
-
-inline bool RenderObject::layerCreationAllowedForSubtree() const
-{
-#if ENABLE(SVG)
-    RenderObject* parentRenderer = parent();
-    while (parentRenderer) {
-        if (parentRenderer->isSVGHiddenContainer())
-            return false;
-        parentRenderer = parentRenderer->parent();
-    }
-#endif
-
-    return true;
 }
 
 inline void RenderObject::setSelectionStateIfNeeded(SelectionState state)

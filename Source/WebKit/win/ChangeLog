@@ -1,3 +1,88 @@
+2013-09-20  Patrick Gansterer  <paroga@webkit.org>
+
+        Remove duplicated secondsPerDay variables
+        https://bugs.webkit.org/show_bug.cgi?id=121601
+
+        Reviewed by Andreas Kling.
+
+        Use secondsPerDay from DateMath.h instead of defining it again.
+
+        * MarshallingHelpers.cpp:
+
+2013-09-20  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Add covariant RenderElement* Element::renderer()
+        https://bugs.webkit.org/show_bug.cgi?id=121638
+
+        Unreviewed buildfix after r156144.
+
+        * DOMCoreClasses.cpp:
+        (DOMElement::boundingBox):
+        (DOMElement::font):
+
+2013-09-18  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r156063.
+
+        * WebHistory.h: std::unique is an algorithm; std::unique_ptr is what we want here!
+
+2013-09-18  Sam Weinig  <sam@webkit.org>
+
+        Replace use of OwnArrayPtr<Foo> with std::unique_ptr<Foo[]> in WebKit and WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=121568
+
+        Reviewed by Andreas Kling.
+
+        * WebHistory.cpp:
+        (WebHistory::removeAllItems):
+        (WebHistory::orderedLastVisitedDays):
+        (WebHistory::addItemToDateCaches):
+        (WebHistory::removeItemFromDateCaches):
+        * WebHistory.h:
+        * WebPreferences.cpp:
+        (WebPreferences::copyWebKitPreferencesToCFPreferences):
+
+2013-09-18  Patrick Gansterer  <paroga@webkit.org>
+
+        Make WebHistory more type safe
+        https://bugs.webkit.org/show_bug.cgi?id=119389
+
+        Reviewed by Brent Fulgham.
+
+        Use a WTF::HashMap instead of a CFMutableDictionary to avoid
+        casting from void* all the time when accessing the entries.
+        This reduces the dependencies on CoreFoundation too.
+
+        * WebHistory.cpp:
+        (WebHistory::WebHistory):
+        (WebHistory::removeAllItems):
+        (WebHistory::allItems):
+        (WebHistory::removeItem):
+        (WebHistory::addItem):
+        (WebHistory::visitedURL):
+        (WebHistory::itemForURL):
+        (WebHistory::removeItemForURLString):
+        (WebHistory::itemForURLString):
+        (WebHistory::addVisitedLinksToPageGroup):
+        * WebHistory.h:
+
+2013-09-17  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Speculative build fix after r155963
+
+        * WebKitCOMAPI.cpp:
+        (classFactory): Use nullptr rather than 0 for HashMap.
+
+2013-09-16  Enrica Casucci  <enrica@apple.com>
+
+        Remove unused function didSetSelectionTypesForPasteboard from EditorClient.
+        https://bugs.webkit.org/show_bug.cgi?id=121464
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebEditorClient.cpp:
+        * WebCoreSupport/WebEditorClient.h:
+
 2013-09-16  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] Rendering stops when mouse is moving for some types of animations.

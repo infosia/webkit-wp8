@@ -1,3 +1,187 @@
+2013-09-18  Anders Carlsson  <andersca@apple.com>
+
+        Remove the ENABLE_PLUGIN_PROCESS #define
+        https://bugs.webkit.org/show_bug.cgi?id=121569
+
+        Reviewed by Andreas Kling.
+
+        Fold the ENABLE_PLUGIN_PROCESS #define into the NETSCAPE_PLUGIN_API #define since 
+        building plug-ins without the plug-in process is not supported.
+
+        * PluginProcess/EntryPoint/mac/LegacyProcess/PluginProcessMain.mm:
+        * PluginProcess/PluginControllerProxy.cpp:
+        * PluginProcess/PluginControllerProxy.h:
+        * PluginProcess/PluginControllerProxy.messages.in:
+        * PluginProcess/PluginCreationParameters.cpp:
+        * PluginProcess/PluginCreationParameters.h:
+        * PluginProcess/PluginProcess.cpp:
+        * PluginProcess/PluginProcess.h:
+        * PluginProcess/PluginProcess.messages.in:
+        * PluginProcess/WebProcessConnection.cpp:
+        * PluginProcess/WebProcessConnection.h:
+        * PluginProcess/WebProcessConnection.messages.in:
+        * PluginProcess/mac/PluginControllerProxyMac.mm:
+        * PluginProcess/mac/PluginProcessMac.mm:
+        * Shared/Plugins/NPIdentifierData.cpp:
+        * Shared/Plugins/NPIdentifierData.h:
+        * Shared/Plugins/NPObjectMessageReceiver.cpp:
+        * Shared/Plugins/NPObjectMessageReceiver.h:
+        * Shared/Plugins/NPObjectMessageReceiver.messages.in:
+        * Shared/Plugins/NPObjectProxy.cpp:
+        * Shared/Plugins/NPObjectProxy.h:
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        * Shared/Plugins/NPRemoteObjectMap.h:
+        * Shared/Plugins/NPVariantData.cpp:
+        * Shared/Plugins/NPVariantData.h:
+        * Shared/Plugins/Netscape/mac/NetscapePluginModuleMac.mm:
+        (WebKit::getMIMETypesFromPluginBundle):
+        * Shared/Plugins/PluginProcessCreationParameters.cpp:
+        * Shared/Plugins/PluginProcessCreationParameters.h:
+        * UIProcess/Launcher/ProcessLauncher.cpp:
+        (WebKit::ProcessLauncher::processTypeAsString):
+        (WebKit::ProcessLauncher::getProcessTypeFromString):
+        * UIProcess/Launcher/ProcessLauncher.h:
+        * UIProcess/Launcher/mac/ProcessLauncherMac.mm:
+        (WebKit::addDYLDEnvironmentAdditions):
+        (WebKit::serviceName):
+        (WebKit::createProcess):
+        * UIProcess/Plugins/PluginProcessManager.cpp:
+        * UIProcess/Plugins/PluginProcessManager.h:
+        * UIProcess/Plugins/PluginProcessProxy.cpp:
+        * UIProcess/Plugins/PluginProcessProxy.h:
+        * UIProcess/Plugins/PluginProcessProxy.messages.in:
+        * UIProcess/Plugins/WebPluginSiteDataManager.cpp:
+        (WebKit::WebPluginSiteDataManager::~WebPluginSiteDataManager):
+        (WebKit::WebPluginSiteDataManager::invalidate):
+        (WebKit::WebPluginSiteDataManager::getSitesWithData):
+        (WebKit::WebPluginSiteDataManager::clearSiteData):
+        * UIProcess/Plugins/WebPluginSiteDataManager.h:
+        * UIProcess/Plugins/mac/PluginProcessManagerMac.mm:
+        * UIProcess/Plugins/mac/PluginProcessProxyMac.mm:
+        * UIProcess/WebContext.cpp:
+        (WebKit::WebContext::setProcessModel):
+        (WebKit::WebContext::shouldTerminate):
+        (WebKit::WebContext::disconnectProcess):
+        * UIProcess/WebProcessProxy.cpp:
+        (WebKit::WebProcessProxy::getPluginProcessConnection):
+        * UIProcess/WebProcessProxy.h:
+        * UIProcess/WebProcessProxy.messages.in:
+        * UIProcess/mac/WebContextMac.mm:
+        (WebKit::updateProcessSuppressionStateOfGlobalChildProcesses):
+        * WebKit2Prefix.h:
+        * WebProcess/Plugins/Netscape/mac/PluginProxyMac.mm:
+        * WebProcess/Plugins/PluginProcessConnection.cpp:
+        * WebProcess/Plugins/PluginProcessConnection.h:
+        * WebProcess/Plugins/PluginProcessConnection.messages.in:
+        * WebProcess/Plugins/PluginProcessConnectionManager.cpp:
+        * WebProcess/Plugins/PluginProcessConnectionManager.h:
+        * WebProcess/Plugins/PluginProcessConnectionManager.messages.in:
+        * WebProcess/Plugins/PluginProxy.cpp:
+        * WebProcess/Plugins/PluginProxy.h:
+        * WebProcess/Plugins/PluginProxy.messages.in:
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.h:
+        * WebProcess/WebPage/WebPage.cpp:
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::WebProcess):
+        (WebKit::WebProcess::initializeConnection):
+        * WebProcess/WebProcess.h:
+        * WebProcess/WebProcess.messages.in:
+
+2013-09-18  Sam Weinig  <sam@webkit.org>
+
+        Replace use of OwnArrayPtr<Foo> with std::unique_ptr<Foo[]> in WebKit and WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=121568
+
+        Reviewed by Andreas Kling.
+
+        * Platform/CoreIPC/unix/ConnectionUnix.cpp:
+        (CoreIPC::Connection::processMessage):
+        (CoreIPC::readBytesFromSocket):
+        (CoreIPC::Connection::sendOutgoingMessage):
+        * UIProcess/API/efl/EwkView.cpp:
+        (EwkView::feedTouchEvent):
+        (EwkView::feedTouchEvents):
+        * UIProcess/API/efl/SnapshotImageGL.h:
+        * UIProcess/API/efl/ewk_file_chooser_request.cpp:
+        (ewk_file_chooser_request_files_choose):
+        * UIProcess/Launcher/efl/ProcessLauncherEfl.cpp:
+        (WebKit::createArgsArray):
+        (WebKit::ProcessLauncher::launchProcess):
+        * WebProcess/InjectedBundle/API/c/WKBundlePage.cpp:
+        (WKBundlePageCopyContextMenuItems):
+        * WebProcess/InjectedBundle/InjectedBundle.cpp:
+
+2013-09-18  Anders Carlsson  <andersca@apple.com>
+
+        RefPtrHashMap should work with move only types
+        https://bugs.webkit.org/show_bug.cgi?id=121564
+
+        Reviewed by Andreas Kling.
+
+        * UIProcess/Storage/StorageManager.cpp:
+        (WebKit::StorageManager::LocalStorageNamespace::getOrCreateStorageArea):
+        (WebKit::StorageManager::SessionStorageNamespace::getOrCreateStorageArea):
+        * WebProcess/Storage/StorageNamespaceImpl.cpp:
+        (WebKit::StorageNamespaceImpl::storageArea):
+
+2013-09-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] WebKitScriptWorld not in API documentation
+        https://bugs.webkit.org/show_bug.cgi?id=121539
+
+        Reviewed by Philippe Normand.
+
+        * UIProcess/API/gtk/docs/webkit2gtk-docs.sgml: Add WebKitScriptWorld.
+
+2013-09-17  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Buildfix for !ENABLE(CUSTOM_PROTOCOLS) platforms
+        https://bugs.webkit.org/show_bug.cgi?id=121417
+
+        Reviewed by Alexey Proskuryakov.
+
+        Original patch by Balazs Kelemen <kbalazs@webkit.org>.
+
+        * CMakeLists.txt: Add CustomProtocolManagerProxy.messages.in.
+        * DerivedSources.pri: Add CustomProtocolManagerProxy.messages.in.
+        * GNUmakefile.am: Add CustomProtocolManagerProxy.messages.in.
+        * GNUmakefile.list.am: Add CustomProtocolManagerProxyMessages.h and CustomProtocolManagerProxyMessageReceiver.cpp.
+        * NetworkProcess/NetworkProcess.cpp: Add the missing ENABLE(CUSTOM_PROTOCOLS) guard.
+        (WebKit::NetworkProcess::NetworkProcess):
+        * UIProcess/WebProcessProxy.cpp: Remove the unnecessary conditional include.
+
+2013-09-17  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK] Test /webkit2/WebKitWebInspectorServer/test-open-debugging-session times out after r155714
+        https://bugs.webkit.org/show_bug.cgi?id=121383
+
+        Reviewed by Carlos Garcia Campos.
+
+        * UIProcess/API/gtk/tests/TestInspectorServer.cpp:
+        (openRemoteDebuggingSession): use the page contents' to check the remote debugging of the page
+        has been successfuly opened, as the title is no longer the same after the switch to the new
+        frontend.
+
+2013-09-16  Enrica Casucci  <enrica@apple.com>
+
+        Remove unused function didSetSelectionTypesForPasteboard from EditorClient.
+        https://bugs.webkit.org/show_bug.cgi?id=121464
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebCoreSupport/WebEditorClient.cpp:
+        * WebProcess/WebCoreSupport/WebEditorClient.h:
+
+2013-09-17  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Buildfix for !(ENABLE(WEB_ARCHIVE) || ENABLE(MHTML)) platforms
+        https://bugs.webkit.org/show_bug.cgi?id=121491
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/Network/WebResourceLoadScheduler.cpp:
+        (WebKit::WebResourceLoadScheduler::scheduleLoad):
+
 2013-09-17  Alberto Garcia  <berto@igalia.com>
 
         [GTK] Unreviewed make distcheck fix.

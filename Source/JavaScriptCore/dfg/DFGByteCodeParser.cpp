@@ -42,6 +42,7 @@
 #include <wtf/CommaPrinter.h>
 #include <wtf/HashMap.h>
 #include <wtf/MathExtras.h>
+#include <wtf/StdLibExtras.h>
 
 namespace JSC { namespace DFG {
 
@@ -874,12 +875,19 @@ private:
         case UInt32ToNumber:
         case ArithAdd:
         case ArithSub:
-        case ArithNegate:
         case ValueAdd:
         case ArithMod: // for ArithMod "MayOverflow" means we tried to divide by zero, or we saw double.
             node->mergeFlags(NodeMayOverflow);
             break;
             
+        case ArithNegate:
+            // Currently we can't tell the difference between a negation overflowing
+            // (i.e. -(1 << 31)) or generating negative zero (i.e. -0). If it took slow
+            // path then we assume that it did both of those things.
+            node->mergeFlags(NodeMayOverflow);
+            node->mergeFlags(NodeMayNegZero);
+            break;
+
         case ArithMul:
             if (m_inlineStackTop->m_profiledBlock->likelyToTakeDeepestSlowCase(m_currentIndex)
                 || m_inlineStackTop->m_exitProfile.hasExitSite(m_currentIndex, Overflow)) {
@@ -2235,7 +2243,7 @@ bool ByteCodeParser::parseBlock(unsigned limit)
 #else
             const unsigned maxRopeArguments = 3;
 #endif
-            OwnArrayPtr<Node*> toStringNodes = adoptArrayPtr(new Node*[numOperands]);
+            auto toStringNodes = std::make_unique<Node*[]>(numOperands);
             for (int i = 0; i < numOperands; i++)
                 toStringNodes[i] = addToGraph(ToString, get(startOperand - i));
 
@@ -3112,6 +3120,8 @@ bool ByteCodeParser::parseBlock(unsigned limit)
                 }
                 Node* base = cellConstantWithStructureCheck(globalObject, status.oldStructure());
                 handlePutByOffset(base, identifierNumber, static_cast<PropertyOffset>(operand), get(value));
+                // Keep scope alive until after put.
+                addToGraph(Phantom, get(scope));
                 break;
             }
             case GlobalVar:
@@ -3119,6 +3129,8 @@ bool ByteCodeParser::parseBlock(unsigned limit)
                 SymbolTableEntry entry = globalObject->symbolTable()->get(uid);
                 ASSERT(!entry.couldBeWatched() || !m_graph.watchpoints().isStillValid(entry.watchpointSet()));
                 addToGraph(PutGlobalVar, OpInfo(operand), get(value));
+                // Keep scope alive until after put.
+                addToGraph(Phantom, get(scope));
                 break;
             }
             case ClosureVar:

@@ -49,8 +49,7 @@ LineWidth::LineWidth(RenderBlock& block, bool isFirstLine, IndentTextOrNot shoul
     , m_shouldIndentText(shouldIndentText)
 {
 #if ENABLE(CSS_SHAPES)
-    if (ShapeInsideInfo* shapeInsideInfo = m_block.layoutShapeInsideInfo())
-        m_segment = shapeInsideInfo->currentSegment();
+    updateCurrentShapeSegment();
 #endif
     updateAvailableWidth();
 }
@@ -108,14 +107,14 @@ void LineWidth::shrinkAvailableWidthForNewFloatIfNeeded(FloatingObject* newFloat
         if (previousFloat != newFloat && previousFloat->type() == newFloat->type()) {
             previousShapeOutsideInfo = previousFloat->renderer()->shapeOutsideInfo();
             if (previousShapeOutsideInfo)
-                previousShapeOutsideInfo->computeSegmentsForContainingBlockLine(m_block.logicalHeight(), previousFloat->logicalTop(m_block.isHorizontalWritingMode()), logicalHeightForLine(&m_block, m_isFirstLine));
+                previousShapeOutsideInfo->computeSegmentsForContainingBlockLine(&m_block, previousFloat, m_block.logicalHeight(), logicalHeightForLine(&m_block, m_isFirstLine));
             break;
         }
     }
 
     ShapeOutsideInfo* shapeOutsideInfo = newFloat->renderer()->shapeOutsideInfo();
     if (shapeOutsideInfo)
-        shapeOutsideInfo->computeSegmentsForContainingBlockLine(m_block.logicalHeight(), newFloat->logicalTop(m_block.isHorizontalWritingMode()), logicalHeightForLine(&m_block, m_isFirstLine));
+        shapeOutsideInfo->computeSegmentsForContainingBlockLine(&m_block, newFloat, m_block.logicalHeight(), logicalHeightForLine(&m_block, m_isFirstLine));
 #endif
 
     if (newFloat->type() == FloatingObject::FloatLeft) {
@@ -203,6 +202,14 @@ void LineWidth::setTrailingWhitespaceWidth(float collapsedWhitespace, float bord
     m_trailingCollapsedWhitespaceWidth = collapsedWhitespace;
     m_trailingWhitespaceWidth = collapsedWhitespace + borderPaddingMargin;
 }
+
+#if ENABLE(CSS_SHAPES)
+void LineWidth::updateCurrentShapeSegment()
+{
+    if (ShapeInsideInfo* shapeInsideInfo = m_block.layoutShapeInsideInfo())
+        m_segment = shapeInsideInfo->currentSegment();
+}
+#endif
 
 void LineWidth::computeAvailableWidthFromLeftAndRight()
 {

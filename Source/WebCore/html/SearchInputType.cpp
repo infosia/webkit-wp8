@@ -52,7 +52,7 @@ inline SearchInputType::SearchInputType(HTMLInputElement& element)
 {
 }
 
-PassOwnPtr<InputType> SearchInputType::create(HTMLInputElement& element)
+OwnPtr<InputType> SearchInputType::create(HTMLInputElement& element)
 {
     return adoptPtr(new SearchInputType(element));
 }
@@ -69,7 +69,7 @@ void SearchInputType::addSearchResult()
         toRenderSearchField(renderer)->addSearchResult();
 }
 
-RenderObject* SearchInputType::createRenderer(RenderArena& arena, RenderStyle&) const
+RenderElement* SearchInputType::createRenderer(RenderArena& arena, RenderStyle&) const
 {
     return new (arena) RenderSearchField(element());
 }
@@ -105,11 +105,11 @@ void SearchInputType::createShadowSubtree()
     ASSERT(container);
     ASSERT(textWrapper);
 
-    RefPtr<SearchFieldResultsButtonElement> resultsButton = SearchFieldResultsButtonElement::create(&element().document());
+    RefPtr<SearchFieldResultsButtonElement> resultsButton = SearchFieldResultsButtonElement::create(element().document());
     m_resultsButton = resultsButton.get();
     container->insertBefore(m_resultsButton, textWrapper, IGNORE_EXCEPTION);
 
-    RefPtr<SearchFieldCancelButtonElement> cancelButton = SearchFieldCancelButtonElement::create(&element().document());
+    RefPtr<SearchFieldCancelButtonElement> cancelButton = SearchFieldCancelButtonElement::create(element().document());
     m_cancelButton = cancelButton.get();
     container->insertBefore(m_cancelButton, textWrapper->nextSibling(), IGNORE_EXCEPTION);
 }

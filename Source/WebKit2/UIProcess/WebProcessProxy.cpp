@@ -26,6 +26,7 @@
 #include "config.h"
 #include "WebProcessProxy.h"
 
+#include "CustomProtocolManagerProxyMessages.h"
 #include "DataReference.h"
 #include "DownloadProxyMap.h"
 #include "PluginInfoStore.h"
@@ -46,10 +47,6 @@
 #include <stdio.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
-
-#if ENABLE(CUSTOM_PROTOCOLS)
-#include "CustomProtocolManagerProxyMessages.h"
-#endif
 
 #if PLATFORM(MAC)
 #include "PDFPlugin.h"
@@ -325,24 +322,11 @@ void WebProcessProxy::getPlugins(bool refresh, Vector<PluginInfo>& plugins, Vect
 }
 #endif // ENABLE(NETSCAPE_PLUGIN_API)
 
-#if ENABLE(PLUGIN_PROCESS)
+#if ENABLE(NETSCAPE_PLUGIN_API)
 void WebProcessProxy::getPluginProcessConnection(uint64_t pluginProcessToken, PassRefPtr<Messages::WebProcessProxy::GetPluginProcessConnection::DelayedReply> reply)
 {
     PluginProcessManager::shared().getPluginProcessConnection(pluginProcessToken, reply);
 }
-
-#elif ENABLE(NETSCAPE_PLUGIN_API)
-
-void WebProcessProxy::didGetSitesWithPluginData(const Vector<String>& sites, uint64_t callbackID)
-{
-    m_context->pluginSiteDataManager()->didGetSitesWithData(sites, callbackID);
-}
-
-void WebProcessProxy::didClearPluginSiteData(uint64_t callbackID)
-{
-    m_context->pluginSiteDataManager()->didClearSiteData(callbackID);
-}
-
 #endif
 
 #if ENABLE(SHARED_WORKER_PROCESS)

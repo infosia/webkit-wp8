@@ -85,7 +85,7 @@ const AtomicString& UploadButtonElement::shadowPseudoId() const
     return pseudoId;
 }
 
-PassOwnPtr<InputType> FileInputType::create(HTMLInputElement& element)
+OwnPtr<InputType> FileInputType::create(HTMLInputElement& element)
 {
     return adoptPtr(new FileInputType(element));
 }
@@ -212,7 +212,7 @@ void FileInputType::handleDOMActivateEvent(Event* event)
     event->setDefaultHandled();
 }
 
-RenderObject* FileInputType::createRenderer(RenderArena& arena, RenderStyle&) const
+RenderElement* FileInputType::createRenderer(RenderArena& arena, RenderStyle&) const
 {
     return new (arena) RenderFileUploadControl(element());
 }

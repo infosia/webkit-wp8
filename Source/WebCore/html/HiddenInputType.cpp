@@ -43,7 +43,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-PassOwnPtr<InputType> HiddenInputType::create(HTMLInputElement& element)
+OwnPtr<InputType> HiddenInputType::create(HTMLInputElement& element)
 {
     return adoptPtr(new HiddenInputType(element));
 }
@@ -72,7 +72,7 @@ bool HiddenInputType::supportsValidation() const
     return false;
 }
 
-RenderObject* HiddenInputType::createRenderer(RenderArena&, RenderStyle&) const
+RenderElement* HiddenInputType::createRenderer(RenderArena&, RenderStyle&) const
 {
     ASSERT_NOT_REACHED();
     return 0;

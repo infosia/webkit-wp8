@@ -61,7 +61,7 @@
 #include "RadioInputType.h"
 #include "RangeInputType.h"
 #include "RegularExpression.h"
-#include "RenderObject.h"
+#include "RenderElement.h"
 #include "RenderTheme.h"
 #include "ResetInputType.h"
 #include "RuntimeEnabledFeatures.h"
@@ -84,68 +84,72 @@ namespace WebCore {
 using namespace HTMLNames;
 using namespace std;
 
-typedef PassOwnPtr<InputType> (*InputTypeFactoryFunction)(HTMLInputElement&);
+typedef OwnPtr<InputType> (*InputTypeFactoryFunction)(HTMLInputElement&);
 typedef HashMap<AtomicString, InputTypeFactoryFunction, CaseFoldingHash> InputTypeFactoryMap;
 
-static PassOwnPtr<InputTypeFactoryMap> createInputTypeFactoryMap()
+static OwnPtr<InputTypeFactoryMap> createInputTypeFactoryMap()
 {
     OwnPtr<InputTypeFactoryMap> map = adoptPtr(new InputTypeFactoryMap);
-    map->add(InputTypeNames::button(), ButtonInputType::create);
-    map->add(InputTypeNames::checkbox(), CheckboxInputType::create);
+
+    // FIXME: Remove unnecessary '&'s from the following map.add operations
+    // once we switch to a non-broken Visual Studio compiler.  https://bugs.webkit.org/show_bug.cgi?id=121235
+    map->add(InputTypeNames::button(), &ButtonInputType::create);
+    map->add(InputTypeNames::checkbox(), &CheckboxInputType::create);
 #if ENABLE(INPUT_TYPE_COLOR)
-    map->add(InputTypeNames::color(), ColorInputType::create);
+    map->add(InputTypeNames::color(), &ColorInputType::create);
 #endif
 #if ENABLE(INPUT_TYPE_DATE)
     if (RuntimeEnabledFeatures::inputTypeDateEnabled())
-        map->add(InputTypeNames::date(), DateInputType::create);
+        map->add(InputTypeNames::date(), &DateInputType::create);
 #endif
 #if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
     if (RuntimeEnabledFeatures::inputTypeDateTimeEnabled())
-        map->add(InputTypeNames::datetime(), DateTimeInputType::create);
+        map->add(InputTypeNames::datetime(), &DateTimeInputType::create);
 #endif
 #if ENABLE(INPUT_TYPE_DATETIMELOCAL)
     if (RuntimeEnabledFeatures::inputTypeDateTimeLocalEnabled())
-        map->add(InputTypeNames::datetimelocal(), DateTimeLocalInputType::create);
+        map->add(InputTypeNames::datetimelocal(), &DateTimeLocalInputType::create);
 #endif
-    map->add(InputTypeNames::email(), EmailInputType::create);
-    map->add(InputTypeNames::file(), FileInputType::create);
-    map->add(InputTypeNames::hidden(), HiddenInputType::create);
-    map->add(InputTypeNames::image(), ImageInputType::create);
+    map->add(InputTypeNames::email(), &EmailInputType::create);
+    map->add(InputTypeNames::file(), &FileInputType::create);
+    map->add(InputTypeNames::hidden(), &HiddenInputType::create);
+    map->add(InputTypeNames::image(), &ImageInputType::create);
 #if ENABLE(INPUT_TYPE_MONTH)
     if (RuntimeEnabledFeatures::inputTypeMonthEnabled())
-        map->add(InputTypeNames::month(), MonthInputType::create);
+        map->add(InputTypeNames::month(), &MonthInputType::create);
 #endif
-    map->add(InputTypeNames::number(), NumberInputType::create);
-    map->add(InputTypeNames::password(), PasswordInputType::create);
-    map->add(InputTypeNames::radio(), RadioInputType::create);
-    map->add(InputTypeNames::range(), RangeInputType::create);
-    map->add(InputTypeNames::reset(), ResetInputType::create);
-    map->add(InputTypeNames::search(), SearchInputType::create);
-    map->add(InputTypeNames::submit(), SubmitInputType::create);
-    map->add(InputTypeNames::telephone(), TelephoneInputType::create);
+    map->add(InputTypeNames::number(), &NumberInputType::create);
+    map->add(InputTypeNames::password(), &PasswordInputType::create);
+    map->add(InputTypeNames::radio(), &RadioInputType::create);
+    map->add(InputTypeNames::range(), &RangeInputType::create);
+    map->add(InputTypeNames::reset(), &ResetInputType::create);
+    map->add(InputTypeNames::search(), &SearchInputType::create);
+    map->add(InputTypeNames::submit(), &SubmitInputType::create);
+    map->add(InputTypeNames::telephone(), &TelephoneInputType::create);
 #if ENABLE(INPUT_TYPE_TIME)
     if (RuntimeEnabledFeatures::inputTypeTimeEnabled())
-        map->add(InputTypeNames::time(), TimeInputType::create);
+        map->add(InputTypeNames::time(), &TimeInputType::create);
 #endif
-    map->add(InputTypeNames::url(), URLInputType::create);
+    map->add(InputTypeNames::url(), &URLInputType::create);
 #if ENABLE(INPUT_TYPE_WEEK)
     if (RuntimeEnabledFeatures::inputTypeWeekEnabled())
-        map->add(InputTypeNames::week(), WeekInputType::create);
+        map->add(InputTypeNames::week(), &WeekInputType::create);
 #endif
     // No need to register "text" because it is the default type.
-    return map.release();
+
+    return map;
 }
 
-PassOwnPtr<InputType> InputType::create(HTMLInputElement& element, const AtomicString& typeName)
+OwnPtr<InputType> InputType::create(HTMLInputElement& element, const AtomicString& typeName)
 {
     static const InputTypeFactoryMap* factoryMap = createInputTypeFactoryMap().leakPtr();
-    PassOwnPtr<InputType> (*factory)(HTMLInputElement&) = typeName.isEmpty() ? 0 : factoryMap->get(typeName);
+    OwnPtr<InputType> (*factory)(HTMLInputElement&) = typeName.isEmpty() ? 0 : factoryMap->get(typeName);
     if (!factory)
         factory = TextInputType::create;
     return factory(element);
 }
 
-PassOwnPtr<InputType> InputType::createText(HTMLInputElement& element)
+OwnPtr<InputType> InputType::createText(HTMLInputElement& element)
 {
     return TextInputType::create(element);
 }
@@ -464,9 +468,9 @@ PassRefPtr<HTMLFormElement> InputType::formForSubmission() const
     return element().form();
 }
 
-RenderObject* InputType::createRenderer(RenderArena&, RenderStyle& style) const
+RenderElement* InputType::createRenderer(RenderArena&, RenderStyle& style) const
 {
-    return RenderObject::createObject(element(), style);
+    return RenderElement::createFor(element(), style);
 }
 
 void InputType::blur()
@@ -678,7 +682,7 @@ bool InputType::canSetValue(const String&)
     return true;
 }
 
-PassOwnPtr<ClickHandlingState> InputType::willDispatchClick()
+OwnPtr<ClickHandlingState> InputType::willDispatchClick()
 {
     return nullptr;
 }

@@ -111,7 +111,7 @@ void InlineFlowBox::addToLine(InlineBox* child)
     }
     child->setFirstLineStyleBit(isFirstLineStyle());
     child->setIsHorizontal(isHorizontal());
-    if (child->isText()) {
+    if (child->behavesLikeText()) {
         if (child->renderer().parent() == &renderer())
             m_hasTextChildren = true;
         setHasTextDescendantsOnAncestors(this);
@@ -126,8 +126,8 @@ void InlineFlowBox::addToLine(InlineBox* child)
         bool shouldClearDescendantsHaveSameLineHeightAndBaseline = false;
         if (child->renderer().isReplaced())
             shouldClearDescendantsHaveSameLineHeightAndBaseline = true;
-        else if (child->isText()) {
-            if (child->renderer().isBR() || child->renderer().parent() != &renderer()) {
+        else if (child->behavesLikeText()) {
+            if (child->renderer().isLineBreak() || child->renderer().parent() != &renderer()) {
                 if (!parentStyle->font().fontMetrics().hasIdenticalAscentDescentAndLineGap(childStyle->font().fontMetrics())
                     || parentStyle->lineHeight() != childStyle->lineHeight()
                     || (parentStyle->verticalAlign() != BASELINE && !isRootInlineBox()) || childStyle->verticalAlign() != BASELINE)
@@ -136,10 +136,10 @@ void InlineFlowBox::addToLine(InlineBox* child)
             if (childStyle->hasTextCombine() || childStyle->textEmphasisMark() != TextEmphasisMarkNone)
                 shouldClearDescendantsHaveSameLineHeightAndBaseline = true;
         } else {
-            if (child->renderer().isBR()) {
+            if (child->renderer().isLineBreak()) {
                 // FIXME: This is dumb. We only turn off because current layout test results expect the <br> to be 0-height on the baseline.
                 // Other than making a zillion tests have to regenerate results, there's no reason to ditch the optimization here.
-                shouldClearDescendantsHaveSameLineHeightAndBaseline = true;
+                shouldClearDescendantsHaveSameLineHeightAndBaseline = child->renderer().isBR();
             } else {
                 ASSERT(isInlineFlowBox());
                 InlineFlowBox* childFlowBox = toInlineFlowBox(child);
@@ -158,7 +158,7 @@ void InlineFlowBox::addToLine(InlineBox* child)
     }
 
     if (!child->renderer().isOutOfFlowPositioned()) {
-        if (child->isText()) {
+        if (child->behavesLikeText()) {
             RenderStyle* childStyle = child->renderer().style(isFirstLineStyle());
             if (childStyle->letterSpacing() < 0 || childStyle->textShadow() || childStyle->textEmphasisMark() != TextEmphasisMarkNone || childStyle->textStrokeWidth())
                 child->clearKnownToHaveNoOverflow();
@@ -166,7 +166,7 @@ void InlineFlowBox::addToLine(InlineBox* child)
             const RenderBox& box = toRenderBox(child->renderer());
             if (box.hasRenderOverflow() || box.hasSelfPaintingLayer())
                 child->clearKnownToHaveNoOverflow();
-        } else if (!child->renderer().isBR() && (child->renderer().style(isFirstLineStyle())->boxShadow() || child->boxModelObject()->hasSelfPaintingLayer()
+        } else if (!child->renderer().isLineBreak() && (child->renderer().style(isFirstLineStyle())->boxShadow() || child->boxModelObject()->hasSelfPaintingLayer()
                    || (child->renderer().isListMarker() && !toRenderListMarker(child->renderer()).isInside())
                    || child->renderer().style(isFirstLineStyle())->hasBorderImageOutsets()))
             child->clearKnownToHaveNoOverflow();
@@ -388,7 +388,7 @@ float InlineFlowBox::placeBoxRangeInInlineDirection(InlineBox* firstChild, Inlin
     for (InlineBox* curr = firstChild; curr && curr != lastChild; curr = curr->nextOnLine()) {
         if (curr->renderer().isText()) {
             InlineTextBox* text = toInlineTextBox(curr);
-            RenderText& rt = text->textRenderer();
+            RenderText& rt = text->renderer();
             if (rt.textLength()) {
                 if (needsWordSpacing && isSpaceOrNewline(rt.characterAt(text->start())))
                     logicalLeft += rt.style(isFirstLineStyle())->font().wordSpacing();
@@ -659,7 +659,7 @@ void InlineFlowBox::placeBoxesInBlockDirection(LayoutUnit top, LayoutUnit maxHei
         LayoutUnit boxHeight = curr->logicalHeight();
         LayoutUnit boxHeightIncludingMargins = boxHeight;
             
-        if (curr->isText() || curr->isInlineFlowBox()) {
+        if (curr->behavesLikeText() || curr->isInlineFlowBox()) {
             const FontMetrics& fontMetrics = curr->renderer().style(isFirstLineStyle())->fontMetrics();
             newLogicalTop += curr->baselinePosition(baselineType) - fontMetrics.ascent(baselineType);
             if (curr->isInlineFlowBox()) {
@@ -949,15 +949,15 @@ void InlineFlowBox::computeOverflow(LayoutUnit lineTop, LayoutUnit lineBottom, G
     for (InlineBox* curr = firstChild(); curr; curr = curr->nextOnLine()) {
         if (curr->renderer().isOutOfFlowPositioned())
             continue; // Positioned placeholders don't affect calculations.
-        
+
+        if (curr->renderer().isLineBreak())
+            continue;
         if (curr->renderer().isText()) {
             InlineTextBox* text = toInlineTextBox(curr);
-            if (text->renderer().isBR())
-                continue;
             LayoutRect textBoxOverflow(enclosingLayoutRect(text->logicalFrameRect()));
             addTextBoxVisualOverflow(text, textBoxDataMap, textBoxOverflow);
             logicalVisualOverflow.unite(textBoxOverflow);
-        } else  if (curr->renderer().isRenderInline()) {
+        } else if (curr->renderer().isRenderInline()) {
             InlineFlowBox* flow = toInlineFlowBox(curr);
             flow->computeOverflow(lineTop, lineBottom, textBoxDataMap);
             if (!flow->boxModelObject()->hasSelfPaintingLayer())
@@ -1095,7 +1095,7 @@ bool InlineFlowBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& re
 
     if (locationInContainer.intersects(rect)) {
         renderer().updateHitTestResult(result, flipForWritingMode(locationInContainer.point() - toLayoutSize(accumulatedOffset))); // Don't add in m_x or m_y here, we want coords in the containing block's space.
-        if (!result.addNodeToRectBasedTestResult(renderer().node(), request, locationInContainer, rect))
+        if (!result.addNodeToRectBasedTestResult(renderer().element(), request, locationInContainer, rect))
             return true;
     }
 
@@ -1142,7 +1142,7 @@ void InlineFlowBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset, 
                 if (containingBlockPaintsContinuationOutline) {
                     // Add ourselves to the containing block of the entire continuation so that it can
                     // paint us atomically.
-                    cb->addContinuationWithOutline(toRenderInline(renderer().node()->renderer()));
+                    cb->addContinuationWithOutline(toRenderInline(renderer().element()->renderer()));
                 } else if (!inlineFlow.isInlineElementContinuation())
                     paintInfo.outlineObjects->add(&inlineFlow);
             }
