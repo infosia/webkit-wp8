@@ -1456,7 +1456,7 @@ valueToTypeSEL}</string>
 				<key>stroke</key>
 				<dict>
 					<key>HeadArrow</key>
-					<string>Arrow</string>
+					<string>0</string>
 					<key>HeadScale</key>
 					<real>2.0000002384185791</real>
 					<key>Legacy</key>
@@ -3015,7 +3015,7 @@ isWorkListEmpty}</string>
 				<key>stroke</key>
 				<dict>
 					<key>HeadArrow</key>
-					<string>Arrow</string>
+					<string>0</string>
 					<key>HeadScale</key>
 					<real>2.0000002384185791</real>
 					<key>Legacy</key>
@@ -3927,8 +3927,8 @@ Due to mappings, valueToObject and objectToValue use the wrapper JSContext to co
 			<integer>493</integer>
 			<key>Points</key>
 			<array>
-				<string>{729.49338887482634, 500.18973537074447}</string>
-				<string>{774, 507.5}</string>
+				<string>{729.49338887482634, 500.18973537074442}</string>
+				<string>{773.50661112517366, 507.41896028142946}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -3962,8 +3962,8 @@ Due to mappings, valueToObject and objectToValue use the wrapper JSContext to co
 			<integer>492</integer>
 			<key>Points</key>
 			<array>
-				<string>{729.49361613693543, 480.98155307012865}</string>
-				<string>{773.89765502915793, 473.8170916360898}</string>
+				<string>{729.49557476780876, 482.59840236209072}</string>
+				<string>{775.44625844907057, 476.44397781304315}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -5666,8 +5666,8 @@ Both valueToObjectWithoutCopy and containerValueToObject use this class, those f
 			<integer>373</integer>
 			<key>Points</key>
 			<array>
-				<string>{144.49394758039335, 423.55684338181561}</string>
-				<string>{197.51406047670932, 431.88225973141397}</string>
+				<string>{144.49391852322864, 423.57774643421192}</string>
+				<string>{198, 432}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -5701,8 +5701,8 @@ Both valueToObjectWithoutCopy and containerValueToObject use this class, those f
 			<integer>372</integer>
 			<key>Points</key>
 			<array>
-				<string>{144.49509738095261, 407.31200255773308}</string>
-				<string>{198.53904918951341, 399.68765131802991}</string>
+				<string>{144.49592163856639, 407.9966327049064}</string>
+				<string>{199.43918636965878, 400.93577655762573}</string>
 			</array>
 			<key>Style</key>
 			<dict>
@@ -6860,7 +6860,7 @@ toSize\
 	<key>MasterSheets</key>
 	<array/>
 	<key>ModificationDate</key>
-	<string>2013-09-19 23:26:47 +0000</string>
+	<string>2013-09-20 20:46:06 +0000</string>
 	<key>Modifier</key>
 	<string>Blain Hamon</string>
 	<key>NotesVisible</key>
@@ -6941,7 +6941,7 @@ toSize\
 			</dict>
 		</array>
 		<key>Frame</key>
-		<string>{{1983, 276}, {1380, 874}}</string>
+		<string>{{27, 4}, {1380, 874}}</string>
 		<key>ListView</key>
 		<true/>
 		<key>OutlineWidth</key>
@@ -6955,7 +6955,7 @@ toSize\
 		<key>SidebarWidth</key>
 		<integer>120</integer>
 		<key>VisibleRegion</key>
-		<string>{{1073, 13}, {1231, 720}}</string>
+		<string>{{1058, -1}, {1245, 735}}</string>
 		<key>Zoom</key>
 		<real>1</real>
 		<key>ZoomValues</key>
