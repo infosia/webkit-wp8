@@ -43,14 +43,14 @@ BEGIN_REGISTER_ANIMATED_PROPERTIES(SVGAltGlyphElement)
     REGISTER_PARENT_ANIMATED_PROPERTIES(SVGTextPositioningElement)
 END_REGISTER_ANIMATED_PROPERTIES
 
-inline SVGAltGlyphElement::SVGAltGlyphElement(const QualifiedName& tagName, Document* document)
+inline SVGAltGlyphElement::SVGAltGlyphElement(const QualifiedName& tagName, Document& document)
     : SVGTextPositioningElement(tagName, document)
 {
     ASSERT(hasTagName(SVGNames::altGlyphTag));
     registerAnimatedPropertiesForSVGAltGlyphElement();
 }
 
-PassRefPtr<SVGAltGlyphElement> SVGAltGlyphElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<SVGAltGlyphElement> SVGAltGlyphElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new SVGAltGlyphElement(tagName, document));
 }
@@ -82,7 +82,7 @@ bool SVGAltGlyphElement::childShouldCreateRenderer(const Node* child) const
     return false;
 }
 
-RenderObject* SVGAltGlyphElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* SVGAltGlyphElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     return new (arena) RenderSVGTSpan(*this);
 }

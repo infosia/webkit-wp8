@@ -1138,8 +1138,9 @@ void RenderLayer::updateDescendantDependentFlags(HashSet<const RenderObject*>* o
                     m_hasVisibleContent = true;
                     break;
                 }
-                if (r->firstChild() && !r->hasLayer())
-                    r = r->firstChild();
+                RenderObject* child;
+                if (!r->hasLayer() && (child = r->firstChildSlow()))
+                    r = child;
                 else if (r->nextSibling())
                     r = r->nextSibling();
                 else {
@@ -1484,7 +1485,12 @@ RenderLayer* RenderLayer::enclosingFilterLayer(IncludeSelfOrNot includeSelf) con
 RenderLayer* RenderLayer::enclosingFilterRepaintLayer() const
 {
     for (const RenderLayer* curr = this; curr; curr = curr->parent()) {
-        if ((curr != this && curr->requiresFullLayerImageForFilters()) || compositedWithOwnBackingStore(curr) || curr->isRootLayer())
+        if ((curr != this && curr->requiresFullLayerImageForFilters())
+#if USE(ACCELERATED_COMPOSITING)
+            || compositedWithOwnBackingStore(curr)
+#endif
+            || curr->isRootLayer()
+        )
             return const_cast<RenderLayer*>(curr);
     }
     return 0;
@@ -1733,9 +1739,9 @@ void RenderLayer::beginTransparencyLayers(GraphicsContext* context, const Render
     }
 }
 
-void* RenderLayer::operator new(size_t sz, RenderArena* renderArena)
+void* RenderLayer::operator new(size_t sz, RenderArena& renderArena)
 {
-    return renderArena->allocate(sz);
+    return renderArena.allocate(sz);
 }
 
 void RenderLayer::operator delete(void* ptr, size_t sz)
@@ -1744,12 +1750,12 @@ void RenderLayer::operator delete(void* ptr, size_t sz)
     *(size_t *)ptr = sz;
 }
 
-void RenderLayer::destroy(RenderArena* renderArena)
+void RenderLayer::destroy(RenderArena& renderArena)
 {
     delete this;
 
     // Recover the size left there for us by operator delete and free the memory.
-    renderArena->free(*(size_t *)this, this);
+    renderArena.free(*(size_t *)this, this);
 }
 
 void RenderLayer::addChild(RenderLayer* child, RenderLayer* beforeChild)
@@ -1893,8 +1899,10 @@ void RenderLayer::insertOnlyThisLayer()
     }
 
     // Remove all descendant layers from the hierarchy and add them to the new position.
-    for (RenderObject* curr = renderer().firstChild(); curr; curr = curr->nextSibling())
-        curr->moveLayers(m_parent, this);
+    for (RenderObject* curr = renderer().firstChild(); curr; curr = curr->nextSibling()) {
+        if (curr->isRenderElement())
+            toRenderElement(curr)->moveLayers(m_parent, this);
+    }
 
     // Clear out all the clip rects.
     clearClipRectsIncludingDescendants();
@@ -2159,7 +2167,7 @@ void RenderLayer::panScrollFromPoint(const IntPoint& sourcePoint)
     scrollByRecursively(adjustedScrollDelta(delta), ScrollOffsetClamped);
 }
 
-void RenderLayer::scrollByRecursively(const IntSize& delta, ScrollOffsetClamping clamp)
+void RenderLayer::scrollByRecursively(const IntSize& delta, ScrollOffsetClamping clamp, ScrollView** scrolledView)
 {
     if (delta.isZero())
         return;
@@ -2171,12 +2179,14 @@ void RenderLayer::scrollByRecursively(const IntSize& delta, ScrollOffsetClamping
     if (renderer().hasOverflowClip() && !restrictedByLineClamp) {
         IntSize newScrollOffset = scrollOffset() + delta;
         scrollToOffset(newScrollOffset, clamp);
+        if (scrolledView)
+            *scrolledView = &renderer().view().frameView();
 
         // If this layer can't do the scroll we ask the next layer up that can scroll to try
         IntSize remainingScrollOffset = newScrollOffset - scrollOffset();
         if (!remainingScrollOffset.isZero() && renderer().parent()) {
             if (RenderLayer* scrollableLayer = enclosingScrollableLayer())
-                scrollableLayer->scrollByRecursively(remainingScrollOffset);
+                scrollableLayer->scrollByRecursively(remainingScrollOffset, clamp, scrolledView);
 
             renderer().frame().eventHandler().updateAutoscrollRenderer();
         }
@@ -2184,6 +2194,8 @@ void RenderLayer::scrollByRecursively(const IntSize& delta, ScrollOffsetClamping
         // If we are here, we were called on a renderer that can be programmatically scrolled, but doesn't
         // have an overflow clip. Which means that it is a document node that can be scrolled.
         renderer().view().frameView().scrollBy(delta);
+        if (scrolledView)
+            *scrolledView = &renderer().view().frameView();
 
         // FIXME: If we didn't scroll the whole way, do we want to try looking at the frames ownerElement? 
         // https://bugs.webkit.org/show_bug.cgi?id=28237
@@ -6304,7 +6316,7 @@ void RenderLayer::updateScrollCornerStyle()
     RefPtr<RenderStyle> corner = renderer().hasOverflowClip() ? actualRenderer->getUncachedPseudoStyle(PseudoStyleRequest(SCROLLBAR_CORNER), actualRenderer->style()) : PassRefPtr<RenderStyle>(0);
     if (corner) {
         if (!m_scrollCorner) {
-            m_scrollCorner = RenderScrollbarPart::createAnonymous(&renderer().document());
+            m_scrollCorner = RenderScrollbarPart::createAnonymous(renderer().document());
             m_scrollCorner->setParent(&renderer());
         }
         m_scrollCorner->setStyle(corner.release());
@@ -6320,7 +6332,7 @@ void RenderLayer::updateResizerStyle()
     RefPtr<RenderStyle> resizer = renderer().hasOverflowClip() ? actualRenderer->getUncachedPseudoStyle(PseudoStyleRequest(RESIZER), actualRenderer->style()) : PassRefPtr<RenderStyle>(0);
     if (resizer) {
         if (!m_resizer) {
-            m_resizer = RenderScrollbarPart::createAnonymous(&renderer().document());
+            m_resizer = RenderScrollbarPart::createAnonymous(renderer().document());
             m_resizer->setParent(&renderer());
         }
         m_resizer->setStyle(resizer.release());
@@ -6338,7 +6350,7 @@ RenderLayer* RenderLayer::reflectionLayer() const
 void RenderLayer::createReflection()
 {
     ASSERT(!m_reflection);
-    m_reflection = RenderReplica::createAnonymous(&renderer().document());
+    m_reflection = RenderReplica::createAnonymous(renderer().document());
     m_reflection->setParent(&renderer()); // We create a 1-way connection.
 }
 

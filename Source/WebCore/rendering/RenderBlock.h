@@ -53,6 +53,7 @@ class RenderText;
 
 struct BidiRun;
 struct PaintInfo;
+class LineBreaker;
 class LineInfo;
 class RenderRubyRun;
 #if ENABLE(CSS_SHAPES)
@@ -101,19 +102,15 @@ protected:
     virtual ~RenderBlock();
 
 public:
-    static RenderBlock* createAnonymous(Document*);
-
-    RenderObject* firstChild() const { return m_children.firstChild(); }
-    RenderObject* lastChild() const { return m_children.lastChild(); }
-
-    virtual const RenderObjectChildList* children() const OVERRIDE FINAL { return &m_children; }
-    virtual RenderObjectChildList* children() OVERRIDE FINAL { return &m_children; }
+    static RenderBlock* createAnonymous(Document&);
 
     bool beingDestroyed() const { return m_beingDestroyed; }
 
     // These two functions are overridden for inline-block.
     virtual LayoutUnit lineHeight(bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const OVERRIDE FINAL;
     virtual int baselinePosition(FontBaseline, bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const OVERRIDE;
+
+    LayoutUnit minLineHeightForReplacedRenderer(bool isFirstLine, LayoutUnit replacedHeight) const;
 
     RenderLineBoxList& lineBoxes() { return m_lineBoxes; }
     const RenderLineBoxList& lineBoxes() const { return m_lineBoxes; }
@@ -289,7 +286,7 @@ public:
     RenderBlock* createAnonymousBlock(EDisplay display = BLOCK) const { return createAnonymousWithParentRendererAndDisplay(this, display); }
     RenderBlock* createAnonymousColumnsBlock() const { return createAnonymousColumnsWithParentRenderer(this); }
     RenderBlock* createAnonymousColumnSpanBlock() const { return createAnonymousColumnSpanWithParentRenderer(this); }
-    static void collapseAnonymousBoxChild(RenderBlock* parent, RenderObject* child);
+    static void collapseAnonymousBoxChild(RenderBlock* parent, RenderBlock* child);
 
     virtual RenderBox* createAnonymousBoxWithSameTypeAs(const RenderObject* parent) const OVERRIDE;
 
@@ -334,11 +331,6 @@ public:
 
     LayoutUnit paginationStrut() const { return m_rareData ? m_rareData->m_paginationStrut : LayoutUnit(); }
     void setPaginationStrut(LayoutUnit);
-
-    bool shouldBreakAtLineToAvoidWidow() const { return m_rareData && m_rareData->m_shouldBreakAtLineToAvoidWidow; }
-    void clearShouldBreakAtLineToAvoidWidow() const;
-    int lineBreakToAvoidWidow() const { return m_rareData ? m_rareData->m_lineBreakToAvoidWidow : -1; }
-    void setBreakAtLineToAvoidWidow(int);
 
     // The page logical offset is the object's offset from the top of the page in the page progression
     // direction (so an x-offset in vertical text and a y-offset for horizontal text).
@@ -467,6 +459,8 @@ public:
     virtual void imageChanged(WrappedImagePtr, const IntRect* = 0) OVERRIDE;
 #endif
 
+    virtual void updateHitTestResult(HitTestResult&, const LayoutPoint&) OVERRIDE;
+
 protected:
     virtual void willBeDestroyed();
 
@@ -509,8 +503,6 @@ protected:
     virtual int firstLineBoxBaseline() const;
     virtual int inlineBlockBaseline(LineDirectionMode) const OVERRIDE;
     int lastLineBoxBaseline(LineDirectionMode) const;
-
-    virtual void updateHitTestResult(HitTestResult&, const LayoutPoint&);
 
     // Delay update scrollbar until finishDelayRepaint() will be
     // called. This function is used when a flexbox is laying out its
@@ -573,6 +565,7 @@ private:
 
     virtual bool isRenderBlock() const OVERRIDE FINAL { return true; }
     virtual bool isInlineBlockOrInlineTable() const OVERRIDE FINAL { return isInline() && isReplaced(); }
+    virtual bool canHaveChildren() const OVERRIDE { return true; }
 
     void makeChildrenNonInline(RenderObject* insertionPoint = 0);
     virtual void removeLeftoverAnonymousBlock(RenderBlock* child);
@@ -601,9 +594,7 @@ private:
     // Called to lay out the legend for a fieldset or the ruby text of a ruby run.
     virtual RenderObject* layoutSpecialExcludedChild(bool /*relayoutChildren*/) { return 0; }
 
-    bool relayoutToAvoidWidows(LayoutStateMaintainer&);
-
-    void createFirstLetterRenderer(RenderObject* firstLetterBlock, RenderObject* currentChild);
+    void createFirstLetterRenderer(RenderObject* firstLetterBlock, RenderText* currentTextChild);
     void updateFirstLetterStyle(RenderObject* firstLetterBlock, RenderObject* firstLetterContainer);
 
     Node* nodeForHitTest() const;
@@ -640,44 +631,6 @@ private:
     }
 
     LayoutPoint computeLogicalLocationForFloat(const FloatingObject*, LayoutUnit logicalTopOffset) const;
-
-    // The following functions' implementations are in RenderBlockLineLayout.cpp.
-    struct RenderTextInfo {
-        // Destruction of m_layout requires TextLayout to be a complete type, so the constructor and destructor are made non-inline to avoid compilation errors.
-        RenderTextInfo();
-        ~RenderTextInfo();
-
-        RenderText* m_text;
-        OwnPtr<TextLayout> m_layout;
-        LazyLineBreakIterator m_lineBreakIterator;
-        const Font* m_font;
-    };
-
-    class LineBreaker {
-    public:
-        LineBreaker(RenderBlock* block)
-            : m_block(block)
-        {
-            reset();
-        }
-
-        InlineIterator nextLineBreak(InlineBidiResolver&, LineInfo&, RenderTextInfo&, FloatingObject* lastFloatFromPreviousLine, unsigned consecutiveHyphenatedLines, WordMeasurements&);
-
-        bool lineWasHyphenated() { return m_hyphenated; }
-        const Vector<RenderBox*>& positionedObjects() { return m_positionedObjects; }
-        EClear clear() { return m_clear; }
-    private:
-        void reset();
-        
-        InlineIterator nextSegmentBreak(InlineBidiResolver&, LineInfo&, RenderTextInfo&, FloatingObject* lastFloatFromPreviousLine, unsigned consecutiveHyphenatedLines, WordMeasurements&);
-        void skipTrailingWhitespace(InlineIterator&, const LineInfo&);
-        void skipLeadingWhitespace(InlineBidiResolver&, LineInfo&, FloatingObject* lastFloatFromPreviousLine, LineWidth&);
-        
-        RenderBlock* m_block;
-        bool m_hyphenated;
-        EClear m_clear;
-        Vector<RenderBox*> m_positionedObjects;
-    };
 
     void checkFloatsInCleanLine(RootInlineBox*, Vector<FloatWithRect>&, size_t& floatIndex, bool& encounteredNewFloat, bool& dirtiedByFloat);
     RootInlineBox* determineStartPosition(LineLayoutState&, InlineBidiResolver&);
@@ -865,7 +818,6 @@ protected:
     void updateMinimumPageHeight(LayoutUnit offset, LayoutUnit minHeight);
 
     LayoutUnit adjustForUnsplittableChild(RenderBox* child, LayoutUnit logicalOffset, bool includeMargins = false); // If the child is unsplittable and can't fit on the current page, return the top of the next page/column.
-    void adjustLinePositionForPagination(RootInlineBox*, LayoutUnit& deltaOffset, RenderFlowThread*); // Computes a deltaOffset value that put a line at the top of the next page if it doesn't fit on the current page.
 
     // Adjust from painting offsets to the local coords of this renderer
     void offsetForContents(LayoutPoint&) const;
@@ -903,8 +855,6 @@ public:
             : m_paginationStrut(0)
             , m_pageLogicalOffset(0)
             , m_lineGridBox(0)
-            , m_lineBreakToAvoidWidow(-1)
-            , m_shouldBreakAtLineToAvoidWidow(false)
         { 
         }
 
@@ -913,11 +863,9 @@ public:
         
         RootInlineBox* m_lineGridBox;
 
-        int m_lineBreakToAvoidWidow;
 #if ENABLE(CSS_SHAPES)
         OwnPtr<ShapeInsideInfo> m_shapeInsideInfo;
 #endif
-        bool m_shouldBreakAtLineToAvoidWidow : 1;
      };
 
 protected:
@@ -925,7 +873,6 @@ protected:
     OwnPtr<FloatingObjects> m_floatingObjects;
     OwnPtr<RenderBlockRareData> m_rareData;
 
-    RenderObjectChildList m_children;
     RenderLineBoxList m_lineBoxes;   // All of the root line boxes created for this block flow.  For example, <div>Hello<br>world.</div> will have two total lines for the <div>.
 
     mutable signed m_lineHeight : 27;
@@ -943,6 +890,7 @@ protected:
     // RenderRubyBase objects need to be able to split and merge, moving their children around
     // (calling moveChildTo, moveAllChildrenTo, and makeChildrenNonInline).
     friend class RenderRubyBase;
+    friend class LineBreaker;
     friend class LineWidth; // Needs to know FloatingObject
 
 private:

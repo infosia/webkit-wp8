@@ -27,7 +27,6 @@
 #import "WebContext.h"
 
 #import "PluginProcessManager.h"
-#import "SharedWorkerProcessManager.h"
 #import "TextChecker.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
@@ -103,14 +102,11 @@ static void updateProcessSuppressionStateOfGlobalChildProcesses()
 {
     // The plan is to have all child processes become context specific.  This function
     // can be removed once that is complete.
-#if ENABLE(PLUGIN_PROCESS) || ENABLE(SHARED_WORKER_PROCESS)
+#if ENABLE(NETSCAPE_PLUGIN_API) || ENABLE(SHARED_WORKER_PROCESS)
     bool canEnable = WebContext::canEnableProcessSuppressionForGlobalChildProcesses();
 #endif
-#if ENABLE(PLUGIN_PROCESS)
+#if ENABLE(NETSCAPE_PLUGIN_API)
     PluginProcessManager::shared().setProcessSuppressionEnabled(canEnable);
-#endif
-#if ENABLE(SHARED_WORKER_PROCESS)
-    SharedWorkerProcessManager::shared().setProcessSuppressionEnabled(canEnable);
 #endif
 }
 

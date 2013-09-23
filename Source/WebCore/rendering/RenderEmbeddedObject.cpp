@@ -114,13 +114,12 @@ RenderEmbeddedObject::RenderEmbeddedObject(HTMLFrameOwnerElement& element)
 
 RenderEmbeddedObject::~RenderEmbeddedObject()
 {
-    if (frameView())
-        frameView()->removeEmbeddedObjectToUpdate(*this);
+    view().frameView().removeEmbeddedObjectToUpdate(*this);
 }
 
 RenderEmbeddedObject* RenderEmbeddedObject::createForApplet(HTMLAppletElement& applet)
 {
-    RenderEmbeddedObject* renderer = new (applet.document().renderArena()) RenderEmbeddedObject(applet);
+    RenderEmbeddedObject* renderer = new (*applet.document().renderArena()) RenderEmbeddedObject(applet);
     renderer->setInline(true);
     return renderer;
 }
@@ -411,7 +410,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     if (!rootRenderView)
         return true;
 
-    IntRect rootViewRect = frameView()->convertToRootView(pixelSnappedIntRect(rect));
+    IntRect rootViewRect = view().frameView().convertToRootView(pixelSnappedIntRect(rect));
     
     HitTestRequest request(HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::IgnoreClipping | HitTestRequest::DisallowShadowContent | HitTestRequest::AllowChildFrameContent);
     HitTestResult result;
@@ -471,9 +470,9 @@ void RenderEmbeddedObject::layout()
     updateLayerTransform();
 
     bool wasMissingWidget = false;
-    if (!widget() && frameView() && canHaveWidget()) {
+    if (!widget() && canHaveWidget()) {
         wasMissingWidget = true;
-        frameView()->addEmbeddedObjectToUpdate(*this);
+        view().frameView().addEmbeddedObjectToUpdate(*this);
     }
 
     setNeedsLayout(false);
@@ -495,7 +494,7 @@ void RenderEmbeddedObject::layout()
         return;
 
     // This code copied from RenderMedia::layout().
-    RenderObject* child = m_children.firstChild();
+    RenderObject* child = firstChild();
 
     if (!child)
         return;

@@ -35,9 +35,9 @@
 #include "NodeRenderStyle.h"
 #include "NodeRenderingTraversal.h"
 #include "NodeTraversal.h"
+#include "RenderElement.h"
 #include "RenderFullScreen.h"
 #include "RenderNamedFlowThread.h"
-#include "RenderObject.h"
 #include "RenderText.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
@@ -190,7 +190,7 @@ static RenderNamedFlowThread* moveToFlowThreadIfNeeded(Element& element, const R
         return 0;
     FlowThreadController& flowThreadController = element.document().renderView()->flowThreadController();
     RenderNamedFlowThread& parentFlowRenderer = flowThreadController.ensureRenderFlowThreadWithName(style.flowThread());
-    flowThreadController.registerNamedFlowContentNode(&element, &parentFlowRenderer);
+    flowThreadController.registerNamedFlowContentElement(element, parentFlowRenderer);
     return &parentFlowRenderer;
 }
 #endif
@@ -220,17 +220,18 @@ static void createRendererIfNeeded(Element& element, RenderStyle* resolvedStyle)
     if (!element.rendererIsNeeded(*style))
         return;
 
-    RenderObject* parentRenderer;
+    RenderElement* parentRenderer;
     RenderObject* nextRenderer;
     if (parentFlowRenderer) {
         parentRenderer = parentFlowRenderer;
         nextRenderer = parentFlowRenderer->nextRendererForNode(&element);
     } else {
-        parentRenderer = renderingParentNode->renderer();
+        // FIXME: Make this path Element only, handle the root special case separately.
+        parentRenderer = toRenderElement(renderingParentNode->renderer());
         nextRenderer = nextSiblingRenderer(element, renderingParentNode);
     }
 
-    RenderObject* newRenderer = element.createRenderer(document.renderArena(), style.get());
+    RenderElement* newRenderer = element.createRenderer(*document.renderArena(), *style);
     if (!newRenderer)
         return;
     if (!parentRenderer->isChildAllowed(newRenderer, style.get())) {
@@ -339,7 +340,7 @@ static bool textRendererIsNeeded(const Text& textNode, const RenderObject& paren
         if (parentRenderer.isRenderBlock() && !parentRenderer.childrenInline() && (!previousRenderer || !previousRenderer->isInline()))
             return false;
         
-        RenderObject* first = parentRenderer.firstChild();
+        RenderObject* first = parentRenderer.firstChildSlow();
         while (first && first->isFloatingOrOutOfFlowPositioned())
             first = first->nextSibling();
         RenderObject* nextRenderer = nextSiblingRenderer(textNode);
@@ -358,7 +359,7 @@ static void createTextRendererIfNeeded(Text& textNode)
     ContainerNode* renderingParentNode = NodeRenderingTraversal::parent(&textNode);
     if (!renderingParentNode)
         return;
-    RenderObject* parentRenderer = renderingParentNode->renderer();
+    RenderElement* parentRenderer = toRenderElement(renderingParentNode->renderer());
     if (!parentRenderer || !parentRenderer->canHaveChildren())
         return;
     if (!renderingParentNode->childShouldCreateRenderer(&textNode))
@@ -374,7 +375,7 @@ static void createTextRendererIfNeeded(Text& textNode)
 
     if (!textRendererIsNeeded(textNode, *parentRenderer, *style))
         return;
-    RenderText* newRenderer = textNode.createTextRenderer(document.renderArena(), style.get());
+    RenderText* newRenderer = textNode.createTextRenderer(*document.renderArena(), *style);
     if (!newRenderer)
         return;
     if (!parentRenderer->isChildAllowed(newRenderer, style.get())) {

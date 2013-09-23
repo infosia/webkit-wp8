@@ -44,9 +44,10 @@
 
 namespace WebCore {
 
-PassRefPtr<MessageEvent> createConnectEvent(PassRefPtr<MessagePort> port)
+PassRefPtr<MessageEvent> createConnectEvent(PassRefPtr<MessagePort> prpPort)
 {
-    RefPtr<MessageEvent> event = MessageEvent::create(adoptPtr(new MessagePortArray(1, port)));
+    RefPtr<MessagePort> port = prpPort;
+    RefPtr<MessageEvent> event = MessageEvent::create(adoptPtr(new MessagePortArray(1, port)), ScriptValue(), String(), String(), port);
     event->initEvent(eventNames().connectEvent, false, false);
     return event.release();
 }
@@ -69,9 +70,9 @@ SharedWorkerGlobalScope::~SharedWorkerGlobalScope()
 {
 }
 
-const AtomicString& SharedWorkerGlobalScope::interfaceName() const
+EventTargetInterface SharedWorkerGlobalScope::eventTargetInterface() const
 {
-    return eventNames().interfaceForSharedWorkerGlobalScope;
+    return SharedWorkerGlobalScopeEventTargetInterfaceType;
 }
 
 SharedWorkerThread* SharedWorkerGlobalScope::thread()

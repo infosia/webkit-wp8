@@ -215,7 +215,7 @@ static inline bool fullyClipsContents(Node* node)
 static inline bool ignoresContainerClip(Node* node)
 {
     RenderObject* renderer = node->renderer();
-    if (!renderer || renderer->isText())
+    if (!renderer || renderer->isTextOrLineBreak())
         return false;
     return renderer->style()->hasOutOfFlowPosition();
 }
@@ -642,7 +642,7 @@ static inline RenderText* firstRenderTextInFirstLetter(RenderObject* firstLetter
         return 0;
 
     // FIXME: Should this check descendent objects?
-    for (RenderObject* current = firstLetter->firstChild(); current; current = current->nextSibling()) {
+    for (RenderObject* current = firstLetter->firstChildSlow(); current; current = current->nextSibling()) {
         if (current->isText())
             return toRenderText(current);
     }

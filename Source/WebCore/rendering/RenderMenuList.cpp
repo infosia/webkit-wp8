@@ -39,8 +39,8 @@
 #include "NodeRenderStyle.h"
 #include "Page.h"
 #include "PopupMenu.h"
-#include "RenderBR.h"
 #include "RenderScrollbar.h"
+#include "RenderText.h"
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "Settings.h"
@@ -56,8 +56,8 @@ using namespace HTMLNames;
 
 RenderMenuList::RenderMenuList(HTMLSelectElement& element)
     : RenderFlexibleBox(&element)
-    , m_buttonText(0)
-    , m_innerBlock(0)
+    , m_buttonText(nullptr)
+    , m_innerBlock(nullptr)
     , m_needsOptionsWidthUpdate(true)
     , m_optionsWidth(0)
     , m_lastActiveIndex(-1)
@@ -131,8 +131,7 @@ void RenderMenuList::adjustInnerStyle()
 
 HTMLSelectElement& RenderMenuList::selectElement() const
 {
-    ASSERT(RenderObject::node());
-    return toHTMLSelectElement(*RenderObject::node());
+    return toHTMLSelectElement(nodeForNonAnonymous());
 }
 
 void RenderMenuList::addChild(RenderObject* newChild, RenderObject* beforeChild)
@@ -188,7 +187,7 @@ void RenderMenuList::updateOptionsWidth()
             // Add in the option's text indent.  We can't calculate percentage values for now.
             float optionWidth = 0;
             if (RenderStyle* optionStyle = element->renderStyle())
-                optionWidth += minimumValueForLength(optionStyle->textIndent(), 0, &view());
+                optionWidth += minimumValueForLength(optionStyle->textIndent(), 0);
             if (!text.isEmpty())
                 optionWidth += style()->font().width(text);
             maxOptionWidth = max(maxOptionWidth, optionWidth);
@@ -239,31 +238,21 @@ void RenderMenuList::setTextFromOption(int optionIndex)
 
 void RenderMenuList::setText(const String& s)
 {
-    if (s.isEmpty()) {
-        if (!m_buttonText || !m_buttonText->isBR()) {
-            if (m_buttonText)
-                m_buttonText->destroy();
-            m_buttonText = new (renderArena()) RenderBR(&document());
-            m_buttonText->setStyle(style());
-            addChild(m_buttonText);
-        }
-    } else {
-        if (m_buttonText && !m_buttonText->isBR())
-            m_buttonText->setText(s.impl(), true);
-        else {
-            if (m_buttonText)
-                m_buttonText->destroy();
-            m_buttonText = new (renderArena()) RenderText(&document(), s.impl());
-            m_buttonText->setStyle(style());
-            addChild(m_buttonText);
-        }
-        adjustInnerStyle();
+    String textToUse = s.isEmpty() ? String(ASCIILiteral("\n")) : s;
+
+    if (m_buttonText)
+        m_buttonText->setText(textToUse.impl(), true);
+    else {
+        m_buttonText = RenderText::createAnonymous(document(), textToUse);
+        m_buttonText->setStyle(style());
+        addChild(m_buttonText);
     }
+    adjustInnerStyle();
 }
 
 String RenderMenuList::text() const
 {
-    return m_buttonText ? m_buttonText->text() : 0;
+    return m_buttonText ? m_buttonText->text() : String();
 }
 
 LayoutRect RenderMenuList::controlClipRect(const LayoutPoint& additionalOffset) const

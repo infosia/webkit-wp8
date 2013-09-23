@@ -35,12 +35,13 @@
 #include "MediaStreamTrack.h"
 #include "ScriptWrappable.h"
 #include "Timer.h"
+#include "URLRegistry.h"
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-class MediaStream : public RefCounted<MediaStream>, public ScriptWrappable, public MediaStreamDescriptorClient, public EventTarget, public ContextDestructionObserver {
+class MediaStream : public RefCounted<MediaStream>, public URLRegistrable, public ScriptWrappable, public MediaStreamDescriptorClient, public EventTarget, public ContextDestructionObserver {
 public:
     static PassRefPtr<MediaStream> create(ScriptExecutionContext*);
     static PassRefPtr<MediaStream> create(ScriptExecutionContext*, PassRefPtr<MediaStream>);
@@ -71,11 +72,14 @@ public:
     MediaStreamDescriptor* descriptor() const { return m_descriptor.get(); }
 
     // EventTarget
-    virtual const AtomicString& interfaceName() const OVERRIDE;
+    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
     virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
 
     using RefCounted<MediaStream>::ref;
     using RefCounted<MediaStream>::deref;
+
+    // URLRegistrable
+    virtual URLRegistry& registry() const OVERRIDE;
 
 protected:
     MediaStream(ScriptExecutionContext*, PassRefPtr<MediaStreamDescriptor>);

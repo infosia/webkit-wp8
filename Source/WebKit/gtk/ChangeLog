@@ -1,3 +1,43 @@
+2013-09-22  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed, GTK build fix when building with GTK+ 2.0.
+        Patch provided by Dominique Leuenberger <dimstar@opensuse.org>.
+
+        * WebCoreSupport/AcceleratedCompositingContextGL.cpp: Include GtkVersioning.h to set up
+        the mock GDK_IS_X11_DISPLAY macro if it's not provided by the GTK+ headers.
+
+2013-09-20  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [ATK] Do not expose aria-help in ATK based platforms
+        https://bugs.webkit.org/show_bug.cgi?id=121675
+
+        Reviewed by Chris Fleizach.
+
+        Removed accessibilityHelpText() helper method from
+        DumpRenderSupportGtk's API, since it's not longer needed.
+
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp: Removed method.
+        * WebCoreSupport/DumpRenderTreeSupportGtk.h: Ditto.
+
+2013-09-16  Enrica Casucci  <enrica@apple.com>
+
+        Remove unused function didSetSelectionTypesForPasteboard from EditorClient.
+        https://bugs.webkit.org/show_bug.cgi?id=121464
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/EditorClientGtk.cpp:
+        * WebCoreSupport/EditorClientGtk.h:
+
+2013-09-16  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK] Make symbol export filter more strict, and disable for dev/test builds
+        https://bugs.webkit.org/show_bug.cgi?id=120586
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am: only use the version script when in developer mode..
+
 2013-09-14  Alberto Garcia  <berto@igalia.com>
 
         [GTK] WebKitGTK+ is linking against libxslt in too many places

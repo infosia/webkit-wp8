@@ -42,7 +42,7 @@ class SVGUseElement FINAL : public SVGGraphicsElement,
                             public SVGURIReference,
                             public CachedSVGDocumentClient {
 public:
-    static PassRefPtr<SVGUseElement> create(const QualifiedName&, Document*, bool wasInsertedByParser);
+    static PassRefPtr<SVGUseElement> create(const QualifiedName&, Document&, bool wasInsertedByParser);
     virtual ~SVGUseElement();
 
     SVGElementInstance* instanceRoot();
@@ -54,7 +54,7 @@ public:
     RenderObject* rendererClipChild() const;
 
 private:
-    SVGUseElement(const QualifiedName&, Document*, bool wasInsertedByParser);
+    SVGUseElement(const QualifiedName&, Document&, bool wasInsertedByParser);
 
     virtual bool isValid() const { return SVGTests::isValid(); }
     virtual bool supportsFocus() const OVERRIDE { return true; }
@@ -69,7 +69,7 @@ private:
 
     virtual bool willRecalcStyle(Style::Change);
 
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
+    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
     virtual void toClipPath(Path&);
 
     void clearResourceReferences();

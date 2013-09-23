@@ -397,8 +397,8 @@ static inline void writeSVGInlineTextBox(TextStream& ts, SVGInlineTextBox* textB
     if (fragments.isEmpty())
         return;
 
-    const SVGRenderStyle* svgStyle = textBox->textRenderer().style()->svgStyle();
-    String text = textBox->textRenderer().text();
+    const SVGRenderStyle* svgStyle = textBox->renderer().style()->svgStyle();
+    String text = textBox->renderer().text();
 
     unsigned fragmentsSize = fragments.size();
     for (unsigned i = 0; i < fragmentsSize; ++i) {
@@ -466,7 +466,7 @@ static void writeStandardPrefix(TextStream& ts, const RenderObject& object, int 
 
 static void writeChildren(TextStream& ts, const RenderObject& object, int indent)
 {
-    for (RenderObject* child = object.firstChild(); child; child = child->nextSibling())
+    for (RenderObject* child = object.firstChildSlow(); child; child = child->nextSibling())
         write(ts, *child, indent + 1);
 }
 
@@ -624,7 +624,7 @@ void writeSVGGradientStop(TextStream& ts, const RenderSVGGradientStop& stop, int
 {
     writeStandardPrefix(ts, stop, indent);
 
-    SVGStopElement* stopElement = toSVGStopElement(toSVGElement(stop.node()));
+    SVGStopElement* stopElement = toSVGStopElement(toSVGElement(stop.element()));
     ASSERT(stopElement);
 
     RenderStyle* style = stop.style();

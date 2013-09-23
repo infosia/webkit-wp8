@@ -144,10 +144,8 @@
 #include <WebCore/MHTMLArchive.h>
 #endif
 
-#if ENABLE(PLUGIN_PROCESS)
 #if PLATFORM(MAC)
 #include "MachPort.h"
-#endif
 #endif
 
 #if ENABLE(BATTERY_STATUS)
@@ -4159,12 +4157,7 @@ PassRefPtr<Range> WebPage::currentSelectionAsRange()
 
 void WebPage::reportUsedFeatures()
 {
-    // FIXME: Feature names should not be hardcoded.
-    const BitVector* features = m_page->featureObserver()->accumulatedFeatureBits();
     Vector<String> namedFeatures;
-    if (features && features->quickGet(FeatureObserver::SharedWorkerStart))
-        namedFeatures.append("SharedWorker");
-
     m_loaderClient.featuresUsedInPage(this, namedFeatures);
 }
 

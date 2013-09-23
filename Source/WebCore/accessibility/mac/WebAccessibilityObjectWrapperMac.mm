@@ -166,8 +166,8 @@ using namespace std;
 #define NSAccessibilityARIARelevantAttribute @"AXARIARelevant"
 #endif
 
-#ifndef NSAccessibilityARIABusyAttribute
-#define NSAccessibilityARIABusyAttribute @"AXARIABusy"
+#ifndef NSAccessibilityElementBusyAttribute
+#define NSAccessibilityElementBusyAttribute @"AXElementBusy"
 #endif
 
 #ifndef NSAccessibilityARIAPosInSetAttribute
@@ -1014,7 +1014,7 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
     if (m_object->isInsideARIALiveRegion())
         [additional addObject:NSAccessibilityARIAAtomicAttribute];
     // All objects should expose the ARIA busy attribute (ARIA 1.1 with ISSUE-538).
-    [additional addObject:NSAccessibilityARIABusyAttribute];
+    [additional addObject:NSAccessibilityElementBusyAttribute];
     
     // Popup buttons on the Mac expose the value attribute.
     if (m_object->isPopUpButton()) {
@@ -1143,6 +1143,8 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
     }
     if (webAreaAttrs == nil) {
         tempArray = [[NSMutableArray alloc] initWithArray:attributes];
+        // WebAreas should not expose AXSubrole.
+        [tempArray removeObject:NSAccessibilitySubroleAttribute];
         [tempArray addObject:@"AXLinkUIElements"];
         [tempArray addObject:@"AXLoaded"];
         [tempArray addObject:@"AXLayoutCount"];
@@ -2605,7 +2607,7 @@ static NSString* roleValueToNSString(AccessibilityRole value)
         return m_object->ariaLiveRegionRelevant();
     if ([attributeName isEqualToString:NSAccessibilityARIAAtomicAttribute])
         return [NSNumber numberWithBool:m_object->ariaLiveRegionAtomic()];
-    if ([attributeName isEqualToString:NSAccessibilityARIABusyAttribute])
+    if ([attributeName isEqualToString:NSAccessibilityElementBusyAttribute])
         return [NSNumber numberWithBool:m_object->ariaLiveRegionBusy()];
     
     // MathML Attributes.

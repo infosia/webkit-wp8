@@ -177,7 +177,7 @@ const AtomicString& TextTrackCueBox::textTrackCueBoxShadowPseudoId()
     return trackDisplayBoxShadowPseudoId;
 }
 
-RenderObject* TextTrackCueBox::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* TextTrackCueBox::createRenderer(RenderArena& arena, RenderStyle&)
 {
     return new (arena) RenderTextTrackCue(this);
 }
@@ -1154,9 +1154,9 @@ std::pair<double, double> TextTrackCue::getCSSPosition() const
     return m_displayPosition;
 }
 
-const AtomicString& TextTrackCue::interfaceName() const
+EventTargetInterface TextTrackCue::eventTargetInterface() const
 {
-    return eventNames().interfaceForTextTrackCue;
+    return TextTrackCueEventTargetInterfaceType;
 }
 
 ScriptExecutionContext* TextTrackCue::scriptExecutionContext() const

@@ -28,17 +28,17 @@
 
 #if ENABLE(DFG_JIT)
 
+#include "CCallHelpers.h"
 #include "CallFrameInlines.h"
 #include "CodeBlock.h"
-#include "DFGCCallHelpers.h"
 #include "DFGDisassembler.h"
-#include "DFGFPRInfo.h"
-#include "DFGGPRInfo.h"
 #include "DFGGraph.h"
 #include "DFGJITCode.h"
 #include "DFGOSRExitCompilationInfo.h"
 #include "DFGRegisterBank.h"
 #include "DFGRegisterSet.h"
+#include "FPRInfo.h"
+#include "GPRInfo.h"
 #include "JITCode.h"
 #include "LinkBuffer.h"
 #include "MacroAssembler.h"
@@ -451,8 +451,18 @@ public:
             Node* node = basicBlock.variablesAtHead.local(local);
             if (!node || !node->shouldGenerate())
                 entry->m_expectedValues.local(local).makeHeapTop();
-            else if (node->variableAccessData()->flushFormat() == FlushedDouble)
-                entry->m_localsForcedDouble.set(local);
+            else {
+                switch (node->variableAccessData()->flushFormat()) {
+                case FlushedDouble:
+                    entry->m_localsForcedDouble.set(local);
+                    break;
+                case FlushedInt52:
+                    entry->m_localsForcedMachineInt.set(local);
+                    break;
+                default:
+                    break;
+                }
+            }
         }
 #else
         UNUSED_PARAM(basicBlock);

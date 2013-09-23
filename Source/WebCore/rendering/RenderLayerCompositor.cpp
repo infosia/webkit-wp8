@@ -1319,8 +1319,11 @@ void RenderLayerCompositor::frameViewDidScroll()
 
     // If there's a scrolling coordinator that manages scrolling for this frame view,
     // it will also manage updating the scroll layer position.
-    if (hasCoordinatedScrolling())
+    if (hasCoordinatedScrolling()) {
+        // We have to schedule a flush in order for the main TiledBacking to update its tile coverage.
+        scheduleLayerFlushNow();
         return;
+    }
 
     FrameView& frameView = m_renderView.frameView();
     IntPoint scrollPosition = frameView.scrollPosition();
@@ -1335,6 +1338,11 @@ void RenderLayerCompositor::frameViewDidScroll()
 
     if (GraphicsLayer* fixedBackgroundLayer = fixedRootBackgroundLayer())
         fixedBackgroundLayer->setPosition(IntPoint(frameView.scrollOffsetForFixedPosition()));
+}
+
+void RenderLayerCompositor::frameViewDidAddOrRemoveScrollbars()
+{
+    updateOverflowControlsLayers();
 }
 
 void RenderLayerCompositor::frameViewDidLayout()
@@ -2076,7 +2084,7 @@ bool RenderLayerCompositor::requiresCompositingForVideo(RenderObject* renderer) 
         return (video.requiresImmediateCompositing() || video.shouldDisplayVideo()) && canAccelerateVideoRendering(video);
     }
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    else if (renderer->isRenderWidget()) {
+    else if (renderer->isWidget()) {
         if (!m_hasAcceleratedCompositing)
             return false;
 
@@ -2737,7 +2745,7 @@ void RenderLayerCompositor::updateOverflowControlsLayers()
             m_layerForVerticalScrollbar->setName("vertical scrollbar");
 #endif
 #if PLATFORM(MAC) && USE(CA)
-        m_layerForVerticalScrollbar->setAcceleratesDrawing(acceleratedDrawingEnabled());
+            m_layerForVerticalScrollbar->setAcceleratesDrawing(acceleratedDrawingEnabled());
 #endif
             m_overflowControlsHostLayer->addChild(m_layerForVerticalScrollbar.get());
 

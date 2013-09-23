@@ -311,7 +311,7 @@ void Arguments::tearOff(CallFrame* callFrame)
     // Must be called for the same call frame from which it was created.
     ASSERT(bitwise_cast<WriteBarrier<Unknown>*>(callFrame) == m_registers);
     
-    m_registerArray = adoptArrayPtr(new WriteBarrier<Unknown>[m_numArguments]);
+    m_registerArray = std::make_unique<WriteBarrier<Unknown>[]>(m_numArguments);
     m_registers = m_registerArray.get() - CallFrame::offsetFor(1) - 1;
 
     // If we have a captured argument that logically aliases activation storage,
@@ -326,14 +326,8 @@ void Arguments::tearOff(CallFrame* callFrame)
         }
     }
 
-    if (!callFrame->isInlinedFrame()) {
-        for (size_t i = 0; i < m_numArguments; ++i)
-            trySetArgument(callFrame->vm(), i, callFrame->argumentAfterCapture(i));
-        return;
-    }
-
-    tearOffForInlineCallFrame(
-        callFrame->vm(), callFrame->registers(), callFrame->inlineCallFrame());
+    for (size_t i = 0; i < m_numArguments; ++i)
+        trySetArgument(callFrame->vm(), i, callFrame->argumentAfterCapture(i));
 }
 
 void Arguments::didTearOffActivation(ExecState* exec, JSActivation* activation)
@@ -357,7 +351,7 @@ void Arguments::tearOff(CallFrame* callFrame, InlineCallFrame* inlineCallFrame)
     if (!m_numArguments)
         return;
     
-    m_registerArray = adoptArrayPtr(new WriteBarrier<Unknown>[m_numArguments]);
+    m_registerArray = std::make_unique<WriteBarrier<Unknown>[]>(m_numArguments);
     m_registers = m_registerArray.get() - CallFrame::offsetFor(1) - 1;
 
     tearOffForInlineCallFrame(
@@ -382,6 +376,9 @@ void Arguments::tearOffForInlineCallFrame(VM& vm, Register* registers, InlineCal
             break;
         case AlreadyInJSStackAsUnboxedInt32:
             value = jsNumber(location->unboxedInt32());
+            break;
+        case AlreadyInJSStackAsUnboxedInt52:
+            value = jsNumber(location->unboxedInt52());
             break;
         case AlreadyInJSStackAsUnboxedCell:
             value = location->unboxedCell();

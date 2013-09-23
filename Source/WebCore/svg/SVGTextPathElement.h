@@ -110,10 +110,10 @@ public:
         TEXTPATH_SPACINGTYPE_EXACT = SVGTextPathSpacingExact
     };
 
-    static PassRefPtr<SVGTextPathElement> create(const QualifiedName&, Document*);
+    static PassRefPtr<SVGTextPathElement> create(const QualifiedName&, Document&);
  
 private:
-    SVGTextPathElement(const QualifiedName&, Document*);
+    SVGTextPathElement(const QualifiedName&, Document&);
 
     virtual ~SVGTextPathElement();
 
@@ -127,7 +127,7 @@ private:
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
     virtual void svgAttributeChanged(const QualifiedName&);
 
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
+    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
     virtual bool childShouldCreateRenderer(const Node*) const;
     virtual bool rendererIsNeeded(const RenderStyle&);
 

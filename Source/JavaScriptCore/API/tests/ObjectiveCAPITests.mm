@@ -398,12 +398,39 @@ extern "C" const char * _Block_signature(id);
 
 - (void)test_passValueBetweenContexts {
     JSContext *context1 = [[JSContext alloc] init];
+    JSValue *value = [JSValue valueWithDouble:42 inContext:context1];
+    NSString *varName = @"passValueBetweenContexts";
+
+    context1[varName] = value;
+    JSValue *result1 = [context1 evaluateScript:varName];
+    XCTAssertTrue([value isEqualToObject:result1]);
+    XCTAssertEqual(42, [result1 toInt32]);
+
+    // Assign the value created in context1 to a new context within the same
+    // virtualMachine.
     JSContext *context2 = [[JSContext alloc] initWithVirtualMachine:context1.virtualMachine];
-    JSValue *value = [JSValue valueWithDouble:42 inContext:context2];
-    context1[@"passValueBetweenContexts"] = value;
-    JSValue *result = [context1 evaluateScript:@"passValueBetweenContexts"];
-    XCTAssertTrue([value isEqualToObject:result]);
-    XCTAssertEqual(42, [result toInt32]);
+    context2[varName] = value;
+    JSValue *result2 = [context2 evaluateScript:varName];
+    XCTAssertTrue([value isEqualToObject:result2]);
+    XCTAssertEqual(42, [result2 toInt32]);
+
+    result2 = [context2 evaluateScript:@"passValueBetweenContexts += 1"];
+    XCTAssertEqual(43, [result2 toInt32]);
+
+    // The change made to context2 is not reflected in context1, as expected.
+    result1 = [context1 evaluateScript:varName];
+    XCTAssertEqual(42, [result1 toInt32]);
+    
+    // The changes have to be manually synchronized.
+    context1[varName] = context2[varName];
+    XCTAssertEqual(43, [context1[varName] toInt32]);
+    XCTAssertEqual(43, [context2[varName] toInt32]);
+    XCTAssertTrue([context1[varName] isEqualToObject:context2[varName]]);
+
+    context1[varName] = [context2 evaluateScript:@"passValueBetweenContexts += 1"];
+    XCTAssertEqual(44, [context1[varName] toInt32]);
+    XCTAssertEqual(44, [context2[varName] toInt32]);
+    XCTAssertTrue([context1[varName] isEqualToObject:context2[varName]]);
 }
 
 - (void)test_handleTheDictionary {
@@ -620,6 +647,78 @@ extern "C" const char * _Block_signature(id);
     context[@"testObject"] = testObject;
     JSManagedValue *managedTestObject = [JSManagedValue managedValueWithValue:context[@"testObject"]];
     [context.virtualMachine addManagedReference:managedTestObject withOwner:testObject];
+}
+
+- (void)test_gcd {
+    NSString *getPrimesScript =\
+    [@[\
+       @"function getPrimes(max) {"\
+       , @"    var beginTime = Date.now()"\
+       , @"    ,   endTime"\
+       , @"    ,   sieve = []"\
+       , @"    ,   i"\
+       , @"    ,   j"\
+       , @"    ,   primes = []"\
+       , @"    ,   timeInterval"\
+       , @"    ,   result"\
+       , @"    ;"\
+       , @""\
+       , @"    for (i = 2; i <= max; ++i) {"\
+       , @"        if (!sieve[i]) {"\
+       , @"            // i has not been marked -- it is prime"\
+       , @"            primes.push(i);"\
+       , @"            for (j = i << 1; j <= max; j += i) {"\
+       , @"                sieve[j] = true;"\
+       , @"            }"\
+       , @"        }"\
+       , @"    }"\
+       , @"    "\
+       , @"    endTime = Date.now();"\
+       , @"    timeInterval = endTime - beginTime;"\
+       , @"    result = {"\
+       , @"    	  beginTime: beginTime"\
+       , @"    	, endTime: endTime"\
+       , @"    	, timeInterval: timeInterval"\
+       , @"    	, primes: primes"\
+       , @"    };  "\
+       , @"    return result;"\
+       , @"}"\
+       ] componentsJoinedByString:@"\n"];
+
+    JSContext *context1 = [[JSContext alloc] init];
+    XCTAssertFalse(context1.exception);
+    JSValue *result = [context1 evaluateScript:getPrimesScript];
+//    NSLog(@"MDL0: %@", getPrimesScript);
+//    NSLog(@"MDL1: result = %@", [result toString]);
+//    NSLog(@"MDL2: context1.exception = %@", [context1.exception toString]);
+    XCTAssertFalse(context1.exception);
+
+    // 10^5:   35 ms
+    // 10^6:  285 ms
+    // 10^7: 2273 ms
+    result = [context1 evaluateScript:@"getPrimes(Math.pow(10,7));"];
+//    NSLog(@"MDL3: result = %@", [result toString]);
+//    NSLog(@"MDL4: context1.exception = %@", [context1.exception toString]);
+    XCTAssertFalse(context1.exception);
+
+    NSDictionary *getPrimesResult = [result toDictionary];
+//    NSLog(@"%@", getPrimesResult);
+//    NSLog(@"getPrimesResult[@\"beginTime\"] = %@", [getPrimesResult[@"beginTime"] class]);
+//    NSDate *beginTime      = [NSDate dateWithTimeIntervalSince1970:[getPrimesResult[@"beginTime"] doubleValue] / 1000];
+//    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+//    NSString *formattedDateString = [dateFormatter stringFromDate:beginTime];
+//    NSLog(@"beginTime = %@", formattedDateString);
+//    NSDate *endTime        = getPrimesResult[@"endTime"];
+
+    //    NSLog(@"beginTime    = %@", beginTime);
+    //    NSLog(@"endTime      = %@", endTime);
+
+    NSNumber *timeInterval = getPrimesResult[@"timeInterval"];
+    NSArray *primes        = getPrimesResult[@"primes"];
+    NSLog(@"timeInterval = %@", timeInterval);
+    NSLog(@"primes.count = %lu", (unsigned long)primes.count);
+//    NSLog(@"primes       = %@", primes);
+    
 }
 
 @end

@@ -30,6 +30,9 @@
 #include "config.h"
 #include "LineWidth.h"
 
+#include "RenderBlock.h"
+#include "RenderRubyRun.h"
+
 namespace WebCore {
 
 LineWidth::LineWidth(RenderBlock& block, bool isFirstLine, IndentTextOrNot shouldIndentText)
@@ -49,8 +52,7 @@ LineWidth::LineWidth(RenderBlock& block, bool isFirstLine, IndentTextOrNot shoul
     , m_shouldIndentText(shouldIndentText)
 {
 #if ENABLE(CSS_SHAPES)
-    if (ShapeInsideInfo* shapeInsideInfo = m_block.layoutShapeInsideInfo())
-        m_segment = shapeInsideInfo->currentSegment();
+    updateCurrentShapeSegment();
 #endif
     updateAvailableWidth();
 }
@@ -73,7 +75,7 @@ bool LineWidth::fitsOnLineExcludingTrailingWhitespace(float extra) const
 void LineWidth::updateAvailableWidth(LayoutUnit replacedHeight)
 {
     LayoutUnit height = m_block.logicalHeight();
-    LayoutUnit logicalHeight = logicalHeightForLine(&m_block, m_isFirstLine, replacedHeight);
+    LayoutUnit logicalHeight = m_block.minLineHeightForReplacedRenderer(m_isFirstLine, replacedHeight);
     m_left = m_block.logicalLeftOffsetForLine(height, shouldIndentText(), logicalHeight);
     m_right = m_block.logicalRightOffsetForLine(height, shouldIndentText(), logicalHeight);
 
@@ -103,28 +105,29 @@ void LineWidth::shrinkAvailableWidthForNewFloatIfNeeded(FloatingObject* newFloat
     const FloatingObjectSet& floatingObjectSet = m_block.m_floatingObjects->set();
     FloatingObjectSetIterator it = floatingObjectSet.end();
     FloatingObjectSetIterator begin = floatingObjectSet.begin();
+    LayoutUnit lineHeight = m_block.lineHeight(m_isFirstLine, m_block.isHorizontalWritingMode() ? HorizontalLine : VerticalLine, PositionOfInteriorLineBoxes);
     for (--it; it != begin; --it) {
         FloatingObject* previousFloat = *it;
         if (previousFloat != newFloat && previousFloat->type() == newFloat->type()) {
             previousShapeOutsideInfo = previousFloat->renderer()->shapeOutsideInfo();
             if (previousShapeOutsideInfo)
-                previousShapeOutsideInfo->computeSegmentsForContainingBlockLine(m_block.logicalHeight(), previousFloat->logicalTop(m_block.isHorizontalWritingMode()), logicalHeightForLine(&m_block, m_isFirstLine));
+                previousShapeOutsideInfo->updateDeltasForContainingBlockLine(&m_block, previousFloat, m_block.logicalHeight(), lineHeight);
             break;
         }
     }
 
     ShapeOutsideInfo* shapeOutsideInfo = newFloat->renderer()->shapeOutsideInfo();
     if (shapeOutsideInfo)
-        shapeOutsideInfo->computeSegmentsForContainingBlockLine(m_block.logicalHeight(), newFloat->logicalTop(m_block.isHorizontalWritingMode()), logicalHeightForLine(&m_block, m_isFirstLine));
+        shapeOutsideInfo->updateDeltasForContainingBlockLine(&m_block, newFloat, m_block.logicalHeight(), lineHeight);
 #endif
 
     if (newFloat->type() == FloatingObject::FloatLeft) {
         float newLeft = newFloat->logicalRight(m_block.isHorizontalWritingMode());
 #if ENABLE(CSS_SHAPES)
         if (previousShapeOutsideInfo)
-            newLeft -= previousShapeOutsideInfo->rightSegmentMarginBoxDelta();
+            newLeft -= previousShapeOutsideInfo->rightMarginBoxDelta();
         if (shapeOutsideInfo)
-            newLeft += shapeOutsideInfo->rightSegmentMarginBoxDelta();
+            newLeft += shapeOutsideInfo->rightMarginBoxDelta();
 #endif
 
         if (shouldIndentText() && m_block.style()->isLeftToRightDirection())
@@ -134,9 +137,9 @@ void LineWidth::shrinkAvailableWidthForNewFloatIfNeeded(FloatingObject* newFloat
         float newRight = newFloat->logicalLeft(m_block.isHorizontalWritingMode());
 #if ENABLE(CSS_SHAPES)
         if (previousShapeOutsideInfo)
-            newRight -= previousShapeOutsideInfo->leftSegmentMarginBoxDelta();
+            newRight -= previousShapeOutsideInfo->leftMarginBoxDelta();
         if (shapeOutsideInfo)
-            newRight += shapeOutsideInfo->leftSegmentMarginBoxDelta();
+            newRight += shapeOutsideInfo->leftMarginBoxDelta();
 #endif
 
         if (shouldIndentText() && !m_block.style()->isLeftToRightDirection())
@@ -203,6 +206,14 @@ void LineWidth::setTrailingWhitespaceWidth(float collapsedWhitespace, float bord
     m_trailingCollapsedWhitespaceWidth = collapsedWhitespace;
     m_trailingWhitespaceWidth = collapsedWhitespace + borderPaddingMargin;
 }
+
+#if ENABLE(CSS_SHAPES)
+void LineWidth::updateCurrentShapeSegment()
+{
+    if (ShapeInsideInfo* shapeInsideInfo = m_block.layoutShapeInsideInfo())
+        m_segment = shapeInsideInfo->currentSegment();
+}
+#endif
 
 void LineWidth::computeAvailableWidthFromLeftAndRight()
 {

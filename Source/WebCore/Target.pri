@@ -191,7 +191,6 @@ SOURCES += \
      bindings/js/ScriptController.cpp \
      bindings/js/ScriptControllerQt.cpp \
      bindings/js/ScriptDebugServer.cpp \
-     bindings/js/ScriptEventListener.cpp \
      bindings/js/ScriptFunctionCall.cpp \
      bindings/js/ScriptGCEvent.cpp \
      bindings/js/ScriptObject.cpp \
@@ -373,7 +372,6 @@ SOURCES += \
     dom/ContainerNode.cpp \
     dom/ContainerNodeAlgorithms.cpp \
     dom/ContextDestructionObserver.cpp \
-    dom/ContextFeatures.cpp \
     dom/CustomEvent.cpp \
     dom/DecodedDataDocumentParser.cpp \
     dom/DeviceMotionController.cpp \
@@ -694,6 +692,7 @@ SOURCES += \
     html/NumberInputType.cpp \
     html/PasswordInputType.cpp \
     html/PluginDocument.cpp \
+    html/PublicURLManager.cpp \
     html/RadioInputType.cpp \
     html/RadioNodeList.cpp \
     html/RangeInputType.cpp \
@@ -993,9 +992,9 @@ SOURCES += \
     platform/graphics/LayoutBoxExtent.cpp \
     platform/graphics/LayoutRect.cpp \
     platform/graphics/GeneratedImage.cpp \
-    platform/graphics/GeneratorGeneratedImage.cpp \
     platform/graphics/GlyphPageTreeNode.cpp \
     platform/graphics/Gradient.cpp \
+    platform/graphics/GradientImage.cpp \
     platform/graphics/GraphicsContext.cpp \
     platform/graphics/GraphicsLayer.cpp \
     platform/graphics/GraphicsLayerAnimation.cpp \
@@ -1155,12 +1154,12 @@ SOURCES += \
     rendering/RenderBlockLineLayout.cpp \
     rendering/RenderBox.cpp \
     rendering/RenderBoxModelObject.cpp \
-    rendering/RenderBR.cpp \
     rendering/RenderButton.cpp \
     rendering/RenderCombineText.cpp \
     rendering/RenderCounter.cpp \
     rendering/RenderDeprecatedFlexibleBox.cpp \
     rendering/RenderDetailsMarker.cpp \
+    rendering/RenderElement.cpp \
     rendering/RenderEmbeddedObject.cpp \
     rendering/RenderFieldset.cpp \
     rendering/RenderFileUploadControl.cpp \
@@ -1183,6 +1182,7 @@ SOURCES += \
     rendering/RenderLayerFilterInfo.cpp \
     rendering/RenderLayerModelObject.cpp \
     rendering/RenderLineBoxList.cpp \
+    rendering/RenderLineBreak.cpp \
     rendering/RenderListBox.cpp \
     rendering/RenderListItem.cpp \
     rendering/RenderListMarker.cpp \
@@ -1194,7 +1194,6 @@ SOURCES += \
     rendering/RenderMultiColumnSet.cpp \
     rendering/RenderNamedFlowThread.cpp \
     rendering/RenderObject.cpp \
-    rendering/RenderObjectChildList.cpp \
     rendering/RenderProgress.cpp \
     rendering/RenderQuote.cpp \
     rendering/RenderRegion.cpp \
@@ -1226,7 +1225,6 @@ SOURCES += \
     rendering/RenderTreeAsText.cpp \
     rendering/RenderView.cpp \
     rendering/RenderWidget.cpp \
-    rendering/RenderWordBreak.cpp \
     rendering/RootInlineBox.cpp \
     rendering/ScrollBehavior.cpp \
     rendering/shapes/PolygonShape.cpp \
@@ -1370,7 +1368,6 @@ HEADERS += \
     bindings/js/ScriptCachedFrameData.h \
     bindings/js/ScriptController.h \
     bindings/js/ScriptDebugServer.h \
-    bindings/js/ScriptEventListener.h \
     bindings/js/ScriptFunctionCall.h \
     bindings/js/ScriptGCEvent.h \
     bindings/js/ScriptHeapSnapshot.h \
@@ -1580,7 +1577,6 @@ HEADERS += \
     dom/Comment.h \
     dom/ContainerNode.h \
     dom/ContainerNodeAlgorithms.h \
-    dom/ContextFeatures.h \
     dom/CustomEvent.h \
     dom/default/PlatformMessagePortChannel.h \
     dom/DeviceMotionClient.h \
@@ -2195,10 +2191,10 @@ HEADERS += \
     platform/graphics/FontFeatureSettings.h \
     platform/graphics/FontMetrics.h \
     platform/graphics/Font.h \
-    platform/graphics/GeneratorGeneratedImage.h \
     platform/graphics/GeneratedImage.h \
     platform/graphics/GlyphPageTreeNode.h \
     platform/graphics/Gradient.h \
+    platform/graphics/GradientImage.h \
     platform/graphics/GraphicsContext.h \
     platform/graphics/GraphicsLayer.h \
     platform/graphics/GraphicsLayerAnimation.h \
@@ -2392,6 +2388,7 @@ HEADERS += \
     rendering/FilterEffectRenderer.h \
     rendering/FixedTableLayout.h \
     rendering/FloatingObjects.h \
+    rendering/FlowThreadController.h \
     rendering/HitTestingTransformState.h \
     rendering/HitTestLocation.h \
     rendering/HitTestResult.h \
@@ -2425,12 +2422,12 @@ HEADERS += \
     rendering/RenderBlock.h \
     rendering/RenderBox.h \
     rendering/RenderBoxModelObject.h \
-    rendering/RenderBR.h \
     rendering/RenderButton.h \
     rendering/RenderCombineText.h \
     rendering/RenderCounter.h \
     rendering/RenderDeprecatedFlexibleBox.h \
     rendering/RenderDetailsMarker.h \
+    rendering/RenderElement.h \
     rendering/RenderEmbeddedObject.h \
     rendering/RenderFieldset.h \
     rendering/RenderFileUploadControl.h \
@@ -2452,6 +2449,7 @@ HEADERS += \
     rendering/RenderLayerCompositor.h \
     rendering/RenderLayerModelObject.h \
     rendering/RenderLineBoxList.h \
+    rendering/RenderLineBreak.h \
     rendering/RenderListBox.h \
     rendering/RenderListItem.h \
     rendering/RenderListMarker.h \
@@ -2462,7 +2460,6 @@ HEADERS += \
     rendering/RenderMenuList.h \
     rendering/RenderMeter.h \
     rendering/RenderMultiColumnBlock.h \
-    rendering/RenderObjectChildList.h \
     rendering/RenderObject.h \
     rendering/RenderProgress.h \
     rendering/RenderQuote.h \
@@ -2494,7 +2491,6 @@ HEADERS += \
     rendering/RenderVideo.h \
     rendering/RenderView.h \
     rendering/RenderWidget.h \
-    rendering/RenderWordBreak.h \
     rendering/RootInlineBox.h \
     rendering/ScrollBehavior.h \
     rendering/shapes/PolygonShape.h \
@@ -3735,6 +3731,7 @@ enable?(SVG) {
         svg/properties/SVGAnimatedProperty.cpp \
         svg/properties/SVGAttributeToPropertyMap.cpp \
         svg/properties/SVGPathSegListPropertyTearOff.cpp \
+        svg/properties/SVGPropertyInfo.cpp \
         svg/SVGDocumentExtensions.cpp \
         svg/ColorDistance.cpp \
         svg/SVGAElement.cpp \

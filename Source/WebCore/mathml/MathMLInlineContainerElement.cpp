@@ -44,17 +44,17 @@ namespace WebCore {
     
 using namespace MathMLNames;
 
-MathMLInlineContainerElement::MathMLInlineContainerElement(const QualifiedName& tagName, Document* document)
+MathMLInlineContainerElement::MathMLInlineContainerElement(const QualifiedName& tagName, Document& document)
     : MathMLElement(tagName, document)
 {
 }
 
-PassRefPtr<MathMLInlineContainerElement> MathMLInlineContainerElement::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<MathMLInlineContainerElement> MathMLInlineContainerElement::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new MathMLInlineContainerElement(tagName, document));
 }
 
-RenderObject* MathMLInlineContainerElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* MathMLInlineContainerElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     if (hasLocalName(mrowTag))
         return new (arena) RenderMathMLRow(this);

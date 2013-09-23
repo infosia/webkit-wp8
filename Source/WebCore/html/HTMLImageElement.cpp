@@ -36,7 +36,6 @@
 #include "HTMLParserIdioms.h"
 #include "Page.h"
 #include "RenderImage.h"
-#include "ScriptEventListener.h"
 
 using namespace std;
 
@@ -72,9 +71,9 @@ HTMLImageElement::~HTMLImageElement()
         m_form->removeImgElement(this);
 }
 
-PassRefPtr<HTMLImageElement> HTMLImageElement::createForJSConstructor(Document* document, const int* optionalWidth, const int* optionalHeight)
+PassRefPtr<HTMLImageElement> HTMLImageElement::createForJSConstructor(Document& document, const int* optionalWidth, const int* optionalHeight)
 {
-    RefPtr<HTMLImageElement> image = adoptRef(new HTMLImageElement(imgTag, *document));
+    RefPtr<HTMLImageElement> image = adoptRef(new HTMLImageElement(imgTag, document));
     if (optionalWidth)
         image->setWidth(*optionalWidth);
     if (optionalHeight)
@@ -127,7 +126,7 @@ void HTMLImageElement::parseAttribute(const QualifiedName& name, const AtomicStr
     } else if (name == usemapAttr)
         setIsLink(!value.isNull() && !shouldProhibitLinks(this));
     else if (name == onbeforeloadAttr)
-        setAttributeEventListener(eventNames().beforeloadEvent, createAttributeEventListener(this, name, value));
+        setAttributeEventListener(eventNames().beforeloadEvent, name, value);
     else if (name == compositeAttr) {
         // FIXME: images don't support blend modes in their compositing attribute.
         BlendMode blendOp = BlendModeNormal;
@@ -163,10 +162,10 @@ String HTMLImageElement::altText() const
     return alt;
 }
 
-RenderObject* HTMLImageElement::createRenderer(RenderArena* arena, RenderStyle* style)
+RenderElement* HTMLImageElement::createRenderer(RenderArena& arena, RenderStyle& style)
 {
-    if (style->hasContent())
-        return RenderObject::createObject(this, style);
+    if (style.hasContent())
+        return RenderElement::createFor(*this, style);
 
     RenderImage* image = new (arena) RenderImage(this);
     image->setImageResource(RenderImageResource::create());

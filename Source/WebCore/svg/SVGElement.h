@@ -139,7 +139,7 @@ public:
 #endif
 
 protected:
-    SVGElement(const QualifiedName&, Document*);
+    SVGElement(const QualifiedName&, Document&);
     virtual ~SVGElement();
 
     virtual bool rendererIsNeeded(const RenderStyle&);
@@ -206,6 +206,12 @@ struct SVGAttributeHashTranslator {
     static bool equal(const QualifiedName& a, const QualifiedName& b) { return a.matches(b); }
 };
 
+inline SVGElement& toSVGElement(Node& node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(node.isSVGElement());
+    return static_cast<SVGElement&>(node);
+}
+
 inline SVGElement* toSVGElement(Node* node)
 {
     ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
@@ -219,6 +225,7 @@ inline const SVGElement* toSVGElement(const Node* node)
 }
 
 void toSVGElement(const SVGElement*);
+void toSVGElement(const SVGElement&);
 
 template <> inline bool isElementOfType<SVGElement>(const Element* element) { return element->isSVGElement(); }
 

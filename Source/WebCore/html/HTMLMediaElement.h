@@ -191,7 +191,7 @@ public:
 
 #if ENABLE(MEDIA_SOURCE)
 //  Media Source.
-    void setSourceState(const String&);
+    void closeMediaSource();
 #endif 
 
 #if ENABLE(ENCRYPTED_MEDIA)
@@ -330,7 +330,7 @@ public:
     // causes an ambiguity error at compile time. This class's constructor
     // ensures that both implementations return document, so return the result
     // of one of them here.
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE { return HTMLElement::scriptExecutionContext(); }
+    using HTMLElement::scriptExecutionContext;
 
     bool hasSingleSecurityOrigin() const { return !m_player || m_player->hasSingleSecurityOrigin(); }
     
@@ -434,7 +434,7 @@ private:
     virtual bool supportsFocus() const OVERRIDE;
     virtual bool isMouseFocusable() const OVERRIDE;
     virtual bool rendererIsNeeded(const RenderStyle&);
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
+    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
     virtual bool childShouldCreateRenderer(const Node*) const OVERRIDE;
     virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
     virtual void removedFrom(ContainerNode*) OVERRIDE;
@@ -673,7 +673,7 @@ private:
     int m_processingMediaPlayerCallback;
 
 #if ENABLE(MEDIA_SOURCE)
-    RefPtr<MediaSource> m_mediaSource;
+    RefPtr<HTMLMediaSource> m_mediaSource;
 #endif
 
     mutable double m_cachedTime;

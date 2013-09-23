@@ -31,6 +31,7 @@
 #include "Event.h"
 #include "ExceptionCode.h"
 #include "MediaStreamCenter.h"
+#include "MediaStreamRegistry.h"
 #include "MediaStreamSource.h"
 #include "MediaStreamTrackEvent.h"
 
@@ -256,9 +257,9 @@ void MediaStream::contextDestroyed()
     m_stopped = true;
 }
 
-const AtomicString& MediaStream::interfaceName() const
+EventTargetInterface MediaStream::eventTargetInterface() const
 {
-    return eventNames().interfaceForMediaStream;
+    return MediaStreamEventTargetInterfaceType;
 }
 
 ScriptExecutionContext* MediaStream::scriptExecutionContext() const
@@ -351,6 +352,11 @@ void MediaStream::scheduledEventTimerFired(Timer<MediaStream>*)
         dispatchEvent((*it).release());
 
     events.clear();
+}
+
+URLRegistry& MediaStream::registry() const
+{
+    return MediaStreamRegistry::registry();
 }
 
 } // namespace WebCore

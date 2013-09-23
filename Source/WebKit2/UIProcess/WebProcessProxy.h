@@ -146,17 +146,11 @@ private:
 #if ENABLE(NETSCAPE_PLUGIN_API)
     void getPlugins(bool refresh, Vector<WebCore::PluginInfo>& plugins, Vector<WebCore::PluginInfo>& applicationPlugins);
 #endif // ENABLE(NETSCAPE_PLUGIN_API)
-#if ENABLE(PLUGIN_PROCESS)
+#if ENABLE(NETSCAPE_PLUGIN_API)
     void getPluginProcessConnection(uint64_t pluginProcessToken, PassRefPtr<Messages::WebProcessProxy::GetPluginProcessConnection::DelayedReply>);
-#elif ENABLE(NETSCAPE_PLUGIN_API)
-    void didGetSitesWithPluginData(const Vector<String>& sites, uint64_t callbackID);
-    void didClearPluginSiteData(uint64_t callbackID);
 #endif
 #if ENABLE(NETWORK_PROCESS)
     void getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply>);
-#endif
-#if ENABLE(SHARED_WORKER_PROCESS)
-    void getSharedWorkerProcessConnection(const String& url, const String& name, PassRefPtr<Messages::WebProcessProxy::GetSharedWorkerProcessConnection::DelayedReply>);
 #endif
 
     // CoreIPC::Connection::Client

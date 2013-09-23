@@ -73,7 +73,7 @@ public:
     RenderBoxRegionInfo* renderBoxRegionInfo(const RenderBox*) const;
     RenderBoxRegionInfo* setRenderBoxRegionInfo(const RenderBox*, LayoutUnit logicalLeftInset, LayoutUnit logicalRightInset,
         bool containingBlockChainIsInset);
-    PassOwnPtr<RenderBoxRegionInfo> takeRenderBoxRegionInfo(const RenderBox*);
+    OwnPtr<RenderBoxRegionInfo> takeRenderBoxRegionInfo(const RenderBox*);
     void removeRenderBoxRegionInfo(const RenderBox*);
 
     void deleteAllRenderBoxRegionInfo();
@@ -152,8 +152,6 @@ public:
     LayoutRect visualOverflowRectForBoxForPropagation(const RenderBox*);
 
     LayoutRect rectFlowPortionForBox(const RenderBox*, const LayoutRect&) const;
-
-    Element* generatingElement() const { return toElement(RenderObject::generatingNode()); }
 
 protected:
     RenderOverflow* ensureOverflowForBox(const RenderBox*);

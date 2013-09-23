@@ -52,7 +52,6 @@
 #include "RenderListBox.h"
 #include "RenderMenuList.h"
 #include "RenderTheme.h"
-#include "ScriptEventListener.h"
 #include "Settings.h"
 #include "SpatialNavigation.h"
 
@@ -337,7 +336,7 @@ bool HTMLSelectElement::canSelectAll() const
     return !usesMenuList();
 }
 
-RenderObject* HTMLSelectElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* HTMLSelectElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     if (usesMenuList())
         return new (arena) RenderMenuList(*this);

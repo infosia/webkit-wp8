@@ -36,13 +36,7 @@ class RenderTableCell;
 class RenderTableCol FINAL : public RenderBox {
 public:
     explicit RenderTableCol(Element&);
-    Element& existingElement() const { return *RenderBox::element(); }
-
-    RenderObject* firstChild() const { return m_children.firstChild(); }
-    RenderObject* lastChild() const { return m_children.lastChild(); }
-
-    virtual const RenderObjectChildList* children() const OVERRIDE { return &m_children; }
-    virtual RenderObjectChildList* children() OVERRIDE { return &m_children; }
+    Element& element() const { return toElement(nodeForNonAnonymous()); }
 
     void clearPreferredLogicalWidthsDirtyBits();
 
@@ -78,8 +72,6 @@ public:
     const BorderValue& borderAdjoiningCellAfter(const RenderTableCell*) const;
 
 private:
-    void element() const WTF_DELETED_FUNCTION;
-
     virtual const char* renderName() const OVERRIDE { return "RenderTableCol"; }
     virtual bool isRenderTableCol() const OVERRIDE { return true; }
     virtual void updateFromElement() OVERRIDE;
@@ -99,7 +91,6 @@ private:
 
     RenderTable* table() const;
 
-    RenderObjectChildList m_children;
     unsigned m_span;
 };
 

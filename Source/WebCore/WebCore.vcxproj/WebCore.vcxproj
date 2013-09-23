@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugSuffix|Win32">
@@ -7619,6 +7619,7 @@
     <ClCompile Include="..\platform\graphics\CrossfadeGeneratedImage.cpp" />
     <ClCompile Include="..\platform\graphics\FloatPoint.cpp" />
     <ClCompile Include="..\platform\graphics\FloatPoint3D.cpp" />
+    <ClCompile Include="..\platform\graphics\FloatPolygon.cpp" />
     <ClCompile Include="..\platform\graphics\FloatQuad.cpp" />
     <ClCompile Include="..\platform\graphics\FloatRect.cpp" />
     <ClCompile Include="..\platform\graphics\FloatSize.cpp" />
@@ -7632,9 +7633,9 @@
     <ClCompile Include="..\platform\graphics\FontFeatureSettings.cpp" />
     <ClCompile Include="..\platform\graphics\FontPlatformData.cpp" />
     <ClCompile Include="..\platform\graphics\GeneratedImage.cpp" />
-    <ClCompile Include="..\platform\graphics\GeneratorGeneratedImage.cpp" />
     <ClCompile Include="..\platform\graphics\GlyphPageTreeNode.cpp" />
     <ClCompile Include="..\platform\graphics\Gradient.cpp" />
+    <ClCompile Include="..\platform\graphics\GradientImage.cpp" />
     <ClCompile Include="..\platform\graphics\GraphicsContext.cpp" />
     <ClCompile Include="..\platform\graphics\GraphicsLayer.cpp" />
     <ClCompile Include="..\platform\graphics\GraphicsLayerUpdater.cpp" />
@@ -9738,7 +9739,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\rendering\RenderBR.cpp">
+    <ClCompile Include="..\rendering\RenderLineBreak.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
@@ -9821,6 +9822,20 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\rendering\RenderElement.cpp">
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
+        <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\rendering\RenderEmbeddedObject.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -10224,20 +10239,6 @@
     </ClCompile>
     <ClCompile Include="..\rendering\RenderNamedFlowThread.cpp" />
     <ClCompile Include="..\rendering\RenderObject.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\rendering\RenderObjectChildList.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
@@ -10983,20 +10984,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\rendering\RenderWordBreak.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\rendering\RootInlineBox.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -11029,6 +11016,7 @@
     <ClCompile Include="..\rendering\shapes\RasterShape.cpp" />
     <ClCompile Include="..\rendering\shapes\RectangleShape.cpp" />
     <ClCompile Include="..\rendering\shapes\Shape.cpp" />
+    <ClCompile Include="..\rendering\shapes\ShapeInfo.cpp" />
     <ClCompile Include="..\rendering\shapes\ShapeInsideInfo.cpp" />
     <ClCompile Include="..\rendering\shapes\ShapeOutsideInfo.cpp" />
     <ClCompile Include="..\rendering\svg\SVGPathData.cpp">
@@ -17390,20 +17378,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
     </ClCompile>
-    <ClCompile Include="..\bindings\js\ScriptEventListener.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='DebugSuffix|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Production|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\bindings\js\ScriptFunctionCall.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
@@ -17645,6 +17619,7 @@
     <ClCompile Include="..\svg\properties\SVGAnimatedProperty.cpp" />
     <ClCompile Include="..\svg\properties\SVGAttributeToPropertyMap.cpp" />
     <ClCompile Include="..\svg\properties\SVGPathSegListPropertyTearOff.cpp" />
+    <ClCompile Include="..\svg\properties\SVGPropertyInfo.cpp" />
     <ClCompile Include="..\history\BackForwardController.cpp" />
     <ClCompile Include="..\history\BackForwardList.cpp" />
     <ClCompile Include="..\history\CachedFrame.cpp" />
@@ -19338,6 +19313,7 @@
     <ClInclude Include="..\platform\graphics\CrossfadeGeneratedImage.h" />
     <ClInclude Include="..\platform\graphics\FloatPoint.h" />
     <ClInclude Include="..\platform\graphics\FloatPoint3D.h" />
+    <ClInclude Include="..\platform\graphics\FloatPolygon.h" />
     <ClInclude Include="..\platform\graphics\FloatQuad.h" />
     <ClInclude Include="..\platform\graphics\FloatRect.h" />
     <ClInclude Include="..\platform\graphics\FloatSize.h" />
@@ -19971,12 +19947,12 @@
     <ClInclude Include="..\rendering\RenderBlock.h" />
     <ClInclude Include="..\rendering\RenderBox.h" />
     <ClInclude Include="..\rendering\RenderBoxModelObject.h" />
-    <ClInclude Include="..\rendering\RenderBR.h" />
     <ClInclude Include="..\rendering\RenderButton.h" />
     <ClInclude Include="..\rendering\RenderCombineText.h" />
     <ClInclude Include="..\rendering\RenderCounter.h" />
     <ClInclude Include="..\rendering\RenderDeprecatedFlexibleBox.h" />
     <ClInclude Include="..\rendering\RenderDetailsMarker.h" />
+    <ClInclude Include="..\rendering\RenderElement.h" />
     <ClInclude Include="..\rendering\RenderEmbeddedObject.h" />
     <ClInclude Include="..\rendering\RenderFieldset.h" />
     <ClInclude Include="..\rendering\RenderFileUploadControl.h" />
@@ -20001,6 +19977,7 @@
     <ClInclude Include="..\rendering\RenderLayerModelObject.h" />
     <ClInclude Include="..\rendering\RenderLineBoxList.h" />
     <ClInclude Include="..\rendering\RenderListBox.h" />
+    <ClInclude Include="..\rendering\RenderLineBreak.h" />
     <ClInclude Include="..\rendering\RenderListItem.h" />
     <ClInclude Include="..\rendering\RenderListMarker.h" />
     <ClInclude Include="..\rendering\RenderMarquee.h" />
@@ -20014,7 +19991,6 @@
     <ClInclude Include="..\rendering\RenderMultiColumnSet.h" />
     <ClInclude Include="..\rendering\RenderNamedFlowThread.h" />
     <ClInclude Include="..\rendering\RenderObject.h" />
-    <ClInclude Include="..\rendering\RenderObjectChildList.h" />
     <ClInclude Include="..\rendering\RenderProgress.h" />
     <ClInclude Include="..\rendering\RenderQuote.h" />
     <ClInclude Include="..\rendering\RenderRegion.h" />
@@ -20036,6 +20012,7 @@
     <ClInclude Include="..\rendering\shapes\RasterShape.h" />
     <ClInclude Include="..\rendering\shapes\RectangleShape.h" />
     <ClInclude Include="..\rendering\shapes\Shape.h" />
+    <ClInclude Include="..\rendering\shapes\ShapeInfo.h" />
     <ClInclude Include="..\rendering\shapes\ShapeInsideInfo.h" />
     <ClInclude Include="..\rendering\shapes\ShapeInterval.h" />
     <ClInclude Include="..\rendering\shapes\ShapeOutsideInfo.h" />
@@ -20078,7 +20055,6 @@
     <ClInclude Include="..\rendering\RenderVideo.h" />
     <ClInclude Include="..\rendering\RenderView.h" />
     <ClInclude Include="..\rendering\RenderWidget.h" />
-    <ClInclude Include="..\rendering\RenderWordBreak.h" />
     <ClInclude Include="..\rendering\RootInlineBox.h" />
     <ClInclude Include="..\rendering\ScrollBehavior.h" />
     <ClInclude Include="..\rendering\svg\SVGMarkerData.h" />
@@ -20720,7 +20696,6 @@
     <ClInclude Include="..\bindings\js\ScriptCallStackFactory.h" />
     <ClInclude Include="..\bindings\js\ScriptController.h" />
     <ClInclude Include="..\bindings\js\ScriptDebugServer.h" />
-    <ClInclude Include="..\bindings\js\ScriptEventListener.h" />
     <ClInclude Include="..\bindings\js\ScriptFunctionCall.h" />
     <ClInclude Include="..\bindings\js\ScriptGCEvent.h" />
     <ClInclude Include="..\bindings\js\ScriptHeapSnapshot.h" />

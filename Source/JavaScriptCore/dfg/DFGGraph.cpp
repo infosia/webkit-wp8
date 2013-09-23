@@ -29,6 +29,7 @@
 #include "CodeBlock.h"
 #include "CodeBlockWithJITType.h"
 #include "DFGClobberSet.h"
+#include "DFGJITCode.h"
 #include "DFGVariableAccessDataDump.h"
 #include "FunctionExecutableDump.h"
 #include "OperandsInlines.h"
@@ -236,14 +237,14 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         if (operandIsArgument(operand))
             out.print(comma, "arg", operandToArgument(operand), "(", VariableAccessDataDump(*this, variableAccessData), ")");
         else
-            out.print(comma, "r", operand, "(", VariableAccessDataDump(*this, variableAccessData), ")");
+            out.print(comma, "loc", operandToLocal(operand), "(", VariableAccessDataDump(*this, variableAccessData), ")");
     }
     if (node->hasUnlinkedLocal()) {
         int operand = node->unlinkedLocal();
         if (operandIsArgument(operand))
             out.print(comma, "arg", operandToArgument(operand));
         else
-            out.print(comma, "r", operand);
+            out.print(comma, "loc", operandToLocal(operand));
     }
     if (node->hasConstantBuffer()) {
         out.print(comma);

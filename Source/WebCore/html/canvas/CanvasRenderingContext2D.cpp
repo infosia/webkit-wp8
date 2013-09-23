@@ -51,6 +51,7 @@
 #include "HTMLMediaElement.h"
 #include "HTMLVideoElement.h"
 #include "ImageData.h"
+#include "RenderElement.h"
 #include "SecurityOrigin.h"
 #include "StrokeStyleApplier.h"
 #include "StylePropertySet.h"
@@ -1549,7 +1550,7 @@ template<class T> IntRect CanvasRenderingContext2D::calculateCompositingBufferRe
     return bufferRect;
 }
 
-PassOwnPtr<ImageBuffer> CanvasRenderingContext2D::createCompositingBuffer(const IntRect& bufferRect)
+OwnPtr<ImageBuffer> CanvasRenderingContext2D::createCompositingBuffer(const IntRect& bufferRect)
 {
     RenderingMode renderMode = isAccelerated() ? Accelerated : Unaccelerated;
     return ImageBuffer::create(bufferRect.size(), 1, ColorSpaceDeviceRGB, renderMode);

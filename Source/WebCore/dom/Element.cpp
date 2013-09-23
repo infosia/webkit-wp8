@@ -154,7 +154,7 @@ static Attr* findAttrNodeInList(AttrNodeList& attrNodeList, const QualifiedName&
     return 0;
 }
 
-PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document* document)
+PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document& document)
 {
     return adoptRef(new Element(tagName, document, CreateElement));
 }
@@ -162,7 +162,7 @@ PassRefPtr<Element> Element::create(const QualifiedName& tagName, Document* docu
 Element::~Element()
 {
 #ifndef NDEBUG
-    if (document().renderView()) {
+    if (document().hasLivingRenderTree()) {
         // When the document is not destroyed, an element that was part of a named flow
         // content nodes should have been removed from the content nodes collection
         // and the inNamedFlow flag reset.
@@ -709,15 +709,15 @@ int Element::clientWidth()
 {
     document().updateLayoutIgnorePendingStylesheets();
 
+    if (!document().hasLivingRenderTree())
+        return 0;
+    RenderView& renderView = *document().renderView();
+
     // When in strict mode, clientWidth for the document element should return the width of the containing frame.
     // When in quirks mode, clientWidth for the body element should return the width of the containing frame.
     bool inQuirksMode = document().inQuirksMode();
-    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().body() == this)) {
-        if (FrameView* view = document().view()) {
-            if (RenderView* renderView = document().renderView())
-                return adjustForAbsoluteZoom(view->layoutWidth(), renderView);
-        }
-    }
+    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().body() == this))
+        return adjustForAbsoluteZoom(renderView.frameView().layoutWidth(), &renderView);
     
     if (RenderBox* renderer = renderBox())
 #if ENABLE(SUBPIXEL_LAYOUT)
@@ -732,17 +732,16 @@ int Element::clientHeight()
 {
     document().updateLayoutIgnorePendingStylesheets();
 
+    if (!document().hasLivingRenderTree())
+        return 0;
+    RenderView& renderView = *document().renderView();
+
     // When in strict mode, clientHeight for the document element should return the height of the containing frame.
     // When in quirks mode, clientHeight for the body element should return the height of the containing frame.
-    bool inQuirksMode = document().inQuirksMode();     
+    bool inQuirksMode = document().inQuirksMode();
+    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().body() == this))
+        return adjustForAbsoluteZoom(renderView.frameView().layoutHeight(), &renderView);
 
-    if ((!inQuirksMode && document().documentElement() == this) || (inQuirksMode && isHTMLElement() && document().body() == this)) {
-        if (FrameView* view = document().view()) {
-            if (RenderView* renderView = document().renderView())
-                return adjustForAbsoluteZoom(view->layoutHeight(), renderView);
-        }
-    }
-    
     if (RenderBox* renderer = renderBox())
 #if ENABLE(SUBPIXEL_LAYOUT)
         return adjustLayoutUnitForAbsoluteZoom(renderer->pixelSnappedClientHeight(), renderer).round();
@@ -758,12 +757,14 @@ int Element::scrollLeft()
         return 0;
 
     document().updateLayoutIgnorePendingStylesheets();
-    if (document().documentElement() == this) {
-        if (RenderView* renderView = document().renderView()) {
-            if (FrameView* view = &renderView->frameView())
-                return adjustForAbsoluteZoom(view->scrollX(), renderView);
-        }
-    }
+
+    if (!document().hasLivingRenderTree())
+        return 0;
+    RenderView& renderView = *document().renderView();
+
+    if (document().documentElement() == this)
+        return adjustForAbsoluteZoom(renderView.frameView().scrollX(), &renderView);
+
     if (RenderBox* rend = renderBox())
         return adjustForAbsoluteZoom(rend->scrollLeft(), rend);
     return 0;
@@ -775,12 +776,14 @@ int Element::scrollTop()
         return 0;
 
     document().updateLayoutIgnorePendingStylesheets();
-    if (document().documentElement() == this) {
-        if (RenderView* renderView = document().renderView()) {
-            if (FrameView* view = &renderView->frameView())
-                return adjustForAbsoluteZoom(view->scrollY(), renderView);
-        }
-    }
+
+    if (!document().hasLivingRenderTree())
+        return 0;
+    RenderView& renderView = *document().renderView();
+
+    if (document().documentElement() == this)
+        return adjustForAbsoluteZoom(renderView.frameView().scrollY(), &renderView);
+
     if (RenderBox* rend = renderBox())
         return adjustForAbsoluteZoom(rend->scrollTop(), rend);
     return 0;
@@ -1259,9 +1262,9 @@ bool Element::rendererIsNeeded(const RenderStyle& style)
     return style.display() != NONE;
 }
 
-RenderObject* Element::createRenderer(RenderArena*, RenderStyle* style)
+RenderElement* Element::createRenderer(RenderArena&, RenderStyle& style)
 {
-    return RenderObject::createObject(this, style);
+    return RenderElement::createFor(*this, style);
 }
 
 Node::InsertionNotificationRequest Element::insertedInto(ContainerNode* insertionPoint)
@@ -1360,10 +1363,10 @@ void Element::removedFrom(ContainerNode* insertionPoint)
 #endif
 }
 
-void Element::unregisterNamedFlowContentNode()
+void Element::unregisterNamedFlowContentElement()
 {
     if (document().cssRegionsEnabled() && inNamedFlow() && document().renderView())
-        document().renderView()->flowThreadController().unregisterNamedFlowContentNode(this);
+        document().renderView()->flowThreadController().unregisterNamedFlowContentElement(*this);
 }
 
 void Element::lazyReattach(ShouldSetAttached shouldSetAttached)
@@ -1433,7 +1436,7 @@ void Element::addShadowRoot(PassRefPtr<ShadowRoot> newShadowRoot)
     shadowRoot->setParentTreeScope(treeScope());
     shadowRoot->distributor().didShadowBoundaryChange(this);
 
-    ChildNodeInsertionNotifier(this).notify(shadowRoot);
+    ChildNodeInsertionNotifier(*this).notify(*shadowRoot);
 
     resetNeedsNodeRenderingTraversalSlowPath();
 
@@ -1461,7 +1464,7 @@ void Element::removeShadowRoot()
     oldRoot->setHostElement(0);
     oldRoot->setParentTreeScope(&document());
 
-    ChildNodeRemovalNotifier(this).notify(oldRoot.get());
+    ChildNodeRemovalNotifier(*this).notify(*oldRoot);
 
     oldRoot->distributor().invalidateDistribution(this);
 }
@@ -2642,7 +2645,7 @@ bool Element::shouldMoveToFlowThread(const RenderStyle& styleToUse) const
     if (styleToUse.flowThread().isEmpty())
         return false;
 
-    return !isRegisteredWithNamedFlow();
+    return !document().renderView()->flowThreadController().isContentElementRegisteredWithAnyNamedFlow(*this);
 }
 
 const AtomicString& Element::webkitRegionOverset() const
@@ -2845,8 +2848,8 @@ void Element::willModifyAttribute(const QualifiedName& name, const AtomicString&
             setNeedsStyleRecalc();
     }
 
-    if (OwnPtr<MutationObserverInterestGroup> recipients = MutationObserverInterestGroup::createForAttributesMutation(this, name))
-        recipients->enqueueMutationRecord(MutationRecord::createAttributes(this, name, oldValue));
+    if (OwnPtr<MutationObserverInterestGroup> recipients = MutationObserverInterestGroup::createForAttributesMutation(*this, name))
+        recipients->enqueueMutationRecord(MutationRecord::createAttributes(*this, name, oldValue));
 
 #if ENABLE(INSPECTOR)
     InspectorInstrumentation::willModifyDOMAttr(&document(), this, oldValue, newValue);
@@ -2969,7 +2972,7 @@ void Element::resetComputedStyle()
 
 void Element::clearStyleDerivedDataBeforeDetachingRenderer()
 {
-    unregisterNamedFlowContentNode();
+    unregisterNamedFlowContentElement();
     cancelFocusAppearanceUpdate();
     clearBeforePseudoElement();
     clearAfterPseudoElement();

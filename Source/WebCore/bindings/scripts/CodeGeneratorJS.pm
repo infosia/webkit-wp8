@@ -2193,7 +2193,7 @@ sub GenerateImplementation
                                     $implIncludes{"<runtime/Error.h>"} = 1;
 
                                     my $argType = $attribute->signature->type;
-                                    if (!IsNativeType($argType)) {
+                                    if ($codeGenerator->IsWrapperType($argType)) {
                                         push(@implContent, "    if (!value.isUndefinedOrNull() && !value.inherits(JS${argType}::info())) {\n");
                                         push(@implContent, "        throwVMTypeError(exec);\n");
                                         push(@implContent, "        return;\n");
@@ -2844,24 +2844,24 @@ sub GenerateParametersCheck
             $implIncludes{"$callbackClassName.h"} = 1;
             if ($optional) {
                 push(@$outputArray, "    RefPtr<$argType> $name;\n");
-                push(@$outputArray, "    if (exec->argumentCount() > $argsIndex && !exec->argument($argsIndex).isUndefinedOrNull()) {\n");
-                push(@$outputArray, "        if (!exec->argument($argsIndex).isFunction())\n");
+                push(@$outputArray, "    if (!exec->argument($argsIndex).isUndefinedOrNull()) {\n");
+                push(@$outputArray, "        if (!exec->uncheckedArgument($argsIndex).isFunction())\n");
                 push(@$outputArray, "            return throwVMTypeError(exec);\n");
                 if ($function->isStatic) {
                     AddToImplIncludes("CallbackFunction.h");
-                    push(@$outputArray, "        $name = createFunctionOnlyCallback<${callbackClassName}>(exec, static_cast<JSDOMGlobalObject*>(exec->lexicalGlobalObject()), exec->argument($argsIndex));\n");
+                    push(@$outputArray, "        $name = createFunctionOnlyCallback<${callbackClassName}>(exec, static_cast<JSDOMGlobalObject*>(exec->lexicalGlobalObject()), exec->uncheckedArgument($argsIndex));\n");
                 } else {
-                    push(@$outputArray, "        $name = ${callbackClassName}::create(asObject(exec->argument($argsIndex)), castedThis->globalObject());\n");
+                    push(@$outputArray, "        $name = ${callbackClassName}::create(asObject(exec->uncheckedArgument($argsIndex)), castedThis->globalObject());\n");
                 }
                 push(@$outputArray, "    }\n");
             } else {
-                push(@$outputArray, "    if (exec->argumentCount() <= $argsIndex || !exec->argument($argsIndex).isFunction())\n");
+                push(@$outputArray, "    if (!exec->argument($argsIndex).isFunction())\n");
                 push(@$outputArray, "        return throwVMTypeError(exec);\n");
                 if ($function->isStatic) {
                     AddToImplIncludes("CallbackFunction.h");
-                    push(@$outputArray, "    RefPtr<$argType> $name = createFunctionOnlyCallback<${callbackClassName}>(exec, static_cast<JSDOMGlobalObject*>(exec->lexicalGlobalObject()), exec->argument($argsIndex));\n");
+                    push(@$outputArray, "    RefPtr<$argType> $name = createFunctionOnlyCallback<${callbackClassName}>(exec, static_cast<JSDOMGlobalObject*>(exec->lexicalGlobalObject()), exec->uncheckedArgument($argsIndex));\n");
                 } else {
-                    push(@$outputArray, "    RefPtr<$argType> $name = ${callbackClassName}::create(asObject(exec->argument($argsIndex)), castedThis->globalObject());\n");
+                    push(@$outputArray, "    RefPtr<$argType> $name = ${callbackClassName}::create(asObject(exec->uncheckedArgument($argsIndex)), castedThis->globalObject());\n");
                 }
             }
         } elsif ($parameter->extendedAttributes->{"Clamp"}) {
@@ -2886,9 +2886,9 @@ sub GenerateParametersCheck
             if (!IsNativeType($argType)) {
                 push(@$outputArray, "    Vector<$nativeElementType> $name;\n");
                 push(@$outputArray, "    for (unsigned i = $argsIndex; i < exec->argumentCount(); ++i) {\n");
-                push(@$outputArray, "        if (!exec->argument(i).inherits(JS${argType}::info()))\n");
+                push(@$outputArray, "        if (!exec->uncheckedArgument(i).inherits(JS${argType}::info()))\n");
                 push(@$outputArray, "            return throwVMTypeError(exec);\n");
-                push(@$outputArray, "        $name.append(to$argType(exec->argument(i)));\n");
+                push(@$outputArray, "        $name.append(to$argType(exec->uncheckedArgument(i)));\n");
                 push(@$outputArray, "    }\n")
             } else {
                 push(@$outputArray, "    Vector<$nativeElementType> $name = toNativeArguments<$nativeElementType>(exec, $argsIndex);\n");
@@ -2922,7 +2922,7 @@ sub GenerateParametersCheck
                 $implIncludes{"<runtime/Error.h>"} = 1;
 
                 my $argValue = "exec->argument($argsIndex)";
-                if (!IsNativeType($argType)) {
+                if ($codeGenerator->IsWrapperType($argType)) {
                     push(@$outputArray, "    if (exec->argumentCount() > $argsIndex && !${argValue}.isUndefinedOrNull() && !${argValue}.inherits(JS${argType}::info()))\n");
                     push(@$outputArray, "        return throwVMTypeError(exec);\n");
                 }
@@ -3638,11 +3638,11 @@ sub GenerateHashTable
         } else {
             $targetType = "static_cast<PropertySlot::GetValueFunc>";
         }
-        push(@implContent, "    { \"$key\", @$specials[$i], (intptr_t)" . $targetType . "(@$value1[$i]), (intptr_t)@$value2[$i], NoIntrinsic },\n");
+        push(@implContent, "    { \"$key\", @$specials[$i], NoIntrinsic, (intptr_t)" . $targetType . "(@$value1[$i]), (intptr_t)@$value2[$i] },\n");
         push(@implContent, "#endif\n") if $conditional;
         ++$i;
     }
-    push(@implContent, "    { 0, 0, 0, 0, NoIntrinsic }\n");
+    push(@implContent, "    { 0, 0, NoIntrinsic, 0, 0 }\n");
     push(@implContent, "};\n\n");
     my $compactSizeMask = $numEntries - 1;
     push(@implContent, "static const HashTable $name = { $compactSize, $compactSizeMask, $nameEntries, 0 };\n");
@@ -4008,7 +4008,7 @@ END
                 push(@$outputArray, "        return throwVMError(exec, createReferenceError(exec, \"${interfaceName} constructor associated document is unavailable\"));\n");
             }
             if ($generatingNamedConstructor) {
-                push(@constructorArgList, "castedThis->document()");
+                push(@constructorArgList, "*castedThis->document()");
             }
 
             my $index = 0;

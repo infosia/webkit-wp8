@@ -44,6 +44,7 @@ class HTMLDocument;
 class IntSize;
 class Locale;
 class PseudoElement;
+class RenderElement;
 class RenderRegion;
 class ShadowRoot;
 
@@ -66,7 +67,7 @@ enum SpellcheckAttributeState {
 
 class Element : public ContainerNode {
 public:
-    static PassRefPtr<Element> create(const QualifiedName&, Document*);
+    static PassRefPtr<Element> create(const QualifiedName&, Document&);
     virtual ~Element();
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(abort);
@@ -126,6 +127,8 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitfullscreenchange);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitfullscreenerror);
 #endif
+
+    RenderElement* renderer() const;
 
     bool hasAttribute(const QualifiedName&) const;
     const AtomicString& getAttribute(const QualifiedName&) const;
@@ -301,7 +304,7 @@ public:
     void lazyAttach(ShouldSetAttached = SetAttached);
     void lazyReattach(ShouldSetAttached = SetAttached);
 
-    virtual RenderObject* createRenderer(RenderArena*, RenderStyle*);
+    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
     virtual bool rendererIsNeeded(const RenderStyle&);
     void didAffectSelector(AffectedSelectorMask);
 
@@ -551,8 +554,8 @@ public:
     void clearHoverAndActiveStatusBeforeDetachingRenderer();
 
 protected:
-    Element(const QualifiedName& tagName, Document* document, ConstructionType type)
-        : ContainerNode(document, type)
+    Element(const QualifiedName& tagName, Document& document, ConstructionType type)
+        : ContainerNode(&document, type)
         , m_tagName(tagName)
     {
     }
@@ -658,7 +661,7 @@ private:
 
     SpellcheckAttributeState spellcheckAttributeState() const;
 
-    void unregisterNamedFlowContentNode();
+    void unregisterNamedFlowContentElement();
 
     void createUniqueElementData();
 

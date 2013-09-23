@@ -39,13 +39,7 @@ public:
     RenderMedia(HTMLMediaElement&, const IntSize& intrinsicSize);
     virtual ~RenderMedia();
 
-    HTMLMediaElement& mediaElement() const { return *toHTMLMediaElement(RenderImage::element()); }
-
-    RenderObject* firstChild() const { return m_children.firstChild(); }
-    RenderObject* lastChild() const { return m_children.lastChild(); }
-
-    virtual const RenderObjectChildList* children() const OVERRIDE FINAL { return &m_children; }
-    virtual RenderObjectChildList* children() OVERRIDE FINAL { return &m_children; }
+    HTMLMediaElement& mediaElement() const { return toHTMLMediaElement(nodeForNonAnonymous()); }
 
 protected:
     virtual void layout();
@@ -61,8 +55,6 @@ private:
     virtual void paintReplaced(PaintInfo&, const LayoutPoint&) OVERRIDE;
 
     virtual bool requiresForcedStyleRecalcPropagation() const OVERRIDE FINAL { return true; }
-
-    RenderObjectChildList m_children;
 };
 
 inline RenderMedia* toRenderMedia(RenderObject* object)

@@ -1,3 +1,172 @@
+2013-09-22  Sam Weinig  <sam@webkit.org>
+
+        Try to fix the windows build (take 2).
+
+        * DOMEventsClasses.cpp:
+        (DOMEvent::createInstance):
+
+2013-09-22  Sam Weinig  <sam@webkit.org>
+
+        Try to fix the windows build.
+
+        * DOMEventsClasses.cpp:
+        (DOMEvent::createInstance):
+
+2013-09-20  Roger Fong  <roger_fong@apple.com>
+
+        Handle panning gestures messages properly on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=121711.
+
+        Reviewed by Brent Fulgham.
+
+        This fixes a number of issues with panning gestures on Windows.
+        1. Two finger panning in one direction can sometimes cause some unexpected scrolling 
+        in the other direction when the gesture first begins (directions meaning horizontal and vertical)
+        2. Single finger horizontal panning should only be disabled when attempting to select text.
+        3. Scrolling via panning should be clamped, other wise we can scroll contents completely out of the scrollview.
+        4. Horizontal overpan should work.
+        5. Overpan should occur whenever we scroll to the extents of whichever scroll view we're currently scrolling.
+
+        * WebView.cpp:
+        (WebView::gestureNotify):
+        (WebView::gesture):
+
+2013-09-20  Patrick Gansterer  <paroga@webkit.org>
+
+        Fix MIDL files for Visual Studio 2012
+        https://bugs.webkit.org/show_bug.cgi?id=121552
+
+        Reviewed by Brent Fulgham.
+
+        The MIDL compiler shipped with Visual Studio 2012 does not accept forward declarations
+        with typedefs. Use the struct keyword in the function signature to fix this problem.
+
+        * Interfaces/DOMPrivate.idl:
+
+2013-09-20  Patrick Gansterer  <paroga@webkit.org>
+
+        Remove duplicated secondsPerDay variables
+        https://bugs.webkit.org/show_bug.cgi?id=121601
+
+        Reviewed by Andreas Kling.
+
+        Use secondsPerDay from DateMath.h instead of defining it again.
+
+        * MarshallingHelpers.cpp:
+
+2013-09-20  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Add covariant RenderElement* Element::renderer()
+        https://bugs.webkit.org/show_bug.cgi?id=121638
+
+        Unreviewed buildfix after r156144.
+
+        * DOMCoreClasses.cpp:
+        (DOMElement::boundingBox):
+        (DOMElement::font):
+
+2013-09-18  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Build fix after r156063.
+
+        * WebHistory.h: std::unique is an algorithm; std::unique_ptr is what we want here!
+
+2013-09-18  Sam Weinig  <sam@webkit.org>
+
+        Replace use of OwnArrayPtr<Foo> with std::unique_ptr<Foo[]> in WebKit and WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=121568
+
+        Reviewed by Andreas Kling.
+
+        * WebHistory.cpp:
+        (WebHistory::removeAllItems):
+        (WebHistory::orderedLastVisitedDays):
+        (WebHistory::addItemToDateCaches):
+        (WebHistory::removeItemFromDateCaches):
+        * WebHistory.h:
+        * WebPreferences.cpp:
+        (WebPreferences::copyWebKitPreferencesToCFPreferences):
+
+2013-09-18  Patrick Gansterer  <paroga@webkit.org>
+
+        Make WebHistory more type safe
+        https://bugs.webkit.org/show_bug.cgi?id=119389
+
+        Reviewed by Brent Fulgham.
+
+        Use a WTF::HashMap instead of a CFMutableDictionary to avoid
+        casting from void* all the time when accessing the entries.
+        This reduces the dependencies on CoreFoundation too.
+
+        * WebHistory.cpp:
+        (WebHistory::WebHistory):
+        (WebHistory::removeAllItems):
+        (WebHistory::allItems):
+        (WebHistory::removeItem):
+        (WebHistory::addItem):
+        (WebHistory::visitedURL):
+        (WebHistory::itemForURL):
+        (WebHistory::removeItemForURLString):
+        (WebHistory::itemForURLString):
+        (WebHistory::addVisitedLinksToPageGroup):
+        * WebHistory.h:
+
+2013-09-17  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Speculative build fix after r155963
+
+        * WebKitCOMAPI.cpp:
+        (classFactory): Use nullptr rather than 0 for HashMap.
+
+2013-09-16  Enrica Casucci  <enrica@apple.com>
+
+        Remove unused function didSetSelectionTypesForPasteboard from EditorClient.
+        https://bugs.webkit.org/show_bug.cgi?id=121464
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebEditorClient.cpp:
+        * WebCoreSupport/WebEditorClient.h:
+
+2013-09-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Rendering stops when mouse is moving for some types of animations.
+        https://bugs.webkit.org/show_bug.cgi?id=121329
+
+        Reviewed by Anders Carlsson.
+
+        * WebView.cpp:
+        (WebView::WebView): Add new display flag.
+        (WebView::repaint): Mark view as needing a display operation.
+        (WebView::addToDirtyRegion): Ditto
+        (WebView::scrollBackingStore): Ditto
+        (WebView::sizeChanged): Ditto
+        (WebView::updateBackingStore): Ditto
+        (WebView::performLayeredWindowUpdate): Mark the WebView as having been
+        moved to screen.
+        (WebView::paintIntoWindow): Ditto
+        (WebView::WebViewWndProc): If the view needs display, and it was not done during
+        this message loop iteration, draw the screen.
+        * WebView.h:
+        (WebView::needsDisplay): Added
+
+2013-09-15  Patrick Gansterer  <paroga@webkit.org>
+
+        Remove dependency on CoreFoundation from WebIconDatabase
+        https://bugs.webkit.org/show_bug.cgi?id=119387
+
+        Reviewed by Brent Fulgham.
+
+        * COMVariantSetter.h:
+        (COMVariant::operator&):
+        (COMVariant::operator->):
+        * WebIconDatabase.cpp:
+        (WebIconDatabase::iconDatabaseNotificationUserInfoURLKey):
+        (postDidAddIconNotification):
+        * WebIconDatabase.h:
+        * WebView.cpp:
+        (WebView::notifyDidAddIcon):
+
 2013-09-11  Brent Fulgham  <bfulgham@apple.com>
 
         [Windows] Avoid converting from IntSize->SIZE->IntSize

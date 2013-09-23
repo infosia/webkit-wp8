@@ -33,7 +33,6 @@
 #include "HTMLNames.h"
 #include "KeyboardEvent.h"
 #include "RenderButton.h"
-#include "ScriptEventListener.h"
 #include <wtf/StdLibExtras.h>
 
 namespace WebCore {
@@ -58,7 +57,7 @@ void HTMLButtonElement::setType(const AtomicString& type)
     setAttribute(typeAttr, type);
 }
 
-RenderObject* HTMLButtonElement::createRenderer(RenderArena* arena, RenderStyle*)
+RenderElement* HTMLButtonElement::createRenderer(RenderArena& arena, RenderStyle&)
 {
     return new (arena) RenderButton(*this);
 }

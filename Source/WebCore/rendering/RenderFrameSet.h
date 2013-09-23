@@ -34,7 +34,7 @@ class RenderFrame;
 enum FrameEdge { LeftFrameEdge, RightFrameEdge, TopFrameEdge, BottomFrameEdge };
 
 struct FrameEdgeInfo {
-    FrameEdgeInfo(bool preventResize = false, bool allowBorder = true)
+    explicit FrameEdgeInfo(bool preventResize = false, bool allowBorder = true)
         : m_preventResize(4)
         , m_allowBorder(4)
     {
@@ -55,14 +55,10 @@ private:
 
 class RenderFrameSet FINAL : public RenderBox {
 public:
-    RenderFrameSet(HTMLFrameSetElement*);
+    explicit RenderFrameSet(HTMLFrameSetElement&);
     virtual ~RenderFrameSet();
 
-    RenderObject* firstChild() const { return m_children.firstChild(); }
-    RenderObject* lastChild() const { return m_children.lastChild(); }
-
-    virtual const RenderObjectChildList* children() const OVERRIDE { return &m_children; }
-    virtual RenderObjectChildList* children() OVERRIDE { return &m_children; }
+    HTMLFrameSetElement& frameSetElement() const;
 
     FrameEdgeInfo edgeInfo() const;
 
@@ -77,6 +73,8 @@ public:
     void notifyFrameEdgeInfoChanged();
 
 private:
+    void element() const WTF_DELETED_FUNCTION;
+
     static const int noSplit = -1;
 
     class GridAxis {
@@ -98,10 +96,9 @@ private:
 
     virtual void layout() OVERRIDE;
     virtual void paint(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    virtual bool canHaveChildren() const OVERRIDE { return true; }
     virtual bool isChildAllowed(RenderObject*, RenderStyle*) const OVERRIDE;
     virtual CursorDirective getCursor(const LayoutPoint&, Cursor&) const OVERRIDE;
-
-    inline HTMLFrameSetElement* frameSet() const;
 
     bool flattenFrameSet() const;
 
@@ -121,8 +118,6 @@ private:
 
     void paintRowBorder(const PaintInfo&, const IntRect&);
     void paintColumnBorder(const PaintInfo&, const IntRect&);
-
-    RenderObjectChildList m_children;
 
     GridAxis m_rows;
     GridAxis m_cols;

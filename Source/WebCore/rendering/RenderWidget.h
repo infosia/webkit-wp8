@@ -60,7 +60,7 @@ class RenderWidget : public RenderReplaced, private OverlapTestRequestClient {
 public:
     virtual ~RenderWidget();
 
-    HTMLFrameOwnerElement& frameOwnerElement() const { return *toFrameOwnerElement(RenderReplaced::element()); }
+    HTMLFrameOwnerElement& frameOwnerElement() const { return toFrameOwnerElement(nodeForNonAnonymous()); }
 
     Widget* widget() const { return m_widget.get(); }
     void setWidget(PassRefPtr<Widget>);
@@ -82,8 +82,6 @@ public:
 
 protected:
     explicit RenderWidget(HTMLFrameOwnerElement&);
-
-    FrameView* frameView() const { return m_frameView; }
 
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE FINAL;
     virtual void layout() OVERRIDE;
@@ -112,7 +110,6 @@ private:
 
     WeakPtrFactory<RenderWidget> m_weakPtrFactory;
     RefPtr<Widget> m_widget;
-    FrameView* m_frameView;
     IntRect m_clipRect; // The rectangle needs to remain correct after scrolling, so it is stored in content view coordinates, and not clipped to window.
 };
 

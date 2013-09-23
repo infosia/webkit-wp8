@@ -38,7 +38,7 @@ bool RenderLayerModelObject::s_hadTransform = false;
 bool RenderLayerModelObject::s_layerWasSelfPainting = false;
 
 RenderLayerModelObject::RenderLayerModelObject(Element* element)
-    : RenderObject(element)
+    : RenderElement(element)
     , m_layer(0)
 {
 }
@@ -81,7 +81,7 @@ void RenderLayerModelObject::willBeDestroyed()
     }
 
     // RenderObject::willBeDestroyed calls back to destroyLayer() for layer destruction
-    RenderObject::willBeDestroyed();
+    RenderElement::willBeDestroyed();
 }
 
 void RenderLayerModelObject::styleWillChange(StyleDifference diff, const RenderStyle* newStyle)
@@ -131,12 +131,12 @@ void RenderLayerModelObject::styleWillChange(StyleDifference diff, const RenderS
         }
     }
 
-    RenderObject::styleWillChange(diff, newStyle);
+    RenderElement::styleWillChange(diff, newStyle);
 }
 
 void RenderLayerModelObject::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
 {
-    RenderObject::styleDidChange(diff, oldStyle);
+    RenderElement::styleDidChange(diff, oldStyle);
     updateFromStyle();
 
     if (requiresLayer()) {

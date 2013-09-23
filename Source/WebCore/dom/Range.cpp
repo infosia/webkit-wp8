@@ -1607,13 +1607,17 @@ void Range::textRects(Vector<IntRect>& rects, bool useSelectionHeight, RangeInFi
     Node* stopNode = pastLastNode();
     for (Node* node = firstNode(); node != stopNode; node = NodeTraversal::next(node)) {
         RenderObject* r = node->renderer();
-        if (!r || !r->isText())
+        if (!r)
             continue;
-        RenderText* renderText = toRenderText(r);
-        int startOffset = node == startContainer ? m_start.offset() : 0;
-        int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
         bool isFixed = false;
-        renderText->absoluteRectsForRange(rects, startOffset, endOffset, useSelectionHeight, &isFixed);
+        if (r->isBR())
+            r->absoluteRects(rects, flooredLayoutPoint(r->localToAbsolute()));
+        else if (r->isText()) {
+            int startOffset = node == startContainer ? m_start.offset() : 0;
+            int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
+            toRenderText(r)->absoluteRectsForRange(rects, startOffset, endOffset, useSelectionHeight, &isFixed);
+        } else
+            continue;
         allFixed &= isFixed;
         someFixed |= isFixed;
     }
@@ -1639,13 +1643,17 @@ void Range::textQuads(Vector<FloatQuad>& quads, bool useSelectionHeight, RangeIn
     Node* stopNode = pastLastNode();
     for (Node* node = firstNode(); node != stopNode; node = NodeTraversal::next(node)) {
         RenderObject* r = node->renderer();
-        if (!r || !r->isText())
+        if (!r)
             continue;
-        RenderText* renderText = toRenderText(r);
-        int startOffset = node == startContainer ? m_start.offset() : 0;
-        int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
         bool isFixed = false;
-        renderText->absoluteQuadsForRange(quads, startOffset, endOffset, useSelectionHeight, &isFixed);
+        if (r->isBR())
+            r->absoluteQuads(quads, &isFixed);
+        else if (r->isText()) {
+            int startOffset = node == startContainer ? m_start.offset() : 0;
+            int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
+            toRenderText(r)->absoluteQuadsForRange(quads, startOffset, endOffset, useSelectionHeight, &isFixed);
+        } else
+            continue;
         allFixed &= isFixed;
         someFixed |= isFixed;
     }
@@ -1717,44 +1725,42 @@ int Range::maxEndOffset() const
     return m_end.container()->maxCharacterOffset();
 }
 
-static inline void boundaryNodeChildrenChanged(RangeBoundaryPoint& boundary, ContainerNode* container)
+static inline void boundaryNodeChildrenChanged(RangeBoundaryPoint& boundary, ContainerNode& container)
 {
     if (!boundary.childBefore())
         return;
-    if (boundary.container() != container)
+    if (boundary.container() != &container)
         return;
     boundary.invalidateOffset();
 }
 
-void Range::nodeChildrenChanged(ContainerNode* container)
+void Range::nodeChildrenChanged(ContainerNode& container)
 {
-    ASSERT(container);
-    ASSERT(&container->document() == m_ownerDocument);
+    ASSERT(&container.document() == m_ownerDocument);
     boundaryNodeChildrenChanged(m_start, container);
     boundaryNodeChildrenChanged(m_end, container);
 }
 
-static inline void boundaryNodeChildrenWillBeRemoved(RangeBoundaryPoint& boundary, ContainerNode* container)
+static inline void boundaryNodeChildrenWillBeRemoved(RangeBoundaryPoint& boundary, ContainerNode& container)
 {
-    for (Node* nodeToBeRemoved = container->firstChild(); nodeToBeRemoved; nodeToBeRemoved = nodeToBeRemoved->nextSibling()) {
+    for (Node* nodeToBeRemoved = container.firstChild(); nodeToBeRemoved; nodeToBeRemoved = nodeToBeRemoved->nextSibling()) {
         if (boundary.childBefore() == nodeToBeRemoved) {
-            boundary.setToStartOfNode(container);
+            boundary.setToStartOfNode(&container);
             return;
         }
 
         for (Node* n = boundary.container(); n; n = n->parentNode()) {
             if (n == nodeToBeRemoved) {
-                boundary.setToStartOfNode(container);
+                boundary.setToStartOfNode(&container);
                 return;
             }
         }
     }
 }
 
-void Range::nodeChildrenWillBeRemoved(ContainerNode* container)
+void Range::nodeChildrenWillBeRemoved(ContainerNode& container)
 {
-    ASSERT(container);
-    ASSERT(&container->document() == m_ownerDocument);
+    ASSERT(&container.document() == m_ownerDocument);
     boundaryNodeChildrenWillBeRemoved(m_start, container);
     boundaryNodeChildrenWillBeRemoved(m_end, container);
 }

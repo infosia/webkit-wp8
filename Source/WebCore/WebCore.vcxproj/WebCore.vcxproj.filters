@@ -1359,13 +1359,13 @@
     <ClCompile Include="..\platform\graphics\FloatQuad.cpp">
       <Filter>platform\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\graphics\GeneratorGeneratedImage.cpp">
-      <Filter>platform\graphics</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\graphics\GlyphPageTreeNode.cpp">
       <Filter>platform\graphics</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\graphics\Gradient.cpp">
+      <Filter>platform\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="..\platform\graphics\GradientImage.cpp">
       <Filter>platform\graphics</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\graphics\GraphicsContext.cpp">
@@ -4692,9 +4692,6 @@
     <ClCompile Include="..\bindings\js\ScriptDebugServer.cpp">
       <Filter>bindings\js</Filter>
     </ClCompile>
-    <ClCompile Include="..\bindings\js\ScriptEventListener.cpp">
-      <Filter>bindings\js</Filter>
-    </ClCompile>
     <ClCompile Include="..\bindings\js\ScriptFunctionCall.cpp">
       <Filter>bindings\js</Filter>
     </ClCompile>
@@ -4828,6 +4825,9 @@
       <Filter>rendering\svg\properties</Filter>
     </ClCompile>
     <ClCompile Include="..\svg\properties\SVGPathSegListPropertyTearOff.cpp">
+      <Filter>rendering\svg\properties</Filter>
+    </ClCompile>
+    <ClCompile Include="..\svg\properties\SVGPropertyInfo.cpp">
       <Filter>rendering\svg\properties</Filter>
     </ClCompile>
     <ClCompile Include="..\history\BackForwardController.cpp">
@@ -11635,9 +11635,6 @@
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptDebugServer.h">
-      <Filter>bindings\js</Filter>
-    </ClInclude>
-    <ClInclude Include="..\bindings\js\ScriptEventListener.h">
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptFunctionCall.h">

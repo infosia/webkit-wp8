@@ -47,7 +47,7 @@ public:
     String wholeText() const;
     PassRefPtr<Text> replaceWholeText(const String&, ExceptionCode&);
     
-    RenderText* createTextRenderer(RenderArena*, RenderStyle*);
+    RenderText* createTextRenderer(RenderArena&, RenderStyle&);
     
     virtual bool canContainRangeEndPoint() const OVERRIDE FINAL { return true; }
 
@@ -70,6 +70,12 @@ private:
 #endif
 };
 
+inline Text& toText(Node& node)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(node.isTextNode());
+    return static_cast<Text&>(node);
+}
+
 inline Text* toText(Node* node)
 {
     ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isTextNode());
@@ -81,6 +87,9 @@ inline const Text* toText(const Node* node)
     ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isTextNode());
     return static_cast<const Text*>(node);
 }
+
+void toText(const Text&);
+void toText(const Text*);
 
 } // namespace WebCore
 
