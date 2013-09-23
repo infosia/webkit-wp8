@@ -1,3 +1,37 @@
+2013-09-23  ChangSeok Oh  <changseok.oh@collabora.com>
+
+        [Texmap] Reloading a webgl page doesn't work
+        https://bugs.webkit.org/show_bug.cgi?id=120593
+
+        Reviewed by Noam Rosenthal.
+
+        Add a new test case to check if a crash occurs while reloading a page which contains webgl.
+
+        * fast/canvas/webgl/webgl-reload-crash-expected.txt: Added.
+        * fast/canvas/webgl/webgl-reload-crash.html: Added.
+
+2013-09-23  Alexey Proskuryakov  <ap@apple.com>
+
+        Audio object garbage collection is incorrect (media/audio-garbage-collect.html test is flaky)
+        https://bugs.webkit.org/show_bug.cgi?id=72698
+
+        Skipping the test. It frequently times out, and when it doesn't, that's only
+        because if fails to detect incorrect behavior.
+
+        * TestExpectations:
+
+2013-09-23  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] accessibility/aria-invalid is failing
+        https://bugs.webkit.org/show_bug.cgi?id=111986
+
+        Reviewed by Mario Sanchez Prada.
+
+        Test passes on both efk-wk2 and efl-wk1, because of the patches from bugs: 119883 and 120421.
+
+        * platform/efl-wk1/TestExpectations: Removed accessibility/aria-invalid.html
+        * platform/efl-wk2/TestExpectations: Removed accessibility/aria-invalid.html
+
 2013-09-23  Krzysztof Czech  <k.czech@samsung.com>
 
         [EFL] accessibility/selection-states.html is failing
