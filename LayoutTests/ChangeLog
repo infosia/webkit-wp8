@@ -1,3 +1,317 @@
+2013-09-23  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] accessibility/selection-states.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=112007
+
+        Unreviewed EFL gardening. Passes after r156149.
+
+        * platform/efl-wk2/TestExpectations:
+
+2013-09-22  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156257.
+        http://trac.webkit.org/changeset/156257
+        https://bugs.webkit.org/show_bug.cgi?id=121777
+
+        The test from this patch fails (Requested by ap on #webkit).
+
+        * fast/events/drag-and-drop-autoscroll-inner-frame-expected.txt: Removed.
+        * fast/events/drag-and-drop-autoscroll-inner-frame.html: Removed.
+
+2013-09-22  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        Unreviewed EFL gardening. Rebaselining after r156040.
+
+        * platform/efl/fast/forms/HTMLOptionElement_label06-expected.txt:
+        * platform/efl/fast/forms/HTMLOptionElement_label07-expected.txt:
+        * platform/efl/fast/forms/form-element-geometry-expected.txt:
+        * platform/efl/fast/forms/menulist-separator-painting-expected.txt:
+        * platform/efl/fast/forms/select-baseline-expected.txt:
+        * platform/efl/fast/forms/select-empty-option-height-expected.txt:
+        * platform/efl/fast/forms/selectlist-minsize-expected.txt:
+        * platform/efl/fast/html/keygen-expected.txt:
+        * platform/efl/fast/replaced/three-selects-break-expected.txt:
+
+2013-09-22  Antonio Gomes  <a1.gomes@sisa.samsung.com>
+
+        iframe and scrollbar with "overflow:auto" should support autoscroll with mousedrag
+        https://bugs.webkit.org/show_bug.cgi?id=40981
+
+        Reviewed by Darin Adler.
+
+        Test ensures that dragging an element close to the boundary of
+        scrollable Frames, scroll its content in that direction.
+
+        * fast/events/drag-and-drop-autoscroll-inner-frame-expected.txt: Added.
+        * fast/events/drag-and-drop-autoscroll-inner-frame.html: Added.
+
+2013-09-22  Arunprasad Rajkumar  <ararunprasad@gmail.com>
+
+        Hiding a focused element should unfocus it and fire a blur event
+        https://bugs.webkit.org/show_bug.cgi?id=29241
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable-expected.txt: Added.
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable.html: Added.
+
+        LayoutTest reused from https://chromium.googlesource.com/chromium/blink/+/c58f636fd18fc27944c42e27d6a92a36867c57e1
+        with little modification.
+
+2013-09-22  Darin Adler  <darin@apple.com>
+
+        Fix accessibility-node-memory-management.html to use normal style for
+        GC-related tests, making it more robust
+        https://bugs.webkit.org/show_bug.cgi?id=121760
+
+        Rubber-stamped by Alexey Proskuryakov.
+
+        Change was accidentally landed in previous commit, this is the change log
+        that goes with it.
+
+        * accessibility/accessibility-node-memory-management.html:
+        Use jsTestIsAsync and setTimeout to do the garbage collection without the
+        rest of the script state on the stack. Also removed a lot of unneeded
+        "window." since the test works fine without them and tweaked comments.
+
+2013-09-21  Filip Pizlo  <fpizlo@apple.com>
+
+        Get rid of IsInlinedCodeTag and its associated methods since it's unused
+        https://bugs.webkit.org/show_bug.cgi?id=121737
+
+        Reviewed by Sam Weinig.
+
+        * js/dfg-inline-arguments-capture-throw-exception-expected.txt: Added.
+        * js/dfg-inline-arguments-capture-throw-exception.html: Added.
+        * js/script-tests/dfg-inline-arguments-capture-throw-exception.js: Added.
+        (foo):
+        (bar):
+        (makeF):
+        (recurse):
+
+2013-09-20  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Bad cast from CSSInitialValue to CSSValueList
+        https://bugs.webkit.org/show_bug.cgi?id=121729
+
+        Reviewed by Beth Dakin.
+        
+        Add a regression test. This is not a merge since the test in the Blink change involves
+        superfluous execCommand calls.
+
+        * fast/css/crash-inherit-value-font-family-expected.txt: Added.
+        * fast/css/crash-inherit-value-font-family.html: Added.
+
+2013-09-20  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: [CSS Regions] Display CSS Regions chain when highlighting a CSS Region node
+        https://bugs.webkit.org/show_bug.cgi?id=121719
+
+        Reviewed by Joseph Pecoraro.
+
+        Added test to check the position of the CSS Regions part of the same flow thread with
+        the highlighted CSS Region node.
+
+        * http/tests/inspector/elements-test.js:
+        * inspector/elements/highlight-node-regions-expected.txt: Added.
+        * inspector/elements/highlight-node-regions.html: Added.
+
+2013-09-20  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        (un)shiftCountWithAnyIndexingType will start over in the middle of copying if it sees a hole
+        https://bugs.webkit.org/show_bug.cgi?id=121717
+
+        Reviewed by Oliver Hunt.
+
+        Added test to make sure that splicing an array with holes works correctly.
+
+        * js/array-splice-with-holes-expected.txt: Added.
+        * js/array-splice-with-holes.html: Added.
+        * js/script-tests/array-splice-with-holes.js: Added.
+
+2013-09-20  Alexey Proskuryakov  <ap@apple.com>
+
+        Fix test after <http://trac.webkit.org/changeset/156203>
+
+        * platform/mac/accessibility/aria-help.html: Correct paths to JS tests.
+
+2013-09-20  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(r156047): WebCore hangs inside JSC::toInt32(double)
+        https://bugs.webkit.org/show_bug.cgi?id=121648
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/dfg-int52-change-format-expected.txt: Added.
+        * js/dfg-int52-change-format.html: Added.
+        * js/script-tests/dfg-int52-change-format.js: Added.
+        (foo):
+
+2013-09-20  Oliver Hunt  <oliver@apple.com>
+
+        REGRESSION(r153215): New iCloud site crashes
+        https://bugs.webkit.org/show_bug.cgi?id=121710
+
+        Reviewed by Filip Pizlo.
+
+        New test case
+
+        * js/dfg-arguments-mutated-structure-expected.txt: Added.
+        * js/dfg-arguments-mutated-structure.html: Added.
+        * js/script-tests/dfg-arguments-mutated-structure.js: Added.
+        (foo):
+
+2013-09-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156185.
+        http://trac.webkit.org/changeset/156185
+        https://bugs.webkit.org/show_bug.cgi?id=121727
+
+        Caused a lot of crashes in tests (Requested by ap on #webkit).
+
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable-expected.txt: Removed.
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable.html: Removed.
+
+2013-09-20  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [ATK] Do not expose aria-help in ATK based platforms
+        https://bugs.webkit.org/show_bug.cgi?id=121675
+
+        Reviewed by Chris Fleizach.
+
+        Moved test based in helpText() into the Mac directory, and update
+        expectations for platforms as needed.
+
+        * platform/mac/accessibility/aria-help-expected.txt: Renamed from LayoutTests/accessibility/aria-help-expected.txt.
+        * platform/mac/accessibility/aria-help.html: Renamed from LayoutTests/accessibility/aria-help.html.
+        * platform/gtk-wk2/TestExpectations: Removed failure expectation
+        for aria-help, now moved to Mac, and for aria-describedby-on-input,
+        which is now moved to the generic TestExpectations file for GTK.
+        * platform/gtk/TestExpectations: Added aria-describedby-on-input,
+        linking it to the newly filed bug 121684.
+        * platform/gtk-wk2/TestExpectations: Removed failure expectation.
+        * platform/win/TestExpectations: Removed failure expectation.
+        * platform/wincairo/TestExpectations: Ditto.
+
+2013-09-20  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Move tests to new import location
+        https://bugs.webkit.org/show_bug.cgi?id=121701
+
+        Reviewed by Dirk Schulze.
+
+        The import script was previously importing the tests into an incorrect
+        path. This change uses the latest import script to import all of the
+        shapes tests to the right location.
+
+        There are also some small changes in the tests since they had some
+        more metadata added upstream, but there are no functional changes in
+        the tests with this change.
+
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/rounded-rectangle.js: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/resources/rounded-rectangle.js.
+        (ellipseXIntercept):
+        (scanConvertRoundedRectangleOutside):
+        (genLeftRightRoundedRectFloatShapeOutsideRefTest):
+        (genLeftRoundedRectFloatShapeOutsideRefTest):
+        (genRightRoundedRectFloatShapeOutsideRefTest):
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/subpixel-utils.js: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/resources/subpixel-utils.js.
+        (SubPixelLayout):
+        (SubPixelLayout.):
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/w3c-import.log: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-circle-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-circle-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-circle-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-circle-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-ellipse-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-ellipse-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-ellipse-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-ellipse-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-002-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-002.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-002.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-003-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-003-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-003.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-003.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-004-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-004-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-004.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-horizontal-rectangle-004.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-002-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-002.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-inset-rectangle-002.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-margin-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-margin-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-001-expected.html: Copied from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-margin-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-margin-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-margin-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-002-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-polygon-002.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-polygon-002.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-002-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-002.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-002.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-003-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-003-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-003.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-003.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-004-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-004-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-004.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-rounded-rectangle-004.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-shape-margin-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-square-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-square-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-square-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-square-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-square-border-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-square-border-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-square-border-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-square-border-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-stacked-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-stacked-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-stacked-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-stacked-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-000-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-000-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-000.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-000.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-001-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-001-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-001.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-001.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-002-expected.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-002-expected.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-002.html: Renamed from LayoutTests/csswg/submitted/shapes/shape-outside/shape-outside-floats-vertical-rectangle-002.html.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/w3c-import.log: Added.
+        * csswg/submitted/shapes/shape-outside/w3c-import.log: Removed.
+
+2013-09-20  Yoav Weiss  <yoav@yoav.ws>
+
+        Fixed img src URLS with multiple spaces
+        https://bugs.webkit.org/show_bug.cgi?id=121592
+
+        Reviewed by Darin Adler.
+
+        This test verifies that URLs with multiple spaces can be loaded as an image resource.
+
+        * fast/loader/image-src-multiple-space-expected.txt: Added.
+        * fast/loader/image-src-multiple-space.html: Added.
+
+2013-09-20  Arunprasad Rajkumar  <ararunprasad@gmail.com>
+
+        Hiding a focused element should unfocus it and fire a blur event
+        https://bugs.webkit.org/show_bug.cgi?id=29241
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable-expected.txt: Added.
+        * fast/dom/HTMLDocument/active-element-gets-unfocusable.html: Added.
+
+        LayoutTest reused from https://chromium.googlesource.com/chromium/blink/+/c58f636fd18fc27944c42e27d6a92a36867c57e1
+        with little modification.
+
+2013-09-20  Alexey Proskuryakov  <ap@apple.com>
+
+        Remove URL decoding in srcset handling
+        https://bugs.webkit.org/show_bug.cgi?id=121609
+
+        Followup to <http://trac.webkit.org/changeset/156161> - that change renamed expected
+        results, but the new test wasn't landed.
+
+        * fast/loader/image-src-encoded.html: Copied from LayoutTests/fast/loader/image-src-question-mark.html.
+        * fast/loader/image-src-question-mark.html: Removed.
+
 2013-09-20  Sam White  <samuel_white@apple.com>
 
         AX: WebArea claims to have a subrole, but always returns nil.

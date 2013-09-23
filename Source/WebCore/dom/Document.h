@@ -709,9 +709,9 @@ public:
     void attachRange(Range*);
     void detachRange(Range*);
 
-    void updateRangesAfterChildrenChanged(ContainerNode*);
+    void updateRangesAfterChildrenChanged(ContainerNode&);
     // nodeChildrenWillBeRemoved is used when removing all node children at once.
-    void nodeChildrenWillBeRemoved(ContainerNode*);
+    void nodeChildrenWillBeRemoved(ContainerNode&);
     // nodeWillBeRemoved is only safe when removing one node at a time.
     void nodeWillBeRemoved(Node*);
     bool canReplaceChild(Node* newChild, Node* oldChild);
@@ -729,6 +729,7 @@ public:
     DOMWindow* defaultView() const { return domWindow(); } 
 
     // Helper functions for forwarding DOMWindow event related tasks to the DOMWindow if it exists.
+    void setWindowAttributeEventListener(const AtomicString& eventType, const QualifiedName& attributeName, const AtomicString& value);
     void setWindowAttributeEventListener(const AtomicString& eventType, PassRefPtr<EventListener>);
     EventListener* getWindowAttributeEventListener(const AtomicString& eventType);
     void dispatchWindowEvent(PassRefPtr<Event>, PassRefPtr<EventTarget> = 0);
@@ -918,7 +919,9 @@ public:
 
     void updateFocusAppearanceSoon(bool restorePreviousSelection);
     void cancelFocusAppearanceUpdate();
-        
+
+    void resetHiddenFocusElementSoon();
+
     // Extension for manipulating canvas drawing contexts for use in CSS
     CanvasRenderingContext* getCSSCanvasContext(const String& type, const String& name, int width, int height);
     HTMLCanvasElement* getCSSCanvasElement(const String& name);
@@ -1225,6 +1228,8 @@ private:
     void updateFocusAppearanceTimerFired(Timer<Document>*);
     void updateBaseURL();
 
+    void resetHiddenFocusElementTimer(Timer<Document>*);
+
     void buildAccessKeyMap(TreeScope* root);
 
     void createStyleResolver();
@@ -1376,6 +1381,7 @@ private:
     const OwnPtr<DocumentMarkerController> m_markers;
     
     Timer<Document> m_updateFocusAppearanceTimer;
+    Timer<Document> m_resetHiddenFocusElementTimer;
 
     Element* m_cssTarget;
 
@@ -1629,6 +1635,11 @@ inline Node::Node(Document* document, ConstructionType type)
 #endif
 
     InspectorCounters::incrementCounter(InspectorCounters::NodeCounter);
+}
+
+inline ScriptExecutionContext* Node::scriptExecutionContext() const
+{
+    return &document();
 }
 
 Node* eventTargetNodeForDocument(Document*);
