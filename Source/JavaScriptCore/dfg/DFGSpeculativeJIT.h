@@ -513,6 +513,13 @@ public:
             info.spill(*m_stream, spillMe, DataFormatDouble);
             return;
         }
+
+        case DataFormatInt52:
+        case DataFormatStrictInt52: {
+            m_jit.store64(info.gpr(), JITCompiler::addressFor(spillMe));
+            info.spill(*m_stream, spillMe, spillFormat);
+            return;
+        }
             
         default:
             // The following code handles JSValues, int32s, and cells.
@@ -1693,11 +1700,9 @@ public:
     JITCompiler::Call appendCallWithExceptionCheck(const FunctionPtr& function)
     {
         prepareForExternalCall();
-        CodeOrigin codeOrigin = m_currentNode->codeOrigin;
-        CallBeginToken token;
-        m_jit.beginCall(codeOrigin, token);
+        m_jit.emitStoreCodeOrigin(m_currentNode->codeOrigin);
         JITCompiler::Call call = m_jit.appendCall(function);
-        m_jit.addExceptionCheck(call, codeOrigin, token);
+        m_jit.exceptionCheck();
         return call;
     }
     JITCompiler::Call appendCallWithExceptionCheckSetResult(const FunctionPtr& function, GPRReg result)
@@ -1710,6 +1715,7 @@ public:
     JITCompiler::Call appendCallSetResult(const FunctionPtr& function, GPRReg result)
     {
         prepareForExternalCall();
+        m_jit.emitStoreCodeOrigin(m_currentNode->codeOrigin);
         JITCompiler::Call call = m_jit.appendCall(function);
         if (result != InvalidGPRReg)
             m_jit.move(GPRInfo::returnValueGPR, result);
@@ -1718,6 +1724,7 @@ public:
     JITCompiler::Call appendCall(const FunctionPtr& function)
     {
         prepareForExternalCall();
+        m_jit.emitStoreCodeOrigin(m_currentNode->codeOrigin);
         return m_jit.appendCall(function);
     }
     JITCompiler::Call appendCallWithExceptionCheckSetResult(const FunctionPtr& function, GPRReg result1, GPRReg result2)
@@ -1738,7 +1745,7 @@ public:
     }
     JITCompiler::Call appendCallSetResult(const FunctionPtr& function, FPRReg result)
     {
-        JITCompiler::Call call = m_jit.appendCall(function);
+        JITCompiler::Call call = appendCall(function);
         if (result != InvalidFPRReg) {
             m_jit.assembler().fstpl(0, JITCompiler::stackPointerRegister);
             m_jit.loadDouble(JITCompiler::stackPointerRegister, result);
@@ -1756,7 +1763,7 @@ public:
     }
     JITCompiler::Call appendCallSetResult(const FunctionPtr& function, FPRReg result)
     {
-        JITCompiler::Call call = m_jit.appendCall(function);
+        JITCompiler::Call call = appendCall(function);
         if (result != InvalidFPRReg)
             m_jit.moveDouble(result, FPRInfo::argumentFPR0);
         return call;
@@ -1771,7 +1778,7 @@ public:
     }
     JITCompiler::Call appendCallSetResult(const FunctionPtr& function, FPRReg result)
     {
-        JITCompiler::Call call = m_jit.appendCall(function);
+        JITCompiler::Call call = appendCall(function);
         if (result != InvalidFPRReg)
             m_jit.assembler().vmov(result, GPRInfo::returnValueGPR, GPRInfo::returnValueGPR2);
         return call;
@@ -1787,7 +1794,7 @@ public:
     }
     JITCompiler::Call appendCallSetResult(const FunctionPtr& function, FPRReg result)
     {
-        JITCompiler::Call call = m_jit.appendCall(function);
+        JITCompiler::Call call = appendCall(function);
         if (result != InvalidFPRReg)
             m_jit.moveDouble(FPRInfo::returnValueFPR, result);
         return call;

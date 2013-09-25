@@ -27,6 +27,11 @@
 
 #include "AXObjectCache.h"
 #include "ContentData.h"
+#include "CursorList.h"
+#include "EventHandler.h"
+#include "Frame.h"
+#include "HTMLElement.h"
+#include "HTMLNames.h"
 #include "RenderCounter.h"
 #include "RenderDeprecatedFlexibleBox.h"
 #include "RenderFlexibleBox.h"
@@ -48,7 +53,14 @@
 #include "RenderView.h"
 #include "SVGRenderSupport.h"
 
+#if USE(ACCELERATED_COMPOSITING)
+#include "RenderLayerCompositor.h"
+#endif
+
 namespace WebCore {
+
+bool RenderElement::s_affectsParentBlock = false;
+bool RenderElement::s_noLongerAffectsParentBlock = false;
 
 RenderElement::RenderElement(Element* element)
     : RenderObject(element)
@@ -59,6 +71,27 @@ RenderElement::RenderElement(Element* element)
 
 RenderElement::~RenderElement()
 {
+    if (m_style) {
+        for (const FillLayer* bgLayer = m_style->backgroundLayers(); bgLayer; bgLayer = bgLayer->next()) {
+            if (StyleImage* backgroundImage = bgLayer->image())
+                backgroundImage->removeClient(this);
+        }
+
+        for (const FillLayer* maskLayer = m_style->maskLayers(); maskLayer; maskLayer = maskLayer->next()) {
+            if (StyleImage* maskImage = maskLayer->image())
+                maskImage->removeClient(this);
+        }
+
+        if (StyleImage* borderImage = m_style->borderImage().image())
+            borderImage->removeClient(this);
+
+        if (StyleImage* maskBoxImage = m_style->maskBoxImage().image())
+            maskBoxImage->removeClient(this);
+
+#if ENABLE(CSS_SHAPES)
+        removeShapeImageClient(m_style->shapeInside());
+#endif
+    }
 }
 
 RenderElement* RenderElement::createFor(Element& element, RenderStyle& style)
@@ -138,6 +171,186 @@ RenderElement* RenderElement::createFor(Element& element, RenderStyle& style)
     }
     ASSERT_NOT_REACHED();
     return nullptr;
+}
+
+StyleDifference RenderElement::adjustStyleDifference(StyleDifference diff, unsigned contextSensitiveProperties) const
+{
+#if USE(ACCELERATED_COMPOSITING)
+    // If transform changed, and we are not composited, need to do a layout.
+    if (contextSensitiveProperties & ContextSensitivePropertyTransform) {
+        // Text nodes share style with their parents but transforms don't apply to them,
+        // hence the !isText() check.
+        // FIXME: when transforms are taken into account for overflow, we will need to do a layout.
+        if (!hasLayer() || !toRenderLayerModelObject(this)->layer()->isComposited()) {
+            // We need to set at least SimplifiedLayout, but if PositionedMovementOnly is already set
+            // then we actually need SimplifiedLayoutAndPositionedMovement.
+            if (!hasLayer())
+                diff = StyleDifferenceLayout; // FIXME: Do this for now since SimplifiedLayout cannot handle updating floating objects lists.
+            else if (diff < StyleDifferenceLayoutPositionedMovementOnly)
+                diff = StyleDifferenceSimplifiedLayout;
+            else if (diff < StyleDifferenceSimplifiedLayout)
+                diff = StyleDifferenceSimplifiedLayoutAndPositionedMovement;
+        } else if (diff < StyleDifferenceRecompositeLayer)
+            diff = StyleDifferenceRecompositeLayer;
+    }
+
+    // If opacity changed, and we are not composited, need to repaint (also
+    // ignoring text nodes)
+    if (contextSensitiveProperties & ContextSensitivePropertyOpacity) {
+        if (!hasLayer() || !toRenderLayerModelObject(this)->layer()->isComposited())
+            diff = StyleDifferenceRepaintLayer;
+        else if (diff < StyleDifferenceRecompositeLayer)
+            diff = StyleDifferenceRecompositeLayer;
+    }
+    
+#if ENABLE(CSS_FILTERS)
+    if ((contextSensitiveProperties & ContextSensitivePropertyFilter) && hasLayer()) {
+        RenderLayer* layer = toRenderLayerModelObject(this)->layer();
+        if (!layer->isComposited() || layer->paintsWithFilters())
+            diff = StyleDifferenceRepaintLayer;
+        else if (diff < StyleDifferenceRecompositeLayer)
+            diff = StyleDifferenceRecompositeLayer;
+    }
+#endif
+    
+    // The answer to requiresLayer() for plugins, iframes, and canvas can change without the actual
+    // style changing, since it depends on whether we decide to composite these elements. When the
+    // layer status of one of these elements changes, we need to force a layout.
+    if (diff == StyleDifferenceEqual && style() && isLayerModelObject()) {
+        if (hasLayer() != toRenderLayerModelObject(this)->requiresLayer())
+            diff = StyleDifferenceLayout;
+    }
+#else
+    UNUSED_PARAM(contextSensitiveProperties);
+#endif
+
+    // If we have no layer(), just treat a RepaintLayer hint as a normal Repaint.
+    if (diff == StyleDifferenceRepaintLayer && !hasLayer())
+        diff = StyleDifferenceRepaint;
+
+    return diff;
+}
+
+inline bool RenderElement::hasImmediateNonWhitespaceTextChild() const
+{
+    for (const RenderObject* renderer = firstChild(); renderer; renderer = renderer->nextSibling()) {
+        if (renderer->isText() && !toRenderText(renderer)->isAllCollapsibleWhitespace())
+            return true;
+    }
+    return false;
+}
+
+inline bool RenderElement::shouldRepaintForStyleDifference(StyleDifference diff) const
+{
+    return diff == StyleDifferenceRepaint || (diff == StyleDifferenceRepaintIfText && hasImmediateNonWhitespaceTextChild());
+}
+
+void RenderElement::updateFillImages(const FillLayer* oldLayers, const FillLayer* newLayers)
+{
+    // Optimize the common case
+    if (oldLayers && !oldLayers->next() && newLayers && !newLayers->next() && (oldLayers->image() == newLayers->image()))
+        return;
+    
+    // Go through the new layers and addClients first, to avoid removing all clients of an image.
+    for (const FillLayer* currNew = newLayers; currNew; currNew = currNew->next()) {
+        if (currNew->image())
+            currNew->image()->addClient(this);
+    }
+
+    for (const FillLayer* currOld = oldLayers; currOld; currOld = currOld->next()) {
+        if (currOld->image())
+            currOld->image()->removeClient(this);
+    }
+}
+
+void RenderElement::updateImage(StyleImage* oldImage, StyleImage* newImage)
+{
+    if (oldImage == newImage)
+        return;
+    if (oldImage)
+        oldImage->removeClient(this);
+    if (newImage)
+        newImage->addClient(this);
+}
+
+#if ENABLE(CSS_SHAPES)
+void RenderElement::updateShapeImage(const ShapeValue* oldShapeValue, const ShapeValue* newShapeValue)
+{
+    if (oldShapeValue || newShapeValue)
+        updateImage(oldShapeValue ? oldShapeValue->image() : 0, newShapeValue ? newShapeValue->image() : 0);
+}
+#endif
+
+void RenderElement::setStyle(PassRefPtr<RenderStyle> style)
+{
+    if (m_style == style) {
+#if USE(ACCELERATED_COMPOSITING)
+        // We need to run through adjustStyleDifference() for iframes, plugins, and canvas so
+        // style sharing is disabled for them. That should ensure that we never hit this code path.
+        ASSERT(!isRenderIFrame() && !isEmbeddedObject() && !isCanvas());
+#endif
+        return;
+    }
+
+    StyleDifference diff = StyleDifferenceEqual;
+    unsigned contextSensitiveProperties = ContextSensitivePropertyNone;
+    if (m_style)
+        diff = m_style->diff(style.get(), contextSensitiveProperties);
+
+    diff = adjustStyleDifference(diff, contextSensitiveProperties);
+
+    styleWillChange(diff, style.get());
+    
+    RefPtr<RenderStyle> oldStyle = m_style.release();
+    setStyleInternal(style);
+
+    updateFillImages(oldStyle ? oldStyle->backgroundLayers() : 0, m_style ? m_style->backgroundLayers() : 0);
+    updateFillImages(oldStyle ? oldStyle->maskLayers() : 0, m_style ? m_style->maskLayers() : 0);
+
+    updateImage(oldStyle ? oldStyle->borderImage().image() : 0, m_style ? m_style->borderImage().image() : 0);
+    updateImage(oldStyle ? oldStyle->maskBoxImage().image() : 0, m_style ? m_style->maskBoxImage().image() : 0);
+
+#if ENABLE(CSS_SHAPES)
+    updateShapeImage(oldStyle ? oldStyle->shapeInside() : 0, m_style ? m_style->shapeInside() : 0);
+#endif
+
+    // We need to ensure that view->maximalOutlineSize() is valid for any repaints that happen
+    // during styleDidChange (it's used by clippedOverflowRectForRepaint()).
+    if (m_style->outlineWidth() > 0 && m_style->outlineSize() > maximalOutlineSize(PaintPhaseOutline))
+        view().setMaximalOutlineSize(m_style->outlineSize());
+
+    bool doesNotNeedLayout = !parent();
+
+    styleDidChange(diff, oldStyle.get());
+
+    // FIXME: |this| might be destroyed here. This can currently happen for a RenderTextFragment when
+    // its first-letter block gets an update in RenderTextFragment::styleDidChange. For RenderTextFragment(s),
+    // we will safely bail out with the doesNotNeedLayout flag. We might want to broaden this condition
+    // in the future as we move renderer changes out of layout and into style changes.
+    if (doesNotNeedLayout)
+        return;
+
+    // Now that the layer (if any) has been updated, we need to adjust the diff again,
+    // check whether we should layout now, and decide if we need to repaint.
+    StyleDifference updatedDiff = adjustStyleDifference(diff, contextSensitiveProperties);
+    
+    if (diff <= StyleDifferenceLayoutPositionedMovementOnly) {
+        if (updatedDiff == StyleDifferenceLayout)
+            setNeedsLayoutAndPrefWidthsRecalc();
+        else if (updatedDiff == StyleDifferenceLayoutPositionedMovementOnly)
+            setNeedsPositionedMovementLayout(oldStyle.get());
+        else if (updatedDiff == StyleDifferenceSimplifiedLayoutAndPositionedMovement) {
+            setNeedsPositionedMovementLayout(oldStyle.get());
+            setNeedsSimplifiedNormalFlowLayout();
+        } else if (updatedDiff == StyleDifferenceSimplifiedLayout)
+            setNeedsSimplifiedNormalFlowLayout();
+    }
+
+    if (updatedDiff == StyleDifferenceRepaintLayer || shouldRepaintForStyleDifference(updatedDiff)) {
+        // Do a repaint with the new style now, e.g., for example if we go from
+        // not having an outline to having an outline.
+        repaint();
+    }
 }
 
 void RenderElement::addChild(RenderObject* newChild, RenderObject* beforeChild)
@@ -442,6 +655,209 @@ bool RenderElement::layerCreationAllowedForSubtree() const
     return true;
 }
 
+void RenderElement::propagateStyleToAnonymousChildren(StylePropagationType propagationType)
+{
+    // FIXME: We could save this call when the change only affected non-inherited properties.
+    for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
+        if (!child->isAnonymous() || child->style()->styleType() != NOPSEUDO)
+            continue;
+
+        if (propagationType == PropagateToBlockChildrenOnly && !child->isRenderBlock())
+            continue;
+
+#if ENABLE(FULLSCREEN_API)
+        if (child->isRenderFullScreen() || child->isRenderFullScreenPlaceholder())
+            continue;
+#endif
+
+        RefPtr<RenderStyle> newStyle = RenderStyle::createAnonymousStyleWithDisplay(style(), child->style()->display());
+        if (style()->specifiesColumns()) {
+            if (child->style()->specifiesColumns())
+                newStyle->inheritColumnPropertiesFrom(style());
+            if (child->style()->columnSpan())
+                newStyle->setColumnSpan(ColumnSpanAll);
+        }
+
+        // Preserve the position style of anonymous block continuations as they can have relative or sticky position when
+        // they contain block descendants of relative or sticky positioned inlines.
+        if (child->isInFlowPositioned() && toRenderBlock(child)->isAnonymousBlockContinuation())
+            newStyle->setPosition(child->style()->position());
+
+        child->setStyle(newStyle.release());
+    }
+}
+
+// On low-powered/mobile devices, preventing blitting on a scroll can cause noticeable delays
+// when scrolling a page with a fixed background image. As an optimization, assuming there are
+// no fixed positoned elements on the page, we can acclerate scrolling (via blitting) if we
+// ignore the CSS property "background-attachment: fixed".
+static bool shouldRepaintFixedBackgroundsOnScroll(FrameView* frameView)
+{
+#if !ENABLE(FAST_MOBILE_SCROLLING) || !PLATFORM(QT)
+    UNUSED_PARAM(frameView);
+#endif
+
+    bool repaintFixedBackgroundsOnScroll = true;
+#if ENABLE(FAST_MOBILE_SCROLLING)
+#if PLATFORM(QT)
+    if (frameView->delegatesScrolling())
+        repaintFixedBackgroundsOnScroll = false;
+#else
+    repaintFixedBackgroundsOnScroll = false;
+#endif
+#endif
+    return repaintFixedBackgroundsOnScroll;
+}
+
+static inline bool rendererHasBackground(const RenderObject* renderer)
+{
+    return renderer && renderer->hasBackground();
+}
+
+void RenderElement::styleWillChange(StyleDifference diff, const RenderStyle* newStyle)
+{
+    if (m_style) {
+        // If our z-index changes value or our visibility changes,
+        // we need to dirty our stacking context's z-order list.
+        if (newStyle) {
+            bool visibilityChanged = m_style->visibility() != newStyle->visibility() 
+                || m_style->zIndex() != newStyle->zIndex() 
+                || m_style->hasAutoZIndex() != newStyle->hasAutoZIndex();
+#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+            if (visibilityChanged)
+                document().setAnnotatedRegionsDirty(true);
+#endif
+            if (visibilityChanged) {
+                if (AXObjectCache* cache = document().existingAXObjectCache())
+                    cache->childrenChanged(parent());
+            }
+
+            // Keep layer hierarchy visibility bits up to date if visibility changes.
+            if (m_style->visibility() != newStyle->visibility()) {
+                if (RenderLayer* layer = enclosingLayer()) {
+                    if (newStyle->visibility() == VISIBLE)
+                        layer->setHasVisibleContent();
+                    else if (layer->hasVisibleContent() && (this == &layer->renderer() || layer->renderer().style()->visibility() != VISIBLE)) {
+                        layer->dirtyVisibleContentStatus();
+                        if (diff > StyleDifferenceRepaintLayer)
+                            repaint();
+                    }
+                }
+            }
+        }
+
+        if (m_parent && (newStyle->outlineSize() < m_style->outlineSize() || shouldRepaintForStyleDifference(diff)))
+            repaint();
+        if (isFloating() && (m_style->floating() != newStyle->floating()))
+            // For changes in float styles, we need to conceivably remove ourselves
+            // from the floating objects list.
+            toRenderBox(this)->removeFloatingOrPositionedChildFromBlockLists();
+        else if (isOutOfFlowPositioned() && (m_style->position() != newStyle->position()))
+            // For changes in positioning styles, we need to conceivably remove ourselves
+            // from the positioned objects list.
+            toRenderBox(this)->removeFloatingOrPositionedChildFromBlockLists();
+
+        s_affectsParentBlock = isFloatingOrOutOfFlowPositioned()
+            && (!newStyle->isFloating() && !newStyle->hasOutOfFlowPosition())
+            && parent() && (parent()->isRenderBlockFlow() || parent()->isRenderInline());
+
+        s_noLongerAffectsParentBlock = ((!isFloating() && newStyle->isFloating()) || (!isOutOfFlowPositioned() && newStyle->hasOutOfFlowPosition()))
+            && parent() && parent()->isRenderBlock();
+
+        // reset style flags
+        if (diff == StyleDifferenceLayout || diff == StyleDifferenceLayoutPositionedMovementOnly) {
+            setFloating(false);
+            clearPositionedState();
+        }
+        setHorizontalWritingMode(true);
+        setHasBoxDecorations(false);
+        setHasOverflowClip(false);
+        setHasTransform(false);
+        setHasReflection(false);
+    } else {
+        s_affectsParentBlock = false;
+        s_noLongerAffectsParentBlock = false;
+    }
+
+    bool repaintFixedBackgroundsOnScroll = shouldRepaintFixedBackgroundsOnScroll(&view().frameView());
+
+    bool newStyleSlowScroll = newStyle && repaintFixedBackgroundsOnScroll && newStyle->hasFixedBackgroundImage();
+    bool oldStyleSlowScroll = m_style && repaintFixedBackgroundsOnScroll && m_style->hasFixedBackgroundImage();
+
+#if USE(ACCELERATED_COMPOSITING)
+    bool drawsRootBackground = isRoot() || (isBody() && !rendererHasBackground(document().documentElement()->renderer()));
+    if (drawsRootBackground && repaintFixedBackgroundsOnScroll) {
+        if (view().compositor().supportsFixedRootBackgroundCompositing()) {
+            if (newStyleSlowScroll && newStyle->hasEntirelyFixedBackground())
+                newStyleSlowScroll = false;
+
+            if (oldStyleSlowScroll && m_style->hasEntirelyFixedBackground())
+                oldStyleSlowScroll = false;
+        }
+    }
+#endif
+    if (oldStyleSlowScroll != newStyleSlowScroll) {
+        if (oldStyleSlowScroll)
+            view().frameView().removeSlowRepaintObject(this);
+
+        if (newStyleSlowScroll)
+            view().frameView().addSlowRepaintObject(this);
+    }
+}
+
+static bool areNonIdenticalCursorListsEqual(const RenderStyle* a, const RenderStyle* b)
+{
+    ASSERT(a->cursors() != b->cursors());
+    return a->cursors() && b->cursors() && *a->cursors() == *b->cursors();
+}
+
+static inline bool areCursorsEqual(const RenderStyle* a, const RenderStyle* b)
+{
+    return a->cursor() == b->cursor() && (a->cursors() == b->cursors() || areNonIdenticalCursorListsEqual(a, b));
+}
+
+void RenderElement::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
+{
+    if (s_affectsParentBlock)
+        handleDynamicFloatPositionChange();
+
+    if (s_noLongerAffectsParentBlock)
+        removeAnonymousWrappersForInlinesIfNecessary();
+#if ENABLE(SVG)
+    SVGRenderSupport::styleChanged(this);
+#endif
+
+    if (!m_parent)
+        return;
+    
+    if (diff == StyleDifferenceLayout || diff == StyleDifferenceSimplifiedLayout) {
+        RenderCounter::rendererStyleChanged(this, oldStyle, m_style.get());
+
+        // If the object already needs layout, then setNeedsLayout won't do
+        // any work. But if the containing block has changed, then we may need
+        // to mark the new containing blocks for layout. The change that can
+        // directly affect the containing block of this object is a change to
+        // the position style.
+        if (needsLayout() && oldStyle->position() != m_style->position())
+            markContainingBlocksForLayout();
+
+        if (diff == StyleDifferenceLayout)
+            setNeedsLayoutAndPrefWidthsRecalc();
+        else
+            setNeedsSimplifiedNormalFlowLayout();
+    } else if (diff == StyleDifferenceSimplifiedLayoutAndPositionedMovement) {
+        setNeedsPositionedMovementLayout(oldStyle);
+        setNeedsSimplifiedNormalFlowLayout();
+    } else if (diff == StyleDifferenceLayoutPositionedMovementOnly)
+        setNeedsPositionedMovementLayout(oldStyle);
+
+    // Don't check for repaint here; we need to wait until the layer has been
+    // updated by subclasses before we know if we have to repaint (in setStyle()).
+
+    if (oldStyle && !areCursorsEqual(oldStyle, style()))
+        frame().eventHandler().scheduleCursorUpdate();
+}
+
 void RenderElement::insertedIntoTree()
 {
     RenderObject::insertedIntoTree();
@@ -479,6 +895,13 @@ void RenderElement::willBeRemovedFromTree()
         removeLayers(layer);
     }
 
+    bool repaintFixedBackgroundsOnScroll = shouldRepaintFixedBackgroundsOnScroll(&view().frameView());
+    if (repaintFixedBackgroundsOnScroll && m_style && m_style->hasFixedBackgroundImage())
+        view().frameView().removeSlowRepaintObject(this);
+
+    if (isOutOfFlowPositioned() && parent()->childrenInline())
+        parent()->dirtyLinesFromChangedChild(this);
+
     RenderObject::willBeRemovedFromTree();
 }
 
@@ -487,6 +910,49 @@ void RenderElement::willBeDestroyed()
     destroyLeftoverChildren();
 
     RenderObject::willBeDestroyed();
+}
+
+RenderElement* RenderElement::rendererForRootBackground()
+{
+    ASSERT(isRoot());
+    if (!hasBackground() && element() && element()->hasTagName(HTMLNames::htmlTag)) {
+        // Locate the <body> element using the DOM. This is easier than trying
+        // to crawl around a render tree with potential :before/:after content and
+        // anonymous blocks created by inline <body> tags etc. We can locate the <body>
+        // render object very easily via the DOM.
+        HTMLElement* body = document().body();
+        RenderElement* bodyObject = (body && body->hasLocalName(HTMLNames::bodyTag)) ? body->renderer() : 0;
+        if (bodyObject)
+            return bodyObject;
+    }
+
+    return this;
+}
+
+RenderElement* RenderElement::hoverAncestor() const
+{
+    // When searching for the hover ancestor and encountering a named flow thread,
+    // the search will continue with the DOM ancestor of the top-most element
+    // in the named flow thread.
+    // See https://bugs.webkit.org/show_bug.cgi?id=111749
+    RenderElement* hoverAncestor = parent();
+
+    // Skip anonymous blocks directly flowed into flow threads as it would
+    // prevent us from continuing the search on the DOM tree when reaching the named flow thread.
+    if (hoverAncestor && hoverAncestor->isAnonymousBlock() && hoverAncestor->parent() && hoverAncestor->parent()->isRenderNamedFlowThread())
+        hoverAncestor = hoverAncestor->parent();
+
+    if (hoverAncestor && hoverAncestor->isRenderNamedFlowThread()) {
+        hoverAncestor = nullptr;
+
+        if (Element* element = this->element()) {
+            ContainerNode* domAncestorNode = element->parentNode();
+            if (domAncestorNode)
+                hoverAncestor = toRenderElement(domAncestorNode->renderer());
+        }
+    }
+
+    return hoverAncestor;
 }
 
 }

@@ -797,6 +797,7 @@ void RenderBoxModelObject::paintFillLayerExtended(const PaintInfo& paintInfo, co
             CompositeOperator compositeOp = op == CompositeSourceOver ? bgLayer->composite() : op;
             RenderObject* clientForBackgroundImage = backgroundObject ? backgroundObject : this;
             RefPtr<Image> image = bgImage->image(clientForBackgroundImage, geometry.tileSize());
+            context->setDrawLuminanceMask(bgLayer->maskSourceType() == MaskLuminance);
             bool useLowQualityScaling = shouldPaintAtLowQuality(context, image.get(), bgLayer, geometry.tileSize());
             if (image.get())
                 image->setSpaceSize(geometry.spaceSize());
@@ -1122,7 +1123,9 @@ void RenderBoxModelObject::calculateBackgroundImageGeometry(const RenderLayerMod
 
     LayoutUnit computedXPosition = minimumValueForLength(fillLayer->xPosition(), availableWidth, true);
     if (backgroundRepeatX == RoundFill && positioningAreaSize.width() > 0 && fillTileSize.width() > 0) {
-        int nrTiles = ceil((double)positioningAreaSize.width() / fillTileSize.width());
+        long nrTiles = lroundf((float)positioningAreaSize.width() / fillTileSize.width());
+        if (!nrTiles)
+            nrTiles = 1;
 
         if (fillLayer->size().size.height().isAuto() && backgroundRepeatY != RoundFill)
             fillTileSize.setHeight(fillTileSize.height() * positioningAreaSize.width() / (nrTiles * fillTileSize.width()));
@@ -1135,7 +1138,9 @@ void RenderBoxModelObject::calculateBackgroundImageGeometry(const RenderLayerMod
 
     LayoutUnit computedYPosition = minimumValueForLength(fillLayer->yPosition(), availableHeight, true);
     if (backgroundRepeatY == RoundFill && positioningAreaSize.height() > 0 && fillTileSize.height() > 0) {
-        int nrTiles = ceil((double)positioningAreaSize.height() / fillTileSize.height());
+        long nrTiles = lroundf((float)positioningAreaSize.height() / fillTileSize.height());
+        if (!nrTiles)
+            nrTiles = 1;
 
         if (fillLayer->size().size.width().isAuto() && backgroundRepeatX != RoundFill)
             fillTileSize.setWidth(fillTileSize.width() * positioningAreaSize.height() / (nrTiles * fillTileSize.height()));
@@ -2734,7 +2739,7 @@ bool RenderBoxModelObject::shouldAntialiasLines(GraphicsContext* context)
 
 void RenderBoxModelObject::mapAbsoluteToLocalPoint(MapCoordinatesFlags mode, TransformState& transformState) const
 {
-    RenderObject* o = container();
+    RenderElement* o = container();
     if (!o)
         return;
 

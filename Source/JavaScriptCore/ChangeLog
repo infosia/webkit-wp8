@@ -1,3 +1,249 @@
+2013-09-25  Patrick Gansterer  <paroga@webkit.org>
+
+        Build fix for WinCE after r155098.
+
+        Windows CE does not support getenv().
+
+        * jsc.cpp:
+        (main):
+
+2013-09-24  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        op_get_callee shouldn't use value profiling
+        https://bugs.webkit.org/show_bug.cgi?id=121821
+
+        Reviewed by Filip Pizlo.
+
+        Currently it's one of the two opcodes that uses m_singletonValue, which is unnecessary. 
+        Our current plan is to remove m_singletonValue so that GenGC can have a simpler story 
+        for handling CodeBlocks/FunctionExecutables during nursery collections.
+
+        Instead of using a ValueProfile op_get_callee now has a simple inline cache of the most 
+        recent JSFunction that we saw.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::CodeBlock):
+        (JSC::CodeBlock::finalizeUnconditionally):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitCreateThis):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileSlowCases):
+        * jit/JIT.h:
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_get_callee):
+        (JSC::JIT::emitSlow_op_get_callee):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_get_callee):
+        (JSC::JIT::emitSlow_op_get_callee):
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * runtime/CommonSlowPaths.cpp:
+        (JSC::SLOW_PATH_DECL):
+        * runtime/CommonSlowPaths.h:
+
+2013-09-24  Mark Lam  <mark.lam@apple.com>
+
+        Change JSC debug hooks to pass a CallFrame* instead of a DebuggerCallFrame.
+        https://bugs.webkit.org/show_bug.cgi?id=121867.
+
+        Reviewed by Geoffrey Garen.
+
+        1. Removed the need for passing the line and column info to the debug hook
+           callbacks. We now get the line and column info from the CallFrame.
+
+        2. Simplify BytecodeGenerator::emitDebugHook() to only take 1 line number
+           argument. The caller can determine whether to pass in the first or last
+           line number of the block of source code as appropriate.
+           Note: we still need to pass in the line and column info to emitDebugHook()
+           because it uses this info to emit expression info which is later used by
+           the StackVisitor to determine the line and column info for its "pc".
+
+        3. Pass the exceptionValue explicitly to the exception() debug hook
+           callback. It should not be embedded in the CallFrame / DebuggerCallFrame.
+
+        4. Change the op_debug opcode size to 2 (from 5) since we've removing 3 arg
+           values. Update the LLINT and JIT code to handle this.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::dumpBytecode):
+        (JSC::CodeBlock::CodeBlock):
+        * bytecode/Opcode.h:
+        (JSC::padOpcodeName):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::emitDebugHook):
+        * bytecompiler/BytecodeGenerator.h:
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ConstStatementNode::emitBytecode):
+        (JSC::EmptyStatementNode::emitBytecode):
+        (JSC::DebuggerStatementNode::emitBytecode):
+        (JSC::ExprStatementNode::emitBytecode):
+        (JSC::VarStatementNode::emitBytecode):
+        (JSC::IfElseNode::emitBytecode):
+        (JSC::DoWhileNode::emitBytecode):
+        (JSC::WhileNode::emitBytecode):
+        (JSC::ForNode::emitBytecode):
+        (JSC::ForInNode::emitBytecode):
+        (JSC::ContinueNode::emitBytecode):
+        (JSC::BreakNode::emitBytecode):
+        (JSC::ReturnNode::emitBytecode):
+        (JSC::WithNode::emitBytecode):
+        (JSC::SwitchNode::emitBytecode):
+        (JSC::LabelNode::emitBytecode):
+        (JSC::ThrowNode::emitBytecode):
+        (JSC::TryNode::emitBytecode):
+        (JSC::ProgramNode::emitBytecode):
+        (JSC::EvalNode::emitBytecode):
+        (JSC::FunctionBodyNode::emitBytecode):
+        * debugger/Debugger.h:
+        * debugger/DebuggerCallFrame.cpp:
+        (JSC::LineAndColumnFunctor::operator()):
+        (JSC::LineAndColumnFunctor::line):
+        (JSC::LineAndColumnFunctor::column):
+        (JSC::DebuggerCallFrame::DebuggerCallFrame):
+        (JSC::DebuggerCallFrame::clear):
+        * debugger/DebuggerCallFrame.h:
+        (JSC::DebuggerCallFrame::line):
+        (JSC::DebuggerCallFrame::column):
+        * interpreter/Interpreter.cpp:
+        (JSC::unwindCallFrame):
+        (JSC::UnwindFunctor::UnwindFunctor):
+        (JSC::UnwindFunctor::operator()):
+        (JSC::Interpreter::unwind):
+        (JSC::Interpreter::debug):
+        * interpreter/Interpreter.h:
+        * jit/JITOpcodes.cpp:
+        (JSC::JIT::emit_op_debug):
+        * jit/JITOpcodes32_64.cpp:
+        (JSC::JIT::emit_op_debug):
+        * jit/JITStubs.cpp:
+        (JSC::DEFINE_STUB_FUNCTION):
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::LLINT_SLOW_PATH_DECL):
+        * llint/LowLevelInterpreter.asm:
+
+2013-09-24  Filip Pizlo  <fpizlo@apple.com>
+
+        Crashing under JSC::DFG::SpeculativeJIT::spill visiting citicards.com
+        https://bugs.webkit.org/show_bug.cgi?id=121844
+
+        Reviewed by Mark Hahnenberg.
+        
+        Fix some int52 bugs that caused this.
+
+        * bytecode/ValueRecovery.h:
+        (JSC::ValueRecovery::dumpInContext): There's no such thing as int53.
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::spill): Actually spill int52's, instead of hitting an assert and crashing.
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::fillSpeculateInt32Internal): Use the right format (from before when we clobber it).
+
+2013-09-24  Mark Rowe  <mrowe@apple.com>
+
+        <rdar://problem/14971518> WebKit should build against the Xcode default toolchain when targeting OS X 10.8
+
+        Reviewed by Dan Bernstein.
+
+        * Configurations/Base.xcconfig:
+
+2013-09-23  Patrick Gansterer  <paroga@webkit.org>
+
+        use NOMINMAX instead of #define min min
+        https://bugs.webkit.org/show_bug.cgi?id=73563
+
+        Reviewed by Brent Fulgham.
+
+        Use NOMINMAX instead of #define min/max as a cleaner
+        way of ensuring that Windows system header files don't
+        define min/max as macro in the first place.
+
+        * config.h:
+
+2013-09-23  Filip Pizlo  <fpizlo@apple.com>
+
+        Never use ReturnPC for exception handling and quit using exception check indices as a lame replica of the CodeOrigin index
+        https://bugs.webkit.org/show_bug.cgi?id=121734
+
+        Reviewed by Mark Hahnenberg.
+        
+        Exception handling can deduce where the exception was thrown from by looking at the
+        code origin that was stored into the call frame header. There is no need to pass any
+        additional meta-data into the exception throwing logic. But the DFG was still doing it
+        anyway.
+        
+        This removes all of the logic to pass extra meta-data into lookupExceptionHandler()
+        and friends. It simplifies a lot of code.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Target.pri:
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::shrinkToFit):
+        * bytecode/CodeBlock.h:
+        (JSC::CodeBlock::codeOrigins):
+        (JSC::CodeBlock::hasCodeOrigins):
+        (JSC::CodeBlock::canGetCodeOrigin):
+        (JSC::CodeBlock::codeOrigin):
+        * bytecode/CodeOrigin.h:
+        (JSC::InlineCallFrame::InlineCallFrame):
+        * bytecode/InlineCallFrameSet.cpp: Added.
+        (JSC::InlineCallFrameSet::InlineCallFrameSet):
+        (JSC::InlineCallFrameSet::~InlineCallFrameSet):
+        (JSC::InlineCallFrameSet::add):
+        (JSC::InlineCallFrameSet::shrinkToFit):
+        * bytecode/InlineCallFrameSet.h: Added.
+        (JSC::InlineCallFrameSet::isEmpty):
+        (JSC::InlineCallFrameSet::size):
+        (JSC::InlineCallFrameSet::at):
+        * dfg/DFGArgumentsSimplificationPhase.cpp:
+        (JSC::DFG::ArgumentsSimplificationPhase::run):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::InlineStackEntry::InlineStackEntry):
+        * dfg/DFGCommonData.cpp:
+        (JSC::DFG::CommonData::addCodeOrigin):
+        (JSC::DFG::CommonData::shrinkToFit):
+        * dfg/DFGCommonData.h:
+        * dfg/DFGDesiredWriteBarriers.cpp:
+        (JSC::DFG::DesiredWriteBarrier::DesiredWriteBarrier):
+        (JSC::DFG::DesiredWriteBarrier::trigger):
+        * dfg/DFGDesiredWriteBarriers.h:
+        (JSC::DFG::DesiredWriteBarriers::add):
+        (JSC::DFG::initializeLazyWriteBarrierForInlineCallFrameExecutable):
+        (JSC::DFG::initializeLazyWriteBarrierForInlineCallFrameCallee):
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::Graph):
+        * dfg/DFGGraph.h:
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::JITCompiler):
+        (JSC::DFG::JITCompiler::compileExceptionHandlers):
+        (JSC::DFG::JITCompiler::link):
+        (JSC::DFG::JITCompiler::compileFunction):
+        * dfg/DFGJITCompiler.h:
+        (JSC::DFG::JITCompiler::emitStoreCodeOrigin):
+        (JSC::DFG::JITCompiler::exceptionCheck):
+        (JSC::DFG::JITCompiler::fastExceptionCheck):
+        * dfg/DFGOperations.cpp:
+        * dfg/DFGOperations.h:
+        * dfg/DFGRepatch.cpp:
+        (JSC::DFG::tryBuildGetByIDList):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::appendCallWithExceptionCheck):
+        (JSC::DFG::SpeculativeJIT::appendCallSetResult):
+        (JSC::DFG::SpeculativeJIT::appendCall):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::emitCall):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::emitCall):
+        * dfg/DFGVirtualRegisterAllocationPhase.cpp:
+        (JSC::DFG::VirtualRegisterAllocationPhase::run):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::callPreflight):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::emitExceptionCheck):
+
 2013-09-23  Oliver Hunt  <oliver@apple.com>
 
         CodeLoad performance regression

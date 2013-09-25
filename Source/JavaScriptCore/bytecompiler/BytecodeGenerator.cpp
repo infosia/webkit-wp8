@@ -1404,9 +1404,9 @@ RegisterID* BytecodeGenerator::emitCreateThis(RegisterID* dst)
 {
     RefPtr<RegisterID> func = newTemporary(); 
 
-    UnlinkedValueProfile profile = emitProfiledOpcode(op_get_callee);
+    emitOpcode(op_get_callee);
     instructions().append(func->index());
-    instructions().append(profile);
+    instructions().append(0);
 
     size_t begin = instructions().size();
     m_staticPropertyAnalyzer.createThis(m_thisRegister.index(), begin + 3);
@@ -1858,7 +1858,7 @@ void BytecodeGenerator::emitPopScope()
     m_localScopeDepth--;
 }
 
-void BytecodeGenerator::emitDebugHook(DebugHookID debugHookID, unsigned firstLine, unsigned lastLine, unsigned charOffset, unsigned lineStart)
+void BytecodeGenerator::emitDebugHook(DebugHookID debugHookID, unsigned line, unsigned charOffset, unsigned lineStart)
 {
 #if ENABLE(DEBUG_WITH_BREAKPOINT)
     if (debugHookID != DidReachBreakpoint)
@@ -1867,14 +1867,10 @@ void BytecodeGenerator::emitDebugHook(DebugHookID debugHookID, unsigned firstLin
     if (!m_shouldEmitDebugHooks)
         return;
 #endif
-    JSTextPosition divot(firstLine, charOffset, lineStart);
+    JSTextPosition divot(line, charOffset, lineStart);
     emitExpressionInfo(divot, divot, divot);
-    unsigned charPosition = charOffset - m_scopeNode->source().startOffset();
     emitOpcode(op_debug);
     instructions().append(debugHookID);
-    instructions().append(firstLine);
-    instructions().append(lastLine);
-    instructions().append(charPosition);
 }
 
 void BytecodeGenerator::pushFinallyContext(StatementNode* finallyBlock)

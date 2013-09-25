@@ -1,3 +1,385 @@
+2013-09-25  Sanghyup Lee  <sh53.lee@samsung.com>
+
+        [EFL] Unreviewed gardening. Unskip passing fast/text/font-kerning.html 
+        https://bugs.webkit.org/show_bug.cgi?id=121907
+
+        Unreviewed EFL gardening. Passes after r152411.
+
+        * platform/efl/TestExpectations:
+
+2013-09-25  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        Support kerning with SVG web fonts
+        https://bugs.webkit.org/show_bug.cgi?id=117540
+
+        Added test of SVG web font kerning.
+
+        Reviewed by Stephen Chenney.
+
+        * fast/text/svg-font-face-with-kerning-expected.png: Added.
+        * fast/text/svg-font-face-with-kerning-expected.txt: Added.
+        * fast/text/svg-font-face-with-kerning.html: Added.
+
+2013-09-25  Anton Obzhirov  <a.obzhirov@samsung.com>
+
+        [GTK] Update test expectations. Mark fast/images/exif-orientation.html as failing.
+        https://bugs.webkit.org/show_bug.cgi?id=121906
+
+        Unreviewed GTK gardening.
+
+        * platform/gtk/TestExpectations: Mark fast/images/exif-orientation.html as failing, 
+        as reported in webkit.org/b/121905.
+
+2013-09-25  Andrei Parvu  <parvu@adobe.com>
+
+        <https://webkit.org/b/120476> [CSS Masking] Implement luminance masking
+
+        Added tests to verify the implementation of luminance masking.
+
+        Reviewed by Dirk Schulze.
+
+        * css3/masking/mask-luminance-gradient-expected.html: Added.
+        * css3/masking/mask-luminance-gradient.html: Added.
+        * css3/masking/mask-luminance-png.html: Added.
+        * css3/masking/mask-luminance-svg-expected.html: Added.
+        * css3/masking/mask-luminance-svg.html: Added.
+        * css3/masking/resources/circle-alpha.svg: Added.
+        * css3/masking/resources/circle2.svg: Added.
+        * css3/masking/resources/dice.png: Added.
+        * platform/mac/css3/masking/mask-luminance-png-expected.txt: Added.
+
+2013-09-25  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Updated accessibility expectations after r154781 and r155599
+        https://bugs.webkit.org/show_bug.cgi?id=121901
+
+        Unreviewed EFL gardening.
+
+        * platform/efl/accessibility/menu-list-sends-change-notification-expected.txt:
+        * platform/efl/accessibility/notification-listeners-expected.txt:
+
+2013-09-25  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        :read-write pseudo-class should not be applied on <input type="text" disabled>
+        https://bugs.webkit.org/show_bug.cgi?id=118236
+
+        Reviewed by Darin Adler.
+
+        * fast/css/readwrite-pseudoclass-input-expected.txt: Added.
+        * fast/css/readwrite-pseudoclass-input.html: Added.
+        Added test case to verify that :read-write pseudo-class properties are
+        are not applied to disabled input and textarea elements.
+
+2013-09-25  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] accessibility/loading-iframe-sends-notification.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=112003
+
+        Reviewed by Mario Sanchez Prada.
+
+        * platform/efl-wk1/TestExpectations: Removed loading-iframe-sends-notification.html.
+        * platform/efl-wk2/TestExpectations: Removed loading-iframe-sends-notification.html.
+
+2013-09-24  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Crash in Document::setFocusedElement
+        https://bugs.webkit.org/show_bug.cgi?id=121888
+
+        Reviewed by Andreas Kling.
+
+        * fast/events/blur-remove-parent-crash-expected.txt: Added.
+        * fast/events/blur-remove-parent-crash.html: Added.
+
+2013-09-24  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        op_get_callee shouldn't use value profiling
+        https://bugs.webkit.org/show_bug.cgi?id=121821
+
+        Reviewed by Filip Pizlo.
+
+        Added two tests to make sure we didn't regress the performance of op_get_callee.
+
+        * js/regress/get_callee_monomorphic-expected.txt: Added.
+        * js/regress/get_callee_monomorphic.html: Added.
+        * js/regress/get_callee_polymorphic-expected.txt: Added.
+        * js/regress/get_callee_polymorphic.html: Added.
+        * js/regress/script-tests/get_callee_monomorphic.js: Added.
+        * js/regress/script-tests/get_callee_polymorphic.js: Added.
+
+2013-09-24  Bear Travis  <betravis@adobe.com>
+
+        Disable CSS_SHAPES on Windows
+        https://bugs.webkit.org/show_bug.cgi?id=121879
+
+        Reviewed by Brent Fulgham.
+
+        * platform/win/TestExpectations: Exclude shapes tests until the
+        feature is re-enabled.
+
+2013-09-24  Filip Pizlo  <fpizlo@apple.com>
+
+        Crashing under JSC::DFG::SpeculativeJIT::spill visiting citicards.com
+        https://bugs.webkit.org/show_bug.cgi?id=121844
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/dfg-int52-spill-expected.txt: Added.
+        * js/dfg-int52-spill-trickier-expected.txt: Added.
+        * js/dfg-int52-spill-trickier.html: Added.
+        * js/dfg-int52-spill.html: Added.
+        * js/script-tests/dfg-int52-spill-trickier.js: Added.
+        (foo):
+        * js/script-tests/dfg-int52-spill.js: Added.
+        (foo):
+
+2013-09-24  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: compositing/reflections/load-video-in-reflection.html
+        https://bugs.webkit.org/show_bug.cgi?id=117427
+
+        * platform/mac/TestExpectations: Marking the test accordingly.
+
+2013-09-24  Alexey Proskuryakov  <ap@apple.com>
+
+        SVG Animations are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=107018
+
+        * platform/mac-wk2/TestExpectations: Marked some frequently failing tests
+
+2013-09-24  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Modify updateSegmentsForShapes function to use logical coordinates
+        https://bugs.webkit.org/show_bug.cgi?id=121864
+
+        Reviewed by David Hyatt.
+
+        When I landed updateSegmentsForShapes in r156022, I didn't use logical coordinates. This change modifies the
+        code to use coordinates for positioning the float and the content around the float in a shape-inside. Now I
+        added only one writing mode tests, but I will add more later in bug #121866.
+
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-left-triangle-vertical-lr-inline-content-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-left-triangle-vertical-lr-inline-content.html: Added.
+
+2013-09-24  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: fast/history/history-subframe-with-name.html
+        https://bugs.webkit.org/show_bug.cgi?id=51039
+
+        Reviewed by Anders Carlsson.
+
+        Speculative fix, I could not reproduce locally.
+
+        * fast/history/resources/history-subframe-with-name-container.html: Added a check
+        that onunload trick worked. 
+
+        * fast/history/resources/history-subframe-with-name-2.html: Starting the navigation
+        used to race with loading another iframe in the parent. Wait until the parent loads.
+
+2013-09-24  Dean Jackson  <dino@apple.com>
+
+        webgl/conformance/extensions/oes-element-index-uint.html failing after r156351 or 156352
+        https://bugs.webkit.org/show_bug.cgi?id=121863
+        <rdar://problem/15069481>
+
+        Reviewed by Beth Dakin.
+
+        This test was not querying the vertex attribute locations
+        before binding data to them. When we enabled symbol mangling
+        we started seeing attributes appear in a different order
+        than the order defined in the shader source. Update this test
+        to ask getAttribLocation first.
+
+        Note that there are two important issues.
+
+        Firstly, this is updating our local copy of the Khronos test.
+        I've opened pull request #377 to get it addressed in the source.
+        https://github.com/KhronosGroup/WebGL/pull/377
+
+        Secondly, this indicates that we might have a lot of problems
+        with existing content that does not expect the order of
+        attributes to change.
+
+        * webgl/resources/webgl_test_files/conformance/extensions/oes-element-index-uint.html:
+        * TestExpectations: Unskip test.
+
+2013-09-24  Dean Jackson  <dino@apple.com>
+
+        webgl/conformance/extensions/oes-element-index-uint.html failing after r156351 or 156352
+        https://bugs.webkit.org/show_bug.cgi?id=121863
+        <rdar://problem/15069481>
+
+        Temporarily skipped while investigating.
+
+        * TestExpectations:
+
+2013-09-24  Dean Jackson  <dino@apple.com>
+
+        Use mapped name in attribute location binding
+        https://bugs.webkit.org/show_bug.cgi?id=121847
+        <rdar://problem/15067526>
+
+        Reviewed by Eric Carlson.
+
+        New test that has an attribute name long enough
+        to trigger symbol mapping in all cases.
+
+        * fast/canvas/webgl/gl-bind-attrib-mapped-names-expected.txt: Added.
+        * fast/canvas/webgl/gl-bind-attrib-mapped-names.html: Added.
+
+2013-09-24  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Properly handle bottom margin on float with shape-outside
+        https://bugs.webkit.org/show_bug.cgi?id=121808
+
+        Reviewed by David Hyatt.
+
+        Import new tests for floats wish shape-outside and bottom margins.
+
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/w3c-import.log:
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/rounded-rectangle.js: Remove whitespace at ends of lines.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-002.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-003-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-003.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/w3c-import.log:
+
+2013-09-24  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [ATK] Missing WTR AccessibilityController::addNotificationListener implementation
+        https://bugs.webkit.org/show_bug.cgi?id=121674
+
+        Reviewed by Mario Sanchez Prada.
+
+        Updated the expectation of loading-iframe-sends-notification.html test,
+        which was failing before this fix.
+
+        * platform/gtk-wk2/TestExpectations: Removed
+        loading-iframe-sends-notification.html because it now passes with this
+        fix.
+
+2013-09-24  Anton Obzhirov  <a.obzhirov@samsung.com>
+
+        [GTK] fast/images/exif-orientation-composited.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=119731
+
+        Reviewed by Carlos Garcia Campos.
+
+        Unskip fast/images/exif-orientation-composited.html for GTK WK1 and WK2.
+
+        * platform/gtk/TestExpectations:
+
+2013-09-24  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt] Crash when trying to download blob url
+        https://bugs.webkit.org/show_bug.cgi?id=121681
+
+        Reviewed by Simon Hausmann.
+
+        Unskip two tests that downloads blob URLs. Note the two tests do not use the download attribute feature.
+
+        * platform/qt/TestExpectations:
+
+2013-09-24  Andrei Parvu  <parvu@adobe.com>
+
+        [CSS Background] repeat: round should round the number of tiles to the nearest natural number
+        https://bugs.webkit.org/show_bug.cgi?id=120668
+
+        Changed the sizes of the images/masks in the tests to be compliant with the new behaviour.
+
+        Reviewed by Darin Adler.
+
+        * css3/background/background-repeat-round-auto1-expected.html:
+        * css3/background/background-repeat-round-auto2-expected.html:
+        * css3/background/background-repeat-round-border-expected.html:
+        * css3/background/background-repeat-round-content-expected.html:
+        * css3/background/background-repeat-round-padding-expected.html:
+        * css3/background/background-repeat-round-padding.html:
+        * css3/masking/mask-repeat-round-auto1-expected.html:
+        * css3/masking/mask-repeat-round-auto2-expected.html:
+        * css3/masking/mask-repeat-round-border-expected.html:
+        * css3/masking/mask-repeat-round-content-expected.html:
+        * css3/masking/mask-repeat-round-padding-expected.html:
+        * css3/masking/mask-repeat-round-padding.html:
+
+2013-09-23  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        CSS Unit vh, vw, vmin and vmax in box-shadow are not applied.
+        https://bugs.webkit.org/show_bug.cgi?id=121422
+
+        Reviewed by Darin Adler.
+
+        * fast/css/box-shadow-negative-viewportlength-expected-mismatch.html: Added.
+        * fast/css/box-shadow-negative-viewportlength.html: Added.
+        * fast/css/box-shadow-viewport-height-expected-mismatch.html: Added.
+        * fast/css/box-shadow-viewport-height.html: Added.
+        * fast/css/box-shadow-viewport-vmax-expected-mismatch.html: Added.
+        * fast/css/box-shadow-viewport-vmax.html: Added.
+        * fast/css/box-shadow-viewport-vmin-expected-mismatch.html: Added.
+        * fast/css/box-shadow-viewport-vmin.html: Added.
+        * fast/css/box-shadow-viewport-width-expected-mismatch.html: Added.
+        * fast/css/box-shadow-viewport-width.html: Added.
+        Added new tests for verifying that box-shadow properties are
+        applied when its values are viewport units.
+        * fast/css/shadow-viewport-units-expected.txt:
+        * fast/css/shadow-viewport-units.html:
+        Rebaselining existing tests as per the new behavior. Support for shadow
+        properties with viewport units is added so modified the test case.
+
+2013-09-23  Simon Fraser  <simon.fraser@apple.com>
+
+        REGRESSION (r155998): when zooming in, tiles are too small
+        https://bugs.webkit.org/show_bug.cgi?id=121765
+
+        Reviewed by Dean Jackson.
+        
+        Fix results of tests that showed that we had incorrect tiling
+        behavior on zooming.
+
+        * platform/mac-wk2/tiled-drawing/fixed-background/fixed-body-background-zoomed-expected.txt:
+        * platform/mac-wk2/tiled-drawing/tile-size-slow-zoomed-expected.txt:
+        * platform/mac-wk2/tiled-drawing/tiled-drawing-zoom-expected.txt:
+        * platform/mac-wk2/tiled-drawing/tiled-drawing-zoom-scrolled-expected.txt:
+        * platform/mac/compositing/tiling/tile-cache-zoomed-expected.txt:
+
+2013-09-23  Antonio Gomes  <a1.gomes@sisa.samsung.com>
+
+        iframe and scrollbar with "overflow:auto" should support autoscroll with mousedrag
+        https://bugs.webkit.org/show_bug.cgi?id=40981
+
+        Reviewed by Darin Adler.
+
+        Test ensures that dragging an element close to the boundary of
+        scrollable Frames, scroll its content in that direction.
+
+        * fast/events/drag-and-drop-autoscroll-inner-frame-expected.txt: Added.
+        * fast/events/drag-and-drop-autoscroll-inner-frame.html: Added.
+
+2013-09-23  Alexey Proskuryakov  <ap@apple.com>
+
+        video-object-fit tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=121803
+
+        Rubber-stamped by Simon Fraser.
+
+        Removing an ad hoc 1.5 second timeout that these tests had. Loading video can take
+        longer.
+
+        * compositing/video/video-object-fit.html:
+        * media/video-object-fit-change.html:
+        * media/video-object-fit.html:
+
+2013-09-23  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: [CSS Regions] Display CSS Regions flow name in the inspector overlay
+        https://bugs.webkit.org/show_bug.cgi?id=121794
+
+        Reviewed by Joseph Pecoraro.
+
+        Updated the expected results after moving the regions to the elementInfo.flowInfo property.
+        Also, the test is now logging the name of the flow container in the output.
+
+        * http/tests/inspector/elements-test.js:
+        * inspector/elements/highlight-node-regions-expected.txt:
+
 2013-09-23  ChangSeok Oh  <changseok.oh@collabora.com>
 
         [Texmap] Reloading a webgl page doesn't work

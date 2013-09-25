@@ -325,8 +325,6 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSHTMLCanvasElement.h \
 	DerivedSources/WebCore/JSHTMLCollection.cpp \
 	DerivedSources/WebCore/JSHTMLCollection.h \
-	DerivedSources/WebCore/JSHTMLContentElement.cpp \
-	DerivedSources/WebCore/JSHTMLContentElement.h \
 	DerivedSources/WebCore/JSHTMLDataListElement.cpp \
 	DerivedSources/WebCore/JSHTMLDataListElement.h \
 	DerivedSources/WebCore/JSHTMLDetailsElement.cpp \
@@ -1570,7 +1568,6 @@ dom_binding_idls += \
 	$(WebCore)/html/canvas/WebGLTexture.idl \
 	$(WebCore)/html/canvas/WebGLUniformLocation.idl \
 	$(WebCore)/html/canvas/WebGLVertexArrayObjectOES.idl \
-	$(WebCore)/html/shadow/HTMLContentElement.idl \
 	$(WebCore)/html/track/AudioTrack.idl \
 	$(WebCore)/html/track/AudioTrackList.idl \
 	$(WebCore)/html/track/TextTrack.idl \
@@ -1885,7 +1882,7 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/DOMWindowIndexedDatabase.h \
 	Source/WebCore/Modules/indexeddb/IDBAny.cpp \
 	Source/WebCore/Modules/indexeddb/IDBAny.h \
-	Source/WebCore/Modules/indexeddb/IDBBackingStore.cpp \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp \
 	Source/WebCore/Modules/indexeddb/IDBBackingStore.h \
 	Source/WebCore/Modules/indexeddb/IDBCallbacks.h \
 	Source/WebCore/Modules/indexeddb/IDBCursorBackendImpl.cpp \
@@ -1923,8 +1920,8 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/IDBKeyPath.h \
 	Source/WebCore/Modules/indexeddb/IDBKeyRange.cpp \
 	Source/WebCore/Modules/indexeddb/IDBKeyRange.h \
-	Source/WebCore/Modules/indexeddb/IDBLevelDBCoding.cpp \
-	Source/WebCore/Modules/indexeddb/IDBLevelDBCoding.h \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBLevelDBCoding.h \
 	Source/WebCore/Modules/indexeddb/IDBMetadata.h \
 	Source/WebCore/Modules/indexeddb/IDBObjectStoreBackendImpl.cpp \
 	Source/WebCore/Modules/indexeddb/IDBObjectStoreBackendImpl.h \
@@ -2930,8 +2927,6 @@ webcore_sources += \
 	Source/WebCore/dom/EventListenerMap.h \
 	Source/WebCore/dom/EventNames.cpp \
 	Source/WebCore/dom/EventNames.h \
-	Source/WebCore/dom/EventPathWalker.cpp \
-	Source/WebCore/dom/EventPathWalker.h \
 	Source/WebCore/dom/EventRetargeter.cpp \
 	Source/WebCore/dom/EventRetargeter.h \
 	Source/WebCore/dom/EventTarget.cpp \
@@ -3700,8 +3695,6 @@ webcore_sources += \
 	Source/WebCore/html/shadow/ContentDistributor.h \
 	Source/WebCore/html/shadow/DetailsMarkerControl.cpp \
 	Source/WebCore/html/shadow/DetailsMarkerControl.h \
-	Source/WebCore/html/shadow/HTMLContentElement.cpp \
-	Source/WebCore/html/shadow/HTMLContentElement.h \
 	Source/WebCore/html/shadow/InsertionPoint.cpp \
 	Source/WebCore/html/shadow/InsertionPoint.h \
 	Source/WebCore/html/shadow/MediaControlElements.cpp \

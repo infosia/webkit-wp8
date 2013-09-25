@@ -65,6 +65,7 @@
 #include "HTMLTableRowsCollection.h"
 #include "InsertionPoint.h"
 #include "InspectorInstrumentation.h"
+#include "KeyboardEvent.h"
 #include "MutationObserverInterestGroup.h"
 #include "MutationRecord.h"
 #include "NamedNodeMap.h"
@@ -85,6 +86,7 @@
 #include "Text.h"
 #include "TextIterator.h"
 #include "VoidCallback.h"
+#include "WheelEvent.h"
 #include "XMLNSNames.h"
 #include "XMLNames.h"
 #include "htmlediting.h"
@@ -236,6 +238,16 @@ bool Element::isMouseFocusable() const
 bool Element::shouldUseInputMethod()
 {
     return isContentEditable(UserSelectAllIsAlwaysNonEditable);
+}
+
+bool Element::dispatchWheelEvent(const PlatformWheelEvent& event)
+{
+    return EventDispatcher::dispatchEvent(this, WheelEventDispatchMediator::create(event, document().defaultView()));
+}
+
+bool Element::dispatchKeyEvent(const PlatformKeyboardEvent& event)
+{
+    return EventDispatcher::dispatchEvent(this, KeyboardEventDispatchMediator::create(KeyboardEvent::create(event, document().defaultView())));
 }
 
 void Element::dispatchSimulatedClick(Event* underlyingEvent, SimulatedClickMouseEventOptions eventOptions, SimulatedClickVisualOptions visualOptions)
@@ -577,8 +589,8 @@ void Element::scrollByUnits(int units, ScrollGranularity granularity)
         direction = ScrollUp;
         units = -units;
     }
-    Node* stopNode = this;
-    toRenderBox(renderer())->scroll(direction, granularity, units, &stopNode);
+    Element* stopElement = this;
+    toRenderBox(renderer())->scroll(direction, granularity, units, &stopElement);
 }
 
 void Element::scrollByLines(int lines)

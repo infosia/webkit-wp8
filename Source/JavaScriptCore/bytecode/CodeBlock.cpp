@@ -1325,11 +1325,8 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
         }
         case op_debug: {
             int debugHookID = (++it)->u.operand;
-            int firstLine = (++it)->u.operand;
-            int lastLine = (++it)->u.operand;
-            int column = (++it)->u.operand;
             printLocationAndOp(out, exec, location, it, "debug");
-            out.printf("%s, %d, %d, %d", debugHookName(debugHookID), firstLine, lastLine, column);
+            out.printf("%s", debugHookName(debugHookID));
             break;
         }
         case op_profile_will_call: {
@@ -1739,8 +1736,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
         }
         case op_to_this:
         case op_get_by_id:
-        case op_call_varargs:
-        case op_get_callee: {
+        case op_call_varargs: {
             ValueProfile* profile = &m_valueProfiles[pc[i + opLength - 1].u.operand];
             ASSERT(profile->m_bytecodeOffset == -1);
             profile->m_bytecodeOffset = i;
@@ -1871,11 +1867,6 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             if (op.structure)
                 instructions[i + 5].u.structure.set(*vm(), ownerExecutable, op.structure);
             instructions[i + 6].u.pointer = reinterpret_cast<void*>(op.operand);
-            break;
-        }
-
-        case op_debug: {
-            instructions[i + 4] = columnNumberForBytecodeOffset(i);
             break;
         }
 
@@ -2247,6 +2238,13 @@ void CodeBlock::finalizeUnconditionally()
                 break;
             case op_get_array_length:
                 break;
+            case op_get_callee:
+                if (!curInstruction[2].u.jsCell || Heap::isMarked(curInstruction[2].u.jsCell.get()))
+                    break;
+                if (Options::verboseOSR())
+                    dataLogF("Clearing LLInt get callee with function %p.\n", curInstruction[2].u.jsCell.get());
+                curInstruction[2].u.jsCell.clear();
+                break;
             case op_get_from_scope:
             case op_put_to_scope: {
                 WriteBarrierBase<Structure>& structure = curInstruction[5].u.structure;
@@ -2545,13 +2543,8 @@ void CodeBlock::shrinkToFit(ShrinkMode shrinkMode)
         }
     } // else don't shrink these, because we would have already pointed pointers into these tables.
 
-    if (m_rareData) {
+    if (m_rareData)
         m_rareData->m_exceptionHandlers.shrinkToFit();
-#if ENABLE(DFG_JIT)
-        m_rareData->m_inlineCallFrames.shrinkToFit();
-        m_rareData->m_codeOrigins.shrinkToFit();
-#endif
-    }
 }
 
 void CodeBlock::createActivation(CallFrame* callFrame)

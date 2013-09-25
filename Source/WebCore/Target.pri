@@ -409,7 +409,6 @@ SOURCES += \
     dom/EventException.cpp \
     dom/EventListenerMap.cpp \
     dom/EventNames.cpp \
-    dom/EventPathWalker.cpp \
     dom/EventRetargeter.cpp \
     dom/EventTarget.cpp \
     dom/ExceptionBase.cpp \
@@ -748,7 +747,6 @@ SOURCES += \
     html/parser/XSSAuditorDelegate.cpp \
     html/shadow/ContentDistributor.cpp \
     html/shadow/DetailsMarkerControl.cpp \
-    html/shadow/HTMLContentElement.cpp \
     html/shadow/InsertionPoint.cpp \
     html/shadow/MediaControls.cpp \
     html/shadow/MediaControlsApple.cpp \
@@ -1615,7 +1613,6 @@ HEADERS += \
     dom/EventDispatchMediator.h \
     dom/EventListenerMap.h \
     dom/EventNames.h \
-    dom/EventPathWalker.h \
     dom/EventQueue.h \
     dom/EventSender.h \
     dom/EventTarget.h \
@@ -1916,7 +1913,6 @@ HEADERS += \
     html/parser/XSSAuditor.h \
     html/parser/XSSAuditorDelegate.h \
     html/shadow/ContentDistributor.h \
-    html/shadow/HTMLContentElement.h \
     html/shadow/MediaControlElementTypes.h \
     html/shadow/MediaControlElements.h \
     html/shadow/MediaControls.h \

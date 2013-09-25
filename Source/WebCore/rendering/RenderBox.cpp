@@ -746,25 +746,25 @@ int RenderBox::instrinsicScrollbarLogicalWidth() const
     return 0;
 }
 
-bool RenderBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Node** stopNode)
+bool RenderBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Element** stopElement)
 {
     RenderLayer* l = layer();
     if (l && l->scroll(direction, granularity, multiplier)) {
-        if (stopNode)
-            *stopNode = element();
+        if (stopElement)
+            *stopElement = element();
         return true;
     }
 
-    if (stopNode && *stopNode && *stopNode == element())
+    if (stopElement && *stopElement && *stopElement == element())
         return true;
 
     RenderBlock* b = containingBlock();
     if (b && !b->isRenderView())
-        return b->scroll(direction, granularity, multiplier, stopNode);
+        return b->scroll(direction, granularity, multiplier, stopElement);
     return false;
 }
 
-bool RenderBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Node** stopNode)
+bool RenderBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Element** stopElement)
 {
     bool scrolled = false;
     
@@ -779,18 +779,18 @@ bool RenderBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularit
             scrolled = true;
         
         if (scrolled) {
-            if (stopNode)
-                *stopNode = element();
+            if (stopElement)
+                *stopElement = element();
             return true;
         }
     }
 
-    if (stopNode && *stopNode && *stopNode == element())
+    if (stopElement && *stopElement && *stopElement == element())
         return true;
 
     RenderBlock* b = containingBlock();
     if (b && !b->isRenderView())
-        return b->logicalScroll(direction, granularity, multiplier, stopNode);
+        return b->logicalScroll(direction, granularity, multiplier, stopElement);
     return false;
 }
 
@@ -842,20 +842,23 @@ bool RenderBox::canAutoscroll() const
 // scrolling.
 IntSize RenderBox::calculateAutoscrollDirection(const IntPoint& windowPoint) const
 {
-    IntSize offset;
-    IntPoint point = view().frameView().windowToContents(windowPoint);
     IntRect box(absoluteBoundingBoxRect());
+    box.move(view().frameView().scrollOffset());
+    IntRect windowBox = view().frameView().contentsToWindow(box);
 
-    if (point.x() < box.x() + autoscrollBeltSize)
-        point.move(-autoscrollBeltSize, 0);
-    else if (point.x() > box.maxX() - autoscrollBeltSize)
-        point.move(autoscrollBeltSize, 0);
+    IntPoint windowAutoscrollPoint = windowPoint;
 
-    if (point.y() < box.y() + autoscrollBeltSize)
-        point.move(0, -autoscrollBeltSize);
-    else if (point.y() > box.maxY() - autoscrollBeltSize)
-        point.move(0, autoscrollBeltSize);
-    return view().frameView().contentsToWindow(point) - windowPoint;
+    if (windowAutoscrollPoint.x() < windowBox.x() + autoscrollBeltSize)
+        windowAutoscrollPoint.move(-autoscrollBeltSize, 0);
+    else if (windowAutoscrollPoint.x() > windowBox.maxX() - autoscrollBeltSize)
+        windowAutoscrollPoint.move(autoscrollBeltSize, 0);
+
+    if (windowAutoscrollPoint.y() < windowBox.y() + autoscrollBeltSize)
+        windowAutoscrollPoint.move(0, -autoscrollBeltSize);
+    else if (windowAutoscrollPoint.y() > windowBox.maxY() - autoscrollBeltSize)
+        windowAutoscrollPoint.move(0, autoscrollBeltSize);
+
+    return windowAutoscrollPoint - windowPoint;
 }
 
 RenderBox* RenderBox::findAutoscrollable(RenderObject* renderer)
@@ -1120,7 +1123,7 @@ void RenderBox::paintRootBoxFillLayers(const PaintInfo& paintInfo)
     if (paintInfo.skipRootBackground())
         return;
 
-    RenderObject* rootBackgroundRenderer = rendererForRootBackground();
+    RenderElement* rootBackgroundRenderer = rendererForRootBackground();
     
     const FillLayer* bgLayer = rootBackgroundRenderer->style()->backgroundLayers();
     Color bgColor = rootBackgroundRenderer->style()->visitedDependentColor(CSSPropertyBackgroundColor);
@@ -1813,7 +1816,7 @@ void RenderBox::mapLocalToContainer(const RenderLayerModelObject* repaintContain
     }
 
     bool containerSkipped;
-    RenderObject* o = container(repaintContainer, &containerSkipped);
+    RenderElement* o = container(repaintContainer, &containerSkipped);
     if (!o)
         return;
 
@@ -1862,7 +1865,7 @@ const RenderObject* RenderBox::pushMappingToContainer(const RenderLayerModelObje
     ASSERT(ancestorToStopAt != this);
 
     bool ancestorSkipped;
-    RenderObject* container = this->container(ancestorToStopAt, &ancestorSkipped);
+    RenderElement* container = this->container(ancestorToStopAt, &ancestorSkipped);
     if (!container)
         return 0;
 
@@ -2069,7 +2072,7 @@ void RenderBox::computeRectForRepaint(const RenderLayerModelObject* repaintConta
     }
 
     bool containerSkipped;
-    RenderObject* o = container(repaintContainer, &containerSkipped);
+    RenderElement* o = container(repaintContainer, &containerSkipped);
     if (!o)
         return;
 
@@ -3070,7 +3073,7 @@ static void computeInlineStaticDistance(Length& logicalLeft, Length& logicalRigh
     // FIXME: The static distance computation has not been patched for mixed writing modes yet.
     if (child->parent()->style()->direction() == LTR) {
         LayoutUnit staticPosition = child->layer()->staticInlinePosition() - containerBlock->borderLogicalLeft();
-        for (RenderObject* curr = child->parent(); curr && curr != containerBlock; curr = curr->container()) {
+        for (RenderElement* curr = child->parent(); curr && curr != containerBlock; curr = curr->container()) {
             if (curr->isBox()) {
                 staticPosition += toRenderBox(curr)->logicalLeft();
                 if (region && curr->isRenderBlock()) {
@@ -3086,7 +3089,7 @@ static void computeInlineStaticDistance(Length& logicalLeft, Length& logicalRigh
     } else {
         RenderBox* enclosingBox = child->parent()->enclosingBox();
         LayoutUnit staticPosition = child->layer()->staticInlinePosition() + containerLogicalWidth + containerBlock->borderLogicalLeft();
-        for (RenderObject* curr = enclosingBox; curr; curr = curr->container()) {
+        for (RenderElement* curr = enclosingBox; curr; curr = curr->container()) {
             if (curr->isBox()) {
                 if (curr != containerBlock)
                     staticPosition -= toRenderBox(curr)->logicalLeft();
@@ -3444,7 +3447,7 @@ static void computeBlockStaticDistance(Length& logicalTop, Length& logicalBottom
     
     // FIXME: The static distance computation has not been patched for mixed writing modes.
     LayoutUnit staticLogicalTop = child->layer()->staticBlockPosition() - containerBlock->borderBefore();
-    for (RenderObject* curr = child->parent(); curr && curr != containerBlock; curr = curr->container()) {
+    for (RenderElement* curr = child->parent(); curr && curr != containerBlock; curr = curr->container()) {
         if (curr->isBox() && !curr->isTableRow())
             staticLogicalTop += toRenderBox(curr)->logicalTop();
     }

@@ -539,8 +539,6 @@ set(WebCore_IDL_FILES
     html/canvas/WebGLUniformLocation.idl
     html/canvas/WebGLVertexArrayObjectOES.idl
 
-    html/shadow/HTMLContentElement.idl
-
     inspector/InjectedScriptHost.idl
     inspector/InspectorFrontendHost.idl
     inspector/JavaScriptCallFrame.idl
@@ -804,7 +802,6 @@ set(WebCore_SOURCES
 
     Modules/indexeddb/DOMWindowIndexedDatabase.cpp
     Modules/indexeddb/IDBAny.cpp
-    Modules/indexeddb/IDBBackingStore.cpp
     Modules/indexeddb/IDBCursor.cpp
     Modules/indexeddb/IDBCursorBackendImpl.cpp
     Modules/indexeddb/IDBCursorWithValue.cpp
@@ -820,7 +817,6 @@ set(WebCore_SOURCES
     Modules/indexeddb/IDBKey.cpp
     Modules/indexeddb/IDBKeyPath.cpp
     Modules/indexeddb/IDBKeyRange.cpp
-    Modules/indexeddb/IDBLevelDBCoding.cpp
     Modules/indexeddb/IDBObjectStore.cpp
     Modules/indexeddb/IDBObjectStoreBackendImpl.cpp
     Modules/indexeddb/IDBOpenDBRequest.cpp
@@ -832,6 +828,8 @@ set(WebCore_SOURCES
     Modules/indexeddb/IDBVersionChangeEvent.cpp
     Modules/indexeddb/PageGroupIndexedDatabase.cpp
     Modules/indexeddb/WorkerGlobalScopeIndexedDatabase.cpp
+    Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp
 
     Modules/mediasource/MediaSource.cpp
     Modules/mediasource/MediaSourceRegistry.cpp
@@ -1170,7 +1168,6 @@ set(WebCore_SOURCES
     dom/EventException.cpp
     dom/EventListenerMap.cpp
     dom/EventNames.cpp
-    dom/EventPathWalker.cpp
     dom/EventRetargeter.cpp
     dom/EventTarget.cpp
     dom/ExceptionBase.cpp
@@ -1559,7 +1556,6 @@ set(WebCore_SOURCES
 
     html/shadow/ContentDistributor.cpp
     html/shadow/DetailsMarkerControl.cpp
-    html/shadow/HTMLContentElement.cpp
     html/shadow/InsertionPoint.cpp
     html/shadow/MediaControlElementTypes.cpp
     html/shadow/MediaControlElements.cpp

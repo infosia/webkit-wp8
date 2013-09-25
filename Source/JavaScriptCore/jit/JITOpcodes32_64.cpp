@@ -1083,9 +1083,6 @@ void JIT::emit_op_debug(Instruction* currentInstruction)
 #else
     JITStubCall stubCall(this, cti_op_debug);
     stubCall.addArgument(Imm32(currentInstruction[1].u.operand));
-    stubCall.addArgument(Imm32(currentInstruction[2].u.operand));
-    stubCall.addArgument(Imm32(currentInstruction[3].u.operand));
-    stubCall.addArgument(Imm32(currentInstruction[4].u.operand));
     stubCall.call();
 #endif
 }
@@ -1132,11 +1129,24 @@ void JIT::emit_op_init_lazy_reg(Instruction* currentInstruction)
 
 void JIT::emit_op_get_callee(Instruction* currentInstruction)
 {
-    int dst = currentInstruction[1].u.operand;
+    int result = currentInstruction[1].u.operand;
+    WriteBarrierBase<JSCell>* cachedFunction = &currentInstruction[2].u.jsCell;
     emitGetFromCallFrameHeaderPtr(JSStack::Callee, regT0);
+
+    loadPtr(cachedFunction, regT2);
+    addSlowCase(branchPtr(NotEqual, regT0, regT2));
+
     move(TrustedImm32(JSValue::CellTag), regT1);
-    emitValueProfilingSite(regT4);
-    emitStore(dst, regT1, regT0);
+    emitStore(result, regT1, regT0);
+}
+
+void JIT::emitSlow_op_get_callee(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
+{
+    linkSlowCase(iter);
+
+    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_get_callee);
+    slowPathCall.call();
+    emitLoad(currentInstruction[1].u.operand, regT1, regT0);
 }
 
 void JIT::emit_op_create_this(Instruction* currentInstruction)

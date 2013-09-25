@@ -2110,11 +2110,6 @@ bool Node::dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEven
     return event->defaultHandled();
 }
 
-bool Node::dispatchKeyEvent(const PlatformKeyboardEvent& event)
-{
-    return EventDispatcher::dispatchEvent(this, KeyboardEventDispatchMediator::create(KeyboardEvent::create(event, document().defaultView())));
-}
-
 bool Node::dispatchMouseEvent(const PlatformMouseEvent& event, const AtomicString& eventType,
     int detail, Node* relatedTarget)
 {
@@ -2154,11 +2149,6 @@ bool Node::dispatchBeforeLoadEvent(const String& sourceURL)
     RefPtr<BeforeLoadEvent> beforeLoadEvent = BeforeLoadEvent::create(sourceURL);
     dispatchEvent(beforeLoadEvent.get());
     return !beforeLoadEvent->defaultPrevented();
-}
-
-bool Node::dispatchWheelEvent(const PlatformWheelEvent& event)
-{
-    return EventDispatcher::dispatchEvent(this, WheelEventDispatchMediator::create(event, document().defaultView()));
 }
 
 void Node::dispatchInputEvent()

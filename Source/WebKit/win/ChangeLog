@@ -1,3 +1,58 @@
+2013-09-24  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Unreviewed crash fix after r156321.
+
+        Fix a few mistakes in the use of Vectors and counting that introduced test crashes.
+
+        * WebHistory.cpp:
+        (WebHistory::removeAllItems): Loop termination tried to test an unsigned for negative size.
+        (WebHistory::removeItemFromDateCaches): Vector was being created with empty entries.
+        (WebHistory::addItemToDateCaches): Ditto.
+
+2013-09-24  Patrick Gansterer  <paroga@webkit.org>
+
+        Make WebHistory more type safe
+        https://bugs.webkit.org/show_bug.cgi?id=121801
+
+        Reviewed by Brent Fulgham.
+
+        Use a WTF::Vector instead of a CFMutableArray to avoid
+        casting from void* all the time when accessing the entries.
+        This reduces the dependencies on CoreFoundation too.
+
+        * WebHistory.cpp:
+        (getDayBoundaries):
+        (beginningOfDay):
+        (dateKey):
+        (WebHistory::orderedItemsLastVisitedOnDay):
+        (WebHistory::removeItemFromDateCaches):
+        (WebHistory::addItemToDateCaches):
+        * WebHistory.h:
+
+2013-09-23  Patrick Gansterer  <paroga@webkit.org>
+
+        [WIN] Implement WebMutableURLRequest::setHTTPBody()
+        https://bugs.webkit.org/show_bug.cgi?id=91920
+
+        Reviewed by Brent Fulgham.
+
+        * WebMutableURLRequest.cpp:
+        (WebMutableURLRequest::setHTTPBody):
+        (WebMutableURLRequest::setHTTPBodyStream):
+
+2013-09-23  Patrick Gansterer  <paroga@webkit.org>
+
+        use NOMINMAX instead of #define min min
+        https://bugs.webkit.org/show_bug.cgi?id=73563
+
+        Reviewed by Brent Fulgham.
+
+        Use NOMINMAX instead of #define min/max as a cleaner
+        way of ensuring that Windows system header files don't
+        define min/max as macro in the first place.
+
+        * WebKitPrefix.h:
+
 2013-09-22  Sam Weinig  <sam@webkit.org>
 
         Try to fix the windows build (take 2).

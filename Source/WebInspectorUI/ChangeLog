@@ -1,3 +1,44 @@
+2013-09-24  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Using Breakpoint Actions Breaks iOS inspection
+        https://bugs.webkit.org/show_bug.cgi?id=121862
+
+        Reviewed by Timothy Hatcher.
+
+        Only use DebuggerAgent.BreakpointActionType if it is available.
+        Otherwise leave options undefined for breakpoints since the backend
+        does not support it.
+
+        * UserInterface/DebuggerManager.js:
+        (WebInspector.DebuggerManager.prototype._setBreakpoint):
+
+2013-09-24  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Include iOS 7 Inspector.json Version
+        https://bugs.webkit.org/show_bug.cgi?id=121852
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Legacy/7.0/InspectorBackendCommands.js: Added.
+        * Versions/Inspector-iOS-7.0.json: Added.
+
+2013-09-24  Mark Rowe  <mrowe@apple.com>
+
+        <rdar://problem/14971518> WebKit should build against the Xcode default toolchain when targeting OS X 10.8
+
+        Reviewed by Dan Bernstein.
+
+        * Configurations/Base.xcconfig:
+
+2013-09-24  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Breakpoint Actions input should disable spellchecking
+        https://bugs.webkit.org/show_bug.cgi?id=121846
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/BreakpointActionView.js:
+
 2013-09-21  Timothy Hatcher  <timothy@apple.com>
 
         Hook up the initiator info and show it in the Resource details sidebar.

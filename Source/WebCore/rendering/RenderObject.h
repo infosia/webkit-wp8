@@ -630,9 +630,7 @@ public:
     // Returns the object containing this one. Can be different from parent for positioned elements.
     // If repaintContainer and repaintContainerSkipped are not null, on return *repaintContainerSkipped
     // is true if the renderer returned is an ancestor of repaintContainer.
-    RenderObject* container(const RenderLayerModelObject* repaintContainer = 0, bool* repaintContainerSkipped = 0) const;
-
-    virtual RenderObject* hoverAncestor() const;
+    RenderElement* container(const RenderLayerModelObject* repaintContainer = 0, bool* repaintContainerSkipped = 0) const;
 
     RenderBoxModelObject* offsetParent() const;
 
@@ -677,12 +675,6 @@ public:
 
     void scheduleRelayout();
 
-    void updateFillImages(const FillLayer*, const FillLayer*);
-    void updateImage(StyleImage*, StyleImage*);
-#if ENABLE(CSS_SHAPES)
-    void updateShapeImage(const ShapeValue*, const ShapeValue*);
-#endif
-
     virtual void paint(PaintInfo&, const LayoutPoint&);
 
     // Recursive function that computes the size and position of this object and all its descendants.
@@ -718,7 +710,7 @@ public:
     void setAnimatableStyle(PassRefPtr<RenderStyle>);
 
     // Set the style of the object and update the state of the object accordingly.
-    virtual void setStyle(PassRefPtr<RenderStyle>);
+    virtual void setStyle(PassRefPtr<RenderStyle>) = 0;
 
     // Set the style of the object if it's generated content.
     void setPseudoStyle(PassRefPtr<RenderStyle>);
@@ -962,18 +954,9 @@ public:
         return outlineBoundsForRepaint(0);
     }
 
-    // Return the renderer whose background style is used to paint the root background. Should only be called on the renderer for which isRoot() is true.
-    RenderObject* rendererForRootBackground();
-
     RespectImageOrientationEnum shouldRespectImageOrientation() const;
 
 protected:
-    // Overrides should call the superclass at the end
-    virtual void styleWillChange(StyleDifference, const RenderStyle* newStyle);
-    // Overrides should call the superclass at the start
-    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
-    void propagateStyleToAnonymousChildren(bool blockChildrenOnly = false);
-
     void drawLineForBoxSide(GraphicsContext*, int x1, int y1, int x2, int y2, BoxSide,
                             Color, EBorderStyle, int adjbw1, int adjbw2, bool antialias = false);
 
@@ -1003,11 +986,7 @@ private:
     void removeFromRenderFlowThread();
     void removeFromRenderFlowThreadRecursive(RenderFlowThread*);
 
-    bool shouldRepaintForStyleDifference(StyleDifference) const;
-    bool hasImmediateNonWhitespaceTextChild() const;
-
     RenderStyle* cachedFirstLineStyle() const;
-    StyleDifference adjustStyleDifference(StyleDifference, unsigned contextSensitiveProperties) const;
 
     Color selectionColor(int colorProperty) const;
 
@@ -1154,11 +1133,6 @@ private:
     void setNeedsSimplifiedNormalFlowLayout(bool b) { m_bitfields.setNeedsSimplifiedNormalFlowLayout(b); }
     void setIsDragging(bool b) { m_bitfields.setIsDragging(b); }
     void setEverHadLayout(bool b) { m_bitfields.setEverHadLayout(b); }
-
-private:
-    // Store state between styleWillChange and styleDidChange
-    static bool s_affectsParentBlock;
-    static bool s_noLongerAffectsParentBlock;
 };
 
 inline bool RenderObject::documentBeingDestroyed() const

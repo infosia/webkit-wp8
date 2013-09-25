@@ -1,13 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008 Apple Computer, Inc. All rights reserved.
- * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
- * Copyright (C) 2007 Holger Hans Peter Freyther
- * Copyright (C) 2008 Collabora Ltd.
- * Copyright (C) 2008 INdT - Instituto Nokia de Tecnologia
- * Copyright (C) 2009, 2010 ProFUSION embedded systems
- * Copyright (C) 2009, 2010 Samsung Electronics
- *
- * All rights reserved.
+ * Copyright (C) 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -18,41 +10,50 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#include "config.h"
-#include "ScrollView.h"
+#ifndef InlineCallFrameSet_h
+#define InlineCallFrameSet_h
 
-#include "FloatRect.h"
-#include "FrameView.h"
-#include "HostWindow.h"
-#include "IntRect.h"
-#include "ScrollbarTheme.h"
+#include "CodeOrigin.h"
+#include <wtf/Noncopyable.h>
+#include <wtf/SegmentedVector.h>
 
-#include <Ecore_Evas.h>
-#include <Evas.h>
+namespace JSC {
 
-using namespace std;
+class InlineCallFrameSet {
+    WTF_MAKE_NONCOPYABLE(InlineCallFrameSet);
+public:
+    InlineCallFrameSet();
+    ~InlineCallFrameSet();
+    
+    bool isEmpty() const { return m_frames.isEmpty(); }
+    
+    InlineCallFrame* add();
+    
+    // The only users of these methods just want to iterate all inline call frames.
+    // There is no requirement for random access.
+    unsigned size() const { return m_frames.size(); }
+    InlineCallFrame* at(unsigned i) { return &m_frames[i]; }
+    
+    void shrinkToFit();
+    
+private:
+    SegmentedVector<InlineCallFrame, 4> m_frames;
+};
 
-namespace WebCore {
+} // namespace JSC
 
-void ScrollView::platformInit()
-{
-}
+#endif // InlineCallFrameSet_h
 
-void ScrollView::platformDestroy()
-{
-}
-
-}

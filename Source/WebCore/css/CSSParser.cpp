@@ -2835,6 +2835,13 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
             return parseDashboardRegions(propId, important);
         break;
 #endif
+
+#if PLATFORM(IOS)
+    case CSSPropertyWebkitTouchCallout:
+        if (id == CSSValueDefault || id == CSSValueNone)
+            validPrimitive = true;
+        break;
+#endif
     // End Apple-specific properties
 
 #if ENABLE(DRAGGABLE_REGION)
@@ -6604,13 +6611,6 @@ PassRefPtr<CSSValueList> CSSParser::parseShadow(CSSParserValueList* valueList, C
         } else if (validUnit(val, FLength, CSSStrictMode)) {
             // We required a length and didn't get one. Invalid.
             if (!context.allowLength())
-                return 0;
-
-            // We don't support viewport units for shadow values.
-            if (val->unit == CSSPrimitiveValue::CSS_VW
-                || val->unit == CSSPrimitiveValue::CSS_VH
-                || val->unit == CSSPrimitiveValue::CSS_VMIN
-                || val->unit == CSSPrimitiveValue::CSS_VMAX)
                 return 0;
 
             // Blur radius must be non-negative.
