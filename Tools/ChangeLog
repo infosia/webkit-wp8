@@ -1,3 +1,176 @@
+2013-09-26  Brian J. Burg  <burg@cs.washington.edu>
+
+        build-webkit --inspector-frontend should copy WebInspectorUI files
+        https://bugs.webkit.org/show_bug.cgi?id=117851
+
+        Reviewed by Joseph Pecoraro.
+
+        Change the --inspector-frontend build option to additionally build/copy 
+        WebInspectorUI by setting it as the only project that needs to be built.
+
+        * Scripts/build-webkit:
+
+2013-09-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        XvfbDriver should set up Xvfb instances providing screens of 8-bit depth
+        https://bugs.webkit.org/show_bug.cgi?id=121951
+
+        Reviewed by Carlos Garcia Campos.
+
+        Screens with 24-bit depth are causing problems as it doesn't seem to be possible to fall back to
+        software rendering successfully on the GTK 64-bit release builder, resulting in crashes in almost
+        500 layout tests that trigger accelerated compositing to be used.
+
+        * Scripts/webkitpy/port/xvfbdriver.py:
+        (XvfbDriver._start):
+        * Scripts/webkitpy/port/xvfbdriver_unittest.py: Update unit test baselines.
+        (XvfbDriverTest.test_start_no_pixel_tests):
+        (XvfbDriverTest.test_start_pixel_tests):
+        (XvfbDriverTest.test_start_arbitrary_worker_number):
+        (XvfbDriverTest.test_next_free_display):
+        (XvfbDriverTest.test_start_next_worker):
+
+2013-09-26  Tim Horton  <timothy_horton@apple.com>
+
+        Tiled drawing should not imply threaded scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=121874
+        <rdar://problem/15071494>
+
+        Reviewed by Sam Weinig.
+
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+        The existing tiled-drawing layout tests require threaded scrolling to be enabled.
+
+2013-09-26  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156457.
+        http://trac.webkit.org/changeset/156457
+        https://bugs.webkit.org/show_bug.cgi?id=121960
+
+        Broke webkitpy tests. (Requested by kling on #webkit).
+
+        * Scripts/webkitpy/port/xvfbdriver.py:
+        (XvfbDriver._start):
+
+2013-09-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        XvfbDriver should set up Xvfb instances providing screens of 8-bit depth
+        https://bugs.webkit.org/show_bug.cgi?id=121951
+
+        Reviewed by Carlos Garcia Campos.
+
+        Screens with 24-bit depth are causing problems as it doesn't seem to be possible to fall back to
+        software rendering successfully on the GTK 64-bit release builder, resulting in crashes in almost
+        500 layout tests that trigger accelerated compositing to be used.
+
+        * Scripts/webkitpy/port/xvfbdriver.py:
+        (XvfbDriver._start):
+
+2013-09-25  Alex Christensen  <achristensen@webkit.org>
+
+        Removed check for Apple Application Support directory in WinCairo port.
+        https://bugs.webkit.org/show_bug.cgi?id=121869
+
+        Reviewed by Brent Fulgham.
+
+        * DumpRenderTree/DumpRenderTree.vcxproj/DumpRenderTree/DumpRenderTreeLauncher.vcxproj:
+        * DumpRenderTree/DumpRenderTree.vcxproj/ImageDiff/ImageDiffLauncher.vcxproj:
+        * WinLauncher/WinLauncher.vcxproj/WinLauncher.vcxproj:
+        Use DLLLauncherWinCairo.props for WinCairo ports.
+        * win/DLLLauncher/DLLLauncherMain.cpp:
+        (wWinMain):
+        Don't call modifyPath to check for AAS in the WinCairo port.
+        * win/DLLLauncher/DLLLauncherWinCairo.props: Added to define WIN_CAIRO.
+
+2013-09-25  Alex Christensen  <achristensen@webkit.org>
+
+        Enabled AssembleBuildLogs on WinCairo port.
+        https://bugs.webkit.org/show_bug.cgi?id=121923
+
+        Reviewed by Brent Fulgham.
+
+        * win/AssembleBuildLogs/AssembleBuildLogs.vcxproj:
+        Fixed reference to README, added WinCairo configurations.
+        * win/AssembleBuildLogs/AssembleBuildLogs.vcxproj.filters:
+        Fixed reference to README.
+        * win/AssembleBuildLogs/AssembleLogs.cmd:
+        Added ANGLE projects, skipped QTMovieWin for WinCairo, use PlatformArchitecture for Win64.
+        * win/AssembleBuildLogs/README: Fixed spelling.
+
+2013-09-25  Patrick Gansterer  <paroga@webkit.org>
+
+        [WIN] Fix MSVC C4146 compiler warning
+        https://bugs.webkit.org/show_bug.cgi?id=121838
+
+        Reviewed by Brent Fulgham.
+
+        Fix some variables from unsinged to int to fix the compiler warning
+        "unary minus operator applied to unsigned type, result still unsigned".
+
+        * DumpRenderTree/WorkQueueItem.h:
+        (BackItem::BackItem):
+        (ForwardItem::ForwardItem):
+        * DumpRenderTree/win/DumpRenderTree.cpp:
+        (createWebViewAndOffscreenWindow):
+
+2013-09-25  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Switch the 64-bit Release builder to testing layout tests under WK2
+        https://bugs.webkit.org/show_bug.cgi?id=121256
+
+        Reviewed by Martin Robinson.
+
+        Switch the GTK 64-bit Release builder to testing the layout tests under WebKit2.
+        The GTK 64-bit Release WK2 testing builder is switched to now run layout tests under WebKit1.
+
+        * BuildSlaveSupport/build.webkit.org-config/config.json:
+
+2013-09-25  Patrick Gansterer  <paroga@webkit.org>
+
+        Add style checker for CMake lists
+        https://bugs.webkit.org/show_bug.cgi?id=121764
+
+        Reviewed by Ryosuke Niwa.
+
+        Add an additional check to make sure that list of files are sorted.
+        Exclude lists of include directories for now, since the order
+        can be importent for compilation of some files.
+
+        * Scripts/webkitpy/style/checkers/cmake.py:
+        (CMakeChecker.check):
+        (CMakeChecker._check_indent):
+        (CMakeChecker):
+        (CMakeChecker._check_list_order):
+        (CMakeChecker._list_item_path):
+        * Scripts/webkitpy/style/checkers/cmake_unittest.py:
+        (CMakeCheckerTest.test_check):
+
+2013-09-25  Patrick Gansterer  <paroga@webkit.org>
+
+        CMakeChecker takes unusually long time to run
+        https://bugs.webkit.org/show_bug.cgi?id=105662
+
+        Reviewed by Ryosuke Niwa.
+
+        Move the caching mechanism for regular expression of the C++ checker into
+        a common file and use it for the CMake and ChangeLog checkers too.
+
+        * Scripts/webkitpy/style/checkers/changelog.py:
+        (ChangeLogChecker.check_entry):
+        * Scripts/webkitpy/style/checkers/cmake.py:
+        (CMakeChecker._process_line):
+        (CMakeChecker._check_no_space_cmds):
+        (CMakeChecker._check_one_space_cmds):
+        (CMakeChecker._check_non_lowercase_cmd):
+        * Scripts/webkitpy/style/checkers/common.py:
+        (match):
+        (search):
+        (searchIgnorecase):
+        (sub):
+        (subn):
+        * Scripts/webkitpy/style/checkers/cpp.py:
+
 2013-09-25  Allan Sandfeld Jensen  <allan.jensen@digia.com>
 
         [Qt] Fix build with Qt 5.2 QtPosition module

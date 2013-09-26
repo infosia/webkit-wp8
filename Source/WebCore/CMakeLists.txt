@@ -5,6 +5,7 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/Modules/gamepad"
     "${WEBCORE_DIR}/Modules/geolocation"
     "${WEBCORE_DIR}/Modules/indexeddb"
+    "${WEBCORE_DIR}/Modules/indexeddb/leveldb"
     "${WEBCORE_DIR}/Modules/indieui"
     "${WEBCORE_DIR}/Modules/mediasource"
     "${WEBCORE_DIR}/Modules/mediastream"
@@ -215,6 +216,7 @@ set(WebCore_IDL_FILES
     Modules/mediasource/WebKitSourceBuffer.idl
     Modules/mediasource/WebKitSourceBufferList.idl
 
+    Modules/mediastream/AudioStreamTrack.idl
     Modules/mediastream/MediaStream.idl
     Modules/mediastream/MediaStreamEvent.idl
     Modules/mediastream/MediaStreamTrack.idl
@@ -238,6 +240,7 @@ set(WebCore_IDL_FILES
     Modules/mediastream/RTCStatsReport.idl
     Modules/mediastream/RTCStatsResponse.idl
     Modules/mediastream/SourceInfo.idl
+    Modules/mediastream/VideoStreamTrack.idl
 
     Modules/navigatorcontentutils/NavigatorContentUtils.idl
 
@@ -803,39 +806,40 @@ set(WebCore_SOURCES
     Modules/indexeddb/DOMWindowIndexedDatabase.cpp
     Modules/indexeddb/IDBAny.cpp
     Modules/indexeddb/IDBCursor.cpp
-    Modules/indexeddb/IDBCursorBackendImpl.cpp
     Modules/indexeddb/IDBCursorWithValue.cpp
     Modules/indexeddb/IDBDatabase.cpp
-    Modules/indexeddb/IDBDatabaseBackendImpl.cpp
     Modules/indexeddb/IDBDatabaseCallbacksImpl.cpp
     Modules/indexeddb/IDBDatabaseException.cpp
     Modules/indexeddb/IDBEventDispatcher.cpp
     Modules/indexeddb/IDBFactory.cpp
-    Modules/indexeddb/IDBFactoryBackendImpl.cpp
     Modules/indexeddb/IDBFactoryBackendInterface.cpp
     Modules/indexeddb/IDBIndex.cpp
     Modules/indexeddb/IDBKey.cpp
     Modules/indexeddb/IDBKeyPath.cpp
     Modules/indexeddb/IDBKeyRange.cpp
     Modules/indexeddb/IDBObjectStore.cpp
-    Modules/indexeddb/IDBObjectStoreBackendImpl.cpp
     Modules/indexeddb/IDBOpenDBRequest.cpp
     Modules/indexeddb/IDBPendingTransactionMonitor.cpp
     Modules/indexeddb/IDBRequest.cpp
     Modules/indexeddb/IDBTransaction.cpp
-    Modules/indexeddb/IDBTransactionBackendImpl.cpp
-    Modules/indexeddb/IDBTransactionCoordinator.cpp
     Modules/indexeddb/IDBVersionChangeEvent.cpp
     Modules/indexeddb/PageGroupIndexedDatabase.cpp
     Modules/indexeddb/WorkerGlobalScopeIndexedDatabase.cpp
     Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBCursorBackendLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBDatabaseBackendLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBFactoryBackendLevelDB.cpp
     Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp
+    Modules/indexeddb/leveldb/IDBObjectStoreBackendLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBTransactionCoordinatorLevelDB.cpp
 
     Modules/mediasource/MediaSource.cpp
     Modules/mediasource/MediaSourceRegistry.cpp
     Modules/mediasource/SourceBuffer.cpp
     Modules/mediasource/SourceBufferList.cpp
 
+    Modules/mediastream/AudioStreamTrack.cpp
     Modules/mediastream/MediaConstraintsImpl.cpp
     Modules/mediastream/MediaStream.cpp
     Modules/mediastream/MediaStreamEvent.cpp
@@ -861,6 +865,7 @@ set(WebCore_SOURCES
     Modules/mediastream/SourceInfo.cpp
     Modules/mediastream/UserMediaController.cpp
     Modules/mediastream/UserMediaRequest.cpp
+    Modules/mediastream/VideoStreamTrack.cpp
 
     Modules/navigatorcontentutils/NavigatorContentUtils.cpp
 
@@ -2024,7 +2029,6 @@ set(WebCore_SOURCES
     platform/leveldb/LevelDBWriteBatch.cpp
 
     platform/mediastream/MediaStreamCenter.cpp
-    platform/mediastream/MediaStreamComponent.cpp
     platform/mediastream/MediaStreamDescriptor.cpp
     platform/mediastream/MediaStreamSource.cpp
     platform/mediastream/RTCIceCandidateDescriptor.cpp

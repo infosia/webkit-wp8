@@ -1,3 +1,206 @@
+2013-09-26  Anders Carlsson  <andersca@apple.com>
+
+        Stop using PassWeak
+        https://bugs.webkit.org/show_bug.cgi?id=121968
+
+        Reviewed by Sam Weinig.
+
+        Update for JavaScriptCore changes.
+
+        * WebProcess/Plugins/Netscape/NPRuntimeObjectMap.cpp:
+        (WebKit::NPRuntimeObjectMap::getOrCreateJSObject):
+
+2013-09-25  Jer Noble  <jer.noble@apple.com>
+
+        [WK2] Crash at at com.apple.WebKit2: WebKit::VoidCallback::invalidate + 46
+        https://bugs.webkit.org/show_bug.cgi?id=121910
+
+        Reviewed by Darin Adler.
+
+        Store a copy of the VoidCallback passed to WKPage, and invalidate the callback
+        during dealloc. The VoidCallback class assumes that it will only ever be
+        invalidated or invoked once, so change the ASSERTs into an early return.
+
+        * UIProcess/GenericCallback.h:
+        (WebKit::VoidCallback::performCallback): Exit early if previously invalidated.
+        (WebKit::VoidCallback::invalidate): Ditto.
+        * UIProcess/mac/WKFullScreenWindowController.h:
+        * UIProcess/mac/WKFullScreenWindowController.mm:
+        (-[WKFullScreenWindowController dealloc]): Invalidate the repaint callback if present.
+        (-[WKFullScreenWindowController finishedExitFullScreenAnimation:]): Ditto & create a new callback.
+        (-[WKFullScreenWindowController completeFinishExitFullScreenAnimationAfterRepaint]): Clear the callback.
+
+2013-09-26  Tim Horton  <timothy_horton@apple.com>
+
+        Tiled drawing should not imply threaded scrolling
+        https://bugs.webkit.org/show_bug.cgi?id=121874
+        <rdar://problem/15071494>
+
+        Reviewed by Sam Weinig.
+
+        * Shared/DrawingAreaInfo.h:
+        We can have DrawingAreaTypeTiledCoreAnimation without threaded scrolling.
+
+        * Shared/WebPreferencesStore.h:
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetThreadedScrollingEnabled):
+        (WKPreferencesGetThreadedScrollingEnabled):
+        * UIProcess/API/C/WKPreferencesPrivate.h:
+        Add a preference for threaded scrolling.
+
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView WebKit::]):
+        * UIProcess/mac/TiledCoreAnimationDrawingAreaProxy.h:
+        * UIProcess/mac/TiledCoreAnimationDrawingAreaProxy.mm:
+        * WebProcess/WebPage/DrawingArea.cpp:
+        (WebKit::DrawingArea::create):
+        * WebProcess/WebPage/DrawingArea.h:
+        Make it so we can use TiledCoreAnimationDrawingArea without ENABLE(THREADED_SCROLLING).
+
+        * WebProcess/WebCoreSupport/WebChromeClient.cpp:
+        (WebKit::WebChromeClient::shouldUseTiledBackingForFrame):
+        * WebProcess/WebCoreSupport/WebChromeClient.h:
+        Override shouldUseTiledBackingForFrame; ask the drawing area if we want a tiled backing for the given frame.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+        (WebKit::WebPage::~WebPage):
+        * WebProcess/WebPage/WebPage.h:
+        Move attaching and detaching the scrolling tree into WebPage.
+        Store whether or not this page is going to use threaded scrolling once, as this
+        cannot change through the life of a page.
+
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.h:
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.mm:
+        (WebKit::TiledCoreAnimationDrawingArea::TiledCoreAnimationDrawingArea):
+        (WebKit::TiledCoreAnimationDrawingArea::~TiledCoreAnimationDrawingArea):
+        Move attaching and detaching the scrolling tree into WebPage.
+
+        (WebKit::TiledCoreAnimationDrawingArea::didInstallPageOverlay):
+        (WebKit::TiledCoreAnimationDrawingArea::didUninstallPageOverlay):
+        (WebKit::TiledCoreAnimationDrawingArea::updatePreferences):
+        (WebKit::TiledCoreAnimationDrawingArea::dispatchAfterEnsuringUpdatedScrollPosition):
+        Only do scrolling coordinator work if we have a scrolling coordinator.
+
+        (WebKit::TiledCoreAnimationDrawingArea::shouldUseTiledBackingForFrame):
+        TiledCoreAnimationDrawingArea always wants a tiled backing for the main frame.
+
+2013-09-25  Minju Kim  <pmuarteo@gmail.com>
+
+        8 bytes memory leaks in WebProcessMainQt.cpp when proxy is initialized
+        https://bugs.webkit.org/show_bug.cgi?id=118515
+
+        Reviewed by Christophe Dumez.
+
+        * WebProcess/qt/WebProcessMainQt.cpp:
+        (WebKit::initializeProxy): Handled EnvHttpProxyFactory by using OwnPtr
+        to avoid memory leak when it isn't handled by NetworkProxyFactory
+
+2013-09-25  Brady Eidson  <beidson@apple.com>
+
+        Enable the IndexedDB build on Mac, but leave the feature non-functional
+        https://bugs.webkit.org/show_bug.cgi?id=121918
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-25  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156432.
+        http://trac.webkit.org/changeset/156432
+        https://bugs.webkit.org/show_bug.cgi?id=121932
+
+        some integer conversion things that need brady to fix
+        (Requested by thorton on #webkit).
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-25  Brady Eidson  <beidson@apple.com>
+
+        Enable the IndexedDB build on Mac, but leave the feature non-functional
+        https://bugs.webkit.org/show_bug.cgi?id=121918
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-25  Brent Fulgham  <bfulgham@apple.com>
+
+        Refactor RuntimeEnabledFeatures as a Singleton.
+        https://bugs.webkit.org/show_bug.cgi?id=121883.
+
+        Reviewed by Jer Noble.
+
+        * WebProcess/InjectedBundle/InjectedBundle.cpp:
+        (WebKit::InjectedBundle::overrideBoolPreferenceForTestRunner): Use
+        Singleton accessor.
+        (WebKit::InjectedBundle::setShadowDOMEnabled):
+        (WebKit::InjectedBundle::setCSSRegionsEnabled):
+        (WebKit::InjectedBundle::setCSSCompositingEnabled):
+        (WebKit::InjectedBundle::setSeamlessIFramesEnabled):
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::updatePreferences): Ditto.
+        * WebProcess/qt/WebProcessQt.cpp:
+        (WebKit::WebProcess::platformInitializeWebProcess): Ditto.
+
+2013-09-25  Brady Eidson  <beidson@apple.com>
+
+        FeatureDefine.xcconfig cleanup (They should all be identical).
+        https://bugs.webkit.org/show_bug.cgi?id=121921
+
+        Reviewed by Mark Rowe.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-25  Anders Carlsson  <andersca@apple.com>
+
+        Use tuples for encoding IPC messages
+        https://bugs.webkit.org/show_bug.cgi?id=121924
+
+        Reviewed by Andreas Kling.
+
+        Yet another step towards getting rid of the Arguments hierarchy.
+
+        * Platform/CoreIPC/Connection.h:
+        (CoreIPC::Connection::send):
+        (CoreIPC::Connection::sendSync):
+        * Platform/CoreIPC/HandleMessage.h:
+        (CoreIPC::handleMessage):
+        (CoreIPC::handleMessageVariadic):
+        (CoreIPC::handleMessageDelayed):
+        * Platform/CoreIPC/MessageSender.h:
+        (CoreIPC::MessageSender::send):
+        * Scripts/webkit2/messages.py:
+        (arguments_type_old):
+        (arguments_type):
+        (reply_type):
+        (decode_type):
+        (delayed_reply_type):
+        (message_to_struct_declaration):
+        * Scripts/webkit2/messages_unittest.py:
+        (LoadURL):
+        (std):
+        (TouchEvent):
+        (DidReceivePolicyDecision):
+        (Close):
+        (PreferencesDidChange):
+        (SendDoubleAndFloat):
+        (SendInts):
+        (CreatePlugin):
+        (RunJavaScriptAlert):
+        (GetPlugins):
+        (GetPluginProcessConnection):
+        (TestMultipleAttributes):
+        (TestParameterAttributes):
+        (TemplateTest):
+        (DidCreateWebProcessConnection):
+        (InterpretKeyEvent):
+        (DeprecatedOperation):
+        (ExperimentalOperation):
+        * Shared/ChildProcessProxy.h:
+        (WebKit::ChildProcessProxy::send):
+
 2013-09-25  Allan Sandfeld Jensen  <allan.jensen@digia.com>
 
         [Qt] Fix build with Qt 5.2 QtPosition module

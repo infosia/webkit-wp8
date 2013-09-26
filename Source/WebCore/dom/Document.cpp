@@ -54,7 +54,6 @@
 #include "DocumentLoader.h"
 #include "DocumentMarkerController.h"
 #include "DocumentSharedObjectPool.h"
-#include "DocumentStyleSheetCollection.h"
 #include "DocumentType.h"
 #include "Editor.h"
 #include "Element.h"
@@ -422,7 +421,7 @@ Document::Document(Frame* frame, const KURL& url, unsigned documentClasses)
     , m_domTreeVersion(++s_globalTreeVersion)
     , m_listenerTypes(0)
     , m_mutationObserverTypes(0)
-    , m_styleSheetCollection(DocumentStyleSheetCollection::create(this))
+    , m_styleSheetCollection(*this)
     , m_visitedLinkState(VisitedLinkState::create(this))
     , m_visuallyOrdered(false)
     , m_readyState(Complete)
@@ -603,10 +602,9 @@ Document::~Document()
     if (m_styleSheetList)
         m_styleSheetList->detachFromDocument();
 
-    m_styleSheetCollection.clear();
-
     if (m_elementSheet)
-        m_elementSheet->clearOwnerNode();
+        m_elementSheet->detachFromDocument();
+    m_styleSheetCollection.detachFromDocument();
 
     clearStyleResolver(); // We need to destroy CSSFontSelector before destroying m_cachedResourceLoader.
 
@@ -733,8 +731,8 @@ void Document::setCompatibilityMode(CompatibilityMode mode)
 
     if (inQuirksMode() != wasInQuirksMode) {
         // All user stylesheets have to reparse using the different mode.
-        m_styleSheetCollection->clearPageUserSheet();
-        m_styleSheetCollection->invalidateInjectedStyleSheetCache();
+        m_styleSheetCollection.clearPageUserSheet();
+        m_styleSheetCollection.invalidateInjectedStyleSheetCache();
     }
 }
 
@@ -1148,12 +1146,12 @@ bool Document::cssStickyPositionEnabled() const
 
 bool Document::cssRegionsEnabled() const
 {
-    return RuntimeEnabledFeatures::cssRegionsEnabled(); 
+    return RuntimeEnabledFeatures::sharedFeatures().cssRegionsEnabled(); 
 }
 
 bool Document::cssCompositingEnabled() const
 {
-    return RuntimeEnabledFeatures::cssCompositingEnabled();
+    return RuntimeEnabledFeatures::sharedFeatures().cssCompositingEnabled();
 }
 
 bool Document::cssGridLayoutEnabled() const
@@ -1773,12 +1771,12 @@ void Document::recalcStyle(Style::Change change)
     // re-attaching our containing iframe, which when asked HTMLFrameElementBase::isURLAllowed
     // hits a null-dereference due to security code always assuming the document has a SecurityOrigin.
 
-    m_styleSheetCollection->flushPendingUpdates();
+    m_styleSheetCollection.flushPendingUpdates();
 
     InspectorInstrumentationCookie cookie = InspectorInstrumentation::willRecalculateStyle(this);
 
     if (m_elementSheet && m_elementSheet->contents()->usesRemUnits())
-        m_styleSheetCollection->setUsesRemUnit(true);
+        m_styleSheetCollection.setUsesRemUnit(true);
 
     m_inStyleRecalc = true;
     {
@@ -1810,7 +1808,7 @@ void Document::recalcStyle(Style::Change change)
 
         // Pseudo element removal and similar may only work with these flags still set. Reset them after the style recalc.
         if (m_styleResolver)
-            m_styleSheetCollection->resetCSSFeatureFlags();
+            m_styleSheetCollection.resetCSSFeatureFlags();
 
         frameView.resumeScheduledEvents();
         frameView.endDeferredRepaints();
@@ -1979,7 +1977,7 @@ void Document::createStyleResolver()
     if (Settings* settings = this->settings())
         matchAuthorAndUserStyles = settings->authorAndUserStylesEnabled();
     m_styleResolver = adoptPtr(new StyleResolver(*this, matchAuthorAndUserStyles));
-    m_styleSheetCollection->combineCSSFeatureFlags();
+    m_styleSheetCollection.combineCSSFeatureFlags();
 }
 
 void Document::clearStyleResolver()
@@ -2663,7 +2661,7 @@ void Document::updateBaseURL()
         // Element sheet is silly. It never contains anything.
         ASSERT(!m_elementSheet->contents()->ruleCount());
         bool usesRemUnits = m_elementSheet->contents()->usesRemUnits();
-        m_elementSheet = CSSStyleSheet::createInline(this, m_baseURL);
+        m_elementSheet = CSSStyleSheet::createInline(*this, m_baseURL);
         // FIXME: So we are not really the parser. The right fix is to eliminate the element sheet completely.
         m_elementSheet->contents()->parserSetUsesRemUnits(usesRemUnits);
     }
@@ -2829,7 +2827,7 @@ void Document::didRemoveAllPendingStylesheet()
 CSSStyleSheet& Document::elementSheet()
 {
     if (!m_elementSheet)
-        m_elementSheet = CSSStyleSheet::createInline(this, m_baseURL);
+        m_elementSheet = CSSStyleSheet::createInline(*this, m_baseURL);
     return *m_elementSheet;
 }
 
@@ -2846,8 +2844,8 @@ void Document::processHttpEquiv(const String& equiv, const String& content)
         // For more info, see the test at:
         // http://www.hixie.ch/tests/evil/css/import/main/preferred.html
         // -dwh
-        m_styleSheetCollection->setSelectedStylesheetSetName(content);
-        m_styleSheetCollection->setPreferredStylesheetSetName(content);
+        m_styleSheetCollection.setSelectedStylesheetSetName(content);
+        m_styleSheetCollection.setPreferredStylesheetSetName(content);
         styleResolverChanged(DeferRecalcStyle);
     } else if (equalIgnoringCase(equiv, "refresh")) {
         double delay;
@@ -3133,17 +3131,17 @@ StyleSheetList* Document::styleSheets()
 
 String Document::preferredStylesheetSet() const
 {
-    return m_styleSheetCollection->preferredStylesheetSetName();
+    return m_styleSheetCollection.preferredStylesheetSetName();
 }
 
 String Document::selectedStylesheetSet() const
 {
-    return m_styleSheetCollection->selectedStylesheetSetName();
+    return m_styleSheetCollection.selectedStylesheetSetName();
 }
 
 void Document::setSelectedStylesheetSet(const String& aString)
 {
-    m_styleSheetCollection->setSelectedStylesheetSetName(aString);
+    m_styleSheetCollection.setSelectedStylesheetSetName(aString);
     styleResolverChanged(DeferRecalcStyle);
 }
 
@@ -3162,7 +3160,7 @@ void Document::scheduleOptimizedStyleSheetUpdate()
 {
     if (m_optimizedStyleSheetUpdateTimer.isActive())
         return;
-    styleSheetCollection()->setPendingUpdateType(DocumentStyleSheetCollection::OptimizedUpdate);
+    m_styleSheetCollection.setPendingUpdateType(DocumentStyleSheetCollection::OptimizedUpdate);
     m_optimizedStyleSheetUpdateTimer.startOneShot(0);
 }
 
@@ -3187,7 +3185,7 @@ void Document::styleResolverChanged(StyleResolverUpdateFlag updateFlag)
     DocumentStyleSheetCollection::UpdateFlag styleSheetUpdate = (updateFlag == RecalcStyleIfNeeded || updateFlag == DeferRecalcStyleIfNeeded)
         ? DocumentStyleSheetCollection::OptimizedUpdate
         : DocumentStyleSheetCollection::FullUpdate;
-    bool stylesheetChangeRequiresStyleRecalc = m_styleSheetCollection->updateActiveStyleSheets(styleSheetUpdate);
+    bool stylesheetChangeRequiresStyleRecalc = m_styleSheetCollection.updateActiveStyleSheets(styleSheetUpdate);
 
     if (updateFlag == DeferRecalcStyle) {
         scheduleForcedStyleRecalc();
@@ -3200,7 +3198,7 @@ void Document::styleResolverChanged(StyleResolverUpdateFlag updateFlag)
         return;
     }
 
-    if (didLayoutWithPendingStylesheets() && !m_styleSheetCollection->hasPendingSheets()) {
+    if (didLayoutWithPendingStylesheets() && !m_styleSheetCollection.hasPendingSheets()) {
         m_pendingSheetLayout = IgnoreLayoutWithPendingSheets;
         if (renderView())
             renderView()->repaintViewAndCompositedLayers();
@@ -5291,7 +5289,7 @@ void Document::webkitWillEnterFullScreenForElement(Element* element)
     }
 
     if (m_fullScreenElement != documentElement())
-        RenderFullScreen::wrapRenderer(renderer, renderer ? renderer->parent() : 0, this);
+        RenderFullScreen::wrapRenderer(renderer, renderer ? renderer->parent() : 0, *this);
 
     m_fullScreenElement->setContainsFullScreenElementOnAncestorsCrossingFrameBoundaries(true);
     
@@ -5699,7 +5697,7 @@ HTMLIFrameElement* Document::seamlessParentIFrame() const
 bool Document::shouldDisplaySeamlesslyWithParent() const
 {
 #if ENABLE(IFRAME_SEAMLESS)
-    if (!RuntimeEnabledFeatures::seamlessIFramesEnabled())
+    if (!RuntimeEnabledFeatures::sharedFeatures().seamlessIFramesEnabled())
         return false;
     HTMLFrameOwnerElement* ownerElement = this->ownerElement();
     if (!ownerElement)
@@ -5971,13 +5969,13 @@ void Document::updateHoverActiveState(const HitTestRequest& request, Element* in
 
 bool Document::haveStylesheetsLoaded() const
 {
-    return !m_styleSheetCollection->hasPendingSheets() || m_ignorePendingStylesheets;
+    return !m_styleSheetCollection.hasPendingSheets() || m_ignorePendingStylesheets;
 }
 
 Locale& Document::getCachedLocale(const AtomicString& locale)
 {
     AtomicString localeKey = locale;
-    if (locale.isEmpty() || !RuntimeEnabledFeatures::langAttributeAwareFormControlUIEnabled())
+    if (locale.isEmpty() || !RuntimeEnabledFeatures::sharedFeatures().langAttributeAwareFormControlUIEnabled())
         localeKey = defaultLanguage();
     LocaleIdentifierToLocaleMap::AddResult result = m_localeCache.add(localeKey, nullptr);
     if (result.isNewEntry)

@@ -1,3 +1,408 @@
+2013-09-26  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156464 and r156480.
+        http://trac.webkit.org/changeset/156464
+        http://trac.webkit.org/changeset/156480
+        https://bugs.webkit.org/show_bug.cgi?id=121981
+
+        Leaking too much and killing buildbot. (Requested by xenon on
+        #webkit).
+
+        * js/destructuring-assignment-expected.txt: Removed.
+        * js/destructuring-assignment.html: Removed.
+        * js/mozilla/strict/13.1-expected.txt:
+        * js/mozilla/strict/regress-532254-expected.txt:
+        * js/mozilla/strict/script-tests/13.1.js:
+        * js/regress/destructuring-arguments-expected.txt: Removed.
+        * js/regress/destructuring-arguments-length-expected.txt: Removed.
+        * js/regress/destructuring-arguments-length.html: Removed.
+        * js/regress/destructuring-arguments.html: Removed.
+        * js/regress/destructuring-swap-expected.txt: Removed.
+        * js/regress/destructuring-swap.html: Removed.
+        * js/regress/script-tests/destructuring-arguments-length.js: Removed.
+        * js/regress/script-tests/destructuring-arguments.js: Removed.
+        * js/regress/script-tests/destructuring-swap.js: Removed.
+        * js/script-tests/destructuring-assignment.js: Removed.
+        * sputnik/Conformance/13_Function_Definition/S13_A5.html:
+
+2013-09-26  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test plugins/access-after-page-destroyed.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=121976
+
+        Reviewed by Anders Carlsson.
+
+        Clean up the test.
+
+        * plugins/access-after-page-destroyed-2-expected.txt: Added.
+        * plugins/access-after-page-destroyed-2.html: Copied from LayoutTests/plugins/access-after-page-destroyed.html.
+        This was testing two distinct issues, the second one unfittingly piled onto the first.
+        Split the test in two.
+
+        * plugins/access-after-page-destroyed-expected.txt:
+        * plugins/access-after-page-destroyed.html:
+        Modernized the test with js-test scripts, added a gc() call for predictability,
+        changed the test to fail quickly in the flaky case.
+
+2013-09-26  Alexey Proskuryakov  <ap@apple.com>
+
+        fast/css/font-face-data-uri.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=82744
+
+        Reviewed by Dan Bernstein.
+
+        * fast/css/font-face-data-uri.html: There is no need to keep retrying, we can just
+        wait for onload - as long as the font load starts early enough.
+
+2013-09-26  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156451.
+        http://trac.webkit.org/changeset/156451
+        https://bugs.webkit.org/show_bug.cgi?id=121965
+
+        Broke two fast/multicol tests. (Requested by kling on
+        #webkit).
+
+        * fast/regions/layers/accelerated-compositing/crash-transform-inside-region-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/crash-transform-inside-region.html: Removed.
+        * fast/regions/layers/accelerated-compositing/floated-region-with-transformed-child-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/floated-region-with-transformed-child.html: Removed.
+        * fast/regions/layers/accelerated-compositing/move-layer-from-one-region-to-another-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/move-layer-from-one-region-to-another.html: Removed.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-for-video-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-for-video.html: Removed.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding.html: Removed.
+        * fast/regions/layers/accelerated-compositing/region-as-layer-in-another-flowthread-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/region-as-layer-in-another-flowthread.html: Removed.
+        * fast/regions/layers/accelerated-compositing/transform-transparent-positioned-video-inside-region-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/transform-transparent-positioned-video-inside-region.html: Removed.
+        * fast/regions/layers/accelerated-compositing/transformed-layer-inside-transformed-layer-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/transformed-layer-inside-transformed-layer.html: Removed.
+        * fast/regions/layers/accelerated-compositing/z-index-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/z-index-update-expected.html: Removed.
+        * fast/regions/layers/accelerated-compositing/z-index-update.html: Removed.
+        * fast/regions/layers/accelerated-compositing/z-index.html: Removed.
+
+2013-09-26  Andreas Kling  <akling@apple.com>
+
+        One more IndexedDB rebaseline.
+
+        * js/dom/global-constructors-attributes-expected.txt:
+
+2013-09-26  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        op_to_this shouldn't use value profiling
+        https://bugs.webkit.org/show_bug.cgi?id=121920
+
+        Reviewed by Geoffrey Garen.
+
+        Updated a couple tests that waited for two DFG compiles, but with this patch we 
+        don't do two compiles any more, so we don't want to wait forever.
+
+        * js/script-tests/dfg-convert-this-polymorphic-object-then-exit-on-other.js:
+        * js/script-tests/dfg-convert-this-polymorphic-object-then-exit-on-string.js:
+
+2013-09-26  Andreas Kling  <akling@apple.com>
+
+        Rebaseline some tests after IndexedDB was enabled.
+
+        * js/dom/global-constructors-attributes-dedicated-worker-expected.txt:
+        * js/dom/global-constructors-attributes-shared-worker-expected.txt:
+
+2013-09-26  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        Inset box-shadows fail to round around corners when border-radius is set in vh/vw units.
+        https://bugs.webkit.org/show_bug.cgi?id=119187
+
+        Reviewed by Darin Adler.
+
+        * fast/css/border-radius-inset-box-shadow-viewportlength-expected-mismatch.html: Added.
+        * fast/css/border-radius-inset-box-shadow-viewportlength.html: Added.
+        * fast/css/border-radius-viewport-height-expected-mismatch.html: Added.
+        * fast/css/border-radius-viewport-height.html: Added.
+        * fast/css/border-radius-viewport-vmax-expected-mismatch.html: Added.
+        * fast/css/border-radius-viewport-vmax.html: Added.
+        * fast/css/border-radius-viewport-vmin-expected-mismatch.html: Added.
+        * fast/css/border-radius-viewport-vmin.html: Added.
+        Added new tests for verifying that box-shadow and border-radius properties
+        are applied when its values are viewport units.
+
+2013-09-25  Oliver Hunt  <oliver@apple.com>
+
+        Implement prefixed-destructuring assignment
+        https://bugs.webkit.org/show_bug.cgi?id=121930
+
+        Reviewed by Mark Hahnenberg.
+
+        Add enw tests, and update old ones.
+
+        * js/destructuring-assignment-expected.txt: Added.
+        * js/destructuring-assignment.html: Added.
+        * js/mozilla/strict/13.1-expected.txt:
+        * js/mozilla/strict/regress-532254-expected.txt:
+        * js/mozilla/strict/script-tests/13.1.js:
+        * js/regress/destructuring-arguments-expected.txt: Added.
+        * js/regress/destructuring-arguments-length-expected.txt: Added.
+        * js/regress/destructuring-arguments-length.html: Added.
+        * js/regress/destructuring-arguments.html: Added.
+        * js/regress/destructuring-swap-expected.txt: Added.
+        * js/regress/destructuring-swap.html: Added.
+        * js/regress/script-tests/destructuring-arguments-length.js: Added.
+        (foo):
+        * js/regress/script-tests/destructuring-arguments.js: Added.
+        (foo):
+        * js/regress/script-tests/destructuring-swap.js: Added.
+        (foo):
+        * js/script-tests/destructuring-assignment.js: Added.
+        (testDestructuring):
+        (testDeconstructArgs):
+        (testDeconstructArgLength):
+
+2013-09-26  Alberto Garcia  <berto@igalia.com>
+
+        Unreviewed GTK gardening.
+
+        Unskip media/context-menu-actions.html which is passing now.
+
+        * platform/gtk-wk2/TestExpectations:
+
+2013-09-26  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [GTK][WK2] Logging of accessibility events is not disabled between tests
+        https://bugs.webkit.org/show_bug.cgi?id=121957
+
+        Unreviewed gardening again. Now moving the expected flakiness to
+        the WebKit2GTK+ port, where it actually belongs to.
+
+        * platform/gtk-wk2/TestExpectations: Added expectations.
+        * platform/gtk/TestExpectations: Removed expectations.
+
+2013-09-26  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [GTK] Logging of accessibility events is not disabled between tests
+        https://bugs.webkit.org/show_bug.cgi?id=121957
+
+        Unreviewed gardening. Marking accessibility tests as flaky while
+        an issue with the logging of accessibility events is investigated.
+
+        * platform/gtk/TestExpectations: Added flaky expectations.
+
+2013-09-26  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        REGRESSION(r144831-r144846):Crashes in accessibility/aria-hidden-with-elements.html, accessibility/table-with-hidden-head-section.html
+        https://bugs.webkit.org/show_bug.cgi?id=112152
+
+        Unreviewed GTK gardening. Removed crash expectations now passing.
+
+        * platform/gtk/TestExpectations: Removed crashing expectations
+        that are now passing after r156141-r156209.
+
+2013-09-26  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed GTK gardening. Remove failure expectation for test passing after r156209.
+
+        * platform/gtk-wk2/TestExpectations: Removed failure expectation.
+
+2013-09-26  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Remove inappropriate expectations for tests that are now passing on EFL port
+        https://bugs.webkit.org/show_bug.cgi?id=121897
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl/TestExpectations:
+
+2013-09-26  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Add baselines for editing/selection/paragraph-granularity.html
+        https://bugs.webkit.org/show_bug.cgi?id=121842
+
+        Unreviewed EFL gardening.
+
+        * platform/efl/TestExpectations: Removing the corresponding entry.
+        * platform/efl/editing/selection/paragraph-granularity-expected.txt: Added.
+
+2013-09-26  Mihai Maerean  <mmaerean@adobe.com>
+
+        [CSS Regions] The layers from the flow thread should be collected under the regions' layers.
+        https://bugs.webkit.org/show_bug.cgi?id=120457
+
+        Reviewed by David Hyatt.
+
+        * fast/regions/layers/accelerated-compositing/crash-transform-inside-region.html: Added.
+        * fast/regions/layers/accelerated-compositing/crash-transform-inside-region-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/floated-region-with-transformed-child.html: Added.
+        * fast/regions/layers/accelerated-compositing/floated-region-with-transformed-child-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/move-layer-from-one-region-to-another.html: Added.
+        * fast/regions/layers/accelerated-compositing/move-layer-from-one-region-to-another-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding.html: Added.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-for-video.html: Added.
+        * fast/regions/layers/accelerated-compositing/propagate-region-box-shadow-border-padding-for-video-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/region-as-layer-in-another-flowthread.html: Added.
+        * fast/regions/layers/accelerated-compositing/region-as-layer-in-another-flowthread-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/transformed-layer-inside-transformed-layer.html: Added.
+        * fast/regions/layers/accelerated-compositing/transformed-layer-inside-transformed-layer-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/transform-transparent-positioned-video-inside-region.html: Added.
+        * fast/regions/layers/accelerated-compositing/transform-transparent-positioned-video-inside-region-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/z-index.html: Added.
+        * fast/regions/layers/accelerated-compositing/z-index-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/z-index-update-expected.html: Added.
+        * fast/regions/layers/accelerated-compositing/z-index-update.html: Added.
+
+2013-09-26  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Unable to collect html element in a named flow
+        https://bugs.webkit.org/show_bug.cgi?id=121878
+
+        Reviewed by Antti Koivisto.
+
+        Use an iframe with a html element collected in a named flow
+        to test that is does not crash or assert.
+
+        * fast/regions/collect-html-in-named-flow-expected.txt: Added.
+        * fast/regions/collect-html-in-named-flow.html: Added.
+        * fast/regions/iframe-html-collected-expected.txt: Added.
+        * fast/regions/iframe-html-collected.html: Added.
+
+2013-09-25  Alexey Proskuryakov  <ap@apple.com>
+
+        fast/css/font-face-data-uri.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=82744
+
+        Reviewed by Darin Adler.
+
+        This test used to wait for one font to load, but not for another, which made no sense.
+
+        * fast/css/font-face-data-uri.html: Wait for both fonts. Increased the number of tries,
+        it's not that long. Use an async test idiom that doesn't conflict with js-test-post.js.
+
+        * fast/css/font-face-data-uri-expected.txt: Updated the results for proper async
+        test usage.
+
+2013-09-25  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: fast/history/history-subframe-with-name.html
+        https://bugs.webkit.org/show_bug.cgi?id=51039
+
+        Reviewed by Brady Eidson.
+
+        * fast/history/history-subframe-with-name.html: In state 3, there was a race between
+        history.forward() and navigating to a new URL. Not sure how this resulted in an
+        extra load, but let's get rid of that. Also, extended failure logging.
+
+        * fast/history/resources/history-subframe-with-name-2.html: No longer do the
+        navigation unconditionally. We need it in state 1, but not in state 3.
+
+2013-09-25  Roger Fong  <roger_fong@apple.com>
+
+        Unreviewed. Disable more CSS_SHAPES tests on AppleWin port.
+
+        * platform/win/TestExpectations:
+
+2013-09-25  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening. Moving WK1-specific failure expectations into the WK1-specific TestExpectations.
+        Also adding expectations for the currently failing tests on WK2.
+
+        * platform/gtk-wk1/TestExpectations:
+        * platform/gtk-wk2/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2013-09-25  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening. Moving around and updating the GTK baselines that are
+        either specific to WK1 or WK2 or can be shared by both.
+
+        * platform/gtk-wk1/http: Added.
+        * platform/gtk-wk1/http/tests: Added.
+        * platform/gtk-wk1/http/tests/cache: Added.
+        * platform/gtk-wk1/http/tests/cache/cancel-multiple-post-xhrs-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-and-enforce-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-blocked-data-uri-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-blocked-file-uri-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-blocked-uri-cross-origin-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-blocked-uri-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-only-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-only-from-header-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-uri-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-uri-from-child-frame-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-uri-from-inline-javascript-expected.txt: Added.
+        * platform/gtk-wk1/http/tests/security/contentSecurityPolicy/report-uri-from-javascript-expected.txt: Added.
+        * platform/gtk-wk2/http: Added.
+        * platform/gtk-wk2/http/tests: Added.
+        * platform/gtk-wk2/http/tests/loading: Added.
+        * platform/gtk-wk2/http/tests/loading/basic-auth-resend-wrong-credentials-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/loading/basic-credentials-sent-automatically-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/misc: Added.
+        * platform/gtk-wk2/http/tests/misc/401-alternative-content-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-1: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-1/authentication-sent-to-redirect-cross-origin-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-2: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-2/authentication-sent-to-redirect-same-origin-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-4: Added.
+        * platform/gtk-wk2/http/tests/misc/authentication-redirect-4/authentication-sent-to-redirect-same-origin-url-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/security: Added.
+        * platform/gtk-wk2/http/tests/security/401-logout: Added.
+        * platform/gtk-wk2/http/tests/security/401-logout/401-logout-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/xmlhttprequest: Added.
+        * platform/gtk-wk2/http/tests/xmlhttprequest/failed-auth-expected.txt: Added.
+        * platform/gtk-wk2/http/tests/xmlhttprequest/remember-bad-password-expected.txt: Added.
+        * platform/gtk-wk2/js: Added.
+        * platform/gtk-wk2/js/dom: Added.
+        * platform/gtk-wk2/js/dom/constructor-length-expected.txt: Added.
+        * platform/gtk-wk2/js/dom/global-constructors-attributes-expected.txt: Added.
+        * platform/gtk/http/tests/cache: Removed.
+        * platform/gtk/http/tests/cache/cancel-multiple-post-xhrs-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-and-enforce-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-blocked-data-uri-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-blocked-file-uri-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-blocked-uri-cross-origin-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-blocked-uri-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-only-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-only-from-header-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-uri-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-uri-from-child-frame-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-uri-from-inline-javascript-expected.txt: Removed.
+        * platform/gtk/http/tests/security/contentSecurityPolicy/report-uri-from-javascript-expected.txt: Removed.
+        * platform/gtk/userscripts: Added.
+        * platform/gtk/userscripts/script-run-at-end-expected.txt: Added.
+
+2013-09-25  Alexey Proskuryakov  <ap@apple.com>
+
+        loader/go-back-to-different-window-size.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=96642
+
+        * platform/mac/TestExpectations: Marking it as flaky on Mac. I think that it's
+        a general issue with the tools that window resizing doesn't work well.
+
+2013-09-25  Sam White  <samuel_white@apple.com>
+
+        AX: WebKit doesn't map aria-sort=other on OS X
+        https://bugs.webkit.org/show_bug.cgi?id=118511
+
+        Reviewed by Chris Fleizach.
+
+        Updated test to check "other" aria-sort order. Also added additional checks to
+        determine which elements expose aria-sort so our "none" case is more clear.
+
+        * accessibility/aria-sort-expected.txt:
+        * accessibility/aria-sort.html:
+
+2013-09-25  Antti Koivisto  <antti@apple.com>
+
+        REGRESSION (r156355) Links / interactive elements inside nested tables are unclickable
+        https://bugs.webkit.org/show_bug.cgi?id=121904
+
+        Reviewed by Andreas Kling.
+
+        * fast/table/hittest-self-painting-expected.txt: Added.
+        * fast/table/hittest-self-painting.html: Added.
+
 2013-09-25  Sanghyup Lee  <sh53.lee@samsung.com>
 
         [EFL] Unreviewed gardening. Unskip passing fast/text/font-kerning.html 
