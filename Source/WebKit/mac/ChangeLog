@@ -1,3 +1,57 @@
+2013-09-26  Darin Adler  <darin@apple.com>
+
+        rename KURL to URL
+        https://bugs.webkit.org/show_bug.cgi?id=16214
+
+        Reviewed by Andreas Kling.
+
+        * many files: Renamed, using script.
+
+2013-09-06  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] Implement the media controls in JavaScript.
+        https://bugs.webkit.org/show_bug.cgi?id=120895
+
+        Reviewed by Dean Jackson.
+
+        Define and turn on ENABLE_MEDIA_CONTROLS_SCRIPT.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-27  Darin Adler  <darin@apple.com>
+
+        Add empty MainFrame class
+        https://bugs.webkit.org/show_bug.cgi?id=121770
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/WebDragClient.mm:
+        * WebCoreSupport/WebInspectorClient.mm:
+        * WebCoreSupport/WebPlatformStrategies.mm:
+        * WebView/WebFrame.mm:
+        * WebView/WebHTMLView.mm:
+        * WebView/WebView.mm:
+        Include MainFrame.h instead of Frame.h as needed.
+
+2013-09-26  Eric Carlson  <eric.carlson@apple.com>
+
+        [MediaStream] make MediaStream testable
+        https://bugs.webkit.org/show_bug.cgi?id=121967
+
+        Reviewed by Dean Jackson.
+
+        * WebCoreSupport/WebUserMediaClient.h: Added.
+        * WebCoreSupport/WebUserMediaClient.mm: Added.
+
+        * WebView/WebUIDelegatePrivate.h: Declare decidePolicyForUserMediaRequestFromOrigin:listener:
+
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]): Register WebUserMediaClient.
+        (-[WebView _setUserMediaClient:]): New.
+        (-[WebView _userMediaClient]): New.
+        * WebView/WebViewData.h:
+        * WebView/WebViewPrivate.h:
+
 2013-09-25  Sam Weinig  <sam@webkit.org>
 
         Pass a JSC::VM& to JS bindings object creation functions, rather than a JSC::ExecState*

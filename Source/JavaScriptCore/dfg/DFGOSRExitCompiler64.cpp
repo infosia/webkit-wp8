@@ -31,6 +31,8 @@
 #include "DFGOperations.h"
 #include "DFGOSRExitCompilerCommon.h"
 #include "Operations.h"
+#include "VirtualRegister.h"
+
 #include <wtf/DataLog.h>
 
 namespace JSC { namespace DFG {
@@ -197,6 +199,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         case UInt32InGPR:
         case UnboxedInt52InGPR:
         case UnboxedStrictInt52InGPR:
+        case UnboxedCellInGPR:
             m_jit.store64(recovery.gpr(), scratch + index);
             break;
             
@@ -205,7 +208,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // And voila, all FPRs are free to reuse.
+    // And voila, all GPRs are free to reuse.
     
     // 5) Save all state from FPRs into the scratch buffer.
     
@@ -225,7 +228,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     
     // Now, all FPRs are also free.
     
-    // 5) Save all state from the stack into the scratch buffer. For simplicity we
+    // 6) Save all state from the stack into the scratch buffer. For simplicity we
     //    do this even for state that's already in the right place on the stack.
     //    It makes things simpler later.
 
@@ -255,7 +258,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // 6) Do all data format conversions and store the results into the stack.
+    // 7) Do all data format conversions and store the results into the stack.
     
     bool haveArguments = false;
     
@@ -265,6 +268,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         
         switch (recovery.technique()) {
         case InGPR:
+        case UnboxedCellInGPR:
         case DisplacedInJSStack:
             m_jit.load64(scratch + index, GPRInfo::regT0);
             m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
@@ -327,7 +331,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // 7) Adjust the old JIT's execute counter. Since we are exiting OSR, we know
+    // 8) Adjust the old JIT's execute counter. Since we are exiting OSR, we know
     //    that all new calls into this code will go to the new JIT, so the execute
     //    counter only affects call frames that performed OSR exit and call frames
     //    that were still executing the old JIT at the time of another call frame's
@@ -365,12 +369,12 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     
     handleExitCounts(m_jit, exit);
     
-    // 8) Reify inlined call frames.
+    // 9) Reify inlined call frames.
     
     reifyInlinedCallFrames(m_jit, exit);
     
-    // 9) Create arguments if necessary and place them into the appropriate aliased
-    //    registers.
+    // 10) Create arguments if necessary and place them into the appropriate aliased
+    //     registers.
     
     if (haveArguments) {
         HashSet<InlineCallFrame*, DefaultHash<InlineCallFrame*>::Hash,
@@ -394,7 +398,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
 
             if (!m_jit.baselineCodeBlockFor(inlineCallFrame)->usesArguments())
                 continue;
-            int argumentsRegister = m_jit.argumentsRegisterFor(inlineCallFrame);
+            VirtualRegister argumentsRegister = m_jit.argumentsRegisterFor(inlineCallFrame);
             if (didCreateArgumentsObject.add(inlineCallFrame).isNewEntry) {
                 // We know this call frame optimized out an arguments object that
                 // the baseline JIT would have created. Do that creation now.
@@ -420,12 +424,12 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // 10) Load the result of the last bytecode operation into regT0.
+    // 11) Load the result of the last bytecode operation into regT0.
     
-    if (exit.m_lastSetOperand != std::numeric_limits<int>::max())
+    if (exit.m_lastSetOperand.isValid())
         m_jit.load64(AssemblyHelpers::addressFor(exit.m_lastSetOperand), GPRInfo::cachedResultRegister);
     
-    // 11) And finish.
+    // 12) And finish.
     
     adjustAndJumpToTarget(m_jit, exit);
 }

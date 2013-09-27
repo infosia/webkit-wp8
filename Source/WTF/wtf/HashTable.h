@@ -931,6 +931,7 @@ namespace WTF {
 #endif
 
         Value* newEntry = lookupForWriting(Extractor::extract(entry)).first;
+        newEntry->~Value();
         new (NotNull, newEntry) ValueType(std::move(entry));
 
         return newEntry;
@@ -1058,11 +1059,9 @@ namespace WTF {
     template<typename Key, typename Value, typename Extractor, typename HashFunctions, typename Traits, typename KeyTraits>
     void HashTable<Key, Value, Extractor, HashFunctions, Traits, KeyTraits>::deallocateTable(ValueType* table, int size)
     {
-        if (Traits::needsDestruction) {
-            for (int i = 0; i < size; ++i) {
-                if (!isDeletedBucket(table[i]))
-                    table[i].~ValueType();
-            }
+        for (int i = 0; i < size; ++i) {
+            if (!isDeletedBucket(table[i]))
+                table[i].~ValueType();
         }
         fastFree(table);
     }

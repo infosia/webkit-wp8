@@ -1,3 +1,197 @@
+2013-09-27  Filip Pizlo  <fpizlo@apple.com>
+
+        Deoptimize 32-bit deoptimization
+        https://bugs.webkit.org/show_bug.cgi?id=122025
+
+        Reviewed by Oliver Hunt.
+        
+        Just simplifying a bunch of code. I don't want the old, super-complicated,
+        deoptimization code to get in the way of changes I'll be making to DFG stack layout.
+
+        * bytecode/ValueRecovery.h:
+        (JSC::ValueRecovery::inGPR):
+        (JSC::ValueRecovery::isInRegisters):
+        (JSC::ValueRecovery::gpr):
+        (JSC::ValueRecovery::dumpInContext):
+        * dfg/DFGOSRExitCompiler32_64.cpp:
+        (JSC::DFG::OSRExitCompiler::compileExit):
+        * dfg/DFGOSRExitCompiler64.cpp:
+        (JSC::DFG::OSRExitCompiler::compileExit):
+
+2013-09-27  Alex Christensen  <alex.christensen@flexsim.com>
+
+        Fixed Win64 build after r156184.
+        https://bugs.webkit.org/show_bug.cgi?id=121994
+
+        Reviewed by Oliver Hunt.
+
+        * jit/CCallHelpers.h:
+        (JSC::CCallHelpers::setupTwoStubArgsGPR):
+        (JSC::CCallHelpers::setupTwoStubArgsFPR):
+        Renamed from setupTwoStubArgs.
+        Visual Studio x64 compiler fails to see that this is an overloaded template function.
+        (JSC::CCallHelpers::setupStubArguments):
+        (JSC::CCallHelpers::setupArguments):
+        (JSC::CCallHelpers::setupArgumentsWithExecState):
+        Use setupTwoStubArgsGPR or setupTwoStubArgsFPR instead of setupTwoStubArgs.
+
+2013-09-27  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        LLInt alignment problem on ARM in debug mode
+        https://bugs.webkit.org/show_bug.cgi?id=122012
+
+        Reviewed by Michael Saboff.
+
+        Force GCC to put the LLInt code to .text section.
+
+        * llint/LowLevelInterpreter.cpp:
+
+2013-09-06  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] Implement the media controls in JavaScript.
+        https://bugs.webkit.org/show_bug.cgi?id=120895
+
+        Reviewed by Dean Jackson.
+
+        Define and turn on ENABLE_MEDIA_CONTROLS_SCRIPT.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-27  Andreas Kling  <akling@apple.com>
+
+        Pass VM instead of ExecState to JSDateMath functions.
+        <https://webkit.org/b/121997>
+
+        Reviewed by Geoffrey Garen.
+
+        The JSC date math functions only need the VM, so pass that from
+        callers instead of the whole ExecState.
+
+2013-09-26  Andreas Kling  <akling@apple.com>
+
+        GetterSetter construction should take a VM instead of ExecState.
+        <https://webkit.org/b/121993>
+
+        Reviewed by Sam Weinig.
+
+        Pass VM& instead of ExecState* to GetterSetter. Updated surrounding
+        code at touched sites to cache VM in a local for fewer loads.
+
+        JSC release binary size -= 4120 bytes.
+
+2013-09-26  Oliver Hunt  <oliver@apple.com>
+
+        Make GCC happy
+
+        * parser/Parser.h:
+
+2013-09-25  Oliver Hunt  <oliver@apple.com>
+
+        Implement prefixed-destructuring assignment
+        https://bugs.webkit.org/show_bug.cgi?id=121930
+
+        Reviewed by Mark Hahnenberg.
+
+        Relanding with fix after rollout
+
+2013-09-26  Michael Saboff  <msaboff@apple.com>
+
+        VirtualRegister should be a class
+        https://bugs.webkit.org/show_bug.cgi?id=121732
+
+        Reviewed by Geoffrey Garen.
+
+        This is a refactoring change.  Changed VirtualRegister from an enum to a class.
+        Moved Operands::operandIsArgument(), operandToArgument(), argumentToOperand()
+        and the similar functions for locals to VirtualRegister class.
+
+        This is in preparation for changing the offset for the first local register from
+        0 to -1.  This is needed since most native calling conventions have the architected
+        frame pointer (e.g. %rbp for X86) point at the slot that stores the previous frame
+        pointer.  Local values start below that address.
+
+        * bytecode/CodeBlock.cpp:
+        * bytecode/CodeBlock.h:
+        * bytecode/Instruction.h:
+        * bytecode/LazyOperandValueProfile.h:
+        * bytecode/MethodOfGettingAValueProfile.cpp:
+        * bytecode/Operands.h:
+        * bytecode/UnlinkedCodeBlock.cpp:
+        * bytecode/UnlinkedCodeBlock.h:
+        * bytecode/ValueRecovery.h:
+        * bytecode/VirtualRegister.h:
+        * bytecompiler/BytecodeGenerator.cpp:
+        * bytecompiler/BytecodeGenerator.h:
+        * bytecompiler/RegisterID.h:
+        * debugger/DebuggerCallFrame.cpp:
+        * dfg/DFGAbstractHeap.h:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        * dfg/DFGArgumentPosition.h:
+        * dfg/DFGArgumentsSimplificationPhase.cpp:
+        * dfg/DFGByteCodeParser.cpp:
+        * dfg/DFGCFGSimplificationPhase.cpp:
+        * dfg/DFGCPSRethreadingPhase.cpp:
+        * dfg/DFGCapabilities.cpp:
+        * dfg/DFGConstantFoldingPhase.cpp:
+        * dfg/DFGFlushLivenessAnalysisPhase.cpp:
+        * dfg/DFGGraph.cpp:
+        * dfg/DFGGraph.h:
+        * dfg/DFGJITCode.cpp:
+        * dfg/DFGNode.h:
+        * dfg/DFGOSREntry.cpp:
+        * dfg/DFGOSREntrypointCreationPhase.cpp:
+        * dfg/DFGOSRExit.h:
+        * dfg/DFGOSRExitCompiler32_64.cpp:
+        * dfg/DFGOSRExitCompiler64.cpp:
+        * dfg/DFGRegisterBank.h:
+        * dfg/DFGScoreBoard.h:
+        * dfg/DFGSpeculativeJIT.cpp:
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        * dfg/DFGSpeculativeJIT64.cpp:
+        * dfg/DFGValidate.cpp:
+        * dfg/DFGValueRecoveryOverride.h:
+        * dfg/DFGVariableAccessData.h:
+        * dfg/DFGVariableEvent.h:
+        * dfg/DFGVariableEventStream.cpp:
+        * dfg/DFGVirtualRegisterAllocationPhase.cpp:
+        * ftl/FTLExitArgumentForOperand.h:
+        * ftl/FTLLink.cpp:
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        * ftl/FTLOSREntry.cpp:
+        * ftl/FTLOSRExit.cpp:
+        * ftl/FTLOSRExit.h:
+        * ftl/FTLOSRExitCompiler.cpp:
+        * interpreter/CallFrame.h:
+        * interpreter/Interpreter.cpp:
+        * jit/AssemblyHelpers.h:
+        * jit/JIT.h:
+        * jit/JITCall.cpp:
+        * jit/JITCall32_64.cpp:
+        * jit/JITInlines.h:
+        * jit/JITOpcodes.cpp:
+        * jit/JITOpcodes32_64.cpp:
+        * jit/JITPropertyAccess32_64.cpp:
+        * jit/JITStubs.cpp:
+        * llint/LLIntSlowPaths.cpp:
+        * profiler/ProfilerBytecodeSequence.cpp:
+        * runtime/CommonSlowPaths.cpp:
+        * runtime/JSActivation.cpp:
+
+2013-09-26  Anders Carlsson  <andersca@apple.com>
+
+        Work around another MSVC bug.
+
+        * runtime/PrototypeMap.cpp:
+        (JSC::PrototypeMap::emptyObjectStructureForPrototype):
+
+2013-09-26  Anders Carlsson  <andersca@apple.com>
+
+        Attempt to fix the FTL build.
+
+        * ftl/FTLAbstractHeap.cpp:
+        (JSC::FTL::IndexedAbstractHeap::atSlow):
+
 2013-09-26  Andreas Kling  <akling@apple.com>
 
         Pass VM instead of ExecState to many finishCreation() functions.

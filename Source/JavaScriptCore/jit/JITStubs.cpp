@@ -1047,7 +1047,7 @@ DEFINE_STUB_FUNCTION(void, optimize)
         for (size_t i = 0; i < mustHandleValues.size(); ++i) {
             int operand = mustHandleValues.operandForIndex(i);
             if (operandIsArgument(operand)
-                && !operandToArgument(operand)
+                && !VirtualRegister(operand).toArgument()
                 && codeBlock->codeType() == FunctionCode
                 && codeBlock->specializationKind() == CodeForConstruct) {
                 // Ugh. If we're in a constructor, the 'this' argument may hold garbage. It will
@@ -1154,7 +1154,7 @@ DEFINE_STUB_FUNCTION(JSObject*, op_new_func)
 {
     STUB_INIT_STACK_FRAME(stackFrame);
     
-    ASSERT(stackFrame.callFrame->codeBlock()->codeType() != FunctionCode || !stackFrame.callFrame->codeBlock()->needsFullScopeChain() || stackFrame.callFrame->uncheckedR(stackFrame.callFrame->codeBlock()->activationRegister()).jsValue());
+    ASSERT(stackFrame.callFrame->codeBlock()->codeType() != FunctionCode || !stackFrame.callFrame->codeBlock()->needsFullScopeChain() || stackFrame.callFrame->uncheckedR(stackFrame.callFrame->codeBlock()->activationRegister().offset()).jsValue());
     return JSFunction::create(stackFrame.callFrame, stackFrame.args[0].function(), stackFrame.callFrame->scope());
 }
 
@@ -1931,7 +1931,7 @@ DEFINE_STUB_FUNCTION(JSObject*, op_new_func_exp)
 
     FunctionExecutable* function = stackFrame.args[0].function();
     JSFunction* func = JSFunction::create(callFrame, function, callFrame->scope());
-    ASSERT(callFrame->codeBlock()->codeType() != FunctionCode || !callFrame->codeBlock()->needsFullScopeChain() || callFrame->uncheckedR(callFrame->codeBlock()->activationRegister()).jsValue());
+    ASSERT(callFrame->codeBlock()->codeType() != FunctionCode || !callFrame->codeBlock()->needsFullScopeChain() || callFrame->uncheckedR(callFrame->codeBlock()->activationRegister().offset()).jsValue());
 
     return func;
 }
@@ -1959,7 +1959,7 @@ DEFINE_STUB_FUNCTION(EncodedJSValue, op_call_eval)
     CallFrame* callerFrame = callFrame->callerFrame();
     ASSERT(callFrame->callerFrame()->codeBlock()->codeType() != FunctionCode
         || !callFrame->callerFrame()->codeBlock()->needsFullScopeChain()
-        || callFrame->callerFrame()->uncheckedR(callFrame->callerFrame()->codeBlock()->activationRegister()).jsValue());
+        || callFrame->callerFrame()->uncheckedR(callFrame->callerFrame()->codeBlock()->activationRegister().offset()).jsValue());
 
     callFrame->setScope(callerFrame->scope());
     callFrame->setReturnPC(static_cast<Instruction*>((STUB_RETURN_ADDRESS).value()));
@@ -2112,7 +2112,8 @@ DEFINE_STUB_FUNCTION(void, op_put_getter_setter)
     ASSERT(stackFrame.args[0].jsValue().isObject());
     JSObject* baseObj = asObject(stackFrame.args[0].jsValue());
 
-    GetterSetter* accessor = GetterSetter::create(callFrame);
+    VM& vm = callFrame->vm();
+    GetterSetter* accessor = GetterSetter::create(vm);
 
     JSValue getter = stackFrame.args[2].jsValue();
     JSValue setter = stackFrame.args[3].jsValue();
@@ -2121,9 +2122,9 @@ DEFINE_STUB_FUNCTION(void, op_put_getter_setter)
     ASSERT(getter.isObject() || setter.isObject());
 
     if (!getter.isUndefined())
-        accessor->setGetter(callFrame->vm(), asObject(getter));
+        accessor->setGetter(vm, asObject(getter));
     if (!setter.isUndefined())
-        accessor->setSetter(callFrame->vm(), asObject(setter));
+        accessor->setSetter(vm, asObject(setter));
     baseObj->putDirectAccessor(callFrame, stackFrame.args[1].identifier(), accessor, Accessor);
 }
 

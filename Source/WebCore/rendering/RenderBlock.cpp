@@ -247,9 +247,6 @@ void RenderBlock::willBeDestroyed()
 
     m_lineBoxes.deleteLineBoxes(renderArena());
 
-    if (lineGridBox())
-        lineGridBox()->destroy(renderArena());
-
     if (UNLIKELY(gDelayedUpdateScrollInfoSet != 0))
         gDelayedUpdateScrollInfoSet->remove(this);
 
@@ -456,7 +453,7 @@ void RenderBlock::addChildToAnonymousColumnBlocks(RenderObject* newChild, Render
     }
 
     // See if the child can be placed in the box.
-    bool newChildHasColumnSpan = newChild->style()->columnSpan() && !newChild->isInline();
+    bool newChildHasColumnSpan = !newChild->isInline() && newChild->style()->columnSpan();
     bool beforeChildParentHoldsColumnSpans = beforeChildParent->isAnonymousColumnSpanBlock();
 
     if (newChildHasColumnSpan == beforeChildParentHoldsColumnSpans) {
@@ -5873,11 +5870,6 @@ void RenderBlock::updateFirstLetterStyle(RenderObject* firstLetterBlock, RenderO
         firstLetterContainer->addChild(firstLetter, nextSibling);
     } else
         firstLetter->setStyle(pseudoStyle);
-
-    for (RenderObject* genChild = firstLetter->firstChild(); genChild; genChild = genChild->nextSibling()) {
-        if (genChild->isText())
-            genChild->setStyle(pseudoStyle);
-    }
 }
 
 void RenderBlock::createFirstLetterRenderer(RenderObject* firstLetterBlock, RenderText* currentTextChild)
@@ -5928,7 +5920,6 @@ void RenderBlock::createFirstLetterRenderer(RenderObject* firstLetterBlock, Rend
         else
             remainingText = RenderTextFragment::createAnonymous(document(), oldText, length, oldText.length() - length);
 
-        remainingText->setStyle(currentTextChild->style());
         if (remainingText->textNode())
             remainingText->textNode()->setRenderer(remainingText);
 
@@ -5944,7 +5935,6 @@ void RenderBlock::createFirstLetterRenderer(RenderObject* firstLetterBlock, Rend
         else
             letter = RenderTextFragment::createAnonymous(document(), oldText, 0, length);
 
-        letter->setStyle(pseudoStyle);
         firstLetter->addChild(letter);
 
         currentTextChild->destroy();

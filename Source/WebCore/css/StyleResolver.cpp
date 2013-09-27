@@ -3420,8 +3420,8 @@ PassRefPtr<CustomFilterProgram> StyleResolver::lookupCustomFilterProgram(WebKitC
     CustomFilterProgramType programType, const CustomFilterProgramMixSettings& mixSettings, CustomFilterMeshType meshType)
 {
     CachedResourceLoader* cachedResourceLoader = m_state.document().cachedResourceLoader();
-    KURL vertexShaderURL = vertexShader ? vertexShader->completeURL(cachedResourceLoader) : KURL();
-    KURL fragmentShaderURL = fragmentShader ? fragmentShader->completeURL(cachedResourceLoader) : KURL();
+    URL vertexShaderURL = vertexShader ? vertexShader->completeURL(cachedResourceLoader) : URL();
+    URL fragmentShaderURL = fragmentShader ? fragmentShader->completeURL(cachedResourceLoader) : URL();
     RefPtr<StyleCustomFilterProgram> program;
     if (m_customFilterProgramCache)
         program = m_customFilterProgramCache->lookup(CustomFilterProgramInfo(vertexShaderURL, fragmentShaderURL, programType, mixSettings, meshType));
@@ -3623,19 +3623,26 @@ PassRefPtr<CustomFilterOperation> StyleResolver::createCustomFilterOperationWith
     unsigned shadersListLength = shadersList->length();
     ASSERT(shadersListLength);
 
-    WebKitCSSShaderValue* vertexShader = toWebKitCSSShaderValue(shadersList->itemWithoutBoundsCheck(0));
+
+    WebKitCSSShaderValue* vertexShader = 0;
     WebKitCSSShaderValue* fragmentShader = 0;
+
+    if (shadersList->itemWithoutBoundsCheck(0)->isWebKitCSSShaderValue())
+        vertexShader = toWebKitCSSShaderValue(shadersList->itemWithoutBoundsCheck(0));
+
     CustomFilterProgramType programType = PROGRAM_TYPE_BLENDS_ELEMENT_TEXTURE;
     CustomFilterProgramMixSettings mixSettings;
 
     if (shadersListLength > 1) {
         CSSValue* fragmentShaderOrMixFunction = shadersList->itemWithoutBoundsCheck(1);
         if (fragmentShaderOrMixFunction->isWebKitCSSMixFunctionValue()) {
-            WebKitCSSMixFunctionValue* mixFunction = static_cast<WebKitCSSMixFunctionValue*>(fragmentShaderOrMixFunction);
+            WebKitCSSMixFunctionValue* mixFunction = toWebKitCSSMixFunctionValue(fragmentShaderOrMixFunction);
             CSSValueListIterator iterator(mixFunction);
 
             ASSERT(mixFunction->length());
-            fragmentShader = toWebKitCSSShaderValue(iterator.value());
+            if (iterator.value()->isWebKitCSSShaderValue())
+                fragmentShader = toWebKitCSSShaderValue(iterator.value());
+
             iterator.advance();
 
             ASSERT(mixFunction->length() <= 3);
@@ -3651,13 +3658,14 @@ PassRefPtr<CustomFilterOperation> StyleResolver::createCustomFilterOperationWith
             }
         } else {
             programType = PROGRAM_TYPE_NO_ELEMENT_TEXTURE;
-            fragmentShader = toWebKitCSSShaderValue(fragmentShaderOrMixFunction);
+            if (fragmentShaderOrMixFunction->isWebKitCSSShaderValue())
+                fragmentShader = toWebKitCSSShaderValue(fragmentShaderOrMixFunction);
         }
     }
 
     if (!vertexShader && !fragmentShader)
         return 0;
-    
+
     unsigned meshRows = 1;
     unsigned meshColumns = 1;
     CustomFilterMeshType meshType = MeshTypeAttached;
@@ -3752,7 +3760,7 @@ bool StyleResolver::createFilterOperations(CSSValue* inValue, FilterOperations& 
         if (!currValue->isWebKitCSSFilterValue())
             continue;
 
-        WebKitCSSFilterValue* filterValue = static_cast<WebKitCSSFilterValue*>(i.value());
+        WebKitCSSFilterValue* filterValue = toWebKitCSSFilterValue(i.value());
         FilterOperation::OperationType operationType = filterOperationForType(filterValue->operationType());
 
 #if ENABLE(CSS_SHADERS)
@@ -3779,8 +3787,8 @@ bool StyleResolver::createFilterOperations(CSSValue* inValue, FilterOperations& 
             if (!argument->isWebKitCSSSVGDocumentValue())
                 continue;
 
-            WebKitCSSSVGDocumentValue* svgDocumentValue = static_cast<WebKitCSSSVGDocumentValue*>(argument);
-            KURL url = m_state.document().completeURL(svgDocumentValue->url());
+            WebKitCSSSVGDocumentValue* svgDocumentValue = toWebKitCSSSVGDocumentValue(argument);
+            URL url = m_state.document().completeURL(svgDocumentValue->url());
 
             RefPtr<ReferenceFilterOperation> operation = ReferenceFilterOperation::create(svgDocumentValue->url(), url.fragmentIdentifier(), operationType);
             if (SVGURIReference::isExternalURIReference(svgDocumentValue->url(), m_state.document())) {

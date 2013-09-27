@@ -1,29 +1,220 @@
-2013-09-26  Commit Queue  <commit-queue@webkit.org>
+2013-09-27  Jer Noble  <jer.noble@apple.com>
 
-        Unreviewed, rolling out r156464 and r156480.
-        http://trac.webkit.org/changeset/156464
-        http://trac.webkit.org/changeset/156480
-        https://bugs.webkit.org/show_bug.cgi?id=121981
+        REGRESSION(r156546): 17 media tests broken
+        https://bugs.webkit.org/show_bug.cgi?id=122021
 
-        Leaking too much and killing buildbot. (Requested by xenon on
-        #webkit).
+        Unreviewed gardening; add failing tests to TestExpectations while triaging new failures.
 
-        * js/destructuring-assignment-expected.txt: Removed.
-        * js/destructuring-assignment.html: Removed.
-        * js/mozilla/strict/13.1-expected.txt:
-        * js/mozilla/strict/regress-532254-expected.txt:
-        * js/mozilla/strict/script-tests/13.1.js:
-        * js/regress/destructuring-arguments-expected.txt: Removed.
-        * js/regress/destructuring-arguments-length-expected.txt: Removed.
-        * js/regress/destructuring-arguments-length.html: Removed.
-        * js/regress/destructuring-arguments.html: Removed.
-        * js/regress/destructuring-swap-expected.txt: Removed.
-        * js/regress/destructuring-swap.html: Removed.
-        * js/regress/script-tests/destructuring-arguments-length.js: Removed.
-        * js/regress/script-tests/destructuring-arguments.js: Removed.
-        * js/regress/script-tests/destructuring-swap.js: Removed.
-        * js/script-tests/destructuring-assignment.js: Removed.
-        * sputnik/Conformance/13_Function_Definition/S13_A5.html:
+        * platform/mac/TestExpectations:
+
+2013-09-27  Eric Carlson  <eric.carlson@apple.com>
+
+        [MediaStream API] update SourceInfo object to match spec
+        https://bugs.webkit.org/show_bug.cgi?id=121941
+
+        Reviewed by Dean Jackson.
+
+        * fast/mediastream/MediaStreamTrack-getSources-expected.txt:
+        * fast/mediastream/MediaStreamTrack-getSources.html:
+
+2013-09-26  Dean Jackson  <dino@apple.com>
+
+        Provide 2D Matrix decomposition for animation
+        https://bugs.webkit.org/show_bug.cgi?id=112824
+        <rdar://problem/15091882>
+
+        Reviewed by Eric Carlson (and Ian Henderson offline).
+
+        This test was only exercising the fact that our
+        software decomposition did not match our hardware
+        decomposition (although that required visual inspection).
+        Now that our 2d decomposition is correct, update the
+        test and its expected result.
+
+        * animations/transform-non-accelerated-expected.txt:
+        * animations/transform-non-accelerated.html:
+
+2013-09-27  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [GTK] GTK does not expose heading level correctly. Was: accessibility/heading-level.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=106924
+
+        Reviewed by Chris Fleizach.
+
+        Removed accesibility/heading-level.html from failure expectations.
+
+        * platform/gtk/TestExpectations: Removed test now passing.
+
+2013-09-27  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] Implement the media controls in JavaScript.
+        https://bugs.webkit.org/show_bug.cgi?id=120895
+
+        Reviewed by Dean Jackson.
+
+        Rebaseline changed tests and add new (failing) tests to
+        TestExpectations.
+
+        * media/audio-delete-while-slider-thumb-clicked.html:
+        * platform/mac/TestExpectations:
+        * platform/mac/fast/hidpi/video-controls-in-hidpi-expected.png:
+        * platform/mac/fast/hidpi/video-controls-in-hidpi-expected.txt:
+        * platform/mac/fast/layers/video-layer-expected.png:
+        * platform/mac/fast/layers/video-layer-expected.txt:
+        * platform/mac/fullscreen/video-controls-override-expected.txt: Added.
+        * platform/mac/media/audio-controls-rendering-expected.png:
+        * platform/mac/media/audio-controls-rendering-expected.txt:
+        * platform/mac/media/controls-after-reload-expected.png:
+        * platform/mac/media/controls-after-reload-expected.txt:
+        * platform/mac/media/controls-strict-expected.png:
+        * platform/mac/media/controls-strict-expected.txt:
+        * platform/mac/media/controls-styling-strict-expected.png:
+        * platform/mac/media/controls-styling-strict-expected.txt:
+        * platform/mac/media/controls-without-preload-expected.png:
+        * platform/mac/media/controls-without-preload-expected.txt:
+        * platform/mac/media/media-controls-clone-expected.png:
+        * platform/mac/media/media-controls-clone-expected.txt:
+        * webarchive/loading/video-in-webarchive-expected.txt:
+
+2013-09-27  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        [css-shapes] Shapes are not resolved the same way in shape-inside and clip-path
+        https://bugs.webkit.org/show_bug.cgi?id=121922
+
+        Reviewed by Andreas Kling.
+
+        Add new test for circular shape-outside with percentage radius.
+
+        Update the nested container with unresolved height test because with a
+        circle it isn't really testing just for unresolved height behavior.
+
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/w3c-import.log:
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-circle-001-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-circle-001.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/w3c-import.log:
+        * fast/shapes/shape-inside/shape-inside-on-nested-container-with-unresolved-height-expected.html:
+        * fast/shapes/shape-inside/shape-inside-on-nested-container-with-unresolved-height.html:
+
+2013-09-27  Andreas Kling  <akling@apple.com>
+
+        Unrehued mac-lion rebaseline.
+
+        * platform/mac-lion/js/dom/global-constructors-attributes-expected.txt:
+
+2013-09-27  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK][WK2] Logging of accessibility events is not disabled between tests
+        https://bugs.webkit.org/show_bug.cgi?id=121957
+
+        Reviewed by Mario Sanchez Prada.
+
+        Removed some accessibility tests from the expectations file that were
+        failing before this fix.
+
+        * platform/gtk-wk2/TestExpectations:
+
+2013-09-27  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] editing/selection/fake-doubleclick.html rebaseline after r140111
+        https://bugs.webkit.org/show_bug.cgi?id=121831
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl/editing/selection/fake-doubleclick-expected.txt:
+
+2013-09-27  Zalan Bujtas  <zalan@apple.com>
+
+        Unexpected word wrapping for wrapped content then raw content.
+        https://bugs.webkit.org/show_bug.cgi?id=121130
+
+        Reviewed by Darin Adler.
+
+        When deciding whether a line is considered empty, we need to check if the current
+        object is fully responsible for the currently uncommitted width. It helps differentiating
+        <span></span><span>abcd</span> from <span>a</span><span>bcd</span>, where in the first
+        case when we hit the second <span> the line is still considered empty, as opposed to the
+        second example.
+        This patch introduces a map to keep track of the uncommitted widths.
+
+        * fast/css/unexpected-word-wrapping-with-non-empty-spans-expected.html: Added.
+        * fast/css/unexpected-word-wrapping-with-non-empty-spans.html: Added.
+
+2013-09-27  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [ATK] Protect entry points in the ATK wrapper against outdated render trees
+        https://bugs.webkit.org/show_bug.cgi?id=121558
+
+        Reviewed by Chris Fleizach.
+
+        Added a new test to check that we do not crash in certain
+        scenarios when hiding objects and retriving accessibility
+        information about it.
+
+        * accessibility/heading-crash-after-hidden-expected.txt: Added.
+        * accessibility/heading-crash-after-hidden.html: Added.
+
+        Rebaselined expectations that were wrong before, since they were
+        not returning the actual value that they should be returning when
+        called AccessibilityUIElement::stringValue().
+
+        * platform/efl-wk1/accessibility/file-upload-button-stringvalue-expected.txt:
+        Updated, since the actual text being returned should be the actual
+        value of the file chooser (e.g. "(None)") and not the text in the
+        upload botton (e.g. "Choose files").
+        * platform/efl-wk2/accessibility/file-upload-button-stringvalue-expected.txt: Ditto.
+        * platform/gtk-wk2/accessibility/file-upload-button-stringvalue-expected.txt: Ditto..
+        * platform/gtk/accessibility/file-upload-button-stringvalue-expected.txt: Ditto.
+
+        * platform/gtk/accessibility/deleting-iframe-destroys-axcache-expected.txt:
+        Updated, since the iframe should be exposed at all after deleting it.
+
+        Removed accesibility test now passing after fixing this issue.
+
+        * platform/gtk/TestExpectations: Removed accessibility/aria-used-on-image-maps.html.
+
+2013-09-26  Antti Koivisto  <antti@apple.com>
+
+        Move m_style to RenderElement
+        https://bugs.webkit.org/show_bug.cgi?id=121936
+
+        Reviewed by Andreas Kling.
+        
+        Progressions from text style updating correctly in all cases.
+
+        * compositing/contents-opaque/hidden-with-visible-text-expected.txt:
+        * compositing/contents-opaque/visibility-hidden-expected.txt:
+        
+            Can't figure out why these progress but they do. The new rendering (showing nothing)
+            is correct and matches Firefox.
+
+        * platform/mac/svg/custom/SVGPoint-matrixTransform-expected.txt:
+        * platform/mac/svg/custom/getTransformToElement-expected.txt:
+        * platform/mac/svg/custom/text-ctm-expected.txt:
+        * platform/mac/svg/custom/text-hit-test-expected.txt:
+        * platform/mac/svg/text/append-text-node-to-tspan-expected.txt:
+
+2013-09-26  Eric Carlson  <eric.carlson@apple.com>
+
+        [MediaStream] make MediaStream testable
+        https://bugs.webkit.org/show_bug.cgi?id=121967
+
+        Reviewed by Dean Jackson.
+
+        * fast/mediastream/MediaStream-add-remove-tracks-expected.txt:
+        * fast/mediastream/MediaStream-add-remove-tracks.html: Make the test results more understandable
+            to simplify debugging failures.
+        * fast/mediastream/MediaStream-onended-expected.txt:
+        * fast/mediastream/MediaStream-onended.html: Ditto. Fix a test error: stopping stream A should
+            not stop stream B even when it was created from stream A.
+        * fast/mediastream/MediaStreamConstructor-expected.txt:
+        * fast/mediastream/MediaStreamConstructor.html: Make the test results more understandable. Fix a
+            logic errors: webkitMediaStream is an object, not a function. JSC does not support 
+            object.constructor.name, use object.constructor.toString() instead.
+        * fast/mediastream/MediaStreamTrackEvent-constructor-expected.txt:
+        * fast/mediastream/MediaStreamTrackEvent-constructor.html: Update now that getUserMedia() works.
+        * fast/mediastream/argument-types-expected.txt: Updated with "Failing" results because the correct 
+            behavior is unknown. The spec says "the syntax for getUserMedia() is still under discussion".
 
 2013-09-26  Alexey Proskuryakov  <ap@apple.com>
 

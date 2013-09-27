@@ -41,7 +41,6 @@
 #include "FocusController.h"
 #include "FontCache.h"
 #include "FontLoader.h"
-#include "Frame.h"
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
 #include "FrameSelection.h"
@@ -55,6 +54,7 @@
 #include "InspectorClient.h"
 #include "InspectorController.h"
 #include "InspectorInstrumentation.h"
+#include "MainFrame.h"
 #include "OverflowEvent.h"
 #include "ProgressTracker.h"
 #include "RenderArena.h"
@@ -886,13 +886,6 @@ GraphicsLayer* FrameView::setWantsLayerForBottomOverHangArea(bool wantsLayer) co
 }
 
 #endif // ENABLE(RUBBER_BANDING)
-
-bool FrameView::scrollbarAnimationsAreSuppressed() const
-{
-    if (Page* page = frame().page())
-        return page->shouldSuppressScrollbarAnimations();
-    return true;
-}
 
 bool FrameView::flushCompositingStateForThisFrame(Frame* rootFrameForFlush)
 {
@@ -1824,7 +1817,7 @@ void FrameView::restoreScrollbar()
     setScrollbarsSuppressed(false);
 }
 
-bool FrameView::scrollToFragment(const KURL& url)
+bool FrameView::scrollToFragment(const URL& url)
 {
     // If our URL has no ref, then we have no place we need to jump to.
     // OTOH If CSS target was set previously, we want to set it to 0, recalc
@@ -3104,22 +3097,6 @@ void FrameView::setVisibleScrollerThumbRect(const IntRect& scrollerThumb)
     frame().page()->chrome().client().notifyScrollerThumbIsVisibleInRect(scrollerThumb);
 }
 
-bool FrameView::scrollbarsCanBeActive() const
-{
-    if (frame().view() != this)
-        return false;
-
-    if (Page* page = frame().page()) {
-        if (page->shouldSuppressScrollbarAnimations())
-            return false;
-    }
-
-    if (Document* document = frame().document())
-        return !document->inPageCache();
-
-    return false;
-}
-
 ScrollableArea* FrameView::enclosingScrollableArea() const
 {
     // FIXME: Walk up the frame tree and look for a scrollable parent frame or RenderLayer.
@@ -3195,26 +3172,6 @@ void FrameView::scrollbarStyleChanged(int newStyle, bool forceUpdate)
         ScrollView::scrollbarStyleChanged(newStyle, forceUpdate);
 }
 
-void FrameView::setAnimatorsAreActive()
-{
-    Page* page = frame().page();
-    if (!page)
-        return;
-
-    if (ScrollAnimator* scrollAnimator = existingScrollAnimator())
-        scrollAnimator->setIsActive();
-
-    if (!m_scrollableAreas)
-        return;
-
-    for (HashSet<ScrollableArea*>::const_iterator it = m_scrollableAreas->begin(), end = m_scrollableAreas->end(); it != end; ++it) {
-        ScrollableArea* scrollableArea = *it;
-
-        ASSERT(scrollableArea->scrollbarsCanBeActive());
-        scrollableArea->scrollAnimator()->setIsActive();
-    }
-}
-
 void FrameView::notifyPageThatContentAreaWillPaint() const
 {
     Page* page = frame().page();
@@ -3228,10 +3185,6 @@ void FrameView::notifyPageThatContentAreaWillPaint() const
 
     for (HashSet<ScrollableArea*>::const_iterator it = m_scrollableAreas->begin(), end = m_scrollableAreas->end(); it != end; ++it) {
         ScrollableArea* scrollableArea = *it;
-
-        if (!scrollableArea->scrollbarsCanBeActive())
-            continue;
-
         scrollableArea->contentAreaWillPaint();
     }
 }

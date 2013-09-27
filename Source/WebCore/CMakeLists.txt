@@ -1745,6 +1745,7 @@ set(WebCore_SOURCES
     page/GroupSettings.cpp
     page/History.cpp
     page/Location.cpp
+    page/MainFrame.cpp
     page/MouseEventWithHitTestResults.cpp
     page/Navigator.cpp
     page/NavigatorBase.cpp
@@ -1816,7 +1817,7 @@ set(WebCore_SOURCES
     platform/FileStream.cpp
     platform/FileSystem.cpp
     platform/HistogramSupport.cpp
-    platform/KURL.cpp
+    platform/URL.cpp
     platform/KillRingNone.cpp
     platform/Language.cpp
     platform/Length.cpp
@@ -2038,6 +2039,7 @@ set(WebCore_SOURCES
     platform/mock/DeviceMotionClientMock.cpp
     platform/mock/DeviceOrientationClientMock.cpp
     platform/mock/GeolocationClientMock.cpp
+    platform/mock/MockMediaStreamCenter.cpp
     platform/mock/ScrollbarThemeMock.cpp
 
     platform/network/AuthenticationChallengeBase.cpp

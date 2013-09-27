@@ -45,7 +45,6 @@
 #include "EventHandler.h"
 #include "ExceptionCodePlaceholder.h"
 #include "FloatRect.h"
-#include "Frame.h"
 #include "FrameLoadRequest.h"
 #include "FrameLoader.h"
 #include "FrameSelection.h"
@@ -59,6 +58,7 @@
 #include "HitTestResult.h"
 #include "Image.h"
 #include "ImageOrientation.h"
+#include "MainFrame.h"
 #include "MoveSelectionCommand.h"
 #include "Page.h"
 #include "Pasteboard.h"
@@ -742,12 +742,12 @@ bool DragController::startDrag(Frame* src, const DragState& state, DragOperation
         // hidden or moved out from under the cursor. Regardless, we don't want to start a drag on
         // something that's not actually under the drag origin.
         return false;
-    KURL linkURL = hitTestResult.absoluteLinkURL();
-    KURL imageURL = hitTestResult.absoluteImageURL();
+    URL linkURL = hitTestResult.absoluteLinkURL();
+    URL imageURL = hitTestResult.absoluteImageURL();
 
     IntPoint mouseDraggedPoint = src->view()->windowToContents(dragEvent.position());
 
-    m_draggingImageURL = KURL();
+    m_draggingImageURL = URL();
     m_sourceDragOperation = srcOp;
 
     DragImageRef dragImage = 0;

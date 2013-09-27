@@ -46,7 +46,6 @@
 #include "EventHandler.h"
 #include "ExceptionCode.h"
 #include "FormController.h"
-#include "Frame.h"
 #include "FrameLoader.h"
 #include "FrameView.h"
 #include "HTMLInputElement.h"
@@ -68,6 +67,7 @@
 #include "InternalSettings.h"
 #include "IntRect.h"
 #include "Language.h"
+#include "MainFrame.h"
 #include "MallocStatistics.h"
 #include "MemoryCache.h"
 #include "MemoryInfo.h"
@@ -150,6 +150,10 @@
 #if PLATFORM(QT)
 #include "NetworkingContext.h"
 #include <QNetworkAccessManager>
+#endif
+
+#if ENABLE(MEDIA_STREAM)
+#include "MockMediaStreamCenter.h"
 #endif
 
 namespace WebCore {
@@ -288,6 +292,10 @@ Internals::Internals(Document* document)
 #if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
     if (document && document->page())
         document->page()->group().captionPreferences()->setTestingMode(true);
+#endif
+    
+#if ENABLE(MEDIA_STREAM)
+    MockMediaStreamCenter::registerMockMediaStreamCenter();
 #endif
 }
 

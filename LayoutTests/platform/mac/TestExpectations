@@ -1334,3 +1334,34 @@ webkit.org/b/117427 compositing/reflections/load-video-in-reflection.html [ Pass
 
 # Resizing windows appears broken in both DRT and WTR, making the test fail or time out flakily.
 webkit.org/b/96642 loader/go-back-to-different-window-size.html [ Pass Failure Timeout ]
+
+webkit.org/b/114193 transitions/cancel-transition.html [ Pass Failure ]
+
+webkit.org/b/121998 http/tests/inspector/network/network-iframe-load-and-delete.html [ Pass Failure ]
+
+webkit.org/b/121990 accessibility/media-element.html [ Failure ]
+webkit.org/b/121992 media/media-volume-slider-rendered-below.html [ Failure ]
+webkit.org/b/121992 media/media-volume-slider-rendered-normal.html [ Timeout Failure ]
+webkit.org/b/121995 media/video-controls-captions-trackmenu-hide-on-click-outside.html [ Timeout Failure ]
+webkit.org/b/121995 media/video-controls-captions-trackmenu-hide-on-click.html [ Timeout Failure ]
+webkit.org/b/121995 media/video-controls-captions-trackmenu-includes-enabled-track.html [ Timeout Failure ]
+
+
+# REGRESSION(r156546): 17 media tests broken (122021)
+webkit.org/b/122021 media/track/track-cue-mutable-text.html
+webkit.org/b/122021 media/track/track-cue-rendering-mode-changed.html
+webkit.org/b/122021 media/track/track-in-band-mode.html
+webkit.org/b/122021 media/video-controls-captions-trackmenu-localized.html
+webkit.org/b/122021 media/video-controls-captions-trackmenu-sorted.html
+webkit.org/b/122021 media/video-controls-captions-trackmenu.html
+webkit.org/b/122021 media/video-controls-fullscreen-volume.html
+webkit.org/b/122021 media/video-controls-no-scripting.html
+webkit.org/b/122021 media/video-controls-rendering.html
+webkit.org/b/122021 media/video-controls-toggling.html
+webkit.org/b/122021 media/video-controls-visible-exiting-fullscreen.html
+webkit.org/b/122021 media/video-display-toggle.html
+webkit.org/b/122021 media/video-empty-source.html
+webkit.org/b/122021 media/video-no-audio.html
+webkit.org/b/122021 media/video-rtl.html
+webkit.org/b/122021 media/video-volume-slider.html
+webkit.org/b/122021 media/volume-bar-empty-when-muted.html

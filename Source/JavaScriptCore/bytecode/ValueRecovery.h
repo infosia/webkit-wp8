@@ -56,6 +56,7 @@ enum ValueRecoveryTechnique {
     UnboxedInt52InGPR,
     UnboxedStrictInt52InGPR,
     UnboxedBooleanInGPR,
+    UnboxedCellInGPR,
 #if USE(JSVALUE32_64)
     InPair,
 #endif
@@ -145,6 +146,8 @@ public:
             result.m_technique = UnboxedStrictInt52InGPR;
         else if (dataFormat == DataFormatBoolean)
             result.m_technique = UnboxedBooleanInGPR;
+        else if (dataFormat == DataFormatCell)
+            result.m_technique = UnboxedCellInGPR;
         else
             result.m_technique = InGPR;
         result.m_source.gpr = gpr;
@@ -211,7 +214,7 @@ public:
             result.m_technique = DisplacedInJSStack;
             break;
         }
-        result.m_source.virtualReg = virtualReg;
+        result.m_source.virtualReg = virtualReg.offset();
         return result;
     }
     
@@ -240,6 +243,9 @@ public:
         case InGPR:
         case UnboxedInt32InGPR:
         case UnboxedBooleanInGPR:
+        case UnboxedCellInGPR:
+        case UnboxedInt52InGPR:
+        case UnboxedStrictInt52InGPR:
 #if USE(JSVALUE32_64)
         case InPair:
 #endif
@@ -267,7 +273,7 @@ public:
     
     MacroAssembler::RegisterID gpr() const
     {
-        ASSERT(m_technique == InGPR || m_technique == UnboxedInt32InGPR || m_technique == UnboxedBooleanInGPR || m_technique == UInt32InGPR || m_technique == UnboxedInt52InGPR || m_technique == UnboxedStrictInt52InGPR);
+        ASSERT(m_technique == InGPR || m_technique == UnboxedInt32InGPR || m_technique == UnboxedBooleanInGPR || m_technique == UInt32InGPR || m_technique == UnboxedInt52InGPR || m_technique == UnboxedStrictInt52InGPR || m_technique == UnboxedCellInGPR);
         return m_source.gpr;
     }
     
@@ -294,7 +300,7 @@ public:
     VirtualRegister virtualRegister() const
     {
         ASSERT(m_technique == DisplacedInJSStack || m_technique == Int32DisplacedInJSStack || m_technique == DoubleDisplacedInJSStack || m_technique == CellDisplacedInJSStack || m_technique == BooleanDisplacedInJSStack || m_technique == Int52DisplacedInJSStack || m_technique == StrictInt52DisplacedInJSStack);
-        return m_source.virtualReg;
+        return VirtualRegister(m_source.virtualReg);
     }
     
     JSValue constant() const
@@ -339,6 +345,9 @@ public:
         case UnboxedBooleanInGPR:
             out.print("bool(", gpr(), ")");
             return;
+        case UnboxedCellInGPR:
+            out.print("cell(", gpr(), ")");
+            return;
         case UInt32InGPR:
             out.print("uint32(", gpr(), ")");
             return;
@@ -351,25 +360,25 @@ public:
             return;
 #endif
         case DisplacedInJSStack:
-            out.printf("*%d", virtualRegister());
+            out.printf("*%d", virtualRegister().offset());
             return;
         case Int32DisplacedInJSStack:
-            out.printf("*int32(%d)", virtualRegister());
+            out.printf("*int32(%d)", virtualRegister().offset());
             return;
         case Int52DisplacedInJSStack:
-            out.printf("*int52(%d)", virtualRegister());
+            out.printf("*int52(%d)", virtualRegister().offset());
             return;
         case StrictInt52DisplacedInJSStack:
-            out.printf("*strictInt52(%d)", virtualRegister());
+            out.printf("*strictInt52(%d)", virtualRegister().offset());
             return;
         case DoubleDisplacedInJSStack:
-            out.printf("*double(%d)", virtualRegister());
+            out.printf("*double(%d)", virtualRegister().offset());
             return;
         case CellDisplacedInJSStack:
-            out.printf("*cell(%d)", virtualRegister());
+            out.printf("*cell(%d)", virtualRegister().offset());
             return;
         case BooleanDisplacedInJSStack:
-            out.printf("*bool(%d)", virtualRegister());
+            out.printf("*bool(%d)", virtualRegister().offset());
             return;
         case ArgumentsThatWereNotCreated:
             out.printf("arguments");
@@ -400,7 +409,7 @@ private:
             MacroAssembler::RegisterID payloadGPR;
         } pair;
 #endif
-        VirtualRegister virtualReg;
+        int virtualReg;
         EncodedJSValue constant;
     } m_source;
 };
