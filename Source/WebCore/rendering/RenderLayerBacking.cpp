@@ -45,6 +45,7 @@
 #include "HTMLPlugInElement.h"
 #include "InspectorInstrumentation.h"
 #include "KeyframeList.h"
+#include "MainFrame.h"
 #include "PluginViewBase.h"
 #include "ProgressTracker.h"
 #include "RenderIFrame.h"
@@ -121,7 +122,7 @@ RenderLayerBacking::RenderLayerBacking(RenderLayer* layer)
     Page* page = renderer().frame().page();
 
     if (layer->isRootLayer() && page) {
-        if (page->frameIsMainFrame(&renderer().frame()))
+        if (renderer().frame().isMainFrame())
             m_isMainFrameRenderViewLayer = true;
 
         m_usingTiledCacheLayer = page->chrome().client().shouldUseTiledBackingForFrameView(renderer().frame().view());
@@ -412,7 +413,7 @@ bool RenderLayerBacking::shouldClipCompositedBounds() const
 
 void RenderLayerBacking::updateCompositedBounds()
 {
-    LayoutRect layerBounds = compositor().calculateCompositedBounds(m_owningLayer, m_owningLayer);
+    LayoutRect layerBounds = compositor().calculateCompositedBounds(*m_owningLayer, *m_owningLayer);
 
     // Clip to the size of the document or enclosing overflow-scroll layer.
     // If this or an ancestor is transformed, we can't currently compute the correct rect to intersect with.
@@ -471,14 +472,14 @@ void RenderLayerBacking::updateAfterLayout(UpdateAfterLayoutFlags flags)
         // The solution is to update compositing children of this layer here,
         // via updateCompositingChildrenGeometry().
         updateCompositedBounds();
-        compositor().updateCompositingDescendantGeometry(m_owningLayer, m_owningLayer, flags & CompositingChildrenOnly);
+        compositor().updateCompositingDescendantGeometry(*m_owningLayer, *m_owningLayer, flags & CompositingChildrenOnly);
         
         if (flags & IsUpdateRoot) {
             updateGraphicsLayerGeometry();
             compositor().updateRootLayerPosition();
             RenderLayer* stackingContainer = m_owningLayer->enclosingStackingContainer();
             if (!compositor().compositingLayersNeedRebuild() && stackingContainer && (stackingContainer != m_owningLayer))
-                compositor().updateCompositingDescendantGeometry(stackingContainer, stackingContainer, flags & CompositingChildrenOnly);
+                compositor().updateCompositingDescendantGeometry(*stackingContainer, *stackingContainer, flags & CompositingChildrenOnly);
         }
     }
     
@@ -492,22 +493,22 @@ bool RenderLayerBacking::updateGraphicsLayerConfiguration()
     m_owningLayer->updateZOrderLists();
 
     bool layerConfigChanged = false;
-    setBackgroundLayerPaintsFixedRootBackground(compositor().needsFixedRootBackgroundLayer(m_owningLayer));
+    setBackgroundLayerPaintsFixedRootBackground(compositor().needsFixedRootBackgroundLayer(*m_owningLayer));
     
     // The background layer is currently only used for fixed root backgrounds.
     if (updateBackgroundLayer(m_backgroundLayerPaintsFixedRootBackground))
         layerConfigChanged = true;
 
-    if (updateForegroundLayer(compositor().needsContentsCompositingLayer(m_owningLayer)))
+    if (updateForegroundLayer(compositor().needsContentsCompositingLayer(*m_owningLayer)))
         layerConfigChanged = true;
     
-    bool needsDescendentsClippingLayer = compositor().clipsCompositingDescendants(m_owningLayer);
+    bool needsDescendentsClippingLayer = compositor().clipsCompositingDescendants(*m_owningLayer);
 
     // Our scrolling layer will clip.
     if (m_owningLayer->needsCompositedScrolling())
         needsDescendentsClippingLayer = false;
 
-    if (updateAncestorClippingLayer(compositor().clippedByAncestor(m_owningLayer)))
+    if (updateAncestorClippingLayer(compositor().clippedByAncestor(*m_owningLayer)))
         layerConfigChanged = true;
 
     if (updateDescendantClippingLayer(needsDescendentsClippingLayer))
@@ -815,7 +816,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
 
         IntSize scrollingContentsOffset = toIntSize(paddingBox.location() - scrollOffset);
         if (scrollingContentsOffset != m_scrollingContentsLayer->offsetFromRenderer() || scrollSize != m_scrollingContentsLayer->size())
-            compositor().scrollingLayerDidChange(m_owningLayer);
+            compositor().scrollingLayerDidChange(*m_owningLayer);
 
         m_scrollingContentsLayer->setSize(scrollSize);
         // FIXME: The paint offset and the scroll offset should really be separate concepts.
@@ -828,7 +829,7 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
     }
 
     // If this layer was created just for clipping or to apply perspective, it doesn't need its own backing store.
-    setRequiresOwnBackingStore(compositor().requiresOwnBackingStore(m_owningLayer, compAncestor, relativeCompositingBounds, ancestorCompositingBounds));
+    setRequiresOwnBackingStore(compositor().requiresOwnBackingStore(*m_owningLayer, compAncestor, relativeCompositingBounds, ancestorCompositingBounds));
 
     bool didUpdateContentsRect = false;
     updateDirectlyCompositedContents(isSimpleContainer, didUpdateContentsRect);
@@ -858,7 +859,7 @@ void RenderLayerBacking::registerScrollingLayers()
     if (!scrollingCoordinator)
         return;
 
-    compositor().updateViewportConstraintStatus(m_owningLayer);
+    compositor().updateViewportConstraintStatus(*m_owningLayer);
 
     if (!scrollingCoordinator->supportsFixedPositionLayers())
         return;
@@ -1280,7 +1281,7 @@ bool RenderLayerBacking::updateScrollingLayers(bool needsScrollingLayers)
         updateInternalHierarchy();
         m_graphicsLayer->setPaintingPhase(paintingPhaseForPrimaryLayer());
         m_graphicsLayer->setNeedsDisplay();
-        compositor().scrollingLayerDidChange(m_owningLayer);
+        compositor().scrollingLayerDidChange(*m_owningLayer);
     }
 
     return layerChanged;
@@ -1891,7 +1892,7 @@ void RenderLayerBacking::setRequiresOwnBackingStore(bool requiresOwnBacking)
     m_owningLayer->clearClipRectsIncludingDescendants(PaintingClipRects);
     m_owningLayer->computeRepaintRectsIncludingDescendants();
     
-    compositor().repaintInCompositedAncestor(m_owningLayer, compositedBounds());
+    compositor().repaintInCompositedAncestor(*m_owningLayer, compositedBounds());
 }
 
 #if ENABLE(CSS_COMPOSITING)
@@ -2067,7 +2068,7 @@ float RenderLayerBacking::deviceScaleFactor() const
 
 void RenderLayerBacking::didCommitChangesForLayer(const GraphicsLayer* layer) const
 {
-    compositor().didFlushChangesForLayer(m_owningLayer, layer);
+    compositor().didFlushChangesForLayer(*m_owningLayer, layer);
 }
 
 bool RenderLayerBacking::getCurrentTransform(const GraphicsLayer* graphicsLayer, TransformationMatrix& transform) const

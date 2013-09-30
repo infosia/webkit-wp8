@@ -1,3 +1,173 @@
+2013-09-30  Allan Sandfeld Jensen  <allan.jensen@digia.com>
+
+        [Qt] Fix force_static_libs_as_shared in WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=121961
+
+        Reviewed by Csaba Osztrogonác.
+
+        Get rid of the unused WebKit2QML library
+
+        * Target.pri:
+        * WebKit2.pro:
+        * WebKit2QML.pri: Removed.
+
+2013-09-29  Mark Rowe  <mrowe@apple.com>
+
+        Fix the Lion build.
+
+        Ensure that C++ and Objective-C++ files build with the right compiler flags.
+
+        * Configurations/BaseTarget.xcconfig:
+
+2013-09-29  Sam Weinig  <sam@webkit.org>
+
+        Fix the build.
+
+        * WebProcess/Plugins/Netscape/NPRuntimeObjectMap.cpp:
+        (WebKit::NPRuntimeObjectMap::evaluate):
+
+2013-09-28  Mark Rowe  <mrowe@apple.com>
+
+        Fix some failures with newer versions of clang.
+
+        Some CoreGraphics headers generate warnings under newer versions of clang. Since they're system headers the warnings would
+        usually be suppressed, but we're adding the frameworks to the non-system framework search path so they're no longer treated
+        as system headers. We address this by removing the system paths from FRAMEWORK_SEARCH_PATHS and using the -iframework compiler
+        flag in OTHER_CFLAGS to add the paths to the system framework search path. We have to set OTHER_CFLAGS at the target level
+        in order for it to coexist with the ASAN-related OTHER_CFLAGS that's set in DebugRelease.xcconfig.
+
+        Reviewed by Dan Bernstein.
+
+        * Configurations/BaseTarget.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+
+2013-09-28  Mark Rowe  <mrowe@apple.com>
+
+        Take Xcode's advice and enable some extra warnings.
+
+        Reviewed by Sam Weinig.
+
+        * Configurations/Base.xcconfig:
+        * WebKit2.xcodeproj/project.pbxproj:
+
+2013-09-28  Darin Adler  <darin@apple.com>
+
+        Add Frame::mainFrame and Frame::isMainFrame
+        https://bugs.webkit.org/show_bug.cgi?id=122064
+
+        Reviewed by Andreas Kling.
+
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.mm:
+        (WebKit::TiledCoreAnimationDrawingArea::shouldUseTiledBackingForFrameView):
+        Call isMainFrame.
+
+2013-09-27  Anders Carlsson  <andersca@apple.com>
+
+        Message sending functions should only accept rvalues
+        https://bugs.webkit.org/show_bug.cgi?id=122041
+
+        Reviewed by Andreas Kling.
+
+        In order to safely encode move-only types, make all send variants accept rvalues only, except
+        for the "send to all processes" ones. For them, copy the message before sending. This ensures that trying
+        to send a move-only type in a message will fail to compile.
+
+        * NetworkProcess/NetworkResourceLoader.h:
+        (WebKit::NetworkResourceLoader::sendAbortingOnFailure):
+        * Platform/CoreIPC/Connection.h:
+        (CoreIPC::Connection::send):
+        (CoreIPC::Connection::sendSync):
+        * Platform/CoreIPC/MessageSender.h:
+        (CoreIPC::MessageSender::sendSync):
+        * Shared/ChildProcessProxy.h:
+        (WebKit::ChildProcessProxy::send):
+        (WebKit::ChildProcessProxy::sendSync):
+        * UIProcess/WebContext.h:
+        (WebKit::WebContext::sendToNetworkingProcess):
+        (WebKit::WebContext::sendToNetworkingProcessRelaunchingIfNecessary):
+        (WebKit::WebContext::sendToAllProcesses):
+        (WebKit::WebContext::sendToAllProcessesRelaunchingThemIfNecessary):
+        (WebKit::WebContext::sendToOneProcess):
+        * UIProcess/WebPageGroup.h:
+        (WebKit::WebPageGroup::sendToAllProcessesInGroup):
+
+2013-09-28  Philippe Normand  <pnormand@igalia.com>
+
+        Unreviewed GTK build fix after r156560.
+
+        * WebProcess/WebPage/gtk/LayerTreeHostGtk.cpp:
+        (WebKit::LayerTreeHostGtk::paintContents):
+        (WebKit::LayerTreeHostGtk::createPageOverlayLayer):
+        (WebKit::LayerTreeHostGtk::destroyPageOverlayLayer):
+        * WebProcess/WebPage/gtk/LayerTreeHostGtk.h:
+
+2013-09-28  Mark Rowe  <mrowe@apple.com>
+
+        WebKit2 fails to build with newer versions of clang.
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/VisitedLinkTable.cpp: #if a function that's only used inside an ASSERT.
+        * UIProcess/Plugins/mac/PluginInfoStoreMac.mm: Remove an unused constant.
+        * UIProcess/mac/WKFullScreenWindowController.mm: Ditto.
+        * WebProcess/Plugins/Netscape/mac/NetscapePluginMac.mm: Ditto.
+        * WebProcess/WebPage/FindController.cpp: Ditto.
+        * WebProcess/WebPage/WebBackForwardListProxy.cpp: Remove two unused constants.
+
+2013-09-27  Csaba Osztrogonác  <ossy@webkit.org>
+
+        CookieStorageShim should be PLATFORM(MAC) guarded
+        https://bugs.webkit.org/show_bug.cgi?id=121423
+
+        Reviewed by Darin Adler.
+
+        Original patch by Kwang Yul Seo <skyul@company100.com>.
+
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::initializeWebProcess):
+
+2013-09-27  Enrica Casucci  <enrica@apple.com>
+
+        Upstream changes to Pasteboard implementation for iOS.
+        https://bugs.webkit.org/show_bug.cgi?id=121818
+
+        Reviewed by Benjamin Poulain.
+
+        * Shared/WebCoreArgumentCoders.cpp:
+        (CoreIPC::decodeSharedBuffer):
+        * Shared/WebCoreArgumentCoders.h:
+        * UIProcess/WebContext.h:
+        * UIProcess/WebContext.messages.in:
+        * UIProcess/mac/WebContextMac.mm:
+        (WebKit::WebContext::writeWebContentToPasteboard):
+        (WebKit::WebContext::writeImageToPasteboard):
+        (WebKit::WebContext::writeStringToPasteboard):
+        (WebKit::WebContext::readStringFromPasteboard):
+        (WebKit::WebContext::readURLFromPasteboard):
+        (WebKit::WebContext::readBufferFromPasteboard):
+        (WebKit::WebContext::getPasteboardItemsCount):
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.cpp:
+        (WebKit::WebPlatformStrategies::writeToPasteboard):
+        (WebKit::WebPlatformStrategies::getPasteboardItemsCount):
+        (WebKit::WebPlatformStrategies::readBufferFromPasteboard):
+        (WebKit::WebPlatformStrategies::readURLFromPasteboard):
+        (WebKit::WebPlatformStrategies::readStringFromPasteboard):
+        (WebKit::WebPlatformStrategies::changeCount):
+        * WebProcess/WebCoreSupport/WebPlatformStrategies.h:
+
+2013-09-27  Ralph Thomas  <ralpht@gmail.com>
+
+        [WK2][CoordinatedGraphics] fix build after r156560
+        https://bugs.webkit.org/show_bug.cgi?id=122028
+
+        Fixing build.
+
+        Reviewed by Anders Carlsson.
+
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp:
+        (WebKit::CoordinatedLayerTreeHost::paintLayerContents):
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.h:
+
 2013-09-27  Anders Carlsson  <andersca@apple.com>
 
         Use std::unique_ptr for GraphicsLayer creation

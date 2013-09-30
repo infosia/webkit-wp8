@@ -71,7 +71,6 @@ SOURCES += \
     bindings/generic/RuntimeEnabledFeatures.cpp
 
 SOURCES += \
-     bindings/ScriptControllerBase.cpp \
      bindings/js/ArrayValue.cpp \
      bindings/js/BindingState.cpp \
      bindings/js/CallbackFunction.cpp \
@@ -1104,7 +1103,6 @@ SOURCES += \
     platform/ThreadTimers.cpp \
     platform/Timer.cpp \
     platform/text/UnicodeRange.cpp \
-    platform/text/transcoder/FontTranscoder.cpp \
     platform/UUID.cpp \
     platform/Widget.cpp \
     platform/PlatformStrategies.cpp \
@@ -1313,7 +1311,6 @@ HEADERS += \
     accessibility/AccessibilityTableHeaderContainer.h \
     accessibility/AccessibilityTableRow.h \
     accessibility/AXObjectCache.h \
-    bindings/ScriptControllerBase.h \
     bindings/generic/ActiveDOMCallback.h \
     bindings/generic/BindingSecurity.h \
     bindings/generic/RuntimeEnabledFeatures.h
@@ -2344,7 +2341,6 @@ HEADERS += \
     platform/text/TextEncodingRegistry.h \
     platform/text/TextStream.h \
     platform/text/UnicodeRange.h \
-    platform/text/transcoder/FontTranscoder.h \
     platform/ThreadGlobalData.h \
     platform/ThreadTimers.h \
     platform/Timer.h \

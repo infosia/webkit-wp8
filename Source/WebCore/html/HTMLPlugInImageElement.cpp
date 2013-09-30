@@ -605,7 +605,7 @@ void HTMLPlugInImageElement::subframeLoaderWillCreatePlugIn(const URL& url)
         return;
     }
 
-    bool inMainFrame = document().page()->frameIsMainFrame(document().frame());
+    bool inMainFrame = document().frame()->isMainFrame();
 
     if (document().isPluginDocument() && inMainFrame) {
         LOG(Plugins, "%p Plug-in document in main frame", this);
@@ -713,7 +713,7 @@ void HTMLPlugInImageElement::subframeLoaderDidCreatePlugIn(const Widget* widget)
 
 void HTMLPlugInImageElement::defaultEventHandler(Event* event)
 {
-    RenderObject* r = renderer();
+    RenderElement* r = renderer();
     if (r && r->isEmbeddedObject()) {
         if (isPlugInImageElement() && displayState() == WaitingForSnapshot && event->isMouseEvent() && event->type() == eventNames().clickEvent) {
             MouseEvent* mouseEvent = toMouseEvent(event);

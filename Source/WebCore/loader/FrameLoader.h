@@ -166,7 +166,6 @@ public:
     ResourceError cancelledError(const ResourceRequest&) const;
 
     bool isHostedByObjectElement() const;
-    bool isLoadingMainFrame() const;
 
     bool isReplacing() const;
     void setReplacing();
@@ -448,7 +447,7 @@ private:
 
     URL m_previousURL;
     RefPtr<HistoryItem> m_requestedHistoryItem;
-    OwnPtr<PageActivityAssertionToken> m_activityAssertion;
+    std::unique_ptr<PageActivityAssertionToken> m_activityAssertion;
 };
 
 // This function is called by createWindow() in JSDOMWindowBase.cpp, for example, for

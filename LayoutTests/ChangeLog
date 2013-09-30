@@ -1,3 +1,330 @@
+2013-09-30  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156656.
+        http://trac.webkit.org/changeset/156656
+        https://bugs.webkit.org/show_bug.cgi?id=122111
+
+        Broke several media tests (Requested by ap on #webkit).
+
+        * platform/mac/TestExpectations:
+        * platform/mac/media/video-no-audio-expected.txt:
+
+2013-09-30  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Changed expectation for accessibility/file-upload-button-stringvalue.html after r156532
+        https://bugs.webkit.org/show_bug.cgi?id=122103
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk1/TestExpectations: file-upload-button-stringvalue.html fails on efl-wk1.
+        Unskipped accessibility/heading-level.html. It passes after r156551.
+        * platform/efl-wk2/accessibility/file-upload-button-stringvalue-expected.txt:
+
+2013-09-27  Jer Noble  <jer.noble@apple.com>
+
+        REGRESSION(r156546): media/video-no-audio.html broken
+        https://bugs.webkit.org/show_bug.cgi?id=122049
+
+        Reviewed by Eric Carlson.
+
+        * platform/mac/TestExpectations:
+        * platform/mac/media/video-no-audio-expected.txt:
+
+2013-09-27  Jer Noble  <jer.noble@apple.com>
+
+        [Mac] Add AudioTrack support to MediaPlayerPrivateAVFObC.
+        https://bugs.webkit.org/show_bug.cgi?id=122043
+
+        Reviewed by Eric Carlson.
+
+        * media/track/audio-track-expected.txt: Added.
+        * media/track/audio-track.html: Added.
+
+2013-09-30  Robert Plociennik  <r.plociennik@samsung.com>
+
+        [EFL] Added passing expectation for fast/forms/textarea-metrics.html
+        https://bugs.webkit.org/show_bug.cgi?id=122107
+
+        Unreviewed EFL gardening.
+
+        fast/forms/textarea-metrics.html fails in WebKitTestRunner but returns expected
+        results in MiniBrowser. Since GTK uses platform dependent expectation file to
+        migitate this identical discrepancy, the same solution has been applied to EFL.
+
+        * platform/efl/TestExpectations:
+        * platform/efl/fast/forms/textarea-metrics-expected.txt: Added.
+
+2013-09-30  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Fix incorrect click counting in EventSenderProxy
+        https://bugs.webkit.org/show_bug.cgi?id=122098
+
+        Reviewed by Gyuyoung Kim.
+
+        After fixing EventSenderProxy extend-selection-after-double-click.html runs correctly.
+
+        * platform/efl/TestExpectations:
+
+2013-09-30  Robert Plociennik  <r.plociennik@samsung.com>
+
+        [EFL] Gardening after the resolution of bug 84835
+        https://bugs.webkit.org/show_bug.cgi?id=122096
+
+        Unreviewed EFL gardening.
+
+        Removed expected failures for bug 84835.
+        editing/pasteboard/copy-inside-h1-preserves-h1 and
+        editing/pasteboard/copy-without-selection are still failing due to bug 86623
+        and have been marked accordingly.
+
+        * platform/efl-wk1/TestExpectations:
+        * platform/efl/TestExpectations:
+
+2013-09-30  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed GTK gardening. Two tests are passing in WK2 after r156541.
+
+        * platform/gtk-wk2/TestExpectations: Removed passing tests.
+
+2013-09-30  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Accessibility tests pass after r156532 and r156551
+        https://bugs.webkit.org/show_bug.cgi?id=122090
+
+        Unreviewed EFL gardening.
+
+        * platform/efl-wk2/TestExpectations:
+
+2013-09-30  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] New test accessibility/table-with-hidden-head-section.html failing on EFL port
+        https://bugs.webkit.org/show_bug.cgi?id=111850
+
+        Reviewed by Mario Sanchez Prada.
+
+        Test passes after r156532.
+
+        * platform/efl/TestExpectations:
+
+2013-09-18  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Implement the grid-area shorthand
+        https://bugs.webkit.org/show_bug.cgi?id=103334
+
+        Reviewed by Andreas Kling.
+
+        From Blink r151684 by <jchaffraix@chromium.org>
+
+        * fast/css-grid-layout/grid-item-area-get-set-expected.txt: Added.
+        * fast/css-grid-layout/grid-item-area-get-set.html: Added.
+
+2013-09-30  Vani Hegde  <vani.hegde@samsung.com>
+
+        user-select: none cursor turns to I-beam on mouse dragging
+        https://bugs.webkit.org/show_bug.cgi?id=90159
+
+        Reviewed by Ryosuke Niwa.
+
+        Test case added to verify that explicitly set cursor style
+        is retained on performing text selection.
+
+        * editing/caret/selection-with-caret-type-progress-expected.txt: Added.
+        * editing/caret/selection-with-caret-type-progress.html: Added.
+
+2013-09-29  Philip Rogers  <pdr@google.com>
+
+        Repaint borders and outlines on pseudo content changes
+        https://bugs.webkit.org/show_bug.cgi?id=122070
+
+        Reviewed by Andreas Kling.
+
+        * fast/repaint/hover-pseudo-borders.html: Added.
+        * platform/mac/fast/repaint/hover-pseudo-borders-expected.png: Added.
+        * platform/mac/fast/repaint/hover-pseudo-borders-expected.txt: Added.
+
+2013-09-29  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed GTK gardening. Skip the IndexedDB tests for now as the feature is going
+        through substantial changes that don't ensure constant proper functionality.
+
+        * platform/gtk-wk2/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2013-09-28  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        filter: drop-shadow doesnot support viewport units
+        https://bugs.webkit.org/show_bug.cgi?id=122053
+
+        Reviewed by Darin Adler.
+
+        * fast/css/drop-shadow-viewport-height-expected-mismatch.html: Added.
+        * fast/css/drop-shadow-viewport-height.html: Added.
+        * fast/css/drop-shadow-viewport-vmax-expected-mismatch.html: Added.
+        * fast/css/drop-shadow-viewport-vmax.html: Added.
+        * fast/css/drop-shadow-viewport-vmin-expected-mismatch.html: Added.
+        * fast/css/drop-shadow-viewport-vmin.html: Added.
+        * fast/css/drop-shadow-viewport-width-expected-mismatch.html: Added.
+        * fast/css/drop-shadow-viewport-width.html: Added.
+        Added new tests for verifying that drop-shadow properties are applied
+        when its values are viewport units.
+
+2013-09-28  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        REGRESSION (r154614): Setting the document scroll position isn't symmetric; can successfully set document.body.scrollTop, but can only read from document.documentElement.scrollTop
+        https://bugs.webkit.org/show_bug.cgi?id=121876
+
+        Reviewed by Darin Adler.
+
+        * fast/dom/Element/body-scrollLeft-Quirks-expected.txt: Added.
+        * fast/dom/Element/body-scrollLeft-Quirks.html: Added.
+        * fast/dom/Element/body-scrollLeft-expected.txt: Added.
+        * fast/dom/Element/body-scrollLeft.html: Added.
+        * fast/dom/Element/body-scrollTop-Quirks-expected.txt: Added.
+        * fast/dom/Element/body-scrollTop-Quirks.html: Added.
+        * fast/dom/Element/body-scrollTop-expected.txt: Added.
+        * fast/dom/Element/body-scrollTop.html: Added.
+        * fast/dom/Element/documentElement-scrollLeft-Quirks-expected.txt: Added.
+        * fast/dom/Element/documentElement-scrollLeft-Quirks.html: Added.
+        * fast/dom/Element/documentElement-scrollLeft-expected.txt: Added.
+        * fast/dom/Element/documentElement-scrollLeft.html: Added.
+        * fast/dom/Element/documentElement-scrollTop-Quirks-expected.txt: Added.
+        * fast/dom/Element/documentElement-scrollTop-Quirks.html: Added.
+        * fast/dom/Element/documentElement-scrollTop-expected.txt: Added.
+        * fast/dom/Element/documentElement-scrollTop.html: Added.
+        Added test cases for verifying that Non-Quirks mode should set
+        scrolltop/scrollleft through document.documentElement.scrollTop/
+        document.documentElement.scrollLeft and Quirks mode should set/get
+        scrolltop/scrollleft through document.body.scrollTop/document.body.scrollLeft.
+
+        * fast/multicol/scrolling-overflow.html:
+        Rebaselining existing tests as per the new behavior. To set
+        document.body.scrollLeft document to be in Quirks mode.
+
+2013-09-27  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        [CSS Shapes] New positioning model: Positive margins
+        https://bugs.webkit.org/show_bug.cgi?id=118089
+
+        Reviewed by Alexandru Chiculita.
+
+        The remaining tests for shape-outside with positive margins. These
+        have all been imported from the CSSWG's repo.
+
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/resources/w3c-import.log:
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-005-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-005.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-006-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-006.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-007-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-007.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-008-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-008.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-009-expected.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/shape-outside-floats-margin-009.html: Added.
+        * csswg/contributors/adobe/submitted/shapes/shape-outside/w3c-import.log:
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test media/media-controller-playback.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122042
+
+        * platform/mac/TestExpectations: Marked as such.
+
+2013-09-27  Hans Muller  <hmuller@adobe.com>
+
+        Crash on shape-outside when using calc()
+        https://bugs.webkit.org/show_bug.cgi?id=121020
+
+        Reviewed by Dirk Schulze.
+
+        Specifying a CSS Shape geometry Length attribute with a calc() expression
+        or looking up the value with getComputedStyle(), caused crashes.
+
+        * fast/shapes/shape-inside/shape-inside-calc-crash-expected.txt: Added.
+        * fast/shapes/shape-inside/shape-inside-calc-crash.html: Added.
+        * css3/calc/simplification-expected.txt: Added
+        * css3/calc/simplification.html: Added
+        * LayoutTests/css3/calc/cssom-expected.txt:
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test animations/combo-transform-translate+scale.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122040
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test media/track/track-cue-overlap-snap-to-lines-not-set.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122039
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        animations/transform-non-accelerated.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122038
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-09-27  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156569.
+        http://trac.webkit.org/changeset/156569
+        https://bugs.webkit.org/show_bug.cgi?id=122035
+
+        broke a lot of mismatch tests (Requested by thorton on
+        #webkit).
+
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work-expected-mismatch.html: Removed.
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work.html: Removed.
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test media/video-duration-known-after-eos.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122033
+
+        * platform/mac/TestExpectations: Marked as such.
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        REGRESSION(r156546): 18 media tests broken
+        https://bugs.webkit.org/show_bug.cgi?id=122021
+
+        * platform/mac/TestExpectations: Adding one more test, media/track/track-cue-rendering-vertical.html
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] Intermittent crash on media/video-controls-captions-trackmenu.html
+        https://bugs.webkit.org/show_bug.cgi?id=110173
+
+        This code got rewritten, and the test now just fails. Fixing and re-enabling it
+        is tracked in a different bug.
+
+        * platform/mac/TestExpectations: Removing superfluous entry which was confusing the parser.
+
+2013-09-27  Tim Horton  <timothy_horton@apple.com>
+
+        [wk2] WebKitTestRunner's window snapshots are blank with tiled drawing
+        https://bugs.webkit.org/show_bug.cgi?id=122006
+        <rdar://problem/15095197>
+
+        Reviewed by Dean Jackson.
+
+        Add a test that ensures that WebKitTestRunner's snapshots are not
+        completely blank with tiled drawing enabled.
+
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work-expected-mismatch.html: Added.
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work.html: Added.
+
+2013-09-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test fast/animation/request-animation-frame-time-unit.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122031
+
+        * platform/mac/TestExpectations: Marking as such. Dean is going to look into
+        related issues soon.
+
 2013-09-27  Jer Noble  <jer.noble@apple.com>
 
         REGRESSION(r156546): 17 media tests broken

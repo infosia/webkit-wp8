@@ -291,7 +291,7 @@ void PageSerializer::serializeCSSStyleSheet(CSSStyleSheet* styleSheet, const URL
     }
 }
 
-void PageSerializer::addImageToResources(CachedImage* image, RenderObject* imageRenderer, const URL& url)
+void PageSerializer::addImageToResources(CachedImage* image, RenderElement* imageRenderer, const URL& url)
 {
     if (!url.isValid() || m_resourceURLs.contains(url))
         return;
@@ -332,8 +332,7 @@ void PageSerializer::retrieveResourcesForProperties(const StylePropertySet* styl
         if (!cssValue->isImageValue())
             continue;
 
-        CSSImageValue* imageValue = static_cast<CSSImageValue*>(cssValue.get());
-        StyleImage* styleImage = imageValue->cachedOrPendingImage();
+        StyleImage* styleImage = toCSSImageValue(cssValue.get())->cachedOrPendingImage();
         // Non cached-images are just place-holders and do not contain data.
         if (!styleImage || !styleImage->isCachedImage())
             continue;

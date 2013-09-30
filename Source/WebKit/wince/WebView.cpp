@@ -99,13 +99,13 @@ WebView::WebView(HWND hwnd, unsigned features)
     pageClients.inspectorClient = new WebKit::InspectorClientWinCE(this);
     m_page = new Page(pageClients);
 
-    Settings* settings = m_page->settings();
-    settings->setDefaultFixedFontSize(14);
-    settings->setDefaultFontSize(14);
-    settings->setMinimumFontSize(8);
-    settings->setMinimumLogicalFontSize(8);
-    settings->setScriptEnabled(true);
-    settings->setLoadsImagesAutomatically(true);
+    Settings& settings = m_page->settings();
+    settings.setDefaultFixedFontSize(14);
+    settings.setDefaultFontSize(14);
+    settings.setMinimumFontSize(8);
+    settings.setMinimumLogicalFontSize(8);
+    settings.setScriptEnabled(true);
+    settings.setLoadsImagesAutomatically(true);
 
     WebKit::FrameLoaderClientWinCE* loaderClient = new WebKit::FrameLoaderClientWinCE(this);
     RefPtr<Frame> frame = Frame::create(m_page, 0, loaderClient);
@@ -411,12 +411,12 @@ LRESULT WebView::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case WM_LBUTTONUP:
         case WM_MBUTTONUP:
         case WM_RBUTTONUP:
-            if (frame()->eventHandler() && view()->didFirstLayout())
+            if (view()->didFirstLayout())
                 handled = handleMouseEvent(hWnd, message, wParam, lParam);
             break;
 
         case WM_MOUSEWHEEL:
-            if (frame()->eventHandler() && view()->didFirstLayout())
+            if (view()->didFirstLayout())
                 handled = handleMouseWheel(hWnd, wParam, lParam, wParam & MK_SHIFT);
             break;
 

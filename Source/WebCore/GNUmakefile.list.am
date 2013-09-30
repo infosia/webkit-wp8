@@ -2536,8 +2536,6 @@ webcore_sources += \
 	Source/WebCore/bindings/js/WorkerScriptController.h \
 	Source/WebCore/bindings/js/WorkerScriptDebugServer.cpp \
 	Source/WebCore/bindings/js/WorkerScriptDebugServer.h \
-	Source/WebCore/bindings/ScriptControllerBase.cpp \
-	Source/WebCore/bindings/ScriptControllerBase.h \
 	Source/WebCore/bridge/Bridge.h \
 	Source/WebCore/bridge/c/c_class.cpp \
 	Source/WebCore/bridge/c/c_class.h \
@@ -5959,8 +5957,6 @@ platform_sources += \
 	Source/WebCore/platform/network/ProxyServer.h \
 	Source/WebCore/platform/text/enchant/TextCheckerEnchant.h \
 	Source/WebCore/platform/text/enchant/TextCheckerEnchant.cpp \
-	Source/WebCore/platform/text/transcoder/FontTranscoder.cpp \
-	Source/WebCore/platform/text/transcoder/FontTranscoder.h \
 	Source/WebCore/platform/text/BidiContext.cpp \
 	Source/WebCore/platform/text/BidiContext.h \
 	Source/WebCore/platform/text/BidiResolver.h \

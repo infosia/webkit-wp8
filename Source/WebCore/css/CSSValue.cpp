@@ -389,7 +389,7 @@ void CSSValue::destroy()
         delete static_cast<CSSBorderImageSliceValue*>(this);
         return;
     case CanvasClass:
-        delete static_cast<CSSCanvasValue*>(this);
+        delete toCSSCanvasValue(this);
         return;
     case CursorImageClass:
         delete static_cast<CSSCursorImageValue*>(this);
@@ -407,22 +407,22 @@ void CSSValue::destroy()
         delete static_cast<CSSFunctionValue*>(this);
         return;
     case LinearGradientClass:
-        delete static_cast<CSSLinearGradientValue*>(this);
+        delete toCSSLinearGradientValue(this);
         return;
     case RadialGradientClass:
-        delete static_cast<CSSRadialGradientValue*>(this);
+        delete toCSSRadialGradientValue(this);
         return;
     case CrossfadeClass:
-        delete static_cast<CSSCrossfadeValue*>(this);
+        delete toCSSCrossfadeValue(this);
         return;
     case ImageClass:
-        delete static_cast<CSSImageValue*>(this);
+        delete toCSSImageValue(this);
         return;
     case InheritedClass:
         delete static_cast<CSSInheritedValue*>(this);
         return;
     case InitialClass:
-        delete static_cast<CSSInitialValue*>(this);
+        delete toCSSInitialValue(this);
         return;
     case PrimitiveClass:
         delete static_cast<CSSPrimitiveValue*>(this);
@@ -449,10 +449,10 @@ void CSSValue::destroy()
         delete toWebKitCSSTransformValue(this);
         return;
     case LineBoxContainClass:
-        delete static_cast<CSSLineBoxContainValue*>(this);
+        delete toCSSLineBoxContainValue(this);
         return;
     case CalculationClass:
-        delete static_cast<CSSCalcValue*>(this);
+        delete toCSSCalcValue(this);
         return;
 #if ENABLE(CSS_IMAGE_SET)
     case ImageSetClass:
@@ -461,7 +461,7 @@ void CSSValue::destroy()
 #endif
 #if ENABLE(CSS_FILTERS)
     case FilterImageClass:
-        delete static_cast<CSSFilterImageValue*>(this);
+        delete toCSSFilterImageValue(this);
         return;
     case WebKitCSSFilterClass:
         delete toWebKitCSSFilterValue(this);

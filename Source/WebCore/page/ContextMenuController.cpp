@@ -60,7 +60,6 @@
 #include "Node.h"
 #include "Page.h"
 #include "PlatformEvent.h"
-#include "RenderObject.h"
 #include "ReplaceSelectionCommand.h"
 #include "ResourceRequest.h"
 #include "Settings.h"
@@ -922,7 +921,7 @@ void ContextMenuController::populate()
                 }
 #endif
 
-                if (frame->page() && frame != &frame->page()->mainFrame())
+                if (frame->page() && !frame->isMainFrame())
                     appendItem(OpenFrameItem, m_contextMenu.get());
             }
         }
