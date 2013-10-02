@@ -1,3 +1,324 @@
+2013-10-01  Filip Pizlo  <fpizlo@apple.com>
+
+        Variable event stream (for DFG OSR exit) should be explicit about where on the stack a SetLocal put a value
+        https://bugs.webkit.org/show_bug.cgi?id=122178
+
+        Reviewed by Geoffrey Garen.
+        
+        Now if the DFG stores the value of a variable into the stack explicitly via a SetLocal,
+        it will record where on the stack it stored the value in addition to recording where on
+        the stack the bytecode would have done the SetLocal. Previously it just recorded the
+        format and the bytecode variable. Recording just the bytecode variable is currently fine
+        since the DFG always executes SetLocal's to the same stack location that the bytecode
+        would have used. But that prevents stack compression (webkit.org/b/122024) so this patch
+        allows the SetLocal to say both the bytecode variable that we're speaking of and the
+        actual stack location to which the SetLocal stored the value.
+        
+        This had to touch a lot of code, so I took the opportunity to also resolve
+        webkit.org/b/108019.
+
+        * bytecode/Operands.h:
+        (JSC::Operands::hasOperand):
+        * dfg/DFGFlushFormat.h:
+        (JSC::DFG::dataFormatFor):
+        * dfg/DFGMinifiedID.h:
+        (JSC::DFG::MinifiedID::bits):
+        (JSC::DFG::MinifiedID::invalidID):
+        (JSC::DFG::MinifiedID::otherInvalidID):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileMovHint):
+        (JSC::DFG::SpeculativeJIT::compileInlineStart):
+        (JSC::DFG::SpeculativeJIT::compileCurrentBlock):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::recordSetLocal):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGValueSource.cpp:
+        (JSC::DFG::ValueSource::dump):
+        * dfg/DFGValueSource.h:
+        (JSC::DFG::ValueSource::ValueSource):
+        (JSC::DFG::ValueSource::forFlushFormat):
+        (JSC::DFG::ValueSource::forDataFormat):
+        (JSC::DFG::ValueSource::isSet):
+        (JSC::DFG::ValueSource::kind):
+        (JSC::DFG::ValueSource::valueRecovery):
+        (JSC::DFG::ValueSource::id):
+        (JSC::DFG::ValueSource::virtualRegister):
+        * dfg/DFGVariableEvent.cpp:
+        (JSC::DFG::VariableEvent::dump):
+        (JSC::DFG::VariableEvent::dumpSpillInfo):
+        * dfg/DFGVariableEvent.h:
+        (JSC::DFG::VariableEvent::fillGPR):
+        (JSC::DFG::VariableEvent::fillPair):
+        (JSC::DFG::VariableEvent::fillFPR):
+        (JSC::DFG::VariableEvent::spill):
+        (JSC::DFG::VariableEvent::death):
+        (JSC::DFG::VariableEvent::setLocal):
+        (JSC::DFG::VariableEvent::movHint):
+        (JSC::DFG::VariableEvent::id):
+        (JSC::DFG::VariableEvent::gpr):
+        (JSC::DFG::VariableEvent::tagGPR):
+        (JSC::DFG::VariableEvent::payloadGPR):
+        (JSC::DFG::VariableEvent::fpr):
+        (JSC::DFG::VariableEvent::spillRegister):
+        (JSC::DFG::VariableEvent::bytecodeRegister):
+        (JSC::DFG::VariableEvent::machineRegister):
+        (JSC::DFG::VariableEvent::variableRepresentation):
+        * dfg/DFGVariableEventStream.cpp:
+        (JSC::DFG::VariableEventStream::reconstruct):
+
+2013-10-01  Nadav Rotem  <nrotem@apple.com>
+
+        FTL: split overflow checks into non-overflow arithmetic and an additional call to the overflow intrinsic check.
+        https://bugs.webkit.org/show_bug.cgi?id=122170
+
+        Reviewed by Filip Pizlo.
+
+        Overflow intrinsics are preventing SCEV and other LLVM analysis passes from analyzing loops. This patch changes the FTL-IR gen by splitting arithmetic calculations into two parts:
+        1. Generate the arithmetic calculation (that may overflow)
+        2. Generate the overflow check (that is only used by the OSR-exit logic).
+
+        We trust LLVM (SelectionDAG) to merge these calculations into a single opcode.
+
+        This JS function:
+
+        function foo() {
+            for (i=0; i < 10000000; i++) { }
+        }
+
+        Is now compiled into this LLVM-IR: 
+
+        "OSR exit continuation for @24<Int32>":           ; preds = %"Block #0", %"OSR exit continuation for @24<Int32>2"
+          %4 = phi i64 [ %10, %"OSR exit continuation for @24<Int32>2" ], [ -281474976710656, %"Block #0" ]
+          %5 = trunc i64 %4 to i32
+          %6 = add i32 %5, 1
+          %7 = tail call { i32, i1 } @llvm.sadd.with.overflow.i32(i32 %5, i32 1)
+          %8 = extractvalue { i32, i1 } %7, 1
+          br i1 %8, label %"OSR exit failCase for @24<Int32>1", label %"OSR exit continuation for @24<Int32>2"
+
+         And into this assembly:
+
+        LBB0_1:                                 ## %OSR exit continuation for @24<Int32>
+                                        ## =>This Inner Loop Header: Depth=1
+            movl  %ecx, %esi
+            incl  %esi
+            jo  LBB0_4
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileAddSub):
+        (JSC::FTL::LowerDFGToLLVM::compileArithMul):
+        (JSC::FTL::LowerDFGToLLVM::compileArithNegate):
+
+2013-10-01  Nadav Rotem  <nrotem@apple.com>
+
+        Consolidate multiple OSRExit calls into one.
+        https://bugs.webkit.org/show_bug.cgi?id=122168
+
+        Reviewed by Filip Pizlo.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileArithMul):
+        (JSC::FTL::LowerDFGToLLVM::compileArithDiv):
+        (JSC::FTL::LowerDFGToLLVM::compileArithMod):
+
+2013-09-30  Filip Pizlo  <fpizlo@apple.com>
+
+        SpeculativeJIT::m_arguments/m_variables are vestiges of a time long gone
+        https://bugs.webkit.org/show_bug.cgi?id=122140
+
+        Reviewed by Darin Adler.
+        
+        Just killing code.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::SpeculativeJIT):
+        (JSC::DFG::SpeculativeJIT::compileInlineStart):
+        (JSC::DFG::SpeculativeJIT::compileCurrentBlock):
+        (JSC::DFG::SpeculativeJIT::checkArgumentTypes):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::recordSetLocal):
+
+2013-10-01  Daniel Bates  <dabates@apple.com>
+
+        [iOS] JavaScriptCore fails to build with newer versions of clang
+        https://bugs.webkit.org/show_bug.cgi?id=122162
+
+        Reviewed by Darin Adler.
+
+        * runtime/GCActivityCallback.cpp: Add !PLATFORM(IOS)-guard around constant pagingTimeOut
+        as we don't compile the code that uses it on iOS.
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        Remove support for DOMFileSystem
+        https://bugs.webkit.org/show_bug.cgi?id=122137
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-30  Dan Bernstein  <mitz@apple.com>
+
+        <rdar://problem/15114974> Assertion failure under -[JSObjCClassInfo allocateConstructorAndPrototypeWithSuperClassInfo:] if no classes conform to JSExport
+        https://bugs.webkit.org/show_bug.cgi?id=122124
+
+        Reviewed by Darin Adler.
+
+        * API/JSWrapperMap.mm: Defined an empty class that conforms to the JSExport protocol, to
+        ensure that the protocol is always registered with the runtime by the time
+        getJSExportProtocol() is called.
+
+2013-09-30  Benjamin Poulain  <benjamin@webkit.org>
+
+        Remove the code guarded by STYLE_SCOPED
+        https://bugs.webkit.org/show_bug.cgi?id=122123
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-30  Andreas Kling  <akling@apple.com>
+
+        Pass VM instead of ExecState to ObjectPrototype constructor.
+        <https://webkit.org/b/122116>
+
+        Reviewed by Geoffrey Garen.
+
+        The ObjectPrototype constructor was only using the ExecState to get
+        to the VM.
+
+2013-09-30  Andreas Kling  <akling@apple.com>
+
+        Pass VM instead of JSGlobalObject to MathObject constructor.
+        <https://webkit.org/b/122119>
+
+        Reviewed by Geoffrey Garen.
+
+        The MathObject constructor was only using the global object to get
+        to the VM. finishCreation() still uses it to set up functions.
+
+2013-09-30  Filip Pizlo  <fpizlo@apple.com>
+
+        Get rid of the AlreadyInJSStack recoveries since they are totally redundant with the DisplacedInJSStack recoveries
+        https://bugs.webkit.org/show_bug.cgi?id=122065
+
+        Reviewed by Mark Hahnenberg.
+        
+        This mostly just kills a bunch of code.
+        
+        But incidentaly while killing that code, I uncovered a bug in our FTL OSR entrypoint
+        creation phase. The phase inserts a sequence of SetLocal(ExtractOSREntryLocal) nodes.
+        If we hoist some type check into the local, then we might inject a conversion node
+        between the ExtractOSREntryLocal and the SetLocal - for example we might put in a
+        Int32ToDouble node. But currently the FixupPhase will make all conversion nodes placed
+        on an edge of a SetLocal use forward exit. This then confuses the OSR exit machinery.
+        When OSR exit sees a forward exit, it tries to "roll forward" execution from the exiting
+        node to the first node that has a different CodeOrigin. This only works if the nodes
+        after the forward exit are MovHints or other tnings that the OSR exit compiler can
+        forward-execute. But here, it will see a bunch of SetLocal and ExtractOSREntryLocal
+        nodes for the same bytecode index. Two possible solutions exist. We could teach the
+        forward-execution logic how to deal with multiple SetLocals and ExtractOSREntryLocals.
+        This would be a lot of complexity; right now it just needs to deal with exactly one
+        SetLocal-like operation. The alternative is to make sure that the conversion node that
+        we inject ends up exiting *backward* rather than forward.
+        
+        But making the conversion nodes exit backward is somewhat tricky. Before this patch,
+        conversion nodes always exit forward for SetLocals and backwards otherwise. It turns out
+        that the solution is to rationalize how we choose the speculation direciton for a
+        conversion node. The conversion node's speculation direction should be the same as the
+        speculation direction of the node for which it is doing a conversion. Since SetLocal's
+        already exit forward by default, this policy preserves our previous behavior. But it
+        also allows the OSR entrypoint creation phase to make its SetLocals exit backward
+        instead.
+        
+        Of course, if the SetLocal(ExtractOSREntryLocal) sequences exit backward, then we need
+        to make sure that the OSR exit machine knows that the local variables are indeed live.
+        Consider that if we have:
+        
+            a: ExtractOSREntryLocal(loc1)
+            b: SetLocal(@a, loc1)
+            c: ExtractOSRentryLocal(loc2)
+            d: SetLocal(@c, loc2)
+        
+        Without additional magic, the exit at @b will think that loc2 is dead and the OSR exit
+        compiler will clobber loc2 with Undefined. So we need to make sure that we actually
+        emit code like:
+        
+            a: ExtractOSREntryLocal(loc1)
+            b: ExtractOSREntryLocal(loc2)
+            c: SetLocal(@a, loc1)
+            d: SetLocal(@b, loc2)
+            e: SetLocal(@a, loc1)
+            f: SetLocal(@b, loc2)
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * Target.pri:
+        * bytecode/CodeOrigin.h:
+        * bytecode/ValueRecovery.cpp: Added.
+        (JSC::ValueRecovery::recover):
+        (JSC::ValueRecovery::dumpInContext):
+        (JSC::ValueRecovery::dump):
+        * bytecode/ValueRecovery.h:
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupSetLocalsInBlock):
+        (JSC::DFG::FixupPhase::fixEdge):
+        * dfg/DFGJITCode.cpp:
+        (JSC::DFG::JITCode::reconstruct):
+        * dfg/DFGNode.h:
+        (JSC::DFG::Node::speculationDirection):
+        (JSC::DFG::Node::setSpeculationDirection):
+        * dfg/DFGOSREntrypointCreationPhase.cpp:
+        (JSC::DFG::OSREntrypointCreationPhase::run):
+        * dfg/DFGOSRExitCompiler32_64.cpp:
+        (JSC::DFG::OSRExitCompiler::compileExit):
+        * dfg/DFGOSRExitCompiler64.cpp:
+        (JSC::DFG::OSRExitCompiler::compileExit):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileInlineStart):
+        (JSC::DFG::SpeculativeJIT::computeValueRecoveryFor):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::computeValueRecoveryFor):
+        * dfg/DFGValueSource.h:
+        (JSC::DFG::ValueSource::valueRecovery):
+        * dfg/DFGVariableEventStream.cpp:
+        (JSC::DFG::VariableEventStream::reconstruct):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::speculate):
+        (JSC::FTL::LowerDFGToLLVM::speculateMachineInt):
+        * interpreter/Register.h:
+        (JSC::Register::unboxedStrictInt52):
+        * runtime/Arguments.cpp:
+        (JSC::Arguments::tearOff):
+        * runtime/Arguments.h:
+
+2013-09-30  Alex Christensen  <alex.christensen@flexsim.com>
+
+        Win64 compile fix after r1256490.
+        https://bugs.webkit.org/show_bug.cgi?id=122117
+
+        Reviewed by Michael Saboff.
+
+        * jit/JITStubsMSVC64.asm:
+        Implemented getHostCallReturnValue for Windows x86_64 processors.
+
+2013-09-30  Andreas Kling  <akling@apple.com>
+
+        Pass VM instead of JSGlobalObject to RegExp constructor.
+        <https://webkit.org/b/122113>
+
+        Reviewed by Darin Adler.
+
+        RegExps don't need anything from the global object during their
+        construction and only use it to get to the VM. Reduce loads by
+        simply passing the VM around instead.
+
+        JSC release binary size -= 120 bytes(!)
+
 2013-09-30  Patrick Gansterer  <paroga@webkit.org>
 
         Fix compilation for COMPILER(MSVC) && !CPU(X86) after r156490.

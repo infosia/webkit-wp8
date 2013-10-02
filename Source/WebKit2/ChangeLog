@@ -1,3 +1,284 @@
+2013-10-01  Mark Rowe  <mrowe@apple.com>
+
+        <http://webkit.org/b/122190> WebKit2 APIs returning CF and NS types should explicitly declare whether they return retained objects.
+
+        This make the APIs easier to use under ARC and can help out the static analyzer.
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/API/c/cf/WKErrorCF.h:
+        * Shared/API/c/cf/WKStringCF.h:
+        * Shared/API/c/cf/WKURLCF.h:
+        * Shared/API/c/cg/WKImageCG.h:
+        * Shared/API/c/mac/WKURLRequestNS.h:
+        * Shared/API/c/mac/WKURLResponseNS.h:
+        * UIProcess/API/C/cg/WKIconDatabaseCG.h:
+
+2013-10-01  Gabor Abraham  <abrhm@inf.u-szeged.hu>
+
+        [Qt][WK2] Fix build after r156688.
+        https://bugs.webkit.org/show_bug.cgi?id=122153
+
+        Reviewed by Allan Sandfeld Jensen.
+
+        * Shared/qt/ShareableBitmapQt.cpp:
+        (WebKit::ShareableBitmap::createGraphicsContext):
+        * UIProcess/API/qt/qquickwebview.cpp:
+        (QQuickWebViewPrivate::createDrawingAreaProxy):
+        * UIProcess/API/qt/qquickwebview_p_p.h:
+        * UIProcess/API/qt/raw/qrawwebview.cpp:
+        (QRawWebViewPrivate::createDrawingAreaProxy):
+        * UIProcess/API/qt/raw/qrawwebview_p_p.h:
+        * UIProcess/qt/QtPageClient.cpp:
+        (WebKit::QtPageClient::createDrawingAreaProxy):
+        * UIProcess/qt/QtPageClient.h:
+        * WebProcess/WebCoreSupport/qt/WebDragClientQt.cpp:
+        (WebKit::convertQPixmapToShareableBitmap):
+
+2013-09-30  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Build fix for EFL, Qt, Gtk port after r156688
+        https://bugs.webkit.org/show_bug.cgi?id=122139
+
+        Reviewed by Anders Carlsson.
+
+        Get rid of more uses of OwnPtr and PassOwnPtr.
+
+        * Shared/API/c/cairo/WKImageCairo.cpp:
+        (WKImageCreateFromCairoSurface):
+        * Shared/API/c/qt/WKImageQt.cpp:
+        (WKImageCreateFromQImage):
+        * Shared/CoordinatedGraphics/WebCoordinatedSurface.cpp:
+        (WebKit::WebCoordinatedSurface::createGraphicsContext):
+        (WebKit::WebCoordinatedSurface::paintToSurface):
+        * Shared/CoordinatedGraphics/WebCoordinatedSurface.h:
+        * Shared/cairo/ShareableBitmapCairo.cpp:
+        (WebKit::ShareableBitmap::createGraphicsContext):
+        * Shared/gtk/ArgumentCodersGtk.cpp:
+        (CoreIPC::encodeImage):
+        * UIProcess/API/gtk/PageClientImpl.cpp:
+        (WebKit::PageClientImpl::createDrawingAreaProxy):
+        * UIProcess/API/gtk/PageClientImpl.h:
+        * UIProcess/CoordinatedGraphics/WebView.cpp:
+        (WebKit::WebView::createDrawingAreaProxy):
+        * UIProcess/CoordinatedGraphics/WebView.h:
+        * WebProcess/WebCoreSupport/gtk/WebDragClientGtk.cpp:
+        (WebKit::convertCairoSurfaceToShareableBitmap):
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        Remove support for DOMFileSystem
+        https://bugs.webkit.org/show_bug.cgi?id=122137
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-30  Anders Carlsson  <andersca@apple.com>
+
+        Fix build.
+
+        * NetworkProcess/mac/RemoteNetworkingContext.mm:
+
+2013-09-30  Anders Carlsson  <andersca@apple.com>
+
+        Get rid of more uses of OwnPtr and PassOwnPtr
+        https://bugs.webkit.org/show_bug.cgi?id=122136
+
+        Reviewed by Antti Koivisto.
+
+        * NetworkProcess/AsynchronousNetworkLoaderClient.h:
+        * NetworkProcess/FileAPI/NetworkBlobRegistry.cpp:
+        (WebKit::NetworkBlobRegistry::registerBlobURL):
+        * NetworkProcess/FileAPI/NetworkBlobRegistry.h:
+        * NetworkProcess/NetworkResourceLoader.cpp:
+        (WebKit::NetworkResourceLoader::NetworkResourceLoader):
+        * NetworkProcess/NetworkResourceLoader.h:
+        * NetworkProcess/SynchronousNetworkLoaderClient.h:
+        * NetworkProcess/mac/RemoteNetworkingContext.mm:
+        * Platform/CoreIPC/ArgumentDecoder.h:
+        * Platform/CoreIPC/ArgumentEncoder.h:
+        * Platform/CoreIPC/MessageDecoder.cpp:
+        (CoreIPC::MessageDecoder::setImportanceAssertion):
+        * Platform/CoreIPC/MessageDecoder.h:
+        * Platform/CoreIPC/mac/ConnectionMac.cpp:
+        (CoreIPC::Connection::receiveSourceEventHandler):
+        * Platform/CoreIPC/mac/ImportanceAssertion.h:
+        (CoreIPC::ImportanceAssertion::ImportanceAssertion):
+        * Platform/mac/LayerHostingContext.h:
+        * Platform/mac/LayerHostingContext.mm:
+        (WebKit::LayerHostingContext::createForPort):
+        (WebKit::LayerHostingContext::createForWindowServer):
+        * PluginProcess/PluginControllerProxy.cpp:
+        (WebKit::PluginControllerProxy::paint):
+        * PluginProcess/PluginControllerProxy.h:
+        * PluginProcess/WebProcessConnection.cpp:
+        (WebKit::WebProcessConnection::addPluginControllerProxy):
+        (WebKit::WebProcessConnection::removePluginControllerProxy):
+        (WebKit::WebProcessConnection::createPluginInternal):
+        * PluginProcess/WebProcessConnection.h:
+        * Shared/API/c/cg/WKImageCG.cpp:
+        (WKImageCreateFromCGImage):
+        * Shared/BlockingResponseMap.h:
+        (BlockingResponseMap::waitForResponse):
+        (BlockingResponseMap::didReceiveResponse):
+        * Shared/Downloads/Download.cpp:
+        * Shared/Downloads/Download.h:
+        * Shared/Downloads/DownloadManager.cpp:
+        (WebKit::DownloadManager::startDownload):
+        (WebKit::DownloadManager::convertHandleToDownload):
+        * Shared/FileAPI/BlobRegistrationData.cpp:
+        (WebKit::BlobRegistrationData::BlobRegistrationData):
+        (WebKit::BlobRegistrationData::releaseData):
+        (WebKit::BlobRegistrationData::decode):
+        * Shared/FileAPI/BlobRegistrationData.h:
+        * Shared/Plugins/NPObjectMessageReceiver.cpp:
+        * Shared/Plugins/NPObjectMessageReceiver.h:
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::registerNPObject):
+        * Shared/Plugins/Netscape/NetscapePluginModule.cpp:
+        (WebKit::NetscapePluginModule::tryLoad):
+        * Shared/Plugins/Netscape/NetscapePluginModule.h:
+        * Shared/ShareableBitmap.h:
+        * Shared/WebURL.h:
+        (WebKit::WebURL::create):
+        (WebKit::WebURL::WebURL):
+        (WebKit::WebURL::parseURLIfNecessary):
+        * Shared/cg/ShareableBitmapCG.cpp:
+        (WebKit::ShareableBitmap::createGraphicsContext):
+        (WebKit::ShareableBitmap::makeCGImageCopy):
+        * Shared/mac/SecItemShim.cpp:
+        (WebKit::sendSecItemRequest):
+        (WebKit::webSecItemCopyMatching):
+        (WebKit::webSecItemAdd):
+        (WebKit::webSecItemUpdate):
+        (WebKit::webSecItemDelete):
+        (WebKit::SecItemShim::secItemResponse):
+        * UIProcess/API/mac/FindIndicatorWindow.h:
+        * UIProcess/API/mac/PageClientImpl.h:
+        * UIProcess/API/mac/PageClientImpl.mm:
+        (WebKit::PageClientImpl::createDrawingAreaProxy):
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView std::WebKit::]):
+        (-[WKView initWithFrame:contextRef:pageGroupRef:relatedToPage:]):
+        * UIProcess/API/mac/WKViewInternal.h:
+        * UIProcess/BackingStore.cpp:
+        * UIProcess/BackingStore.h:
+        * UIProcess/DrawingAreaProxyImpl.cpp:
+        (WebKit::DrawingAreaProxyImpl::incorporateUpdate):
+        * UIProcess/DrawingAreaProxyImpl.h:
+        * UIProcess/Launcher/mac/DynamicLinkerEnvironmentExtractor.mm:
+        * UIProcess/PageClient.h:
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/mac/RemoteLayerTreeDrawingAreaProxy.h:
+        * UIProcess/mac/RemoteLayerTreeDrawingAreaProxy.mm:
+        * UIProcess/mac/TiledCoreAnimationDrawingAreaProxy.h:
+        * WebProcess/FileAPI/BlobRegistryProxy.cpp:
+        (WebKit::BlobRegistryProxy::registerBlobURL):
+        * WebProcess/FileAPI/BlobRegistryProxy.h:
+        * WebProcess/InjectedBundle/API/c/WKBundlePageOverlay.cpp:
+        * WebProcess/InjectedBundle/API/c/mac/WKBundlePageBannerMac.mm:
+        (WKBundlePageBannerCreateBannerWithCALayer):
+        * WebProcess/InjectedBundle/DOM/InjectedBundleNodeHandle.cpp:
+        (WebKit::imageForRect):
+        * WebProcess/Plugins/Netscape/NetscapePlugin.cpp:
+        (WebKit::NetscapePlugin::scheduleTimer):
+        (WebKit::NetscapePlugin::unscheduleTimer):
+        (WebKit::NetscapePlugin::snapshot):
+        * WebProcess/Plugins/Netscape/NetscapePlugin.h:
+        * WebProcess/Plugins/Netscape/NetscapePluginStream.cpp:
+        * WebProcess/Plugins/PDF/PDFPlugin.mm:
+        (WebKit::PDFPlugin::snapshot):
+        * WebProcess/Plugins/PluginProxy.cpp:
+        (WebKit::PluginProxy::paint):
+        (WebKit::PluginProxy::update):
+        * WebProcess/WebCoreSupport/mac/WebDragClientMac.mm:
+        (WebKit::convertImageToBitmap):
+        * WebProcess/WebPage/DrawingArea.cpp:
+        (WebKit::DrawingArea::create):
+        * WebProcess/WebPage/DrawingArea.h:
+        * WebProcess/WebPage/DrawingAreaImpl.cpp:
+        (WebKit::DrawingAreaImpl::display):
+        * WebProcess/WebPage/DrawingAreaImpl.h:
+        * WebProcess/WebPage/FindController.cpp:
+        (WebKit::FindController::getFindIndicatorBitmapAndRect):
+        * WebProcess/WebPage/WebFrame.cpp:
+        (WebKit::WebFrame::createWithCoreMainFrame):
+        (WebKit::WebFrame::createSubframe):
+        (WebKit::WebFrame::create):
+        (WebKit::WebFrame::WebFrame):
+        * WebProcess/WebPage/WebFrame.h:
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::scaledSnapshotWithOptions):
+        (WebKit::WebPage::drawRectToImage):
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/mac/LayerTreeHostMac.h:
+        * WebProcess/WebPage/mac/RemoteLayerTreeContext.h:
+        * WebProcess/WebPage/mac/RemoteLayerTreeContext.mm:
+        * WebProcess/WebPage/mac/RemoteLayerTreeDrawingArea.h:
+        * WebProcess/WebPage/mac/RemoteLayerTreeDrawingArea.mm:
+        (WebKit::RemoteLayerTreeDrawingArea::RemoteLayerTreeDrawingArea):
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.h:
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.mm:
+
+2013-09-27  Anders Carlsson  <andersca@apple.com>
+
+        Message sending functions should only accept rvalues
+        https://bugs.webkit.org/show_bug.cgi?id=122041
+
+        Reviewed by Andreas Kling.
+
+        In order to safely encode move-only types, make all send variants accept rvalues only, except
+        for the "send to all processes" ones. For them, copy the message before sending. This ensures that trying
+        to send a move-only type in a message will fail to compile.
+
+        * NetworkProcess/NetworkResourceLoader.h:
+        (WebKit::NetworkResourceLoader::sendAbortingOnFailure):
+        * Platform/CoreIPC/Connection.h:
+        (CoreIPC::Connection::send):
+        (CoreIPC::Connection::sendSync):
+        * Platform/CoreIPC/MessageSender.h:
+        (CoreIPC::MessageSender::sendSync):
+        * Shared/ChildProcessProxy.h:
+        (WebKit::ChildProcessProxy::send):
+        (WebKit::ChildProcessProxy::sendSync):
+        * UIProcess/WebContext.h:
+        (WebKit::WebContext::sendToNetworkingProcess):
+        (WebKit::WebContext::sendToNetworkingProcessRelaunchingIfNecessary):
+        (WebKit::WebContext::sendToAllProcesses):
+        (WebKit::WebContext::sendToAllProcessesRelaunchingThemIfNecessary):
+        (WebKit::WebContext::sendToOneProcess):
+        * UIProcess/WebPageGroup.h:
+        (WebKit::WebPageGroup::sendToAllProcessesInGroup):
+
+2013-09-30  Benjamin Poulain  <benjamin@webkit.org>
+
+        Remove the code guarded by STYLE_SCOPED
+        https://bugs.webkit.org/show_bug.cgi?id=122123
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-09-30  Csaba Osztrogonác  <ossy@webkit.org>
+
+        NetworkResourceLoader.messages.in should be ENABLE(NETWORK_PROCESS) guarded
+        https://bugs.webkit.org/show_bug.cgi?id=122110
+
+        Reviewed by Darin Adler.
+
+        * NetworkProcess/NetworkResourceLoader.messages.in:
+
+2013-09-30  Mark Rowe  <mrowe@apple.com>
+
+        Fix the build when building against an SDK.
+
+        Xcode helpfully prepends $(SDKROOT) to the paths in FRAMEWORK_SEARCH_PATHS when generating
+        the compiler command lines. It can't know to do this for the system framework search paths
+        we add manually via OTHER_CFLAGS though, so we need to prefix them with $(SDKROOT) ourself.
+
+        * Configurations/BaseTarget.xcconfig:
+
 2013-09-30  Allan Sandfeld Jensen  <allan.jensen@digia.com>
 
         [Qt] Fix force_static_libs_as_shared in WebKit2

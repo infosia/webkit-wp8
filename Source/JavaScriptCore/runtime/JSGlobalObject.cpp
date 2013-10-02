@@ -238,7 +238,7 @@ void JSGlobalObject::reset(JSValue prototype)
     m_functionPrototype->addFunctionProperties(exec, this, &callFunction, &applyFunction);
     m_callFunction.set(vm, this, callFunction);
     m_applyFunction.set(vm, this, applyFunction);
-    m_objectPrototype.set(vm, this, ObjectPrototype::create(exec, this, ObjectPrototype::createStructure(vm, this, jsNull())));
+    m_objectPrototype.set(vm, this, ObjectPrototype::create(vm, this, ObjectPrototype::createStructure(vm, this, jsNull())));
     GetterSetter* protoAccessor = GetterSetter::create(vm);
     protoAccessor->setGetter(vm, JSFunction::create(vm, this, 0, String(), globalFuncProtoGetter));
     protoAccessor->setSetter(vm, JSFunction::create(vm, this, 0, String(), globalFuncProtoSetter));
@@ -298,7 +298,7 @@ void JSGlobalObject::reset(JSValue prototype)
 
     RegExp* emptyRegex = RegExp::create(vm, "", NoFlags);
     
-    m_regExpPrototype.set(vm, this, RegExpPrototype::create(exec, this, RegExpPrototype::createStructure(vm, this, m_objectPrototype.get()), emptyRegex));
+    m_regExpPrototype.set(vm, this, RegExpPrototype::create(vm, RegExpPrototype::createStructure(vm, this, m_objectPrototype.get()), emptyRegex));
     m_regExpStructure.set(vm, this, RegExpObject::createStructure(vm, this, m_regExpPrototype.get()));
 
 #if ENABLE(PROMISES)
@@ -388,7 +388,7 @@ void JSGlobalObject::reset(JSValue prototype)
     putDirectWithoutTransition(vm, vm.propertyNames->eval, m_evalFunction.get(), DontEnum);
 
     putDirectWithoutTransition(vm, vm.propertyNames->JSON, JSONObject::create(exec, this, JSONObject::createStructure(vm, this, m_objectPrototype.get())), DontEnum);
-    putDirectWithoutTransition(vm, vm.propertyNames->Math, MathObject::create(exec, this, MathObject::createStructure(vm, this, m_objectPrototype.get())), DontEnum);
+    putDirectWithoutTransition(vm, vm.propertyNames->Math, MathObject::create(vm, this, MathObject::createStructure(vm, this, m_objectPrototype.get())), DontEnum);
     
     FixedArray<InternalFunction*, NUMBER_OF_TYPED_ARRAY_TYPES> typedArrayConstructors;
     typedArrayConstructors[toIndex(TypeInt8)] = JSInt8ArrayConstructor::create(vm, JSInt8ArrayConstructor::createStructure(vm, this, m_functionPrototype.get()), m_typedArrays[toIndex(TypeInt8)].prototype.get(), "Int8Array");

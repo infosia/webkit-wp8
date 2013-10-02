@@ -38,10 +38,6 @@
 #include "WebSocket.h"
 #include <wtf/NeverDestroyed.h>
 
-#if ENABLE(FILE_SYSTEM)
-#include "AsyncFileSystem.h"
-#endif
-
 namespace WebCore {
 
 RuntimeEnabledFeatures::RuntimeEnabledFeatures()
@@ -75,9 +71,6 @@ RuntimeEnabledFeatures::RuntimeEnabledFeatures()
 #if ENABLE(GAMEPAD)
     , m_isGamepadEnabled(false)
 #endif
-#if ENABLE(FILE_SYSTEM)
-    , m_isFileSystemEnabled(false)
-#endif
 #if ENABLE(JAVASCRIPT_I18N_API)
     , m_isJavaScriptI18NAPIEnabled(false)
 #endif
@@ -106,9 +99,6 @@ RuntimeEnabledFeatures::RuntimeEnabledFeatures()
 #endif
 #if ENABLE(CUSTOM_ELEMENTS)
     , m_isCustomDOMElementsEnabled(false)
-#endif
-#if ENABLE(STYLE_SCOPED)
-    , m_isStyleScopedEnabled(false)
 #endif
 #if ENABLE(INPUT_TYPE_DATE)
     , m_isInputTypeDateEnabled(true)
@@ -146,13 +136,6 @@ RuntimeEnabledFeatures& RuntimeEnabledFeatures::sharedFeatures()
 
     return runtimeEnabledFeatures;
 }
-
-#if ENABLE(FILE_SYSTEM)
-bool RuntimeEnabledFeatures::fileSystemEnabled()
-{
-    return m_isFileSystemEnabled && AsyncFileSystem::isAvailable();
-}
-#endif
 
 #if ENABLE(JAVASCRIPT_I18N_API)
 bool RuntimeEnabledFeatures::javaScriptI18NAPIEnabled()

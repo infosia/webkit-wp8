@@ -1,3 +1,242 @@
+2013-10-01  Timothy Hatcher  <timothy@apple.com>
+
+        Fix some exceptions seen in the Buildbot Dashboard when looking at unloaded iterations.
+
+        Also fix some URLs to not have extras slashes and add a page title.
+
+        https://bugs.webkit.org/show_bug.cgi?id=122192
+
+        Reviewed by Joseph Pecoraro.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTesterQueueView.js:
+        (BuildbotTesterQueueView.prototype.update.appendBuilderQueueStatus):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/WebKitBuildbot.js:
+        (WebKitBuildbot.prototype.buildLogURLForIteration):
+        (WebKitBuildbot.prototype.layoutTestResultsURLForIteration):
+        (WebKitBuildbot.prototype.javascriptTestResultsURLForIteration):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/index.html:
+
+2013-10-01  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] Set NSApplication current event while sending events directly to views
+        https://bugs.webkit.org/show_bug.cgi?id=122179
+
+        Reviewed by Darin Adler.
+
+        DumpRenderTree and WebKitTestRunner send events directly to WebHMTLView or WKView,
+        which doesn't update [NSApp currentEvent]. But there are many places in WebKit that
+        use the current event.
+
+        * DumpRenderTree/mac/EventSendingController.mm:
+        (-[EventSendingController mouseDown:withModifiers:]):
+        (-[EventSendingController mouseUp:withModifiers:]):
+        (-[EventSendingController mouseMoveToX:Y:]):
+        (-[EventSendingController mouseScrollByX:andY:continuously:]):
+        (-[EventSendingController contextClick]):
+        (-[EventSendingController keyDown:withModifiers:withLocation:]):
+        * WebKitTestRunner/mac/EventSenderProxy.mm:
+        (WTR::EventSenderProxy::mouseDown):
+        (WTR::EventSenderProxy::mouseUp):
+        (WTR::EventSenderProxy::mouseMoveTo):
+        (WTR::EventSenderProxy::keyDown):
+        (WTR::EventSenderProxy::mouseScrollBy):
+        Update the current event. We were already using the SPI in WebKit.
+
+2013-10-01  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Buildbot Dashboard: Fix JSHint issue: 'perlTestResults' used out of scope.
+        https://bugs.webkit.org/show_bug.cgi?id=122183
+
+        Reviewed by Timothy Hatcher.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotIteration.js:
+        (BuildbotIteration.prototype.update):
+
+2013-10-01  Timothy Hatcher  <timothy@apple.com>
+
+        Tweaks to the Buildbot Dashboard
+
+        https://bugs.webkit.org/show_bug.cgi?id=122169
+
+        Reviewed by Alexey Proskuryakov.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotBuilderQueueView.js:
+        (BuildbotBuilderQueueView.prototype.update.appendBuilderQueueStatus):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotQueueView.js:
+        (BuildbotQueueView.prototype.revisionLinksForIteration):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTesterQueueView.js:
+        (BuildbotTesterQueueView.prototype.update.appendBuilderQueueStatus):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/Initialization.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/Main.js:
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/WebKitBuildbot.js:
+        (WebKitBuildbot.prototype.buildLogURLForIteration):
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/index.html:
+
+2013-10-01  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r156725.
+        http://trac.webkit.org/changeset/156725
+        https://bugs.webkit.org/show_bug.cgi?id=122176
+
+        broke all the mismatch tests again (Requested by thorton on
+        #webkit).
+
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+
+2013-10-01  Alex Christensen  <achristensen@webkit.org>
+
+        Implemented createWebViewWithRequest in WinLauncher.
+        https://bugs.webkit.org/show_bug.cgi?id=122069
+
+        Reviewed by Brent Fulgham.
+
+        * WinLauncher/PrintWebUIDelegate.cpp:
+        (PrintWebUIDelegate::createWebViewWithRequest): Added.
+        * WinLauncher/PrintWebUIDelegate.h:
+        Removed createWebViewWithRequest stub.
+
+2013-10-01  Tim Horton  <timothy_horton@apple.com>
+
+        [wk2] WebKitTestRunner's window snapshots are blank with tiled drawing
+        https://bugs.webkit.org/show_bug.cgi?id=122006
+        <rdar://problem/15095197>
+
+        Reviewed by Dean Jackson.
+
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+        Layer-back the root view in WebKitTestRunner's window, to work around a bug
+        where the window server snapshot API returns blank snapshots.
+
+        Re-landing after r156724, this should not break everything now.
+
+2013-10-01  Tim Horton  <timothy_horton@apple.com>
+
+        [mac] 1x emulation on Retina hardware shouldn't use SPI
+        https://bugs.webkit.org/show_bug.cgi?id=122152
+        <rdar://problem/15119384>
+
+        Reviewed by Anders Carlsson.
+
+        * DumpRenderTree/mac/DumpRenderTree.mm:
+        (createWebViewAndOffscreenWindow):
+        (main):
+        * DumpRenderTree/mac/DumpRenderTreeWindow.h:
+        * DumpRenderTree/mac/DumpRenderTreeWindow.mm:
+        * WebKitTestRunner/mac/PlatformWebViewMac.mm:
+        (WTR::PlatformWebView::PlatformWebView):
+        * WebKitTestRunner/mac/main.mm:
+        (main):
+        Register for AppleMagnifiedMode instead of using _setWindowResolution:displayIfChanged:.
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        check-webkit-style should not warn about use of C++11 “>>”  instead of “> >"
+        https://bugs.webkit.org/show_bug.cgi?id=116474
+
+        Reviewed by Ryosuke Niwa.
+
+        * Scripts/webkitpy/style/checkers/cpp.py:
+        * Scripts/webkitpy/style/checkers/cpp_unittest.py:
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        Remove support for DOMFileSystem
+        https://bugs.webkit.org/show_bug.cgi?id=122137
+
+        Reviewed by Anders Carlsson.
+
+        * Scripts/webkitperl/FeatureList.pm:
+        * Scripts/webkitpy/style/checkers/cpp.py:
+        (check_spacing):
+        * Scripts/webkitpy/style/checkers/cpp_unittest.py:
+        (CppStyleTest.test_spacing_for_binary_ops):
+        * qmake/mkspecs/features/features.pri:
+
+2013-09-30  Mark Rowe  <mrowe@apple.com>
+
+        More build fixage for builds with SDKs.
+
+        * WebKitTestRunner/Configurations/Base.xcconfig:
+        * WebKitTestRunner/Configurations/BaseTarget.xcconfig:
+
+2013-09-30  Timothy Hatcher  <timothy@apple.com>
+
+        Add initial version of a new Buildbot dashboard view.
+
+        https://bugs.webkit.org/show_bug.cgi?id=122131
+
+        Reviewed by Alexey Proskuryakov.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Lion.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Lion@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Mavericks.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Mavericks@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/MountainLion.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/MountainLion@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/PlatformRing.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/PlatformRing@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Windows7.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Windows7@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Windows8.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/Windows8@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/WindowsXP.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Images/WindowsXP@2x.png: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BaseObject.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/Buildbot.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotBuilderQueueView.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotIteration.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotQueue.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotQueueView.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTestResults.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTesterQueueView.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/Main.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/StatusLineView.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/Utilities.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/WebKitBuildbot.js: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/BuildbotBuilderQueueView.css: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/BuildbotQueueView.css: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/BuildbotTesterQueueView.css: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/Main.css: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/StatusLineView.css: Added.
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/index.html: Added.
+
+2013-09-30  Benjamin Poulain  <benjamin@webkit.org>
+
+        Remove the code guarded by STYLE_SCOPED
+        https://bugs.webkit.org/show_bug.cgi?id=122123
+
+        Reviewed by Anders Carlsson.
+
+        * DumpRenderTree/gtk/DumpRenderTree.cpp:
+        (resetDefaultsToConsistentValues):
+        * Scripts/webkitperl/FeatureList.pm:
+        * qmake/mkspecs/features/features.pri:
+
+2013-09-30  Mark Rowe  <mrowe@apple.com>
+
+        Fix the build when building against an SDK.
+
+        Xcode helpfully prepends $(SDKROOT) to the paths in FRAMEWORK_SEARCH_PATHS when generating
+        the compiler command lines. It can't know to do this for the system framework search paths
+        we add manually via OTHER_CFLAGS though, so we need to prefix them with $(SDKROOT) ourself.
+
+        * DumpRenderTree/mac/Configurations/BaseTarget.xcconfig:
+        * WebKitTestRunner/Configurations/BaseTarget.xcconfig:
+
+2013-09-30  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Unreviewed test fix. Prevent crash when changing URL paths during testing.
+
+        A shared BSTR value (_bstr_t) was being reallocated outside the smart pointer, causing
+        it to be double-freed.
+
+        * WinLauncher/WinLauncher.cpp:
+        (EditProc): Be explicit about type passed to loadURL.
+        (loadURL): Create a shallow copy of the BSTR so we only allocate memory if needed. Use _bstr_t so
+        that reallocating the BSTR is done with the knowledge of the smart pointer.
+
 2013-09-30  Allan Sandfeld Jensen  <allan.jensen@digia.com>
 
         [Qt] Fix force_static_libs_as_shared in WebKit2
