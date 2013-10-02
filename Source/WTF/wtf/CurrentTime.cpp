@@ -207,7 +207,7 @@ double currentTime()
         lastTime = lowResUTCTime();
         lastTickCount = GetTickCount64();
         init = true;
-        return lastTime;
+        return lastTime / 1000.0;
     }
 
     ULONGLONG tickCountNow = GetTickCount64();
@@ -217,7 +217,7 @@ double currentTime()
         lastTime = timeNow;
         lastTickCount = tickCountNow;
     }
-    return timeNow;
+    return timeNow / 1000.0;
 }
 
 #else

@@ -94,6 +94,9 @@ void initializeThreading()
 {
 #if OS(DARWIN)
     pthread_once(&initializeThreadingKeyOnce, initializeThreadingOnce);
+#elif USE(STDTHREAD)
+    static std::once_flag initializeThreadingOnceFlag;
+    std::call_once(initializeThreadingOnceFlag, initializeThreadingOnce);
 #else
     static bool initializedThreading = false;
     if (!initializedThreading) {
