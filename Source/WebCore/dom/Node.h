@@ -70,8 +70,6 @@ class NameNodeList;
 class NodeList;
 class NodeListsNodeData;
 class NodeRareData;
-class PlatformKeyboardEvent;
-class PlatformMouseEvent;
 class QualifiedName;
 class RadioNodeList;
 class RegisteredEventListener;
@@ -97,7 +95,7 @@ class TouchEvent;
 
 typedef int ExceptionCode;
 
-const int nodeStyleChangeShift = 15;
+const int nodeStyleChangeShift = 14;
 
 // SyntheticStyleChange means that we need to go through the entire style change logic even though
 // no style property has actually changed. It is used to restructure the tree when, for instance,
@@ -527,11 +525,6 @@ public:
     virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture);
     virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture);
 
-    // Handlers to do/undo actions on the target node before an event is dispatched to it and after the event
-    // has been dispatched.  The data pointer is handed back by the preDispatch and passed to postDispatch.
-    virtual void* preDispatchEventHandler(Event*) { return 0; }
-    virtual void postDispatchEventHandler(Event*, void* /*dataFromPreDispatch*/) { }
-
     using EventTarget::dispatchEvent;
     virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
 
@@ -543,7 +536,6 @@ public:
     void dispatchSubtreeModifiedEvent();
     bool dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEvent);
 
-    bool dispatchMouseEvent(const PlatformMouseEvent&, const AtomicString& eventType, int clickCount = 0, Node* relatedTarget = 0);
 #if ENABLE(GESTURE_EVENTS)
     bool dispatchGestureEvent(const PlatformGestureEvent&);
 #endif
@@ -603,27 +595,21 @@ private:
         // These bits are used by derived classes, pulled up here so they can
         // be stored in the same memory word as the Node bits above.
         IsParsingChildrenFinishedFlag = 1 << 13, // Element
-#if ENABLE(SVG)
-        HasSVGRareDataFlag = 1 << 14, // SVGElement
-#endif
 
         StyleChangeMask = 1 << nodeStyleChangeShift | 1 << (nodeStyleChangeShift + 1),
-
-        SelfOrAncestorHasDirAutoFlag = 1 << 17,
-
-        IsEditingTextFlag = 1 << 18,
-
-        InNamedFlowFlag = 1 << 19,
-        HasSyntheticAttrChildNodesFlag = 1 << 20,
-        HasCustomStyleResolveCallbacksFlag = 1 << 21,
-        HasEventTargetDataFlag = 1 << 22,
-        NeedsNodeRenderingTraversalSlowPathFlag = 1 << 23,
-        IsInShadowTreeFlag = 1 << 24,
+        SelfOrAncestorHasDirAutoFlag = 1 << 16,
+        IsEditingTextFlag = 1 << 17,
+        InNamedFlowFlag = 1 << 18,
+        HasSyntheticAttrChildNodesFlag = 1 << 19,
+        HasCustomStyleResolveCallbacksFlag = 1 << 20,
+        HasEventTargetDataFlag = 1 << 21,
+        NeedsNodeRenderingTraversalSlowPathFlag = 1 << 22,
+        IsInShadowTreeFlag = 1 << 23,
 
         DefaultNodeFlags = IsParsingChildrenFinishedFlag
     };
 
-    // 5 bits remaining
+    // 8 bits remaining
 
     bool getFlag(NodeFlags mask) const { return m_nodeFlags & mask; }
     void setFlag(bool f, NodeFlags mask) const { m_nodeFlags = (m_nodeFlags & ~mask) | (-(int32_t)f & mask); } 
@@ -714,12 +700,6 @@ protected:
     bool isParsingChildrenFinished() const { return getFlag(IsParsingChildrenFinishedFlag); }
     void setIsParsingChildrenFinished() { setFlag(IsParsingChildrenFinishedFlag); }
     void clearIsParsingChildrenFinished() { clearFlag(IsParsingChildrenFinishedFlag); }
-
-#if ENABLE(SVG)
-    bool hasSVGRareData() const { return getFlag(HasSVGRareDataFlag); }
-    void setHasSVGRareData() { setFlag(HasSVGRareDataFlag); }
-    void clearHasSVGRareData() { clearFlag(HasSVGRareDataFlag); }
-#endif
 };
 
 // Used in Node::addSubresourceAttributeURLs() and in addSubresourceStyleURLs()

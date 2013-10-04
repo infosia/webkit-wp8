@@ -3365,10 +3365,10 @@ LayoutPoint RenderBlock::computeLogicalLocationForFloat(const FloatingObject* fl
     LayoutUnit logicalRightOffset; // Constant part of right offset.
 #if ENABLE(CSS_SHAPES)
     // FIXME Bug 102948: This only works for shape outside directly set on this block.
-    ShapeInsideInfo* shapeInsideInfo = this->shapeInsideInfo();
+    ShapeInsideInfo* shapeInsideInfo = this->layoutShapeInsideInfo();
     // FIXME: Implement behavior for right floats.
     if (shapeInsideInfo) {
-        LayoutSize floatLogicalSize = LayoutSize(floatingObject->logicalWidth(isHorizontalWritingMode()), floatingObject->logicalHeight(isHorizontalWritingMode()));
+        LayoutSize floatLogicalSize = LayoutSize(childBox->logicalWidth(), childBox->logicalHeight());
         // FIXME: If the float doesn't fit in the shape we should push it under the content box
         logicalTopOffset = shapeInsideInfo->computeFirstFitPositionForFloat(floatLogicalSize);
         if (logicalHeight() > logicalTopOffset)
@@ -3968,64 +3968,6 @@ void RenderBlock::markSiblingsWithFloatsForLayout(RenderBox* floatToRemove)
             if (nextBlock->containsFloat(floatingBox))
                 nextBlock->markAllDescendantsWithFloatsForLayout(floatingBox);
         }
-    }
-}
-
-void RenderBlock::updateFloatingObjectsPaintingContainer(RenderBox* floatToUpdate)
-{
-    bool didFindPaintContainer = false;
-    updateFloatingObjectsPaintingContainer(floatToUpdate, didFindPaintContainer);
-    ASSERT(didFindPaintContainer || floatToUpdate->hasSelfPaintingLayer());
-}
-
-void RenderBlock::updateFloatingObjectsPaintingContainer(RenderBox* floatToUpdate, bool& didFindPaintContainer)
-{
-    if (needsLayout()) {
-        // The floating object update should only be required after the layout is already complete.
-        ASSERT_NOT_REACHED();
-        return;
-    }
-    if (!m_floatingObjects)
-        return;
-    updateAllDescendantsFloatingObjectsPaintingContainer(floatToUpdate, didFindPaintContainer);
-    for (RenderObject* next = nextSibling(); next; next = next->nextSibling()) {
-        if (!next->isRenderBlock() || next->isFloatingOrOutOfFlowPositioned() || toRenderBlock(next)->avoidsFloats())
-            continue;
-        RenderBlock* nextBlock = toRenderBlock(next);
-        if (nextBlock->containsFloat(floatToUpdate))
-            nextBlock->updateAllDescendantsFloatingObjectsPaintingContainer(floatToUpdate, didFindPaintContainer);
-    }
-}
-
-void RenderBlock::updateLocalFloatingObjectsForPaintingContainer(RenderBox* floatToUpdate, bool& foundPaintContainer)
-{
-    ASSERT(!needsLayout());
-    if (!m_floatingObjects)
-        return;
-    auto iterator = m_floatingObjects->set().find<RenderBox&, FloatingObjectHashTranslator>(*floatToUpdate);
-    if (iterator != m_floatingObjects->set().end()) {
-        bool shouldPaint = !foundPaintContainer && !floatToUpdate->hasSelfPaintingLayer() && floatToUpdate->enclosingFloatPaintingLayer() == enclosingFloatPaintingLayer();
-        foundPaintContainer |= shouldPaint;
-        (*iterator)->setShouldPaint(shouldPaint);
-    }
-}
-
-void RenderBlock::updateAllDescendantsFloatingObjectsPaintingContainer(RenderBox* floatToUpdate, bool& didFindPaintContainer)
-{
-    if (needsLayout()) {
-        // The floating object update should only be required after the layout is already complete.
-        ASSERT_NOT_REACHED();
-        return;
-    }
-    updateLocalFloatingObjectsForPaintingContainer(floatToUpdate, didFindPaintContainer);
-    if (childrenInline())
-        return;
-    for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
-        if (!child->isRenderBlock())
-            continue;
-        RenderBlock* childBlock = toRenderBlock(child);
-        if (childBlock->containsFloat(floatToUpdate))
-            childBlock->updateAllDescendantsFloatingObjectsPaintingContainer(floatToUpdate, didFindPaintContainer);
     }
 }
 

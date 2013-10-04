@@ -1,3 +1,495 @@
+2013-10-03  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Support block content with inline content around floats in shape-inside
+        https://bugs.webkit.org/show_bug.cgi?id=121616
+
+        Reviewed by David Hyatt.
+
+        In r156022 and r156364, I added support for floats inside shape-inside with inline content. This change extends
+        the existing implementation to support block content with inline content (paragraphs). I added an extra text for
+        positioning a float inside shape-inside without text content around it.
+
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-left-triangle-block-content-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-left-triangle-block-content.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-right-triangle-block-content-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-right-triangle-block-content.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-right-triangle-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-lower-right-triangle.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-left-triangle-block-content-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-left-triangle-block-content.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-right-triangle-block-content-expected.html: Added.
+        * fast/shapes/shape-inside/shape-inside-left-float-in-upper-right-triangle-block-content.html: Added.
+
+2013-10-03  Tim Horton  <timothy_horton@apple.com>
+
+        Add test expectation for one more test having color space issues after r156793.
+        (css3/filters/custom/custom-filter-composite-fractional-source-alpha.html)
+
+        * platform/mac-wk2/TestExpectations:
+
+2013-10-03  Alexey Proskuryakov  <ap@apple.com>
+
+        Layout Test media/click-volume-bar-not-pausing.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=122126
+
+        * platform/mac/TestExpectations: Marked it as such.
+
+2013-10-03  Alexey Proskuryakov  <ap@apple.com>
+
+        Re-add Qt TestExpectations. Without it, the flakiness dashboard page loads as blank.
+
+        * platform/qt: Added.
+        * platform/qt/TestExpectations: Added.
+
+2013-10-03  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] add shape-margin support for image valued shapes
+        https://bugs.webkit.org/show_bug.cgi?id=121619
+
+        Reviewed by Alexandru Chiculita.
+
+        Verify that the shape-outside margin-boundary is computed correctly for image valued shapes.
+
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-001-expected.txt: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-001.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-002-expected.txt: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-002.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-003-expected.txt: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-margin-003.html: Added.
+
+2013-10-02  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [ATK] Expose aria-invalid as a text attribute (not object attribute)
+        https://bugs.webkit.org/show_bug.cgi?id=122015
+
+        Reviewed by Chris Fleizach.
+
+        Updated the aria-invalid.html layout test to make sure that it
+        behaves as defined by the WAI-ARIA specification for values other
+        than 'false', 'true', 'grammar' and 'spelling'.
+
+        * accessibility/aria-invalid.html: Updated test.
+        * accessibility/aria-invalid-expected.txt: Updated expectations.
+
+2013-10-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add back .htaccess files erroneously removed in r156827.
+
+        * http/tests/appcache/resources/intercept: Copied from LayoutTests/http/tests/appcache/resources/intercept.
+        * http/tests/uri/intercept: Copied from LayoutTests/http/tests/uri/intercept.
+
+2013-10-02  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Implement the shape-image-threshold property
+        https://bugs.webkit.org/show_bug.cgi?id=122216
+
+        Reviewed by Andreas Kling.
+
+        Check parsing of the non-inherited CSS shape-image-threshold number property.
+        The property is defined here:
+        http://dev.w3.org/csswg/css-shapes-1/#shape-image-threshold-property
+
+        * fast/shapes/parsing/parsing-shape-image-threshold-expected.txt: Added.
+        * fast/shapes/parsing/parsing-shape-image-threshold.html: Added.
+        * fast/shapes/parsing/script-tests/parsing-shape-image-threshold.js: Added.
+
+2013-10-02  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        [CSS Regions] Helper functions for selection layout tests
+        https://bugs.webkit.org/show_bug.cgi?id=122128
+
+        Reviewed by Alexandru Chiculita.
+
+        Create new common JavaScript methods for CSS Regions layout tests
+        related to selection. Refactored tests in order to use them.
+
+        * fast/regions/resources/helper.js: Added new functions.
+        (selectContentByRange): Select from start to end position.
+        (selectContentByIds): Select from the beginning of the first element to the end
+        of the second one.
+        (selectBaseAndExtent): Select from start to end with given offsets using
+        Selection.setBaseAndExtent() method.
+        (mouseClick): Clicks in a given position.
+        * fast/regions/selection/selecting-text-in-empty-region.html: Refactored
+        test in order to use the new functions.
+        * fast/regions/selection/selecting-text-through-different-region-flows-2-expected.html:
+        Ditto.
+        * fast/regions/selection/selecting-text-through-different-region-flows-2.html:
+        Ditto.
+        * fast/regions/selection/selecting-text-through-different-region-flows.html:
+        Ditto.
+        * fast/regions/selection/selection-direction-expected.html: Ditto.
+        * fast/regions/selection/selection-direction.html: Ditto.
+
+2013-10-02  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        [css-shapes] shape-outside does not properly handle the container and the float having different writing modes
+        https://bugs.webkit.org/show_bug.cgi?id=122243
+
+        Reviewed by Alexandru Chiculita.
+
+        Test that the margins and width are properly computed in the case of
+        different writing modes.
+
+        * fast/shapes/shape-outside-floats/shape-outside-floats-different-writing-modes-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-different-writing-modes.html: Added.
+
+2013-10-02  Tim Horton  <timothy_horton@apple.com>
+
+        Unreviewed rebaseline, try to add newlines back that keep disappearing on me.
+
+        * platform/mac-wk2/compositing/contents-opaque/body-background-painted-expected.txt:
+        * platform/mac-wk2/compositing/contents-opaque/body-background-skipped-expected.txt:
+        * platform/mac-wk2/compositing/repaint/fixed-background-scroll-expected.txt:
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-expected.txt:
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-overflow-expected.txt:
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-overflow-scrolled-expected.txt:
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-clamped-expected.txt:
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-preserve3d-clamped-expected.txt:
+        * platform/mac-wk2/compositing/tiling/tile-cache-zoomed-expected.txt:
+        * platform/mac-wk2/compositing/tiling/tiled-layer-resize-expected.txt:
+
+2013-10-02  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        [CSS Regions] Selection layout tests moved to specific folder
+        https://bugs.webkit.org/show_bug.cgi?id=122099
+
+        Reviewed by Alexandru Chiculita.
+
+        Moved CSS Regions layout tests related to selection to
+        "fast/regions/selection/".
+
+        * fast/regions/selection/selecting-text-in-empty-region-expected.txt: Renamed from LayoutTests/fast/regions/selecting-text-in-empty-region-expected.txt.
+        * fast/regions/selection/selecting-text-in-empty-region.html: Renamed from LayoutTests/fast/regions/selecting-text-in-empty-region.html.
+        * fast/regions/selection/selecting-text-through-different-region-flows-2-expected.html: Renamed from LayoutTests/fast/regions/selecting-text-through-different-region-flows-2-expected.html.
+        * fast/regions/selection/selecting-text-through-different-region-flows-2.html: Renamed from LayoutTests/fast/regions/selecting-text-through-different-region-flows-2.html.
+        * fast/regions/selection/selecting-text-through-different-region-flows-expected.html: Renamed from LayoutTests/fast/regions/selecting-text-through-different-region-flows-expected.html.
+        * fast/regions/selection/selecting-text-through-different-region-flows.html: Renamed from LayoutTests/fast/regions/selecting-text-through-different-region-flows.html.
+        * fast/regions/selection/selection-direction-expected.html: Renamed from LayoutTests/fast/regions/selection-direction-expected.html.
+        * fast/regions/selection/selection-direction.html: Renamed from LayoutTests/fast/regions/selection-direction.html.
+        * platform/gtk-wk2/TestExpectations: Update path in skipped tests.
+        * platform/qt-wk2/TestExpectations: Ditto.
+
+2013-10-02  Tim Horton  <timothy_horton@apple.com>
+
+        [mac] Stop using DrawingAreaImpl on PLATFORM(MAC) 
+        https://bugs.webkit.org/show_bug.cgi?id=121859
+        <rdar://problem/15069359>
+
+        Reviewed by Anders Carlsson.
+
+        * platform/mac-wk2/TestExpectations:
+
+        * platform/mac-wk2/compositing/contents-opaque/body-background-painted-expected.txt: Added.
+        * platform/mac-wk2/compositing/contents-opaque/body-background-skipped-expected.txt: Added.
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-expected.txt: Added.
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-overflow-expected.txt: Added.
+        * platform/mac-wk2/compositing/rtl/rtl-absolute-overflow-scrolled-expected.txt: Added.
+        Add WebKit2 results, because we dump non-white background color on the root layer now.
+
+        * platform/mac-wk2/compositing/repaint/fixed-background-scroll-expected.txt: Added.
+        New WebKit2 result; repaint rects are showing up now.
+        
+        * platform/mac-wk2/compositing/rtl/rtl-fixed-expected.txt:
+        * platform/mac-wk2/compositing/rtl/rtl-fixed-overflow-expected.txt:
+        Slightly adjusted results.
+
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-clamped-expected.txt: Added.
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-preserve3d-clamped-expected.txt: Added.
+        * platform/mac-wk2/compositing/tiling/tile-cache-zoomed-expected.txt: Added.
+        * platform/mac-wk2/compositing/tiling/tiled-layer-resize-expected.txt: Added.
+        New WebKit2 results; we show the root tile cache if layerTreeAsText is asked to dump tile caches.
+        
+        * platform/mac-wk2/editing/input/caret-at-the-edge-of-contenteditable-expected.txt: Added.
+        * platform/mac-wk2/editing/input/reveal-caret-of-multiline-contenteditable-expected.txt: Added.
+        * platform/mac-wk2/fast/block/basic/020-expected.txt: Added.
+        * platform/mac-wk2/fast/dynamic/012-expected.txt: Added.
+        * platform/mac-wk2/fast/dynamic/layer-hit-test-crash-expected.txt: Added.
+        * platform/mac-wk2/fast/repaint/layer-hide-when-needs-layout-expected.txt: Added.
+        * platform/mac-wk2/fast/text/whitespace/028-expected.txt: Added.
+        * platform/mac-wk2/fast/layers/layer-visibility-expected.txt: Added.
+        * platform/mac-wk2/fast/layers/layer-visibility-sublayer-expected.txt: Added.
+        * platform/mac-wk2/fast/repaint/invisible-objects-expected.txt: Added.
+        New WebKit2 results; additional compositing layers.
+        
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work-expected-mismatch.html: Added.
+        * platform/mac-wk2/tiled-drawing/window-server-snapshots-work.html: Added.
+        New test to ensure that window-server snapshots work with tiled drawing.
+
+2013-10-01  Oliver Hunt  <oliver@apple.com>
+
+        Implement Array key, value and entries iterators
+        https://bugs.webkit.org/show_bug.cgi?id=122195
+
+        Reviewed by Filip Pizlo.
+
+        Add tests
+
+        * js/Object-getOwnPropertyNames-expected.txt:
+        * js/array-iterators-expected.txt: Added.
+        * js/array-iterators.html: Added.
+        * js/script-tests/Object-getOwnPropertyNames.js:
+        * js/script-tests/array-iterators.js: Added.
+
+2013-09-25  Oliver Hunt  <oliver@apple.com>
+
+        Implement prefixed-destructuring assignment
+        https://bugs.webkit.org/show_bug.cgi?id=121930
+
+        Reviewed by Mark Hahnenberg.
+
+        Relanding with fix after rollout - it helps to not completely destroy
+        optimisations for no reason.
+
+2013-10-02  Alexey Proskuryakov  <ap@apple.com>
+
+        video-object-fit tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=121803
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-10-02  Alexey Proskuryakov  <ap@apple.com>
+
+        Quirksmode: CSS1: WebKit fails dynamic :first-letter test
+        https://bugs.webkit.org/show_bug.cgi?id=15602
+
+        * platform/mac/TestExpectations: Correcting Mac expectations too, now that we have results.
+
+2013-10-02  Alexey Proskuryakov  <ap@apple.com>
+
+        Quirksmode: CSS1: WebKit fails dynamic :first-letter test
+        https://bugs.webkit.org/show_bug.cgi?id=15602
+
+        * platform/mac/fast/css/first-letter-block-change-expected.png: Added.
+        * platform/mac/fast/css/first-letter-block-change-expected.txt: Added.
+        Added expected results for Mac.
+
+        * platform/efl/TestExpectations: Corrected the expectation. This test is not
+        failing, it has no results.
+
+2013-10-02  Mihai Maerean  <mmaerean@adobe.com>
+
+        [CSS Regions] Activate all regions to have layers, as CSS Regions create a new stacking context
+        https://bugs.webkit.org/show_bug.cgi?id=121828
+
+        Reviewed by Darin Adler.
+
+        For the ref tests, the divs in the expected results coresponding to the regions now have a CSS style causing
+        them to also create Stacking Contexts.
+
+        Most of the tests in fast/regions/layers/ have been deleted because they aren't relevant anymore.
+
+        The change in most of the *-expected.txt files is that the " hasLayer" part has been removed (since all regions
+        now have layers).
+        
+        Platform (efl, efl-wk2, gtk, mac-lion, mac-wk2, qt, qt-wk2) specific expectated results need to be generated again.
+
+        * fast/regions/autoheight-regions-mark-expected.txt:
+        * fast/regions/flow-content-basic-expected.html: Added. The test is now a ref test.
+        * fast/regions/flow-content-basic-vertical-expected.html: Added. The test is now a ref test.
+        * fast/regions/flow-content-basic-vertical-rl-expected.html: Added.The test is now a ref test.
+        * fast/regions/flow-content-basic-vertical-rl.html:
+        * fast/regions/flow-content-basic-vertical.html:
+        * fast/regions/flow-content-basic.html:
+        * fast/regions/flows-dependency-dynamic-remove-expected.txt:
+        * fast/regions/flows-dependency-same-flow-expected.txt:
+        * fast/regions/layers/dynamic-layer-added-with-no-layout-expected.png: Removed.
+        * fast/regions/layers/dynamic-layer-added-with-no-layout-expected.txt: Removed.
+        * fast/regions/layers/dynamic-layer-added-with-no-layout.html: Removed.
+        * fast/regions/layers/dynamic-layer-removed-with-no-layout-expected.png: Removed.
+        * fast/regions/layers/dynamic-layer-removed-with-no-layout-expected.txt: Removed.
+        * fast/regions/layers/dynamic-layer-removed-with-no-layout.html: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-expected.png: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-expected.txt: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-horizontal-bt-expected.png: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-horizontal-bt-expected.txt: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-horizontal-bt.html: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-lr-expected.png: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-lr-expected.txt: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-lr.html: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-rl-expected.png: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-rl-expected.txt: Removed.
+        * fast/regions/layers/regions-promoted-to-layers-vertical-rl.html: Removed.
+        * fast/regions/layers/regions-promoted-to-layers.html: Removed.
+        * fast/regions/layers/stacking-context-paint-order-expected.html: Added.
+        * fast/regions/layers/stacking-context-paint-order.html: Added. While the existing region-sibling-paint-order.html
+        test verifies that regions paint correctly when the next sibling also creates a stacking context, this new test
+        verifies that regions paint correctly when the next sibling doesn't create a stacking context.
+        * fast/regions/region-sibling-paint-order-expected.html:
+        * fast/regions/region-sibling-paint-order.html:
+        * fast/repaint/overflow-flipped-writing-mode-block-in-regions-expected.txt:
+        * fast/repaint/region-painting-composited-element-expected.html:
+        * fast/repaint/region-painting-in-composited-view-expected.html:
+        * fast/repaint/region-painting-in-composited-view.html:
+        * fast/repaint/region-painting-via-layout-expected.txt:
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl-wk2/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/efl-wk2/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Removed.
+        * platform/efl/TestExpectations:
+        * platform/efl/fast/regions/autoheight-regions-mark-expected.png: Removed.
+        * platform/efl/fast/regions/autoheight-regions-mark-expected.txt: Removed.
+        * platform/efl/fast/regions/flow-content-basic-expected.png: Removed. The test is now a ref test.
+        * platform/efl/fast/regions/flow-content-basic-expected.txt: Removed.
+        * platform/efl/fast/regions/flow-content-basic-vertical-expected.png: Removed.
+        * platform/efl/fast/regions/flow-content-basic-vertical-expected.txt: Removed.
+        * platform/efl/fast/regions/flow-content-basic-vertical-rl-expected.png: Removed.
+        * platform/efl/fast/regions/flow-content-basic-vertical-rl-expected.txt: Removed.
+        * platform/efl/fast/regions/flows-dependency-dynamic-remove-expected.png: Removed.
+        * platform/efl/fast/regions/flows-dependency-dynamic-remove-expected.txt: Removed.
+        * platform/efl/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.png: Removed.
+        * platform/efl/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.txt: Removed.
+        * platform/efl/fast/regions/region-dynamic-after-before-expected.txt:
+        * platform/efl/fast/regions/region-generated-content-before-after-expected.txt:
+        * platform/efl/fast/regions/text-region-split-small-pagination-expected.png: Removed.
+        * platform/efl/fast/regions/text-region-split-small-pagination-expected.txt: Removed.
+        * platform/efl/fast/regions/top-overflow-out-of-second-region-expected.png: Removed.
+        * platform/efl/fast/regions/top-overflow-out-of-second-region-expected.txt: Removed.
+        * platform/efl/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/efl/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Removed.
+        * platform/efl/fast/repaint/region-painting-invalidation-expected.png: Removed.
+        * platform/efl/fast/repaint/region-painting-invalidation-expected.txt: Removed.
+        * platform/efl/fast/repaint/region-painting-via-layout-expected.png: Removed.
+        * platform/efl/fast/repaint/region-painting-via-layout-expected.txt: Removed.
+        * platform/gtk/TestExpectations:
+        * platform/gtk/fast/regions/autoheight-regions-mark-expected.png: Removed.
+        * platform/gtk/fast/regions/autoheight-regions-mark-expected.txt: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-expected.png: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-expected.txt: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-vertical-expected.png: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-vertical-expected.txt: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-vertical-rl-expected.png: Removed.
+        * platform/gtk/fast/regions/flow-content-basic-vertical-rl-expected.txt: Removed.
+        * platform/gtk/fast/regions/flows-dependency-dynamic-remove-expected.png: Removed.
+        * platform/gtk/fast/regions/flows-dependency-dynamic-remove-expected.txt: Removed.
+        * platform/gtk/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.png: Removed.
+        * platform/gtk/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.txt: Removed.
+        * platform/gtk/fast/regions/region-dynamic-after-before-expected.txt:
+        * platform/gtk/fast/regions/region-generated-content-before-after-expected.txt:
+        * platform/gtk/fast/regions/text-region-split-small-pagination-expected.png: Removed.
+        * platform/gtk/fast/regions/text-region-split-small-pagination-expected.txt: Removed.
+        * platform/gtk/fast/regions/top-overflow-out-of-second-region-expected.png: Removed.
+        * platform/gtk/fast/regions/top-overflow-out-of-second-region-expected.txt: Removed.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Removed.
+        * platform/gtk/fast/repaint/line-flow-with-floats-in-regions-expected.txt:
+        * platform/gtk/fast/repaint/overflow-flipped-writing-mode-block-in-regions-expected.txt:
+        * platform/gtk/fast/repaint/region-painting-invalidation-expected.png: Removed.
+        * platform/gtk/fast/repaint/region-painting-invalidation-expected.txt: Removed.
+        * platform/gtk/fast/repaint/region-painting-via-layout-expected.png: Removed.
+        * platform/gtk/fast/repaint/region-painting-via-layout-expected.txt: Removed.
+        * platform/mac-lion/TestExpectations:
+        * platform/mac-lion/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/mac-lion/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Removed.
+        * platform/mac-wk2/TestExpectations:
+        * platform/mac/fast/regions/flow-content-basic-expected.png: Removed.
+        * platform/mac/fast/regions/flow-content-basic-expected.txt: Removed.
+        * platform/mac/fast/regions/flow-content-basic-vertical-expected.png: Removed.
+        * platform/mac/fast/regions/flow-content-basic-vertical-expected.txt: Removed.
+        * platform/mac/fast/regions/flow-content-basic-vertical-rl-expected.png: Removed.
+        * platform/mac/fast/regions/flow-content-basic-vertical-rl-expected.txt: Removed.
+        * platform/mac/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.txt:
+        * platform/mac/fast/regions/region-dynamic-after-before-expected.txt:
+        * platform/mac/fast/regions/region-generated-content-before-after-expected.txt:
+        * platform/mac/fast/regions/text-region-split-small-pagination-expected.txt:
+        * platform/mac/fast/regions/top-overflow-out-of-second-region-expected.txt:
+        * platform/mac/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/mac/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt:
+        * platform/mac/fast/repaint/line-flow-with-floats-in-regions-expected.txt:
+        * platform/mac/fast/repaint/region-painting-invalidation-expected.txt:
+        * platform/qt-wk2/TestExpectations:
+        * platform/qt-wk2/fast/regions/flow-content-basic-expected.png: Removed.
+        * platform/qt-wk2/fast/regions/flow-content-basic-vertical-expected.png: Removed.
+        * platform/qt-wk2/fast/regions/flow-content-basic-vertical-rl-expected.png: Removed.
+        * platform/qt-wk2/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.png: Removed.
+        * platform/qt-wk2/fast/regions/text-region-split-small-pagination-expected.png: Removed.
+        * platform/qt-wk2/fast/regions/top-overflow-out-of-second-region-expected.png: Removed.
+        * platform/qt-wk2/fast/repaint/region-painting-invalidation-expected.png: Removed.
+        * platform/qt-wk2/fast/repaint/region-painting-invalidation-expected.txt: Removed.
+        * platform/qt-wk2/fast/repaint/region-painting-via-layout-expected.png: Removed.
+        * platform/qt/TestExpectations:
+        * platform/qt/fast/regions/autoheight-regions-mark-expected.png: Removed.
+        * platform/qt/fast/regions/autoheight-regions-mark-expected.txt: Removed.
+        * platform/qt/fast/regions/flow-content-basic-expected.png: Removed.
+        * platform/qt/fast/regions/flow-content-basic-expected.txt: Removed.
+        * platform/qt/fast/regions/flow-content-basic-vertical-expected.png: Removed.
+        * platform/qt/fast/regions/flow-content-basic-vertical-expected.txt: Removed.
+        * platform/qt/fast/regions/flow-content-basic-vertical-rl-expected.png: Removed.
+        * platform/qt/fast/regions/flow-content-basic-vertical-rl-expected.txt: Removed.
+        * platform/qt/fast/regions/flows-dependency-dynamic-remove-expected.png: Removed.
+        * platform/qt/fast/regions/flows-dependency-dynamic-remove-expected.txt: Removed.
+        * platform/qt/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.png: Removed.
+        * platform/qt/fast/regions/multiple-directionality-changes-in-variable-width-regions-expected.txt: Removed.
+        * platform/qt/fast/regions/text-region-split-small-pagination-expected.png: Removed.
+        * platform/qt/fast/regions/text-region-split-small-pagination-expected.txt: Removed.
+        * platform/qt/fast/regions/top-overflow-out-of-second-region-expected.png: Removed.
+        * platform/qt/fast/regions/top-overflow-out-of-second-region-expected.txt: Removed.
+        * platform/qt/fast/repaint/line-flow-with-floats-in-regions-expected.txt:
+        * platform/qt/fast/repaint/overflow-flipped-writing-mode-block-in-regions-expected.txt:
+        * platform/qt/fast/repaint/region-painting-invalidation-expected.png: Removed.
+        * platform/qt/fast/repaint/region-painting-invalidation-expected.txt: Removed.
+        * platform/qt/fast/repaint/region-painting-via-layout-expected.png: Removed.
+        * platform/qt/fast/repaint/region-painting-via-layout-expected.txt: Removed.
+        * platform/win/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Removed.
+        * platform/win/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Removed.
+
+2013-10-02  Renata Hodovan  <reni@webkit.org>
+
+        HTML listbox is not resized horizontally when zooming
+        https://bugs.webkit.org/show_bug.cgi?id=20445
+
+        Reviewed by Darin Adler.
+
+        A test with a zoomed listbox is added to check whether the styleChange is catched.
+
+        * fast/transforms/listbox-zoom.html: Added.
+        * fast/transforms/listbox-zoom-expected.txt: Added.
+
+2013-10-01  Santosh Mahto  <santosh.ma@samsung.com>
+
+        contenteditable justify commands applied to next paragraph as well
+        https://bugs.webkit.org/show_bug.cgi?id=90611
+
+        Reviewed by Ryosuke Niwa.
+
+        Added a test for selecting one paragraph and the beginning of another
+        paragraph to ensure that only the first fully-selected paragraph should
+        be justified when justifying the selection.
+
+        * editing/execCommand/align-in-span-expected.txt: Updated.
+        * editing/execCommand/contenteditable-justify-next-paragraph-expected.txt: Added.
+        * editing/execCommand/contenteditable-justify-next-paragraph.html: Added.
+
+2013-10-01  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: media/media-element-play-after-eos.html
+        https://bugs.webkit.org/show_bug.cgi?id=115048
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-10-01  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(156464): 50% regression on SunSpider/string-fasta
+        https://bugs.webkit.org/show_bug.cgi?id=122202
+
+        Unreviewed, roll out r156464.
+
+        * js/destructuring-assignment-expected.txt: Removed.
+        * js/destructuring-assignment.html: Removed.
+        * js/mozilla/strict/13.1-expected.txt:
+        * js/mozilla/strict/regress-532254-expected.txt:
+        * js/mozilla/strict/script-tests/13.1.js:
+        * js/regress/destructuring-arguments-expected.txt: Removed.
+        * js/regress/destructuring-arguments-length-expected.txt: Removed.
+        * js/regress/destructuring-arguments-length.html: Removed.
+        * js/regress/destructuring-arguments.html: Removed.
+        * js/regress/destructuring-swap-expected.txt: Removed.
+        * js/regress/destructuring-swap.html: Removed.
+        * js/regress/script-tests/destructuring-arguments-length.js: Removed.
+        * js/regress/script-tests/destructuring-arguments.js: Removed.
+        * js/regress/script-tests/destructuring-swap.js: Removed.
+        * js/script-tests/destructuring-assignment.js: Removed.
+        * sputnik/Conformance/13_Function_Definition/S13_A5.html:
+
 2013-10-01  Tim Horton  <timothy_horton@apple.com>
 
         Tiled drawing GraphicsLayer tree dumps should match non-tiled more closely
