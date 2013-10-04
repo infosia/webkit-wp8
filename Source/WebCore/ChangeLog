@@ -1,3 +1,362 @@
+2013-10-04  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Regions as stacking contexts should paint over positioned sibling
+        https://bugs.webkit.org/show_bug.cgi?id=122321
+
+        Reviewed by Alexandru Chiculita.
+
+        Test: fast/regions/layers/region-normalflow-stacking-context.html
+
+        Since regions are stacking contexts, they should not be in normal flow list of layers.
+        More clean-up after https://bugs.webkit.org/show_bug.cgi?id=117365 and https://bugs.webkit.org/show_bug.cgi?id=121828
+        which enabled the layers.
+
+        * rendering/RenderLayer.cpp:
+        (WebCore::RenderLayer::shouldBeNormalFlowOnly):
+        (WebCore::RenderLayer::shouldBeSelfPaintingLayer):
+
+2013-10-04  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Enable correct behaviour for deleting regional indicator symbols
+        https://bugs.webkit.org/show_bug.cgi?id=122209
+
+        Reviewed by Gyuyoung Kim.
+
+        Regional indicator symbols that are combined should behave as a single character when deleting.
+        Removed unused variable initialState.
+
+        * rendering/RenderText.cpp:
+        (WebCore::RenderText::previousOffsetForBackwardDeletion):
+
+2013-10-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WebIDL] Annotate IDL interfaces under Source/WebCore/css/ with the OperationsNotDeletable attribute
+        https://bugs.webkit.org/show_bug.cgi?id=122276
+
+        Reviewed by Darin Adler.
+
+        Before changing the JSC bindings generator to enforce WebIDL operations to be configurable, all the
+        interfaces are being annotated with the OperationsNotDeletable attribute. The attribute currently
+        doesn't have any effect, but will keep the operations not configurable after the generator is modified
+        to preserve the original behavior. The attribute will be removed from each interface after checking
+        conformity with other browsers (in terms of configurability of operations of that interface) and the
+        WebKit's existing test suites.
+
+        This patch covers IDL interfaces under Source/WebCore/css/.
+
+        * css/CSSHostRule.idl:
+        * css/CSSMediaRule.idl:
+        * css/CSSPrimitiveValue.idl:
+        * css/CSSRuleList.idl:
+        * css/CSSStyleDeclaration.idl:
+        * css/CSSStyleSheet.idl:
+        * css/CSSSupportsRule.idl:
+        * css/CSSValueList.idl:
+        * css/DOMWindowCSS.idl:
+        * css/FontLoader.idl:
+        * css/MediaList.idl:
+        * css/MediaQueryList.idl:
+        * css/MediaQueryListListener.idl:
+        * css/StyleMedia.idl:
+        * css/StyleSheet.idl:
+        * css/StyleSheetList.idl:
+        * css/WebKitCSSFilterValue.idl:
+        * css/WebKitCSSKeyframesRule.idl:
+        * css/WebKitCSSMatrix.idl:
+        * css/WebKitCSSTransformValue.idl:
+
+2013-10-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WebIDL] Annotate IDL interfaces under Source/WebCore/loader/appcache/ with the OperationsNotDeletable attribute
+        https://bugs.webkit.org/show_bug.cgi?id=122274
+
+        Reviewed by Darin Adler.
+
+        Before changing the JSC bindings generator to enforce WebIDL operations to be configurable, all the
+        interfaces are being annotated with the OperationsNotDeletable attribute. The attribute currently
+        doesn't have any effect, but will keep the operations not configurable after the generator is modified
+        to preserve the original behavior. The attribute will be removed from each interface after checking
+        conformity with other browsers (in terms of configurability of operations of that interface) and the
+        WebKit's existing test suites.
+
+        This patch covers IDL interfaces under Source/WebCore/loader/appcache/.
+
+        * loader/appcache/DOMApplicationCache.idl:
+
+2013-10-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WebIDL] Annotate IDL interfaces under Source/WebCore/plugins/ with the OperationsNotDeletable attribute
+        https://bugs.webkit.org/show_bug.cgi?id=122273
+
+        Reviewed by Darin Adler.
+
+        Before changing the JSC bindings generator to enforce WebIDL operations to be configurable, all the
+        interfaces are being annotated with the OperationsNotDeletable attribute. The attribute currently
+        doesn't have any effect, but will keep the operations not configurable after the generator is modified
+        to preserve the original behavior. The attribute will be removed from each interface after checking
+        conformity with other browsers (in terms of configurability of operations of that interface) and the
+        WebKit's existing test suites.
+
+        This patch covers IDL interfaces under Source/WebCore/plugins/.
+
+        * plugins/DOMMimeTypeArray.idl:
+        * plugins/DOMPlugin.idl:
+        * plugins/DOMPluginArray.idl:
+
+2013-10-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WebIDL] Annotate IDL interfaces under Source/WebCore/storage/ with the OperationsNotDeletable attribute
+        https://bugs.webkit.org/show_bug.cgi?id=122272
+
+        Reviewed by Darin Adler.
+
+        Before changing the JSC bindings generator to enforce WebIDL operations to be configurable, all the
+        interfaces are being annotated with the OperationsNotDeletable attribute. The attribute currently
+        doesn't have any effect, but will keep the operations not configurable after the generator is modified
+        to preserve the original behavior. The attribute will be removed from each interface after checking
+        conformity with other browsers (in terms of configurability of operations of that interface) and the
+        WebKit's existing test suites.
+
+        This patch covers IDL interfaces under Source/WebCore/storage/.
+
+        * storage/Storage.idl:
+        * storage/StorageEvent.idl:
+
+2013-10-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [WebIDL] Annotate IDL interfaces under Source/WebCore/workers/ with the OperationsNotDeletable attribute
+        https://bugs.webkit.org/show_bug.cgi?id=122270
+
+        Reviewed by Darin Adler.
+
+        Before changing the JSC bindings generator to enforce WebIDL operations to be configurable, all the
+        interfaces are being annotated with the OperationsNotDeletable attribute. The attribute currently
+        doesn't have any effect, but will keep the operations not configurable after the generator is modified
+        to preserve the original behavior. The attribute will be removed from each interface after checking
+        conformity with other browsers (in terms of configurability of operations of that interface) and the
+        WebKit's existing test suites.
+
+        This patch covers IDL interfaces under Source/WebCore/workers/.
+
+        * workers/DedicatedWorkerGlobalScope.idl:
+        * workers/Worker.idl:
+        * workers/WorkerGlobalScope.idl:
+        * workers/WorkerLocation.idl:
+
+2013-10-04  Andrei Bucur  <abucur@adobe.com>
+
+        [CSS Regions] Infinite loop when computing widows
+        https://bugs.webkit.org/show_bug.cgi?id=122215
+
+        Reviewed by David Hyatt.
+
+        The patch ensures it's not possible to relayout a block indefinitely because of widows contraints. You can't
+        break a block more than once to account for widows. This can happen if, for example, some lines are moved
+        to the next container and there the content breaks in another container again without respecting the widows property.
+        This is in line with the idea of not leaving empty fragmentation containers during layout.
+
+        Test: fast/regions/regions-widows-stack-overflow.html
+
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::adjustLinePositionForPagination):
+        (WebCore::RenderBlockFlow::setBreakAtLineToAvoidWidow):
+        (WebCore::RenderBlockFlow::setDidBreakAtLineToAvoidWidow):
+        (WebCore::RenderBlockFlow::clearDidBreakAtLineToAvoidWidow):
+        (WebCore::RenderBlockFlow::clearShouldBreakAtLineToAvoidWidow):
+
+        * rendering/RenderBlockFlow.h:
+        (WebCore::RenderBlockFlow::RenderBlockFlowRareData::RenderBlockFlowRareData): Rename the m_shouldBreakAtLineToAvoidWidow
+        flag to m_didBreakAtLineToAvoidWidow.
+
+        (WebCore::RenderBlockFlow::shouldBreakAtLineToAvoidWidow): Use the line index to determine if it should break or not.
+        (WebCore::RenderBlockFlow::didBreakAtLineToAvoidWidow): Use to determine if a break already happened because of widows.
+
+        * rendering/RenderBlockLineLayout.cpp:
+        (WebCore::RenderBlock::layoutRunsAndFloatsInRange):
+
+2013-10-03  Anders Carlsson  <andersca@apple.com>
+
+        Assert that we don't try to index past the end of the m_coreTextIndices array
+        https://bugs.webkit.org/show_bug.cgi?id=122308
+
+        Reviewed by Dan Bernstein.
+
+        Because an assertion failure is better than a random crash.
+
+        * platform/graphics/mac/ComplexTextController.cpp:
+        (WebCore::ComplexTextController::ComplexTextRun::indexAt):
+
+2013-10-03  Antti Koivisto  <antti@apple.com>
+
+        Move setting of some layout bits to RenderElement
+        https://bugs.webkit.org/show_bug.cgi?id=122256
+
+        Reviewed by Andreas Kling.
+        
+        These bits never apply to RenderText nodes:
+        
+        normalChildNeedsLayout
+        posChildNeedsLayout
+        needsSimplifiedNormalFlowLayout
+        normalChildNeedsLayout
+        positionedMovementLayout
+
+        The code for setting them can be moved to RenderElement.
+
+        Also separated the code paths for setting and clearing the bits and uninlined
+        everything that is not massively popular.
+
+2013-10-03  Sam Weinig  <sam@webkit.org>
+
+        Remove shouldRubberBandInDirection from the WKBundlePageUIClient
+        https://bugs.webkit.org/show_bug.cgi?id=122309
+
+        Reviewed by Andreas Kling.
+
+        * loader/EmptyClients.h:
+        * page/ChromeClient.h:
+        * page/FrameView.cpp:
+        * page/FrameView.h:
+        * platform/ScrollableArea.h:
+        * platform/mac/ScrollAnimatorMac.mm:
+        (WebCore::ScrollAnimatorMac::shouldRubberBandInDirection):
+
+2013-10-03  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        Fix the HTMLSelectElement.prototype.remove() method
+        https://bugs.webkit.org/show_bug.cgi?id=121586
+
+        Reviewed by Darin Adler.
+
+        Fix the HTMLSelectElement.prototype.remove() method so that it behaves like
+        Element.remove() if no argument is passed (from ChildNode). This behavior
+        is consistent with Firefox and Blink.
+
+        See https://www.w3.org/Bugs/Public/show_bug.cgi?id=20720 for more
+        information.
+
+        Tests: js/dom/select-options-remove.html
+
+        * bindings/js/JSHTMLOptionsCollectionCustom.cpp:
+        (WebCore::JSHTMLOptionsCollection::remove):
+        Stop calling JSHTMLSelectElement::remove() blindly as it is dangerous, especially
+        now that calling it without argument now detaches the element. Instead, have the
+        bindings call the corresponding methods on the HTMLOptionsCollection implementation
+        object, as it should.
+
+        * bindings/js/JSHTMLSelectElementCustom.cpp:
+        (WebCore::JSHTMLSelectElement::remove):
+        Call Element::remove() if no argument is given.
+
+        * html/HTMLOptionsCollection.cpp:
+        (WebCore::HTMLOptionsCollection::remove):
+        * html/HTMLOptionsCollection.h:
+        * html/HTMLSelectElement.cpp:
+        * html/HTMLSelectElement.h:
+        Rename remove(int) to removeByIndex(int) to avoid conflict with
+        Node::remove(ExceptionCode&).
+
+2013-10-03  Samuel White  <samuel_white@apple.com>
+
+        Regression: AX: <table><caption> no longer exposed as AXTitle.
+        https://bugs.webkit.org/show_bug.cgi?id=121977
+
+        Reviewed by Darin Adler.
+
+        Some cleanup of accessibilityText. Notably, subclasses were unnecessarily redeclaring this method as both private and
+        protected. Added OVERRIDE keyword to these subclasses as needed. Moved titleElementText to virtual so we can do subclass
+        overrides in cases like this bug. That is, AccessibilityTable can leverage the existing machinery for alternativeText,
+        visibleText, and helpText, but we do some custom work ONLY in titleElementText.
+
+        Test: accessibility/table-title.html
+
+        * accessibility/AccessibilityImageMapLink.h:
+        * accessibility/AccessibilityMediaControls.h:
+        * accessibility/AccessibilityNodeObject.cpp:
+        (WebCore::AccessibilityNodeObject::titleElementText):
+        * accessibility/AccessibilityNodeObject.h:
+        * accessibility/AccessibilityTable.cpp:
+        (WebCore::AccessibilityTable::titleElementText):
+        * accessibility/AccessibilityTable.h:
+
+2013-10-03  Anders Carlsson  <andersca@apple.com>
+
+        Ignore deprecation warnings
+        https://bugs.webkit.org/show_bug.cgi?id=122302
+
+        Reviewed by Mark Rowe.
+
+        * accessibility/mac/WebAccessibilityObjectWrapperMac.mm:
+        (-[WebAccessibilityObjectWrapper convertPointToScreenSpace:]):
+        * bindings/objc/DOMHTML.mm:
+        (-[DOMHTMLInputElement _rectOnScreen]):
+        * page/mac/EventHandlerMac.mm:
+        (WebCore::EventHandler::sendFakeEventsAfterWidgetTracking):
+        * page/mac/FrameSnapshottingMac.mm:
+        (WebCore::imageFromRect):
+        * platform/graphics/mac/IconMac.mm:
+        (WebCore::Icon::Icon):
+        * platform/mac/DragImageMac.mm:
+        (WebCore::scaleDragImage):
+        * platform/mac/PlatformEventFactoryMac.mm:
+        (WebCore::globalPoint):
+        * platform/mac/ScrollViewMac.mm:
+        (WebCore::ScrollView::platformContentsToScreen):
+        (WebCore::ScrollView::platformScreenToContents):
+
+2013-10-03  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Support the shape-image-threshold property
+        https://bugs.webkit.org/show_bug.cgi?id=122254
+
+        Reviewed by Andreas Kling.
+
+        Replace the hardwired 0 Shape::createShape() threshold parameter with the style's
+        shapeImageThreshold() value (which has been clamped to [0,1]).
+
+        Tests: fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-001.html
+               fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-002.html
+
+        * rendering/shapes/ShapeInfo.cpp:
+        (WebCore::::computedShape):
+
+2013-10-03  Mihai Maerean  <mmaerean@adobe.com>
+
+        [CSS Regions] Follow-up code style change after bug #121828 All regions have layers
+        https://bugs.webkit.org/show_bug.cgi?id=122265
+
+        Reviewed by Darin Adler.
+
+        Comments moved to the cpp file, as requested in the review of bug #121828 All regions have layers.
+
+        No new tests, no behavior change.
+
+        * rendering/RenderMultiColumnSet.cpp:
+        (WebCore::RenderMultiColumnSet::requiresLayer):
+        * rendering/RenderMultiColumnSet.h:
+        * rendering/RenderRegion.cpp:
+        (WebCore::RenderRegion::requiresLayer):
+        * rendering/RenderRegion.h:
+
+2013-10-03  Alejandro G. Castro  <alex@igalia.com>
+
+        [cairo] Initialize the m_compositorTexture in GraphicsContext3DCairo.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=122285
+
+        Reviewed by Noam Rosenthal.
+
+        Initialize to the default texture to avoid the random texture name
+        and generate the texture name.
+
+        * platform/graphics/cairo/GraphicsContext3DCairo.cpp:
+        (WebCore::GraphicsContext3D::GraphicsContext3D): Initialize
+        m_compositorTexture.
+        (WebCore::GraphicsContext3D::~GraphicsContext3D): Delete the
+        generated textures names.
+        * platform/graphics/opengl/GraphicsContext3DOpenGLES.cpp:
+        (WebCore::GraphicsContext3D::reshapeFBOs): Generate the texture
+        names for m_compositorTexture and m_texture.
+
 2013-10-03  Zoltan Horvath  <zoltan@webkit.org>
 
         [CSS Shapes] Support block content with inline content around floats in shape-inside

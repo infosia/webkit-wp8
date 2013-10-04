@@ -1,3 +1,51 @@
+2013-10-03  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Unreviewed. Add myself to some watchlists.
+
+        * Scripts/webkitpy/common/config/watchlist:
+
+2013-10-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Remove Qt builders from the flakiness dashboard.
+
+        * TestResultServer/static-dashboards/builders.jsonp:
+        * TestResultServer/static-dashboards/flakiness_dashboard.js:
+        * TestResultServer/static-dashboards/flakiness_dashboard_unittests.js:
+        * TestResultServer/static-dashboards/loader_unittests.js:
+
+2013-10-03  Tim Horton  <timothy_horton@apple.com>
+
+        [mac][wk2] ScrollPinningBehaviors, SpacebarScrolling, and ScrollByLineCommands fail after r156793
+        https://bugs.webkit.org/show_bug.cgi?id=122299
+
+        Reviewed by Beth Dakin.
+
+        * TestWebKitAPI/Tests/WebKit2/ScrollPinningBehaviors.cpp:
+        Disable threaded scrolling.
+
+        * TestWebKitAPI/Tests/WebKit2/SpacebarScrolling.cpp:
+        * TestWebKitAPI/Tests/WebKit2/mac/EditorCommands.mm:
+        Synchronously wait for the scrolling thread to inform the main thread of the new scroll position.
+
+2013-10-03  Anders Carlsson  <andersca@apple.com>
+
+        Use numeric strings in the OS version dictionary
+        https://bugs.webkit.org/show_bug.cgi?id=122300
+
+        Reviewed by Mark Rowe.
+
+        * Scripts/webkitpy/common/system/platforminfo.py:
+        (PlatformInfo._determine_mac_version):
+
+2013-10-03  Alexey Proskuryakov  <ap@apple.com>
+
+        Fix LeaksViewer to load leaks results from MountainLion, not Lion.
+
+        Rubber-stamped by Tim Horton.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/LeaksViewer/LeaksViewer.js:
+        (LeaksViewer._displayURLPrompt):
+
 2013-10-03  Dan Bernstein  <mitz@apple.com>
 
         REGRESSION (r156811): Objective-C JavaScriptCore API test failing on Mountain Lion bots

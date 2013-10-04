@@ -65,10 +65,6 @@ DrawingAreaImpl::DrawingAreaImpl(WebPage* webPage, const WebPageCreationParamete
     if (webPage->corePage()->settings().acceleratedDrawingEnabled() || webPage->corePage()->settings().forceCompositingMode())
         m_alwaysUseCompositing = true;
 
-#if USE(COORDINATED_GRAPHICS)
-    m_alwaysUseCompositing = true;
-#endif
-
     if (m_alwaysUseCompositing)
         enterAcceleratedCompositingMode(0);
 }
@@ -354,11 +350,7 @@ void DrawingAreaImpl::updateBackingStoreState(uint64_t stateID, bool respondImme
         m_webPage->scrollMainFrameIfNotAtMaxScrollPosition(scrollOffset);
 
         if (m_layerTreeHost) {
-#if USE(COORDINATED_GRAPHICS)
-            // Coordinated Graphics sets the size of the root layer to contents size.
-            if (!m_webPage->useFixedLayout())
-#endif
-                m_layerTreeHost->sizeDidChange(m_webPage->size());
+            m_layerTreeHost->sizeDidChange(m_webPage->size());
         } else
             m_dirtyRegion = m_webPage->bounds();
     } else {
@@ -689,13 +681,5 @@ void DrawingAreaImpl::display(UpdateInfo& updateInfo)
     // until the UI process has painted the update, so we stop the timer here.
     m_displayTimer.stop();
 }
-
-#if USE(COORDINATED_GRAPHICS)
-void DrawingAreaImpl::didReceiveCoordinatedLayerTreeHostMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
-{
-    if (m_layerTreeHost)
-        m_layerTreeHost->didReceiveCoordinatedLayerTreeHostMessage(connection, decoder);
-}
-#endif
 
 } // namespace WebKit

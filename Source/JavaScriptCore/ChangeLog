@@ -1,3 +1,49 @@
+2013-10-03  Mark Rowe  <mrowe@apple.com>
+
+        REGRESSION (r156811): WebCore rebuilds from scratch when doing an incremental build
+
+        The change in r156811 resulted in several public headers in the JavaScriptCore framework having their modification
+        date touched on every build, even if their contents had not changed. This resulted in a large portion of WebCore
+        needing to rebuilt after an incremental build of JavaScriptCore.
+
+        Reviewed by Dan Bernstein.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj: Have unifdef generate its output to a temporary file. If its exit status
+        indicates that the content did not change, remove the temporary file. If the content changed, moved the temporary file
+        over the destination.
+
+2013-10-03  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Unreviewed gardening.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters: Clean up the
+        paths for various files added outside of Visual Studio. They are all
+        displayed in the root of the project, rather than the proper sub-folder.
+
+2013-10-03  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Update solutions and projects to support 64-bit builds.
+        https://bugs.webkit.org/show_bug.cgi?id=122225
+
+        Reviewed by Anders Carlsson.
+
+        Revise ordering of CPU(X86) and CPU(X86_64) tests, because MSVC always defines
+        both when targeting a 64-bit build.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.submit.sln: Add an x64 target
+        for 64-bit builds.
+
+2013-10-03  Michael Saboff  <msaboff@apple.com>
+
+        Eliminate unused JITStub function declarations
+        https://bugs.webkit.org/show_bug.cgi?id=122288
+
+        Reviewed by Geoffrey Garen.
+
+        Removed unused JITStub declarations.
+
+        * jit/JITStubs.h:
+
 2013-10-03  Sergio Correia  <sergio.correia@openbossa.org>
 
         [EFL] [DEBUG] JavaScriptCore fails to build

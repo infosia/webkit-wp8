@@ -81,9 +81,6 @@ private:
     void enterAcceleratedCompositingMode(const LayerTreeContext&);
     void exitAcceleratedCompositingMode();
     void updateAcceleratedCompositingMode(const LayerTreeContext&);
-#if USE(COORDINATED_GRAPHICS)
-    virtual void setVisibleContentsRect(const WebCore::FloatRect& visibleContentsRect, const WebCore::FloatPoint& trajectory) OVERRIDE;
-#endif
 #else
     bool isInAcceleratedCompositingMode() const { return false; }
 #endif

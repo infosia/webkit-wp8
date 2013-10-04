@@ -1,3 +1,193 @@
+2013-10-04  Lorenzo Tilve  <ltilve@igalia.com>
+
+        [GTK] Enable text edition UndoOperations support in WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=122305
+
+        Reviewed by Carlos Garcia Campos.
+
+        * platform/gtk-wk2/TestExpectations: Corrected the expectations
+        with the new results.
+
+2013-10-04  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Regions as stacking contexts should paint over positioned sibling
+        https://bugs.webkit.org/show_bug.cgi?id=122321
+
+        Reviewed by Alexandru Chiculita.
+
+        Add a new test and modify existing tests to take into account the stacking context behavior
+        for non-positioned regions.
+
+        * fast/regions/autoheight-regions-mark-expected.txt:
+        * fast/regions/layers/region-normalflow-stacking-context-expected.html: Added.
+        * fast/regions/layers/region-normalflow-stacking-context.html: Added.
+        * fast/regions/shape-inside/shape-inside-on-regions-block-content-overflow-bottom-positioned-multiple-shapes-expected.html:
+        * fast/regions/shape-inside/shape-inside-on-regions-inline-content-overflow-bottom-positioned-multiple-shapes-expected.html:
+
+2013-10-04  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        Unreviewed EFL gardening
+
+        Remove failure expectations from tests that are passing.
+
+        * platform/efl-wk2/TestExpectations: update js/dom/create-lots-of-workers.html path.
+        * platform/efl/TestExpectations:
+
+2013-10-04  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [EFL] Enable correct behaviour for deleting regional indicator symbols
+        https://bugs.webkit.org/show_bug.cgi?id=122209
+
+        Reviewed by Gyuyoung Kim.
+
+        Now editing/deleting/regional-indicators.html is passing on EFL port.
+
+        * platform/efl/TestExpectations:
+
+2013-10-04  Andrei Bucur  <abucur@adobe.com>
+
+        [CSS Regions] Infinite loop when computing widows
+        https://bugs.webkit.org/show_bug.cgi?id=122215
+
+        Reviewed by David Hyatt.
+
+        Test there is no stack overflow when trying to break for widows that are caused by other widows.
+
+        * fast/regions/regions-widows-stack-overflow-expected.html: Added.
+        * fast/regions/regions-widows-stack-overflow.html: Added.
+
+2013-10-03  Christophe Dumez  <ch.dumez@sisa.samsung.com>
+
+        Fix the HTMLSelectElement.prototype.remove() method
+        https://bugs.webkit.org/show_bug.cgi?id=121586
+
+        Reviewed by Darin Adler.
+
+        Add test to make sure calling HTMLSelectElement.prototype.remove() detaches the
+        select element from its parent, as Element::remove() would.
+
+        * js/dom/select-options-remove-expected.txt:
+        * js/resources/select-options-remove.js:
+
+2013-10-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Re-remove Qt TestExpectations re-added in r156841 after r156866.
+
+        * platform/qt: Removed.
+        * platform/qt/TestExpectations: Removed.
+
+2013-10-03  Samuel White  <samuel_white@apple.com>
+
+        Regression: AX: <table><caption> no longer exposed as AXTitle.
+        https://bugs.webkit.org/show_bug.cgi?id=121977
+
+        Reviewed by Darin Adler.
+
+        Added test to verify that table elements correctly derive their AXTitle from their associated caption element.
+
+        * accessibility/table-title-expected.txt: Added.
+        * accessibility/table-title.html: Added.
+
+2013-10-03  Nadav Rotem  <nrotem@apple.com>
+
+        Add a testcase for a bug that I had during the development. This code uses the asm.js style.
+        https://bugs.webkit.org/show_bug.cgi?id=122286
+
+        Reviewed by Filip Pizlo.
+
+        * js/regress/asmjs_bool_bug-expected.txt: Added.
+        * js/regress/asmjs_bool_bug.html: Added.
+        * js/regress/script-tests/asmjs_bool_bug.js: Added.
+        (strlen):
+
+2013-10-03  Manuel Rego Casasnovas  <rego@igalia.com>
+
+        [CSS Regions] Layout Test for selecting text in 2 regions
+        https://bugs.webkit.org/show_bug.cgi?id=121841
+
+        Reviewed by Alexandru Chiculita.
+
+        Add new reftest for selecting text in 2 regions. It compares the
+        behavior (highlighted text and selected content) in regions and absolute
+        positions.
+
+        * fast/regions/resources/helper.js: Add new function to set selected
+        content in an element onmouseup.
+        (onMouseUpLogSelection.document.onmouseup):
+        (onMouseUpLogSelection):
+        * fast/regions/resources/region-style.css: Define some styles that could
+        be reused in other tests.
+        * fast/regions/selection/selecting-text-in-2-regions-expected.html:
+        Added.
+        * fast/regions/selection/selecting-text-in-2-regions.html: Added.
+
+2013-10-03  Alexey Proskuryakov  <ap@apple.com>
+
+        Flaky Test: fast/history/history-back-while-pdf-in-pagecache.html
+        https://bugs.webkit.org/show_bug.cgi?id=121628
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2013-10-03  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Support the shape-image-threshold property
+        https://bugs.webkit.org/show_bug.cgi?id=122254
+
+        Reviewed by Andreas Kling.
+
+        Verify that a shape-outside image whose pixels' alpha channels are all above shape-image-threshold causes
+        layout to skirt the shape, and similarly that an image whose pixels' alpha channels are all below the threshold
+        has no effect on the layout.
+
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-001-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-001.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-002-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-image-threshold-002.html: Added.
+
+2013-10-03  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Revise the CSS property parsing tests
+        https://bugs.webkit.org/show_bug.cgi?id=122251
+
+        Reviewed by Andreas Kling.
+
+        Flattened the shapes CSS property parsing tests by inserting the code from
+        the fast/shapes/parsing/script-tests subdirectory into the test HTML source
+        files. The subdirectory is now empty and the tests are easier to read.
+
+        * fast/shapes/parsing/parsing-shape-image-threshold.html: Inserted parsing-shape-image-threshold.js instead of referring to it with script src.
+        * fast/shapes/parsing/parsing-shape-inside.html: Likewise
+        * fast/shapes/parsing/parsing-shape-lengths.html: Likewise
+        * fast/shapes/parsing/parsing-shape-margin.html: Likewise
+        * fast/shapes/parsing/parsing-shape-outside.html: Likewise
+        * fast/shapes/parsing/parsing-shape-padding.html: Likewise
+        * fast/shapes/parsing/parsing-test-utils.js: Renamed from LayoutTests/fast/shapes/parsing/script-tests/parsing-test-utils.js.
+        (getCSSText):
+        (getComputedStyleValue):
+        (getParentAndChildComputedStyles):
+        (getParentAndChildComputedStylesString):
+        (getChildComputedStyle):
+        (testShapeSpecifiedProperty):
+        (testShapeComputedProperty):
+        (testNotInheritedShapeChildProperty):
+        (property):
+        * fast/shapes/parsing/script-tests/parsing-shape-image-threshold.js: Removed.
+        * fast/shapes/parsing/script-tests/parsing-shape-inside.js: Removed.
+        * fast/shapes/parsing/script-tests/parsing-shape-lengths.js: Removed.
+        * fast/shapes/parsing/script-tests/parsing-shape-margin.js: Removed.
+        * fast/shapes/parsing/script-tests/parsing-shape-outside.js: Removed.
+        * fast/shapes/parsing/script-tests/parsing-shape-padding.js: Removed.
+
+2013-10-03  Alexey Proskuryakov  <ap@apple.com>
+
+        video-object-fit tests are flaky
+        https://bugs.webkit.org/show_bug.cgi?id=121803
+
+        I'm not quite sure what's going on, but [ Pass Failure ] expectations didn't cut it.
+        Trying [ Pass ImageOnlyFailure ], as the failures are always image only anyway.
+
+        * platform/mac/TestExpectations:
+
 2013-10-03  Zoltan Horvath  <zoltan@webkit.org>
 
         [CSS Shapes] Support block content with inline content around floats in shape-inside

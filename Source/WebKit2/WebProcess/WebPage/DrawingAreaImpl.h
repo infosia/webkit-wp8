@@ -73,10 +73,6 @@ private:
     virtual void scheduleCompositingLayerFlush() OVERRIDE;
 #endif
 
-#if USE(COORDINATED_GRAPHICS)
-    virtual void didReceiveCoordinatedLayerTreeHostMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-#endif
-
     // CoreIPC message handlers.
     virtual void updateBackingStoreState(uint64_t backingStoreStateID, bool respondImmediately, float deviceScaleFactor, const WebCore::IntSize&, const WebCore::IntSize& scrollOffset);
     virtual void didUpdate();
