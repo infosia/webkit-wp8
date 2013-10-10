@@ -2121,7 +2121,13 @@
     <ClCompile Include="..\css\CSSFontFaceSrcValue.cpp">
       <Filter>css</Filter>
     </ClCompile>
+    <ClCompile Include="..\css\CSSFontFeatureValue.cpp">
+      <Filter>css</Filter>
+    </ClCompile>
     <ClCompile Include="..\css\CSSFontSelector.cpp">
+      <Filter>css</Filter>
+    </ClCompile>
+    <ClCompile Include="..\css\CSSFontValue.cpp">
       <Filter>css</Filter>
     </ClCompile>
     <ClCompile Include="..\css\CSSFunctionValue.cpp">
@@ -2196,6 +2202,9 @@
     <ClCompile Include="..\css\CSSSelectorList.cpp">
       <Filter>css</Filter>
     </ClCompile>
+    <ClCompile Include="..\css\CSSShadowValue.cpp">
+      <Filter>css</Filter>
+    </ClCompile>
     <ClCompile Include="..\css\CSSStyleRule.cpp">
       <Filter>css</Filter>
     </ClCompile>
@@ -2223,13 +2232,7 @@
     <ClCompile Include="..\css\CSSValuePool.cpp">
       <Filter>css</Filter>
     </ClCompile>
-    <ClCompile Include="..\css\FontFeatureValue.cpp">
-      <Filter>css</Filter>
-    </ClCompile>
     <ClCompile Include="..\css\FontLoader.cpp">
-      <Filter>css</Filter>
-    </ClCompile>
-    <ClCompile Include="..\css\FontValue.cpp">
       <Filter>css</Filter>
     </ClCompile>
     <ClCompile Include="..\css\LengthFunctions.cpp">
@@ -2266,9 +2269,6 @@
       <Filter>css</Filter>
     </ClCompile>
     <ClCompile Include="..\css\SelectorChecker.cpp">
-      <Filter>css</Filter>
-    </ClCompile>
-    <ClCompile Include="..\css\ShadowValue.cpp">
       <Filter>css</Filter>
     </ClCompile>
     <ClCompile Include="..\css\StyleInvalidationAnalysis.cpp">
@@ -3178,9 +3178,6 @@
       <Filter>dom</Filter>
     </ClCompile>
     <ClCompile Include="..\dom\EventDispatcher.cpp">
-      <Filter>dom</Filter>
-    </ClCompile>
-    <ClCompile Include="..\dom\EventDispatchMediator.cpp">
       <Filter>dom</Filter>
     </ClCompile>
     <ClCompile Include="..\dom\EventException.cpp">
@@ -4552,9 +4549,6 @@
       <Filter>bindings\js</Filter>
     </ClCompile>
     <ClCompile Include="..\bindings\js\ScriptFunctionCall.cpp">
-      <Filter>bindings\js</Filter>
-    </ClCompile>
-    <ClCompile Include="..\bindings\js\ScriptGCEvent.cpp">
       <Filter>bindings\js</Filter>
     </ClCompile>
     <ClCompile Include="..\bindings\js\ScriptObject.cpp">
@@ -8868,7 +8862,13 @@
     <ClInclude Include="..\css\CSSFontFaceSrcValue.h">
       <Filter>css</Filter>
     </ClInclude>
+    <ClInclude Include="..\css\CSSFontFeatureValue.h">
+      <Filter>css</Filter>
+    </ClInclude>
     <ClInclude Include="..\css\CSSFontSelector.h">
+      <Filter>css</Filter>
+    </ClInclude>
+    <ClInclude Include="..\css\CSSFontValue.h">
       <Filter>css</Filter>
     </ClInclude>
     <ClInclude Include="..\css\CSSFunctionValue.h">
@@ -8952,6 +8952,9 @@
     <ClInclude Include="..\css\CSSSelectorList.h">
       <Filter>css</Filter>
     </ClInclude>
+    <ClInclude Include="..\css\CSSShadowValue.h">
+      <Filter>css</Filter>
+    </ClInclude>
     <ClInclude Include="..\css\CSSStyleDeclaration.h">
       <Filter>css</Filter>
     </ClInclude>
@@ -8991,13 +8994,7 @@
     <ClInclude Include="..\css\DashboardRegion.h">
       <Filter>css</Filter>
     </ClInclude>
-    <ClInclude Include="..\css\FontFeatureValue.h">
-      <Filter>css</Filter>
-    </ClInclude>
     <ClInclude Include="..\css\FontLoader.h">
-      <Filter>css</Filter>
-    </ClInclude>
-    <ClInclude Include="..\css\FontValue.h">
       <Filter>css</Filter>
     </ClInclude>
     <ClInclude Include="..\css\LengthFunctions.h">
@@ -9040,9 +9037,6 @@
       <Filter>css</Filter>
     </ClInclude>
     <ClInclude Include="..\css\SelectorChecker.h">
-      <Filter>css</Filter>
-    </ClInclude>
-    <ClInclude Include="..\css\ShadowValue.h">
       <Filter>css</Filter>
     </ClInclude>
     <ClInclude Include="..\css\StyleInvalidationAnalysis.h">
@@ -9576,6 +9570,9 @@
     <ClInclude Include="..\rendering\style\FillLayer.h">
       <Filter>rendering\style</Filter>
     </ClInclude>
+    <ClInclude Include="..\rendering\style\GridCoordinate.h">
+      <Filter>rendering\style</Filter>
+    </ClInclude>
     <ClInclude Include="..\rendering\style\GridPosition.h">
       <Filter>rendering\style</Filter>
     </ClInclude>
@@ -10033,9 +10030,6 @@
       <Filter>dom</Filter>
     </ClInclude>
     <ClInclude Include="..\dom\EventDispatcher.h">
-      <Filter>dom</Filter>
-    </ClInclude>
-    <ClInclude Include="..\dom\EventDispatchMediator.h">
       <Filter>dom</Filter>
     </ClInclude>
     <ClInclude Include="..\dom\EventException.h">
@@ -11329,9 +11323,6 @@
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptFunctionCall.h">
-      <Filter>bindings\js</Filter>
-    </ClInclude>
-    <ClInclude Include="..\bindings\js\ScriptGCEvent.h">
       <Filter>bindings\js</Filter>
     </ClInclude>
     <ClInclude Include="..\bindings\js\ScriptHeapSnapshot.h">

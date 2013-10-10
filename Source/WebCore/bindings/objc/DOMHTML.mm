@@ -56,13 +56,13 @@
 
 - (DOMDocumentFragment *)createDocumentFragmentWithMarkupString:(NSString *)markupString baseURL:(NSURL *)baseURL
 {
-    return kit(createFragmentFromMarkup(core(self), markupString, [baseURL absoluteString]).get());
+    return kit(createFragmentFromMarkup(*core(self), markupString, [baseURL absoluteString]).get());
 }
 
 - (DOMDocumentFragment *)createDocumentFragmentWithText:(NSString *)text
 {
     // FIXME: Since this is not a contextual fragment, it won't handle whitespace properly.
-    return kit(createFragmentFromText(core(self)->createRange().get(), text).get());
+    return kit(createFragmentFromText(*core(self)->createRange().get(), text).get());
 }
 
 @end

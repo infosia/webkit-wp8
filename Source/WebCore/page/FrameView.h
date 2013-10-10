@@ -106,7 +106,7 @@ public:
     bool didFirstLayout() const;
     void layoutTimerFired(Timer<FrameView>*);
     void scheduleRelayout();
-    void scheduleRelayoutOfSubtree(RenderObject&);
+    void scheduleRelayoutOfSubtree(RenderElement&);
     void unscheduleRelayout();
     bool layoutPending() const;
     bool isInLayout() const { return m_inLayout; }
@@ -246,10 +246,6 @@ public:
 
     void updateLayerFlushThrottlingInAllFrames();
     void adjustTiledBackingCoverage();
-
-    void beginDisableRepaints();
-    void endDisableRepaints();
-    bool repaintsDisabled() { return m_disableRepaints > 0; }
 
 #if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
     void updateAnnotatedRegions();
@@ -426,8 +422,6 @@ public:
     bool visualUpdatesAllowedByClient() const { return m_visualUpdatesAllowedByClient; }
     void setVisualUpdatesAllowedByClient(bool);
 
-    void resumeAnimatingImages();
-    
     void setScrollPinningBehavior(ScrollPinningBehavior);
 
     void updateWidgetPositions();
@@ -513,7 +507,7 @@ private:
 
     void updateScrollableAreaSet();
 
-    virtual void notifyPageThatContentAreaWillPaint() const;
+    virtual void notifyPageThatContentAreaWillPaint() const OVERRIDE;
 
     bool shouldUseLoadTimeDeferredRepaintDelay() const;
     void deferredRepaintTimerFired(Timer<FrameView>*);
@@ -567,7 +561,7 @@ private:
 
     Timer<FrameView> m_layoutTimer;
     bool m_delayedLayout;
-    RenderObject* m_layoutRoot;
+    RenderElement* m_layoutRoot;
     
     bool m_layoutSchedulingEnabled;
     bool m_inLayout;
@@ -604,8 +598,6 @@ private:
     Timer<FrameView> m_deferredRepaintTimer;
     double m_deferredRepaintDelay;
     double m_lastPaintTime;
-
-    unsigned m_disableRepaints;
 
     bool m_isTrackingRepaints; // Used for testing.
     Vector<IntRect> m_trackedRepaintRects;

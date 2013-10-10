@@ -745,24 +745,11 @@ char* JIT_OPERATION operationNewFloat64ArrayWithOneArgument(
     return newTypedArrayWithOneArgument<JSFloat64Array>(exec, structure, encodedValue);
 }
 
-EncodedJSValue JIT_OPERATION operationNewRegexp(ExecState* exec, void* regexpPtr)
+JSCell* JIT_OPERATION operationCreateActivation(ExecState* exec, int32_t offset)
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
-    RegExp* regexp = static_cast<RegExp*>(regexpPtr);
-    if (!regexp->isValid()) {
-        vm.throwException(exec, createSyntaxError(exec, "Invalid flags supplied to RegExp constructor."));
-        return JSValue::encode(jsUndefined());
-    }
-    
-    return JSValue::encode(RegExpObject::create(vm, exec->lexicalGlobalObject()->regExpStructure(), regexp));
-}
-
-JSCell* JIT_OPERATION operationCreateActivation(ExecState* exec)
-{
-    VM& vm = exec->vm();
-    NativeCallFrameTracer tracer(&vm, exec);
-    JSActivation* activation = JSActivation::create(vm, exec, exec->codeBlock());
+    JSActivation* activation = JSActivation::create(vm, exec, exec->registers() + offset, exec->codeBlock());
     exec->setScope(activation);
     return activation;
 }
@@ -1010,7 +997,7 @@ JSCell* JIT_OPERATION operationNewStringObject(ExecState* exec, JSString* string
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
     
-    return StringObject::create(exec, structure, string);
+    return StringObject::create(vm, structure, string);
 }
 
 JSCell* JIT_OPERATION operationToStringOnCell(ExecState* exec, JSCell* cell)

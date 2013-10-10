@@ -109,12 +109,14 @@ public:
 #if ENABLE(CSS_VARIABLES)
     bool isVariableValue() const { return m_classType == VariableClass; }
 #endif
+    bool isGridTemplateValue() const { return m_classType == GridTemplateClass; }
 #if ENABLE(SVG)
     bool isSVGColor() const { return m_classType == SVGColorClass || m_classType == SVGPaintClass; }
     bool isSVGPaint() const { return m_classType == SVGPaintClass; }
     bool isWebKitCSSSVGDocumentValue() const { return m_classType == WebKitCSSSVGDocumentClass; }
 #endif
-    
+    bool isUnicodeRangeValue() const { return m_classType == UnicodeRangeClass; }
+
     bool isCSSOMSafe() const { return m_isCSSOMSafe; }
     bool isSubtypeExposedToCSSOM() const
     { 
@@ -178,6 +180,7 @@ protected:
 #if ENABLE(CSS_VARIABLES)
         VariableClass,
 #endif
+        GridTemplateClass,
 #if ENABLE(SVG)
         SVGColorClass,
         SVGPaintClass,

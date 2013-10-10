@@ -155,10 +155,10 @@ void HTMLBodyElement::parseAttribute(const QualifiedName& name, const AtomicStri
         HTMLElement::parseAttribute(name, value);
 }
 
-Node::InsertionNotificationRequest HTMLBodyElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLBodyElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return InsertionDone;
 
     // FIXME: It's surprising this is web compatible since it means a marginwidth and marginheight attribute can
@@ -169,10 +169,10 @@ Node::InsertionNotificationRequest HTMLBodyElement::insertedInto(ContainerNode* 
         HTMLFrameElementBase* ownerFrameElement = toHTMLFrameElementBase(ownerElement);
         int marginWidth = ownerFrameElement->marginWidth();
         if (marginWidth != -1)
-            setAttribute(marginwidthAttr, String::number(marginWidth));
+            setIntegralAttribute(marginwidthAttr, marginWidth);
         int marginHeight = ownerFrameElement->marginHeight();
         if (marginHeight != -1)
-            setAttribute(marginheightAttr, String::number(marginHeight));
+            setIntegralAttribute(marginheightAttr, marginHeight);
     }
 
     return InsertionDone;

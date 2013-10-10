@@ -216,13 +216,12 @@ void WebFrame::didReceivePolicyDecision(uint64_t listenerID, PolicyAction action
 
     ASSERT(m_policyFunction);
 
-    FramePolicyFunction function = m_policyFunction;
+    FramePolicyFunction function = std::move(m_policyFunction);
 
     invalidatePolicyListener();
 
     m_policyDownloadID = downloadID;
-
-    (m_coreFrame->loader().policyChecker().*function)(action);
+    function(action);
 }
 
 void WebFrame::startDownload(const WebCore::ResourceRequest& request)
@@ -629,7 +628,7 @@ WebFrame* WebFrame::frameForContext(JSContextRef context)
     if (strcmp(globalObjectObj->classInfo()->className, "JSDOMWindowShell") != 0)
         return 0;
 
-    Frame* coreFrame = static_cast<JSDOMWindowShell*>(globalObjectObj)->window()->impl()->frame();
+    Frame* coreFrame = static_cast<JSDOMWindowShell*>(globalObjectObj)->window()->impl().frame();
 
     WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(coreFrame->loader().client());
     return webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
@@ -664,7 +663,7 @@ String WebFrame::counterValue(JSObjectRef element)
     if (!toJS(element)->inherits(JSElement::info()))
         return String();
 
-    return counterValueForElement(static_cast<JSElement*>(toJS(element))->impl());
+    return counterValueForElement(&static_cast<JSElement*>(toJS(element))->impl());
 }
 
 String WebFrame::provisionalURL() const

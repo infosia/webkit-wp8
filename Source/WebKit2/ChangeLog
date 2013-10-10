@@ -1,3 +1,367 @@
+2013-10-10  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Buildfix for non Mac platforms with enabled NetworkProcess
+        https://bugs.webkit.org/show_bug.cgi?id=121793
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/ShareableResource.cpp:
+        * Shared/ShareableResource.h:
+        * Shared/WebResourceBuffer.cpp:
+        * Shared/WebResourceBuffer.h:
+        * WebKit2Prefix.h:
+        * WebProcess/Network/NetworkProcessConnection.cpp:
+        * WebProcess/Network/NetworkProcessConnection.h:
+        * WebProcess/Network/NetworkProcessConnection.messages.in:
+        * WebProcess/Network/WebResourceLoader.cpp:
+        * WebProcess/Network/WebResourceLoader.h:
+        * WebProcess/Network/WebResourceLoader.messages.in:
+
+2013-10-09  Sergio Correia  <sergio.correia@openbossa.org>
+
+        Set view to active in ViewClientEfl after WebProcess has relaunched
+        https://bugs.webkit.org/show_bug.cgi?id=118650
+
+        Reviewed by Noam Rosenthal.
+
+        Once WebProcess relaunches, the underlying scene from the view is recreated
+        and is not active by default, which means it will be in `background'. In
+        practice, from that point on we are going to get a blank screen, unless we
+        set it to active.
+
+        In the normal flow, the view is set to active during its initialization; this
+        patch sets it to active also in ViewClientEfl, in the webProcessDidRelaunch
+        callback.
+
+        * UIProcess/efl/ViewClientEfl.cpp:
+        (WebKit::ViewClientEfl::webProcessDidRelaunch): Added WKViewSetIsActive call.
+
+2013-10-09  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157157.
+        http://trac.webkit.org/changeset/157157
+        https://bugs.webkit.org/show_bug.cgi?id=122547
+
+        Caused crashes on several bots including gtk, mac-wk2 lion and
+        mountain lion (Requested by kov on #webkit).
+
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::registerNPObject):
+        (WebKit::NPRemoteObjectMap::pluginDestroyed):
+        * Shared/Plugins/NPRemoteObjectMap.h:
+
+2013-10-08  Darin Adler  <darin@apple.com>
+
+        Remove use of deleteAllValues in NPRemoteObjectMap::pluginDestroyed
+        https://bugs.webkit.org/show_bug.cgi?id=122496
+
+        Reviewed by Andreas Kling.
+
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::registerNPObject): Don't call release when puttin objects
+        into the map.
+        (WebKit::NPRemoteObjectMap::pluginDestroyed): Instead of making an array of receivers
+        and deleting them all, remove all of the receivers from the map, which will take care
+        of deleting them. Also change the other loop to use a similar coding style.
+
+        * Shared/Plugins/NPRemoteObjectMap.h: Change the value type of m_registeredNPObjects
+        to be unique_ptr instead of a raw pointer.
+
+2013-10-08  Anders Carlsson  <andersca@apple.com>
+
+        WebProcess crash on SAP WebCycle web app
+        https://bugs.webkit.org/show_bug.cgi?id=122520
+        <rdar://problem/15030605>
+
+        Reviewed by Darin Adler.
+
+        Stop trying to use RunLoop to manage the top-level run loop and just have the child process and their
+        delegate subclasses start and stop the run loops. This fixes a bug with showModalDialog where we would
+        unintentionally call -[NSApp stop] when closing a modal dialog.
+        
+        This also lets us move all knowledge of NSApplication from RunLoop. (Both the web process and plug-in process
+        need to use -[NSApp run] and -[NSApp stop:]).
+
+        * PluginProcess/EntryPoint/mac/LegacyProcess/PluginProcessMain.mm:
+        (WebKit::PluginProcessMainDelegate::doPreInitializationWork):
+        Remove call to RunLoop::setUseApplicationRunLoopOnMainRunLoop. Add a startRunLoop override that calls
+        -[NSApp run].
+
+        * PluginProcess/EntryPoint/mac/XPCService/PluginServiceEntryPoint.mm:
+        (PluginServiceInitializer):
+        Remove call to RunLoop::setUseApplicationRunLoopOnMainRunLoop.
+
+        * PluginProcess/PluginProcess.h:
+        Add stopRunLoop() override on Mac.
+
+        * PluginProcess/mac/PluginProcessMac.mm:
+        (WebKit::PluginProcess::stopRunLoop):
+        Call -[NSApp stop:] and tickle the event system.
+
+        * Shared/ChildProcess.cpp:
+        (WebKit::ChildProcess::stopRunLoop):
+        Add default implementation that just calls RunLoop::main()->stop().
+
+        (WebKit::ChildProcess::terminate):
+        Call stopRunLoop().
+
+        * Shared/ChildProcess.h:
+        * Shared/EntryPointUtilities/mac/LegacyProcess/ChildProcessEntryPoint.h:
+        Add startRunLoop member function and call it instead of RunLoop::run().
+
+        * Shared/EntryPointUtilities/mac/LegacyProcess/ChildProcessEntryPoint.mm:
+        (WebKit::ChildProcessMainDelegate::startRunLoop):
+        Call RunLoop::run().
+
+        * WebProcess/EntryPoint/mac/LegacyProcess/WebContentProcessMain.mm:
+        (WebKit::WebContentProcessMainDelegate::doPreInitializationWork):
+        Remove call to RunLoop::setUseApplicationRunLoopOnMainRunLoop.
+        Add startRunLoop override that calls -[NSApp run].
+        
+        * WebProcess/EntryPoint/mac/XPCService/WebContentServiceEntryPoint.mm:
+        (WebContentServiceInitializer):
+        Remove call to RunLoop::setUseApplicationRunLoopOnMainRunLoop.
+
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::didClose):
+        Call stopRunLoop().
+
+        * WebProcess/WebProcess.h:
+        Add stopRunLoop override.
+
+        * WebProcess/mac/WebProcessMac.mm:
+        (WebKit::WebProcess::stopRunLoop):
+        Call -[NSApp stop:] and tickle the event system.
+
+2013-10-08  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157090.
+        http://trac.webkit.org/changeset/157090
+        https://bugs.webkit.org/show_bug.cgi?id=122504
+
+        Caused crashes in many plug-in tests (Requested by ap on
+        #webkit).
+
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::registerNPObject):
+        (WebKit::NPRemoteObjectMap::pluginDestroyed):
+        * Shared/Plugins/NPRemoteObjectMap.h:
+
+2013-10-08  Darin Adler  <darin@apple.com>
+
+        Remove use of deleteAllValues in NPRemoteObjectMap::pluginDestroyed
+        https://bugs.webkit.org/show_bug.cgi?id=122496
+
+        Reviewed by Andreas Kling.
+
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::registerNPObject): Don't call release when putting objects
+        into the map.
+        (WebKit::NPRemoteObjectMap::pluginDestroyed): Instead of making an array of receivers
+        and deleting them all, remove all of the receivers from the map, which will take care
+        of deleting them. Also change the other loop to use a similar coding style.
+
+        * Shared/Plugins/NPRemoteObjectMap.h: Change the value type of m_registeredNPObjects
+        to be unique_ptr instead of a raw pointer.
+
+2013-10-07  Gustavo Noronha Silva  <gustavo.noronha@collabora.co.uk>
+
+        Reduce duplicated code in WebPageProxy
+        https://bugs.webkit.org/show_bug.cgi?id=122230
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::close): move duplicate code to resetState and call it.
+        (WebKit::WebPageProxy::resetState): new private method for code that is shared between
+        close and resetStateAfterProcessExited.
+        (WebKit::WebPageProxy::resetStateAfterProcessExited): move duplicate code to resetState
+        and call it.
+        * UIProcess/WebPageProxy.h:
+
+2013-10-07  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Use references in and around DragController
+        https://bugs.webkit.org/show_bug.cgi?id=122427
+
+        Reviewed by Andreas Kling.
+
+        * UIProcess/API/gtk/WebKitWebViewBase.cpp:
+        (webkitWebViewBaseDragDataReceived):
+        (webkitWebViewBaseDragMotion):
+        (dragExitedCallback):
+        (webkitWebViewBaseDragDrop):
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView draggingEntered:]):
+        (-[WKView draggingUpdated:]):
+        (-[WKView draggingExited:]):
+        (-[WKView performDragOperation:]):
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::dragEntered):
+        (WebKit::WebPageProxy::dragUpdated):
+        (WebKit::WebPageProxy::dragExited):
+        (WebKit::WebPageProxy::performDrag):
+        (WebKit::WebPageProxy::performDragControllerAction):
+        * UIProcess/WebPageProxy.h:
+        * WebProcess/WebCoreSupport/WebDragClient.cpp:
+        (WebKit::WebDragClient::willPerformDragDestinationAction):
+        (WebKit::WebDragClient::willPerformDragSourceAction):
+        (WebKit::WebDragClient::actionMaskForDrag):
+        (WebKit::WebDragClient::dragSourceActionMaskForPoint):
+        (WebKit::WebDragClient::startDrag):
+        * WebProcess/WebCoreSupport/WebDragClient.h:
+        * WebProcess/WebCoreSupport/gtk/WebDragClientGtk.cpp:
+        (WebKit::WebDragClient::startDrag):
+        * WebProcess/WebCoreSupport/mac/WebDragClientMac.mm:
+        (WebKit::WebDragClient::startDrag):
+        (WebKit::cachedImage):
+        (WebKit::WebDragClient::declareAndWriteDragImage):
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::performDragControllerAction):
+
+2013-10-07  Tim Horton  <timothy_horton@apple.com>
+
+        Animated images are not restarted when page visibility changes
+        https://bugs.webkit.org/show_bug.cgi?id=122464
+        <rdar://problem/14293474>
+
+        Reviewed by Simon Fraser.
+
+        * WebProcess/WebPage/mac/TiledCoreAnimationDrawingArea.mm:
+        (WebKit::TiledCoreAnimationDrawingArea::resumePainting):
+        This is on Page now.
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Try to fix the GTK+ build.
+
+        * UIProcess/gtk/WebPageProxyGtk.cpp:
+        (WebKit::WebPageProxy::platformInitialize):
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Remove createOwned
+        https://bugs.webkit.org/show_bug.cgi?id=122388
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView _setFindIndicator:fadeOut:animate:]):
+        * WebProcess/InjectedBundle/API/c/WKBundlePageOverlay.cpp:
+        (WKBundlePageOverlayCreate):
+
+2013-10-05  Darin Adler  <darin@apple.com>
+
+        Remove COMPILER_SUPPORTS(CXX_RVALUE_REFERENCES) since it's required now
+        https://bugs.webkit.org/show_bug.cgi?id=122387
+
+        Reviewed by Anders Carlsson.
+
+        * UIProcess/API/cpp/WKRetainPtr.h: Take out conditionals.
+
+2013-10-05  Darin Adler  <darin@apple.com>
+
+        Cut down on use of String::number
+        https://bugs.webkit.org/show_bug.cgi?id=122382
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/mac/RemoteLayerTreeTransaction.mm:
+        (WebKit::dumpChangedLayers): Use StringBuilder::appendNumber.
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Fix cut and paste errors.
+
+        * Configurations/WebKit2.xcconfig:
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Add the rest of the std::function weak symbols in an attempt to fix the Lion build.
+
+        * Configurations/WebKit2.xcconfig:
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Another attempt at fixing the Lion build.
+
+        * Configurations/WebKit2.xcconfig:
+
+2013-10-05  Anders Carlsson  <andersca@apple.com>
+
+        Attempt to fix the Lion build.
+        
+        * Configurations/WebKit2.xcconfig:
+        Try unexporting one of the weak symbols for now. If this succeeds, I'll add the rest.
+
+2013-10-04  Anders Carlsson  <andersca@apple.com>
+
+        FramePolicyFunction should be an std::function
+        https://bugs.webkit.org/show_bug.cgi?id=122362
+
+        Reviewed by Darin Adler.
+
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebKit::WebFrameLoaderClient::dispatchDecidePolicyForResponse):
+        (WebKit::WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction):
+        (WebKit::WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction):
+        (WebKit::WebFrameLoaderClient::dispatchWillSubmitForm):
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.h:
+        * WebProcess/WebPage/WebFrame.cpp:
+        (WebKit::WebFrame::didReceivePolicyDecision):
+
+2013-10-04  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed EFL build fix after r156924
+
+        * UIProcess/efl/WebPageProxyEfl.cpp:
+        (WebKit::WebPageProxy::platformInitialize):
+
+2013-10-04  Sam Weinig  <sam@webkit.org>
+
+        Unify rubber-band control
+        https://bugs.webkit.org/show_bug.cgi?id=122341
+
+        Reviewed by Tim Horton.
+
+        - Consolidates the two ways we were passing state about whether
+          to rubber-band on a particular edge down to one.
+        - Adds SPI to control whether you can rubber band on the left
+          or right edge.
+        - Add a linked-on-or-after check to control whether we use the
+          legacy implicit rubber band control based on back/forward.
+
+        * UIProcess/API/C/WKPage.cpp:
+        (WKPageRubberBandsAtLeft):
+        (WKPageSetRubberBandsAtLeft):
+        (WKPageRubberBandsAtRight):
+        (WKPageSetRubberBandsAtRight):
+        (WKPageRubberBandsAtBottom):
+        (WKPageSetRubberBandsAtBottom):
+        * UIProcess/API/C/WKPage.h:
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::WebPageProxy):
+        (WebKit::WebPageProxy::sendWheelEvent):
+        (WebKit::WebPageProxy::rubberBandsAtLeft):
+        (WebKit::WebPageProxy::setRubberBandsAtLeft):
+        (WebKit::WebPageProxy::rubberBandsAtRight):
+        (WebKit::WebPageProxy::setRubberBandsAtRight):
+        (WebKit::WebPageProxy::rubberBandsAtTop):
+        (WebKit::WebPageProxy::setRubberBandsAtTop):
+        (WebKit::WebPageProxy::rubberBandsAtBottom):
+        (WebKit::WebPageProxy::setRubberBandsAtBottom):
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/mac/WebPageProxyMac.mm:
+        (WebKit::shouldUseLegacyImplicitRubberBandControl):
+        (WebKit::WebPageProxy::platformInitialize):
+        * WebProcess/WebPage/EventDispatcher.cpp:
+        (WebKit::EventDispatcher::wheelEvent):
+        * WebProcess/WebPage/EventDispatcher.h:
+        * WebProcess/WebPage/EventDispatcher.messages.in:
+        * WebProcess/WebPage/WebPage.cpp:
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/WebPage.messages.in:
+
 2013-10-04  Lorenzo Tilve  <ltilve@igalia.com>
 
         [GTK] Enable text edition UndoOperations support in WebKit2

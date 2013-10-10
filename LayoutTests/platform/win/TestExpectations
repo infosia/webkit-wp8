@@ -2554,12 +2554,12 @@ jquery/attributes.html
 media/W3C/video/events/event_canplaythrough.html
 
 # Spellchecker behavior tests.
+webkit.org/b/108370 editing/spelling/context-menu-suggestions-multiword-selection.html
+webkit.org/b/108370 editing/spelling/context-menu-suggestions-subword-selection.html
 webkit.org/b/108370 editing/spelling/spelling-double-clicked-word.html
 webkit.org/b/108370 editing/spelling/spelling-exactly-selected-multiple-words.html
 webkit.org/b/108370 editing/spelling/spelling-exactly-selected-word.html
-webkit.org/b/108370 editing/spelling/spelling-multiword-selection.html
 webkit.org/b/108370 editing/spelling/spelling-should-select-multiple-words.html
-webkit.org/b/108370 editing/spelling/spelling-subword-selection.html
 webkit.org/b/108370 editing/spelling/spelling-with-punctuation-selection.html
 webkit.org/b/108370 editing/spelling/spelling-with-whitespace-selection.html
 webkit.org/b/108370 editing/spelling/spellcheck-async-mutation.html
@@ -2703,7 +2703,6 @@ webkit.org/b/117200 mathml/presentation/mo-stretch.html
 webkit.org/b/117200 mathml/presentation/roots.xhtml
 webkit.org/b/117200 mathml/presentation/row.xhtml
 webkit.org/b/119002 mathml/presentation/bug97990.html
-webkit.org/b/118856 mathml/presentation/fenced-mi.html
 webkit.org/b/118900 mathml/presentation/mspace-units.html
 webkit.org/b/119002 mathml/presentation/scripts-subsup.html
 

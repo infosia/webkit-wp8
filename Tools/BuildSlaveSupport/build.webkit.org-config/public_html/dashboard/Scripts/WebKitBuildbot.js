@@ -42,7 +42,9 @@ WebKitBuildbot = function()
         "Apple Win Debug (Build)": {platform: Buildbot.Platform.Windows7, debug: true, builder: true, architecture: Buildbot.BuildArchitecture.ThirtyTwoBit},
         "Apple Win Release (Build)": {platform: Buildbot.Platform.Windows7, builder: true, architecture: Buildbot.BuildArchitecture.ThirtyTwoBit},
         "Apple Win 7 Debug (Tests)": {platform: Buildbot.Platform.Windows7, debug: true, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
-        "Apple Win 7 Release (Tests)": {platform: Buildbot.Platform.Windows7, tester: true, testCategory: Buildbot.TestCategory.WebKit1}
+        "Apple Win 7 Release (Tests)": {platform: Buildbot.Platform.Windows7, tester: true, testCategory: Buildbot.TestCategory.WebKit1},
+        "GTK Linux 64-bit Release": {platform: Buildbot.Platform.LinuxGTK, tester: true, testCategory: Buildbot.TestCategory.WebKit2},
+        "GTK Linux 64-bit Release WK1 (Tests)": {platform: Buildbot.Platform.LinuxGTK, tester: true, testCategory: Buildbot.TestCategory.WebKit1}
     };
 
     Buildbot.call(this, "http://build.webkit.org/", queueInfo);
@@ -67,10 +69,5 @@ WebKitBuildbot.prototype = {
     layoutTestResultsURLForIteration: function(iteration)
     {
         return this.baseURL + "results/" + encodeURIComponent(iteration.queue.id) + "/" + encodeURIComponent("r" + iteration.openSourceRevision + " (" + iteration.id + ")") + "/results.html";
-    },
-
-    javascriptTestResultsURLForIteration: function(iteration)
-    {
-        return this.baseURL + "builders/" + encodeURIComponent(iteration.queue.id) + "/builds/" + iteration.id + "/steps/jscore-test/logs/actual.html";
     }
 };

@@ -121,6 +121,7 @@ set(JavaScriptCore_SOURCES
     dfg/DFGFixupPhase.cpp
     dfg/DFGFlushFormat.cpp
     dfg/DFGFlushLivenessAnalysisPhase.cpp
+    dfg/DFGFlushedAt.cpp
     dfg/DFGGraph.cpp
     dfg/DFGInPlaceAbstractState.cpp
     dfg/DFGJITCode.cpp
@@ -155,6 +156,7 @@ set(JavaScriptCore_SOURCES
     dfg/DFGSpeculativeJIT.cpp
     dfg/DFGSpeculativeJIT32_64.cpp
     dfg/DFGSpeculativeJIT64.cpp
+    dfg/DFGStackLayoutPhase.cpp
     dfg/DFGThunks.cpp
     dfg/DFGTierUpCheckInjectionPhase.cpp
     dfg/DFGTypeCheckHoistingPhase.cpp
@@ -638,6 +640,7 @@ if (WTF_CPU_ARM)
         list(APPEND JavaScriptCore_SOURCES ${DERIVED_SOURCES_DIR}/GeneratedJITStubs.obj)
     endif ()
 elseif (WTF_CPU_MIPS)
+elseif (WTF_CPU_SH4)
 elseif (WTF_CPU_X86)
     list(APPEND JavaScriptCore_SOURCES
         assembler/MacroAssemblerX86Common.cpp

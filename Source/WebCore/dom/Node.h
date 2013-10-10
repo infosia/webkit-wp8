@@ -57,7 +57,6 @@ class Document;
 class Element;
 class Event;
 class EventContext;
-class EventDispatchMediator;
 class EventListener;
 class FloatPoint;
 class Frame;
@@ -289,8 +288,8 @@ public:
     bool selfOrAncestorHasDirAutoAttribute() const { return getFlag(SelfOrAncestorHasDirAutoFlag); }
     void setSelfOrAncestorHasDirAutoAttribute(bool flag) { setFlag(flag, SelfOrAncestorHasDirAutoFlag); }
 
-    // Returns the enclosing event parent node (or self) that, when clicked, would trigger a navigation.
-    Node* enclosingLinkEventParentOrSelf();
+    // Returns the enclosing event parent Element (or self) that, when clicked, would trigger a navigation.
+    Element* enclosingLinkEventParentOrSelf();
 
     // These low-level calls give the caller responsibility for maintaining the integrity of the tree.
     void setPreviousSibling(Node* previous) { m_previous = previous; }
@@ -397,7 +396,11 @@ public:
         return *documentInternal();
     }
 
-    TreeScope* treeScope() const { return m_treeScope; }
+    TreeScope& treeScope() const
+    {
+        ASSERT(m_treeScope);
+        return *m_treeScope;
+    }
 
     // Returns true if this node is associated with a document and is in its associated document's
     // node tree, false otherwise.
@@ -477,7 +480,7 @@ public:
         InsertionShouldCallDidNotifySubtreeInsertions
     };
 
-    virtual InsertionNotificationRequest insertedInto(ContainerNode* insertionPoint);
+    virtual InsertionNotificationRequest insertedInto(ContainerNode& insertionPoint);
     virtual void didNotifySubtreeInsertions(ContainerNode*) { }
 
     // Notifies the node that it is no longer part of the tree.
@@ -485,7 +488,7 @@ public:
     // This is a dual of insertedInto(), and is similar to the DOMNodeRemovedFromDocument DOM event, but does not require the overhead of event
     // dispatching, and is called _after_ the node is removed from the tree.
     //
-    virtual void removedFrom(ContainerNode* insertionPoint);
+    virtual void removedFrom(ContainerNode& insertionPoint);
 
 #ifndef NDEBUG
     virtual void formatForDebugger(char* buffer, unsigned length) const;
@@ -516,22 +519,21 @@ public:
 
     unsigned short compareDocumentPosition(Node*);
 
-    virtual Node* toNode();
+    virtual Node* toNode() OVERRIDE;
     virtual HTMLInputElement* toInputElement();
 
     virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
     virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE FINAL; // Implemented in Document.h
 
-    virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture);
-    virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture);
+    virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture) OVERRIDE;
+    virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture) OVERRIDE;
 
     using EventTarget::dispatchEvent;
     virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
 
     void dispatchScopedEvent(PassRefPtr<Event>);
-    void dispatchScopedEventDispatchMediator(PassRefPtr<EventDispatchMediator>);
 
-    virtual void handleLocalEvents(Event*);
+    virtual void handleLocalEvents(Event&);
 
     void dispatchSubtreeModifiedEvent();
     bool dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEvent);
@@ -650,8 +652,8 @@ protected:
 
     void setNeedsNodeRenderingTraversalSlowPath(bool flag) { setFlag(flag, NeedsNodeRenderingTraversalSlowPathFlag); }
 
-    Document* documentInternal() const { return treeScope()->documentScope(); }
-    void setTreeScope(TreeScope* scope) { m_treeScope = scope; }
+    Document* documentInternal() const { return treeScope().documentScope(); }
+    void setTreeScope(TreeScope& scope) { m_treeScope = &scope; }
 
     void setStyleChange(StyleChangeType changeType) { m_nodeFlags = (m_nodeFlags & ~StyleChangeMask) | changeType; }
 
@@ -671,8 +673,8 @@ private:
     bool rendererIsEditable(EditableLevel, UserSelectAllTreatment = UserSelectAllIsAlwaysNonEditable) const;
     bool isEditableToAccessibility(EditableLevel) const;
 
-    virtual void refEventTarget();
-    virtual void derefEventTarget();
+    virtual void refEventTarget() OVERRIDE;
+    virtual void derefEventTarget() OVERRIDE;
 
     virtual RenderStyle* nonRendererStyle() const { return 0; }
     virtual RenderStyle* virtualComputedStyle(PseudoId = NOPSEUDO);
@@ -727,7 +729,31 @@ inline ContainerNode* Node::parentNodeGuaranteedHostFree() const
     return parentNode();
 }
 
-} //namespace
+#define NODE_TYPE_CASTS(NodeClassName) \
+inline const NodeClassName* to##NodeClassName(const Node* node) \
+{ \
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || is##NodeClassName(*node)); \
+    return static_cast<const NodeClassName*>(node); \
+} \
+inline NodeClassName* to##NodeClassName(Node* node) \
+{ \
+    ASSERT_WITH_SECURITY_IMPLICATION(!node || is##NodeClassName(*node)); \
+    return static_cast<NodeClassName*>(node); \
+} \
+inline const NodeClassName& to##NodeClassName(const Node& node) \
+{ \
+    ASSERT_WITH_SECURITY_IMPLICATION(is##NodeClassName(node)); \
+    return static_cast<const NodeClassName&>(node); \
+} \
+inline NodeClassName& to##NodeClassName(Node& node) \
+{ \
+    ASSERT_WITH_SECURITY_IMPLICATION(is##NodeClassName(node)); \
+    return static_cast<NodeClassName&>(node); \
+} \
+void to##NodeClassName(const NodeClassName*); \
+void to##NodeClassName(const NodeClassName&);
+
+} // namespace WebCore
 
 #ifndef NDEBUG
 // Outside the WebCore namespace for ease of invocation from gdb.

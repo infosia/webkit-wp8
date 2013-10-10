@@ -616,7 +616,7 @@ public:
 
     RenderBoxModelObject* offsetParent() const;
 
-    void markContainingBlocksForLayout(bool scheduleRelayout = true, RenderObject* newRoot = 0);
+    void markContainingBlocksForLayout(bool scheduleRelayout = true, RenderElement* newRoot = 0);
     void setNeedsLayout(MarkingBehavior = MarkContainingBlockChain);
     void clearNeedsLayout();
     void setPreferredLogicalWidthsDirty(bool, MarkingBehavior = MarkContainingBlockChain);
@@ -652,16 +652,6 @@ public:
     void setHasLayer(bool b = true) { m_bitfields.setHasLayer(b); }
     void setHasTransform(bool b = true) { m_bitfields.setHasTransform(b); }
     void setHasReflection(bool b = true) { m_bitfields.setHasReflection(b); }
-
-    void scheduleRelayout();
-
-    virtual void paint(PaintInfo&, const LayoutPoint&);
-
-    // Recursive function that computes the size and position of this object and all its descendants.
-    virtual void layout();
-
-    /* This function performs a layout only if one is needed. */
-    void layoutIfNeeded() { if (needsLayout()) layout(); }
     
     // used for element state updates that cannot be fixed with a
     // repaint and do not need a relayout
@@ -878,9 +868,9 @@ public:
     virtual int previousOffsetForBackwardDeletion(int current) const;
     virtual int nextOffset(int current) const;
 
-    virtual void imageChanged(CachedImage*, const IntRect* = 0);
+    virtual void imageChanged(CachedImage*, const IntRect* = 0) OVERRIDE;
     virtual void imageChanged(WrappedImagePtr, const IntRect* = 0) { }
-    virtual bool willRenderImage(CachedImage*);
+    virtual bool willRenderImage(CachedImage*) OVERRIDE;
 
     void selectionStartEnd(int& spos, int& epos) const;
     

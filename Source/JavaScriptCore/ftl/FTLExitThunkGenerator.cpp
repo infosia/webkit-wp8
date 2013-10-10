@@ -51,10 +51,19 @@ void ExitThunkGenerator::emitThunk(unsigned index)
     OSRExitCompilationInfo& info = m_state.osrExit[index];
     
     info.m_thunkLabel = label();
-    move(TrustedImm32(index), GPRInfo::nonArgGPR0);
+    if (Options::ftlOSRExitUsesStackmap())
+        push(TrustedImm32(index));
+    else
+        move(TrustedImm32(index), GPRInfo::nonArgGPR0);
     info.m_thunkJump = patchableJump();
     
     m_didThings = true;
+}
+
+void ExitThunkGenerator::emitThunks()
+{
+    for (unsigned i = 0; i < m_state.osrExit.size(); ++i)
+        emitThunk(i);
 }
 
 } } // namespace JSC::FTL

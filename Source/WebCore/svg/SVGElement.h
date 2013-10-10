@@ -142,14 +142,12 @@ protected:
     SVGElement(const QualifiedName&, Document&);
     virtual ~SVGElement();
 
-    virtual bool rendererIsNeeded(const RenderStyle&);
+    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
     virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
 
-    virtual void finishParsingChildren();
+    virtual void finishParsingChildren() OVERRIDE;
     virtual void attributeChanged(const QualifiedName&, const AtomicString&, AttributeModificationReason = ModifiedDirectly) OVERRIDE;
     virtual bool childShouldCreateRenderer(const Node*) const OVERRIDE;
-    
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
 
     SVGElementRareData& ensureSVGRareData();
 
@@ -158,7 +156,8 @@ protected:
 
     virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
     virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) OVERRIDE;
+    virtual void removedFrom(ContainerNode&) OVERRIDE;
     virtual void childrenChanged(const ChildChange&) OVERRIDE;
     virtual bool selfHasRelativeLengths() const { return false; }
     void updateRelativeLengthsInformation() { updateRelativeLengthsInformation(selfHasRelativeLengths(), this); }
@@ -172,8 +171,8 @@ private:
     virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
 
     RenderStyle* computedStyle(PseudoId = NOPSEUDO);
-    virtual RenderStyle* virtualComputedStyle(PseudoId pseudoElementSpecifier = NOPSEUDO) { return computedStyle(pseudoElementSpecifier); }
-    virtual bool willRecalcStyle(Style::Change);
+    virtual RenderStyle* virtualComputedStyle(PseudoId pseudoElementSpecifier = NOPSEUDO) OVERRIDE { return computedStyle(pseudoElementSpecifier); }
+    virtual bool willRecalcStyle(Style::Change) OVERRIDE;
 
     virtual bool isSupported(StringImpl* feature, StringImpl* version) const;
 
@@ -207,28 +206,10 @@ struct SVGAttributeHashTranslator {
     static bool equal(const QualifiedName& a, const QualifiedName& b) { return a.matches(b); }
 };
 
-inline SVGElement& toSVGElement(Node& node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(node.isSVGElement());
-    return static_cast<SVGElement&>(node);
-}
-
-inline SVGElement* toSVGElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
-    return static_cast<SVGElement*>(node);
-}
-
-inline const SVGElement* toSVGElement(const Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isSVGElement());
-    return static_cast<const SVGElement*>(node);
-}
-
-void toSVGElement(const SVGElement*);
-void toSVGElement(const SVGElement&);
-
+inline bool isSVGElement(const Node& node) { return node.isSVGElement(); }
 template <> inline bool isElementOfType<SVGElement>(const Element* element) { return element->isSVGElement(); }
+
+ELEMENT_TYPE_CASTS(SVGElement)
 
 }
 

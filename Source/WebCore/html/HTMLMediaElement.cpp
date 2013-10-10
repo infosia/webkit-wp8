@@ -591,18 +591,18 @@ bool HTMLMediaElement::childShouldCreateRenderer(const Node* child) const
     // be rendered. So this should return false for most of the children.
     // One exception is a shadow tree built for rendering controls which should be visible.
     // So we let them go here by comparing its subtree root with one of the controls.
-    return mediaControls()->treeScope() == child->treeScope()
+    return &mediaControls()->treeScope() == &child->treeScope()
         && hasShadowRootParent(child)
         && HTMLElement::childShouldCreateRenderer(child);
 #endif
 }
 
-Node::InsertionNotificationRequest HTMLMediaElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLMediaElement::insertedInto(ContainerNode& insertionPoint)
 {
     LOG(Media, "HTMLMediaElement::insertedInto");
 
     HTMLElement::insertedInto(insertionPoint);
-    if (insertionPoint->inDocument()) {
+    if (insertionPoint.inDocument()) {
         m_inActiveDocument = true;
 
         if (m_networkState == NETWORK_EMPTY && !getAttribute(srcAttr).isEmpty())
@@ -613,12 +613,12 @@ Node::InsertionNotificationRequest HTMLMediaElement::insertedInto(ContainerNode*
     return InsertionDone;
 }
 
-void HTMLMediaElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLMediaElement::removedFrom(ContainerNode& insertionPoint)
 {
     LOG(Media, "HTMLMediaElement::removedFrom");
 
     m_inActiveDocument = false;
-    if (insertionPoint->inDocument()) {
+    if (insertionPoint.inDocument()) {
         configureMediaControls();
         if (m_networkState > NETWORK_EMPTY)
             pause();
@@ -2372,6 +2372,13 @@ double HTMLMediaElement::duration() const
 
 bool HTMLMediaElement::paused() const
 {
+    // As of this writing, JavaScript garbage collection calls this function directly. In the past
+    // we had problems where this was called on an object after a bad cast. The assertion below
+    // made our regression test detect the problem, so we should keep it because of that. But note
+    // that the value of the assertion relies on the compiler not being smart enough to know that
+    // isHTMLUnknownElement is guaranteed to return false for an HTMLMediaElement.
+    ASSERT(!isHTMLUnknownElement());
+
     return m_paused;
 }
 
@@ -5106,8 +5113,8 @@ LayoutRect HTMLMediaElement::mediaPlayerContentBoxRect() const
 
 void HTMLMediaElement::mediaPlayerSetSize(const IntSize& size)
 {
-    setAttribute(widthAttr, String::number(size.width()));
-    setAttribute(heightAttr, String::number(size.height()));
+    setIntegralAttribute(widthAttr, size.width());
+    setIntegralAttribute(heightAttr, size.height());
 }
 
 void HTMLMediaElement::mediaPlayerPause()

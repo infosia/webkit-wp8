@@ -64,12 +64,12 @@ class VideoTrackPrivateAVFObjC;
 
 class MediaPlayerPrivateAVFoundationObjC : public MediaPlayerPrivateAVFoundation {
 public:
-    ~MediaPlayerPrivateAVFoundationObjC();
+    virtual ~MediaPlayerPrivateAVFoundationObjC();
 
     static void registerMediaEngine(MediaEngineRegistrar);
 
     void setAsset(id);
-    virtual void tracksChanged();
+    virtual void tracksChanged() OVERRIDE;
 
 #if HAVE(AVFOUNDATION_MEDIA_SELECTION_GROUP)
     RetainPtr<AVPlayerItem> playerItem() const { return m_avPlayerItem; }
@@ -154,15 +154,16 @@ private:
 
     virtual bool hasSingleSecurityOrigin() const;
     
-#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1080
     void createImageGenerator();
     void destroyImageGenerator();
     RetainPtr<CGImageRef> createImageForTimeInRect(float, const IntRect&);
     void paintWithImageGenerator(GraphicsContext*, const IntRect&);
-#else
+
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
     void createVideoOutput();
     void destroyVideoOutput();
     RetainPtr<CVPixelBufferRef> createPixelBuffer();
+    bool videoOutputHasAvailableFrame();
     void paintWithVideoOutput(GraphicsContext*, const IntRect&);
 #endif
 
@@ -201,9 +202,8 @@ private:
     bool m_videoFrameHasDrawn;
     bool m_haveCheckedPlayability;
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED < 1080
     RetainPtr<AVAssetImageGenerator> m_imageGenerator;
-#else
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
     RetainPtr<AVPlayerItemVideoOutput> m_videoOutput;
     RetainPtr<CVPixelBufferRef> m_lastImage;
 #endif

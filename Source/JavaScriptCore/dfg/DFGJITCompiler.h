@@ -265,7 +265,12 @@ public:
     {
         m_exceptionChecks.append(emitExceptionCheck());
     }
-    
+
+    void exceptionCheckWithCallFrameRollback()
+    {
+        m_exceptionChecksWithCallFrameRollback.append(emitExceptionCheck());
+    }
+
     // Add a call out from JIT code, with a fast exception check that tests if the return value is zero.
     void fastExceptionCheck()
     {
@@ -324,7 +329,6 @@ public:
     
     void noticeOSREntry(BasicBlock& basicBlock, JITCompiler::Label blockHead, LinkBuffer& linkBuffer)
     {
-#if DFG_ENABLE(OSR_ENTRY)
         // OSR entry is not allowed into blocks deemed unreachable by control flow analysis.
         if (!basicBlock.cfaHasVisited)
             return;
@@ -346,7 +350,8 @@ public:
             if (!node || !node->shouldGenerate())
                 entry->m_expectedValues.local(local).makeHeapTop();
             else {
-                switch (node->variableAccessData()->flushFormat()) {
+                VariableAccessData* variable = node->variableAccessData();
+                switch (variable->flushFormat()) {
                 case FlushedDouble:
                     entry->m_localsForcedDouble.set(local);
                     break;
@@ -356,13 +361,16 @@ public:
                 default:
                     break;
                 }
+                
+                if (variable->local() != variable->machineLocal()) {
+                    entry->m_reshufflings.append(
+                        OSREntryReshuffling(
+                            variable->local().offset(), variable->machineLocal().offset()));
+                }
             }
         }
-#else
-        UNUSED_PARAM(basicBlock);
-        UNUSED_PARAM(blockHead);
-        UNUSED_PARAM(linkBuffer);
-#endif
+        
+        entry->m_reshufflings.shrinkToFit();
     }
     
     PassRefPtr<JITCode> jitCode() { return m_jitCode; }
@@ -393,6 +401,7 @@ private:
     // Count of the number of CallRecords with exception handlers.
     Vector<CallLinkRecord> m_calls;
     JumpList m_exceptionChecks;
+    JumpList m_exceptionChecksWithCallFrameRollback;
     
     Vector<Label> m_blockHeads;
 
@@ -421,8 +430,6 @@ private:
     Vector<OSRExitCompilationInfo> m_exitCompilationInfo;
     Vector<Vector<Label> > m_exitSiteLabels;
     
-    Call m_callStackCheck;
-    Call m_callArityCheck;
     Call m_callArityFixup;
     Label m_arityCheck;
     OwnPtr<SpeculativeJIT> m_speculative;

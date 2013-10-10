@@ -185,7 +185,6 @@ FrameView::FrameView(Frame& frame)
     , m_inProgrammaticScroll(false)
     , m_safeToPropagateScrollToParent(true)
     , m_deferredRepaintTimer(this, &FrameView::deferredRepaintTimerFired)
-    , m_disableRepaints(0)
     , m_isTrackingRepaints(false)
     , m_shouldUpdateWhileOffscreen(true)
     , m_deferSetNeedsLayouts(0)
@@ -293,7 +292,6 @@ void FrameView::reset()
     m_isVisuallyNonEmpty = false;
     m_firstVisuallyNonEmptyLayoutCallbackPending = true;
     m_maintainScrollPositionAnchor = 0;
-    m_disableRepaints = 0;
 }
 
 void FrameView::removeFromAXObjectCache()
@@ -1035,17 +1033,6 @@ void FrameView::setIsInWindow(bool isInWindow)
 {
     if (RenderView* renderView = this->renderView())
         renderView->setIsInWindow(isInWindow);
-
-    if (isInWindow)
-        resumeAnimatingImages();
-}
-
-void FrameView::resumeAnimatingImages()
-{
-    // Drawing models which cache painted content while out-of-window (WebKit2's composited drawing areas, etc.)
-    // require that we repaint animated images to kickstart the animation loop.
-
-    CachedImage::resumeAnimatingImagesForLoader(frame().document()->cachedResourceLoader());
 }
 
 RenderObject* FrameView::layoutRoot(bool onlyDuringLayout) const
@@ -1075,7 +1062,7 @@ inline void FrameView::forceLayoutParentViewIfNeeded()
     // FrameView for a layout. After that the RenderEmbeddedObject (ownerRenderer) carries the
     // correct size, which RenderSVGRoot::computeReplacedLogicalWidth/Height rely on, when laying
     // out for the first time, or when the RenderSVGRoot size has changed dynamically (eg. via <script>).
-    RefPtr<FrameView> frameView = &ownerRenderer->view().frameView();
+    Ref<FrameView> frameView(ownerRenderer->view().frameView());
 
     // Mark the owner renderer as needing layout.
     ownerRenderer->setNeedsLayoutAndPrefWidthsRecalc();
@@ -1126,7 +1113,7 @@ void FrameView::layout(bool allowSubtree)
     ASSERT(!document.inPageCache());
 
     bool subtree;
-    RenderObject* root;
+    RenderElement* root;
 
     {
         TemporaryChange<bool> changeSchedulingEnabled(m_layoutSchedulingEnabled, false);
@@ -2210,9 +2197,6 @@ void FrameView::startDeferredRepaintTimer(double delay)
     if (m_deferredRepaintTimer.isActive())
         return;
 
-    if (m_disableRepaints)
-        return;
-
     m_deferredRepaintTimer.startOneShot(delay);
 }
 
@@ -2237,9 +2221,6 @@ void FrameView::flushDeferredRepaints()
 
 void FrameView::doDeferredRepaints()
 {
-    if (m_disableRepaints)
-        return;
-
     ASSERT(!m_deferringRepaints);
     if (!shouldUpdate()) {
         m_repaintRects.clear();
@@ -2313,17 +2294,6 @@ double FrameView::adjustedDeferredRepaintDelay() const
 void FrameView::deferredRepaintTimerFired(Timer<FrameView>*)
 {
     doDeferredRepaints();
-}
-
-void FrameView::beginDisableRepaints()
-{
-    m_disableRepaints++;
-}
-
-void FrameView::endDisableRepaints()
-{
-    ASSERT(m_disableRepaints > 0);
-    m_disableRepaints--;
 }
 
 void FrameView::updateLayerFlushThrottlingInAllFrames()
@@ -2402,7 +2372,7 @@ static bool isObjectAncestorContainerOf(RenderObject* ancestor, RenderObject* de
     return false;
 }
 
-void FrameView::scheduleRelayoutOfSubtree(RenderObject& newRelayoutRoot)
+void FrameView::scheduleRelayoutOfSubtree(RenderElement& newRelayoutRoot)
 {
     ASSERT(renderView());
     RenderView& renderView = *this->renderView();
@@ -2787,6 +2757,8 @@ void FrameView::sendResizeEventIfNeeded()
 {
     RenderView* renderView = this->renderView();
     if (!renderView || renderView->printing())
+        return;
+    if (frame().page() && frame().page()->chrome().client().isSVGImageChromeClient())
         return;
 
     IntSize currentSize;
@@ -3385,7 +3357,7 @@ bool FrameView::doLayoutWithFrameFlattening(bool allowSubtree)
 
     parentView->layout(allowSubtree);
 
-    RenderObject* root = m_layoutRoot ? m_layoutRoot : frame().document()->renderView();
+    RenderElement* root = m_layoutRoot ? m_layoutRoot : frame().document()->renderView();
     ASSERT_UNUSED(root, !root->needsLayout());
 
     return true;

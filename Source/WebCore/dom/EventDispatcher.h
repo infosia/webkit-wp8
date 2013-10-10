@@ -36,7 +36,6 @@
 namespace WebCore {
 
 class Event;
-class EventDispatchMediator;
 class EventTarget;
 class FrameView;
 class Node;
@@ -52,10 +51,33 @@ enum EventDispatchContinuation {
     DoneDispatching
 };
 
+class EventPath {
+public:
+    EventPath(Node& origin, Event&);
+
+    bool isEmpty() const { return m_path.isEmpty(); }
+    size_t size() const { return m_path.size(); }
+    const EventContext& contextAt(size_t i) const { return *m_path[i]; }
+    EventContext& contextAt(size_t i) { return *m_path[i]; }
+    
+    void setRelatedTarget(EventTarget&);
+
+    bool hasEventListeners(const AtomicString& eventType) const;
+
+    // FIXME: We shouldn't expose this function.
+    void shrink(size_t newSize) { m_path.shrink(newSize); }
+
+    EventContext* lastContextIfExists() { return m_path.isEmpty() ? 0 : m_path.last().get(); }
+
+private:
+    Vector<std::unique_ptr<EventContext>, 32> m_path;
+    RefPtr<Node> m_origin;
+};
+
 class EventDispatcher {
 public:
-    static bool dispatchEvent(Node*, PassRefPtr<EventDispatchMediator>);
-    static void dispatchScopedEvent(Node*, PassRefPtr<EventDispatchMediator>);
+    static bool dispatchEvent(Node*, PassRefPtr<Event>);
+    static void dispatchScopedEvent(Node&, PassRefPtr<Event>);
 
     static void dispatchSimulatedClick(Element*, Event* underlyingEvent, SimulatedClickMouseEventOptions, SimulatedClickVisualOptions);
 
@@ -67,11 +89,6 @@ public:
 private:
     EventDispatcher(Node*, PassRefPtr<Event>);
     const EventContext* topEventContext();
-
-    EventDispatchContinuation dispatchEventAtCapturing(WindowEventContext&);
-    EventDispatchContinuation dispatchEventAtTarget();
-    void dispatchEventAtBubbling(WindowEventContext&);
-    void dispatchEventPostProcess(const InputElementClickState&);
 
     EventPath m_eventPath;
     RefPtr<Node> m_node;

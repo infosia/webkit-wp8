@@ -206,6 +206,11 @@
 #import <WebKit/WebDashboardRegion.h>
 #endif
 
+#if ENABLE(DISK_IMAGE_CACHE) && PLATFORM(IOS)
+#import "WebDiskImageCacheClientIOS.h"
+#import <WebCore/DiskImageCacheIOS.h>
+#endif
+
 #if USE(GLIB)
 #import <glib.h>
 #endif
@@ -739,6 +744,9 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
 
         WebKitInitializeStorageIfNecessary();
         WebKitInitializeApplicationCachePathIfNecessary();
+#if ENABLE(DISK_IMAGE_CACHE) && PLATFORM(IOS)
+        WebKitInitializeWebDiskImageCache();
+#endif
         
         Settings::setDefaultMinDOMTimerInterval(0.004);
         
@@ -1604,6 +1612,13 @@ static bool needsSelfRetainWhileLoadingQuirk()
     BOOL zoomsTextOnly = [preferences zoomsTextOnly];
     if (_private->zoomsTextOnly != zoomsTextOnly)
         [self _setZoomMultiplier:_private->zoomMultiplier isTextOnly:zoomsTextOnly];
+
+#if ENABLE(DISK_IMAGE_CACHE) && PLATFORM(IOS)
+    DiskImageCache& diskImageCache = WebCore::diskImageCache();
+    diskImageCache.setEnabled([preferences diskImageCacheEnabled]);
+    diskImageCache.setMinimumImageSize([preferences diskImageCacheMinimumImageSize]);
+    diskImageCache.setMaximumCacheSize([preferences diskImageCacheMaximumCacheSize]);
+#endif
 }
 
 static inline IMP getMethod(id o, SEL s)
@@ -4317,7 +4332,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     IntPoint client([draggingInfo draggingLocation]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    return core(self)->dragController().dragEntered(&dragData).operation;
+    return core(self)->dragController().dragEntered(dragData).operation;
 }
 
 - (NSDragOperation)draggingUpdated:(id <NSDraggingInfo>)draggingInfo
@@ -4329,7 +4344,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     IntPoint client([draggingInfo draggingLocation]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    return page->dragController().dragUpdated(&dragData).operation;
+    return page->dragController().dragUpdated(dragData).operation;
 }
 
 - (void)draggingExited:(id <NSDraggingInfo>)draggingInfo
@@ -4341,7 +4356,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     IntPoint client([draggingInfo draggingLocation]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    page->dragController().dragExited(&dragData);
+    page->dragController().dragExited(dragData);
 }
 
 - (BOOL)prepareForDragOperation:(id <NSDraggingInfo>)draggingInfo
@@ -4354,7 +4369,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     IntPoint client([draggingInfo draggingLocation]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    return core(self)->dragController().performDrag(&dragData);
+    return core(self)->dragController().performDrag(dragData);
 }
 
 - (NSView *)_hitTest:(NSPoint *)point dragTypes:(NSSet *)types
@@ -5541,16 +5556,16 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
 
 - (void)setContinuousSpellCheckingEnabled:(BOOL)flag
 {
-    if (continuousSpellCheckingEnabled != flag) {
-        continuousSpellCheckingEnabled = flag;
-        [[NSUserDefaults standardUserDefaults] setBool:continuousSpellCheckingEnabled forKey:WebContinuousSpellCheckingEnabled];
-    }
-    
-    if ([self isContinuousSpellCheckingEnabled]) {
+    if (continuousSpellCheckingEnabled == flag)
+        return;
+
+    continuousSpellCheckingEnabled = flag;
+    [[NSUserDefaults standardUserDefaults] setBool:continuousSpellCheckingEnabled forKey:WebContinuousSpellCheckingEnabled];
+
+    if ([self isContinuousSpellCheckingEnabled])
         [[self class] _preflightSpellChecker];
-    } else {
+    else
         [[self mainFrame] _unmarkAllMisspellings];
-    }
 }
 
 - (BOOL)isContinuousSpellCheckingEnabled

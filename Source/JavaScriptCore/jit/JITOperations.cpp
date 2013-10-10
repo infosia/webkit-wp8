@@ -24,18 +24,80 @@
  */
 
 #include "config.h"
+#if ENABLE(JIT)
 #include "JITOperations.h"
 
 #include "CommonSlowPaths.h"
+#include "Error.h"
 #include "GetterSetter.h"
 #include "HostCallReturnValue.h"
 #include "JITOperationWrappers.h"
+#include "JSGlobalObjectFunctions.h"
 #include "Operations.h"
 #include "Repatch.h"
 
 namespace JSC {
 
 extern "C" {
+
+#if COMPILER(MSVC)
+void * _ReturnAddress(void);
+#pragma intrinsic(_ReturnAddress)
+
+#define OUR_RETURN_ADDRESS _ReturnAddress()
+#else
+#define OUR_RETURN_ADDRESS __builtin_return_address(0)
+#endif
+
+#if ENABLE(OPCODE_SAMPLING)
+#define CTI_SAMPLER vm->interpreter->sampler()
+#else
+#define CTI_SAMPLER 0
+#endif
+
+
+void JIT_OPERATION operationStackCheck(ExecState* exec, CodeBlock* codeBlock)
+{
+    // We pass in our own code block, because the callframe hasn't been populated.
+    VM* vm = codeBlock->vm();
+    CallFrame* callerFrame = exec->callerFrame();
+    NativeCallFrameTracer tracer(vm, callerFrame->removeHostCallFrameFlag());
+
+    JSStack& stack = vm->interpreter->stack();
+
+    if (UNLIKELY(!stack.grow(&exec->registers()[-codeBlock->m_numCalleeRegisters])))
+        vm->throwException(callerFrame, createStackOverflowError(callerFrame));
+}
+
+int32_t JIT_OPERATION operationCallArityCheck(ExecState* exec)
+{
+    VM* vm = &exec->vm();
+    CallFrame* callerFrame = exec->callerFrame();
+    NativeCallFrameTracer tracer(vm, callerFrame->removeHostCallFrameFlag());
+
+    JSStack& stack = vm->interpreter->stack();
+
+    int32_t missingArgCount = CommonSlowPaths::arityCheckFor(exec, &stack, CodeForCall);
+    if (missingArgCount < 0)
+        vm->throwException(callerFrame, createStackOverflowError(callerFrame));
+
+    return missingArgCount;
+}
+
+int32_t JIT_OPERATION operationConstructArityCheck(ExecState* exec)
+{
+    VM* vm = &exec->vm();
+    CallFrame* callerFrame = exec->callerFrame();
+    NativeCallFrameTracer tracer(vm, callerFrame->removeHostCallFrameFlag());
+
+    JSStack& stack = vm->interpreter->stack();
+
+    int32_t missingArgCount = CommonSlowPaths::arityCheckFor(exec, &stack, CodeForConstruct);
+    if (missingArgCount < 0)
+        vm->throwException(callerFrame, createStackOverflowError(callerFrame));
+
+    return missingArgCount;
+}
 
 EncodedJSValue JIT_OPERATION operationGetById(ExecState* exec, EncodedJSValue base, StringImpl* uid)
 {
@@ -73,8 +135,7 @@ EncodedJSValue JIT_OPERATION operationGetByIdOptimizeWithReturnAddress(ExecState
 {
     VM* vm = &exec->vm();
     NativeCallFrameTracer tracer(vm, exec);
-
-    Identifier ident(vm, uid);
+    Identifier ident = uid->isEmptyUnique() ? Identifier::from(PrivateName(uid)) : Identifier(vm, uid);
     StructureStubInfo& stubInfo = exec->codeBlock()->getStubInfo(returnAddress);
     AccessType accessType = static_cast<AccessType>(stubInfo.accessType);
 
@@ -401,6 +462,28 @@ void JIT_OPERATION operationReallocateStorageAndFinishPut(ExecState* exec, JSObj
     base->putDirect(vm, offset, JSValue::decode(value));
 }
 
+EncodedJSValue JIT_OPERATION operationCallEval(ExecState* execCallee)
+{
+    CallFrame* callerFrame = execCallee->callerFrame();
+    ASSERT(execCallee->callerFrame()->codeBlock()->codeType() != FunctionCode
+        || !execCallee->callerFrame()->codeBlock()->needsFullScopeChain()
+        || execCallee->callerFrame()->uncheckedR(execCallee->callerFrame()->codeBlock()->activationRegister().offset()).jsValue());
+
+    execCallee->setScope(callerFrame->scope());
+    execCallee->setReturnPC(static_cast<Instruction*>(OUR_RETURN_ADDRESS));
+    execCallee->setCodeBlock(0);
+
+    if (!isHostFunction(execCallee->calleeAsValue(), globalFuncEval))
+        return JSValue::encode(JSValue());
+
+    VM* vm = &execCallee->vm();
+    JSValue result = eval(execCallee);
+    if (vm->exception())
+        return EncodedJSValue();
+    
+    return JSValue::encode(result);
+}
+
 static void* handleHostCall(ExecState* execCallee, JSValue callee, CodeSpecializationKind kind)
 {
     ExecState* exec = execCallee->callerFrame();
@@ -469,6 +552,7 @@ inline char* linkFor(ExecState* execCallee, CodeSpecializationKind kind)
 
     MacroAssemblerCodePtr codePtr;
     CodeBlock* codeBlock = 0;
+    CallLinkInfo& callLinkInfo = exec->codeBlock()->getCallLinkInfo(execCallee->returnPC());
     if (executable->isHostFunction())
         codePtr = executable->generatedJITCodeFor(kind)->addressForCall();
     else {
@@ -479,12 +563,11 @@ inline char* linkFor(ExecState* execCallee, CodeSpecializationKind kind)
             return reinterpret_cast<char*>(vm->getCTIStub(throwExceptionFromCallSlowPathGenerator).code().executableAddress());
         }
         codeBlock = functionExecutable->codeBlockFor(kind);
-        if (execCallee->argumentCountIncludingThis() < static_cast<size_t>(codeBlock->numParameters()))
+        if (execCallee->argumentCountIncludingThis() < static_cast<size_t>(codeBlock->numParameters()) || callLinkInfo.callType == CallLinkInfo::CallVarargs)
             codePtr = functionExecutable->generatedJITCodeWithArityCheckFor(kind);
         else
             codePtr = functionExecutable->generatedJITCodeFor(kind)->addressForCall();
     }
-    CallLinkInfo& callLinkInfo = exec->codeBlock()->getCallLinkInfo(execCallee->returnPC());
     if (!callLinkInfo.seenOnce())
         callLinkInfo.setSeen();
     else
@@ -585,6 +668,19 @@ char* JIT_OPERATION operationVirtualCall(ExecState* execCallee)
 char* JIT_OPERATION operationVirtualConstruct(ExecState* execCallee)
 {
     return virtualFor(execCallee, CodeForConstruct);
+}
+
+EncodedJSValue JIT_OPERATION operationNewRegexp(ExecState* exec, void* regexpPtr)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
+    RegExp* regexp = static_cast<RegExp*>(regexpPtr);
+    if (!regexp->isValid()) {
+        vm.throwException(exec, createSyntaxError(exec, "Invalid flags supplied to RegExp constructor."));
+        return JSValue::encode(jsUndefined());
+    }
+
+    return JSValue::encode(RegExpObject::create(vm, exec->lexicalGlobalObject()->regExpStructure(), regexp));
 }
 
 JITHandlerEncoded JIT_OPERATION lookupExceptionHandler(ExecState* exec)
@@ -702,3 +798,4 @@ extern "C" {
 
 } // namespace JSC
 
+#endif // ENABLE(JIT)

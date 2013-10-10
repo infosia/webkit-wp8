@@ -126,7 +126,6 @@ list(APPEND WebCore_SOURCES
     bindings/js/ScriptController.cpp
     bindings/js/ScriptDebugServer.cpp
     bindings/js/ScriptFunctionCall.cpp
-    bindings/js/ScriptGCEvent.cpp
     bindings/js/ScriptObject.cpp
     bindings/js/ScriptProfile.cpp
     bindings/js/ScriptProfiler.cpp
@@ -243,6 +242,8 @@ endif ()
 
 if (ENABLE_MEDIA_STREAM)
     list(APPEND WebCore_SOURCES
+        bindings/js/JSMediaSourceStatesCustom.cpp
+        bindings/js/JSMediaStreamCapabilitiesCustom.cpp
         bindings/js/JSRTCStatsResponseCustom.cpp
     )
 endif ()

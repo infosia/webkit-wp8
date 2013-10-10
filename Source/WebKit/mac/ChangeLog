@@ -1,3 +1,243 @@
+2013-10-08  Darin Adler  <darin@apple.com>
+
+        WebNetscapePluginView should no longer use deleteAllValues
+        https://bugs.webkit.org/show_bug.cgi?id=122495
+
+        Reviewed by Anders Carlsson.
+
+        * Plugins/WebNetscapePluginView.h: Use unique_ptr for both the pointer to
+        the timers hash table, and for the values in the hash table.
+
+        * Plugins/WebNetscapePluginView.mm:
+        (-[WebNetscapePluginView stopTimers]): Rewrote loop so it works with unique_ptr.
+        (-[WebNetscapePluginView startTimers]): Ditto.
+        (-[WebNetscapePluginView fini]): Removed unneeded code to delete timers.
+        (-[WebNetscapePluginView scheduleTimerWithInterval:repeat:timerFunc:]): Make
+        the timers hash table with make-unique. Fixed the loop that chooses the timer
+        ID so it won't ever try to use a deleted value, although that never happens
+        in practice. Use HashMap::add instead of using both contains and set.
+        Rearranged code so we don't need to make a raw pointer for the timer.
+        (-[WebNetscapePluginView unscheduleTimer:]): Use remove instead of take/delete,
+        since remove takes care of the deletion automatically since we are using the
+        unique_ptr class.
+
+2013-10-08  Darin Adler  <darin@apple.com>
+
+        Eliminate use of deleteAllValues in ProxyInstance
+        https://bugs.webkit.org/show_bug.cgi?id=122499
+
+        Reviewed by Anders Carlsson.
+
+        * Plugins/Hosted/ProxyInstance.h: Use unique_ptr for map values in m_fields and m_methods.
+
+        * Plugins/Hosted/ProxyInstance.mm:
+        (WebKit::ProxyInstance::~ProxyInstance): Removed calls to deleteAllValues.
+        (WebKit::ProxyInstance::methodNamed): Use make_unique and get to deal with map entries
+        that are unique_ptr. Also fixed a bug where this would do an expensive no-op if the map
+        already had an entry with a null in it. We would call the plug-in, but eventually
+        isNewEntry would be false so we would return null.
+        (WebKit::ProxyInstance::fieldNamed): Use make_unique and get to deal with map entries
+        that are unique_ptr.
+
+2013-10-08  Darin Adler  <darin@apple.com>
+
+        Change NetscapePluginInstanceProxy::m_replies to use unique_ptr instead of deleteAllValues
+        https://bugs.webkit.org/show_bug.cgi?id=122492
+
+        Reviewed by Andreas Kling.
+
+        * Plugins/Hosted/NetscapePluginHostManager.mm:
+        (WebKit::NetscapePluginHostManager::instantiatePlugin): Use auto so this works with
+        unique_ptr instead of auto_ptr.
+        * Plugins/Hosted/NetscapePluginHostProxy.mm:
+        (WKPCGetScriptableNPObjectReply): Use make_unique instead of using new directly.
+        (WKPCBooleanReply): Ditto.
+        (WKPCBooleanAndDataReply): Ditto.
+        (WKPCInstantiatePluginReply): Ditto.
+        * Plugins/Hosted/NetscapePluginInstanceProxy.h: Changed m_replies to map to unique_ptr
+        instead of to a raw pointer.
+        (WebKit::NetscapePluginInstanceProxy::setCurrentReply): Changed to take a unique_ptr
+        instead of a raw pointer since this takes ownership of the pointer.
+        (WebKit::NetscapePluginInstanceProxy::waitForReply): Changed to return a unique_ptr
+        instead of a auto_ptr because that's better. Use unique_ptr inside the function
+        too to avoid the need for an explicit delete.
+        * Plugins/Hosted/NetscapePluginInstanceProxy.mm:
+        (WebKit::NetscapePluginInstanceProxy::~NetscapePluginInstanceProxy): Removed the call to
+        deleteAllValues.
+        (WebKit::NetscapePluginInstanceProxy::cancelStreamLoad): Removed unneeded initialization
+        of a local variable that was already set in all code paths.
+        (WebKit::NetscapePluginInstanceProxy::wheelEvent): Use auto so this works with unique_ptr
+        instead of auto_ptr.
+        (WebKit::NetscapePluginInstanceProxy::print): Ditto.
+        (WebKit::NetscapePluginInstanceProxy::snapshot): Ditto. Ditto.
+        (WebKit::NetscapePluginInstanceProxy::processRequestsAndWaitForReply): Changed to return
+        a unique_ptr. Also removed an unneeded assertion.
+        (WebKit::NetscapePluginInstanceProxy::createBindingsInstance): Use auto so this works
+        with unique_ptr instead of auto_ptr.
+
+        * Plugins/Hosted/ProxyInstance.h: Changed return type of waitForReply to unique_ptr.
+
+        * Plugins/Hosted/ProxyInstance.mm:
+        (WebKit::ProxyInstance::invoke): Use auto so this works with unique_ptr instead of auto_ptr.
+        (WebKit::ProxyInstance::supportsInvokeDefaultMethod): Ditto.
+        (WebKit::ProxyInstance::supportsConstruct): Ditto.
+        (WebKit::ProxyInstance::getPropertyNames): Ditto.
+        (WebKit::ProxyInstance::methodNamed): Ditto.
+        (WebKit::ProxyInstance::fieldNamed): Ditto.
+        (WebKit::ProxyInstance::fieldValue): Ditto.
+        (WebKit::ProxyInstance::setFieldValue): Ditto.
+
+2013-10-07  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Use references in and around DragController
+        https://bugs.webkit.org/show_bug.cgi?id=122427
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/WebDragClient.h:
+        * WebCoreSupport/WebDragClient.mm:
+        (WebDragClient::actionMaskForDrag):
+        (WebDragClient::willPerformDragDestinationAction):
+        (WebDragClient::willPerformDragSourceAction):
+        (WebDragClient::startDrag):
+        (WebDragClient::declareAndWriteDragImage):
+        * WebView/WebFrame.mm:
+        (-[WebFrame _replaceSelectionWithText:selectReplacement:smartReplace:]):
+        * WebView/WebHTMLView.mm:
+        (-[WebHTMLView _documentFragmentFromPasteboard:forType:inContext:subresources:]):
+        * WebView/WebView.mm:
+        (-[WebView draggingEntered:]):
+        (-[WebView draggingUpdated:]):
+        (-[WebView draggingExited:]):
+        (-[WebView performDragOperation:]):
+
+2013-10-05  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Thread references through markup.h
+        https://bugs.webkit.org/show_bug.cgi?id=122403
+
+        Reviewed by Darin Adler and Andreas Kling.
+
+        * DOM/WebDOMOperations.mm:
+        (-[DOMNode markupString]):
+        (-[DOMRange markupString]):
+        * WebView/WebFrame.mm:
+        (-[WebFrame _documentFragmentWithMarkupString:baseURLString:]):
+        (-[WebFrame _documentFragmentWithNodesAsParagraphs:]):
+
+2013-10-05  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Pass DocumentWriter around as a reference
+        https://bugs.webkit.org/show_bug.cgi?id=122396
+
+        Reviewed by Andreas Kling.
+
+        * WebView/WebFrame.mm:
+        (-[WebFrame _canProvideDocumentSource]):
+
+2013-10-04  Alexey Proskuryakov  <ap@apple.com>
+
+        Don't preflight spell checker when calling -setContinuousSpellCheckingEnabled repeatedly
+        https://bugs.webkit.org/show_bug.cgi?id=122329
+
+        Reviewed by Darin Adler.
+
+        * WebView/WebView.mm: (-[WebView setContinuousSpellCheckingEnabled:]): Don't do any
+        work if preference didn't change (continuousSpellCheckingEnabled is a static that
+        starts with false).
+
+2013-10-04  Anders Carlsson  <andersca@apple.com>
+
+        FramePolicyFunction should be an std::function
+        https://bugs.webkit.org/show_bug.cgi?id=122362
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/WebFrameLoaderClient.h:
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (WebFrameLoaderClient::dispatchDecidePolicyForResponse):
+        (WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction):
+        (WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction):
+        (WebFrameLoaderClient::dispatchWillSubmitForm):
+
+2013-10-04  Mark Lam  <mark.lam@apple.com>
+
+        Change ScriptDebugServer to use DebuggerCallFrame instead of JavaScriptCallFrame.
+        https://bugs.webkit.org/show_bug.cgi?id=121969.
+
+        Reviewed by Geoffrey Garen.
+
+        1. Make JavaScriptCallFrame a thin shell around the DebuggerCallFrame.
+           DebuggerCallFrame now tracks whether it is valid instead of needing
+           JavaScriptCallFrame do it.
+        2. ScriptDebugServer now only instantiates an DebuggerCallFrame when needed
+           just before it pauses and calls back to its client, and then invalidates
+           it immediately when the callback returns. Every subsequent callback to
+           the client will use a new instance of the DebuggerCallFrame.
+        3. Similarly, ScriptDebugServer now only creates a JavaScriptCallFrame when
+           it "pauses".
+        4. DebuggerCallFrame only creates its caller DebuggerCallFrame when
+           it is needed i.e. when the client calls callerFrame(). Similarly,
+           JavaScriptCallFrame only creates its caller when it's requested.
+        5. DebuggerCallFrame's line() and column() now returns a base-zero int.
+        6. WebScriptDebugDelegate now only caches the functionName of the frame
+           instead of the entire DebuggerCallFrame because that is all that is
+           needed.
+        7. Also removed evaluateInGlobalCallFrame() which is not used anywhere.
+
+        * WebView/WebScriptDebugDelegate.mm:
+        (-[WebScriptCallFramePrivate dealloc]):
+        (-[WebScriptCallFrame _initWithGlobalObject:functionName:exceptionValue:JSC::]):
+        (-[WebScriptCallFrame functionName]):
+        (-[WebScriptCallFrame exception]):
+        * WebView/WebScriptDebugger.mm:
+        (WebScriptDebugger::exception):
+
+2013-10-04  Anders Carlsson  <andersca@apple.com>
+
+        Remove some unneeded code from WidgetMac
+        https://bugs.webkit.org/show_bug.cgi?id=122355
+
+        Reviewed by Dan Bernstein.
+
+        Remove code to handle the visible rect changing, it's not needed anymore since we always put Netscape plug-ins into their own layers now.
+
+        * Plugins/Hosted/WebHostedNetscapePluginView.mm:
+        * Plugins/WebBaseNetscapePluginView.h:
+        * Plugins/WebBaseNetscapePluginView.mm:
+
+2013-10-04  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream disk image cache
+        https://bugs.webkit.org/show_bug.cgi?id=121985
+
+        Reviewed by Joseph Pecoraro.
+
+        * Misc/WebCache.mm:
+        (+[WebCache statistics]):
+        * WebView/WebDataSource.mm:
+        (BufferMemoryMapped): Added.
+        (-[WebDataSource _setAllowToBeMemoryMapped]): Added.
+        (-[WebDataSource setDataSourceDelegate:]): Added.
+        (-[WebDataSource dataSourceDelegate]): Added.
+        (-[WebDataSource dealloc]):
+        * WebView/WebDataSourcePrivate.h: Declared private delegate
+        protocol, WebDataSourcePrivateDelegate.
+        * WebView/WebPreferenceKeysPrivate.h:
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+        (-[WebPreferences diskImageCacheEnabled]): Added.
+        (-[WebPreferences setDiskImageCacheEnabled:]): Added.
+        (-[WebPreferences diskImageCacheMinimumImageSize]): Added.
+        (-[WebPreferences setDiskImageCacheMinimumImageSize:]): Added.
+        (-[WebPreferences diskImageCacheMaximumCacheSize]): Added.
+        (-[WebPreferences setDiskImageCacheMaximumCacheSize:]): Added.
+        (-[WebPreferences _diskImageCacheSavedCacheDirectory]): Added.
+        (-[WebPreferences _setDiskImageCacheSavedCacheDirectory:]): Added.
+        * WebView/WebView.mm:
+        (-[WebView _commonInitializationWithFrameName:groupName:]):
+        (-[WebView _preferencesChanged:]):
+
 2013-10-04  Anders Carlsson  <andersca@apple.com>
 
         Remove WebAssertions.h

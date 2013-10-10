@@ -29,18 +29,19 @@
 #if ENABLE(MEDIA_STREAM)
 
 #include "MediaStreamTrack.h"
-#include <wtf/Vector.h>
 #include <wtf/RefCounted.h>
+#include <wtf/Vector.h>
 
 namespace WebCore {
 
 class MediaStreamSource;
 class ScriptExecutionContext;
 
-class VideoStreamTrack : public MediaStreamTrack {
+class VideoStreamTrack FINAL : public MediaStreamTrack {
 public:
-    static PassRefPtr<VideoStreamTrack> create(ScriptExecutionContext*, const Dictionary&);
-    static PassRefPtr<VideoStreamTrack> create(ScriptExecutionContext*, MediaStreamSource*);
+    static RefPtr<VideoStreamTrack> create(ScriptExecutionContext*, const Dictionary&);
+    static RefPtr<VideoStreamTrack> create(ScriptExecutionContext*, MediaStreamSource*);
+    static RefPtr<VideoStreamTrack> create(MediaStreamTrack*);
 
     virtual ~VideoStreamTrack() { }
 
@@ -48,6 +49,7 @@ public:
 
 private:
     VideoStreamTrack(ScriptExecutionContext*, MediaStreamSource*, const Dictionary*);
+    explicit VideoStreamTrack(MediaStreamTrack*);
 };
 
 } // namespace WebCore

@@ -115,6 +115,8 @@ platform/mac/editing/pasteboard/drag-selections-to-contenteditable.html
 platform/mac/fast/forms/listbox-scrollbar-hit-test.html
 
 # [WK2] [Mac] Spellcheck tests don't seem to work
+webkit.org/b/105616 editing/spelling/context-menu-suggestions-multiword-selection.html
+webkit.org/b/105616 editing/spelling/context-menu-suggestions-subword-selection.html
 webkit.org/b/105616 editing/inserting/inserting-slash-inside-url-with-smart-link.html
 webkit.org/b/105616 editing/spelling/spelling-changed-text.html
 webkit.org/b/105616 editing/spelling/spelling-backspace-between-lines.html
@@ -127,9 +129,7 @@ webkit.org/b/105616 editing/spelling/spelling-exactly-selected-multiple-words.ht
 webkit.org/b/105616 editing/spelling/spelling-exactly-selected-word.html
 webkit.org/b/105616 editing/spelling/spelling-hasspellingmarker.html
 webkit.org/b/105616 editing/spelling/spelling-linebreak.html
-webkit.org/b/105616 editing/spelling/spelling-multiword-selection.html
 webkit.org/b/105616 editing/spelling/spelling-should-select-multiple-words.html
-webkit.org/b/105616 editing/spelling/spelling-subword-selection.html
 webkit.org/b/105616 editing/spelling/spelling-with-punctuation-selection.html
 webkit.org/b/105616 editing/spelling/spelling-with-whitespace-selection.html
 webkit.org/b/105616 editing/spelling/spellcheck-input-search-crash.html
@@ -335,7 +335,9 @@ webkit.org/b/118925 [ Debug ] svg/repaint/buffered-rendering-static-image.html  
 # Only failing on WK1
 webkit.org/b/104104 fast/overflow/scrollbar-click-retains-focus.html [ Pass ]
 
-webkit.org/b/120148 [ Lion Release ] webaudio/javascriptaudionode-upmix2-8channel-input.html [ Pass Failure ]
+# Flakily fails in release build, asserts in debug.
+webkit.org/b/120148 webaudio/javascriptaudionode-upmix2-8channel-input.html [ Pass Crash Failure ]
+
 webkit.org/b/120161 [ Lion ] webaudio/codec-tests/mp3/128kbps-44khz.html [ Failure ]
 
 webkit.org/b/120544 inspector/storage-panel-dom-storage-update.html [ Failure ]
@@ -389,6 +391,8 @@ webkit.org/b/122235 css3/background/background-repeat-space-padding.html [ Image
 
 webkit.org/b/122237 [ Debug ] fast/table/crash-section-logical-height-changed-needsCellRecalc.html [ Crash ]
 webkit.org/b/122238 fast/layers/no-clipping-overflow-hidden-added-after-transform.html [ ImageOnlyFailure ]
+
+webkit.org/b/122456 css3/images/cross-fade-svg-with-opacity.html [ ImageOnlyFailure ]
 
 ### END OF (1) Classified failures with bug reports
 ########################################
@@ -467,7 +471,6 @@ webaudio/ [ Pass ]
 webaudio/mediastreamaudiodestinationnode.html
 webaudio/mediastreamaudiosourcenode.html
 webaudio/codec-tests/vorbis/
-webkit.org/b/119459 [ Debug ] webaudio/javascriptaudionode-downmix8-2channel-input.html [ Pass Crash ]
 webkit.org/b/119467 webaudio/audiobuffersource-loop-points.html [ Skip ]
 
 # Asserts in WebKit1-debug only, so reenabling.

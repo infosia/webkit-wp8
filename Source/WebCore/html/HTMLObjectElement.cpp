@@ -317,14 +317,14 @@ void HTMLObjectElement::updateWidget(PluginCreationOption pluginCreationOption)
         renderFallbackContent();
 }
 
-Node::InsertionNotificationRequest HTMLObjectElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLObjectElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLPlugInImageElement::insertedInto(insertionPoint);
     FormAssociatedElement::insertedInto(insertionPoint);
     return InsertionDone;
 }
 
-void HTMLObjectElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLObjectElement::removedFrom(ContainerNode& insertionPoint)
 {
     HTMLPlugInImageElement::removedFrom(insertionPoint);
     FormAssociatedElement::removedFrom(insertionPoint);
@@ -427,17 +427,17 @@ void HTMLObjectElement::updateDocNamedItem()
         const AtomicString& id = getIdAttribute();
         if (!id.isEmpty()) {
             if (isNamedItem)
-                document->addDocumentNamedItem(id, this);
+                document->addDocumentNamedItem(*id.impl(), *this);
             else
-                document->removeDocumentNamedItem(id, this);
+                document->removeDocumentNamedItem(*id.impl(), *this);
         }
 
         const AtomicString& name = getNameAttribute();
         if (!name.isEmpty() && id != name) {
             if (isNamedItem)
-                document->addDocumentNamedItem(name, this);
+                document->addDocumentNamedItem(*name.impl(), *this);
             else
-                document->removeDocumentNamedItem(name, this);
+                document->removeDocumentNamedItem(*name.impl(), *this);
         }
     }
     m_docNamedItem = isNamedItem;

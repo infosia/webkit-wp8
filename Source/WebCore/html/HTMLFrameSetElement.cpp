@@ -165,9 +165,7 @@ RenderElement* HTMLFrameSetElement::createRenderer(RenderArena& arena, RenderSty
 
 HTMLFrameSetElement* HTMLFrameSetElement::findContaining(Element* descendant)
 {
-    auto ancestorFrameSets = ancestorsOfType<HTMLFrameSetElement>(descendant);
-    auto enclosingFrameSet = ancestorFrameSets.begin();
-    return enclosingFrameSet != ancestorFrameSets.end() ? &*enclosingFrameSet : nullptr;
+    return ancestorsOfType<HTMLFrameSetElement>(descendant).first();
 }
 
 void HTMLFrameSetElement::willAttachRenderers()
@@ -209,10 +207,10 @@ bool HTMLFrameSetElement::willRecalcStyle(Style::Change)
     return true;
 }
 
-Node::InsertionNotificationRequest HTMLFrameSetElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLFrameSetElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (insertionPoint->inDocument()) {
+    if (insertionPoint.inDocument()) {
         if (Frame* frame = document().frame())
             frame->loader().client().dispatchDidBecomeFrameset(document().isFrameSet());
     }
@@ -220,10 +218,10 @@ Node::InsertionNotificationRequest HTMLFrameSetElement::insertedInto(ContainerNo
     return InsertionDone;
 }
 
-void HTMLFrameSetElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLFrameSetElement::removedFrom(ContainerNode& insertionPoint)
 {
     HTMLElement::removedFrom(insertionPoint);
-    if (insertionPoint->inDocument()) {
+    if (insertionPoint.inDocument()) {
         if (Frame* frame = document().frame())
             frame->loader().client().dispatchDidBecomeFrameset(document().isFrameSet());
     }

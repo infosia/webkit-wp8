@@ -368,10 +368,11 @@ void MediaControlVolumeSliderContainerElement::defaultEventHandler(Event* event)
 
     // Poor man's mouseleave event detection.
     MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
-    if (!mouseEvent->relatedTarget() || !mouseEvent->relatedTarget()->toNode())
+    EventTarget* relatedTarget = mouseEvent->relatedTarget();
+    if (!relatedTarget || !relatedTarget->toNode())
         return;
 
-    if (this->containsIncludingShadowDOM(mouseEvent->relatedTarget()->toNode()))
+    if (this->containsIncludingShadowDOM(relatedTarget->toNode()))
         return;
 
     hide();
@@ -977,7 +978,7 @@ void MediaControlTimelineElement::setPosition(double currentTime)
 
 void MediaControlTimelineElement::setDuration(double duration)
 {
-    setAttribute(maxAttr, String::number(std::isfinite(duration) ? duration : 0));
+    setAttribute(maxAttr, AtomicString::number(std::isfinite(duration) ? duration : 0));
 }
 
 

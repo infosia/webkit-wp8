@@ -182,7 +182,7 @@ void ScriptController::clearWindowShell(DOMWindow* newDOMWindow, bool goingIntoP
     for (ShellMap::iterator iter = m_windowShells.begin(); iter != m_windowShells.end(); ++iter) {
         JSDOMWindowShell* windowShell = iter->value.get();
 
-        if (windowShell->window()->impl() == newDOMWindow)
+        if (&windowShell->window()->impl() == newDOMWindow)
             continue;
 
         // Clear the debugger from the current window before setting the new window.
@@ -341,7 +341,7 @@ void ScriptController::collectIsolatedContexts(Vector<std::pair<JSC::ExecState*,
 {
     for (ShellMap::iterator iter = m_windowShells.begin(); iter != m_windowShells.end(); ++iter) {
         JSC::ExecState* exec = iter->value->window()->globalExec();
-        SecurityOrigin* origin = iter->value->window()->impl()->document()->securityOrigin();
+        SecurityOrigin* origin = iter->value->window()->impl().document()->securityOrigin();
         result.append(std::pair<JSC::ExecState*, SecurityOrigin*>(exec, origin));
     }
 }
@@ -498,10 +498,7 @@ bool ScriptController::canExecuteScripts(ReasonForCallingCanExecuteScripts reaso
     if (!m_frame.page())
         return false;
 
-    const bool allowed = m_frame.loader().client().allowScript(m_frame.settings().isScriptEnabled());
-    if (!allowed && reason == AboutToExecuteScript)
-        m_frame.loader().client().didNotAllowScript();
-    return allowed;
+    return m_frame.loader().client().allowScript(m_frame.settings().isScriptEnabled());
 }
 
 ScriptValue ScriptController::executeScript(const String& script, bool forceUserGesture)
@@ -559,7 +556,7 @@ bool ScriptController::executeIfJavaScriptURL(const URL& url, ShouldReplaceDocum
         // DocumentWriter::replaceDocument can cause the DocumentLoader to get deref'ed and possible destroyed,
         // so protect it with a RefPtr.
         if (RefPtr<DocumentLoader> loader = m_frame.document()->loader())
-            loader->writer()->replaceDocument(scriptResult, ownerDocument.get());
+            loader->writer().replaceDocument(scriptResult, ownerDocument.get());
     }
     return true;
 }

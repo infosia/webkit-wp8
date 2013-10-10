@@ -172,7 +172,8 @@ struct WKViewInterpretKeyEventsParameters {
     // For asynchronous validation.
     ValidationMap _validationMap;
 
-    OwnPtr<FindIndicatorWindow> _findIndicatorWindow;
+    std::unique_ptr<FindIndicatorWindow> _findIndicatorWindow;
+
     // We keep here the event when resending it to
     // the application to distinguish the case of a new event from one 
     // that has been already sent to WebCore.
@@ -1772,7 +1773,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
 
     _data->_page->resetDragOperation();
-    _data->_page->dragEntered(&dragData, [[draggingInfo draggingPasteboard] name]);
+    _data->_page->dragEntered(dragData, [[draggingInfo draggingPasteboard] name]);
     return NSDragOperationCopy;
 }
 
@@ -1781,7 +1782,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     IntPoint client([self convertPoint:[draggingInfo draggingLocation] fromView:nil]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    _data->_page->dragUpdated(&dragData, [[draggingInfo draggingPasteboard] name]);
+    _data->_page->dragUpdated(dragData, [[draggingInfo draggingPasteboard] name]);
     
     WebCore::DragSession dragSession = _data->_page->dragSession();
     NSInteger numberOfValidItemsForDrop = dragSession.numberOfItemsToBeAccepted;
@@ -1802,7 +1803,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     IntPoint client([self convertPoint:[draggingInfo draggingLocation] fromView:nil]);
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
-    _data->_page->dragExited(&dragData, [[draggingInfo draggingPasteboard] name]);
+    _data->_page->dragExited(dragData, [[draggingInfo draggingPasteboard] name]);
     _data->_page->resetDragOperation();
 }
 
@@ -1866,7 +1867,7 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
     SandboxExtension::HandleArray sandboxExtensionForUpload;
     createSandboxExtensionsForFileUpload([draggingInfo draggingPasteboard], sandboxExtensionForUpload);
 
-    _data->_page->performDrag(&dragData, [[draggingInfo draggingPasteboard] name], sandboxExtensionHandle, sandboxExtensionForUpload);
+    _data->_page->performDrag(dragData, [[draggingInfo draggingPasteboard] name], sandboxExtensionHandle, sandboxExtensionForUpload);
 
     return YES;
 }
@@ -2605,7 +2606,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
     }
 
     if (!_data->_findIndicatorWindow)
-        _data->_findIndicatorWindow = createOwned<FindIndicatorWindow>(self);
+        _data->_findIndicatorWindow = std::make_unique<FindIndicatorWindow>(self);
 
     _data->_findIndicatorWindow->setFindIndicator(findIndicator, fadeOut, animate);
 }

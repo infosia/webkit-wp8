@@ -52,6 +52,11 @@ using namespace DFG;
 
 static int compileCounter;
 
+static bool generateExitThunks()
+{
+    return !Options::useLLVMOSRExitIntrinsic() && !Options::ftlOSRExitUsesStackmap();
+}
+
 // Using this instead of typeCheck() helps to reduce the load on LLVM, by creating
 // significantly less dead code.
 #define FTL_TYPE_CHECK(lowValue, highValue, typesPassedThrough, failCondition) do { \
@@ -75,6 +80,7 @@ public:
         , m_exitThunkGenerator(state)
         , m_state(state.graph)
         , m_interpreter(state.graph, m_state)
+        , m_stackmapIDs(0)
     {
     }
     
@@ -437,6 +443,9 @@ private:
         case ForceOSRExit:
             compileForceOSRExit();
             break;
+        case ValueToInt32:
+            compileValueToInt32();
+            break;
         default:
             RELEASE_ASSERT_NOT_REACHED();
             break;
@@ -452,6 +461,12 @@ private:
             m_interpreter.executeEffects(nodeIndex);
         
         return true;
+    }
+
+    void compileValueToInt32()
+    {
+        ASSERT(m_node->child1().useKind() == BooleanUse);
+        setInt32(m_out.zeroExt(lowBoolean(m_node->child1()), m_out.int32));
     }
     
     void compileUpsilon()
@@ -526,7 +541,8 @@ private:
     void compileGetArgument()
     {
         VariableAccessData* variable = m_node->variableAccessData();
-        VirtualRegister operand = variable->local();
+        VirtualRegister operand = variable->machineLocal();
+        RELEASE_ASSERT(operand.isArgument());
 
         LValue jsValue = m_out.load64(addressFor(operand));
 
@@ -569,9 +585,9 @@ private:
         RELEASE_ASSERT(variable->isCaptured());
         
         if (isInt32Speculation(value.m_type))
-            setInt32(m_out.load32(payloadFor(variable->local())));
+            setInt32(m_out.load32(payloadFor(variable->machineLocal())));
         else
-            setJSValue(m_out.load64(addressFor(variable->local())));
+            setJSValue(m_out.load64(addressFor(variable->machineLocal())));
     }
     
     void compileSetLocal()
@@ -582,36 +598,36 @@ private:
         switch (variable->flushFormat()) {
         case FlushedJSValue: {
             LValue value = lowJSValue(m_node->child1());
-            m_out.store64(value, addressFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack);
+            m_out.store64(value, addressFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack, variable->machineLocal());
             return;
         }
             
         case FlushedDouble: {
             LValue value = lowDouble(m_node->child1());
-            m_out.storeDouble(value, addressFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(DoubleInJSStack);
+            m_out.storeDouble(value, addressFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(DoubleInJSStack, variable->machineLocal());
             return;
         }
             
         case FlushedInt32: {
             LValue value = lowInt32(m_node->child1());
-            m_out.store32(value, payloadFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(Int32InJSStack);
+            m_out.store32(value, payloadFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(Int32InJSStack, variable->machineLocal());
             return;
         }
             
         case FlushedInt52: {
             LValue value = lowInt52(m_node->child1());
-            m_out.store64(value, addressFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(Int52InJSStack);
+            m_out.store64(value, addressFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(Int52InJSStack, variable->machineLocal());
             return;
         }
             
         case FlushedCell: {
             LValue value = lowCell(m_node->child1());
-            m_out.store64(value, addressFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack);
+            m_out.store64(value, addressFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack, variable->machineLocal());
             return;
         }
             
@@ -619,8 +635,8 @@ private:
             speculateBoolean(m_node->child1());
             m_out.store64(
                 lowJSValue(m_node->child1(), ManualOperandSpeculation),
-                addressFor(variable->local()));
-            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack);
+                addressFor(variable->machineLocal()));
+            m_valueSources.operand(variable->local()) = ValueSource(ValueInJSStack, variable->machineLocal());
             return;
         }
             
@@ -3169,8 +3185,8 @@ private:
     void initializeOSRExitStateForBlock()
     {
         for (unsigned i = m_valueSources.size(); i--;) {
-            FlushFormat format = m_highBlock->ssa->flushFormatAtHead[i];
-            switch (format) {
+            FlushedAt flush = m_highBlock->ssa->flushAtHead[i];
+            switch (flush.format()) {
             case DeadFlush: {
                 // Must consider available nodes instead.
                 Node* node = m_highBlock->ssa->availabilityAtHead[i];
@@ -3184,21 +3200,21 @@ private:
             }
                 
             case FlushedInt32:
-                m_valueSources[i] = ValueSource(Int32InJSStack);
+                m_valueSources[i] = ValueSource(Int32InJSStack, flush.virtualRegister());
                 break;
                 
             case FlushedInt52:
-                m_valueSources[i] = ValueSource(Int52InJSStack);
+                m_valueSources[i] = ValueSource(Int52InJSStack, flush.virtualRegister());
                 break;
                 
             case FlushedDouble:
-                m_valueSources[i] = ValueSource(DoubleInJSStack);
+                m_valueSources[i] = ValueSource(DoubleInJSStack, flush.virtualRegister());
                 break;
                 
             case FlushedCell:
             case FlushedBoolean:
             case FlushedJSValue:
-                m_valueSources[i] = ValueSource(ValueInJSStack);
+                m_valueSources[i] = ValueSource(ValueInJSStack, flush.virtualRegister());
                 break;
             }
         }
@@ -3246,8 +3262,10 @@ private:
             
             m_out.branch(failCondition, failCase, continuation);
 
-            m_out.appendTo(m_prologue);
-            info.m_thunkAddress = buildAlloca(m_out.m_builder, m_out.intPtr);
+            if (generateExitThunks()) {
+                m_out.appendTo(m_prologue);
+                info.m_thunkAddressValue = buildAlloca(m_out.m_builder, m_out.intPtr);
+            }
         
             lastNext = m_out.appendTo(failCase, continuation);
         }
@@ -3255,7 +3273,7 @@ private:
         if (Options::ftlOSRExitOmitsMarshalling()) {
             m_out.call(
                 m_out.intToPtr(
-                    m_out.get(info.m_thunkAddress),
+                    m_out.get(info.m_thunkAddressValue),
                     pointerType(functionType(m_out.voidType))));
         } else
             emitOSRExitCall(failCondition, index, exit, info, lowValue, direction, recovery);
@@ -3265,7 +3283,8 @@ private:
             
             m_out.appendTo(continuation, lastNext);
         
-            m_exitThunkGenerator.emitThunk(index);
+            if (generateExitThunks())
+                m_exitThunkGenerator.emitThunk(index);
         }
     }
     
@@ -3289,16 +3308,16 @@ private:
             
             switch (source.kind()) {
             case ValueInJSStack:
-                exit.m_values[i] = ExitValue::inJSStack();
+                exit.m_values[i] = ExitValue::inJSStack(source.virtualRegister());
                 break;
             case Int32InJSStack:
-                exit.m_values[i] = ExitValue::inJSStackAsInt32();
+                exit.m_values[i] = ExitValue::inJSStackAsInt32(source.virtualRegister());
                 break;
             case Int52InJSStack:
-                exit.m_values[i] = ExitValue::inJSStackAsInt52();
+                exit.m_values[i] = ExitValue::inJSStackAsInt52(source.virtualRegister());
                 break;
             case DoubleInJSStack:
-                exit.m_values[i] = ExitValue::inJSStackAsDouble();
+                exit.m_values[i] = ExitValue::inJSStackAsDouble(source.virtualRegister());
                 break;
             case SourceIsDead:
                 exit.m_values[i] = ExitValue::dead();
@@ -3331,9 +3350,18 @@ private:
             return;
         }
         
+        if (Options::ftlOSRExitUsesStackmap()) {
+            exit.m_stackmapID = m_stackmapIDs++;
+            arguments.insert(0, m_out.constInt32(MacroAssembler::maxJumpReplacementSize()));
+            arguments.insert(0, m_out.constInt32(exit.m_stackmapID));
+        
+            m_out.call(m_out.webkitStackmapIntrinsic(), arguments);
+            return;
+        }
+        
         m_out.call(
             m_out.intToPtr(
-                m_out.get(info.m_thunkAddress),
+                m_out.get(info.m_thunkAddressValue),
                 pointerType(functionType(m_out.voidType, argumentTypes))),
             arguments);
     }
@@ -3489,7 +3517,7 @@ private:
                 m_out.set(
                     m_out.constIntPtr(
                         linkBuffer->locationOf(info.m_thunkLabel).executableAddress()),
-                    info.m_thunkAddress);
+                    info.m_thunkAddressValue);
             
                 exit.m_patchableCodeOffset = linkBuffer->offsetOf(info.m_thunkJump);
             }
@@ -3686,6 +3714,8 @@ private:
     unsigned m_nodeIndex;
     Node* m_node;
     SpeculationDirection m_direction;
+    
+    uint32_t m_stackmapIDs;
 };
 
 void lowerDFGToLLVM(State& state)

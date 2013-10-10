@@ -223,21 +223,16 @@ void RenderBox::willBeDestroyed()
     RenderBoxModelObject::willBeDestroyed();
 }
 
-RenderBlock* RenderBox::outermostBlockContainingFloatingObject()
+RenderBlockFlow* RenderBox::outermostBlockContainingFloatingObject()
 {
     ASSERT(isFloating());
-    RenderBlock* parentBlock = 0;
+    RenderBlockFlow* parentBlock = 0;
     for (RenderObject* curr = parent(); curr && !curr->isRenderView(); curr = curr->parent()) {
-        if (curr->isRenderBlock()) {
-            RenderBlock* currBlock = toRenderBlock(curr);
+        if (curr->isRenderBlockFlow()) {
+            RenderBlockFlow* currBlock = toRenderBlockFlow(curr);
             if (!parentBlock || currBlock->containsFloat(this))
                 parentBlock = currBlock;
         }
-    }
-    if (parentBlock) {
-        RenderObject* parent = parentBlock->parent();
-        if (parent && parent->isFlexibleBoxIncludingDeprecated())
-            parentBlock = toRenderBlock(parent);
     }
     return parentBlock;
 }
@@ -250,7 +245,7 @@ void RenderBox::removeFloatingOrPositionedChildFromBlockLists()
         return;
 
     if (isFloating()) {
-        if (RenderBlock* parentBlock = outermostBlockContainingFloatingObject()) {
+        if (RenderBlockFlow* parentBlock = outermostBlockContainingFloatingObject()) {
             parentBlock->markSiblingsWithFloatsForLayout(this);
             parentBlock->markAllDescendantsWithFloatsForLayout(this, false);
         }
@@ -397,6 +392,7 @@ void RenderBox::updateShapeOutsideInfoAfterStyleChange(const ShapeValue* shapeOu
         shapeOutsideInfo->dirtyShapeSize();
     } else
         ShapeOutsideInfo::removeInfo(this);
+    markShapeOutsideDependentsForLayout();
 }
 #endif
 
@@ -456,7 +452,8 @@ void RenderBox::layout()
 
     LayoutStateMaintainer statePusher(&view(), this, locationOffset(), style()->isFlippedBlocksWritingMode());
     while (child) {
-        child->layoutIfNeeded();
+        if (child->needsLayout())
+            toRenderElement(child)->layout();
         ASSERT(!child->needsLayout());
         child = child->nextSibling();
     }
@@ -1093,16 +1090,6 @@ bool RenderBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& result
 
 // --------------------- painting stuff -------------------------------
 
-void RenderBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
-{
-    LayoutPoint adjustedPaintOffset = paintOffset + location();
-    // default implementation. Just pass paint through to the children
-    PaintInfo childInfo(paintInfo);
-    childInfo.updateSubtreePaintRootForChildren(this);
-    for (RenderObject* child = firstChild(); child; child = child->nextSibling())
-        child->paint(childInfo, adjustedPaintOffset);
-}
-
 void RenderBox::paintRootBoxFillLayers(const PaintInfo& paintInfo)
 {
     if (paintInfo.skipRootBackground())
@@ -1153,7 +1140,7 @@ BackgroundBleedAvoidance RenderBox::determineBackgroundBleedAvoidance(GraphicsCo
 
 void RenderBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    if (!paintInfo.shouldPaintWithinRoot(this))
+    if (!paintInfo.shouldPaintWithinRoot(*this))
         return;
 
     LayoutRect paintRect = borderBoxRectInRegion(paintInfo.renderRegion);
@@ -1374,7 +1361,7 @@ bool RenderBox::backgroundHasOpaqueTopLayer() const
 
 void RenderBox::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    if (!paintInfo.shouldPaintWithinRoot(this) || style()->visibility() != VISIBLE || paintInfo.phase != PaintPhaseMask || paintInfo.context->paintingDisabled())
+    if (!paintInfo.shouldPaintWithinRoot(*this) || style()->visibility() != VISIBLE || paintInfo.phase != PaintPhaseMask || paintInfo.context->paintingDisabled())
         return;
 
     LayoutRect paintRect = LayoutRect(paintOffset, size());

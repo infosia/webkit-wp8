@@ -532,12 +532,12 @@ static void getSelectionOffsetsForObject(AccessibilityObject* coreObject, Visibl
 
     // Calculate position of the selected range inside the object.
     Position parentFirstPosition = firstPositionInOrBeforeNode(node);
-    RefPtr<Range> rangeInParent = Range::create(&node->document(), parentFirstPosition, nodeRangeStart);
+    RefPtr<Range> rangeInParent = Range::create(node->document(), parentFirstPosition, nodeRangeStart);
 
     // Set values for start offsets and calculate initial range length.
     // These values might be adjusted later to cover special cases.
     startOffset = webCoreOffsetToAtkOffset(coreObject, TextIterator::rangeLength(rangeInParent.get(), true));
-    RefPtr<Range> nodeRange = Range::create(&node->document(), nodeRangeStart, nodeRangeEnd);
+    RefPtr<Range> nodeRange = Range::create(node->document(), nodeRangeStart, nodeRangeEnd);
     int rangeLength = TextIterator::rangeLength(nodeRange.get(), true);
 
     // Special cases that are only relevant when working with *_END boundaries.
@@ -1368,6 +1368,48 @@ static gboolean webkitAccessibleTextSetCaretOffset(AtkText* text, gint offset)
     return TRUE;
 }
 
+#if ATK_CHECK_VERSION(2, 10, 0)
+static gchar* webkitAccessibleTextGetStringAtOffset(AtkText* text, gint offset, AtkTextGranularity granularity, gint* startOffset, gint* endOffset)
+{
+    // This new API has been designed to simplify the AtkText interface and it has been
+    // designed to keep exactly the same behaviour the atk_text_get_text_at_text() for
+    // ATK_TEXT_BOUNDARY_*_START boundaries, so for now we just need to translate the
+    // granularity to the right old boundary and reuse the code for the old API.
+    // However, this should be simplified later on (and a lot of code removed) once
+    // WebKitGTK+ depends on ATK >= 2.9.4 *and* can safely assume that a version of
+    // AT-SPI2 new enough not to include the old APIs is being used. But until then,
+    // we will have to live with both the old and new APIs implemented here.
+    AtkTextBoundary boundaryType = ATK_TEXT_BOUNDARY_CHAR;
+    switch (granularity) {
+    case ATK_TEXT_GRANULARITY_CHAR:
+        break;
+
+    case ATK_TEXT_GRANULARITY_WORD:
+        boundaryType = ATK_TEXT_BOUNDARY_WORD_START;
+        break;
+
+    case ATK_TEXT_GRANULARITY_SENTENCE:
+        boundaryType = ATK_TEXT_BOUNDARY_SENTENCE_START;
+        break;
+
+    case ATK_TEXT_GRANULARITY_LINE:
+        boundaryType = ATK_TEXT_BOUNDARY_LINE_START;
+        break;
+
+    case ATK_TEXT_GRANULARITY_PARAGRAPH:
+        // FIXME: This has not been a need with the old AtkText API, which means ATs won't
+        // need it yet for some time, so we can skip it for now.
+        notImplemented();
+        return g_strdup("");
+
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
+    return webkitAccessibleTextGetTextForOffset(text, offset, boundaryType, GetTextPositionAt, startOffset, endOffset);
+}
+#endif
+
 void webkitAccessibleTextInterfaceInit(AtkTextIface* iface)
 {
     iface->get_text = webkitAccessibleTextGetText;
@@ -1388,6 +1430,10 @@ void webkitAccessibleTextInterfaceInit(AtkTextIface* iface)
     iface->remove_selection = webkitAccessibleTextRemoveSelection;
     iface->set_selection = webkitAccessibleTextSetSelection;
     iface->set_caret_offset = webkitAccessibleTextSetCaretOffset;
+
+#if ATK_CHECK_VERSION(2, 10, 0)
+    iface->get_string_at_offset = webkitAccessibleTextGetStringAtOffset;
+#endif
 }
 
 #endif

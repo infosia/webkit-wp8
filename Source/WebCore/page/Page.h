@@ -236,8 +236,6 @@ public:
     bool tabKeyCyclesThroughElements() const { return m_tabKeyCyclesThroughElements; }
 
     bool findString(const String&, FindOptions);
-    // FIXME: Switch callers over to the FindOptions version and retire this one.
-    bool findString(const String&, TextCaseSensitivity, FindDirection, bool shouldWrap);
 
     PassRefPtr<Range> rangeOfString(const String&, Range*, FindOptions);
 
@@ -283,11 +281,6 @@ public:
     bool shouldSuppressScrollbarAnimations() const { return m_suppressScrollbarAnimations; }
     void setShouldSuppressScrollbarAnimations(bool suppressAnimations);
     void lockAllOverlayScrollbarsToHidden(bool lockOverlayScrollbars);
-
-    bool rubberBandsAtBottom();
-    void setRubberBandsAtBottom(bool);
-    bool rubberBandsAtTop();
-    void setRubberBandsAtTop(bool);
 
     // Page and FrameView both store a Pagination value. Page::pagination() is set only by API,
     // and FrameView::pagination() is set only by CSS. Page::pagination() will affect all
@@ -357,6 +350,7 @@ public:
 #if ENABLE(PAGE_VISIBILITY_API) || ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
     void setVisibilityState(PageVisibilityState, bool);
 #endif
+    void resumeAnimatingImages();
 
     void addLayoutMilestones(LayoutMilestones);
     void removeLayoutMilestones(LayoutMilestones);

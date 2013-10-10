@@ -571,7 +571,7 @@ bool EventHandler::handleMousePressEventTripleClick(const MouseEventWithHitTestR
 
 static int textDistance(const Position& start, const Position& end)
 {
-    RefPtr<Range> range = Range::create(&start.anchorNode()->document(), start, end);
+    RefPtr<Range> range = Range::create(start.anchorNode()->document(), start, end);
     return TextIterator::rangeLength(range.get(), true);
 }
 
@@ -2061,7 +2061,7 @@ static bool findDropZone(Node* target, Clipboard* clipboard)
         if (dropZoneStr.isEmpty())
             continue;
         
-        dropZoneStr.makeLower();
+        dropZoneStr = dropZoneStr.lower();
         
         SpaceSplitString keywords(dropZoneStr, false);
         if (keywords.isEmpty())
@@ -3668,7 +3668,7 @@ bool EventHandler::handleDrag(const MouseEventWithHitTestResults& event, CheckDr
     
     if (m_mouseDownMayStartDrag) {
         Page* page = m_frame.page();
-        m_didStartDrag = page && page->dragController().startDrag(&m_frame, dragState(), srcOp, event.event(), m_mouseDownPos);
+        m_didStartDrag = page && page->dragController().startDrag(m_frame, dragState(), srcOp, event.event(), m_mouseDownPos);
         // In WebKit2 we could re-enter this code and start another drag.
         // On OS X this causes problems with the ownership of the pasteboard and the promised types.
         if (m_didStartDrag) {

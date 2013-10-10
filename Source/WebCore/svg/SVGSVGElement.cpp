@@ -488,9 +488,9 @@ RenderElement* SVGSVGElement::createRenderer(RenderArena& arena, RenderStyle&)
     return new (arena) RenderSVGViewportContainer(*this);
 }
 
-Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode& rootParent)
 {
-    if (rootParent->inDocument()) {
+    if (rootParent.inDocument()) {
         document().accessSVGExtensions()->addTimeContainer(this);
 
         // Animations are started at the end of document parsing and after firing the load event,
@@ -502,9 +502,9 @@ Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode* ro
     return SVGGraphicsElement::insertedInto(rootParent);
 }
 
-void SVGSVGElement::removedFrom(ContainerNode* rootParent)
+void SVGSVGElement::removedFrom(ContainerNode& rootParent)
 {
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         document().accessSVGExtensions()->removeTimeContainer(this);
     SVGGraphicsElement::removedFrom(rootParent);
 }
@@ -771,7 +771,7 @@ void SVGSVGElement::documentDidResumeFromPageCache()
 // See http://www.w3.org/TR/SVG11/struct.html#InterfaceSVGSVGElement
 Element* SVGSVGElement::getElementById(const AtomicString& id)
 {
-    Element* element = treeScope()->getElementById(id);
+    Element* element = treeScope().getElementById(id);
     if (element && element->isDescendantOf(this))
         return element;
 

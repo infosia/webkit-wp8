@@ -28,8 +28,8 @@
 
 #include "ContainerNode.h"
 #include "EventContext.h"
-#include "EventDispatchMediator.h"
 #include "EventRetargeter.h"
+#include "FocusEvent.h"
 #include "FrameView.h"
 #include "HTMLInputElement.h"
 #include "HTMLMediaElement.h"
@@ -38,39 +38,40 @@
 #include "MouseEvent.h"
 #include "ScopedEventQueue.h"
 #include "ShadowRoot.h"
+#include "TouchEvent.h"
 #include "WindowEventContext.h"
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-bool EventDispatcher::dispatchEvent(Node* node, PassRefPtr<EventDispatchMediator> mediator)
+bool EventDispatcher::dispatchEvent(Node* node, PassRefPtr<Event> event)
 {
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
-    if (!mediator->event())
+    if (!event)
         return true;
-    EventDispatcher dispatcher(node, mediator->event());
-    return mediator->dispatchEvent(&dispatcher);
+    EventDispatcher dispatcher(node, event);
+    return dispatcher.dispatch();
 }
 
 EventDispatcher::EventDispatcher(Node* node, PassRefPtr<Event> event)
-    : m_node(node)
+    : m_eventPath(*node, *event)
+    , m_node(node)
     , m_event(event)
 #ifndef NDEBUG
     , m_eventDispatched(false)
 #endif
 {
-    ASSERT(node);
-    ASSERT(m_event.get());
+    ASSERT(m_node);
+    ASSERT(m_event);
     ASSERT(!m_event->type().isNull()); // JavaScript code can create an event with an empty name, but not null.
     m_view = node->document().view();
-    EventRetargeter::calculateEventPath(m_node.get(), m_event.get(), m_eventPath);
 }
 
-void EventDispatcher::dispatchScopedEvent(Node* node, PassRefPtr<EventDispatchMediator> mediator)
+void EventDispatcher::dispatchScopedEvent(Node& node, PassRefPtr<Event> event)
 {
     // We need to set the target here because it can go away by the time we actually fire the event.
-    mediator->event()->setTarget(EventRetargeter::eventTargetRespectingTargetRules(node));
-    ScopedEventQueue::instance()->enqueueEventDispatchMediator(mediator);
+    event->setTarget(&EventRetargeter::eventTargetRespectingTargetRules(node));
+    ScopedEventQueue::instance()->enqueueEvent(event);
 }
 
 void EventDispatcher::dispatchSimulatedClick(Element* element, Event* underlyingEvent, SimulatedClickMouseEventOptions mouseEventOptions, SimulatedClickVisualOptions visualOptions)
@@ -98,15 +99,83 @@ void EventDispatcher::dispatchSimulatedClick(Element* element, Event* underlying
     elementsDispatchingSimulatedClicks.remove(element);
 }
 
+static void callDefaultEventHandlersInTheBubblingOrder(Event& event, const EventPath& path)
+{
+    // Non-bubbling events call only one default event handler, the one for the target.
+    path.contextAt(0).node()->defaultEventHandler(&event);
+    ASSERT(!event.defaultPrevented());
+
+    if (event.defaultHandled() || !event.bubbles())
+        return;
+
+    size_t size = path.size();
+    for (size_t i = 1; i < size; ++i) {
+        path.contextAt(i).node()->defaultEventHandler(&event);
+        ASSERT(!event.defaultPrevented());
+        if (event.defaultHandled())
+            return;
+    }
+}
+
+static void dispatchEventInDOM(Event& event, const EventPath& path, WindowEventContext& windowEventContext)
+{
+    // Trigger capturing event handlers, starting at the top and working our way down.
+    event.setEventPhase(Event::CAPTURING_PHASE);
+
+    if (windowEventContext.handleLocalEvents(event) && event.propagationStopped())
+        return;
+
+    for (size_t i = path.size() - 1; i > 0; --i) {
+        const EventContext& eventContext = path.contextAt(i);
+        if (eventContext.currentTargetSameAsTarget())
+            continue;
+        eventContext.handleLocalEvents(event);
+        if (event.propagationStopped())
+            return;
+    }
+
+    event.setEventPhase(Event::AT_TARGET);
+    path.contextAt(0).handleLocalEvents(event);
+    if (event.propagationStopped())
+        return;
+
+    // Trigger bubbling event handlers, starting at the bottom and working our way up.
+    size_t size = path.size();
+    for (size_t i = 1; i < size; ++i) {
+        const EventContext& eventContext = path.contextAt(i);
+        if (eventContext.currentTargetSameAsTarget())
+            event.setEventPhase(Event::AT_TARGET);
+        else if (event.bubbles() && !event.cancelBubble())
+            event.setEventPhase(Event::BUBBLING_PHASE);
+        else
+            continue;
+        eventContext.handleLocalEvents(event);
+        if (event.propagationStopped())
+            return;
+    }
+    if (event.bubbles() && !event.cancelBubble()) {
+        event.setEventPhase(Event::BUBBLING_PHASE);
+        windowEventContext.handleLocalEvents(event);
+    }
+}
+
 bool EventDispatcher::dispatch()
 {
+    if (EventTarget* relatedTarget = m_event->relatedTarget())
+        m_eventPath.setRelatedTarget(*relatedTarget);
+#if ENABLE(TOUCH_EVENTS)
+    if (m_event->isTouchEvent())
+        EventRetargeter::adjustForTouchEvent(m_node.get(), *toTouchEvent(m_event.get()), m_eventPath); 
+#endif
+
 #ifndef NDEBUG
     ASSERT(!m_eventDispatched);
     m_eventDispatched = true;
 #endif
     ChildNodesLazySnapshot::takeChildNodesLazySnapshot();
 
-    m_event->setTarget(EventRetargeter::eventTargetRespectingTargetRules(m_node.get()));
+    ASSERT(m_node);
+    m_event->setTarget(&EventRetargeter::eventTargetRespectingTargetRules(*m_node));
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
     ASSERT(m_event->target());
     WindowEventContext windowEventContext(m_event.get(), m_node.get(), topEventContext());
@@ -114,16 +183,23 @@ bool EventDispatcher::dispatch()
 
     InputElementClickState clickHandlingState;
     if (isHTMLInputElement(m_node.get()))
-        toHTMLInputElement(m_node.get())->willDispatchEvent(*m_event.get(), clickHandlingState);
+        toHTMLInputElement(*m_node).willDispatchEvent(*m_event, clickHandlingState);
 
-    if (!m_event->propagationStopped() && !m_eventPath.isEmpty()) {
-        if (dispatchEventAtCapturing(windowEventContext) == ContinueDispatching) {
-            if (dispatchEventAtTarget() == ContinueDispatching)
-                dispatchEventAtBubbling(windowEventContext);
-        }
-    }
+    if (!m_event->propagationStopped() && !m_eventPath.isEmpty())
+        dispatchEventInDOM(*m_event, m_eventPath, windowEventContext);
 
-    dispatchEventPostProcess(clickHandlingState);
+    m_event->setTarget(&EventRetargeter::eventTargetRespectingTargetRules(*m_node));
+    m_event->setCurrentTarget(0);
+    m_event->setEventPhase(0);
+
+    if (clickHandlingState.stateful)
+        toHTMLInputElement(*m_node).didDispatchClickEvent(*m_event, clickHandlingState);
+
+    // Call default event handlers. While the DOM does have a concept of preventing
+    // default handling, the detail of which handlers are called is an internal
+    // implementation detail and not part of the DOM.
+    if (!m_event->defaultPrevented() && !m_event->defaultHandled())
+        callDefaultEventHandlersInTheBubblingOrder(*m_event, m_eventPath);
 
     // Ensure that after event dispatch, the event's target object is the
     // outermost shadow DOM boundary.
@@ -134,90 +210,19 @@ bool EventDispatcher::dispatch()
     return !m_event->defaultPrevented();
 }
 
-inline EventDispatchContinuation EventDispatcher::dispatchEventAtCapturing(WindowEventContext& windowEventContext)
-{
-    // Trigger capturing event handlers, starting at the top and working our way down.
-    m_event->setEventPhase(Event::CAPTURING_PHASE);
-
-    if (windowEventContext.handleLocalEvents(m_event.get()) && m_event->propagationStopped())
-        return DoneDispatching;
-
-    for (size_t i = m_eventPath.size() - 1; i > 0; --i) {
-        const EventContext& eventContext = *m_eventPath[i];
-        if (eventContext.currentTargetSameAsTarget())
-            continue;
-        eventContext.handleLocalEvents(m_event.get());
-        if (m_event->propagationStopped())
-            return DoneDispatching;
-    }
-
-    return ContinueDispatching;
-}
-
-inline EventDispatchContinuation EventDispatcher::dispatchEventAtTarget()
-{
-    m_event->setEventPhase(Event::AT_TARGET);
-    m_eventPath[0]->handleLocalEvents(m_event.get());
-    return m_event->propagationStopped() ? DoneDispatching : ContinueDispatching;
-}
-
-inline void EventDispatcher::dispatchEventAtBubbling(WindowEventContext& windowContext)
-{
-    // Trigger bubbling event handlers, starting at the bottom and working our way up.
-    size_t size = m_eventPath.size();
-    for (size_t i = 1; i < size; ++i) {
-        const EventContext& eventContext = *m_eventPath[i];
-        if (eventContext.currentTargetSameAsTarget())
-            m_event->setEventPhase(Event::AT_TARGET);
-        else if (m_event->bubbles() && !m_event->cancelBubble())
-            m_event->setEventPhase(Event::BUBBLING_PHASE);
-        else
-            continue;
-        eventContext.handleLocalEvents(m_event.get());
-        if (m_event->propagationStopped())
-            return;
-    }
-    if (m_event->bubbles() && !m_event->cancelBubble()) {
-        m_event->setEventPhase(Event::BUBBLING_PHASE);
-        windowContext.handleLocalEvents(m_event.get());
-    }
-}
-
-inline void EventDispatcher::dispatchEventPostProcess(const InputElementClickState& InputElementClickState)
-{
-    m_event->setTarget(EventRetargeter::eventTargetRespectingTargetRules(m_node.get()));
-    m_event->setCurrentTarget(0);
-    m_event->setEventPhase(0);
-
-    if (InputElementClickState.stateful)
-        toHTMLInputElement(m_node.get())->didDispatchClickEvent(*m_event.get(), InputElementClickState);
-
-    // Call default event handlers. While the DOM does have a concept of preventing
-    // default handling, the detail of which handlers are called is an internal
-    // implementation detail and not part of the DOM.
-    if (!m_event->defaultPrevented() && !m_event->defaultHandled()) {
-        // Non-bubbling events call only one default event handler, the one for the target.
-        m_node->defaultEventHandler(m_event.get());
-        ASSERT(!m_event->defaultPrevented());
-        if (m_event->defaultHandled())
-            return;
-        // For bubbling events, call default event handlers on the same targets in the
-        // same order as the bubbling phase.
-        if (m_event->bubbles()) {
-            size_t size = m_eventPath.size();
-            for (size_t i = 1; i < size; ++i) {
-                m_eventPath[i]->node()->defaultEventHandler(m_event.get());
-                ASSERT(!m_event->defaultPrevented());
-                if (m_event->defaultHandled())
-                    return;
-            }
-        }
-    }
-}
-
 const EventContext* EventDispatcher::topEventContext()
 {
-    return m_eventPath.isEmpty() ? 0 : m_eventPath.last().get();
+    return m_eventPath.lastContextIfExists();
+}
+
+bool EventPath::hasEventListeners(const AtomicString& eventType) const
+{
+    for (size_t i = 0; i < m_path.size(); i++) {
+        if (m_path[i]->node()->hasEventListeners(eventType))
+            return true;
+    }
+
+    return false;
 }
 
 }

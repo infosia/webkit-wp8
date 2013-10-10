@@ -162,11 +162,11 @@ void HTMLLinkElement::parseAttribute(const QualifiedName& name, const AtomicStri
 
 bool HTMLLinkElement::shouldLoadLink()
 {
-    RefPtr<Document> originalDocument = &document();
+    Ref<Document> originalDocument(document());
     if (!dispatchBeforeLoadEvent(getNonEmptyURLAttribute(hrefAttr)))
         return false;
     // A beforeload handler might have removed us from the document or changed the document.
-    if (!inDocument() || &document() != originalDocument)
+    if (!inDocument() || &document() != &originalDocument.get())
         return false;
     return true;
 }
@@ -245,10 +245,10 @@ void HTMLLinkElement::clearSheet()
     m_sheet = 0;
 }
 
-Node::InsertionNotificationRequest HTMLLinkElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLLinkElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return InsertionDone;
 
     m_isInShadowTree = isInShadowTree();
@@ -261,10 +261,10 @@ Node::InsertionNotificationRequest HTMLLinkElement::insertedInto(ContainerNode* 
     return InsertionDone;
 }
 
-void HTMLLinkElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLLinkElement::removedFrom(ContainerNode& insertionPoint)
 {
     HTMLElement::removedFrom(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return;
 
     m_linkLoader.released();

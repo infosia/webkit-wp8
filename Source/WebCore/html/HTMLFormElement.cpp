@@ -124,10 +124,10 @@ bool HTMLFormElement::rendererIsNeeded(const RenderStyle& style)
     return formIsTablePart;
 }
 
-Node::InsertionNotificationRequest HTMLFormElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLFormElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (insertionPoint->inDocument())
+    if (insertionPoint.inDocument())
         document().didAssociateFormControl(this);
     return InsertionDone;
 }
@@ -140,7 +140,7 @@ static inline Node* findRoot(Node* n)
     return root;
 }
 
-void HTMLFormElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLFormElement::removedFrom(ContainerNode& insertionPoint)
 {
     Node* root = findRoot(this);
     Vector<FormAssociatedElement*> associatedElements(m_associatedElements);
@@ -149,11 +149,11 @@ void HTMLFormElement::removedFrom(ContainerNode* insertionPoint)
     HTMLElement::removedFrom(insertionPoint);
 }
 
-void HTMLFormElement::handleLocalEvents(Event* event)
+void HTMLFormElement::handleLocalEvents(Event& event)
 {
-    Node* targetNode = event->target()->toNode();
-    if (event->eventPhase() != Event::CAPTURING_PHASE && targetNode && targetNode != this && (event->type() == eventNames().submitEvent || event->type() == eventNames().resetEvent)) {
-        event->stopPropagation();
+    Node* targetNode = event.target()->toNode();
+    if (event.eventPhase() != Event::CAPTURING_PHASE && targetNode && targetNode != this && (event.type() == eventNames().submitEvent || event.type() == eventNames().resetEvent)) {
+        event.stopPropagation();
         return;
     }
     HTMLElement::handleLocalEvents(event);

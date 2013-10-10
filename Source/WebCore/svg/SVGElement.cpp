@@ -328,9 +328,9 @@ void SVGElement::setXmlbase(const String& value, ExceptionCode&)
     setAttribute(XMLNames::baseAttr, value);
 }
 
-void SVGElement::removedFrom(ContainerNode* rootParent)
+void SVGElement::removedFrom(ContainerNode& rootParent)
 {
-    bool wasInDocument = rootParent->inDocument();
+    bool wasInDocument = rootParent.inDocument();
     if (wasInDocument)
         updateRelativeLengthsInformation(false, this);
 
@@ -510,11 +510,10 @@ void SVGElement::animatedPropertyTypeForAttribute(const QualifiedName& attribute
 
 bool SVGElement::haveLoadedRequiredResources()
 {
-    Node* child = firstChild();
-    while (child) {
-        if (child->isSVGElement() && !toSVGElement(child)->haveLoadedRequiredResources())
+    auto svgChildren = childrenOfType<SVGElement>(this);
+    for (auto child = svgChildren.begin(), end = svgChildren.end(); child != end; ++child) {
+        if (!child->haveLoadedRequiredResources())
             return false;
-        child = child->nextSibling();
     }
     return true;
 }
@@ -909,7 +908,7 @@ String SVGElement::title() const
 
     // Walk up the tree, to find out whether we're inside a <use> shadow tree, to find the right title.
     if (isInShadowTree()) {
-        Element* shadowHostElement = toShadowRoot(treeScope()->rootNode())->hostElement();
+        Element* shadowHostElement = toShadowRoot(treeScope().rootNode())->hostElement();
         // At this time, SVG nodes are not allowed in non-<use> shadow trees, so any shadow root we do
         // have should be a use. The assert and following test is here to catch future shadow DOM changes
         // that do enable SVG in a shadow tree.
@@ -1005,7 +1004,7 @@ void SVGElement::svgAttributeChanged(const QualifiedName& attrName)
     }
 }
 
-Node::InsertionNotificationRequest SVGElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGElement::insertedInto(ContainerNode& rootParent)
 {
     StyledElement::insertedInto(rootParent);
     updateRelativeLengthsInformation();

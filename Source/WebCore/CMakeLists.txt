@@ -178,20 +178,28 @@ set(WebCore_IDL_FILES
     Modules/indexeddb/IDBVersionChangeEvent.idl
     Modules/indexeddb/WorkerGlobalScopeIndexedDatabase.idl
 
+    Modules/mediasource/DOMURLMediaSource.idl
     Modules/mediasource/MediaSource.idl
     Modules/mediasource/SourceBuffer.idl
     Modules/mediasource/SourceBufferList.idl
-    Modules/mediasource/URLMediaSource.idl
     Modules/mediasource/WebKitMediaSource.idl
     Modules/mediasource/WebKitSourceBuffer.idl
     Modules/mediasource/WebKitSourceBufferList.idl
 
+    Modules/mediastream/AllAudioCapabilities.idl
+    Modules/mediastream/AllVideoCapabilities.idl
     Modules/mediastream/AudioStreamTrack.idl
+    Modules/mediastream/CapabilityRange.idl
+    Modules/mediastream/MediaSourceStates.idl
     Modules/mediastream/MediaStream.idl
+    Modules/mediastream/MediaStreamCapabilities.idl
     Modules/mediastream/MediaStreamEvent.idl
     Modules/mediastream/MediaStreamTrack.idl
     Modules/mediastream/MediaStreamTrackEvent.idl
     Modules/mediastream/MediaStreamTrackSourcesCallback.idl
+    Modules/mediastream/MediaTrackConstraint.idl
+    Modules/mediastream/MediaTrackConstraintSet.idl
+    Modules/mediastream/MediaTrackConstraints.idl
     Modules/mediastream/NavigatorMediaStream.idl
     Modules/mediastream/NavigatorUserMediaError.idl
     Modules/mediastream/NavigatorUserMediaErrorCallback.idl
@@ -786,13 +794,19 @@ set(WebCore_SOURCES
     Modules/mediasource/SourceBufferList.cpp
 
     Modules/mediastream/AudioStreamTrack.cpp
+    Modules/mediastream/CapabilityRange.cpp
     Modules/mediastream/MediaConstraintsImpl.cpp
+    Modules/mediastream/MediaSourceStates.cpp
     Modules/mediastream/MediaStream.cpp
+    Modules/mediastream/MediaStreamCapabilities.cpp
     Modules/mediastream/MediaStreamEvent.cpp
     Modules/mediastream/MediaStreamRegistry.cpp
     Modules/mediastream/MediaStreamTrack.cpp
     Modules/mediastream/MediaStreamTrackEvent.cpp
     Modules/mediastream/MediaStreamTrackSourcesRequest.cpp
+    Modules/mediastream/MediaTrackConstraint.cpp
+    Modules/mediastream/MediaTrackConstraintSet.cpp
+    Modules/mediastream/MediaTrackConstraints.cpp
     Modules/mediastream/NavigatorMediaStream.cpp
     Modules/mediastream/NavigatorUserMediaError.cpp
     Modules/mediastream/RTCDTMFSender.cpp
@@ -863,6 +877,7 @@ set(WebCore_SOURCES
     Modules/webaudio/GainNode.cpp
     Modules/webaudio/MediaElementAudioSourceNode.cpp
     Modules/webaudio/MediaStreamAudioDestinationNode.cpp
+    Modules/webaudio/MediaStreamAudioSource.cpp
     Modules/webaudio/MediaStreamAudioSourceNode.cpp
     Modules/webaudio/OfflineAudioCompletionEvent.cpp
     Modules/webaudio/OfflineAudioContext.cpp
@@ -970,9 +985,12 @@ set(WebCore_SOURCES
     css/CSSFontFaceRule.cpp
     css/CSSFontFaceSource.cpp
     css/CSSFontFaceSrcValue.cpp
+    css/CSSFontFeatureValue.cpp
     css/CSSFontSelector.cpp
+    css/CSSFontValue.cpp
     css/CSSFunctionValue.cpp
     css/CSSGradientValue.cpp
+    css/CSSGridTemplateValue.cpp
     css/CSSGroupingRule.cpp
     css/CSSHostRule.cpp
     css/CSSImageGeneratorValue.cpp
@@ -996,6 +1014,7 @@ set(WebCore_SOURCES
     css/CSSSegmentedFontFace.cpp
     css/CSSSelector.cpp
     css/CSSSelectorList.cpp
+    css/CSSShadowValue.cpp
     css/CSSStyleRule.cpp
     css/CSSStyleSheet.cpp
     css/CSSSupportsRule.cpp
@@ -1009,9 +1028,7 @@ set(WebCore_SOURCES
     css/DeprecatedStyleBuilder.cpp
     css/DocumentRuleSets.cpp
     css/ElementRuleCollector.cpp
-    css/FontFeatureValue.cpp
     css/FontLoader.cpp
-    css/FontValue.cpp
     css/InspectorCSSOMWrappers.cpp
     css/LengthFunctions.cpp
     css/MediaFeatureNames.cpp
@@ -1032,7 +1049,6 @@ set(WebCore_SOURCES
     css/SelectorChecker.cpp
     css/SelectorCheckerFastPath.cpp
     css/SelectorFilter.cpp
-    css/ShadowValue.cpp
     css/StyleInvalidationAnalysis.cpp
     css/StyleMedia.cpp
     css/StylePropertySet.cpp
@@ -1112,7 +1128,6 @@ set(WebCore_SOURCES
     dom/ErrorEvent.cpp
     dom/Event.cpp
     dom/EventContext.cpp
-    dom/EventDispatchMediator.cpp
     dom/EventDispatcher.cpp
     dom/EventException.cpp
     dom/EventListenerMap.cpp
@@ -2156,6 +2171,7 @@ set(WebCore_SOURCES
     rendering/RootInlineBox.cpp
     rendering/ScrollBehavior.cpp
     rendering/TextAutosizer.cpp
+    rendering/TextPaintStyle.cpp
     rendering/break_lines.cpp
 
     rendering/mathml/RenderMathMLBlock.cpp

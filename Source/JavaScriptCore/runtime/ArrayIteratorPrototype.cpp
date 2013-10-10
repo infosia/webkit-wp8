@@ -37,6 +37,7 @@ namespace JSC {
 const ClassInfo ArrayIteratorPrototype::s_info = { "Array Iterator", &Base::s_info, 0, 0, CREATE_METHOD_TABLE(ArrayIteratorPrototype) };
 
 static EncodedJSValue JSC_HOST_CALL arrayIteratorPrototypeNext(ExecState*);
+static EncodedJSValue JSC_HOST_CALL arrayIteratorPrototypeIterate(ExecState*);
 
 void ArrayIteratorPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
 {
@@ -44,39 +45,37 @@ void ArrayIteratorPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject
     ASSERT(inherits(info()));
     vm.prototypeMap.addPrototype(this);
 
-    JSC_NATIVE_FUNCTION(vm.propertyNames->next, arrayIteratorPrototypeNext, DontEnum, 0);
+    JSC_NATIVE_FUNCTION(vm.propertyNames->iteratorNextPrivateName, arrayIteratorPrototypeNext, DontEnum, 0);
+    JSC_NATIVE_FUNCTION(vm.propertyNames->iteratorPrivateName, arrayIteratorPrototypeIterate, DontEnum, 0);
 }
 
 static EncodedJSValue createIteratorResult(CallFrame* callFrame, ArrayIterationKind kind, size_t index, JSValue result, bool done)
 {
-    JSGlobalObject* globalObject = callFrame->callee()->globalObject();
-    JSObject* resultObject = constructEmptyObject(callFrame);
-    resultObject->putDirect(callFrame->vm(), callFrame->propertyNames().done, jsBoolean(done));
+    callFrame->setArgument(callFrame->argumentCount() - 1, jsBoolean(done));
+    if (done)
+        return JSValue::encode(callFrame->vm().iterationTerminator.get());
+
     switch (kind & ~ArrayIterateSparseTag) {
     case ArrayIterateKey:
-        resultObject->putDirect(callFrame->vm(), callFrame->propertyNames().value, done ? jsUndefined() : jsNumber(index));
-        break;
-    case ArrayIterateValue:
-        resultObject->putDirect(callFrame->vm(), callFrame->propertyNames().value, done ? jsUndefined() : result);
-        break;
-    case ArrayIterateKeyValue: {
-        if (!done) {
-            MarkedArgumentBuffer args;
-            args.append(jsNumber(index));
-            args.append(result);
-            JSArray* resultArray = constructArray(callFrame, 0, globalObject, args);
-            resultObject->putDirect(callFrame->vm(), callFrame->propertyNames().value, resultArray);
-        } else
-            resultObject->putDirect(callFrame->vm(), callFrame->propertyNames().value, jsUndefined());
+        return JSValue::encode(jsNumber(index));
 
-        break;
+    case ArrayIterateValue:
+        return JSValue::encode(result);
+
+    case ArrayIterateKeyValue: {
+        MarkedArgumentBuffer args;
+        args.append(jsNumber(index));
+        args.append(result);
+        JSGlobalObject* globalObject = callFrame->callee()->globalObject();
+        return JSValue::encode(constructArray(callFrame, 0, globalObject, args));
+
     }
     default:
         RELEASE_ASSERT_NOT_REACHED();
     }
-    return JSValue::encode(resultObject);
+    return JSValue::encode(JSValue());
 }
-    
+
 EncodedJSValue JSC_HOST_CALL arrayIteratorPrototypeNext(CallFrame* callFrame)
 {
     JSArrayIterator* iterator = jsDynamicCast<JSArrayIterator*>(callFrame->thisValue());
@@ -127,6 +126,11 @@ EncodedJSValue JSC_HOST_CALL arrayIteratorPrototypeNext(CallFrame* callFrame)
     else
         iterator->setNextIndex(index + 1);
     return createIteratorResult(callFrame, kind, index, jsUndefined(), index == length);
+}
+
+EncodedJSValue JSC_HOST_CALL arrayIteratorPrototypeIterate(CallFrame* callFrame)
+{
+    return JSValue::encode(callFrame->thisValue());
 }
 
 }
