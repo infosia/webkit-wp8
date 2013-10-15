@@ -98,6 +98,7 @@ namespace WebCore {
     class FloatRect;
     class GraphicsLayer;
     class IntSize;
+    class CertificateInfo;
     class ProtectionSpace;
     class SharedBuffer;
     struct FileChooserSettings;
@@ -125,7 +126,6 @@ class NativeWebKeyboardEvent;
 class NativeWebMouseEvent;
 class NativeWebWheelEvent;
 class PageClient;
-class PlatformCertificateInfo;
 class StringPairVector;
 class WebBackForwardList;
 class WebBackForwardListItem;
@@ -149,10 +149,6 @@ struct PlatformPopupMenuData;
 struct PrintInfo;
 struct WebPageCreationParameters;
 struct WebPopupItem;
-
-#if ENABLE(GESTURE_EVENTS)
-class WebGestureEvent;
-#endif
 
 #if ENABLE(VIBRATION)
 class WebVibrationProxy;
@@ -418,9 +414,6 @@ public:
     void handleMouseEvent(const NativeWebMouseEvent&);
     void handleWheelEvent(const NativeWebWheelEvent&);
     void handleKeyboardEvent(const NativeWebKeyboardEvent&);
-#if ENABLE(GESTURE_EVENTS)
-    void handleGestureEvent(const WebGestureEvent&);
-#endif
 #if ENABLE(TOUCH_EVENTS)
     void handleTouchEvent(const NativeWebTouchEvent&);
 #endif
@@ -791,7 +784,7 @@ private:
     void didStartProvisionalLoadForFrame(uint64_t frameID, const String& url, const String& unreachableURL, CoreIPC::MessageDecoder&);
     void didReceiveServerRedirectForProvisionalLoadForFrame(uint64_t frameID, const String&, CoreIPC::MessageDecoder&);
     void didFailProvisionalLoadForFrame(uint64_t frameID, const WebCore::ResourceError&, CoreIPC::MessageDecoder&);
-    void didCommitLoadForFrame(uint64_t frameID, const String& mimeType, uint32_t frameLoadType, const PlatformCertificateInfo&, CoreIPC::MessageDecoder&);
+    void didCommitLoadForFrame(uint64_t frameID, const String& mimeType, uint32_t frameLoadType, const WebCore::CertificateInfo&, CoreIPC::MessageDecoder&);
     void didFinishDocumentLoadForFrame(uint64_t frameID, CoreIPC::MessageDecoder&);
     void didFinishLoadForFrame(uint64_t frameID, CoreIPC::MessageDecoder&);
     void didFailLoadForFrame(uint64_t frameID, const WebCore::ResourceError&, CoreIPC::MessageDecoder&);
@@ -1167,9 +1160,6 @@ private:
     WebCore::PolicyAction m_syncNavigationActionPolicyAction;
     uint64_t m_syncNavigationActionPolicyDownloadID;
 
-#if ENABLE(GESTURE_EVENTS)
-    Deque<WebGestureEvent> m_gestureEventQueue;
-#endif
     Deque<NativeWebKeyboardEvent> m_keyEventQueue;
     Deque<NativeWebWheelEvent> m_wheelEventQueue;
     Deque<OwnPtr<Vector<NativeWebWheelEvent>>> m_currentlyProcessedWheelEvents;

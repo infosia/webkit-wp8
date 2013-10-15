@@ -88,6 +88,8 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
+static String accessibleNameForNode(Node*);
+
 AccessibilityNodeObject::AccessibilityNodeObject(Node* node)
     : AccessibilityObject()
     , m_ariaRole(UnknownRole)
@@ -394,6 +396,9 @@ bool AccessibilityNodeObject::canHaveChildren() const
     case ScrollBarRole:
     case ProgressIndicatorRole:
         return false;
+    case LegendRole:
+        if (Element* element = this->element())
+            return !ancestorsOfType<HTMLFieldSetElement>(element).first();
     default:
         return true;
     }
@@ -1251,6 +1256,13 @@ void AccessibilityNodeObject::alternativeText(Vector<AccessibilityText>& textOrd
     if (!node)
         return;
     
+    // The fieldset element derives its alternative text from the first associated legend element if one is available.
+    if (isHTMLFieldSetElement(node)) {
+        AccessibilityObject* object = axObjectCache()->getOrCreate(toHTMLFieldSetElement(node)->legend());
+        if (object && !object->isHidden())
+            textOrder.append(AccessibilityText(accessibleNameForNode(object->node()), AlternativeText));
+    }
+    
 #if ENABLE(SVG)
     // SVG elements all can have a <svg:title> element inside which should act as the descriptive text.
     if (node->isSVGElement())
@@ -1312,8 +1324,13 @@ void AccessibilityNodeObject::visibleText(Vector<AccessibilityText>& textOrder) 
     
     // If it's focusable but it's not content editable or a known control type, then it will appear to
     // the user as a single atomic object, so we should use its text as the default title.
-    if (isHeading() || isLink() || isGenericFocusableElement())
+    if (isHeading() || isLink())
         useTextUnderElement = true;
+    else if (isGenericFocusableElement()) {
+        // If a node uses a negative tabindex, do not expose it as a generic focusable element, because keyboard focus management
+        // will never land on this specific element.
+        useTextUnderElement = !(node && node->isElementNode() && toElement(node)->tabIndex() < 0);
+    }
     
     if (useTextUnderElement) {
         AccessibilityTextUnderElementMode mode;
@@ -1691,8 +1708,15 @@ String AccessibilityNodeObject::title() const
 
     // If it's focusable but it's not content editable or a known control type, then it will appear to
     // the user as a single atomic object, so we should use its text as the default title.                              
-    if (isGenericFocusableElement())
+    if (isGenericFocusableElement()) {
+        // If a node uses a negative tabindex, do not expose it as a generic focusable element, because keyboard focus management
+        // will never land on this specific element.
+        Node* node = this->node();
+        if (node && node->isElementNode() && toElement(node)->tabIndex() < 0)
+            return String();
+        
         return textUnderElement();
+    }
 
     return String();
 }

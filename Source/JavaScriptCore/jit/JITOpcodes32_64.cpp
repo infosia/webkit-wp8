@@ -227,9 +227,10 @@ void JIT::emit_op_new_object(Instruction* currentInstruction)
 void JIT::emitSlow_op_new_object(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
     linkSlowCase(iter);
-    JITStubCall stubCall(this, cti_op_new_object);
-    stubCall.addArgument(TrustedImmPtr(currentInstruction[3].u.objectAllocationProfile->structure()));
-    stubCall.call(currentInstruction[1].u.operand);
+    int dst = currentInstruction[1].u.operand;
+    Structure* structure = currentInstruction[3].u.objectAllocationProfile->structure();
+    callOperation(operationNewObject, structure);
+    emitStoreCell(dst, returnValueRegister);
 }
 
 void JIT::emit_op_check_has_instance(Instruction* currentInstruction)
@@ -295,10 +296,9 @@ void JIT::emitSlow_op_check_has_instance(Instruction* currentInstruction, Vector
     linkSlowCaseIfNotJSCell(iter, baseVal);
     linkSlowCase(iter);
 
-    JITStubCall stubCall(this, cti_op_check_has_instance);
-    stubCall.addArgument(value);
-    stubCall.addArgument(baseVal);
-    stubCall.call(dst);
+    emitLoad(value, regT1, regT0);
+    emitLoad(baseVal, regT3, regT2);
+    callOperation(operationCheckHasInstance, dst, regT1, regT0, regT3, regT2);
 
     emitJumpSlowToHot(jump(), currentInstruction[4].u.operand);
 }
@@ -313,10 +313,9 @@ void JIT::emitSlow_op_instanceof(Instruction* currentInstruction, Vector<SlowCas
     linkSlowCaseIfNotJSCell(iter, proto);
     linkSlowCase(iter);
 
-    JITStubCall stubCall(this, cti_op_instanceof);
-    stubCall.addArgument(value);
-    stubCall.addArgument(proto);
-    stubCall.call(dst);
+    emitLoad(value, regT1, regT0);
+    emitLoad(proto, regT3, regT2);
+    callOperation(operationInstanceOf, dst, regT1, regT0, regT3, regT2);
 }
 
 void JIT::emit_op_is_undefined(Instruction* currentInstruction)
@@ -497,10 +496,8 @@ void JIT::emitSlow_op_jfalse(Instruction* currentInstruction, Vector<SlowCaseEnt
         notNumber.link(this);
     }
 
-    JITStubCall stubCall(this, cti_op_jtrue);
-    stubCall.addArgument(cond);
-    stubCall.call();
-    emitJumpSlowToHot(branchTest32(Zero, regT0), target); // Inverted.
+    callOperation(operationConvertJSValueToBoolean, regT1, regT0);
+    emitJumpSlowToHot(branchTest32(Zero, returnValueRegister), target); // Inverted.
 }
 
 void JIT::emit_op_jtrue(Instruction* currentInstruction)
@@ -533,10 +530,8 @@ void JIT::emitSlow_op_jtrue(Instruction* currentInstruction, Vector<SlowCaseEntr
         notNumber.link(this);
     }
 
-    JITStubCall stubCall(this, cti_op_jtrue);
-    stubCall.addArgument(cond);
-    stubCall.call();
-    emitJumpSlowToHot(branchTest32(NonZero, regT0), target);
+    callOperation(operationConvertJSValueToBoolean, regT1, regT0);
+    emitJumpSlowToHot(branchTest32(NonZero, returnValueRegister), target);
 }
 
 void JIT::emit_op_jeq_null(Instruction* currentInstruction)
@@ -634,22 +629,18 @@ void JIT::emitSlow_op_eq(Instruction* currentInstruction, Vector<SlowCaseEntry>:
     genericCase.append(branchPtr(NotEqual, Address(regT2, JSCell::structureOffset()), TrustedImmPtr(m_vm->stringStructure.get())));
 
     // String case.
-    JITStubCall stubCallEqStrings(this, cti_op_eq_strings);
-    stubCallEqStrings.addArgument(regT0);
-    stubCallEqStrings.addArgument(regT2);
-    stubCallEqStrings.call();
+    callOperation(operationCompareStringEq, regT0, regT2);
     storeResult.append(jump());
 
     // Generic case.
     genericCase.append(getSlowCase(iter)); // doubles
     genericCase.link(this);
-    JITStubCall stubCallEq(this, cti_op_eq);
-    stubCallEq.addArgument(op1);
-    stubCallEq.addArgument(op2);
-    stubCallEq.call(regT0);
+    emitLoad(op1, regT1, regT0);
+    emitLoad(op2, regT3, regT2);
+    callOperation(operationCompareEq, regT1, regT0, regT3, regT2);
 
     storeResult.link(this);
-    emitStoreBool(dst, regT0);
+    emitStoreBool(dst, returnValueRegister);
 }
 
 void JIT::emit_op_neq(Instruction* currentInstruction)
@@ -682,23 +673,17 @@ void JIT::emitSlow_op_neq(Instruction* currentInstruction, Vector<SlowCaseEntry>
     genericCase.append(branchPtr(NotEqual, Address(regT2, JSCell::structureOffset()), TrustedImmPtr(m_vm->stringStructure.get())));
 
     // String case.
-    JITStubCall stubCallEqStrings(this, cti_op_eq_strings);
-    stubCallEqStrings.addArgument(regT0);
-    stubCallEqStrings.addArgument(regT2);
-    stubCallEqStrings.call(regT0);
+    callOperation(operationCompareStringEq, regT0, regT2);
     storeResult.append(jump());
 
     // Generic case.
     genericCase.append(getSlowCase(iter)); // doubles
     genericCase.link(this);
-    JITStubCall stubCallEq(this, cti_op_eq);
-    stubCallEq.addArgument(regT1, regT0);
-    stubCallEq.addArgument(regT3, regT2);
-    stubCallEq.call(regT0);
+    callOperation(operationCompareEq, regT1, regT0, regT3, regT2);
 
     storeResult.link(this);
-    xor32(TrustedImm32(0x1), regT0);
-    emitStoreBool(dst, regT0);
+    xor32(TrustedImm32(0x1), returnValueRegister);
+    emitStoreBool(dst, returnValueRegister);
 }
 
 void JIT::compileOpStrictEq(Instruction* currentInstruction, CompileOpStrictEqType type)
@@ -862,9 +847,8 @@ void JIT::emit_op_get_pnames(Instruction* currentInstruction)
     // We could inline the case where you have a valid cache, but
     // this call doesn't seem to be hot.
     Label isObject(this);
-    JITStubCall getPnamesStubCall(this, cti_op_get_pnames);
-    getPnamesStubCall.addArgument(regT0);
-    getPnamesStubCall.call(dst);
+    callOperation(operationGetPNames, regT0);
+    emitStoreCell(dst, returnValueRegister);
     load32(Address(regT0, OBJECT_OFFSETOF(JSPropertyNameIterator, m_jsStringsSize)), regT3);
     store32(TrustedImm32(Int32Tag), intTagFor(i));
     store32(TrustedImm32(0), intPayloadFor(i));
@@ -875,9 +859,7 @@ void JIT::emit_op_get_pnames(Instruction* currentInstruction)
     isNotObject.link(this);
     addJump(branch32(Equal, regT1, TrustedImm32(JSValue::NullTag)), breakTarget);
     addJump(branch32(Equal, regT1, TrustedImm32(JSValue::UndefinedTag)), breakTarget);
-    JITStubCall toObjectStubCall(this, cti_to_object);
-    toObjectStubCall.addArgument(regT1, regT0);
-    toObjectStubCall.call(base);
+    callOperation(operationToObject, base, regT1, regT0);
     jump().linkTo(isObject, this);
 
     end.link(this);
@@ -935,10 +917,7 @@ void JIT::emit_op_next_pname(Instruction* currentInstruction)
     // Slow case: Ask the object if i is valid.
     callHasProperty.link(this);
     loadPtr(addressFor(dst), regT1);
-    JITStubCall stubCall(this, cti_has_property);
-    stubCall.addArgument(regT0);
-    stubCall.addArgument(regT1);
-    stubCall.call();
+    callOperation(operationHasProperty, regT0, regT1);
 
     // Test for valid key.
     addJump(branchTest32(NonZero, regT0), target);
@@ -1015,7 +994,7 @@ void JIT::emit_op_catch(Instruction* currentInstruction)
 
 void JIT::emit_op_switch_imm(Instruction* currentInstruction)
 {
-    unsigned tableIndex = currentInstruction[1].u.operand;
+    size_t tableIndex = currentInstruction[1].u.operand;
     unsigned defaultOffset = currentInstruction[2].u.operand;
     unsigned scrutinee = currentInstruction[3].u.operand;
 
@@ -1024,16 +1003,14 @@ void JIT::emit_op_switch_imm(Instruction* currentInstruction)
     m_switches.append(SwitchRecord(jumpTable, m_bytecodeOffset, defaultOffset, SwitchRecord::Immediate));
     jumpTable->ctiOffsets.grow(jumpTable->branchOffsets.size());
 
-    JITStubCall stubCall(this, cti_op_switch_imm);
-    stubCall.addArgument(scrutinee);
-    stubCall.addArgument(TrustedImm32(tableIndex));
-    stubCall.call();
-    jump(regT0);
+    emitLoad(scrutinee, regT1, regT0);
+    callOperation(operationSwitchImmWithUnknownKeyType, regT1, regT0, tableIndex);
+    jump(returnValueRegister);
 }
 
 void JIT::emit_op_switch_char(Instruction* currentInstruction)
 {
-    unsigned tableIndex = currentInstruction[1].u.operand;
+    size_t tableIndex = currentInstruction[1].u.operand;
     unsigned defaultOffset = currentInstruction[2].u.operand;
     unsigned scrutinee = currentInstruction[3].u.operand;
 
@@ -1042,16 +1019,14 @@ void JIT::emit_op_switch_char(Instruction* currentInstruction)
     m_switches.append(SwitchRecord(jumpTable, m_bytecodeOffset, defaultOffset, SwitchRecord::Character));
     jumpTable->ctiOffsets.grow(jumpTable->branchOffsets.size());
 
-    JITStubCall stubCall(this, cti_op_switch_char);
-    stubCall.addArgument(scrutinee);
-    stubCall.addArgument(TrustedImm32(tableIndex));
-    stubCall.call();
-    jump(regT0);
+    emitLoad(scrutinee, regT1, regT0);
+    callOperation(operationSwitchCharWithUnknownKeyType, regT1, regT0, tableIndex);
+    jump(returnValueRegister);
 }
 
 void JIT::emit_op_switch_string(Instruction* currentInstruction)
 {
-    unsigned tableIndex = currentInstruction[1].u.operand;
+    size_t tableIndex = currentInstruction[1].u.operand;
     unsigned defaultOffset = currentInstruction[2].u.operand;
     unsigned scrutinee = currentInstruction[3].u.operand;
 
@@ -1059,11 +1034,9 @@ void JIT::emit_op_switch_string(Instruction* currentInstruction)
     StringJumpTable* jumpTable = &m_codeBlock->stringSwitchJumpTable(tableIndex);
     m_switches.append(SwitchRecord(jumpTable, m_bytecodeOffset, defaultOffset));
 
-    JITStubCall stubCall(this, cti_op_switch_string);
-    stubCall.addArgument(scrutinee);
-    stubCall.addArgument(TrustedImm32(tableIndex));
-    stubCall.call();
-    jump(regT0);
+    emitLoad(scrutinee, regT1, regT0);
+    callOperation(operationSwitchStringWithUnknownKeyType, regT1, regT0, tableIndex);
+    jump(returnValueRegister);
 }
 
 void JIT::emit_op_throw_static_error(Instruction* currentInstruction)
@@ -1105,7 +1078,8 @@ void JIT::emit_op_create_activation(Instruction* currentInstruction)
     int activation = currentInstruction[1].u.operand;
     
     Jump activationCreated = branch32(NotEqual, tagFor(activation), TrustedImm32(JSValue::EmptyValueTag));
-    JITStubCall(this, cti_op_push_activation).call(activation);
+    callOperation(operationCreateActivation, 0);
+    emitStoreCell(activation, returnValueRegister);
     activationCreated.link(this);
 }
 
@@ -1114,10 +1088,9 @@ void JIT::emit_op_create_arguments(Instruction* currentInstruction)
     int dst = currentInstruction[1].u.operand;
 
     Jump argsCreated = branch32(NotEqual, tagFor(dst), TrustedImm32(JSValue::EmptyValueTag));
-
-    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_create_arguments);
-    slowPathCall.call();
-
+    callOperation(operationCreateArguments);
+    emitStoreCell(dst, returnValueRegister);
+    emitStoreCell(unmodifiedArgumentsRegister(VirtualRegister(dst)).offset(), returnValueRegister);
     argsCreated.link(this);
 }
 
@@ -1272,9 +1245,9 @@ void JIT::emitSlow_op_get_argument_by_val(Instruction* currentInstruction, Vecto
     linkSlowCase(iter);
     linkSlowCase(iter);
 
-    JITStubCall(this, cti_op_create_arguments).call();
-    emitStore(arguments, regT1, regT0);
-    emitStore(unmodifiedArgumentsRegister(VirtualRegister(arguments)).offset(), regT1, regT0);
+    callOperation(operationCreateArguments);
+    emitStoreCell(arguments, returnValueRegister);
+    emitStoreCell(unmodifiedArgumentsRegister(VirtualRegister(arguments)).offset(), returnValueRegister);
     
     skipArgumentsCreation.link(this);
     JITStubCall stubCall(this, cti_op_get_by_val_generic);

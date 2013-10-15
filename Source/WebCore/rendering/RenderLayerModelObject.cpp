@@ -37,9 +37,13 @@ bool RenderLayerModelObject::s_hadLayer = false;
 bool RenderLayerModelObject::s_hadTransform = false;
 bool RenderLayerModelObject::s_layerWasSelfPainting = false;
 
-RenderLayerModelObject::RenderLayerModelObject(Element* element, unsigned baseTypeFlags)
+RenderLayerModelObject::RenderLayerModelObject(Element& element, unsigned baseTypeFlags)
     : RenderElement(element, baseTypeFlags | RenderLayerModelObjectFlag)
-    , m_layer(0)
+{
+}
+
+RenderLayerModelObject::RenderLayerModelObject(Document& document, unsigned baseTypeFlags)
+    : RenderElement(document, baseTypeFlags | RenderLayerModelObjectFlag)
 {
 }
 
@@ -54,8 +58,7 @@ void RenderLayerModelObject::destroyLayer()
 {
     ASSERT(!hasLayer()); // Callers should have already called setHasLayer(false)
     ASSERT(m_layer);
-    m_layer->destroy(renderArena());
-    m_layer = 0;
+    m_layer = nullptr;
 }
 
 void RenderLayerModelObject::ensureLayer()
@@ -63,7 +66,7 @@ void RenderLayerModelObject::ensureLayer()
     if (m_layer)
         return;
 
-    m_layer = new (renderArena()) RenderLayer(*this);
+    m_layer = std::make_unique<RenderLayer>(*this);
     setHasLayer(true);
     m_layer->insertOnlyThisLayer();
 }

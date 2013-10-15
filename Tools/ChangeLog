@@ -1,3 +1,188 @@
+2013-10-14  Roger Fong  <roger_fong@apple.com>
+
+        Adding myself to CC list for some components.
+
+        * Scripts/webkitpy/common/config/watchlist:
+
+2013-10-13  Darin Adler  <darin@apple.com>
+
+        Deprecate or remove deleteAllValues functions; there are only a few call sites left
+        https://bugs.webkit.org/show_bug.cgi?id=122738
+
+        Reviewed by Anders Carlsson.
+
+        * DumpRenderTree/win/DRTDataObject.cpp:
+        (DRTDataObject::~DRTDataObject):
+        * DumpRenderTree/win/UIDelegate.cpp:
+        (DRTUndoStack::~DRTUndoStack):
+        (DRTUndoStack::clear):
+        Renamed deleteAllValues to deprecatedDeleteAllValues.
+
+        * Scripts/do-webcore-rename: Updated to perform this rename, as is traditional.
+
+2013-10-13  Alexey Proskuryakov  <ap@apple.com>
+
+        build.webkit.org/dashboard incorrectly shows interrupted builds as green
+        https://bugs.webkit.org/show_bug.cgi?id=122732
+
+        Reviewed by Tim Hatcher.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotIteration.js:
+        (BuildbotIteration.prototype.update): Removed a special case for status 4 (EXCEPTION).
+        I don't see it occur any time in recent history, but judging from what happens for
+        status 5 (RETRY), we can just finish this function normally.
+        Record overall text description for iteration as BuildbotIteration.text.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTesterQueueView.js:
+        (BuildbotTesterQueueView.prototype.update.appendBuilderQueueStatus): If an iteration is a failure,
+        but no tests failed, make it yellow, and use buildbot-provided description for it.
+
+2013-10-13  Alexey Proskuryakov  <ap@apple.com>
+
+        Remove Chromium specific code from flakiness dashboard
+        https://bugs.webkit.org/show_bug.cgi?id=122714
+
+        Reviewed by Sam Weinig.
+
+        Also removed code related to GPU tests and virtual suites.
+        "Fallbacks map" was chromium only too, not sure why they needed special handling there.
+
+        * TestResultServer/model/jsonresults_unittest.py:
+        * TestResultServer/static-dashboards/builders.js:
+        * TestResultServer/static-dashboards/dashboard_base.js:
+        * TestResultServer/static-dashboards/flakiness_dashboard.html:
+        * TestResultServer/static-dashboards/flakiness_dashboard.js:
+        * TestResultServer/static-dashboards/flakiness_dashboard_tests.css:
+        * TestResultServer/static-dashboards/flakiness_dashboard_unittests.js:
+        * TestResultServer/static-dashboards/history.js:
+        * TestResultServer/static-dashboards/loader.js:
+        * TestResultServer/static-dashboards/ui.js:
+        * TestResultServer/templates/uploadform.html:
+
+2013-10-11  Timothy Hatcher  <timothy@apple.com>
+
+        Remove preference support for picking the old Web Inspector.
+        https://bugs.webkit.org/show_bug.cgi?id=122655
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::resetStateToConsistentValues):
+
+2013-10-11  Filip Pizlo  <fpizlo@apple.com>
+
+        Fix 64-bit build on everything but Windows.
+
+        Rubber stamped by Brent Fulgham.
+
+        * Scripts/webkitdirs.pm:
+        (argumentsForConfiguration):
+
+2013-10-11  Alexey Proskuryakov  <ap@apple.com>
+
+        Touch a file to see how auto-update works.
+
+        Rubber-stamped by Tim Hatcher.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/BuildbotTestResults.js:
+
+2013-10-11  Alexey Proskuryakov  <ap@apple.com>
+
+        LeaksViewer fails to present recent results list if current build is still updating svn
+        https://bugs.webkit.org/show_bug.cgi?id=122670
+
+        Fixed an obvious mistake in the previous patch.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/LeaksViewer/RecentBuildsLoader.js:
+        (RecentBuildsLoader.prototype.start):
+
+2013-10-11  Alexey Proskuryakov  <ap@apple.com>
+
+        LeaksViewer fails to present recent results list if current build is still updating svn
+        https://bugs.webkit.org/show_bug.cgi?id=122670
+
+        Reviewed by Adam Roben.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/LeaksViewer/RecentBuildsLoader.js:
+        (RecentBuildsLoader.prototype.start): Skip builds that don't have an svn revision yet.
+
+2013-10-11  Brent Fulgham  <bfulgham@apple.com>
+
+        Unreviewed build fix for --64-bit target.
+
+        * Scripts/webkitdirs.pm:
+        (argumentsForConfiguration): Use 'isWin64' test, since @ARGV value may have
+        been removed by this point.
+        (hasArgument): Remove unused temporary.
+
+2013-10-10  Gustavo Noronha Silva  <gustavo.noronha@collabora.com>
+
+        webkit-patch failure-reason has a quite low limit for 'too many failures'
+        https://bugs.webkit.org/show_bug.cgi?id=122556
+
+        Reviewed by Darin Adler.
+
+        * Scripts/webkitpy/tool/commands/queries.py:
+        (FailureReason._explain_failures_for_builder): adjust the number of too many failures
+        to match what the layout test runners use these days.
+
+2013-10-10  Gustavo Noronha Silva  <gustavo.noronha@collabora.com>
+
+        webkit-patch failure-reason should allow specifying failures one is interested in
+        https://bugs.webkit.org/show_bug.cgi?id=122554
+
+        Reviewed by Darin Adler.
+
+        * Scripts/webkitpy/tool/commands/queries.py:
+        (FailureReason):
+        (FailureReason._explain_failures_for_builder): keep track of explained failures and drop out of the
+        loop if the ones we're interested in been explained.
+        (FailureReason._done_explaining): check the failures we're interested in have been explained, if any.
+        (FailureReason.execute): initialize failures to explain and the explained set.
+
+2013-10-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Make sure that DataTypes.h is in the binary drop.
+
+        Rubber stamped by Michael Saboff.
+
+        * Scripts/export-llvm-build:
+
+2013-10-10  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL: Soft-link LLVM as a workaround for LLVM's static initializers and exit-time destructors
+        https://bugs.webkit.org/show_bug.cgi?id=122566
+
+        Reviewed by Mark Rowe.
+
+        * Scripts/configure-llvm:
+
+2013-10-10  Mark Rowe  <mrowe@apple.com>
+
+        <rdar://problem/13341666> WebKit should always build against an SDK.
+
+        Have all projects default to building against the OS X Internal SDK for the Production
+        configuration. For the Debug and Release configurations, look for UseInternalSDK.xcconfig
+        to determine whether the OS X Internal SDK should be used. If not, use the normal OS X SDK.
+
+        Reviewed by Dan Bernstein.
+
+        * DumpRenderTree/mac/Configurations/Base.xcconfig:
+        * DumpRenderTree/mac/Configurations/DebugRelease.xcconfig:
+        * MiniBrowser/Configurations/Base.xcconfig:
+        * MiniBrowser/Configurations/DebugRelease.xcconfig:
+        * TestWebKitAPI/Configurations/Base.xcconfig:
+        * TestWebKitAPI/Configurations/DebugRelease.xcconfig:
+        * WebKitTestRunner/Configurations/Base.xcconfig:
+        * WebKitTestRunner/Configurations/DebugRelease.xcconfig:
+
+2013-10-10  Gustavo Noronha Silva  <gns@gnome.org>
+
+        Unreviewed gardening, the inspector protocol timeouts are also affecting TestInspectorServer.
+
+        * Scripts/run-gtk-tests:
+        (TestRunner): skip TestInspectorServer.
+
 2013-10-10  Andres Gomez  <agomez@igalia.com>
 
         [GTK] Provide search functionality to MiniBrowser

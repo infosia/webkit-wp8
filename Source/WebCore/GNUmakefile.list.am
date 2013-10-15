@@ -1295,6 +1295,7 @@ dom_binding_idls += \
 	$(WebCore)/Modules/webdatabase/WorkerGlobalScopeWebDatabase.idl \
 	$(WebCore)/Modules/websockets/CloseEvent.idl \
 	$(WebCore)/Modules/websockets/WebSocket.idl \
+	$(WebCore)/crypto/SubtleCrypto.idl \
 	$(WebCore)/css/CSSCharsetRule.idl \
 	$(WebCore)/css/CSSFontFaceLoadEvent.idl \
 	$(WebCore)/css/CSSFontFaceRule.idl \
@@ -2239,8 +2240,6 @@ webcore_sources += \
 	Source/WebCore/bindings/generic/RuntimeEnabledFeatures.h \
 	Source/WebCore/bindings/js/ArrayValue.cpp \
 	Source/WebCore/bindings/js/ArrayValue.h \
-	Source/WebCore/bindings/js/BindingState.cpp \
-	Source/WebCore/bindings/js/BindingState.h \
 	Source/WebCore/bindings/js/CachedScriptSourceProvider.h \
 	Source/WebCore/bindings/js/CallbackFunction.cpp \
 	Source/WebCore/bindings/js/CallbackFunction.h \
@@ -2478,6 +2477,7 @@ webcore_sources += \
 	Source/WebCore/bridge/runtime_root.cpp \
 	Source/WebCore/bridge/runtime_root.h \
 	Source/WebCore/config.h \
+	Source/WebCore/crypto/SubtleCrypto.h \
 	Source/WebCore/css/BasicShapeFunctions.cpp \
 	Source/WebCore/css/BasicShapeFunctions.h \
 	Source/WebCore/css/Counter.h \
@@ -2741,8 +2741,6 @@ webcore_sources += \
 	Source/WebCore/dom/ContextDestructionObserver.h \
 	Source/WebCore/dom/CrossThreadTask.h \
 	Source/WebCore/dom/CurrentScriptIncrementer.h \
-	Source/WebCore/dom/CustomElementConstructor.h \
-	Source/WebCore/dom/CustomElementRegistry.h \
 	Source/WebCore/dom/CustomEvent.cpp \
 	Source/WebCore/dom/CustomEvent.h \
 	Source/WebCore/dom/DatasetDOMStringMap.cpp \
@@ -2833,8 +2831,6 @@ webcore_sources += \
 	Source/WebCore/dom/EventListenerMap.h \
 	Source/WebCore/dom/EventNames.cpp \
 	Source/WebCore/dom/EventNames.h \
-	Source/WebCore/dom/EventRetargeter.cpp \
-	Source/WebCore/dom/EventRetargeter.h \
 	Source/WebCore/dom/EventTarget.cpp \
 	Source/WebCore/dom/EventTarget.h \
 	Source/WebCore/dom/EventQueue.h \
@@ -2847,8 +2843,6 @@ webcore_sources += \
 	Source/WebCore/dom/FocusEvent.cpp \
 	Source/WebCore/dom/FocusEvent.h \
 	Source/WebCore/dom/FragmentScriptingPermission.h \
-	Source/WebCore/dom/GestureEvent.cpp \
-	Source/WebCore/dom/GestureEvent.h \
 	Source/WebCore/dom/IgnoreDestructiveWriteCountIncrementer.h \
 	Source/WebCore/dom/ExceptionCodePlaceholder.h \
 	Source/WebCore/dom/GenericEventQueue.cpp \
@@ -3020,8 +3014,6 @@ webcore_sources += \
 	Source/WebCore/dom/WebKitTransitionEvent.h \
 	Source/WebCore/dom/WheelEvent.cpp \
 	Source/WebCore/dom/WheelEvent.h \
-	Source/WebCore/dom/WindowEventContext.cpp \
-	Source/WebCore/dom/WindowEventContext.h \
 	Source/WebCore/editing/AlternativeTextController.cpp \
 	Source/WebCore/editing/AlternativeTextController.h \
 	Source/WebCore/editing/AppendNodeCommand.cpp \
@@ -3701,7 +3693,6 @@ webcore_sources += \
 	Source/WebCore/html/URLInputType.h \
 	Source/WebCore/html/ValidationMessage.cpp \
 	Source/WebCore/html/ValidationMessage.h \
-	Source/WebCore/html/ValidityState.cpp \
 	Source/WebCore/html/ValidityState.h \
 	Source/WebCore/html/VoidCallback.h \
 	Source/WebCore/html/WeekInputType.cpp \
@@ -4450,18 +4441,20 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderTableRow.h \
 	Source/WebCore/rendering/RenderTableSection.cpp \
 	Source/WebCore/rendering/RenderTableSection.h \
+	Source/WebCore/rendering/RenderText.cpp \
+	Source/WebCore/rendering/RenderText.h \
 	Source/WebCore/rendering/RenderTextControl.cpp \
 	Source/WebCore/rendering/RenderTextControl.h \
 	Source/WebCore/rendering/RenderTextControlMultiLine.cpp \
 	Source/WebCore/rendering/RenderTextControlMultiLine.h \
 	Source/WebCore/rendering/RenderTextControlSingleLine.cpp \
 	Source/WebCore/rendering/RenderTextControlSingleLine.h \
-	Source/WebCore/rendering/RenderText.cpp \
 	Source/WebCore/rendering/RenderTextTrackCue.cpp \
 	Source/WebCore/rendering/RenderTextTrackCue.h \
 	Source/WebCore/rendering/RenderTextFragment.cpp \
 	Source/WebCore/rendering/RenderTextFragment.h \
-	Source/WebCore/rendering/RenderText.h \
+	Source/WebCore/rendering/RenderTextLineBoxes.cpp \
+	Source/WebCore/rendering/RenderTextLineBoxes.h \
 	Source/WebCore/rendering/RenderTheme.cpp \
 	Source/WebCore/rendering/RenderTheme.h \
 	Source/WebCore/rendering/RenderTreeAsText.cpp \
@@ -4534,7 +4527,9 @@ webcore_sources += \
 	Source/WebCore/rendering/style/FillLayer.cpp \
 	Source/WebCore/rendering/style/FillLayer.h \
 	Source/WebCore/rendering/style/GridCoordinate.h \
+	Source/WebCore/rendering/style/GridLength.h \
 	Source/WebCore/rendering/style/GridPosition.h \
+	Source/WebCore/rendering/style/GridTrackSize.h \
 	Source/WebCore/rendering/style/KeyframeList.cpp \
 	Source/WebCore/rendering/style/KeyframeList.h \
 	Source/WebCore/rendering/style/LineClampValue.h \
@@ -4598,7 +4593,6 @@ webcore_sources += \
 	Source/WebCore/rendering/style/StyleVariableData.h \
 	Source/WebCore/rendering/style/StyleVisualData.cpp \
 	Source/WebCore/rendering/style/StyleVisualData.h \
-	Source/WebCore/rendering/style/GridTrackSize.h \
 	Source/WebCore/rendering/TableLayout.h \
 	Source/WebCore/rendering/TrailingFloatsRootInlineBox.h \
 	Source/WebCore/storage/StorageThread.cpp \
@@ -5417,6 +5411,7 @@ webcore_platform_sources += \
 	Source/WebCore/platform/network/BlobResourceHandle.cpp \
 	Source/WebCore/platform/network/BlobResourceHandle.h \
 	Source/WebCore/platform/network/BlobStorageData.h \
+	Source/WebCore/platform/network/CertificateInfo.h \
 	Source/WebCore/platform/network/CookieStorage.h \
 	Source/WebCore/platform/network/FormDataBuilder.cpp \
 	Source/WebCore/platform/network/FormDataBuilder.h \
@@ -5451,6 +5446,7 @@ webcore_platform_sources += \
 	Source/WebCore/platform/network/SocketStreamHandleClient.h \
 	Source/WebCore/platform/network/soup/AuthenticationChallenge.h \
 	Source/WebCore/platform/network/soup/AuthenticationChallengeSoup.cpp \
+	Source/WebCore/platform/network/soup/CertificateInfoSoup.cpp \
 	Source/WebCore/platform/network/soup/CookieJarSoup.cpp \
 	Source/WebCore/platform/network/soup/CookieJarSoup.h \
 	Source/WebCore/platform/network/soup/CookieStorageSoup.cpp \

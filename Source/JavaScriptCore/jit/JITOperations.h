@@ -46,20 +46,35 @@ namespace JSC {
 // this helps prevent calling a helper routine with the wrong arguments!
 /*
     Key:
-    V: void
-    J: JSValue
-    P: pointer (void*)
+    A: JSArray*
+    Aap: ArrayAllocationProfile*
     C: JSCell*
     Cb: CodeBlock*
-    A: JSArray*
-    S: size_t
-    Z: int32_t
     D: double
+    E: ExecState*
+    F: CallFrame*
     I: StringImpl*
+    Icf: InlineCalLFrame*
+    Idc: const Identifier*
+    J: EncodedJSValue
+    Jcp: const JSValue*
+    Jss: JSString*
+    O: JSObject*
+    P: pointer (char*)
+    Pc: Instruction* i.e. bytecode PC
+    R: Register
+    S: size_t
+    St: Structure*
+    V: void
+    W: WatchpointSet*
+    Z: int32_t
 */
+typedef CallFrame* JIT_OPERATION (*F_JITOperation_EJJZ)(ExecState*, EncodedJSValue, EncodedJSValue, int32_t);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_E)(ExecState*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EA)(ExecState*, JSArray*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EAZ)(ExecState*, JSArray*, int32_t);
+typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EAapJ)(ExecState*, ArrayAllocationProfile*, EncodedJSValue);
+typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EAapJcpZ)(ExecState*, ArrayAllocationProfile*, const JSValue*, int32_t);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EC)(ExecState*, JSCell*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_ECC)(ExecState*, JSCell*, JSCell*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_ECI)(ExecState*, JSCell*, StringImpl*);
@@ -69,12 +84,14 @@ typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EI)(ExecState*, StringImpl
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJ)(ExecState*, EncodedJSValue);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJA)(ExecState*, EncodedJSValue, JSArray*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJI)(ExecState*, EncodedJSValue, StringImpl*);
+typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJIdc)(ExecState*, EncodedJSValue, const Identifier*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJJ)(ExecState*, EncodedJSValue, EncodedJSValue);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJssZ)(ExecState*, JSString*, int32_t);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EJP)(ExecState*, EncodedJSValue, void*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EP)(ExecState*, void*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EPP)(ExecState*, void*, void*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EPS)(ExecState*, void*, size_t);
+typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EPc)(ExecState*, Instruction*);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_ESS)(ExecState*, size_t, size_t);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EZ)(ExecState*, int32_t);
 typedef EncodedJSValue JIT_OPERATION (*J_JITOperation_EZIcfZ)(ExecState*, int32_t, InlineCallFrame*, int32_t);
@@ -88,6 +105,7 @@ typedef JSCell* JIT_OPERATION (*C_JITOperation_EJ)(ExecState*, EncodedJSValue);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_EJssSt)(ExecState*, JSString*, Structure*);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_EJssJss)(ExecState*, JSString*, JSString*);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_EJssJssJss)(ExecState*, JSString*, JSString*, JSString*);
+typedef JSCell* JIT_OPERATION (*C_JITOperation_EO)(ExecState*, JSObject*);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_EOZ)(ExecState*, JSObject*, int32_t);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_ESt)(ExecState*, Structure*);
 typedef JSCell* JIT_OPERATION (*C_JITOperation_EZ)(ExecState*, int32_t);
@@ -99,6 +117,7 @@ typedef int32_t JIT_OPERATION (*Z_JITOperation_E)(ExecState*);
 typedef size_t JIT_OPERATION (*S_JITOperation_ECC)(ExecState*, JSCell*, JSCell*);
 typedef size_t JIT_OPERATION (*S_JITOperation_EJ)(ExecState*, EncodedJSValue);
 typedef size_t JIT_OPERATION (*S_JITOperation_EJJ)(ExecState*, EncodedJSValue, EncodedJSValue);
+typedef size_t JIT_OPERATION (*S_JITOperation_EOJss)(ExecState*, JSObject*, JSString*);
 typedef size_t JIT_OPERATION (*S_JITOperation_J)(EncodedJSValue);
 typedef void JIT_OPERATION (*V_JITOperation_E)(ExecState*);
 typedef void JIT_OPERATION (*V_JITOperation_EOZD)(ExecState*, JSObject*, int32_t, double);
@@ -110,9 +129,10 @@ typedef void JIT_OPERATION (*V_JITOperation_ECCIcf)(ExecState*, JSCell*, JSCell*
 typedef void JIT_OPERATION (*V_JITOperation_ECJJ)(ExecState*, JSCell*, EncodedJSValue, EncodedJSValue);
 typedef void JIT_OPERATION (*V_JITOperation_ECZ)(ExecState*, JSCell*, int32_t);
 typedef void JIT_OPERATION (*V_JITOperation_ECC)(ExecState*, JSCell*, JSCell*);
-typedef void JIT_OPERATION (*V_JITOperation_EJCI)(ExecState*, EncodedJSValue, JSCell*, StringImpl*);
+typedef void JIT_OPERATION (*V_JITOperation_EJJI)(ExecState*, EncodedJSValue, EncodedJSValue, StringImpl*);
 typedef void JIT_OPERATION (*V_JITOperation_EJJJ)(ExecState*, EncodedJSValue, EncodedJSValue, EncodedJSValue);
 typedef void JIT_OPERATION (*V_JITOperation_EJPP)(ExecState*, EncodedJSValue, void*, void*);
+typedef void JIT_OPERATION (*V_JITOperation_EPc)(ExecState*, Instruction*);
 typedef void JIT_OPERATION (*V_JITOperation_EPZJ)(ExecState*, void*, int32_t, EncodedJSValue);
 typedef void JIT_OPERATION (*V_JITOperation_W)(WatchpointSet*);
 typedef char* JIT_OPERATION (*P_JITOperation_E)(ExecState*);
@@ -186,18 +206,18 @@ EncodedJSValue JIT_OPERATION operationIn(ExecState*, JSCell*, StringImpl*);
 EncodedJSValue JIT_OPERATION operationGenericIn(ExecState*, JSCell*, EncodedJSValue);
 EncodedJSValue JIT_OPERATION operationCallCustomGetter(ExecState*, JSCell*, PropertySlot::GetValueFunc, StringImpl*) WTF_INTERNAL;
 EncodedJSValue JIT_OPERATION operationCallGetter(ExecState*, JSCell*, JSCell*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdStrict(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdNonStrict(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectStrict(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectNonStrict(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdStrictOptimize(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdNonStrictOptimize(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectStrictOptimize(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectNonStrictOptimize(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdStrictBuildList(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdNonStrictBuildList(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectStrictBuildList(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
-void JIT_OPERATION operationPutByIdDirectNonStrictBuildList(ExecState*, EncodedJSValue encodedValue, JSCell* base, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdStrict(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdNonStrict(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectStrict(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectNonStrict(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdStrictOptimize(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdNonStrictOptimize(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectStrictOptimize(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectNonStrictOptimize(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdStrictBuildList(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdNonStrictBuildList(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectStrictBuildList(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
+void JIT_OPERATION operationPutByIdDirectNonStrictBuildList(ExecState*, EncodedJSValue encodedValue, EncodedJSValue encodedBase, StringImpl*) WTF_INTERNAL;
 void JIT_OPERATION operationReallocateStorageAndFinishPut(ExecState*, JSObject*, Structure*, PropertyOffset, EncodedJSValue) WTF_INTERNAL;
 EncodedJSValue JIT_OPERATION operationCallEval(ExecState*) WTF_INTERNAL;
 char* JIT_OPERATION operationVirtualCall(ExecState*) WTF_INTERNAL;
@@ -205,9 +225,42 @@ char* JIT_OPERATION operationLinkCall(ExecState*) WTF_INTERNAL;
 char* JIT_OPERATION operationLinkClosureCall(ExecState*) WTF_INTERNAL;
 char* JIT_OPERATION operationVirtualConstruct(ExecState*) WTF_INTERNAL;
 char* JIT_OPERATION operationLinkConstruct(ExecState*) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareLess(ExecState*, EncodedJSValue encodedOp1, EncodedJSValue encodedOp2) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareLessEq(ExecState*, EncodedJSValue encodedOp1, EncodedJSValue encodedOp2) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareGreater(ExecState*, EncodedJSValue encodedOp1, EncodedJSValue encodedOp2) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareGreaterEq(ExecState*, EncodedJSValue encodedOp1, EncodedJSValue encodedOp2) WTF_INTERNAL;
+size_t JIT_OPERATION operationConvertJSValueToBoolean(ExecState*, EncodedJSValue) WTF_INTERNAL;
+size_t JIT_OPERATION operationCompareEq(ExecState*, EncodedJSValue, EncodedJSValue) WTF_INTERNAL;
+#if USE(JSVALUE64)
+EncodedJSValue JIT_OPERATION operationCompareStringEq(ExecState*, JSCell* left, JSCell* right) WTF_INTERNAL;
+#else
+size_t JIT_OPERATION operationCompareStringEq(ExecState*, JSCell* left, JSCell* right) WTF_INTERNAL;
+#endif
+size_t JIT_OPERATION operationHasProperty(ExecState*, JSObject*, JSString*) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationNewArrayWithProfile(ExecState*, ArrayAllocationProfile*, const JSValue* values, int32_t size) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationNewArrayBufferWithProfile(ExecState*, ArrayAllocationProfile*, const JSValue* values, int32_t size) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationNewArrayWithSizeAndProfile(ExecState*, ArrayAllocationProfile*, EncodedJSValue size) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationNewFunction(ExecState*, JSCell*) WTF_INTERNAL;
+JSCell* JIT_OPERATION operationNewObject(ExecState*, Structure*) WTF_INTERNAL;
 EncodedJSValue JIT_OPERATION operationNewRegexp(ExecState*, void*) WTF_INTERNAL;
 
-}
+EncodedJSValue JIT_OPERATION operationCheckHasInstance(ExecState*, EncodedJSValue, EncodedJSValue baseVal) WTF_INTERNAL;
+JSCell* JIT_OPERATION operationCreateActivation(ExecState*, int32_t offset) WTF_INTERNAL;
+JSCell* JIT_OPERATION operationCreateArguments(ExecState*) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationDeleteById(ExecState*, EncodedJSValue base, const Identifier*) WTF_INTERNAL;
+JSCell* JIT_OPERATION operationGetPNames(ExecState*, JSObject*) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationInstanceOf(ExecState*, EncodedJSValue, EncodedJSValue proto) WTF_INTERNAL;
+CallFrame* JIT_OPERATION operationLoadVarargs(ExecState*, EncodedJSValue thisValue, EncodedJSValue arguments, int32_t firstFreeRegister) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationToObject(ExecState*, EncodedJSValue) WTF_INTERNAL;
+
+char* JIT_OPERATION operationSwitchCharWithUnknownKeyType(ExecState*, EncodedJSValue key, size_t tableIndex) WTF_INTERNAL;
+char* JIT_OPERATION operationSwitchImmWithUnknownKeyType(ExecState*, EncodedJSValue key, size_t tableIndex) WTF_INTERNAL;
+char* JIT_OPERATION operationSwitchStringWithUnknownKeyType(ExecState*, EncodedJSValue key, size_t tableIndex) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationResolveScope(ExecState*, int32_t identifierIndex) WTF_INTERNAL;
+EncodedJSValue JIT_OPERATION operationGetFromScope(ExecState*, Instruction* bytecodePC) WTF_INTERNAL;
+void JIT_OPERATION operationPutToScope(ExecState*, Instruction* bytecodePC) WTF_INTERNAL;
+
+} // extern "C"
 
 } // namespace JSC
 

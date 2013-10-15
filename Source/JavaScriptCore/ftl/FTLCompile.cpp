@@ -37,9 +37,9 @@
 #include "FTLJITCode.h"
 #include "FTLThunks.h"
 #include "JITStubs.h"
+#include "LLVMAPI.h"
 #include "LinkBuffer.h"
 #include "RepatchBuffer.h"
-#include <wtf/LLVMHeaders.h>
 
 namespace JSC { namespace FTL {
 
@@ -110,9 +110,6 @@ static void fixFunctionBasedOnStackMaps(
     StackMaps::RecordMap& recordMap)
 {
     VM& vm = state.graph.m_vm;
-    MacroAssemblerCodeRef osrExitThunk =
-        vm.getCTIStub(osrExitGenerationThunkGenerator);
-    CodeLocationLabel target = CodeLocationLabel(osrExitThunk.code());
 
     ExitThunkGenerator exitThunkGenerator(state);
     exitThunkGenerator.emitThunks();
@@ -120,28 +117,37 @@ static void fixFunctionBasedOnStackMaps(
         OwnPtr<LinkBuffer> linkBuffer = adoptPtr(new LinkBuffer(
             vm, &exitThunkGenerator, codeBlock, JITCompilationMustSucceed));
         
-        ASSERT(state.osrExit.size() == state.jitCode->osrExit.size());
+        ASSERT(state.finalizer->osrExit.size() == state.jitCode->osrExit.size());
         
-        for (unsigned i = 0; i < state.osrExit.size(); ++i) {
-            OSRExitCompilationInfo& info = state.osrExit[i];
+        for (unsigned i = 0; i < state.jitCode->osrExit.size(); ++i) {
+            OSRExitCompilationInfo& info = state.finalizer->osrExit[i];
             OSRExit& exit = jitCode->osrExit[i];
-            
-            linkBuffer->link(info.m_thunkJump, target);
+            StackMaps::RecordMap::iterator iter = recordMap.find(exit.m_stackmapID);
+            if (iter == recordMap.end()) {
+                // It was optimized out.
+                continue;
+            }
             
             info.m_thunkAddress = linkBuffer->locationOf(info.m_thunkLabel);
             
             exit.m_patchableCodeOffset = linkBuffer->offsetOf(info.m_thunkJump);
         }
         
-        state.finalizer->initializeExitThunksLinkBuffer(linkBuffer.release());
+        state.finalizer->exitThunksLinkBuffer = linkBuffer.release();
     }
 
     RepatchBuffer repatchBuffer(codeBlock);
     
     for (unsigned exitIndex = jitCode->osrExit.size(); exitIndex--;) {
-        OSRExitCompilationInfo& info = state.osrExit[exitIndex];
+        OSRExitCompilationInfo& info = state.finalizer->osrExit[exitIndex];
         OSRExit& exit = jitCode->osrExit[exitIndex];
-        StackMaps::Record& record = recordMap.find(exit.m_stackmapID)->value;
+        StackMaps::RecordMap::iterator iter = recordMap.find(exit.m_stackmapID);
+        if (iter == recordMap.end()) {
+            // This could happen if LLVM optimizes out an OSR exit.
+            continue;
+        }
+        
+        StackMaps::Record& record = iter->value;
         
         repatchBuffer.replaceWithJump(
             CodeLocationLabel(
@@ -155,52 +161,52 @@ void compile(State& state)
     char* error = 0;
     
     LLVMMCJITCompilerOptions options;
-    LLVMInitializeMCJITCompilerOptions(&options, sizeof(options));
+    llvm->InitializeMCJITCompilerOptions(&options, sizeof(options));
     options.OptLevel = Options::llvmBackendOptimizationLevel();
     options.NoFramePointerElim = true;
     if (Options::useLLVMSmallCodeModel())
         options.CodeModel = LLVMCodeModelSmall;
     options.EnableFastISel = Options::enableLLVMFastISel();
-    options.MCJMM = LLVMCreateSimpleMCJITMemoryManager(
+    options.MCJMM = llvm->CreateSimpleMCJITMemoryManager(
         &state, mmAllocateCodeSection, mmAllocateDataSection, mmApplyPermissions, mmDestroy);
     
     LLVMExecutionEngineRef engine;
     
-    if (LLVMCreateMCJITCompilerForModule(&engine, state.module, &options, sizeof(options), &error)) {
+    if (llvm->CreateMCJITCompilerForModule(&engine, state.module, &options, sizeof(options), &error)) {
         dataLog("FATAL: Could not create LLVM execution engine: ", error, "\n");
         CRASH();
     }
 
-    LLVMPassManagerBuilderRef passBuilder = LLVMPassManagerBuilderCreate();
-    LLVMPassManagerBuilderSetOptLevel(passBuilder, Options::llvmOptimizationLevel());
-    LLVMPassManagerBuilderSetSizeLevel(passBuilder, Options::llvmSizeLevel());
+    LLVMPassManagerBuilderRef passBuilder = llvm->PassManagerBuilderCreate();
+    llvm->PassManagerBuilderSetOptLevel(passBuilder, Options::llvmOptimizationLevel());
+    llvm->PassManagerBuilderSetSizeLevel(passBuilder, Options::llvmSizeLevel());
     
-    LLVMPassManagerRef functionPasses = LLVMCreateFunctionPassManagerForModule(state.module);
-    LLVMPassManagerRef modulePasses = LLVMCreatePassManager();
+    LLVMPassManagerRef functionPasses = llvm->CreateFunctionPassManagerForModule(state.module);
+    LLVMPassManagerRef modulePasses = llvm->CreatePassManager();
     
-    LLVMAddTargetData(LLVMGetExecutionEngineTargetData(engine), modulePasses);
+    llvm->AddTargetData(llvm->GetExecutionEngineTargetData(engine), modulePasses);
     
-    LLVMPassManagerBuilderPopulateFunctionPassManager(passBuilder, functionPasses);
-    LLVMPassManagerBuilderPopulateModulePassManager(passBuilder, modulePasses);
+    llvm->PassManagerBuilderPopulateFunctionPassManager(passBuilder, functionPasses);
+    llvm->PassManagerBuilderPopulateModulePassManager(passBuilder, modulePasses);
     
-    LLVMPassManagerBuilderDispose(passBuilder);
+    llvm->PassManagerBuilderDispose(passBuilder);
 
-    LLVMInitializeFunctionPassManager(functionPasses);
-    for (LValue function = LLVMGetFirstFunction(state.module); function; function = LLVMGetNextFunction(function))
-        LLVMRunFunctionPassManager(functionPasses, function);
-    LLVMFinalizeFunctionPassManager(functionPasses);
+    llvm->InitializeFunctionPassManager(functionPasses);
+    for (LValue function = llvm->GetFirstFunction(state.module); function; function = llvm->GetNextFunction(function))
+        llvm->RunFunctionPassManager(functionPasses, function);
+    llvm->FinalizeFunctionPassManager(functionPasses);
     
-    LLVMRunPassManager(modulePasses, state.module);
+    llvm->RunPassManager(modulePasses, state.module);
 
     if (DFG::shouldShowDisassembly() || DFG::verboseCompilationEnabled())
         state.dumpState("after optimization");
     
     // FIXME: Need to add support for the case where JIT memory allocation failed.
     // https://bugs.webkit.org/show_bug.cgi?id=113620
-    state.generatedFunction = reinterpret_cast<GeneratedFunction>(LLVMGetPointerToGlobal(engine, state.function));
-    LLVMDisposePassManager(functionPasses);
-    LLVMDisposePassManager(modulePasses);
-    LLVMDisposeExecutionEngine(engine);
+    state.generatedFunction = reinterpret_cast<GeneratedFunction>(llvm->GetPointerToGlobal(engine, state.function));
+    llvm->DisposePassManager(functionPasses);
+    llvm->DisposePassManager(modulePasses);
+    llvm->DisposeExecutionEngine(engine);
 
     if (shouldShowDisassembly()) {
         for (unsigned i = 0; i < state.jitCode->handles().size(); ++i) {

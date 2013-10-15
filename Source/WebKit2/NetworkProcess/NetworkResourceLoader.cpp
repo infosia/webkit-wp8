@@ -37,7 +37,6 @@
 #include "NetworkProcess.h"
 #include "NetworkProcessConnectionMessages.h"
 #include "NetworkResourceLoadParameters.h"
-#include "PlatformCertificateInfo.h"
 #include "RemoteNetworkingContext.h"
 #include "ShareableResource.h"
 #include "SharedMemory.h"
@@ -126,9 +125,9 @@ void NetworkResourceLoader::start()
 
     // Explicit ref() balanced by a deref() in NetworkResourceLoader::resourceHandleStopped()
     ref();
-    
-    // FIXME (NetworkProcess): Create RemoteNetworkingContext with actual settings.
-    m_networkingContext = RemoteNetworkingContext::create(false, false, m_inPrivateBrowsingMode, m_shouldClearReferrerOnHTTPSToHTTPRedirect);
+
+    // FIXME (NetworkProcess): Set platform specific settings.
+    m_networkingContext = RemoteNetworkingContext::create(m_inPrivateBrowsingMode, m_shouldClearReferrerOnHTTPSToHTTPRedirect);
 
     consumeSandboxExtensions();
 

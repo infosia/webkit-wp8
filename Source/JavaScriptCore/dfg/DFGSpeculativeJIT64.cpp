@@ -254,7 +254,7 @@ void SpeculativeJIT::cachedPutById(CodeOrigin codeOrigin, GPRReg baseGPR, GPRReg
 
     JITCompiler::Label doneLabel = m_jit.label();
     
-    V_JITOperation_EJCI optimizedCall;
+    V_JITOperation_EJJI optimizedCall;
     if (m_jit.strictModeFor(m_currentNode->codeOrigin)) {
         if (putKind == Direct)
             optimizedCall = operationPutByIdDirectStrictOptimize;
@@ -2034,13 +2034,15 @@ void SpeculativeJIT::compileLogicalNot(Node* node)
         JITCompiler::Jump slowCase = m_jit.branchTest64(JITCompiler::NonZero, resultGPR, TrustedImm32(static_cast<int32_t>(~1)));
     
         addSlowPathGenerator(
-            slowPathCall(slowCase, this, dfgConvertJSValueToBoolean, resultGPR, arg1GPR));
+            slowPathCall(slowCase, this, operationConvertJSValueToBoolean, resultGPR, arg1GPR));
     
         m_jit.xor64(TrustedImm32(static_cast<int32_t>(ValueTrue)), resultGPR);
         jsValueResult(resultGPR, node, DataFormatJSBoolean, UseChildrenCalledExplicitly);
         return;
     }
-        
+    case StringUse:
+        return compileStringZeroLength(node);
+
     default:
         RELEASE_ASSERT_NOT_REACHED();
         break;
@@ -2177,7 +2179,7 @@ void SpeculativeJIT::emitBranch(Node* node)
             value.use();
     
             silentSpillAllRegisters(resultGPR);
-            callOperation(dfgConvertJSValueToBoolean, resultGPR, valueGPR);
+            callOperation(operationConvertJSValueToBoolean, resultGPR, valueGPR);
             silentFillAllRegisters(resultGPR);
     
             branchTest32(MacroAssembler::NonZero, resultGPR, taken);
@@ -4066,10 +4068,7 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
     case GetById: {
-        if (!node->prediction()) {
-            terminateSpeculativeExecution(InadequateCoverage, JSValueRegs(), 0);
-            break;
-        }
+        ASSERT(node->prediction());
 
         switch (node->child1().useKind()) {
         case CellUse: {

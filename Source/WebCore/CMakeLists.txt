@@ -22,6 +22,7 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/bindings/generic"
     "${WEBCORE_DIR}/bridge"
     "${WEBCORE_DIR}/bridge/c"
+    "${WEBCORE_DIR}/crypto"
     "${WEBCORE_DIR}/css"
     "${WEBCORE_DIR}/dom"
     "${WEBCORE_DIR}/dom/default"
@@ -281,6 +282,8 @@ set(WebCore_IDL_FILES
 
     Modules/websockets/CloseEvent.idl
     Modules/websockets/WebSocket.idl
+
+    crypto/SubtleCrypto.idl
 
     css/CSSCharsetRule.idl
     css/CSSFontFaceLoadEvent.idl
@@ -1132,13 +1135,11 @@ set(WebCore_SOURCES
     dom/EventException.cpp
     dom/EventListenerMap.cpp
     dom/EventNames.cpp
-    dom/EventRetargeter.cpp
     dom/EventTarget.cpp
     dom/ExceptionBase.cpp
     dom/ExceptionCodePlaceholder.cpp
     dom/FocusEvent.cpp
     dom/GenericEventQueue.cpp
-    dom/GestureEvent.cpp
     dom/IconURL.cpp
     dom/IdTargetObserver.cpp
     dom/IdTargetObserverRegistry.cpp
@@ -1217,7 +1218,6 @@ set(WebCore_SOURCES
     dom/WebKitNamedFlow.cpp
     dom/WebKitTransitionEvent.cpp
     dom/WheelEvent.cpp
-    dom/WindowEventContext.cpp
 
     dom/default/PlatformMessagePortChannel.cpp
 
@@ -1443,7 +1443,6 @@ set(WebCore_SOURCES
     html/TypeAhead.cpp
     html/URLInputType.cpp
     html/ValidationMessage.cpp
-    html/ValidityState.cpp
     html/WeekInputType.cpp
 
     html/canvas/CanvasContextAttributes.cpp
@@ -1524,7 +1523,6 @@ set(WebCore_SOURCES
     html/shadow/MediaControlElementTypes.cpp
     html/shadow/MediaControlElements.cpp
     html/shadow/MediaControls.cpp
-    html/shadow/MediaControlsApple.cpp
     html/shadow/MeterShadowElement.cpp
     html/shadow/ProgressShadowElement.cpp
     html/shadow/SliderThumbElement.cpp
@@ -2162,6 +2160,7 @@ set(WebCore_SOURCES
     rendering/RenderTextControlMultiLine.cpp
     rendering/RenderTextControlSingleLine.cpp
     rendering/RenderTextFragment.cpp
+    rendering/RenderTextLineBoxes.cpp
     rendering/RenderTextTrackCue.cpp
     rendering/RenderTheme.cpp
     rendering/RenderTreeAsText.cpp

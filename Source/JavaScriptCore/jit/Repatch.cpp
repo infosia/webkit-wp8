@@ -604,7 +604,7 @@ void buildGetByIDList(ExecState* exec, JSValue baseValue, const Identifier& prop
         repatchCall(exec->codeBlock(), stubInfo.callReturnLocation, operationGetById);
 }
 
-static V_JITOperation_EJCI appropriateGenericPutByIdFunction(const PutPropertySlot &slot, PutKind putKind)
+static V_JITOperation_EJJI appropriateGenericPutByIdFunction(const PutPropertySlot &slot, PutKind putKind)
 {
     if (slot.isStrictMode()) {
         if (putKind == Direct)
@@ -616,7 +616,7 @@ static V_JITOperation_EJCI appropriateGenericPutByIdFunction(const PutPropertySl
     return operationPutByIdNonStrict;
 }
 
-static V_JITOperation_EJCI appropriateListBuildingPutByIdFunction(const PutPropertySlot &slot, PutKind putKind)
+static V_JITOperation_EJJI appropriateListBuildingPutByIdFunction(const PutPropertySlot &slot, PutKind putKind)
 {
     if (slot.isStrictMode()) {
         if (putKind == Direct)
@@ -999,6 +999,8 @@ static bool tryCachePutByID(ExecState* exec, JSValue baseValue, const Identifier
 
 void repatchPutByID(ExecState* exec, JSValue baseValue, const Identifier& propertyName, const PutPropertySlot& slot, StructureStubInfo& stubInfo, PutKind putKind)
 {
+    ConcurrentJITLocker locker(exec->codeBlock()->m_lock);
+    
     bool cached = tryCachePutByID(exec, baseValue, propertyName, slot, stubInfo, putKind);
     if (!cached)
         repatchCall(exec->codeBlock(), stubInfo.callReturnLocation, appropriateGenericPutByIdFunction(slot, putKind));
@@ -1092,6 +1094,8 @@ static bool tryBuildPutByIdList(ExecState* exec, JSValue baseValue, const Identi
 
 void buildPutByIdList(ExecState* exec, JSValue baseValue, const Identifier& propertyName, const PutPropertySlot& slot, StructureStubInfo& stubInfo, PutKind putKind)
 {
+    ConcurrentJITLocker locker(exec->codeBlock()->m_lock);
+    
     bool cached = tryBuildPutByIdList(exec, baseValue, propertyName, slot, stubInfo, putKind);
     if (!cached)
         repatchCall(exec->codeBlock(), stubInfo.callReturnLocation, appropriateGenericPutByIdFunction(slot, putKind));
@@ -1375,8 +1379,8 @@ void resetGetByID(RepatchBuffer& repatchBuffer, StructureStubInfo& stubInfo)
 
 void resetPutByID(RepatchBuffer& repatchBuffer, StructureStubInfo& stubInfo)
 {
-    V_JITOperation_EJCI unoptimizedFunction = bitwise_cast<V_JITOperation_EJCI>(MacroAssembler::readCallTarget(stubInfo.callReturnLocation).executableAddress());
-    V_JITOperation_EJCI optimizedFunction;
+    V_JITOperation_EJJI unoptimizedFunction = bitwise_cast<V_JITOperation_EJJI>(MacroAssembler::readCallTarget(stubInfo.callReturnLocation).executableAddress());
+    V_JITOperation_EJJI optimizedFunction;
     if (unoptimizedFunction == operationPutByIdStrict || unoptimizedFunction == operationPutByIdStrictBuildList)
         optimizedFunction = operationPutByIdStrictOptimize;
     else if (unoptimizedFunction == operationPutByIdNonStrict || unoptimizedFunction == operationPutByIdNonStrictBuildList)

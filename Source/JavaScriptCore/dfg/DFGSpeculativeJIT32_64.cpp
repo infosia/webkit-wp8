@@ -262,7 +262,7 @@ void SpeculativeJIT::cachedPutById(CodeOrigin codeOrigin, GPRReg basePayloadGPR,
     JITCompiler::DataLabel32 payloadStoreWithPatch = m_jit.store32WithAddressOffsetPatch(valuePayloadGPR, JITCompiler::Address(scratchGPR, OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload)));
 
     JITCompiler::Label doneLabel = m_jit.label();
-    V_JITOperation_EJCI optimizedCall;
+    V_JITOperation_EJJI optimizedCall;
     if (m_jit.strictModeFor(m_currentNode->codeOrigin)) {
         if (putKind == Direct)
             optimizedCall = operationPutByIdDirectStrictOptimize;
@@ -1651,14 +1651,16 @@ void SpeculativeJIT::compileLogicalNot(Node* node)
 
         addSlowPathGenerator(
             slowPathCall(
-                slowCase, this, dfgConvertJSValueToBoolean, resultPayloadGPR, arg1TagGPR,
+                slowCase, this, operationConvertJSValueToBoolean, resultPayloadGPR, arg1TagGPR,
                 arg1PayloadGPR));
     
         m_jit.xor32(TrustedImm32(1), resultPayloadGPR);
         booleanResult(resultPayloadGPR, node, UseChildrenCalledExplicitly);
         return;
     }
-        
+    case StringUse:
+        return compileStringZeroLength(node);
+
     default:
         RELEASE_ASSERT_NOT_REACHED();
         break;
@@ -1795,7 +1797,7 @@ void SpeculativeJIT::emitBranch(Node* node)
 
         slowPath.link(&m_jit);
         silentSpillAllRegisters(resultGPR);
-        callOperation(dfgConvertJSValueToBoolean, resultGPR, valueTagGPR, valuePayloadGPR);
+        callOperation(operationConvertJSValueToBoolean, resultGPR, valueTagGPR, valuePayloadGPR);
         silentFillAllRegisters(resultGPR);
     
         branchTest32(JITCompiler::NonZero, resultGPR, taken);
@@ -3776,10 +3778,7 @@ void SpeculativeJIT::compile(Node* node)
     }
         
     case GetById: {
-        if (!node->prediction()) {
-            terminateSpeculativeExecution(InadequateCoverage, JSValueRegs(), 0);
-            break;
-        }
+        ASSERT(node->prediction());
         
         switch (node->child1().useKind()) {
         case CellUse: {

@@ -120,7 +120,7 @@ Bug(GTK) editing/selection/mixed-editability-10.html [ Failure ]
 
 # Implement testRunner.setAsynchronousSpellCheckingEnabled
 # http://webkit.org/b/81042
-webkit.org/b/81042 editing/spelling/spellcheck-paste.html [ Failure ]
+webkit.org/b/81042 editing/spelling/spellcheck-paste.html [ Timeout Failure ]
 webkit.org/b/81042 editing/spelling/spellcheck-paste-disabled.html [ Failure ]
 
 # Implement testRunner.numberOfPendingGeolocationPermissionRequests()
@@ -194,7 +194,7 @@ webkit.org/b/120401 editing/selection [ Skip ]
 # Crashing tests
 #////////////////////////////////////////////////////////////////////////////////////////
 
-Bug(GTK) plugins/document-open.html [ Crash ]
+Bug(GTK) plugins/document-open.html [ Crash Timeout ]
 
 # Fix for https://bugs.webkit.org/show_bug.cgi?id=97192 introduces this regression
 webkit.org/b/102776 media/track/track-cue-container-rendering-position.html [ Crash ]
@@ -366,6 +366,11 @@ webkit.org/b/93981 media/video-display-toggle.html [ Failure ]
 webkit.org/b/93981 media/video-no-audio.html [ Failure ]
 webkit.org/b/93981 media/video-volume-slider.html [ Failure ]
 
+# Animations behave weirdly if AC is enabled.
+webkit.org/b/93984 animations/combo-transform-translate+scale.html [ Failure ]
+webkit.org/b/93984 animations/play-state-suspend.html [ Failure ]
+webkit.org/b/93984 animations/suspend-resume-animation.html [ Failure ]
+
 # Assertion failure in replaySavedEvents
 # http://webkit.org/b/21796
 webkit.org/b/21796 fast/forms/select-multiple-elements-with-mouse-drag-with-options-less-than-size.html [ Failure ]
@@ -379,9 +384,9 @@ webkit.org/b/95935 http/tests/security/cross-origin-plugin.html [ Failure ]
 webkit.org/b/39160 security/block-test-no-port.html [ Failure ]
 
 webkit.org/b/97655 fast/css/style-scoped [ Failure ]
-webkit.org/b/97655 fast/regions/style-scoped-in-flow-override-container-style.html [ ImageOnlyFailure ]
-webkit.org/b/97655 fast/regions/style-scoped-in-flow-override-region-styling.html [ ImageOnlyFailure ]
-webkit.org/b/97655 fast/regions/style-scoped-in-flow.html [ ImageOnlyFailure ]
+webkit.org/b/97655 fast/regions/style-scoped/style-scoped-in-flow-override-container-style.html [ ImageOnlyFailure ]
+webkit.org/b/97655 fast/regions/style-scoped/style-scoped-in-flow-override-region-styling.html [ ImageOnlyFailure ]
+webkit.org/b/97655 fast/regions/style-scoped/style-scoped-in-flow.html [ ImageOnlyFailure ]
 
 # Apparently our WebkitTestRunner is disregarding window features? We open the window sized 800x600.
 webkit.org/b/122535 fast/dom/Window/open-window-min-size.html [ Failure ]
@@ -397,7 +402,6 @@ Bug(GTK) editing/selection/programmatic-selection-on-mac-is-directionless.html [
 Bug(GTK) editing/spelling/spelling-insert-html.html [ Failure ]
 Bug(GTK) fast/css/bidi-override-in-anonymous-block.html [ Failure ]
 Bug(GTK) fast/css/disabled-author-styles.html [ Failure ]
-Bug(GTK) fast/css/relative-positioned-block-crash.html [ Failure ]
 Bug(GTK) fast/dom/rtl-scroll-to-leftmost-and-resize.html [ Failure ]
 Bug(GTK) fast/dom/Window/window-postmessage-clone.html [ Failure ]
 Bug(GTK) fast/dynamic/window-resize-scrollbars-test.html [ Failure ]
@@ -414,7 +418,6 @@ Bug(GTK) fast/forms/listbox-typeahead-greek.html [ Failure ]
 Bug(GTK) fast/forms/mailto/formenctype-attribute-button-html.html [ Failure ]
 Bug(GTK) fast/forms/mailto/formenctype-attribute-input-html.html [ Failure ]
 Bug(GTK) fast/forms/select-type-ahead-non-latin.html [ Failure ]
-Bug(GTK) fast/loader/submit-form-while-parsing-2.html [ Failure ]
 Bug(GTK) fast/repaint/fixed-move-after-keyboard-scroll.html [ Failure ]
 Bug(GTK) fast/ruby/nested-ruby.html [ Failure ]
 Bug(GTK) fast/ruby/ruby-beforeafter.html [ Failure ]
@@ -434,7 +437,6 @@ Bug(GTK) fast/ruby/ruby-runs-spans.html [ Failure ]
 Bug(GTK) fast/ruby/ruby-simple.html [ Failure ]
 Bug(GTK) fast/ruby/ruby-simple-rp.html [ Failure ]
 Bug(GTK) fast/ruby/ruby-trailing.html [ Failure ]
-Bug(GTK) fast/workers/shared-worker-load-error.html [ Failure ]
 Bug(GTK) fast/writing-mode/Kusa-Makura-background-canvas.html [ Failure ]
 Bug(GTK) http/tests/misc/object-embedding-svg-delayed-size-negotiation-2.htm [ Failure ]
 Bug(GTK) http/tests/security/cross-origin-xsl-BLOCKED.html [ Failure ]
@@ -460,11 +462,6 @@ Bug(GTK) editing/spelling/context-menu-suggestions.html [ Failure ]
 
 # An oncontextmenu attribute is not called.
 Bug(GTK) editing/spelling/spellcheck-input-search-crash.html [ Failure ]
-Bug(GTK) fast/events/contextmenu-scrolled-page-with-frame.html [ Failure ]
-
-Bug(GTK) animations/combo-transform-translate+scale.html [ Failure ]
-Bug(GTK) animations/play-state-suspend.html [ Failure ]
-Bug(GTK) animations/suspend-resume-animation.html [ Failure ]
 
 webkit.org/b/118416 [ Release ] storage/websql/sql-error-codes.html [ Failure ]
 

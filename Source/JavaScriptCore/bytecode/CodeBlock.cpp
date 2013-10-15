@@ -2362,6 +2362,8 @@ void CodeBlock::resetStub(StructureStubInfo& stubInfo)
     if (stubInfo.accessType == access_unset)
         return;
     
+    ConcurrentJITLocker locker(m_lock);
+    
     RepatchBuffer repatchBuffer(this);
     resetStubInternal(repatchBuffer, stubInfo);
 }
@@ -2382,7 +2384,7 @@ void CodeBlock::resetStubInternal(RepatchBuffer& repatchBuffer, StructureStubInf
             JIT::resetPatchGetById(repatchBuffer, &stubInfo);
         else {
             RELEASE_ASSERT(isPutByIdAccess(accessType));
-            JIT::resetPatchPutById(repatchBuffer, &stubInfo);
+            resetPutByID(repatchBuffer, stubInfo);
         }
         break;
     case JITCode::DFGJIT:

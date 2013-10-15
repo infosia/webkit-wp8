@@ -39,6 +39,7 @@
 #include "HTMLTableElement.h"
 #include "NodeTraversal.h"
 #include "RenderTableCell.h"
+#include "RenderText.h"
 #include "Text.h"
 #include "VisibleUnits.h"
 
@@ -134,7 +135,9 @@ void DeleteSelectionCommand::initializeStartEnd(Position& start, Position& end)
         
         if (!startSpecialContainer && !endSpecialContainer)
             break;
-            
+
+        m_mergeBlocksAfterDelete = false;
+
         if (VisiblePosition(start) != m_selectionToDelete.visibleStart() || VisiblePosition(end) != m_selectionToDelete.visibleEnd())
             break;
 

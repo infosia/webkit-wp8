@@ -319,8 +319,6 @@ webkit.org/b/96881 fast/frames/sandboxed-iframe-plugins.html [ Failure ]
 webkit.org/b/96881 http/tests/plugins [ Skip ]
 webkit.org/b/96881 plugins [ Skip ]
 webkit.org/b/96881 userscripts/user-script-plugin-document.html [ Failure ]
-webkit.org/b/96881 http/tests/inspector/network/network-embed.html [ Failure ]
-webkit.org/b/96881 http/tests/inspector/network/network-content-replacement-embed.html [ Failure ]
 
 # EFL WK1 does not support the spellchecker feature
 webkit.org/b/86633 editing/spelling [ Skip ]
@@ -494,6 +492,8 @@ webkit.org/b/120671 editing/selection/doubleclick-japanese-text.html [ Failure ]
 Bug(EFL) fast/harness/results.html [ Failure ]
 
 # EFL has not fully implemented about some SVG attributes
+Bug(EFL) svg/as-image/image-respects-deviceScaleFactor.html
+Bug(EFL) svg/hixie/data-types/002.xhtml
 Bug(EFL) svg/zoom/page/zoom-zoom-coords.xhtml [ Failure ]
 
 # Text selection does not work correctly in DumpRenderTree

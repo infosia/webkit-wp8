@@ -35,7 +35,7 @@ class HTMLFieldSetElement FINAL : public HTMLFormControlElement {
 public:
     static PassRefPtr<HTMLFieldSetElement> create(const QualifiedName&, Document&, HTMLFormElement*);
 
-    const HTMLLegendElement* legend() const;
+    HTMLLegendElement* legend() const;
     PassRefPtr<HTMLCollection> elements();
 
     const Vector<FormAssociatedElement*>& associatedElements() const;
@@ -63,7 +63,7 @@ private:
     mutable uint64_t m_documentVersion;
 };
 
-ELEMENT_TYPE_CASTS(HTMLFieldSetElement)
+NODE_TYPE_CASTS(HTMLFieldSetElement)
 
 } // namespace
 

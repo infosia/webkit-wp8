@@ -31,14 +31,13 @@ class RenderLayer;
 
 class RenderLayerModelObject : public RenderElement {
 public:
-    explicit RenderLayerModelObject(Element*, unsigned baseTypeFlags);
     virtual ~RenderLayerModelObject();
 
     // Called by RenderObject::willBeDestroyed() and is the only way layers should ever be destroyed
     void destroyLayer();
 
     bool hasSelfPaintingLayer() const;
-    RenderLayer* layer() const { return m_layer; }
+    RenderLayer* layer() const { return m_layer.get(); }
 
     virtual void styleWillChange(StyleDifference, const RenderStyle* newStyle) OVERRIDE;
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
@@ -51,12 +50,15 @@ public:
     virtual bool backgroundIsKnownToBeOpaqueInRect(const LayoutRect&) const { return false; }
 
 protected:
+    RenderLayerModelObject(Element&, unsigned baseTypeFlags);
+    RenderLayerModelObject(Document&, unsigned baseTypeFlags);
+
     void ensureLayer();
 
     virtual void willBeDestroyed() OVERRIDE;
 
 private:
-    RenderLayer* m_layer;
+    std::unique_ptr<RenderLayer> m_layer;
 
     // Used to store state between styleWillChange and styleDidChange
     static bool s_wasFloating;

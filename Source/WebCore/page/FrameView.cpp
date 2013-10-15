@@ -3014,6 +3014,16 @@ bool FrameView::isActive() const
     return page && page->focusController().isActive();
 }
 
+bool FrameView::updatesScrollLayerPositionOnMainThread() const
+{
+    if (Page* page = frame().page()) {
+        if (ScrollingCoordinator* scrollingCoordinator = page->scrollingCoordinator())
+            return scrollingCoordinator->shouldUpdateScrollLayerPositionOnMainThread();
+    }
+
+    return true;
+}
+
 void FrameView::scrollTo(const IntSize& newOffset)
 {
     LayoutSize offset = scrollOffset();
@@ -3207,7 +3217,7 @@ void FrameView::updateScrollCorner()
 
     if (cornerStyle) {
         if (!m_scrollCorner)
-            m_scrollCorner = RenderScrollbarPart::createAnonymous(renderer->document());
+            m_scrollCorner = new (renderer->renderArena()) RenderScrollbarPart(renderer->document());
         m_scrollCorner->setStyle(cornerStyle.release());
         invalidateScrollCorner(cornerRect);
     } else if (m_scrollCorner) {

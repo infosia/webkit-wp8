@@ -27,6 +27,7 @@
 #include "StyleResolveTree.h"
 
 #include "AXObjectCache.h"
+#include "CSSFontSelector.h"
 #include "Element.h"
 #include "ElementIterator.h"
 #include "ElementRareData.h"
@@ -58,7 +59,7 @@ namespace Style {
 
 enum DetachType { NormalDetach, ReattachDetach };
 
-static void attachRenderTree(Element&, RenderStyle* resolvedStyle);
+static void attachRenderTree(Element&, PassRefPtr<RenderStyle> resolvedStyle);
 static void detachRenderTree(Element&, DetachType);
 
 Change determineChange(const RenderStyle* s1, const RenderStyle* s2, Settings* settings)
@@ -195,7 +196,7 @@ static RenderNamedFlowThread* moveToFlowThreadIfNeeded(Element& element, const R
 }
 #endif
 
-static void createRendererIfNeeded(Element& element, RenderStyle* resolvedStyle)
+static void createRendererIfNeeded(Element& element, PassRefPtr<RenderStyle> resolvedStyle)
 {
     ASSERT(!element.renderer());
 
@@ -408,7 +409,7 @@ void updateTextRendererAfterContentChange(Text& textNode, unsigned offsetOfRepla
 {
     if (!textNode.attached())
         return;
-    RenderText* textRenderer = toRenderText(textNode.renderer());
+    RenderText* textRenderer = textNode.renderer();
     if (!textRenderer) {
         attachTextRenderer(textNode);
         reattachTextRenderersForWhitespaceOnlySiblingsAfterAttachIfNeeded(textNode);
@@ -454,7 +455,7 @@ static void attachShadowRoot(ShadowRoot& shadowRoot)
     shadowRoot.setAttached(true);
 }
 
-static void attachRenderTree(Element& current, RenderStyle* resolvedStyle)
+static void attachRenderTree(Element& current, PassRefPtr<RenderStyle> resolvedStyle)
 {
     PostAttachCallbackDisabler callbackDisabler(current);
     WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
@@ -593,7 +594,7 @@ static Change resolveLocal(Element& current, Change inheritedChange)
     if (localChange == Detach) {
         if (current.attached())
             detachRenderTree(current, ReattachDetach);
-        attachRenderTree(current, newStyle.get());
+        attachRenderTree(current, newStyle.release());
         reattachTextRenderersForWhitespaceOnlySiblingsAfterAttachIfNeeded(current);
 
         return Detach;
@@ -627,7 +628,7 @@ static Change resolveLocal(Element& current, Change inheritedChange)
 
 static void updateTextStyle(Text& text)
 {
-    RenderText* renderer = toRenderText(text.renderer());
+    RenderText* renderer = text.renderer();
 
     if (!text.needsStyleRecalc())
         return;
@@ -791,7 +792,6 @@ void resolveTree(Document& document, Change change)
     if (resolveRootStyle) {
         RefPtr<RenderStyle> documentStyle = resolveForDocument(document);
 
-#if PLATFORM(IOS)
         // Inserting the pictograph font at the end of the font fallback list is done by the
         // font selector, so set a font selector if needed.
         if (Settings* settings = document.settings()) {
@@ -799,7 +799,6 @@ void resolveTree(Document& document, Change change)
             if (settings->fontFallbackPrefersPictographs() && styleResolver)
                 documentStyle->font().update(styleResolver->fontSelector());
         }
-#endif
 
         Style::Change documentChange = determineChange(documentStyle.get(), document.renderView()->style(), document.settings());
         if (documentChange != NoChange)

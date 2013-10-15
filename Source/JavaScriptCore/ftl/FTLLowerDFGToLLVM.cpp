@@ -97,7 +97,7 @@ public:
         m_graph.m_dominators.computeIfNecessary(m_graph);
         
         m_ftlState.module =
-            LLVMModuleCreateWithNameInContext(name.data(), m_ftlState.context);
+            llvm->ModuleCreateWithNameInContext(name.data(), m_ftlState.context);
         
         m_ftlState.function = addFunction(
             m_ftlState.module, name.data(), functionType(m_out.int64, m_out.intPtr));
@@ -347,6 +347,9 @@ private:
             break;
         case PhantomPutStructure:
             compilePhantomPutStructure();
+            break;
+        case GetById:
+            compileGetById();
             break;
         case GetButterfly:
             compileGetButterfly();
@@ -1207,6 +1210,26 @@ private:
     void compilePhantomPutStructure()
     {
         m_ftlState.jitCode->common.notifyCompilingStructureTransition(m_graph.m_plan, codeBlock(), m_node);
+    }
+    
+    void compileGetById()
+    {
+        LValue base = 0;
+
+        switch (m_node->child1().useKind()) {
+        case CellUse:
+            base = lowCell(m_node->child1());
+            break;
+        case UntypedUse:
+            base = lowJSValue(m_node->child1());
+            break;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+            break;
+        }
+        
+        StringImpl* uid = m_graph.identifiers()[m_node->identifierNumber()];
+        setJSValue(vmCall(m_out.operation(operationGetById), m_callFrame, base, m_out.constIntPtr(uid)));
     }
     
     void compileGetButterfly()
@@ -2086,6 +2109,11 @@ private:
                 equalNullOrUndefined(
                     edge, CellCaseSpeculatesObject, SpeculateNullOrUndefined,
                     ManualOperandSpeculation));
+        case StringUse: {
+            LValue stringValue = lowString(m_node->child1());
+            LValue length = m_out.load32(stringValue, m_heaps.JSString_length);
+            return m_out.notEqual(length, m_out.int32Zero);
+        }
         default:
             RELEASE_ASSERT_NOT_REACHED();
             return 0;
@@ -3241,17 +3269,17 @@ private:
         if (verboseCompilationEnabled())
             dataLog("    OSR exit with value sources: ", m_valueSources, "\n");
         
-        ASSERT(m_ftlState.jitCode->osrExit.size() == m_ftlState.osrExit.size());
-        unsigned index = m_ftlState.osrExit.size();
+        ASSERT(m_ftlState.jitCode->osrExit.size() == m_ftlState.finalizer->osrExit.size());
+        unsigned index = m_ftlState.finalizer->osrExit.size();
         
         m_ftlState.jitCode->osrExit.append(OSRExit(
             kind, lowValue.format(), m_graph.methodOfGettingAValueProfileFor(highValue),
             m_codeOriginForExitTarget, m_codeOriginForExitProfile, m_lastSetOperand.offset(),
             m_valueSources.numberOfArguments(), m_valueSources.numberOfLocals()));
-        m_ftlState.osrExit.append(OSRExitCompilationInfo());
+        m_ftlState.finalizer->osrExit.append(OSRExitCompilationInfo());
         
         OSRExit& exit = m_ftlState.jitCode->osrExit.last();
-        OSRExitCompilationInfo& info = m_ftlState.osrExit.last();
+        OSRExitCompilationInfo& info = m_ftlState.finalizer->osrExit.last();
 
         LBasicBlock lastNext = 0;
         LBasicBlock continuation = 0;
@@ -3442,7 +3470,12 @@ private:
         
         value = m_booleanValues.get(node);
         if (isValid(value)) {
-            addExitArgument(exit, arguments, index, ValueFormatBoolean, value.value());
+            LValue valueToPass;
+            if (Options::ftlOSRExitUsesStackmap())
+                valueToPass = m_out.zeroExt(value.value(), m_out.int32);
+            else
+                valueToPass = value.value();
+            addExitArgument(exit, arguments, index, ValueFormatBoolean, valueToPass);
             return;
         }
         
@@ -3493,7 +3526,7 @@ private:
     void linkOSRExitsAndCompleteInitializationBlocks()
     {
         MacroAssemblerCodeRef osrExitThunk =
-            vm().getCTIStub(osrExitGenerationThunkGenerator);
+            vm().getCTIStub(osrExitGenerationWithoutStackMapThunkGenerator);
         CodeLocationLabel target = CodeLocationLabel(osrExitThunk.code());
         
         m_out.appendTo(m_prologue);
@@ -3506,10 +3539,10 @@ private:
                 vm(), &m_exitThunkGenerator, m_ftlState.graph.m_codeBlock,
                 JITCompilationMustSucceed));
         
-            ASSERT(m_ftlState.osrExit.size() == m_ftlState.jitCode->osrExit.size());
+            ASSERT(m_ftlState.finalizer->osrExit.size() == m_ftlState.jitCode->osrExit.size());
         
-            for (unsigned i = 0; i < m_ftlState.osrExit.size(); ++i) {
-                OSRExitCompilationInfo& info = m_ftlState.osrExit[i];
+            for (unsigned i = 0; i < m_ftlState.finalizer->osrExit.size(); ++i) {
+                OSRExitCompilationInfo& info = m_ftlState.finalizer->osrExit[i];
                 OSRExit& exit = m_ftlState.jitCode->osrExit[i];
             
                 linkBuffer->link(info.m_thunkJump, target);
@@ -3522,7 +3555,7 @@ private:
                 exit.m_patchableCodeOffset = linkBuffer->offsetOf(info.m_thunkJump);
             }
         
-            m_ftlState.finalizer->initializeExitThunksLinkBuffer(linkBuffer.release());
+            m_ftlState.finalizer->exitThunksLinkBuffer = linkBuffer.release();
         }
 
         m_out.jump(lowBlock(m_graph.block(0)));
