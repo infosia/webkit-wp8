@@ -82,7 +82,7 @@ public:
     // is defined differently for Obj C and C++. This allows callers from both languages.
     static PlatformCALayer* platformCALayer(void* platformLayer);
 
-    PlatformLayer* platformLayer() const { return m_layer.get(); }
+    virtual PlatformLayer* platformLayer() const { return m_layer.get(); }
 
     virtual bool usesTiledBackingLayer() const = 0;
 
@@ -96,6 +96,7 @@ public:
     virtual void setContentsChanged() = 0;
 
     LayerType layerType() const { return m_layerType; }
+    virtual bool isRemote() const { return false; }
 
     virtual PlatformCALayer* superlayer() const = 0;
     virtual void removeFromSuperlayer() = 0;
@@ -175,8 +176,6 @@ public:
 
     virtual void setName(const String&) = 0;
 
-    virtual void setFrame(const FloatRect&) = 0;
-
     virtual void setSpeed(float) = 0;
 
     virtual void setTimeOffset(CFTimeInterval) = 0;
@@ -200,8 +199,9 @@ public:
 #endif
 
 protected:
-    PlatformCALayer(PlatformCALayerClient* owner)
-        : m_owner(owner)
+    PlatformCALayer(LayerType layerType, PlatformCALayerClient* owner)
+        : m_layerType(layerType)
+        , m_owner(owner)
     {
 
     }

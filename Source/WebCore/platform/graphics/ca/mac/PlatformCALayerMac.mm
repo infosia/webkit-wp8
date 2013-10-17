@@ -141,10 +141,10 @@ void PlatformCALayerMac::setOwner(PlatformCALayerClient* owner)
         [static_cast<WebAnimationDelegate*>(m_delegate.get()) setOwner:this];        
 }
 
-static NSDictionary* nullActionsDictionary()
+static NSDictionary *nullActionsDictionary()
 {
-    NSNull* nullValue = [NSNull null];
-    NSDictionary* actions = [NSDictionary dictionaryWithObjectsAndKeys:
+    NSNull *nullValue = [NSNull null];
+    NSDictionary *actions = [NSDictionary dictionaryWithObjectsAndKeys:
                              nullValue, @"anchorPoint",
                              nullValue, @"anchorPointZ",
                              nullValue, @"bounds",
@@ -161,7 +161,7 @@ static NSDictionary* nullActionsDictionary()
     return actions;
 }
 
-static NSString* toCAFilterType(PlatformCALayer::FilterType type)
+static NSString *toCAFilterType(PlatformCALayer::FilterType type)
 {
     switch (type) {
     case PlatformCALayer::Linear: return kCAFilterLinear;
@@ -172,47 +172,44 @@ static NSString* toCAFilterType(PlatformCALayer::FilterType type)
 }
 
 PlatformCALayerMac::PlatformCALayerMac(LayerType layerType, PlatformLayer* layer, PlatformCALayerClient* owner)
-    : PlatformCALayer(owner)
+    : PlatformCALayer(layer ? LayerTypeCustom : layerType, owner)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     if (layer) {
         if ([layer isKindOfClass:getAVPlayerLayerClass()])
             m_layerType = LayerTypeAVPlayerLayer;
-        else
-            m_layerType = LayerTypeCustom;
         m_layer = layer;
-    } else {
-        m_layerType = layerType;
-    
-        Class layerClass = Nil;
-        switch (layerType) {
-            case LayerTypeLayer:
-            case LayerTypeRootLayer:
-                layerClass = [CALayer class];
-                break;
-            case LayerTypeWebLayer:
-                layerClass = [WebLayer class];
-                break;
-            case LayerTypeTransformLayer:
-                layerClass = [CATransformLayer class];
-                break;
-            case LayerTypeWebTiledLayer:
-                layerClass = [WebTiledLayer class];
-                break;
-            case LayerTypeTiledBackingLayer:
-            case LayerTypePageTiledBackingLayer:
-                layerClass = [WebTiledBackingLayer class];
-                break;
-            case LayerTypeAVPlayerLayer:
-                layerClass = getAVPlayerLayerClass();
-                break;
-            case LayerTypeCustom:
-                break;
-        }
-
-        if (layerClass)
-            m_layer = adoptNS([[layerClass alloc] init]);
+        return;
     }
+
+    Class layerClass = Nil;
+    switch (layerType) {
+    case LayerTypeLayer:
+    case LayerTypeRootLayer:
+        layerClass = [CALayer class];
+        break;
+    case LayerTypeWebLayer:
+        layerClass = [WebLayer class];
+        break;
+    case LayerTypeTransformLayer:
+        layerClass = [CATransformLayer class];
+        break;
+    case LayerTypeWebTiledLayer:
+        layerClass = [WebTiledLayer class];
+        break;
+    case LayerTypeTiledBackingLayer:
+    case LayerTypePageTiledBackingLayer:
+        layerClass = [WebTiledBackingLayer class];
+        break;
+    case LayerTypeAVPlayerLayer:
+        layerClass = getAVPlayerLayerClass();
+        break;
+    case LayerTypeCustom:
+        break;
+    }
+
+    if (layerClass)
+        m_layer = adoptNS([[layerClass alloc] init]);
     
     // Save a pointer to 'this' in the CALayer
     [m_layer.get() setValue:[NSValue valueWithPointer:this] forKey:platformCALayerPointer];
@@ -329,17 +326,17 @@ void PlatformCALayerMac::removeFromSuperlayer()
 
 void PlatformCALayerMac::setSublayers(const PlatformCALayerList& list)
 {
-    // Short circuiting here not only avoids the allocation of sublayers, but avoids <rdar://problem/7390716> (see below)
+    // Short circuiting here avoids the allocation of the array below.
     if (list.size() == 0) {
         removeAllSublayers();
         return;
     }
-    
+
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     NSMutableArray* sublayers = [[NSMutableArray alloc] init];
     for (size_t i = 0; i < list.size(); ++i)
         [sublayers addObject:list[i]->m_layer.get()];
-        
+
     [m_layer.get() setSublayers:sublayers];
     [sublayers release];
     END_BLOCK_OBJC_EXCEPTIONS
@@ -347,13 +344,8 @@ void PlatformCALayerMac::setSublayers(const PlatformCALayerList& list)
 
 void PlatformCALayerMac::removeAllSublayers()
 {
-    // Workaround for <rdar://problem/7390716>: -[CALayer setSublayers:] crashes if sublayers is an empty array, or nil, under GC.
     BEGIN_BLOCK_OBJC_EXCEPTIONS
-    if (objc_collectingEnabled())
-        while ([[m_layer.get() sublayers] count])
-            [[[m_layer.get() sublayers] objectAtIndex:0] removeFromSuperlayer];
-    else
-        [m_layer.get() setSublayers:nil];
+    [m_layer.get() setSublayers:nil];
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -383,19 +375,8 @@ void PlatformCALayerMac::replaceSublayer(PlatformCALayer* reference, PlatformCAL
 
 void PlatformCALayerMac::adoptSublayers(PlatformCALayer* source)
 {
-    // Workaround for <rdar://problem/7390716>: -[CALayer setSublayers:] crashes if sublayers is an empty array, or nil, under GC.
-    NSArray* sublayers = [source->m_layer.get() sublayers];
-    
-    if (objc_collectingEnabled() && ![sublayers count]) {
-        BEGIN_BLOCK_OBJC_EXCEPTIONS
-        while ([[m_layer.get() sublayers] count])
-            [[[m_layer.get() sublayers] objectAtIndex:0] removeFromSuperlayer];
-        END_BLOCK_OBJC_EXCEPTIONS
-        return;
-    }
-    
     BEGIN_BLOCK_OBJC_EXCEPTIONS
-    [m_layer.get() setSublayers:sublayers];
+    [m_layer.get() setSublayers:[source->m_layer.get() sublayers]];
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -699,13 +680,6 @@ void PlatformCALayerMac::setName(const String& value)
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
-void PlatformCALayerMac::setFrame(const FloatRect& value)
-{
-    BEGIN_BLOCK_OBJC_EXCEPTIONS
-    [m_layer.get() setFrame:value];
-    END_BLOCK_OBJC_EXCEPTIONS
-}
-
 void PlatformCALayerMac::setSpeed(float value)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
@@ -746,7 +720,7 @@ void PlatformCALayerMac::synchronouslyDisplayTilesInRect(const FloatRect& rect)
     if (m_layerType != LayerTypeWebTiledLayer)
         return;
 
-    WebTiledLayer *tiledLayer = static_cast<WebTiledLayer*>(m_layer.get());
+    WebTiledLayer *tiledLayer = static_cast<WebTiledLayer *>(m_layer.get());
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     BOOL oldCanDrawConcurrently = [tiledLayer canDrawConcurrently];
@@ -756,10 +730,10 @@ void PlatformCALayerMac::synchronouslyDisplayTilesInRect(const FloatRect& rect)
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
-AVPlayerLayer* PlatformCALayerMac::playerLayer() const
+AVPlayerLayer *PlatformCALayerMac::playerLayer() const
 {
     ASSERT([m_layer.get() isKindOfClass:getAVPlayerLayerClass()]);
-    return (AVPlayerLayer*)m_layer.get();
+    return (AVPlayerLayer *)m_layer.get();
 }
 
 #endif // USE(ACCELERATED_COMPOSITING)

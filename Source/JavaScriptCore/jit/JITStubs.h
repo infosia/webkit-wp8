@@ -110,6 +110,31 @@ struct JITStackFrame {
     // When JIT code makes a call, it pushes its return address just below the rest of the stack.
     ReturnAddressPtr* returnAddressSlot() { return reinterpret_cast<ReturnAddressPtr*>(this) - 1; }
 };
+#elif CPU(ARM64)
+struct JITStackFrame {
+    JITStubArg args[6];
+
+    ReturnAddressPtr thunkReturnAddress;
+
+    void* preservedReturnAddress;
+    void* preservedX19;
+    void* preservedX20;
+    void* preservedX21;
+    void* preservedX22;
+    void* preservedX23;
+    void* preservedX24;
+    void* preservedX25;
+    void* preservedX26;
+    void* preservedX27;
+    void* preservedX28;
+
+    JSStack* stack;
+    CallFrame* callFrame;
+    LegacyProfiler** enabledProfilerReference;
+    VM* vm;
+    
+    ReturnAddressPtr* returnAddressSlot() { return &thunkReturnAddress; }
+};
 #elif OS(WINDOWS) && CPU(X86_64)
 struct JITStackFrame {
     void* shadow[4]; // Shadow space reserved for a callee's parameters home addresses
@@ -309,7 +334,6 @@ struct JITStackFrame {
 #define JIT_STUB
 #endif
 
-extern "C" void ctiVMThrowTrampoline();
 extern "C" void ctiVMHandleException();
 extern "C" void ctiOpThrowNotCaught();
 extern "C" EncodedJSValue ctiTrampoline(void* code, JSStack*, CallFrame*, void* /*unused1*/, void* /*unused2*/, VM*);
@@ -327,41 +351,7 @@ inline bool returnAddressIsInCtiTrampoline(ReturnAddressPtr returnAddress)
 extern "C" void ctiMasmProbeTrampoline();
 #endif
 
-void performPlatformSpecificJITAssertions(VM*);
-
 extern "C" {
-EncodedJSValue JIT_STUB cti_op_get_by_id(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_array_fail(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_custom_stub(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_generic(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_getter_stub(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_proto_fail(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_proto_list(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_proto_list_full(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_self_fail(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_id_string_fail(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_val(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_val_generic(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-EncodedJSValue JIT_STUB cti_op_get_by_val_string(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_push_name_scope(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_push_with_scope(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_handle_watchdog_timer(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_debug(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_pop_scope(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_profile_did_call(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_profile_will_call(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_put_by_index(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_put_by_val(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_put_by_val_generic(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_put_getter_setter(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_tear_off_activation(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_tear_off_arguments(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void JIT_STUB cti_op_throw_static_error(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-#if ENABLE(DFG_JIT)
-void JIT_STUB cti_optimize(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-#endif
-void* JIT_STUB cti_op_throw(STUB_ARGS_DECLARATION) WTF_INTERNAL;
-void* JIT_STUB cti_vm_throw(STUB_ARGS_DECLARATION) REFERENCED_FROM_ASM WTF_INTERNAL;
 
 #if USE(JSVALUE32_64)
 EncodedExceptionHandler JIT_STUB cti_vm_handle_exception(CallFrame*) REFERENCED_FROM_ASM WTF_INTERNAL;
@@ -371,13 +361,7 @@ ExceptionHandler JIT_STUB cti_vm_handle_exception(CallFrame*) REFERENCED_FROM_AS
 
 } // extern "C"
 
-#elif ENABLE(LLINT_C_LOOP)
-
-struct JITStackFrame {
-    VM* vm;
-};
-
-#endif // ENABLE(LLINT_C_LOOP)
+#endif // ENABLE(JIT)
 
 } // namespace JSC
 

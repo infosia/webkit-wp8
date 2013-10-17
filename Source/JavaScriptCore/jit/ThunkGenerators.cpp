@@ -273,66 +273,6 @@ MacroAssemblerCodeRef virtualConstructThunkGenerator(VM* vm)
     return virtualForThunkGenerator(vm, CodeForConstruct);
 }
 
-MacroAssemblerCodeRef stringLengthTrampolineGenerator(VM* vm)
-{
-    JSInterfaceJIT jit(vm);
-    
-#if USE(JSVALUE64)
-    // Check eax is a string
-    JSInterfaceJIT::Jump failureCases1 = jit.emitJumpIfNotJSCell(JSInterfaceJIT::regT0);
-    JSInterfaceJIT::Jump failureCases2 = jit.branchPtr(
-        JSInterfaceJIT::NotEqual, JSInterfaceJIT::Address(
-            JSInterfaceJIT::regT0, JSCell::structureOffset()),
-        JSInterfaceJIT::TrustedImmPtr(vm->stringStructure.get()));
-
-    // Checks out okay! - get the length from the Ustring.
-    jit.load32(
-        JSInterfaceJIT::Address(JSInterfaceJIT::regT0, JSString::offsetOfLength()),
-        JSInterfaceJIT::regT0);
-
-    JSInterfaceJIT::Jump failureCases3 = jit.branch32(
-        JSInterfaceJIT::LessThan, JSInterfaceJIT::regT0, JSInterfaceJIT::TrustedImm32(0));
-
-    // regT0 contains a 64 bit value (is positive, is zero extended) so we don't need sign extend here.
-    jit.emitFastArithIntToImmNoCheck(JSInterfaceJIT::regT0, JSInterfaceJIT::regT0);
-    
-#else // USE(JSVALUE64)
-    // regT0 holds payload, regT1 holds tag
-
-    JSInterfaceJIT::Jump failureCases1 = jit.branch32(
-        JSInterfaceJIT::NotEqual, JSInterfaceJIT::regT1,
-        JSInterfaceJIT::TrustedImm32(JSValue::CellTag));
-    JSInterfaceJIT::Jump failureCases2 = jit.branchPtr(
-        JSInterfaceJIT::NotEqual,
-        JSInterfaceJIT::Address(JSInterfaceJIT::regT0, JSCell::structureOffset()),
-        JSInterfaceJIT::TrustedImmPtr(vm->stringStructure.get()));
-
-    // Checks out okay! - get the length from the Ustring.
-    jit.load32(
-        JSInterfaceJIT::Address(JSInterfaceJIT::regT0, JSString::offsetOfLength()),
-        JSInterfaceJIT::regT2);
-
-    JSInterfaceJIT::Jump failureCases3 = jit.branch32(
-        JSInterfaceJIT::Above, JSInterfaceJIT::regT2, JSInterfaceJIT::TrustedImm32(INT_MAX));
-    jit.move(JSInterfaceJIT::regT2, JSInterfaceJIT::regT0);
-    jit.move(JSInterfaceJIT::TrustedImm32(JSValue::Int32Tag), JSInterfaceJIT::regT1);
-#endif // USE(JSVALUE64)
-
-    jit.ret();
-    
-    JSInterfaceJIT::Call failureCases1Call = jit.makeTailRecursiveCall(failureCases1);
-    JSInterfaceJIT::Call failureCases2Call = jit.makeTailRecursiveCall(failureCases2);
-    JSInterfaceJIT::Call failureCases3Call = jit.makeTailRecursiveCall(failureCases3);
-    
-    LinkBuffer patchBuffer(*vm, &jit, GLOBAL_THUNK_ID);
-    
-    patchBuffer.link(failureCases1Call, FunctionPtr(cti_op_get_by_id_string_fail));
-    patchBuffer.link(failureCases2Call, FunctionPtr(cti_op_get_by_id_string_fail));
-    patchBuffer.link(failureCases3Call, FunctionPtr(cti_op_get_by_id_string_fail));
-    
-    return FINALIZE_CODE(patchBuffer, ("string length trampoline"));
-}
-
 static MacroAssemblerCodeRef nativeForGenerator(VM* vm, CodeSpecializationKind kind)
 {
     int executableOffsetToFunction = NativeExecutable::offsetOfNativeFunctionFor(kind);
@@ -404,6 +344,32 @@ static MacroAssemblerCodeRef nativeForGenerator(VM* vm, CodeSpecializationKind k
 
     jit.addPtr(JSInterfaceJIT::TrustedImm32(4 * sizeof(int64_t) + 16 - sizeof(int64_t)), JSInterfaceJIT::stackPointerRegister);
 #endif
+
+#elif CPU(ARM64)
+    COMPILE_ASSERT(ARM64Registers::x3 != JSInterfaceJIT::regT1, prev_callframe_not_trampled_by_T1);
+    COMPILE_ASSERT(ARM64Registers::x3 != JSInterfaceJIT::regT3, prev_callframe_not_trampled_by_T3);
+    COMPILE_ASSERT(ARM64Registers::x0 != JSInterfaceJIT::regT3, T3_not_trampled_by_arg_0);
+    COMPILE_ASSERT(ARM64Registers::x1 != JSInterfaceJIT::regT3, T3_not_trampled_by_arg_1);
+    COMPILE_ASSERT(ARM64Registers::x2 != JSInterfaceJIT::regT3, T3_not_trampled_by_arg_2);
+
+    // Load caller frame's scope chain into this callframe so that whatever we call can
+    // get to its global data.
+    jit.emitGetFromCallFrameHeaderPtr(JSStack::CallerFrame, ARM64Registers::x3);
+    jit.emitGetFromCallFrameHeaderPtr(JSStack::ScopeChain, JSInterfaceJIT::regT1, ARM64Registers::x3);
+    jit.emitPutCellToCallFrameHeader(JSInterfaceJIT::regT1, JSStack::ScopeChain);
+
+    jit.preserveReturnAddressAfterCall(JSInterfaceJIT::regT3); // Callee preserved
+    jit.emitPutToCallFrameHeader(ARM64Registers::lr, JSStack::ReturnPC);
+
+    // Host function signature: f(ExecState*);
+    jit.move(JSInterfaceJIT::callFrameRegister, ARM64Registers::x0);
+
+    jit.emitGetFromCallFrameHeaderPtr(JSStack::Callee, ARM64Registers::x1);
+    jit.loadPtr(JSInterfaceJIT::Address(ARM64Registers::x1, JSFunction::offsetOfExecutable()), ARM64Registers::x2);
+    jit.move(ARM64Registers::x3, JSInterfaceJIT::callFrameRegister); // Eagerly restore caller frame register to avoid loading from stack.
+    jit.call(JSInterfaceJIT::Address(ARM64Registers::x2, executableOffsetToFunction));
+
+    jit.restoreReturnAddressBeforeReturn(JSInterfaceJIT::regT3);
 
 #elif CPU(ARM)
     // Load caller frame's scope chain into this callframe so that whatever we call can
@@ -755,6 +721,23 @@ double jsRound(double d)
         MathThunkCallingConvention function##Thunk(MathThunkCallingConvention); \
     } \
     static MathThunk UnaryDoubleOpWrapper(function) = &function##Thunk;
+
+#elif CPU(ARM64)
+
+#define defineUnaryDoubleOpWrapper(function) \
+    asm( \
+        ".text\n" \
+        ".align 2\n" \
+        ".globl " SYMBOL_STRING(function##Thunk) "\n" \
+        HIDE_SYMBOL(function##Thunk) "\n" \
+        SYMBOL_STRING(function##Thunk) ":" "\n" \
+        "b " GLOBAL_REFERENCE(function) "\n" \
+    ); \
+    extern "C" { \
+        MathThunkCallingConvention function##Thunk(MathThunkCallingConvention); \
+    } \
+    static MathThunk UnaryDoubleOpWrapper(function) = &function##Thunk;
+
 #else
 
 #define defineUnaryDoubleOpWrapper(function) \
@@ -782,6 +765,14 @@ MacroAssemblerCodeRef floorThunkGenerator(VM* vm)
     jit.returnInt32(SpecializedThunkJIT::regT0);
     nonIntJump.link(&jit);
     jit.loadDoubleArgument(0, SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0);
+#if CPU(ARM64)
+    SpecializedThunkJIT::JumpList doubleResult;
+    jit.floorDouble(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::fpRegT0);
+    jit.branchConvertDoubleToInt32(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0, doubleResult, SpecializedThunkJIT::fpRegT1);
+    jit.returnInt32(SpecializedThunkJIT::regT0);
+    doubleResult.link(&jit);
+    jit.returnDouble(SpecializedThunkJIT::fpRegT0);
+#else
     SpecializedThunkJIT::Jump intResult;
     SpecializedThunkJIT::JumpList doubleResult;
     if (jit.supportsFloatingPointTruncate()) {
@@ -801,6 +792,7 @@ MacroAssemblerCodeRef floorThunkGenerator(VM* vm)
     jit.returnInt32(SpecializedThunkJIT::regT0);
     doubleResult.link(&jit);
     jit.returnDouble(SpecializedThunkJIT::fpRegT0);
+#endif // CPU(ARM64)
     return jit.finalize(vm->jitStubs->ctiNativeCall(vm), "floor");
 }
 
@@ -814,7 +806,11 @@ MacroAssemblerCodeRef ceilThunkGenerator(VM* vm)
     jit.returnInt32(SpecializedThunkJIT::regT0);
     nonIntJump.link(&jit);
     jit.loadDoubleArgument(0, SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0);
+#if CPU(ARM64)
+    jit.ceilDouble(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::fpRegT0);
+#else
     jit.callDoubleToDoublePreservingReturn(UnaryDoubleOpWrapper(ceil));
+#endif // CPU(ARM64)
     SpecializedThunkJIT::JumpList doubleResult;
     jit.branchConvertDoubleToInt32(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0, doubleResult, SpecializedThunkJIT::fpRegT1);
     jit.returnInt32(SpecializedThunkJIT::regT0);

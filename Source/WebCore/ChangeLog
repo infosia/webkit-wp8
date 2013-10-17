@@ -1,3 +1,755 @@
+2013-10-17  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Comment AffineTransform::xScale() and yScale() to make their meanings clearer
+        https://bugs.webkit.org/show_bug.cgi?id=122981
+
+        Reviewed by Simon Fraser.
+
+        * platform/graphics/transforms/AffineTransform.h:
+
+2013-10-17  Vivek Galatage  <vivek.vg@samsung.com>
+
+        Remove unnecessary check for RenderLayer and rename ensureLayer to createLayer in RenderLayerModelObject.
+        https://bugs.webkit.org/show_bug.cgi?id=122928
+
+        Reviewed by Darin Adler.
+
+        No new tests due to code refactoring.
+
+        RenderLayerModelObject::styleDidChange invokes the ensureLayer() only in case of !layer().
+        Again checking for layer existence would be deemed redundant in ensureLayer.
+        Replacing it with an ASSERT(!m_layer) and also renaming it to createLayer.
+
+        Blink review URL: https://codereview.chromium.org/27246003/
+
+        * rendering/RenderLayerModelObject.cpp:
+        (WebCore::RenderLayerModelObject::createLayer):
+        (WebCore::RenderLayerModelObject::styleDidChange):
+        * rendering/RenderLayerModelObject.h:
+
+2013-10-17  Tim Horton  <timothy_horton@apple.com>
+
+        Remove PlatformCALayerMac workaround for <rdar://problem/7390716>
+        https://bugs.webkit.org/show_bug.cgi?id=122983
+
+        Reviewed by Simon Fraser.
+
+        Remove a workaround for a bug fixed in Lion.
+
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (PlatformCALayerMac::setSublayers):
+        (PlatformCALayerMac::removeAllSublayers):
+        (PlatformCALayerMac::adoptSublayers):
+
+2013-10-17  Robert Hogan  <robert@webkit.org>
+
+        "border-collapse: collapse;" for table removes part of its border (was: Border disappears when close to some elements)
+        https://bugs.webkit.org/show_bug.cgi?id=8914
+
+        Reviewed by David Hyatt.
+
+        The table section's side of a collapsed border won't get painted if there are no cells there to paint it. So instead
+        of relying solely on cells to paint the collapsed border paint the appropriate section of the border if there's no
+        cell to take care of it.
+
+        Tests: fast/table/paint-section-borders-without-cells-rtl.html
+               fast/table/paint-section-borders-without-cells-vertical-lr-rtl.html
+               fast/table/paint-section-borders-without-cells-vertical-lr.html
+               fast/table/paint-section-borders-without-cells-vertical-rl.html
+               fast/table/paint-section-borders-without-cells.html
+
+        * rendering/RenderTableSection.cpp:
+        (WebCore::RenderTableSection::paintRowGroupBorder):
+        (WebCore::RenderTableSection::offsetLeftForRowGroupBorder):
+        (WebCore::RenderTableSection::offsetTopForRowGroupBorder):
+        (WebCore::RenderTableSection::verticalRowGroupBorderHeight):
+        (WebCore::RenderTableSection::horizontalRowGroupBorderWidth):
+        (WebCore::RenderTableSection::paintRowGroupBorderIfRequired):
+        (WebCore::physicalBorderForDirection):
+        (WebCore::RenderTableSection::paintObject):
+        * rendering/RenderTableSection.h:
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        StyleRuleFoo::mutableProperties() should return a reference.
+        <https://webkit.org/b/122962>
+
+        The mutableProperties() functions always return objects, so make
+        them return MutableStylePropertySet&.
+
+        Also tweaked the StyleRuleCSSStyleDeclaration constructor to take
+        references to both the properties and the owner rule since both
+        are required.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-17  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Improve the performance of image valued shapes with large shape-margins
+        https://bugs.webkit.org/show_bug.cgi?id=122613
+
+        Reviewed by Andreas Kling.
+
+        The cost of computing the shape-margin boundary of an image-valued shape-outside
+        is now proportional to (2 * shape-margin + image.height) rather than
+        (2 * shape-margin * image.height). The performance improvement comes from skipping
+        sequences of rounded-rectangle intervals that will not contribute to the final
+        result. Each non-empty row in the original image contributes one rounded-rectangle
+        whose corner radius is shape-margin, height is 2 * shape-margin, and width is
+        2 * shape-margin plus the width of the limits of the intervals on the row.
+
+        Renamed private method RasterShape::getIntervals() to intervalsAt() to be a little
+        more consistent with WebKit naming conventions.
+
+        There are no new tests since is just an internal refactoring.
+
+        * rendering/shapes/RasterShape.cpp:
+        (WebCore::MarginIntervalGenerator::set): Changed the x1,x2 parameters to an IntShapeInterval.
+        (WebCore::RasterShapeIntervals::contains): Refactor for the getIntervals() => intervalsAt() rename.
+        (WebCore::RasterShapeIntervals::getIntervalX1Values): Ditto.
+        (WebCore::RasterShapeIntervals::getIncludedIntervals): Ditto.
+        (WebCore::RasterShapeIntervals::getExcludedIntervals): Ditto.
+        (WebCore::RasterShapeIntervals::computeShapeMarginIntervals): Performance tuning.
+        * rendering/shapes/RasterShape.h:
+        (WebCore::RasterShapeIntervals::intervalsAt): Renamed getIntervals().
+        (WebCore::RasterShapeIntervals::limitIntervalAt): Return the min/max limits of the intervals at Y.
+        * rendering/shapes/ShapeInterval.h:
+        (WebCore::ShapeInterval::isEmpty): Added.
+
+2013-10-15  Philippe Normand  <pnormand@igalia.com>
+
+        [GTK] Add URLMediaStream in the build
+        https://bugs.webkit.org/show_bug.cgi?id=122833
+
+        Reviewed by Carlos Garcia Campos.
+
+        * GNUmakefile.am: Add mediastream/gstreamer in include directories list.
+        * GNUmakefile.list.am: Add DOMURLMediaStream files in the build.
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        Use PassRef for constructing StylePropertySets.
+        <https://webkit.org/b/122948>
+
+        Make functions that construct StylePropertySets return PassRef
+        instead of PassRefPtr. Since they never return null, this gets rid
+        of the extra branch in ~PassRefPtr everywhere.
+
+        Also StyleRule* classes now hold a Ref<StylePropertySet>, codifying
+        the fact that they always have a property set.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        DataRef<T> should use Ref<T> internally.
+        <https://webkit.org/b/122953>
+
+        DataRef is used to hold RenderStyle substructures, and due to the
+        way style inheritance is implemented, DataRef will always point to
+        a live object.
+
+        Codify this by making DataRef::m_data a Ref, and making all methods
+        that create substructure objects return PassRef.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-17  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSS Regions] Anonymous nested regions
+        https://bugs.webkit.org/show_bug.cgi?id=119135
+
+        Reviewed by David Hyatt.
+
+        Tests: fast/regions/table-caption-as-region.html
+               fast/regions/table-cell-as-region.html
+
+        This patch allows any non-replaced block to behave like a region. When an element is styled with the
+        -webkit-flow-from property, instead of making the renderer a RenderRegion, we let the original
+        renderer be created the same way and we add a region as an anonymous child for the renderer.
+        The anonymous block child, modeled by the new RenderNamedFlowFragment class, will be responsible
+        for the fragmentation of the named flow thread content.
+
+        A RenderBlockFlow object will keep a reference to a RenderNamedFlowFragment(RenderRegion) inside its
+        rare data structures.
+
+        Contains code contributed by Catalin Badea.
+ 
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.xcodeproj/project.pbxproj:
+        * dom/Element.cpp: Changed to take the anonymous region into account.
+        (WebCore::Element::renderRegion):
+        (WebCore::Element::webkitGetRegionFlowRanges):
+        * dom/WebKitNamedFlow.cpp: Ditto.
+        (WebCore::WebKitNamedFlow::firstEmptyRegionIndex):
+        (WebCore::WebKitNamedFlow::getRegionsByContent):
+        (WebCore::WebKitNamedFlow::getRegions):
+        * inspector/InspectorOverlay.cpp: Take into account the new model for regions, with an anonymous region inside a block.
+        (WebCore::buildObjectForRegionHighlight):
+        (WebCore::buildObjectForElementInfo):
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::computeShapeSize): For a render named flow fragment, there is no need to recompute the shape inside
+        we can take it from the parent.
+        (WebCore::RenderBlock::renderName): Make the block that contains a render named flow fragment (region) report RenderRegion.
+        A future patch that will change this will need to rebase a lot of tests.
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::insertedIntoTree): Create the anonymous region if needed (change of -webkit-flow-from determines Node reattach).
+        (WebCore::RenderBlockFlow::willBeDestroyed): Clean-up the anonymous region if necessary.
+        (WebCore::RenderBlockFlow::clearFloats): Small style change to make sure that check-webkit-style reports 0 failures on RenderBlockFlow.cpp.
+        (WebCore::RenderBlockFlow::layoutBlock):
+        (WebCore::RenderBlockFlow::styleDidChange): Update the style of the anonymous region too.
+        (WebCore::RenderBlockFlow::createRenderNamedFlowFragmentIfNeeded): Helper function to create the anonymous region
+        and to add it as a child to the block.
+        (WebCore::RenderBlockFlow::canHaveChildren):
+        (WebCore::RenderBlockFlow::canHaveGeneratedChildren):
+        (WebCore::RenderBlockFlow::namedFlowFragmentNeedsUpdate): Force a layout of the anonymous region if the
+        parent block has percentage height (similar to RenderBlock::updateBlockChildDirtyBitsBeforeLayout)
+        (WebCore::RenderBlockFlow::updateLogicalHeight): Update the logical height of anonymous region when the height of parent is updated.
+        (WebCore::RenderBlockFlow::setRenderNamedFlowFragment):
+        * rendering/RenderBlockFlow.h:
+        (WebCore::RenderBlockFlow::RenderBlockFlowRareData::RenderBlockFlowRareData):
+        (WebCore::RenderBlockFlow::renderNamedFlowFragment):
+        * rendering/RenderElement.cpp:
+        (WebCore::RenderElement::createFor): Remove the direct creation of RenderRegion objects since they will be
+        created as anonymous children of block flow objects.
+        * rendering/RenderElement.h:
+        (WebCore::RenderElement::generatingElement): Account for anonymous region if necessary.
+        * rendering/RenderFlowThread.cpp:
+        (WebCore::RenderFlowThread::adjustedPositionRelativeToOffsetParent): Take anonymous region into account
+        and use the anonymous region parent offset/border.
+        * rendering/RenderLayer.cpp:
+        (WebCore::RenderLayer::shouldBeNormalFlowOnly): Check for style instead of isRenderRegion since
+        the parent of the anonymous region will get the layer.
+        * rendering/RenderListItem.cpp:
+        (WebCore::RenderListItem::insertedIntoTree): Call RenderBlockFlow method instead.
+        * rendering/RenderNamedFlowFragment.cpp: Added. Model the behaviour of the anonymous region.
+        Has RenderRegion as a base class.
+        (WebCore::RenderNamedFlowFragment::RenderNamedFlowFragment):
+        (WebCore::RenderNamedFlowFragment::~RenderNamedFlowFragment):
+        (WebCore::RenderNamedFlowFragment::setStyleForNamedFlowFragment):
+        (WebCore::RenderNamedFlowFragment::styleDidChange):
+        (WebCore::RenderNamedFlowFragment::shouldHaveAutoLogicalHeight):
+        (WebCore::RenderNamedFlowFragment::maxPageLogicalHeight):
+        * rendering/RenderNamedFlowFragment.h: Added.
+        (WebCore::RenderNamedFlowFragment::isPseudoElementRegion):
+        (WebCore::RenderNamedFlowFragment::renderName):
+        (WebCore::toRenderNamedFlowFragment):
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::isRenderNamedFlowFragmentContainer):
+        * rendering/RenderObject.h:
+        (WebCore::RenderObject::isRenderNamedFlowFragment):
+        * rendering/RenderRegion.h:
+        * rendering/RenderTableCaption.cpp: Call RenderBlockFlow method instead.
+        (WebCore::RenderTableCaption::insertedIntoTree):
+        * rendering/RenderTreeAsText.cpp:
+        (WebCore::write):
+        (WebCore::writeRenderRegionList):
+        * rendering/shapes/ShapeInfo.h:
+        (WebCore::ShapeInfo::shapeSize):
+        * style/StyleResolveTree.cpp:
+        (WebCore::Style::elementInsideRegionNeedsRenderer):
+
+2013-10-17  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Properly expose tables in accessibility
+        https://bugs.webkit.org/show_bug.cgi?id=122894
+
+        Reviewed by Chris Fleizach.
+
+        All tables should exposed as tables.
+
+        * accessibility/AccessibilityTable.cpp:
+        (WebCore::AccessibilityTable::isTableExposableThroughAccessibility):
+        (WebCore::AccessibilityTable::addChildren):
+        * accessibility/AccessibilityTableColumn.cpp:
+        (WebCore::AccessibilityTableColumn::computeAccessibilityIsIgnored):
+        * accessibility/AccessibilityTableHeaderContainer.cpp:
+        (WebCore::AccessibilityTableHeaderContainer::computeAccessibilityIsIgnored):
+
+2013-10-17  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Too many arguments for format in WebKitWebAudioSourceGStreamer.cpp
+        https://bugs.webkit.org/show_bug.cgi?id=122932
+
+        Reviewed by Philippe Normand.
+
+        No new tests because this just fixes a build warning.
+
+        * platform/audio/gstreamer/WebKitWebAudioSourceGStreamer.cpp:
+        (webKitWebAudioSrcLoop): Add another %s for the second part of the pad name.
+
+2013-10-16  Tim Horton  <timothy_horton@apple.com>
+
+        Attempt to fix the Windows build after http://trac.webkit.org/changeset/157547.
+
+        The relevant conversion doesn't happen implicitly.
+
+        * platform/graphics/win/MediaPlayerPrivateFullscreenWindow.cpp:
+        (WebCore::MediaPlayerPrivateFullscreenWindow::setRootChildLayer):
+        (WebCore::MediaPlayerPrivateFullscreenWindow::wndProc):
+
+2013-10-16  Tim Horton  <timothy_horton@apple.com>
+
+        Attempt to fix the Windows build after http://trac.webkit.org/changeset/157547.
+
+        Apparently some Windows code uses setFrame and I missed it.
+
+        * platform/graphics/win/MediaPlayerPrivateFullscreenWindow.cpp:
+        (WebCore::MediaPlayerPrivateFullscreenWindow::setRootChildLayer):
+        (WebCore::MediaPlayerPrivateFullscreenWindow::wndProc):
+
+2013-10-16  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Complete support for simple layer properties
+        https://bugs.webkit.org/show_bug.cgi?id=122933
+
+        Reviewed by Anders Carlsson.
+
+        No new tests, not yet testable.
+
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayerCA::setName):
+        Don't dump the CALayer pointer if we own a PlatformCALayerRemote.
+
+        (WebCore::GraphicsLayerCA::recursiveCommitChanges):
+        Fix the visible tile wash (my fault!), and make it use setPosition and
+        setBounds instead of setFrame; while more convenient, it is the only
+        caller of setFrame, so we'll remove it.
+
+        * platform/graphics/ca/PlatformCALayer.h:
+        (WebCore::PlatformCALayer::isRemote): Added.
+
+        * platform/graphics/ca/mac/PlatformCALayerMac.h:
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (nullActionsDictionary):
+        (toCAFilterType):
+        (PlatformCALayerMac::synchronouslyDisplayTilesInRect):
+        (PlatformCALayerMac::playerLayer):
+        Remove setFrame, fix some pointer sides.
+
+        * platform/graphics/ca/win/PlatformCALayerWin.cpp:
+        * platform/graphics/ca/win/PlatformCALayerWin.h:
+        Remove setFrame.
+
+2013-10-16  Andreas Kling  <akling@apple.com>
+
+        Take RenderObjects out of the arena.
+        <https://webkit.org/b/122895>
+
+        Reviewed by Antti Koivisto.
+
+        Stop arena-allocating renderers so we can move forward on improving
+        render tree memory management. This will also allow rendering code
+        to take advantage of malloc optimizations.
+
+        Line boxes and BiDi runs remain in the arena for now.
+
+2013-10-16  Roger Fong  <roger_fong@apple.com>
+
+        [Windows] Speculative fix for test, media/video-canvas-drawing-output.html.
+
+        * platform/graphics/avfoundation/cf/MediaPlayerPrivateAVFoundationCF.cpp:
+        (WebCore::AVFWrapper::createImageForTimeInRect):
+
+2013-10-16  Tim Horton  <timothy_horton@apple.com>
+
+        PlatformCALayer constructor should take layer type as an argument
+        https://bugs.webkit.org/show_bug.cgi?id=122915
+
+        Reviewed by Simon Fraser.
+
+        No new tests, just a minor refactoring.
+
+        * platform/graphics/ca/PlatformCALayer.h:
+        (WebCore::PlatformCALayer::PlatformCALayer):
+        Add a LayerType argument.
+
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (PlatformCALayerMac::PlatformCALayerMac):
+        * platform/graphics/ca/win/PlatformCALayerWin.cpp:
+        (PlatformCALayerWin::PlatformCALayerWin):
+        Use the new LayerType argument, and early-return in the case where we
+        are wrapping a custom PlatformLayer.
+        Drive-by un-indent the switch in the Mac version.
+
+2013-10-15  Brady Eidson  <beidson@apple.com>
+
+        Flesh out the DatabaseProcess (and launch it!)
+        https://bugs.webkit.org/show_bug.cgi?id=122884
+
+        Reviewed by Tim Horton.
+
+        * English.lproj/Localizable.strings: Add a localizable string.
+        * WebCore.xcodeproj/project.pbxproj: Export some more headers.
+
+2013-10-16  Tim Horton  <timothy_horton@apple.com>
+
+        RemoteLayerTree: Add support for more layer properties and transform layers
+        https://bugs.webkit.org/show_bug.cgi?id=122906
+
+        Reviewed by Anders Carlsson.
+
+        No new tests, this code is not yet testable.
+
+        * WebCore.exp.in:
+        Export some TextStream and TransformationMatrix stuff.
+
+2013-10-16  KyungTae Kim  <ktf.kim@samsung.com>
+
+        During editing, merge inline style with overriding other author styles
+        https://bugs.webkit.org/show_bug.cgi?id=122874
+
+        Reviewed by Ryosuke Niwa.
+
+        Inline styles need to override other author styles even on DoNotOverrideValues mode.
+        So, merge and override inline styles to other author styles before merging them to m_mutableStyle.
+
+        Test: editing/deleting/merge-div-with-inline-style.html
+
+        * editing/EditingStyle.cpp:
+        (WebCore::EditingStyle::mergeInlineAndImplicitStyleOfElement):
+
+2013-10-16  peavo@outlook.com  <peavo@outlook.com>
+
+        Emphasis marks has wrong color.
+        https://bugs.webkit.org/show_bug.cgi?id=122829
+
+        Reviewed by Antti Koivisto.
+
+        Tests: fast/text/text-emphasis.html.
+               fast/text/text-emphasis-expected.html.
+
+        Emphasis color should be set as fill color, not stroke color.
+
+        * rendering/TextPaintStyle.cpp:
+        (WebCore::updateGraphicsContext):
+        * rendering/TextPaintStyle.h:
+
+2013-10-16  Antti Koivisto  <antti@apple.com>
+
+        Move code for finding rendered character offset to RenderTextLineBoxes
+        https://bugs.webkit.org/show_bug.cgi?id=122892
+
+        Reviewed by Andreas Kling.
+
+        * rendering/RenderText.cpp:
+        (WebCore::RenderText::countRenderedCharacterOffsets):
+        (WebCore::RenderText::containsRenderedCharacterOffset):
+        
+            Renamed for consistency.
+
+        * rendering/RenderTextLineBoxes.cpp:
+        (WebCore::RenderTextLineBoxes::countCharacterOffsets):
+        
+            This used to be Position::renderedPosition.
+
+2013-10-16  Andreas Kling  <akling@apple.com>
+
+        RenderElement::removeChild() should take child as a reference.
+        <https://webkit.org/b/122888>
+
+        We can't remove a child without a child to remove.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-16  Antti Koivisto  <antti@apple.com>
+
+        Move test for contained caret offset to RenderTextLineBoxes
+        https://bugs.webkit.org/show_bug.cgi?id=122887
+
+        Reviewed by Andreas Kling.
+
+        * dom/Position.cpp:
+        (WebCore::Position::renderedOffset):
+        (WebCore::Position::isCandidate):
+        
+            Remove isRenderedText, call RenderText::containsCaretOffset instead.
+
+        (WebCore::Position::isRenderedCharacter):
+        (WebCore::Position::rendersInDifferentPosition):
+        * dom/Position.h:
+        * dom/PositionIterator.cpp:
+        (WebCore::PositionIterator::isCandidate):
+        * rendering/InlineTextBox.cpp:
+        * rendering/InlineTextBox.h:
+        * rendering/RenderText.cpp:
+        (WebCore::RenderText::containsCharacterOffset):
+        (WebCore::RenderText::containsCaretOffset):
+        * rendering/RenderText.h:
+        * rendering/RenderTextLineBoxes.cpp:
+        (WebCore::RenderTextLineBoxes::containsOffset):
+        
+            Combined implementations of Position::isRenderedCharacter and Position::isRenderedText.
+
+        * rendering/RenderTextLineBoxes.h:
+        
+            Remove containsCaretOffset(), functionality is now in RenderTextLineBoxes::containsOffset.
+
+2013-10-16  Andreas Kling  <akling@apple.com>
+
+        RenderElement::isChildAllowed() should take const references.
+        <https://webkit.org/b/122870>
+
+        Reviewed by Anders Carlsson.
+
+        The isChildAllowed() functions expect non-null values to be passed,
+        so enforce this at compile-time.
+
+        Reordered some checks to do bit tests before virtual calls.
+
+2013-10-15  Philippe Normand  <pnormand@igalia.com>
+
+        [GStreamer] video info unset if upstream doesn't query allocation
+        https://bugs.webkit.org/show_bug.cgi?id=122834
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * platform/graphics/gstreamer/VideoSinkGStreamer.cpp:
+        (webkitVideoSinkRender): If the sink didn't process any allocation
+        query then use the configured source pad caps and don't rely on
+        invalid video info.
+
+2013-10-16  Philippe Normand  <pnormand@igalia.com>
+
+        [GStreamer] move Logging.h include to GStreamerUtilities.h
+        https://bugs.webkit.org/show_bug.cgi?id=122886
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Include Logging.h from GStreamerUtilities.h so the modules using
+        the LOG_MEDIA macros don't need to bother, especially for Debug builds.
+
+        * platform/graphics/gstreamer/GStreamerUtilities.h:
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp:
+
+2013-10-16  Mark Rowe  <mrowe@apple.com>
+
+        Fix the build after r157478.
+
+        Rubber-stamped by Tim Horton.
+
+        Due to the way WebCore.exp.in is used, it can't be used to export a differing set of symbols
+        for different architectures. We often work around this by tweaking code slightly to avoid
+        needing to export different symbols. However, in this case the symbol name itself encodes an
+        architecture-specific detail and there's no clear way to avoid the requirement to export it.
+
+        To deal with this case we turn to ld's support for wildcards in the symbol export list.
+
+        * WebCore.exp.in: Use wildcards in place of the number that represents by how much "this"
+        should be adjusted when calling through the vtable thunk. Also sort the remainder of the file.
+        * make-export-file-generator: Don't attempt to verify symbol names that contain wildcard characters.
+
+2013-10-15  Tim Horton  <timothy_horton@apple.com>
+
+        Two more exports for 32-bit build fix.
+        The duality of CGFloat means that we use a different
+        version of getRGBA (and the cast operator)
+        on 32-bit systems.
+
+        * WebCore.exp.in:
+
+2013-10-15  Tim Horton  <timothy_horton@apple.com>
+
+        Another shot at a build fix; apparently these
+        do need exporting for some reason, but are different
+        on 32-bit.
+
+        * WebCore.exp.in:
+
+2013-10-15  Alexey Proskuryakov  <ap@apple.com>
+
+        GenerateIsReachable=ImplContext is confusing
+        https://bugs.webkit.org/show_bug.cgi?id=122864
+
+        Reviewed by Geoffrey Garen.
+
+        Renamed to ImplWebGLRenderingContext.
+
+        * bindings/scripts/CodeGeneratorJS.pm:
+        (GenerateImplementation):
+        * bindings/scripts/IDLAttributes.txt:
+        * html/canvas/EXTDrawBuffers.idl:
+        * html/canvas/EXTTextureFilterAnisotropic.idl:
+        * html/canvas/OESElementIndexUint.idl:
+        * html/canvas/OESStandardDerivatives.idl:
+        * html/canvas/OESTextureFloat.idl:
+        * html/canvas/OESTextureHalfFloat.idl:
+        * html/canvas/OESVertexArrayObject.idl:
+        * html/canvas/WebGLCompressedTextureATC.idl:
+        * html/canvas/WebGLCompressedTexturePVRTC.idl:
+        * html/canvas/WebGLCompressedTextureS3TC.idl:
+        * html/canvas/WebGLDebugRendererInfo.idl:
+        * html/canvas/WebGLDebugShaders.idl:
+        * html/canvas/WebGLDepthTexture.idl:
+        * html/canvas/WebGLLoseContext.idl:
+
+        * WebCore.xcodeproj/project.pbxproj: While at it, added OESElementIndexUint.idl
+        to Xcode project.
+
+2013-10-15  Tim Horton  <timothy_horton@apple.com>
+
+        Unreviewed build fix; I don't know how to export.
+        This may not help.
+
+        * WebCore.exp.in:
+
+2013-10-15  Dean Jackson  <dino@apple.com>
+
+        Add ENABLE_WEB_ANIMATIONS flag
+        https://bugs.webkit.org/show_bug.cgi?id=122871
+
+        Reviewed by Tim Horton.
+
+        Eventually might be http://dev.w3.org/fxtf/web-animations/
+        but this is just engine-internal work at the moment.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-10-15  Tim Horton  <timothy_horton@apple.com>
+
+        Add a PlatformCALayer subclass that proxies its property changes across the process boundary
+        https://bugs.webkit.org/show_bug.cgi?id=122773
+
+        Reviewed by Anders Carlsson.
+
+        No new tests, the new drawing area is not yet testable.
+
+        * WebCore.exp.in:
+        Export lots of GraphicsLayerCA stuff so we can inherit from it in WebKit2.
+
+        * WebCore.xcodeproj/project.pbxproj:
+        Make PlatformCAFilters.h a private header.
+
+        * platform/graphics/GraphicsLayer.h:
+        (WebCore::GraphicsLayer::initialize):
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayer::create):
+        (WebCore::GraphicsLayerCA::GraphicsLayerCA):
+        (WebCore::GraphicsLayerCA::initialize):
+        * platform/graphics/ca/GraphicsLayerCA.h:
+        Defer creation of the main PlatformCALayer until just after the constructor is finished
+        so that GraphicsLayerCA subclasses can successfully override createPlatformCALayer.
+
+        * platform/graphics/ca/PlatformCALayer.h:
+        (WebCore::PlatformCALayer::platformLayer):
+        Make platformLayer virtual so that subclasses which don't have PlatformLayers can override.
+
+2013-10-14  Ryosuke Niwa  <rniwa@webkit.org>
+
+        REGRESSION: Crash in XMLDocumentParser::startElementNs
+        https://bugs.webkit.org/show_bug.cgi?id=122817
+
+        Reviewed by Darin Adler.
+
+        Exit early in startElementNs when listeners and handlers of synchronous events such as load event
+        removes the inserted node inside parserAppendChild.
+
+        Test: fast/parser/xhtml-synchronous-detach-crash.html
+
+        * xml/parser/XMLDocumentParserLibxml2.cpp:
+        (WebCore::XMLDocumentParser::startElementNs):
+
+2013-10-15  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Remove old frontend localizedStrings.js
+        https://bugs.webkit.org/show_bug.cgi?id=122846
+
+        Reviewed by Timothy Hatcher.
+
+        * Configurations/WebCore.xcconfig:
+        * English.lproj/localizedStrings.js: Removed.
+        * WebCore.xcodeproj/project.pbxproj:
+        Remove the file and references to it. We no longer need to exclude
+        localizedString.js from some builds.
+
+2013-10-15  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Remove Windows old front-end related code
+        https://bugs.webkit.org/show_bug.cgi?id=122845
+
+        Reviewed by Brent Fulgham.
+
+        * WebCore.vcxproj/copyWebCoreResourceFiles.cmd:
+
+2013-10-15  Morten Stenshorne  <mstensho@opera.com>
+
+        Add support for the column-fill property
+        https://bugs.webkit.org/show_bug.cgi?id=117693
+
+        Reviewed by David Hyatt.
+
+        This is only supported in the (new) region based multicol implementation.
+
+        With column-fill support, a lot of multicol tests needed an update.
+        The old implementation behaved as if column-fill were 'auto', but the
+        initial value is 'balance', so now we need to be explicit about that.
+        For auto-height tests it doesn't really matter - such multicols are always
+        balanced anyway.
+
+        Tests: fast/multicol/newmulticol/fixed-height-fill-auto.html
+               fast/multicol/newmulticol/fixed-height-fill-balance.html
+
+        * css/CSSComputedStyleDeclaration.cpp:
+        (WebCore::ComputedStyleExtractor::propertyValue):
+        * css/CSSParser.cpp:
+        (WebCore::isValidKeywordPropertyAndValue):
+        (WebCore::isKeywordPropertyID):
+        (WebCore::CSSParser::parseValue):
+        * css/CSSPrimitiveValueMappings.h:
+        (WebCore::CSSPrimitiveValue::CSSPrimitiveValue):
+        (WebCore::CSSPrimitiveValue::operator ColumnFill):
+        * css/CSSPropertyNames.in:
+        * css/CSSValueKeywords.in:
+        * css/DeprecatedStyleBuilder.cpp:
+        (WebCore::DeprecatedStyleBuilder::DeprecatedStyleBuilder):
+        * rendering/RenderMultiColumnBlock.h:
+        * rendering/style/RenderStyle.h:
+        * rendering/style/RenderStyleConstants.h:
+        * rendering/style/StyleMultiColData.cpp:
+        (WebCore::StyleMultiColData::StyleMultiColData):
+        (WebCore::StyleMultiColData::operator==):
+        * rendering/style/StyleMultiColData.h:
+
+2013-10-15  Andreas Kling  <akling@apple.com>
+
+        Skip unnecessary null check in RenderText::textLength().
+        <https://webkit.org/b/122841>
+
+        Reviewed by Antti Koivisto.
+
+        RenderText will never have a null String in m_text, so textLength()
+        can grab at the StringImpl directly, avoiding a null check.
+
+2013-10-15  Andreas Kling  <akling@apple.com>
+
+        FontGenericFamilies should not be ref-counted.
+        <https://webkit.org/b/122835>
+
+        Reviewed by Anders Carlsson.
+
+        FontGenericFamilies is singly-owned by Settings.
+
+2013-10-15  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Move RenderBlock::layoutShapeInsideInfo into RenderBlock.cpp
+        http://bugs.webkit.org/show_bug.cgi?id=122843
+
+        Reviewed by Oliver Hunt.
+
+        Historically, layoutShapeInsideInfo was a static function in RenderBlockLineLayout, then it has changed to be a member of RenderBlock,
+        but at that time it hasn't been moved to RenderBlock.cpp. This patch moves it into RenderBlock.cpp next to the Shapes functions. I removed
+        an unnecessary CSS_SHAPES #ifdef as well from RenderBlock.cpp.
+
+        No new tests, no behavior change.
+
+        * rendering/RenderBlock.cpp:
+        (WebCore::RenderBlock::markShapeInsideDescendantsForLayout):
+        (WebCore::RenderBlock::layoutShapeInsideInfo):
+        * rendering/RenderBlockLineLayout.cpp:
+
 2013-10-15  peavo@outlook.com  <peavo@outlook.com>
 
         [WinCairo] Build fails.

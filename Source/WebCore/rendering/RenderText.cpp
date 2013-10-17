@@ -159,7 +159,7 @@ RenderText::RenderText(Text& textNode, const String& text)
     ASSERT(!m_text.isNull());
     setIsText();
     m_canUseSimpleFontCodePath = computeCanUseSimpleFontCodePath();
-    view().frameView().incrementVisuallyNonEmptyCharacterCount(m_text.length());
+    view().frameView().incrementVisuallyNonEmptyCharacterCount(textLength());
 }
 
 RenderText::RenderText(Document& document, const String& text)
@@ -182,7 +182,7 @@ RenderText::RenderText(Document& document, const String& text)
     ASSERT(!m_text.isNull());
     setIsText();
     m_canUseSimpleFontCodePath = computeCanUseSimpleFontCodePath();
-    view().frameView().incrementVisuallyNonEmptyCharacterCount(m_text.length());
+    view().frameView().incrementVisuallyNonEmptyCharacterCount(textLength());
 }
 
 #ifndef NDEBUG
@@ -950,7 +950,7 @@ void RenderText::setTextInternal(const String& text)
 
 void RenderText::secureText(UChar mask)
 {
-    if (!m_text.length())
+    if (!textLength())
         return;
 
     int lastTypedCharacterOffsetToReveal = -1;
@@ -1149,6 +1149,21 @@ int RenderText::caretMinOffset() const
 int RenderText::caretMaxOffset() const
 {
     return m_lineBoxes.caretMaxOffset(*this);
+}
+
+unsigned RenderText::countRenderedCharacterOffsetsUntil(unsigned offset) const
+{
+    return m_lineBoxes.countCharacterOffsetsUntil(offset);
+}
+
+bool RenderText::containsRenderedCharacterOffset(unsigned offset) const
+{
+    return m_lineBoxes.containsOffset(*this, offset, RenderTextLineBoxes::CharacterOffset);
+}
+
+bool RenderText::containsCaretOffset(unsigned offset) const
+{
+    return m_lineBoxes.containsOffset(*this, offset, RenderTextLineBoxes::CaretOffset);
 }
 
 bool RenderText::hasRenderedText() const
