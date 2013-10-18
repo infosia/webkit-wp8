@@ -1,3 +1,385 @@
+2013-10-18  Brady Eidson  <beidson@apple.com>
+
+        Move IDBTransactionBackend operations to the IDBTransactionBackend itself..
+        https://bugs.webkit.org/show_bug.cgi?id=123028
+
+        Reviewed by Alexey Proskuryakov.
+
+        This gets rid of a big blob of LevelDB specific code from IDBDatabaseBackendLevelDB.cpp,
+        bringing us much closer to having it be cross platform.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+
+        * Modules/indexeddb/IDBTransactionBackendInterface.h: Added.
+        (WebCore::IDBTransactionBackendInterface::~IDBTransactionBackendInterface):
+
+        * Modules/indexeddb/leveldb/IDBCursorBackendLevelDB.cpp:
+        (WebCore::IDBCursorBackendLevelDB::CursorAdvanceOperation::perform): Update for new method signature.
+        (WebCore::IDBCursorBackendLevelDB::CursorIterationOperation::perform): Ditto.
+        (WebCore::IDBCursorBackendLevelDB::CursorPrefetchIterationOperation::perform): Ditto.
+
+        * Modules/indexeddb/leveldb/IDBDatabaseBackendLevelDB.cpp: Move all operations into
+          IDBTransactionBackendLevelDBOperations, then start scheduling them using the new
+          IDBTransactionBackendInterface scheduling methods.
+        (WebCore::IDBDatabaseBackendLevelDB::createObjectStore):
+        (WebCore::IDBDatabaseBackendLevelDB::deleteObjectStore):
+        (WebCore::IDBDatabaseBackendLevelDB::createIndex):
+        (WebCore::IDBDatabaseBackendLevelDB::deleteIndex):
+        (WebCore::IDBDatabaseBackendLevelDB::get):
+        (WebCore::IDBDatabaseBackendLevelDB::put):
+        (WebCore::IDBDatabaseBackendLevelDB::setIndexesReady):
+        (WebCore::IDBDatabaseBackendLevelDB::openCursor):
+        (WebCore::IDBDatabaseBackendLevelDB::count):
+        (WebCore::IDBDatabaseBackendLevelDB::deleteRange):
+        (WebCore::IDBDatabaseBackendLevelDB::clear):
+        (WebCore::IDBDatabaseBackendLevelDB::createTransaction):
+        (WebCore::IDBDatabaseBackendLevelDB::runIntVersionChangeTransaction):
+        * Modules/indexeddb/leveldb/IDBDatabaseBackendLevelDB.h: Move definitions of PendingOpenCall and
+          PendingDeleteCall to the header.
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::create):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::callbacks):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::databaseCallbacks):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::version):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::transactionId):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingOpenCall::PendingOpenCall):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingDeleteCall::create):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingDeleteCall::callbacks):
+        (WebCore::IDBDatabaseBackendLevelDB::PendingDeleteCall::PendingDeleteCall):
+
+        * Modules/indexeddb/leveldb/IDBObjectStoreBackendLevelDB.cpp: Add a newly required include.
+        * Modules/indexeddb/leveldb/IDBTransactionCoordinatorLevelDB.cpp: Ditto.
+
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.cpp: Implement the new interface to
+          handle scheduling of operations in a cross platform manner, then rely on the new
+          IDBTransactionBackendLevelDBOperations classes for the actual operations.
+        (WebCore::IDBTransactionBackendLevelDB::create):
+        (WebCore::IDBTransactionBackendLevelDB::IDBTransactionBackendLevelDB):
+        (WebCore::IDBTransactionBackendLevelDB::abort):
+        (WebCore::IDBTransactionBackendLevelDB::taskTimerFired):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleCreateObjectStoreOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleDeleteObjectStoreOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleVersionChangeOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleCreateIndexOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleDeleteIndexOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleGetOperation):
+        (WebCore::IDBTransactionBackendLevelDB::schedulePutOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleSetIndexesReadyOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleOpenCursorOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleCountOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleDeleteRangeOperation):
+        (WebCore::IDBTransactionBackendLevelDB::scheduleClearOperation):
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.h:
+
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDBOperations.cpp: Added.
+          Move all the LevelDB transaction operations from IDBDatabaseBackendLevelDB to here.
+        (WebCore::CreateObjectStoreOperation::perform):
+        (WebCore::CreateIndexOperation::perform):
+        (WebCore::CreateIndexAbortOperation::perform):
+        (WebCore::DeleteIndexOperation::perform):
+        (WebCore::DeleteIndexAbortOperation::perform):
+        (WebCore::GetOperation::perform):
+        (WebCore::PutOperation::perform):
+        (WebCore::SetIndexesReadyOperation::perform):
+        (WebCore::OpenCursorOperation::perform):
+        (WebCore::CountOperation::perform):
+        (WebCore::DeleteRangeOperation::perform):
+        (WebCore::ClearOperation::perform):
+        (WebCore::DeleteObjectStoreOperation::perform):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeOperation::perform):
+        (WebCore::CreateObjectStoreAbortOperation::perform):
+        (WebCore::DeleteObjectStoreAbortOperation::perform):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeAbortOperation::perform):
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDBOperations.h: Added.
+        (WebCore::CreateObjectStoreOperation::create):
+        (WebCore::CreateObjectStoreOperation::CreateObjectStoreOperation):
+        (WebCore::DeleteObjectStoreOperation::create):
+        (WebCore::DeleteObjectStoreOperation::DeleteObjectStoreOperation):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeOperation::create):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeOperation::VersionChangeOperation):
+        (WebCore::CreateObjectStoreAbortOperation::create):
+        (WebCore::CreateObjectStoreAbortOperation::CreateObjectStoreAbortOperation):
+        (WebCore::DeleteObjectStoreAbortOperation::create):
+        (WebCore::DeleteObjectStoreAbortOperation::DeleteObjectStoreAbortOperation):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeAbortOperation::create):
+        (WebCore::IDBDatabaseBackendLevelDB::VersionChangeAbortOperation::VersionChangeAbortOperation):
+        (WebCore::CreateIndexOperation::create):
+        (WebCore::CreateIndexOperation::CreateIndexOperation):
+        (WebCore::CreateIndexAbortOperation::create):
+        (WebCore::CreateIndexAbortOperation::CreateIndexAbortOperation):
+        (WebCore::DeleteIndexOperation::create):
+        (WebCore::DeleteIndexOperation::DeleteIndexOperation):
+        (WebCore::DeleteIndexAbortOperation::create):
+        (WebCore::DeleteIndexAbortOperation::DeleteIndexAbortOperation):
+        (WebCore::GetOperation::create):
+        (WebCore::GetOperation::GetOperation):
+        (WebCore::PutOperation::create):
+        (WebCore::PutOperation::PutOperation):
+        (WebCore::SetIndexesReadyOperation::create):
+        (WebCore::SetIndexesReadyOperation::SetIndexesReadyOperation):
+        (WebCore::OpenCursorOperation::create):
+        (WebCore::OpenCursorOperation::OpenCursorOperation):
+        (WebCore::CountOperation::create):
+        (WebCore::CountOperation::CountOperation):
+        (WebCore::DeleteRangeOperation::create):
+        (WebCore::DeleteRangeOperation::DeleteRangeOperation):
+        (WebCore::ClearOperation::create):
+        (WebCore::ClearOperation::ClearOperation):
+
+2013-10-18  Beth Dakin  <bdakin@apple.com>
+
+        Rubber-banding is often not smooth on infinitely scrolling websites
+        https://bugs.webkit.org/show_bug.cgi?id=122985
+
+        Reviewed by Simon Fraser.
+
+        totalContentsSize is an important part of the calculation for 
+        maximumScrollPosition(). This function is called repeatedly throughout the curve 
+        of a rubber-band to determine the stretch amount. To keep the rubber-band 
+        animation smooth, it should be allowed to finish its animation using the old 
+        totalContentsSize. This patch does that by adding a new variable, 
+        m_totalContentsSizeForRubberBand. This value should almost always be equivalent to 
+        m_totalContentsSize. It will only vary if m_totalContentsSize has changed in the 
+        middle of a rubber-band, and in that case, it will stay equivalent to the old 
+        totalContentSize value until the rubber band animation finishes.
+
+        * page/scrolling/ScrollingTreeScrollingNode.cpp:
+        (WebCore::ScrollingTreeScrollingNode::updateBeforeChildren):
+        * page/scrolling/ScrollingTreeScrollingNode.h:
+        (WebCore::ScrollingTreeScrollingNode::totalContentsSizeForRubberBand):
+        (WebCore::ScrollingTreeScrollingNode::setTotalContentsSizeForRubberBand):
+        * page/scrolling/mac/ScrollingTreeScrollingNodeMac.mm:
+        (WebCore::ScrollingTreeScrollingNodeMac::stopSnapRubberbandTimer):
+        (WebCore::ScrollingTreeScrollingNodeMac::maximumScrollPosition):
+
+2013-10-18  ChangSeok Oh  <changseok.oh@collabora.com>
+
+        Unreviewed build fix for --no-svg option.
+        m_svgStyle of RenderStyle is guarded with the ENABLE_SVG flag.
+
+        * rendering/style/RenderStyle.cpp:
+        (WebCore::RenderStyle::RenderStyle):
+
+2013-10-17  Brady Eidson  <beidson@apple.com>
+
+        Cleanup the Modules group in the WebCore.xcodeproj
+        https://bugs.webkit.org/show_bug.cgi?id=123009
+
+        Rubberstamped by Antti Koivisto.
+
+        * WebCore.xcodeproj/project.pbxproj:
+
+2013-10-18  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [ATK] Fix invalid signal to set objects to an unknown state "layout-complete"
+        https://bugs.webkit.org/show_bug.cgi?id=122970
+
+        Reviewed by Mario Sanchez Prada.
+
+        Removed an invalid signal to set objects to an unknown state
+        layout-complete. This signal was originally generated to notify DRT
+        and WKTR in case of page load complete.
+        It was replaced by ATK:AtkDocument:load-complete, which is already sent
+        by AXObjectCache::frameLoadingEventPlatformNotification().
+
+        There is no new test since the changes are covered by existing ones
+        (e.g. accessibility/loading-iframe-sends-notification.html).
+
+        * accessibility/atk/AXObjectCacheAtk.cpp:
+        (WebCore::AXObjectCache::postPlatformNotification): Removed an invalid
+        signal to set objects to an unknown state layout-complete.
+
+2013-10-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Generate API documentation for GObject DOM bindings
+        https://bugs.webkit.org/show_bug.cgi?id=121538
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * bindings/gobject/GNUmakefile.am: Add a explicit rule for all
+        .symbols file making them depend on the corresponding header file,
+        since the .symbols file is generated by the bindings generator.
+
+2013-10-18  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [ATK] Simplify implementation of atk_text_get_text
+        https://bugs.webkit.org/show_bug.cgi?id=122644
+
+        Reviewed by Chris Fleizach.
+
+        Simplified code so we only call textUnderElement() directly once
+        and only when needed. Also, moved the specific code for ColorWell
+        objects up to the beginning of that function, so we don't do any
+        additional efforts like computing text ranges in those cases.
+
+        No new tests are needed, just to make sure that the current layout
+        and unit tests are still passing, which they are.
+
+        * accessibility/atk/WebKitAccessibleInterfaceText.cpp:
+        (textForObject): Fixed a issue that got detected while working on
+        this patch, which was causing a '\n' to be artificially appended
+        at the end of text controls all the time.
+        (webkitAccessibleTextGetText): Simplified function.
+
+        * accessibility/AccessibilityRenderObject.cpp:
+        (WebCore::AccessibilityRenderObject::doAXStringForRange): Removed
+        the check that prevents from pass ranges exceeding the limits of
+        the element's text, since those will be checked anyway when
+        calling String::substring().
+
+2013-10-18  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer][GTK] Add GRefPtr::outPtr()
+        https://bugs.webkit.org/show_bug.cgi?id=122996
+
+        Reviewed by Philippe Normand.
+
+        No new tests because this is just simplifying existing code.
+
+        * platform/graphics/gstreamer/GRefPtrGStreamer.cpp: Add GRefPtr specialization for GstToc.
+        * platform/graphics/gstreamer/GRefPtrGStreamer.h: Same.
+        * platform/graphics/gstreamer/GStreamerGWorld.cpp: Use GRefPtr::outPtr() to simplify code.
+        (WebCore::GStreamerGWorld::enterFullscreen):
+        (WebCore::GStreamerGWorld::exitFullscreen):
+        (WebCore::GStreamerGWorld::removePlatformVideoSink):
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp: Same.
+        (WebCore::MediaPlayerPrivateGStreamer::notifyPlayerOfText):
+        (WebCore::MediaPlayerPrivateGStreamer::newTextSample):
+        (WebCore::MediaPlayerPrivateGStreamer::processTableOfContents):
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp: Same.
+        (WebCore::MediaPlayerPrivateGStreamerBase::currentVideoSinkCaps):
+        * platform/network/soup/ResourceHandleSoup.cpp: Same.
+        (WebCore::HostTLSCertificateSet::computeCertificateHash):
+
+2013-10-17  Alexey Proskuryakov  <ap@apple.com>
+
+        Don't add an include for return type of a [Custom] function in generated bindings code
+        https://bugs.webkit.org/show_bug.cgi?id=122972
+
+        Reviewed by Sam Weinig.
+
+        * bindings/scripts/CodeGeneratorJS.pm: (GenerateImplementation): Don't.
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderMathMLSpace always has a MathMLTextElement.
+        <https://webkit.org/b/122992>
+
+        The renderer is never anonymous and always has a corresponding
+        MathMLTextElement. Overload element() with a tighter return type.
+
+        Also marked the class FINAL and made most methods private.
+
+        Reviewed by Antti Koivisto.
+
+        * rendering/mathml/RenderMathMLSpace.cpp:
+        (WebCore::RenderMathMLSpace::RenderMathMLSpace):
+        (WebCore::RenderMathMLSpace::updateFromElement):
+        * rendering/mathml/RenderMathMLSpace.h:
+
+2013-10-17  Tim Horton  <timothy_horton@apple.com>
+
+        PlatformCALayer constructor should take layer type as an argument
+        https://bugs.webkit.org/show_bug.cgi?id=122915
+
+        Reviewed by Anders Carlsson.
+
+        No new tests, just restoring old code.
+
+        Un-do part of the patch for bug 122915; we can't early-return
+        in the constructor, there's still more work to do.
+
+        * platform/graphics/ca/mac/PlatformCALayerMac.mm:
+        (PlatformCALayerMac::PlatformCALayerMac):
+
+2013-10-17  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: [CSS Regions] Crash when highlighting a node of a flow with no regions
+        https://bugs.webkit.org/show_bug.cgi?id=122993
+
+        Reviewed by Joseph Pecoraro.
+
+        Test: inspector-protocol/dom/highlight-flow-with-no-region.html
+
+        Even if a named flow has no regions the content of the flow will still have renderer objects created.
+        Removed the assumption that all renderers inside a RenderFlowThread will always have an enclosing RenderRegion.
+
+        * inspector/InspectorOverlay.cpp:
+        (WebCore::buildObjectForRendererFragments):
+        (WebCore::InspectorOverlay::buildObjectForHighlightedNode):
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderMathMLOperator always has a MathMLElement.
+        <https://webkit.org/b/122988>
+
+        Reviewed by Antti Koivisto.
+
+        The renderer is never anonymous and always has a corresponding
+        MathMLElement. Overload element() with a tighter return type.
+
+        Also marked the class FINAL and made most methods private.
+
+2013-10-17  Nico Weber  <thakis@chromium.org>
+
+        Fix three bugs in the equals() implementations for css gradients.
+        https://bugs.webkit.org/show_bug.cgi?id=122987
+
+        Reviewed by Andreas Kling.
+
+        1. Linear gradients were considered equal if the first gradient has no x and y
+           position and the second has no x but does have y.
+        2. Same as 1, for radial gradients. (This doesn't happen in practice as
+           CSSParser::parseRadialGradient rejects such input, so no test for this case.)
+        3. Radial gradients without x and y position weren't considered equal even if
+           they were.
+
+        * css/CSSGradientValue.cpp:
+        (WebCore::CSSLinearGradientValue::equals):
+        (WebCore::CSSRadialGradientValue::equals):
+
+2013-10-17  Antoine Quint  <graouts@apple.com>
+
+        Web Inspector: allow front-end to trigger the system beep sound to signal an error
+        https://bugs.webkit.org/show_bug.cgi?id=122955
+
+        Reviewed by Timothy Hatcher.
+
+        New beep() method exposed on InspectorFrontendHost calling into WebCore's systemBeep().
+
+        * inspector/InspectorFrontendHost.cpp:
+        (WebCore::InspectorFrontendHost::beep):
+        * inspector/InspectorFrontendHost.h:
+        * inspector/InspectorFrontendHost.idl:
+
+2013-10-17  Anders Carlsson  <andersca@apple.com>
+
+        Remove PlatformCAAnimation::supportsValueFunction()
+        https://bugs.webkit.org/show_bug.cgi?id=122990
+
+        Reviewed by Tim Horton.
+
+        PlatformCAAnimation::supportsValueFunction always returns true now, so there's no need for it to exist anymore.
+
+        * platform/graphics/ca/GraphicsLayerCA.cpp:
+        (WebCore::GraphicsLayerCA::createTransformAnimationsFromKeyframes):
+        * platform/graphics/ca/PlatformCAAnimation.h:
+        * platform/graphics/ca/mac/PlatformCAAnimationMac.mm:
+        * platform/graphics/ca/win/PlatformCAAnimationWin.cpp:
+
+2013-10-17  Andreas Kling  <akling@apple.com>
+
+        CTTE: RenderMathMLFenced always has a MathMLInlineContainerElement.
+        <https://webkit.org/b/122986>
+
+        This renderer is never anonymous and always has a corresponding
+        MathMLInlineContainerElement. Overload element() with a tighter
+        return type.
+
+        Also marked the class FINAL and made most methods private.
+
+        Reviewed by Anders Carlsson.
+
 2013-10-17  Myles C. Maxfield  <mmaxfield@apple.com>
 
         Comment AffineTransform::xScale() and yScale() to make their meanings clearer

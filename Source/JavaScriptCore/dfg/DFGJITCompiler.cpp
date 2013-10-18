@@ -128,7 +128,7 @@ void JITCompiler::compileExceptionHandlers()
         // Remove hostCallFrameFlag from caller.
         m_exceptionChecksWithCallFrameRollback.link(this);
         emitGetFromCallFrameHeaderPtr(JSStack::CallerFrame, GPRInfo::argumentGPR0);
-        andPtr(TrustedImmPtr(reinterpret_cast<void*>(~CallFrame::hostCallFrameFlag())), GPRInfo::argumentGPR0);
+        andPtr(TrustedImm32(safeCast<int32_t>(~CallFrame::hostCallFrameFlag())), GPRInfo::argumentGPR0);
         doLookup = jump();
     }
 
@@ -146,9 +146,7 @@ void JITCompiler::compileExceptionHandlers()
     poke(GPRInfo::argumentGPR0);
 #endif
     m_calls.append(CallLinkRecord(call(), lookupExceptionHandler));
-    // lookupExceptionHandler leaves the handler CallFrame* in the returnValueGPR,
-    // and the address of the handler in returnValueGPR2.
-    jump(GPRInfo::returnValueGPR2);
+    jumpToExceptionHandler();
 }
 
 void JITCompiler::link(LinkBuffer& linkBuffer)

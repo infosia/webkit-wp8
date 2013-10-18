@@ -56,35 +56,29 @@ inline void emitPointerValidation(CCallHelpers& jit, GPRReg pointerGPR)
 #endif
 }
 
+// We will jump here if the JIT code tries to make a call, but the
+// linking helper (C++ code) decides to throw an exception instead.
 MacroAssemblerCodeRef throwExceptionFromCallSlowPathGenerator(VM* vm)
 {
     CCallHelpers jit(vm);
     
-    // We will jump to here if the JIT code thinks it's making a call, but the
-    // linking helper (C++ code) decided to throw an exception instead. We will
-    // have saved the callReturnIndex in the first arguments of JITStackFrame.
-    // Note that the return address will be on the stack at this point, so we
-    // need to remove it and drop it on the floor, since we don't care about it.
-    // Finally note that the call frame register points at the callee frame, so
-    // we need to pop it.
+    // The call pushed a return address, so we need to pop it back off to re-align the stack,
+    // even though we won't use it.
     jit.preserveReturnAddressAfterCall(GPRInfo::nonPreservedNonReturnGPR);
+
+    // The CallFrame register points to the (failed) callee frame, so we need to pop back one frame.
     jit.loadPtr(
         CCallHelpers::Address(
             GPRInfo::callFrameRegister,
             static_cast<ptrdiff_t>(sizeof(Register)) * JSStack::CallerFrame),
         GPRInfo::callFrameRegister);
-#if USE(JSVALUE64)
-    jit.peek64(GPRInfo::nonPreservedNonReturnGPR, JITSTACKFRAME_ARGS_INDEX);
-#else
-    jit.peek(GPRInfo::nonPreservedNonReturnGPR, JITSTACKFRAME_ARGS_INDEX);
-#endif
-    jit.setupArgumentsWithExecState(GPRInfo::nonPreservedNonReturnGPR);
+
+    jit.setupArgumentsExecState();
     jit.move(CCallHelpers::TrustedImmPtr(bitwise_cast<void*>(lookupExceptionHandler)), GPRInfo::nonArgGPR0);
     emitPointerValidation(jit, GPRInfo::nonArgGPR0);
     jit.call(GPRInfo::nonArgGPR0);
-    emitPointerValidation(jit, GPRInfo::returnValueGPR2);
-    jit.jump(GPRInfo::returnValueGPR2);
-    
+    jit.jumpToExceptionHandler();
+
     LinkBuffer patchBuffer(*vm, &jit, GLOBAL_THUNK_ID);
     return FINALIZE_CODE(patchBuffer, ("Throw exception from call slow path thunk"));
 }
@@ -100,11 +94,6 @@ static void slowPathFor(
             GPRInfo::callFrameRegister,
             static_cast<ptrdiff_t>(sizeof(Register)) * JSStack::ReturnPC));
     jit.storePtr(GPRInfo::callFrameRegister, &vm->topCallFrame);
-#if USE(JSVALUE64)
-    jit.poke64(GPRInfo::nonPreservedNonReturnGPR, JITSTACKFRAME_ARGS_INDEX);
-#else
-    jit.poke(GPRInfo::nonPreservedNonReturnGPR, JITSTACKFRAME_ARGS_INDEX);
-#endif
     jit.setupArgumentsExecState();
     jit.move(CCallHelpers::TrustedImmPtr(bitwise_cast<void*>(slowPathFunction)), GPRInfo::nonArgGPR0);
     emitPointerValidation(jit, GPRInfo::nonArgGPR0);
@@ -136,10 +125,8 @@ static MacroAssemblerCodeRef linkForThunkGenerator(
     // The return address is on the stack or in the link register. We will hence
     // save the return address to the call frame while we make a C++ function call
     // to perform linking and lazy compilation if necessary. We expect the callee
-    // to be in nonArgGPR0/nonArgGPR1 (payload/tag), the call frame to have already
-    // been adjusted, nonPreservedNonReturnGPR holds the exception handler index,
-    // and all other registers to be available for use. We use JITStackFrame::args
-    // to save important information across calls.
+    // to be in nonArgGPR0/nonArgGPR1 (payload/tag), the CallFrame to have already
+    // been adjusted, and all other registers to be available for use.
     
     CCallHelpers jit(vm);
     
@@ -474,8 +461,19 @@ static MacroAssemblerCodeRef nativeForGenerator(VM* vm, CodeSpecializationKind k
 
     jit.storePtr(JSInterfaceJIT::callFrameRegister, &vm->topCallFrame);
 
-    jit.move(JSInterfaceJIT::TrustedImmPtr(FunctionPtr(ctiVMHandleException).value()), JSInterfaceJIT::regT1);
-    jit.jump(JSInterfaceJIT::regT1);
+#if CPU(X86) && USE(JSVALUE32_64)
+    jit.addPtr(JSInterfaceJIT::TrustedImm32(-12), JSInterfaceJIT::stackPointerRegister);
+    jit.push(JSInterfaceJIT::callFrameRegister);
+#else
+    jit.move(JSInterfaceJIT::callFrameRegister, JSInterfaceJIT::firstArgumentRegister);
+#endif
+    jit.move(JSInterfaceJIT::TrustedImmPtr(FunctionPtr(operationVMHandleException).value()), JSInterfaceJIT::regT3);
+    jit.call(JSInterfaceJIT::regT3);
+#if CPU(X86) && USE(JSVALUE32_64)
+    jit.addPtr(JSInterfaceJIT::TrustedImm32(16), JSInterfaceJIT::stackPointerRegister);
+#endif
+
+    jit.jumpToExceptionHandler();
 
     LinkBuffer patchBuffer(*vm, &jit, GLOBAL_THUNK_ID);
     return FINALIZE_CODE(patchBuffer, ("native %s trampoline", toCString(kind).data()));

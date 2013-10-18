@@ -32,7 +32,6 @@
 #include "CopiedSpaceInlines.h"
 #include "Heap.h"
 #include "JITInlines.h"
-#include "JITStubCall.h"
 #include "JSArray.h"
 #include "JSCell.h"
 #include "JSFunction.h"
@@ -485,10 +484,8 @@ void JIT::emit_op_throw(Instruction* currentInstruction)
 {
     ASSERT(regT0 == returnValueRegister);
     emitGetVirtualRegister(currentInstruction[1].u.operand, regT0);
-    callOperation(operationThrow, regT0);
-    // After operationThrow returns, returnValueRegister (regT0) has the handler's callFrame and
-    // returnValue2Register has the handler's entry address.
-    jump(returnValue2Register);
+    callOperationNoExceptionCheck(operationThrow, regT0);
+    jumpToExceptionHandler();
 }
 
 void JIT::emit_op_get_pnames(Instruction* currentInstruction)

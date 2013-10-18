@@ -39,7 +39,6 @@ JSC::MacroAssemblerX86Common::SSE2CheckState JSC::MacroAssemblerX86Common::s_sse
 #include "Interpreter.h"
 #include "JITInlines.h"
 #include "JITOperations.h"
-#include "JITStubCall.h"
 #include "JSArray.h"
 #include "JSFunction.h"
 #include "LinkBuffer.h"
@@ -851,7 +850,7 @@ void JIT::privateCompileExceptionHandlers()
         // Remove hostCallFlag from caller
         m_exceptionChecksWithCallFrameRollback.link(this);
         emitGetFromCallFrameHeaderPtr(JSStack::CallerFrame, GPRInfo::argumentGPR0);
-        andPtr(TrustedImmPtr(reinterpret_cast<void *>(~CallFrame::hostCallFrameFlag())), GPRInfo::argumentGPR0);
+        andPtr(TrustedImm32(safeCast<int32_t>(~CallFrame::hostCallFrameFlag())), GPRInfo::argumentGPR0);
         doLookup = jump();
     }
 
@@ -869,9 +868,7 @@ void JIT::privateCompileExceptionHandlers()
     poke(GPRInfo::argumentGPR0);
 #endif
     m_calls.append(CallRecord(call(), (unsigned)-1, FunctionPtr(lookupExceptionHandler).value()));
-    // lookupExceptionHandler leaves the handler CallFrame* in the returnValueGPR,
-    // and the address of the handler in returnValueGPR2.
-    jump(GPRInfo::returnValueGPR2);
+    jumpToExceptionHandler();
 }
 
 

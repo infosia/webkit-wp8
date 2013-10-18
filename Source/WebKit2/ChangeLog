@@ -1,3 +1,208 @@
+2013-10-18  Anders Carlsson  <andersca@apple.com>
+
+        Remove some Windows specific code from WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=123034
+
+        Reviewed by Beth Dakin.
+
+        * Platform/PlatformProcessIdentifier.h:
+        * Shared/API/c/WKDeclarationSpecifiers.h:
+        * UIProcess/API/C/WKNativeEvent.h:
+        * UIProcess/API/C/WKPreferencesPrivate.h:
+        * config.h:
+
+2013-10-18  Dan Bernstein  <mitz@apple.com>
+
+        Removed the __MAC_OS_X_VERSION_MIN_REQUIRED condition from the definition of WK_API_ENABLED.
+
+        Rubber-stamped by Anders Carlsson.
+
+        * Shared/API/Cocoa/WKFoundation.h:
+
+2013-10-17  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Proxy layer contents to the UI process
+        http://bugs.webkit.org/show_bug.cgi?id=123003
+
+        Reviewed by Anders Carlsson.
+
+        Proxy layer contents to the UI process. Contents are painted into ShareableBitmaps
+        for now, and are fully repainted on any invalidation. Also, contents do not respect
+        any kind of scale or use of contentsRect/etc.
+
+        * Shared/mac/RemoteLayerTreeTransaction.h:
+        * Shared/mac/RemoteLayerTreeTransaction.mm:
+        (WebKit::RemoteLayerTreeTransaction::LayerProperties::encode):
+        (WebKit::RemoteLayerTreeTransaction::LayerProperties::decode):
+        (WebKit::dumpChangedLayers):
+        Store/encode/decode/dump the new RemoteLayerBackingStore.
+
+        * UIProcess/mac/RemoteLayerTreeHost.mm:
+        (WebKit::RemoteLayerTreeHost::commit):
+        Fix a mistake where contentsRect was getting reset when contentsScale changed.
+        Set the layer contents when the backing store changes.
+
+        * WebKit2.xcodeproj/project.pbxproj:
+        Add RemoteLayerBackingStore.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.cpp:
+        (PlatformCALayerRemote::recursiveBuildTransaction):
+        Paint while building our transaction, and mark the backing store as changed
+        if we did any painting.
+
+        (PlatformCALayerRemote::ensureBackingStore):
+        Keep the backing store's properties up-to-date with our layer.
+
+        (PlatformCALayerRemote::setNeedsDisplay):
+        Inform the backing store that it needs to paint.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.h:
+
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.h: Added.
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.mm: Added.
+        (RemoteLayerBackingStore::RemoteLayerBackingStore):
+        (RemoteLayerBackingStore::encode):
+        (RemoteLayerBackingStore::decode):
+        Encode/decode our ShareableBitmap (via its handle) and size.
+
+        (RemoteLayerBackingStore::setNeedsDisplay):
+        For now, repaint the world.
+
+        (RemoteLayerBackingStore::display):
+        Create a new bitmap if needed, and paint into it.
+
+2013-10-17  Dan Bernstein  <mitz@apple.com>
+
+        Fixed a typo in the definition of WK_API_ENABLED.
+
+        * Shared/API/Cocoa/WKFoundation.h: It’s 101000, not 10100.
+
+2013-10-17  Dan Bernstein  <mitz@apple.com>
+
+        Add and deploy WK_API_ENABLED guards
+        https://bugs.webkit.org/show_bug.cgi?id=123008
+
+        Reviewed by Darin Adler.
+
+        * Shared/API/Cocoa: Added.
+        * Shared/API/Cocoa/WKFoundation.h: Added. Defined WK_API_ENABLED based on whether the
+        Objective-C API should be enabled in the current configuration.
+        * Shared/mac/ObjCObjectGraphCoders.mm:
+        (WebKit::typeFromObject): Changed to use WK_API_ENABLED.
+        (WebKit::WebContextObjCObjectGraphEncoderImpl::encode): Ditto.
+        (WebKit::WebContextObjCObjectGraphDecoderImpl::decode): Ditto.
+        (WebKit::InjectedBundleObjCObjectGraphEncoderImpl::encode): Ditto.
+        (WebKit::InjectedBundleObjCObjectGraphDecoderImpl::decode): Ditto.
+        * UIProcess/API/mac/WKTypeRefWrapper.h: Ditto.
+        * UIProcess/API/mac/WKTypeRefWrapper.mm: Ditto.
+        * UIProcess/API/mac/WebKit2.h: Imported WKFoundation.h.
+        * WebKit2.xcodeproj/project.pbxproj: Added new Cocoa group in Shared/API. Added
+        WKFoundation.h as a public header.
+        * WebProcess/InjectedBundle/API/mac/WKDOMDocument.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMDocument.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMElement.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMElement.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMInternals.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMInternals.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMNode.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMNode.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMNodePrivate.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMRange.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMRange.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMRangePrivate.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMText.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMText.mm:
+        * WebProcess/InjectedBundle/API/mac/WKDOMTextIterator.h:
+        * WebProcess/InjectedBundle/API/mac/WKDOMTextIterator.mm:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugIn.h:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugIn.mm:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextController.h:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextController.mm:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextControllerInternal.h:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextControllerPrivate.h:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInInternal.h:
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInPrivate.h:
+        * WebProcess/InjectedBundle/mac/InjectedBundleMac.mm:
+        (WebKit::InjectedBundle::load):
+
+2013-10-17  Csaba Osztrogonác  <ossy@webkit.org>
+
+        [WK2] Speculative buildfixes for GTK and EFL after r157582.
+
+        * CMakeLists.txt:
+        * GNUmakefile.am:
+
+2013-10-17  Martin Hock  <mhock@apple.com>
+
+        Refactor stored website data APIs
+        https://bugs.webkit.org/show_bug.cgi?id=122781
+
+        Reviewed by Brady Eidson.
+
+        Add WebOriginDataManager along with corresponding class
+        WebOriginDataManagerProxy and API WKOriginDataManager.
+
+        Currently, the new files are unused.
+
+        WKOriginDataManager should subsume the functionality of:
+        WKApplicationCacheManager, WKCookieManager, WKDatabaseManager,
+        WKKeyValueStorageManager, WKMediaCacheManager,
+        WKPluginSiteDataManager, and WKResourceCacheManager.
+
+        * CMakeLists.txt:
+        * DerivedSources.make:
+        * GNUmakefile.am:
+        * GNUmakefile.list.am:
+        * Shared/API/c/WKBase.h:
+        * Shared/APIObject.h:
+        * UIProcess/API/C/WKAPICast.h:
+        * UIProcess/API/C/WKContext.cpp:
+        (WKContextGetOriginDataManager):
+        * UIProcess/API/C/WKContext.h:
+        * UIProcess/API/C/WKOriginDataManager.cpp: Added.
+        (WKOriginDataManagerGetTypeID):
+        (WKOriginDataManagerGetOrigins):
+        (WKOriginDataManagerDeleteEntriesForOrigin):
+        (WKOriginDataManagerDeleteAllEntries):
+        (WKOriginDataManagerStartObservingChanges):
+        (WKOriginDataManagerStopObservingChanges):
+        (WKOriginDataManagerSetChangeClient):
+        * UIProcess/API/C/WKOriginDataManager.h: Added.
+        * UIProcess/WebOriginDataManagerProxy.cpp: Added.
+        (WebKit::WebOriginDataManagerProxy::supplementName):
+        (WebKit::WebOriginDataManagerProxy::create):
+        (WebKit::WebOriginDataManagerProxy::WebOriginDataManagerProxy):
+        (WebKit::WebOriginDataManagerProxy::~WebOriginDataManagerProxy):
+        (WebKit::WebOriginDataManagerProxy::contextDestroyed):
+        (WebKit::WebOriginDataManagerProxy::processDidClose):
+        (WebKit::WebOriginDataManagerProxy::shouldTerminate):
+        (WebKit::WebOriginDataManagerProxy::refWebContextSupplement):
+        (WebKit::WebOriginDataManagerProxy::derefWebContextSupplement):
+        (WebKit::WebOriginDataManagerProxy::getOrigins):
+        (WebKit::WebOriginDataManagerProxy::didGetOrigins):
+        (WebKit::WebOriginDataManagerProxy::deleteEntriesForOrigin):
+        (WebKit::WebOriginDataManagerProxy::deleteAllEntries):
+        (WebKit::WebOriginDataManagerProxy::startObservingChanges):
+        (WebKit::WebOriginDataManagerProxy::stopObservingChanges):
+        (WebKit::WebOriginDataManagerProxy::setChangeClient):
+        (WebKit::WebOriginDataManagerProxy::didChange):
+        * UIProcess/WebOriginDataManagerProxy.h: Added.
+        * UIProcess/WebOriginDataManagerProxy.messages.in: Added.
+        * UIProcess/WebOriginDataManagerProxyChangeClient.cpp: Added.
+        (WebKit::WebOriginDataManagerProxyChangeClient::didChange):
+        * UIProcess/WebOriginDataManagerProxyChangeClient.h: Added.
+        * WebKit2.xcodeproj/project.pbxproj:
+        * WebProcess/OriginData/WebOriginDataManager.cpp: Added.
+        (WebKit::WebOriginDataManager::supplementName):
+        (WebKit::WebOriginDataManager::WebOriginDataManager):
+        (WebKit::WebOriginDataManager::getOrigins):
+        (WebKit::WebOriginDataManager::deleteEntriesForOrigin):
+        (WebKit::WebOriginDataManager::deleteAllEntries):
+        (WebKit::WebOriginDataManager::startObservingChanges):
+        (WebKit::WebOriginDataManager::stopObservingChanges):
+        * WebProcess/OriginData/WebOriginDataManager.h: Added.
+        * WebProcess/OriginData/WebOriginDataManager.messages.in: Added.
+
 2013-10-17  Brady Eidson  <beidson@apple.com>
 
         Blind attempt at gtk-wk2 build fix.

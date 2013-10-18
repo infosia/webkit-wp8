@@ -54,7 +54,6 @@ public:
     {
     }
 
-    typedef ARM64Registers::FPRegisterID FPRegisterID;
     typedef ARM64Assembler::LinkRecord LinkRecord;
     typedef ARM64Assembler::JumpType JumpType;
     typedef ARM64Assembler::JumpLinkType JumpLinkType;
@@ -125,6 +124,7 @@ public:
     };
 
     static const RegisterID stackPointerRegister = ARM64Registers::sp;
+    static const RegisterID framePointerRegister = ARM64Registers::fp;
     static const RegisterID linkRegister = ARM64Registers::lr;
 
 
@@ -347,7 +347,7 @@ public:
         signExtend32ToPtr(imm, getCachedDataTempRegisterIDAndInvalidate());
         m_assembler.and_<64>(dest, dest, dataTempRegister);
     }
-
+    
     void countLeadingZeros32(RegisterID src, RegisterID dest)
     {
         m_assembler.clz<32>(dest, src);
@@ -1012,7 +1012,7 @@ public:
 
     void store8(RegisterID src, void* address)
     {
-        move(ImmPtr(address), getCachedMemoryTempRegisterIDAndInvalidate());
+        move(TrustedImmPtr(address), getCachedMemoryTempRegisterIDAndInvalidate());
         m_assembler.strb(src, memoryTempRegister, 0);
     }
 
@@ -1694,7 +1694,7 @@ public:
 
     Jump branchTest8(ResultCondition cond, ExtendedAddress address, TrustedImm32 mask = TrustedImm32(-1))
     {
-        move(ImmPtr(reinterpret_cast<void*>(address.offset)), getCachedDataTempRegisterIDAndInvalidate());
+        move(TrustedImmPtr(reinterpret_cast<void*>(address.offset)), getCachedDataTempRegisterIDAndInvalidate());
         m_assembler.ldrb(dataTempRegister, address.base, dataTempRegister);
         return branchTest32(cond, dataTempRegister, mask);
     }
