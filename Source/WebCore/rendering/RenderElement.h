@@ -36,9 +36,9 @@ public:
     RenderStyle* style() const { return m_style.get(); }
     RenderStyle* firstLineStyle() const;
 
-    virtual void setStyle(PassRefPtr<RenderStyle>);
+    virtual void setStyle(PassRef<RenderStyle>);
     // Called to update a style that is allowed to trigger animations.
-    void setAnimatableStyle(PassRefPtr<RenderStyle>);
+    void setAnimatableStyle(PassRef<RenderStyle>);
 
     // This is null for anonymous renderers.
     Element* element() const { return toElement(RenderObject::node()); }
@@ -55,6 +55,7 @@ public:
     bool isRenderBlockFlow() const;
     bool isRenderReplaced() const;
     bool isRenderInline() const;
+    bool isRenderNamedFlowFragmentContainer() const;
 
     virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const { return true; }
     virtual void addChild(RenderObject* newChild, RenderObject* beforeChild = 0);
@@ -260,7 +261,7 @@ inline const RenderElement* toRenderElement(const RenderObject* object)
 
 inline Element* RenderElement::generatingElement() const
 {
-    if (isRenderNamedFlowFragment() && parent())
+    if (parent() && isRenderNamedFlowFragment())
         return toRenderElement(parent())->generatingElement();
     return toElement(RenderObject::generatingNode());
 }

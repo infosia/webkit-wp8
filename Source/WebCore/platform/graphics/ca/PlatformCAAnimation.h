@@ -133,7 +133,7 @@ public:
     void setValues(const Vector<FloatPoint3D>&);
     void setValues(const Vector<WebCore::Color>&);
 #if ENABLE(CSS_FILTERS)
-    void setValues(const Vector<RefPtr<FilterOperation> >&, int internalFilterPropertyIndex);
+    void setValues(const Vector<RefPtr<FilterOperation>>&, int internalFilterPropertyIndex);
 #endif
     void copyValuesFrom(const PlatformCAAnimation*);
 
@@ -152,7 +152,7 @@ protected:
         if (beginTime() <= 0)
             setBeginTime(t);
     }
-    
+
 private:
     AnimationType m_type;
     

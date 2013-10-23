@@ -349,10 +349,10 @@ private:
     ALWAYS_INLINE RenderStyle(const RenderStyle&);
 
 public:
-    static PassRefPtr<RenderStyle> create();
-    static PassRefPtr<RenderStyle> createDefaultStyle();
-    static PassRefPtr<RenderStyle> createAnonymousStyleWithDisplay(const RenderStyle* parentStyle, EDisplay);
-    static PassRefPtr<RenderStyle> clone(const RenderStyle*);
+    static PassRef<RenderStyle> create();
+    static PassRef<RenderStyle> createDefaultStyle();
+    static PassRef<RenderStyle> createAnonymousStyleWithDisplay(const RenderStyle* parentStyle, EDisplay);
+    static PassRef<RenderStyle> clone(const RenderStyle*);
 
     enum IsAtShadowBoundary {
         AtShadowBoundary,
@@ -893,7 +893,7 @@ public:
     // End CSS3 Getters
 
     const AtomicString& flowThread() const { return rareNonInheritedData->m_flowThread; }
-    bool hasStyleRegion() const { return !rareNonInheritedData->m_regionThread.isNull(); }
+    bool hasFlowFrom() const { return !rareNonInheritedData->m_regionThread.isNull(); }
     const AtomicString& regionThread() const { return rareNonInheritedData->m_regionThread; }
     RegionFragment regionFragment() const { return static_cast<RegionFragment>(rareNonInheritedData->m_regionFragment); }
 

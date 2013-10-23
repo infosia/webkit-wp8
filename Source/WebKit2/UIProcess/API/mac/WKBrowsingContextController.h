@@ -25,8 +25,10 @@
 
 #import <Foundation/Foundation.h>
 #import <WebKit2/WKDeclarationSpecifiers.h>
+#import <WebKit2/WKFoundation.h>
 
 @class WKBrowsingContextControllerData;
+@class WKBackForwardList;
 @protocol WKBrowsingContextLoadDelegate;
 
 WK_EXPORT
@@ -90,6 +92,9 @@ WK_EXPORT
 /* Whether there is a previous page in the back/forward list. */
 @property(readonly) BOOL canGoBack;
 
+#if WK_API_ENABLED
+@property(readonly) WKBackForwardList *backForwardList;
+#endif
 
 #pragma mark Active Load Introspection
 
@@ -102,6 +107,7 @@ WK_EXPORT
 /* URL for a request that has been recieved, and is now being used. */
 @property(readonly) NSURL *committedURL;
 
+@property(readonly) double estimatedProgress;
 
 #pragma mark Active Document Introspection
 

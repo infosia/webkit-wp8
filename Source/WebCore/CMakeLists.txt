@@ -779,6 +779,7 @@ set(WebCore_SOURCES
     Modules/indexeddb/IDBPendingTransactionMonitor.cpp
     Modules/indexeddb/IDBRequest.cpp
     Modules/indexeddb/IDBTransaction.cpp
+    Modules/indexeddb/IDBTransactionCoordinator.cpp
     Modules/indexeddb/IDBVersionChangeEvent.cpp
     Modules/indexeddb/PageGroupIndexedDatabase.cpp
     Modules/indexeddb/WorkerGlobalScopeIndexedDatabase.cpp
@@ -790,7 +791,6 @@ set(WebCore_SOURCES
     Modules/indexeddb/leveldb/IDBObjectStoreBackendLevelDB.cpp
     Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.cpp
     Modules/indexeddb/leveldb/IDBTransactionBackendLevelDBOperations.cpp
-    Modules/indexeddb/leveldb/IDBTransactionCoordinatorLevelDB.cpp
 
     Modules/mediasource/MediaSource.cpp
     Modules/mediasource/MediaSourceRegistry.cpp
@@ -1996,6 +1996,8 @@ set(WebCore_SOURCES
     platform/mock/DeviceOrientationClientMock.cpp
     platform/mock/GeolocationClientMock.cpp
     platform/mock/MockMediaStreamCenter.cpp
+    platform/mock/RTCNotifiersMock.cpp
+    platform/mock/RTCPeerConnectionHandlerMock.cpp
     platform/mock/ScrollbarThemeMock.cpp
 
     platform/network/AuthenticationChallengeBase.cpp

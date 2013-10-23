@@ -196,30 +196,28 @@ enum StyleCacheState {
     Uncached
 };
 
-static PassRefPtr<RenderStyle> firstLineStyleForCachedUncachedType(StyleCacheState type, const RenderObject* renderer, RenderStyle* style)
+static PassRefPtr<RenderStyle> firstLineStyleForCachedUncachedType(StyleCacheState type, const RenderElement& renderer, RenderStyle* style)
 {
-    const RenderObject* rendererForFirstLineStyle = renderer;
-    if (renderer->isBeforeOrAfterContent())
-        rendererForFirstLineStyle = renderer->parent();
+    const RenderElement& rendererForFirstLineStyle = renderer.isBeforeOrAfterContent() ? *renderer.parent() : renderer;
 
-    if (rendererForFirstLineStyle->isRenderBlockFlow() || rendererForFirstLineStyle->isRenderButton()) {
-        if (RenderBlock* firstLineBlock = rendererForFirstLineStyle->firstLineBlock()) {
+    if (rendererForFirstLineStyle.isRenderBlockFlow() || rendererForFirstLineStyle.isRenderButton()) {
+        if (RenderBlock* firstLineBlock = rendererForFirstLineStyle.firstLineBlock()) {
             if (type == Cached)
                 return firstLineBlock->getCachedPseudoStyle(FIRST_LINE, style);
-            return firstLineBlock->getUncachedPseudoStyle(PseudoStyleRequest(FIRST_LINE), style, firstLineBlock == renderer ? style : 0);
+            return firstLineBlock->getUncachedPseudoStyle(PseudoStyleRequest(FIRST_LINE), style, firstLineBlock == &renderer ? style : nullptr);
         }
-    } else if (!rendererForFirstLineStyle->isAnonymous() && rendererForFirstLineStyle->isRenderInline()) {
-        RenderStyle* parentStyle = rendererForFirstLineStyle->parent()->firstLineStyle();
-        if (parentStyle != rendererForFirstLineStyle->parent()->style()) {
+    } else if (!rendererForFirstLineStyle.isAnonymous() && rendererForFirstLineStyle.isRenderInline()) {
+        RenderStyle* parentStyle = rendererForFirstLineStyle.parent()->firstLineStyle();
+        if (parentStyle != rendererForFirstLineStyle.parent()->style()) {
             if (type == Cached) {
                 // A first-line style is in effect. Cache a first-line style for ourselves.
-                rendererForFirstLineStyle->style()->setHasPseudoStyle(FIRST_LINE_INHERITED);
-                return rendererForFirstLineStyle->getCachedPseudoStyle(FIRST_LINE_INHERITED, parentStyle);
+                rendererForFirstLineStyle.style()->setHasPseudoStyle(FIRST_LINE_INHERITED);
+                return rendererForFirstLineStyle.getCachedPseudoStyle(FIRST_LINE_INHERITED, parentStyle);
             }
-            return rendererForFirstLineStyle->getUncachedPseudoStyle(PseudoStyleRequest(FIRST_LINE_INHERITED), parentStyle, style);
+            return rendererForFirstLineStyle.getUncachedPseudoStyle(PseudoStyleRequest(FIRST_LINE_INHERITED), parentStyle, style);
         }
     }
-    return 0;
+    return nullptr;
 }
 
 PassRefPtr<RenderStyle> RenderElement::uncachedFirstLineStyle(RenderStyle* style) const
@@ -227,7 +225,7 @@ PassRefPtr<RenderStyle> RenderElement::uncachedFirstLineStyle(RenderStyle* style
     if (!document().styleSheetCollection().usesFirstLineRules())
         return 0;
 
-    return firstLineStyleForCachedUncachedType(Uncached, this, style);
+    return firstLineStyleForCachedUncachedType(Uncached, *this, style);
 }
 
 RenderStyle* RenderElement::cachedFirstLineStyle() const
@@ -235,7 +233,7 @@ RenderStyle* RenderElement::cachedFirstLineStyle() const
     ASSERT(document().styleSheetCollection().usesFirstLineRules());
 
     RenderStyle* style = this->style();
-    if (RefPtr<RenderStyle> firstLineStyle = firstLineStyleForCachedUncachedType(Cached, this, style))
+    if (RefPtr<RenderStyle> firstLineStyle = firstLineStyleForCachedUncachedType(Cached, *this, style))
         return firstLineStyle.get();
 
     return style;
@@ -351,38 +349,39 @@ void RenderElement::updateShapeImage(const ShapeValue* oldShapeValue, const Shap
 }
 #endif
 
-void RenderElement::setStyle(PassRefPtr<RenderStyle> style)
+void RenderElement::setStyle(PassRef<RenderStyle> style)
 {
-    if (m_style == style) {
+    if (m_style == &style.get()) {
 #if USE(ACCELERATED_COMPOSITING)
         // We need to run through adjustStyleDifference() for iframes, plugins, and canvas so
         // style sharing is disabled for them. That should ensure that we never hit this code path.
         ASSERT(!isRenderIFrame() && !isEmbeddedObject() && !isCanvas());
 #endif
+        style.dropRef();
         return;
     }
 
     StyleDifference diff = StyleDifferenceEqual;
     unsigned contextSensitiveProperties = ContextSensitivePropertyNone;
     if (m_style)
-        diff = m_style->diff(style.get(), contextSensitiveProperties);
+        diff = m_style->diff(&style.get(), contextSensitiveProperties);
 
     diff = adjustStyleDifference(diff, contextSensitiveProperties);
 
-    styleWillChange(diff, style.get());
+    styleWillChange(diff, &style.get());
     
     RefPtr<RenderStyle> oldStyle = m_style.release();
-    setStyleInternal(style);
+    m_style = std::move(style);
 
-    updateFillImages(oldStyle ? oldStyle->backgroundLayers() : 0, m_style ? m_style->backgroundLayers() : 0);
-    updateFillImages(oldStyle ? oldStyle->maskLayers() : 0, m_style ? m_style->maskLayers() : 0);
+    updateFillImages(oldStyle ? oldStyle->backgroundLayers() : nullptr, m_style->backgroundLayers());
+    updateFillImages(oldStyle ? oldStyle->maskLayers() : nullptr, m_style->maskLayers());
 
-    updateImage(oldStyle ? oldStyle->borderImage().image() : 0, m_style ? m_style->borderImage().image() : 0);
-    updateImage(oldStyle ? oldStyle->maskBoxImage().image() : 0, m_style ? m_style->maskBoxImage().image() : 0);
+    updateImage(oldStyle ? oldStyle->borderImage().image() : nullptr, m_style->borderImage().image());
+    updateImage(oldStyle ? oldStyle->maskBoxImage().image() : nullptr, m_style->maskBoxImage().image());
 
 #if ENABLE(CSS_SHAPES)
-    updateShapeImage(oldStyle ? oldStyle->shapeInside() : 0, m_style ? m_style->shapeInside() : 0);
-    updateShapeImage(oldStyle ? oldStyle->shapeOutside() : 0, m_style ? m_style->shapeOutside() : 0);
+    updateShapeImage(oldStyle ? oldStyle->shapeInside() : nullptr, m_style->shapeInside());
+    updateShapeImage(oldStyle ? oldStyle->shapeOutside() : nullptr, m_style->shapeOutside());
 #endif
 
     // We need to ensure that view->maximalOutlineSize() is valid for any repaints that happen
@@ -430,9 +429,9 @@ void RenderElement::setStyle(PassRefPtr<RenderStyle> style)
     }
 }
 
-void RenderElement::setAnimatableStyle(PassRefPtr<RenderStyle> style)
+void RenderElement::setAnimatableStyle(PassRef<RenderStyle> style)
 {
-    setStyle(animation().updateAnimations(this, style.get()));
+    setStyle(animation().updateAnimations(*this, std::move(style)));
 }
 
 void RenderElement::addChild(RenderObject* newChild, RenderObject* beforeChild)
@@ -743,31 +742,36 @@ void RenderElement::propagateStyleToAnonymousChildren(StylePropagationType propa
     for (RenderObject* child = firstChild(); child; child = child->nextSibling()) {
         if (child->isText())
             continue;
-        if (!child->isAnonymous() || child->style()->styleType() != NOPSEUDO)
+        RenderElement& elementChild = toRenderElement(*child);
+        if (!elementChild.isAnonymous() || elementChild.style()->styleType() != NOPSEUDO)
             continue;
 
-        if (propagationType == PropagateToBlockChildrenOnly && !child->isRenderBlock())
+        if (propagationType == PropagateToBlockChildrenOnly && !elementChild.isRenderBlock())
             continue;
 
 #if ENABLE(FULLSCREEN_API)
-        if (child->isRenderFullScreen() || child->isRenderFullScreenPlaceholder())
+        if (elementChild.isRenderFullScreen() || elementChild.isRenderFullScreenPlaceholder())
             continue;
 #endif
 
-        RefPtr<RenderStyle> newStyle = RenderStyle::createAnonymousStyleWithDisplay(style(), child->style()->display());
+        // RenderFlowThreads are updated through the RenderView::styleDidChange function.
+        if (elementChild.isRenderFlowThread())
+            continue;
+
+        auto newStyle = RenderStyle::createAnonymousStyleWithDisplay(style(), elementChild.style()->display());
         if (style()->specifiesColumns()) {
-            if (child->style()->specifiesColumns())
-                newStyle->inheritColumnPropertiesFrom(style());
-            if (child->style()->columnSpan())
-                newStyle->setColumnSpan(ColumnSpanAll);
+            if (elementChild.style()->specifiesColumns())
+                newStyle.get().inheritColumnPropertiesFrom(style());
+            if (elementChild.style()->columnSpan())
+                newStyle.get().setColumnSpan(ColumnSpanAll);
         }
 
         // Preserve the position style of anonymous block continuations as they can have relative or sticky position when
         // they contain block descendants of relative or sticky positioned inlines.
-        if (child->isInFlowPositioned() && toRenderBlock(child)->isAnonymousBlockContinuation())
-            newStyle->setPosition(child->style()->position());
+        if (elementChild.isInFlowPositioned() && toRenderBlock(elementChild).isAnonymousBlockContinuation())
+            newStyle.get().setPosition(elementChild.style()->position());
 
-        toRenderElement(child)->setStyle(newStyle.release());
+        elementChild.setStyle(std::move(newStyle));
     }
 }
 
@@ -784,7 +788,7 @@ static bool shouldRepaintFixedBackgroundsOnScroll()
 #endif
 }
 
-static inline bool rendererHasBackground(const RenderObject* renderer)
+static inline bool rendererHasBackground(const RenderElement* renderer)
 {
     return renderer && renderer->hasBackground();
 }

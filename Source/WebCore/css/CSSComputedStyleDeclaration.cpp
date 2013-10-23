@@ -949,8 +949,8 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::valueForFilter(const RenderObject* 
 
     RefPtr<WebKitCSSFilterValue> filterValue;
 
-    Vector<RefPtr<FilterOperation> >::const_iterator end = filterOperations.operations().end();
-    for (Vector<RefPtr<FilterOperation> >::const_iterator it = filterOperations.operations().begin(); it != end; ++it) {
+    Vector<RefPtr<FilterOperation>>::const_iterator end = filterOperations.operations().end();
+    for (Vector<RefPtr<FilterOperation>>::const_iterator it = filterOperations.operations().begin(); it != end; ++it) {
         FilterOperation* filterOperation = (*it).get();
         switch (filterOperation->getOperationType()) {
         case FilterOperation::REFERENCE: {
@@ -1499,7 +1499,7 @@ static PassRefPtr<CSSValue> contentToCSSValue(const RenderStyle* style)
         } else if (contentData->isText())
             list->append(cssValuePool().createValue(static_cast<const TextContentData*>(contentData)->text(), CSSPrimitiveValue::CSS_STRING));
     }
-    if (!style->regionThread().isNull())
+    if (style->hasFlowFrom())
         list->append(cssValuePool().createValue(style->regionThread(), CSSPrimitiveValue::CSS_STRING));
     return list.release();
 }
@@ -2844,7 +2844,7 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::propertyValue(CSSPropertyID propert
                 return cssValuePool().createIdentifierValue(CSSValueNone);
             return cssValuePool().createValue(style->flowThread(), CSSPrimitiveValue::CSS_STRING);
         case CSSPropertyWebkitFlowFrom:
-            if (style->regionThread().isNull())
+            if (!style->hasFlowFrom())
                 return cssValuePool().createIdentifierValue(CSSValueNone);
             return cssValuePool().createValue(style->regionThread(), CSSPrimitiveValue::CSS_STRING);
         case CSSPropertyWebkitRegionFragment:

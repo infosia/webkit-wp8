@@ -36,6 +36,7 @@
 #import <WebCore/GraphicsLayerCA.h>
 #import <WebCore/LengthFunctions.h>
 #import <WebCore/PlatformCAFilters.h>
+#import <WebCore/PlatformCALayerMac.h>
 #import <WebCore/TiledBacking.h>
 #import <wtf/CurrentTime.h>
 #import <wtf/RetainPtr.h>
@@ -102,21 +103,23 @@ void PlatformCALayerRemote::ensureBackingStore()
 {
     if (m_properties.backingStore.layer() == this
         && m_properties.backingStore.size() == m_properties.size
-        && m_properties.backingStore.isOpaque() == m_properties.opaque)
+        && m_properties.backingStore.scale() == m_properties.contentsScale)
         return;
 
-    m_properties.backingStore = RemoteLayerBackingStore(this, expandedIntSize(m_properties.size), m_properties.opaque);
+    m_properties.backingStore = RemoteLayerBackingStore(this, expandedIntSize(m_properties.size), m_properties.contentsScale);
 }
 
-void PlatformCALayerRemote::setNeedsDisplay(const FloatRect* dirtyRect)
+void PlatformCALayerRemote::setNeedsDisplay(const FloatRect* rect)
 {
     ensureBackingStore();
 
-    // FIXME: Need to map this through contentsRect/contentsScale/etc.
-    if (dirtyRect)
-        m_properties.backingStore.setNeedsDisplay(enclosingIntRect(*dirtyRect));
-    else
+    if (!rect) {
         m_properties.backingStore.setNeedsDisplay();
+        return;
+    }
+
+    // FIXME: Need to map this through contentsRect/etc.
+    m_properties.backingStore.setNeedsDisplay(enclosingIntRect(*rect));
 }
 
 void PlatformCALayerRemote::setContentsChanged()
@@ -218,6 +221,8 @@ void PlatformCALayerRemote::setBounds(const FloatRect& value)
 {
     m_properties.size = value.size();
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::SizeChanged);
+
+    ensureBackingStore();
 }
 
 FloatPoint3D PlatformCALayerRemote::position() const
@@ -371,15 +376,18 @@ void PlatformCALayerRemote::setOpacity(float value)
 #if ENABLE(CSS_FILTERS)
 void PlatformCALayerRemote::setFilters(const FilterOperations& filters)
 {
+    m_properties.filters = filters;
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::FiltersChanged);
 }
 
 void PlatformCALayerRemote::copyFiltersFrom(const PlatformCALayer* sourceLayer)
 {
+    ASSERT_NOT_REACHED();
 }
 
 bool PlatformCALayerRemote::filtersCanBeComposited(const FilterOperations& filters)
 {
-    return false; // This will probably work the same as Mac eventually?
+    return PlatformCALayerMac::filtersCanBeComposited(filters);
 }
 #endif
 
@@ -410,6 +418,8 @@ void PlatformCALayerRemote::setContentsScale(float value)
 {
     m_properties.contentsScale = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::ContentsScaleChanged);
+
+    ensureBackingStore();
 }
 
 TiledBacking* PlatformCALayerRemote::tiledBacking()

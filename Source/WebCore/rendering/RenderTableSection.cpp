@@ -915,7 +915,7 @@ void RenderTableSection::recalcOuterBorder()
     m_outerBorderEnd = calcOuterBorderEnd();
 }
 
-int RenderTableSection::firstLineBoxBaseline() const
+int RenderTableSection::firstLineBaseline() const
 {
     if (!m_grid.size())
         return -1;
@@ -1569,9 +1569,8 @@ CollapsedBorderValue& RenderTableSection::cachedCollapsedBorder(const RenderTabl
 
 RenderTableSection* RenderTableSection::createAnonymousWithParentRenderer(const RenderObject* parent)
 {
-    RefPtr<RenderStyle> newStyle = RenderStyle::createAnonymousStyleWithDisplay(parent->style(), TABLE_ROW_GROUP);
     RenderTableSection* newSection = new RenderTableSection(parent->document());
-    newSection->setStyle(newStyle.release());
+    newSection->setStyle(RenderStyle::createAnonymousStyleWithDisplay(parent->style(), TABLE_ROW_GROUP));
     return newSection;
 }
 

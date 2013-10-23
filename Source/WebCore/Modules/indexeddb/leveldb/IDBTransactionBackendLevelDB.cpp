@@ -35,32 +35,32 @@
 #include "IDBDatabaseException.h"
 #include "IDBKeyRange.h"
 #include "IDBTransactionBackendLevelDBOperations.h"
-#include "IDBTransactionCoordinatorLevelDB.h"
+#include "IDBTransactionCoordinator.h"
 #include "Logging.h"
 
 namespace WebCore {
 
-PassRefPtr<IDBTransactionBackendLevelDB> IDBTransactionBackendLevelDB::create(IDBBackingStore* backingStore, int64_t id, PassRefPtr<IDBDatabaseCallbacks> callbacks, const Vector<int64_t>& objectStoreIds, IndexedDB::TransactionMode mode, IDBDatabaseBackendLevelDB* database)
+PassRefPtr<IDBTransactionBackendLevelDB> IDBTransactionBackendLevelDB::create(IDBDatabaseBackendLevelDB* databaseBackend, int64_t id, PassRefPtr<IDBDatabaseCallbacks> callbacks, const Vector<int64_t>& objectStoreIds, IndexedDB::TransactionMode mode)
 {
     HashSet<int64_t> objectStoreHashSet;
     for (size_t i = 0; i < objectStoreIds.size(); ++i)
         objectStoreHashSet.add(objectStoreIds[i]);
 
-    return adoptRef(new IDBTransactionBackendLevelDB(backingStore, id, callbacks, objectStoreHashSet, mode, database));
+    return adoptRef(new IDBTransactionBackendLevelDB(databaseBackend, id, callbacks, objectStoreHashSet, mode));
 }
 
-IDBTransactionBackendLevelDB::IDBTransactionBackendLevelDB(IDBBackingStore* backingStore, int64_t id, PassRefPtr<IDBDatabaseCallbacks> callbacks, const HashSet<int64_t>& objectStoreIds, IndexedDB::TransactionMode mode, IDBDatabaseBackendLevelDB* database)
-    : m_id(id)
+IDBTransactionBackendLevelDB::IDBTransactionBackendLevelDB(IDBDatabaseBackendLevelDB* databaseBackend, int64_t id, PassRefPtr<IDBDatabaseCallbacks> callbacks, const HashSet<int64_t>& objectStoreIds, IndexedDB::TransactionMode mode)
+    : IDBTransactionBackendInterface(id)
     , m_objectStoreIds(objectStoreIds)
     , m_mode(mode)
     , m_state(Unused)
     , m_commitPending(false)
     , m_callbacks(callbacks)
-    , m_database(database)
-    , m_transaction(database->backingStore().get())
+    , m_database(databaseBackend)
+    , m_transaction(databaseBackend->backingStore())
     , m_taskTimer(this, &IDBTransactionBackendLevelDB::taskTimerFired)
     , m_pendingPreemptiveEvents(0)
-    , m_backingStore(backingStore)
+    , m_backingStore(databaseBackend->backingStore())
 {
     // We pass a reference of this object before it can be adopted.
     relaxAdoptionRequirement();
@@ -136,7 +136,7 @@ void IDBTransactionBackendLevelDB::abort(PassRefPtr<IDBDatabaseError> error)
     m_database->transactionFinished(this);
 
     if (m_callbacks)
-        m_callbacks->onAbort(m_id, error);
+        m_callbacks->onAbort(id(), error);
 
     m_database->transactionFinishedAndAbortFired(this);
 
@@ -222,10 +222,10 @@ void IDBTransactionBackendLevelDB::commit()
     m_database->transactionFinished(this);
 
     if (committed) {
-        m_callbacks->onComplete(m_id);
+        m_callbacks->onComplete(id());
         m_database->transactionFinishedAndCompleteFired(this);
     } else {
-        m_callbacks->onAbort(m_id, IDBDatabaseError::create(IDBDatabaseException::UnknownError, "Internal error committing transaction."));
+        m_callbacks->onAbort(id(), IDBDatabaseError::create(IDBDatabaseException::UnknownError, "Internal error committing transaction."));
         m_database->transactionFinishedAndAbortFired(this);
     }
 

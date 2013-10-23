@@ -2,7 +2,8 @@
 <html>
 <head>
 <title>WebKit Test Results</title>
-<link rel="stylesheet" href="/common.css">
+<link rel="stylesheet" href="common.css">
+<link rel="stylesheet" href="main.css">
 <script src="js/autocompleter.js"></script>
 <script src="js/build.js"></script>
 <script src="js/dom.js"></script>
@@ -16,178 +17,23 @@
 </ul>
 </header>
 
-<form id="navigationBar" onsubmit="TestResultsView.fetchTest(this['testName'].value);
+<form onsubmit="TestResultsView.fetchTest(this['testName'].value);
     TestResultsView.updateLocationHash();
     return false;">
 <input id="testName" type="text" size="150" onpaste="pasteHelper(this, event)"
     placeholder="Type in a test name, or copy and paste test names on results.html or NRWT stdout (including junks)"></form>
+<div id="testView"></div>
 
-<div id="container"></div>
+<form>
+Show
+<label>tests <select id="builderFailureTypeView"><option>failing</option><option>flaky</option><option value="wrongexpectations">has wrong expectations</option></select></label>
+<label>on <select id="builderListView"><option value="">Select builder</option></select></label>
+<label for="builderDaysView">in the last <select id="builderDaysView"><option>5</option><option>15</option><option>30</option></select> days</label>
+</form>
+<div id="builderFailingTestsView"></div>
+
 <div id="tooltipContainer"></div>
 
-<style>
-
-#testName {
-    width: 99%;
-    font-size: 1em;
-    outline: none;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    padding: 5px;
-}
-
-.testResults {
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    padding: 5px;
-    margin: 10px 0px;
-    position: relative;
-}
-
-.closeButton {
-    position: absolute;
-    right: 5px;
-    top: 5px;
-    width: 1em;
-    height: 1em;
-    stroke: #999;
-}
-
-.resultsTable {
-    font-size: small;
-    border-collapse: collapse;
-    border: 2px solid #fff;
-    padding: 0;
-    margin: 0;
-}
-
-.resultsTable caption {
-    font-size: large;
-    font-weight: normal;
-    text-align: left;
-    margin-bottom: 0.3em;
-    white-space: pre;
-}
-
-.resultsTable td,
-.resultsTable th {
-    border: 2px solid #fff;
-    padding: 0;
-    margin: 0;
-}
-
-.resultsTable th,
-.resultsTable .passingRate {
-    font-weight: normal;
-    padding-right: 10px;
-}
-
-.resultsTable th {
-    width: 15em;
-}
-
-.resultsTable .passingRate {
-    width: 3em;
-}
-
-.resultsTable .resultCell {
-    display: inline-block;
-    padding: 0.2em 0.2em;
-}
-
-.resultsTable a {
-    display: block;
-    width: 1em;
-    height: 1.5em;
-    border-radius: 3px;
-}
-
-.resultsTable .PASS a {
-    background-color: #0c3;
-}
-
-.resultsTable .TEXT a {
-    background-color: #c33;
-}
-
-.resultsTable .IMAGE a {
-    background-color: #3cf;
-}
-
-.resultsTable .TEXT.PASS a {
-    background-color: #cf3;
-}
-
-.resultsTable .CRASH a {
-    background-color: #f00;
-}
-
-.candidateWindow {
-    z-index: 999;
-    position: absolute;
-    background: white;
-    color: black;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    margin: 5px 0 0 0;
-    padding: 5px;
-    font-size: 1em;
-    list-style: none;
-}
-
-.candidateWindow em {
-    background-color: #ccc;
-    font-style: normal;
-}
-
-.candidateWindow .selected {
-    background-color: #0cf;
-    color: white;
-}
-
-#tooltipContainer {
-    position: absolute;
-}
-
-.tooltip {
-    position: relative;
-    border-radius: 5px;
-    padding: 5px;
-    opacity: 0.9;
-    background: #333;
-    color: #eee;
-    font-size: small;
-    line-height: 130%;
-}
-
-.tooltip:after {
-    position: absolute;
-    width: 0;
-    height: 0;
-    left: 50%;
-    margin-left: -9px;
-    bottom: -19px;
-    content: "";
-    display: block;
-    border-style: solid;
-    border-width: 10px;
-    border-color: #333 transparent transparent transparent;
-}
-
-.tooltip ul,
-.tooltip li {
-    padding: 0;
-    margin: 0;
-    list-style: none;
-}
-
-.tooltip a {
-    color: white;
-    text-shadow: none;
-    text-decoration: underline;
-}
-
-</style>
 <script>
 
 var TestResultsView = new (function () {
@@ -205,11 +51,19 @@ var TestResultsView = new (function () {
 
     this._tooltipContainer = tooltipContainer;
     this._tests = [];
+    this._currentBuilder = null;
+    this._currentBuilderFailureType = null;
+    this._currentBuilderDays = null;
     this._oldHash = null;
-    this._builders = [];
-    this._slaves = [];
-    this._repositories = [];
+    this._builders = {};
+    this._slaves = {};
+    this._repositories = {};
+    this._testCategories = {};
 });
+
+TestResultsView.setAvailableTests = function (availableTests) {
+    this._availableTests = availableTests;
+}
 
 TestResultsView.setBuilders = function (builders) {
     this._builders = builders;
@@ -223,6 +77,10 @@ TestResultsView.setRepositories = function (repositories) {
     this._repositories = repositories;
 }
 
+TestResultsView.setTestCategories = function (testCategories) {
+    this._testCategories = testCategories;
+}
+
 TestResultsView.showTooltip = function (anchor, contentElement) {
     var tooltipContainer = this._tooltipContainer;
     tooltipContainer.style.display = null;
@@ -231,48 +89,57 @@ TestResultsView.showTooltip = function (anchor, contentElement) {
         tooltipContainer.removeChild(tooltipContainer.firstChild);
     tooltipContainer.appendChild(contentElement);
 
-    var rect = anchor.getBoundingClientRect();
-    tooltipContainer.style.left = (rect.left - contentElement.offsetWidth / 2 + anchor.offsetWidth / 2) + 'px';
-    tooltipContainer.style.top = (rect.top - contentElement.clientHeight - 5) + 'px';
-}
-
-TestResultsView._urlFromBuilder = function (urlType, master, builder, revision, build) {
-    // FIXME: We should probably make this configurable or fetch from buildbot configuraration.
-    return {
-        "build": "http://$master/builders/$builder/builds/$build",
-        "result": "http://$master/results/$builder/r$revision%20($build)/results.html"
-    }[urlType].replace(/\$master/g, master).replace(/\$builder/g, builder)
-        .replace(/\$revision/g, revision).replace(/\$build/g, build);
+    var position = {x: 0, y: 0};
+    var currentNode = anchor;
+    while (currentNode) {
+        position.x += currentNode.offsetLeft;
+        position.y += currentNode.offsetTop;
+        currentNode = currentNode.offsetParent;
+    }
+    tooltipContainer.style.left = (position.x - contentElement.offsetWidth / 2 + anchor.offsetWidth / 2) + 'px';
+    tooltipContainer.style.top = (position.y - contentElement.clientHeight - 5) + 'px';
 }
 
 TestResultsView._createResultCell = function (master, builder, result, previousResult) {
     var buildTime = result['buildTime'];
-    var revision = result['revision'];
+    var revisions = result['revisions'];
     var slave = result['slave'];
-    var build = result['buildNumber'];
+    var buildNumber = result['buildNumber'];
     var actual = result['actual'];
     var expected = result['expected'];
-    var anchor = element('a', {'href': this._urlFromBuilder('result', master, builder, revision, build)});
+    var timeIfSlow = result.isSlow ? result.roundedTime : '';
+
+    // FIXME: We shouldn't be hard-coding WebKit revisions here.
+    var webkitRepositoryId;
+    for (var repositoryId in TestResultsView._repositories) {
+        if (TestResultsView._repositories[repositoryId].name == 'WebKit')
+            webkitRepositoryId = repositoryId;
+    }
+    var webkitRevision = result.build.revision(webkitRepositoryId);
+    var resultsPage = webkitRevision ? "http://" + master + "/results/" + builder + "/r" + webkitRevision + "%20(" + buildNumber + ")/results.html"
+        : 'javascript:alert("Could no resolve WebKit revision")';
+
+    var anchor = element('a', {'href': resultsPage }, [timeIfSlow]);
     anchor.onmouseenter = function () {
-        var repositoryById = TestResultsView._repositories;
         var formattedRevisions = result.build.formattedRevisions(previousResult ? previousResult.build : null);
-        var revisionDescription = '';
+        var revisionDescription = [];
         for (var repositoryName in formattedRevisions) {
             var revision = formattedRevisions[repositoryName];
-            if (revisionDescription)
-                revisionDescription += ', ';
+            if (revisionDescription.length)
+                revisionDescription.push(', ');
             if (revision.url)
-                revisionDescription += repositoryName + ': ' + revision.url;
+                revisionDescription.push(element('a', {'href': revision.url}, [revision.label]));
             else
-                revisionDescription += revision.label;
+                revisionDescription.push(revision.label);
         }
 
         TestResultsView.showTooltip(anchor, element('div', {'class': 'tooltip'}, [
             element('ul', [
                 element('li', ['Build Time: ' + result.build.formattedBuildTime()]),
-                element('li', ['Revision: ' +  revisionDescription]),
-                element('li', ['Build: ', element('a', {'href': TestResultsView._urlFromBuilder('build', master, builder, revision, build)}, [build])]),
-                element('li', ['Result: ' + actual]),
+                element('li', ['Revision: '].concat(revisionDescription)),
+                element('li', ['Build: ', element('a', {'href': result.build.buildUrl()}, [buildNumber])]),
+                element('li', ['Actual: ' + actual]),
+                element('li', ['Expected: ' + expected]),
             ])
         ]));
     }
@@ -282,28 +149,102 @@ TestResultsView._createResultCell = function (master, builder, result, previousR
     return cell;
 }
 
-TestResultsView._populatePane = function(testName, results, section) {
-    var table = element('table', {'class': 'resultsTable'}, [element('caption', [testName])]);
+TestResultsView._populateTestPane = function(testName, results, section) {
+    var test = {name: testName, category: 'LayoutTest'}; // FIXME: Use the real test object.
+    var table = element('table', {'class': 'resultsTable'}, [element('caption', [this._linkifiedTestName(test)])]);
+    table.appendChild(this._createTestResultHeader('Builder'));
+
     var resultsByBuilder = results['builders'];
+    var buildTimes = new Array();
     for (var builderId in resultsByBuilder) {
         var results = resultsByBuilder[builderId];
+        this._createBuildsAndComputeSlownessOfResults(builderId, results);
         for (var i = 0; i < results.length; i++) {
-            results[i].build = new TestBuild(this._repositories, this._builders, results[i]);
+            var time = results[i].build.time();
+            if (buildTimes.indexOf(time) < 0)
+                buildTimes.push(time);
         }
+    }
+    buildTimes.sort(function (a, b) { return b - a; });
 
-        var sortedResults = results.sort(function (result1, result2) { return result1.build.time() - result2.build.time(); });
-        var cells = new Array(sortedResults.length);
+    for (var builderId in resultsByBuilder) {
         var builder = this._builders[builderId];
-        for (var i = 0; i < sortedResults.length; i++)
-            cells[i] = this._createResultCell(builder.master, builder.name, sortedResults[i], sortedResults[i - 1]);
-
-        var passCount = cells.filter(function (cell) { return cell.className == 'PASS'; }).length;
-        var passingRate = Math.round(passCount / cells.length * 100) + '%';
-        table.appendChild(element('tr', [element('th', [builder.name]), element('td', {'class': 'passingRate'}, [passingRate]),
-            element('td', cells)]));
         // FIXME: Add a master name if there is more than one.
+        table.appendChild(this._createTestResultRow(builder.name, resultsByBuilder[builderId], builder, buildTimes));
     }
     section.appendChild(table);
+}
+
+TestResultsView._linkifiedTestName = function (test) {
+    var category = this._testCategories[test.category];
+    if (!category)
+        return test.name;
+
+    return element('a', {'href': category.url.replace(/\$testName/g, test.name)}, [test.name]);
+}
+
+TestResultsView._createTestResultHeader = function (labelForFirstColumn) {
+    return element('thead', [element('tr', [
+        element('th', [labelForFirstColumn]),
+        element('th', ['Bug']),
+        element('th', ['Expectations']),
+        element('th', ['Slowest'])])]);
+}
+
+TestResultsView._createBuildsAndComputeSlownessOfResults = function (builderId, results) {
+    for (var i = 0; i < results.length; i++) {
+        var result = results[i];
+        result.builder = builderId;
+        result.build = new TestBuild(this._repositories, this._builders, result);
+        result.roundedTime = result.time > 10000 ? Math.round(result.time / 1000) : Math.round(result.time / 100) / 10;
+        result.isSlow = result.time > 1000;
+    }
+}
+
+TestResultsView._createTestResultRow = function (title, results, builder, buildTimes) {
+    var sortedResults = results.sort(function (result1, result2) { return result2.build.time() - result1.build.time(); });
+    var cells = new Array();
+
+    function addEmptyCell() { cells.push(element('span', {'class': 'resultCell'}, [element('a')])); }
+
+    var buildTimeIndex = 0;
+    for (var i = 0; i < sortedResults.length; i++) {
+        var result = sortedResults[i];
+        if (buildTimes) {
+            while (buildTimes[buildTimeIndex] > result.build.time()) {
+                addEmptyCell();
+                buildTimeIndex++;
+            }
+            if (buildTimes[buildTimeIndex] == result.build.time())
+                buildTimeIndex++;
+        }
+        cells.push(this._createResultCell(builder.master, builder.name, result, sortedResults[i - 1]));
+    }
+    if (buildTimes) {
+        while (buildTimeIndex < buildTimes.length) {
+            addEmptyCell();
+            buildTimeIndex++;
+        }
+    }
+
+    var formattedModifiers = sortedResults[0].modifiers.split(' ').map(function (modifier) {
+        if (modifier.indexOf('/') > 0)
+            return element('a', {'href': (modifier.indexOf('http') == 0 ? '' : 'http://') + modifier}, [modifier]);
+        return modifier;
+    });
+
+    var slowestTime = Math.max.apply(Math, results.map(function (result) { return result.roundedTime; }));
+    if (slowestTime >= 1)
+        slowestTime += 's';
+    else
+        slowestTime = '';
+
+    return element('tr', [
+        element('th', [title]),
+        element('td', {'class': 'modifiers'}, formattedModifiers),
+        element('td', {'class': 'expected'}, [sortedResults[0].expected]),
+        element('td', {'class': 'slowestTime'}, [slowestTime]),
+        element('td', cells)]);
 }
 
 TestResultsView.fetchTest = function (testName) {
@@ -321,20 +262,20 @@ TestResultsView.fetchTest = function (testName) {
             section.parentNode.removeChild(section);
             event.preventDefault();
         });
-    var section = element('section', {'id': testName, 'class': 'testResults'}, [closeButton]);
+    var section = element('section', {'id': testName, 'class': 'testResults'}, [closeButton, 'Loading...']);
 
-    document.getElementById('container').appendChild(section);
+    document.getElementById('testView').appendChild(section);
 
     var xhr = new XMLHttpRequest();
     xhr.open("GET", 'api/results.php?test=' + testName, true);  
     xhr.onload = function(event) {
         var response = JSON.parse(xhr.response);
+        section.removeChild(section.lastChild); // Remove Loading...
         if (response['status'] != 'OK') {
             section.appendChild(text('Failed to load results for ' + testName + ': ' + response['status']));
             return;
         }
-
-        self._populatePane(testName, response, section);
+        self._populateTestPane(testName, response, section);
     }
     xhr.send();
     this._tests.push(testName);
@@ -351,16 +292,108 @@ TestResultsView._removeTest = function (testName) {
 TestResultsView.fetchTests = function (testNames, doNotUpdateHash) {
     for (var i = 0; i < testNames.length; i++)
         this.fetchTest(testNames[i], doNotUpdateHash);
-    this.updateLocationHash();
+    if (!doNotUpdateHash)
+        this.updateLocationHash();
+}
+
+TestResultsView._matchesFailureType = function (results, failureType, tn) {
+    if (!results.length)
+        return false;
+    var latestActualResult = results[0].actual;
+    var latestExpectedResult = results[0].expected;
+    switch (failureType) {
+    case 'failing':
+        return results[0].actual != 'PASS';
+    case 'flaky':
+        var offOneChangeCount = 0;
+        for (var i = 1; i + 1 < results.length; i++) {
+            var previousActual = results[i - 1].actual;
+            var nextActual = results[i + 1].actual;
+            if (previousActual == nextActual && results[i].actual != previousActual)
+                offOneChangeCount++;
+        }
+        return offOneChangeCount; // Heuristics.
+    case 'wrongexpectations':
+        if (latestExpectedResult == latestActualResult)
+            return false;
+        var expectedTokens = latestExpectedResult.split(' ');
+        if (expectedTokens.indexOf(latestActualResult) >= 0)
+            return false;
+        if (latestActualResult == 'TEXT' || latestActualResult == 'TEXT+IMAGE' && expectedTokens.indexOf('FAIL') >= 0)
+            return false;
+        return true;
+    }
+
+    return false;
+}
+
+TestResultsView._populateBuilderPane = function(builderName, failureType, results, section) {
+    var table = element('table', {'class': 'resultsTable'}, [element('caption', [builderName])]);
+    var resultsByBuilder = results['builders'];
+    var resultsByTests;
+    var builderId;
+    for (var currentBuilderId in resultsByBuilder) {
+        builderId = currentBuilderId;
+        resultsByTests = resultsByBuilder[builderId];
+    }
+    if (!resultsByTests)
+        return;
+
+    table.appendChild(this._createTestResultHeader('Test'));
+
+    var builder = this._builders[builderId];
+    for (var testId in resultsByTests) {
+        var results = resultsByTests[testId];
+        if (!results.length || !this._matchesFailureType(results, failureType, this._availableTests[testId].name))
+            continue;
+        this._createBuildsAndComputeSlownessOfResults(builderId, resultsByTests[testId]);
+        table.appendChild(this._createTestResultRow(this._linkifiedTestName(this._availableTests[testId]), resultsByTests[testId], builder));
+    }
+    section.appendChild(table);
+}
+
+TestResultsView.fetchFailingTestsForBuilder = function (builderName, numberOfDays, failureType, doNotUpdateHash) {
+    var section = element('section', {'class': 'testResults'}, ['Loading...']);
+
+    var container = document.getElementById('builderFailingTestsView');
+    container.innerHTML = '';
+    container.appendChild(section);
+
+    var self = this;
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", 'api/failing-tests.php?builder=' + escape(builderName) + '&days=' + numberOfDays, true);  
+    xhr.onload = function(event) {
+        var response = JSON.parse(xhr.response);
+        section.innerHTML = '';
+        if (response['status'] != 'OK') {
+            section.appendChild(text('Failed to load results for ' + builderName + ': ' + response['status']));
+            return;
+        }
+        // FIXME: Normalize failureType.
+        self._currentBuilder = builderName;
+        self._currentBuilderFailureType = failureType;
+        self._currentBuilderDays = numberOfDays;
+        self._populateBuilderPane(builderName, failureType, response, section);
+        if (!doNotUpdateHash)
+            self.updateLocationHash();
+    }
+    xhr.send();
 }
 
 TestResultsView.updateLocationHash = function () {
     var params = {
-        'tests': this._tests.join(',')
+        'tests': this._tests.join(','),
+        'builder': this._currentBuilder,
+        'builderFailureType': this._currentBuilderFailureType,
+        'builderDays': this._currentBuilderDays,
     };
     var hash = '';
-    for (var key in params)
-        hash += decodeURIComponent(key) + '=' + decodeURIComponent(params[key]);
+    for (var key in params) {
+        var value = params[key];
+        if (value === null || value === undefined)
+            continue;
+        hash += '&' + decodeURIComponent(key) + '=' + decodeURIComponent(value);
+    }
     location.hash = hash;
     this._oldHash = location.hash;
 }
@@ -371,7 +404,6 @@ TestResultsView.locationHashChanged = function () {
         return;
     this._oldHash = newHash;
     this._tests = [];
-    document.getElementById('container').innerHTML = '';
     this.loadTestsFromLocationHash();
 }
 
@@ -384,10 +416,18 @@ TestResultsView.loadTestsFromLocationHash = function () {
         var name = decodeURIComponent(component.substr(0, equalPosition));
         parsed[name] = decodeURIComponent(component.substr(equalPosition + 1));
     });
-    if (!parsed['tests'])
-        return;
     var doNotUpdateHash = true;
-    this.fetchTests(parsed['tests'].split(','), doNotUpdateHash);
+    if (parsed['tests']) {
+        document.getElementById('testView').innerHTML = '';
+        this.fetchTests(parsed['tests'].split(','), doNotUpdateHash);
+    }
+    if (parsed['builder']) {
+        this.fetchFailingTestsForBuilder(
+            parsed['builder'],
+            parseInt(parsed['builderDays']) || 5,
+            parsed['builderFailureType'] || 'failing', doNotUpdateHash);
+    }
+    return parsed;
 }
 
 function fetchManifest(callback) {
@@ -410,10 +450,41 @@ fetchManifest(function (response) {
     var input = document.getElementById('testName');
     input.autocompleter = new Autocompleter(input, testNames);
 
-    TestResultsView.setBuilders(response['builders']);
-    TestResultsView.setSlaves(response['slaves']);
-    TestResultsView.setRepositories(response['repositories']);
-    TestResultsView.loadTestsFromLocationHash();
+    var builderListView = document.getElementById('builderListView');
+    for (var builderId in response['builders'])
+        builderListView.appendChild(element('option', [text(response['builders'][builderId].name)]));
+
+    var builderDaysView = document.getElementById('builderDaysView');
+    var builderFailureTypeView = document.getElementById('builderFailureTypeView');
+
+    function updateBuilderView() {
+        if (builderListView.value)
+            TestResultsView.fetchFailingTestsForBuilder(builderListView.value, builderDaysView.value, builderFailureTypeView.value);
+    }
+
+    builderListView.addEventListener('change', updateBuilderView);
+    builderDaysView.addEventListener('change', updateBuilderView);
+    builderFailureTypeView.addEventListener('change', updateBuilderView);
+
+    function mapById(items) {
+        var results = {};
+        for (var i = 0; i < items.length; i++)
+            results[items[i].id] = items[i];
+        return results;
+    }
+
+    TestResultsView.setAvailableTests(mapById(response['tests']));
+    TestResultsView.setBuilders(mapById(response['builders']));
+    TestResultsView.setSlaves(mapById(response['slaves']));
+    TestResultsView.setRepositories(mapById(response['repositories']));
+    TestResultsView.setTestCategories(response['testCategories']);
+    // FIXME: Updating location.href shouldn't be TestResultsView's responsibility.
+    var parsedStates = TestResultsView.loadTestsFromLocationHash();
+    if (parsedStates['builder']) {
+        builderListView.value = parsedStates['builder'];
+        builderDaysView.value = parsedStates['builderDays'];
+        builderFailureTypeView.value = parsedStates['builderFailureType'];
+    }
 });
 
 function pasteHelper(input, event) {

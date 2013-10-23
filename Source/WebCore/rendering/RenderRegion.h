@@ -96,7 +96,7 @@ public:
     LayoutUnit logicalTopForFlowThreadContent() const { return logicalTopOfFlowThreadContentRect(flowThreadPortionRect()); };
     LayoutUnit logicalBottomForFlowThreadContent() const { return logicalBottomOfFlowThreadContentRect(flowThreadPortionRect()); };
 
-    void getRanges(Vector<RefPtr<Range> >&) const;
+    void getRanges(Vector<RefPtr<Range>>&) const;
 
     // This method represents the logical height of the entire flow thread portion used by the region or set.
     // For RenderRegions it matches logicalPaginationHeight(), but for sets it is the height of all the pages
@@ -136,6 +136,8 @@ public:
     virtual void repaintFlowThreadContent(const LayoutRect& repaintRect, bool immediate) const;
 
     virtual void collectLayerFragments(LayerFragments&, const LayoutRect&, const LayoutRect&) { }
+
+    virtual void adjustRegionBoundsFromFlowThreadPortionRect(const IntPoint& layerOffset, IntRect& regionBounds); // layerOffset is needed for multi-column.
 
     void addLayoutOverflowForBox(const RenderBox*, const LayoutRect&);
     void addVisualOverflowForBox(const RenderBox*, const LayoutRect&);
@@ -209,7 +211,7 @@ private:
     // A RenderBoxRegionInfo* tells us about any layout information for a RenderBox that
     // is unique to the region. For now it just holds logical width information for RenderBlocks, but eventually
     // it will also hold a custom style for any box (for region styling).
-    typedef HashMap<const RenderBox*, OwnPtr<RenderBoxRegionInfo> > RenderBoxRegionInfoMap;
+    typedef HashMap<const RenderBox*, OwnPtr<RenderBoxRegionInfo>> RenderBoxRegionInfoMap;
     RenderBoxRegionInfoMap m_renderBoxRegionInfo;
 
     struct ObjectRegionStyleInfo {
@@ -245,8 +247,21 @@ inline const RenderRegion* toRenderRegion(const RenderObject* object)
     return static_cast<const RenderRegion*>(object);
 }
 
+inline RenderRegion& toRenderRegion(RenderObject& object)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderRegion());
+    return static_cast<RenderRegion&>(object);
+}
+
+inline const RenderRegion& toRenderRegion(const RenderObject& object)
+{
+    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderRegion());
+    return static_cast<const RenderRegion&>(object);
+}
+
 // This will catch anyone doing an unnecessary cast.
 void toRenderRegion(const RenderRegion*);
+void toRenderRegion(const RenderRegion&);
 
 } // namespace WebCore
 

@@ -63,6 +63,7 @@ public:
     bool remote() const;
 
     const AtomicString& readyState() const;
+    void setState(MediaStreamSource::ReadyState);
 
     static void getSources(ScriptExecutionContext*, PassRefPtr<MediaStreamTrackSourcesCallback>, ExceptionCode&);
 
@@ -130,7 +131,7 @@ private:
     bool m_eventDispatchScheduled;
 };
 
-typedef Vector<RefPtr<MediaStreamTrack> > MediaStreamTrackVector;
+typedef Vector<RefPtr<MediaStreamTrack>> MediaStreamTrackVector;
 
 } // namespace WebCore
 

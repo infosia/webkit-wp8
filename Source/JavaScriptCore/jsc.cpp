@@ -257,7 +257,7 @@ protected:
 };
 
 const ClassInfo GlobalObject::s_info = { "global", &JSGlobalObject::s_info, 0, ExecState::globalObjectTable, CREATE_METHOD_TABLE(GlobalObject) };
-const GlobalObjectMethodTable GlobalObject::s_globalObjectMethodTable = { &allowsAccessFrom, &supportsProfiling, &supportsRichSourceInfo, &shouldInterruptScript, &javaScriptExperimentsEnabled, 0 };
+const GlobalObjectMethodTable GlobalObject::s_globalObjectMethodTable = { &allowsAccessFrom, &supportsProfiling, &supportsRichSourceInfo, &shouldInterruptScript, &javaScriptExperimentsEnabled, 0, &shouldInterruptScriptBeforeTimeout };
 
 
 GlobalObject::GlobalObject(VM& vm, Structure* structure)
@@ -590,6 +590,10 @@ int main(int argc, char** argv)
             createThread(timeoutThreadMain, 0, "jsc Timeout Thread");
         }
     }
+#endif
+
+#if PLATFORM(IOS)
+    Options::crashIfCantAllocateJITMemory() = true;
 #endif
 
     // We can't use destructors in the following code because it uses Windows

@@ -148,6 +148,8 @@
 
 #if ENABLE(MEDIA_STREAM)
 #include "MockMediaStreamCenter.h"
+#include "RTCPeerConnection.h"
+#include "RTCPeerConnectionHandlerMock.h"
 #endif
 
 namespace WebCore {
@@ -280,9 +282,10 @@ Internals::Internals(Document* document)
     if (document && document->page())
         document->page()->group().captionPreferences()->setTestingMode(true);
 #endif
-    
+
 #if ENABLE(MEDIA_STREAM)
     MockMediaStreamCenter::registerMockMediaStreamCenter();
+    enableMockRTCPeerConnectionHandler();
 #endif
 }
 
@@ -644,7 +647,14 @@ void Internals::enableMockSpeechSynthesizer()
     synthesis->setPlatformSynthesizer(PlatformSpeechSynthesizerMock::create(synthesis));
 }
 #endif
-    
+
+#if ENABLE(MEDIA_STREAM)
+void Internals::enableMockRTCPeerConnectionHandler()
+{
+    RTCPeerConnectionHandler::create = RTCPeerConnectionHandlerMock::create;
+}
+#endif
+
 PassRefPtr<ClientRect> Internals::absoluteCaretBounds(ExceptionCode& ec)
 {
     Document* document = contextDocument();
@@ -1599,10 +1609,10 @@ void Internals::insertAuthorCSS(Document* document, const String& css, Exception
         return;
     }
 
-    RefPtr<StyleSheetContents> parsedSheet = StyleSheetContents::create(*document);
-    parsedSheet->setIsUserStyleSheet(false);
-    parsedSheet->parseString(css);
-    document->styleSheetCollection().addAuthorSheet(parsedSheet);
+    auto parsedSheet = StyleSheetContents::create(*document);
+    parsedSheet.get().setIsUserStyleSheet(false);
+    parsedSheet.get().parseString(css);
+    document->styleSheetCollection().addAuthorSheet(std::move(parsedSheet));
 }
 
 void Internals::insertUserCSS(Document* document, const String& css, ExceptionCode& ec) const
@@ -1612,10 +1622,10 @@ void Internals::insertUserCSS(Document* document, const String& css, ExceptionCo
         return;
     }
 
-    RefPtr<StyleSheetContents> parsedSheet = StyleSheetContents::create(*document);
-    parsedSheet->setIsUserStyleSheet(true);
-    parsedSheet->parseString(css);
-    document->styleSheetCollection().addUserSheet(parsedSheet);
+    auto parsedSheet = StyleSheetContents::create(*document);
+    parsedSheet.get().setIsUserStyleSheet(true);
+    parsedSheet.get().parseString(css);
+    document->styleSheetCollection().addUserSheet(std::move(parsedSheet));
 }
 
 String Internals::counterValue(Element* element)

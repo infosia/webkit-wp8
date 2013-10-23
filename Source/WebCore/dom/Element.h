@@ -236,7 +236,7 @@ public:
     PassRefPtr<Attr> attrIfExists(const QualifiedName&);
     PassRefPtr<Attr> ensureAttr(const QualifiedName&);
 
-    const Vector<RefPtr<Attr> >& attrNodeList();
+    const Vector<RefPtr<Attr>>& attrNodeList();
 
     virtual CSSStyleDeclaration* style();
 
@@ -418,6 +418,11 @@ public:
     virtual void didBecomeFullscreenElement() { }
     virtual void willStopBeingFullscreenElement() { }
 
+#if ENABLE(PAGE_VISIBILITY_API)
+    // Use Document::registerForVisibilityStateChangedCallbacks() to subscribe to this.
+    virtual void visibilityStateChanged() { }
+#endif
+
 #if ENABLE(VIDEO_TRACK)
     virtual void captionPreferencesChanged() { }
 #endif
@@ -523,7 +528,7 @@ public:
     virtual bool shouldMoveToFlowThread(const RenderStyle&) const;
     
     const AtomicString& webkitRegionOverset() const;
-    Vector<RefPtr<Range> > webkitGetRegionFlowRanges() const;
+    Vector<RefPtr<Range>> webkitGetRegionFlowRanges() const;
 #endif
 
     bool hasID() const;

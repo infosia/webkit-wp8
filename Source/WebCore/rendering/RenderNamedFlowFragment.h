@@ -37,7 +37,7 @@ namespace WebCore {
 class Element;
 class RenderStyle;
 
-class RenderNamedFlowFragment : public RenderRegion {
+class RenderNamedFlowFragment FINAL : public RenderRegion {
 public:
     explicit RenderNamedFlowFragment(Document&);
     virtual ~RenderNamedFlowFragment();
@@ -45,17 +45,22 @@ public:
     void setStyleForNamedFlowFragment(const RenderStyle*);
 
     virtual bool isRenderNamedFlowFragment() const OVERRIDE FINAL { return true; }
-    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
+    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
 
     virtual LayoutUnit maxPageLogicalHeight() const;
 
     bool isPseudoElementRegion() const { return parent() && parent()->isPseudoElement(); }
 
-protected:
-    virtual bool shouldHaveAutoLogicalHeight() const;
+    // When the content inside the region requires the region to have a layer, the layer will be created on the region's
+    // parent renderer instead.
+    // This method returns that renderer holding the layer.
+    // The return value may be null.
+    RenderLayerModelObject* layerOwner() const { return parent() && parent()->isRenderLayerModelObject() ?
+        toRenderLayerModelObject(parent()) : nullptr; }
 
 private:
-    virtual const char* renderName() const { return "RenderNamedFlowFragment"; }
+    virtual bool shouldHaveAutoLogicalHeight() const OVERRIDE;
+    virtual const char* renderName() const OVERRIDE { return "RenderNamedFlowFragment"; }
 };
 
 inline RenderNamedFlowFragment* toRenderNamedFlowFragment(RenderObject* object)

@@ -172,14 +172,14 @@ void RenderMathMLOperator::updateFromElement()
     // renderer to 0, so we need to restore it.
     element().setRenderer(savedRenderer);
     
-    RefPtr<RenderStyle> newStyle = RenderStyle::create();
-    newStyle->inheritFrom(style());
-    newStyle->setDisplay(FLEX);
+    auto newStyle = RenderStyle::create();
+    newStyle.get().inheritFrom(style());
+    newStyle.get().setDisplay(FLEX);
 
     RenderMathMLBlock* container = new RenderMathMLBlock(element());
     // This container doesn't offer any useful information to accessibility.
     container->setIgnoreInAccessibilityTree(true);
-    container->setStyle(newStyle.release());
+    container->setStyle(std::move(newStyle));
 
     addChild(container);
     RenderText* text;
@@ -265,11 +265,11 @@ void RenderMathMLOperator::updateStyle()
         m_isStretched = false;
 }
 
-int RenderMathMLOperator::firstLineBoxBaseline() const
+int RenderMathMLOperator::firstLineBaseline() const
 {
     if (m_isStretched)
         return expandedStretchHeight() * 2 / 3 - (expandedStretchHeight() - m_stretchHeight) / 2;
-    return RenderMathMLBlock::firstLineBoxBaseline();
+    return RenderMathMLBlock::firstLineBaseline();
 }
 
 void RenderMathMLOperator::computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues& computedValues) const

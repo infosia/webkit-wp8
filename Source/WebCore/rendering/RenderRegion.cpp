@@ -694,7 +694,7 @@ void RenderRegion::computePreferredLogicalWidths()
     setPreferredLogicalWidthsDirty(false);
 }
 
-void RenderRegion::getRanges(Vector<RefPtr<Range> >& rangeObjects) const
+void RenderRegion::getRanges(Vector<RefPtr<Range>>& rangeObjects) const
 {
     const RenderNamedFlowThread& namedFlow = view().flowThreadController().ensureRenderFlowThreadWithName(style()->regionThread());
     namedFlow.getRanges(rangeObjects, this);
@@ -729,6 +729,16 @@ void RenderRegion::updateLogicalHeight()
         RenderBlockFlow::updateLogicalHeight();
     }
 }
+
+void RenderRegion::adjustRegionBoundsFromFlowThreadPortionRect(const IntPoint& layerOffset, IntRect& regionBounds)
+{
+    LayoutRect flippedFlowThreadPortionRect = flowThreadPortionRect();
+    flowThread()->flipForWritingMode(flippedFlowThreadPortionRect);
+    regionBounds.moveBy(roundedIntPoint(flippedFlowThreadPortionRect.location()));
+
+    UNUSED_PARAM(layerOffset);
+}
+
 
 RenderOverflow* RenderRegion::ensureOverflowForBox(const RenderBox* box)
 {

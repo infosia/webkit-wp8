@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,15 @@
 #import "ArgumentCoders.h"
 #import "ShareableBitmap.h"
 #import "WebCoreArgumentCoders.h"
+#import <WebCore/WebLayer.h>
 
 using namespace WebCore;
 using namespace WebKit;
 
-RemoteLayerBackingStore::RemoteLayerBackingStore(PlatformCALayerRemote* layer, IntSize size, bool isOpaque)
+RemoteLayerBackingStore::RemoteLayerBackingStore(PlatformCALayerRemote* layer, IntSize size, float scale)
     : m_layer(layer)
     , m_size(size)
-    , m_isOpaque(isOpaque)
-    , m_needsFullRepaint(true)
+    , m_scale(scale)
 {
     ASSERT(layer);
 }
@@ -53,10 +53,11 @@ RemoteLayerBackingStore::RemoteLayerBackingStore()
 void RemoteLayerBackingStore::encode(CoreIPC::ArgumentEncoder& encoder) const
 {
     ShareableBitmap::Handle handle;
-    m_bitmap->createHandle(handle);
+    m_frontBuffer->createHandle(handle);
 
     encoder << handle;
     encoder << m_size;
+    encoder << m_scale;
 }
 
 bool RemoteLayerBackingStore::decode(CoreIPC::ArgumentDecoder& decoder, RemoteLayerBackingStore& result)
@@ -64,23 +65,34 @@ bool RemoteLayerBackingStore::decode(CoreIPC::ArgumentDecoder& decoder, RemoteLa
     ShareableBitmap::Handle handle;
     if (!decoder.decode(handle))
         return false;
-    result.m_bitmap = ShareableBitmap::create(handle);
+    result.m_frontBuffer = ShareableBitmap::create(handle);
 
     if (!decoder.decode(result.m_size))
+        return false;
+
+    if (!decoder.decode(result.m_scale))
         return false;
 
     return true;
 }
 
-void RemoteLayerBackingStore::setNeedsDisplay(IntRect rect)
+IntRect RemoteLayerBackingStore::mapToContentCoordinates(const IntRect rect) const
 {
-    // FIXME: Only repaint dirty regions.
-    setNeedsDisplay();
+    IntRect flippedRect = rect;
+    if (m_layer->owner()->platformCALayerContentsOrientation() == GraphicsLayer::CompositingCoordinatesBottomUp)
+        flippedRect.setY(m_size.height() - rect.y() - rect.height());
+    return flippedRect;
+}
+
+void RemoteLayerBackingStore::setNeedsDisplay(const IntRect rect)
+{
+    IntRect flippedRect = mapToContentCoordinates(rect);
+    m_dirtyRegion.unite(flippedRect);
 }
 
 void RemoteLayerBackingStore::setNeedsDisplay()
 {
-    m_needsFullRepaint = true;
+    setNeedsDisplay(IntRect(IntPoint(), m_size));
 }
 
 bool RemoteLayerBackingStore::display()
@@ -88,28 +100,60 @@ bool RemoteLayerBackingStore::display()
     if (!m_layer)
         return false;
 
-    if (!m_layer->owner()->platformCALayerDrawsContent()) {
-        // If we previously were drawsContent=YES, and now are not, we need
-        // to note that our backing store has changed (by being cleared).
-        if (m_bitmap) {
-            m_bitmap = nullptr;
-            return true;
+    // If we previously were drawsContent=YES, and now are not, we need
+    // to note that our backing store has been cleared.
+    if (!m_layer->owner()->platformCALayerDrawsContent())
+        return m_frontBuffer;
+
+    if (m_dirtyRegion.isEmpty())
+        return false;
+
+    FloatSize scaledSize = m_size;
+    scaledSize.scale(m_scale);
+
+    IntRect layerBounds(IntPoint(), m_size);
+
+    m_backBuffer = ShareableBitmap::createShareable(expandedIntSize(scaledSize), ShareableBitmap::SupportsAlpha);
+    if (!m_frontBuffer)
+        m_dirtyRegion.unite(layerBounds);
+
+    if (m_layer->owner()->platformCALayerShowRepaintCounter(m_layer)) {
+        IntRect indicatorRect = mapToContentCoordinates(IntRect(0, 0, 52, 27));
+        m_dirtyRegion.unite(indicatorRect);
+    }
+
+    std::unique_ptr<GraphicsContext> context = m_backBuffer->createGraphicsContext();
+
+    Vector<IntRect> dirtyRects = m_dirtyRegion.rects();
+
+    // If we have less than webLayerMaxRectsToPaint rects to paint and they cover less
+    // than webLayerWastedSpaceThreshold of the area, we'll do a partial repaint.
+    Vector<FloatRect, webLayerMaxRectsToPaint> rectsToPaint;
+    if (dirtyRects.size() <= webLayerMaxRectsToPaint && m_dirtyRegion.totalArea() <= webLayerWastedSpaceThreshold * layerBounds.width() * layerBounds.height()) {
+        // Copy over the parts of the front buffer that we're not going to repaint.
+        if (m_frontBuffer) {
+            Region cleanRegion(layerBounds);
+            cleanRegion.subtract(m_dirtyRegion);
+
+            RetainPtr<CGImageRef> frontImage = m_frontBuffer->makeCGImage();
+
+            for (const auto& rect : cleanRegion.rects()) {
+                FloatRect scaledRect = rect;
+                scaledRect.scale(m_scale);
+                context->drawNativeImage(frontImage.get(), m_frontBuffer->size(), ColorSpaceDeviceRGB, scaledRect, scaledRect);
+            }
         }
-        return false;
+
+        for (const auto& rect : dirtyRects)
+            rectsToPaint.append(rect);
     }
 
-    if (m_bitmap && !m_needsFullRepaint)
-        return false;
+    context->scale(FloatSize(m_scale, m_scale));
+    drawLayerContents(context->platformContext(), m_layer, FloatRect(FloatPoint(), scaledSize), rectsToPaint, false);
+    m_dirtyRegion = Region();
 
-    if (!m_bitmap) {
-        m_bitmap = ShareableBitmap::createShareable(m_size, m_isOpaque ? ShareableBitmap::NoFlags : ShareableBitmap::SupportsAlpha);
-        m_needsFullRepaint = true;
-    }
-
-    std::unique_ptr<GraphicsContext> context = m_bitmap->createGraphicsContext();
-    m_layer->owner()->platformCALayerPaintContents(*context.get(), IntRect(IntPoint(), m_size));
-
-    m_needsFullRepaint = false;
+    m_frontBuffer = m_backBuffer;
+    m_backBuffer = nullptr;
 
     return true;
 }

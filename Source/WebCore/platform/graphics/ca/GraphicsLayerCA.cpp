@@ -762,14 +762,6 @@ bool GraphicsLayerCA::addAnimation(const KeyframeValueList& valueList, const Int
     if (animationHasStepsTimingFunction(valueList, anim))
         return false;
 
-#if PLATFORM(WIN)
-    // CoreAnimation on Windows does not handle a reverse direction. Fall
-    // back to software animation in that case.
-    // https://bugs.webkit.org/show_bug.cgi?id=85121
-    if (!anim->directionIsForwards())
-        return false;
-#endif
-
     bool createdAnimations = false;
     if (valueList.property() == AnimatedPropertyWebkitTransform)
         createdAnimations = createTransformAnimationsFromKeyframes(valueList, anim, animationName, timeOffset, boxSize);
@@ -2728,7 +2720,7 @@ bool GraphicsLayerCA::setFilterAnimationEndpoints(const KeyframeValueList& value
 bool GraphicsLayerCA::setFilterAnimationKeyframes(const KeyframeValueList& valueList, const Animation* animation, PlatformCAAnimation* keyframeAnim, int functionIndex, int internalFilterPropertyIndex, FilterOperation::OperationType filterOp)
 {
     Vector<float> keyTimes;
-    Vector<RefPtr<FilterOperation> > values;
+    Vector<RefPtr<FilterOperation>> values;
     Vector<const TimingFunction*> timingFunctions;
     RefPtr<DefaultFilterOperation> defaultOperation;
 
@@ -3125,7 +3117,7 @@ PassRefPtr<PlatformCALayer> GraphicsLayerCA::fetchCloneLayers(GraphicsLayer* rep
     }
 
     const Vector<GraphicsLayer*>& childLayers = children();
-    Vector<RefPtr<PlatformCALayer> > clonalSublayers;
+    Vector<RefPtr<PlatformCALayer>> clonalSublayers;
 
     RefPtr<PlatformCALayer> replicaLayer;
     

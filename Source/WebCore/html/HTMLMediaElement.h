@@ -266,7 +266,7 @@ public:
 
 #if USE(PLATFORM_TEXT_TRACK_MENU)
     virtual void setSelectedTextTrack(PassRefPtr<PlatformTextTrack>) OVERRIDE;
-    virtual Vector<RefPtr<PlatformTextTrack> > platformTextTracks() OVERRIDE;
+    virtual Vector<RefPtr<PlatformTextTrack>> platformTextTracks() OVERRIDE;
     PlatformTextTrackMenuInterface* platformTextTrackMenu();
 #endif
 
@@ -281,7 +281,7 @@ public:
         {
         }
 
-        Vector<RefPtr<TextTrack> > tracks;
+        Vector<RefPtr<TextTrack>> tracks;
         RefPtr<TextTrack> visibleTrack;
         RefPtr<TextTrack> defaultTrack;
         GroupKind kind;
@@ -458,6 +458,10 @@ private:
     
     virtual void mediaVolumeDidChange() OVERRIDE;
 
+#if ENABLE(PAGE_VISIBILITY_API)
+    virtual void visibilityStateChanged() OVERRIDE;
+#endif
+
     virtual void updateDisplayState() { }
     
     void setReadyState(MediaPlayer::ReadyState);
@@ -620,8 +624,8 @@ private:
     virtual bool isLiveStream() const OVERRIDE { return movieLoadType() == MediaPlayer::LiveStream; }
     bool isAutoplaying() const { return m_autoplaying; }
 
+    void updateSleepDisabling();
 #if PLATFORM(MAC)
-    void updateDisableSleep();
     bool shouldDisableSleep() const;
 #endif
 
@@ -730,6 +734,9 @@ private:
     bool m_completelyLoaded : 1;
     bool m_havePreparedToPlay : 1;
     bool m_parsingInProgress : 1;
+#if ENABLE(PAGE_VISIBILITY_API)
+    bool m_isDisplaySleepDisablingSuspended : 1;
+#endif
 
 #if ENABLE(VIDEO_TRACK)
     bool m_tracksAreReady : 1;
@@ -744,7 +751,7 @@ private:
     RefPtr<AudioTrackList> m_audioTracks;
     RefPtr<TextTrackList> m_textTracks;
     RefPtr<VideoTrackList> m_videoTracks;
-    Vector<RefPtr<TextTrack> > m_textTracksWhenResourceSelectionBegan;
+    Vector<RefPtr<TextTrack>> m_textTracksWhenResourceSelectionBegan;
 
     CueIntervalTree m_cueTree;
 
