@@ -1,3 +1,451 @@
+2013-10-23  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        [GTK] accessibility/self-referencing-aria-labelledby.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=121594
+
+        Reviewed by Mario Sanchez Prada.
+
+        According to http://www.w3.org/TR/REC-html40/struct/objects.html#edef-IMG
+        description of image element should be determined by alt attribute, then
+        if it is empty by title attributte.
+
+        * accessibility/atk/WebKitAccessibleWrapperAtk.cpp:
+        (webkitAccessibleGetDescription):
+
+2013-10-15  Andreas Kling  <akling@apple.com>
+
+        Tighten animation-driven restyle to operate on Element only.
+        <https://webkit.org/b/122820>
+
+        Text nodes are never directly animated, so we can tighten this code
+        to work on Element only. This happens naturally since the code was
+        already working with RenderElement everywhere.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-22  Andreas Kling  <akling@apple.com>
+
+        Even more PassRef<RenderStyle>!
+        <https://webkit.org/b/123147>
+
+        Convert more of the WebCore code to use PassRef for RenderStyle
+        in places where they are known to be non-null.
+
+        Re-landing this without region styling since that caused some
+        assertions last time.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-22  Zoltan Horvath  <zoltan@webkit.org>
+
+        Refactor LineBreaker::nextSegmentBreak, add BreakingContext that holds all its state
+        https://bugs.webkit.org/show_bug.cgi?id=123038
+
+        Reviewed by David Hyatt.
+
+        I followed Levi's logic on Blink's nextSegmentBreak refactoring (https://chromiumcodereview.appspot.com/25054004). 
+        I mostly did the same changes, but the code is too diverged at this point to just apply that patch on our trunk. The patch
+        introduces BreakingContext as a separate class. I added new methods for each condition, which were originally located in
+        nextSegmentBreak. I also removed the goto-s from the code. All the new methods are inline in order to avoid introducing any
+        performance regression. The change makes the code so much cleaner and understandable.
+
+        This change would be the first step of the nextSegmentBreak refactoring, I wanted to keep things in place in RenderBlockLineLayout.cpp
+        for now, but I'm planning to separate BreakingContext into a new file and do additional changes to make things nicer. I'm tracking
+        the entire progress under http://webkit.org/b/121261 meta bug.
+
+        No new tests, covered by existing tests.
+        - I updated 1 expected result, because there was a 1 pixel difference on the result, which I believe comes from a rounding situation.
+
+        * rendering/RenderBlockFlow.h:
+        * rendering/RenderBlockLineLayout.cpp:
+        (WebCore::BreakingContext::BreakingContext):
+        (WebCore::BreakingContext::currentObject):
+        (WebCore::BreakingContext::lineBreak):
+        (WebCore::BreakingContext::lineBreakRef):
+        (WebCore::BreakingContext::lineWidth):
+        (WebCore::BreakingContext::atEnd):
+        (WebCore::BreakingContext::clearLineBreakIfFitsOnLine):
+        (WebCore::BreakingContext::commitLineBreakAtCurrentWidth):
+        (WebCore::BreakingContext::initializeForCurrentObject):
+        (WebCore::BreakingContext::increment):
+        (WebCore::BreakingContext::handleBR):
+        (WebCore::BreakingContext::handleOutOfFlowPositioned):
+        (WebCore::BreakingContext::handleFloat):
+        (WebCore::BreakingContext::handleEmptyInline):
+        (WebCore::BreakingContext::handleReplaced):
+        (WebCore::nextCharacter):
+        (WebCore::BreakingContext::handleText):
+        (WebCore::textBeginsWithBreakablePosition):
+        (WebCore::BreakingContext::canBreakAtThisPosition):
+        (WebCore::BreakingContext::commitAndUpdateLineBreakIfNeeded):
+        (WebCore::BreakingContext::handleEndOfLine):
+        (WebCore::LineBreaker::nextSegmentBreak):
+
+2013-10-22  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157826.
+        http://trac.webkit.org/changeset/157826
+        https://bugs.webkit.org/show_bug.cgi?id=123197
+
+        Caused some regions tests to assert (Requested by smfr on
+        #webkit).
+
+        * dom/Document.cpp:
+        (WebCore::Document::styleForElementIgnoringPendingStylesheets):
+        * dom/Document.h:
+        * dom/Element.cpp:
+        (WebCore::Element::styleForRenderer):
+        * dom/Element.h:
+        * dom/ElementRareData.h:
+        (WebCore::ElementRareData::setComputedStyle):
+        (WebCore::ElementRareData::resetComputedStyle):
+        * html/HTMLTitleElement.cpp:
+        (WebCore::HTMLTitleElement::textWithDirection):
+        * page/animation/AnimationController.cpp:
+        (WebCore::AnimationController::updateAnimations):
+        * page/animation/CompositeAnimation.cpp:
+        (WebCore::CompositeAnimation::animate):
+        * page/animation/CompositeAnimation.h:
+        * rendering/RenderElement.cpp:
+        (WebCore::RenderElement::createFor):
+        * rendering/RenderElement.h:
+        (WebCore::RenderElement::setStyleInternal):
+        * rendering/RenderRegion.cpp:
+        (WebCore::RenderRegion::setRegionObjectsRegionStyle):
+        (WebCore::RenderRegion::restoreRegionObjectsOriginalStyle):
+        (WebCore::RenderRegion::computeStyleInRegion):
+        (WebCore::RenderRegion::computeChildrenStyleInRegion):
+        (WebCore::RenderRegion::setObjectStyleInRegion):
+        * rendering/RenderRegion.h:
+        * style/StyleResolveTree.cpp:
+        (WebCore::Style::resolveLocal):
+
+2013-10-22  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Remove HAVE_GLX macro
+        https://bugs.webkit.org/show_bug.cgi?id=123191
+
+        Reviewed by Gyuyoung Kim.
+
+        Since r138313, HAVE(GLX) was replaced to USE(GLX) except in GraphicsSurfaceToken.h.
+
+        * platform/graphics/surfaces/GraphicsSurfaceToken.h:
+        Replace HAVE(GLX) to USE(GLX)
+
+2013-10-22  Mark Lam  <mark.lam@apple.com>
+
+        Gardening: fix broken build on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=123174.
+
+        Not reviewed.
+
+        No new tests.
+
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.vcxproj/WebCore.vcxproj.filters:
+
+2013-10-22  Brady Eidson  <beidson@apple.com>
+
+        Get rid of IDBObjectStoreBackendLevelDB
+        https://bugs.webkit.org/show_bug.cgi?id=123174
+
+        Reviewed by Tim Horton.
+
+        This file was kind of a dumping ground.
+        Its contents can be merged into IDBBackingStoreInterface and a new IDBIndexWriter class.
+
+        Also took the opportunity to do a little bit of RefPtr<> and pointer-vs-reference cleanup.
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * WebCore.xcodeproj/project.pbxproj:
+
+        * Modules/indexeddb/leveldb/IDBObjectStoreBackendLevelDB.cpp: Removed.
+        * Modules/indexeddb/leveldb/IDBObjectStoreBackendLevelDB.h: Removed.
+
+        * Modules/indexeddb/IDBIndexWriter.cpp: Added.
+        (WebCore::IDBIndexWriter::IDBIndexWriter):
+        (WebCore::IDBIndexWriter::writeIndexKeys):
+        (WebCore::IDBIndexWriter::verifyIndexKeys):
+        (WebCore::IDBIndexWriter::addingKeyAllowed):
+        * Modules/indexeddb/IDBIndexWriter.h: Added.
+        (WebCore::IDBIndexWriter::create):
+
+        * Modules/indexeddb/IDBBackingStoreInterface.h:
+        * Modules/indexeddb/IDBDatabaseBackendInterface.h:
+
+        * Modules/indexeddb/IDBMetadata.h:
+        * Modules/indexeddb/IDBTransactionBackendInterface.h:
+
+        * Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp:
+        (WebCore::IDBBackingStoreLevelDB::makeIndexWriters):
+        (WebCore::IDBBackingStoreLevelDB::generateKey):
+        (WebCore::IDBBackingStoreLevelDB::updateKeyGenerator):
+        * Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.h:
+
+        * Modules/indexeddb/leveldb/IDBDatabaseBackendLevelDB.cpp:
+        (WebCore::IDBDatabaseBackendLevelDB::setIndexKeys):
+        (WebCore::IDBDatabaseBackendLevelDB::setIndexesReady):
+        * Modules/indexeddb/leveldb/IDBDatabaseBackendLevelDB.h:
+
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.cpp:
+        (WebCore::IDBTransactionBackendLevelDB::schedulePutOperation):
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDB.h:
+
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDBOperations.cpp:
+        (WebCore::PutOperation::perform):
+        * Modules/indexeddb/leveldb/IDBTransactionBackendLevelDBOperations.h:
+        (WebCore::PutOperation::create):
+        (WebCore::PutOperation::PutOperation):
+
+2013-10-22  Dean Jackson  <dino@apple.com>
+
+        [WebGL] Implement a software rendering option on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=123177
+
+        Reviewed by Tim Horton.
+
+        Implement a way to force software OpenGL rendering
+        for WebGL, via a Setting/Preference.
+
+        No new tests. We intentionally hide the capabilities of
+        the renderer from the content, so you can't test for
+        this setting. However, manual inspection is pretty
+        obvious. Just go to a page with a complex shader
+        such as https://www.shadertoy.com/view/lss3WS.
+
+        * html/canvas/WebGLRenderingContext.cpp:
+        (WebCore::WebGLRenderingContext::create): If we're forcing software
+        rendering, mark the context attributes as such.
+        * page/Settings.in: New setting key.
+        * platform/graphics/GraphicsContext3D.h: New flag in Attributes.
+        (WebCore::GraphicsContext3D::Attributes::Attributes):
+        * platform/graphics/mac/GraphicsContext3DMac.mm:
+        (WebCore::GraphicsContext3D::GraphicsContext3D): Slight update to the
+        algorithm that sets a pixel format. If we're forcing software rendering,
+        obviously we never want to create an accelerated pixel format.
+        * platform/graphics/filters/CustomFilterGlobalContext.cpp:
+        (WebCore::CustomFilterGlobalContext::prepareContextIfNeeded): Set the attribute
+        here before trying to create the context.
+        * platform/graphics/filters/CustomFilterGlobalContext.h: Add a forceSoftwareRendering
+        flag to prepareContextIfNeeded.
+        * rendering/FilterEffectRenderer.cpp:
+        (WebCore::createCustomFilterEffect): Check the Setting before creating a custom
+        filter context.
+
+2013-10-22  Anders Carlsson  <andersca@apple.com>
+
+        Revert r157445 since it broke certificates on Mac.
+        <rdar://problem/15246926&15254017&15269117>
+
+        * GNUmakefile.list.am:
+        * PlatformEfl.cmake:
+        * WebCore.exp.in:
+        * WebCore.vcxproj/WebCore.vcxproj:
+        * WebCore.vcxproj/WebCore.vcxproj.filters:
+        * WebCore.xcodeproj/project.pbxproj:
+        * platform/network/ResourceErrorBase.h:
+        * platform/network/ResourceResponseBase.h:
+        * platform/network/cf/CertificateInfoCFNet.cpp: Removed.
+        * platform/network/cf/ResourceResponse.h:
+        * platform/network/mac/ResourceResponseMac.mm:
+        (WebCore::ResourceResponse::setCertificateChain):
+        (WebCore::ResourceResponse::certificateChain):
+        * platform/network/soup/ResourceError.h:
+        (WebCore::ResourceError::ResourceError):
+        (WebCore::ResourceError::tlsErrors):
+        (WebCore::ResourceError::setTLSErrors):
+        (WebCore::ResourceError::certificate):
+        (WebCore::ResourceError::setCertificate):
+        * platform/network/soup/ResourceErrorSoup.cpp:
+        (WebCore::ResourceError::tlsError):
+        (WebCore::ResourceError::platformCopy):
+        (WebCore::ResourceError::platformCompare):
+        * platform/network/soup/ResourceResponse.h:
+        (WebCore::ResourceResponse::ResourceResponse):
+        (WebCore::ResourceResponse::soupMessageCertificate):
+        (WebCore::ResourceResponse::setSoupMessageCertificate):
+        (WebCore::ResourceResponse::soupMessageTLSErrors):
+        (WebCore::ResourceResponse::setSoupMessageTLSErrors):
+        * platform/network/soup/ResourceResponseSoup.cpp:
+        (WebCore::ResourceResponse::toSoupMessage):
+        (WebCore::ResourceResponse::updateFromSoupMessage):
+
+2013-10-22  Jer Noble  <jer.noble@apple.com>
+
+        [Media] Refactor supportsType() factory method to take a parameters object.
+        https://bugs.webkit.org/show_bug.cgi?id=122489
+
+        Reviewed by Eric Carlson.
+
+        In order to support adding new conditional properties with which to decide
+        what MediaPlayerPrivate subclass to create, replace the two versions of the
+        supportsType() factory method with a single one taking a parameters object.
+
+        At the same time, add a 'isMediaSource' parameter to that object, allowing
+        MediaPlayerPrivate subclasses which support the same type and codecs but
+        which do not both support MediaSource to be distinguised.
+
+        * platform/graphics/MediaPlayer.cpp:
+        (WebCore::bestMediaEngineForSupportParameters): Renamed from
+            bestMediaEngineForTypeAndCodecs.
+        (WebCore::MediaPlayer::nextBestMediaEngine): Added convenience function.
+        (WebCore::MediaPlayer::loadWithNextMediaEngine): Call nextBestMediaEngine()
+        (WebCore::MediaPlayer::supportsType): Pass parameter object.
+        (WebCore::MediaPlayer::networkStateChanged): Call nextBestMediaEngine().
+        * platform/graphics/MediaPlayer.h:
+        * platform/graphics/avfoundation/cf/MediaPlayerPrivateAVFoundationCF.cpp:
+        (WebCore::MediaPlayerPrivateAVFoundationCF::supportsType): Handle parameter object.
+        * platform/graphics/avfoundation/cf/MediaPlayerPrivateAVFoundationCF.h:
+        * platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.h:
+        * platform/graphics/avfoundation/objc/MediaPlayerPrivateAVFoundationObjC.mm:
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::registerMediaEngine): Remove extraneous
+            extendedSupportsType method.
+        (WebCore::MediaPlayerPrivateAVFoundationObjC::supportsType): Handle parameter object.
+        * platform/graphics/blackberry/MediaPlayerPrivateBlackBerry.cpp:
+        (WebCore::MediaPlayerPrivate::supportsType): Ditto.
+        * platform/graphics/blackberry/MediaPlayerPrivateBlackBerry.h:
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp:
+        * platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h:
+        * platform/graphics/mac/MediaPlayerPrivateQTKit.h:
+        * platform/graphics/mac/MediaPlayerPrivateQTKit.mm:
+        (WebCore::MediaPlayerPrivateQTKit::registerMediaEngine): Remove extraneous
+            extendedSupportsType method.
+        (WebCore::MediaPlayerPrivateQTKit::supportsType): Handle parameter object.
+        * platform/graphics/win/MediaPlayerPrivateQuickTimeVisualContext.cpp:
+        (WebCore::MediaPlayerPrivateQuickTimeVisualContext::supportsType): Ditto.
+        * platform/graphics/win/MediaPlayerPrivateQuickTimeVisualContext.h:
+        * platform/graphics/wince/MediaPlayerPrivateWinCE.h:
+
+2013-10-22  Andreas Kling  <akling@apple.com>
+
+        Merge SVGRenderBlock::styleWillChange() into styleDidChange().
+        <https://webkit.org/b/123181>
+
+        I meant to do this one in r157787, but better late than never.
+
+        Reviewed by Geoffrey Garen.
+
+2013-10-22  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Modernize RenderBlock a bit
+        https://bugs.webkit.org/show_bug.cgi?id=123162
+
+        Reviewed by Andreas Kling.
+
+        Start threading references through RenderBlock. While we 
+        are here, do some selective modernization as well.
+
+2013-10-22  Andreas Kling  <akling@apple.com>
+
+        Even more PassRef<RenderStyle>!
+        <https://webkit.org/b/123147>
+
+        Convert the remaining WebCore code to use PassRef for RenderStyle
+        wherever they are known to be non-null.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-22  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157819.
+        http://trac.webkit.org/changeset/157819
+        https://bugs.webkit.org/show_bug.cgi?id=123180
+
+        Broke 32-bit builds (Requested by smfr on #webkit).
+
+        * Configurations/WebCore.xcconfig:
+
+2013-10-22  Antti Koivisto  <antti@apple.com>
+
+        Rename deleteLineBoxTree to deleteLines
+        https://bugs.webkit.org/show_bug.cgi?id=123176
+
+        Reviewed by Andreas Kling.
+
+        RenderBlock::deleteLineBoxTree -> RenderBlock::deleteLines
+        RenderInline::deleteLineBoxTree -> RenderInline::deleteLines
+
+2013-10-22  Tim Horton  <timothy_horton@apple.com>
+
+        {ClipPathOperation, FilterOperation}::getOperationType() should not include 'get'
+        https://bugs.webkit.org/show_bug.cgi?id=123172
+
+        Reviewed by Simon Fraser.
+
+        No new tests, just a rename.
+
+        "get" in WebCore tends to mean that the function has out arguments; these have no arguments.
+        Rename FilterOperation::getOperationType() to FilterOperation::type().
+        I noticed that ClipPathOperation had the same mistake, so I fixed it there too.
+
+        Removed long and useless list of files.
+
+2013-10-22  Samuel White  <samuel_white@apple.com>
+
+        AX: Add paramAttrs to fetch start and end text markers in a given rect.
+        https://bugs.webkit.org/show_bug.cgi?id=122164
+
+        Reviewed by Chris Fleizach.
+
+        Added ability to fetch end and start text markers inside a given bounds. This gives ScreenReaders
+        like VoiceOver a way to retrieve the text markers for a specified column of page text.
+
+        Test: platform/mac/accessibility/text-marker-for-bounds.html
+
+        * accessibility/AccessibilityObject.cpp:
+        (WebCore::AccessibilityObject::mainFrame):
+        (WebCore::AccessibilityObject::topDocument):
+        (WebCore::AccessibilityObject::visiblePositionForBounds):
+        * accessibility/AccessibilityObject.h:
+        * accessibility/AccessibilityRenderObject.cpp:
+        * accessibility/AccessibilityRenderObject.h:
+        * accessibility/mac/WebAccessibilityObjectWrapperMac.mm:
+        (-[WebAccessibilityObjectWrapper screenToContents:]):
+        (-[WebAccessibilityObjectWrapper accessibilityParameterizedAttributeNames]):
+        (-[WebAccessibilityObjectWrapper accessibilityAttributeValue:forParameter:]):
+
+2013-10-22  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Match adjustLogicalLineTopAndLogicalHeightIfNeeded's implementation with Blink's
+        https://bugs.webkit.org/show_bug.cgi?id=123033
+
+        Reviewed by David Hyatt.
+
+        In Blink I made this function in a bit different way. This change modifies it
+        to be identical, which helps a lot in the future cross-merging patches.
+
+        No new tests, covered by existing texts.
+
+        * rendering/RenderBlockLineLayout.cpp:
+        (WebCore::RenderBlockFlow::adjustLogicalLineTopAndLogicalHeightIfNeeded):
+
+2013-10-22  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream more ARMv7s bits
+        https://bugs.webkit.org/show_bug.cgi?id=123052
+
+        Reviewed by Joseph Pecoraro.
+
+        * Configurations/WebCore.xcconfig:
+
+2013-10-22  Simon Fraser  <simon.fraser@apple.com>
+
+        Try to fix Mavericks build; use <> for framework include.
+
+        * page/CaptionUserPreferencesMediaAF.cpp:
+
+2013-10-22  Tim Horton  <timothy_horton@apple.com>
+
+        GammaFilterOperation seems to be dead code
+        https://bugs.webkit.org/show_bug.cgi?id=123173
+
+        Reviewed by Simon Fraser.
+
+        * platform/graphics/filters/FilterOperation.cpp:
+        * platform/graphics/filters/FilterOperation.h:
+        Remove dead code.
+
 2013-10-22  Antti Koivisto  <antti@apple.com>
 
         Rename some line box functions to be just about lines
@@ -3719,88 +4167,6 @@
 
         Now that fetching the RenderStyle has to go through the parent,
         we should avoid unnecessary loads by caching style() in a local.
-
-2013-10-15  Csaba Osztrogonác  <ossy@webkit.org>
-
-        Move PlatformCertificateInfo to WebCore and make the ResourceResponse primitives work in terms of that platform agnostic object
-        https://bugs.webkit.org/show_bug.cgi?id=118520
-
-        Reviewed by Anders Carlsson.
-
-        Added PlatformCertificateInfo getter and setter to ResourceErrorBase
-        and ResourceResponseBase so that getting and setting certificates
-        becomes cross platform.
-
-        Changed the existing platform specific certificate getters and setters
-        of ResourceError and ResourceResponse to use the
-        PlatformCertificateInfo member.
-
-        Original patch by Kwang Yul Seo  <skyul@company100.net>
-
-        The following things were fixed by Csaba Osztrogonác:
-        - trivial conflicts resolved in WebCore.exp.in, project.pbxproj, NetworkResourceLoader.cpp,
-          WebPageProxy.h, WebFrameLoaderClient.cpp and PlatformEfl.cmake.
-        - trivial fix in the new AsynchronousNetworkLoaderClient.cpp
-        - style fixed (NULL -> 0 and smaller indentation in WebCoreArgumentCodersSoup.cpp)
-        - obsolete change removed from NetworkResourceLoader.cpp
-        - unneeded typo removed from ResourceHandleSoup.cpp
-        - Fixed the if guard of including RetainPtr.h in PlatformCertificateInfo.h to make Windows build happy.
-        - add PlatformCertificateInfoCFNet.cpp with empty constructor and destructor to make Windows build happy.
-        - resolved conflict in Source/WebCore/WebCore.xcodeproj/project.pbxproj after r156488
-        - renamed KURL to URL after r156550.
-        - removed obsolete Qt changes
-        - added back initializers for m_soupFlags
-        - included gio/gio.h instead of libsoup/soup.h in PlatformCertificateInfo.h
-        - removed unused class forward declarations and includes
-
-        * GNUmakefile.list.am:
-        * PlatformEfl.cmake:
-        * Target.pri:
-        * WebCore.exp.in:
-        * WebCore.vcxproj/WebCore.vcxproj:
-        * WebCore.vcxproj/WebCore.vcxproj.filters:
-        * WebCore.xcodeproj/project.pbxproj:
-        * platform/network/PlatformCertificateInfo.h: Renamed from Source/WebKit2/Shared/soup/PlatformCertificateInfo.h.
-        (WebCore::PlatformCertificateInfo::certificate):
-        (WebCore::PlatformCertificateInfo::setCertificate):
-        (WebCore::PlatformCertificateInfo::tlsErrors):
-        (WebCore::PlatformCertificateInfo::setTLSErrors):
-        * platform/network/ResourceErrorBase.h:
-        (WebCore::ResourceErrorBase::platformCertificateInfo):
-        (WebCore::ResourceErrorBase::setPlatformCertificateInfo):
-        * platform/network/ResourceResponseBase.h:
-        (WebCore::ResourceResponseBase::platformCertificateInfo):
-        (WebCore::ResourceResponseBase::setPlatformCertificateInfo):
-        * platform/network/cf/ResourceResponse.h:
-        * platform/network/mac/PlatformCertificateInfoMac.mm: Renamed from Source/WebKit2/Shared/mac/PlatformCertificateInfo.mm.
-        (WebCore::PlatformCertificateInfo::PlatformCertificateInfo):
-        (WebCore::PlatformCertificateInfo::~PlatformCertificateInfo):
-        (WebCore::PlatformCertificateInfo::setCertificateChain):
-        (WebCore::PlatformCertificateInfo::certificateChain):
-        (WebCore::PlatformCertificateInfo::dump):
-        * platform/network/mac/ResourceResponseMac.mm:
-        (WebCore::ResourceResponse::setCertificateChain):
-        (WebCore::ResourceResponse::certificateChain):
-        * platform/network/soup/PlatformCertificateInfoSoup.cpp:
-        (WebCore::PlatformCertificateInfo::PlatformCertificateInfo):
-        (WebCore::PlatformCertificateInfo::~PlatformCertificateInfo):
-        * platform/network/soup/ResourceError.h:
-        (WebCore::ResourceError::ResourceError):
-        (WebCore::ResourceError::tlsErrors):
-        (WebCore::ResourceError::setTLSErrors):
-        (WebCore::ResourceError::certificate):
-        (WebCore::ResourceError::setCertificate):
-        * platform/network/soup/ResourceErrorSoup.cpp:
-        (WebCore::ResourceError::platformCopy):
-        * platform/network/soup/ResourceResponse.h:
-        (WebCore::ResourceResponse::ResourceResponse):
-        (WebCore::ResourceResponse::soupMessageCertificate):
-        (WebCore::ResourceResponse::setSoupMessageCertificate):
-        (WebCore::ResourceResponse::soupMessageTLSErrors):
-        (WebCore::ResourceResponse::setSoupMessageTLSErrors):
-        * platform/network/soup/ResourceResponseSoup.cpp:
-        (WebCore::ResourceResponse::toSoupMessage):
-        (WebCore::ResourceResponse::updateFromSoupMessage):
 
 2013-10-15  Ryosuke Niwa  <rniwa@webkit.org>
 

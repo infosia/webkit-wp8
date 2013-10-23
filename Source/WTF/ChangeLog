@@ -1,3 +1,44 @@
+2013-10-22  Andreas Kling  <akling@apple.com>
+
+        StringImpl::lower() should return a PassRef.
+        <https://webkit.org/b/123190>
+
+        Test the waters and hack enough of StringImpl to be able to return
+        a PassRef<StringImpl> from lower().
+
+        Also gave String a constructor that takes a PassRef<StringImpl>.
+
+        Reviewed by Antti Koivisto.
+
+2013-10-22  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157835.
+        http://trac.webkit.org/changeset/157835
+        https://bugs.webkit.org/show_bug.cgi?id=123192
+
+        broke 32-bit builds (Requested by smfr on #webkit).
+
+        * wtf/MediaTime.cpp:
+        (WTF::signum):
+        * wtf/MediaTime.h:
+
+2013-10-22  Jer Noble  <jer.noble@apple.com>
+
+        [WTF] Add a multiplication operator (and a few others) to MediaTime
+        https://bugs.webkit.org/show_bug.cgi?id=123137
+
+        Reviewed by Eric Carlson.
+
+        Add a multiplication operator and an inequality operator to the
+        MediaTime class for use by MSE.
+
+        * wtf/MediaTime.cpp:
+        (WTF::signum): Moved to top of file.
+        (WTF::MediaTime::operator*): Added.
+        (WTF::MediaTime::operator!=): Added.
+        * wtf/MediaTime.h:
+        (WTF::operator*): Added non-class version of operator*.
+
 2013-10-21  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
 
         Make TYPE_CASTS_BASE more flexible

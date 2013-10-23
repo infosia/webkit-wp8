@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Company 100 Inc.
+ * Copyright (C) 2010 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,17 +23,38 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "CertificateInfo.h"
+#ifndef PlatformCertificateInfo_h
+#define PlatformCertificateInfo_h
 
-namespace WebCore {
+#include <WebCore/ResourceResponse.h>
+#include <wtf/RetainPtr.h>
 
-CertificateInfo::CertificateInfo()
-{
+namespace CoreIPC {
+    class ArgumentDecoder;
+    class ArgumentEncoder;
 }
 
-CertificateInfo::~CertificateInfo()
-{
-}
+namespace WebKit {
 
-} // namespace WebCore
+class PlatformCertificateInfo {
+public:
+    PlatformCertificateInfo();
+    explicit PlatformCertificateInfo(const WebCore::ResourceResponse&);
+    explicit PlatformCertificateInfo(CFArrayRef certificateChain);
+
+    CFArrayRef certificateChain() const { return m_certificateChain.get(); }
+
+    void encode(CoreIPC::ArgumentEncoder&) const;
+    static bool decode(CoreIPC::ArgumentDecoder&, PlatformCertificateInfo&);
+
+#ifndef NDEBUG
+    void dump() const;
+#endif
+
+private:
+    RetainPtr<CFArrayRef> m_certificateChain;
+};
+
+} // namespace WebKit
+
+#endif // PlatformCertificateInfo_h

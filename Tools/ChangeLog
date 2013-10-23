@@ -1,3 +1,124 @@
+2013-10-22  Simon Fraser  <simon.fraser@apple.com>
+
+        Dashboard repaints constantly
+        https://bugs.webkit.org/show_bug.cgi?id=122133
+
+        Reviewed by Tim Horton.
+        
+        Pulsing shadows are really bad for battery life.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Styles/StatusLineView.css:
+        (.status-line.bad .bubble):
+        (.status-line.bad .message):
+
+2013-10-22  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r157835.
+        http://trac.webkit.org/changeset/157835
+        https://bugs.webkit.org/show_bug.cgi?id=123192
+
+        broke 32-bit builds (Requested by smfr on #webkit).
+
+        * TestWebKitAPI/Tests/WTF/MediaTime.cpp:
+        (TestWebKitAPI::TEST):
+
+2013-10-22  Jer Noble  <jer.noble@apple.com>
+
+        [WTF] Add a multiplication operator (and a few others) to MediaTime
+        https://bugs.webkit.org/show_bug.cgi?id=123137
+
+        Reviewed by Eric Carlson.
+
+        Add tests for new MediaTime operators.
+
+        * TestWebKitAPI/Tests/WTF/MediaTime.cpp:
+        (TestWebKitAPI::TEST):
+
+2013-10-22  Simon Fraser  <simon.fraser@apple.com>
+
+        Educate webkitpy about Mavericks.
+
+        Reviewed by Ryosuke Niwa.
+
+        * Scripts/webkitpy/common/system/platforminfo.py:
+        (PlatformInfo._determine_mac_version):
+        * Scripts/webkitpy/common/system/platforminfo_unittest.py:
+        (TestPlatformInfo.test_os_version):
+        * Scripts/webkitpy/layout_tests/models/test_expectations.py:
+        (TestExpectationParser):
+        * Scripts/webkitpy/port/builders.py:
+        * Scripts/webkitpy/port/mac.py:
+        (MacPort):
+        * Scripts/webkitpy/port/mac_unittest.py:
+        (test_versions):
+        (test_baseline_search_path):
+        * Scripts/webkitpy/tool/commands/rebaseline_unittest.py:
+        (TestRebaselineTest.test_baseline_directory):
+        (TestRebaselineExpectations.test_rebaseline_expectations):
+
+2013-10-22  Stephanie Lewis  <slewis@apple.com>
+
+        Update the build trigger list for Mavericks.
+
+        Unreviewed.
+
+        * BuildSlaveSupport/build.webkit.org-config/wkbuild.py:
+        (_should_file_trigger_build):
+
+2013-10-22  Simon Fraser  <simon.fraser@apple.com>
+
+        Add Mavericks bots to the dashboard.
+
+        * BuildSlaveSupport/build.webkit.org-config/public_html/dashboard/Scripts/WebKitBuildbot.js:
+        (WebKitBuildbot):
+
+2013-10-22  Samuel White  <samuel_white@apple.com>
+
+        AX: Add paramAttrs to fetch start and end text markers in a given rect.
+        https://bugs.webkit.org/show_bug.cgi?id=122164
+
+        Reviewed by Chris Fleizach.
+
+        Added accessibility element hooks to test endTextMarkerForBounds and startTextMarkerForBounds.
+
+        * DumpRenderTree/AccessibilityUIElement.cpp:
+        (endTextMarkerForBoundsCallback):
+        (startTextMarkerForBoundsCallback):
+        (AccessibilityUIElement::endTextMarkerForBounds):
+        (AccessibilityUIElement::startTextMarkerForBounds):
+        (AccessibilityUIElement::getJSClass):
+        * DumpRenderTree/AccessibilityUIElement.h:
+        * DumpRenderTree/mac/AccessibilityUIElementMac.mm:
+        (AccessibilityUIElement::endTextMarkerForBounds):
+        (AccessibilityUIElement::startTextMarkerForBounds):
+        * WebKitTestRunner/InjectedBundle/AccessibilityUIElement.cpp:
+        (WTR::AccessibilityUIElement::endTextMarkerForBounds):
+        (WTR::AccessibilityUIElement::startTextMarkerForBounds):
+        * WebKitTestRunner/InjectedBundle/AccessibilityUIElement.h:
+        * WebKitTestRunner/InjectedBundle/Bindings/AccessibilityUIElement.idl:
+        * WebKitTestRunner/InjectedBundle/atk/AccessibilityUIElementAtk.cpp:
+        (WTR::AccessibilityUIElement::endTextMarkerForBounds):
+        (WTR::AccessibilityUIElement::startTextMarkerForBounds):
+        * WebKitTestRunner/InjectedBundle/mac/AccessibilityUIElementMac.mm:
+        (WTR::AccessibilityUIElement::endTextMarkerForBounds):
+        (WTR::AccessibilityUIElement::startTextMarkerForBounds):
+
+2013-10-22  Ryosuke Niwa  <rniwa@webkit.org>
+
+        There should be a way to specify additional repository paths in NRWT
+        https://bugs.webkit.org/show_bug.cgi?id=123135
+
+        Reviewed by Alexey Proskuryakov.
+
+        Added --additional-repository-name and --additional-repository-path options to NRWT.
+        These options allow us to submit addtional repository information, such as of Safari's
+        to the new flakiness dashboard.
+
+        * Scripts/webkitpy/layout_tests/run_webkit_tests.py:
+        (parse_args):
+        * Scripts/webkitpy/port/base.py:
+        (Port.repository_paths):
+
 2013-10-22  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, rolling out r157774.

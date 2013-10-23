@@ -6892,9 +6892,6 @@
     <ClCompile Include="..\Modules\indexeddb\leveldb\IDBFactoryBackendLevelDB.cpp">
       <Filter>Modules\indexeddb\leveldb</Filter>
     </ClCompile>
-    <ClCompile Include="..\Modules\indexeddb\leveldb\IDBObjectStoreBackendLevelDB.cpp">
-      <Filter>Modules\indexeddb\leveldb</Filter>
-    </ClCompile>
     <ClCompile Include="..\rendering\LineWidth.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
@@ -8539,9 +8536,6 @@
       <Filter>platform\network</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\network\BlobStorageData.h">
-      <Filter>platform\network</Filter>
-    </ClInclude>
-    <ClInclude Include="..\platform\network\CertificateInfo.h">
       <Filter>platform\network</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\network\CookieStorage.h">

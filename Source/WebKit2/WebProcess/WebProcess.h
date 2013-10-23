@@ -35,7 +35,6 @@
 #include "SharedMemory.h"
 #include "TextCheckerState.h"
 #include "VisitedLinkTable.h"
-#include <WebCore/CertificateInfo.h>
 #include <WebCore/LinkHash.h>
 #include <WebCore/Timer.h>
 #include <wtf/Forward.h>
@@ -73,6 +72,10 @@ struct WebProcessCreationParameters;
 #if ENABLE(NETWORK_PROCESS)
 class NetworkProcessConnection;
 class WebResourceLoadScheduler;
+#else
+#if USE(SOUP)
+class PlatformCertificateInfo;
+#endif
 #endif
 
 #if ENABLE(DATABASE_PROCESS)
@@ -171,7 +174,7 @@ public:
     void updateActivePages();
 
 #if !ENABLE(NETWORK_PROCESS) && USE(SOUP)
-    void allowSpecificHTTPSCertificateForHost(const WebCore::CertificateInfo&, const String& host);
+    void allowSpecificHTTPSCertificateForHost(const PlatformCertificateInfo&, const String& host);
 #endif
 
 private:

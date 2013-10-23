@@ -38,7 +38,9 @@
 #include "FEGaussianBlur.h"
 #include "FEMerge.h"
 #include "FloatConversion.h"
+#include "Frame.h"
 #include "RenderLayer.h"
+#include "Settings.h"
 
 #include <algorithm>
 #include <wtf/MathExtras.h>
@@ -94,7 +96,7 @@ static PassRefPtr<FECustomFilter> createCustomFilterEffect(Filter* filter, Docum
         return 0;
 
     CustomFilterGlobalContext* globalContext = document->renderView()->customFilterGlobalContext();
-    globalContext->prepareContextIfNeeded(document->view()->hostWindow());
+    globalContext->prepareContextIfNeeded(document->view()->hostWindow(), document->frame()->settings().forceSoftwareWebGLRendering());
     if (!globalContext->context())
         return 0;
 
@@ -197,7 +199,7 @@ bool FilterEffectRenderer::build(RenderElement* renderer, const FilterOperations
     for (size_t i = 0; i < operations.operations().size(); ++i) {
         RefPtr<FilterEffect> effect;
         FilterOperation* filterOperation = operations.operations().at(i).get();
-        switch (filterOperation->getOperationType()) {
+        switch (filterOperation->type()) {
         case FilterOperation::REFERENCE: {
             ReferenceFilterOperation* referenceOperation = static_cast<ReferenceFilterOperation*>(filterOperation);
             effect = buildReferenceFilter(renderer, previousEffect, referenceOperation);
@@ -360,7 +362,7 @@ bool FilterEffectRenderer::build(RenderElement* renderer, const FilterOperations
             effect->setClipsToBounds(consumer == FilterFunction);
             effect->setOperatingColorSpace(ColorSpaceDeviceRGB);
             
-            if (filterOperation->getOperationType() != FilterOperation::REFERENCE) {
+            if (filterOperation->type() != FilterOperation::REFERENCE) {
                 effect->inputEffects().append(previousEffect);
                 m_effects.append(effect);
             }

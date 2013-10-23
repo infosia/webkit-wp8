@@ -79,16 +79,6 @@ using namespace WebKit;
 
 namespace CoreIPC {
 
-void ArgumentCoder<Length>::encode(ArgumentEncoder& encoder, const Length& length)
-{
-    SimpleArgumentCoder<Length>::encode(encoder, length);
-}
-
-bool ArgumentCoder<Length>::decode(ArgumentDecoder& decoder, Length& length)
-{
-    return SimpleArgumentCoder<Length>::decode(decoder, length);
-}
-
 #if ENABLE(CSS_FILTERS)
 void ArgumentCoder<WebCore::FilterOperations>::encode(ArgumentEncoder& encoder, const WebCore::FilterOperations& filters)
 {
@@ -390,9 +380,9 @@ void ArgumentCoder<TransformOperations>::encode(ArgumentEncoder& encoder, const 
     encoder << static_cast<uint32_t>(transformOperations.size());
     for (size_t i = 0; i < transformOperations.size(); ++i) {
         const TransformOperation* operation = transformOperations.at(i);
-        encoder.encodeEnum(operation->getOperationType());
+        encoder.encodeEnum(operation->type());
 
-        switch (operation->getOperationType()) {
+        switch (operation->type()) {
         case TransformOperation::SCALE_X:
         case TransformOperation::SCALE_Y:
         case TransformOperation::SCALE:

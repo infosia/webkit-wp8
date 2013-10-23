@@ -28,7 +28,6 @@
 
 #include "ShareableBitmap.h"
 #include <WebCore/AuthenticationChallenge.h>
-#include <WebCore/CertificateInfo.h>
 #include <WebCore/Cookie.h>
 #include <WebCore/Credential.h>
 #include <WebCore/Cursor.h>
@@ -42,6 +41,7 @@
 #include <WebCore/GraphicsContext.h>
 #include <WebCore/GraphicsLayer.h>
 #include <WebCore/Image.h>
+#include <WebCore/Length.h>
 #include <WebCore/PluginData.h>
 #include <WebCore/ProtectionSpace.h>
 #include <WebCore/ResourceError.h>
@@ -580,22 +580,6 @@ bool ArgumentCoder<ResourceResponse>::decode(ArgumentDecoder& decoder, ResourceR
 
     resourceResponse = response;
 
-    return true;
-}
-
-void ArgumentCoder<CertificateInfo>::encode(ArgumentEncoder& encoder, const CertificateInfo& certificateInfo)
-{
-    encodePlatformData(encoder, certificateInfo);
-}
-
-bool ArgumentCoder<CertificateInfo>::decode(ArgumentDecoder& decoder, CertificateInfo& certificateInfo)
-{
-    CertificateInfo certificate;
-
-    if (!decodePlatformData(decoder, certificate))
-        return false;
-
-    certificateInfo = certificate;
     return true;
 }
 
@@ -1180,11 +1164,12 @@ bool ArgumentCoder<WebCore::UserScript>::decode(ArgumentDecoder& decoder, WebCor
     return true;
 }
 
+#if ENABLE(CSS_FILTERS)
 static void encodeFilterOperation(ArgumentEncoder& encoder, const FilterOperation& filter)
 {
-    encoder.encodeEnum(filter.getOperationType());
+    encoder.encodeEnum(filter.type());
 
-    switch (filter.getOperationType()) {
+    switch (filter.type()) {
     case FilterOperation::REFERENCE: {
         const auto& referenceFilter = static_cast<const ReferenceFilterOperation&>(filter);
         encoder << referenceFilter.url();
@@ -1320,5 +1305,6 @@ bool ArgumentCoder<FilterOperations>::decode(ArgumentDecoder& decoder, FilterOpe
 
     return true;
 }
+#endif // ENABLE(CSS_FILTERS)
 
 } // namespace CoreIPC
