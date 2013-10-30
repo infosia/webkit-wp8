@@ -97,7 +97,6 @@
 
 namespace WebCore {
 
-using namespace std;
 using namespace HTMLNames;
 using namespace WTF;
 using namespace Unicode;
@@ -591,8 +590,7 @@ bool Editor::hasBidiSelection() const
     if (!renderer)
         return false;
 
-    RenderStyle* style = renderer->style();
-    if (!style->isLeftToRightDirection())
+    if (!renderer->style().isLeftToRightDirection())
         return true;
 
     return toRenderBlockFlow(renderer)->containsNonZeroBidiLevel();
@@ -1450,11 +1448,7 @@ WritingDirection Editor::baseWritingDirectionForSelectionStart() const
             return result;
     }
 
-    RenderStyle* style = renderer->style();
-    if (!style)
-        return result;
-
-    switch (style->direction()) {
+    switch (renderer->style().direction()) {
     case LTR:
         return LeftToRightWritingDirection;
     case RTL:
@@ -1635,8 +1629,8 @@ void Editor::setComposition(const String& text, const Vector<CompositionUnderlin
             if (baseNode->renderer())
                 baseNode->renderer()->repaint();
 
-            unsigned start = min(baseOffset + selectionStart, extentOffset);
-            unsigned end = min(max(start, baseOffset + selectionEnd), extentOffset);
+            unsigned start = std::min(baseOffset + selectionStart, extentOffset);
+            unsigned end = std::min(std::max(start, baseOffset + selectionEnd), extentOffset);
             RefPtr<Range> selectedRange = Range::create(baseNode->document(), baseNode, start, baseNode, end);
             m_frame.selection().setSelectedRange(selectedRange.get(), DOWNSTREAM, false);
         }
@@ -2543,8 +2537,8 @@ PassRefPtr<Range> Editor::compositionRange() const
     if (!m_compositionNode)
         return 0;
     unsigned length = m_compositionNode->length();
-    unsigned start = min(m_compositionStart, length);
-    unsigned end = min(max(start, m_compositionEnd), length);
+    unsigned start = std::min(m_compositionStart, length);
+    unsigned end = std::min(std::max(start, m_compositionEnd), length);
     if (start >= end)
         return 0;
     return Range::create(m_compositionNode->document(), m_compositionNode.get(), start, m_compositionNode.get(), end);

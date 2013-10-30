@@ -57,7 +57,6 @@
 
 namespace WebCore {
 
-using namespace std;
 using namespace HTMLNames;
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, rangeCounter, ("Range"));
@@ -1072,8 +1071,8 @@ String Range::toString(ExceptionCode& ec) const
         if (n->nodeType() == Node::TEXT_NODE || n->nodeType() == Node::CDATA_SECTION_NODE) {
             const String& data = static_cast<CharacterData*>(n)->data();
             int length = data.length();
-            int start = (n == m_start.container()) ? min(max(0, m_start.offset()), length) : 0;
-            int end = (n == m_end.container()) ? min(max(start, m_end.offset()), length) : length;
+            int start = (n == m_start.container()) ? std::min(std::max(0, m_start.offset()), length) : 0;
+            int end = (n == m_end.container()) ? std::min(std::max(start, m_end.offset()), length) : length;
             builder.append(data, start, end - start);
         }
     }
@@ -1614,7 +1613,7 @@ void Range::textRects(Vector<IntRect>& rects, bool useSelectionHeight, RangeInFi
             r->absoluteRects(rects, flooredLayoutPoint(r->localToAbsolute()));
         else if (r->isText()) {
             int startOffset = node == startContainer ? m_start.offset() : 0;
-            int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
+            int endOffset = node == endContainer ? m_end.offset() : std::numeric_limits<int>::max();
             rects.appendVector(toRenderText(r)->absoluteRectsForRange(startOffset, endOffset, useSelectionHeight, &isFixed));
         } else
             continue;
@@ -1650,7 +1649,7 @@ void Range::textQuads(Vector<FloatQuad>& quads, bool useSelectionHeight, RangeIn
             r->absoluteQuads(quads, &isFixed);
         else if (r->isText()) {
             int startOffset = node == startContainer ? m_start.offset() : 0;
-            int endOffset = node == endContainer ? m_end.offset() : numeric_limits<int>::max();
+            int endOffset = node == endContainer ? m_end.offset() : std::numeric_limits<int>::max();
             quads.appendVector(toRenderText(r)->absoluteQuadsForRange(startOffset, endOffset, useSelectionHeight, &isFixed));
         } else
             continue;
@@ -1932,7 +1931,7 @@ void Range::getBorderAndTextQuads(Vector<FloatQuad>& quads) const
             if (RenderBoxModelObject* renderBoxModelObject = toElement(node)->renderBoxModelObject()) {
                 Vector<FloatQuad> elementQuads;
                 renderBoxModelObject->absoluteQuads(elementQuads);
-                ownerDocument().adjustFloatQuadsForScrollAndAbsoluteZoomAndFrameScale(elementQuads, *renderBoxModelObject->style());
+                ownerDocument().adjustFloatQuadsForScrollAndAbsoluteZoomAndFrameScale(elementQuads, renderBoxModelObject->style());
 
                 quads.appendVector(elementQuads);
             }
@@ -1943,7 +1942,7 @@ void Range::getBorderAndTextQuads(Vector<FloatQuad>& quads) const
                 int endOffset = (node == endContainer) ? m_end.offset() : INT_MAX;
                 
                 auto textQuads = renderText.absoluteQuadsForRange(startOffset, endOffset);
-                ownerDocument().adjustFloatQuadsForScrollAndAbsoluteZoomAndFrameScale(textQuads, *renderText.style());
+                ownerDocument().adjustFloatQuadsForScrollAndAbsoluteZoomAndFrameScale(textQuads, renderText.style());
 
                 quads.appendVector(textQuads);
             }

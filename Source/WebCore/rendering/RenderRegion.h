@@ -35,9 +35,10 @@
 
 namespace WebCore {
 
-class Element;
 struct LayerFragment;
 typedef Vector<LayerFragment, 1> LayerFragments;
+
+class Element;
 class RenderBox;
 class RenderBoxRegionInfo;
 class RenderFlowThread;
@@ -152,8 +153,8 @@ public:
     virtual bool canHaveGeneratedChildren() const OVERRIDE { return true; }
 
 protected:
-    RenderRegion(Element&, RenderFlowThread*);
-    RenderRegion(Document&, RenderFlowThread*);
+    RenderRegion(Element&, PassRef<RenderStyle>, RenderFlowThread*);
+    RenderRegion(Document&, PassRef<RenderStyle>, RenderFlowThread*);
 
     RenderOverflow* ensureOverflowForBox(const RenderBox*);
 
@@ -235,33 +236,7 @@ private:
     LayoutUnit m_computedAutoHeight;
 };
 
-inline RenderRegion* toRenderRegion(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderRegion());
-    return static_cast<RenderRegion*>(object);
-}
-
-inline const RenderRegion* toRenderRegion(const RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderRegion());
-    return static_cast<const RenderRegion*>(object);
-}
-
-inline RenderRegion& toRenderRegion(RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderRegion());
-    return static_cast<RenderRegion&>(object);
-}
-
-inline const RenderRegion& toRenderRegion(const RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderRegion());
-    return static_cast<const RenderRegion&>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderRegion(const RenderRegion*);
-void toRenderRegion(const RenderRegion&);
+RENDER_OBJECT_TYPE_CASTS(RenderRegion, isRenderRegion())
 
 } // namespace WebCore
 

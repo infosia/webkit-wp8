@@ -53,6 +53,9 @@ public:
     TiledCoreAnimationDrawingArea(WebPage*, const WebPageCreationParameters&);
     virtual ~TiledCoreAnimationDrawingArea();
 
+    virtual void suspendPainting() OVERRIDE;
+    virtual void resumePainting() OVERRIDE;
+
 private:
     // DrawingArea
     virtual void setNeedsDisplay() OVERRIDE;
@@ -81,7 +84,7 @@ private:
 
     virtual void dispatchAfterEnsuringUpdatedScrollPosition(const Function<void ()>&) OVERRIDE;
 
-    virtual bool shouldUseTiledBackingForFrameView(const WebCore::FrameView*);
+    virtual bool shouldUseTiledBackingForFrameView(const WebCore::FrameView*) OVERRIDE;
 
     // WebCore::GraphicsLayerClient
     virtual void notifyAnimationStarted(const WebCore::GraphicsLayer*, double time) OVERRIDE;
@@ -94,8 +97,6 @@ private:
     virtual bool flushLayers() OVERRIDE;
 
     // Message handlers.
-    virtual void suspendPainting() OVERRIDE;
-    virtual void resumePainting() OVERRIDE;
     virtual void updateGeometry(const WebCore::IntSize& viewSize, const WebCore::IntSize& layerPosition) OVERRIDE;
     virtual void setDeviceScaleFactor(float) OVERRIDE;
     virtual void setLayerHostingMode(uint32_t) OVERRIDE;

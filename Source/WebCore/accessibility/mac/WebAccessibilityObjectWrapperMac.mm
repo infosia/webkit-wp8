@@ -77,7 +77,6 @@
 
 using namespace WebCore;
 using namespace HTMLNames;
-using namespace std;
 
 // Cell Tables
 #ifndef NSAccessibilitySelectedCellsAttribute
@@ -670,17 +669,17 @@ static void AXAttributeStringSetNumber(NSMutableAttributedString* attrString, NS
 
 static void AXAttributeStringSetStyle(NSMutableAttributedString* attrString, RenderObject* renderer, NSRange range)
 {
-    RenderStyle* style = renderer->style();
+    const RenderStyle& style = renderer->style();
     
     // set basic font info
-    AXAttributeStringSetFont(attrString, NSAccessibilityFontTextAttribute, style->font().primaryFont()->getNSFont(), range);
+    AXAttributeStringSetFont(attrString, NSAccessibilityFontTextAttribute, style.font().primaryFont()->getNSFont(), range);
     
     // set basic colors
-    AXAttributeStringSetColor(attrString, NSAccessibilityForegroundColorTextAttribute, nsColor(style->visitedDependentColor(CSSPropertyColor)), range);
-    AXAttributeStringSetColor(attrString, NSAccessibilityBackgroundColorTextAttribute, nsColor(style->visitedDependentColor(CSSPropertyBackgroundColor)), range);
+    AXAttributeStringSetColor(attrString, NSAccessibilityForegroundColorTextAttribute, nsColor(style.visitedDependentColor(CSSPropertyColor)), range);
+    AXAttributeStringSetColor(attrString, NSAccessibilityBackgroundColorTextAttribute, nsColor(style.visitedDependentColor(CSSPropertyBackgroundColor)), range);
     
     // set super/sub scripting
-    EVerticalAlign alignment = style->verticalAlign();
+    EVerticalAlign alignment = style.verticalAlign();
     if (alignment == SUB)
         AXAttributeStringSetNumber(attrString, NSAccessibilitySuperscriptTextAttribute, [NSNumber numberWithInt:(-1)], range);
     else if (alignment == SUPER)
@@ -689,13 +688,13 @@ static void AXAttributeStringSetStyle(NSMutableAttributedString* attrString, Ren
         [attrString removeAttribute:NSAccessibilitySuperscriptTextAttribute range:range];
     
     // set shadow
-    if (style->textShadow())
+    if (style.textShadow())
         AXAttributeStringSetNumber(attrString, NSAccessibilityShadowTextAttribute, [NSNumber numberWithBool:YES], range);
     else
         [attrString removeAttribute:NSAccessibilityShadowTextAttribute range:range];
     
     // set underline and strikethrough
-    int decor = style->textDecorationsInEffect();
+    int decor = style.textDecorationsInEffect();
     if ((decor & TextDecorationUnderline) == 0) {
         [attrString removeAttribute:NSAccessibilityUnderlineTextAttribute range:range];
         [attrString removeAttribute:NSAccessibilityUnderlineColorTextAttribute range:range];
@@ -3619,7 +3618,7 @@ static RenderObject* rendererForView(NSView* view)
             if (index >= childCount)
                 return nil;
             
-            NSUInteger arrayLength = min(childCount - index, maxCount);
+            NSUInteger arrayLength = std::min(childCount - index, maxCount);
             return [children subarrayWithRange:NSMakeRange(index, arrayLength)];
         } else if (m_object->isTree()) {
             // Tree objects return their rows as their children. We can use the original method in this case.
@@ -3631,7 +3630,7 @@ static RenderObject* rendererForView(NSView* view)
         if (index >= childCount)
             return nil;
         
-        unsigned available = min(childCount - index, maxCount);
+        unsigned available = std::min(childCount - index, maxCount);
         
         NSMutableArray *subarray = [NSMutableArray arrayWithCapacity:available];
         for (unsigned added = 0; added < available; ++index, ++added) {

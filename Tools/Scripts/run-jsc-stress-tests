@@ -71,12 +71,12 @@ def mysys(*cmd)
     raise "Command failed: #{$?.inspect}" unless system(*cmd)
 end
 
-numProcessors = `sysctl -n hw.availcpu`.to_i
-if numProcessors == 0
-    numProcessors = `nproc --all 2>/dev/null`.to_i
+$numProcessors = `sysctl -n hw.availcpu`.to_i
+if $numProcessors == 0
+    $numProcessors = `nproc --all 2>/dev/null`.to_i
 end
-if numProcessors == 0
-    numProcessors = 1
+if $numProcessors == 0
+    $numProcessors = 1
 end
 
 $jscPath = nil
@@ -269,6 +269,8 @@ def mozillaExit3ErrorHandler
     }
 end
 
+$runCommandOptions = {}
+
 class Plan
     attr_reader :directory, :arguments, :name, :outputHandler, :errorHandler
     attr_accessor :index
@@ -279,6 +281,7 @@ class Plan
         @name = name
         @outputHandler = outputHandler
         @errorHandler = errorHandler
+        @isSlow = !!$runCommandOptions[:isSlow]
     end
     
     def shellCommand
@@ -346,7 +349,12 @@ def baseOutputName(kind)
 end
 
 def addRunCommand(kind, command, outputHandler, errorHandler)
-    $runlist << Plan.new($benchmarkDirectory, command, baseOutputName(kind), outputHandler, errorHandler)
+    plan = Plan.new($benchmarkDirectory, command, baseOutputName(kind), outputHandler, errorHandler)
+    if $numProcessors > 1 and $runCommandOptions[:isSlow]
+        $runlist.unshift plan
+    else
+        $runlist << plan
+    end
 end
 
 # Returns true if there were run commands found in the file ($benchmarkDirectory +
@@ -354,6 +362,7 @@ end
 # returns false, in which case you're supposed to add your own run commands.
 def parseRunCommands
     didRun = false
+    $runCommandOptions = {}
     File.open($benchmarkDirectory + $benchmark) {
         | inp |
         inp.each_line {
@@ -371,6 +380,10 @@ def parseRunCommands
         }
     }
     didRun
+end
+
+def slow!
+    $runCommandOptions[:isSlow] = true
 end
 
 def run(kind, *options)
@@ -564,7 +577,7 @@ def uniqueifyName(names, name)
     result
 end
 
-def simplifyCollectionName(collectionNames, collectionPath)
+def simplifyCollectionName(collectionPath)
     outerDir = collectionPath.dirname
     name = collectionPath.basename
     lastName = name
@@ -575,7 +588,7 @@ def simplifyCollectionName(collectionNames, collectionPath)
             outerDir = outerDir.dirname
         end
     end
-    uniqueifyName(collectionNames, name)
+    uniqueifyName($collectionNames, name)
 end
 
 def prepareCollection(name)
@@ -587,59 +600,85 @@ def prepareCollection(name)
     }
 end
 
-collectionNames = {}
+$collectionNames = {}
+
+def handleCollectionFile(collection)
+    collectionName = simplifyCollectionName(collection)
+    
+    paths = {}
+    subCollections = []
+    YAML::load(IO::read(collection)).each {
+        | entry |
+        if entry["collection"]
+            subCollections << entry["collection"]
+            next
+        end
+        
+        if paths[entry["path"]]
+            raise "Duplicate path: " + entry["path"] + " in #{collection}"
+        end
+        
+        subCollection = collection.dirname + entry["path"]
+        
+        if subCollection.file?
+            subCollectionName = Pathname.new(entry["path"]).dirname
+        else
+            subCollectionName = entry["path"]
+        end
+        
+        $collection = subCollection
+        $collectionName = (Pathname.new(collectionName) + subCollectionName).to_s
+        
+        prepareCollection($collectionName)
+        
+        allJSFiles(subCollection).each {
+            | path |
+            
+            path = path.realpath
+            
+            $benchmark = path.basename
+            $benchmarkDirectory = path.dirname
+            
+            eval entry["cmd"]
+        }
+    }
+    
+    subCollections.each {
+        | subCollection |
+        handleCollection(collection.dirname + subCollection)
+    }
+end
+
+def handleCollectionDirectory(collection)
+    collectionName = simplifyCollectionName(collection)
+    
+    prepareCollection(collectionName)
+    
+    $collection = collection
+    $collectionName = collectionName
+    $benchmarkDirectory = $collection
+    allJSFiles($collection).each {
+        | path |
+        
+        $benchmark = path.basename
+        
+        defaultRun unless parseRunCommands
+    }
+end
+
+def handleCollection(collection)
+    collection = Pathname.new(collection)
+    
+    if collection.file?
+        handleCollectionFile(collection)
+    else
+        handleCollectionDirectory(collection)
+    end
+end
 
 ARGV.each {
     | collection |
-    collection = Pathname.new(collection)
-    collectionName = simplifyCollectionName(collectionNames, collection)
-    
-    if collection.file?
-        paths = {}
-        YAML::load(IO::read(collection)).each {
-            | entry |
-            if paths[entry["path"]]
-                raise "Duplicate path: " + entry["path"] + " in #{collection}"
-            end
-            
-            subCollection = collection.dirname + entry["path"]
-            
-            if subCollection.file?
-                subCollectionName = Pathname.new(entry["path"]).dirname
-            else
-                subCollectionName = entry["path"]
-            end
-            
-            $collection = subCollection
-            $collectionName = (Pathname.new(collectionName) + subCollectionName).to_s
-            
-            prepareCollection($collectionName)
-            
-            allJSFiles(subCollection).each {
-                | path |
-                
-                path = path.realpath
-                
-                $benchmark = path.basename
-                $benchmarkDirectory = path.dirname
-                
-                eval entry["cmd"]
-            }
-        }
-    else
-        prepareCollection(collectionName)
-        
-        $collection = collection
-        $collectionName = collectionName
-        $benchmarkDirectory = $collection
-        allJSFiles($collection).each {
-            | path |
-            
-            $benchmark = path.basename
-            
-            defaultRun unless parseRunCommands
-        }
-    end
+    handleCollection(collection)
 }
 
 def appendFailure(plan)
@@ -659,7 +698,7 @@ end
 if ENV["JSC_timeout"]
     # In the worst case, the processors just interfere with each other.
     # Increase the timeout proportionally to the number of processors.
-    ENV["JSC_timeout"] = (ENV["JSC_timeout"].to_i.to_f * Math.sqrt(numProcessors)).to_i.to_s
+    ENV["JSC_timeout"] = (ENV["JSC_timeout"].to_i.to_f * Math.sqrt($numProcessors)).to_i.to_s
 end
 
 # The goals of our parallel test runner are scalability and simplicity. The
@@ -740,9 +779,9 @@ File.open(parallelDir + "Makefile", "w") {
 
 Dir.chdir(parallelDir) {
     unless $progressMeter
-        mysys("make", "-j", numProcessors.to_s, "-s", "-f", "Makefile")
+        mysys("make", "-j", $numProcessors.to_s, "-s", "-f", "Makefile")
     else
-        cmd = "make -j #{numProcessors} -s -f Makefile"
+        cmd = "make -j #{$numProcessors} -s -f Makefile"
         running = {}
         didRun = {}
         didFail = {}

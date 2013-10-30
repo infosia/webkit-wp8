@@ -51,7 +51,6 @@
 namespace WebCore {
 
 using namespace HTMLNames;
-using namespace std;
 
 HTMLTextFormControlElement::HTMLTextFormControlElement(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
     : HTMLFormControlElementWithState(tagName, document, form)
@@ -154,7 +153,7 @@ bool HTMLTextFormControlElement::placeholderShouldBeVisible() const
         && isEmptySuggestedValue()
         && !isPlaceholderEmpty()
         && (document().focusedElement() != this || (renderer() && renderer()->theme()->shouldShowPlaceholderWhenFocused()))
-        && (!renderer() || renderer()->style()->visibility() == VISIBLE);
+        && (!renderer() || renderer()->style().visibility() == VISIBLE);
 }
 
 void HTMLTextFormControlElement::updatePlaceholderVisibility(bool placeholderValueChanged)
@@ -171,12 +170,12 @@ void HTMLTextFormControlElement::updatePlaceholderVisibility(bool placeholderVal
 
 void HTMLTextFormControlElement::setSelectionStart(int start)
 {
-    setSelectionRange(start, max(start, selectionEnd()), selectionDirection());
+    setSelectionRange(start, std::max(start, selectionEnd()), selectionDirection());
 }
 
 void HTMLTextFormControlElement::setSelectionEnd(int end)
 {
-    setSelectionRange(min(end, selectionStart()), end, selectionDirection());
+    setSelectionRange(std::min(end, selectionStart()), end, selectionDirection());
 }
 
 void HTMLTextFormControlElement::setSelectionDirection(const String& direction)
@@ -186,7 +185,7 @@ void HTMLTextFormControlElement::setSelectionDirection(const String& direction)
 
 void HTMLTextFormControlElement::select()
 {
-    setSelectionRange(0, numeric_limits<int>::max(), SelectionHasNoDirection);
+    setSelectionRange(0, std::numeric_limits<int>::max(), SelectionHasNoDirection);
 }
 
 String HTMLTextFormControlElement::selectedText() const
@@ -207,7 +206,7 @@ void HTMLTextFormControlElement::dispatchFormControlChangeEvent()
 
 static inline bool hasVisibleTextArea(RenderElement& textControl, TextControlInnerTextElement* innerText)
 {
-    return textControl.style()->visibility() != HIDDEN && innerText && innerText->renderer() && innerText->renderBox()->height();
+    return textControl.style().visibility() != HIDDEN && innerText && innerText->renderer() && innerText->renderBox()->height();
 }
 
 void HTMLTextFormControlElement::setRangeText(const String& replacement, ExceptionCode& ec)
@@ -287,8 +286,8 @@ void HTMLTextFormControlElement::setSelectionRange(int start, int end, TextField
     if (!renderer() || !renderer()->isTextControl())
         return;
 
-    end = max(end, 0);
-    start = min(max(start, 0), end);
+    end = std::max(end, 0);
+    start = std::min(std::max(start, 0), end);
 
     if (!hasVisibleTextArea(*renderer(), innerTextElement())) {
         cacheSelection(start, end, direction);

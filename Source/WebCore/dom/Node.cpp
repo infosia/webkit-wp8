@@ -122,8 +122,6 @@
 #include "InspectorController.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -604,12 +602,12 @@ bool Node::rendererIsEditable(EditableLevel editableLevel, UserSelectAllTreatmen
 #if ENABLE(USERSELECT_ALL)
             // Elements with user-select: all style are considered atomic
             // therefore non editable.
-            if (treatment == UserSelectAllIsAlwaysNonEditable && node->renderer()->style()->userSelect() == SELECT_ALL)
+            if (treatment == UserSelectAllIsAlwaysNonEditable && node->renderer()->style().userSelect() == SELECT_ALL)
                 return false;
 #else
             UNUSED_PARAM(treatment);
 #endif
-            switch (node->renderer()->style()->userModify()) {
+            switch (node->renderer()->style().userModify()) {
             case READ_ONLY:
                 return false;
             case READ_WRITE:
@@ -935,10 +933,10 @@ bool Node::canStartSelection() const
         return true;
 
     if (renderer()) {
-        RenderStyle* style = renderer()->style();
+        const RenderStyle& style = renderer()->style();
         // We allow selections to begin within an element that has -webkit-user-select: none set,
         // but if the element is draggable then dragging should take priority over selection.
-        if (style->userDrag() == DRAG_ELEMENT && style->userSelect() == SELECT_NONE)
+        if (style.userDrag() == DRAG_ELEMENT && style.userSelect() == SELECT_NONE)
             return false;
     }
     return parentOrShadowHostNode() ? parentOrShadowHostNode()->canStartSelection() : true;
@@ -1508,7 +1506,7 @@ unsigned short Node::compareDocumentPosition(Node* otherNode)
         return compareDetachedElementsPosition(this, otherNode);
 
     // Walk the two chains backwards and look for the first difference.
-    for (unsigned i = min(index1, index2); i; --i) {
+    for (unsigned i = std::min(index1, index2); i; --i) {
         Node* child1 = chain1[--index1];
         Node* child2 = chain2[--index2];
         if (child1 != child2) {

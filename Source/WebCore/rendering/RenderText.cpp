@@ -39,6 +39,7 @@
 #include "RenderLayer.h"
 #include "RenderView.h"
 #include "Settings.h"
+#include "SimpleLineLayoutFunctions.h"
 #include "Text.h"
 #include "TextBreakIterator.h"
 #include "TextResourceDecoder.h"
@@ -210,7 +211,7 @@ bool RenderText::isTextFragment() const
 
 bool RenderText::computeUseBackslashAsYenSymbol() const
 {
-    const RenderStyle& style = *this->style();
+    const RenderStyle& style = this->style();
     const FontDescription& fontDescription = style.font().fontDescription();
     if (style.font().useBackslashAsYenSymbol())
         return true;
@@ -233,19 +234,19 @@ void RenderText::styleDidChange(StyleDifference diff, const RenderStyle* oldStyl
         m_knownToHaveNoOverflowAndNoFallbackFonts = false;
     }
 
-    RenderStyle* newStyle = style();
+    const RenderStyle& newStyle = style();
     bool needsResetText = false;
     if (!oldStyle) {
         m_useBackslashAsYenSymbol = computeUseBackslashAsYenSymbol();
         needsResetText = m_useBackslashAsYenSymbol;
-    } else if (oldStyle->font().useBackslashAsYenSymbol() != newStyle->font().useBackslashAsYenSymbol()) {
+    } else if (oldStyle->font().useBackslashAsYenSymbol() != newStyle.font().useBackslashAsYenSymbol()) {
         m_useBackslashAsYenSymbol = computeUseBackslashAsYenSymbol();
         needsResetText = true;
     }
 
     ETextTransform oldTransform = oldStyle ? oldStyle->textTransform() : TTNONE;
     ETextSecurity oldSecurity = oldStyle ? oldStyle->textSecurity() : TSNONE;
-    if (needsResetText || oldTransform != newStyle->textTransform() || oldSecurity != newStyle->textSecurity()) 
+    if (needsResetText || oldTransform != newStyle.textTransform() || oldSecurity != newStyle.textSecurity())
         transformText();
 }
 
@@ -265,6 +266,11 @@ void RenderText::willBeDestroyed()
     RenderObject::willBeDestroyed();
 }
 
+void RenderText::deleteLineBoxesBeforeSimpleLineLayout()
+{
+    m_lineBoxes.deleteAll(*this);
+}
+
 String RenderText::originalText() const
 {
     return textNode() ? textNode()->data() : String();
@@ -272,11 +278,16 @@ String RenderText::originalText() const
 
 void RenderText::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
 {
+    // FIXME: These will go away when simple layout can do everything.
+    const_cast<RenderText&>(*this).ensureLineBoxes();
+
     rects.appendVector(m_lineBoxes.absoluteRects(accumulatedOffset));
 }
 
 Vector<IntRect> RenderText::absoluteRectsForRange(unsigned start, unsigned end, bool useSelectionHeight, bool* wasFixed) const
 {
+    const_cast<RenderText&>(*this).ensureLineBoxes();
+
     // Work around signed/unsigned issues. This function takes unsigneds, and is often passed UINT_MAX
     // to mean "all the way to the end". InlineTextBox coordinates are unsigneds, so changing this 
     // function to take ints causes various internal mismatches. But selectionRect takes ints, and 
@@ -292,16 +303,22 @@ Vector<IntRect> RenderText::absoluteRectsForRange(unsigned start, unsigned end, 
 
 Vector<FloatQuad> RenderText::absoluteQuadsClippedToEllipsis() const
 {
+    const_cast<RenderText&>(*this).ensureLineBoxes();
+
     return m_lineBoxes.absoluteQuads(*this, nullptr, RenderTextLineBoxes::ClipToEllipsis);
 }
 
 void RenderText::absoluteQuads(Vector<FloatQuad>& quads, bool* wasFixed) const
 {
+    const_cast<RenderText&>(*this).ensureLineBoxes();
+
     quads.appendVector(m_lineBoxes.absoluteQuads(*this, wasFixed, RenderTextLineBoxes::NoClipping));
 }
 
 Vector<FloatQuad> RenderText::absoluteQuadsForRange(unsigned start, unsigned end, bool useSelectionHeight, bool* wasFixed) const
 {
+    const_cast<RenderText&>(*this).ensureLineBoxes();
+
     // Work around signed/unsigned issues. This function takes unsigneds, and is often passed UINT_MAX
     // to mean "all the way to the end". InlineTextBox coordinates are unsigneds, so changing this 
     // function to take ints causes various internal mismatches. But selectionRect takes ints, and 
@@ -317,6 +334,8 @@ Vector<FloatQuad> RenderText::absoluteQuadsForRange(unsigned start, unsigned end
 
 VisiblePosition RenderText::positionForPoint(const LayoutPoint& point)
 {
+    ensureLineBoxes();
+
     return m_lineBoxes.positionForPoint(*this, point);
 }
 
@@ -387,7 +406,7 @@ void RenderText::trimmedPrefWidths(float leadWidth,
                                    float& beginMaxW, float& endMaxW,
                                    float& minW, float& maxW, bool& stripFrontSpaces)
 {
-    const RenderStyle& style = *this->style();
+    const RenderStyle& style = this->style();
     bool collapseWhiteSpace = style.collapseWhiteSpace();
     if (!collapseWhiteSpace)
         stripFrontSpaces = false;
@@ -502,8 +521,8 @@ void RenderText::computePreferredLogicalWidths(float leadWidth)
 
 static inline float hyphenWidth(RenderText* renderer, const Font& font)
 {
-    RenderStyle* style = renderer->style();
-    return font.width(RenderBlock::constructTextRun(renderer, font, style->hyphenString().string(), *style));
+    const RenderStyle& style = renderer->style();
+    return font.width(RenderBlock::constructTextRun(renderer, font, style.hyphenString().string(), style));
 }
 
 static float maxWordFragmentWidth(RenderText* renderer, const RenderStyle& style, const Font& font, const UChar* word, int wordLength, int minimumPrefixLength, int minimumSuffixLength, int& suffixStart, HashSet<const SimpleFontData*>& fallbackFonts, GlyphOverflow& glyphOverflow)
@@ -563,7 +582,7 @@ void RenderText::computePreferredLogicalWidths(float leadWidth, HashSet<const Si
     m_hasBeginWS = false;
     m_hasEndWS = false;
 
-    const RenderStyle& style = *this->style();
+    const RenderStyle& style = this->style();
     const Font& f = style.font(); // FIXME: This ignores first-line.
     float wordSpacing = style.wordSpacing();
     int len = textLength();
@@ -792,7 +811,7 @@ void RenderText::computePreferredLogicalWidths(float leadWidth, HashSet<const Si
 
 bool RenderText::isAllCollapsibleWhitespace() const
 {
-    const RenderStyle& style = *this->style();
+    const RenderStyle& style = this->style();
     unsigned length = textLength();
     if (is8Bit()) {
         for (unsigned i = 0; i < length; ++i) {
@@ -836,6 +855,9 @@ float RenderText::firstRunY() const
     
 void RenderText::setSelectionState(SelectionState state)
 {
+    if (state != SelectionNone)
+        ensureLineBoxes();
+
     RenderObject::setSelectionState(state);
 
     if (canUpdateSelectionOnRootLineBoxes())
@@ -855,7 +877,7 @@ void RenderText::setTextWithOffset(const String& text, unsigned offset, unsigned
     int delta = text.length() - textLength();
     unsigned end = len ? offset + len - 1 : offset;
 
-    m_linesDirty = m_lineBoxes.dirtyRange(*this, offset, end, delta);
+    m_linesDirty = simpleLineLayout() || m_lineBoxes.dirtyRange(*this, offset, end, delta);
 
     setText(text, force || m_linesDirty);
 }
@@ -893,22 +915,19 @@ UChar RenderText::previousCharacter() const
     return prev;
 }
 
-void applyTextTransform(const RenderStyle* style, String& text, UChar previousCharacter)
+void applyTextTransform(const RenderStyle& style, String& text, UChar previousCharacter)
 {
-    if (!style)
-        return;
-
-    switch (style->textTransform()) {
+    switch (style.textTransform()) {
     case TTNONE:
         break;
     case CAPITALIZE:
         makeCapitalized(&text, previousCharacter);
         break;
     case UPPERCASE:
-        text = text.upper(style->locale());
+        text = text.upper(style.locale());
         break;
     case LOWERCASE:
-        text = text.lower(style->locale());
+        text = text.lower(style.locale());
         break;
     }
 }
@@ -923,23 +942,21 @@ void RenderText::setTextInternal(const String& text)
 
     ASSERT(m_text);
 
-    if (style()) {
-        applyTextTransform(style(), m_text, previousCharacter());
+    applyTextTransform(style(), m_text, previousCharacter());
 
-        // We use the same characters here as for list markers.
-        // See the listMarkerText function in RenderListMarker.cpp.
-        switch (style()->textSecurity()) {
-        case TSNONE:
-            break;
-        case TSCIRCLE:
-            secureText(whiteBullet);
-            break;
-        case TSDISC:
-            secureText(bullet);
-            break;
-        case TSSQUARE:
-            secureText(blackSquare);
-        }
+    // We use the same characters here as for list markers.
+    // See the listMarkerText function in RenderListMarker.cpp.
+    switch (style().textSecurity()) {
+    case TSNONE:
+        break;
+    case TSCIRCLE:
+        secureText(whiteBullet);
+        break;
+    case TSDISC:
+        secureText(bullet);
+        break;
+    case TSSQUARE:
+        secureText(blackSquare);
     }
 
     ASSERT(!m_text.isNull());
@@ -980,6 +997,9 @@ void RenderText::setText(const String& text, bool force)
     setTextInternal(text);
     setNeedsLayoutAndPrefWidthsRecalc();
     m_knownToHaveNoOverflowAndNoFallbackFonts = false;
+
+    if (parent()->isRenderBlockFlow())
+        toRenderBlockFlow(parent())->invalidateLineLayoutPath();
     
     if (AXObjectCache* cache = document().existingAXObjectCache())
         cache->textChanged(this);
@@ -987,7 +1007,7 @@ void RenderText::setText(const String& text, bool force)
 
 String RenderText::textWithoutConvertingBackslashToYenSymbol() const
 {
-    if (!m_useBackslashAsYenSymbol || style()->textSecurity() != TSNONE)
+    if (!m_useBackslashAsYenSymbol || style().textSecurity() != TSNONE)
         return text();
 
     String text = originalText();
@@ -1025,6 +1045,20 @@ void RenderText::positionLineBox(InlineBox* box)
     m_containsReversedText |= !textBox->isLeftToRightDirection();
 }
 
+void RenderText::ensureLineBoxes()
+{
+    if (!parent()->isRenderBlockFlow())
+        return;
+    toRenderBlockFlow(parent())->ensureLineBoxes();
+}
+
+const SimpleLineLayout::Layout* RenderText::simpleLineLayout() const
+{
+    if (!parent()->isRenderBlockFlow())
+        return nullptr;
+    return toRenderBlockFlow(parent())->simpleLineLayout();
+}
+
 float RenderText::width(unsigned from, unsigned len, float xPos, bool firstLine, HashSet<const SimpleFontData*>* fallbackFonts, GlyphOverflow* glyphOverflow) const
 {
     if (from >= textLength())
@@ -1033,7 +1067,7 @@ float RenderText::width(unsigned from, unsigned len, float xPos, bool firstLine,
     if (from + len > textLength())
         len = textLength() - from;
 
-    const RenderStyle& lineStyle = firstLine ? *firstLineStyle() : *style();
+    const RenderStyle& lineStyle = firstLine ? firstLineStyle() : style();
     return width(from, len, lineStyle.font(), xPos, fallbackFonts, glyphOverflow);
 }
 
@@ -1043,7 +1077,7 @@ float RenderText::width(unsigned from, unsigned len, const Font& f, float xPos, 
     if (!textLength())
         return 0;
 
-    const RenderStyle& style = *this->style();
+    const RenderStyle& style = this->style();
     float w;
     if (&f == &style.font()) {
         if (!style.preserveNewline() && !from && len == textLength() && (!glyphOverflow || !glyphOverflow->computeBounds)) {
@@ -1075,11 +1109,15 @@ float RenderText::width(unsigned from, unsigned len, const Font& f, float xPos, 
 
 IntRect RenderText::linesBoundingBox() const
 {
+    if (auto layout = simpleLineLayout())
+        return SimpleLineLayout::computeTextBoundingBox(*this, *layout);
+
     return m_lineBoxes.boundingBox(*this);
 }
 
 LayoutRect RenderText::linesVisualOverflowBoundingBox() const
 {
+    ASSERT(!simpleLineLayout());
     return m_lineBoxes.visualOverflowBoundingBox(*this);
 }
 
@@ -1102,6 +1140,7 @@ LayoutRect RenderText::clippedOverflowRectForRepaint(const RenderLayerModelObjec
 LayoutRect RenderText::selectionRectForRepaint(const RenderLayerModelObject* repaintContainer, bool clipToVisibleContent)
 {
     ASSERT(!needsLayout());
+    ASSERT(!simpleLineLayout());
 
     if (selectionState() == SelectionNone)
         return LayoutRect();
@@ -1143,31 +1182,41 @@ LayoutRect RenderText::selectionRectForRepaint(const RenderLayerModelObject* rep
 
 int RenderText::caretMinOffset() const
 {
+    if (auto layout = simpleLineLayout())
+        return SimpleLineLayout::findTextCaretMinimumOffset(*this, *layout);
     return m_lineBoxes.caretMinOffset();
 }
 
 int RenderText::caretMaxOffset() const
 {
+    if (auto layout = simpleLineLayout())
+        return SimpleLineLayout::findTextCaretMaximumOffset(*this, *layout);
     return m_lineBoxes.caretMaxOffset(*this);
 }
 
 unsigned RenderText::countRenderedCharacterOffsetsUntil(unsigned offset) const
 {
+    ASSERT(!simpleLineLayout());
     return m_lineBoxes.countCharacterOffsetsUntil(offset);
 }
 
 bool RenderText::containsRenderedCharacterOffset(unsigned offset) const
 {
+    ASSERT(!simpleLineLayout());
     return m_lineBoxes.containsOffset(*this, offset, RenderTextLineBoxes::CharacterOffset);
 }
 
 bool RenderText::containsCaretOffset(unsigned offset) const
 {
+    if (auto layout = simpleLineLayout())
+        return SimpleLineLayout::containsTextCaretOffset(*this, *layout, offset);
     return m_lineBoxes.containsOffset(*this, offset, RenderTextLineBoxes::CaretOffset);
 }
 
 bool RenderText::hasRenderedText() const
 {
+    if (auto layout = simpleLineLayout())
+        return SimpleLineLayout::isTextRendered(*this, *layout);
     return m_lineBoxes.hasRenderedText();
 }
 

@@ -207,7 +207,7 @@ void EventDispatcher::dispatchScopedEvent(Node& node, PassRefPtr<Event> event)
 {
     // We need to set the target here because it can go away by the time we actually fire the event.
     event->setTarget(&eventTargetRespectingTargetRules(node));
-    ScopedEventQueue::instance()->enqueueEvent(event);
+    ScopedEventQueue::instance().enqueueEvent(event);
 }
 
 void EventDispatcher::dispatchSimulatedClick(Element* element, Event* underlyingEvent, SimulatedClickMouseEventOptions mouseEventOptions, SimulatedClickVisualOptions visualOptions)
@@ -324,9 +324,6 @@ bool EventDispatcher::dispatchEvent(Node* origin, PassRefPtr<Event> prpEvent)
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
     ASSERT(event->target());
     WindowEventContext windowEventContext(node.get(), eventPath.lastContextIfExists());
-    bool hasEventListners = (windowEventContext.window() && windowEventContext.window()->hasEventListeners(event->type()))
-        || node->hasEventListeners(event->type()) || eventPath.hasEventListeners(event->type());
-    InspectorInstrumentationCookie cookie = InspectorInstrumentation::willDispatchEvent(&node->document(), *event, hasEventListners);
 
     InputElementClickState clickHandlingState;
     if (isHTMLInputElement(node.get()))
@@ -352,7 +349,6 @@ bool EventDispatcher::dispatchEvent(Node* origin, PassRefPtr<Event> prpEvent)
     // outermost shadow DOM boundary.
     event->setTarget(windowEventContext.target());
     event->setCurrentTarget(0);
-    InspectorInstrumentation::didDispatchEvent(cookie);
 
     return !event->defaultPrevented();
 }

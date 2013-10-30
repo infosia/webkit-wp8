@@ -127,7 +127,6 @@ extern int cssyydebug;
 
 extern int cssyyparse(WebCore::CSSParser*);
 
-using namespace std;
 using namespace WTF;
 
 namespace {
@@ -2377,6 +2376,12 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         return parseTextUnderlinePosition(important);
 #endif // CSS3_TEXT
 
+#if ENABLE(CSS3_TEXT_DECORATION)
+    case CSSPropertyWebkitTextDecorationSkip:
+        // none | [ objects || spaces || ink || edges || box-decoration ]
+        return parseTextDecorationSkip(important);
+#endif
+
     case CSSPropertyZoom:          // normal | reset | document | <number> | <percentage> | inherit
         if (id == CSSValueNormal || id == CSSValueReset || id == CSSValueDocument)
             validPrimitive = true;
@@ -2569,8 +2574,7 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
     case CSSPropertyWebkitOrder:
         if (validUnit(value, FInteger, CSSStrictMode)) {
             // We restrict the smallest value to int min + 2 because we use int min and int min + 1 as special values in a hash set.
-            parsedValue = cssValuePool().createValue(max(static_cast<double>(std::numeric_limits<int>::min() + 2), value->fValue),
-                                                             static_cast<CSSPrimitiveValue::UnitTypes>(value->unit));
+            parsedValue = cssValuePool().createValue(std::max<double>(std::numeric_limits<int>::min() + 2, value->fValue), static_cast<CSSPrimitiveValue::UnitTypes>(value->unit));
             m_valueList->next();
         }
         break;
@@ -6480,7 +6484,7 @@ bool CSSParser::parseColorParameters(CSSParserValue* value, int* colorArray, boo
         const double value = parsedDouble(v, ReleaseParsedCalcValue);
         // Convert the floating pointer number of alpha to an integer in the range [0, 256),
         // with an equal distribution across all 256 values.
-        colorArray[3] = static_cast<int>(max(0.0, min(1.0, value)) * nextafter(256.0, 0.0));
+        colorArray[3] = static_cast<int>(std::max<double>(0, std::min<double>(1, value)) * nextafter(256.0, 0.0));
     }
     return true;
 }
@@ -6506,7 +6510,7 @@ bool CSSParser::parseHSLParameters(CSSParserValue* value, double* colorArray, bo
         v = args->next();
         if (!validUnit(v, FPercent, CSSStrictMode))
             return false;
-        colorArray[i] = max(0.0, min(100.0, parsedDouble(v, ReleaseParsedCalcValue))) / 100.0; // needs to be value between 0 and 1.0
+        colorArray[i] = std::max<double>(0, std::min<double>(100, parsedDouble(v, ReleaseParsedCalcValue))) / 100.0; // needs to be value between 0 and 1.0
     }
     if (parseAlpha) {
         v = args->next();
@@ -6515,7 +6519,7 @@ bool CSSParser::parseHSLParameters(CSSParserValue* value, double* colorArray, bo
         v = args->next();
         if (!validUnit(v, FNumber, CSSStrictMode))
             return false;
-        colorArray[3] = max(0.0, min(1.0, parsedDouble(v, ReleaseParsedCalcValue)));
+        colorArray[3] = std::max<double>(0, std::min<double>(1, parsedDouble(v, ReleaseParsedCalcValue)));
     }
     return true;
 }
@@ -9763,6 +9767,26 @@ bool CSSParser::parseTextUnderlinePosition(bool important)
     return false;
 }
 #endif // CSS3_TEXT
+
+#if ENABLE(CSS3_TEXT_DECORATION)
+bool CSSParser::parseTextDecorationSkip(bool important)
+{
+    // The text-decoration-skip property has syntax "none | [ objects || spaces || ink || edges || box-decoration ]".
+    // However, only 'none' and 'ink' are implemented yet, so we will parse syntax "none | ink" for now.
+    CSSParserValue* value = m_valueList->current();
+    do {
+        switch (value->id) {
+        case CSSValueNone:
+        case CSSValueInk:
+            addProperty(CSSPropertyWebkitTextDecorationSkip, cssValuePool().createIdentifierValue(value->id), important);
+            return true;
+        default:
+            break;
+        }
+    } while ((value = m_valueList->next()));
+    return false;
+}
+#endif // CSS3_TEXT_DECORATION
 
 bool CSSParser::parseTextEmphasisStyle(bool important)
 {

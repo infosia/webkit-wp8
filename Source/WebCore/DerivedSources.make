@@ -198,6 +198,7 @@ BINDING_IDLS = \
     $(WebCore)/Modules/webdatabase/WorkerGlobalScopeWebDatabase.idl \
     $(WebCore)/Modules/websockets/CloseEvent.idl \
     $(WebCore)/Modules/websockets/WebSocket.idl \
+    $(WebCore)/crypto/CryptoKey.idl \
     $(WebCore)/crypto/SubtleCrypto.idl \
     $(WebCore)/css/CSSCharsetRule.idl \
     $(WebCore)/css/CSSFontFaceLoadEvent.idl \
@@ -1053,11 +1054,6 @@ JS%.h : %.idl $(JS_BINDINGS_SCRIPTS) $(IDL_ATTRIBUTES_FILE) $(WINDOW_CONSTRUCTOR
 -include $(SUPPLEMENTAL_MAKEFILE_DEPS)
 
 # Inspector interfaces generator
-
-all : InspectorProtocolVersion.h
-
-InspectorProtocolVersion.h : Inspector.json inspector/generate-inspector-protocol-version
-	python $(WebCore)/inspector/generate-inspector-protocol-version -o InspectorProtocolVersion.h $(WebCore)/inspector/Inspector.json
 
 all : InspectorFrontend.h
 

@@ -338,15 +338,15 @@ private:
 public:
     WTF_EXPORT_STRING_API static void destroy(StringImpl*);
 
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> create(const UChar*, unsigned length);
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> create(const LChar*, unsigned length);
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> create8BitIfPossible(const UChar*, unsigned length);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> create(const UChar*, unsigned length);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> create(const LChar*, unsigned length);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> create8BitIfPossible(const UChar*, unsigned length);
     template<size_t inlineCapacity>
-    static PassRefPtr<StringImpl> create8BitIfPossible(const Vector<UChar, inlineCapacity>& vector)
+    static PassRef<StringImpl> create8BitIfPossible(const Vector<UChar, inlineCapacity>& vector)
     {
         return create8BitIfPossible(vector.data(), vector.size());
     }
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> create8BitIfPossible(const UChar*);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> create8BitIfPossible(const UChar*);
 
     ALWAYS_INLINE static PassRefPtr<StringImpl> create(const char* s, unsigned length) { return create(reinterpret_cast<const LChar*>(s), length); }
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> create(const LChar*);
@@ -392,8 +392,8 @@ public:
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createFromLiteral(const char* characters, unsigned length);
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createFromLiteral(const char* characters);
 
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createWithoutCopying(const UChar* characters, unsigned length);
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createWithoutCopying(const LChar* characters, unsigned length);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> createWithoutCopying(const UChar* characters, unsigned length);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> createWithoutCopying(const LChar* characters, unsigned length);
 
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createUninitialized(unsigned length, LChar*& data);
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> createUninitialized(unsigned length, UChar*& data);
@@ -435,19 +435,19 @@ public:
     static unsigned dataOffset() { return OBJECT_OFFSETOF(StringImpl, m_data8); }
 
     template<typename CharType, size_t inlineCapacity, typename OverflowHandler>
-    static PassRefPtr<StringImpl> adopt(Vector<CharType, inlineCapacity, OverflowHandler>& vector)
+    static PassRef<StringImpl> adopt(Vector<CharType, inlineCapacity, OverflowHandler>& vector)
     {
         if (size_t size = vector.size()) {
             ASSERT(vector.data());
             if (size > std::numeric_limits<unsigned>::max())
                 CRASH();
-            return adoptRef(new StringImpl(vector.releaseBuffer(), size));
+            return adoptRef(*new StringImpl(vector.releaseBuffer(), size));
         }
-        return empty();
+        return *empty();
     }
 
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> adopt(StringBuffer<UChar>&);
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> adopt(StringBuffer<LChar>&);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> adopt(StringBuffer<UChar>&);
+    WTF_EXPORT_STRING_API static PassRef<StringImpl> adopt(StringBuffer<LChar>&);
 
     unsigned length() const { return m_length; }
     bool is8Bit() const { return m_hashAndFlags & s_hashFlag8BitBuffer; }
@@ -654,7 +654,7 @@ public:
     // Some string features, like refcounting and the atomicity flag, are not
     // thread-safe. We achieve thread safety by isolation, giving each thread
     // its own copy of the string.
-    PassRefPtr<StringImpl> isolatedCopy() const;
+    PassRef<StringImpl> isolatedCopy() const;
 
     WTF_EXPORT_STRING_API PassRefPtr<StringImpl> substring(unsigned pos, unsigned len = UINT_MAX);
 
@@ -779,7 +779,7 @@ private:
     template <typename CharType> static PassRef<StringImpl> createUninitializedInternal(unsigned, CharType*&);
     template <typename CharType> static PassRef<StringImpl> createUninitializedInternalNonEmpty(unsigned, CharType*&);
     template <typename CharType> static PassRefPtr<StringImpl> reallocateInternal(PassRefPtr<StringImpl>, unsigned, CharType*&);
-    template <typename CharType> static PassRefPtr<StringImpl> createInternal(const CharType*, unsigned);
+    template <typename CharType> static PassRef<StringImpl> createInternal(const CharType*, unsigned);
     WTF_EXPORT_STRING_API NEVER_INLINE const UChar* getData16SlowCase() const;
     WTF_EXPORT_PRIVATE NEVER_INLINE unsigned hashSlowCase() const;
 
@@ -1332,7 +1332,7 @@ inline unsigned lengthOfNullTerminatedString(const CharacterType* string)
     return static_cast<unsigned>(length);
 }
 
-inline PassRefPtr<StringImpl> StringImpl::isolatedCopy() const
+inline PassRef<StringImpl> StringImpl::isolatedCopy() const
 {
     if (!requiresCopy()) {
         if (is8Bit())

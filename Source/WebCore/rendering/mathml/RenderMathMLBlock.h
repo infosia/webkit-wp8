@@ -41,8 +41,8 @@ class RenderMathMLOperator;
 
 class RenderMathMLBlock : public RenderFlexibleBox {
 public:
-    explicit RenderMathMLBlock(Element&);
-    explicit RenderMathMLBlock(Document&);
+    RenderMathMLBlock(Element&, PassRef<RenderStyle>);
+    RenderMathMLBlock(Document&, PassRef<RenderStyle>);
 
     virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const OVERRIDE;
     
@@ -85,25 +85,12 @@ private:
     bool m_ignoreInAccessibilityTree;
 };
 
-inline RenderMathMLBlock* toRenderMathMLBlock(RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderMathMLBlock());
-    return static_cast<RenderMathMLBlock*>(object);
-}
-
-inline const RenderMathMLBlock* toRenderMathMLBlock(const RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderMathMLBlock());
-    return static_cast<const RenderMathMLBlock*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderMathMLBlock(const RenderMathMLBlock*);
+RENDER_OBJECT_TYPE_CASTS(RenderMathMLBlock, isRenderMathMLBlock())
 
 class RenderMathMLTable FINAL : public RenderTable {
 public:
-    explicit RenderMathMLTable(Element& element)
-        : RenderTable(element)
+    explicit RenderMathMLTable(Element& element, PassRef<RenderStyle> style)
+        : RenderTable(element, std::move(style))
     {
     }
     

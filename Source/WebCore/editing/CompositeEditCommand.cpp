@@ -72,8 +72,6 @@
 #include "DeleteButtonController.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -629,7 +627,7 @@ bool CompositeEditCommand::canRebalance(const Position& position) const
         return false;
 
     RenderObject* renderer = textNode->renderer();
-    if (renderer && !renderer->style()->collapseWhiteSpace())
+    if (renderer && !renderer->style().collapseWhiteSpace())
         return false;
 
     return true;
@@ -698,7 +696,7 @@ void CompositeEditCommand::prepareWhitespaceAtPositionForSplit(Position& positio
     if (textNode->length() == 0)
         return;
     RenderObject* renderer = textNode->renderer();
-    if (renderer && !renderer->style()->collapseWhiteSpace())
+    if (renderer && !renderer->style().collapseWhiteSpace())
         return;
 
     // Delete collapsed whitespace so that inserting nbsps doesn't uncollapse it.
@@ -776,8 +774,8 @@ void CompositeEditCommand::deleteInsignificantText(PassRefPtr<Text> textNode, un
         bool indicesIntersect = start <= gapEnd && end >= gapStart;
         int gapLen = gapEnd - gapStart;
         if (indicesIntersect && gapLen > 0) {
-            gapStart = max(gapStart, start);
-            gapEnd = min(gapEnd, end);
+            gapStart = std::max(gapStart, start);
+            gapEnd = std::min(gapEnd, end);
             if (str.isNull())
                 str = textNode->data().substring(start, end - start);
             // remove text in the gap
@@ -1367,7 +1365,7 @@ bool CompositeEditCommand::breakOutOfEmptyMailBlockquotedParagraph()
 
     Position caretPos(caret.deepEquivalent().downstream());
     // A line break is either a br or a preserved newline.
-    ASSERT(caretPos.deprecatedNode()->hasTagName(brTag) || (caretPos.deprecatedNode()->isTextNode() && caretPos.deprecatedNode()->renderer()->style()->preserveNewline()));
+    ASSERT(caretPos.deprecatedNode()->hasTagName(brTag) || (caretPos.deprecatedNode()->isTextNode() && caretPos.deprecatedNode()->renderer()->style().preserveNewline()));
     
     if (caretPos.deprecatedNode()->hasTagName(brTag))
         removeNodeAndPruneAncestors(caretPos.deprecatedNode());

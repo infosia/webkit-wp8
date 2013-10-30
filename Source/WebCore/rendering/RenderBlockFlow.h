@@ -25,16 +25,18 @@
 
 #include "RenderBlock.h"
 #include "RenderLineBoxList.h"
+#include "SimpleLineLayout.h"
 
 namespace WebCore {
 
 class LineBreaker;
 class RenderNamedFlowFragment;
+struct FloatWithRect;
 
 class RenderBlockFlow : public RenderBlock {
 public:
-    explicit RenderBlockFlow(Element&);
-    explicit RenderBlockFlow(Document&);
+    RenderBlockFlow(Element&, PassRef<RenderStyle>);
+    RenderBlockFlow(Document&, PassRef<RenderStyle>);
     virtual ~RenderBlockFlow();
         
     virtual void layoutBlock(bool relayoutChildren, LayoutUnit pageLogicalHeight = 0) OVERRIDE;
@@ -53,7 +55,7 @@ protected:
     // When the children are are all inline (e.g., lines), we call layoutInlineChildren.
     void layoutBlockChildren(bool relayoutChildren, LayoutUnit& maxFloatLogicalBottom);
     void layoutInlineChildren(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
-    
+
     // RenderBlockFlows override these methods, since they are the only class that supports margin collapsing.
     virtual LayoutUnit collapsedMarginBefore() const OVERRIDE FINAL { return maxPositiveMarginBefore() - maxNegativeMarginBefore(); }
     virtual LayoutUnit collapsedMarginAfter() const OVERRIDE FINAL { return maxPositiveMarginAfter() - maxNegativeMarginAfter(); }
@@ -301,6 +303,11 @@ public:
             floatingObject->setHeight(logicalWidth);
     }
 
+    LayoutUnit xPositionForFloatIncludingMargin(const FloatingObject* child) const { return isHorizontalWritingMode() ? child->x() + child->renderer().marginLeft() : child->x() + marginBeforeForChild(child->renderer()); }
+    LayoutUnit yPositionForFloatIncludingMargin(const FloatingObject* child) const { return isHorizontalWritingMode() ? child->y() + marginBeforeForChild(child->renderer()) : child->y() + child->renderer().marginTop(); }
+
+    LayoutPoint flipFloatForWritingModeForChild(const FloatingObject*, const LayoutPoint&) const;
+
     RenderLineBoxList& lineBoxes() { return m_lineBoxes; }
     const RenderLineBoxList& lineBoxes() const { return m_lineBoxes; }
 
@@ -310,7 +317,7 @@ public:
     RootInlineBox* firstRootBox() const { return static_cast<RootInlineBox*>(firstLineBox()); }
     RootInlineBox* lastRootBox() const { return static_cast<RootInlineBox*>(lastLineBox()); }
 
-    virtual bool hasLines() const OVERRIDE FINAL { return firstLineBox(); }
+    virtual bool hasLines() const OVERRIDE FINAL;
 
     // Helper methods for computing line counts and heights for line counts.
     RootInlineBox* lineAtIndex(int) const;
@@ -323,11 +330,42 @@ public:
 
     bool containsNonZeroBidiLevel() const;
 
+    const SimpleLineLayout::Layout* simpleLineLayout() const { return m_simpleLineLayout.get(); }
+    void deleteLineBoxesBeforeSimpleLineLayout();
+    void ensureLineBoxes();
+
 #ifndef NDEBUG
     virtual void showLineTreeAndMark(const InlineBox* = nullptr, const char* = nullptr, const InlineBox* = nullptr, const char* = nullptr, const RenderObject* = nullptr) const OVERRIDE;
 #endif
 
+    // Returns the logicalOffset at the top of the next page. If the offset passed in is already at the top of the current page,
+    // then nextPageLogicalTop with ExcludePageBoundary will still move to the top of the next page. nextPageLogicalTop with
+    // IncludePageBoundary set will not.
+    //
+    // For a page height of 800px, the first rule will return 800 if the value passed in is 0. The second rule will simply return 0.
+    enum PageBoundaryRule { ExcludePageBoundary, IncludePageBoundary };
+    LayoutUnit nextPageLogicalTop(LayoutUnit logicalOffset, PageBoundaryRule = ExcludePageBoundary) const;
+    LayoutUnit pageLogicalTopForOffset(LayoutUnit offset) const;
+    LayoutUnit pageLogicalHeightForOffset(LayoutUnit offset) const;
+    LayoutUnit pageRemainingLogicalHeightForOffset(LayoutUnit offset, PageBoundaryRule = IncludePageBoundary) const;
+    bool hasNextPage(LayoutUnit logicalOffset, PageBoundaryRule = ExcludePageBoundary) const;
+
 protected:
+    // A page break is required at some offset due to space shortage in the current fragmentainer.
+    void setPageBreak(LayoutUnit offset, LayoutUnit spaceShortage);
+
+    // Update minimum page height required to avoid fragmentation where it shouldn't occur (inside
+    // unbreakable content, between orphans and widows, etc.). This will be used as a hint to the
+    // column balancer to help set a good minimum column height.
+    void updateMinimumPageHeight(LayoutUnit offset, LayoutUnit minHeight);
+    bool pushToNextPageWithMinimumLogicalHeight(LayoutUnit& adjustment, LayoutUnit logicalOffset, LayoutUnit minimumLogicalHeight) const;
+
+    // If the child is unsplittable and can't fit on the current page, return the top of the next page/column.
+    LayoutUnit adjustForUnsplittableChild(RenderBox& child, LayoutUnit logicalOffset, bool includeMargins = false);
+    LayoutUnit adjustBlockChildForPagination(LayoutUnit logicalTopAfterClear, LayoutUnit estimateWithoutPagination, RenderBox& child, bool atBeforeSideOfBlock);
+    LayoutUnit applyBeforeBreak(RenderBox& child, LayoutUnit logicalOffset); // If the child has a before break, then return a new yPos that shifts to the top of the next page/column.
+    LayoutUnit applyAfterBreak(RenderBox& child, LayoutUnit logicalOffset, MarginInfo&); // If the child has an after break, then return a new offset that shifts to the top of the next page/column.
+
     LayoutUnit maxPositiveMarginBefore() const { return m_rareData ? m_rareData->m_margins.positiveMarginBefore() : RenderBlockFlowRareData::positiveMarginBeforeDefault(*this); }
     LayoutUnit maxNegativeMarginBefore() const { return m_rareData ? m_rareData->m_margins.negativeMarginBefore() : RenderBlockFlowRareData::negativeMarginBeforeDefault(*this); }
     LayoutUnit maxPositiveMarginAfter() const { return m_rareData ? m_rareData->m_margins.positiveMarginAfter() : RenderBlockFlowRareData::positiveMarginAfterDefault(*this); }
@@ -357,11 +395,7 @@ protected:
     bool mustSeparateMarginBeforeForChild(const RenderBox&) const;
     bool mustSeparateMarginAfterForChild(const RenderBox&) const;
 
-    LayoutUnit applyBeforeBreak(RenderBox& child, LayoutUnit logicalOffset); // If the child has a before break, then return a new yPos that shifts to the top of the next page/column.
-    LayoutUnit applyAfterBreak(RenderBox& child, LayoutUnit logicalOffset, MarginInfo&); // If the child has an after break, then return a new offset that shifts to the top of the next page/column.
-    LayoutUnit adjustBlockChildForPagination(LayoutUnit logicalTopAfterClear, LayoutUnit estimateWithoutPagination, RenderBox& child, bool atBeforeSideOfBlock);
-
-    virtual void styleWillChange(StyleDifference, const RenderStyle* newStyle) OVERRIDE;
+    virtual void styleWillChange(StyleDifference, const RenderStyle& newStyle) OVERRIDE;
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
 
     void createFloatingObjects();
@@ -427,6 +461,9 @@ public:
     RootInlineBox* createAndAppendRootInlineBox();
 
 private:
+    void layoutLineBoxes(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
+    void layoutSimpleLines(LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
+
     virtual RootInlineBox* createRootInlineBox(); // Subclassed by SVG and Ruby.
     InlineFlowBox* createLineBoxes(RenderObject*, const LineInfo&, InlineBox* childBox, bool startsNewSegment);
     RootInlineBox* constructLine(BidiRunList<BidiRun>&, const LineInfo&);
@@ -459,7 +496,10 @@ private:
     // Positions new floats and also adjust all floats encountered on the line if any of them
     // have to move to the next page/column.
     bool positionNewFloatOnLine(FloatingObject* newFloat, FloatingObject* lastFloatFromPreviousLine, LineInfo&, LineWidth&);
-
+    // This function is called to test a line box that has moved in the block direction to see if it has ended up in a new
+    // region/page/column that has a different available line width than the old one. Used to know when you have to dirty a
+    // line, i.e., that it can't be re-used.
+    bool lineWidthForPaginatedLineChanged(RootInlineBox*, LayoutUnit lineDelta, RenderFlowThread*) const;
 
 // END METHODS DEFINED IN RenderBlockLineLayout
 
@@ -479,44 +519,19 @@ protected:
     OwnPtr<FloatingObjects> m_floatingObjects;
     OwnPtr<RenderBlockFlowRareData> m_rareData;
     RenderLineBoxList m_lineBoxes;
+    std::unique_ptr<SimpleLineLayout::Layout> m_simpleLineLayout;
 
     friend class BreakingContext;
     friend class LineBreaker;
     friend class LineWidth; // Needs to know FloatingObject
 };
 
-inline RenderBlockFlow& toRenderBlockFlow(RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderBlockFlow());
-    return static_cast<RenderBlockFlow&>(object);
-}
-
-inline const RenderBlockFlow& toRenderBlockFlow(const RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isRenderBlockFlow());
-    return static_cast<const RenderBlockFlow&>(object);
-}
-
-inline RenderBlockFlow* toRenderBlockFlow(RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderBlockFlow());
-    return static_cast<RenderBlockFlow*>(object);
-}
-
-inline const RenderBlockFlow* toRenderBlockFlow(const RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderBlockFlow());
-    return static_cast<const RenderBlockFlow*>(object);
-}
+RENDER_OBJECT_TYPE_CASTS(RenderBlockFlow, isRenderBlockFlow())
 
 inline bool RenderElement::isRenderNamedFlowFragmentContainer() const
 {
     return isRenderBlockFlow() && toRenderBlockFlow(this)->renderNamedFlowFragment();
 }
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderBlockFlow(const RenderBlockFlow*);
-void toRenderBlockFlow(const RenderBlockFlow&);
 
 } // namespace WebCore
 

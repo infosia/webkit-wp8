@@ -246,6 +246,7 @@ GetByIdStatus GetByIdStatus::computeFor(CodeBlock* profiledBlock, StubInfoMap& m
     
     return result;
 #else // ENABLE(JIT)
+    UNUSED_PARAM(map);
     return GetByIdStatus(NoInformation, false);
 #endif // ENABLE(JIT)
 }
@@ -280,6 +281,7 @@ GetByIdStatus GetByIdStatus::computeFor(VM& vm, Structure* structure, StringImpl
         specificValue = 0;
     result.m_structureSet.add(structure);
     result.m_specificValue = JSValue(specificValue);
+    result.m_state = Simple;
     return result;
 }
 

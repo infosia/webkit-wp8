@@ -32,7 +32,7 @@ class HTMLInputElement;
 
 class RenderTextControlSingleLine : public RenderTextControl {
 public:
-    explicit RenderTextControlSingleLine(HTMLInputElement&);
+    RenderTextControlSingleLine(HTMLInputElement&, PassRef<RenderStyle>);
     virtual ~RenderTextControlSingleLine();
     // FIXME: Move create*Style() to their classes.
     virtual PassRef<RenderStyle> createInnerTextStyle(const RenderStyle* startStyle) const OVERRIDE;
@@ -78,8 +78,6 @@ private:
     
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
 
-    virtual RenderStyle* textBaseStyle() const OVERRIDE;
-
     bool textShouldBeTruncated() const;
 
     HTMLElement* innerSpinButtonElement() const;
@@ -98,21 +96,14 @@ inline HTMLElement* RenderTextControlSingleLine::innerBlockElement() const
     return inputElement().innerBlockElement();
 }
 
-inline RenderTextControlSingleLine* toRenderTextControlSingleLine(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isTextField());
-    return static_cast<RenderTextControlSingleLine*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderTextControlSingleLine(const RenderTextControlSingleLine*);
+RENDER_OBJECT_TYPE_CASTS(RenderTextControlSingleLine, isTextField())
 
 // ----------------------------
 
 class RenderTextControlInnerBlock FINAL : public RenderBlockFlow {
 public:
-    RenderTextControlInnerBlock(Element& element)
-        : RenderBlockFlow(element)
+    RenderTextControlInnerBlock(Element& element, PassRef<RenderStyle> style)
+        : RenderBlockFlow(element, std::move(style))
     {
     }
 
@@ -121,14 +112,7 @@ private:
     virtual bool isTextControlInnerBlock() const OVERRIDE { return true; }
 };
 
-inline RenderTextControlInnerBlock* toRenderTextControlInnerBlock(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isTextControlInnerBlock());
-    return static_cast<RenderTextControlInnerBlock*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderTextControlInnerBlock(const RenderTextControlInnerBlock*);
+RENDER_OBJECT_TYPE_CASTS(RenderTextControlInnerBlock, isTextControlInnerBlock())
 
 }
 

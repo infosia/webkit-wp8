@@ -337,9 +337,9 @@ void MediaControlTimelineContainerElement::setTimeDisplaysHidden(bool hidden)
     }
 }
 
-RenderElement* MediaControlTimelineContainerElement::createRenderer(RenderStyle&)
+RenderElement* MediaControlTimelineContainerElement::createRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderMediaControlTimelineContainer(*this);
+    return new RenderMediaControlTimelineContainer(*this, std::move(style));
 }
 
 // ----------------------------
@@ -356,9 +356,9 @@ PassRefPtr<MediaControlVolumeSliderContainerElement> MediaControlVolumeSliderCon
     return element.release();
 }
 
-RenderElement* MediaControlVolumeSliderContainerElement::createRenderer(RenderStyle&)
+RenderElement* MediaControlVolumeSliderContainerElement::createRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderMediaVolumeSliderContainer(*this);
+    return new RenderMediaVolumeSliderContainer(*this, std::move(style));
 }
 
 void MediaControlVolumeSliderContainerElement::defaultEventHandler(Event* event)
@@ -631,7 +631,7 @@ PassRefPtr<MediaControlRewindButtonElement> MediaControlRewindButtonElement::cre
 void MediaControlRewindButtonElement::defaultEventHandler(Event* event)
 {
     if (event->type() == eventNames().clickEvent) {
-        mediaController()->setCurrentTime(max(0.0, mediaController()->currentTime() - 30), IGNORE_EXCEPTION);
+        mediaController()->setCurrentTime(std::max<double>(0, mediaController()->currentTime() - 30), IGNORE_EXCEPTION);
         event->setDefaultHandled();
     }
     HTMLInputElement::defaultEventHandler(event);
@@ -1210,9 +1210,9 @@ PassRefPtr<MediaControlTextTrackContainerElement> MediaControlTextTrackContainer
     return element.release();
 }
 
-RenderElement* MediaControlTextTrackContainerElement::createRenderer(RenderStyle&)
+RenderElement* MediaControlTextTrackContainerElement::createRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderTextTrackContainerElement(*this);
+    return new RenderTextTrackContainerElement(*this, std::move(style));
 }
 
 const AtomicString& MediaControlTextTrackContainerElement::textTrackContainerElementShadowPseudoId()

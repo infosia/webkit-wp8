@@ -203,6 +203,7 @@ macro functionArityCheck(doneLabel, slow_path)
     prepareStateForCCall()
     cCall2(slow_path, cfr, PC)   # This slow_path has a simple protocol: t0 = 0 => no error, t0 != 0 => error
     btiz t0, .isArityFixupNeeded
+    move t1, cfr   # t1 contains caller frame
     jmp _llint_throw_from_slow_path_trampoline
 
 .isArityFixupNeeded:
@@ -211,7 +212,6 @@ macro functionArityCheck(doneLabel, slow_path)
     // Move frame up "t1" slots
     negq t1
     move cfr, t3
-    addp 8, t3
     loadi PayloadOffset + ArgumentCount[cfr], t2
     addi CallFrameHeaderSlots, t2
 .copyLoop:
@@ -251,8 +251,8 @@ _llint_op_enter:
     negi t2
     sxi2q t2, t2
 .opEnterLoop:
-    addq 1, t2
     storeq t0, [cfr, t2, 8]
+    addq 1, t2
     btqnz t2, .opEnterLoop
 .opEnterDone:
     dispatch(1)

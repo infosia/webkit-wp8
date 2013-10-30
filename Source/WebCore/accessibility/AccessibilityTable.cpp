@@ -124,7 +124,8 @@ bool AccessibilityTable::isDataTable() const
         return true;    
 
     // if there's a colgroup or col element, it's probably a data table.
-    for (auto child = elementChildren(tableElement).begin(), end = elementChildren(tableElement).end(); child != end; ++child) {
+    auto tableChildren = elementChildren(*tableElement);
+    for (auto child = tableChildren.begin(), end = tableChildren.end(); child != end; ++child) {
         if (child->hasTagName(colTag) || child->hasTagName(colgroupTag))
             return true;
     }
@@ -148,10 +149,8 @@ bool AccessibilityTable::isDataTable() const
         return true;
     
     // Store the background color of the table to check against cell's background colors.
-    RenderStyle* tableStyle = table->style();
-    if (!tableStyle)
-        return false;
-    Color tableBGColor = tableStyle->visitedDependentColor(CSSPropertyBackgroundColor);
+    const RenderStyle& tableStyle = table->style();
+    Color tableBGColor = tableStyle.visitedDependentColor(CSSPropertyBackgroundColor);
     
     // check enough of the cells to find if the table matches our criteria
     // Criteria: 
@@ -201,12 +200,10 @@ bool AccessibilityTable::isDataTable() const
                 || !cellElement->axis().isEmpty() || !cellElement->scope().isEmpty())
                 return true;
             
-            RenderStyle* renderStyle = cell->style();
-            if (!renderStyle)
-                continue;
+            const RenderStyle& renderStyle = cell->style();
 
             // If the empty-cells style is set, we'll call it a data table.
-            if (renderStyle->emptyCells() == HIDE)
+            if (renderStyle.emptyCells() == HIDE)
                 return true;
 
             // If a cell has matching bordered sides, call it a (fully) bordered cell.
@@ -227,7 +224,7 @@ bool AccessibilityTable::isDataTable() const
             
             // If the cell has a different color from the table and there is cell spacing,
             // then it is probably a data table cell (spacing and colors take the place of borders).
-            Color cellColor = renderStyle->visitedDependentColor(CSSPropertyBackgroundColor);
+            Color cellColor = renderStyle.visitedDependentColor(CSSPropertyBackgroundColor);
             if (table->hBorderSpacing() > 0 && table->vBorderSpacing() > 0
                 && tableBGColor != cellColor && cellColor.alpha() != 1)
                 backgroundDifferenceCellCount++;
@@ -241,10 +238,8 @@ bool AccessibilityTable::isDataTable() const
                 RenderObject* renderRow = cell->parent();
                 if (!renderRow || !renderRow->isBoxModelObject() || !toRenderBoxModelObject(renderRow)->isTableRow())
                     continue;
-                RenderStyle* rowRenderStyle = renderRow->style();
-                if (!rowRenderStyle)
-                    continue;
-                Color rowColor = rowRenderStyle->visitedDependentColor(CSSPropertyBackgroundColor);
+                const RenderStyle& rowRenderStyle = renderRow->style();
+                Color rowColor = rowRenderStyle.visitedDependentColor(CSSPropertyBackgroundColor);
                 alternatingRowColors[alternatingRowColorCount] = rowColor;
                 alternatingRowColorCount++;
             }
@@ -381,7 +376,7 @@ void AccessibilityTable::addChildren()
             appendedRows.add(row);
         }
     
-        maxColumnCount = max(tableSection->numColumns(), maxColumnCount);
+        maxColumnCount = std::max(tableSection->numColumns(), maxColumnCount);
         tableSection = table->sectionBelow(tableSection, SkipEmptySections);
     }
     

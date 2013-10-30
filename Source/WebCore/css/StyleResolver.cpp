@@ -187,8 +187,6 @@
 #include "WebVTTElement.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -298,8 +296,8 @@ StyleResolver::StyleResolver(Document& document, bool matchAuthorAndUserStyles)
 void StyleResolver::appendAuthorStyleSheets(unsigned firstNew, const Vector<RefPtr<CSSStyleSheet>>& styleSheets)
 {
     m_ruleSets.appendAuthorStyleSheets(firstNew, styleSheets, m_medium.get(), m_inspectorCSSOMWrappers, document().isViewSource(), this);
-    if (document().renderView() && document().renderView()->style())
-        document().renderView()->style()->font().update(fontSelector());
+    if (auto renderView = document().renderView())
+        renderView->style().font().update(fontSelector());
 
 #if ENABLE(CSS_DEVICE_ADAPTATION)
     viewportStyleResolver()->resolve();
@@ -3051,6 +3049,9 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyWebkitTextJustify:
     case CSSPropertyWebkitTextUnderlinePosition:
 #endif // CSS3_TEXT
+#if ENABLE(CSS3_TEXT_DECORATION)
+    case CSSPropertyWebkitTextDecorationSkip:
+#endif
     case CSSPropertyWebkitTextEmphasisColor:
     case CSSPropertyWebkitTextEmphasisPosition:
     case CSSPropertyWebkitTextEmphasisStyle:
@@ -3969,7 +3970,8 @@ void StyleResolver::loadPendingShapeImage(ShapeValue* shapeValue)
     CachedResourceLoader* cachedResourceLoader = m_state.document().cachedResourceLoader();
 
     ResourceLoaderOptions options = CachedResourceLoader::defaultCachedResourceOptions();
-    options.requestOriginPolicy = RestrictToSameOrigin;
+    options.requestOriginPolicy = PotentiallyCrossOriginEnabled;
+    options.allowCredentials = DoNotAllowStoredCredentials;
 
     shapeValue->setImage(cssImageValue->cachedImage(cachedResourceLoader, options));
 }
@@ -4121,9 +4123,9 @@ int StyleResolver::viewportPercentageValue(CSSPrimitiveValue& unit, int percenta
     if (unit.isViewportPercentageWidth())
         return viewPortWidth;
     if (unit.isViewportPercentageMax())
-        return max(viewPortWidth, viewPortHeight);
+        return std::max(viewPortWidth, viewPortHeight);
     if (unit.isViewportPercentageMin())
-        return min(viewPortWidth, viewPortHeight);
+        return std::min(viewPortWidth, viewPortHeight);
 
     ASSERT_NOT_REACHED();
     return 0;

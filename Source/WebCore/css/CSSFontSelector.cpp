@@ -57,8 +57,6 @@
 #include "SVGNames.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 static unsigned fontSelectorId;
@@ -365,7 +363,7 @@ void CSSFontSelector::fontCacheInvalidated()
     dispatchInvalidationCallbacks();
 }
 
-static PassRefPtr<FontData> fontDataForGenericFamily(Document* document, const FontDescription& fontDescription, const AtomicString& familyName)
+static PassRefPtr<SimpleFontData> fontDataForGenericFamily(Document* document, const FontDescription& fontDescription, const AtomicString& familyName)
 {
     if (!document || !document->frame())
         return 0;
@@ -393,7 +391,7 @@ static PassRefPtr<FontData> fontDataForGenericFamily(Document* document, const F
     if (!genericFamily.isEmpty())
         return fontCache()->getCachedFontData(fontDescription, genericFamily);
 
-    return 0;
+    return nullptr;
 }
 
 static FontTraitsMask desiredTraitsMaskForComparison;
@@ -484,7 +482,7 @@ PassRefPtr<FontData> CSSFontSelector::getFontData(const FontDescription& fontDes
         if (familyName.startsWith("-webkit-"))
             return fontDataForGenericFamily(m_document, fontDescription, familyName);
         if (fontDescription.genericFamily() == FontDescription::StandardFamily && !fontDescription.isSpecifiedFont())
-            return fontDataForGenericFamily(m_document, fontDescription, "-webkit-standard");
+            return fontDataForGenericFamily(m_document, fontDescription, standardFamily);
         return 0;
     }
 
@@ -494,7 +492,7 @@ PassRefPtr<FontData> CSSFontSelector::getFontData(const FontDescription& fontDes
         // If we were handed a generic family, but there was no match, go ahead and return the correct font based off our
         // settings.
         if (fontDescription.genericFamily() == FontDescription::StandardFamily && !fontDescription.isSpecifiedFont())
-            return fontDataForGenericFamily(m_document, fontDescription, "-webkit-standard");
+            return fontDataForGenericFamily(m_document, fontDescription, standardFamily);
         return fontDataForGenericFamily(m_document, fontDescription, familyName);
     }
 
@@ -550,7 +548,7 @@ CSSSegmentedFontFace* CSSFontSelector::getFontFace(const FontDescription& fontDe
         }
 
         desiredTraitsMaskForComparison = traitsMask;
-        stable_sort(candidateFontFaces.begin(), candidateFontFaces.end(), compareFontFaces);
+        std::stable_sort(candidateFontFaces.begin(), candidateFontFaces.end(), compareFontFaces);
         unsigned numCandidates = candidateFontFaces.size();
         for (unsigned i = 0; i < numCandidates; ++i)
             face->appendFontFace(candidateFontFaces[i]);

@@ -37,6 +37,7 @@
 #include "PlatformProcessIdentifier.h"
 #include "SandboxExtension.h"
 #include "ShareableBitmap.h"
+#include "ViewState.h"
 #include "WKBase.h"
 #include "WKPagePrivate.h"
 #include "WebColorPicker.h"
@@ -323,16 +324,8 @@ public:
     bool canScrollView();
     void scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& scrollOffset);
 
-    enum {
-        ViewWindowIsActive = 1 << 0,
-        ViewIsFocused = 1 << 1,
-        ViewIsVisible = 1 << 2,
-        ViewIsInWindow = 1 << 3,
-    };
-    typedef unsigned ViewStateFlags;
-    void viewStateDidChange(ViewStateFlags flags);
     enum class WantsReplyOrNot { DoesNotWantReply, DoesWantReply };
-    void viewInWindowStateDidChange(WantsReplyOrNot = WantsReplyOrNot::DoesNotWantReply);
+    void viewStateDidChange(ViewState::Flags mayHaveChanged, WantsReplyOrNot = WantsReplyOrNot::DoesNotWantReply);
     bool isInWindow() const { return m_isInWindow; }
     void waitForDidUpdateInWindowState();
 
@@ -368,7 +361,6 @@ public:
 #endif
 
 #if PLATFORM(MAC)
-    void updateWindowIsVisible(bool windowIsVisible);
     void windowAndViewFramesChanged(const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
     void viewExposedRectChanged(const WebCore::FloatRect& exposedRect, bool);
     void exposedRectChangedTimerFired(WebCore::Timer<WebPageProxy>*);

@@ -31,7 +31,6 @@
 /* Include compiler specific macros */
 #include <wtf/Compiler.h>
 
-
 /* ==== PLATFORM handles OS, operating environment, graphics API, and
    CPU. This macro will be phased out in favor of platform adaptation
    macros, policy decision macros, and top-level port definitions. ==== */
@@ -510,9 +509,6 @@
 #if CPU(X86_64)
 #define WTF_USE_PLUGIN_HOST_PROCESS 1
 #endif
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-#define HAVE_XPC 1
-#endif
 #define WTF_USE_CF 1
 #define HAVE_READLINE 1
 #define HAVE_RUNLOOP_TIMER 1
@@ -691,12 +687,13 @@
 #define ENABLE_JIT 0
 #endif
 
-/* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms. */
+/* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms except Win64. */
 #if !defined(ENABLE_JIT) \
     && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(ARM64) || CPU(MIPS)) \
     && (OS(DARWIN) || !COMPILER(GCC) || GCC_VERSION_AT_LEAST(4, 1, 0)) \
     && !OS(WINCE) \
-    && !OS(QNX)
+    && !OS(QNX) \
+    && !(OS(WINDOWS) && CPU(X86_64))
 #define ENABLE_JIT 1
 #endif
 

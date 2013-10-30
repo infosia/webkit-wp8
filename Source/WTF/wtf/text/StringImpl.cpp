@@ -161,20 +161,20 @@ PassRefPtr<StringImpl> StringImpl::createFromLiteral(const char* characters)
     return createFromLiteral(characters, strlen(characters));
 }
 
-PassRefPtr<StringImpl> StringImpl::createWithoutCopying(const UChar* characters, unsigned length)
+PassRef<StringImpl> StringImpl::createWithoutCopying(const UChar* characters, unsigned length)
 {
     if (!length)
-        return empty();
+        return *empty();
 
-    return adoptRef(new StringImpl(characters, length, ConstructWithoutCopying));
+    return adoptRef(*new StringImpl(characters, length, ConstructWithoutCopying));
 }
 
-PassRefPtr<StringImpl> StringImpl::createWithoutCopying(const LChar* characters, unsigned length)
+PassRef<StringImpl> StringImpl::createWithoutCopying(const LChar* characters, unsigned length)
 {
     if (!length)
-        return empty();
+        return *empty();
 
-    return adoptRef(new StringImpl(characters, length, ConstructWithoutCopying));
+    return adoptRef(*new StringImpl(characters, length, ConstructWithoutCopying));
 }
 
 template <typename CharType>
@@ -249,31 +249,31 @@ PassRefPtr<StringImpl> StringImpl::reallocate(PassRefPtr<StringImpl> originalStr
 }
 
 template <typename CharType>
-inline PassRefPtr<StringImpl> StringImpl::createInternal(const CharType* characters, unsigned length)
+inline PassRef<StringImpl> StringImpl::createInternal(const CharType* characters, unsigned length)
 {
     if (!characters || !length)
-        return empty();
+        return *empty();
 
     CharType* data;
-    RefPtr<StringImpl> string = createUninitializedInternalNonEmpty(length, data);
+    auto string = createUninitializedInternalNonEmpty(length, data);
     memcpy(data, characters, length * sizeof(CharType));
-    return string.release();
+    return string;
 }
 
-PassRefPtr<StringImpl> StringImpl::create(const UChar* characters, unsigned length)
+PassRef<StringImpl> StringImpl::create(const UChar* characters, unsigned length)
 {
     return createInternal(characters, length);
 }
 
-PassRefPtr<StringImpl> StringImpl::create(const LChar* characters, unsigned length)
+PassRef<StringImpl> StringImpl::create(const LChar* characters, unsigned length)
 {
     return createInternal(characters, length);
 }
 
-PassRefPtr<StringImpl> StringImpl::create8BitIfPossible(const UChar* characters, unsigned length)
+PassRef<StringImpl> StringImpl::create8BitIfPossible(const UChar* characters, unsigned length)
 {
     if (!characters || !length)
-        return empty();
+        return *empty();
 
     LChar* data;
     RefPtr<StringImpl> string = createUninitializedInternalNonEmpty(length, data);
@@ -284,10 +284,10 @@ PassRefPtr<StringImpl> StringImpl::create8BitIfPossible(const UChar* characters,
         data[i] = static_cast<LChar>(characters[i]);
     }
 
-    return string.release();
+    return string.releaseNonNull();
 }
 
-PassRefPtr<StringImpl> StringImpl::create8BitIfPossible(const UChar* string)
+PassRef<StringImpl> StringImpl::create8BitIfPossible(const UChar* string)
 {
     return StringImpl::create8BitIfPossible(string, lengthOfNullTerminatedString(string));
 }
@@ -1989,20 +1989,20 @@ UCharDirection StringImpl::defaultWritingDirection(bool* hasStrongDirectionality
     return U_LEFT_TO_RIGHT;
 }
 
-PassRefPtr<StringImpl> StringImpl::adopt(StringBuffer<LChar>& buffer)
-{
-unsigned length = buffer.length();
-if (!length)
-    return empty();
-return adoptRef(new StringImpl(buffer.release(), length));
-}
-
-PassRefPtr<StringImpl> StringImpl::adopt(StringBuffer<UChar>& buffer)
+PassRef<StringImpl> StringImpl::adopt(StringBuffer<LChar>& buffer)
 {
     unsigned length = buffer.length();
     if (!length)
-        return empty();
-    return adoptRef(new StringImpl(buffer.release(), length));
+        return *empty();
+    return adoptRef(*new StringImpl(buffer.release(), length));
+}
+
+PassRef<StringImpl> StringImpl::adopt(StringBuffer<UChar>& buffer)
+{
+    unsigned length = buffer.length();
+    if (!length)
+        return *empty();
+    return adoptRef(*new StringImpl(buffer.release(), length));
 }
 
 size_t StringImpl::sizeInBytes() const

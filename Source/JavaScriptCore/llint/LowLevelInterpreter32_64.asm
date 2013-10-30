@@ -307,6 +307,7 @@ macro functionArityCheck(doneLabel, slow_path)
     biaeq t0, CodeBlock::m_numParameters[t1], doneLabel
     cCall2(slow_path, cfr, PC)   # This slow_path has a simple protocol: t0 = 0 => no error, t0 != 0 => error
     btiz t0, .isArityFixupNeeded
+    move t1, cfr   # t1 contains caller frame
     jmp _llint_throw_from_slow_path_trampoline
 
 .isArityFixupNeeded:
@@ -315,7 +316,6 @@ macro functionArityCheck(doneLabel, slow_path)
     // Move frame up "t1" slots
     negi t1
     move cfr, t3
-    addp 8, t3
     loadi PayloadOffset + ArgumentCount[cfr], t2
     addi CallFrameHeaderSlots, t2
 .copyLoop:
@@ -357,9 +357,9 @@ _llint_op_enter:
     move 0, t1
     negi t2
 .opEnterLoop:
-    addi 1, t2
     storei t0, TagOffset[cfr, t2, 8]
     storei t1, PayloadOffset[cfr, t2, 8]
+    addi 1, t2
     btinz t2, .opEnterLoop
 .opEnterDone:
     dispatch(1)

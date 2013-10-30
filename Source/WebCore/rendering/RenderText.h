@@ -25,6 +25,7 @@
 
 #include "RenderElement.h"
 #include "RenderTextLineBoxes.h"
+#include "SimpleLineLayout.h"
 #include "Text.h"
 #include <wtf/Forward.h>
 
@@ -46,8 +47,8 @@ public:
 
     virtual bool isTextFragment() const;
 
-    RenderStyle* style() const;
-    RenderStyle* firstLineStyle() const;
+    RenderStyle& style() const;
+    RenderStyle& firstLineStyle() const;
 
     virtual String originalText() const;
 
@@ -110,8 +111,8 @@ public:
     virtual LayoutRect selectionRectForRepaint(const RenderLayerModelObject* repaintContainer, bool clipToVisibleContent = true) OVERRIDE;
     virtual LayoutRect localCaretRect(InlineBox*, int caretOffset, LayoutUnit* extraWidthToEndOfLine = 0) OVERRIDE;
 
-    LayoutUnit marginLeft() const { return minimumValueForLength(style()->marginLeft(), 0); }
-    LayoutUnit marginRight() const { return minimumValueForLength(style()->marginRight(), 0); }
+    LayoutUnit marginLeft() const { return minimumValueForLength(style().marginLeft(), 0); }
+    LayoutUnit marginRight() const { return minimumValueForLength(style().marginRight(), 0); }
 
     virtual LayoutRect clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const OVERRIDE FINAL;
 
@@ -131,7 +132,7 @@ public:
 
     bool containsReversedText() const { return m_containsReversedText; }
 
-    bool isSecure() const { return style()->textSecurity() != TSNONE; }
+    bool isSecure() const { return style().textSecurity() != TSNONE; }
     void momentarilyRevealLastTypedCharacter(unsigned lastTypedCharacterOffset);
 
     InlineTextBox* findNextInlineTextBox(int offset, int& pos) const { return m_lineBoxes.findNext(offset, pos); }
@@ -139,7 +140,6 @@ public:
     bool isAllCollapsibleWhitespace() const;
 
     bool canUseSimpleFontCodePath() const { return m_canUseSimpleFontCodePath; }
-    bool knownToHaveNoOverflowAndNoFallbackFonts() const { return m_knownToHaveNoOverflowAndNoFallbackFonts; }
 
     void removeAndDestroyTextBoxes();
 
@@ -151,6 +151,10 @@ public:
     float candidateComputedTextSize() const { return m_candidateComputedTextSize; }
     void setCandidateComputedTextSize(float s) { m_candidateComputedTextSize = s; }
 #endif
+
+    void ensureLineBoxes();
+    void deleteLineBoxesBeforeSimpleLineLayout();
+    const SimpleLineLayout::Layout* simpleLineLayout() const;
 
 protected:
     virtual void computePreferredLogicalWidths(float leadWidth);
@@ -197,7 +201,7 @@ private:
     bool m_canUseSimpleFontCodePath : 1;
     mutable bool m_knownToHaveNoOverflowAndNoFallbackFonts : 1;
     bool m_useBackslashAsYenSymbol : 1;
-    
+
 #if ENABLE(IOS_TEXT_AUTOSIZING)
     // FIXME: This should probably be part of the text sizing structures in Document instead. That would save some memory.
     float m_candidateComputedTextSize;
@@ -212,45 +216,19 @@ private:
     RenderTextLineBoxes m_lineBoxes;
 };
 
-inline RenderText& toRenderText(RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isText());
-    return static_cast<RenderText&>(object);
-}
+RENDER_OBJECT_TYPE_CASTS(RenderText, isText())
 
-inline const RenderText& toRenderText(const RenderObject& object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(object.isText());
-    return static_cast<const RenderText&>(object);
-}
-
-inline RenderText* toRenderText(RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isText());
-    return static_cast<RenderText*>(object);
-}
-
-inline const RenderText* toRenderText(const RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isText());
-    return static_cast<const RenderText*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderText(const RenderText*);
-void toRenderText(const RenderText&);
-
-inline RenderStyle* RenderText::style() const
+inline RenderStyle& RenderText::style() const
 {
     return parent()->style();
 }
 
-inline RenderStyle* RenderText::firstLineStyle() const
+inline RenderStyle& RenderText::firstLineStyle() const
 {
     return parent()->firstLineStyle();
 }
 
-void applyTextTransform(const RenderStyle*, String&, UChar);
+void applyTextTransform(const RenderStyle&, String&, UChar);
 
 inline RenderText* Text::renderer() const
 {

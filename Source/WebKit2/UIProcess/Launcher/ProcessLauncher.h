@@ -65,11 +65,9 @@ public:
         static const cpu_type_t MatchCurrentArchitecture = 0;
         cpu_type_t architecture;
         bool executableHeap;
-#if HAVE(XPC)
         bool useXPC;
 #endif
-#endif
-#if PLATFORM(EFL)
+#if PLATFORM(EFL) || PLATFORM(GTK)
 #ifndef NDEBUG
         String processCmdPrefix;
 #endif

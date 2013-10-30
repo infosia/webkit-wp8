@@ -31,8 +31,10 @@
 #include "Arguments.h"
 #include "DataReference.h"
 #include "DecoderAdapter.h"
+#include "DragControllerAction.h"
 #include "DrawingArea.h"
 #include "DrawingAreaMessages.h"
+#include "EditorState.h"
 #include "EventDispatcher.h"
 #include "InjectedBundle.h"
 #include "InjectedBundleBackForwardList.h"
@@ -49,8 +51,8 @@
 #include "PrintInfo.h"
 #include "SessionState.h"
 #include "ShareableBitmap.h"
+#include "WKSharedAPICast.h"
 #include "WebAlternativeTextClient.h"
-#include "WebBackForwardList.h"
 #include "WebBackForwardListItem.h"
 #include "WebBackForwardListProxy.h"
 #include "WebChromeClient.h"
@@ -231,6 +233,7 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
     , m_artificialPluginInitializationDelayEnabled(false)
     , m_scrollingPerformanceLoggingEnabled(false)
     , m_mainFrameIsScrollable(true)
+    , m_windowIsVisible(false)
 #if ENABLE(PRIMARY_SNAPSHOTTED_PLUGIN_HEURISTIC)
     , m_readyToFindPrimarySnapshottedPlugin(false)
     , m_didFindPrimarySnapshottedPlugin(false)
@@ -240,7 +243,6 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 #if PLATFORM(MAC)
     , m_pdfPluginEnabled(false)
     , m_hasCachedWindowFrame(false)
-    , m_windowIsVisible(false)
     , m_layerHostingMode(parameters.layerHostingMode)
     , m_keyboardEventBeingInterpreted(0)
 #elif PLATFORM(GTK)
@@ -1238,7 +1240,7 @@ void WebPage::setUseFixedLayout(bool fixed)
 #if USE(COORDINATED_GRAPHICS)
     m_page->settings().setAcceleratedCompositingForFixedPositionEnabled(fixed);
     m_page->settings().setFixedPositionCreatesStackingContext(fixed);
-    m_page->settings().setApplyPageScaleFactorInCompositor(fixed);
+    m_page->settings().setDelegatesPageScaling(fixed);
     m_page->settings().setScrollingCoordinatorEnabled(fixed);
 #endif
 
@@ -1849,6 +1851,22 @@ void WebPage::setActive(bool isActive)
     for (HashSet<PluginView*>::const_iterator it = m_pluginViews.begin(), end = m_pluginViews.end(); it != end; ++it)
         (*it)->setWindowIsFocused(isActive);
 #endif
+}
+
+void WebPage::setViewIsVisible(bool isVisible)
+{
+    if (!isVisible) {
+        m_drawingArea->suspendPainting();
+        m_page->suspendScriptedAnimations();
+    } else {
+        m_drawingArea->resumePainting();
+        // FIXME: this seems redundant; for the view to be visible the window must be visible too!
+        // refactoring for now, will change the logic later.
+        if (m_windowIsVisible) {
+            m_page->resumeScriptedAnimations();
+            m_page->resumeAnimatingImages();
+        }
+    }
 }
 
 void WebPage::setDrawsBackground(bool drawsBackground)
@@ -2927,18 +2945,20 @@ void WebPage::sendSetWindowFrame(const FloatRect& windowFrame)
     send(Messages::WebPageProxy::SetWindowFrame(windowFrame));
 }
 
-#if PLATFORM(MAC)
 void WebPage::setWindowIsVisible(bool windowIsVisible)
 {
     m_windowIsVisible = windowIsVisible;
 
     corePage()->focusController().setContainingWindowIsVisible(windowIsVisible);
 
+#if PLATFORM(MAC)
     // Tell all our plug-in views that the window visibility changed.
     for (HashSet<PluginView*>::const_iterator it = m_pluginViews.begin(), end = m_pluginViews.end(); it != end; ++it)
         (*it)->setWindowIsVisible(windowIsVisible);
+#endif
 }
 
+#if PLATFORM(MAC)
 void WebPage::windowAndViewFramesChanged(const FloatRect& windowFrameInScreenCoordinates, const FloatRect& windowFrameInUnflippedScreenCoordinates, const FloatRect& viewFrameInWindowCoordinates, const FloatPoint& accessibilityViewCoordinates)
 {
     m_windowFrameInScreenCoordinates = windowFrameInScreenCoordinates;
@@ -2978,10 +2998,9 @@ bool WebPage::windowIsFocused() const
 
 bool WebPage::windowAndWebPageAreFocused() const
 {
-#if PLATFORM(MAC)
     if (!m_windowIsVisible)
         return false;
-#endif
+
     return m_page->focusController().isFocused() && m_page->focusController().isActive();
 }
 

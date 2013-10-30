@@ -149,8 +149,6 @@
 #include "UserAgentScripts.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 static void setFlags(unsigned& value, unsigned flags)
@@ -197,7 +195,6 @@ static const char* mediaSourceBlobProtocol = "blob";
 #endif
 
 using namespace HTMLNames;
-using namespace std;
 
 typedef HashMap<Document*, HashSet<HTMLMediaElement*>> DocumentElementSetMap;
 static DocumentElementSetMap& documentToElementSetMap()
@@ -276,9 +273,9 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
     , m_volume(1.0f)
     , m_volumeInitialized(false)
     , m_lastSeekTime(0)
-    , m_previousProgressTime(numeric_limits<double>::max())
+    , m_previousProgressTime(std::numeric_limits<double>::max())
     , m_clockTimeAtLastUpdateEvent(0)
-    , m_lastTimeUpdateEventMovieTime(numeric_limits<double>::max())
+    , m_lastTimeUpdateEventMovieTime(std::numeric_limits<double>::max())
     , m_loadState(WaitingForSource)
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     , m_proxyWidget(0)
@@ -558,7 +555,7 @@ void HTMLMediaElement::finishParsingChildren()
     if (!RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled())
         return;
 
-    if (descendantsOfType<HTMLTrackElement>(this).first())
+    if (descendantsOfType<HTMLTrackElement>(*this).first())
         scheduleDelayedAction(ConfigureTextTracks);
 #endif
 }
@@ -573,11 +570,11 @@ bool HTMLMediaElement::rendererIsNeeded(const RenderStyle& style)
 #endif
 }
 
-RenderElement* HTMLMediaElement::createRenderer(RenderStyle&)
+RenderElement* HTMLMediaElement::createRenderer(PassRef<RenderStyle> style)
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     // Setup the renderer if we already have a proxy widget.
-    RenderEmbeddedObject* mediaRenderer = new RenderEmbeddedObject(*this);
+    RenderEmbeddedObject* mediaRenderer = new RenderEmbeddedObject(*this, std::move(style));
     if (m_proxyWidget) {
         mediaRenderer->setWidget(m_proxyWidget);
 
@@ -586,7 +583,7 @@ RenderElement* HTMLMediaElement::createRenderer(RenderStyle&)
     }
     return mediaRenderer;
 #else
-    return new RenderMedia(*this);
+    return new RenderMedia(*this, std::move(style));
 #endif
 }
 
@@ -948,7 +945,7 @@ void HTMLMediaElement::selectMediaResource()
         // Otherwise, if the media element does not have a src attribute but has a source 
         // element child, then let mode be children and let candidate be the first such 
         // source element child in tree order.
-        if (auto firstSource = childrenOfType<HTMLSourceElement>(this).first()) {
+        if (auto firstSource = childrenOfType<HTMLSourceElement>(*this).first()) {
             mode = children;
             m_nextChildNodeToConsider = firstSource;
             m_currentSourceNode = 0;
@@ -1224,7 +1221,7 @@ void HTMLMediaElement::updateActiveTextTrackCues(double movieTime)
             double cueEndTime = potentiallySkippedCues[i].high();
 
             // Consider cues that may have been missed since the last seek time.
-            if (cueStartTime > max(m_lastSeekTime, lastTime) && cueEndTime < movieTime)
+            if (cueStartTime > std::max(m_lastSeekTime, lastTime) && cueEndTime < movieTime)
                 missedCues.append(potentiallySkippedCues[i]);
         }
     }
@@ -1444,8 +1441,8 @@ void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
     bool trackIsLoaded = true;
     if (track->trackType() == TextTrack::TrackElement) {
         trackIsLoaded = false;
-        auto end = childrenOfType<HTMLTrackElement>(this).end();
-        for (auto trackElement = childrenOfType<HTMLTrackElement>(this).begin(); trackElement != end; ++trackElement) {
+        auto trackChildren = childrenOfType<HTMLTrackElement>(*this);
+        for (auto trackElement = trackChildren.begin(), end = trackChildren.end(); trackElement != end; ++trackElement) {
             if (trackElement->track() == track) {
                 if (trackElement->readyState() == HTMLTrackElement::LOADING || trackElement->readyState() == HTMLTrackElement::LOADED)
                     trackIsLoaded = true;
@@ -1520,7 +1517,7 @@ void HTMLMediaElement::textTrackAddCue(TextTrack* track, PassRefPtr<TextTrackCue
 
     // Negative duration cues need be treated in the interval tree as
     // zero-length cues.
-    double endTime = max(cue->startTime(), cue->endTime());
+    double endTime = std::max(cue->startTime(), cue->endTime());
 
     CueInterval interval = m_cueTree.createInterval(cue->startTime(), endTime, cue.get());
     if (!m_cueTree.contains(interval))
@@ -1532,7 +1529,7 @@ void HTMLMediaElement::textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue> c
 {
     // Negative duration cues need to be treated in the interval tree as
     // zero-length cues.
-    double endTime = max(cue->startTime(), cue->endTime());
+    double endTime = std::max(cue->startTime(), cue->endTime());
 
     CueInterval interval = m_cueTree.createInterval(cue->startTime(), endTime, cue.get());
     m_cueTree.remove(interval);
@@ -1677,7 +1674,7 @@ void HTMLMediaElement::cancelPendingEventsAndCallbacks()
     LOG(Media, "HTMLMediaElement::cancelPendingEventsAndCallbacks");
     m_asyncEventQueue.cancelAllEvents();
 
-    auto sourceChildren = childrenOfType<HTMLSourceElement>(this);
+    auto sourceChildren = childrenOfType<HTMLSourceElement>(*this);
     for (auto source = sourceChildren.begin(), end = sourceChildren.end(); source != end; ++source)
         source->cancelPendingErrorEvent();
 }
@@ -2103,7 +2100,7 @@ void HTMLMediaElement::progressEventTimerFired(Timer<HTMLMediaElement>*)
 void HTMLMediaElement::rewind(double timeDelta)
 {
     LOG(Media, "HTMLMediaElement::rewind(%f)", timeDelta);
-    setCurrentTime(max(currentTime() - timeDelta, minTimeSeekable()), IGNORE_EXCEPTION);
+    setCurrentTime(std::max(currentTime() - timeDelta, minTimeSeekable()), IGNORE_EXCEPTION);
 }
 
 void HTMLMediaElement::returnToRealtime()
@@ -2170,11 +2167,11 @@ void HTMLMediaElement::seek(double time, ExceptionCode& ec)
 
     // 5 - If the new playback position is later than the end of the media resource, then let it be the end 
     // of the media resource instead.
-    time = min(time, duration());
+    time = std::min(time, duration());
 
     // 6 - If the new playback position is less than the earliest possible position, let it be that position instead.
     double earliestTime = m_player->startTime();
-    time = max(time, earliestTime);
+    time = std::max(time, earliestTime);
 
     // Ask the media engine for the time value in the movie's time scale before comparing with current time. This
     // is necessary because if the seek time is not equal to currentTime but the delta is less than the movie's
@@ -2354,13 +2351,6 @@ void HTMLMediaElement::setCurrentTime(double time, ExceptionCode& ec)
     seek(time, ec);
 }
 
-double HTMLMediaElement::startTime() const
-{
-    if (!m_player)
-        return 0;
-    return m_player->startTime();
-}
-
 double HTMLMediaElement::initialTime() const
 {
     if (m_fragmentStartTime != MediaPlayer::invalidTime())
@@ -2377,7 +2367,7 @@ double HTMLMediaElement::duration() const
     if (m_player && m_readyState >= HAVE_METADATA)
         return m_player->duration();
 
-    return numeric_limits<double>::quiet_NaN();
+    return std::numeric_limits<double>::quiet_NaN();
 }
 
 bool HTMLMediaElement::paused() const
@@ -3512,7 +3502,7 @@ URL HTMLMediaElement::selectNextSourceChild(ContentType* contentType, String* ke
             goto check_again;
         
         if (source->fastHasAttribute(mediaAttr)) {
-            MediaQueryEvaluator screenEval("screen", document().frame(), renderer() ? renderer()->style() : 0);
+            MediaQueryEvaluator screenEval("screen", document().frame(), renderer() ? &renderer()->style() : nullptr);
             RefPtr<MediaQuerySet> media = MediaQuerySet::createAllowingDescriptionSyntax(source->media());
 #if !LOG_DISABLED
             if (shouldLog)
@@ -3682,7 +3672,7 @@ void HTMLMediaElement::mediaPlayerTimeChanged(MediaPlayer*)
         if (loop() && !m_mediaController) {
             m_sentEndEvent = false;
             //  then seek to the earliest possible position of the media resource and abort these steps.
-            seek(startTime(), IGNORE_EXCEPTION);
+            seek(0, IGNORE_EXCEPTION);
         } else {
             // If the media element does not have a current media controller, and the media element
             // has still ended playback, and the direction of playback is still forwards, and paused
@@ -4999,7 +4989,7 @@ bool HTMLMediaElement::isBlockedOnMediaController() const
     // position relative to the MediaController's timeline or after the end of the media resource 
     // relative to the MediaController's timeline.
     double mediaControllerPosition = m_mediaController->currentTime();
-    if (mediaControllerPosition < startTime() || mediaControllerPosition > startTime() + duration())
+    if (mediaControllerPosition < 0 || mediaControllerPosition > duration())
         return true;
 
     return false;

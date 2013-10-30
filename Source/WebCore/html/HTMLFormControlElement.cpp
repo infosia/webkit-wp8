@@ -45,7 +45,6 @@
 namespace WebCore {
 
 using namespace HTMLNames;
-using namespace std;
 
 HTMLFormControlElement::HTMLFormControlElement(const QualifiedName& tagName, Document& document, HTMLFormElement* form)
     : LabelableElement(tagName, document)
@@ -137,7 +136,7 @@ void HTMLFormControlElement::parseAttribute(const QualifiedName& name, const Ato
         if (wasReadOnly != m_isReadOnly) {
             setNeedsWillValidateCheck();
             setNeedsStyleRecalc();
-            if (renderer() && renderer()->style()->hasAppearance())
+            if (renderer() && renderer()->style().hasAppearance())
                 renderer()->theme()->stateChanged(renderer(), ReadOnlyState);
         }
     } else if (name == requiredAttr) {
@@ -157,7 +156,7 @@ void HTMLFormControlElement::disabledAttributeChanged()
 {
     setNeedsWillValidateCheck();
     didAffectSelector(AffectedSelectorDisabled | AffectedSelectorEnabled);
-    if (renderer() && renderer()->style()->hasAppearance())
+    if (renderer() && renderer()->style().hasAppearance())
         renderer()->theme()->stateChanged(renderer(), EnabledState);
 }
 

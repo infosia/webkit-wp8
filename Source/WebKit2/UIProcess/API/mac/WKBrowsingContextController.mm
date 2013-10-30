@@ -256,6 +256,11 @@ static void releaseNSData(unsigned char*, const void* data)
 }
 
 #if WK_API_ENABLED
+- (void)goToBackForwardListItem:(WKBackForwardListItem *)item
+{
+    toImpl(self._pageRef)->goToBackForwardItem(&item._item);
+}
+
 - (WKBackForwardList *)backForwardList
 {
     WebBackForwardList* list = toImpl(self._pageRef)->backForwardList();
@@ -494,12 +499,12 @@ static void didFinishProgress(WKPageRef page, const void* clientInfo)
 static void didChangeBackForwardList(WKPageRef page, WKBackForwardListItemRef addedItem, WKArrayRef removedItems, const void *clientInfo)
 {
     WKBrowsingContextController *browsingContext = (WKBrowsingContextController *)clientInfo;
-    if (![browsingContext.loadDelegate respondsToSelector:@selector(browsingContextControllerDidChangedBackForwardList:addedItem:removedItems:)])
+    if (![browsingContext.loadDelegate respondsToSelector:@selector(browsingContextControllerDidChangeBackForwardList:addedItem:removedItems:)])
         return;
 
     WKBackForwardListItem *added = addedItem ? [[WKBackForwardListItem alloc] _initWithItem:*toImpl(addedItem)] : nil;
     NSArray *removed = removedItems ? [[WKNSArray alloc] web_initWithImmutableArray:*toImpl(removedItems)] : nil;
-    [browsingContext.loadDelegate browsingContextControllerDidChangedBackForwardList:browsingContext addedItem:added removedItems:removed];
+    [browsingContext.loadDelegate browsingContextControllerDidChangeBackForwardList:browsingContext addedItem:added removedItems:removed];
     [added release];
     [removed release];
 }

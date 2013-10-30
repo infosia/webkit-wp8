@@ -1,3 +1,138 @@
+2013-10-28  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: CSS Regions: Add protocol API to expose content nodes addition/removal
+        https://bugs.webkit.org/show_bug.cgi?id=123424
+
+        Reviewed by Timothy Hatcher.
+
+        Exposed the new CSS Agent events to the ContentFlow class that will now maintain
+        a list of nodes in the "contentNodes" property.
+
+        * UserInterface/CSSObserver.js:
+        (WebInspector.CSSObserver.prototype.regionOversetChanged):
+        (WebInspector.CSSObserver.prototype.registeredNamedFlowContentElement):
+        (WebInspector.CSSObserver.prototype.unregisteredNamedFlowContentElement):
+        * UserInterface/ContentFlow.js:
+        (WebInspector.ContentFlow):
+        (WebInspector.ContentFlow.prototype.set overset):
+        (WebInspector.ContentFlow.prototype.get contentNodes):
+        (WebInspector.ContentFlow.prototype.insertContentNodeBefore):
+        (WebInspector.ContentFlow.prototype.appendContentNode):
+        (WebInspector.ContentFlow.prototype.removeContentNode):
+        * UserInterface/DOMTreeManager.js:
+        (WebInspector.DOMTreeManager.prototype._createContentFlowFromPayload):
+        (WebInspector.DOMTreeManager.prototype._updateContentFlowFromPayload):
+        (WebInspector.DOMTreeManager.prototype.regionOversetChanged):
+        (WebInspector.DOMTreeManager.prototype.registeredNamedFlowContentElement):
+        (WebInspector.DOMTreeManager.prototype.unregisteredNamedFlowContentElement):
+        * UserInterface/InspectorBackendCommands.js:
+
+2013-10-25  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: PrettyPrinting tool should have save button
+        https://bugs.webkit.org/show_bug.cgi?id=123371
+
+        Reviewed by Timothy Hatcher.
+
+        Add buttons to save as a URL to share or to save/clear to
+        localStorage for easier reloads testing local changes.
+
+        * Tools/PrettyPrinting/index.html:
+
+2013-10-25  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Command+Click on url(…) should go to image not source line
+        https://bugs.webkit.org/show_bug.cgi?id=123362
+
+        Reviewed by Timothy Hatcher.
+
+        CodeMirror changed "url" from being type "variable-2" to "string-2".
+
+        * UserInterface/CodeMirrorAdditions.js:
+
+2013-10-25  Jessie Berlin  <jberlin@apple.com>
+
+        Ran update-localizable-strings after changes made in r157947.
+
+        Rubber-stamped by Timothy Hatcher.
+
+        * Localizations/en.lproj/localizedStrings.js:
+
+2013-10-24  Mark Rowe  <mrowe@apple.com>
+
+        Remove references to OS X 10.7 from Xcode configuration settings.
+
+        Now that we're not building for OS X 10.7 they're no longer needed.
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+
+2013-10-24  Mark Rowe  <mrowe@apple.com>
+
+        <rdar://problem/15312643> Prepare for the mysterious future.
+
+        Reviewed by David Kilzer.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/Version.xcconfig:
+
+2013-10-24  Timothy Hatcher  <timothy@apple.com>
+
+        Allow editing CSS resources after they have been pretty printed.
+
+        https://bugs.webkit.org/show_bug.cgi?id=123297
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/TextEditor.js:
+        (WebInspector.TextEditor): Remove the need for _readOnly.
+        (WebInspector.TextEditor.prototype.set readOnly): Set CodeMirror readOnly directly.
+        (WebInspector.TextEditor.prototype.set formatted): Don't call _updateCodeMirrorReadOnly.
+        (WebInspector.TextEditor.prototype._updateCodeMirrorReadOnly): Removed.
+        (WebInspector.TextEditor.prototype._contentChanged): Clear _formatted and _formatterSourceMap
+        on edit and notify the delegate and fire the FormattingDidChange event.
+
+2013-10-24  Timothy Hatcher  <timothy@apple.com>
+
+        Adjust the precision of byte strings in Web Inspector.
+
+        https://bugs.webkit.org/show_bug.cgi?id=123281
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/Utilities.js:
+        (Number.bytesToString): More precision for MB and less precision for 10..1023 KB.
+
+2013-10-24  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: Add a way to test the Manager and model classes
+        https://bugs.webkit.org/show_bug.cgi?id=123223
+
+        Reviewed by Timothy Hatcher.
+
+        Moved some global functions out of Main.js, so that they can be used in the 
+        layout tests without including Main.js.
+
+        * UserInterface/Main.html: Referenced the new JS files.
+        * UserInterface/Main.js:
+        * UserInterface/MessageDispatcher.js: Added.
+        (WebInspector.dispatchNextQueuedMessageFromBackend):
+        (WebInspector.dispatchMessageFromBackend):
+        * UserInterface/URLUtilities.js: Added.
+        (removeURLFragment):
+        (relativePath):
+        (parseURL):
+        (absoluteURL):
+        (parseLocationQueryParameters):
+        (parseQueryString):
+        (WebInspector.displayNameForURL):
+        (WebInspector.displayNameForHost):
+        * UserInterface/Utilities.js:
+
 2013-10-21  Alexandru Chiculita  <achicu@adobe.com>
 
         Web Inspector: [CSS Regions] Flows are not loading if you refresh the page several times

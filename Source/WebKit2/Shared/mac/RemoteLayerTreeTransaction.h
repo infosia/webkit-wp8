@@ -75,7 +75,8 @@ public:
         SpeedChanged = 1 << 22,
         TimeOffsetChanged = 1 << 23,
         BackingStoreChanged = 1 << 24,
-        FiltersChanged = 1 << 25
+        FiltersChanged = 1 << 25,
+        EdgeAntialiasingMaskChanged = 1 << 26
     };
 
     struct LayerCreationProperties {
@@ -123,6 +124,7 @@ public:
         double timeOffset;
         RemoteLayerBackingStore backingStore;
         WebCore::FilterOperations filters;
+        unsigned edgeAntialiasingMask;
     };
 
     explicit RemoteLayerTreeTransaction();
@@ -137,7 +139,7 @@ public:
     void setCreatedLayers(Vector<LayerCreationProperties>);
     void setDestroyedLayerIDs(Vector<LayerID>);
 
-#if !defined(NDEBUG) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !defined(NDEBUG)
     void dump() const;
 #endif
 

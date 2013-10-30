@@ -1,3 +1,709 @@
+2013-10-30  Alex Christensen  <achristensen@webkit.org>
+
+        Disabled JIT on Win64.
+        https://bugs.webkit.org/show_bug.cgi?id=122472
+
+        Reviewed by Geoffrey Garen.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        Disabled building JITStubsMSVC64.
+
+2013-10-29  Michael Saboff  <msaboff@apple.com>
+
+        Change local variable register allocation to start at offset -1
+        https://bugs.webkit.org/show_bug.cgi?id=123182
+
+        Reviewed by Geoffrey Garen.
+
+        Adjusted the virtual register mapping down by one slot.  Reduced
+        the CallFrame header slots offsets by one.  They now start at 0.
+        Changed arity fixup to no longer skip passed register slot 0 as this
+        is now part of the CallFrame header.
+
+        * bytecode/VirtualRegister.h:
+        (JSC::operandIsLocal):
+        (JSC::operandIsArgument):
+        (JSC::VirtualRegister::localToOperand):
+        (JSC::VirtualRegister::operandToLocal):
+          Adjusted functions for shift in mapping from local to register offset.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::findArgumentPositionForLocal):
+        (JSC::DFG::ByteCodeParser::addCall):
+        (JSC::DFG::ByteCodeParser::handleInlining):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGVariableEventStream.cpp:
+        (JSC::DFG::VariableEventStream::reconstruct):
+        * dfg/DFGVirtualRegisterAllocationPhase.cpp:
+        (JSC::DFG::VirtualRegisterAllocationPhase::run):
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::frameExtent):
+        (JSC::ExecState::offsetFor):
+        * interpreter/Interpreter.cpp:
+        (JSC::loadVarargs):
+        (JSC::Interpreter::dumpRegisters):
+        (JSC::Interpreter::executeCall):
+        * llint/LLIntData.cpp:
+        (JSC::LLInt::Data::performAssertions):
+        * llint/LowLevelInterpreter.asm:
+          Adjusted math to accomodate for shift in call frame slots.
+
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::compileFunction):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::calleeFrameOffset):
+        * interpreter/CallFrame.cpp:
+        (JSC::CallFrame::frameExtentInternal):
+        * interpreter/JSStackInlines.h:
+        (JSC::JSStack::pushFrame):
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompile):
+        * jit/JITOperations.cpp:
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::llint_slow_path_stack_check):
+        * runtime/CommonSlowPaths.h:
+        (JSC::CommonSlowPaths::arityCheckFor):
+          Fixed offset calculation to use VirtualRegister and related calculation instead of
+          doing seperate calculations.
+
+        * interpreter/JSStack.h:
+          Adjusted CallFrame slots down by one.  Did some miscellaneous fixing of dumpRegisters()
+          in the process of testing the fixes.
+
+        * jit/ThunkGenerators.cpp:
+        (JSC::arityFixup):
+          Changed arity fixup to no longer skip passed register slot 0 as this
+          is now part of the CallFrame header.
+
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+          Changed arity fixup to no longer skip passed register slot 0 as this
+          is now part of the CallFrame header.  Updated op_enter processing for
+          the change in local registers.
+
+        * runtime/JSGlobalObject.h:
+          Removed the now unneeded extra slot in the global callframe
+
+2013-10-29  Julien Brianceau  <jbriance@cisco.com>
+
+        [arm] Fix lots of crashes because of 4th argument register trampling.
+        https://bugs.webkit.org/show_bug.cgi?id=123421
+
+        Reviewed by Michael Saboff.
+
+        r3 register is the 4th argument register for ARM and also a scratch
+        register in the baseline JIT for this architecture. We can use r6
+        instead, as this used to be the timeoutCheckRegister and it is no
+        longer used since r148119.
+
+        * assembler/ARMAssembler.h: Temp register is now r6 instead of r3 for ARM.
+        * assembler/MacroAssemblerARMv7.h: Temp register is now r6 instead of r3 for ARMv7.
+        * jit/GPRInfo.h: Add r3 properly in GPRInfo for ARM.
+        (JSC::GPRInfo::toRegister):
+        (JSC::GPRInfo::toIndex):
+        * jit/JITStubsARM.h:
+        (JSC::ctiTrampoline): Remove obsolete timeoutCheckRegister init.
+        * jit/JITStubsARMv7.h:
+        (JSC::ctiTrampoline): Remove obsolete timeoutCheckRegister init.
+        * jit/JSInterfaceJIT.h: Remove useless stuff.
+        * yarr/YarrJIT.cpp: Use r3 and not the new scratch register r6.
+        (JSC::Yarr::YarrGenerator::generateEnter): r8 register doesn't need to be saved.
+        (JSC::Yarr::YarrGenerator::generateReturn):
+
+2013-10-29  Julien Brianceau  <jbriance@cisco.com>
+
+        Fix CPU(ARM_TRADITIONAL) build after r157690.
+        https://bugs.webkit.org/show_bug.cgi?id=123247
+
+        Reviewed by Michael Saboff.
+
+        Since r157690, the executableCopy function has been removed from AssemblerBuffer.h
+        and the copy of executable code occurs in the linkCode function (in LinkBuffer.cpp).
+        As the constant pool for jumps is updated in the executableCopy function of ARM_TRADITIONAL,
+        this part of code still needs to be called and absolute jumps must be corrected to anticipate
+        the copy of the executable code through memcpy.
+
+        * assembler/ARMAssembler.cpp:
+        (JSC::ARMAssembler::prepareExecutableCopy): Rename executableCopy to prepareExecutableCopy
+        and correct absolute jump values using the delta between the source and destination buffers.
+        * assembler/ARMAssembler.h:
+        * assembler/LinkBuffer.cpp:
+        (JSC::LinkBuffer::linkCode): Call prepareExecutableCopy just before the memcpy.
+
+2013-10-28  Filip Pizlo  <fpizlo@apple.com>
+
+        OSRExit::m_watchpointIndex should be in OSRExitCompilationInfo
+        https://bugs.webkit.org/show_bug.cgi?id=123423
+
+        Reviewed by Mark Hahnenberg.
+        
+        Also enable ExitKind to tell you if it's a watchpoint.
+
+        * bytecode/ExitKind.cpp:
+        (JSC::exitKindToString):
+        * bytecode/ExitKind.h:
+        (JSC::isWatchpoint):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::setLocal):
+        (JSC::DFG::ByteCodeParser::setArgument):
+        (JSC::DFG::ByteCodeParser::handleCall):
+        (JSC::DFG::ByteCodeParser::handleGetById):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::linkOSRExits):
+        (JSC::DFG::JITCompiler::link):
+        * dfg/DFGJITCompiler.h:
+        (JSC::DFG::JITCompiler::appendExitInfo):
+        * dfg/DFGOSRExit.cpp:
+        (JSC::DFG::OSRExit::OSRExit):
+        * dfg/DFGOSRExit.h:
+        * dfg/DFGOSRExitCompilationInfo.h:
+        (JSC::DFG::OSRExitCompilationInfo::OSRExitCompilationInfo):
+        * dfg/DFGOSRExitCompiler.cpp:
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::speculationWatchpoint):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+
+2013-10-28  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Parsing support for -webkit-text-decoration-skip: ink
+        https://bugs.webkit.org/show_bug.cgi?id=123358
+
+        Reviewed by Dean Jackson.
+
+        Adding ENABLE(CSS3_TEXT_DECORATION)
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-10-24  Filip Pizlo  <fpizlo@apple.com>
+
+        Get rid of InlineStart so that I don't have to implement it in FTL
+        https://bugs.webkit.org/show_bug.cgi?id=123302
+
+        Reviewed by Geoffrey Garen.
+        
+        InlineStart was a special instruction that we would insert at the top of inlined code,
+        so that the backend could capture the OSR state of arguments to an inlined call. It used
+        to be that only the backend had this information, so this instruction was sort of an ugly
+        callback from the backend for filling in some data structures.
+        
+        But in the time since when that code was written (two years ago?), we rationalized how
+        variables work. It's now the case that variables that the runtime must know about are
+        treated specially in IR (they are "flushed") and we know how we will represent them even
+        before we get to the backend. The last place that makes changes to their representation
+        is the StackLayoutPhase.
+        
+        So, this patch gets rid of InlineStart, but keeps around the special meta-data that the
+        instruction had. Instead of handling the bookkeeping in the backend, we handle it in
+        StackLayoutPhase. This means that the DFG and FTL can share code for handling this
+        bookkeeping. This also means that now the FTL can compile code blocks that had inlining.
+        
+        Of course, giving the FTL the ability to handle code blocks that had inlining means that
+        we're going to have new bugs. Sure enough, the FTL's linker didn't handle inline call
+        frames. This patch also fixes that.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleInlining):
+        (JSC::DFG::ByteCodeParser::InlineStackEntry::InlineStackEntry):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGGraph.h:
+        * dfg/DFGNode.h:
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::propagate):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.cpp:
+        * dfg/DFGSpeculativeJIT.h:
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGStackLayoutPhase.cpp:
+        (JSC::DFG::StackLayoutPhase::run):
+        * ftl/FTLLink.cpp:
+        (JSC::FTL::link):
+
+2013-10-24  Filip Pizlo  <fpizlo@apple.com>
+
+        The GetById->GetByOffset AI-based optimization should actually do things
+        https://bugs.webkit.org/show_bug.cgi?id=123299
+
+        Reviewed by Oliver Hunt.
+        
+        20% speed-up on Octane/gbemu.
+
+        * bytecode/GetByIdStatus.cpp:
+        (JSC::GetByIdStatus::computeFor): Actually finish filling in the Status by setting the state. Previously it would remain set to NoInformation, meaning that this whole method was a no-op.
+
+2013-10-28  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix make distcheck.
+
+        * GNUmakefile.list.am: Add missing files to compilation.
+
+2013-10-25  Oliver Hunt  <oliver@apple.com>
+
+        Refactor parser rollback logic
+        https://bugs.webkit.org/show_bug.cgi?id=123372
+
+        Reviewed by Brady Eidson.
+
+        Add a sane abstraction for rollbacks in the parser.
+
+        * parser/Parser.cpp:
+        (JSC::::parseSourceElements):
+        (JSC::::parseObjectLiteral):
+        * parser/Parser.h:
+        (JSC::Parser::createSavePoint):
+        (JSC::Parser::restoreSavePoint):
+
+2013-10-25  peavo@outlook.com  <peavo@outlook.com>
+
+        [Win] Javascript crash with DFG JIT enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=121001
+
+        Reviewed by Geoffrey Garen.
+
+        On windows, using register GPRInfo::regT0 as parameter to e.g. JIT::storeDouble(..., GPRInfo::regT0)),
+        results in a call to JIT::storeDouble(FPRegisterID src, const void* address),
+        where the address parameter gets the value of GPRInfo::regT0, which is 0 (eax on Windows).
+        This causes the register to be written to address 0, hence the crash.
+  
+        * assembler/MacroAssemblerX86.h:
+        (JSC::MacroAssemblerX86::storeDouble): Assert if we try to generate code which writes to a null pointer.
+        * dfg/DFGOSRExitCompiler32_64.cpp:
+        (JSC::DFG::OSRExitCompiler::compileExit): Use address in regT0 as parameter.
+        * dfg/DFGThunks.cpp:
+        (JSC::DFG::osrExitGenerationThunkGenerator): Ditto.
+
+2013-10-25  Oliver Hunt  <oliver@apple.com>
+
+        Fix a number of problems with destructuring of arguments
+        https://bugs.webkit.org/show_bug.cgi?id=123357
+
+        Reviewed by Filip Pizlo.
+
+        This renames the destructuring node's emitBytecode to bindValue
+        in order to remove the existing confusion over what was happening.
+
+        We then fix an incorrect fall through in the destructuring arguments
+        logic, and fix the then exposed bug where we placed the index rather
+        than value into the bound property.
+
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::BytecodeGenerator):
+        * bytecompiler/NodesCodegen.cpp:
+        (JSC::ForInNode::emitBytecode):
+        (JSC::ForOfNode::emitBytecode):
+        (JSC::DeconstructingAssignmentNode::emitBytecode):
+        (JSC::ArrayPatternNode::bindValue):
+        (JSC::ArrayPatternNode::emitDirectBinding):
+        (JSC::ObjectPatternNode::bindValue):
+        (JSC::BindingNode::bindValue):
+        * parser/Nodes.h:
+
+2013-10-25  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Upstream ENABLE(REMOTE_INSPECTOR) and enable on iOS and Mac
+        https://bugs.webkit.org/show_bug.cgi?id=123111
+
+        Reviewed by Timothy Hatcher.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-10-25  Oliver Hunt  <oliver@apple.com>
+
+        Fix MSVC again
+
+        * parser/Parser.cpp:
+
+2013-10-25  Oliver Hunt  <oliver@apple.com>
+
+        Fix MSVC
+
+        * parser/Parser.cpp:
+
+2013-10-25  Oliver Hunt  <oliver@apple.com>
+
+        Improve JSC Parser error messages
+        https://bugs.webkit.org/show_bug.cgi?id=123341
+
+        Reviewed by Andreas Kling.
+
+        This patch moves away from the current cludgy mechanisms used to produce
+        error messages and moves to something closer to case by case errors.
+
+        This results in a large change size as previously we may just have
+        'failIfFalse(foo)', but now the logic becomes either
+        'failIfFalseWithMessage(foo, "Cannot do blah with ", foo->thing())'
+        Or alternatively
+
+        if (!foo)
+            check for 'interesting' errors, before falling back to generic error
+
+        This means that this patch is large, but produces no semantic changes, and
+        only hits slow (e.g. error) paths.
+
+        * parser/Parser.cpp:
+        (JSC::::Parser):
+        (JSC::::parseSourceElements):
+        (JSC::::parseVarDeclaration):
+        (JSC::::parseConstDeclaration):
+        (JSC::::parseDoWhileStatement):
+        (JSC::::parseWhileStatement):
+        (JSC::::parseVarDeclarationList):
+        (JSC::::createBindingPattern):
+        (JSC::::parseDeconstructionPattern):
+        (JSC::::parseConstDeclarationList):
+        (JSC::::parseForStatement):
+        (JSC::::parseBreakStatement):
+        (JSC::::parseContinueStatement):
+        (JSC::::parseReturnStatement):
+        (JSC::::parseThrowStatement):
+        (JSC::::parseWithStatement):
+        (JSC::::parseSwitchStatement):
+        (JSC::::parseSwitchClauses):
+        (JSC::::parseSwitchDefaultClause):
+        (JSC::::parseTryStatement):
+        (JSC::::parseDebuggerStatement):
+        (JSC::::parseBlockStatement):
+        (JSC::::parseStatement):
+        (JSC::::parseFormalParameters):
+        (JSC::::parseFunctionBody):
+        (JSC::stringForFunctionMode):
+        (JSC::::parseFunctionInfo):
+        (JSC::::parseFunctionDeclaration):
+        (JSC::::parseExpressionOrLabelStatement):
+        (JSC::::parseExpressionStatement):
+        (JSC::::parseIfStatement):
+        (JSC::::parseExpression):
+        (JSC::::parseAssignmentExpression):
+        (JSC::::parseConditionalExpression):
+        (JSC::::parseBinaryExpression):
+        (JSC::::parseProperty):
+        (JSC::::parseObjectLiteral):
+        (JSC::::parseStrictObjectLiteral):
+        (JSC::::parseArrayLiteral):
+        (JSC::::parsePrimaryExpression):
+        (JSC::::parseArguments):
+        (JSC::::parseMemberExpression):
+        (JSC::operatorString):
+        (JSC::::parseUnaryExpression):
+        (JSC::::printUnexpectedTokenText):
+        * parser/Parser.h:
+        (JSC::Scope::hasDeclaredVariable):
+        (JSC::Scope::hasDeclaredParameter):
+        (JSC::Parser::hasDeclaredVariable):
+        (JSC::Parser::hasDeclaredParameter):
+        (JSC::Parser::setErrorMessage):
+
+2013-10-24  Mark Rowe  <mrowe@apple.com>
+
+        Remove references to OS X 10.7 from Xcode configuration settings.
+
+        Now that we're not building for OS X 10.7 they're no longer needed.
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/FeatureDefines.xcconfig:
+        * Configurations/Version.xcconfig:
+
+2013-10-24  Mark Rowe  <mrowe@apple.com>
+
+        <rdar://problem/15312643> Prepare for the mysterious future.
+
+        Reviewed by David Kilzer.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/DebugRelease.xcconfig:
+        * Configurations/FeatureDefines.xcconfig:
+        * Configurations/Version.xcconfig:
+
+2013-10-24  Mark Lam  <mark.lam@apple.com>
+
+        Better way to fix part of broken C Loop LLINT build.
+        https://bugs.webkit.org/show_bug.cgi?id=123271.
+
+        Reviewed by Geoffrey Garen.
+
+        Undoing offline asm hackery.
+
+        * llint/LowLevelInterpreter.cpp:
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        * offlineasm/cloop.rb:
+        * offlineasm/instructions.rb:
+
+2013-10-24  Mark Lam  <mark.lam@apple.com>
+
+        Fix broken C Loop LLINT build.
+        https://bugs.webkit.org/show_bug.cgi?id=123271.
+
+        Reviewed by Michael Saboff.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::printGetByIdCacheStatus): Added an UNUSED_PARAM().
+        (JSC::CodeBlock::dumpBytecode): Added #if ENABLE(JIT) to JIT only code.
+        * bytecode/GetByIdStatus.cpp:
+        (JSC::GetByIdStatus::computeFor): Added an UNUSED_PARAM().
+        * bytecode/PutByIdStatus.cpp:
+        (JSC::PutByIdStatus::computeFor): Added an UNUSED_PARAM().
+        * bytecode/StructureStubInfo.h:
+        - Added a stub StubInfoMap for non-JIT builds. StubInfoMap is still used
+          in function prototypes even when !ENABLE(JIT). Rather that adding #if's
+          in many places, we just provide a stub/placeholder implementation that
+          is unused but keeps the compiler happy.
+        * jit/JITOperations.h: Added #if ENABLE(JIT).
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+        - The putByVal() macro reifies a slow path which is never taken in one case.
+          This translates into a label that is never used in the C Loop LLINT. The
+          C++ compiler doesn't like unused labels. So, we fix this by adding a
+          cloopUnusedLabel offline asm instruction that synthesizes the following:
+
+              if (false) goto unusedLabel;
+
+          This keeps the C++ compiler happy without changing code behavior.
+        * offlineasm/cloop.rb: Implementing cloopUnusedLabel.
+        * offlineasm/instructions.rb: Declaring cloopUnusedLabel.
+        * runtime/Executable.cpp:
+        (JSC::setupJIT): Added UNUSED_PARAM()s.
+        (JSC::ScriptExecutable::prepareForExecutionImpl):
+        - run-javascriptcore-tests have phases that forces the LLINT to be off
+          which in turn asserts that the JIT is enabled. With the C Loop LLINT,
+          this combination is illegal. So, we override the setup code here to
+          always use the LLINT if !ENABLE(JIT) regardless of what options are
+          passed in.
+
+2013-10-24  peavo@outlook.com  <peavo@outlook.com>
+
+        Uninitialized member causes crash when DFG JIT is not enabled.
+        https://bugs.webkit.org/show_bug.cgi?id=123270
+
+        Reviewed by Brent Fulgham.
+
+        The data member sizeOfLastScratchBuffer in the VM class is only initialized if DFG JIT is enabled, even though it's defined regardless.
+        This causes an early crash on Windows, which doesn't have DFG JIT enabled.
+
+        * runtime/VM.cpp:
+        (JSC::VM::VM): Initialize sizeOfLastScratchBuffer member regardless of whether DFG JIT is enabled.
+
+2013-10-24  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Build break with latest EFL 1.8 libraries.
+        https://bugs.webkit.org/show_bug.cgi?id=123245
+
+        Reviewed by Gyuyoung Kim.
+
+        After fixed build break on EFL 1.8 at r138326, EFL libraries are changed
+        Eo typedef and splitted header files which contain version macro.
+
+        * PlatformEfl.cmake: Added EO path to include directories.
+        * heap/HeapTimer.h: Changed Ecore_Timer typedef when EO exist.
+
+2013-10-23  Filip Pizlo  <fpizlo@apple.com>
+
+        Put all uses of LLVM intrinsics behind a single Option
+        https://bugs.webkit.org/show_bug.cgi?id=123219
+
+        Reviewed by Mark Hahnenberg.
+
+        * ftl/FTLExitThunkGenerator.cpp:
+        (JSC::FTL::ExitThunkGenerator::emitThunk):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::generateExitThunks):
+        (JSC::FTL::LowerDFGToLLVM::compileGetById):
+        (JSC::FTL::LowerDFGToLLVM::emitOSRExitCall):
+        (JSC::FTL::LowerDFGToLLVM::addExitArgumentForNode):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileFTLOSRExit):
+        * runtime/Options.h:
+
+2013-10-23  Daniel Bates  <dabates@apple.com>
+
+        Fix JavaScriptCore build targets following <http://trac.webkit.org/changeset/157864>
+        (https://bugs.webkit.org/show_bug.cgi?id=123169)
+
+        Tell Xcode that the supported platforms for all JavaScriptCore targets are iOS and OS X.
+
+        * Configurations/Base.xcconfig:
+
+2013-10-23  Michael Saboff  <msaboff@apple.com>
+
+        LLInt arity check exception processing should start unwinding from caller
+        https://bugs.webkit.org/show_bug.cgi?id=123209
+
+        Reviewed by Oliver Hunt.
+
+        Use the caller frame returned from slow_path_call_arityCheck to process exceptions.
+
+        * llint/LowLevelInterpreter32_64.asm:
+        * llint/LowLevelInterpreter64.asm:
+
+2013-10-22  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should be able to do some simple inline caches using LLVM patchpoints
+        https://bugs.webkit.org/show_bug.cgi?id=123164
+
+        Reviewed by Mark Hahnenberg.
+        
+        This implements GetById inline caches in the FTL using llvm.webkit.patchpoint.
+        
+        The idea is that we ask LLVM for a nop slide the size of a GetById inline
+        cache and then fill in the code after LLVM compilation is complete. For now, we
+        just use the system calling convention for the arguments and return. We also
+        still make some assumptions about registers that aren't correct. But, most of
+        the scaffolding is there and this will successfully patch an inline cache.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * assembler/AbstractMacroAssembler.h:
+        * assembler/LinkBuffer.cpp:
+        (JSC::LinkBuffer::finalizeCodeWithoutDisassembly):
+        (JSC::LinkBuffer::linkCode):
+        (JSC::LinkBuffer::allocate):
+        * assembler/LinkBuffer.h:
+        (JSC::LinkBuffer::LinkBuffer):
+        (JSC::LinkBuffer::link):
+        * ftl/FTLAbbreviations.h:
+        (JSC::FTL::constNull):
+        (JSC::FTL::buildCall):
+        * ftl/FTLCapabilities.cpp:
+        (JSC::FTL::canCompile):
+        * ftl/FTLCompile.cpp:
+        (JSC::FTL::fixFunctionBasedOnStackMaps):
+        * ftl/FTLInlineCacheDescriptor.h: Added.
+        (JSC::FTL::InlineCacheDescriptor::InlineCacheDescriptor):
+        (JSC::FTL::GetByIdDescriptor::GetByIdDescriptor):
+        (JSC::FTL::GetByIdDescriptor::stackmapID):
+        (JSC::FTL::GetByIdDescriptor::codeOrigin):
+        (JSC::FTL::GetByIdDescriptor::uid):
+        * ftl/FTLInlineCacheSize.cpp: Added.
+        (JSC::FTL::sizeOfGetById):
+        (JSC::FTL::sizeOfPutById):
+        * ftl/FTLInlineCacheSize.h: Added.
+        * ftl/FTLIntrinsicRepository.h:
+        * ftl/FTLJITFinalizer.cpp:
+        (JSC::FTL::JITFinalizer::finalizeFunction):
+        * ftl/FTLJITFinalizer.h:
+        * ftl/FTLLocation.cpp:
+        (JSC::FTL::Location::directGPR):
+        * ftl/FTLLocation.h:
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileGetById):
+        * ftl/FTLOutput.h:
+        (JSC::FTL::Output::call):
+        * ftl/FTLSlowPathCall.cpp: Added.
+        (JSC::FTL::callOperation):
+        * ftl/FTLSlowPathCall.h: Added.
+        (JSC::FTL::SlowPathCall::SlowPathCall):
+        (JSC::FTL::SlowPathCall::call):
+        (JSC::FTL::SlowPathCall::key):
+        * ftl/FTLSlowPathCallKey.cpp: Added.
+        (JSC::FTL::SlowPathCallKey::dump):
+        * ftl/FTLSlowPathCallKey.h: Added.
+        (JSC::FTL::SlowPathCallKey::SlowPathCallKey):
+        (JSC::FTL::SlowPathCallKey::usedRegisters):
+        (JSC::FTL::SlowPathCallKey::callTarget):
+        (JSC::FTL::SlowPathCallKey::offset):
+        (JSC::FTL::SlowPathCallKey::isEmptyValue):
+        (JSC::FTL::SlowPathCallKey::isDeletedValue):
+        (JSC::FTL::SlowPathCallKey::operator==):
+        (JSC::FTL::SlowPathCallKey::hash):
+        (JSC::FTL::SlowPathCallKeyHash::hash):
+        (JSC::FTL::SlowPathCallKeyHash::equal):
+        * ftl/FTLStackMaps.cpp:
+        (JSC::FTL::StackMaps::Location::directGPR):
+        * ftl/FTLStackMaps.h:
+        * ftl/FTLState.h:
+        * ftl/FTLThunks.cpp:
+        (JSC::FTL::slowPathCallThunkGenerator):
+        * ftl/FTLThunks.h:
+        (JSC::FTL::Thunks::getSlowPathCallThunk):
+        * jit/CCallHelpers.h:
+        (JSC::CCallHelpers::setupArguments):
+        * jit/GPRInfo.h:
+        * jit/JITInlineCacheGenerator.cpp:
+        (JSC::garbageStubInfo):
+        (JSC::JITInlineCacheGenerator::JITInlineCacheGenerator):
+        (JSC::JITByIdGenerator::finalize):
+        * jit/JITInlineCacheGenerator.h:
+        (JSC::JITByIdGenerator::slowPathBegin):
+        * jit/RegisterSet.cpp:
+        (JSC::RegisterSet::stackRegisters):
+        (JSC::RegisterSet::specialRegisters):
+        (JSC::RegisterSet::calleeSaveRegisters):
+        (JSC::RegisterSet::allGPRs):
+        (JSC::RegisterSet::allFPRs):
+        (JSC::RegisterSet::allRegisters):
+        (JSC::RegisterSet::dump):
+        * jit/RegisterSet.h:
+        (JSC::RegisterSet::exclude):
+        (JSC::RegisterSet::numberOfSetRegisters):
+        (JSC::RegisterSet::RegisterSet):
+        (JSC::RegisterSet::isEmptyValue):
+        (JSC::RegisterSet::isDeletedValue):
+        (JSC::RegisterSet::operator==):
+        (JSC::RegisterSet::hash):
+        (JSC::RegisterSetHash::hash):
+        (JSC::RegisterSetHash::equal):
+        * runtime/Options.h:
+
+2013-10-22  Filip Pizlo  <fpizlo@apple.com>
+
+        jitCompileAndSetHeuristics should DeferGCForAWhile
+        https://bugs.webkit.org/show_bug.cgi?id=123196
+
+        Reviewed by Mark Hahnenberg.
+        
+        This fixes random crashes in V8v7/raytrace. I only see those crashes on exactly one of
+        my machines. I don't think this is testable; we just need to steadily converge towards
+        getting our uses of DeferGC to be right and then be careful not to regress. We're not
+        there yet, obviously.
+        
+        * llint/LLIntSlowPaths.cpp:
+        (JSC::LLInt::jitCompileAndSetHeuristics):
+
+2013-10-23  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream more JavaScriptCore build configuration changes
+        https://bugs.webkit.org/show_bug.cgi?id=123169
+
+        Reviewed by David Kilzer.
+
+        * Configurations/Base.xcconfig:
+        * Configurations/Version.xcconfig:
+        * Configurations/iOS.xcconfig: Added.
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+
+2013-10-23  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Export DefaultGCActivityCallback member functions
+        https://bugs.webkit.org/show_bug.cgi?id=123175
+
+        Reviewed by David Kilzer.
+
+        * runtime/GCActivityCallback.h:
+
+2013-10-23  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream more ARMv7s bits
+        https://bugs.webkit.org/show_bug.cgi?id=123052
+
+        Reviewed by Joseph Pecoraro.
+
+        * Configurations/JavaScriptCore.xcconfig:
+
 2013-10-22  Andreas Kling  <akling@apple.com>
 
         Minor VM* -> VM& cleanups in HashTable and Keywords.

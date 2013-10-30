@@ -403,7 +403,7 @@ void ApplyStyleCommand::applyRelativeFontStyleChange(EditingStyle* style)
 
         RefPtr<MutableStylePropertySet> inlineStyle = copyStyleOrCreateEmpty(element->inlineStyle());
         float currentFontSize = computedFontSize(node);
-        float desiredFontSize = max(MinimumFontSize, startingFontSizes.get(node) + style->fontSizeDelta());
+        float desiredFontSize = std::max(MinimumFontSize, startingFontSizes.get(node) + style->fontSizeDelta());
         RefPtr<CSSValue> value = inlineStyle->getPropertyCSSValue(CSSPropertyFontSize);
         if (value) {
             element->removeInlineStyleProperty(CSSPropertyFontSize);
@@ -444,7 +444,8 @@ void ApplyStyleCommand::cleanupUnstyledAppleStyleSpans(ContainerNode* dummySpanA
     // all the children of the dummy's parent
 
     Vector<Element*> toRemove;
-    for (auto child = elementChildren(dummySpanAncestor).begin(), end = elementChildren(dummySpanAncestor).end(); child != end; ++child) {
+    auto children = elementChildren(*dummySpanAncestor);
+    for (auto child = children.begin(), end = children.end(); child != end; ++child) {
         if (isSpanWithoutAttributesOrUnstyledStyleSpan(&*child))
             toRemove.append(&*child);
     }
@@ -1020,7 +1021,7 @@ void ApplyStyleCommand::applyInlineStyleToPushDown(Node* node, EditingStyle* sty
 
     if (node->renderer()->isText() && static_cast<RenderText*>(node->renderer())->isAllCollapsibleWhitespace())
         return;
-    if (node->renderer()->isBR() && !node->renderer()->style()->preserveNewline())
+    if (node->renderer()->isBR() && !node->renderer()->style().preserveNewline())
         return;
 
     // We can't wrap node with the styled element here because new styled element will never be removed if we did.

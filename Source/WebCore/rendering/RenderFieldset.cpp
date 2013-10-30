@@ -30,15 +30,12 @@
 #include "HTMLNames.h"
 #include "PaintInfo.h"
 
-using std::min;
-using std::max;
-
 namespace WebCore {
 
 using namespace HTMLNames;
 
-RenderFieldset::RenderFieldset(HTMLFieldSetElement& element)
-    : RenderBlockFlow(element)
+RenderFieldset::RenderFieldset(HTMLFieldSetElement& element, PassRef<RenderStyle> style)
+    : RenderBlockFlow(element, std::move(style))
 {
 }
 
@@ -48,8 +45,8 @@ void RenderFieldset::computePreferredLogicalWidths()
     if (RenderBox* legend = findLegend()) {
         int legendMinWidth = legend->minPreferredLogicalWidth();
 
-        Length legendMarginLeft = legend->style()->marginLeft();
-        Length legendMarginRight = legend->style()->marginLeft();
+        Length legendMarginLeft = legend->style().marginLeft();
+        Length legendMarginRight = legend->style().marginLeft();
 
         if (legendMarginLeft.isFixed())
             legendMinWidth += legendMarginLeft.value();
@@ -57,7 +54,7 @@ void RenderFieldset::computePreferredLogicalWidths()
         if (legendMarginRight.isFixed())
             legendMinWidth += legendMarginRight.value();
 
-        m_minPreferredLogicalWidth = max(m_minPreferredLogicalWidth, legendMinWidth + borderAndPaddingWidth());
+        m_minPreferredLogicalWidth = std::max(m_minPreferredLogicalWidth, legendMinWidth + borderAndPaddingWidth());
     }
 }
 
@@ -73,8 +70,8 @@ RenderObject* RenderFieldset::layoutSpecialExcludedChild(bool relayoutChildren)
     legend.layoutIfNeeded();
 
     LayoutUnit logicalLeft;
-    if (style()->isLeftToRightDirection()) {
-        switch (legend.style()->textAlign()) {
+    if (style().isLeftToRightDirection()) {
+        switch (legend.style().textAlign()) {
         case CENTER:
             logicalLeft = (logicalWidth() - logicalWidthForChild(legend)) / 2;
             break;
@@ -86,7 +83,7 @@ RenderObject* RenderFieldset::layoutSpecialExcludedChild(bool relayoutChildren)
             break;
         }
     } else {
-        switch (legend.style()->textAlign()) {
+        switch (legend.style().textAlign()) {
         case LEFT:
             logicalLeft = borderStart() + paddingStart();
             break;
@@ -117,7 +114,7 @@ RenderObject* RenderFieldset::layoutSpecialExcludedChild(bool relayoutChildren)
         // on the legend's margins as we want to still follow the author's cues.
         // Firefox completely ignores the margins in this case which seems wrong.
         legendLogicalTop = (fieldsetBorderBefore - legendLogicalHeight) / 2;
-        collapsedLegendExtent = max<LayoutUnit>(fieldsetBorderBefore, legendLogicalTop + legendLogicalHeight + marginAfterForChild(legend));
+        collapsedLegendExtent = std::max<LayoutUnit>(fieldsetBorderBefore, legendLogicalTop + legendLogicalHeight + marginAfterForChild(legend));
     } else
         collapsedLegendExtent = legendLogicalHeight + marginAfterForChild(legend);
 
@@ -152,7 +149,7 @@ void RenderFieldset::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint
     // FIXME: We need to work with "rl" and "bt" block flow directions.  In those
     // cases the legend is embedded in the right and bottom borders respectively.
     // https://bugs.webkit.org/show_bug.cgi?id=47236
-    if (style()->isHorizontalWritingMode()) {
+    if (style().isHorizontalWritingMode()) {
         LayoutUnit yOff = (legend->y() > 0) ? LayoutUnit() : (legend->height() - borderTop()) / 2;
         paintRect.setHeight(paintRect.height() - yOff);
         paintRect.setY(paintRect.y() + yOff);
@@ -163,11 +160,11 @@ void RenderFieldset::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint
     }
 
     if (!boxShadowShouldBeAppliedToBackground(determineBackgroundBleedAvoidance(paintInfo.context)))
-        paintBoxShadow(paintInfo, paintRect, style(), Normal);
-    paintFillLayers(paintInfo, style()->visitedDependentColor(CSSPropertyBackgroundColor), style()->backgroundLayers(), paintRect);
-    paintBoxShadow(paintInfo, paintRect, style(), Inset);
+        paintBoxShadow(paintInfo, paintRect, &style(), Normal);
+    paintFillLayers(paintInfo, style().visitedDependentColor(CSSPropertyBackgroundColor), style().backgroundLayers(), paintRect);
+    paintBoxShadow(paintInfo, paintRect, &style(), Inset);
 
-    if (!style()->hasBorder())
+    if (!style().hasBorder())
         return;
     
     // Create a clipping region around the legend and paint the border as normal
@@ -177,22 +174,22 @@ void RenderFieldset::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint
     // FIXME: We need to work with "rl" and "bt" block flow directions.  In those
     // cases the legend is embedded in the right and bottom borders respectively.
     // https://bugs.webkit.org/show_bug.cgi?id=47236
-    if (style()->isHorizontalWritingMode()) {
+    if (style().isHorizontalWritingMode()) {
         LayoutUnit clipTop = paintRect.y();
-        LayoutUnit clipHeight = max(static_cast<LayoutUnit>(style()->borderTopWidth()), legend->height() - ((legend->height() - borderTop()) / 2));
+        LayoutUnit clipHeight = std::max(static_cast<LayoutUnit>(style().borderTopWidth()), legend->height() - ((legend->height() - borderTop()) / 2));
         graphicsContext->clipOut(pixelSnappedIntRect(paintRect.x() + legend->x(), clipTop, legend->width(), clipHeight));
     } else {
         LayoutUnit clipLeft = paintRect.x();
-        LayoutUnit clipWidth = max(static_cast<LayoutUnit>(style()->borderLeftWidth()), legend->width());
+        LayoutUnit clipWidth = std::max(static_cast<LayoutUnit>(style().borderLeftWidth()), legend->width());
         graphicsContext->clipOut(pixelSnappedIntRect(clipLeft, paintRect.y() + legend->y(), clipWidth, legend->height()));
     }
 
-    paintBorder(paintInfo, paintRect, style());
+    paintBorder(paintInfo, paintRect, &style());
 }
 
 void RenderFieldset::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    if (style()->visibility() != VISIBLE || paintInfo.phase != PaintPhaseMask)
+    if (style().visibility() != VISIBLE || paintInfo.phase != PaintPhaseMask)
         return;
 
     LayoutRect paintRect = LayoutRect(paintOffset, size());
@@ -203,7 +200,7 @@ void RenderFieldset::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOff
     // FIXME: We need to work with "rl" and "bt" block flow directions.  In those
     // cases the legend is embedded in the right and bottom borders respectively.
     // https://bugs.webkit.org/show_bug.cgi?id=47236
-    if (style()->isHorizontalWritingMode()) {
+    if (style().isHorizontalWritingMode()) {
         LayoutUnit yOff = (legend->y() > 0) ? LayoutUnit() : (legend->height() - borderTop()) / 2;
         paintRect.expand(0, -yOff);
         paintRect.move(0, yOff);

@@ -162,10 +162,8 @@ webkit.org/b/112005 accessibility/onclick-handlers.html [ Failure ]
 webkit.org/b/112006 accessibility/secure-textfield-title-ui.html [ Failure ]
 webkit.org/b/112008 accessibility/spinbutton-value.html [ Failure ]
 webkit.org/b/112012 accessibility/svg-bounds.html [ Failure ]
-webkit.org/b/112013 accessibility/svg-remote-element.html [ Failure ]
 webkit.org/b/112014 accessibility/textarea-insertion-point-line-number.html [ Failure ]
 webkit.org/b/112015 accessibility/textarea-line-for-index.html [ Failure ]
-webkit.org/b/112016 accessibility/textarea-selected-text-range.html [ Failure ]
 webkit.org/b/112017 accessibility/textbox-role-reports-selection.html [ Failure ]
 webkit.org/b/112018 accessibility/th-as-title-ui.html [ Failure ]
 webkit.org/b/112019 accessibility/title-ui-element-correctness.html [ Failure ]
@@ -382,3 +380,12 @@ webkit.org/b/119789 fast/events/touch/touch-before-pressing-spin-button.html [ C
 webkit.org/b/119789 fast/events/touch/touch-coords-in-zoom-and-scroll.html [ Crash ]
 webkit.org/b/119789 fast/events/touch/touch-inside-iframe.html [ Crash ]
 webkit.org/b/119789 fast/events/touch/touch-slider-no-js-touch-listener.html [ Crash ]
+
+# WKTR / Do not support setViewModeMediaFeature().
+Bug(EFL) fast/media/view-mode-media-feature.html [ ImageOnlyFailure ]
+Bug(EFL) fast/media/media-query-list-02.html [ Failure ]
+Bug(EFL) fast/media/media-query-list-03.html [ Failure ]
+Bug(EFL) fast/media/media-query-list-04.html [ Failure ]
+Bug(EFL) fast/media/media-query-list-05.html [ Failure ]
+Bug(EFL) fast/media/media-query-list-06.html [ Failure ]
+

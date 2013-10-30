@@ -159,9 +159,9 @@ PassRefPtr<FilterEffect> FilterEffectRenderer::buildReferenceFilter(RenderElemen
     // wrong. We should probably be extracting the alpha from the 
     // previousEffect, but this requires some more processing.  
     // This may need a spec clarification.
-    RefPtr<SVGFilterBuilder> builder = SVGFilterBuilder::create(previousEffect, SourceAlpha::create(this));
+    auto builder = std::make_unique<SVGFilterBuilder>(previousEffect, SourceAlpha::create(this));
 
-    auto attributesChildren = childrenOfType<SVGFilterPrimitiveStandardAttributes>(filter);
+    auto attributesChildren = childrenOfType<SVGFilterPrimitiveStandardAttributes>(*filter);
     for (auto it = attributesChildren.begin(), end = attributesChildren.end(); it != end; ++it) {
         SVGFilterPrimitiveStandardAttributes* effectElement = &*it;
         effect = effectElement->build(builder.get(), this);
@@ -512,7 +512,7 @@ void FilterEffectRendererHelper::applyFilterEffect(GraphicsContext* destinationC
     LayoutRect destRect = filter->outputRect();
     destRect.move(m_paintOffset.x(), m_paintOffset.y());
     
-    destinationContext->drawImageBuffer(filter->output(), m_renderLayer->renderer().style()->colorSpace(), pixelSnappedIntRect(destRect), CompositeSourceOver);
+    destinationContext->drawImageBuffer(filter->output(), m_renderLayer->renderer().style().colorSpace(), pixelSnappedIntRect(destRect), CompositeSourceOver);
     
     filter->clearIntermediateResults();
 }

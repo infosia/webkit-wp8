@@ -38,7 +38,7 @@ public:
     virtual PassRef<RenderStyle> createInnerTextStyle(const RenderStyle* startStyle) const = 0;
 
 protected:
-    explicit RenderTextControl(HTMLTextFormControlElement&);
+    RenderTextControl(HTMLTextFormControlElement&, PassRef<RenderStyle>);
 
     // This convenience function should not be made public because innerTextElement may outlive the render tree.
     TextControlInnerTextElement* innerTextElement() const;
@@ -59,7 +59,6 @@ protected:
     virtual float getAvgCharWidth(AtomicString family);
     virtual LayoutUnit preferredContentLogicalWidth(float charWidth) const = 0;
     virtual LayoutUnit computeControlLogicalHeight(LayoutUnit lineHeight, LayoutUnit nonContentHeight) const = 0;
-    virtual RenderStyle* textBaseStyle() const = 0;
 
     virtual void updateFromElement() OVERRIDE;
     virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const OVERRIDE;
@@ -84,20 +83,7 @@ private:
     virtual bool requiresForcedStyleRecalcPropagation() const OVERRIDE { return true; }
 };
 
-inline RenderTextControl* toRenderTextControl(RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isTextControl());
-    return static_cast<RenderTextControl*>(object);
-}
-
-inline const RenderTextControl* toRenderTextControl(const RenderObject* object)
-{ 
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isTextControl());
-    return static_cast<const RenderTextControl*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderTextControl(const RenderTextControl*);
+RENDER_OBJECT_TYPE_CASTS(RenderTextControl, isTextControl())
 
 // Renderer for our inner container, for <search> and others.
 // We can't use RenderFlexibleBox directly, because flexboxes have a different
@@ -105,8 +91,8 @@ void toRenderTextControl(const RenderTextControl*);
 // anymore.
 class RenderTextControlInnerContainer FINAL : public RenderFlexibleBox {
 public:
-    explicit RenderTextControlInnerContainer(Element& element)
-        : RenderFlexibleBox(element)
+    explicit RenderTextControlInnerContainer(Element& element, PassRef<RenderStyle> style)
+        : RenderFlexibleBox(element, std::move(style))
     { }
     virtual ~RenderTextControlInnerContainer() { }
 

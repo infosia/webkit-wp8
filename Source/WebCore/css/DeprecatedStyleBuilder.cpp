@@ -53,8 +53,6 @@
 #include "ShapeValue.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 enum ExpandValueBehavior {SuppressValue = 0, ExpandValue};
@@ -883,7 +881,7 @@ public:
 
         // Overly large font sizes will cause crashes on some platforms (such as Windows).
         // Cap font size here to make sure that doesn't happen.
-        size = min(maximumAllowedFontSize, size);
+        size = std::min(maximumAllowedFontSize, size);
 
         styleResolver->setFontSize(fontDescription, size);
         styleResolver->setFontDescription(fontDescription);
@@ -1268,6 +1266,46 @@ public:
         return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
     }
 };
+
+#if ENABLE(CSS3_TEXT_DECORATION)
+static TextDecorationSkip valueToDecorationSkip(CSSPrimitiveValue& primitiveValue)
+{
+    ASSERT(primitiveValue.isValueID());
+
+    switch (primitiveValue.getValueID()) {
+    case CSSValueNone:
+        return TextDecorationSkipNone;
+    case CSSValueInk:
+        return TextDecorationSkipInk;
+    default:
+        break;
+    }
+
+    ASSERT_NOT_REACHED();
+    return TextDecorationSkipNone;
+}
+
+class ApplyPropertyTextDecorationSkip {
+public:
+    static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
+    {
+        if (value->isPrimitiveValue()) {
+            styleResolver->style()->setTextDecorationSkip(valueToDecorationSkip(*toCSSPrimitiveValue(value)));
+            return;
+        }
+
+        TextDecorationSkip skip = RenderStyle::initialTextDecorationSkip();
+        for (CSSValueListIterator i(value); i.hasMore(); i.advance())
+            skip |= valueToDecorationSkip(*toCSSPrimitiveValue(i.value()));
+        styleResolver->style()->setTextDecorationSkip(skip);
+    }
+    static PropertyHandler createHandler()
+    {
+        PropertyHandler handler = ApplyPropertyDefaultBase<TextDecorationSkip, &RenderStyle::textDecorationSkip, TextDecorationSkip, &RenderStyle::setTextDecorationSkip, TextDecorationSkip, &RenderStyle::initialTextDecorationSkip>::createHandler();
+        return PropertyHandler(handler.inheritFunction(), handler.initialFunction(), &applyValue);
+    }
+};
+#endif // CSS3_TEXT_DECORATION
 
 class ApplyPropertyMarqueeIncrement {
 public:
@@ -2275,6 +2313,9 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
     setPropertyHandler(CSSPropertyWebkitTextJustify, ApplyPropertyDefault<TextJustify, &RenderStyle::textJustify, TextJustify, &RenderStyle::setTextJustify, TextJustify, &RenderStyle::initialTextJustify>::createHandler());
     setPropertyHandler(CSSPropertyWebkitTextUnderlinePosition, ApplyPropertyTextUnderlinePosition::createHandler());
 #endif // CSS3_TEXT
+#if ENABLE(CSS3_TEXT_DECORATION)
+    setPropertyHandler(CSSPropertyWebkitTextDecorationSkip, ApplyPropertyTextDecorationSkip::createHandler());
+#endif
     setPropertyHandler(CSSPropertyTextIndent, ApplyPropertyTextIndent::createHandler());
     setPropertyHandler(CSSPropertyTextOverflow, ApplyPropertyDefault<TextOverflow, &RenderStyle::textOverflow, TextOverflow, &RenderStyle::setTextOverflow, TextOverflow, &RenderStyle::initialTextOverflow>::createHandler());
     setPropertyHandler(CSSPropertyTextRendering, ApplyPropertyFont<TextRenderingMode, &FontDescription::textRenderingMode, &FontDescription::setTextRenderingMode, AutoTextRendering>::createHandler());

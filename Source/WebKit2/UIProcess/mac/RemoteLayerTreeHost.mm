@@ -98,7 +98,7 @@ static NSString *toCAFilterType(PlatformCALayer::FilterType type)
 
 void RemoteLayerTreeHost::commit(const RemoteLayerTreeTransaction& transaction)
 {
-#if !defined(NDEBUG) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !defined(NDEBUG)
     transaction.dump();
 #endif
 
@@ -207,6 +207,9 @@ void RemoteLayerTreeHost::commit(const RemoteLayerTreeTransaction& transaction)
 
         if (properties.changedProperties & RemoteLayerTreeTransaction::FiltersChanged)
             PlatformCAFilters::setFiltersOnLayer(layer, properties.filters);
+
+        if (properties.changedProperties & RemoteLayerTreeTransaction::EdgeAntialiasingMaskChanged)
+            layer.edgeAntialiasingMask = properties.edgeAntialiasingMask;
     }
 
     for (auto destroyedLayer : transaction.destroyedLayers())
@@ -218,7 +221,6 @@ CALayer *RemoteLayerTreeHost::getLayer(RemoteLayerTreeTransaction::LayerID layer
     return m_layers.get(layerID).get();
 }
 
-
 CALayer *RemoteLayerTreeHost::createLayer(RemoteLayerTreeTransaction::LayerCreationProperties properties)
 {
     RetainPtr<CALayer>& layer = m_layers.add(properties.layerID, nullptr).iterator->value;
@@ -229,6 +231,10 @@ CALayer *RemoteLayerTreeHost::createLayer(RemoteLayerTreeTransaction::LayerCreat
     case PlatformCALayer::LayerTypeLayer:
     case PlatformCALayer::LayerTypeWebLayer:
     case PlatformCALayer::LayerTypeRootLayer:
+    case PlatformCALayer::LayerTypeSimpleLayer:
+    case PlatformCALayer::LayerTypeTiledBackingLayer:
+    case PlatformCALayer::LayerTypePageTiledBackingLayer:
+    case PlatformCALayer::LayerTypeTiledBackingTileLayer:
         layer = adoptNS([[CALayer alloc] init]);
         break;
     case PlatformCALayer::LayerTypeTransformLayer:

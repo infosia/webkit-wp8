@@ -224,7 +224,6 @@
 #include "CaptionUserPreferences.h"
 #endif
 
-using namespace std;
 using namespace WTF;
 using namespace Unicode;
 
@@ -505,7 +504,7 @@ Document::Document(Frame* frame, const URL& url, unsigned documentClasses)
         setURL(url);
 
     if (m_frame)
-        m_cachedResourceLoader = m_frame->loader().activeDocumentLoader()->cachedResourceLoader();
+        m_cachedResourceLoader = &m_frame->loader().activeDocumentLoader()->cachedResourceLoader();
     if (!m_cachedResourceLoader)
         m_cachedResourceLoader = CachedResourceLoader::create(nullptr);
     m_cachedResourceLoader->setDocument(this);
@@ -671,7 +670,8 @@ void Document::buildAccessKeyMap(TreeScope* scope)
 {
     ASSERT(scope);
     ContainerNode* rootNode = scope->rootNode();
-    for (auto element = elementDescendants(rootNode).begin(), end = elementDescendants(rootNode).end(); element != end; ++element) {
+    auto descendant = elementDescendants(*rootNode);
+    for (auto element = descendant.begin(), end = descendant.end(); element != end; ++element) {
         const AtomicString& accessKey = element->fastGetAttribute(accesskeyAttr);
         if (!accessKey.isEmpty())
             m_elementsByAccessKey.set(accessKey.impl(), &*element);
@@ -791,7 +791,7 @@ void Document::childrenChanged(const ChildChange& change)
     }
 #endif
 
-    Element* newDocumentElement = elementChildren(this).first();
+    Element* newDocumentElement = elementChildren(*this).first();
 
     if (newDocumentElement == m_documentElement)
         return;
@@ -1519,7 +1519,7 @@ void Document::removeTitle(Element* titleElement)
 
     // Update title based on first title element in the head, if one exists.
     if (HTMLElement* headElement = head()) {
-        if (auto firstTitle = childrenOfType<HTMLTitleElement>(headElement).first())
+        if (auto firstTitle = childrenOfType<HTMLTitleElement>(*headElement).first())
             setTitleElement(firstTitle->textWithDirection(), firstTitle);
     }
 
@@ -1946,8 +1946,9 @@ void Document::createRenderTree()
     ASSERT(!m_renderArena);
 
     m_renderArena = std::make_unique<RenderArena>();
-    
-    setRenderView(new RenderView(*this));
+
+    // FIXME: It would be better if we could pass the resolved document style directly here.
+    setRenderView(new RenderView(*this, RenderStyle::create()));
 #if USE(ACCELERATED_COMPOSITING)
     renderView()->setIsInWindow(true);
 #endif
@@ -2161,7 +2162,7 @@ void Document::setVisuallyOrdered()
 {
     m_visuallyOrdered = true;
     if (renderView())
-        renderView()->style()->setRTLOrdering(VisualOrder);
+        renderView()->style().setRTLOrdering(VisualOrder);
 }
 
 PassRefPtr<DocumentParser> Document::createParser()
@@ -2254,9 +2255,9 @@ HTMLElement* Document::body() const
     auto element = documentElement();
     if (!element)
         return nullptr;
-    if (auto frameset = childrenOfType<HTMLFrameSetElement>(element).first())
+    if (auto frameset = childrenOfType<HTMLFrameSetElement>(*element).first())
         return frameset;
-    return childrenOfType<HTMLBodyElement>(element).first();
+    return childrenOfType<HTMLBodyElement>(*element).first();
 }
 
 void Document::setBody(PassRefPtr<HTMLElement> prpNewBody, ExceptionCode& ec)
@@ -2287,7 +2288,7 @@ void Document::setBody(PassRefPtr<HTMLElement> prpNewBody, ExceptionCode& ec)
 HTMLHeadElement* Document::head()
 {
     if (auto element = documentElement())
-        return childrenOfType<HTMLHeadElement>(element).first();
+        return childrenOfType<HTMLHeadElement>(*element).first();
     return nullptr;
 }
 
@@ -2481,7 +2482,7 @@ int Document::minimumLayoutDelay()
     m_overMinimumLayoutThreshold = elapsed > cLayoutScheduleThreshold;
     
     // We'll want to schedule the timer to fire at the minimum layout threshold.
-    return max(0, cLayoutScheduleThreshold - elapsed);
+    return std::max(0, cLayoutScheduleThreshold - elapsed);
 }
 
 int Document::elapsedTime() const
@@ -2603,7 +2604,7 @@ void Document::updateBaseURL()
     if (!equalIgnoringFragmentIdentifier(oldBaseURL, m_baseURL)) {
         // Base URL change changes any relative visited links.
         // FIXME: There are other URLs in the tree that would need to be re-evaluated on dynamic base URL change. Style should be invalidated too.
-        auto anchorDescendants = descendantsOfType<HTMLAnchorElement>(this);
+        auto anchorDescendants = descendantsOfType<HTMLAnchorElement>(*this);
         for (auto anchor = anchorDescendants.begin(), end = anchorDescendants.end(); anchor != end; ++anchor)
             anchor->invalidateCachedVisitedLinkHash();
     }
@@ -2620,7 +2621,7 @@ void Document::processBaseElement()
     // Find the first href attribute in a base element and the first target attribute in a base element.
     const AtomicString* href = nullptr;
     const AtomicString* target = nullptr;
-    auto baseDescendants = descendantsOfType<HTMLBaseElement>(this);
+    auto baseDescendants = descendantsOfType<HTMLBaseElement>(*this);
     for (auto base = baseDescendants.begin(), end = baseDescendants.end(); base != end && (!href || !target); ++base) {
         if (!href) {
             const AtomicString& value = base->fastGetAttribute(hrefAttr);
@@ -5220,7 +5221,7 @@ void Document::webkitWillEnterFullScreenForElement(Element* element)
     bool shouldCreatePlaceholder = renderer && renderer->isBox();
     if (shouldCreatePlaceholder) {
         m_savedPlaceholderFrameRect = toRenderBox(renderer)->frameRect();
-        m_savedPlaceholderRenderStyle = RenderStyle::clone(renderer->style());
+        m_savedPlaceholderRenderStyle = RenderStyle::clone(&renderer->style());
     }
 
     if (m_fullScreenElement != documentElement())
@@ -5288,10 +5289,10 @@ void Document::setFullScreenRenderer(RenderFullScreen* renderer)
         return;
 
     if (renderer && m_savedPlaceholderRenderStyle) 
-        renderer->createPlaceholder(m_savedPlaceholderRenderStyle.release(), m_savedPlaceholderFrameRect);
+        renderer->createPlaceholder(m_savedPlaceholderRenderStyle.releaseNonNull(), m_savedPlaceholderFrameRect);
     else if (renderer && m_fullScreenRenderer && m_fullScreenRenderer->placeholder()) {
         RenderBlock* placeholder = m_fullScreenRenderer->placeholder();
-        renderer->createPlaceholder(RenderStyle::clone(placeholder->style()), placeholder->frameRect());
+        renderer->createPlaceholder(RenderStyle::clone(&placeholder->style()), placeholder->frameRect());
     }
 
     if (m_fullScreenRenderer)

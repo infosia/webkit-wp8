@@ -211,6 +211,13 @@
 #import <WebCore/DiskImageCacheIOS.h>
 #endif
 
+#if ENABLE(REMOTE_INSPECTOR)
+#import "WebInspectorServer.h"
+#if PLATFORM(IOS)
+#import "WebIndicateLayer.h"
+#endif
+#endif
+
 #if USE(GLIB)
 #import <glib.h>
 #endif
@@ -376,13 +383,16 @@ macro(yankAndSelect) \
 
 #define KeyboardUIModeDidChangeNotification @"com.apple.KeyboardUIModeDidChange"
 #define AppleKeyboardUIMode CFSTR("AppleKeyboardUIMode")
-#define UniversalAccessDomain CFSTR("com.apple.universalaccess")
 
 static BOOL s_didSetCacheModel;
 static WebCacheModel s_cacheModel = WebCacheModelDocumentViewer;
 
 #ifndef NDEBUG
 static const char webViewIsOpen[] = "At least one WebView is still open.";
+#endif
+
+#if ENABLE(REMOTE_INSPECTOR)
+static BOOL autoStartRemoteInspector = YES;
 #endif
 
 @interface NSObject (WebValidateWithoutDelegate)
@@ -513,6 +523,10 @@ NSString *_WebMainFrameDocumentKey =    @"mainFrameDocument";
 
 NSString *_WebViewDidStartAcceleratedCompositingNotification = @"_WebViewDidStartAcceleratedCompositing";
 NSString * const WebViewWillCloseNotification = @"WebViewWillCloseNotification";
+
+#if ENABLE(REMOTE_INSPECTOR)
+NSString *_WebViewRemoteInspectorHasSessionChangedNotification = @"_WebViewRemoteInspectorHasSessionChangedNotification";
+#endif
 
 NSString *WebKitKerningAndLigaturesEnabledByDefaultDefaultsKey = @"WebKitKerningAndLigaturesEnabledByDefault";
 
@@ -751,6 +765,11 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
         Settings::setDefaultMinDOMTimerInterval(0.004);
         
         Settings::setShouldRespectPriorityInCSSAttributeSetters(shouldRespectPriorityInCSSAttributeSetters());
+
+#if ENABLE(REMOTE_INSPECTOR)
+        if (autoStartRemoteInspector)
+            [WebView _enableRemoteInspector];
+#endif
 
         didOneTimeInitialization = true;
     }
@@ -1246,6 +1265,128 @@ static bool fastDocumentTeardownEnabled()
         _private->inspector = [[WebInspector alloc] initWithWebView:self];
     return _private->inspector;
 }
+
+#if ENABLE(REMOTE_INSPECTOR)
++ (WebInspectorServer *)sharedWebInspectorServer
+{
+    static WebInspectorServer *sharedServer = [[WebInspectorServer alloc] init];
+    return sharedServer;
+}
+
++ (void)_enableRemoteInspector
+{
+    [[WebView sharedWebInspectorServer] start];
+}
+
++ (void)_disableRemoteInspector
+{
+    [[WebView sharedWebInspectorServer] stop];
+}
+
++ (void)_disableAutoStartRemoteInspector
+{
+    autoStartRemoteInspector = NO;
+}
+
++ (BOOL)_isRemoteInspectorEnabled
+{
+    return [[WebView sharedWebInspectorServer] isEnabled];
+}
+
++ (BOOL)_hasRemoteInspectorSession
+{
+    return [[WebView sharedWebInspectorServer] hasActiveDebugSession];
+}
+
+- (BOOL)canBeRemotelyInspected
+{
+#if !PLATFORM(IOS)
+    if (![[self preferences] developerExtrasEnabled])
+        return NO;
+#endif
+
+    return [self allowsRemoteInspection];
+}
+
+- (BOOL)allowsRemoteInspection
+{
+    return _private->allowsRemoteInspection;
+}
+
+- (void)setAllowsRemoteInspection:(BOOL)allow
+{
+    if (_private->allowsRemoteInspection == allow)
+        return;
+
+    _private->allowsRemoteInspection = allow;
+
+    [[WebView sharedWebInspectorServer] pushListing];
+}
+
+- (void)setIndicatingForRemoteInspector:(BOOL)enabled
+{
+#if PLATFORM(IOS)
+    ASSERT(WebThreadIsLocked());
+
+    if (enabled) {
+        if (!_private->indicateLayer) {
+            _private->indicateLayer = [[WebIndicateLayer alloc] initWithWebView:self];
+            [_private->indicateLayer setNeedsLayout];
+            [[[self window] hostLayer] addSublayer:_private->indicateLayer];
+        }
+    } else {
+        [_private->indicateLayer removeFromSuperlayer];
+        [_private->indicateLayer release];
+        _private->indicateLayer = nil;
+    }
+#else
+    // FIXME: Needs implementation.
+#endif
+}
+
+- (void)setRemoteInspectorUserInfo:(NSDictionary *)userInfo
+{
+    if ([_private->remoteInspectorUserInfo isEqualToDictionary:userInfo])
+        return;
+
+    [_private->remoteInspectorUserInfo release];
+    _private->remoteInspectorUserInfo = [userInfo copy];
+
+    [[WebView sharedWebInspectorServer] pushListing];
+}
+
+- (NSDictionary *)remoteInspectorUserInfo
+{
+    return _private->remoteInspectorUserInfo;
+}
+
+#if PLATFORM(IOS)
+- (void)setHostApplicationBundleId:(NSString *)bundleId name:(NSString *)name
+{
+    if (![_private->hostApplicationBundleId isEqualToString:bundleId]) {
+        [_private->hostApplicationBundleId release];
+        _private->hostApplicationBundleId = [bundleId copy];
+    }
+
+    if (![_private->hostApplicationName isEqualToString:name]) {
+        [_private->hostApplicationName release];
+        _private->hostApplicationName = [name copy];
+    }
+
+    [[WebView sharedWebInspectorServer] pushListing];
+}
+
+- (NSString *)hostApplicationBundleId
+{
+    return _private->hostApplicationBundleId;
+}
+
+- (NSString *)hostApplicationName
+{
+    return _private->hostApplicationName;
+}
+#endif // PLATFORM(IOS)
+#endif // ENABLE(REMOTE_INSPECTOR)
 
 - (WebCore::Page*)page
 {
@@ -1971,6 +2112,9 @@ static inline IMP getMethod(id o, SEL s)
     if (frame == [self mainFrame])
         [self _didChangeValueForKey: _WebMainFrameURLKey];
     [NSApp setWindowsNeedUpdate:YES];
+#if ENABLE(REMOTE_INSPECTOR)
+    [[WebView sharedWebInspectorServer] pushListing];
+#endif
 }
 
 - (void)_didFinishLoadForFrame:(WebFrame *)frame
@@ -6071,7 +6215,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
 
         // This code is here to avoid a PLT regression. We can remove it if we
         // can prove that the overall system gain would justify the regression.
-        cacheMaxDeadCapacity = max(24u, cacheMaxDeadCapacity);
+        cacheMaxDeadCapacity = std::max<unsigned>(24, cacheMaxDeadCapacity);
 
         deadDecodedDataDeletionInterval = 60;
 
@@ -6108,7 +6252,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
 
 
     // Don't shrink a big disk cache, since that would cause churn.
-    nsurlCacheDiskCapacity = max(nsurlCacheDiskCapacity, [nsurlCache diskCapacity]);
+    nsurlCacheDiskCapacity = std::max(nsurlCacheDiskCapacity, [nsurlCache diskCapacity]);
 
     memoryCache()->setCapacities(cacheMinDeadCapacity, cacheMaxDeadCapacity, cacheTotalCapacity);
     memoryCache()->setDeadDecodedDataDeletionInterval(deadDecodedDataDeletionInterval);
@@ -6135,7 +6279,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     WebCacheModel cacheModel = WebCacheModelDocumentViewer;
     NSEnumerator *enumerator = [(NSMutableSet *)allWebViewsSet objectEnumerator];
     while (WebPreferences *preferences = [[enumerator nextObject] preferences])
-        cacheModel = max(cacheModel, [preferences cacheModel]);
+        cacheModel = std::max(cacheModel, [preferences cacheModel]);
     return cacheModel;
 }
 
@@ -6148,7 +6292,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     if (![self _didSetCacheModel] || cacheModel > [self _cacheModel])
         [self _setCacheModel:cacheModel];
     else if (cacheModel < [self _cacheModel])
-        [self _setCacheModel:max([[WebPreferences standardPreferences] cacheModel], [self _maxCacheModelInAnyInstance])];
+        [self _setCacheModel:std::max([[WebPreferences standardPreferences] cacheModel], [self _maxCacheModelInAnyInstance])];
 }
 
 + (void)_preferencesRemovedNotification:(NSNotification *)notification
@@ -6157,7 +6301,7 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     ASSERT([preferences isKindOfClass:[WebPreferences class]]);
 
     if ([preferences cacheModel] == [self _cacheModel])
-        [self _setCacheModel:max([[WebPreferences standardPreferences] cacheModel], [self _maxCacheModelInAnyInstance])];
+        [self _setCacheModel:std::max([[WebPreferences standardPreferences] cacheModel], [self _maxCacheModelInAnyInstance])];
 }
 
 - (WebFrame *)_focusedFrame
@@ -6388,16 +6532,16 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
 
 - (void)_retrieveKeyboardUIModeFromPreferences:(NSNotification *)notification
 {
-    CFPreferencesAppSynchronize(UniversalAccessDomain);
+    CFPreferencesAppSynchronize(kCFPreferencesAnyApplication);
 
     Boolean keyExistsAndHasValidFormat;
-    int mode = CFPreferencesGetAppIntegerValue(AppleKeyboardUIMode, UniversalAccessDomain, &keyExistsAndHasValidFormat);
-    
-    // The keyboard access mode is reported by two bits:
-    // Bit 0 is set if feature is on
-    // Bit 1 is set if full keyboard access works for any control, not just text boxes and lists
+    int mode = CFPreferencesGetAppIntegerValue(AppleKeyboardUIMode, kCFPreferencesAnyApplication, &keyExistsAndHasValidFormat);
+
+    // The keyboard access mode has two bits:
+    // Bit 0 is set if user can set the focus to menus, the dock, and various windows using the keyboard.
+    // Bit 1 is set if controls other than text fields are included in the tab order (WebKit also always includes lists).
     _private->_keyboardUIMode = (mode & 0x2) ? KeyboardAccessFull : KeyboardAccessDefault;
-    
+
     // check for tabbing to links
     if ([_private->preferences tabsToLinks])
         _private->_keyboardUIMode = (KeyboardUIMode)(_private->_keyboardUIMode | KeyboardAccessTabsToLinks);
