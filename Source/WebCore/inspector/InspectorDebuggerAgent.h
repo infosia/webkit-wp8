@@ -73,7 +73,6 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     bool isPaused();
     bool runningNestedMessageLoop();
@@ -175,6 +174,8 @@ private:
     String m_continueToLocationBreakpointId;
     InspectorFrontend::Debugger::Reason::Enum m_breakReason;
     RefPtr<InspectorObject> m_breakAuxData;
+    RefPtr<InspectorObject> m_javaScriptBreakpoints;
+    bool m_enabled;
     bool m_javaScriptPauseScheduled;
     Listener* m_listener;
 };

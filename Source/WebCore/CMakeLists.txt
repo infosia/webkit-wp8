@@ -183,9 +183,6 @@ set(WebCore_IDL_FILES
     Modules/mediasource/MediaSource.idl
     Modules/mediasource/SourceBuffer.idl
     Modules/mediasource/SourceBufferList.idl
-    Modules/mediasource/WebKitMediaSource.idl
-    Modules/mediasource/WebKitSourceBuffer.idl
-    Modules/mediasource/WebKitSourceBufferList.idl
 
     Modules/mediastream/AllAudioCapabilities.idl
     Modules/mediastream/AllVideoCapabilities.idl
@@ -764,6 +761,7 @@ set(WebCore_SOURCES
     Modules/indexeddb/DOMWindowIndexedDatabase.cpp
     Modules/indexeddb/IDBAny.cpp
     Modules/indexeddb/IDBCursor.cpp
+    Modules/indexeddb/IDBCursorBackendImpl.cpp
     Modules/indexeddb/IDBCursorWithValue.cpp
     Modules/indexeddb/IDBDatabase.cpp
     Modules/indexeddb/IDBDatabaseBackendImpl.cpp
@@ -789,7 +787,6 @@ set(WebCore_SOURCES
     Modules/indexeddb/PageGroupIndexedDatabase.cpp
     Modules/indexeddb/WorkerGlobalScopeIndexedDatabase.cpp
     Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp
-    Modules/indexeddb/leveldb/IDBCursorBackendLevelDB.cpp
     Modules/indexeddb/leveldb/IDBFactoryBackendLevelDB.cpp
     Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp
 
@@ -2817,16 +2814,20 @@ endif ()
 
 if (WTF_USE_3D_GRAPHICS)
     list(APPEND WebCore_INCLUDE_DIRECTORIES
-        ${OPENGL_INCLUDE_DIR}
         "${THIRDPARTY_DIR}/ANGLE/src"
         "${THIRDPARTY_DIR}/ANGLE/include"
         "${THIRDPARTY_DIR}/ANGLE/include/KHR"
         "${THIRDPARTY_DIR}/ANGLE/include/GLSLANG"
         "${WEBCORE_DIR}/platform/graphics/gpu"
     )
-    list(APPEND WebCore_LIBRARIES
-        ${OPENGL_gl_LIBRARY}
-    )
+    if (OPENGL_FOUND)
+        list(APPEND WebCore_INCLUDE_DIRECTORIES
+            ${OPENGL_INCLUDE_DIR}
+        )
+        list(APPEND WebCore_LIBRARIES
+            ${OPENGL_gl_LIBRARY}
+        )
+    endif ()
 
     list(APPEND ANGLESupport_SOURCES
         ${DERIVED_SOURCES_WEBCORE_DIR}/glslang.cpp

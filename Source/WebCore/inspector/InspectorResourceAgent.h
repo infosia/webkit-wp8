@@ -87,7 +87,6 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     static PassRefPtr<InspectorResourceAgent> restore(Page*, InspectorCompositeState*, InspectorFrontend*);
 
@@ -161,7 +160,10 @@ private:
     InspectorFrontend::Network* m_frontend;
     String m_userAgentOverride;
     OwnPtr<NetworkResourcesData> m_resourcesData;
+    bool m_enabled;
+    bool m_cacheDisabled;
     bool m_loadingXHRSynchronously;
+    RefPtr<InspectorObject> m_extraRequestHeaders;
 
     typedef HashMap<ThreadableLoaderClient*, RefPtr<XHRReplayData>> PendingXHRReplayDataMap;
     PendingXHRReplayDataMap m_pendingXHRReplayData;

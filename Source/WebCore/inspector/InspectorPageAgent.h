@@ -165,7 +165,6 @@ public:
     // Inspector Controller API
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     void webViewResized(const IntSize&);
 
@@ -209,11 +208,18 @@ private:
     HashMap<Frame*, String> m_frameToIdentifier;
     HashMap<String, Frame*> m_identifierToFrame;
     HashMap<DocumentLoader*, String> m_loaderToIdentifier;
+    int m_screenWidthOverride;
+    int m_screenHeightOverride;
+    double m_fontScaleFactorOverride;
+    bool m_fitWindowOverride;
     bool m_enabled;
     bool m_isFirstLayoutAfterOnLoad;
     bool m_originalScriptExecutionDisabled;
     bool m_geolocationOverridden;
     bool m_ignoreScriptsEnabledNotification;
+    bool m_showPaintRects;
+    String m_emulatedMedia;
+    RefPtr<InspectorObject> m_scriptsToEvaluateOnLoad;
     RefPtr<GeolocationPosition> m_geolocationPosition;
     RefPtr<GeolocationPosition> m_platformGeolocationPosition;
     RefPtr<DeviceOrientationData> m_deviceOrientation;

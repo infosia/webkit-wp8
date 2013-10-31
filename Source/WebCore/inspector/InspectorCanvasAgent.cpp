@@ -62,10 +62,6 @@ using WebCore::TypeBuilder::Network::FrameId;
 
 namespace WebCore {
 
-namespace CanvasAgentState {
-static const char canvasAgentEnabled[] = "canvasAgentEnabled";
-};
-
 InspectorCanvasAgent::InspectorCanvasAgent(InstrumentingAgents* instrumentingAgents, InspectorCompositeState* state, InspectorPageAgent* pageAgent, InjectedScriptManager* injectedScriptManager)
     : InspectorBaseAgent<InspectorCanvasAgent>("Canvas", instrumentingAgents, state)
     , m_pageAgent(pageAgent)
@@ -91,20 +87,11 @@ void InspectorCanvasAgent::clearFrontend()
     disable(0);
 }
 
-void InspectorCanvasAgent::restore()
-{
-    if (m_state->getBoolean(CanvasAgentState::canvasAgentEnabled)) {
-        ErrorString error;
-        enable(&error);
-    }
-}
-
 void InspectorCanvasAgent::enable(ErrorString*)
 {
     if (m_enabled)
         return;
     m_enabled = true;
-    m_state->setBoolean(CanvasAgentState::canvasAgentEnabled, m_enabled);
     m_instrumentingAgents->setInspectorCanvasAgent(this);
     findFramesWithUninstrumentedCanvases();
 }
@@ -112,7 +99,6 @@ void InspectorCanvasAgent::enable(ErrorString*)
 void InspectorCanvasAgent::disable(ErrorString*)
 {
     m_enabled = false;
-    m_state->setBoolean(CanvasAgentState::canvasAgentEnabled, m_enabled);
     m_instrumentingAgents->setInspectorCanvasAgent(0);
     m_framesWithUninstrumentedCanvases.clear();
 }

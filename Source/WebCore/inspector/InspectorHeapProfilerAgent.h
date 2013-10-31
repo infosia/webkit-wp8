@@ -67,7 +67,6 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     virtual void takeHeapSnapshot(ErrorString*, const bool* reportProgress);
 
@@ -87,6 +86,7 @@ private:
     InspectorFrontend::HeapProfiler* m_frontend;
     unsigned m_nextUserInitiatedHeapSnapshotNumber;
     IdToHeapSnapshotMap m_snapshots;
+    bool m_profileHeadersRequested;
 };
 
 } // namespace WebCore

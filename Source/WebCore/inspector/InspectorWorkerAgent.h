@@ -53,11 +53,10 @@ public:
     ~InspectorWorkerAgent();
 
     virtual void setFrontend(InspectorFrontend*);
-    virtual void restore();
     virtual void clearFrontend();
 
     // Called from InspectorInstrumentation
-    bool shouldPauseDedicatedWorkerOnStart();
+    bool shouldPauseDedicatedWorkerOnStart() const;
     void didStartWorkerGlobalScope(WorkerGlobalScopeProxy*, const URL&);
     void workerGlobalScopeTerminated(WorkerGlobalScopeProxy*);
 
@@ -77,6 +76,8 @@ private:
     void destroyWorkerFrontendChannels();
 
     InspectorFrontend* m_inspectorFrontend;
+    bool m_enabled;
+    bool m_shouldPauseDedicatedWorkerOnStart;
 
     class WorkerFrontendChannel;
     typedef HashMap<int, WorkerFrontendChannel*> WorkerChannels;

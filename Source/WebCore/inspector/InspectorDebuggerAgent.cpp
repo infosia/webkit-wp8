@@ -53,12 +53,6 @@ using WebCore::TypeBuilder::Runtime::RemoteObject;
 
 namespace WebCore {
 
-namespace DebuggerAgentState {
-static const char debuggerEnabled[] = "debuggerEnabled";
-static const char javaScriptBreakpoints[] = "javaScriptBreakopints";
-static const char pauseOnExceptionsState[] = "pauseOnExceptionsState";
-};
-
 const char* InspectorDebuggerAgent::backtraceObjectGroup = "backtrace";
 
 InspectorDebuggerAgent::InspectorDebuggerAgent(InstrumentingAgents* instrumentingAgents, InspectorCompositeState* inspectorState, InjectedScriptManager* injectedScriptManager)
@@ -66,12 +60,13 @@ InspectorDebuggerAgent::InspectorDebuggerAgent(InstrumentingAgents* instrumentin
     , m_injectedScriptManager(injectedScriptManager)
     , m_frontend(0)
     , m_pausedScriptState(0)
+    , m_javaScriptBreakpoints(InspectorObject::create())
+    , m_enabled(false)
     , m_javaScriptPauseScheduled(false)
     , m_listener(0)
 {
     // FIXME: make breakReason optional so that there was no need to init it with "other".
     clearBreakDetails();
-    m_state->setLong(DebuggerAgentState::pauseOnExceptionsState, ScriptDebugServer::DontPauseOnExceptions);
 }
 
 InspectorDebuggerAgent::~InspectorDebuggerAgent()
@@ -89,12 +84,13 @@ void InspectorDebuggerAgent::enable()
 
     if (m_listener)
         m_listener->debuggerWasEnabled();
+
+    m_enabled = true;
 }
 
 void InspectorDebuggerAgent::disable()
 {
-    m_state->setObject(DebuggerAgentState::javaScriptBreakpoints, InspectorObject::create());
-    m_state->setLong(DebuggerAgentState::pauseOnExceptionsState, ScriptDebugServer::DontPauseOnExceptions);
+    m_javaScriptBreakpoints = InspectorObject::create();
     m_instrumentingAgents->setInspectorDebuggerAgent(0);
 
     stopListeningScriptDebugServer();
@@ -105,11 +101,13 @@ void InspectorDebuggerAgent::disable()
 
     if (m_listener)
         m_listener->debuggerWasDisabled();
+
+    m_enabled = false;
 }
 
 bool InspectorDebuggerAgent::enabled()
 {
-    return m_state->getBoolean(DebuggerAgentState::debuggerEnabled);
+    return m_enabled;
 }
 
 void InspectorDebuggerAgent::causesRecompilation(ErrorString*, bool* result)
@@ -133,7 +131,6 @@ void InspectorDebuggerAgent::enable(ErrorString*)
         return;
 
     enable();
-    m_state->setBoolean(DebuggerAgentState::debuggerEnabled, true);
 
     ASSERT(m_frontend);
 }
@@ -144,18 +141,6 @@ void InspectorDebuggerAgent::disable(ErrorString*)
         return;
 
     disable();
-    m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
-}
-
-void InspectorDebuggerAgent::restore()
-{
-    if (enabled()) {
-        m_frontend->globalObjectCleared();
-        enable();
-        long pauseState = m_state->getLong(DebuggerAgentState::pauseOnExceptionsState);
-        String error;
-        setPauseOnExceptionsImpl(&error, pauseState);
-    }
 }
 
 void InspectorDebuggerAgent::setFrontend(InspectorFrontend* frontend)
@@ -171,11 +156,6 @@ void InspectorDebuggerAgent::clearFrontend()
         return;
 
     disable();
-
-    // FIXME: due to m_state->mute() hack in InspectorController, debuggerEnabled is actually set to false only
-    // in InspectorState, but not in cookie. That's why after navigation debuggerEnabled will be true,
-    // but after front-end re-open it will still be false.
-    m_state->setBoolean(DebuggerAgentState::debuggerEnabled, false);
 }
 
 void InspectorDebuggerAgent::setBreakpointsActive(ErrorString*, bool active)
@@ -296,8 +276,7 @@ void InspectorDebuggerAgent::setBreakpointByUrl(ErrorString* errorString, int li
     bool isRegex = optionalURLRegex;
 
     String breakpointId = (isRegex ? "/" + url + "/" : url) + ':' + String::number(lineNumber) + ':' + String::number(columnNumber);
-    RefPtr<InspectorObject> breakpointsCookie = m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-    if (breakpointsCookie->find(breakpointId) != breakpointsCookie->end()) {
+    if (m_javaScriptBreakpoints->find(breakpointId) != m_javaScriptBreakpoints->end()) {
         *errorString = "Breakpoint at specified location already exists.";
         return;
     }
@@ -315,8 +294,7 @@ void InspectorDebuggerAgent::setBreakpointByUrl(ErrorString* errorString, int li
     if (!breakpointActionsFromProtocol(errorString, actions, &breakpointActions))
         return;
 
-    breakpointsCookie->setObject(breakpointId, buildObjectForBreakpointCookie(url, lineNumber, columnNumber, condition, actions, isRegex, autoContinue));
-    m_state->setObject(DebuggerAgentState::javaScriptBreakpoints, breakpointsCookie);
+    m_javaScriptBreakpoints->setObject(breakpointId, buildObjectForBreakpointCookie(url, lineNumber, columnNumber, condition, actions, isRegex, autoContinue));
 
     ScriptBreakpoint breakpoint(lineNumber, columnNumber, condition, breakpointActions, autoContinue);
     for (ScriptsMap::iterator it = m_scripts.begin(); it != m_scripts.end(); ++it) {
@@ -380,9 +358,7 @@ void InspectorDebuggerAgent::setBreakpoint(ErrorString* errorString, const RefPt
 
 void InspectorDebuggerAgent::removeBreakpoint(ErrorString*, const String& breakpointId)
 {
-    RefPtr<InspectorObject> breakpointsCookie = m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-    breakpointsCookie->remove(breakpointId);
-    m_state->setObject(DebuggerAgentState::javaScriptBreakpoints, breakpointsCookie);
+    m_javaScriptBreakpoints->remove(breakpointId);
 
     BreakpointIdToDebugServerBreakpointIdsMap::iterator debugServerBreakpointIdsIterator = m_breakpointIdToDebugServerBreakpointIds.find(breakpointId);
     if (debugServerBreakpointIdsIterator == m_breakpointIdToDebugServerBreakpointIds.end())
@@ -571,8 +547,6 @@ void InspectorDebuggerAgent::setPauseOnExceptionsImpl(ErrorString* errorString, 
     scriptDebugServer().setPauseOnExceptionsState(static_cast<ScriptDebugServer::PauseOnExceptionsState>(pauseState));
     if (scriptDebugServer().pauseOnExceptionsState() != pauseState)
         *errorString = "Internal error. Could not change pause on exceptions state";
-    else
-        m_state->setLong(DebuggerAgentState::pauseOnExceptionsState, pauseState);
 }
 
 void InspectorDebuggerAgent::evaluateOnCallFrame(ErrorString* errorString, const String& callFrameId, const String& expression, const String* const objectGroup, const bool* const includeCommandLineAPI, const bool* const doNotPauseOnExceptionsAndMuteConsole, const bool* const returnByValue, const bool* generatePreview, RefPtr<TypeBuilder::Runtime::RemoteObject>& result, TypeBuilder::OptOutput<bool>* wasThrown)
@@ -722,8 +696,7 @@ void InspectorDebuggerAgent::didParseSource(const String& scriptId, const Script
     if (scriptURL.isEmpty())
         return;
 
-    RefPtr<InspectorObject> breakpointsCookie = m_state->getObject(DebuggerAgentState::javaScriptBreakpoints);
-    for (InspectorObject::iterator it = breakpointsCookie->begin(); it != breakpointsCookie->end(); ++it) {
+    for (InspectorObject::iterator it = m_javaScriptBreakpoints->begin(); it != m_javaScriptBreakpoints->end(); ++it) {
         RefPtr<InspectorObject> breakpointObject = it->value->asObject();
         bool isRegex;
         breakpointObject->getBoolean("isRegex", &isRegex);

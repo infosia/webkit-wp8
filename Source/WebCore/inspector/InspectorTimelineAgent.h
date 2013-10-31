@@ -138,9 +138,8 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
-    virtual void start(ErrorString*, const int* maxCallStackDepth, const bool* includeDomCounters, const bool* includeNativeMemoryStatistics);
+    virtual void start(ErrorString*, const int* maxCallStackDepth, const bool* includeDomCounters);
     virtual void stop(ErrorString*);
     virtual void canMonitorMainThread(ErrorString*, bool*);
     virtual void supportsFrameInstrumentation(ErrorString*, bool*);
@@ -272,6 +271,9 @@ private:
     InspectorType m_inspectorType;
     InspectorClient* m_client;
     WeakPtrFactory<InspectorTimelineAgent> m_weakFactory;
+
+    bool m_enabled;
+    bool m_includeDOMCounters;
 };
 
 } // namespace WebCore

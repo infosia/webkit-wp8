@@ -68,7 +68,6 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     void addMessageToConsole(MessageSource, MessageType, MessageLevel, const String& message, JSC::ExecState*, PassRefPtr<ScriptArguments>, unsigned long requestIdentifier = 0);
     void addMessageToConsole(MessageSource, MessageType, MessageLevel, const String& message, const String& scriptId, unsigned lineNumber, unsigned columnNumber, JSC::ExecState* = 0, unsigned long requestIdentifier = 0);
@@ -110,6 +109,7 @@ protected:
     HashMap<String, unsigned> m_counts;
     HashMap<String, double> m_times;
     bool m_enabled;
+    bool m_monitoringXHREnabled;
 private:
     static int s_enabledAgentCount;
 };

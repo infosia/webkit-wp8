@@ -85,10 +85,6 @@ typedef WebCore::InspectorBackendDispatcher::IndexedDBCommandHandler::ClearObjec
 
 namespace WebCore {
 
-namespace IndexedDBAgentState {
-static const char indexedDBAgentEnabled[] = "indexedDBAgentEnabled";
-};
-
 namespace {
 
 class GetDatabaseNamesCallback : public EventListener {
@@ -577,22 +573,12 @@ void InspectorIndexedDBAgent::clearFrontend()
     disable(0);
 }
 
-void InspectorIndexedDBAgent::restore()
-{
-    if (m_state->getBoolean(IndexedDBAgentState::indexedDBAgentEnabled)) {
-        ErrorString error;
-        enable(&error);
-    }
-}
-
 void InspectorIndexedDBAgent::enable(ErrorString*)
 {
-    m_state->setBoolean(IndexedDBAgentState::indexedDBAgentEnabled, true);
 }
 
 void InspectorIndexedDBAgent::disable(ErrorString*)
 {
-    m_state->setBoolean(IndexedDBAgentState::indexedDBAgentEnabled, false);
 }
 
 static Document* assertDocument(ErrorString* errorString, Frame* frame)

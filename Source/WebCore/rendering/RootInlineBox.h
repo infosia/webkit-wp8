@@ -38,13 +38,12 @@ struct GapRects;
 class RootInlineBox : public InlineFlowBox {
 public:
     explicit RootInlineBox(RenderBlockFlow&);
-
-    virtual void destroy(RenderArena&) OVERRIDE FINAL;
+    virtual ~RootInlineBox();
 
     virtual bool isRootInlineBox() const OVERRIDE FINAL { return true; }
     RenderBlockFlow& blockFlow() const;
 
-    void detachEllipsisBox(RenderArena&);
+    void detachEllipsisBox();
 
     RootInlineBox* nextRootBox() const { return static_cast<RootInlineBox*>(m_nextLineBox); }
     RootInlineBox* prevRootBox() const { return static_cast<RootInlineBox*>(m_prevLineBox); }

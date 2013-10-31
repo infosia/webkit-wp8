@@ -115,7 +115,6 @@ public:
 
     virtual void setFrontend(InspectorFrontend*);
     virtual void clearFrontend();
-    virtual void restore();
 
     Vector<Document*> documents();
     void reset();
@@ -270,6 +269,7 @@ private:
     OwnPtr<InspectorHistory> m_history;
     OwnPtr<DOMEditor> m_domEditor;
     bool m_suppressAttributeModifiedEvent;
+    bool m_documentRequested;
 };
 
 #endif // ENABLE(INSPECTOR)
