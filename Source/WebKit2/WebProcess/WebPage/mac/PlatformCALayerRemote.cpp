@@ -29,6 +29,7 @@
 
 #import "PlatformCALayerRemote.h"
 
+#import "PlatformCALayerRemoteCustom.h"
 #import "PlatformCALayerRemoteTiledBacking.h"
 #import "RemoteLayerBackingStore.h"
 #import "RemoteLayerTreeContext.h"
@@ -59,19 +60,36 @@ static PlatformCALayerRemote* toPlatformCALayerRemote(PlatformCALayer* layer)
 
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::create(LayerType layerType, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
 {
-    if (layerType == LayerTypeTiledBackingLayer ||  layerType == LayerTypePageTiledBackingLayer)
-        return adoptRef(new PlatformCALayerRemoteTiledBacking(layerType, owner, context));
+    RefPtr<PlatformCALayerRemote> layer;
 
-    return adoptRef(new PlatformCALayerRemote(layerType, owner, context));
+    if (layerType == LayerTypeTiledBackingLayer ||  layerType == LayerTypePageTiledBackingLayer)
+        layer = adoptRef(new PlatformCALayerRemoteTiledBacking(layerType, owner, context));
+    else
+        layer = adoptRef(new PlatformCALayerRemote(layerType, owner, context));
+
+    context->layerWasCreated(layer.get(), layerType);
+
+    return layer.release();
+}
+
+PassRefPtr<PlatformCALayer> PlatformCALayerRemote::create(PlatformLayer *platformLayer, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
+{
+    RefPtr<PlatformCALayerRemote> layer = adoptRef(new PlatformCALayerRemoteCustom(static_cast<PlatformLayer*>(platformLayer), owner, context));
+
+    context->layerWasCreated(layer.get(), LayerTypeCustom);
+
+    return layer.release();
 }
 
 PlatformCALayerRemote::PlatformCALayerRemote(LayerType layerType, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
     : PlatformCALayer(layerType, owner)
     , m_layerID(generateLayerID())
     , m_superlayer(nullptr)
+    , m_acceleratesDrawing(false)
     , m_context(context)
 {
-    m_context->layerWasCreated(this, layerType);
+    // FIXME: match all default values from CA.
+    setContentsScale(1);
 }
 
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::clone(PlatformCALayerClient* owner) const
@@ -115,12 +133,7 @@ void PlatformCALayerRemote::animationStarted(CFTimeInterval beginTime)
 
 void PlatformCALayerRemote::ensureBackingStore()
 {
-    if (m_properties.backingStore.layer() == this
-        && m_properties.backingStore.size() == m_properties.size
-        && m_properties.backingStore.scale() == m_properties.contentsScale)
-        return;
-
-    m_properties.backingStore = RemoteLayerBackingStore(this, expandedIntSize(m_properties.size), m_properties.contentsScale);
+    m_properties.backingStore.ensureBackingStore(this, expandedIntSize(m_properties.size), m_properties.contentsScale, m_acceleratesDrawing);
 }
 
 void PlatformCALayerRemote::setNeedsDisplay(const FloatRect* rect)
@@ -352,11 +365,13 @@ void PlatformCALayerRemote::setMasksToBounds(bool value)
 
 bool PlatformCALayerRemote::acceleratesDrawing() const
 {
-    return false;
+    return m_acceleratesDrawing;
 }
 
 void PlatformCALayerRemote::setAcceleratesDrawing(bool acceleratesDrawing)
 {
+    m_acceleratesDrawing = acceleratesDrawing;
+    ensureBackingStore();
 }
 
 CFTypeRef PlatformCALayerRemote::contents() const
@@ -475,14 +490,15 @@ void PlatformCALayerRemote::setEdgeAntialiasingMask(unsigned value)
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::EdgeAntialiasingMaskChanged);
 }
 
-AVPlayerLayer* PlatformCALayerRemote::playerLayer() const
-{
-    return nullptr;
-}
-
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::createCompatibleLayer(PlatformCALayer::LayerType layerType, PlatformCALayerClient* client) const
 {
     return PlatformCALayerRemote::create(layerType, client, m_context);
+}
+
+uint32_t PlatformCALayerRemote::hostingContextID()
+{
+    ASSERT_NOT_REACHED();
+    return 0;
 }
 
 #endif // USE(ACCELERATED_COMPOSITING)

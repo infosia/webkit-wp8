@@ -51,11 +51,13 @@ public:
     virtual void streamDidEnd() = 0;
     virtual void addRemoteSource(MediaStreamSource*) = 0;
     virtual void removeRemoteSource(MediaStreamSource*) = 0;
+    virtual void addRemoteTrack(MediaStreamTrackPrivate*) = 0;
+    virtual void removeRemoteTrack(MediaStreamTrackPrivate*) = 0;
 };
 
 class MediaStreamDescriptor : public RefCounted<MediaStreamDescriptor> {
 public:
-    static PassRefPtr<MediaStreamDescriptor> create(const MediaStreamSourceVector& audioSources, const MediaStreamSourceVector& videoSources);
+    static PassRefPtr<MediaStreamDescriptor> create(const Vector<RefPtr<MediaStreamSource>>& audioSources, const Vector<RefPtr<MediaStreamSource>>& videoSources);
     static PassRefPtr<MediaStreamDescriptor> create(const Vector<RefPtr<MediaStreamTrackPrivate>>& audioPrivateTracks, const Vector<RefPtr<MediaStreamTrackPrivate>>& videoPrivateTracks);
 
     virtual ~MediaStreamDescriptor() { }
@@ -89,14 +91,17 @@ public:
     void addTrack(PassRefPtr<MediaStreamTrackPrivate>);
     void removeTrack(PassRefPtr<MediaStreamTrackPrivate>);
 
+    void addRemoteTrack(MediaStreamTrackPrivate*);
+    void removeRemoteTrack(MediaStreamTrackPrivate*);
+
 private:
-    MediaStreamDescriptor(const String& id, const MediaStreamSourceVector& audioSources, const MediaStreamSourceVector& videoSources);
+    MediaStreamDescriptor(const String& id, const Vector<RefPtr<MediaStreamSource>>& audioSources, const Vector<RefPtr<MediaStreamSource>>& videoSources);
     MediaStreamDescriptor(const String& id, const Vector<RefPtr<MediaStreamTrackPrivate>>& audioPrivateTracks, const Vector<RefPtr<MediaStreamTrackPrivate>>& videoPrivateTracks);
 
     MediaStreamDescriptorClient* m_client;
     String m_id;
-    MediaStreamSourceVector m_audioStreamSources;
-    MediaStreamSourceVector m_videoStreamSources;
+    Vector<RefPtr<MediaStreamSource>> m_audioStreamSources;
+    Vector<RefPtr<MediaStreamSource>> m_videoStreamSources;
 
     Vector<RefPtr<MediaStreamTrackPrivate>> m_audioPrivateTracks;
     Vector<RefPtr<MediaStreamTrackPrivate>> m_videoPrivateTracks;

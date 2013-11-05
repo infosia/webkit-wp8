@@ -78,7 +78,11 @@ protected:
 
 private:
     virtual bool isValidKind(const AtomicString&) const OVERRIDE;
-    virtual void willRemoveVideoTrackPrivate(VideoTrackPrivate*) OVERRIDE;
+
+    virtual void selectedChanged(VideoTrackPrivate*, bool) OVERRIDE;
+    virtual void labelChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void languageChanged(TrackPrivateBase*, const String&) OVERRIDE;
+    virtual void willRemove(TrackPrivateBase*) OVERRIDE;
 
     AtomicString m_id;
     bool m_selected;

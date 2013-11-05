@@ -37,9 +37,7 @@
 
 #include "AudioTrackList.h"
 #include "Event.h"
-#include "ExceptionCode.h"
 #include "HTMLMediaElement.h"
-#include "TrackBase.h"
 
 namespace WebCore {
 
@@ -145,7 +143,6 @@ void AudioTrack::setEnabled(const bool enabled)
         return;
 
     m_enabled = enabled;
-
     m_private->setEnabled(enabled);
 
     if (m_client)
@@ -155,13 +152,30 @@ void AudioTrack::setEnabled(const bool enabled)
 size_t AudioTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
-    return m_private->audioTrackIndex();
+    return m_private->trackIndex();
 }
 
-void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)
+void AudioTrack::enabledChanged(AudioTrackPrivate* trackPrivate, bool enabled)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setEnabled(enabled);
+}
+
+void AudioTrack::labelChanged(TrackPrivateBase* trackPrivate, const String& label)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLabel(label);
+}
+
+void AudioTrack::languageChanged(TrackPrivateBase* trackPrivate, const String& language)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLanguage(language);
+}
+
+void AudioTrack::willRemove(TrackPrivateBase* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     mediaElement()->removeAudioTrack(this);
 }
 

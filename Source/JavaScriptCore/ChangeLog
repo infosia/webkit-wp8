@@ -1,3 +1,680 @@
+2013-11-05  Julien Brianceau  <jbriance@cisco.com>
+
+        REGRESSION(r158315): Fix register mixup in JIT::compileOpCall.
+        https://bugs.webkit.org/show_bug.cgi?id=123799
+
+        Reviewed by Mark Lam.
+
+        Changeset r158315 is crashing architectures where JSInterfaceJIT::regT3 is
+        different from GPRInfo::regT3. This is the case for MIPS architecture.
+
+        * jit/JITCall32_64.cpp:
+        (JSC::JIT::compileOpCall):
+
+2013-11-05  Julien Brianceau  <jbriance@cisco.com>
+
+        [mips] Fix build for MIPS platforms.
+        https://bugs.webkit.org/show_bug.cgi?id=123796
+
+        Reviewed by Michael Saboff.
+
+        * assembler/LinkBuffer.cpp:
+        (JSC::LinkBuffer::linkCode): Add specific MIPS call to relocateJumps.
+        * assembler/MIPSAssembler.h: Remove executableCopy (because of r157690) and set relocateJumps function public.
+        (JSC::MIPSAssembler::firstRegister):
+        (JSC::MIPSAssembler::lastRegister):
+        (JSC::MIPSAssembler::firstFPRegister):
+        (JSC::MIPSAssembler::lastFPRegister):
+        (JSC::MIPSAssembler::buffer): Needed since r157690.
+        * assembler/MacroAssemblerMIPS.h: Add framePointerRegister.
+        (JSC::MacroAssemblerMIPS::revertJumpReplacementToPatchableBranchPtrWithPatch): Remove unused parameter warning.
+
+2013-11-04  Filip Pizlo  <fpizlo@apple.com>
+
+        internal-js-tests.yaml/Octane/stress-tests/pdfjs.js.default: ASSERTION FAILED: m_state.forNode(child).m_futurePossibleStructure.isSubsetOf(StructureSet(structure)) at DFGConstantFoldingPhase.cpp:249
+        https://bugs.webkit.org/show_bug.cgi?id=123778
+
+        Unreviewed, remove the other such assertion.
+
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+
+2013-11-04  Michael Saboff  <msaboff@apple.com>
+
+        REGRESSION(r158586): plugins/refcount-leaks.html fails
+        https://bugs.webkit.org/show_bug.cgi?id=123765
+
+        We were leaving a hole of one slot above a new frame when pushing the new frame on
+        the stack with pushFrame().  This unused slot can contain residual values that will
+        be marked during GC.
+
+        Reviewed by Filip Pizlo.
+
+        * interpreter/JSStackInlines.h:
+        (JSC::JSStack::pushFrame):
+
+2013-11-04  Filip Pizlo  <fpizlo@apple.com>
+
+        internal-js-tests.yaml/Octane/stress-tests/pdfjs.js.default: ASSERTION FAILED: m_state.forNode(child).m_futurePossibleStructure.isSubsetOf(StructureSet(structure)) at DFGConstantFoldingPhase.cpp:249
+        https://bugs.webkit.org/show_bug.cgi?id=123778
+
+        Reviewed by Geoffrey Garen.
+        
+        This assertion was just wrong: ee do an execute() above the assertion. The assertion
+        is asserting that if we need a watchpoint (i.e. the best proven structure was not the
+        current structure) then it must be the future possible structure.  But while that may
+        have been true before execute(), it won't be true after if the PutById was a
+        transition. Of course, this can only happen in the concurrent JIT in which case the
+        code would be invalidated anyway since we would only transform the code in a way that
+        leveraged the lack of a transition if we inserted a watchpoint, in which case we
+        would realize that the watchpoint had been fired during compilation.
+        
+        Since this requires concurrent JIT awesomeness, I don't know how to test it.
+
+        * dfg/DFGConstantFoldingPhase.cpp:
+        (JSC::DFG::ConstantFoldingPhase::foldConstants):
+
+2013-11-04  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG CheckArray(String) should just be a Phantom(String:)
+        https://bugs.webkit.org/show_bug.cgi?id=123779
+
+        Reviewed by Geoffrey Garen.
+        
+        This should be a speed-up since Phantom(String:) is smart enough to use the string
+        structure. It should also be a simplification since CheckArray(String) was totally
+        redundant.
+        
+        Also FixupPhase was assuming that it may see CheckArray's. That's wrong. It can
+        create CheckArray's but it won't see them as input since no previous phase can
+        create them.
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        (JSC::DFG::FixupPhase::checkArray):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::checkArray):
+
+2013-11-04  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG NewArray/NewArrayBuffer shouldn't be constructing with negative indexing
+        https://bugs.webkit.org/show_bug.cgi?id=123760
+        <rdar://problem/15356705>
+
+        Reviewed by Mark Hahnenberg and Oliver Hunt.
+
+        * dfg/DFGOperations.cpp:
+
+2013-11-04  Michael Saboff  <msaboff@apple.com>
+
+        Eliminate HostCall bit from JSC Stack CallerFrame
+        https://bugs.webkit.org/show_bug.cgi?id=123642
+
+        Reviewed by Geoffrey Garen.
+
+        Replace the HostCallFrame bit or'ed to the CallerFrame value in a CallFrame with
+        a VM entry sentinel CallFrame.  Logically, the VM entry sentinel call frame is
+        pushed on the stack before the callee frame when calling from native to JavaScript
+        code.  The callee frame's CallerFrame points at the VM entry sentinel call frame
+        and the VM entry sentinel call frame's CallerFrame points to the real caller.
+        The VM entry sentinel call frame has a sentinel (1) in the CodeBlock to indicate
+        its a VM entry sentinel call frame.  It's ScopeChain has vm.topCallFrame at the
+        time of the call.  This allows for a complete stack walk as well as walking just
+        the contiguous JS frames.
+
+        The VM entry sentinel call frame and callee frame are currently allocated and
+        initialized in ExecState::init(), but this initialization will be moved to
+        ctiTrampoline when we actually move onto the native stack.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::noticeIncomingCall):
+        * debugger/DebuggerCallFrame.cpp:
+        (JSC::DebuggerCallFrame::callerFrame):
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::compileExceptionHandlers):
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::frameExtent):
+        (JSC::ExecState::currentVPC):
+        (JSC::ExecState::setCurrentVPC):
+        (JSC::ExecState::init):
+        (JSC::ExecState::noCaller):
+        (JSC::ExecState::isVMEntrySentinel):
+        (JSC::ExecState::vmEntrySentinelCallerFrame):
+        (JSC::ExecState::initializeVMEntrySentinelFrame):
+        (JSC::ExecState::callerFrameSkippingVMEntrySentinel):
+        (JSC::ExecState::vmEntrySentinelCodeBlock):
+        * interpreter/Interpreter.cpp:
+        (JSC::unwindCallFrame):
+        (JSC::Interpreter::getStackTrace):
+        * interpreter/Interpreter.h:
+        (JSC::TopCallFrameSetter::TopCallFrameSetter):
+        (JSC::TopCallFrameSetter::~TopCallFrameSetter):
+        (JSC::NativeCallFrameTracer::NativeCallFrameTracer):
+        * interpreter/JSStack.cpp:
+        (JSC::JSStack::~JSStack):
+        * interpreter/JSStackInlines.h:
+        (JSC::JSStack::getStartOfFrame):
+        (JSC::JSStack::pushFrame):
+        (JSC::JSStack::popFrame):
+        * interpreter/Register.h:
+        (JSC::Register::operator=):
+        (JSC::Register::callFrame):
+        * interpreter/StackVisitor.cpp:
+        (JSC::StackVisitor::readFrame):
+        (JSC::StackVisitor::readNonInlinedFrame):
+        (JSC::StackVisitor::readInlinedFrame):
+        (JSC::StackVisitor::Frame::print):
+        * interpreter/VMInspector.cpp:
+        (JSC::VMInspector::countFrames):
+        * jit/JIT.cpp:
+        (JSC::JIT::privateCompileExceptionHandlers):
+        * jit/JITOperations.cpp:
+        * jit/JITStubsARM.h:
+        (JSC::ctiTrampoline):
+        * jit/JITStubsARM64.h:
+        * jit/JITStubsARMv7.h:
+        (JSC::ctiTrampoline):
+        * jit/JITStubsMIPS.h:
+        * jit/JITStubsMSVC64.asm:
+        * jit/JITStubsSH4.h:
+        * jit/JITStubsX86.h:
+        * jit/JITStubsX86_64.h:
+        * jsc.cpp:
+        (functionDumpCallFrame):
+        * llint/LowLevelInterpreter.cpp:
+        (JSC::CLoop::execute):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::throwException):
+
+2013-11-04  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        JSArrayBufferViews of length 0 allocate 0 CopiedSpace bytes, which is invalid
+        https://bugs.webkit.org/show_bug.cgi?id=123746
+
+        Reviewed by Geoffrey Garen.
+
+        This patch disallows clients from allocating 0 bytes in CopiedSpace. We enforce this invariant 
+        with an ASSERT in C++ code and a breakpoint in JIT code. Clients who care about 0-byte 
+        allocations (like JSArrayBufferViews) must handle that case themselves, but we don't punish 
+        anybody else for the rare case that somebody decides to allocate a 0-length typed array. 
+        It also makes the allocation and copying cases consistent for CopiedSpace: no 0-byte allocations, 
+        no 0-byte copying.
+ 
+        Also added a check so that JSArrayBufferViews don't try to copy their m_vector backing store when 
+        their length is 0. Also sprinkled several ASSERTs throughout the JSArrayBufferView code to make sure that 
+        when length is 0 m_vector is null.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileNewTypedArray):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::emitAllocateBasicStorage):
+        * heap/CopiedSpaceInlines.h:
+        (JSC::CopiedSpace::tryAllocate):
+        * runtime/ArrayBuffer.h:
+        (JSC::ArrayBuffer::create):
+        * runtime/JSArrayBufferView.cpp:
+        (JSC::JSArrayBufferView::ConstructionContext::ConstructionContext):
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::::visitChildren):
+        (JSC::::copyBackingStore):
+        (JSC::::slowDownAndWasteMemory):
+
+2013-11-04  Julien Brianceau  <jbriance@cisco.com>
+
+        [sh4] Refactor jumps in baseline JIT to return label after the jump.
+        https://bugs.webkit.org/show_bug.cgi?id=123734
+
+        Reviewed by Michael Saboff.
+
+        Current implementation of jumps in sh4 baseline JIT returns a label on the jump itself
+        and not after it. This is not correct and leads to issues like infinite loop the DFG
+        (https://bugs.webkit.org/show_bug.cgi?id=122597 for instance). This refactor fixes this
+        and also simplifies the link and relink procedures for sh4 jumps.
+
+        * assembler/MacroAssemblerSH4.h:
+        (JSC::MacroAssemblerSH4::branchDouble):
+        (JSC::MacroAssemblerSH4::branchTrue):
+        (JSC::MacroAssemblerSH4::branchFalse):
+        * assembler/SH4Assembler.h:
+        (JSC::SH4Assembler::jmp):
+        (JSC::SH4Assembler::extraInstrForBranch):
+        (JSC::SH4Assembler::jne):
+        (JSC::SH4Assembler::je):
+        (JSC::SH4Assembler::bra):
+        (JSC::SH4Assembler::linkJump):
+        (JSC::SH4Assembler::relinkJump):
+
+2013-11-03  Filip Pizlo  <fpizlo@apple.com>
+
+        Generated color wheel displays incorrectly (regressed in r155567)
+        https://bugs.webkit.org/show_bug.cgi?id=123664
+
+        Reviewed by Andreas Kling.
+
+        Interestingly, r155567 just "un-broke" the attempt to constant-fold ArithMod, but
+        that constant folding was just wrong to begin with. There is no evidence that this
+        constant folding rule is profitable. I'm removing it instead of trying to think
+        about what it means for it to be correct.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+
+2013-11-03  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, it is no longer necessary to call DisablePrettyStackTrace.
+
+        * llvm/library/LLVMExports.cpp:
+        (initializeAndGetJSCLLVMAPI):
+
+2013-11-02  Mark Lam  <mark.lam@apple.com>
+
+        Assertion failure in non-JIT'ed LLInt on ARM Thumb.
+        https://bugs.webkit.org/show_bug.cgi?id=97569.
+
+        Reviewed by Geoffrey Garen.
+
+        * assembler/MacroAssemblerCodeRef.h:
+        - Thumb2 alignment assertions do not apply to the C Loop LLINT because
+          the arguments passed to those assertions are actually OpcodeIDs
+          masquerading as addresses.
+        * llint/LLIntOfflineAsmConfig.h:
+        - Some of the #defines belong in the !ENABLE(LLINT_C_LOOP) section.
+          Moving them there.
+        * llint/LowLevelInterpreter.cpp:
+        - Keep the compiler happy from some unreferenced C Loop labels.
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should use LLVM intrinsics for OSR exit, watchpoints, inline caches, and stack layout
+        https://bugs.webkit.org/show_bug.cgi?id=122318
+
+        Reviewed by Geoffrey Garen.
+        
+        This all now works. This patch just updates our implementation to work with LLVM trunk,
+        and removes all of the old code that tried to do OSR exits and heap accesses without
+        the benefit of those intrinsics.
+        
+        In particular:
+        
+        - StackMaps parsing now uses the new, less compact, but more future-proof, format.
+        
+        - Remove the ftlUsesStackmaps() option and hard-code ftlUsesStackmaps = true. Remove
+          all code for ftlUsesStackmaps = false, since that was only there for back when we
+          didn't have the intrinsics.
+        
+        - Remove the other experimental OSR options (useLLVMOSRExitIntrinsic,
+          ftlTrapsOnOSRExit, and FTLOSRExitOmitsMarshalling).
+        
+        - Remove LowerDFGToLLVM's use of the ExitThunkGenerator since we don't need to generate
+          the exit thunks until after we parse the stackmaps.
+        
+        - Remove all of the exit thunk and compiler code for the no-stackmaps case.
+
+        * dfg/DFGDriver.cpp:
+        (JSC::DFG::compileImpl):
+        * ftl/FTLCompile.cpp:
+        (JSC::FTL::mmAllocateDataSection):
+        * ftl/FTLExitThunkGenerator.cpp:
+        (JSC::FTL::ExitThunkGenerator::emitThunk):
+        * ftl/FTLIntrinsicRepository.h:
+        * ftl/FTLLocation.cpp:
+        (JSC::FTL::Location::forStackmaps):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::LowerDFGToLLVM):
+        (JSC::FTL::LowerDFGToLLVM::lower):
+        (JSC::FTL::LowerDFGToLLVM::compileGetById):
+        (JSC::FTL::LowerDFGToLLVM::compileInvalidationPoint):
+        (JSC::FTL::LowerDFGToLLVM::appendOSRExit):
+        (JSC::FTL::LowerDFGToLLVM::emitOSRExitCall):
+        (JSC::FTL::LowerDFGToLLVM::callStackmap):
+        (JSC::FTL::LowerDFGToLLVM::addExitArgumentForNode):
+        * ftl/FTLOSRExitCompilationInfo.h:
+        (JSC::FTL::OSRExitCompilationInfo::OSRExitCompilationInfo):
+        * ftl/FTLOSRExitCompiler.cpp:
+        (JSC::FTL::compileStub):
+        (JSC::FTL::compileFTLOSRExit):
+        * ftl/FTLStackMaps.cpp:
+        (JSC::FTL::StackMaps::Location::parse):
+        (JSC::FTL::StackMaps::parse):
+        (WTF::printInternal):
+        * ftl/FTLStackMaps.h:
+        * ftl/FTLThunks.cpp:
+        (JSC::FTL::osrExitGenerationThunkGenerator):
+        * ftl/FTLThunks.h:
+        (JSC::FTL::Thunks::getOSRExitGenerationThunk):
+        * runtime/Options.h:
+
+2013-11-02  Patrick Gansterer  <paroga@webkit.org>
+
+        Add missing getHostCallReturnValue() for MSVC ARM
+        https://bugs.webkit.org/show_bug.cgi?id=123685
+
+        Reviewed by Darin Adler.
+
+        * jit/JITStubsARM.h:
+
+2013-11-02  Patrick Gansterer  <paroga@webkit.org>
+
+        Fix MSVC warning about unary minus operator
+        https://bugs.webkit.org/show_bug.cgi?id=123674
+
+        Reviewed by Darin Adler.
+
+        Change some static_cast<> to silence the following warning of Microsoft compiler:
+        warning C4146: unary minus operator applied to unsigned type, result still unsigned
+
+        * jit/Repatch.cpp:
+        (JSC::emitPutTransitionStub):
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        Disable LLVM's pretty stack traces, which involve intercepting fatal signals
+        https://bugs.webkit.org/show_bug.cgi?id=123681
+
+        Reviewed by Geoffrey Garen.
+
+        * llvm/library/LLVMExports.cpp:
+        (initializeAndGetJSCLLVMAPI):
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        LLVM assertion failures should funnel into WTF's crash handling
+        https://bugs.webkit.org/show_bug.cgi?id=123682
+
+        Reviewed by Geoffrey Garen.
+        
+        Inside llvmForJSC, we override assertion-related functions and funnel them
+        into g_llvmTrapCallback(). We also now register a fatal error handler inside
+        the library and funnel that into g_llvmTrapCallback, and have
+        initializeAndGetJSCLLVMAPI() take such a callback as an argument.
+        
+        Inside JSC, we no longer call LLVMInstallFatalErrorHandler() but instead we
+        pass WTFLogAlwaysAndCrash() as the trap callback for llvmForJSC.
+
+        * llvm/InitializeLLVM.cpp:
+        (JSC::initializeLLVM):
+        * llvm/InitializeLLVMPOSIX.cpp:
+        (JSC::initializeLLVMPOSIX):
+        * llvm/library/LLVMExports.cpp:
+        (llvmCrash):
+        (initializeAndGetJSCLLVMAPI):
+        * llvm/library/LLVMOverrides.cpp:
+        (raise):
+        (__assert_rtn):
+        (abort):
+        * llvm/library/LLVMTrapCallback.h: Added.
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        CodeBlock::jettison() shouldn't call baselineVersion()
+        https://bugs.webkit.org/show_bug.cgi?id=123675
+
+        Reviewed by Geoffrey Garen.
+        
+        Fix more uses of baselineVersion().
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::jettison):
+        * bytecode/CodeBlock.h:
+        * bytecode/ProfiledCodeBlockJettisoningWatchpoint.cpp:
+        (JSC::ProfiledCodeBlockJettisoningWatchpoint::fireInternal):
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        LLVM asserts in internal-js-tests.yaml/Octane/stress-tests/mandreel.js
+        https://bugs.webkit.org/show_bug.cgi?id=123535
+
+        Reviewed by Geoffrey Garen.
+        
+        Use double comparisons for doubles.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::doubleToInt32):
+
+2013-11-02  Patrick Gansterer  <paroga@webkit.org>
+
+        Various small WinCE build fixes
+
+        * jsc.cpp:
+        (main):
+
+2013-11-02  Patrick Gansterer  <paroga@webkit.org>
+
+        Fix MSVC ARM build after r157581.
+
+        * jit/JITStubsARM.h:
+
+2013-11-01  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should use a simple optimization pipeline by default
+        https://bugs.webkit.org/show_bug.cgi?id=123638
+
+        Reviewed by Geoffrey Garen.
+        
+        20% speed-up on imagine-gaussian-blur, when combined with --ftlUsesStackmaps=true.
+
+        * ftl/FTLCompile.cpp:
+        (JSC::FTL::compile):
+        * runtime/Options.h:
+
+2013-11-01  Andreas Kling  <akling@apple.com>
+
+        Neuter WTF_MAKE_FAST_ALLOCATED in GLOBAL_FASTMALLOC_NEW builds.
+        <https://webkit.org/b/123639>
+
+        JSC::ParserArenaRefCounted really needed to have the new/delete
+        operators overridden, in order for JSC::ScopeNode to be able to
+        choose that "operator new" out of the two it inherits.
+
+        Reviewed by Anders Carlsson.
+
+2013-11-01  Filip Pizlo  <fpizlo@apple.com>
+
+        OSR exit profiling should be robust against all code being cleared
+        https://bugs.webkit.org/show_bug.cgi?id=123629
+        <rdar://problem/15365476>
+
+        Reviewed by Michael Saboff.
+        
+        The problem here is two-fold:
+
+        1) A watchpoint (i.e. ProfiledCodeBlockJettisoningWatchpoint) may be fired after we
+        have cleared the CodeBlock for all or some Executables.  This means that doing
+        codeBlock->baselineVersion() would either crash or return a bogus CodeBlock, since
+        there wasn't a baseline code block reachable from the Executable anymore.  The
+        solution is that we shouldn't be asking for the baseline code block reachable from
+        the owning executable (what baselineVersion did), but instead we should be asking
+        for the baseline version reachable from the code block being watchpointed (basically
+        what CodeBlock::alternative() did).
+
+        2) If dealing with inlined code, baselienCodeBlockForOriginAndBaselineCodeBlock()
+        may return null, for the same reason as above - we might have cleared the baseline
+        codeblock for the executable that was inlined.  The solution is to just not do
+        profiling if there isn't a baseline code block anymore.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::baselineAlternative):
+        (JSC::CodeBlock::baselineVersion):
+        (JSC::CodeBlock::jettison):
+        * bytecode/CodeBlock.h:
+        * bytecode/CodeBlockJettisoningWatchpoint.cpp:
+        (JSC::CodeBlockJettisoningWatchpoint::fireInternal):
+        * bytecode/ProfiledCodeBlockJettisoningWatchpoint.cpp:
+        (JSC::ProfiledCodeBlockJettisoningWatchpoint::fireInternal):
+        * dfg/DFGOSRExitBase.cpp:
+        (JSC::DFG::OSRExitBase::considerAddingAsFrequentExitSiteSlow):
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::AssemblyHelpers):
+        * runtime/Executable.cpp:
+        (JSC::FunctionExecutable::baselineCodeBlockFor):
+
+2013-10-31  Oliver Hunt  <oliver@apple.com>
+
+        JavaScript parser bug
+        https://bugs.webkit.org/show_bug.cgi?id=123506
+
+        Reviewed by Mark Lam.
+
+        Add ParserState as an abstraction and use that to save and restore
+        the parser state around nested functions (We'll need to use this in
+        more places in future).  Also fix a minor error typo this testcases
+        hit.
+
+        * parser/Parser.cpp:
+        (JSC::::parseFunctionInfo):
+        (JSC::::parseAssignmentExpression):
+        * parser/Parser.h:
+        (JSC::Parser::saveState):
+        (JSC::Parser::restoreState):
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL Int32ToDouble should handle the forward type check case where you need a recovery
+        https://bugs.webkit.org/show_bug.cgi?id=123605
+
+        Reviewed by Mark Hahnenberg.
+        
+        If you have a Int32ToDouble that needs to do a type check and it's required to do a
+        forward exit, then it needs to manually pass in a value recovery for itself in the
+        OSR exit - since this is one of those forward-exiting nodes that doesn't have a
+        preceding MovHint.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileInt32ToDouble):
+        (JSC::FTL::LowerDFGToLLVM::forwardTypeCheck):
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should implement InvalidationPoint in terms of llvm.stackmap
+        https://bugs.webkit.org/show_bug.cgi?id=113647
+
+        Reviewed by Mark Hahnenberg.
+        
+        This is pretty straightforward now that InvalidationPoint has exactly the semantics
+        that agree with llvm.stackmap.
+
+        * ftl/FTLCompile.cpp:
+        (JSC::FTL::fixFunctionBasedOnStackMaps):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileInvalidationPoint):
+        (JSC::FTL::LowerDFGToLLVM::emitOSRExitCall):
+        (JSC::FTL::LowerDFGToLLVM::buildExitArguments):
+        (JSC::FTL::LowerDFGToLLVM::callStackmap):
+        * ftl/FTLOSRExitCompilationInfo.h:
+        (JSC::FTL::OSRExitCompilationInfo::OSRExitCompilationInfo):
+
+2013-10-30  Oliver Hunt  <oliver@apple.com>
+
+        Implement basic ES6 Math functions
+        https://bugs.webkit.org/show_bug.cgi?id=123536
+
+        Reviewed by Michael Saboff.
+
+        Fairly trivial patch to implement the core ES6 Math functions.
+
+        This doesn't implement Math.hypot as it is not a trivial function.
+        I've also skipped Math.sign as I am yet to be convinced the spec
+        behaviour is good.  Everything else is trivial.
+
+        * runtime/MathObject.cpp:
+        (JSC::MathObject::finishCreation):
+        (JSC::mathProtoFuncACosh):
+        (JSC::mathProtoFuncASinh):
+        (JSC::mathProtoFuncATanh):
+        (JSC::mathProtoFuncCbrt):
+        (JSC::mathProtoFuncCosh):
+        (JSC::mathProtoFuncExpm1):
+        (JSC::mathProtoFuncFround):
+        (JSC::mathProtoFuncLog1p):
+        (JSC::mathProtoFuncLog10):
+        (JSC::mathProtoFuncLog2):
+        (JSC::mathProtoFuncSinh):
+        (JSC::mathProtoFuncTanh):
+        (JSC::mathProtoFuncTrunc):
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL::Location::restoreInto() doesn't handle stack-related registers correctly if you're using it after pushing a new stack frame
+        https://bugs.webkit.org/show_bug.cgi?id=123591
+
+        Reviewed by Mark Hahnenberg.
+        
+        This gets us to pass more tests with ftlUsesStackmaps.
+
+        * ftl/FTLLocation.cpp:
+        (JSC::FTL::Location::restoreInto):
+        * ftl/FTLLocation.h:
+        * ftl/FTLThunks.cpp:
+        (JSC::FTL::osrExitGenerationWithStackMapThunkGenerator):
+
+2013-10-31  Alexey Proskuryakov  <ap@apple.com>
+
+        Enable WebCrypto on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=123587
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig: Do it.
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, really remove CachedTranscendentalFunction.h.
+
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        Remove CachedTranscendentalFunction because caching math functions is an ugly idea
+        https://bugs.webkit.org/show_bug.cgi?id=123574
+
+        Reviewed by Mark Hahnenberg.
+        
+        This is performance-neutral because I also make Math.cos/sin intrinsic. This means that
+        we gain the "overhead" of actually computing sin and cos but we lose the overhead of
+        going through the native call thunks.
+        
+        Caching transcendental functions is a really ugly idea. It works for SunSpider because
+        that benchmark makes very predictable calls into Math.sin. But I don't believe that this
+        is representative of any kind of reality, and so for sensible uses of Math.sin/cos all
+        that this was doing was adding more call overhead and some hashing overhead.
+
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::::executeEffects):
+        * dfg/DFGBackwardsPropagationPhase.cpp:
+        (JSC::DFG::BackwardsPropagationPhase::propagate):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleIntrinsic):
+        * dfg/DFGCSEPhase.cpp:
+        (JSC::DFG::CSEPhase::performNodeCSE):
+        * dfg/DFGClobberize.h:
+        (JSC::DFG::clobberize):
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode):
+        * dfg/DFGNodeType.h:
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::propagate):
+        (JSC::DFG::PredictionPropagationPhase::doDoubleVoting):
+        * dfg/DFGSafeToExecute.h:
+        (JSC::DFG::safeToExecute):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::callOperation):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * jit/JITOperations.h:
+        * runtime/CachedTranscendentalFunction.h: Removed.
+        * runtime/DateInstanceCache.h:
+        * runtime/Intrinsic.h:
+        * runtime/MathObject.cpp:
+        (JSC::MathObject::finishCreation):
+        (JSC::mathProtoFuncCos):
+        (JSC::mathProtoFuncSin):
+        * runtime/VM.h:
+
 2013-10-30  Filip Pizlo  <fpizlo@apple.com>
 
         Assertion failure in js/dom/global-constructors-attributes-dedicated-worker.html

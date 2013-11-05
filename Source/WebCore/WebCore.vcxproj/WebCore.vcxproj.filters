@@ -1011,9 +1011,6 @@
     <ClCompile Include="..\loader\cache\MemoryCache.cpp">
       <Filter>loader\cache</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\Arena.cpp">
-      <Filter>platform</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\CalculationValue.cpp">
       <Filter>platform</Filter>
     </ClCompile>
@@ -2028,16 +2025,7 @@
     <ClCompile Include="..\platform\graphics\WidthIterator.cpp">
       <Filter>platform\text</Filter>
     </ClCompile>
-    <ClCompile Include="..\platform\text\cf\AtomicStringCF.cpp">
-      <Filter>platform\text\cf</Filter>
-    </ClCompile>
     <ClCompile Include="..\platform\text\cf\HyphenationCF.cpp">
-      <Filter>platform\text\cf</Filter>
-    </ClCompile>
-    <ClCompile Include="..\platform\text\cf\StringCF.cpp">
-      <Filter>platform\text\cf</Filter>
-    </ClCompile>
-    <ClCompile Include="..\platform\text\cf\StringImplCF.cpp">
       <Filter>platform\text\cf</Filter>
     </ClCompile>
     <ClCompile Include="..\platform\text\win\TextBreakIteratorInternalICUWin.cpp">
@@ -2410,9 +2398,6 @@
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\PointerEventsHitRules.cpp">
-      <Filter>rendering</Filter>
-    </ClCompile>
-    <ClCompile Include="..\rendering\RenderArena.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="..\rendering\RenderBlock.cpp">
@@ -4903,9 +4888,6 @@
       <Filter>inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\inspector\InspectorRuntimeAgent.cpp">
-      <Filter>inspector</Filter>
-    </ClCompile>
-    <ClCompile Include="..\inspector\InspectorState.cpp">
       <Filter>inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\inspector\InspectorStyleSheet.cpp">
@@ -7921,9 +7903,6 @@
     <ClInclude Include="..\loader\cache\MemoryCache.h">
       <Filter>loader\cache</Filter>
     </ClInclude>
-    <ClInclude Include="..\platform\Arena.h">
-      <Filter>platform</Filter>
-    </ClInclude>
     <ClInclude Include="..\platform\CalculationValue.h">
       <Filter>platform</Filter>
     </ClInclude>
@@ -9296,9 +9275,6 @@
       <Filter>rendering</Filter>
     </ClInclude>
     <ClInclude Include="..\rendering\PointerEventsHitRules.h">
-      <Filter>rendering</Filter>
-    </ClInclude>
-    <ClInclude Include="..\rendering\RenderArena.h">
       <Filter>rendering</Filter>
     </ClInclude>
     <ClInclude Include="..\rendering\RenderBlock.h">
@@ -12424,12 +12400,6 @@
     <ClInclude Include="..\inspector\InspectorRuntimeAgent.h">
       <Filter>inspector</Filter>
     </ClInclude>
-    <ClInclude Include="..\inspector\InspectorState.h">
-      <Filter>inspector</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inspector\InspectorStateClient.h">
-      <Filter>inspector</Filter>
-    </ClInclude>
     <ClInclude Include="..\inspector\InspectorStyleSheet.h">
       <Filter>inspector</Filter>
     </ClInclude>
@@ -12931,6 +12901,9 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\graphics\AudioTrackPrivate.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\graphics\TrackBasePrivate.h">
       <Filter>html\track</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\graphics\VideoTrackPrivate.h">

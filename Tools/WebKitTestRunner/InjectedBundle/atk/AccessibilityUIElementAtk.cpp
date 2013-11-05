@@ -491,7 +491,7 @@ PassRefPtr<AccessibilityUIElement> AccessibilityUIElement::elementAtPoint(int x,
         return 0;
 
     GRefPtr<AtkObject> objectAtPoint = adoptGRef(atk_component_ref_accessible_at_point(ATK_COMPONENT(m_element.get()), x, y, ATK_XY_WINDOW));
-    return objectAtPoint ? AccessibilityUIElement::create(objectAtPoint.get()) : 0;
+    return AccessibilityUIElement::create(objectAtPoint ? objectAtPoint.get() : m_element.get());
 }
 
 unsigned AccessibilityUIElement::indexOfChild(AccessibilityUIElement* element)
@@ -961,8 +961,10 @@ int AccessibilityUIElement::insertionPointLineNumber()
 
 bool AccessibilityUIElement::isPressActionSupported()
 {
-    // FIXME: implement
-    return false;
+    if (!ATK_IS_ACTION(m_element.get()))
+        return false;
+
+    return equalIgnoringCase(atk_action_get_name(ATK_ACTION(m_element.get()), 0), String("press"));
 }
 
 bool AccessibilityUIElement::isIncrementActionSupported()
@@ -1034,8 +1036,20 @@ JSRetainPtr<JSStringRef> AccessibilityUIElement::ariaDropEffects() const
 // parameterized attributes
 int AccessibilityUIElement::lineForIndex(int index)
 {
-    // FIXME: implement
-    return 0;
+    if (!ATK_IS_TEXT(m_element.get()))
+        return -1;
+
+    if (index < 0 || index > atk_text_get_character_count(ATK_TEXT(m_element.get())))
+        return -1;
+
+    GOwnPtr<gchar> text(atk_text_get_text(ATK_TEXT(m_element.get()), 0, index));
+    int lineNo = 0;
+    for (gchar* offset = text.get(); *offset; ++offset) {
+        if (*offset == '\n')
+            ++lineNo;
+    }
+
+    return lineNo;
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::rangeForLine(int line)
@@ -1450,6 +1464,18 @@ bool AccessibilityUIElement::isTextMarkerValid(AccessibilityTextMarker* textMark
 }
 
 PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::textMarkerForIndex(int textIndex)
+{
+    // FIXME: implement
+    return 0;
+}
+    
+PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::startTextMarker()
+{
+    // FIXME: implement
+    return 0;    
+}
+
+PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::endTextMarker()
 {
     // FIXME: implement
     return 0;

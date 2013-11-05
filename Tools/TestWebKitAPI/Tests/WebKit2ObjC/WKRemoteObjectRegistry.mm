@@ -39,7 +39,7 @@ namespace TestWebKitAPI {
 
 static bool connectionEstablished;
 static WKRemoteObjectRegistry *remoteObjectRegistry;
-
+static bool testFinished;
 
 /* WKConnectionClient */
 static void connectionDidReceiveMessage(WKConnectionRef connection, WKStringRef messageName, WKTypeRef messageBody, const void *clientInfo)
@@ -73,7 +73,7 @@ static void didCreateConnection(WKContextRef context, WKConnectionRef connection
 
 TEST(WebKit2, WKRemoteObjectRegistryTest)
 {
-    WKRetainPtr<WKContextRef> context(AdoptWK, Util::createContextForInjectedBundleTest("WKConnectionTest"));
+    WKRetainPtr<WKContextRef> context(AdoptWK, Util::createContextForInjectedBundleTest("WKRemoteObjectRegistry"));
 
     // Set up the context's connection client so that we can access the connection when
     // it is created.
@@ -96,7 +96,15 @@ TEST(WebKit2, WKRemoteObjectRegistryTest)
     WKRemoteObjectInterface *bundleInterface = [WKRemoteObjectInterface remoteObjectInterfaceWithProtocol:@protocol(BundleInterface)];
 
     id <BundleInterface> remoteObjectProxy = [remoteObjectRegistry remoteObjectProxyWithInterface:bundleInterface];
+    EXPECT_TRUE([remoteObjectProxy conformsToProtocol:@protocol(BundleInterface)]);
+
     [remoteObjectProxy sayHello];
+    [remoteObjectProxy testMethodWithString:@"Hello" double:123.456 integer:789];
+
+    // FIXME: Set this once the test actually is finished.
+    testFinished = true;
+
+    Util::run(&testFinished);
 }
 
 } // namespace TestWebKitAPI

@@ -43,7 +43,6 @@ namespace WebCore {
 class ConsoleMessage;
 class DOMWindow;
 class InspectorFrontend;
-class InspectorState;
 class InjectedScriptManager;
 class InstrumentingAgents;
 class ResourceError;
@@ -57,13 +56,13 @@ typedef String ErrorString;
 class InspectorConsoleAgent : public InspectorBaseAgent<InspectorConsoleAgent>, public InspectorBackendDispatcher::ConsoleCommandHandler {
     WTF_MAKE_NONCOPYABLE(InspectorConsoleAgent);
 public:
-    InspectorConsoleAgent(InstrumentingAgents*, InspectorCompositeState*, InjectedScriptManager*);
+    InspectorConsoleAgent(InstrumentingAgents*, InjectedScriptManager*);
     virtual ~InspectorConsoleAgent();
 
     virtual void enable(ErrorString*);
     virtual void disable(ErrorString*);
     virtual void clearMessages(ErrorString*);
-    bool enabled() { return m_enabled; }
+    bool enabled() const { return m_enabled; }
     void reset();
 
     virtual void setFrontend(InspectorFrontend*);

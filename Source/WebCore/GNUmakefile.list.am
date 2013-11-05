@@ -1784,9 +1784,15 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/DOMWindowIndexedDatabase.h \
 	Source/WebCore/Modules/indexeddb/IDBAny.cpp \
 	Source/WebCore/Modules/indexeddb/IDBAny.h \
+	Source/WebCore/Modules/indexeddb/IDBBackingStoreCursorInterface.h \
 	Source/WebCore/Modules/indexeddb/IDBBackingStoreInterface.h \
+	Source/WebCore/Modules/indexeddb/IDBBackingStoreTransactionInterface.h \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreCursorLevelDB.cpp \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreCursorLevelDB.h \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.h \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreTransactionLevelDB.cpp \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreTransactionLevelDB.h \
 	Source/WebCore/Modules/indexeddb/IDBCallbacks.h \
 	Source/WebCore/Modules/indexeddb/IDBCursorBackendImpl.cpp \
 	Source/WebCore/Modules/indexeddb/IDBCursorBackendImpl.h \
@@ -1833,6 +1839,7 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/IDBOpenDBRequest.cpp \
 	Source/WebCore/Modules/indexeddb/IDBOpenDBRequest.h \
 	Source/WebCore/Modules/indexeddb/IDBOperation.h \
+	Source/WebCore/Modules/indexeddb/IDBPendingDeleteCall.h \
 	Source/WebCore/Modules/indexeddb/IDBPendingOpenCall.h \
 	Source/WebCore/Modules/indexeddb/IDBPendingTransactionMonitor.cpp \
 	Source/WebCore/Modules/indexeddb/IDBPendingTransactionMonitor.h \
@@ -3813,9 +3820,6 @@ webcore_sources += \
 	Source/WebCore/inspector/InspectorResourceAgent.h \
 	Source/WebCore/inspector/InspectorRuntimeAgent.cpp \
 	Source/WebCore/inspector/InspectorRuntimeAgent.h \
-	Source/WebCore/inspector/InspectorState.cpp \
-	Source/WebCore/inspector/InspectorState.h \
-	Source/WebCore/inspector/InspectorStateClient.h \
 	Source/WebCore/inspector/InspectorStyleSheet.cpp \
 	Source/WebCore/inspector/InspectorStyleSheet.h \
 	Source/WebCore/inspector/InspectorStyleTextEditor.cpp \
@@ -4296,8 +4300,7 @@ webcore_sources += \
 	Source/WebCore/rendering/PointerEventsHitRules.cpp \
 	Source/WebCore/rendering/PointerEventsHitRules.h \
 	Source/WebCore/rendering/RegionOversetState.h \
-	Source/WebCore/rendering/RenderArena.cpp \
-	Source/WebCore/rendering/RenderArena.h \
+	Source/WebCore/rendering/RenderAncestorIterator.h \
 	Source/WebCore/rendering/RenderBlock.cpp \
 	Source/WebCore/rendering/RenderBlock.h \
     Source/WebCore/rendering/RenderBlockFlow.cpp \
@@ -4310,6 +4313,7 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderBoxModelObject.h \
 	Source/WebCore/rendering/RenderButton.cpp \
 	Source/WebCore/rendering/RenderButton.h \
+	Source/WebCore/rendering/RenderChildIterator.h \
 	Source/WebCore/rendering/RenderCombineText.cpp \
 	Source/WebCore/rendering/RenderCombineText.h \
 	Source/WebCore/rendering/RenderCounter.cpp \
@@ -4356,6 +4360,7 @@ webcore_sources += \
 	Source/WebCore/rendering/RenderInline.h \
 	Source/WebCore/rendering/RenderInputSpeech.cpp \
 	Source/WebCore/rendering/RenderInputSpeech.h \
+	Source/WebCore/rendering/RenderIterator.h \
 	Source/WebCore/rendering/RenderLayerBacking.h \
 	Source/WebCore/rendering/RenderLayer.cpp \
 	Source/WebCore/rendering/RenderLayer.h \
@@ -5819,6 +5824,7 @@ platform_sources += \
 	Source/WebCore/platform/graphics/TextTrackRepresentation.cpp \
 	Source/WebCore/platform/graphics/TextTrackRepresentation.h \
 	Source/WebCore/platform/graphics/TiledBacking.h \
+	Source/WebCore/platform/graphics/TrackBasePrivate.h \
 	Source/WebCore/platform/graphics/TypesettingFeatures.h \
 	Source/WebCore/platform/graphics/UnitBezier.h \
 	Source/WebCore/platform/graphics/VideoTrackPrivate.h \
@@ -5944,8 +5950,6 @@ platform_sources += \
 	Source/WebCore/platform/text/UnicodeRange.cpp \
 	Source/WebCore/platform/text/UnicodeRange.h \
 	Source/WebCore/platform/text/WritingMode.h \
-	Source/WebCore/platform/Arena.cpp \
-	Source/WebCore/platform/Arena.h \
 	Source/WebCore/platform/Clock.cpp \
 	Source/WebCore/platform/Clock.h \
 	Source/WebCore/platform/ClockGeneric.cpp \
@@ -6092,14 +6096,10 @@ webcoregtk_sources += \
 	Source/WebCore/page/gtk/DragControllerGtk.cpp \
 	Source/WebCore/page/gtk/EventHandlerGtk.cpp \
 	Source/WebCore/platform/cairo/WidgetBackingStore.h \
-	Source/WebCore/platform/graphics/gstreamer/FullscreenVideoControllerGStreamer.cpp \
-	Source/WebCore/platform/graphics/gstreamer/FullscreenVideoControllerGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp \
 	Source/WebCore/platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.h \
 	Source/WebCore/platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.h \
-	Source/WebCore/platform/graphics/gtk/FullscreenVideoControllerGtk.cpp \
-	Source/WebCore/platform/graphics/gtk/FullscreenVideoControllerGtk.h \
 	Source/WebCore/platform/graphics/gtk/IconGtk.cpp \
 	Source/WebCore/platform/graphics/gtk/ImageBufferGtk.cpp \
 	Source/WebCore/platform/gtk/ClipboardUtilitiesGtk.cpp \
@@ -6135,12 +6135,8 @@ platformgtk_sources += \
 	Source/WebCore/platform/graphics/cairo/GraphicsContextPlatformPrivateCairo.h \
 	Source/WebCore/platform/graphics/freetype/FontPlatformData.h \
 	Source/WebCore/platform/graphics/freetype/FontPlatformDataFreeType.cpp \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerGWorld.cpp \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerGWorld.h \
 	Source/WebCore/platform/graphics/gstreamer/ImageGStreamerCairo.cpp \
 	Source/WebCore/platform/graphics/gstreamer/ImageGStreamer.h \
-	Source/WebCore/platform/graphics/gstreamer/PlatformVideoWindowGtk.cpp \
-	Source/WebCore/platform/graphics/gstreamer/PlatformVideoWindow.h \
 	Source/WebCore/platform/graphics/gstreamer/VideoSinkGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/VideoSinkGStreamer.h \
 	Source/WebCore/platform/graphics/gtk/ColorGtk.cpp \
@@ -6284,19 +6280,24 @@ endif # END USE_GLES2
 
 if USE_GSTREAMER
 platform_sources += \
+	Source/WebCore/platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/AudioTrackPrivateGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/GRefPtrGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GRefPtrGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h \
+	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/TextCombinerGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/TextCombinerGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/TextSinkGStreamer.cpp \
-	Source/WebCore/platform/graphics/gstreamer/TextSinkGStreamer.h
-webcore_platform_sources += \
-	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
-	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h
+	Source/WebCore/platform/graphics/gstreamer/TextSinkGStreamer.h \
+	Source/WebCore/platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h \
+	Source/WebCore/platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp \
+	Source/WebCore/platform/graphics/gstreamer/VideoTrackPrivateGStreamer.h
 endif
 
 # ---

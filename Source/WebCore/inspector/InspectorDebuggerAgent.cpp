@@ -38,7 +38,6 @@
 #include "InjectedScriptManager.h"
 #include "InspectorFrontend.h"
 #include "InspectorPageAgent.h"
-#include "InspectorState.h"
 #include "InspectorValues.h"
 #include "InstrumentingAgents.h"
 #include "RegularExpression.h"
@@ -55,12 +54,11 @@ namespace WebCore {
 
 const char* InspectorDebuggerAgent::backtraceObjectGroup = "backtrace";
 
-InspectorDebuggerAgent::InspectorDebuggerAgent(InstrumentingAgents* instrumentingAgents, InspectorCompositeState* inspectorState, InjectedScriptManager* injectedScriptManager)
-    : InspectorBaseAgent<InspectorDebuggerAgent>("Debugger", instrumentingAgents, inspectorState)
+InspectorDebuggerAgent::InspectorDebuggerAgent(InstrumentingAgents* instrumentingAgents, InjectedScriptManager* injectedScriptManager)
+    : InspectorBaseAgent<InspectorDebuggerAgent>("Debugger", instrumentingAgents)
     , m_injectedScriptManager(injectedScriptManager)
     , m_frontend(0)
     , m_pausedScriptState(0)
-    , m_javaScriptBreakpoints(InspectorObject::create())
     , m_enabled(false)
     , m_javaScriptPauseScheduled(false)
     , m_listener(0)
@@ -90,7 +88,7 @@ void InspectorDebuggerAgent::enable()
 
 void InspectorDebuggerAgent::disable()
 {
-    m_javaScriptBreakpoints = InspectorObject::create();
+    m_javaScriptBreakpoints.clear();
     m_instrumentingAgents->setInspectorDebuggerAgent(0);
 
     stopListeningScriptDebugServer();
@@ -103,11 +101,6 @@ void InspectorDebuggerAgent::disable()
         m_listener->debuggerWasDisabled();
 
     m_enabled = false;
-}
-
-bool InspectorDebuggerAgent::enabled()
-{
-    return m_enabled;
 }
 
 void InspectorDebuggerAgent::causesRecompilation(ErrorString*, bool* result)
@@ -276,7 +269,7 @@ void InspectorDebuggerAgent::setBreakpointByUrl(ErrorString* errorString, int li
     bool isRegex = optionalURLRegex;
 
     String breakpointId = (isRegex ? "/" + url + "/" : url) + ':' + String::number(lineNumber) + ':' + String::number(columnNumber);
-    if (m_javaScriptBreakpoints->find(breakpointId) != m_javaScriptBreakpoints->end()) {
+    if (m_javaScriptBreakpoints.contains(breakpointId)) {
         *errorString = "Breakpoint at specified location already exists.";
         return;
     }
@@ -294,7 +287,7 @@ void InspectorDebuggerAgent::setBreakpointByUrl(ErrorString* errorString, int li
     if (!breakpointActionsFromProtocol(errorString, actions, &breakpointActions))
         return;
 
-    m_javaScriptBreakpoints->setObject(breakpointId, buildObjectForBreakpointCookie(url, lineNumber, columnNumber, condition, actions, isRegex, autoContinue));
+    m_javaScriptBreakpoints.set(breakpointId, buildObjectForBreakpointCookie(url, lineNumber, columnNumber, condition, actions, isRegex, autoContinue));
 
     ScriptBreakpoint breakpoint(lineNumber, columnNumber, condition, breakpointActions, autoContinue);
     for (ScriptsMap::iterator it = m_scripts.begin(); it != m_scripts.end(); ++it) {
@@ -358,7 +351,7 @@ void InspectorDebuggerAgent::setBreakpoint(ErrorString* errorString, const RefPt
 
 void InspectorDebuggerAgent::removeBreakpoint(ErrorString*, const String& breakpointId)
 {
-    m_javaScriptBreakpoints->remove(breakpointId);
+    m_javaScriptBreakpoints.remove(breakpointId);
 
     BreakpointIdToDebugServerBreakpointIdsMap::iterator debugServerBreakpointIdsIterator = m_breakpointIdToDebugServerBreakpointIds.find(breakpointId);
     if (debugServerBreakpointIdsIterator == m_breakpointIdToDebugServerBreakpointIds.end())
@@ -696,7 +689,7 @@ void InspectorDebuggerAgent::didParseSource(const String& scriptId, const Script
     if (scriptURL.isEmpty())
         return;
 
-    for (InspectorObject::iterator it = m_javaScriptBreakpoints->begin(); it != m_javaScriptBreakpoints->end(); ++it) {
+    for (auto it = m_javaScriptBreakpoints.begin(), end = m_javaScriptBreakpoints.end(); it != end; ++it) {
         RefPtr<InspectorObject> breakpointObject = it->value->asObject();
         bool isRegex;
         breakpointObject->getBoolean("isRegex", &isRegex);

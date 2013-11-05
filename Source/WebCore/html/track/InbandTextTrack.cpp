@@ -37,9 +37,7 @@
 #include "InbandTextTrackPrivate.h"
 #include "InbandWebVTTTextTrack.h"
 #include "Logging.h"
-#include "TextTrackCueGeneric.h"
 #include "TextTrackCueList.h"
-#include "WebVTTParser.h"
 #include <math.h>
 #include <wtf/text/CString.h>
 
@@ -153,22 +151,22 @@ bool InbandTextTrack::isEasyToRead() const
 size_t InbandTextTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
-    return m_private->textTrackIndex();
+    return m_private->trackIndex();
 }
 
-void InbandTextTrack::labelChanged(InbandTextTrackPrivate* trackPrivate, const String& label)
+void InbandTextTrack::labelChanged(TrackPrivateBase* trackPrivate, const String& label)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setLabel(label);
 }
 
-void InbandTextTrack::languageChanged(InbandTextTrackPrivate* trackPrivate, const String& language)
+void InbandTextTrack::languageChanged(TrackPrivateBase* trackPrivate, const String& language)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setLanguage(language);
 }
 
-void InbandTextTrack::willRemoveTextTrackPrivate(InbandTextTrackPrivate* trackPrivate)
+void InbandTextTrack::willRemove(TrackPrivateBase* trackPrivate)
 {
     if (!mediaElement())
         return;

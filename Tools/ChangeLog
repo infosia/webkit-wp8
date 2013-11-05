@@ -1,3 +1,289 @@
+2013-11-05  László Langó  <laszlo.lango@frontendart.com>
+
+        Remove leftover Qt related things from the flakiness_dashboard
+        https://bugs.webkit.org/show_bug.cgi?id=123800
+
+        Reviewed by Anders Carlsson.
+
+        * TestResultServer/static-dashboards/flakiness_dashboard_unittests.js:
+        (test):
+
+2013-11-05  Robert Plociennik  <r.plociennik@samsung.com>
+
+        [EFL] accessibility/svg-group-element-with-title.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=114151
+
+        Reviewed by Mario Sanchez Prada.
+
+        atk_component_ref_accessible_at_point(), utilized in
+        AccessibilityUIElement::elementAtPoint(), is expected to 'get a reference to the
+        accessible child, if one exists, at the coordinate point specified' and not
+        explicitly return self in case of lack of child elements. This contradicts with
+        expected behavior of elementAtPoint(). Therefore, elementAtPoint() is
+        changed to return self regardless of coordinates specified, provided no child
+        element could be retrieved, effectively mimicing the behaviour of equivalent
+        Mac implementation in accessibilityHitTest().
+
+        * DumpRenderTree/atk/AccessibilityUIElementAtk.cpp:
+        (AccessibilityUIElement::elementAtPoint): Fixed.
+        * WebKitTestRunner/InjectedBundle/atk/AccessibilityUIElementAtk.cpp:
+        (WTR::AccessibilityUIElement::elementAtPoint): Fixed.
+
+2013-11-05  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        [CSS] Enable css-image-orientation on EFL and GTK ports.
+        https://bugs.webkit.org/show_bug.cgi?id=123698
+
+        Reviewed by Beth Dakin.
+
+        r157909 added wrong early return for css-image-orientation. It causes about 20 regressions in layout test
+        when enabling css-image-orientaiton. This fixes those wrong implementation as well as enables it on EFL
+        and GTK ports by default.
+
+        * Scripts/webkitperl/FeatureList.pm:
+
+2013-11-04  Alexey Proskuryakov  <ap@apple.com>
+
+        DumpRenderTree should reset its preferences file on launch
+        https://bugs.webkit.org/show_bug.cgi?id=29751
+
+        Reviewed by Dan Bernstein.
+
+        Using NSArgumentDomain was not a good idea. While it works with NSUserDefaults
+        and CFPreferencesCopyAppValue family of functions, it doesn't work with
+        CFPreferencesCopyValue(..., kCFPreferencesCurrentApplication, ...).
+
+        So, now we'll just set defaults in the current application.
+
+        * DumpRenderTree/mac/DumpRenderTree.mm: (setDefaultsToConsistentValuesForTesting):
+        - Delete the defaults.
+        - Removed CFPreferencesSetAppValue calls, as -setValuesForKeysWithDictionary: does the same.
+        - The comment about [NSUserDefaults standardUserDefaults] indirectly initializing NSApplication was incorrect.
+
+        * WebKitTestRunner/mac/main.mm: (setDefaultsToConsistentValuesForTesting):
+        Switched to -setValuesForKeysWithDictionary for consistency.
+
+2013-11-04  Filip Pizlo  <fpizlo@apple.com>
+
+        Running FTL tests shouldn't reduce coverage on DFG tests
+        https://bugs.webkit.org/show_bug.cgi?id=123780
+
+        Reviewed by Geoffrey Garen.
+
+        * Scripts/run-jsc-stress-tests:
+
+2013-11-04  Anders Carlsson  <andersca@apple.com>
+
+        More WKRemoteObjectRegistry work
+        https://bugs.webkit.org/show_bug.cgi?id=123754
+
+        Reviewed by Dan Bernstein.
+
+        * TestWebKitAPI/Tests/WebKit2ObjC/WKRemoteObjectRegistry.mm:
+        (TestWebKitAPI::TEST):
+        Use the correct bundle test name. Call Util::run.
+
+        * TestWebKitAPI/Tests/mac/WKRemoteObjectRegistry_Bundle.mm:
+        (-[BundleObject sayHello]):
+        (-[BundleObject testMethodWithString:double:integer:]):
+        Add BundleObject implementation. Register the bundle object with
+        the remote object registry. Call _handleMessageWithName:body: on the incoming message.
+
+2013-11-04  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] Change ATK version to 2.10.0
+        https://bugs.webkit.org/show_bug.cgi?id=123727
+
+        Reviewed by Mario Sanchez Prada.
+
+        Provided new API to retrieve text at a given offset.
+
+        * efl/jhbuild.modules:
+
+2013-11-04  Robert Plociennik  <r.plociennik@samsung.com>
+
+        [EFL] accessibility/textarea-line-for-index.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=112015
+
+        Reviewed by Mario Sanchez Prada.
+
+        Provided implementation for AccessibilityUIElement::lineForIndex().
+
+        * DumpRenderTree/atk/AccessibilityUIElementAtk.cpp:
+        (AccessibilityUIElement::lineForIndex): Implemented.
+        * WebKitTestRunner/InjectedBundle/atk/AccessibilityUIElementAtk.cpp:
+        (WTR::AccessibilityUIElement::lineForIndex): Implemented.
+
+2013-11-04  Krzysztof Czech  <k.czech@samsung.com>
+
+        [EFL] accessibility/button-press-action.html
+        https://bugs.webkit.org/show_bug.cgi?id=111993
+
+        Reviewed by Mario Sanchez Prada.
+
+        Provided an implementation for AccessibilityUIElement::isPressActionSupported.
+
+        * DumpRenderTree/atk/AccessibilityUIElementAtk.cpp:
+        (AccessibilityUIElement::isPressActionSupported):
+        * WebKitTestRunner/InjectedBundle/atk/AccessibilityUIElementAtk.cpp:
+        (WTR::AccessibilityUIElement::isPressActionSupported):
+
+2013-11-03  Patrick Gansterer  <paroga@webkit.org>
+
+        Add test for ListHashSet::removeLast()
+        https://bugs.webkit.org/show_bug.cgi?id=121810
+
+        Reviewed by Anders Carlsson.
+
+        * TestWebKitAPI/Tests/WTF/ListHashSet.cpp:
+        (TestWebKitAPI::TEST):
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        LLVM assertion failures should funnel into WTF's crash handling
+        https://bugs.webkit.org/show_bug.cgi?id=123682
+
+        Reviewed by Geoffrey Garen.
+        
+        Need to disable LLVM's crash overrides so that we can do our own crash overrides.
+
+        * Scripts/configure-llvm:
+
+2013-11-01  Andy Estes  <aestes@apple.com>
+
+        Teach check-for-webkit-framework-include-consistency to ignore stale iOS Private headers that might exist in build directories due to r158443
+        https://bugs.webkit.org/show_bug.cgi?id=123636
+
+        Reviewed by Andreas Kling.
+
+        * Scripts/check-for-webkit-framework-include-consistency:
+
+2013-11-01  Anders Carlsson  <andersca@apple.com>
+
+        Begin work on encoding argument types
+        https://bugs.webkit.org/show_bug.cgi?id=123631
+
+        Reviewed by Dan Bernstein.
+
+        Add another test method.
+
+        * TestWebKitAPI/Tests/WebKit2ObjC/WKRemoteObjectRegistry.mm:
+        * TestWebKitAPI/Tests/mac/WKRemoteObjectRegistry_Shared.h:
+
+2013-11-01  Afonso R. Costa Jr.  <afonso.costa@samsung.com>
+
+        Expose setApplicationCacheOriginQuota via window.internals
+        https://bugs.webkit.org/show_bug.cgi?id=87838
+
+        Reviewed by Joseph Pecoraro.
+
+        * DumpRenderTree/TestRunner.cpp: Move setApplicationCacheOriginQuota
+        to window.internals
+        (TestRunner::staticFunctions):
+        * DumpRenderTree/TestRunner.h: Ditto.
+        * DumpRenderTree/blackberry/TestRunnerBlackBerry.cpp: Remove setApplicationCacheOriginQuota.
+        * DumpRenderTree/efl/TestRunnerEfl.cpp: Ditto.
+        * DumpRenderTree/gtk/TestRunnerGtk.cpp: Ditto.
+        * DumpRenderTree/mac/TestRunnerMac.mm: Ditto.
+        * DumpRenderTree/win/TestRunnerWin.cpp: Ditto.
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl: Ditto.
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp: Ditto.
+        * WebKitTestRunner/InjectedBundle/TestRunner.h: Ditto.
+
+2013-10-31  Mark Lam  <mark.lam@apple.com>
+
+        REGRESSION: Crashes in -[UIDelegate webView:frame:exceededDatabaseQuotaForSecurityOrigin:database:].
+        https://bugs.webkit.org/show_bug.cgi?id=123383.
+
+        Reviewed by Geoffrey Garen.
+
+        Removed an inappropriate assertion in DumpRenderTree/mac/UIDelegate.mm and
+        added 2 attributes (databaseDefaultQuota and databaseMaxQuota) to allow
+        tests to set appropriate quota settings to exercise quota expansion tests
+        when needed.
+
+        * DumpRenderTree/TestRunner.cpp:
+        (TestRunner::TestRunner):
+        (getDatabaseDefaultQuotaCallback):
+        (getDatabaseMaxQuotaCallback):
+        (setDatabaseDefaultQuotaCallback):
+        (setDatabaseMaxQuotaCallback):
+        (TestRunner::staticValues):
+        * DumpRenderTree/TestRunner.h:
+        (TestRunner::databaseDefaultQuota):
+        (TestRunner::setDatabaseDefaultQuota):
+        (TestRunner::databaseMaxQuota):
+        (TestRunner::setDatabaseMaxQuota):
+        * DumpRenderTree/blackberry/DumpRenderTree.cpp:
+        (BlackBerry::WebKit::DumpRenderTree::exceededDatabaseQuota):
+        * DumpRenderTree/efl/DumpRenderTreeView.cpp:
+        (onExceededDatabaseQuota):
+        * DumpRenderTree/mac/UIDelegate.mm:
+        (-[UIDelegate webView:frame:exceededDatabaseQuotaForSecurityOrigin:database:]):
+        * DumpRenderTree/win/UIDelegate.cpp:
+        (UIDelegate::exceededDatabaseQuota):
+        * WebKitTestRunner/InjectedBundle/Bindings/TestRunner.idl:
+        * WebKitTestRunner/InjectedBundle/InjectedBundlePage.cpp:
+        (WTR::InjectedBundlePage::didExceedDatabaseQuota):
+        * WebKitTestRunner/InjectedBundle/TestRunner.cpp:
+        (WTR::TestRunner::TestRunner):
+        * WebKitTestRunner/InjectedBundle/TestRunner.h:
+        (WTR::TestRunner::databaseDefaultQuota):
+        (WTR::TestRunner::setDatabaseDefaultQuota):
+        (WTR::TestRunner::databaseMaxQuota):
+        (WTR::TestRunner::setDatabaseMaxQuota):
+        * WebKitTestRunner/TestController.cpp:
+        (WTR::TestController::createOtherPage):
+        (WTR::TestController::createWebViewWithOptions):
+
+2013-10-31  Anders Carlsson  <andersca@apple.com>
+
+        Add a WKRemoteObject class
+        https://bugs.webkit.org/show_bug.cgi?id=123586
+
+        Reviewed by Dan Bernstein.
+
+        * TestWebKitAPI/Tests/WebKit2ObjC/WKRemoteObjectRegistry.mm:
+        (TestWebKitAPI::TEST):
+        Add a conformsToProtocol: test.
+
+2013-10-30  Ryosuke Niwa  <rniwa@webkit.org>
+
+        build.webkit.org should have a clean build button
+        https://bugs.webkit.org/show_bug.cgi?id=123559
+
+        Reviewed by Darin Adler.
+
+        Add a new "clean" forced scheduler. When a build was created by this scheduler, CleanBuildIfScheduled
+        step executes clean-build script that removes the WebKitBuild directory.
+
+        Also added make-passwords-json.py which creates a fake passwords.json from config.json for testing purposes.
+
+        * BuildSlaveSupport/build.webkit.org-config/make-passwords-json.py: Added.
+        * BuildSlaveSupport/build.webkit.org-config/master.cfg:
+        (CleanBuildIfScheduled): Added.
+        (CleanBuildIfScheduled.start): Added. Don't do a clean build if if this build wasn't schecueld by
+        the clean build scheduler.
+        (DeleteStaleBuildFiles): Added.
+        (DeleteStaleBuildFiles.start): Added. Don't delete stale build files if this build was scheduled by
+        the clean build scheduler since everything in the WebKitBuild directory had already been removed.
+        (Factory.__init__): Always add CleanBuildIfScheduled.  The step itself checks whether to run
+        clean-build script or hide itself.
+        (loadBuilderConfig): Added the new clean build scheduler. Also make ForceScheduler future proof; in newer
+        versions of buildbot, builderNames needs to be a list of regular strings.
+        * BuildSlaveSupport/clean-build: Added.
+
+2013-10-31  Filip Pizlo  <fpizlo@apple.com>
+
+        Remove CachedTranscendentalFunction because caching math functions is an ugly idea
+        https://bugs.webkit.org/show_bug.cgi?id=123574
+
+        Reviewed by Mark Hahnenberg.
+
+        Make it easier to see that a test doesn't have an -expected file.
+
+        * Scripts/run-jsc-stress-tests:
+
 2013-10-31  Tamas Gergely  <gertom@inf.u-szeged.hu>
 
         Run tests as if they are expected to pass when --force is given.

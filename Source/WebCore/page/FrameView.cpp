@@ -57,7 +57,6 @@
 #include "MainFrame.h"
 #include "OverflowEvent.h"
 #include "ProgressTracker.h"
-#include "RenderArena.h"
 #include "RenderEmbeddedObject.h"
 #include "RenderFullScreen.h"
 #include "RenderIFrame.h"
@@ -246,11 +245,6 @@ FrameView::~FrameView()
     ASSERT(m_scheduledEvents.isEmpty());
 
     ASSERT(frame().view() != this || !frame().contentRenderer());
-
-    // FIXME: How could this ever happen when RenderWidget retains the Widget!?
-    RenderWidget* renderer = frame().ownerRenderer();
-    if (renderer && renderer->widget() == this)
-        renderer->setWidget(0);
 }
 
 void FrameView::reset()
@@ -401,9 +395,6 @@ void FrameView::clear()
     setCanBlitOnScroll(true);
     
     reset();
-
-    if (RenderWidget* renderer = frame().ownerRenderer())
-        renderer->viewCleared();
 
     setScrollbarsSuppressed(true);
 }

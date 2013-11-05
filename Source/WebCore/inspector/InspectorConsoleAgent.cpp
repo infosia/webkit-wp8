@@ -26,16 +26,16 @@
 #include "config.h"
 
 #if ENABLE(INSPECTOR)
+
 #include "InspectorConsoleAgent.h"
 
-#include "InstrumentingAgents.h"
 #include "Console.h"
 #include "ConsoleMessage.h"
 #include "DOMWindow.h"
 #include "InjectedScriptHost.h"
 #include "InjectedScriptManager.h"
 #include "InspectorFrontend.h"
-#include "InspectorState.h"
+#include "InstrumentingAgents.h"
 #include "ResourceError.h"
 #include "ResourceResponse.h"
 #include "ScriptArguments.h"
@@ -58,8 +58,8 @@ static const int expireConsoleMessagesStep = 100;
 
 int InspectorConsoleAgent::s_enabledAgentCount = 0;
 
-InspectorConsoleAgent::InspectorConsoleAgent(InstrumentingAgents* instrumentingAgents, InspectorCompositeState* state, InjectedScriptManager* injectedScriptManager)
-    : InspectorBaseAgent<InspectorConsoleAgent>("Console", instrumentingAgents, state)
+InspectorConsoleAgent::InspectorConsoleAgent(InstrumentingAgents* instrumentingAgents, InjectedScriptManager* injectedScriptManager)
+    : InspectorBaseAgent<InspectorConsoleAgent>("Console", instrumentingAgents)
     , m_injectedScriptManager(injectedScriptManager)
     , m_frontend(0)
     , m_previousMessage(0)

@@ -62,7 +62,6 @@ class InspectorOverlay;
 class InspectorPageAgent;
 class InspectorProfilerAgent;
 class InspectorResourceAgent;
-class InspectorState;
 class InstrumentingAgents;
 class IntSize;
 class Page;
@@ -111,7 +110,7 @@ public:
     void evaluateForTestInFrontend(long callId, const String& script);
 
 #if ENABLE(JAVASCRIPT_DEBUGGER)
-    bool profilerEnabled();
+    bool profilerEnabled() const;
     void setProfilerEnabled(bool);
 
     void resume();
@@ -135,7 +134,6 @@ private:
 
     RefPtr<InstrumentingAgents> m_instrumentingAgents;
     OwnPtr<InjectedScriptManager> m_injectedScriptManager;
-    OwnPtr<InspectorCompositeState> m_state;
     OwnPtr<InspectorOverlay> m_overlay;
 
     InspectorAgent* m_inspectorAgent;

@@ -38,6 +38,7 @@
 #include "PaintInfo.h"
 #include "Range.h"
 #include "RenderBoxRegionInfo.h"
+#include "RenderIterator.h"
 #include "RenderLayer.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderView.h"
@@ -393,18 +394,19 @@ void RenderRegion::installFlowThread()
     // By now the flow thread should already be added to the rendering tree,
     // so we go up the rendering parents and check that this region is not part of the same
     // flow that it actually needs to display. It would create a circular reference.
-    RenderObject* parentObject = parent();
-    m_parentNamedFlowThread = 0;
-    for ( ; parentObject; parentObject = parentObject->parent()) {
-        if (parentObject->isRenderNamedFlowThread()) {
-            m_parentNamedFlowThread = toRenderNamedFlowThread(parentObject);
-            // Do not take into account a region that links a flow with itself. The dependency
-            // cannot change, so it is not worth adding it to the list.
-            if (m_flowThread == m_parentNamedFlowThread)
-                m_flowThread = 0;
-            break;
-        }
+
+    auto closestFlowThreadAncestor = ancestorsOfType<RenderNamedFlowThread>(*this).first();
+    if (!closestFlowThreadAncestor) {
+        m_parentNamedFlowThread = nullptr;
+        return;
     }
+
+    m_parentNamedFlowThread = &*closestFlowThreadAncestor;
+
+    // Do not take into account a region that links a flow with itself. The dependency
+    // cannot change, so it is not worth adding it to the list.
+    if (m_flowThread == m_parentNamedFlowThread)
+        m_flowThread = nullptr;
 }
 
 void RenderRegion::attachRegion()
@@ -513,7 +515,7 @@ void RenderRegion::setRegionObjectsRegionStyle()
             continue;
 
         // If the object has style in region, use that instead of computing a new one.
-        RenderObjectRegionStyleMap::iterator it = m_renderObjectRegionStyle.find(object);
+        auto it = m_renderObjectRegionStyle.find(object);
         RefPtr<RenderStyle> objectStyleInRegion;
         bool objectRegionStyleCached = false;
         if (it != m_renderObjectRegionStyle.end()) {
@@ -535,7 +537,7 @@ void RenderRegion::restoreRegionObjectsOriginalStyle()
         return;
 
     RenderObjectRegionStyleMap temp;
-    for (RenderObjectRegionStyleMap::iterator iter = m_renderObjectRegionStyle.begin(), end = m_renderObjectRegionStyle.end(); iter != end; ++iter) {
+    for (auto iter = m_renderObjectRegionStyle.begin(), end = m_renderObjectRegionStyle.end(); iter != end; ++iter) {
         RenderObject* object = const_cast<RenderObject*>(iter->key);
         RefPtr<RenderStyle> objectRegionStyle = &object->style();
         RefPtr<RenderStyle> objectOriginalStyle = iter->value.style;
@@ -592,7 +594,7 @@ void RenderRegion::computeChildrenStyleInRegion(const RenderElement* object)
 {
     for (RenderObject* child = object->firstChild(); child; child = child->nextSibling()) {
 
-        RenderObjectRegionStyleMap::iterator it = m_renderObjectRegionStyle.find(child);
+        auto it = m_renderObjectRegionStyle.find(child);
 
         RefPtr<RenderStyle> childStyleInRegion;
         bool objectRegionStyleCached = false;

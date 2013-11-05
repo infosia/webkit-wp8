@@ -24,7 +24,6 @@
 #include "HTMLFormControlsCollection.h"
 
 #include "HTMLFieldSetElement.h"
-#include "HTMLFormControlElement.h"
 #include "HTMLFormElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLNames.h"
@@ -36,13 +35,13 @@ using namespace HTMLNames;
 // Since the collections are to be "live", we have to do the
 // calculation every time if anything has changed.
 
-HTMLFormControlsCollection::HTMLFormControlsCollection(Node& ownerNode)
+HTMLFormControlsCollection::HTMLFormControlsCollection(ContainerNode& ownerNode)
     : HTMLCollection(ownerNode, FormControls, OverridesItemAfter)
 {
     ASSERT(isHTMLFormElement(ownerNode) || isHTMLFieldSetElement(ownerNode));
 }
 
-PassRefPtr<HTMLFormControlsCollection> HTMLFormControlsCollection::create(Node& ownerNode, CollectionType)
+PassRefPtr<HTMLFormControlsCollection> HTMLFormControlsCollection::create(ContainerNode& ownerNode, CollectionType)
 {
     return adoptRef(new HTMLFormControlsCollection(ownerNode));
 }

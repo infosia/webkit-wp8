@@ -31,6 +31,7 @@
 #include "InlineTextBox.h"
 #include "LayoutRepainter.h"
 #include "RenderFlowThread.h"
+#include "RenderIterator.h"
 #include "RenderLayer.h"
 #include "RenderNamedFlowFragment.h"
 #include "RenderText.h"
@@ -112,8 +113,6 @@ void RenderBlockFlow::willBeDestroyed()
 {
     // Mark as being destroyed to avoid trouble with merges in removeChild().
     m_beingDestroyed = true;
-
-    delete lineGridBox();
 
     if (renderNamedFlowFragment())
         setRenderNamedFlowFragment(0);
@@ -1705,15 +1704,15 @@ void RenderBlockFlow::layoutLineGridBox()
     
     setLineGridBox(0);
 
-    RootInlineBox* lineGridBox = new RootInlineBox(*this);
+    auto lineGridBox = std::make_unique<RootInlineBox>(*this);
     lineGridBox->setHasTextChildren(); // Needed to make the line ascent/descent actually be honored in quirks mode.
     lineGridBox->setConstructed();
     GlyphOverflowAndFallbackFontsMap textBoxDataMap;
     VerticalPositionCache verticalPositionCache;
     lineGridBox->alignBoxesInBlockDirection(logicalHeight(), textBoxDataMap, verticalPositionCache);
     
-    setLineGridBox(lineGridBox);
-    
+    setLineGridBox(std::move(lineGridBox));
+
     // FIXME: If any of the characteristics of the box change compared to the old one, then we need to do a deep dirtying
     // (similar to what happens when the page height changes). Ideally, though, we only do this if someone is actually snapping
     // to this grid.
@@ -1736,19 +1735,17 @@ void RenderBlockFlow::styleDidChange(StyleDifference diff, const RenderStyle* ol
     if (diff == StyleDifferenceLayout && s_canPropagateFloatIntoSibling && !canPropagateFloatIntoSibling && hasOverhangingFloats()) {
         RenderBlockFlow* parentBlock = this;
         const FloatingObjectSet& floatingObjectSet = m_floatingObjects->set();
-        auto end = floatingObjectSet.end();
 
-        for (auto curr = parent(); curr && !curr->isRenderView(); curr = curr->parent()) {
-            if (curr->isRenderBlockFlow()) {
-                RenderBlockFlow* currBlock = toRenderBlockFlow(curr);
-
-                if (currBlock->hasOverhangingFloats()) {
-                    for (auto it = floatingObjectSet.begin(); it != end; ++it) {
-                        RenderBox& renderer = (*it)->renderer();
-                        if (currBlock->hasOverhangingFloat(renderer)) {
-                            parentBlock = currBlock;
-                            break;
-                        }
+        auto ancestors = ancestorsOfType<RenderBlockFlow>(*this);
+        for (auto ancestor = ancestors.begin(), end = ancestors.end(); ancestor != end; ++ancestor) {
+            if (ancestor->isRenderView())
+                break;
+            if (ancestor->hasOverhangingFloats()) {
+                for (auto it = floatingObjectSet.begin(), end = floatingObjectSet.end(); it != end; ++it) {
+                    RenderBox& renderer = (*it)->renderer();
+                    if (ancestor->hasOverhangingFloat(renderer)) {
+                        parentBlock = &*ancestor;
+                        break;
                     }
                 }
             }
@@ -1975,11 +1972,6 @@ FloatingObject* RenderBlockFlow::insertFloatingObject(RenderBox& floatBox)
     }
 
     setLogicalWidthForFloat(floatingObject.get(), logicalWidthForChild(floatBox) + marginStartForChild(floatBox) + marginEndForChild(floatBox));
-
-#if ENABLE(CSS_SHAPES)
-    if (ShapeOutsideInfo* shapeOutside = floatBox.shapeOutsideInfo())
-        shapeOutside->setShapeSize(logicalWidthForChild(floatBox), logicalHeightForChild(floatBox));
-#endif
 
     return m_floatingObjects->add(std::move(floatingObject));
 }
@@ -2220,6 +2212,10 @@ bool RenderBlockFlow::positionNewFloats()
 
         m_floatingObjects->addPlacedObject(floatingObject);
 
+#if ENABLE(CSS_SHAPES)
+        if (ShapeOutsideInfo* shapeOutside = childBox.shapeOutsideInfo())
+            shapeOutside->setShapeSize(logicalWidthForChild(childBox), logicalHeightForChild(childBox));
+#endif
         // If the child moved, we have to repaint it.
         if (childBox.checkForRepaintDuringLayout())
             childBox.repaintDuringLayoutIfMoved(oldRect);

@@ -24,20 +24,26 @@
  */
 
 #import "config.h"
-#import "WKRemoteObjectRegistry.h"
-#import "WKRemoteObjectRegistryPrivate.h"
+#import "WKRemoteObjectRegistryInternal.h"
 
 #import "Connection.h"
+#import "ImmutableDictionary.h"
 #import "WKConnectionRef.h"
-#import "WebConnection.h"
+#import "WKRemoteObject.h"
+#import "WKRemoteObjectCoder.h"
+#import "WKRemoteObjectInterface.h"
 #import "WKSharedAPICast.h"
+#import "WebConnection.h"
 
 #if WK_API_ENABLED
+
+const char* const messageName = "WKRemoteObjectRegistryMessage";
 
 using namespace WebKit;
 
 @implementation WKRemoteObjectRegistry {
     RefPtr<WebConnection> _connection;
+    RetainPtr<NSMapTable> _remoteObjectProxies;
 }
 
 - (void)registerExportedObject:(id)object interface:(WKRemoteObjectInterface *)interface
@@ -52,8 +58,32 @@ using namespace WebKit;
 
 - (id)remoteObjectProxyWithInterface:(WKRemoteObjectInterface *)interface
 {
-    // FIXME: Implement.
-    return nil;
+    if (!_remoteObjectProxies)
+        _remoteObjectProxies = [NSMapTable strongToWeakObjectsMapTable];
+
+    if (id remoteObjectProxy = [_remoteObjectProxies objectForKey:interface.identifier])
+        return remoteObjectProxy;
+
+    RetainPtr<NSString> identifier = adoptNS([interface.identifier copy]);
+    RetainPtr<WKRemoteObject> remoteObject = adoptNS([[WKRemoteObject alloc] _initWithObjectRegistry:self interface:interface]);
+    [_remoteObjectProxies setObject:remoteObject.get() forKey:identifier.get()];
+
+    return [remoteObject.leakRef() autorelease];
+}
+
+- (void)_sendInvocation:(NSInvocation *)invocation interface:(WKRemoteObjectInterface *)interface
+{
+    RetainPtr<WKRemoteObjectEncoder> encoder = adoptNS([[WKRemoteObjectEncoder alloc] init]);
+
+    [encoder encodeObject:interface.identifier forKey:@"interfaceIdentifier"];
+    [encoder encodeObject:invocation forKey:@"invocation"];
+
+    [self _sendMessageWithBody:[encoder rootObjectDictionary]];
+}
+
+- (void)_sendMessageWithBody:(PassRefPtr<ImmutableDictionary>)body
+{
+    _connection->postMessage(messageName, body.get());
 }
 
 @end

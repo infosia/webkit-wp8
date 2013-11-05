@@ -1,3 +1,694 @@
+2013-11-04  Brady Eidson  <beidson@apple.com>
+
+        IDB: Split backend Cursors and Transactions into their own files
+        https://bugs.webkit.org/show_bug.cgi?id=123789
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebProcess/Databases/IndexedDB/WebIDBFactoryBackend.cpp:
+        (WebKit::WebIDBFactoryBackend::createCursorBackend):
+        * WebProcess/Databases/IndexedDB/WebIDBFactoryBackend.h:
+
+2013-11-04  Alexey Proskuryakov  <ap@apple.com>
+
+        DumpRenderTree should reset its preferences file on launch
+        https://bugs.webkit.org/show_bug.cgi?id=29751
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/mac/WKFullKeyboardAccessWatcher.mm:
+        (-[WKFullKeyboardAccessWatcher retrieveKeyboardUIModeFromPreferences:]):
+        Further fix reading of AppleKeyboardUIMode - reading it from kCFPreferencesAnyApplication
+        domain meant that current application's domain was explcitly ignored, and the only
+        way to override the setting in WTR was through argument domain.
+
+2013-11-04  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Make LayerTypeCustom remote-host CALayers from the Web process
+        https://bugs.webkit.org/show_bug.cgi?id=123766
+
+        Reviewed by Anders Carlsson.
+
+        Put each LayerTypeCustom layer into a CAContext, so that we can
+        host small CALayer trees (for video, plugins, etc.) from the Web process
+        to the UI process without proxying their (more complex) content.
+
+        * Shared/mac/RemoteLayerTreeTransaction.h:
+        * Shared/mac/RemoteLayerTreeTransaction.mm:
+        (WebKit::RemoteLayerTreeTransaction::LayerCreationProperties::encode):
+        (WebKit::RemoteLayerTreeTransaction::LayerCreationProperties::decode):
+        (WebKit::RemoteLayerTreeTransaction::dump):
+        Store, encode, and dump the CAContext ID of custom layers.
+
+        * UIProcess/mac/RemoteLayerTreeHost.mm:
+        (WebKit::RemoteLayerTreeHost::createLayer):
+        Create a CALayerHost with the CAContext ID from the Web process.
+
+        * WebKit2.xcodeproj/project.pbxproj:
+        Add PlatformCALayerRemoteCustom.
+
+        * WebProcess/WebPage/mac/GraphicsLayerCARemote.cpp:
+        (WebKit::GraphicsLayerCARemote::createPlatformCALayer):
+        Call the newly-added custom-layer constructor.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.h:
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.cpp:
+        (PlatformCALayerRemote::create):
+        (PlatformCALayerRemote::PlatformCALayerRemote):
+        Move the call to layerWasCreated() out to ::create(), so that all of
+        the constructors for this class and all subclasses have completed
+        before we call it (so that layerWasCreated() can store the context ID
+        in the created layer properties object).
+
+        (WebKit::PlatformCALayerRemote::hostingContextID):
+        Should never be reached on the base class, only PlatformCALayerRemoteCustom.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemoteCustom.cpp: Added.
+        (PlatformCALayerRemoteCustom::PlatformCALayerRemoteCustom):
+        (PlatformCALayerRemoteCustom::~PlatformCALayerRemoteCustom):
+        (PlatformCALayerRemoteCustom::hostingContextID):
+        * WebProcess/WebPage/mac/PlatformCALayerRemoteCustom.h: Added.
+        Add PlatformCALayerRemoteCustom, which owns a LayerHostingContext
+        which it will use to share a custom CALayer tree with the UI process.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemoteTiledBacking.cpp:
+        Drive-by remove an unnecessary include.
+
+        * WebProcess/WebPage/mac/RemoteLayerTreeContext.mm:
+        (WebKit::RemoteLayerTreeContext::layerWasCreated):
+        Store the CAContext ID with the layer creation properties so it can
+        be used to create a CALayerHost upon commit in the UI process.
+
+2013-11-04  Tim Horton  <timothy_horton@apple.com>
+
+        Remove PlatformCALayer::playerLayer
+        https://bugs.webkit.org/show_bug.cgi?id=123764
+
+        Reviewed by Sam Weinig.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.cpp:
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.h:
+        Remove playerLayer().
+
+2013-11-04  Anders Carlsson  <andersca@apple.com>
+
+        WKRemoteObjectEncoder should escape keys
+        https://bugs.webkit.org/show_bug.cgi?id=123761
+
+        Reviewed by Tim Horton.
+
+        Keys that start with $ will be reserved for use by the coder, so prepend an extra
+        $ to keys that already start with $ to avoid clashes.
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm:
+        (escapeKey):
+        (-[WKRemoteObjectEncoder encodeBytes:length:forKey:]):
+        (-[WKRemoteObjectEncoder _encodeObjectForKey:usingBlock:]):
+
+2013-11-04  Benjamin Poulain  <bpoulain@apple.com>
+
+        [WK2] Update WebGeolocationManager to support multiple WebContent processes
+        https://bugs.webkit.org/show_bug.cgi?id=123658
+
+        Reviewed by Anders Carlsson.
+
+        Change WebGeolocationManagerProxy to track which WebProcessProxy needs geolocation.
+
+        * UIProcess/WebContext.cpp:
+        (WebKit::WebContext::disconnectProcess):
+        WebContext::disconnectProcess does not handle ContextSupplement yet when using multiple
+        WebContent processes. Add an explicit call for WebGeolocationManagerProxy as a temporary
+        solution.
+
+        * UIProcess/WebGeolocationManagerProxy.cpp:
+        (WebKit::WebGeolocationManagerProxy::WebGeolocationManagerProxy):
+        (WebKit::WebGeolocationManagerProxy::contextDestroyed):
+        (WebKit::WebGeolocationManagerProxy::processDidClose):
+        (WebKit::WebGeolocationManagerProxy::startUpdating):
+        (WebKit::WebGeolocationManagerProxy::stopUpdating):
+        (WebKit::WebGeolocationManagerProxy::removeRequester):
+        * UIProcess/WebGeolocationManagerProxy.h:
+        * UIProcess/WebGeolocationManagerProxy.messages.in:
+
+2013-11-01  Jer Noble  <jer.noble@apple.com>
+
+        [PluginProxy] Add a setting to disable video plugin proxy support in HTMLMediaElement.
+        https://bugs.webkit.org/show_bug.cgi?id=123621
+
+        Reviewed by Eric Carlson.
+
+        Add WebKit2 functions for setting then new isVideoPluginProxyEnabled preference.
+
+        * Shared/WebPreferencesStore.h:
+        * UIProcess/API/C/WKPreferences.cpp:
+        (WKPreferencesSetVideoPluginProxyEnabled):
+        (WKPreferencesGetVideoPluginProxyEnabled):
+        * UIProcess/API/C/WKPreferences.h:
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::updatePreferences):
+
+2013-11-04  Anders Carlsson  <andersca@apple.com>
+
+        More WKRemoteObjectRegistry work
+        https://bugs.webkit.org/show_bug.cgi?id=123754
+
+        Reviewed by Dan Bernstein.
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.h:
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm:
+        (-[WKRemoteObjectEncoder rootObjectDictionary]):
+        Add a getter for the root object dictionary.
+
+        * Shared/API/Cocoa/WKRemoteObjectRegistry.mm:
+        (-[WKRemoteObjectRegistry _sendInvocation:interface:]):
+        Call _sendMessageWithBody:.
+        (-[WKRemoteObjectRegistry _sendMessageWithBody:]):
+        Call WebConnection::postMessage.
+
+2013-11-03  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Wrappers' -copyWithZone: should copy if the collection is mutable
+        https://bugs.webkit.org/show_bug.cgi?id=123707
+
+        Reviewed by Geoff Garen and Anders Carlsson.
+
+        * Shared/Cocoa/WKNSArray.mm:
+        (-[WKNSArray copyWithZone:]): If the array is mutable, make a copy.
+        * Shared/Cocoa/WKNSDictionary.mm:
+        (-[WKNSDictionary copyWithZone:]): If the dictionary is mutable, make a copy.
+        * Shared/ImmutableArray.h:
+        (WebKit::ImmutableArray::entries): Added this accessor.
+
+2013-11-03  Dan Bernstein  <mitz@apple.com>
+
+        Reverted r158538.
+
+        * Shared/Cocoa/WKNSArray.mm:
+        (-[WKNSArray copyWithZone:]):
+        * Shared/Cocoa/WKNSDictionary.mm:
+        (-[WKNSDictionary copyWithZone:]):
+        * Shared/ImmutableArray.h:
+
+2013-11-03  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Wrappers' -copyWithZone: should copy if the collection is mutable
+        https://bugs.webkit.org/show_bug.cgi?id=123707
+
+        Reviewed by Geoff Garen.
+
+        * Shared/Cocoa/WKNSArray.mm:
+        (-[WKNSArray copyWithZone:]): If the array is mutable, make a copy.
+        * Shared/Cocoa/WKNSDictionary.mm:
+        (-[WKNSDictionary copyWithZone:]): If the dictionary is mutable, make a copy.
+        * Shared/ImmutableArray.h:
+        (WebKit::ImmutableArray::entries): Added this accessor.
+
+2013-11-02  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Wrappers mishandle NULL values in arrays and dictionaries
+        https://bugs.webkit.org/show_bug.cgi?id=123671
+
+        Reviewed by Darin Adler.
+
+        * Shared/Cocoa/WKNSArray.mm:
+        (-[WKNSArray objectAtIndex:]): Represent a NULL object as NSNull.
+        * Shared/Cocoa/WKNSDictionary.mm:
+        (-[WKNSDictionary objectForKey:]): Represent a NULL value as NSNull.
+        * Shared/ImmutableDictionary.h:
+        (WebKit::ImmutableDictionary::get): Added this overload that returns whether the key exists.
+
+2013-11-02  Dan Bernstein  <mitz@apple.com>
+
+        Fixed release builds.
+
+        * Shared/Cocoa/WKNSDictionary.mm:
+        (-[WKNSDictionary initWithObjects:forKeys:count:]):
+
+2013-11-02  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Add WKNSDictionary
+        https://bugs.webkit.org/show_bug.cgi?id=123660
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/Cocoa/APIObject.mm:
+        (WebKit::APIObject::newObject): Allocate a WKNSDictionary if the APIObject is a dictionary.
+        * Shared/Cocoa/WKNSDictionary.h: Added.
+        (WebKit::wrapper):  Added. Returns an ImmutableDictionary’s wrapper as an NSDictionary.
+        * Shared/Cocoa/WKNSDictionary.mm: Added.
+        (-[WKNSDictionary dealloc]): Calls the ImmutableDictionary destructor.
+        (-[WKNSDictionary count]): Added.
+        (-[WKNSDictionary objectForKey:]): Added.
+        (-[WKNSDictionary keyEnumerator]): Added.
+        (-[WKNSDictionary copyWithZone:]): Retains self.
+        (-[WKNSDictionary _apiObject]): Returns the wrapped ImmutableDictionary.
+        * WebKit2.xcodeproj/project.pbxproj: Added references to new files.
+
+2013-11-02  Tim Horton  <timothy_horton@apple.com>
+
+        Address some review comments noted in r158463
+        https://bugs.webkit.org/show_bug.cgi?id=123646
+
+        Reviewed by Darin Adler.
+
+        * Shared/mac/RemoteLayerBackingStore.mm:
+        Put our __has_include ifs all on one line.
+
+        (createIOSurface):
+        IOSurfaceAlignProperty returns size_t, not unsigned long.
+
+        (RemoteLayerBackingStore::display):
+        (RemoteLayerBackingStore::drawInContext):
+        Create the frontImage in display() and hand it to drawInContext().
+
+        Use the GraphicsContext API instead of CG itself for clearRect().
+
+        When using ShareableBitmap, replace m_frontBuffer instead of
+        having a backBuffer local; the CGImageRef will retain the
+        ShareableBitmap it references.
+
+        Duplicate our drawInContext() calls so we don't have to allocate
+        a GraphicsContext on the heap in the IOSurface case.
+
+        Don't bother clearing frontContext; it'll happen for us at
+        the appropriate time. Instead, assert that it's still alive after
+        we drop our reference to the frontImage created from it.
+
+2013-11-02  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] invalid use of incomplete type 'class WTF::PassOwnPtr<WTF::Vector<unsigned char> >'
+        https://bugs.webkit.org/show_bug.cgi?id=123601
+
+        Reviewed by Carlos Garcia Campos.
+
+        * WebProcess/Plugins/Netscape/NetscapePluginStream.cpp: Explicitly include the PassOwnPtr.h header
+        as certain configurations on the GTK port don't ensure that the header is included indirectly.
+
+2013-11-02  Vitaly Katunin  <vkatunin@luxoft.com>
+
+        [GTK] invalid application of 'sizeof' to incomplete type
+        https://bugs.webkit.org/show_bug.cgi?id=123502
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Shared/WebCoreArgumentCoders.cpp:
+
+2013-11-01  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Crashes allocating incredibly large backing store for tiled backing layers
+        https://bugs.webkit.org/show_bug.cgi?id=123651
+
+        Reviewed by Simon Fraser.
+
+        * Shared/mac/RemoteLayerBackingStore.mm:
+        (RemoteLayerBackingStore::display):
+        (RemoteLayerBackingStore::drawInContext):
+        We can't dirty the whole layer if we have no existing front buffer if
+        we have no paints, because that will lead to layers which were never
+        setNeedsDisplay()'d getting backing store. Added back an assertion
+        that will catch this, too.
+
+2013-11-01  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] WKObject seems to be initializing its target in a thread-safe manner, but really is not
+        https://bugs.webkit.org/show_bug.cgi?id=123640
+
+        Reviewed by Darin Adler.
+
+        * Shared/Cocoa/WKObject.mm:
+        (initializeTargetIfNeeded): Removed misleading incorrect code.
+
+2013-11-01  Benjamin Poulain  <benjamin@webkit.org>
+
+        [WK2] Create a unique identifier for WebPageGroup if the input name is empty
+        https://bugs.webkit.org/show_bug.cgi?id=123606
+
+        Reviewed by Andreas Kling.
+
+        Strengthen the "public" API of page group.
+        If someone uses WKBrowsingContextGroup with a nil or empty string, the related WKString
+        would be empty, and all the WKBrowsingContextGroup end up with the same identifier.
+
+        * UIProcess/WebPageGroup.cpp:
+        (WebKit::WebPageGroup::WebPageGroup):
+
+2013-11-01  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Avoid some double-wrapping of strings and URLs
+        https://bugs.webkit.org/show_bug.cgi?id=123632
+
+        Reviewed by Anders Carlsson.
+
+        * Shared/API/c/cf/WKStringCF.cpp: Removed.
+        * Shared/API/c/cf/WKStringCF.mm: Copied from Source/WebKit2/Shared/API/c/cf/WKStringCF.cpp.
+        (wkNSStringClass): Added this helper.
+        (WKStringCreateWithCFString): If the passed-in CFString is already wrapping a WebString,
+        then retain it and return it.
+        * Shared/API/c/cf/WKURLCF.cpp: Removed.
+        * Shared/API/c/cf/WKURLCF.mm: Copied from Source/WebKit2/Shared/API/c/cf/WKURLCF.cpp.
+        (wkNSURLClass): Added this helper.
+        (WKURLCreateWithCFURL): If the passed-in CFURL is already wrapping a WebURL, then retain it
+        and return it.
+        * WebKit2.xcodeproj/project.pbxproj: Updated for renames.
+
+2013-11-01  Anders Carlsson  <andersca@apple.com>
+
+        Begin work on encoding argument types
+        https://bugs.webkit.org/show_bug.cgi?id=123631
+
+        Reviewed by Dan Bernstein.
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm:
+        (-[WKRemoteObjectEncoder _encodeInvocation:forKey:]):
+        Encode argument types in an array.
+
+        (-[WKRemoteObjectEncoder _encodedObjectUsingBlock:]):
+        Add new helper method that encodes an object and returns the dictionary.
+
+        (-[WKRemoteObjectEncoder _encodeObjectForKey:usingBlock:]):
+        Implement this in terms of _encodedObjectUsingBlock:.
+
+        * Shared/MutableArray.cpp:
+        (WebKit::MutableArray::append):
+        * Shared/MutableArray.h:
+        Change append to take a PassRefPtr.
+
+2013-10-31  Gavin Barraclough  <barraclough@apple.com>
+
+        Rename InWindowState -> ViewState
+        https://bugs.webkit.org/show_bug.cgi?id=123584
+
+        Rubber stamped by Sam Weinig.
+
+        WebPageProxy::setViewState offers the option to wait for a reply. Previously this option
+        was only available via setIsInWindow, hence the mechanism to wait to the update has
+        'InWindowState' in method and variable names (i.e.
+        'WebPageProxy::waitForDidUpdateInWindowState'). Since the mechanism is now applicable to
+        all ViewState changes, rename to reflect this.
+
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView endDeferringViewInWindowChangesSync]):
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::WebPageProxy):
+        (WebKit::WebPageProxy::waitForDidUpdateViewState):
+        (WebKit::WebPageProxy::resetStateAfterProcessExited):
+        * UIProcess/WebPageProxy.h:
+        (WebKit::WebPageProxy::didUpdateViewState):
+        * UIProcess/WebPageProxy.messages.in:
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+        (WebKit::WebPage::didUpdateViewStateTimerFired):
+        (WebKit::WebPage::setViewState):
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/WebPage.messages.in:
+        * WebProcess/WebPage/mac/WebPageMac.mm:
+        (WebKit::WebPage::didUpdateViewStateTimerFired):
+
+2013-11-01  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Move RemoteLayerBackingStore to Shared/
+        https://bugs.webkit.org/show_bug.cgi?id=123646
+
+        Reviewed by Darin Adler.
+
+        Move RemoteLayerBackingStore to Shared/, since it is
+        used on both the UI and Web process side of things.
+
+        * Shared/mac/RemoteLayerBackingStore.h: Renamed from Source/WebKit2/WebProcess/WebPage/mac/RemoteLayerBackingStore.h.
+        * Shared/mac/RemoteLayerBackingStore.mm: Renamed from Source/WebKit2/WebProcess/WebPage/mac/RemoteLayerBackingStore.mm.
+        * WebKit2.xcodeproj/project.pbxproj:
+
+2013-11-01  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Vend layer contents via IOSurfaces
+        https://bugs.webkit.org/show_bug.cgi?id=123600
+
+        Reviewed by Anders Carlsson.
+
+        Address some review comments from Darin (and subsequently Anders).
+
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.h:
+        (WebKit::RemoteLayerBackingStore::surface):
+        No need for .get() here.
+
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.mm:
+        (RemoteLayerBackingStore::ensureBackingStore):
+        All on one line for readability.
+
+        (createIOSurfaceContext):
+        This 'if' is meaningless.
+
+        (createIOSurface):
+        No need for a RetainPtr here, the dictionary is autoreleased.
+
+        (RemoteLayerBackingStore::display):
+        Snuggle 'context' up next to the other declarations.
+
+2013-11-01  Anders Carlsson  <andersca@apple.com>
+
+        Don't use the C API in WKRemoteObjectCoder
+        https://bugs.webkit.org/show_bug.cgi?id=123627
+
+        Reviewed by Dan Bernstein.
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm:
+        (-[WKRemoteObjectEncoder init]):
+        (-[WKRemoteObjectEncoder encodeBytes:length:forKey:]):
+        (-[WKRemoteObjectEncoder _encodeObjectForKey:usingBlock:]):
+        * Shared/ImmutableDictionary.h:
+        * Shared/MutableDictionary.cpp:
+        (WebKit::MutableDictionary::add):
+        (WebKit::MutableDictionary::set):
+        * Shared/MutableDictionary.h:
+
+2013-11-01  Emilio Pozuelo Monfort  <pochu27@gmail.com>
+
+        Fix build on non-linux platforms
+        https://bugs.webkit.org/show_bug.cgi?id=123622
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/Launcher/gtk/ProcessLauncherGtk.cpp:
+
+2013-11-01  Brian Holt  <brian.holt@samsung.com>
+
+        [GTK] [WK2] Crash in webkitWebViewLoadFailedWithTLSErrors
+        https://bugs.webkit.org/show_bug.cgi?id=123618
+
+        Reviewed by Mario Sanchez Prada.
+
+        The GOwnPtrSoup header was not included which meant that the
+        specialization for GOwnPtr<SoupURI> was not used and instead the
+        default freeOwnedGPtr which calls g_free is used and crashes.
+
+        * UIProcess/API/gtk/WebKitWebView.cpp:
+
+2013-10-31  Tim Horton  <timothy_horton@apple.com>
+
+        Fix a typo/review comment from Dan, in http://trac.webkit.org/changeset/158413
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm:
+
+2013-10-31  Tim Horton  <timothy_horton@apple.com>
+
+        Remote Layer Tree: Vend layer contents via IOSurfaces
+        https://bugs.webkit.org/show_bug.cgi?id=123600
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/WebKit2.xcconfig:
+        Link WebKit2 against IOSurface.
+
+        * Shared/mac/RemoteLayerTreeTransaction.mm:
+        (WebKit::dumpChangedLayers):
+        Dump the size of the backing store instead of the pointer of its
+        SharedBitmap, because that's slightly more useful.
+
+        * UIProcess/mac/RemoteLayerTreeHost.mm:
+        (WebKit::RemoteLayerTreeHost::commit):
+        If a layer's backing store uses accelerated drawing, hand the IOSurface
+        to the CALayer for display.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.cpp:
+        (PlatformCALayerRemote::PlatformCALayerRemote):
+        Initialize contentsScale to 1 to match CA. Other properties will follow.
+
+        (PlatformCALayerRemote::ensureBackingStore):
+        Instead of replacing the RemoteLayerBackingStore when its properties
+        change, allow it to update them on the fly. Replacing them caused
+        us to throw away repaint rects when the accelerated drawing
+        flag was flipped.
+
+        (PlatformCALayerRemote::acceleratesDrawing):
+        (PlatformCALayerRemote::setAcceleratesDrawing):
+        Store the accelerated drawing flag and mark it dirty when it changes.
+
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.h:
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.h:
+        (WebKit::RemoteLayerBackingStore::image):
+        Rename bitmap() to image() and have it create a CGImageRef from
+        the ShareableBitmap, ready for direct application to a CALayer.
+
+        (WebKit::RemoteLayerBackingStore::surface):
+        Return a IOSurface ready for direct application to a CALayer.
+
+        (WebKit::RemoteLayerBackingStore::acceleratesDrawing):
+        (WebKit::RemoteLayerBackingStore::hasFrontBuffer):
+        Return whether or not we have a front buffer/surface.
+
+        * WebProcess/WebPage/mac/RemoteLayerBackingStore.mm:
+        Forward-declare some CGIOSurface SPI.
+
+        (RemoteLayerBackingStore::RemoteLayerBackingStore):
+        (RemoteLayerBackingStore::ensureBackingStore):
+        Throw away our front image and reset flags if needed.
+
+        (RemoteLayerBackingStore::encode):
+        (RemoteLayerBackingStore::decode):
+        En/decode the front surface instead of the ShareableBitmap if needed,
+        using CoreIPC::MachPort. Destroy the port on receipt.
+
+        (createIOSurfaceContext):
+        Create a CGIOSurfaceContext from an IOSurface.
+
+        (createIOSurface):
+        Create an IOSurface of the given size.
+
+        (RemoteLayerBackingStore::image):
+        Return a CGImageRef, if we're not using accelerated drawing.
+        Moved from the header.
+
+        (RemoteLayerBackingStore::display):
+        (RemoteLayerBackingStore::drawInContext):
+        If using accelerated drawing, create and paint into an IOSurface.
+        Reorganize some code to make the copying-from-the-front-image code
+        work for both software and IOSurfaces.
+        Flush the context when completed, to ensure that any asynchronous
+        painting is complete before we vend the surface to the UI process.
+
+2013-10-31  Anders Carlsson  <andersca@apple.com>
+
+        Begin stubbing out the WKRemoteObjectCoder NSCoder subclass
+        https://bugs.webkit.org/show_bug.cgi?id=123596
+
+        Reviewed by Tim Horton.
+
+        * Shared/API/Cocoa/WKRemoteObject.mm:
+        (-[WKRemoteObject forwardInvocation:]):
+        Call through to the WKRemoteObjectRegistry.
+
+        * Shared/API/Cocoa/WKRemoteObjectCoder.h: Added.
+        * Shared/API/Cocoa/WKRemoteObjectCoder.mm: Added.
+        (-[WKRemoteObjectEncoder init]):
+        Create a root WKDictionary.
+
+        (-[WKRemoteObjectEncoder dealloc]):
+        Assert that the current dictionary is the root dictionary; that we're back where we started.
+
+        (-[WKRemoteObjectEncoder allowsKeyedCoding]):
+        Return YES.
+
+        (-[WKRemoteObjectEncoder encodeObject:forKey:]):
+        Check that the object is valid and then encode it.
+
+        (-[WKRemoteObjectEncoder _encodeInvocation:forKey:]):
+        Encode the method type string and invocation selector.
+
+        (-[WKRemoteObjectEncoder encodeBytes:length:forKey:]):
+        Create a WKDataRef and add it to the dictionary.
+
+        (-[WKRemoteObjectEncoder _encodeObjectForKey:usingBlock:]):
+        Create a new dictionary and call the block.
+
+        * Shared/API/Cocoa/WKRemoteObjectRegistry.mm:
+        (-[WKRemoteObjectRegistry _sendInvocation:interface:]):
+        Create an encoder and encode the invocation and interface.
+
+        * Shared/API/Cocoa/WKRemoteObjectRegistryInternal.h: Added.
+        Add IPI header.
+
+        * WebKit2.xcodeproj/project.pbxproj:
+        Add new files.
+
+2013-10-31  Anders Carlsson  <andersca@apple.com>
+
+        Address review comments.
+
+        * Shared/API/Cocoa/WKRemoteObject.h:
+        * Shared/API/Cocoa/WKRemoteObject.mm:
+        (-[WKRemoteObject conformsToProtocol:]):
+
+2013-10-31  Anders Carlsson  <andersca@apple.com>
+
+        Add a WKRemoteObject class
+        https://bugs.webkit.org/show_bug.cgi?id=123586
+
+        Reviewed by Dan Bernstein.
+
+        * Shared/API/Cocoa/WKRemoteObject.h: Added.
+        * Shared/API/Cocoa/WKRemoteObject.mm: Added.
+        (-[WKRemoteObject _initWithObjectRegistry:interface:]):
+        Add designated initializer.
+
+        (-[WKRemoteObject conformsToProtocol:]):
+        Check if the interface protocol conforms to our protocol.
+
+        (methodArgumentTypeEncodingForSelector):
+        Helper function that looks up a method in a given protocol and returns its type encoding.
+
+        (-[WKRemoteObject methodSignatureForSelector:]):
+        Try to find the method argument type encoding for the given selector and return its NSMethodSignature.
+
+        (-[WKRemoteObject forwardInvocation:]):
+        Add stub.
+
+        * Shared/API/Cocoa/WKRemoteObjectInterface.mm:
+        Remove a newline.
+
+        * Shared/API/Cocoa/WKRemoteObjectRegistry.mm:
+        (-[WKRemoteObjectRegistry remoteObjectProxyWithInterface:]):
+        Establish a mapping between interface identifiers and remote object proxies.
+
+        * WebKit2.xcodeproj/project.pbxproj:
+
+2013-10-31  Alexey Proskuryakov  <ap@apple.com>
+
+        Enable WebCrypto on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=123587
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/FeatureDefines.xcconfig: Do it.
+
+2013-10-31  Sergio Correia  <sergio.correia@openbossa.org>
+
+        [WK2] Convert SeccompFilters to using unique_ptr instead of OwnPtr/PassOwnPtr
+        https://bugs.webkit.org/show_bug.cgi?id=122883
+
+        Reviewed by Darin Adler.
+
+        * Shared/linux/SeccompFilters/OpenSyscall.cpp:
+        (WebKit::OpenSyscall::createFromOpenatContext):
+        (WebKit::OpenSyscall::createFromCreatContext):
+        (WebKit::OpenSyscall::execute):
+        * Shared/linux/SeccompFilters/OpenSyscall.h:
+        * Shared/linux/SeccompFilters/SeccompBroker.cpp:
+        (WebKit::SIGSYSHandler):
+        (WebKit::SeccompBrokerClient::dispatch):
+        (WebKit::SeccompBroker::runLoop):
+        * Shared/linux/SeccompFilters/SigactionSyscall.cpp:
+        (WebKit::SigactionSyscall::createFromContext):
+        * Shared/linux/SeccompFilters/SigactionSyscall.h:
+        * Shared/linux/SeccompFilters/SigprocmaskSyscall.cpp:
+        (WebKit::SigprocmaskSyscall::createFromContext):
+        * Shared/linux/SeccompFilters/SigprocmaskSyscall.h:
+        * Shared/linux/SeccompFilters/Syscall.cpp:
+        (WebKit::Syscall::createFromContext):
+        (WebKit::Syscall::createFromDecoder):
+        (WebKit::SyscallResult::createFromDecoder):
+        * Shared/linux/SeccompFilters/Syscall.h:
+        * Shared/linux/SeccompFilters/SyscallPolicy.cpp:
+
 2013-10-31  Gavin Barraclough  <barraclough@apple.com>
 
         Change WebPage, WebPageProxy, WebPageCreationParameters to use ViewState

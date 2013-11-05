@@ -41,7 +41,6 @@
     return self;
 }
 
-
 + (instancetype)remoteObjectInterfaceWithProtocol:(Protocol *)protocol
 {
     return [[[self alloc] initWithProtocol:protocol identifier:NSStringFromProtocol(protocol)] autorelease];
