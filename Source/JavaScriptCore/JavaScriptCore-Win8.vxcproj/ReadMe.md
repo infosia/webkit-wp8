@@ -6,11 +6,11 @@ TestRunner Application
 Building and Running Sample
 ---------------------------
 
-Included in the sample is JavaScriptCore.sln Visual Studio Solution file. The solution builds the TestRunner Applcation and the TestRunnerComponenet Windows Runtime Component. TestRunnerComponent is a C++/CX WinRT object that hooks up TestRunner app with JavaScriptCore static library. Do the following steps before running TestRunner.
+Included in the sample is JavaScriptCore.sln Visual Studio Solution file. The solution builds the TestRunner Applcation and the TestRunnerComponenet Windows Runtime Component. TestRunnerComponent is a C++/CX WinRT object that hooks up TestRunner C# app with JavaScriptCore static library. Do the following steps before running TestRunner.
 
-- Make sure WinUtils.lib and JavaScript.lib are in c:/<CONFIGURATION>/bin32. Where <CONFIGURATION> is ether Debug or Release. You can put the libraries elsewhere but you will need to edit TestRunnerComponent project settings. See the references below to accesses the WinUtil and JavaScriptCore libraries.
+- Libraries: Make sure WinUtils.lib and JavaScript.lib are in c:/<CONFIGURATION>/bin32 or within the path listed in WEBKIT_OUTPUTDIR environment variable. The final path is WEBKIT_OUTPUTDIR/<CONFIGURATION>/bin32. Where <CONFIGURATION> is ether Debug or Release. You can put the libraries elsewhere but you will need to edit TestRunnerComponent project settings. See the references below to build the WinUtil and JavaScriptCore libraries. 
 
-- Make sure the path to Counter.h for WinUtils.lib and the headers files for JavaSriptCore.lib are listed in TestRunnerComponent project include path. The default is c:/<CONFIGURATION>/include. 
+- Library Headers: Make sure the path to Counter.h for WinUtils.lib and the headers files for JavaSriptCore.lib are available to the solution. Like the libraries they are found by default under the path listed in WEBKIT_OUTPUTDIR environment variable (WEBKIT_OUTPUTDIR/<CONFIGURATION>/include) or c:/<CONFIGURATION>/include. Where <CONFIGURATION> is ether Debug or Release.
 
  References
  ----------
