@@ -151,7 +151,7 @@ WebInspector.ResourceSidebarPanel.prototype = {
             representedObject = representedObject.parentFrame;
 
         var newContentView = WebInspector.contentBrowser.contentViewForRepresentedObject(representedObject);
-        var cookie = {lineNumber: positionToReveal.lineNumber, columnNumber: positionToReveal.columnNumber};
+        var cookie = positionToReveal ? {lineNumber: positionToReveal.lineNumber, columnNumber: positionToReveal.columnNumber} : {};
 
         WebInspector.contentBrowser.showContentView(newContentView, cookie);
     },
@@ -610,19 +610,13 @@ WebInspector.ResourceSidebarPanel.prototype = {
 
     _treeElementSelected: function(treeElement, selectedByUser)
     {
-        if (treeElement instanceof WebInspector.ContentFlowTreeElement) {
-            // FIXME: Implement DOM tree inspector for content flow tree elements.
-            // https://bugs.webkit.org/show_bug.cgi?id=122927
-            console.log("Content Flow view not implemented");
-            return;
-        }
-
         if (treeElement instanceof WebInspector.FolderTreeElement)
             return;
 
         if (treeElement instanceof WebInspector.ResourceTreeElement || treeElement instanceof WebInspector.ScriptTreeElement ||
             treeElement instanceof WebInspector.StorageTreeElement || treeElement instanceof WebInspector.DatabaseTableTreeElement ||
-            treeElement instanceof WebInspector.DatabaseTreeElement || treeElement instanceof WebInspector.ApplicationCacheFrameTreeElement) {
+            treeElement instanceof WebInspector.DatabaseTreeElement || treeElement instanceof WebInspector.ApplicationCacheFrameTreeElement ||
+            treeElement instanceof WebInspector.ContentFlowTreeElement) {
             WebInspector.contentBrowser.showContentViewForRepresentedObject(treeElement.representedObject);
             return;
         }

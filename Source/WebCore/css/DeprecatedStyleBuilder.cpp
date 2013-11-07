@@ -1444,7 +1444,7 @@ public:
             lineHeight = primitiveValue->computeLength<Length>(styleResolver->style(), styleResolver->rootElementStyle(), multiplier);
         } else if (primitiveValue->isPercentage()) {
             // FIXME: percentage should not be restricted to an integer here.
-            lineHeight = Length((styleResolver->style()->fontSize() * primitiveValue->getIntValue()) / 100, Fixed);
+            lineHeight = Length((styleResolver->style()->computedFontSize() * primitiveValue->getIntValue()) / 100, Fixed);
         } else if (primitiveValue->isNumber()) {
             // FIXME: number and percentage values should produce the same type of Length (ie. Fixed or Percent).
             lineHeight = Length(primitiveValue->getDoubleValue() * 100.0, Percent);
@@ -1522,8 +1522,16 @@ public:
 
 class ApplyPropertyPageSize {
 private:
-    static Length mmLength(double mm) { return CSSPrimitiveValue::create(mm, CSSPrimitiveValue::CSS_MM)->computeLength<Length>(0, 0); }
-    static Length inchLength(double inch) { return CSSPrimitiveValue::create(inch, CSSPrimitiveValue::CSS_IN)->computeLength<Length>(0, 0); }
+    static Length mmLength(double mm)
+    {
+        Ref<CSSPrimitiveValue> value(CSSPrimitiveValue::create(mm, CSSPrimitiveValue::CSS_MM));
+        return value.get().computeLength<Length>(0, 0);
+    }
+    static Length inchLength(double inch)
+    {
+        Ref<CSSPrimitiveValue> value(CSSPrimitiveValue::create(inch, CSSPrimitiveValue::CSS_IN));
+        return value.get().computeLength<Length>(0, 0);
+    }
     static bool getPageSizeFromName(CSSPrimitiveValue* pageSizeName, CSSPrimitiveValue* pageOrientation, Length& width, Length& height)
     {
         DEFINE_STATIC_LOCAL(Length, a5Width, (mmLength(148)));

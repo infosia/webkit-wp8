@@ -1,3 +1,50 @@
+2013-11-07  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] Glyphs in vertical text tests are rotated 90 degrees clockwise
+        https://bugs.webkit.org/show_bug.cgi?id=50619
+
+        Reviewed by Martin Robinson.
+
+        Enabled OPENTYPE_VERTICAL by default on GTK+ and EFL ports, which are
+        currently using Freetype.
+
+        * wtf/Platform.h:
+
+2013-11-06  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream Letterpress effect
+        https://bugs.webkit.org/show_bug.cgi?id=123932
+
+        Reviewed by Sam Weinig.
+
+        Add feature define ENABLE_LETTERPRESS disabled by default. We only enable
+        letterpress on iOS.
+
+        * wtf/FeatureDefines.h:
+
+2013-11-06  Nick Diego Yamane  <nick.yamane@openbossa.org>
+
+        Disable "unused local typedefs" warning for GCC 4.7
+        https://bugs.webkit.org/show_bug.cgi?id=123913
+
+        Reviewed by Martin Robinson.
+
+        That warning was actually introduced in gcc 4.7.0.
+        See: http://gcc.gnu.org/gcc-4.7/changes.html
+
+        * wtf/Compiler.h:
+
+2013-11-06  Daniel Bates  <dabates@apple.com>
+
+        Add ENABLE(TEXT_SELECTION)
+        https://bugs.webkit.org/show_bug.cgi?id=123827
+
+        Reviewed by Ryosuke Niwa.
+
+        Enable selection painting by default on all ports except iOS.
+
+        * wtf/FeatureDefines.h:
+
 2013-11-04  Alexey Proskuryakov  <ap@apple.com>
 
         Implement base64url encoding from RFC 4648

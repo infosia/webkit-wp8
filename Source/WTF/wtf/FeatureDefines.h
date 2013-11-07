@@ -128,6 +128,10 @@
 #define ENABLE_TEXT_CARET 0
 #endif
 
+#if !defined(ENABLE_TEXT_SELECTION)
+#define ENABLE_TEXT_SELECTION 0
+#endif
+
 #if !defined(ENABLE_TOUCH_EVENTS)
 #define ENABLE_TOUCH_EVENTS 1
 #endif
@@ -599,6 +603,10 @@
 #define ENABLE_LEGACY_VIEWPORT_ADAPTION 0
 #endif
 
+#if !defined(ENABLE_LETTERPRESS)
+#define ENABLE_LETTERPRESS 0
+#endif
+
 #if !defined(ENABLE_LINK_PREFETCH)
 #define ENABLE_LINK_PREFETCH 0
 #endif
@@ -785,6 +793,10 @@
 
 #if !defined(ENABLE_TEXT_CARET)
 #define ENABLE_TEXT_CARET 1
+#endif
+
+#if !defined(ENABLE_TEXT_SELECTION)
+#define ENABLE_TEXT_SELECTION 1
 #endif
 
 #if !defined(ENABLE_THREADED_HTML_PARSER)

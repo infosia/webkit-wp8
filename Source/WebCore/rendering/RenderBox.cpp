@@ -38,6 +38,7 @@
 #include "HTMLNames.h"
 #include "HTMLTextAreaElement.h"
 #include "HitTestResult.h"
+#include "InlineElementBox.h"
 #include "Page.h"
 #include "PaintInfo.h"
 #include "RenderBoxRegionInfo.h"
@@ -1691,7 +1692,7 @@ LayoutUnit RenderBox::shrinkLogicalWidthToAvoidFloats(LayoutUnit childMarginStar
         containingBlockRegion = cb->clampToStartAndEndRegions(region);
     }
 
-    LayoutUnit result = cb->availableLogicalWidthForLine(logicalTopPosition, false, containingBlockRegion) - childMarginStart - childMarginEnd;
+    LayoutUnit result = cb->availableLogicalWidthForLineInRegion(logicalTopPosition, false, containingBlockRegion) - childMarginStart - childMarginEnd;
 
     // We need to see if margins on either the start side or the end side can contain the floats in question. If they can,
     // then just using the line width is inaccurate. In the case where a float completely fits, we don't need to use the line
@@ -1701,7 +1702,7 @@ LayoutUnit RenderBox::shrinkLogicalWidthToAvoidFloats(LayoutUnit childMarginStar
     if (childMarginStart > 0) {
         LayoutUnit startContentSide = cb->startOffsetForContent(containingBlockRegion);
         LayoutUnit startContentSideWithMargin = startContentSide + childMarginStart;
-        LayoutUnit startOffset = cb->startOffsetForLine(logicalTopPosition, false, containingBlockRegion);
+        LayoutUnit startOffset = cb->startOffsetForLineInRegion(logicalTopPosition, false, containingBlockRegion);
         if (startOffset > startContentSideWithMargin)
             result += childMarginStart;
         else
@@ -1711,7 +1712,7 @@ LayoutUnit RenderBox::shrinkLogicalWidthToAvoidFloats(LayoutUnit childMarginStar
     if (childMarginEnd > 0) {
         LayoutUnit endContentSide = cb->endOffsetForContent(containingBlockRegion);
         LayoutUnit endContentSideWithMargin = endContentSide + childMarginEnd;
-        LayoutUnit endOffset = cb->endOffsetForLine(logicalTopPosition, false, containingBlockRegion);
+        LayoutUnit endOffset = cb->endOffsetForLineInRegion(logicalTopPosition, false, containingBlockRegion);
         if (endOffset > endContentSideWithMargin)
             result += childMarginEnd;
         else
@@ -1765,7 +1766,7 @@ LayoutUnit RenderBox::containingBlockAvailableLineWidthInRegion(RenderRegion* re
         logicalTopPosition = max(logicalTopPosition, logicalTopPosition + offsetFromLogicalTopOfRegion);
         containingBlockRegion = cb->clampToStartAndEndRegions(region);
     }
-    return cb->availableLogicalWidthForLine(logicalTopPosition, false, containingBlockRegion, availableLogicalHeight(IncludeMarginBorderPadding));
+    return cb->availableLogicalWidthForLineInRegion(logicalTopPosition, false, containingBlockRegion, availableLogicalHeight(IncludeMarginBorderPadding));
 }
 
 LayoutUnit RenderBox::perpendicularContainingBlockLogicalHeight() const
@@ -1939,9 +1940,9 @@ LayoutSize RenderBox::offsetFromContainer(RenderObject* o, const LayoutPoint& po
     return offset;
 }
 
-InlineBox* RenderBox::createInlineBox()
+std::unique_ptr<InlineElementBox> RenderBox::createInlineBox()
 {
-    return new InlineBox(*this);
+    return std::make_unique<InlineElementBox>(*this);
 }
 
 void RenderBox::dirtyLineBoxes(bool fullLayout)
@@ -1955,7 +1956,7 @@ void RenderBox::dirtyLineBoxes(bool fullLayout)
     }
 }
 
-void RenderBox::positionLineBox(InlineBox* box)
+void RenderBox::positionLineBox(InlineElementBox& box)
 {
     if (isOutOfFlowPositioned()) {
         // Cache the x position only if we were an INLINE type originally.
@@ -1964,30 +1965,33 @@ void RenderBox::positionLineBox(InlineBox* box)
             // The value is cached in the xPos of the box.  We only need this value if
             // our object was inline originally, since otherwise it would have ended up underneath
             // the inlines.
-            RootInlineBox& rootBox = box->root();
-            rootBox.blockFlow().setStaticInlinePositionForChild(*this, rootBox.lineTopWithLeading(), roundedLayoutUnit(box->logicalLeft()));
-            if (style().hasStaticInlinePosition(box->isHorizontal()))
+            RootInlineBox& rootBox = box.root();
+            rootBox.blockFlow().setStaticInlinePositionForChild(*this, rootBox.lineTopWithLeading(), roundedLayoutUnit(box.logicalLeft()));
+            if (style().hasStaticInlinePosition(box.isHorizontal()))
                 setChildNeedsLayout(MarkOnlyThis); // Just go ahead and mark the positioned object as needing layout, so it will update its position properly.
         } else {
             // Our object was a block originally, so we make our normal flow position be
             // just below the line box (as though all the inlines that came before us got
             // wrapped in an anonymous block, which is what would have happened had we been
             // in flow).  This value was cached in the y() of the box.
-            layer()->setStaticBlockPosition(box->logicalTop());
-            if (style().hasStaticBlockPosition(box->isHorizontal()))
+            layer()->setStaticBlockPosition(box.logicalTop());
+            if (style().hasStaticBlockPosition(box.isHorizontal()))
                 setChildNeedsLayout(MarkOnlyThis); // Just go ahead and mark the positioned object as needing layout, so it will update its position properly.
         }
 
         // Nuke the box.
-        box->removeFromParent();
-        delete box;
-    } else if (isReplaced()) {
-        setLocation(roundedLayoutPoint(box->topLeft()));
+        box.removeFromParent();
+        delete &box;
+        return;
+    }
+
+    if (isReplaced()) {
+        setLocation(roundedLayoutPoint(box.topLeft()));
         // m_inlineBoxWrapper should already be 0. Deleting it is a safeguard against security issues.
         ASSERT(!m_inlineBoxWrapper);
         if (m_inlineBoxWrapper)
             deleteLineBoxWrapper();
-        m_inlineBoxWrapper = box;
+        m_inlineBoxWrapper = &box;
     }
 }
 

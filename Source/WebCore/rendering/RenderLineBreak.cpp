@@ -24,6 +24,7 @@
 
 #include "Document.h"
 #include "HTMLElement.h"
+#include "InlineElementBox.h"
 #include "RenderBlock.h"
 #include "RootInlineBox.h"
 #include "VisiblePosition.h"
@@ -67,21 +68,21 @@ int RenderLineBreak::baselinePosition(FontBaseline baselineType, bool firstLine,
     return fontMetrics.ascent(baselineType) + (lineHeight(firstLine, direction, linePositionMode) - fontMetrics.height()) / 2;
 }
 
-InlineBox* RenderLineBreak::createInlineBox()
+std::unique_ptr<InlineElementBox> RenderLineBreak::createInlineBox()
 {
-    return new InlineBox(*this);
+    return std::make_unique<InlineElementBox>(*this);
 }
 
-void RenderLineBreak::setInlineBoxWrapper(InlineBox* inlineBox)
+void RenderLineBreak::setInlineBoxWrapper(InlineElementBox* inlineBox)
 {
     ASSERT(!inlineBox || !m_inlineBoxWrapper);
     m_inlineBoxWrapper = inlineBox;
 }
 
-void RenderLineBreak::replaceInlineBoxWrapper(InlineBox* inlineBox)
+void RenderLineBreak::replaceInlineBoxWrapper(InlineElementBox& inlineBox)
 {
     deleteInlineBoxWrapper();
-    setInlineBoxWrapper(inlineBox);
+    setInlineBoxWrapper(&inlineBox);
 }
 
 void RenderLineBreak::deleteInlineBoxWrapper()

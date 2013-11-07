@@ -646,6 +646,7 @@ void alignSelectionRectToDevicePixels(FloatRect& rect)
 
 void InlineTextBox::paintSelection(GraphicsContext* context, const FloatPoint& boxOrigin, const RenderStyle& style, const Font& font, Color textColor)
 {
+#if ENABLE(TEXT_SELECTION)
     if (context->paintingDisabled())
         return;
 
@@ -697,6 +698,13 @@ void InlineTextBox::paintSelection(GraphicsContext* context, const FloatPoint& b
     context->clip(clipRect);
 
     context->drawHighlightForText(font, textRun, localOrigin, selHeight, c, style.colorSpace(), sPos, ePos);
+#else
+    UNUSED_PARAM(context);
+    UNUSED_PARAM(boxOrigin);
+    UNUSED_PARAM(style);
+    UNUSED_PARAM(font);
+    UNUSED_PARAM(textColor);
+#endif
 }
 
 void InlineTextBox::paintCompositionBackground(GraphicsContext* context, const FloatPoint& boxOrigin, const RenderStyle& style, const Font& font, int startPos, int endPos)
@@ -1467,7 +1475,7 @@ TextRun InlineTextBox::constructTextRun(const RenderStyle& style, const Font& fo
 
     TextRun run(string, textPos(), expansion(), expansionBehavior(), direction(), dirOverride() || style.rtlOrdering() == VisualOrder, !renderer().canUseSimpleFontCodePath());
     run.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
-    if (textRunNeedsRenderingContext(font))
+    if (font.isSVGFont())
         run.setRenderingContext(SVGTextRunRenderingContext::create(renderer()));
 
     // Propagate the maximum length of the characters buffer to the TextRun, even when we're only processing a substring.

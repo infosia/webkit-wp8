@@ -1,3 +1,2134 @@
+2013-11-07  Antti Koivisto  <antti@apple.com>
+
+        Simple line layout crashes with SVG fonts
+        https://bugs.webkit.org/show_bug.cgi?id=124002
+
+        Reviewed by Simon Fraser.
+
+        * fast/text/svg-font-simple-line-crash-expected.txt: Added.
+        * fast/text/svg-font-simple-line-crash.html: Added.
+
+2013-11-07  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: CSS Regions: Removing a content node of a ContentFlow from the DOM will send a 0 nodeId
+        https://bugs.webkit.org/show_bug.cgi?id=123577
+
+        Reviewed by Timothy Hatcher.
+
+        Added test to check that the notification that an element was removed from the ContentFlow is handled
+        correctly in the WebInspector even if the element is not part of the DOM anymore.
+
+        * inspector-protocol/model/content-flow-content-removal-expected.txt: Added.
+        * inspector-protocol/model/content-flow-content-removal.html: Added.
+
+2013-10-24  Jer Noble  <jer.noble@apple.com>
+
+        [MSE] Add mock MediaSource classes for testing.
+        https://bugs.webkit.org/show_bug.cgi?id=123322
+
+        Reviewed by Eric Carlson.
+
+        * media/media-source/media-source-addsourcebuffer-expected.txt: Added.
+        * media/media-source/media-source-addsourcebuffer.html: Added.
+        * media/media-source/media-source-append-buffer-expected.txt: Added.
+        * media/media-source/media-source-append-buffer.html: Added.
+        * media/media-source/media-source-canplaythrough-expected.txt: Added.
+        * media/media-source/media-source-canplaythrough.html: Added.
+        * media/media-source/media-source-closed-expected.txt: Added.
+        * media/media-source/media-source-closed.html: Added.
+        * media/media-source/media-source-play-expected.txt: Added.
+        * media/media-source/media-source-play.html: Added.
+        * media/media-source/mock-media-source.js: Added.
+        * media/video-test.js:
+
+2013-11-07  Samuel White  <samuel_white@apple.com>
+
+        AX: DRT AccessibilityUIElement::isFocused methods should be finished.
+        https://bugs.webkit.org/show_bug.cgi?id=123774
+
+        Reviewed by Chris Fleizach.
+
+        Added Mac platform test so we can validate our AccessibilityUIElement convenience method expectations.
+
+        * platform/mac/accessibility/test-convenience-methods-expected.txt: Added.
+        * platform/mac/accessibility/test-convenience-methods.html: Added.
+
+2013-11-07  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] Glyphs in vertical text tests are rotated 90 degrees clockwise
+        https://bugs.webkit.org/show_bug.cgi?id=50619
+
+        Reviewed by Martin Robinson.
+
+        Updated existing test results that uses vertical texts.
+
+        * platform/gtk-wk1/fast/writing-mode/Kusa-Makura-background-canvas-expected.png: Added.
+        * platform/gtk-wk1/fast/writing-mode/Kusa-Makura-background-canvas-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-lr-ltr-extend-line-backward-br-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-lr-ltr-extend-line-backward-br-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-lr-ltr-extend-line-forward-br-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-lr-ltr-extend-line-forward-br-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-br-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-br-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-p-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-p-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-backward-wrap-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-br-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-br-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-p-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-p-expected.txt: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.png: Updated.
+        * platform/gtk/editing/selection/vertical-rl-ltr-extend-line-forward-wrap-expected.txt: Updated.
+        * platform/gtk/fast/block/lineboxcontain/block-with-ideographs-expected.png: Updated.
+        * platform/gtk/fast/block/lineboxcontain/block-with-ideographs-expected.txt: Updated.
+        * platform/gtk/fast/css/relative-positioned-block-with-inline-ancestor-and-parent-dynamic-expected.png: Updated.
+        * platform/gtk/fast/dynamic/text-combine-expected.png: Updated.
+        * platform/gtk/fast/dynamic/text-combine-expected.txt: Updated.
+        * platform/gtk/fast/html/details-writing-mode-expected.png: Updated.
+        * platform/gtk/fast/repaint/japanese-rl-selection-clear-expected.png: Updated.
+        * platform/gtk/fast/repaint/japanese-rl-selection-clear-expected.txt: Added.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-expected.png: Updated.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-expected.txt: Added.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.png: Updated.
+        * platform/gtk/fast/repaint/japanese-rl-selection-repaint-in-regions-expected.txt: Updated.
+        * platform/gtk/fast/repaint/repaint-across-writing-mode-boundary-expected.png: Updated.
+        * platform/gtk/fast/repaint/repaint-across-writing-mode-boundary-expected.txt: Updated.
+        * platform/gtk/fast/ruby/base-shorter-than-text-expected.png: Updated.
+        * platform/gtk/fast/ruby/base-shorter-than-text-expected.txt: Updated.
+        * platform/gtk/fast/text/decorations-with-text-combine-expected.png: Updated.
+        * platform/gtk/fast/text/decorations-with-text-combine-expected.txt: Updated.
+        * platform/gtk/fast/text/emphasis-combined-text-expected.png: Updated.
+        * platform/gtk/fast/text/emphasis-combined-text-expected.txt: Updated.
+        * platform/gtk/fast/text/emphasis-vertical-expected.png: Updated.
+        * platform/gtk/fast/text/emphasis-vertical-expected.txt: Updated.
+        * platform/gtk/fast/text/international/text-combine-image-test-expected.png: Updated.
+        * platform/gtk/fast/text/international/text-combine-image-test-expected.txt: Updated.
+        * platform/gtk/fast/text/international/text-spliced-font-expected.png: Updated.
+        * platform/gtk/fast/text/international/text-spliced-font-expected.txt: Updated.
+        * platform/gtk/fast/text/international/vertical-text-glyph-test-expected.png: Updated.
+        * platform/gtk/fast/text/international/vertical-text-glyph-test-expected.txt: Added.
+        * platform/gtk/fast/text/justify-ideograph-vertical-expected.png: Updated.
+        * platform/gtk/fast/text/justify-ideograph-vertical-expected.txt: Added.
+        * platform/gtk/fast/text/orientation-sideways-expected.png: Updated.
+        * platform/gtk/fast/text/orientation-sideways-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/Kusa-Makura-background-canvas-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/Kusa-Makura-background-canvas-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/border-vertical-lr-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/border-vertical-lr-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/broken-ideograph-small-caps-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/broken-ideograph-small-caps-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/broken-ideographic-font-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/broken-ideographic-font-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/fallback-orientation-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/fallback-orientation-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-lr-selection-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-lr-selection-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-lr-text-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-lr-text-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-selection-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-selection-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-text-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-text-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-text-with-broken-font-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-rl-text-with-broken-font-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-ruby-vertical-lr-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-ruby-vertical-lr-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/japanese-ruby-vertical-rl-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/japanese-ruby-vertical-rl-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/text-orientation-basic-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/text-orientation-basic-expected.txt:
+        * platform/gtk/fast/writing-mode/vertical-align-table-baseline-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/vertical-align-table-baseline-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/vertical-baseline-alignment-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/vertical-baseline-alignment-expected.txt: Updated.
+        * platform/gtk/fast/writing-mode/vertical-font-fallback-expected.png: Updated.
+        * platform/gtk/fast/writing-mode/vertical-font-fallback-expected.txt: Updated.
+
+2013-11-07  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed GTK gardening. Expectations are finally the same for
+        WK1 and WK2 so, besides needing a rebaseline, we now can share them.
+
+        * platform/gtk-wk1/accessibility/table-attributes-expected.txt: Removed.
+        * platform/gtk-wk1/accessibility/table-sections-expected.txt: Removed.
+        * platform/gtk/accessibility/table-attributes-expected.txt: Renamed from LayoutTests/platform/gtk-wk2/accessibility/table-attributes-expected.txt.
+        * platform/gtk/accessibility/table-sections-expected.txt: Renamed from LayoutTests/platform/gtk-wk2/accessibility/table-sections-expected.txt.
+
+2013-11-07  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Unreviewed, Add new baselines to EFL port since r158743 as well as do rebaseline.
+        Because r158743 didn't update EFL port.
+
+        * platform/efl/fullscreen/video-controls-override-expected.txt: Added.
+        * platform/efl/http/tests/media/video-cookie-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_2-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_2-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_3-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_4-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt: Added.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt: Added.
+        * platform/efl/media/context-menu-actions-expected.txt: Added.
+        * platform/efl/media/media-can-play-flac-audio-expected.txt: Added.
+        * platform/efl/media/media-can-play-webm-expected.txt: Added.
+        * platform/efl/media/media-volume-slider-rendered-below-expected.txt: Added.
+        * platform/efl/media/media-volume-slider-rendered-normal-expected.txt: Added.
+        * platform/efl/media/track/audio/audio-track-mkv-vorbis-addtrack-expected.txt: Added.
+        * platform/efl/media/track/audio/audio-track-mkv-vorbis-enabled-expected.txt: Added.
+        * platform/efl/media/track/track-cue-mutable-text-expected.txt: Added.
+        * platform/efl/media/track/track-cue-rendering-mode-changed-expected.txt: Added.
+        * platform/efl/media/track/track-language-preference-expected.txt: Added.
+        * platform/efl/media/track/video/video-track-mkv-theora-addtrack-expected.txt: Added.
+        * platform/efl/media/track/video/video-track-mkv-theora-selected-expected.txt: Added.
+        * platform/efl/media/video-controls-fullscreen-volume-expected.txt: Added.
+        * platform/efl/media/video-controls-toggling-expected.txt: Added.
+
+2013-11-07  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        AX: [ATK] Video and audio elements are not properly exposed
+        https://bugs.webkit.org/show_bug.cgi?id=123894
+
+        Reviewed by Chris Fleizach.
+
+        Updated tests and expectations according to the new behavior.
+
+        Updated failing test to reflect the new reality.
+        * platform/gtk/accessibility/media-element-expected.txt: Updated.
+
+        Extended GTK specific test by adding an <audio> element besides
+        the <video> one and printing all the information about those
+        related to their media nature.
+
+        * platform/gtk/accessibility/media-controls-panel-title.html: Extended.
+        * platform/gtk/accessibility/media-controls-panel-title-expected.txt: Updated.
+
+        Added new tests for GTK and EFL to check that the replaced
+        character is being properly emitter for both <video> and <audio>
+        elements. Inspired in the ones in platform/mac, we use a different
+        approach here to print the test since we don't have the
+        textMarkerRangeForElement functionality in our DRT/WKTR, and
+        because we expect embedded objects to show up in the results in a
+        GTK/EFL specific way (using the "<obj>" string).
+
+        * platform/efl/accessibility/media-emits-object-replacement-expected.txt: Added.
+        * platform/efl/accessibility/media-emits-object-replacement.html: Added.
+        * platform/gtk/accessibility/media-emits-object-replacement-expected.txt: Added.
+        * platform/gtk/accessibility/media-emits-object-replacement.html: Added.
+
+        Removed tests with failure expectations that are now passing.
+
+        * platform/gtk/TestExpectations: Removed passing tests.
+
+2013-11-06  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] CSSParser should reject <track-list> without a <track-size>
+        https://bugs.webkit.org/show_bug.cgi?id=118025
+
+        Reviewed by Andreas Kling.
+
+        Added a new test that verifies that <track-list> exclusively made
+        of <track-name> are not supported.
+
+        * fast/css-grid-layout/named-grid-line-get-set-expected.txt:
+        * fast/css-grid-layout/named-grid-line-get-set.html:
+
+2013-11-06  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Fix handling of 'inherit' and 'initial' for grid lines
+        https://bugs.webkit.org/show_bug.cgi?id=115401
+
+        Reviewed by Andreas Kling.
+
+        Added 'inherit' and 'initial' testing support to existing tests.
+
+        * fast/css-grid-layout/grid-auto-columns-rows-get-set-expected.txt:
+        * fast/css-grid-layout/grid-auto-columns-rows-get-set.html:
+        * fast/css-grid-layout/grid-auto-flow-get-set-expected.txt:
+        * fast/css-grid-layout/grid-auto-flow-get-set.html:
+        * fast/css-grid-layout/grid-columns-rows-get-set-expected.txt:
+        * fast/css-grid-layout/grid-columns-rows-get-set-multiple-expected.txt:
+        * fast/css-grid-layout/resources/grid-columns-rows-get-set-multiple.js:
+        (testInherit): New helper function.
+        (testInitial): Ditto.
+        * fast/css-grid-layout/resources/grid-columns-rows-get-set.js:
+        (testInherit): New helper function.
+        (testInitial): Ditto.
+
+2013-11-06  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        Unreviewed gardening
+
+        Adjust test expectations after r158743.
+
+        * fullscreen/video-controls-override-expected.txt:
+        * http/tests/media/video-cookie-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_codecs_order_2-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_3-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_4-expected.txt:
+        * media/context-menu-actions-expected.txt:
+        * media/media-can-play-flac-audio-expected.txt:
+        * media/media-volume-slider-rendered-below-expected.txt:
+        * media/media-volume-slider-rendered-normal-expected.txt:
+        * media/track/audio/audio-track-mkv-vorbis-addtrack-expected.txt:
+        * media/track/audio/audio-track-mkv-vorbis-enabled-expected.txt:
+        * media/track/track-cue-mutable-text-expected.txt:
+        * media/track/track-cue-rendering-mode-changed-expected.txt:
+        * media/track/track-language-preference-expected.txt:
+        * media/track/video/video-track-mkv-theora-addtrack-expected.txt:
+        * media/video-controls-fullscreen-volume-expected.txt:
+        * media/video-controls-toggling-expected.txt:
+        * media/video-controls-visible-exiting-fullscreen-expected.txt:
+        * media/video-seek-past-end-paused-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_1-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_2-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt:
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt:
+        * platform/efl/media/media-can-play-webm-expected.txt:
+
+2013-11-07  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: svg/batik
+
+        Unreviewed; run "webkit-patch optimize-baselines svg/batik"
+
+        * platform/gtk/svg/batik/filters/feTile-expected.txt: Removed.
+        * platform/gtk/svg/batik/filters/filterRegions-expected.txt: Removed.
+        * platform/gtk/svg/batik/masking/maskRegions-expected.txt: Removed.
+        * platform/gtk/svg/batik/paints/gradientLimit-expected.txt: Removed.
+        * platform/gtk/svg/batik/paints/patternPreserveAspectRatioA-expected.txt: Removed.
+        * platform/gtk/svg/batik/paints/patternRegionA-expected.txt: Removed.
+        * platform/gtk/svg/batik/paints/patternRegions-expected.txt: Removed.
+        * platform/gtk/svg/batik/paints/patternRegions-positioned-objects-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/longTextOnPath-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/smallFonts-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textAnchor-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textAnchor2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textAnchor3-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textDecoration-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textDecoration2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textEffect-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textEffect2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textEffect3-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textFeatures-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textGlyphOrientationHorizontal-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textLayout-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textLayout2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textLength-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textOnPath-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textOnPath2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textOnPath3-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textOnPathSpaces-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textPCDATA-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textPosition-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textProperties-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textProperties2-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/textStyles-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/verticalText-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/verticalTextOnPath-expected.txt: Removed.
+        * platform/gtk/svg/batik/text/xmlSpace-expected.txt: Removed.
+        * svg/batik/filters/feTile-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/filters/feTile-expected.txt.
+        * svg/batik/filters/filterRegions-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/filters/filterRegions-expected.txt.
+        * svg/batik/masking/maskRegions-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/masking/maskRegions-expected.txt.
+        * svg/batik/paints/gradientLimit-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/paints/gradientLimit-expected.txt.
+        * svg/batik/paints/patternPreserveAspectRatioA-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/paints/patternPreserveAspectRatioA-expected.txt.
+        * svg/batik/paints/patternRegionA-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/paints/patternRegionA-expected.txt.
+        * svg/batik/paints/patternRegions-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/paints/patternRegions-expected.txt.
+        * svg/batik/paints/patternRegions-positioned-objects-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/paints/patternRegions-positioned-objects-expected.txt.
+        * svg/batik/text/longTextOnPath-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/longTextOnPath-expected.txt.
+        * svg/batik/text/smallFonts-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/smallFonts-expected.txt.
+        * svg/batik/text/textAnchor-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textAnchor-expected.txt.
+        * svg/batik/text/textAnchor2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textAnchor2-expected.txt.
+        * svg/batik/text/textAnchor3-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textAnchor3-expected.txt.
+        * svg/batik/text/textDecoration-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textDecoration-expected.txt.
+        * svg/batik/text/textDecoration2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textDecoration2-expected.txt.
+        * svg/batik/text/textEffect-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textEffect-expected.txt.
+        * svg/batik/text/textEffect2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textEffect2-expected.txt.
+        * svg/batik/text/textEffect3-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textEffect3-expected.txt.
+        * svg/batik/text/textFeatures-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textFeatures-expected.txt.
+        * svg/batik/text/textGlyphOrientationHorizontal-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textGlyphOrientationHorizontal-expected.txt.
+        * svg/batik/text/textLayout-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textLayout-expected.txt.
+        * svg/batik/text/textLayout2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textLayout2-expected.txt.
+        * svg/batik/text/textLength-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textLength-expected.txt.
+        * svg/batik/text/textOnPath-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textOnPath-expected.txt.
+        * svg/batik/text/textOnPath2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textOnPath2-expected.txt.
+        * svg/batik/text/textOnPath3-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textOnPath3-expected.txt.
+        * svg/batik/text/textOnPathSpaces-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textOnPathSpaces-expected.txt.
+        * svg/batik/text/textPCDATA-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textPCDATA-expected.txt.
+        * svg/batik/text/textPosition-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textPosition-expected.txt.
+        * svg/batik/text/textProperties-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textProperties-expected.txt.
+        * svg/batik/text/textProperties2-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textProperties2-expected.txt.
+        * svg/batik/text/textStyles-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/textStyles-expected.txt.
+        * svg/batik/text/verticalText-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/verticalText-expected.txt.
+        * svg/batik/text/verticalTextOnPath-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/verticalTextOnPath-expected.txt.
+        * svg/batik/text/xmlSpace-expected.txt: Renamed from LayoutTests/platform/efl/svg/batik/text/xmlSpace-expected.txt.
+
+2013-11-07  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: svg/as-background-image
+
+        Unreviewed; run "webkit-patch optimize-baselines svg/as-background-image"
+
+        * platform/efl/svg/as-background-image/svg-as-background-1-expected.txt: Removed.
+        * platform/efl/svg/as-background-image/svg-as-background-2-expected.txt: Removed.
+        * platform/efl/svg/as-background-image/svg-as-background-3-expected.txt: Removed.
+        * platform/efl/svg/as-background-image/svg-as-background-4-expected.txt: Removed.
+        * platform/efl/svg/as-background-image/svg-as-background-5-expected.txt: Removed.
+        * platform/efl/svg/as-background-image/svg-as-background-6-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/animated-svg-as-background-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-1-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-2-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-3-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-4-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-5-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-6-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-expected.png: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-with-relative-size-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-with-viewBox-expected.png: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-background-with-viewBox-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-tiled-background-expected.png: Removed.
+        * platform/gtk/svg/as-background-image/svg-as-tiled-background-expected.txt: Removed.
+        * platform/gtk/svg/as-background-image/svg-width-100p-as-background-expected.png: Removed.
+        * platform/gtk/svg/as-background-image/svg-width-100p-as-background-expected.txt: Removed.
+        * platform/win-future/svg/as-background-image/svg-as-background-1-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-1-expected.txt.
+        * platform/win-future/svg/as-background-image/svg-as-background-2-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-2-expected.txt.
+        * platform/win-future/svg/as-background-image/svg-as-background-3-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-3-expected.txt.
+        * platform/win-future/svg/as-background-image/svg-as-background-4-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-4-expected.txt.
+        * platform/win-future/svg/as-background-image/svg-as-background-5-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-5-expected.txt.
+        * platform/win-future/svg/as-background-image/svg-as-background-6-expected.txt: Copied from LayoutTests/svg/as-background-image/svg-as-background-6-expected.txt.
+        * svg/as-background-image/animated-svg-as-background-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/animated-svg-as-background-expected.txt.
+        * svg/as-background-image/svg-as-background-1-expected.txt:
+        * svg/as-background-image/svg-as-background-2-expected.txt:
+        * svg/as-background-image/svg-as-background-3-expected.txt:
+        * svg/as-background-image/svg-as-background-4-expected.txt:
+        * svg/as-background-image/svg-as-background-5-expected.txt:
+        * svg/as-background-image/svg-as-background-6-expected.txt:
+        * svg/as-background-image/svg-as-background-expected.png: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-background-expected.png.
+        * svg/as-background-image/svg-as-background-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-background-expected.txt.
+        * svg/as-background-image/svg-as-background-with-relative-size-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-background-with-relative-size-expected.txt.
+        * svg/as-background-image/svg-as-background-with-viewBox-expected.png: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-background-with-viewBox-expected.png.
+        * svg/as-background-image/svg-as-background-with-viewBox-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-background-with-viewBox-expected.txt.
+        * svg/as-background-image/svg-as-tiled-background-expected.png: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-tiled-background-expected.png.
+        * svg/as-background-image/svg-as-tiled-background-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-as-tiled-background-expected.txt.
+        * svg/as-background-image/svg-width-100p-as-background-expected.png: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-width-100p-as-background-expected.png.
+        * svg/as-background-image/svg-width-100p-as-background-expected.txt: Renamed from LayoutTests/platform/efl/svg/as-background-image/svg-width-100p-as-background-expected.txt.
+
+2013-11-06  Vani Hegde  <vani.hegde@samsung.com>
+
+        Applied background color is not retained after typing a characters
+        https://bugs.webkit.org/show_bug.cgi?id=117337
+
+        Reviewed by Ryosuke Niwa.
+
+        * editing/style/background-color-retained-expected.txt: Added.
+        * editing/style/background-color-retained.html: Added.
+        Test to make sure that background color applied on a
+        selection is retained after deleting the selection.
+
+2013-11-06  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: svg/W3C-SVG-1.1
+
+        Unreviewed; run "webkit-patch optimize-baselines svg/W3C-SVG-1.1"
+
+        * platform/efl/svg/W3C-SVG-1.1/struct-dom-01-b-expected.txt: Removed.
+        * platform/efl/svg/W3C-SVG-1.1/struct-dom-02-b-expected.txt: Removed.
+        * platform/efl/svg/W3C-SVG-1.1/struct-dom-03-b-expected.txt: Removed.
+        * platform/efl/svg/W3C-SVG-1.1/struct-dom-04-b-expected.txt: Removed.
+        * platform/efl/svg/W3C-SVG-1.1/struct-dom-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-08-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-09-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-10-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-11-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-13-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-14-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-18-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-20-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-21-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-22-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-23-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-24-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-25-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-26-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-27-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-28-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-29-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-31-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-32-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-34-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-39-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-44-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-52-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-60-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-61-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-62-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-63-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-64-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-65-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-66-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-67-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-68-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-69-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-70-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-77-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-78-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-80-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-81-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-83-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-84-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/animate-elem-85-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/color-prof-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/color-prop-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/color-prop-02-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/color-prop-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-coord-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-coord-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-trans-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-units-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-units-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-units-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-viewattr-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-viewattr-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/coords-viewattr-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/extend-namespace-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-blend-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-color-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-composite-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-comptran-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-conv-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-diffuse-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-displace-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-example-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-felem-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-gauss-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-image-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-light-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-light-04-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-morph-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-offset-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-tile-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/filters-turb-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-desc-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-elem-07-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-glyph-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-glyph-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-glyph-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/fonts-kern-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-cursor-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-dom-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-events-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-order-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-order-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-order-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/interact-zoom-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-a-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-uri-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-uri-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/linking-uri-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-intro-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-mask-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-opacity-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-path-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-path-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-path-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-path-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/masking-path-05-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/metadata-example-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-fill-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-fill-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-fill-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-fill-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-fill-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-marker-01-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-marker-02-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-render-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-stroke-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-stroke-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-stroke-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-stroke-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/painting-stroke-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-03-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-08-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-09-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-10-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-12-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-13-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-14-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/paths-data-15-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-06-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-07-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-08-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-09-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-10-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-11-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-12-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-14-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-15-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-16-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-17-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-18-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-grad-19-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/pservers-pattern-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-elems-08-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-groups-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/render-groups-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/script-handle-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/script-handle-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/script-handle-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/script-handle-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-circle-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-circle-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-ellipse-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-ellipse-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-intro-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-line-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-polygon-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-polyline-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-rect-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/shapes-rect-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-cond-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-cond-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-cond-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-defs-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-dom-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-dom-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-dom-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-dom-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-dom-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-frag-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-frag-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-frag-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-frag-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-frag-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-group-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-group-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-group-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-08-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-09-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-image-10-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-symbol-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-use-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/struct-use-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-04-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-css-06-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-inherit-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/styling-pres-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-04-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-05-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-06-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-align-08-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-altglyph-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-deco-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-fonts-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-fonts-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-fonts-03-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-intro-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-intro-02-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-intro-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-intro-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-intro-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-path-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-spacing-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-03-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-04-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-05-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-06-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-07-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-text-08-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-tref-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-tselect-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-tselect-02-f-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-tspan-01-b-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-ws-01-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/text-ws-02-t-expected.txt: Removed.
+        * platform/gtk/svg/W3C-SVG-1.1/types-basicDOM-01-b-expected.txt: Removed.
+        * platform/mac/svg/W3C-SVG-1.1/struct-frag-03-t-expected.txt: Removed.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-01-b-expected.txt: Copied from LayoutTests/svg/W3C-SVG-1.1/struct-dom-01-b-expected.txt.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-02-b-expected.txt: Copied from LayoutTests/svg/W3C-SVG-1.1/struct-dom-02-b-expected.txt.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-03-b-expected.txt: Copied from LayoutTests/svg/W3C-SVG-1.1/struct-dom-03-b-expected.txt.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-04-b-expected.txt: Copied from LayoutTests/svg/W3C-SVG-1.1/struct-dom-04-b-expected.txt.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-05-b-expected.txt: Copied from LayoutTests/svg/W3C-SVG-1.1/struct-dom-05-b-expected.txt.
+        * platform/win-future/svg/W3C-SVG-1.1/struct-dom-06-b-expected.txt: Renamed from LayoutTests/svg/W3C-SVG-1.1/struct-dom-06-b-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-08-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-08-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-09-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-09-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-10-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-10-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-11-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-11-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-13-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-13-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-14-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-14-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-18-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-18-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-20-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-20-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-21-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-21-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-22-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-22-b-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-23-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-23-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-24-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-24-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-25-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-25-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-26-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-26-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-27-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-27-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-28-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-28-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-29-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-29-b-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-31-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-31-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-32-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-32-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-34-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-34-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-39-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-39-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-44-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-44-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-52-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-52-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-60-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-60-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-61-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-61-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-62-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-62-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-63-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-63-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-64-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-64-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-65-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-65-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-66-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-66-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-67-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-67-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-68-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-68-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-69-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-69-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-70-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-70-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-77-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-77-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-78-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-78-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-80-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-80-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-81-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-81-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-83-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-83-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-84-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-84-t-expected.txt.
+        * svg/W3C-SVG-1.1/animate-elem-85-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/animate-elem-85-t-expected.txt.
+        * svg/W3C-SVG-1.1/color-prof-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/color-prof-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/color-prop-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/color-prop-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/color-prop-02-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/color-prop-02-f-expected.txt.
+        * svg/W3C-SVG-1.1/color-prop-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/color-prop-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-coord-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-coord-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-coord-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-coord-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-trans-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-trans-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/coords-units-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-units-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-units-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-units-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-units-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-units-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-viewattr-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-viewattr-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-viewattr-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-viewattr-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/coords-viewattr-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/coords-viewattr-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/extend-namespace-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/extend-namespace-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-blend-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-blend-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-color-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-color-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-composite-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-composite-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-comptran-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-comptran-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-conv-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-conv-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-diffuse-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-diffuse-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-displace-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-displace-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-example-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-example-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-felem-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-felem-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-gauss-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-gauss-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-image-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-image-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-light-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-light-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-light-04-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-light-04-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-morph-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-morph-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/filters-offset-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-offset-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-tile-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-tile-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/filters-turb-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/filters-turb-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-desc-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-desc-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-04-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-04-b-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-elem-07-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-elem-07-b-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-glyph-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-glyph-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-glyph-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-glyph-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-glyph-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-glyph-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/fonts-kern-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/fonts-kern-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/interact-cursor-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-cursor-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/interact-dom-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-dom-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/interact-events-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-events-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/interact-order-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-order-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/interact-order-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-order-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/interact-order-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-order-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/interact-zoom-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/interact-zoom-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/linking-a-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-a-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/linking-uri-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-uri-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/linking-uri-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-uri-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/linking-uri-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/linking-uri-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/masking-intro-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-intro-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/masking-mask-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-mask-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-opacity-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-opacity-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-path-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-path-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-path-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-path-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-path-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-path-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-path-04-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-path-04-b-expected.txt.
+        * svg/W3C-SVG-1.1/masking-path-05-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/masking-path-05-f-expected.txt.
+        * svg/W3C-SVG-1.1/metadata-example-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/metadata-example-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/painting-fill-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-fill-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-fill-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-fill-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-fill-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-fill-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-fill-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-fill-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-fill-05-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-fill-05-b-expected.txt.
+        * svg/W3C-SVG-1.1/painting-marker-01-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-marker-01-f-expected.txt.
+        * svg/W3C-SVG-1.1/painting-marker-02-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-marker-02-f-expected.txt.
+        * svg/W3C-SVG-1.1/painting-render-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-render-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/painting-stroke-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-stroke-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-stroke-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-stroke-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-stroke-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-stroke-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-stroke-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-stroke-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/painting-stroke-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/painting-stroke-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-03-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-03-f-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-08-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-08-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-09-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-09-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-10-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-10-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-12-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-12-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-13-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-13-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-14-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-14-t-expected.txt.
+        * svg/W3C-SVG-1.1/paths-data-15-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/paths-data-15-t-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-04-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-04-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-05-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-05-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-06-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-06-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-07-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-07-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-08-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-08-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-09-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-09-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-10-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-10-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-11-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-11-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-12-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-12-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-14-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-14-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-15-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-15-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-16-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-16-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-17-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-17-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-18-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-18-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-grad-19-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-grad-19-b-expected.txt.
+        * svg/W3C-SVG-1.1/pservers-pattern-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/pservers-pattern-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-elems-08-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-elems-08-t-expected.txt.
+        * svg/W3C-SVG-1.1/render-groups-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-groups-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/render-groups-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/render-groups-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/script-handle-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/script-handle-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/script-handle-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/script-handle-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/script-handle-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/script-handle-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/script-handle-04-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/script-handle-04-b-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-circle-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-circle-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-circle-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-circle-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-ellipse-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-ellipse-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-ellipse-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-ellipse-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-intro-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-intro-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-line-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-line-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-polygon-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-polygon-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-polyline-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-polyline-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-rect-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-rect-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/shapes-rect-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/shapes-rect-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-cond-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-cond-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-cond-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-cond-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-cond-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-cond-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-defs-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-defs-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-dom-01-b-expected.txt:
+        * svg/W3C-SVG-1.1/struct-dom-02-b-expected.txt:
+        * svg/W3C-SVG-1.1/struct-dom-03-b-expected.txt:
+        * svg/W3C-SVG-1.1/struct-dom-04-b-expected.txt:
+        * svg/W3C-SVG-1.1/struct-dom-05-b-expected.txt:
+        * svg/W3C-SVG-1.1/struct-frag-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-frag-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-frag-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-frag-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-frag-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-frag-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-frag-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-frag-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-frag-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-frag-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-group-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-group-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-group-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-group-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/struct-group-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-group-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-05-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-05-b-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-08-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-08-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-09-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-09-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-image-10-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-image-10-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-symbol-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-symbol-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/struct-use-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-use-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/struct-use-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/struct-use-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-04-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-04-f-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-05-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-05-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-css-06-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-css-06-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-inherit-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-inherit-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/styling-pres-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/styling-pres-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-04-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-04-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-05-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-05-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-06-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-06-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-align-08-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-align-08-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-altglyph-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-altglyph-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-deco-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-deco-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-fonts-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-fonts-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-fonts-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-fonts-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-fonts-03-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-fonts-03-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-intro-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-intro-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-intro-02-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-intro-02-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-intro-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-intro-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-intro-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-intro-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-intro-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-intro-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-path-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-path-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-spacing-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-spacing-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-03-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-03-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-04-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-04-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-05-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-05-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-06-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-06-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-07-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-07-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-text-08-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-text-08-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-tref-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-tref-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-tselect-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-tselect-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-tselect-02-f-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-tselect-02-f-expected.txt.
+        * svg/W3C-SVG-1.1/text-tspan-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-tspan-01-b-expected.txt.
+        * svg/W3C-SVG-1.1/text-ws-01-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-ws-01-t-expected.txt.
+        * svg/W3C-SVG-1.1/text-ws-02-t-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/text-ws-02-t-expected.txt.
+        * svg/W3C-SVG-1.1/types-basicDOM-01-b-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-SVG-1.1/types-basicDOM-01-b-expected.txt.
+
+2013-11-06  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: svg/W3C-I18N
+
+        Unreviewed; run "webkit-patch optimize-baselines svg/W3C-I18N"
+
+        * platform/efl/svg/W3C-I18N/text-dirLTR-ubOverride-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/g-dirLTR-ubNone-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/g-dirLTR-ubOverride-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/g-dirRTL-ubNone-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/g-dirRTL-ubOverride-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirLTR-anchorEnd-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirLTR-anchorMiddle-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirLTR-anchorStart-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirNone-anchorEnd-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirNone-anchorMiddle-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirNone-anchorStart-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirRTL-anchorEnd-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirRTL-anchorMiddle-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-dirRTL-anchorStart-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorEnd-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorMiddle-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorStart-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorEnd-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorMiddle-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorStart-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-anchor-no-markup-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-dirLTR-ubNone-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-dirLTR-ubOverride-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-dirRTL-ubNone-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/text-dirRTL-ubOverride-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirLTR-ubEmbed-in-rtl-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirLTR-ubNone-in-rtl-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-default-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-ltr-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-rtl-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirNone-ubOverride-in-default-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirNone-ubOverride-in-ltr-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirNone-ubOverride-in-rtl-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-default-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-ltr-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubNone-in-default-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubNone-in-ltr-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-default-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-ltr-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-rtl-context-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-direction-ltr-expected.txt: Removed.
+        * platform/gtk/svg/W3C-I18N/tspan-direction-rtl-expected.txt: Removed.
+        * svg/W3C-I18N/g-dirLTR-ubNone-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/g-dirLTR-ubNone-expected.txt.
+        * svg/W3C-I18N/g-dirLTR-ubOverride-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/g-dirLTR-ubOverride-expected.txt.
+        * svg/W3C-I18N/g-dirRTL-ubNone-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/g-dirRTL-ubNone-expected.txt.
+        * svg/W3C-I18N/g-dirRTL-ubOverride-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/g-dirRTL-ubOverride-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirLTR-anchorEnd-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirLTR-anchorEnd-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirLTR-anchorMiddle-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirLTR-anchorMiddle-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirLTR-anchorStart-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirLTR-anchorStart-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirNone-anchorEnd-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirNone-anchorEnd-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirNone-anchorMiddle-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirNone-anchorMiddle-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirNone-anchorStart-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirNone-anchorStart-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirRTL-anchorEnd-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirRTL-anchorEnd-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirRTL-anchorMiddle-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirRTL-anchorMiddle-expected.txt.
+        * svg/W3C-I18N/text-anchor-dirRTL-anchorStart-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-dirRTL-anchorStart-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorEnd-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorEnd-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorMiddle-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorMiddle-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorStart-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirLTR-anchorStart-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorEnd-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorEnd-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorMiddle-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorMiddle-expected.txt.
+        * svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorStart-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-inherited-dirRTL-anchorStart-expected.txt.
+        * svg/W3C-I18N/text-anchor-no-markup-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-anchor-no-markup-expected.txt.
+        * svg/W3C-I18N/text-dirLTR-ubNone-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-dirLTR-ubNone-expected.txt.
+        * svg/W3C-I18N/text-dirRTL-ubNone-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-dirRTL-ubNone-expected.txt.
+        * svg/W3C-I18N/text-dirRTL-ubOverride-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/text-dirRTL-ubOverride-expected.txt.
+        * svg/W3C-I18N/tspan-dirLTR-ubEmbed-in-rtl-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirLTR-ubEmbed-in-rtl-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirLTR-ubNone-in-rtl-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirLTR-ubNone-in-rtl-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirLTR-ubOverride-in-default-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-default-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirLTR-ubOverride-in-ltr-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-ltr-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirLTR-ubOverride-in-rtl-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirLTR-ubOverride-in-rtl-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirNone-ubOverride-in-default-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirNone-ubOverride-in-default-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirNone-ubOverride-in-ltr-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirNone-ubOverride-in-ltr-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirNone-ubOverride-in-rtl-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirNone-ubOverride-in-rtl-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-default-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-default-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-ltr-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubEmbed-in-ltr-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubNone-in-default-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubNone-in-default-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubNone-in-ltr-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubNone-in-ltr-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubOverride-in-default-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-default-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubOverride-in-ltr-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-ltr-context-expected.txt.
+        * svg/W3C-I18N/tspan-dirRTL-ubOverride-in-rtl-context-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-dirRTL-ubOverride-in-rtl-context-expected.txt.
+        * svg/W3C-I18N/tspan-direction-ltr-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-direction-ltr-expected.txt.
+        * svg/W3C-I18N/tspan-direction-rtl-expected.txt: Renamed from LayoutTests/platform/efl/svg/W3C-I18N/tspan-direction-rtl-expected.txt.
+
+2013-11-06  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: accessibility
+
+        Unreviewed; run "webkit-patch optimize-baselines accessibility"
+
+        * accessibility/adjacent-continuations-cause-assertion-failure-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/adjacent-continuations-cause-assertion-failure-expected.txt.
+        * accessibility/aria-combobox-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-combobox-expected.txt.
+        * accessibility/aria-fallback-roles-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-fallback-roles-expected.txt.
+        * accessibility/aria-labelledby-overrides-aria-label-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-labelledby-overrides-aria-label-expected.txt.
+        * accessibility/aria-menubar-menuitems-expected.txt:
+        * accessibility/aria-option-role-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-option-role-expected.txt.
+        * accessibility/aria-roles-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-roles-expected.txt.
+        * accessibility/aria-tab-role-on-buttons-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-tab-role-on-buttons-expected.txt.
+        * accessibility/aria-tables-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-tables-expected.txt.
+        * accessibility/aria-toggle-button-with-title-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/aria-toggle-button-with-title-expected.txt.
+        * accessibility/canvas-description-and-role-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/canvas-description-and-role-expected.txt.
+        * accessibility/canvas-fallback-content-expected.txt:
+        * accessibility/deleting-iframe-destroys-axcache-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/deleting-iframe-destroys-axcache-expected.txt.
+        * accessibility/div-within-anchors-causes-crash-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/div-within-anchors-causes-crash-expected.txt.
+        * accessibility/file-upload-button-stringvalue-expected.txt: Renamed from LayoutTests/platform/efl-wk1/accessibility/file-upload-button-stringvalue-expected.txt.
+        * accessibility/img-alt-tag-only-whitespace-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/img-alt-tag-only-whitespace-expected.txt.
+        * accessibility/notification-listeners-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/notification-listeners-expected.txt.
+        * accessibility/paragraph-with-linebreaks-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/paragraph-with-linebreaks-expected.txt.
+        * accessibility/svg-image-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/svg-image-expected.txt.
+        * accessibility/svg-remote-element-expected.txt:
+        * platform/efl-wk1/accessibility/table-attributes-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/table-attributes-expected.txt.
+        * platform/efl-wk1/accessibility/table-detection-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/table-detection-expected.txt.
+        * platform/efl-wk1/accessibility/table-one-cell-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/table-one-cell-expected.txt.
+        * platform/efl-wk1/accessibility/table-sections-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/table-sections-expected.txt.
+        * platform/efl-wk1/accessibility/table-with-rules-expected.txt: Renamed from LayoutTests/platform/efl/accessibility/table-with-rules-expected.txt.
+        * platform/efl/accessibility/aria-menubar-menuitems-expected.txt: Removed.
+        * platform/efl/accessibility/canvas-fallback-content-expected.txt: Removed.
+        * platform/efl/accessibility/svg-remote-element-expected.txt: Removed.
+        * platform/gtk-wk1/accessibility/table-attributes-expected.txt: Renamed from LayoutTests/platform/gtk/accessibility/table-attributes-expected.txt.
+        * platform/gtk-wk1/accessibility/table-sections-expected.txt: Renamed from LayoutTests/platform/gtk/accessibility/table-sections-expected.txt.
+        * platform/gtk/accessibility/adjacent-continuations-cause-assertion-failure-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-combobox-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-fallback-roles-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-labelledby-overrides-aria-label-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-menubar-menuitems-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-option-role-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-roles-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-tab-role-on-buttons-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-tables-expected.txt: Removed.
+        * platform/gtk/accessibility/aria-toggle-button-with-title-expected.txt: Removed.
+        * platform/gtk/accessibility/canvas-description-and-role-expected.txt: Removed.
+        * platform/gtk/accessibility/canvas-fallback-content-expected.txt: Removed.
+        * platform/gtk/accessibility/deleting-iframe-destroys-axcache-expected.txt: Removed.
+        * platform/gtk/accessibility/div-within-anchors-causes-crash-expected.txt: Removed.
+        * platform/gtk/accessibility/file-upload-button-stringvalue-expected.txt: Removed.
+        * platform/gtk/accessibility/img-alt-tag-only-whitespace-expected.txt: Removed.
+        * platform/gtk/accessibility/notification-listeners-expected.txt: Removed.
+        * platform/gtk/accessibility/paragraph-with-linebreaks-expected.txt: Removed.
+        * platform/gtk/accessibility/svg-image-expected.txt: Removed.
+        * platform/gtk/accessibility/svg-remote-element-expected.txt: Removed.
+        * platform/mac/accessibility/aria-fallback-roles-expected.txt: Removed.
+        * platform/mac/accessibility/aria-menubar-menuitems-expected.txt: Copied from LayoutTests/accessibility/aria-menubar-menuitems-expected.txt.
+        * platform/mac/accessibility/aria-roles-expected.txt: Removed.
+        * platform/mac/accessibility/aria-tables-expected.txt: Removed.
+        * platform/mac/accessibility/canvas-fallback-content-expected.txt: Copied from LayoutTests/accessibility/canvas-fallback-content-expected.txt.
+        * platform/mac/accessibility/img-alt-tag-only-whitespace-expected.txt: Removed.
+        * platform/mac/accessibility/svg-image-expected.txt: Removed.
+        * platform/win-future/accessibility/svg-remote-element-expected.txt: Copied from LayoutTests/accessibility/svg-remote-element-expected.txt.
+
+2013-11-06  Andreas Kling  <akling@apple.com>
+
+        Optimize baselines: media
+
+        Unreviewed; run "webkit-patch optimize-baselines media"
+
+        * media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt:
+        * media/media-can-play-webm-expected.txt: Renamed from LayoutTests/platform/efl/media/media-can-play-webm-expected.txt.
+        * media/video-controls-visible-audio-only-expected.txt: Renamed from LayoutTests/platform/efl/media/video-controls-visible-audio-only-expected.txt.
+        * platform/efl-wk2/media/video-layer-crash-expected.png: Renamed from LayoutTests/platform/efl/media/video-layer-crash-expected.png.
+        * platform/efl-wk2/media/video-transformed-expected.png: Renamed from LayoutTests/platform/efl/media/video-transformed-expected.png.
+        * platform/efl-wk2/media/video-zoom-expected.png: Renamed from LayoutTests/platform/efl/media/video-zoom-expected.png.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt: Removed.
+        * platform/efl/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt: Removed.
+        * platform/gtk/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt: Removed.
+        * platform/gtk/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt: Removed.
+        * platform/gtk/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt: Removed.
+        * platform/gtk/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt: Removed.
+        * platform/gtk/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt: Removed.
+        * platform/gtk/media/media-can-play-webm-expected.txt: Removed.
+        * platform/gtk/media/video-controls-visible-audio-only-expected.txt: Removed.
+        * platform/mac/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt: Copied from LayoutTests/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt.
+        * platform/mac/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt: Copied from LayoutTests/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt.
+        * platform/mac/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt: Copied from LayoutTests/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt.
+        * platform/mac/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt: Copied from LayoutTests/media/W3C/video/canPlayType/canPlayType_two_implies_one_5-expected.txt.
+        * platform/mac/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt: Copied from LayoutTests/media/W3C/video/canPlayType/canPlayType_two_implies_one_6-expected.txt.
+        * platform/mac/media/video-controls-visible-audio-only-expected.txt: Removed.
+        * platform/win-7sp0/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt: Renamed from LayoutTests/platform/efl/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt.
+        * platform/win-7sp0/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt: Renamed from LayoutTests/platform/efl/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt.
+        * platform/win-7sp0/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt: Renamed from LayoutTests/platform/efl/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt.
+        * platform/win/media/W3C/audio/canPlayType/canPlayType_supported_but_no_codecs_parameter_2-expected.txt: Removed.
+        * platform/win/media/W3C/video/canPlayType/canPlayType_codecs_order_3-expected.txt: Removed.
+        * platform/win/media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_3-expected.txt: Removed.
+        * platform/win/media/media-can-play-ogg-expected.txt: Removed.
+        * platform/win/media/video-colorspace-yuv420-expected.txt: Removed.
+        * platform/win/media/video-colorspace-yuv422-expected.txt: Removed.
+        * platform/win/media/video-size-intrinsic-scale-expected.txt: Removed.
+
+2013-11-06  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream Letterpress effect
+        https://bugs.webkit.org/show_bug.cgi?id=123932
+
+        Reviewed by Sam Weinig.
+
+        * platform/iphone-simulator/iphone/getComputedStyle-text-decoration-letterpress-expected.txt: Added.
+        * platform/iphone-simulator/iphone/getComputedStyle-text-decoration-letterpress.html: Added.
+        * platform/iphone-simulator/iphone/resources/getComputedStyle-text-decoration-letterpress.js: Added.
+
+2013-11-06  Eric Carlson  <eric.carlson@apple.com>
+
+        LayoutTests/media/track/track-forced-subtitles-in-band.html always times out
+        https://bugs.webkit.org/show_bug.cgi?id=123412
+
+        Reviewed by Jer Noble.
+
+        * media/content/CC+Subtitles.mov: Added.
+
+        * media/track/track-forced-subtitles-in-band.html: Fail loudly if the caption track menu is
+            not found by the helper function. Wait for both 'seeked' and 'cuechange' events before
+            checking activeCues.
+
+        * media/trackmenu-test.js: 
+        (getTrackListElement): Correct the caption menu pseudo-id.
+        (trackMenuList): Complain when the track menu is not found.
+
+        * platform/mac/TestExpectations: Remove track-forced-subtitles-in-band.html.
+
+2013-11-05  Oliver Hunt  <oliver@apple.com>
+
+        Support iteration of the Arguments object
+        https://bugs.webkit.org/show_bug.cgi?id=123835
+
+        Reviewed by Mark Lam.
+
+        Add test cases
+
+        * js/arguments-iterator-expected.txt: Added.
+        * js/arguments-iterator.html: Added.
+        * js/script-tests/arguments-iterator.js: Added.
+        (shouldThrow.test):
+        (testAlias):
+        (testStrict):
+        (testReifiedArguments):
+        (testOverwrittenArguments):
+        (testNullArguments):
+        (testNonArrayLikeArguments):
+
+2013-11-06  Oliver Hunt  <oliver@apple.com>
+
+        Fix test case
+
+        * js/script-tests/dfg-check-array-non-array.js:
+
+2013-11-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Remove the flaky test expectation after r158720 now that the test is not flaky.
+
+        * platform/mac/TestExpectations:
+
+2013-11-06  Filip Pizlo  <fpizlo@apple.com>
+
+        DFG CheckArray(NonArray) should prove that the child isn't an array
+        https://bugs.webkit.org/show_bug.cgi?id=123911
+        <rdar://problem/15202803>
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/dfg-check-array-non-array-expected.txt: Added.
+        * js/dfg-check-array-non-array.html: Added.
+        * js/script-tests/dfg-check-array-non-array.js: Added.
+        (foo):
+        (bar):
+        (baz):
+
+2013-11-06  Brendan Long  <b.long@cablelabs.com>
+
+        Add "id" attribute to TextTrack
+        https://bugs.webkit.org/show_bug.cgi?id=123825
+
+        Reviewed by Eric Carlson.
+
+        * media/track/track-id-expected.txt: Added.
+        * media/track/track-id.html: Added.
+
+2013-11-06  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        [ATK] accessibility/title-ui-element-correctness.html fails
+        https://bugs.webkit.org/show_bug.cgi?id=99825
+
+        Reviewed by Mario Sanchez Prada.
+
+        Remove failure test expectation for the test fixed by this patch.
+
+        * platform/efl-wk1/TestExpectations:
+        * platform/efl-wk2/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2013-11-06  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed GTK gardening. Media elements wrongly exposed after r158743.
+
+        * platform/gtk/TestExpectations: Added failure expectations.
+
+2013-11-06  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] Providing new table related accessibility expectations after r158742
+        https://bugs.webkit.org/show_bug.cgi?id=123893
+
+        Reviewed by Chris Fleizach.
+
+        New baselines after added missing implementation in r158742.
+
+        * platform/efl-wk1/TestExpectations: Tests are no longer failing.
+        * platform/efl-wk2/TestExpectations: Tests are no longer failing.
+        * platform/efl-wk2/accessibility/table-attributes-expected.txt: Added.
+        * platform/efl-wk2/accessibility/table-sections-expected.txt: Added.
+        * platform/efl/accessibility/table-attributes-expected.txt: Added.
+        * platform/efl/accessibility/table-sections-expected.txt: Added.
+        * platform/gtk-wk2/accessibility/table-attributes-expected.txt: Added.
+        * platform/gtk-wk2/accessibility/table-sections-expected.txt: Added.
+        * platform/gtk/TestExpectations: Tests are no longer failing.
+        * platform/gtk/accessibility/table-attributes-expected.txt: Added.
+        * platform/gtk/accessibility/table-sections-expected.txt: Added.
+
+2013-11-06  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed gardening; Fix expected results for video-seek-with-negative-playback.html,
+        and modify the test to conform to media test style.
+
+        * media/video-seek-with-negative-playback-expected.txt:
+        * media/video-seek-with-negative-playback.html:
+
+2013-10-24  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Add support for named grid areas
+        https://bugs.webkit.org/show_bug.cgi?id=120045
+
+        Reviewed by Andreas Kling.
+
+        From Blink r155555, r155850 and r155889 by <jchaffraix@chromium.org>
+
+        Added a couple of new tests to check that both known and unknown
+        named grid areas are properly handled.
+
+        Also extended some of the existing tests to use named grid areas
+        as any other possible grid position.
+
+        * fast/css-grid-layout/grid-item-area-get-set-expected.txt:
+        * fast/css-grid-layout/grid-item-area-get-set.html:
+        * fast/css-grid-layout/grid-item-bad-named-area-auto-placement-expected.txt: Added.
+        * fast/css-grid-layout/grid-item-bad-named-area-auto-placement.html: Added.
+        * fast/css-grid-layout/grid-item-column-row-get-set-expected.txt:
+        * fast/css-grid-layout/grid-item-column-row-get-set.html:
+        * fast/css-grid-layout/grid-item-end-after-get-set-expected.txt:
+        * fast/css-grid-layout/grid-item-end-after-get-set.html:
+        * fast/css-grid-layout/grid-item-named-grid-area-resolution-expected.txt: Added.
+        * fast/css-grid-layout/grid-item-named-grid-area-resolution.html: Added.
+        * fast/css-grid-layout/grid-item-start-before-get-set-expected.txt:
+        * fast/css-grid-layout/grid-item-start-before-get-set.html:
+        * fast/css-grid-layout/resources/grid-item-column-row-parsing-utils.js:
+
+2013-11-06  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Audio and Video attachments are not output to VoiceOver
+        https://bugs.webkit.org/show_bug.cgi?id=123479
+
+        Reviewed by Mario Sanchez Prada.
+
+        Making media elements int replaced elements has the unfortunate side-effect
+        of causing a new line to be inserted into any test using a <video> or <audio> tag.
+
+        * compositing/video/video-poster-expected.txt:
+        * compositing/video/video-reflection-expected.txt:
+        * compositing/visibility/visibility-simple-video-layer-expected.txt:
+        * fast/css/first-letter-block-form-controls-crash-expected.txt:
+        * fast/css/relative-position-replaced-in-table-display-crash-expected.txt:
+        * fast/forms/access-key-for-all-elements-expected.txt:
+        * fast/forms/form-associated-element-crash3-expected.txt:
+        * fast/multicol/renderer-positioned-assert-crash-expected.txt:
+        * fast/regions/full-screen-video-from-region-expected.txt:
+        * fast/runin/nonblock-runin-expected.txt:
+        * fast/spatial-navigation/snav-media-elements-expected.txt:
+        * fullscreen/full-screen-crash-offsetLeft-expected.txt:
+        * fullscreen/full-screen-no-style-sharing-expected.txt:
+        * fullscreen/full-screen-stacking-context-expected.txt:
+        * fullscreen/video-controls-drag-expected.txt:
+        * fullscreen/video-controls-timeline-expected.txt:
+        * fullscreen/video-cursor-auto-hide-expected.txt:
+        * fullscreen/video-specified-size-expected.txt:
+        * http/tests/appcache/video-expected.txt:
+        * http/tests/media/pdf-served-as-pdf-expected.txt:
+        * http/tests/media/reload-after-dialog-expected.txt:
+        * http/tests/media/text-served-as-text-expected.txt:
+        * http/tests/media/video-accept-encoding-expected.txt:
+        * http/tests/media/video-buffered-range-contains-currentTime-expected.txt:
+        * http/tests/media/video-cross-site-expected.txt:
+        * http/tests/media/video-error-abort-expected.txt:
+        * http/tests/media/video-load-suspend-expected.txt:
+        * http/tests/media/video-play-progress-expected.txt:
+        * http/tests/media/video-play-stall-before-meta-data-expected.txt:
+        * http/tests/media/video-preload-expected.txt:
+        * http/tests/media/video-redirect-expected.txt:
+        * http/tests/media/video-referer-expected.txt:
+        * http/tests/media/video-served-as-text-expected.txt:
+        * http/tests/media/video-throttled-load-metadata-expected.txt:
+        * http/tests/misc/empty-urls-expected.txt:
+        * http/tests/security/contentSecurityPolicy/media-src-allowed-expected.txt:
+        * http/tests/security/contentSecurityPolicy/media-src-blocked-expected.txt:
+        * http/tests/security/local-video-poster-from-remote-expected.txt:
+        * http/tests/security/local-video-source-from-remote-expected.txt:
+        * http/tests/security/local-video-src-from-remote-expected.txt:
+        * http/tests/security/text-track-crossorigin-expected.txt:
+        * media/W3C/audio/events/event_canplay-expected.txt:
+        * media/W3C/audio/events/event_canplay_manual-expected.txt:
+        * media/W3C/audio/events/event_canplaythrough-expected.txt:
+        * media/W3C/audio/events/event_canplaythrough_manual-expected.txt:
+        * media/W3C/audio/events/event_loadeddata-expected.txt:
+        * media/W3C/audio/events/event_loadeddata_manual-expected.txt:
+        * media/W3C/audio/events/event_loadedmetadata-expected.txt:
+        * media/W3C/audio/events/event_loadedmetadata_manual-expected.txt:
+        * media/W3C/audio/events/event_loadstart-expected.txt:
+        * media/W3C/audio/events/event_loadstart_manual-expected.txt:
+        * media/W3C/audio/events/event_order_canplay_canplaythrough-expected.txt:
+        * media/W3C/audio/events/event_order_canplay_playing-expected.txt:
+        * media/W3C/audio/events/event_order_loadedmetadata_loadeddata-expected.txt:
+        * media/W3C/audio/events/event_order_loadstart_progress-expected.txt:
+        * media/W3C/audio/events/event_pause_manual-expected.txt:
+        * media/W3C/audio/events/event_play-expected.txt:
+        * media/W3C/audio/events/event_play_manual-expected.txt:
+        * media/W3C/audio/events/event_playing-expected.txt:
+        * media/W3C/audio/events/event_playing_manual-expected.txt:
+        * media/W3C/audio/events/event_progress-expected.txt:
+        * media/W3C/audio/events/event_progress_manual-expected.txt:
+        * media/W3C/audio/events/event_timeupdate-expected.txt:
+        * media/W3C/audio/events/event_timeupdate_manual-expected.txt:
+        * media/W3C/audio/networkState/networkState_during_loadstart-expected.txt:
+        * media/W3C/audio/paused/paused_false_during_play-expected.txt:
+        * media/W3C/audio/paused/paused_true_during_pause-expected.txt:
+        * media/W3C/audio/readyState/readyState_during_canplay-expected.txt:
+        * media/W3C/audio/readyState/readyState_during_canplaythrough-expected.txt:
+        * media/W3C/audio/readyState/readyState_during_loadeddata-expected.txt:
+        * media/W3C/audio/readyState/readyState_during_loadedmetadata-expected.txt:
+        * media/W3C/audio/readyState/readyState_during_playing-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_application_octet_stream-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_application_octet_stream_with_codecs_1-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_application_octet_stream_with_codecs_2-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_application_octet_stream_with_codecs_3-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_bogus_type-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_codecs_order_1-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_method_exists-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_supported_but_no_codecs_parameter_1-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_1-expected.txt:
+        * media/W3C/video/canPlayType/canPlayType_two_implies_one_2-expected.txt:
+        * media/W3C/video/currentSrc/currentSrc_empty_if_no_src-expected.txt:
+        * media/W3C/video/currentSrc/currentSrc_property_exists-expected.txt:
+        * media/W3C/video/error/error_null-expected.txt:
+        * media/W3C/video/error/error_onerror_called_on_bogus_source-expected.txt:
+        * media/W3C/video/error/error_property_exists-expected.txt:
+        * media/W3C/video/events/event_canplay-expected.txt:
+        * media/W3C/video/events/event_canplay_manual-expected.txt:
+        * media/W3C/video/events/event_canplaythrough-expected.txt:
+        * media/W3C/video/events/event_canplaythrough_manual-expected.txt:
+        * media/W3C/video/events/event_loadeddata-expected.txt:
+        * media/W3C/video/events/event_loadeddata_manual-expected.txt:
+        * media/W3C/video/events/event_loadedmetadata-expected.txt:
+        * media/W3C/video/events/event_loadedmetadata_manual-expected.txt:
+        * media/W3C/video/events/event_loadstart-expected.txt:
+        * media/W3C/video/events/event_loadstart_manual-expected.txt:
+        * media/W3C/video/events/event_order_canplay_canplaythrough-expected.txt:
+        * media/W3C/video/events/event_order_canplay_playing-expected.txt:
+        * media/W3C/video/events/event_order_loadedmetadata_loadeddata-expected.txt:
+        * media/W3C/video/events/event_order_loadstart_progress-expected.txt:
+        * media/W3C/video/events/event_pause_manual-expected.txt:
+        * media/W3C/video/events/event_play-expected.txt:
+        * media/W3C/video/events/event_play_manual-expected.txt:
+        * media/W3C/video/events/event_playing-expected.txt:
+        * media/W3C/video/events/event_playing_manual-expected.txt:
+        * media/W3C/video/events/event_progress-expected.txt:
+        * media/W3C/video/events/event_progress_manual-expected.txt:
+        * media/W3C/video/events/event_timeupdate-expected.txt:
+        * media/W3C/video/events/event_timeupdate_manual-expected.txt:
+        * media/W3C/video/networkState/networkState_during_loadstart-expected.txt:
+        * media/W3C/video/networkState/networkState_during_progress-expected.txt:
+        * media/W3C/video/networkState/networkState_initial-expected.txt:
+        * media/W3C/video/networkState/networkState_property_exists-expected.txt:
+        * media/W3C/video/paused/paused_false_during_play-expected.txt:
+        * media/W3C/video/paused/paused_true_during_pause-expected.txt:
+        * media/W3C/video/preload/preload_property_exists-expected.txt:
+        * media/W3C/video/preload/preload_reflects_auto_value-expected.txt:
+        * media/W3C/video/preload/preload_reflects_bogus_value-expected.txt:
+        * media/W3C/video/preload/preload_reflects_empty-expected.txt:
+        * media/W3C/video/preload/preload_reflects_metadata-expected.txt:
+        * media/W3C/video/preload/preload_reflects_no_value-expected.txt:
+        * media/W3C/video/preload/preload_reflects_none-expected.txt:
+        * media/W3C/video/preload/preload_reflects_none_autoplay-expected.txt:
+        * media/W3C/video/readyState/readyState_during_canplay-expected.txt:
+        * media/W3C/video/readyState/readyState_during_canplaythrough-expected.txt:
+        * media/W3C/video/readyState/readyState_during_loadeddata-expected.txt:
+        * media/W3C/video/readyState/readyState_during_loadedmetadata-expected.txt:
+        * media/W3C/video/readyState/readyState_during_playing-expected.txt:
+        * media/W3C/video/readyState/readyState_initial-expected.txt:
+        * media/W3C/video/readyState/readyState_property_exists-expected.txt:
+        * media/W3C/video/src/src_reflects_attribute_not_source_elements-expected.txt:
+        * media/W3C/video/src/src_reflects_no_value-expected.txt:
+        * media/W3C/video/src/src_removal_does_not_trigger_loadstart-expected.txt:
+        * media/audio-mpeg-supported-expected.txt:
+        * media/audio-mpeg4-supported-expected.txt:
+        * media/audio-only-video-intrinsic-size-expected.txt:
+        * media/auto-play-in-sandbox-with-allow-scripts-expected.txt:
+        * media/before-load-member-access-expected.txt:
+        * media/broken-video-expected.txt:
+        * media/constructors-expected.txt:
+        * media/controls-css-overload-expected.txt:
+        * media/controls-drag-timebar-expected.txt:
+        * media/controls-layout-direction-expected.txt:
+        * media/controls-right-click-on-timebar-expected.txt:
+        * media/csp-blocks-video-expected.txt:
+        * media/event-attributes-expected.txt:
+        * media/media-blocked-by-beforeload-expected.txt:
+        * media/media-blocked-by-willsendrequest-expected.txt:
+        * media/media-can-play-mpeg-audio-expected.txt:
+        * media/media-can-play-mpeg4-video-expected.txt:
+        * media/media-can-play-octet-stream-expected.txt:
+        * media/media-can-play-type-expected.txt:
+        * media/media-can-play-wav-audio-expected.txt:
+        * media/media-captions-expected.txt:
+        * media/media-captions-no-controls-expected.txt:
+        * media/media-controller-expected.txt:
+        * media/media-controller-playback-expected.txt:
+        * media/media-controller-playbackrate-expected.txt:
+        * media/media-controller-time-clamp-expected.txt:
+        * media/media-controller-time-constant-expected.txt:
+        * media/media-controller-time-expected.txt:
+        * media/media-controller-timeupdate-expected.txt:
+        * media/media-controller-unpause-expected.txt:
+        * media/media-controls-invalid-url-expected.txt:
+        * media/media-ended-expected.txt:
+        * media/media-extension-with-fragment-expected.txt:
+        * media/media-fragments/TC0001-expected.txt:
+        * media/media-fragments/TC0002-expected.txt:
+        * media/media-fragments/TC0003-expected.txt:
+        * media/media-fragments/TC0004-expected.txt:
+        * media/media-fragments/TC0005-expected.txt:
+        * media/media-fragments/TC0006-expected.txt:
+        * media/media-fragments/TC0009-expected.txt:
+        * media/media-fragments/TC0011-expected.txt:
+        * media/media-fragments/TC0012-expected.txt:
+        * media/media-fragments/TC0014-expected.txt:
+        * media/media-fragments/TC0015-expected.txt:
+        * media/media-fragments/TC0017-expected.txt:
+        * media/media-fragments/TC0024-expected.txt:
+        * media/media-fragments/TC0027-expected.txt:
+        * media/media-fragments/TC0028-expected.txt:
+        * media/media-fragments/TC0029-expected.txt:
+        * media/media-fragments/TC0030-expected.txt:
+        * media/media-fragments/TC0031-expected.txt:
+        * media/media-fragments/TC0032-expected.txt:
+        * media/media-fragments/TC0033-expected.txt:
+        * media/media-fragments/TC0034-expected.txt:
+        * media/media-fragments/TC0035-expected.txt:
+        * media/media-fragments/TC0036-expected.txt:
+        * media/media-fragments/TC0037-expected.txt:
+        * media/media-fragments/TC0038-expected.txt:
+        * media/media-fragments/TC0039-expected.txt:
+        * media/media-fragments/TC0044-expected.txt:
+        * media/media-fragments/TC0051-expected.txt:
+        * media/media-fragments/TC0052-expected.txt:
+        * media/media-fragments/TC0053-expected.txt:
+        * media/media-fragments/TC0054-expected.txt:
+        * media/media-fragments/TC0055-expected.txt:
+        * media/media-fragments/TC0058-expected.txt:
+        * media/media-fragments/TC0059-expected.txt:
+        * media/media-fragments/TC0061-expected.txt:
+        * media/media-fragments/TC0062-expected.txt:
+        * media/media-fragments/TC0063-expected.txt:
+        * media/media-fragments/TC0064-expected.txt:
+        * media/media-fragments/TC0065-expected.txt:
+        * media/media-fragments/TC0066-expected.txt:
+        * media/media-fragments/TC0067-expected.txt:
+        * media/media-fragments/TC0068-expected.txt:
+        * media/media-fragments/TC0069-expected.txt:
+        * media/media-fragments/TC0070-expected.txt:
+        * media/media-fragments/TC0071-expected.txt:
+        * media/media-fragments/TC0072-expected.txt:
+        * media/media-fragments/TC0073-expected.txt:
+        * media/media-fragments/TC0074-expected.txt:
+        * media/media-fragments/TC0075-expected.txt:
+        * media/media-fragments/TC0076-expected.txt:
+        * media/media-fragments/TC0077-expected.txt:
+        * media/media-fragments/TC0078-expected.txt:
+        * media/media-fragments/TC0079-expected.txt:
+        * media/media-fragments/TC0080-expected.txt:
+        * media/media-fragments/TC0081-expected.txt:
+        * media/media-fragments/TC0082-expected.txt:
+        * media/media-fragments/TC0083-expected.txt:
+        * media/media-fragments/TC0084-expected.txt:
+        * media/media-fragments/TC0085-expected.txt:
+        * media/media-fragments/TC0086-expected.txt:
+        * media/media-fragments/TC0087-expected.txt:
+        * media/media-fragments/TC0088-expected.txt:
+        * media/media-fragments/TC0089-expected.txt:
+        * media/media-fragments/TC0090-expected.txt:
+        * media/media-fragments/TC0091-expected.txt:
+        * media/media-fragments/TC0092-expected.txt:
+        * media/media-fragments/TC0093-expected.txt:
+        * media/media-fragments/TC0094-expected.txt:
+        * media/media-fullscreen-inline-expected.txt:
+        * media/media-preload-no-delay-loadevent-expected.txt:
+        * media/no-autoplay-with-user-gesture-requirement-expected.txt:
+        * media/nodesFromRect-shadowContent-expected.txt:
+        * media/restore-from-page-cache-expected.txt:
+        * media/sources-fallback-codecs-expected.txt:
+        * media/track/add-and-remove-track-expected.txt:
+        * media/track/audio-track-expected.txt:
+        * media/track/opera/interfaces/TextTrack/addCue-expected.txt:
+        * media/track/opera/interfaces/TextTrack/removeCue-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/align-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/endTime-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/id-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/pauseOnExit-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/startTime-expected.txt:
+        * media/track/opera/interfaces/TextTrackCue/track-expected.txt:
+        * media/track/opera/interfaces/TextTrackCueList/getCueById-expected.txt:
+        * media/track/opera/interfaces/TextTrackCueList/length-expected.txt:
+        * media/track/text-track-cue-is-reachable-expected.txt:
+        * media/track/text-track-is-reachable-expected.txt:
+        * media/track/track-active-cues-expected.txt:
+        * media/track/track-add-remove-cue-expected.txt:
+        * media/track/track-add-track-expected.txt:
+        * media/track/track-addtrack-kind-expected.txt:
+        * media/track/track-automatic-subtitles-expected.txt:
+        * media/track/track-css-all-cues-expected.txt:
+        * media/track/track-css-cue-lifetime-expected.txt:
+        * media/track/track-css-matching-default-expected.txt:
+        * media/track/track-css-matching-expected.txt:
+        * media/track/track-css-matching-lang-expected.txt:
+        * media/track/track-css-matching-timestamps-expected.txt:
+        * media/track/track-css-property-whitelist-expected.txt:
+        * media/track/track-css-user-override-expected.txt:
+        * media/track/track-cue-container-rendering-position-expected.txt:
+        * media/track/track-cue-empty-text-crash-expected.txt:
+        * media/track/track-cue-inline-assertion-crash-expected.txt:
+        * media/track/track-cue-mutable-expected.txt:
+        * media/track/track-cue-mutable-fragment-expected.txt:
+        * media/track/track-cue-negative-timestamp-expected.txt:
+        * media/track/track-cue-nothing-to-render-expected.txt:
+        * media/track/track-cue-overlap-snap-to-lines-not-set-expected.txt:
+        * media/track/track-cue-rendering-empty-cue-crash-expected.txt:
+        * media/track/track-cue-rendering-expected.txt:
+        * media/track/track-cue-rendering-on-resize-expected.txt:
+        * media/track/track-cue-rendering-rtl-expected.txt:
+        * media/track/track-cue-rendering-snap-to-lines-not-set-expected.txt:
+        * media/track/track-cue-rendering-tree-is-removed-properly-expected.txt:
+        * media/track/track-cue-rendering-with-padding-expected.txt:
+        * media/track/track-cues-cuechange-expected.txt:
+        * media/track/track-cues-enter-exit-expected.txt:
+        * media/track/track-cues-missed-expected.txt:
+        * media/track/track-cues-pause-on-exit-expected.txt:
+        * media/track/track-cues-seeking-expected.txt:
+        * media/track/track-cues-sorted-before-dispatch-expected.txt:
+        * media/track/track-default-attribute-expected.txt:
+        * media/track/track-disabled-addcue-expected.txt:
+        * media/track/track-disabled-expected.txt:
+        * media/track/track-element-load-event-expected.txt:
+        * media/track/track-in-band-cues-added-once-expected.txt:
+        * media/track/track-in-band-duplicate-tracks-when-source-changes-expected.txt:
+        * media/track/track-in-band-expected.txt:
+        * media/track/track-in-band-legacy-api-expected.txt:
+        * media/track/track-in-band-style-expected.txt:
+        * media/track/track-kind-expected.txt:
+        * media/track/track-large-timestamp-expected.txt:
+        * media/track/track-legacyapi-with-automatic-mode-expected.txt:
+        * media/track/track-load-from-element-readyState-expected.txt:
+        * media/track/track-load-from-src-readyState-expected.txt:
+        * media/track/track-long-captions-file-expected.txt:
+        * media/track/track-mode-disabled-crash-expected.txt:
+        * media/track/track-mode-expected.txt:
+        * media/track/track-mode-not-changed-by-new-track-expected.txt:
+        * media/track/track-mode-triggers-loading-expected.txt:
+        * media/track/track-remove-active-cue-crash-expected.txt:
+        * media/track/track-remove-by-setting-innerHTML-expected.txt:
+        * media/track/track-remove-quickly-expected.txt:
+        * media/track/track-text-track-cue-list-expected.txt:
+        * media/track/track-texttracks-expected.txt:
+        * media/track/track-webvtt-tc000-empty-expected.txt:
+        * media/track/track-webvtt-tc001-utf8-expected.txt:
+        * media/track/track-webvtt-tc002-bom-expected.txt:
+        * media/track/track-webvtt-tc003-newlines-expected.txt:
+        * media/track/track-webvtt-tc004-magic-header-expected.txt:
+        * media/track/track-webvtt-tc005-header-comment-expected.txt:
+        * media/track/track-webvtt-tc006-cue-identifiers-expected.txt:
+        * media/track/track-webvtt-tc007-cue-no-id-expected.txt:
+        * media/track/track-webvtt-tc008-timings-no-hours-expected.txt:
+        * media/track/track-webvtt-tc009-timings-hour-expected.txt:
+        * media/track/track-webvtt-tc010-no-timings-expected.txt:
+        * media/track/track-webvtt-tc011-blank-lines-expected.txt:
+        * media/track/track-webvtt-tc013-settings-expected.txt:
+        * media/track/track-webvtt-tc014-alignment-expected.txt:
+        * media/track/track-webvtt-tc015-positioning-expected.txt:
+        * media/track/track-webvtt-tc016-align-positioning-expected.txt:
+        * media/track/track-webvtt-tc017-line-position-expected.txt:
+        * media/track/track-webvtt-tc018-align-text-line-position-expected.txt:
+        * media/track/track-webvtt-tc019-cue-size-expected.txt:
+        * media/track/track-webvtt-tc020-cue-size-align-expected.txt:
+        * media/track/track-webvtt-tc021-valign-expected.txt:
+        * media/track/track-webvtt-tc022-entities-expected.txt:
+        * media/track/track-webvtt-tc023-markup-expected.txt:
+        * media/track/track-webvtt-tc024-timestamp-expected.txt:
+        * media/track/track-webvtt-tc025-class-markup-expected.txt:
+        * media/track/track-webvtt-tc026-voice-expected.txt:
+        * media/track/track-webvtt-tc027-empty-cue-expected.txt:
+        * media/track/track-webvtt-tc028-unsupported-markup-expected.txt:
+        * media/track/track-word-breaking-expected.txt:
+        * media/track/tracklist-is-reachable-expected.txt:
+        * media/track/video-track-expected.txt:
+        * media/unsupported-rtsp-expected.txt:
+        * media/unsupported-tracks-expected.txt:
+        * media/video-append-source-expected.txt:
+        * media/video-autoplay-expected.txt:
+        * media/video-beforeload-remove-source-expected.txt:
+        * media/video-buffered-expected.txt:
+        * media/video-canvas-drawing-expected.txt:
+        * media/video-canvas-drawing-output-expected.txt:
+        * media/video-controls-captions-trackmenu-hide-on-click-outside-expected.txt:
+        * media/video-controls-captions-trackmenu-includes-enabled-track-expected.txt:
+        * media/video-controls-expected.txt:
+        * media/video-controls-transformed-expected.txt:
+        * media/video-controls-with-mutation-event-handler-expected.txt:
+        * media/video-controls-zoomed-expected.txt:
+        * media/video-currentTime-delay-expected.txt:
+        * media/video-currentTime-expected.txt:
+        * media/video-currentTime-set-expected.txt:
+        * media/video-currentTime-set2-expected.txt:
+        * media/video-delay-load-event-expected.txt:
+        * media/video-display-aspect-ratio-expected.txt:
+        * media/video-dom-autoplay-expected.txt:
+        * media/video-dom-preload-expected.txt:
+        * media/video-dom-src-expected.txt:
+        * media/video-duration-known-after-eos-expected.txt:
+        * media/video-error-does-not-exist-expected.txt:
+        * media/video-load-networkState-expected.txt:
+        * media/video-load-preload-metadata-expected.txt:
+        * media/video-load-preload-none-expected.txt:
+        * media/video-load-readyState-expected.txt:
+        * media/video-load-require-user-gesture-expected.txt:
+        * media/video-loop-expected.txt:
+        * media/video-mouse-focus-expected.txt:
+        * media/video-muted-expected.txt:
+        * media/video-no-autoplay-expected.txt:
+        * media/video-pause-empty-events-expected.txt:
+        * media/video-pause-immediately-expected.txt:
+        * media/video-play-empty-events-expected.txt:
+        * media/video-play-pause-events-expected.txt:
+        * media/video-play-pause-exception-expected.txt:
+        * media/video-play-require-user-gesture-expected.txt:
+        * media/video-playbackrate-expected.txt:
+        * media/video-played-collapse-expected.txt:
+        * media/video-played-ranges-1-expected.txt:
+        * media/video-played-reset-expected.txt:
+        * media/video-plays-past-end-of-test-expected.txt:
+        * media/video-poster-blocked-by-willsendrequest-expected.txt:
+        * media/video-poster-delayed-expected.txt:
+        * media/video-poster-expected.txt:
+        * media/video-poster-scale-expected.txt:
+        * media/video-preload-expected.txt:
+        * media/video-replaces-poster-expected.txt:
+        * media/video-reverse-play-duration-expected.txt:
+        * media/video-seek-after-end-expected.txt:
+        * media/video-seek-by-small-increment-expected.txt:
+        * media/video-seek-multiple-expected.txt:
+        * media/video-seek-no-src-exception-expected.txt:
+        * media/video-seek-past-end-playing-expected.txt:
+        * media/video-seekable-expected.txt:
+        * media/video-seeking-expected.txt:
+        * media/video-set-rate-from-pause-expected.txt:
+        * media/video-single-valid-source-expected.txt:
+        * media/video-size-expected.txt:
+        * media/video-source-error-expected.txt:
+        * media/video-source-error-no-candidate-expected.txt:
+        * media/video-source-expected.txt:
+        * media/video-source-inserted-expected.txt:
+        * media/video-source-load-expected.txt:
+        * media/video-source-none-supported-expected.txt:
+        * media/video-source-type-expected.txt:
+        * media/video-src-blob-expected.txt:
+        * media/video-src-change-expected.txt:
+        * media/video-src-empty-expected.txt:
+        * media/video-src-expected.txt:
+        * media/video-src-invalid-poster-expected.txt:
+        * media/video-src-invalid-remove-expected.txt:
+        * media/video-src-none-expected.txt:
+        * media/video-src-plus-source-expected.txt:
+        * media/video-src-remove-expected.txt:
+        * media/video-src-set-expected.txt:
+        * media/video-src-source-expected.txt:
+        * media/video-timeupdate-during-playback-expected.txt:
+        * media/video-timeupdate-reverse-play-expected.txt:
+        * media/video-volume-expected.txt:
+        * media/video-width-height-expected.txt:
+        * platform/mac/accessibility/media-element-expected.txt:
+        * platform/mac/accessibility/media-emits-object-replacement-expected.txt: Added.
+        * platform/mac/accessibility/media-emits-object-replacement.html: Added.
+        * platform/mac/accessibility/media-role-descriptions-expected.txt: Added.
+        * platform/mac/accessibility/media-role-descriptions.html: Added.
+        * platform/mac/compositing/video/video-object-fit-expected.txt:
+        * platform/mac/fullscreen/video-controls-override-expected.txt:
+        * platform/mac/media/media-can-play-wav-audio-expected.txt:
+        * platform/mac/media/media-can-play-webm-expected.txt:
+        * platform/mac/media/video-seek-past-end-paused-expected.txt:
+
+2013-11-06  Krzysztof Czech  <k.czech@samsung.com>
+
+        [ATK] accessibility/tabindex-elements-are-accessible.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=123884
+
+        Reviewed by Mario Sanchez Prada.
+
+        Added new accessibility expectation file. ATK represents paragraph's role as a ATK_ROLE_PARAGRAPH.
+
+        * platform/efl/TestExpectations: Test is no longer failing.
+        * platform/efl/accessibility/tabindex-elements-are-accessible-expected.txt: Added.
+        * platform/gtk/accessibility/tabindex-elements-are-accessible-expected.txt: Added.
+
+2013-11-06  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        Unreviewed GTK gardening. Tests failing after r158195
+
+        * platform/gtk/TestExpectations: Added failure expectations.
+
+2013-11-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Notify nodes removal to Range/Selection after dispatching blur and mutation event
+        https://bugs.webkit.org/show_bug.cgi?id=123880
+
+        Reviewed by Andreas Kling.
+
+        * editing/selection/selection-change-in-blur-event-by-remove-children-expected.txt: Added.
+        * editing/selection/selection-change-in-blur-event-by-remove-children.html: Added.
+        * editing/selection/selection-change-in-mutation-event-by-remove-children-expected.txt: Added.
+        * editing/selection/selection-change-in-mutation-event-by-remove-children.html: Added.
+        * fast/dom/Range/range-created-during-remove-children-expected.txt: Added.
+        * fast/dom/Range/range-created-during-remove-children.html: Added.
+
+2013-11-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Fix out-of-date offset in selection range code in range.surroundContents
+        https://bugs.webkit.org/show_bug.cgi?id=123871
+
+        Reviewed by Andreas Kling.
+
+        * editing/selection/range-surroundContents-with-preceding-node-expected.txt: Added.
+        * editing/selection/range-surroundContents-with-preceding-node.html: Added.
+
+2013-11-06  Robert Plociennik  <r.plociennik@samsung.com>
+
+        [GTK] accessibility/svg-group-element-with-title.html is failing
+        https://bugs.webkit.org/show_bug.cgi?id=114251
+
+        Unreviewed GTK gardening.
+
+        Removed failure expectation as the test is passing since r158664.
+
+        * platform/gtk/TestExpectations: The test is no longer failing.
+
+2013-11-06  Piotr Grad  <p.grad@samsung.com>
+
+        Test for seek not working properly with negative playback rate.
+        https://bugs.webkit.org/show_bug.cgi?id=123791
+
+        Seek method should work properly with negative playback rate.
+
+        Reviewed by Philippe Normand.
+
+        * media/video-seek-with-negative-playback.html: Added.
+        * media/video-seek-with-negative-playback-expected.txt: Added.
+
+2013-11-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add a test for queries whose leftmost selector matches the root node
+        https://bugs.webkit.org/show_bug.cgi?id=123877
+
+        Reviewed by Andreas Kling.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/22981c70bf93e8a07ee7b4d68a4522aee21b26ce
+        so that we won't introduce the regression they had.
+
+        * fast/selectors/querySelector-leftmost-selector-matches-rootNode-expected.txt: Added.
+        * fast/selectors/querySelector-leftmost-selector-matches-rootNode.html: Added.
+
+2013-11-06  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Assertion failure end < m_runCount in WebCore::BidiRunList<WebCore::BidiRun>::reverseRuns
+        https://bugs.webkit.org/show_bug.cgi?id=123863
+
+        Reviewed by Andreas Kling.
+
+        * fast/text/bidi-reverse-runs-crash-expected.txt: Added.
+        * fast/text/bidi-reverse-runs-crash.html: Added.
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add more tests for formaction, formenctype, formmethod, formnovalidate, and formtarget attributes
+        https://bugs.webkit.org/show_bug.cgi?id=123876
+
+        Reviewed by Andreas Kling.
+
+        Merge tests from https://chromium.googlesource.com/chromium/blink/+/5f4ccd416fec39a6878af66e87bda191cc59ea7e
+        so that we won't introduce regressions they had.
+
+        * fast/forms/formaction-attribute-expected.txt:
+        * fast/forms/formaction-attribute.html:
+        * fast/forms/formmethod-attribute-input-2-expected.txt: Added.
+        * fast/forms/formmethod-attribute-input-2.html: Added.
+        * fast/forms/formtarget-attribute-input-2-expected.txt: Added.
+        * fast/forms/formtarget-attribute-input-2.html: Added.
+        * fast/forms/interactive-validation-formnovalidate-2-expected.txt: Added.
+        * fast/forms/interactive-validation-formnovalidate-2.html: Added.
+        * fast/forms/mailto/formenctype-attribute-input-2-expected.txt: Added.
+        * fast/forms/mailto/formenctype-attribute-input-2.html: Added.
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Mac Mavericks rebaseline after r158714.
+
+        * platform/mac/fast/forms/textAreaLineHeight-expected.txt:
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Use-after-free in SliderThumbElement::dragFrom
+        https://bugs.webkit.org/show_bug.cgi?id=123873
+
+        Reviewed by Andreas Kling.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/04a23bfca2d04101a1828d36ff36c29f3a24f34b
+
+        * fast/forms/range/range-type-change-onchange-2-expected.txt: Added.
+        * fast/forms/range/range-type-change-onchange-2.html: Added.
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        valueForBorderRadiusShorthand returns wrong values in some case
+        https://bugs.webkit.org/show_bug.cgi?id=123866
+
+        Reviewed by Andreas Kling.
+
+        * fast/css/getComputedStyle/getComputedStyle-borderRadius-2-expected.txt: Added.
+        * fast/css/getComputedStyle/getComputedStyle-borderRadius-2.html: Added.
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Flaky Test: transitions/cancel-transition.html
+        https://bugs.webkit.org/show_bug.cgi?id=114193
+
+        Reviewed by Simon Fraser.
+
+        Merge https://chromium.googlesource.com/chromium/blink/+/983dbbff6c46b6365540bf1451f25b31d72ce893
+
+        * transitions/cancel-transition.html:
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        getComputedStyle(x).lineHeight is affected by zooming
+        https://bugs.webkit.org/show_bug.cgi?id=123847
+
+        Reviewed by Benjamin Poulain.
+
+        Cleaned up the test.
+
+        * fast/css/line-height-zoom-get-computed-style-expected.txt: Added.
+        * fast/css/line-height-zoom-get-computed-style.html: Added.
+        * platform/mac-mountainlion/fast/forms/textAreaLineHeight-expected.txt: Rebaselined.
+
+2013-11-05  James Craig  <jcraig@apple.com>
+
+        AX: media controls accessibility needs more work
+        https://bugs.webkit.org/show_bug.cgi?id=123749
+
+        Reviewed by Jer Noble.
+
+        Updated some of the control labels/roles to improve accessibility.
+          - Volume slider is now keyboard/screenreader accessible.
+          - muteButton was a checkbox toggling checked state, now a button that toggles label "mute/unmute"
+          - fullscreenButton was a checkbox toggling checked state, now a button that toggles label "display/exit full screen"
+          - captionButton was a checkbox, now a popup button that launches the newly accessible menu.
+        Subtitles menu is now keyboard/screenreader accessible (uses roaming tabindex).
+        Render dump expectations changed because volume slider is now hidden via... 
+        ...opacity/size (to make accessible without hover) instead of display:none.
+
+        Updated existing test coverage.
+
+        * platform/mac/accessibility/media-element-expected.txt:
+        * platform/mac/media/audio-controls-rendering-expected.txt:
+        * platform/mac/media/controls-after-reload-expected.txt:
+        * platform/mac/media/controls-strict-expected.txt:
+        * platform/mac/media/controls-styling-strict-expected.txt:
+        * platform/mac/media/controls-without-preload-expected.txt:
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add a test to obtain offsetWidth of expanded table cell
+        https://bugs.webkit.org/show_bug.cgi?id=123843
+
+        Reviewed by Tim Horton.
+
+        Merge the test fix in https://chromium.googlesource.com/chromium/blink/+/b249d552497c0939d8277360b99dd3c56b0c9659.
+
+        * fast/table/table-cell-offset-width-expected.txt:
+        * fast/table/table-cell-offset-width.html:
+
+2013-11-05  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Add a test to obtain offsetWidth of expanded table cell
+        https://bugs.webkit.org/show_bug.cgi?id=123843
+
+        Reviewed by Tim Horton.
+
+        Merge the test from https://chromium.googlesource.com/chromium/blink/+/58a5fac292a5b3f79b00cdc71074fbf8be2ebc2b
+        so that we'll never introduce the regression they had.
+
+        * fast/table/table-cell-offset-width-expected.txt: Added.
+        * fast/table/table-cell-offset-width.html: Added.
+
+2013-11-05  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: Moving an element while in the DOMNodeRemoved handler will hide it in the inspector
+        https://bugs.webkit.org/show_bug.cgi?id=123516
+
+        Reviewed by Timothy Hatcher.
+
+        Added tests to check that the DOM.childNodeRemoved inspector-protocol message is dispatched
+        correctly when DOM nodes are moved while inside the "DOMNodeRemoved" event handler.
+
+        * inspector-protocol/dom-debugger/node-removed-expected.txt: Added.
+        * inspector-protocol/dom-debugger/node-removed.html: Added. Checking that the DOMDebugger agent 
+        is still sending the node-removed events.
+        * inspector-protocol/dom/dom-remove-events-expected.txt: Added.
+        * inspector-protocol/dom/dom-remove-events.html: Added. Test with a single DOM remove event.
+        * inspector-protocol/dom/remove-multiple-nodes-expected.txt: Added.
+        * inspector-protocol/dom/remove-multiple-nodes.html: Added. Test case when multiple children
+        are removed at once with parentNode.textContent = "String".
+
+2013-11-05  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        text-decoration-skip: ink isn't tested with underlines that don't intersect the underlined text
+        https://bugs.webkit.org/show_bug.cgi?id=123839
+
+        Reviewed by Simon Fraser.
+
+        text-decoration-skip: ink uses a mask to determine where the underline can be drawn. Right now,
+        there is not a test that makes sure that the mask always gets applied to the location
+        where the underline will get drawn.
+
+        * fast/css3-text/css3-text-decoration/text-decoration-skip/text-decoration-skip-non-intersecting-underline-expected.html: Added.
+        * fast/css3-text/css3-text-decoration/text-decoration-skip/text-decoration-skip-non-intersecting-underline.html: Added.
+
+2013-11-05  Tim Horton  <timothy_horton@apple.com>
+
+        [mac] PDFDocumentImage is too big if PDF has a crop box smaller than the media box
+        https://bugs.webkit.org/show_bug.cgi?id=123840
+        <rdar://problem/15308765>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * fast/images/pdf-as-image-crop-box-expected.html: Added.
+        * fast/images/pdf-as-image-crop-box.html: Added.
+        * fast/images/resources/green-1x1.pdf: Added.
+        * fast/images/resources/red-green-2x2-cropped-to-1x1.pdf: Added.
+        Add a test that ensures that PDFDocumentImage respects the PDF's crop box.
+        red-green-2x2-cropped-to-1x1 has a 2"x2" red square with a 1"x1" green
+        square centered in it, a media box of 2"x2", and a crop box of 1"x1"
+        offset by 0.5", 0.5". green-1x1 has a 1"x1" green square. The two images
+        should render the same if the crop box is being respected correctly.
+
+2013-11-05  Enrica Casucci  <enrica@apple.com>
+
+        Full width semicolon is wrong in vertical text.
+        https://bugs.webkit.org/show_bug.cgi?id=123814
+        <rdar://problem/15312541>
+
+        Reviewed by Benjamin Poulain.
+
+        Extended the existing test to include the full width
+        semicolon.
+
+        * platform/mac/fast/text/vertical-no-sideways.html:
+        * platform/mac/platform/mac/fast/text/vertical-no-sideways-expected.txt:
+        * platform/mac-mountainlion/platform/mac/fast/text/vertical-no-sideways-expected.txt
+
+2013-11-05  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r158678.
+        http://trac.webkit.org/changeset/158678
+        https://bugs.webkit.org/show_bug.cgi?id=123820
+
+        Causes a new debug assertion failure on the Mavericks test
+        system. (Requested by bfulgham on #webkit).
+
+        * TestExpectations:
+        * mathml/presentation/mo-stretch.html:
+        * platform/gtk/TestExpectations:
+        * platform/gtk/mathml/presentation/mo-stretch-expected.png:
+        * platform/gtk/mathml/presentation/mo-stretch-expected.txt:
+        * platform/mac/mathml/presentation/mo-stretch-expected.png:
+        * platform/mac/mathml/presentation/mo-stretch-expected.txt:
+
+2013-11-05  Renata Hodovan  <reni@webkit.org>
+
+        ASSERTION FAILED: isHTMLTitleElement(m_titleElement.get()) in WebCore::Document::setTitle
+        https://bugs.webkit.org/show_bug.cgi?id=122092
+
+        Reviewed by Darin Adler.
+
+        * svg/custom/title-assertion-expected.txt: Added.
+        * svg/custom/title-assertion.html: Added.
+
+2013-11-05  Martin Robinson  <mrobinson@igalia.com>
+
+        [MathML] Poor spacing around delimiters in MathML Torture Test 14
+        https://bugs.webkit.org/show_bug.cgi?id=122837
+
+        Reviewed by Brent Fulgham.
+
+        Instead of stretching the vertical bar with the stretchable version, just repeat
+        the normal vertical bar. This follows what Gecko does when rendering tall vertical
+        bars and also works around an issue with STIX fonts leading to poor spacing in
+        formulas.
+
+        * mathml/presentation/mo-stretch.html: Reworked this test to show
+        stretching of all stretchable characters, which reveals a bug with
+        the double vertical bar (covered by http://wkbug.com/123543).
+        * platform/gtk/TestExpectations:
+        * platform/gtk/mathml/presentation/mo-stretch-expected.png:
+        * platform/gtk/mathml/presentation/mo-stretch-expected.txt:
+        * platform/mac/mathml/presentation/mo-stretch-expected.png:
+        * platform/mac/mathml/presentation/mo-stretch-expected.txt:
+
+2013-11-05  Daniel Bates  <dabates@apple.com>
+
+        XSSAuditor should catch reflected srcdoc properties even without a <frame> tag injection
+
+        From Blink r160615 by <tsepez@chromium.org>
+        https://src.chromium.org/viewvc/blink?view=rev&revision=160615
+
+        * http/tests/security/xssAuditor/iframe-srcdoc-property-blocked-expected.txt: Added.
+        * http/tests/security/xssAuditor/iframe-srcdoc-property-blocked.html: Added.
+        * http/tests/security/xssAuditor/resources/echo-frame-src.pl: Added.
+
+2013-11-05  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        Unreviewed EFL gardening
+
+        Add baselines for tests marked as missing.
+
+        * platform/efl-wk1/TestExpectations:
+        * platform/efl/css3/masking/mask-luminance-png-expected.txt: Added.
+        * platform/efl/fast/css/color-correction-untagged-images-expected.png: Added.
+        * platform/efl/fast/css/color-correction-untagged-images-expected.txt: Added.
+        * platform/efl/fast/regions/iframe-html-collected-expected.txt: Added.
+        * platform/efl/fast/repaint/hover-pseudo-borders-expected.png: Added.
+        * platform/efl/fast/repaint/hover-pseudo-borders-expected.txt: Added.
+
 2013-11-05  Mihnea Ovidenie  <mihnea@adobe.com>
 
         [CSS Regions] Move cssom related tests into fast/regions/cssom

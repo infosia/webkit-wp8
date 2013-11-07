@@ -279,6 +279,8 @@ const gchar* roleToString(AtkRole role)
         return "AXComboBox";
     case ATK_ROLE_DOCUMENT_FRAME:
         return "AXWebArea";
+    case ATK_ROLE_EMBEDDED:
+        return "AXEmbedded";
     case ATK_ROLE_ENTRY:
         return "AXTextField";
     case ATK_ROLE_FOOTER:
@@ -430,6 +432,56 @@ String attributesOfElement(AccessibilityUIElement* element)
     builder.append(getAtkAttributeSetAsString(element->platformUIElement().get(), ObjectAttributeType));
 
     return builder.toString();
+}
+
+static JSRetainPtr<JSStringRef> createStringWithAttributes(const Vector<RefPtr<AccessibilityUIElement> >& elements)
+{
+    StringBuilder builder;
+
+    for (Vector<RefPtr<AccessibilityUIElement> >::const_iterator it = elements.begin(); it != elements.end(); ++it) {
+        builder.append(attributesOfElement(const_cast<AccessibilityUIElement*>(it->get())));
+        builder.append("\n------------\n");
+    }
+
+    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+}
+
+static Vector<RefPtr<AccessibilityUIElement> > getRowHeaders(AtkTable* accessible)
+{
+    Vector<RefPtr<AccessibilityUIElement> > rowHeaders;
+
+    int rowsCount = atk_table_get_n_rows(accessible);
+    for (int row = 0; row < rowsCount; ++row)
+        rowHeaders.append(AccessibilityUIElement::create(atk_table_get_row_header(accessible, row)));
+
+    return rowHeaders;
+}
+
+static Vector<RefPtr<AccessibilityUIElement> > getColumnHeaders(AtkTable* accessible)
+{
+    Vector<RefPtr<AccessibilityUIElement> > columnHeaders;
+
+    int columnsCount = atk_table_get_n_columns(accessible);
+    for (int column = 0; column < columnsCount; ++column)
+        columnHeaders.append(AccessibilityUIElement::create(atk_table_get_column_header(accessible, column)));
+
+    return columnHeaders;
+}
+
+static Vector<RefPtr<AccessibilityUIElement> > getVisibleCells(AccessibilityUIElement* element)
+{
+    Vector<RefPtr<AccessibilityUIElement> > visibleCells;
+
+    AtkTable* accessible = ATK_TABLE(element->platformUIElement().get());
+    int rowsCount = atk_table_get_n_rows(accessible);
+    int columnsCount = atk_table_get_n_columns(accessible);
+
+    for (int row = 0; row < rowsCount; ++row) {
+        for (int column = 0; column < columnsCount; ++column)
+            visibleCells.append(element->cellForColumnAndRow(column, row));
+    }
+
+    return visibleCells;
 }
 
 } // namespace
@@ -631,13 +683,7 @@ JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfChildren()
     Vector<RefPtr<AccessibilityUIElement> > children;
     getChildren(children);
 
-    StringBuilder builder;
-    for (Vector<RefPtr<AccessibilityUIElement> >::iterator it = children.begin(); it != children.end(); ++it) {
-        builder.append(attributesOfElement(it->get()));
-        builder.append("\n------------\n");
-    }
-
-    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+    return createStringWithAttributes(children);
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::allAttributes()
@@ -1096,14 +1142,20 @@ PassRefPtr<AccessibilityUIElement> AccessibilityUIElement::uiElementForSearchPre
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfColumnHeaders()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element.get()))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<RefPtr<AccessibilityUIElement> > columnHeaders = getColumnHeaders(ATK_TABLE(m_element.get()));
+    return createStringWithAttributes(columnHeaders);
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfRowHeaders()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element.get()))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<RefPtr<AccessibilityUIElement> > rowHeaders = getRowHeaders(ATK_TABLE(m_element.get()));
+    return createStringWithAttributes(rowHeaders);
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfColumns()
@@ -1120,8 +1172,11 @@ JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfRows()
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfVisibleCells()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element.get()))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<RefPtr<AccessibilityUIElement> > visibleCells = getVisibleCells(this);
+    return createStringWithAttributes(visibleCells);
 }
 
 JSRetainPtr<JSStringRef> AccessibilityUIElement::attributesOfHeader()
@@ -1472,13 +1527,13 @@ PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::textMarkerForIndex(i
 PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::startTextMarker()
 {
     // FIXME: implement
-    return 0;    
+    return nullptr;    
 }
 
 PassRefPtr<AccessibilityTextMarker> AccessibilityUIElement::endTextMarker()
 {
     // FIXME: implement
-    return 0;
+    return nullptr;
 }
 
 void AccessibilityUIElement::scrollToMakeVisible()

@@ -30,6 +30,7 @@
 #include "RenderLineBoxList.h"
 
 #include "HitTestResult.h"
+#include "InlineElementBox.h"
 #include "InlineTextBox.h"
 #include "PaintInfo.h"
 #include "RenderBlockFlow.h"
@@ -50,16 +51,19 @@ RenderLineBoxList::~RenderLineBoxList()
 }
 #endif
 
-void RenderLineBoxList::appendLineBox(InlineFlowBox* box)
+void RenderLineBoxList::appendLineBox(std::unique_ptr<InlineFlowBox> box)
 {
     checkConsistency();
-    
-    if (!m_firstLineBox)
-        m_firstLineBox = m_lastLineBox = box;
-    else {
-        m_lastLineBox->setNextLineBox(box);
-        box->setPreviousLineBox(m_lastLineBox);
-        m_lastLineBox = box;
+
+    InlineFlowBox* boxPtr = box.release();
+
+    if (!m_firstLineBox) {
+        m_firstLineBox = boxPtr;
+        m_lastLineBox = boxPtr;
+    } else {
+        m_lastLineBox->setNextLineBox(boxPtr);
+        boxPtr->setPreviousLineBox(m_lastLineBox);
+        m_lastLineBox = boxPtr;
     }
 
     checkConsistency();
@@ -340,12 +344,10 @@ void RenderLineBoxList::dirtyLinesFromChangedChild(RenderBoxModelObject* contain
             continue;
 
         if (curr->isReplaced()) {
-            InlineBox* wrapper = toRenderBox(curr)->inlineBoxWrapper();
-            if (wrapper)
+            if (auto wrapper = toRenderBox(curr)->inlineBoxWrapper())
                 box = &wrapper->root();
         } if (curr->isLineBreak()) {
-            InlineBox* wrapper = toRenderLineBreak(curr)->inlineBoxWrapper();
-            if (wrapper)
+            if (auto wrapper = toRenderLineBreak(curr)->inlineBoxWrapper())
                 box = &wrapper->root();
         } else if (curr->isText()) {
             InlineTextBox* textBox = toRenderText(curr)->lastTextBox();

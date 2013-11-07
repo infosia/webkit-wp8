@@ -23,6 +23,7 @@
 #ifndef HTMLCollection_h
 #define HTMLCollection_h
 
+#include "CollectionIndexCache.h"
 #include "CollectionType.h"
 #include "ContainerNode.h"
 #include "Document.h"
@@ -39,11 +40,6 @@ class Element;
 
 class HTMLCollection : public ScriptWrappable, public RefCounted<HTMLCollection> {
 public:
-    enum ItemAfterOverrideType {
-        OverridesItemAfter,
-        DoesNotOverrideItemAfter,
-    };
-
     static PassRefPtr<HTMLCollection> create(ContainerNode& base, CollectionType);
     virtual ~HTMLCollection();
 
@@ -54,46 +50,33 @@ public:
     PassRefPtr<NodeList> tags(const String&);
 
     // Non-DOM API
-    virtual bool hasNamedItem(const AtomicString& name) const;
+    bool hasNamedItem(const AtomicString& name) const;
     void namedItems(const AtomicString& name, Vector<Ref<Element>>&) const;
-    bool isEmpty() const
-    {
-        if (isLengthCacheValid())
-            return !cachedLength();
-        if (isElementCacheValid())
-            return !cachedElement();
-        return !item(0);
-    }
-    bool hasExactlyOneItem() const
-    {
-        if (isLengthCacheValid())
-            return cachedLength() == 1;
-        if (isElementCacheValid())
-            return cachedElement() && !cachedElementOffset() && !item(1);
-        return item(0) && !item(1);
-    }
 
-    virtual Element* virtualItemAfter(unsigned& offsetInArray, Element*) const;
-
-    Element* traverseFirstElement(unsigned& offsetInArray, ContainerNode* root) const;
-    Element* traverseForwardToOffset(unsigned offset, Element* currentElement, unsigned& currentOffset, unsigned& offsetInArray, ContainerNode* root) const;
-
-    ALWAYS_INLINE bool isRootedAtDocument() const { return m_rootType == NodeListIsRootedAtDocument; }
-    ALWAYS_INLINE NodeListInvalidationType invalidationType() const { return static_cast<NodeListInvalidationType>(m_invalidationType); }
-    ALWAYS_INLINE CollectionType type() const { return static_cast<CollectionType>(m_collectionType); }
+    bool isRootedAtDocument() const { return m_rootType == NodeListIsRootedAtDocument; }
+    NodeListInvalidationType invalidationType() const { return static_cast<NodeListInvalidationType>(m_invalidationType); }
+    CollectionType type() const { return static_cast<CollectionType>(m_collectionType); }
     ContainerNode& ownerNode() const { return const_cast<ContainerNode&>(m_ownerNode.get()); }
-    ALWAYS_INLINE void invalidateCache(const QualifiedName* attrName) const
+    void invalidateCache(const QualifiedName* attrName) const
     {
         if (!attrName || shouldInvalidateTypeOnAttributeChange(invalidationType(), *attrName))
             invalidateCache();
         else if (*attrName == HTMLNames::idAttr || *attrName == HTMLNames::nameAttr)
             invalidateIdNameCacheMaps();
     }
-    void invalidateCache() const;
+    virtual void invalidateCache() const;
     void invalidateIdNameCacheMaps() const;
 
+    // For CollectionIndexCache
+    Element* collectionFirst() const;
+    Element* collectionLast() const;
+    Element* collectionTraverseForward(Element&, unsigned count, unsigned& traversedCount) const;
+    Element* collectionTraverseBackward(Element&, unsigned count) const;
+    bool collectionCanTraverseBackward() const { return !m_usesCustomForwardOnlyTraversal; }
+
 protected:
-    HTMLCollection(ContainerNode& base, CollectionType, ItemAfterOverrideType);
+    enum ElementTraversalType { NormalTraversal, CustomForwardOnlyTraversal };
+    HTMLCollection(ContainerNode& base, CollectionType, ElementTraversalType = NormalTraversal);
 
     virtual void updateNameCache() const;
 
@@ -105,65 +88,40 @@ protected:
 
     Document& document() const { return m_ownerNode->document(); }
     ContainerNode& rootNode() const;
-    bool overridesItemAfter() const { return m_overridesItemAfter; }
+    bool usesCustomForwardOnlyTraversal() const { return m_usesCustomForwardOnlyTraversal; }
 
-    ALWAYS_INLINE bool isElementCacheValid() const { return m_isElementCacheValid; }
-    ALWAYS_INLINE Element* cachedElement() const { return m_cachedElement; }
-    ALWAYS_INLINE unsigned cachedElementOffset() const { return m_cachedElementOffset; }
+    bool isItemRefElementsCacheValid() const { return m_isItemRefElementsCacheValid; }
+    void setItemRefElementsCacheValid() const { m_isItemRefElementsCacheValid = true; }
 
-    ALWAYS_INLINE bool isLengthCacheValid() const { return m_isLengthCacheValid; }
-    ALWAYS_INLINE unsigned cachedLength() const { return m_cachedLength; }
-    ALWAYS_INLINE void setLengthCache(unsigned length) const
-    {
-        m_cachedLength = length;
-        m_isLengthCacheValid = true;
-    }
-    ALWAYS_INLINE void setCachedElement(Element& element, unsigned offset) const
-    {
-        m_cachedElement = &element;
-        m_cachedElementOffset = offset;
-        m_isElementCacheValid = true;
-    }
-    void setCachedElement(Element&, unsigned offset, unsigned elementsArrayOffset) const;
-
-    ALWAYS_INLINE bool isItemRefElementsCacheValid() const { return m_isItemRefElementsCacheValid; }
-    ALWAYS_INLINE void setItemRefElementsCacheValid() const { m_isItemRefElementsCacheValid = true; }
-
-    ALWAYS_INLINE NodeListRootType rootType() const { return static_cast<NodeListRootType>(m_rootType); }
+    NodeListRootType rootType() const { return static_cast<NodeListRootType>(m_rootType); }
 
     bool hasNameCache() const { return m_isNameCacheValid; }
     void setHasNameCache() const { m_isNameCacheValid = true; }
 
 private:
-    Element* traverseNextElement(unsigned& offsetInArray, Element* previous, ContainerNode* root) const;
-
     static void append(NodeCacheMap&, const AtomicString&, Element*);
 
-    Element* elementBeforeOrAfterCachedElement(unsigned offset, ContainerNode* root) const;
-    bool isLastItemCloserThanLastOrCachedItem(unsigned offset) const;
-    bool isFirstItemCloserThanCachedItem(unsigned offset) const;
     Element* iterateForPreviousElement(Element* current) const;
-    Element* itemBefore(Element* previousItem) const;
+    Element* firstElement(ContainerNode& root) const;
+    Element* traverseForward(Element& current, unsigned count, unsigned& traversedCount, ContainerNode& root) const;
+
+    virtual Element* customElementAfter(Element*) const { ASSERT_NOT_REACHED(); return nullptr; }
 
     Ref<ContainerNode> m_ownerNode;
-    mutable Element* m_cachedElement;
-    mutable unsigned m_cachedLength;
-    mutable unsigned m_cachedElementOffset;
-    mutable unsigned m_isLengthCacheValid : 1;
-    mutable unsigned m_isElementCacheValid : 1;
+
+    mutable CollectionIndexCache<HTMLCollection, Element> m_indexCache;
+
     const unsigned m_rootType : 2;
     const unsigned m_invalidationType : 4;
     const unsigned m_shouldOnlyIncludeDirectChildren : 1;
 
-    // From HTMLCollection
     mutable unsigned m_isNameCacheValid : 1;
     const unsigned m_collectionType : 5;
-    const unsigned m_overridesItemAfter : 1;
+    const unsigned m_usesCustomForwardOnlyTraversal : 1;
     mutable unsigned m_isItemRefElementsCacheValid : 1;
 
     mutable NodeCacheMap m_idCache;
     mutable NodeCacheMap m_nameCache;
-    mutable unsigned m_cachedElementsArrayOffset;
 };
 
 } // namespace

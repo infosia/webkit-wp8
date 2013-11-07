@@ -38,6 +38,7 @@
 #include "HTMLNames.h"
 #include "HitTestLocation.h"
 #include "HitTestResult.h"
+#include "InlineElementBox.h"
 #include "InlineIterator.h"
 #include "InlineTextBox.h"
 #include "LayoutRepainter.h"
@@ -1802,7 +1803,7 @@ LayoutUnit RenderBlock::computeStartPositionDeltaForChildAvoidingFloats(const Re
     if (region)
         blockOffset = max(blockOffset, blockOffset + (region->logicalTopForFlowThreadContent() - offsetFromLogicalTopOfFirstPage()));
 
-    LayoutUnit startOff = startOffsetForLine(blockOffset, false, region, logicalHeightForChild(child));
+    LayoutUnit startOff = startOffsetForLineInRegion(blockOffset, false, region, logicalHeightForChild(child));
 
     if (style().textAlign() != WEBKIT_CENTER && !child.style().marginStartUsing(&style()).isAuto()) {
         if (childMarginStart < 0)
@@ -2615,6 +2616,7 @@ GapRects RenderBlock::selectionGapRectsForRepaint(const RenderLayerModelObject* 
 
 void RenderBlock::paintSelection(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
+#if ENABLE(TEXT_SELECTION)
     if (shouldPaintSelectionGaps() && paintInfo.phase == PaintPhaseForeground) {
         LogicalSelectionOffsetCaches cache(*this);
         LayoutUnit lastTop = 0;
@@ -2637,6 +2639,10 @@ void RenderBlock::paintSelection(PaintInfo& paintInfo, const LayoutPoint& paintO
             }
         }
     }
+#else
+    UNUSED_PARAM(paintInfo);
+    UNUSED_PARAM(paintOffset);
+#endif
 }
 
 static void clipOutPositionedObjects(const PaintInfo* paintInfo, const LayoutPoint& offset, TrackedRendererListHashSet* positionedObjects)
@@ -5285,7 +5291,7 @@ static inline TextRun constructTextRunInternal(RenderObject* context, const Font
     bool directionalOverride = style.rtlOrdering() == VisualOrder;
 
     TextRun run(characters, length, 0, 0, expansion, textDirection, directionalOverride);
-    if (textRunNeedsRenderingContext(font)) {
+    if (font.isSVGFont()) {
         ASSERT(context); // FIXME: Thread a RenderObject& to this point so we don't have to dereference anything.
         run.setRenderingContext(SVGTextRunRenderingContext::create(*context));
     }
@@ -5305,7 +5311,7 @@ static inline TextRun constructTextRunInternal(RenderObject* context, const Font
             directionalOverride |= isOverride(style.unicodeBidi());
     }
     TextRun run(characters, length, 0, 0, expansion, textDirection, directionalOverride);
-    if (textRunNeedsRenderingContext(font)) {
+    if (font.isSVGFont()) {
         ASSERT(context); // FIXME: Thread a RenderObject& to this point so we don't have to dereference anything.
         run.setRenderingContext(SVGTextRunRenderingContext::create(*context));
     }

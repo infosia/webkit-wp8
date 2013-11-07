@@ -106,11 +106,11 @@ void RenderSVGInlineText::styleDidChange(StyleDifference diff, const RenderStyle
         textRenderer->subtreeStyleDidChange(this);
 }
 
-InlineTextBox* RenderSVGInlineText::createTextBox()
+std::unique_ptr<InlineTextBox> RenderSVGInlineText::createTextBox()
 {
-    InlineTextBox* box = new SVGInlineTextBox(*this);
+    auto box = std::make_unique<SVGInlineTextBox>(*this);
     box->setHasVirtualLogicalHeight();
-    return box;
+    return std::move(box);
 }
 
 LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, int caretOffset, LayoutUnit*)
@@ -118,7 +118,7 @@ LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, int caretOffset, 
     if (!box || !box->isInlineTextBox())
         return LayoutRect();
 
-    InlineTextBox* textBox = static_cast<InlineTextBox*>(box);
+    InlineTextBox* textBox = toInlineTextBox(box);
     if (static_cast<unsigned>(caretOffset) < textBox->start() || static_cast<unsigned>(caretOffset) > textBox->start() + textBox->len())
         return LayoutRect();
 

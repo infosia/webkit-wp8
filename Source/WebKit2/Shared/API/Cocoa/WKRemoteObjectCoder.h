@@ -31,9 +31,17 @@ namespace WebKit {
 class ImmutableDictionary;
 }
 
+@class WKRemoteObjectInterface;
+
 @interface WKRemoteObjectEncoder : NSCoder
 
 - (WebKit::ImmutableDictionary*)rootObjectDictionary;
+
+@end
+
+@interface WKRemoteObjectDecoder : NSCoder
+
+- (id)initWithInterface:(WKRemoteObjectInterface *)interface rootObjectDictionary:(const WebKit::ImmutableDictionary*)rootObjectDictionary;
 
 @end
 

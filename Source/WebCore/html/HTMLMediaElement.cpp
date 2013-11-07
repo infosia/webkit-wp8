@@ -1086,7 +1086,7 @@ void HTMLMediaElement::loadResource(const URL& initialURL, ContentType& contentT
     LOG(Media, "HTMLMediaElement::loadResource - m_currentSrc -> %s", urlForLoggingMedia(m_currentSrc).utf8().data());
 
 #if ENABLE(MEDIA_STREAM)
-    if (MediaStreamRegistry::registry().lookupMediaStreamDescriptor(url.string()))
+    if (MediaStreamRegistry::registry().lookupMediaStreamPrivate(url.string()))
         removeBehaviorRestriction(RequireUserGestureForRateChangeRestriction);
 #endif
 
@@ -1115,7 +1115,7 @@ void HTMLMediaElement::loadResource(const URL& initialURL, ContentType& contentT
         m_mediaSource = HTMLMediaSource::lookup(url.string());
 
     if (m_mediaSource) {
-        if (m_mediaSource->attachToElement())
+        if (m_mediaSource->attachToElement(this))
             m_player->load(url, contentType, m_mediaSource);
         else {
             // Forget our reference to the MediaSource, so we leave it alone
@@ -1437,8 +1437,8 @@ void HTMLMediaElement::audioTrackEnabledChanged(AudioTrack* track)
 {
     if (!RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled())
         return;
-    ASSERT_UNUSED(track, m_audioTracks->contains(track));
-    m_audioTracks->scheduleChangeEvent();
+    if (m_audioTracks && m_audioTracks->contains(track))
+        m_audioTracks->scheduleChangeEvent();
 }
 
 void HTMLMediaElement::textTrackModeChanged(TextTrack* track)
@@ -1478,8 +1478,8 @@ void HTMLMediaElement::videoTrackSelectedChanged(VideoTrack* track)
 {
     if (!RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled())
         return;
-    ASSERT_UNUSED(track, m_videoTracks->contains(track));
-    m_videoTracks->scheduleChangeEvent();
+    if (m_videoTracks && m_videoTracks->contains(track))
+        m_videoTracks->scheduleChangeEvent();
 }
 
 void HTMLMediaElement::textTrackKindChanged(TextTrack* track)
@@ -1889,6 +1889,7 @@ void HTMLMediaElement::setReadyState(MediaPlayer::ReadyState state)
     } else {
         if (wasPotentiallyPlaying && m_readyState < HAVE_FUTURE_DATA) {
             // 4.8.10.8
+            invalidateCachedTime();
             scheduleTimeupdateEvent(false);
             scheduleEvent(eventNames().waitingEvent);
         }
@@ -2892,6 +2893,7 @@ void HTMLMediaElement::mediaPlayerDidAddTextTrack(PassRefPtr<InbandTextTrackPriv
     // 4.8.10.12.2 Sourcing in-band text tracks
     // 1. Associate the relevant data with a new text track and its corresponding new TextTrack object.
     RefPtr<InbandTextTrack> textTrack = InbandTextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, prpTrack);
+    textTrack->setMediaElement(this);
     
     // 2. Set the new text track's kind, label, and language based on the semantics of the relevant data,
     // as defined by the relevant specification. If there is no label in that data, then the label must
@@ -3120,7 +3122,7 @@ PassRefPtr<TextTrack> HTMLMediaElement::addTextTrack(const String& kind, const S
 
     // 5. Create a new text track corresponding to the new object, and set its text track kind to kind, its text 
     // track label to label, its text track language to language...
-    RefPtr<TextTrack> textTrack = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, label, language);
+    RefPtr<TextTrack> textTrack = TextTrack::create(ActiveDOMObject::scriptExecutionContext(), this, kind, emptyString(), label, language);
 
     // Note, due to side effects when changing track parameters, we have to
     // first append the track to the text track list.

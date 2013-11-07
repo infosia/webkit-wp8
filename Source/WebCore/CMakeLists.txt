@@ -1985,7 +1985,7 @@ set(WebCore_SOURCES
     platform/leveldb/LevelDBWriteBatch.cpp
 
     platform/mediastream/MediaStreamCenter.cpp
-    platform/mediastream/MediaStreamDescriptor.cpp
+    platform/mediastream/MediaStreamPrivate.cpp
     platform/mediastream/MediaStreamTrackPrivate.cpp
     platform/mediastream/MediaStreamSource.cpp
     platform/mediastream/MediaStreamSourceStates.cpp
@@ -2081,6 +2081,7 @@ set(WebCore_SOURCES
     rendering/HitTestingTransformState.cpp
     rendering/ImageQualityController.cpp
     rendering/InlineBox.cpp
+    rendering/InlineElementBox.cpp
     rendering/InlineFlowBox.cpp
     rendering/InlineTextBox.cpp
     rendering/LayoutRepainter.cpp
@@ -2827,6 +2828,13 @@ if (WTF_USE_3D_GRAPHICS)
         list(APPEND WebCore_LIBRARIES
             ${OPENGL_gl_LIBRARY}
         )
+    elseif (OPENGLES2_FOUND)
+        list(APPEND WebCore_INCLUDE_DIRECTORIES
+            ${OPENGLES2_INCLUDE_DIR}
+        )
+        list(APPEND WebCore_LIBRARIES
+            ${OPENGLES2_LIBRARIES}
+        )
     endif ()
 
     list(APPEND ANGLESupport_SOURCES
@@ -2984,7 +2992,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorBackendDispatcher.cpp ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorBackendDispatcher.h ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorFrontend.cpp ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorFrontend.h ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorTypeBuilder.cpp ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorTypeBuilder.h
     MAIN_DEPENDENCY inspector/Inspector.json
-    DEPENDS ${WEBCORE_DIR}/inspector/CodeGeneratorInspector.py
+    DEPENDS ${WEBCORE_DIR}/inspector/CodeGeneratorInspector.py ${WEBCORE_DIR}/inspector/CodeGeneratorInspectorStrings.py
     COMMAND ${PYTHON_EXECUTABLE} ${WEBCORE_DIR}/inspector/CodeGeneratorInspector.py ${WEBCORE_DIR}/inspector/Inspector.json --output_h_dir "${DERIVED_SOURCES_WEBCORE_DIR}" --output_cpp_dir "${DERIVED_SOURCES_WEBCORE_DIR}" --output_js_dir "${DERIVED_SOURCES_WEBCORE_DIR}" --write_always
     VERBATIM)
 list(APPEND WebCore_SOURCES ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorBackendDispatcher.cpp ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorFrontend.cpp ${DERIVED_SOURCES_WEBCORE_DIR}/InspectorTypeBuilder.cpp)

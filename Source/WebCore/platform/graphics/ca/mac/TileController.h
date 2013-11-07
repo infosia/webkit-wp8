@@ -139,7 +139,7 @@ private:
     virtual void platformCALayerLayerDidDisplay(PlatformLayer*) OVERRIDE { }
 
     virtual void platformCALayerSetNeedsToRevalidateTiles() OVERRIDE { }
-    virtual float platformCALayerDeviceScaleFactor() OVERRIDE;
+    virtual float platformCALayerDeviceScaleFactor() const OVERRIDE;
 
     IntRect bounds() const;
 
@@ -227,6 +227,7 @@ private:
     bool m_acceleratesDrawing;
     bool m_tilesAreOpaque;
     bool m_clipsToExposedRect;
+    bool m_hasTilesWithTemporaryScaleFactor; // Used to make low-res tiles when zooming.
 
     Color m_tileDebugBorderColor;
     float m_tileDebugBorderWidth;

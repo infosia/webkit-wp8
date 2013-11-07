@@ -308,11 +308,8 @@ public:
     RenderLineBoxList& lineBoxes() { return m_lineBoxes; }
     const RenderLineBoxList& lineBoxes() const { return m_lineBoxes; }
 
-    InlineFlowBox* firstLineBox() const { return m_lineBoxes.firstLineBox(); }
-    InlineFlowBox* lastLineBox() const { return m_lineBoxes.lastLineBox(); }
-
-    RootInlineBox* firstRootBox() const { return static_cast<RootInlineBox*>(firstLineBox()); }
-    RootInlineBox* lastRootBox() const { return static_cast<RootInlineBox*>(lastLineBox()); }
+    RootInlineBox* firstRootBox() const { return toRootInlineBox(m_lineBoxes.firstLineBox()); }
+    RootInlineBox* lastRootBox() const { return toRootInlineBox(m_lineBoxes.lastLineBox()); }
 
     virtual bool hasLines() const OVERRIDE FINAL;
 
@@ -419,8 +416,12 @@ private:
 
     void newLine(EClear);
 
-    virtual LayoutUnit logicalRightFloatOffsetForLine(LayoutUnit logicalTop, LayoutUnit fixedOffset, LayoutUnit* heightRemaining, LayoutUnit logicalHeight, ShapeOutsideFloatOffsetMode) const OVERRIDE;
-    virtual LayoutUnit logicalLeftFloatOffsetForLine(LayoutUnit logicalTop, LayoutUnit fixedOffset, LayoutUnit* heightRemaining, LayoutUnit logicalHeight, ShapeOutsideFloatOffsetMode) const OVERRIDE;
+    virtual LayoutUnit logicalRightFloatOffsetForLine(LayoutUnit logicalTop, LayoutUnit fixedOffset, LayoutUnit logicalHeight) const OVERRIDE;
+    virtual LayoutUnit logicalLeftFloatOffsetForLine(LayoutUnit logicalTop, LayoutUnit fixedOffset, LayoutUnit logicalHeight) const OVERRIDE;
+
+    LayoutUnit logicalRightOffsetForPositioningFloat(LayoutUnit logicalTop, LayoutUnit fixedOffset, bool applyTextIndent, LayoutUnit* heightRemaining) const;
+    LayoutUnit logicalLeftOffsetForPositioningFloat(LayoutUnit logicalTop, LayoutUnit fixedOffset, bool applyTextIndent, LayoutUnit* heightRemaining) const;
+
     LayoutUnit lowestFloatLogicalBottom(FloatingObject::Type = FloatingObject::FloatLeftRight) const; 
     LayoutUnit nextFloatLogicalBottomBelow(LayoutUnit, ShapeOutsideFloatOffsetMode = ShapeOutsideFloatMarginBoxOffset) const;
     
@@ -461,7 +462,7 @@ private:
     void layoutLineBoxes(bool relayoutChildren, LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
     void layoutSimpleLines(LayoutUnit& repaintLogicalTop, LayoutUnit& repaintLogicalBottom);
 
-    virtual RootInlineBox* createRootInlineBox(); // Subclassed by SVG and Ruby.
+    virtual std::unique_ptr<RootInlineBox> createRootInlineBox(); // Subclassed by RenderSVGText.
     InlineFlowBox* createLineBoxes(RenderObject*, const LineInfo&, InlineBox* childBox, bool startsNewSegment);
     RootInlineBox* constructLine(BidiRunList<BidiRun>&, const LineInfo&);
     void setMarginsForRubyRun(BidiRun*, RenderRubyRun&, RenderObject*, const LineInfo&);

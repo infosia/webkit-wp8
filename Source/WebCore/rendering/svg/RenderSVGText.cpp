@@ -441,11 +441,11 @@ void RenderSVGText::layout()
     clearNeedsLayout();
 }
 
-RootInlineBox* RenderSVGText::createRootInlineBox() 
+std::unique_ptr<RootInlineBox> RenderSVGText::createRootInlineBox()
 {
-    RootInlineBox* box = new SVGRootInlineBox(*this);
+    auto box = std::make_unique<SVGRootInlineBox>(*this);
     box->setHasVirtualLogicalHeight();
-    return box;
+    return std::move(box);
 }
 
 bool RenderSVGText::nodeAtFloatPoint(const HitTestRequest& request, HitTestResult& result, const FloatPoint& pointInParent, HitTestAction hitTestAction)
@@ -484,7 +484,7 @@ VisiblePosition RenderSVGText::positionForPoint(const LayoutPoint& pointInConten
     ASSERT(!rootBox->nextRootBox());
     ASSERT(childrenInline());
 
-    InlineBox* closestBox = static_cast<SVGRootInlineBox*>(rootBox)->closestLeafChildForPosition(pointInContents);
+    InlineBox* closestBox = toSVGRootInlineBox(rootBox)->closestLeafChildForPosition(pointInContents);
     if (!closestBox)
         return createVisiblePosition(0, DOWNSTREAM);
 

@@ -1228,9 +1228,14 @@ void GraphicsLayerCA::platformCALayerSetNeedsToRevalidateTiles()
     noteLayerPropertyChanged(TilingAreaChanged, m_isCommittingChanges ? DontScheduleFlush : ScheduleFlush);
 }
 
-float GraphicsLayerCA::platformCALayerDeviceScaleFactor()
+float GraphicsLayerCA::platformCALayerDeviceScaleFactor() const
 {
     return deviceScaleFactor();
+}
+
+float GraphicsLayerCA::platformCALayerContentsScaleMultiplierForNewTiles(PlatformCALayer*) const
+{
+    return client() ? client()->contentsScaleMultiplierForNewTiles(this) : 1;
 }
 
 void GraphicsLayerCA::commitLayerChangesBeforeSublayers(CommitState& commitState, float pageScaleFactor, const FloatPoint& positionRelativeToBase, const FloatRect& oldVisibleRect, TransformationMatrix* transformFromRoot)
