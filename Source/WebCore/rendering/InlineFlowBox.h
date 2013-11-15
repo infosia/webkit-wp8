@@ -52,6 +52,7 @@ public:
         , m_baselineType(AlphabeticBaseline)
         , m_hasAnnotationsBefore(false)
         , m_hasAnnotationsAfter(false)
+        , m_isFirstAfterPageBreak(false)
 #ifndef NDEBUG
         , m_hasBadChildList(false)
 #endif
@@ -122,8 +123,6 @@ public:
 
     bool boxShadowCanBeAppliedToBackground(const FillLayer&) const;
 
-    virtual RenderLineBoxList& rendererLineBoxes() const;
-
     // logicalLeft = left in a horizontal line and top in a vertical line.
     LayoutUnit marginBorderPaddingLogicalLeft() const { return marginLogicalLeft() + borderLogicalLeft() + paddingLogicalLeft(); }
     LayoutUnit marginBorderPaddingLogicalRight() const { return marginLogicalRight() + borderLogicalRight() + paddingLogicalRight(); }
@@ -131,13 +130,13 @@ public:
     {
         if (!includeLogicalLeftEdge())
             return 0;
-        return isHorizontal() ? boxModelObject()->marginLeft() : boxModelObject()->marginTop();
+        return isHorizontal() ? renderer().marginLeft() : renderer().marginTop();
     }
     LayoutUnit marginLogicalRight() const
     {
         if (!includeLogicalRightEdge())
             return 0;
-        return isHorizontal() ? boxModelObject()->marginRight() : boxModelObject()->marginBottom();
+        return isHorizontal() ? renderer().marginRight() : renderer().marginBottom();
     }
     int borderLogicalLeft() const
     {
@@ -155,13 +154,13 @@ public:
     {
         if (!includeLogicalLeftEdge())
             return 0;
-        return isHorizontal() ? boxModelObject()->paddingLeft() : boxModelObject()->paddingTop();
+        return isHorizontal() ? renderer().paddingLeft() : renderer().paddingTop();
     }
     int paddingLogicalRight() const
     {
         if (!includeLogicalRightEdge())
             return 0;
-        return isHorizontal() ? boxModelObject()->paddingRight() : boxModelObject()->paddingBottom();
+        return isHorizontal() ? renderer().paddingRight() : renderer().paddingBottom();
     }
 
     bool includeLogicalLeftEdge() const { return m_includeLogicalLeftEdge; }
@@ -294,6 +293,7 @@ public:
 
 private:
     virtual bool isInlineFlowBox() const OVERRIDE FINAL { return true; }
+    void boxModelObject() const WTF_DELETED_FUNCTION;
 
     void addBoxShadowVisualOverflow(LayoutRect& logicalVisualOverflow);
     void addBorderOutsetVisualOverflow(LayoutRect& logicalVisualOverflow);
@@ -302,7 +302,7 @@ private:
     void constrainToLineTopAndBottomIfNeeded(LayoutRect&) const;
 
 protected:
-    OwnPtr<RenderOverflow> m_overflow;
+    RefPtr<RenderOverflow> m_overflow;
 
     InlineBox* m_firstChild;
     InlineBox* m_lastChild;
@@ -335,6 +335,8 @@ protected:
     unsigned m_lineBreakBidiStatusEor : 5; // UCharDirection
     unsigned m_lineBreakBidiStatusLastStrong : 5; // UCharDirection
     unsigned m_lineBreakBidiStatusLast : 5; // UCharDirection
+
+    unsigned m_isFirstAfterPageBreak : 1;
 
     // End of RootInlineBox-specific members.
 

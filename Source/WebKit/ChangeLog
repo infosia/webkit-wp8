@@ -1,3 +1,47 @@
+2013-11-13  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Unreviewed rollout of r159271, broke Mountain Lion build.
+
+        * WebKit.xcodeproj/project.pbxproj:
+
+2013-11-13  Anders Carlsson  <andersca@apple.com>
+
+        Deprecate WebHistory methods that use NSCalendarDate
+        https://bugs.webkit.org/show_bug.cgi?id=124329
+        <rdar://problem/15441122>
+
+        Reviewed by Mark Rowe.
+
+        * WebKit.xcodeproj/project.pbxproj:
+        Add a shell script phase that uses unifdef to remove the __NSd_10_9 #define from
+        WebHistory on Mavericks.
+
+2013-11-11  Alex Christensen  <achristensen@webkit.org>
+
+        Unreviewed build fix for Win64.
+
+        * WebKit.vcxproj/WebKitExportGenerator/WebKitExports.def.in:
+        Fixed 64-bit linker symbols.
+
+2013-11-11  Dan Bernstein  <mitz@apple.com>
+
+        [Mac] .exp files are not source code
+        https://bugs.webkit.org/show_bug.cgi?id=124154
+
+        Reviewed by Andy Estes.
+
+        * WebKit.xcodeproj/project.pbxproj: Removed WebKit.iOS.exp from the Compile Sources build
+        phase.
+
+2013-11-07  Roger Fong  <roger_fong@apple.com>
+
+        Unreviewed. Windows WebKit makefile fixes.
+
+        No need to copy over WebKit.resources.
+
+        * WebKit.vcxproj/WebKit.make:
+        * WebKit.vcxproj/WebKit/WebKitPostBuild.cmd:
+
 2013-11-07  Denis Nomiyama  <d.nomiyama@samsung.com>
 
         [GTK] Glyphs in vertical text tests are rotated 90 degrees clockwise

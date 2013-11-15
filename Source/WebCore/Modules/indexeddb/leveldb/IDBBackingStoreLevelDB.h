@@ -44,6 +44,7 @@ namespace WebCore {
 class LevelDBComparator;
 class LevelDBDatabase;
 class LevelDBTransaction;
+class IDBBackingStoreTransactionLevelDB;
 class IDBKey;
 class IDBKeyRange;
 class SecurityOrigin;
@@ -67,7 +68,7 @@ public:
     static PassRefPtr<IDBBackingStoreLevelDB> openInMemory(const String& identifier, LevelDBFactory*);
     WeakPtr<IDBBackingStoreLevelDB> createWeakPtr() { return m_weakFactory.createWeakPtr(); }
 
-    virtual std::unique_ptr<IDBBackingStoreTransactionInterface> createBackingStoreTransaction();
+    virtual void establishBackingStoreTransaction(int64_t transactionID);
 
     virtual Vector<String> getDatabaseNames();
 
@@ -100,14 +101,17 @@ public:
     virtual PassRefPtr<IDBBackingStoreCursorInterface> openIndexKeyCursor(IDBBackingStoreTransactionInterface&, int64_t databaseId, int64_t objectStoreId, int64_t indexId, const IDBKeyRange*, IndexedDB::CursorDirection) OVERRIDE;
     virtual PassRefPtr<IDBBackingStoreCursorInterface> openIndexCursor(IDBBackingStoreTransactionInterface&, int64_t databaseId, int64_t objectStoreId, int64_t indexId, const IDBKeyRange*, IndexedDB::CursorDirection) OVERRIDE;
 
-    virtual bool makeIndexWriters(IDBTransactionBackendInterface&, int64_t databaseId, const IDBObjectStoreMetadata&, IDBKey& primaryKey, bool keyWasGenerated, const Vector<int64_t>& indexIds, const Vector<IndexKeys>&, Vector<RefPtr<IDBIndexWriter>>& indexWriters, String* errorMessage, bool& completed) OVERRIDE WARN_UNUSED_RETURN;
+    virtual bool makeIndexWriters(int64_t transactionID, int64_t databaseId, const IDBObjectStoreMetadata&, IDBKey& primaryKey, bool keyWasGenerated, const Vector<int64_t>& indexIds, const Vector<IndexKeys>&, Vector<RefPtr<IDBIndexWriter>>& indexWriters, String* errorMessage, bool& completed) OVERRIDE WARN_UNUSED_RETURN;
 
-    virtual PassRefPtr<IDBKey> generateKey(IDBTransactionBackendInterface&, int64_t databaseId, int64_t objectStoreId) OVERRIDE;
-    virtual bool updateKeyGenerator(IDBTransactionBackendInterface&, int64_t databaseId, int64_t objectStoreId, const IDBKey&, bool checkCurrent) OVERRIDE;
+    virtual PassRefPtr<IDBKey> generateKey(IDBTransactionBackend&, int64_t databaseId, int64_t objectStoreId) OVERRIDE;
+    virtual bool updateKeyGenerator(IDBTransactionBackend&, int64_t databaseId, int64_t objectStoreId, const IDBKey&, bool checkCurrent) OVERRIDE;
 
     LevelDBDatabase* levelDBDatabase() { return m_db.get(); }
 
     static int compareIndexKeys(const LevelDBSlice&, const LevelDBSlice&);
+
+    IDBBackingStoreTransactionInterface* deprecatedBackingStoreTransaction(int64_t transactionID);
+    void removeBackingStoreTransaction(IDBBackingStoreTransactionLevelDB*);
 
 protected:
     IDBBackingStoreLevelDB(const String& identifier, PassOwnPtr<LevelDBDatabase>, PassOwnPtr<LevelDBComparator>);
@@ -128,6 +132,8 @@ private:
     OwnPtr<LevelDBDatabase> m_db;
     OwnPtr<LevelDBComparator> m_comparator;
     WeakPtrFactory<IDBBackingStoreLevelDB> m_weakFactory;
+
+    HashMap<int64_t, RefPtr<IDBBackingStoreTransactionLevelDB>> m_backingStoreTransactions;
 };
 
 } // namespace WebCore

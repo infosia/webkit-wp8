@@ -56,8 +56,6 @@
 #include "PlatformCALayerWin.h"
 #endif
 
-using namespace std;
-
 namespace WebCore {
 
 // The threshold width or height above which a tiled layer will be used. This should be
@@ -653,7 +651,7 @@ void GraphicsLayerCA::setBackfaceVisibility(bool visible)
 
 void GraphicsLayerCA::setOpacity(float opacity)
 {
-    float clampedOpacity = max(0.0f, min(opacity, 1.0f));
+    float clampedOpacity = std::max(0.0f, std::min(opacity, 1.0f));
 
     if (clampedOpacity == m_opacity)
         return;
@@ -688,8 +686,8 @@ bool GraphicsLayerCA::setFilters(const FilterOperations& filterOperations)
 
 void GraphicsLayerCA::setNeedsDisplay()
 {
-    FloatRect hugeRect(-numeric_limits<float>::max() / 2, -numeric_limits<float>::max() / 2,
-                       numeric_limits<float>::max(), numeric_limits<float>::max());
+    FloatRect hugeRect(-std::numeric_limits<float>::max() / 2, -std::numeric_limits<float>::max() / 2,
+                       std::numeric_limits<float>::max(), std::numeric_limits<float>::max());
 
     setNeedsDisplayInRect(hugeRect);
 }
@@ -818,19 +816,27 @@ void GraphicsLayerCA::setContentsToSolidColor(const Color& color)
         return;
 
     m_contentsSolidColor = color;
+    
+    bool contentsLayerChanged = false;
 
-    if (m_contentsSolidColor.isValid()) {
-        m_contentsLayerPurpose = ContentsLayerForBackgroundColor;
-        m_contentsLayer = createPlatformCALayer(PlatformCALayer::LayerTypeLayer, this);
+    if (m_contentsSolidColor.isValid() && m_contentsSolidColor.alpha()) {
+        if (!m_contentsLayer || m_contentsLayerPurpose != ContentsLayerForBackgroundColor) {
+            m_contentsLayerPurpose = ContentsLayerForBackgroundColor;
+            m_contentsLayer = createPlatformCALayer(PlatformCALayer::LayerTypeLayer, this);
 #ifndef NDEBUG
-        m_contentsLayer->setName("Background Color Layer");
+            m_contentsLayer->setName("Background Color Layer");
 #endif
+            contentsLayerChanged = true;
+        }
     } else {
+        contentsLayerChanged = m_contentsLayer;
         m_contentsLayerPurpose = NoContentsLayer;
         m_contentsLayer = 0;
     }
 
-    noteSublayersChanged();
+    if (contentsLayerChanged)
+        noteSublayersChanged();
+
     noteLayerPropertyChanged(ContentsColorLayerChanged);
 }
 
@@ -2447,7 +2453,7 @@ void GraphicsLayerCA::setupAnimation(PlatformCAAnimation* propertyAnim, const An
 
     float repeatCount = anim->iterationCount();
     if (repeatCount == Animation::IterationCountInfinite)
-        repeatCount = numeric_limits<float>::max();
+        repeatCount = std::numeric_limits<float>::max();
     else if (anim->direction() == Animation::AnimationDirectionAlternate || anim->direction() == Animation::AnimationDirectionAlternateReverse)
         repeatCount /= 2;
 
@@ -2813,7 +2819,7 @@ static float clampedContentsScaleForScale(float scale)
     // those too small to see.
     const float maxScale = 10.0f;
     const float minScale = 0.01f;
-    return max(minScale, min(scale, maxScale));
+    return std::max(minScale, std::min(scale, maxScale));
 }
 
 void GraphicsLayerCA::updateContentsScale(float pageScaleFactor)
@@ -3009,7 +3015,7 @@ void GraphicsLayerCA::setupContentsLayer(PlatformCALayer* contentsLayer)
 
     if (isShowingDebugBorder()) {
         contentsLayer->setBorderColor(Color(0, 0, 128, 180));
-        contentsLayer->setBorderWidth(1.0f);
+        contentsLayer->setBorderWidth(4);
     }
 }
 

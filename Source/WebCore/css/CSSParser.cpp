@@ -2101,7 +2101,7 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
                 list = CSSValueList::createCommaSeparated();
 
             if (image)
-                list->append(CSSCursorImageValue::create(image, hasHotSpot, hotSpot));
+                list->append(CSSCursorImageValue::create(image.releaseNonNull(), hasHotSpot, hotSpot));
 
             if ((inStrictMode() && !value) || (value && !(value->unit == CSSParserValue::Operator && value->iValue == ',')))
                 return false;
@@ -3037,6 +3037,9 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         if (!RuntimeEnabledFeatures::sharedFeatures().cssShapesEnabled())
             return false;
         if (id == CSSValueAuto)
+            validPrimitive = true;
+        else if (propId == CSSPropertyWebkitShapeOutside
+            && (id == CSSValueContentBox || id == CSSValueBorderBox || id== CSSValuePaddingBox || id == CSSValueMarginBox))
             validPrimitive = true;
         else if (propId == CSSPropertyWebkitShapeInside && id == CSSValueOutsideShape)
             validPrimitive = true;

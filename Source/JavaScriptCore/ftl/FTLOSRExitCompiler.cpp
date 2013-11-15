@@ -30,7 +30,6 @@
 
 #include "DFGOSRExitCompilerCommon.h"
 #include "DFGOSRExitPreparation.h"
-#include "FTLCArgumentGetter.h"
 #include "FTLExitArgumentForOperand.h"
 #include "FTLJITCode.h"
 #include "FTLOSRExit.h"
@@ -55,6 +54,9 @@ static void compileStub(
     
     RELEASE_ASSERT(record->patchpointID == exit.m_stackmapID);
     
+    // This code requires framePointerRegister is the same as callFrameRegister
+    static_assert(MacroAssembler::framePointerRegister == GPRInfo::callFrameRegister, "MacroAssembler::framePointerRegister and GPRInfo::callFrameRegister must be the same");
+
     CCallHelpers jit(vm, codeBlock);
     
     // We need scratch space to save all registers and to build up the JSStack.
@@ -76,7 +78,8 @@ static void compileStub(
     // call frame.
     
     // Get the call frame and tag thingies.
-    record->locations[0].restoreInto(jit, jitCode->stackmaps, registerScratch, GPRInfo::callFrameRegister);
+    // Restore the exiting function's callFrame value into a regT4
+    record->locations[0].restoreInto(jit, jitCode->stackmaps, registerScratch, GPRInfo::regT4);
     jit.move(MacroAssembler::TrustedImm64(TagTypeNumber), GPRInfo::tagTypeNumberRegister);
     jit.move(MacroAssembler::TrustedImm64(TagMask), GPRInfo::tagMaskRegister);
     
@@ -126,7 +129,7 @@ static void compileStub(
         case ExitValueInJSStackAsInt32:
         case ExitValueInJSStackAsInt52:
         case ExitValueInJSStackAsDouble:
-            jit.load64(AssemblyHelpers::addressFor(value.virtualRegister()), GPRInfo::regT0);
+            jit.load64(AssemblyHelpers::addressFor(value.virtualRegister(), GPRInfo::regT4), GPRInfo::regT0);
             break;
             
         default:
@@ -146,29 +149,29 @@ static void compileStub(
         jit.load64(scratch + index, GPRInfo::regT0);
         reboxAccordingToFormat(
             value.valueFormat(), jit, GPRInfo::regT0, GPRInfo::regT1, GPRInfo::regT2);
-        jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
+        jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(static_cast<VirtualRegister>(operand), GPRInfo::regT4));
     }
+    
+    // Restore the old stack pointer and then put regT4 into callFrameRegister. The idea is
+    // that the FTL call frame is pushed onto the JS call frame and we can recover the old
+    // value of the stack pointer by popping the FTL call frame. We already know what the
+    // frame pointer in the JS call frame was because it would have been passed as an argument
+    // to the FTL call frame.
+    jit.move(MacroAssembler::framePointerRegister, MacroAssembler::stackPointerRegister);
+    jit.pop(GPRInfo::nonArgGPR0);
+    jit.pop(GPRInfo::nonArgGPR0);
+    jit.move(GPRInfo::regT4, GPRInfo::callFrameRegister);
     
     handleExitCounts(jit, exit);
     reifyInlinedCallFrames(jit, exit);
-    
-    jit.move(MacroAssembler::framePointerRegister, MacroAssembler::stackPointerRegister);
-    jit.pop(MacroAssembler::framePointerRegister);
-    jit.pop(GPRInfo::nonArgGPR0); // ignore the result.
-    
-    if (exit.m_lastSetOperand.isValid()) {
-        jit.load64(
-            AssemblyHelpers::addressFor(exit.m_lastSetOperand), GPRInfo::cachedResultRegister);
-    }
-    
     adjustAndJumpToTarget(jit, exit);
     
     LinkBuffer patchBuffer(*vm, &jit, codeBlock);
     exit.m_code = FINALIZE_CODE_IF(
         shouldShowDisassembly(),
         patchBuffer,
-        ("FTL OSR exit #%u (bc#%u, %s) from %s, with operands = %s, and record = %s",
-            exitID, exit.m_codeOrigin.bytecodeIndex,
+        ("FTL OSR exit #%u (%s, %s) from %s, with operands = %s, and record = %s",
+            exitID, toCString(exit.m_codeOrigin).data(),
             exitKindToString(exit.m_kind), toCString(*codeBlock).data(),
             toCString(ignoringContext<DumpContext>(exit.m_values)).data(),
             toCString(*record).data()));

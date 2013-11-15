@@ -34,6 +34,10 @@ a:link {
     cursor: pointer;
 }
 
+.selectable {
+    -webkit-user-select: all;
+}
+
 body {
     background-color: rgb(233, 231, 223);
     text-align: center;
@@ -137,10 +141,10 @@ table.queue-grid tr.platform.windows-xp img.logo {
 }
 
 table.queue-grid tr.platform.linux-gtk img.logo {
-    content: -webkit-image-set(url(../Images/GTK.png) 1x);
+    content: -webkit-image-set(url(../Images/GTK@2x.png) 2x, url(../Images/GTK.png) 1x);
 }
 
 table.queue-grid tr.platform.linux-efl img.logo {
-    content: url(../Images/EFL.png);
+    content: -webkit-image-set(url(../Images/EFL@2x.png) 2x, url(../Images/EFL.png) 1x);
 }
 

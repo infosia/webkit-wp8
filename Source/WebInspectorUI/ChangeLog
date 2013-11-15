@@ -1,3 +1,285 @@
+2013-11-15  Antoine Quint  <graouts@apple.com>
+
+        Web Inspector: New color picker
+        https://bugs.webkit.org/show_bug.cgi?id=124354
+
+        Reviewed by Timothy Hatcher.
+
+        Beginning of a new color picker. The focus of this new picker is to let you pick from
+        a color wheel as the primary mean of color picking, with additional slider controls for
+        the brightness and the opacity, better matching the default OS X color picker. This is the
+        basis for a color picker that will evolve to support the following:
+
+        - editable CSS value label (http://webkit.org/b/124356)
+        - picking a color anywhere on screen (http://webkit.org/b/124357)
+        - swatches based on other colors in page (http://webkit.org/b/124358)
+
+        Note also that the color wheel has not been tested on Retina displays
+        (see http://webkit.org/b/124355).
+
+        * UserInterface/CSSColorPicker.css: Removed.
+        * UserInterface/CSSColorPicker.js: Removed.
+        Previous color picker, now removed in favor of the new ColorPicker class.
+
+        * UserInterface/CSSStyleDeclarationTextEditor.js:
+        Adopt new class name for the color picker, add a little padding to the popover
+        target frame and set the base color after the picker has been presented.
+
+        * UserInterface/Color.js:
+        (WebInspector.Color.prototype._hslToRGB):
+        Simplified math.
+
+        (WebInspector.Color.rgb2hsv):
+        (WebInspector.Color.hsv2rgb):
+        New utilities to deal with HSV colors used in the ColorWheel.
+
+        * UserInterface/ColorPicker.css: Added.
+
+        * UserInterface/ColorPicker.js: Added.
+        (WebInspector.ColorPicker):
+        (WebInspector.ColorPicker.prototype.get element):
+        (WebInspector.ColorPicker.prototype.set brightness):
+        (WebInspector.ColorPicker.prototype.set opacity):
+        (WebInspector.ColorPicker.prototype.get color):
+
+        (WebInspector.ColorPicker.prototype.set color):
+        We set the _dontUpdateColor flag here such that we don't attempt to
+        notify about a color change at this point in case the selected color
+        is too saturated to be represented accurately on the color wheel and
+        we would end up changing the color by virtue of presenting the popover.
+
+        (WebInspector.ColorPicker.prototype.colorWheelColorDidChange):
+        (WebInspector.ColorPicker.prototype.sliderValueDidChange):
+        (WebInspector.ColorPicker.prototype._updateColor):
+        (WebInspector.ColorPicker.prototype._updateSliders):
+
+        * UserInterface/ColorWheel.css: Added.
+
+        * UserInterface/ColorWheel.js: Added.
+        The ColorWheel makes use of three different <canvas> elements to draw itself.
+        The "raw" canvas is used to draw the raw, un-tinted color wheel with poor
+        aliasing. The "raw" canvas is only drawn when the dimension is changed.
+        The "tinted" canvas is used to draw the "raw" canvas with a black overlay
+        based on the brightness set on the wheel. The "final" canvas, the only <canvas>
+        element attached to the DOM, is used to draw the "tinted" canvas into a circle
+        clip of a slightly narrower radius so that the drawn image is visually more pleasing
+        and can be displayed above virtually any background color.
+
+        We use color math to generate the color wheel, courtesy of Dean Jackson, and also to
+        figure out where to position the crosshair for the provided base color as well as
+        the opposite operation where we get the color under the mouse pointer.
+
+        The color wheel fires a single delegate method call colorWheelColorDidChange(colorWheel),
+        the colors themselves being retrieved via the public properties tintedColor and rawColor.
+
+        (WebInspector.ColorWheel):
+        (WebInspector.ColorWheel.prototype.set dimension):
+        (WebInspector.ColorWheel.prototype.get element):
+        (WebInspector.ColorWheel.prototype.get brightness):
+        (WebInspector.ColorWheel.prototype.set brightness):
+        (WebInspector.ColorWheel.prototype.get tintedColor):
+        (WebInspector.ColorWheel.prototype.set tintedColor):
+        (WebInspector.ColorWheel.prototype.get rawColor):
+        (WebInspector.ColorWheel.prototype.handleEvent):
+        (WebInspector.ColorWheel.prototype._handleMousedown):
+        (WebInspector.ColorWheel.prototype._handleMousemove):
+        (WebInspector.ColorWheel.prototype._handleMouseup):
+        (WebInspector.ColorWheel.prototype._pointInCircleForEvent):
+        (WebInspector.ColorWheel.prototype._pointInCircleForEvent.angleFromCenterToPoint):
+        (WebInspector.ColorWheel.prototype._pointInCircleForEvent.pointOnCircumference):
+        (WebInspector.ColorWheel.prototype._updateColorForMouseEvent):
+        (WebInspector.ColorWheel.prototype._setCrosshairPosition):
+        (WebInspector.ColorWheel.prototype._tintedColorToPointAndBrightness):
+        (WebInspector.ColorWheel.prototype._drawRawCanvas):
+        (WebInspector.ColorWheel.prototype._colorAtPointWithBrightness):
+        (WebInspector.ColorWheel.prototype._drawTintedCanvas):
+        (WebInspector.ColorWheel.prototype._draw):
+
+        * UserInterface/Images/SliderThumb.png: Added.
+        * UserInterface/Images/SliderThumb@2x.png: Added.
+        * UserInterface/Images/SliderThumbPressed.png: Added.
+        * UserInterface/Images/SliderThumbPressed@2x.png: Added.
+        Supporting artwork for the new Slider class.
+
+        * UserInterface/Main.html:
+        Remove the previous color picker class and add the new one, as well as the new Slider class.
+
+        * UserInterface/Slider.css: Added.
+
+        * UserInterface/Slider.js: Added.
+        New slider to match the look of the sliders used in the native OS X color picker. The most
+        interesting feature of these sliders is that they can be transformed using CSS in any way
+        and will still operate correctly due to always converting the mouse coordinates in the page
+        coordinate system to the coordinate system local to the backing element. For instance, the
+        color picker uses two sliders transformed to be displayed vertically.
+
+        As it stands these slides only support values between 0 and 1 and fire a single delegate
+        method call sliderValueDidChange(slider, newValue).
+
+        (WebInspector.Slider):
+        (WebInspector.Slider.prototype.get element):
+        (WebInspector.Slider.prototype.get value):
+        (WebInspector.Slider.prototype.set value):
+        (WebInspector.Slider.prototype.handleEvent):
+        (WebInspector.Slider.prototype._handleMousedown):
+        (WebInspector.Slider.prototype._handleMousemove):
+        (WebInspector.Slider.prototype._handleMouseup):
+        (WebInspector.Slider.prototype._localPointForEvent):
+        (WebInspector.Slider.prototype.get _maxX):
+
+        * WebInspectorUI.vcxproj/WebInspectorUI.vcxproj:
+        * WebInspectorUI.vcxproj/WebInspectorUI.vcxproj.filters:
+        Update file names for the new color picker.
+
+2013-11-14  Antoine Quint  <graouts@apple.com>
+
+        Web Inspector: Popovers may shrink unnecessarily
+        https://bugs.webkit.org/show_bug.cgi?id=124350
+
+        Reviewed by Timothy Hatcher.
+
+        Because we always get the intersection of the preferred frame and the container frame to
+        ensure the popover fits within its container based on a preferred frame that would place
+        the arrow within the center of the attachment edge, we get in situations where we may
+        shrink the popover instead of shifting it to fit within the container frame. We now first
+        shift the preferred frame before getting its intersection with the container frame to
+        avoid such situations. 
+
+        * UserInterface/Popover.js:
+        (WebInspector.Popover.prototype._bestMetricsForEdge):
+
+2013-11-13  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Split Inspector.json into individual domain json files
+        https://bugs.webkit.org/show_bug.cgi?id=124098
+
+        Reviewed by Timothy Hatcher.
+
+        Removed now stale comments referring to the combined Inspector.json.
+        Make update-InspectorBackendCommands helper script generate a
+        combined Inspector.json to still work for tip of tree.
+
+        * Scripts/update-InspectorBackendCommands.rb:
+        * UserInterface/ApplicationCacheObserver.js:
+        * UserInterface/CSSObserver.js:
+        * UserInterface/CanvasObserver.js:
+        * UserInterface/ConsoleObserver.js:
+        * UserInterface/DOMObserver.js:
+        * UserInterface/DOMStorageObserver.js:
+        * UserInterface/DatabaseObserver.js:
+        * UserInterface/DebuggerObserver.js:
+        * UserInterface/InspectorBackendCommands.js:
+        * UserInterface/InspectorObserver.js:
+        * UserInterface/LayerTreeObserver.js:
+        * UserInterface/NetworkObserver.js:
+        * UserInterface/PageObserver.js:
+        * UserInterface/ProfilerObserver.js:
+        * UserInterface/Resource.js:
+        * UserInterface/RuntimeObserver.js:
+        * UserInterface/TimelineObserver.js:
+
+2013-11-12  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: ContentFlowTreeContentView should use only one DOMTreeOutline
+        https://bugs.webkit.org/show_bug.cgi?id=124230
+
+        Reviewed by Timothy Hatcher.
+
+        Changed ContentFlowTreeContentView to use one DOMTreeOutline by just
+        populating it with root DOMTreeElements directly. That is very
+        similar to how DOMTreeOutline works when omitRootDOMNode is used.
+
+        Now that ContentFlowTreeContentView has only one DOMTreeOutline,
+        it makes sense to change its base class to be DOMTreeContentView instead.
+        Also, with that I've changed its name to ContentFlowDOMTreeContentView.
+
+        I had to move all the DOMTree document loading code from DOMTreeContentView to a
+        new class called FrameDOMTreeContentView. This is used to display the DOM of the
+        frame objects. FrameDOMTreeContentView is also inheriting from DOMTreeContentView.
+
+        Issues that are fixed as a side effect:
+        - Selection path components are now displaying all the sibling elements for contentFlow.contentNodes
+        (those are the nodes that have "-webkit-flow-into" set directly).
+        - Keyboard navigation works for the contentFlow.contentNodes.
+        - Search is implemented in DOMTreeContentView, so that code now works for flows too.
+        The DOMAgents's search API will use all the Documents to lookup for nodes, so it might
+        find DOM nodes that are not part of the flow. This is in line with the behavior for the
+        frames.
+
+        * UserInterface/ContentFlowDOMTreeContentView.js: Renamed from ContentFlowTreeContentView
+        to better reflect the inheritance from DOMTreeContentView.
+        (WebInspector.ContentFlowDOMTreeContentView):
+        (WebInspector.ContentFlowDOMTreeContentView.prototype.closed):
+        (WebInspector.ContentFlowDOMTreeContentView.prototype._createContentTrees):
+        (WebInspector.ContentFlowDOMTreeContentView.prototype._contentNodeWasAdded):
+        (WebInspector.ContentFlowDOMTreeContentView.prototype._contentNodeWasRemoved):
+        * UserInterface/ContentView.js:
+        (WebInspector.ContentView):
+        * UserInterface/DOMTreeContentView.js:
+        (WebInspector.DOMTreeContentView):
+        (WebInspector.DOMTreeContentView.prototype.closed):
+        (WebInspector.DOMTreeContentView.prototype.):
+        (WebInspector.DOMTreeContentView.prototype._restoreSelectedNodeAfterUpdate):
+        (WebInspector.DOMTreeContentView.prototype._selectedNodeDidChange):
+        * UserInterface/FrameDOMTreeContentView.js: Added.
+        (WebInspector.FrameDOMTreeContentView):
+        (WebInspector.FrameDOMTreeContentView.prototype.get domTree):
+        (WebInspector.FrameDOMTreeContentView.prototype.closed):
+        (WebInspector.FrameDOMTreeContentView.prototype._rootDOMNodeAvailable):
+        (WebInspector.FrameDOMTreeContentView.prototype._rootDOMNodeInvalidated):
+        (WebInspector.FrameDOMTreeContentView.prototype._requestRootDOMNode):
+        * UserInterface/Main.html:
+
+2013-11-08  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: remove -webkit-min and -webkit-max from CSS completions
+        https://bugs.webkit.org/show_bug.cgi?id=124072
+
+        Reviewed by Timothy Hatcher.
+
+        -webkit-min and -webkit-max are not implemented in WebCore, despite mentions of it.
+
+        * UserInterface/CSSKeywordCompletions.js:
+
+2013-11-07  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: CSS Regions: Use a Map object to store the ContentFlows
+        https://bugs.webkit.org/show_bug.cgi?id=124015
+
+        Reviewed by Joseph Pecoraro.
+
+        Changed the Object hashmap to a Map based hashmap when storing the flows in DOMTreeManager.
+
+        * UserInterface/DOMTreeManager.js:
+        (WebInspector.DOMTreeManager):
+        (WebInspector.DOMTreeManager.prototype.getNamedFlowCollection):
+        (WebInspector.DOMTreeManager.prototype.namedFlowRemoved):
+        (WebInspector.DOMTreeManager.prototype._sendNamedFlowUpdateEvents):
+
+2013-11-07  Timothy Hatcher  <timothy@apple.com>
+
+        Fix up some sidebar switching details to make selections persist better.
+
+        Translate represented objects between sidebars so the same item can be reselected
+        as you switch between frames and main reources. Also fix some null checks that are
+        needed on selectedSidebarPanel.
+
+        https://bugs.webkit.org/show_bug.cgi?id=124001
+
+        Reviewed by Joseph Pecoraro.
+
+        * UserInterface/DebuggerSidebarPanel.js:
+        (WebInspector.DebuggerSidebarPanel.prototype.treeElementForRepresentedObject): Added. Translate a Frame
+        representedObject into a main resource representedObject.
+        * UserInterface/Main.js:
+        (WebInspector._revealAndSelectRepresentedObjectInNavigationSidebar): Null check selectedSidebarPanel.
+        (WebInspector._updateNavigationSidebarForCurrentContentView): Fix a logic error to match other code.
+        allowedNavigationSidebarPanels.length needs to have a length before using contains.
+        (WebInspector._contentBrowserCurrentContentViewDidChange): Null check selectedSidebarPanel.
+        * UserInterface/ResourceSidebarPanel.js:
+        (WebInspector.ResourceSidebarPanel.prototype.treeElementForRepresentedObject): Translate a main resource
+        representedObject into a Frame representedObject.
+
 2013-11-07  Alexandru Chiculita  <achicu@adobe.com>
 
         Web Inspector: CSS Regions: Removing a content node of a ContentFlow from the DOM will send a 0 nodeId

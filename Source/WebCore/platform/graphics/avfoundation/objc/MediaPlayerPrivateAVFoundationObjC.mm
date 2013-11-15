@@ -157,7 +157,6 @@ SOFT_LINK_POINTER(AVFoundation, AVPlayerItemLegibleOutputTextStylingResolutionSo
 #define kCMTimeZero getkCMTimeZero()
 
 using namespace WebCore;
-using namespace std;
 
 enum MediaPlayerAVFoundationObservationContext {
     MediaPlayerAVFoundationObservationContextPlayerItem,
@@ -626,7 +625,7 @@ float MediaPlayerPrivateAVFoundationObjC::platformDuration() const
         return narrowPrecisionToFloat(CMTimeGetSeconds(cmDuration));
 
     if (CMTIME_IS_INDEFINITE(cmDuration)) {
-        return numeric_limits<float>::infinity();
+        return std::numeric_limits<float>::infinity();
     }
 
     LOG(Media, "MediaPlayerPrivateAVFoundationObjC::platformDuration(%p) - invalid duration, returning %.0f", this, MediaPlayer::invalidTime());
@@ -639,20 +638,22 @@ float MediaPlayerPrivateAVFoundationObjC::currentTime() const
         return 0;
 
     CMTime itemTime = [m_avPlayerItem.get() currentTime];
-    if (CMTIME_IS_NUMERIC(itemTime)) {
-        return max(narrowPrecisionToFloat(CMTimeGetSeconds(itemTime)), 0.0f);
-    }
+    if (CMTIME_IS_NUMERIC(itemTime))
+        return std::max(narrowPrecisionToFloat(CMTimeGetSeconds(itemTime)), 0.0f);
 
     return 0;
 }
 
-void MediaPlayerPrivateAVFoundationObjC::seekToTime(double time)
+void MediaPlayerPrivateAVFoundationObjC::seekToTime(double time, double negativeTolerance, double positiveTolerance)
 {
     // setCurrentTime generates several event callbacks, update afterwards.
     setDelayCallbacks(true);
 
     WebCoreAVFMovieObserver *observer = m_objcObserver.get();
-    [m_avPlayerItem.get() seekToTime:CMTimeMakeWithSeconds(time, 600) toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
+    CMTime cmTime = CMTimeMakeWithSeconds(time, 600);
+    CMTime cmBefore = CMTimeMakeWithSeconds(negativeTolerance, 600);
+    CMTime cmAfter = CMTimeMakeWithSeconds(positiveTolerance, 600);
+    [m_avPlayerItem.get() seekToTime:cmTime toleranceBefore:cmBefore toleranceAfter:cmAfter completionHandler:^(BOOL finished) {
         [observer seekCompleted:finished];
     }];
 
@@ -1699,7 +1700,7 @@ void MediaPlayerPrivateAVFoundationObjC::playbackBufferFullDidChange(bool buffer
         updateStates();
 }
 
-void MediaPlayerPrivateAVFoundationObjC::seekableTimeRangesDidChange(NSArray* seekableRanges)
+void MediaPlayerPrivateAVFoundationObjC::seekableTimeRangesDidChange(RetainPtr<NSArray> seekableRanges)
 {
     m_cachedSeekableRanges = seekableRanges;
 
@@ -1707,7 +1708,7 @@ void MediaPlayerPrivateAVFoundationObjC::seekableTimeRangesDidChange(NSArray* se
     updateStates();
 }
 
-void MediaPlayerPrivateAVFoundationObjC::loadedTimeRangesDidChange(NSArray* loadedRanges)
+void MediaPlayerPrivateAVFoundationObjC::loadedTimeRangesDidChange(RetainPtr<NSArray> loadedRanges)
 {
     m_cachedLoadedRanges = loadedRanges;
 
@@ -1715,7 +1716,7 @@ void MediaPlayerPrivateAVFoundationObjC::loadedTimeRangesDidChange(NSArray* load
     updateStates();
 }
 
-void MediaPlayerPrivateAVFoundationObjC::tracksDidChange(NSArray* tracks)
+void MediaPlayerPrivateAVFoundationObjC::tracksDidChange(RetainPtr<NSArray> tracks)
 {
     m_cachedTracks = tracks;
 
@@ -1876,19 +1877,19 @@ NSArray* itemKVOProperties()
         else if ([keyPath isEqualToString:@"playbackBufferFull"])
             function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::playbackBufferFullDidChange, m_callback, [newValue boolValue]);
         else if ([keyPath isEqualToString:@"asset"])
-            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::setAsset, m_callback, newValue);
+            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::setAsset, m_callback, RetainPtr<NSArray>(newValue));
         else if ([keyPath isEqualToString:@"loadedTimeRanges"])
-            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::loadedTimeRangesDidChange, m_callback, newValue);
+            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::loadedTimeRangesDidChange, m_callback, RetainPtr<NSArray>(newValue));
         else if ([keyPath isEqualToString:@"seekableTimeRanges"])
-            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::seekableTimeRangesDidChange, m_callback, newValue);
+            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::seekableTimeRangesDidChange, m_callback, RetainPtr<NSArray>(newValue));
         else if ([keyPath isEqualToString:@"tracks"])
-            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::tracksDidChange, m_callback, newValue);
+            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::tracksDidChange, m_callback, RetainPtr<NSArray>(newValue));
         else if ([keyPath isEqualToString:@"hasEnabledAudio"])
             function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::hasEnabledAudioDidChange, m_callback, [newValue boolValue]);
         else if ([keyPath isEqualToString:@"presentationSize"])
             function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::presentationSizeDidChange, m_callback, FloatSize([newValue sizeValue]));
         else if ([keyPath isEqualToString:@"duration"])
-            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::durationDidChange, m_callback, [newValue doubleValue]);
+            function = WTF::bind(&MediaPlayerPrivateAVFoundationObjC::durationDidChange, m_callback, CMTimeGetSeconds([newValue CMTimeValue]));
     }
 
     if (context == MediaPlayerAVFoundationObservationContextPlayer && !willChange) {

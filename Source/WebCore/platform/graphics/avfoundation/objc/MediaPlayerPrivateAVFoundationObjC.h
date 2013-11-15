@@ -98,9 +98,9 @@ public:
     void playbackBufferEmptyDidChange(bool);
     void playbackBufferFullWillChange();
     void playbackBufferFullDidChange(bool);
-    void loadedTimeRangesDidChange(NSArray*);
-    void seekableTimeRangesDidChange(NSArray*);
-    void tracksDidChange(NSArray*);
+    void loadedTimeRangesDidChange(RetainPtr<NSArray>);
+    void seekableTimeRangesDidChange(RetainPtr<NSArray>);
+    void tracksDidChange(RetainPtr<NSArray>);
     void hasEnabledAudioDidChange(bool);
     void presentationSizeDidChange(FloatSize);
     void durationDidChange(double);
@@ -142,7 +142,7 @@ private:
     virtual void checkPlayability();
     virtual void updateRate();
     virtual float rate() const;
-    virtual void seekToTime(double time);
+    virtual void seekToTime(double time, double negativeTolerance, double positiveTolerance);
     virtual unsigned totalBytes() const;
     virtual PassRefPtr<TimeRanges> platformBufferedTimeRanges() const;
     virtual double platformMinTimeSeekable() const;

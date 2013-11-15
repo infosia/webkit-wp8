@@ -147,9 +147,14 @@ static NSDictionary *nullActionsDictionary()
     NSDictionary *actions = [NSDictionary dictionaryWithObjectsAndKeys:
                              nullValue, @"anchorPoint",
                              nullValue, @"anchorPointZ",
+                             nullValue, @"backgroundColor",
+                             nullValue, @"borderColor",
+                             nullValue, @"borderWidth",
                              nullValue, @"bounds",
                              nullValue, @"contents",
                              nullValue, @"contentsRect",
+                             nullValue, @"contentsScale",
+                             nullValue, @"cornerRadius",
                              nullValue, @"opacity",
                              nullValue, @"position",
                              nullValue, @"shadowColor",
@@ -729,6 +734,11 @@ TiledBacking* PlatformCALayerMac::tiledBacking()
 PassRefPtr<PlatformCALayer> PlatformCALayerMac::createCompatibleLayer(PlatformCALayer::LayerType layerType, PlatformCALayerClient* client) const
 {
     return PlatformCALayerMac::create(layerType, client);
+}
+
+void PlatformCALayerMac::enumerateRectsBeingDrawn(CGContextRef context, void (^block)(CGRect))
+{
+    wkCALayerEnumerateRectsBeingDrawnWithBlock(m_layer.get(), context, block);
 }
 
 #endif // USE(ACCELERATED_COMPOSITING)

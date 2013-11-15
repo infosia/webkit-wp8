@@ -36,8 +36,6 @@
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuilder.h>
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -314,8 +312,8 @@ void RenderListItem::layout()
 
 void RenderListItem::addOverflowFromChildren()
 {
-    RenderBlockFlow::addOverflowFromChildren();
     positionListMarker();
+    RenderBlockFlow::addOverflowFromChildren();
 }
 
 void RenderListItem::computePreferredLogicalWidths()
@@ -371,7 +369,7 @@ void RenderListItem::positionListMarker()
                         adjustOverflow = true;
                 }
                 box->setOverflowFromLogicalRects(newLogicalLayoutOverflowRect, newLogicalVisualOverflowRect, lineTop, lineBottom);
-                if (box->boxModelObject()->hasSelfPaintingLayer())
+                if (box->renderer().hasSelfPaintingLayer())
                     hitSelfPaintingLayer = true;
             }
         } else {
@@ -393,7 +391,7 @@ void RenderListItem::positionListMarker()
                 }
                 box->setOverflowFromLogicalRects(newLogicalLayoutOverflowRect, newLogicalVisualOverflowRect, lineTop, lineBottom);
                 
-                if (box->boxModelObject()->hasSelfPaintingLayer())
+                if (box->renderer().hasSelfPaintingLayer())
                     hitSelfPaintingLayer = true;
             }
         }

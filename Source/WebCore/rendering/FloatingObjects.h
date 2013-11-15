@@ -33,9 +33,6 @@ namespace WebCore {
 class RenderBlockFlow;
 class RenderBox;
 
-// FIXME this should be removed once RenderBlockFlow::nextFloatLogicalBottomBelow doesn't need it anymore. (Bug 123931)
-enum ShapeOutsideFloatOffsetMode { ShapeOutsideFloatShapeOffset, ShapeOutsideFloatMarginBoxOffset };
-
 class FloatingObject {
     WTF_MAKE_NONCOPYABLE(FloatingObject); WTF_MAKE_FAST_ALLOCATED;
 public:
@@ -116,8 +113,8 @@ struct FloatingObjectHashTranslator {
 
 typedef ListHashSet<std::unique_ptr<FloatingObject>, 4, FloatingObjectHashFunctions> FloatingObjectSet;
 
-typedef PODInterval<int, FloatingObject*> FloatingObjectInterval;
-typedef PODIntervalTree<int, FloatingObject*> FloatingObjectTree;
+typedef PODInterval<LayoutUnit, FloatingObject*> FloatingObjectInterval;
+typedef PODIntervalTree<LayoutUnit, FloatingObject*> FloatingObjectTree;
 typedef PODFreeListArena<PODRedBlackTree<FloatingObjectInterval>::Node> IntervalArena;
 
 // FIXME: This is really the same thing as FloatingObjectSet.
@@ -127,7 +124,7 @@ typedef HashMap<RenderBox*, std::unique_ptr<FloatingObject>> RendererToFloatInfo
 class FloatingObjects {
     WTF_MAKE_NONCOPYABLE(FloatingObjects); WTF_MAKE_FAST_ALLOCATED;
 public:
-    FloatingObjects(const RenderBlockFlow*, bool horizontalWritingMode);
+    explicit FloatingObjects(const RenderBlockFlow&);
     ~FloatingObjects();
 
     void clear();
@@ -149,6 +146,9 @@ public:
     LayoutUnit logicalLeftOffsetForPositioningFloat(LayoutUnit fixedOffset, LayoutUnit logicalTop, LayoutUnit* heightRemaining);
     LayoutUnit logicalRightOffsetForPositioningFloat(LayoutUnit fixedOffset, LayoutUnit logicalTop, LayoutUnit* heightRemaining);
 
+    LayoutUnit findNextFloatLogicalBottomBelow(LayoutUnit logicalHeight);
+    LayoutUnit findNextFloatLogicalBottomBelowForBlock(LayoutUnit logicalHeight);
+
 private:
     void computePlacedFloatsTree();
     const FloatingObjectTree& placedFloatsTree();
@@ -161,16 +161,16 @@ private:
     unsigned m_leftObjectsCount;
     unsigned m_rightObjectsCount;
     bool m_horizontalWritingMode;
-    const RenderBlockFlow* m_renderer;
+    const RenderBlockFlow& m_renderer;
 };
 
 #ifndef NDEBUG
-// These structures are used by PODIntervalTree for debugging purposes.
-template <> struct ValueToString<int> {
-    static String string(const int value);
-};
+// This helper is used by PODIntervalTree for debugging purposes.
 template<> struct ValueToString<FloatingObject*> {
-    static String string(const FloatingObject*);
+    static String string(const FloatingObject* floatingObject)
+    {
+        return String::format("%p (%ix%i %ix%i)", floatingObject, floatingObject->frameRect().x().toInt(), floatingObject->frameRect().y().toInt(), floatingObject->frameRect().maxX().toInt(), floatingObject->frameRect().maxY().toInt());
+    }
 };
 #endif
 

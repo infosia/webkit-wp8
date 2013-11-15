@@ -33,7 +33,7 @@
 
 namespace WebCore {
 
-ScrollingTreeScrollingNode::ScrollingTreeScrollingNode(ScrollingTree* scrollingTree, ScrollingNodeID nodeID)
+ScrollingTreeScrollingNode::ScrollingTreeScrollingNode(ScrollingTree& scrollingTree, ScrollingNodeID nodeID)
     : ScrollingTreeNode(scrollingTree, nodeID)
     , m_frameScaleFactor(1)
     , m_shouldUpdateScrollLayerPositionOnMainThread(0)
@@ -45,6 +45,7 @@ ScrollingTreeScrollingNode::ScrollingTreeScrollingNode(ScrollingTree* scrollingT
     , m_verticalScrollbarMode(ScrollbarAuto)
     , m_headerHeight(0)
     , m_footerHeight(0)
+    , m_behaviorForFixed(StickToDocumentBounds)
 {
 }
 
@@ -60,7 +61,7 @@ void ScrollingTreeScrollingNode::updateBeforeChildren(ScrollingStateNode* stateN
         m_viewportRect = state->viewportRect();
 
     if (state->hasChangedProperty(ScrollingStateScrollingNode::TotalContentsSize)) {
-        if (scrollingTree()->isRubberBandInProgress())
+        if (scrollingTree().isRubberBandInProgress())
             m_totalContentsSizeForRubberBand = m_totalContentsSize;
         else
             m_totalContentsSizeForRubberBand = state->totalContentsSize();
@@ -99,6 +100,9 @@ void ScrollingTreeScrollingNode::updateBeforeChildren(ScrollingStateNode* stateN
 
     if (state->hasChangedProperty(ScrollingStateScrollingNode::FooterHeight))
         m_footerHeight = state->footerHeight();
+
+    if (state->hasChangedProperty(ScrollingStateScrollingNode::BehaviorForFixedElements))
+        m_behaviorForFixed = state->scrollBehaviorForFixedElements();
 }
 
 } // namespace WebCore

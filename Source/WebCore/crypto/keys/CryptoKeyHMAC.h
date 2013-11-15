@@ -48,28 +48,22 @@ public:
 
     const Vector<char>& key() const { return m_key; }
 
-    virtual void buildAlgorithmDescription(CryptoAlgorithmDescriptionBuilder&) const OVERRIDE;
-
 private:
     CryptoKeyHMAC(const Vector<char>& key, CryptoAlgorithmIdentifier hash, bool extractable, CryptoKeyUsage);
+
+    virtual void buildAlgorithmDescription(CryptoAlgorithmDescriptionBuilder&) const OVERRIDE;
+    virtual std::unique_ptr<CryptoKeyData> exportData() const OVERRIDE;
 
     CryptoAlgorithmIdentifier m_hash;
     Vector<char> m_key;
 };
 
-inline const CryptoKeyHMAC* asCryptoKeyHMAC(const CryptoKey& key)
+inline bool isCryptoKeyHMAC(const CryptoKey& key)
 {
-    if (key.keyClass() != CryptoKeyClass::HMAC)
-        return nullptr;
-    return static_cast<const CryptoKeyHMAC*>(&key);
+    return key.keyClass() == CryptoKeyClass::HMAC;
 }
 
-inline CryptoKeyHMAC* asCryptoKeyHMAC(CryptoKey& key)
-{
-    if (key.keyClass() != CryptoKeyClass::HMAC)
-        return nullptr;
-    return static_cast<CryptoKeyHMAC*>(&key);
-}
+CRYPTO_KEY_TYPE_CASTS(CryptoKeyHMAC)
 
 } // namespace WebCore
 

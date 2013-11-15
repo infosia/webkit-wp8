@@ -233,8 +233,8 @@ void PlatformCALayerRemote::replaceSublayer(PlatformCALayer* reference, Platform
     size_t referenceIndex = m_children.find(reference);
     if (referenceIndex != notFound) {
         m_children[referenceIndex]->removeFromSuperlayer();
-        m_children.remove(referenceIndex);
         m_children.insert(referenceIndex, layer);
+        toPlatformCALayerRemote(layer)->m_superlayer = this;
     }
 
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::ChildrenChanged);
@@ -500,6 +500,11 @@ void PlatformCALayerRemote::setEdgeAntialiasingMask(unsigned value)
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::createCompatibleLayer(PlatformCALayer::LayerType layerType, PlatformCALayerClient* client) const
 {
     return PlatformCALayerRemote::create(layerType, client, m_context);
+}
+
+void PlatformCALayerRemote::enumerateRectsBeingDrawn(CGContextRef context, void (^block)(CGRect))
+{
+    m_properties.backingStore.enumerateRectsBeingDrawn(context, block);
 }
 
 uint32_t PlatformCALayerRemote::hostingContextID()

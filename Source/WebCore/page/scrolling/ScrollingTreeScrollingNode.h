@@ -42,7 +42,7 @@ class ScrollingStateScrollingNode;
 
 class ScrollingTreeScrollingNode : public ScrollingTreeNode {
 public:
-    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree*, ScrollingNodeID);
+    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree&, ScrollingNodeID);
     virtual ~ScrollingTreeScrollingNode();
 
     virtual void updateBeforeChildren(ScrollingStateNode*) OVERRIDE;
@@ -56,7 +56,7 @@ public:
     MainThreadScrollingReasons shouldUpdateScrollLayerPositionOnMainThread() const { return m_shouldUpdateScrollLayerPositionOnMainThread; }
 
 protected:
-    explicit ScrollingTreeScrollingNode(ScrollingTree*, ScrollingNodeID);
+    ScrollingTreeScrollingNode(ScrollingTree&, ScrollingNodeID);
 
     const IntRect& viewportRect() const { return m_viewportRect; }
     const IntSize& totalContentsSize() const { return m_totalContentsSize; }
@@ -82,6 +82,8 @@ protected:
     int headerHeight() const { return m_headerHeight; }
     int footerHeight() const { return m_footerHeight; }
 
+    ScrollBehaviorForFixedElements scrollBehaviorForFixedElements() const { return m_behaviorForFixed; }
+
 private:
     IntRect m_viewportRect;
     IntSize m_totalContentsSize;
@@ -103,6 +105,8 @@ private:
 
     int m_headerHeight;
     int m_footerHeight;
+
+    ScrollBehaviorForFixedElements m_behaviorForFixed;
 };
 
 } // namespace WebCore

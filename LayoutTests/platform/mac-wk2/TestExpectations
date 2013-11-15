@@ -337,13 +337,6 @@ webkit.org/b/107018 svg/animations/animate-linear-discrete-additive-b.svg [ Imag
 webkit.org/b/107018 svg/animations/animate-linear-discrete-additive-c.svg  [ ImageOnlyFailure Pass ]
 webkit.org/b/107018 svg/animations/mozilla/animateMotion-mpath-pathLength-1.svg [ ImageOnlyFailure Pass ]
 
-# Region overflow doesn't quite work with tiled drawing.
-webkit.org/b/122233 fast/regions/percentage-margins-mixed-ltr-dominant-regions.html [ ImageOnlyFailure ]
-webkit.org/b/122233 fast/regions/percentage-margins-mixed-rtl-dominant-regions.html [ ImageOnlyFailure ]
-webkit.org/b/122233 fast/regions/percentage-margins-rtl-variable-width-regions.html [ ImageOnlyFailure ]
-webkit.org/b/122233 fast/regions/percentage-margins-variable-width-regions.html [ ImageOnlyFailure ]
-webkit.org/b/122233 fast/regions/frame-view-overflow-scroll.html [ ImageOnlyFailure ]
-
 # Color space issues from switching to tiled drawing.
 webkit.org/b/122234 fast/css/computed-image-width-with-percent-height.html [ ImageOnlyFailure ]
 webkit.org/b/122234 svg/filters/color-space-conversion.svg  [ ImageOnlyFailure ]
@@ -352,7 +345,8 @@ webkit.org/b/122234 svg/masking/mask-type-not-set.svg  [ ImageOnlyFailure ]
 webkit.org/b/122234 svg/filters/feSpecularLight-premultiplied.svg [ ImageOnlyFailure ]
 webkit.org/b/122234 svg/filters/filter-cycle.html [ ImageOnlyFailure ]
 webkit.org/b/122234 css3/filters/null-effect-check.html [ ImageOnlyFailure ]
-webkit.org/b/122234 fast/images/pdf-as-image-with-annotations.html [ ImageOnlyFailure ]
+webkit.org/b/122234 fast/images/pdf-as-image-with-annotations.html [ Pass ImageOnlyFailure ]
+webkit.org/b/122234 fast/images/pdf-as-image-crop-box.html [ Pass ImageOnlyFailure ]
 webkit.org/b/122234 css3/filters/custom/composited/custom-filter-blend-modes.html [ Pass ImageOnlyFailure ]
 webkit.org/b/122234 css3/filters/custom/custom-filter-a-tex-coord-optional.html [ Pass ImageOnlyFailure ]
 webkit.org/b/122234 css3/filters/custom/custom-filter-array-uniform-indirect-index.html [ Pass ImageOnlyFailure ]
@@ -471,6 +465,9 @@ plugins/unavailable-plugin-indicator-obscurity.html [ Pass ]
 
 # Color input is enabled on Mac WK2 but not on WK1.
 fast/forms/color/input-color-onchange-event.html [ Pass ]
+
+# This test times out in WebKit1 only.
+fullscreen/anonymous-block-merge-crash.html [ Pass ]
 
 ### END OF (5) Features that are not supported in WebKit1, so skipped in mac/TestExpectations then re-enabled here
 ########################################

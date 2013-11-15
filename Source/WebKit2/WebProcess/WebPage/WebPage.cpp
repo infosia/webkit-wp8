@@ -125,7 +125,6 @@
 #include <WebCore/ResourceBuffer.h>
 #include <WebCore/ResourceRequest.h>
 #include <WebCore/ResourceResponse.h>
-#include <WebCore/RunLoop.h>
 #include <WebCore/RuntimeEnabledFeatures.h>
 #include <WebCore/SchemeRegistry.h>
 #include <WebCore/ScriptController.h>
@@ -142,6 +141,7 @@
 #include <runtime/JSCJSValue.h>
 #include <runtime/JSLock.h>
 #include <runtime/Operations.h>
+#include <wtf/RunLoop.h>
 
 #if ENABLE(MHTML)
 #include <WebCore/MHTMLArchive.h>
@@ -656,24 +656,19 @@ void WebPage::resetTrackedRepaints()
         view->resetTrackedRepaints();
 }
 
-PassRefPtr<ImmutableArray> WebPage::trackedRepaintRects()
+PassRefPtr<API::Array> WebPage::trackedRepaintRects()
 {
     FrameView* view = mainFrameView();
     if (!view)
-        return ImmutableArray::create();
+        return API::Array::create();
 
-    const Vector<IntRect>& rects = view->trackedRepaintRects();
-    size_t size = rects.size();
-    if (!size)
-        return ImmutableArray::create();
+    Vector<RefPtr<API::Object>> repaintRects;
+    repaintRects.reserveInitialCapacity(view->trackedRepaintRects().size());
 
-    Vector<RefPtr<APIObject>> vector;
-    vector.reserveInitialCapacity(size);
+    for (const auto& repaintRect : view->trackedRepaintRects())
+        repaintRects.uncheckedAppend(WebRect::create(toAPI(repaintRect)));
 
-    for (size_t i = 0; i < size; ++i)
-        vector.uncheckedAppend(WebRect::create(toAPI(rects[i])));
-
-    return ImmutableArray::adopt(vector);
+    return API::Array::create(std::move(repaintRects));
 }
 
 PluginView* WebPage::focusedPluginViewForFrame(Frame& frame)
@@ -840,7 +835,7 @@ void WebPage::loadURLRequest(const ResourceRequest& request, const SandboxExtens
 {
     SendStopResponsivenessTimer stopper(this);
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
     InjectedBundleUserMessageDecoder userMessageDecoder(userData);
     if (!decoder.decode(userMessageDecoder))
         return;
@@ -859,7 +854,7 @@ void WebPage::loadDataImpl(PassRefPtr<SharedBuffer> sharedBuffer, const String& 
 {
     SendStopResponsivenessTimer stopper(this);
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
     InjectedBundleUserMessageDecoder userMessageDecoder(userData);
     if (!decoder.decode(userMessageDecoder))
         return;
@@ -1323,7 +1318,7 @@ void WebPage::postInjectedBundleMessage(const String& messageName, CoreIPC::Mess
     if (!injectedBundle)
         return;
 
-    RefPtr<APIObject> messageBody;
+    RefPtr<API::Object> messageBody;
     InjectedBundleUserMessageDecoder messageBodyDecoder(messageBody);
     if (!decoder.decode(messageBodyDecoder))
         return;

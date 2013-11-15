@@ -176,6 +176,11 @@ public:
     {
         return Address(GPRInfo::callFrameRegister, byteOffset);
     }
+    static Address addressFor(VirtualRegister virtualRegister, GPRReg baseReg)
+    {
+        ASSERT(virtualRegister.isValid());
+        return Address(baseReg, virtualRegister.offset() * sizeof(Register));
+    }
     static Address addressFor(VirtualRegister virtualRegister)
     {
         ASSERT(virtualRegister.isValid());
@@ -320,6 +325,10 @@ public:
         return fpr;
     }
     
+    // Here are possible arrangements of source, target, scratch:
+    // - source, target, scratch can all be separate registers.
+    // - source and target can be the same but scratch is separate.
+    // - target and scratch can be the same but source is separate.
     void boxInt52(GPRReg source, GPRReg target, GPRReg scratch, FPRReg fpScratch)
     {
         // Is it an int32?

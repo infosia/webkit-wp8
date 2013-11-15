@@ -42,12 +42,6 @@ class MacroAssemblerARM : public AbstractMacroAssembler<ARMAssembler> {
 public:
     typedef ARMRegisters::FPRegisterID FPRegisterID;
 
-    static RegisterID firstRegister() { return ARMRegisters::r0; }
-    static RegisterID lastRegister() { return ARMRegisters::r15; }
-
-    static FPRegisterID firstFPRegister() { return ARMRegisters::d0; }
-    static FPRegisterID lastFPRegister() { return ARMRegisters::d31; }
-
     enum RelationalCondition {
         Equal = ARMAssembler::EQ,
         NotEqual = ARMAssembler::NE,
@@ -819,6 +813,11 @@ public:
         ASSERT((cond == Signed) || (cond == Zero) || (cond == NonZero));
         or32(src, dest);
         return Jump(m_assembler.jmp(ARMCondition(cond)));
+    }
+
+    PatchableJump patchableJump()
+    {
+        return PatchableJump(m_assembler.jmp(ARMAssembler::AL, 1));
     }
 
     PatchableJump patchableBranch32(RelationalCondition cond, RegisterID reg, TrustedImm32 imm)

@@ -659,7 +659,6 @@ webkit.org/b/114918 http/tests/xmlhttprequest/range-test.html [ Failure Pass ]
 #////////////////////////////////////////////////////////////////////////////////////////
 
 # Regression from r133898
-Bug(EFL) fast/forms/basic-textareas-quirks.html [ Pass ]
 Bug(EFL) fast/forms/input-disabled-color.html [ Pass ]
 Bug(EFL) fast/forms/input-readonly-dimmed.html [ Pass ]
 
@@ -744,7 +743,13 @@ webkit.org/b/84333 http/tests/local/blob/send-hybrid-blob.html [ Failure ]
 webkit.org/b/84333 http/tests/local/fileapi/file-last-modified.html [ Failure ]
 webkit.org/b/84333 http/tests/local/fileapi/send-dragged-file.html [ Failure ]
 webkit.org/b/84333 http/tests/local/fileapi/send-sliced-dragged-file.html [ Failure ]
-webkit.org/b/84333 http/tests/local/formdata [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/form-data-with-unknown-file-extension.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/send-form-data-constructed-from-form.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/send-form-data.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/send-form-data-with-empty-file-filename.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/send-form-data-with-filename.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/send-form-data-with-sliced-file.html [ Failure ]
+webkit.org/b/84333 http/tests/local/formdata/upload-events.html [ Failure ]
 webkit.org/b/84333 http/tests/security/clipboard/clipboard-file-access.html [ Failure ]
 
 # EFL port needs Pasteboard implementation.
@@ -1016,7 +1021,7 @@ webkit.org/b/84773 ietestcenter/css3/multicolumn/column-width-applies-to-012.htm
 webkit.org/b/84777 ietestcenter/css3/multicolumn/column-width-applies-to-015.htm [ ImageOnlyFailure ]
 
 # Expando properties on attribute nodes disappear
-webkit.org/b/88045 fast/dom/gc-attribute-node.html [ Failure ]
+webkit.org/b/88045 fast/dom/gc-attribute-node.html [ Failure Pass ]
 
 # Requires WebP support.
 Bug(EFL) fast/canvas/canvas-toDataURL-webp.html
@@ -1029,6 +1034,7 @@ Bug(EFL) http/tests/images/webp-progressive-load.html
 
 # Requires MEDIA_SOURCE support.
 webkit.org/b/95296 http/tests/media/media-source [ Skip ]
+webkit.org/b/95296 media/media-source [ Skip ]
 
 # Requires ENCRYPTED_MEDIA support.
 webkit.org/b/95297 media/encrypted-media [ Skip ]
@@ -1253,8 +1259,6 @@ webkit.org/b/98564 fast/table/colspanMinWidth-vertical.html [ Missing Failure ]
 # Fails on the bots.
 webkit.org/b/97968 media/unsupported-rtsp.html [ Failure ]
 
-webkit.org/b/98587 fast/writing-mode/vertical-subst-font-vert-no-dflt.html [ ImageOnlyFailure ]
-
 webkit.org/b/99878 css3/flexbox/flexbox-baseline-margins.html [ Missing ImageOnlyFailure ]
 
 # css3-conditionals support is not yet enabled.
@@ -1314,7 +1318,7 @@ webkit.org/b/102068 webkit.org/b/102993 media/audio-repaint.html [ Failure ]
 webkit.org/b/102068 webkit.org/b/102993 media/media-document-audio-repaint.html [ Failure ]
 
 # It may even be the case that the tests themselves are wrong.
-webkit.org/b/100859 ietestcenter/css3/bordersbackgrounds/background-repeat-space-padding-box.htm [ Failure ]
+webkit.org/b/100859 ietestcenter/css3/bordersbackgrounds/background-repeat-space-padding-box.htm [ Missing ]
 webkit.org/b/100857 ietestcenter/css3/text/textshadow-005.htm [ Missing ]
 
 webkit.org/b/100846 inspector-protocol/debugger/pause-dedicated-worker.html [ Skip ]
@@ -1413,9 +1417,6 @@ webkit.org/b/121593 accessibility/radio-button-title-label.html [ Failure ]
 # Newly added test at r139111 is failing.
 webkit.org/b/106439 editing/pasteboard/paste-noplugin.html [ Failure ]
 
-# Mark as missing image result, same as other ports. Test should be updated to text-based repaint test.
-webkit.org/b/103955 fast/repaint/caret-with-transformation.html [ Missing ]
-
 # Test fails on JSC platforms due to GC timing problems
 webkit.org/b/106957 svg/dom/SVGViewSpec-invalid-ref-crash.html [ Failure ]
 
@@ -1479,7 +1480,7 @@ webkit.org/b/111172 compositing/overlap-blending/children-opacity-no-overlap.htm
 webkit.org/b/114338 compositing/overlap-blending/nested-overlap-overflow.html [ ImageOnlyFailure ]
 
 # Select element popup is not shown.
-webkit.org/b/114154 fast/forms/select/popup-closes-on-blur.html [ Failure ]
+webkit.org/b/114154 fast/forms/select/popup-closes-on-blur.html [ Pass ]
 
 webkit.org/b/114159 fast/events/popup-blocking-timers3.html [ Failure ]
 
@@ -1573,7 +1574,6 @@ webkit.org/b/122963 fast/regions/region-generated-content-before-after.html [ Mi
 webkit.org/b/122963 fast/regions/text-region-split-small-pagination.html [ Missing ]
 webkit.org/b/122963 fast/regions/top-overflow-out-of-second-region.html [ Missing ]
 
-webkit.org/b/122963 fast/repaint/japanese-rl-selection-repaint-in-regions.html [ Missing ]
 webkit.org/b/122963 fast/repaint/line-flow-with-floats-in-regions.html [ Missing ]
 webkit.org/b/122963 fast/repaint/overflow-flipped-writing-mode-block-in-regions.html [ Missing ]
 webkit.org/b/122963 fast/repaint/region-painting-invalidation.html [ Missing ]
@@ -1640,3 +1640,34 @@ webgl/conformance/glsl/misc/shader-varying-packing-restrictions.html [ Failure ]
 webgl/conformance/ogles/GL/sin/sin_001_to_006.html [ Failure ]
 webgl/conformance/ogles/GL/vec3/vec3_001_to_008.html [ Failure ]
 webgl/conformance/textures/texture-attachment-formats.html [ Failure ]
+
+# Text rendering is overflowing region
+webkit.org/b/122511 fast/regions/selection/selecting-text-ignoring-region-horiz-bt.html [ ImageOnlyFailure ]
+webkit.org/b/122511 fast/regions/selection/selecting-text-ignoring-region-vert-lr.html [ ImageOnlyFailure ]
+webkit.org/b/122511 fast/regions/selection/selecting-text-in-2-regions-horiz-bt.html [ ImageOnlyFailure ]
+webkit.org/b/122511 fast/regions/selection/selecting-text-in-2-regions-vert-lr.html [ ImageOnlyFailure ]
+
+# Radical sign is overflowing red background
+webkit.org/b/124045 mathml/presentation/bug95404.html [ ImageOnlyFailure ]
+
+# css3 reftests are failing after r154875
+webkit.org/b/120596 css3/background/background-repeat-space-border.html [ ImageOnlyFailure ]
+webkit.org/b/120596 css3/background/background-repeat-space-content.html [ ImageOnlyFailure ]
+webkit.org/b/120596 css3/background/background-repeat-space-padding.html [ ImageOnlyFailure ]
+webkit.org/b/120596 css3/masking/mask-repeat-space-border.html [ ImageOnlyFailure ]
+webkit.org/b/120596 css3/masking/mask-repeat-space-content.html [ ImageOnlyFailure ]
+webkit.org/b/120596 css3/masking/mask-repeat-space-padding.html [ ImageOnlyFailure ]
+
+webkit.org/b/118595 fast/regions/auto-size/autoheight-correct-region-for-lines-2.html [ ImageOnlyFailure ]
+
+webkit.org/b/120105 http/tests/navigation/post-frames-goback1-uncached.html [ Failure ]
+
+webkit.org/b/120682 inspector-protocol/page/archive.html [ Failure ]
+
+webkit.org/b/124414 animations/cross-fade-background-image.html [ ImageOnlyFailure ]
+
+# ref test mismatch does not occur
+webkit.org/b/124417 fast/css/drop-shadow-viewport-height.html [ ImageOnlyFailure ]
+webkit.org/b/124417 fast/css/drop-shadow-viewport-vmax.html [ ImageOnlyFailure ]
+webkit.org/b/124417 fast/css/drop-shadow-viewport-vmin.html [ ImageOnlyFailure ]
+webkit.org/b/124417 fast/css/drop-shadow-viewport-width.html [ ImageOnlyFailure ]

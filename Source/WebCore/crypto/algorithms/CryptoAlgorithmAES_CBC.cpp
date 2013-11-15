@@ -30,6 +30,7 @@
 
 #include "CryptoAlgorithmAesKeyGenParams.h"
 #include "CryptoKeyAES.h"
+#include "CryptoKeyDataOctetSequence.h"
 #include "ExceptionCode.h"
 #include "JSDOMPromise.h"
 
@@ -57,7 +58,7 @@ CryptoAlgorithmIdentifier CryptoAlgorithmAES_CBC::identifier() const
 
 void CryptoAlgorithmAES_CBC::generateKey(const CryptoAlgorithmParameters& parameters, bool extractable, CryptoKeyUsage usages, std::unique_ptr<PromiseWrapper> promise, ExceptionCode&)
 {
-    const CryptoAlgorithmAesKeyGenParams& aesParameters = static_cast<const CryptoAlgorithmAesKeyGenParams&>(parameters);
+    const CryptoAlgorithmAesKeyGenParams& aesParameters = toCryptoAlgorithmAesKeyGenParams(parameters);
 
     RefPtr<CryptoKeyAES> result = CryptoKeyAES::generate(CryptoAlgorithmIdentifier::AES_CBC, aesParameters.length, extractable, usages);
     if (!result) {
@@ -68,22 +69,15 @@ void CryptoAlgorithmAES_CBC::generateKey(const CryptoAlgorithmParameters& parame
     promise->fulfill(result.release());
 }
 
-void CryptoAlgorithmAES_CBC::importKey(const CryptoAlgorithmParameters&, CryptoKeyFormat format, const CryptoOperationData& data, bool extractable, CryptoKeyUsage usage, std::unique_ptr<PromiseWrapper> promise, ExceptionCode& ec)
+void CryptoAlgorithmAES_CBC::importKey(const CryptoAlgorithmParameters&, const CryptoKeyData& keyData, bool extractable, CryptoKeyUsage usage, std::unique_ptr<PromiseWrapper> promise, ExceptionCode& ec)
 {
-    if (format != CryptoKeyFormat::Raw) {
+    if (keyData.format() != CryptoKeyData::Format::OctetSequence) {
         ec = NOT_SUPPORTED_ERR;
         return;
     }
-    Vector<char> keyData;
-    keyData.append(data.first, data.second);
-    RefPtr<CryptoKeyAES> result = CryptoKeyAES::create(CryptoAlgorithmIdentifier::AES_CBC, keyData, extractable, usage);
+    const CryptoKeyDataOctetSequence& keyDataOctetSequence = toCryptoKeyDataOctetSequence(keyData);
+    RefPtr<CryptoKeyAES> result = CryptoKeyAES::create(CryptoAlgorithmIdentifier::AES_CBC, keyDataOctetSequence.octetSequence(), extractable, usage);
     promise->fulfill(result.release());
-}
-
-void CryptoAlgorithmAES_CBC::exportKey(const CryptoAlgorithmParameters&, CryptoKeyFormat, const CryptoKey&, std::unique_ptr<PromiseWrapper>, ExceptionCode& ec)
-{
-    // Not implemented yet.
-    ec = NOT_SUPPORTED_ERR;
 }
 
 }

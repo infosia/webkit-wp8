@@ -31,7 +31,6 @@
 #include "ScriptWrappable.h"
 #include "ThreadableLoaderClient.h"
 #include "XMLHttpRequestProgressEventThrottle.h"
-#include <wtf/OwnPtr.h>
 #include <wtf/text/AtomicStringHash.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -137,7 +136,7 @@ public:
     JSC::ArrayBuffer* responseArrayBuffer();
     JSC::ArrayBuffer* optionalResponseArrayBuffer() const { return m_responseArrayBuffer.get(); }
 
-    void setLastSendLineNumber(unsigned lineNumber) { m_lastSendLineNumber = lineNumber; }
+    void setLastSendLineAndColumnNumber(unsigned lineNumber, unsigned columnNumber);
     void setLastSendURL(const String& url) { m_lastSendURL = url; }
 
     XMLHttpRequestUpload* upload();
@@ -209,7 +208,7 @@ private:
 
     bool shouldDecodeResponse() const { return m_responseTypeCode < FirstBinaryResponseType; }
 
-    OwnPtr<XMLHttpRequestUpload> m_upload;
+    std::unique_ptr<XMLHttpRequestUpload> m_upload;
 
     URL m_url;
     String m_method;
@@ -249,6 +248,7 @@ private:
     long long m_receivedLength;
 
     unsigned m_lastSendLineNumber;
+    unsigned m_lastSendColumnNumber;
     String m_lastSendURL;
     ExceptionCode m_exceptionCode;
 

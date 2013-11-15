@@ -24,8 +24,6 @@
  */
 
 #import "config.h"
-#import "WKBrowsingContextController.h"
-#import "WKBrowsingContextControllerPrivate.h"
 #import "WKBrowsingContextControllerInternal.h"
 
 #import "ObjCObjectGraph.h"
@@ -35,6 +33,7 @@
 #import "WKFrame.h"
 #import "WKFramePolicyListener.h"
 #import "WKNSArray.h"
+#import "WKNSURLExtras.h"
 #import "WKPagePrivate.h"
 #import "WKRetainPtr.h"
 #import "WKStringCF.h"
@@ -49,6 +48,7 @@
 #import <wtf/ObjcRuntimeExtras.h>
 #import <wtf/RetainPtr.h>
 
+#import "WKBrowsingContextHandleInternal.h"
 #import "WKBrowsingContextLoadDelegate.h"
 #import "WKBrowsingContextPolicyDelegate.h"
 
@@ -74,13 +74,13 @@ static inline NSURLResponse *autoreleased(WKURLResponseRef urlResponse)
     return urlResponse ? CFBridgingRelease(WKURLResponseCopyNSURLResponse(adoptWK(urlResponse).get())) : nil;
 }
 
-NSString *WKActionIsMainFrameKey = @"WKActionIsMainFrameKey";
-NSString *WKActionNavigationTypeKey = @"WKActionNavigationTypeKey";
-NSString *WKActionMouseButtonKey = @"WKActionMouseButtonKey";
-NSString *WKActionModifierFlagsKey = @"WKActionModifierFlagsKey";
-NSString *WKActionURLRequestKey = @"WKActionURLRequestKey";
-NSString *WKActionURLResponseKey = @"WKActionURLResponseKey";
-NSString *WKActionFrameNameKey = @"WKActionFrameNameKey";
+NSString * const WKActionIsMainFrameKey = @"WKActionIsMainFrameKey";
+NSString * const WKActionNavigationTypeKey = @"WKActionNavigationTypeKey";
+NSString * const WKActionMouseButtonKey = @"WKActionMouseButtonKey";
+NSString * const WKActionModifierFlagsKey = @"WKActionModifierFlagsKey";
+NSString * const WKActionURLRequestKey = @"WKActionURLRequestKey";
+NSString * const WKActionURLResponseKey = @"WKActionURLResponseKey";
+NSString * const WKActionFrameNameKey = @"WKActionFrameNameKey";
 
 @interface WKBrowsingContextControllerData : NSObject {
 @public
@@ -333,11 +333,7 @@ static void releaseNSData(unsigned char*, const void* data)
 
 - (NSURL *)unreachableURL
 {
-    const String& unreachableURL = toImpl(_data->_pageRef.get())->unreachableURL();
-    if (!unreachableURL)
-        return nil;
-
-    return !unreachableURL ? nil : [NSURL URLWithString:unreachableURL];
+    return [NSURL _web_URLWithWTFString:toImpl(_data->_pageRef.get())->unreachableURL() relativeToURL:nil];
 }
 
 - (double)estimatedProgress
@@ -457,6 +453,15 @@ static void releaseNSData(unsigned char*, const void* data)
 {
     return WKPageGetPageCount(self._pageRef);
 }
+
+#if WK_API_ENABLED
+
+- (WKBrowsingContextHandle *)handle
+{
+    return [[[WKBrowsingContextHandle alloc] _initWithPageID:toImpl(self._pageRef)->pageID()] autorelease];
+}
+
+#endif
 
 @end
 
@@ -626,7 +631,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
                 WKActionNavigationTypeKey: @(navigationType),
                 WKActionModifierFlagsKey: @(modifiers),
                 WKActionMouseButtonKey: @(mouseButton),
-                WKActionURLRequestKey: autoreleased(request)
+                WKActionURLRequestKey: adoptNS(WKURLRequestCopyNSURLRequest(request)).get()
             };
             
             [browsingContext.policyDelegate browsingContextController:browsingContext decidePolicyForNavigationAction:actionDictionary decisionHandler:makePolicyDecisionBlock(listener)];
@@ -643,7 +648,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
                 WKActionNavigationTypeKey: @(navigationType),
                 WKActionModifierFlagsKey: @(modifiers),
                 WKActionMouseButtonKey: @(mouseButton),
-                WKActionURLRequestKey: autoreleased(request),
+                WKActionURLRequestKey: adoptNS(WKURLRequestCopyNSURLRequest(request)).get(),
                 WKActionFrameNameKey: toImpl(frameName)->wrapper()
             };
             
@@ -658,8 +663,8 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
         if ([browsingContext.policyDelegate respondsToSelector:@selector(browsingContextController:decidePolicyForResponseAction:decisionHandler:)]) {
             NSDictionary *actionDictionary = @{
                 WKActionIsMainFrameKey: @(WKFrameIsMainFrame(frame)),
-                WKActionURLRequestKey: autoreleased(request),
-                WKActionURLResponseKey: autoreleased(response)
+                WKActionURLRequestKey: adoptNS(WKURLRequestCopyNSURLRequest(request)).get(),
+                WKActionURLResponseKey: adoptNS(WKURLResponseCopyNSURLResponse(response)).get()
             };
 
             [browsingContext.policyDelegate browsingContextController:browsingContext decidePolicyForResponseAction:actionDictionary decisionHandler:makePolicyDecisionBlock(listener)];
