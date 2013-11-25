@@ -675,7 +675,7 @@ void Document::invalidateAccessKeyMap()
 
 void Document::addImageElementByLowercasedUsemap(const AtomicStringImpl& name, HTMLImageElement& element)
 {
-    return m_imagesByUsemap.add(name, element);
+    return m_imagesByUsemap.add(name, element, *this);
 }
 
 void Document::removeImageElementByLowercasedUsemap(const AtomicStringImpl& name, HTMLImageElement& element)
@@ -4137,7 +4137,7 @@ URL Document::openSearchDescriptionURL()
     for (unsigned i = 0; Node* child = children->item(i); i++) {
         if (!child->hasTagName(linkTag))
             continue;
-        HTMLLinkElement* linkElement = static_cast<HTMLLinkElement*>(child);
+        HTMLLinkElement* linkElement = toHTMLLinkElement(child);
         if (!equalIgnoringCase(linkElement->type(), openSearchMIMEType) || !equalIgnoringCase(linkElement->rel(), openSearchRelation))
             continue;
         if (linkElement->href().isEmpty())
@@ -4433,7 +4433,7 @@ const Vector<IconURL>& Document::iconURLs(int iconTypesMask)
         Node* child = children->item(i);
         if (!child->hasTagName(linkTag))
             continue;
-        HTMLLinkElement* linkElement = static_cast<HTMLLinkElement*>(child);
+        HTMLLinkElement* linkElement = toHTMLLinkElement(child);
         if (!(linkElement->iconType() & iconTypesMask))
             continue;
         if (linkElement->href().isEmpty())

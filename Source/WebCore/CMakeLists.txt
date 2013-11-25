@@ -76,6 +76,7 @@ set(WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/text"
     "${WEBCORE_DIR}/plugins"
     "${WEBCORE_DIR}/rendering"
+    "${WEBCORE_DIR}/rendering/line"
     "${WEBCORE_DIR}/rendering/mathml"
     "${WEBCORE_DIR}/rendering/shapes"
     "${WEBCORE_DIR}/rendering/style"
@@ -788,6 +789,7 @@ set(WebCore_SOURCES
     Modules/indexeddb/IDBAny.cpp
     Modules/indexeddb/IDBCursor.cpp
     Modules/indexeddb/IDBCursorBackend.cpp
+    Modules/indexeddb/IDBCursorBackendOperations.cpp
     Modules/indexeddb/IDBCursorWithValue.cpp
     Modules/indexeddb/IDBDatabase.cpp
     Modules/indexeddb/IDBDatabaseBackend.cpp
@@ -797,7 +799,6 @@ set(WebCore_SOURCES
     Modules/indexeddb/IDBFactory.cpp
     Modules/indexeddb/IDBFactoryBackendInterface.cpp
     Modules/indexeddb/IDBIndex.cpp
-    Modules/indexeddb/IDBIndexWriter.cpp
     Modules/indexeddb/IDBKey.cpp
     Modules/indexeddb/IDBKeyPath.cpp
     Modules/indexeddb/IDBKeyRange.cpp
@@ -817,6 +818,7 @@ set(WebCore_SOURCES
     Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.cpp
     Modules/indexeddb/leveldb/IDBBackingStoreTransactionLevelDB.cpp
     Modules/indexeddb/leveldb/IDBFactoryBackendLevelDB.cpp
+    Modules/indexeddb/leveldb/IDBIndexWriterLevelDB.cpp
     Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp
     Modules/indexeddb/leveldb/IDBServerConnectionLevelDB.cpp
 
@@ -1593,6 +1595,7 @@ set(WebCore_SOURCES
     inspector/InspectorInstrumentation.cpp
     inspector/InspectorLayerTreeAgent.cpp
     inspector/InspectorMemoryAgent.cpp
+    inspector/InspectorNodeFinder.cpp
     inspector/InspectorOverlay.cpp
     inspector/InspectorPageAgent.cpp
     inspector/InspectorProfilerAgent.cpp
@@ -1873,6 +1876,7 @@ set(WebCore_SOURCES
     platform/graphics/FloatPolygon.cpp
     platform/graphics/FloatQuad.cpp
     platform/graphics/FloatRect.cpp
+    platform/graphics/FloatRoundedRect.cpp
     platform/graphics/FloatSize.cpp
     platform/graphics/Font.cpp
     platform/graphics/FontCache.cpp
@@ -2112,7 +2116,6 @@ set(WebCore_SOURCES
     rendering/InlineTextBox.cpp
     rendering/LayoutRepainter.cpp
     rendering/LayoutState.cpp
-    rendering/LineWidth.cpp
     rendering/OrderIterator.cpp
     rendering/PointerEventsHitRules.cpp
     rendering/RenderBlock.cpp
@@ -2209,6 +2212,10 @@ set(WebCore_SOURCES
     rendering/TextPainter.cpp
     rendering/break_lines.cpp
 
+    rendering/line/LineBreaker.cpp
+    rendering/line/LineInfo.cpp
+    rendering/line/LineWidth.cpp
+
     rendering/mathml/RenderMathMLBlock.cpp
     rendering/mathml/RenderMathMLFenced.cpp
     rendering/mathml/RenderMathMLFraction.cpp
@@ -2221,6 +2228,7 @@ set(WebCore_SOURCES
     rendering/mathml/RenderMathMLSquareRoot.cpp
     rendering/mathml/RenderMathMLUnderOver.cpp
 
+    rendering/shapes/BoxShape.cpp
     rendering/shapes/PolygonShape.cpp
     rendering/shapes/RasterShape.cpp
     rendering/shapes/RectangleShape.cpp
@@ -2597,7 +2605,7 @@ set(WebCore_LIBRARIES
     WTF
 )
 
-if (ENABLE_SQL_DATABASE AND ENABLE_WORKERS)
+if (ENABLE_SQL_DATABASE)
     list(APPEND WebCore_SOURCES
         Modules/webdatabase/WorkerGlobalScopeWebDatabase.cpp
     )
@@ -2868,7 +2876,7 @@ if (WTF_USE_3D_GRAPHICS)
         ${DERIVED_SOURCES_WEBCORE_DIR}/glslang_tab.cpp
 
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/BuiltInFunctionEmulator.cpp
-        ${THIRDPARTY_DIR}/ANGLE/src/compiler/CodeGenGLSL.cpp
+        ${THIRDPARTY_DIR}/ANGLE/src/compiler/CodeGen.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/Compiler.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/DetectCallDepth.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/DetectDiscontinuity.cpp
@@ -2878,6 +2886,7 @@ if (WTF_USE_3D_GRAPHICS)
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/InfoSink.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/Initialize.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/InitializeDll.cpp
+        ${THIRDPARTY_DIR}/ANGLE/src/compiler/InitializeGLPosition.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/InitializeParseContext.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/IntermTraverse.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/Intermediate.cpp
@@ -2886,7 +2895,7 @@ if (WTF_USE_3D_GRAPHICS)
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/OutputGLSL.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/OutputGLSLBase.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/OutputHLSL.cpp
-        ${THIRDPARTY_DIR}/ANGLE/src/compiler/ParseHelper.cpp
+        ${THIRDPARTY_DIR}/ANGLE/src/compiler/ParseContext.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/PoolAlloc.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/QualifierAlive.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/RemoveTree.cpp
@@ -2897,6 +2906,7 @@ if (WTF_USE_3D_GRAPHICS)
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/TranslatorGLSL.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/TranslatorHLSL.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/UnfoldShortCircuit.cpp
+        ${THIRDPARTY_DIR}/ANGLE/src/compiler/UnfoldShortCircuitAST.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/Uniform.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/ValidateLimitations.cpp
         ${THIRDPARTY_DIR}/ANGLE/src/compiler/VariableInfo.cpp

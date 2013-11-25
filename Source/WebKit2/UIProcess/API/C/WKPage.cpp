@@ -215,7 +215,7 @@ bool WKPageWillHandleHorizontalScrollEvents(WKPageRef pageRef)
 
 WKStringRef WKPageCopyTitle(WKPageRef pageRef)
 {
-    return toCopiedAPI(toImpl(pageRef)->pageTitle());
+    return toCopiedAPI(toImpl(pageRef)->pageLoadState().title());
 }
 
 WKFrameRef WKPageGetMainFrame(WKPageRef pageRef)
@@ -724,24 +724,27 @@ void WKPageForceRepaint(WKPageRef pageRef, void* context, WKPageForceRepaintFunc
 
 WK_EXPORT WKURLRef WKPageCopyPendingAPIRequestURL(WKPageRef pageRef)
 {
-    if (toImpl(pageRef)->pendingAPIRequestURL().isNull())
-        return 0;
-    return toCopiedURLAPI(toImpl(pageRef)->pendingAPIRequestURL());
+    const String& pendingAPIRequestURL = toImpl(pageRef)->pageLoadState().pendingAPIRequestURL();
+
+    if (pendingAPIRequestURL.isNull())
+        return nullptr;
+
+    return toCopiedURLAPI(pendingAPIRequestURL);
 }
 
 WKURLRef WKPageCopyActiveURL(WKPageRef pageRef)
 {
-    return toCopiedURLAPI(toImpl(pageRef)->activeURL());
+    return toCopiedURLAPI(toImpl(pageRef)->pageLoadState().activeURL());
 }
 
 WKURLRef WKPageCopyProvisionalURL(WKPageRef pageRef)
 {
-    return toCopiedURLAPI(toImpl(pageRef)->provisionalURL());
+    return toCopiedURLAPI(toImpl(pageRef)->pageLoadState().provisionalURL());
 }
 
 WKURLRef WKPageCopyCommittedURL(WKPageRef pageRef)
 {
-    return toCopiedURLAPI(toImpl(pageRef)->committedURL());
+    return toCopiedURLAPI(toImpl(pageRef)->pageLoadState().url());
 }
 
 WKStringRef WKPageCopyStandardUserAgentWithApplicationName(WKStringRef applicationName)
@@ -885,14 +888,14 @@ void WKPageSetScrollPinningBehavior(WKPageRef page, WKScrollPinningBehavior pinn
     toImpl(page)->setScrollPinningBehavior(corePinning);
 }
 
-
-
-// -- DEPRECATED --
-
 void WKPageSetInvalidMessageFunction(WKPageInvalidMessageFunction)
 {
     // FIXME: Remove this function when doing so won't break WebKit nightlies.
 }
+
+#if ENABLE(NETSCAPE_PLUGIN_API)
+
+// -- DEPRECATED --
 
 WKStringRef WKPageGetPluginInformationBundleIdentifierKey()
 {
@@ -936,3 +939,4 @@ WKStringRef WKPageGetPluginInformationPluginURLKey()
 
 // -- DEPRECATED --
 
+#endif // ENABLE(NETSCAPE_PLUGIN_API)

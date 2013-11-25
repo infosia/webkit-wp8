@@ -83,6 +83,7 @@ namespace WebCore {
             , m_shouldContentSniff(shouldContentSniff)
 #if USE(CFNETWORK)
             , m_connection(0)
+            , m_currentRequest(request)
 #endif
 #if USE(WININET)
             , m_fileLoadTimer(loader, &ResourceHandle::fileLoadTimer)
@@ -101,6 +102,7 @@ namespace WebCore {
             , m_cancelled(false)
             , m_authFailureCount(0)
             , m_formDataStream(loader)
+            , m_sslErrors(0)
 #endif
 #if USE(SOUP)
             , m_cancelled(false)
@@ -145,6 +147,7 @@ namespace WebCore {
         bool m_shouldContentSniff;
 #if USE(CFNETWORK)
         RetainPtr<CFURLConnectionRef> m_connection;
+        ResourceRequest m_currentRequest;
 #endif
 #if PLATFORM(MAC) && !USE(CFNETWORK)
         RetainPtr<NSURLConnection> m_connection;
@@ -178,6 +181,7 @@ namespace WebCore {
         unsigned short m_authFailureCount;
 
         FormDataStream m_formDataStream;
+        unsigned m_sslErrors;
         Vector<char> m_postBytes;
 
         OwnPtr<MultipartHandle> m_multipartHandle;

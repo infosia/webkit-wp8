@@ -1,4 +1,5 @@
-# Copyright (C) 2012 Google Inc. All rights reserved.
+# Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+# Copyright (C) 2012, 2013 Google Inc. All rights reserved.
 # Copyright (C) 2012 Zoltan Horvath, Adobe Systems Incorporated. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -54,14 +55,22 @@ _log = logging.getLogger(__name__)
 
 
 class PerfTestMetric(object):
-    def __init__(self, metric, unit=None, iterations=None):
+    def __init__(self, path, test_file_name, metric, unit=None, iterations=None):
         # FIXME: Fix runner.js to report correct metric names
         self._iterations = iterations or []
         self._unit = unit or self.metric_to_unit(metric)
         self._metric = self.time_unit_to_metric(self._unit) if metric == 'Time' else metric
+        self._path = path
+        self._test_file_name = test_file_name
 
     def name(self):
         return self._metric
+
+    def path(self):
+        return self._path
+
+    def test_file_name(self):
+        return self._test_file_name
 
     def has_values(self):
         return bool(self._iterations)
@@ -131,10 +140,10 @@ class PerfTest(object):
         if should_log and self._description:
             _log.info('DESCRIPTION: %s' % self._description)
 
-        results = {}
+        results = []
         for metric_name in self._ordered_metrics_name:
             metric = self._metrics[metric_name]
-            results[metric.name()] = metric.grouped_iteration_values()
+            results.append(metric)
             if should_log:
                 legacy_chromium_bot_compatible_name = self.test_name_without_file_extension().replace('/', ': ')
                 self.log_statistics(legacy_chromium_bot_compatible_name + ': ' + metric.name(),
@@ -165,9 +174,7 @@ class PerfTest(object):
             (median, unit, stdev, unit, sorted_values[0], unit, sorted_values[-1], unit))
 
     _description_regex = re.compile(r'^Description: (?P<description>.*)$', re.IGNORECASE)
-    _metrics_regex = re.compile(r'^(?P<metric>Time|Malloc|JS Heap):')
-    _statistics_keys = ['avg', 'median', 'stdev', 'min', 'max', 'unit', 'values']
-    _score_regex = re.compile(r'^(?P<key>' + r'|'.join(_statistics_keys) + r')\s+(?P<value>([0-9\.]+(,\s+)?)+)\s*(?P<unit>.*)')
+    _metrics_regex = re.compile(r'^:(?P<metric>Time|Malloc|JSHeap) -> \[(?P<values>(\d+(\.\d+)?)(, \d+(\.\d+)?)+)\] (?P<unit>[a-z/]+)')
 
     def _run_with_driver(self, driver, time_out_ms):
         output = self.run_single(driver, self.test_path(), time_out_ms)
@@ -178,28 +185,23 @@ class PerfTest(object):
         current_metric = None
         for line in re.split('\n', output.text):
             description_match = self._description_regex.match(line)
-            metric_match = self._metrics_regex.match(line)
-            score = self._score_regex.match(line)
-
             if description_match:
                 self._description = description_match.group('description')
-            elif metric_match:
-                current_metric = metric_match.group('metric').replace(' ', '')
-            elif score:
-                if score.group('key') != 'values':
-                    continue
+                continue
 
-                metric = self._ensure_metrics(current_metric, score.group('unit'))
-                metric.append_group(map(lambda value: float(value), score.group('value').split(', ')))
-            else:
+            metric_match = self._metrics_regex.match(line)
+            if not metric_match:
                 _log.error('ERROR: ' + line)
                 return False
+
+            metric = self._ensure_metrics(metric_match.group('metric'), metric_match.group('unit'))
+            metric.append_group(map(lambda value: float(value), metric_match.group('values').split(', ')))
 
         return True
 
     def _ensure_metrics(self, metric_name, unit=None):
         if metric_name not in self._metrics:
-            self._metrics[metric_name] = PerfTestMetric(metric_name, unit)
+            self._metrics[metric_name] = PerfTestMetric(self.test_name_without_file_extension().split('/'), self._test_name, metric_name, unit)
             self._ordered_metrics_name.append(metric_name)
         return self._metrics[metric_name]
 
@@ -230,20 +232,7 @@ class PerfTest(object):
                 return True
         return False
 
-    _lines_to_ignore_in_stderr = [
-        re.compile(r'^Unknown option:'),
-        re.compile(r'^\[WARNING:proxy_service.cc'),
-        re.compile(r'^\[INFO:'),
-        # These stderr messages come from content_shell on chromium-linux.
-        re.compile(r'INFO:SkFontHost_fontconfig.cpp'),
-        re.compile(r'Running without the SUID sandbox'),
-    ]
-
     _lines_to_ignore_in_parser_result = [
-        re.compile(r'^Running \d+ times$'),
-        re.compile(r'^Ignoring warm-up '),
-        re.compile(r'^Info:'),
-        re.compile(r'^\d+(.\d+)?(\s*(runs\/s|ms|fps))?$'),
         # Following are for handle existing test like Dromaeo
         re.compile(re.escape("""main frame - has 1 onunload handler(s)""")),
         re.compile(re.escape("""frame "<!--framePath //<!--frame0-->-->" - has 1 onunload handler(s)""")),
@@ -253,12 +242,11 @@ class PerfTest(object):
         re.compile(r"CONSOLE MESSAGE: (line \d+: )?Blocked script execution in '[A-Za-z0-9\-\.:]+' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."),
         re.compile(r"CONSOLE MESSAGE: (line \d+: )?Not allowed to load local resource"),
         # Dromaeo reports values for subtests. Ignore them for now.
-        re.compile(r'(?P<name>.+): \[(?P<values>(\d+(.\d+)?,\s+)*\d+(.\d+)?)\]'),
+        # FIXME: Remove once subtests are supported
+        re.compile(r'^[A-Za-z0-9\(\[].+( -> )(\[?[0-9\., ]+\])( [a-z/]+)?$'),
     ]
 
     def _filter_output(self, output):
-        if output.error:
-            output.error = '\n'.join([line for line in re.split('\n', output.error) if not self._should_ignore_line(self._lines_to_ignore_in_stderr, line)])
         if output.text:
             output.text = '\n'.join([line for line in re.split('\n', output.text) if not self._should_ignore_line(self._lines_to_ignore_in_parser_result, line)])
 

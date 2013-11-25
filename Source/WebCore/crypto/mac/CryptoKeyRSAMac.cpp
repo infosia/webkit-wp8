@@ -32,7 +32,6 @@
 #include "CryptoAlgorithmRegistry.h"
 #include "CryptoKeyDataRSAComponents.h"
 #include "CryptoKeyPair.h"
-#include "JSDOMPromise.h"
 #include <CommonCrypto/CommonCryptor.h>
 
 #if defined(__has_include)
@@ -58,6 +57,29 @@ extern "C" CCRSAKeyType CCRSAGetKeyType(CCRSACryptorRef key);
 
 namespace WebCore {
 
+static CCCryptorStatus getPublicKeyComponents(CCRSACryptorRef rsaKey, Vector<uint8_t>& modulus, Vector<uint8_t>& publicExponent)
+{
+    ASSERT(CCRSAGetKeyType(rsaKey) == ccRSAKeyPublic || CCRSAGetKeyType(rsaKey) == ccRSAKeyPrivate);
+    bool keyIsPublic = CCRSAGetKeyType(rsaKey) == ccRSAKeyPublic;
+    CCRSACryptorRef publicKey = keyIsPublic ? rsaKey : CCRSACryptorGetPublicKeyFromPrivateKey(rsaKey);
+
+    modulus.resize(16384);
+    size_t modulusLength = modulus.size();
+    publicExponent.resize(16384);
+    size_t exponentLength = publicExponent.size();
+    CCCryptorStatus status = CCRSAGetKeyComponents(publicKey, modulus.data(), &modulusLength, publicExponent.data(), &exponentLength, 0, 0, 0, 0);
+    if (!keyIsPublic) {
+        // CCRSACryptorGetPublicKeyFromPrivateKey has "Get" in the name, but its result needs to be released (see <rdar://problem/15449697>).
+        CCRSACryptorRelease(publicKey);
+    }
+    if (status)
+        return status;
+
+    modulus.shrink(modulusLength);
+    publicExponent.shrink(exponentLength);
+    return status;
+}
+
 CryptoKeyRSA::CryptoKeyRSA(CryptoAlgorithmIdentifier identifier, CryptoKeyType type, PlatformRSAKey platformKey, bool extractable, CryptoKeyUsage usage)
     : CryptoKey(identifier, type, extractable, usage)
     , m_platformKey(platformKey)
@@ -68,6 +90,7 @@ CryptoKeyRSA::CryptoKeyRSA(CryptoAlgorithmIdentifier identifier, CryptoKeyType t
 PassRefPtr<CryptoKeyRSA> CryptoKeyRSA::create(CryptoAlgorithmIdentifier identifier, const CryptoKeyDataRSAComponents& keyData, bool extractable, CryptoKeyUsage usage)
 {
     if (keyData.type() == CryptoKeyDataRSAComponents::Type::Private && !keyData.hasAdditionalPrivateKeyParameters()) {
+        // <rdar://problem/15452324> tracks adding support.
         WTFLogAlways("Private keys without additional data are not supported");
         return nullptr;
     }
@@ -104,37 +127,42 @@ void CryptoKeyRSA::restrictToHash(CryptoAlgorithmIdentifier identifier)
     m_hash = identifier;
 }
 
+bool CryptoKeyRSA::isRestrictedToHash(CryptoAlgorithmIdentifier& identifier) const
+{
+    if (!m_restrictedToSpecificHash)
+        return false;
+
+    identifier = m_hash;
+    return true;
+}
+
+size_t CryptoKeyRSA::keySizeInBits() const
+{
+    Vector<uint8_t> modulus;
+    Vector<uint8_t> publicExponent;
+    CCCryptorStatus status = getPublicKeyComponents(m_platformKey, modulus, publicExponent);
+    if (status) {
+        WTFLogAlways("Couldn't get RSA key components, status %d", status);
+        return 0;
+    }
+
+    return modulus.size() * 8;
+}
+
 void CryptoKeyRSA::buildAlgorithmDescription(CryptoAlgorithmDescriptionBuilder& builder) const
 {
     CryptoKey::buildAlgorithmDescription(builder);
 
-    ASSERT(CCRSAGetKeyType(m_platformKey) == ccRSAKeyPublic || CCRSAGetKeyType(m_platformKey) == ccRSAKeyPrivate);
-    bool platformKeyIsPublic = CCRSAGetKeyType(m_platformKey) == ccRSAKeyPublic;
-    CCRSACryptorRef publicKey = platformKeyIsPublic ? m_platformKey : CCRSACryptorGetPublicKeyFromPrivateKey(m_platformKey);
-
-    uint8_t modulus[16384];
-    size_t modulusLength = sizeof(modulus);
-    uint8_t publicExponent[16384];
-    size_t exponentLength = sizeof(16384);
-    uint8_t p[16384];
-    size_t pLength = sizeof(p);
-    uint8_t q[16384];
-    size_t qLength = sizeof(q);
-    CCCryptorStatus status = CCRSAGetKeyComponents(publicKey, modulus, &modulusLength, publicExponent, &exponentLength, p, &pLength, q, &qLength);
-    if (!platformKeyIsPublic) {
-        // CCRSACryptorGetPublicKeyFromPrivateKey has "Get" in the name, but its result needs to be released (see <rdar://problem/15449697>).
-        CCRSACryptorRelease(publicKey);
-    }
+    Vector<uint8_t> modulus;
+    Vector<uint8_t> publicExponent;
+    CCCryptorStatus status = getPublicKeyComponents(m_platformKey, modulus, publicExponent);
     if (status) {
         WTFLogAlways("Couldn't get RSA key components, status %d", status);
         return;
     }
 
-    builder.add("modulusLength", modulusLength * 8);
-
-    Vector<unsigned char> publicExponentVector;
-    publicExponentVector.append(publicExponent, exponentLength);
-    builder.add("publicExponent", publicExponentVector);
+    builder.add("modulusLength", modulus.size() * 8);
+    builder.add("publicExponent", publicExponent);
 
     if (m_restrictedToSpecificHash) {
         auto hashDescriptionBuilder = builder.createEmptyClone();
@@ -145,12 +173,27 @@ void CryptoKeyRSA::buildAlgorithmDescription(CryptoAlgorithmDescriptionBuilder& 
 
 std::unique_ptr<CryptoKeyData> CryptoKeyRSA::exportData() const
 {
-    // Not implemented yet.
     ASSERT(extractable());
-    return nullptr;
+
+    switch (CCRSAGetKeyType(m_platformKey)) {
+    case ccRSAKeyPublic: {
+        Vector<uint8_t> modulus;
+        Vector<uint8_t> publicExponent;
+        CCCryptorStatus status = getPublicKeyComponents(m_platformKey, modulus, publicExponent);
+        if (status) {
+            WTFLogAlways("Couldn't get RSA key components, status %d", status);
+            return nullptr;
+        }
+        return CryptoKeyDataRSAComponents::createPublic(modulus, publicExponent);
+    }
+    case ccRSAKeyPrivate:
+        // Not supported yet.
+    default:
+        return nullptr;
+    }
 }
 
-static bool bigIntegerToUInt32(const Vector<char>& bigInteger, uint32_t& result)
+static bool bigIntegerToUInt32(const Vector<uint8_t>& bigInteger, uint32_t& result)
 {
     result = 0;
     for (size_t i = 0; i + 4 < bigInteger.size(); ++i) {
@@ -160,22 +203,24 @@ static bool bigIntegerToUInt32(const Vector<char>& bigInteger, uint32_t& result)
 
     for (size_t i = bigInteger.size() > 4 ? bigInteger.size() - 4 : 0; i < bigInteger.size(); ++i) {
         result <<= 8;
-        result += static_cast<unsigned char>(bigInteger[i]);
+        result += bigInteger[i];
     }
     return true;
 }
 
-void CryptoKeyRSA::generatePair(CryptoAlgorithmIdentifier algorithm, unsigned modulusLength, const Vector<char>& publicExponent, bool extractable, CryptoKeyUsage usage, std::unique_ptr<PromiseWrapper> promise)
+void CryptoKeyRSA::generatePair(CryptoAlgorithmIdentifier algorithm, unsigned modulusLength, const Vector<uint8_t>& publicExponent, bool extractable, CryptoKeyUsage usage, KeyPairCallback callback, VoidCallback failureCallback)
 {
     uint32_t e;
     if (!bigIntegerToUInt32(publicExponent, e)) {
         // Adding support is tracked as <rdar://problem/15444034>.
-        WTFLogAlways("Public exponent is too big, not supported by CommonCrypto");
-        promise->reject(nullptr);
+        WTFLogAlways("Public exponent is too big, not supported");
+        failureCallback();
         return;
     }
 
-    PromiseWrapper* localPromise = promise.release();
+    // We only use the callback functions when back on the main thread, but captured variables are copied on a secondary thread too.
+    KeyPairCallback* localCallback = new KeyPairCallback(std::move(callback));
+    VoidCallback* localFailureCallback = new VoidCallback(std::move(failureCallback));
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         CCRSACryptorRef ccPublicKey;
@@ -184,16 +229,16 @@ void CryptoKeyRSA::generatePair(CryptoAlgorithmIdentifier algorithm, unsigned mo
         if (status) {
             WTFLogAlways("Could not generate a key pair, status %d", status);
             dispatch_async(dispatch_get_main_queue(), ^{
-                localPromise->reject(nullptr);
-                delete localPromise;
+                (*localFailureCallback)();
+                delete localFailureCallback;
             });
             return;
         }
         dispatch_async(dispatch_get_main_queue(), ^{
             RefPtr<CryptoKeyRSA> publicKey = CryptoKeyRSA::create(algorithm, CryptoKeyType::Public, ccPublicKey, extractable, usage);
             RefPtr<CryptoKeyRSA> privateKey = CryptoKeyRSA::create(algorithm, CryptoKeyType::Private, ccPrivateKey, extractable, usage);
-            localPromise->fulfill(CryptoKeyPair::create(publicKey.release(), privateKey.release()));
-            delete localPromise;
+            (*localCallback)(*CryptoKeyPair::create(publicKey.release(), privateKey.release()));
+            delete localCallback;
         });
     });
 }

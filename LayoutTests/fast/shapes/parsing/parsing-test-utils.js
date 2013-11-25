@@ -14,13 +14,41 @@ var validShapeValues = [
     ["inset-rectangle(10px, 20px, 30px, 40px, 5px)", "inset-rectangle(10px, 20px, 30px, 40px, 5px)", "inset-rectangle(10px, 20px, 30px, 40px, 5px, 5px)"],
     "inset-rectangle(10px, 20px, 30px, 40px, 5px, 10px)",
 
-    "circle(10px, 20px, 30px)",
+    "circle(10px, 20px, 30px)", // FIXME remove with deprecated circle
+
+    ["circle()", "circle()", "circle(closest-side at 50% 50%)"],
+    ["circle(10px)", "circle(10px)", "circle(10px at 50% 50%)"],
+    ["circle(10px at 10px)", "circle(10px at 10px 50%)"],
+    "circle(10px at 10px 10px)",
+    ["circle(at 10px)", "circle(at 10px 50%)", "circle(closest-side at 10px 50%)"],
+    ["circle(at 10px)", "circle(at 10px 50%)", "circle(closest-side at 10px 50%)"],
+    ["circle(at 10px 10px)", "circle(at 10px 10px)", "circle(closest-side at 10px 10px)"],
+    ["circle(at top left)", "circle(at 0% 0%)", "circle(closest-side at 0% 0%)"],
+    ["circle(at right bottom)", "circle(at 100% 100%)", "circle(closest-side at 100% 100%)"],
+    ["circle(10px at left top 10px)", "circle(10px at left 0% top 10px)"],
+    ["circle(10px at top 10px left 10px)", "circle(10px at left 10px top 10px)"],
+    ["circle(10px at right 10px bottom 10px)", "circle(10px at right 10px bottom 10px)"],
 
     "ellipse(10px, 20px, 30px, 40px)",
 
     ["polygon(10px 20px, 30px 40px, 40px 50px)", "polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)"],
     ["polygon(evenodd, 10px 20px, 30px 40px, 40px 50px)", "polygon(evenodd, 10px 20px, 30px 40px, 40px 50px)"],
-    ["polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)", "polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)"]
+    ["polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)", "polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)"],
+
+    "content-box",
+    "padding-box",
+    "border-box",
+    "margin-box",
+
+    "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) content-box",
+    "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) padding-box",
+    "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) border-box",
+    "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) margin-box",
+
+    ["content-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) content-box"],
+    ["padding-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) padding-box"],
+    ["border-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) border-box"],
+    ["margin-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "polygon(nonzero, 0px 0px, 10px 10px, 10px 0px) margin-box"]
 ];
 
 // Invalid values for both shape-inside and shape-outside. When an invalid shape value is specified, the 
@@ -43,11 +71,17 @@ var invalidShapeValues = [
     "inset-rectangle(10px 20px 30px 40px)",
     "inset-rectangle(10px, 20px, 30px, 40px, 50px, 60px, 70px)",
 
-    "circle()",
-    "circle(10px)",
-    "circle(10px, 20px)",
-    "circle(10px 20px 30px)",
-    "circle(10px, 20px, 30px, 40px)",
+    "circle(10px, 20px)", // FIXME remove with deprecated circle
+    "circle(10px 20px 30px)", // FIXME remove with deprecated circle
+    "circle(10px, 20px, 30px, 40px)", // FIXME remove with deprecated circle
+
+    "circle(10px 20px)",
+    "circle(10px at 10px 10px 10px)",
+    "circle(10px at 10px 10px at center)",
+    "circle(10px at center center 10px)",
+    "circle(at 10px 10px 10px)",
+    "circle(at 10px 10px at center)",
+    "circle(at center center 10px)",
 
     "ellipse()",
     "ellipse(10px)",
@@ -64,6 +98,13 @@ var invalidShapeValues = [
     "polygon(nonzero,10px)",
     "polygon(evenodd,12px)",
     "polygon(10px, 20px, 30px, 40px, 40px, 50px)",
+
+    "content-box content-box",
+    "polygon(nonzero, 0 0, 10px 10px, 10px 0) polygon(nonzero, 0 0, 10px 10px, 10px 0)",
+    "content-box polygon(nonzero, 0 0, 10px 10px, 10px 0) content-box",
+    "auto content-box",
+    "url('shape.svg') content-box",
+    "url('shape.svg') polygon(nonzero, 0 0, 10px 10px, 10px 0)"
 ];
 
 // Valid length values for shape-margin and shape-padding.

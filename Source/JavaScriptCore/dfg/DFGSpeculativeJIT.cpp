@@ -46,7 +46,7 @@ SpeculativeJIT::SpeculativeJIT(JITCompiler& jit)
     , m_jit(jit)
     , m_currentNode(0)
     , m_indexInBlock(0)
-    , m_generationInfo(m_jit.codeBlock()->m_numCalleeRegisters)
+    , m_generationInfo(m_jit.graph().frameRegisterCount())
     , m_state(m_jit.graph())
     , m_interpreter(m_jit.graph(), m_state)
     , m_stream(&jit.jitCode()->variableEventStream)
@@ -3539,8 +3539,7 @@ void SpeculativeJIT::compileArithMod(Node* node)
         
         if (isInt32Constant(node->child2().node())) {
             int32_t divisor = valueOfInt32Constant(node->child2().node());
-            if (divisor > 0 && hasOneBitSet(divisor)) {
-                ASSERT(divisor != 1);
+            if (divisor > 1 && hasOneBitSet(divisor)) {
                 unsigned logarithm = WTF::fastLog2(divisor);
                 GPRReg dividendGPR = op1.gpr();
                 GPRTemporary result(this);
@@ -5599,6 +5598,44 @@ void SpeculativeJIT::emitSwitch(Node* node)
         return;
     } }
     RELEASE_ASSERT_NOT_REACHED();
+}
+
+void SpeculativeJIT::compileNotifyPutGlobalVar(Node* node)
+{
+    WatchpointSet* set = m_jit.globalObjectFor(node->codeOrigin)->symbolTable()->get(
+        m_jit.graph().identifiers()[node->identifierNumberForCheck()]).watchpointSet();
+    
+    GPRTemporary temp(this);
+    GPRReg tempGPR = temp.gpr();
+    
+    m_jit.load8(set->addressOfState(), tempGPR);
+    
+    JITCompiler::JumpList ready;
+    
+    ready.append(m_jit.branch32(JITCompiler::Equal, tempGPR, TrustedImm32(IsInvalidated)));
+    
+    m_jit.memoryFence();
+
+    if (set->state() == ClearWatchpoint) {
+        JITCompiler::Jump isWatched =
+            m_jit.branch32(JITCompiler::NotEqual, tempGPR, TrustedImm32(ClearWatchpoint));
+        
+        m_jit.store8(TrustedImm32(IsWatched), set->addressOfState());
+        ready.append(m_jit.jump());
+        
+        isWatched.link(&m_jit);
+    }
+    
+    JITCompiler::Jump slowCase = m_jit.branchTest8(
+        JITCompiler::NonZero, JITCompiler::AbsoluteAddress(set->addressOfSetIsNotEmpty()));
+    m_jit.store8(TrustedImm32(IsInvalidated), set->addressOfState());
+
+    ready.link(&m_jit);
+    
+    addSlowPathGenerator(
+        slowPathCall(slowCase, this, operationNotifyWrite, NoResult, set));
+    
+    noResult(node);
 }
 
 void SpeculativeJIT::addBranch(const MacroAssembler::JumpList& jump, BasicBlock* destination)

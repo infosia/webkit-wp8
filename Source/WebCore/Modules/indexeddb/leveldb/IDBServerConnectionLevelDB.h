@@ -33,28 +33,26 @@
 
 namespace WebCore {
 
+class IDBBackingStoreCursorLevelDB;
 class IDBBackingStoreLevelDB;
 class IDBBackingStoreTransactionLevelDB;
 
 class IDBServerConnectionLevelDB FINAL : public IDBServerConnection {
 public:
-    static PassRefPtr<IDBServerConnection> create(IDBBackingStoreLevelDB* backingStore)
+    static PassRefPtr<IDBServerConnection> create(const String& databaseName, IDBBackingStoreLevelDB* backingStore)
     {
-        return adoptRef(new IDBServerConnectionLevelDB(backingStore));
+        return adoptRef(new IDBServerConnectionLevelDB(databaseName, backingStore));
     }
 
     virtual ~IDBServerConnectionLevelDB();
 
-    // FIXME: For now, server connection provides a synchronous accessor to the in-process backing store objects.
-    // This is temporary and will be removed soon.
-    virtual IDBBackingStoreInterface* deprecatedBackingStore() OVERRIDE;
-    virtual IDBBackingStoreTransactionInterface* deprecatedBackingStoreTransaction(int64_t transactionID) OVERRIDE;
-
     virtual bool isClosed() OVERRIDE;
 
-    // Database-level operations
-    virtual void getOrEstablishIDBDatabaseMetadata(const String& name, GetIDBDatabaseMetadataFunction) OVERRIDE;
+    // Factory-level operations
     virtual void deleteDatabase(const String& name, BoolCallbackFunction successCallback) OVERRIDE;
+
+    // Database-level operations
+    virtual void getOrEstablishIDBDatabaseMetadata(GetIDBDatabaseMetadataFunction) OVERRIDE;
     virtual void close() OVERRIDE;
 
     // Transaction-level operations
@@ -65,13 +63,36 @@ public:
     virtual void rollbackTransaction(int64_t transactionID, std::function<void()> completionCallback) OVERRIDE;
     virtual void setIndexKeys(int64_t transactionID, int64_t databaseID, int64_t objectStoreID, const IDBObjectStoreMetadata&, IDBKey& primaryKey, const Vector<int64_t>& indexIDs, const Vector<Vector<RefPtr<IDBKey>>>& indexKeys, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback);
 
+    virtual void createObjectStore(IDBTransactionBackend&, const CreateObjectStoreOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void createIndex(IDBTransactionBackend&, const CreateIndexOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void deleteIndex(IDBTransactionBackend&, const DeleteIndexOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void get(IDBTransactionBackend&, const GetOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void put(IDBTransactionBackend&, const PutOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void openCursor(IDBTransactionBackend&, const OpenCursorOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void count(IDBTransactionBackend&, const CountOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void deleteRange(IDBTransactionBackend&, const DeleteRangeOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void clearObjectStore(IDBTransactionBackend&, const ClearObjectStoreOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void deleteObjectStore(IDBTransactionBackend&, const DeleteObjectStoreOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+    virtual void changeDatabaseVersion(IDBTransactionBackend&, const IDBDatabaseBackend::VersionChangeOperation&, std::function<void(PassRefPtr<IDBDatabaseError>)> completionCallback) OVERRIDE;
+
+    // Cursor-level operations
+    virtual void cursorAdvance(IDBCursorBackend&, const CursorAdvanceOperation&, std::function<void()> completionCallback) OVERRIDE;
+    virtual void cursorIterate(IDBCursorBackend&, const CursorIterationOperation&, std::function<void()> completionCallback) OVERRIDE;
+    virtual void cursorPrefetchIteration(IDBCursorBackend&, const CursorPrefetchIterationOperation&, std::function<void()> completionCallback) OVERRIDE;
+    virtual void cursorPrefetchReset(IDBCursorBackend&, int usedPrefetches) OVERRIDE;
+
 private:
-    IDBServerConnectionLevelDB(IDBBackingStoreLevelDB*);
+    IDBServerConnectionLevelDB(const String& databaseName, IDBBackingStoreLevelDB*);
 
     RefPtr<IDBBackingStoreLevelDB> m_backingStore;
     HashMap<int64_t, RefPtr<IDBBackingStoreTransactionLevelDB>> m_backingStoreTransactions;
+    HashMap<int64_t, RefPtr<IDBBackingStoreCursorLevelDB>> m_backingStoreCursors;
+
+    int64_t m_nextCursorID;
 
     bool m_closed;
+
+    String m_databaseName;
 };
 
 } // namespace WebCore

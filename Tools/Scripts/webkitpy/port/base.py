@@ -900,8 +900,6 @@ class Port(object):
             'WEBKIT_TESTFONTS',
             'WEBKIT_OUTPUTDIR',
 
-            # Chromium:
-            'CHROME_DEVEL_SANDBOX',
         ]
         for variable in variables_to_copy:
             self._copy_value_from_environ_if_set(clean_env, variable)
@@ -928,6 +926,11 @@ class Port(object):
         """If a port needs to reconfigure graphics settings or do other
         things to ensure a known test configuration, it should override this
         method."""
+        pass
+
+    def reset_preferences(self):
+        """If a port needs to reset platform-specific persistent preference
+        storage, it should override this method."""
         pass
 
     def start_http_server(self, additional_dirs=None, number_of_servers=None):

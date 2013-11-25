@@ -26,12 +26,15 @@
 #include "config.h"
 #include "DFGGraph.h"
 
+#include "BytecodeLivenessAnalysisInlines.h"
 #include "CodeBlock.h"
 #include "CodeBlockWithJITType.h"
 #include "DFGClobberSet.h"
 #include "DFGJITCode.h"
 #include "DFGVariableAccessDataDump.h"
+#include "FullBytecodeLiveness.h"
 #include "FunctionExecutableDump.h"
+#include "JIT.h"
 #include "OperandsInlines.h"
 #include "Operations.h"
 #include <wtf/CommaPrinter.h>
@@ -393,6 +396,7 @@ void Graph::dumpBlockHeader(PrintStream& out, const char* prefix, BasicBlock* bl
 void Graph::dump(PrintStream& out, DumpContext* context)
 {
     DumpContext myContext;
+    myContext.graph = this;
     if (!context)
         context = &myContext;
     
@@ -643,7 +647,81 @@ void Graph::initializeNodeOwners()
             block->at(nodeIndex)->misc.owner = block;
     }
 }
+
+FullBytecodeLiveness& Graph::livenessFor(CodeBlock* codeBlock)
+{
+    HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>>::iterator iter = m_bytecodeLiveness.find(codeBlock);
+    if (iter != m_bytecodeLiveness.end())
+        return *iter->value;
     
+    std::unique_ptr<FullBytecodeLiveness> liveness = std::make_unique<FullBytecodeLiveness>();
+    codeBlock->livenessAnalysis().computeFullLiveness(*liveness);
+    FullBytecodeLiveness& result = *liveness;
+    m_bytecodeLiveness.add(codeBlock, std::move(liveness));
+    return result;
+}
+
+FullBytecodeLiveness& Graph::livenessFor(InlineCallFrame* inlineCallFrame)
+{
+    return livenessFor(baselineCodeBlockFor(inlineCallFrame));
+}
+
+bool Graph::isLiveInBytecode(VirtualRegister operand, CodeOrigin codeOrigin)
+{
+    for (;;) {
+        if (operand.offset() < codeOrigin.stackOffset() + JSStack::CallFrameHeaderSize) {
+            VirtualRegister reg = VirtualRegister(
+                operand.offset() - codeOrigin.stackOffset());
+            
+            if (reg.isArgument()) {
+                RELEASE_ASSERT(reg.offset() < JSStack::CallFrameHeaderSize);
+                
+                if (!codeOrigin.inlineCallFrame->isClosureCall)
+                    return false;
+                
+                if (reg.offset() == JSStack::Callee)
+                    return true;
+                if (reg.offset() == JSStack::ScopeChain)
+                    return true;
+                
+                return false;
+            }
+            
+            return livenessFor(codeOrigin.inlineCallFrame).operandIsLive(
+                reg.offset(), codeOrigin.bytecodeIndex);
+        }
+        
+        if (!codeOrigin.inlineCallFrame)
+            break;
+        
+        codeOrigin = codeOrigin.inlineCallFrame->caller;
+    }
+    
+    return true;
+}
+
+unsigned Graph::frameRegisterCount()
+{
+    return m_nextMachineLocal + m_parameterSlots;
+}
+
+unsigned Graph::requiredRegisterCountForExit()
+{
+    unsigned count = JIT::frameRegisterCountFor(m_profiledBlock);
+    for (InlineCallFrameSet::iterator iter = m_inlineCallFrames->begin(); !!iter; ++iter) {
+        InlineCallFrame* inlineCallFrame = *iter;
+        CodeBlock* codeBlock = baselineCodeBlockForInlineCallFrame(inlineCallFrame);
+        unsigned requiredCount = VirtualRegister(inlineCallFrame->stackOffset).toLocal() + 1 + JIT::frameRegisterCountFor(codeBlock);
+        count = std::max(count, requiredCount);
+    }
+    return count;
+}
+
+unsigned Graph::requiredRegisterCountForExecutionAndExit()
+{
+    return std::max(frameRegisterCount(), requiredRegisterCountForExit());
+}
+
 } } // namespace JSC::DFG
 
 #endif

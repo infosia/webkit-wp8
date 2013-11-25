@@ -190,6 +190,11 @@ bool RenderLayerBacking::shouldUseTiledBacking(const GraphicsLayer*) const
     return m_usingTiledCacheLayer && m_creatingPrimaryGraphicsLayer;
 }
 
+bool RenderLayerBacking::tiledBackingHasMargin() const
+{
+    return m_usingTiledCacheLayer && tiledBacking()->hasMargins();
+}
+
 void RenderLayerBacking::tiledBackingUsageChanged(const GraphicsLayer* layer, bool usingTiledBacking)
 {
     compositor().layerTiledBackingUsageChanged(layer, usingTiledBacking);
@@ -706,7 +711,8 @@ void RenderLayerBacking::updateGraphicsLayerGeometry()
     if (!m_isMainFrameRenderViewLayer) {
         // For non-root layers, background is always painted by the primary graphics layer.
         ASSERT(!m_backgroundLayer);
-        m_graphicsLayer->setContentsOpaque(m_owningLayer.backgroundIsKnownToBeOpaqueInRect(localCompositingBounds));
+        bool hadSubpixelRounding = LayoutSize(relativeCompositingBounds.size()) != localRawCompositingBounds.size();
+        m_graphicsLayer->setContentsOpaque(!hadSubpixelRounding && m_owningLayer.backgroundIsKnownToBeOpaqueInRect(localCompositingBounds));
     }
 
     // If we have a layer that clips children, position it.
@@ -2083,7 +2089,7 @@ void RenderLayerBacking::paintContents(const GraphicsLayer* graphicsLayer, Graph
         // The dirtyRect is in the coords of the painting root.
         IntRect dirtyRect = clip;
         if (!(paintingPhase & GraphicsLayerPaintOverflowContents))
-            dirtyRect.intersect(enclosingIntRect(compositedBounds()));
+            dirtyRect.intersect(enclosingIntRect(compositedBoundsIncludingMargin()));
 
         // We have to use the same root as for hit testing, because both methods can compute and cache clipRects.
         paintIntoLayer(graphicsLayer, &context, dirtyRect, PaintBehaviorNormal, paintingPhase);
@@ -2358,6 +2364,22 @@ LayoutRect RenderLayerBacking::compositedBounds() const
 void RenderLayerBacking::setCompositedBounds(const LayoutRect& bounds)
 {
     m_compositedBounds = bounds;
+}
+
+LayoutRect RenderLayerBacking::compositedBoundsIncludingMargin() const
+{
+    TiledBacking* tiledBacking = this->tiledBacking();
+    if (!tiledBacking || !tiledBacking->hasMargins())
+        return compositedBounds();
+
+    LayoutRect boundsIncludingMargin = compositedBounds();
+    LayoutUnit leftMarginWidth = tiledBacking->leftMarginWidth();
+    LayoutUnit topMarginHeight = tiledBacking->topMarginHeight();
+
+    boundsIncludingMargin.moveBy(IntPoint(-leftMarginWidth, -topMarginHeight));
+    boundsIncludingMargin.expand(leftMarginWidth + (LayoutUnit)tiledBacking->rightMarginWidth(), topMarginHeight + (LayoutUnit)tiledBacking->bottomMarginHeight());
+
+    return boundsIncludingMargin;
 }
 
 CSSPropertyID RenderLayerBacking::graphicsLayerToCSSProperty(AnimatedPropertyID property)

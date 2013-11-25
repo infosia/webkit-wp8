@@ -494,7 +494,6 @@
 #define WTF_USE_SOUP 1
 #define WTF_USE_WEBP 1
 #define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#define GST_API_VERSION_1 1
 #endif
 
 /* On Windows, use QueryPerformanceCounter by default */
@@ -801,10 +800,6 @@
 #define ENABLE_VERBOSE_VALUE_PROFILE 0
 #endif
 
-#if !defined(ENABLE_SIMPLE_HEAP_PROFILING)
-#define ENABLE_SIMPLE_HEAP_PROFILING 0
-#endif
-
 /* Counts uses of write barriers using sampling counters. Be sure to also
    set ENABLE_SAMPLING_COUNTERS to 1. */
 #if !defined(ENABLE_WRITE_BARRIER_PROFILING)
@@ -870,6 +865,14 @@
 #undef ENABLE_ASSEMBLER
 #define ENABLE_ASSEMBLER 1
 #endif
+#endif
+
+/* FIXME: We currently unconditionally use spearate stacks. When we switch to using the
+   C stack for JS frames, we'll need to make the following conditional on ENABLE(LLINT_CLOOP)
+   only.
+*/
+#if ENABLE(LLINT_CLOOP) || 1
+#define WTF_USE_SEPARATE_C_AND_JS_STACK 1
 #endif
 
 /* Pick which allocator to use; we only need an executable allocator if the assembler is compiled in.
@@ -1044,6 +1047,10 @@
 
 #if PLATFORM(MAC) || PLATFORM(IOS)
 #define WTF_USE_AUDIO_SESSION 1
+#endif
+
+#if PLATFORM(MAC) && !PLATFORM(IOS_SIMULATOR)
+#define WTF_USE_IOSURFACE 1
 #endif
 
 #if PLATFORM(GTK) || PLATFORM(EFL)

@@ -278,6 +278,11 @@ sub SkipFunction {
         }
     }
 
+    # Skip functions for which we have a custom implementation due to API breaks
+    if ($functionName eq "webkit_dom_html_media_element_set_current_time") {
+        return 1;
+    }
+
     # This is for DataTransferItemList.idl add(File) method
     if ($functionName eq "webkit_dom_data_transfer_item_list_add" && @{$function->parameters} == 1) {
         return 1;
@@ -1010,9 +1015,6 @@ sub GenerateFunction {
     }
     push(@hBody, "\n");
 
-    if ($deprecationVersion) {
-        push(@cBody, "#if !defined(WEBKIT_DISABLE_DEPRECATED)\n");
-    }
     push(@cBody, "$returnType $functionName($functionSig)\n{\n");
     push(@cBody, "#if ${parentConditionalString}\n") if $parentConditionalString;
     push(@cBody, "#if ${conditionalString}\n") if $conditionalString;
@@ -1228,13 +1230,7 @@ EOF
         push(@cBody, "#endif /* ${parentConditionalString} */\n");
     }
 
-    push(@cBody, "}\n");
-
-    if ($deprecationVersion) {
-        push(@cBody, "#endif // WEBKIT_DISABLE_DEPRECATED\n");
-    }
-
-    push(@cBody, "\n");
+    push(@cBody, "}\n\n");
 }
 
 sub ClassHasFunction {

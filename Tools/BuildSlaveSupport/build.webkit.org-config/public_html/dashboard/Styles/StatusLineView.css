@@ -64,8 +64,7 @@
 }
 
 .status-line.good .bubble.pictogram {
-    font-family: "MonotypeGurmukhi", sans-serif;
-    line-height: 29px;
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g transform="translate(20 30) rotate(-45 30 17)" shape-rendering="crispEdges" fill="white"><rect y="5" width="10" height="25"/><rect y="20" width="60" height="10"/></g></svg>');
 }
 
 .status-line.danger .bubble {
@@ -139,4 +138,8 @@
 .status-line.bad .label,
 .status-line.bad .message {
     color: rgb(191, 67, 41);
+}
+
+.status-line.linked .label:hover {
+    text-decoration: underline;
 }

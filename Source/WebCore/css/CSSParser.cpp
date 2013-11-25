@@ -1951,6 +1951,9 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         // close-quote | no-open-quote | no-close-quote ]+ | inherit
         return parseContent(propId, important);
 
+    case CSSPropertyWebkitAlt: // [ <string> | attr(X) ]
+        return parseAlt(propId, important);
+            
     case CSSPropertyClip:                 // <shape> | auto | inherit
         if (id == CSSValueAuto)
             validPrimitive = true;
@@ -3021,8 +3024,11 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
     case CSSPropertyWebkitClipPath:
         if (id == CSSValueNone)
             validPrimitive = true;
-        else if (value->unit == CSSParserValue::Function)
-            return parseBasicShape(propId, important);
+        else if (value->unit == CSSParserValue::Function) {
+            RefPtr<CSSBasicShape> shapeValue =  parseBasicShape();
+            if (shapeValue)
+                parsedValue = cssValuePool().createValue(shapeValue.release());
+        }
 #if ENABLE(SVG)
         else if (value->unit == CSSPrimitiveValue::CSS_URI) {
             parsedValue = CSSPrimitiveValue::create(value->string, CSSPrimitiveValue::CSS_URI);
@@ -3034,21 +3040,7 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
 #if ENABLE(CSS_SHAPES)
     case CSSPropertyWebkitShapeInside:
     case CSSPropertyWebkitShapeOutside:
-        if (!RuntimeEnabledFeatures::sharedFeatures().cssShapesEnabled())
-            return false;
-        if (id == CSSValueAuto)
-            validPrimitive = true;
-        else if (propId == CSSPropertyWebkitShapeOutside
-            && (id == CSSValueContentBox || id == CSSValueBorderBox || id== CSSValuePaddingBox || id == CSSValueMarginBox))
-            validPrimitive = true;
-        else if (propId == CSSPropertyWebkitShapeInside && id == CSSValueOutsideShape)
-            validPrimitive = true;
-        else if (value->unit == CSSParserValue::Function)
-            return parseBasicShape(propId, important);
-        else if (value->unit == CSSPrimitiveValue::CSS_URI) {
-            parsedValue = CSSImageValue::create(completeURL(value->string));
-            m_valueList->next();
-        }
+        parsedValue = parseShapeProperty(propId);
         break;
     case CSSPropertyWebkitShapeMargin:
     case CSSPropertyWebkitShapePadding:
@@ -3793,6 +3785,30 @@ bool CSSParser::parseQuotes(CSSPropertyID propId, bool important)
     return false;
 }
 
+bool CSSParser::parseAlt(CSSPropertyID propID, bool important)
+{
+    CSSParserValue* val = m_valueList->current();
+    RefPtr<CSSValue> parsedValue;
+
+    if (val->unit == CSSPrimitiveValue::CSS_STRING)
+        parsedValue = createPrimitiveStringValue(val);
+    else if (val->unit == CSSParserValue::Function) {
+        CSSParserValueList* args = val->function->args.get();
+        if (!args)
+            return false;
+        if (equalIgnoringCase(val->function->name, "attr("))
+            parsedValue = parseAttr(args);
+    }
+    
+    if (parsedValue) {
+        addProperty(propID, parsedValue.release(), important);
+        m_valueList->next();
+        return true;
+    }
+
+    return false;
+}
+    
 // [ <string> | <uri> | <counter> | attr(X) | open-quote | close-quote | no-open-quote | no-close-quote ]+ | inherit
 // in CSS 2.1 this got somewhat reduced:
 // [ <string> | attr(X) | open-quote | close-quote | no-open-quote | no-close-quote ]+ | inherit
@@ -5537,7 +5553,63 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeInsetRectangle(CSSParserValu
     return shape;
 }
 
+PassRefPtr<CSSPrimitiveValue> CSSParser::parseShapeRadius(CSSParserValue* value)
+{
+    if (value->id == CSSValueClosestSide && value->id == CSSValueFarthestSide)
+        return cssValuePool().createIdentifierValue(value->id);
+
+    if (!validUnit(value, FLength | FPercent | FNonNeg))
+        return 0;
+
+    return createPrimitiveNumericValue(value);
+}
+
 PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeCircle(CSSParserValueList* args)
+{
+    ASSERT(args);
+
+    // circle(radius)
+    // circle(radius at <position>
+    // circle(at <position>)
+    // where position defines centerX and centerY using a CSS <position> data type.
+    RefPtr<CSSBasicShapeCircle> shape = CSSBasicShapeCircle::create();
+
+    for (CSSParserValue* argument = args->current(); argument; argument = args->next()) {
+        // The call to parseFillPosition below should consume all of the
+        // arguments except the first two. Thus, and index greater than one
+        // indicates an invalid production.
+        if (args->currentIndex() > 1)
+            return 0;
+
+        if (!args->currentIndex() && argument->id != CSSValueAt) {
+            if (RefPtr<CSSPrimitiveValue> radius = parseShapeRadius(argument)) {
+                shape->setRadius(radius);
+                continue;
+            }
+
+            return 0;
+        }
+
+        if (argument->id == CSSValueAt) {
+            RefPtr<CSSValue> centerX;
+            RefPtr<CSSValue> centerY;
+            args->next(); // set list to start of position center
+            parseFillPosition(args, centerX, centerY);
+            if (centerX && centerY) {
+                ASSERT(centerX->isPrimitiveValue());
+                ASSERT(centerY->isPrimitiveValue());
+                shape->setCenterX(toCSSPrimitiveValue(centerX.get()));
+                shape->setCenterY(toCSSPrimitiveValue(centerY.get()));
+            } else
+                return 0;
+        } else
+            return 0;
+    }
+
+    return shape;
+}
+
+PassRefPtr<CSSBasicShape> CSSParser::parseDeprecatedBasicShapeCircle(CSSParserValueList* args)
 {
     ASSERT(args);
 
@@ -5545,7 +5617,7 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeCircle(CSSParserValueList* a
     if (args->size() != 5)
         return 0;
 
-    RefPtr<CSSBasicShapeCircle> shape = CSSBasicShapeCircle::create();
+    RefPtr<CSSDeprecatedBasicShapeCircle> shape = CSSDeprecatedBasicShapeCircle::create();
 
     unsigned argumentNumber = 0;
     CSSParserValue* argument = args->current();
@@ -5689,20 +5761,103 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapePolygon(CSSParserValueList* 
     return shape;
 }
 
-bool CSSParser::parseBasicShape(CSSPropertyID propId, bool important)
+#if ENABLE(CSS_SHAPES)
+static bool isBoxValue(CSSValueID valueId)
+{
+    switch (valueId) {
+    case CSSValueContentBox:
+    case CSSValuePaddingBox:
+    case CSSValueBorderBox:
+    case CSSValueMarginBox:
+        return true;
+    default: break;
+    }
+
+    return false;
+}
+
+PassRefPtr<CSSValue> CSSParser::parseShapeProperty(CSSPropertyID propId)
+{
+    if (!RuntimeEnabledFeatures::sharedFeatures().cssShapesEnabled())
+        return nullptr;
+
+    CSSParserValue* value = m_valueList->current();
+    CSSValueID valueId = value->id;
+    RefPtr<CSSPrimitiveValue> keywordValue;
+    RefPtr<CSSBasicShape> shapeValue;
+
+    if (valueId == CSSValueAuto
+        || (valueId == CSSValueOutsideShape && propId == CSSPropertyWebkitShapeInside)) {
+        keywordValue = parseValidPrimitive(valueId, value);
+        m_valueList->next();
+        return keywordValue.release();
+    }
+
+    if (value->unit == CSSPrimitiveValue::CSS_URI) {
+        RefPtr<CSSImageValue> imageValue = CSSImageValue::create(completeURL(value->string));
+        m_valueList->next();
+        return imageValue.release();
+    }
+
+    if (value->unit == CSSParserValue::Function) {
+        shapeValue = parseBasicShape();
+    } else if (isBoxValue(valueId)) {
+        keywordValue = parseValidPrimitive(valueId, value);
+        m_valueList->next();
+    } else
+        return nullptr;
+
+    value = m_valueList->current();
+
+    if (value) {
+        valueId = value->id;
+        if (keywordValue && value->unit == CSSParserValue::Function) {
+            shapeValue = parseBasicShape();
+        } else if (shapeValue && isBoxValue(valueId)) {
+            keywordValue = parseValidPrimitive(valueId, value);
+            m_valueList->next();
+        } else
+            return nullptr;
+    }
+
+    if (shapeValue && keywordValue)
+        shapeValue->setBox(keywordValue.release());
+
+    return shapeValue ? cssValuePool().createValue(shapeValue.release()) : keywordValue.release();
+}
+#endif
+
+// FIXME This function is temporary to allow for an orderly transition between
+// the new CSS Shapes circle and ellipse syntax. It will be removed when the
+// old syntax is removed.
+static bool isDeprecatedBasicShape(CSSParserValueList* args)
+{
+    for (unsigned i = args->currentIndex(); i < args->size(); ++i) {
+        CSSParserValue* value = args->valueAt(i);
+        if (isComma(value))
+            return true;
+    }
+
+    return false;
+}
+
+PassRefPtr<CSSBasicShape> CSSParser::parseBasicShape()
 {
     CSSParserValue* value = m_valueList->current();
     ASSERT(value->unit == CSSParserValue::Function);
     CSSParserValueList* args = value->function->args.get();
 
     if (!args)
-        return false;
+        return nullptr;
 
     RefPtr<CSSBasicShape> shape;
     if (equalIgnoringCase(value->function->name, "rectangle("))
         shape = parseBasicShapeRectangle(args);
     else if (equalIgnoringCase(value->function->name, "circle("))
-        shape = parseBasicShapeCircle(args);
+        if (isDeprecatedBasicShape(args))
+            shape = parseDeprecatedBasicShapeCircle(args);
+        else
+            shape = parseBasicShapeCircle(args);
     else if (equalIgnoringCase(value->function->name, "ellipse("))
         shape = parseBasicShapeEllipse(args);
     else if (equalIgnoringCase(value->function->name, "polygon("))
@@ -5711,11 +5866,10 @@ bool CSSParser::parseBasicShape(CSSPropertyID propId, bool important)
         shape = parseBasicShapeInsetRectangle(args);
 
     if (!shape)
-        return false;
+        return nullptr;
 
-    addProperty(propId, cssValuePool().createValue(shape.release()), important);
     m_valueList->next();
-    return true;
+    return shape.release();
 }
 
 // [ 'font-style' || 'font-variant' || 'font-weight' ]? 'font-size' [ / 'line-height' ]? 'font-family'

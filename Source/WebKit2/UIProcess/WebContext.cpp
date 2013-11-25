@@ -46,6 +46,7 @@
 #include "WebGeolocationManagerProxy.h"
 #include "WebIconDatabase.h"
 #include "WebKeyValueStorageManager.h"
+#include "WebKit2Initialize.h"
 #include "WebMediaCacheManagerProxy.h"
 #include "WebNotificationManagerProxy.h"
 #include "WebPluginSiteDataManager.h"
@@ -60,7 +61,6 @@
 #include <WebCore/LinkHash.h>
 #include <WebCore/Logging.h>
 #include <WebCore/ResourceRequest.h>
-#include <runtime/InitializeThreading.h>
 #include <runtime/Operations.h>
 #include <wtf/CurrentTime.h>
 #include <wtf/MainThread.h>
@@ -72,6 +72,11 @@
 
 #if ENABLE(NETWORK_INFO)
 #include "WebNetworkInfoManagerProxy.h"
+#endif
+
+#if ENABLE(DATABASE_PROCESS)
+#include "DatabaseProcessCreationParameters.h"
+#include "DatabaseProcessMessages.h"
 #endif
 
 #if ENABLE(NETWORK_PROCESS)
@@ -102,9 +107,7 @@ DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, webContextCounter, ("WebCon
 
 PassRefPtr<WebContext> WebContext::create(const String& injectedBundlePath)
 {
-    JSC::initializeThreading();
-    WTF::initializeMainThread();
-    RunLoop::initializeMainRunLoop();
+    InitializeWebKit2();
     return adoptRef(new WebContext(ProcessModelSharedSecondaryProcess, injectedBundlePath));
 }
 
@@ -119,6 +122,14 @@ const Vector<WebContext*>& WebContext::allContexts()
 {
     return contexts();
 }
+
+#if PLATFORM(IOS)
+WebContext* WebContext::sharedProcessContext()
+{
+    static WKContextRef sharedContextRef = WKContextCreate();
+    return toImpl(sharedContextRef);
+}
+#endif
 
 WebContext::WebContext(ProcessModel processModel, const String& injectedBundlePath)
     : m_processModel(processModel)
@@ -413,6 +424,16 @@ void WebContext::ensureDatabaseProcess()
         return;
 
     m_databaseProcess = DatabaseProcessProxy::create(this);
+
+    DatabaseProcessCreationParameters parameters;
+
+    // Indexed databases exist in a subdirectory of the "database directory path."
+    // Currently, the top level of that directory contains entities related to WebSQL databases.
+    // We should fix this, and move WebSQL into a subdirectory (https://bugs.webkit.org/show_bug.cgi?id=124807)
+    // In the meantime, an entity name prefixed with three underscores will not conflict with any WebSQL entities.
+    parameters.indexedDatabaseDirectory = pathByAppendingComponent(databaseDirectory(), "___IndexedDB");
+
+    m_databaseProcess->send(Messages::DatabaseProcess::InitializeDatabaseProcess(parameters), 0);
 }
 
 void WebContext::getDatabaseProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetDatabaseProcessConnection::DelayedReply> reply)
@@ -1096,12 +1117,12 @@ void WebContext::allowSpecificHTTPSCertificateForHost(const WebCertificateInfo* 
 {
 #if ENABLE(NETWORK_PROCESS)
     if (m_usesNetworkProcess && m_networkProcess) {
-        m_networkProcess->send(Messages::NetworkProcess::AllowSpecificHTTPSCertificateForHost(certificate->platformCertificateInfo(), host), 0);
+        m_networkProcess->send(Messages::NetworkProcess::AllowSpecificHTTPSCertificateForHost(certificate->certificateInfo(), host), 0);
         return;
     }
 #else
 #if USE(SOUP)
-    m_processes[0]->send(Messages::WebProcess::AllowSpecificHTTPSCertificateForHost(certificate->platformCertificateInfo(), host), 0);
+    m_processes[0]->send(Messages::WebProcess::AllowSpecificHTTPSCertificateForHost(certificate->certificateInfo(), host), 0);
     return;
 #else
     UNUSED_PARAM(certificate);
@@ -1109,7 +1130,9 @@ void WebContext::allowSpecificHTTPSCertificateForHost(const WebCertificateInfo* 
 #endif
 #endif
 
+#if !PLATFORM(IOS)
     ASSERT_NOT_REACHED();
+#endif
 }
 
 void WebContext::setHTTPPipeliningEnabled(bool enabled)

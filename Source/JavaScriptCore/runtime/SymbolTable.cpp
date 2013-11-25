@@ -29,13 +29,13 @@
 #include "config.h"
 #include "SymbolTable.h"
 
-#include "JSCellInlines.h"
 #include "JSDestructibleObject.h"
+#include "Operations.h"
 #include "SlotVisitorInlines.h"
 
 namespace JSC {
 
-const ClassInfo SharedSymbolTable::s_info = { "SharedSymbolTable", 0, 0, 0, CREATE_METHOD_TABLE(SharedSymbolTable) };
+const ClassInfo SymbolTable::s_info = { "SymbolTable", 0, 0, 0, CREATE_METHOD_TABLE(SymbolTable) };
 
 SymbolTableEntry& SymbolTableEntry::copySlow(const SymbolTableEntry& other)
 {
@@ -46,10 +46,10 @@ SymbolTableEntry& SymbolTableEntry::copySlow(const SymbolTableEntry& other)
     return *this;
 }
 
-void SharedSymbolTable::destroy(JSCell* cell)
+void SymbolTable::destroy(JSCell* cell)
 {
-    SharedSymbolTable* thisObject = jsCast<SharedSymbolTable*>(cell);
-    thisObject->SharedSymbolTable::~SharedSymbolTable();
+    SymbolTable* thisObject = jsCast<SymbolTable*>(cell);
+    thisObject->SymbolTable::~SymbolTable();
 }
 
 void SymbolTableEntry::freeFatEntrySlow()
@@ -65,20 +65,15 @@ bool SymbolTableEntry::couldBeWatched()
     WatchpointSet* watchpoints = fatEntry()->m_watchpoints.get();
     if (!watchpoints)
         return false;
-    return watchpoints->isStillValid();
+    return watchpoints->state() == IsWatched;
 }
 
-void SymbolTableEntry::attemptToWatch()
+void SymbolTableEntry::prepareToWatch(WatchState state)
 {
     FatEntry* entry = inflate();
-    if (!entry->m_watchpoints)
-        entry->m_watchpoints = adoptRef(new WatchpointSet(InitializedWatching));
-}
-
-bool* SymbolTableEntry::addressOfIsWatched()
-{
-    ASSERT(couldBeWatched());
-    return fatEntry()->m_watchpoints->addressOfIsWatched();
+    ASSERT(!entry->m_watchpoints);
+    entry->m_watchpoints = adoptRef(
+        new WatchpointSet(state == AlreadyInitialized ? IsWatched : ClearWatchpoint));
 }
 
 void SymbolTableEntry::addWatchpoint(Watchpoint* watchpoint)
@@ -92,6 +87,7 @@ void SymbolTableEntry::notifyWriteSlow()
     WatchpointSet* watchpoints = fatEntry()->m_watchpoints.get();
     if (!watchpoints)
         return;
+    
     watchpoints->notifyWrite();
 }
 
@@ -102,7 +98,15 @@ SymbolTableEntry::FatEntry* SymbolTableEntry::inflateSlow()
     return entry;
 }
 
-SymbolTable::SymbolTable() { }
+SymbolTable::SymbolTable(VM& vm)
+    : JSCell(vm, vm.symbolTableStructure.get())
+    , m_parameterCountIncludingThis(0)
+    , m_usesNonStrictEval(false)
+    , m_captureStart(0)
+    , m_captureEnd(0)
+{
+}
+
 SymbolTable::~SymbolTable() { }
 
 } // namespace JSC

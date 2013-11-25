@@ -113,7 +113,6 @@ list(APPEND WebKit_SOURCES
     efl/WebCoreSupport/EditorClientEfl.cpp
     efl/WebCoreSupport/FrameLoaderClientEfl.cpp
     efl/WebCoreSupport/FrameNetworkingContextEfl.cpp
-    efl/WebCoreSupport/FullscreenVideoControllerEfl.cpp
     efl/WebCoreSupport/IconDatabaseClientEfl.cpp
     efl/WebCoreSupport/InspectorClientEfl.cpp
     efl/WebCoreSupport/NavigatorContentUtilsClientEfl.cpp
@@ -187,12 +186,14 @@ else ()
     set(LIBS_PRIVATE "")
 endif ()
 
-configure_file(
-    efl/ewebkit.pc.in
-    ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc
-    @ONLY)
-install(FILES ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc
-    DESTINATION lib/pkgconfig)
+configure_file(efl/ewebkit.pc.in ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc @ONLY)
+configure_file(efl/EWebKitConfig.cmake.in ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfig.cmake @ONLY)
+configure_file(efl/EWebKitConfigVersion.cmake.in ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfigVersion.cmake @ONLY)
+install(FILES ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc DESTINATION lib/pkgconfig)
+install(FILES
+        ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfig.cmake
+        ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfigVersion.cmake
+        DESTINATION lib/cmake/EWebKit)
 
 unset(LIBS_PRIVATE)
 

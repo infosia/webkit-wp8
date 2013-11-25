@@ -174,31 +174,37 @@ macro doCallToJavaScript()
     if X86
         const extraStackSpace = 28
         const previousCFR = t0
+        const previousPC = t1
         const entry = t5
         const newCallFrame = t4
     elsif ARM or ARMv7_TRADITIONAL
         const extraStackSpace = 16
         const previousCFR = t3  
+        const previousPC = lr
         const entry = a0
         const newCallFrame = a1
     elsif ARMv7
         const extraStackSpace = 28
         const previousCFR = t3  
+        const previousPC = lr
         const entry = a0
         const newCallFrame = a1
     elsif MIPS
         const extraStackSpace = 20
         const previousCFR = t2  
+        const previousPC = lr
         const entry = a0
         const newCallFrame = a1
     elsif SH4
         const extraStackSpace = 20
         const previousCFR = t3  
+        const previousPC = lr
         const entry = a0
         const newCallFrame = a1
     end
 
     if X86
+        loadp [sp], previousPC
         move cfr, previousCFR
     end
     functionPrologue(extraStackSpace)
@@ -212,6 +218,7 @@ macro doCallToJavaScript()
     move newCallFrame, cfr
     loadp [cfr], newCallFrame
     storep previousCFR, [newCallFrame]
+    storep previousPC, 4[newCallFrame]
     call entry
 
 _returnFromJavaScript:
@@ -1903,7 +1910,7 @@ macro nativeCallTrampoline(executableOffsetToFunction)
         loadp ScopeChain[cfr], t3
         andp MarkedBlockMask, t3
         loadp MarkedBlock::m_weakSet + WeakSet::m_vm[t3], t3
-    elsif ARM or ARMv7 or ARMv7_TRADITIONAL
+    elsif ARM or ARMv7 or ARMv7_TRADITIONAL or MIPS or SH4
         loadp ScopeChain[cfr], t3
         andp MarkedBlockMask, t3
         loadp MarkedBlock::m_weakSet + WeakSet::m_vm[t3], t3
@@ -1915,24 +1922,9 @@ macro nativeCallTrampoline(executableOffsetToFunction)
         loadi Callee + PayloadOffset[cfr], t1
         loadp JSFunction::m_executable[t1], t1
         move t2, cfr
-        call executableOffsetToFunction[t1]
-        restoreReturnAddressBeforeReturn(t3)
-        loadp ScopeChain[cfr], t3
-        andp MarkedBlockMask, t3
-        loadp MarkedBlock::m_weakSet + WeakSet::m_vm[t3], t3
-    elsif MIPS or SH4
-        loadp ScopeChain[cfr], t3
-        andp MarkedBlockMask, t3
-        loadp MarkedBlock::m_weakSet + WeakSet::m_vm[t3], t3
-        storep cfr, VM::topCallFrame[t3]
-        move t0, t2
-        preserveReturnAddressAfterCall(t3)
-        storep t3, ReturnPC[cfr]
-        move cfr, t0
-        loadi Callee + PayloadOffset[cfr], t1
-        loadp JSFunction::m_executable[t1], t1
-        move t2, cfr
-        move t0, a0
+        if MIPS or SH4
+            move t0, a0
+        end
         call executableOffsetToFunction[t1]
         restoreReturnAddressBeforeReturn(t3)
         loadp ScopeChain[cfr], t3
@@ -1980,7 +1972,7 @@ macro varInjectionCheck(slowPath)
     loadp CodeBlock[cfr], t0
     loadp CodeBlock::m_globalObject[t0], t0
     loadp JSGlobalObject::m_varInjectionWatchpoint[t0], t0
-    btbnz WatchpointSet::m_isInvalidated[t0], slowPath
+    bbeq WatchpointSet::m_state[t0], IsInvalidated, slowPath
 end
 
 macro resolveScope()
@@ -2141,11 +2133,24 @@ macro putProperty()
 end
 
 macro putGlobalVar()
+    loadpFromInstruction(5, t2)
+    loadb WatchpointSet::m_state[t2], t3
+    bieq t3, IsInvalidated, .ready
+    bineq t3, ClearWatchpoint, .needToInvalidate
+    move IsWatched, t3
+    jmp .ready
+.needToInvalidate:
+    btbnz WatchpointSet::m_setIsNotEmpty[t2], .pDynamic
+    move IsInvalidated, t3
+.ready:
     loadisFromInstruction(3, t0)
     loadConstantOrVariable(t0, t1, t2)
     loadpFromInstruction(6, t0)
     storei t1, TagOffset[t0]
     storei t2, PayloadOffset[t0]
+    memfence
+    loadpFromInstruction(5, t2)
+    storeb t3, WatchpointSet::m_state[t2]
 end
 
 macro putClosureVar()

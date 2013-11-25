@@ -243,6 +243,11 @@ namespace JSC {
 
         static void linkFor(ExecState*, JSFunction* callee, CodeBlock* callerCodeBlock, CodeBlock* calleeCodeBlock, CodePtr, CallLinkInfo*, VM*, CodeSpecializationKind);
         static void linkSlowCall(CodeBlock* callerCodeBlock, CallLinkInfo*);
+        
+        static unsigned frameRegisterCountFor(CodeBlock* codeBlock)
+        {
+            return codeBlock->m_numCalleeRegisters;
+        }
 
     private:
         JIT(VM*, CodeBlock* = 0);
@@ -613,7 +618,7 @@ namespace JSC {
         void emitGetGlobalVar(uintptr_t operand);
         void emitGetClosureVar(int scope, uintptr_t operand);
         void emitPutGlobalProperty(uintptr_t* operandSlot, int value);
-        void emitPutGlobalVar(uintptr_t operand, int value);
+        void emitPutGlobalVar(uintptr_t operand, int value, WatchpointSet*);
         void emitPutClosureVar(int scope, uintptr_t operand, int value);
 
         void emitInitRegister(int dst);

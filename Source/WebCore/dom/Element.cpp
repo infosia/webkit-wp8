@@ -1899,7 +1899,7 @@ void Element::removeAttribute(const AtomicString& name)
     unsigned index = elementData()->findAttributeIndexByName(localName, false);
     if (index == ElementData::attributeNotFound) {
         if (UNLIKELY(localName == styleAttr) && elementData()->m_styleAttributeIsDirty && isStyledElement())
-            static_cast<StyledElement*>(this)->removeAllInlineStyleProperties();
+            toStyledElement(this)->removeAllInlineStyleProperties();
         return;
     }
 
@@ -2757,7 +2757,6 @@ inline void Element::updateName(const AtomicString& oldName, const AtomicString&
 
 void Element::updateNameForTreeScope(TreeScope& scope, const AtomicString& oldName, const AtomicString& newName)
 {
-    ASSERT(isInTreeScope());
     ASSERT(oldName != newName);
 
     if (!oldName.isEmpty())
@@ -2768,7 +2767,6 @@ void Element::updateNameForTreeScope(TreeScope& scope, const AtomicString& oldNa
 
 void Element::updateNameForDocument(HTMLDocument& document, const AtomicString& oldName, const AtomicString& newName)
 {
-    ASSERT(inDocument());
     ASSERT(oldName != newName);
 
     if (WindowNameCollection::nodeMatchesIfNameAttributeMatch(this)) {

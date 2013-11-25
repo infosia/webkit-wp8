@@ -31,7 +31,6 @@
 #include "CryptoAlgorithmHmacParams.h"
 #include "CryptoKeyHMAC.h"
 #include "ExceptionCode.h"
-#include "JSDOMPromise.h"
 #include <CommonCrypto/CommonHMAC.h>
 
 namespace WebCore {
@@ -59,7 +58,7 @@ static bool getCommonCryptoAlgorithm(CryptoAlgorithmIdentifier hashFunction, CCH
     }
 }
 
-static Vector<unsigned char> calculateSignature(CCHmacAlgorithm algorithm, const Vector<char>& key, const Vector<CryptoOperationData>& data)
+static Vector<uint8_t> calculateSignature(CCHmacAlgorithm algorithm, const Vector<uint8_t>& key, const CryptoOperationData& data)
 {
     size_t digestLength;
     switch (algorithm) {
@@ -80,61 +79,41 @@ static Vector<unsigned char> calculateSignature(CCHmacAlgorithm algorithm, const
         break;
     default:
         ASSERT_NOT_REACHED();
+        return Vector<uint8_t>();
     }
 
-    CCHmacContext context;
-    const char* keyData = key.data() ? key.data() : ""; // <rdar://problem/15467425> HMAC crashes when key pointer is null.
-    CCHmacInit(&context, algorithm, keyData, key.size());
-    for (size_t i = 0, size = data.size(); i < size; ++i)
-        CCHmacUpdate(&context, data[i].first, data[i].second);
-
-    Vector<unsigned char> result(digestLength);
-    CCHmacFinal(&context, result.data());
+    Vector<uint8_t> result(digestLength);
+    const void* keyData = key.data() ? key.data() : reinterpret_cast<const uint8_t*>(""); // <rdar://problem/15467425> HMAC crashes when key pointer is null.
+    CCHmac(algorithm, keyData, key.size(), data.first, data.second, result.data());
     return result;
 }
 
-void CryptoAlgorithmHMAC::sign(const CryptoAlgorithmParameters& parameters, const CryptoKey& key, const Vector<CryptoOperationData>& data, std::unique_ptr<PromiseWrapper> promise, ExceptionCode& ec)
+void CryptoAlgorithmHMAC::platformSign(const CryptoAlgorithmHmacParams& parameters, const CryptoKeyHMAC& key, const CryptoOperationData& data, VectorCallback callback, VoidCallback, ExceptionCode& ec)
 {
-    const CryptoAlgorithmHmacParams& hmacParameters = toCryptoAlgorithmHmacParams(parameters);
-
-    if (!isCryptoKeyHMAC(key)) {
-        ec = NOT_SUPPORTED_ERR;
-        return;
-    }
-    const CryptoKeyHMAC& hmacKey = toCryptoKeyHMAC(key);
-
     CCHmacAlgorithm algorithm;
-    if (!getCommonCryptoAlgorithm(hmacParameters.hash, algorithm)) {
+    if (!getCommonCryptoAlgorithm(parameters.hash, algorithm)) {
         ec = NOT_SUPPORTED_ERR;
         return;
     }
 
-    Vector<unsigned char> signature = calculateSignature(algorithm, hmacKey.key(), data);
+    Vector<uint8_t> signature = calculateSignature(algorithm, key.key(), data);
 
-    promise->fulfill(signature);
+    callback(signature);
 }
 
-void CryptoAlgorithmHMAC::verify(const CryptoAlgorithmParameters& parameters, const CryptoKey& key, const CryptoOperationData& expectedSignature, const Vector<CryptoOperationData>& data, std::unique_ptr<PromiseWrapper> promise, ExceptionCode& ec)
+void CryptoAlgorithmHMAC::platformVerify(const CryptoAlgorithmHmacParams& parameters, const CryptoKeyHMAC& key, const CryptoOperationData& expectedSignature, const CryptoOperationData& data, BoolCallback callback, VoidCallback, ExceptionCode& ec)
 {
-    const CryptoAlgorithmHmacParams& hmacParameters = toCryptoAlgorithmHmacParams(parameters);
-
-    if (!isCryptoKeyHMAC(key)) {
-        ec = NOT_SUPPORTED_ERR;
-        return;
-    }
-    const CryptoKeyHMAC& hmacKey = toCryptoKeyHMAC(key);
-
     CCHmacAlgorithm algorithm;
-    if (!getCommonCryptoAlgorithm(hmacParameters.hash, algorithm)) {
+    if (!getCommonCryptoAlgorithm(parameters.hash, algorithm)) {
         ec = NOT_SUPPORTED_ERR;
         return;
     }
 
-    Vector<unsigned char> signature = calculateSignature(algorithm, hmacKey.key(), data);
+    Vector<uint8_t> signature = calculateSignature(algorithm, key.key(), data);
 
     bool result = signature.size() == expectedSignature.second && !memcmp(signature.data(), expectedSignature.first, signature.size());
 
-    promise->fulfill(result);
+    callback(result);
 }
 
 }

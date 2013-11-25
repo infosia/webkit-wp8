@@ -27,6 +27,7 @@
 #define CryptoKeyRSA_h
 
 #include "CryptoKey.h"
+#include <functional>
 
 #if ENABLE(SUBTLE_CRYPTO)
 
@@ -51,15 +52,20 @@ public:
     virtual ~CryptoKeyRSA();
 
     void restrictToHash(CryptoAlgorithmIdentifier);
+    bool isRestrictedToHash(CryptoAlgorithmIdentifier&) const;
 
-    static void generatePair(CryptoAlgorithmIdentifier, unsigned modulusLength, const Vector<char>& publicExponent, bool extractable, CryptoKeyUsage, std::unique_ptr<PromiseWrapper>);
+    size_t keySizeInBits() const;
 
-    virtual CryptoKeyClass keyClass() const OVERRIDE { return CryptoKeyClass::RSA; }
+    typedef std::function<void(CryptoKeyPair&)> KeyPairCallback;
+    typedef std::function<void()> VoidCallback;
+    static void generatePair(CryptoAlgorithmIdentifier, unsigned modulusLength, const Vector<uint8_t>& publicExponent, bool extractable, CryptoKeyUsage, KeyPairCallback, VoidCallback failureCallback);
 
     PlatformRSAKey platformKey() const { return m_platformKey; }
 
 private:
     CryptoKeyRSA(CryptoAlgorithmIdentifier, CryptoKeyType, PlatformRSAKey, bool extractable, CryptoKeyUsage);
+
+    virtual CryptoKeyClass keyClass() const OVERRIDE { return CryptoKeyClass::RSA; }
 
     virtual void buildAlgorithmDescription(CryptoAlgorithmDescriptionBuilder&) const OVERRIDE;
     virtual std::unique_ptr<CryptoKeyData> exportData() const OVERRIDE;

@@ -40,6 +40,7 @@
 #include "RenderBoxRegionInfo.h"
 #include "RenderIterator.h"
 #include "RenderLayer.h"
+#include "RenderNamedFlowFragment.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderView.h"
 #include "StyleResolver.h"
@@ -52,7 +53,6 @@ RenderRegion::RenderRegion(Element& element, PassRef<RenderStyle> style, RenderF
     , m_flowThread(flowThread)
     , m_parentNamedFlowThread(0)
     , m_isValid(false)
-    , m_hasCustomRegionStyle(false)
     , m_hasAutoLogicalHeight(false)
     , m_hasComputedAutoHeight(false)
     , m_computedAutoHeight(0)
@@ -64,7 +64,6 @@ RenderRegion::RenderRegion(Document& document, PassRef<RenderStyle> style, Rende
     , m_flowThread(flowThread)
     , m_parentNamedFlowThread(0)
     , m_isValid(false)
-    , m_hasCustomRegionStyle(false)
     , m_hasAutoLogicalHeight(false)
     , m_hasComputedAutoHeight(false)
     , m_computedAutoHeight(0)
@@ -184,12 +183,8 @@ LayoutRect RenderRegion::overflowRectForFlowThreadPortion(const LayoutRect& flow
 {
     ASSERT(isValid());
 
-    // FIXME: Would like to just use hasOverflowClip() but we aren't a block yet. When RenderRegion is eliminated and
-    // folded into RenderBlock, switch to hasOverflowClip().
-    bool clipX = style().overflowX() != OVISIBLE;
-    bool clipY = style().overflowY() != OVISIBLE;
     bool isLastRegionWithRegionFragmentBreak = (isLastPortion && (style().regionFragment() == BreakRegionFragment));
-    if ((clipX && clipY) || isLastRegionWithRegionFragmentBreak)
+    if (hasOverflowClip() || isLastRegionWithRegionFragmentBreak)
         return flowThreadPortionRect;
 
     LayoutRect flowThreadOverflow = overflowType == VisualOverflow ? visualOverflowRectForBox(m_flowThread) : layoutOverflowRectForBox(m_flowThread);
@@ -200,12 +195,14 @@ LayoutRect RenderRegion::overflowRectForFlowThreadPortion(const LayoutRect& flow
     if (m_flowThread->isHorizontalWritingMode()) {
         LayoutUnit minY = isFirstPortion ? (flowThreadOverflow.y() - outlineSize) : flowThreadPortionRect.y();
         LayoutUnit maxY = isLastPortion ? std::max(flowThreadPortionRect.maxY(), flowThreadOverflow.maxY()) + outlineSize : flowThreadPortionRect.maxY();
+        bool clipX = style().overflowX() != OVISIBLE;
         LayoutUnit minX = clipX ? flowThreadPortionRect.x() : std::min(flowThreadPortionRect.x(), flowThreadOverflow.x() - outlineSize);
         LayoutUnit maxX = clipX ? flowThreadPortionRect.maxX() : std::max(flowThreadPortionRect.maxX(), (flowThreadOverflow.maxX() + outlineSize));
         clipRect = LayoutRect(minX, minY, maxX - minX, maxY - minY);
     } else {
         LayoutUnit minX = isFirstPortion ? (flowThreadOverflow.x() - outlineSize) : flowThreadPortionRect.x();
         LayoutUnit maxX = isLastPortion ? std::max(flowThreadPortionRect.maxX(), flowThreadOverflow.maxX()) + outlineSize : flowThreadPortionRect.maxX();
+        bool clipY = style().overflowY() != OVISIBLE;
         LayoutUnit minY = clipY ? flowThreadPortionRect.y() : std::min(flowThreadPortionRect.y(), (flowThreadOverflow.y() - outlineSize));
         LayoutUnit maxY = clipY ? flowThreadPortionRect.maxY() : std::max(flowThreadPortionRect.y(), (flowThreadOverflow.maxY() + outlineSize));
         clipRect = LayoutRect(minX, minY, maxX - minX, maxY - minY);
@@ -248,18 +245,6 @@ bool RenderRegion::isLastRegion() const
     ASSERT(isValid());
 
     return m_flowThread->lastRegion() == this;
-}
-
-void RenderRegion::checkRegionStyle()
-{
-    ASSERT(m_flowThread);
-    bool customRegionStyle = false;
-
-    // FIXME: Region styling doesn't work for pseudo elements.
-    if (!isPseudoElement())
-        customRegionStyle = view().document().ensureStyleResolver().checkRegionStyle(generatingElement());
-    setHasCustomRegionStyle(customRegionStyle);
-    m_flowThread->checkRegionsWithStyling();
 }
 
 void RenderRegion::incrementAutoLogicalHeightCount()
@@ -307,15 +292,9 @@ void RenderRegion::styleDidChange(StyleDifference diff, const RenderStyle* oldSt
 {
     RenderBlockFlow::styleDidChange(diff, oldStyle);
 
-    // If the region is not attached to any thread, there is no need to check
-    // whether the region has region styling since no content will be displayed
-    // into the region.
-    if (!m_flowThread) {
-        setHasCustomRegionStyle(false);
+    if (!m_flowThread)
         return;
-    }
 
-    checkRegionStyle();
     updateRegionHasAutoLogicalHeightFlag();
 
     if (oldStyle && oldStyle->writingMode() != style().writingMode())
@@ -345,17 +324,6 @@ void RenderRegion::layoutBlock(bool relayoutChildren, LayoutUnit)
             // This can happen even if we are in the inConstrainedLayoutPhase and it will trigger a pathological layout of the flow thread.
             m_flowThread->invalidateRegions();
     }
-
-    // FIXME: We need to find a way to set up overflow properly. Our flow thread hasn't gotten a layout
-    // yet, so we can't look to it for correct information. It's possible we could wait until after the RenderFlowThread
-    // gets a layout, and then try to propagate overflow information back to the region, and then mark for a second layout.
-    // That second layout would then be able to use the information from the RenderFlowThread to set up overflow.
-    //
-    // The big problem though is that overflow needs to be region-specific. We can't simply use the RenderFlowThread's global
-    // overflow values, since then we'd always think any narrow region had huge overflow (all the way to the width of the
-    // RenderFlowThread itself).
-    //
-    // We'll need to expand RenderBoxRegionInfo to also hold left and right overflow values.
 }
 
 void RenderRegion::computeOverflowFromFlowThread()
@@ -392,9 +360,6 @@ void RenderRegion::repaintFlowThreadContentRectangle(const LayoutRect& repaintRe
     ASSERT(isValid());
 
     // We only have to issue a repaint in this region if the region rect intersects the repaint rect.
-    LayoutRect flippedFlowThreadPortionRect(flowThreadPortionRect);
-    flowThread()->flipForWritingMode(flippedFlowThreadPortionRect); // Put the region rects into physical coordinates.
-
     LayoutRect clippedRect(repaintRect);
 
     if (flowThreadPortionClipRect) {
@@ -405,6 +370,9 @@ void RenderRegion::repaintFlowThreadContentRectangle(const LayoutRect& repaintRe
 
     if (clippedRect.isEmpty())
         return;
+
+    LayoutRect flippedFlowThreadPortionRect(flowThreadPortionRect);
+    flowThread()->flipForWritingMode(flippedFlowThreadPortionRect); // Put the region rects into physical coordinates.
 
     // Put the region rect into the region's physical coordinate space.
     clippedRect.setLocation(regionLocation + (clippedRect.location() - flippedFlowThreadPortionRect.location()));
@@ -459,7 +427,9 @@ void RenderRegion::attachRegion()
 
     // The region just got attached to the flow thread, lets check whether
     // it has region styling rules associated.
-    checkRegionStyle();
+    // FIXME: Remove cast once attachRegion is moved to RenderNamedFlowFragment.
+    if (isRenderNamedFlowFragment())
+        toRenderNamedFlowFragment(this)->checkRegionStyle();
 
     if (!isValid())
         return;
@@ -521,77 +491,6 @@ LayoutUnit RenderRegion::logicalBottomOfFlowThreadContentRect(const LayoutRect& 
     return flowThread()->isHorizontalWritingMode() ? rect.maxY() : rect.maxX();
 }
 
-void RenderRegion::setRegionObjectsRegionStyle()
-{
-    if (!hasCustomRegionStyle())
-        return;
-
-    // Start from content nodes and recursively compute the style in region for the render objects below.
-    // If the style in region was already computed, used that style instead of computing a new one.
-    const RenderNamedFlowThread& namedFlow = view().flowThreadController().ensureRenderFlowThreadWithName(style().regionThread());
-    const NamedFlowContentElements& contentElements = namedFlow.contentElements();
-
-    for (auto iter = contentElements.begin(), end = contentElements.end(); iter != end; ++iter) {
-        const Element* element = *iter;
-        // The list of content nodes contains also the nodes with display:none.
-        if (!element->renderer())
-            continue;
-
-        RenderElement* object = element->renderer();
-        // If the content node does not flow any of its children in this region,
-        // we do not compute any style for them in this region.
-        if (!flowThread()->objectInFlowRegion(object, this))
-            continue;
-
-        // If the object has style in region, use that instead of computing a new one.
-        auto it = m_renderObjectRegionStyle.find(object);
-        RefPtr<RenderStyle> objectStyleInRegion;
-        bool objectRegionStyleCached = false;
-        if (it != m_renderObjectRegionStyle.end()) {
-            objectStyleInRegion = it->value.style;
-            ASSERT(it->value.cached);
-            objectRegionStyleCached = true;
-        } else
-            objectStyleInRegion = computeStyleInRegion(object);
-
-        setObjectStyleInRegion(object, objectStyleInRegion, objectRegionStyleCached);
-
-        computeChildrenStyleInRegion(object);
-    }
-}
-
-void RenderRegion::restoreRegionObjectsOriginalStyle()
-{
-    if (!hasCustomRegionStyle())
-        return;
-
-    RenderObjectRegionStyleMap temp;
-    for (auto iter = m_renderObjectRegionStyle.begin(), end = m_renderObjectRegionStyle.end(); iter != end; ++iter) {
-        RenderObject* object = const_cast<RenderObject*>(iter->key);
-        RefPtr<RenderStyle> objectRegionStyle = &object->style();
-        RefPtr<RenderStyle> objectOriginalStyle = iter->value.style;
-        if (object->isRenderElement())
-            toRenderElement(object)->setStyleInternal(*objectOriginalStyle);
-
-        bool shouldCacheRegionStyle = iter->value.cached;
-        if (!shouldCacheRegionStyle) {
-            // Check whether we should cache the computed style in region.
-            unsigned changedContextSensitiveProperties = ContextSensitivePropertyNone;
-            StyleDifference styleDiff = objectOriginalStyle->diff(objectRegionStyle.get(), changedContextSensitiveProperties);
-            if (styleDiff < StyleDifferenceLayoutPositionedMovementOnly)
-                shouldCacheRegionStyle = true;
-        }
-        if (shouldCacheRegionStyle) {
-            ObjectRegionStyleInfo styleInfo;
-            styleInfo.style = objectRegionStyle;
-            styleInfo.cached = true;
-            temp.set(object, styleInfo);
-        }
-    }
-
-    m_renderObjectRegionStyle.swap(temp);
-}
-
 void RenderRegion::insertedIntoTree()
 {
     attachRegion();
@@ -604,79 +503,6 @@ void RenderRegion::willBeRemovedFromTree()
     RenderBlockFlow::willBeRemovedFromTree();
 
     detachRegion();
-}
-
-PassRefPtr<RenderStyle> RenderRegion::computeStyleInRegion(const RenderObject* object)
-{
-    ASSERT(object);
-    ASSERT(!object->isAnonymous());
-    ASSERT(object->node() && object->node()->isElementNode());
-
-    // FIXME: Region styling fails for pseudo-elements because the renderers don't have a node.
-    Element* element = toElement(object->node());
-    RefPtr<RenderStyle> renderObjectRegionStyle = object->view().document().ensureStyleResolver().styleForElement(element, 0, DisallowStyleSharing, MatchAllRules, this);
-
-    return renderObjectRegionStyle.release();
-}
-
-void RenderRegion::computeChildrenStyleInRegion(const RenderElement* object)
-{
-    for (RenderObject* child = object->firstChild(); child; child = child->nextSibling()) {
-
-        auto it = m_renderObjectRegionStyle.find(child);
-
-        RefPtr<RenderStyle> childStyleInRegion;
-        bool objectRegionStyleCached = false;
-        if (it != m_renderObjectRegionStyle.end()) {
-            childStyleInRegion = it->value.style;
-            objectRegionStyleCached = true;
-        } else {
-            if (child->isAnonymous() || child->isInFlowRenderFlowThread())
-                childStyleInRegion = RenderStyle::createAnonymousStyleWithDisplay(&object->style(), child->style().display());
-            else if (child->isText())
-                childStyleInRegion = RenderStyle::clone(&object->style());
-            else
-                childStyleInRegion = computeStyleInRegion(child);
-        }
-
-        setObjectStyleInRegion(child, childStyleInRegion, objectRegionStyleCached);
-
-        if (child->isRenderElement())
-            computeChildrenStyleInRegion(toRenderElement(child));
-    }
-}
-
-void RenderRegion::setObjectStyleInRegion(RenderObject* object, PassRefPtr<RenderStyle> styleInRegion, bool objectRegionStyleCached)
-{
-    ASSERT(object->flowThreadContainingBlock());
-
-    RefPtr<RenderStyle> objectOriginalStyle = &object->style();
-    if (object->isRenderElement())
-        toRenderElement(object)->setStyleInternal(*styleInRegion);
-
-    if (object->isBoxModelObject() && !object->hasBoxDecorations()) {
-        bool hasBoxDecorations = object->isTableCell()
-        || object->style().hasBackground()
-        || object->style().hasBorder()
-        || object->style().hasAppearance()
-        || object->style().boxShadow();
-        object->setHasBoxDecorations(hasBoxDecorations);
-    }
-
-    ObjectRegionStyleInfo styleInfo;
-    styleInfo.style = objectOriginalStyle;
-    styleInfo.cached = objectRegionStyleCached;
-    m_renderObjectRegionStyle.set(object, styleInfo);
-}
-
-void RenderRegion::clearObjectStyleInRegion(const RenderObject* object)
-{
-    ASSERT(object);
-    m_renderObjectRegionStyle.remove(object);
-
-    // Clear the style for the children of this object.
-    for (RenderObject* child = object->firstChildSlow(); child; child = child->nextSibling())
-        clearObjectStyleInRegion(child);
 }
 
 void RenderRegion::computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const
@@ -826,10 +652,8 @@ LayoutRect RenderRegion::rectFlowPortionForBox(const RenderBox* box, const Layou
             mappedRect.setWidth(std::max<LayoutUnit>(0, std::min<LayoutUnit>(logicalBottomForFlowThreadContent() - mappedRect.x(), mappedRect.width())));
     }
 
-    bool clipX = style().overflowX() != OVISIBLE;
-    bool clipY = style().overflowY() != OVISIBLE;
     bool isLastRegionWithRegionFragmentBreak = (isLastRegion() && (style().regionFragment() == BreakRegionFragment));
-    if ((clipX && clipY) || isLastRegionWithRegionFragmentBreak)
+    if (hasOverflowClip() || isLastRegionWithRegionFragmentBreak)
         mappedRect.intersect(flowThreadPortionRect());
 
     return mappedRect.isEmpty() ? mappedRect : m_flowThread->mapFromFlowThreadToLocal(box, mappedRect);

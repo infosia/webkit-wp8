@@ -71,6 +71,11 @@ const DeletedValueTag = -7
 const LowestTag = DeletedValueTag
 end
 
+# Watchpoint states
+const ClearWatchpoint = 0
+const IsWatched = 1
+const IsInvalidated = 2
+
 # Some register conventions.
 if JSVALUE64
     # - Use a pair of registers to represent the PC: one register for the
@@ -202,11 +207,9 @@ macro assert(assertion)
 end
 
 macro preserveReturnAddressAfterCall(destinationRegister)
-    if C_LOOP or ARM or ARMv7 or ARMv7_TRADITIONAL or ARM64 or MIPS
+    if C_LOOP or ARM or ARMv7 or ARMv7_TRADITIONAL or ARM64 or MIPS or SH4
         # In C_LOOP case, we're only preserving the bytecode vPC.
         move lr, destinationRegister
-    elsif SH4
-        stspr destinationRegister
     elsif X86 or X86_64
         pop destinationRegister
     else
@@ -215,11 +218,9 @@ macro preserveReturnAddressAfterCall(destinationRegister)
 end
 
 macro restoreReturnAddressBeforeReturn(sourceRegister)
-    if C_LOOP or ARM or ARMv7 or ARMv7_TRADITIONAL or ARM64 or MIPS
+    if C_LOOP or ARM or ARMv7 or ARMv7_TRADITIONAL or ARM64 or MIPS or SH4
         # In C_LOOP case, we're only restoring the bytecode vPC.
         move sourceRegister, lr
-    elsif SH4
-        ldspr sourceRegister
     elsif X86 or X86_64
         push sourceRegister
     else
@@ -382,10 +383,9 @@ macro functionInitialization(profileArgSkip)
     loadi CodeBlock::m_numCalleeRegisters[t1], t0
     addi 1, t0 # Account that local0 goes at slot -1
     loadp CodeBlock::m_vm[t1], t2
-    loadp VM::interpreter[t2], t2
     lshiftp 3, t0
     subp cfr, t0, t0
-    bpbeq Interpreter::m_stack + JSStack::m_end[t2], t0, .stackHeightOK
+    bpbeq VM::m_jsStackLimit[t2], t0, .stackHeightOK
 
     # Stack height check failed - need to call a slow_path.
     callSlowPath(_llint_stack_check)

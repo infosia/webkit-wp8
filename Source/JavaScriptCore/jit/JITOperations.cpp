@@ -44,6 +44,7 @@
 #include "JSGlobalObjectFunctions.h"
 #include "JSNameScope.h"
 #include "JSPropertyNameIterator.h"
+#include "JSStackInlines.h"
 #include "JSWithScope.h"
 #include "ObjectConstructor.h"
 #include "Operations.h"
@@ -79,7 +80,7 @@ void JIT_OPERATION operationStackCheck(ExecState* exec, CodeBlock* codeBlock)
 
     JSStack& stack = vm->interpreter->stack();
 
-    if (UNLIKELY(!stack.grow(&exec->registers()[virtualRegisterForLocal(codeBlock->m_numCalleeRegisters).offset()])))
+    if (UNLIKELY(!stack.grow(&exec->registers()[virtualRegisterForLocal(codeBlock->frameRegisterCount()).offset()])))
         vm->throwException(callerFrame, createStackOverflowError(callerFrame));
 }
 
@@ -1766,8 +1767,8 @@ asm (
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"
 HIDE_SYMBOL(getHostCallReturnValue) "\n"
 SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
-    "ldur x25, [x25, #-32]" "\n"
-     "mov x0, x25" "\n"
+    "ldur x29, [x29, #0]" "\n"
+     "mov x0, x29" "\n"
      "b " LOCAL_REFERENCE(getHostCallReturnValueWithExecState) "\n"
 );
 

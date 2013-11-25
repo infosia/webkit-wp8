@@ -27,6 +27,7 @@
 #include "CopiedSpaceInlines.h"
 #include "CopyVisitorInlines.h"
 #include "DFGWorklist.h"
+#include "DelayedReleaseScope.h"
 #include "GCActivityCallback.h"
 #include "GCIncomingRefCountedSetInlines.h"
 #include "HeapIterationScope.h"
@@ -290,15 +291,10 @@ bool Heap::isPagedOut(double deadline)
 // Run all pending finalizers now because we won't get another chance.
 void Heap::lastChanceToFinalize()
 {
-    RELEASE_ASSERT(!m_vm->dynamicGlobalObject);
+    RELEASE_ASSERT(!m_vm->entryScope);
     RELEASE_ASSERT(m_operationInProgress == NoOperation);
 
     m_objectSpace.lastChanceToFinalize();
-
-#if ENABLE(SIMPLE_HEAP_PROFILING)
-    m_slotVisitor.m_visitedTypeCounts.dump(WTF::dataFile(), "Visited Type Counts");
-    m_destroyedTypeCounts.dump(WTF::dataFile(), "Destroyed Type Counts");
-#endif
 }
 
 void Heap::reportExtraMemoryCostSlowCase(size_t cost)
@@ -693,7 +689,7 @@ void Heap::deleteAllCompiledCode()
 {
     // If JavaScript is running, it's not safe to delete code, since we'll end
     // up deleting code that is live on the stack.
-    if (m_vm->dynamicGlobalObject)
+    if (m_vm->entryScope)
         return;
 
     for (ExecutableBase* current = m_compiledCode.head(); current; current = current->next()) {
@@ -729,6 +725,7 @@ void Heap::collectAllGarbage()
     if (!m_isSafeToCollect)
         return;
     
+    DelayedReleaseScope delayedReleaseScope(m_objectSpace);
     collect(DoSweep);
 }
 

@@ -1796,25 +1796,30 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreLevelDB.h \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreTransactionLevelDB.cpp \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBBackingStoreTransactionLevelDB.h \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBIndexWriterLevelDB.cpp \
+	Source/WebCore/Modules/indexeddb/leveldb/IDBIndexWriterLevelDB.h \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBServerConnectionLevelDB.cpp \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBServerConnectionLevelDB.h \
 	Source/WebCore/Modules/indexeddb/IDBCallbacks.h \
-	Source/WebCore/Modules/indexeddb/IDBCursorBackend.cpp \
-	Source/WebCore/Modules/indexeddb/IDBCursorBackend.h \
 	Source/WebCore/Modules/indexeddb/IDBCursor.cpp \
 	Source/WebCore/Modules/indexeddb/IDBCursor.h \
+	Source/WebCore/Modules/indexeddb/IDBCursorBackend.cpp \
+	Source/WebCore/Modules/indexeddb/IDBCursorBackend.h \
+	Source/WebCore/Modules/indexeddb/IDBCursorBackendOperations.cpp \
+	Source/WebCore/Modules/indexeddb/IDBCursorBackendOperations.h \
 	Source/WebCore/Modules/indexeddb/IDBCursorWithValue.cpp \
 	Source/WebCore/Modules/indexeddb/IDBCursorWithValue.h \
+	Source/WebCore/Modules/indexeddb/IDBDatabase.cpp \
+	Source/WebCore/Modules/indexeddb/IDBDatabase.h \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseBackend.cpp \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseBackend.h \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseCallbacks.h \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseCallbacksImpl.cpp \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseCallbacksImpl.h \
-	Source/WebCore/Modules/indexeddb/IDBDatabase.cpp \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseError.h \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseException.cpp \
 	Source/WebCore/Modules/indexeddb/IDBDatabaseException.h \
-	Source/WebCore/Modules/indexeddb/IDBDatabase.h \
+	Source/WebCore/Modules/indexeddb/IDBDatabaseMetadata.h \
 	Source/WebCore/Modules/indexeddb/IDBEventDispatcher.cpp \
 	Source/WebCore/Modules/indexeddb/IDBEventDispatcher.h \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBFactoryBackendLevelDB.cpp \
@@ -1826,8 +1831,6 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/IDBHistograms.h \
 	Source/WebCore/Modules/indexeddb/IDBIndex.cpp \
 	Source/WebCore/Modules/indexeddb/IDBIndex.h \
-	Source/WebCore/Modules/indexeddb/IDBIndexWriter.cpp \
-	Source/WebCore/Modules/indexeddb/IDBIndexWriter.h \
 	Source/WebCore/Modules/indexeddb/IDBKey.cpp \
 	Source/WebCore/Modules/indexeddb/IDBKey.h \
 	Source/WebCore/Modules/indexeddb/IDBKeyPath.cpp \
@@ -1836,7 +1839,6 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/indexeddb/IDBKeyRange.h \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBLevelDBCoding.cpp \
 	Source/WebCore/Modules/indexeddb/leveldb/IDBLevelDBCoding.h \
-	Source/WebCore/Modules/indexeddb/IDBMetadata.h \
 	Source/WebCore/Modules/indexeddb/IDBObjectStore.cpp \
 	Source/WebCore/Modules/indexeddb/IDBObjectStore.h \
 	Source/WebCore/Modules/indexeddb/IDBOpenDBRequest.cpp \
@@ -1877,6 +1879,8 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/mediasource/SourceBufferList.h \
 	Source/WebCore/Modules/mediasource/DOMURLMediaSource.cpp \
 	Source/WebCore/Modules/mediasource/DOMURLMediaSource.h \
+	Source/WebCore/Modules/mediasource/SampleMap.cpp \
+	Source/WebCore/Modules/mediasource/SampleMap.h \
 	Source/WebCore/Modules/mediastream/AllAudioCapabilities.h \
 	Source/WebCore/Modules/mediastream/AllVideoCapabilities.h \
 	Source/WebCore/Modules/mediastream/AudioStreamTrack.cpp \
@@ -2388,6 +2392,7 @@ webcore_sources += \
 	Source/WebCore/bindings/js/JSSQLResultSetRowListCustom.cpp \
 	Source/WebCore/bindings/js/JSSQLTransactionCustom.cpp \
 	Source/WebCore/bindings/js/JSSQLTransactionSyncCustom.cpp \
+	Source/WebCore/bindings/js/JSRTCIceCandidateCustom.cpp \
 	Source/WebCore/bindings/js/JSRTCPeerConnectionCustom.cpp \
 	Source/WebCore/bindings/js/JSRTCSessionDescriptionCustom.cpp \
 	Source/WebCore/bindings/js/JSRTCStatsResponseCustom.cpp \
@@ -3821,6 +3826,8 @@ webcore_sources += \
 	Source/WebCore/inspector/InspectorLayerTreeAgent.h \
 	Source/WebCore/inspector/InspectorMemoryAgent.cpp \
 	Source/WebCore/inspector/InspectorMemoryAgent.h \
+	Source/WebCore/inspector/InspectorNodeFinder.cpp \
+	Source/WebCore/inspector/InspectorNodeFinder.h \
 	Source/WebCore/inspector/InspectorOverlay.cpp \
 	Source/WebCore/inspector/InspectorOverlay.h \
 	Source/WebCore/inspector/InspectorPageAgent.cpp \
@@ -4300,10 +4307,6 @@ webcore_sources += \
 	Source/WebCore/rendering/LogicalSelectionOffsetCaches.h \
 	Source/WebCore/rendering/LayoutRepainter.h \
 	Source/WebCore/rendering/LayoutRepainter.cpp \
-	Source/WebCore/rendering/LineInfo.h \
-	Source/WebCore/rendering/LineLayoutState.h \
-	Source/WebCore/rendering/LineWidth.h \
-	Source/WebCore/rendering/LineWidth.cpp \
 	Source/WebCore/rendering/OverlapTestRequestClient.h \
 	Source/WebCore/rendering/OrderIterator.cpp \
 	Source/WebCore/rendering/OrderIterator.h \
@@ -4505,6 +4508,15 @@ webcore_sources += \
 	Source/WebCore/rendering/TextPainter.h \
 	Source/WebCore/rendering/TextPaintStyle.h \
 	Source/WebCore/rendering/VerticalPositionCache.h \
+	Source/WebCore/rendering/line/BreakingContextInlineHeaders.h \
+	Source/WebCore/rendering/line/LineInfo.h \
+	Source/WebCore/rendering/line/LineInfo.cpp \
+	Source/WebCore/rendering/line/LineBreaker.h \
+	Source/WebCore/rendering/line/LineBreaker.cpp \
+	Source/WebCore/rendering/line/LineInlineHeaders.h \
+	Source/WebCore/rendering/line/LineLayoutState.h \
+	Source/WebCore/rendering/line/LineWidth.h \
+	Source/WebCore/rendering/line/LineWidth.cpp \
 	Source/WebCore/rendering/mathml/RenderMathMLBlock.cpp \
 	Source/WebCore/rendering/mathml/RenderMathMLBlock.h \
 	Source/WebCore/rendering/mathml/RenderMathMLFenced.cpp \
@@ -4527,6 +4539,8 @@ webcore_sources += \
 	Source/WebCore/rendering/mathml/RenderMathMLScripts.h \
 	Source/WebCore/rendering/mathml/RenderMathMLUnderOver.cpp \
 	Source/WebCore/rendering/mathml/RenderMathMLUnderOver.h \
+	Source/WebCore/rendering/shapes/BoxShape.cpp \
+	Source/WebCore/rendering/shapes/BoxShape.h \
 	Source/WebCore/rendering/shapes/PolygonShape.cpp \
 	Source/WebCore/rendering/shapes/PolygonShape.h \
 	Source/WebCore/rendering/shapes/RasterShape.cpp \
@@ -5746,6 +5760,8 @@ platform_sources += \
 	Source/WebCore/platform/graphics/FloatQuad.h \
 	Source/WebCore/platform/graphics/FloatRect.cpp \
 	Source/WebCore/platform/graphics/FloatRect.h \
+	Source/WebCore/platform/graphics/FloatRoundedRect.cpp \
+	Source/WebCore/platform/graphics/FloatRoundedRect.h \
 	Source/WebCore/platform/graphics/FloatSize.cpp \
 	Source/WebCore/platform/graphics/FloatSize.h \
 	Source/WebCore/platform/graphics/FontBaseline.h \
@@ -5846,7 +5862,7 @@ platform_sources += \
 	Source/WebCore/platform/graphics/TextTrackRepresentation.cpp \
 	Source/WebCore/platform/graphics/TextTrackRepresentation.h \
 	Source/WebCore/platform/graphics/TiledBacking.h \
-	Source/WebCore/platform/graphics/TrackBasePrivate.h \
+	Source/WebCore/platform/graphics/TrackPrivateBase.h \
 	Source/WebCore/platform/graphics/TypesettingFeatures.h \
 	Source/WebCore/platform/graphics/UnitBezier.h \
 	Source/WebCore/platform/graphics/VideoTrackPrivate.h \
@@ -5994,9 +6010,9 @@ platform_sources += \
 	Source/WebCore/platform/DateTimeChooserClient.h \
 	Source/WebCore/platform/Decimal.cpp \
 	Source/WebCore/platform/Decimal.h \
-    Source/WebCore/platform/FileChooser.cpp \
-    Source/WebCore/platform/FileChooser.h \
-    Source/WebCore/platform/FileMetadata.h \
+	Source/WebCore/platform/FileChooser.cpp \
+	Source/WebCore/platform/FileChooser.h \
+	Source/WebCore/platform/FileMetadata.h \
 	Source/WebCore/platform/FileStreamClient.h \
 	Source/WebCore/platform/FileStream.cpp \
 	Source/WebCore/platform/FileStream.h \
@@ -6010,6 +6026,7 @@ platform_sources += \
 	Source/WebCore/platform/URL.cpp \
 	Source/WebCore/platform/URL.h \
 	Source/WebCore/platform/URLHash.h \
+	Source/WebCore/platform/KeyedCoding.h \
 	Source/WebCore/platform/KillRing.h \
 	Source/WebCore/platform/KillRingNone.cpp \
 	Source/WebCore/platform/Language.cpp \
@@ -6166,6 +6183,8 @@ platformgtk_sources += \
 	Source/WebCore/platform/graphics/gtk/ImageGtk.cpp \
 	Source/WebCore/platform/graphics/gtk/IntPointGtk.cpp \
 	Source/WebCore/platform/graphics/gtk/IntRectGtk.cpp \
+	Source/WebCore/platform/graphics/opentype/OpenTypeSanitizer.h \
+	Source/WebCore/platform/graphics/opentype/OpenTypeTypes.h \
 	Source/WebCore/platform/graphics/opentype/OpenTypeVerticalData.cpp \
 	Source/WebCore/platform/graphics/opentype/OpenTypeVerticalData.h \
 	Source/WebCore/platform/gtk/CompositionResults.h \
@@ -6308,8 +6327,6 @@ platform_sources += \
 	Source/WebCore/platform/graphics/gstreamer/GRefPtrGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.cpp \
 	Source/WebCore/platform/graphics/gstreamer/GStreamerUtilities.h \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.cpp \
-	Source/WebCore/platform/graphics/gstreamer/GStreamerVersioning.h \
 	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp \
 	Source/WebCore/platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.h \
 	Source/WebCore/platform/graphics/gstreamer/TextCombinerGStreamer.cpp \

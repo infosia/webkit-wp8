@@ -723,7 +723,7 @@ void SpeculativeJIT::emitCall(Node* node)
     
     slowPath.link(&m_jit);
     
-    m_jit.move(calleeGPR, GPRInfo::nonArgGPR0);
+    m_jit.move(calleeGPR, GPRInfo::regT0); // Callee needs to be in regT0
     JITCompiler::Call slowCall = m_jit.nearCall();
     
     done.link(&m_jit);
@@ -4368,6 +4368,11 @@ void SpeculativeJIT::compile(Node* node)
         noResult(node);
         break;
     }
+        
+    case NotifyPutGlobalVar: {
+        compileNotifyPutGlobalVar(node);
+        break;
+    }
 
     case VarInjectionWatchpoint: {
         noResult(node);
@@ -4625,7 +4630,7 @@ void SpeculativeJIT::compile(Node* node)
 
         JITCompiler::Jump notCreated = m_jit.branchTest64(JITCompiler::Zero, activationValueGPR);
 
-        SharedSymbolTable* symbolTable = m_jit.symbolTableFor(node->codeOrigin);
+        SymbolTable* symbolTable = m_jit.symbolTableFor(node->codeOrigin);
         int registersOffset = JSActivation::registersOffset(symbolTable);
 
         int bytecodeCaptureStart = symbolTable->captureStart();

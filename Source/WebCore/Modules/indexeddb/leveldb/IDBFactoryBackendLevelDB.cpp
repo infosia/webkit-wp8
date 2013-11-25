@@ -123,7 +123,7 @@ void IDBFactoryBackendLevelDB::deleteDatabase(const String& name, PassRefPtr<IDB
         return;
     }
 
-    RefPtr<IDBServerConnection> serverConnection = IDBServerConnectionLevelDB::create(backingStore.get());
+    RefPtr<IDBServerConnection> serverConnection = IDBServerConnectionLevelDB::create(name, backingStore.get());
     RefPtr<IDBDatabaseBackend> databaseBackend = IDBDatabaseBackend::create(name, uniqueIdentifier, this, *serverConnection);
     if (databaseBackend) {
         m_databaseBackendMap.set(uniqueIdentifier, databaseBackend.get());
@@ -178,7 +178,7 @@ void IDBFactoryBackendLevelDB::open(const String& name, uint64_t version, int64_
             return;
         }
 
-        RefPtr<IDBServerConnection> serverConnection = IDBServerConnectionLevelDB::create(backingStore.get());
+        RefPtr<IDBServerConnection> serverConnection = IDBServerConnectionLevelDB::create(name, backingStore.get());
         databaseBackend = IDBDatabaseBackend::create(name, uniqueIdentifier, this, *serverConnection);
         if (databaseBackend)
             m_databaseBackendMap.set(uniqueIdentifier, databaseBackend.get());
@@ -191,20 +191,6 @@ void IDBFactoryBackendLevelDB::open(const String& name, uint64_t version, int64_
 
     databaseBackend->openConnection(callbacks, databaseCallbacks, transactionId, version);
 }
-
-PassRefPtr<IDBTransactionBackend> IDBFactoryBackendLevelDB::maybeCreateTransactionBackend(IDBDatabaseBackend* backend, int64_t transactionId, PassRefPtr<IDBDatabaseCallbacks> databaseCallbacks, const Vector<int64_t>& objectStoreIds, IndexedDB::TransactionMode mode)
-{
-    if (!backend->isIDBDatabaseBackend())
-        return 0;
-
-    return IDBTransactionBackend::create(static_cast<IDBDatabaseBackend*>(backend), transactionId, databaseCallbacks, objectStoreIds, mode);
-}
-
-PassRefPtr<IDBCursorBackend> IDBFactoryBackendLevelDB::createCursorBackend(IDBTransactionBackend& transactionBackend, IDBBackingStoreCursorInterface& backingStoreCursor, IndexedDB::CursorType cursorType, IDBDatabaseBackend::TaskType taskType, int64_t objectStoreId)
-{
-    return IDBCursorBackend::create(&backingStoreCursor, cursorType, taskType, &transactionBackend, objectStoreId);
-}
-
 
 } // namespace WebCore
 

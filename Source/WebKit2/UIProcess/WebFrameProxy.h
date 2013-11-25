@@ -42,7 +42,7 @@ namespace CoreIPC {
 
 namespace WebKit {
 
-class PlatformCertificateInfo;
+class CertificateInfo;
 class WebCertificateInfo;
 class WebFormSubmissionListenerProxy;
 class WebFramePolicyListenerProxy;
@@ -71,8 +71,6 @@ public:
 
     FrameLoadState& frameLoadState() { return m_frameLoadState; }
 
-    FrameLoadState::LoadState loadState() const { return m_frameLoadState.m_loadState; }
-    
     void stopLoading() const;
 
     const String& url() const { return m_frameLoadState.m_url; }
@@ -101,7 +99,7 @@ public:
     void didStartProvisionalLoad(const String& url);
     void didReceiveServerRedirectForProvisionalLoad(const String& url);
     void didFailProvisionalLoad();
-    void didCommitLoad(const String& contentType, const PlatformCertificateInfo&);
+    void didCommitLoad(const String& contentType, const CertificateInfo&);
     void didFinishLoad();
     void didFailLoad();
     void didSameDocumentNavigation(const String&); // eg. anchor navigation, session state change.

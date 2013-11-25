@@ -364,6 +364,12 @@ public:
         m_assembler.baseIndexTransfer32(ARMAssembler::LoadUint8, dest, address.base, address.index, static_cast<int>(address.scale), address.offset);
     }
 
+    void load8(const void* address, RegisterID dest)
+    {
+        move(TrustedImmPtr(address), ARMRegisters::S0);
+        m_assembler.dataTransfer32(ARMAssembler::LoadUint8, dest, ARMRegisters::S0, 0);
+    }
+
     void load8Signed(BaseIndex address, RegisterID dest)
     {
         m_assembler.baseIndexTransfer16(ARMAssembler::LoadInt8, dest, address.base, address.index, static_cast<int>(address.scale), address.offset);
@@ -451,6 +457,12 @@ public:
     void store8(RegisterID src, BaseIndex address)
     {
         m_assembler.baseIndexTransfer32(ARMAssembler::StoreUint8, src, address.base, address.index, static_cast<int>(address.scale), address.offset);
+    }
+
+    void store8(RegisterID src, const void* address)
+    {
+        move(TrustedImmPtr(address), ARMRegisters::S0);
+        m_assembler.dtrUp(ARMAssembler::StoreUint8, src, ARMRegisters::S0, 0);
     }
 
     void store8(TrustedImm32 imm, const void* address)
@@ -567,6 +579,13 @@ public:
     {
         ASSERT(!(right.m_value & 0xFFFFFF00));
         load8(left, ARMRegisters::S1);
+        return branch32(cond, ARMRegisters::S1, right);
+    }
+
+    Jump branch8(RelationalCondition cond, AbsoluteAddress left, TrustedImm32 right)
+    {
+        move(TrustedImmPtr(left.m_ptr), ARMRegisters::S1);
+        load8(Address(ARMRegisters::S1), ARMRegisters::S1);
         return branch32(cond, ARMRegisters::S1, right);
     }
 
@@ -1293,6 +1312,11 @@ public:
     void nop()
     {
         m_assembler.nop();
+    }
+
+    void memoryFence()
+    {
+        m_assembler.dmbSY();
     }
 
     static FunctionPtr readCallTarget(CodeLocationCall call)

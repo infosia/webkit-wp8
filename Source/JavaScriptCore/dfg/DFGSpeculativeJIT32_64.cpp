@@ -701,16 +701,17 @@ void SpeculativeJIT::emitCall(Node* node)
 
     slowPath.link(&m_jit);
 
-    if (calleeTagGPR == GPRInfo::nonArgGPR0) {
-        if (calleePayloadGPR == GPRInfo::nonArgGPR1)
-            m_jit.swap(GPRInfo::nonArgGPR1, GPRInfo::nonArgGPR0);
+    // Callee payload needs to be in regT0, tag in regT1
+    if (calleeTagGPR == GPRInfo::regT0) {
+        if (calleePayloadGPR == GPRInfo::regT1)
+            m_jit.swap(GPRInfo::regT1, GPRInfo::regT0);
         else {
-            m_jit.move(calleeTagGPR, GPRInfo::nonArgGPR1);
-            m_jit.move(calleePayloadGPR, GPRInfo::nonArgGPR0);
+            m_jit.move(calleeTagGPR, GPRInfo::regT1);
+            m_jit.move(calleePayloadGPR, GPRInfo::regT0);
         }
     } else {
-        m_jit.move(calleePayloadGPR, GPRInfo::nonArgGPR0);
-        m_jit.move(calleeTagGPR, GPRInfo::nonArgGPR1);
+        m_jit.move(calleePayloadGPR, GPRInfo::regT0);
+        m_jit.move(calleeTagGPR, GPRInfo::regT1);
     }
     JITCompiler::Call slowCall = m_jit.nearCall();
 
@@ -4091,6 +4092,11 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
 
+    case NotifyPutGlobalVar: {
+        compileNotifyPutGlobalVar(node);
+        break;
+    }
+
     case VarInjectionWatchpoint: {
         noResult(node);
         break;
@@ -4344,7 +4350,7 @@ void SpeculativeJIT::compile(Node* node)
 
         JITCompiler::Jump notCreated = m_jit.branch32(JITCompiler::Equal, activationValueTagGPR, TrustedImm32(JSValue::EmptyValueTag));
 
-        SharedSymbolTable* symbolTable = m_jit.symbolTableFor(node->codeOrigin);
+        SymbolTable* symbolTable = m_jit.symbolTableFor(node->codeOrigin);
         int registersOffset = JSActivation::registersOffset(symbolTable);
 
         int bytecodeCaptureStart = symbolTable->captureStart();

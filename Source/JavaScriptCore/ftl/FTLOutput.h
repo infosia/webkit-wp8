@@ -199,6 +199,7 @@ public:
     LValue intToPtr(LValue value, LType type) { return buildIntToPtr(m_builder, value, type); }
     LValue bitCast(LValue value, LType type) { return buildBitCast(m_builder, value, type); }
     
+    LValue alloca(LType type) { return buildAlloca(m_builder, type); }
     LValue get(LValue reference) { return buildLoad(m_builder, reference); }
     LValue set(LValue value, LValue reference) { return buildStore(m_builder, value, reference); }
     
@@ -342,6 +343,9 @@ public:
     
     LValue select(LValue value, LValue taken, LValue notTaken) { return buildSelect(m_builder, value, taken, notTaken); }
     LValue extractValue(LValue aggVal, unsigned index) { return buildExtractValue(m_builder, aggVal, index); }
+    
+    LValue fence(LAtomicOrdering ordering = LLVMAtomicOrderingSequentiallyConsistent, SynchronizationScope scope = CrossThread) { return buildFence(m_builder, ordering, scope); }
+    LValue fenceAcqRel() { return fence(LLVMAtomicOrderingAcquireRelease); }
     
     template<typename VectorType>
     LValue call(LValue function, const VectorType& vector) { return buildCall(m_builder, function, vector); }

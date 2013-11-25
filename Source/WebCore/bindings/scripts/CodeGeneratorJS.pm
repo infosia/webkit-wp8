@@ -651,7 +651,7 @@ sub GenerateHeader
         AddIncludesForTypeInHeader($implType) unless $svgPropertyOrListPropertyType;
         push(@headerContent, "    static $className* create(JSC::Structure* structure, JSDOMGlobalObject* globalObject, PassRefPtr<$implType> impl)\n");
         push(@headerContent, "    {\n");
-        push(@headerContent, "        globalObject->masqueradesAsUndefinedWatchpoint()->notifyWrite();\n");
+        push(@headerContent, "        globalObject->masqueradesAsUndefinedWatchpoint()->fireAll();\n");
         push(@headerContent, "        $className* ptr = new (NotNull, JSC::allocateCell<$className>(globalObject->vm().heap)) $className(structure, globalObject, impl);\n");
         push(@headerContent, "        ptr->finishCreation(globalObject->vm());\n");
         push(@headerContent, "        return ptr;\n");
@@ -2545,17 +2545,19 @@ sub GenerateImplementation
         }
     }
 
-    if ((!$hasParent && !GetCustomIsReachable($interface))|| GetGenerateIsReachable($interface) || $codeGenerator->InheritsExtendedAttribute($interface, "ActiveDOMObject")) {
-        push(@implContent, "static inline bool isObservable(JS${interfaceName}* js${interfaceName})\n");
-        push(@implContent, "{\n");
-        push(@implContent, "    if (js${interfaceName}->hasCustomProperties())\n");
-        push(@implContent, "        return true;\n");
-        if ($eventTarget) {
-            push(@implContent, "    if (js${interfaceName}->impl().hasEventListeners())\n");
+    if ((!$hasParent && !GetCustomIsReachable($interface)) || GetGenerateIsReachable($interface) || $codeGenerator->InheritsExtendedAttribute($interface, "ActiveDOMObject")) {
+        if (GetGenerateIsReachable($interface)) {
+            push(@implContent, "static inline bool isObservable(JS${interfaceName}* js${interfaceName})\n");
+            push(@implContent, "{\n");
+            push(@implContent, "    if (js${interfaceName}->hasCustomProperties())\n");
             push(@implContent, "        return true;\n");
+            if ($eventTarget) {
+                push(@implContent, "    if (js${interfaceName}->impl().hasEventListeners())\n");
+                push(@implContent, "        return true;\n");
+            }
+            push(@implContent, "    return false;\n");
+            push(@implContent, "}\n\n");
         }
-        push(@implContent, "    return false;\n");
-        push(@implContent, "}\n\n");
 
         push(@implContent, "bool JS${interfaceName}Owner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)\n");
         push(@implContent, "{\n");

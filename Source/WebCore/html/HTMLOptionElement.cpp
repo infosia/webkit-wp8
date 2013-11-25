@@ -269,7 +269,7 @@ HTMLDataListElement* HTMLOptionElement::ownerDataListElement() const
 {
     for (ContainerNode* parent = parentNode(); parent ; parent = parent->parentNode()) {
         if (parent->hasTagName(datalistTag))
-            return static_cast<HTMLDataListElement*>(parent);
+            return toHTMLDataListElement(parent);
     }
     return 0;
 }
@@ -344,8 +344,8 @@ bool HTMLOptionElement::isDisabledFormControl() const
     if (!parentNode() || !parentNode()->isHTMLElement())
         return false;
 
-    HTMLElement* parentElement = static_cast<HTMLElement*>(parentNode());
-    return isHTMLOptGroupElement(parentElement) && parentElement->isDisabledFormControl();
+    HTMLElement& parentElement = toHTMLElement(*parentNode());
+    return isHTMLOptGroupElement(parentElement) && parentElement.isDisabledFormControl();
 }
 
 Node::InsertionNotificationRequest HTMLOptionElement::insertedInto(ContainerNode& insertionPoint)

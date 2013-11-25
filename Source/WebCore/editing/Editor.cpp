@@ -966,8 +966,7 @@ bool Editor::insertTextWithoutSendingTextEvent(const String& text, bool selectIn
     if (!shouldInsertText(text, range.get(), EditorInsertActionTyped))
         return true;
 
-    if (!text.isEmpty())
-        updateMarkersForWordsAffectedByEditing(isSpaceOrNewline(text[0]));
+    updateMarkersForWordsAffectedByEditing(isSpaceOrNewline(text[0]));
 
     bool shouldConsiderApplyingAutocorrection = false;
     if (text == " " || text == "\t")
@@ -2813,7 +2812,7 @@ void Editor::applyEditingStyleToElement(Element* element) const
         return;
 
     // Mutate using the CSSOM wrapper so we get the same event behavior as a script.
-    CSSStyleDeclaration* style = static_cast<StyledElement*>(element)->style();
+    CSSStyleDeclaration* style = toStyledElement(element)->style();
     style->setPropertyInternal(CSSPropertyWordWrap, "break-word", false, IGNORE_EXCEPTION);
     style->setPropertyInternal(CSSPropertyWebkitNbspMode, "space", false, IGNORE_EXCEPTION);
     style->setPropertyInternal(CSSPropertyWebkitLineBreak, "after-white-space", false, IGNORE_EXCEPTION);

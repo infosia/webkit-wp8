@@ -9,6 +9,7 @@
  * Copyright (C) 2009 Brent Fulgham <bfulgham@webkit.org>
  * Copyright (C) 2013 Peter Gal <galpeter@inf.u-szeged.hu>, University of Szeged
  * Copyright (C) 2013 Alex Christensen <achristensen@webkit.org>
+ * Copyright (C) 2013 University of Szeged
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +38,7 @@
 #include "ResourceHandleManager.h"
 
 #include "CredentialStorage.h"
+#include "CurlCacheManager.h"
 #include "DataURL.h"
 #include "HTTPParsers.h"
 #include "MIMETypeRegistry.h"
@@ -44,6 +46,7 @@
 #include "ResourceError.h"
 #include "ResourceHandle.h"
 #include "ResourceHandleInternal.h"
+#include "SSLHandle.h"
 
 #if OS(WINDOWS)
 #include "WebCoreBundleWin.h"
@@ -268,8 +271,10 @@ static size_t writeCallback(void* ptr, size_t size, size_t nmemb, void* data)
 
     if (d->m_multipartHandle)
         d->m_multipartHandle->contentReceived(static_cast<const char*>(ptr), totalSize);
-    else if (d->client())
+    else if (d->client()) {
         d->client()->didReceiveData(job, static_cast<char*>(ptr), totalSize, 0);
+        CurlCacheManager::getInstance().didReceiveData(job->firstRequest().url().string(), static_cast<char*>(ptr), totalSize);
+    }
 
     return totalSize;
 }
@@ -459,8 +464,10 @@ static size_t headerCallback(char* ptr, size_t size, size_t nmemb, void* data)
             }
         }
 
-        if (client)
+        if (client) {
             client->didReceiveResponse(job, d->m_response);
+            CurlCacheManager::getInstance().didReceiveResponse(job, d->m_response);
+        }
         d->m_response.setResponseFired(true);
 
     } else {
@@ -605,16 +612,22 @@ void ResourceHandleManager::downloadTimerCallback(Timer<ResourceHandleManager>* 
             if (d->m_multipartHandle)
                 d->m_multipartHandle->contentEnded();
 
-            if (d->client())
+            if (d->client()) {
                 d->client()->didFinishLoading(job, 0);
+                CurlCacheManager::getInstance().didFinishLoading(job->firstRequest().url().string());
+            }
         } else {
             char* url = 0;
             curl_easy_getinfo(d->m_handle, CURLINFO_EFFECTIVE_URL, &url);
 #ifndef NDEBUG
             fprintf(stderr, "Curl ERROR for url='%s', error: '%s'\n", url, curl_easy_strerror(msg->data.result));
 #endif
-            if (d->client())
-                d->client()->didFail(job, ResourceError(String(), msg->data.result, String(url), String(curl_easy_strerror(msg->data.result))));
+            if (d->client()) {
+                ResourceError resourceError(String(), msg->data.result, String(url), String(curl_easy_strerror(msg->data.result)));
+                resourceError.setSSLErrors(d->m_sslErrors);
+                d->client()->didFail(job, resourceError);
+                CurlCacheManager::getInstance().didFail(job->firstRequest().url().string());
+            }
         }
 
         removeFromCurl(job);
@@ -887,6 +900,7 @@ void ResourceHandleManager::applyAuthenticationToRequest(ResourceHandle* handle,
     if (!d->m_initialCredential.isEmpty()) {
         user = d->m_initialCredential.user();
         password = d->m_initialCredential.password();
+        curl_easy_setopt(d->m_handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
     }
 
     // It seems we need to set CURLOPT_USERPWD even if username and password is empty.
@@ -931,6 +945,8 @@ void ResourceHandleManager::initializeHandle(ResourceHandle* job)
     if (getenv("DEBUG_CURL"))
         curl_easy_setopt(d->m_handle, CURLOPT_VERBOSE, 1);
 #endif
+    curl_easy_setopt(d->m_handle, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(d->m_handle, CURLOPT_SSL_VERIFYHOST, 2L);
     curl_easy_setopt(d->m_handle, CURLOPT_PRIVATE, job);
     curl_easy_setopt(d->m_handle, CURLOPT_ERRORBUFFER, m_curlErrorBuffer);
     curl_easy_setopt(d->m_handle, CURLOPT_WRITEFUNCTION, writeCallback);
@@ -945,10 +961,11 @@ void ResourceHandleManager::initializeHandle(ResourceHandle* job)
     curl_easy_setopt(d->m_handle, CURLOPT_DNS_CACHE_TIMEOUT, 60 * 5); // 5 minutes
     curl_easy_setopt(d->m_handle, CURLOPT_PROTOCOLS, allowedProtocols);
     curl_easy_setopt(d->m_handle, CURLOPT_REDIR_PROTOCOLS, allowedProtocols);
-    // FIXME: Enable SSL verification when we have a way of shipping certs
-    // and/or reporting SSL errors to the user.
+
     if (ignoreSSLErrors)
         curl_easy_setopt(d->m_handle, CURLOPT_SSL_VERIFYPEER, false);
+    else
+        setSSLVerifyOptions(job);
 
     if (!m_certificatePath.isNull())
        curl_easy_setopt(d->m_handle, CURLOPT_CAINFO, m_certificatePath.data());
@@ -969,6 +986,19 @@ void ResourceHandleManager::initializeHandle(ResourceHandle* job)
     struct curl_slist* headers = 0;
     if (job->firstRequest().httpHeaderFields().size() > 0) {
         HTTPHeaderMap customHeaders = job->firstRequest().httpHeaderFields();
+
+        if (CurlCacheManager::getInstance().isCached(url)) {
+            HTTPHeaderMap& requestHeaders = CurlCacheManager::getInstance().requestHeaders(url);
+
+            // append additional cache information
+            HTTPHeaderMap::const_iterator it = requestHeaders.begin();
+            HTTPHeaderMap::const_iterator end = requestHeaders.end();
+            while (it != end) {
+                customHeaders.set(it->key, it->value);
+                ++it;
+            }
+        }
+
         HTTPHeaderMap::const_iterator end = customHeaders.end();
         for (HTTPHeaderMap::const_iterator it = customHeaders.begin(); it != end; ++it) {
             String key = it->key;

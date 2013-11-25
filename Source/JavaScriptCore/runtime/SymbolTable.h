@@ -220,22 +220,15 @@ struct SymbolTableEntry {
     
     bool couldBeWatched();
     
-    // Notify an opportunity to create a watchpoint for a variable. This is
-    // idempotent and fail-silent. It is idempotent in the sense that if
-    // a watchpoint set had already been created, then another one will not
-    // be created. Hence two calls to this method have the same effect as
-    // one call. It is also fail-silent, in the sense that if a watchpoint
-    // set had been created and had already been invalidated, then this will
-    // just return. This means that couldBeWatched() may return false even
-    // immediately after a call to attemptToWatch().
-    void attemptToWatch();
-    
-    bool* addressOfIsWatched();
+    enum WatchState { NotInitialized, AlreadyInitialized };
+    void prepareToWatch(WatchState);
     
     void addWatchpoint(Watchpoint*);
     
     WatchpointSet* watchpointSet()
     {
+        if (!isFat())
+            return 0;
         return fatEntry()->m_watchpoints.get();
     }
     
@@ -341,13 +334,27 @@ struct SymbolTableIndexHashTraits : HashTraits<SymbolTableEntry> {
     static const bool needsDestruction = true;
 };
 
-class SymbolTable {
+class SymbolTable : public JSCell {
 public:
+    typedef JSCell Base;
+
     typedef HashMap<RefPtr<StringImpl>, SymbolTableEntry, IdentifierRepHash, HashTraits<RefPtr<StringImpl>>, SymbolTableIndexHashTraits> Map;
 
-    JS_EXPORT_PRIVATE SymbolTable();
-    JS_EXPORT_PRIVATE ~SymbolTable();
-    
+    static SymbolTable* create(VM& vm)
+    {
+        SymbolTable* symbolTable = new (NotNull, allocateCell<SymbolTable>(vm.heap)) SymbolTable(vm);
+        symbolTable->finishCreation(vm);
+        return symbolTable;
+    }
+    static const bool needsDestruction = true;
+    static const bool hasImmortalStructure = true;
+    static void destroy(JSCell*);
+
+    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
+    {
+        return Structure::create(vm, globalObject, prototype, TypeInfo(LeafType, StructureFlags), info());
+    }
+
     // You must hold the lock until after you're done with the iterator.
     Map::iterator find(const ConcurrentJITLocker&, StringImpl* key)
     {
@@ -440,42 +447,16 @@ public:
         return contains(locker, key);
     }
     
-private:
-    Map m_map;
-public:
-    mutable ConcurrentJITLock m_lock;
-};
-
-
-class SharedSymbolTable : public JSCell, public SymbolTable {
-public:
-    typedef JSCell Base;
-
-    static SharedSymbolTable* create(VM& vm)
-    {
-        SharedSymbolTable* sharedSymbolTable = new (NotNull, allocateCell<SharedSymbolTable>(vm.heap)) SharedSymbolTable(vm);
-        sharedSymbolTable->finishCreation(vm);
-        return sharedSymbolTable;
-    }
-    static const bool needsDestruction = true;
-    static const bool hasImmortalStructure = true;
-    static void destroy(JSCell*);
-
-    static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
-    {
-        return Structure::create(vm, globalObject, prototype, TypeInfo(LeafType, StructureFlags), info());
-    }
-
     bool usesNonStrictEval() { return m_usesNonStrictEval; }
     void setUsesNonStrictEval(bool usesNonStrictEval) { m_usesNonStrictEval = usesNonStrictEval; }
 
-    int captureStart() { return m_captureStart; }
+    int captureStart() const { return m_captureStart; }
     void setCaptureStart(int captureStart) { m_captureStart = captureStart; }
 
-    int captureEnd() { return m_captureEnd; }
+    int captureEnd() const { return m_captureEnd; }
     void setCaptureEnd(int captureEnd) { m_captureEnd = captureEnd; }
 
-    int captureCount() { return -(m_captureEnd - m_captureStart); }
+    int captureCount() const { return -(m_captureEnd - m_captureStart); }
 
     int parameterCount() { return m_parameterCountIncludingThis - 1; }
     int parameterCountIncludingThis() { return m_parameterCountIncludingThis; }
@@ -488,15 +469,11 @@ public:
     DECLARE_EXPORT_INFO;
 
 private:
-    SharedSymbolTable(VM& vm)
-        : JSCell(vm, vm.sharedSymbolTableStructure.get())
-        , m_parameterCountIncludingThis(0)
-        , m_usesNonStrictEval(false)
-        , m_captureStart(0)
-        , m_captureEnd(0)
-    {
-    }
+    JS_EXPORT_PRIVATE SymbolTable(VM&);
+    ~SymbolTable();
 
+    Map m_map;
+    
     int m_parameterCountIncludingThis;
     bool m_usesNonStrictEval;
 
@@ -504,6 +481,9 @@ private:
     int m_captureEnd;
 
     std::unique_ptr<SlowArgument[]> m_slowArguments;
+
+public:
+    mutable ConcurrentJITLock m_lock;
 };
 
 } // namespace JSC

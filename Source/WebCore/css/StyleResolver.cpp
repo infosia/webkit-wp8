@@ -410,7 +410,7 @@ bool StyleResolver::classNamesAffectedByRules(const SpaceSplitString& classNames
 inline void StyleResolver::State::initElement(Element* e)
 {
     m_element = e;
-    m_styledElement = e && e->isStyledElement() ? static_cast<StyledElement*>(e) : 0;
+    m_styledElement = e && e->isStyledElement() ? toStyledElement(e) : nullptr;
     m_elementLinkState = e ? e->document().visitedLinkState().determineLinkState(e) : NotInsideLink;
 }
 
@@ -465,7 +465,7 @@ Node* StyleResolver::locateCousinList(Element* parent, unsigned& visitedNodeCoun
         return 0;
     if (!parent || !parent->isStyledElement())
         return 0;
-    StyledElement* p = static_cast<StyledElement*>(parent);
+    StyledElement* p = toStyledElement(parent);
     if (p->inlineStyle())
         return 0;
 #if ENABLE(SVG)
@@ -713,12 +713,12 @@ inline StyledElement* StyleResolver::findSiblingForStyleSharing(Node* node, unsi
     for (; node; node = node->previousSibling()) {
         if (!node->isStyledElement())
             continue;
-        if (canShareStyleWithElement(static_cast<StyledElement*>(node)))
+        if (canShareStyleWithElement(toStyledElement(node)))
             break;
         if (count++ == cStyleSearchThreshold)
             return 0;
     }
-    return static_cast<StyledElement*>(node);
+    return toStyledElement(node);
 }
 
 RenderStyle* StyleResolver::locateSharedStyle()
@@ -2214,7 +2214,7 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
                     const AtomicString& value = state.element()->getAttribute(attr);
                     state.style()->setContent(value.isNull() ? emptyAtom : value.impl(), didSet);
                     didSet = true;
-                    // register the fact that the attribute value affects the style
+                    // Register the fact that the attribute value affects the style.
                     m_ruleSets.features().attrsInRules.add(attr.localName().impl());
                 } else if (contentValue->isCounter()) {
                     Counter* counterValue = contentValue->getCounterValue();
@@ -2252,6 +2252,28 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
             if (!didSet)
                 state.style()->clearContent();
             return;
+        }
+    case CSSPropertyWebkitAlt:
+        {
+            bool didSet = false;
+            if (primitiveValue->isString()) {
+                state.style()->setContentAltText(primitiveValue->getStringValue().impl());
+                didSet = true;
+            } else if (primitiveValue->isAttr()) {
+                // FIXME: Can a namespace be specified for an attr(foo)?
+                if (state.style()->styleType() == NOPSEUDO)
+                    state.style()->setUnique();
+                else
+                    state.parentStyle()->setUnique();
+                QualifiedName attr(nullAtom, primitiveValue->getStringValue().impl(), nullAtom);
+                const AtomicString& value = state.element()->getAttribute(attr);
+                state.style()->setContentAltText(value.isNull() ? emptyAtom : value.impl());
+                didSet = true;
+                // Register the fact that the attribute value affects the style.
+                m_ruleSets.features().attrsInRules.add(attr.localName().impl());
+            }
+            if (!didSet)
+                state.style()->setContentAltText(emptyAtom);
         }
     case CSSPropertyQuotes:
         if (isInherit) {
