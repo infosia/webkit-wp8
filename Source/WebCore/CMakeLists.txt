@@ -1732,6 +1732,7 @@ set(WebCore_SOURCES
     page/FocusController.cpp
     page/Frame.cpp
     page/FrameDestructionObserver.cpp
+    page/FrameSnapshotting.cpp
     page/FrameTree.cpp
     page/FrameView.cpp
     page/GestureTapHighlighter.cpp
@@ -2222,6 +2223,7 @@ set(WebCore_SOURCES
     rendering/line/LineBreaker.cpp
     rendering/line/LineInfo.cpp
     rendering/line/LineWidth.cpp
+    rendering/line/TrailingObjects.cpp
 
     rendering/mathml/RenderMathMLBlock.cpp
     rendering/mathml/RenderMathMLFenced.cpp

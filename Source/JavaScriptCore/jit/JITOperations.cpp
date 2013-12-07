@@ -222,7 +222,7 @@ EncodedJSValue JIT_OPERATION operationCallCustomGetter(ExecState* exec, JSCell* 
     
     Identifier ident(vm, uid);
     
-    return JSValue::encode(function(exec, asObject(base), ident));
+    return function(exec, JSValue::encode(base), JSValue::encode(base), ident);
 }
 
 EncodedJSValue JIT_OPERATION operationCallGetter(ExecState* exec, JSCell* base, JSCell* getterSetter)
@@ -1363,6 +1363,8 @@ EncodedJSValue JIT_OPERATION operationGetArgumentsLength(ExecState* exec, int32_
     return JSValue::encode(baseValue.get(exec, ident, slot));
 }
 
+}
+
 static JSValue getByVal(ExecState* exec, JSValue baseValue, JSValue subscript, ReturnAddressPtr returnAddress)
 {
     if (LIKELY(baseValue.isCell() && subscript.isString())) {
@@ -1386,6 +1388,8 @@ static JSValue getByVal(ExecState* exec, JSValue baseValue, JSValue subscript, R
     return baseValue.get(exec, property);
 }
 
+extern "C" {
+    
 EncodedJSValue JIT_OPERATION operationGetByValGeneric(ExecState* exec, EncodedJSValue encodedBase, EncodedJSValue encodedSubscript)
 {
     VM& vm = exec->vm();
@@ -1526,14 +1530,23 @@ EncodedJSValue JIT_OPERATION operationInstanceOf(ExecState* exec, EncodedJSValue
     return JSValue::encode(jsBoolean(result));
 }
 
-CallFrame* JIT_OPERATION operationLoadVarargs(ExecState* exec, EncodedJSValue encodedThis, EncodedJSValue encodedArguments, int32_t firstFreeRegister)
+CallFrame* JIT_OPERATION operationSizeAndAllocFrameForVarargs(ExecState* exec, EncodedJSValue encodedArguments, int32_t firstFreeRegister)
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
     JSStack* stack = &exec->interpreter()->stack();
+    JSValue arguments = JSValue::decode(encodedArguments);
+    CallFrame* newCallFrame = sizeAndAllocFrameForVarargs(exec, stack, arguments, firstFreeRegister);
+    return newCallFrame;
+}
+
+CallFrame* JIT_OPERATION operationLoadVarargs(ExecState* exec, CallFrame* newCallFrame, EncodedJSValue encodedThis, EncodedJSValue encodedArguments)
+{
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
     JSValue thisValue = JSValue::decode(encodedThis);
     JSValue arguments = JSValue::decode(encodedArguments);
-    CallFrame* newCallFrame = loadVarargs(exec, stack, thisValue, arguments, firstFreeRegister);
+    loadVarargs(exec, newCallFrame, thisValue, arguments);
     return newCallFrame;
 }
 

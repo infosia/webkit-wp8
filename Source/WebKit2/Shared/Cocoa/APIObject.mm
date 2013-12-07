@@ -33,10 +33,12 @@
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
 #import "WKNSArray.h"
+#import "WKConnectionInternal.h"
 #import "WKNSDictionary.h"
 #import "WKNSError.h"
 #import "WKNSString.h"
 #import "WKNSURL.h"
+#import "WKNSURLAuthenticationChallenge.h"
 #import "WKNSURLProtectionSpace.h"
 #import "WKNavigationDataInternal.h"
 #import "WKProcessGroupInternal.h"
@@ -66,12 +68,20 @@ void* Object::newObject(size_t size, Type type)
         wrapper = [WKNSArray alloc];
         break;
 
+    case Type::AuthenticationChallenge:
+        wrapper = NSAllocateObject([WKNSURLAuthenticationChallenge self], size, nullptr);
+        break;
+
     case Type::BackForwardList:
         wrapper = [WKBackForwardList alloc];
         break;
 
     case Type::BackForwardListItem:
         wrapper = [WKBackForwardListItem alloc];
+        break;
+
+    case Type::Connection:
+        wrapper = NSAllocateObject([WKConnection self], size, nullptr);
         break;
 
     case Type::Context:

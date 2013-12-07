@@ -1,7 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2006, 2007, 2008 Apple Inc. All rights reserved.
- * Copyright (C) 2006 Alexey Proskuryakov (ap@nypop.com)
- * Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies)
+ * Copyright (C) 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,40 +23,50 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
  */
 
-#import "config.h"
-#import "Frame.h"
+#ifndef AudioTrackPrivateMediaSourceAVFObjC_h
+#define AudioTrackPrivateMediaSourceAVFObjC_h
 
-#import "Document.h"
-#import "FrameLoaderClient.h"
-#import "FrameSelection.h"
-#import "FrameSnapshottingMac.h"
-#import "FrameView.h"
-#import "RenderObject.h"
+#include "AudioTrackPrivateAVF.h"
+
+#if ENABLE(MEDIA_SOURCE) && ENABLE(VIDEO_TRACK)
+
+OBJC_CLASS AVAssetTrack;
+OBJC_CLASS AVPlayerItemTrack;
 
 namespace WebCore {
 
-DragImageRef Frame::nodeImage(Node* node)
-{
-    m_doc->updateLayout(); // forces style recalc
+class AVTrackPrivateAVFObjCImpl;
+class SourceBufferPrivateAVFObjC;
 
-    RenderObject* renderer = node->renderer();
-    if (!renderer)
-        return nil;
-    LayoutRect topLevelRect;
-    NSRect paintingRect = pixelSnappedIntRect(renderer->paintingRootRect(topLevelRect));
+class AudioTrackPrivateMediaSourceAVFObjC FINAL : public AudioTrackPrivateAVF {
+    WTF_MAKE_NONCOPYABLE(AudioTrackPrivateMediaSourceAVFObjC)
+public:
+    static RefPtr<AudioTrackPrivateMediaSourceAVFObjC> create(AVAssetTrack* track, SourceBufferPrivateAVFObjC* parent)
+    {
+        return adoptRef(new AudioTrackPrivateMediaSourceAVFObjC(track, parent));
+    }
 
-    m_view->setNodeToDraw(node); // invoke special sub-tree drawing mode
-    NSImage* result = imageFromRect(this, paintingRect);
-    m_view->setNodeToDraw(0);
+    virtual bool enabled() const OVERRIDE;
+    virtual void setEnabled(bool) OVERRIDE;
 
-    return result;
+    void setAssetTrack(AVAssetTrack*);
+    AVAssetTrack* assetTrack();
+
+    int trackID() { return m_trackID; }
+
+private:
+    explicit AudioTrackPrivateMediaSourceAVFObjC(AVAssetTrack*, SourceBufferPrivateAVFObjC* parent);
+    
+    void resetPropertiesFromTrack();
+
+    std::unique_ptr<AVTrackPrivateAVFObjCImpl> m_impl;
+    SourceBufferPrivateAVFObjC* m_parent;
+    int m_trackID;
+    bool m_enabled;
+};
+
 }
 
-DragImageRef Frame::dragImageForSelection()
-{
-    if (!selection().isRange())
-        return nil;
-    return selectionImage(this);
-}
+#endif // ENABLE(MEDIA_SOURCE) && ENABLE(VIDEO_TRACK)
 
-} // namespace WebCore
+#endif

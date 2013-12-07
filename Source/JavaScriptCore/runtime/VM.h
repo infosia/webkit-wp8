@@ -267,6 +267,7 @@ namespace JSC {
         Strong<Structure> symbolTableStructure;
         Strong<Structure> structureChainStructure;
         Strong<Structure> sparseArrayValueMapStructure;
+        Strong<Structure> arrayBufferNeuteringWatchpointStructure;
         Strong<Structure> withScopeStructure;
         Strong<Structure> unlinkedFunctionExecutableStructure;
         Strong<Structure> unlinkedProgramCodeBlockStructure;
@@ -382,6 +383,7 @@ namespace JSC {
 
         ReturnAddressPtr exceptionLocation;
         JSValue hostCallReturnValue;
+        ExecState* newCallFrameReturnValue;
         ExecState* callFrameForThrow;
         void* targetMachinePCForThrow;
         Instruction* targetInterpreterPCForThrow;

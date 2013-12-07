@@ -1,3 +1,321 @@
+2013-12-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should support all of Branch/LogicalNot
+        https://bugs.webkit.org/show_bug.cgi?id=125370
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/regress/logical-not-expected.txt: Added.
+        * js/regress/logical-not.html: Added.
+        * js/regress/script-tests/logical-not.js: Added.
+        (foo):
+
+2013-12-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should support generic ByVal accesses
+        https://bugs.webkit.org/show_bug.cgi?id=125368
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/regress/by-val-generic-expected.txt: Added.
+        * js/regress/by-val-generic.html: Added.
+        * js/regress/script-tests/by-val-generic.js: Added.
+        (foo):
+
+2013-12-06  Jer Noble  <jer.noble@apple.com>
+
+        Unreviewed gardening; revert r160237 after r160247 made it unnecessary.
+
+        * platform/mac/TestExpectations:
+
+2013-12-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should support hole/OOB array accesses
+        https://bugs.webkit.org/show_bug.cgi?id=118077
+
+        Reviewed by Oliver Hunt and Mark Hahnenberg.
+
+        * js/regress/double-get-by-val-out-of-bounds-expected.txt: Added.
+        * js/regress/double-get-by-val-out-of-bounds.html: Added.
+        * js/regress/get-by-val-out-of-bounds-expected.txt: Added.
+        * js/regress/get-by-val-out-of-bounds.html: Added.
+        * js/regress/script-tests/double-get-by-val-out-of-bounds.js: Added.
+        (foo):
+        * js/regress/script-tests/get-by-val-out-of-bounds.js: Added.
+        (foo):
+
+2013-12-06  Rob Buis  <rob.buis@samsung.com>
+
+        [CSS Shapes] ShapeOutsideInfo needs to use the parent's writing mode when calculating offsets
+        https://bugs.webkit.org/show_bug.cgi?id=124680
+
+        Reviewed by Dirk Schulze.
+
+        Make sure the writing-mode property on the float is not taken into account for shape-outside.
+        Adapt highlight-shape-outside.html so it sets the writing-mode on the container div, not the float.
+        However because of earlier unreliability in EFL/GTK, skip the test for now.
+
+        * TestExpectations:
+        * fast/shapes/shape-outside-floats/shape-outside-floats-different-writing-modes.html:
+        * inspector-protocol/model/highlight-shape-outside-expected.txt:
+        * inspector-protocol/model/highlight-shape-outside.html:
+
+2013-12-06  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should support all of ValueToInt32
+        https://bugs.webkit.org/show_bug.cgi?id=125283
+
+        Reviewed by Mark Hahnenberg.
+
+        * js/regress/put-by-val-machine-int-expected.txt: Added.
+        * js/regress/put-by-val-machine-int.html: Added.
+        * js/regress/script-tests/put-by-val-machine-int.js: Added.
+        (foo):
+
+2013-12-06  Eric Carlson  <eric.carlson@apple.com>
+
+        Unreviewed gardening, correct previous fix.
+
+        * platform/mac-mountainlion/TestExpectations: Removed.
+        * platform/mac/TestExpectations: Mark plugins/quicktime-plugin-replacement.html as flakey
+            on Mavericks.
+
+2013-12-06  Eric Carlson  <eric.carlson@apple.com>
+
+        plugins/quicktime-plugin-replacement.html is flakey on OS X Mavericks
+        https://bugs.webkit.org/show_bug.cgi?id=125356
+
+        Reviewed by Jer Noble.
+
+        * platform/mac-mountainlion/TestExpectations: Added. Mark test as flakey.
+
+2013-12-06  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        Unreviewed EFL gardening
+
+        Add test expectations for failing tests.
+
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl/TestExpectations:
+
+2013-12-06  Lukasz Gajowy  <l.gajowy@samsung.com>
+
+        Unreviewed ATK gardening
+
+        accessibility/document-attributes.html started failing after r160220.
+
+        * platform/efl/TestExpectations:
+        * platform/gtk/TestExpectations:
+
+2013-12-06  Lukasz Gajowy  <l.gajowy@samsung.com>
+
+        [ATK] Missing aria roles mappings
+        https://bugs.webkit.org/show_bug.cgi?id=117729
+
+        Reviewed by Mario Sanchez Prada.
+
+        Added new test, checking whether ARIA roles to ATK roles mappings work properly.
+
+        * accessibility/aria-mappings-expected.txt: Added.
+        * accessibility/aria-mappings.html: Added.
+        * platform/mac/accessibility/aria-mappings-expected.txt: Added.
+
+2013-12-04  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should use cvttsd2si directly for double-to-int32 conversions
+        https://bugs.webkit.org/show_bug.cgi?id=125275
+
+        Reviewed by Michael Saboff.
+
+        * js/regress/double-to-int32-typed-array-expected.txt: Added.
+        * js/regress/double-to-int32-typed-array-no-inline-expected.txt: Added.
+        * js/regress/double-to-int32-typed-array-no-inline.html: Added.
+        * js/regress/double-to-int32-typed-array.html: Added.
+        * js/regress/double-to-uint32-typed-array-expected.txt: Added.
+        * js/regress/double-to-uint32-typed-array-no-inline-expected.txt: Added.
+        * js/regress/double-to-uint32-typed-array-no-inline.html: Added.
+        * js/regress/double-to-uint32-typed-array.html: Added.
+        * js/regress/script-tests/double-to-int32-typed-array-no-inline.js: Added.
+        (foo):
+        (test):
+        * js/regress/script-tests/double-to-int32-typed-array.js: Added.
+        (foo):
+        (test):
+        * js/regress/script-tests/double-to-uint32-typed-array-no-inline.js: Added.
+        (foo):
+        (test):
+        * js/regress/script-tests/double-to-uint32-typed-array.js: Added.
+        (foo):
+        (test):
+
+2013-12-05  Bear Travis  <betravis@adobe.com>
+
+        [CSS Shapes] Enable CSS Shapes on Windows
+        https://bugs.webkit.org/show_bug.cgi?id=89957
+
+        Reviewed by Brent Fulgham.
+
+        Turning shapes tests back on on Windows builds.
+
+        * platform/win/TestExpectations: Enable shapes tests.
+
+2013-12-05  Roger Fong  <roger_fong@apple.com>
+
+        [WebGL] Make sure we satisfy uniform and varying packing restrictions.
+        https://bugs.webkit.org/show_bug.cgi?id=125124.
+        <rdar://problem/15203291>
+
+        Reviewed by Brent Fulgham.
+
+        * platform/mac/TestExpectations: Unskip some 1.0.2 WebGL conformance tests that should now be passing.
+        Skip conformance/ogles/GL/build/build_009_to_016.html which is a faulty test and has too many varyings in one shader.
+
+2013-12-05  Alexandru Chiculita  <achicu@adobe.com>
+
+        Web Inspector: [CSS Regions] Show a list of containing regions when clicking a node that is part of a flow
+        https://bugs.webkit.org/show_bug.cgi?id=124614
+
+        Reviewed by Timothy Hatcher.
+
+        Added a new test to check the new WebInspector function called DOMTreeManager.getNodeContentFlowInfo.
+
+        * http/tests/inspector-protocol/resources/InspectorTest.js:
+        When testing the inspector code, we want to catch and log any uncaught exceptions or console.errors/asserts.
+        (InspectorTest.importInspectorScripts.console.error.window.onerror):
+        (InspectorTest.importInspectorScripts.console.assert):
+        (InspectorTest.importInspectorScripts):
+        * inspector-protocol/model/content-node-region-info-expected.txt: Added.
+        * inspector-protocol/model/content-node-region-info.html: Added.
+
+2013-12-05  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Update negative-arguments inset parsing test to test for the argument not for the commas
+        https://bugs.webkit.org/show_bug.cgi?id=125310
+
+        Reviewed by Rob Buis.
+
+        Fix typo in the negative-arguments inset tests, remove commas.
+
+        * fast/shapes/parsing/parsing-shape-lengths-expected.txt:
+        * fast/shapes/parsing/parsing-shape-lengths.html:
+
+2013-12-04  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Change how the form element pointer affects parsing template elements, to reduce weirdness in templates
+        https://bugs.webkit.org/show_bug.cgi?id=125279
+
+        Reviewed by Antti Koivisto.
+
+        Added a regression test. Someone should port this test into web-platform-tests once the latest spec.
+        change has been refelcted to a working draft version of the HTML5 specification.
+
+        * fast/dom/HTMLTemplateElement/no-form-association-2-expected.txt: Added.
+        * fast/dom/HTMLTemplateElement/no-form-association-2.html: Added.
+
+2013-12-05  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [MediaStream] Firing negotiationneeded event upon track add/remove on MediaStream
+        https://bugs.webkit.org/show_bug.cgi?id=125243
+
+        Reviewed by Eric Carlson.
+
+        Spec states that: In particular, if an RTCPeerConnection object is consuming a MediaStream on which a track is
+        added, by, e.g., the addTrack() method being invoked, the RTCPeerConnection object must fire the
+        "negotiationneeded" event. Removal of media components must also trigger "negotiationneeded".
+
+        * fast/mediastream/RTCPeerConnection-AddRemoveStream-expected.txt:
+        * fast/mediastream/RTCPeerConnection-AddRemoveStream.html:
+        * fast/mediastream/RTCPeerConnection-onnegotiationneeded-expected.txt:
+        * fast/mediastream/RTCPeerConnection-onnegotiationneeded.html:
+
+2013-12-05  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Fix inset when only a subset of the arguments are defined
+        https://bugs.webkit.org/show_bug.cgi?id=125277
+
+        Reviewed by David Hyatt.
+
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset.html:
+
+2013-12-05  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        Unreviewed EFL gardening
+
+        After bumping GStreamer version to 1.2.1 in r160151 some video related WebGL conformance test started to pass.
+
+        * platform/efl-wk2/TestExpectations:
+        * platform/efl/TestExpectations:
+
+2013-12-04  Samuel White  <samuel_white@apple.com>
+
+        Layout Test platform/mac/accessibility/search-predicate-element-count.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=125195
+
+        Reviewed by Chris Fleizach.
+
+        Our test checks for AccessibilityObject::isOnscreen which makes sure an element is currently scrolled to a visible
+        location onscreen. This test was flaky because sometimes elements we thought would be visible weren't. To resolve
+        this I've moved the elements that are tested for visibility to the very top of the document so they have a tiny
+        vertical offset and will ALWAYS be visible.
+
+        * platform/mac/TestExpectations:
+        * platform/mac/accessibility/search-predicate-element-count-expected.txt:
+        * platform/mac/accessibility/search-predicate-element-count.html:
+
+2013-12-04  Gurpreet Kaur  <k.gurpreet@samsung.com>
+
+        % unit heights don't work if parent block height is set in vh
+        https://bugs.webkit.org/show_bug.cgi?id=118516
+
+        Reviewed by Simon Fraser.
+
+        From Blink r156449 by <srinivasa.ragavan.venkateswaran@intel.com>
+
+        * fast/css/viewport-percentage-compute-box-height-expected.html: Added.
+        * fast/css/viewport-percentage-compute-box-height.html: Added.
+        * fast/css/viewport-percentage-compute-box-width-expected.html: Added.
+        * fast/css/viewport-percentage-compute-box-width.html: Added.
+        Added new tests for verifying that percentage unit height/width works
+        if parent block height/width is set in vh/vw units.
+
+2013-12-04  Filip Pizlo  <fpizlo@apple.com>
+
+        Fold constant typed arrays
+        https://bugs.webkit.org/show_bug.cgi?id=125205
+
+        Reviewed by Oliver Hunt and Mark Hahnenberg.
+
+        * js/regress/fixed-typed-array-storage-expected.txt: Added.
+        * js/regress/fixed-typed-array-storage-var-index-expected.txt: Added.
+        * js/regress/fixed-typed-array-storage-var-index.html: Added.
+        * js/regress/fixed-typed-array-storage.html: Added.
+        * js/regress/script-tests/fixed-typed-array-storage-var-index.js: Added.
+        (foo):
+        * js/regress/script-tests/fixed-typed-array-storage.js: Added.
+        (foo):
+
+2013-12-04  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Support inset for shape-outside
+        <https://webkit.org/b/125112>
+
+        Reviewed by David Hyatt.
+
+        * fast/shapes/resources/rounded-rectangle.js: Add support to generate partially rounded rectangles.
+        (scanConvertRoundedRectangleOutside):
+        (genLeftRoundedRectFloatShapeOutsideRefTest):
+        (genRightRoundedRectFloatShapeOutsideRefTest):
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-bottom-left-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-bottom-left.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-bottom-right-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-bottom-right.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-top-left-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-top-left.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-top-right-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset-rounded-top-right.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-floats-inset.html: Added.
+
 2013-12-04  Bear Travis  <betravis@adobe.com>
 
         Web Inspector: [CSS Shapes] Support raster shape visualizations
