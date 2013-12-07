@@ -32,14 +32,16 @@
 #import "WebSecurityOrigin.h"
 #import <WebGeolocationPosition.h>
 #import <WebCore/GeolocationPosition.h>
-#import <WebKit/WebGeolocationCoreLocationProvider.h>
-#import <WebKit/WebUIDelegatePrivate.h>
 #import <WebKit2/WKGeolocationPermissionRequest.h>
 #import <wtf/Assertions.h>
 #import <wtf/PassRefPtr.h>
 #import <wtf/RefPtr.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/HashSet.h>
+
+// FIXME: Remove use of WebKit1 from WebKit2
+#import <WebKit/WebGeolocationCoreLocationProvider.h>
+#import <WebKit/WebAllowDenyPolicyListener.h>
 
 using namespace WebKit;
 
@@ -153,7 +155,7 @@ struct GeolocationRequestData {
         stopUpdatingCallback,
         setEnableHighAccuracy
     };
-    _geolocationManager->initializeProvider(&providerCallback);
+    _geolocationManager->initializeProvider(reinterpret_cast<WKGeolocationProviderBase*>(&providerCallback));
     _coreLocationProvider = adoptNS([[WebGeolocationCoreLocationProvider alloc] initWithListener:self]);
     return self;
 }

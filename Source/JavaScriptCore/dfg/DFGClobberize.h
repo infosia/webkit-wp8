@@ -143,15 +143,25 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         write(SideState);
         return;
         
-    case NotifyPutGlobalVar:
+    case VariableWatchpoint:
+        read(Watchpoint_fire);
+        return;
+        
+    case NotifyWrite:
         write(Watchpoint_fire);
+        write(SideState);
         return;
 
     case CreateActivation:
     case CreateArguments:
         write(SideState);
+        write(Watchpoint_fire);
         read(GCState);
         write(GCState);
+        return;
+        
+    case FunctionReentryWatchpoint:
+        read(Watchpoint_fire);
         return;
 
     // These are forward-exiting nodes that assume that the subsequent instruction
@@ -520,7 +530,6 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         return;
         
     case GetGlobalVar:
-    case GlobalVarWatchpoint:
         read(AbstractHeap(Absolute, node->registerPointer()));
         return;
         

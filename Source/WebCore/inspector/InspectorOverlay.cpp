@@ -275,12 +275,6 @@ void InspectorOverlay::getHighlight(Highlight* highlight) const
         buildQuadHighlight(m_page, *m_highlightQuad, m_quadHighlightConfig, highlight);
 }
 
-void InspectorOverlay::resize(const IntSize& size)
-{
-    m_size = size;
-    update();
-}
-
 void InspectorOverlay::setPausedInDebuggerMessage(const String* message)
 {
     m_pausedInDebuggerMessage = message ? *message : String();
@@ -604,7 +598,7 @@ static PassRefPtr<InspectorObject> buildObjectForShapeOutside(Frame* containingF
     shapeObject->setArray("bounds", buildArrayForQuad(shapeQuad));
 
     Path path;
-    shapeOutsideInfo->computedShape()->buildPath(path);
+    shapeOutsideInfo->computedShape().buildPath(path);
 
     if (path.length()) {
         RefPtr<InspectorArray> shapePath = InspectorArray::create();

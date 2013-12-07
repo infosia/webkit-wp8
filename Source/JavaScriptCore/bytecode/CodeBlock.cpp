@@ -31,6 +31,7 @@
 #include "CodeBlock.h"
 
 #include "BytecodeGenerator.h"
+#include "BytecodeUseDef.h"
 #include "CallLinkStatus.h"
 #include "DFGCapabilities.h"
 #include "DFGCommon.h"
@@ -53,7 +54,6 @@
 #include "Repatch.h"
 #include "RepatchBuffer.h"
 #include "SlotVisitorInlines.h"
-#include <stdio.h>
 #include <wtf/BagToHashMap.h>
 #include <wtf/CommaPrinter.h>
 #include <wtf/StringExtras.h>
@@ -672,6 +672,10 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             printLocationAndOp(out, exec, location, it, "enter");
             break;
         }
+        case op_touch_entry: {
+            printLocationAndOp(out, exec, location, it, "touch_entry");
+            break;
+        }
         case op_create_activation: {
             int r0 = (++it)->u.operand;
             printLocationOpAndRegisterOperand(out, exec, location, it, "create_activation", r0);
@@ -757,6 +761,14 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             int r1 = (++it)->u.operand;
             printLocationAndOp(out, exec, location, it, "mov");
             out.printf("%s, %s", registerName(r0).data(), registerName(r1).data());
+            break;
+        }
+        case op_captured_mov: {
+            int r0 = (++it)->u.operand;
+            int r1 = (++it)->u.operand;
+            printLocationAndOp(out, exec, location, it, "captured_mov");
+            out.printf("%s, %s", registerName(r0).data(), registerName(r1).data());
+            ++it;
             break;
         }
         case op_not: {
@@ -1210,6 +1222,14 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             out.printf("%s, f%d, %s", registerName(r0).data(), f0, shouldCheck ? "<Checked>" : "<Unchecked>");
             break;
         }
+        case op_new_captured_func: {
+            int r0 = (++it)->u.operand;
+            int f0 = (++it)->u.operand;
+            printLocationAndOp(out, exec, location, it, "new_captured_func");
+            out.printf("%s, f%d", registerName(r0).data(), f0);
+            ++it;
+            break;
+        }
         case op_new_func_exp: {
             int r0 = (++it)->u.operand;
             int f0 = (++it)->u.operand;
@@ -1365,6 +1385,7 @@ void CodeBlock::dumpBytecode(PrintStream& out, ExecState* exec, const Instructio
             ++it; // depth
             printLocationAndOp(out, exec, location, it, "resolve_scope");
             out.printf("%s, %s, %d", registerName(r0).data(), idName(id0, identifier(id0)).data(), resolveModeAndType);
+            ++it;
             break;
         }
         case op_get_from_scope: {
@@ -1481,6 +1502,10 @@ CodeBlock::CodeBlock(CopyParsedBlockTag, CodeBlock& other)
 #endif
 {
     ASSERT(m_heap->isDeferred());
+    
+    if (SymbolTable* symbolTable = other.symbolTable())
+        m_symbolTable.set(*m_vm, m_ownerExecutable.get(), symbolTable);
+    
     setNumParameters(other.numParameters());
     optimizeAfterWarmUp();
     jitAfterWarmUp();
@@ -1527,6 +1552,16 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
 {
     ASSERT(m_heap->isDeferred());
 
+    bool didCloneSymbolTable = false;
+    
+    if (SymbolTable* symbolTable = unlinkedCodeBlock->symbolTable()) {
+        if (codeType() == FunctionCode && symbolTable->captureCount()) {
+            m_symbolTable.set(*m_vm, m_ownerExecutable.get(), symbolTable->clone(*m_vm));
+            didCloneSymbolTable = true;
+        } else
+            m_symbolTable.set(*m_vm, m_ownerExecutable.get(), symbolTable);
+    }
+    
     ASSERT(m_source);
     setNumParameters(unlinkedCodeBlock->numParameters());
 
@@ -1753,6 +1788,8 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             ResolveOp op = JSScope::abstractResolve(m_globalObject->globalExec(), scope, ident, Get, type);
             instructions[i + 3].u.operand = op.type;
             instructions[i + 4].u.operand = op.depth;
+            if (op.activation)
+                instructions[i + 5].u.activation.set(*vm(), ownerExecutable, op.activation);
             break;
         }
 
@@ -1770,7 +1807,9 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             ResolveOp op = JSScope::abstractResolve(m_globalObject->globalExec(), scope, ident, Get, modeAndType.type());
 
             instructions[i + 4].u.operand = ResolveModeAndType(modeAndType.mode(), op.type).operand();
-            if (op.structure)
+            if (op.type == GlobalVar || op.type == GlobalVarWithVarInjectionChecks)
+                instructions[i + 5].u.watchpointSet = op.watchpointSet;
+            else if (op.structure)
                 instructions[i + 5].u.structure.set(*vm(), ownerExecutable, op.structure);
             instructions[i + 6].u.pointer = reinterpret_cast<void*>(op.operand);
             break;
@@ -1783,12 +1822,28 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
             ResolveOp op = JSScope::abstractResolve(m_globalObject->globalExec(), scope, ident, Put, modeAndType.type());
 
             instructions[i + 4].u.operand = ResolveModeAndType(modeAndType.mode(), op.type).operand();
-            if (op.type == GlobalVar || op.type == GlobalVarWithVarInjectionChecks) {
-                ASSERT(!op.structure);
+            if (op.type == GlobalVar || op.type == GlobalVarWithVarInjectionChecks)
                 instructions[i + 5].u.watchpointSet = op.watchpointSet;
+            else if (op.type == ClosureVar || op.type == ClosureVarWithVarInjectionChecks) {
+                if (op.watchpointSet)
+                    op.watchpointSet->invalidate();
             } else if (op.structure)
                 instructions[i + 5].u.structure.set(*vm(), ownerExecutable, op.structure);
             instructions[i + 6].u.pointer = reinterpret_cast<void*>(op.operand);
+            break;
+        }
+            
+        case op_captured_mov:
+        case op_new_captured_func: {
+            StringImpl* uid = pc[i + 3].u.uid;
+            if (!uid)
+                break;
+            RELEASE_ASSERT(didCloneSymbolTable);
+            ConcurrentJITLocker locker(m_symbolTable->m_lock);
+            SymbolTable::Map::iterator iter = m_symbolTable->find(locker, uid);
+            ASSERT(iter != m_symbolTable->end(locker));
+            iter->value.prepareToWatch();
+            instructions[i + 3].u.watchpointSet = iter->value.watchpointSet();
             break;
         }
 
@@ -2172,6 +2227,15 @@ void CodeBlock::finalizeUnconditionally()
                     dataLogF("Clearing LLInt get callee with function %p.\n", curInstruction[2].u.jsCell.get());
                 curInstruction[2].u.jsCell.clear();
                 break;
+            case op_resolve_scope: {
+                WriteBarrierBase<JSActivation>& activation = curInstruction[5].u.activation;
+                if (!activation || Heap::isMarked(activation.get()))
+                    break;
+                if (Options::verboseOSR())
+                    dataLogF("Clearing dead activation %p.\n", activation.get());
+                activation.clear();
+                break;
+            }
             case op_get_from_scope:
             case op_put_to_scope: {
                 ResolveModeAndType modeAndType =
@@ -2182,7 +2246,7 @@ void CodeBlock::finalizeUnconditionally()
                 if (!structure || Heap::isMarked(structure.get()))
                     break;
                 if (Options::verboseOSR())
-                    dataLogF("Clearing LLInt scope access with structure %p.\n", structure.get());
+                    dataLogF("Clearing scope access with structure %p.\n", structure.get());
                 structure.clear();
                 break;
             }
@@ -2338,6 +2402,7 @@ void CodeBlock::stronglyVisitStrongReferences(SlotVisitor& visitor)
 {
     visitor.append(&m_globalObject);
     visitor.append(&m_ownerExecutable);
+    visitor.append(&m_symbolTable);
     visitor.append(&m_unlinkedCode);
     if (m_rareData)
         m_rareData->m_evalCodeCache.visitAggregate(visitor);
@@ -2444,8 +2509,7 @@ bool CodeBlock::isCaptured(VirtualRegister operand, InlineCallFrame* inlineCallF
     if (!symbolTable())
         return false;
 
-    return operand.offset() <= symbolTable()->captureStart()
-        && operand.offset() > symbolTable()->captureEnd();
+    return symbolTable()->isCaptured(operand.offset());
 }
 
 int CodeBlock::framePointerOffsetToGetActivationRegisters(int machineCaptureStart)
@@ -3235,10 +3299,6 @@ void CodeBlock::tallyFrequentExitSites()
             
             if (!exit.considerAddingAsFrequentExitSite(profiledBlock))
                 continue;
-            
-#if DFG_ENABLE(DEBUG_VERBOSE)
-            dataLog("OSR exit #", i, " (bc#", exit.m_codeOrigin.bytecodeIndex, ", ", exit.m_kind, ") for ", *this, " occurred frequently: counting as frequent exit site.\n");
-#endif
         }
         break;
     }
@@ -3254,10 +3314,6 @@ void CodeBlock::tallyFrequentExitSites()
             
             if (!exit.considerAddingAsFrequentExitSite(profiledBlock))
                 continue;
-            
-#if DFG_ENABLE(DEBUG_VERBOSE)
-            dataLog("OSR exit #", i, " (bc#", exit.m_codeOrigin.bytecodeIndex, ", ", exit.m_kind, ") for ", *this, " occurred frequently: counting as frequent exit site.\n");
-#endif
         }
         break;
     }
@@ -3408,6 +3464,112 @@ String CodeBlock::nameForRegister(VirtualRegister virtualRegister)
         return String::format("arguments[%3d]", virtualRegister.toArgument()).impl();
 
     return "";
+}
+
+namespace {
+
+struct VerifyCapturedDef {
+    void operator()(CodeBlock* codeBlock, Instruction* instruction, OpcodeID opcodeID, int operand)
+    {
+        unsigned bytecodeOffset = instruction - codeBlock->instructions().begin();
+        
+        if (codeBlock->isConstantRegisterIndex(operand)) {
+            codeBlock->beginValidationDidFail();
+            dataLog("    At bc#", bytecodeOffset, " encountered a definition of a constant.\n");
+            codeBlock->endValidationDidFail();
+            return;
+        }
+
+        switch (opcodeID) {
+        case op_enter:
+        case op_captured_mov:
+        case op_init_lazy_reg:
+        case op_create_arguments:
+        case op_new_captured_func:
+            return;
+        default:
+            break;
+        }
+        
+        VirtualRegister virtualReg(operand);
+        if (!virtualReg.isLocal())
+            return;
+        
+        if (codeBlock->captureCount() && codeBlock->symbolTable()->isCaptured(operand)) {
+            codeBlock->beginValidationDidFail();
+            dataLog("    At bc#", bytecodeOffset, " encountered invalid assignment to captured variable loc", virtualReg.toLocal(), ".\n");
+            codeBlock->endValidationDidFail();
+            return;
+        }
+        
+        return;
+    }
+};
+
+} // anonymous namespace
+
+void CodeBlock::validate()
+{
+    BytecodeLivenessAnalysis liveness(this); // Compute directly from scratch so it doesn't effect CodeBlock footprint.
+    
+    FastBitVector liveAtHead = liveness.getLivenessInfoAtBytecodeOffset(0);
+    
+    if (liveAtHead.numBits() != static_cast<size_t>(m_numCalleeRegisters)) {
+        beginValidationDidFail();
+        dataLog("    Wrong number of bits in result!\n");
+        dataLog("    Result: ", liveAtHead, "\n");
+        dataLog("    Bit count: ", liveAtHead.numBits(), "\n");
+        endValidationDidFail();
+    }
+    
+    for (unsigned i = m_numCalleeRegisters; i--;) {
+        bool isCaptured = false;
+        VirtualRegister reg = virtualRegisterForLocal(i);
+        
+        if (captureCount())
+            isCaptured = reg.offset() <= captureStart() && reg.offset() > captureEnd();
+        
+        if (isCaptured) {
+            if (!liveAtHead.get(i)) {
+                beginValidationDidFail();
+                dataLog("    Variable loc", i, " is expected to be live because it is captured, but it isn't live.\n");
+                dataLog("    Result: ", liveAtHead, "\n");
+                endValidationDidFail();
+            }
+        } else {
+            if (liveAtHead.get(i)) {
+                beginValidationDidFail();
+                dataLog("    Variable loc", i, " is expected to be dead.\n");
+                dataLog("    Result: ", liveAtHead, "\n");
+                endValidationDidFail();
+            }
+        }
+    }
+    
+    for (unsigned bytecodeOffset = 0; bytecodeOffset < instructions().size();) {
+        Instruction* currentInstruction = instructions().begin() + bytecodeOffset;
+        OpcodeID opcodeID = m_vm->interpreter->getOpcodeID(currentInstruction->u.opcode);
+        
+        VerifyCapturedDef verifyCapturedDef;
+        computeDefsForBytecodeOffset(this, bytecodeOffset, verifyCapturedDef);
+        
+        bytecodeOffset += opcodeLength(opcodeID);
+    }
+}
+
+void CodeBlock::beginValidationDidFail()
+{
+    dataLog("Validation failure in ", *this, ":\n");
+    dataLog("\n");
+}
+
+void CodeBlock::endValidationDidFail()
+{
+    dataLog("\n");
+    dumpBytecode();
+    dataLog("\n");
+    dataLog("Validation failure.\n");
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 } // namespace JSC

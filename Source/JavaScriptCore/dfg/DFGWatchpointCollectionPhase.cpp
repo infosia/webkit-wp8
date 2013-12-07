@@ -118,14 +118,16 @@ private:
                 m_node->structure()->transitionWatchpointSet());
             break;
             
-        case GlobalVarWatchpoint:
-            addLazily(
-                globalObject()->symbolTable()->get(
-                    m_graph.identifiers()[m_node->identifierNumberForCheck()]).watchpointSet());
+        case VariableWatchpoint:
+            addLazily(m_node->variableWatchpointSet());
             break;
             
         case VarInjectionWatchpoint:
             addLazily(globalObject()->varInjectionWatchpoint());
+            break;
+            
+        case FunctionReentryWatchpoint:
+            addLazily(m_node->symbolTable()->m_functionEnteredOnce);
             break;
             
         default:

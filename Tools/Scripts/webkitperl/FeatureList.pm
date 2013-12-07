@@ -68,7 +68,6 @@ my (
     $cssStickyPositionSupport,
     $cssCompositingSupport,
     $cssAnimationsTransformsUnprefixedSupport,
-    $cssVariablesSupport,
     $customSchemeHandlerSupport,
     $dataTransferItemsSupport,
     $datalistElementSupport,
@@ -233,9 +232,6 @@ my @features = (
 
     { option => "css-transforms-animations-unprefixed", desc => "Toggle support for unprefixed CSS animations and transforms",
       define => "ENABLE_CSS_TRANSFORMS_ANIMATIONS_UNPREFIXED", default => 1, value => \$cssAnimationsTransformsUnprefixedSupport },
-
-    { option => "css-variables", desc => "Toggle CSS Variable support",
-      define => "ENABLE_CSS_VARIABLES", default => (isBlackBerry() || isEfl() || isGtk()), value => \$cssVariablesSupport },
 
     { option => "custom-scheme-handler", desc => "Toggle Custom Scheme Handler support",
       define => "ENABLE_CUSTOM_SCHEME_HANDLER", default => (isBlackBerry() || isEfl()), value => \$customSchemeHandlerSupport },
@@ -430,7 +426,7 @@ my @features = (
       define => "USE_SYSTEM_MALLOC", default => (isBlackBerry() || isWinCE()), value => \$systemMallocSupport },
 
     { option => "template-element", desc => "Toggle HTMLTemplateElement support",
-      define => "ENABLE_TEMPLATE_ELEMENT", default => (isAppleMacWebKit() || isEfl() || isGtk()), value => \$templateElementSupport },
+      define => "ENABLE_TEMPLATE_ELEMENT", default => (isAppleWebKit() || isEfl() || isGtk()), value => \$templateElementSupport },
 
     { option => "text-autosizing", desc => "Toggle Text Autosizing support",
       define => "ENABLE_TEXT_AUTOSIZING", default => isBlackBerry(), value => \$textAutosizingSupport },

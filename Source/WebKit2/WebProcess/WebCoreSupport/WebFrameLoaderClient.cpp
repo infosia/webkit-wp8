@@ -1373,7 +1373,7 @@ void WebFrameLoaderClient::redirectDataToPlugin(Widget* pluginWidget)
 
 PassRefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& pluginSize, HTMLAppletElement* appletElement, const URL&, const Vector<String>& paramNames, const Vector<String>& paramValues)
 {
-#if !PLATFORM(IOS)
+#if ENABLE(NETSCAPE_PLUGIN_API)
     RefPtr<Widget> plugin = createPlugin(pluginSize, appletElement, URL(), paramNames, paramValues, appletElement->serviceType(), false);
     if (!plugin) {
         if (WebPage* webPage = m_frame->page()) {
@@ -1384,8 +1384,12 @@ PassRefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& p
     }
     return plugin.release();
 #else
+    UNUSED_PARAM(pluginSize);
+    UNUSED_PARAM(appletElement);
+    UNUSED_PARAM(paramNames);
+    UNUSED_PARAM(paramValues);
     return 0;
-#endif // !PLATFORM(IOS)
+#endif
 }
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)

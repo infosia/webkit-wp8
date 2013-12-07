@@ -322,7 +322,7 @@ class WebPageProxy
     , public CoreIPC::MessageReceiver {
 public:
 
-    static PassRefPtr<WebPageProxy> create(PageClient*, PassRefPtr<WebProcessProxy>, WebPageGroup*, uint64_t pageID);
+    static PassRefPtr<WebPageProxy> create(PageClient&, WebProcessProxy&, WebPageGroup&, uint64_t pageID);
     virtual ~WebPageProxy();
 
     uint64_t pageID() const { return m_pageID; }
@@ -333,7 +333,7 @@ public:
 
     DrawingAreaProxy* drawingArea() const { return m_drawingArea.get(); }
 
-    WebBackForwardList* backForwardList() const { return m_backForwardList.get(); }
+    WebBackForwardList& backForwardList() { return m_backForwardList.get(); }
 
 #if ENABLE(INSPECTOR)
     WebInspectorProxy* inspector();
@@ -348,16 +348,16 @@ public:
 #endif
 
 #if ENABLE(CONTEXT_MENUS)
-    void initializeContextMenuClient(const WKPageContextMenuClient*);
+    void initializeContextMenuClient(const WKPageContextMenuClientBase*);
 #endif
-    void initializeFindClient(const WKPageFindClient*);
-    void initializeFindMatchesClient(const WKPageFindMatchesClient*);
-    void initializeFormClient(const WKPageFormClient*);
-    void initializeLoaderClient(const WKPageLoaderClient*);
-    void initializePolicyClient(const WKPagePolicyClient*);
-    void initializeUIClient(const WKPageUIClient*);
+    void initializeFindClient(const WKPageFindClientBase*);
+    void initializeFindMatchesClient(const WKPageFindMatchesClientBase*);
+    void initializeFormClient(const WKPageFormClientBase*);
+    void initializeLoaderClient(const WKPageLoaderClientBase*);
+    void initializePolicyClient(const WKPagePolicyClientBase*);
+    void initializeUIClient(const WKPageUIClientBase*);
 #if PLATFORM(EFL)
-    void initializeUIPopupMenuClient(const WKPageUIPopupMenuClient*);
+    void initializeUIPopupMenuClient(const WKPageUIPopupMenuClientBase*);
 #endif
 
     void initializeWebPage();
@@ -391,7 +391,7 @@ public:
 
     bool willHandleHorizontalScrollEvents() const;
 
-    bool canShowMIMEType(const String& mimeType) const;
+    bool canShowMIMEType(const String& mimeType);
 
     bool drawsBackground() const { return m_drawsBackground; }
     void setDrawsBackground(bool);
@@ -697,10 +697,10 @@ public:
     bool isValidKeypressCommandName(const String& name) const { return m_knownKeypressCommandNames.contains(name); }
 #endif
 
-    WebProcessProxy* process() const;
+    WebProcessProxy& process() { return m_process.get(); }
     PlatformProcessIdentifier processIdentifier() const;
 
-    WebPageGroup* pageGroup() const { return m_pageGroup.get(); }
+    WebPageGroup& pageGroup() { return m_pageGroup.get(); }
 
     bool isValid() const;
 
@@ -738,8 +738,8 @@ public:
     void handleDownloadRequest(DownloadProxy*);
 #endif
 
-    void advanceToNextMisspelling(bool startBeforeSelection) const;
-    void changeSpellingToWord(const String& word) const;
+    void advanceToNextMisspelling(bool startBeforeSelection);
+    void changeSpellingToWord(const String& word);
 #if USE(APPKIT)
     void uppercaseWord();
     void lowercaseWord();
@@ -835,8 +835,8 @@ public:
     void didReceiveAuthenticationChallengeProxy(uint64_t frameID, PassRefPtr<AuthenticationChallengeProxy>);
 
     int64_t spellDocumentTag();
-    void didFinishCheckingText(uint64_t requestID, const Vector<WebCore::TextCheckingResult>&) const;
-    void didCancelCheckingText(uint64_t requestID) const;
+    void didFinishCheckingText(uint64_t requestID, const Vector<WebCore::TextCheckingResult>&);
+    void didCancelCheckingText(uint64_t requestID);
 
     void connectionWillOpen(CoreIPC::Connection*);
     void connectionWillClose(CoreIPC::Connection*);
@@ -847,7 +847,7 @@ public:
     WebCore::ScrollPinningBehavior scrollPinningBehavior() { return m_scrollPinningBehavior; }
         
 private:
-    WebPageProxy(PageClient*, PassRefPtr<WebProcessProxy>, WebPageGroup*, uint64_t pageID);
+    WebPageProxy(PageClient&, WebProcessProxy&, WebPageGroup&, uint64_t pageID);
     void platformInitialize();
     void initializeCreationParameters();
 
@@ -1138,7 +1138,7 @@ private:
     void findPlugin(const String& mimeType, uint32_t processType, const String& urlString, const String& frameURLString, const String& pageURLString, bool allowOnlyApplicationPlugins, uint64_t& pluginProcessToken, String& newMIMEType, uint32_t& pluginLoadPolicy, String& unavailabilityDescription);
 #endif
 
-    PageClient* m_pageClient;
+    PageClient& m_pageClient;
     WebLoaderClient m_loaderClient;
     WebPolicyClient m_policyClient;
     WebFormClient m_formClient;
@@ -1153,8 +1153,8 @@ private:
 #endif
 
     std::unique_ptr<DrawingAreaProxy> m_drawingArea;
-    RefPtr<WebProcessProxy> m_process;
-    RefPtr<WebPageGroup> m_pageGroup;
+    Ref<WebProcessProxy> m_process;
+    Ref<WebPageGroup> m_pageGroup;
     RefPtr<WebFrameProxy> m_mainFrame;
     RefPtr<WebFrameProxy> m_focusedFrame;
     RefPtr<WebFrameProxy> m_frameSetLargestFrame;
@@ -1212,7 +1212,7 @@ private:
 
     bool m_canGoBack;
     bool m_canGoForward;
-    RefPtr<WebBackForwardList> m_backForwardList;
+    Ref<WebBackForwardList> m_backForwardList;
     
     bool m_maintainsInactiveSelection;
 

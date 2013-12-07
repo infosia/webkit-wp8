@@ -120,6 +120,13 @@ public:
 
     virtual void toolTipChanged(const String&, const String&) = 0;
 
+    virtual bool decidePolicyForGeolocationPermissionRequest(WebFrameProxy&, WebSecurityOrigin&, GeolocationPermissionRequestProxy&)
+    {
+        return false;
+    }
+
+    virtual void didCommitLoadForMainFrame() = 0;
+
 #if USE(TILED_BACKING_STORE)
     virtual void pageDidRequestScroll(const WebCore::IntPoint&) = 0;
     virtual void didRenderFrame(const WebCore::IntSize& contentsSize, const WebCore::IntRect& coveredRect) = 0;
@@ -162,6 +169,7 @@ public:
     virtual void resetSecureInputState() = 0;
     virtual void notifyInputContextAboutDiscardedComposition() = 0;
     virtual void makeFirstResponder() = 0;
+    virtual void setAcceleratedCompositingRootLayer(CALayer *) = 0;
 #endif
 
 #if USE(APPKIT)
@@ -209,7 +217,6 @@ public:
     virtual void recommendedScrollbarStyleDidChange(int32_t newStyle) = 0;
 
     virtual ColorSpaceData colorSpace() = 0;
-    virtual void setAcceleratedCompositingRootLayer(CALayer *) = 0;
 
 #if USE(APPKIT)
     virtual WKView* wkView() const = 0;
@@ -222,6 +229,19 @@ public:
 #endif // USE(DICTATION_ALTERNATIVES)
 #endif // USE(APPKIT)
 #endif // PLATFORM(MAC)
+
+#if PLATFORM(IOS)
+    virtual void mainDocumentDidReceiveMobileDocType() = 0;
+
+    virtual void didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color&, const Vector<WebCore::FloatQuad>& highlightedQuads, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius) = 0;
+
+    virtual void didChangeViewportArguments(const WebCore::ViewportArguments&) = 0;
+
+    virtual void startAssistingNode(const WebCore::IntRect&, bool hasNextFocusable, bool hasPreviousFocusable) = 0;
+    virtual void stopAssistingNode() = 0;
+    virtual void selectionDidChange() = 0;
+    virtual bool interpretKeyEvent(const NativeWebKeyboardEvent&, bool isCharEvent) = 0;
+#endif
 };
 
 } // namespace WebKit

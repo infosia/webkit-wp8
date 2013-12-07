@@ -125,6 +125,11 @@
 #include "JSPromiseResolverPrototype.h"
 #endif // ENABLE(PROMISES)
 
+#if ENABLE(REMOTE_INSPECTOR)
+#include "JSGlobalObjectDebuggable.h"
+#include "RemoteInspector.h"
+#endif
+
 #include "JSGlobalObject.lut.h"
 
 namespace JSC {
@@ -187,6 +192,12 @@ void JSGlobalObject::init(JSObject* thisValue)
 
     m_debugger = 0;
 
+#if ENABLE(REMOTE_INSPECTOR)
+    m_inspectorDebuggable = std::make_unique<JSGlobalObjectDebuggable>(*this);
+    m_inspectorDebuggable->init();
+    m_inspectorDebuggable->setRemoteDebuggingAllowed(true);
+#endif
+
     reset(prototype());
 }
 
@@ -216,7 +227,7 @@ JSGlobalObject::NewGlobalVar JSGlobalObject::addGlobalVar(const Identifier& iden
     int index = symbolTable()->size(locker);
     SymbolTableEntry newEntry(index, (constantMode == IsConstant) ? ReadOnly : 0);
     if (constantMode == IsVariable)
-        newEntry.prepareToWatch(SymbolTableEntry::NotInitialized);
+        newEntry.prepareToWatch();
     SymbolTable::Map::AddResult result = symbolTable()->add(locker, ident.impl(), newEntry);
     if (result.isNewEntry)
         addRegisters(1);
@@ -234,7 +245,7 @@ void JSGlobalObject::addFunction(ExecState* exec, const Identifier& propertyName
     NewGlobalVar var = addGlobalVar(propertyName, IsVariable);
     registerAt(var.registerNumber).set(exec->vm(), this, value);
     if (var.set)
-        var.set->notifyWrite();
+        var.set->notifyWrite(value);
 }
 
 static inline JSObject* lastInPrototypeChain(JSObject* object)
@@ -758,6 +769,33 @@ UnlinkedEvalCodeBlock* JSGlobalObject::createEvalCodeBlock(CallFrame* callFrame,
     }
 
     return unlinkedCodeBlock;
+}
+
+void JSGlobalObject::setRemoteDebuggingEnabled(bool enabled)
+{
+#if ENABLE(REMOTE_INSPECTOR)
+    m_inspectorDebuggable->setRemoteDebuggingAllowed(enabled);
+#else
+    UNUSED_PARAM(enabled);
+#endif
+}
+
+bool JSGlobalObject::remoteDebuggingEnabled() const
+{
+#if ENABLE(REMOTE_INSPECTOR)
+    return m_inspectorDebuggable->remoteDebuggingAllowed();
+#else
+    return false;
+#endif
+}
+
+void JSGlobalObject::setName(const String& name)
+{
+    m_name = name;
+
+#if ENABLE(REMOTE_INSPECTOR)
+    m_inspectorDebuggable->update();
+#endif
 }
 
 } // namespace JSC

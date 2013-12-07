@@ -1084,7 +1084,7 @@ public:
         return appendCallWithExceptionCheck(operation);
     }
 
-    JITCompiler::Call callOperation(V_JITOperation_EW operation, WatchpointSet* watchpointSet)
+    JITCompiler::Call callOperation(V_JITOperation_EVws operation, VariableWatchpointSet* watchpointSet)
     {
         m_jit.setupArgumentsWithExecState(TrustedImmPtr(watchpointSet));
         return appendCall(operation);
@@ -1905,15 +1905,7 @@ public:
 
     void linkBranches();
 
-#ifndef NDEBUG
     void dump(const char* label = 0);
-#endif
-
-#if DFG_ENABLE(CONSISTENCY_CHECK)
-    void checkConsistency();
-#else
-    void checkConsistency() { }
-#endif
 
     bool isInteger(Node* node)
     {
@@ -2044,8 +2036,6 @@ public:
     void compileNewFunctionNoCheck(Node*);
     void compileNewFunctionExpression(Node*);
     bool compileRegExpExec(Node*);
-    
-    void compileNotifyPutGlobalVar(Node*);
     
     // size can be an immediate or a register, and must be in bytes. If size is a register,
     // it must be a different register than resultGPR. Emits code that place a pointer to

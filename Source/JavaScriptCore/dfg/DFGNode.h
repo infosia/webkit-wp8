@@ -742,33 +742,22 @@ struct Node {
         return op() == GetClosureVar || op() == PutClosureVar;
     }
 
-    unsigned varNumber()
+    int varNumber()
     {
         ASSERT(hasVarNumber());
         return m_opInfo;
     }
     
-    bool hasIdentifierNumberForCheck()
-    {
-        return op() == GlobalVarWatchpoint || op() == NotifyPutGlobalVar;
-    }
-    
-    unsigned identifierNumberForCheck()
-    {
-        ASSERT(hasIdentifierNumberForCheck());
-        return m_opInfo2;
-    }
-    
     bool hasRegisterPointer()
     {
-        return op() == GetGlobalVar || op() == PutGlobalVar || op() == GlobalVarWatchpoint || op() == NotifyPutGlobalVar;
+        return op() == GetGlobalVar || op() == PutGlobalVar;
     }
     
     WriteBarrier<Unknown>* registerPointer()
     {
         return bitwise_cast<WriteBarrier<Unknown>*>(m_opInfo);
     }
-
+    
     bool hasResult()
     {
         return m_flags & NodeResultMask;
@@ -973,6 +962,16 @@ struct Node {
     {
         return jsCast<ExecutableBase*>(reinterpret_cast<JSCell*>(m_opInfo));
     }
+    
+    bool hasVariableWatchpointSet()
+    {
+        return op() == NotifyWrite || op() == VariableWatchpoint;
+    }
+    
+    VariableWatchpointSet* variableWatchpointSet()
+    {
+        return reinterpret_cast<VariableWatchpointSet*>(m_opInfo);
+    }
 
     bool hasStructureTransitionData()
     {
@@ -1060,6 +1059,17 @@ struct Node {
     {
         ASSERT(hasFunctionExprIndex());
         return m_opInfo;
+    }
+    
+    bool hasSymbolTable()
+    {
+        return op() == FunctionReentryWatchpoint;
+    }
+    
+    SymbolTable* symbolTable()
+    {
+        ASSERT(hasSymbolTable());
+        return reinterpret_cast<SymbolTable*>(m_opInfo);
     }
     
     bool hasArrayMode()

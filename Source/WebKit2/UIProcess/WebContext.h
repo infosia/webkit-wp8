@@ -96,8 +96,11 @@ class WebContext : public API::TypedObject<API::Object::Type::Context>, private 
 #endif
     {
 public:
+    WebContext(const String& injectedBundlePath);
+
     static PassRefPtr<WebContext> create(const String& injectedBundlePath);
     virtual ~WebContext();
+
 #if PLATFORM(IOS)
     static WebContext *sharedProcessContext();
 #endif
@@ -123,11 +126,11 @@ public:
     bool dispatchMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
     bool dispatchSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, std::unique_ptr<CoreIPC::MessageEncoder>&);
 
-    void initializeClient(const WKContextClient*);
-    void initializeInjectedBundleClient(const WKContextInjectedBundleClient*);
-    void initializeConnectionClient(const WKContextConnectionClient*);
-    void initializeHistoryClient(const WKContextHistoryClient*);
-    void initializeDownloadClient(const WKContextDownloadClient*);
+    void initializeClient(const WKContextClientBase*);
+    void initializeInjectedBundleClient(const WKContextInjectedBundleClientBase*);
+    void initializeConnectionClient(const WKContextConnectionClientBase*);
+    void initializeHistoryClient(const WKContextHistoryClientBase*);
+    void initializeDownloadClient(const WKContextDownloadClientBase*);
 
     void setProcessModel(ProcessModel); // Can only be called when there are no processes running.
     ProcessModel processModel() const { return m_processModel; }
@@ -155,7 +158,7 @@ public:
 
     StorageManager& storageManager() const { return *m_storageManager; }
 
-    PassRefPtr<WebPageProxy> createWebPage(PageClient*, WebPageGroup*, WebPageProxy* relatedPage = 0);
+    PassRefPtr<WebPageProxy> createWebPage(PageClient&, WebPageGroup*, WebPageProxy* relatedPage = 0);
 
     const String& injectedBundlePath() const { return m_injectedBundlePath; }
 
@@ -239,8 +242,8 @@ public:
 
     void allowSpecificHTTPSCertificateForHost(const WebCertificateInfo*, const String& host);
 
-    WebProcessProxy* ensureSharedWebProcess();
-    WebProcessProxy* createNewWebProcessRespectingProcessCountLimit(); // Will return an existing one if limit is met.
+    WebProcessProxy& ensureSharedWebProcess();
+    WebProcessProxy& createNewWebProcessRespectingProcessCountLimit(); // Will return an existing one if limit is met.
     void warmInitialProcess();
 
     bool shouldTerminate(WebProcessProxy*);
@@ -313,13 +316,12 @@ public:
     void resetHSTSHosts();
 
 private:
-    WebContext(ProcessModel, const String& injectedBundlePath);
     void platformInitialize();
 
     void platformInitializeWebProcess(WebProcessCreationParameters&);
     void platformInvalidateContext();
 
-    WebProcessProxy* createNewWebProcess();
+    WebProcessProxy& createNewWebProcess();
 
     void requestWebContentStatistics(StatisticsRequest*);
     void requestNetworkingStatistics(StatisticsRequest*);
@@ -417,7 +419,7 @@ private:
 
     WebProcessProxy* m_processWithPageCache;
 
-    RefPtr<WebPageGroup> m_defaultPageGroup;
+    Ref<WebPageGroup> m_defaultPageGroup;
 
     RefPtr<API::Object> m_injectedBundleInitializationUserData;
     String m_injectedBundlePath;

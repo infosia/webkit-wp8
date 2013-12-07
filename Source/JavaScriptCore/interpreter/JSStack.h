@@ -35,6 +35,7 @@
 #include <wtf/PageReservation.h>
 #include <wtf/VMTags.h>
 
+#define ENABLE_DEBUG_JSSTACK 0
 #if !defined(NDEBUG) && !defined(ENABLE_DEBUG_JSSTACK)
 #define ENABLE_DEBUG_JSSTACK 1
 #endif
@@ -81,6 +82,7 @@ namespace JSC {
         
         void gatherConservativeRoots(ConservativeRoots&);
         void gatherConservativeRoots(ConservativeRoots&, JITStubRoutineSet&, CodeBlockSet&);
+        void sanitizeStack();
 
         Register* getBaseOfStack() const
         {
@@ -97,6 +99,8 @@ namespace JSC {
         Register* getTopOfFrame(CallFrame*);
         Register* getStartOfFrame(CallFrame*);
         Register* getTopOfStack();
+
+        bool entryCheck(class CodeBlock*, int);
 
         CallFrame* pushFrame(CallFrame* callerFrame, class CodeBlock*,
             JSScope*, int argsCount, JSObject* callee);
@@ -154,6 +158,7 @@ namespace JSC {
         Register* m_useableEnd;
         PageReservation m_reservation;
         CallFrame*& m_topCallFrame;
+        Register* m_lastStackTop;
 
         friend class LLIntOffsetsExtractor;
     };

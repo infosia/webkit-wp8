@@ -242,18 +242,18 @@ public:
 
     // -- InjectedBundle methods
 #if ENABLE(CONTEXT_MENUS)
-    void initializeInjectedBundleContextMenuClient(WKBundlePageContextMenuClient*);
+    void initializeInjectedBundleContextMenuClient(WKBundlePageContextMenuClientBase*);
 #endif
-    void initializeInjectedBundleEditorClient(WKBundlePageEditorClient*);
-    void initializeInjectedBundleFormClient(WKBundlePageFormClient*);
-    void initializeInjectedBundleLoaderClient(WKBundlePageLoaderClient*);
-    void initializeInjectedBundlePolicyClient(WKBundlePagePolicyClient*);
-    void initializeInjectedBundleResourceLoadClient(WKBundlePageResourceLoadClient*);
-    void initializeInjectedBundleUIClient(WKBundlePageUIClient*);
+    void initializeInjectedBundleEditorClient(WKBundlePageEditorClientBase*);
+    void initializeInjectedBundleFormClient(WKBundlePageFormClientBase*);
+    void initializeInjectedBundleLoaderClient(WKBundlePageLoaderClientBase*);
+    void initializeInjectedBundlePolicyClient(WKBundlePagePolicyClientBase*);
+    void initializeInjectedBundleResourceLoadClient(WKBundlePageResourceLoadClientBase*);
+    void initializeInjectedBundleUIClient(WKBundlePageUIClientBase*);
 #if ENABLE(FULLSCREEN_API)
-    void initializeInjectedBundleFullScreenClient(WKBundlePageFullScreenClient*);
+    void initializeInjectedBundleFullScreenClient(WKBundlePageFullScreenClientBase*);
 #endif
-    void initializeInjectedBundleDiagnosticLoggingClient(WKBundlePageDiagnosticLoggingClient*);
+    void initializeInjectedBundleDiagnosticLoggingClient(WKBundlePageDiagnosticLoggingClientBase*);
 
 #if ENABLE(CONTEXT_MENUS)
     InjectedBundlePageContextMenuClient& injectedBundleContextMenuClient() { return m_contextMenuClient; }
@@ -737,6 +737,8 @@ private:
 
     static bool scroll(WebCore::Page*, WebCore::ScrollDirection, WebCore::ScrollGranularity);
     static bool logicalScroll(WebCore::Page*, WebCore::ScrollLogicalDirection, WebCore::ScrollGranularity);
+
+    void loadURLInFrame(const String&, uint64_t frameID);
 
     uint64_t restoreSession(const SessionState&);
     void restoreSessionAndNavigateToCurrentItem(const SessionState&);

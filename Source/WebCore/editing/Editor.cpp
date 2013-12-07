@@ -77,7 +77,7 @@
 #include "Sound.h"
 #include "SpellChecker.h"
 #include "SpellingCorrectionCommand.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "Text.h"
 #include "TextCheckerClient.h"
 #include "TextCheckingHelper.h"
@@ -435,7 +435,7 @@ String Editor::plainTextFromPasteboard(const PasteboardPlainText& text)
 
 #endif
 
-#if !PLATFORM(MAC) && !PLATFORM(EFL)
+#if !PLATFORM(MAC) && !PLATFORM(EFL) && !PLATFORM(NIX)
 void Editor::pasteWithPasteboard(Pasteboard* pasteboard, bool allowPlainText)
 {
     RefPtr<Range> range = selectedRange();
@@ -746,7 +746,7 @@ Node* Editor::findEventTargetFromSelection() const
     return findEventTargetFrom(m_frame.selection().selection());
 }
 
-void Editor::applyStyle(StylePropertySet* style, EditAction editingAction)
+void Editor::applyStyle(StyleProperties* style, EditAction editingAction)
 {
     switch (m_frame.selection().selectionType()) {
     case VisibleSelection::NoSelection:
@@ -762,12 +762,12 @@ void Editor::applyStyle(StylePropertySet* style, EditAction editingAction)
     }
 }
     
-bool Editor::shouldApplyStyle(StylePropertySet* style, Range* range)
+bool Editor::shouldApplyStyle(StyleProperties* style, Range* range)
 {   
     return client()->shouldApplyStyle(style, range);
 }
     
-void Editor::applyParagraphStyle(StylePropertySet* style, EditAction editingAction)
+void Editor::applyParagraphStyle(StyleProperties* style, EditAction editingAction)
 {
     switch (m_frame.selection().selectionType()) {
     case VisibleSelection::NoSelection:
@@ -781,7 +781,7 @@ void Editor::applyParagraphStyle(StylePropertySet* style, EditAction editingActi
     }
 }
 
-void Editor::applyStyleToSelection(StylePropertySet* style, EditAction editingAction)
+void Editor::applyStyleToSelection(StyleProperties* style, EditAction editingAction)
 {
     if (!style || style->isEmpty() || !canEditRichly())
         return;
@@ -790,7 +790,7 @@ void Editor::applyStyleToSelection(StylePropertySet* style, EditAction editingAc
         applyStyle(style, editingAction);
 }
 
-void Editor::applyParagraphStyleToSelection(StylePropertySet* style, EditAction editingAction)
+void Editor::applyParagraphStyleToSelection(StyleProperties* style, EditAction editingAction)
 {
     if (!style || style->isEmpty() || !canEditRichly())
         return;
@@ -1061,7 +1061,7 @@ void Editor::cut()
         if (enclosingTextFormControl(m_frame.selection().start()))
             Pasteboard::createForCopyAndPaste()->writePlainText(selectedTextForClipboard(), canSmartCopyOrDelete() ? Pasteboard::CanSmartReplace : Pasteboard::CannotSmartReplace);
         else {
-#if PLATFORM(MAC) || PLATFORM(EFL)
+#if PLATFORM(MAC) || PLATFORM(EFL) || PLATFORM(NIX)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Convert all other platforms to match Mac and delete this.
@@ -1088,13 +1088,13 @@ void Editor::copy()
             canSmartCopyOrDelete() ? Pasteboard::CanSmartReplace : Pasteboard::CannotSmartReplace);
     } else {
         if (HTMLImageElement* imageElement = imageElementFromImageDocument(document())) {
-#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL)
+#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL) || PLATFORM(NIX)
             writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), *imageElement, document().url(), document().title());
 #else
             Pasteboard::createForCopyAndPaste()->writeImage(*imageElement, document().url(), document().title());
 #endif
         } else {
-#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL)
+#if (PLATFORM(MAC) && !PLATFORM(IOS)) || PLATFORM(EFL) || PLATFORM(NIX)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Convert all other platforms to match Mac and delete this.
@@ -1197,7 +1197,7 @@ void Editor::copyImage(const HitTestResult& result)
     if (url.isEmpty())
         url = result.absoluteImageURL();
 
-#if PLATFORM(MAC) || PLATFORM(EFL)
+#if PLATFORM(MAC) || PLATFORM(EFL) || PLATFORM(NIX)
     writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), *element, url, result.altDisplayString());
 #else
     Pasteboard::createForCopyAndPaste()->writeImage(*element, url, result.altDisplayString());
@@ -1423,7 +1423,7 @@ void Editor::setBaseWritingDirection(WritingDirection direction)
         return;
     }
 
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(CSSPropertyDirection, direction == LeftToRightWritingDirection ? "ltr" : direction == RightToLeftWritingDirection ? "rtl" : "inherit", false);
     applyParagraphStyleToSelection(style.get(), EditActionSetWritingDirection);
 }
@@ -2730,7 +2730,7 @@ bool Editor::shouldChangeSelection(const VisibleSelection& oldSelection, const V
     return client() && client()->shouldChangeSelectedRange(oldSelection.toNormalizedRange().get(), newSelection.toNormalizedRange().get(), affinity, stillSelecting);
 }
 
-void Editor::computeAndSetTypingStyle(StylePropertySet* style, EditAction editingAction)
+void Editor::computeAndSetTypingStyle(StyleProperties* style, EditAction editingAction)
 {
     if (!style || style->isEmpty()) {
         m_frame.selection().clearTypingStyle();

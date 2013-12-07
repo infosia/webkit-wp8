@@ -32,6 +32,7 @@
 #include "InjectedBundleUserMessageCoders.h"
 #include "Logging.h"
 #include "PluginProcessConnectionManager.h"
+#include "SecItemShim.h"
 #include "StatisticsData.h"
 #include "WebApplicationCacheManager.h"
 #include "WebConnectionToUIProcess.h"
@@ -120,10 +121,6 @@
 
 #if ENABLE(NETWORK_PROCESS)
 #include "WebResourceLoadScheduler.h"
-#endif
-
-#if USE(SECURITY_FRAMEWORK)
-#include "SecItemShim.h"
 #endif
 
 #if USE(SOUP)
@@ -221,7 +218,7 @@ void WebProcess::initializeConnection(CoreIPC::Connection* connection)
     m_pluginProcessConnectionManager->initializeConnection(connection);
 #endif
 
-#if USE(SECURITY_FRAMEWORK)
+#if ENABLE(SEC_ITEM_SHIM)
     SecItemShim::shared().initializeConnection(connection);
 #endif
     
@@ -721,7 +718,7 @@ WebPageGroupProxy* WebProcess::webPageGroup(uint64_t pageGroupID)
 
 WebPageGroupProxy* WebProcess::webPageGroup(const WebPageGroupData& pageGroupData)
 {
-    HashMap<uint64_t, RefPtr<WebPageGroupProxy>>::AddResult result = m_pageGroupMap.add(pageGroupData.pageGroupID, nullptr);
+    auto result = m_pageGroupMap.add(pageGroupData.pageGroupID, nullptr);
     if (result.isNewEntry) {
         ASSERT(!result.iterator->value);
         result.iterator->value = WebPageGroupProxy::create(pageGroupData);

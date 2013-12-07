@@ -67,7 +67,7 @@
 #include "RenderWidget.h"
 #include "SelectorQuery.h"
 #include "Settings.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "StyleResolver.h"
 #include "TextIterator.h"
 #include "VoidCallback.h"
@@ -982,13 +982,19 @@ PassRefPtr<ClientRect> Element::getBoundingClientRect()
     document().adjustFloatRectForScrollAndAbsoluteZoomAndFrameScale(result, renderer()->style());
     return ClientRect::create(result);
 }
+
+IntRect Element::clientRect() const
+{
+    if (RenderObject* renderer = this->renderer())
+        return document().view()->contentsToRootView(renderer->absoluteBoundingBoxRect());
+    return IntRect();
+}
     
 IntRect Element::screenRect() const
 {
-    if (!renderer())
-        return IntRect();
-    // FIXME: this should probably respect transforms
-    return document().view()->contentsToScreen(renderer()->absoluteBoundingBoxRectIgnoringTransforms());
+    if (RenderObject* renderer = this->renderer())
+        return document().view()->contentsToScreen(renderer->absoluteBoundingBoxRect());
+    return IntRect();
 }
 
 const AtomicString& Element::getAttribute(const AtomicString& localName) const

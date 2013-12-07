@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -49,6 +49,7 @@ public:
     static JSActivation* create(VM& vm, CallFrame* callFrame, Register* registers, CodeBlock* codeBlock)
     {
         SymbolTable* symbolTable = codeBlock->symbolTable();
+        ASSERT(codeBlock->codeType() == FunctionCode);
         JSActivation* activation = new (
             NotNull,
             allocateCell<JSActivation>(
@@ -121,7 +122,7 @@ inline JSActivation::JSActivation(VM& vm, CallFrame* callFrame, Register* regist
     WriteBarrier<Unknown>* storage = this->storage();
     size_t captureCount = symbolTable->captureCount();
     for (size_t i = 0; i < captureCount; ++i)
-        new(&storage[i]) WriteBarrier<Unknown>;
+        new (NotNull, &storage[i]) WriteBarrier<Unknown>;
 }
 
 JSActivation* asActivation(JSValue);

@@ -99,7 +99,7 @@ public:
     void findZoomableAreaForPoint(const WebCore::IntPoint&, const WebCore::IntSize&);
 
     // View client.
-    void initializeClient(const WKViewClient*);
+    void initializeClient(const WKViewClientBase*);
 
     WebPageProxy* page() { return m_page.get(); }
 
@@ -146,6 +146,8 @@ protected:
     virtual void preferencesDidChange() OVERRIDE;
 
     virtual void toolTipChanged(const String&, const String&) OVERRIDE;
+
+    virtual void didCommitLoadForMainFrame() OVERRIDE;
 
     virtual void pageDidRequestScroll(const WebCore::IntPoint&) OVERRIDE;
     virtual void didRenderFrame(const WebCore::IntSize& contentsSize, const WebCore::IntRect& coveredRect) OVERRIDE;

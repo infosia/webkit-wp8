@@ -355,6 +355,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSHTMLMarqueeElement.h \
 	DerivedSources/WebCore/JSHTMLMediaElement.cpp \
 	DerivedSources/WebCore/JSHTMLMediaElement.h \
+	DerivedSources/WebCore/JSHTMLMediaElementMediaStream.cpp \
+	DerivedSources/WebCore/JSHTMLMediaElementMediaStream.h \
 	DerivedSources/WebCore/JSHTMLMenuElement.cpp \
 	DerivedSources/WebCore/JSHTMLMenuElement.h \
 	DerivedSources/WebCore/JSHTMLMetaElement.cpp \
@@ -541,6 +543,8 @@ webcore_built_sources += \
 	DerivedSources/WebCore/JSOESStandardDerivatives.h \
 	DerivedSources/WebCore/JSOESTextureFloat.cpp \
 	DerivedSources/WebCore/JSOESTextureFloat.h \
+	DerivedSources/WebCore/JSOESTextureFloatLinear.cpp \
+	DerivedSources/WebCore/JSOESTextureFloatLinear.h \
 	DerivedSources/WebCore/JSOESTextureHalfFloat.cpp \
 	DerivedSources/WebCore/JSOESTextureHalfFloat.h \
 	DerivedSources/WebCore/JSOESVertexArrayObject.cpp \
@@ -1507,6 +1511,7 @@ dom_binding_idls += \
 	$(WebCore)/html/canvas/EXTTextureFilterAnisotropic.idl \
 	$(WebCore)/html/canvas/OESStandardDerivatives.idl \
 	$(WebCore)/html/canvas/OESTextureFloat.idl \
+	$(WebCore)/html/canvas/OESTextureFloatLinear.idl \
 	$(WebCore)/html/canvas/OESTextureHalfFloat.idl \
 	$(WebCore)/html/canvas/OESVertexArrayObject.idl \
 	$(WebCore)/html/canvas/OESElementIndexUint.idl \
@@ -1887,6 +1892,8 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/mediastream/AudioStreamTrack.h \
 	Source/WebCore/Modules/mediastream/CapabilityRange.cpp \
 	Source/WebCore/Modules/mediastream/CapabilityRange.h \
+	Source/WebCore/Modules/mediastream/HTMLMediaElementMediaStream.cpp \
+	Source/WebCore/Modules/mediastream/HTMLMediaElementMediaStream.h \
 	Source/WebCore/Modules/mediastream/MediaConstraintsImpl.cpp \
 	Source/WebCore/Modules/mediastream/MediaConstraintsImpl.h \
 	Source/WebCore/Modules/mediastream/MediaSourceStates.cpp \
@@ -1973,6 +1980,7 @@ webcore_modules_sources += \
 	Source/WebCore/Modules/notifications/NotificationPermissionCallback.h \
 	Source/WebCore/Modules/notifications/WorkerGlobalScopeNotifications.cpp \
 	Source/WebCore/Modules/notifications/WorkerGlobalScopeNotifications.h \
+	Source/WebCore/Modules/plugins/PluginReplacement.h \
 	Source/WebCore/Modules/proximity/DeviceProximityClient.h \
 	Source/WebCore/Modules/proximity/DeviceProximityController.cpp \
 	Source/WebCore/Modules/proximity/DeviceProximityController.h \
@@ -2617,7 +2625,6 @@ webcore_sources += \
 	Source/WebCore/css/CSSValueList.h \
 	Source/WebCore/css/CSSValuePool.cpp \
 	Source/WebCore/css/CSSValuePool.h \
-	Source/WebCore/css/CSSVariableValue.h \
 	Source/WebCore/css/DOMWindowCSS.cpp \
 	Source/WebCore/css/DOMWindowCSS.h \
 	Source/WebCore/css/DashboardRegion.h \
@@ -2670,8 +2677,8 @@ webcore_sources += \
 	Source/WebCore/css/StyleInvalidationAnalysis.h \
 	Source/WebCore/css/StyleMedia.cpp \
 	Source/WebCore/css/StyleMedia.h \
-	Source/WebCore/css/StylePropertySet.cpp \
-	Source/WebCore/css/StylePropertySet.h \
+	Source/WebCore/css/StyleProperties.cpp \
+	Source/WebCore/css/StyleProperties.h \
 	Source/WebCore/css/StylePropertyShorthand.cpp \
 	Source/WebCore/css/StylePropertyShorthand.h \
 	Source/WebCore/css/StyleResolver.cpp \
@@ -3241,6 +3248,8 @@ webcore_sources += \
 	Source/WebCore/html/canvas/OESStandardDerivatives.h \
 	Source/WebCore/html/canvas/OESTextureFloat.cpp \
 	Source/WebCore/html/canvas/OESTextureFloat.h \
+	Source/WebCore/html/canvas/OESTextureFloatLinear.cpp \
+	Source/WebCore/html/canvas/OESTextureFloatLinear.h \
 	Source/WebCore/html/canvas/OESTextureHalfFloat.cpp \
 	Source/WebCore/html/canvas/OESTextureHalfFloat.h \
 	Source/WebCore/html/canvas/OESVertexArrayObject.cpp \
@@ -3806,7 +3815,7 @@ webcore_sources += \
 	Source/WebCore/inspector/InspectorDOMDebuggerAgent.h \
 	Source/WebCore/inspector/InspectorDOMStorageAgent.cpp \
 	Source/WebCore/inspector/InspectorDOMStorageAgent.h \
-	Source/WebCore/inspector/InspectorFrontendChannel.h \
+	Source/WebCore/inspector/InspectorForwarding.h \
 	Source/WebCore/inspector/InspectorFrontendClient.h \
 	Source/WebCore/inspector/InspectorFrontendClientLocal.cpp \
 	Source/WebCore/inspector/InspectorFrontendClientLocal.h \
@@ -4046,6 +4055,8 @@ webcore_sources += \
 	Source/WebCore/mathml/MathMLInlineContainerElement.h  \
 	Source/WebCore/mathml/MathMLMathElement.cpp \
 	Source/WebCore/mathml/MathMLMathElement.h \
+	Source/WebCore/mathml/MathMLSelectElement.cpp \
+	Source/WebCore/mathml/MathMLSelectElement.h  \
 	Source/WebCore/mathml/MathMLTextElement.cpp \
 	Source/WebCore/mathml/MathMLTextElement.h \
 	Source/WebCore/page/animation/AnimationBase.cpp \
@@ -4635,7 +4646,6 @@ webcore_sources += \
 	Source/WebCore/rendering/style/StyleSurroundData.h \
 	Source/WebCore/rendering/style/StyleTransformData.cpp \
 	Source/WebCore/rendering/style/StyleTransformData.h \
-	Source/WebCore/rendering/style/StyleVariableData.h \
 	Source/WebCore/rendering/style/StyleVisualData.cpp \
 	Source/WebCore/rendering/style/StyleVisualData.h \
 	Source/WebCore/rendering/TableLayout.h \
@@ -5445,6 +5455,8 @@ webcore_platform_sources += \
 	Source/WebCore/platform/mock/DeviceOrientationClientMock.h \
 	Source/WebCore/platform/mock/GeolocationClientMock.cpp \
 	Source/WebCore/platform/mock/GeolocationClientMock.h \
+	Source/WebCore/platform/mock/MediaConstraintsMock.cpp \
+	Source/WebCore/platform/mock/MediaConstraintsMock.h \
 	Source/WebCore/platform/mock/MockMediaStreamCenter.cpp \
 	Source/WebCore/platform/mock/MockMediaStreamCenter.h \
 	Source/WebCore/platform/mock/RTCDataChannelHandlerMock.cpp \

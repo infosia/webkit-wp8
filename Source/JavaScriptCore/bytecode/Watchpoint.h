@@ -108,7 +108,7 @@ public:
         fireAllSlow();
     }
     
-    void notifyWrite()
+    void touch()
     {
         if (state() == ClearWatchpoint)
             startWatching();
@@ -116,6 +116,13 @@ public:
             fireAll();
     }
     
+    void invalidate()
+    {
+        if (state() == IsWatched)
+            fireAll();
+        m_state = IsInvalidated;
+    }
+
     int8_t* addressOfState() { return &m_state; }
     int8_t* addressOfSetIsNotEmpty() { return &m_setIsNotEmpty; }
     
@@ -206,6 +213,19 @@ public:
         if (decodeState(m_data) == ClearWatchpoint)
             return;
         m_data = encodeState(IsInvalidated);
+        WTF::storeStoreFence();
+    }
+    
+    void touch()
+    {
+        if (isFat()) {
+            fat()->touch();
+            return;
+        }
+        if (decodeState(m_data) == ClearWatchpoint)
+            m_data = encodeState(IsWatched);
+        else
+            m_data = encodeState(IsInvalidated);
         WTF::storeStoreFence();
     }
     
