@@ -64,7 +64,7 @@
 #if OS(DARWIN) || (OS(LINUX) && !defined(__UCLIBC__))
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <execinfo.h>
+//#include <execinfo.h>
 #endif
 
 #if PLATFORM(BLACKBERRY)
@@ -240,7 +240,9 @@ void WTFReportArgumentAssertionFailure(const char* file, int line, const char* f
 void WTFGetBacktrace(void** stack, int* size)
 {
 #if OS(DARWIN) || (OS(LINUX) && !defined(__UCLIBC__))
-    *size = backtrace(stack, *size);
+//    *size = backtrace(stack, *size);
+    *size = 0;
+	
 #elif OS(WINDOWS) && !OS(WINCE) && !OS(WINDOWS_PHONE)
     // The CaptureStackBackTrace function is available in XP, but it is not defined
     // in the Windows Server 2003 R2 Platform SDK. So, we'll grab the function
