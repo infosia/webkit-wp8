@@ -215,6 +215,7 @@ set(WTF_INCLUDE_DIRECTORIES
     "${WTF_DIR}/wtf/dtoa"
     "${WTF_DIR}/wtf/threads"
     "${WTF_DIR}/wtf/unicode"
+    "${WTF_DIR}/icu"
     "${THIRDPARTY_DIR}"
     "${CMAKE_BINARY_DIR}"
 )
@@ -224,6 +225,7 @@ set(WTF_LIBRARIES
 )
 
 if (WTF_USE_ICU_UNICODE)
+	message("in wtf WTF_USE_ICU_UNICODE")
     list(APPEND WTF_HEADERS
         unicode/icu/UnicodeIcu.h
     )
@@ -238,6 +240,7 @@ if (WTF_USE_ICU_UNICODE)
         ${ICU_LIBRARIES}
     )
 elseif (WTF_USE_WCHAR_UNICODE)
+	message("in wtf WTF_USE_WCHAR_UNICODE")
     list(APPEND WTF_HEADERS
         unicode/wchar/UnicodeWchar.h
     )
