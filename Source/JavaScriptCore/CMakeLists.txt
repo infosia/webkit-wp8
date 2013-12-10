@@ -411,6 +411,8 @@ if (WTF_USE_ICU_UNICODE)
     )
     list(APPEND JavaScriptCore_LIBRARIES
         ${ICU_I18N_LIBRARIES}
+        ${ICU_LIBRARIES}
+        ${ICU_DATA_LIBRARIES}
     )
 endif ()
 
@@ -640,6 +642,9 @@ if (JavaScriptCore_OUTPUT_NAME)
 endif ()
 
 if (SHARED_CORE)
-    set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+	# The conventional version numbers on shared library names with symlinks doesn't work on Android with Java's loadLibrary API.
+    if (NOT ANDROID)
+        set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+	endif ()
     install(TARGETS JavaScriptCore DESTINATION "${LIB_INSTALL_DIR}")
 endif ()
