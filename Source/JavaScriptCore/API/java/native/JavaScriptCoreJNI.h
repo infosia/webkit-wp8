@@ -1,22 +1,21 @@
 //
-//  JavaScriptCoreForJNI.h
+//  JavaScriptCoreJNI.h
 //  JavaScriptCoreJNI
 //
 //  Created by Kota Iguchi on 12/5/13.
 //  Copyright (c) 2013 Appcelerator, Inc. All rights reserved.
 //
 
-#ifndef JavaScriptCoreJNI_JavaScriptCoreForJNI_h
-#define JavaScriptCoreJNI_JavaScriptCoreForJNI_h
+#ifndef JavaScriptCoreJNI_JavaScriptCoreJNI_h
+#define JavaScriptCoreJNI_JavaScriptCoreJNI_h
 
 #include <jni.h>
-#include <JavaScriptCore/JavaScriptCore.h>
 
 /* Private object for JSObjectRef */
 typedef struct {
-    // JSClassDefinition which holds callbacks
-    jobject definition;
-    jclass  definitionClass;
+    // Java Object for callback
+    jobject callback;
+    jclass  callbackClass;
     // Java Object associated with jsobject
     jobject object;
     // Reserved data
