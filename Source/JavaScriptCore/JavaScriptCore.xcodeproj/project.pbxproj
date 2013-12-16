@@ -4390,7 +4390,6 @@
 			);
 			name = ObjectiveCAPITests;
 			path = API/tests;
-=======
 		A532438E185696CE002ED692 /* scripts */ = {
 			isa = PBXGroup;
 			children = (
@@ -4414,7 +4413,6 @@
 			path = bindings;
 			sourceTree = "<group>";
 		};
->>>>>>> webkit/master
 		A5BA15DF1823409200A82E69 /* inspector */ = {
 			isa = PBXGroup;
 			children = (
