@@ -556,6 +556,23 @@ set(JavaScriptCore_FORWARDING_HEADERS_FILES
     API/WebKitAvailability.h
 )
 
+# used for install targets
+set(JavaScriptCore_PUBLIC_API_HEADERS
+	API/JSBase.h
+	API/JSContext.h
+	API/JSContextRef.h
+	API/JSExport.h
+	API/JSManagedValue.h
+	API/JSObjectRef.h
+	API/JSStringRef.h
+	API/JSStringRefCF.h
+	API/JSValue.h
+	API/JSValueRef.h
+	API/JSVirtualMachine.h
+	API/JavaScript.h
+	API/JavaScriptCore.h
+	API/WebKitAvailability.h
+)
 
 # GENERATOR 1-B: particular LUT creator (for 1 file only)
 GENERATE_HASH_LUT(${CMAKE_CURRENT_SOURCE_DIR}/parser/Keywords.table ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Lexer.lut.h)
@@ -636,6 +653,7 @@ add_library(JavaScriptCore ${JavaScriptCore_LIBRARY_TYPE} ${JavaScriptCore_HEADE
 target_link_libraries(JavaScriptCore ${JavaScriptCore_LIBRARIES})
 set_target_properties(JavaScriptCore PROPERTIES FOLDER "JavaScriptCore")
 set_target_properties(JavaScriptCore PROPERTIES LINK_INTERFACE_LIBRARIES "")
+#set_target_properties(JavaScriptCore PROPERTIES PUBLIC_HEADER ${JavaScriptCore_HEADERS})
 
 if (JavaScriptCore_OUTPUT_NAME)
     set_target_properties(JavaScriptCore PROPERTIES OUTPUT_NAME ${JavaScriptCore_OUTPUT_NAME})
@@ -646,5 +664,13 @@ if (SHARED_CORE)
     if (NOT ANDROID)
         set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 	endif ()
-    install(TARGETS JavaScriptCore DESTINATION "${LIB_INSTALL_DIR}")
 endif ()
+
+install(TARGETS JavaScriptCore 
+	LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+	ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+	PUBLIC_HEADER DESTINATION "${PUBLIC_HEADER_INSTALL_DIR}"
+)
+install(FILES ${JavaScriptCore_PUBLIC_API_HEADERS} DESTINATION "${PUBLIC_HEADER_INSTALL_DIR}/JavaScriptCore")
+
+	

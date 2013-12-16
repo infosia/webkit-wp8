@@ -37,5 +37,6 @@ endif ()
 
 set(LIB_SUFFIX "" CACHE STRING "Define suffix of directory name (32/64)")
 
+set(PUBLIC_HEADER_INSTALL_DIR "include" CACHE PATH "Where to install headers (include)")
 set(LIB_INSTALL_DIR "lib${LIB_SUFFIX}" CACHE PATH "Where to install libraries (lib${LIB_SUFFIX})")
 set(EXEC_INSTALL_DIR "bin" CACHE PATH "Where to install executables")
