@@ -32,8 +32,9 @@
 #import "WKBackForwardListItemInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
-#import "WKNSArray.h"
 #import "WKConnectionInternal.h"
+#import "WKNSArray.h"
+#import "WKNSData.h"
 #import "WKNSDictionary.h"
 #import "WKNSError.h"
 #import "WKNSString.h"
@@ -42,6 +43,12 @@
 #import "WKNSURLProtectionSpace.h"
 #import "WKNavigationDataInternal.h"
 #import "WKProcessGroupInternal.h"
+#import "WKWebProcessPlugInBrowserContextControllerInternal.h"
+#import "WKWebProcessPlugInFrameInternal.h"
+#import "WKWebProcessPlugInHitTestResultInternal.h"
+#import "WKWebProcessPlugInInternal.h"
+#import "WKWebProcessPlugInNodeHandleInternal.h"
+#import "WKWebProcessPlugInScriptWorldInternal.h"
 
 namespace API {
 
@@ -80,12 +87,24 @@ void* Object::newObject(size_t size, Type type)
         wrapper = [WKBackForwardListItem alloc];
         break;
 
+    case Type::Bundle:
+        wrapper = [WKWebProcessPlugInController alloc];
+        break;
+
+    case Type::BundlePage:
+        wrapper = [WKWebProcessPlugInBrowserContextController alloc];
+        break;
+
     case Type::Connection:
         wrapper = NSAllocateObject([WKConnection self], size, nullptr);
         break;
 
     case Type::Context:
         wrapper = [WKProcessGroup alloc];
+        break;
+
+    case Type::Data:
+        wrapper = [WKNSData alloc];
         break;
 
     case Type::Dictionary:
@@ -118,6 +137,22 @@ void* Object::newObject(size_t size, Type type)
 
     case Type::URL:
         wrapper = NSAllocateObject([WKNSURL class], size, nullptr);
+        break;
+
+    case Type::BundleFrame:
+        wrapper = [WKWebProcessPlugInFrame alloc];
+        break;
+
+    case Type::BundleHitTestResult:
+        wrapper = [WKWebProcessPlugInHitTestResult alloc];
+        break;
+
+    case Type::BundleNodeHandle:
+        wrapper = [WKWebProcessPlugInNodeHandle alloc];
+        break;
+
+    case Type::BundleScriptWorld:
+        wrapper = [WKWebProcessPlugInScriptWorld alloc];
         break;
 
     default:

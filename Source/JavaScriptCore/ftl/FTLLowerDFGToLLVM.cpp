@@ -266,11 +266,6 @@ private:
         case Phantom:
             compilePhantom();
             break;
-        case Flush:
-        case PhantomLocal:
-        case SetArgument:
-        case LoopHint:
-            break;
         case ArithAdd:
         case ValueAdd:
             compileAddSub();
@@ -348,6 +343,9 @@ private:
         case GetButterfly:
             compileGetButterfly();
             break;
+        case ConstantStoragePointer:
+            compileConstantStoragePointer();
+            break;
         case GetIndexedPropertyStorage:
             compileGetIndexedPropertyStorage();
             break;
@@ -356,6 +354,9 @@ private:
             break;
         case GetArrayLength:
             compileGetArrayLength();
+            break;
+        case CheckInBounds:
+            compileCheckInBounds();
             break;
         case GetByVal:
             compileGetByVal();
@@ -397,10 +398,6 @@ private:
             break;
         case NotifyWrite:
             compileNotifyWrite();
-            break;
-        case VariableWatchpoint:
-            break;
-        case FunctionReentryWatchpoint:
             break;
         case GetMyScope:
             compileGetMyScope();
@@ -471,6 +468,14 @@ private:
             break;
         case Int52ToValue:
             compileInt52ToValue();
+            break;
+        case Flush:
+        case PhantomLocal:
+        case SetArgument:
+        case LoopHint:
+        case VariableWatchpoint:
+        case FunctionReentryWatchpoint:
+        case TypedArrayWatchpoint:
             break;
         default:
             RELEASE_ASSERT_NOT_REACHED();
@@ -1166,9 +1171,7 @@ private:
             return;
         }
         
-        speculateForward(
-            Overflow, noValue(), 0, m_out.lessThan(value, m_out.int32Zero),
-            FormattedValue(ValueFormatUInt32, value));
+        speculate(Overflow, noValue(), 0, m_out.lessThan(value, m_out.int32Zero));
         setInt32(value);
     }
     
@@ -1398,6 +1401,11 @@ private:
         setStorage(m_out.loadPtr(lowCell(m_node->child1()), m_heaps.JSObject_butterfly));
     }
     
+    void compileConstantStoragePointer()
+    {
+        setStorage(m_out.constIntPtr(m_node->storagePointer()));
+    }
+    
     void compileGetIndexedPropertyStorage()
     {
         LValue cell = lowCell(m_node->child1());
@@ -1422,13 +1430,6 @@ private:
             
             setStorage(m_out.loadPtr(m_out.phi(m_out.intPtr, fastResult, slowResult), m_heaps.StringImpl_data));
             return;
-        }
-        
-        if (JSArrayBufferView* view = m_graph.tryGetFoldableView(m_node->child1().node(), m_node->arrayMode())) {
-            if (view->mode() != FastTypedArray) {
-                setStorage(m_out.constIntPtr(view->vector()));
-                return;
-            }
         }
         
         setStorage(m_out.loadPtr(cell, m_heaps.JSArrayBufferView_vector));
@@ -1475,6 +1476,13 @@ private:
         }
     }
     
+    void compileCheckInBounds()
+    {
+        speculate(
+            OutOfBounds, noValue(), 0,
+            m_out.aboveOrEqual(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
+    }
+    
     void compileGetByVal()
     {
         switch (m_node->arrayMode().type()) {
@@ -1487,11 +1495,6 @@ private:
                 m_heaps.indexedInt32Properties : m_heaps.indexedContiguousProperties;
             
             if (m_node->arrayMode().isInBounds()) {
-                speculate(
-                    OutOfBounds, noValue(), 0,
-                    m_out.aboveOrEqual(
-                        index, m_out.load32(storage, m_heaps.Butterfly_publicLength)));
-                
                 LValue result = m_out.load64(baseIndex(heap, storage, index, m_node->child2()));
                 speculate(LoadFromHole, noValue(), 0, m_out.isZero64(result));
                 setJSValue(result);
@@ -1532,11 +1535,6 @@ private:
             IndexedAbstractHeap& heap = m_heaps.indexedDoubleProperties;
             
             if (m_node->arrayMode().isInBounds()) {
-                speculate(
-                    OutOfBounds, noValue(), 0,
-                    m_out.aboveOrEqual(
-                        index, m_out.load32(storage, m_heaps.Butterfly_publicLength)));
-                
                 LValue result = m_out.loadDouble(
                     baseIndex(heap, storage, index, m_node->child2()));
                 
@@ -1600,11 +1598,6 @@ private:
             TypedArrayType type = m_node->arrayMode().typedArrayType();
             
             if (isTypedView(type)) {
-                speculate(
-                    OutOfBounds, noValue(), 0,
-                    m_out.aboveOrEqual(
-                        index, typedArrayLength(m_node->child1(), m_node->arrayMode())));
-                
                 TypedPointer pointer = TypedPointer(
                     m_heaps.typedArrayProperties,
                     m_out.add(
@@ -1644,9 +1637,8 @@ private:
                     }
                     
                     if (m_node->shouldSpeculateInt32()) {
-                        speculateForward(
-                            Overflow, noValue(), 0, m_out.lessThan(result, m_out.int32Zero),
-                            uInt32Value(result));
+                        speculate(
+                            Overflow, noValue(), 0, m_out.lessThan(result, m_out.int32Zero));
                         setInt32(result);
                         return;
                     }
@@ -1792,14 +1784,6 @@ private:
             TypedArrayType type = m_node->arrayMode().typedArrayType();
             
             if (isTypedView(type)) {
-                if (m_node->op() != PutByValAlias) {
-                    speculate(
-                        OutOfBounds, noValue(), 0,
-                        m_out.aboveOrEqual(
-                            index,
-                            typedArrayLength(child1.node(), m_node->arrayMode(), base)));
-                }
-                
                 TypedPointer pointer = TypedPointer(
                     m_heaps.typedArrayProperties,
                     m_out.add(
@@ -2397,6 +2381,11 @@ private:
             return;
         }
         
+        if (m_node->isBinaryUseKind(UntypedUse)) {
+            nonSpeculativeCompare(LLVMIntEQ, operationCompareEq);
+            return;
+        }
+        
         RELEASE_ASSERT_NOT_REACHED();
     }
     
@@ -2465,106 +2454,22 @@ private:
     
     void compileCompareLess()
     {
-        if (m_node->isBinaryUseKind(Int32Use)) {
-            setBoolean(
-                m_out.lessThan(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(MachineIntUse)) {
-            Int52Kind kind;
-            LValue left = lowWhicheverInt52(m_node->child1(), kind);
-            LValue right = lowInt52(m_node->child2(), kind);
-            setBoolean(m_out.lessThan(left, right));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(NumberUse)) {
-            setBoolean(
-                m_out.doubleLessThan(lowDouble(m_node->child1()), lowDouble(m_node->child2())));
-            return;
-        }
-        
-        RELEASE_ASSERT_NOT_REACHED();
+        compare(LLVMIntSLT, LLVMRealOLT, operationCompareLess);
     }
     
     void compileCompareLessEq()
     {
-        if (m_node->isBinaryUseKind(Int32Use)) {
-            setBoolean(
-                m_out.lessThanOrEqual(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(MachineIntUse)) {
-            Int52Kind kind;
-            LValue left = lowWhicheverInt52(m_node->child1(), kind);
-            LValue right = lowInt52(m_node->child2(), kind);
-            setBoolean(m_out.lessThanOrEqual(left, right));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(NumberUse)) {
-            setBoolean(
-                m_out.doubleLessThanOrEqual(
-                    lowDouble(m_node->child1()), lowDouble(m_node->child2())));
-            return;
-        }
-        
-        RELEASE_ASSERT_NOT_REACHED();
+        compare(LLVMIntSLE, LLVMRealOLE, operationCompareLessEq);
     }
     
     void compileCompareGreater()
     {
-        if (m_node->isBinaryUseKind(Int32Use)) {
-            setBoolean(
-                m_out.greaterThan(lowInt32(m_node->child1()), lowInt32(m_node->child2())));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(MachineIntUse)) {
-            Int52Kind kind;
-            LValue left = lowWhicheverInt52(m_node->child1(), kind);
-            LValue right = lowInt52(m_node->child2(), kind);
-            setBoolean(m_out.greaterThan(left, right));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(NumberUse)) {
-            setBoolean(
-                m_out.doubleGreaterThan(
-                    lowDouble(m_node->child1()), lowDouble(m_node->child2())));
-            return;
-        }
-        
-        RELEASE_ASSERT_NOT_REACHED();
+        compare(LLVMIntSGT, LLVMRealOGT, operationCompareGreater);
     }
     
     void compileCompareGreaterEq()
     {
-        if (m_node->isBinaryUseKind(Int32Use)) {
-            setBoolean(
-                m_out.greaterThanOrEqual(
-                    lowInt32(m_node->child1()), lowInt32(m_node->child2())));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(MachineIntUse)) {
-            Int52Kind kind;
-            LValue left = lowWhicheverInt52(m_node->child1(), kind);
-            LValue right = lowInt52(m_node->child2(), kind);
-            setBoolean(m_out.greaterThanOrEqual(left, right));
-            return;
-        }
-        
-        if (m_node->isBinaryUseKind(NumberUse)) {
-            setBoolean(
-                m_out.doubleGreaterThanOrEqual(
-                    lowDouble(m_node->child1()), lowDouble(m_node->child2())));
-            return;
-        }
-        
-        RELEASE_ASSERT_NOT_REACHED();
+        compare(LLVMIntSGE, LLVMRealOGE, operationCompareGreaterEq);
     }
     
     void compileLogicalNot()
@@ -2801,6 +2706,69 @@ private:
             m_state.forNode(edge).m_value);
     }
     
+    void compare(
+        LIntPredicate intCondition, LRealPredicate realCondition,
+        S_JITOperation_EJJ helperFunction)
+    {
+        if (m_node->isBinaryUseKind(Int32Use)) {
+            LValue left = lowInt32(m_node->child1());
+            LValue right = lowInt32(m_node->child2());
+            setBoolean(m_out.icmp(intCondition, left, right));
+            return;
+        }
+        
+        if (m_node->isBinaryUseKind(MachineIntUse)) {
+            Int52Kind kind;
+            LValue left = lowWhicheverInt52(m_node->child1(), kind);
+            LValue right = lowInt52(m_node->child2(), kind);
+            setBoolean(m_out.icmp(intCondition, left, right));
+            return;
+        }
+        
+        if (m_node->isBinaryUseKind(NumberUse)) {
+            LValue left = lowDouble(m_node->child1());
+            LValue right = lowDouble(m_node->child2());
+            setBoolean(m_out.fcmp(realCondition, left, right));
+            return;
+        }
+        
+        if (m_node->isBinaryUseKind(UntypedUse)) {
+            nonSpeculativeCompare(intCondition, helperFunction);
+            return;
+        }
+        
+        RELEASE_ASSERT_NOT_REACHED();
+    }
+    
+    void nonSpeculativeCompare(LIntPredicate intCondition, S_JITOperation_EJJ helperFunction)
+    {
+        LValue left = lowJSValue(m_node->child1());
+        LValue right = lowJSValue(m_node->child2());
+        
+        LBasicBlock leftIsInt = FTL_NEW_BLOCK(m_out, ("CompareEq untyped left is int"));
+        LBasicBlock fastPath = FTL_NEW_BLOCK(m_out, ("CompareEq untyped fast path"));
+        LBasicBlock slowPath = FTL_NEW_BLOCK(m_out, ("CompareEq untyped slow path"));
+        LBasicBlock continuation = FTL_NEW_BLOCK(m_out, ("CompareEq untyped continuation"));
+        
+        m_out.branch(isNotInt32(left), slowPath, leftIsInt);
+        
+        LBasicBlock lastNext = m_out.appendTo(leftIsInt, fastPath);
+        m_out.branch(isNotInt32(right), slowPath, fastPath);
+        
+        m_out.appendTo(fastPath, slowPath);
+        ValueFromBlock fastResult = m_out.anchor(
+            m_out.icmp(intCondition, unboxInt32(left), unboxInt32(right)));
+        m_out.jump(continuation);
+        
+        m_out.appendTo(slowPath, continuation);
+        ValueFromBlock slowResult = m_out.anchor(m_out.notNull(vmCall(
+            m_out.operation(helperFunction), m_callFrame, left, right)));
+        m_out.jump(continuation);
+        
+        m_out.appendTo(continuation, lastNext);
+        setBoolean(m_out.phi(m_out.boolean, fastResult, slowResult));
+    }
+    
     LValue allocateCell(LValue allocator, LValue structure, LBasicBlock slowPath)
     {
         LBasicBlock success = FTL_NEW_BLOCK(m_out, ("object allocation success"));
@@ -2943,16 +2911,16 @@ private:
             m_out.phi(m_out.intPtr, fastButterfly, slowButterfly));
     }
     
-    LValue typedArrayLength(Node* baseNode, ArrayMode arrayMode, LValue base)
+    LValue typedArrayLength(Edge baseEdge, ArrayMode arrayMode, LValue base)
     {
-        if (JSArrayBufferView* view = m_graph.tryGetFoldableView(baseNode, arrayMode))
+        if (JSArrayBufferView* view = m_graph.tryGetFoldableView(baseEdge.node(), arrayMode))
             return m_out.constInt32(view->length());
         return m_out.load32(base, m_heaps.JSArrayBufferView_length);
     }
     
     LValue typedArrayLength(Edge baseEdge, ArrayMode arrayMode)
     {
-        return typedArrayLength(baseEdge.node(), arrayMode, lowCell(baseEdge));
+        return typedArrayLength(baseEdge, arrayMode, lowCell(baseEdge));
     }
     
     LValue boolify(Edge edge)
@@ -3101,15 +3069,12 @@ private:
     
     template<typename FunctionType>
     void contiguousPutByValOutOfBounds(
-        FunctionType slowPathFunction,
-        LValue base, LValue storage, LValue index, LValue value,
+        FunctionType slowPathFunction, LValue base, LValue storage, LValue index, LValue value,
         LBasicBlock continuation)
     {
         LValue isNotInBounds = m_out.aboveOrEqual(
             index, m_out.load32(storage, m_heaps.Butterfly_publicLength));
-        if (m_node->arrayMode().isInBounds())
-            speculate(StoreToHoleOrOutOfBounds, noValue(), 0, isNotInBounds);
-        else {
+        if (!m_node->arrayMode().isInBounds()) {
             LBasicBlock notInBoundsCase =
                 FTL_NEW_BLOCK(m_out, ("PutByVal not in bounds"));
             LBasicBlock performStore =

@@ -49,6 +49,7 @@
 #import "TextChecker.h"
 #import "TextCheckerState.h"
 #import "TiledCoreAnimationDrawingAreaProxy.h"
+#import "ViewGestureController.h"
 #import "WKAPICast.h"
 #import "WKFullScreenWindowController.h"
 #import "WKPrintingView.h"
@@ -58,7 +59,6 @@
 #import "WKViewPrivate.h"
 #import "WebContext.h"
 #import "WebEventFactory.h"
-#import "WebFullScreenManagerProxy.h"
 #import "WebKit2Initialize.h"
 #import "WebPage.h"
 #import "WebPageGroup.h"
@@ -75,6 +75,7 @@
 #import <WebCore/FloatRect.h>
 #import <WebCore/Image.h>
 #import <WebCore/IntRect.h>
+#import <WebCore/FileSystem.h>
 #import <WebCore/KeyboardEvent.h>
 #import <WebCore/LocalizedStrings.h>
 #import <WebCore/PlatformEventFactoryMac.h>
@@ -82,10 +83,9 @@
 #import <WebCore/Region.h>
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/TextAlternativeWithRange.h>
-#import <WebCore/WebCoreNSStringExtras.h>
 #import <WebCore/WebCoreFullScreenPlaceholderView.h>
 #import <WebCore/WebCoreFullScreenWindow.h>
-#import <WebCore/FileSystem.h>
+#import <WebCore/WebCoreNSStringExtras.h>
 #import <WebKitSystemInterface.h>
 #import <sys/stat.h>
 #import <wtf/RefPtr.h>
@@ -232,6 +232,9 @@ struct WKViewInterpretKeyEventsParameters {
     NSRect _contentPreparationRect;
     BOOL _useContentPreparationRectForVisibleRect;
     BOOL _windowOcclusionDetectionEnabled;
+
+    std::unique_ptr<ViewGestureController> _gestureController;
+    BOOL _allowsMagnification;
 }
 
 @end
@@ -2782,12 +2785,12 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
 }
 
 #if ENABLE(FULLSCREEN_API)
-- (BOOL)hasFullScreenWindowController
+- (BOOL)_hasFullScreenWindowController
 {
     return (bool)_data->_fullScreenWindowController;
 }
 
-- (WKFullScreenWindowController*)fullScreenWindowController
+- (WKFullScreenWindowController *)_fullScreenWindowController
 {
     if (!_data->_fullScreenWindowController)
         _data->_fullScreenWindowController = adoptNS([[WKFullScreenWindowController alloc] initWithWindow:[self createFullScreenWindow] webView:self]);
@@ -2795,11 +2798,12 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
     return _data->_fullScreenWindowController.get();
 }
 
-- (void)closeFullScreenWindowController
+- (void)_closeFullScreenWindowController
 {
     if (!_data->_fullScreenWindowController)
         return;
-    [_data->_fullScreenWindowController.get() close];
+
+    [_data->_fullScreenWindowController close];
     _data->_fullScreenWindowController = nullptr;
 }
 #endif
@@ -2911,9 +2915,7 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
     _data->_page = toImpl(contextRef)->createWebPage(*_data->_pageClient, toImpl(pageGroupRef), toImpl(relatedPage));
     _data->_page->setIntrinsicDeviceScaleFactor([self _intrinsicDeviceScaleFactor]);
     _data->_page->initializeWebPage();
-#if ENABLE(FULLSCREEN_API)
-    _data->_page->fullScreenManager()->setWebView(self);
-#endif
+
     _data->_mouseDownEvent = nil;
     _data->_ignoringMouseDraggedEvents = NO;
     _data->_clipsToVisibleRect = NO;
@@ -3122,13 +3124,27 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
     _data->_page->setUnderlayColor(colorFromNSColor(underlayColor));
 }
 
-- (NSView*)fullScreenPlaceholderView
+- (NSView *)fullScreenPlaceholderView
 {
 #if ENABLE(FULLSCREEN_API)
     if (_data->_fullScreenWindowController && [_data->_fullScreenWindowController isFullScreen])
         return [_data->_fullScreenWindowController webViewPlaceholder];
 #endif
     return nil;
+}
+
+- (NSWindow *)createFullScreenWindow
+{
+#if ENABLE(FULLSCREEN_API)
+#if __MAC_OS_X_VERSION_MIN_REQUIRED <= 1080
+    NSRect contentRect = NSZeroRect;
+#else
+    NSRect contentRect = [[NSScreen mainScreen] frame];
+#endif
+    return [[[WebCoreFullScreenWindow alloc] initWithContentRect:contentRect styleMask:(NSBorderlessWindowMask | NSResizableWindowMask) backing:NSBackingStoreBuffered defer:NO] autorelease];
+#else
+    return nil;
+#endif
 }
 
 - (void)beginDeferringViewInWindowChanges
@@ -3222,26 +3238,12 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
 - (void)waitForAsyncDrawingAreaSizeUpdate
 {
     if (DrawingAreaProxy* drawingArea = _data->_page->drawingArea()) {
-        // If a geometry update is still pending then the action of recieving the
+        // If a geometry update is still pending then the action of receiving the
         // first geometry update may result in another update being scheduled -
         // we should wait for this to complete too.
         drawingArea->waitForPossibleGeometryUpdate(DrawingAreaProxy::didUpdateBackingStoreStateTimeout * 0.5);
         drawingArea->waitForPossibleGeometryUpdate(DrawingAreaProxy::didUpdateBackingStoreStateTimeout * 0.5);
     }
-}
-
-- (NSWindow*)createFullScreenWindow
-{
-#if ENABLE(FULLSCREEN_API)
-#if __MAC_OS_X_VERSION_MIN_REQUIRED <= 1080
-    NSRect contentRect = NSZeroRect;
-#else
-    NSRect contentRect = [[NSScreen mainScreen] frame];
-#endif
-    return [[[WebCoreFullScreenWindow alloc] initWithContentRect:contentRect styleMask:(NSBorderlessWindowMask | NSResizableWindowMask) backing:NSBackingStoreBuffered defer:NO] autorelease];
-#else
-    return nil;
-#endif
 }
 
 - (BOOL)isUsingUISideCompositing
@@ -3250,6 +3252,62 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
         return drawingArea->type() == DrawingAreaTypeRemoteLayerTree;
 
     return NO;
+}
+
+- (void)_ensureGestureController
+{
+    if (_data->_gestureController)
+        return;
+
+    _data->_gestureController = std::make_unique<ViewGestureController>(*_data->_page);
+}
+
+- (void)setAllowsMagnification:(BOOL)allowsMagnification
+{
+    _data->_allowsMagnification = allowsMagnification;
+}
+
+- (BOOL)allowsMagnification
+{
+    return _data->_allowsMagnification;
+}
+
+- (void)magnifyWithEvent:(NSEvent *)event
+{
+    if (!_data->_allowsMagnification) {
+        [super magnifyWithEvent:event];
+        return;
+    }
+
+    [self _ensureGestureController];
+
+    _data->_gestureController->handleMagnificationGesture(event.magnification, [self convertPoint:event.locationInWindow fromView:nil]);
+}
+
+-(void)endGestureWithEvent:(NSEvent *)event
+{
+    if (!_data->_gestureController) {
+        [super endGestureWithEvent:event];
+        return;
+    }
+
+    _data->_gestureController->endActiveGesture();
+}
+
+- (void)setMagnification:(double)magnification centeredAtPoint:(NSPoint)point
+{
+    _data->_page->scalePage(magnification, roundedIntPoint(point));
+}
+
+- (void)setMagnification:(double)magnification
+{
+    FloatPoint viewCenter(NSMidX([self bounds]), NSMidY([self bounds]));
+    _data->_page->scalePage(magnification, roundedIntPoint(viewCenter));
+}
+
+- (double)magnification
+{
+    return _data->_page->pageScaleFactor();
 }
 
 @end

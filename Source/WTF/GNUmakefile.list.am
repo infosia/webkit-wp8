@@ -10,7 +10,6 @@ wtf_sources += \
     Source/WTF/wtf/AutodrainedPool.h \
     Source/WTF/wtf/Bag.h \
     Source/WTF/wtf/BagToHashMap.h \
-    Source/WTF/wtf/BitArray.h \
     Source/WTF/wtf/BitVector.cpp \
     Source/WTF/wtf/BitVector.h \
     Source/WTF/wtf/Bitmap.h \
@@ -55,7 +54,6 @@ wtf_sources += \
     Source/WTF/wtf/FeatureDefines.h \
     Source/WTF/wtf/FilePrintStream.cpp \
     Source/WTF/wtf/FilePrintStream.h \
-    Source/WTF/wtf/FixedArray.h \
     Source/WTF/wtf/FlipBytes.h \
     Source/WTF/wtf/Forward.h \
     Source/WTF/wtf/FunctionDispatcher.cpp \

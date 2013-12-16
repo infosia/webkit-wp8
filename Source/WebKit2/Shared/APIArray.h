@@ -35,7 +35,7 @@
 
 namespace API {
 
-class Array FINAL : public TypedObject<Object::Type::Array> {
+class Array FINAL : public ObjectImpl<Object::Type::Array> {
 private:
     template<typename T>
     static inline const T* getObject(const RefPtr<Object>& object) { return static_cast<const T*>(object.get()); }
@@ -46,8 +46,7 @@ private:
 public:
     static PassRefPtr<Array> create();
     static PassRefPtr<Array> create(Vector<RefPtr<Object>> elements);
-
-    static PassRefPtr<Array> createStringArray(const Vector<String>&);
+    static PassRefPtr<Array> createStringArray(const Vector<WTF::String>&);
 
     virtual ~Array();
 

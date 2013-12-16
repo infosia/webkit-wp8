@@ -6,6 +6,7 @@ file(MAKE_DIRECTORY ${DERIVED_SOURCES_DIR}/InjectedBundle)
 set(WebKitTestRunner_SOURCES
     ${WEBKIT_TESTRUNNER_DIR}/CyclicRedundancyCheck.cpp
     ${WEBKIT_TESTRUNNER_DIR}/GeolocationProviderMock.cpp
+    ${WEBKIT_TESTRUNNER_DIR}/Options.cpp
     ${WEBKIT_TESTRUNNER_DIR}/PixelDumpSupport.cpp
     ${WEBKIT_TESTRUNNER_DIR}/TestController.cpp
     ${WEBKIT_TESTRUNNER_DIR}/TestInvocation.cpp
@@ -35,6 +36,7 @@ set(WebKitTestRunner_INCLUDE_DIRECTORIES
     ${WEBCORE_DIR}/platform/network
     ${WEBCORE_DIR}/platform/text
     ${WEBCORE_DIR}/testing/js
+    ${WEBKIT2_DIR}/Platform/CoreIPC
     ${WEBKIT2_DIR}/Shared
     ${WEBKIT2_DIR}/Shared/API/c
     ${WEBKIT2_DIR}/Shared/Plugins

@@ -103,11 +103,14 @@ inline CapabilityLevel canCompile(Node* node)
     case StringCharCodeAt:
     case AllocatePropertyStorage:
     case FunctionReentryWatchpoint:
+    case TypedArrayWatchpoint:
     case VariableWatchpoint:
     case NotifyWrite:
     case ValueToInt32:
     case Branch:
     case LogicalNot:
+    case CheckInBounds:
+    case ConstantStoragePointer:
         // These are OK.
         break;
     case GetById:
@@ -178,6 +181,17 @@ inline CapabilityLevel canCompile(Node* node)
         }
         break;
     case CompareEq:
+        if (node->isBinaryUseKind(Int32Use))
+            break;
+        if (node->isBinaryUseKind(MachineIntUse))
+            break;
+        if (node->isBinaryUseKind(NumberUse))
+            break;
+        if (node->isBinaryUseKind(ObjectUse))
+            break;
+        if (node->isBinaryUseKind(UntypedUse))
+            break;
+        return CannotCompile;
     case CompareStrictEq:
         if (node->isBinaryUseKind(Int32Use))
             break;
@@ -197,6 +211,8 @@ inline CapabilityLevel canCompile(Node* node)
         if (node->isBinaryUseKind(MachineIntUse))
             break;
         if (node->isBinaryUseKind(NumberUse))
+            break;
+        if (node->isBinaryUseKind(UntypedUse))
             break;
         return CannotCompile;
     case Switch:

@@ -21,7 +21,6 @@
 #include "config.h"
 #include "WebKitWebView.h"
 
-#include "CertificateInfo.h"
 #include "ImageOptions.h"
 #include "WebCertificateInfo.h"
 #include "WebContextMenuItem.h"
@@ -60,6 +59,7 @@
 #include "WebKitWebViewPrivate.h"
 #include "WebKitWindowPropertiesPrivate.h"
 #include <JavaScriptCore/APICast.h>
+#include <WebCore/CertificateInfo.h>
 #include <WebCore/DragIcon.h>
 #include <WebCore/GOwnPtrGtk.h>
 #include <WebCore/GOwnPtrSoup.h>
@@ -3028,7 +3028,7 @@ gboolean webkit_web_view_get_tls_info(WebKitWebView* webView, GTlsCertificate** 
     if (!mainFrame)
         return FALSE;
 
-    const CertificateInfo& certificateInfo = mainFrame->certificateInfo()->certificateInfo();
+    const WebCore::CertificateInfo& certificateInfo = mainFrame->certificateInfo()->certificateInfo();
     if (certificate)
         *certificate = certificateInfo.certificate();
     if (errors)
@@ -3096,12 +3096,12 @@ void webkit_web_view_get_snapshot(WebKitWebView* webView, WebKitSnapshotRegion r
 
     ImmutableDictionary::MapType message;
     uint64_t callbackID = generateSnapshotCallbackID();
-    message.set(String::fromUTF8("SnapshotOptions"), WebUInt64::create(static_cast<uint64_t>(webKitSnapshotOptionsToSnapshotOptions(options))));
-    message.set(String::fromUTF8("SnapshotRegion"), WebUInt64::create(static_cast<uint64_t>(region)));
-    message.set(String::fromUTF8("CallbackID"), WebUInt64::create(callbackID));
+    message.set(String::fromUTF8("SnapshotOptions"), API::UInt64::create(static_cast<uint64_t>(webKitSnapshotOptionsToSnapshotOptions(options))));
+    message.set(String::fromUTF8("SnapshotRegion"), API::UInt64::create(static_cast<uint64_t>(region)));
+    message.set(String::fromUTF8("CallbackID"), API::UInt64::create(callbackID));
 
     webView->priv->snapshotResultsMap.set(callbackID, adoptGRef(g_task_new(webView, cancellable, callback, userData)));
-    getPage(webView)->postMessageToInjectedBundle(String::fromUTF8("GetSnapshot"), ImmutableDictionary::adopt(message).get());
+    getPage(webView)->postMessageToInjectedBundle(String::fromUTF8("GetSnapshot"), ImmutableDictionary::create(std::move(message)).get());
 }
 
 /**

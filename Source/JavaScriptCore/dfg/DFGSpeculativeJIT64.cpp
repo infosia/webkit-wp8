@@ -186,30 +186,6 @@ GPRReg SpeculativeJIT::fillJSValue(Edge edge)
     }
 }
 
-void SpeculativeJIT::nonSpeculativeUInt32ToNumber(Node* node)
-{
-    SpeculateInt32Operand op1(this, node->child1());
-    FPRTemporary boxer(this);
-    GPRTemporary result(this, Reuse, op1);
-    
-    JITCompiler::Jump positive = m_jit.branch32(MacroAssembler::GreaterThanOrEqual, op1.gpr(), TrustedImm32(0));
-    
-    m_jit.convertInt32ToDouble(op1.gpr(), boxer.fpr());
-    m_jit.addDouble(JITCompiler::AbsoluteAddress(&AssemblyHelpers::twoToThe32), boxer.fpr());
-    
-    boxDouble(boxer.fpr(), result.gpr());
-    
-    JITCompiler::Jump done = m_jit.jump();
-    
-    positive.link(&m_jit);
-    
-    m_jit.or64(GPRInfo::tagTypeNumberRegister, op1.gpr(), result.gpr());
-    
-    done.link(&m_jit);
-    
-    jsValueResult(result.gpr(), m_currentNode);
-}
-
 void SpeculativeJIT::cachedGetById(CodeOrigin codeOrigin, GPRReg baseGPR, GPRReg resultGPR, unsigned identifierNumber, JITCompiler::Jump slowPathTarget, SpillRegistersMode spillMode)
 {
     JITGetByIdGenerator gen(
@@ -486,6 +462,7 @@ private:
 
 void SpeculativeJIT::nonSpeculativeNonPeepholeCompare(Node* node, MacroAssembler::RelationalCondition cond, S_JITOperation_EJJ helperFunction)
 {
+    ASSERT(node->isBinaryUseKind(UntypedUse));
     JSValueOperand arg1(this, node->child1());
     JSValueOperand arg2(this, node->child2());
     GPRReg arg1GPR = arg1.gpr();
@@ -2956,7 +2933,7 @@ void SpeculativeJIT::compile(Node* node)
             
             if (arrayMode.isInBounds()) {
                 speculationCheck(
-                    StoreToHoleOrOutOfBounds, JSValueRegs(), 0,
+                    OutOfBounds, JSValueRegs(), 0,
                     m_jit.branch32(MacroAssembler::AboveOrEqual, propertyReg, MacroAssembler::Address(storageReg, Butterfly::offsetOfPublicLength())));
             } else {
                 MacroAssembler::Jump inBounds = m_jit.branch32(MacroAssembler::Below, propertyReg, MacroAssembler::Address(storageReg, Butterfly::offsetOfPublicLength()));
@@ -3895,7 +3872,8 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
         
-    case AllocationProfileWatchpoint: {
+    case AllocationProfileWatchpoint:
+    case TypedArrayWatchpoint: {
         noResult(node);
         break;
     }
@@ -4238,6 +4216,11 @@ void SpeculativeJIT::compile(Node* node)
 
     case GetIndexedPropertyStorage: {
         compileGetIndexedPropertyStorage(node);
+        break;
+    }
+        
+    case ConstantStoragePointer: {
+        compileConstantStoragePointer(node);
         break;
     }
         
@@ -5058,6 +5041,7 @@ void SpeculativeJIT::compile(Node* node)
     case Upsilon:
     case GetArgument:
     case ExtractOSREntryLocal:
+    case CheckInBounds:
         RELEASE_ASSERT_NOT_REACHED();
         break;
     }

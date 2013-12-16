@@ -972,8 +972,9 @@ void SpeculativeJIT::compileIn(Node* node)
             GPRReg resultGPR = result.gpr();
 
             use(node->child1());
-                
+            
             MacroAssembler::PatchableJump jump = m_jit.patchableJump();
+            MacroAssembler::Label done = m_jit.label();
             
             OwnPtr<SlowPathGenerator> slowPath = slowPathCall(
                 jump.m_jump, this, operationInOptimize,
@@ -986,7 +987,7 @@ void SpeculativeJIT::compileIn(Node* node)
             stubInfo->patch.usedRegisters = usedRegisters();
             stubInfo->patch.registersFlushed = false;
             
-            m_jit.addIn(InRecord(jump, slowPath.get(), stubInfo));
+            m_jit.addIn(InRecord(jump, done, slowPath.get(), stubInfo));
             addSlowPathGenerator(slowPath.release());
                 
             base.use();
@@ -1424,9 +1425,6 @@ void SpeculativeJIT::compileMovHint(Node* node)
     Node* child = node->child1().node();
     noticeOSRBirth(child);
     
-    if (child->op() == UInt32ToNumber)
-        noticeOSRBirth(child->child1().node());
-    
     m_stream->appendAndLog(VariableEvent::movHint(MinifiedID(child), node->local()));
 }
 
@@ -1740,7 +1738,7 @@ void SpeculativeJIT::compileDoublePutByVal(Node* node, SpeculateCellOperand& bas
     
     if (arrayMode.isInBounds()) {
         speculationCheck(
-            StoreToHoleOrOutOfBounds, JSValueRegs(), 0,
+            OutOfBounds, JSValueRegs(), 0,
             m_jit.branch32(MacroAssembler::AboveOrEqual, propertyReg, MacroAssembler::Address(storageReg, Butterfly::offsetOfPublicLength())));
     } else {
         MacroAssembler::Jump inBounds = m_jit.branch32(MacroAssembler::Below, propertyReg, MacroAssembler::Address(storageReg, Butterfly::offsetOfPublicLength()));
@@ -2159,18 +2157,15 @@ void SpeculativeJIT::compileUInt32ToNumber(Node* node)
         doubleResult(outputFPR, node);
         return;
     }
+    
+    RELEASE_ASSERT(!bytecodeCanTruncateInteger(node->arithNodeFlags()));
 
     SpeculateInt32Operand op1(this, node->child1());
-    GPRTemporary result(this); // For the benefit of OSR exit, force these to be in different registers. In reality the OSR exit compiler could find cases where you have uint32(%r1) followed by int32(%r1) and then use different registers, but that seems like too much effort.
+    GPRTemporary result(this);
 
     m_jit.move(op1.gpr(), result.gpr());
 
-    // Test the operand is positive. This is a very special speculation check - we actually
-    // use roll-forward speculation here, where if this fails, we jump to the baseline
-    // instruction that follows us, rather than the one we're executing right now. We have
-    // to do this because by this point, the original values necessary to compile whatever
-    // operation the UInt32ToNumber originated from might be dead.
-    forwardSpeculationCheck(Overflow, JSValueRegs(), 0, m_jit.branch32(MacroAssembler::LessThan, result.gpr(), TrustedImm32(0)), ValueRecovery::uint32InGPR(result.gpr()));
+    speculationCheck(Overflow, JSValueRegs(), 0, m_jit.branch32(MacroAssembler::LessThan, result.gpr(), TrustedImm32(0)));
 
     int32Result(result.gpr(), node, op1.format());
 }
@@ -2188,7 +2183,7 @@ void SpeculativeJIT::compileDoubleAsInt32(Node* node)
     JITCompiler::JumpList failureCases;
     bool negZeroCheck = !bytecodeCanIgnoreNegativeZero(node->arithNodeFlags());
     m_jit.branchConvertDoubleToInt32(valueFPR, resultGPR, failureCases, scratchFPR, negZeroCheck);
-    forwardSpeculationCheck(Overflow, JSValueRegs(), 0, failureCases, ValueRecovery::inFPR(valueFPR));
+    speculationCheck(Overflow, JSValueRegs(), 0, failureCases);
 
     int32Result(resultGPR, node);
 }
@@ -2329,7 +2324,7 @@ JITCompiler::Jump SpeculativeJIT::jumpForTypedArrayOutOfBounds(Node* node, GPRRe
 {
     if (node->op() == PutByValAlias)
         return JITCompiler::Jump();
-    if (JSArrayBufferView* view = m_jit.graph().tryGetFoldableView(m_jit.graph().child(node, 0).node(), node->arrayMode())) {
+    if (JSArrayBufferView* view = m_jit.graph().tryGetFoldableViewForChild1(node)) {
         uint32_t length = view->length();
         Node* indexNode = m_jit.graph().child(node, 1).node();
         if (m_jit.graph().isInt32Constant(indexNode) && static_cast<uint32_t>(m_jit.graph().valueOfInt32Constant(indexNode)) < length)
@@ -2394,7 +2389,7 @@ void SpeculativeJIT::compileGetByValOnIntTypedArray(Node* node, TypedArrayType t
     
     ASSERT(elementSize(type) == 4 && !isSigned(type));
     if (node->shouldSpeculateInt32()) {
-        forwardSpeculationCheck(Overflow, JSValueRegs(), 0, m_jit.branch32(MacroAssembler::LessThan, resultReg, TrustedImm32(0)), ValueRecovery::uint32InGPR(resultReg));
+        speculationCheck(Overflow, JSValueRegs(), 0, m_jit.branch32(MacroAssembler::LessThan, resultReg, TrustedImm32(0)));
         int32Result(resultReg, node);
         return;
     }
@@ -4042,27 +4037,16 @@ void SpeculativeJIT::compileStringZeroLength(Node* node)
 #endif
 }
 
-bool SpeculativeJIT::compileConstantIndexedPropertyStorage(Node* node)
+void SpeculativeJIT::compileConstantStoragePointer(Node* node)
 {
-    JSArrayBufferView* view = m_jit.graph().tryGetFoldableView(
-        node->child1().node(), node->arrayMode());
-    if (!view)
-        return false;
-    if (view->mode() == FastTypedArray)
-        return false;
-    
     GPRTemporary storage(this);
     GPRReg storageGPR = storage.gpr();
-    m_jit.move(TrustedImmPtr(view->vector()), storageGPR);
+    m_jit.move(TrustedImmPtr(node->storagePointer()), storageGPR);
     storageResult(storageGPR, node);
-    return true;
 }
 
 void SpeculativeJIT::compileGetIndexedPropertyStorage(Node* node)
 {
-    if (compileConstantIndexedPropertyStorage(node))
-        return;
-    
     SpeculateCellOperand base(this, node->child1());
     GPRReg baseReg = base.gpr();
     

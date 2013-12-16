@@ -26,11 +26,11 @@
 #include "config.h"
 #include "WebPageProxy.h"
 
+#include "APIData.h"
 #include "DataReference.h"
 #include "Logging.h"
 #include "SessionState.h"
 #include "WebBackForwardList.h"
-#include "WebData.h"
 #include "WebPageMessages.h"
 #include "WebProcessProxy.h"
 
@@ -46,7 +46,7 @@ DEFINE_STATIC_GETTER(CFStringRef, ProvisionalURLKey, (CFSTR("ProvisionalURL")));
 
 static const UInt32 CurrentSessionStateDataVersion = 2;
 
-PassRefPtr<WebData> WebPageProxy::sessionStateData(WebPageProxySessionStateFilterCallback filter, void* context) const
+PassRefPtr<API::Data> WebPageProxy::sessionStateData(WebPageProxySessionStateFilterCallback filter, void* context) const
 {
     const void* keys[2];
     const void* values[2];
@@ -101,15 +101,15 @@ PassRefPtr<WebData> WebPageProxy::sessionStateData(WebPageProxySessionStateFilte
     // Copy in the actual session state data
     CFDataGetBytes(stateCFData.get(), CFRangeMake(0, length), stateVector.data() + sizeof(UInt32));
     
-    return WebData::create(stateVector);
+    return API::Data::create(stateVector);
 }
 
-void WebPageProxy::restoreFromSessionStateData(WebData* webData)
+void WebPageProxy::restoreFromSessionStateData(API::Data* apiData)
 {
-    if (!webData || webData->size() < sizeof(UInt32))
+    if (!apiData || apiData->size() < sizeof(UInt32))
         return;
 
-    const unsigned char* buffer = webData->bytes();
+    const unsigned char* buffer = apiData->bytes();
     UInt32 versionHeader = (buffer[0] << 24) + (buffer[1] << 16) + (buffer[2] << 8) + buffer[3];
     
     if (versionHeader != CurrentSessionStateDataVersion) {
@@ -117,7 +117,7 @@ void WebPageProxy::restoreFromSessionStateData(WebData* webData)
         return;
     }
     
-    RetainPtr<CFDataRef> data = adoptCF(CFDataCreate(0, webData->bytes() + sizeof(UInt32), webData->size() - sizeof(UInt32)));
+    RetainPtr<CFDataRef> data = adoptCF(CFDataCreate(0, apiData->bytes() + sizeof(UInt32), apiData->size() - sizeof(UInt32)));
 
     CFErrorRef propertyListError = 0;
     auto propertyList = adoptCF(CFPropertyListCreateWithData(0, data.get(), kCFPropertyListImmutable, 0, &propertyListError));
@@ -151,6 +151,8 @@ void WebPageProxy::restoreFromSessionStateData(WebData* webData)
             provisionalURL = static_cast<CFStringRef>(value);
     }
 
+    auto transaction = m_pageLoadState.transaction();
+
     if (backForwardListDictionary) {
         if (!m_backForwardList->restoreFromCFDictionaryRepresentation(backForwardListDictionary))
             LOG(SessionState, "Failed to restore back/forward list from SessionHistory dictionary");
@@ -165,7 +167,7 @@ void WebPageProxy::restoreFromSessionStateData(WebData* webData)
                     process().send(Messages::WebPage::RestoreSession(state), m_pageID);
                 else {
                     if (WebBackForwardListItem* item = m_backForwardList->currentItem())
-                        m_pageLoadState.setPendingAPIRequestURL(item->url());
+                        m_pageLoadState.setPendingAPIRequestURL(transaction, item->url());
 
                     process().send(Messages::WebPage::RestoreSessionAndNavigateToCurrentItem(state), m_pageID);
                 }

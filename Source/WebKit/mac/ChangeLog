@@ -1,3 +1,161 @@
+2013-12-15  Andy Estes  <aestes@apple.com>
+
+        [iOS] Upstream changes to WebKit Public and Private headers
+        https://bugs.webkit.org/show_bug.cgi?id=125745
+
+        Reviewed by Dan Bernstein.
+
+        * Configurations/WebKit.xcconfig: Ignore headers that are completely
+        excluded on iOS. This prevents empty headers from being installed into
+        the iOS SDK.
+        * DOM/WebDOMOperationsPrivate.h: Upstream iOS changes.
+        * History/WebBackForwardListPrivate.h: Ditto.
+        * History/WebHistoryItem.h: Ditto.
+        * History/WebHistoryItemPrivate.h: Ditto.
+        * Misc/WebCache.h: Ditto.
+        * Misc/WebIconDatabase.h: Ditto.
+        * Misc/WebIconDatabasePrivate.h: Ditto.
+        * Misc/WebKitNSStringExtras.h: Ditto.
+        * Misc/WebLocalizableStrings.h: Ditto.
+        * Misc/WebNSEventExtras.h: Ditto.
+        * Misc/WebNSFileManagerExtras.h: Ditto.
+        * Misc/WebNSPasteboardExtras.h: Ditto.
+        * Misc/WebNSURLExtras.h: Ditto.
+        * Misc/WebNSViewExtras.h: Ditto.
+        * Misc/WebNSWindowExtras.h: Ditto.
+        * Panels/WebPanelAuthenticationHandler.h: Ditto.
+        * Plugins/WebPlugin.h: Ditto.
+        * Plugins/WebPluginContainer.h: Ditto.
+        * Plugins/WebPluginContainerPrivate.h: Ditto.
+        * Plugins/WebPluginDatabase.h: Ditto.
+        * Plugins/WebPluginPrivate.h: Ditto.
+        * Plugins/WebPluginViewFactory.h: Ditto.
+        * Plugins/WebPluginsPrivate.h: Ditto.
+        * Storage/WebDatabaseManagerPrivate.h: Ditto.
+        * WebCoreSupport/WebApplicationCache.h: Ditto.
+        * WebCoreSupport/WebJavaScriptTextInputPanel.h: Ditto.
+        * WebCoreSupport/WebKeyGenerator.h: Ditto.
+        * WebCoreSupport/WebSecurityOriginPrivate.h: Ditto.
+        * WebView/WebDashboardRegion.h: Ditto.
+        * WebView/WebDataSource.h: Ditto.
+        * WebView/WebDataSourcePrivate.h: Ditto.
+        * WebView/WebDocument.h: Ditto.
+        * WebView/WebDocumentPrivate.h: Ditto.
+        * WebView/WebDynamicScrollBarsView.h: Ditto.
+        * WebView/WebEditingDelegate.h: Ditto.
+        * WebView/WebEditingDelegatePrivate.h: Ditto.
+        * WebView/WebFormDelegate.h: Ditto.
+        * WebView/WebFrameLoadDelegate.h: Ditto.
+        * WebView/WebFramePrivate.h: Ditto.
+        * WebView/WebFrameView.h: Ditto.
+        * WebView/WebFrameViewPrivate.h: Ditto.
+        * WebView/WebHTMLRepresentation.h: Ditto.
+        * WebView/WebHTMLView.h: Ditto.
+        * WebView/WebHTMLViewPrivate.h: Ditto.
+        * WebView/WebPolicyDelegate.h: Ditto.
+        * WebView/WebPreferenceKeysPrivate.h: Ditto.
+        * WebView/WebPreferences.h: Ditto.
+        * WebView/WebPreferencesPrivate.h: Ditto.
+        * WebView/WebRenderLayer.h: Ditto.
+        * WebView/WebResourceLoadDelegatePrivate.h: Ditto.
+        * WebView/WebResourcePrivate.h: Ditto.
+        * WebView/WebUIDelegate.h: Ditto.
+        * WebView/WebUIDelegatePrivate.h: Ditto.
+        * WebView/WebView.h: Ditto.
+        * WebView/WebViewPrivate.h: Ditto.
+
+2013-12-15  Andy Estes  <aestes@apple.com>
+
+        [iOS] Upstream changes to FeatureDefines.xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=125742
+
+        Reviewed by Dan Bernstein.
+
+        * Configurations/FeatureDefines.xcconfig:
+
+2013-12-14  Andy Estes  <aestes@apple.com>
+
+        Unify FeatureDefines.xcconfig
+        https://bugs.webkit.org/show_bug.cgi?id=125741
+
+        Rubber-stamped by Dan Bernstein.
+
+        * Configurations/FeatureDefines.xcconfig: Remove a stray space in
+        FEATURE_DEFINES.
+
+2013-12-11  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Push More Inspector Required Classes Down into JavaScriptCore
+        https://bugs.webkit.org/show_bug.cgi?id=125324
+
+        Reviewed by Timothy Hatcher.
+
+        * Plugins/Hosted/NetscapePluginInstanceProxy.mm:
+        * WebCoreSupport/WebInspectorClient.mm:
+        * WebView/WebFrame.mm:
+        * WebView/WebView.mm:
+
+2013-12-03  Mark Rowe  <mrowe@apple.com>
+
+        <https://webkit.org/b/125139> Modernize the WebKit API headers
+        <rdar://problem/15540175>
+
+        This consists of three main changes:
+        1) Converting the return type of initializer methods to instancetype.
+        2) Declaring properties rather than getters and setters.
+        3) Declaring explicitly sized enums.
+
+        Changing the declarations from getters and setters to properties also required
+        updating the headerdoc in a number of places.
+
+        Reviewed by Anders Carlsson.
+
+        * DOM/WebDOMOperations.h:
+        * History/WebBackForwardList.h:
+        * History/WebHistory.h:
+        * History/WebHistoryItem.h:
+        * History/WebHistoryItem.mm:
+        * Plugins/WebPlugin.h:
+        * Plugins/WebPluginContainer.h:
+        * WebView/WebArchive.h:
+        * WebView/WebArchive.mm:
+        * WebView/WebDataSource.h:
+        * WebView/WebDataSource.mm:
+        * WebView/WebEditingDelegate.h:
+        * WebView/WebFrame.h:
+        * WebView/WebFrame.mm:
+        * WebView/WebFrameView.h:
+        * WebView/WebPolicyDelegate.h:
+        * WebView/WebPreferences.h:
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences cacheModel]): Cast to the enum.
+        * WebView/WebResource.h:
+        * WebView/WebResource.mm:
+        * WebView/WebUIDelegate.h:
+        * WebView/WebView.h:
+        * WebView/WebView.mm:
+        (+[WebView _didSetCacheModel]): Fix the return type.
+
+2013-12-10  Mark Rowe  <mrowe@apple.com>
+
+        <http://webkit.org/b/125556> WebKit doesn't deal with longer bundle versions correctly
+        <rdar://problem/15634192>
+
+        Reviewed by Dan Bernstein.
+
+        * WebView/WebView.mm:
+        (createUserVisibleWebKitVersionString): Strip as many leading digits as is necessary to
+        bring the major component of the version down to 3 digits.
+
+2013-12-09  Sam Weinig  <sam@webkit.org>
+
+        Fix the build of projects including <WebKit/WebUIDelegatePrivate.h>
+
+        Rubber-stamped by Dan Bernstein.
+
+        * WebView/WebAllowDenyPolicyListener.h:
+        Use TARGET_OS_IPHONE rather than PLATFORM(IOS) in an exposed header.
+
 2013-12-05  Jer Noble  <jer.noble@apple.com>
 
         [MSE] Add a runtime-setting for the MediaSource constructor.

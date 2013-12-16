@@ -57,6 +57,8 @@ MediaSourcePrivateAVFObjC::MediaSourcePrivateAVFObjC(MediaPlayerPrivateMediaSour
 
 MediaSourcePrivateAVFObjC::~MediaSourcePrivateAVFObjC()
 {
+    for (auto it = m_sourceBuffers.begin(), end = m_sourceBuffers.end(); it != end; ++it)
+        (*it)->clearMediaSource();
 }
 
 MediaSourcePrivate::AddStatus MediaSourcePrivateAVFObjC::addSourceBuffer(const ContentType& contentType, RefPtr<SourceBufferPrivate>& outPrivate)
@@ -99,9 +101,10 @@ void MediaSourcePrivateAVFObjC::setDuration(double duration)
     m_duration = duration;
 }
 
-void MediaSourcePrivateAVFObjC::markEndOfStream(EndOfStreamStatus) 
+void MediaSourcePrivateAVFObjC::markEndOfStream(EndOfStreamStatus status)
 {
-    // FIXME(125159): implement markEndOfStream()
+    if (status == EosNoError)
+        m_player->setNetworkState(MediaPlayer::Loaded);
     m_isEnded = true;
 }
 

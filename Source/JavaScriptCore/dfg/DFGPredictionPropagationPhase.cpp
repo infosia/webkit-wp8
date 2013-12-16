@@ -195,6 +195,8 @@ private:
         }
 
         case UInt32ToNumber: {
+            // FIXME: Support Int52.
+            // https://bugs.webkit.org/show_bug.cgi?id=125704
             if (nodeCanSpeculateInt32(node->arithNodeFlags()))
                 changed |= mergePrediction(SpecInt32);
             else
@@ -510,7 +512,8 @@ private:
         case CheckTierUpAndOSREnter:
         case InvalidationPoint:
         case Int52ToValue:
-        case Int52ToDouble: {
+        case Int52ToDouble:
+        case CheckInBounds: {
             // This node should never be visible at this stage of compilation. It is
             // inserted by fixup(), which follows this phase.
             RELEASE_ASSERT_NOT_REACHED();
@@ -577,6 +580,8 @@ private:
         case LoopHint:
         case NotifyWrite:
         case FunctionReentryWatchpoint:
+        case TypedArrayWatchpoint:
+        case ConstantStoragePointer:
             break;
             
         // This gets ignored because it already has a prediction.

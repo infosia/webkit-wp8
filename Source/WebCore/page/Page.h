@@ -111,6 +111,7 @@ class Page : public Supplementable<Page> {
 
 public:
     static void updateStyleForAllPagesAfterGlobalChangeInEnvironment();
+    static void jettisonStyleResolversInAllDocuments();
 
     // It is up to the platform to ensure that non-null clients are provided where required.
     struct PageClients {
@@ -140,7 +141,7 @@ public:
 
     void setNeedsRecalcStyleInAllFrames();
 
-    RenderTheme* theme() const { return m_theme.get(); }
+    RenderTheme& theme() const { return *m_theme; }
 
     ViewportArguments viewportArguments() const;
 

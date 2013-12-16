@@ -170,9 +170,9 @@ set(WebKit2_SOURCES
     Platform/CoreIPC/MessageDecoder.cpp
     Platform/CoreIPC/MessageEncoder.cpp
     Platform/CoreIPC/MessageReceiverMap.cpp
-    Platform/CoreIPC/MessageSender.cpp
 
     Platform/IPC/DataReference.cpp
+    Platform/IPC/MessageSender.cpp
     Platform/IPC/StringReference.cpp
 
     PluginProcess/PluginControllerProxy.cpp
@@ -181,6 +181,9 @@ set(WebKit2_SOURCES
     PluginProcess/WebProcessConnection.cpp
 
     Shared/APIArray.cpp
+    Shared/APIFrameHandle.cpp
+    Shared/APIGeometry.cpp
+    Shared/APIPageHandle.cpp
     Shared/APIObject.cpp
     Shared/ActivityAssertion.cpp
     Shared/CacheModel.cpp
@@ -201,6 +204,7 @@ set(WebKit2_SOURCES
     Shared/ShareableResource.cpp
     Shared/StatisticsData.cpp
     Shared/UpdateInfo.cpp
+    Shared/UserData.cpp
     Shared/VisitedLinkTable.cpp
     Shared/WebBackForwardListItem.cpp
     Shared/WebBatteryStatus.cpp

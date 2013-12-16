@@ -5,7 +5,6 @@ set(WTF_HEADERS
     Atomics.h
     Bag.h
     BagToHashMap.h
-    BitArray.h
     BitVector.h
     Bitmap.h
     BoundsCheckedPointer.h
@@ -29,7 +28,6 @@ set(WTF_HEADERS
     FastMalloc.h
     FeatureDefines.h
     FilePrintStream.h
-    FixedArray.h
     FlipBytes.h
     Forward.h
     FunctionDispatcher.h

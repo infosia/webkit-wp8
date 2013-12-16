@@ -34,7 +34,11 @@
 #import "WKBundlePagePrivate.h"
 #import "WKDOMInternals.h"
 #import "WKRetainPtr.h"
+#import "WKWebProcessPluginFrameInternal.h"
 #import "WKWebProcessPlugInInternal.h"
+#import "WKWebProcessPlugInLoadDelegate.h"
+#import "WKWebProcessPlugInScriptWorldInternal.h"
+#import "WeakObjCPtr.h"
 #import "WebPage.h"
 #import "WebProcess.h"
 #import <WebCore/Document.h>
@@ -44,23 +48,76 @@ using namespace WebCore;
 using namespace WebKit;
 
 @implementation WKWebProcessPlugInBrowserContextController {
-    WKRetainPtr<WKBundlePageRef> _bundlePageRef;
+    API::ObjectStorage<WebPage> _page;
+    WeakObjCPtr<id <WKWebProcessPlugInLoadDelegate>> _loadDelegate;
 }
 
-- (id)_initWithBundlePageRef:(WKBundlePageRef)bundlePageRef
+static void didStartProvisionalLoadForFrame(WKBundlePageRef page, WKBundleFrameRef frame, WKTypeRef* userDataRef, const void *clientInfo)
 {
-    self = [super init];
-    if (!self)
-        return nil;
+    WKWebProcessPlugInBrowserContextController *pluginContextController = (WKWebProcessPlugInBrowserContextController *)clientInfo;
+    auto loadDelegate = pluginContextController->_loadDelegate.get();
 
-    _bundlePageRef = bundlePageRef;
+    if ([loadDelegate respondsToSelector:@selector(webProcessPlugInBrowserContextController:didStartProvisionalLoadForFrame:)])
+        [loadDelegate webProcessPlugInBrowserContextController:pluginContextController didStartProvisionalLoadForFrame:wrapper(*toImpl(frame))];
+}
 
-    return self;
+static void didFinishLoadForFrame(WKBundlePageRef page, WKBundleFrameRef frame, WKTypeRef* userData, const void *clientInfo)
+{
+    WKWebProcessPlugInBrowserContextController *pluginContextController = (WKWebProcessPlugInBrowserContextController *)clientInfo;
+    auto loadDelegate = pluginContextController->_loadDelegate.get();
+
+    if ([loadDelegate respondsToSelector:@selector(webProcessPlugInBrowserContextController:didFinishLoadForFrame:)])
+        [loadDelegate webProcessPlugInBrowserContextController:pluginContextController didFinishLoadForFrame:wrapper(*toImpl(frame))];
+}
+
+static void globalObjectIsAvailableForFrame(WKBundlePageRef page, WKBundleFrameRef frame, WKBundleScriptWorldRef scriptWorld, const void* clientInfo)
+{
+    WKWebProcessPlugInBrowserContextController *pluginContextController = (WKWebProcessPlugInBrowserContextController *)clientInfo;
+    auto loadDelegate = pluginContextController->_loadDelegate.get();
+
+    if ([loadDelegate respondsToSelector:@selector(webProcessPlugInBrowserContextController:globalObjectIsAvailableForFrame:inScriptWorld:)])
+        [loadDelegate webProcessPlugInBrowserContextController:pluginContextController globalObjectIsAvailableForFrame:wrapper(*toImpl(frame)) inScriptWorld:wrapper(*toImpl(scriptWorld))];
+}
+
+static void setUpPageLoaderClient(WKWebProcessPlugInBrowserContextController *contextController, WebPage& page)
+{
+    WKBundlePageLoaderClientV7 client;
+    memset(&client, 0, sizeof(client));
+
+    client.base.version = 7;
+    client.base.clientInfo = contextController;
+    client.didStartProvisionalLoadForFrame = didStartProvisionalLoadForFrame;
+    client.didFinishLoadForFrame = didFinishLoadForFrame;
+    client.globalObjectIsAvailableForFrame = globalObjectIsAvailableForFrame;
+
+    page.initializeInjectedBundleLoaderClient(&client.base);
+}
+
+- (id <WKWebProcessPlugInLoadDelegate>)loadDelegate
+{
+    return _loadDelegate.getAutoreleased();
+}
+
+- (void)setLoadDelegate:(id <WKWebProcessPlugInLoadDelegate>)loadDelegate
+{
+    _loadDelegate = loadDelegate;
+
+    if (loadDelegate)
+        setUpPageLoaderClient(self, *_page);
+    else
+        _page->initializeInjectedBundleLoaderClient(nullptr);
+}
+
+- (void)dealloc
+{
+    _page->~WebPage();
+
+    [super dealloc];
 }
 
 - (WKDOMDocument *)mainFrameDocument
 {
-    WebCore::Frame* webCoreMainFrame = toImpl(_bundlePageRef.get())->mainFrame();
+    Frame* webCoreMainFrame = _page->mainFrame();
     if (!webCoreMainFrame)
         return nil;
 
@@ -69,11 +126,18 @@ using namespace WebKit;
 
 - (WKDOMRange *)selectedRange
 {
-    RefPtr<WebCore::Range> range = toImpl(_bundlePageRef.get())->currentSelectionAsRange();
+    RefPtr<Range> range = _page->currentSelectionAsRange();
     if (!range)
         return nil;
 
     return toWKDOMRange(range.get());
+}
+
+#pragma mark WKObject protocol implementation
+
+- (API::Object&)_apiObject
+{
+    return *_page;
 }
 
 @end
@@ -82,12 +146,12 @@ using namespace WebKit;
 
 - (WKBundlePageRef)_bundlePageRef
 {
-    return _bundlePageRef.get();
+    return toAPI(_page.get());
 }
 
 - (WKBrowsingContextHandle *)handle
 {
-    return [[[WKBrowsingContextHandle alloc] _initWithPageID:toImpl(_bundlePageRef.get())->pageID()] autorelease];
+    return [[[WKBrowsingContextHandle alloc] _initWithPageID:_page->pageID()] autorelease];
 }
 
 + (instancetype)lookUpBrowsingContextFromHandle:(WKBrowsingContextHandle *)handle
@@ -96,7 +160,7 @@ using namespace WebKit;
     if (!webPage)
         return nil;
 
-    return [[WKWebProcessPlugInController _shared] _browserContextControllerForBundlePageRef:toAPI(webPage)];
+    return wrapper(*webPage);
 }
 
 @end

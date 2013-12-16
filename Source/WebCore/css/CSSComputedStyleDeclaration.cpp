@@ -746,7 +746,6 @@ static PassRef<CSSValueList> getBorderRadiusShorthandValue(const RenderStyle* st
     bool showVerticalBottomLeft = style->borderTopRightRadius().height() != style->borderBottomLeftRadius().height();
     bool showVerticalBottomRight = showVerticalBottomLeft || (style->borderBottomRightRadius().height() != style->borderTopLeftRadius().height());
     bool showVerticalTopRight = showVerticalBottomRight || (style->borderTopRightRadius().height() != style->borderTopLeftRadius().height());
-    bool showVerticalTopLeft = (style->borderTopLeftRadius().width() != style->borderTopLeftRadius().height());
 
     RefPtr<CSSValueList> topLeftRadius = getBorderRadiusCornerValues(style->borderTopLeftRadius(), style, renderView);
     RefPtr<CSSValueList> topRightRadius = getBorderRadiusCornerValues(style->borderTopRightRadius(), style, renderView);
@@ -764,17 +763,18 @@ static PassRef<CSSValueList> getBorderRadiusShorthandValue(const RenderStyle* st
 
     list.get().append(horizontalRadii.release());
 
-    if (showVerticalTopLeft) {
-        RefPtr<CSSValueList> verticalRadii = CSSValueList::createSpaceSeparated();
-        verticalRadii->append(topLeftRadius->item(1));
-        if (showVerticalTopRight)
-            verticalRadii->append(topRightRadius->item(1));
-        if (showVerticalBottomRight)
-            verticalRadii->append(bottomRightRadius->item(1));
-        if (showVerticalBottomLeft)
-            verticalRadii->append(bottomLeftRadius->item(1));
-        list.get().append(verticalRadii.release());
-    }
+    RefPtr<CSSValueList> verticalRadiiList = CSSValueList::createSpaceSeparated();
+    verticalRadiiList->append(topLeftRadius->item(1));
+    if (showVerticalTopRight)
+        verticalRadiiList->append(topRightRadius->item(1));
+    if (showVerticalBottomRight)
+        verticalRadiiList->append(bottomRightRadius->item(1));
+    if (showVerticalBottomLeft)
+        verticalRadiiList->append(bottomLeftRadius->item(1));
+
+    if (!verticalRadiiList->equals(*toCSSValueList(list.get().item(0))))
+        list.get().append(verticalRadiiList.release());
+
     return list;
 }
 
@@ -940,7 +940,7 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::valueForShadow(const ShadowData* sh
 }
 
 #if ENABLE(CSS_FILTERS)
-PassRefPtr<CSSValue> ComputedStyleExtractor::valueForFilter(const RenderObject* renderer, const RenderStyle* style, const FilterOperations& filterOperations, AdjustPixelValuesForComputedStyle adjust)
+PassRef<CSSValue> ComputedStyleExtractor::valueForFilter(const RenderObject* renderer, const RenderStyle* style, const FilterOperations& filterOperations, AdjustPixelValuesForComputedStyle adjust)
 {
 #if !ENABLE(CSS_SHADERS)
     UNUSED_PARAM(renderer);
@@ -948,7 +948,7 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::valueForFilter(const RenderObject* 
     if (filterOperations.operations().isEmpty())
         return cssValuePool().createIdentifierValue(CSSValueNone);
 
-    RefPtr<CSSValueList> list = CSSValueList::createSpaceSeparated();
+    auto list = CSSValueList::createSpaceSeparated();
 
     RefPtr<WebKitCSSFilterValue> filterValue;
 
@@ -1092,10 +1092,10 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::valueForFilter(const RenderObject* 
             filterValue = WebKitCSSFilterValue::create(WebKitCSSFilterValue::UnknownFilterOperation);
             break;
         }
-        list->append(filterValue.release());
+        list.get().append(filterValue.release());
     }
 
-    return list.release();
+    return std::move(list);
 }
 #endif
 
