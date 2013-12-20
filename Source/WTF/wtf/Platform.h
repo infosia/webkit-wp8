@@ -601,10 +601,8 @@
 #endif /* OS(UNIX) */
 
 #if OS(UNIX) && !(OS(QNX) || OS(ANDROID))
-#warning "__FILE__ HAVE_LANGINFO_H 1"
 #define HAVE_LANGINFO_H 1
 #else
-#warning "__FILE__ HAVE_LANGINFO_H 0"
 #endif
 
 #if (OS(FREEBSD) || OS(OPENBSD)) && !defined(__GLIBC__)
