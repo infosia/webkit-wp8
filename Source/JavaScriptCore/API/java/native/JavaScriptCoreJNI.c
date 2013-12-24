@@ -16,6 +16,7 @@
 #include "JavaScriptCoreJNI.h"
 
 #define JSCORE_LOG_TAG "JavaScriptCore"
+#define NEWLINE "\n"
 
 #ifdef __ANDROID__
 #include <stdarg.h>
@@ -25,10 +26,10 @@
 #define LOGW(...) ((void)__android_log_print(ANDROID_LOG_WARN,  JSCORE_LOG_TAG, __VA_ARGS__));
 #define LOGE(...) ((void)__android_log_print(ANDROID_LOG_ERROR, JSCORE_LOG_TAG, __VA_ARGS__));
 #else
-#define LOGD(...) ((void)fprintf(stdout, __VA_ARGS__));fflush(stdout);
-#define LOGI(...) ((void)fprintf(stdout, __VA_ARGS__));fflush(stdout);
-#define LOGW(...) ((void)fprintf(stdout, __VA_ARGS__));fflush(stdout);
-#define LOGE(...) ((void)fprintf(stdout, __VA_ARGS__));fflush(stdout);
+#define LOGD(...) ((void)fprintf(stdout, __VA_ARGS__));fprintf(stdout, NEWLINE);fflush(stdout);
+#define LOGI(...) ((void)fprintf(stdout, __VA_ARGS__));fprintf(stdout, NEWLINE);fflush(stdout);
+#define LOGW(...) ((void)fprintf(stdout, __VA_ARGS__));fprintf(stdout, NEWLINE);fflush(stdout);
+#define LOGE(...) ((void)fprintf(stdout, __VA_ARGS__));fprintf(stdout, NEWLINE);fflush(stdout);
 #endif
 
 /*
@@ -107,6 +108,7 @@ jmethodID jmethodId_JSObjectSetStaticValueCallback = NULL;
 jmethodID jmethodId_JSObjectGetPropertyCallback = NULL;
 jmethodID jmethodId_JSObjectSetPropertyCallback = NULL;
 jmethodID jmethodId_JSObjectCallAsConstructorCallback = NULL;
+jmethodID jmethodId_JSObjectMakeConstructorCallback = NULL;
 jmethodID jmethodId_JSObjectCallAsFunctionCallback = NULL;
 jmethodID jmethodId_JSObjectConvertToTypeCallback = NULL;
 jmethodID jmethodId_JSObjectDeletePropertyCallback = NULL;
@@ -114,6 +116,7 @@ jmethodID jmethodId_JSObjectGetPropertyNamesCallback = NULL;
 jmethodID jmethodId_JSObjectHasInstanceCallback = NULL;
 jmethodID jmethodId_JSObjectHasPropertyCallback = NULL;
 jmethodID jmethodId_JSValueRefUpdatePointerCallback = NULL;
+jmethodID jmethodId_JSObjectStaticFunctionCallback = NULL;
 
 jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -152,6 +155,8 @@ static bool CacheClassDefinitionCallbackMethods(JNIEnv* env, jclass callbackClas
                     env, callbackClass, "JSObjectCallAsConstructorCallback", "(JJILjava/nio/ByteBuffer;J)J");
         jmethodId_JSObjectCallAsFunctionCallback = (*env)->GetMethodID(
                 env, callbackClass, "JSObjectCallAsFunctionCallback", "(JJJILjava/nio/ByteBuffer;J)J");
+        jmethodId_JSObjectStaticFunctionCallback = (*env)->GetMethodID(
+                env, callbackClass, "JSObjectStaticFunctionCallback", "(JJJILjava/nio/ByteBuffer;J)J");
         jmethodId_JSObjectConvertToTypeCallback = (*env)->GetMethodID(
                 env, callbackClass, "JSObjectConvertToTypeCallback", "(JJIJ)J");
         jmethodId_JSObjectDeletePropertyCallback = (*env)->GetMethodID(
@@ -162,6 +167,9 @@ static bool CacheClassDefinitionCallbackMethods(JNIEnv* env, jclass callbackClas
                 env, callbackClass, "JSObjectHasInstanceCallback", "(JJJJ)Z");
         jmethodId_JSObjectHasPropertyCallback = (*env)->GetMethodID(
                 env, callbackClass, "JSObjectHasPropertyCallback", "(JJLjava/lang/String;)Z");
+        jmethodId_JSObjectMakeConstructorCallback = (*env)->GetStaticMethodID(
+                    env, callbackClass, "JSObjectMakeConstructorCallback", "(JJILjava/nio/ByteBuffer;J)J");
+
     }
     return true;
 }
@@ -194,6 +202,7 @@ static void UpdateJSValueExceptionPointer(JNIEnv* env, JSContextRef ctx, JSValue
  */
 static void NativeCallback_JSObjectInitializeCallback(JSContextRef ctx, JSObjectRef object)
 {
+    LOGD("JSObjectInitializeCallback");
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
     if (prv && prv->callback && prv->initialized == false)
@@ -213,6 +222,7 @@ static void NativeCallback_JSObjectInitializeCallback(JSContextRef ctx, JSObject
  */
 static void NativeCallback_JSObjectFinalizeCallback(JSObjectRef object)
 {
+    LOGD("JSObjectFinalizeCallback");
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
     if (prv)
@@ -238,6 +248,7 @@ static void NativeCallback_JSObjectFinalizeCallback(JSObjectRef object)
 static JSValueRef NativeCallback_JSObjectGetStaticValueCallback(
     JSContextRef ctx, JSObjectRef object, JSStringRef name, JSValueRef* exception)
 {
+    LOGD("JSObjectGetStaticValueCallback");
     JSValueRef value = NULL;
     
     JNI_ENV_ENTER
@@ -257,6 +268,7 @@ static JSValueRef NativeCallback_JSObjectGetStaticValueCallback(
 static bool NativeCallback_JSObjectSetStaticValueCallback(
     JSContextRef ctx, JSObjectRef object, JSStringRef name, JSValueRef value, JSValueRef* exception)
 {
+    LOGD("JSObjectSetStaticValueCallback");
     bool result = false;
     
     JNI_ENV_ENTER
@@ -275,6 +287,7 @@ static bool NativeCallback_JSObjectSetStaticValueCallback(
 static JSValueRef NativeCallback_JSObjectGetPropertyCallback(
     JSContextRef ctx, JSObjectRef object, JSStringRef name, JSValueRef* exception)
 {
+    LOGD("JSObjectGetPropertyCallback");
     JSValueRef value = NULL;
     
     JNI_ENV_ENTER
@@ -294,6 +307,7 @@ static JSValueRef NativeCallback_JSObjectGetPropertyCallback(
 static bool NativeCallback_JSObjectSetPropertyCallback(
     JSContextRef ctx, JSObjectRef object, JSStringRef name, JSValueRef value, JSValueRef* exception)
 {
+    LOGD("JSObjectSetPropertyCallback");
     bool result = false;
     
     JNI_ENV_ENTER
@@ -313,23 +327,43 @@ static JSObjectRef NativeCallback_JSObjectCallAsConstructorCallback(
     JSContextRef ctx, JSObjectRef constructor,
     size_t argc, const JSValueRef argv[], JSValueRef *exception)
 {
+    LOGD("JSObjectCallAsConstructorCallback");
+    JSObjectRef object = NULL;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(constructor);
     if (prv && prv->callback)
     {
         jobject argvbuffer = argc > 0 ? (*env)->NewDirectByteBuffer(env, (void*)&argv[0], sizeof(long) * argc) : NULL;
-        constructor = (JSObjectRef)(*env)->CallLongMethod(env, prv->callback,
+        object = (JSObjectRef)(*env)->CallLongMethod(env, prv->callback,
                             jmethodId_JSObjectCallAsConstructorCallback,
                             (jlong)ctx, (jlong)constructor, (jint)argc, argvbuffer, (jlong)exception);
+    } else {
+        LOGD("Constructor callback does not found for %lu", (long)constructor);
     }
     JNI_ENV_EXIT
 
-    return constructor;
+    return object;
+}
+static JSObjectRef NativeCallback_JSObjectMakeConstructorCallback(
+    JSContextRef ctx, JSObjectRef constructor,
+    size_t argc, const JSValueRef argv[], JSValueRef *exception)
+{
+    LOGD("JSObjectMakeConstructorCallback");
+    JSObjectRef object = NULL;
+    JNI_ENV_ENTER
+    jclass clazz = (*env)->FindClass(env, "com/appcelerator/javascriptcore/opaquetypes/JSClassDefinition");
+    jobject argvbuffer = argc > 0 ? (*env)->NewDirectByteBuffer(env, (void*)&argv[0], sizeof(long) * argc) : NULL;
+    object = (JSObjectRef)(*env)->CallStaticLongMethod(env, clazz,
+                                        jmethodId_JSObjectMakeConstructorCallback,
+                                        (jlong)ctx, (jlong)constructor, (jint)argc, argvbuffer, (jlong)exception);
+    JNI_ENV_EXIT
+    return object;
 }
 
 static JSValueRef NativeCallback_JSObjectCallAsFunctionCallback(
     JSContextRef ctx, JSObjectRef func, JSObjectRef thisObject,
     size_t argc, const JSValueRef argv[], JSValueRef* exception) {
+    LOGD("JSObjectCallAsFunctionCallback");
     JSValueRef value = NULL;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(func);
@@ -344,10 +378,30 @@ static JSValueRef NativeCallback_JSObjectCallAsFunctionCallback(
     return value;
 }
 
+static JSValueRef NativeCallback_JSObjectStaticFunctionCallback(
+    JSContextRef ctx, JSObjectRef func, JSObjectRef thisObject,
+    size_t argc, const JSValueRef argv[], JSValueRef* exception) {
+    LOGD("JSObjectStaticFunctionCallback");
+    JSValueRef value = NULL;
+    JNI_ENV_ENTER
+    JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(func);
+    if (prv == NULL) prv = (JSObjectPrivateData*)JSObjectGetPrivate(thisObject);
+    if (prv && prv->callback)
+    {
+        jobject argvbuffer = argc > 0 ? (*env)->NewDirectByteBuffer(env, (void*)&argv[0], sizeof(long) * argc) : NULL;
+        value = (JSValueRef)(*env)->CallLongMethod(env, prv->callback, jmethodId_JSObjectStaticFunctionCallback,
+                               (jlong)ctx, (jlong)func, (jlong)thisObject, (jint)argc, argvbuffer, (jlong)exception);
+    }
+    JNI_ENV_EXIT
+    return value;
+
+}
+
 static JSValueRef NativeCallback_JSObjectConvertToTypeCallback(
    JSContextRef ctx,JSObjectRef object,
    JSType type, JSValueRef *exception)
 {
+    LOGD("JSObjectConvertToTypeCallback");
     JSValueRef value = NULL;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
@@ -364,6 +418,7 @@ static bool NativeCallback_JSObjectDeletePropertyCallback(
     JSContextRef ctx, JSObjectRef object,
     JSStringRef name, JSValueRef *exception)
 {
+    LOGD("JSObjectDeletePropertyCallback");
     bool value = false;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
@@ -381,6 +436,7 @@ static void NativeCallback_JSObjectGetPropertyNamesCallback(
     JSContextRef ctx, JSObjectRef object,
     JSPropertyNameAccumulatorRef propertyNames)
 {
+    LOGD("JSObjectGetPropertyNamesCallback");
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
     if (prv && prv->callback)
@@ -395,6 +451,7 @@ static bool NativeCallback_JSObjectHasInstanceCallback(
     JSContextRef ctx, JSObjectRef constructor,
     JSValueRef instance, JSValueRef *exception)
 {
+    LOGD("JSObjectHasInstanceCallback");
     bool value = false;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(constructor);
@@ -410,6 +467,7 @@ static bool NativeCallback_JSObjectHasInstanceCallback(
 static bool NativeCallback_JSObjectHasPropertyCallback(
     JSContextRef ctx, JSObjectRef object, JSStringRef name)
 {
+    LOGD("JSObjectHasPropertyCallback");
     bool value = false;
     JNI_ENV_ENTER
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
@@ -469,7 +527,7 @@ Java_com_appcelerator_javascriptcore_opaquetypes_JSStaticFunctions_NativeGetStat
     (JNIEnv *env, jclass clazz)
 {
     jsStaticFunctionTemplate.attributes = kJSPropertyAttributeNone;
-    jsStaticFunctionTemplate.callAsFunction = NativeCallback_JSObjectCallAsFunctionCallback;
+    jsStaticFunctionTemplate.callAsFunction = NativeCallback_JSObjectStaticFunctionCallback;
     
     return (*env)->NewDirectByteBuffer(env, &jsStaticFunctionTemplate, sizeof(JSStaticFunction));
 }
@@ -509,6 +567,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSClassCreate
     (JNIEnv *env, jobject thiz, jobject definitionBuffer, jstring className, jobject staticValuesBuffer, jobject staticFunctionsBuffer)
 {
+    LOGD("JSClassCreate");
     JSClassDefinition* definition = (*env)->GetDirectBufferAddress(env, definitionBuffer);
     
     JSStaticValue* staticValues = NULL;
@@ -537,11 +596,12 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSClassCreate
     return (jlong)jsClass;
 }
 
-JNIEXPORT jlongArray JNICALL
+JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMake
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsClassRef,
      jobject callback, jobject staticFunctionsBuffer, jint staticFunctionCount, jobject object)
 {
+    LOGD("JSObjectMake");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSClassRef jsClass = (JSClassRef)jsClassRef;
     
@@ -561,40 +621,14 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMake
         CacheClassDefinitionCallbackMethods(env, prv->callbackClass);
     }
     
-    JSObjectRef newObject = JSObjectMake(ctx, jsClass, prv);
-    
-    jlongArray outValues = (*env)->NewLongArray(env, staticFunctionCount + 1);
-    jlong* p_outValues = (*env)->GetLongArrayElements(env, outValues, NULL);
-    
-    // First one is the new object pointer, static function pointers to follow
-    p_outValues[0] = (jlong)newObject;
-
-    // Attach callback to function object
-    if (staticFunctionCount > 0) {
-        JSStaticFunction* staticFunctions = (*env)->GetDirectBufferAddress(env, staticFunctionsBuffer);
-        int i = 1;
-        while(staticFunctions->name) {
-            JSStringRef funcname = JSStringCreateWithUTF8CString(staticFunctions->name);
-            JSValueRef  funcval  = JSObjectGetProperty(ctx, newObject, funcname, NULL);
-            if (!JSValueIsUndefined(ctx, funcval)) {
-                JSObjectRef funcObj = JSValueToObject(ctx, funcval, NULL);
-                JSObjectSetPrivate(funcObj, prv);
-                p_outValues[i] = (jlong)funcObj;
-            }
-            JSSTRING_RELEASE(funcname);
-            ++staticFunctions;
-            ++i;
-        }
-    }
-    (*env)->ReleaseLongArrayElements(env, outValues, p_outValues, 0);
-    
-    return outValues;
+    return (jlong)JSObjectMake(ctx, jsClass, prv);
 }
 
 JNIEXPORT jobject JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectGetPrivate
 (JNIEnv *env, jobject thiz, jlong jsObjectRef)
 {
+    LOGD("JSObjectGetPrivate");
     JSObjectRef jsObject = (JSObjectRef)jsObjectRef;
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(jsObject);
     if (prv && prv->object) {
@@ -607,6 +641,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectSetPrivate
 (JNIEnv *env, jobject thiz, jlong jsObjectRef, jobject object)
 {
+    LOGD("JSObjectSetPrivate");
     JSObjectRef jsObject = (JSObjectRef)jsObjectRef;
     JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(jsObject);
     if (prv == NULL)
@@ -629,6 +664,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSContextGroupCreate
     (JNIEnv *env, jobject thiz)
 {
+    LOGD("JSContextGroupCreate");
     JSContextGroupRef group = JSContextGroupCreate();
     return (jlong)group;
 }
@@ -637,6 +673,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSContextGroupRelease
     (JNIEnv *env, jobject thiz, jlong jsContextGroupRef)
 {
+    LOGD("JSContextGroupRelease");
     JSContextGroupRef group = (JSContextGroupRef)jsContextGroupRef;
     JSContextGroupRelease(group);
 }
@@ -645,6 +682,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSContextGroupRetain
     (JNIEnv *env, jobject thiz, jlong jsContextGroupRef)
 {
+    LOGD("JSContextGroupRetain");
     JSContextGroupRef group = (JSContextGroupRef)jsContextGroupRef;
     return (jlong)JSContextGroupRetain(group);
 }
@@ -653,6 +691,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSContextGetGlobalObject
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSContextGetGlobalObject");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSContextGetGlobalObject(ctx);
 }
@@ -661,26 +700,47 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSContextGetGroup
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSContextGetGroup");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSContextGetGroup(ctx);
 }
 
+bool RegisterCallback(JNIEnv* env, JSObjectRef object, jobject callback) {
+    JSObjectPrivateData* prv = (JSObjectPrivateData*)JSObjectGetPrivate(object);
+    if (callback != NULL && prv == NULL)
+    {
+        prv = NewJSObjectPrivateData();
+        prv->callback = (*env)->NewGlobalRef(env, callback);
+        prv->callbackClass = (*env)->NewGlobalRef(env, (*env)->GetObjectClass(env, callback));
+        return JSObjectSetPrivate(object, prv);
+    }
+    return false;
+}
+    
 JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSGlobalContextCreate
-    (JNIEnv *env, jobject thiz, jlong jsClassRef)
+    (JNIEnv *env, jobject thiz, jlong jsClassRef, jobject callback)
 {
+    LOGD("JSGlobalContextCreate");
     JSClassRef jsClass = (JSClassRef)jsClassRef;
     JSGlobalContextRef ctx = JSGlobalContextCreate(jsClass);
+    JSObjectRef globalObject = JSContextGetGlobalObject(ctx);
+    RegisterCallback(env, globalObject, callback);
+    NativeCallback_JSObjectInitializeCallback(ctx, globalObject);
     return (jlong)ctx;
 }
 
 JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSGlobalContextCreateInGroup
-    (JNIEnv *env, jobject thiz, jlong jsContextGroupRef, jlong jsClassRef)
+    (JNIEnv *env, jobject thiz, jlong jsContextGroupRef, jlong jsClassRef, jobject callback)
 {
+    LOGD("JSGlobalContextCreateInGroup");
     JSContextGroupRef group = (JSContextGroupRef)jsContextGroupRef;
     JSClassRef jsClass = (JSClassRef)jsClassRef;
     JSGlobalContextRef ctx = JSGlobalContextCreateInGroup(group, jsClass);
+    JSObjectRef globalObject = JSContextGetGlobalObject(ctx);
+    RegisterCallback(env, globalObject, callback);
+    NativeCallback_JSObjectInitializeCallback(ctx, globalObject);
     return (jlong)ctx;
 }
 
@@ -688,6 +748,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSGlobalContextRelease
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSGlobalContextRelease");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSGlobalContextRelease(ctx);
 }
@@ -696,6 +757,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSGlobalContextRetain
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSGlobalContextRetain");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSGlobalContextRetain(ctx);
 }
@@ -704,6 +766,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSEvaluateScriptShort
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring script, jobject exceptionObj)
 {
+    LOGD("JSEvaluateScriptShort");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -724,6 +787,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSEvaluateScrip
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring script,
      jlong jsObjectRef, jstring sourceURL, jint line, jobject exceptionObj)
 {
+    LOGD("JSEvaluateScriptFull");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     JSObjectRef object = (JSObjectRef)jsObjectRef;
@@ -746,6 +810,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSCheckScriptSyntax
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring script, jobject exceptionObj)
 {
+    LOGD("JSCheckScriptSyntax");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -765,6 +830,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSGarbageCollect
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSGarbageCollect");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSGarbageCollect(ctx);
 }
@@ -773,6 +839,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeUndefined
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSValueMakeUndefined");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSValueMakeUndefined(ctx);
 }
@@ -781,6 +848,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeNull
     (JNIEnv *env, jobject thiz, jlong jsContextRef)
 {
+    LOGD("JSValueMakeNull");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSValueMakeNull(ctx);
 }
@@ -789,6 +857,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeNumber
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jdouble arg)
 {
+    LOGD("JSValueMakeNumber");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSValueMakeNumber(ctx, (double)arg);
 }
@@ -797,6 +866,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeBoolean
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jboolean arg)
 {
+    LOGD("JSValueMakeBoolean");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     return (jlong)JSValueMakeBoolean(ctx, arg == JNI_TRUE ? true : false);
 }
@@ -805,6 +875,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsObjectOfClass
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jlong jsClassRef)
 {
+    LOGD("JSValueIsObjectOfClass");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSClassRef jsClass = (JSClassRef)jsClassRef;
@@ -815,6 +886,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsInstanceOfConstructor
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jlong jsObjectRef, jobject exceptionObj)
 {
+    LOGD("JSValueIsInstanceOfConstructor");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSObjectRef constructor = (JSObjectRef)jsObjectRef;
@@ -830,6 +902,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsUndefined
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsUndefined");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsUndefined(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -839,6 +912,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsNull
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsNull");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsNull(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -848,6 +922,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsNumber
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsNumber");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsNumber(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -857,6 +932,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsBoolean
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsBoolean");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsBoolean(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -866,6 +942,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsString
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsString");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsString(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -875,6 +952,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsObject
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueIsObject");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     return JSValueIsObject(ctx, value) ? JNI_TRUE : JNI_FALSE;
@@ -884,6 +962,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueToBoolean
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueToBoolean");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     
@@ -894,6 +973,7 @@ JNIEXPORT jdouble JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueToNumber
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jobject exceptionObj)
 {
+    LOGD("JSValueToNumber");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -909,6 +989,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueToObject
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jobject exceptionObj)
 {
+    LOGD("JSValueToObject");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -924,6 +1005,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeFromJSONString
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring jjson)
 {
+    LOGD("JSValueMakeFromJSONString");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     
     JSSTRINGREF_FROM_JSTRING(jjson, json)
@@ -937,6 +1019,7 @@ JNIEXPORT jstring JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueToStringCopy
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jobject exceptionObj)
 {
+    LOGD("JSValueToStringCopy");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -961,6 +1044,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsEqual
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRefA, jlong jsValueRefB, jobject exceptionObj)
 {
+    LOGD("JSValueIsEqual");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef a = (JSValueRef)jsValueRefA;
     JSValueRef b = (JSValueRef)jsValueRefB;
@@ -977,6 +1061,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueIsStrictEqual
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRefA, jlong jsValueRefB)
 {
+    LOGD("JSValueIsStrictEqual");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef a = (JSValueRef)jsValueRefA;
     JSValueRef b = (JSValueRef)jsValueRefB;
@@ -988,6 +1073,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueProtect
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueProtect");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueProtect(ctx, value);
@@ -997,6 +1083,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueUnprotect
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueUnprotect");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueUnprotect(ctx, value);
@@ -1006,6 +1093,7 @@ JNIEXPORT jstring JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueCreateJSONString
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef, jint indent, jobject exceptionObj)
 {
+    LOGD("JSValueCreateJSONString");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -1031,6 +1119,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueMakeString
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring value)
 {
+    LOGD("JSValueMakeString");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSSTRINGREF_FROM_JSTRING(value, jsvalue)
     JSValueRef string = JSValueMakeString(ctx, jsvalue);
@@ -1042,6 +1131,7 @@ JNIEXPORT jint JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSValueGetType
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsValueRef)
 {
+    LOGD("JSValueGetType");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSValueRef value = (JSValueRef)jsValueRef;
     
@@ -1052,6 +1142,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectCallAsConstructor
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectCallAsConstructor");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -1072,6 +1163,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectCallAsF
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jlong jsThisObjectRef,
      jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectCallAsFunction");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSObjectRef thisObject = (JSObjectRef)jsThisObjectRef;
@@ -1093,6 +1185,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectSetProp
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jstring name,
      jlong jsValueRef, jint attributes, jobject exceptionObj)
 {
+    LOGD("JSObjectSetProperty");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef value = (JSValueRef)jsValueRef;
@@ -1112,6 +1205,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectGetProp
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef,
      jstring name, jobject exceptionObj)
 {
+    LOGD("JSObjectGetProperty");
     JSGlobalContextRef ctx = (JSGlobalContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -1131,6 +1225,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSClassRelease
     (JNIEnv *env, jobject thiz, jlong jsClassRef)
 {
+    LOGD("JSClassRelease");
     JSClassRelease((JSClassRef)jsClassRef);
 }
 
@@ -1138,6 +1233,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSClassRetain
     (JNIEnv *env, jobject thiz, jlong jsClassRef)
 {
+    LOGD("JSClassRetain");
     return (jlong)JSClassRetain((JSClassRef)jsClassRef);
 }
 
@@ -1145,14 +1241,16 @@ JNIEXPORT jint JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSPropertyNameArrayGetCount
     (JNIEnv *env, jobject thiz, jlong namesRef)
 {
+    LOGD("JSPropertyNameArrayGetCount");
     JSPropertyNameArrayRef array = (JSPropertyNameArrayRef)namesRef;
     return (jint)JSPropertyNameArrayGetCount(array);
 }
 
 JNIEXPORT jstring JNICALL
-NativeJSPropertyNameArrayGetNameAtIndex
+Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSPropertyNameArrayGetNameAtIndex
     (JNIEnv *env, jobject thiz, jlong namesRef, jint index)
 {
+    LOGD("JSPropertyNameArrayGetNameAtIndex");
     JSPropertyNameArrayRef array = (JSPropertyNameArrayRef)namesRef;
     JSStringRef name = JSPropertyNameArrayGetNameAtIndex(array, index);
     JSTRING_FROM_JSSTRINGREF(name, cname, jname)
@@ -1163,6 +1261,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSPropertyNameArrayRelease
     (JNIEnv *env, jobject thiz, jlong namesRef)
 {
+    LOGD("JSPropertyNameArrayRelease");
     JSPropertyNameArrayRef array = (JSPropertyNameArrayRef)namesRef;
     JSPropertyNameArrayRelease(array);
 }
@@ -1171,6 +1270,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSPropertyNameArrayRetain
     (JNIEnv *env, jobject thiz, jlong namesRef)
 {
+    LOGD("JSPropertyNameArrayRetain");
     JSPropertyNameArrayRef array = (JSPropertyNameArrayRef)namesRef;
     return (jlong)JSPropertyNameArrayRetain(array);
 }
@@ -1179,6 +1279,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSPropertyNameAccumulatorAddName
     (JNIEnv *env, jobject thiz, jlong accumulatorRef, jstring name)
 {
+    LOGD("JSPropertyNameAccumulatorAddName");
     JSPropertyNameAccumulatorRef accumulator = (JSPropertyNameAccumulatorRef)accumulatorRef;
     JSSTRINGREF_FROM_JSTRING(name, jsname)
 
@@ -1191,6 +1292,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectSetProp
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jint propertyIndex,
      jlong jsValueRef, jobject exceptionObj)
 {
+    LOGD("JSObjectSetPropertyAtIndex");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef value = (JSValueRef)jsValueRef;
@@ -1207,6 +1309,7 @@ JNIEXPORT void JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectSetPrototype
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jlong jsValueRef)
 {
+    LOGD("JSObjectSetPrototype");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef value = (JSValueRef)jsValueRef;
@@ -1218,6 +1321,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectIsConstructor
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef)
 {
+    LOGD("JSObjectIsConstructor");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     
@@ -1228,6 +1332,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectIsFunction
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef)
 {
+    LOGD("JSObjectIsFunction");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     
@@ -1238,6 +1343,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectCopyPropertyNames
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef)
 {
+    LOGD("JSObjectCopyPropertyNames");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     
@@ -1248,6 +1354,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectDeleteProperty
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jstring name, jobject exceptionObj)
 {
+    LOGD("JSObjectDeleteProperty");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -1264,6 +1371,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectGetPropertyAtIndex
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jint index, jobject exceptionObj)
 {
+    LOGD("JSObjectGetPropertyAtIndex");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
@@ -1279,6 +1387,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectGetPrototype
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef)
 {
+    LOGD("JSObjectGetPrototype");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     
@@ -1289,6 +1398,7 @@ JNIEXPORT jboolean JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectHasProperty
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jstring name)
 {
+    LOGD("JSObjectHasProperty");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSObjectRef object = (JSObjectRef)jsObjectRef;
     JSSTRINGREF_FROM_JSTRING(name, jsname)
@@ -1301,6 +1411,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeArray
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectMakeArray");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -1315,6 +1426,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeDate
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectMakeDate");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -1329,6 +1441,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeError
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectMakeError");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -1343,6 +1456,7 @@ JNIEXPORT jlong JNICALL
 Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeRegExp
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jint argc, jobject argv, jobject exceptionObj)
 {
+    LOGD("JSObjectMakeRegExp");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     
@@ -1396,13 +1510,13 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeSizeOfJSStaticF
 }
 
 JNIEXPORT void JNICALL
-Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeUpdateExceptionPointer
-    (JNIEnv* env, jobject thiz, jlong dst, jlong jsValueRef)
+Java_com_appcelerator_javascriptcore_opaquetypes_Pointer_NativeUpdatePointer
+    (JNIEnv* env, jobject thiz, jlong toJPointer, jlong fromJValue)
 {
-    JSValueRef value = (JSValueRef)jsValueRef;
-    JSValueRef* exception = (JSValueRef*)dst;
+    void* fromValue = (void*)fromJValue;
+    void** toPointer = (void**)toJPointer;
     
-    *exception = value;
+    *toPointer = fromValue;
 }
 
 JNIEXPORT jlong JNICALL
@@ -1410,6 +1524,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeFun
     (JNIEnv *env, jobject thiz, jlong jsContextRef, jstring name, jint paramCount,
      jobjectArray paramNames, jstring body, jstring sourceURL, jint line, jobject exceptionObj)
 {
+    LOGD("JSObjectMakeFunction");
     JSContextRef ctx = (JSContextRef)jsContextRef;
     JSValueRef exceptionStore = JSValueMakeNull(ctx);
     JSSTRINGREF_FROM_JSTRING(name, jsname)
@@ -1444,6 +1559,42 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeFun
     return (jlong)value;
 }
 
+JNIEXPORT jlong JNICALL
+Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeConstructor
+    (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsClassRef, jobject callback, jboolean useCallback)
+{
+    LOGD("JSObjectMakeConstructor");
+    return (jlong)JSObjectMakeConstructor((JSContextRef)jsContextRef, (JSClassRef)jsClassRef,
+                                          NativeCallback_JSObjectMakeConstructorCallback);
+}
+
+JNIEXPORT jlongArray JNICALL
+Java_com_appcelerator_javascriptcore_opaquetypes_JSClassDefinition_NativeGetStaticFunctions
+    (JNIEnv *env, jobject thiz, jlong jsContextRef, jlong jsObjectRef, jint staticFunctionCount, jobject staticFunctionsBuffer)
+{
+    JSContextRef ctx = (JSContextRef)jsContextRef;
+    JSObjectRef object = (JSObjectRef)jsObjectRef;
+    
+    jlongArray outValues = (*env)->NewLongArray(env, staticFunctionCount);
+    jlong* p_outValues = (*env)->GetLongArrayElements(env, outValues, NULL);
+    if (staticFunctionCount > 0) {
+        JSStaticFunction* staticFunctions = (*env)->GetDirectBufferAddress(env, staticFunctionsBuffer);
+        int i = 0;
+        while(staticFunctions->name) {
+            JSStringRef funcname = JSStringCreateWithUTF8CString(staticFunctions->name);
+            JSValueRef  funcval  = JSObjectGetProperty(ctx, object, funcname, NULL);
+            if (!JSValueIsUndefined(ctx, funcval)) {
+                p_outValues[i] = (jlong)JSValueToObject(ctx, funcval, NULL);
+            }
+            JSSTRING_RELEASE(funcname);
+            ++staticFunctions;
+            ++i;
+        }
+    }
+    (*env)->ReleaseLongArrayElements(env, outValues, p_outValues, 0);
+    
+    return outValues;
+}
 #ifdef __cplusplus
 }
 #endif
