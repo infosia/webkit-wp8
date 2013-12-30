@@ -65,43 +65,30 @@
 #endif
 
 /* COMPILER(MSVC) - Microsoft Visual C++ */
-/* COMPILER(MSVC9_OR_LOWER) - Microsoft Visual C++ 2008 or lower*/
 #if defined(_MSC_VER)
-#define WTF_COMPILER_MSVC 1
-#if _MSC_VER < 1600
-#define WTF_COMPILER_MSVC9_OR_LOWER 1
+#if _MSC_VER < 1800
+#error "Please use a newer version of Visual Studio. WebKit requires VS2013 or newere to compile."
 #endif
+#define WTF_COMPILER_MSVC 1
 
 /* Specific compiler features */
-#if !COMPILER(CLANG) && _MSC_VER >= 1600
+#if !COMPILER(CLANG)
 #define WTF_COMPILER_SUPPORTS_CXX_NULLPTR 1
 #endif
 
 #if !COMPILER(CLANG)
 #define WTF_COMPILER_SUPPORTS_CXX_OVERRIDE_CONTROL 1
-#if !defined(_MSC_VER) || _MSC_VER < 1800
-#define WTF_COMPILER_QUIRK_FINAL_IS_CALLED_SEALED 1
-#endif
 #endif
 
-/* Check for VS2010 or newer */
-#if _MSC_VER >= 1600
 #define WTF_COMPILER_SUPPORTS_CXX_RVALUE_REFERENCES 1
 #define WTF_COMPILER_SUPPORTS_CXX_STATIC_ASSERT 1
 #define WTF_COMPILER_SUPPORTS_CXX_AUTO_TYPE 1
-#endif
-
-#if _MSC_VER >= 1700
 #define WTF_COMPILER_SUPPORTS_CXX_STRONG_ENUMS 1
 #define WTF_COMPILER_SUPPORTS_CXX_OVERRIDE_CONTROL 1
-#endif
-
-#if _MSC_VER >= 1800
 #define WTF_COMPILER_SUPPORTS_CXX_DELETED_FUNCTIONS 1
 #define WTF_COMPILER_SUPPORTS_CXX_EXPLICIT_CONVERSIONS 1
 #define WTF_COMPILER_SUPPORTS_CXX_GENERALIZED_INITIALIZERS 1
 #define WTF_COMPILER_SUPPORTS_CXX_VARIADIC_TEMPLATES 1
-#endif
 
 #endif /* defined(_MSC_VER) */
 
@@ -113,7 +100,6 @@
 #endif
 
 /* COMPILER(GCC) - GNU Compiler Collection */
-/* --gnu option of the RVCT compiler also defines __GNUC__ */
 #if defined(__GNUC__)
 #define WTF_COMPILER_GCC 1
 #define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
@@ -223,6 +209,8 @@
 #ifndef NEVER_INLINE
 #if COMPILER(GCC)
 #define NEVER_INLINE __attribute__((__noinline__))
+#elif COMPILER(MSVC) || COMPILER(RVCT)
+#define NEVER_INLINE __declspec(noinline)
 #else
 #define NEVER_INLINE
 #endif
@@ -348,7 +336,5 @@
 #else
 #define UNUSED_LABEL(label) UNUSED_PARAM(&& label)
 #endif
-
-
 
 #endif /* WTF_Compiler_h */

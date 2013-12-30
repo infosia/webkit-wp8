@@ -67,7 +67,8 @@ class TestRunner:
         SkippedTest("unittests/testwebresource", "/webkit/webresource/sub_resource_loading", "Test fails in GTK Linux 64-bit Release bot", 82330),
         SkippedTest("unittests/testwebview", "/webkit/webview/icon-uri", "Test times out in GTK Linux 64-bit Release bot", 82328),
         SkippedTest("WebKit2APITests/TestResources", "/webkit2/WebKitWebView/resources", "Test is flaky in GTK Linux 32-bit Release bot", 82868),
-        SkippedTest("WebKit2APITests/TestWebKitWebView", SkippedTest.ENTIRE_SUITE, "Test times out after r150890", 117689),
+        SkippedTest("WebKit2APITests/TestUIClient", "/webkit2/WebKitWebView/mouse-target", "Test times out after r150890", 117689),
+        SkippedTest("WebKit2APITests/TestAuthentication", SkippedTest.ENTIRE_SUITE, "Test times out after r150890", 117689),
         SkippedTest("WebKit2APITests/TestContextMenu", SkippedTest.ENTIRE_SUITE, "Test times out after r150890", 117689),
         SkippedTest("TestWebKitAPI/TestWebKit2", "WebKit2.MouseMoveAfterCrash", "Test is flaky", 85066),
         SkippedTest("TestWebKitAPI/TestWebKit2", "WebKit2.NewFirstVisuallyNonEmptyLayoutForImages", "Test is flaky", 85066),
@@ -315,7 +316,7 @@ class TestRunner:
         return return_code_from_exit_status(status)
 
     def _run_test_glib(self, test_program):
-        tester_command = ['gtester']
+        tester_command = ['gtester', '-k']
         if self._options.verbose:
             tester_command.append('--verbose')
         for test_case in self._test_cases_to_skip(test_program):

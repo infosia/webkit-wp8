@@ -30,6 +30,7 @@
 
 #include "ChildProcess.h"
 #include "UniqueIDBDatabaseIdentifier.h"
+#include <wtf/NeverDestroyed.h>
 
 class WorkQueue;
 
@@ -43,6 +44,7 @@ struct DatabaseProcessCreationParameters;
 
 class DatabaseProcess : public ChildProcess  {
     WTF_MAKE_NONCOPYABLE(DatabaseProcess);
+    friend NeverDestroyed<DatabaseProcess>;
 public:
     static DatabaseProcess& shared();
 
@@ -65,13 +67,13 @@ private:
     virtual void initializeProcess(const ChildProcessInitializationParameters&) OVERRIDE;
     virtual void initializeProcessName(const ChildProcessInitializationParameters&) OVERRIDE;
     virtual void initializeSandbox(const ChildProcessInitializationParameters&, SandboxInitializationParameters&) OVERRIDE;
-    virtual void initializeConnection(CoreIPC::Connection*) OVERRIDE;
+    virtual void initializeConnection(IPC::Connection*) OVERRIDE;
     virtual bool shouldTerminate() OVERRIDE;
 
-    // CoreIPC::Connection::Client
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-    virtual void didClose(CoreIPC::Connection*) OVERRIDE;
-    virtual void didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference messageReceiverName, CoreIPC::StringReference messageName) OVERRIDE;
+    // IPC::Connection::Client
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) OVERRIDE;
+    virtual void didClose(IPC::Connection*) OVERRIDE;
+    virtual void didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference messageReceiverName, IPC::StringReference messageName) OVERRIDE;
 
     // Message Handlers
     void initializeDatabaseProcess(const DatabaseProcessCreationParameters&);

@@ -33,27 +33,32 @@ namespace WebKit {
 
 class WebPageProxy;
 
-class ViewGestureController : private CoreIPC::MessageReceiver {
+class ViewGestureController : private IPC::MessageReceiver {
     WTF_MAKE_NONCOPYABLE(ViewGestureController);
 public:
     ViewGestureController(WebPageProxy&);
     ~ViewGestureController();
 
+    double magnification() const;
+
     void handleMagnificationGesture(double scale, WebCore::FloatPoint origin);
+    void handleSmartMagnificationGesture(WebCore::FloatPoint origin);
 
     void endActiveGesture();
 
     enum class ViewGestureType {
         None,
         Magnification,
+        SmartMagnification,
     };
 
 private:
-    // CoreIPC::MessageReceiver.
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
+    // IPC::MessageReceiver.
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) OVERRIDE;
 
     // Message handlers.
-    void didBeginTransientZoom(WebCore::FloatRect visibleContentBounds);
+    void didCollectGeometryForMagnificationGesture(WebCore::FloatRect visibleContentBounds);
+    void didCollectGeometryForSmartMagnificationGesture(WebCore::FloatPoint origin, WebCore::FloatRect renderRect, WebCore::FloatRect visibleContentBounds, bool isReplacedElement);
 
     void endMagnificationGesture();
     WebCore::FloatPoint scaledMagnificationOrigin(WebCore::FloatPoint origin, double scale);
@@ -62,6 +67,8 @@ private:
 
     double m_magnification;
     WebCore::FloatPoint m_magnificationOrigin;
+
+    WebCore::FloatRect m_lastSmartMagnificationUnscaledTargetRect;
 
     ViewGestureType m_activeGestureType;
 

@@ -144,7 +144,7 @@ public:
         m_response = response;
     }
 
-    virtual void didReceiveData(ResourceHandle*, const char* data, int length, int)
+    virtual void didReceiveData(ResourceHandle*, const char* /* data */, int /* length */, int)
     {
         ASSERT_NOT_REACHED();
     }
@@ -236,6 +236,7 @@ static gboolean requestTimeoutCallback(void*);
 #if ENABLE(WEB_TIMING)
 static int  milisecondsSinceRequest(double requestTime);
 #endif
+static void continueAfterDidReceiveResponse(ResourceHandle*);
 
 static bool gIgnoreSSLErrors = false;
 
@@ -511,7 +512,10 @@ static void doRedirect(ResourceHandle* handle)
     // the WebKit layer. They were only placed in the URL for the benefit of libsoup.
     newRequest.removeCredentials();
 
-    d->client()->willSendRequest(handle, newRequest, d->m_response);
+    if (d->client()->usesAsyncCallbacks())
+        d->client()->willSendRequestAsync(handle, newRequest, d->m_response);
+    else
+        d->client()->willSendRequest(handle, newRequest, d->m_response);
     handle->sendPendingRequest();
 }
 
@@ -649,18 +653,14 @@ static void nextMultipartResponsePartCallback(GObject* /*source*/, GAsyncResult*
     d->m_response.setURL(handle->firstRequest().url());
     d->m_response.updateFromSoupMessageHeaders(soup_multipart_input_stream_get_headers(d->m_multipartInputStream.get()));
 
-    handle->client()->didReceiveResponse(handle.get(), d->m_response);
-
-    if (handle->cancelledOrClientless()) {
-        cleanupSoupRequestOperation(handle.get());
-        return;
-    }
-
     d->m_previousPosition = 0;
 
-    handle->ensureReadBuffer();
-    g_input_stream_read_async(d->m_inputStream.get(), const_cast<char*>(d->m_soupBuffer->data), d->m_soupBuffer->length,
-        G_PRIORITY_DEFAULT, d->m_cancellable.get(), readCallback, handle.get());
+    if (handle->client()->usesAsyncCallbacks())
+        handle->client()->didReceiveResponseAsync(handle.get(), d->m_response);
+    else {
+        handle->client()->didReceiveResponse(handle.get(), d->m_response);
+        continueAfterDidReceiveResponse(handle.get());
+    }
 }
 
 static void sendRequestCallback(GObject*, GAsyncResult* result, gpointer data)
@@ -716,25 +716,37 @@ static void sendRequestCallback(GObject*, GAsyncResult* result, gpointer data)
         d->m_response.setExpectedContentLength(soup_request_get_content_length(d->m_soupRequest.get()));
     }
 
-    handle->client()->didReceiveResponse(handle.get(), d->m_response);
-
-    if (handle->cancelledOrClientless()) {
-        cleanupSoupRequestOperation(handle.get());
-        return;
-    }
-
-    if (soupMessage && d->m_response.isMultipart()) {
+    if (soupMessage && d->m_response.isMultipart())
         d->m_multipartInputStream = adoptGRef(soup_multipart_input_stream_new(soupMessage, inputStream.get()));
-        soup_multipart_input_stream_next_part_async(d->m_multipartInputStream.get(), G_PRIORITY_DEFAULT,
-            d->m_cancellable.get(), nextMultipartResponsePartCallback, handle.get());
+    else
+        d->m_inputStream = inputStream;
+
+    if (d->client()->usesAsyncCallbacks())
+        handle->client()->didReceiveResponseAsync(handle.get(), d->m_response);
+    else {
+        handle->client()->didReceiveResponse(handle.get(), d->m_response);
+        continueAfterDidReceiveResponse(handle.get());
+    }
+}
+
+static void continueAfterDidReceiveResponse(ResourceHandle* handle)
+{
+    if (handle->cancelledOrClientless()) {
+        cleanupSoupRequestOperation(handle);
         return;
     }
 
-    d->m_inputStream = inputStream;
+    ResourceHandleInternal* d = handle->getInternal();
+    if (d->m_soupMessage && d->m_multipartInputStream && !d->m_inputStream) {
+        soup_multipart_input_stream_next_part_async(d->m_multipartInputStream.get(), G_PRIORITY_DEFAULT,
+            d->m_cancellable.get(), nextMultipartResponsePartCallback, handle);
+        return;
+    }
 
+    ASSERT(d->m_inputStream);
     handle->ensureReadBuffer();
     g_input_stream_read_async(d->m_inputStream.get(), const_cast<char*>(d->m_soupBuffer->data), d->m_soupBuffer->length,
-        G_PRIORITY_DEFAULT, d->m_cancellable.get(), readCallback, handle.get());
+        G_PRIORITY_DEFAULT, d->m_cancellable.get(), readCallback, handle);
 }
 
 static bool addFileToSoupMessageBody(SoupMessage* message, const String& fileNameString, size_t offset, size_t lengthToSend, unsigned long& totalBodySize)
@@ -1368,6 +1380,27 @@ static void readCallback(GObject*, GAsyncResult* asyncResult, gpointer data)
     handle->ensureReadBuffer();
     g_input_stream_read_async(d->m_inputStream.get(), const_cast<char*>(d->m_soupBuffer->data), d->m_soupBuffer->length, G_PRIORITY_DEFAULT,
         d->m_cancellable.get(), readCallback, handle.get());
+}
+
+void ResourceHandle::continueWillSendRequest(const ResourceRequest& request)
+{
+    ASSERT(client());
+    ASSERT(client()->usesAsyncCallbacks());
+    // FIXME: Implement this method if needed: https://bugs.webkit.org/show_bug.cgi?id=126114.
+}
+
+void ResourceHandle::continueDidReceiveResponse()
+{
+    ASSERT(client());
+    ASSERT(client()->usesAsyncCallbacks());
+    continueAfterDidReceiveResponse(this);
+}
+
+void ResourceHandle::continueShouldUseCredentialStorage(bool)
+{
+    ASSERT(client());
+    ASSERT(client()->usesAsyncCallbacks());
+    // FIXME: Implement this method if needed: https://bugs.webkit.org/show_bug.cgi?id=126114.
 }
 
 static gboolean requestTimeoutCallback(gpointer data)

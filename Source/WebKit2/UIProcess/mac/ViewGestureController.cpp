@@ -27,6 +27,7 @@
 #import "ViewGestureController.h"
 
 #import "ViewGestureControllerMessages.h"
+#import "ViewGestureGeometryCollectorMessages.h"
 #import "WebPageProxy.h"
 #import "WebProcessProxy.h"
 
@@ -40,6 +41,9 @@ static const double maxElasticMagnification = 4;
 
 static const double zoomOutBoost = 1.6;
 static const double zoomOutResistance = 0.10;
+
+static const float smartMagnificationElementPadding = 0.05;
+static const float smartMagnificationPanScrollThreshold = 100;
 
 namespace WebKit {
 
@@ -84,7 +88,7 @@ FloatPoint ViewGestureController::scaledMagnificationOrigin(FloatPoint origin, d
     return scaledMagnificationOrigin;
 }
 
-void ViewGestureController::didBeginTransientZoom(FloatRect visibleContentRect)
+void ViewGestureController::didCollectGeometryForMagnificationGesture(FloatRect visibleContentRect)
 {
     m_activeGestureType = ViewGestureType::Magnification;
     m_visibleContentRect = visibleContentRect;
@@ -98,11 +102,12 @@ void ViewGestureController::handleMagnificationGesture(double scale, FloatPoint 
     if (m_activeGestureType == ViewGestureType::None) {
         // FIXME: We drop the first frame of the gesture on the floor, because we don't have the visible content bounds yet.
         m_magnification = m_webPageProxy.pageScaleFactor();
-        m_webPageProxy.drawingArea()->beginTransientZoom();
+        m_webPageProxy.process().send(Messages::ViewGestureGeometryCollector::CollectGeometryForMagnificationGesture(), m_webPageProxy.pageID());
+
         return;
     }
 
-    // We're still waiting for the DidBeginTransientZoom callback.
+    // We're still waiting for the DidCollectGeometry callback.
     if (!m_visibleContentRectIsValid)
         return;
 
@@ -122,19 +127,64 @@ void ViewGestureController::endMagnificationGesture()
 {
     ASSERT(m_activeGestureType == ViewGestureType::Magnification);
 
-    // FIXME: Should rubber-band back when zoomed in or out past the limit.
     double newMagnification = std::min(std::max(m_magnification, minMagnification), maxMagnification);
+    m_webPageProxy.drawingArea()->commitTransientZoom(newMagnification, scaledMagnificationOrigin(m_magnificationOrigin, newMagnification));
+}
 
-    FloatPoint scaledOrigin = scaledMagnificationOrigin(m_magnificationOrigin, newMagnification);
-    scaledOrigin.moveBy(-m_visibleContentRect.location());
+void ViewGestureController::handleSmartMagnificationGesture(FloatPoint origin)
+{
+    if (m_activeGestureType != ViewGestureType::None)
+        return;
 
-    m_webPageProxy.drawingArea()->commitTransientZoom(newMagnification, -scaledOrigin);
+    m_webPageProxy.process().send(Messages::ViewGestureGeometryCollector::CollectGeometryForSmartMagnificationGesture(origin), m_webPageProxy.pageID());
+}
+
+static float maximumRectangleComponentDelta(FloatRect a, FloatRect b)
+{
+    return std::max(fabs(a.x() - b.x()), std::max(fabs(a.y() - b.y()), std::max(fabs(a.width() - b.width()), fabs(a.height() - b.height()))));
+}
+
+void ViewGestureController::didCollectGeometryForSmartMagnificationGesture(FloatPoint origin, FloatRect renderRect, FloatRect visibleContentRect, bool isReplacedElement)
+{
+    double currentScaleFactor = m_webPageProxy.pageScaleFactor();
+
+    FloatRect unscaledTargetRect = renderRect;
+    unscaledTargetRect.scale(1 / currentScaleFactor);
+    unscaledTargetRect.inflateX(unscaledTargetRect.width() * smartMagnificationElementPadding);
+    unscaledTargetRect.inflateY(unscaledTargetRect.height() * smartMagnificationElementPadding);
+
+    double targetMagnification = visibleContentRect.width() / unscaledTargetRect.width();
+
+    // For replaced elements like images, we want to fit the whole element
+    // in the view, so scale it down enough to make both dimensions fit if possible.
+    if (isReplacedElement)
+        targetMagnification = std::min(targetMagnification, static_cast<double>(visibleContentRect.height() / unscaledTargetRect.height()));
+
+    targetMagnification = std::min(std::max(targetMagnification, minMagnification), maxMagnification);
+
+    // Allow panning between elements via double-tap while magnified, unless the target rect is
+    // similar to the last one, in which case we'll zoom all the way out.
+    if (currentScaleFactor > 1
+        && !m_lastSmartMagnificationUnscaledTargetRect.isEmpty()
+        && maximumRectangleComponentDelta(m_lastSmartMagnificationUnscaledTargetRect, unscaledTargetRect) < smartMagnificationPanScrollThreshold)
+        targetMagnification = 1;
+
+    FloatRect targetRect(unscaledTargetRect);
+    targetRect.scale(targetMagnification);
+    FloatPoint targetOrigin(visibleContentRect.center());
+    targetOrigin.moveBy(-targetRect.center());
+
+    m_webPageProxy.drawingArea()->adjustTransientZoom(m_webPageProxy.pageScaleFactor(), scaledMagnificationOrigin(FloatPoint(), m_webPageProxy.pageScaleFactor()));
+    m_webPageProxy.drawingArea()->commitTransientZoom(targetMagnification, targetOrigin);
+
+    m_lastSmartMagnificationUnscaledTargetRect = unscaledTargetRect;
 }
 
 void ViewGestureController::endActiveGesture()
 {
     switch (m_activeGestureType) {
     case ViewGestureType::None:
+    case ViewGestureType::SmartMagnification:
         break;
     case ViewGestureType::Magnification:
         endMagnificationGesture();
@@ -142,6 +192,14 @@ void ViewGestureController::endActiveGesture()
 
     m_visibleContentRectIsValid = false;
     m_activeGestureType = ViewGestureType::None;
+}
+
+double ViewGestureController::magnification() const
+{
+    if (m_activeGestureType == ViewGestureType::Magnification)
+        return m_magnification;
+
+    return m_webPageProxy.pageScaleFactor();
 }
 
 } // namespace WebKit

@@ -38,8 +38,6 @@ libjavascriptcoregtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@
 	$(libjavascriptcoregtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@_la_CFLAGS)
 
 libjavascriptcoregtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@_la_CFLAGS = \
-	-fstrict-aliasing \
-	-O3 \
 	$(javascriptcore_cflags)
 
 libjavascriptcoregtk_@WEBKITGTK_API_MAJOR_VERSION@_@WEBKITGTK_API_MINOR_VERSION@_la_CPPFLAGS = \
@@ -190,6 +188,13 @@ EXTRA_DIST += \
 	Source/JavaScriptCore/create_regex_tables \
 	Source/JavaScriptCore/icu/LICENSE \
 	Source/JavaScriptCore/icu/README \
+	Source/JavaScriptCore/inspector/protocol/Debugger.json \
+	Source/JavaScriptCore/inspector/protocol/GenericTypes.json \
+	Source/JavaScriptCore/inspector/protocol/InspectorDomain.json \
+	Source/JavaScriptCore/inspector/protocol/Runtime.json \
+	Source/JavaScriptCore/inspector/scripts/CodeGeneratorInspector.py \
+	Source/JavaScriptCore/inspector/scripts/CodeGeneratorInspectorStrings.py \
+	Source/JavaScriptCore/inspector/scripts/generate-combined-inspector-json.py \
 	Source/JavaScriptCore/KeywordLookupGenerator.py \
 	Source/JavaScriptCore/parser/Keywords.table \
 	Source/JavaScriptCore/THANKS \

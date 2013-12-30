@@ -30,6 +30,8 @@
 
 #import "APIData.h"
 #import "ObjCObjectGraph.h"
+#import "RemoteObjectRegistry.h"
+#import "RemoteObjectRegistryMessages.h"
 #import "WKBackForwardListInternal.h"
 #import "WKBackForwardListItemInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
@@ -45,6 +47,7 @@
 #import "WKNSURLExtras.h"
 #import "WKNSURLProtectionSpace.h"
 #import "WKProcessGroupInternal.h"
+#import "WKRemoteObjectRegistryInternal.h"
 #import "WKRetainPtr.h"
 #import "WKURLRequestNS.h"
 #import "WKURLResponseNS.h"
@@ -94,6 +97,16 @@ private:
         [m_controller didChangeValueForKey:@"activeURL"];
     }
 
+    virtual void willChangeHasOnlySecureContent() OVERRIDE
+    {
+        [m_controller willChangeValueForKey:@"hasOnlySecureContent"];
+    }
+
+    virtual void didChangeHasOnlySecureContent() OVERRIDE
+    {
+        [m_controller didChangeValueForKey:@"hasOnlySecureContent"];
+    }
+
     virtual void willChangeEstimatedProgress() OVERRIDE
     {
         [m_controller willChangeValueForKey:@"estimatedProgress"];
@@ -129,12 +142,16 @@ static NSString * const frameErrorKey = @"WKBrowsingContextFrameErrorKey";
 
     WeakObjCPtr<id <WKBrowsingContextLoadDelegate>> _loadDelegate;
     WeakObjCPtr<id <WKBrowsingContextPolicyDelegate>> _policyDelegate;
+    
+    RetainPtr<WKRemoteObjectRegistry> _remoteObjectRegistry;
 }
 
 - (void)dealloc
 {
     _page->pageLoadState().removeObserver(*_pageLoadStateObserver);
     _page->~WebPageProxy();
+
+    [_remoteObjectRegistry _invalidate];
 
     [super dealloc];
 }
@@ -159,22 +176,12 @@ static NSString * const frameErrorKey = @"WKBrowsingContextFrameErrorKey";
 
 + (void)registerSchemeForCustomProtocol:(NSString *)scheme
 {
-    if (!scheme)
-        return;
-
-    NSString *lowercaseScheme = [scheme lowercaseString];
-    [[WKBrowsingContextController customSchemes] addObject:lowercaseScheme];
-    [[NSNotificationCenter defaultCenter] postNotificationName:SchemeForCustomProtocolRegisteredNotificationName object:lowercaseScheme];
+    WebContext::registerGlobalURLSchemeAsHavingCustomProtocolHandlers(scheme);
 }
 
 + (void)unregisterSchemeForCustomProtocol:(NSString *)scheme
 {
-    if (!scheme)
-        return;
-
-    NSString *lowercaseScheme = [scheme lowercaseString];
-    [[WKBrowsingContextController customSchemes] removeObject:lowercaseScheme];
-    [[NSNotificationCenter defaultCenter] postNotificationName:SchemeForCustomProtocolUnregisteredNotificationName object:lowercaseScheme];
+    WebContext::unregisterGlobalURLSchemeAsHavingCustomProtocolHandlers(scheme);
 }
 
 - (void)loadRequest:(NSURLRequest *)request
@@ -184,7 +191,7 @@ static NSString * const frameErrorKey = @"WKBrowsingContextFrameErrorKey";
 
 - (void)loadRequest:(NSURLRequest *)request userData:(id)userData
 {
-    RefPtr<WebURLRequest> wkURLRequest = WebURLRequest::create(request);
+    RefPtr<API::URLRequest> wkURLRequest = API::URLRequest::create(request);
 
     RefPtr<ObjCObjectGraph> wkUserData;
     if (userData)
@@ -270,6 +277,28 @@ static void releaseNSData(unsigned char*, const void* data)
     _page->reload(true);
 }
 
+- (NSString *)applicationNameForUserAgent
+{
+    const String& applicationName = _page->applicationNameForUserAgent();
+    return !applicationName ? nil : (NSString *)applicationName;
+}
+
+- (void)setApplicationNameForUserAgent:(NSString *)applicationNameForUserAgent
+{
+    _page->setApplicationNameForUserAgent(applicationNameForUserAgent);
+}
+
+- (NSString *)customUserAgent
+{
+    const String& customUserAgent = _page->customUserAgent();
+    return !customUserAgent ? nil : (NSString *)customUserAgent;
+}
+
+- (void)setCustomUserAgent:(NSString *)customUserAgent
+{
+    _page->setCustomUserAgent(customUserAgent);
+}
+
 #pragma mark Back/Forward
 
 - (void)goForward
@@ -327,6 +356,11 @@ static void releaseNSData(unsigned char*, const void* data)
 - (NSURL *)unreachableURL
 {
     return [NSURL _web_URLWithWTFString:_page->pageLoadState().unreachableURL()];
+}
+
+- (BOOL)hasOnlySecureContent
+{
+    return _page->pageLoadState().hasOnlySecureContent();
 }
 
 - (double)estimatedProgress
@@ -865,6 +899,16 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
 - (WKBrowsingContextHandle *)handle
 {
     return [[[WKBrowsingContextHandle alloc] _initWithPageID:_page->pageID()] autorelease];
+}
+
+- (WKRemoteObjectRegistry *)remoteObjectRegistry
+{
+    if (!_remoteObjectRegistry) {
+        _remoteObjectRegistry = [[WKRemoteObjectRegistry alloc] _initWithMessageSender:*_page];
+        _page->process().context().addMessageReceiver(Messages::RemoteObjectRegistry::messageReceiverName(), _page->pageID(), [_remoteObjectRegistry remoteObjectRegistry]);
+    }
+
+    return _remoteObjectRegistry.get();
 }
 
 @end

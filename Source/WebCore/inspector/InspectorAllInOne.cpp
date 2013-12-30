@@ -25,6 +25,8 @@
 
 // This all-in-one cpp file cuts down on template bloat to allow us to build our Windows release build.
 
+#include "CommandLineAPIHost.cpp"
+#include "CommandLineAPIModule.cpp"
 #include "ConsoleMessage.cpp"
 #include "ContentSearchUtils.cpp"
 #include "DOMEditor.cpp"
@@ -73,6 +75,7 @@
 #include "NetworkResourcesData.cpp"
 #include "PageConsoleAgent.cpp"
 #include "PageDebuggerAgent.cpp"
+#include "PageInjectedScriptManager.cpp"
 #include "PageRuntimeAgent.cpp"
 #include "ScriptArguments.cpp"
 #include "ScriptCallFrame.cpp"

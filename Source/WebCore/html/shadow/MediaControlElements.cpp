@@ -751,8 +751,13 @@ const AtomicString& MediaControlClosedCaptionsContainerElement::shadowPseudoId()
 
 MediaControlClosedCaptionsTrackListElement::MediaControlClosedCaptionsTrackListElement(Document& document, MediaControls* controls)
     : MediaControlDivElement(document, MediaClosedCaptionsTrackList)
+#if ENABLE(VIDEO_TRACK)
     , m_controls(controls)
+#endif
 {
+#if !ENABLE(VIDEO_TRACK)
+    UNUSED_PARAM(controls);
+#endif
 }
 
 PassRefPtr<MediaControlClosedCaptionsTrackListElement> MediaControlClosedCaptionsTrackListElement::create(Document& document, MediaControls* controls)
@@ -794,6 +799,8 @@ void MediaControlClosedCaptionsTrackListElement::defaultEventHandler(Event* even
     }
 
     MediaControlDivElement::defaultEventHandler(event);
+#else
+    UNUSED_PARAM(event);
 #endif
 }
 
@@ -935,7 +942,7 @@ void MediaControlTimelineElement::defaultEventHandler(Event* event)
     if (event->isMouseEvent() && static_cast<MouseEvent*>(event)->button())
         return;
 
-    if (!attached())
+    if (!renderer())
         return;
 
     if (event->type() == eventNames().mousedownEvent)
@@ -958,13 +965,15 @@ void MediaControlTimelineElement::defaultEventHandler(Event* event)
         m_controls->updateCurrentTimeDisplay();
 }
 
+#if !PLATFORM(IOS)
 bool MediaControlTimelineElement::willRespondToMouseClickEvents()
 {
-    if (!attached())
+    if (!renderer())
         return false;
 
     return true;
 }
+#endif // !PLATFORM(IOS)
 
 void MediaControlTimelineElement::setPosition(double currentTime)
 {
@@ -1281,7 +1290,7 @@ void MediaControlTextTrackContainerElement::updateDisplay()
         RefPtr<TextTrackCueBox> displayBox = cue->getDisplayTree(m_videoDisplaySize.size());
         if (displayBox->hasChildNodes() && !contains(displayBox.get())) {
             // Note: the display tree of a cue is removed when the active flag of the cue is unset.
-            appendChild(displayBox, ASSERT_NO_EXCEPTION, AttachNow);
+            appendChild(displayBox, ASSERT_NO_EXCEPTION);
             cue->setFontSize(m_fontSize, m_videoDisplaySize.size(), m_fontSizeIsImportant);
         }
     }

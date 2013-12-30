@@ -117,8 +117,8 @@ RenderElement* HTMLDetailsElement::createRenderer(PassRef<RenderStyle> style)
 
 void HTMLDetailsElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsSummaryElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(DetailsContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsSummaryElement::create(document()), ASSERT_NO_EXCEPTION);
+    root->appendChild(DetailsContentElement::create(document()), ASSERT_NO_EXCEPTION);
 }
 
 Element* HTMLDetailsElement::findMainSummary() const
@@ -136,7 +136,7 @@ void HTMLDetailsElement::parseAttribute(const QualifiedName& name, const AtomicS
     if (name == openAttr) {
         bool oldValue = m_isOpen;
         m_isOpen = !value.isNull();
-        if (oldValue != m_isOpen && attached())
+        if (oldValue != m_isOpen && renderer())
             Style::reattachRenderTree(*this);
     } else
         HTMLElement::parseAttribute(name, value);

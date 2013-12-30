@@ -1,3 +1,310 @@
+2013-12-30  Roger Fong  <roger_fong@apple.com>
+
+        [Windows] Unreviewed build fix following r160959.
+
+        * wtf/Platform.h:
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Replace WTF::ThreadingOnce with std::call_once
+        https://bugs.webkit.org/show_bug.cgi?id=126215
+
+        Reviewed by Sam Weinig.
+
+        * GNUmakefile.list.am:
+        * wtf/CompilationThread.cpp:
+        (WTF::initializeCompilationThreads):
+        * wtf/ThreadingOnce.h: Removed.
+
+2013-12-26  Sam Weinig  <sam@webkit.org>
+
+        Move FilterIterator and IteratorPair to WTF and reimplement HashMap::keys() and HashMap::values() using IteratorPair
+        https://bugs.webkit.org/show_bug.cgi?id=126253
+
+        Reviewed by Anders Carlsson.
+
+        * GNUmakefile.list.am:
+        * WTF.vcxproj/WTF.vcxproj:
+        * WTF.vcxproj/WTF.vcxproj.filters:
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CMakeLists.txt:
+        Add new files.
+
+        * wtf/HashMap.h:
+        * wtf/RefPtrHashMap.h:
+        Remove the old implementation of keys() and values() and replace it with one
+        that uses IteratorPair.
+        
+        * wtf/FilterIterator.h: Copied from Source/WebKit2/Shared/FilterIterator.h.
+        * wtf/IteratorPair.h: Copied from Source/WebKit2/Shared/IteratorPair.h.
+
+2013-12-27  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream WebCore/page changes
+        https://bugs.webkit.org/show_bug.cgi?id=126180
+
+        Reviewed by Darin Adler.
+
+        * wtf/FeatureDefines.h: Define ENABLE_IOS_TOUCH_EVENTS to be enabled by default
+        when building iOS with ENABLE(TOUCH_EVENTS).
+
+2013-12-25  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [Nix] Building with DRAG_SUPPORT enabled
+        https://bugs.webkit.org/show_bug.cgi?id=126233
+
+        Reviewed by Daniel Bates.
+
+        * wtf/nix/FeatureDefinesNix.h:
+
+2013-12-24  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r160959.
+        http://trac.webkit.org/changeset/160959
+        https://bugs.webkit.org/show_bug.cgi?id=126222
+
+        Caused Windows build to fail (Requested by rfong on #webkit).
+
+        * wtf/ByteSpinLock.h:
+        (WTF::ByteSpinLock::lock):
+        * wtf/Threading.h:
+        * wtf/ThreadingPrimitives.h:
+        (WTF::pauseBriefly):
+        * wtf/ThreadingPthreads.cpp:
+        (WTF::yield):
+        * wtf/ThreadingWin.cpp:
+        (WTF::yield):
+
+2013-12-23  Benjamin Poulain  <bpoulain@apple.com>
+
+        Fix the build after r161031
+
+        I enabled ENABLE_CSS_SELECTOR_JIT by accident.
+
+        * wtf/Platform.h:
+
+2013-12-23  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Clean up compiler optimizations flags for libWTF, libJSC
+        https://bugs.webkit.org/show_bug.cgi?id=126157
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * GNUmakefile.am: Remove the -fstrict-aliasing and -O3 compiler flags for libWTF.la. -O3 gets
+        overridden by -O2 that's listed in CXXFLAGS (or -O0 in case of debug builds) and -fstrict-aliasing
+        is enabled when -O2 is used (and shouldn't be enabled in debug builds anyway).
+
+2013-12-20  Anders Carlsson  <andersca@apple.com>
+
+        Replace yield() and pauseBriefly() with std::this_thread::yield()
+        https://bugs.webkit.org/show_bug.cgi?id=126105
+
+        Reviewed by Sam Weinig.
+
+        * wtf/ByteSpinLock.h:
+        (WTF::ByteSpinLock::lock):
+        * wtf/Threading.h:
+        * wtf/ThreadingPrimitives.h:
+        * wtf/ThreadingPthreads.cpp:
+        * wtf/ThreadingWin.cpp:
+
+2013-12-20  Anders Carlsson  <andersca@apple.com>
+
+        Speed up case folding for 8-bit strings
+        https://bugs.webkit.org/show_bug.cgi?id=126098
+
+        Reviewed by Geoffrey Garen.
+
+        Add a case folding lookup table for 8-bit strings and use it instead of calling down to u_foldCase.
+        On a simple microbenchmark using a lookup table is about 15x faster.
+
+        * wtf/text/StringHash.h:
+        (WTF::CaseFoldingHash::foldCase):
+        * wtf/text/StringImpl.cpp:
+        (WTF::equalIgnoringCase):
+        * wtf/text/StringImpl.h:
+
+2013-12-20  Myles C. Maxfield  <mmaxfield@apple.com>
+
+        Faster implementation of text-decoration-skip: ink
+        https://bugs.webkit.org/show_bug.cgi?id=125718
+
+        Reviewed by Simon Fraser.
+
+        This creates a new preprocessor define, CSS3_TEXT_DECORATION_SKIP_INK,
+        which enables the use of the text-decoration-skip: ink CSS value.
+        Creating this new value simplifies the logic about when to enable the
+        codepath for this CSS value.
+
+        * wtf/Platform.h:
+
+2013-12-20  Simon Fraser  <simon.fraser@apple.com>
+
+        Change "threaded scrolling" terminology to "asynchronous scrolling"
+        https://bugs.webkit.org/show_bug.cgi?id=126094
+
+        Reviewed by Tim Horton.
+
+        Rename ENABLE_THREADED_SCROLLING to ENABLE_ASYNC_SCROLLING.
+
+        * wtf/FeatureDefines.h:
+
+2013-12-20  Tamas Gergely  <tgergely.u-szeged@partner.samsung.com>
+
+        Build fails in debug mode after r160834.
+        https://bugs.webkit.org/show_bug.cgi?id=126059
+
+        Reviewed by Csaba Osztrogonác.
+
+        Debug mode build failed due to comparing signed and unsigned in
+        ASSERT(). Now both values are unsigned.
+
+        * wtf/dtoa/double-conversion.cc:
+
+2013-12-19  Alex Christensen  <achristensen@webkit.org>
+
+        Final preparations for GStreamer on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=125958
+
+        Reviewed by Benjamin Poulain.
+
+        * WTF.vcxproj/WTFDebugWinCairo.props:
+        * WTF.vcxproj/WTFReleaseWinCairo.props:
+        Include WinCairo.props.
+        * wtf/Platform.h:
+        Use GLib and GStreamer on WinCairo with video.
+
+2013-12-18  Daniel Bates  <dabates@apple.com>
+
+        WTF, JavaScriptCore fails to build with trunk clang: operators new, new[],
+        delete, delete[] cannot be declared inline
+        https://bugs.webkit.org/show_bug.cgi?id=124186
+        <rdar://problem/15644039>
+
+        Reviewed by Geoffrey Garen and Anders Carlsson.
+
+        Following <http://llvm.org/viewvc/llvm-project?view=revision&revision=193044>
+        (http://llvm.org/bugs/show_bug.cgi?id=17591>), Clang emits warnings when
+        operator new, delete are inlined. Such definitions cannot be inline per
+        replacement.functions (17.6.4.6/3) of the C++ standard. For now,
+        disable these warnings instead of exporting these functions.
+
+        * wtf/FastMalloc.h:
+
+2013-12-19  Hugo Parente Lima  <hugo.lima@openbossa.org>
+
+        WTF fails to compile with gcc 4.8.2 and -Werror=array-bounds
+        https://bugs.webkit.org/show_bug.cgi?id=125936
+
+        Reviewed by Anders Carlsson.
+
+        * wtf/dtoa/double-conversion.cc: Use a unsigned instead of int on buffer_pos type.
+
+2013-12-19  Peter Szanka  <h868064@stud.u-szeged.hu>
+
+        Delete RVCT related code parts.
+        https://bugs.webkit.org/show_bug.cgi?id=125626
+
+        Reviewed by Csaba Osztrogonác.
+
+        * wtf/Compiler.h: follow-up fix for r160648, remove an unnecessary comment.
+
+2013-12-18  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Preparation for GStreamer on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=125946
+
+        Reviewed by Brent Fulgham.
+
+        * WTF.vcxproj/WTF.vcxproj:
+        Use new GStreamer property sheets for WinCairo.
+
+2013-12-18  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        DFG should have a separate StoreBarrier node
+        https://bugs.webkit.org/show_bug.cgi?id=125530
+
+        Reviewed by Filip Pizlo.
+
+        * wtf/Platform.h: Added an #define for ENABLE(GGC) which will be used for landing things related to GenGC.
+
+2013-12-16  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Upstream WebCore/html changes
+        https://bugs.webkit.org/show_bug.cgi?id=125765
+
+        Reviewed by Darin Adler.
+
+        Defined ENABLE_IOS_AUTOCORRECT_AND_AUTOCAPITALIZE, enabled by default on iOS.
+
+        * wtf/FeatureDefines.h:
+
+2013-12-17  Alex Christensen  <achristensen@webkit.org>
+
+        Compile fix for WebGL on Windows without GRAPHICS_SURFACE.
+        https://bugs.webkit.org/show_bug.cgi?id=125867
+
+        Reviewed by Martin Robinson.
+
+        * wtf/FeatureDefines.h:
+        Removed unused ENABLE_GLIB_SUPPORT macro.
+        * wtf/Platform.h:
+        Don't use GRAPHICS_SURFACE for WebGL on Windows.
+
+2013-12-17  Alex Christensen  <achristensen@webkit.org>
+
+        [Win] Fixed linker error with GStreamer.
+        https://bugs.webkit.org/show_bug.cgi?id=124861
+
+        Reviewed by Martin Robinson.
+
+        * wtf/gobject/GOwnPtr.cpp:
+        (WTF::GError):
+        * wtf/gobject/GOwnPtr.h:
+        Added WTF_EXPORT_PRIVATE to freeOwnedGPtr<GError> declaration and definition.
+
+2013-12-17  Benjamin Poulain  <benjamin@webkit.org>
+
+        Add a simple register allocator to WebCore for x86_64
+        https://bugs.webkit.org/show_bug.cgi?id=125771
+
+        Reviewed by Geoffrey Garen.
+
+        * wtf/Platform.h: Add a new flag "CSS_SELECTOR_JIT" to guard
+        an experimental JIT compiler in WebCore.
+
+2013-12-16  Anders Carlsson  <andersca@apple.com>
+
+        Remove EnumClass.h from WTF
+        https://bugs.webkit.org/show_bug.cgi?id=125820
+
+        Reviewed by Darin Adler.
+
+        All compilers we build on now support real strongly typed enums, so we can remove the ENUM_CLASS version.
+
+        * WTF.vcxproj/WTF.vcxproj:
+        * WTF.vcxproj/WTF.vcxproj.filters:
+        * WTF.xcodeproj/project.pbxproj:
+        * wtf/CheckedArithmetic.h:
+        * wtf/EnumClass.h: Removed.
+
+2013-12-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Remove dead code after conversion to VS2013
+        https://bugs.webkit.org/show_bug.cgi?id=125795
+
+        Reviewed by Darin Adler.
+
+        * wtf/Assertions.h: Include <inttypes.h> now that it exists.
+        * wtf/Compiler.h: Update compiler checks for VS2013, and
+        enable support for NEVER_INLINE
+        * wtf/HashFunctions.h:
+        (WTF::PtrHash::hash): Remove compiler workaround.
+        * wtf/MathExtras.h: Remove C99 functions that are now supplied
+        by the MS runtime library.
+        * wtf/Platform.h: Remove old MSVC support flags.
+        * wtf/StdLibExtras.h: Remove old MSVC workaround code.
+
 2013-12-16  Alex Christensen  <achristensen@webkit.org>
 
         Fixed Win64 build on VS2013.

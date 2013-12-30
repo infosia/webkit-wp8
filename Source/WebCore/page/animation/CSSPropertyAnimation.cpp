@@ -125,7 +125,7 @@ static inline TransformOperations blendFunc(const AnimationBase* anim, const Tra
     return to.blendByUsingMatrixInterpolation(from, progress, anim->renderer()->isBox() ? toRenderBox(anim->renderer())->borderBoxRect().size() : LayoutSize());
 }
 
-static inline PassRefPtr<ClipPathOperation> blendFunc(const AnimationBase*, ClipPathOperation* from, ClipPathOperation* to, double progress)
+static inline PassRefPtr<ClipPathOperation> blendFunc(const AnimationBase* anim, ClipPathOperation* from, ClipPathOperation* to, double progress)
 {
     if (!from || !to)
         return to;
@@ -140,11 +140,12 @@ static inline PassRefPtr<ClipPathOperation> blendFunc(const AnimationBase*, Clip
     if (!fromShape->canBlend(toShape))
         return to;
 
-    return ShapeClipPathOperation::create(toShape->blend(fromShape, progress));
+    ASSERT(anim->renderer()->isBox());
+    return ShapeClipPathOperation::create(toShape->blend(fromShape, progress, *toRenderBox(anim->renderer())));
 }
 
 #if ENABLE(CSS_SHAPES)
-static inline PassRefPtr<ShapeValue> blendFunc(const AnimationBase*, ShapeValue* from, ShapeValue* to, double progress)
+static inline PassRefPtr<ShapeValue> blendFunc(const AnimationBase* anim, ShapeValue* from, ShapeValue* to, double progress)
 {
     if (!from || !to)
         return to;
@@ -159,7 +160,8 @@ static inline PassRefPtr<ShapeValue> blendFunc(const AnimationBase*, ShapeValue*
     if (!fromShape->canBlend(toShape))
         return to;
 
-    return ShapeValue::createShapeValue(toShape->blend(fromShape, progress));
+    ASSERT(anim->renderer()->isBox());
+    return ShapeValue::createShapeValue(toShape->blend(fromShape, progress, *toRenderBox(anim->renderer())));
 }
 #endif
 
@@ -1210,8 +1212,16 @@ CSSPropertyAnimationWrapperMap::CSSPropertyAnimationWrapperMap()
         new LengthPropertyWrapper<Length>(CSSPropertyLineHeight, &RenderStyle::specifiedLineHeight, &RenderStyle::setLineHeight),
         new PropertyWrapper<int>(CSSPropertyOutlineOffset, &RenderStyle::outlineOffset, &RenderStyle::setOutlineOffset),
         new PropertyWrapper<unsigned short>(CSSPropertyOutlineWidth, &RenderStyle::outlineWidth, &RenderStyle::setOutlineWidth),
+
+        // FIXME: We should reconcile the difference in datatype between iOS and OpenSource. On iOS we want these properties to
+        // be float for sub-pixel kerning. See <rdar://problem/5020763>.
+#if !PLATFORM(IOS)
         new PropertyWrapper<int>(CSSPropertyLetterSpacing, &RenderStyle::letterSpacing, &RenderStyle::setLetterSpacing),
         new PropertyWrapper<int>(CSSPropertyWordSpacing, &RenderStyle::wordSpacing, &RenderStyle::setWordSpacing),
+#else
+        new PropertyWrapper<float>(CSSPropertyLetterSpacing, &RenderStyle::letterSpacing, &RenderStyle::setLetterSpacing),
+        new PropertyWrapper<float>(CSSPropertyWordSpacing, &RenderStyle::wordSpacing, &RenderStyle::setWordSpacing),
+#endif
         new LengthPropertyWrapper<Length>(CSSPropertyTextIndent, &RenderStyle::textIndent, &RenderStyle::setTextIndent),
 
         new PropertyWrapper<float>(CSSPropertyWebkitPerspective, &RenderStyle::perspective, &RenderStyle::setPerspective),

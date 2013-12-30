@@ -30,6 +30,7 @@
 
 #include "UniqueIDBDatabase.h" 
 #include "UniqueIDBDatabaseBackingStore.h"
+#include <wtf/OwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/text/WTFString.h>
 
@@ -40,6 +41,8 @@ struct IDBDatabaseMetadata;
 
 namespace WebKit {
 
+class SQLiteIDBTransaction;
+
 class UniqueIDBDatabaseBackingStoreSQLite FINAL : public UniqueIDBDatabaseBackingStore {
 public:
     static PassRefPtr<UniqueIDBDatabaseBackingStore> create(const UniqueIDBDatabaseIdentifier& identifier, const String& databaseDirectory)
@@ -47,7 +50,17 @@ public:
         return adoptRef(new UniqueIDBDatabaseBackingStoreSQLite(identifier, databaseDirectory));
     }
 
+    virtual ~UniqueIDBDatabaseBackingStoreSQLite();
+
     virtual std::unique_ptr<WebCore::IDBDatabaseMetadata> getOrEstablishMetadata() OVERRIDE;
+
+    virtual bool establishTransaction(const IDBTransactionIdentifier&, const Vector<int64_t>& objectStoreIDs, WebCore::IndexedDB::TransactionMode) OVERRIDE;
+    virtual bool beginTransaction(const IDBTransactionIdentifier&) OVERRIDE;
+    virtual bool commitTransaction(const IDBTransactionIdentifier&) OVERRIDE;
+    virtual bool resetTransaction(const IDBTransactionIdentifier&) OVERRIDE;
+    virtual bool rollbackTransaction(const IDBTransactionIdentifier&) OVERRIDE;
+
+    virtual bool changeDatabaseVersion(const IDBTransactionIdentifier&, uint64_t newVersion) OVERRIDE;
 
 private:
     UniqueIDBDatabaseBackingStoreSQLite(const UniqueIDBDatabaseIdentifier&, const String& databaseDirectory);
@@ -59,7 +72,9 @@ private:
     UniqueIDBDatabaseIdentifier m_identifier;
     String m_absoluteDatabaseDirectory;
 
-    std::unique_ptr<WebCore::SQLiteDatabase> m_metadataDB;
+    std::unique_ptr<WebCore::SQLiteDatabase> m_sqliteDB;
+
+    HashMap<IDBTransactionIdentifier, std::unique_ptr<SQLiteIDBTransaction>> m_transactions;
 };
 
 } // namespace WebKit

@@ -35,6 +35,7 @@
 #include "MediaPlayer.h"
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+#include "HTMLFrameOwnerElement.h"
 #include "HTMLPlugInImageElement.h"
 #include "MediaPlayerProxy.h"
 #endif
@@ -52,11 +53,12 @@
 #include "MediaStream.h"
 #endif
 
+#if USE(AUDIO_SESSION)
+#include "MediaSessionManager.h"
+#endif
+
 namespace WebCore {
 
-#if USE(AUDIO_SESSION)
-class AudioSessionManagerToken;
-#endif
 #if ENABLE(WEB_AUDIO)
 class AudioSourceProvider;
 class MediaElementAudioSourceNode;
@@ -97,7 +99,13 @@ typedef CueIntervalTree::IntervalType CueInterval;
 typedef Vector<CueInterval> CueList;
 #endif
 
-class HTMLMediaElement : public HTMLElement, private MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
+class HTMLMediaElement
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    : public HTMLFrameOwnerElement
+#else
+    : public HTMLElement
+#endif
+    , private MediaPlayerClient, public MediaPlayerSupportsTypeClient, private MediaCanStartListener, public ActiveDOMObject, public MediaControllerInterface
 #if ENABLE(VIDEO_TRACK)
     , private AudioTrackClient
     , private TextTrackClient
@@ -105,6 +113,9 @@ class HTMLMediaElement : public HTMLElement, private MediaPlayerClient, public M
 #endif
 #if USE(PLATFORM_TEXT_TRACK_MENU)
     , public PlatformTextTrackMenuClient
+#endif
+#if USE(AUDIO_SESSION)
+    , public MediaSessionManagerClient
 #endif
 {
 public:
@@ -182,8 +193,7 @@ public:
     virtual PassRefPtr<TimeRanges> played() OVERRIDE;
     virtual PassRefPtr<TimeRanges> seekable() const OVERRIDE;
     bool ended() const;
-    bool autoplay() const;    
-    void setAutoplay(bool b);
+    bool autoplay() const;
     bool loop() const;    
     void setLoop(bool b);
     virtual void play() OVERRIDE;
@@ -329,13 +339,24 @@ public:
 #endif
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    void allocateMediaPlayerIfNecessary();
+    void ensureMediaPlayer();
     void setNeedWidgetUpdate(bool needWidgetUpdate) { m_needWidgetUpdate = needWidgetUpdate; }
     void deliverNotification(MediaPlayerProxyNotificationType notification);
     void setMediaPlayerProxy(WebMediaPlayerProxy* proxy);
     void getPluginProxyParams(URL& url, Vector<String>& names, Vector<String>& values);
     void createMediaPlayerProxy();
     void updateWidget(PluginCreationOption);
+#endif
+
+#if ENABLE(IOS_AIRPLAY)
+    void webkitShowPlaybackTargetPicker();
+    bool webkitCurrentPlaybackTargetIsWireless() const;
+
+    virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture) OVERRIDE;
+    virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture) OVERRIDE;
+
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitcurrentplaybacktargetiswirelesschanged);
+    DEFINE_ATTRIBUTE_EVENT_LISTENER(webkitplaybacktargetavailabilitychanged);
 #endif
 
     // EventTarget function.
@@ -389,7 +410,9 @@ public:
     MediaController* controller() const;
     void setController(PassRefPtr<MediaController>);
 
+#if !PLATFORM(IOS)
     virtual bool willRespondToMouseClickEvents() OVERRIDE;
+#endif
 
     void enteredOrExitedFullscreen() { configureMediaControls(); }
 
@@ -432,6 +455,9 @@ protected:
         RequireUserGestureForFullscreenRestriction = 1 << 2,
         RequirePageConsentToLoadMediaRestriction = 1 << 3,
         RequirePageConsentToResumeMediaRestriction = 1 << 4,
+#if ENABLE(IOS_AIRPLAY)
+        RequireUserGestureToShowPlaybackTargetPicker = 1 << 5,
+#endif
     };
     typedef unsigned BehaviorRestrictions;
     
@@ -440,6 +466,9 @@ protected:
     bool userGestureRequiredForFullscreen() const { return m_restrictions & RequireUserGestureForFullscreenRestriction; }
     bool pageConsentRequiredForLoad() const { return m_restrictions & RequirePageConsentToLoadMediaRestriction; }
     bool pageConsentRequiredForResume() const { return m_restrictions & RequirePageConsentToResumeMediaRestriction; }
+#if ENABLE(IOS_AIRPLAY)
+    bool userGestureRequiredToShowPlaybackTargetPicker() const { return m_restrictions & RequireUserGestureToShowPlaybackTargetPicker; }
+#endif
     
     void addBehaviorRestriction(BehaviorRestrictions restriction) { m_restrictions |= restriction; }
     void removeBehaviorRestriction(BehaviorRestrictions restriction) { m_restrictions &= ~restriction; }
@@ -520,6 +549,12 @@ private:
 
 #if ENABLE(ENCRYPTED_MEDIA_V2)
     virtual bool mediaPlayerKeyNeeded(MediaPlayer*, Uint8Array*) OVERRIDE;
+#endif
+
+#if ENABLE(IOS_AIRPLAY)
+    virtual void mediaPlayerCurrentPlaybackTargetIsWirelessChanged(MediaPlayer*) OVERRIDE;
+    virtual void mediaPlayerPlaybackTargetAvailabilityChanged(MediaPlayer*) OVERRIDE;
+    void enqueuePlaybackTargetAvailabilityChangedEvent();
 #endif
 
     virtual String mediaPlayerReferrer() const OVERRIDE;
@@ -615,6 +650,11 @@ private:
     double minTimeSeekable() const;
     double maxTimeSeekable() const;
 
+#if PLATFORM(IOS)
+    bool parseMediaPlayerAttribute(const QualifiedName&, const AtomicString&);
+    void userRequestsMediaLoading();
+#endif
+
     // Pauses playback without changing any states or generating events
     void setPausedInternal(bool);
 
@@ -653,6 +693,10 @@ private:
     virtual void didAddUserAgentShadowRoot(ShadowRoot*) OVERRIDE;
     DOMWrapperWorld& ensureIsolatedWorld();
     bool ensureMediaControlsInjectedScript();
+#endif
+
+#if USE(AUDIO_SESSION)
+    virtual MediaSessionManager::MediaType mediaType() const OVERRIDE;
 #endif
 
     Timer<HTMLMediaElement> m_loadTimer;
@@ -758,6 +802,11 @@ private:
     bool m_isDisplaySleepDisablingSuspended : 1;
 #endif
 
+#if PLATFORM(IOS)
+    bool m_requestingPlay : 1;
+    bool m_userStartedPlayback : 1;
+#endif
+
 #if ENABLE(VIDEO_TRACK)
     bool m_tracksAreReady : 1;
     bool m_haveVisibleTextTrack : 1;
@@ -805,7 +854,7 @@ private:
 #endif
 
 #if USE(AUDIO_SESSION)
-    OwnPtr<AudioSessionManagerToken> m_audioSessionManagerToken;
+    std::unique_ptr<MediaSessionManagerToken> m_mediaSessionManagerToken;
 #endif
 
     std::unique_ptr<PageActivityAssertionToken> m_activityToken;

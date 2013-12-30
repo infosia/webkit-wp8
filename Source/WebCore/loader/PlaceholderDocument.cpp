@@ -32,12 +32,10 @@ namespace WebCore {
 
 void PlaceholderDocument::createRenderTree()
 {
-    ASSERT(!attached());
+    ASSERT(!renderView());
 
     for (auto& child : elementChildren(*this))
         Style::attachRenderTree(child);
-
-    setAttached(true);
 }
 
 } // namespace WebCore

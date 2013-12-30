@@ -39,6 +39,7 @@
 #include "Options.h"
 #include "SlotVisitor.h"
 #include "WeakHandleOwner.h"
+#include "WriteBarrierBuffer.h"
 #include "WriteBarrierSupport.h"
 #include <wtf/HashCountedSet.h>
 #include <wtf/HashSet.h>
@@ -77,6 +78,7 @@ namespace JSC {
         WTF_MAKE_NONCOPYABLE(Heap);
     public:
         friend class JIT;
+        friend class DFG::SpeculativeJIT;
         friend class GCThreadSharedData;
         static Heap* heap(const JSValue); // 0 for immediate values
         static Heap* heap(const JSCell*);
@@ -93,9 +95,15 @@ namespace JSC {
         static void setMarked(const void*);
 
         static bool isWriteBarrierEnabled();
+        static void writeBarrier(const JSCell*);
         static void writeBarrier(const JSCell*, JSValue);
         static void writeBarrier(const JSCell*, JSCell*);
         static uint8_t* addressOfCardFor(JSCell*);
+
+#if ENABLE(GGC)
+        WriteBarrierBuffer& writeBarrierBuffer() { return m_writeBarrierBuffer; }
+#endif
+        void flushWriteBarrierBuffer(JSCell*);
 
         Heap(VM*, HeapType);
         ~Heap();
@@ -284,6 +292,10 @@ namespace JSC {
         
         bool m_isSafeToCollect;
 
+#if ENABLE(GGC)
+        WriteBarrierBuffer m_writeBarrierBuffer;
+#endif
+
         VM* m_vm;
         double m_lastGCLength;
         double m_lastCodeDiscardTime;
@@ -368,6 +380,11 @@ namespace JSC {
 #else
         return false;
 #endif
+    }
+
+    inline void Heap::writeBarrier(const JSCell*)
+    {
+        WriteBarrierCounters::countWriteBarrier();
     }
 
     inline void Heap::writeBarrier(const JSCell*, JSCell*)

@@ -70,7 +70,6 @@
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLFrameSetElement.h"
 #include "HTMLNames.h"
-#include "InspectorInstrumentation.h"
 #include "JSDOMBinding.h"
 #include "Page.h"
 #include "ScriptController.h"
@@ -82,8 +81,8 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-HTMLDocument::HTMLDocument(Frame* frame, const URL& url, DocumentClassFlags documentClasses)
-    : Document(frame, url, documentClasses | HTMLDocumentClass)
+HTMLDocument::HTMLDocument(Frame* frame, const URL& url, DocumentClassFlags documentClasses, bool isSynthesized)
+    : Document(frame, url, documentClasses | HTMLDocumentClass, isSynthesized)
 {
     clearXMLVersion();
 }
@@ -140,6 +139,7 @@ void HTMLDocument::setDesignMode(const String& value)
 
 Element* HTMLDocument::activeElement()
 {
+    document().updateStyleIfNeeded();
     if (Element* element = treeScope().focusedElement())
         return element;
     return body();
@@ -249,8 +249,7 @@ void HTMLDocument::releaseEvents()
 
 PassRefPtr<DocumentParser> HTMLDocument::createParser()
 {
-    bool reportErrors = InspectorInstrumentation::collectingHTMLParseErrors(this->page());
-    return HTMLDocumentParser::create(*this, reportErrors);
+    return HTMLDocumentParser::create(*this);
 }
 
 // --------------------------------------------------------------------------

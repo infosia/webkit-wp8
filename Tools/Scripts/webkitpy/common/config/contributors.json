@@ -1794,6 +1794,14 @@
             "MPozdnyakov"
          ]
       },
+      "Myles C. Maxfield" : {
+         "emails" : [
+            "mmaxfield@apple.com"
+         ],
+         "nicks" : [
+            "litherum"
+         ]
+      },
       "Naoki Takano" : {
          "emails" : [
             "honten@chromium.org",
@@ -2934,14 +2942,6 @@
       "Min Qin" : {
          "emails" : [
             "qinmin@chromium.org"
-         ]
-      },
-      "Myles Maxfield" : {
-         "emails" : [
-            "mmaxfield@apple.com"
-         ],
-         "nicks" : [
-            "litherum"
          ]
       },
       "Nandor Huszka" : {
@@ -4143,6 +4143,7 @@
          "emails" : [
             "rwlbuis@gmail.com",
             "rwlbuis@webkit.org",
+            "rob.buis@samsung.com",
             "rbuis@blackberry.com",
             "rbuis@rim.com"
          ],

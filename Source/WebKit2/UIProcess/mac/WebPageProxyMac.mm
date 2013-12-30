@@ -47,6 +47,7 @@
 #import <WebCore/TextAlternativeWithRange.h>
 #import <WebKitSystemInterface.h>
 #import <mach-o/dyld.h>
+#import <wtf/NeverDestroyed.h>
 #import <wtf/text/StringConcatenate.h>
 
 @interface NSApplication (Details)
@@ -105,12 +106,12 @@ static String userVisibleWebKitVersionString()
 
 String WebPageProxy::standardUserAgent(const String& applicationNameForUserAgent)
 {
-    DEFINE_STATIC_LOCAL(String, osVersion, (systemMarketingVersionForUserAgentString()));
-    DEFINE_STATIC_LOCAL(String, webKitVersion, (userVisibleWebKitVersionString()));
+    static NeverDestroyed<String> osVersion(systemMarketingVersionForUserAgentString());
+    static NeverDestroyed<String> webKitVersion(userVisibleWebKitVersionString());
 
     if (applicationNameForUserAgent.isEmpty())
-        return makeString("Mozilla/5.0 (Macintosh; " PROCESSOR " Mac OS X ", osVersion, ") AppleWebKit/", webKitVersion, " (KHTML, like Gecko)");
-    return makeString("Mozilla/5.0 (Macintosh; " PROCESSOR " Mac OS X ", osVersion, ") AppleWebKit/", webKitVersion, " (KHTML, like Gecko) ", applicationNameForUserAgent);
+        return makeString("Mozilla/5.0 (Macintosh; " PROCESSOR " Mac OS X ", osVersion.get(), ") AppleWebKit/", webKitVersion.get(), " (KHTML, like Gecko)");
+    return makeString("Mozilla/5.0 (Macintosh; " PROCESSOR " Mac OS X ", osVersion.get(), ") AppleWebKit/", webKitVersion.get(), " (KHTML, like Gecko) ", applicationNameForUserAgent);
 }
 
 void WebPageProxy::getIsSpeaking(bool& isSpeaking)
@@ -429,7 +430,7 @@ void WebPageProxy::didPerformDictionaryLookup(const AttributedString& text, cons
     m_pageClient.didPerformDictionaryLookup(text, dictionaryPopupInfo);
 }
     
-void WebPageProxy::registerWebProcessAccessibilityToken(const CoreIPC::DataReference& data)
+void WebPageProxy::registerWebProcessAccessibilityToken(const IPC::DataReference& data)
 {
     m_pageClient.accessibilityWebProcessTokenReceived(data);
 }    
@@ -444,7 +445,7 @@ ColorSpaceData WebPageProxy::colorSpace()
     return m_pageClient.colorSpace();
 }
 
-void WebPageProxy::registerUIProcessAccessibilityTokens(const CoreIPC::DataReference& elementToken, const CoreIPC::DataReference& windowToken)
+void WebPageProxy::registerUIProcessAccessibilityTokens(const IPC::DataReference& elementToken, const IPC::DataReference& windowToken)
 {
     if (!isValid())
         return;
@@ -586,7 +587,7 @@ void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplicationRaw(const
     [[NSWorkspace sharedWorkspace] openFile:nsPath];
 }
 
-void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, const String& originatingURLString, const CoreIPC::DataReference& data, const String& pdfUUID)
+void WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication(const String& suggestedFilename, const String& originatingURLString, const IPC::DataReference& data, const String& pdfUUID)
 {
     if (data.isEmpty()) {
         WTFLogAlways("Cannot save empty PDF file to the temporary directory.");

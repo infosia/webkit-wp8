@@ -30,7 +30,7 @@
 
 namespace WebKit {
 
-void WebPageCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
+void WebPageCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << viewSize;
     encoder << viewState;
@@ -62,12 +62,11 @@ void WebPageCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
     encoder << backgroundExtendsBeyondPage;
 
 #if PLATFORM(MAC)
-    encoder.encodeEnum(layerHostingMode);
     encoder << colorSpace;
 #endif
 }
 
-bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPageCreationParameters& parameters)
+bool WebPageCreationParameters::decode(IPC::ArgumentDecoder& decoder, WebPageCreationParameters& parameters)
 {
     if (!decoder.decode(parameters.viewSize))
         return false;
@@ -125,8 +124,6 @@ bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPag
         return false;
     
 #if PLATFORM(MAC)
-    if (!decoder.decodeEnum(parameters.layerHostingMode))
-        return false;
     if (!decoder.decode(parameters.colorSpace))
         return false;
 #endif

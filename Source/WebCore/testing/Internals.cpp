@@ -486,6 +486,7 @@ bool Internals::pauseTransitionAtTimeOnPseudoElement(const String& property, dou
     return frame()->animation().pauseTransitionAtTime(pseudoElement->renderer(), property, pauseTime);
 }
 
+// FIXME: Remove.
 bool Internals::attached(Node* node, ExceptionCode& ec)
 {
     if (!node) {
@@ -493,7 +494,7 @@ bool Internals::attached(Node* node, ExceptionCode& ec)
         return false;
     }
 
-    return node->attached();
+    return true;
 }
 
 String Internals::elementRenderTreeAsText(Element* element, ExceptionCode& ec)
@@ -502,6 +503,8 @@ String Internals::elementRenderTreeAsText(Element* element, ExceptionCode& ec)
         ec = INVALID_ACCESS_ERR;
         return String();
     }
+
+    element->document().updateStyleIfNeeded();
 
     String representation = externalRepresentation(element);
     if (representation.isEmpty()) {
@@ -749,6 +752,7 @@ unsigned Internals::markerCountForNode(Node* node, const String& markerType, Exc
 
 DocumentMarker* Internals::markerAt(Node* node, const String& markerType, unsigned index, ExceptionCode& ec)
 {
+    node->document().updateLayoutIgnorePendingStylesheets();
     if (!node) {
         ec = INVALID_ACCESS_ERR;
         return 0;
@@ -1204,6 +1208,8 @@ PassRefPtr<NodeList> Internals::nodesFromRect(Document* document, int centerX, i
     if (!renderView)
         return 0;
 
+    document->updateLayoutIgnorePendingStylesheets();
+
     float zoomFactor = frame->pageZoomFactor();
     LayoutPoint point = roundedLayoutPoint(FloatPoint(centerX * zoomFactor + frameView->scrollX(), centerY * zoomFactor + frameView->scrollY()));
 
@@ -1537,11 +1543,7 @@ PassRefPtr<DOMWindow> Internals::openDummyInspectorFrontend(const String& url)
     DOMWindow* window = page->mainFrame().document()->domWindow();
     ASSERT(window);
 
-#if defined(_MSC_VER) && _MSC_VER <= 1700
-    m_frontendWindow = window->open(url, "", "", window, window); // Work around bug in VS2010 and earlier
-#else
     m_frontendWindow = window->open(url, "", "", *window, *window);
-#endif
     ASSERT(m_frontendWindow);
 
     Page* frontendPage = m_frontendWindow->document()->page();
@@ -1702,7 +1704,7 @@ String Internals::mainThreadScrollingReasons(ExceptionCode& ec) const
     if (!page)
         return String();
 
-    return page->mainThreadScrollingReasonsAsText();
+    return page->synchronousScrollingReasonsAsText();
 }
 
 PassRefPtr<ClientRectList> Internals::nonFastScrollableRects(ExceptionCode& ec) const

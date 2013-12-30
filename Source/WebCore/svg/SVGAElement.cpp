@@ -189,7 +189,7 @@ void SVGAElement::defaultEventHandler(Event* event)
 
 bool SVGAElement::supportsFocus() const
 {
-    if (rendererIsEditable())
+    if (hasEditableStyle())
         return SVGGraphicsElement::supportsFocus();
     return true;
 }
@@ -233,6 +233,11 @@ bool SVGAElement::childShouldCreateRenderer(const Node& child) const
         return parentNode()->childShouldCreateRenderer(child);
 
     return SVGElement::childShouldCreateRenderer(child);
+}
+
+bool SVGAElement::willRespondToMouseClickEvents()
+{ 
+    return isLink() || SVGGraphicsElement::willRespondToMouseClickEvents(); 
 }
 
 } // namespace WebCore

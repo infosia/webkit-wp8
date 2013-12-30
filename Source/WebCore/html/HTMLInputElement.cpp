@@ -471,10 +471,6 @@ void HTMLInputElement::updateType()
 
     m_inputType->destroyShadowSubtree();
 
-    bool wasAttached = attached();
-    if (wasAttached)
-        Style::detachRenderTree(*this);
-
     m_inputType = std::move(newType);
     m_inputType->createShadowSubtree();
 
@@ -523,11 +519,11 @@ void HTMLInputElement::updateType()
             attributeChanged(alignAttr, align->value());
     }
 
-    if (wasAttached) {
-        Style::attachRenderTree(*this);
-        if (document().focusedElement() == this)
-            updateFocusAppearance(true);
-    }
+    if (renderer())
+        setNeedsStyleRecalc(ReconstructRenderTree);
+
+    if (document().focusedElement() == this)
+        updateFocusAppearance(true);
 
     if (ShadowRoot* shadowRoot = shadowRootOfParentForDistribution(this))
         shadowRoot->invalidateDistribution();
@@ -688,7 +684,7 @@ void HTMLInputElement::parseAttribute(const QualifiedName& name, const AtomicStr
         m_maxResults = !value.isNull() ? std::min(value.toInt(), maxSavedResults) : -1;
         // FIXME: Detaching just for maxResults change is not ideal.  We should figure out the right
         // time to relayout for this change.
-        if (m_maxResults != oldResults && (m_maxResults <= 0 || oldResults <= 0) && attached())
+        if (m_maxResults != oldResults && (m_maxResults <= 0 || oldResults <= 0) && renderer())
             Style::reattachRenderTree(*this);
         setNeedsStyleRecalc();
         FeatureObserver::observe(&document(), FeatureObserver::ResultsAttribute);
@@ -745,8 +741,7 @@ void HTMLInputElement::parseAttribute(const QualifiedName& name, const AtomicStr
             Style::detachRenderTree(*this);
             m_inputType->destroyShadowSubtree();
             m_inputType->createShadowSubtree();
-            if (!attached())
-                Style::attachRenderTree(*this);
+            Style::attachRenderTree(*this);
         } else {
             m_inputType->destroyShadowSubtree();
             m_inputType->createShadowSubtree();
@@ -1202,6 +1197,7 @@ void HTMLInputElement::defaultEventHandler(Event* evt)
             return;
     }
 
+    document().updateStyleIfNeeded();
     m_inputType->forwardEvent(evt);
 
     if (!callBaseClassEarly && !evt->defaultHandled())
@@ -1210,7 +1206,6 @@ void HTMLInputElement::defaultEventHandler(Event* evt)
 
 bool HTMLInputElement::willRespondToMouseClickEvents()
 {
-    // FIXME: Consider implementing willRespondToMouseClickEvents() in InputType if more accurate results are necessary.
     if (!isDisabledFormControl())
         return true;
 
@@ -1351,15 +1346,24 @@ void HTMLInputElement::setFiles(PassRefPtr<FileList> files)
     m_inputType->setFiles(files);
 }
 
+#if ENABLE(DRAG_SUPPORT)
 bool HTMLInputElement::receiveDroppedFiles(const DragData& dragData)
 {
     return m_inputType->receiveDroppedFiles(dragData);
 }
+#endif
 
 Icon* HTMLInputElement::icon() const
 {
     return m_inputType->icon();
 }
+
+#if PLATFORM(IOS)
+String HTMLInputElement::displayString() const
+{
+    return m_inputType->displayString();
+}
+#endif
 
 bool HTMLInputElement::canReceiveDroppedFiles() const
 {
@@ -1629,6 +1633,13 @@ bool HTMLInputElement::isSpeechEnabled() const
     return m_inputType->shouldRespectSpeechAttribute() && RuntimeEnabledFeatures::sharedFeatures().speechInputEnabled() && hasAttribute(webkitspeechAttr);
 }
 
+#endif
+
+#if PLATFORM(IOS)
+DateComponents::Type HTMLInputElement::dateType() const
+{
+    return m_inputType->dateType();
+}
 #endif
 
 bool HTMLInputElement::isTextButton() const

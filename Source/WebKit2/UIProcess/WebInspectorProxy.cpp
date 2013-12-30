@@ -29,6 +29,7 @@
 
 #if ENABLE(INSPECTOR)
 
+#include "APIURLRequest.h"
 #include "WebFramePolicyListenerProxy.h"
 #include "WebFrameProxy.h"
 #include "WebInspectorMessages.h"
@@ -38,8 +39,8 @@
 #include "WebPageProxy.h"
 #include "WebPreferences.h"
 #include "WebProcessProxy.h"
-#include "WebURLRequest.h"
 #include <WebCore/SchemeRegistry.h>
+#include <wtf/NeverDestroyed.h>
 
 #if ENABLE(INSPECTOR_SERVER)
 #include "WebInspectorServer.h"
@@ -62,7 +63,7 @@ class WebInspectorPageGroups {
 public:
     static WebInspectorPageGroups& shared()
     {
-        DEFINE_STATIC_LOCAL(WebInspectorPageGroups, instance, ());
+        static NeverDestroyed<WebInspectorPageGroups> instance;
         return instance;
     }
 

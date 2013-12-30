@@ -21,6 +21,15 @@ PASS: blockquote
 PASS: button
       AXRole: AXButton
       
+PASS: dl
+      AXRole: AXDescriptionList
+      
+PASS: dt
+      AXRole: AXDescriptionTerm
+      
+PASS: dd
+      AXRole: AXDescriptionValue
+      
 PASS: div
       AXRole: AXSection
       
@@ -163,21 +172,21 @@ PASS: table
       AXRole: AXTable
       
 FAIL: tr
-      
+      AXRole: (no element)
       Expected: AXRow
 
 PASS: th
       AXRole: AXCell
       
 FAIL: tr
-      
+      AXRole: (no element)
       Expected: AXRow
 
 PASS: td
       AXRole: AXCell
       
 FAIL: tr
-      
+      AXRole: (no element)
       Expected: AXRow
 
 PASS: th
@@ -270,11 +279,12 @@ PASS: div[role=directory]
 PASS: div[role=grid]
       AXRole: AXTable
       
-PASS: div[role=rowgroup]
-      
-      
+FAIL: div[role=rowgroup]
+      AXRole: (no element)
+      Expected: 
+
 FAIL: div[role=row]
-      
+      AXRole: (no element)
       Expected: AXRow
 
 PASS: div[role=gridcell]
@@ -389,11 +399,12 @@ PASS: div[role=toolbar]
 PASS: div[role=treegrid]
       AXRole: AXTable
       
-PASS: div[role=rowgroup]
-      
-      
+FAIL: div[role=rowgroup]
+      AXRole: (no element)
+      Expected: 
+
 FAIL: div[role=row]
-      
+      AXRole: (no element)
       Expected: AXRow
 
 PASS: div[role=gridcell]

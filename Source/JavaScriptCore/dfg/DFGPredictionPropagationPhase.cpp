@@ -504,9 +504,6 @@ private:
         case CheckArray:
         case Arrayify:
         case ArrayifyToStructure:
-        case MovHint:
-        case MovHintAndCheck:
-        case ZombieHint:
         case CheckTierUpInLoop:
         case CheckTierUpAtReturn:
         case CheckTierUpAndOSREnter:
@@ -546,6 +543,9 @@ private:
 
 #ifndef NDEBUG
         // These get ignored because they don't return anything.
+        case StoreBarrier:
+        case ConditionalStoreBarrier:
+        case StoreBarrierWithNullCheck:
         case PutByValDirect:
         case PutByVal:
         case PutClosureVar:
@@ -574,6 +574,7 @@ private:
         case VarInjectionWatchpoint:
         case AllocationProfileWatchpoint:
         case Phantom:
+        case Check:
         case PutGlobalVar:
         case CheckWatchdogTimer:
         case Unreachable:
@@ -582,6 +583,8 @@ private:
         case FunctionReentryWatchpoint:
         case TypedArrayWatchpoint:
         case ConstantStoragePointer:
+        case MovHint:
+        case ZombieHint:
             break;
             
         // This gets ignored because it already has a prediction.
@@ -740,6 +743,10 @@ private:
             }
             break;
         }
+            
+        case MovHint:
+            // Ignore these since they have no effect on in-DFG execution.
+            break;
             
         default:
             m_graph.voteChildren(node, VoteValue);

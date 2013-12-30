@@ -54,6 +54,11 @@
 #include "Widget.h"
 #include <wtf/Ref.h>
 
+#if PLATFORM(IOS)
+#include "RuntimeApplicationChecksIOS.h"
+#include "WebCoreSystemInterface.h"
+#endif
+
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -110,6 +115,7 @@ void HTMLObjectElement::parseAttribute(const QualifiedName& name, const AtomicSt
             setNeedsWidgetUpdate(true);
     } else if (name == dataAttr) {
         m_url = stripLeadingAndTrailingHTMLSpaces(value);
+        document().updateStyleIfNeeded();
         if (renderer()) {
             setNeedsWidgetUpdate(true);
             if (isImageType()) {
@@ -145,6 +151,14 @@ static void mapDataParamToSrc(Vector<String>* paramNames, Vector<String>* paramV
         paramValues->append((*paramValues)[dataIndex]);
     }
 }
+
+#if PLATFORM(IOS)
+static bool shouldNotPerformURLAdjustment()
+{
+    static bool shouldNotPerformURLAdjustment = applicationIsNASAHD() && !iosExecutableWasLinkedOnOrAfterVersion(wkIOSSystemVersion_5_0);
+    return shouldNotPerformURLAdjustment;
+}
+#endif
 
 // FIXME: This function should not deal with url or serviceType!
 void HTMLObjectElement::parametersForPlugin(Vector<String>& paramNames, Vector<String>& paramValues, String& url, String& serviceType)
@@ -204,6 +218,11 @@ void HTMLObjectElement::parametersForPlugin(Vector<String>& paramNames, Vector<S
     // attribute, not by a param element. However, for compatibility, allow the
     // resource's URL to be given by a param named "src", "movie", "code" or "url"
     // if we know that resource points to a plug-in.
+#if PLATFORM(IOS)
+    if (shouldNotPerformURLAdjustment())
+        return;
+#endif
+
     if (url.isEmpty() && !urlParameter.isEmpty()) {
         SubframeLoader& loader = document().frame()->loader().subframeLoader();
         if (loader.resourceWillUsePlugin(urlParameter, serviceType, shouldPreferPlugInsForImages()))
