@@ -1,3 +1,236 @@
+2013-12-30  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] willSendRequest doesn't work after a redirect
+        https://bugs.webkit.org/show_bug.cgi?id=126290
+
+        Reviewed by Martin Robinson.
+
+        Add test cases to test send-request signal in case of
+        redirection.
+
+        * UIProcess/API/gtk/tests/TestResources.cpp:
+        (testWebResourceSendRequest):
+        (serverCallback):
+
+2013-12-30  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r161157, r161158, r161160, r161161,
+        r161163, and r161165.
+        http://trac.webkit.org/changeset/161157
+        http://trac.webkit.org/changeset/161158
+        http://trac.webkit.org/changeset/161160
+        http://trac.webkit.org/changeset/161161
+        http://trac.webkit.org/changeset/161163
+        http://trac.webkit.org/changeset/161165
+        https://bugs.webkit.org/show_bug.cgi?id=126332
+
+        Broke WebKit2 on Mountain Lion (Requested by ap on #webkit).
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::SyncMessageState::wait):
+        (IPC::Connection::sendSyncMessageFromSecondaryThread):
+        (IPC::Connection::waitForSyncReply):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Try to fix the test failures seen on the bots.
+
+        Restore the BinarySemaphore behavior that existed in the old binary semaphore.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::BinarySemaphore::wait):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Fix.
+
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::plugInDidStartFromOrigin):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Move more of Connection over to STL threading primitives
+        https://bugs.webkit.org/show_bug.cgi?id=126308
+
+        Reviewed by Andreas Kling.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::BinarySemaphore::BinarySemaphore):
+        (IPC::BinarySemaphore::~BinarySemaphore):
+        (IPC::BinarySemaphore::signal):
+        (IPC::BinarySemaphore::wait):
+        Add a new BinarySemaphore class that uses STL threading primitives.
+
+        (IPC::Connection::SyncMessageState::wait):
+        Change this to take a std::chrono::steady_clock::time_point.
+
+        (IPC::absoluteTimeoutTime):
+        Add a new helper function that returns a time point from the a given timeout duration,
+        correctly handling the max duration.
+
+        (IPC::Connection::sendSyncMessageFromSecondaryThread):
+        Pass a time point to SyncMessageState::wait.
+
+        (IPC::Connection::waitForSyncReply):
+        Ditto.
+
+2013-12-30  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Replace remaning CoreIPC namespace to IPC
+        https://bugs.webkit.org/show_bug.cgi?id=126305
+
+        Reviewed by Anders Carlsson.
+
+        This patch replaces CoreIPC to IPC in build scripts and source codes to fix
+        build break on CMake based ports and Gtk (and maybe IOS).
+
+        * CMakeLists.txt:
+        * GNUmakefile.am:
+        * GNUmakefile.list.am:
+        * Platform/IPC/unix/AttachmentUnix.cpp:
+        * Platform/IPC/unix/ConnectionUnix.cpp:
+        * Platform/unix/SharedMemoryUnix.cpp:
+        (WebKit::SharedMemory::Handle::encode):
+        (WebKit::SharedMemory::Handle::decode):
+        (WebKit::SharedMemory::Handle::releaseToAttachment):
+        * PlatformEfl.cmake:
+        * PlatformGTK.cmake:
+        * Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp:
+        * Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.h:
+        * Shared/CoordinatedGraphics/WebCoordinatedSurface.cpp:
+        (WebKit::WebCoordinatedSurface::Handle::encode):
+        (WebKit::WebCoordinatedSurface::Handle::decode):
+        * Shared/CoordinatedGraphics/WebCoordinatedSurface.h:
+        * Shared/Downloads/soup/DownloadSoup.cpp:
+        (WebKit::DownloadClient::downloadFailed):
+        (WebKit::Download::cancel):
+        * Shared/WebBatteryStatus.cpp:
+        (WebKit::WebBatteryStatus::Data::encode):
+        (WebKit::WebBatteryStatus::Data::decode):
+        * Shared/WebBatteryStatus.h:
+        * Shared/WebNetworkInfo.cpp:
+        (WebKit::WebNetworkInfo::Data::encode):
+        (WebKit::WebNetworkInfo::Data::decode):
+        * Shared/WebNetworkInfo.h:
+        * Shared/cairo/LayerTreeContextCairo.cpp:
+        (WebKit::LayerTreeContext::encode):
+        (WebKit::LayerTreeContext::decode):
+        * Shared/efl/LayerTreeContextEfl.cpp:
+        (WebKit::LayerTreeContext::encode):
+        (WebKit::LayerTreeContext::decode):
+        * Shared/gtk/ArgumentCodersGtk.cpp:
+        * Shared/gtk/ArgumentCodersGtk.h:
+        * Shared/gtk/LayerTreeContextGtk.cpp:
+        (WebKit::LayerTreeContext::encode):
+        (WebKit::LayerTreeContext::decode):
+        * Shared/ios/WebPlatformTouchPointIOS.cpp:
+        (WebKit::WebPlatformTouchPoint::encode):
+        (WebKit::WebPlatformTouchPoint::decode):
+        * Shared/ios/WebTouchEventIOS.cpp:
+        (WebKit::WebTouchEvent::encode):
+        (WebKit::WebTouchEvent::decode):
+        * Shared/linux/SeccompFilters/OpenSyscall.cpp:
+        (WebKit::OpenSyscall::encode):
+        (WebKit::OpenSyscall::decode):
+        (WebKit::OpenSyscallResult::encode):
+        (WebKit::OpenSyscallResult::decode):
+        * Shared/linux/SeccompFilters/OpenSyscall.h:
+        * Shared/linux/SeccompFilters/SeccompBroker.cpp:
+        (WebKit::SeccompBrokerClient::dispatch):
+        (WebKit::SeccompBroker::runLoop):
+        * Shared/linux/SeccompFilters/Syscall.cpp:
+        (WebKit::Syscall::createFromDecoder):
+        (WebKit::SyscallResult::createFromDecoder):
+        * Shared/linux/SeccompFilters/Syscall.h:
+        * Shared/soup/WebCoreArgumentCodersSoup.cpp:
+        (IPC::ArgumentCoder<CertificateInfo>::encode):
+        (IPC::ArgumentCoder<CertificateInfo>::decode):
+        * UIProcess/API/ios/PageClientImplIOS.h:
+        * UIProcess/API/ios/PageClientImplIOS.mm:
+        (WebKit::PageClientImpl::accessibilityWebProcessTokenReceived):
+        * UIProcess/API/mac/PDFViewController.h:
+        * UIProcess/API/mac/PDFViewController.mm:
+        (WebKit::convertPostScriptDataSourceToPDF):
+        (WebKit::PDFViewController::setPDFDocumentData):
+        * UIProcess/CoordinatedGraphics/CoordinatedDrawingAreaProxy.h:
+        * UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.h:
+        * UIProcess/DrawingAreaProxyImpl.h:
+        * UIProcess/WebBatteryManagerProxy.h:
+        * UIProcess/WebNetworkInfoManagerProxy.h:
+        * UIProcess/WebVibrationProxy.h:
+        * UIProcess/ios/WebPageProxyIOS.mm:
+        (WebKit::WebPageProxy::registerWebProcessAccessibilityToken):
+        (WebKit::WebPageProxy::registerUIProcessAccessibilityTokens):
+        (WebKit::WebPageProxy::savePDFToTemporaryFolderAndOpenWithNativeApplication):
+        * UIProcess/soup/WebSoupRequestManagerProxy.h:
+        * WebProcess/Battery/WebBatteryManager.h:
+        * WebProcess/NetworkInfo/WebNetworkInfoManager.h:
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedDrawingArea.cpp:
+        (WebKit::CoordinatedDrawingArea::didReceiveCoordinatedLayerTreeHostMessage):
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedDrawingArea.h:
+        * WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.h:
+        * WebProcess/WebPage/DrawingAreaImpl.h:
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::registerUIProcessAccessibilityTokens):
+        * WebProcess/ios/WebProcessIOS.mm:
+        (WebKit::WebProcess::platformInitializeWebProcess):
+        * WebProcess/soup/WebProcessSoup.cpp:
+        (WebKit::WebProcess::platformInitializeWebProcess):
+        * WebProcess/soup/WebSoupRequestManager.cpp:
+        (WebKit::WebSoupRequestManager::didHandleURIRequest):
+        (WebKit::WebSoupRequestManager::didReceiveURIRequestData):
+        * WebProcess/soup/WebSoupRequestManager.h:
+        * WebProcess/soup/WebSoupRequestManager.messages.in:
+
+2013-12-30  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix attempt on GTK port after 161152
+
+        * WebProcess/WebCoreSupport/gtk/WebEditorClientGtk.cpp:
+        (WebKit::WebEditorClient::getEditorCommandsForKeyEvent):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Use std::chrono::milliseconds for all IPC message timeouts
+        https://bugs.webkit.org/show_bug.cgi?id=126303
+
+        Reviewed by Andreas Kling.
+
+        * Platform/IPC/Connection.cpp:
+        (IPC::Connection::sendSyncMessage):
+        (IPC::Connection::sendSyncMessageFromSecondaryThread):
+        (IPC::Connection::waitForSyncReply):
+        * Platform/IPC/Connection.h:
+        (IPC::Connection::sendSync):
+        * Platform/IPC/MessageSender.h:
+        (IPC::MessageSender::sendSync):
+        * Shared/ChildProcessProxy.h:
+        (WebKit::ChildProcessProxy::sendSync):
+        * UIProcess/mac/WebPageProxyMac.mm:
+        (WebKit::WebPageProxy::stringSelectionForPasteboard):
+        (WebKit::WebPageProxy::dataSelectionForPasteboard):
+        (WebKit::WebPageProxy::readSelectionFromPasteboard):
+        (WebKit::WebPageProxy::shouldDelayWindowOrderingForEvent):
+        (WebKit::WebPageProxy::acceptsFirstMouse):
+        * WebProcess/InjectedBundle/InjectedBundle.cpp:
+        (WebKit::InjectedBundle::postSynchronousMessage):
+        * WebProcess/WebCoreSupport/WebChromeClient.cpp:
+        (WebKit::WebChromeClient::runJavaScriptAlert):
+        (WebKit::WebChromeClient::runJavaScriptConfirm):
+        (WebKit::WebChromeClient::runJavaScriptPrompt):
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebKit::WebFrameLoaderClient::dispatchDecidePolicyForResponse):
+        * WebProcess/WebPage/WebInspector.cpp:
+        (WebKit::WebInspector::createInspectorPage):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Remove empty directories.
+
+        * Platform/CoreIPC: Removed.
+        * Platform/CoreIPC/mac: Removed.
+        * Platform/CoreIPC/unix: Removed.
+
 2013-12-30  Anders Carlsson  <andersca@apple.com>
 
         Move code over to the IPC namespace.

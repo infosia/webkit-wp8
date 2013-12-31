@@ -1,3 +1,143 @@
+2013-12-31  Andreas Kling  <akling@apple.com>
+
+        Element's renderer factory should return RenderPtrs.
+        <https://webkit.org/b/126318>
+
+        Rename Element::createRenderer() to createElementRenderer() and have
+        it return RenderPtr<RenderElement>. Propagate signature until it
+        builds again.
+
+        We leakPtr() the renderer at two call sites when handing things over
+        to raw pointer API. This'll get tidied up in subsequent patches.
+
+        Reviewed by Sam Weinig.
+
+2013-12-31  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] Return early in ResourceHandle::receivedCancellation if the load has already cancelled
+        https://bugs.webkit.org/show_bug.cgi?id=126287
+
+        Reviewed by Martin Robinson.
+
+        This situation can happen when using the network process, because
+        the ReceivedCancellation message can be received when the resource
+        loader has already been removed, but the authentication challenge
+        still has a reference to the ResourceHandleClient.
+
+        * platform/network/soup/ResourceHandleSoup.cpp:
+        (WebCore::ResourceHandle::receivedCancellation):
+
+2013-12-31  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] The initiating page is lost after a redirection
+        https://bugs.webkit.org/show_bug.cgi?id=126293
+
+        Reviewed by Martin Robinson.
+
+        The initiating page id is attached to the initial soup request
+        object, but not to the one created after a redirection.
+
+        * platform/network/soup/ResourceHandleSoup.cpp:
+        (WebCore::createSoupRequestAndMessageForHandle): Call
+        setSoupRequestInitiatingPageIDFromNetworkingContext() here if the
+        soup request is created successfully.
+        (WebCore::ResourceHandle::start): Remove the call to
+        setSoupRequestInitiatingPageIDFromNetworkingContext().
+
+2013-12-31  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] Implement ResourceHandle::continueWillSendRequest()
+        https://bugs.webkit.org/show_bug.cgi?id=126291
+
+        Reviewed by Martin Robinson.
+
+        * platform/network/soup/ResourceHandleSoup.cpp:
+        (WebCore::continueAfterWillSendRequest): Helper function that
+        continues with the load after willSendRequest has been called.
+        (WebCore::doRedirect): Call continueAfterWillSendRequest() when
+        client doesn't use async callbacks.
+        (WebCore::ResourceHandle::continueWillSendRequest): Call
+        continueAfterWillSendRequest().
+
+2013-12-30  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] willSendRequest doesn't work after a redirect
+        https://bugs.webkit.org/show_bug.cgi?id=126290
+
+        Reviewed by Martin Robinson.
+
+        The problem is that we are creating the new soup request for the
+        redirect before calling ResourceHandleClient::willSendRequest() so
+        that any change made to the request by the client is ignored.
+
+        * platform/network/soup/ResourceHandleSoup.cpp:
+        (WebCore::doRedirect): Create the new soup request and soup
+        message for the redirect after calling willSendRequest() on the
+        client.
+
+2013-12-30  Andreas Kling  <akling@apple.com>
+
+        InputType should return input renderers wrapped in RenderPtr.
+        <https://webkit.org/b/126307>
+
+        Rename InputType::createRenderer() to createInputRenderer() and
+        make it return RenderPtr<RenderElement>. Also made it non-const.
+
+        Reviewed by Anders Carlsson.
+
+2013-12-30  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Cleanup static_cast<HTMLFormElement*> by using toHTMLFormElement()
+        https://bugs.webkit.org/show_bug.cgi?id=126309
+
+        Reviewed by Andreas Kling.
+
+        To detect bad type casts, it would be good to use toHTMLFormElement() instead of
+        using manual type cast. Additionally FORM_ASSOCIATED_ELEMENT_TYPE_CASTS is introduced newly
+        to do it.
+
+        No new tests, no behavior changes.
+
+        * html/FormAssociatedElement.h:
+        * html/HTMLFormControlElement.h:
+        * html/HTMLFormElement.cpp:
+        (WebCore::HTMLFormElement::submitImplicitly):
+        (WebCore::HTMLFormElement::validateInteractively):
+        (WebCore::HTMLFormElement::submit):
+        (WebCore::HTMLFormElement::reset):
+        (WebCore::HTMLFormElement::defaultButton):
+        (WebCore::HTMLFormElement::checkInvalidControlsAndCollectUnhandled):
+        (WebCore::HTMLFormElement::documentDidResumeFromPageCache):
+        * loader/FormSubmission.cpp:
+        (WebCore::FormSubmission::create):
+
+2013-12-30  Anders Carlsson  <andersca@apple.com>
+
+        Replace yield() and pauseBriefly() with std::this_thread::yield()
+        https://bugs.webkit.org/show_bug.cgi?id=126105
+
+        Reviewed by Sam Weinig.
+
+        * platform/sql/SQLiteDatabase.cpp:
+        (WebCore::SQLiteDatabase::interrupt):
+
+2013-12-30  Andreas Kling  <akling@apple.com>
+
+        Rename createRenderObject() to createRenderer().
+
+        Somewhat rubber-stamped by Antti Koivisto.
+
+2013-12-30  Andreas Kling  <akling@apple.com>
+
+        Document should store its RenderView in a RenderPtr.
+        <https://webkit.org/b/126299>
+
+        Make Document::m_renderView a RenderPtr<RenderView> and remove one
+        manual destroy() call. Also removed the setRenderView() helper and
+        inlined it at the two call sites.
+
+        Reviewed by Antti Koivisto.
+
 2013-12-30  Martin Robinson  <mrobinson@igalia.com>
 
         [CMake] [GTK] Add support for GObject introspection

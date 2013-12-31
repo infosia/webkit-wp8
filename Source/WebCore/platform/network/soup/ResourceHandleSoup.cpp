@@ -455,6 +455,20 @@ static bool shouldRedirectAsGET(SoupMessage* message, URL& newURL, bool crossOri
     return false;
 }
 
+static void continueAfterWillSendRequest(ResourceHandle* handle, const ResourceRequest& newRequest)
+{
+    // willSendRequest might cancel the load.
+    if (handle->cancelledOrClientless())
+        return;
+
+    if (!createSoupRequestAndMessageForHandle(handle, newRequest, true)) {
+        handle->getInternal()->client()->cannotShowURL(handle);
+        return;
+    }
+
+    handle->sendPendingRequest();
+}
+
 static void doRedirect(ResourceHandle* handle)
 {
     ResourceHandleInternal* d = handle->getInternal();
@@ -502,21 +516,19 @@ static void doRedirect(ResourceHandle* handle)
     } else
         applyAuthenticationToRequest(handle, newRequest, true);
 
-    cleanupSoupRequestOperation(handle);
-    if (!createSoupRequestAndMessageForHandle(handle, newRequest, true)) {
-        d->client()->cannotShowURL(handle);
-        return;
-    }
-
     // If we sent credentials with this request's URL, we don't want the response to carry them to
     // the WebKit layer. They were only placed in the URL for the benefit of libsoup.
     newRequest.removeCredentials();
 
+    cleanupSoupRequestOperation(handle);
+
     if (d->client()->usesAsyncCallbacks())
         d->client()->willSendRequestAsync(handle, newRequest, d->m_response);
-    else
+    else {
         d->client()->willSendRequest(handle, newRequest, d->m_response);
-    handle->sendPendingRequest();
+        continueAfterWillSendRequest(handle, newRequest);
+    }
+
 }
 
 static void redirectSkipCallback(GObject*, GAsyncResult* asyncResult, gpointer data)
@@ -1036,6 +1048,8 @@ static bool createSoupRequestAndMessageForHandle(ResourceHandle* handle, const R
         return false;
     }
 
+    setSoupRequestInitiatingPageIDFromNetworkingContext(d->m_soupRequest.get(), d->m_context.get());
+
     return true;
 }
 
@@ -1065,8 +1079,6 @@ bool ResourceHandle::start()
         this->scheduleFailure(InvalidURLFailure); // Error must not be reported immediately
         return true;
     }
-
-    setSoupRequestInitiatingPageIDFromNetworkingContext(d->m_soupRequest.get(), d->m_context.get());
 
     // Send the request only if it's not been explicitly deferred.
     if (!d->m_defersLoading)
@@ -1251,6 +1263,13 @@ void ResourceHandle::receivedCancellation(const AuthenticationChallenge& challen
     if (challenge != d->m_currentWebChallenge)
         return;
 
+    if (cancelledOrClientless()) {
+        clearAuthentication();
+        return;
+    }
+
+    ASSERT(challenge.soupSession());
+    ASSERT(challenge.soupMessage());
     soup_session_unpause_message(challenge.soupSession(), challenge.soupMessage());
 
     if (client())
@@ -1386,7 +1405,7 @@ void ResourceHandle::continueWillSendRequest(const ResourceRequest& request)
 {
     ASSERT(client());
     ASSERT(client()->usesAsyncCallbacks());
-    // FIXME: Implement this method if needed: https://bugs.webkit.org/show_bug.cgi?id=126114.
+    continueAfterWillSendRequest(this, request);
 }
 
 void ResourceHandle::continueDidReceiveResponse()
