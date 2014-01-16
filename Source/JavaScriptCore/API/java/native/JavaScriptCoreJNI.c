@@ -15,13 +15,8 @@
 #include "JavaScriptCoreJNI.h"
 
 #ifdef ENABLE_JAVASCRIPTCORE_PRIVATE_API
-#ifdef __APPLE__
-#include "JSObjectRefPrivate.h"
-#include "JSContextRefPrivate.h"
-#else
-#include <JavaScriptCore/JSObjectRefPrivate.h>
-#include <JavaScriptCore/JSContextRefPrivate.h>
-#endif
+#include "JavaScriptCore/JSObjectRefPrivate.h"
+#include "JavaScriptCore/JSContextRefPrivate.h"
 #endif
 
 #define JSCORE_LOG_TAG "JavaScriptCore"
@@ -102,7 +97,11 @@ if (varin != NULL) JSStringRelease(varin);
 #define JSOBJECTMAKE_FROM_ARGV(callfunc, argc, argv, varout)\
 const JSValueRef* js_argv = NULL;\
 if (argc > 0) js_argv = (*env)->GetDirectBufferAddress(env, argv);\
-JSObjectRef varout = callfunc(ctx, argc, js_argv, &exceptionStore);\
+JSObjectRef varout = callfunc(ctx, argc, js_argv, &exceptionStore);
+
+/* Release jstring local reference */
+#define JAVA_DELETE_LOCALREF(varin)\
+if (varin != NULL) (*env)->DeleteLocalRef(env, varin);
 
 #ifdef __cplusplus
 extern "C" {
@@ -201,6 +200,7 @@ static void UpdateJSValueExceptionPointer(JNIEnv* env, JSContextRef ctx, JSValue
     if (jmethodId_JSValueRefUpdatePointerCallback == NULL) {
         jmethodId_JSValueRefUpdatePointerCallback = (*env)->GetMethodID(env, clazz, "UpdateJSValueRef", "(JJ)V");
     }
+    JAVA_DELETE_LOCALREF(clazz);
     if (jmethodId_JSValueRefUpdatePointerCallback != NULL) {
         (*env)->CallVoidMethod(env, exceptionObj,
                                jmethodId_JSValueRefUpdatePointerCallback, (jlong)ctx, (jlong)exceptionValue);
@@ -287,6 +287,7 @@ static JSValueRef NativeCallback_JSObjectGetStaticValueCallback(
         value = (JSValueRef)(*env)->CallLongMethod(env, prv->callback,
                                jmethodId_JSObjectGetStaticValueCallback,
                                (jlong)ctx, (jlong)object, jname, (jlong)exception);
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
     
@@ -306,6 +307,7 @@ static bool NativeCallback_JSObjectSetStaticValueCallback(
         JSTRING_FROM_JSSTRINGREF(name, cname, jname)
         result = (*env)->CallBooleanMethod(env, prv->callback, jmethodId_JSObjectSetStaticValueCallback,
             (jlong)ctx, (jlong)object, jname, (jlong)value, (jlong)exception) == JNI_TRUE ? true : false;
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
 
@@ -326,6 +328,7 @@ static JSValueRef NativeCallback_JSObjectGetPropertyCallback(
         value = (JSValueRef)(*env)->CallLongMethod(env, prv->callback,
                                jmethodId_JSObjectGetPropertyCallback,
                                (jlong)ctx, (jlong)object, jname, (jlong)exception);
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
     
@@ -345,6 +348,7 @@ static bool NativeCallback_JSObjectSetPropertyCallback(
         JSTRING_FROM_JSSTRINGREF(name, cname, jname)
         result = (*env)->CallBooleanMethod(env, prv->callback, jmethodId_JSObjectSetPropertyCallback,
             (jlong)ctx, (jlong)object, jname, (jlong)value, (jlong)exception) == JNI_TRUE ? true : false;
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
 
@@ -365,6 +369,7 @@ static JSObjectRef NativeCallback_JSObjectCallAsConstructorCallback(
         object = (JSObjectRef)(*env)->CallLongMethod(env, prv->callback,
                             jmethodId_JSObjectCallAsConstructorCallback,
                             (jlong)ctx, (jlong)constructor, (jint)argc, argvbuffer, (jlong)exception);
+        JAVA_DELETE_LOCALREF(argvbuffer);
     } else {
         LOGD("Constructor callback does not found for %lu", (long)constructor);
     }
@@ -385,6 +390,8 @@ static JSObjectRef NativeCallback_JSObjectMakeConstructorCallback(
     object = (JSObjectRef)(*env)->CallStaticLongMethod(env, clazz,
                                         jmethodId_JSObjectMakeConstructorCallback,
                                         (jlong)ctx, (jlong)constructor, (jint)argc, argvbuffer, (jlong)exception);
+    JAVA_DELETE_LOCALREF(clazz);
+    JAVA_DELETE_LOCALREF(argvbuffer);
     JNI_ENV_EXIT
     return object;
 }
@@ -402,6 +409,8 @@ static JSValueRef NativeCallback_JSObjectMakeFunctionCallback(
                                         jmethodId_JSObjectMakeFunctionCallback,
                                         (jlong)ctx, (jlong)func, (jlong)thisObject,
                                         (jint)argc, argvbuffer, (jlong)exception);
+    JAVA_DELETE_LOCALREF(clazz);
+    JAVA_DELETE_LOCALREF(argvbuffer);
     JNI_ENV_EXIT
     return value;
 }
@@ -419,6 +428,7 @@ static JSValueRef NativeCallback_JSObjectCallAsFunctionCallback(
         jobject argvbuffer = argc > 0 ? (*env)->NewDirectByteBuffer(env, (void*)&argv[0], sizeof(long) * argc) : NULL;
         value = (JSValueRef)(*env)->CallLongMethod(env, prv->callback, jmethodId_JSObjectCallAsFunctionCallback,
                                (jlong)ctx, (jlong)func, (jlong)thisObject, (jint)argc, argvbuffer, (jlong)exception);
+        JAVA_DELETE_LOCALREF(argvbuffer);
     }
     JNI_ENV_EXIT
     return value;
@@ -437,6 +447,7 @@ static JSValueRef NativeCallback_JSObjectStaticFunctionCallback(
         jobject argvbuffer = argc > 0 ? (*env)->NewDirectByteBuffer(env, (void*)&argv[0], sizeof(long) * argc) : NULL;
         value = (JSValueRef)(*env)->CallLongMethod(env, prv->callback, jmethodId_JSObjectStaticFunctionCallback,
                                (jlong)ctx, (jlong)func, (jlong)thisObject, (jint)argc, argvbuffer, (jlong)exception);
+        JAVA_DELETE_LOCALREF(argvbuffer);
     }
     JNI_ENV_EXIT
     return value;
@@ -473,6 +484,7 @@ static bool NativeCallback_JSObjectDeletePropertyCallback(
         JSTRING_FROM_JSSTRINGREF(name, cname, jname)
         value = (*env)->CallBooleanMethod(env, prv->callback, jmethodId_JSObjectDeletePropertyCallback,
                     (jlong)ctx, (jlong)object, jname, (jlong)exception) == JNI_TRUE ? true : false;
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
     return value;
@@ -522,6 +534,7 @@ static bool NativeCallback_JSObjectHasPropertyCallback(
         JSTRING_FROM_JSSTRINGREF(name, cname, jname)
         value = (*env)->CallBooleanMethod(env, prv->callback, jmethodId_JSObjectHasPropertyCallback,
                                 (jlong)ctx, (jlong)object, jname) == JNI_TRUE ? true : false;
+        JAVA_DELETE_LOCALREF(jname);
     }
     JNI_ENV_EXIT
     return value;
@@ -2109,7 +2122,7 @@ Java_com_appcelerator_javascriptcore_JavaScriptCoreLibrary_NativeJSObjectMakeFun
             jobject paramName = (*env)->GetObjectArrayElement(env, paramNames, i);
             JSSTRINGREF_FROM_JSTRING(paramName, jsParamName);
             jsParamNames[i] = jsParamName;
-            (*env)->DeleteLocalRef(env, paramName);
+            JAVA_DELETE_LOCALREF(paramName);
         }
     }
     
