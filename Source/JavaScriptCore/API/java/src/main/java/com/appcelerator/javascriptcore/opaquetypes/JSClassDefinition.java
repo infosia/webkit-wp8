@@ -4,6 +4,8 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.HashMap;
 
+import com.appcelerator.javascriptcore.util.LongSparseArray;
+
 import com.appcelerator.javascriptcore.JavaScriptCoreLibrary;
 import com.appcelerator.javascriptcore.JavaScriptException;
 import com.appcelerator.javascriptcore.enums.JSClassAttribute;
@@ -260,9 +262,9 @@ public class JSClassDefinition {
         clearStaticFunctions(object);
     }
 
-    private static HashMap<Long, JSClassDefinition> setPropertyChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> setPropertyChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public boolean JSObjectSetPropertyCallback(long ctx, long object, String propertyName, long value, long exception) {
-        if (setPropertyChain.containsKey(object) && !this.equals(setPropertyChain.get(object))) {
+        if (setPropertyChain.get(object) != null && !this.equals(setPropertyChain.get(object))) {
             return setPropertyChain.get(object).JSObjectSetPropertyCallback(ctx, object, propertyName, value, exception);
         }
         JSContextRef context = new JSContextRef(ctx);
@@ -282,9 +284,9 @@ public class JSClassDefinition {
         return false;
     }
 
-    private static HashMap<Long, JSClassDefinition> getPropertyChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> getPropertyChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public long JSObjectGetPropertyCallback(long ctx, long object, String propertyName, long exception) {
-        if (getPropertyChain.containsKey(object) && !this.equals(getPropertyChain.get(object))) {
+        if (getPropertyChain.get(object) != null && !this.equals(getPropertyChain.get(object))) {
             return getPropertyChain.get(object).JSObjectGetPropertyCallback(ctx, object, propertyName, exception);
         }
         if (getProperty != null) {
@@ -316,7 +318,7 @@ public class JSClassDefinition {
         if (hasParent) {
             return parentClass.getDefinition().JSObjectCallAsFunctionCallback(ctx, func, thisObject, argc, argv, exception);
         }
-        throw new JavaScriptException(String.format("CallAsFunction callback does not found for %d", thisObject));
+        throw new JavaScriptException(String.format("CallAsFunction callback is not found for %d", thisObject));
     }
 
     public long JSObjectStaticFunctionCallback(long ctx, long func, long thisObject, int argc, ByteBuffer argv, long exception) {
@@ -333,12 +335,12 @@ public class JSClassDefinition {
         if (hasParent) {
             return parentClass.getDefinition().JSObjectStaticFunctionCallback(ctx, func, thisObject, argc, argv, exception);
         }
-        throw new JavaScriptException(String.format("Static function callback does not found for %d", thisObject));
+        throw new JavaScriptException(String.format("Static function callback is not found for %d", thisObject));
     }
 
-    private static HashMap<Long, JSClassDefinition> callAsConstructorChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> callAsConstructorChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public long JSObjectCallAsConstructorCallback(long ctx, long constructor, int argc, ByteBuffer argv, long exception) {
-        if (callAsConstructorChain.containsKey(constructor) && !this.equals(callAsConstructorChain.get(constructor))) {
+        if (callAsConstructorChain.get(constructor) != null && !this.equals(callAsConstructorChain.get(constructor))) {
             return callAsConstructorChain.get(constructor).JSObjectCallAsConstructorCallback(ctx, constructor, argc, argv, exception);
         }
         if (callAsConstructor != null) {
@@ -358,18 +360,18 @@ public class JSClassDefinition {
         } else {
             callAsConstructorChain.remove(constructor);
         }
-        throw new JavaScriptException(String.format("CallAsConstructor callback does not found for %d", constructor));
+        throw new JavaScriptException(String.format("CallAsConstructor callback is not found for %d", constructor));
     }
 
     /*
      * Static CallAsFunction callbacks for JSObjectMakeFunctionWithCallback
      */
-    private static HashMap<Long, JSObjectCallAsFunctionCallback> functionCallbacks = new HashMap<Long, JSObjectCallAsFunctionCallback>();
+    private static HashMap<Long, JSObjectCallAsFunctionCallback> functionCallbacks = new HashMap<Long, JSObjectCallAsFunctionCallback>(JavaScriptCoreLibrary.numberOfJSObjectBuckets);
     public static void registerMakeFunctionCallback(long function, JSObjectCallAsFunctionCallback callback) {
         functionCallbacks.put(function, callback);
     }
     public static long JSObjectMakeFunctionCallback(long ctx, long function, long thisObject, int argc, ByteBuffer argv, long exception) {
-        if (functionCallbacks.containsKey(function)) {
+        if (functionCallbacks.get(function) != null) {
             JSContextRef context = new JSContextRef(ctx);
             JSValueArrayRef jargv = new JSValueArrayRef(argc, argv);
             return p(functionCallbacks.get(function).callAsFunction(
@@ -377,30 +379,30 @@ public class JSClassDefinition {
                                             new JSObjectRef(context, thisObject),
                                             argc, jargv, new Pointer(exception)));
         }
-        throw new JavaScriptException(String.format("JSObjectMakeFunctionWithCallback callback does not found for %d", thisObject));
+        throw new JavaScriptException(String.format("JSObjectMakeFunctionWithCallback callback is not found for %d", thisObject));
     }
 
     /* 
      * Static CallAsConstructor callbacks for JSObjectMakeConstructor
      */
-    private static HashMap<Long, JSObjectCallAsConstructorCallback> constructorCallbacks = new HashMap<Long, JSObjectCallAsConstructorCallback>();
+    private static HashMap<Long, JSObjectCallAsConstructorCallback> constructorCallbacks = new HashMap<Long, JSObjectCallAsConstructorCallback>(JavaScriptCoreLibrary.numberOfJSObjectBuckets);
     public static void registerMakeConstructorCallback(long constructor, JSObjectCallAsConstructorCallback callback) {
         constructorCallbacks.put(constructor, callback);
     }
     public static long JSObjectMakeConstructorCallback(long ctx, long constructor, int argc, ByteBuffer argv, long exception) {
-        if (constructorCallbacks.containsKey(constructor)) {
+        if (constructorCallbacks.get(constructor) != null) {
             JSContextRef context = new JSContextRef(ctx);
             JSValueArrayRef jargv = new JSValueArrayRef(argc, argv);
             return p(constructorCallbacks.get(constructor).callAsConstructor(
                                             context, new JSObjectRef(context, constructor),
                                             argc, jargv, new Pointer(exception)));
         }
-        throw new JavaScriptException(String.format("JSObjectMakeConstructor callback does not found for %d", constructor));
+        throw new JavaScriptException(String.format("JSObjectMakeConstructor callback is not found for %d", constructor));
     }
 
-    private static HashMap<Long, JSClassDefinition> convertToTypeChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> convertToTypeChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public long JSObjectConvertToTypeCallback(long ctx, long object, int type, long exception) {
-        if (convertToTypeChain.containsKey(object) && !this.equals(convertToTypeChain.get(object))) {
+        if (convertToTypeChain.get(object) != null && !this.equals(convertToTypeChain.get(object))) {
             return convertToTypeChain.get(object).JSObjectConvertToTypeCallback(ctx, object, type, exception);
         }
         if (convertToType != null) {
@@ -422,9 +424,9 @@ public class JSClassDefinition {
         return 0;
     }
     
-    private static HashMap<Long, JSClassDefinition> deletePropertyChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> deletePropertyChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public boolean JSObjectDeletePropertyCallback(long ctx, long object, String name, long exception) {
-        if (deletePropertyChain.containsKey(object) && !this.equals(deletePropertyChain.get(object))) {
+        if (deletePropertyChain.get(object) != null && !this.equals(deletePropertyChain.get(object))) {
             return deletePropertyChain.get(object).JSObjectDeletePropertyCallback(ctx, object, name, exception);
         }
         JSContextRef context = new JSContextRef(ctx);
@@ -443,9 +445,9 @@ public class JSClassDefinition {
         return false;
     }
 
-    private static HashMap<Long, JSClassDefinition> getPropertyNamesChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> getPropertyNamesChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public void JSObjectGetPropertyNamesCallback(long ctx, long object, long propertyNames) {
-        if (getPropertyNamesChain.containsKey(object) && !this.equals(getPropertyNamesChain.get(object))) {
+        if (getPropertyNamesChain.get(object) != null && !this.equals(getPropertyNamesChain.get(object))) {
             getPropertyNamesChain.get(object).JSObjectGetPropertyNamesCallback(ctx, object, propertyNames);
             return;
         }
@@ -466,9 +468,9 @@ public class JSClassDefinition {
         return;
     }
 
-    private static HashMap<Long, JSClassDefinition> hasInstanceChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> hasInstanceChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public boolean JSObjectHasInstanceCallback(long ctx, long constructor, long possibleInstance, long exception) {
-        if (hasInstanceChain.containsKey(constructor) && !this.equals(hasInstanceChain.get(constructor))) {
+        if (hasInstanceChain.get(constructor) != null && !this.equals(hasInstanceChain.get(constructor))) {
             return hasInstanceChain.get(constructor).JSObjectHasInstanceCallback(ctx, constructor, possibleInstance, exception);
         }
         JSContextRef context = new JSContextRef(ctx);
@@ -488,9 +490,9 @@ public class JSClassDefinition {
         return false;
     }
 
-    private static HashMap<Long, JSClassDefinition> hasPropertyChain = new HashMap<Long, JSClassDefinition>();
+    private static LongSparseArray<JSClassDefinition> hasPropertyChain = new LongSparseArray<JSClassDefinition>(JavaScriptCoreLibrary.numberOfPrototypeHierarchy);
     public boolean JSObjectHasPropertyCallback(long ctx, long object, String name) {
-        if (hasPropertyChain.containsKey(object) && !this.equals(hasPropertyChain.get(object))) {
+        if (hasPropertyChain.get(object) != null && !this.equals(hasPropertyChain.get(object))) {
             return hasPropertyChain.get(object).JSObjectHasPropertyCallback(ctx, object, name);
         }
         JSContextRef context = new JSContextRef(ctx);
@@ -538,7 +540,7 @@ public class JSClassDefinition {
         if (hasParent) {
             return parentClass.getDefinition().JSObjectGetStaticValueCallback(ctx, object, propertyName, exception);
         }
-        throw new JavaScriptException(String.format("Static value '%s' callback does not found for %d", propertyName, object));
+        throw new JavaScriptException(String.format("Static value '%s' callback is not found for %d", propertyName, object));
     }
 
     public JSClassDefinition copy() {
@@ -585,17 +587,17 @@ public class JSClassDefinition {
             staticValues = null;
         }
         
-        setPropertyChain = null;
-        getPropertyChain = null;
-        convertToTypeChain = null;
-        deletePropertyChain = null;
-        getPropertyNamesChain = null;
-        hasPropertyChain = null;
-        functionCallbacks = null;
-        hasInstanceChain = null;
-        constructorCallbacks = null;
-        functionCallbacks = null;
-        callAsConstructorChain = null;
+        setPropertyChain.clear();
+        getPropertyChain.clear();
+        convertToTypeChain.clear();
+        deletePropertyChain.clear();
+        getPropertyNamesChain.clear();
+        hasPropertyChain.clear();
+        functionCallbacks.clear();
+        hasInstanceChain.clear();
+        constructorCallbacks.clear();
+        functionCallbacks.clear();
+        callAsConstructorChain.clear();
 
         parentClass = null;
         initialize  = null;
@@ -609,6 +611,10 @@ public class JSClassDefinition {
         callAsConstructor = null;
         hasInstance = null;
         convertToType = null;
+
+        hasParent = false;
+        forceCallAsConstructor = false;
+        forceFinaizeCall       = true;
     }
 
     private void constructBufferTemplate() {

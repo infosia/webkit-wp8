@@ -37,6 +37,19 @@ public class JavaScriptCoreLibrary {
     public static final short SizeOfJSStaticFunction = NativeSizeOfJSStaticFunction();
 
     /*
+     * Number of buckets for JS object map that is used by callbacks. 
+     * If object map requires more bucket, LongSparseArray realocates the map and GC may be taking place.
+     * If you want to avoid GC to handle more JS objects just increase this number.
+     */
+    public static int numberOfJSObjectBuckets = 16384;
+
+    /*
+     * Number of buckets for prototype hierarchy that is used by callbacks.
+     * If hierarchy map requires more space, LongSparseArray reallocates the map.
+     */
+    public static int numberOfPrototypeHierarchy = 16;
+
+    /*
      * Singleton
      */
     private JavaScriptCoreLibrary() {}
@@ -424,7 +437,7 @@ public class JavaScriptCoreLibrary {
 
     public JSObjectRef JSObjectMake(JSContextRef context, JSClassRef jsClass, Object object) {
         if (jsClass == null) {
-            return new JSObjectRef(context, NativeJSObjectMake(p(context), 0, null, null, 0, object));
+            return new JSObjectRef(context, NativeJSObjectMake(p(context), 0, null, object));
         } else {
             return JSObjectMakeWithDefinition(context, jsClass, jsClass.getDefinition(), object);
         }
@@ -432,8 +445,7 @@ public class JavaScriptCoreLibrary {
 
     private JSObjectRef JSObjectMakeWithDefinition(JSContextRef context, JSClassRef jsClass,
                                                   JSClassDefinition definition, Object object) {
-        return new JSObjectRef(context, NativeJSObjectMake(p(context), p(jsClass),
-                        definition, definition.getStaticFunctions(), definition.getStaticFunctionCount(), object));
+        return new JSObjectRef(context, NativeJSObjectMake(p(context), p(jsClass), definition, object));
     }
 
     /**
@@ -560,7 +572,7 @@ public class JavaScriptCoreLibrary {
     public native boolean NativeJSObjectHasProperty(long jsContextRef, long jsObjectRef, String propertyName);
     public native boolean NativeJSObjectIsConstructor(long jsContextRef, long jsObjectRef);
     public native boolean NativeJSObjectIsFunction(long jsContextRef, long jsObjectRef);
-    public native long NativeJSObjectMake(long jsContextRef, long jsClassRef, JSClassDefinition definition, ByteBuffer staticFunctions, int staticFunctionCount, Object object);
+    public native long NativeJSObjectMake(long jsContextRef, long jsClassRef, JSClassDefinition definition, Object object);
     public native long NativeJSObjectMakeArray(long jsContextRef, int argc, ByteBuffer argv, JSValueRef exception);
     public native long NativeJSObjectMakeDate(long jsContextRef, int argc, ByteBuffer argv, JSValueRef exception);
     public native long NativeJSObjectMakeError(long jsContextRef, int argc, ByteBuffer argv, JSValueRef exception);
