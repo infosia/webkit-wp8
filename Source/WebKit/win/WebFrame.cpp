@@ -1383,7 +1383,7 @@ HRESULT WebFrame::searchForLabelsBeforeElement(const BSTR* labels, unsigned cLab
     bool resultIsInCellAbove;
     String label = coreFrame->searchForLabelsBeforeElement(labelStrings, coreElement, &resultDistance, &resultIsInCellAbove);
     
-    *result = SysAllocStringLen(label.characters(), label.length());
+    *result = SysAllocStringLen(label.deprecatedCharacters(), label.length());
     if (label.length() && !*result)
         return E_OUTOFMEMORY;
     if (outResultDistance)
@@ -1421,7 +1421,7 @@ HRESULT WebFrame::matchLabelsAgainstElement(const BSTR* labels, int cLabels, IDO
 
     String label = coreFrame->matchLabelsAgainstElement(labelStrings, coreElement);
     
-    *result = SysAllocStringLen(label.characters(), label.length());
+    *result = SysAllocStringLen(label.deprecatedCharacters(), label.length());
     if (label.length() && !*result)
         return E_OUTOFMEMORY;
     return S_OK;
@@ -2012,7 +2012,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::frameBounds(
     if (!view)
         return E_FAIL;
 
-    FloatRect bounds = view->visibleContentRect(ScrollableArea::IncludeScrollbars);
+    FloatRect bounds = view->visibleContentRectIncludingScrollbars();
     result->bottom = (LONG) bounds.height();
     result->right = (LONG) bounds.width();
     return S_OK;

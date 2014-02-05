@@ -22,8 +22,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGRoot.h"
 
 #include "Chrome.h"
@@ -34,11 +32,7 @@
 #include "LayoutRepainter.h"
 #include "Page.h"
 #include "RenderIterator.h"
-#include "RenderSVGContainer.h"
-#include "RenderSVGResource.h"
-#include "RenderSVGResourceContainer.h"
 #include "RenderView.h"
-#include "SVGElement.h"
 #include "SVGImage.h"
 #include "SVGLength.h"
 #include "SVGRenderingContext.h"
@@ -464,5 +458,3 @@ void RenderSVGRoot::addResourceForClientInvalidation(RenderSVGResourceContainer*
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -33,6 +33,7 @@
 #include "EditingCallbacks.h"
 #include "EventSender.h"
 #include "GCController.h"
+#include "JSRetainPtr.h"
 #include "URL.h"
 #include "NotImplemented.h"
 #include "TestRunner.h"
@@ -331,7 +332,6 @@ void DumpRenderTreeChrome::resetDefaultsToConsistentValues()
     DumpRenderTreeSupportEfl::setCSSRegionsEnabled(mainView(), true);
     DumpRenderTreeSupportEfl::setShouldTrackVisitedLinks(false);
     DumpRenderTreeSupportEfl::setTracksRepaints(mainFrame(), false);
-    DumpRenderTreeSupportEfl::setSeamlessIFramesEnabled(true);
     DumpRenderTreeSupportEfl::setWebAudioEnabled(mainView(), false);
 
     // Reset capacities for the memory cache for dead objects.

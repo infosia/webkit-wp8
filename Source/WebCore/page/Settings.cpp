@@ -47,7 +47,7 @@
 #include "TextAutosizer.h"
 #include <limits>
 #include <wtf/NeverDestroyed.h>
-
+#include <wtf/StdLibExtras.h>
 
 namespace WebCore {
 
@@ -98,6 +98,7 @@ bool Settings::gLowPowerVideoAudioBufferSizeEnabled = false;
 
 #if PLATFORM(IOS)
 bool Settings::gNetworkDataUsageTrackingEnabled = false;
+bool Settings::gAVKitEnabled = false;
 #endif
 
 // NOTEs
@@ -123,11 +124,13 @@ static EditingBehaviorType editingBehaviorTypeForPlatform()
 
 #if PLATFORM(IOS)
 static const bool defaultFixedPositionCreatesStackingContext = true;
+static const bool defaultAcceleratedCompositingForFixedPositionEnabled = true;
 static const bool defaultMediaPlaybackAllowsInline = false;
 static const bool defaultMediaPlaybackRequiresUserGesture = true;
 static const bool defaultShouldRespectImageOrientation = true;
 #else
 static const bool defaultFixedPositionCreatesStackingContext = false;
+static const bool defaultAcceleratedCompositingForFixedPositionEnabled = false;
 static const bool defaultMediaPlaybackAllowsInline = true;
 static const bool defaultMediaPlaybackRequiresUserGesture = false;
 static const bool defaultShouldRespectImageOrientation = false;
@@ -145,7 +148,7 @@ static const bool defaultSelectTrailingWhitespaceEnabled = false;
 // This amount of time must have elapsed before we will even consider scheduling a layout without a delay.
 // FIXME: For faster machines this value can really be lowered to 200. 250 is adequate, but a little high
 // for dual G5s. :)
-static const int layoutScheduleThreshold = 250;
+static const auto layoutScheduleThreshold = std::chrono::milliseconds(250);
 
 Settings::Settings(Page* page)
     : m_page(0)
@@ -177,7 +180,6 @@ Settings::Settings(Page* page)
     , m_needsAdobeFrameReloadingQuirk(false)
     , m_usesPageCache(false)
     , m_fontRenderingMode(0)
-    , m_isCSSCustomFilterEnabled(false)
 #if PLATFORM(IOS)
     , m_standalone(false)
     , m_telephoneNumberParsingEnabled(false)
@@ -192,6 +194,7 @@ Settings::Settings(Page* page)
 #endif
     , m_showTiledScrollingIndicator(false)
     , m_tiledBackingStoreEnabled(false)
+    , m_backgroundShouldExtendBeyondPage(false)
     , m_dnsPrefetchingEnabled(false)
 #if ENABLE(TOUCH_EVENTS)
     , m_touchEventEmulationEnabled(false)
@@ -243,7 +246,7 @@ bool Settings::shouldEnableScreenFontSubstitutionByDefault()
 }
 #endif
 
-#if !PLATFORM(MAC) && !PLATFORM(BLACKBERRY)
+#if !PLATFORM(MAC)
 void Settings::initializeDefaultFontFamilies()
 {
     // Other platforms can set up fonts from a client, but on Mac, we want it in WebCore to share code between WebKit1 and WebKit2.
@@ -506,7 +509,7 @@ double Settings::domTimerAlignmentInterval() const
     return m_page->timerAlignmentInterval();
 }
 
-void Settings::setLayoutInterval(int layoutInterval)
+void Settings::setLayoutInterval(std::chrono::milliseconds layoutInterval)
 {
     // FIXME: It seems weird that this function may disregard the specified layout interval.
     // We should either expose layoutScheduleThreshold or better communicate this invariant.
@@ -594,6 +597,16 @@ void Settings::setTiledBackingStoreEnabled(bool enabled)
 #if USE(TILED_BACKING_STORE)
     m_page->mainFrame().setTiledBackingStoreEnabled(enabled);
 #endif
+}
+
+void Settings::setBackgroundShouldExtendBeyondPage(bool shouldExtend)
+{
+    if (m_backgroundShouldExtendBeyondPage == shouldExtend)
+        return;
+
+    m_backgroundShouldExtendBeyondPage = shouldExtend;
+
+    m_page->mainFrame().view()->setBackgroundExtendsBeyondPage(shouldExtend);
 }
 
 #if USE(AVFOUNDATION)

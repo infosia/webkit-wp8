@@ -89,11 +89,12 @@ WebProcessProxy::WebProcessProxy(WebContext& context)
     , m_context(context)
     , m_mayHaveUniversalFileReadSandboxExtension(false)
 #if ENABLE(CUSTOM_PROTOCOLS)
-    , m_customProtocolManagerProxy(this)
+    , m_customProtocolManagerProxy(this, context)
 #endif
 #if PLATFORM(MAC)
     , m_processSuppressionEnabled(false)
 #endif
+    , m_numberOfTimesSuddenTerminationWasDisabled(0)
 {
     connect();
 }
@@ -102,6 +103,9 @@ WebProcessProxy::~WebProcessProxy()
 {
     if (m_webConnection)
         m_webConnection->invalidate();
+
+    while (m_numberOfTimesSuddenTerminationWasDisabled-- > 0)
+        WebCore::enableSuddenTermination();
 }
 
 void WebProcessProxy::getLaunchOptions(ProcessLauncher::LaunchOptions& launchOptions)
@@ -163,14 +167,14 @@ WebPageProxy* WebProcessProxy::webPage(uint64_t pageID)
     return globalPageMap().get(pageID);
 }
 
-PassRefPtr<WebPageProxy> WebProcessProxy::createWebPage(PageClient& pageClient, WebPageGroup& pageGroup)
+PassRefPtr<WebPageProxy> WebProcessProxy::createWebPage(PageClient& pageClient, WebPageGroup& pageGroup, API::Session& session)
 {
     uint64_t pageID = generatePageID();
-    RefPtr<WebPageProxy> webPage = WebPageProxy::create(pageClient, *this, pageGroup, pageID);
+    RefPtr<WebPageProxy> webPage = WebPageProxy::create(pageClient, *this, pageGroup, session, pageID);
     m_pageMap.set(pageID, webPage.get());
     globalPageMap().set(pageID, webPage.get());
 #if PLATFORM(MAC)
-    if (pageIsProcessSuppressible(webPage.get()))
+    if (webPage->isProcessSuppressible())
         m_processSuppressiblePages.add(pageID);
     updateProcessSuppressionState();
 #endif
@@ -182,7 +186,7 @@ void WebProcessProxy::addExistingWebPage(WebPageProxy* webPage, uint64_t pageID)
     m_pageMap.set(pageID, webPage);
     globalPageMap().set(pageID, webPage);
 #if PLATFORM(MAC)
-    if (pageIsProcessSuppressible(webPage))
+    if (webPage->isProcessSuppressible())
         m_processSuppressiblePages.add(pageID);
     updateProcessSuppressionState();
 #endif
@@ -601,10 +605,10 @@ void WebProcessProxy::didUpdateHistoryTitle(uint64_t pageID, const String& title
     m_context->historyClient().didUpdateHistoryTitle(&m_context.get(), page, title, url, frame);
 }
 
-void WebProcessProxy::pageVisibilityChanged(WebKit::WebPageProxy *page)
+void WebProcessProxy::pageSuppressibilityChanged(WebKit::WebPageProxy *page)
 {
 #if PLATFORM(MAC)
-    if (pageIsProcessSuppressible(page))
+    if (page->isProcessSuppressible())
         m_processSuppressiblePages.add(page->pageID());
     else
         m_processSuppressiblePages.remove(page->pageID());
@@ -617,7 +621,7 @@ void WebProcessProxy::pageVisibilityChanged(WebKit::WebPageProxy *page)
 void WebProcessProxy::pagePreferencesChanged(WebKit::WebPageProxy *page)
 {
 #if PLATFORM(MAC)
-    if (pageIsProcessSuppressible(page))
+    if (page->isProcessSuppressible())
         m_processSuppressiblePages.add(page->pageID());
     else
         m_processSuppressiblePages.remove(page->pageID());
@@ -638,6 +642,11 @@ void WebProcessProxy::releasePageCache()
         send(Messages::WebProcess::ReleasePageCache(), 0);
 }
 
+void WebProcessProxy::windowServerConnectionStateChanged()
+{
+    for (const auto& page : m_pageMap.values())
+        page->viewStateDidChange(ViewState::IsVisuallyIdle);
+}
 
 void WebProcessProxy::requestTermination()
 {
@@ -652,13 +661,14 @@ void WebProcessProxy::requestTermination()
     disconnect();
 }
 
-
 void WebProcessProxy::enableSuddenTermination()
 {
     if (!isValid())
         return;
 
+    ASSERT(m_numberOfTimesSuddenTerminationWasDisabled);
     WebCore::enableSuddenTermination();
+    --m_numberOfTimesSuddenTerminationWasDisabled;
 }
 
 void WebProcessProxy::disableSuddenTermination()
@@ -667,6 +677,7 @@ void WebProcessProxy::disableSuddenTermination()
         return;
 
     WebCore::disableSuddenTermination();
+    ++m_numberOfTimesSuddenTerminationWasDisabled;
 }
 
 RefPtr<API::Object> WebProcessProxy::apiObjectByConvertingToHandles(API::Object* object)

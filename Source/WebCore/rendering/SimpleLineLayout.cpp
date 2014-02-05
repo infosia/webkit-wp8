@@ -46,7 +46,6 @@
 #include "Text.h"
 #include "TextPaintStyle.h"
 #include "break_lines.h"
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 namespace SimpleLineLayout {
@@ -90,7 +89,7 @@ static bool canUseForText(const RenderText& textRenderer, const SimpleFontData& 
 
 bool canUseFor(const RenderBlockFlow& flow)
 {
-#if !PLATFORM(MAC) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(NIX)
+#if !PLATFORM(MAC) && !PLATFORM(GTK) && !PLATFORM(EFL)
     // FIXME: Non-mac platforms are hitting ASSERT(run.charactersLength() >= run.length())
     // https://bugs.webkit.org/show_bug.cgi?id=123338
     return false;
@@ -123,7 +122,7 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
     // These tests only works during layout. Outside layout this function may give false positives.
     if (flow.view().layoutState()) {
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
         if (flow.view().layoutState()->shapeInsideInfo())
             return false;
 #endif
@@ -140,7 +139,7 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
     if (!style.textIndent().isZero())
         return false;
-    if (style.wordSpacing() || style.letterSpacing())
+    if (!style.wordSpacing().isZero() || style.letterSpacing())
         return false;
     if (style.textTransform() != TTNONE)
         return false;
@@ -164,7 +163,7 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
     if (style.textShadow())
         return false;
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
     if (style.resolvedShapeInside())
         return true;
 #endif
@@ -186,10 +185,7 @@ bool canUseFor(const RenderBlockFlow& flow)
             return false;
     }
     if (textRenderer.isCombineText() || textRenderer.isCounter() || textRenderer.isQuote() || textRenderer.isTextFragment()
-#if ENABLE(SVG)
-        || textRenderer.isSVGInlineText()
-#endif
-        )
+        || textRenderer.isSVGInlineText())
         return false;
     if (style.font().codePath(TextRun(textRenderer.text())) != Font::Simple)
         return false;
@@ -415,7 +411,7 @@ void createTextRuns(Layout::RunVector& runs, unsigned& lineCount, RenderBlockFlo
 {
     const Style style(flow.style());
 
-    const CharacterType* text = textRenderer.text()->getCharacters<CharacterType>();
+    const CharacterType* text = textRenderer.text()->characters<CharacterType>();
     const unsigned textLength = textRenderer.textLength();
 
     LayoutUnit borderAndPaddingBefore = flow.borderAndPaddingBefore();

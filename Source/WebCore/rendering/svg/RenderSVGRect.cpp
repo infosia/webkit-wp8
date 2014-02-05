@@ -26,12 +26,9 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGRect.h"
 
 #include "SVGNames.h"
-#include "SVGRectElement.h"
 
 namespace WebCore {
 
@@ -58,15 +55,15 @@ void RenderSVGRect::updateShapeFromElement()
     m_innerStrokeRect = FloatRect();
     m_outerStrokeRect = FloatRect();
 
+    SVGLengthContext lengthContext(&rectElement());
     // Fallback to RenderSVGShape if rect has rounded corners or a non-scaling stroke.
-    if (rectElement().hasAttribute(SVGNames::rxAttr) || rectElement().hasAttribute(SVGNames::ryAttr) || hasNonScalingStroke()) {
+    if (rectElement().rx().value(lengthContext) > 0 || rectElement().ry().value(lengthContext) > 0 || hasNonScalingStroke()) {
         RenderSVGShape::updateShapeFromElement();
         m_usePathFallback = true;
         return;
-    } else
-        m_usePathFallback = false;
+    }
 
-    SVGLengthContext lengthContext(&rectElement());
+    m_usePathFallback = false;
     FloatSize boundingBoxSize(rectElement().width().value(lengthContext), rectElement().height().value(lengthContext));
     if (boundingBoxSize.isEmpty())
         return;
@@ -150,5 +147,3 @@ bool RenderSVGRect::shapeDependentFillContains(const FloatPoint& point, const Wi
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -19,12 +19,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceLinearGradient.h"
 
-#include "LinearGradientAttributes.h"
-#include "SVGLinearGradientElement.h"
 
 namespace WebCore {
 
@@ -63,5 +59,3 @@ void RenderSVGResourceLinearGradient::buildGradient(GradientData* gradientData) 
 }
 
 }
-
-#endif

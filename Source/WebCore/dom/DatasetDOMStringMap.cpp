@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2010, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,9 @@
 #include "Element.h"
 #include "ExceptionCode.h"
 #include <wtf/ASCIICType.h>
+#include <wtf/text/AtomicString.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -138,27 +140,25 @@ void DatasetDOMStringMap::getNames(Vector<String>& names)
     if (!m_element.hasAttributes())
         return;
 
-    unsigned length = m_element.attributeCount();
-    for (unsigned i = 0; i < length; i++) {
-        const Attribute& attribute = m_element.attributeAt(i);
+    for (const Attribute& attribute : m_element.attributesIterator()) {
         if (isValidAttributeName(attribute.localName()))
             names.append(convertAttributeNameToPropertyName(attribute.localName()));
     }
 }
 
-String DatasetDOMStringMap::item(const String& name)
+const AtomicString& DatasetDOMStringMap::item(const String& name, bool& isValid)
 {
-    if (!m_element.hasAttributes())
-        return String();
-
-    unsigned length = m_element.attributeCount();
-    for (unsigned i = 0; i < length; i++) {
-        const Attribute& attribute = m_element.attributeAt(i);
-        if (propertyNameMatchesAttributeName(name, attribute.localName()))
-            return attribute.value();
+    isValid = false;
+    if (m_element.hasAttributes()) {
+        for (const Attribute& attribute : m_element.attributesIterator()) {
+            if (propertyNameMatchesAttributeName(name, attribute.localName())) {
+                isValid = true;
+                return attribute.value();
+            }
+        }
     }
 
-    return String();
+    return nullAtom;
 }
 
 bool DatasetDOMStringMap::contains(const String& name)
@@ -166,9 +166,7 @@ bool DatasetDOMStringMap::contains(const String& name)
     if (!m_element.hasAttributes())
         return false;
 
-    unsigned length = m_element.attributeCount();
-    for (unsigned i = 0; i < length; i++) {
-        const Attribute& attribute = m_element.attributeAt(i);
+    for (const Attribute& attribute : m_element.attributesIterator()) {
         if (propertyNameMatchesAttributeName(name, attribute.localName()))
             return true;
     }

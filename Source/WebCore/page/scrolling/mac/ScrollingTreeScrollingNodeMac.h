@@ -39,43 +39,45 @@ namespace WebCore {
 
 class ScrollingTreeScrollingNodeMac : public ScrollingTreeScrollingNode, private ScrollElasticityControllerClient {
 public:
-    ScrollingTreeScrollingNodeMac(ScrollingTree&, ScrollingNodeID);
+    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree&, ScrollingNodeID);
     virtual ~ScrollingTreeScrollingNodeMac();
 
 private:
+    ScrollingTreeScrollingNodeMac(ScrollingTree&, ScrollingNodeID);
+
     // ScrollingTreeNode member functions.
-    virtual void updateBeforeChildren(ScrollingStateNode*) OVERRIDE;
-    virtual void updateAfterChildren(ScrollingStateNode*) OVERRIDE;
-    virtual void handleWheelEvent(const PlatformWheelEvent&) OVERRIDE;
+    virtual void updateBeforeChildren(const ScrollingStateNode&) override;
+    virtual void updateAfterChildren(const ScrollingStateNode&) override;
+    virtual void handleWheelEvent(const PlatformWheelEvent&) override;
 
     // ScrollElasticityController member functions.
-    virtual bool allowsHorizontalStretching() OVERRIDE;
-    virtual bool allowsVerticalStretching() OVERRIDE;
-    virtual IntSize stretchAmount() OVERRIDE;
-    virtual bool pinnedInDirection(const FloatSize&) OVERRIDE;
-    virtual bool canScrollHorizontally() OVERRIDE;
-    virtual bool canScrollVertically() OVERRIDE;
-    virtual bool shouldRubberBandInDirection(ScrollDirection) OVERRIDE;
-    virtual IntPoint absoluteScrollPosition() OVERRIDE;
-    virtual void immediateScrollBy(const FloatSize&) OVERRIDE;
-    virtual void immediateScrollByWithoutContentEdgeConstraints(const FloatSize&) OVERRIDE;
-    virtual void startSnapRubberbandTimer() OVERRIDE;
-    virtual void stopSnapRubberbandTimer() OVERRIDE;
-    virtual void adjustScrollPositionToBoundsIfNecessary() OVERRIDE;
+    virtual bool allowsHorizontalStretching() override;
+    virtual bool allowsVerticalStretching() override;
+    virtual IntSize stretchAmount() override;
+    virtual bool pinnedInDirection(const FloatSize&) override;
+    virtual bool canScrollHorizontally() override;
+    virtual bool canScrollVertically() override;
+    virtual bool shouldRubberBandInDirection(ScrollDirection) override;
+    virtual IntPoint absoluteScrollPosition() override;
+    virtual void immediateScrollBy(const FloatSize&) override;
+    virtual void immediateScrollByWithoutContentEdgeConstraints(const FloatSize&) override;
+    virtual void startSnapRubberbandTimer() override;
+    virtual void stopSnapRubberbandTimer() override;
+    virtual void adjustScrollPositionToBoundsIfNecessary() override;
 
-    IntPoint scrollPosition() const;
-    void setScrollPosition(const IntPoint&);
-    void setScrollPositionWithoutContentEdgeConstraints(const IntPoint&);
+    FloatPoint scrollPosition() const;
+    virtual void setScrollPosition(const FloatPoint&) override;
+    void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&);
 
-    void setScrollLayerPosition(const IntPoint&);
+    void setScrollLayerPosition(const FloatPoint&);
 
-    IntPoint minimumScrollPosition() const;
-    IntPoint maximumScrollPosition() const;
+    FloatPoint minimumScrollPosition() const;
+    FloatPoint maximumScrollPosition() const;
 
     void scrollBy(const IntSize&);
     void scrollByWithoutContentEdgeConstraints(const IntSize&);
 
-    void updateMainFramePinState(const IntPoint& scrollPosition);
+    void updateMainFramePinState(const FloatPoint& scrollPosition);
 
     void logExposedUnfilledArea();
 
@@ -88,7 +90,7 @@ private:
     RetainPtr<CALayer> m_footerLayer;
     RetainPtr<ScrollbarPainter> m_verticalScrollbarPainter;
     RetainPtr<ScrollbarPainter> m_horizontalScrollbarPainter;
-    IntPoint m_probableMainThreadScrollPosition;
+    FloatPoint m_probableMainThreadScrollPosition;
     bool m_lastScrollHadUnfilledPixels;
 };
 

@@ -42,16 +42,15 @@ class ScrollingStateScrollingNode;
 
 class ScrollingTreeScrollingNode : public ScrollingTreeNode {
 public:
-    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree&, ScrollingNodeID);
     virtual ~ScrollingTreeScrollingNode();
 
-    virtual void updateBeforeChildren(ScrollingStateNode*) OVERRIDE;
+    virtual void updateBeforeChildren(const ScrollingStateNode&) override;
 
     // FIXME: We should implement this when we support ScrollingTreeScrollingNodes as children.
-    virtual void parentScrollPositionDidChange(const IntRect& /*viewportRect*/, const FloatSize& /*cumulativeDelta*/) OVERRIDE { }
+    virtual void parentScrollPositionDidChange(const FloatRect& /*viewportRect*/, const FloatSize& /*cumulativeDelta*/) override { }
 
     virtual void handleWheelEvent(const PlatformWheelEvent&) = 0;
-    virtual void setScrollPosition(const IntPoint&) = 0;
+    virtual void setScrollPosition(const FloatPoint&) = 0;
 
     SynchronousScrollingReasons synchronousScrollingReasons() const { return m_synchronousScrollingReasons; }
     bool shouldUpdateScrollLayerPositionSynchronously() const { return m_synchronousScrollingReasons; }
@@ -59,7 +58,8 @@ public:
 protected:
     ScrollingTreeScrollingNode(ScrollingTree&, ScrollingNodeID);
 
-    const IntRect& viewportRect() const { return m_viewportRect; }
+    const FloatPoint& scrollPosition() const { return m_scrollPosition; }
+    const FloatRect& viewportConstrainedObjectRect() const { return m_viewportConstrainedObjectRect; }
     const IntSize& totalContentsSize() const { return m_totalContentsSize; }
     const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
 
@@ -85,9 +85,10 @@ protected:
     ScrollBehaviorForFixedElements scrollBehaviorForFixedElements() const { return m_behaviorForFixed; }
 
 private:
-    IntRect m_viewportRect;
+    FloatRect m_viewportConstrainedObjectRect;
     IntSize m_totalContentsSize;
     IntSize m_totalContentsSizeForRubberBand;
+    FloatPoint m_scrollPosition;
     IntPoint m_scrollOrigin;
     
     ScrollableAreaParameters m_scrollableAreaParameters;
@@ -100,6 +101,8 @@ private:
     SynchronousScrollingReasons m_synchronousScrollingReasons;
     ScrollBehaviorForFixedElements m_behaviorForFixed;
 };
+
+SCROLLING_NODE_TYPE_CASTS(ScrollingTreeScrollingNode, nodeType() == ScrollingNode);
 
 } // namespace WebCore
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2011 Intel Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,7 @@
 #include "DFGCallArrayAllocatorSlowPathGenerator.h"
 #include "DFGOperations.h"
 #include "DFGSlowPathGenerator.h"
+#include "Debugger.h"
 #include "JSActivation.h"
 #include "ObjectPrototype.h"
 #include "Operations.h"
@@ -171,7 +172,7 @@ bool SpeculativeJIT::fillJSValue(Edge edge, GPRReg& tagGPR, GPRReg& payloadGPR, 
 void SpeculativeJIT::cachedGetById(CodeOrigin codeOrigin, GPRReg baseTagGPROrNone, GPRReg basePayloadGPR, GPRReg resultTagGPR, GPRReg resultPayloadGPR, unsigned identifierNumber, JITCompiler::Jump slowPathTarget, SpillRegistersMode spillMode)
 {
     JITGetByIdGenerator gen(
-        m_jit.codeBlock(), codeOrigin, usedRegisters(), GPRInfo::callFrameRegister,
+        m_jit.codeBlock(), codeOrigin, usedRegisters(),
         JSValueRegs(baseTagGPROrNone, basePayloadGPR),
         JSValueRegs(resultTagGPR, resultPayloadGPR), spillMode != NeedToSpill);
     
@@ -203,7 +204,7 @@ void SpeculativeJIT::cachedGetById(CodeOrigin codeOrigin, GPRReg baseTagGPROrNon
 void SpeculativeJIT::cachedPutById(CodeOrigin codeOrigin, GPRReg basePayloadGPR, GPRReg valueTagGPR, GPRReg valuePayloadGPR, GPRReg scratchGPR, unsigned identifierNumber, PutKind putKind, JITCompiler::Jump slowPathTarget)
 {
     JITPutByIdGenerator gen(
-        m_jit.codeBlock(), codeOrigin, usedRegisters(), GPRInfo::callFrameRegister,
+        m_jit.codeBlock(), codeOrigin, usedRegisters(),
         JSValueRegs::payloadOnly(basePayloadGPR), JSValueRegs(valueTagGPR, valuePayloadGPR),
         scratchGPR, false, m_jit.ecmaModeFor(codeOrigin), putKind);
     
@@ -630,10 +631,9 @@ void SpeculativeJIT::emitCall(Node* node)
     
     int numArgs = numPassedArgs + dummyThisArgument;
 
-    m_jit.store32(MacroAssembler::TrustedImm32(numArgs), calleeFramePayloadSlot(numArgs, JSStack::ArgumentCount));
-    m_jit.storePtr(GPRInfo::callFrameRegister, calleeFrameCallerFrame(numArgs));
-    m_jit.store32(calleePayloadGPR, calleeFramePayloadSlot(numArgs, JSStack::Callee));
-    m_jit.store32(calleeTagGPR, calleeFrameTagSlot(numArgs, JSStack::Callee));
+    m_jit.store32(MacroAssembler::TrustedImm32(numArgs), calleeFramePayloadSlot(JSStack::ArgumentCount));
+    m_jit.store32(calleePayloadGPR, calleeFramePayloadSlot(JSStack::Callee));
+    m_jit.store32(calleeTagGPR, calleeFrameTagSlot(JSStack::Callee));
 
     for (int i = 0; i < numPassedArgs; i++) {
         Edge argEdge = m_jit.graph().m_varArgChildren[node->firstChild() + 1 + i];
@@ -642,8 +642,8 @@ void SpeculativeJIT::emitCall(Node* node)
         GPRReg argPayloadGPR = arg.payloadGPR();
         use(argEdge);
 
-        m_jit.store32(argTagGPR, calleeArgumentTagSlot(numArgs, i + dummyThisArgument));
-        m_jit.store32(argPayloadGPR, calleeArgumentPayloadSlot(numArgs, i + dummyThisArgument));
+        m_jit.store32(argTagGPR, calleeArgumentTagSlot(i + dummyThisArgument));
+        m_jit.store32(argPayloadGPR, calleeArgumentPayloadSlot(i + dummyThisArgument));
     }
 
     flushRegisters();
@@ -658,13 +658,11 @@ void SpeculativeJIT::emitCall(Node* node)
 
     m_jit.emitStoreCodeOrigin(node->codeOrigin);
     
-    m_jit.addPtr(TrustedImm32(calleeFrameOffset(numArgs)), GPRInfo::callFrameRegister);
-    
     slowPath.append(m_jit.branch32(MacroAssembler::NotEqual, calleeTagGPR, TrustedImm32(JSValue::CellTag)));
     slowPath.append(m_jit.branchPtrWithPatch(MacroAssembler::NotEqual, calleePayloadGPR, targetToCheck));
     m_jit.loadPtr(MacroAssembler::Address(calleePayloadGPR, OBJECT_OFFSETOF(JSFunction, m_scope)), resultPayloadGPR);
-    m_jit.storePtr(resultPayloadGPR, MacroAssembler::Address(GPRInfo::callFrameRegister, static_cast<ptrdiff_t>(sizeof(Register)) * JSStack::ScopeChain + OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload)));
-    m_jit.store32(MacroAssembler::TrustedImm32(JSValue::CellTag), MacroAssembler::Address(GPRInfo::callFrameRegister, static_cast<ptrdiff_t>(sizeof(Register)) * JSStack::ScopeChain + OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag)));
+    m_jit.storePtr(resultPayloadGPR, calleeFramePayloadSlot(JSStack::ScopeChain));
+    m_jit.storePtr(MacroAssembler::TrustedImm32(JSValue::CellTag), calleeFrameTagSlot(JSStack::ScopeChain));
 
     JITCompiler::Call fastCall = m_jit.nearCall();
 
@@ -1418,28 +1416,6 @@ void SpeculativeJIT::compileDoubleCompare(Node* node, MacroAssembler::DoubleCond
     booleanResult(resultPayload.gpr(), node);
 }
 
-void SpeculativeJIT::compileValueAdd(Node* node)
-{
-    JSValueOperand op1(this, node->child1());
-    JSValueOperand op2(this, node->child2());
-
-    GPRReg op1TagGPR = op1.tagGPR();
-    GPRReg op1PayloadGPR = op1.payloadGPR();
-    GPRReg op2TagGPR = op2.tagGPR();
-    GPRReg op2PayloadGPR = op2.payloadGPR();
-
-    flushRegisters();
-    
-    GPRResult2 resultTag(this);
-    GPRResult resultPayload(this);
-    if (isKnownNotNumber(node->child1().node()) || isKnownNotNumber(node->child2().node()))
-        callOperation(operationValueAddNotNumber, resultTag.gpr(), resultPayload.gpr(), op1TagGPR, op1PayloadGPR, op2TagGPR, op2PayloadGPR);
-    else
-        callOperation(operationValueAdd, resultTag.gpr(), resultPayload.gpr(), op1TagGPR, op1PayloadGPR, op2TagGPR, op2PayloadGPR);
-    
-    jsValueResult(resultTag.gpr(), resultPayload.gpr(), node);
-}
-
 void SpeculativeJIT::compileObjectOrOtherLogicalNot(Edge nodeUse)
 {
     JSValueOperand value(this, nodeUse, ManualOperandSpeculation);
@@ -1980,7 +1956,7 @@ void SpeculativeJIT::compile(Node* node)
             m_jit.store32(value.payloadGPR(), JITCompiler::payloadFor(node->machineLocal()));
             m_jit.store32(value.tagGPR(), JITCompiler::tagFor(node->machineLocal()));
             noResult(node);
-            recordSetLocal(DataFormatJS);
+            recordSetLocal(dataFormatFor(node->variableAccessData()->flushFormat()));
             break;
         }
             
@@ -2072,7 +2048,28 @@ void SpeculativeJIT::compile(Node* node)
         break;
     }
         
-    case ValueAdd:
+    case ValueAdd: {
+        JSValueOperand op1(this, node->child1());
+        JSValueOperand op2(this, node->child2());
+        
+        GPRReg op1TagGPR = op1.tagGPR();
+        GPRReg op1PayloadGPR = op1.payloadGPR();
+        GPRReg op2TagGPR = op2.tagGPR();
+        GPRReg op2PayloadGPR = op2.payloadGPR();
+        
+        flushRegisters();
+        
+        GPRResult2 resultTag(this);
+        GPRResult resultPayload(this);
+        if (isKnownNotNumber(node->child1().node()) || isKnownNotNumber(node->child2().node()))
+            callOperation(operationValueAddNotNumber, resultTag.gpr(), resultPayload.gpr(), op1TagGPR, op1PayloadGPR, op2TagGPR, op2PayloadGPR);
+        else
+            callOperation(operationValueAdd, resultTag.gpr(), resultPayload.gpr(), op1TagGPR, op1PayloadGPR, op2TagGPR, op2PayloadGPR);
+        
+        jsValueResult(resultTag.gpr(), resultPayload.gpr(), node);
+        break;
+    }
+
     case ArithAdd:
         compileAdd(node);
         break;
@@ -2091,10 +2088,6 @@ void SpeculativeJIT::compile(Node* node)
 
     case ArithMul:
         compileArithMul(node);
-        break;
-
-    case ArithIMul:
-        compileArithIMul(node);
         break;
 
     case ArithDiv: {
@@ -3051,12 +3044,7 @@ void SpeculativeJIT::compile(Node* node)
             }
         }
 
-        // Grab the return address.
-        m_jit.emitGetReturnPCFromCallFrameHeaderPtr(GPRInfo::regT2);
-        // Restore our caller's "r".
-        m_jit.emitGetCallerFrameFromCallFrameHeaderPtr(GPRInfo::callFrameRegister);
-        // Return.
-        m_jit.restoreReturnAddressBeforeReturn(GPRInfo::regT2);
+        m_jit.emitFunctionEpilogue();
         m_jit.ret();
         
         noResult(node);
@@ -4236,14 +4224,6 @@ void SpeculativeJIT::compile(Node* node)
     case Flush:
         break;
 
-    case Breakpoint:
-#if ENABLE(DEBUG_WITH_BREAKPOINT)
-        m_jit.breakpoint();
-#else
-        RELEASE_ASSERT_NOT_REACHED();
-#endif
-        break;
-        
     case Call:
     case Construct:
         emitCall(node);
@@ -4682,6 +4662,9 @@ void SpeculativeJIT::compile(Node* node)
         noResult(node);
         break;
 
+    case Breakpoint:
+    case ProfileWillCall:
+    case ProfileDidCall:
     case PhantomLocal:
     case LoopHint:
         // This is a no-op.
@@ -4703,6 +4686,7 @@ void SpeculativeJIT::compile(Node* node)
     case Int52ToDouble:
     case Int52ToValue:
     case CheckInBounds:
+    case ArithIMul:
         RELEASE_ASSERT_NOT_REACHED();
         break;
     }

@@ -35,11 +35,8 @@ ChildProcess::ChildProcess()
     : m_terminationTimeout(0)
     , m_terminationCounter(0)
     , m_terminationTimer(RunLoop::main(), this, &ChildProcess::terminationTimerFired)
-#if PLATFORM(MAC)
-    , m_activeTaskCount(0)
-    , m_shouldSuspend(false)
-    , m_suspensionHysteresisTimer(RunLoop::main(), this, &ChildProcess::suspensionHysteresisTimerFired)
-#endif
+    , m_processSuppressionDisabled("Process Suppression Disabled by UIProcess")
+    , m_activeTasks("Process Suppression Disabled by WebProcess")
 {
 }
 
@@ -47,21 +44,18 @@ ChildProcess::~ChildProcess()
 {
 }
 
-NO_RETURN static void watchdogCallback()
-{
-    // We use _exit here since the watchdog callback is called from another thread and we don't want 
-    // global destructors or atexit handlers to be called from this thread while the main thread is busy
-    // doing its thing.
-    _exit(EXIT_FAILURE);
-}
-
 static void didCloseOnConnectionWorkQueue(IPC::Connection*)
 {
     // If the connection has been closed and we haven't responded in the main thread for 10 seconds
     // the process will exit forcibly.
-    const double watchdogDelay = 10;
+    auto watchdogDelay = std::chrono::seconds(10);
 
-    WorkQueue::create("com.apple.WebKit.ChildProcess.WatchDogQueue")->dispatchAfterDelay(bind(static_cast<void(*)()>(watchdogCallback)), watchdogDelay);
+    WorkQueue::create("com.apple.WebKit.ChildProcess.WatchDogQueue")->dispatchAfter(watchdogDelay, []{
+        // We use _exit here since the watchdog callback is called from another thread and we don't want
+        // global destructors or atexit handlers to be called from this thread while the main thread is busy
+        // doing its thing.
+        _exit(EXIT_FAILURE);
+    });
 }
 
 void ChildProcess::initialize(const ChildProcessInitializationParameters& parameters)
@@ -78,6 +72,27 @@ void ChildProcess::initialize(const ChildProcessInitializationParameters& parame
     m_connection->setDidCloseOnConnectionWorkQueueCallback(didCloseOnConnectionWorkQueue);
     initializeConnection(m_connection.get());
     m_connection->open();
+}
+
+void ChildProcess::setProcessSuppressionEnabled(bool enabled)
+{
+    if (processSuppressionEnabled() == enabled)
+        return;
+
+    if (enabled)
+        m_processSuppressionDisabled.endActivity();
+    else
+        m_processSuppressionDisabled.beginActivity();
+}
+
+void ChildProcess::incrementActiveTaskCount()
+{
+    m_activeTasks.beginActivity();
+}
+
+void ChildProcess::decrementActiveTaskCount()
+{
+    m_activeTasks.endActivity();
 }
 
 void ChildProcess::initializeProcess(const ChildProcessInitializationParameters&)

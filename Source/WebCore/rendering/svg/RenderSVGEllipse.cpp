@@ -25,13 +25,10 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGEllipse.h"
 
 #include "SVGCircleElement.h"
 #include "SVGEllipseElement.h"
-#include "SVGGraphicsElement.h"
 #include "SVGNames.h"
 
 namespace WebCore {
@@ -154,5 +151,3 @@ bool RenderSVGEllipse::shapeDependentFillContains(const FloatPoint& point, const
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -31,25 +31,17 @@
 #include "IntPoint.h"
 #include <wtf/MathExtras.h>
 
-#if PLATFORM(BLACKBERRY)
-namespace BlackBerry {
-namespace Platform {
-class FloatPoint;
-}
-}
-#endif
-
 #if USE(CG)
 typedef struct CGPoint CGPoint;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
 #ifdef NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES
 typedef struct CGPoint NSPoint;
 #else
 typedef struct _NSPoint NSPoint;
 #endif
-#endif
+#endif // PLATFORM(MAC) && !PLATFORM(IOS)
 
 namespace WebCore {
 
@@ -124,6 +116,11 @@ public:
         return m_x * m_x + m_y * m_y;
     }
 
+    FloatPoint shrunkTo(const FloatPoint& other) const
+    {
+        return FloatPoint(std::min(m_x, other.m_x), std::min(m_y, other.m_y));
+    }
+
     FloatPoint expandedTo(const FloatPoint& other) const
     {
         return FloatPoint(std::max(m_x, other.m_x), std::max(m_y, other.m_y));
@@ -139,15 +136,12 @@ public:
     operator CGPoint() const;
 #endif
 
+#if !PLATFORM(IOS)
 #if PLATFORM(MAC) && !defined(NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES)
     FloatPoint(const NSPoint&);
     operator NSPoint() const;
 #endif
-
-#if PLATFORM(BLACKBERRY)
-    FloatPoint(const BlackBerry::Platform::FloatPoint&);
-    operator BlackBerry::Platform::FloatPoint() const;
-#endif
+#endif // !PLATFORM(IOS)
 
     FloatPoint matrixTransform(const TransformationMatrix&) const;
     FloatPoint matrixTransform(const AffineTransform&) const;

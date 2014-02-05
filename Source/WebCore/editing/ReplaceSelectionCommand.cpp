@@ -706,8 +706,8 @@ static void removeHeadContents(ReplacementFragment& fragment)
 
     Vector<Element*> toRemove;
 
-    auto it = elementDescendants(*fragment.fragment()).begin();
-    auto end = elementDescendants(*fragment.fragment()).end();
+    auto it = descendantsOfType<Element>(*fragment.fragment()).begin();
+    auto end = descendantsOfType<Element>(*fragment.fragment()).end();
     while (it != end) {
         if (it->hasTagName(baseTag) || it->hasTagName(linkTag) || it->hasTagName(metaTag) || it->hasTagName(styleTag) || isHTMLTitleElement(*it)) {
             toRemove.append(&*it);
@@ -898,6 +898,13 @@ void ReplaceSelectionCommand::doApply()
 
     if (!selection.rootEditableElement())
         return;
+
+#if PLATFORM(IOS)
+    // In plain text only regions, we create style-less fragments, so the inserted content will automatically
+    // match the style of the surrounding area and so we can avoid unnecessary work below for m_matchStyle.
+    if (!selection.isContentRichlyEditable())
+        m_matchStyle = false;
+#endif
 
     ReplacementFragment fragment(document(), m_documentFragment.get(), selection);
     if (performTrivialReplace(fragment))

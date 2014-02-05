@@ -20,7 +20,6 @@
 #ifndef SVGAnimatedPathSegListPropertyTearOff_h
 #define SVGAnimatedPathSegListPropertyTearOff_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedListPropertyTearOff.h"
 #include "SVGPathByteStream.h"
 #include "SVGPathElement.h"
@@ -32,14 +31,14 @@ namespace WebCore {
 
 class SVGAnimatedPathSegListPropertyTearOff : public SVGAnimatedListPropertyTearOff<SVGPathSegList> {
 public:
-    virtual SVGListProperty<SVGPathSegList>* baseVal()
+    virtual SVGListProperty<SVGPathSegList>* baseVal() override
     {
         if (!m_baseVal)
             m_baseVal = SVGPathSegListPropertyTearOff::create(this, BaseValRole, PathSegUnalteredRole, m_values, m_wrappers);
         return static_cast<SVGListProperty<SVGPathSegList>*>(m_baseVal.get());
     }
 
-    virtual SVGListProperty<SVGPathSegList>* animVal()
+    virtual SVGListProperty<SVGPathSegList>* animVal() override
     {
         if (!m_animVal)
             m_animVal = SVGPathSegListPropertyTearOff::create(this, AnimValRole, PathSegUnalteredRole, m_values, m_wrappers);
@@ -116,5 +115,4 @@ private:
 
 }
 
-#endif // ENABLE(SVG)
 #endif // SVGAnimatedPathSegListPropertyTearOff_h

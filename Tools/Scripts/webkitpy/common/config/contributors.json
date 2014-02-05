@@ -383,15 +383,6 @@
             "otte"
          ]
       },
-      "Bem Jones-Bey" : {
-         "emails" : [
-            "bjonesbe@adobe.com"
-         ],
-         "expertise" : "CSS Shapes, Floats",
-         "nicks" : [
-            "bemjb"
-         ]
-      },
       "Bill Budge" : {
          "emails" : [
             "bbudge@chromium.org",
@@ -418,6 +409,26 @@
          "expertise" : "The Chromium Port, Graphics, Skia, URL Parsing",
          "nicks" : [
             "brettx"
+         ]
+      },
+      "Brian Burg" : {
+         "emails" : [
+            "bburg@apple.com",
+            "burg@cs.washington.edu"
+         ],
+         "expertise" : "Developer Tools, Web Inspector",
+         "nicks" : [
+            "bburg",
+            "brrian"
+         ]
+      },
+      "Brian Holt" : {
+         "emails" : [
+            "brian.holt@samsung.com"
+         ],
+         "expertise" : "WebKitGTK+, memory leak detection",
+         "nicks" : [
+            "bdholt1"
          ]
       },
       "Bruno de Oliveira Abinader" : {
@@ -2094,6 +2105,14 @@
             "rolandsteiner@chromium.org"
          ]
       },
+      "Roland Takacs" : {
+         "emails" : [
+            "rtakacs@inf.u-szeged.hu"
+         ],
+         "nicks" : [
+            "rtakacs"
+         ]
+      },
       "Ruth Fong" : {
          "emails" : [
             "ruth_fong@apple.com",
@@ -2164,6 +2183,14 @@
             "seokju"
          ]
       },
+      "Sergio Correia" : {
+         "emails" : [
+            "sergio.correia@openbossa.org"
+         ],
+         "nicks" : [
+            "qrwteyrutiyoup"
+         ]
+      },
       "Sergio Villar Senin" : {
          "emails" : [
             "svillar@igalia.com",
@@ -2192,7 +2219,8 @@
       },
       "Siddharth Mathur" : {
          "emails" : [
-            "siddharth.mathur@nokia.com"
+            "s.mathur@ieee.org",
+            "smathur@blackbuck.mobi"
          ],
          "nicks" : [
             "simathur"
@@ -2583,10 +2611,11 @@
       "Zoltan Horvath" : {
          "emails" : [
             "zoltan@webkit.org",
+            "zoltan@adobe.com",
             "hzoltan@inf.u-szeged.hu",
             "horvath.zoltan.6@stud.u-szeged.hu"
          ],
-         "expertise" : "The QtWebKit Port, Custom Allocation Framework, PerformanceTests - memory measurements",
+         "expertise" : "CSS Shapes, Line layout, Custom Allocation Framework, PerformanceTests, QtWebKit",
          "nicks" : [
             "zoltan"
          ]
@@ -2642,14 +2671,6 @@
             "amarinichev"
          ]
       },
-      "Andras Piroska" : {
-         "emails" : [
-            "pandras@inf.u-szeged.hu"
-         ],
-         "nicks" : [
-            "andris88"
-         ]
-      },
       "Anne van Kesteren" : {
          "emails" : [
             "annevk@annevk.nl"
@@ -2688,14 +2709,6 @@
          ],
          "nicks" : [
             "AryehGregor"
-         ]
-      },
-      "Balazs Ankes" : {
-         "emails" : [
-            "bank@inf.u-szeged.hu"
-         ],
-         "nicks" : [
-            "abalazs"
          ]
       },
       "Brian Salomon" : {
@@ -2737,6 +2750,15 @@
             "reveman"
          ]
       },
+      "D\u00E1niel B\u00E1tyai" : {
+         "emails" : [
+            "dbatyai.u-szeged@partner.samsung.com",
+            "Batyai.Daniel@stud.u-szeged.hu"
+         ],
+         "nicks" : [
+            "dbatyai"
+         ]
+      },
       "Douglas Davidson" : {
          "emails" : [
             "ddavidso@apple.com"
@@ -2764,15 +2786,6 @@
          ],
          "nicks" : [
             "epenner"
-         ]
-      },
-      "Felician Marton" : {
-         "emails" : [
-            "felician@inf.u-szeged.hu",
-            "marton.felician.zoltan@stud.u-szeged.hu"
-         ],
-         "nicks" : [
-            "Felician"
          ]
       },
       "Frédéric Wang" : {
@@ -2813,6 +2826,15 @@
             "bgabor"
          ]
       },
+      "Gergo Balogh" : {
+         "emails" : [
+            "gbalogh.u-szeged@partner.samsung.com",
+            "geryxyz@inf.u-szeged.hu"
+         ],
+         "nicks" : [
+            "geryxyz"
+         ]
+      },
       "Grace Kloba" : {
          "emails" : [
             "klobag@chromium.org"
@@ -2840,6 +2862,14 @@
          ],
          "nicks" : [
             "hta"
+         ]
+      },
+      "Ian Henderson" : {
+         "emails" : [
+            "ianh@apple.com"
+         ],
+         "nicks" : [
+            "ianh"
          ]
       },
       "Ian Hickson" : {
@@ -2928,6 +2958,24 @@
             "kvel"
          ]
       },
+      "L\u00E1szl\u00F3 Lang\u00F3" : {
+         "emails" : [
+            "llango.u-szeged@partner.samsung.com",
+            "lango@inf.u-szeged.hu"
+         ],
+         "nicks" : [
+            "llango"
+         ]
+      },
+      "Laszlo Vidacs" : {
+         "emails" : [
+            "lvidacs.u-szeged@partner.samsung.com",
+            "lac@inf.u-szeged.hu"
+         ],
+         "nicks" : [
+            "lvidacs"
+         ]
+      },
       "Lia Chen" : {
          "emails" : [
             "liachen@rim.com"
@@ -2954,14 +3002,6 @@
             "qinmin@chromium.org"
          ]
       },
-      "Nandor Huszka" : {
-         "emails" : [
-            "hnandor@inf.u-szeged.hu"
-         ],
-         "nicks" : [
-            "hnandor"
-         ]
-      },
       "Nils Barth" : {
          "emails" : [
             "nbarth@chromium.org"
@@ -2970,21 +3010,28 @@
             "nbarth"
          ]
       },
-      "Oliver Varga" : {
-         "emails" : [
-            "voliver@inf.u-szeged.hu",
-            "Varga.Oliver@stud.u-szeged.hu"
-         ],
-         "nicks" : [
-            "TwistO"
-         ]
-      },
       "Peter Linss" : {
          "emails" : [
             "peter.linss@hp.com"
          ],
          "nicks" : [
             "plinss"
+         ]
+      },
+      "Peter Molnar" : {
+         "emails" : [
+            "pmolnar.u-szeged@partner.samsung.com"
+         ],
+         "nicks" : [
+            "molnarp"
+         ]
+      },
+      "Philip J\u00E4genstedt" : {
+         "emails" : [
+            "philipj@opera.com"
+         ],
+         "nicks" : [
+            "philipj"
          ]
       },
       "Radar WebKit Bug Importer" : {
@@ -3000,12 +3047,12 @@
             "rhudea"
          ]
       },
-      "Roland Takacs" : {
+      "Ricky Mondello" : {
          "emails" : [
-            "rtakacs@inf.u-szeged.hu"
+            "rmondello@apple.com"
          ],
          "nicks" : [
-            "rtakacs"
+            "rmondello"
          ]
       },
       "Tab Atkins" : {
@@ -3024,6 +3071,15 @@
          ],
          "nicks" : [
             "tczene"
+         ]
+      },
+      "Tamas Gergely" : {
+         "emails" : [
+            "tgergely.u-szeged@partner.samsung.com",
+            "gertom@inf.u-szeged.hu"
+         ],
+         "nicks" : [
+            "gertom"
          ]
       },
       "Tien-Ren Chen" : {
@@ -3075,14 +3131,6 @@
       "Zeev Lieber" : {
          "emails" : [
             "zlieber@chromium.org"
-         ]
-      },
-      "Zsolt Feher" : {
-         "emails" : [
-            "feherzs@inf.u-szeged.hu"
-         ],
-         "nicks" : [
-            "Smith"
          ]
       }
    },
@@ -3304,6 +3352,15 @@
          "expertise" : "The QtWebKit Port",
          "nicks" : [
             "ariya"
+         ]
+      },
+      "Bem Jones-Bey" : {
+         "emails" : [
+            "bjonesbe@adobe.com"
+         ],
+         "expertise" : "CSS Shapes, Floats",
+         "nicks" : [
+            "bemjb"
          ]
       },
       "Benjamin Poulain" : {

@@ -1153,13 +1153,7 @@ int DOMWindow::innerHeight() const
     if (!view)
         return 0;
 
-#if PLATFORM(IOS)
-    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->actualVisibleContentRect().height()));
-#else
-    // If the device height is overridden, do not include the horizontal scrollbar into the innerHeight (since it is absent on the real device).
-    bool includeScrollbars = !InspectorInstrumentation::shouldApplyScreenHeightOverride(m_frame);
-    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->visibleContentRect(includeScrollbars ? ScrollableArea::IncludeScrollbars : ScrollableArea::ExcludeScrollbars).height()));
-#endif
+    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->visibleContentRectIncludingScrollbars().height()));
 }
 
 int DOMWindow::innerWidth() const
@@ -1171,13 +1165,7 @@ int DOMWindow::innerWidth() const
     if (!view)
         return 0;
 
-#if PLATFORM(IOS)
-    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->actualVisibleContentRect().width()));
-#else
-    // If the device width is overridden, do not include the vertical scrollbar into the innerWidth (since it is absent on the real device).
-    bool includeScrollbars = !InspectorInstrumentation::shouldApplyScreenWidthOverride(m_frame);
-    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->visibleContentRect(includeScrollbars ? ScrollableArea::IncludeScrollbars : ScrollableArea::ExcludeScrollbars).width()));
-#endif
+    return view->mapFromLayoutToCSSUnits(static_cast<int>(view->visibleContentRectIncludingScrollbars().width()));
 }
 
 int DOMWindow::screenX() const
@@ -1219,7 +1207,7 @@ int DOMWindow::scrollX() const
     m_frame->document()->updateLayoutIgnorePendingStylesheets();
 
 #if PLATFORM(IOS)
-    return static_cast<int>(view->actualVisibleContentRect().x() / (m_frame->pageZoomFactor() * m_frame->frameScaleFactor()));
+    return static_cast<int>(view->actualScrollX() / (m_frame->pageZoomFactor() * m_frame->frameScaleFactor()));
 #else
     return view->mapFromLayoutToCSSUnits(view->scrollX());
 #endif
@@ -1240,7 +1228,7 @@ int DOMWindow::scrollY() const
     m_frame->document()->updateLayoutIgnorePendingStylesheets();
 
 #if PLATFORM(IOS)
-    return static_cast<int>(view->actualVisibleContentRect().y() / (m_frame->pageZoomFactor() * m_frame->frameScaleFactor()));
+    return static_cast<int>(view->actualScrollY() / (m_frame->pageZoomFactor() * m_frame->frameScaleFactor()));
 #else
     return view->mapFromLayoutToCSSUnits(view->scrollY());
 #endif
@@ -1456,7 +1444,7 @@ void DOMWindow::scrollBy(int x, int y) const
 
     IntSize scaledOffset(view->mapFromCSSToLayoutUnits(x), view->mapFromCSSToLayoutUnits(y));
 #if PLATFORM(IOS)
-    view->setActualScrollPosition(view->actualVisibleContentRect().location() + scaledOffset);
+    view->setActualScrollPosition(view->actualScrollPosition() + scaledOffset);
 #else
     view->scrollBy(scaledOffset);
 #endif
@@ -1707,7 +1695,7 @@ bool DOMWindow::addEventListener(const AtomicString& eventType, PassRefPtr<Event
 void DOMWindow::incrementScrollEventListenersCount()
 {
     Document* document = this->document();
-    if (++m_scrollEventListenerCount == 1 && document == document->topDocument()) {
+    if (++m_scrollEventListenerCount == 1 && document == &document->topDocument()) {
         Frame* frame = this->frame();
         if (frame && frame->page())
             frame->page()->chrome().client().setNeedsScrollNotifications(frame, true);
@@ -1717,7 +1705,7 @@ void DOMWindow::incrementScrollEventListenersCount()
 void DOMWindow::decrementScrollEventListenersCount()
 {
     Document* document = this->document();
-    if (!--m_scrollEventListenerCount && document == document->topDocument()) {
+    if (!--m_scrollEventListenerCount && document == &document->topDocument()) {
         Frame* frame = this->frame();
         if (frame && frame->page() && !document->inPageCache())
             frame->page()->chrome().client().setNeedsScrollNotifications(frame, false);
@@ -2016,8 +2004,7 @@ bool DOMWindow::isInsecureScriptAccess(DOMWindow& activeWindow, const String& ur
     return true;
 }
 
-PassRefPtr<Frame> DOMWindow::createWindow(const String& urlString, const AtomicString& frameName, const WindowFeatures& windowFeatures,
-    DOMWindow& activeWindow, Frame* firstFrame, Frame* openerFrame, PrepareDialogFunction function, void* functionContext)
+PassRefPtr<Frame> DOMWindow::createWindow(const String& urlString, const AtomicString& frameName, const WindowFeatures& windowFeatures, DOMWindow& activeWindow, Frame* firstFrame, Frame* openerFrame, std::function<void (DOMWindow&)> prepareDialogFunction)
 {
     Frame* activeFrame = activeWindow.frame();
 
@@ -2048,8 +2035,8 @@ PassRefPtr<Frame> DOMWindow::createWindow(const String& urlString, const AtomicS
     if (newFrame->document()->domWindow()->isInsecureScriptAccess(activeWindow, completedURL))
         return newFrame.release();
 
-    if (function)
-        function(newFrame->document()->domWindow(), functionContext);
+    if (prepareDialogFunction)
+        prepareDialogFunction(*newFrame->document()->domWindow());
 
     if (created)
         newFrame->loader().changeLocation(activeWindow.document()->securityOrigin(), completedURL, referrer, false, false);
@@ -2124,8 +2111,7 @@ PassRefPtr<DOMWindow> DOMWindow::open(const String& urlString, const AtomicStrin
     return result ? result->document()->domWindow() : 0;
 }
 
-void DOMWindow::showModalDialog(const String& urlString, const String& dialogFeaturesString,
-    DOMWindow& activeWindow, DOMWindow& firstWindow, PrepareDialogFunction function, void* functionContext)
+void DOMWindow::showModalDialog(const String& urlString, const String& dialogFeaturesString, DOMWindow& activeWindow, DOMWindow& firstWindow, std::function<void (DOMWindow&)> prepareDialogFunction)
 {
     if (!isCurrentlyDisplayedInFrame())
         return;
@@ -2146,8 +2132,7 @@ void DOMWindow::showModalDialog(const String& urlString, const String& dialogFea
         return;
 
     WindowFeatures windowFeatures(dialogFeaturesString, screenAvailableRect(m_frame->view()));
-    RefPtr<Frame> dialogFrame = createWindow(urlString, emptyAtom, windowFeatures,
-        activeWindow, firstFrame, m_frame, function, functionContext);
+    RefPtr<Frame> dialogFrame = createWindow(urlString, emptyAtom, windowFeatures, activeWindow, firstFrame, m_frame, std::move(prepareDialogFunction));
     if (!dialogFrame)
         return;
     dialogFrame->page()->chrome().runModal();

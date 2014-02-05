@@ -23,35 +23,26 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "RenderSVGResourceFilter.h"
 
-#include "AffineTransform.h"
 #include "ElementChildIterator.h"
 #include "FilterEffect.h"
 #include "FloatPoint.h"
-#include "FloatRect.h"
 #include "Frame.h"
 #include "GraphicsContext.h"
 #include "Image.h"
-#include "ImageBuffer.h"
 #include "ImageData.h"
 #include "IntRect.h"
 #include "Page.h"
-#include "RenderSVGResource.h"
 #include "RenderSVGResourceFilterPrimitive.h"
 #include "RenderView.h"
-#include "SVGElement.h"
-#include "SVGFilter.h"
-#include "SVGFilterElement.h"
 #include "SVGFilterPrimitiveStandardAttributes.h"
 #include "SVGNames.h"
 #include "SVGRenderingContext.h"
-#include "SVGUnitTypes.h"
 #include "Settings.h"
 #include "SourceAlpha.h"
 #include "SourceGraphic.h"
-#include <wtf/Vector.h>
 
 namespace WebCore {
 
@@ -73,7 +64,7 @@ void RenderSVGResourceFilter::removeAllClientsFromCache(bool markForInvalidation
     markAllClientsForInvalidation(markForInvalidation ? LayoutAndBoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourceFilter::removeClientFromCache(RenderObject& client, bool markForInvalidation)
+void RenderSVGResourceFilter::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
     if (FilterData* filterData = m_filter.get(&client)) {
         if (filterData->savedContext)
@@ -85,7 +76,7 @@ void RenderSVGResourceFilter::removeClientFromCache(RenderObject& client, bool m
     markClientForInvalidation(client, markForInvalidation ? BoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-std::unique_ptr<SVGFilterBuilder> RenderSVGResourceFilter::buildPrimitives(SVGFilter* filter)
+std::unique_ptr<SVGFilterBuilder> RenderSVGResourceFilter::buildPrimitives(SVGFilter* filter) const
 {
     FloatRect targetBoundingBox = filter->targetBoundingBox();
 
@@ -142,7 +133,7 @@ bool RenderSVGResourceFilter::applyResource(RenderElement& renderer, const Rende
 
     // Determine absolute transformation matrix for filter. 
     AffineTransform absoluteTransform;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(&renderer, absoluteTransform);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(renderer, absoluteTransform);
     if (!absoluteTransform.isInvertible())
         return false;
 

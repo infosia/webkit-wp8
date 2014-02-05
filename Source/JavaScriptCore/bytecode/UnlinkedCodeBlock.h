@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,7 +33,6 @@
 #include "Identifier.h"
 #include "JSCell.h"
 #include "JSString.h"
-#include "LineInfo.h"
 #include "ParserModes.h"
 #include "RegExp.h"
 #include "SpecialPointer.h"
@@ -58,6 +57,7 @@ class SourceProvider;
 class SymbolTable;
 class UnlinkedCodeBlock;
 class UnlinkedFunctionCodeBlock;
+class UnlinkedInstructionStream;
 
 typedef unsigned UnlinkedValueProfile;
 typedef unsigned UnlinkedArrayProfile;
@@ -99,7 +99,7 @@ public:
     }
     size_t parameterCount() const;
     bool isInStrictContext() const { return m_isInStrictContext; }
-    FunctionNameIsInScopeToggle functionNameIsInScopeToggle() const { return m_functionNameIsInScopeToggle; }
+    FunctionMode functionMode() const { return m_functionMode; }
 
     unsigned firstLineOffset() const { return m_firstLineOffset; }
     unsigned lineCount() const { return m_lineCount; }
@@ -169,7 +169,7 @@ private:
 
     CodeFeatures m_features;
 
-    FunctionNameIsInScopeToggle m_functionNameIsInScopeToggle;
+    FunctionMode m_functionMode;
 
 protected:
     void finishCreation(VM& vm)
@@ -229,11 +229,10 @@ struct UnlinkedInstruction {
     UnlinkedInstruction() { u.operand = 0; }
     UnlinkedInstruction(OpcodeID opcode) { u.opcode = opcode; }
     UnlinkedInstruction(int operand) { u.operand = operand; }
-    UnlinkedInstruction(StringImpl* uid) { u.uid = uid; }
     union {
         OpcodeID opcode;
         int32_t operand;
-        StringImpl* uid;
+        unsigned index;
     } u;
 };
 
@@ -250,7 +249,6 @@ public:
     bool usesEval() const { return m_usesEval; }
 
     bool needsFullScopeChain() const { return m_needsFullScopeChain; }
-    void setNeedsFullScopeChain(bool needsFullScopeChain) { m_needsFullScopeChain = needsFullScopeChain; }
 
     void addExpressionInfo(unsigned instructionOffset, int divot,
         int startOffset, int endOffset, unsigned line, unsigned column);
@@ -343,9 +341,8 @@ public:
         }
     }
 
-    unsigned numberOfInstructions() const { return m_unlinkedInstructions.size(); }
-    RefCountedArray<UnlinkedInstruction>& instructions() { return m_unlinkedInstructions; }
-    const RefCountedArray<UnlinkedInstruction>& instructions() const { return m_unlinkedInstructions; }
+    void setInstructions(std::unique_ptr<UnlinkedInstructionStream>);
+    const UnlinkedInstructionStream& instructions() const;
 
     int m_numVars;
     int m_numCapturedVars;
@@ -386,6 +383,7 @@ public:
     UnlinkedHandlerInfo& exceptionHandler(int index) { ASSERT(m_rareData); return m_rareData->m_exceptionHandlers[index]; }
 
     SymbolTable* symbolTable() const { return m_symbolTable.get(); }
+    void setSymbolTable(SymbolTable* table) { m_symbolTable.set(*m_vm, this, table); }
 
     VM* vm() const { return m_vm; }
 
@@ -405,7 +403,7 @@ public:
 
     VirtualRegister thisRegister() const { return m_thisRegister; }
     VirtualRegister activationRegister() const { return m_activationRegister; }
-
+    bool hasActivationRegister() const { return m_activationRegister.isValid(); }
 
     void addPropertyAccessInstruction(unsigned propertyAccessInstruction)
     {
@@ -462,6 +460,8 @@ public:
     ALWAYS_INLINE unsigned startColumn() const { return 0; }
     unsigned endColumn() const { return m_endColumn; }
 
+    void dumpExpressionRangeInfo(); // For debugging purpose only.
+
 protected:
     UnlinkedCodeBlock(VM*, Structure*, CodeType, const ExecutableInfo&);
     ~UnlinkedCodeBlock();
@@ -482,7 +482,9 @@ private:
             m_rareData = adoptPtr(new RareData);
     }
 
-    RefCountedArray<UnlinkedInstruction> m_unlinkedInstructions;
+    void getLineAndColumn(ExpressionRangeInfo&, unsigned& line, unsigned& column);
+
+    std::unique_ptr<UnlinkedInstructionStream> m_unlinkedInstructions;
 
     int m_numParameters;
     VM* m_vm;

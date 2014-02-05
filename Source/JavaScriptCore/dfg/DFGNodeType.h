@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -96,12 +96,12 @@ namespace JSC { namespace DFG {
     macro(InvalidationPoint, NodeMustGenerate) \
     \
     /* Nodes for bitwise operations. */\
-    macro(BitAnd, NodeResultInt32 | NodeMustGenerate) \
-    macro(BitOr, NodeResultInt32 | NodeMustGenerate) \
-    macro(BitXor, NodeResultInt32 | NodeMustGenerate) \
-    macro(BitLShift, NodeResultInt32 | NodeMustGenerate) \
-    macro(BitRShift, NodeResultInt32 | NodeMustGenerate) \
-    macro(BitURShift, NodeResultInt32 | NodeMustGenerate) \
+    macro(BitAnd, NodeResultInt32) \
+    macro(BitOr, NodeResultInt32) \
+    macro(BitXor, NodeResultInt32) \
+    macro(BitLShift, NodeResultInt32) \
+    macro(BitRShift, NodeResultInt32) \
+    macro(BitURShift, NodeResultInt32) \
     /* Bitwise operators call ToInt32 on their operands. */\
     macro(ValueToInt32, NodeResultInt32) \
     /* Used to box the result of URShift nodes (result has range 0..2^32-1). */\
@@ -118,22 +118,22 @@ namespace JSC { namespace DFG {
     macro(Int52ToDouble, NodeResultNumber) \
     \
     /* Nodes for arithmetic operations. */\
-    macro(ArithAdd, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithSub, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithNegate, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithMul, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithIMul, NodeResultInt32 | NodeMustGenerate) \
-    macro(ArithDiv, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithMod, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithAbs, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithMin, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithMax, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithSqrt, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithSin, NodeResultNumber | NodeMustGenerate) \
-    macro(ArithCos, NodeResultNumber | NodeMustGenerate) \
+    macro(ArithAdd, NodeResultNumber) \
+    macro(ArithSub, NodeResultNumber) \
+    macro(ArithNegate, NodeResultNumber) \
+    macro(ArithMul, NodeResultNumber) \
+    macro(ArithIMul, NodeResultInt32) \
+    macro(ArithDiv, NodeResultNumber) \
+    macro(ArithMod, NodeResultNumber) \
+    macro(ArithAbs, NodeResultNumber) \
+    macro(ArithMin, NodeResultNumber) \
+    macro(ArithMax, NodeResultNumber) \
+    macro(ArithSqrt, NodeResultNumber) \
+    macro(ArithSin, NodeResultNumber) \
+    macro(ArithCos, NodeResultNumber) \
     \
     /* Add of values may either be arithmetic, or result in string concatenation. */\
-    macro(ValueAdd, NodeResultJS | NodeMustGenerate | NodeMightClobber) \
+    macro(ValueAdd, NodeResultJS | NodeMustGenerate | NodeClobbersWorld) \
     \
     /* Property access. */\
     /* PutByValAlias indicates a 'put' aliases a prior write to the same property. */\
@@ -208,12 +208,12 @@ namespace JSC { namespace DFG {
     macro(StringFromCharCode, NodeResultJS) \
     \
     /* Nodes for comparison operations. */\
-    macro(CompareLess, NodeResultBoolean | NodeMustGenerate | NodeMightClobber) \
-    macro(CompareLessEq, NodeResultBoolean | NodeMustGenerate | NodeMightClobber) \
-    macro(CompareGreater, NodeResultBoolean | NodeMustGenerate | NodeMightClobber) \
-    macro(CompareGreaterEq, NodeResultBoolean | NodeMustGenerate | NodeMightClobber) \
-    macro(CompareEq, NodeResultBoolean | NodeMustGenerate | NodeMightClobber) \
-    macro(CompareEqConstant, NodeResultBoolean | NodeMustGenerate) \
+    macro(CompareLess, NodeResultBoolean | NodeMustGenerate | NodeClobbersWorld) \
+    macro(CompareLessEq, NodeResultBoolean | NodeMustGenerate | NodeClobbersWorld) \
+    macro(CompareGreater, NodeResultBoolean | NodeMustGenerate | NodeClobbersWorld) \
+    macro(CompareGreaterEq, NodeResultBoolean | NodeMustGenerate | NodeClobbersWorld) \
+    macro(CompareEq, NodeResultBoolean | NodeMustGenerate | NodeClobbersWorld) \
+    macro(CompareEqConstant, NodeResultBoolean) \
     macro(CompareStrictEq, NodeResultBoolean) \
     macro(CompareStrictEqConstant, NodeResultBoolean) \
     \
@@ -230,7 +230,9 @@ namespace JSC { namespace DFG {
     macro(NewRegexp, NodeResultJS) \
     \
     /* Nodes for misc operations. */\
-    macro(Breakpoint, NodeMustGenerate | NodeClobbersWorld) \
+    macro(Breakpoint, NodeMustGenerate) \
+    macro(ProfileWillCall, NodeMustGenerate) \
+    macro(ProfileDidCall, NodeMustGenerate) \
     macro(CheckHasInstance, NodeMustGenerate) \
     macro(InstanceOf, NodeResultBoolean) \
     macro(IsUndefined, NodeResultBoolean) \

@@ -37,9 +37,9 @@
 #include <wtf/RunLoop.h>
 
 #if ENABLE(ASYNC_SCROLLING)
-#include <WebCore/ScrollingCoordinator.h>
+#include <WebCore/AsyncScrollingCoordinator.h>
 #include <WebCore/ScrollingThread.h>
-#include <WebCore/ScrollingTree.h>
+#include <WebCore/ThreadedScrollingTree.h>
 #endif
 
 using namespace WebCore;
@@ -53,6 +53,7 @@ PassRefPtr<EventDispatcher> EventDispatcher::create()
 
 EventDispatcher::EventDispatcher()
     : m_queue(WorkQueue::create("com.apple.WebKit.EventDispatcher"))
+    , m_recentWheelEventDeltaTracker(adoptPtr(new WheelEventDeltaTracker))
 {
 }
 
@@ -67,7 +68,9 @@ void EventDispatcher::addScrollingTreeForPage(WebPage* webPage)
 
     ASSERT(webPage->corePage()->scrollingCoordinator());
     ASSERT(!m_scrollingTrees.contains(webPage->pageID()));
-    m_scrollingTrees.set(webPage->pageID(), webPage->corePage()->scrollingCoordinator()->scrollingTree());
+
+    AsyncScrollingCoordinator* scrollingCoordinator = toAsyncScrollingCoordinator(webPage->corePage()->scrollingCoordinator());
+    m_scrollingTrees.set(webPage->pageID(), toThreadedScrollingTree(scrollingCoordinator->scrollingTree()));
 }
 
 void EventDispatcher::removeScrollingTreeForPage(WebPage* webPage)
@@ -86,17 +89,43 @@ void EventDispatcher::initializeConnection(IPC::Connection* connection)
 
 void EventDispatcher::wheelEvent(uint64_t pageID, const WebWheelEvent& wheelEvent, bool canRubberBandAtLeft, bool canRubberBandAtRight, bool canRubberBandAtTop, bool canRubberBandAtBottom)
 {
+    PlatformWheelEvent platformWheelEvent = platform(wheelEvent);
+
+#if PLATFORM(MAC)
+    switch (wheelEvent.phase()) {
+    case PlatformWheelEventPhaseBegan:
+        m_recentWheelEventDeltaTracker->beginTrackingDeltas();
+        break;
+    case PlatformWheelEventPhaseEnded:
+        m_recentWheelEventDeltaTracker->endTrackingDeltas();
+        break;
+    default:
+        break;
+    }
+
+    if (m_recentWheelEventDeltaTracker->isTrackingDeltas()) {
+        m_recentWheelEventDeltaTracker->recordWheelEventDelta(platformWheelEvent);
+
+        DominantScrollGestureDirection dominantDirection = DominantScrollGestureDirection::None;
+        dominantDirection = m_recentWheelEventDeltaTracker->dominantScrollGestureDirection();
+
+        // Workaround for scrolling issues <rdar://problem/14758615>.
+        if (dominantDirection == DominantScrollGestureDirection::Vertical && platformWheelEvent.deltaX())
+            platformWheelEvent = platformWheelEvent.copyIgnoringHorizontalDelta();
+        else if (dominantDirection == DominantScrollGestureDirection::Horizontal && platformWheelEvent.deltaY())
+            platformWheelEvent = platformWheelEvent.copyIgnoringVerticalDelta();
+    }
+#endif
+
 #if ENABLE(ASYNC_SCROLLING)
     MutexLocker locker(m_scrollingTreesMutex);
-    if (ScrollingTree* scrollingTree = m_scrollingTrees.get(pageID)) {
-        PlatformWheelEvent platformWheelEvent = platform(wheelEvent);
-
+    if (ThreadedScrollingTree* scrollingTree = m_scrollingTrees.get(pageID)) {
         // FIXME: It's pretty horrible that we're updating the back/forward state here.
         // WebCore should always know the current state and know when it changes so the
         // scrolling tree can be notified.
         // We only need to do this at the beginning of the gesture.
         if (platformWheelEvent.phase() == PlatformWheelEventPhaseBegan)
-            ScrollingThread::dispatch(bind(&ScrollingTree::setCanRubberBandState, scrollingTree, canRubberBandAtLeft, canRubberBandAtRight, canRubberBandAtTop, canRubberBandAtBottom));
+            ScrollingThread::dispatch(bind(&ThreadedScrollingTree::setCanRubberBandState, scrollingTree, canRubberBandAtLeft, canRubberBandAtRight, canRubberBandAtTop, canRubberBandAtBottom));
 
         ScrollingTree::EventResult result = scrollingTree->tryToHandleWheelEvent(platformWheelEvent);
         if (result == ScrollingTree::DidHandleEvent || result == ScrollingTree::DidNotHandleEvent) {

@@ -57,11 +57,9 @@ using namespace WebCore;
 
 void WebDownload::init(ResourceHandle* handle, const ResourceRequest& request, const ResourceResponse& response, IWebDownloadDelegate* delegate)
 {
-    if (!handle)
-        return;
-
     // Stop previous request
-    handle->setDefersLoading(true);
+    if (handle)
+        handle->setDefersLoading(true);
 
     m_request.adoptRef(WebMutableURLRequest::createInstance(request));
 
@@ -183,7 +181,7 @@ void WebDownload::didReceiveResponse()
         if (suggestedFilename.isEmpty())
             suggestedFilename = pathGetFileName(response.url().string());
         suggestedFilename = decodeURLEscapeSequences(suggestedFilename);
-        BString suggestedFilenameBSTR(suggestedFilename.characters(), suggestedFilename.length());
+        BString suggestedFilenameBSTR(suggestedFilename.deprecatedCharacters(), suggestedFilename.length());
         m_delegate->decideDestinationWithSuggestedFilename(this, suggestedFilenameBSTR);
     }
 }

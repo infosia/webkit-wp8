@@ -123,7 +123,6 @@ public:
 
     void reload(bool endToEndReload = false);
     void reloadWithOverrideEncoding(const String& overrideEncoding);
-    void reloadWithOverrideURL(const URL& overrideUrl, bool endToEndReload = false);
 
     void open(CachedFrameBase&);
     void loadItem(HistoryItem*, FrameLoadType);
@@ -156,7 +155,6 @@ public:
     DocumentLoader* policyDocumentLoader() const { return m_policyDocumentLoader.get(); }
     DocumentLoader* provisionalDocumentLoader() const { return m_provisionalDocumentLoader.get(); }
     FrameState state() const { return m_state; }
-    static double timeOfLastCompletedLoad();
 
 #if PLATFORM(IOS)
     RetainPtr<CFDictionaryRef> connectionProperties(ResourceLoader*);
@@ -217,7 +215,6 @@ public:
 
     void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&);
     void dispatchDidClearWindowObjectsInAllWorlds();
-    void dispatchDocumentElementAvailable();
 
     // The following sandbox flags will be forced, regardless of changes to
     // the sandbox attribute of any parent frames.
@@ -240,8 +237,6 @@ public:
     void loadDone();
     void finishedParsing();
     void checkCompleted();
-
-    void checkDidPerformFirstNavigation();
 
     bool isComplete() const;
 
@@ -304,7 +299,7 @@ private:
 
     bool allChildrenAreComplete() const; // immediate children, not all descendants
 
-    void checkTimerFired(Timer<FrameLoader>*);
+    void checkTimerFired(Timer<FrameLoader>&);
     
     void loadSameDocumentItem(HistoryItem*);
     void loadDifferentDocumentItem(HistoryItem*, FrameLoadType, FormSubmissionCacheLoadPolicy);
@@ -322,10 +317,6 @@ private:
 
     SubstituteData defaultSubstituteDataForURL(const URL&);
 
-    static void callContinueLoadAfterNavigationPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
-    static void callContinueLoadAfterNewWindowPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, const String& frameName, const NavigationAction&, bool shouldContinue);
-    static void callContinueFragmentScrollAfterNavigationPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
-    
     bool handleBeforeUnloadEvent(Chrome&, FrameLoader* frameLoaderBeingNavigated);
 
     void continueLoadAfterNavigationPolicy(const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
@@ -362,8 +353,6 @@ private:
         const String& frameName, bool lockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);
     void loadURL(const URL&, const String& referrer, const String& frameName,          // Called by loadFrameRequest, calls loadWithNavigationAction or dispatches to navigation policy delegate
         bool lockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);                                                         
-
-    void reloadWithRequest(const ResourceRequest&, bool endToEndReload);
 
     bool shouldReload(const URL& currentURL, const URL& destinationURL);
 
@@ -441,7 +430,6 @@ private:
     Frame* m_opener;
     HashSet<Frame*> m_openedFrames;
 
-    bool m_didPerformFirstNavigation;
     bool m_loadingFromCachedPage;
     bool m_suppressOpenerInNewFrame;
 

@@ -21,8 +21,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGLengthContext.h"
 
 #include "CSSHelper.h"
@@ -204,14 +202,14 @@ float SVGLengthContext::convertValueFromPercentageToUserUnits(float value, SVGLe
 static inline RenderStyle* renderStyleForLengthResolving(const SVGElement* context)
 {
     if (!context)
-        return 0;
+        return nullptr;
 
     const ContainerNode* currentContext = context;
-    while (currentContext) {
+    do {
         if (currentContext->renderer())
             return &currentContext->renderer()->style();
         currentContext = currentContext->parentNode();
-    }
+    } while (currentContext);
 
     // There must be at least a RenderSVGRoot renderer, carrying a style.
     ASSERT_NOT_REACHED();
@@ -309,5 +307,3 @@ bool SVGLengthContext::determineViewport(FloatSize& viewportSize) const
 }
 
 }
-
-#endif

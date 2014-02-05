@@ -36,6 +36,7 @@ BuildbotQueueView = function(debugQueues, releaseQueues)
         else
             this.platform = queue.platform;
         queue.addEventListener(BuildbotQueue.Event.IterationsAdded, this._queueIterationsAdded, this);
+        queue.addEventListener(BuildbotQueue.Event.UnauthorizedAccess, this._unauthorizedAccess, this);
     }.bind(this));
 
     this.debugQueues.forEach(function(queue) {
@@ -44,6 +45,7 @@ BuildbotQueueView = function(debugQueues, releaseQueues)
         else
             this.platform = queue.platform;
         queue.addEventListener(BuildbotQueue.Event.IterationsAdded, this._queueIterationsAdded, this);
+        queue.addEventListener(BuildbotQueue.Event.UnauthorizedAccess, this._unauthorizedAccess, this);
     }.bind(this));
 
     webkitTrac.addEventListener(Trac.Event.NewCommitsRecorded, this._newCommitsRecorded, this);
@@ -69,6 +71,15 @@ BuildbotQueueView.prototype = {
         return queue.iterations[0].previousProductiveIteration;
     },
 
+    _appendUnauthorizedLineView: function(queue)
+    {
+        console.assert(queue.buildbot.needsAuthentication);
+        console.assert(!queue.buildbot.isAuthenticated);
+        var javascriptURL = "javascript:buildbots[" + buildbots.indexOf(queue.buildbot) + "].updateQueues(Buildbot.UpdateReason.Reauthenticate)";
+        var status = new StatusLineView("unauthorized", StatusLineView.Status.Unauthorized, "", null, javascriptURL);
+        this.element.appendChild(status.element);
+    },
+
     _appendPendingRevisionCount: function(queue)
     {
         var latestProductiveIteration = this._latestProductiveIteration(queue);
@@ -79,9 +90,9 @@ BuildbotQueueView.prototype = {
         if (!latestRecordedOpenSourceRevisionNumber)
             return;
 
-        var openSourceRevisionsBehind = latestRecordedOpenSourceRevisionNumber - latestProductiveIteration.openSourceRevision;
-        if (openSourceRevisionsBehind < 0)
-            openSourceRevisionsBehind = 0;
+        var totalRevisionsBehind = latestRecordedOpenSourceRevisionNumber - latestProductiveIteration.openSourceRevision;
+        if (totalRevisionsBehind < 0)
+            totalRevisionsBehind = 0;
 
         if (latestProductiveIteration.internalRevision) {
             var latestRecordedInternalRevisionNumber = internalTrac.latestRecordedRevisionNumber;
@@ -89,18 +100,15 @@ BuildbotQueueView.prototype = {
                 return;
 
             var internalRevisionsBehind = latestRecordedInternalRevisionNumber - latestProductiveIteration.internalRevision;
-            if (internalRevisionsBehind < 0)
-                internalRevisionsBehind = 0;
-            if (openSourceRevisionsBehind || internalRevisionsBehind)
-                var messageText = openSourceRevisionsBehind + " \uff0b " + internalRevisionsBehind + " revisions behind";
-        } else if (openSourceRevisionsBehind)
-            var messageText = openSourceRevisionsBehind + " " + (openSourceRevisionsBehind === 1 ? "revision behind" : "revisions behind");
+            if (internalRevisionsBehind > 0)
+                totalRevisionsBehind += internalRevisionsBehind;
+        }
 
-        if (!messageText)
+        if (!totalRevisionsBehind)
             return;
 
         var messageElement = document.createElement("span"); // We can't just pass text to StatusLineView here, because we need an element that perfectly fits the text for popover positioning.
-        messageElement.textContent = messageText;
+        messageElement.textContent = totalRevisionsBehind + " " + (totalRevisionsBehind === 1 ? "revision behind" : "revisions behind");
         var status = new StatusLineView(messageElement, StatusLineView.Status.NoBubble);
         this.element.appendChild(status.element);
 
@@ -169,17 +177,15 @@ BuildbotQueueView.prototype = {
         if (latestProductiveIteration.internalRevision && internalTrac.latestRecordedRevisionNumber)
             var linesForInternal = this._popoverLinesForCommitRange(internalTrac, latestProductiveIteration.internalRevision + 1, internalTrac.latestRecordedRevisionNumber);
 
-        if (linesForOpenSource.length && linesForInternal.length) {
-            var divider = document.createElement("div");
-            divider.className = "divider";
-            content.appendChild(divider);
-        }
+        if (linesForOpenSource.length && linesForInternal.length)
+            this._addDividerToPopover(content);
 
         for (var i = 0; i != linesForInternal.length; ++i)
             content.appendChild(linesForInternal[i]);
 
         var rect = Dashboard.Rect.rectFromClientRect(element.getBoundingClientRect());
-        popover.present(rect, content, [Dashboard.RectEdge.MIN_Y, Dashboard.RectEdge.MAX_Y, Dashboard.RectEdge.MAX_X, Dashboard.RectEdge.MIN_X]);
+        popover.content = content;
+        popover.present(rect, [Dashboard.RectEdge.MIN_Y, Dashboard.RectEdge.MAX_Y, Dashboard.RectEdge.MAX_X, Dashboard.RectEdge.MIN_X]);
 
         return true;
     },
@@ -193,39 +199,28 @@ BuildbotQueueView.prototype = {
         if (!linesForCommits.length)
             return false;
 
+        var line = document.createElement("div");
+        line.className = "title";
+        line.textContent = "commits since previous result";
+        content.appendChild(line);
+        this._addDividerToPopover(content);
+
         for (var i = 0; i != linesForCommits.length; ++i)
             content.appendChild(linesForCommits[i]);
 
         var rect = Dashboard.Rect.rectFromClientRect(element.getBoundingClientRect());
-        popover.present(rect, content, [Dashboard.RectEdge.MIN_Y, Dashboard.RectEdge.MAX_Y, Dashboard.RectEdge.MAX_X, Dashboard.RectEdge.MIN_X]);
+        popover.content = content;
+        popover.present(rect, [Dashboard.RectEdge.MIN_Y, Dashboard.RectEdge.MAX_Y, Dashboard.RectEdge.MAX_X, Dashboard.RectEdge.MIN_X]);
 
         return true;
     },
 
-    _presentNoChangePopover: function(element, popover, context)
+    _revisionPopoverContentForIteration: function(iteration, previousIteration, internal)
     {
-        var content = document.createElement("div");
-        content.className = "commit-history-popover";
+        var content = document.createElement("span");
+        content.textContent = "r" + (internal ? iteration.internalRevision : iteration.openSourceRevision);
+        content.classList.add("revision-number");
 
-        var line = document.createElement("div");
-        line.className = "no-commits";
-        line.textContent = "no new commits in this buildbot queue iteration";
-        
-        content.appendChild(line);
-
-        var rect = Dashboard.Rect.rectFromClientRect(element.getBoundingClientRect());
-        popover.present(rect, content, [Dashboard.RectEdge.MIN_Y, Dashboard.RectEdge.MAX_Y, Dashboard.RectEdge.MAX_X, Dashboard.RectEdge.MIN_X]);
-
-        return true;
-    },
-
-    _revisionPopoverContentForIteration: function(iteration, internal)
-    {
-        var contentElement = document.createElement("span");
-        contentElement.textContent = "r" + (internal ? iteration.internalRevision : iteration.openSourceRevision);
-        contentElement.classList.add("revision-number");
-
-        var previousIteration = iteration.previousProductiveIteration;
         if (previousIteration) {
             var context = {
                 trac: internal ? internalTrac : webkitTrac,
@@ -233,23 +228,56 @@ BuildbotQueueView.prototype = {
                 lastRevision: internal ? iteration.internalRevision : iteration.openSourceRevision
             };
             if (context.firstRevision <= context.lastRevision)
-                new PopoverTracker(contentElement, this._presentPopoverForRevisionRange.bind(this), context);
-            else
-                new PopoverTracker(contentElement, this._presentNoChangePopover.bind(this), context);
+                new PopoverTracker(content, this._presentPopoverForRevisionRange.bind(this), context);
         }
 
-        return contentElement;
+        return content;
     },
 
-    revisionContentForIteration: function(iteration)
+    _addIterationHeadingToPopover: function(iteration, content, additionalText)
+    {
+        var title = document.createElement("div");
+        title.className = "popover-iteration-heading";
+
+        var queueName = document.createElement("span");
+        queueName.className = "queue-name";
+        queueName.textContent = iteration.queue.id;
+        title.appendChild(queueName);
+
+        var buildbotLink = document.createElement("a");
+        buildbotLink.className = "buildbot-link";
+        buildbotLink.textContent = "build #" + iteration.id;
+        buildbotLink.href = iteration.queue.buildbot.buildPageURLForIteration(iteration);
+        buildbotLink.target = "_blank";
+        title.appendChild(buildbotLink);
+
+        if (additionalText) {
+            var additionalTextElement = document.createElement("span");
+            additionalTextElement.className = "additional-text";
+            additionalTextElement.textContent = additionalText;
+            title.appendChild(additionalTextElement);
+        }
+
+        content.appendChild(title);
+    },
+
+    _addDividerToPopover: function(content)
+    {
+        var divider = document.createElement("div");
+        divider.className = "divider";
+        content.appendChild(divider);
+    },
+
+    revisionContentForIteration: function(iteration, previousDisplayedIteration)
     {
         console.assert(iteration.openSourceRevision);
-        var openSourceContent = this._revisionPopoverContentForIteration(iteration);
+
+        var openSourceContent = this._revisionPopoverContentForIteration(iteration, previousDisplayedIteration);
 
         if (!iteration.internalRevision)
             return openSourceContent;
 
-        var internalContent = this._revisionPopoverContentForIteration(iteration, true);
+        var internalContent = this._revisionPopoverContentForIteration(iteration, previousDisplayedIteration, true);
 
         var fragment = document.createDocumentFragment();
         fragment.appendChild(openSourceContent);
@@ -270,6 +298,7 @@ BuildbotQueueView.prototype = {
 
         event.data.addedIterations.forEach(function(iteration) {
             iteration.addEventListener(BuildbotIteration.Event.Updated, this._iterationUpdated, this);
+            iteration.addEventListener(BuildbotIteration.Event.UnauthorizedAccess, this._unauthorizedAccess, this);
         }.bind(this));
     },
 
@@ -279,6 +308,11 @@ BuildbotQueueView.prototype = {
     },
     
     _newCommitsRecorded: function(event)
+    {
+        this.updateSoon();
+    },
+
+    _unauthorizedAccess: function(event)
     {
         this.updateSoon();
     }

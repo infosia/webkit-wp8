@@ -207,7 +207,6 @@ StylePropertyShorthand marginShorthand()
     return StylePropertyShorthand(CSSPropertyMargin, marginProperties, WTF_ARRAY_LENGTH(marginProperties));
 }
 
-#if ENABLE(SVG)
 StylePropertyShorthand markerShorthand()
 {
     static const CSSPropertyID markerProperties[] = {
@@ -217,7 +216,6 @@ StylePropertyShorthand markerShorthand()
     };
     return StylePropertyShorthand(CSSPropertyMarker, markerProperties, WTF_ARRAY_LENGTH(markerProperties));
 }
-#endif
 
 StylePropertyShorthand outlineShorthand()
 {
@@ -424,7 +422,6 @@ StylePropertyShorthand webkitMaskRepeatShorthand()
     return StylePropertyShorthand(CSSPropertyWebkitMaskRepeat, maskRepeatProperties, WTF_ARRAY_LENGTH(maskRepeatProperties));
 }
 
-#if ENABLE(CSS3_TEXT_DECORATION)
 StylePropertyShorthand webkitTextDecorationShorthand()
 {
     static const CSSPropertyID textDecorationProperties[] = {
@@ -434,7 +431,6 @@ StylePropertyShorthand webkitTextDecorationShorthand()
     };
     return StylePropertyShorthand(CSSPropertyWebkitTextDecoration, textDecorationProperties, WTF_ARRAY_LENGTH(textDecorationProperties));
 }
-#endif
 
 StylePropertyShorthand webkitTextEmphasisShorthand()
 {
@@ -580,14 +576,10 @@ StylePropertyShorthand shorthandForProperty(CSSPropertyID propertyID)
         return webkitTransitionShorthand();
     case CSSPropertyWebkitTransformOrigin:
         return webkitTransformOriginShorthand();
-#if ENABLE(CSS3_TEXT_DECORATION)
     case CSSPropertyWebkitTextDecoration:
         return webkitTextDecorationShorthand();
-#endif
-#if ENABLE(SVG)
     case CSSPropertyMarker:
         return markerShorthand();
-#endif
     default:
         return StylePropertyShorthand();
     }
@@ -802,18 +794,14 @@ Vector<StylePropertyShorthand> matchingShorthandsForLonghand(CSSPropertyID prope
     case CSSPropertyMinHeight:
     case CSSPropertyMaxHeight:
         return makeVector(heightShorthand());
-#if ENABLE(CSS3_TEXT_DECORATION)
     case CSSPropertyWebkitTextDecorationLine:
     case CSSPropertyWebkitTextDecorationStyle:
     case CSSPropertyWebkitTextDecorationColor:
         return makeVector(webkitTextDecorationShorthand());
-#endif
-#if ENABLE(SVG)
     case CSSPropertyMarkerStart:
     case CSSPropertyMarkerMid:
     case CSSPropertyMarkerEnd:
         return makeVector(markerShorthand());
-#endif
     default:
         break;
     }

@@ -39,9 +39,11 @@
 #include "ewk_private.h"
 #include "ewk_storage_manager_private.h"
 #include "ewk_url_scheme_request_private.h"
+#include <JavaScriptCore/JSContextRef.h>
 #include <WebCore/FileSystem.h>
 #include <WebCore/IconDatabase.h>
 #include <wtf/HashMap.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/WTFString.h>
 
 #if ENABLE(SPELLCHECK)
@@ -55,7 +57,7 @@ typedef HashMap<WKContextRef, EwkContext*> ContextMap;
 
 static inline ContextMap& contextMap()
 {
-    DEFINE_STATIC_LOCAL(ContextMap, map, ());
+    static NeverDestroyed<ContextMap> map;
     return map;
 }
 
@@ -72,6 +74,7 @@ EwkContext::EwkContext(WKContextRef context)
     , m_downloadManager(std::make_unique<DownloadManagerEfl>(context))
     , m_requestManagerClient(std::make_unique<RequestManagerClientEfl>(context))
     , m_historyClient(std::make_unique<ContextHistoryClientEfl>(context))
+    , m_jsGlobalContext(nullptr)
 {
     ContextMap::AddResult result = contextMap().add(context, this);
     ASSERT_UNUSED(result, result.isNewEntry);
@@ -91,11 +94,18 @@ EwkContext::EwkContext(WKContextRef context)
     // independently of checking spelling while typing setting.
     TextCheckerClientEfl::instance().ensureSpellCheckingLanguage();
 #endif
+
+    m_callbackForMessageFromInjectedBundle.callback = nullptr;
+    m_callbackForMessageFromInjectedBundle.userData = nullptr;
 }
 
 EwkContext::~EwkContext()
 {
     ASSERT(contextMap().get(m_context.get()) == this);
+
+    if (m_jsGlobalContext)
+        JSGlobalContextRelease(m_jsGlobalContext);
+
     contextMap().remove(m_context.get());
 }
 
@@ -191,9 +201,25 @@ void EwkContext::addVisitedLink(const String& visitedURL)
     WKContextAddVisitedLink(m_context.get(), adoptWK(toCopiedAPI(visitedURL)).get());
 }
 
+// Ewk_Cache_Model enum validation
+inline WKCacheModel toWKCacheModel(Ewk_Cache_Model cacheModel)
+{
+    switch (cacheModel) {
+    case EWK_CACHE_MODEL_DOCUMENT_VIEWER:
+        return kWKCacheModelDocumentViewer;
+    case EWK_CACHE_MODEL_DOCUMENT_BROWSER:
+        return kWKCacheModelDocumentBrowser;
+    case EWK_CACHE_MODEL_PRIMARY_WEBBROWSER:
+        return kWKCacheModelPrimaryWebBrowser;
+    }
+    ASSERT_NOT_REACHED();
+
+    return kWKCacheModelDocumentViewer;
+}
+
 void EwkContext::setCacheModel(Ewk_Cache_Model cacheModel)
 {
-    WKContextSetCacheModel(m_context.get(), static_cast<WebKit::CacheModel>(cacheModel));
+    WKContextSetCacheModel(m_context.get(), toWKCacheModel(cacheModel));
 }
 
 Ewk_Cache_Model EwkContext::cacheModel() const
@@ -214,16 +240,25 @@ void EwkContext::clearResourceCache()
     WKResourceCacheManagerClearCacheForAllOrigins(WKContextGetResourceCacheManager(m_context.get()), WKResourceCachesToClearAll);
 }
 
+
+JSGlobalContextRef EwkContext::jsGlobalContext()
+{
+    if (!m_jsGlobalContext)
+        m_jsGlobalContext = JSGlobalContextCreate(0);
+
+    return m_jsGlobalContext;
+}
+
 Ewk_Cookie_Manager* ewk_context_cookie_manager_get(const Ewk_Context* ewkContext)
 {
-    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, 0);
+    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, nullptr);
 
     return const_cast<EwkContext*>(impl)->cookieManager();
 }
 
 Ewk_Database_Manager* ewk_context_database_manager_get(const Ewk_Context* ewkContext)
 {
-    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, 0);
+    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, nullptr);
 
     return const_cast<EwkContext*>(impl)->databaseManager();
 }
@@ -237,14 +272,14 @@ Eina_Bool ewk_context_favicon_database_directory_set(Ewk_Context* ewkContext, co
 
 Ewk_Favicon_Database* ewk_context_favicon_database_get(const Ewk_Context* ewkContext)
 {
-    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, 0);
+    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, nullptr);
 
     return const_cast<EwkContext*>(impl)->faviconDatabase();
 }
 
 Ewk_Storage_Manager* ewk_context_storage_manager_get(const Ewk_Context* ewkContext)
 {
-    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, 0);
+    EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, ewkContext, impl, nullptr);
 
     return impl->storageManager();
 }
@@ -259,6 +294,66 @@ ContextHistoryClientEfl* EwkContext::historyClient()
     return m_historyClient.get();
 }
 
+static inline EwkContext* toEwkContext(const void* clientInfo)
+{
+    return static_cast<EwkContext*>(const_cast<void*>(clientInfo));
+}
+
+void EwkContext::didReceiveMessageFromInjectedBundle(WKContextRef, WKStringRef messageName, WKTypeRef messageBody, const void* clientInfo)
+{
+    toEwkContext(clientInfo)->processReceivedMessageFromInjectedBundle(messageName, messageBody, nullptr);
+}
+
+void EwkContext::didReceiveSynchronousMessageFromInjectedBundle(WKContextRef, WKStringRef messageName, WKTypeRef messageBody, WKTypeRef* returnData, const void* clientInfo)
+{
+    toEwkContext(clientInfo)->processReceivedMessageFromInjectedBundle(messageName, messageBody, returnData);
+}
+
+void EwkContext::setMessageFromInjectedBundleCallback(Ewk_Context_Message_From_Injected_Bundle_Cb callback, void* userData)
+{
+    m_callbackForMessageFromInjectedBundle.userData = userData;
+
+    if (m_callbackForMessageFromInjectedBundle.callback == callback)
+        return;
+
+    if (!m_callbackForMessageFromInjectedBundle.callback) {
+        WKContextInjectedBundleClientV1 client;
+        memset(&client, 0, sizeof(client));
+
+        client.base.version = 1;
+        client.base.clientInfo = this;
+        client.didReceiveMessageFromInjectedBundle = didReceiveMessageFromInjectedBundle;
+        client.didReceiveSynchronousMessageFromInjectedBundle = didReceiveSynchronousMessageFromInjectedBundle;
+
+        WKContextSetInjectedBundleClient(m_context.get(), &client.base);
+    } else if (!callback)
+        WKContextSetInjectedBundleClient(m_context.get(), nullptr);
+
+    m_callbackForMessageFromInjectedBundle.callback = callback;
+}
+
+void EwkContext::processReceivedMessageFromInjectedBundle(WKStringRef messageName, WKTypeRef messageBody, WKTypeRef* returnData)
+{
+    if (!m_callbackForMessageFromInjectedBundle.callback)
+        return;
+
+    CString name = toImpl(messageName)->string().utf8();
+    CString body;
+    if (messageBody && WKStringGetTypeID() == WKGetTypeID(messageBody))
+        body = toImpl(static_cast<WKStringRef>(messageBody))->string().utf8();
+
+    if (returnData) {
+        char* returnString = nullptr;
+        m_callbackForMessageFromInjectedBundle.callback(name.data(), body.data(), &returnString, m_callbackForMessageFromInjectedBundle.userData);
+        if (returnString) {
+            *returnData = WKStringCreateWithUTF8CString(returnString);
+            free(returnString);
+        } else
+            *returnData = WKStringCreateWithUTF8CString("");
+    } else
+        m_callbackForMessageFromInjectedBundle.callback(name.data(), body.data(), nullptr, m_callbackForMessageFromInjectedBundle.userData);
+}
+
 Ewk_Context* ewk_context_default_get()
 {
     return EwkContext::defaultContext();
@@ -271,7 +366,7 @@ Ewk_Context* ewk_context_new()
 
 Ewk_Context* ewk_context_new_with_injected_bundle_path(const char* path)
 {
-    EINA_SAFETY_ON_NULL_RETURN_VAL(path, 0);
+    EINA_SAFETY_ON_NULL_RETURN_VAL(path, nullptr);
 
     return EwkContext::create(String::fromUTF8(path)).leakRef();
 }
@@ -301,11 +396,6 @@ void ewk_context_visited_link_add(Ewk_Context* ewkContext, const char* visitedUR
 
     impl->addVisitedLink(visitedURL);
 }
-
-// Ewk_Cache_Model enum validation
-COMPILE_ASSERT_MATCHING_ENUM(EWK_CACHE_MODEL_DOCUMENT_VIEWER, kWKCacheModelDocumentViewer);
-COMPILE_ASSERT_MATCHING_ENUM(EWK_CACHE_MODEL_DOCUMENT_BROWSER, kWKCacheModelDocumentBrowser);
-COMPILE_ASSERT_MATCHING_ENUM(EWK_CACHE_MODEL_PRIMARY_WEBBROWSER, kWKCacheModelPrimaryWebBrowser);
 
 Eina_Bool ewk_context_cache_model_set(Ewk_Context* ewkContext, Ewk_Cache_Model cacheModel)
 {
@@ -345,3 +435,20 @@ void ewk_context_resource_cache_clear(Ewk_Context* ewkContext)
     impl->clearResourceCache();
 }
 
+void ewk_context_message_post_to_injected_bundle(Ewk_Context* ewkContext, const char* name, const char* body)
+{
+    EWK_OBJ_GET_IMPL_OR_RETURN(EwkContext, ewkContext, impl);
+    EINA_SAFETY_ON_NULL_RETURN(name);
+    EINA_SAFETY_ON_NULL_RETURN(body);
+
+    WKRetainPtr<WKStringRef> messageName(AdoptWK, WKStringCreateWithUTF8CString(name));
+    WKRetainPtr<WKStringRef> messageBody(AdoptWK, WKStringCreateWithUTF8CString(body));
+    WKContextPostMessageToInjectedBundle(impl->wkContext(), messageName.get(), messageBody.get());
+}
+
+void ewk_context_message_from_injected_bundle_callback_set(Ewk_Context* ewkContext, Ewk_Context_Message_From_Injected_Bundle_Cb callback, void* userData)
+{
+    EWK_OBJ_GET_IMPL_OR_RETURN(EwkContext, ewkContext, impl);
+
+    impl->setMessageFromInjectedBundleCallback(callback, userData);
+}

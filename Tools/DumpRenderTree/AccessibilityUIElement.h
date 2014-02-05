@@ -154,6 +154,7 @@ public:
     bool isOffScreen() const;
     bool isCollapsed() const;
     bool isIgnored() const;
+    bool isIndeterminate() const;
     bool hasPopup() const;
     int hierarchicalLevel() const;
     double clickPointX();
@@ -178,6 +179,8 @@ public:
     JSStringRef columnIndexRange();
     int rowCount();
     int columnCount();
+    void rowHeaders(Vector<AccessibilityUIElement>& elements) const;
+    void columnHeaders(Vector<AccessibilityUIElement>& elements) const;
     
     // Tree/Outline specific attributes
     AccessibilityUIElement selectedRowAtIndex(unsigned);
@@ -188,6 +191,7 @@ public:
     // ARIA specific
     AccessibilityUIElement ariaOwnsElementAtIndex(unsigned);
     AccessibilityUIElement ariaFlowToElementAtIndex(unsigned);
+    AccessibilityUIElement ariaControlsElementAtIndex(unsigned);
 
     // ARIA Drag and Drop
     bool ariaIsGrabbed() const;
@@ -286,8 +290,10 @@ private:
     static JSClassRef getJSClass();
     PlatformUIElement m_element;
     
+#if PLATFORM(IOS) 
+    JSObjectRef m_notificationFunctionCallback;
+#elif PLATFORM(MAC)
     // A retained, platform specific object used to help manage notifications for this object.
-#if PLATFORM(MAC)
     NotificationHandler m_notificationHandler;
 #endif
 

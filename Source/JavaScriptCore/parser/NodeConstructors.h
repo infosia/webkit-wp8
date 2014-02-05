@@ -769,14 +769,14 @@ inline ResolveNode::ResolveNode(const JSTokenLocation& location, const Identifie
         : ExpressionNode(location)
         , m_body(body)
     {
-        m_body->finishParsing(source, parameter, ident, FunctionNameIsInScope);
+        m_body->finishParsing(source, parameter, ident, FunctionExpression);
     }
 
     inline FuncDeclNode::FuncDeclNode(const JSTokenLocation& location, const Identifier& ident, FunctionBodyNode* body, const SourceCode& source, ParameterNode* parameter)
         : StatementNode(location)
         , m_body(body)
     {
-        m_body->finishParsing(source, parameter, ident, FunctionNameIsNotInScope);
+        m_body->finishParsing(source, parameter, ident, FunctionDeclaration);
     }
 
     inline CaseClauseNode::CaseClauseNode(ExpressionNode* expr, SourceElements* statements)
@@ -888,14 +888,15 @@ inline ResolveNode::ResolveNode(const JSTokenLocation& location, const Identifie
         return adoptRef(new ObjectPatternNode(vm));
     }
 
-    inline PassRefPtr<BindingNode> BindingNode::create(VM* vm, const Identifier& boundProperty, const JSTextPosition& divot, const JSTextPosition& start, const JSTextPosition& end)
+    inline PassRefPtr<BindingNode> BindingNode::create(VM* vm, const Identifier& boundProperty, const JSTextPosition& start, const JSTextPosition& end)
     {
-        return adoptRef(new BindingNode(vm, boundProperty, divot, start, end));
+        return adoptRef(new BindingNode(vm, boundProperty, start, end));
     }
     
-    inline BindingNode::BindingNode(VM* vm, const Identifier& boundProperty, const JSTextPosition& divot, const JSTextPosition& start, const JSTextPosition& end)
+    inline BindingNode::BindingNode(VM* vm, const Identifier& boundProperty, const JSTextPosition& start, const JSTextPosition& end)
         : DeconstructionPatternNode(vm)
-        , ThrowableExpressionData(divot, start, end)
+        , m_divotStart(start)
+        , m_divotEnd(end)
         , m_boundProperty(boundProperty)
     {
     }

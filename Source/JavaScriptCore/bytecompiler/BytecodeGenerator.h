@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2012, 2013, 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Cameron Zwarich <cwzwarich@uwaterloo.ca>
  * Copyright (C) 2012 Igalia, S.L.
  *
@@ -425,7 +425,8 @@ namespace JSC {
 
         void emitThrowReferenceError(const String& message);
 
-        void emitPushNameScope(const Identifier& property, RegisterID* value, unsigned attributes);
+        void emitPushFunctionNameScope(const Identifier& property, RegisterID* value, unsigned attributes);
+        void emitPushCatchScope(const Identifier& property, RegisterID* value, unsigned attributes);
 
         RegisterID* emitPushWithScope(RegisterID* scope);
         void emitPopScope();
@@ -591,14 +592,22 @@ namespace JSC {
         void createActivationIfNecessary();
         RegisterID* createLazyRegisterIfNecessary(RegisterID*);
         
-        StringImpl* watchableVariable(int operand)
+        unsigned watchableVariable(int operand)
         {
             VirtualRegister reg(operand);
             if (!reg.isLocal())
-                return 0;
+                return UINT_MAX;
             if (static_cast<size_t>(reg.toLocal()) >= m_watchableVariables.size())
-                return 0;
-            return m_watchableVariables[reg.toLocal()];
+                return UINT_MAX;
+            Identifier& ident = m_watchableVariables[reg.toLocal()];
+            if (ident.isNull())
+                return UINT_MAX;
+            return addConstant(ident);
+        }
+        
+        bool hasWatchableVariable(int operand)
+        {
+            return watchableVariable(operand) != UINT_MAX;
         }
         
         Vector<UnlinkedInstruction, 0, UnsafeVectorOverflow> m_instructions;
@@ -620,7 +629,7 @@ namespace JSC {
         RegisterID* m_activationRegister;
         RegisterID* m_emptyValueRegister;
         RegisterID* m_globalObjectRegister;
-        Vector<StringImpl*, 16> m_watchableVariables;
+        Vector<Identifier, 16> m_watchableVariables;
         SegmentedVector<RegisterID, 32> m_constantPoolRegisters;
         SegmentedVector<RegisterID, 32> m_calleeRegisters;
         SegmentedVector<RegisterID, 32> m_parameters;
@@ -635,6 +644,7 @@ namespace JSC {
         Vector<SwitchInfo> m_switchContextStack;
         Vector<ForInContext> m_forInContextStack;
         Vector<TryContext> m_tryContextStack;
+        Vector<std::pair<RefPtr<RegisterID>, const DeconstructionPatternNode*>> m_deconstructedParameters;
         
         Vector<TryRange> m_tryRanges;
         SegmentedVector<TryData, 8> m_tryData;
@@ -645,7 +655,6 @@ namespace JSC {
 
         int m_globalVarStorageOffset;
 
-        bool m_hasCreatedActivation;
         int m_firstLazyFunction;
         int m_lastLazyFunction;
         HashMap<unsigned int, FunctionBodyNode*, WTF::IntHash<unsigned int>, WTF::UnsignedWithZeroKeyHashTraits<unsigned int>> m_lazyFunctions;

@@ -28,12 +28,11 @@ find_package(ZLIB REQUIRED)
 find_package(GLIB 2.36.0 REQUIRED COMPONENTS gio gobject gthread)
 find_package(LibSoup 2.42.0 REQUIRED)
 
-set(WTF_USE_ICU_UNICODE 1)
 set(WTF_USE_SOUP 1)
+set(WTF_USE_UDIS86 1)
 
 add_definitions(-DWTF_USE_GLIB=1)
 add_definitions(-DWTF_USE_SOUP=1)
-add_definitions(-DWTF_USE_ICU_UNICODE=1)
 add_definitions(-DWTF_USE_CAIRO=1)
 add_definitions(-DWTF_USE_CROSS_PLATFORM_CONTEXT_MENUS=1)
 
@@ -166,10 +165,6 @@ if (ENABLE_WEBKIT2 AND ENABLE_NETSCAPE_PLUGIN_API)
     set(ENABLE_PLUGIN_PROCESS 1)
 endif ()
 
-if (NOT ENABLE_SVG)
-    set(ENABLE_SVG_FONTS 0)
-endif ()
-
 if (ENABLE_BATTERY_STATUS)
     find_package(DBus REQUIRED)
     find_package(E_DBus 1.7 COMPONENTS EUKit)
@@ -267,6 +262,13 @@ if (CMAKE_COMPILER_IS_GNUCC AND UNIX AND NOT APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "-Wl,--gc-sections ${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
 endif ()
 
+# push of rbp is needed after JSC JIT uses CStack
+if (CMAKE_COMPILER_IS_GNUCC AND UNIX AND NOT APPLE)
+    set(CMAKE_C_FLAGS_RELEASE "-fno-omit-frame-pointer ${CMAKE_C_FLAGS_RELEASE}")
+    set(CMAKE_CXX_FLAGS_RELEASE "-fno-omit-frame-pointer ${CMAKE_CXX_FLAGS_RELEASE}")
+endif ()
+
+
 if (ENABLE_SPELLCHECK)
     find_package(Enchant REQUIRED)
 endif ()
@@ -281,3 +283,11 @@ if (ENABLE_INDEXED_DATABASE)
     set(WTF_USE_LEVELDB 1)
     add_definitions(-DWTF_USE_LEVELDB=1)
 endif ()
+
+if (ENABLE_FTL_JIT)
+    find_package(LLVM REQUIRED)
+    set(HAVE_LLVM ON)
+endif ()
+
+# [E]WebKit2 tests need a hint to find out where processes such as WebProcess are located at.
+add_definitions(-DWEBKIT_EXEC_PATH=\"${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\")

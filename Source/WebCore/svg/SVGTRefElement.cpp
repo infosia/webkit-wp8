@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTRefElement.h"
 
 #include "EventListener.h"
@@ -76,8 +74,8 @@ public:
 private:
     SVGTRefTargetEventListener(SVGTRefElement* trefElement);
 
-    virtual void handleEvent(ScriptExecutionContext*, Event*) OVERRIDE;
-    virtual bool operator==(const EventListener&) OVERRIDE;
+    virtual void handleEvent(ScriptExecutionContext*, Event*) override;
+    virtual bool operator==(const EventListener&) override;
 
     SVGTRefElement* m_trefElement;
     RefPtr<Element> m_target;
@@ -291,5 +289,3 @@ void SVGTRefElement::removedFrom(ContainerNode& rootParent)
 }
 
 }
-
-#endif // ENABLE(SVG)

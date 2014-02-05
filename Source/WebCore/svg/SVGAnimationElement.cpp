@@ -23,8 +23,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimationElement.h"
 
 #include "Attribute.h"
@@ -94,7 +92,7 @@ static void parseKeySplines(const String& parse, Vector<UnitBezier>& result)
     result.clear();
     if (parse.isEmpty())
         return;
-    const UChar* cur = parse.characters();
+    const UChar* cur = parse.deprecatedCharacters();
     const UChar* end = cur + parse.length();
 
     skipOptionalSVGSpaces(cur, end);
@@ -691,5 +689,3 @@ void SVGAnimationElement::checkInvalidCSSAttributeType(SVGElement* target)
 }
 
 }
-
-#endif // ENABLE(SVG)

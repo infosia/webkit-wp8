@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimateMotionElement.h"
 
 #include "AffineTransform.h"
@@ -158,7 +156,7 @@ static bool parsePoint(const String& s, FloatPoint& point)
 {
     if (s.isEmpty())
         return false;
-    const UChar* cur = s.characters();
+    const UChar* cur = s.deprecatedCharacters();
     const UChar* end = cur + s.length();
     
     if (!skipOptionalSVGSpaces(cur, end))
@@ -332,4 +330,3 @@ void SVGAnimateMotionElement::updateAnimationMode()
 }
 
 }
-#endif // ENABLE(SVG)

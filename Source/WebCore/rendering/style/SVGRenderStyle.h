@@ -23,7 +23,6 @@
 #ifndef SVGRenderStyle_h
 #define SVGRenderStyle_h
 
-#if ENABLE(SVG)
 #include "CSSValueList.h"
 #include "DataRef.h"
 #include "ExceptionCodePlaceholder.h"
@@ -43,7 +42,7 @@ class SVGRenderStyle : public RefCounted<SVGRenderStyle> {
 public:
     static PassRef<SVGRenderStyle> createDefaultStyle();
     static PassRef<SVGRenderStyle> create() { return adoptRef(*new SVGRenderStyle); }
-    PassRef<SVGRenderStyle> copy() const { return adoptRef(*new SVGRenderStyle(*this));}
+    PassRef<SVGRenderStyle> copy() const;
     ~SVGRenderStyle();
 
     bool inheritedNotEqual(const SVGRenderStyle*) const;
@@ -470,5 +469,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGRenderStyle_h

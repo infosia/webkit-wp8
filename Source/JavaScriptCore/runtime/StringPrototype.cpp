@@ -237,7 +237,7 @@ static inline String substituteBackreferences(const String& replacement, const S
 
 static inline int localeCompare(const String& a, const String& b)
 {
-    return Collator::userDefault()->collate(reinterpret_cast<const ::UChar*>(a.characters()), a.length(), reinterpret_cast<const ::UChar*>(b.characters()), b.length());
+    return Collator::userDefault()->collate(reinterpret_cast<const ::UChar*>(a.deprecatedCharacters()), a.length(), reinterpret_cast<const ::UChar*>(b.deprecatedCharacters()), b.length());
 }
 
 struct StringRange {
@@ -265,7 +265,7 @@ static ALWAYS_INLINE JSValue jsSpliceSubstrings(ExecState* exec, JSString* sourc
         if (position <= 0 && length >= sourceSize)
             return sourceVal;
         // We could call String::substringSharingImpl(), but this would result in redundant checks.
-        return jsString(exec, StringImpl::create(source.impl(), std::max(0, position), std::min(sourceSize, length)));
+        return jsString(exec, StringImpl::createSubstringSharingImpl(source.impl(), std::max(0, position), std::min(sourceSize, length)));
     }
 
     int totalLength = 0;
@@ -320,7 +320,7 @@ static ALWAYS_INLINE JSValue jsSpliceSubstringsWithSeparators(ExecState* exec, J
         if (position <= 0 && length >= sourceSize)
             return sourceVal;
         // We could call String::substringSharingImpl(), but this would result in redundant checks.
-        return jsString(exec, StringImpl::create(source.impl(), std::max(0, position), std::min(sourceSize, length)));
+        return jsString(exec, StringImpl::createSubstringSharingImpl(source.impl(), std::max(0, position), std::min(sourceSize, length)));
     }
 
     Checked<int, RecordOverflow> totalLength = 0;
@@ -650,14 +650,14 @@ static inline EncodedJSValue replaceUsingStringSearch(ExecState* exec, JSString*
         return JSValue::encode(jsUndefined());
 
     StringImpl* stringImpl = string.impl();
-    String leftPart(StringImpl::create(stringImpl, 0, matchStart));
+    String leftPart(StringImpl::createSubstringSharingImpl(stringImpl, 0, matchStart));
 
     size_t matchEnd = matchStart + searchString.impl()->length();
     int ovector[2] = { static_cast<int>(matchStart),  static_cast<int>(matchEnd)};
     String middlePart = substituteBackreferences(replaceString, string, ovector, 0);
 
     size_t leftLength = stringImpl->length() - matchEnd;
-    String rightPart(StringImpl::create(stringImpl, matchEnd, leftLength));
+    String rightPart(StringImpl::createSubstringSharingImpl(stringImpl, matchEnd, leftLength));
     return JSValue::encode(JSC::jsString(exec, leftPart, middlePart, rightPart));
 }
 
@@ -942,7 +942,7 @@ static ALWAYS_INLINE bool splitStringByOneCharacterImpl(ExecState* exec, JSArray
 {
     // 12. Let q = p.
     size_t matchPosition;
-    const CharacterType* characters = string->getCharacters<CharacterType>();
+    const CharacterType* characters = string->characters<CharacterType>();
     // 13. Repeat, while q != s
     //   a. Call SplitMatch(S, q, R) and let z be its MatchResult result.
     //   b. If z is failure, then let q = q+1.
@@ -1427,7 +1427,7 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncFontsize(ExecState* exec)
         buffer[12] = '0' + smallInteger;
         buffer[13] = '"';
         buffer[14] = '>';
-        memcpy(&buffer[15], s.characters(), stringSize * sizeof(UChar));
+        memcpy(&buffer[15], s.deprecatedCharacters(), stringSize * sizeof(UChar));
         buffer[15 + stringSize] = '<';
         buffer[16 + stringSize] = '/';
         buffer[17 + stringSize] = 'f';
@@ -1483,10 +1483,10 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncLink(ExecState* exec)
     buffer[6] = 'f';
     buffer[7] = '=';
     buffer[8] = '"';
-    memcpy(&buffer[9], linkText.characters(), linkTextSize * sizeof(UChar));
+    memcpy(&buffer[9], linkText.deprecatedCharacters(), linkTextSize * sizeof(UChar));
     buffer[9 + linkTextSize] = '"';
     buffer[10 + linkTextSize] = '>';
-    memcpy(&buffer[11 + linkTextSize], s.characters(), stringSize * sizeof(UChar));
+    memcpy(&buffer[11 + linkTextSize], s.deprecatedCharacters(), stringSize * sizeof(UChar));
     buffer[11 + linkTextSize + stringSize] = '<';
     buffer[12 + linkTextSize + stringSize] = '/';
     buffer[13 + linkTextSize + stringSize] = 'a';

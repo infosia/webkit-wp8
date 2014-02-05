@@ -32,14 +32,6 @@
 #include <objc/objc.h>
 #endif
 
-#if PLATFORM(BLACKBERRY)
-namespace BlackBerry {
-namespace Platform {
-class String;
-}
-}
-#endif
-
 namespace WTF {
 
 class CString;
@@ -120,6 +112,7 @@ public:
     WTF_EXPORT_STRING_API String(const char* characters);
 
     // Construct a string referencing an existing StringImpl.
+    String(StringImpl& impl) : m_impl(&impl) { }
     String(StringImpl* impl) : m_impl(impl) { }
     String(PassRefPtr<StringImpl> impl) : m_impl(impl) { }
     String(PassRef<StringImpl> impl) : m_impl(std::move(impl)) { }
@@ -164,13 +157,13 @@ public:
         return m_impl->length();
     }
 
-    const UChar* characters() const
+    const UChar* deprecatedCharacters() const
     {
         if (!m_impl)
             return 0;
-        return m_impl->characters();
+        return m_impl->deprecatedCharacters();
     }
-    
+
     const LChar* characters8() const
     {
         if (!m_impl)
@@ -189,9 +182,9 @@ public:
 
     // Return characters8() or characters16() depending on CharacterType.
     template <typename CharacterType>
-    inline const CharacterType* getCharacters() const;
+    inline const CharacterType* characters() const;
 
-    // Like getCharacters() and upconvert if CharacterType is UChar on a 8bit string.
+    // Like characters() and upconvert if CharacterType is UChar on a 8bit string.
     template <typename CharacterType>
     inline const CharacterType* getCharactersWithUpconvert() const;
 
@@ -414,11 +407,6 @@ public:
     operator NSString*() const { if (!m_impl) return @""; return *m_impl; }
 #endif
 
-#if PLATFORM(BLACKBERRY)
-    String(const BlackBerry::Platform::String&);
-    operator BlackBerry::Platform::String() const;
-#endif
-
     WTF_EXPORT_STRING_API static String make8BitFrom16BitSource(const UChar*, size_t);
     template<size_t inlineCapacity>
     static String make8BitFrom16BitSource(const Vector<UChar, inlineCapacity>& buffer)
@@ -530,14 +518,14 @@ String::String(const Vector<UChar, inlineCapacity, OverflowHandler>& vector)
 }
 
 template<>
-inline const LChar* String::getCharacters<LChar>() const
+inline const LChar* String::characters<LChar>() const
 {
     ASSERT(is8Bit());
     return characters8();
 }
 
 template<>
-inline const UChar* String::getCharacters<UChar>() const
+inline const UChar* String::characters<UChar>() const
 {
     ASSERT(!is8Bit());
     return characters16();
@@ -553,7 +541,7 @@ inline const LChar* String::getCharactersWithUpconvert<LChar>() const
 template<>
 inline const UChar* String::getCharactersWithUpconvert<UChar>() const
 {
-    return characters();
+    return deprecatedCharacters();
 }
 
 inline bool String::containsOnlyLatin1() const
@@ -600,7 +588,7 @@ inline bool codePointCompareLessThan(const String& a, const String& b)
 template<size_t inlineCapacity>
 inline void append(Vector<UChar, inlineCapacity>& vector, const String& string)
 {
-    vector.append(string.characters(), string.length());
+    vector.append(string.deprecatedCharacters(), string.length());
 }
 
 template<typename CharacterType>
@@ -614,10 +602,12 @@ inline void appendNumber(Vector<CharacterType>& vector, unsigned char number)
     case 3:
         vector[vectorSize + 2] = number % 10 + '0';
         number /= 10;
+        FALLTHROUGH;
 
     case 2:
         vector[vectorSize + 1] = number % 10 + '0';
         number /= 10;
+        FALLTHROUGH;
 
     case 1:
         vector[vectorSize] = number % 10 + '0';
@@ -644,7 +634,7 @@ inline bool String::isAllSpecialCharacters() const
 
     if (is8Bit())
         return WTF::isAllSpecialCharacters<isSpecialCharacter, LChar>(characters8(), len);
-    return WTF::isAllSpecialCharacters<isSpecialCharacter, UChar>(characters(), len);
+    return WTF::isAllSpecialCharacters<isSpecialCharacter, UChar>(characters16(), len);
 }
 
 // StringHash is the default hash for String

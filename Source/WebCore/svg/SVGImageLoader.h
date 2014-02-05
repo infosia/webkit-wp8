@@ -20,7 +20,6 @@
 #ifndef SVGImageLoader_h
 #define SVGImageLoader_h
 
-#if ENABLE(SVG)
 #include "ImageLoader.h"
 
 namespace WebCore {
@@ -32,11 +31,10 @@ public:
     SVGImageLoader(SVGImageElement*);
 
 private:
-    virtual void dispatchLoadEvent();
-    virtual String sourceURI(const AtomicString&) const;
+    virtual void dispatchLoadEvent() override;
+    virtual String sourceURI(const AtomicString&) const override;
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGImageLoader_h

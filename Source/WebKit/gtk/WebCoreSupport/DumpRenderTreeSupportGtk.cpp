@@ -67,6 +67,7 @@
 #include "SecurityPolicy.h"
 #include "Settings.h"
 #include "TextIterator.h"
+#include "VisibleSelection.h"
 #include "WebKitAccessibleWrapperAtk.h"
 #include "webkitglobalsprivate.h"
 #include "webkitwebframe.h"
@@ -389,11 +390,12 @@ bool DumpRenderTreeSupportGtk::selectedRange(WebKitWebView* webView, int* start,
 
     Frame& frame = core(webView)->focusController().focusedOrMainFrame();
 
-    RefPtr<Range> range = frame.selection().toNormalizedRange().get();
+    const VisibleSelection& selection = frame.selection().selection();
+    RefPtr<Range> range = selection.toNormalizedRange().get();
     if (!range)
         return false;
 
-    Element* selectionRoot = frame.selection().rootEditableElement();
+    Element* selectionRoot = selection.rootEditableElement();
     Element* scope = selectionRoot ? selectionRoot : frame.document()->documentElement();
 
     RefPtr<Range> testRange = Range::create(scope->document(), scope, 0, range->startContainer(), range->startOffset());
@@ -487,7 +489,7 @@ void DumpRenderTreeSupportGtk::setValueForUser(JSContextRef context, JSValueRef 
         return;
 
     size_t bufferSize = JSStringGetMaximumUTF8CStringSize(value);
-    GOwnPtr<gchar> valueBuffer(static_cast<gchar*>(g_malloc(bufferSize)));
+    GUniquePtr<gchar> valueBuffer(static_cast<gchar*>(g_malloc(bufferSize)));
     JSStringGetUTF8CString(value, valueBuffer.get(), bufferSize);
     inputElement->setValueForUser(String::fromUTF8(valueBuffer.get()));
 }
@@ -577,24 +579,10 @@ void DumpRenderTreeSupportGtk::setCSSRegionsEnabled(WebKitWebView* webView, bool
     RuntimeEnabledFeatures::sharedFeatures().setCSSRegionsEnabled(enabled);
 }
 
-void DumpRenderTreeSupportGtk::setCSSCustomFilterEnabled(WebKitWebView* webView, bool enabled)
-{
-#if ENABLE(CSS_SHADERS)
-    core(webView)->settings().setCSSCustomFilterEnabled(enabled);
-#endif
-}
-
 void DumpRenderTreeSupportGtk::setExperimentalContentSecurityPolicyFeaturesEnabled(bool enabled)
 {
 #if ENABLE(CSP_NEXT)
     RuntimeEnabledFeatures::sharedFeatures().setExperimentalContentSecurityPolicyFeaturesEnabled(enabled);
-#endif
-}
-
-void DumpRenderTreeSupportGtk::setSeamlessIFramesEnabled(bool enabled)
-{
-#if ENABLE(IFRAME_SEAMLESS)
-    RuntimeEnabledFeatures::sharedFeatures().setSeamlessIFramesEnabled(enabled);
 #endif
 }
 
@@ -699,6 +687,8 @@ void DumpRenderTreeSupportGtk::setPageVisibility(WebKitWebView* webView, WebCore
     if (!page)
         return;
 
-    page->setVisibilityState(visibilityState, isInitialState);
+    page->setIsVisible(visibilityState == PageVisibilityStateVisible, isInitialState);
+    if (visibilityState == PageVisibilityStatePrerender)
+        page->setIsPrerender();
 #endif
 }

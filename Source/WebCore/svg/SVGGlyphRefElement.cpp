@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(SVG_FONTS)
+#if ENABLE(SVG_FONTS)
 #include "SVGGlyphRefElement.h"
 
 #include "SVGGlyphElement.h"
@@ -66,7 +66,7 @@ bool SVGGlyphRefElement::hasValidGlyphElement(String& glyphName) const
 
 void SVGGlyphRefElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
-    const UChar* startPtr = value.characters();
+    const UChar* startPtr = value.string().deprecatedCharacters();
     const UChar* endPtr = startPtr + value.length();
 
     // FIXME: We need some error handling here.

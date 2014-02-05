@@ -119,10 +119,8 @@ void WebView::setVisible(bool visible)
     m_visible = visible;
     m_page->viewStateDidChange(ViewState::IsVisible);
 
-#if USE(ACCELERATED_COMPOSITING)
     if (CoordinatedDrawingAreaProxy* drawingArea = static_cast<CoordinatedDrawingAreaProxy*>(page()->drawingArea()))
         drawingArea->visibilityDidChange();
-#endif
 }
 
 void WebView::setUserViewportTranslation(double tx, double ty)
@@ -340,19 +338,13 @@ bool WebView::isViewVisible()
     return isVisible();
 }
 
-bool WebView::isWindowVisible()
-{
-    notImplemented();
-    return true;
-}
-
 bool WebView::isViewInWindow()
 {
     notImplemented();
     return true;
 }
 
-void WebView::processDidCrash()
+void WebView::processDidExit()
 {
     m_client.webProcessCrashed(this, m_page->urlAtProcessExit());
 }

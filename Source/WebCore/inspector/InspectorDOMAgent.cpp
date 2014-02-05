@@ -57,18 +57,13 @@
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTarget.h"
-#include "File.h"
-#include "FileList.h"
 #include "FrameTree.h"
 #include "HTMLElement.h"
 #include "HTMLFrameOwnerElement.h"
-#include "HTMLInputElement.h"
 #include "HTMLNames.h"
 #include "HTMLTemplateElement.h"
 #include "HitTestResult.h"
 #include "IdentifiersFactory.h"
-#include "InjectedScriptManager.h"
-#include "InspectorClient.h"
 #include "InspectorHistory.h"
 #include "InspectorNodeFinder.h"
 #include "InspectorOverlay.h"
@@ -83,7 +78,6 @@
 #include "Node.h"
 #include "NodeList.h"
 #include "Page.h"
-#include "PageInjectedScriptManager.h"
 #include "Pasteboard.h"
 #include "RenderStyle.h"
 #include "RenderStyleConstants.h"
@@ -97,6 +91,8 @@
 #include "XPathResult.h"
 #include "htmlediting.h"
 #include "markup.h"
+#include <inspector/InjectedScript.h>
+#include <inspector/InjectedScriptManager.h>
 #include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/Vector.h>
@@ -172,7 +168,7 @@ public:
     RevalidateStyleAttributeTask(InspectorDOMAgent*);
     void scheduleFor(Element*);
     void reset() { m_timer.stop(); }
-    void onTimer(Timer<RevalidateStyleAttributeTask>*);
+    void timerFired(Timer<RevalidateStyleAttributeTask>&);
 
 private:
     InspectorDOMAgent* m_domAgent;
@@ -182,7 +178,7 @@ private:
 
 RevalidateStyleAttributeTask::RevalidateStyleAttributeTask(InspectorDOMAgent* domAgent)
     : m_domAgent(domAgent)
-    , m_timer(this, &RevalidateStyleAttributeTask::onTimer)
+    , m_timer(this, &RevalidateStyleAttributeTask::timerFired)
 {
 }
 
@@ -193,7 +189,7 @@ void RevalidateStyleAttributeTask::scheduleFor(Element* element)
         m_timer.startOneShot(0);
 }
 
-void RevalidateStyleAttributeTask::onTimer(Timer<RevalidateStyleAttributeTask>*)
+void RevalidateStyleAttributeTask::timerFired(Timer<RevalidateStyleAttributeTask>&)
 {
     // The timer is stopped on m_domAgent destruction, so this method will never be called after m_domAgent has been destroyed.
     Vector<Element*> elements;
@@ -213,12 +209,11 @@ String InspectorDOMAgent::toErrorString(const ExceptionCode& ec)
     return "";
 }
 
-InspectorDOMAgent::InspectorDOMAgent(InstrumentingAgents* instrumentingAgents, InspectorPageAgent* pageAgent, InjectedScriptManager* injectedScriptManager, InspectorOverlay* overlay, InspectorClient* client)
+InspectorDOMAgent::InspectorDOMAgent(InstrumentingAgents* instrumentingAgents, InspectorPageAgent* pageAgent, InjectedScriptManager* injectedScriptManager, InspectorOverlay* overlay)
     : InspectorAgentBase(ASCIILiteral("DOM"), instrumentingAgents)
     , m_pageAgent(pageAgent)
     , m_injectedScriptManager(injectedScriptManager)
     , m_overlay(overlay)
-    , m_client(client)
     , m_domListener(0)
     , m_lastNodeId(1)
     , m_lastBackendNodeId(-1)
@@ -249,7 +244,7 @@ void InspectorDOMAgent::didCreateFrontendAndBackend(Inspector::InspectorFrontend
         focusNode();
 }
 
-void InspectorDOMAgent::willDestroyFrontendAndBackend()
+void InspectorDOMAgent::willDestroyFrontendAndBackend(InspectorDisconnectReason)
 {
     m_frontendDispatcher = nullptr;
     m_backendDispatcher.clear();
@@ -684,10 +679,8 @@ void InspectorDOMAgent::setAttributesAsText(ErrorString* errorString, int elemen
     }
 
     bool foundOriginalAttribute = false;
-    unsigned numAttrs = childElement->attributeCount();
-    for (unsigned i = 0; i < numAttrs; ++i) {
+    for (const Attribute& attribute : childElement->attributesIterator()) {
         // Add attribute pair
-        const Attribute& attribute = childElement->attributeAt(i);
         foundOriginalAttribute = foundOriginalAttribute || (name && attribute.name().toString() == *name);
         if (!m_domEditor->setAttribute(element, attribute.name().toString(), attribute.value(), errorString))
             return;
@@ -778,11 +771,7 @@ void InspectorDOMAgent::setOuterHTML(ErrorString* errorString, int nodeId, const
         return;
 
     Document& document = node->document();
-    if (!document.isHTMLDocument() && !document.isXHTMLDocument()
-#if ENABLE(SVG)
-        && !document.isSVGDocument()
-#endif
-    ) {
+    if (!document.isHTMLDocument() && !document.isXHTMLDocument() && !document.isSVGDocument()) {
         *errorString = "Not an HTML/XML document";
         return;
     }
@@ -1188,34 +1177,6 @@ void InspectorDOMAgent::focus(ErrorString* errorString, int nodeId)
     element->focus();
 }
 
-void InspectorDOMAgent::setFileInputFiles(ErrorString* errorString, int nodeId, const RefPtr<InspectorArray>& files)
-{
-    if (!m_client->canSetFileInputFiles()) {
-        *errorString = "Cannot set file input files";
-        return;
-    }
-
-    Node* node = assertNode(errorString, nodeId);
-    if (!node)
-        return;
-    HTMLInputElement* element = node->toInputElement();
-    if (!element || !element->isFileUpload()) {
-        *errorString = "Node is not a file input element";
-        return;
-    }
-
-    RefPtr<FileList> fileList = FileList::create();
-    for (InspectorArray::const_iterator iter = files->begin(); iter != files->end(); ++iter) {
-        String path;
-        if (!(*iter)->asString(&path)) {
-            *errorString = "Files must be strings";
-            return;
-        }
-        fileList->append(File::create(path));
-    }
-    element->setFiles(fileList);
-}
-
 void InspectorDOMAgent::resolveNode(ErrorString* errorString, int nodeId, const String* const objectGroup, RefPtr<Inspector::TypeBuilder::Runtime::RemoteObject>& result)
 {
     String objectGroupName = objectGroup ? *objectGroup : "";
@@ -1355,10 +1316,8 @@ PassRefPtr<Inspector::TypeBuilder::Array<String>> InspectorDOMAgent::buildArrayF
     // Go through all attributes and serialize them.
     if (!element->hasAttributes())
         return attributesValue.release();
-    unsigned numAttrs = element->attributeCount();
-    for (unsigned i = 0; i < numAttrs; ++i) {
+    for (const Attribute& attribute : element->attributesIterator()) {
         // Add attribute pair
-        const Attribute& attribute = element->attributeAt(i);
         attributesValue->addItem(attribute.name().toString());
         attributesValue->addItem(attribute.value());
     }

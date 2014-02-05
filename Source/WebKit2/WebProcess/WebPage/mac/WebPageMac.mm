@@ -46,6 +46,7 @@
 #import <PDFKit/PDFKit.h>
 #import <QuartzCore/QuartzCore.h>
 #import <WebCore/AXObjectCache.h>
+#import <WebCore/BackForwardController.h>
 #import <WebCore/EventHandler.h>
 #import <WebCore/FocusController.h>
 #import <WebCore/FrameLoader.h>
@@ -259,7 +260,7 @@ void WebPage::setComposition(const String& text, Vector<CompositionUnderline> un
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    if (frame.selection().isContentEditable()) {
+    if (frame.selection().selection().isContentEditable()) {
         RefPtr<Range> replacementRange;
         if (replacementRangeStart != NSNotFound) {
             replacementRange = convertToRange(&frame, NSMakeRange(replacementRangeStart, replacementRangeEnd - replacementRangeStart));
@@ -359,7 +360,8 @@ void WebPage::getAttributedSubstringFromRange(uint64_t location, uint64_t length
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    if (frame.selection().isNone() || !frame.selection().isContentEditable() || frame.selection().isInPasswordField())
+    const VisibleSelection& selection = frame.selection().selection();
+    if (selection.isNone() || !selection.isContentEditable() || selection.isInPasswordField())
         return;
 
     NSRange nsRange = NSMakeRange(location, length - location);
@@ -596,7 +598,7 @@ void WebPage::performDictionaryLookupForRange(Frame* frame, Range* range, NSDict
             [scaledAttributes setObject:font forKey:NSFontAttributeName];
         }
 
-        [scaledNSAttributedString.get() addAttributes:scaledAttributes.get() range:range];
+        [scaledNSAttributedString addAttributes:scaledAttributes.get() range:range];
     }];
 
     AttributedString attributedString;
@@ -637,13 +639,13 @@ bool WebPage::performNonEditingBehaviorForSelector(const String& selector, Keybo
     else if (selector == "moveWordLeft:")
         didPerformAction = scroll(m_page.get(), ScrollLeft, ScrollByPage);
     else if (selector == "moveToLeftEndOfLine:")
-        didPerformAction = m_page->goBack();
+        didPerformAction = m_page->backForward().goBack();
     else if (selector == "moveRight:")
         didPerformAction = scroll(m_page.get(), ScrollRight, ScrollByLine);
     else if (selector == "moveWordRight:")
         didPerformAction = scroll(m_page.get(), ScrollRight, ScrollByPage);
     else if (selector == "moveToRightEndOfLine:")
-        didPerformAction = m_page->goForward();
+        didPerformAction = m_page->backForward().goForward();
 
     return didPerformAction;
 }
@@ -732,7 +734,7 @@ bool WebPage::platformHasLocalDataForURL(const WebCore::URL& url)
 static NSCachedURLResponse *cachedResponseForURL(WebPage* webPage, const URL& url)
 {
     RetainPtr<NSMutableURLRequest> request = adoptNS([[NSMutableURLRequest alloc] initWithURL:url]);
-    [request.get() setValue:(NSString *)webPage->userAgent() forHTTPHeaderField:@"User-Agent"];
+    [request setValue:(NSString *)webPage->userAgent() forHTTPHeaderField:@"User-Agent"];
 
     if (CFURLStorageSessionRef storageSession = webPage->corePage()->mainFrame().loader().networkingContext()->storageSession().platformSession())
         return WKCachedResponseForRequest(storageSession, request.get());
@@ -839,8 +841,8 @@ void WebPage::computePagesForPrintingPDFDocument(uint64_t frameID, const PrintIn
     WebFrame* frame = WebProcess::shared().webFrame(frameID);
     Frame* coreFrame = frame ? frame->coreFrame() : 0;
     RetainPtr<PDFDocument> pdfDocument = coreFrame ? pdfDocumentForPrintingFrame(coreFrame) : 0;
-    if ([pdfDocument.get() allowsPrinting]) {
-        NSUInteger pageCount = [pdfDocument.get() pageCount];
+    if ([pdfDocument allowsPrinting]) {
+        NSUInteger pageCount = [pdfDocument pageCount];
         IntRect pageRect(0, 0, ceilf(printInfo.availablePaperWidth), ceilf(printInfo.availablePaperHeight));
         for (NSUInteger i = 1; i <= pageCount; ++i) {
             resultPageRects.append(pageRect);

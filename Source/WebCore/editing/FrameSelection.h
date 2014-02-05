@@ -35,6 +35,10 @@
 #include "VisibleSelection.h"
 #include <wtf/Noncopyable.h>
 
+#if PLATFORM(IOS)
+#include "Color.h"
+#endif
+
 namespace WebCore {
 
 class CharacterData;
@@ -121,6 +125,7 @@ public:
         DoNotSetFocus = 1 << 4,
         DictationTriggered = 1 << 5,
         DoNotUpdateAppearance = 1 << 6,
+        DoNotRevealSelection = 1 << 7,
     };
     typedef unsigned SetSelectionOptions; // Union of values in SetSelectionOption and EUserTriggered
     static inline EUserTriggered selectionOptionsToUserTriggered(SetSelectionOptions options)
@@ -130,12 +135,7 @@ public:
 
     explicit FrameSelection(Frame* = 0);
 
-    Element* rootEditableElement() const { return m_selection.rootEditableElement(); }
     Element* rootEditableElementOrDocumentElement() const;
-
-    bool hasEditableStyle() const { return m_selection.hasEditableStyle(); }
-    bool isContentEditable() const { return m_selection.isContentEditable(); }
-    bool isContentRichlyEditable() const { return m_selection.isContentRichlyEditable(); }
      
     void moveTo(const Range*, EAffinity, EUserTriggered = NotUserTriggered);
     void moveTo(const VisiblePosition&, EUserTriggered = NotUserTriggered, CursorAlignOnScroll = AlignCursorOnScrollIfNeeded);
@@ -145,20 +145,12 @@ public:
 
     const VisibleSelection& selection() const { return m_selection; }
     void setSelection(const VisibleSelection&, SetSelectionOptions = CloseTyping | ClearTypingStyle, CursorAlignOnScroll = AlignCursorOnScrollIfNeeded, TextGranularity = CharacterGranularity);
-    void setSelection(const VisibleSelection& selection, TextGranularity granularity) { setSelection(selection, CloseTyping | ClearTypingStyle, AlignCursorOnScrollIfNeeded, granularity); }
     bool setSelectedRange(Range*, EAffinity, bool closeTyping);
     void selectAll();
     void clear();
     void prepareForDestruction();
 
-    // Call this after doing user-triggered selections to make it easy to delete the frame you entirely selected.
-    void selectFrameElementInParentIfFullySelected();
-
     bool contains(const LayoutPoint&);
-
-    VisibleSelection::SelectionType selectionType() const { return m_selection.selectionType(); }
-
-    EAffinity affinity() const { return m_selection.affinity(); }
 
     bool modify(EAlteration, SelectionDirection, TextGranularity, EUserTriggered = NotUserTriggered);
     enum VerticalDirection { DirectionUp, DirectionDown };
@@ -174,9 +166,6 @@ public:
     void setExtent(const VisiblePosition&, EUserTriggered = NotUserTriggered);
     void setExtent(const Position&, EAffinity, EUserTriggered = NotUserTriggered);
 
-    Position base() const { return m_selection.base(); }
-    Position extent() const { return m_selection.extent(); }
-    Position start() const { return m_selection.start(); }
     Position end() const { return m_selection.end(); }
 
     // Return the renderer that is responsible for painting the caret (in the selection start node)
@@ -195,7 +184,6 @@ public:
     bool isCaret() const { return m_selection.isCaret(); }
     bool isRange() const { return m_selection.isRange(); }
     bool isCaretOrRange() const { return m_selection.isCaretOrRange(); }
-    bool isInPasswordField() const;
     bool isAll(EditingBoundaryCrossingRule rule = CannotCrossEditingBoundary) const { return m_selection.isAll(rule); }
     
     PassRefPtr<Range> toNormalizedRange() const { return m_selection.toNormalizedRange(); }
@@ -228,11 +216,47 @@ public:
     void showTreeForThis() const;
 #endif
 
+#if PLATFORM(IOS)
+public:
+    void expandSelectionToElementContainingCaretSelection();
+    PassRefPtr<Range> elementRangeContainingCaretSelection() const;
+    void expandSelectionToWordContainingCaretSelection();
+    PassRefPtr<Range> wordRangeContainingCaretSelection();
+    void expandSelectionToStartOfWordContainingCaretSelection();
+    UChar characterInRelationToCaretSelection(int amount) const;
+    UChar characterBeforeCaretSelection() const;
+    UChar characterAfterCaretSelection() const;
+    int wordOffsetInRange(const Range*) const;
+    bool spaceFollowsWordInRange(const Range*) const;
+    bool selectionAtDocumentStart() const;
+    bool selectionAtSentenceStart() const;
+    bool selectionAtWordStart() const;
+    PassRefPtr<Range> rangeByMovingCurrentSelection(int amount) const;
+    PassRefPtr<Range> rangeByExtendingCurrentSelection(int amount) const;
+    void selectRangeOnElement(unsigned location, unsigned length, Node*);
+    void suppressCloseTyping() { ++m_closeTypingSuppressions; }
+    void restoreCloseTyping() { --m_closeTypingSuppressions; }
+    void clearCurrentSelection();
+    void setCaretBlinks(bool caretBlinks = true);
+    void setCaretColor(const Color&);
+    static VisibleSelection wordSelectionContainingCaretSelection(const VisibleSelection&);
+    void setUpdateAppearanceEnabled(bool enabled) { m_updateAppearanceEnabled = enabled; }
+    void suppressScrolling() { ++m_scrollingSuppressCount; }
+    void restoreScrolling()
+    {
+        ASSERT(m_scrollingSuppressCount);
+        --m_scrollingSuppressCount;
+    }
+private:
+    bool actualSelectionAtSentenceStart(const VisibleSelection&) const;
+    PassRefPtr<Range> rangeByAlteringCurrentSelection(EAlteration, int amount) const;
+public:
+#endif
+
     bool shouldChangeSelection(const VisibleSelection&) const;
     bool shouldDeleteSelection(const VisibleSelection&) const;
     enum EndPointsAdjustmentMode { AdjustEndpointsAtBidiBoundary, DoNotAdjsutEndpoints };
-    void setNonDirectionalSelectionIfNeeded(const VisibleSelection&, TextGranularity, EndPointsAdjustmentMode = DoNotAdjsutEndpoints);
-    void notifyRendererOfSelectionChange(EUserTriggered);
+    void setSelectionByMouseIfDifferent(const VisibleSelection&, TextGranularity, EndPointsAdjustmentMode = DoNotAdjsutEndpoints);
 
     void paintDragCaret(GraphicsContext*, const LayoutPoint&, const LayoutRect& clipRect) const;
 
@@ -280,10 +304,14 @@ private:
     void notifyAccessibilityForSelectionChange();
 #endif
 
+    void updateSelectionCachesIfSelectionIsInsideTextFormControl(EUserTriggered);
+
+    void selectFrameElementInParentIfFullySelected();
+
     void setFocusedElementIfNeeded();
     void focusedOrActiveStateChanged();
 
-    void caretBlinkTimerFired(Timer<FrameSelection>*);
+    void caretBlinkTimerFired(Timer<FrameSelection>&);
 
     void setCaretVisibility(CaretVisibility);
 
@@ -294,6 +322,7 @@ private:
     LayoutUnit m_xPosForVerticalArrowNavigation;
 
     VisibleSelection m_selection;
+    mutable VisibleSelection m_validatedSelectionCache;
     VisiblePosition m_originalBase; // Used to store base before the adjustment at bidi boundary
     TextGranularity m_granularity;
 
@@ -309,6 +338,14 @@ private:
     bool m_isCaretBlinkingSuspended : 1;
     bool m_focused : 1;
     bool m_shouldShowBlockCursor : 1;
+
+#if PLATFORM(IOS)
+    bool m_updateAppearanceEnabled : 1;
+    bool m_caretBlinks : 1;
+    Color m_caretColor;
+    int m_closeTypingSuppressions;
+    int m_scrollingSuppressCount;
+#endif
 };
 
 inline EditingStyle* FrameSelection::typingStyle() const

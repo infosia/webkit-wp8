@@ -35,7 +35,6 @@
 #include "XMLNames.h"
 #include <wtf/text/StringBuilder.h>
 #include <wtf/unicode/CharacterNames.h>
-#include <wtf/unicode/Unicode.h>
 
 using namespace WTF;
 using namespace Unicode;
@@ -147,7 +146,7 @@ bool SVGFontData::applySVGGlyphSelection(WidthIterator& iterator, GlyphData& gly
     }
 
     if (mirror)
-        remainingTextInRun = createStringWithMirroredCharacters(remainingTextInRun.characters(), remainingTextInRun.length());
+        remainingTextInRun = createStringWithMirroredCharacters(remainingTextInRun.deprecatedCharacters(), remainingTextInRun.length());
     if (!currentCharacter && arabicForms.isEmpty())
         arabicForms = charactersWithArabicForm(remainingTextInRun, mirror);
 

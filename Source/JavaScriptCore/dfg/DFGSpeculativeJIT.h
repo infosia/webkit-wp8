@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -119,6 +119,9 @@ public:
     ~SpeculativeJIT();
 
     bool compile();
+    
+    void prepareJITCodeForTierUp();
+    
     void createOSREntries();
     void linkOSREntries(LinkBuffer&);
 
@@ -742,44 +745,45 @@ public:
     
     ptrdiff_t calleeFrameOffset(int numArgs)
     {
-        return virtualRegisterForLocal(m_jit.graph().m_nextMachineLocal + JSStack::CallFrameHeaderSize + numArgs).offset() * sizeof(Register);
+        return virtualRegisterForLocal(m_jit.graph().m_nextMachineLocal - 1 + JSStack::CallFrameHeaderSize + numArgs).offset() * sizeof(Register);
     }
     
     // Access to our fixed callee CallFrame.
-    MacroAssembler::Address calleeFrameSlot(int numArgs, int slot)
+    MacroAssembler::Address calleeFrameSlot(int slot)
     {
-        return MacroAssembler::Address(GPRInfo::callFrameRegister, calleeFrameOffset(numArgs) + sizeof(Register) * slot);
+        ASSERT(slot >= JSStack::CallerFrameAndPCSize);
+        return MacroAssembler::Address(MacroAssembler::stackPointerRegister, sizeof(Register) * (slot - JSStack::CallerFrameAndPCSize));
     }
 
     // Access to our fixed callee CallFrame.
-    MacroAssembler::Address calleeArgumentSlot(int numArgs, int argument)
+    MacroAssembler::Address calleeArgumentSlot(int argument)
     {
-        return calleeFrameSlot(numArgs, virtualRegisterForArgument(argument).offset());
+        return calleeFrameSlot(virtualRegisterForArgument(argument).offset());
     }
 
-    MacroAssembler::Address calleeFrameTagSlot(int numArgs, int slot)
+    MacroAssembler::Address calleeFrameTagSlot(int slot)
     {
-        return calleeFrameSlot(numArgs, slot).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag));
+        return calleeFrameSlot(slot).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag));
     }
 
-    MacroAssembler::Address calleeFramePayloadSlot(int numArgs, int slot)
+    MacroAssembler::Address calleeFramePayloadSlot(int slot)
     {
-        return calleeFrameSlot(numArgs, slot).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload));
+        return calleeFrameSlot(slot).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload));
     }
 
-    MacroAssembler::Address calleeArgumentTagSlot(int numArgs, int argument)
+    MacroAssembler::Address calleeArgumentTagSlot(int argument)
     {
-        return calleeArgumentSlot(numArgs, argument).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag));
+        return calleeArgumentSlot(argument).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag));
     }
 
-    MacroAssembler::Address calleeArgumentPayloadSlot(int numArgs, int argument)
+    MacroAssembler::Address calleeArgumentPayloadSlot(int argument)
     {
-        return calleeArgumentSlot(numArgs, argument).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload));
+        return calleeArgumentSlot(argument).withOffset(OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload));
     }
 
-    MacroAssembler::Address calleeFrameCallerFrame(int numArgs)
+    MacroAssembler::Address calleeFrameCallerFrame()
     {
-        return calleeFrameSlot(numArgs, 0).withOffset(CallFrame::callerFrameOffset());
+        return calleeFrameSlot(0).withOffset(CallFrame::callerFrameOffset());
     }
 
     void emitCall(Node*);
@@ -1372,6 +1376,11 @@ public:
         m_jit.setupArgumentsWithExecState(arg1, arg2, arg3);
         return appendCallWithExceptionCheck(operation);
     }
+    JITCompiler::Call callOperation(V_JITOperation_EJ operation, GPRReg arg1)
+    {
+        m_jit.setupArgumentsWithExecState(arg1);
+        return appendCallWithExceptionCheck(operation);
+    }
     JITCompiler::Call callOperation(V_JITOperation_EJPP operation, GPRReg arg1, GPRReg arg2, void* pointer)
     {
         m_jit.setupArgumentsWithExecState(arg1, arg2, TrustedImmPtr(pointer));
@@ -1627,6 +1636,12 @@ public:
     JITCompiler::Call callOperation(V_JITOperation_EOZD operation, GPRReg arg1, GPRReg arg2, FPRReg arg3)
     {
         m_jit.setupArgumentsWithExecState(arg1, arg2, EABI_32BIT_DUMMY_ARG arg3);
+        return appendCallWithExceptionCheck(operation);
+    }
+
+    JITCompiler::Call callOperation(V_JITOperation_EJ operation, GPRReg arg1Tag, GPRReg arg1Payload)
+    {
+        m_jit.setupArgumentsWithExecState(arg1Tag, arg1Payload);
         return appendCallWithExceptionCheck(operation);
     }
 
@@ -1966,7 +1981,6 @@ public:
     void compilePeepHoleObjectToObjectOrOtherEquality(Edge leftChild, Edge rightChild, Node* branchNode);
     void compileObjectEquality(Node*);
     void compileObjectToObjectOrOtherEquality(Edge leftChild, Edge rightChild);
-    void compileValueAdd(Node*);
     void compileObjectOrOtherLogicalNot(Edge value);
     void compileLogicalNot(Node*);
     void compileStringEquality(Node*);
@@ -2053,7 +2067,6 @@ public:
     void compileArithSub(Node*);
     void compileArithNegate(Node*);
     void compileArithMul(Node*);
-    void compileArithIMul(Node*);
     void compileArithDiv(Node*);
     void compileArithMod(Node*);
     void compileConstantStoragePointer(Node*);

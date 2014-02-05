@@ -342,9 +342,7 @@ static bool attributeValueMatches(const Attribute& attribute, CSSSelector::Match
 static bool anyAttributeMatches(Element* element, const CSSSelector* selector, const QualifiedName& selectorAttr, bool caseSensitive)
 {
     ASSERT(element->hasAttributesWithoutUpdate());
-    for (size_t i = 0, count = element->attributeCount(); i < count; ++i) {
-        const Attribute& attribute = element->attributeAt(i);
-
+    for (const Attribute& attribute : element->attributesIterator()) {
         if (!attribute.matches(selectorAttr.prefix(), element->isHTMLElement() ? selector->attributeCanonicalLocalName() : selectorAttr.localName(), selectorAttr.namespaceURI()))
             continue;
 
@@ -724,12 +722,6 @@ bool SelectorChecker::checkOne(const SelectorCheckingContext& context) const
             if (!element->document().webkitIsFullScreen())
                 return false;
             return true;
-#endif
-#if ENABLE(IFRAME_SEAMLESS)
-        case CSSSelector::PseudoSeamlessDocument:
-            // While a document is rendered in a seamless iframe, the 'seamless-document' pseudoclass applies
-            // to all elements of that Document.
-            return element->document().shouldDisplaySeamlesslyWithParent();
 #endif
         case CSSSelector::PseudoInRange:
             element->document().setContainsValidityStyleRules();

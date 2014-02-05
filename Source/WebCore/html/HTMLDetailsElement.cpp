@@ -49,7 +49,7 @@ private:
     {
     }
 
-    virtual MatchType matchTypeFor(Node* node) const OVERRIDE
+    virtual MatchType matchTypeFor(Node* node) const override
     {
         if (node->isElementNode() && node == node->parentNode()->querySelector(summaryQuerySelector(), ASSERT_NO_EXCEPTION))
             return NeverMatches;
@@ -78,7 +78,7 @@ private:
     {
     }
 
-    virtual MatchType matchTypeFor(Node* node) const OVERRIDE
+    virtual MatchType matchTypeFor(Node* node) const override
     {
         if (node->isElementNode() && node == node->parentNode()->querySelector(summaryQuerySelector(), ASSERT_NO_EXCEPTION))
             return AlwaysMatches;
@@ -136,8 +136,8 @@ void HTMLDetailsElement::parseAttribute(const QualifiedName& name, const AtomicS
     if (name == openAttr) {
         bool oldValue = m_isOpen;
         m_isOpen = !value.isNull();
-        if (oldValue != m_isOpen && renderer())
-            Style::reattachRenderTree(*this);
+        if (oldValue != m_isOpen)
+            setNeedsStyleRecalc(ReconstructRenderTree);
     } else
         HTMLElement::parseAttribute(name, value);
 }

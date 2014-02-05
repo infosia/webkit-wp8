@@ -177,6 +177,11 @@ def struct_or_class(namespace, type):
         'WebCore::FileChooserSettings',
         'WebCore::GrammarDetail',
         'WebCore::IDBDatabaseMetadata',
+        'WebCore::IDBGetResult',
+        'WebCore::IDBIndexMetadata',
+        'WebCore::IDBKeyData',
+        'WebCore::IDBKeyRangeData',
+        'WebCore::IDBObjectStoreMetadata',
         'WebCore::IdentityTransformOperation',
         'WebCore::KeypressCommand',
         'WebCore::Length',
@@ -206,6 +211,8 @@ def struct_or_class(namespace, type):
         'WebKit::DictionaryPopupInfo',
         'WebKit::DrawingAreaInfo',
         'WebKit::EditorState',
+        'WebKit::InteractionInformationAtPosition',
+        'WebKit::NavigationActionData',
         'WebKit::NetworkProcessCreationParameters',
         'WebKit::PlatformPopupMenuData',
         'WebKit::PluginCreationParameters',
@@ -595,9 +602,12 @@ def generate_message_handler(file):
 
         result.append('{\n')
         result += [async_message_statement(receiver, message) for message in async_messages]
-        if not receiver.has_attribute(LEGACY_RECEIVER_ATTRIBUTE):
-            result.append('    UNUSED_PARAM(connection);\n')
-        result.append('    ASSERT_NOT_REACHED();\n')
+        if (receiver.superclass):
+            result.append('    %s::didReceiveMessage(connection, decoder);\n' % (receiver.superclass))
+        else:
+            if not receiver.has_attribute(LEGACY_RECEIVER_ATTRIBUTE):
+                result.append('    UNUSED_PARAM(connection);\n')
+            result.append('    ASSERT_NOT_REACHED();\n')
         result.append('}\n')
 
     if sync_messages:

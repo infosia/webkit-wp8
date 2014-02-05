@@ -37,7 +37,7 @@
 #include "TextEventInputType.h"
 #include "TextGranularity.h"
 #include "Timer.h"
-#include <wtf/Deque.h>
+#include "WheelEventDeltaTracker.h"
 #include <wtf/Forward.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/RefPtr.h>
@@ -86,9 +86,9 @@ class OptionalCursor;
 class PlatformKeyboardEvent;
 class PlatformTouchEvent;
 class PlatformWheelEvent;
+class RenderBox;
 class RenderElement;
 class RenderLayer;
-class RenderObject;
 class RenderWidget;
 class SVGElementInstance;
 class Scrollbar;
@@ -138,7 +138,7 @@ public:
 #endif
 
     void stopAutoscrollTimer(bool rendererIsBeingDestroyed = false);
-    RenderElement* autoscrollRenderer() const;
+    RenderBox* autoscrollRenderer() const;
     void updateAutoscrollRenderer();
     bool autoscrollInProgress() const;
     bool mouseDownWasInSubframe() const { return m_mouseDownWasInSubframe; }
@@ -213,12 +213,6 @@ public:
 
 #if PLATFORM(IOS)
     void defaultTouchEventHandler(Node*, TouchEvent*);
-#endif
-
-#if ENABLE(TOUCH_ADJUSTMENT)
-    bool bestClickableNodeForTouchPoint(const IntPoint& touchCenter, const IntSize& touchRadius, IntPoint& targetPoint, Node*& targetNode);
-    bool bestContextMenuNodeForTouchPoint(const IntPoint& touchCenter, const IntSize& touchRadius, IntPoint& targetPoint, Node*& targetNode);
-    bool bestZoomableAreaForTouchPoint(const IntPoint& touchCenter, const IntSize& touchRadius, IntRect& targetArea, Node*& targetNode);
 #endif
 
 #if ENABLE(CONTEXT_MENUS)
@@ -327,28 +321,21 @@ private:
 
     OptionalCursor selectCursor(const HitTestResult&, bool shiftKey);
 
-    void hoverTimerFired(Timer<EventHandler>*);
+    void hoverTimerFired(Timer<EventHandler>&);
 #if ENABLE(CURSOR_SUPPORT)
-    void cursorUpdateTimerFired(Timer<EventHandler>*);
+    void cursorUpdateTimerFired(Timer<EventHandler>&);
 #endif
 
     bool logicalScrollOverflow(ScrollLogicalDirection, ScrollGranularity, Node* startingNode = 0);
     
     bool shouldTurnVerticalTicksIntoHorizontal(const HitTestResult&, const PlatformWheelEvent&) const;
-    void recordWheelEventDelta(const PlatformWheelEvent&);
-    enum DominantScrollGestureDirection {
-        DominantScrollDirectionNone,
-        DominantScrollDirectionVertical,
-        DominantScrollDirectionHorizontal
-    };
-    DominantScrollGestureDirection dominantScrollGestureDirection() const;
     
     bool mouseDownMayStartSelect() const { return m_mouseDownMayStartSelect; }
 
     static bool isKeyboardOptionTab(KeyboardEvent*);
     static bool eventInvertsTabsToLinksClientCallResult(KeyboardEvent*);
 
-    void fakeMouseMoveEventTimerFired(Timer<EventHandler>*);
+    void fakeMouseMoveEventTimerFired(Timer<EventHandler>&);
     void cancelFakeMouseMoveEvent();
 
     bool isInsideScrollbar(const IntPoint&) const;
@@ -441,7 +428,7 @@ private:
 #if ENABLE(CURSOR_VISIBILITY)
     void startAutoHideCursorTimer();
     void cancelAutoHideCursorTimer();
-    void autoHideCursorTimerFired(Timer<EventHandler>*);
+    void autoHideCursorTimerFired(Timer<EventHandler>&);
 #endif
 
     Frame& m_frame;
@@ -476,11 +463,9 @@ private:
 
     Timer<EventHandler> m_fakeMouseMoveEventTimer;
 
-#if ENABLE(SVG)
     bool m_svgPan;
     RefPtr<SVGElementInstance> m_instanceUnderMouse;
     RefPtr<SVGElementInstance> m_lastInstanceUnderMouse;
-#endif
 
     RenderLayer* m_resizeLayer;
 
@@ -527,9 +512,8 @@ private:
     double m_mouseDownTimestamp;
     PlatformMouseEvent m_mouseDown;
 
-    Deque<FloatSize> m_recentWheelEventDeltas;
+    OwnPtr<WheelEventDeltaTracker> m_recentWheelEventDeltaTracker;
     RefPtr<Element> m_latchedWheelEventElement;
-    bool m_inTrackingScrollGesturePhase;
     bool m_widgetIsLatched;
 
     RefPtr<Element> m_previousWheelScrolledElement;

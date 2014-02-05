@@ -159,7 +159,7 @@ void RenderTable::addChild(RenderObject* child, RenderObject* beforeChild)
                     wrapInAnonymousSection = false;
                     break;
                 }
-                // Fall through.
+                FALLTHROUGH;
             case TABLE_ROW_GROUP:
                 resetSectionPointerIfNotBefore(m_firstBody, beforeChild);
                 if (!m_firstBody)
@@ -961,7 +961,7 @@ int RenderTable::calcBorderStart() const
     if (!numEffCols())
         return 0;
 
-    unsigned borderWidth = 0;
+    float borderWidth = 0;
 
     const BorderValue& tableStartBorder = style().borderStart();
     if (tableStartBorder.style() == BHIDDEN)
@@ -1015,7 +1015,7 @@ int RenderTable::calcBorderEnd() const
     if (!numEffCols())
         return 0;
 
-    unsigned borderWidth = 0;
+    float borderWidth = 0;
 
     const BorderValue& tableEndBorder = style().borderEnd();
     if (tableEndBorder.style() == BHIDDEN)
@@ -1068,7 +1068,7 @@ void RenderTable::recalcBordersInRowDirection()
     m_borderEnd = calcBorderEnd();
 }
 
-int RenderTable::borderBefore() const
+LayoutUnit RenderTable::borderBefore() const
 {
     if (collapseBorders()) {
         recalcSectionsIfNeeded();
@@ -1077,7 +1077,7 @@ int RenderTable::borderBefore() const
     return RenderBlock::borderBefore();
 }
 
-int RenderTable::borderAfter() const
+LayoutUnit RenderTable::borderAfter() const
 {
     if (collapseBorders()) {
         recalcSectionsIfNeeded();

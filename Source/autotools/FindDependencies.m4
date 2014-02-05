@@ -323,30 +323,17 @@ if test "$enable_gamepad" = "yes" && test "$os_linux" = no; then
     enable_gamepad=no;
 fi
 
-# Turn off svg features if --disable-svg is requested.
-if test "$enable_svg" = "no"; then
-   enable_svg_fonts=no
-fi
-
-# Check for SVG features, enabling SVG if necessary.
-if test "$enable_svg_fonts" = "yes" && test "$enable_svg" = "no"; then
-    AC_MSG_WARN([SVG feature(s) requested but SVG is disabled.. Enabling SVG support])
-    enable_svg=yes
-fi
-
 if test "$enable_opcode_stats" = "yes"; then
     if test "$enable_jit" = "yes"; then
         AC_MSG_ERROR([JIT must be disabled for Opcode stats to work.])
     fi
 fi
 
-# Enable CSS Filters and Shaders if accelerated_compositing is turned on.
+# Enable CSS Filters if accelerated_compositing is turned on.
 enable_css_filters=no;
-enable_css_shaders=no;
-AC_MSG_CHECKING([whether to enable CSS Filters and Shaders])
+AC_MSG_CHECKING([whether to enable CSS Filters])
 if test "$enable_accelerated_compositing" = "yes" && test "$found_opengl" = "yes"; then
     enable_css_filters=yes;
-    enable_css_shaders=yes;
 fi
 AC_MSG_RESULT([$enable_css_filters])
 

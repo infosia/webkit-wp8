@@ -33,7 +33,6 @@ set(webkit2_api_harness_SOURCES
     ${TESTWEBKITAPI_DIR}/gtk/PlatformUtilitiesGtk.cpp
     ${TESTWEBKITAPI_DIR}/gtk/PlatformWebViewGtk.cpp
     ${TESTWEBKITAPI_DIR}/gtk/PlatformWebViewGtk.cpp
-    ../../Source/WebCore/platform/gtk/GOwnPtrGtk.cpp
 )
 
 list(APPEND test_wtf_LIBRARIES
@@ -109,7 +108,6 @@ set(test_webkit2_api_BINARIES
     ShouldGoToBackForwardListItem
     UserMessage
     WillSendSubmitEvent
-    WKConnection
     WKPageGetScaleFactorNotZero
     WKPreferences
     WKString

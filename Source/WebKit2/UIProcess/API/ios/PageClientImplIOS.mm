@@ -27,12 +27,15 @@
 #import "PageClientImplIOS.h"
 
 #import "NativeWebKeyboardEvent.h"
+#import "InteractionInformationAtPosition.h"
 #import "WKContentViewInternal.h"
 #import "WebContextMenuProxy.h"
 #import "WebEditCommandProxy.h"
+#import <UIKit/UIImagePickerController_Private.h>
 #import <UIKit/UIWebTouchEventsGestureRecognizer.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/PlatformScreen.h>
+#import <WebCore/SharedBuffer.h>
 
 @interface UIView (IPI)
 - (UIScrollView *)_scroller;
@@ -103,20 +106,14 @@ bool PageClientImpl::isViewVisible()
     return true;
 }
 
-bool PageClientImpl::isWindowVisible()
-{
-    notImplemented();
-    return true;
-}
-
 bool PageClientImpl::isViewInWindow()
 {
     return [m_view window];
 }
 
-void PageClientImpl::processDidCrash()
+void PageClientImpl::processDidExit()
 {
-    [m_view _processDidCrash];
+    [m_view _processDidExit];
 }
 
 void PageClientImpl::didRelaunchProcess()
@@ -206,7 +203,18 @@ bool PageClientImpl::interpretKeyEvent(const NativeWebKeyboardEvent& event, bool
 {
     return [m_view _interpretKeyEvent:event.nativeEvent() isCharEvent:isCharEvent];
 }
-    
+
+void PageClientImpl::positionInformationDidChange(const InteractionInformationAtPosition& info)
+{
+    [m_view _positionInformationDidChange:info];
+}
+
+void PageClientImpl::saveImageToLibrary(PassRefPtr<SharedBuffer> imageBuffer)
+{
+    RetainPtr<NSData> imageData = imageBuffer->createNSData();
+    UIImageDataWriteToSavedPhotosAlbum(imageData.get(), nil, NULL, NULL);
+}
+
 bool PageClientImpl::executeSavedCommandBySelector(const String&)
 {
     notImplemented();
@@ -295,8 +303,7 @@ void PageClientImpl::setFindIndicator(PassRefPtr<FindIndicator>, bool, bool)
 {
     notImplemented();
 }
-    
-#if USE(ACCELERATED_COMPOSITING)
+
 void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)
 {
 }
@@ -314,7 +321,28 @@ void PageClientImpl::setAcceleratedCompositingRootLayer(CALayer *rootLayer)
 {
     [m_view _setAcceleratedCompositingRootLayer:rootLayer];
 }
-#endif
+
+CALayer *PageClientImpl::acceleratedCompositingRootLayer() const
+{
+    notImplemented();
+    return nullptr;
+}
+
+RetainPtr<CGImageRef> PageClientImpl::takeViewSnapshot()
+{
+    notImplemented();
+    return nullptr;
+}
+
+void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
+{
+    notImplemented();
+}
+
+void PageClientImpl::clearCustomSwipeViews()
+{
+    notImplemented();
+}
 
 void PageClientImpl::mainDocumentDidReceiveMobileDocType()
 {

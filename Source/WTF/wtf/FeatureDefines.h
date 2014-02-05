@@ -56,6 +56,10 @@
 /* PLATFORM(MAC) is always enabled when PLATFORM(IOS) is enabled. */
 #if PLATFORM(IOS)
 
+#if !defined(ENABLE_ASYNC_SCROLLING)
+#define ENABLE_ASYNC_SCROLLING 1
+#endif
+
 #if !defined(ENABLE_8BIT_TEXTRUN)
 #define ENABLE_8BIT_TEXTRUN 1
 #endif
@@ -297,11 +301,6 @@
 
 #endif /* PLATFORM(WIN_CAIRO) */
 
-/* --------- NIX port (Unix) --------- */
-#if PLATFORM(NIX)
-#include "nix/FeatureDefinesNix.h"
-#endif /* PLATFORM(NIX) */
-
 /* --------- EFL port (Unix) --------- */
 #if PLATFORM(EFL)
 
@@ -328,20 +327,15 @@
 #endif
 #endif
 
+#if !defined(ENABLE_SUBPIXEL_LAYOUT)
+#define ENABLE_SUBPIXEL_LAYOUT 1
+#endif
+
 #if !defined(ENABLE_8BIT_TEXTRUN)
 #define ENABLE_8BIT_TEXTRUN 1
 #endif
 
 #endif /* PLATFORM(GTK) */
-
-/* --------- Blackberry port (QNX) --------- */
-#if PLATFORM(BLACKBERRY)
-
-#if !defined(ENABLE_BLACKBERRY_CREDENTIAL_PERSIST)
-#define ENABLE_BLACKBERRY_CREDENTIAL_PERSIST 1
-#endif
-
-#endif /* PLATFORM(BLACKBERRY) */
 
 /* ENABLE macro defaults for WebCore */
 /* Do not use PLATFORM() tests in this section ! */
@@ -426,10 +420,6 @@
 #define ENABLE_CSS_IMAGE_SET 0
 #endif
 
-#if !defined(ENABLE_CSS_SHADERS)
-#define ENABLE_CSS_SHADERS 0
-#endif
-
 #if !defined(ENABLE_CSS_STICKY_POSITION)
 #define ENABLE_CSS_STICKY_POSITION 0
 #endif
@@ -476,10 +466,6 @@
 
 #if !defined(ENABLE_DOWNLOAD_ATTRIBUTE)
 #define ENABLE_DOWNLOAD_ATTRIBUTE 0
-#endif
-
-#if !defined(ENABLE_DRAGGABLE_REGION)
-#define ENABLE_DRAGGABLE_REGION 0
 #endif
 
 #if !defined(ENABLE_DRAG_SUPPORT)
@@ -532,10 +518,6 @@
 
 #if !defined(ENABLE_ICONDATABASE)
 #define ENABLE_ICONDATABASE 1
-#endif
-
-#if !defined(ENABLE_IFRAME_SEAMLESS)
-#define ENABLE_IFRAME_SEAMLESS 1
 #endif
 
 #if !defined(ENABLE_IMAGE_DECODER_DOWN_SAMPLING)
@@ -592,10 +574,6 @@
 #define ENABLE_INSPECTOR 1
 #endif
 
-#if !defined(ENABLE_JAVASCRIPT_DEBUGGER)
-#define ENABLE_JAVASCRIPT_DEBUGGER 1
-#endif
-
 #if !defined(ENABLE_JAVASCRIPT_I18N_API)
 #define ENABLE_JAVASCRIPT_I18N_API 0
 #endif
@@ -610,10 +588,6 @@
 
 #if !defined(ENABLE_LEGACY_VENDOR_PREFIXES)
 #define ENABLE_LEGACY_VENDOR_PREFIXES 0
-#endif
-
-#if !defined(ENABLE_LEGACY_VIEWPORT_ADAPTION)
-#define ENABLE_LEGACY_VIEWPORT_ADAPTION 0
 #endif
 
 #if !defined(ENABLE_LETTERPRESS)
@@ -786,14 +760,8 @@
 #define ENABLE_SUBPIXEL_LAYOUT 0
 #endif
 
-#if !defined(ENABLE_SVG)
-#define ENABLE_SVG 1
-#endif
-
-#if ENABLE(SVG)
 #if !defined(ENABLE_SVG_FONTS)
 #define ENABLE_SVG_FONTS 1
-#endif
 #endif
 
 #if !defined(ENABLE_TEMPLATE_ELEMENT)
@@ -810,10 +778,6 @@
 
 #if !defined(ENABLE_TEXT_SELECTION)
 #define ENABLE_TEXT_SELECTION 1
-#endif
-
-#if !defined(ENABLE_THREADED_HTML_PARSER)
-#define ENABLE_THREADED_HTML_PARSER 0
 #endif
 
 #if !defined(ENABLE_ASYNC_SCROLLING)
@@ -844,10 +808,6 @@
 #define ENABLE_VIEWPORT 0
 #endif
 
-#if !defined(ENABLE_VIEWSOURCE_ATTRIBUTE)
-#define ENABLE_VIEWSOURCE_ATTRIBUTE 1
-#endif
-
 #if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
 #define ENABLE_VIEW_MODE_CSS_MEDIA 1
 #endif
@@ -868,12 +828,20 @@
 #define ENABLE_WEB_AUDIO 0
 #endif
 
+#if !defined(ENABLE_WEB_REPLAY)
+#define ENABLE_WEB_REPLAY 0
+#endif
+
 #if !defined(ENABLE_WEB_SOCKETS)
 #define ENABLE_WEB_SOCKETS 1
 #endif
 
 #if !defined(ENABLE_WEB_TIMING)
 #define ENABLE_WEB_TIMING 0
+#endif
+
+#if !defined(ENABLE_WILL_REVEAL_EDGE_EVENTS)
+#define ENABLE_WILL_REVEAL_EDGE_EVENTS 1
 #endif
 
 #if !defined(ENABLE_XHR_TIMEOUT)
@@ -890,16 +858,8 @@
 #error "ENABLE(SATURATED_LAYOUT_ARITHMETIC) requires ENABLE(SUBPIXEL_LAYOUT)"
 #endif
 
-#if ENABLE(SVG_FONTS) && !ENABLE(SVG)
-#error "ENABLE(SVG_FONTS) requires ENABLE(SVG)"
-#endif
-
 #if ENABLE(VIDEO_TRACK) && !ENABLE(VIDEO)
 #error "ENABLE(VIDEO_TRACK) requires ENABLE(VIDEO)"
-#endif
-
-#if ENABLE(CSS_SHADERS) && !ENABLE(WEBGL)
-#error "ENABLE(CSS_SHADERS) requires ENABLE(WEBGL)"
 #endif
 
 #if ENABLE(REMOTE_INSPECTOR) && !ENABLE(INSPECTOR)

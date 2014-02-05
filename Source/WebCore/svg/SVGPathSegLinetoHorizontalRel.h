@@ -22,7 +22,6 @@
 #ifndef SVGPathSegLinetoHorizontalRel_h
 #define SVGPathSegLinetoHorizontalRel_h
 
-#if ENABLE(SVG)
 #include "SVGPathSegLinetoHorizontal.h"
 
 namespace WebCore {
@@ -40,11 +39,10 @@ private:
     {
     }
 
-    virtual unsigned short pathSegType() const { return PATHSEG_LINETO_HORIZONTAL_REL; }
-    virtual String pathSegTypeAsLetter() const { return "h"; }
+    virtual unsigned short pathSegType() const override { return PATHSEG_LINETO_HORIZONTAL_REL; }
+    virtual String pathSegTypeAsLetter() const override { return "h"; }
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

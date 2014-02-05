@@ -29,10 +29,7 @@
 #include "FilterOperation.h"
 
 #include "AnimationUtilities.h"
-
-#if ENABLE(SVG)
 #include "CachedSVGDocumentReference.h"
-#endif
 
 namespace WebCore {
 
@@ -47,12 +44,12 @@ ReferenceFilterOperation::~ReferenceFilterOperation()
 {
 }
 
-#if ENABLE(SVG)
-void ReferenceFilterOperation::setCachedSVGDocumentReference(PassOwnPtr<CachedSVGDocumentReference> cachedSVGDocumentReference)
+CachedSVGDocumentReference* ReferenceFilterOperation::getOrCreateCachedSVGDocumentReference()
 {
-    m_cachedSVGDocumentReference = cachedSVGDocumentReference;
+    if (!m_cachedSVGDocumentReference)
+        m_cachedSVGDocumentReference = std::make_unique<CachedSVGDocumentReference>(m_url);
+    return m_cachedSVGDocumentReference.get();
 }
-#endif
 
 PassRefPtr<FilterOperation> BasicColorMatrixFilterOperation::blend(const FilterOperation* from, double progress, bool blendToPassthrough)
 {

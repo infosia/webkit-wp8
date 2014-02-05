@@ -55,12 +55,6 @@ public:
         Viewport = 15,
 #endif
         Region = 16,
-#if ENABLE(CSS_SHADERS)
-        Filter = 17,
-#endif
-#if ENABLE(SHADOW_DOM)
-        HostInternal = 18, // Spec says Host = 1001, but we can use only 5 bit for type().
-#endif
     };
 
     Type type() const { return static_cast<Type>(m_type); }
@@ -79,12 +73,6 @@ public:
     bool isViewportRule() const { return type() == Viewport; }
 #endif
     bool isImportRule() const { return type() == Import; }
-#if ENABLE(SHADOW_DOM)
-    bool isHostRule() const { return type() == HostInternal; }
-#endif
-#if ENABLE(CSS_SHADERS)
-    bool isFilterRule() const { return type() == Filter; }
-#endif
 
     PassRef<StyleRuleBase> copy() const;
 
@@ -269,22 +257,6 @@ private:
     CSSSelectorList m_selectorList;
 };
 
-#if ENABLE(SHADOW_DOM)
-class StyleRuleHost : public StyleRuleGroup {
-public:
-    static PassRef<StyleRuleHost> create(Vector<RefPtr<StyleRuleBase>>& adoptRules)
-    {
-        return adoptRef(*new StyleRuleHost(adoptRules));
-    }
-
-    PassRef<StyleRuleHost> copy() const { return adoptRef(*new StyleRuleHost(*this)); }
-
-private:
-    StyleRuleHost(Vector<RefPtr<StyleRuleBase>>& adoptRules) : StyleRuleGroup(HostInternal, adoptRules) { }
-    StyleRuleHost(const StyleRuleHost& o) : StyleRuleGroup(o) { }
-};
-#endif
-
 #if ENABLE(CSS_DEVICE_ADAPTATION)
 class StyleRuleViewport : public StyleRuleBase {
 public:
@@ -324,32 +296,6 @@ inline const StyleRuleRegion* toStyleRuleRegion(const StyleRuleGroup* rule)
     ASSERT_WITH_SECURITY_IMPLICATION(!rule || rule->isRegionRule());
     return static_cast<const StyleRuleRegion*>(rule);
 }
-
-#if ENABLE(CSS_SHADERS)
-class StyleRuleFilter : public StyleRuleBase {
-public:
-    static PassRef<StyleRuleFilter> create(const String& filterName, PassRef<StyleProperties> properties)
-    {
-        return adoptRef(*new StyleRuleFilter(filterName, std::move(properties)));
-    }
-
-    ~StyleRuleFilter();
-
-    const String& filterName() const { return m_filterName; }
-
-    const StyleProperties& properties() const { return m_properties.get(); }
-    MutableStyleProperties& mutableProperties();
-
-    PassRef<StyleRuleFilter> copy() const { return adoptRef(*new StyleRuleFilter(*this)); }
-
-private:
-    StyleRuleFilter(const String&, PassRef<StyleProperties>);
-    StyleRuleFilter(const StyleRuleFilter&);
-
-    String m_filterName;
-    Ref<StyleProperties> m_properties;
-};
-#endif // ENABLE(CSS_SHADERS)
 
 } // namespace WebCore
 

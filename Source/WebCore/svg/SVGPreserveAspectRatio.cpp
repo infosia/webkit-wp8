@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGPreserveAspectRatio.h"
 
 #include "AffineTransform.h"
@@ -60,7 +58,7 @@ void SVGPreserveAspectRatio::setMeetOrSlice(unsigned short meetOrSlice, Exceptio
 
 void SVGPreserveAspectRatio::parse(const String& value)
 {
-    const UChar* begin = value.characters();
+    const UChar* begin = value.deprecatedCharacters();
     parse(begin, begin + value.length(), true);
 }
 
@@ -353,5 +351,3 @@ String SVGPreserveAspectRatio::valueAsString() const
 }
 
 }
-
-#endif // ENABLE(SVG)

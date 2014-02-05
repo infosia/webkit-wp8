@@ -342,6 +342,12 @@ AccessibilityUIElement AccessibilityUIElement::ariaFlowToElementAtIndex(unsigned
     return nullptr;
 }
 
+AccessibilityUIElement AccessibilityUIElement::ariaControlsElementAtIndex(unsigned index)
+{
+    // FIXME: implement
+    return 0;
+}
+
 AccessibilityUIElement AccessibilityUIElement::disclosedRowAtIndex(unsigned index)
 {
     BEGIN_AX_OBJC_EXCEPTIONS
@@ -464,6 +470,24 @@ JSStringRef AccessibilityUIElement::stringAttributeValue(JSStringRef attribute)
     END_AX_OBJC_EXCEPTIONS
 
     return nullptr;
+}
+
+void AccessibilityUIElement::rowHeaders(Vector<AccessibilityUIElement>& elements) const
+{
+    BEGIN_AX_OBJC_EXCEPTIONS
+    id value = [m_element accessibilityAttributeValue:NSAccessibilityRowHeaderUIElementsAttribute];
+    if ([value isKindOfClass:[NSArray class]])
+        convertNSArrayToVector(value, elements);
+    END_AX_OBJC_EXCEPTIONS
+}
+
+void AccessibilityUIElement::columnHeaders(Vector<AccessibilityUIElement>& elements) const
+{
+    BEGIN_AX_OBJC_EXCEPTIONS
+    id value = [m_element accessibilityAttributeValue:NSAccessibilityColumnHeaderUIElementsAttribute];
+    if ([value isKindOfClass:[NSArray class]])
+        convertNSArrayToVector(value, elements);
+    END_AX_OBJC_EXCEPTIONS
 }
 
 void AccessibilityUIElement::uiElementArrayAttributeValue(JSStringRef attribute, Vector<AccessibilityUIElement>& elements) const
@@ -1380,6 +1404,12 @@ bool AccessibilityUIElement::isOffScreen() const
 }
 
 bool AccessibilityUIElement::isCollapsed() const
+{
+    // FIXME: implement
+    return false;
+}
+
+bool AccessibilityUIElement::isIndeterminate() const
 {
     // FIXME: implement
     return false;

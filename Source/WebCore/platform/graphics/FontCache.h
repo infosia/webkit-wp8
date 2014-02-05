@@ -37,7 +37,10 @@
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
-#include <wtf/unicode/Unicode.h>
+
+#if PLATFORM(IOS)
+#include <CoreText/CTFont.h>
+#endif
 
 #if OS(WINDOWS)
 #include <windows.h>
@@ -117,6 +120,9 @@ public:
     // Also implemented by the platform.
     void platformInit();
 
+#if PLATFORM(IOS)
+    static float weightOfCTFont(CTFontRef);
+#endif
 #if PLATFORM(WIN)
     IMLangFontLinkType* getFontLinkInterface();
     static void comInitialize();
@@ -154,11 +160,7 @@ public:
         bool isBold;
         bool isItalic;
     };
-#if PLATFORM(BLACKBERRY)
-    static void getFontFamilyForCharacters(const UChar* characters, size_t numCharacters, const char* preferredLocale, const FontDescription&, SimpleFontFamily*);
-#else
     static void getFontFamilyForCharacters(const UChar* characters, size_t numCharacters, const char* preferredLocale, SimpleFontFamily*);
-#endif
 
 private:
     FontCache();
@@ -178,6 +180,10 @@ private:
     FontPlatformData* getCachedFontPlatformData(const FontDescription&, const AtomicString& family, bool checkingAlternateName = false);
 
     // These methods are implemented by each platform.
+#if PLATFORM(IOS)
+    FontPlatformData* getCustomFallbackFont(const UInt32, const FontDescription&);
+    PassRefPtr<SimpleFontData> getSystemFontFallbackForCharacters(const FontDescription&, const SimpleFontData*, const UChar* characters, int length);
+#endif
     PassOwnPtr<FontPlatformData> createFontPlatformData(const FontDescription&, const AtomicString& family);
 #if PLATFORM(MAC)
     PassRefPtr<SimpleFontData> similarFontPlatformData(const FontDescription&);
@@ -193,6 +199,9 @@ private:
 #endif
     friend class SimpleFontData; // For getCachedFontData(const FontPlatformData*)
     friend class FontGlyphs;
+#if PLATFORM(IOS)
+    friend class ComplexTextController;
+#endif
 };
 
 // Get the global fontCache.

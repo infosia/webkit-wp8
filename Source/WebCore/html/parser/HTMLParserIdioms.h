@@ -25,7 +25,6 @@
 #ifndef HTMLParserIdioms_h
 #define HTMLParserIdioms_h
 
-#include "HTMLIdentifier.h"
 #include "QualifiedName.h"
 #include <wtf/Forward.h>
 #include <wtf/text/WTFString.h>
@@ -33,6 +32,38 @@
 namespace WebCore {
 
 class Decimal;
+
+class ImageWithScale {
+public:
+    ImageWithScale()
+        : m_imageURLStart(0)
+        , m_imageURLLength(0)
+        , m_scaleFactor(1)
+    {
+    }
+
+    ImageWithScale(unsigned start, unsigned length, float scaleFactor)
+        : m_imageURLStart(start)
+        , m_imageURLLength(length)
+        , m_scaleFactor(scaleFactor)
+    {
+    }
+
+    String imageURL(const String& srcAttribute, const String& srcsetAttribute) const
+    {
+        return m_imageURLLength ? srcsetAttribute.substringSharingImpl(m_imageURLStart, m_imageURLLength) : srcAttribute;
+    }
+
+    float scaleFactor() const
+    {
+        return m_scaleFactor;
+    }
+
+private:
+    unsigned m_imageURLStart;
+    unsigned m_imageURLLength;
+    float m_scaleFactor;
+};
 
 // Space characters as defined by the HTML specification.
 bool isHTMLSpace(UChar);
@@ -99,18 +130,8 @@ inline bool isHTMLSpaceButNotLineBreak(UChar character)
 }
 
 bool threadSafeMatch(const QualifiedName&, const QualifiedName&);
-#if ENABLE(THREADED_HTML_PARSER)
-bool threadSafeMatch(const HTMLIdentifier&, const QualifiedName&);
-inline bool threadSafeHTMLNamesMatch(const HTMLIdentifier& tagName, const QualifiedName& qName)
-{
-    // When the QualifiedName is known to HTMLIdentifier,
-    // all we have to do is a pointer compare.
-    ASSERT(HTMLIdentifier::hasIndex(qName.localName().impl()));
-    return tagName.asStringImpl() == qName.localName().impl();
-}
-#endif
 
-String bestFitSourceForImageAttributes(float deviceScaleFactor, const String& srcAttribute, const String& sourceSetAttribute);
+ImageWithScale bestFitSourceForImageAttributes(float deviceScaleFactor, const String& srcAttribute, const String& sourceSetAttribute);
 
 }
 

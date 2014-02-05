@@ -27,6 +27,12 @@
 #ifndef Widget_h
 #define Widget_h
 
+#if PLATFORM(IOS)
+#ifndef NSView
+#define NSView WAKView
+#endif
+#endif
+
 #include "IntRect.h"
 #include "PlatformScreen.h"
 #include <wtf/Forward.h>
@@ -53,10 +59,6 @@ typedef struct _GtkContainer GtkContainer;
 typedef GtkWidget* PlatformWidget;
 #endif
 
-#if PLATFORM(BLACKBERRY) || PLATFORM(NIX)
-typedef void* PlatformWidget;
-#endif
-
 #if PLATFORM(EFL)
 #if USE(EO)
 typedef struct _Eo_Opaque Evas_Object;
@@ -66,10 +68,7 @@ typedef struct _Evas_Object Evas_Object;
 typedef Evas_Object* PlatformWidget;
 #endif
 
-#if PLATFORM(BLACKBERRY)
-#include "PageClientBlackBerry.h"
-typedef PageClientBlackBerry* PlatformPageClient;
-#elif PLATFORM(EFL)
+#if PLATFORM(EFL)
 class PageClientEfl;
 typedef PageClientEfl* PlatformPageClient;
 #else
@@ -189,6 +188,9 @@ public:
     NSView* getOuterView() const;
 
     void removeFromSuperview();
+#endif
+#if PLATFORM(IOS)
+    void addToSuperview(NSView*);
 #endif
 
 #if PLATFORM(EFL)

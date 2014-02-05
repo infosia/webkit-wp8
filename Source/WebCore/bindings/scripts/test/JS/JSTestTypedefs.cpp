@@ -47,26 +47,26 @@ namespace WebCore {
 
 static const HashTableValue JSTestTypedefsTableValues[] =
 {
-    { "unsignedLongLongAttr", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsUnsignedLongLongAttr), (intptr_t)setJSTestTypedefsUnsignedLongLongAttr },
-    { "immutableSerializedScriptValue", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsImmutableSerializedScriptValue), (intptr_t)setJSTestTypedefsImmutableSerializedScriptValue },
-    { "attrWithGetterException", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsAttrWithGetterException), (intptr_t)setJSTestTypedefsAttrWithGetterException },
-    { "attrWithSetterException", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsAttrWithSetterException), (intptr_t)setJSTestTypedefsAttrWithSetterException },
-    { "stringAttrWithGetterException", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsStringAttrWithGetterException), (intptr_t)setJSTestTypedefsStringAttrWithGetterException },
-    { "stringAttrWithSetterException", DontDelete, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsStringAttrWithSetterException), (intptr_t)setJSTestTypedefsStringAttrWithSetterException },
-    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsConstructor), (intptr_t)0 },
+    { "unsignedLongLongAttr", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsUnsignedLongLongAttr), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsUnsignedLongLongAttr) },
+    { "immutableSerializedScriptValue", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsImmutableSerializedScriptValue), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsImmutableSerializedScriptValue) },
+    { "attrWithGetterException", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsAttrWithGetterException), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsAttrWithGetterException) },
+    { "attrWithSetterException", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsAttrWithSetterException), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsAttrWithSetterException) },
+    { "stringAttrWithGetterException", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsStringAttrWithGetterException), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsStringAttrWithGetterException) },
+    { "stringAttrWithSetterException", DontDelete | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsStringAttrWithSetterException), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(setJSTestTypedefsStringAttrWithSetterException) },
+    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSTestTypedefsTable = { 18, 15, JSTestTypedefsTableValues, 0 };
+static const HashTable JSTestTypedefsTable = { 18, 15, true, JSTestTypedefsTableValues, 0 };
 /* Hash table for constructor */
 
 static const HashTableValue JSTestTypedefsConstructorTableValues[] =
 {
-    { "TestSubObj", DontDelete | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsConstructorTestSubObj), (intptr_t)0 },
+    { "TestSubObj", DontDelete | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestTypedefsConstructorTestSubObj), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSTestTypedefsConstructorTable = { 1, 0, JSTestTypedefsConstructorTableValues, 0 };
+static const HashTable JSTestTypedefsConstructorTable = { 1, 0, true, JSTestTypedefsConstructorTableValues, 0 };
 EncodedJSValue JSC_HOST_CALL JSTestTypedefsConstructor::constructJSTestTypedefs(ExecState* exec)
 {
     JSTestTypedefsConstructor* castedThis = jsCast<JSTestTypedefsConstructor*>(exec->callee());
@@ -112,20 +112,20 @@ ConstructType JSTestTypedefsConstructor::getConstructData(JSCell*, ConstructData
 
 static const HashTableValue JSTestTypedefsPrototypeTableValues[] =
 {
-    { "func", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionFunc), (intptr_t)0 },
-    { "setShadow", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionSetShadow), (intptr_t)3 },
-    { "methodWithSequenceArg", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionMethodWithSequenceArg), (intptr_t)1 },
-    { "nullableArrayArg", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionNullableArrayArg), (intptr_t)1 },
-    { "funcWithClamp", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionFuncWithClamp), (intptr_t)1 },
-    { "immutablePointFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionImmutablePointFunction), (intptr_t)0 },
-    { "stringArrayFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction), (intptr_t)1 },
-    { "stringArrayFunction2", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction2), (intptr_t)1 },
-    { "callWithSequenceThatRequiresInclude", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionCallWithSequenceThatRequiresInclude), (intptr_t)1 },
-    { "methodWithException", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionMethodWithException), (intptr_t)0 },
+    { "func", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionFunc), (intptr_t) (0) },
+    { "setShadow", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionSetShadow), (intptr_t) (3) },
+    { "methodWithSequenceArg", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionMethodWithSequenceArg), (intptr_t) (1) },
+    { "nullableArrayArg", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionNullableArrayArg), (intptr_t) (1) },
+    { "funcWithClamp", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionFuncWithClamp), (intptr_t) (1) },
+    { "immutablePointFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionImmutablePointFunction), (intptr_t) (0) },
+    { "stringArrayFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction), (intptr_t) (1) },
+    { "stringArrayFunction2", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionStringArrayFunction2), (intptr_t) (1) },
+    { "callWithSequenceThatRequiresInclude", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionCallWithSequenceThatRequiresInclude), (intptr_t) (1) },
+    { "methodWithException", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestTypedefsPrototypeFunctionMethodWithException), (intptr_t) (0) },
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSTestTypedefsPrototypeTable = { 33, 31, JSTestTypedefsPrototypeTableValues, 0 };
+static const HashTable JSTestTypedefsPrototypeTable = { 33, 31, false, JSTestTypedefsPrototypeTableValues, 0 };
 const ClassInfo JSTestTypedefsPrototype::s_info = { "TestTypedefsPrototype", &Base::s_info, &JSTestTypedefsPrototypeTable, 0, CREATE_METHOD_TABLE(JSTestTypedefsPrototype) };
 
 JSObject* JSTestTypedefsPrototype::self(VM& vm, JSGlobalObject* globalObject)
@@ -266,22 +266,15 @@ EncodedJSValue jsTestTypedefsStringAttrWithSetterException(ExecState* exec, Enco
 }
 
 
-EncodedJSValue jsTestTypedefsConstructor(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName)
+EncodedJSValue jsTestTypedefsConstructor(ExecState* exec, EncodedJSValue, EncodedJSValue thisValue, PropertyName)
 {
-    JSTestTypedefs* domObject = jsDynamicCast<JSTestTypedefs*>(JSValue::decode(slotBase));
+    JSTestTypedefs* domObject = jsDynamicCast<JSTestTypedefs*>(JSValue::decode(thisValue));
     if (!domObject)
         return throwVMTypeError(exec);
     return JSValue::encode(JSTestTypedefs::getConstructor(exec->vm(), domObject->globalObject()));
 }
 
-void JSTestTypedefs::put(JSCell* cell, ExecState* exec, PropertyName propertyName, JSValue value, PutPropertySlot& slot)
-{
-    JSTestTypedefs* thisObject = jsCast<JSTestTypedefs*>(cell);
-    ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    lookupPut<JSTestTypedefs, Base>(exec, propertyName, value, JSTestTypedefsTable, thisObject, slot);
-}
-
-void setJSTestTypedefsUnsignedLongLongAttr(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsUnsignedLongLongAttr(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);
@@ -298,7 +291,7 @@ void setJSTestTypedefsUnsignedLongLongAttr(ExecState* exec, EncodedJSValue thisV
 }
 
 
-void setJSTestTypedefsImmutableSerializedScriptValue(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsImmutableSerializedScriptValue(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);
@@ -315,7 +308,7 @@ void setJSTestTypedefsImmutableSerializedScriptValue(ExecState* exec, EncodedJSV
 }
 
 
-void setJSTestTypedefsAttrWithGetterException(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsAttrWithGetterException(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);
@@ -332,7 +325,7 @@ void setJSTestTypedefsAttrWithGetterException(ExecState* exec, EncodedJSValue th
 }
 
 
-void setJSTestTypedefsAttrWithSetterException(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsAttrWithSetterException(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);
@@ -351,7 +344,7 @@ void setJSTestTypedefsAttrWithSetterException(ExecState* exec, EncodedJSValue th
 }
 
 
-void setJSTestTypedefsStringAttrWithGetterException(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsStringAttrWithGetterException(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);
@@ -368,7 +361,7 @@ void setJSTestTypedefsStringAttrWithGetterException(ExecState* exec, EncodedJSVa
 }
 
 
-void setJSTestTypedefsStringAttrWithSetterException(ExecState* exec, EncodedJSValue thisValue, EncodedJSValue encodedValue)
+void setJSTestTypedefsStringAttrWithSetterException(ExecState* exec, JSObject* /* baseObject */, EncodedJSValue thisValue, EncodedJSValue encodedValue)
 {
     JSValue value = JSValue::decode(encodedValue);
     UNUSED_PARAM(exec);

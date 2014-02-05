@@ -44,7 +44,7 @@ namespace WebKit {
 static CFStringRef sessionHistoryKey = CFSTR("SessionHistory");
 static CFStringRef provisionalURLKey = CFSTR("ProvisionalURL");
 
-static const UInt32 CurrentSessionStateDataVersion = 2;
+static const UInt32 CurrentSessionStateDataVersion = 3;
 
 PassRefPtr<API::Data> WebPageProxy::sessionStateData(WebPageProxySessionStateFilterCallback filter, void* context) const
 {
@@ -176,7 +176,7 @@ void WebPageProxy::restoreFromSessionStateData(API::Data* apiData)
     }
 
     if (provisionalURL)
-        loadURL(provisionalURL);
+        loadRequest(URL(URL(), provisionalURL));
 }
 
 static RetainPtr<CFStringRef> autosaveKey(const String& name)

@@ -23,6 +23,7 @@
 #define RuleSet_h
 
 #include "RuleFeature.h"
+#include "SelectorCompiler.h"
 #include "StyleRule.h"
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
@@ -76,6 +77,16 @@ public:
     static const unsigned maximumIdentifierCount = 4;
     const unsigned* descendantSelectorIdentifierHashes() const { return m_descendantSelectorIdentifierHashes; }
 
+#if ENABLE(CSS_SELECTOR_JIT)
+    SelectorCompilationStatus compilationStatus() const { return m_compilationStatus; }
+    JSC::MacroAssemblerCodeRef compiledSelectorCodeRef() const { return m_compiledSelectorCodeRef; }
+    void setCompiledSelector(SelectorCompilationStatus status, JSC::MacroAssemblerCodeRef codeRef) const
+    {
+        m_compilationStatus = status;
+        m_compiledSelectorCodeRef = codeRef;
+    }
+#endif // ENABLE(CSS_SELECTOR_JIT)
+
 private:
     StyleRule* m_rule;
     unsigned m_selectorIndex : 13;
@@ -92,9 +103,19 @@ private:
     unsigned m_propertyWhitelistType : 2;
     // Use plain array instead of a Vector to minimize memory overhead.
     unsigned m_descendantSelectorIdentifierHashes[maximumIdentifierCount];
+#if ENABLE(CSS_SELECTOR_JIT)
+    mutable SelectorCompilationStatus m_compilationStatus;
+    mutable JSC::MacroAssemblerCodeRef m_compiledSelectorCodeRef;
+#endif // ENABLE(CSS_SELECTOR_JIT)
 };
     
 struct SameSizeAsRuleData {
+#if ENABLE(CSS_SELECTOR_JIT)
+    unsigned compilationStatus;
+    void* compiledSelectorPointer;
+    void* codeRefPtr;
+#endif // ENABLE(CSS_SELECTOR_JIT)
+
     void* a;
     unsigned b;
     unsigned c;
@@ -107,16 +128,16 @@ class RuleSet {
     WTF_MAKE_NONCOPYABLE(RuleSet); WTF_MAKE_FAST_ALLOCATED;
 public:
     struct RuleSetSelectorPair {
-        RuleSetSelectorPair(const CSSSelector* selector, PassOwnPtr<RuleSet> ruleSet) : selector(selector), ruleSet(ruleSet) { }
+        RuleSetSelectorPair(const CSSSelector* selector, std::unique_ptr<RuleSet> ruleSet) : selector(selector), ruleSet(std::move(ruleSet)) { }
         RuleSetSelectorPair(const RuleSetSelectorPair& pair) : selector(pair.selector), ruleSet(const_cast<RuleSetSelectorPair*>(&pair)->ruleSet.release()) { }
 
         const CSSSelector* selector;
-        OwnPtr<RuleSet> ruleSet;
+        std::unique_ptr<RuleSet> ruleSet;
     };
 
-    static PassOwnPtr<RuleSet> create() { return adoptPtr(new RuleSet); }
+    RuleSet();
 
-    typedef HashMap<AtomicStringImpl*, OwnPtr<Vector<RuleData>>> AtomRuleMap;
+    typedef HashMap<AtomicStringImpl*, std::unique_ptr<Vector<RuleData>>> AtomRuleMap;
 
     void addRulesFromSheet(StyleSheetContents*, const MediaQueryEvaluator&, StyleResolver* = 0, const ContainerNode* = 0);
 
@@ -148,8 +169,6 @@ public:
 private:
     void addChildRules(const Vector<RefPtr<StyleRuleBase>>&, const MediaQueryEvaluator& medium, StyleResolver*, const ContainerNode* scope, bool hasDocumentSecurityOrigin, AddRuleFlags);
     bool findBestRuleSetAndAdd(const CSSSelector*, RuleData&);
-
-    RuleSet();
 
     AtomRuleMap m_idRules;
     AtomRuleMap m_classRules;

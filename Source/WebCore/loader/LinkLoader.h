@@ -53,14 +53,14 @@ public:
     virtual ~LinkLoader();
 
     // from CachedResourceClient
-    virtual void notifyFinished(CachedResource*);
+    virtual void notifyFinished(CachedResource*) override;
 
     void released();
     bool loadLink(const LinkRelAttribute&, const String& type, const String& sizes, const URL&, Document*);
 
 private:
-    void linkLoadTimerFired(Timer<LinkLoader>*);
-    void linkLoadingErrorTimerFired(Timer<LinkLoader>*);
+    void linkLoadTimerFired(Timer<LinkLoader>&);
+    void linkLoadingErrorTimerFired(Timer<LinkLoader>&);
 
     LinkLoaderClient* m_client;
 

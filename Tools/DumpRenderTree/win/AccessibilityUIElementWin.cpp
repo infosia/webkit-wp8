@@ -451,6 +451,12 @@ bool AccessibilityUIElement::isChecked() const
     return vState.lVal & STATE_SYSTEM_CHECKED;
 }
 
+bool AccessibilityUIElement::isIndeterminate() const
+{
+    // FIXME: implement
+    return false;
+}
+
 JSStringRef AccessibilityUIElement::orientation() const
 {
     return 0;
@@ -680,6 +686,11 @@ AccessibilityUIElement AccessibilityUIElement::ariaOwnsElementAtIndex(unsigned i
 }
 
 AccessibilityUIElement AccessibilityUIElement::ariaFlowToElementAtIndex(unsigned index)
+{
+    return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::ariaControlsElementAtIndex(unsigned index)
 {
     return 0;
 }

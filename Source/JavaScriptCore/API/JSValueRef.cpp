@@ -44,13 +44,13 @@
 
 #include <algorithm> // for std::min
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
 #include <mach-o/dyld.h>
 #endif
 
 using namespace JSC;
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
 static bool evernoteHackNeeded()
 {
     static const int32_t webkitLastVersionWithEvernoteHack = 35133959;
@@ -327,7 +327,7 @@ JSValueRef JSValueMakeFromJSONString(JSContextRef ctx, JSStringRef string)
         LiteralParser<LChar> parser(exec, str.characters8(), length, StrictJSON);
         return toRef(exec, parser.tryLiteralParse());
     }
-    LiteralParser<UChar> parser(exec, str.characters(), length, StrictJSON);
+    LiteralParser<UChar> parser(exec, str.deprecatedCharacters(), length, StrictJSON);
     return toRef(exec, parser.tryLiteralParse());
 }
 
@@ -443,7 +443,7 @@ void JSValueProtect(JSContextRef ctx, JSValueRef value)
 
 void JSValueUnprotect(JSContextRef ctx, JSValueRef value)
 {
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     if ((!value || !ctx) && evernoteHackNeeded())
         return;
 #endif

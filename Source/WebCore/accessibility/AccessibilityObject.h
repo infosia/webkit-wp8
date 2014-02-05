@@ -177,7 +177,6 @@ enum AccessibilityRole {
     RulerMarkerRole,
     ScrollAreaRole,
     ScrollBarRole,
-    SeamlessWebAreaRole,
     SheetRole,
     SliderRole,
     SliderThumbRole,
@@ -426,7 +425,6 @@ public:
     virtual bool isNativeTextControl() const { return false; }
     virtual bool isSearchField() const { return false; }
     bool isWebArea() const { return roleValue() == WebAreaRole; }
-    bool isSeamlessWebArea() const { return roleValue() == SeamlessWebAreaRole; }
     virtual bool isCheckbox() const { return roleValue() == CheckBoxRole; }
     virtual bool isRadioButton() const { return roleValue() == RadioButtonRole; }
     virtual bool isListBox() const { return roleValue() == ListBoxRole; }
@@ -553,6 +551,10 @@ public:
     virtual void ariaOwnsElements(AccessibilityChildrenVector&) const { }
     virtual bool supportsARIAFlowTo() const { return false; }
     virtual void ariaFlowToElements(AccessibilityChildrenVector&) const { }
+    virtual bool supportsARIADescribedBy() const { return false; }
+    virtual void ariaDescribedByElements(AccessibilityChildrenVector&) const { }
+    virtual bool supportsARIAControls() const { return false; }
+    virtual void ariaControlsElements(AccessibilityChildrenVector&) const { }
     virtual bool ariaHasPopup() const { return false; }
     virtual bool ariaPressedIsPresent() const;
     bool ariaIsMultiline() const;
@@ -626,6 +628,8 @@ public:
     virtual String ariaLabeledByAttribute() const { return String(); }
     virtual String ariaDescribedByAttribute() const { return String(); }
     const AtomicString& placeholderValue() const;
+
+    void elementsFromAttribute(Vector<Element*>&, const QualifiedName&) const;
 
     // Only if isColorWell()
     virtual void colorValue(int& r, int& g, int& b) const { r = 0; g = 0; b = 0; }
@@ -858,7 +862,7 @@ public:
     virtual int mathLineThickness() const { return 0; }
     
     // Multiscripts components.
-    typedef Vector<pair<AccessibilityObject*, AccessibilityObject*>> AccessibilityMathMultiscriptPairs;
+    typedef Vector<std::pair<AccessibilityObject*, AccessibilityObject*>> AccessibilityMathMultiscriptPairs;
     virtual void mathPrescripts(AccessibilityMathMultiscriptPairs&) { }
     virtual void mathPostscripts(AccessibilityMathMultiscriptPairs&) { }
     
@@ -924,7 +928,7 @@ protected:
     virtual AccessibilityRole buttonRoleType() const;
     bool isOnscreen() const;
     
-#if PLATFORM(GTK) || (PLATFORM(EFL) && HAVE(ACCESSIBILITY))
+#if (PLATFORM(GTK) || PLATFORM(EFL)) && HAVE(ACCESSIBILITY)
     bool allowsTextRanges() const;
     unsigned getLengthForTextRange() const;
 #else
@@ -942,7 +946,7 @@ protected:
 };
 
 #if !HAVE(ACCESSIBILITY)
-inline const AccessibilityObject::AccessibilityChildrenVector& AccessibilityObject::children() { return m_children; }
+inline const AccessibilityObject::AccessibilityChildrenVector& AccessibilityObject::children(bool) { return m_children; }
 inline const String& AccessibilityObject::actionVerb() const { return emptyString(); }
 inline int AccessibilityObject::lineForPosition(const VisiblePosition&) const { return -1; }
 inline void AccessibilityObject::updateBackingStore() { }

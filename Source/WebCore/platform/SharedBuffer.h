@@ -27,6 +27,7 @@
 #ifndef SharedBuffer_h
 #define SharedBuffer_h
 
+#include <runtime/ArrayBuffer.h>
 #include <wtf/Forward.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/RefCounted.h>
@@ -38,7 +39,7 @@
 #endif
 
 #if USE(SOUP)
-#include "GOwnPtrSoup.h"
+#include "GUniquePtrSoup.h"
 #endif
 
 #if PLATFORM(MAC)
@@ -52,9 +53,9 @@ class PurgeableBuffer;
 class SharedBuffer : public RefCounted<SharedBuffer> {
 public:
     static PassRefPtr<SharedBuffer> create() { return adoptRef(new SharedBuffer); }
-    static PassRefPtr<SharedBuffer> create(size_t size) { return adoptRef(new SharedBuffer(size)); }
-    static PassRefPtr<SharedBuffer> create(const char* c, int i) { return adoptRef(new SharedBuffer(c, i)); }
-    static PassRefPtr<SharedBuffer> create(const unsigned char* c, int i) { return adoptRef(new SharedBuffer(c, i)); }
+    static PassRefPtr<SharedBuffer> create(unsigned size) { return adoptRef(new SharedBuffer(size)); }
+    static PassRefPtr<SharedBuffer> create(const char* c, unsigned i) { return adoptRef(new SharedBuffer(c, i)); }
+    static PassRefPtr<SharedBuffer> create(const unsigned char* c, unsigned i) { return adoptRef(new SharedBuffer(c, i)); }
 
     static PassRefPtr<SharedBuffer> createWithContentsOfFile(const String& filePath);
 
@@ -99,6 +100,9 @@ public:
     // to be merged into a flat buffer. Use getSomeData() whenever possible
     // for better performance.
     const char* data() const;
+    // Creates an ArrayBuffer and copies this SharedBuffer's contents to that
+    // ArrayBuffer without merging segmented buffers into a flat buffer.
+    PassRefPtr<ArrayBuffer> createArrayBuffer() const;
 
     unsigned size() const;
 
@@ -138,6 +142,8 @@ public:
     //      }
     unsigned getSomeData(const char*& data, unsigned position = 0) const;
 
+    void shouldUsePurgeableMemory(bool use) { m_shouldUsePurgeableMemory = use; }
+
 #if ENABLE(DISK_IMAGE_CACHE)
     enum MemoryMappingState { QueuedForMapping, PreviouslyQueuedForMapping, SuccessAlreadyMapped, FailureCacheFull };
 
@@ -168,9 +174,9 @@ public:
 
 private:
     SharedBuffer();
-    explicit SharedBuffer(size_t);
-    SharedBuffer(const char*, int);
-    SharedBuffer(const unsigned char*, int);
+    explicit SharedBuffer(unsigned);
+    SharedBuffer(const char*, unsigned);
+    SharedBuffer(const unsigned char*, unsigned);
     
     // Calling this function will force internal segmented buffers
     // to be merged into a flat buffer. Use getSomeData() whenever possible
@@ -187,6 +193,7 @@ private:
 
     unsigned m_size;
     mutable Vector<char> m_buffer;
+    bool m_shouldUsePurgeableMemory;
     mutable OwnPtr<PurgeableBuffer> m_purgeableBuffer;
 #if USE(NETWORK_CFDATA_ARRAY_CALLBACK)
     mutable Vector<RetainPtr<CFDataRef>> m_dataArray;
@@ -208,7 +215,7 @@ private:
 
 #if USE(SOUP)
     explicit SharedBuffer(SoupBuffer*);
-    GOwnPtr<SoupBuffer> m_soupBuffer;
+    GUniquePtr<SoupBuffer> m_soupBuffer;
 #endif
 };
 

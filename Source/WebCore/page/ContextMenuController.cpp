@@ -69,11 +69,6 @@
 #include "WindowFeatures.h"
 #include "markup.h"
 #include <wtf/unicode/CharacterNames.h>
-#include <wtf/unicode/Unicode.h>
-
-#if PLATFORM(GTK)
-#include <wtf/gobject/GOwnPtr.h>
-#endif
 
 using namespace WTF;
 using namespace Unicode;
@@ -157,7 +152,7 @@ PassOwnPtr<ContextMenu> ContextMenuController::createContextMenu(Event* event)
 void ContextMenuController::showContextMenu(Event* event)
 {
 #if ENABLE(INSPECTOR)
-    if (m_page.inspectorController()->enabled())
+    if (m_page.inspectorController().enabled())
         addInspectElementItem();
 #endif
 
@@ -172,17 +167,18 @@ void ContextMenuController::showContextMenu(Event* event)
 
 static void openNewWindow(const URL& urlToLoad, Frame* frame)
 {
-    if (Page* oldPage = frame->page()) {
-        FrameLoadRequest request(frame->document()->securityOrigin(), ResourceRequest(urlToLoad, frame->loader().outgoingReferrer()));
-        Page* newPage = oldPage;
-        if (frame->settings().supportsMultipleWindows()) {
-            newPage = oldPage->chrome().createWindow(frame, request, WindowFeatures(), NavigationAction(request.resourceRequest()));
-            if (!newPage)
-                return;
-            newPage->chrome().show();
-        }
-        newPage->mainFrame().loader().loadFrameRequest(request, false, false, 0, 0, MaybeSendReferrer);
-    }
+    Page* oldPage = frame->page();
+    if (!oldPage)
+        return;
+    
+    FrameLoadRequest request(frame->document()->securityOrigin(), ResourceRequest(urlToLoad, frame->loader().outgoingReferrer()));
+    Page* newPage = oldPage;
+
+    newPage = oldPage->chrome().createWindow(frame, request, WindowFeatures(), NavigationAction(request.resourceRequest()));
+    if (!newPage)
+        return;
+    newPage->chrome().show();
+    newPage->mainFrame().loader().loadFrameRequest(request, false, false, 0, 0, MaybeSendReferrer);
 }
 
 #if PLATFORM(GTK)
@@ -344,15 +340,15 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuItem* item)
         break;
 #endif
     case ContextMenuItemTagSpellingGuess: {
-        FrameSelection& frameSelection = frame->selection();
-        if (frame->editor().shouldInsertText(item->title(), frameSelection.toNormalizedRange().get(), EditorInsertActionPasted)) {
+        VisibleSelection selection = frame->selection().selection();
+        if (frame->editor().shouldInsertText(item->title(), selection.toNormalizedRange().get(), EditorInsertActionPasted)) {
             ReplaceSelectionCommand::CommandOptions replaceOptions = ReplaceSelectionCommand::MatchStyle | ReplaceSelectionCommand::PreventNesting;
 
             if (frame->editor().behavior().shouldAllowSpellingSuggestionsWithoutSelection()) {
-                ASSERT(frameSelection.isCaretOrRange());
-                VisibleSelection wordSelection(frameSelection.base());
+                ASSERT(selection.isCaretOrRange());
+                VisibleSelection wordSelection(selection.base());
                 wordSelection.expandUsingGranularity(WordGranularity);
-                frameSelection.setSelection(wordSelection);
+                frame->selection().setSelection(wordSelection);
             } else {
                 ASSERT(frame->editor().selectedText().length());
                 replaceOptions |= ReplaceSelectionCommand::SelectReplacement;
@@ -362,7 +358,7 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuItem* item)
             ASSERT(document);
             RefPtr<ReplaceSelectionCommand> command = ReplaceSelectionCommand::create(*document, createFragmentFromMarkup(*document, item->title(), ""), replaceOptions);
             applyCommand(command);
-            frameSelection.revealSelection(ScrollAlignment::alignToEdgeIfNeeded);
+            frame->selection().revealSelection(ScrollAlignment::alignToEdgeIfNeeded);
         }
         break;
     }
@@ -502,7 +498,7 @@ void ContextMenuController::contextMenuItemSelected(ContextMenuItem* item)
 #if ENABLE(INSPECTOR)
     case ContextMenuItemTagInspectElement:
         if (Page* page = frame->page())
-            page->inspectorController()->inspect(m_hitTestResult.innerNonSharedNode());
+            page->inspectorController().inspect(m_hitTestResult.innerNonSharedNode());
         break;
 #endif
     case ContextMenuItemTagDictationAlternative:
@@ -892,7 +888,7 @@ void ContextMenuController::populate()
 #endif                
             } else {
 #if ENABLE(INSPECTOR)
-                if (!(frame->page() && (frame->page()->inspectorController()->hasInspectorFrontendClient() || frame->page()->inspectorController()->hasRemoteFrontend()))) {
+                if (!(frame->page() && (frame->page()->inspectorController().hasInspectorFrontendClient() || frame->page()->inspectorController().hasRemoteFrontend()))) {
 #endif
 
                 // In GTK+ unavailable items are not hidden but insensitive.
@@ -924,7 +920,7 @@ void ContextMenuController::populate()
             }
         }
     } else { // Make an editing context menu
-        bool inPasswordField = frame->selection().isInPasswordField();
+        bool inPasswordField = frame->selection().selection().isInPasswordField();
         if (!inPasswordField) {
             bool haveContextMenuItemsForMisspellingOrGrammer = false;
             bool spellCheckingEnabled = frame->editor().isSpellCheckingEnabledFor(node);
@@ -1098,9 +1094,6 @@ void ContextMenuController::addInspectElementItem()
 
     Page* page = frame->page();
     if (!page)
-        return;
-
-    if (!page->inspectorController())
         return;
 
     ContextMenuItem InspectElementItem(ActionType, ContextMenuItemTagInspectElement, contextMenuItemTagInspectElement());

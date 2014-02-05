@@ -198,6 +198,8 @@ bool HTMLPlugInImageElement::wouldLoadAsNetscapePlugin(const String& url, const 
 
 RenderPtr<RenderElement> HTMLPlugInImageElement::createElementRenderer(PassRef<RenderStyle> style)
 {
+    ASSERT(!document().inPageCache());
+
     if (displayState() >= PreparingPluginReplacement)
         return HTMLPlugInElement::createElementRenderer(std::move(style));
 
@@ -220,11 +222,8 @@ RenderPtr<RenderElement> HTMLPlugInImageElement::createElementRenderer(PassRef<R
     if (useFallbackContent())
         return RenderElement::createFor(*this, std::move(style));
 
-    if (isImageType()) {
-        auto image = createRenderer<RenderImage>(*this, std::move(style));
-        image->setImageResource(RenderImageResource::create());
-        return std::move(image);
-    }
+    if (isImageType())
+        return createRenderer<RenderImage>(*this, std::move(style));
 
 #if PLATFORM(IOS)
     if (ShadowRoot* shadowRoot = this->shadowRoot()) {
@@ -238,9 +237,10 @@ RenderPtr<RenderElement> HTMLPlugInImageElement::createElementRenderer(PassRef<R
 
 bool HTMLPlugInImageElement::willRecalcStyle(Style::Change)
 {
-    // FIXME: Why is this necessary?  Manual re-attach is almost always wrong.
+    // FIXME: There shoudn't be need to force render tree reconstruction here.
+    // It is only done because loading and load event dispatching is tied to render tree construction.
     if (!useFallbackContent() && needsWidgetUpdate() && renderer() && !isImageType() && (displayState() != DisplayingSnapshot))
-        Style::reattachRenderTree(*this);
+        setNeedsStyleRecalc(ReconstructRenderTree);
     return true;
 }
 
@@ -308,30 +308,17 @@ void HTMLPlugInImageElement::didMoveToNewDocument(Document* oldDocument)
 
 void HTMLPlugInImageElement::documentWillSuspendForPageCache()
 {
-    if (RenderStyle* renderStyle = this->renderStyle()) {
-        m_customStyleForPageCache = RenderStyle::clone(renderStyle);
-        m_customStyleForPageCache->setDisplay(NONE);
-        Style::resolveTree(*this, Style::Force);
-    }
+    if (renderer())
+        Style::detachRenderTree(*this);
 
     HTMLPlugInElement::documentWillSuspendForPageCache();
 }
 
 void HTMLPlugInImageElement::documentDidResumeFromPageCache()
 {
-    if (m_customStyleForPageCache) {
-        m_customStyleForPageCache = 0;
-        Style::resolveTree(*this, Style::Force);
-    }
+    setNeedsStyleRecalc(ReconstructRenderTree);
 
     HTMLPlugInElement::documentDidResumeFromPageCache();
-}
-
-PassRefPtr<RenderStyle> HTMLPlugInImageElement::customStyleForRenderer()
-{
-    if (!m_customStyleForPageCache)
-        return document().ensureStyleResolver().styleForElement(this);
-    return m_customStyleForPageCache;
 }
 
 void HTMLPlugInImageElement::updateWidgetCallback(Node& node, unsigned)
@@ -463,13 +450,10 @@ void HTMLPlugInImageElement::createShadowIFrameSubtree(const String& src)
     // Disable frame flattening for this iframe.
     iframeElement->setAttribute(HTMLNames::scrollingAttr, AtomicString("no", AtomicString::ConstructFromLiteral));
     shadowElement->appendChild(iframeElement, ASSERT_NO_EXCEPTION);
-
-    if (renderer())
-        Style::reattachRenderTree(*this);
 }
 #endif
 
-void HTMLPlugInImageElement::removeSnapshotTimerFired(Timer<HTMLPlugInImageElement>*)
+void HTMLPlugInImageElement::removeSnapshotTimerFired(Timer<HTMLPlugInImageElement>&)
 {
     m_snapshotImage = nullptr;
     m_isRestartedPlugin = false;
@@ -572,7 +556,7 @@ void HTMLPlugInImageElement::restartSnapshottedPlugIn()
         return;
 
     setDisplayState(Restarting);
-    Style::reattachRenderTree(*this);
+    setNeedsStyleRecalc(ReconstructRenderTree);
 }
 
 void HTMLPlugInImageElement::dispatchPendingMouseClick()
@@ -581,7 +565,7 @@ void HTMLPlugInImageElement::dispatchPendingMouseClick()
     m_simulatedMouseClickTimer.restart();
 }
 
-void HTMLPlugInImageElement::simulatedMouseClickTimerFired(DeferrableOneShotTimer<HTMLPlugInImageElement>*)
+void HTMLPlugInImageElement::simulatedMouseClickTimerFired(DeferrableOneShotTimer<HTMLPlugInImageElement>&)
 {
     ASSERT(displayState() == RestartingWithPendingMouseClick);
     ASSERT(m_pendingClickEventFromSnapshot);

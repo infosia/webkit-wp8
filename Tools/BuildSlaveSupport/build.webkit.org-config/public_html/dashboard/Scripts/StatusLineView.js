@@ -43,12 +43,7 @@ StatusLineView = function(message, status, label, repeatCount, url)
     if (status != StatusLineView.Status.NoBubble)
         this.element.appendChild(this._statusBubbleElement);
 
-    if (url) {
-        this._labelElement = document.createElement("a");
-        this._labelElement.href = url;
-        this._labelElement.target = "_blank";
-    } else
-        this._labelElement = document.createElement("div");
+    this._labelElement = document.createElement("div");
     this._labelElement.classList.add("label");
 
     this._messageElement = document.createElement("div");
@@ -67,7 +62,8 @@ StatusLineView.Status = {
     Neutral: "neutral",
     Good: "good",
     Danger: "danger",
-    Bad: "bad"
+    Bad: "bad",
+    Unauthorized: "unauthorized"
 };
 
 BaseObject.addConstructorFunctions(StatusLineView);
@@ -160,5 +156,10 @@ StatusLineView.prototype = {
         } else {
             this._messageElement.textContent = x;
         }
+    },
+
+    get statusBubbleElement()
+    {
+        return this._statusBubbleElement;
     }
 };

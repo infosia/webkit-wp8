@@ -71,11 +71,7 @@ RuntimeEnabledFeatures::RuntimeEnabledFeatures()
     , m_isJavaScriptI18NAPIEnabled(false)
 #endif
 #if ENABLE(VIDEO_TRACK)
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN)
     , m_isVideoTrackEnabled(true)
-#else
-    , m_isVideoTrackEnabled(false)
-#endif
 #endif
 #if ENABLE(SHADOW_DOM)
     , m_isShadowDOMEnabled(false)
@@ -101,9 +97,6 @@ RuntimeEnabledFeatures::RuntimeEnabledFeatures()
 #endif
 #if ENABLE(CSP_NEXT)
     , m_areExperimentalContentSecurityPolicyFeaturesEnabled(false)
-#endif
-#if ENABLE(IFRAME_SEAMLESS)
-    , m_areSeamlessIFramesEnabled(false)
 #endif
 #if ENABLE(FONT_LOAD_EVENTS)
     , m_isFontLoadEventsEnabled(false)

@@ -219,11 +219,25 @@ Parser<LexerType>::Parser(VM* vm, const SourceCode& source, FunctionParameters* 
     if (strictness == JSParseStrict)
         scope->setStrictMode();
     if (parameters) {
+        bool hadBindingParameters = false;
         for (unsigned i = 0; i < parameters->size(); i++) {
             auto parameter = parameters->at(i);
-            if (!parameter->isBindingNode())
+            if (!parameter->isBindingNode()) {
+                hadBindingParameters = true;
                 continue;
+            }
             scope->declareParameter(&static_cast<BindingNode*>(parameter)->boundProperty());
+        }
+        if (hadBindingParameters) {
+            Vector<Identifier> boundParameterNames;
+            for (unsigned i = 0; i < parameters->size(); i++) {
+                auto parameter = parameters->at(i);
+                if (parameter->isBindingNode())
+                    continue;
+                parameter->collectBoundIdentifiers(boundParameterNames);
+            }
+            for (auto boundParameterName : boundParameterNames)
+                scope->declareVariable(&boundParameterName);
         }
     }
     if (!name.isNull())
@@ -498,7 +512,8 @@ template <class TreeBuilder> TreeDeconstructionPattern Parser<LexerType>::create
             }
         }
         if (kind != DeconstructToExpressions)
-            context.addVar(&name, kind == DeconstructToParameters ? 0 : DeclarationStacks::HasInitializer);
+            context.addVar(&name, DeclarationStacks::HasInitializer);
+
     } else {
         if (kind == DeconstructToVariables) {
             failIfFalseIfStrict(declareVariable(&name), "Cannot declare a variable named '", name.impl(), "' in strict mode");
@@ -518,7 +533,7 @@ template <class TreeBuilder> TreeDeconstructionPattern Parser<LexerType>::create
             }
         }
     }
-    return context.createBindingLocation(m_token.m_location, name, m_token.m_endPosition, m_token.m_startPosition, m_token.m_endPosition);
+    return context.createBindingLocation(m_token.m_location, name, m_token.m_startPosition, m_token.m_endPosition);
 }
 
 template <typename LexerType>
@@ -660,6 +675,7 @@ template <class TreeBuilder> TreeConstDeclList Parser<LexerType>::parseConstDecl
         if (hasInitializer) {
             next(TreeBuilder::DontBuildStrings); // consume '='
             initializer = parseAssignmentExpression(context);
+            failIfFalse(!!initializer, "Unable to parse initializer");
         }
         tail = context.appendConstDecl(location, tail, name, initializer);
         if (!constDecls)
@@ -1132,6 +1148,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseStatement(Tre
         if (directiveLiteralLength)
             *directiveLiteralLength = m_token.m_location.endOffset - m_token.m_location.startOffset;
         nonTrivialExpressionCount = m_nonTrivialExpressionCount;
+        FALLTHROUGH;
     default:
         TreeStatement exprStatement = parseExpressionStatement(context);
         if (directive && nonTrivialExpressionCount != m_nonTrivialExpressionCount)
@@ -1427,7 +1444,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseIfStatement(T
         return context.createIfStatement(ifLocation, condition, trueBlock, 0, start, end);
 
     Vector<TreeExpression> exprStack;
-    Vector<pair<int, int>> posStack;
+    Vector<std::pair<int, int>> posStack;
     Vector<JSTokenLocation> tokenLocationStack;
     Vector<TreeStatement> statementStack;
     bool trailingElse = false;
@@ -1456,7 +1473,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseIfStatement(T
         failIfFalse(innerTrueBlock, "Expected a statement as the body of an if block");
         tokenLocationStack.append(tempLocation);
         exprStack.append(innerCondition);
-        posStack.append(make_pair(innerStart, innerEnd));
+        posStack.append(std::make_pair(innerStart, innerEnd));
         statementStack.append(innerTrueBlock);
     } while (match(ELSE));
 
@@ -1465,7 +1482,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseIfStatement(T
         exprStack.removeLast();
         TreeStatement trueBlock = statementStack.last();
         statementStack.removeLast();
-        pair<int, int> pos = posStack.last();
+        std::pair<int, int> pos = posStack.last();
         posStack.removeLast();
         JSTokenLocation elseLocation = tokenLocationStack.last();
         tokenLocationStack.removeLast();
@@ -1479,7 +1496,7 @@ template <class TreeBuilder> TreeStatement Parser<LexerType>::parseIfStatement(T
         statementStack.removeLast();
         TreeStatement trueBlock = statementStack.last();
         statementStack.removeLast();
-        pair<int, int> pos = posStack.last();
+        std::pair<int, int> pos = posStack.last();
         posStack.removeLast();
         JSTokenLocation elseLocation = tokenLocationStack.last();
         tokenLocationStack.removeLast();
@@ -1680,6 +1697,7 @@ template <class TreeBuilder> TreeProperty Parser<LexerType>::parseProperty(TreeB
     namedProperty:
     case IDENT:
         wasIdent = true;
+        FALLTHROUGH;
     case STRING: {
         const Identifier* ident = m_token.m_data.ident;
         if (complete || (wasIdent && (*ident == m_vm->propertyNames->get || *ident == m_vm->propertyNames->set)))

@@ -20,7 +20,6 @@
 #ifndef SVGAnimatedListPropertyTearOff_h
 #define SVGAnimatedListPropertyTearOff_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedProperty.h"
 #include "SVGListPropertyTearOff.h"
 #include "SVGStaticListPropertyTearOff.h"
@@ -54,7 +53,7 @@ public:
         return static_cast<ListProperty*>(m_animVal.get());
     }
 
-    virtual bool isAnimatedListTearOff() const OVERRIDE { return true; }
+    virtual bool isAnimatedListTearOff() const override { return true; }
 
     int findItem(SVGProperty* property) const
     {
@@ -180,5 +179,4 @@ protected:
 
 }
 
-#endif // ENABLE(SVG)
 #endif // SVGAnimatedListPropertyTearOff_h

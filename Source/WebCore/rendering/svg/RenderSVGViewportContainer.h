@@ -23,14 +23,13 @@
 #ifndef RenderSVGViewportContainer_h
 #define RenderSVGViewportContainer_h
 
-#if ENABLE(SVG)
 #include "RenderSVGContainer.h"
 
 namespace WebCore {
 
 // This is used for non-root <svg> elements and <marker> elements, neither of which are SVGTransformable
 // thus we inherit from RenderSVGContainer instead of RenderSVGTransformableContainer
-class RenderSVGViewportContainer FINAL : public RenderSVGContainer {
+class RenderSVGViewportContainer final : public RenderSVGContainer {
 public:
     RenderSVGViewportContainer(SVGSVGElement&, PassRef<RenderStyle>);
 
@@ -44,10 +43,10 @@ public:
     virtual void determineIfLayoutSizeChanged();
     virtual void setNeedsTransformUpdate() { m_needsTransformUpdate = true; }
 
-    virtual void paint(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    virtual void paint(PaintInfo&, const LayoutPoint&) override;
 
 private:
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 
     virtual bool isSVGViewportContainer() const { return true; }
     virtual const char* renderName() const { return "RenderSVGViewportContainer"; }
@@ -72,5 +71,4 @@ RENDER_OBJECT_TYPE_CASTS(RenderSVGViewportContainer, isSVGViewportContainer())
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // RenderSVGViewportContainer_h

@@ -51,9 +51,6 @@ struct ViewportAttributes {
 
     float userScalable;
     float orientation;
-#if PLATFORM(IOS)
-    bool minimalUI;
-#endif
 };
 
 struct ViewportArguments {
@@ -61,11 +58,6 @@ struct ViewportArguments {
     enum Type {
         // These are ordered in increasing importance.
         Implicit,
-#if ENABLE(LEGACY_VIEWPORT_ADAPTION)
-        XHTMLMobileProfile,
-        HandheldFriendlyMeta,
-        MobileOptimizedMeta,
-#endif
 #if PLATFORM(IOS)
         PluginDocument,
         ImageDocument,
@@ -115,6 +107,9 @@ struct ViewportArguments {
     float maxZoom;
     float userZoom;
     float orientation;
+#if PLATFORM(IOS)
+    bool minimalUI;
+#endif
 
     bool operator==(const ViewportArguments& other) const
     {
@@ -142,7 +137,7 @@ struct ViewportArguments {
         return !(*this == other);
     }
 
-#if PLATFORM(BLACKBERRY) || PLATFORM(GTK)
+#if PLATFORM(GTK)
     // FIXME: We're going to keep this constant around until all embedders
     // refactor their code to no longer need it.
     static const float deprecatedTargetDPI;

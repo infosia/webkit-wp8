@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef DragData_h
@@ -34,15 +34,14 @@
 #include <wtf/HashMap.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
 #include <wtf/RetainPtr.h>
 #include <wtf/text/WTFString.h>
 
 #ifdef __OBJC__ 
 #import <Foundation/Foundation.h>
 #import <AppKit/NSDragging.h>
-// Use id instead of id <NSDraggingInfo> here due to clang ABI change. See <rdar://problem/14764114>.
-typedef id DragDataRef;
+typedef id <NSDraggingInfo> DragDataRef;
 #else
 typedef void* DragDataRef;
 #endif
@@ -55,10 +54,9 @@ namespace WebCore {
 class DataObjectGtk;
 }
 typedef WebCore::DataObjectGtk* DragDataRef;
-#elif PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(NIX)
+#elif PLATFORM(EFL) || PLATFORM(IOS)
 typedef void* DragDataRef;
 #endif
-
 
 namespace WebCore {
 
@@ -76,7 +74,7 @@ enum DragApplicationFlags {
 };
 
 #if PLATFORM(WIN)
-typedef HashMap<UINT, Vector<String>> DragDataMap;
+typedef HashMap<unsigned, Vector<String>> DragDataMap;
 #endif
 
 class DragData {
@@ -110,7 +108,7 @@ public:
     bool containsFiles() const;
     unsigned numberOfFiles() const;
     int modifierKeyState() const;
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     const String& pasteboardName() const { return m_pasteboardName; }
 #endif
 
@@ -136,7 +134,7 @@ private:
     DragDataRef m_platformDragData;
     DragOperation m_draggingSourceOperationMask;
     DragApplicationFlags m_applicationFlags;
-#if PLATFORM(MAC)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     String m_pasteboardName;
 #endif
 #if PLATFORM(WIN)

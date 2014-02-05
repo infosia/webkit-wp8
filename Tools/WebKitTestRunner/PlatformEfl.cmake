@@ -23,6 +23,7 @@ list(APPEND WebKitTestRunner_INCLUDE_DIRECTORIES
     ${TOOLS_DIR}/DumpRenderTree/efl/
     ${WEBKIT2_DIR}/UIProcess/API/efl
     "${WTF_DIR}/wtf/gobject"
+    ${WEBCORE_DIR}/platform/network/soup
     ${CAIRO_INCLUDE_DIRS}
     ${ECORE_EVAS_INCLUDE_DIRS}
     ${ECORE_FILE_INCLUDE_DIRS}
@@ -78,7 +79,7 @@ list(APPEND WebKitTestRunnerInjectedBundle_SOURCES
 # FIXME: DOWNLOADED_FONTS_DIR should not hardcode the directory
 # structure. See <https://bugs.webkit.org/show_bug.cgi?id=81475>.
 add_definitions(-DFONTS_CONF_DIR="${TOOLS_DIR}/DumpRenderTree/gtk/fonts"
-                -DDOWNLOADED_FONTS_DIR="${CMAKE_SOURCE_DIR}/WebKitBuild/Dependencies/Source/webkitgtk-test-fonts-0.0.3")
+                -DDOWNLOADED_FONTS_DIR="${CMAKE_SOURCE_DIR}/WebKitBuild/Dependencies/Source/webkitgtk-test-fonts")
 
 if (ENABLE_ACCESSIBILITY)
     list(APPEND WebKitTestRunner_INCLUDE_DIRECTORIES

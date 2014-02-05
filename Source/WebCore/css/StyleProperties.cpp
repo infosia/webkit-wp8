@@ -197,14 +197,12 @@ String StyleProperties::getPropertyValue(CSSPropertyID propertyID) const
         return getLayeredShorthandValue(webkitTransitionShorthand());
     case CSSPropertyWebkitAnimation:
         return getLayeredShorthandValue(webkitAnimationShorthand());
-#if ENABLE(SVG)
     case CSSPropertyMarker: {
         RefPtr<CSSValue> value = getPropertyCSSValue(CSSPropertyMarkerStart);
         if (value)
             return value->cssText();
         return String();
     }
-#endif
     case CSSPropertyBorderRadius:
         return get4Values(borderRadiusShorthand());
     default:
@@ -810,12 +808,14 @@ String StyleProperties::asText() const
         case CSSPropertyBorderLeftWidth:
             if (!borderFallbackShorthandProperty)
                 borderFallbackShorthandProperty = CSSPropertyBorderWidth;
+            FALLTHROUGH;
         case CSSPropertyBorderTopStyle:
         case CSSPropertyBorderRightStyle:
         case CSSPropertyBorderBottomStyle:
         case CSSPropertyBorderLeftStyle:
             if (!borderFallbackShorthandProperty)
                 borderFallbackShorthandProperty = CSSPropertyBorderStyle;
+            FALLTHROUGH;
         case CSSPropertyBorderTopColor:
         case CSSPropertyBorderRightColor:
         case CSSPropertyBorderBottomColor:
@@ -1212,7 +1212,7 @@ CSSStyleDeclaration* MutableStyleProperties::ensureCSSStyleDeclaration()
         ASSERT(!m_cssomWrapper->parentElement());
         return m_cssomWrapper.get();
     }
-    m_cssomWrapper = adoptPtr(new PropertySetCSSStyleDeclaration(this));
+    m_cssomWrapper = std::make_unique<PropertySetCSSStyleDeclaration>(this);
     return m_cssomWrapper.get();
 }
 
@@ -1222,7 +1222,7 @@ CSSStyleDeclaration* MutableStyleProperties::ensureInlineCSSStyleDeclaration(Sty
         ASSERT(m_cssomWrapper->parentElement() == parentElement);
         return m_cssomWrapper.get();
     }
-    m_cssomWrapper = adoptPtr(new InlineCSSStyleDeclaration(this, parentElement));
+    m_cssomWrapper = std::make_unique<InlineCSSStyleDeclaration>(this, parentElement);
     return m_cssomWrapper.get();
 }
 

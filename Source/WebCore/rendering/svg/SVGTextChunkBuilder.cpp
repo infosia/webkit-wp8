@@ -18,11 +18,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextChunkBuilder.h"
 
-#include "RenderSVGInlineText.h"
 #include "SVGElement.h"
 #include "SVGInlineTextBox.h"
 #include "SVGLengthContext.h"
@@ -257,5 +254,3 @@ void SVGTextChunkBuilder::buildSpacingAndGlyphsTransform(bool isVerticalText, fl
 }
 
 }
-
-#endif // ENABLE(SVG)

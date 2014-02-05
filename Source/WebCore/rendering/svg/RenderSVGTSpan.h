@@ -22,12 +22,11 @@
 #ifndef RenderSVGTSpan_h
 #define RenderSVGTSpan_h
 
-#if ENABLE(SVG)
 #include "RenderSVGInline.h"
 #include "SVGTextPositioningElement.h"
 
 namespace WebCore {
-class RenderSVGTSpan FINAL : public RenderSVGInline {
+class RenderSVGTSpan final : public RenderSVGInline {
 public:
     explicit RenderSVGTSpan(SVGTextPositioningElement& element, PassRef<RenderStyle> style)
         : RenderSVGInline(element, std::move(style))
@@ -37,10 +36,9 @@ public:
     SVGTextPositioningElement& textPositioningElement() const { return static_cast<SVGTextPositioningElement&>(RenderSVGInline::graphicsElement()); }
 
 private:
-    void graphicsElement() const WTF_DELETED_FUNCTION;
+    void graphicsElement() const = delete;
     virtual const char* renderName() const { return "RenderSVGTSpan"; }
 };
 }
 
-#endif // ENABLE(SVG)
 #endif // !RenderSVGTSpan_h

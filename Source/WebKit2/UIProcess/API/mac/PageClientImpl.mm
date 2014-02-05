@@ -31,8 +31,8 @@
 #import "DataReference.h"
 #import "DictionaryPopupInfo.h"
 #import "FindIndicator.h"
-#import "LayerTreeContext.h"
 #import "NativeWebKeyboardEvent.h"
+#import "NativeWebWheelEvent.h"
 #import "StringUtilities.h"
 #import "WKAPICast.h"
 #import "WKFullScreenWindowController.h"
@@ -42,6 +42,7 @@
 #import "WebContextMenuProxyMac.h"
 #import "WebEditCommandProxy.h"
 #import "WebPopupMenuProxyMac.h"
+#import "WindowServerConnection.h"
 #import <WebCore/AlternativeTextUIController.h>
 #import <WebCore/BitmapImage.h>
 #import <WebCore/Cursor.h>
@@ -63,7 +64,7 @@
 - (NSCursor *)_cursorRectCursor;
 @end
 
-#if HAVE(LAYER_HOSTING_IN_WINDOW_SERVER)
+#if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
 @interface NSWindow (WebNSWindowDetails)
 - (BOOL)_hostsLayersInWindowServer;
 @end
@@ -127,9 +128,6 @@ PageClientImpl::PageClientImpl(WKView* wkView)
     , m_undoTarget(adoptNS([[WKEditorUndoTargetObjC alloc] init]))
 #if USE(DICTATION_ALTERNATIVES)
     , m_alternativeTextUIController(adoptPtr(new AlternativeTextUIController))
-#endif
-#if HAVE(LAYER_HOSTING_IN_WINDOW_SERVER)
-    , m_isLayerWindowServerHosted(true)
 #endif
 {
 }
@@ -209,7 +207,7 @@ bool PageClientImpl::isViewVisible()
     return true;
 }
 
-bool PageClientImpl::isWindowVisible()
+bool PageClientImpl::isViewVisibleOrOccluded()
 {
     return [[m_wkView window] isVisible];
 }
@@ -219,16 +217,19 @@ bool PageClientImpl::isViewInWindow()
     return [m_wkView window];
 }
 
-#if HAVE(LAYER_HOSTING_IN_WINDOW_SERVER)
-bool PageClientImpl::isLayerWindowServerHosted()
+bool PageClientImpl::isVisuallyIdle()
 {
-    // Only update m_isLayerWindowServerHosted when the view is in a window - otherwise just report the last value.
-    if ([m_wkView window])
-        m_isLayerWindowServerHosted = [[m_wkView window] _hostsLayersInWindowServer];
-
-    return m_isLayerWindowServerHosted;
+    return WindowServerConnection::shared().applicationWindowModificationsHaveStopped() || !isViewVisible();
 }
+
+LayerHostingMode PageClientImpl::viewLayerHostingMode()
+{
+#if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
+    if ([m_wkView window] && [[m_wkView window] _hostsLayersInWindowServer])
+        return LayerHostingMode::OutOfProcess;
 #endif
+    return LayerHostingMode::InProcess;
+}
 
 void PageClientImpl::viewWillMoveToAnotherWindow()
 {
@@ -240,9 +241,9 @@ ColorSpaceData PageClientImpl::colorSpace()
     return [m_wkView _colorSpace];
 }
 
-void PageClientImpl::processDidCrash()
+void PageClientImpl::processDidExit()
 {
-    [m_wkView _processDidCrash];
+    [m_wkView _processDidExit];
 }
 
 void PageClientImpl::pageClosed()
@@ -439,6 +440,21 @@ void PageClientImpl::setAcceleratedCompositingRootLayer(CALayer *rootLayer)
     [m_wkView _setAcceleratedCompositingModeRootLayer:rootLayer];
 }
 
+CALayer *PageClientImpl::acceleratedCompositingRootLayer() const
+{
+    return m_wkView._acceleratedCompositingModeRootLayer;
+}
+
+RetainPtr<CGImageRef> PageClientImpl::takeViewSnapshot()
+{
+    return [m_wkView _takeViewSnapshot];
+}
+
+void PageClientImpl::wheelEventWasNotHandledByWebCore(const NativeWebWheelEvent& event)
+{
+    [m_wkView _wheelEventWasNotHandledByWebCore:event.nativeEvent()];
+}
+
 void PageClientImpl::pluginFocusOrWindowFocusChanged(uint64_t pluginComplexTextInputIdentifier, bool pluginHasFocusAndWindowHasFocus)
 {
     [m_wkView _pluginFocusOrWindowFocusChanged:pluginHasFocusAndWindowHasFocus pluginComplexTextInputIdentifier:pluginComplexTextInputIdentifier];
@@ -530,6 +546,11 @@ void PageClientImpl::intrinsicContentSizeDidChange(const IntSize& intrinsicConte
 bool PageClientImpl::executeSavedCommandBySelector(const String& selectorString)
 {
     return [m_wkView _executeSavedCommandBySelector:NSSelectorFromString(selectorString)];
+}
+
+void PageClientImpl::clearCustomSwipeViews()
+{
+    return [m_wkView _setCustomSwipeViews:@[]];
 }
 
 #if USE(DICTATION_ALTERNATIVES)

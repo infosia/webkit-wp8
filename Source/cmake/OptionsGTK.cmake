@@ -1,3 +1,7 @@
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 include(GNUInstallDirs)
 
 set(PROJECT_VERSION_MAJOR 2)
@@ -20,6 +24,8 @@ CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(JAVASCRIPTCORE 16 2 16)
 set(WEBKIT_MICRO_VERSION ${PROJECT_VERSION_PATCH})
 set(WEBKIT_MINOR_VERSION ${PROJECT_VERSION_MINOR})
 set(WEBKIT_MAJOR_VERSION ${PROJECT_VERSION_MAJOR})
+
+set(USE_GTK2 OFF CACHE BOOL "Whether or not to use GTK+ 2. WebKit2 only supports GTK+ 3.")
 
 # FIXME: We want to expose fewer options to downstream, but for now everything is public.
 WEBKIT_OPTION_BEGIN()
@@ -66,10 +72,11 @@ WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIBRATION OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIDEO ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIDEO_TRACK ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_VIEW_MODE_CSS_MEDIA ON)
-WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_AUDIO OFF)
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_AUDIO ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEB_TIMING ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_WEBGL OFF)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_XHR_TIMEOUT ON)
+WEBKIT_OPTION_DEFAULT_PORT_VALUE(ENABLE_NETWORK_PROCESS ON)
 WEBKIT_OPTION_DEFAULT_PORT_VALUE(WTF_USE_TILED_BACKING_STORE OFF)
 
 # FIXME: Perhaps we need a more generic way of defining dependencies between features.
@@ -90,34 +97,63 @@ endif ()
 
 WEBKIT_OPTION_END()
 
-# These are used to generate the pkg-config files, note we only support GTK 3.0
-# builds with cmake.
-set(WEBKITGTK_API_VERSION 3.0)
-set(GTK_API_VERSION 3.0)
+set(ENABLE_WEBCORE ON)
+set(ENABLE_INSPECTOR ON)
+set(ENABLE_WEBKIT ON)
+if (NOT USE_GTK2)
+    set(WEBKITGTK_API_VERSION 3.0)
+    set(GTK_API_VERSION 3.0)
+    set(ENABLE_PLUGIN_PROCESS ON)
+    set(ENABLE_WEBKIT2 ON)
+else ()
+    set(WEBKITGTK_API_VERSION 2.0)
+    set(GTK_API_VERSION 2.0)
+    set(ENABLE_PLUGIN_PROCESS OFF)
+    set(ENABLE_WEBKIT2 OFF)
+endif ()
+
+# These are used to generate the pkg-config files.
 set(prefix ${CMAKE_INSTALL_PREFIX})
 set(exec_prefix ${CMAKE_INSTALL_PREFIX})
 set(libdir "${prefix}/${CMAKE_INSTALL_LIBDIR}")
 set(includedir "${prefix}/include")
 set(VERSION ${PROJECT_VERSION})
 
-set(ENABLE_WEBCORE ON)
-set(ENABLE_INSPECTOR ON)
-set(ENABLE_PLUGIN_PROCESS ON)
-set(ENABLE_WEBKIT ON)
-set(ENABLE_WEBKIT2 ON)
-
-set(WTF_USE_ICU_UNICODE 1)
 set(WTF_USE_SOUP 1)
 
 set(WTF_OUTPUT_NAME WTFGTK)
-set(JavaScriptCore_OUTPUT_NAME javascriptcoregtk-3.0)
+set(JavaScriptCore_OUTPUT_NAME javascriptcoregtk-${WEBKITGTK_API_VERSION})
 set(WebCore_OUTPUT_NAME WebCoreGTK)
-set(WebKit_OUTPUT_NAME webkitgtk-3.0)
-set(WebKit2_OUTPUT_NAME webkit2gtk-3.0)
+set(WebKit_OUTPUT_NAME webkitgtk-${WEBKITGTK_API_VERSION})
+set(WebKit2_OUTPUT_NAME webkit2gtk-${WEBKITGTK_API_VERSION})
 set(WebKit2_WebProcess_OUTPUT_NAME WebKitWebProcess)
+set(WebKit2_NetworkProcess_OUTPUT_NAME WebKitNetworkProcess)
 
 set(DATA_BUILD_DIR "${CMAKE_BINARY_DIR}/share/${WebKit_OUTPUT_NAME}")
-set(DATA_INSTALL_DIR "${DATADIR}/webkitgtk-3.0")
+set(DATA_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/webkitgtk-${WEBKITGTK_API_VERSION}")
+set(LIB_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}" CACHE PATH "Where to install libraries")
+set(EXEC_INSTALL_DIR "${CMAKE_INSTALL_BINDIR}" CACHE PATH "Where to install executables")
+set(LIBEXEC_INSTALL_DIR "${CMAKE_INSTALL_LIBEXECDIR}" CACHE PATH "Where to install executables executed by the library")
+set(WEBKITGTK_HEADER_INSTALL_DIR "${CMAKE_INSTALL_INCLUDEDIR}/webkitgtk-${WEBKITGTK_API_VERSION}")
+
+add_definitions(-DBUILDING_GTK__=1)
+add_definitions(-DGETTEXT_PACKAGE="WebKitGTK-${WEBKITGTK_API_VERSION}")
+add_definitions(-DDATA_DIR="${CMAKE_INSTALL_DATADIR}")
+add_definitions(-DUSER_AGENT_GTK_MAJOR_VERSION=537)
+add_definitions(-DUSER_AGENT_GTK_MINOR_VERSION=30)
+add_definitions(-DWEBKITGTK_API_VERSION_STRING="${WEBKITGTK_API_VERSION}")
+
+if (ENABLE_VIDEO OR ENABLE_WEB_AUDIO)
+    add_definitions(-DWTF_USE_GSTREAMER)
+endif ()
+
+if (ENABLE_WEB_AUDIO)
+    add_definitions(-DWTF_USE_WEBAUDIO_GSTREAMER)
+endif ()
+
+# FIXME: These need to be configurable.
+add_definitions(-DWTF_PLATFORM_X11=1)
+add_definitions(-DMOZ_X11)
 
 if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set(CMAKE_CXX_ARCHIVE_CREATE "<CMAKE_AR> cruT <TARGET> <LINK_FLAGS> <OBJECTS>")
@@ -126,23 +162,9 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     set(CMAKE_C_ARCHIVE_APPEND "<CMAKE_AR> ruT <TARGET> <LINK_FLAGS> <OBJECTS>")
 endif ()
 
-add_definitions(-DBUILDING_GTK__=1)
-add_definitions(-DGETTEXT_PACKAGE="WebKitGTK-3.0")
-add_definitions(-DDATA_DIR="${DATADIR}")
-add_definitions(-DWEBKITGTK_API_VERSION_STRING="3.0")
-add_definitions(-DUSER_AGENT_GTK_MAJOR_VERSION=537)
-add_definitions(-DUSER_AGENT_GTK_MINOR_VERSION=30)
-
-# FIXME: These need to be configurable.
-add_definitions(-DWTF_PLATFORM_X11=1)
-add_definitions(-DMOZ_X11)
-
 find_package(Cairo 1.10.2 REQUIRED)
 find_package(Fontconfig 2.8.0 REQUIRED)
 find_package(Freetype 2.4.2 REQUIRED)
-find_package(GLIB 2.33.2 REQUIRED COMPONENTS gio gobject gthread gmodule)
-find_package(GTK3 3.6.0 REQUIRED)
-find_package(GDK3 3.6.0 REQUIRED)
 find_package(GTK2 2.24.10 REQUIRED)
 find_package(GDK2 2.24.10 REQUIRED)
 find_package(HarfBuzz 0.9.2 REQUIRED)
@@ -160,6 +182,33 @@ find_package(ATK REQUIRED)
 find_package(WebP REQUIRED)
 find_package(GStreamer 1.0.3 REQUIRED COMPONENTS ${GSTREAMER_COMPONENTS})
 find_package(ATSPI 2.5.3)
+find_package(GObjectIntrospection)
+
+if (NOT USE_GTK2)
+    find_package(GTK3 3.6.0 REQUIRED)
+    find_package(GDK3 3.6.0 REQUIRED)
+    set(GTK_LIBRARIES ${GTK3_LIBRARIES})
+    set(GTK_INCLUDE_DIRS ${GTK3_INCLUDE_DIRS})
+    set(GDK_LIBRARIES ${GDK3_LIBRARIES})
+    set(GDK_INCLUDE_DIRS ${GDK3_INCLUDE_DIRS})
+else ()
+    set(GTK_LIBRARIES ${GTK2_LIBRARIES})
+    set(GTK_INCLUDE_DIRS ${GTK2_INCLUDE_DIRS})
+    set(GDK_LIBRARIES ${GDK2_LIBRARIES})
+    set(GDK_INCLUDE_DIRS ${GDK2_INCLUDE_DIRS})
+    add_definitions(-DGTK_API_VERSION_2)
+    add_definitions(-DWEBKITGTK_API_VERSION_STRING="2.0")
+endif ()
+
+set(glib_components gio gobject gthread gmodule)
+if (ENABLE_GAMEPAD)
+    list(APPEND glib_components gio-unix)
+endif ()
+find_package(GLIB 2.33.2 REQUIRED COMPONENTS ${glib_components})
+
+if (ENABLE_GEOLOCATION)
+    find_package(GeoClue)
+endif ()
 
 # We don't use find_package for GLX because it is part of -lGL, unlike EGL.
 find_package(OpenGL)
@@ -172,10 +221,6 @@ endif ()
 
 if (ENABLE_SPELLCHECK)
     find_package(Enchant REQUIRED)
-endif ()
-
-if (NOT ENABLE_SVG)
-    set(ENABLE_SVG_FONTS 0)
 endif ()
 
 if (${OPENGL_FOUND} AND (${GLX_FOUND} OR ${EGL_FOUND}))
@@ -204,6 +249,10 @@ if (ENABLE_INDEXED_DATABASE)
     add_definitions(-DWTF_USE_LEVELDB=1)
 endif ()
 
+if (ENABLE_GAMEPAD)
+    find_package(GUdev)
+endif ()
+
 set(CPACK_SOURCE_GENERATOR TBZ2)
 
 set(DERIVED_SOURCES_GOBJECT_DOM_BINDINGS_DIR ${DERIVED_SOURCES_DIR}/webkitdom)
@@ -215,6 +264,7 @@ set(DERIVED_SOURCES_WEBKIT2GTK_API_DIR ${DERIVED_SOURCES_WEBKIT2GTK_DIR}/webkit2
 set(FORWARDING_HEADERS_DIR ${DERIVED_SOURCES_DIR}/ForwardingHeaders)
 set(FORWARDING_HEADERS_WEBKIT2GTK_DIR ${FORWARDING_HEADERS_DIR}/webkit2gtk)
 set(FORWARDING_HEADERS_WEBKIT2GTK_EXTENSION_DIR ${FORWARDING_HEADERS_DIR}/webkit2gtk-webextension)
+set(SHOULD_INSTALL_JS_SHELL ON)
 
 # Add a typelib file to the list of all typelib dependencies. This makes it easy to
 # expose a 'gir' target with all gobject-introspection files.

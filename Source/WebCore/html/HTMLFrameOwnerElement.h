@@ -48,9 +48,7 @@ public:
     // RenderElement when using fallback content.
     RenderWidget* renderWidget() const;
 
-#if ENABLE(SVG)
     SVGDocument* getSVGDocument(ExceptionCode&) const;
-#endif
 
     virtual ScrollbarMode scrollingMode() const { return ScrollbarAuto; }
 
@@ -63,8 +61,8 @@ protected:
     void setSandboxFlags(SandboxFlags);
 
 private:
-    virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
-    virtual bool isFrameOwnerElement() const OVERRIDE { return true; }
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const override;
+    virtual bool isFrameOwnerElement() const override { return true; }
 
     Frame* m_contentFrame;
     SandboxFlags m_sandboxFlags;

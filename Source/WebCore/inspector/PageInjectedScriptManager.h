@@ -27,21 +27,26 @@
 #define PageInjectedScriptManager_h
 
 #include "CommandLineAPIHost.h"
-#include "InjectedScriptManager.h"
+#include <inspector/InjectedScriptManager.h>
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
-class PageInjectedScriptManager FINAL : public InjectedScriptManager {
+class DOMWindow;
+
+class PageInjectedScriptManager final : public Inspector::InjectedScriptManager {
 public:
-    explicit PageInjectedScriptManager(InspectedStateAccessCheck);
+    PageInjectedScriptManager(Inspector::InspectorEnvironment&, PassRefPtr<Inspector::InjectedScriptHost>);
     virtual ~PageInjectedScriptManager() { }
 
-    virtual void disconnect() OVERRIDE;
-    virtual CommandLineAPIHost* commandLineAPIHost() const OVERRIDE { return m_commandLineAPIHost.get(); }
+    CommandLineAPIHost* commandLineAPIHost() const { return m_commandLineAPIHost.get(); }
+
+    virtual void disconnect() override;
+
+    void discardInjectedScriptsFor(DOMWindow*);
 
 protected:
-    virtual void didCreateInjectedScript(InjectedScript) OVERRIDE;
+    virtual void didCreateInjectedScript(Inspector::InjectedScript) override;
 
 private:
     RefPtr<CommandLineAPIHost> m_commandLineAPIHost;

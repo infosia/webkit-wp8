@@ -23,7 +23,6 @@
 #ifndef CachedSVGDocument_h
 #define CachedSVGDocument_h
 
-#if ENABLE(SVG)
 #include "CachedResource.h"
 #include "CachedResourceHandle.h"
 #include "SVGDocument.h"
@@ -31,7 +30,7 @@
 
 namespace WebCore {
 
-class CachedSVGDocument FINAL : public CachedResource {
+class CachedSVGDocument final : public CachedResource {
 public:
     explicit CachedSVGDocument(const ResourceRequest&);
     virtual ~CachedSVGDocument();
@@ -43,14 +42,14 @@ protected:
     RefPtr<TextResourceDecoder> m_decoder;
 
 private:
-    virtual bool mayTryReplaceEncodedData() const OVERRIDE { return true; }
-    virtual void setEncoding(const String&) OVERRIDE;
-    virtual String encoding() const OVERRIDE;
-    virtual void finishLoading(ResourceBuffer*) OVERRIDE;
+    virtual bool mayTryReplaceEncodedData() const override { return true; }
+    virtual void setEncoding(const String&) override;
+    virtual String encoding() const override;
+    virtual void finishLoading(ResourceBuffer*) override;
 };
 
-} // namespace WebCore
+CACHED_RESOURCE_TYPE_CASTS(CachedSVGDocument, CachedResource, CachedResource::SVGDocumentResource)
 
-#endif // USE(SVG)
+} // namespace WebCore
 
 #endif // CachedSVGDocument_h

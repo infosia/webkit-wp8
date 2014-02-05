@@ -195,7 +195,7 @@ void HTMLAnchorElement::defaultEventHandler(Event* event)
             // This keeps track of the editable block that the selection was in (if it was in one) just before the link was clicked
             // for the LiveWhenNotFocused editable link behavior
             if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() != RightButton && document().frame()) {
-                setRootEditableElementForSelectionOnMouseDown(document().frame()->selection().rootEditableElement());
+                setRootEditableElementForSelectionOnMouseDown(document().frame()->selection().selection().rootEditableElement());
                 m_wasShiftKeyDownOnMouseDown = static_cast<MouseEvent*>(event)->shiftKey();
             } else if (event->type() == eventNames().mouseoverEvent) {
                 // These are cleared on mouseover and not mouseout because their values are needed for drag events,
@@ -228,7 +228,7 @@ void HTMLAnchorElement::setActive(bool down, bool pause)
             // Don't set the link to be active if the current selection is in the same editable block as
             // this link
             case EditableLinkLiveWhenNotFocused:
-                if (down && document().frame() && document().frame()->selection().rootEditableElement() == rootEditableElement())
+                if (down && document().frame() && document().frame()->selection().selection().rootEditableElement() == rootEditableElement())
                     return;
                 break;
             
@@ -251,7 +251,7 @@ void HTMLAnchorElement::parseAttribute(const QualifiedName& name, const AtomicSt
         if (isLink()) {
             String parsedURL = stripLeadingAndTrailingHTMLSpaces(value);
             if (document().isDNSPrefetchEnabled()) {
-                if (protocolIs(parsedURL, "http") || protocolIs(parsedURL, "https") || parsedURL.startsWith("//"))
+                if (protocolIsInHTTPFamily(parsedURL) || parsedURL.startsWith("//"))
                     prefetchDNS(document().completeURL(parsedURL).host());
             }
         }
@@ -601,12 +601,7 @@ bool isLinkClick(Event* event)
 
 bool shouldProhibitLinks(Element* element)
 {
-#if ENABLE(SVG)
     return isInSVGImage(element);
-#else
-    UNUSED_PARAM(element);
-    return false;
-#endif
 }
 
 bool HTMLAnchorElement::willRespondToMouseClickEvents()

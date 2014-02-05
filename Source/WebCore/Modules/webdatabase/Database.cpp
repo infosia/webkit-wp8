@@ -53,12 +53,15 @@
 #include "ScriptExecutionContext.h"
 #include "SecurityOrigin.h"
 #include "VoidCallback.h"
-#include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/CString.h>
+
+#if PLATFORM(IOS)
+#include "SQLiteDatabaseTracker.h"
+#endif
 
 namespace WebCore {
 

@@ -26,76 +26,154 @@
 #include "config.h"
 #include "MediaSessionManager.h"
 
-using namespace WebCore;
+#include "Logging.h"
+#include "MediaSession.h"
 
+namespace WebCore {
 
-std::unique_ptr<MediaSessionManagerToken> MediaSessionManagerToken::create(MediaSessionManagerClient& client)
-{
-    return std::make_unique<MediaSessionManagerToken>(client);
-}
-
-MediaSessionManagerToken::MediaSessionManagerToken(MediaSessionManagerClient& client)
-    : m_client(client)
-{
-    m_type = m_client.mediaType();
-    MediaSessionManager::sharedManager().addToken(*this);
-}
-
-MediaSessionManagerToken::~MediaSessionManagerToken()
-{
-    MediaSessionManager::sharedManager().removeToken(*this);
-}
-
+#if !PLATFORM(IOS)
 MediaSessionManager& MediaSessionManager::sharedManager()
 {
     DEFINE_STATIC_LOCAL(MediaSessionManager, manager, ());
     return manager;
 }
+#endif
 
 MediaSessionManager::MediaSessionManager()
+    : m_interrupted(false)
 {
+    resetRestrictions();
 }
 
-bool MediaSessionManager::has(MediaSessionManager::MediaType type) const
+void MediaSessionManager::resetRestrictions()
 {
-    ASSERT(type >= MediaSessionManager::None && type <= MediaSessionManager::WebAudio);
+    m_restrictions[MediaSession::Video] = NoRestrictions;
+    m_restrictions[MediaSession::Audio] = NoRestrictions;
+    m_restrictions[MediaSession::WebAudio] = NoRestrictions;
+}
 
-    for (auto it = m_tokens.begin(), end = m_tokens.end(); it != end; ++it) {
-        if ((*it)->mediaType() == type)
+bool MediaSessionManager::has(MediaSession::MediaType type) const
+{
+    ASSERT(type >= MediaSession::None && type <= MediaSession::WebAudio);
+
+    for (auto* session : m_sessions) {
+        if (session->mediaType() == type)
             return true;
     }
-    
+
     return false;
 }
 
-int MediaSessionManager::count(MediaSessionManager::MediaType type) const
+int MediaSessionManager::count(MediaSession::MediaType type) const
 {
-    ASSERT(type >= MediaSessionManager::None && type <= MediaSessionManager::WebAudio);
+    ASSERT(type >= MediaSession::None && type <= MediaSession::WebAudio);
     
     int count = 0;
-    for (auto it = m_tokens.begin(), end = m_tokens.end(); it != end; ++it) {
-        if ((*it)->mediaType() == type)
+    for (auto* session : m_sessions) {
+        if (session->mediaType() == type)
             ++count;
     }
-    
+
     return count;
 }
 
-void MediaSessionManager::addToken(MediaSessionManagerToken& token)
+void MediaSessionManager::beginInterruption()
 {
-    m_tokens.append(&token);
+    LOG(Media, "MediaSessionManager::beginInterruption");
+
+    m_interrupted = true;
+    for (auto* session : m_sessions)
+        session->beginInterruption();
+}
+
+void MediaSessionManager::endInterruption(MediaSession::EndInterruptionFlags flags)
+{
+    LOG(Media, "MediaSessionManager::endInterruption");
+
+    m_interrupted = false;
+    for (auto* session : m_sessions)
+        session->endInterruption(flags);
+}
+
+void MediaSessionManager::addSession(MediaSession& session)
+{
+    m_sessions.append(&session);
+    if (m_interrupted)
+        session.setState(MediaSession::Interrupted);
     updateSessionState();
 }
 
-void MediaSessionManager::removeToken(MediaSessionManagerToken& token)
+void MediaSessionManager::removeSession(MediaSession& session)
 {
-    size_t index = m_tokens.find(&token);
+    size_t index = m_sessions.find(&session);
     ASSERT(index != notFound);
     if (index == notFound)
         return;
 
-    m_tokens.remove(index);
+    m_sessions.remove(index);
     updateSessionState();
+}
+
+void MediaSessionManager::addRestriction(MediaSession::MediaType type, SessionRestrictions restriction)
+{
+    ASSERT(type > MediaSession::None && type <= MediaSession::WebAudio);
+    m_restrictions[type] |= restriction;
+}
+
+void MediaSessionManager::removeRestriction(MediaSession::MediaType type, SessionRestrictions restriction)
+{
+    ASSERT(type > MediaSession::None && type <= MediaSession::WebAudio);
+    m_restrictions[type] &= ~restriction;
+}
+
+MediaSessionManager::SessionRestrictions MediaSessionManager::restrictions(MediaSession::MediaType type)
+{
+    ASSERT(type > MediaSession::None && type <= MediaSession::WebAudio);
+    return m_restrictions[type];
+}
+
+void MediaSessionManager::sessionWillBeginPlayback(const MediaSession& session) const
+{
+    MediaSession::MediaType sessionType = session.mediaType();
+    SessionRestrictions restrictions = m_restrictions[sessionType];
+    if (!restrictions & ConcurrentPlaybackNotPermitted)
+        return;
+
+    for (auto* oneSession : m_sessions) {
+        if (oneSession == &session)
+            continue;
+        if (oneSession->mediaType() != sessionType)
+            continue;
+        if (restrictions & ConcurrentPlaybackNotPermitted)
+            oneSession->pauseSession();
+    }
+}
+
+bool MediaSessionManager::sessionRestrictsInlineVideoPlayback(const MediaSession& session) const
+{
+    MediaSession::MediaType sessionType = session.mediaType();
+    if (sessionType != MediaSession::Video)
+        return false;
+
+    return m_restrictions[sessionType] & InlineVideoPlaybackRestricted;
+}
+
+void MediaSessionManager::applicationWillEnterBackground() const
+{
+    LOG(Media, "MediaSessionManager::applicationWillEnterBackground");
+    for (auto* session : m_sessions) {
+        if (m_restrictions[session->mediaType()] & BackgroundPlaybackNotPermitted)
+            session->beginInterruption();
+    }
+}
+
+void MediaSessionManager::applicationWillEnterForeground() const
+{
+    LOG(Media, "MediaSessionManager::applicationWillEnterForeground");
+    for (auto* session : m_sessions) {
+        if (m_restrictions[session->mediaType()] & BackgroundPlaybackNotPermitted)
+            session->endInterruption(MediaSession::MayResumePlaying);
+    }
 }
 
 #if !PLATFORM(MAC)
@@ -103,3 +181,5 @@ void MediaSessionManager::updateSessionState()
 {
 }
 #endif
+
+}

@@ -21,12 +21,11 @@
 #ifndef RenderSVGTextPath_h
 #define RenderSVGTextPath_h
 
-#if ENABLE(SVG)
 #include "RenderSVGInline.h"
 
 namespace WebCore {
 
-class RenderSVGTextPath FINAL : public RenderSVGInline {
+class RenderSVGTextPath final : public RenderSVGInline {
 public:
     RenderSVGTextPath(SVGTextPathElement&, PassRef<RenderStyle>);
 
@@ -38,10 +37,10 @@ public:
     bool stretchMethod() const;
 
 private:
-    void graphicsElement() const WTF_DELETED_FUNCTION;
+    void graphicsElement() const = delete;
 
-    virtual bool isSVGTextPath() const OVERRIDE { return true; }
-    virtual const char* renderName() const OVERRIDE { return "RenderSVGTextPath"; }
+    virtual bool isSVGTextPath() const override { return true; }
+    virtual const char* renderName() const override { return "RenderSVGTextPath"; }
 
     Path m_layoutPath;
 };
@@ -50,5 +49,4 @@ RENDER_OBJECT_TYPE_CASTS(RenderSVGTextPath, isSVGTextPath())
 
 }
 
-#endif // ENABLE(SVG)
 #endif // RenderSVGTextPath_h

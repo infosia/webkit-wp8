@@ -27,6 +27,9 @@
 
 #include "HTMLElementFactory.cpp"
 #include "HTMLEntityTable.cpp"
+#if ENABLE(WEBGL)
+#include "JSANGLEInstancedArrays.cpp"
+#endif
 #include "JSAbstractWorker.cpp"
 #include "JSAttr.cpp"
 #include "JSBarProp.cpp"
@@ -45,6 +48,7 @@
 #include "JSOESTextureFloat.cpp"
 #include "JSOESTextureFloatLinear.cpp"
 #include "JSOESTextureHalfFloat.cpp"
+#include "JSOESTextureHalfFloatLinear.cpp"
 #include "JSOESVertexArrayObject.cpp"
 #include "JSWebGLActiveInfo.cpp"
 #include "JSWebGLBuffer.cpp"
@@ -85,7 +89,6 @@
 #include "JSCSSFontFaceLoadEvent.cpp"
 #endif
 #include "JSCSSFontFaceRule.cpp"
-#include "JSCSSHostRule.cpp"
 #include "JSCSSImportRule.cpp"
 #include "JSCSSMediaRule.cpp"
 #include "JSCSSPageRule.cpp"
@@ -238,9 +241,7 @@
 #include "JSIDBRequest.cpp"
 #include "JSIDBTransaction.cpp"
 #include "JSImageData.cpp"
-#include "JSInjectedScriptHost.cpp"
 #include "JSInspectorFrontendHost.cpp"
-#include "JSJavaScriptCallFrame.cpp"
 #include "JSKeyboardEvent.cpp"
 #include "JSLocation.cpp"
 #include "JSMediaController.cpp"
@@ -481,9 +482,6 @@
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
 #include "JSWebKitAnimationEvent.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSFilterRule.cpp"
-#endif
 #if ENABLE(CSS_FILTERS)
 #include "JSWebKitCSSFilterValue.cpp"
 #endif
@@ -491,9 +489,6 @@
 #include "JSWebKitCSSKeyframesRule.cpp"
 #include "JSWebKitCSSTransformValue.cpp"
 #include "JSWebKitCSSMatrix.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSMixFunctionValue.cpp"
-#endif
 #include "JSWebKitCSSRegionRule.cpp"
 #include "JSWebKitNamedFlow.cpp"
 #include "JSWebKitPoint.cpp"

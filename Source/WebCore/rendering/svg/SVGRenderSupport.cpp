@@ -23,14 +23,13 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGRenderSupport.h"
 
 #include "NodeRenderStyle.h"
+#include "RenderElement.h"
 #include "RenderGeometryMap.h"
+#include "RenderIterator.h"
 #include "RenderLayer.h"
-#include "RenderSVGResource.h"
 #include "RenderSVGResourceClipper.h"
 #include "RenderSVGResourceFilter.h"
 #include "RenderSVGResourceMarker.h"
@@ -38,7 +37,6 @@
 #include "RenderSVGRoot.h"
 #include "RenderSVGText.h"
 #include "RenderSVGViewportContainer.h"
-#include "SVGElement.h"
 #include "SVGResources.h"
 #include "SVGResourcesCache.h"
 #include "TransformState.h"
@@ -182,22 +180,17 @@ bool SVGRenderSupport::paintInfoIntersectsRepaintRect(const FloatRect& localRepa
 
 const RenderSVGRoot& SVGRenderSupport::findTreeRootObject(const RenderElement& start)
 {
-    auto renderer = &start;
-    while (renderer && !renderer->isSVGRoot())
-        renderer = renderer->parent();
-
-    ASSERT(renderer);
-    return toRenderSVGRoot(*renderer);
+    return *lineageOfType<RenderSVGRoot>(start).first();
 }
 
-static inline void invalidateResourcesOfChildren(RenderObject& start)
+static inline void invalidateResourcesOfChildren(RenderElement& renderer)
 {
-    ASSERT(!start.needsLayout());
-    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(start))
-        resources->removeClientFromCache(start, false);
+    ASSERT(!renderer.needsLayout());
+    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(renderer))
+        resources->removeClientFromCache(renderer, false);
 
-    for (RenderObject* child = start.firstChildSlow(); child; child = child->nextSibling())
-        invalidateResourcesOfChildren(*child);
+    for (auto& child : childrenOfType<RenderElement>(renderer))
+        invalidateResourcesOfChildren(child);
 }
 
 static inline bool layoutSizeOfNearestViewportChanged(const RenderElement& renderer)
@@ -293,8 +286,10 @@ void SVGRenderSupport::layoutChildren(RenderElement& start, bool selfNeedsLayout
     }
 
     // If the layout size changed, invalidate all resources of all children that didn't go through the layout() code path.
-    for (auto child : notlayoutedObjects)
-        invalidateResourcesOfChildren(*child);
+    for (auto child : notlayoutedObjects) {
+        if (child->isRenderElement())
+            invalidateResourcesOfChildren(toRenderElement(*child));
+    }
 }
 
 bool SVGRenderSupport::isOverflowHidden(const RenderElement& renderer)
@@ -452,5 +447,3 @@ void SVGRenderSupport::styleChanged(RenderElement& renderer)
 }
 
 }
-
-#endif

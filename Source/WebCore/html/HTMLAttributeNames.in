@@ -269,6 +269,10 @@ onwebkitsourceclose
 onwebkitsourceended
 onwebkitsourceopen
 onwebkittransitionend
+onwebkitwillrevealbottom
+onwebkitwillrevealleft
+onwebkitwillrevealright
+onwebkitwillrevealtop
 open
 optimum
 pattern
@@ -301,7 +305,6 @@ scoped
 scrollamount
 scrolldelay
 scrolling
-seamless
 select
 selected
 shape

@@ -75,14 +75,15 @@ static EncodedJSValue JSC_HOST_CALL arrayProtoFuncEntries(ExecState*);
 
 namespace JSC {
 
-static inline bool isNumericCompareFunction(ExecState* exec, CallType callType, const CallData& callData)
+static inline bool isNumericCompareFunction(ExecState* exec, JSValue function, CallType callType, const CallData& callData)
 {
     if (callType != CallTypeJS)
         return false;
 
     FunctionExecutable* executable = callData.js.functionExecutable;
+    JSScope* scope = callData.js.scope;
 
-    JSObject* error = executable->prepareForExecution(exec, callData.js.scope, CodeForCall);
+    JSObject* error = executable->prepareForExecution(exec, jsCast<JSFunction*>(function), &scope, CodeForCall);
     if (error)
         return false;
 
@@ -144,7 +145,7 @@ void ArrayPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
 
 bool ArrayPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
-    return getStaticFunctionSlot<JSArray>(exec, ExecState::arrayPrototypeTable(exec), jsCast<ArrayPrototype*>(object), propertyName, slot);
+    return getStaticFunctionSlot<JSArray>(exec, ExecState::arrayPrototypeTable(exec->vm()), jsCast<ArrayPrototype*>(object), propertyName, slot);
 }
 
 // ------------------------------ Array Functions ----------------------------
@@ -160,7 +161,7 @@ static JSValue getProperty(ExecState* exec, JSObject* obj, unsigned index)
 
 static void putProperty(ExecState* exec, JSObject* obj, PropertyName propertyName, JSValue value)
 {
-    PutPropertySlot slot;
+    PutPropertySlot slot(obj);
     obj->methodTable()->put(obj, exec, propertyName, value, slot);
 }
 
@@ -420,7 +421,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncJoin(ExecState* exec)
 EncodedJSValue JSC_HOST_CALL arrayProtoFuncConcat(ExecState* exec)
 {
     JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
-    JSArray* arr = constructEmptyArray(exec, 0);
+    JSArray* arr = constructEmptyArray(exec, nullptr);
     unsigned n = 0;
     JSValue curArg = thisValue.toObject(exec);
     if (exec->hadException())
@@ -501,7 +502,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncPush(ExecState* exec)
         if (length + n >= length)
             thisObj->methodTable()->putByIndex(thisObj, exec, length + n, exec->uncheckedArgument(n), true);
         else {
-            PutPropertySlot slot;
+            PutPropertySlot slot(thisObj);
             Identifier propertyName(exec, JSValue(static_cast<int64_t>(length) + static_cast<int64_t>(n)).toWTFString(exec));
             thisObj->methodTable()->put(thisObj, exec, propertyName, exec->uncheckedArgument(n), slot);
         }
@@ -581,12 +582,10 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSlice(ExecState* exec)
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
-    // We return a new array
-    JSArray* resObj = constructEmptyArray(exec, 0);
-    JSValue result = resObj;
-
     unsigned begin = argumentClampedIndexFromStartOrEnd(exec, 0, length);
     unsigned end = argumentClampedIndexFromStartOrEnd(exec, 1, length, length);
+
+    JSArray* result = constructEmptyArray(exec, nullptr, end - begin);
 
     unsigned n = 0;
     for (unsigned k = begin; k < end; k++, n++) {
@@ -594,9 +593,9 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSlice(ExecState* exec)
         if (exec->hadException())
             return JSValue::encode(jsUndefined());
         if (v)
-            resObj->putDirectIndex(exec, n, v);
+            result->putDirectIndex(exec, n, v);
     }
-    resObj->setLength(exec, n);
+    result->setLength(exec, n);
     return JSValue::encode(result);
 }
 
@@ -616,7 +615,7 @@ static bool attemptFastSort(ExecState* exec, JSObject* thisObj, JSValue function
         || shouldUseSlowPut(thisObj->structure()->indexingType()))
         return false;
     
-    if (isNumericCompareFunction(exec, callType, callData))
+    if (isNumericCompareFunction(exec, function, callType, callData))
         asArray(thisObj)->sortNumeric(exec, function, callType, callData);
     else if (callType != CallTypeNone)
         asArray(thisObj)->sort(exec, function, callType, callData);
@@ -704,7 +703,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSort(ExecState* exec)
     
     JSGlobalObject* globalObject = JSGlobalObject::create(
         exec->vm(), JSGlobalObject::createStructure(exec->vm(), jsNull()));
-    JSArray* flatArray = constructEmptyArray(globalObject->globalExec(), 0);
+    JSArray* flatArray = constructEmptyArray(globalObject->globalExec(), nullptr);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
     
@@ -767,7 +766,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncSplice(ExecState* exec)
         return JSValue::encode(jsUndefined());
     
     if (!exec->argumentCount())
-        return JSValue::encode(constructEmptyArray(exec, 0));
+        return JSValue::encode(constructEmptyArray(exec, nullptr));
 
     unsigned begin = argumentClampedIndexFromStartOrEnd(exec, 0, length);
 
@@ -854,7 +853,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncFilter(ExecState* exec)
         return throwVMTypeError(exec);
 
     JSValue applyThis = exec->argument(1);
-    JSArray* resultArray = constructEmptyArray(exec, 0);
+    JSArray* resultArray = constructEmptyArray(exec, nullptr);
 
     unsigned filterIndex = 0;
     unsigned k = 0;
@@ -914,7 +913,7 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncMap(ExecState* exec)
 
     JSValue applyThis = exec->argument(1);
 
-    JSArray* resultArray = constructEmptyArray(exec, 0, length);
+    JSArray* resultArray = constructEmptyArray(exec, nullptr, length);
     unsigned k = 0;
     if (callType == CallTypeJS && isJSArray(thisObj)) {
         JSFunction* f = jsCast<JSFunction*>(function);

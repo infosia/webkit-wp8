@@ -27,13 +27,11 @@
 #ifndef RenderSVGEllipse_h
 #define RenderSVGEllipse_h
 
-#if ENABLE(SVG)
 #include "RenderSVGShape.h"
-#include "SVGGraphicsElement.h"
 
 namespace WebCore {
 
-class RenderSVGEllipse FINAL : public RenderSVGShape {
+class RenderSVGEllipse final : public RenderSVGShape {
 public:
     RenderSVGEllipse(SVGGraphicsElement&, PassRef<RenderStyle>);
     virtual ~RenderSVGEllipse();
@@ -57,5 +55,4 @@ private:
 
 }
 
-#endif // ENABLE(SVG)
 #endif

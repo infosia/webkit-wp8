@@ -27,6 +27,8 @@ wtf_sources += \
     Source/WTF/wtf/CompilationThread.h \
     Source/WTF/wtf/Compression.h \
     Source/WTF/wtf/Compression.cpp \
+    Source/WTF/wtf/CryptographicUtilities.cpp \
+    Source/WTF/wtf/CryptographicUtilities.h \
     Source/WTF/wtf/CryptographicallyRandomNumber.cpp \
     Source/WTF/wtf/CryptographicallyRandomNumber.h \
     Source/WTF/wtf/CurrentTime.cpp \
@@ -53,7 +55,6 @@ wtf_sources += \
     Source/WTF/wtf/FeatureDefines.h \
     Source/WTF/wtf/FilePrintStream.cpp \
     Source/WTF/wtf/FilePrintStream.h \
-    Source/WTF/wtf/FilterIterator.h \
     Source/WTF/wtf/FlipBytes.h \
     Source/WTF/wtf/Forward.h \
     Source/WTF/wtf/FunctionDispatcher.cpp \
@@ -73,7 +74,8 @@ wtf_sources += \
     Source/WTF/wtf/HexNumber.h \
     Source/WTF/wtf/InlineASM.h \
     Source/WTF/wtf/Insertion.h \
-    Source/WTF/wtf/IteratorPair.h \
+    Source/WTF/wtf/IteratorAdaptors.h \
+    Source/WTF/wtf/IteratorRange.h \
     Source/WTF/wtf/ListDump.h \
     Source/WTF/wtf/ListHashSet.h \
     Source/WTF/wtf/Locker.h \
@@ -157,9 +159,9 @@ wtf_sources += \
     Source/WTF/wtf/StreamBuffer.h \
     Source/WTF/wtf/StringExtras.h \
     Source/WTF/wtf/StringHashDumpContext.h \
+    Source/WTF/wtf/StringHasher.h \
     Source/WTF/wtf/StringPrintStream.cpp \
     Source/WTF/wtf/StringPrintStream.h \
-    Source/WTF/wtf/StringHasher.h \
     Source/WTF/wtf/TCPackedCache.h \
     Source/WTF/wtf/TCPageMap.h \
     Source/WTF/wtf/TCSpinLock.h \
@@ -169,7 +171,6 @@ wtf_sources += \
     Source/WTF/wtf/ThreadFunctionInvocation.h \
     Source/WTF/wtf/ThreadIdentifierDataPthreads.cpp \
     Source/WTF/wtf/ThreadIdentifierDataPthreads.h \
-    Source/WTF/wtf/ThreadRestrictionVerifier.h \
     Source/WTF/wtf/ThreadSafeRefCounted.h \
     Source/WTF/wtf/ThreadSpecific.h \
     Source/WTF/wtf/ThreadSpecificWin.cpp \
@@ -215,6 +216,7 @@ wtf_sources += \
     Source/WTF/wtf/gobject/GRefPtr.cpp \
     Source/WTF/wtf/gobject/GRefPtr.h \
     Source/WTF/wtf/gobject/GTypedefs.h \
+    Source/WTF/wtf/gobject/GUniquePtr.h \
     Source/WTF/wtf/gobject/GlibUtilities.cpp \
     Source/WTF/wtf/gobject/GlibUtilities.h \
     Source/WTF/wtf/gtk/MainThreadGtk.cpp \
@@ -232,6 +234,7 @@ wtf_sources += \
     Source/WTF/wtf/text/CString.cpp \
     Source/WTF/wtf/text/CString.h \
     Source/WTF/wtf/text/IntegerToStringConversion.h \
+    Source/WTF/wtf/text/LChar.h \
     Source/WTF/wtf/text/StringBuffer.h \
     Source/WTF/wtf/text/StringBuilder.cpp \
     Source/WTF/wtf/text/StringBuilder.h \
@@ -241,6 +244,7 @@ wtf_sources += \
     Source/WTF/wtf/text/StringImpl.h \
     Source/WTF/wtf/text/StringOperators.h \
     Source/WTF/wtf/text/StringStatics.cpp \
+    Source/WTF/wtf/text/StringView.h \
     Source/WTF/wtf/text/TextPosition.h \
     Source/WTF/wtf/text/WTFString.cpp \
     Source/WTF/wtf/text/WTFString.h \
@@ -249,10 +253,6 @@ wtf_sources += \
     Source/WTF/wtf/unicode/CharacterNames.h \
     Source/WTF/wtf/unicode/Collator.h \
     Source/WTF/wtf/unicode/CollatorDefault.cpp \
-    Source/WTF/wtf/unicode/ScriptCodesFromICU.h \
     Source/WTF/wtf/unicode/UTF8.cpp \
     Source/WTF/wtf/unicode/UTF8.h \
-    Source/WTF/wtf/unicode/Unicode.h \
-    Source/WTF/wtf/unicode/UnicodeMacrosFromICU.h \
-    Source/WTF/wtf/unicode/icu/CollatorICU.cpp \
-    Source/WTF/wtf/unicode/icu/UnicodeIcu.h
+    Source/WTF/wtf/unicode/icu/CollatorICU.cpp

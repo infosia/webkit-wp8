@@ -71,7 +71,7 @@ String stripLeadingAndTrailingHTMLSpaces(const String& string)
     if (string.is8Bit())
         return stripLeadingAndTrailingHTMLSpaces(string, string.characters8(), length);
 
-    return stripLeadingAndTrailingHTMLSpaces(string, string.characters(), length);
+    return stripLeadingAndTrailingHTMLSpaces(string, string.deprecatedCharacters(), length);
 }
 
 String serializeForNumberType(const Decimal& number)
@@ -272,53 +272,29 @@ bool parseHTMLNonNegativeInteger(const String& input, unsigned& value)
         return parseHTMLNonNegativeIntegerInternal(start, start + length, value);
     }
     
-    const UChar* start = input.characters();
+    const UChar* start = input.deprecatedCharacters();
     return parseHTMLNonNegativeIntegerInternal(start, start + length, value);
 }
 
-static bool threadSafeEqual(const StringImpl* a, const StringImpl* b)
+static bool threadSafeEqual(const StringImpl& a, const StringImpl& b)
 {
-    if (a == b)
+    if (&a == &b)
         return true;
-    if (a->hash() != b->hash())
+    if (a.hash() != b.hash())
         return false;
-    return equalNonNull(a, b);
+    return equal(a, b);
 }
 
 bool threadSafeMatch(const QualifiedName& a, const QualifiedName& b)
 {
-    return threadSafeEqual(a.localName().impl(), b.localName().impl());
+    return threadSafeEqual(*a.localName().impl(), *b.localName().impl());
 }
 
-#if ENABLE(THREADED_HTML_PARSER)
-bool threadSafeMatch(const HTMLIdentifier& localName, const QualifiedName& qName)
-{
-    return threadSafeEqual(localName.asStringImpl(), qName.localName().impl());
-}
-#endif
-
-struct ImageWithScale {
-    unsigned imageURLStart;
-    unsigned imageURLLength;
-    float scaleFactor;
-
-    ImageWithScale()
-        : imageURLStart(0)
-        , imageURLLength(0)
-        , scaleFactor(1)
-    { 
-    }
-
-    bool hasImageURL() const
-    {
-        return imageURLLength;
-    }
-};
 typedef Vector<ImageWithScale> ImageCandidates;
 
 static inline bool compareByScaleFactor(const ImageWithScale& first, const ImageWithScale& second)
 {
-    return first.scaleFactor < second.scaleFactor;
+    return first.scaleFactor() < second.scaleFactor();
 }
 
 static inline bool isHTMLSpaceOrComma(UChar character)
@@ -388,7 +364,7 @@ static void parseImagesWithScaleFromSrcsetAttribute(const String& srcsetAttribut
                 }
                 bool validScaleFactor = false;
                 size_t scaleFactorLengthWithoutUnit = imageScaleEnd - imageScaleStart - 1;
-                imageScaleFactor = charactersToFloat(srcsetAttribute.characters() + imageScaleStart, scaleFactorLengthWithoutUnit, &validScaleFactor);
+                imageScaleFactor = charactersToFloat(srcsetAttribute.deprecatedCharacters() + imageScaleStart, scaleFactorLengthWithoutUnit, &validScaleFactor);
 
                 if (!validScaleFactor) {
                     imageCandidateStart = separator + 1;
@@ -396,18 +372,14 @@ static void parseImagesWithScaleFromSrcsetAttribute(const String& srcsetAttribut
                 }
             }
         }
-        ImageWithScale image;
-        image.imageURLStart = imageURLStart;
-        image.imageURLLength = imageURLEnd - imageURLStart;
-        image.scaleFactor = imageScaleFactor;
-
+        ImageWithScale image(imageURLStart, imageURLEnd - imageURLStart, imageScaleFactor);
         imageCandidates.append(image);
         // 11. Return to the step labeled splitting loop.
         imageCandidateStart = separator + 1;
     }
 }
 
-String bestFitSourceForImageAttributes(float deviceScaleFactor, const String& srcAttribute, const String& srcsetAttribute)
+ImageWithScale bestFitSourceForImageAttributes(float deviceScaleFactor, const String& srcAttribute, const String& srcsetAttribute)
 {
     ImageCandidates imageCandidates;
 
@@ -419,16 +391,16 @@ String bestFitSourceForImageAttributes(float deviceScaleFactor, const String& sr
     }
 
     if (imageCandidates.isEmpty())
-        return String();
+        return ImageWithScale();
 
     std::stable_sort(imageCandidates.begin(), imageCandidates.end(), compareByScaleFactor);
 
     for (size_t i = 0; i < imageCandidates.size() - 1; ++i) {
-        if (imageCandidates[i].scaleFactor >= deviceScaleFactor)
-            return imageCandidates[i].hasImageURL() ? srcsetAttribute.substringSharingImpl(imageCandidates[i].imageURLStart, imageCandidates[i].imageURLLength) : srcAttribute;
+        if (imageCandidates[i].scaleFactor() >= deviceScaleFactor)
+            return imageCandidates[i];
     }
     const ImageWithScale& lastCandidate = imageCandidates.last();
-    return lastCandidate.hasImageURL() ? srcsetAttribute.substringSharingImpl(lastCandidate.imageURLStart, lastCandidate.imageURLLength) : srcAttribute;
+    return lastCandidate;
 }
 
 }

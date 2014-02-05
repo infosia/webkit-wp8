@@ -85,9 +85,9 @@ public:
     virtual int pixelSnappedOffsetWidth() const;
     virtual int pixelSnappedOffsetHeight() const;
 
-    virtual void updateFromStyle() OVERRIDE;
+    virtual void updateFromStyle() override;
 
-    virtual bool requiresLayer() const OVERRIDE { return isRoot() || isPositioned() || createsGroup() || hasClipPath() || hasTransform() || hasHiddenBackface() || hasReflection() || style().specifiesColumns(); }
+    virtual bool requiresLayer() const override { return isRoot() || isPositioned() || createsGroup() || hasClipPath() || hasTransform() || hasHiddenBackface() || hasReflection() || style().specifiesColumns(); }
 
     // This will work on inlines to return the bounding box of all of the lines' border boxes.
     virtual IntRect borderBoundingBox() const = 0;
@@ -113,14 +113,14 @@ public:
     virtual LayoutUnit paddingStart() const { return computedCSSPaddingStart(); }
     virtual LayoutUnit paddingEnd() const { return computedCSSPaddingEnd(); }
 
-    virtual int borderTop() const { return style().borderTopWidth(); }
-    virtual int borderBottom() const { return style().borderBottomWidth(); }
-    virtual int borderLeft() const { return style().borderLeftWidth(); }
-    virtual int borderRight() const { return style().borderRightWidth(); }
-    virtual int borderBefore() const { return style().borderBeforeWidth(); }
-    virtual int borderAfter() const { return style().borderAfterWidth(); }
-    virtual int borderStart() const { return style().borderStartWidth(); }
-    virtual int borderEnd() const { return style().borderEndWidth(); }
+    virtual LayoutUnit borderTop() const { return style().borderTopWidth(); }
+    virtual LayoutUnit borderBottom() const { return style().borderBottomWidth(); }
+    virtual LayoutUnit borderLeft() const { return style().borderLeftWidth(); }
+    virtual LayoutUnit borderRight() const { return style().borderRightWidth(); }
+    virtual LayoutUnit borderBefore() const { return style().borderBeforeWidth(); }
+    virtual LayoutUnit borderAfter() const { return style().borderAfterWidth(); }
+    virtual LayoutUnit borderStart() const { return style().borderStartWidth(); }
+    virtual LayoutUnit borderEnd() const { return style().borderEndWidth(); }
 
     LayoutUnit borderAndPaddingStart() const { return borderStart() + paddingStart(); }
     LayoutUnit borderAndPaddingBefore() const { return borderBefore() + paddingBefore(); }
@@ -173,16 +173,15 @@ public:
     virtual LayoutUnit lineHeight(bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const = 0;
     virtual int baselinePosition(FontBaseline, bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const = 0;
 
-    virtual void mapAbsoluteToLocalPoint(MapCoordinatesFlags, TransformState&) const OVERRIDE;
+    virtual void mapAbsoluteToLocalPoint(MapCoordinatesFlags, TransformState&) const override;
 
     void highQualityRepaintTimerFired(Timer<RenderBoxModelObject>*);
 
-    virtual void setSelectionState(SelectionState) OVERRIDE;
+    virtual void setSelectionState(SelectionState) override;
 
     bool canHaveBoxInfoInRegion() const { return !isFloating() && !isReplaced() && !isInline() && !hasColumns() && !isTableCell() && isRenderBlock() && !isRenderSVGBlock(); }
 
     void getGeometryForBackgroundImage(const RenderLayerModelObject* paintContainer, IntRect& destRect, IntPoint& phase, IntSize& tileSize) const;
-#if USE(ACCELERATED_COMPOSITING)
     void contentChanged(ContentChangeType);
     bool hasAcceleratedCompositing() const;
 
@@ -195,13 +194,12 @@ public:
     void animationFinished(const String& name);
 
     void suspendAnimations(double time = 0);
-#endif
 
 protected:
     RenderBoxModelObject(Element&, PassRef<RenderStyle>, unsigned baseTypeFlags);
     RenderBoxModelObject(Document&, PassRef<RenderStyle>, unsigned baseTypeFlags);
 
-    virtual void willBeDestroyed() OVERRIDE;
+    virtual void willBeDestroyed() override;
 
     class BackgroundImageGeometry {
     public:
@@ -314,7 +312,7 @@ public:
     void moveChildrenTo(RenderBoxModelObject* toBoxModelObject, RenderObject* startChild, RenderObject* endChild, RenderObject* beforeChild, bool fullRemoveInsert = false);
 
 private:
-    LayoutUnit computedCSSPadding(Length) const;
+    LayoutUnit computedCSSPadding(const Length&) const;
     
     virtual LayoutRect frameRectForStickyPositioning() const = 0;
 
@@ -332,8 +330,8 @@ private:
                                BoxSide, bool firstEdgeMatches, bool secondEdgeMatches);
     void clipBorderSideForComplexInnerPath(GraphicsContext*, const RoundedRect&, const RoundedRect&, BoxSide, const class BorderEdge[]);
     void paintOneBorderSide(GraphicsContext*, const RenderStyle*, const RoundedRect& outerBorder, const RoundedRect& innerBorder,
-                                const IntRect& sideRect, BoxSide, BoxSide adjacentSide1, BoxSide adjacentSide2, const class BorderEdge[],
-                                const Path*, BackgroundBleedAvoidance, bool includeLogicalLeftEdge, bool includeLogicalRightEdge, bool antialias, const Color* overrideColor = 0);
+        const LayoutRect& sideRect, BoxSide, BoxSide adjacentSide1, BoxSide adjacentSide2, const class BorderEdge[],
+        const Path*, BackgroundBleedAvoidance, bool includeLogicalLeftEdge, bool includeLogicalRightEdge, bool antialias, const Color* overrideColor = 0);
     void paintTranslucentBorderSides(GraphicsContext*, const RenderStyle*, const RoundedRect& outerBorder, const RoundedRect& innerBorder, const IntPoint& innerBorderAdjustment,
         const class BorderEdge[], BorderEdgeFlags, BackgroundBleedAvoidance, bool includeLogicalLeftEdge, bool includeLogicalRightEdge, bool antialias = false);
     void paintBorderSides(GraphicsContext*, const RenderStyle*, const RoundedRect& outerBorder, const RoundedRect& innerBorder,
@@ -344,6 +342,8 @@ private:
                             Color, EBorderStyle, BackgroundBleedAvoidance, bool includeLogicalLeftEdge, bool includeLogicalRightEdge);
     void paintMaskForTextFillBox(ImageBuffer*, const IntRect&, InlineFlowBox*, const LayoutRect&, RenderRegion*);
 };
+
+template <> inline bool isRendererOfType<const RenderBoxModelObject>(const RenderObject& renderer) { return renderer.isBoxModelObject(); }
 
 RENDER_OBJECT_TYPE_CASTS(RenderBoxModelObject, isBoxModelObject())
 

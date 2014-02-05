@@ -23,7 +23,6 @@
 #ifndef SVGAnimateElement_h
 #define SVGAnimateElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedType.h"
 #include "SVGAnimatedTypeAnimator.h"
 #include "SVGAnimationElement.h"
@@ -43,19 +42,19 @@ public:
 protected:
     SVGAnimateElement(const QualifiedName&, Document&);
 
-    virtual void resetAnimatedType();
-    virtual void clearAnimatedType(SVGElement* targetElement);
+    virtual void resetAnimatedType() override;
+    virtual void clearAnimatedType(SVGElement* targetElement) override;
 
-    virtual bool calculateToAtEndOfDurationValue(const String& toAtEndOfDurationString) OVERRIDE;
-    virtual bool calculateFromAndToValues(const String& fromString, const String& toString) OVERRIDE;
-    virtual bool calculateFromAndByValues(const String& fromString, const String& byString) OVERRIDE;
-    virtual void calculateAnimatedValue(float percentage, unsigned repeatCount, SVGSMILElement* resultElement) OVERRIDE;
-    virtual void applyResultsToTarget() OVERRIDE;
-    virtual float calculateDistance(const String& fromString, const String& toString) OVERRIDE;
-    virtual bool isAdditive() const OVERRIDE;
+    virtual bool calculateToAtEndOfDurationValue(const String& toAtEndOfDurationString) override;
+    virtual bool calculateFromAndToValues(const String& fromString, const String& toString) override;
+    virtual bool calculateFromAndByValues(const String& fromString, const String& byString) override;
+    virtual void calculateAnimatedValue(float percentage, unsigned repeatCount, SVGSMILElement* resultElement) override;
+    virtual void applyResultsToTarget() override;
+    virtual float calculateDistance(const String& fromString, const String& toString) override;
+    virtual bool isAdditive() const override;
 
-    virtual void setTargetElement(SVGElement*) OVERRIDE;
-    virtual void setAttributeName(const QualifiedName&) OVERRIDE;
+    virtual void setTargetElement(SVGElement*) override;
+    virtual void setAttributeName(const QualifiedName&) override;
 
     AnimatedPropertyType m_animatedPropertyType;
 
@@ -64,7 +63,7 @@ private:
     SVGAnimatedTypeAnimator* ensureAnimator();
     bool animatedPropertyTypeSupportsAddition() const;
 
-    virtual bool hasValidAttributeType() OVERRIDE;
+    virtual bool hasValidAttributeType() override;
 
     std::unique_ptr<SVGAnimatedType> m_fromType;
     std::unique_ptr<SVGAnimatedType> m_toType;
@@ -81,5 +80,4 @@ NODE_TYPE_CASTS(SVGAnimateElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGAnimateElement_h

@@ -20,17 +20,10 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceMarker.h"
 
 #include "GraphicsContext.h"
-#include "RenderSVGContainer.h"
 #include "RenderSVGRoot.h"
-#include "SVGElement.h"
-#include "SVGGraphicsElement.h"
-#include "SVGMarkerElement.h"
-#include "SVGRenderSupport.h"
 #include <wtf/StackStats.h>
 
 namespace WebCore {
@@ -64,7 +57,7 @@ void RenderSVGResourceMarker::removeAllClientsFromCache(bool markForInvalidation
     markAllClientsForInvalidation(markForInvalidation ? LayoutAndBoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourceMarker::removeClientFromCache(RenderObject& client, bool markForInvalidation)
+void RenderSVGResourceMarker::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
     markClientForInvalidation(client, markForInvalidation ? BoundariesInvalidation : ParentOnlyInvalidation);
 }
@@ -162,5 +155,3 @@ void RenderSVGResourceMarker::calcViewport()
 }
 
 }
-
-#endif // ENABLE(SVG)

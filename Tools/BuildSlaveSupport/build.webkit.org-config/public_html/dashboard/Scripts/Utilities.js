@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,34 +23,67 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-JSON.load = function(url, callback)
+JSON.LoadError = "JSONLoadError";
+JSON.ParseError = "JSONParseError";
+
+// JSON.load() may be called using the following forms:
+//
+// JSON.load("http://www.apple.com", function() {/* success */})
+// OR
+// JSON.load("http://www.apple.com", function() {/* success */}, {withCredentials: true, ...})
+// OR
+// JSON.load("http://www.apple.com", function() {/* success */}, function() {/* failure */})
+// OR
+// JSON.load("http://www.apple.com", function() {/* success */}, function() {/* failure */}, {withCredentials: true, ...})
+JSON.load = function(url, successCallback, failureCallback, options)
 {
     console.assert(url);
 
-    if (!(callback instanceof Function))
+    if (!(successCallback instanceof Function))
         return;
+
+    if (failureCallback && typeof failureCallback === "object")
+        options = failureCallback;
+
+    if (!(failureCallback instanceof Function))
+        failureCallback = function() { };
+
+    if (typeof options !== "object")
+        options = {};
 
     var request = new XMLHttpRequest;
     request.onreadystatechange = function() {
         if (this.readyState !== 4)
             return;
 
-        try {
-            var data = JSON.parse(request.responseText);
-        } catch (e) {
-            var data = {error: e.message};
+        // Don't consider a status of 0 to be a load error for easier testing with local files.
+        var loadErrorOccurred = this.status !== 0 && this.status !== 200;
+        if (loadErrorOccurred) {
+            failureCallback({errorType: JSON.LoadError, error: this.statusText, errorHTTPCode: this.status});
+            return;
         }
 
-        // Allow a status of 0 for easier testing with local files.
-        if (!this.status || this.status === 200)
-            callback(data);
+        try {
+            var responseText = request.responseText;
+            if (options.hasOwnProperty("jsonpCallbackName"))
+                responseText = responseText.replace(new RegExp("^" + options.jsonpCallbackName + "\\((.*)\\);?$"), "$1");
+            var data = JSON.parse(responseText);
+        } catch (e) {
+            var data = {errorType: JSON.ParseError, error: e.message};
+            failureCallback(data);
+            return;
+        }
+
+        successCallback(data);
     };
 
     request.open("GET", url);
+    if (options.hasOwnProperty("withCredentials"))
+        request.withCredentials = options.withCredentials;
     request.send();
 };
 
-function loadXML(url, callback) {
+function loadXML(url, callback, options) {
     console.assert(url);
 
     if (!(callback instanceof Function))
@@ -67,6 +100,8 @@ function loadXML(url, callback) {
     };
 
     request.open("GET", url);
+    if ((typeof options === "object") && options.hasOwnProperty("withCredentials"))
+        request.withCredentials = options.withCredentials;
     request.send();
 };
 

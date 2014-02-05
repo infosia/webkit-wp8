@@ -26,6 +26,9 @@
 #import "config.h"
 #import "WKWebProcessPlugInNodeHandleInternal.h"
 
+#import "WKWebProcessPlugInFrameInternal.h"
+#import <WebCore/IntRect.h>
+
 #if WK_API_ENABLED
 
 using namespace WebKit;
@@ -40,18 +43,63 @@ using namespace WebKit;
     [super dealloc];
 }
 
-#pragma mark WKObject protocol implementation
++ (WKWebProcessPlugInNodeHandle *)nodeHandleWithJSValue:(JSValue *)value inContext:(JSContext *)context
+{
+    JSContextRef contextRef = [context JSGlobalContextRef];
+    JSObjectRef objectRef = JSValueToObject(contextRef, [value JSValueRef], 0);
+    RefPtr<InjectedBundleNodeHandle> nodeHandle = InjectedBundleNodeHandle::getOrCreate(contextRef, objectRef);
 
-- (API::Object&)_apiObject
+    return wrapper(*nodeHandle.release().leakRef());
+}
+
+- (WKWebProcessPlugInFrame *)htmlIFrameElementContentFrame
+{
+    RefPtr<WebFrame> frame = _nodeHandle->htmlIFrameElementContentFrame();
+    return wrapper(*frame.release().leakRef());
+}
+
+- (CGRect)elementBounds
+{
+    return _nodeHandle->elementBounds();
+}
+
+- (BOOL)HTMLInputElementIsAutoFilled
+{
+    return _nodeHandle->isHTMLInputElementAutofilled();
+}
+
+- (void)setHTMLInputElementIsAutoFilled:(BOOL)isAutoFilled
+{
+    _nodeHandle->setHTMLInputElementAutofilled(isAutoFilled);
+}
+
+- (BOOL)HTMLInputELementIsUserEdited
+{
+    return _nodeHandle->htmlInputElementLastChangeWasUserEdit();
+}
+
+- (BOOL)HTMLTextAreaELementIsUserEdited
+{
+    return _nodeHandle->htmlTextAreaElementLastChangeWasUserEdit();
+}
+
+- (WKWebProcessPlugInNodeHandle *)HTMLTableCellElementCellAbove
+{
+    auto nodeHandle = _nodeHandle->htmlTableCellElementCellAbove();
+    if (!nodeHandle)
+        return nil;
+
+    return [wrapper(*nodeHandle.leakRef()) autorelease];
+}
+
+- (InjectedBundleNodeHandle&)_nodeHandle
 {
     return *_nodeHandle;
 }
 
-@end
+#pragma mark WKObject protocol implementation
 
-@implementation WKWebProcessPlugInNodeHandle (Internal)
-
-- (InjectedBundleNodeHandle&)_nodeHandle
+- (API::Object&)_apiObject
 {
     return *_nodeHandle;
 }

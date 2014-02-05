@@ -32,8 +32,8 @@
 #include "Element.h"
 #include "ElementIterator.h"
 #include "ElementRareData.h"
-#include "ElementTraversal.h"
 #include "FlowThreadController.h"
+#include "InsertionPoint.h"
 #include "NodeRenderStyle.h"
 #include "NodeRenderingTraversal.h"
 #include "NodeTraversal.h"
@@ -61,9 +61,11 @@ namespace Style {
 enum DetachType { NormalDetach, ReattachDetach };
 
 static void attachRenderTree(Element&, PassRefPtr<RenderStyle>);
+static void attachTextRenderer(Text&);
 static void detachRenderTree(Element&, DetachType);
+static void resolveTree(Element&, Change);
 
-Change determineChange(const RenderStyle* s1, const RenderStyle* s2, Settings* settings)
+Change determineChange(const RenderStyle* s1, const RenderStyle* s2)
 {
     if (!s1 || !s2)
         return Detach;
@@ -75,12 +77,6 @@ Change determineChange(const RenderStyle* s1, const RenderStyle* s2, Settings* s
     // typically won't contain much content.
     if (s1->columnSpan() != s2->columnSpan())
         return Detach;
-    if (settings->regionBasedColumnsEnabled()) {
-        bool specifiesColumns1 = !s1->hasAutoColumnCount() || !s1->hasAutoColumnWidth();
-        bool specifiesColumns2 = !s2->hasAutoColumnCount() || !s2->hasAutoColumnWidth();
-        if (specifiesColumns1 != specifiesColumns2)
-            return Detach;
-    }
     if (!s1->contentDataEquivalent(s2))
         return Detach;
     // When text-combine property has been changed, we need to prepare a separate renderer object.
@@ -296,7 +292,7 @@ static RenderObject* nextSiblingRenderer(const Text& textNode)
 
 static void reattachTextRenderersForWhitespaceOnlySiblingsAfterAttachIfNeeded(Node& current)
 {
-    if (current.isInsertionPoint())
+    if (isInsertionPoint(current))
         return;
     // This function finds sibling text renderers where the results of textRendererIsNeeded may have changed as a result of
     // the current node gaining or losing the renderer. This can only affect white space text nodes.
@@ -431,10 +427,32 @@ void updateTextRendererAfterContentChange(Text& textNode, unsigned offsetOfRepla
     textRenderer->setTextWithOffset(textNode.dataImpl(), offsetOfReplacedData, lengthOfReplacedData);
 }
 
+static void attachDistributedChildren(InsertionPoint& insertionPoint)
+{
+    if (ShadowRoot* shadowRoot = insertionPoint.containingShadowRoot())
+        ContentDistributor::ensureDistribution(shadowRoot);
+    for (Node* current = insertionPoint.firstDistributed(); current; current = insertionPoint.nextDistributedTo(current)) {
+        if (current->isTextNode()) {
+            if (current->renderer())
+                continue;
+            attachTextRenderer(*toText(current));
+            continue;
+        }
+        if (current->isElementNode()) {
+            if (current->renderer())
+                detachRenderTree(*toElement(current));
+            attachRenderTree(*toElement(current), nullptr);
+        }
+    }
+}
+
 static void attachChildren(ContainerNode& current)
 {
+    if (isInsertionPoint(current))
+        attachDistributedChildren(toInsertionPoint(current));
+
     for (Node* child = current.firstChild(); child; child = child->nextSibling()) {
-        ASSERT(!child->renderer() || current.shadowRoot() || current.isInsertionPoint());
+        ASSERT(!child->renderer() || current.shadowRoot() || isInsertionPoint(current));
         if (child->renderer())
             continue;
         if (child->isTextNode()) {
@@ -448,12 +466,7 @@ static void attachChildren(ContainerNode& current)
 
 static void attachShadowRoot(ShadowRoot& shadowRoot)
 {
-    StyleResolver& styleResolver = shadowRoot.document().ensureStyleResolver();
-    styleResolver.pushParentShadowRoot(&shadowRoot);
-
     attachChildren(shadowRoot);
-
-    styleResolver.popParentShadowRoot(&shadowRoot);
 
     shadowRoot.clearNeedsStyleRecalc();
     shadowRoot.clearChildNeedsStyleRecalc();
@@ -549,8 +562,23 @@ static void attachRenderTree(Element& current, PassRefPtr<RenderStyle> resolvedS
         current.didAttachRenderers();
 }
 
+static void detachDistributedChildren(InsertionPoint& insertionPoint)
+{
+    for (Node* current = insertionPoint.firstDistributed(); current; current = insertionPoint.nextDistributedTo(current)) {
+        if (current->isTextNode()) {
+            detachTextRenderer(*toText(current));
+            continue;
+        }
+        if (current->isElementNode())
+            detachRenderTree(*toElement(current));
+    }
+}
+
 static void detachChildren(ContainerNode& current, DetachType detachType)
 {
+    if (isInsertionPoint(current))
+        detachDistributedChildren(toInsertionPoint(current));
+
     for (Node* child = current.firstChild(); child; child = child->nextSibling()) {
         if (child->isTextNode()) {
             Style::detachTextRenderer(*toText(child));
@@ -637,7 +665,7 @@ static Change resolveLocal(Element& current, Change inheritedChange)
     Document& document = current.document();
     if (currentStyle && current.styleChangeType() != ReconstructRenderTree) {
         newStyle = current.styleForRenderer();
-        localChange = determineChange(currentStyle.get(), newStyle.get(), document.settings());
+        localChange = determineChange(currentStyle.get(), newStyle.get());
     }
     if (localChange == Detach) {
         if (current.renderer() || current.inNamedFlow())
@@ -693,19 +721,16 @@ static void resolveShadowTree(ShadowRoot* shadowRoot, Style::Change change)
 {
     if (!shadowRoot)
         return;
-    StyleResolver& styleResolver = shadowRoot->document().ensureStyleResolver();
-    styleResolver.pushParentShadowRoot(shadowRoot);
 
     for (Node* child = shadowRoot->firstChild(); child; child = child->nextSibling()) {
         if (child->isTextNode()) {
-            // Current user agent ShadowRoots don't have immediate text children so this branch is never actually taken.
             updateTextStyle(*toText(child));
             continue;
         }
-        resolveTree(*toElement(child), change);
+        if (child->isElementNode())
+            resolveTree(*toElement(child), change);
     }
 
-    styleResolver.popParentShadowRoot(shadowRoot);
     shadowRoot->clearNeedsStyleRecalc();
     shadowRoot->clearChildNeedsStyleRecalc();
 }
@@ -729,17 +754,15 @@ static EVisibility elementImplicitVisibility(const Element* element)
     if (!renderer)
         return VISIBLE;
 
-    RenderStyle* style = renderer->style();
-    if (!style)
-        return VISIBLE;
+    RenderStyle& style = renderer->style();
 
-    Length width(style->width());
-    Length height(style->height());
+    Length width(style.width());
+    Length height(style.height());
     if ((width.isFixed() && width.value() <= 0) || (height.isFixed() && height.value() <= 0))
         return HIDDEN;
 
-    Length top(style->top());
-    Length left(style->left());
+    Length top(style.top());
+    Length left(style.left());
     if (left.isFixed() && width.isFixed() && -left.value() >= width.value())
         return HIDDEN;
 
@@ -848,8 +871,7 @@ void resolveTree(Element& current, Change change)
 
 void resolveTree(Document& document, Change change)
 {
-    bool resolveRootStyle = change == Force || (document.shouldDisplaySeamlesslyWithParent() && change >= Inherit);
-    if (resolveRootStyle) {
+    if (change == Force) {
         auto documentStyle = resolveForDocument(document);
 
         // Inserting the pictograph font at the end of the font fallback list is done by the
@@ -860,7 +882,7 @@ void resolveTree(Document& document, Change change)
                 documentStyle.get().font().update(styleResolver->fontSelector());
         }
 
-        Style::Change documentChange = determineChange(&documentStyle.get(), &document.renderView()->style(), document.settings());
+        Style::Change documentChange = determineChange(&documentStyle.get(), &document.renderView()->style());
         if (documentChange != NoChange)
             document.renderView()->setStyle(std::move(documentStyle));
         else
@@ -875,27 +897,9 @@ void resolveTree(Document& document, Change change)
     resolveTree(*documentElement, change);
 }
 
-void attachRenderTree(Element& element)
-{
-    attachRenderTree(element, nullptr);
-    reattachTextRenderersForWhitespaceOnlySiblingsAfterAttachIfNeeded(element);
-}
-
 void detachRenderTree(Element& element)
 {
     detachRenderTree(element, NormalDetach);
-}
-
-void detachRenderTreeInReattachMode(Element& element)
-{
-    detachRenderTree(element, ReattachDetach);
-}
-
-void reattachRenderTree(Element& current)
-{
-    if (current.renderer())
-        detachRenderTree(current, ReattachDetach);
-    attachRenderTree(current);
 }
 
 }

@@ -63,8 +63,8 @@ namespace WebCore {
 static void dispatchChildInsertionEvents(Node&);
 static void dispatchChildRemovalEvents(Node&);
 
-typedef pair<RefPtr<Node>, unsigned> CallbackParameters;
-typedef pair<NodeCallback, CallbackParameters> CallbackInfo;
+typedef std::pair<RefPtr<Node>, unsigned> CallbackParameters;
+typedef std::pair<NodeCallback, CallbackParameters> CallbackInfo;
 typedef Vector<CallbackInfo> NodeCallbackQueue;
 
 static NodeCallbackQueue* s_postAttachCallbackQueue;
@@ -480,16 +480,20 @@ bool ContainerNode::replaceChild(PassRefPtr<Node> newChild, Node* oldChild, Exce
     return true;
 }
 
-static void willRemoveChild(Node& child)
+void ContainerNode::willRemoveChild(Node& child)
 {
     ASSERT(child.parentNode());
 
     ChildListMutationScope(*child.parentNode()).willRemoveChild(child);
     child.notifyMutationObserversNodeWillDetach();
     dispatchChildRemovalEvents(child);
+
+    if (child.parentNode() != this)
+        return;
+
     child.document().nodeWillBeRemoved(&child); // e.g. mutation event listener can create a new range.
     if (child.isContainerNode())
-        ChildFrameDisconnector(toContainerNode(child)).disconnect();
+        disconnectSubframesIfNeeded(toContainerNode(child), RootAndDescendants);
 }
 
 static void willRemoveChildren(ContainerNode& container)
@@ -509,12 +513,12 @@ static void willRemoveChildren(ContainerNode& container)
 
     container.document().nodeChildrenWillBeRemoved(container);
 
-    ChildFrameDisconnector(container).disconnect(ChildFrameDisconnector::DescendantsOnly);
+    disconnectSubframesIfNeeded(container, DescendantsOnly);
 }
 
 void ContainerNode::disconnectDescendantFrames()
 {
-    ChildFrameDisconnector(*this).disconnect();
+    disconnectSubframesIfNeeded(*this, RootAndDescendants);
 }
 
 bool ContainerNode::removeChild(Node* oldChild, ExceptionCode& ec)

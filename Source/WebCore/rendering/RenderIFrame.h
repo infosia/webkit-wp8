@@ -32,38 +32,32 @@ namespace WebCore {
 
 class RenderView;
 
-class RenderIFrame FINAL : public RenderFrameBase {
+class RenderIFrame final : public RenderFrameBase {
 public:
     RenderIFrame(HTMLIFrameElement&, PassRef<RenderStyle>);
 
     HTMLIFrameElement& iframeElement() const;
 
     bool flattenFrame() const;
-    bool isSeamless() const;
 
 private:
-    void frameOwnerElement() const WTF_DELETED_FUNCTION;
+    void frameOwnerElement() const = delete;
 
-    virtual LayoutUnit minPreferredLogicalWidth() const OVERRIDE;
-    virtual LayoutUnit maxPreferredLogicalWidth() const OVERRIDE;
+    virtual bool shouldComputeSizeAsReplaced() const override;
+    virtual bool isInlineBlockOrInlineTable() const override;
 
-    virtual bool shouldComputeSizeAsReplaced() const OVERRIDE;
-    virtual bool isInlineBlockOrInlineTable() const OVERRIDE;
+    virtual void layout() override;
 
-    virtual void layout() OVERRIDE;
-
-    virtual bool isRenderIFrame() const OVERRIDE { return true; }
+    virtual bool isRenderIFrame() const override { return true; }
 
 #if PLATFORM(IOS)
     // FIXME: Do we still need this workaround to avoid breaking layout tests?
-    virtual const char* renderName() const OVERRIDE { return "RenderPartObject"; }
+    virtual const char* renderName() const override { return "RenderPartObject"; }
 #else
-    virtual const char* renderName() const OVERRIDE { return "RenderIFrame"; }
+    virtual const char* renderName() const override { return "RenderIFrame"; }
 #endif
 
-    virtual bool requiresLayer() const OVERRIDE;
-
-    void layoutSeamlessly();
+    virtual bool requiresLayer() const override;
 
     RenderView* contentRootRenderer() const;
 };

@@ -76,7 +76,7 @@ NetscapePlugin::NetscapePlugin(PassRefPtr<NetscapePluginModule> pluginModule)
     , m_drawingModel(static_cast<NPDrawingModel>(-1))
     , m_eventModel(static_cast<NPEventModel>(-1))
     , m_pluginReturnsNonretainedLayer(!m_pluginModule->pluginQuirks().contains(PluginQuirks::ReturnsRetainedCoreAnimationLayer))
-    , m_layerHostingMode(LayerHostingModeDefault)
+    , m_layerHostingMode(LayerHostingMode::InProcess)
     , m_currentMouseEvent(0)
     , m_pluginHasFocus(false)
     , m_windowHasFocus(false)
@@ -287,11 +287,7 @@ void NetscapePlugin::removePluginStream(NetscapePluginStream* pluginStream)
 
 bool NetscapePlugin::isAcceleratedCompositingEnabled()
 {
-#if USE(ACCELERATED_COMPOSITING)
     return controller()->isAcceleratedCompositingEnabled();
-#else
-    return false;
-#endif
 }
 
 void NetscapePlugin::pushPopupsEnabledState(bool state)

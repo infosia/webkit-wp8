@@ -20,7 +20,6 @@
 #include "config.h"
 #include "SVGImageForContainer.h"
 
-#if ENABLE(SVG)
 #include "AffineTransform.h"
 #include "FloatRect.h"
 #include "FloatSize.h"
@@ -43,10 +42,10 @@ void SVGImageForContainer::draw(GraphicsContext* context, const FloatRect& dstRe
 }
 
 void SVGImageForContainer::drawPattern(GraphicsContext* context, const FloatRect& srcRect, const AffineTransform& patternTransform,
-    const FloatPoint& phase, ColorSpace colorSpace, CompositeOperator compositeOp, const FloatRect& dstRect, BlendMode)
+    const FloatPoint& phase, ColorSpace colorSpace, CompositeOperator compositeOp, const FloatRect& dstRect, BlendMode blendMode)
 {
     m_image->setSpaceSize(spaceSize());
-    m_image->drawPatternForContainer(context, m_containerSize, m_zoom, srcRect, patternTransform, phase, colorSpace, compositeOp, dstRect);
+    m_image->drawPatternForContainer(context, m_containerSize, m_zoom, srcRect, patternTransform, phase, colorSpace, compositeOp, dstRect, blendMode);
 }
 
 PassNativeImagePtr SVGImageForContainer::nativeImageForCurrentFrame()
@@ -55,5 +54,3 @@ PassNativeImagePtr SVGImageForContainer::nativeImageForCurrentFrame()
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

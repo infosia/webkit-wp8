@@ -20,7 +20,7 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 // This all-in-one cpp file cuts down on template bloat to allow us to build our Windows release build.
@@ -94,10 +94,7 @@
 #include "JSHistoryCustom.cpp"
 #include "JSImageConstructor.cpp"
 #include "JSImageDataCustom.cpp"
-#include "JSInjectedScriptHostCustom.cpp"
-#include "JSInjectedScriptManager.cpp"
 #include "JSInspectorFrontendHostCustom.cpp"
-#include "JSJavaScriptCallFrameCustom.cpp"
 #include "JSLazyEventListener.cpp"
 #include "JSLocationCustom.cpp"
 #include "JSMainThreadExecState.cpp"
@@ -143,13 +140,11 @@
 #include "JSXMLHttpRequestCustom.cpp"
 #include "JSXPathResultCustom.cpp"
 #include "JSXSLTProcessorCustom.cpp"
-#include "JavaScriptCallFrame.cpp"
 #include "PageScriptDebugServer.cpp"
 #include "ScheduledAction.cpp"
 #include "ScriptCachedFrameData.cpp"
 #include "ScriptCallStackFactory.cpp"
 #include "ScriptController.cpp"
-#include "ScriptDebugServer.cpp"
 #include "ScriptProfiler.cpp"
 #include "ScriptState.cpp"
 #include "SerializedScriptValue.cpp"

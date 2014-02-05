@@ -52,7 +52,7 @@
 #import "WebCoreThread.h"
 #import "VisibleUnits.h"
 
-#import <GraphicsServices/GraphicsServices.h>
+#import <CoreText/CoreText.h>
 
 @interface NSObject (AccessibilityPrivate)
 - (void)_accessibilityUnregister;
@@ -347,7 +347,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     if ([self isAttachment])
         return [[self attachmentView] accessibilityElementAtIndex:index];
     
-    AccessibilityObject::AccessibilityChildrenVector children = m_object->children();
+    const auto& children = m_object->children();
     if (static_cast<unsigned>(index) >= children.size())
         return nil;
     
@@ -367,7 +367,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
     if ([self isAttachment])
         return [[self attachmentView] indexOfAccessibilityElement:element];
     
-    AccessibilityObject::AccessibilityChildrenVector children = m_object->children();
+    const auto& children = m_object->children();
     unsigned count = children.size();
     for (unsigned k = 0; k < count; ++k) {
         AccessibilityObjectWrapper* wrapper = children[k]->wrapper();
@@ -514,8 +514,9 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         case TextFieldRole:
             if (m_object->isPasswordField())
                 traits |= [self _axSecureTextFieldTrait];
+            FALLTHROUGH;
         case TextAreaRole:
-            traits |= [self _axTextEntryTrait];            
+            traits |= [self _axTextEntryTrait];
             if (m_object->isFocused())
                 traits |= ([self _axHasTextCursorTrait] | [self _axTextOperationsAvailableTrait]);
             break;
@@ -575,11 +576,9 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
 - (BOOL)isSVGGroupElement
 {
     // If an SVG group element has a title, it should be an accessible element on iOS.
-#if ENABLE(SVG)
     Node* node = m_object->node();
     if (node && node->hasTagName(SVGNames::gTag) && [[self accessibilityLabel] length] > 0)
         return YES;
-#endif
     
     return NO;
 }
@@ -645,6 +644,7 @@ static AccessibilityObjectWrapper* AccessibilityUnignoredAncestor(AccessibilityO
         case GroupRole:
             if ([self isSVGGroupElement])
                 return true;
+            FALLTHROUGH;
         // All other elements are ignored on the iphone.
         default:
         case UnknownRole:
@@ -770,7 +770,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!cell)
         return 0;
 
-    return toAccessibilityTableCell(cell);
+    return static_cast<AccessibilityTableCell*>(cell);
 }
 
 - (AccessibilityTable*)tableParent
@@ -783,7 +783,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!parentTable)
         return 0;
     
-    return toAccessibilityTable(parentTable);
+    return static_cast<AccessibilityTable*>(parentTable);
 }
 
 - (id)accessibilityTitleElement
@@ -813,8 +813,8 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
         return nil;
     
     // Get the row and column range, so we can use them to find the headers.
-    pair<unsigned, unsigned> rowRange;
-    pair<unsigned, unsigned> columnRange;
+    std::pair<unsigned, unsigned> rowRange;
+    std::pair<unsigned, unsigned> columnRange;
     tableCell->rowIndexRange(rowRange);
     tableCell->columnIndexRange(columnRange);
     
@@ -877,7 +877,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!tableCell)
         return NSMakeRange(NSNotFound, 0);
     
-    pair<unsigned, unsigned> rowRange;
+    std::pair<unsigned, unsigned> rowRange;
     tableCell->rowIndexRange(rowRange);
     return NSMakeRange(rowRange.first, rowRange.second);
 }
@@ -891,7 +891,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (!tableCell)
         return NSMakeRange(NSNotFound, 0);
     
-    pair<unsigned, unsigned> columnRange;
+    std::pair<unsigned, unsigned> columnRange;
     tableCell->columnIndexRange(columnRange);
     return NSMakeRange(columnRange.first, columnRange.second);
 }
@@ -1073,7 +1073,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     if (role != LinkRole && role != WebCoreLinkRole)
         return NO;
     
-    AccessibilityObject::AccessibilityChildrenVector children = m_object->children();
+    const auto& children = m_object->children();
     unsigned childrenSize = children.size();
 
     // If there's only one child, then it doesn't have segmented children. 
@@ -1107,7 +1107,7 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     // Verify this is the top document. If not, we might need to go through the platform widget.
     FrameView* frameView = m_object->documentFrameView();
     Document* document = m_object->document();
-    if (document && frameView && document != document->topDocument())
+    if (document && frameView && document != &document->topDocument())
         return frameView->platformWidget();
     
     // The top scroll view's parent is the web document view.
@@ -1479,25 +1479,26 @@ static void AXAttributeStringSetHeadingLevel(NSMutableAttributedString* attrStri
         [attrString removeAttribute:UIAccessibilityTokenHeadingLevel range:range];
 }
 
-static void AXAttributeStringSetFont(NSMutableAttributedString* attrString, GSFontRef font, NSRange range)
+static void AXAttributeStringSetFont(NSMutableAttributedString* attrString, CTFontRef font, NSRange range)
 {
     if (!font)
         return;
     
-    const char* nameCStr = GSFontGetFullName(font);
-    const char* familyCStr = GSFontGetFamilyName(font);
-    NSNumber* size = [NSNumber numberWithFloat:GSFontGetSize(font)];
-    NSNumber* bold = [NSNumber numberWithBool:GSFontIsBold(font)];
-    GSFontTraitMask traits = GSFontGetTraits(font);
-    if (nameCStr)
-        [attrString addAttribute:UIAccessibilityTokenFontName value:[NSString stringWithUTF8String:nameCStr] range:range];
-    if (familyCStr)
-        [attrString addAttribute:UIAccessibilityTokenFontFamily value:[NSString stringWithUTF8String:familyCStr] range:range];
+    RetainPtr<CFStringRef> fullName = adoptCF(CTFontCopyFullName(font));
+    RetainPtr<CFStringRef> familyName = adoptCF(CTFontCopyFamilyName(font));
+
+    NSNumber* size = [NSNumber numberWithFloat:CTFontGetSize(font)];
+    CTFontSymbolicTraits traits = CTFontGetSymbolicTraits(font);
+    NSNumber* bold = [NSNumber numberWithBool:(traits & kCTFontTraitBold)];
+    if (fullName)
+        [attrString addAttribute:UIAccessibilityTokenFontName value:(NSString*)fullName.get() range:range];
+    if (familyName)
+        [attrString addAttribute:UIAccessibilityTokenFontFamily value:(NSString*)familyName.get() range:range];
     if ([size boolValue])
         [attrString addAttribute:UIAccessibilityTokenFontSize value:size range:range];
-    if ([bold boolValue] || (traits & GSBoldFontMask))
+    if ([bold boolValue] || (traits & kCTFontTraitBold))
         [attrString addAttribute:UIAccessibilityTokenBold value:[NSNumber numberWithBool:YES] range:range];
-    if (traits & GSItalicFontMask)
+    if (traits & kCTFontTraitItalic)
         [attrString addAttribute:UIAccessibilityTokenItalic value:[NSNumber numberWithBool:YES] range:range];
 
 }
@@ -1512,12 +1513,12 @@ static void AXAttributeStringSetNumber(NSMutableAttributedString* attrString, NS
 
 static void AXAttributeStringSetStyle(NSMutableAttributedString* attrString, RenderObject* renderer, NSRange range)
 {
-    RenderStyle* style = renderer->style();
+    RenderStyle& style = renderer->style();
     
     // set basic font info
-    AXAttributeStringSetFont(attrString, style->font().primaryFont()->getGSFont(), range);
+    AXAttributeStringSetFont(attrString, style.font().primaryFont()->getCTFont(), range);
                 
-    int decor = style->textDecorationsInEffect();
+    int decor = style.textDecorationsInEffect();
     if ((decor & (TextDecorationUnderline | TextDecorationLineThrough)) != 0) {
         // find colors using quirk mode approach (strict mode would use current
         // color for all but the root line box, which would use getTextDecorationColors)
@@ -1599,7 +1600,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
                 String listMarkerText = m_object->listMarkerTextForNodeAndPosition(node, VisiblePosition(it.range()->startPosition())); 
                 
                 if (!listMarkerText.isEmpty()) 
-                    [array addObject:[NSString stringWithCharacters:listMarkerText.characters() length:listMarkerText.length()]];
+                    [array addObject:[NSString stringWithCharacters:listMarkerText.deprecatedCharacters() length:listMarkerText.length()]];
                 // There was not an element representation, so just return the text.
                 [array addObject:[NSString stringWithCharacters:it.characters() length:it.length()]];
             }
@@ -1609,7 +1610,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 
                 if (!listMarkerText.isEmpty()) {
                     NSMutableAttributedString* attrString = [[NSMutableAttributedString alloc] init];
-                    AXAttributedStringAppendText(attrString, node, listMarkerText.characters(), listMarkerText.length());
+                    AXAttributedStringAppendText(attrString, node, listMarkerText.deprecatedCharacters(), listMarkerText.length());
                     [array addObject:attrString];
                     [attrString release];
                 }
@@ -1638,9 +1639,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
         return NSMakeRange(NSNotFound, 0);
     
     Document* document = m_object->document();
-    FrameSelection& frameSelection = document->frame()->selection();
-    
-    Element* selectionRoot = frameSelection.rootEditableElement();
+    Element* selectionRoot = document->frame()->selection().selection().rootEditableElement();
     Element* scope = selectionRoot ? selectionRoot : document->documentElement();
     
     // Mouse events may cause TSM to attempt to create an NSRange for a portion of the view
@@ -1676,8 +1675,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     // to use the root editable element of the selection start as the positional base.
     // That fits with AppKit's idea of an input context.
     Document* document = m_object->document();
-    FrameSelection& frameSelection = document->frame()->selection();
-    Element* selectionRoot = frameSelection.rootEditableElement();
+    Element* selectionRoot = document->frame()->selection().selection().rootEditableElement();
     Element* scope = selectionRoot ? selectionRoot : document->documentElement();
     return TextIterator::rangeFromLocationAndLength(scope, nsrange.location, nsrange.length);
 }

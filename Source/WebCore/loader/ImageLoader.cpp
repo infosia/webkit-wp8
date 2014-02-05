@@ -35,12 +35,10 @@
 #include "HTMLObjectElement.h"
 #include "HTMLParserIdioms.h"
 #include "RenderImage.h"
+#include "RenderSVGImage.h"
 #include "ScriptCallStack.h"
 #include "SecurityOrigin.h"
 
-#if ENABLE(SVG)
-#include "RenderSVGImage.h"
-#endif
 #if ENABLE(VIDEO)
 #include "RenderVideo.h"
 #endif
@@ -325,17 +323,15 @@ RenderImageResource* ImageLoader::renderImageResource()
 
     // We don't return style generated image because it doesn't belong to the ImageLoader.
     // See <https://bugs.webkit.org/show_bug.cgi?id=42840>
-    if (renderer->isImage() && !toRenderImage(*renderer).isGeneratedContent())
-        return toRenderImage(*renderer).imageResource();
+    if (renderer->isRenderImage() && !toRenderImage(*renderer).isGeneratedContent())
+        return &toRenderImage(*renderer).imageResource();
 
-#if ENABLE(SVG)
     if (renderer->isSVGImage())
-        return toRenderSVGImage(renderer)->imageResource();
-#endif
+        return &toRenderSVGImage(renderer)->imageResource();
 
 #if ENABLE(VIDEO)
     if (renderer->isVideo())
-        return toRenderVideo(*renderer).imageResource();
+        return &toRenderVideo(*renderer).imageResource();
 #endif
 
     return nullptr;
@@ -378,7 +374,7 @@ void ImageLoader::updatedHasPendingEvent()
     }   
 }
 
-void ImageLoader::timerFired(Timer<ImageLoader>*)
+void ImageLoader::timerFired(Timer<ImageLoader>&)
 {
     m_element->deref();
 }

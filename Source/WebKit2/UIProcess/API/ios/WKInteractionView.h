@@ -23,10 +23,12 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#import "WKGestureTypes.h"
 #import <UIKit/UIWebFormAccessory.h>
 #import <UIKit/UITextInput_Private.h>
 #import <UIKit/UIView.h>
 #import <UIKit/UIWebTouchEventsGestureRecognizer.h>
+#import <UIKit/UIWKSelectionAssistant.h>
 #import <UIKit/UIWKTextInteractionAssistant.h>
 #import <wtf/Forward.h>
 #import <wtf/Vector.h>
@@ -41,6 +43,7 @@ class IntSize;
 
 namespace WebKit {
 class WebPageProxy;
+struct InteractionInformationAtPosition;
 }
 
 @class WebIOSEvent;
@@ -56,4 +59,11 @@ class WebPageProxy;
 - (void)_stopAssistingNode;
 - (void)_selectionChanged;
 - (BOOL)_interpretKeyEvent:(WebIOSEvent *)theEvent isCharEvent:(BOOL)isCharEvent;
+- (void)_positionInformationDidChange:(const WebKit::InteractionInformationAtPosition&)info;
+- (void)_attemptClickAtLocation:(CGPoint)location;
+- (void)_updatePositionInformation;
+- (void)_performAction:(WebKit::WKSheetActions)action;
+- (void)_willStartScrollingOrZooming;
+- (void)_didEndScrollingOrZooming;
+@property (readonly, nonatomic) WebKit::InteractionInformationAtPosition positionInformation;
 @end

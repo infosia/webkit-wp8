@@ -182,7 +182,7 @@ int SQLiteStatement::bindBlob(int index, const String& text)
     if (text.isEmpty() && !text.isNull())
         characters = &anyCharacter;
     else
-        characters = text.characters();
+        characters = text.deprecatedCharacters();
 
     return bindBlob(index, characters, text.length() * sizeof(UChar));
 }
@@ -200,7 +200,7 @@ int SQLiteStatement::bindText(int index, const String& text)
     if (text.isEmpty() && !text.isNull())
         characters = &anyCharacter;
     else
-        characters = text.characters();
+        characters = text.deprecatedCharacters();
 
     return sqlite3_bind_text16(m_statement, index, characters, sizeof(UChar) * text.length(), SQLITE_TRANSIENT);
 }
@@ -426,34 +426,6 @@ void SQLiteStatement::getColumnBlobAsVector(int col, Vector<char>& result)
     result.resize((size_t)size);
     for (int i = 0; i < size; ++i)
         result[i] = (static_cast<const unsigned char*>(blob))[i];
-}
-
-const void* SQLiteStatement::getColumnBlob(int col, int& size)
-{
-    ASSERT(col >= 0);
-
-    size = 0;
-
-    if (finalize() != SQLITE_OK)
-        LOG(SQLDatabase, "Finalize failed");
-    if (prepare() != SQLITE_OK) {
-        LOG(SQLDatabase, "Prepare failed");
-        return 0;
-    }
-    if (step() != SQLITE_ROW) {
-        LOG(SQLDatabase, "Step wasn't a row");
-        return 0;
-    }
-
-    if (columnCount() <= col)
-        return 0;
-        
-    const void* blob = sqlite3_column_blob(m_statement, col);
-    if (!blob)
-        return 0;
-
-    size = sqlite3_column_bytes(m_statement, col);
-    return blob;
 }
 
 bool SQLiteStatement::returnTextResults(int col, Vector<String>& v)

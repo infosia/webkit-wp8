@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGMPathElement.h"
 
 #include "Document.h"
@@ -67,7 +65,7 @@ void SVGMPathElement::buildPendingResource()
     Element* target = SVGURIReference::targetElementFromIRIString(href(), document(), &id);
     if (!target) {
         // Do not register as pending if we are already pending this resource.
-        if (document().accessSVGExtensions()->isElementPendingResource(this, id))
+        if (document().accessSVGExtensions()->isPendingResource(this, id))
             return;
 
         if (!id.isEmpty()) {
@@ -169,5 +167,3 @@ void SVGMPathElement::notifyParentOfPathChange(ContainerNode* parent)
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

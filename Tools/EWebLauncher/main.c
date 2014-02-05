@@ -77,12 +77,6 @@ static Eina_List *windows = NULL;
 
 static char *themePath = NULL;
 
-static const char *backingStores[] = {
-    "tiled",
-    "single",
-    NULL
-};
-
 typedef struct _Window_Properties {
     Eina_Bool toolbarsVisible:1;
     Eina_Bool statusbarVisible:1;
@@ -127,7 +121,7 @@ static const Ecore_Getopt options = {
         ECORE_GETOPT_STORE_STR
             ('t', "theme", "path to read the theme file from."),
         ECORE_GETOPT_STORE_DEF_BOOL
-            ('T', "tiled-backing-store", "enable/disable WebCore's tiled backingstore(ewk_view_single only)", 0),
+            ('T', "tiled-backing-store", "enable/disable WebCore's tiled backingstore", 0),
         ECORE_GETOPT_STORE_STR
             ('U', "user-agent", "custom user agent string to use."),
         ECORE_GETOPT_COUNT
@@ -596,24 +590,6 @@ on_key_down(void *data, Evas *e, Evas_Object *obj, void *event_info)
     } else if (!strcmp(ev->key, "n") && ctrlPressed) {
         info("Create new window (Ctrl+n) was pressed.");
         browserCreate("http://www.google.com", app->userArgs);
-    } else if (!strcmp(ev->key, "g") && ctrlPressed ) {
-        Evas_Coord x, y, w, h;
-        Evas_Object *frame = ewk_view_frame_main_get(obj);
-        float zoom = zoomLevels[currentZoomLevel] / 100.0;
-
-        ewk_frame_visible_content_geometry_get(frame, EINA_FALSE, &x, &y, &w, &h);
-        x -= w;
-        y -= h;
-        w *= 4;
-        h *= 4;
-        info("Pre-render %d,%d + %dx%d", x, y, w, h);
-        ewk_view_pre_render_region(obj, x, y, w, h, zoom);
-    } else if (!strcmp(ev->key, "r") && ctrlPressed) {
-        info("Pre-render 1 extra column/row with current zoom");
-        ewk_view_pre_render_relative_radius(obj, 1);
-    } else if (!strcmp(ev->key, "p") && ctrlPressed) {
-        info("Pre-rendering start");
-        ewk_view_pre_render_start(obj);
     } else if (!strcmp(ev->key, "d") && ctrlPressed) {
         info("Render suspended");
         ewk_view_disable_render(obj);
@@ -822,11 +798,11 @@ windowCreate(User_Arguments *userArgs)
         return NULL;
     }
 
-#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+#if defined(HAVE_ECORE_X)
     if (userArgs->engine)
 #endif
         app->ee = ecore_evas_new(userArgs->engine, 0, 0, userArgs->geometry.w, userArgs->geometry.h, NULL);
-#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+#if defined(HAVE_ECORE_X)
     else {
         const char* engine = "opengl_x11";
         app->ee = ecore_evas_new(engine, 0, 0, userArgs->geometry.w, userArgs->geometry.h, NULL);
@@ -846,7 +822,7 @@ windowCreate(User_Arguments *userArgs)
         return NULL;
     }
 
-    app->browser = ewk_view_single_add(app->evas);
+    app->browser = ewk_view_add(app->evas);
     ewk_view_setting_tiled_backing_store_enabled_set(app->browser, userArgs->enableTiledBackingStore);
 
     ewk_view_theme_set(app->browser, themePath);

@@ -30,6 +30,7 @@ extern EWK2UnitTestEnvironment* environment;
 
 static bool fullScreenCallbackCalled;
 static bool obtainedPageContents = false;
+static bool scriptExecuteCallbackCalled;
 
 static struct {
     const char* expectedMessage;
@@ -173,7 +174,7 @@ public:
         data->testFinished = true;
     }
 
-    static void loadVibrationHTMLString(Evas_Object* webView, const char* vibrationPattern, bool waitForVibrationEvent, VibrationCbData* data)
+    static void loadVibrationHTMLString(Evas_Object* webView, const char* vibrationPattern, VibrationCbData* data)
     {
         const char* content =
             "<html><head><script type='text/javascript'>function vibrate() { navigator.vibrate(%s);"
@@ -187,9 +188,6 @@ public:
         eina_strbuf_append_printf(buffer, content, vibrationPattern);
         ewk_view_html_string_load(webView, eina_strbuf_string_get(buffer), 0, 0);
         eina_strbuf_free(buffer);
-
-        if (!waitForVibrationEvent)
-            return;
     }
 
     static void onContentsSizeChangedPortrait(void* userData, Evas_Object*, void* eventInfo)
@@ -213,16 +211,21 @@ public:
         // Check the type
         ASSERT_EQ(EWK_PAGE_CONTENTS_TYPE_MHTML, type);
 
-        // The variable data should have below text block.
-        const String expectedMHTML = "\r\n\r\n<=00h=00t=00m=00l=00>=00<=00h=00e=00a=00d=00>=00<=00m=00e=00t=00a=00 =00c=\r\n"
-            "=00h=00a=00r=00s=00e=00t=00=3D=00\"=00U=00T=00F=00-=001=006=00L=00E=00\"=00>=\r\n"
-            "=00<=00/=00h=00e=00a=00d=00>=00<=00b=00o=00d=00y=00>=00<=00p=00>=00S=00i=00=\r\n"
-            "m=00p=00l=00e=00 =00H=00T=00M=00L=00<=00/=00p=00>=00<=00/=00b=00o=00d=00y=\r\n"
-            "=00>=00<=00/=00h=00t=00m=00l=00>=00\r\n";
+        // We should have exactly the same amount of bytes in the file
+        // than those coming from the callback data. We don't compare the
+        // strings read since the 'Date' field and the boundaries will be
+        // different on each case. MHTML functionality will be tested by
+        // layout tests, so checking the amount of bytes is enough.
+        Eina_File* f = eina_file_open(TEST_RESOURCES_DIR "/resultMHTML.mht", false);
+        if (!f)
+            return;
 
-        ASSERT_TRUE(String(data).contains(expectedMHTML));
+        size_t fileSize = eina_file_size_get(f);
+        // As the day in 'Date' field may be one digit or two digit, the data length may also be varied by one byte.
+        EXPECT_TRUE(String(data).length() == fileSize || String(data).length() == fileSize + 1);
 
         obtainedPageContents = true;
+        eina_file_close(f);
     }
 
     static void PageContentsAsStringCallback(Ewk_Page_Contents_Type type, const char* data, void*)
@@ -918,48 +921,34 @@ TEST_F(EWK2ViewTest, ewk_view_pagination)
 
 TEST_F(EWK2ViewTest, ewk_context_vibration_client_callbacks_set)
 {
-    VibrationCbData data = { false, false, 0, 5000 };
+    VibrationCbData data = { false, false, false, 0, 5000 };
     evas_object_smart_callback_add(webView(), "vibrate", onVibrate, &data);
     evas_object_smart_callback_add(webView(), "cancel,vibration", onCancelVibration, &data);
 
     // Vibrate for 5 seconds.
-    loadVibrationHTMLString(webView(), "5000", true, &data);
+    loadVibrationHTMLString(webView(), "5000", &data);
     waitUntilTrue(data.testFinished);
     ASSERT_TRUE(data.didReceiveVibrate);
 
     // Cancel any existing vibrations.
-    loadVibrationHTMLString(webView(), "0", true, &data);
+    loadVibrationHTMLString(webView(), "0", &data);
     waitUntilTrue(data.testFinished);
     ASSERT_TRUE(data.didReceiveCancelVibration);
 
     // This case the pattern will cause the device to vibrate for 200 ms, be still for 100 ms, and then vibrate for 5000 ms.
-    loadVibrationHTMLString(webView(), "[200, 100, 5000]", true, &data);
+    loadVibrationHTMLString(webView(), "[200, 100, 5000]", &data);
     waitUntilTrue(data.testFinished);
     ASSERT_EQ(2, data.vibrateCalledCount);
     ASSERT_TRUE(data.didReceiveVibrate);
 
     // Cancel outstanding vibration pattern.
-    loadVibrationHTMLString(webView(), "[0]", true, &data);
+    loadVibrationHTMLString(webView(), "[0]", &data);
     waitUntilTrue(data.testFinished);
     ASSERT_TRUE(data.didReceiveCancelVibration);
 
     // Stop listening for vibration events, by calling the function with null for the callbacks.
     evas_object_smart_callback_del(webView(), "vibrate", onVibrate);
     evas_object_smart_callback_del(webView(), "cancel,vibration", onCancelVibration);
-
-    // Make sure we don't receive vibration event.
-    loadVibrationHTMLString(webView(), "[5000]", false, &data);
-    waitUntilTrue(data.testFinished);
-    ASSERT_TRUE(waitUntilTitleChangedTo("Loaded"));
-    ASSERT_STREQ("Loaded", ewk_view_title_get(webView()));
-    ASSERT_FALSE(data.didReceiveVibrate);
-
-    // Make sure we don't receive cancel vibration event.
-    loadVibrationHTMLString(webView(), "0", false, &data);
-    waitUntilTrue(data.testFinished);
-    ASSERT_TRUE(waitUntilTitleChangedTo("Loaded"));
-    ASSERT_STREQ("Loaded", ewk_view_title_get(webView()));
-    ASSERT_FALSE(data.didReceiveCancelVibration);
 }
 
 TEST_F(EWK2ViewTest, ewk_view_contents_size_changed)
@@ -1045,4 +1034,53 @@ TEST_F(EWK2ViewTest, ewk_view_user_agent)
     ASSERT_TRUE(ewk_view_user_agent_set(webView(), 0));
     ASSERT_STREQ(defaultUserAgent, ewk_view_user_agent_get(webView()));
     eina_stringshare_del(defaultUserAgent);
+}
+
+static void scriptExecuteCallback(Evas_Object*, const char* returnValue, void* userData)
+{
+    Eina_Strbuf* buffer = static_cast<Eina_Strbuf*>(userData);
+    eina_strbuf_reset(buffer);
+
+    if (returnValue)
+        eina_strbuf_append(buffer, returnValue);
+
+    scriptExecuteCallbackCalled = true;
+}
+
+TEST_F(EWK2UnitTestBase, ewk_view_script_execute)
+{
+    const char scriptExecuteHTML[] =
+        "<!DOCTYPE html>"
+        "<body>"
+        "<p id=\"TestContent\">test content</p>"
+        "</body>";
+
+    ewk_view_html_string_load(webView(), scriptExecuteHTML, 0, 0);
+    ASSERT_TRUE(waitUntilLoadFinished());
+
+    Eina_Strbuf* result = eina_strbuf_new();
+
+    // 1. Get the innerHTML for "TestContent"
+    const char getDataScript[] = "document.getElementById('TestContent').innerHTML";
+
+    scriptExecuteCallbackCalled = false;
+    ASSERT_TRUE(ewk_view_script_execute(webView(), getDataScript, scriptExecuteCallback, static_cast<void*>(result)));
+    waitUntilTrue(scriptExecuteCallbackCalled);
+    ASSERT_STREQ("test content", eina_strbuf_string_get(result));
+
+    // 2. Change the innerHTML for "TestContent"
+    const char changeDataScript[] =
+    "document.getElementById('TestContent').innerHTML = \"test\";";
+    ASSERT_TRUE(ewk_view_script_execute(webView(), changeDataScript, 0, 0));
+
+    // 3. Check the change of the innerHTML.
+    eina_strbuf_reset(result);
+    scriptExecuteCallbackCalled = false;
+    ASSERT_TRUE(ewk_view_script_execute(webView(), getDataScript, scriptExecuteCallback, static_cast<void*>(result)));
+    waitUntilTrue(scriptExecuteCallbackCalled);
+    ASSERT_STREQ("test", eina_strbuf_string_get(result));
+
+    eina_strbuf_free(result);
+
+    ASSERT_FALSE(ewk_view_script_execute(webView(), 0, 0, 0));
 }

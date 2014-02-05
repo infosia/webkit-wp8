@@ -44,7 +44,7 @@ class CryptoAlgorithmParameters;
 class CryptoKey;
 class CryptoKeyDataRSAComponents;
 
-class JSCryptoKeySerializationJWK FINAL : public CryptoKeySerialization {
+class JSCryptoKeySerializationJWK final : public CryptoKeySerialization {
 WTF_MAKE_NONCOPYABLE(JSCryptoKeySerializationJWK);
 public:
     static std::unique_ptr<JSCryptoKeySerializationJWK> create(JSC::ExecState* exec, const String& jsonString)
@@ -59,19 +59,12 @@ public:
 private:
     JSCryptoKeySerializationJWK(JSC::ExecState*, const String&);
 
-    virtual bool reconcileAlgorithm(std::unique_ptr<CryptoAlgorithm>&, std::unique_ptr<CryptoAlgorithmParameters>&) const OVERRIDE;
+    virtual bool reconcileAlgorithm(std::unique_ptr<CryptoAlgorithm>&, std::unique_ptr<CryptoAlgorithmParameters>&) const override;
 
-    virtual void reconcileUsages(CryptoKeyUsage&) const OVERRIDE;
-    virtual void reconcileExtractable(bool&) const OVERRIDE;
+    virtual void reconcileUsages(CryptoKeyUsage&) const override;
+    virtual void reconcileExtractable(bool&) const override;
 
-    virtual std::unique_ptr<CryptoKeyData> keyData() const OVERRIDE;
-
-    static void buildJSONForOctetSequence(JSC::ExecState*, const Vector<uint8_t>&, JSC::JSObject* result);
-    static void buildJSONForRSAComponents(JSC::ExecState*, const CryptoKeyDataRSAComponents&, JSC::JSObject* result);
-    static void addJWKAlgorithmToJSON(JSC::ExecState*, JSC::JSObject*, const CryptoKey& key);
-    static void addJWKUseToJSON(JSC::ExecState*, JSC::JSObject*, CryptoKeyUsage);
-    static void addToJSON(JSC::ExecState*, JSC::JSObject*, const char* key, const String& value);
-    static void addBoolToJSON(JSC::ExecState*, JSC::JSObject*, const char* key, bool value);
+    virtual std::unique_ptr<CryptoKeyData> keyData() const override;
 
     bool keySizeIsValid(size_t sizeInBits) const;
     std::unique_ptr<CryptoKeyData> keyDataOctetSequence() const;

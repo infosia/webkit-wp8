@@ -21,7 +21,6 @@
  
 #ifndef SVGZoomEvent_h
 #define SVGZoomEvent_h
-#if ENABLE(SVG)
 
 #include "FloatRect.h"
 #include "SVGPoint.h"
@@ -46,7 +45,7 @@ public:
 
     SVGPoint newTranslate() const;
 
-    virtual EventInterface eventInterface() const;
+    virtual EventInterface eventInterface() const override;
 
 private:
     SVGZoomEvent();
@@ -62,7 +61,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGZoomEvent_h
-
-// vim:ts=4:noet

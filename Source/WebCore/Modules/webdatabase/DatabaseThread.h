@@ -30,12 +30,11 @@
 
 #if ENABLE(SQL_DATABASE)
 
+#include <memory>
 #include <wtf/Deque.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/MessageQueue.h>
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Threading.h>
@@ -69,6 +68,11 @@ public:
     SQLTransactionClient* transactionClient() { return m_transactionClient.get(); }
     SQLTransactionCoordinator* transactionCoordinator() { return m_transactionCoordinator.get(); }
 
+#if PLATFORM(IOS)
+    void setPaused(bool);
+    void handlePausedQueue();
+#endif
+
 private:
     DatabaseThread();
 
@@ -80,13 +84,18 @@ private:
     RefPtr<DatabaseThread> m_selfRef;
 
     MessageQueue<DatabaseTask> m_queue;
+#if PLATFORM(IOS)
+    MessageQueue<DatabaseTask> m_pausedQueue;
+    Mutex m_pausedMutex;
+    volatile bool m_paused;
+#endif
 
     // This set keeps track of the open databases that have been used on this thread.
     typedef HashSet<RefPtr<DatabaseBackend>> DatabaseSet;
     DatabaseSet m_openDatabaseSet;
 
-    OwnPtr<SQLTransactionClient> m_transactionClient;
-    OwnPtr<SQLTransactionCoordinator> m_transactionCoordinator;
+    std::unique_ptr<SQLTransactionClient> m_transactionClient;
+    std::unique_ptr<SQLTransactionCoordinator> m_transactionCoordinator;
     DatabaseTaskSynchronizer* m_cleanupSync;
 };
 

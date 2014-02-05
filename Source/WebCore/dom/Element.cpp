@@ -4,7 +4,7 @@
  *           (C) 2001 Peter Kelly (pmk@post.com)
  *           (C) 2001 Dirk Mueller (mueller@kde.org)
  *           (C) 2007 David Smith (catfish.man@gmail.com)
- * Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2004-2014 Apple Inc. All rights reserved.
  *           (C) 2007 Eric Seidel (eric@webkit.org)
  *
  * This library is free software; you can redistribute it and/or
@@ -66,6 +66,9 @@
 #include "RenderTheme.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
+#include "SVGDocumentExtensions.h"
+#include "SVGElement.h"
+#include "SVGNames.h"
 #include "SelectorQuery.h"
 #include "Settings.h"
 #include "StyleProperties.h"
@@ -79,12 +82,6 @@
 #include <wtf/BitVector.h>
 #include <wtf/CurrentTime.h>
 #include <wtf/text/CString.h>
-
-#if ENABLE(SVG)
-#include "SVGDocumentExtensions.h"
-#include "SVGElement.h"
-#include "SVGNames.h"
-#endif
 
 namespace WebCore {
 
@@ -166,12 +163,10 @@ Element::~Element()
     if (hasSyntheticAttrChildNodes())
         detachAllAttrNodesFromElement();
 
-#if ENABLE(SVG)
     if (hasPendingResources()) {
         document().accessSVGExtensions()->removeElementFromPendingResources(this);
         ASSERT(!hasPendingResources());
     }
-#endif
 }
 
 inline ElementRareData* Element::elementRareData() const
@@ -388,33 +383,31 @@ void Element::synchronizeAllAttributes() const
 {
     if (!elementData())
         return;
-    if (elementData()->m_styleAttributeIsDirty) {
+    if (elementData()->styleAttributeIsDirty()) {
         ASSERT(isStyledElement());
         static_cast<const StyledElement*>(this)->synchronizeStyleAttributeInternal();
     }
-#if ENABLE(SVG)
-    if (elementData()->m_animatedSVGAttributesAreDirty) {
+
+    if (elementData()->animatedSVGAttributesAreDirty()) {
         ASSERT(isSVGElement());
         toSVGElement(this)->synchronizeAnimatedSVGAttribute(anyQName());
     }
-#endif
 }
 
 inline void Element::synchronizeAttribute(const QualifiedName& name) const
 {
     if (!elementData())
         return;
-    if (UNLIKELY(name == styleAttr && elementData()->m_styleAttributeIsDirty)) {
+    if (UNLIKELY(name == styleAttr && elementData()->styleAttributeIsDirty())) {
         ASSERT_WITH_SECURITY_IMPLICATION(isStyledElement());
         static_cast<const StyledElement*>(this)->synchronizeStyleAttributeInternal();
         return;
     }
-#if ENABLE(SVG)
-    if (UNLIKELY(elementData()->m_animatedSVGAttributesAreDirty)) {
+
+    if (UNLIKELY(elementData()->animatedSVGAttributesAreDirty())) {
         ASSERT(isSVGElement());
         toSVGElement(this)->synchronizeAnimatedSVGAttribute(name);
     }
-#endif
 }
 
 inline void Element::synchronizeAttribute(const AtomicString& localName) const
@@ -423,18 +416,17 @@ inline void Element::synchronizeAttribute(const AtomicString& localName) const
     // e.g when called from DOM API.
     if (!elementData())
         return;
-    if (elementData()->m_styleAttributeIsDirty && equalPossiblyIgnoringCase(localName, styleAttr.localName(), shouldIgnoreAttributeCase(*this))) {
+    if (elementData()->styleAttributeIsDirty() && equalPossiblyIgnoringCase(localName, styleAttr.localName(), shouldIgnoreAttributeCase(*this))) {
         ASSERT_WITH_SECURITY_IMPLICATION(isStyledElement());
         static_cast<const StyledElement*>(this)->synchronizeStyleAttributeInternal();
         return;
     }
-#if ENABLE(SVG)
-    if (elementData()->m_animatedSVGAttributesAreDirty) {
+
+    if (elementData()->animatedSVGAttributesAreDirty()) {
         // We're not passing a namespace argument on purpose. SVGNames::*Attr are defined w/o namespaces as well.
         ASSERT_WITH_SECURITY_IMPLICATION(isSVGElement());
         toSVGElement(this)->synchronizeAnimatedSVGAttribute(QualifiedName(nullAtom, localName, nullAtom));
     }
-#endif
 }
 
 const AtomicString& Element::getAttribute(const QualifiedName& name) const
@@ -908,16 +900,14 @@ IntRect Element::boundsInRootViewSpace()
         return IntRect();
 
     Vector<FloatQuad> quads;
-#if ENABLE(SVG)
+
     if (isSVGElement() && renderer()) {
         // Get the bounding rectangle from the SVG model.
         SVGElement* svgElement = toSVGElement(this);
         FloatRect localRect;
         if (svgElement->getBoundingBox(localRect))
             quads.append(renderer()->localToAbsoluteQuad(localRect));
-    } else
-#endif
-    {
+    } else {
         // Get the bounding rectangle from the box model.
         if (renderBoxModelObject())
             renderBoxModelObject()->absoluteQuads(quads);
@@ -956,16 +946,13 @@ PassRefPtr<ClientRect> Element::getBoundingClientRect()
     document().updateLayoutIgnorePendingStylesheets();
 
     Vector<FloatQuad> quads;
-#if ENABLE(SVG)
     if (isSVGElement() && renderer() && !renderer()->isSVGRoot()) {
         // Get the bounding rectangle from the SVG model.
         SVGElement* svgElement = toSVGElement(this);
         FloatRect localRect;
         if (svgElement->getBoundingBox(localRect))
             quads.append(renderer()->localToAbsoluteQuad(localRect));
-    } else
-#endif
-    {
+    } else {
         // Get the bounding rectangle from the box model.
         if (renderBoxModelObject())
             renderBoxModelObject()->absoluteQuads(quads);
@@ -1109,7 +1096,7 @@ void Element::attributeChanged(const QualifiedName& name, const AtomicString& ne
     } else if (name == classAttr)
         classAttributeChanged(newValue);
     else if (name == HTMLNames::nameAttr)
-        elementData()->m_hasNameAttribute = !newValue.isNull();
+        elementData()->setHasNameAttribute(!newValue.isNull());
     else if (name == HTMLNames::pseudoAttr)
         shouldInvalidateStyle |= testShouldInvalidateStyle && isInShadowTree();
 
@@ -1153,42 +1140,43 @@ static inline bool classStringHasClassName(const AtomicString& newClassString)
     return classStringHasClassName(newClassString.characters16(), length);
 }
 
-template<typename Checker>
-static bool checkSelectorForClassChange(const SpaceSplitString& changedClasses, const Checker& checker)
+static bool checkSelectorForClassChange(const SpaceSplitString& changedClasses, const StyleResolver& styleResolver)
 {
     unsigned changedSize = changedClasses.size();
     for (unsigned i = 0; i < changedSize; ++i) {
-        if (checker.hasSelectorForClass(changedClasses[i]))
+        if (styleResolver.hasSelectorForClass(changedClasses[i]))
             return true;
     }
     return false;
 }
 
-template<typename Checker>
-static bool checkSelectorForClassChange(const SpaceSplitString& oldClasses, const SpaceSplitString& newClasses, const Checker& checker)
+static bool checkSelectorForClassChange(const SpaceSplitString& oldClasses, const SpaceSplitString& newClasses, const StyleResolver& styleResolver)
 {
     unsigned oldSize = oldClasses.size();
     if (!oldSize)
-        return checkSelectorForClassChange(newClasses, checker);
+        return checkSelectorForClassChange(newClasses, styleResolver);
     BitVector remainingClassBits;
     remainingClassBits.ensureSize(oldSize);
     // Class vectors tend to be very short. This is faster than using a hash table.
     unsigned newSize = newClasses.size();
     for (unsigned i = 0; i < newSize; ++i) {
+        bool foundFromBoth = false;
         for (unsigned j = 0; j < oldSize; ++j) {
             if (newClasses[i] == oldClasses[j]) {
                 remainingClassBits.quickSet(j);
-                continue;
+                foundFromBoth = true;
             }
         }
-        if (checker.hasSelectorForClass(newClasses[i]))
+        if (foundFromBoth)
+            continue;
+        if (styleResolver.hasSelectorForClass(newClasses[i]))
             return true;
     }
     for (unsigned i = 0; i < oldSize; ++i) {
         // If the bit is not set the the corresponding class has been removed.
         if (remainingClassBits.quickGet(i))
             continue;
-        if (checker.hasSelectorForClass(oldClasses[i]))
+        if (styleResolver.hasSelectorForClass(oldClasses[i]))
             return true;
     }
     return false;
@@ -1435,10 +1423,9 @@ void Element::removedFrom(ContainerNode& insertionPoint)
     }
 
     ContainerNode::removedFrom(insertionPoint);
-#if ENABLE(SVG)
+
     if (hasPendingResources())
         document().accessSVGExtensions()->removeElementFromPendingResources(this);
-#endif
 }
 
 void Element::unregisterNamedFlowContentElement()
@@ -1873,7 +1860,7 @@ void Element::removeAttribute(const AtomicString& name)
     AtomicString localName = shouldIgnoreAttributeCase(*this) ? name.lower() : name;
     unsigned index = elementData()->findAttributeIndexByName(localName, false);
     if (index == ElementData::attributeNotFound) {
-        if (UNLIKELY(localName == styleAttr) && elementData()->m_styleAttributeIsDirty && isStyledElement())
+        if (UNLIKELY(localName == styleAttr) && elementData()->styleAttributeIsDirty() && isStyledElement())
             toStyledElement(this)->removeAllInlineStyleProperties();
         return;
     }
@@ -2006,7 +1993,7 @@ void Element::updateFocusAppearance(bool /*restorePreviousSelection*/)
             return;
         
         // When focusing an editable element in an iframe, don't reset the selection if it already contains a selection.
-        if (this == frame->selection().rootEditableElement())
+        if (this == frame->selection().selection().rootEditableElement())
             return;
 
         // FIXME: We should restore the previous selection if there is one.
@@ -2314,8 +2301,8 @@ void Element::normalizeAttributes()
 {
     if (!hasAttributes())
         return;
-    for (unsigned i = 0; i < attributeCount(); ++i) {
-        if (RefPtr<Attr> attr = attrIfExists(attributeAt(i).name()))
+    for (const Attribute& attribute : attributesIterator()) {
+        if (RefPtr<Attr> attr = attrIfExists(attribute.name()))
             attr->normalize();
     }
 }
@@ -2436,7 +2423,7 @@ DOMTokenList* Element::classList()
     return data.classList();
 }
 
-DOMStringMap* Element::dataset()
+DatasetDOMStringMap* Element::dataset()
 {
     ElementRareData& data = ensureElementRareData();
     if (!data.dataset())
@@ -2503,13 +2490,11 @@ const AtomicString& Element::UIActions() const
 
 bool Element::childShouldCreateRenderer(const Node& child) const
 {
-#if ENABLE(SVG)
     // Only create renderers for SVG elements whose parents are SVG elements, or for proper <svg xmlns="svgNS"> subdocuments.
     if (child.isSVGElement()) {
         ASSERT(!isSVGElement());
         return child.hasTagName(SVGNames::svgTag) && toSVGElement(child).isValid();
     }
-#endif
     return ContainerNode::childShouldCreateRenderer(child);
 }
 
@@ -2665,10 +2650,8 @@ bool Element::fastAttributeLookupAllowed(const QualifiedName& name) const
     if (name == HTMLNames::styleAttr)
         return false;
 
-#if ENABLE(SVG)
     if (isSVGElement())
         return !toSVGElement(this)->isAnimatableAttribute(name);
-#endif
 
     return true;
 }
@@ -2916,8 +2899,7 @@ void Element::detachAllAttrNodesFromElement()
     AttrNodeList* attrNodeList = attrNodeListForElement(this);
     ASSERT(attrNodeList);
 
-    for (unsigned i = 0; i < attributeCount(); ++i) {
-        const Attribute& attribute = attributeAt(i);
+    for (const Attribute& attribute : attributesIterator()) {
         if (RefPtr<Attr> attrNode = findAttrNodeInList(*attrNodeList, attribute.name()))
             attrNode->detachFromElementWithValue(attribute.value());
     }
@@ -2930,7 +2912,7 @@ void Element::resetComputedStyle()
     if (!hasRareData() || !elementRareData()->computedStyle())
         return;
     elementRareData()->resetComputedStyle();
-    for (auto& child : elementDescendants(*this)) {
+    for (auto& child : descendantsOfType<Element>(*this)) {
         if (child.hasRareData())
             child.elementRareData()->resetComputedStyle();
     }
@@ -3038,9 +3020,7 @@ void Element::cloneAttributesFromElement(const Element& other)
     else
         m_elementData = other.m_elementData->makeUniqueCopy();
 
-    unsigned length = m_elementData->length();
-    for (unsigned i = 0; i < length; ++i) {
-        const Attribute& attribute = const_cast<const ElementData*>(m_elementData.get())->attributeAt(i);
+    for (const Attribute& attribute : attributesIterator()) {
         attributeChanged(attribute.name(), attribute.value(), ModifiedByCloning);
     }
 }
@@ -3061,7 +3041,6 @@ void Element::createUniqueElementData()
     }
 }
 
-#if ENABLE(SVG)
 bool Element::hasPendingResources() const
 {
     return hasRareData() && elementRareData()->hasPendingResources();
@@ -3076,6 +3055,5 @@ void Element::clearHasPendingResources()
 {
     ensureElementRareData().setHasPendingResources(false);
 }
-#endif
 
 } // namespace WebCore

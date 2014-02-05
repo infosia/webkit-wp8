@@ -193,7 +193,7 @@ public:
                 if (!decoder.decode(messageCoder))
                     return false;
 
-                [array.get() addObject:value.get()];
+                [array addObject:value.get()];
             }
 
             coder.m_root = array;
@@ -217,7 +217,7 @@ public:
                 if (!decoder.decode(valueMessageCoder))
                     return false;
 
-                [dictionary.get() setObject:value.get() forKey:key.get()];
+                [dictionary setObject:value.get() forKey:key.get()];
             }
 
             coder.m_root = dictionary;
@@ -351,7 +351,7 @@ public:
             if (!webPage)
                 coder.m_root = [NSNull null];
             else 
-                coder.m_root = wrapper(*webPage);
+                coder.m_root = [WKBrowsingContextController _browsingContextControllerForPageRef:toAPI(webPage)];
             break;
         }
         case WKTypeRefWrapperType: {
@@ -410,6 +410,7 @@ public:
         case WKTypeRefWrapperType: {
             WKTypeRefWrapper *wrapper = static_cast<WKTypeRefWrapper *>(m_root);
             encoder << InjectedBundleUserMessageEncoder(toImpl(wrapper.object));
+            break;
         }
 #endif
         default:

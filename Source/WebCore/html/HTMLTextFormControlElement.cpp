@@ -356,7 +356,7 @@ int HTMLTextFormControlElement::computeSelectionStart() const
     if (!frame)
         return 0;
 
-    return indexForVisiblePosition(frame->selection().start());
+    return indexForVisiblePosition(frame->selection().selection().start());
 }
 
 int HTMLTextFormControlElement::selectionEnd() const
@@ -375,7 +375,7 @@ int HTMLTextFormControlElement::computeSelectionEnd() const
     if (!frame)
         return 0;
 
-    return indexForVisiblePosition(frame->selection().end());
+    return indexForVisiblePosition(frame->selection().selection().end());
 }
 
 static const AtomicString& directionString(TextFieldSelectionDirection direction)
@@ -477,9 +477,10 @@ void HTMLTextFormControlElement::restoreCachedSelection()
 
 void HTMLTextFormControlElement::selectionChanged(bool userTriggered)
 {
-    if (!renderer() || !isTextFormControl())
+    if (!isTextFormControl())
         return;
 
+    // FIXME: Don't re-compute selection start and end if this function was called inside setSelectionRange.
     // selectionStart() or selectionEnd() will return cached selection when this node doesn't have focus
     cacheSelection(computeSelectionStart(), computeSelectionEnd(), computeSelectionDirection());
 

@@ -18,17 +18,13 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceSolidColor.h"
 
 #include "Frame.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
-#include "RenderSVGShape.h"
 #include "RenderStyle.h"
 #include "RenderView.h"
-#include "SVGRenderSupport.h"
 
 namespace WebCore {
 
@@ -98,5 +94,3 @@ void RenderSVGResourceSolidColor::postApplyResource(RenderElement&, GraphicsCont
 }
 
 }
-
-#endif

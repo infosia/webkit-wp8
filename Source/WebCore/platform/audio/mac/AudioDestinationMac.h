@@ -31,25 +31,27 @@
 
 #include "AudioBus.h"
 #include "AudioDestination.h"
-#include "MediaSessionManager.h"
+#include "MediaSession.h"
 #include <AudioUnit/AudioUnit.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/RefPtr.h>
 
 namespace WebCore {
 
 // An AudioDestination using CoreAudio's default output AudioUnit
 
-class AudioDestinationMac : public AudioDestination, public MediaSessionManagerClient {
+class AudioDestinationMac : public AudioDestination, public MediaSessionClient {
 public:
     AudioDestinationMac(AudioIOCallback&, float sampleRate);
     virtual ~AudioDestinationMac();
 
-    virtual void start() OVERRIDE;
-    virtual void stop() OVERRIDE;
-    virtual bool isPlaying() OVERRIDE { return m_isPlaying; }
+    virtual void start() override;
+    virtual void stop() override;
+    virtual bool isPlaying() override { return m_isPlaying; }
 
-    virtual float sampleRate() const OVERRIDE { return m_sampleRate; }
+    virtual void pausePlayback() override { stop(); }
+    virtual void resumePlayback() override { start(); }
+
+    virtual float sampleRate() const override { return m_sampleRate; }
 
 private:
     void configure();
@@ -59,7 +61,7 @@ private:
 
     OSStatus render(UInt32 numberOfFrames, AudioBufferList* ioData);
 
-    virtual MediaSessionManager::MediaType mediaType() const { return MediaSessionManager::WebAudio; }
+    virtual MediaSession::MediaType mediaType() const { return MediaSession::WebAudio; }
 
     AudioUnit m_outputUnit;
     AudioIOCallback& m_callback;
@@ -69,7 +71,7 @@ private:
     bool m_isPlaying;
 
 #if USE(AUDIO_SESSION)
-    std::unique_ptr<MediaSessionManagerToken> m_mediaSessionManagerToken;
+    std::unique_ptr<MediaSession> m_mediaSession;
 #endif
 };
 

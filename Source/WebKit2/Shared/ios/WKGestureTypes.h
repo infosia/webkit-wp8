@@ -41,7 +41,8 @@ typedef enum {
     WKGestureOneFingerTripleTap,
     WKGestureTwoFingerSingleTap,
     WKGestureTwoFingerRangedSelectGesture,
-    WKGestureTapOnLinkWithGesture
+    WKGestureTapOnLinkWithGesture,
+    WKGestureMakeWebSelection
 } WKGestureType;
 
 typedef enum {
@@ -62,6 +63,11 @@ typedef enum {
     WKGestureRecognizerStateFailed,
     WKGestureRecognizerStateRecognized = WKGestureRecognizerStateEnded
 } WKGestureRecognizerState;
+
+typedef enum {
+    WKSheetActionCopy,
+    WKSheetActionSaveImage
+} WKSheetActions;
 
 } // namespace WebKit
 

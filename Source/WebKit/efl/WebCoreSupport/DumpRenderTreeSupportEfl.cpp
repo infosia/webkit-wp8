@@ -61,6 +61,7 @@
 #include <ScriptController.h>
 #include <Settings.h>
 #include <TextIterator.h>
+#include <VisibleSelection.h>
 #include <bindings/ScriptValue.h>
 #include <bindings/js/GCController.h>
 #include <history/HistoryItem.h>
@@ -324,15 +325,6 @@ void DumpRenderTreeSupportEfl::setCSSRegionsEnabled(const Evas_Object* ewkView, 
     WebCore::RuntimeEnabledFeatures::sharedFeatures().setCSSRegionsEnabled(enabled);
 }
 
-void DumpRenderTreeSupportEfl::setSeamlessIFramesEnabled(bool enabled)
-{
-#if ENABLE(IFRAME_SEAMLESS)
-    WebCore::RuntimeEnabledFeatures::sharedFeatures().setSeamlessIFramesEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
-}
-
 void DumpRenderTreeSupportEfl::setWebAudioEnabled(Evas_Object* ewkView, bool enabled)
 {
 #if ENABLE(WEB_AUDIO)
@@ -466,8 +458,7 @@ void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView
 #if ENABLE(INSPECTOR)
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    if (page->inspectorController())
-        page->inspectorController()->evaluateForTestInFrontend(callId, script);
+    page->inspectorController().evaluateForTestInFrontend(callId, script);
 #else
     UNUSED_PARAM(ewkView);
     UNUSED_PARAM(callId);
@@ -640,11 +631,12 @@ bool DumpRenderTreeSupportEfl::selectedRange(Evas_Object* ewkView, int* start, i
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page, false);
 
     WebCore::Frame& frame = page->focusController().focusedOrMainFrame();
-    RefPtr<WebCore::Range> range = frame.selection().toNormalizedRange().get();
+    const WebCore::VisibleSelection& selection = frame.selection().selection();
+    RefPtr<WebCore::Range> range = selection.toNormalizedRange().get();
     if (!range)
         return false;
 
-    WebCore::Element* selectionRoot = frame.selection().rootEditableElement();
+    WebCore::Element* selectionRoot = selection.rootEditableElement();
     WebCore::Element* scope = selectionRoot ? selectionRoot : frame.document()->documentElement();
 
     RefPtr<WebCore::Range> testRange = WebCore::Range::create(scope->document(), scope, 0, range->startContainer(), range->startOffset());

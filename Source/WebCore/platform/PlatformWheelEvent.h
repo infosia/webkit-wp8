@@ -119,6 +119,20 @@ namespace WebCore {
             return copy;
         }
 
+        PlatformWheelEvent copyIgnoringHorizontalDelta() const
+        {
+            PlatformWheelEvent copy = *this;
+            copy.m_deltaX = 0;
+            return copy;
+        }
+
+        PlatformWheelEvent copyIgnoringVerticalDelta() const
+        {
+            PlatformWheelEvent copy = *this;
+            copy.m_deltaY = 0;
+            return copy;
+        }
+
         const IntPoint& position() const { return m_position; } // PlatformWindow coordinates.
         const IntPoint& globalPosition() const { return m_globalPosition; } // Screen coordinates.
 
@@ -148,7 +162,11 @@ namespace WebCore {
         unsigned scrollCount() const { return m_scrollCount; }
         float unacceleratedScrollingDeltaX() const { return m_unacceleratedScrollingDeltaX; }
         float unacceleratedScrollingDeltaY() const { return m_unacceleratedScrollingDeltaY; }
-        bool useLatchedEventElement() const { return m_momentumPhase == PlatformWheelEventPhaseBegan || m_momentumPhase == PlatformWheelEventPhaseChanged; }
+        bool useLatchedEventElement() const
+        {
+            return m_phase == PlatformWheelEventPhaseBegan || m_phase == PlatformWheelEventPhaseChanged
+                || m_momentumPhase == PlatformWheelEventPhaseBegan || m_momentumPhase == PlatformWheelEventPhaseChanged;
+        }
 #else
         bool useLatchedEventElement() const { return false; }
 #endif

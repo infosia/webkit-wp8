@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextMetricsBuilder.h"
 
 #include "RenderSVGInlineText.h"
@@ -102,7 +100,7 @@ void SVGTextMetricsBuilder::initializeMeasurementWithTextRenderer(RenderSVGInlin
     m_totalWidth = 0;
 
     const Font& scaledFont = text->scaledFont();
-    m_run = SVGTextMetrics::constructTextRun(text, text->characters(), 0, text->textLength());
+    m_run = SVGTextMetrics::constructTextRun(text, text->deprecatedCharacters(), 0, text->textLength());
     m_isComplexText = scaledFont.codePath(m_run) == Font::Complex;
 
     if (m_isComplexText)
@@ -207,7 +205,7 @@ void SVGTextMetricsBuilder::measureTextRenderer(RenderSVGInlineText* text)
 {
     ASSERT(text);
 
-    RenderSVGText* textRoot = RenderSVGText::locateRenderSVGTextAncestor(text);
+    auto* textRoot = RenderSVGText::locateRenderSVGTextAncestor(*text);
     if (!textRoot)
         return;
 
@@ -223,5 +221,3 @@ void SVGTextMetricsBuilder::buildMetricsAndLayoutAttributes(RenderSVGText* textR
 }
 
 }
-
-#endif // ENABLE(SVG)

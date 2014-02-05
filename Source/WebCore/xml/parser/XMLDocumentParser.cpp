@@ -44,20 +44,16 @@
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
+#include "SVGNames.h"
+#include "SVGStyleElement.h"
 #include "ScriptElement.h"
 #include "ScriptSourceCode.h"
 #include "TextResourceDecoder.h"
 #include "TreeDepthLimit.h"
-#include "XMLErrors.h"
 #include <wtf/Ref.h>
 #include <wtf/StringExtras.h>
 #include <wtf/Threading.h>
 #include <wtf/Vector.h>
-
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#include "SVGStyleElement.h"
-#endif
 
 namespace WebCore {
 

@@ -34,17 +34,14 @@
 
 namespace WebCore {
 
-PassOwnPtr<ScrollingStateScrollingNode> ScrollingStateScrollingNode::create(ScrollingStateTree* stateTree, ScrollingNodeID nodeID)
+PassOwnPtr<ScrollingStateScrollingNode> ScrollingStateScrollingNode::create(ScrollingStateTree& stateTree, ScrollingNodeID nodeID)
 {
     return adoptPtr(new ScrollingStateScrollingNode(stateTree, nodeID));
 }
 
-ScrollingStateScrollingNode::ScrollingStateScrollingNode(ScrollingStateTree* stateTree, ScrollingNodeID nodeID)
-    : ScrollingStateNode(stateTree, nodeID)
-    , m_counterScrollingLayer(0)
-    , m_headerLayer(0)
-    , m_footerLayer(0)
-#if PLATFORM(MAC)
+ScrollingStateScrollingNode::ScrollingStateScrollingNode(ScrollingStateTree& stateTree, ScrollingNodeID nodeID)
+    : ScrollingStateNode(ScrollingNode, stateTree, nodeID)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     , m_verticalScrollbarPainter(0)
     , m_horizontalScrollbarPainter(0)
 #endif
@@ -58,14 +55,15 @@ ScrollingStateScrollingNode::ScrollingStateScrollingNode(ScrollingStateTree* sta
 {
 }
 
-ScrollingStateScrollingNode::ScrollingStateScrollingNode(const ScrollingStateScrollingNode& stateNode)
-    : ScrollingStateNode(stateNode)
-#if PLATFORM(MAC)
+ScrollingStateScrollingNode::ScrollingStateScrollingNode(const ScrollingStateScrollingNode& stateNode, ScrollingStateTree& adoptiveTree)
+    : ScrollingStateNode(stateNode, adoptiveTree)
+#if PLATFORM(MAC) && !PLATFORM(IOS)
     , m_verticalScrollbarPainter(stateNode.verticalScrollbarPainter())
     , m_horizontalScrollbarPainter(stateNode.horizontalScrollbarPainter())
 #endif
-    , m_viewportRect(stateNode.viewportRect())
+    , m_viewportConstrainedObjectRect(stateNode.viewportConstrainedObjectRect())
     , m_totalContentsSize(stateNode.totalContentsSize())
+    , m_scrollPosition(stateNode.scrollPosition())
     , m_scrollOrigin(stateNode.scrollOrigin())
     , m_scrollableAreaParameters(stateNode.scrollableAreaParameters())
     , m_nonFastScrollableRegion(stateNode.nonFastScrollableRegion())
@@ -78,28 +76,32 @@ ScrollingStateScrollingNode::ScrollingStateScrollingNode(const ScrollingStateScr
     , m_requestedScrollPosition(stateNode.requestedScrollPosition())
     , m_requestedScrollPositionRepresentsProgrammaticScroll(stateNode.requestedScrollPositionRepresentsProgrammaticScroll())
 {
-    setCounterScrollingLayer(stateNode.counterScrollingLayer());
-    setHeaderLayer(stateNode.headerLayer());
-    setFooterLayer(stateNode.footerLayer());
+    if (hasChangedProperty(CounterScrollingLayer))
+        setCounterScrollingLayer(stateNode.counterScrollingLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
+
+    if (hasChangedProperty(HeaderLayer))
+        setHeaderLayer(stateNode.headerLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
+
+    if (hasChangedProperty(FooterLayer))
+        setFooterLayer(stateNode.footerLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
 }
 
 ScrollingStateScrollingNode::~ScrollingStateScrollingNode()
 {
 }
 
-PassOwnPtr<ScrollingStateNode> ScrollingStateScrollingNode::clone()
+PassOwnPtr<ScrollingStateNode> ScrollingStateScrollingNode::clone(ScrollingStateTree& adoptiveTree)
 {
-    return adoptPtr(new ScrollingStateScrollingNode(*this));
+    return adoptPtr(new ScrollingStateScrollingNode(*this, adoptiveTree));
 }
 
-void ScrollingStateScrollingNode::setViewportRect(const IntRect& viewportRect)
+void ScrollingStateScrollingNode::setViewportConstrainedObjectRect(const FloatRect& viewportConstrainedObjectRect)
 {
-    if (m_viewportRect == viewportRect)
+    if (m_viewportConstrainedObjectRect == viewportConstrainedObjectRect)
         return;
 
-    m_viewportRect = viewportRect;
-    setPropertyChanged(ViewportRect);
-    m_scrollingStateTree->setHasChangedProperties(true);
+    m_viewportConstrainedObjectRect = viewportConstrainedObjectRect;
+    setPropertyChanged(ViewportConstrainedObjectRect);
 }
 
 void ScrollingStateScrollingNode::setTotalContentsSize(const IntSize& totalContentsSize)
@@ -109,7 +111,15 @@ void ScrollingStateScrollingNode::setTotalContentsSize(const IntSize& totalConte
 
     m_totalContentsSize = totalContentsSize;
     setPropertyChanged(TotalContentsSize);
-    m_scrollingStateTree->setHasChangedProperties(true);
+}
+
+void ScrollingStateScrollingNode::setScrollPosition(const FloatPoint& scrollPosition)
+{
+    if (m_scrollPosition == scrollPosition)
+        return;
+
+    m_scrollPosition = scrollPosition;
+    setPropertyChanged(ScrollPosition);
 }
 
 void ScrollingStateScrollingNode::setScrollOrigin(const IntPoint& scrollOrigin)
@@ -119,7 +129,6 @@ void ScrollingStateScrollingNode::setScrollOrigin(const IntPoint& scrollOrigin)
 
     m_scrollOrigin = scrollOrigin;
     setPropertyChanged(ScrollOrigin);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setScrollableAreaParameters(const ScrollableAreaParameters& parameters)
@@ -129,7 +138,6 @@ void ScrollingStateScrollingNode::setScrollableAreaParameters(const ScrollableAr
 
     m_scrollableAreaParameters = parameters;
     setPropertyChanged(ScrollableAreaParams);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setFrameScaleFactor(float scaleFactor)
@@ -140,7 +148,6 @@ void ScrollingStateScrollingNode::setFrameScaleFactor(float scaleFactor)
     m_frameScaleFactor = scaleFactor;
 
     setPropertyChanged(FrameScaleFactor);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setNonFastScrollableRegion(const Region& nonFastScrollableRegion)
@@ -150,7 +157,6 @@ void ScrollingStateScrollingNode::setNonFastScrollableRegion(const Region& nonFa
 
     m_nonFastScrollableRegion = nonFastScrollableRegion;
     setPropertyChanged(NonFastScrollableRegion);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setWheelEventHandlerCount(unsigned wheelEventHandlerCount)
@@ -160,7 +166,6 @@ void ScrollingStateScrollingNode::setWheelEventHandlerCount(unsigned wheelEventH
 
     m_wheelEventHandlerCount = wheelEventHandlerCount;
     setPropertyChanged(WheelEventHandlerCount);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setSynchronousScrollingReasons(SynchronousScrollingReasons reasons)
@@ -170,7 +175,6 @@ void ScrollingStateScrollingNode::setSynchronousScrollingReasons(SynchronousScro
 
     m_synchronousScrollingReasons = reasons;
     setPropertyChanged(ReasonsForSynchronousScrolling);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setScrollBehaviorForFixedElements(ScrollBehaviorForFixedElements behaviorForFixed)
@@ -180,7 +184,6 @@ void ScrollingStateScrollingNode::setScrollBehaviorForFixedElements(ScrollBehavi
 
     m_behaviorForFixed = behaviorForFixed;
     setPropertyChanged(BehaviorForFixedElements);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setRequestedScrollPosition(const IntPoint& requestedScrollPosition, bool representsProgrammaticScroll)
@@ -188,7 +191,6 @@ void ScrollingStateScrollingNode::setRequestedScrollPosition(const IntPoint& req
     m_requestedScrollPosition = requestedScrollPosition;
     m_requestedScrollPositionRepresentsProgrammaticScroll = representsProgrammaticScroll;
     setPropertyChanged(RequestedScrollPosition);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setHeaderHeight(int headerHeight)
@@ -198,7 +200,6 @@ void ScrollingStateScrollingNode::setHeaderHeight(int headerHeight)
 
     m_headerHeight = headerHeight;
     setPropertyChanged(HeaderHeight);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
 
 void ScrollingStateScrollingNode::setFooterHeight(int footerHeight)
@@ -208,16 +209,63 @@ void ScrollingStateScrollingNode::setFooterHeight(int footerHeight)
 
     m_footerHeight = footerHeight;
     setPropertyChanged(FooterHeight);
-    m_scrollingStateTree->setHasChangedProperties(true);
 }
+
+void ScrollingStateScrollingNode::setCounterScrollingLayer(const LayerRepresentation& layerRepresentation)
+{
+    if (layerRepresentation == m_counterScrollingLayer)
+        return;
+    
+    m_counterScrollingLayer = layerRepresentation;
+
+    setPropertyChanged(CounterScrollingLayer);
+}
+
+void ScrollingStateScrollingNode::setHeaderLayer(const LayerRepresentation& layerRepresentation)
+{
+    if (layerRepresentation == m_headerLayer)
+        return;
+    
+    m_headerLayer = layerRepresentation;
+
+    setPropertyChanged(HeaderLayer);
+}
+
+
+void ScrollingStateScrollingNode::setFooterLayer(const LayerRepresentation& layerRepresentation)
+{
+    if (layerRepresentation == m_footerLayer)
+        return;
+    
+    m_footerLayer = layerRepresentation;
+
+    setPropertyChanged(FooterLayer);
+}
+
+#if !(PLATFORM(MAC) && !PLATFORM(IOS))
+void ScrollingStateScrollingNode::setScrollbarPaintersFromScrollbars(Scrollbar*, Scrollbar*)
+{
+}
+#endif
 
 void ScrollingStateScrollingNode::dumpProperties(TextStream& ts, int indent) const
 {
     ts << "(" << "Scrolling node" << "\n";
 
-    if (!m_viewportRect.isEmpty()) {
+    if (!m_viewportConstrainedObjectRect.isEmpty()) {
         writeIndent(ts, indent + 1);
-        ts << "(viewport rect " << m_viewportRect.x() << " " << m_viewportRect.y() << " " << m_viewportRect.width() << " " << m_viewportRect.height() << ")\n";
+        ts << "(viewport rect "
+            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.x()) << " "
+            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.y()) << " "
+            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.width()) << " "
+            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.height()) << ")\n";
+    }
+
+    if (m_scrollPosition != FloatPoint()) {
+        writeIndent(ts, indent + 1);
+        ts << "(scroll position "
+            << TextStream::FormatNumberRespectingIntegers(m_scrollPosition.x()) << " "
+            << TextStream::FormatNumberRespectingIntegers(m_scrollPosition.y()) << ")\n";
     }
 
     if (!m_totalContentsSize.isEmpty()) {

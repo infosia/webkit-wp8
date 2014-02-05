@@ -33,12 +33,9 @@
 #include "Element.h"
 #include "Frame.h"
 #include "HTMLNames.h"
+#include "SVGNames.h"
 #include "Text.h"
 #include <wtf/text/WTFString.h>
-
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#endif
 
 namespace WebCore {
 
@@ -129,7 +126,6 @@ void XMLErrors::insertErrorMessageBlock()
         m_document->parserAppendChild(rootElement);
         documentElement = body.get();
     }
-#if ENABLE(SVG)
     else if (documentElement->namespaceURI() == SVGNames::svgNamespaceURI) {
         RefPtr<Element> rootElement = m_document->createElement(htmlTag, true);
         RefPtr<Element> body = m_document->createElement(bodyTag, true);
@@ -140,14 +136,8 @@ void XMLErrors::insertErrorMessageBlock()
         body->parserAppendChild(documentElement);
         m_document->parserAppendChild(rootElement.get());
 
-        if (m_document->hasLivingRenderTree())
-            // In general, rootElement shouldn't be attached right now, but it will be if there is a style element
-            // in the SVG content.
-            Style::reattachRenderTree(*rootElement);
-
         documentElement = body.get();
     }
-#endif
 
     String errorMessages = m_errorMessages.toString();
     RefPtr<Element> reportElement = createXHTMLParserErrorHeader(m_document, errorMessages);

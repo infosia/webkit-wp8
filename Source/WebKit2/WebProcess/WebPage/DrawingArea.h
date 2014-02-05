@@ -28,8 +28,10 @@
 
 #include "DrawingAreaInfo.h"
 #include "LayerTreeContext.h"
-#include <WebCore/FloatPoint.h>
+#include <WebCore/FloatRect.h>
 #include <WebCore/IntRect.h>
+#include <WebCore/ViewState.h>
+#include <functional>
 #include <wtf/Forward.h>
 #include <wtf/Noncopyable.h>
 
@@ -60,6 +62,8 @@ public:
     static std::unique_ptr<DrawingArea> create(WebPage*, const WebPageCreationParameters&);
     virtual ~DrawingArea();
     
+    DrawingAreaType type() const { return m_type; }
+    
     void didReceiveDrawingAreaMessage(IPC::Connection*, IPC::MessageDecoder&);
 
     virtual void setNeedsDisplay() = 0;
@@ -78,35 +82,36 @@ public:
     virtual void didUninstallPageOverlay(PageOverlay*) { }
     virtual void setPageOverlayNeedsDisplay(PageOverlay*, const WebCore::IntRect&) { }
     virtual void setPageOverlayOpacity(PageOverlay*, float) { }
+    virtual void clearPageOverlay(PageOverlay*) { }
 
     virtual void setPaintingEnabled(bool) { }
     virtual void updatePreferences(const WebPreferencesStore&) { }
     virtual void mainFrameContentSizeChanged(const WebCore::IntSize&) { }
 
-    virtual void setExposedRect(const WebCore::FloatRect&) { }
-    virtual void setClipsToExposedRect(bool) { }
+#if PLATFORM(MAC)
+    virtual void setExposedRect(const WebCore::FloatRect&) = 0;
+    virtual WebCore::FloatRect exposedRect() const = 0;
+    virtual void setCustomFixedPositionRect(const WebCore::FloatRect&) = 0;
+#endif
     virtual void mainFrameScrollabilityChanged(bool) { }
 
-    virtual bool supportsThreadedScrolling() { return false; }
+    virtual bool supportsAsyncScrolling() { return false; }
 
     virtual void didChangeScrollOffsetForAnyFrame() { }
 
     virtual bool shouldUseTiledBackingForFrameView(const WebCore::FrameView*) { return false; }
 
-#if USE(ACCELERATED_COMPOSITING)
     virtual WebCore::GraphicsLayerFactory* graphicsLayerFactory() { return 0; }
     virtual void setRootCompositingLayer(WebCore::GraphicsLayer*) = 0;
     virtual void scheduleCompositingLayerFlush() = 0;
-#endif
 
 #if USE(COORDINATED_GRAPHICS)
     virtual void didReceiveCoordinatedLayerTreeHostMessage(IPC::Connection*, IPC::MessageDecoder&) = 0;
 #endif
 
-    virtual void dispatchAfterEnsuringUpdatedScrollPosition(const Function<void ()>&);
+    virtual void dispatchAfterEnsuringUpdatedScrollPosition(std::function<void ()>);
 
-    virtual void suspendPainting() { }
-    virtual void resumePainting() { }
+    virtual void viewStateDidChange(WebCore::ViewState::Flags) { }
     virtual void setLayerHostingMode(LayerHostingMode) { }
 
 protected:
@@ -132,6 +137,9 @@ private:
     virtual void commitTransientZoom(double scale, WebCore::FloatPoint origin) { }
 #endif
 };
+
+#define DRAWING_AREA_TYPE_CASTS(ToValueTypeName, predicate) \
+    TYPE_CASTS_BASE(ToValueTypeName, DrawingArea, value, value->predicate, value.predicate)
 
 } // namespace WebKit
 

@@ -27,6 +27,7 @@
 #import "WebPage.h"
 
 #import "EditorState.h"
+#import "InteractionInformationAtPosition.h"
 #import "WebChromeClient.h"
 #import "WebCoreArgumentCoders.h"
 #import "WebFrame.h"
@@ -41,11 +42,18 @@
 #import <WebCore/FloatQuad.h>
 #import <WebCore/Frame.h>
 #import <WebCore/FrameView.h>
+#import <WebCore/HitTestResult.h>
+#import <WebCore/HTMLElementTypeHelpers.h>
+#import <WebCore/HTMLParserIdioms.h>
 #import <WebCore/MainFrame.h>
+#import <WebCore/Node.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/Page.h>
+#import <WebCore/Pasteboard.h>
 #import <WebCore/PlatformKeyboardEvent.h>
 #import <WebCore/PlatformMouseEvent.h>
+#import <WebCore/RenderImage.h>
+#import <WebCore/ResourceBuffer.h>
 #import <WebCore/SharedBuffer.h>
 #import <WebCore/TextIterator.h>
 #import <WebCore/VisibleUnits.h>
@@ -91,7 +99,7 @@ void WebPage::setComposition(const String& text, Vector<WebCore::CompositionUnde
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    if (frame.selection().isContentEditable())
+    if (frame.selection().selection().isContentEditable())
         frame.editor().setComposition(text, underlines, selectionStart, selectionEnd);
 }
 
@@ -317,7 +325,7 @@ void WebPage::tapHighlightAtPosition(uint64_t requestID, const FloatPoint& posit
             borderRadii = box->borderRadii();
         }
 
-        send(Messages::WebPageProxy::DidGetTapHighlightGeometries(requestID, highlightColor, quads, borderRadii.topLeft(), borderRadii.topRight(), borderRadii.bottomLeft(), borderRadii.bottomRight()));
+        send(Messages::WebPageProxy::DidGetTapHighlightGeometries(requestID, highlightColor, quads, roundedIntSize(borderRadii.topLeft()), roundedIntSize(borderRadii.topRight()), roundedIntSize(borderRadii.bottomLeft()), roundedIntSize(borderRadii.bottomRight())));
     }
 }
 
@@ -377,15 +385,8 @@ void WebPage::selectWithGesture(const IntPoint& point, uint32_t granularity, uin
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
     FloatPoint adjustedPoint(point);
-    Node* node = frame.nodeRespondingToClickEvents(FloatPoint(point), adjustedPoint);
-    if (node && node != m_assistedNode.get()) {
-        handleTap(IntPoint(adjustedPoint));
-        if (!m_assistedNode) {
-            send(Messages::WebPageProxy::GestureCallback(point, gestureType, gestureState, 0, callbackID));
-            return;
-        }
-    }
-    IntPoint constrainedPoint = constrainPoint(point, &frame, m_assistedNode.get());
+
+    IntPoint constrainedPoint = m_assistedNode ? constrainPoint(point, &frame, m_assistedNode.get()) : point;
     VisiblePosition position = frame.visiblePositionForPoint(constrainedPoint);
     if (position.isNull()) {
         send(Messages::WebPageProxy::GestureCallback(point, gestureType, gestureState, 0, callbackID));
@@ -480,7 +481,12 @@ void WebPage::selectWithGesture(const IntPoint& point, uint32_t granularity, uin
         } else
             range = enclosingTextUnitOfGranularity(position, ParagraphGranularity, DirectionForward);
         break;
-        
+
+    case WKGestureMakeWebSelection:
+        // FIXME: Here we should implement the logic for block selections.
+        range = wordRangeFromPosition(position);
+        break;
+
     default:
         break;
     }
@@ -587,9 +593,12 @@ void WebPage::updateSelectionWithTouches(const IntPoint& point, uint32_t touches
             break;
         
         case WKSelectionTouchEnded:
-            result = closestWordBoundaryForPosition(position);
-            if (result.isNotNull())
-                range = Range::create(*frame.document(), result, result);
+            if (frame.selection().selection().isContentEditable()) {
+                result = closestWordBoundaryForPosition(position);
+                if (result.isNotNull())
+                    range = Range::create(*frame.document(), result, result);
+            } else
+                range = rangeForPosition(&frame, position, baseIsStart);
             break;
 
         case WKSelectionTouchEndedMovingForward:
@@ -722,10 +731,202 @@ void WebPage::applyAutocorrection(const String& correction, const String& origin
     send(Messages::WebPageProxy::StringCallback(correction, callbackID));
 }
 
+static void computeAutocorrectionContext(Frame& frame, String& contextBefore, String& markedText, String& selectedText, String& contextAfter, uint64_t& location, uint64_t& length)
+{
+    RefPtr<Range> range;
+    VisiblePosition startPosition = frame.selection().selection().start();
+    VisiblePosition endPosition = frame.selection().selection().end();
+    location = NSNotFound;
+    length = 0;
+    const unsigned minContextWordCount = 3;
+    const unsigned minContextLenght = 12;
+    const unsigned maxContextLength = 30;
+
+    if (frame.selection().isRange())
+        selectedText = plainText(frame.selection().selection().toNormalizedRange().get());
+
+    if (frame.editor().hasComposition()) {
+        range = Range::create(*frame.document(), frame.editor().compositionRange()->startPosition(), startPosition);
+        String markedTextBefore;
+        if (range)
+            markedTextBefore = plainText(range.get());
+        range = Range::create(*frame.document(), endPosition, frame.editor().compositionRange()->endPosition());
+        String markedTextAfter;
+        if (range)
+            markedTextAfter = plainText(range.get());
+        markedText = markedTextBefore + selectedText + markedTextAfter;
+        if (!markedText.isEmpty()) {
+            location = markedTextBefore.length();
+            length = selectedText.length();
+        }
+    } else {
+        if (startPosition != startOfEditableContent(startPosition)) {
+            VisiblePosition currentPosition = startPosition;
+            VisiblePosition previousPosition;
+            unsigned totalContextLength = 0;
+            for (unsigned i = 0; i < minContextWordCount; ++i) {
+                if (contextBefore.length() >= minContextLenght)
+                    break;
+                previousPosition = startOfWord(positionOfNextBoundaryOfGranularity(currentPosition, WordGranularity, DirectionBackward));
+                if (previousPosition.isNull())
+                    break;
+                String currentWord = plainText(Range::create(*frame.document(), previousPosition, currentPosition).get());
+                totalContextLength += currentWord.length();
+                if (totalContextLength >= maxContextLength)
+                    break;
+                currentPosition = previousPosition;
+            }
+            if (currentPosition.isNotNull() && currentPosition != startPosition) {
+                contextBefore = plainText(Range::create(*frame.document(), currentPosition, startPosition).get());
+                if (atBoundaryOfGranularity(currentPosition, ParagraphGranularity, DirectionBackward))
+                    contextBefore = ASCIILiteral("\n ") + contextBefore;
+            }
+        }
+
+        if (endPosition != endOfEditableContent(endPosition)) {
+            VisiblePosition nextPosition;
+            if (!atBoundaryOfGranularity(endPosition, WordGranularity, DirectionForward) && withinTextUnitOfGranularity(endPosition, WordGranularity, DirectionForward))
+                nextPosition = positionOfNextBoundaryOfGranularity(endPosition, WordGranularity, DirectionForward);
+            if (nextPosition.isNotNull())
+                contextAfter = plainText(Range::create(*frame.document(), endPosition, nextPosition).get());
+        }
+    }
+}
+
+void WebPage::requestAutocorrectionContext(uint64_t callbackID)
+{
+    String contextBefore;
+    String contextAfter;
+    String selectedText;
+    String markedText;
+    uint64_t location;
+    uint64_t length;
+
+    computeAutocorrectionContext(m_page->focusController().focusedOrMainFrame(), contextBefore, markedText, selectedText, contextAfter, location, length);
+
+    send(Messages::WebPageProxy::AutocorrectionContextCallback(contextBefore, markedText, selectedText, contextAfter, location, length, callbackID));
+}
+
+void WebPage::getAutocorrectionContext(String& contextBefore, String& markedText, String& selectedText, String& contextAfter, uint64_t& location, uint64_t& length)
+{
+    computeAutocorrectionContext(m_page->focusController().focusedOrMainFrame(), contextBefore, markedText, selectedText, contextAfter, location, length);
+}
+
+static Element* containingLinkElement(Element* element)
+{
+    for (Element* currentElement = element; currentElement; currentElement = currentElement->parentElement())
+        if (currentElement->isLink())
+            return currentElement;
+    return 0;
+}
+
+void WebPage::getPositionInformation(const IntPoint& point, InteractionInformationAtPosition& info)
+{
+    FloatPoint adjustedPoint;
+    Node* hitNode = m_page->mainFrame().nodeRespondingToClickEvents(point, adjustedPoint);
+
+    info.point = point;
+    info.nodeAtPositionIsAssistedNode = (hitNode == m_assistedNode);
+    bool elementIsLinkOrImage = false;
+    if (hitNode) {
+        info.clickableElementName = hitNode->nodeName();
+
+        Element* element = hitNode->isElementNode() ? toElement(hitNode) : 0;
+        if (!element)
+            return;
+
+        Element* linkElement = nullptr;
+        if (element->renderer() && element->renderer()->isRenderImage()) {
+            elementIsLinkOrImage = true;
+            linkElement = containingLinkElement(element);
+
+        } else if (element->isLink()) {
+            linkElement = element;
+            elementIsLinkOrImage = true;
+        }
+        if (linkElement)
+            info.url = linkElement->document().completeURL(stripLeadingAndTrailingHTMLSpaces(linkElement->getAttribute(HTMLNames::hrefAttr)));
+        info.title = element->getAttribute(HTMLNames::titleAttr).string();
+        if (element->renderer())
+            info.bounds = element->renderer()->absoluteBoundingBoxRect(true);
+    }
+
+    if (!elementIsLinkOrImage) {
+        Frame& frame = m_page->mainFrame();
+        hitNode = frame.eventHandler().hitTestResultAtPoint((point), HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::DisallowShadowContent).innerNode();
+        if (hitNode->isTextNode()) {
+            VisiblePosition position = frame.visiblePositionForPoint(point);
+            RefPtr<Range> range = wordRangeFromPosition(position);
+            if (range)
+                range->collectSelectionRects(info.selectionRects);
+        } else {
+            // FIXME: implement the logic for the block selection.
+        }
+
+    }
+}
+
+void WebPage::requestPositionInformation(const IntPoint& point)
+{
+    InteractionInformationAtPosition info;
+
+    getPositionInformation(point, info);
+    send(Messages::WebPageProxy::DidReceivePositionInformation(info));
+}
+
+void WebPage::startInteractionWithElementAtPosition(const WebCore::IntPoint& point)
+{
+    FloatPoint adjustedPoint;
+    m_interactionNode = m_page->mainFrame().nodeRespondingToClickEvents(point, adjustedPoint);
+}
+
+void WebPage::stopInteraction()
+{
+    m_interactionNode = nullptr;
+}
+
+void WebPage::performActionOnElement(uint32_t action)
+{
+    if (!m_interactionNode || !m_interactionNode->isHTMLElement())
+        return;
+
+    HTMLElement* element = toHTMLElement(m_interactionNode.get());
+    if (!element->renderer())
+        return;
+
+    if (static_cast<WKSheetActions>(action) == WKSheetActionCopy) {
+        if (element->renderer()->isRenderImage()) {
+            Element* linkElement = containingLinkElement(element);
+        
+            if (!linkElement)
+                m_interactionNode->document().frame()->editor().writeImageToPasteboard(*Pasteboard::createForCopyAndPaste(), *element, toRenderImage(element->renderer())->cachedImage()->url(), String());
+            else
+                m_interactionNode->document().frame()->editor().copyURL(linkElement->document().completeURL(stripLeadingAndTrailingHTMLSpaces(linkElement->getAttribute(HTMLNames::hrefAttr))), linkElement->textContent());
+        } else if (element->isLink()) {
+            m_interactionNode->document().frame()->editor().copyURL(element->document().completeURL(stripLeadingAndTrailingHTMLSpaces(element->getAttribute(HTMLNames::hrefAttr))), element->textContent());
+        }
+    } else if (static_cast<WKSelectionTouch>(action) == WKSheetActionSaveImage) {
+        if (!element->renderer()->isRenderImage())
+            return;
+        CachedImage* cachedImage = toRenderImage(element->renderer())->cachedImage();
+        if (cachedImage) {
+            SharedMemory::Handle handle;
+            RefPtr<SharedBuffer> buffer = cachedImage->resourceBuffer()->sharedBuffer();
+            if (buffer) {
+                uint64_t bufferSize = buffer->size();
+                RefPtr<SharedMemory> sharedMemoryBuffer = SharedMemory::create(bufferSize);
+                memcpy(sharedMemoryBuffer->data(), buffer->data(), bufferSize);
+                sharedMemoryBuffer->createHandle(handle, SharedMemory::ReadOnly);
+                send(Messages::WebPageProxy::SaveImageToLibrary(handle, bufferSize));
+            }
+        }
+    }
+}
+
 void WebPage::elementDidFocus(WebCore::Node* node)
 {
     m_assistedNode = node;
-    if (node->hasTagName(WebCore::HTMLNames::inputTag) || node->hasTagName(WebCore::HTMLNames::textareaTag) || node->rendererIsEditable())
+    if (node->hasTagName(WebCore::HTMLNames::inputTag) || node->hasTagName(WebCore::HTMLNames::textareaTag) || node->hasEditableStyle())
         send(Messages::WebPageProxy::StartAssistingNode(WebCore::IntRect(), true, true));    
 }
 

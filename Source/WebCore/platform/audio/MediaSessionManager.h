@@ -26,64 +26,63 @@
 #ifndef MediaSessionManager_h
 #define MediaSessionManager_h
 
-#include <wtf/PassOwnPtr.h>
+#include "MediaSession.h"
+#include "Settings.h"
+#include <map>
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class MediaSessionManagerToken;
+class HTMLMediaElement;
+class MediaSession;
 
 class MediaSessionManager {
 public:
     static MediaSessionManager& sharedManager();
+    virtual ~MediaSessionManager() { }
 
-    enum MediaType {
-        None,
-        Video,
-        Audio,
-        WebAudio,
+    bool has(MediaSession::MediaType) const;
+    int count(MediaSession::MediaType) const;
+
+    void beginInterruption();
+    void endInterruption(MediaSession::EndInterruptionFlags);
+
+    void applicationWillEnterForeground() const;
+    void applicationWillEnterBackground() const;
+
+    enum SessionRestrictionFlags {
+        NoRestrictions = 0,
+        ConcurrentPlaybackNotPermitted = 1 << 0,
+        InlineVideoPlaybackRestricted = 1 << 1,
+        MetadataPreloadingNotPermitted = 1 << 2,
+        AutoPreloadingNotPermitted = 1 << 3,
+        BackgroundPlaybackNotPermitted = 1 << 4,
     };
+    typedef unsigned SessionRestrictions;
+    
+    void addRestriction(MediaSession::MediaType, SessionRestrictions);
+    void removeRestriction(MediaSession::MediaType, SessionRestrictions);
+    SessionRestrictions restrictions(MediaSession::MediaType);
+    virtual void resetRestrictions();
 
-    bool has(MediaType) const;
-    int count(MediaType) const;
+    void sessionWillBeginPlayback(const MediaSession&) const;
+
+    bool sessionRestrictsInlineVideoPlayback(const MediaSession&) const;
 
 protected:
-    friend class MediaSessionManagerToken;
-    void addToken(MediaSessionManagerToken&);
-    void removeToken(MediaSessionManagerToken&);
+    friend class MediaSession;
+    explicit MediaSessionManager();
+
+    void addSession(MediaSession&);
+    void removeSession(MediaSession&);
 
 private:
-    MediaSessionManager();
-
     void updateSessionState();
 
-    Vector<MediaSessionManagerToken*> m_tokens;
-};
+    SessionRestrictions m_restrictions[MediaSession::WebAudio + 1];
 
-class MediaSessionManagerClient {
-    WTF_MAKE_NONCOPYABLE(MediaSessionManagerClient);
-public:
-    MediaSessionManagerClient() { }
-
-    virtual MediaSessionManager::MediaType mediaType() const = 0;
-
-protected:
-    virtual ~MediaSessionManagerClient() { }
-};
-
-class MediaSessionManagerToken {
-public:
-    static std::unique_ptr<MediaSessionManagerToken> create(MediaSessionManagerClient&);
-
-    MediaSessionManagerToken(MediaSessionManagerClient&);
-    ~MediaSessionManagerToken();
-
-    MediaSessionManager::MediaType mediaType() const { return m_type; }
-
-private:
-
-    MediaSessionManagerClient& m_client;
-    MediaSessionManager::MediaType m_type;
+    Vector<MediaSession*> m_sessions;
+    bool m_interrupted;
 };
 
 }

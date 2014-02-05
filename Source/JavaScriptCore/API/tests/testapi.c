@@ -33,7 +33,7 @@
 #define ASSERT_DISABLED 0
 #include <wtf/Assertions.h>
 
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if OS(DARWIN)
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <sys/time.h>
@@ -1103,7 +1103,7 @@ static void checkConstnessInJSObjectNames()
     val.name = "something";
 }
 
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if OS(DARWIN)
 static double currentCPUTime()
 {
     mach_msg_type_number_t infoCount = THREAD_BASIC_INFO_COUNT;
@@ -1162,7 +1162,7 @@ static bool extendTerminateCallback(JSContextRef ctx, void* context)
     }
     return true;
 }
-#endif /* PLATFORM(MAC) || PLATFORM(IOS) */
+#endif /* OS(DARWIN) */
 
 
 int main(int argc, char* argv[])
@@ -1629,6 +1629,26 @@ int main(int argc, char* argv[])
     JSStringRelease(line);
 
     exception = NULL;
+    functionBody = JSStringCreateWithUTF8CString("rreturn Array;");
+    line = JSStringCreateWithUTF8CString("line");
+    ASSERT(!JSObjectMakeFunction(context, NULL, 0, NULL, functionBody, NULL, -42, &exception));
+    ASSERT(JSValueIsObject(context, exception));
+    v = JSObjectGetProperty(context, JSValueToObject(context, exception, NULL), line, NULL);
+    assertEqualsAsNumber(v, 1);
+    JSStringRelease(functionBody);
+    JSStringRelease(line);
+
+    exception = NULL;
+    functionBody = JSStringCreateWithUTF8CString("// Line one.\nrreturn Array;");
+    line = JSStringCreateWithUTF8CString("line");
+    ASSERT(!JSObjectMakeFunction(context, NULL, 0, NULL, functionBody, NULL, 1, &exception));
+    ASSERT(JSValueIsObject(context, exception));
+    v = JSObjectGetProperty(context, JSValueToObject(context, exception, NULL), line, NULL);
+    assertEqualsAsNumber(v, 2);
+    JSStringRelease(functionBody);
+    JSStringRelease(line);
+
+    exception = NULL;
     functionBody = JSStringCreateWithUTF8CString("return Array;");
     function = JSObjectMakeFunction(context, NULL, 0, NULL, functionBody, NULL, 1, &exception);
     JSStringRelease(functionBody);
@@ -1833,7 +1853,7 @@ int main(int argc, char* argv[])
         free(scriptUTF8);
     }
 
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if OS(DARWIN)
     JSStringRef currentCPUTimeStr = JSStringCreateWithUTF8CString("currentCPUTime");
     JSObjectRef currentCPUTimeFunction = JSObjectMakeFunctionWithCallback(context, currentCPUTimeStr, currentCPUTime_callAsFunction);
     JSObjectSetProperty(context, globalObject, currentCPUTimeStr, currentCPUTimeFunction, kJSPropertyAttributeNone, NULL); 
@@ -1984,7 +2004,7 @@ int main(int argc, char* argv[])
             failed = true;
         }
     }
-#endif /* PLATFORM(MAC) || PLATFORM(IOS) */
+#endif /* OS(DARWIN) */
 
     // Clear out local variables pointing at JSObjectRefs to allow their values to be collected
     function = NULL;

@@ -18,14 +18,11 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceContainer.h"
 
 #include "RenderLayer.h"
 #include "RenderSVGRoot.h"
 #include "RenderView.h"
-#include "SVGGraphicsElement.h"
 #include "SVGRenderingContext.h"
 #include "SVGResourcesCache.h"
 #include <wtf/StackStats.h>
@@ -101,7 +98,7 @@ void RenderSVGResourceContainer::markAllClientsForInvalidation(InvalidationMode 
 
     for (auto client : m_clients) {
         if (client->isSVGResourceContainer()) {
-            client->toRenderSVGResourceContainer()->removeAllClientsFromCache(markForInvalidation);
+            toRenderSVGResourceContainer(*client).removeAllClientsFromCache(markForInvalidation);
             continue;
         }
 
@@ -142,17 +139,15 @@ void RenderSVGResourceContainer::markClientForInvalidation(RenderObject& client,
     }
 }
 
-void RenderSVGResourceContainer::addClient(RenderObject* client)
+void RenderSVGResourceContainer::addClient(RenderElement& client)
 {
-    ASSERT(client);
-    m_clients.add(client);
+    m_clients.add(&client);
 }
 
-void RenderSVGResourceContainer::removeClient(RenderObject* client)
+void RenderSVGResourceContainer::removeClient(RenderElement& client)
 {
-    ASSERT(client);
-    removeClientFromCache(*client, false);
-    m_clients.remove(client);
+    removeClientFromCache(client, false);
+    m_clients.remove(&client);
 }
 
 void RenderSVGResourceContainer::addClientRenderLayer(RenderLayer* client)
@@ -170,19 +165,19 @@ void RenderSVGResourceContainer::removeClientRenderLayer(RenderLayer* client)
 void RenderSVGResourceContainer::registerResource()
 {
     SVGDocumentExtensions& extensions = svgExtensionsFromElement(element());
-    if (!extensions.hasPendingResource(m_id)) {
+    if (!extensions.isIdOfPendingResource(m_id)) {
         extensions.addResource(m_id, this);
         return;
     }
 
-    std::unique_ptr<SVGDocumentExtensions::SVGPendingElements> clients = extensions.removePendingResource(m_id);
+    std::unique_ptr<SVGDocumentExtensions::PendingElements> clients = extensions.removePendingResource(m_id);
 
     // Cache us with the new id.
     extensions.addResource(m_id, this);
 
     // Update cached resources of pending clients.
-    const SVGDocumentExtensions::SVGPendingElements::const_iterator end = clients->end();
-    for (SVGDocumentExtensions::SVGPendingElements::const_iterator it = clients->begin(); it != end; ++it) {
+    auto end = clients->end();
+    for (auto it = clients->begin(); it != end; ++it) {
         ASSERT((*it)->hasPendingResources());
         extensions.clearHasPendingResourcesIfPossible(*it);
         auto renderer = (*it)->renderer();
@@ -206,7 +201,7 @@ bool RenderSVGResourceContainer::shouldTransformOnTextPainting(RenderObject* obj
     // In text drawing, the scaling part of the graphics context CTM is removed, compare SVGInlineTextBox::paintTextWithShadows.
     // So, we use that scaling factor here, too, and then push it down to pattern or gradient space
     // in order to keep the pattern or gradient correctly scaled.
-    float scalingFactor = SVGRenderingContext::calculateScreenFontSizeScalingFactor(object);
+    float scalingFactor = SVGRenderingContext::calculateScreenFontSizeScalingFactor(*object);
     if (scalingFactor == 1)
         return false;
     resourceTransform.scale(scalingFactor);
@@ -227,5 +222,3 @@ AffineTransform RenderSVGResourceContainer::transformOnNonScalingStroke(RenderOb
 }
 
 }
-
-#endif

@@ -26,11 +26,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGPath.h"
 
-#include "SVGGraphicsElement.h"
 #include "SVGPathElement.h"
 #include "SVGSubpathData.h"
 
@@ -163,5 +160,3 @@ void RenderSVGPath::updateZeroLengthSubpaths()
 }
 
 }
-
-#endif // ENABLE(SVG)

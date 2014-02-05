@@ -75,7 +75,7 @@
 #include "Page.h"
 #include "PageCache.h"
 #include "PageGroup.h"
-#include "RegularExpression.h"
+#include "RenderLayerCompositor.h"
 #include "RenderTableCell.h"
 #include "RenderText.h"
 #include "RenderTextControl.h"
@@ -83,6 +83,8 @@
 #include "RenderView.h"
 #include "RenderWidget.h"
 #include "RuntimeEnabledFeatures.h"
+#include "SVGDocument.h"
+#include "SVGDocumentExtensions.h"
 #include "SVGNames.h"
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
@@ -92,6 +94,7 @@
 #include "TextIterator.h"
 #include "TextNodeTraversal.h"
 #include "TextResourceDecoder.h"
+#include "UserContentController.h"
 #include "UserContentURLPattern.h"
 #include "UserTypingGestureIndicator.h"
 #include "VisibleUnits.h"
@@ -107,15 +110,8 @@
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
+#include <yarr/RegularExpression.h>
 
-#if USE(ACCELERATED_COMPOSITING)
-#include "RenderLayerCompositor.h"
-#endif
-
-#if ENABLE(SVG)
-#include "SVGDocument.h"
-#include "SVGDocumentExtensions.h"
-#endif
 
 #if USE(TILED_BACKING_STORE)
 #include "TiledBackingStore.h"
@@ -162,9 +158,9 @@ Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, FrameLoaderClient&
     : m_mainFrame(ownerElement ? page.mainFrame() : static_cast<MainFrame&>(*this))
     , m_page(&page)
     , m_settings(&page.settings())
-    , m_treeNode(this, parentFromOwnerElement(ownerElement))
+    , m_treeNode(*this, parentFromOwnerElement(ownerElement))
     , m_loader(*this, frameLoaderClient)
-    , m_navigationScheduler(this)
+    , m_navigationScheduler(*this)
     , m_ownerElement(ownerElement)
     , m_script(std::make_unique<ScriptController>(*this))
     , m_editor(Editor::create(*this))
@@ -318,12 +314,12 @@ void Frame::sendOrientationChangeEvent(int orientation)
 }
 #endif // ENABLE(ORIENTATION_EVENTS)
 
-static PassOwnPtr<RegularExpression> createRegExpForLabels(const Vector<String>& labels)
+static PassOwnPtr<JSC::Yarr::RegularExpression> createRegExpForLabels(const Vector<String>& labels)
 {
     // REVIEW- version of this call in FrameMac.mm caches based on the NSArray ptrs being
     // the same across calls.  We can't do that.
 
-    DEFINE_STATIC_LOCAL(RegularExpression, wordRegExp, ("\\w", TextCaseSensitive));
+    DEFINE_STATIC_LOCAL(JSC::Yarr::RegularExpression, wordRegExp, ("\\w", TextCaseSensitive));
     String pattern("(");
     unsigned int numLabels = labels.size();
     unsigned int i;
@@ -349,10 +345,10 @@ static PassOwnPtr<RegularExpression> createRegExpForLabels(const Vector<String>&
             pattern.append("\\b");
     }
     pattern.append(")");
-    return adoptPtr(new RegularExpression(pattern, TextCaseInsensitive));
+    return adoptPtr(new JSC::Yarr::RegularExpression(pattern, TextCaseInsensitive));
 }
 
-String Frame::searchForLabelsAboveCell(RegularExpression* regExp, HTMLTableCellElement* cell, size_t* resultDistanceFromStartOfCell)
+String Frame::searchForLabelsAboveCell(JSC::Yarr::RegularExpression* regExp, HTMLTableCellElement* cell, size_t* resultDistanceFromStartOfCell)
 {
     HTMLTableCellElement* aboveCell = cell->cellAbove();
     if (aboveCell) {
@@ -381,7 +377,7 @@ String Frame::searchForLabelsAboveCell(RegularExpression* regExp, HTMLTableCellE
 
 String Frame::searchForLabelsBeforeElement(const Vector<String>& labels, Element* element, size_t* resultDistance, bool* resultIsInCellAbove)
 {
-    OwnPtr<RegularExpression> regExp(createRegExpForLabels(labels));
+    OwnPtr<JSC::Yarr::RegularExpression> regExp(createRegExpForLabels(labels));
     // We stop searching after we've seen this many chars
     const unsigned int charsSearchedThreshold = 500;
     // This is the absolute max we search.  We allow a little more slop than
@@ -451,10 +447,10 @@ static String matchLabelsAgainstString(const Vector<String>& labels, const Strin
     String mutableStringToMatch = stringToMatch;
 
     // Make numbers and _'s in field names behave like word boundaries, e.g., "address2"
-    replace(mutableStringToMatch, RegularExpression("\\d", TextCaseSensitive), " ");
+    replace(mutableStringToMatch, JSC::Yarr::RegularExpression("\\d", TextCaseSensitive), " ");
     mutableStringToMatch.replace('_', ' ');
     
-    OwnPtr<RegularExpression> regExp(createRegExpForLabels(labels));
+    OwnPtr<JSC::Yarr::RegularExpression> regExp(createRegExpForLabels(labels));
     // Use the largest match we can find in the whole string
     int pos;
     int length;
@@ -703,13 +699,17 @@ void Frame::injectUserScripts(UserScriptInjectionTime injectionTime)
     if (loader().stateMachine()->creatingInitialEmptyDocument() && !settings().shouldInjectUserScriptsInInitialEmptyDocument())
         return;
 
+    const auto* userContentController = m_page->userContentController();
+    if (!userContentController)
+        return;
+
     // Walk the hashtable. Inject by world.
-    const UserScriptMap* userScripts = m_page->group().userScripts();
+    const UserScriptMap* userScripts = userContentController->userScripts();
     if (!userScripts)
         return;
 
-    for (auto it = userScripts->begin(), end = userScripts->end(); it != end; ++it)
-        injectUserScriptsForWorld(*it->key.get(), *it->value, injectionTime);
+    for (const auto& worldAndUserScript : *userScripts)
+        injectUserScriptsForWorld(*worldAndUserScript.key, *worldAndUserScript.value, injectionTime);
 }
 
 void Frame::injectUserScriptsForWorld(DOMWrapperWorld& world, const UserScriptVector& userScripts, UserScriptInjectionTime injectionTime)
@@ -905,7 +905,7 @@ void Frame::createView(const IntSize& viewportSize, const Color& backgroundColor
     if (isMainFrame) {
         frameView = FrameView::create(*this, viewportSize);
         frameView->setFixedLayoutSize(fixedLayoutSize);
-#if !PLATFORM(IOS)
+#if USE(TILED_BACKING_STORE)
         frameView->setFixedVisibleContentRect(fixedVisibleContentRect);
 #else
         UNUSED_PARAM(fixedVisibleContentRect);
@@ -951,7 +951,6 @@ void Frame::tiledBackingStorePaintBegin()
     if (!m_view)
         return;
     m_view->updateLayoutAndStyleIfNeededRecursive();
-    m_view->flushDeferredRepaints();
 }
 
 void Frame::tiledBackingStorePaint(GraphicsContext* context, const IntRect& rect)
@@ -995,17 +994,12 @@ Color Frame::tiledBackingStoreBackgroundColor() const
 
 String Frame::layerTreeAsText(LayerTreeFlags flags) const
 {
-#if USE(ACCELERATED_COMPOSITING)
     document()->updateLayout();
 
     if (!contentRenderer())
         return String();
 
     return contentRenderer()->compositor().layerTreeAsText(flags);
-#else
-    UNUSED_PARAM(flags);
-    return String();
-#endif
 }
 
 String Frame::trackedRepaintRectsAsText() const
@@ -1040,14 +1034,12 @@ void Frame::setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor
 
     m_editor->dismissCorrectionPanelAsIgnored();
 
-#if ENABLE(SVG)
     // Respect SVGs zoomAndPan="disabled" property in standalone SVG documents.
     // FIXME: How to handle compound documents + zoomAndPan="disabled"? Needs SVG WG clarification.
     if (document->isSVGDocument()) {
         if (!toSVGDocument(document)->zoomAndPanEnabled())
             return;
     }
-#endif
 
     if (m_pageZoomFactor != pageZoomFactor) {
         if (FrameView* view = this->view()) {
@@ -1119,7 +1111,6 @@ void Frame::resumeActiveDOMObjectsAndAnimations()
     }
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void Frame::deviceOrPageScaleFactorChanged()
 {
     for (RefPtr<Frame> child = tree().firstChild(); child; child = child->tree().nextSibling())
@@ -1128,7 +1119,6 @@ void Frame::deviceOrPageScaleFactorChanged()
     if (RenderView* root = contentRenderer())
         root->compositor().deviceOrPageScaleFactorChanged();
 }
-#endif
 
 bool Frame::isURLAllowed(const URL& url) const
 {

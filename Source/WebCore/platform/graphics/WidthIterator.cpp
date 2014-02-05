@@ -99,7 +99,7 @@ public:
     float advanceAtCharacter;
 };
 
-typedef Vector<pair<int, OriginalAdvancesForCharacterTreatedAsSpace>, 64> CharactersTreatedAsSpace;
+typedef Vector<std::pair<int, OriginalAdvancesForCharacterTreatedAsSpace>, 64> CharactersTreatedAsSpace;
 
 static inline float applyFontTransforms(GlyphBuffer* glyphBuffer, bool ltr, int& lastGlyphCount, const SimpleFontData* fontData, WidthIterator& iterator, TypesettingFeatures typesettingFeatures, CharactersTreatedAsSpace& charactersTreatedAsSpace)
 {
@@ -188,10 +188,8 @@ inline unsigned WidthIterator::advanceInternal(TextIterator& textIterator, Glyph
         else {
             width = fontData->widthForGlyph(glyph);
 
-#if ENABLE(SVG)
             // SVG uses horizontalGlyphStretch(), when textLength is used to stretch/squeeze text.
             width *= m_run.horizontalGlyphStretch();
-#endif
 
             // We special case spaces in two ways when applying word rounding.
             // First, we round spaces to an adjusted width in all fonts.

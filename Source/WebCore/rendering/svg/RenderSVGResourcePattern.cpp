@@ -19,17 +19,13 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourcePattern.h"
 
 #include "ElementIterator.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
-#include "PatternAttributes.h"
 #include "RenderSVGRoot.h"
 #include "SVGFitToViewBox.h"
-#include "SVGRenderSupport.h"
 #include "SVGRenderingContext.h"
 
 namespace WebCore {
@@ -54,7 +50,7 @@ void RenderSVGResourcePattern::removeAllClientsFromCache(bool markForInvalidatio
     markAllClientsForInvalidation(markForInvalidation ? RepaintInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourcePattern::removeClientFromCache(RenderObject& client, bool markForInvalidation)
+void RenderSVGResourcePattern::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
     m_patternMap.remove(&client);
     markClientForInvalidation(client, markForInvalidation ? RepaintInvalidation : ParentOnlyInvalidation);
@@ -89,7 +85,7 @@ PatternData* RenderSVGResourcePattern::buildPattern(RenderObject* object, unsign
         return 0;
 
     AffineTransform absoluteTransformIgnoringRotation;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(object, absoluteTransformIgnoringRotation);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(*object, absoluteTransformIgnoringRotation);
 
     // Ignore 2D rotation, as it doesn't affect the size of the tile.
     SVGRenderingContext::clear2DRotation(absoluteTransformIgnoringRotation);
@@ -276,5 +272,3 @@ std::unique_ptr<ImageBuffer> RenderSVGResourcePattern::createTileImage(const Pat
 }
 
 }
-
-#endif

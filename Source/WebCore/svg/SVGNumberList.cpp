@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGNumberList.h"
 
 #include "SVGParserUtilities.h"
@@ -33,7 +31,7 @@ void SVGNumberList::parse(const String& value)
     clear();
 
     float number = 0;
-    const UChar* ptr = value.characters();
+    const UChar* ptr = value.deprecatedCharacters();
     const UChar* end = ptr + value.length();
 
     // The spec strangely doesn't allow leading whitespace.  We might choose to violate that intentionally. (section 4.1)
@@ -60,5 +58,3 @@ String SVGNumberList::valueAsString() const
 }
 
 }
-
-#endif // ENABLE(SVG)

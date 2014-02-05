@@ -93,7 +93,6 @@ public:
     AtomicStringImpl* impl() const { return static_cast<AtomicStringImpl *>(m_string.impl()); }
 
     bool is8Bit() const { return m_string.is8Bit(); }
-    const UChar* characters() const { return m_string.characters(); }
     const LChar* characters8() const { return m_string.characters8(); }
     const UChar* characters16() const { return m_string.characters16(); }
     unsigned length() const { return m_string.length(); }
@@ -152,10 +151,6 @@ public:
 #ifdef __OBJC__
     AtomicString(NSString* s) : m_string(add((CFStringRef)s)) { }
     operator NSString*() const { return m_string; }
-#endif
-#if PLATFORM(BLACKBERRY)
-    AtomicString(const BlackBerry::Platform::String& s) : m_string(add(String(s).impl())) { }
-    operator BlackBerry::Platform::String() const { return m_string; }
 #endif
 
     // AtomicString::fromUTF8 will return a null string if

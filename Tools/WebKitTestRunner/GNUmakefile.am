@@ -64,7 +64,6 @@ Programs_WebKitTestRunner_LDADD = \
 	$(XT_LIBS)
 
 Programs_WebKitTestRunner_LDFLAGS = \
-	-no-fast-install \
 	-no-install
 
 # The InjectedBundle library allows the render process to load harness code.
@@ -162,7 +161,7 @@ DerivedSources/InjectedBundle/JS%.cpp: Tools/WebKitTestRunner/InjectedBundle/Bin
 		-I $(srcdir)/Source/WebCore/bindings/scripts \
 		-I $(srcdir)/Tools/WebKitTestRunner/InjectedBundle/Bindings \
 		$(srcdir)/Source/WebCore/bindings/scripts/generate-bindings.pl \
-		--defines \"\" --generator TestRunner \
+		--defines "$(feature_defines)" --generator TestRunner \
 		--include $(srcdir)/Tools/InjectedBundle/Bindings \
 		--outputDir $(top_builddir)/DerivedSources/InjectedBundle \
 		$<

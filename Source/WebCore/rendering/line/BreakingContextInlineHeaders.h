@@ -34,15 +34,12 @@
 #include "RenderInline.h"
 #include "RenderListMarker.h"
 #include "RenderRubyRun.h"
+#include "RenderSVGInlineText.h"
 #include "TrailingObjects.h"
 #include "break_lines.h"
 #include <wtf/unicode/CharacterNames.h>
 
-#if ENABLE(SVG)
-#include "RenderSVGInlineText.h"
-#endif
-
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
 #include "ShapeInsideInfo.h"
 #endif
 
@@ -51,8 +48,7 @@ namespace WebCore {
 // We don't let our line box tree for a single line get any deeper than this.
 const unsigned cMaxLineDepth = 200;
 
-class WordMeasurement {
-public:
+struct WordMeasurement {
     WordMeasurement()
         : renderer(0)
         , width(0)
@@ -214,11 +210,7 @@ inline void BreakingContext::initializeForCurrentObject()
     m_autoWrap = RenderStyle::autoWrap(m_currWS);
     m_autoWrapWasEverTrueOnLine = m_autoWrapWasEverTrueOnLine || m_autoWrap;
 
-#if ENABLE(SVG)
     m_preservesNewline = m_current.renderer()->isSVGInlineText() ? false : RenderStyle::preserveNewline(m_currWS);
-#else
-    m_preservesNewline = RenderStyle::preserveNewline(m_currWS);
-#endif
 
     m_collapseWhiteSpace = RenderStyle::collapseWhiteSpace(m_currWS);
 }
@@ -469,7 +461,7 @@ inline float firstPositiveWidth(const WordMeasurements& wordMeasurements)
     return 0;
 }
 
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
 inline void updateSegmentsForShapes(RenderBlockFlow& block, const FloatingObject* lastFloatFromPreviousLine, const WordMeasurements& wordMeasurements, LineWidth& width, bool isFirstLine)
 {
     ASSERT(lastFloatFromPreviousLine);
@@ -609,7 +601,7 @@ inline void tryHyphenating(RenderText* text, const Font& font, const AtomicStrin
     if (prefixLength < minimumPrefixLength)
         return;
 
-    prefixLength = lastHyphenLocation(text->characters() + lastSpace, pos - lastSpace, std::min(prefixLength, pos - lastSpace - minimumSuffixLength) + 1, localeIdentifier);
+    prefixLength = lastHyphenLocation(text->deprecatedCharacters() + lastSpace, pos - lastSpace, std::min(prefixLength, pos - lastSpace - minimumSuffixLength) + 1, localeIdentifier);
     if (!prefixLength || prefixLength < minimumPrefixLength)
         return;
 
@@ -642,9 +634,7 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
 
     RenderText* renderText = toRenderText(m_current.renderer());
 
-#if ENABLE(SVG)
     bool isSVGText = renderText->isSVGInlineText();
-#endif
 
     // If we have left a no-wrap inline and entered an autowrap inline while ignoring spaces
     // then we need to mark the start of the autowrap inline as a potential linebreak now.
@@ -668,7 +658,7 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
     bool canHyphenate = style.hyphens() == HyphensAuto && WebCore::canHyphenate(style.locale());
 
     unsigned lastSpace = m_current.offset();
-    float wordSpacing = m_currentStyle->wordSpacing();
+    float wordSpacing = m_currentStyle->font().wordSpacing();
     float lastSpaceWordSpacing = 0;
     float wordSpacingForWordMeasurement = 0;
 
@@ -681,12 +671,11 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
     bool midWordBreak = false;
     bool breakAll = m_currentStyle->wordBreak() == BreakAllWordBreak && m_autoWrap;
     float hyphenWidth = 0;
-#if ENABLE(SVG)
+
     if (isSVGText) {
         breakWords = false;
         breakAll = false;
     }
-#endif
 
     if (m_renderTextInfo.m_text != renderText) {
         updateCounterIfNeeded(*renderText);
@@ -786,7 +775,7 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
                 m_appliedStartWidth = true;
             }
 
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
             if (m_lastFloatFromPreviousLine)
                 updateSegmentsForShapes(m_block, m_lastFloatFromPreviousLine, wordMeasurements, m_width, m_lineInfo.isFirstLine());
 #endif
@@ -799,7 +788,7 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
                 // If we break only after white-space, consider the current character
                 // as candidate width for this line.
                 bool lineWasTooWide = false;
-                if (m_width.fitsOnLine() && m_currentCharacterIsSpace && m_currentStyle->breakOnlyAfterWhiteSpace() && !midWordBreak) {
+                if (m_width.fitsOnLine() && m_currentCharacterIsWS && m_currentStyle->breakOnlyAfterWhiteSpace() && !midWordBreak) {
                     float charWidth = textWidth(renderText, m_current.offset(), 1, font, m_width.currentWidth(), isFixedPitch, m_collapseWhiteSpace, wordMeasurement.fallbackFonts, textLayout) + (applyWordSpacing ? wordSpacing : 0);
                     // Check if line is too big even without the extra space
                     // at the end of the line. If it is not, do nothing.
@@ -905,13 +894,12 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
             lastSpace = m_current.offset(); // e.g., "Foo    goo", don't add in any of the ignored spaces.
             m_lineMidpointState.stopIgnoringSpaces(InlineIterator(0, m_current.renderer(), m_current.offset()));
         }
-#if ENABLE(SVG)
+
         if (isSVGText && m_current.offset()) {
             // Force creation of new InlineBoxes for each absolute positioned character (those that start new text chunks).
             if (toRenderSVGInlineText(renderText)->characterStartsNewTextChunk(m_current.offset()))
                 ensureCharacterGetsLineBox(m_lineMidpointState, m_current);
         }
-#endif
 
         if (m_currentCharacterIsSpace && !previousCharacterIsSpace) {
             m_startOfIgnoredSpaces.setRenderer(m_current.renderer());
@@ -927,7 +915,7 @@ inline bool BreakingContext::handleText(WordMeasurements& wordMeasurements, bool
             }
         }
 
-        if (!m_currentCharacterIsSpace && previousCharacterIsWS) {
+        if (!m_currentCharacterIsWS && previousCharacterIsWS) {
             if (m_autoWrap && m_currentStyle->breakOnlyAfterWhiteSpace())
                 m_lineBreak.moveTo(m_current.renderer(), m_current.offset(), m_current.nextBreakablePosition());
         }
@@ -1069,25 +1057,25 @@ inline void checkMidpoints(LineMidpointState& lineMidpointState, InlineIterator&
     // Check to see if our last midpoint is a start point beyond the line break. If so,
     // shave it off the list, and shave off a trailing space if the previous end point doesn't
     // preserve whitespace.
-    if (lBreak.renderer() && lineMidpointState.numMidpoints && !(lineMidpointState.numMidpoints % 2)) {
-        InlineIterator* midpoints = lineMidpointState.midpoints.data();
-        InlineIterator& endpoint = midpoints[lineMidpointState.numMidpoints - 2];
-        const InlineIterator& startpoint = midpoints[lineMidpointState.numMidpoints - 1];
+    if (lBreak.renderer() && lineMidpointState.numMidpoints() && !(lineMidpointState.numMidpoints() % 2)) {
+        InlineIterator* midpoints = lineMidpointState.midpoints().data();
+        InlineIterator& endpoint = midpoints[lineMidpointState.numMidpoints() - 2];
+        const InlineIterator& startpoint = midpoints[lineMidpointState.numMidpoints() - 1];
         InlineIterator currpoint = endpoint;
         while (!currpoint.atEnd() && currpoint != startpoint && currpoint != lBreak)
             currpoint.increment();
         if (currpoint == lBreak) {
             // We hit the line break before the start point. Shave off the start point.
-            lineMidpointState.numMidpoints--;
+            lineMidpointState.decreaseNumMidpoints();
             if (endpoint.renderer()->style().collapseWhiteSpace() && endpoint.renderer()->isText())
                 endpoint.setOffset(endpoint.offset() - 1);
         }
     }
 }
 
-InlineIterator BreakingContext::handleEndOfLine()
+inline InlineIterator BreakingContext::handleEndOfLine()
 {
-#if ENABLE(CSS_SHAPES)
+#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
     ShapeInsideInfo* shapeInfo = m_block.layoutShapeInsideInfo();
     bool segmentAllowsOverflow = !shapeInfo || !shapeInfo->hasSegments();
 #else

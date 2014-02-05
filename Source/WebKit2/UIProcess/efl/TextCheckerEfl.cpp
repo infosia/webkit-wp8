@@ -127,7 +127,7 @@ static int nextWordOffset(const UChar* text, int length, int currentOffset)
     //        or after "offset" (ubrk_isBoundary side effect).
     //        For many word separators, the method doesn't properly determine the boundaries
     //        without resetting the iterator.
-    TextBreakIterator* textIterator = wordBreakIterator(text, length);
+    TextBreakIterator* textIterator = wordBreakIterator(StringView(text, length));
     if (!textIterator)
         return currentOffset;
 
@@ -153,7 +153,7 @@ Vector<TextCheckingResult> TextChecker::checkTextOfParagraph(int64_t spellDocume
     Vector<TextCheckingResult> paragraphCheckingResult;
 #if ENABLE(SPELLCHECK)
     if (checkingTypes & TextCheckingTypeSpelling) {
-        TextBreakIterator* textIterator = wordBreakIterator(text, length);
+        TextBreakIterator* textIterator = wordBreakIterator(StringView(text, length));
         if (!textIterator)
             return paragraphCheckingResult;
 
@@ -272,7 +272,7 @@ void TextChecker::requestCheckingOfString(PassRefPtr<TextCheckerCompletion> comp
     ASSERT(request.mask() != TextCheckingTypeNone);
 
     String text = request.text();
-    Vector<TextCheckingResult> result = checkTextOfParagraph(completion->spellDocumentTag(), text.characters(), text.length(), request.mask());
+    Vector<TextCheckingResult> result = checkTextOfParagraph(completion->spellDocumentTag(), text.deprecatedCharacters(), text.length(), request.mask());
 
     completion->didFinishCheckingText(result);
 #else

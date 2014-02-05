@@ -27,13 +27,15 @@
 #define EventDispatcher_h
 
 #include "Connection.h"
+
+#include <WebCore/WheelEventDeltaTracker.h>
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/RefPtr.h>
 #include <wtf/ThreadingPrimitives.h>
 
 namespace WebCore {
-    class ScrollingTree;
+class ThreadedScrollingTree;
 }
 
 namespace WebKit {
@@ -58,7 +60,7 @@ private:
     EventDispatcher();
 
     // IPC::Connection::WorkQueueMessageReceiver.
-    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) OVERRIDE;
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
 
     // Message handlers
     void wheelEvent(uint64_t pageID, const WebWheelEvent&, bool canRubberBandAtLeft, bool canRubberBandAtRight, bool canRubberBandAtTop, bool canRubberBandAtBottom);
@@ -74,8 +76,9 @@ private:
 
 #if ENABLE(ASYNC_SCROLLING)
     Mutex m_scrollingTreesMutex;
-    HashMap<uint64_t, RefPtr<WebCore::ScrollingTree>> m_scrollingTrees;
+    HashMap<uint64_t, RefPtr<WebCore::ThreadedScrollingTree>> m_scrollingTrees;
 #endif
+    OwnPtr<WebCore::WheelEventDeltaTracker> m_recentWheelEventDeltaTracker;
 };
 
 } // namespace WebKit

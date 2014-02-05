@@ -23,8 +23,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGRenderingContext.h"
 
 #include "BasicShapes.h"
@@ -33,7 +31,6 @@
 #include "Page.h"
 #include "RenderLayer.h"
 #include "RenderSVGImage.h"
-#include "RenderSVGResource.h"
 #include "RenderSVGResourceClipper.h"
 #include "RenderSVGResourceFilter.h"
 #include "RenderSVGResourceMasker.h"
@@ -123,9 +120,9 @@ void SVGRenderingContext::prepareToRenderSVGContent(RenderElement& renderer, Pai
     }
 
     ClipPathOperation* clipPathOperation = style.clipPath();
-    if (clipPathOperation && clipPathOperation->type() == ClipPathOperation::SHAPE) {
+    if (clipPathOperation && clipPathOperation->type() == ClipPathOperation::Shape) {
         ShapeClipPathOperation* clipPath = static_cast<ShapeClipPathOperation*>(clipPathOperation);
-        m_paintInfo->context->clipPath(clipPath->path(renderer.objectBoundingBox()), clipPath->windRule());
+        m_paintInfo->context->clipPath(clipPath->pathForReferenceRect(renderer.objectBoundingBox()), clipPath->windRule());
     }
 
     SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(*m_renderer);
@@ -181,34 +178,32 @@ static AffineTransform& currentContentTransformation()
     return s_currentContentTransformation;
 }
 
-float SVGRenderingContext::calculateScreenFontSizeScalingFactor(const RenderObject* renderer)
+float SVGRenderingContext::calculateScreenFontSizeScalingFactor(const RenderObject& renderer)
 {
-    ASSERT(renderer);
-
     AffineTransform ctm;
     calculateTransformationToOutermostCoordinateSystem(renderer, ctm);
     return narrowPrecisionToFloat(sqrt((pow(ctm.xScale(), 2) + pow(ctm.yScale(), 2)) / 2));
 }
 
-void SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(const RenderObject* renderer, AffineTransform& absoluteTransform)
+void SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(const RenderObject& renderer, AffineTransform& absoluteTransform)
 {
-    ASSERT(renderer);
     absoluteTransform = currentContentTransformation();
 
     float deviceScaleFactor = 1;
-    if (Page* page = renderer->document().page())
+    if (Page* page = renderer.document().page())
         deviceScaleFactor = page->deviceScaleFactor();
 
     // Walk up the render tree, accumulating SVG transforms.
-    while (renderer) {
-        absoluteTransform = renderer->localToParentTransform() * absoluteTransform;
-        if (renderer->isSVGRoot())
+    const RenderObject* ancestor = &renderer;
+    while (ancestor) {
+        absoluteTransform = ancestor->localToParentTransform() * absoluteTransform;
+        if (ancestor->isSVGRoot())
             break;
-        renderer = renderer->parent();
+        ancestor = ancestor->parent();
     }
 
     // Continue walking up the layer tree, accumulating CSS transforms.
-    RenderLayer* layer = renderer ? renderer->enclosingLayer() : 0;
+    RenderLayer* layer = ancestor ? ancestor->enclosingLayer() : nullptr;
     while (layer) {
         if (TransformationMatrix* layerTransform = layer->transform())
             absoluteTransform = layerTransform->toAffineTransform() * absoluteTransform;
@@ -275,7 +270,7 @@ void SVGRenderingContext::renderSubtreeToImageBuffer(ImageBuffer* image, RenderE
     ASSERT(image);
     ASSERT(image->context());
 
-    PaintInfo info(image->context(), PaintInfo::infiniteRect(), PaintPhaseForeground, PaintBehaviorNormal);
+    PaintInfo info(image->context(), IntRect::infiniteRect(), PaintPhaseForeground, PaintBehaviorNormal);
 
     AffineTransform& contentTransformation = currentContentTransformation();
     AffineTransform savedContentTransformation = contentTransformation;
@@ -358,5 +353,3 @@ bool SVGRenderingContext::bufferForeground(std::unique_ptr<ImageBuffer>& imageBu
 }
 
 }
-
-#endif

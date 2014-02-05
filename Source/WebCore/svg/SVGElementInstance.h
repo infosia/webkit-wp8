@@ -21,7 +21,6 @@
 #ifndef SVGElementInstance_h
 #define SVGElementInstance_h
 
-#if ENABLE(SVG)
 #include "EventTarget.h"
 #include "TreeShared.h"
 
@@ -47,15 +46,15 @@ public:
 
     void setParentNode(SVGElementInstance* instance) { m_parentInstance = instance; }
 
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
+    virtual EventTargetInterface eventTargetInterface() const override;
+    virtual ScriptExecutionContext* scriptExecutionContext() const override;
 
-    virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture) OVERRIDE;
-    virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture) OVERRIDE;
-    virtual void removeAllEventListeners() OVERRIDE;
+    virtual bool addEventListener(const AtomicString& eventType, PassRefPtr<EventListener>, bool useCapture) override;
+    virtual bool removeEventListener(const AtomicString& eventType, EventListener*, bool useCapture) override;
+    virtual void removeAllEventListeners() override;
 
     using EventTarget::dispatchEvent;
-    virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
+    virtual bool dispatchEvent(PassRefPtr<Event>) override;
 
     SVGElement* correspondingElement() const { return m_element.get(); }
     SVGUseElement* correspondingUseElement() const { return m_correspondingUseElement; }
@@ -153,7 +152,7 @@ private:
     void removedLastRef();
     bool hasTreeSharedParent() const { return !!m_parentInstance; }
 
-    virtual Node* toNode() OVERRIDE;
+    virtual Node* toNode() override;
 
     void appendChild(PassRefPtr<SVGElementInstance> child);
     void setShadowTreeElement(SVGElement*);
@@ -175,10 +174,10 @@ private:
     void setNextSibling(SVGElementInstance* sibling) { m_nextSibling = sibling; }
     void setPreviousSibling(SVGElementInstance* sibling) { m_previousSibling = sibling; }    
 
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
+    virtual EventTargetData* eventTargetData() override;
+    virtual EventTargetData& ensureEventTargetData() override;
 
     SVGElementInstance* m_parentInstance;
 
@@ -196,5 +195,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

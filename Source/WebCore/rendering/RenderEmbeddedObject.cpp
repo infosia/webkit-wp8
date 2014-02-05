@@ -123,7 +123,6 @@ RenderPtr<RenderEmbeddedObject> RenderEmbeddedObject::createForApplet(HTMLApplet
     return renderer;
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 bool RenderEmbeddedObject::requiresLayer() const
 {
     if (RenderWidget::requiresLayer())
@@ -141,7 +140,6 @@ bool RenderEmbeddedObject::allowsAcceleratedCompositing() const
     return widget() && widget()->isPluginViewBase() && toPluginViewBase(widget())->platformLayer();
 #endif
 }
-#endif
 
 #if !PLATFORM(IOS)
 static String unavailablePluginReplacementText(RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)
@@ -424,7 +422,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     if (rect.isEmpty())
         return true;
 
-    RenderView* rootRenderView = document().topDocument()->renderView();
+    RenderView* rootRenderView = document().topDocument().renderView();
     ASSERT(rootRenderView);
     if (!rootRenderView)
         return true;
@@ -569,7 +567,7 @@ bool RenderEmbeddedObject::nodeAtPoint(const HitTestRequest& request, HitTestRes
     return true;
 }
 
-bool RenderEmbeddedObject::scroll(ScrollDirection direction, ScrollGranularity granularity, float, Element**)
+bool RenderEmbeddedObject::scroll(ScrollDirection direction, ScrollGranularity granularity, float, Element**, RenderBox*, const IntPoint&)
 {
     if (!widget() || !widget()->isPluginViewBase())
         return false;
@@ -656,10 +654,7 @@ CursorDirective RenderEmbeddedObject::getCursor(const LayoutPoint& point, Cursor
 bool RenderEmbeddedObject::canHaveChildren() const
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    if (!node())
-        return false;
-
-    if (toElement(node())->isMediaElement())
+    if (frameOwnerElement().isMediaElement())
         return true;
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -143,7 +143,7 @@ void JIT::emit_op_get_by_val(Instruction* currentInstruction)
     resultOK.link(this);
 #endif
 
-    emitValueProfilingSite(regT4);
+    emitValueProfilingSite();
     emitPutVirtualRegister(dst);
     
     m_byValCompilationInfo.append(ByValCompilationInfo(m_bytecodeOffset, badType, mode, done));
@@ -232,7 +232,7 @@ void JIT::emitSlow_op_get_by_val(Instruction* currentInstruction, Vector<SlowCas
     m_byValCompilationInfo[m_byValInstructionIndex].returnAddress = call;
     m_byValInstructionIndex++;
 
-    emitValueProfilingSite(regT4);
+    emitValueProfilingSite();
 }
 
 void JIT::compileGetDirectOffset(RegisterID base, RegisterID result, RegisterID offset, RegisterID scratch, FinalObjectMode finalObjectMode)
@@ -520,12 +520,12 @@ void JIT::emit_op_get_by_id(Instruction* currentInstruction)
 
     JITGetByIdGenerator gen(
         m_codeBlock, CodeOrigin(m_bytecodeOffset), RegisterSet::specialRegisters(),
-        callFrameRegister, JSValueRegs(regT0), JSValueRegs(regT0), true);
+        JSValueRegs(regT0), JSValueRegs(regT0), true);
     gen.generateFastPath(*this);
     addSlowCase(gen.slowPathJump());
     m_getByIds.append(gen);
 
-    emitValueProfilingSite(regT4);
+    emitValueProfilingSite();
     emitPutVirtualRegister(resultVReg);
 }
 
@@ -566,8 +566,8 @@ void JIT::emit_op_put_by_id(Instruction* currentInstruction)
 
     JITPutByIdGenerator gen(
         m_codeBlock, CodeOrigin(m_bytecodeOffset), RegisterSet::specialRegisters(),
-        callFrameRegister, JSValueRegs(regT0), JSValueRegs(regT1), regT2, true,
-        m_codeBlock->ecmaMode(), direct ? Direct : NotDirect);
+        JSValueRegs(regT0), JSValueRegs(regT1), regT2, true, m_codeBlock->ecmaMode(),
+        direct ? Direct : NotDirect);
     
     gen.generateFastPath(*this);
     addSlowCase(gen.slowPathJump());
@@ -743,7 +743,7 @@ void JIT::emit_op_get_from_scope(Instruction* currentInstruction)
         break;
     }
     emitPutVirtualRegister(dst);
-    emitValueProfilingSite(regT4);
+    emitValueProfilingSite();
 }
 
 void JIT::emitSlow_op_get_from_scope(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
@@ -1078,7 +1078,7 @@ void JIT::privateCompileGetByVal(ByValInfo* byValInfo, ReturnAddressPtr returnAd
     patchBuffer.link(done, byValInfo->badTypeJump.labelAtOffset(byValInfo->badTypeJumpToDone));
     
     byValInfo->stubRoutine = FINALIZE_CODE_FOR_STUB(
-        patchBuffer,
+        m_codeBlock, patchBuffer,
         ("Baseline get_by_val stub for %s, return point %p", toCString(*m_codeBlock).data(), returnAddress.value()));
     
     RepatchBuffer repatchBuffer(m_codeBlock);
@@ -1141,12 +1141,12 @@ void JIT::privateCompilePutByVal(ByValInfo* byValInfo, ReturnAddressPtr returnAd
     bool isDirect = m_interpreter->getOpcodeID(currentInstruction->u.opcode) == op_put_by_val_direct;
     if (!isDirect) {
         byValInfo->stubRoutine = FINALIZE_CODE_FOR_STUB(
-            patchBuffer,
+            m_codeBlock, patchBuffer,
             ("Baseline put_by_val stub for %s, return point %p", toCString(*m_codeBlock).data(), returnAddress.value()));
         
     } else {
         byValInfo->stubRoutine = FINALIZE_CODE_FOR_STUB(
-            patchBuffer,
+            m_codeBlock, patchBuffer,
             ("Baseline put_by_val_direct stub for %s, return point %p", toCString(*m_codeBlock).data(), returnAddress.value()));
     }
     RepatchBuffer repatchBuffer(m_codeBlock);
@@ -1281,6 +1281,7 @@ JIT::JumpList JIT::emitFloatTypedArrayGetByVal(Instruction*, PatchableJump& badT
 
 JIT::JumpList JIT::emitIntTypedArrayPutByVal(Instruction* currentInstruction, PatchableJump& badType, TypedArrayType type)
 {
+    ArrayProfile* profile = currentInstruction[4].u.arrayProfile;
     ASSERT(isInt(type));
     
     int value = currentInstruction[3].u.operand;
@@ -1301,7 +1302,10 @@ JIT::JumpList JIT::emitIntTypedArrayPutByVal(Instruction* currentInstruction, Pa
     
     loadPtr(Address(base, JSCell::structureOffset()), earlyScratch);
     badType = patchableBranchPtr(NotEqual, Address(earlyScratch, Structure::classInfoOffset()), TrustedImmPtr(classInfoForType(type)));
-    slowCases.append(branch32(AboveOrEqual, property, Address(base, JSArrayBufferView::offsetOfLength())));
+    Jump inBounds = branch32(Below, property, Address(base, JSArrayBufferView::offsetOfLength()));
+    emitArrayProfileOutOfBoundsSpecialCase(profile);
+    Jump done = jump();
+    inBounds.link(this);
     
 #if USE(JSVALUE64)
     emitGetVirtualRegister(value, earlyScratch);
@@ -1342,11 +1346,14 @@ JIT::JumpList JIT::emitIntTypedArrayPutByVal(Instruction* currentInstruction, Pa
         CRASH();
     }
     
+    done.link(this);
+    
     return slowCases;
 }
 
 JIT::JumpList JIT::emitFloatTypedArrayPutByVal(Instruction* currentInstruction, PatchableJump& badType, TypedArrayType type)
 {
+    ArrayProfile* profile = currentInstruction[4].u.arrayProfile;
     ASSERT(isFloat(type));
     
     int value = currentInstruction[3].u.operand;
@@ -1367,7 +1374,10 @@ JIT::JumpList JIT::emitFloatTypedArrayPutByVal(Instruction* currentInstruction, 
     
     loadPtr(Address(base, JSCell::structureOffset()), earlyScratch);
     badType = patchableBranchPtr(NotEqual, Address(earlyScratch, Structure::classInfoOffset()), TrustedImmPtr(classInfoForType(type)));
-    slowCases.append(branch32(AboveOrEqual, property, Address(base, JSArrayBufferView::offsetOfLength())));
+    Jump inBounds = branch32(Below, property, Address(base, JSArrayBufferView::offsetOfLength()));
+    emitArrayProfileOutOfBoundsSpecialCase(profile);
+    Jump done = jump();
+    inBounds.link(this);
     
 #if USE(JSVALUE64)
     emitGetVirtualRegister(value, earlyScratch);
@@ -1405,6 +1415,8 @@ JIT::JumpList JIT::emitFloatTypedArrayPutByVal(Instruction* currentInstruction, 
     default:
         CRASH();
     }
+    
+    done.link(this);
     
     return slowCases;
 }

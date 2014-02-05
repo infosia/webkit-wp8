@@ -27,11 +27,11 @@
 
 #if PLATFORM(IOS)
 
-#include "PlaceholderDocument.h"
+#include "Document.h"
 
 namespace WebCore {
 
-class PDFDocument : public PlaceholderDocument {
+class PDFDocument : public Document {
 public:
     static PassRefPtr<PDFDocument> create(Frame* frame, const URL& url)
     {
@@ -39,11 +39,11 @@ public:
     }
 private:
     PDFDocument(Frame* frame, const URL& url)
-        : PlaceholderDocument(frame, url)
+        : Document(frame, url, DefaultDocumentClass, NonRenderedPlaceholder)
     {
     }
 
-    virtual PassRefPtr<DocumentParser> createParser() OVERRIDE;
+    virtual PassRefPtr<DocumentParser> createParser() override;
 };
     
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -135,7 +135,7 @@ private:
         case JSConstant:
         case WeakJSConstant: {
             SpeculatedType type = speculationFromValue(m_graph.valueOfJSConstant(node));
-            if (type == SpecInt52AsDouble)
+            if (type == SpecInt52AsDouble && enableInt52())
                 type = SpecInt52;
             changed |= setPrediction(type);
             break;
@@ -164,11 +164,6 @@ private:
         case BitLShift:
         case BitURShift:
         case ArithIMul: {
-            changed |= setPrediction(SpecInt32);
-            break;
-        }
-            
-        case ValueToInt32: {
             changed |= setPrediction(SpecInt32);
             break;
         }
@@ -510,7 +505,8 @@ private:
         case InvalidationPoint:
         case Int52ToValue:
         case Int52ToDouble:
-        case CheckInBounds: {
+        case CheckInBounds:
+        case ValueToInt32: {
             // This node should never be visible at this stage of compilation. It is
             // inserted by fixup(), which follows this phase.
             RELEASE_ASSERT_NOT_REACHED();
@@ -558,6 +554,8 @@ private:
         case Branch:
         case Switch:
         case Breakpoint:
+        case ProfileWillCall:
+        case ProfileDidCall:
         case CheckHasInstance:
         case ThrowReferenceError:
         case ForceOSRExit:
