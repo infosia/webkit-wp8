@@ -135,10 +135,16 @@ static void vprintf_stderr_common(const char* format, va_list args)
                     if (!(wideBuffer[i] = buffer[i]))
                         break;
                 }
-                OutputDebugStringW(wideBuffer);
+// Problem: Windows Store/Phone doesn't allow OutputDebugString so we must remove it.
+#if defined(_DEBUG)
+				OutputDebugStringW(wideBuffer);
+#endif
                 free(wideBuffer);
 #else
-                OutputDebugStringA(buffer);
+// Problem: Windows Store/Phone doesn't allow OutputDebugString so we must remove it.
+#if defined(_DEBUG)
+				OutputDebugStringA(buffer);
+#endif
 #endif
                 free(buffer);
                 break;
