@@ -69,6 +69,10 @@
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/Settings.h>
 
+#if PLATFORM(IOS)
+#include "WebVideoFullscreenManager.h"
+#endif
+
 #if ENABLE(ASYNC_SCROLLING)
 #include "RemoteScrollingCoordinator.h"
 #endif
@@ -122,7 +126,7 @@ void WebChromeClient::setWindowRect(const FloatRect& windowFrame)
 
 FloatRect WebChromeClient::windowRect()
 {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (m_page->hasCachedWindowFrame())
         return m_page->windowFrameInUnflippedScreenCoordinates();
 #endif
@@ -150,7 +154,7 @@ void WebChromeClient::unfocus()
     m_page->send(Messages::WebPageProxy::SetFocus(false));
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 void WebChromeClient::makeFirstResponder()
 {
     m_page->send(Messages::WebPageProxy::MakeFirstResponder());
@@ -423,12 +427,12 @@ IntRect WebChromeClient::windowResizerRect() const
     return m_page->windowResizerRect();
 }
 
-void WebChromeClient::invalidateRootView(const IntRect&, bool)
+void WebChromeClient::invalidateRootView(const IntRect&)
 {
     // Do nothing here, there's no concept of invalidating the window in the web process.
 }
 
-void WebChromeClient::invalidateContentsAndRootView(const IntRect& rect, bool)
+void WebChromeClient::invalidateContentsAndRootView(const IntRect& rect)
 {
     if (Document* document = m_page->corePage()->mainFrame().document()) {
         if (document->printing())
@@ -438,7 +442,7 @@ void WebChromeClient::invalidateContentsAndRootView(const IntRect& rect, bool)
     m_page->drawingArea()->setNeedsDisplayInRect(rect);
 }
 
-void WebChromeClient::invalidateContentsForSlowScroll(const IntRect& rect, bool)
+void WebChromeClient::invalidateContentsForSlowScroll(const IntRect& rect)
 {
     if (Document* document = m_page->corePage()->mainFrame().document()) {
         if (document->printing())
@@ -468,12 +472,12 @@ void WebChromeClient::delegatedScrollRequested(const IntPoint& scrollOffset)
 
 IntPoint WebChromeClient::screenToRootView(const IntPoint& point) const
 {
-    return m_page->screenToWindow(point);
+    return m_page->screenToRootView(point);
 }
 
 IntRect WebChromeClient::rootViewToScreen(const IntRect& rect) const
 {
-    return m_page->windowToScreen(rect);
+    return m_page->rootViewToScreen(rect);
 }
 
 PlatformPageClient WebChromeClient::platformPageClient() const
@@ -499,9 +503,6 @@ void WebChromeClient::contentsSizeChanged(Frame* frame, const IntSize& size) con
     if (m_page->useFixedLayout())
         m_page->drawingArea()->layerTreeHost()->sizeDidChange(size);
 
-    m_page->send(Messages::WebPageProxy::DidChangeContentSize(size));
-#endif
-#if PLATFORM(IOS)
     m_page->send(Messages::WebPageProxy::DidChangeContentSize(size));
 #endif
 
@@ -662,18 +663,6 @@ void WebChromeClient::populateVisitedLinks()
 {
 }
 
-FloatRect WebChromeClient::customHighlightRect(Node*, const AtomicString& /*type*/, const FloatRect& /*lineRect*/)
-{
-    notImplemented();
-    return FloatRect();
-}
-
-void WebChromeClient::paintCustomHighlight(Node*, const AtomicString& /*type*/, const FloatRect& /*boxRect*/, const FloatRect& /*lineRect*/, 
-                                           bool /*behindText*/, bool /*entireLine*/)
-{
-    notImplemented();
-}
-
 bool WebChromeClient::shouldReplaceWithGeneratedFileForUpload(const String& path, String& generatedFilename)
 {
     generatedFilename = m_page->injectedBundleUIClient().shouldGenerateFileForUpload(m_page, path);
@@ -733,11 +722,6 @@ void WebChromeClient::scheduleAnimation()
 #endif
 }
 #endif
-
-void WebChromeClient::formStateDidChange(const Node*)
-{
-    notImplemented();
-}
 
 void WebChromeClient::didAssociateFormControls(const Vector<RefPtr<WebCore::Element>>& elements)
 {
@@ -823,13 +807,23 @@ PassRefPtr<ScrollingCoordinator> WebChromeClient::createScrollingCoordinator(Pag
 }
 #endif
 
-#if ENABLE(TOUCH_EVENTS)
-void WebChromeClient::needTouchEvents(bool needTouchEvents)
+#if PLATFORM(IOS)
+bool WebChromeClient::supportsFullscreenForNode(const WebCore::Node* node)
 {
-    m_page->send(Messages::WebPageProxy::NeedTouchEvents(needTouchEvents));
+    return m_page->videoFullscreenManager()->supportsFullscreen(node);
+}
+
+void WebChromeClient::enterFullscreenForNode(WebCore::Node* node)
+{
+    m_page->videoFullscreenManager()->enterFullscreenForNode(node);
+}
+
+void WebChromeClient::exitFullscreenForNode(WebCore::Node* node)
+{
+    m_page->videoFullscreenManager()->exitFullscreenForNode(node);
 }
 #endif
-
+    
 #if ENABLE(FULLSCREEN_API)
 bool WebChromeClient::supportsFullScreenForElement(const WebCore::Element*, bool withKeyboard)
 {
@@ -847,12 +841,18 @@ void WebChromeClient::exitFullScreenForElement(WebCore::Element* element)
 }
 #endif
 
+#if PLATFORM(IOS)
+FloatSize WebChromeClient::viewportScreenSize() const
+{
+    return m_page->viewportScreenSize();
+}
+#endif
+
 void WebChromeClient::dispatchViewportPropertiesDidChange(const ViewportArguments& viewportArguments) const
 {
-#if PLATFORM(IOS)
-    m_page->send(Messages::WebPageProxy::DidChangeViewportArguments(viewportArguments));
-#else
     UNUSED_PARAM(viewportArguments);
+#if PLATFORM(IOS)
+    m_page->viewportPropertiesDidChange(viewportArguments);
 #endif
 #if USE(TILED_BACKING_STORE)
     if (!m_page->useFixedLayout())
@@ -875,6 +875,15 @@ void WebChromeClient::recommendedScrollbarStyleDidChange(int32_t newStyle)
 Color WebChromeClient::underlayColor() const
 {
     return m_page->underlayColor();
+}
+
+void WebChromeClient::pageExtendedBackgroundColorDidChange(Color backgroundColor) const
+{
+#if PLATFORM(MAC)
+    m_page->send(Messages::WebPageProxy::PageExtendedBackgroundColorDidChange(backgroundColor));
+#else
+    UNUSED_PARAM(backgroundColor);
+#endif
 }
 
 void WebChromeClient::numWheelEventHandlersChanged(unsigned count)
@@ -945,14 +954,23 @@ bool WebChromeClient::shouldUseTiledBackingForFrameView(const FrameView* frameVi
     return m_page->drawingArea()->shouldUseTiledBackingForFrameView(frameView);
 }
 
-void WebChromeClient::incrementActivePageCount()
+#if ENABLE(SUBTLE_CRYPTO)
+bool WebChromeClient::wrapCryptoKey(const Vector<uint8_t>& key, Vector<uint8_t>& wrappedKey) const
 {
-    WebProcess::shared().incrementActiveTaskCount();
+    bool succeeded;
+    if (!WebProcess::shared().parentProcessConnection()->sendSync(Messages::WebPageProxy::WrapCryptoKey(key), Messages::WebPageProxy::WrapCryptoKey::Reply(succeeded, wrappedKey), m_page->pageID()))
+        return false;
+    return succeeded;
 }
 
-void WebChromeClient::decrementActivePageCount()
+bool WebChromeClient::unwrapCryptoKey(const Vector<uint8_t>& wrappedKey, Vector<uint8_t>& key) const
 {
-    WebProcess::shared().decrementActiveTaskCount();
+    bool succeeded;
+    if (!WebProcess::shared().parentProcessConnection()->sendSync(Messages::WebPageProxy::UnwrapCryptoKey(wrappedKey), Messages::WebPageProxy::UnwrapCryptoKey::Reply(succeeded, key), m_page->pageID()))
+        return false;
+    return succeeded;
 }
+#endif
+
 
 } // namespace WebKit

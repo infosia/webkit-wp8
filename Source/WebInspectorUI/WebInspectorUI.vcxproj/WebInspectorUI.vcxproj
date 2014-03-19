@@ -236,7 +236,6 @@
     <None Include="..\UserInterface\ApplicationCacheManifest.js" />
     <None Include="..\UserInterface\ApplicationCacheManifestTreeElement.js" />
     <None Include="..\UserInterface\ApplicationCacheObserver.js" />
-    <None Include="..\UserInterface\BinarySearch.js" />
     <None Include="..\UserInterface\BlankStylePropertiesSection.js" />
     <None Include="..\UserInterface\BottomUpProfileDataGridTree.js" />
     <None Include="..\UserInterface\BoxModelDetailsSectionRow.css" />
@@ -623,8 +622,6 @@
     <None Include="..\UserInterface\IndeterminateProgressSpinner.css" />
     <None Include="..\UserInterface\IndeterminateProgressSpinner.js" />
     <None Include="..\UserInterface\InspectorBackend.js" />
-    <None Include="..\UserInterface\InspectorJSBackendCommands.js" />
-    <None Include="..\UserInterface\InspectorWebBackendCommands.js" />
     <None Include="..\UserInterface\InspectorFrontendAPI.js" />
     <None Include="..\UserInterface\InspectorFrontendHostStub.js" />
     <None Include="..\UserInterface\InspectorObserver.js" />

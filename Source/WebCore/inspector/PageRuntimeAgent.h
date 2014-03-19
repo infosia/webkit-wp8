@@ -35,7 +35,6 @@
 
 #include <inspector/InspectorJSFrontendDispatchers.h>
 #include <inspector/agents/InspectorRuntimeAgent.h>
-#include <wtf/PassOwnPtr.h>
 
 namespace JSC {
 class ExecState;
@@ -67,7 +66,7 @@ public:
     void didCreateIsolatedContext(Frame*, JSC::ExecState*, SecurityOrigin*);
 
 private:
-    virtual JSC::VM* globalVM() override;
+    virtual JSC::VM& globalVM() override;
     virtual Inspector::InjectedScript injectedScriptForEval(ErrorString*, const int* executionContextId) override;
     virtual void muteConsole() override;
     virtual void unmuteConsole() override;

@@ -63,7 +63,7 @@ public:
     virtual EventResult tryToHandleWheelEvent(const PlatformWheelEvent&) = 0;
     bool shouldHandleWheelEventSynchronously(const PlatformWheelEvent&);
     
-    virtual void scrollPositionChangedViaDelegatedScrolling(ScrollingNodeID, const IntPoint&);
+    virtual void viewportChangedViaDelegatedScrolling(ScrollingNodeID, const WebCore::FloatRect& viewportRect, double scale);
 
     void setMainFrameIsRubberBanding(bool);
     bool isRubberBandInProgress();
@@ -76,7 +76,9 @@ public:
     virtual void scrollingTreeNodeDidScroll(ScrollingNodeID, const FloatPoint& scrollPosition, SetOrSyncScrollingLayerPosition = SyncScrollingLayerPosition) = 0;
     FloatPoint mainFrameScrollPosition();
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+    bool isPointInNonFastScrollableRegion(IntPoint);
+    
+#if PLATFORM(MAC)
     virtual void handleWheelEventPhase(PlatformWheelEventPhase) = 0;
 #endif
 

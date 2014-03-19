@@ -20,16 +20,17 @@
 #ifndef AcceleratedCompositingContextEfl_h
 #define AcceleratedCompositingContextEfl_h
 
-#include <wtf/Noncopyable.h>
-#include <wtf/PassOwnPtr.h>
-
 #if USE(TEXTURE_MAPPER_GL)
-
+#include "EvasGLContext.h"
+#include "EvasGLSurface.h"
 #include "TextureMapperFPSCounter.h"
-#include "ewk_private.h"
+#include "Timer.h"
+#include <wtf/Noncopyable.h>
+#include <wtf/OwnPtr.h>
 
 namespace WebCore {
 
+class GraphicsLayer;
 class HostWindow;
 class TextureMapper;
 class TextureMapperLayer;
@@ -37,26 +38,34 @@ class TextureMapperLayer;
 class AcceleratedCompositingContext {
     WTF_MAKE_NONCOPYABLE(AcceleratedCompositingContext);
 public:
-    static PassOwnPtr<AcceleratedCompositingContext> create(HostWindow*);
-    virtual ~AcceleratedCompositingContext();
+    AcceleratedCompositingContext(Evas_Object* ewkView, Evas_Object* compositingObject);
+    ~AcceleratedCompositingContext();
 
-    virtual void syncLayersNow();
-    virtual void renderLayers();
-    virtual void attachRootGraphicsLayer(GraphicsLayer* rootLayer);
-    virtual GraphicsContext3D* context();
+    bool initialize();
+
+    bool resize(const IntSize&);
+    void attachRootGraphicsLayer(GraphicsLayer* rootLayer);
+
+    void flushAndRenderLayers();
+    bool flushPendingLayerChanges();
+    void compositeLayersToContext();
+
+    bool canComposite();
+
+    void syncLayers(Timer<AcceleratedCompositingContext>*);
 
 private:
-    AcceleratedCompositingContext();
-
-    virtual bool initialize(HostWindow*);
-
     Evas_Object* m_view;
+    Evas_Object* m_compositingObject;
 
     OwnPtr<TextureMapper> m_textureMapper;
     std::unique_ptr<GraphicsLayer> m_rootGraphicsLayer;
-    TextureMapperLayer* m_rootTextureMapperLayer;
+    Timer<AcceleratedCompositingContext> m_syncTimer;
 
-    RefPtr<GraphicsContext3D> m_context3D;
+    OwnPtr<Evas_GL> m_evasGL;
+    OwnPtr<EvasGLContext> m_evasGLContext;
+    OwnPtr<EvasGLSurface> m_evasGLSurface;
+
     TextureMapperFPSCounter m_fpsCounter;
 };
 

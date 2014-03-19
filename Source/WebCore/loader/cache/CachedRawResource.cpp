@@ -35,8 +35,8 @@
 
 namespace WebCore {
 
-CachedRawResource::CachedRawResource(ResourceRequest& resourceRequest, Type type)
-    : CachedResource(resourceRequest, type)
+CachedRawResource::CachedRawResource(ResourceRequest& resourceRequest, Type type, SessionID sessionID)
+    : CachedResource(resourceRequest, type, sessionID)
     , m_identifier(0)
 {
     // FIXME: The wrong CachedResource::Type here may cause a bad cast elsewhere.
@@ -201,7 +201,7 @@ void CachedRawResource::setDataBufferingPolicy(DataBufferingPolicy dataBuffering
 static bool shouldIgnoreHeaderForCacheReuse(AtomicString headerName)
 {
     // FIXME: This list of headers that don't affect cache policy almost certainly isn't complete.
-    DEFINE_STATIC_LOCAL(HashSet<AtomicString>, m_headers, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<AtomicString>, m_headers, ());
     if (m_headers.isEmpty()) {
         m_headers.add("Accept");
         m_headers.add("Cache-Control");

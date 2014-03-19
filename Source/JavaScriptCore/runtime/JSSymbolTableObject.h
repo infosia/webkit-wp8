@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -72,7 +72,7 @@ inline bool symbolTableGet(
 {
     SymbolTable& symbolTable = *object->symbolTable();
     ConcurrentJITLocker locker(symbolTable.m_lock);
-    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.publicName());
+    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.uid());
     if (iter == symbolTable.end(locker))
         return false;
     SymbolTableEntry::Fast entry = iter->value;
@@ -87,7 +87,7 @@ inline bool symbolTableGet(
 {
     SymbolTable& symbolTable = *object->symbolTable();
     ConcurrentJITLocker locker(symbolTable.m_lock);
-    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.publicName());
+    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.uid());
     if (iter == symbolTable.end(locker))
         return false;
     SymbolTableEntry::Fast entry = iter->value;
@@ -104,7 +104,7 @@ inline bool symbolTableGet(
 {
     SymbolTable& symbolTable = *object->symbolTable();
     ConcurrentJITLocker locker(symbolTable.m_lock);
-    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.publicName());
+    SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.uid());
     if (iter == symbolTable.end(locker))
         return false;
     SymbolTableEntry::Fast entry = iter->value;
@@ -126,7 +126,7 @@ inline bool symbolTablePut(
     {
         SymbolTable& symbolTable = *object->symbolTable();
         GCSafeConcurrentJITLocker locker(symbolTable.m_lock, exec->vm().heap);
-        SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.publicName());
+        SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.uid());
         if (iter == symbolTable.end(locker))
             return false;
         bool wasFat;
@@ -159,7 +159,7 @@ inline bool symbolTablePutWithAttributes(
     {
         SymbolTable& symbolTable = *object->symbolTable();
         ConcurrentJITLocker locker(symbolTable.m_lock);
-        SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.publicName());
+        SymbolTable::Map::iterator iter = symbolTable.find(locker, propertyName.uid());
         if (iter == symbolTable.end(locker))
             return false;
         SymbolTableEntry& entry = iter->value;

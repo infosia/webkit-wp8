@@ -43,6 +43,8 @@
 #include "ScriptState.h"
 #include <inspector/InjectedScript.h>
 #include <inspector/InjectedScriptManager.h>
+#include <inspector/ScriptCallStack.h>
+#include <inspector/ScriptCallStackFactory.h>
 
 using namespace Inspector;
 
@@ -69,8 +71,8 @@ void PageDebuggerAgent::disable(bool isBeingDestroyed)
 
 String PageDebuggerAgent::sourceMapURLForScript(const Script& script)
 {
-    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeader, (ASCIILiteral("SourceMap")));
-    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeaderDeprecated, (ASCIILiteral("X-SourceMap")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeader, (ASCIILiteral("SourceMap")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeaderDeprecated, (ASCIILiteral("X-SourceMap")));
 
     if (!script.url.isEmpty()) {
         CachedResource* resource = m_pageAgent->cachedResource(m_pageAgent->mainFrame(), URL(ParsedURLString, script.url));
@@ -113,9 +115,9 @@ void PageDebuggerAgent::unmuteConsole()
     PageConsole::unmute();
 }
 
-void PageDebuggerAgent::breakpointActionLog(JSC::ExecState*, const String& message)
+void PageDebuggerAgent::breakpointActionLog(JSC::ExecState* exec, const String& message)
 {
-    m_pageAgent->page()->console().addMessage(JSMessageSource, LogMessageLevel, message);
+    m_pageAgent->page()->console().addMessage(MessageSource::JS, MessageLevel::Log, message, createScriptCallStack(exec, ScriptCallStack::maxCallStackSizeToCapture));
 }
 
 InjectedScript PageDebuggerAgent::injectedScriptForEval(ErrorString* errorString, const int* executionContextId)

@@ -29,6 +29,7 @@
 #if ENABLE(NETSCAPE_PLUGIN_API)
 
 #include "ChildProcess.h"
+#include <WebCore/CountedUserActivity.h>
 #include <wtf/Forward.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/WTFString.h>
@@ -51,7 +52,7 @@ public:
 
     const String& pluginPath() const { return m_pluginPath; }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     void setModalWindowIsShowing(bool);
     void setFullscreenWindowIsShowing(bool);
 
@@ -62,6 +63,8 @@ public:
     bool openURL(const String& urlString, int32_t& status, String& launchedURLString);
     bool openFile(const String& urlString);
 #endif
+
+    CountedUserActivity& connectionActivity() { return m_connectionActivity; }
 
 private:
     PluginProcess();
@@ -74,7 +77,7 @@ private:
     virtual bool shouldTerminate() override;
     void platformInitializeProcess(const ChildProcessInitializationParameters&);
 
-#if PLATFORM(MAC)
+#if USE(APPKIT)
     virtual void stopRunLoop() override;
 #endif
 
@@ -100,7 +103,7 @@ private:
     // The plug-in path.
     String m_pluginPath;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     String m_pluginBundleIdentifier;
 #endif
 
@@ -111,12 +114,13 @@ private:
 
     RunLoop::Timer<PluginProcess> m_minimumLifetimeTimer;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // The Mach port used for accelerated compositing.
     mach_port_t m_compositingRenderServerPort;
 #endif
 
     static void lowMemoryHandler(bool critical);
+    CountedUserActivity m_connectionActivity;
 };
 
 } // namespace WebKit

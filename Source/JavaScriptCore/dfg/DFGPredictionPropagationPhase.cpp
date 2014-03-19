@@ -30,7 +30,7 @@
 
 #include "DFGGraph.h"
 #include "DFGPhase.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -176,6 +176,7 @@ private:
         case GetByIdFlush:
         case GetMyArgumentByValSafe:
         case GetByOffset:
+        case MultiGetByOffset:
         case Call:
         case Construct:
         case GetGlobalVar:
@@ -344,7 +345,6 @@ private:
         case CompareEq:
         case CompareEqConstant:
         case CompareStrictEq:
-        case CompareStrictEqConstant:
         case InstanceOf:
         case IsUndefined:
         case IsBoolean:
@@ -506,7 +506,8 @@ private:
         case Int52ToValue:
         case Int52ToDouble:
         case CheckInBounds:
-        case ValueToInt32: {
+        case ValueToInt32:
+        case HardPhantom: {
             // This node should never be visible at this stage of compilation. It is
             // inserted by fixup(), which follows this phase.
             RELEASE_ASSERT_NOT_REACHED();
@@ -540,7 +541,6 @@ private:
 #ifndef NDEBUG
         // These get ignored because they don't return anything.
         case StoreBarrier:
-        case ConditionalStoreBarrier:
         case StoreBarrierWithNullCheck:
         case PutByValDirect:
         case PutByVal:
@@ -548,8 +548,10 @@ private:
         case Return:
         case Throw:
         case PutById:
+        case PutByIdFlush:
         case PutByIdDirect:
         case PutByOffset:
+        case MultiPutByOffset:
         case DFG::Jump:
         case Branch:
         case Switch:

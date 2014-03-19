@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,6 +41,7 @@
 #include "TextCheckerClient.h"
 #include "TextCheckingHelper.h"
 #include "TextEvent.h"
+#include "TextIterator.h"
 #include "VisibleUnits.h"
 #include "htmlediting.h"
 #include "markup.h"
@@ -84,7 +85,7 @@ private:
 
 static const Vector<DocumentMarker::MarkerType>& markerTypesForAutocorrection()
 {
-    DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForAutoCorrection, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForAutoCorrection, ());
     if (markerTypesForAutoCorrection.isEmpty()) {
         markerTypesForAutoCorrection.append(DocumentMarker::Replacement);
         markerTypesForAutoCorrection.append(DocumentMarker::CorrectionIndicator);
@@ -96,7 +97,7 @@ static const Vector<DocumentMarker::MarkerType>& markerTypesForAutocorrection()
 
 static const Vector<DocumentMarker::MarkerType>& markerTypesForReplacement()
 {
-    DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForReplacement, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForReplacement, ());
     if (markerTypesForReplacement.isEmpty()) {
         markerTypesForReplacement.append(DocumentMarker::Replacement);
         markerTypesForReplacement.append(DocumentMarker::SpellCheckingExemption);
@@ -106,7 +107,7 @@ static const Vector<DocumentMarker::MarkerType>& markerTypesForReplacement()
 
 static const Vector<DocumentMarker::MarkerType>& markerTypesForAppliedDictationAlternative()
 {
-    DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForAppliedDictationAlternative, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<DocumentMarker::MarkerType>, markerTypesForAppliedDictationAlternative, ());
     if (markerTypesForAppliedDictationAlternative.isEmpty())
         markerTypesForAppliedDictationAlternative.append(DocumentMarker::SpellCheckingExemption);
     return markerTypesForAppliedDictationAlternative;
@@ -314,7 +315,7 @@ void AlternativeTextController::respondToUnappliedSpellCorrection(const VisibleS
     if (AlternativeTextClient* client = alternativeTextClient())
         client->recordAutocorrectionResponse(AutocorrectionReverted, corrected, correction);
     m_frame.document()->updateLayout();
-    m_frame.selection().setSelection(selectionOfCorrected, FrameSelection::CloseTyping | FrameSelection::ClearTypingStyle | FrameSelection::SpellCorrectionTriggered);
+    m_frame.selection().setSelection(selectionOfCorrected, FrameSelection::defaultSetSelectionOptions() | FrameSelection::SpellCorrectionTriggered);
     RefPtr<Range> range = Range::create(*m_frame.document(), m_frame.selection().selection().start(), m_frame.selection().selection().end());
 
     DocumentMarkerController& markers = m_frame.document()->markers();
@@ -440,7 +441,7 @@ FloatRect AlternativeTextController::rootViewRectForRange(const Range* range) co
     return view->contentsToRootView(IntRect(boundingRect));
 }        
 
-void AlternativeTextController::respondToChangedSelection(const VisibleSelection& oldSelection, FrameSelection::SetSelectionOptions options)
+void AlternativeTextController::respondToChangedSelection(const VisibleSelection& oldSelection)
 {
     VisibleSelection currentSelection(m_frame.selection().selection());
     // When user moves caret to the end of autocorrected word and pauses, we show the panel
@@ -473,7 +474,7 @@ void AlternativeTextController::respondToChangedSelection(const VisibleSelection
         if (!marker)
             continue;
 
-        if (respondToMarkerAtEndOfWord(*marker, position, options))
+        if (respondToMarkerAtEndOfWord(*marker, position))
             break;
     }
 }
@@ -625,10 +626,8 @@ bool AlternativeTextController::shouldStartTimerFor(const WebCore::DocumentMarke
     return (((marker.type() == DocumentMarker::Replacement && !marker.description().isNull()) || marker.type() == DocumentMarker::Spelling || marker.type() == DocumentMarker::DictationAlternatives) && static_cast<int>(marker.endOffset()) == endOffset);
 }
 
-bool AlternativeTextController::respondToMarkerAtEndOfWord(const DocumentMarker& marker, const Position& endOfWordPosition, FrameSelection::SetSelectionOptions options)
+bool AlternativeTextController::respondToMarkerAtEndOfWord(const DocumentMarker& marker, const Position& endOfWordPosition)
 {
-    if (options & FrameSelection::DictationTriggered)
-        return false;
     if (!shouldStartTimerFor(marker, endOfWordPosition.offsetInContainerNode()))
         return false;
     Node* node = endOfWordPosition.containerNode();

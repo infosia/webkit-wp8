@@ -62,6 +62,9 @@ void ScrollingTreeScrollingNodeIOS::updateBeforeChildren(const ScrollingStateNod
     if (scrollingStateNode.hasChangedProperty(ScrollingStateNode::ScrollLayer))
         m_scrollLayer = scrollingStateNode.layer();
 
+    if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::ScrolledContentsLayer))
+        m_scrolledContentsLayer = scrollingStateNode.scrolledContentsLayer();
+
     if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::CounterScrollingLayer))
         m_counterScrollingLayer = scrollingStateNode.counterScrollingLayer();
 
@@ -129,37 +132,56 @@ void ScrollingTreeScrollingNodeIOS::setScrollPositionWithoutContentEdgeConstrain
 void ScrollingTreeScrollingNodeIOS::setScrollLayerPosition(const FloatPoint& position)
 {
     ASSERT(!shouldUpdateScrollLayerPositionSynchronously());
-    m_scrollLayer.get().position = CGPointMake(-position.x() + scrollOrigin().x(), -position.y() + scrollOrigin().y());
+    [m_scrollLayer setPosition:CGPointMake(-position.x() + scrollOrigin().x(), -position.y() + scrollOrigin().y())];
 
     ScrollBehaviorForFixedElements behaviorForFixed = scrollBehaviorForFixedElements();
     FloatPoint scrollOffset = position - toIntSize(scrollOrigin());
+    FloatRect viewportRect(FloatPoint(), viewportSize());
+    
     // FIXME: scrollOffsetForFixedPosition() needs to do float math.
-    FloatSize scrollOffsetForFixedChildren = FrameView::scrollOffsetForFixedPosition(enclosingIntRect(viewportConstrainedObjectRect()), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), frameScaleFactor(), false, behaviorForFixed, headerHeight(), footerHeight());
-    if (m_counterScrollingLayer)
-        m_counterScrollingLayer.get().position = FloatPoint(scrollOffsetForFixedChildren);
+    FloatSize scrollOffsetForFixedChildren = FrameView::scrollOffsetForFixedPosition(enclosingLayoutRect(viewportRect), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), frameScaleFactor(), false, behaviorForFixed, headerHeight(), footerHeight());
 
-    // Generally the banners should have the same horizontal-position computation as a fixed element. However,
-    // the banners are not affected by the frameScaleFactor(), so if there is currently a non-1 frameScaleFactor()
-    // then we should recompute scrollOffsetForFixedChildren for the banner with a scale factor of 1.
-    float horizontalScrollOffsetForBanner = scrollOffsetForFixedChildren.width();
-    if (frameScaleFactor() != 1)
-        horizontalScrollOffsetForBanner = FrameView::scrollOffsetForFixedPosition(enclosingIntRect(viewportConstrainedObjectRect()), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), 1, false, behaviorForFixed, headerHeight(), footerHeight()).width();
+    [m_counterScrollingLayer setPosition:FloatPoint(scrollOffsetForFixedChildren)];
 
-    if (m_headerLayer)
-        m_headerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, 0);
+    if (m_headerLayer || m_footerLayer) {
+        // Generally the banners should have the same horizontal-position computation as a fixed element. However,
+        // the banners are not affected by the frameScaleFactor(), so if there is currently a non-1 frameScaleFactor()
+        // then we should recompute scrollOffsetForFixedChildren for the banner with a scale factor of 1.
+        float horizontalScrollOffsetForBanner = scrollOffsetForFixedChildren.width();
+        if (frameScaleFactor() != 1)
+            horizontalScrollOffsetForBanner = FrameView::scrollOffsetForFixedPosition(enclosingLayoutRect(viewportRect), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), 1, false, behaviorForFixed, headerHeight(), footerHeight()).width();
 
-    if (m_footerLayer)
-        m_footerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, totalContentsSize().height() - footerHeight());
+        if (m_headerLayer)
+            [m_headerLayer setPosition:FloatPoint(horizontalScrollOffsetForBanner, 0)];
+
+        if (m_footerLayer)
+            [m_footerLayer setPosition:FloatPoint(horizontalScrollOffsetForBanner, totalContentsSize().height() - footerHeight())];
+    }
+    
+    if (!m_children)
+        return;
+    
+    viewportRect.setLocation(scrollOffset);
+    
+    FloatRect viewportConstrainedObjectsRect = FrameView::rectForViewportConstrainedObjects(enclosingLayoutRect(viewportRect), totalContentsSize(), frameScaleFactor(), false, behaviorForFixed);
+    
+    size_t size = m_children->size();
+    for (size_t i = 0; i < size; ++i)
+        m_children->at(i)->parentScrollPositionDidChange(viewportConstrainedObjectsRect, FloatSize());
+}
+
+void ScrollingTreeScrollingNodeIOS::updateForViewport(const FloatRect& viewportRect, double scale)
+{
+    [m_counterScrollingLayer setPosition:viewportRect.location()];
 
     if (!m_children)
         return;
 
-    FloatRect viewportRect = viewportConstrainedObjectRect();
-    viewportRect.setLocation(FloatPoint() + scrollOffsetForFixedChildren);
+    FloatRect viewportConstrainedObjectsRect = FrameView::rectForViewportConstrainedObjects(enclosingLayoutRect(viewportRect), totalContentsSize(), scale, false, scrollBehaviorForFixedElements());
 
     size_t size = m_children->size();
     for (size_t i = 0; i < size; ++i)
-        m_children->at(i)->parentScrollPositionDidChange(viewportRect, FloatSize());
+        m_children->at(i)->parentScrollPositionDidChange(viewportConstrainedObjectsRect, FloatSize());
 }
 
 FloatPoint ScrollingTreeScrollingNodeIOS::minimumScrollPosition() const
@@ -174,8 +196,8 @@ FloatPoint ScrollingTreeScrollingNodeIOS::minimumScrollPosition() const
 
 FloatPoint ScrollingTreeScrollingNodeIOS::maximumScrollPosition() const
 {
-    FloatPoint position(totalContentsSizeForRubberBand().width() - viewportConstrainedObjectRect().width(),
-        totalContentsSizeForRubberBand().height() - viewportConstrainedObjectRect().height());
+    FloatPoint position(totalContentsSizeForRubberBand().width() - viewportSize().width(),
+        totalContentsSizeForRubberBand().height() - viewportSize().height());
 
     position = position.expandedTo(FloatPoint());
 

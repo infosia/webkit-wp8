@@ -7,7 +7,7 @@
     Copyright (C) 2000-2003 Lars Knoll (knoll@kde.org)
               (C) 2000 Antti Koivisto (koivisto@kde.org)
               (C) 2000-2003 Dirk Mueller (mueller@kde.org)
-              (C) 2002-2003 Apple Computer, Inc.
+              (C) 2002-2003 Apple Inc.
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -31,8 +31,6 @@
 #include "SVGLength.h"
 #include "SVGPaint.h"
 #include "ShadowData.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
@@ -91,6 +89,23 @@ namespace WebCore {
     enum EMaskType {
         MT_LUMINANCE,
         MT_ALPHA
+    };
+
+    // These are all minimized combinations of paint-order.
+    enum PaintOrder {
+        PaintOrderNormal = 0,
+        PaintOrderFill = 1,
+        PaintOrderFillMarkers = 2,
+        PaintOrderStroke = 3,
+        PaintOrderStrokeMarkers = 4,
+        PaintOrderMarkers = 5,
+        PaintOrderMarkersStroke = 6
+    };
+
+    enum PaintType {
+        PaintTypeFill,
+        PaintTypeStroke,
+        PaintTypeMarkers
     };
 
     class CSSValue;
@@ -224,7 +239,7 @@ namespace WebCore {
             return !(*this == other);
         }
 
-        OwnPtr<ShadowData> shadow;
+        std::unique_ptr<ShadowData> shadow;
 
     private:
         StyleShadowSVGData();

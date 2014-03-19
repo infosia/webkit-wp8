@@ -28,7 +28,6 @@
 
 #if ENABLE(REMOTE_INSPECTOR)
 
-#include "APIShims.h"
 #include "InspectorAgentBase.h"
 #include "InspectorFrontendChannel.h"
 #include "JSGlobalObject.h"
@@ -43,12 +42,6 @@ JSGlobalObjectDebuggable::JSGlobalObjectDebuggable(JSGlobalObject& globalObject)
 {
 }
 
-JSGlobalObjectDebuggable::~JSGlobalObjectDebuggable()
-{
-    if (m_inspectorController)
-        disconnectInternal(InspectorDisconnectReason::InspectedTargetDestroyed);
-}
-
 String JSGlobalObjectDebuggable::name() const
 {
     String name = m_globalObject.name();
@@ -57,31 +50,23 @@ String JSGlobalObjectDebuggable::name() const
 
 void JSGlobalObjectDebuggable::connect(InspectorFrontendChannel* frontendChannel)
 {
-    APIEntryShim entryShim(&m_globalObject.vm());
+    JSLockHolder locker(&m_globalObject.vm());
 
-    ASSERT(!m_inspectorController);
-    m_inspectorController = std::make_unique<Inspector::JSGlobalObjectInspectorController>(m_globalObject);
-    m_inspectorController->connectFrontend(frontendChannel);
+    m_globalObject.inspectorController().connectFrontend(frontendChannel);
 }
 
 void JSGlobalObjectDebuggable::disconnect()
 {
-    disconnectInternal(InspectorDisconnectReason::InspectorDestroyed);
-}
+    JSLockHolder locker(&m_globalObject.vm());
 
-void JSGlobalObjectDebuggable::disconnectInternal(InspectorDisconnectReason reason)
-{
-    APIEntryShim entryShim(&m_globalObject.vm());
-
-    m_inspectorController->disconnectFrontend(reason);
-    m_inspectorController = nullptr;
+    m_globalObject.inspectorController().disconnectFrontend(InspectorDisconnectReason::InspectorDestroyed);
 }
 
 void JSGlobalObjectDebuggable::dispatchMessageFromRemoteFrontend(const String& message)
 {
-    APIEntryShim entryShim(&m_globalObject.vm());
+    JSLockHolder locker(&m_globalObject.vm());
 
-    m_inspectorController->dispatchMessageFromFrontend(message);
+    m_globalObject.inspectorController().dispatchMessageFromFrontend(message);
 }
 
 } // namespace JSC

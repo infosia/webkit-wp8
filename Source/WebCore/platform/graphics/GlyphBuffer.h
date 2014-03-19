@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -119,16 +119,6 @@ public:
 #else
         UNUSED_PARAM(index);
         return FloatSize();
-#endif
-    }
-
-    void add(const GlyphBuffer* glyphBuffer, int from, int len)
-    {
-        m_glyphs.append(glyphBuffer->glyphs(from), len);
-        m_advances.append(glyphBuffer->advances(from), len);
-        m_fontData.append(glyphBuffer->m_fontData.data() + from, len);
-#if PLATFORM(WIN)
-        m_offsets.append(glyphBuffer->m_offsets.data() + from, len);
 #endif
     }
 

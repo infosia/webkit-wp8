@@ -208,7 +208,7 @@ public:
 
     bool shouldUpdateWhileOffscreen() const;
     void setShouldUpdateWhileOffscreen(bool);
-    bool shouldUpdate(bool = false) const;
+    bool shouldUpdate() const;
 
     void adjustViewSize();
     
@@ -262,10 +262,16 @@ public:
 
     // Functions for querying the current scrolled position, negating the effects of overhang
     // and adjusting for page scale.
-    IntSize scrollOffsetForFixedPosition() const;
+    LayoutSize scrollOffsetForFixedPosition() const;
     // Static function can be called from another thread.
-    static IntSize scrollOffsetForFixedPosition(const IntRect& visibleContentRect, const IntSize& totalContentsSize, const IntPoint& scrollPosition, const IntPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, ScrollBehaviorForFixedElements, int headerHeight, int footerHeight);
-
+    static LayoutSize scrollOffsetForFixedPosition(const LayoutRect& visibleContentRect, const LayoutSize& totalContentsSize, const LayoutPoint& scrollPosition, const LayoutPoint& scrollOrigin, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, ScrollBehaviorForFixedElements, int headerHeight, int footerHeight);
+    
+#if PLATFORM(IOS)
+    LayoutRect viewportConstrainedObjectsRect() const;
+    // Static function can be called from another thread.
+    static LayoutRect rectForViewportConstrainedObjects(const LayoutRect& visibleContentRect, const LayoutSize& totalContentsSize, float frameScaleFactor, bool fixedElementsLayoutRelativeToFrame, ScrollBehaviorForFixedElements);
+#endif
+    
     bool fixedElementsLayoutRelativeToFrame() const;
 
     void disableLayerFlushThrottlingTemporarilyForInteraction();
@@ -377,7 +383,7 @@ public:
     void setTracksRepaints(bool);
     bool isTrackingRepaints() const { return m_isTrackingRepaints; }
     void resetTrackedRepaints();
-    const Vector<IntRect>& trackedRepaintRects() const { return m_trackedRepaintRects; }
+    const Vector<FloatRect>& trackedRepaintRects() const { return m_trackedRepaintRects; }
     String trackedRepaintRectsAsText() const;
 
     typedef HashSet<ScrollableArea*> ScrollableAreaSet;
@@ -431,7 +437,8 @@ public:
     virtual void willEndLiveResize() override;
 
     void addPaintPendingMilestones(LayoutMilestones);
-    void firePaintRelatedMilestones();
+    void firePaintRelatedMilestonesIfNeeded();
+    void fireLayoutRelatedMilestonesIfNeeded();
     LayoutMilestones milestonesPendingPaint() const { return m_milestonesPendingPaint; }
 
     bool visualUpdatesAllowedByClient() const { return m_visualUpdatesAllowedByClient; }
@@ -445,7 +452,7 @@ public:
     void didAddWidgetToRenderTree(Widget&);
     void willRemoveWidgetFromRenderTree(Widget&);
 
-    void addTrackedRepaintRect(const IntRect&);
+    void addTrackedRepaintRect(const FloatRect&);
 
     // exposedRect represents WebKit's understanding of what part
     // of the view is actually exposed on screen (taking into account
@@ -503,7 +510,7 @@ private:
     void performPostLayoutTasks();
     void autoSizeIfEnabled();
 
-    virtual void repaintContentRectangle(const IntRect&, bool immediate) override;
+    virtual void repaintContentRectangle(const IntRect&) override;
     virtual void contentsResized() override;
     virtual void visibleContentsResized() override;
     virtual void addedOrRemovedScrollbar() override;
@@ -628,7 +635,7 @@ private:
     double m_lastPaintTime;
 
     bool m_isTrackingRepaints; // Used for testing.
-    Vector<IntRect> m_trackedRepaintRects;
+    Vector<FloatRect> m_trackedRepaintRects;
 
     bool m_shouldUpdateWhileOffscreen;
 

@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -32,7 +32,7 @@
 #include "ArgList.h"
 #include "ArityCheckFailReturnThunks.h"
 #include "ArrayBufferNeuteringWatchpoint.h"
-#include "CallFrameInlines.h"
+#include "BuiltinExecutables.h"
 #include "CodeBlock.h"
 #include "CodeCache.h"
 #include "CommonIdentifiers.h"
@@ -55,6 +55,7 @@
 #include "JSAPIValueWrapper.h"
 #include "JSActivation.h"
 #include "JSArray.h"
+#include "JSCInlines.h"
 #include "JSFunction.h"
 #include "JSGlobalObjectFunctions.h"
 #include "JSLock.h"
@@ -68,13 +69,16 @@
 #include "Lookup.h"
 #include "MapData.h"
 #include "Nodes.h"
+#include "Parser.h"
 #include "ParserArena.h"
+#include "PropertyMapHashTable.h"
 #include "RegExpCache.h"
 #include "RegExpObject.h"
 #include "SimpleTypedArrayController.h"
 #include "SourceProviderCache.h"
 #include "StrictEvalActivation.h"
 #include "StrongInlines.h"
+#include "StructureInlines.h"
 #include "UnlinkedCodeBlock.h"
 #include "WeakMapData.h"
 #include <wtf/ProcessID.h>
@@ -169,7 +173,6 @@ VM::VM(VMType vmType, HeapType heapType)
     , vmType(vmType)
     , clientData(0)
     , topCallFrame(CallFrame::noCaller())
-    , stackPointerAtVMEntry(0)
     , arrayConstructorTable(adoptPtr(new HashTable(JSC::arrayConstructorTable)))
     , arrayPrototypeTable(adoptPtr(new HashTable(JSC::arrayPrototypeTable)))
     , booleanPrototypeTable(adoptPtr(new HashTable(JSC::booleanPrototypeTable)))
@@ -205,7 +208,6 @@ VM::VM(VMType vmType, HeapType heapType)
 #if ENABLE(REGEXP_TRACING)
     , m_rtTraceList(new RTTraceList())
 #endif
-    , exclusiveThread(0)
     , m_newStringsSinceLastHashCons(0)
 #if ENABLE(ASSEMBLER)
     , m_canUseAssembler(enableAssembler(executableAllocator))
@@ -219,17 +221,23 @@ VM::VM(VMType vmType, HeapType heapType)
 #if ENABLE(GC_VALIDATION)
     , m_initializingObjectClass(0)
 #endif
+    , m_stackPointerAtVMEntry(0)
     , m_stackLimit(0)
 #if ENABLE(LLINT_C_LOOP)
     , m_jsStackLimit(0)
 #endif
+#if ENABLE(FTL_JIT)
+    , m_ftlStackLimit(0)
+    , m_largestFTLStackSize(0)
+#endif
     , m_inDefineOwnProperty(false)
     , m_codeCache(CodeCache::create())
     , m_enabledProfiler(nullptr)
+    , m_builtinExecutables(BuiltinExecutables::create(*this))
 {
     interpreter = new Interpreter(*this);
     StackBounds stack = wtfThreadData().stack();
-    updateStackLimitWithReservedZoneSize(Options::reservedZoneSize());
+    updateReservedZoneSize(Options::reservedZoneSize());
 #if ENABLE(LLINT_C_LOOP)
     interpreter->stack().setReservedZoneSize(Options::reservedZoneSize());
 #endif
@@ -266,8 +274,10 @@ VM::VM(VMType vmType, HeapType heapType)
     propertyTableStructure.set(*this, PropertyTable::createStructure(*this, 0, jsNull()));
     mapDataStructure.set(*this, MapData::createStructure(*this, 0, jsNull()));
     weakMapDataStructure.set(*this, WeakMapData::createStructure(*this, 0, jsNull()));
+#if ENABLE(PROMISES)
     promiseDeferredStructure.set(*this, JSPromiseDeferred::createStructure(*this, 0, jsNull()));
     promiseReactionStructure.set(*this, JSPromiseReaction::createStructure(*this, 0, jsNull()));
+#endif
     iterationTerminator.set(*this, JSFinalObject::create(*this, JSFinalObject::createStructure(*this, 0, jsNull(), 1)));
     smallStrings.initializeCommonStrings(*this);
 
@@ -316,16 +326,6 @@ VM::VM(VMType vmType, HeapType heapType)
     m_typedArrayController = adoptRef(new SimpleTypedArrayController());
 }
 
-#if ENABLE(DFG_JIT)
-static void cleanWorklist(VM& vm, DFG::Worklist* worklist)
-{
-    if (!worklist)
-        return;
-    worklist->waitUntilAllPlansForVMAreReady(vm);
-    worklist->removeAllReadyPlansForVM(vm);
-}
-#endif // ENABLE(DFG_JIT)
-
 VM::~VM()
 {
     // Never GC, ever again.
@@ -334,8 +334,12 @@ VM::~VM()
 #if ENABLE(DFG_JIT)
     // Make sure concurrent compilations are done, but don't install them, since there is
     // no point to doing so.
-    cleanWorklist(*this, DFG::existingGlobalDFGWorklistOrNull());
-    cleanWorklist(*this, DFG::existingGlobalFTLWorklistOrNull());
+    for (unsigned i = DFG::numberOfWorklists(); i--;) {
+        if (DFG::Worklist* worklist = DFG::worklistForIndexOrNull(i)) {
+            worklist->waitUntilAllPlansForVMAreReady(*this);
+            worklist->removeAllReadyPlansForVM(*this);
+        }
+    }
 #endif // ENABLE(DFG_JIT)
     
     // Clear this first to ensure that nobody tries to remove themselves from it.
@@ -508,28 +512,23 @@ void VM::stopSampling()
     interpreter->stopSampling();
 }
 
-#if ENABLE(DFG_JIT)
-static void prepareToDiscardCodeFor(VM& vm, DFG::Worklist* worklist)
-{
-    if (!worklist)
-        return;
-    worklist->completeAllPlansForVM(vm);
-}
-#endif // ENABLE(DFG_JIT)
-
-void VM::prepareToDiscardCode()
+void VM::waitForCompilationsToComplete()
 {
 #if ENABLE(DFG_JIT)
-    prepareToDiscardCodeFor(*this, DFG::existingGlobalDFGWorklistOrNull());
-    prepareToDiscardCodeFor(*this, DFG::existingGlobalFTLWorklistOrNull());
+    for (unsigned i = DFG::numberOfWorklists(); i--;) {
+        if (DFG::Worklist* worklist = DFG::worklistForIndexOrNull(i))
+            worklist->completeAllPlansForVM(*this);
+    }
 #endif // ENABLE(DFG_JIT)
 }
 
 void VM::discardAllCode()
 {
-    prepareToDiscardCode();
+    waitForCompilationsToComplete();
     m_codeCache->clear();
+    m_regExpCache->invalidateCode();
     heap.deleteAllCompiledCode();
+    heap.deleteAllUnlinkedFunctionCode();
     heap.reportAbandonedObjectGraph();
 }
 
@@ -569,7 +568,7 @@ struct StackPreservingRecompiler : public MarkedBlock::VoidFunctor {
 
 void VM::releaseExecutableMemory()
 {
-    prepareToDiscardCode();
+    waitForCompilationsToComplete();
     
     if (entryScope) {
         StackPreservingRecompiler recompiler;
@@ -736,22 +735,86 @@ void VM:: clearExceptionStack()
     m_exceptionStack = RefCountedArray<StackFrame>();
 }
 
-size_t VM::updateStackLimitWithReservedZoneSize(size_t reservedZoneSize)
+void VM::setStackPointerAtVMEntry(void* sp)
+{
+    m_stackPointerAtVMEntry = sp;
+    updateStackLimit();
+}
+
+size_t VM::updateReservedZoneSize(size_t reservedZoneSize)
 {
     size_t oldReservedZoneSize = m_reservedZoneSize;
     m_reservedZoneSize = reservedZoneSize;
 
-    void* stackLimit;
-    if (stackPointerAtVMEntry) {
-        ASSERT(wtfThreadData().stack().isGrowingDownward());
-        char* startOfStack = reinterpret_cast<char*>(stackPointerAtVMEntry);
-        stackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), reservedZoneSize);
-    } else
-        stackLimit = wtfThreadData().stack().recursionLimit(reservedZoneSize);
+    updateStackLimit();
 
-    setStackLimit(stackLimit);
     return oldReservedZoneSize;
 }
+
+#if PLATFORM(WIN)
+// On Windows the reserved stack space consists of committed memory, a guard page, and uncommitted memory,
+// where the guard page is a barrier between committed and uncommitted memory.
+// When data from the guard page is read or written, the guard page is moved, and memory is committed.
+// This is how the system grows the stack.
+// When using the C stack on Windows we need to precommit the needed stack space.
+// Otherwise we might crash later if we access uncommitted stack memory.
+// This can happen if we allocate stack space larger than the page guard size (4K).
+// The system does not get the chance to move the guard page, and commit more memory,
+// and we crash if uncommitted memory is accessed.
+// The MSVC compiler fixes this by inserting a call to the _chkstk() function,
+// when needed, see http://support.microsoft.com/kb/100775.
+// By touching every page up to the stack limit with a dummy operation,
+// we force the system to move the guard page, and commit memory.
+
+static void preCommitStackMemory(void* stackLimit)
+{
+    const int pageSize = 4096;
+    for (volatile char* p = reinterpret_cast<char*>(&stackLimit); p > stackLimit; p -= pageSize) {
+        char ch = *p;
+        *p = ch;
+    }
+}
+#endif
+
+inline void VM::updateStackLimit()
+{
+#if PLATFORM(WIN)
+    void* lastStackLimit = m_stackLimit;
+#endif
+
+    if (m_stackPointerAtVMEntry) {
+        ASSERT(wtfThreadData().stack().isGrowingDownward());
+        char* startOfStack = reinterpret_cast<char*>(m_stackPointerAtVMEntry);
+#if ENABLE(FTL_JIT)
+        m_stackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize + m_largestFTLStackSize);
+        m_ftlStackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize + 2 * m_largestFTLStackSize);
+#else
+        m_stackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize);
+#endif
+    } else {
+#if ENABLE(FTL_JIT)
+        m_stackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize + m_largestFTLStackSize);
+        m_ftlStackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize + 2 * m_largestFTLStackSize);
+#else
+        m_stackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize);
+#endif
+    }
+
+#if PLATFORM(WIN)
+    if (lastStackLimit != m_stackLimit)
+        preCommitStackMemory(m_stackLimit);
+#endif
+}
+
+#if ENABLE(FTL_JIT)
+void VM::updateFTLLargestStackSize(size_t stackSize)
+{
+    if (stackSize > m_largestFTLStackSize) {
+        m_largestFTLStackSize = stackSize;
+        updateStackLimit();
+    }
+}
+#endif
 
 void releaseExecutableMemory(VM& vm)
 {
@@ -786,6 +849,7 @@ void logSanitizeStack(VM* vm)
 #if ENABLE(REGEXP_TRACING)
 void VM::addRegExpToTrace(RegExp* regExp)
 {
+    gcProtect(regExp);
     m_rtTraceList->add(regExp);
 }
 
@@ -796,14 +860,16 @@ void VM::dumpRegExpTrace()
     
     if (iter != m_rtTraceList->end()) {
         dataLogF("\nRegExp Tracing\n");
-        dataLogF("                                                            match()    matches\n");
-        dataLogF("Regular Expression                          JIT Address      calls      found\n");
-        dataLogF("----------------------------------------+----------------+----------+----------\n");
+        dataLogF("Regular Expression                              8 Bit          16 Bit        match()    Matches    Average\n");
+        dataLogF(" <Match only / Match>                         JIT Addr      JIT Address       calls      found   String len\n");
+        dataLogF("----------------------------------------+----------------+----------------+----------+----------+-----------\n");
     
         unsigned reCount = 0;
     
-        for (; iter != m_rtTraceList->end(); ++iter, ++reCount)
+        for (; iter != m_rtTraceList->end(); ++iter, ++reCount) {
             (*iter)->printTraceData();
+            gcUnprotect(*iter);
+        }
 
         dataLogF("%d Regular Expressions\n", reCount);
     }
@@ -844,6 +910,7 @@ void VM::setEnabledProfiler(LegacyProfiler* profiler)
 {
     m_enabledProfiler = profiler;
     if (m_enabledProfiler) {
+        waitForCompilationsToComplete();
         SetEnabledProfilerFunctor functor;
         heap.forEachCodeBlock(functor);
     }

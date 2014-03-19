@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -83,8 +83,10 @@ static void cacheValueForKey(const void *key, const void *value, void *self)
     addLookupKey(WebElementDOMNodeKey, @selector(_domNode));
     addLookupKey(WebElementFrameKey, @selector(_webFrame));
     addLookupKey(WebElementImageAltStringKey, @selector(_altDisplayString));
+#if !PLATFORM(IOS)
     addLookupKey(WebElementImageKey, @selector(_image));
     addLookupKey(WebElementImageRectKey, @selector(_imageRect));
+#endif
     addLookupKey(WebElementImageURLKey, @selector(_absoluteImageURL));
     addLookupKey(WebElementIsSelectedKey, @selector(_isSelected));
     addLookupKey(WebElementMediaURLKey, @selector(_absoluteMediaURL));
@@ -204,25 +206,21 @@ static NSString* NSStringOrNil(String coreString)
     return NSStringOrNil(_result->spellingToolTip(dir));
 }
 
+#if !PLATFORM(IOS)
+
 - (NSImage *)_image
 {
-#if !PLATFORM(IOS)
     Image* image = _result->image();
     return image ? image->getNSImage() : nil;
-#else
-    return nil;
-#endif
 }
 
 - (NSValue *)_imageRect
 {
-#if !PLATFORM(IOS)
     IntRect rect = _result->imageRect();
     return rect.isEmpty() ? nil : [NSValue valueWithRect:rect];
-#else
-    return nil;
-#endif
 }
+
+#endif
 
 - (NSURL *)_absoluteImageURL
 {

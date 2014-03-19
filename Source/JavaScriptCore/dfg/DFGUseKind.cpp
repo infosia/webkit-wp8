@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,6 +27,8 @@
 #include "DFGUseKind.h"
 
 #if ENABLE(DFG_JIT)
+
+#include "JSCInlines.h"
 
 namespace WTF {
 
@@ -89,11 +91,17 @@ void printInternal(PrintStream& out, UseKind useKind)
     case StringOrStringObjectUse:
         out.print("StringOrStringObject");
         break;
+    case NotStringVarUse:
+        out.print("NotStringVar");
+        break;
     case NotCellUse:
         out.print("NotCell");
         break;
     case OtherUse:
         out.print("Other");
+        break;
+    case MiscUse:
+        out.print("Misc");
         break;
     default:
         RELEASE_ASSERT_NOT_REACHED();

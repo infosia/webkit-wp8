@@ -33,6 +33,7 @@
 #include <WebCore/UserContentTypes.h>
 #include <WebCore/UserScriptTypes.h>
 #include <wtf/PassRefPtr.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(GTK)
@@ -43,8 +44,10 @@ typedef struct _GModule GModule;
 #include <Eina.h>
 #endif
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 OBJC_CLASS NSBundle;
+OBJC_CLASS NSMutableDictionary;
+OBJC_CLASS WKWebProcessBundleParameters;
 #endif
 
 namespace API {
@@ -55,11 +58,12 @@ class Data;
 namespace IPC {
 class ArgumentDecoder;
 class Connection;
+class DataReference;
 }
 
 namespace WebKit {
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 typedef NSBundle *PlatformBundle;
 #elif PLATFORM(GTK)
 typedef ::GModule* PlatformBundle;
@@ -73,17 +77,20 @@ class WebConnection;
 class WebFrame;
 class WebPage;
 class WebPageGroupProxy;
+struct WebProcessCreationParameters;
 
 class InjectedBundle : public API::ObjectImpl<API::Object::Type::Bundle> {
 public:
-    static PassRefPtr<InjectedBundle> create(const String& path)
+    static PassRefPtr<InjectedBundle> create(const WebProcessCreationParameters& parameters)
     {
-        return adoptRef(new InjectedBundle(path));
+        return adoptRef(new InjectedBundle(parameters));
     }
     ~InjectedBundle();
 
     bool load(API::Object* initializationUserData);
     void setSandboxExtension(PassRefPtr<SandboxExtension> sandboxExtension) { m_sandboxExtension = sandboxExtension; }
+
+    void setBundleParameter(const String& key, const IPC::DataReference&);
 
     // API
     void initializeClient(const WKBundleClientBase*);
@@ -164,13 +171,18 @@ public:
 
     void setTabKeyCyclesThroughElements(WebPage*, bool enabled);
     void setSerialLoadingEnabled(bool);
-    void setShadowDOMEnabled(bool);
     void setCSSRegionsEnabled(bool);
     void setCSSCompositingEnabled(bool);
     void dispatchPendingLoadRequests();
 
+#if PLATFORM(COCOA) && WK_API_ENABLED
+    WKWebProcessBundleParameters *bundleParameters();
+#endif
+
 private:
-    explicit InjectedBundle(const String&);
+    explicit InjectedBundle(const WebProcessCreationParameters&);
+
+    void platformInitialize(const WebProcessCreationParameters&);
 
     String m_path;
     PlatformBundle m_platformBundle; // This is leaked right now, since we never unload the bundle/module.
@@ -178,6 +190,10 @@ private:
     RefPtr<SandboxExtension> m_sandboxExtension;
 
     InjectedBundleClient m_client;
+
+#if PLATFORM(COCOA) && WK_API_ENABLED
+    RetainPtr<WKWebProcessBundleParameters> m_bundleParameters;
+#endif
 };
 
 } // namespace WebKit

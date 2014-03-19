@@ -1287,10 +1287,14 @@ static TextDecorationSkip valueToDecorationSkip(CSSPrimitiveValue& primitiveValu
     ASSERT(primitiveValue.isValueID());
 
     switch (primitiveValue.getValueID()) {
+    case CSSValueAuto:
+        return TextDecorationSkipAuto;
     case CSSValueNone:
         return TextDecorationSkipNone;
     case CSSValueInk:
         return TextDecorationSkipInk;
+    case CSSValueObjects:
+        return TextDecorationSkipObjects;
     default:
         break;
     }
@@ -1579,22 +1583,22 @@ private:
     }
     static bool getPageSizeFromName(CSSPrimitiveValue* pageSizeName, CSSPrimitiveValue* pageOrientation, Length& width, Length& height)
     {
-        DEFINE_STATIC_LOCAL(Length, a5Width, (mmLength(148)));
-        DEFINE_STATIC_LOCAL(Length, a5Height, (mmLength(210)));
-        DEFINE_STATIC_LOCAL(Length, a4Width, (mmLength(210)));
-        DEFINE_STATIC_LOCAL(Length, a4Height, (mmLength(297)));
-        DEFINE_STATIC_LOCAL(Length, a3Width, (mmLength(297)));
-        DEFINE_STATIC_LOCAL(Length, a3Height, (mmLength(420)));
-        DEFINE_STATIC_LOCAL(Length, b5Width, (mmLength(176)));
-        DEFINE_STATIC_LOCAL(Length, b5Height, (mmLength(250)));
-        DEFINE_STATIC_LOCAL(Length, b4Width, (mmLength(250)));
-        DEFINE_STATIC_LOCAL(Length, b4Height, (mmLength(353)));
-        DEFINE_STATIC_LOCAL(Length, letterWidth, (inchLength(8.5)));
-        DEFINE_STATIC_LOCAL(Length, letterHeight, (inchLength(11)));
-        DEFINE_STATIC_LOCAL(Length, legalWidth, (inchLength(8.5)));
-        DEFINE_STATIC_LOCAL(Length, legalHeight, (inchLength(14)));
-        DEFINE_STATIC_LOCAL(Length, ledgerWidth, (inchLength(11)));
-        DEFINE_STATIC_LOCAL(Length, ledgerHeight, (inchLength(17)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a5Width, (mmLength(148)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a5Height, (mmLength(210)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a4Width, (mmLength(210)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a4Height, (mmLength(297)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a3Width, (mmLength(297)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, a3Height, (mmLength(420)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, b5Width, (mmLength(176)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, b5Height, (mmLength(250)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, b4Width, (mmLength(250)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, b4Height, (mmLength(353)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, letterWidth, (inchLength(8.5)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, letterHeight, (inchLength(11)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, legalWidth, (inchLength(8.5)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, legalHeight, (inchLength(14)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, ledgerWidth, (inchLength(11)));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Length, ledgerHeight, (inchLength(17)));
 
         if (!pageSizeName)
             return false;
@@ -1982,28 +1986,40 @@ class ApplyPropertyAspectRatio {
 public:
     static void applyInheritValue(CSSPropertyID, StyleResolver* styleResolver)
     {
-        if (!styleResolver->parentStyle()->hasAspectRatio())
+        if (styleResolver->parentStyle()->aspectRatioType() == AspectRatioAuto)
             return;
-        styleResolver->style()->setHasAspectRatio(true);
+        styleResolver->style()->setAspectRatioType(styleResolver->parentStyle()->aspectRatioType());
         styleResolver->style()->setAspectRatioDenominator(styleResolver->parentStyle()->aspectRatioDenominator());
         styleResolver->style()->setAspectRatioNumerator(styleResolver->parentStyle()->aspectRatioNumerator());
     }
 
     static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
-        styleResolver->style()->setHasAspectRatio(RenderStyle::initialHasAspectRatio());
+        styleResolver->style()->setAspectRatioType(RenderStyle::initialAspectRatioType());
         styleResolver->style()->setAspectRatioDenominator(RenderStyle::initialAspectRatioDenominator());
         styleResolver->style()->setAspectRatioNumerator(RenderStyle::initialAspectRatioNumerator());
     }
 
     static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
+        if (value->isPrimitiveValue()) {
+            CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(value);
+
+            if (primitiveValue->getValueID() == CSSValueAuto)
+                return styleResolver->style()->setAspectRatioType(AspectRatioAuto);
+            if (primitiveValue->getValueID() == CSSValueFromDimensions)
+                return styleResolver->style()->setAspectRatioType(AspectRatioFromDimensions);
+            if (primitiveValue->getValueID() == CSSValueFromIntrinsic)
+                return styleResolver->style()->setAspectRatioType(AspectRatioFromIntrinsic);
+        }
+
         if (!value->isAspectRatioValue()) {
-            styleResolver->style()->setHasAspectRatio(false);
+            styleResolver->style()->setAspectRatioType(AspectRatioAuto);
             return;
         }
+
         CSSAspectRatioValue* aspectRatioValue = toCSSAspectRatioValue(value);
-        styleResolver->style()->setHasAspectRatio(true);
+        styleResolver->style()->setAspectRatioType(AspectRatioSpecified);
         styleResolver->style()->setAspectRatioDenominator(aspectRatioValue->denominatorValue());
         styleResolver->style()->setAspectRatioNumerator(aspectRatioValue->numeratorValue());
     }
@@ -2128,7 +2144,7 @@ public:
         }
         if (!value->isValueList())
             return;
-        LayoutBox referenceBox = BoxMissing;
+        CSSBoxType referenceBox = BoxMissing;
         RefPtr<ClipPathOperation> operation;
         auto& valueList = toCSSValueList(*value);
         for (unsigned i = 0; i < valueList.length(); ++i) {
@@ -2139,9 +2155,11 @@ public:
                 || primitiveValue.getValueID() == CSSValueBorderBox
                 || primitiveValue.getValueID() == CSSValuePaddingBox
                 || primitiveValue.getValueID() == CSSValueMarginBox
-                || primitiveValue.getValueID() == CSSValueBoundingBox)
+                || primitiveValue.getValueID() == CSSValueFill
+                || primitiveValue.getValueID() == CSSValueStroke
+                || primitiveValue.getValueID() == CSSValueViewBox)
                 && referenceBox == BoxMissing)
-                referenceBox = LayoutBox(primitiveValue);
+                referenceBox = CSSBoxType(primitiveValue);
             else
                 return;
         }
@@ -2178,7 +2196,7 @@ public:
             setValue(styleResolver->style(), shape.release());
         } else if (value->isValueList()) {
             RefPtr<BasicShape> shape;
-            LayoutBox layoutBox = BoxMissing;
+            CSSBoxType referenceBox = BoxMissing;
             CSSValueList* valueList = toCSSValueList(value);
             for (unsigned i = 0; i < valueList->length(); ++i) {
                 CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(valueList->itemWithoutBoundsCheck(i));
@@ -2188,15 +2206,15 @@ public:
                     || primitiveValue->getValueID() == CSSValueBorderBox
                     || primitiveValue->getValueID() == CSSValuePaddingBox
                     || primitiveValue->getValueID() == CSSValueMarginBox)
-                    layoutBox = LayoutBox(*primitiveValue);
+                    referenceBox = CSSBoxType(*primitiveValue);
                 else
                     return;
             }
 
             if (shape)
-                setValue(styleResolver->style(), ShapeValue::createShapeValue(shape.release(), layoutBox));
-            else if (layoutBox != BoxMissing)
-                setValue(styleResolver->style(), ShapeValue::createLayoutBoxValue(layoutBox));
+                setValue(styleResolver->style(), ShapeValue::createShapeValue(shape.release(), referenceBox));
+            else if (referenceBox != BoxMissing)
+                setValue(styleResolver->style(), ShapeValue::createBoxShapeValue(referenceBox));
 
         }
     }
@@ -2321,7 +2339,7 @@ public:
 
 const DeprecatedStyleBuilder& DeprecatedStyleBuilder::sharedStyleBuilder()
 {
-    DEFINE_STATIC_LOCAL(DeprecatedStyleBuilder, styleBuilderInstance, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(DeprecatedStyleBuilder, styleBuilderInstance, ());
     return styleBuilderInstance;
 }
 
@@ -2332,6 +2350,7 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
 
     // Please keep CSS property list in alphabetical order.
     setPropertyHandler(CSSPropertyBackgroundAttachment, ApplyPropertyFillLayer<EFillAttachment, CSSPropertyBackgroundAttachment, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isAttachmentSet, &FillLayer::attachment, &FillLayer::setAttachment, &FillLayer::clearAttachment, &FillLayer::initialFillAttachment, &CSSToStyleMap::mapFillAttachment>::createHandler());
+    setPropertyHandler(CSSPropertyBackgroundBlendMode, ApplyPropertyFillLayer<BlendMode, CSSPropertyBackgroundBlendMode, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isBlendModeSet, &FillLayer::blendMode, &FillLayer::setBlendMode, &FillLayer::clearBlendMode, &FillLayer::initialFillBlendMode, &CSSToStyleMap::mapFillBlendMode>::createHandler());
     setPropertyHandler(CSSPropertyBackgroundClip, ApplyPropertyFillLayer<EFillBox, CSSPropertyBackgroundClip, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isClipSet, &FillLayer::clip, &FillLayer::setClip, &FillLayer::clearClip, &FillLayer::initialFillClip, &CSSToStyleMap::mapFillClip>::createHandler());
     setPropertyHandler(CSSPropertyBackgroundColor, ApplyPropertyColor<NoInheritFromParent, &RenderStyle::backgroundColor, &RenderStyle::setBackgroundColor, &RenderStyle::setVisitedLinkBackgroundColor, &RenderStyle::invalidColor>::createHandler());
     setPropertyHandler(CSSPropertyBackgroundImage, ApplyPropertyFillLayer<StyleImage*, CSSPropertyBackgroundImage, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isImageSet, &FillLayer::image, &FillLayer::setImage, &FillLayer::clearImage, &FillLayer::initialFillImage, &CSSToStyleMap::mapFillImage>::createHandler());
@@ -2463,13 +2482,13 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
     setPropertyHandler(CSSPropertyWebkitAppearance, ApplyPropertyDefault<ControlPart, &RenderStyle::appearance, ControlPart, &RenderStyle::setAppearance, ControlPart, &RenderStyle::initialAppearance>::createHandler());
     setPropertyHandler(CSSPropertyWebkitAspectRatio, ApplyPropertyAspectRatio::createHandler());
     setPropertyHandler(CSSPropertyWebkitBackfaceVisibility, ApplyPropertyDefault<EBackfaceVisibility, &RenderStyle::backfaceVisibility, EBackfaceVisibility, &RenderStyle::setBackfaceVisibility, EBackfaceVisibility, &RenderStyle::initialBackfaceVisibility>::createHandler());
-    setPropertyHandler(CSSPropertyWebkitBackgroundBlendMode, ApplyPropertyFillLayer<BlendMode, CSSPropertyWebkitBackgroundBlendMode, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isBlendModeSet, &FillLayer::blendMode, &FillLayer::setBlendMode, &FillLayer::clearBlendMode, &FillLayer::initialFillBlendMode, &CSSToStyleMap::mapFillBlendMode>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBackgroundClip, CSSPropertyBackgroundClip);
     setPropertyHandler(CSSPropertyWebkitBackgroundComposite, ApplyPropertyFillLayer<CompositeOperator, CSSPropertyWebkitBackgroundComposite, BackgroundFillLayer, &RenderStyle::accessBackgroundLayers, &RenderStyle::backgroundLayers, &FillLayer::isCompositeSet, &FillLayer::composite, &FillLayer::setComposite, &FillLayer::clearComposite, &FillLayer::initialFillComposite, &CSSToStyleMap::mapFillComposite>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBackgroundOrigin, CSSPropertyBackgroundOrigin);
     setPropertyHandler(CSSPropertyWebkitBackgroundSize, CSSPropertyBackgroundSize);
 #if ENABLE(CSS_COMPOSITING)
-    setPropertyHandler(CSSPropertyWebkitBlendMode, ApplyPropertyDefault<BlendMode, &RenderStyle::blendMode, BlendMode, &RenderStyle::setBlendMode, BlendMode, &RenderStyle::initialBlendMode>::createHandler());
+    setPropertyHandler(CSSPropertyWebkitMixBlendMode, ApplyPropertyDefault<BlendMode, &RenderStyle::blendMode, BlendMode, &RenderStyle::setBlendMode, BlendMode, &RenderStyle::initialBlendMode>::createHandler());
+    setPropertyHandler(CSSPropertyWebkitIsolation, ApplyPropertyDefault<Isolation, &RenderStyle::isolation, Isolation, &RenderStyle::setIsolation, Isolation, &RenderStyle::initialIsolation>::createHandler());
 #endif
     setPropertyHandler(CSSPropertyWebkitBorderFit, ApplyPropertyDefault<EBorderFit, &RenderStyle::borderFit, EBorderFit, &RenderStyle::setBorderFit, EBorderFit, &RenderStyle::initialBorderFit>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBorderHorizontalSpacing, ApplyPropertyComputeLength<short, &RenderStyle::horizontalBorderSpacing, &RenderStyle::setHorizontalBorderSpacing, &RenderStyle::initialHorizontalBorderSpacing>::createHandler());
@@ -2511,7 +2530,9 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
     setPropertyHandler(CSSPropertyWebkitFlexGrow, ApplyPropertyDefault<float, &RenderStyle::flexGrow, float, &RenderStyle::setFlexGrow, float, &RenderStyle::initialFlexGrow>::createHandler());
     setPropertyHandler(CSSPropertyWebkitFlexShrink, ApplyPropertyDefault<float, &RenderStyle::flexShrink, float, &RenderStyle::setFlexShrink, float, &RenderStyle::initialFlexShrink>::createHandler());
     setPropertyHandler(CSSPropertyWebkitFlexWrap, ApplyPropertyDefault<EFlexWrap, &RenderStyle::flexWrap, EFlexWrap, &RenderStyle::setFlexWrap, EFlexWrap, &RenderStyle::initialFlexWrap>::createHandler());
+#if ENABLE(CSS_GRID_LAYOUT)
     setPropertyHandler(CSSPropertyWebkitGridAutoFlow, ApplyPropertyDefault<GridAutoFlow, &RenderStyle::gridAutoFlow, GridAutoFlow, &RenderStyle::setGridAutoFlow, GridAutoFlow, &RenderStyle::initialGridAutoFlow>::createHandler());
+#endif
     setPropertyHandler(CSSPropertyWebkitJustifyContent, ApplyPropertyDefault<EJustifyContent, &RenderStyle::justifyContent, EJustifyContent, &RenderStyle::setJustifyContent, EJustifyContent, &RenderStyle::initialJustifyContent>::createHandler());
     setPropertyHandler(CSSPropertyWebkitOrder, ApplyPropertyDefault<int, &RenderStyle::order, int, &RenderStyle::setOrder, int, &RenderStyle::initialOrder>::createHandler());
 #if ENABLE(CSS_REGIONS)
@@ -2521,7 +2542,6 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
     setPropertyHandler(CSSPropertyWebkitFontKerning, ApplyPropertyFont<FontDescription::Kerning, &FontDescription::kerning, &FontDescription::setKerning, FontDescription::AutoKerning>::createHandler());
     setPropertyHandler(CSSPropertyWebkitFontSmoothing, ApplyPropertyFont<FontSmoothingMode, &FontDescription::fontSmoothing, &FontDescription::setFontSmoothing, AutoSmoothing>::createHandler());
     setPropertyHandler(CSSPropertyWebkitFontVariantLigatures, ApplyPropertyFontVariantLigatures::createHandler());
-    setPropertyHandler(CSSPropertyWebkitHighlight, ApplyPropertyString<MapNoneToNull, &RenderStyle::highlight, &RenderStyle::setHighlight, &RenderStyle::initialHighlight>::createHandler());
     setPropertyHandler(CSSPropertyWebkitHyphenateCharacter, ApplyPropertyString<MapAutoToNull, &RenderStyle::hyphenationString, &RenderStyle::setHyphenationString, &RenderStyle::initialHyphenationString>::createHandler());
     setPropertyHandler(CSSPropertyWebkitHyphenateLimitAfter, ApplyPropertyNumber<short, &RenderStyle::hyphenationLimitAfter, &RenderStyle::setHyphenationLimitAfter, &RenderStyle::initialHyphenationLimitAfter>::createHandler());
     setPropertyHandler(CSSPropertyWebkitHyphenateLimitBefore, ApplyPropertyNumber<short, &RenderStyle::hyphenationLimitBefore, &RenderStyle::setHyphenationLimitBefore, &RenderStyle::initialHyphenationLimitBefore>::createHandler());

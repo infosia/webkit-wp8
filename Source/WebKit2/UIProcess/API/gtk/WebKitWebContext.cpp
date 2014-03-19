@@ -46,9 +46,9 @@
 #include <WebCore/FileSystem.h>
 #include <WebCore/IconDatabase.h>
 #include <WebCore/Language.h>
+#include <memory>
 #include <wtf/HashMap.h>
 #include <wtf/NeverDestroyed.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/gobject/GRefPtr.h>
@@ -149,7 +149,7 @@ struct _WebKitWebContextPrivate {
     RefPtr<WebKitBatteryProvider> batteryProvider;
 #endif
 #if ENABLE(SPELLCHECK)
-    OwnPtr<WebKitTextChecker> textChecker;
+    std::unique_ptr<WebKitTextChecker> textChecker;
 #endif
     CString faviconDatabaseDirectory;
     WebKitTLSErrorsPolicy tlsErrorsPolicy;
@@ -163,10 +163,33 @@ struct _WebKitWebContextPrivate {
 
 static guint signals[LAST_SIGNAL] = { 0, };
 
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS, ProcessModelSharedSecondaryProcess);
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_PROCESS_MODEL_ONE_SECONDARY_PROCESS_PER_WEB_VIEW, ProcessModelMultipleSecondaryProcesses);
-
 WEBKIT_DEFINE_TYPE(WebKitWebContext, webkit_web_context, G_TYPE_OBJECT)
+
+static inline WebKit::ProcessModel toProcessModel(WebKitProcessModel webKitProcessModel)
+{
+    switch (webKitProcessModel) {
+    case WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS:
+        return ProcessModelSharedSecondaryProcess;
+    case WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES:
+        return ProcessModelMultipleSecondaryProcesses;
+    default:
+        ASSERT_NOT_REACHED();
+        return ProcessModelSharedSecondaryProcess;
+    }
+}
+
+static inline WebKitProcessModel toWebKitProcessModel(WebKit::ProcessModel processModel)
+{
+    switch (processModel) {
+    case ProcessModelSharedSecondaryProcess:
+        return WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS;
+    case ProcessModelMultipleSecondaryProcesses:
+        return WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES;
+    default:
+        ASSERT_NOT_REACHED();
+        return WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS;
+    }
+}
 
 static void webkit_web_context_class_init(WebKitWebContextClass* webContextClass)
 {
@@ -536,7 +559,7 @@ static void destroyPluginList(GList* plugins)
     g_list_free_full(plugins, g_object_unref);
 }
 
-static void webkitWebContextGetPluginThread(GTask* task, gpointer object, gpointer taskData, GCancellable*)
+static void webkitWebContextGetPluginThread(GTask* task, gpointer object, gpointer /* taskData */, GCancellable*)
 {
     Vector<PluginModuleInfo> plugins = WEBKIT_WEB_CONTEXT(object)->priv->context->pluginInfoStore().plugins();
     GList* returnValue = 0;
@@ -898,15 +921,19 @@ void webkit_web_context_allow_tls_certificate_for_host(WebKitWebContext* context
  * determine how auxiliary processes are handled. The default setting
  * (%WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS) is suitable for most
  * applications which embed a small amount of WebViews, or are used to
- * display documents which are considered safe -- like local files.
+ * display documents which are considered safe — like local files.
  *
- * Applications which may potentially use a large amount of WebViews --for
- * example a multi-tabbed web browser-- may want to use
- * %WEBKIT_PROCESS_MODEL_ONE_SECONDARY_PROCESS_PER_WEB_VIEW to use one
- * process per view. Using this model, when a WebView hangs or crashes,
- * the rest of the WebViews in the application will still work normally.
+ * Applications which may potentially use a large amount of WebViews
+ * —for example a multi-tabbed web browser— may want to use
+ * %WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES, which will use
+ * one process per view most of the time, while still allowing for web
+ * views to share a process when needed (for example when different
+ * views interact with each other). Using this model, when a process
+ * hangs or crashes, only the WebViews using it stop working, while
+ * the rest of the WebViews in the application will still function
+ * normally.
  *
- * This method <strong>must be called before any other functions</strong>,
+ * This method **must be called before any other functions**,
  * as early as possible in your application. Calling it later will make
  * your application crash.
  *
@@ -916,10 +943,13 @@ void webkit_web_context_set_process_model(WebKitWebContext* context, WebKitProce
 {
     g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
 
-    if (processModel != context->priv->context->processModel()) {
-        context->priv->context->setUsesNetworkProcess(processModel == ProcessModelMultipleSecondaryProcesses);
-        context->priv->context->setProcessModel(static_cast<ProcessModel>(processModel));
-    }
+    ProcessModel newProcessModel(toProcessModel(processModel));
+
+    if (newProcessModel == context->priv->context->processModel())
+        return;
+
+    context->priv->context->setUsesNetworkProcess(newProcessModel == ProcessModelMultipleSecondaryProcesses);
+    context->priv->context->setProcessModel(newProcessModel);
 }
 
 /**
@@ -936,7 +966,8 @@ void webkit_web_context_set_process_model(WebKitWebContext* context, WebKitProce
 WebKitProcessModel webkit_web_context_get_process_model(WebKitWebContext* context)
 {
     g_return_val_if_fail(WEBKIT_IS_WEB_CONTEXT(context), WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS);
-    return static_cast<WebKitProcessModel>(context->priv->context->processModel());
+
+    return toWebKitProcessModel(context->priv->context->processModel());
 }
 
 WebKitDownload* webkitWebContextGetOrCreateDownload(DownloadProxy* downloadProxy)
@@ -1015,11 +1046,12 @@ void webkitWebContextDidFinishLoadingCustomProtocol(WebKitWebContext* context, u
     context->priv->uriSchemeRequests.remove(customProtocolID);
 }
 
-void webkitWebContextCreatePageForWebView(WebKitWebContext* context, WebKitWebView* webView, WebKitWebViewGroup* webViewGroup)
+void webkitWebContextCreatePageForWebView(WebKitWebContext* context, WebKitWebView* webView, WebKitWebViewGroup* webViewGroup, WebKitWebView* relatedView)
 {
     WebKitWebViewBase* webViewBase = WEBKIT_WEB_VIEW_BASE(webView);
     WebPageGroup* pageGroup = webViewGroup ? webkitWebViewGroupGetPageGroup(webViewGroup) : 0;
-    webkitWebViewBaseCreateWebPage(webViewBase, context->priv->context.get(), pageGroup);
+    WebPageProxy* relatedPage = relatedView ? webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(relatedView)) : nullptr;
+    webkitWebViewBaseCreateWebPage(webViewBase, context->priv->context.get(), pageGroup, relatedPage);
 
     WebPageProxy* page = webkitWebViewBaseGetPage(webViewBase);
     context->priv->webViews.set(page->pageID(), webView);

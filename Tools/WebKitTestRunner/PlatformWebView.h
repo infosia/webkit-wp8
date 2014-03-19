@@ -80,7 +80,7 @@ public:
     void setWindowIsKey(bool isKey) { m_windowIsKey = isKey; }
     bool windowIsKey() const { return m_windowIsKey; }
 
-#if PLATFORM(MAC) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(EFL)
     bool viewSupportsOptions(WKDictionaryRef) const;
 #else
     bool viewSupportsOptions(WKDictionaryRef) const { return true; }
@@ -89,7 +89,11 @@ public:
     WKRetainPtr<WKImageRef> windowSnapshotImage();
     WKDictionaryRef options() const { return m_options.get(); }
 
+    void changeWindowScaleIfNeeded(float newScale);
+
 private:
+    void forceWindowFramesChanged();
+
     PlatformWKView m_view;
     PlatformWindow m_window;
     bool m_windowIsKey;

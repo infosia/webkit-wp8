@@ -24,36 +24,11 @@
  */
 
 #import "config.h"
-#import "WKProcessClassConfigurationPrivate.h"
+#import "WKProcessClassConfiguration.h"
 
 #if WK_API_ENABLED
 
-#import <wtf/RetainPtr.h>
-
-@implementation WKProcessClassConfiguration {
-    RetainPtr<NSURL> _injectedBundleURL;
-}
-
-- (NSURL *)_injectedBundleURL
-{
-    return _injectedBundleURL.get();
-}
-
-- (void)_setInjectedBundleURL:(NSURL *)injectedBundleURL
-{
-    _injectedBundleURL = adoptNS([injectedBundleURL copy]);
-}
-
-- (id)copyWithZone:(NSZone *)zone
-{
-    WKProcessClassConfiguration *configuration = [[[self class] allocWithZone:zone] init];
-
-    configuration.maximumProcessCount = self.maximumProcessCount;
-    configuration._injectedBundleURL = self._injectedBundleURL;
-
-    return configuration;
-}
-
+@implementation WKProcessClassConfiguration
 @end
 
 #endif

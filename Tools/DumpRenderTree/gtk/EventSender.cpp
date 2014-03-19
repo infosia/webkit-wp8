@@ -14,7 +14,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -47,7 +47,6 @@
 #include <webkit/webkitwebview.h>
 #include <wtf/ASCIICType.h>
 #include <wtf/Platform.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
@@ -805,7 +804,7 @@ static GdkEvent* createKeyPressEvent(JSContextRef context, size_t argumentCount,
 
     // When synthesizing an event, an invalid hardware_keycode value
     // can cause it to be badly processed by Gtk+.
-    GOwnPtr<GdkKeymapKey> keys;
+    GUniqueOutPtr<GdkKeymapKey> keys;
     gint nKeys;
     if (gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(), gdkKeySym, &keys.outPtr(), &nKeys))
         pressEvent->key.hardware_keycode = keys.get()[0].keycode;
@@ -909,6 +908,11 @@ static JSValueRef scheduleAsynchronousKeyDownCallback(JSContextRef context, JSOb
     if (pressEvent)
         g_idle_add_full(G_PRIORITY_DEFAULT, sendAsynchronousKeyDown, static_cast<gpointer>(pressEvent), 0);
 
+    return JSValueMakeUndefined(context);
+}
+
+static JSValueRef clearTouchPointsCallback(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
     return JSValueMakeUndefined(context);
 }
 

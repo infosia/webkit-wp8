@@ -345,7 +345,6 @@ katakana-iroha
 inline
 block
 list-item
-run-in
 compact
 inline-block
 table
@@ -486,6 +485,7 @@ thin
 underline
 wavy
 ink
+objects
 -webkit-nowrap
 
 // CSS3 Values
@@ -718,6 +718,9 @@ relevancy-level-indicator
 continuous-capacity-level-indicator
 discrete-capacity-level-indicator
 rating-level-indicator
+#if defined(ENABLE_IMAGE_CONTROLS) && ENABLE_IMAGE_CONTROLS
+image-controls-button
+#endif
 textarea
 // An appearance value that should not be accepted by the parser:
 caps-lock-indicator
@@ -746,7 +749,7 @@ padding-box
 margin-box
 
 // clip-path
-bounding-box
+view-box
 
 //
 // background-size
@@ -1024,6 +1027,10 @@ saturation
 color
 luminosity
 
+// isolation
+// auto
+isolate
+
 // object-fit
 // fill
 // contain
@@ -1040,6 +1047,12 @@ snap
 -webkit-paged-x
 -webkit-paged-y
 
+// paint-order
+// normal
+// fill
+// stroke
+markers
+
 // -webkit-grid-{column-start|column-end|row-start|row-end}
 span
 
@@ -1051,3 +1064,7 @@ span
 
 // -webkit-column-fill
 balance
+
+// -webkit-aspect-ratio
+from-dimensions
+from-intrinsic

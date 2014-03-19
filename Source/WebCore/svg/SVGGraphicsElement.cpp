@@ -42,6 +42,7 @@ END_REGISTER_ANIMATED_PROPERTIES
 
 SVGGraphicsElement::SVGGraphicsElement(const QualifiedName& tagName, Document& document)
     : SVGElement(tagName, document)
+    , m_shouldIsolateBlending(false)
 {
     registerAnimatedPropertiesForSVGGraphicsElement();
 }
@@ -91,7 +92,7 @@ AffineTransform* SVGGraphicsElement::supplementalTransform()
 
 bool SVGGraphicsElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGTests::addSupportedAttributes(supportedAttributes);
         supportedAttributes.add(SVGNames::transformAttr);

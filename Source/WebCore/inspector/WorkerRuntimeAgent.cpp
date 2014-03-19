@@ -90,7 +90,7 @@ void WorkerRuntimeAgent::run(ErrorString*)
     m_paused = false;
 }
 
-JSC::VM* WorkerRuntimeAgent::globalVM()
+JSC::VM& WorkerRuntimeAgent::globalVM()
 {
     return JSDOMWindowBase::commonVM();
 }
@@ -100,7 +100,7 @@ void WorkerRuntimeAgent::pauseWorkerGlobalScope(WorkerGlobalScope* context)
     m_paused = true;
     MessageQueueWaitResult result;
     do {
-        result = context->thread()->runLoop().runInMode(context, WorkerDebuggerAgent::debuggerTaskMode);
+        result = context->thread().runLoop().runInMode(context, WorkerDebuggerAgent::debuggerTaskMode);
     // Keep waiting until execution is resumed.
     } while (result == MessageQueueMessageReceived && m_paused);
 }

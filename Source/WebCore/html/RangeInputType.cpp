@@ -81,11 +81,6 @@ RangeInputType::RangeInputType(HTMLInputElement& element)
 {
 }
 
-void RangeInputType::attach()
-{
-    observeFeatureIfVisible(FeatureObserver::InputTypeRange);
-}
-
 bool RangeInputType::isRangeControl() const
 {
     return true;
@@ -118,7 +113,7 @@ bool RangeInputType::supportsRequired() const
 
 StepRange RangeInputType::createStepRange(AnyStepHandling anyStepHandling) const
 {
-    DEFINE_STATIC_LOCAL(const StepRange::StepDescription, stepDescription, (rangeDefaultStep, rangeDefaultStepBase, rangeStepScaleFactor));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const StepRange::StepDescription, stepDescription, (rangeDefaultStep, rangeDefaultStepBase, rangeStepScaleFactor));
 
     const Decimal minimum = parseToNumber(element().fastGetAttribute(minAttr), rangeDefaultMinimum);
     const Decimal maximum = ensureMaximum(parseToNumber(element().fastGetAttribute(maxAttr), rangeDefaultMaximum), minimum, rangeDefaultMaximum);
@@ -176,6 +171,8 @@ void RangeInputType::handleTouchEvent(TouchEvent* event)
         typedSliderThumbElement().setPositionFromPoint(touches->item(0)->absoluteLocation());
         event->setDefaultHandled();
     }
+#else
+    UNUSED_PARAM(event);
 #endif
 }
 

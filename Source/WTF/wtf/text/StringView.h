@@ -85,6 +85,20 @@ public:
         return static_cast<const UChar*>(m_characters);
     }
 
+    void getCharactersWithUpconvert(LChar*) const;
+    void getCharactersWithUpconvert(UChar*) const;
+
+    class UpconvertedCharacters {
+    public:
+        explicit UpconvertedCharacters(const StringView&);
+        operator const UChar*() const { return m_characters; }
+        const UChar* get() const { return m_characters; }
+    private:
+        Vector<UChar, 32> m_upconvertedCharacters;
+        const UChar* m_characters;
+    };
+    UpconvertedCharacters upconvertedCharacters() const { return UpconvertedCharacters(*this); }
+
     bool isNull() const { return !m_characters; }
     bool isEmpty() const { return !length(); }
     unsigned length() const { return m_length & ~is16BitStringFlag; }
@@ -127,6 +141,32 @@ public:
         return StringImpl::createWithoutCopying(characters16(), length());
     }
 
+    UChar operator[](unsigned index) const
+    {
+        ASSERT(index < length());
+        if (is8Bit())
+            return characters8()[index];
+        return characters16()[index];
+    }
+
+    size_t find(UChar character, unsigned start = 0) const
+    {
+        if (is8Bit())
+            return WTF::find(characters8(), length(), character, start);
+        return WTF::find(characters16(), length(), character, start);
+    }
+
+#if USE(CF)
+    // This function converts null strings to empty strings.
+    WTF_EXPORT_STRING_API RetainPtr<CFStringRef> createCFStringWithoutCopying() const;
+#endif
+
+#ifdef __OBJC__
+    // These functions convert null strings to empty strings.
+    WTF_EXPORT_STRING_API RetainPtr<NSString> createNSString() const;
+    WTF_EXPORT_STRING_API RetainPtr<NSString> createNSStringWithoutCopying() const;
+#endif
+
 private:
     void initialize(const LChar* characters, unsigned length)
     {
@@ -149,6 +189,38 @@ private:
     const void* m_characters;
     unsigned m_length;
 };
+
+inline void StringView::getCharactersWithUpconvert(LChar* destination) const
+{
+    ASSERT(is8Bit());
+    memcpy(destination, characters8(), length());
+}
+
+inline void StringView::getCharactersWithUpconvert(UChar* destination) const
+{
+    if (is8Bit()) {
+        const LChar* characters8 = this->characters8();
+        unsigned length = this->length();
+        for (unsigned i = 0; i < length; ++i)
+            destination[i] = characters8[i];
+        return;
+    }
+    memcpy(destination, characters16(), length() * sizeof(UChar));
+}
+
+inline StringView::UpconvertedCharacters::UpconvertedCharacters(const StringView& string)
+{
+    if (!string.is8Bit()) {
+        m_characters = string.characters16();
+        return;
+    }
+    const LChar* characters8 = string.characters8();
+    unsigned length = string.length();
+    m_upconvertedCharacters.reserveInitialCapacity(length);
+    for (unsigned i = 0; i < length; ++i)
+        m_upconvertedCharacters.uncheckedAppend(characters8[i]);
+    m_characters = m_upconvertedCharacters.data();
+}
 
 } // namespace WTF
 

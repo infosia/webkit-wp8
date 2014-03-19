@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,9 +36,8 @@
 #include "Document.h"
 #include "Logging.h"
 #include "ResourceBuffer.h"
-#include "ScriptCallStack.h"
 #include "SecurityOrigin.h"
-#include "TextTrackCue.h"
+#include "VTTCue.h"
 #include "WebVTTParser.h"
 
 namespace WebCore {
@@ -92,7 +91,7 @@ void TextTrackLoader::processNewCueData(CachedResource* resource)
         return;
 
     if (!m_cueParser)
-        m_cueParser = WebVTTParser::create(this, m_scriptExecutionContext);
+        m_cueParser = std::make_unique<WebVTTParser>(static_cast<WebVTTParserClient*>(this), m_scriptExecutionContext);
 
     const char* data;
     unsigned length;
@@ -116,9 +115,9 @@ void TextTrackLoader::deprecatedDidReceiveCachedResource(CachedResource* resourc
 
 void TextTrackLoader::corsPolicyPreventedLoad()
 {
-    DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Cross-origin text track load denied by Cross-Origin Resource Sharing policy.")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Cross-origin text track load denied by Cross-Origin Resource Sharing policy.")));
     Document* document = toDocument(m_scriptExecutionContext);
-    document->addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, consoleMessage);
+    document->addConsoleMessage(MessageSource::Security, MessageLevel::Error, consoleMessage);
     m_state = Failed;
 }
 
@@ -214,7 +213,7 @@ void TextTrackLoader::getNewCues(Vector<RefPtr<TextTrackCue>>& outputCues)
         m_cueParser->getNewCues(newCues);
         for (size_t i = 0; i < newCues.size(); ++i) {
             RefPtr<WebVTTCueData> data = newCues[i];
-            RefPtr<TextTrackCue> cue = TextTrackCue::create(*m_scriptExecutionContext, data->startTime(), data->endTime(), data->content());
+            RefPtr<VTTCue> cue = VTTCue::create(*m_scriptExecutionContext, data->startTime(), data->endTime(), data->content());
             cue->setId(data->id());
             cue->setCueSettings(data->settings());
             outputCues.append(cue);

@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -594,9 +594,6 @@ struct WebHTMLViewInterpretKeyEventsParameters {
     
     NSArray *pageRects;
 
-    NSMutableDictionary *highlighters;
-
-    
 #if !PLATFORM(IOS)
     WebTextCompletionController *completionController;
 #endif
@@ -692,7 +689,6 @@ static NSCellStateValue kit(TriState state)
     [completionController release];
 #endif
     [dataSource release];
-    [highlighters release];
 #if !PLATFORM(IOS)
     [trackingAreaForNonKeyWindow release];
     if (promisedDragTIFFDataSource)
@@ -731,7 +727,6 @@ static NSCellStateValue kit(TriState state)
     [completionController release];
 #endif
     [dataSource release];
-    [highlighters release];
 #if !PLATFORM(IOS)
     [trackingAreaForNonKeyWindow release];
     if (promisedDragTIFFDataSource)
@@ -746,7 +741,6 @@ static NSCellStateValue kit(TriState state)
     completionController = nil;
 #endif
     dataSource = nil;
-    highlighters = nil;
 #if !PLATFORM(IOS)
     trackingAreaForNonKeyWindow = nil;
     promisedDragTIFFDataSource = 0;
@@ -2086,18 +2080,6 @@ static bool mouseEventIsPartOfClickOrDrag(NSEvent *event)
     Frame* coreFrame = core([self _frame]);
     if (coreFrame)
         coreFrame->editor().decreaseSelectionListLevel();
-}
-
-- (void)_setHighlighter:(id<WebHTMLHighlighter>)highlighter ofType:(NSString*)type
-{
-    if (!_private->highlighters)
-        _private->highlighters = [[NSMutableDictionary alloc] init];
-    [_private->highlighters setObject:highlighter forKey:type];
-}
-
-- (void)_removeHighlighterOfType:(NSString*)type
-{
-    [_private->highlighters removeObjectForKey:type];
 }
 
 #if !PLATFORM(IOS)
@@ -5537,11 +5519,6 @@ static BOOL writingDirectionKeyBindingsEnabled()
 }
 #endif
 
-- (id<WebHTMLHighlighter>)_highlighterForType:(NSString*)type
-{
-    return [_private->highlighters objectForKey:type];
-}
-
 - (WebFrame *)_frame
 {
     return [_private->dataSource webFrame];
@@ -5705,7 +5682,7 @@ static BOOL writingDirectionKeyBindingsEnabled()
     if (!coreFrame)
         return;
 
-    NSRect rect = coreFrame->selection().bounds();
+    NSRect rect = coreFrame->selection().selectionBounds();
 
     NSDictionary *attributes = [attrString fontAttributesInRange:NSMakeRange(0,1)];
     NSFont *font = [attributes objectForKey:NSFontAttributeName];
@@ -6551,7 +6528,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
 {
     if (![self _hasSelection])
         return NSZeroRect;
-    return core([self _frame])->selection().bounds();
+    return core([self _frame])->selection().selectionBounds();
 }
 
 - (NSArray *)selectionTextRects
@@ -6592,7 +6569,8 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
         return nil;
 
 #if PLATFORM(IOS)
-    return createDragImageForSelection(*coreFrame, forceBlackText).leakRef();
+    CGImageRef dragImage = createDragImageForSelection(*coreFrame, forceBlackText).leakRef();
+    return dragImage ? (CGImageRef)CFAutorelease(dragImage) : nil;
 #else
     return [createDragImageForSelection(*coreFrame, forceBlackText).leakRef() autorelease];
 #endif
@@ -6602,7 +6580,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
 {
     if (![self _hasSelection])
         return NSZeroRect;
-    return core([self _frame])->selection().bounds();
+    return core([self _frame])->selection().selectionBounds();
 }
 
 #if !PLATFORM(IOS)

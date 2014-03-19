@@ -33,6 +33,7 @@
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
 #import "WKConnectionInternal.h"
+#import "WKFrameHandleInternal.h"
 #import "WKNSArray.h"
 #import "WKNSData.h"
 #import "WKNSDictionary.h"
@@ -42,7 +43,7 @@
 #import "WKNSURLAuthenticationChallenge.h"
 #import "WKNSURLProtectionSpace.h"
 #import "WKNavigationDataInternal.h"
-#import "WKProcessClassInternal.h"
+#import "WKProcessPoolInternal.h"
 #import "WKWebProcessPlugInBrowserContextControllerInternal.h"
 #import "WKWebProcessPlugInFrameInternal.h"
 #import "WKWebProcessPlugInHitTestResultInternal.h"
@@ -101,7 +102,7 @@ void* Object::newObject(size_t size, Type type)
         break;
 
     case Type::Context:
-        wrapper = [WKProcessClass alloc];
+        wrapper = [WKProcessPool alloc];
         break;
 
     case Type::Data:
@@ -114,6 +115,10 @@ void* Object::newObject(size_t size, Type type)
 
     case Type::Error:
         wrapper = NSAllocateObject([WKNSError self], size, nullptr);
+        break;
+
+    case Type::FrameHandle:
+        wrapper = [WKFrameHandle alloc];
         break;
 
     case Type::NavigationData:

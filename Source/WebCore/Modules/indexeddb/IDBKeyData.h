@@ -45,6 +45,22 @@ struct IDBKeyData {
 
     IDBKeyData(const IDBKey*);
 
+    static IDBKeyData minimum()
+    {
+        IDBKeyData result;
+        result.type = IDBKey::MinType;
+        result.isNull = false;
+        return result;
+    }
+
+    static IDBKeyData maximum()
+    {
+        IDBKeyData result;
+        result.type = IDBKey::MaxType;
+        result.isNull = false;
+        return result;
+    }
+
     PassRefPtr<IDBKey> maybeCreateIDBKey() const;
 
     IDBKeyData isolatedCopy() const;
@@ -57,6 +73,11 @@ struct IDBKeyData {
     //   - Returns positive if this IDBKeyData is greater than other.
     //   - Returns zero if this IDBKeyData is equal to other.
     int compare(const IDBKeyData& other) const;
+
+    void setArrayValue(const Vector<IDBKeyData>&);
+    void setStringValue(const String&);
+    void setDateValue(double);
+    void setNumberValue(double);
 
 #ifndef NDEBUG
     String loggingString() const;

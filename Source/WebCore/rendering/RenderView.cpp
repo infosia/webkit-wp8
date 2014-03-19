@@ -539,16 +539,15 @@ void RenderView::repaintRootContents()
     repaint();
 }
 
-void RenderView::repaintViewRectangle(const LayoutRect& repaintRect, bool immediate) const
+void RenderView::repaintViewRectangle(const LayoutRect& repaintRect) const
 {
-    // FIXME: Get rid of the 'immediate' argument. It only works on Mac WK1 and should never be used.
     if (!shouldRepaint(repaintRect))
         return;
 
     if (auto ownerElement = document().ownerElement()) {
-        if (!ownerElement->renderer())
+        RenderBox* ownerBox = ownerElement->renderBox();
+        if (!ownerBox)
             return;
-        auto& ownerBox = toRenderBox(*ownerElement->renderer());
         LayoutRect viewRect = this->viewRect();
 #if PLATFORM(IOS)
         // Don't clip using the visible rect since clipping is handled at a higher level on iPhone.
@@ -557,16 +556,17 @@ void RenderView::repaintViewRectangle(const LayoutRect& repaintRect, bool immedi
         LayoutRect adjustedRect = intersection(repaintRect, viewRect);
 #endif
         adjustedRect.moveBy(-viewRect.location());
-        adjustedRect.moveBy(ownerBox.contentBoxRect().location());
-        ownerBox.repaintRectangle(adjustedRect, immediate);
+        adjustedRect.moveBy(ownerBox->contentBoxRect().location());
+        ownerBox->repaintRectangle(adjustedRect);
         return;
     }
+
+    frameView().addTrackedRepaintRect(pixelSnappedForPainting(repaintRect, document().deviceScaleFactor()));
+
+    // FIXME: convert all repaint rect dependencies to FloatRect/LayoutRect
     IntRect pixelSnappedRect = pixelSnappedIntRect(repaintRect);
-
-    frameView().addTrackedRepaintRect(pixelSnappedRect);
-
-    if (!m_accumulatedRepaintRegion || immediate) {
-        frameView().repaintContentRectangle(pixelSnappedRect, immediate);
+    if (!m_accumulatedRepaintRegion) {
+        frameView().repaintContentRectangle(pixelSnappedRect);
         return;
     }
     m_accumulatedRepaintRegion->unite(pixelSnappedRect);
@@ -584,16 +584,16 @@ void RenderView::flushAccumulatedRepaintRegion() const
     ASSERT(m_accumulatedRepaintRegion);
     auto repaintRects = m_accumulatedRepaintRegion->rects();
     for (auto& rect : repaintRects)
-        frameView().repaintContentRectangle(rect, false);
+        frameView().repaintContentRectangle(rect);
     m_accumulatedRepaintRegion = nullptr;
 }
 
-void RenderView::repaintRectangleInViewAndCompositedLayers(const LayoutRect& ur, bool immediate)
+void RenderView::repaintRectangleInViewAndCompositedLayers(const LayoutRect& ur)
 {
     if (!shouldRepaint(ur))
         return;
 
-    repaintViewRectangle(ur, immediate);
+    repaintViewRectangle(ur);
 
     RenderLayerCompositor& compositor = this->compositor();
     if (compositor.inCompositingMode()) {
@@ -1050,6 +1050,8 @@ bool RenderView::shouldDisableLayoutStateForSubtree(RenderObject* renderer) cons
 
 IntSize RenderView::viewportSize() const
 {
+    // FIXME: viewportSize() is used to layout content from viewport units. On iOS, it should use the last stable
+    // unobscured rect. See <rdar://problem/16279088>.
     return frameView().visibleContentRectIncludingScrollbars(ScrollableArea::LegacyIOSDocumentVisibleRect).size();
 }
 
@@ -1176,6 +1178,37 @@ ImageQualityController& RenderView::imageQualityController()
     if (!m_imageQualityController)
         m_imageQualityController = ImageQualityController::create(*this);
     return *m_imageQualityController;
+}
+
+void RenderView::addRendererWithPausedImageAnimations(RenderElement& renderer)
+{
+    if (renderer.hasPausedImageAnimations()) {
+        ASSERT(m_renderersWithPausedImageAnimation.contains(&renderer));
+        return;
+    }
+    renderer.setHasPausedImageAnimations(true);
+    m_renderersWithPausedImageAnimation.add(&renderer);
+}
+
+void RenderView::removeRendererWithPausedImageAnimations(RenderElement& renderer)
+{
+    ASSERT(renderer.hasPausedImageAnimations());
+    ASSERT(m_renderersWithPausedImageAnimation.contains(&renderer));
+
+    renderer.setHasPausedImageAnimations(false);
+    m_renderersWithPausedImageAnimation.remove(&renderer);
+}
+
+void RenderView::resumePausedImageAnimationsIfNeeded()
+{
+    auto visibleRect = frameView().visibleContentRect();
+    Vector<RenderElement*, 10> toRemove;
+    for (auto* renderer : m_renderersWithPausedImageAnimation) {
+        if (renderer->repaintForPausedImageAnimationsIfNeeded(visibleRect))
+            toRemove.append(renderer);
+    }
+    for (auto& renderer : toRemove)
+        removeRendererWithPausedImageAnimations(*renderer);
 }
 
 RenderView::RepaintRegionAccumulator::RepaintRegionAccumulator(RenderView* view)

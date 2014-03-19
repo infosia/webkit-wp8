@@ -35,7 +35,6 @@
 #include "FrameLoaderClient.h"
 #include "FTPDirectoryDocument.h"
 #include "HTMLDocument.h"
-#include "HTMLViewSourceDocument.h"
 #include "Image.h"
 #include "ImageDocument.h"
 #include "MediaDocument.h"
@@ -87,7 +86,7 @@ static bool isSupportedSVG10Feature(const String& feature, const String& version
         return false;
 
     static bool initialized = false;
-    DEFINE_STATIC_LOCAL(FeatureSet, svgFeatures, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FeatureSet, svgFeatures, ());
     if (!initialized) {
 #if ENABLE(FILTERS) && ENABLE(SVG_FONTS)
         addString(svgFeatures, "svg");
@@ -116,7 +115,7 @@ static bool isSupportedSVG11Feature(const String& feature, const String& version
         return false;
 
     static bool initialized = false;
-    DEFINE_STATIC_LOCAL(FeatureSet, svgFeatures, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FeatureSet, svgFeatures, ());
     if (!initialized) {
         // Sadly, we cannot claim to implement any of the SVG 1.1 generic feature sets
         // lack of Font and Filter support.
@@ -270,7 +269,8 @@ bool DOMImplementation::isXMLMIMEType(const String& mimeType)
         return false;
 
     // Again, mimeType ends with '+xml', no need to check the validity of that substring.
-    for (size_t i = 0; i < mimeType.length() - 4; ++i) {
+    size_t mimeLength = mimeType.length();
+    for (size_t i = 0; i < mimeLength - 4; ++i) {
         if (!isValidXMLMIMETypeChar(mimeType[i]) && i != slashPosition)
             return false;
     }
@@ -300,11 +300,8 @@ PassRefPtr<HTMLDocument> DOMImplementation::createHTMLDocument(const String& tit
     return d.release();
 }
 
-PassRefPtr<Document> DOMImplementation::createDocument(const String& type, Frame* frame, const URL& url, bool inViewSourceMode)
+PassRefPtr<Document> DOMImplementation::createDocument(const String& type, Frame* frame, const URL& url)
 {
-    if (inViewSourceMode)
-        return HTMLViewSourceDocument::create(frame, url, type);
-
     // Plugins cannot take HTML and XHTML from us, and we don't even need to initialize the plugin database for those.
     if (type == "text/html")
         return HTMLDocument::create(frame, url);

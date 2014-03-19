@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE, INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -63,7 +63,6 @@
 #import "RenderText.h"
 #import "ResourceBuffer.h"
 #import "SharedBuffer.h"
-#import "TextIterator.h"
 #import "VisiblePosition.h"
 #import "VisibleUnits.h"
 
@@ -87,7 +86,6 @@ using WebCore::RenderObject;
 using WebCore::RenderStyle;
 using WebCore::RenderText;
 using WebCore::RootInlineBox;
-using WebCore::TextIterator;
 using WebCore::VisiblePosition;
 
 @implementation DOMRange (UIKitExtensions)
@@ -96,7 +94,7 @@ using WebCore::VisiblePosition;
 {
     Range *range = core(self);
     FrameSelection frameSelection;
-    frameSelection.moveTo(range, DOWNSTREAM);
+    frameSelection.moveTo(range);
     
     TextGranularity granularity = CharacterGranularity;
     // Until WebKit supports vertical layout, "down" is equivalent to "forward by a line" and
@@ -123,7 +121,7 @@ using WebCore::VisiblePosition;
 {
     Range *range = core(self);
     FrameSelection frameSelection;
-    frameSelection.moveTo(range, DOWNSTREAM);
+    frameSelection.moveTo(range);
     
     for (UInt32 i = 0; i < amount; i++)
         frameSelection.modify(FrameSelection::AlterationExtend, (SelectionDirection)direction, CharacterGranularity);    

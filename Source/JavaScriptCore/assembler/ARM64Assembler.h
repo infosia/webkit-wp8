@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -478,7 +478,7 @@ public:
     typedef ARM64Registers::FPRegisterID FPRegisterID;
     
     static RegisterID firstRegister() { return ARM64Registers::x0; }
-    static RegisterID lastRegister() { return ARM64Registers::x28; }
+    static RegisterID lastRegister() { return ARM64Registers::sp; }
     
     static FPRegisterID firstFPRegister() { return ARM64Registers::q0; }
     static FPRegisterID lastFPRegister() { return ARM64Registers::q31; }
@@ -1669,6 +1669,14 @@ public:
         insn(nopPseudo());
     }
     
+    static void fillNops(void* base, size_t size)
+    {
+        RELEASE_ASSERT(!(size % sizeof(int32_t)));
+        size_t n = size / sizeof(int32_t);
+        for (int32_t* ptr = static_cast<int32_t*>(base); n--;)
+            *ptr++ = nopPseudo();
+    }
+    
     ALWAYS_INLINE void dmbSY()
     {
         insn(0xd5033fbf);
@@ -2580,13 +2588,6 @@ public:
     static int getDifferenceBetweenLabels(AssemblerLabel a, AssemblerLabel b)
     {
         return b.m_offset - a.m_offset;
-    }
-
-    int executableOffsetFor(int location)
-    {
-        if (!location)
-            return 0;
-        return static_cast<int32_t*>(m_buffer.data())[location / sizeof(int32_t) - 1];
     }
 
     void* unlinkedCode() { return m_buffer.data(); }

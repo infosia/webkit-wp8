@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -42,15 +42,14 @@
 #include "HTMLNames.h"
 #include "ImageData.h"
 #include "MIMETypeRegistry.h"
-#include "MainFrame.h"
 #include "Page.h"
 #include "RenderHTMLCanvas.h"
 #include "ScriptController.h"
 #include "Settings.h"
 #include <math.h>
 
+#include <runtime/JSCInlines.h>
 #include <runtime/JSLock.h>
-#include <runtime/Operations.h>
 
 #if ENABLE(WEBGL)    
 #include "WebGLContextAttributes.h"
@@ -105,7 +104,7 @@ HTMLCanvasElement::~HTMLCanvasElement()
     for (auto it = m_observers.begin(), end = m_observers.end(); it != end; ++it)
         (*it)->canvasDestroyed(*this);
 
-    m_context.clear(); // Ensure this goes away before the ImageBuffer.
+    m_context = nullptr; // Ensure this goes away before the ImageBuffer.
 }
 
 void HTMLCanvasElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
@@ -130,11 +129,6 @@ RenderPtr<RenderElement> HTMLCanvasElement::createElementRenderer(PassRef<Render
 void HTMLCanvasElement::willAttachRenderers()
 {
     setIsInCanvasSubtree(true);
-}
-
-bool HTMLCanvasElement::areAuthorShadowsAllowed() const
-{
-    return false;
 }
 
 bool HTMLCanvasElement::canContainRangeEndPoint() const
@@ -211,7 +205,7 @@ CanvasRenderingContext* HTMLCanvasElement::getContext(const String& type, Canvas
             if (Settings* settings = document().settings())
                 usesDashbardCompatibilityMode = settings->usesDashboardBackwardCompatibilityMode();
 #endif
-            m_context = CanvasRenderingContext2D::create(this, document().inQuirksMode(), usesDashbardCompatibilityMode);
+            m_context = std::make_unique<CanvasRenderingContext2D>(this, document().inQuirksMode(), usesDashbardCompatibilityMode);
 #if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
             // Need to make sure a RenderLayer and compositing layer get created for the Canvas
             setNeedsStyleRecalc(SyntheticStyleChange);
@@ -226,14 +220,6 @@ CanvasRenderingContext* HTMLCanvasElement::getContext(const String& type, Canvas
             if (m_context && !m_context->is3d())
                 return nullptr;
             if (!m_context) {
-                Document& topDocument = document().topDocument();
-                Page* page = topDocument.page();
-                if (page && !topDocument.url().isLocalFile()) {
-                    WebGLLoadPolicy policy = page->mainFrame().loader().client().webGLPolicyForURL(topDocument.url());
-
-                    if (policy == WebGLBlock)
-                        return nullptr;
-                }
                 m_context = WebGLRenderingContext::create(this, static_cast<WebGLContextAttributes*>(attrs));
                 if (m_context) {
                     // Need to make sure a RenderLayer and compositing layer get created for the Canvas
@@ -349,7 +335,7 @@ void HTMLCanvasElement::reset()
     setSurfaceSize(newSize);
 
 #if ENABLE(WEBGL)
-    if (m_context && m_context->is3d() && oldSize != size())
+    if (is3D() && oldSize != size())
         static_cast<WebGLRenderingContext*>(m_context.get())->reshape(width(), height());
 #endif
 
@@ -503,15 +489,15 @@ String HTMLCanvasElement::toDataURL(const String& mimeType, const double* qualit
 
 PassRefPtr<ImageData> HTMLCanvasElement::getImageData()
 {
-    if (!m_context || !m_context->is3d())
-       return 0;
+#if ENABLE(WEBGL)
+    if (!is3D())
+        return nullptr;
 
-#if ENABLE(WEBGL)    
     WebGLRenderingContext* ctx = static_cast<WebGLRenderingContext*>(m_context.get());
 
     return ctx->paintRenderingResultsToImageData();
 #else
-    return 0;
+    return nullptr;
 #endif
 }
 
@@ -612,7 +598,7 @@ void HTMLCanvasElement::createImageBuffer() const
 
     JSC::JSLockHolder lock(scriptExecutionContext()->vm());
     size_t numBytes = 4 * m_imageBuffer->internalSize().width() * m_imageBuffer->internalSize().height();
-    scriptExecutionContext()->vm()->heap.reportExtraMemoryCost(numBytes);
+    scriptExecutionContext()->vm().heap.reportExtraMemoryCost(numBytes);
 
 #if USE(IOSURFACE_CANVAS_BACKING_STORE) || ENABLE(ACCELERATED_2D_CANVAS)
     if (m_context && m_context->is2d())

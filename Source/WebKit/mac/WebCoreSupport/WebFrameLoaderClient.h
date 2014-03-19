@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -62,9 +62,8 @@ private:
 
     virtual void makeRepresentation(WebCore::DocumentLoader*) override;
     virtual bool hasHTMLView() const override;
-    virtual void forceLayout() override;
 #if PLATFORM(IOS)
-    virtual void forceLayoutWithoutRecalculatingStyles() override;
+    virtual bool forceLayoutOnRestoreFromPageCache() override;
 #endif
     virtual void forceLayoutForNonHTML() override;
 
@@ -200,7 +199,12 @@ private:
         const Vector<WTF::String>&, const WTF::String&, bool) override;
     virtual void recreatePlugin(WebCore::Widget*) override;
     virtual void redirectDataToPlugin(WebCore::Widget* pluginWidget) override;
-    
+
+#if ENABLE(WEBGL)
+    virtual WebCore::WebGLLoadPolicy webGLPolicyForURL(const String&) const override;
+    virtual WebCore::WebGLLoadPolicy resolveWebGLPolicyForURL(const String&) const override;
+#endif // ENABLE(WEBGL)
+
     virtual PassRefPtr<WebCore::Widget> createJavaAppletWidget(const WebCore::IntSize&, WebCore::HTMLAppletElement*, const WebCore::URL& baseURL,
         const Vector<WTF::String>& paramNames, const Vector<WTF::String>& paramValues) override;
     
@@ -222,9 +226,7 @@ private:
     virtual bool shouldLoadMediaElementURL(const WebCore::URL&) const override;
 #endif
 
-#if PLATFORM(MAC)
     virtual RemoteAXObjectRef accessibilityRemoteObject() override { return 0; }
-#endif
     
     RetainPtr<WebFramePolicyListener> setUpPolicyListener(WebCore::FramePolicyFunction);
 

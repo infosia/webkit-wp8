@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,8 +28,9 @@
 
 #if ENABLE(MEDIA_SOURCE) && USE(AVFOUNDATION)
 
-#import "HTMLMediaSource.h"
+#import "CDMSession.h"
 #import "MediaSourcePrivateAVFObjC.h"
+#import "MediaSourcePrivateClient.h"
 #import "MediaTimeMac.h"
 #import "PlatformClockCM.h"
 #import "SoftLinking.h"
@@ -118,7 +119,12 @@ namespace WebCore {
 static void CMTimebaseEffectiveRateChangedCallback(CMNotificationCenterRef, const void *listener, CFStringRef, const void *, CFTypeRef)
 {
     MediaPlayerPrivateMediaSourceAVFObjC* player = (MediaPlayerPrivateMediaSourceAVFObjC*)listener;
-    callOnMainThread(bind(&MediaPlayerPrivateMediaSourceAVFObjC::effectiveRateChanged, player));
+    auto weakThis = player->createWeakPtr();
+    callOnMainThread([weakThis]{
+        if (!weakThis)
+            return;
+        weakThis.get()->effectiveRateChanged();
+    });
 }
 
 MediaPlayerPrivateMediaSourceAVFObjC::MediaPlayerPrivateMediaSourceAVFObjC(MediaPlayer* player)
@@ -165,7 +171,7 @@ MediaPlayerPrivateMediaSourceAVFObjC::~MediaPlayerPrivateMediaSourceAVFObjC()
 void MediaPlayerPrivateMediaSourceAVFObjC::registerMediaEngine(MediaEngineRegistrar registrar)
 {
     if (isAvailable())
-        registrar(create, getSupportedTypes, supportsType, 0, 0, 0);
+        registrar(create, getSupportedTypes, supportsType, 0, 0, 0, supportsKeySystem);
 }
 
 PassOwnPtr<MediaPlayerPrivateInterface> MediaPlayerPrivateMediaSourceAVFObjC::create(MediaPlayer* player)
@@ -185,7 +191,7 @@ bool MediaPlayerPrivateMediaSourceAVFObjC::isAvailable()
 
 static HashSet<String> mimeTypeCache()
 {
-    DEFINE_STATIC_LOCAL(HashSet<String>, cache, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<String>, cache, ());
     static bool typeListInitialized = false;
 
     if (typeListInitialized)
@@ -204,8 +210,20 @@ void MediaPlayerPrivateMediaSourceAVFObjC::getSupportedTypes(HashSet<String>& ty
     types = mimeTypeCache();
 }
 
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+static bool keySystemIsSupported(const String& keySystem)
+{
+    return equalIgnoringCase(keySystem, "com.apple.fps.2_0");
+}
+#endif
+
 MediaPlayer::SupportsType MediaPlayerPrivateMediaSourceAVFObjC::supportsType(const MediaEngineSupportParameters& parameters)
 {
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+    if (!parameters.keySystem.isEmpty() && !keySystemIsSupported(parameters.keySystem))
+            return MediaPlayer::IsNotSupported;
+#endif
+
     // This engine does not support non-media-source sources.
     if (!parameters.isMediaSource)
         return MediaPlayer::IsNotSupported;
@@ -222,6 +240,25 @@ MediaPlayer::SupportsType MediaPlayerPrivateMediaSourceAVFObjC::supportsType(con
     return [getAVURLAssetClass() isPlayableExtendedMIMEType:typeString] ? MediaPlayer::IsSupported : MediaPlayer::MayBeSupported;;
 }
 
+bool MediaPlayerPrivateMediaSourceAVFObjC::supportsKeySystem(const String& keySystem, const String& mimeType)
+{
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+    if (!keySystem.isEmpty()) {
+        if (!keySystemIsSupported(keySystem))
+            return false;
+
+        if (!mimeType.isEmpty() && !mimeTypeCache().contains(mimeType))
+            return false;
+
+        return true;
+    }
+#else
+    UNUSED_PARAM(keySystem);
+    UNUSED_PARAM(mimeType);
+#endif
+    return false;
+}
+
 #pragma mark -
 #pragma mark MediaPlayerPrivateInterface Overrides
 
@@ -232,7 +269,7 @@ void MediaPlayerPrivateMediaSourceAVFObjC::load(const String&)
     m_player->networkStateChanged();
 }
 
-void MediaPlayerPrivateMediaSourceAVFObjC::load(const String& url, PassRefPtr<HTMLMediaSource> source)
+void MediaPlayerPrivateMediaSourceAVFObjC::load(const String& url, MediaSourcePrivateClient* source)
 {
     UNUSED_PARAM(url);
 
@@ -265,7 +302,12 @@ PlatformLayer* MediaPlayerPrivateMediaSourceAVFObjC::platformLayer() const
 
 void MediaPlayerPrivateMediaSourceAVFObjC::play()
 {
-    callOnMainThread(WTF::bind(&MediaPlayerPrivateMediaSourceAVFObjC::playInternal, this));
+    auto weakThis = createWeakPtr();
+    callOnMainThread([weakThis]{
+        if (!weakThis)
+            return;
+        weakThis.get()->playInternal();
+    });
 }
 
 void MediaPlayerPrivateMediaSourceAVFObjC::playInternal()
@@ -276,7 +318,12 @@ void MediaPlayerPrivateMediaSourceAVFObjC::playInternal()
 
 void MediaPlayerPrivateMediaSourceAVFObjC::pause()
 {
-    callOnMainThread(WTF::bind(&MediaPlayerPrivateMediaSourceAVFObjC::pauseInternal, this));
+    auto weakThis = createWeakPtr();
+    callOnMainThread([weakThis]{
+        if (!weakThis)
+            return;
+        weakThis.get()->pauseInternal();
+    });
 }
 
 void MediaPlayerPrivateMediaSourceAVFObjC::pauseInternal()
@@ -356,7 +403,12 @@ double MediaPlayerPrivateMediaSourceAVFObjC::initialTime() const
 void MediaPlayerPrivateMediaSourceAVFObjC::seekWithTolerance(double time, double negativeThreshold, double positiveThreshold)
 {
     m_seeking = true;
-    callOnMainThread(WTF::bind(&MediaPlayerPrivateMediaSourceAVFObjC::seekInternal, this, time, negativeThreshold, positiveThreshold));
+    auto weakThis = createWeakPtr();
+    callOnMainThread([weakThis, time, negativeThreshold, positiveThreshold]{
+        if (!weakThis)
+            return;
+        weakThis.get()->seekInternal(time, negativeThreshold, positiveThreshold);
+    });
 }
 
 void MediaPlayerPrivateMediaSourceAVFObjC::seekInternal(double time, double negativeThreshold, double positiveThreshold)
@@ -388,9 +440,9 @@ MediaPlayer::ReadyState MediaPlayerPrivateMediaSourceAVFObjC::readyState() const
     return m_readyState;
 }
 
-PassRefPtr<TimeRanges> MediaPlayerPrivateMediaSourceAVFObjC::seekable() const
+std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateMediaSourceAVFObjC::seekable() const
 {
-    return TimeRanges::create(minTimeSeekable(), maxTimeSeekableDouble());
+    return PlatformTimeRanges::create(minTimeSeekable(), maxTimeSeekableDouble());
 }
 
 double MediaPlayerPrivateMediaSourceAVFObjC::maxTimeSeekableDouble() const
@@ -403,7 +455,7 @@ double MediaPlayerPrivateMediaSourceAVFObjC::minTimeSeekable() const
     return startTimeDouble();
 }
 
-PassRefPtr<TimeRanges> MediaPlayerPrivateMediaSourceAVFObjC::buffered() const
+std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateMediaSourceAVFObjC::buffered() const
 {
     return m_mediaSource->buffered();
 }
@@ -533,6 +585,21 @@ void MediaPlayerPrivateMediaSourceAVFObjC::sizeChanged()
 {
     m_player->sizeChanged();
 }
+
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+std::unique_ptr<CDMSession> MediaPlayerPrivateMediaSourceAVFObjC::createSession(const String& keySystem)
+{
+    if (!m_mediaSourcePrivate)
+        return nullptr;
+
+    return m_mediaSourcePrivate->createSession(keySystem);
+}
+
+void MediaPlayerPrivateMediaSourceAVFObjC::keyNeeded(Uint8Array* initData)
+{
+    m_player->keyNeeded(initData);
+}
+#endif
 
 void MediaPlayerPrivateMediaSourceAVFObjC::setReadyState(MediaPlayer::ReadyState readyState)
 {

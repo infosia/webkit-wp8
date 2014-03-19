@@ -28,6 +28,7 @@
 
 #include "AutoTableLayout.cpp"
 #include "BidiRun.cpp"
+#include "BorderEdge.cpp"
 #include "CounterNode.cpp"
 #include "EllipsisBox.cpp"
 #include "FilterEffectRenderer.cpp"
@@ -108,12 +109,12 @@
 #include "RenderTextControlSingleLine.cpp"
 #include "RenderTextFragment.cpp"
 #include "RenderTextLineBoxes.cpp"
-#include "RenderTextTrackCue.cpp"
 #include "RenderTheme.cpp"
 #if PLATFORM(WIN)
 #include "RenderThemeWin.cpp"
 #endif
 #include "RenderTreeAsText.cpp"
+#include "RenderVTTCue.cpp"
 #include "RenderVideo.cpp"
 #include "RenderView.cpp"
 #include "RenderWidget.cpp"

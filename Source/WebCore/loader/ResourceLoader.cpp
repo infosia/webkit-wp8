@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -342,15 +342,6 @@ void ResourceLoader::didReceiveDataOrBuffer(const char* data, unsigned length, P
         frameLoader()->notifier().didReceiveData(this, buffer ? buffer->data() : data, buffer ? buffer->size() : length, static_cast<int>(encodedDataLength));
 }
 
-void ResourceLoader::willStopBufferingData(const char* data, unsigned length)
-{
-    if (m_options.dataBufferingPolicy == DoNotBufferData)
-        return;
-
-    ASSERT(!m_resourceData);
-    m_resourceData = ResourceBuffer::create(data, length);
-}
-
 void ResourceLoader::didFinishLoading(double finishTime)
 {
     didFinishLoadingOnePart(finishTime);
@@ -559,7 +550,7 @@ void ResourceLoader::didReceiveAuthenticationChallenge(const AuthenticationChall
     }
     // Only these platforms provide a way to continue without credentials.
     // If we can't continue with credentials, we need to cancel the load altogether.
-#if PLATFORM(MAC) || USE(CFNETWORK) || USE(CURL) || PLATFORM(GTK) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || USE(CFNETWORK) || USE(CURL) || PLATFORM(GTK) || PLATFORM(EFL)
     challenge.authenticationClient()->receivedRequestToContinueWithoutCredential(challenge);
     ASSERT(!handle() || !handle()->hasAuthenticationChallenge());
 #else

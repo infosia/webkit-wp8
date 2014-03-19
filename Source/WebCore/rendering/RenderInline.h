@@ -30,6 +30,7 @@
 namespace WebCore {
 
 class Position;
+class RenderRegion;
 
 class RenderInline : public RenderBoxModelObject {
 public:
@@ -99,6 +100,8 @@ protected:
 
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) override;
 
+    virtual void updateFromStyle() override;
+
 private:
     virtual const char* renderName() const override;
 
@@ -167,8 +170,6 @@ private:
 #if ENABLE(DASHBOARD_SUPPORT)
     virtual void addAnnotatedRegions(Vector<AnnotatedRegionValue>&) override final;
 #endif
-    
-    virtual void updateFromStyle() override final;
     
     RenderPtr<RenderInline> clone() const;
 

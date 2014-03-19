@@ -71,11 +71,11 @@ const RemoteLayerTreeHost* RemoteScrollingCoordinatorProxy::layerTreeHost() cons
         return nullptr;
     }
 
-    RemoteLayerTreeDrawingAreaProxy* remoteDrawingArea = static_cast<RemoteLayerTreeDrawingAreaProxy*>(drawingArea);
+    RemoteLayerTreeDrawingAreaProxy* remoteDrawingArea = toRemoteLayerTreeDrawingAreaProxy(drawingArea);
     return &remoteDrawingArea->remoteLayerTreeHost();
 }
 
-void RemoteScrollingCoordinatorProxy::updateScrollingTree(const RemoteScrollingCoordinatorTransaction& transaction)
+void RemoteScrollingCoordinatorProxy::updateScrollingTree(const RemoteScrollingCoordinatorTransaction& transaction, bool& fixedOrStickyLayerChanged)
 {
     OwnPtr<ScrollingStateTree> stateTree = const_cast<RemoteScrollingCoordinatorTransaction&>(transaction).scrollingStateTree().release();
     
@@ -84,21 +84,24 @@ void RemoteScrollingCoordinatorProxy::updateScrollingTree(const RemoteScrollingC
         ASSERT_NOT_REACHED();
         return;
     }
-    
-    connectStateNodeLayers(*stateTree, *layerTreeHost);
+
+    connectStateNodeLayers(*stateTree, *layerTreeHost, fixedOrStickyLayerChanged);
     m_scrollingTree->commitNewTreeState(stateTree.release());
 }
 
-void RemoteScrollingCoordinatorProxy::connectStateNodeLayers(ScrollingStateTree& stateTree, const RemoteLayerTreeHost& layerTreeHost)
+#if !PLATFORM(IOS)
+void RemoteScrollingCoordinatorProxy::connectStateNodeLayers(ScrollingStateTree& stateTree, const RemoteLayerTreeHost& layerTreeHost, bool& fixedOrStickyLayerChanged)
 {
-    for (auto it : stateTree.nodeMap()) {
-        ScrollingStateNode* currNode = it.value;
+    for (auto& currNode : stateTree.nodeMap().values()) {
         switch (currNode->nodeType()) {
         case ScrollingNode: {
             ScrollingStateScrollingNode* scrollingStateNode = toScrollingStateScrollingNode(currNode);
             
             if (scrollingStateNode->hasChangedProperty(ScrollingStateNode::ScrollLayer))
                 scrollingStateNode->setLayer(layerTreeHost.getLayer(scrollingStateNode->layer()));
+
+            if (scrollingStateNode->hasChangedProperty(ScrollingStateScrollingNode::ScrolledContentsLayer))
+                scrollingStateNode->setScrolledContentsLayer(layerTreeHost.getLayer(scrollingStateNode->scrolledContentsLayer()));
 
             if (scrollingStateNode->hasChangedProperty(ScrollingStateScrollingNode::CounterScrollingLayer))
                 scrollingStateNode->setCounterScrollingLayer(layerTreeHost.getLayer(scrollingStateNode->counterScrollingLayer()));
@@ -112,16 +115,21 @@ void RemoteScrollingCoordinatorProxy::connectStateNodeLayers(ScrollingStateTree&
             break;
         }
         case FixedNode:
-            if (currNode->hasChangedProperty(ScrollingStateNode::ScrollLayer))
+            if (currNode->hasChangedProperty(ScrollingStateNode::ScrollLayer)) {
                 currNode->setLayer(layerTreeHost.getLayer(currNode->layer()));
+                fixedOrStickyLayerChanged = true;
+            }
             break;
         case StickyNode:
-            if (currNode->hasChangedProperty(ScrollingStateNode::ScrollLayer))
+            if (currNode->hasChangedProperty(ScrollingStateNode::ScrollLayer)) {
                 currNode->setLayer(layerTreeHost.getLayer(currNode->layer()));
+                fixedOrStickyLayerChanged = true;
+            }
             break;
         }
     }
 }
+#endif
 
 bool RemoteScrollingCoordinatorProxy::handleWheelEvent(const PlatformWheelEvent& event)
 {
@@ -129,13 +137,24 @@ bool RemoteScrollingCoordinatorProxy::handleWheelEvent(const PlatformWheelEvent&
     return result == ScrollingTree::DidHandleEvent; // FIXME: handle other values.
 }
 
-void RemoteScrollingCoordinatorProxy::scrollPositionChangedViaDelegatedScrolling(ScrollingNodeID nodeID, const IntPoint& offset)
+bool RemoteScrollingCoordinatorProxy::isPointInNonFastScrollableRegion(const WebCore::IntPoint& p) const
 {
-    m_scrollingTree->scrollPositionChangedViaDelegatedScrolling(nodeID, offset);
+    return m_scrollingTree->isPointInNonFastScrollableRegion(p);
 }
 
+void RemoteScrollingCoordinatorProxy::viewportChangedViaDelegatedScrolling(ScrollingNodeID nodeID, const WebCore::FloatRect& viewportRect, double scale)
+{
+    m_scrollingTree->viewportChangedViaDelegatedScrolling(nodeID, viewportRect, scale);
+}
+
+// This comes from the scrolling tree.
 void RemoteScrollingCoordinatorProxy::scrollPositionChanged(WebCore::ScrollingNodeID scrolledNodeID, const WebCore::FloatPoint& newScrollPosition)
 {
+    // Scroll updates for the main frame are sent via WebPageProxy::updateVisibleContentRects()
+    // so don't send them here.
+    if (scrolledNodeID == rootScrollingNodeID())
+        return;
+
     m_webPageProxy.send(Messages::RemoteScrollingCoordinator::ScrollPositionChangedForNode(scrolledNodeID, newScrollPosition));
 }
 

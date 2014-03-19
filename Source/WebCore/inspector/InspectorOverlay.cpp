@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -164,7 +164,7 @@ static void buildRendererHighlight(RenderObject* renderer, RenderRegion* region,
                 paddingBox.width() - renderInline->paddingLeft() - renderInline->paddingRight(), paddingBox.height() - renderInline->paddingTop() - renderInline->paddingBottom());
             // Ignore marginTop and marginBottom for inlines.
             marginBox = LayoutRect(borderBox.x() - renderInline->marginLeft(), borderBox.y(),
-                borderBox.width() + renderInline->marginWidth(), borderBox.height());
+                borderBox.width() + renderInline->horizontalMarginExtent(), borderBox.height());
         }
 
         FloatQuad absContentQuad;
@@ -236,6 +236,7 @@ static void buildQuadHighlight(const FloatQuad& quad, const HighlightConfig& hig
 InspectorOverlay::InspectorOverlay(Page& page, InspectorClient* client)
     : m_page(page)
     , m_client(client)
+    , m_indicating(false)
 {
 }
 
@@ -245,8 +246,9 @@ InspectorOverlay::~InspectorOverlay()
 
 void InspectorOverlay::paint(GraphicsContext& context)
 {
-    if (m_pausedInDebuggerMessage.isNull() && !m_highlightNode && !m_highlightQuad && m_size.isEmpty())
+    if (!shouldShowOverlay())
         return;
+
     GraphicsContextStateSaver stateSaver(context);
     FrameView* view = overlayPage()->mainFrame().view();
     view->updateLayoutAndStyleIfNeededRecursive();
@@ -280,7 +282,7 @@ void InspectorOverlay::setPausedInDebuggerMessage(const String* message)
 void InspectorOverlay::hideHighlight()
 {
     m_highlightNode.clear();
-    m_highlightQuad.clear();
+    m_highlightQuad.reset();
     update();
 }
 
@@ -291,13 +293,13 @@ void InspectorOverlay::highlightNode(Node* node, const HighlightConfig& highligh
     update();
 }
 
-void InspectorOverlay::highlightQuad(PassOwnPtr<FloatQuad> quad, const HighlightConfig& highlightConfig)
+void InspectorOverlay::highlightQuad(std::unique_ptr<FloatQuad> quad, const HighlightConfig& highlightConfig)
 {
     if (m_quadHighlightConfig.usePageCoordinates)
         *quad -= m_page.mainFrame().view()->scrollOffset();
 
     m_quadHighlightConfig = highlightConfig;
-    m_highlightQuad = quad;
+    m_highlightQuad = std::move(quad);
     update();
 }
 
@@ -311,9 +313,26 @@ void InspectorOverlay::didSetSearchingForNode(bool enabled)
     m_client->didSetSearchingForNode(enabled);
 }
 
+void InspectorOverlay::setIndicating(bool indicating)
+{
+    m_indicating = indicating;
+
+    if (m_indicating)
+        evaluateInOverlay(ASCIILiteral("showPageIndication"));
+    else
+        evaluateInOverlay(ASCIILiteral("hidePageIndication"));
+
+    update();
+}
+
+bool InspectorOverlay::shouldShowOverlay() const
+{
+    return m_highlightNode || m_highlightNode || m_indicating || !m_pausedInDebuggerMessage.isNull();
+}
+
 void InspectorOverlay::update()
 {
-    if (!m_highlightNode && !m_highlightQuad && m_pausedInDebuggerMessage.isNull() && m_size.isEmpty()) {
+    if (!shouldShowOverlay()) {
         m_client->hideHighlight();
         return;
     }
@@ -325,13 +344,13 @@ void InspectorOverlay::update()
     FrameView* overlayView = overlayPage()->mainFrame().view();
     IntSize viewportSize = view->visibleContentRect().size();
     IntSize frameViewFullSize = view->visibleContentRectIncludingScrollbars().size();
-    IntSize size = m_size.isEmpty() ? frameViewFullSize : m_size;
     overlayPage()->setPageScaleFactor(m_page.pageScaleFactor(), IntPoint());
-    size.scale(m_page.pageScaleFactor());
-    overlayView->resize(size);
+    frameViewFullSize.scale(m_page.pageScaleFactor());
+    overlayView->resize(frameViewFullSize);
 
     // Clear canvas and paint things.
-    reset(viewportSize, m_size.isEmpty() ? IntSize() : frameViewFullSize);
+    // FIXME: Remove extra parameter?
+    reset(viewportSize, IntSize());
 
     // Include scrollbars to avoid masking them by the gutter.
     drawGutter();
@@ -481,7 +500,7 @@ static PassRefPtr<InspectorObject> buildObjectForCSSRegionContentClip(RenderRegi
 
 void InspectorOverlay::drawGutter()
 {
-    evaluateInOverlay("drawGutter", "");
+    evaluateInOverlay("drawGutter");
 }
 
 static PassRefPtr<InspectorArray> buildObjectForRendererFragments(RenderObject* renderer, const HighlightConfig& config)
@@ -497,11 +516,11 @@ static PassRefPtr<InspectorArray> buildObjectForRendererFragments(RenderObject* 
         RenderBox* enclosingBox = renderer->enclosingBox();
         RenderRegion* startRegion = nullptr;
         RenderRegion* endRegion = nullptr;
-        containingFlowThread->getRegionRangeForBox(enclosingBox, startRegion, endRegion);
-        if (!startRegion) {
+        if (!containingFlowThread->getRegionRangeForBox(enclosingBox, startRegion, endRegion)) {
             // The flow has no visible regions. The renderer is not visible on screen.
             return nullptr;
         }
+
         const RenderRegionList& regionList = containingFlowThread->renderRegionList();
         for (RenderRegionList::const_iterator iter = regionList.find(startRegion); iter != regionList.end(); ++iter) {
             RenderRegion* region = *iter;
@@ -683,6 +702,15 @@ static PassRefPtr<InspectorObject> buildObjectForElementInfo(Node* node)
     }
 #endif
 
+    // Need to enable AX to get the computed role.
+    if (!WebCore::AXObjectCache::accessibilityEnabled())
+        WebCore::AXObjectCache::enableAccessibility();
+
+    if (AXObjectCache* axObjectCache = node->document().axObjectCache()) {
+        if (AccessibilityObject* axObject = axObjectCache->getOrCreate(node))
+            elementInfo->setString("role", axObject->computedRoleString());
+    }
+
     return elementInfo.release();
 }
 
@@ -748,7 +776,7 @@ Page* InspectorOverlay::overlayPage()
 
     Page::PageClients pageClients;
     fillWithEmptyClients(pageClients);
-    m_overlayPage = adoptPtr(new Page(pageClients));
+    m_overlayPage = std::make_unique<Page>(pageClients);
 
     Settings& settings = m_page.settings();
     Settings& overlaySettings = m_overlayPage->settings();
@@ -797,6 +825,13 @@ void InspectorOverlay::reset(const IntSize& viewportSize, const IntSize& frameVi
     evaluateInOverlay("reset", resetData.release());
 }
 
+void InspectorOverlay::evaluateInOverlay(const String& method)
+{
+    RefPtr<InspectorArray> command = InspectorArray::create();
+    command->pushString(method);
+    overlayPage()->mainFrame().script().evaluate(ScriptSourceCode(makeString("dispatch(", command->toJSONString(), ")")));
+}
+
 void InspectorOverlay::evaluateInOverlay(const String& method, const String& argument)
 {
     RefPtr<InspectorArray> command = InspectorArray::create();
@@ -815,7 +850,7 @@ void InspectorOverlay::evaluateInOverlay(const String& method, PassRefPtr<Inspec
 
 void InspectorOverlay::freePage()
 {
-    m_overlayPage.clear();
+    m_overlayPage.reset();
 }
 
 } // namespace WebCore

@@ -36,7 +36,8 @@
 #include <wtf/Functional.h>
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
+OBJC_CLASS NSMutableData;
 OBJC_CLASS WebFilterEvaluator;
 #endif
 
@@ -73,7 +74,7 @@ public:
 private:
     explicit ContentFilter(const ResourceResponse&);
     
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<WebFilterEvaluator> m_platformContentFilter;
     RetainPtr<NSData> m_replacementData;
 #endif
@@ -82,7 +83,7 @@ private:
     std::atomic<long> m_neFilterSourceStatus;
     RetainPtr<NEFilterSource> m_neFilterSource;
     dispatch_queue_t m_neFilterSourceQueue;
-    dispatch_semaphore_t m_neFilterSourceSemaphore;
+    RetainPtr<NSMutableData> m_originalData;
 #endif
 };
 

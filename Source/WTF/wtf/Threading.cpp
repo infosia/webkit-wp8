@@ -25,8 +25,6 @@
 
 #include "config.h"
 #include "Threading.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 
 #include <string.h>
 
@@ -86,7 +84,7 @@ ThreadIdentifier createThread(ThreadFunction entryPoint, void* data, const char*
     return createThreadInternal(threadEntryPoint, context, name);
 }
 
-#if PLATFORM(MAC) && !PLATFORM(IOS) || PLATFORM(WIN)
+#if PLATFORM(MAC) || PLATFORM(WIN)
 
 // For ABI compatibility with Safari on Mac / Windows: Safari uses the private
 // createThread() and waitForThreadCompletion() functions directly and we need

@@ -55,22 +55,18 @@ namespace WebCore {
 class DOMWrapperWorld;
 class Frame;
 class GraphicsContext;
-class InspectorApplicationCacheAgent;
 class InspectorClient;
 class InspectorDOMAgent;
 class InspectorDOMDebuggerAgent;
 class InspectorFrontendClient;
-class InspectorMemoryAgent;
 class InspectorOverlay;
 class InspectorPageAgent;
 class InspectorProfilerAgent;
 class InspectorResourceAgent;
 class InstrumentingAgents;
-class IntSize;
-class Page;
-class PageInjectedScriptManager;
 class Node;
-
+class Page;
+class WebInjectedScriptManager;
 struct Highlight;
 
 class InspectorController final : public Inspector::InspectorEnvironment {
@@ -116,8 +112,9 @@ public:
 
     PassRefPtr<Inspector::InspectorObject> buildObjectForHighlightedNode() const;
 
-    bool isUnderTest();
-    void evaluateForTestInFrontend(long callId, const String& script);
+    bool isUnderTest() const { return m_isUnderTest; }
+    void setIsUnderTest(bool isUnderTest) { m_isUnderTest = isUnderTest; }
+    void evaluateForTestInFrontend(const String& script);
 
     bool profilerEnabled() const;
     void setProfilerEnabled(bool);
@@ -145,14 +142,13 @@ private:
     friend InstrumentingAgents* instrumentationForPage(Page*);
 
     RefPtr<InstrumentingAgents> m_instrumentingAgents;
-    std::unique_ptr<PageInjectedScriptManager> m_injectedScriptManager;
+    std::unique_ptr<WebInjectedScriptManager> m_injectedScriptManager;
     std::unique_ptr<InspectorOverlay> m_overlay;
 
     Inspector::InspectorAgent* m_inspectorAgent;
     InspectorDOMAgent* m_domAgent;
     InspectorResourceAgent* m_resourceAgent;
     InspectorPageAgent* m_pageAgent;
-    InspectorMemoryAgent* m_memoryAgent;
     Inspector::InspectorDebuggerAgent* m_debuggerAgent;
     InspectorDOMDebuggerAgent* m_domDebuggerAgent;
     InspectorProfilerAgent* m_profilerAgent;

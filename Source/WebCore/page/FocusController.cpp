@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -74,7 +74,7 @@ FocusNavigationScope::FocusNavigationScope(TreeScope* treeScope)
 
 ContainerNode* FocusNavigationScope::rootNode() const
 {
-    return m_rootTreeScope->rootNode();
+    return &m_rootTreeScope->rootNode();
 }
 
 Element* FocusNavigationScope::owner() const
@@ -158,12 +158,10 @@ static inline bool shouldVisit(Element& element, KeyboardEvent& event)
     return element.isKeyboardFocusable(&event) || isNonFocusableShadowHost(element, event);
 }
 
-FocusController::FocusController(Page& page)
+FocusController::FocusController(Page& page, ViewState::Flags viewState)
     : m_page(page)
-    , m_isActive(false)
-    , m_isFocused(false)
     , m_isChangingFocusedFrame(false)
-    , m_contentIsVisible(false)
+    , m_viewState(viewState)
 {
 }
 
@@ -205,12 +203,12 @@ Frame& FocusController::focusedOrMainFrame() const
 
 void FocusController::setFocused(bool focused)
 {
-    if (isFocused() == focused)
-        return;
-    
-    m_isFocused = focused;
+    m_page.setViewState(focused ? m_viewState | ViewState::IsFocused : m_viewState & ~ViewState::IsFocused);
+}
 
-    if (!m_isFocused)
+void FocusController::setFocusedInternal(bool focused)
+{
+    if (!isFocused())
         focusedOrMainFrame().eventHandler().stopAutoscrollTimer();
 
     if (!m_focusedFrame)
@@ -635,13 +633,26 @@ bool FocusController::setFocusedElement(Element* element, PassRefPtr<Frame> newF
     return true;
 }
 
+void FocusController::setViewState(ViewState::Flags viewState)
+{
+    ViewState::Flags changed = m_viewState ^ viewState;
+    m_viewState = viewState;
+
+    if (changed & ViewState::IsFocused)
+        setFocusedInternal(viewState & ViewState::IsFocused);
+    if (changed & ViewState::WindowIsActive)
+        setActiveInternal(viewState & ViewState::WindowIsActive);
+    if (changed & ViewState::IsVisible)
+        setIsVisibleInternal(viewState & ViewState::IsVisible);
+}
+
 void FocusController::setActive(bool active)
 {
-    if (m_isActive == active)
-        return;
+    m_page.setViewState(active ? m_viewState | ViewState::WindowIsActive : m_viewState & ~ViewState::WindowIsActive);
+}
 
-    m_isActive = active;
-
+void FocusController::setActiveInternal(bool active)
+{
     if (FrameView* view = m_page.mainFrame().view()) {
         if (!view->platformWidget()) {
             view->updateLayoutAndStyleIfNeededRecursive();
@@ -663,13 +674,8 @@ static void contentAreaDidShowOrHide(ScrollableArea* scrollableArea, bool didSho
         scrollableArea->contentAreaDidHide();
 }
 
-void FocusController::setContentIsVisible(bool contentIsVisible)
+void FocusController::setIsVisibleInternal(bool contentIsVisible)
 {
-    if (m_contentIsVisible == contentIsVisible)
-        return;
-
-    m_contentIsVisible = contentIsVisible;
-
     FrameView* view = m_page.mainFrame().view();
     if (!view)
         return;

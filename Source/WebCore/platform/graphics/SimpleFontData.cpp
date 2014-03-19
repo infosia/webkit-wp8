@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -236,7 +236,7 @@ PassRefPtr<SimpleFontData> SimpleFontData::nonSyntheticItalicFontData() const
         m_derivedFontData = DerivedFontData::create(isCustomFont());
     if (!m_derivedFontData->nonSyntheticItalic) {
         FontPlatformData nonSyntheticItalicFontPlatformData(m_platformData);
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         nonSyntheticItalicFontPlatformData.m_syntheticOblique = false;
 #endif
         m_derivedFontData->nonSyntheticItalic = create(nonSyntheticItalicFontPlatformData, isCustomFont(), false, true);
@@ -276,7 +276,7 @@ SimpleFontData::DerivedFontData::~DerivedFontData()
         GlyphPageTreeNode::pruneTreeCustomFontData(verticalRightOrientation.get());
     if (uprightOrientation)
         GlyphPageTreeNode::pruneTreeCustomFontData(uprightOrientation.get());
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (compositeFontReferences) {
         CFDictionaryRef dictionary = CFDictionaryRef(compositeFontReferences.get());
         CFIndex count = CFDictionaryGetCount(dictionary);

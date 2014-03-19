@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,10 +40,10 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "WebCoreSystemInterface.h"
 #include "WebCoreURLResponse.h"
-#endif // PLATFORM(MAC)
+#endif // PLATFORM(COCOA)
 
 #if PLATFORM(IOS)
 #include "WebCoreThread.h"
@@ -102,14 +102,14 @@ CFURLRequestRef SynchronousResourceHandleCFURLConnectionDelegate::willSendReques
     return cfRequest;
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 static void setDefaultMIMEType(CFURLResponseRef response)
 {
     static CFStringRef defaultMIMETypeString = defaultMIMEType().createCFString().leakRef();
     
     CFURLResponseSetMIMEType(response, defaultMIMETypeString);
 }
-#endif // !PLATFORM(MAC)
+#endif // !PLATFORM(COCOA)
 
 void SynchronousResourceHandleCFURLConnectionDelegate::didReceiveResponse(CFURLResponseRef cfResponse)
 {
@@ -118,7 +118,7 @@ void SynchronousResourceHandleCFURLConnectionDelegate::didReceiveResponse(CFURLR
     if (!m_handle->client())
         return;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Avoid MIME type sniffing if the response comes back as 304 Not Modified.
     CFHTTPMessageRef msg = wkGetCFURLResponseHTTPResponse(cfResponse);
     int statusCode = msg ? CFHTTPMessageGetResponseStatusCode(msg) : 0;

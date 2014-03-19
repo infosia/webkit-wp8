@@ -19,6 +19,8 @@
  */
 
 [
+    Constructor,
+    ConstructorCallWith=ScriptExecutionContext,
     CustomToJSObject,
     JSGenerateToNativeObject,
 ] interface Document : Node {
@@ -49,7 +51,7 @@
                                                                           [TreatNullAs=NullString,Default=Undefined] optional DOMString qualifiedName);
     [ObjCLegacyUnnamedParameters] NodeList getElementsByTagNameNS([TreatNullAs=NullString,Default=Undefined] optional DOMString namespaceURI,
                                                    [Default=Undefined] optional DOMString localName);
-    Element getElementById([Default=Undefined] optional DOMString elementId);
+    Element getElementById([Default=Undefined,ObjCExplicitAtomicString] optional DOMString elementId);
 
     // DOM Level 3 Core
 
@@ -351,5 +353,8 @@
 
     // currentscript API: http://www.whatwg.org/specs/web-apps/current-work/multipage/dom.html#dom-document-currentscript
     readonly attribute HTMLScriptElement currentScript;
+
+    // http://www.w3.org/TR/2014/WD-dom-20140204/#dom-document-origin
+    readonly attribute DOMString origin;
 };
 

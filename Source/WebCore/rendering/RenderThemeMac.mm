@@ -29,6 +29,7 @@
 #import "Element.h"
 #import "ExceptionCodePlaceholder.h"
 #import "FileList.h"
+#import "FloatRoundedRect.h"
 #import "Frame.h"
 #import "FrameView.h"
 #import "GraphicsContextCG.h"
@@ -69,9 +70,41 @@
 #import <math.h>
 
 #if ENABLE(METER_ELEMENT)
-#include "RenderMeter.h"
-#include "HTMLMeterElement.h"
+#import "RenderMeter.h"
+#import "HTMLMeterElement.h"
 #endif
+
+#if defined(__LP64__) && __LP64__
+#define HAVE_APPKIT_IMAGE_CONTROLS_SUPPORT 1
+#else
+#define HAVE_APPKIT_IMAGE_CONTROLS_SUPPORT 0
+#endif
+
+#if ENABLE(IMAGE_CONTROLS) && HAVE(APPKIT_IMAGE_CONTROLS_SUPPORT)
+
+#if __has_include(<AppKit/AppKitDefines_Private.h>)
+#import <AppKit/AppKitDefines_Private.h>
+#else
+#define APPKIT_PRIVATE_CLASS
+#endif
+
+#if __has_include(<AppKit/NSServicesRolloverButtonCell.h>)
+#import <AppKit/NSServicesRolloverButtonCell.h>
+#endif
+
+@interface NSServicesRolloverButtonCell (Details)
++ (NSServicesRolloverButtonCell *)serviceRolloverButtonCellForStyle:(NSSharingServicePickerStyle)style;
+@end
+
+#if __has_include(<AppKit/NSSharingService_Private.h>)
+#import <AppKit/NSSharingService_Private.h>
+#else
+typedef enum {
+    NSSharingServicePickerStyleRollover = 1
+} NSSharingServicePickerStyle;
+#endif
+
+#endif // ENABLE(IMAGE_CONTROLS)
 
 // The methods in this file are specific to the Mac OS X platform.
 
@@ -179,7 +212,7 @@ RenderThemeMac::~RenderThemeMac()
 
 NSView* RenderThemeMac::documentViewFor(RenderObject* o) const
 {
-    return ThemeMac::ensuredView(&o->view().frameView());
+    return ThemeMac::ensuredView(&o->view().frameView(), controlStatesForRenderer(o));
 }
 
 #if ENABLE(VIDEO)
@@ -202,6 +235,14 @@ String RenderThemeMac::mediaControlsScript()
 }
 
 #endif // ENABLE(VIDEO)
+
+
+#if ENABLE(IMAGE_CONTROLS)
+String RenderThemeMac::imageControlsStyleSheet() const
+{
+    return String(imageControlsMacUserAgentStyleSheet, sizeof(imageControlsMacUserAgentStyleSheet));
+}
+#endif
 
 Color RenderThemeMac::platformActiveSelectionBackgroundColor() const
 {
@@ -273,13 +314,13 @@ static FontWeight toFontWeight(NSInteger appKitFontWeight)
 
 void RenderThemeMac::systemFont(CSSValueID cssValueId, FontDescription& fontDescription) const
 {
-    DEFINE_STATIC_LOCAL(FontDescription, systemFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, smallSystemFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, menuFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, labelFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, miniControlFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, smallControlFont, ());
-    DEFINE_STATIC_LOCAL(FontDescription, controlFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, systemFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, smallSystemFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, menuFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, labelFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, miniControlFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, smallControlFont, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontDescription, controlFont, ());
 
     FontDescription* cachedDesc;
     NSFont* font = nil;
@@ -1042,10 +1083,7 @@ bool RenderThemeMac::paintProgressBar(RenderObject* renderObject, const PaintInf
     else
         trackInfo.kind = renderProgress->position() < 0 ? kThemeMediumIndeterminateBar : kThemeMediumProgressBar;
 
-    float deviceScaleFactor = 1;
-    if (Page* page = renderObject->frame().page())
-        deviceScaleFactor = page->deviceScaleFactor();
-
+    float deviceScaleFactor = renderObject->document().deviceScaleFactor();
     trackInfo.bounds = IntRect(IntPoint(), inflatedRect.size());
     trackInfo.min = 0;
     trackInfo.max = std::numeric_limits<SInt32>::max();
@@ -1138,7 +1176,7 @@ void RenderThemeMac::paintMenuListButtonGradients(RenderObject* o, const PaintIn
 
     GraphicsContextStateSaver stateSaver(*paintInfo.context);
 
-    RoundedRect border = o->style().getRoundedBorderFor(r, &o->view());
+    FloatRoundedRect border = FloatRoundedRect(o->style().getRoundedBorderFor(r, &o->view()));
     int radius = border.radii().topLeft().width();
 
     CGColorSpaceRef cspace = deviceRGBColorSpaceRef();
@@ -1172,7 +1210,7 @@ void RenderThemeMac::paintMenuListButtonGradients(RenderObject* o, const PaintIn
     {
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
         CGContextClipToRect(context, topGradient);
-        paintInfo.context->clipRoundedRect(RoundedRect(enclosingIntRect(topGradient), border.radii().topLeft(), border.radii().topRight(), IntSize(), IntSize()));
+        paintInfo.context->clipRoundedRect(FloatRoundedRect(enclosingIntRect(topGradient), border.radii().topLeft(), border.radii().topRight(), IntSize(), IntSize()));
         context = cgContextContainer.context();
         CGContextDrawShading(context, topShading.get());
     }
@@ -1180,7 +1218,7 @@ void RenderThemeMac::paintMenuListButtonGradients(RenderObject* o, const PaintIn
     if (!bottomGradient.isEmpty()) {
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
         CGContextClipToRect(context, bottomGradient);
-        paintInfo.context->clipRoundedRect(RoundedRect(enclosingIntRect(bottomGradient), IntSize(), IntSize(), border.radii().bottomLeft(), border.radii().bottomRight()));
+        paintInfo.context->clipRoundedRect(FloatRoundedRect(enclosingIntRect(bottomGradient), IntSize(), IntSize(), border.radii().bottomLeft(), border.radii().bottomRight()));
         context = cgContextContainer.context();
         CGContextDrawShading(context, bottomShading.get());
     }
@@ -1409,7 +1447,7 @@ bool RenderThemeMac::paintSliderTrack(RenderObject* o, const PaintInfo& paintInf
         mainShading = adoptCF(CGShadingCreateAxial(cspace, CGPointMake(bounds.x(),  bounds.y()), CGPointMake(bounds.x(), bounds.maxY()), mainFunction.get(), false, false));
 
     IntSize radius(trackRadius, trackRadius);
-    paintInfo.context->clipRoundedRect(RoundedRect(bounds, radius, radius, radius, radius));
+    paintInfo.context->clipRoundedRect(FloatRoundedRect(bounds, radius, radius, radius, radius));
     context = localContext.cgContext();
     CGContextDrawShading(context, mainShading.get());
 
@@ -1935,6 +1973,55 @@ String RenderThemeMac::fileListNameForWidth(const FileList* fileList, const Font
     return StringTruncator::centerTruncate(strToTruncate, width, font, StringTruncator::EnableRoundingHacks);
 }
 
+#if ENABLE(IMAGE_CONTROLS)
+NSServicesRolloverButtonCell* RenderThemeMac::servicesRolloverButtonCell() const
+{
+#if HAVE(APPKIT_IMAGE_CONTROLS_SUPPORT)
+    if (!m_servicesRolloverButton) {
+        m_servicesRolloverButton = [NSServicesRolloverButtonCell serviceRolloverButtonCellForStyle:NSSharingServicePickerStyleRollover];
+        [m_servicesRolloverButton setBordered:NO];
+    }
+
+    return m_servicesRolloverButton.get();
+#else
+    return nil;
+#endif
+}
+
+bool RenderThemeMac::paintImageControlsButton(RenderObject* renderer, const PaintInfo& paintInfo, const IntRect& rect)
+{
+    if (paintInfo.phase != PaintPhaseBlockBackground)
+        return true;
+
+#if HAVE(APPKIT_IMAGE_CONTROLS_SUPPORT)
+    NSServicesRolloverButtonCell *cell = servicesRolloverButtonCell();
+
+    LocalCurrentGraphicsContext localContext(paintInfo.context);
+    GraphicsContextStateSaver stateSaver(*paintInfo.context);
+
+    paintInfo.context->scale(FloatSize(1, -1));
+    paintInfo.context->translate(rect.x(), -rect.height() - rect.y());
+
+    IntRect innerFrame(IntPoint(), rect.size());
+    [cell drawWithFrame:innerFrame inView:documentViewFor(renderer)];
+    [cell setControlView:nil];
+#else
+    UNUSED_PARAM(renderer);
+    UNUSED_PARAM(rect);
+#endif
+
+    return true;
+}
+
+IntSize RenderThemeMac::imageControlsButtonSize(const RenderObject*) const
+{
+#if HAVE(APPKIT_IMAGE_CONTROLS_SUPPORT)
+    return IntSize(servicesRolloverButtonCell().cellSize);
+#else
+    return IntSize();
+#endif
+}
+#endif
 
 } // namespace WebCore
 

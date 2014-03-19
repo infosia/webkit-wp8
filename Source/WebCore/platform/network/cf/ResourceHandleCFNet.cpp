@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -51,7 +51,7 @@
 #include <wtf/text/Base64.h>
 #include <wtf/text/CString.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "ResourceHandleCFURLConnectionDelegateWithOperationQueue.h"
 #include "WebCoreSystemInterface.h"
 #if USE(CFNETWORK)
@@ -81,14 +81,14 @@ namespace WebCore {
 
 static HashSet<String>& allowsAnyHTTPSCertificateHosts()
 {
-    DEFINE_STATIC_LOCAL(HashSet<String>, hosts, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<String>, hosts, ());
     return hosts;
 }
 
 static HashMap<String, RetainPtr<CFDataRef>>& clientCerts()
 {
     typedef HashMap<String, RetainPtr<CFDataRef>> CertsMap;
-    DEFINE_STATIC_LOCAL(CertsMap, certs, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(CertsMap, certs, ());
     return certs;
 }
 
@@ -217,7 +217,7 @@ void ResourceHandle::createCFURLConnection(bool shouldUseCredentialStorage, bool
     CFDictionaryAddValue(propertiesDictionary.get(), kCFURLConnectionSocketStreamProperties, streamProperties);
     CFRelease(streamProperties);
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (client() && client()->usesAsyncCallbacks())
         d->m_connectionDelegate = adoptRef(new ResourceHandleCFURLConnectionDelegateWithOperationQueue(this));
     else
@@ -546,7 +546,7 @@ bool ResourceHandle::loadsBlocked()
     return false;
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 void ResourceHandle::schedule(SchedulePair* pair)
 {
     CFRunLoopRef runLoop = pair->runLoop();

@@ -32,6 +32,8 @@
 #include "config.h"
 #include "PageScriptDebugServer.h"
 
+#if ENABLE(INSPECTOR)
+
 #include "Document.h"
 #include "EventLoop.h"
 #include "FrameView.h"
@@ -70,7 +72,7 @@ static Page* toPage(JSGlobalObject* globalObject)
 
 PageScriptDebugServer& PageScriptDebugServer::shared()
 {
-    DEFINE_STATIC_LOCAL(PageScriptDebugServer, server, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(PageScriptDebugServer, server, ());
     return server;
 }
 
@@ -121,7 +123,7 @@ void PageScriptDebugServer::removeListener(ScriptDebugListener* listener, Page* 
 void PageScriptDebugServer::recompileAllJSFunctions()
 {
     JSLockHolder lock(JSDOMWindow::commonVM());
-    Debugger::recompileAllJSFunctions(JSDOMWindow::commonVM());
+    Debugger::recompileAllJSFunctions(&JSDOMWindow::commonVM());
 }
 
 ScriptDebugServer::ListenerSet* PageScriptDebugServer::getListenersForGlobalObject(JSGlobalObject* globalObject)
@@ -188,7 +190,7 @@ void PageScriptDebugServer::runEventLoopWhilePaused()
     ASSERT(WebThreadIsLockedOrDisabled());
     {
         if (WebThreadIsEnabled())
-            JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM(), JSC::JSLock::DropAllLocks::AlwaysDropLocks);
+            JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM());
         WebRunLoopEnableNested();
 #endif
 
@@ -271,3 +273,5 @@ void PageScriptDebugServer::setJavaScriptPaused(FrameView* view, bool paused)
 }
 
 } // namespace WebCore
+
+#endif // ENABLE(INSPECTOR)

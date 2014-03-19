@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2011 Google Inc.  All rights reserved.
- * Copyright (C) 2011, 2012, 2013 Apple Inc.  All rights reserved.
+ * Copyright (C) 2011, 2013 Google Inc.  All rights reserved.
+ * Copyright (C) 2011-2014 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -48,55 +48,55 @@ static const int invalidTrackIndex = -1;
 
 const AtomicString& TextTrack::subtitlesKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, subtitles, ("subtitles", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, subtitles, ("subtitles", AtomicString::ConstructFromLiteral));
     return subtitles;
 }
 
 const AtomicString& TextTrack::captionsKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, captions, ("captions", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, captions, ("captions", AtomicString::ConstructFromLiteral));
     return captions;
 }
 
 const AtomicString& TextTrack::descriptionsKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, descriptions, ("descriptions", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, descriptions, ("descriptions", AtomicString::ConstructFromLiteral));
     return descriptions;
 }
 
 const AtomicString& TextTrack::chaptersKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, chapters, ("chapters", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, chapters, ("chapters", AtomicString::ConstructFromLiteral));
     return chapters;
 }
 
 const AtomicString& TextTrack::metadataKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, metadata, ("metadata", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, metadata, ("metadata", AtomicString::ConstructFromLiteral));
     return metadata;
 }
     
 const AtomicString& TextTrack::forcedKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, forced, ("forced", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, forced, ("forced", AtomicString::ConstructFromLiteral));
     return forced;
 }
 
 const AtomicString& TextTrack::disabledKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, open, ("disabled", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, open, ("disabled", AtomicString::ConstructFromLiteral));
     return open;
 }
 
 const AtomicString& TextTrack::hiddenKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, closed, ("hidden", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, closed, ("hidden", AtomicString::ConstructFromLiteral));
     return closed;
 }
 
 const AtomicString& TextTrack::showingKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, ended, ("showing", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, ended, ("showing", AtomicString::ConstructFromLiteral));
     return ended;
 }
 
@@ -115,10 +115,10 @@ TextTrack* TextTrack::captionMenuAutomaticItem()
 TextTrack::TextTrack(ScriptExecutionContext* context, TextTrackClient* client, const AtomicString& kind, const AtomicString& id, const AtomicString& label, const AtomicString& language, TextTrackType type)
     : TrackBase(TrackBase::TextTrack, id, label, language)
     , m_cues(0)
-    , m_scriptExecutionContext(context)
 #if ENABLE(WEBVTT_REGIONS)
     , m_regions(0)
 #endif
+    , m_scriptExecutionContext(context)
     , m_mode(disabledKeyword().string())
     , m_client(client)
     , m_trackType(type)
@@ -139,8 +139,10 @@ TextTrack::~TextTrack()
         for (size_t i = 0; i < m_cues->length(); ++i)
             m_cues->item(i)->setTrack(0);
 #if ENABLE(WEBVTT_REGIONS)
-        for (size_t i = 0; i < m_regions->length(); ++i)
-            m_regions->item(i)->setTrack(0);
+        if (m_regions) {
+            for (size_t i = 0; i < m_regions->length(); ++i)
+                m_regions->item(i)->setTrack(0);
+        }
 #endif
     }
     clearClient();
@@ -220,9 +222,13 @@ void TextTrack::setMode(const AtomicString& mode)
     if (mode == disabledKeyword() && m_client && m_cues)
         m_client->textTrackRemoveCues(this, m_cues.get());
          
-    if (mode != showingKeyword() && m_cues)
-        for (size_t i = 0; i < m_cues->length(); ++i)
-            m_cues->item(i)->removeDisplayTree();
+    if (mode != showingKeyword() && m_cues) {
+        for (size_t i = 0; i < m_cues->length(); ++i) {
+            TextTrackCue* cue = m_cues->item(i);
+            if (cue->isRenderable())
+                toVTTCue(cue)->removeDisplayTree();
+        }
+    }
 
     m_mode = mode;
 
@@ -269,12 +275,23 @@ TextTrackCueList* TextTrack::activeCues() const
     return 0;
 }
 
-void TextTrack::addCue(PassRefPtr<TextTrackCue> prpCue)
+void TextTrack::addCue(PassRefPtr<TextTrackCue> prpCue, ExceptionCode& ec)
 {
     if (!prpCue)
         return;
 
     RefPtr<TextTrackCue> cue = prpCue;
+
+    // 4.7.10.12.6 Text tracks exposing in-band metadata
+    // The UA will use DataCue to expose only text track cue objects that belong to a text track that has a text
+    // track kind of metadata.
+    // If a DataCue is added to a TextTrack via the addCue() method but the text track does not have its text
+    // track kind set to metadata, throw a InvalidNodeTypeError exception and don't add the cue to the TextTrackList
+    // of the TextTrack.
+    if (cue->cueType() == TextTrackCue::Data && kind() != metadataKeyword()) {
+        ec = INVALID_NODE_TYPE_ERR;
+        return;
+    }
 
     // TODO(93143): Add spec-compliant behavior for negative time values.
     if (std::isnan(cue->startTime()) || std::isnan(cue->endTime()) || cue->startTime() < 0 || cue->endTime() < 0)
@@ -326,11 +343,6 @@ void TextTrack::removeCue(TextTrackCue* cue, ExceptionCode& ec)
 }
 
 #if ENABLE(VIDEO_TRACK) && ENABLE(WEBVTT_REGIONS)
-TextTrackRegionList* TextTrack::regionList()
-{
-    return ensureTextTrackRegionList();
-}
-
 TextTrackRegionList* TextTrack::ensureTextTrackRegionList()
 {
     if (!m_regions)
@@ -471,7 +483,7 @@ int TextTrack::trackIndexRelativeToRenderedTracks()
     return m_renderedTrackIndex;
 }
 
-bool TextTrack::hasCue(TextTrackCue* cue, TextTrackCue::CueMatchRules match)
+bool TextTrack::hasCue(VTTCue* cue, VTTCue::CueMatchRules match)
 {
     if (cue->startTime() < 0 || cue->endTime() < 0)
         return false;
@@ -507,10 +519,13 @@ bool TextTrack::hasCue(TextTrackCue* cue, TextTrackCue::CueMatchRules match)
                     return false;
 
                 existingCue = m_cues->item(searchStart - 1);
+                if (!cue->isRenderable())
+                    continue;
+
                 if (!existingCue || cue->startTime() > existingCue->startTime())
                     return false;
 
-                if (!existingCue->isEqual(*cue, match))
+                if (!toVTTCue(existingCue)->isEqual(*cue, match))
                     continue;
                 
                 return true;
@@ -519,7 +534,7 @@ bool TextTrack::hasCue(TextTrackCue* cue, TextTrackCue::CueMatchRules match)
         
         size_t index = (searchStart + searchEnd) / 2;
         existingCue = m_cues->item(index);
-        if (cue->startTime() < existingCue->startTime() || (match != TextTrackCue::IgnoreDuration && cue->startTime() == existingCue->startTime() && cue->endTime() > existingCue->endTime()))
+        if (cue->startTime() < existingCue->startTime() || (match != VTTCue::IgnoreDuration && cue->startTime() == existingCue->startTime() && cue->endTime() > existingCue->endTime()))
             searchEnd = index;
         else
             searchStart = index + 1;
@@ -532,8 +547,6 @@ bool TextTrack::hasCue(TextTrackCue* cue, TextTrackCue::CueMatchRules match)
 #if USE(PLATFORM_TEXT_TRACK_MENU)
 PassRefPtr<PlatformTextTrack> TextTrack::platformTextTrack()
 {
-    static int uniqueId = 0;
-
     if (m_platformTextTrack)
         return m_platformTextTrack;
 
@@ -559,7 +572,15 @@ PassRefPtr<PlatformTextTrack> TextTrack::platformTextTrack()
     else if (m_trackType == InBand)
         type = PlatformTextTrack::InBand;
 
-    m_platformTextTrack = PlatformTextTrack::create(this, label(), language(), platformKind, type, ++uniqueId);
+    PlatformTextTrack::TrackMode platformMode = PlatformTextTrack::Disabled;
+    if (TextTrack::hiddenKeyword() == mode())
+        platformMode = PlatformTextTrack::Hidden;
+    else if (TextTrack::disabledKeyword() == mode())
+        platformMode = PlatformTextTrack::Disabled;
+    else if (TextTrack::showingKeyword() == mode())
+        platformMode = PlatformTextTrack::Showing;
+
+    m_platformTextTrack = PlatformTextTrack::create(this, label(), language(), platformMode, platformKind, type, uniqueId());
 
     return m_platformTextTrack;
 }

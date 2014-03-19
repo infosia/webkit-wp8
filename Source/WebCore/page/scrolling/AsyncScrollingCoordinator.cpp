@@ -69,11 +69,9 @@ void AsyncScrollingCoordinator::frameViewLayoutUpdated(FrameView* frameView)
     // Compute the region of the page that we can't do fast scrolling for. This currently includes
     // all scrollable areas, such as subframes, overflow divs and list boxes. We need to do this even if the
     // frame view whose layout was updated is not the main frame.
-    Region nonFastScrollableRegion = computeNonFastScrollableRegion(&m_page->mainFrame(), IntPoint());
-
     // In the future, we may want to have the ability to set non-fast scrolling regions for more than
     // just the root node. But right now, this concept only applies to the root.
-    setNonFastScrollableRegionForNode(nonFastScrollableRegion, m_scrollingStateTree->rootStateNode());
+    m_scrollingStateTree->rootStateNode()->setNonFastScrollableRegion(computeNonFastScrollableRegion(&m_page->mainFrame(), IntPoint()));
 
     if (!coordinatesScrollingForFrameView(frameView))
         return;
@@ -91,7 +89,7 @@ void AsyncScrollingCoordinator::frameViewLayoutUpdated(FrameView* frameView)
     node->setFooterHeight(frameView->footerHeight());
 
     node->setScrollOrigin(frameView->scrollOrigin());
-    node->setViewportConstrainedObjectRect(FloatRect(FloatPoint(), frameView->visibleContentRect().size()));
+    node->setViewportSize(frameView->visibleContentRect().size());
     node->setTotalContentsSize(frameView->totalContentsSize());
 
     ScrollableAreaParameters scrollParameters;
@@ -103,6 +101,14 @@ void AsyncScrollingCoordinator::frameViewLayoutUpdated(FrameView* frameView)
     scrollParameters.verticalScrollbarMode = frameView->verticalScrollbarMode();
 
     node->setScrollableAreaParameters(scrollParameters);
+}
+
+void AsyncScrollingCoordinator::frameViewNonFastScrollableRegionChanged(FrameView*)
+{
+    if (!m_scrollingStateTree->rootStateNode())
+        return;
+
+    m_scrollingStateTree->rootStateNode()->setNonFastScrollableRegion(computeNonFastScrollableRegion(&m_page->mainFrame(), IntPoint()));
 }
 
 void AsyncScrollingCoordinator::frameViewRootLayerDidChange(FrameView* frameView)
@@ -120,11 +126,11 @@ void AsyncScrollingCoordinator::frameViewRootLayerDidChange(FrameView* frameView
     ScrollingCoordinator::frameViewRootLayerDidChange(frameView);
 
     ScrollingStateScrollingNode* node = toScrollingStateScrollingNode(m_scrollingStateTree->stateNodeForID(frameView->scrollLayerID()));
-    setScrollLayerForNode(scrollLayerForFrameView(frameView), node);
-    setCounterScrollingLayerForNode(counterScrollingLayerForFrameView(frameView), node);
-    setHeaderLayerForNode(headerLayerForFrameView(frameView), node);
-    setFooterLayerForNode(footerLayerForFrameView(frameView), node);
-    setScrollBehaviorForFixedElementsForNode(frameView->scrollBehaviorForFixedElements(), node);
+    node->setLayer(scrollLayerForFrameView(frameView));
+    node->setCounterScrollingLayer(counterScrollingLayerForFrameView(frameView));
+    node->setHeaderLayer(headerLayerForFrameView(frameView));
+    node->setFooterLayer(footerLayerForFrameView(frameView));
+    node->setScrollBehaviorForFixedElements(frameView->scrollBehaviorForFixedElements());
 }
 
 bool AsyncScrollingCoordinator::requestScrollPositionUpdate(FrameView* frameView, const IntPoint& scrollPosition)
@@ -202,12 +208,12 @@ void AsyncScrollingCoordinator::updateScrollPositionAfterAsyncScroll(ScrollingNo
             GraphicsLayer* counterScrollingLayer = counterScrollingLayerForFrameView(frameView);
             GraphicsLayer* headerLayer = headerLayerForFrameView(frameView);
             GraphicsLayer* footerLayer = footerLayerForFrameView(frameView);
-            IntSize scrollOffsetForFixed = frameView->scrollOffsetForFixedPosition();
+            LayoutSize scrollOffsetForFixed = frameView->scrollOffsetForFixedPosition();
 
             if (programmaticScroll || scrollingLayerPositionAction == SetScrollingLayerPosition) {
                 scrollLayer->setPosition(-frameView->scrollPosition());
                 if (counterScrollingLayer)
-                    counterScrollingLayer->setPosition(IntPoint(scrollOffsetForFixed));
+                    counterScrollingLayer->setPosition(toLayoutPoint(scrollOffsetForFixed));
                 if (headerLayer)
                     headerLayer->setPosition(FloatPoint(scrollOffsetForFixed.width(), 0));
                 if (footerLayer)
@@ -215,7 +221,7 @@ void AsyncScrollingCoordinator::updateScrollPositionAfterAsyncScroll(ScrollingNo
             } else {
                 scrollLayer->syncPosition(-frameView->scrollPosition());
                 if (counterScrollingLayer)
-                    counterScrollingLayer->syncPosition(IntPoint(scrollOffsetForFixed));
+                    counterScrollingLayer->syncPosition(toLayoutPoint(scrollOffsetForFixed));
                 if (headerLayer)
                     headerLayer->syncPosition(FloatPoint(scrollOffsetForFixed.width(), 0));
                 if (footerLayer)
@@ -281,14 +287,15 @@ void AsyncScrollingCoordinator::ensureRootStateNodeForFrameView(FrameView* frame
     attachToStateTree(ScrollingNode, frameView->scrollLayerID(), 0);
 }
 
-void AsyncScrollingCoordinator::updateScrollingNode(ScrollingNodeID nodeID, GraphicsLayer* scrollLayer, GraphicsLayer* counterScrollingLayer)
+void AsyncScrollingCoordinator::updateScrollingNode(ScrollingNodeID nodeID, GraphicsLayer* layer, GraphicsLayer* scrolledContentsLayer, GraphicsLayer* counterScrollingLayer)
 {
     ScrollingStateScrollingNode* node = toScrollingStateScrollingNode(m_scrollingStateTree->stateNodeForID(nodeID));
     ASSERT(node);
     if (!node)
         return;
 
-    node->setLayer(scrollLayer);
+    node->setLayer(layer);
+    node->setScrolledContentsLayer(scrolledContentsLayer);
     node->setCounterScrollingLayer(counterScrollingLayer);
 }
 
@@ -303,56 +310,17 @@ void AsyncScrollingCoordinator::updateViewportConstrainedNode(ScrollingNodeID no
     switch (constraints.constraintType()) {
     case ViewportConstraints::FixedPositionConstraint: {
         ScrollingStateFixedNode* fixedNode = toScrollingStateFixedNode(node);
-        setScrollLayerForNode(graphicsLayer, fixedNode);
+        fixedNode->setLayer(graphicsLayer);
         fixedNode->updateConstraints((const FixedPositionViewportConstraints&)constraints);
         break;
     }
     case ViewportConstraints::StickyPositionConstraint: {
         ScrollingStateStickyNode* stickyNode = toScrollingStateStickyNode(node);
-        setScrollLayerForNode(graphicsLayer, stickyNode);
+        stickyNode->setLayer(graphicsLayer);
         stickyNode->updateConstraints((const StickyPositionViewportConstraints&)constraints);
         break;
     }
     }
-}
-
-void AsyncScrollingCoordinator::setScrollLayerForNode(GraphicsLayer* scrollLayer, ScrollingStateNode* node)
-{
-    node->setLayer(scrollLayer);
-}
-
-void AsyncScrollingCoordinator::setCounterScrollingLayerForNode(GraphicsLayer* layer, ScrollingStateScrollingNode* node)
-{
-    node->setCounterScrollingLayer(layer);
-}
-
-void AsyncScrollingCoordinator::setHeaderLayerForNode(GraphicsLayer* headerLayer, ScrollingStateScrollingNode* node)
-{
-    // Headers and footers are only supported on the root node.
-    ASSERT(node == m_scrollingStateTree->rootStateNode());
-    node->setHeaderLayer(headerLayer);
-}
-
-void AsyncScrollingCoordinator::setFooterLayerForNode(GraphicsLayer* footerLayer, ScrollingStateScrollingNode* node)
-{
-    // Headers and footers are only supported on the root node.
-    ASSERT(node == m_scrollingStateTree->rootStateNode());
-    node->setFooterLayer(footerLayer);
-}
-
-void AsyncScrollingCoordinator::setNonFastScrollableRegionForNode(const Region& region, ScrollingStateScrollingNode* node)
-{
-    node->setNonFastScrollableRegion(region);
-}
-
-void AsyncScrollingCoordinator::setWheelEventHandlerCountForNode(unsigned wheelEventHandlerCount, ScrollingStateScrollingNode* node)
-{
-    node->setWheelEventHandlerCount(wheelEventHandlerCount);
-}
-
-void AsyncScrollingCoordinator::setScrollBehaviorForFixedElementsForNode(ScrollBehaviorForFixedElements behaviorForFixed, ScrollingStateScrollingNode* node)
-{
-    node->setScrollBehaviorForFixedElements(behaviorForFixed);
 }
 
 // FIXME: not sure if this belongs here.
@@ -394,7 +362,7 @@ void AsyncScrollingCoordinator::recomputeWheelEventHandlerCountForFrameView(Fram
     ScrollingStateScrollingNode* node = toScrollingStateScrollingNode(m_scrollingStateTree->stateNodeForID(frameView->scrollLayerID()));
     if (!node)
         return;
-    setWheelEventHandlerCountForNode(computeCurrentWheelEventHandlerCount(), node);
+    node->setWheelEventHandlerCount(computeCurrentWheelEventHandlerCount());
 }
 
 bool AsyncScrollingCoordinator::isRubberBandInProgress() const

@@ -29,10 +29,9 @@
  */
 
 #include "config.h"
+#include "InspectorPageAgent.h"
 
 #if ENABLE(INSPECTOR)
-
-#include "InspectorPageAgent.h"
 
 #include "CachedCSSStyleSheet.h"
 #include "CachedFont.h"
@@ -53,7 +52,6 @@
 #include "FrameView.h"
 #include "HTMLFrameOwnerElement.h"
 #include "HTMLNames.h"
-#include "IdentifiersFactory.h"
 #include "ImageBuffer.h"
 #include "InspectorClient.h"
 #include "InspectorDOMAgent.h"
@@ -73,6 +71,7 @@
 #include "UserGestureIndicator.h"
 #include <bindings/ScriptValue.h>
 #include <inspector/ContentSearchUtilities.h>
+#include <inspector/IdentifiersFactory.h>
 #include <inspector/InspectorValues.h>
 #include <wtf/CurrentTime.h>
 #include <wtf/ListHashSet.h>
@@ -249,8 +248,8 @@ void InspectorPageAgent::resourceContent(ErrorString* errorString, Frame* frame,
 //static
 String InspectorPageAgent::sourceMapURLForResource(CachedResource* cachedResource)
 {
-    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeader, (ASCIILiteral("SourceMap")));
-    DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeaderDeprecated, (ASCIILiteral("X-SourceMap")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeader, (ASCIILiteral("SourceMap")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, sourceMapHTTPHeaderDeprecated, (ASCIILiteral("X-SourceMap")));
 
     if (!cachedResource)
         return String();
@@ -283,7 +282,7 @@ CachedResource* InspectorPageAgent::cachedResource(Frame* frame, const URL& url)
 #if ENABLE(CACHE_PARTITIONING)
         request.setCachePartition(frame->document()->topOrigin()->cachePartition());
 #endif
-        cachedResource = memoryCache()->resourceForRequest(request);
+        cachedResource = memoryCache()->resourceForRequest(request, frame->page()->sessionID());
     }
 
     return cachedResource;
@@ -979,6 +978,9 @@ PassRefPtr<Inspector::TypeBuilder::Page::FrameResourceTree> InspectorPageAgent::
     Vector<CachedResource*> allResources = cachedResourcesForFrame(frame);
     for (Vector<CachedResource*>::const_iterator it = allResources.begin(); it != allResources.end(); ++it) {
         CachedResource* cachedResource = *it;
+
+        if (cachedResource->resourceRequest().hiddenFromInspector())
+            continue;
 
         RefPtr<Inspector::TypeBuilder::Page::FrameResourceTree::Resources> resourceObject = Inspector::TypeBuilder::Page::FrameResourceTree::Resources::create()
             .setUrl(cachedResource->url())

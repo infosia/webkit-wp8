@@ -60,8 +60,10 @@ class EventListener;
 class FloatPoint;
 class Frame;
 class HTMLInputElement;
+class HTMLQualifiedName;
 class IntRect;
 class KeyboardEvent;
+class MathMLQualifiedName;
 class NSResolver;
 class NamedNodeMap;
 class NameNodeList;
@@ -75,6 +77,7 @@ class RenderBox;
 class RenderBoxModelObject;
 class RenderObject;
 class RenderStyle;
+class SVGQualifiedName;
 class ShadowRoot;
 class TagNodeList;
 
@@ -119,7 +122,6 @@ class Node : public EventTarget, public ScriptWrappable, public TreeShared<Node>
     friend class Document;
     friend class TreeScope;
     friend class TreeScopeAdopter;
-
 public:
     enum NodeType {
         ELEMENT_NODE = 1,
@@ -154,12 +156,13 @@ public:
     static void dumpStatistics();
 
     virtual ~Node();
-    void willBeDeletedFrom(Document*);
+    void willBeDeletedFrom(Document&);
 
     // DOM methods & attributes for Node
 
-    bool hasTagName(const QualifiedName&) const;
-    bool hasLocalName(const AtomicString&) const;
+    bool hasTagName(const HTMLQualifiedName&) const;
+    bool hasTagName(const MathMLQualifiedName&) const;
+    bool hasTagName(const SVGQualifiedName&) const;
     virtual String nodeName() const = 0;
     virtual String nodeValue() const;
     virtual void setNodeValue(const String&, ExceptionCode&);
@@ -239,6 +242,10 @@ public:
     virtual bool isFrameOwnerElement() const { return false; }
     virtual bool isPluginElement() const { return false; }
     virtual bool isInsertionPointNode() const { return false; }
+#if ENABLE(IMAGE_CONTROLS)
+    virtual bool isImageControlsRootElement() const { return false; }
+    virtual bool isImageControlsButtonElement() const { return false; }
+#endif
 
     bool isDocumentNode() const;
     bool isTreeScope() const;
@@ -256,7 +263,7 @@ public:
     bool hasSyntheticAttrChildNodes() const { return getFlag(HasSyntheticAttrChildNodesFlag); }
     void setHasSyntheticAttrChildNodes(bool flag) { setFlag(flag, HasSyntheticAttrChildNodesFlag); }
 
-    // If this node is in a shadow tree, returns its shadow host. Otherwise, returns 0.
+    // If this node is in a shadow tree, returns its shadow host. Otherwise, returns null.
     Element* shadowHost() const;
     // If this node is in a shadow tree, returns its shadow host. Otherwise, returns this.
     // Deprecated. Should use shadowHost() and check the return value.
@@ -264,7 +271,7 @@ public:
     ShadowRoot* containingShadowRoot() const;
     ShadowRoot* shadowRoot() const;
 
-    // Returns 0, a child of ShadowRoot, or a legacy shadow root.
+    // Returns null, a child of ShadowRoot, or a legacy shadow root.
     Node* nonBoundaryShadowTreeRootNode();
 
     // Node's parent or shadow tree host.
@@ -273,9 +280,9 @@ public:
     void setParentNode(ContainerNode*);
     Node* highestAncestor() const;
 
-    // Use when it's guaranteed to that shadowHost is 0.
+    // Use when it's guaranteed to that shadowHost is null.
     ContainerNode* parentNodeGuaranteedHostFree() const;
-    // Returns the parent node, but 0 if the parent node is a ShadowRoot.
+    // Returns the parent node, but null if the parent node is a ShadowRoot.
     ContainerNode* nonShadowBoundaryParentNode() const;
 
     bool selfOrAncestorHasDirAutoAttribute() const { return getFlag(SelfOrAncestorHasDirAutoFlag); }
@@ -374,17 +381,16 @@ public:
 
     unsigned nodeIndex() const;
 
-    // Returns the DOM ownerDocument attribute. This method never returns 0, except in the case
+    // Returns the DOM ownerDocument attribute. This method never returns null, except in the case
     // of a Document node.
     Document* ownerDocument() const;
 
-    // Returns the document associated with this node. This method never returns 0.
+    // Returns the document associated with this node.
     // A Document node returns itself.
     Document& document() const
     {
         ASSERT(this);
-        ASSERT(documentInternal());
-        return *documentInternal();
+        return treeScope().documentScope();
     }
 
     TreeScope& treeScope() const
@@ -392,12 +398,12 @@ public:
         ASSERT(m_treeScope);
         return *m_treeScope;
     }
+    static ptrdiff_t treeScopeMemoryOffset() { return OBJECT_OFFSETOF(Node, m_treeScope); }
 
     // Returns true if this node is associated with a document and is in its associated document's
     // node tree, false otherwise.
     bool inDocument() const 
     { 
-        ASSERT(documentInternal() || !getFlag(InDocumentFlag));
         return getFlag(InDocumentFlag);
     }
     bool isInShadowTree() const { return getFlag(IsInShadowTreeFlag); }
@@ -489,11 +495,11 @@ public:
     void showNode(const char* prefix = "") const;
     void showTreeForThis() const;
     void showNodePathForThis() const;
-    void showTreeAndMark(const Node* markedNode1, const char* markedLabel1, const Node* markedNode2 = 0, const char* markedLabel2 = 0) const;
+    void showTreeAndMark(const Node* markedNode1, const char* markedLabel1, const Node* markedNode2 = nullptr, const char* markedLabel2 = nullptr) const;
     void showTreeForThisAcrossFrame() const;
 #endif
 
-    void invalidateNodeListAndCollectionCachesInAncestors(const QualifiedName* attrName = 0, Element* attributeOwnerElement = 0);
+    void invalidateNodeListAndCollectionCachesInAncestors(const QualifiedName* attrName = nullptr, Element* attributeOwnerElement = nullptr);
     NodeListsNodeData* nodeLists();
     void clearNodeLists();
 
@@ -505,6 +511,7 @@ public:
 
     virtual Node* toNode() override;
     virtual HTMLInputElement* toInputElement();
+    const HTMLInputElement* toInputElement() const { return const_cast<Node*>(this)->toInputElement(); }
 
     virtual EventTargetInterface eventTargetInterface() const override;
     virtual ScriptExecutionContext* scriptExecutionContext() const override final; // Implemented in Document.h
@@ -562,6 +569,7 @@ public:
 #if ENABLE(CSS_SELECTOR_JIT)
     static ptrdiff_t nodeFlagsMemoryOffset() { return OBJECT_OFFSETOF(Node, m_nodeFlags); }
     static int32_t flagIsElement() { return IsElementFlag; }
+    static int32_t flagIsHTML() { return IsHTMLFlag; }
     static int32_t flagIsLink() { return IsLinkFlag; }
 #endif // ENABLE(CSS_SELECTOR_JIT)
 
@@ -625,7 +633,7 @@ protected:
         CreateEditingText = CreateText | IsEditingTextFlag,
         CreateMathMLElement = CreateStyledElement | IsMathMLFlag,
     };
-    Node(Document*, ConstructionType);
+    Node(Document&, ConstructionType);
 
     virtual void didMoveToNewDocument(Document* oldDocument);
     
@@ -643,7 +651,6 @@ protected:
 
     void setNeedsNodeRenderingTraversalSlowPath(bool flag) { setFlag(flag, NeedsNodeRenderingTraversalSlowPathFlag); }
 
-    Document* documentInternal() const { return treeScope().documentScope(); }
     void setTreeScope(TreeScope& scope) { m_treeScope = &scope; }
 
     void setStyleChange(StyleChangeType changeType) { m_nodeFlags = (m_nodeFlags & ~StyleChangeMask) | changeType; }
@@ -667,7 +674,7 @@ private:
     virtual void refEventTarget() override;
     virtual void derefEventTarget() override;
 
-    virtual RenderStyle* nonRendererStyle() const { return 0; }
+    virtual RenderStyle* nonRendererStyle() const { return nullptr; }
 
     Element* ancestorElement() const;
 

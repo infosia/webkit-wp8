@@ -33,7 +33,7 @@
 #include "JSStringBuilder.h"
 #include "Lookup.h"
 #include "ObjectPrototype.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "PropertyNameArray.h"
 #include "RegExpCache.h"
 #include "RegExpConstructor.h"
@@ -41,6 +41,7 @@
 #include "RegExpObject.h"
 #include <wtf/ASCIICType.h>
 #include <wtf/MathExtras.h>
+#include <wtf/text/StringView.h>
 #include <wtf/unicode/Collator.h>
 
 using namespace WTF;
@@ -157,10 +158,9 @@ static inline JSString* jsStringWithReuse(ExecState* exec, JSValue originalValue
     return jsString(exec, string);
 }
 
-template <typename CharType>
-static NEVER_INLINE String substituteBackreferencesSlow(const String& replacement, const String& source, const int* ovector, RegExp* reg, size_t i)
+static NEVER_INLINE String substituteBackreferencesSlow(StringView replacement, StringView source, const int* ovector, RegExp* reg, size_t i)
 {
-    Vector<CharType> substitutedReplacement;
+    StringBuilder substitutedReplacement;
     int offset = 0;
     do {
         if (i + 1 == replacement.length())
@@ -170,7 +170,7 @@ static NEVER_INLINE String substituteBackreferencesSlow(const String& replacemen
         if (ref == '$') {
             // "$$" -> "$"
             ++i;
-            substitutedReplacement.append(replacement.getCharactersWithUpconvert<CharType>() + offset, i - offset);
+            substitutedReplacement.append(replacement.substring(offset, i - offset));
             offset = i + 1;
             continue;
         }
@@ -210,38 +210,29 @@ static NEVER_INLINE String substituteBackreferencesSlow(const String& replacemen
             continue;
 
         if (i - offset)
-            substitutedReplacement.append(replacement.getCharactersWithUpconvert<CharType>() + offset, i - offset);
+            substitutedReplacement.append(replacement.substring(offset, i - offset));
         i += 1 + advance;
         offset = i + 1;
         if (backrefStart >= 0)
-            substitutedReplacement.append(source.getCharactersWithUpconvert<CharType>() + backrefStart, backrefLength);
+            substitutedReplacement.append(source.substring(backrefStart, backrefLength));
     } while ((i = replacement.find('$', i + 1)) != notFound);
 
     if (replacement.length() - offset)
-        substitutedReplacement.append(replacement.getCharactersWithUpconvert<CharType>() + offset, replacement.length() - offset);
+        substitutedReplacement.append(replacement.substring(offset));
 
-    substitutedReplacement.shrinkToFit();
-    return String::adopt(substitutedReplacement);
+    return substitutedReplacement.toString();
 }
 
-static inline String substituteBackreferences(const String& replacement, const String& source, const int* ovector, RegExp* reg)
+static inline String substituteBackreferences(const String& replacement, StringView source, const int* ovector, RegExp* reg)
 {
     size_t i = replacement.find('$');
-    if (UNLIKELY(i != notFound)) {
-        if (replacement.is8Bit() && source.is8Bit())
-            return substituteBackreferencesSlow<LChar>(replacement, source, ovector, reg, i);
-        return substituteBackreferencesSlow<UChar>(replacement, source, ovector, reg, i);
-    }
+    if (UNLIKELY(i != notFound))
+        return substituteBackreferencesSlow(replacement, source, ovector, reg, i);
+
     return replacement;
 }
 
-static inline int localeCompare(const String& a, const String& b)
-{
-    return Collator::userDefault()->collate(reinterpret_cast<const ::UChar*>(a.deprecatedCharacters()), a.length(), reinterpret_cast<const ::UChar*>(b.deprecatedCharacters()), b.length());
-}
-
 struct StringRange {
-public:
     StringRange(int pos, int len)
         : position(pos)
         , length(len)
@@ -761,18 +752,16 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncIndexOf(ExecState* exec)
     JSValue thisValue = exec->hostThisValue();
     if (!checkObjectCoercible(thisValue))
         return throwVMTypeError(exec);
-    String s = thisValue.toString(exec)->value(exec);
 
     JSValue a0 = exec->argument(0);
     JSValue a1 = exec->argument(1);
-    String u2 = a0.toString(exec)->value(exec);
 
-    size_t result;
-    if (a1.isUndefined())
-        result = s.find(u2);
-    else {
-        unsigned pos;
-        int len = s.length();
+    JSString* thisJSString = thisValue.toString(exec);
+    JSString* otherJSString = a0.toString(exec);
+
+    unsigned pos = 0;
+    if (!a1.isUndefined()) {
+        int len = thisJSString->length();
         if (a1.isUInt32())
             pos = std::min<uint32_t>(a1.asUInt32(), len);
         else {
@@ -783,9 +772,12 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncIndexOf(ExecState* exec)
                 dpos = len;
             pos = static_cast<unsigned>(dpos);
         }
-        result = s.find(u2, pos);
     }
 
+    if (thisJSString->length() < otherJSString->length() + pos)
+        return JSValue::encode(jsNumber(-1));
+
+    size_t result = thisJSString->value(exec).find(otherJSString->value(exec), pos);
     if (result == notFound)
         return JSValue::encode(jsNumber(-1));
     return JSValue::encode(jsNumber(result));
@@ -796,25 +788,33 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncLastIndexOf(ExecState* exec)
     JSValue thisValue = exec->hostThisValue();
     if (!checkObjectCoercible(thisValue))
         return throwVMTypeError(exec);
-    String s = thisValue.toString(exec)->value(exec);
-    int len = s.length();
 
     JSValue a0 = exec->argument(0);
     JSValue a1 = exec->argument(1);
 
-    String u2 = a0.toString(exec)->value(exec);
-    double dpos = a1.toIntegerPreserveNaN(exec);
-    if (dpos < 0)
-        dpos = 0;
-    else if (!(dpos <= len)) // true for NaN
-        dpos = len;
+    JSString* thisJSString = thisValue.toString(exec);
+    unsigned len = thisJSString->length();
+    JSString* otherJSString = a0.toString(exec);
 
-    size_t result;
-    unsigned startPosition = static_cast<unsigned>(dpos);
-    if (!startPosition)
-        result = s.startsWith(u2) ? 0 : notFound;
+    double dpos = a1.toIntegerPreserveNaN(exec);
+    unsigned startPosition;
+    if (dpos < 0)
+        startPosition = 0;
+    else if (!(dpos <= len)) // true for NaN
+        startPosition = len;
     else
-        result = s.reverseFind(u2, startPosition);
+        startPosition = static_cast<unsigned>(dpos);
+
+    if (len < otherJSString->length())
+        return JSValue::encode(jsNumber(-1));
+
+    String thisString = thisJSString->value(exec);
+    String otherString = otherJSString->value(exec);
+    size_t result;
+    if (!startPosition)
+        result = thisString.startsWith(otherString) ? 0 : notFound;
+    else
+        result = thisString.reverseFind(otherString, startPosition);
     if (result == notFound)
         return JSValue::encode(jsNumber(-1));
     return JSValue::encode(jsNumber(result));
@@ -1299,7 +1299,7 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncLocaleCompare(ExecState* exec)
     String s = thisValue.toString(exec)->value(exec);
 
     JSValue a0 = exec->argument(0);
-    return JSValue::encode(jsNumber(localeCompare(s, a0.toString(exec)->value(exec))));
+    return JSValue::encode(jsNumber(Collator().collate(s, a0.toString(exec)->value(exec))));
 }
 
 EncodedJSValue JSC_HOST_CALL stringProtoFuncBig(ExecState* exec)
@@ -1408,6 +1408,7 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncFontsize(ExecState* exec)
     if (a0.getUInt32(smallInteger) && smallInteger <= 9) {
         unsigned stringSize = s.length();
         unsigned bufferSize = 22 + stringSize;
+        // FIXME: Should we have an 8-bit version of this code path too? Or maybe only an 8-bit version?
         UChar* buffer;
         PassRefPtr<StringImpl> impl = StringImpl::tryCreateUninitialized(bufferSize, buffer);
         if (!impl)
@@ -1427,7 +1428,7 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncFontsize(ExecState* exec)
         buffer[12] = '0' + smallInteger;
         buffer[13] = '"';
         buffer[14] = '>';
-        memcpy(&buffer[15], s.deprecatedCharacters(), stringSize * sizeof(UChar));
+        StringView(s).getCharactersWithUpconvert(&buffer[15]);
         buffer[15 + stringSize] = '<';
         buffer[16 + stringSize] = '/';
         buffer[17 + stringSize] = 'f';
@@ -1470,6 +1471,7 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncLink(ExecState* exec)
     unsigned linkTextSize = linkText.length();
     unsigned stringSize = s.length();
     unsigned bufferSize = 15 + linkTextSize + stringSize;
+    // FIXME: Should we have an 8-bit version of this code path too? Or maybe only an 8-bit version?
     UChar* buffer;
     PassRefPtr<StringImpl> impl = StringImpl::tryCreateUninitialized(bufferSize, buffer);
     if (!impl)
@@ -1483,10 +1485,10 @@ EncodedJSValue JSC_HOST_CALL stringProtoFuncLink(ExecState* exec)
     buffer[6] = 'f';
     buffer[7] = '=';
     buffer[8] = '"';
-    memcpy(&buffer[9], linkText.deprecatedCharacters(), linkTextSize * sizeof(UChar));
+    StringView(linkText).getCharactersWithUpconvert(&buffer[9]);
     buffer[9 + linkTextSize] = '"';
     buffer[10 + linkTextSize] = '>';
-    memcpy(&buffer[11 + linkTextSize], s.deprecatedCharacters(), stringSize * sizeof(UChar));
+    StringView(s).getCharactersWithUpconvert(&buffer[11 + linkTextSize]);
     buffer[11 + linkTextSize + stringSize] = '<';
     buffer[12 + linkTextSize + stringSize] = '/';
     buffer[13 + linkTextSize + stringSize] = 'a';

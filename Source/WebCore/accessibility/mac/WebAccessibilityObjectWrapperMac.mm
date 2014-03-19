@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -185,22 +185,36 @@ using namespace HTMLNames;
 #define NSAccessibilityPlaceholderValueAttribute @"AXPlaceholderValue"
 #endif
 
+#define NSAccessibilityTextMarkerIsValidParameterizedAttribute @"AXTextMarkerIsValid"
+#define NSAccessibilityIndexForTextMarkerParameterizedAttribute @"AXIndexForTextMarker"
+#define NSAccessibilityTextMarkerForIndexParameterizedAttribute @"AXTextMarkerForIndex"
+
+#ifndef NSAccessibilityScrollToVisibleAction
+#define NSAccessibilityScrollToVisibleAction @"AXScrollToVisible"
+#endif
+
+#ifndef NSAccessibilityPathAttribute
+#define NSAccessibilityPathAttribute @"AXPath"
+#endif
+
+#ifndef NSAccessibilityExpandedTextValueAttribute
+#define NSAccessibilityExpandedTextValueAttribute @"AXExpandedTextValue"
+#endif
+
+#define NSAccessibilityDOMIdentifierAttribute @"AXDOMIdentifier"
+#define NSAccessibilityDOMClassListAttribute @"AXDOMClassList"
+
 // Search
+#ifndef NSAccessibilityImmediateDescendantsOnly
+#define NSAccessibilityImmediateDescendantsOnly @"AXImmediateDescendantsOnly"
+#endif
+
 #ifndef NSAccessibilityUIElementCountForSearchPredicateParameterizedAttribute
 #define NSAccessibilityUIElementCountForSearchPredicateParameterizedAttribute @"AXUIElementCountForSearchPredicate"
 #endif
 
 #ifndef NSAccessibilityUIElementsForSearchPredicateParameterizedAttribute
 #define NSAccessibilityUIElementsForSearchPredicateParameterizedAttribute @"AXUIElementsForSearchPredicate"
-#endif
-
-// Text
-#ifndef NSAccessibilityEndTextMarkerForBoundsParameterizedAttribute
-#define NSAccessibilityEndTextMarkerForBoundsParameterizedAttribute @"AXEndTextMarkerForBounds"
-#endif
-
-#ifndef NSAccessibilityStartTextMarkerForBoundsParameterizedAttribute
-#define NSAccessibilityStartTextMarkerForBoundsParameterizedAttribute @"AXStartTextMarkerForBounds"
 #endif
 
 // Search Keys
@@ -312,6 +326,10 @@ using namespace HTMLNames;
 #define NSAccessibilityMisspelledWordSearchKey @"AXMisspelledWordSearchKey"
 #endif
 
+#ifndef NSAccessibilityOutlineSearchKey
+#define NSAccessibilityOutlineSearchKey @"AXOutlineSearchKey"
+#endif
+
 #ifndef NSAccessibilityPlainTextSearchKey
 #define NSAccessibilityPlainTextSearchKey @"AXPlainTextSearchKey"
 #endif
@@ -356,20 +374,55 @@ using namespace HTMLNames;
 #define NSAccessibilityVisitedLinkSearchKey @"AXVisitedLinkSearchKey"
 #endif
 
-#define NSAccessibilityTextMarkerIsValidParameterizedAttribute @"AXTextMarkerIsValid"
-#define NSAccessibilityIndexForTextMarkerParameterizedAttribute @"AXIndexForTextMarker"
-#define NSAccessibilityTextMarkerForIndexParameterizedAttribute @"AXTextMarkerForIndex"
-
-#ifndef NSAccessibilityScrollToVisibleAction
-#define NSAccessibilityScrollToVisibleAction @"AXScrollToVisible"
+// Text markers
+#ifndef NSAccessibilityEndTextMarkerForBoundsParameterizedAttribute
+#define NSAccessibilityEndTextMarkerForBoundsParameterizedAttribute @"AXEndTextMarkerForBounds"
 #endif
 
-#ifndef NSAccessibilityPathAttribute
-#define NSAccessibilityPathAttribute @"AXPath"
+#ifndef NSAccessibilityStartTextMarkerForBoundsParameterizedAttribute
+#define NSAccessibilityStartTextMarkerForBoundsParameterizedAttribute @"AXStartTextMarkerForBounds"
 #endif
 
-#define NSAccessibilityDOMIdentifierAttribute @"AXDOMIdentifier"
-#define NSAccessibilityDOMClassListAttribute @"AXDOMClassList"
+// Text selection
+#ifndef NSAccessibilitySelectTextActivity
+#define NSAccessibilitySelectTextActivity @"AXSelectTextActivity"
+#endif
+
+#ifndef NSAccessibilitySelectTextActivityFindAndReplace
+#define NSAccessibilitySelectTextActivityFindAndReplace @"AXSelectTextActivityFindAndReplace"
+#endif
+
+#ifndef NSAccessibilitySelectTextActivityFindAndSelect
+#define NSAccessibilitySelectTextActivityFindAndSelect @"AXSelectTextActivityFindAndSelect"
+#endif
+
+#ifndef NSAccessibilitySelectTextAmbiguityResolution
+#define NSAccessibilitySelectTextAmbiguityResolution @"AXSelectTextAmbiguityResolution"
+#endif
+
+#ifndef NSAccessibilitySelectTextAmbiguityResolutionClosestAfterSelection
+#define NSAccessibilitySelectTextAmbiguityResolutionClosestAfterSelection @"AXSelectTextAmbiguityResolutionClosestAfterSelection"
+#endif
+
+#ifndef NSAccessibilitySelectTextAmbiguityResolutionClosestBeforeSelection
+#define NSAccessibilitySelectTextAmbiguityResolutionClosestBeforeSelection @"AXSelectTextAmbiguityResolutionClosestBeforeSelection"
+#endif
+
+#ifndef NSAccessibilitySelectTextAmbiguityResolutionClosestToSelection
+#define NSAccessibilitySelectTextAmbiguityResolutionClosestToSelection @"AXSelectTextAmbiguityResolutionClosestToSelection"
+#endif
+
+#ifndef NSAccessibilitySelectTextReplacementString
+#define NSAccessibilitySelectTextReplacementString @"AXSelectTextReplacementString"
+#endif
+
+#ifndef NSAccessibilitySelectTextSearchStrings
+#define NSAccessibilitySelectTextSearchStrings @"AXSelectTextSearchStrings"
+#endif
+
+#ifndef NSAccessibilitySelectTextWithCriteriaParameterizedAttribute
+#define NSAccessibilitySelectTextWithCriteriaParameterizedAttribute @"AXSelectTextWithCriteria"
+#endif
 
 // Math attributes
 #define NSAccessibilityMathRootRadicandAttribute @"AXMathRootRadicand"
@@ -504,6 +557,7 @@ static AccessibilitySearchKeyMap* createAccessibilitySearchKeyMap()
         { NSAccessibilityListSearchKey, ListSearchKey },
         { NSAccessibilityLiveRegionSearchKey, LiveRegionSearchKey },
         { NSAccessibilityMisspelledWordSearchKey, MisspelledWordSearchKey },
+        { NSAccessibilityOutlineSearchKey, OutlineSearchKey },
         { NSAccessibilityPlainTextSearchKey, PlainTextSearchKey },
         { NSAccessibilityRadioGroupSearchKey, RadioGroupSearchKey },
         { NSAccessibilitySameTypeSearchKey, SameTypeSearchKey },
@@ -539,6 +593,7 @@ static AccessibilitySearchKey accessibilitySearchKeyForString(const String& valu
 static AccessibilitySearchCriteria accessibilitySearchCriteriaForSearchPredicateParameterizedAttribute(const NSDictionary *parameterizedAttribute)
 {
     NSString *directionParameter = [parameterizedAttribute objectForKey:@"AXDirection"];
+    NSNumber *immediateDescendantsOnlyParameter = [parameterizedAttribute objectForKey:NSAccessibilityImmediateDescendantsOnly];
     NSNumber *resultsLimitParameter = [parameterizedAttribute objectForKey:@"AXResultsLimit"];
     NSString *searchTextParameter = [parameterizedAttribute objectForKey:@"AXSearchText"];
     WebAccessibilityObjectWrapper *startElementParameter = [parameterizedAttribute objectForKey:@"AXStartElement"];
@@ -548,6 +603,10 @@ static AccessibilitySearchCriteria accessibilitySearchCriteriaForSearchPredicate
     AccessibilitySearchDirection direction = SearchDirectionNext;
     if ([directionParameter isKindOfClass:[NSString class]])
         direction = [directionParameter isEqualToString:@"AXDirectionNext"] ? SearchDirectionNext : SearchDirectionPrevious;
+    
+    bool immediateDescendantsOnly = false;
+    if ([immediateDescendantsOnlyParameter isKindOfClass:[NSNumber class]])
+        immediateDescendantsOnly = [immediateDescendantsOnlyParameter boolValue];
     
     unsigned resultsLimit = 0;
     if ([resultsLimitParameter isKindOfClass:[NSNumber class]])
@@ -561,11 +620,11 @@ static AccessibilitySearchCriteria accessibilitySearchCriteriaForSearchPredicate
     if ([startElementParameter isKindOfClass:[WebAccessibilityObjectWrapper class]])
         startElement = [startElementParameter accessibilityObject];
     
-    BOOL visibleOnly = NO;
+    bool visibleOnly = false;
     if ([visibleOnlyParameter isKindOfClass:[NSNumber class]])
         visibleOnly = [visibleOnlyParameter boolValue];
     
-    AccessibilitySearchCriteria criteria = AccessibilitySearchCriteria(startElement, direction, searchText, resultsLimit, visibleOnly);
+    AccessibilitySearchCriteria criteria = AccessibilitySearchCriteria(startElement, direction, searchText, resultsLimit, visibleOnly, immediateDescendantsOnly);
     
     if ([searchKeyParameter isKindOfClass:[NSString class]])
         criteria.searchKeys.append(accessibilitySearchKeyForString(searchKeyParameter));
@@ -576,6 +635,47 @@ static AccessibilitySearchCriteria accessibilitySearchCriteriaForSearchPredicate
             NSString *searchKey = [searchKeyParameter objectAtIndex:i];
             if ([searchKey isKindOfClass:[NSString class]])
                 criteria.searchKeys.uncheckedAppend(accessibilitySearchKeyForString(searchKey));
+        }
+    }
+    
+    return criteria;
+}
+
+#pragma mark Select text helpers
+
+static AccessibilitySelectTextCriteria accessibilitySelectTextCriteriaForCriteriaParameterizedAttribute(const NSDictionary *parameterizedAttribute)
+{
+    NSString *activityParameter = [parameterizedAttribute objectForKey:NSAccessibilitySelectTextActivity];
+    NSString *ambiguityResolutionParameter = [parameterizedAttribute objectForKey:NSAccessibilitySelectTextAmbiguityResolution];
+    NSString *replacementStringParameter = [parameterizedAttribute objectForKey:NSAccessibilitySelectTextReplacementString];
+    NSArray *searchStringsParameter = [parameterizedAttribute objectForKey:NSAccessibilitySelectTextSearchStrings];
+    
+    AccessibilitySelectTextActivity activity = FindAndSelectActivity;
+    if ([activityParameter isKindOfClass:[NSString class]]) {
+        if ([activityParameter isEqualToString:NSAccessibilitySelectTextActivityFindAndReplace])
+            activity = FindAndReplaceActivity;
+    }
+    
+    AccessibilitySelectTextAmbiguityResolution ambiguityResolution = ClosestToSelectionAmbiguityResolution;
+    if ([ambiguityResolutionParameter isKindOfClass:[NSString class]]) {
+        if ([ambiguityResolutionParameter isEqualToString:NSAccessibilitySelectTextAmbiguityResolutionClosestAfterSelection])
+            ambiguityResolution = ClosestAfterSelectionAmbiguityResolution;
+        else if ([ambiguityResolutionParameter isEqualToString:NSAccessibilitySelectTextAmbiguityResolutionClosestBeforeSelection])
+            ambiguityResolution = ClosestBeforeSelectionAmbiguityResolution;
+    }
+    
+    String replacementString;
+    if ([replacementStringParameter isKindOfClass:[NSString class]])
+        replacementString = replacementStringParameter;
+    
+    AccessibilitySelectTextCriteria criteria(activity, ambiguityResolution, replacementString);
+    
+    if ([searchStringsParameter isKindOfClass:[NSArray class]]) {
+        size_t searchStringsCount = static_cast<size_t>([searchStringsParameter count]);
+        criteria.searchStrings.reserveInitialCapacity(searchStringsCount);
+        for (NSString *searchString in searchStringsParameter) {
+            if ([searchString isKindOfClass:[NSString class]])
+                criteria.searchStrings.uncheckedAppend(searchString);
         }
     }
     
@@ -789,7 +889,7 @@ static void AXAttributeStringSetBlockquoteLevel(NSMutableAttributedString* attrS
         [attrString removeAttribute:NSAccessibilityBlockQuoteLevelAttribute range:range];
 }
 
-static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, Node* node, const UChar* chars, int charLength, NSRange range)
+static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, Node* node, StringView text, NSRange range)
 {
     if (unifiedTextCheckerEnabled(node->document().frame())) {
         // Check the spelling directly since document->markersForNode() does not store the misspelled marking when the cursor is in a word.
@@ -797,7 +897,7 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
         
         // checkTextOfParagraph is the only spelling/grammar checker implemented in WK1 and WK2
         Vector<TextCheckingResult> results;
-        checkTextOfParagraph(checker, chars, charLength, TextCheckingTypeSpelling, results);
+        checkTextOfParagraph(*checker, text, TextCheckingTypeSpelling, results);
         
         size_t size = results.size();
         NSNumber* trueValue = [NSNumber numberWithBool:YES];
@@ -810,15 +910,11 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
         }
         return;
     }
-    
-    int currentPosition = 0;
-    while (charLength > 0) {
-        const UChar* charData = chars + currentPosition;
-        TextCheckerClient* checker = node->document().frame()->editor().textChecker();
-        
+
+    for (unsigned currentPosition = 0; currentPosition < text.length(); ) {
         int misspellingLocation = -1;
         int misspellingLength = 0;
-        checker->checkSpellingOfString(charData, charLength, &misspellingLocation, &misspellingLength);
+        node->document().frame()->editor().textChecker()->checkSpellingOfString(text.substring(currentPosition), &misspellingLocation, &misspellingLength);
         if (misspellingLocation == -1 || !misspellingLength)
             break;
         
@@ -827,9 +923,20 @@ static void AXAttributeStringSetSpelling(NSMutableAttributedString* attrString, 
 #if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
         AXAttributeStringSetNumber(attrString, NSAccessibilityMarkedMisspelledTextAttribute, [NSNumber numberWithBool:YES], spellRange);
 #endif
-        charLength -= (misspellingLocation + misspellingLength);
-        currentPosition += (misspellingLocation + misspellingLength);
+
+        currentPosition += misspellingLocation + misspellingLength;
     }
+}
+
+static void AXAttributeStringSetexpandedTextValue(NSMutableAttributedString *attrString, RenderObject* renderer, NSRange range)
+{
+    if (!renderer || !AXAttributedStringRangeIsValid(attrString, range))
+        return;
+    AccessibilityObject* axObject = renderer->document().axObjectCache()->getOrCreate(renderer);
+    if (axObject->supportsExpandedTextValue())
+        [attrString addAttribute:NSAccessibilityExpandedTextValueAttribute value:axObject->expandedTextValue() range:range];
+    else
+        [attrString removeAttribute:NSAccessibilityExpandedTextValueAttribute range:range];
 }
 
 static void AXAttributeStringSetHeadingLevel(NSMutableAttributedString* attrString, RenderObject* renderer, NSRange range)
@@ -881,17 +988,18 @@ static void AXAttributeStringSetElement(NSMutableAttributedString* attrString, N
         [attrString removeAttribute:attribute range:range];
 }
 
-static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, Node* node, const UChar* chars, int length)
+static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, Node* node, StringView text)
 {
     // skip invisible text
-    if (!node->renderer())
+    RenderObject* renderer = node->renderer();
+    if (!renderer)
         return;
     
     // easier to calculate the range before appending the string
-    NSRange attrStringRange = NSMakeRange([attrString length], length);
+    NSRange attrStringRange = NSMakeRange([attrString length], text.length());
     
     // append the string from this node
-    [[attrString mutableString] appendString:[NSString stringWithCharacters:chars length:length]];
+    [[attrString mutableString] appendString:text.createNSStringWithoutCopying().get()];
     
     // add new attributes and remove irrelevant inherited ones
     // NOTE: color attributes are handled specially because -[NSMutableAttributedString addAttribute: value: range:] does not merge
@@ -906,13 +1014,14 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
     [attrString removeAttribute:NSAccessibilityMisspelledTextAttribute range:attrStringRange];
     
     // set new attributes
-    AXAttributeStringSetStyle(attrString, node->renderer(), attrStringRange);
-    AXAttributeStringSetHeadingLevel(attrString, node->renderer(), attrStringRange);
-    AXAttributeStringSetBlockquoteLevel(attrString, node->renderer(), attrStringRange);
+    AXAttributeStringSetStyle(attrString, renderer, attrStringRange);
+    AXAttributeStringSetHeadingLevel(attrString, renderer, attrStringRange);
+    AXAttributeStringSetBlockquoteLevel(attrString, renderer, attrStringRange);
+    AXAttributeStringSetexpandedTextValue(attrString, renderer, attrStringRange);
     AXAttributeStringSetElement(attrString, NSAccessibilityLinkTextAttribute, AccessibilityObject::anchorElementForNode(node), attrStringRange);
     
     // do spelling last because it tends to break up the range
-    AXAttributeStringSetSpelling(attrString, node, chars, length, attrStringRange);
+    AXAttributeStringSetSpelling(attrString, node, text, attrStringRange);
 }
 
 static NSString* nsStringForReplacedNode(Node* replacedNode)
@@ -960,13 +1069,12 @@ static NSString* nsStringForReplacedNode(Node* replacedNode)
         int offset = it.range()->startOffset(exception);
         
         // non-zero length means textual node, zero length means replaced node (AKA "attachments" in AX)
-        if (it.length() != 0) {
+        if (it.text().length()) {
             // Add the text of the list marker item if necessary.
             String listMarkerText = m_object->listMarkerTextForNodeAndPosition(node, VisiblePosition(it.range()->startPosition()));
             if (!listMarkerText.isEmpty())
-                AXAttributedStringAppendText(attrString, node, listMarkerText.deprecatedCharacters(), listMarkerText.length());
-            
-            AXAttributedStringAppendText(attrString, node, it.characters(), it.length());
+                AXAttributedStringAppendText(attrString, node, listMarkerText);
+            AXAttributedStringAppendText(attrString, node, it.text());
         } else {
             Node* replacedNode = node->childNode(offset);
             NSString *attachmentString = nsStringForReplacedNode(replacedNode);
@@ -1127,6 +1235,9 @@ static id textMarkerRangeFromVisiblePositions(AXObjectCache *cache, VisiblePosit
     
     if (m_object->supportsPath())
         [additional addObject:NSAccessibilityPathAttribute];
+    
+    if (m_object->supportsExpandedTextValue())
+        [additional addObject:NSAccessibilityExpandedTextValueAttribute];
     
     return additional;
 }
@@ -2064,6 +2175,13 @@ static NSString* roleValueToNSString(AccessibilityRole value)
     return NSAccessibilityRoleDescription(NSAccessibilityUnknownRole, nil);
 }
 
+- (NSString *)computedRoleString
+{
+    if (!m_object)
+        return nil;
+    return m_object->computedRoleString();
+}
+
 - (id)scrollViewParent
 {
     if (!m_object || !m_object->isAccessibilityScrollView())
@@ -2101,6 +2219,10 @@ static NSString* roleValueToNSString(AccessibilityRole value)
     
     if ([attributeName isEqualToString: NSAccessibilityRoleDescriptionAttribute])
         return [self roleDescription];
+
+    // AXARIARole is only used by DumpRenderTree (so far).
+    if ([attributeName isEqualToString:@"AXARIARole"])
+        return [self computedRoleString];
     
     if ([attributeName isEqualToString: NSAccessibilityParentAttribute]) {
         
@@ -2751,6 +2873,9 @@ static NSString* roleValueToNSString(AccessibilityRole value)
             return [self accessibilityMathPrescriptPairs];
     }
     
+    if ([attributeName isEqualToString:NSAccessibilityExpandedTextValueAttribute])
+        return m_object->expandedTextValue();
+    
     if ([attributeName isEqualToString:NSAccessibilityDOMIdentifierAttribute])
         return m_object->identifierAttribute();
     if ([attributeName isEqualToString:NSAccessibilityDOMClassListAttribute]) {
@@ -2928,6 +3053,7 @@ static NSString* roleValueToNSString(AccessibilityRole value)
                       NSAccessibilityUIElementsForSearchPredicateParameterizedAttribute,
                       NSAccessibilityEndTextMarkerForBoundsParameterizedAttribute,
                       NSAccessibilityStartTextMarkerForBoundsParameterizedAttribute,
+                      NSAccessibilitySelectTextWithCriteriaParameterizedAttribute,
                       nil];
     }
     
@@ -3314,6 +3440,11 @@ static RenderObject* rendererForView(NSView* view)
     }
     
     // dispatch
+    if ([attribute isEqualToString:NSAccessibilitySelectTextWithCriteriaParameterizedAttribute]) {
+        AccessibilitySelectTextCriteria criteria = accessibilitySelectTextCriteriaForCriteriaParameterizedAttribute(dictionary);
+        return m_object->selectText(&criteria);
+    }
+    
     if ([attribute isEqualToString:NSAccessibilityUIElementCountForSearchPredicateParameterizedAttribute]) {
         AccessibilitySearchCriteria criteria = accessibilitySearchCriteriaForSearchPredicateParameterizedAttribute(dictionary);
         AccessibilityObject::AccessibilityChildrenVector results;

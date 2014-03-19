@@ -1,7 +1,7 @@
 /*
  * This file is part of the theme implementation for form controls in WebCore.
  *
- * Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2012 Apple Computer, Inc.
+ * Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2012 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -93,10 +93,13 @@ public:
 #if ENABLE(VIDEO)
     virtual String mediaControlsStyleSheet() { return String(); }
     virtual String extraMediaControlsStyleSheet() { return String(); }
-    virtual String mediaControlsScript() { return String() ; }
+    virtual String mediaControlsScript() { return String(); }
 #endif
 #if ENABLE(FULLSCREEN_API)
     virtual String extraFullScreenStyleSheet() { return String(); }
+#endif
+#if ENABLE(IMAGE_CONTROLS)
+    virtual String imageControlsStyleSheet() const { return String(); }
 #endif
 
     // A method to obtain the baseline position for a "leaf" control.  This will only be used if a baseline
@@ -241,6 +244,10 @@ public:
     enum FileUploadDecorations { SingleFile, MultipleFiles };
     virtual bool paintFileUploadIconDecorations(RenderObject* /*inputRenderer*/, RenderObject* /*buttonRenderer*/, const PaintInfo&, const IntRect&, Icon*, FileUploadDecorations) { return true; }
 
+#if ENABLE(IMAGE_CONTROLS)
+    virtual IntSize imageControlsButtonSize(const RenderObject*) const { return IntSize(); }
+#endif
+
 protected:
     // The platform selection color.
     virtual Color platformActiveSelectionBackgroundColor() const;
@@ -356,6 +363,10 @@ protected:
     virtual bool paintMediaFullScreenVolumeSliderThumb(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual bool paintSnapshottedPluginOverlay(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+
+#if ENABLE(IMAGE_CONTROLS)
+    virtual bool paintImageControlsButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+#endif
 
 public:
     // Methods for state querying

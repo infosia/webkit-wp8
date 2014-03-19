@@ -26,6 +26,7 @@
 #include "config.h"
 #include "WebProcessCreationParameters.h"
 
+#include "APIData.h"
 #include "ArgumentCoders.h"
 
 namespace WebKit {
@@ -35,11 +36,12 @@ WebProcessCreationParameters::WebProcessCreationParameters()
     , shouldAlwaysUseComplexTextCodePath(false)
     , shouldUseFontSmoothing(true)
     , defaultRequestTimeoutInterval(INT_MAX)
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     , nsURLCacheMemoryCapacity(0)
     , nsURLCacheDiskCapacity(0)
     , shouldForceScreenFontSubstitution(false)
     , shouldEnableKerningAndLigaturesByDefault(false)
+    , shouldEnableJIT(false)
 #endif
 #if ENABLE(NETWORK_PROCESS)
     , usesNetworkProcess(false)
@@ -95,10 +97,10 @@ void WebProcessCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
     encoder << textCheckerState;
     encoder << fullKeyboardAccessEnabled;
     encoder << defaultRequestTimeoutInterval;
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
     encoder << uiProcessBundleIdentifier;
 #endif
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     encoder << presenterApplicationPid;
     encoder << accessibilityEnhancedUserInterfaceEnabled;
     encoder << nsURLCacheMemoryCapacity;
@@ -108,6 +110,10 @@ void WebProcessCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
     encoder << uiProcessBundleResourcePathExtensionHandle;
     encoder << shouldForceScreenFontSubstitution;
     encoder << shouldEnableKerningAndLigaturesByDefault;
+    encoder << shouldEnableJIT;
+    encoder << !!bundleParameterData;
+    if (bundleParameterData)
+        encoder << bundleParameterData->dataReference();
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
@@ -207,12 +213,12 @@ bool WebProcessCreationParameters::decode(IPC::ArgumentDecoder& decoder, WebProc
         return false;
     if (!decoder.decode(parameters.defaultRequestTimeoutInterval))
         return false;
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
     if (!decoder.decode(parameters.uiProcessBundleIdentifier))
         return false;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (!decoder.decode(parameters.presenterApplicationPid))
         return false;
     if (!decoder.decode(parameters.accessibilityEnhancedUserInterfaceEnabled))
@@ -231,6 +237,20 @@ bool WebProcessCreationParameters::decode(IPC::ArgumentDecoder& decoder, WebProc
         return false;
     if (!decoder.decode(parameters.shouldEnableKerningAndLigaturesByDefault))
         return false;
+    if (!decoder.decode(parameters.shouldEnableJIT))
+        return false;
+
+    bool hasBundleParameterData;
+    if (!decoder.decode(hasBundleParameterData))
+        return false;
+
+    if (hasBundleParameterData) {
+        IPC::DataReference dataReference;
+        if (!decoder.decode(dataReference))
+            return false;
+
+        parameters.bundleParameterData = API::Data::create(dataReference.data(), dataReference.size());
+    }
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)

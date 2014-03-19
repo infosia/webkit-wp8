@@ -32,7 +32,6 @@
 #include <WebCore/NotImplemented.h>
 #include <WebCore/ResourceHandleInternal.h>
 #include <gio/gio.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
 #include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
@@ -106,7 +105,7 @@ public:
 
         String intermediateURI = m_destinationURI + ".wkdownload";
         m_intermediateFile = adoptGRef(g_file_new_for_uri(intermediateURI.utf8().data()));
-        GOwnPtr<GError> error;
+        GUniqueOutPtr<GError> error;
         m_outputStream = adoptGRef(g_file_replace(m_intermediateFile.get(), 0, TRUE, G_FILE_CREATE_NONE, 0, &error.outPtr()));
         if (!m_outputStream) {
             downloadFailed(platformDownloadDestinationError(response, error->message));
@@ -124,7 +123,7 @@ public:
         }
 
         gsize bytesWritten;
-        GOwnPtr<GError> error;
+        GUniqueOutPtr<GError> error;
         g_output_stream_write_all(G_OUTPUT_STREAM(m_outputStream.get()), data, length, &bytesWritten, 0, &error.outPtr());
         if (error) {
             downloadFailed(platformDownloadDestinationError(m_response, error->message));
@@ -139,7 +138,7 @@ public:
 
         ASSERT(m_intermediateFile);
         GRefPtr<GFile> destinationFile = adoptGRef(g_file_new_for_uri(m_destinationURI.utf8().data()));
-        GOwnPtr<GError> error;
+        GUniqueOutPtr<GError> error;
         if (!g_file_move(m_intermediateFile.get(), destinationFile.get(), G_FILE_COPY_NONE, nullptr, nullptr, nullptr, &error.outPtr())) {
             downloadFailed(platformDownloadDestinationError(m_response, error->message));
             return;
@@ -213,7 +212,7 @@ void Download::start()
 {
     ASSERT(!m_downloadClient);
     ASSERT(!m_resourceHandle);
-    m_downloadClient = adoptPtr(new DownloadClient(this));
+    m_downloadClient = std::make_unique<DownloadClient>(this);
     m_resourceHandle = ResourceHandle::create(0, m_request, m_downloadClient.get(), false, false);
     didStart();
 }
@@ -222,7 +221,7 @@ void Download::startWithHandle(ResourceHandle* resourceHandle, const ResourceRes
 {
     ASSERT(!m_downloadClient);
     ASSERT(!m_resourceHandle);
-    m_downloadClient = adoptPtr(new DownloadClient(this));
+    m_downloadClient = std::make_unique<DownloadClient>(this);
     resourceHandle->setClient(m_downloadClient.get());
     m_resourceHandle = resourceHandle;
     didStart();
@@ -248,7 +247,8 @@ void Download::platformInvalidate()
         m_resourceHandle->cancel();
         m_resourceHandle = 0;
     }
-    m_downloadClient.release();
+
+    m_downloadClient = nullptr;
 }
 
 void Download::didDecideDestination(const String& /*destination*/, bool /*allowOverwrite*/)

@@ -366,6 +366,7 @@ function _createElementTitle(elementInfo)
     builder.appendSpan("node-height", elementInfo.nodeHeight);
     builder.appendSpan("px", "px");
 
+    builder.appendPropertyIfNotNull("role-name", "Role", elementInfo.role);
     builder.appendPropertyIfNotNull("region-flow-name", "Region Flow", elementInfo.regionFlowInfo ? elementInfo.regionFlowInfo.name : null);
     builder.appendPropertyIfNotNull("content-flow-name", "Content Flow", elementInfo.contentFlowInfo ? elementInfo.contentFlowInfo.name : null);
 
@@ -636,16 +637,26 @@ function _drawFragmentHighlight(highlight)
     _drawRulers(highlight, rulerAtRight, rulerAtBottom);
 }
 
+function showPageIndication()
+{
+    document.body.classList.add("indicate");
+}
+
+function hidePageIndication()
+{
+    document.body.classList.remove("indicate");
+}
+
 function drawNodeHighlight(highlight)
 {
     context.save();
     context.translate(-highlight.scroll.x, -highlight.scroll.y);
 
     for (var i = 0; i < highlight.fragments.length; ++i)
-        _drawFragmentHighlight(highlight.fragments[i], highlight);
+        _drawFragmentHighlight(highlight.fragments[i]);
 
     if (highlight.elementInfo && highlight.elementInfo.regionFlowInfo)
-        _drawRegionsHighlight(highlight.elementInfo.regionFlowInfo.regions, highlight);
+        _drawRegionsHighlight(highlight.elementInfo.regionFlowInfo.regions);
 
     if (highlight.elementInfo && highlight.elementInfo.shapeOutsideInfo)
         _drawShapeHighlight(highlight.elementInfo.shapeOutsideInfo);

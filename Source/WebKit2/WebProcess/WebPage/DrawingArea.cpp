@@ -25,10 +25,11 @@
 
 #include "config.h"
 #include "DrawingArea.h"
+#include <WebCore/TransformationMatrix.h>
 #include <wtf/Functional.h>
 
 // Subclasses
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "RemoteLayerTreeDrawingArea.h"
 #include "TiledCoreAnimationDrawingArea.h"
 #else
@@ -41,12 +42,14 @@
 
 #include "WebPageCreationParameters.h"
 
+using namespace WebCore;
+
 namespace WebKit {
 
 std::unique_ptr<DrawingArea> DrawingArea::create(WebPage* webPage, const WebPageCreationParameters& parameters)
 {
     switch (parameters.drawingAreaType) {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #if !PLATFORM(IOS)
     case DrawingAreaTypeTiledCoreAnimation:
         return std::make_unique<TiledCoreAnimationDrawingArea>(webPage, parameters);
@@ -81,6 +84,11 @@ void DrawingArea::dispatchAfterEnsuringUpdatedScrollPosition(std::function<void 
 {
     // Scroll position updates are synchronous by default so we can just call the function right away here.
     function();
+}
+
+TransformationMatrix DrawingArea::rootLayerTransform() const
+{
+    return TransformationMatrix();
 }
 
 } // namespace WebKit

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,8 +25,6 @@
 
 #ifndef FTLIntrinsicRepository_h
 #define FTLIntrinsicRepository_h
-
-#include <wtf/Platform.h>
 
 #if ENABLE(FTL_JIT)
 
@@ -60,11 +58,14 @@ namespace JSC { namespace FTL {
     macro(C_JITOperation_EJssJss, functionType(intPtr, intPtr, intPtr, intPtr)) \
     macro(C_JITOperation_EJssJssJss, functionType(intPtr, intPtr, intPtr, intPtr, intPtr)) \
     macro(C_JITOperation_ESt, functionType(intPtr, intPtr, intPtr)) \
+    macro(D_JITOperation_D, functionType(doubleType, doubleType)) \
+    macro(D_JITOperation_DD, functionType(doubleType, doubleType, doubleType)) \
     macro(I_JITOperation_EJss, functionType(intPtr, intPtr, intPtr)) \
     macro(J_JITOperation_E, functionType(int64, intPtr)) \
     macro(J_JITOperation_EA, functionType(int64, intPtr, intPtr)) \
     macro(J_JITOperation_EAZ, functionType(int64, intPtr, intPtr, int32)) \
     macro(J_JITOperation_EDA, functionType(int64, intPtr, doubleType, intPtr)) \
+    macro(J_JITOperation_EJ, functionType(int64, intPtr, int64)) \
     macro(J_JITOperation_EJA, functionType(int64, intPtr, int64, intPtr)) \
     macro(J_JITOperation_EJJ, functionType(int64, intPtr, int64, int64)) \
     macro(J_JITOperation_EJssZ, functionType(int64, intPtr, intPtr, int32)) \
@@ -73,16 +74,20 @@ namespace JSC { namespace FTL {
     macro(P_JITOperation_E, functionType(intPtr, intPtr)) \
     macro(P_JITOperation_EC, functionType(intPtr, intPtr, intPtr)) \
     macro(P_JITOperation_EO, functionType(intPtr, intPtr, intPtr)) \
+    macro(P_JITOperation_ES, functionType(intPtr, intPtr, int64)) \
+    macro(P_JITOperation_EOS, functionType(intPtr, intPtr, intPtr, int64)) \
     macro(P_JITOperation_ESt, functionType(intPtr, intPtr, intPtr)) \
     macro(P_JITOperation_EStPS, functionType(intPtr, intPtr, intPtr, intPtr, intPtr)) \
     macro(P_JITOperation_EStSS, functionType(intPtr, intPtr, intPtr, intPtr, intPtr)) \
     macro(P_JITOperation_EStZ, functionType(intPtr, intPtr, intPtr, int32)) \
     macro(S_JITOperation_EJ, functionType(intPtr, intPtr, int64)) \
     macro(S_JITOperation_EJJ, functionType(intPtr, intPtr, int64, int64)) \
+    macro(S_JITOperation_J, functionType(intPtr, int64)) \
     macro(V_JITOperation_EJJJ, functionType(voidType, intPtr, int64, int64, int64)) \
     macro(V_JITOperation_EOZD, functionType(voidType, intPtr, intPtr, int32, doubleType)) \
     macro(V_JITOperation_EOZJ, functionType(voidType, intPtr, intPtr, int32, int64)) \
     macro(V_JITOperation_EC, functionType(voidType, intPtr, intPtr)) \
+    macro(V_JITOperation_ECb, functionType(voidType, intPtr, intPtr)) \
     macro(V_JITOperation_EVws, functionType(voidType, intPtr, intPtr)) \
     macro(Z_JITOperation_D, functionType(int32, doubleType))
 

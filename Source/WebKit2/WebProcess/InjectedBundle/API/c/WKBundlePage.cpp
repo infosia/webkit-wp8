@@ -264,6 +264,22 @@ void* WKAccessibilityFocusedObject(WKBundlePageRef pageRef)
 #endif
 }
 
+void WKAccessibilityEnableEnhancedAccessibility(bool enable)
+{
+#if HAVE(ACCESSIBILITY)
+    WebCore::AXObjectCache::setEnhancedUserInterfaceAccessibility(enable);
+#endif
+}
+
+bool WKAccessibilityEnhancedAccessibilityEnabled()
+{
+#if HAVE(ACCESSIBILITY)
+    return WebCore::AXObjectCache::accessibilityEnhancedUserInterfaceEnabled();
+#else
+    return false;
+#endif
+}
+
 void WKBundlePageStopLoading(WKBundlePageRef pageRef)
 {
     toImpl(pageRef)->stopLoading();
@@ -356,7 +372,7 @@ void WKBundlePageUninstallPageOverlayWithAnimation(WKBundlePageRef pageRef, WKBu
 
 void WKBundlePageSetTopOverhangImage(WKBundlePageRef pageRef, WKImageRef imageRef)
 {
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
     toImpl(pageRef)->setTopOverhangImage(toImpl(imageRef));
 #else
     UNUSED_PARAM(pageRef);
@@ -366,7 +382,7 @@ void WKBundlePageSetTopOverhangImage(WKBundlePageRef pageRef, WKImageRef imageRe
 
 void WKBundlePageSetBottomOverhangImage(WKBundlePageRef pageRef, WKImageRef imageRef)
 {
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
     toImpl(pageRef)->setBottomOverhangImage(toImpl(imageRef));
 #else
     UNUSED_PARAM(pageRef);
@@ -541,4 +557,9 @@ WKRenderingSuppressionToken WKBundlePageExtendIncrementalRenderingSuppression(WK
 void WKBundlePageStopExtendingIncrementalRenderingSuppression(WKBundlePageRef pageRef, WKRenderingSuppressionToken token)
 {
     toImpl(pageRef)->stopExtendingIncrementalRenderingSuppression(token);
+}
+
+bool WKBundlePageIsUsingEphemeralSession(WKBundlePageRef pageRef)
+{
+    return toImpl(pageRef)->isUsingEphemeralSession();
 }

@@ -9,7 +9,7 @@
 # 2.  Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution.
-# 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+# 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 #     its contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission.
 #
@@ -28,8 +28,9 @@ VPATH = \
     $(JavaScriptCore) \
     $(JavaScriptCore)/parser \
     $(JavaScriptCore)/runtime \
-    $(JavaScriptCore)/interpreter \
-    $(JavaScriptCore)/jit \
+	$(JavaScriptCore)/interpreter \
+	$(JavaScriptCore)/jit \
+	$(JavaScriptCore)/builtins \
 #
 
 .PHONY : all
@@ -57,7 +58,19 @@ all : \
     RegExpObject.lut.h \
     StringConstructor.lut.h \
     udis86_itab.h \
+    Bytecodes.h \
+    InitBytecodes.asm \
+    JSCBuiltins \
 #
+
+# builtin functions
+.PHONY: JSCBuiltins
+
+JSCBuiltins: $(JavaScriptCore)/generate-js-builtins JSCBuiltins.h JSCBuiltins.cpp
+JSCBuiltins.h: $(JavaScriptCore)/generate-js-builtins $(JavaScriptCore)/builtins/*.js
+	python $^ $@
+																				 
+JSCBuiltins.cpp: JSCBuiltins.h
 
 # lookup tables for classes
 
@@ -79,10 +92,18 @@ KeywordLookup.h: KeywordLookupGenerator.py Keywords.table
 udis86_itab.h: $(JavaScriptCore)/disassembler/udis86/itab.py $(JavaScriptCore)/disassembler/udis86/optable.xml
 	(PYTHONPATH=$(JavaScriptCore)/disassembler/udis86 python $(JavaScriptCore)/disassembler/udis86/itab.py $(JavaScriptCore)/disassembler/udis86/optable.xml || exit 1)
 
+# Bytecode files
+
+Bytecodes.h: $(JavaScriptCore)/generate-bytecode-files $(JavaScriptCore)/bytecode/BytecodeList.json
+	python $(JavaScriptCore)/generate-bytecode-files --bytecodes_h Bytecodes.h $(JavaScriptCore)/bytecode/BytecodeList.json
+
+InitBytecodes.asm: $(JavaScriptCore)/generate-bytecode-files $(JavaScriptCore)/bytecode/BytecodeList.json
+	python $(JavaScriptCore)/generate-bytecode-files --init_bytecodes_asm InitBytecodes.asm $(JavaScriptCore)/bytecode/BytecodeList.json
 
 # Inspector interfaces
 
 INSPECTOR_DOMAINS = \
+    $(JavaScriptCore)/inspector/protocol/Console.json \
     $(JavaScriptCore)/inspector/protocol/Debugger.json \
     $(JavaScriptCore)/inspector/protocol/GenericTypes.json \
     $(JavaScriptCore)/inspector/protocol/InspectorDomain.json \
@@ -100,8 +121,15 @@ all : \
     InjectedScriptSource.h \
 #
 
-InspectorJS.json : inspector/scripts/generate-combined-inspector-json.py $(INSPECTOR_DOMAINS)
-	python $(JavaScriptCore)/inspector/scripts/generate-combined-inspector-json.py $(JavaScriptCore)/inspector/protocol > ./InspectorJS.json
+# The combined JSON file depends on the actual set of domains and their file contents, so that
+# adding, modifying, or removing domains will trigger regeneration of inspector files.
+
+.PHONY: force
+EnabledInspectorDomains : force
+	echo '$(INSPECTOR_DOMAINS)' | cmp -s - $@ || echo '$(INSPECTOR_DOMAINS)' > $@
+
+InspectorJS.json : inspector/scripts/generate-combined-inspector-json.py $(INSPECTOR_DOMAINS) EnabledInspectorDomains
+	python $(JavaScriptCore)/inspector/scripts/generate-combined-inspector-json.py $(INSPECTOR_DOMAINS) > ./InspectorJS.json
 
 # Inspector Backend Dispatchers, Frontend Dispatchers, Type Builders
 InspectorJSFrontendDispatchers.h : InspectorJS.json $(INSPECTOR_GENERATOR_SCRIPTS)
@@ -111,3 +139,19 @@ InjectedScriptSource.h : inspector/InjectedScriptSource.js $(JavaScriptCore)/ins
 	python $(JavaScriptCore)/inspector/scripts/jsmin.py < $(JavaScriptCore)/inspector/InjectedScriptSource.js > ./InjectedScriptSource.min.js
 	perl $(JavaScriptCore)/inspector/scripts/xxd.pl InjectedScriptSource_js ./InjectedScriptSource.min.js InjectedScriptSource.h
 	rm -f ./InjectedScriptSource.min.js
+
+# Web Replay inputs generator
+
+INPUT_GENERATOR_SCRIPTS = \
+    $(JavaScriptCore)/replay/scripts/CodeGeneratorReplayInputs.py \
+    $(JavaScriptCore)/replay/scripts/CodeGeneratorReplayInputsTemplates.py \
+#
+
+INPUT_GENERATOR_SPECIFICATIONS = \
+    $(JavaScriptCore)/replay/JSInputs.json \
+#
+
+all : JSReplayInputs.h
+
+JSReplayInputs.h : $(INPUT_GENERATOR_SPECIFICATIONS) $(INPUT_GENERATOR_SCRIPTS)
+	python $(JavaScriptCore)/replay/scripts/CodeGeneratorReplayInputs.py --outputDir . --framework JavaScriptCore $(INPUT_GENERATOR_SPECIFICATIONS)

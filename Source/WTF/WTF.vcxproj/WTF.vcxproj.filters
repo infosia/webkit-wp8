@@ -84,6 +84,12 @@
     <ClCompile Include="..\wtf\text\cf\StringCF.cpp">
       <Filter>text</Filter>
     </ClCompile>
+    <ClCompile Include="..\wtf\text\cf\StringImplCF.cpp">
+      <Filter>text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\wtf\text\cf\StringViewCF.cpp">
+      <Filter>text</Filter>
+    </ClCompile>
     <ClCompile Include="..\wtf\win\MainThreadWin.cpp">
       <Filter>win</Filter>
     </ClCompile>
@@ -228,9 +234,6 @@
     <ClCompile Include="..\wtf\gobject\GlibUtilities.cpp">
       <Filter>wtf\gobject</Filter>
     </ClCompile>
-    <ClCompile Include="..\wtf\gobject\GOwnPtr.cpp">
-      <Filter>wtf\gobject</Filter>
-    </ClCompile>
     <ClCompile Include="..\wtf\gobject\GRefPtr.cpp">
       <Filter>wtf\gobject</Filter>
     </ClCompile>
@@ -239,9 +242,6 @@
     </ClCompile>
     <ClCompile Include="..\wtf\win\RunLoopWin.cpp">
       <Filter>win</Filter>
-    </ClCompile>
-    <ClCompile Include="..\wtf\text\cf\StringImplCF.cpp">
-      <Filter>text</Filter>
     </ClCompile>
     <ClCompile Include="..\wtf\FastBitVector.cpp" />
   </ItemGroup>
@@ -695,9 +695,6 @@
       <Filter>wtf\gobject</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\gobject\GMutexLocker.h">
-      <Filter>wtf\gobject</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\gobject\GOwnPtr.h">
       <Filter>wtf\gobject</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\gobject\GRefPtr.h">

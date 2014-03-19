@@ -60,8 +60,8 @@
 
 namespace WebCore {
 
-CachedImage::CachedImage(const ResourceRequest& resourceRequest)
-    : CachedResource(resourceRequest, ImageResource)
+CachedImage::CachedImage(const ResourceRequest& resourceRequest, SessionID sessionID)
+    : CachedResource(resourceRequest, ImageResource, sessionID)
     , m_image(0)
     , m_isManuallyCached(false)
     , m_shouldPaintBrokenImage(true)
@@ -69,8 +69,8 @@ CachedImage::CachedImage(const ResourceRequest& resourceRequest)
     setStatus(Unknown);
 }
 
-CachedImage::CachedImage(Image* image)
-    : CachedResource(ResourceRequest(), ImageResource)
+CachedImage::CachedImage(Image* image, SessionID sessionID)
+    : CachedResource(ResourceRequest(), ImageResource, sessionID)
     , m_image(image)
     , m_isManuallyCached(false)
     , m_shouldPaintBrokenImage(true)
@@ -79,8 +79,18 @@ CachedImage::CachedImage(Image* image)
     setLoading(false);
 }
 
-CachedImage::CachedImage(const URL& url, Image* image, CachedImage::CacheBehaviorType type)
-    : CachedResource(ResourceRequest(url), ImageResource)
+CachedImage::CachedImage(const URL& url, Image* image, SessionID sessionID)
+    : CachedResource(ResourceRequest(url), ImageResource, sessionID)
+    , m_image(image)
+    , m_isManuallyCached(false)
+    , m_shouldPaintBrokenImage(true)
+{
+    setStatus(Cached);
+    setLoading(false);
+}
+
+CachedImage::CachedImage(const URL& url, Image* image, CachedImage::CacheBehaviorType type, SessionID sessionID)
+    : CachedResource(ResourceRequest(url), ImageResource, sessionID)
     , m_image(image)
     , m_isManuallyCached(type == CachedImage::ManuallyCached)
     , m_shouldPaintBrokenImage(true)
@@ -165,11 +175,11 @@ void CachedImage::allClientsRemoved()
 std::pair<Image*, float> CachedImage::brokenImage(float deviceScaleFactor) const
 {
     if (deviceScaleFactor >= 2) {
-        DEFINE_STATIC_LOCAL(Image*, brokenImageHiRes, (Image::loadPlatformResource("missingImage@2x").leakRef()));
+        DEPRECATED_DEFINE_STATIC_LOCAL(Image*, brokenImageHiRes, (Image::loadPlatformResource("missingImage@2x").leakRef()));
         return std::make_pair(brokenImageHiRes, 2);
     }
 
-    DEFINE_STATIC_LOCAL(Image*, brokenImageLoRes, (Image::loadPlatformResource("missingImage").leakRef()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(Image*, brokenImageLoRes, (Image::loadPlatformResource("missingImage").leakRef()));
     return std::make_pair(brokenImageLoRes, 1);
 }
 
@@ -499,25 +509,13 @@ void CachedImage::didDraw(const Image* image)
     CachedResource::didAccessDecodedData(timeStamp);
 }
 
-bool CachedImage::shouldPauseAnimation(const Image* image)
-{
-    if (!image || image != m_image)
-        return false;
-    
-    CachedResourceClientWalker<CachedImageClient> w(m_clients);
-    while (CachedImageClient* c = w.next()) {
-        if (c->willRenderImage(this))
-            return false;
-    }
-
-    return true;
-}
-
 void CachedImage::animationAdvanced(const Image* image)
 {
     if (!image || image != m_image)
         return;
-    notifyObservers();
+    CachedResourceClientWalker<CachedImageClient> clientWalker(m_clients);
+    while (CachedImageClient* client = clientWalker.next())
+        client->newImageAnimationFrameAvailable(*this);
 }
 
 void CachedImage::changedInRect(const Image* image, const IntRect& rect)
@@ -525,27 +523,6 @@ void CachedImage::changedInRect(const Image* image, const IntRect& rect)
     if (!image || image != m_image)
         return;
     notifyObservers(&rect);
-}
-
-void CachedImage::resumeAnimatingImagesForLoader(CachedResourceLoader* loader)
-{
-    const CachedResourceLoader::DocumentResourceMap& resources = loader->allCachedResources();
-
-    for (CachedResourceLoader::DocumentResourceMap::const_iterator it = resources.begin(), end = resources.end(); it != end; ++it) {
-        const CachedResourceHandle<CachedResource>& resource = it->value;
-        if (!resource || !resource->isImage())
-            continue;
-        CachedImage* cachedImage = toCachedImage(resource.get());
-        if (!cachedImage->hasImage())
-            continue;
-        Image* image = cachedImage->image();
-        if (!image->isBitmapImage())
-            continue;
-        BitmapImage* bitmapImage = toBitmapImage(image);
-        if (!bitmapImage->canAnimate())
-            continue;
-        cachedImage->animationAdvanced(bitmapImage);
-    }
 }
 
 bool CachedImage::currentFrameKnownToBeOpaque(const RenderElement* renderer)

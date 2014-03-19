@@ -30,7 +30,6 @@
 
 #include "ArityCheckFailReturnThunks.h"
 #include "CCallHelpers.h"
-#include "CallFrameInlines.h"
 #include "CodeBlockWithJITType.h"
 #include "DFGCommon.h"
 #include "FTLJITCode.h"
@@ -38,6 +37,7 @@
 #include "JITStubs.h"
 #include "LLVMAPI.h"
 #include "LinkBuffer.h"
+#include "JSCInlines.h"
 #include "ProfilerCompilation.h"
 #include "VirtualRegister.h"
 
@@ -71,7 +71,7 @@ void link(State& state)
     CCallHelpers::Label arityCheck;
 
     CCallHelpers::Address frame = CCallHelpers::Address(
-        CCallHelpers::stackPointerRegister, -static_cast<int32_t>(sizeof(void*)));
+        CCallHelpers::stackPointerRegister, -static_cast<int32_t>(AssemblyHelpers::prologueStackPointerDelta()));
     
     if (Profiler::Compilation* compilation = graph.compilation()) {
         compilation->addDescription(
@@ -102,9 +102,9 @@ void link(State& state)
                 
                 Profiler::OriginStack stack;
                 
-                if (node->codeOrigin.isSet()) {
+                if (node->origin.semantic.isSet()) {
                     stack = Profiler::OriginStack(
-                        *vm.m_perBytecodeProfiler, codeBlock, node->codeOrigin);
+                        *vm.m_perBytecodeProfiler, codeBlock, node->origin.semantic);
                 }
                 
                 if (graph.dumpCodeOrigin(out, prefix, lastNode, node, &dumpContext)) {
@@ -116,7 +116,7 @@ void link(State& state)
                 compilation->addDescription(stack, out.toCString());
                 out.reset();
                 
-                if (node->codeOrigin.isSet())
+                if (node->origin.semantic.isSet())
                     lastNode = node;
             }
         }
@@ -170,8 +170,8 @@ void link(State& state)
         jit.emitFunctionEpilogue();
         mainPathJumps.append(jit.branchTest32(CCallHelpers::Zero, GPRInfo::regT0));
         jit.emitFunctionPrologue();
-        jit.move(CCallHelpers::TrustedImmPtr(vm.arityCheckFailReturnThunks->returnPCsFor(vm, codeBlock->numParameters())), GPRInfo::regT5);
-        jit.loadPtr(CCallHelpers::BaseIndex(GPRInfo::regT5, GPRInfo::regT0, CCallHelpers::timesPtr()), GPRInfo::regT5);
+        jit.move(CCallHelpers::TrustedImmPtr(vm.arityCheckFailReturnThunks->returnPCsFor(vm, codeBlock->numParameters())), GPRInfo::regT7);
+        jit.loadPtr(CCallHelpers::BaseIndex(GPRInfo::regT7, GPRInfo::regT0, CCallHelpers::timesPtr()), GPRInfo::regT7);
         CCallHelpers::Call callArityFixup = jit.call();
         jit.emitFunctionEpilogue();
         mainPathJumps.append(jit.jump());

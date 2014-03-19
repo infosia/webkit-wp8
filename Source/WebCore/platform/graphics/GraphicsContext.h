@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -75,6 +75,7 @@ namespace WebCore {
 
     class AffineTransform;
     class DrawingBuffer;
+    class FloatRoundedRect;
     class Gradient;
     class GraphicsContextPlatformPrivate;
     class ImageBuffer;
@@ -294,9 +295,8 @@ namespace WebCore {
         void fillRect(const FloatRect&, const Color&, ColorSpace);
         void fillRect(const FloatRect&, Gradient&);
         void fillRect(const FloatRect&, const Color&, ColorSpace, CompositeOperator, BlendMode = BlendModeNormal);
-        void fillRoundedRect(const FloatRect&, const FloatSize& topLeft, const FloatSize& topRight, const FloatSize& bottomLeft, const FloatSize& bottomRight, const Color&, ColorSpace);
-        void fillRoundedRect(const RoundedRect&, const Color&, ColorSpace, BlendMode = BlendModeNormal);
-        void fillRectWithRoundedHole(const FloatRect&, const RoundedRect& roundedHoleRect, const Color&, ColorSpace);
+        void fillRoundedRect(const FloatRoundedRect&, const Color&, ColorSpace, BlendMode = BlendModeNormal);
+        void fillRectWithRoundedHole(const FloatRect&, const FloatRoundedRect& roundedHoleRect, const Color&, ColorSpace);
 
         void clearRect(const FloatRect&);
 
@@ -327,13 +327,10 @@ namespace WebCore {
 
         void clip(const IntRect&);
         void clip(const FloatRect&);
-        void clipRoundedRect(const RoundedRect&);
-
-        // FIXME: Consider writing this in terms of a specialized RoundedRect that uses FloatRect and FloatSize radii.
-        void clipRoundedRect(const FloatRect&, const FloatSize& topLeft, const FloatSize& topRight, const FloatSize& bottomLeft, const FloatSize& bottomRight);
+        void clipRoundedRect(const FloatRoundedRect&);
 
         void clipOut(const FloatRect&);
-        void clipOutRoundedRect(const RoundedRect&);
+        void clipOutRoundedRect(const FloatRoundedRect&);
         void clipPath(const Path&, WindRule);
         void clipConvexPolygon(size_t numPoints, const FloatPoint*, bool antialias = true);
         void clipToImageBuffer(ImageBuffer*, const FloatRect&);
@@ -353,6 +350,7 @@ namespace WebCore {
 #else
         float drawText(const Font&, const TextRun&, const FloatPoint&, int from = 0, int to = -1);
 #endif
+        void drawGlyphs(const Font&, const SimpleFontData&, const GlyphBuffer&, int from, int numGlyphs, const FloatPoint&);
         void drawEmphasisMarks(const Font&, const TextRun& , const AtomicString& mark, const FloatPoint&, int from = 0, int to = -1);
 #if !PLATFORM(IOS)
         void drawBidiText(const Font&, const TextRun&, const FloatPoint&, Font::CustomFontNotReadyAction = Font::DoNotPaintIfFontNotReady);
@@ -368,8 +366,8 @@ namespace WebCore {
         FloatRect roundToDevicePixels(const FloatRect&, RoundingMode = RoundAllSides);
 
         FloatRect computeLineBoundsForText(const FloatPoint&, float width, bool printing);
-        void drawLineForText(const FloatPoint&, float width, bool printing);
-        void drawLinesForText(const FloatPoint&, const DashArray& widths, bool printing);
+        void drawLineForText(const FloatPoint&, float width, bool printing, bool doubleLines = false);
+        void drawLinesForText(const FloatPoint&, const DashArray& widths, bool printing, bool doubleLines = false);
         enum DocumentMarkerLineStyle {
 #if PLATFORM(IOS)
             TextCheckingDictationPhraseWithAlternativesLineStyle,
@@ -443,8 +441,6 @@ namespace WebCore {
 
         enum IncludeDeviceScale { DefinitelyIncludeDeviceScale, PossiblyIncludeDeviceScale };
         AffineTransform getCTM(IncludeDeviceScale includeScale = PossiblyIncludeDeviceScale) const;
-
-        float pixelSnappingFactor() const { return m_pixelSnappingFactor; }
 
 #if ENABLE(3D_RENDERING) && USE(TEXTURE_MAPPER)
         // This is needed when using accelerated-compositing in software mode, like in TextureMapper.
@@ -572,13 +568,14 @@ namespace WebCore {
         void platformFillEllipse(const FloatRect&);
         void platformStrokeEllipse(const FloatRect&);
 
+        void platformFillRoundedRect(const FloatRoundedRect&, const Color&, ColorSpace);
+
         GraphicsContextPlatformPrivate* m_data;
 
         GraphicsContextState m_state;
         Vector<GraphicsContextState> m_stack;
         bool m_updatingControlTints;
         unsigned m_transparencyCount;
-        float m_pixelSnappingFactor;
     };
 
     class GraphicsContextStateSaver {

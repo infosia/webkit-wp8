@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -27,6 +27,7 @@
 #include "PODFreeListArena.h"
 #include "Region.h"
 #include "RenderBlockFlow.h"
+#include <wtf/HashSet.h>
 #include <wtf/OwnPtr.h>
 
 namespace WebCore {
@@ -72,10 +73,10 @@ public:
     virtual LayoutRect visualOverflowRect() const override;
     virtual void computeRectForRepaint(const RenderLayerModelObject* repaintContainer, LayoutRect&, bool fixed = false) const override;
     void repaintRootContents();
-    void repaintViewRectangle(const LayoutRect&, bool immediate = false) const;
+    void repaintViewRectangle(const LayoutRect&) const;
     // Repaint the view, and all composited layers that intersect the given absolute rectangle.
     // FIXME: ideally we'd never have to do this, if all repaints are container-relative.
-    void repaintRectangleInViewAndCompositedLayers(const LayoutRect&, bool immediate = false);
+    void repaintRectangleInViewAndCompositedLayers(const LayoutRect&);
     void repaintViewAndCompositedLayers();
 
     virtual void paint(PaintInfo&, const LayoutPoint&) override;
@@ -219,6 +220,10 @@ public:
     void didCreateRenderer() { ++m_rendererCount; }
     void didDestroyRenderer() { --m_rendererCount; }
 
+    void resumePausedImageAnimationsIfNeeded();
+    void addRendererWithPausedImageAnimations(RenderElement&);
+    void removeRendererWithPausedImageAnimations(RenderElement&);
+
     class RepaintRegionAccumulator {
         WTF_MAKE_NONCOPYABLE(RepaintRegionAccumulator);
     public:
@@ -340,9 +345,11 @@ private:
 #if ENABLE(CSS_FILTERS)
     bool m_hasSoftwareFilters;
 #endif
+
+    HashSet<RenderElement*> m_renderersWithPausedImageAnimation;
 };
 
-RENDER_OBJECT_TYPE_CASTS(RenderView, isRenderView());
+RENDER_OBJECT_TYPE_CASTS(RenderView, isRenderView())
 
 // Stack-based class to assist with LayoutState push/pop
 class LayoutStateMaintainer {

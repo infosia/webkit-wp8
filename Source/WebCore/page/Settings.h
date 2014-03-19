@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -169,7 +169,6 @@ public:
     static void setDefaultDOMTimerAlignmentInterval(double);
     static double defaultDOMTimerAlignmentInterval();
 
-    void setDOMTimerAlignmentInterval(double);
     double domTimerAlignmentInterval() const;
 
     void setLayoutInterval(std::chrono::milliseconds);
@@ -180,46 +179,11 @@ public:
     void setHiddenPageDOMTimerThrottlingEnabled(bool);
 #endif
 
-#if PLATFORM(IOS)
-    // FIXME: This setting isn't specific to iOS.
-    void setMaxParseDuration(double maxParseDuration) { m_maxParseDuration = maxParseDuration; }
-    double maxParseDuration() const { return m_maxParseDuration; }
-
-    void setStandalone(bool);
-    bool standalone() const { return m_standalone; }
-
-    void setTelephoneNumberParsingEnabled(bool flag) { m_telephoneNumberParsingEnabled = flag; }
-    bool telephoneNumberParsingEnabled() const { return m_telephoneNumberParsingEnabled; }
-
-    void setMediaDataLoadsAutomatically(bool flag) { m_mediaDataLoadsAutomatically = flag; }
-    bool mediaDataLoadsAutomatically() const { return m_mediaDataLoadsAutomatically; }
-
-    void setShouldTransformsAffectOverflow(bool flag) { m_shouldTransformsAffectOverflow = flag; }
-    bool shouldTransformsAffectOverflow() const { return m_shouldTransformsAffectOverflow; }
-
-    void setShouldDispatchJavaScriptWindowOnErrorEvents(bool flag) { m_shouldDispatchJavaScriptWindowOnErrorEvents = flag; }
-    bool shouldDispatchJavaScriptWindowOnErrorEvents() const { return m_shouldDispatchJavaScriptWindowOnErrorEvents; }
-
-    void setAlwaysUseBaselineOfPrimaryFont(bool flag) { m_alwaysUseBaselineOfPrimaryFont = flag; }
-    bool alwaysUseBaselineOfPrimaryFont() const { return m_alwaysUseBaselineOfPrimaryFont; }
-
-    void setAlwaysUseAcceleratedOverflowScroll(bool flag) { m_alwaysUseAcceleratedOverflowScroll = flag; }
-    bool alwaysUseAcceleratedOverflowScroll() const { return m_alwaysUseAcceleratedOverflowScroll; }
-#endif
-
     void setUsesPageCache(bool);
     bool usesPageCache() const { return m_usesPageCache; }
         
     void setFontRenderingMode(FontRenderingMode mode);
     FontRenderingMode fontRenderingMode() const;
-
-#if ENABLE(CSS_STICKY_POSITION)
-    void setCSSStickyPositionEnabled(bool enabled) { m_cssStickyPositionEnabled = enabled; }
-    bool cssStickyPositionEnabled() const { return m_cssStickyPositionEnabled; }
-#else
-    void setCSSStickyPositionEnabled(bool) { }
-    bool cssStickyPositionEnabled() const { return false; }
-#endif
 
     void setShowTiledScrollingIndicator(bool);
     bool showTiledScrollingIndicator() const { return m_showTiledScrollingIndicator; }
@@ -240,7 +204,7 @@ public:
     static bool isAVFoundationEnabled() { return gAVFoundationEnabled; }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static void setQTKitEnabled(bool flag);
     static bool isQTKitEnabled() { return gQTKitEnabled; }
 #endif
@@ -307,6 +271,9 @@ public:
 
     static void setAVKitEnabled(bool flag) { gAVKitEnabled = flag; }
     static bool avKitEnabled() { return gAVKitEnabled; }
+
+    static void setShouldOptOutOfNetworkStateObservation(bool flag) { gShouldOptOutOfNetworkStateObservation = flag; }
+    static bool shouldOptOutOfNetworkStateObservation() { return gShouldOptOutOfNetworkStateObservation; }
 #endif
 
 private:
@@ -322,9 +289,6 @@ private:
     const std::unique_ptr<FontGenericFamilies> m_fontGenericFamilies;
     SecurityOrigin::StorageBlockingPolicy m_storageBlockingPolicy;
     std::chrono::milliseconds m_layoutInterval;
-#if PLATFORM(IOS)
-    double m_maxParseDuration;
-#endif
 #if ENABLE(TEXT_AUTOSIZING)
     float m_textAutosizingFontScaleFactor;
     IntSize m_textAutosizingWindowSizeOverride;
@@ -344,19 +308,6 @@ private:
     bool m_needsAdobeFrameReloadingQuirk : 1;
     bool m_usesPageCache : 1;
     unsigned m_fontRenderingMode : 1;
-#if PLATFORM(IOS)
-    bool m_standalone : 1;
-    bool m_telephoneNumberParsingEnabled : 1;
-    bool m_mediaDataLoadsAutomatically : 1;
-    bool m_shouldTransformsAffectOverflow : 1;
-    bool m_shouldDispatchJavaScriptWindowOnErrorEvents : 1;
-    bool m_alwaysUseBaselineOfPrimaryFont : 1;
-    bool m_allowMultiElementImplicitFormSubmission : 1;
-    bool m_alwaysUseAcceleratedOverflowScroll : 1;
-#endif
-#if ENABLE(CSS_STICKY_POSITION)
-    bool m_cssStickyPositionEnabled : 1;
-#endif
     bool m_showTiledScrollingIndicator : 1;
     bool m_tiledBackingStoreEnabled : 1;
     bool m_backgroundShouldExtendBeyondPage : 1;
@@ -388,7 +339,7 @@ private:
     static bool gAVFoundationEnabled;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static bool gQTKitEnabled;
 #endif
         
@@ -405,6 +356,7 @@ private:
 #if PLATFORM(IOS)
     static bool gNetworkDataUsageTrackingEnabled;
     static bool gAVKitEnabled;
+    static bool gShouldOptOutOfNetworkStateObservation;
 #endif
 
     static double gHiddenPageDOMTimerAlignmentInterval;

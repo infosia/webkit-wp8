@@ -27,7 +27,6 @@
 #define LLIntSlowPaths_h
 
 #include "CommonSlowPaths.h"
-#include <wtf/Platform.h>
 #include <wtf/StdLibExtras.h>
 
 #if ENABLE(LLINT)
@@ -128,6 +127,7 @@ extern "C" SlowPathReturnType llint_throw_stack_overflow_error(VM*, ProtoCallFra
 #if ENABLE(LLINT_C_LOOP)
 extern "C" SlowPathReturnType llint_stack_check_at_vm_entry(VM*, Register*) WTF_INTERNAL;
 #endif
+extern "C" NO_RETURN_DUE_TO_CRASH void llint_crash() WTF_INTERNAL;
 
 } } // namespace JSC::LLInt
 

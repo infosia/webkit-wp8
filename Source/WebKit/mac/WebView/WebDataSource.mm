@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -481,7 +481,11 @@ static inline void addTypesFromClass(NSMutableDictionary *allTypes, Class objCCl
         --WebDataSourceCount;
 
 #if ENABLE(DISK_IMAGE_CACHE) && PLATFORM(IOS)
-    if (_private) {
+    // The code to remove memory mapped notification is only needed when we are viewing a PDF file.
+    // In such a case, WebPDFViewPlaceholder sets itself as the dataSourceDelegate. Guard the access
+    // to mainResourceData with this nil check so that we avoid assertions due to the resource being
+    // made purgeable.
+    if (_private && [self dataSourceDelegate]) {
         RefPtr<ResourceBuffer> mainResourceBuffer = toPrivate(_private)->loader->mainResourceData();
         if (mainResourceBuffer) {
             RefPtr<SharedBuffer> mainResourceData = mainResourceBuffer->sharedBuffer();

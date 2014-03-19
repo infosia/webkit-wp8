@@ -83,8 +83,6 @@ void SVGRenderSupport::computeFloatRectForRepaint(const RenderElement& renderer,
 
 void SVGRenderSupport::mapLocalToContainer(const RenderElement& renderer, const RenderLayerModelObject* repaintContainer, TransformState& transformState, bool* wasFixed)
 {
-    transformState.applyTransform(renderer.localToParentTransform());
-
     ASSERT(renderer.parent());
     auto& parent = *renderer.parent();
     
@@ -93,6 +91,8 @@ void SVGRenderSupport::mapLocalToContainer(const RenderElement& renderer, const 
     // RenderSVGRoot's mapLocalToContainer method expects CSS box coordinates.
     if (parent.isSVGRoot())
         transformState.applyTransform(toRenderSVGRoot(parent).localToBorderBoxTransform());
+
+    transformState.applyTransform(renderer.localToParentTransform());
 
     MapCoordinatesFlags mode = UseTransforms;
     parent.mapLocalToContainer(repaintContainer, transformState, mode, wasFixed);
@@ -226,7 +226,7 @@ void SVGRenderSupport::layoutChildren(RenderElement& start, bool selfNeedsLayout
     bool transformChanged = transformToRootChanged(&start);
     bool hasSVGShadow = rendererHasSVGShadow(start);
     bool needsBoundariesUpdate = start.needsBoundariesUpdate();
-    HashSet<RenderObject*> notlayoutedObjects;
+    HashSet<RenderElement*> elementsThatDidNotReceiveLayout;
 
     for (RenderObject* child = start.firstChild(); child; child = child->nextSibling()) {
         bool needsLayout = selfNeedsLayout;
@@ -274,22 +274,20 @@ void SVGRenderSupport::layoutChildren(RenderElement& start, bool selfNeedsLayout
             // parent containers call repaint().  (RenderBlock::layout* has similar logic.)
             if (!childEverHadLayout)
                 child->repaint();
-        } else if (layoutSizeChanged)
-            notlayoutedObjects.add(child);
+        } else if (layoutSizeChanged && child->isRenderElement())
+            elementsThatDidNotReceiveLayout.add(toRenderElement(child));
 
         ASSERT(!child->needsLayout());
     }
 
     if (!layoutSizeChanged) {
-        ASSERT(notlayoutedObjects.isEmpty());
+        ASSERT(elementsThatDidNotReceiveLayout.isEmpty());
         return;
     }
 
     // If the layout size changed, invalidate all resources of all children that didn't go through the layout() code path.
-    for (auto child : notlayoutedObjects) {
-        if (child->isRenderElement())
-            invalidateResourcesOfChildren(toRenderElement(*child));
-    }
+    for (auto* element : elementsThatDidNotReceiveLayout)
+        invalidateResourcesOfChildren(*element);
 }
 
 bool SVGRenderSupport::isOverflowHidden(const RenderElement& renderer)
@@ -428,8 +426,8 @@ void SVGRenderSupport::applyStrokeStyleToContext(GraphicsContext* context, const
     else {
         DashArray dashArray;
         dashArray.reserveInitialCapacity(dashes.size());
-        for (unsigned i = 0, size = dashes.size(); i < size; ++i)
-            dashArray.uncheckedAppend(dashes[i].value(lengthContext));
+        for (auto& dash : dashes)
+            dashArray.uncheckedAppend(dash.value(lengthContext));
 
         context->setLineDash(dashArray, svgStyle.strokeDashOffset().value(lengthContext));
     }
@@ -440,10 +438,40 @@ void SVGRenderSupport::childAdded(RenderElement& parent, RenderObject& child)
     SVGRenderSupport::setRendererHasSVGShadow(child, SVGRenderSupport::rendererHasSVGShadow(parent) || SVGRenderSupport::rendererHasSVGShadow(child));
 }
 
-void SVGRenderSupport::styleChanged(RenderElement& renderer)
+void SVGRenderSupport::styleChanged(RenderElement& renderer, const RenderStyle* oldStyle)
 {
     auto parent = renderer.parent();
     SVGRenderSupport::setRendererHasSVGShadow(renderer, (parent && SVGRenderSupport::rendererHasSVGShadow(*parent)) || renderer.style().svgStyle().shadow());
+
+#if ENABLE(CSS_COMPOSITING)
+    if (renderer.element() && renderer.element()->isSVGElement() && (!oldStyle || renderer.style().hasBlendMode() != oldStyle->hasBlendMode()))
+        SVGRenderSupport::updateMaskedAncestorShouldIsolateBlending(renderer);
+#else
+    UNUSED_PARAM(oldStyle);
+#endif
 }
 
+#if ENABLE(CSS_COMPOSITING)
+bool SVGRenderSupport::isolatesBlending(const RenderStyle& style)
+{
+    return style.svgStyle().isolatesBlending() || style.hasBlendMode() || style.opacity() < 1.0f;
+}
+
+void SVGRenderSupport::updateMaskedAncestorShouldIsolateBlending(const RenderElement& renderer)
+{
+    ASSERT(renderer.element());
+    ASSERT(renderer.element()->isSVGElement());
+
+    bool maskedAncestorShouldIsolateBlending = renderer.style().hasBlendMode();
+    for (auto* ancestor = renderer.element()->parentElement(); ancestor && ancestor->isSVGElement(); ancestor = ancestor->parentElement()) {
+        if (!toSVGElement(ancestor)->isSVGGraphicsElement() || !isolatesBlending(*ancestor->computedStyle()))
+            continue;
+
+        if (ancestor->computedStyle()->svgStyle().hasMasker())
+            toSVGGraphicsElement(ancestor)->setShouldIsolateBlending(maskedAncestorShouldIsolateBlending);
+
+        return;
+    }
+}
+#endif
 }

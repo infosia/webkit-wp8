@@ -26,6 +26,7 @@
 #include "config.h"
 
 #if ENABLE(JIT)
+
 #include "JIT.h"
 
 // This probably does not belong here; adding here for now as a quick Windows build fix.
@@ -44,7 +45,7 @@ JSC::MacroAssemblerX86Common::SSE2CheckState JSC::MacroAssemblerX86Common::s_sse
 #include "JSFunction.h"
 #include "LinkBuffer.h"
 #include "MaxFrameExtentForSlowPathCall.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "RepatchBuffer.h"
 #include "ResultType.h"
 #include "SamplingTool.h"
@@ -290,22 +291,6 @@ void JIT::privateCompileMainPass()
         DEFINE_OP(op_resolve_scope)
         DEFINE_OP(op_get_from_scope)
         DEFINE_OP(op_put_to_scope)
-
-        case op_get_by_id_chain:
-        case op_get_by_id_generic:
-        case op_get_by_id_proto:
-        case op_get_by_id_self:
-        case op_get_by_id_getter_chain:
-        case op_get_by_id_getter_proto:
-        case op_get_by_id_getter_self:
-        case op_get_by_id_custom_chain:
-        case op_get_by_id_custom_proto:
-        case op_get_by_id_custom_self:
-        case op_get_string_length:
-        case op_put_by_id_generic:
-        case op_put_by_id_replace:
-        case op_put_by_id_transition:
-            RELEASE_ASSERT_NOT_REACHED();
         }
     }
 
@@ -534,7 +519,7 @@ CompilationResult JIT::privateCompile(JITCompilationEffort effort)
         }
 
         addPtr(TrustedImm32(stackPointerOffsetFor(m_codeBlock) * sizeof(Register)), callFrameRegister, regT1);
-        stackOverflow = branchPtr(Above, AbsoluteAddress(m_vm->addressOfJSStackLimit()), regT1);
+        stackOverflow = branchPtr(Above, AbsoluteAddress(m_vm->addressOfStackLimit()), regT1);
     }
 
     addPtr(TrustedImm32(stackPointerOffsetFor(m_codeBlock) * sizeof(Register)), callFrameRegister, stackPointerRegister);
@@ -573,8 +558,14 @@ CompilationResult JIT::privateCompile(JITCompilationEffort effort)
         if (returnValueGPR != regT0)
             move(returnValueGPR, regT0);
         branchTest32(Zero, regT0).linkTo(beginLabel, this);
-        move(TrustedImmPtr(m_vm->arityCheckFailReturnThunks->returnPCsFor(*m_vm, m_codeBlock->numParameters())), regT5);
-        loadPtr(BaseIndex(regT5, regT0, timesPtr()), regT5);
+        GPRReg thunkReg;
+#if USE(JSVALUE64)
+        thunkReg = GPRInfo::regT7;
+#else
+        thunkReg = GPRInfo::regT5;
+#endif
+        move(TrustedImmPtr(m_vm->arityCheckFailReturnThunks->returnPCsFor(*m_vm, m_codeBlock->numParameters())), thunkReg);
+        loadPtr(BaseIndex(thunkReg, regT0, timesPtr()), thunkReg);
         emitNakedCall(m_vm->getCTIStub(arityFixup).code());
 
 #if !ASSERT_DISABLED

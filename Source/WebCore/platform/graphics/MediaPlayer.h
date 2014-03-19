@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2009, 2010, 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,6 +33,7 @@
 #endif
 
 #include "AudioTrackPrivate.h"
+#include "CDMSession.h"
 #include "InbandTextTrackPrivate.h"
 #include "IntRect.h"
 #include "URL.h"
@@ -49,6 +50,10 @@
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringHash.h>
+
+#if ENABLE(AVF_CAPTIONS)
+#include "PlatformTextTrack.h"
+#endif
 
 #if USE(PLATFORM_TEXT_TRACK_MENU)
 #include "PlatformTextTrackMenu.h"
@@ -68,7 +73,7 @@ class AudioSourceProvider;
 class AuthenticationChallenge;
 class Document;
 #if ENABLE(MEDIA_SOURCE)
-class HTMLMediaSource;
+class MediaSourcePrivateClient;
 #endif
 class MediaPlayerPrivateInterface;
 class TextTrackRepresentation;
@@ -128,12 +133,12 @@ class ContentType;
 class FrameView;
 class GraphicsContext;
 class GraphicsContext3D;
+class HostWindow;
 class IntRect;
 class IntSize;
 class MediaPlayer;
 struct MediaPlayerFactory;
-class TimeRanges;
-class HostWindow;
+class PlatformTimeRanges;
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
 struct GraphicsDeviceAdapter;
@@ -242,6 +247,7 @@ public:
     virtual HostWindow* mediaPlayerHostWindow() { return 0; }
     virtual IntRect mediaPlayerWindowClipRect() { return IntRect(); }
     virtual CachedResourceLoader* mediaPlayerCachedResourceLoader() { return 0; }
+    virtual bool doesHaveAttribute(const AtomicString&) const { return false; }
 
 #if ENABLE(VIDEO_TRACK)
     virtual void mediaPlayerDidAddAudioTrack(PassRefPtr<AudioTrackPrivate>) { }
@@ -252,6 +258,9 @@ public:
     virtual void mediaPlayerDidRemoveVideoTrack(PassRefPtr<VideoTrackPrivate>) { }
 
     virtual void textTrackRepresentationBoundsChanged(const IntRect&) { }
+#if ENABLE(AVF_CAPTIONS)
+    virtual Vector<RefPtr<PlatformTextTrack>> outOfBandTrackSources() { return Vector<RefPtr<PlatformTextTrack>>(); }
+#endif
 #endif
 
     virtual bool mediaPlayerShouldWaitForResponseToAuthenticationChallenge(const AuthenticationChallenge&) { return false; }
@@ -283,14 +292,21 @@ public:
     static void getSitesInMediaCache(Vector<String>&);
     static void clearMediaCache();
     static void clearMediaCacheForSite(const String&);
+    static bool supportsKeySystem(const String& keySystem, const String& mimeType);
 
     bool supportsFullscreen() const;
     bool supportsSave() const;
     bool supportsScanning() const;
     bool requiresImmediateCompositing() const;
+    bool doesHaveAttribute(const AtomicString&) const;
     PlatformMedia platformMedia() const;
     PlatformLayer* platformLayer() const;
-
+#if PLATFORM(IOS)
+    void setVideoFullscreenLayer(PlatformLayer*);
+    void setVideoFullscreenFrame(FloatRect);
+    enum VideoGravity { VideoGravityResize, VideoGravityResizeAspect, VideoGravityResizeAspectFill };
+    void setVideoFullscreenGravity(VideoGravity);
+#endif
     IntSize naturalSize();
     bool hasVideo() const;
     bool hasAudio() const;
@@ -304,7 +320,7 @@ public:
 
     bool load(const URL&, const ContentType&, const String& keySystem);
 #if ENABLE(MEDIA_SOURCE)
-    bool load(const URL&, const ContentType&, PassRefPtr<HTMLMediaSource>);
+    bool load(const URL&, const ContentType&, MediaSourcePrivateClient*);
 #endif
     void cancelLoad();
 
@@ -315,14 +331,20 @@ public:
     void play();
     void pause();
 
-#if ENABLE(ENCRYPTED_MEDIA)
+#if ENABLE(ENCRYPTED_MEDIA) || ENABLE(ENCRYPTED_MEDIA_V2)
     // Represents synchronous exceptions that can be thrown from the Encrypted Media methods.
     // This is different from the asynchronous MediaKeyError.
     enum MediaKeyException { NoError, InvalidPlayerState, KeySystemNotSupported };
+#endif
 
+#if ENABLE(ENCRYPTED_MEDIA)
     MediaKeyException generateKeyRequest(const String& keySystem, const unsigned char* initData, unsigned initDataLength);
     MediaKeyException addKey(const String& keySystem, const unsigned char* key, unsigned keyLength, const unsigned char* initData, unsigned initDataLength, const String& sessionId);
     MediaKeyException cancelKeyRequest(const String& keySystem, const String& sessionId);
+#endif
+
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+    std::unique_ptr<CDMSession> createSession(const String& keySystem);
 #endif
 
     bool paused() const;
@@ -344,8 +366,8 @@ public:
     bool preservesPitch() const;
     void setPreservesPitch(bool);
 
-    PassRefPtr<TimeRanges> buffered();
-    PassRefPtr<TimeRanges> seekable();
+    std::unique_ptr<PlatformTimeRanges> buffered();
+    std::unique_ptr<PlatformTimeRanges> seekable();
     double minTimeSeekable();
     double maxTimeSeekable();
 
@@ -433,6 +455,12 @@ public:
 
 #if ENABLE(IOS_AIRPLAY)
     bool isCurrentPlaybackTargetWireless() const;
+
+    enum WirelessPlaybackTargetType { TargetTypeNone, TargetTypeAirPlay, TargetTypeTVOut };
+    WirelessPlaybackTargetType wirelessPlaybackTargetType() const;
+
+    String wirelessPlaybackTargetName() const;
+
     void showPlaybackTargetPicker();
 
     bool hasWirelessPlaybackTargets() const;
@@ -514,6 +542,10 @@ public:
 
     bool requiresTextTrackRepresentation() const;
     void setTextTrackRepresentation(TextTrackRepresentation*);
+#if ENABLE(AVF_CAPTIONS)
+    void notifyTrackModeChanged();
+    Vector<RefPtr<PlatformTextTrack>> outOfBandTrackSources();
+#endif
 #endif
 
     static void resetMediaEngines();
@@ -574,7 +606,7 @@ private:
 #endif
 
 #if ENABLE(MEDIA_SOURCE)
-    RefPtr<HTMLMediaSource> m_mediaSource;
+    RefPtr<MediaSourcePrivateClient> m_mediaSource;
 #endif
 };
 
@@ -584,9 +616,10 @@ typedef MediaPlayer::SupportsType (*MediaEngineSupportsType)(const MediaEngineSu
 typedef void (*MediaEngineGetSitesInMediaCache)(Vector<String>&);
 typedef void (*MediaEngineClearMediaCache)();
 typedef void (*MediaEngineClearMediaCacheForSite)(const String&);
+typedef bool (*MediaEngineSupportsKeySystem)(const String& keySystem, const String& mimeType);
 
 typedef void (*MediaEngineRegistrar)(CreateMediaEnginePlayer, MediaEngineSupportedTypes, MediaEngineSupportsType,
-    MediaEngineGetSitesInMediaCache, MediaEngineClearMediaCache, MediaEngineClearMediaCacheForSite);
+    MediaEngineGetSitesInMediaCache, MediaEngineClearMediaCache, MediaEngineClearMediaCacheForSite, MediaEngineSupportsKeySystem);
 typedef void (*MediaEngineRegister)(MediaEngineRegistrar);
 
 class MediaPlayerFactorySupport {

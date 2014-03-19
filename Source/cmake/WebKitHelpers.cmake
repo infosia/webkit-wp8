@@ -18,12 +18,6 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             EXEC_PROGRAM("${CMAKE_CXX_COMPILER} -E -Wp,-dM - < /dev/null | grep '#define __VERSION__' | grep -E -o '[0-9]+\\.[0-9]+\\.?[0-9]+?'" OUTPUT_VARIABLE COMPILER_VERSION)
         endif ()
 
-        # Disable some optimizations on buggy compiler versions
-        # GCC 4.5.1 does not implement -ftree-sra correctly
-        if (${COMPILER_VERSION} STREQUAL "4.5.1")
-            set(OLD_COMPILE_FLAGS "-fno-tree-sra ${OLD_COMPILE_FLAGS}")
-        endif ()
-
         # For GTK+ we will rely on a linker script to deal with symbol visibility on
         # production builds, we want all symbols visible for development builds.
         if (NOT SHARED_CORE AND NOT ${PORT} STREQUAL "GTK")
@@ -35,8 +29,6 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             set(OLD_COMPILE_FLAGS "-fPIC ${OLD_COMPILE_FLAGS}")
         endif ()
 
-        set(OLD_COMPILE_FLAGS "-fno-exceptions -fno-strict-aliasing ${OLD_COMPILE_FLAGS}")
-
         # Enable warnings by default
         if (NOT ${OPTION_IGNORECXX_WARNINGS})
             set(OLD_COMPILE_FLAGS "-Wall -Wextra -Wcast-align -Wformat-security -Wmissing-format-attribute -Wpointer-arith -Wundef -Wwrite-strings ${OLD_COMPILE_FLAGS}")
@@ -44,7 +36,9 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
 
         # Enable errors on warning
         if (OPTION_ENABLE_WERROR)
-            set(OLD_COMPILE_FLAGS "-Werror -Wno-error=unused-parameter ${OLD_COMPILE_FLAGS}")
+            # FIXME: When we use -fno-tree-dce to support the jsCStack branch merge, build error occurs due to the uninitialization. Temporarily we set
+            # uninitialized as build warning in order to support the jsCStack merge. https://bugs.webkit.org/show_bug.cgi?id=127777.
+            set(OLD_COMPILE_FLAGS "-Werror -Wno-error=unused-parameter -Wno-error=uninitialized ${OLD_COMPILE_FLAGS}")
         endif ()
 
         set_target_properties(${_target} PROPERTIES

@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -67,10 +67,7 @@ public:
 
     // From IDBCursor.advance()/continue()
     virtual void onSuccess(PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer>) = 0;
-    virtual void onSuccess(PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer>, PassRefPtr<IDBKey> valueKey) = 0;
 
-    // From IDBCursor.advance()/continue()
-    virtual void onSuccessWithPrefetch(const Vector<RefPtr<IDBKey>>& keys, const Vector<RefPtr<IDBKey>>& primaryKeys, const Vector<RefPtr<SharedBuffer>>& values) = 0;
     // From IDBFactory.open()/deleteDatabase()
     virtual void onBlocked(uint64_t /* existingVersion */) { ASSERT_NOT_REACHED(); }
     // From IDBFactory.open()

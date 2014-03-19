@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -104,6 +104,7 @@
 #import "WebUIDelegate.h"
 #import "WebUIDelegatePrivate.h"
 #import "WebUserMediaClient.h"
+#import "WebViewGroup.h"
 #import <CoreFoundation/CFSet.h>
 #import <Foundation/NSURLConnection.h>
 #import <JavaScriptCore/APICast.h>
@@ -290,6 +291,7 @@
 - (NSView *)_hitTest:(NSPoint *)aPoint dragTypes:(NSSet *)types;
 - (void)_autoscrollForDraggingInfo:(id)dragInfo timeDelta:(NSTimeInterval)repeatDelta;
 - (BOOL)_shouldAutoscrollForDraggingInfo:(id)dragInfo;
+- (void)_windowChangedKeyState;
 @end
 
 @interface NSWindow (WebNSWindowDetails)
@@ -994,7 +996,7 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
     [self _registerDraggedTypes];
 #endif
 
-    [self _setIsVisible:[self _isViewVisible] isInitialState:YES];
+    [self _setIsVisible:[self _isViewVisible]];
 
     WebPreferences *prefs = [self preferences];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_preferencesChangedNotification:)
@@ -1180,7 +1182,7 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
     // FIXME: this is a workaround for <rdar://problem/11820090> Quoted text changes in size when replying to certain email
     _private->page->settings().setMinimumFontSize([_private->preferences minimumFontSize]);
 
-    _private->page->setGroupName(groupName);
+    [self setGroupName:groupName];
 
 #if ENABLE(REMOTE_INSPECTOR)
     // Production installs always disallow debugging simple HTML documents.
@@ -1238,7 +1240,11 @@ static bool shouldUseLegacyBackgroundSizeShorthandBehavior()
         [WebView _handleMemoryWarning];
     }, shouldAutoClearPressureOnMemoryRelease);
 
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    static dispatch_source_t memoryNotificationEventSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_MEMORYSTATUS, 0, DISPATCH_MEMORYSTATUS_PRESSURE_WARN, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+#else
     static dispatch_source_t memoryNotificationEventSource = dispatch_source_create(DISPATCH_SOURCE_TYPE_VM, 0, DISPATCH_VM_PRESSURE, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+#endif
     dispatch_source_set_event_handler(memoryNotificationEventSource, ^{
         // Set memory pressure flag and schedule releasing memory in web thread runloop exit.
         memoryPressureHandler().setReceivedMemoryPressure(WebCore::MemoryPressureReasonVMPressure);
@@ -1727,7 +1733,9 @@ static bool fastDocumentTeardownEnabled()
     [self removeDragCaret];
 #endif
 
-    // Deleteing the WebCore::Page will clear the page cache so we call destroy on 
+    _private->group->removeWebView(self);
+
+    // Deleteing the WebCore::Page will clear the page cache so we call destroy on
     // all the plug-ins in the page cache to break any retain cycles.
     // See comment in HistoryItem::releaseAllPendingPageCaches() for more information.
     Page* page = _private->page;
@@ -2377,6 +2385,14 @@ static bool needsSelfRetainWhileLoadingQuirk()
 #if ENABLE(MEDIA_SOURCE)
     settings.setMediaSourceEnabled([preferences mediaSourceEnabled]);
 #endif
+
+#if ENABLE(IMAGE_CONTROLS)
+    settings.setImageControlsEnabled([preferences imageControlsEnabled]);
+#endif
+
+    settings.setShouldConvertPositionStyleOnCopy([preferences shouldConvertPositionStyleOnCopy]);
+
+    settings.setEnableInheritURIQueryComponent([preferences isInheritURIQueryComponentEnabled]);
 
     switch ([preferences storageBlockingPolicy]) {
     case WebAllowAllStorage:
@@ -3324,18 +3340,6 @@ static inline IMP getMethod(id o, SEL s)
 }
 #endif // !PLATFORM(IOS)
 
-- (void)_setInViewSourceMode:(BOOL)flag
-{
-    if (Frame* mainFrame = [self _mainCoreFrame])
-        mainFrame->setInViewSourceMode(flag);
-}
-
-- (BOOL)_inViewSourceMode
-{
-    Frame* mainFrame = [self _mainCoreFrame];
-    return mainFrame && mainFrame->inViewSourceMode();
-}
-
 - (void)_setUseFastImageScalingMode:(BOOL)flag
 {
     if (_private->page && _private->page->inLowQualityImageInterpolationMode() != flag) {
@@ -3605,13 +3609,6 @@ static inline IMP getMethod(id o, SEL s)
     return _private->allowsMessaging;
 }
 
-- (void)_setNetworkStateIsOnline:(BOOL)isOnLine
-{
-    WebThreadRun(^{
-        networkStateNotifier().setIsOnLine(isOnLine);
-    });
-}
-
 - (void)_setFixedLayoutSize:(CGSize)size
 {
     ASSERT(WebThreadIsLocked());
@@ -3697,6 +3694,11 @@ static inline IMP getMethod(id o, SEL s)
         return;
 
     frame->overflowScrollPositionChangedForNode(roundedIntPoint(offset), node, userScroll);
+}
+
++ (void)_doNotStartObservingNetworkReachability
+{
+    Settings::setShouldOptOutOfNetworkStateObservation(true);
 }
 #endif // PLATFORM(IOS)
 
@@ -3811,20 +3813,6 @@ static inline IMP getMethod(id o, SEL s)
     if (!coreFrame)
         return;
     coreFrame->editor().command(name).execute(value);
-}
-
-- (void)_setCustomHTMLTokenizerTimeDelay:(double)timeDelay
-{
-    if (!_private->page)
-        return;
-    return _private->page->setCustomHTMLTokenizerTimeDelay(timeDelay);
-}
-
-- (void)_setCustomHTMLTokenizerChunkSize:(int)chunkSize
-{
-    if (!_private->page)
-        return;
-    return _private->page->setCustomHTMLTokenizerChunkSize(chunkSize);
 }
 
 - (void)_clearMainFrameName
@@ -3961,11 +3949,11 @@ static inline IMP getMethod(id o, SEL s)
     if (!view || !view->isTrackingRepaints())
         return nil;
 
-    const Vector<IntRect>& repaintRects = view->trackedRepaintRects();
+    const Vector<FloatRect>& repaintRects = view->trackedRepaintRects();
     NSMutableArray* rectsArray = [[NSMutableArray alloc] initWithCapacity:repaintRects.size()];
     
     for (unsigned i = 0; i < repaintRects.size(); ++i)
-        [rectsArray addObject:[NSValue valueWithRect:pixelSnappedIntRect(repaintRects[i])]];
+        [rectsArray addObject:[NSValue valueWithRect:pixelSnappedIntRect(LayoutRect(repaintRects[i]))]];
 
     return [rectsArray autorelease];
 }
@@ -4009,7 +3997,7 @@ static inline IMP getMethod(id o, SEL s)
 - (void)_updateVisibilityState
 {
     if (_private && _private->page)
-        [self _setIsVisible:[self _isViewVisible] isInitialState:NO];
+        [self _setIsVisible:[self _isViewVisible]];
 }
 
 - (void)_updateActiveState
@@ -4374,16 +4362,18 @@ static Vector<String> toStringVector(NSArray* patterns)
     return WebPageVisibilityStateVisible;
 }
 
-- (void)_setIsVisible:(BOOL)isVisible isInitialState:(BOOL)isInitialState
+- (void)_setIsVisible:(BOOL)isVisible
 {
     if (_private->page)
-        _private->page->setIsVisible(isVisible, isInitialState);
+        _private->page->setIsVisible(isVisible);
 }
 
 - (void)_setVisibilityState:(WebPageVisibilityState)visibilityState isInitialState:(BOOL)isInitialState
 {
+    UNUSED_PARAM(isInitialState);
+
     if (_private->page) {
-        _private->page->setIsVisible(visibilityState == WebPageVisibilityStateVisible, isInitialState);
+        _private->page->setIsVisible(visibilityState == WebPageVisibilityStateVisible);
         if (visibilityState == WebPageVisibilityStatePrerender)
             _private->page->setIsPrerender();
     }
@@ -5340,6 +5330,8 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 - (void)_windowChangedKeyState
 {
     [self _updateActiveState];
+
+    [super _windowChangedKeyState];
 }
 
 - (void)_windowWillOrderOnScreen:(NSNotification *)notification
@@ -5352,7 +5344,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 
     if (_private && _private->page) {
         _private->page->resumeScriptedAnimations();
-        _private->page->focusController().setContentIsVisible(true);
+        _private->page->setIsVisible(true);
     }
 }
 
@@ -5365,7 +5357,7 @@ static NSString * const backingPropertyOldScaleFactorKey = @"NSBackingPropertyOl
 {
     if (_private && _private->page) {
         _private->page->suspendScriptedAnimations();
-        _private->page->focusController().setContentIsVisible(false);
+        _private->page->setIsVisible(false);
     }
 }
 
@@ -6134,6 +6126,12 @@ static WebFrame *incrementFrame(WebFrame *frame, WebFindOptions options = 0)
 
 - (void)setGroupName:(NSString *)groupName
 {
+    if (_private->group)
+        _private->group->removeWebView(self);
+
+    _private->group = WebViewGroup::getOrCreate(groupName);
+    _private->group->addWebView(self);
+
     if (!_private->page)
         return;
     _private->page->setGroupName(groupName);
@@ -6790,7 +6788,7 @@ static NSAppleEventDescriptor* aeDescFromJSValue(ExecState* exec, JSC::JSValue j
             }
         }
         else if (object->inherits(JSArray::info())) {
-            DEFINE_STATIC_LOCAL(HashSet<JSObject*>, visitedElems, ());
+            DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<JSObject*>, visitedElems, ());
             if (!visitedElems.contains(object)) {
                 visitedElems.add(object);
                 

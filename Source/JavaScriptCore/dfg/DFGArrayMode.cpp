@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
 
 #include "DFGAbstractValue.h"
 #include "DFGGraph.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -132,7 +132,7 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJITLocker& locker, ArrayProfil
 }
 
 ArrayMode ArrayMode::refine(
-    Graph& graph, CodeOrigin codeOrigin,
+    Graph& graph, Node* node,
     SpeculatedType base, SpeculatedType index, SpeculatedType value,
     NodeFlags flags) const
 {
@@ -199,10 +199,18 @@ ArrayMode ArrayMode::refine(
             return withType(Array::Arguments);
         
         ArrayMode result;
-        if (graph.hasExitSite(codeOrigin, OutOfBounds) || !isInBounds())
-            result = withSpeculation(Array::OutOfBounds);
-        else
+        switch (node->op()) {
+        case PutByVal:
+            if (graph.hasExitSite(node->origin.semantic, OutOfBounds) || !isInBounds())
+                result = withSpeculation(Array::OutOfBounds);
+            else
+                result = withSpeculation(Array::InBounds);
+            break;
+            
+        default:
             result = withSpeculation(Array::InBounds);
+            break;
+        }
         
         if (isInt8ArraySpeculation(base))
             return result.withType(Array::Int8Array);
@@ -275,7 +283,7 @@ Structure* ArrayMode::originalArrayStructure(Graph& graph, const CodeOrigin& cod
 
 Structure* ArrayMode::originalArrayStructure(Graph& graph, Node* node) const
 {
-    return originalArrayStructure(graph, node->codeOrigin);
+    return originalArrayStructure(graph, node->origin.semantic);
 }
 
 bool ArrayMode::alreadyChecked(Graph& graph, Node* node, AbstractValue& value, IndexingType shape) const
@@ -285,7 +293,7 @@ bool ArrayMode::alreadyChecked(Graph& graph, Node* node, AbstractValue& value, I
         return value.m_currentKnownStructure.hasSingleton()
             && (value.m_currentKnownStructure.singleton()->indexingType() & IndexingShapeMask) == shape
             && (value.m_currentKnownStructure.singleton()->indexingType() & IsArray)
-            && graph.globalObjectFor(node->codeOrigin)->isOriginalArrayStructure(value.m_currentKnownStructure.singleton());
+            && graph.globalObjectFor(node->origin.semantic)->isOriginalArrayStructure(value.m_currentKnownStructure.singleton());
         
     case Array::Array:
         if (arrayModesAlreadyChecked(value.m_arrayModes, asArrayModes(shape | IsArray)))

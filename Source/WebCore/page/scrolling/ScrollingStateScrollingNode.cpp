@@ -41,7 +41,7 @@ PassOwnPtr<ScrollingStateScrollingNode> ScrollingStateScrollingNode::create(Scro
 
 ScrollingStateScrollingNode::ScrollingStateScrollingNode(ScrollingStateTree& stateTree, ScrollingNodeID nodeID)
     : ScrollingStateNode(ScrollingNode, stateTree, nodeID)
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
     , m_verticalScrollbarPainter(0)
     , m_horizontalScrollbarPainter(0)
 #endif
@@ -57,11 +57,11 @@ ScrollingStateScrollingNode::ScrollingStateScrollingNode(ScrollingStateTree& sta
 
 ScrollingStateScrollingNode::ScrollingStateScrollingNode(const ScrollingStateScrollingNode& stateNode, ScrollingStateTree& adoptiveTree)
     : ScrollingStateNode(stateNode, adoptiveTree)
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
     , m_verticalScrollbarPainter(stateNode.verticalScrollbarPainter())
     , m_horizontalScrollbarPainter(stateNode.horizontalScrollbarPainter())
 #endif
-    , m_viewportConstrainedObjectRect(stateNode.viewportConstrainedObjectRect())
+    , m_viewportSize(stateNode.viewportSize())
     , m_totalContentsSize(stateNode.totalContentsSize())
     , m_scrollPosition(stateNode.scrollPosition())
     , m_scrollOrigin(stateNode.scrollOrigin())
@@ -76,6 +76,9 @@ ScrollingStateScrollingNode::ScrollingStateScrollingNode(const ScrollingStateScr
     , m_requestedScrollPosition(stateNode.requestedScrollPosition())
     , m_requestedScrollPositionRepresentsProgrammaticScroll(stateNode.requestedScrollPositionRepresentsProgrammaticScroll())
 {
+    if (hasChangedProperty(ScrolledContentsLayer))
+        setScrolledContentsLayer(stateNode.scrolledContentsLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
+
     if (hasChangedProperty(CounterScrollingLayer))
         setCounterScrollingLayer(stateNode.counterScrollingLayer().toRepresentation(adoptiveTree.preferredLayerRepresentation()));
 
@@ -95,13 +98,13 @@ PassOwnPtr<ScrollingStateNode> ScrollingStateScrollingNode::clone(ScrollingState
     return adoptPtr(new ScrollingStateScrollingNode(*this, adoptiveTree));
 }
 
-void ScrollingStateScrollingNode::setViewportConstrainedObjectRect(const FloatRect& viewportConstrainedObjectRect)
+void ScrollingStateScrollingNode::setViewportSize(const FloatSize& size)
 {
-    if (m_viewportConstrainedObjectRect == viewportConstrainedObjectRect)
+    if (m_viewportSize == size)
         return;
 
-    m_viewportConstrainedObjectRect = viewportConstrainedObjectRect;
-    setPropertyChanged(ViewportConstrainedObjectRect);
+    m_viewportSize = size;
+    setPropertyChanged(ViewportSize);
 }
 
 void ScrollingStateScrollingNode::setTotalContentsSize(const IntSize& totalContentsSize)
@@ -186,7 +189,7 @@ void ScrollingStateScrollingNode::setScrollBehaviorForFixedElements(ScrollBehavi
     setPropertyChanged(BehaviorForFixedElements);
 }
 
-void ScrollingStateScrollingNode::setRequestedScrollPosition(const IntPoint& requestedScrollPosition, bool representsProgrammaticScroll)
+void ScrollingStateScrollingNode::setRequestedScrollPosition(const FloatPoint& requestedScrollPosition, bool representsProgrammaticScroll)
 {
     m_requestedScrollPosition = requestedScrollPosition;
     m_requestedScrollPositionRepresentsProgrammaticScroll = representsProgrammaticScroll;
@@ -211,13 +214,21 @@ void ScrollingStateScrollingNode::setFooterHeight(int footerHeight)
     setPropertyChanged(FooterHeight);
 }
 
+void ScrollingStateScrollingNode::setScrolledContentsLayer(const LayerRepresentation& layerRepresentation)
+{
+    if (layerRepresentation == m_scrolledContentsLayer)
+        return;
+    
+    m_scrolledContentsLayer = layerRepresentation;
+    setPropertyChanged(ScrolledContentsLayer);
+}
+
 void ScrollingStateScrollingNode::setCounterScrollingLayer(const LayerRepresentation& layerRepresentation)
 {
     if (layerRepresentation == m_counterScrollingLayer)
         return;
     
     m_counterScrollingLayer = layerRepresentation;
-
     setPropertyChanged(CounterScrollingLayer);
 }
 
@@ -227,7 +238,6 @@ void ScrollingStateScrollingNode::setHeaderLayer(const LayerRepresentation& laye
         return;
     
     m_headerLayer = layerRepresentation;
-
     setPropertyChanged(HeaderLayer);
 }
 
@@ -238,11 +248,10 @@ void ScrollingStateScrollingNode::setFooterLayer(const LayerRepresentation& laye
         return;
     
     m_footerLayer = layerRepresentation;
-
     setPropertyChanged(FooterLayer);
 }
 
-#if !(PLATFORM(MAC) && !PLATFORM(IOS))
+#if !PLATFORM(MAC)
 void ScrollingStateScrollingNode::setScrollbarPaintersFromScrollbars(Scrollbar*, Scrollbar*)
 {
 }
@@ -252,13 +261,11 @@ void ScrollingStateScrollingNode::dumpProperties(TextStream& ts, int indent) con
 {
     ts << "(" << "Scrolling node" << "\n";
 
-    if (!m_viewportConstrainedObjectRect.isEmpty()) {
+    if (!m_viewportSize.isEmpty()) {
         writeIndent(ts, indent + 1);
         ts << "(viewport rect "
-            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.x()) << " "
-            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.y()) << " "
-            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.width()) << " "
-            << TextStream::FormatNumberRespectingIntegers(m_viewportConstrainedObjectRect.height()) << ")\n";
+            << TextStream::FormatNumberRespectingIntegers(m_viewportSize.width()) << " "
+            << TextStream::FormatNumberRespectingIntegers(m_viewportSize.height()) << ")\n";
     }
 
     if (m_scrollPosition != FloatPoint()) {
@@ -285,7 +292,7 @@ void ScrollingStateScrollingNode::dumpProperties(TextStream& ts, int indent) con
 
     if (m_requestedScrollPosition != IntPoint()) {
         writeIndent(ts, indent + 1);
-        ts << "(requested scroll position " << m_requestedScrollPosition.x() << " " << m_requestedScrollPosition.y() << ")\n";
+        ts << "(requested scroll position " << TextStream::FormatNumberRespectingIntegers(m_requestedScrollPosition.x()) << " " << TextStream::FormatNumberRespectingIntegers(m_requestedScrollPosition.y()) << ")\n";
     }
 
     if (m_scrollOrigin != IntPoint()) {

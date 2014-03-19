@@ -38,6 +38,7 @@
 #include "MarkedSpace.h"
 #include "Options.h"
 #include "SlotVisitor.h"
+#include "StructureIDTable.h"
 #include "WeakHandleOwner.h"
 #include "WriteBarrierBuffer.h"
 #include "WriteBarrierSupport.h"
@@ -102,9 +103,9 @@ namespace JSC {
             return MarkedBlock::blockFor(cell)->isRemembered(cell);
         }
         static bool isWriteBarrierEnabled();
-        JS_EXPORT_PRIVATE static void writeBarrier(const JSCell*);
-        static void writeBarrier(const JSCell*, JSValue);
-        static void writeBarrier(const JSCell*, JSCell*);
+        JS_EXPORT_PRIVATE void writeBarrier(const JSCell*);
+        void writeBarrier(const JSCell*, JSValue);
+        void writeBarrier(const JSCell*, JSCell*);
 
         WriteBarrierBuffer& writeBarrierBuffer() { return m_writeBarrierBuffer; }
         void flushWriteBarrierBuffer(JSCell*);
@@ -148,7 +149,8 @@ namespace JSC {
         JS_EXPORT_PRIVATE void collectAllGarbage();
         bool shouldCollect();
         void gcTimerDidFire() { m_shouldDoFullCollection = true; }
-        void collect();
+        void setShouldDoFullCollection(bool shouldDoFullCollection) { m_shouldDoFullCollection = shouldDoFullCollection; }
+        JS_EXPORT_PRIVATE void collect();
         bool collectIfNecessaryOrDefer(); // Returns true if it did collect.
 
         void reportExtraMemoryCost(size_t cost);
@@ -188,6 +190,7 @@ namespace JSC {
         void increaseLastGCLength(double amount) { m_lastGCLength += amount; }
 
         JS_EXPORT_PRIVATE void deleteAllCompiledCode();
+        void deleteAllUnlinkedFunctionCode();
 
         void didAllocate(size_t);
         void didAbandon(size_t);
@@ -200,9 +203,14 @@ namespace JSC {
         
         bool isDeferred() const { return !!m_deferralDepth || Options::disableGC(); }
 
+        BlockAllocator& blockAllocator();
+        StructureIDTable& structureIDTable() { return m_structureIDTable; }
+
 #if USE(CF)
         template<typename T> void releaseSoon(RetainPtr<T>&&);
 #endif
+
+        void removeCodeBlock(CodeBlock* cb) { m_codeBlocks.remove(cb); }
 
     private:
         friend class CodeBlock;
@@ -243,25 +251,59 @@ namespace JSC {
         JS_EXPORT_PRIVATE bool isValidAllocation(size_t);
         JS_EXPORT_PRIVATE void reportExtraMemoryCostSlowCase(size_t);
 
+        void suspendCompilerThreads();
+        void willStartCollection();
+        void deleteOldCode(double gcStartTime);
+        void flushOldStructureIDTables();
+        void flushWriteBarrierBuffer();
+        void stopAllocation();
+
         void markRoots();
-        void markProtectedObjects(HeapRootVisitor&);
-        void markTempSortVectors(HeapRootVisitor&);
-        template <HeapOperation collectionType>
+        void gatherStackRoots(ConservativeRoots&, void** dummy);
+        void gatherJSStackRoots(ConservativeRoots&);
+        void gatherScratchBufferRoots(ConservativeRoots&);
+        void clearLivenessData();
+        void visitSmallStrings();
+        void visitConservativeRoots(ConservativeRoots&);
+        void visitCompilerWorklists();
+        void visitProtectedObjects(HeapRootVisitor&);
+        void visitTempSortVectors(HeapRootVisitor&);
+        void visitArgumentBuffers(HeapRootVisitor&);
+        void visitException(HeapRootVisitor&);
+        void visitStrongHandles(HeapRootVisitor&);
+        void visitHandleStack(HeapRootVisitor&);
+        void traceCodeBlocksAndJITStubRoutines();
+        void converge();
+        void visitWeakHandles(HeapRootVisitor&);
+        void clearRememberedSet(Vector<const JSCell*>&);
+        void updateObjectCounts();
+        void resetVisitors();
+
+        void reapWeakHandles();
+        void sweepArrayBuffers();
+        void snapshotMarkedSpace();
+        void deleteSourceProviderCaches();
+        void notifyIncrementalSweeper();
+        void rememberCurrentlyExecutingCodeBlocks();
+        void resetAllocators();
         void copyBackingStores();
         void harvestWeakReferences();
         void finalizeUnconditionalFinalizers();
         void deleteUnmarkedCompiledCode();
+        void updateAllocationLimits();
+        void didFinishCollection(double gcStartTime);
+        void resumeCompilerThreads();
         void zombifyDeadObjects();
         void markDeadObjects();
 
+        bool shouldDoFullCollection() const;
         size_t sizeAfterCollect();
 
         JSStack& stack();
-        BlockAllocator& blockAllocator();
         
-        JS_EXPORT_PRIVATE void incrementDeferralDepth();
+        void incrementDeferralDepth();
         void decrementDeferralDepth();
-        JS_EXPORT_PRIVATE void decrementDeferralDepthAndGCIfNeeded();
+        void decrementDeferralDepthAndGCIfNeeded();
 
         const HeapType m_heapType;
         const size_t m_ramSize;
@@ -278,6 +320,7 @@ namespace JSC {
         
         HeapOperation m_operationInProgress;
         BlockAllocator m_blockAllocator;
+        StructureIDTable m_structureIDTable;
         MarkedSpace m_objectSpace;
         CopiedSpace m_storageSpace;
         GCIncomingRefCountedSet<ArrayBuffer> m_arrayBuffers;
@@ -286,7 +329,7 @@ namespace JSC {
         HashSet<const JSCell*> m_copyingRememberedSet;
 
         ProtectCountSet m_protectedValues;
-        Vector<Vector<ValueStringPair, 0, UnsafeVectorOverflow>* > m_tempSortingVectors;
+        Vector<Vector<ValueStringPair, 0, UnsafeVectorOverflow>*> m_tempSortingVectors;
         OwnPtr<HashSet<MarkedArgumentBuffer*>> m_markListSet;
 
         MachineThreads m_machineThreads;
@@ -391,18 +434,6 @@ namespace JSC {
 #endif
     }
 
-    inline void Heap::writeBarrier(const JSCell* from, JSCell* to)
-    {
-#if ENABLE(WRITE_BARRIER_PROFILING)
-        WriteBarrierCounters::countWriteBarrier();
-#endif
-        if (!from || !isMarked(from))
-            return;
-        if (!to || isMarked(to))
-            return;
-        Heap::heap(from)->addToRememberedSet(from);
-    }
-
     inline void Heap::writeBarrier(const JSCell* from, JSValue to)
     {
 #if ENABLE(WRITE_BARRIER_PROFILING)
@@ -421,9 +452,8 @@ namespace JSC {
 
     template<typename Functor> inline typename Functor::ReturnType Heap::forEachProtectedCell(Functor& functor)
     {
-        ProtectCountSet::iterator end = m_protectedValues.end();
-        for (ProtectCountSet::iterator it = m_protectedValues.begin(); it != end; ++it)
-            functor(it->key);
+        for (auto& pair : m_protectedValues)
+            functor(pair.key);
         m_handleSet.forEachStrongHandle(functor, m_protectedValues);
 
         return functor.returnValue();
@@ -514,6 +544,37 @@ namespace JSC {
         m_objectSpace.releaseSoon(std::move(object));
     }
 #endif
+
+
+inline void Heap::incrementDeferralDepth()
+{
+    RELEASE_ASSERT(m_deferralDepth < 100); // Sanity check to make sure this doesn't get ridiculous.
+    m_deferralDepth++;
+}
+
+inline void Heap::decrementDeferralDepth()
+{
+    RELEASE_ASSERT(m_deferralDepth >= 1);
+    m_deferralDepth--;
+}
+
+inline bool Heap::collectIfNecessaryOrDefer()
+{
+    if (isDeferred())
+        return false;
+
+    if (!shouldCollect())
+        return false;
+
+    collect();
+    return true;
+}
+
+inline void Heap::decrementDeferralDepthAndGCIfNeeded()
+{
+    decrementDeferralDepth();
+    collectIfNecessaryOrDefer();
+}
 
 } // namespace JSC
 

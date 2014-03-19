@@ -60,6 +60,10 @@
 #import <WebCore/WAKWindow.h>
 #import <WebCore/WebCoreThreadMessage.h>
 
+#if PLATFORM(IOS)
+#include "WebKitSystemInterface.h"
+#endif
+
 using namespace WebCore;
 
 void WebChromeClientIOS::setWindowRect(const WebCore::FloatRect& r)
@@ -131,9 +135,10 @@ void WebChromeClientIOS::didPreventDefaultForEvent()
 }
 #endif
 
-void WebChromeClientIOS::didReceiveMobileDocType()
+void WebChromeClientIOS::didReceiveMobileDocType(bool isMobileDoctype)
 {
-    [[webView() _UIKitDelegateForwarder] webViewDidReceiveMobileDocType:webView() ];
+    if (isMobileDoctype)
+        [[webView() _UIKitDelegateForwarder] webViewDidReceiveMobileDocType:webView()];
 }
 
 void WebChromeClientIOS::setNeedsScrollNotifications(WebCore::Frame* frame, bool flag)
@@ -164,6 +169,11 @@ static inline NSDictionary* dictionaryForViewportArguments(const WebCore::Viewpo
               @"width":@(arguments.width),
               @"height":@(arguments.height),
               @"minimal-ui":@(arguments.minimalUI) };
+}
+
+FloatSize WebChromeClientIOS::viewportScreenSize() const
+{
+    return FloatSize(WKGetViewportScreenSize());
 }
 
 void WebChromeClientIOS::dispatchViewportPropertiesDidChange(const WebCore::ViewportArguments& arguments) const

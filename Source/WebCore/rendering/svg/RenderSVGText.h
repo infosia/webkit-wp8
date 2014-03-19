@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010-2012. All rights reserved.
  *
@@ -105,7 +105,6 @@ private:
     Vector<SVGTextLayoutAttributes*> m_layoutAttributes;
 };
 
-template<> inline bool isRendererOfType<const RenderSVGText>(const RenderObject& renderer) { return renderer.isSVGText(); }
 RENDER_OBJECT_TYPE_CASTS(RenderSVGText, isSVGText())
 
 }

@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -38,22 +38,21 @@
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace Inspector {
 class InspectorArray;
+class InspectorConsoleAgent;
 class InspectorObject;
 }
 
 namespace WebCore {
 
-class InspectorConsoleAgent;
 class InstrumentingAgents;
 class Page;
-class PageInjectedScriptManager;
 class ScriptHeapSnapshot;
 class ScriptProfile;
+class WebInjectedScriptManager;
 class WorkerGlobalScope;
 
 typedef String ErrorString;
@@ -61,8 +60,8 @@ typedef String ErrorString;
 class InspectorProfilerAgent : public InspectorAgentBase, public Inspector::InspectorProfilerBackendDispatcherHandler {
     WTF_MAKE_NONCOPYABLE(InspectorProfilerAgent); WTF_MAKE_FAST_ALLOCATED;
 public:
-    static std::unique_ptr<InspectorProfilerAgent> create(InstrumentingAgents*, InspectorConsoleAgent*, Page*, PageInjectedScriptManager*);
-    static std::unique_ptr<InspectorProfilerAgent> create(InstrumentingAgents*, InspectorConsoleAgent*, WorkerGlobalScope*, PageInjectedScriptManager*);
+    static std::unique_ptr<InspectorProfilerAgent> create(InstrumentingAgents*, Inspector::InspectorConsoleAgent*, Page*, WebInjectedScriptManager*);
+    static std::unique_ptr<InspectorProfilerAgent> create(InstrumentingAgents*, Inspector::InspectorConsoleAgent*, WorkerGlobalScope*, WebInjectedScriptManager*);
 
     virtual ~InspectorProfilerAgent();
 
@@ -101,7 +100,7 @@ public:
     virtual void getHeapObjectId(ErrorString*, const String& objectId, String* heapSnapshotObjectId) override;
 
 protected:
-    InspectorProfilerAgent(InstrumentingAgents*, InspectorConsoleAgent*, PageInjectedScriptManager*);
+    InspectorProfilerAgent(InstrumentingAgents*, Inspector::InspectorConsoleAgent*, WebInjectedScriptManager*);
     virtual void startProfiling(const String& title) = 0;
     virtual PassRefPtr<ScriptProfile> stopProfiling(const String& title) = 0;
 
@@ -115,8 +114,8 @@ private:
     PassRefPtr<Inspector::TypeBuilder::Profiler::ProfileHeader> createProfileHeader(const ScriptProfile&);
     PassRefPtr<Inspector::TypeBuilder::Profiler::ProfileHeader> createSnapshotHeader(const ScriptHeapSnapshot&);
 
-    InspectorConsoleAgent* m_consoleAgent;
-    PageInjectedScriptManager* m_injectedScriptManager;
+    Inspector::InspectorConsoleAgent* m_consoleAgent;
+    WebInjectedScriptManager* m_injectedScriptManager;
     std::unique_ptr<Inspector::InspectorProfilerFrontendDispatcher> m_frontendDispatcher;
     RefPtr<Inspector::InspectorProfilerBackendDispatcher> m_backendDispatcher;
     bool m_enabled;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 #include "CodeBlock.h"
 #include "DFGBasicBlock.h"
 #include "GetByIdStatus.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "PutByIdStatus.h"
 #include "StringObject.h"
 
@@ -254,7 +254,7 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
     if (node->variableAccessData()->isCaptured()) {
         // If it's captured then we know that whatever value was stored into the variable last is the
         // one we care about. This is true even if the variable at tail is dead, which might happen if
-        // the last thing we did to the variable was a GetLocal and then ended up now using the
+        // the last thing we did to the variable was a GetLocal and then ended up not using the
         // GetLocal's result.
         
         source = inVariable;
@@ -363,16 +363,16 @@ inline bool InPlaceAbstractState::mergeToSuccessors(BasicBlock* basicBlock)
     switch (terminal->op()) {
     case Jump: {
         ASSERT(basicBlock->cfaBranchDirection == InvalidBranchDirection);
-        return merge(basicBlock, terminal->takenBlock());
+        return merge(basicBlock, terminal->targetBlock());
     }
         
     case Branch: {
         ASSERT(basicBlock->cfaBranchDirection != InvalidBranchDirection);
         bool changed = false;
         if (basicBlock->cfaBranchDirection != TakeFalse)
-            changed |= merge(basicBlock, terminal->takenBlock());
+            changed |= merge(basicBlock, terminal->branchData()->taken.block);
         if (basicBlock->cfaBranchDirection != TakeTrue)
-            changed |= merge(basicBlock, terminal->notTakenBlock());
+            changed |= merge(basicBlock, terminal->branchData()->notTaken.block);
         return changed;
     }
         
@@ -381,9 +381,9 @@ inline bool InPlaceAbstractState::mergeToSuccessors(BasicBlock* basicBlock)
         // we're not. However I somehow doubt that this will ever be a big deal.
         ASSERT(basicBlock->cfaBranchDirection == InvalidBranchDirection);
         SwitchData* data = terminal->switchData();
-        bool changed = merge(basicBlock, data->fallThrough);
+        bool changed = merge(basicBlock, data->fallThrough.block);
         for (unsigned i = data->cases.size(); i--;)
-            changed |= merge(basicBlock, data->cases[i].target);
+            changed |= merge(basicBlock, data->cases[i].target.block);
         return changed;
     }
         

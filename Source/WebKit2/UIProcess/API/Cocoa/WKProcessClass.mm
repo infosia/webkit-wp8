@@ -24,68 +24,11 @@
  */
 
 #import "config.h"
-#import "WKProcessClassInternal.h"
+#import "WKProcessClass.h"
 
 #if WK_API_ENABLED
 
-#import "WKObject.h"
-#import "WKProcessClassConfigurationPrivate.h"
-#import "WebContext.h"
-#import <wtf/RetainPtr.h>
-
-#if PLATFORM(IOS)
-#import <WebCore/WebCoreThreadSystemInterface.h>
-#endif
-
 @implementation WKProcessClass
-
-- (instancetype)init
-{
-    return [self initWithConfiguration:adoptNS([[WKProcessClassConfiguration alloc] init]).get()];
-}
-
-- (instancetype)initWithConfiguration:(WKProcessClassConfiguration *)configuration
-{
-    if (!(self = [super init]))
-        return nil;
-
-    _configuration = adoptNS([configuration copy]);
-
-#if PLATFORM(IOS)
-    // FIXME: Remove once <rdar://problem/15256572> is fixed.
-    InitWebCoreThreadSystemInterface();
-#endif
-
-    String bundlePath;
-    if (NSURL *bundleURL = [_configuration _injectedBundleURL]) {
-        if (!bundleURL.isFileURL)
-            [NSException raise:NSInvalidArgumentException format:@"Injected Bundle URL must be a file URL"];
-
-        bundlePath = bundleURL.path;
-    }
-
-    API::Object::constructInWrapper<WebKit::WebContext>(self, bundlePath);
-
-    return self;
-}
-
-- (void)dealloc
-{
-    _context->~WebContext();
-
-    [super dealloc];
-}
-
-- (WKProcessClassConfiguration *)configuration
-{
-    return [[_configuration copy] autorelease];
-}
-
-- (API::Object&)_apiObject
-{
-    return *_context;
-}
-
 @end
 
-#endif // WK_API_ENABLED
+#endif

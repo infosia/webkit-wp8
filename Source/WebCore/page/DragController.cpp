@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -272,8 +272,8 @@ static HTMLInputElement* asFileInput(Node* node)
     HTMLInputElement* inputElement = node->toInputElement();
 
     // If this is a button inside of the a file input, move up to the file input.
-    if (inputElement && inputElement->isTextButton() && inputElement->treeScope().rootNode()->isShadowRoot())
-        inputElement = toShadowRoot(inputElement->treeScope().rootNode())->hostElement()->toInputElement();
+    if (inputElement && inputElement->isTextButton() && inputElement->treeScope().rootNode().isShadowRoot())
+        inputElement = toShadowRoot(inputElement->treeScope().rootNode()).hostElement()->toInputElement();
 
     return inputElement && inputElement->isFileUpload() ? inputElement : 0;
 }
@@ -682,7 +682,7 @@ static void selectElement(Element& element)
 static IntPoint dragLocForDHTMLDrag(const IntPoint& mouseDraggedPoint, const IntPoint& dragOrigin, const IntPoint& dragImageOffset, bool isLinkImage)
 {
     // dragImageOffset is the cursor position relative to the lower-left corner of the image.
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // We add in the Y dimension because we are a flipped view, so adding moves the image down.
     const int yOffset = dragImageOffset.y();
 #else
@@ -697,11 +697,11 @@ static IntPoint dragLocForDHTMLDrag(const IntPoint& mouseDraggedPoint, const Int
 
 static IntPoint dragLocForSelectionDrag(Frame& src)
 {
-    IntRect draggingRect = enclosingIntRect(src.selection().bounds());
+    IntRect draggingRect = enclosingIntRect(src.selection().selectionBounds());
     int xpos = draggingRect.maxX();
     xpos = draggingRect.x() < xpos ? draggingRect.x() : xpos;
     int ypos = draggingRect.maxY();
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Deal with flipped coordinates on Mac
     ypos = draggingRect.y() > ypos ? draggingRect.y() : ypos;
 #else
@@ -769,7 +769,7 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
             if (enclosingTextFormControl(src.selection().selection().start()))
                 clipboard.pasteboard().writePlainText(src.editor().selectedTextForClipboard(), Pasteboard::CannotSmartReplace);
             else {
-#if PLATFORM(MAC) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(EFL)
                 src.editor().writeSelectionToPasteboard(clipboard.pasteboard());
 #else
                 // FIXME: Convert all other platforms to match Mac and delete this.
@@ -880,7 +880,7 @@ void DragController::doImageDrag(Element& element, const IntPoint& dragOrigin, c
         float scale = fittedSize.width() / (float)layoutRect.width();
         float dx = scale * (layoutRect.x() - mouseDownPoint.x());
         float originY = layoutRect.y();
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         // Compensate for accursed flipped coordinates in Cocoa.
         originY += layoutRect.height();
 #endif

@@ -181,9 +181,6 @@ namespace WebCore {
         bool shouldUsePrintingLayout() const;
         FloatSize resizePageRectsKeepingRatio(const FloatSize& originalSize, const FloatSize& expectedSize);
 
-        bool inViewSourceMode() const;
-        void setInViewSourceMode(bool = true);
-
         void setDocument(PassRefPtr<Document>);
 
         void setPageZoomFactor(float factor);
@@ -256,7 +253,6 @@ namespace WebCore {
         void updateLayout() const;
         NSRect caretRect() const;
         NSRect rectForScrollToVisible() const;
-        NSRect rectForSelection(VisibleSelection&) const;
         DOMCSSStyleDeclaration* styleAtSelectionStart() const;
         unsigned formElementsCharacterCount() const;
         void setTimersPaused(bool);
@@ -302,7 +298,7 @@ namespace WebCore {
         RefPtr<Document> m_doc;
 
         const std::unique_ptr<ScriptController> m_script;
-        const OwnPtr<Editor> m_editor;
+        const std::unique_ptr<Editor> m_editor;
         const OwnPtr<FrameSelection> m_selection;
         const OwnPtr<EventHandler> m_eventHandler;
         const std::unique_ptr<AnimationController> m_animationController;
@@ -338,8 +334,6 @@ namespace WebCore {
 #if ENABLE(ORIENTATION_EVENTS)
         int m_orientation;
 #endif
-
-        bool m_inViewSourceMode;
 
 #if USE(TILED_BACKING_STORE)
     // FIXME: The tiled backing store belongs in FrameView, not Frame.
@@ -411,16 +405,6 @@ namespace WebCore {
     inline HTMLFrameOwnerElement* Frame::ownerElement() const
     {
         return m_ownerElement;
-    }
-
-    inline bool Frame::inViewSourceMode() const
-    {
-        return m_inViewSourceMode;
-    }
-
-    inline void Frame::setInViewSourceMode(bool mode)
-    {
-        m_inViewSourceMode = mode;
     }
 
     inline FrameTree& Frame::tree() const

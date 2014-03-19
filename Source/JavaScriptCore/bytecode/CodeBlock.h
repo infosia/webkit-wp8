@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -56,7 +56,6 @@
 #include "HandlerInfo.h"
 #include "ObjectAllocationProfile.h"
 #include "Options.h"
-#include "Operations.h"
 #include "PutPropertySlot.h"
 #include "Instruction.h"
 #include "JITCode.h"
@@ -118,6 +117,7 @@ public:
     CodeBlockHash hash() const;
     bool hasHash() const;
     bool isSafeToComputeHash() const;
+    CString hashAsStringIfPossible() const;
     CString sourceCodeForTools() const; // Not quite the actual source we parsed; this will do things like prefix the source for a function with a reified signature.
     CString sourceCodeOnOneLine() const; // As sourceCodeForTools(), but replaces all whitespace runs with a single space.
     void dumpAssumingJITType(PrintStream&, JITCode::JITType) const;
@@ -670,6 +670,7 @@ public:
         return constantBufferAsVector(index).data();
     }
 
+    Heap* heap() const { return m_heap; }
     JSGlobalObject* globalObject() { return m_globalObject.get(); }
 
     JSGlobalObject* globalObjectFor(CodeOrigin);
@@ -877,7 +878,7 @@ public:
 
     bool hasOpDebugForLineAndColumn(unsigned line, unsigned column);
 
-    int hasDebuggerRequests() const { return !!m_debuggerRequests; }
+    bool hasDebuggerRequests() const { return m_debuggerRequests; }
     void* debuggerRequestsAddress() { return &m_debuggerRequests; }
 
     void addBreakpoint(unsigned numBreakpoints);
@@ -893,8 +894,12 @@ public:
     };
     void setSteppingMode(SteppingMode);
 
-    void clearDebuggerRequests() { m_debuggerRequests = 0; }
-
+    void clearDebuggerRequests()
+    {
+        m_steppingMode = SteppingModeDisabled;
+        m_numBreakpoints = 0;
+    }
+    
     // FIXME: Make these remaining members private.
 
     int m_numCalleeRegisters;
@@ -1027,8 +1032,9 @@ private:
     union {
         unsigned m_debuggerRequests;
         struct {
+            unsigned m_hasDebuggerStatement : 1;
             unsigned m_steppingMode : 1;
-            unsigned m_numBreakpoints : 31;
+            unsigned m_numBreakpoints : 30;
         };
     };
     WriteBarrier<ScriptExecutable> m_ownerExecutable;
@@ -1273,9 +1279,20 @@ inline void CodeBlockSet::mark(void* candidateCodeBlock)
     if (iter == m_set.end())
         return;
     
-    (*iter)->m_mayBeExecuting = true;
+    mark(*iter);
+}
+
+inline void CodeBlockSet::mark(CodeBlock* codeBlock)
+{
+    if (!codeBlock)
+        return;
+    
+    if (codeBlock->m_mayBeExecuting)
+        return;
+    
+    codeBlock->m_mayBeExecuting = true;
 #if ENABLE(GGC)
-    m_currentlyExecuting.append(static_cast<CodeBlock*>(candidateCodeBlock));
+    m_currentlyExecuting.append(codeBlock);
 #endif
 }
 

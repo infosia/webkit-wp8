@@ -26,6 +26,7 @@
 InspectorFrontendAPI = {};
 
 InspectorTest = {};
+InspectorTest.dumpInspectorProtocolMessages = false;
 InspectorTest._dispatchTable = [];
 InspectorTest._requestId = -1;
 InspectorTest.eventHandler = {};
@@ -42,6 +43,11 @@ InspectorTest.sendCommand = function(method, params, handler)
     var messageObject = { "method": method,
                           "params": params,
                           "id": this._requestId };
+
+    // This matches the debug dumping in InspectorBackend, which is bypassed
+    // by InspectorTest. Return messages should be dumped by InspectorBackend.
+    if (this.dumpInspectorProtocolMessages)
+        console.log("frontend: " + JSON.stringify(messageObject));
 
     InspectorFrontendHost.sendMessageToBackend(JSON.stringify(messageObject));
 
@@ -152,6 +158,8 @@ InspectorTest.importScript = function(scriptName)
     window.eval(script);
 }
 
+// FIXME: Move model tests off of the stub inspector page, and delete this function
+// since it's now implemented as Test.html. <https://webkit.org/b/129217>
 InspectorTest.initializeInspectorModels = function()
 {
     // Catch any errors and finish the test early.
@@ -165,48 +173,73 @@ InspectorTest.initializeInspectorModels = function()
     {
         if (assertion)
             return;
-        InspectorTest.completeTest();
+
         InspectorTest.log("ASSERT:" + message);
+        InspectorTest.completeTest();
     };
 
     // Note: This function overwrites the InspectorFrontendAPI, so there's currently no
     // way to intercept the messages from the backend.
 
     var inspectorScripts = [
-        "Utilities",
-        "WebInspector",
-        "Object",
-        "InspectorBackend",
-        "InspectorFrontendAPI",
-        "InspectorFrontendHostStub",
-        "InspectorJSBackendCommands",
-        "InspectorWebBackendCommands",
-        "URLUtilities",
-        "MessageDispatcher",
-        "Setting",
-        "InspectorObserver",
-        "PageObserver",
-        "DOMObserver",
-        "CSSObserver",
-        "FrameResourceManager",
-        "RuntimeManager",
-        "Frame",
-        "Revision",
-        "SourceCodeRevision",
-        "SourceCode",
-        "Resource",
-        "ResourceCollection",
-        "DOMTreeManager",
-        "DOMNode",
-        "ContentFlow",
-        "DOMTree",
-        "DOMUtilities",
-        "ExecutionContext",
-        "ExecutionContextList",
-        "CSSStyleManager",
-        "Color",
-        "RuntimeObserver",
-        "RuntimeManager"
+        "Base/WebInspector",
+        "Base/Object",
+
+        "Base/DOMUtilities",
+        "Base/URLUtilities",
+        "Base/Utilities",
+
+        "Protocol/CSSObserver",
+        "Protocol/DOMObserver",
+        "Protocol/DebuggerObserver",
+        "Protocol/InspectorBackend",
+        "Protocol/InspectorFrontendAPI",
+        "Protocol/InspectorFrontendHostStub",
+        "Protocol/InspectorJSBackendCommands",
+        "Protocol/InspectorObserver",
+        "Protocol/InspectorWebBackendCommands",
+        "Protocol/MessageDispatcher",
+        "Protocol/PageObserver",
+        "Protocol/RemoteObject",
+        "Protocol/RuntimeObserver",
+
+        "Models/BreakpointAction",
+        "Models/SourceCode",
+
+        "Models/Breakpoint",
+        "Models/Color",
+        "Models/ContentFlow",
+        "Models/DOMNode",
+        "Models/DOMStorageObject",
+        "Models/DOMTree",
+        "Models/ExecutionContext",
+        "Models/ExecutionContextList",
+        "Models/Frame",
+        "Models/IndexedDatabase",
+        "Models/IndexedDatabaseObjectStore",
+        "Models/IndexedDatabaseObjectStoreIndex",
+        "Models/Probe",
+        "Models/ProbeSet",
+        "Models/ProbeSetDataFrame",
+        "Models/ProbeSetDataTable",
+        "Models/Resource",
+        "Models/ResourceCollection",
+        "Models/Revision",
+        "Models/Script",
+        "Models/Setting",
+        "Models/SourceCodeLocation",
+        "Models/SourceCodeRevision",
+        "Models/SourceMapResource",
+        "Models/TextRange",
+
+        "Controllers/CSSStyleManager",
+        "Controllers/DOMTreeManager",
+        "Controllers/DebuggerManager",
+        "Controllers/FrameResourceManager",
+        "Controllers/ProbeManager",
+        "Controllers/RuntimeManager",
+        "Controllers/RuntimeManager",
+        "Controllers/StorageManager"
     ];
 
     // This corresponds to loading the scripts in Main.hml.
@@ -225,14 +258,18 @@ InspectorTest.initializeInspectorModels = function()
     InspectorBackend.registerInspectorDispatcher(new WebInspector.InspectorObserver);
     InspectorBackend.registerPageDispatcher(new WebInspector.PageObserver);
     InspectorBackend.registerDOMDispatcher(new WebInspector.DOMObserver);
+    InspectorBackend.registerDebuggerDispatcher(new WebInspector.DebuggerObserver);
     InspectorBackend.registerCSSDispatcher(new WebInspector.CSSObserver);
     if (InspectorBackend.registerRuntimeDispatcher)
         InspectorBackend.registerRuntimeDispatcher(new WebInspector.RuntimeObserver);
 
     WebInspector.frameResourceManager = new WebInspector.FrameResourceManager;
+    WebInspector.storageManager = new WebInspector.StorageManager;
     WebInspector.domTreeManager = new WebInspector.DOMTreeManager;
     WebInspector.cssStyleManager = new WebInspector.CSSStyleManager;
+    WebInspector.debuggerManager = new WebInspector.DebuggerManager;
     WebInspector.runtimeManager = new WebInspector.RuntimeManager;
+    WebInspector.probeManager = new WebInspector.ProbeManager;
 }
 
 

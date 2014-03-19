@@ -50,9 +50,10 @@ class CachedImage final : public CachedResource, public ImageObserver {
 public:
     enum CacheBehaviorType { AutomaticallyCached, ManuallyCached };
 
-    CachedImage(const ResourceRequest&);
-    CachedImage(Image*);
-    CachedImage(const URL&, Image*, CacheBehaviorType = AutomaticallyCached);
+    CachedImage(const ResourceRequest&, SessionID);
+    CachedImage(Image*, SessionID);
+    CachedImage(const URL&, Image*, SessionID);
+    CachedImage(const URL&, Image*, CacheBehaviorType, SessionID);
     virtual ~CachedImage();
 
     Image* image(); // Returns the nullImage() if the image is not available yet.
@@ -83,8 +84,6 @@ public:
 
     bool isManuallyCached() const { return m_isManuallyCached; }
     virtual bool mustRevalidateDueToCacheHeaders(CachePolicy) const;
-
-    static void resumeAnimatingImagesForLoader(CachedResourceLoader*);
 
 #if ENABLE(DISK_IMAGE_CACHE)
     virtual bool canUseDiskImageCache() const override;
@@ -128,7 +127,6 @@ private:
     virtual void decodedSizeChanged(const Image*, int delta) override;
     virtual void didDraw(const Image*) override;
 
-    virtual bool shouldPauseAnimation(const Image*) override;
     virtual void animationAdvanced(const Image*) override;
     virtual void changedInRect(const Image*, const IntRect&) override;
 

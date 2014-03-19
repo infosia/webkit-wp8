@@ -26,14 +26,17 @@
 #import "config.h"
 #import "WebPage.h"
 
+#if PLATFORM(MAC)
+
 #import "AttributedString.h"
 #import "DataReference.h"
+#import "EditingRange.h"
 #import "EditorState.h"
 #import "PDFKitImports.h"
 #import "PageBanner.h"
 #import "PluginView.h"
 #import "PrintInfo.h"
-#import "WKAccessibilityWebPageObject.h"
+#import "WKAccessibilityWebPageObjectMac.h"
 #import "WebCoreArgumentCoders.h"
 #import "WebEvent.h"
 #import "WebEventConversion.h"
@@ -73,8 +76,6 @@
 using namespace WebCore;
 
 namespace WebKit {
-
-static PassRefPtr<Range> convertToRange(Frame*, NSRange);
 
 void WebPage::platformInitialize()
 {
@@ -164,22 +165,25 @@ static Frame* frameForEvent(KeyboardEvent* event)
 
 bool WebPage::executeKeypressCommandsInternal(const Vector<WebCore::KeypressCommand>& commands, KeyboardEvent* event)
 {
-    Frame* frame = frameForEvent(event);
-    ASSERT(frame->page() == corePage());
+    Frame& frame = event ? *frameForEvent(event) : m_page->focusController().focusedOrMainFrame();
+    ASSERT(frame.page() == corePage());
 
     bool eventWasHandled = false;
     for (size_t i = 0; i < commands.size(); ++i) {
         if (commands[i].commandName == "insertText:") {
-            ASSERT(!frame->editor().hasComposition());
+            if (frame.editor().hasComposition()) {
+                eventWasHandled = true;
+                frame.editor().confirmComposition(commands[i].text);
+            } else {
+                if (!frame.editor().canEdit())
+                    continue;
 
-            if (!frame->editor().canEdit())
-                continue;
-
-            // An insertText: might be handled by other responders in the chain if we don't handle it.
-            // One example is space bar that results in scrolling down the page.
-            eventWasHandled |= frame->editor().insertText(commands[i].text, event);
+                // An insertText: might be handled by other responders in the chain if we don't handle it.
+                // One example is space bar that results in scrolling down the page.
+                eventWasHandled |= frame.editor().insertText(commands[i].text, event);
+            }
         } else {
-            Editor::Command command = frame->editor().command(commandNameForSelectorName(commands[i].commandName));
+            Editor::Command command = frame.editor().command(commandNameForSelectorName(commands[i].commandName));
             if (command.isSupported()) {
                 bool commandExecutedByEditor = command.execute(event);
                 eventWasHandled |= commandExecutedByEditor;
@@ -198,53 +202,39 @@ bool WebPage::executeKeypressCommandsInternal(const Vector<WebCore::KeypressComm
     return eventWasHandled;
 }
 
-bool WebPage::handleEditingKeyboardEvent(KeyboardEvent* event, bool saveCommands)
+bool WebPage::handleEditingKeyboardEvent(KeyboardEvent* event)
 {
-    ASSERT(!saveCommands || event->keypressCommands().isEmpty()); // Save commands once for each event.
-
     Frame* frame = frameForEvent(event);
     
     const PlatformKeyboardEvent* platformEvent = event->keyEvent();
     if (!platformEvent)
         return false;
-    Vector<KeypressCommand>& commands = event->keypressCommands();
+    const Vector<KeypressCommand>& commands = event->keypressCommands();
 
-    if ([platformEvent->macEvent() type] == NSFlagsChanged)
+    ASSERT(!platformEvent->macEvent()); // Cannot have a native event in WebProcess.
+
+    // Don't handle Esc while handling keydown event, we need to dispatch a keypress first.
+    if (platformEvent->type() != PlatformEvent::Char && platformEvent->windowsVirtualKeyCode() == VK_ESCAPE && commands.size() == 1 && commandNameForSelectorName(commands[0].commandName) == "cancelOperation")
         return false;
 
     bool eventWasHandled = false;
-    
-    if (saveCommands) {
-        KeyboardEvent* oldEvent = m_keyboardEventBeingInterpreted;
-        m_keyboardEventBeingInterpreted = event;
-        bool sendResult = WebProcess::shared().parentProcessConnection()->sendSync(Messages::WebPageProxy::InterpretQueuedKeyEvent(editorState()), 
-            Messages::WebPageProxy::InterpretQueuedKeyEvent::Reply(eventWasHandled, commands), m_pageID);
-        m_keyboardEventBeingInterpreted = oldEvent;
-        if (!sendResult)
-            return false;
 
-        // An input method may make several actions per keypress. For example, pressing Return with Korean IM both confirms it and sends a newline.
-        // IM-like actions are handled immediately (so the return value from UI process is true), but there are saved commands that
-        // should be handled like normal text input after DOM event dispatch.
-        if (!event->keypressCommands().isEmpty())
-            return false;
-    } else {
-        // Are there commands that could just cause text insertion if executed via Editor?
-        // WebKit doesn't have enough information about mode to decide how they should be treated, so we leave it upon WebCore
-        // to either handle them immediately (e.g. Tab that changes focus) or let a keypress event be generated
-        // (e.g. Tab that inserts a Tab character, or Enter).
-        bool haveTextInsertionCommands = false;
-        for (size_t i = 0; i < commands.size(); ++i) {
-            if (frame->editor().command(commandNameForSelectorName(commands[i].commandName)).isTextInsertion())
-                haveTextInsertionCommands = true;
-        }
-        // If there are no text insertion commands, default keydown handler is the right time to execute the commands.
-        // Keypress (Char event) handler is the latest opportunity to execute.
-        if (!haveTextInsertionCommands || platformEvent->type() == PlatformEvent::Char) {
-            eventWasHandled = executeKeypressCommandsInternal(event->keypressCommands(), event);
-            event->keypressCommands().clear();
-        }
+    // Are there commands that could just cause text insertion if executed via Editor?
+    // WebKit doesn't have enough information about mode to decide how they should be treated, so we leave it upon WebCore
+    // to either handle them immediately (e.g. Tab that changes focus) or let a keypress event be generated
+    // (e.g. Tab that inserts a Tab character, or Enter).
+    bool haveTextInsertionCommands = false;
+    for (auto& command : commands) {
+        if (frame->editor().command(commandNameForSelectorName(command.commandName)).isTextInsertion())
+            haveTextInsertionCommands = true;
     }
+    // If there are no text insertion commands, default keydown handler is the right time to execute the commands.
+    // Keypress (Char event) handler is the latest opportunity to execute.
+    if (!haveTextInsertionCommands || platformEvent->type() == PlatformEvent::Char) {
+        eventWasHandled = executeKeypressCommandsInternal(event->keypressCommands(), event);
+        event->keypressCommands().clear();
+    }
+
     return eventWasHandled;
 }
 
@@ -256,18 +246,18 @@ void WebPage::sendComplexTextInputToPlugin(uint64_t pluginComplexTextInputIdenti
     }
 }
 
-void WebPage::setComposition(const String& text, Vector<CompositionUnderline> underlines, uint64_t selectionStart, uint64_t selectionEnd, uint64_t replacementRangeStart, uint64_t replacementRangeEnd, EditorState& newState)
+void WebPage::setComposition(const String& text, Vector<CompositionUnderline> underlines, const EditingRange& selectionRange, const EditingRange& replacementEditingRange, EditorState& newState)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
     if (frame.selection().selection().isContentEditable()) {
         RefPtr<Range> replacementRange;
-        if (replacementRangeStart != NSNotFound) {
-            replacementRange = convertToRange(&frame, NSMakeRange(replacementRangeStart, replacementRangeEnd - replacementRangeStart));
+        if (replacementEditingRange.location != notFound) {
+            replacementRange = rangeFromEditingRange(frame, replacementEditingRange);
             frame.selection().setSelection(VisibleSelection(replacementRange.get(), SEL_DEFAULT_AFFINITY));
         }
 
-        frame.editor().setComposition(text, underlines, selectionStart, selectionEnd);
+        frame.editor().setComposition(text, underlines, selectionRange.location, selectionRange.location + selectionRange.length);
     }
 
     newState = editorState();
@@ -287,12 +277,12 @@ void WebPage::cancelComposition(EditorState& newState)
     newState = editorState();
 }
 
-void WebPage::insertText(const String& text, uint64_t replacementRangeStart, uint64_t replacementRangeEnd, bool& handled, EditorState& newState)
+void WebPage::insertText(const String& text, const EditingRange& replacementEditingRange, bool& handled, EditorState& newState)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    if (replacementRangeStart != NSNotFound) {
-        RefPtr<Range> replacementRange = convertToRange(&frame, NSMakeRange(replacementRangeStart, replacementRangeEnd - replacementRangeStart));
+    if (replacementEditingRange.location != notFound) {
+        RefPtr<Range> replacementRange = rangeFromEditingRange(frame, replacementEditingRange);
         if (replacementRange)
             frame.selection().setSelection(VisibleSelection(replacementRange.get(), SEL_DEFAULT_AFFINITY));
     }
@@ -300,7 +290,7 @@ void WebPage::insertText(const String& text, uint64_t replacementRangeStart, uin
     if (!frame.editor().hasComposition()) {
         // An insertText: might be handled by other responders in the chain if we don't handle it.
         // One example is space bar that results in scrolling down the page.
-        handled = frame.editor().insertText(text, m_keyboardEventBeingInterpreted);
+        handled = frame.editor().insertText(text, nullptr);
     } else {
         handled = true;
         frame.editor().confirmComposition(text);
@@ -309,54 +299,48 @@ void WebPage::insertText(const String& text, uint64_t replacementRangeStart, uin
     newState = editorState();
 }
 
-void WebPage::insertDictatedText(const String& text, uint64_t replacementRangeStart, uint64_t replacementRangeEnd, const Vector<WebCore::DictationAlternative>& dictationAlternativeLocations, bool& handled, EditorState& newState)
+void WebPage::insertDictatedText(const String& text, const EditingRange& replacementEditingRange, const Vector<WebCore::DictationAlternative>& dictationAlternativeLocations, bool& handled, EditorState& newState)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    if (replacementRangeStart != NSNotFound) {
-        RefPtr<Range> replacementRange = convertToRange(&frame, NSMakeRange(replacementRangeStart, replacementRangeEnd - replacementRangeStart));
+    if (replacementEditingRange.location != notFound) {
+        RefPtr<Range> replacementRange = rangeFromEditingRange(frame, replacementEditingRange);
         if (replacementRange)
             frame.selection().setSelection(VisibleSelection(replacementRange.get(), SEL_DEFAULT_AFFINITY));
     }
 
     ASSERT(!frame.editor().hasComposition());
-    handled = frame.editor().insertDictatedText(text, dictationAlternativeLocations, m_keyboardEventBeingInterpreted);
+    handled = frame.editor().insertDictatedText(text, dictationAlternativeLocations, nullptr);
     newState = editorState();
 }
 
-void WebPage::getMarkedRange(uint64_t& location, uint64_t& length)
+void WebPage::getMarkedRange(EditingRange& result)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
     RefPtr<Range> range = frame.editor().compositionRange();
     size_t locationSize;
     size_t lengthSize;
-    if (range && TextIterator::getLocationAndLengthFromRange(frame.selection().rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize)) {
-        location = static_cast<uint64_t>(locationSize);
-        length = static_cast<uint64_t>(lengthSize);
-    } else {
-        location = NSNotFound;
-        length = 0;
-    }
+    if (range && TextIterator::getLocationAndLengthFromRange(frame.selection().rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize))
+        result = EditingRange(static_cast<uint64_t>(locationSize), static_cast<uint64_t>(lengthSize));
+    else
+        result = EditingRange();
 }
 
-void WebPage::getSelectedRange(uint64_t& location, uint64_t& length)
+void WebPage::getSelectedRange(EditingRange& result)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
     size_t locationSize;
     size_t lengthSize;
     RefPtr<Range> range = frame.selection().toNormalizedRange();
-    if (range && TextIterator::getLocationAndLengthFromRange(frame.selection().rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize)) {
-        location = static_cast<uint64_t>(locationSize);
-        length = static_cast<uint64_t>(lengthSize);
-    } else {
-        location = NSNotFound;
-        length = 0;
-    }
+    if (range && TextIterator::getLocationAndLengthFromRange(frame.selection().rootEditableElementOrDocumentElement(), range.get(), locationSize, lengthSize))
+        result = EditingRange(static_cast<uint64_t>(locationSize), static_cast<uint64_t>(lengthSize));
+    else
+        result = EditingRange();
 }
 
-void WebPage::getAttributedSubstringFromRange(uint64_t location, uint64_t length, AttributedString& result)
+void WebPage::getAttributedSubstringFromRange(const EditingRange& editingRange, AttributedString& result)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
 
@@ -364,8 +348,7 @@ void WebPage::getAttributedSubstringFromRange(uint64_t location, uint64_t length
     if (selection.isNone() || !selection.isContentEditable() || selection.isInPasswordField())
         return;
 
-    NSRange nsRange = NSMakeRange(location, length - location);
-    RefPtr<Range> range = convertToRange(&frame, nsRange);
+    RefPtr<Range> range = rangeFromEditingRange(frame, editingRange);
     if (!range)
         return;
 
@@ -375,16 +358,16 @@ void WebPage::getAttributedSubstringFromRange(uint64_t location, uint64_t length
     // [WebHTMLConverter editingAttributedStringFromRange:] insists on inserting a trailing 
     // whitespace at the end of the string which breaks the ATOK input method.  <rdar://problem/5400551>
     // To work around this we truncate the resultant string to the correct length.
-    if ([attributedString length] > nsRange.length) {
-        ASSERT([attributedString length] == nsRange.length + 1);
-        ASSERT([[attributedString string] characterAtIndex:nsRange.length] == '\n' || [[attributedString string] characterAtIndex:nsRange.length] == ' ');
-        result.string = [attributedString attributedSubstringFromRange:NSMakeRange(0, nsRange.length)];
+    if ([attributedString length] > editingRange.length) {
+        ASSERT([attributedString length] == editingRange.length + 1);
+        ASSERT([[attributedString string] characterAtIndex:editingRange.length] == '\n' || [[attributedString string] characterAtIndex:editingRange.length] == ' ');
+        result.string = [attributedString attributedSubstringFromRange:NSMakeRange(0, editingRange.length)];
     }
 }
 
 void WebPage::characterIndexForPoint(IntPoint point, uint64_t& index)
 {
-    index = NSNotFound;
+    index = notFound;
 
     HitTestResult result = m_page->mainFrame().eventHandler().hitTestResultAtPoint(point);
     Frame* frame = result.innerNonSharedNode() ? result.innerNodeFrame() : &m_page->focusController().focusedOrMainFrame();
@@ -398,30 +381,14 @@ void WebPage::characterIndexForPoint(IntPoint point, uint64_t& index)
     if (TextIterator::getLocationAndLengthFromRange(frame->selection().rootEditableElementOrDocumentElement(), range.get(), location, length))
         index = static_cast<uint64_t>(location);
 }
-
-PassRefPtr<Range> convertToRange(Frame* frame, NSRange nsrange)
-{
-    if (nsrange.location > INT_MAX)
-        return 0;
-    if (nsrange.length > INT_MAX || nsrange.location + nsrange.length > INT_MAX)
-        nsrange.length = INT_MAX - nsrange.location;
-        
-    // our critical assumption is that we are only called by input methods that
-    // concentrate on a given area containing the selection
-    // We have to do this because of text fields and textareas. The DOM for those is not
-    // directly in the document DOM, so serialization is problematic. Our solution is
-    // to use the root editable element of the selection start as the positional base.
-    // That fits with AppKit's idea of an input context.
-    return TextIterator::rangeFromLocationAndLength(frame->selection().rootEditableElementOrDocumentElement(), nsrange.location, nsrange.length);
-}
     
-void WebPage::firstRectForCharacterRange(uint64_t location, uint64_t length, WebCore::IntRect& resultRect)
+void WebPage::firstRectForCharacterRange(const EditingRange& editingRange, WebCore::IntRect& resultRect)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
     resultRect.setLocation(IntPoint(0, 0));
     resultRect.setSize(IntSize(0, 0));
     
-    RefPtr<Range> range = convertToRange(&frame, NSMakeRange(location, length));
+    RefPtr<Range> range = rangeFromEditingRange(frame, editingRange);
     if (!range)
         return;
     
@@ -434,7 +401,7 @@ void WebPage::firstRectForCharacterRange(uint64_t location, uint64_t length, Web
 
 void WebPage::executeKeypressCommands(const Vector<WebCore::KeypressCommand>& commands, bool& handled, EditorState& newState)
 {
-    handled = executeKeypressCommandsInternal(commands, m_keyboardEventBeingInterpreted);
+    handled = executeKeypressCommandsInternal(commands, nullptr);
     newState = editorState();
 }
 
@@ -954,4 +921,28 @@ void WebPage::didUpdateViewStateTimerFired()
     send(Messages::WebPageProxy::DidUpdateViewState());
 }
 
+#if ENABLE(WEBGL)
+WebCore::WebGLLoadPolicy WebPage::webGLPolicyForURL(WebFrame* frame, const String& url)
+{
+    uint32_t policyResult = 0;
+
+    if (sendSync(Messages::WebPageProxy::WebGLPolicyForURL(url), Messages::WebPageProxy::WebGLPolicyForURL::Reply(policyResult)))
+        return static_cast<WebGLLoadPolicy>(policyResult);
+
+    return WebGLAllowCreation;
+}
+
+WebCore::WebGLLoadPolicy WebPage::resolveWebGLPolicyForURL(WebFrame* frame, const String& url)
+{
+    uint32_t policyResult = 0;
+
+    if (sendSync(Messages::WebPageProxy::ResolveWebGLPolicyForURL(url), Messages::WebPageProxy::ResolveWebGLPolicyForURL::Reply(policyResult)))
+        return static_cast<WebGLLoadPolicy>(policyResult);
+
+    return WebGLAllowCreation;
+}
+#endif // ENABLE(WEBGL)
+
 } // namespace WebKit
+
+#endif // PLATFORM(MAC)

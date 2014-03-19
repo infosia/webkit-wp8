@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -63,9 +63,9 @@ NavigatorContentUtilsClientEfl::NavigatorContentUtilsClientEfl(Evas_Object* view
 {
 }
 
-void NavigatorContentUtilsClientEfl::registerProtocolHandler(const String& scheme, const String& baseURL, const String& url, const String& title)
+void NavigatorContentUtilsClientEfl::registerProtocolHandler(const String& scheme, const URL& baseURL, const URL& url, const String& title)
 {
-    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.utf8().data(), url.utf8().data());
+    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.string().utf8().data(), url.string().utf8().data());
     data->title = eina_stringshare_add(title.utf8().data());
     ewk_custom_handler_register_protocol_handler(data);
     eina_stringshare_del(data->title);
@@ -73,18 +73,18 @@ void NavigatorContentUtilsClientEfl::registerProtocolHandler(const String& schem
 }
 
 #if ENABLE(CUSTOM_SCHEME_HANDLER)
-NavigatorContentUtilsClient::CustomHandlersState NavigatorContentUtilsClientEfl::isProtocolHandlerRegistered(const String& scheme, const String& baseURL, const String& url)
+NavigatorContentUtilsClient::CustomHandlersState NavigatorContentUtilsClientEfl::isProtocolHandlerRegistered(const String& scheme, const URL& baseURL, const URL& url)
 {
-    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.utf8().data(), url.utf8().data());
+    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.string().utf8().data(), url.string().utf8().data());
     NavigatorContentUtilsClient::CustomHandlersState result = static_cast<CustomHandlersState>(ewk_custom_handler_register_protocol_handler(data));
     customHandlerDataDelete(data);
 
     return result;
 }
 
-void NavigatorContentUtilsClientEfl::unregisterProtocolHandler(const String& scheme, const String& baseURL, const String& url)
+void NavigatorContentUtilsClientEfl::unregisterProtocolHandler(const String& scheme, const URL& baseURL, const URL& url)
 {
-    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.utf8().data(), url.utf8().data());
+    Ewk_Custom_Handler_Data* data = customHandlerDataCreate(m_view, scheme.utf8().data(), baseURL.string().utf8().data(), url.string().utf8().data());
     ewk_custom_handler_register_protocol_handler(data);
     customHandlerDataDelete(data);
 }

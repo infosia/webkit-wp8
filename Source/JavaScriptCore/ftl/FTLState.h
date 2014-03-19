@@ -26,10 +26,9 @@
 #ifndef FTLState_h
 #define FTLState_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(FTL_JIT)
 
+#include "DFGCommon.h"
 #include "DFGGraph.h"
 #include "FTLAbbreviations.h"
 #include "FTLGeneratedFunction.h"
@@ -38,9 +37,20 @@
 #include "FTLJITFinalizer.h"
 #include "FTLJSCall.h"
 #include "FTLStackMaps.h"
+#include "FTLState.h"
 #include <wtf/Noncopyable.h>
 
 namespace JSC { namespace FTL {
+
+inline bool verboseCompilationEnabled()
+{
+    return DFG::verboseCompilationEnabled(DFG::FTLMode);
+}
+
+inline bool shouldShowDisassembly()
+{
+    return DFG::shouldShowDisassembly(DFG::FTLMode);
+}
 
 class State {
     WTF_MAKE_NONCOPYABLE(State);
@@ -58,6 +68,7 @@ public:
     RefPtr<JITCode> jitCode;
     GeneratedFunction generatedFunction;
     JITFinalizer* finalizer;
+    unsigned handleStackOverflowExceptionStackmapID;
     unsigned handleExceptionStackmapID;
     unsigned capturedStackmapID;
     SegmentedVector<GetByIdDescriptor> getByIds;
@@ -67,7 +78,7 @@ public:
     Vector<CString> dataSectionNames;
     void* compactUnwind;
     size_t compactUnwindSize;
-    RefCountedArray<LSectionWord> stackmapsSection;
+    RefPtr<DataSection> stackmapsSection;
     
     void dumpState(const char* when);
 };

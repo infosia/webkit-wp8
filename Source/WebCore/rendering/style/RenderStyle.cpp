@@ -26,6 +26,7 @@
 #include "ContentData.h"
 #include "CursorList.h"
 #include "CSSPropertyNames.h"
+#include "FloatRoundedRect.h"
 #include "Font.h"
 #include "FontSelector.h"
 #include "Pagination.h"
@@ -84,7 +85,7 @@ inline RenderStyle& defaultStyle()
 
 PassRef<RenderStyle> RenderStyle::create()
 {
-    return adoptRef(*new RenderStyle());
+    return adoptRef(*new RenderStyle(defaultStyle()));
 }
 
 PassRef<RenderStyle> RenderStyle::createDefaultStyle()
@@ -110,27 +111,9 @@ PassRef<RenderStyle> RenderStyle::createStyleInheritingFromPseudoStyle(const Ren
 {
     ASSERT(pseudoStyle.styleType() == BEFORE || pseudoStyle.styleType() == AFTER);
 
-    // Images are special and must inherit the pseudoStyle so the width and height of
-    // the pseudo element doesn't change the size of the image. In all other cases we
-    // can just share the style.
     auto style = RenderStyle::create();
     style.get().inheritFrom(&pseudoStyle);
     return style;
-}
-
-ALWAYS_INLINE RenderStyle::RenderStyle()
-    : m_box(defaultStyle().m_box)
-    , visual(defaultStyle().visual)
-    , m_background(defaultStyle().m_background)
-    , surround(defaultStyle().surround)
-    , rareNonInheritedData(defaultStyle().rareNonInheritedData)
-    , rareInheritedData(defaultStyle().rareInheritedData)
-    , inherited(defaultStyle().inherited)
-    , m_svgStyle(defaultStyle().m_svgStyle)
-{
-    setBitDefaults(); // Would it be faster to copy this from the default style?
-    COMPILE_ASSERT((sizeof(InheritedFlags) <= 8), InheritedFlags_does_not_grow);
-    COMPILE_ASSERT((sizeof(NonInheritedFlags) <= 8), NonInheritedFlags_does_not_grow);
 }
 
 ALWAYS_INLINE RenderStyle::RenderStyle(bool)
@@ -144,6 +127,9 @@ ALWAYS_INLINE RenderStyle::RenderStyle(bool)
     , m_svgStyle(SVGRenderStyle::create())
 {
     setBitDefaults();
+
+    static_assert((sizeof(InheritedFlags) <= 8), "InheritedFlags does not grow");
+    static_assert((sizeof(NonInheritedFlags) <= 8), "NonInheritedFlags does not grow");
 }
 
 ALWAYS_INLINE RenderStyle::RenderStyle(const RenderStyle& o)
@@ -464,9 +450,11 @@ bool RenderStyle::changeRequiresLayout(const RenderStyle* other, unsigned& chang
             // Don't return; keep looking for another change
         }
 
+#if ENABLE(CSS_GRID_LAYOUT)
         if (rareNonInheritedData->m_grid.get() != other->rareNonInheritedData->m_grid.get()
             || rareNonInheritedData->m_gridItem.get() != other->rareNonInheritedData->m_gridItem.get())
             return true;
+#endif
 
 #if ENABLE(DASHBOARD_SUPPORT)
         // If regions change, trigger a relayout to re-calc regions.
@@ -481,8 +469,7 @@ bool RenderStyle::changeRequiresLayout(const RenderStyle* other, unsigned& chang
     }
 
     if (rareInheritedData.get() != other->rareInheritedData.get()) {
-        if (rareInheritedData->highlight != other->rareInheritedData->highlight
-            || rareInheritedData->indent != other->rareInheritedData->indent
+        if (rareInheritedData->indent != other->rareInheritedData->indent
 #if ENABLE(CSS3_TEXT)
             || rareInheritedData->m_textAlignLast != other->rareInheritedData->m_textAlignLast
             || rareInheritedData->m_textIndentLine != other->rareInheritedData->m_textIndentLine
@@ -679,6 +666,9 @@ bool RenderStyle::changeRequiresLayerRepaint(const RenderStyle* other, unsigned&
 
 #if ENABLE(CSS_COMPOSITING)
     if (rareNonInheritedData->m_effectiveBlendMode != other->rareNonInheritedData->m_effectiveBlendMode)
+        return true;
+
+    if (rareNonInheritedData->m_isolation != other->rareNonInheritedData->m_isolation)
         return true;
 #endif
 
@@ -894,7 +884,7 @@ void RenderStyle::setContent(const String& string, bool add)
         if (lastContent) {
             // We attempt to merge with the last ContentData if possible.
             if (lastContent->isText()) {
-                TextContentData* textContent = static_cast<TextContentData*>(lastContent);
+                TextContentData* textContent = toTextContentData(lastContent);
                 textContent->setText(textContent->text() + string);
             } else
                 lastContent->setNext(std::make_unique<TextContentData>(string));
@@ -1023,30 +1013,30 @@ void RenderStyle::setPageScaleTransform(float scale)
     setTransformOriginY(Length(0, Fixed));
 }
 
-void RenderStyle::setTextShadow(PassOwnPtr<ShadowData> shadowData, bool add)
+void RenderStyle::setTextShadow(std::unique_ptr<ShadowData> shadowData, bool add)
 {
     ASSERT(!shadowData || (!shadowData->spread() && shadowData->style() == Normal));
 
     StyleRareInheritedData* rareData = rareInheritedData.access();
     if (!add) {
-        rareData->textShadow = shadowData;
+        rareData->textShadow = std::move(shadowData);
         return;
     }
 
-    shadowData->setNext(rareData->textShadow.release());
-    rareData->textShadow = shadowData;
+    shadowData->setNext(std::move(rareData->textShadow));
+    rareData->textShadow = std::move(shadowData);
 }
 
-void RenderStyle::setBoxShadow(PassOwnPtr<ShadowData> shadowData, bool add)
+void RenderStyle::setBoxShadow(std::unique_ptr<ShadowData> shadowData, bool add)
 {
     StyleRareNonInheritedData* rareData = rareNonInheritedData.access();
     if (!add) {
-        rareData->m_boxShadow = shadowData;
+        rareData->m_boxShadow = std::move(shadowData);
         return;
     }
 
-    shadowData->setNext(rareData->m_boxShadow.release());
-    rareData->m_boxShadow = shadowData;
+    shadowData->setNext(std::move(rareData->m_boxShadow));
+    rareData->m_boxShadow = std::move(shadowData);
 }
 
 static RoundedRect::Radii calcRadiiFor(const BorderData& border, const LayoutSize& size, RenderView* renderView)
@@ -1060,38 +1050,6 @@ static RoundedRect::Radii calcRadiiFor(const BorderData& border, const LayoutSiz
             valueForLength(border.bottomLeft().height(), size.height(), renderView)),
         LayoutSize(valueForLength(border.bottomRight().width(), size.width(), renderView),
             valueForLength(border.bottomRight().height(), size.height(), renderView)));
-}
-
-static float calcConstraintScaleFor(const LayoutRect& rect, const RoundedRect::Radii& radii)
-{
-    // Constrain corner radii using CSS3 rules:
-    // http://www.w3.org/TR/css3-background/#the-border-radius
-    
-    float factor = 1;
-    float radiiSum;
-
-    // top
-    radiiSum = radii.topLeft().width() + radii.topRight().width(); // Casts to avoid integer overflow.
-    if (radiiSum > rect.width())
-        factor = std::min(rect.width() / radiiSum, factor);
-
-    // bottom
-    radiiSum = radii.bottomLeft().width() + radii.bottomRight().width();
-    if (radiiSum > rect.width())
-        factor = std::min(rect.width() / radiiSum, factor);
-    
-    // left
-    radiiSum = radii.topLeft().height() + radii.bottomLeft().height();
-    if (radiiSum > rect.height())
-        factor = std::min(rect.height() / radiiSum, factor);
-    
-    // right
-    radiiSum = radii.topRight().height() + radii.bottomRight().height();
-    if (radiiSum > rect.height())
-        factor = std::min(rect.height() / radiiSum, factor);
-    
-    ASSERT(factor <= 1);
-    return factor;
 }
 
 StyleImage* RenderStyle::listStyleImage() const { return rareInheritedData->listStyleImage.get(); }
@@ -1116,7 +1074,7 @@ RoundedRect RenderStyle::getRoundedBorderFor(const LayoutRect& borderRect, Rende
     RoundedRect roundedRect(borderRect);
     if (hasBorderRadius()) {
         RoundedRect::Radii radii = calcRadiiFor(surround->border, borderRect.size(), renderView);
-        radii.scale(calcConstraintScaleFor(borderRect, radii));
+        radii.scale(calcBorderRadiiConstraintScaleFor(borderRect, radii));
         roundedRect.includeLogicalEdges(radii, isHorizontalWritingMode(), includeLogicalLeftEdge, includeLogicalRightEdge);
     }
     return roundedRect;
@@ -1196,8 +1154,8 @@ const AtomicString& RenderStyle::hyphenString() const
         return hyphenationString;
 
     // FIXME: This should depend on locale.
-    DEFINE_STATIC_LOCAL(AtomicString, hyphenMinusString, (&hyphenMinus, 1));
-    DEFINE_STATIC_LOCAL(AtomicString, hyphenString, (&hyphen, 1));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, hyphenMinusString, (&hyphenMinus, 1));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, hyphenString, (&hyphen, 1));
     return font().primaryFontHasGlyphForCharacter(hyphen) ? hyphenString : hyphenMinusString;
 }
 
@@ -1209,28 +1167,28 @@ const AtomicString& RenderStyle::textEmphasisMarkString() const
     case TextEmphasisMarkCustom:
         return textEmphasisCustomMark();
     case TextEmphasisMarkDot: {
-        DEFINE_STATIC_LOCAL(AtomicString, filledDotString, (&bullet, 1));
-        DEFINE_STATIC_LOCAL(AtomicString, openDotString, (&whiteBullet, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, filledDotString, (&bullet, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, openDotString, (&whiteBullet, 1));
         return textEmphasisFill() == TextEmphasisFillFilled ? filledDotString : openDotString;
     }
     case TextEmphasisMarkCircle: {
-        DEFINE_STATIC_LOCAL(AtomicString, filledCircleString, (&blackCircle, 1));
-        DEFINE_STATIC_LOCAL(AtomicString, openCircleString, (&whiteCircle, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, filledCircleString, (&blackCircle, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, openCircleString, (&whiteCircle, 1));
         return textEmphasisFill() == TextEmphasisFillFilled ? filledCircleString : openCircleString;
     }
     case TextEmphasisMarkDoubleCircle: {
-        DEFINE_STATIC_LOCAL(AtomicString, filledDoubleCircleString, (&fisheye, 1));
-        DEFINE_STATIC_LOCAL(AtomicString, openDoubleCircleString, (&bullseye, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, filledDoubleCircleString, (&fisheye, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, openDoubleCircleString, (&bullseye, 1));
         return textEmphasisFill() == TextEmphasisFillFilled ? filledDoubleCircleString : openDoubleCircleString;
     }
     case TextEmphasisMarkTriangle: {
-        DEFINE_STATIC_LOCAL(AtomicString, filledTriangleString, (&blackUpPointingTriangle, 1));
-        DEFINE_STATIC_LOCAL(AtomicString, openTriangleString, (&whiteUpPointingTriangle, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, filledTriangleString, (&blackUpPointingTriangle, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, openTriangleString, (&whiteUpPointingTriangle, 1));
         return textEmphasisFill() == TextEmphasisFillFilled ? filledTriangleString : openTriangleString;
     }
     case TextEmphasisMarkSesame: {
-        DEFINE_STATIC_LOCAL(AtomicString, filledSesameString, (&sesameDot, 1));
-        DEFINE_STATIC_LOCAL(AtomicString, openSesameString, (&whiteSesameDot, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, filledSesameString, (&sesameDot, 1));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, openSesameString, (&whiteSesameDot, 1));
         return textEmphasisFill() == TextEmphasisFillFilled ? filledSesameString : openSesameString;
     }
     case TextEmphasisMarkAuto:
@@ -1245,13 +1203,13 @@ const AtomicString& RenderStyle::textEmphasisMarkString() const
 #if ENABLE(DASHBOARD_SUPPORT)
 const Vector<StyleDashboardRegion>& RenderStyle::initialDashboardRegions()
 {
-    DEFINE_STATIC_LOCAL(Vector<StyleDashboardRegion>, emptyList, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<StyleDashboardRegion>, emptyList, ());
     return emptyList;
 }
 
 const Vector<StyleDashboardRegion>& RenderStyle::noneDashboardRegions()
 {
-    DEFINE_STATIC_LOCAL(Vector<StyleDashboardRegion>, noneList, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<StyleDashboardRegion>, noneList, ());
     static bool noneListInitialized = false;
 
     if (!noneListInitialized) {

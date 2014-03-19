@@ -129,7 +129,10 @@ esac
 AC_SUBST([UNICODE_CFLAGS])
 AC_SUBST([UNICODE_LIBS])
 
-PKG_CHECK_MODULES([ZLIB], [zlib])
+PKG_CHECK_MODULES([ZLIB], [zlib], [], [
+	AC_CHECK_LIB([z], [gzread], ,
+	  [AC_MSG_ERROR([unable to find the libz library])]
+	)])
 AC_SUBST([ZLIB_CFLAGS])
 AC_SUBST([ZLIB_LIBS])
 
@@ -401,9 +404,20 @@ PKG_CHECK_MODULES([LIBXSLT],[libxslt >= libxslt_required_version])
 AC_SUBST([LIBXSLT_CFLAGS])
 AC_SUBST([LIBXSLT_LIBS])
 
-# Check if geoclue is available.
+# Check if geoclue is available, with a preference over Geoclue2 if present.
+geolocation_description="none"
 if test "$enable_geolocation" = "yes"; then
-    PKG_CHECK_MODULES([GEOCLUE], [geoclue])
+    PKG_CHECK_MODULES([GEOCLUE2], [gio-unix-2.0 geoclue-2.0 >= geoclue2_required_version], [found_geoclue2=yes], [found_geoclue2=no])
+    if test "$found_geoclue2" = "yes"; then
+        GEOCLUE_CFLAGS="$GEOCLUE2_CFLAGS"
+        GEOCLUE_LIBS="$GEOCLUE2_LIBS"
+        GEOCLUE_DBUS_INTERFACE=`$PKG_CONFIG --variable dbus_interface geoclue-2.0`
+        AC_SUBST(GEOCLUE_DBUS_INTERFACE)
+        geolocation_description="Geoclue 2"
+    else
+        PKG_CHECK_MODULES([GEOCLUE], [geoclue])
+        geolocation_description="Geoclue"
+    fi
     AC_SUBST([GEOCLUE_CFLAGS])
     AC_SUBST([GEOCLUE_LIBS])
 fi
@@ -417,6 +431,7 @@ if test "$enable_video" = "yes" || test "$enable_web_audio" = "yes"; then
         gstreamer-fft-1.0,
         gstreamer-base-1.0,
         gstreamer-pbutils-1.0,
+        gstreamer-tag-1.0,
         gstreamer-video-1.0])
     AC_SUBST([GSTREAMER_CFLAGS])
     AC_SUBST([GSTREAMER_LIBS])
@@ -501,7 +516,7 @@ if test "$enable_webkit2" = "yes"; then
     AC_SUBST(GTK_UNIX_PRINTING_LIBS)
 
     # On some Linux/Unix platforms, shm_* may only be available if linking against librt
-    if test "$os_win32" = "no"; then
+    if test "$os_win32" = "no" && test "$os_openbsd" = "no"; then
         AC_SEARCH_LIBS([shm_open], [rt], [SHM_LIBS="-lrt"])
         AC_SUBST(SHM_LIBS)
     fi

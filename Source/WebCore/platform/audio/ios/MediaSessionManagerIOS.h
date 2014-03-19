@@ -33,6 +33,12 @@
 
 OBJC_CLASS WebMediaSessionHelper;
 
+#if defined(__OBJC__) && __OBJC__
+extern NSString* WebUIApplicationWillResignActiveNotification;
+extern NSString* WebUIApplicationWillEnterForegroundNotification;
+extern NSString* WebUIApplicationDidBecomeActiveNotification;
+#endif
+
 namespace WebCore {
 
 class MediaSessionManageriOS : public MediaSessionManager {
@@ -42,7 +48,16 @@ public:
 private:
     friend class MediaSessionManager;
 
+    virtual void sessionWillBeginPlayback(MediaSession&) override;
+    virtual void sessionWillEndPlayback(MediaSession&) override;
+    
+    void updateNowPlayingInfo();
+    
     virtual void resetRestrictions() override;
+
+#if ENABLE(IOS_AIRPLAY)
+    virtual void showPlaybackTargetPicker() override;
+#endif
 
     MediaSessionManageriOS();
     RetainPtr<WebMediaSessionHelper> m_objcObserver;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -189,11 +189,11 @@ void RemoteLayerTreeDrawingArea::clearPageOverlay(PageOverlay* pageOverlay)
     scheduleCompositingLayerFlush();
 }
 
-void RemoteLayerTreeDrawingArea::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const IntRect& clipRect)
+void RemoteLayerTreeDrawingArea::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const FloatRect& clipRect)
 {
     for (const auto& overlayAndLayer : m_pageOverlayLayers) {
         if (overlayAndLayer.value.get() == graphicsLayer) {
-            m_webPage->drawPageOverlay(overlayAndLayer.key, graphicsContext, clipRect);
+            m_webPage->drawPageOverlay(overlayAndLayer.key, graphicsContext, enclosingIntRect(clipRect));
             break;
         }
     }
@@ -246,6 +246,18 @@ void RemoteLayerTreeDrawingArea::setExposedRect(const FloatRect& exposedRect)
     updateScrolledExposedRect();
 }
 
+#if PLATFORM(IOS)
+void RemoteLayerTreeDrawingArea::setExposedContentRect(const FloatRect& exposedContentRect)
+{
+    FrameView* frameView = m_webPage->corePage()->mainFrame().view();
+    if (!frameView)
+        return;
+
+    frameView->setExposedContentRect(enclosingIntRect(exposedContentRect));
+    scheduleCompositingLayerFlush();
+}
+#endif
+
 void RemoteLayerTreeDrawingArea::updateScrolledExposedRect()
 {
     FrameView* frameView = m_webPage->corePage()->mainFrame().view();
@@ -269,17 +281,6 @@ void RemoteLayerTreeDrawingArea::updateScrolledExposedRect()
     }
     
     frameView->adjustTiledBackingCoverage();
-}
-
-void RemoteLayerTreeDrawingArea::setCustomFixedPositionRect(const FloatRect& fixedPositionRect)
-{
-#if PLATFORM(IOS)
-    FrameView* frameView = m_webPage->corePage()->mainFrame().view();
-    if (!frameView)
-        return;
-
-    frameView->setCustomFixedPositionLayoutRect(enclosingIntRect(fixedPositionRect));
-#endif
 }
 
 TiledBacking* RemoteLayerTreeDrawingArea::mainFrameTiledBacking() const
@@ -321,6 +322,7 @@ void RemoteLayerTreeDrawingArea::flushLayers()
     // FIXME: minize these transactions if nothing changed.
     RemoteLayerTreeTransaction layerTransaction;
     m_remoteLayerTreeContext->buildTransaction(layerTransaction, *m_rootLayer);
+    m_webPage->willCommitLayerTree(layerTransaction);
 
     RemoteScrollingCoordinatorTransaction scrollingTransaction;
 #if ENABLE(ASYNC_SCROLLING)

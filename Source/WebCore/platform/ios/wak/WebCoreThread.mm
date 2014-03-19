@@ -30,6 +30,7 @@
 
 #import "JSDOMWindowBase.h"
 #import "ThreadGlobalData.h"
+#import "RuntimeApplicationChecksIOS.h"
 #import "WebCoreThreadInternal.h"
 #import "WebCoreThreadMessage.h"
 #import "WebCoreThreadRun.h"
@@ -210,7 +211,7 @@ static void SendDelegateMessage(NSInvocation *invocation)
 
         {
             // Code block created to scope JSC::JSLock::DropAllLocks outside of WebThreadLock()
-            JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM(), JSC::JSLock::DropAllLocks::AlwaysDropLocks);
+            JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM());
             _WebThreadUnlock();
 
             CFRunLoopSourceSignal(delegateSource);
@@ -248,7 +249,7 @@ void WebThreadRunOnMainThread(void(^delegateBlock)())
         return;
     }
 
-    JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM(), JSC::JSLock::DropAllLocks::AlwaysDropLocks);
+    JSC::JSLock::DropAllLocks dropAllLocks(WebCore::JSDOMWindowBase::commonVM());
     _WebThreadUnlock();
 
     void (^delegateBlockCopy)() = Block_copy(delegateBlock);
@@ -653,10 +654,8 @@ void *RunWebThread(void *arg)
     WTF::initializeWebThread();
     JSC::initializeThreading();
     
-#if ENABLE(WORKERS)
     // Make sure that the WebThread and the main thread share the same ThreadGlobalData objects.
     WebCore::threadGlobalData().setWebCoreThreadData();
-#endif
     initializeWebThreadIdentifier();
 
 #if HAVE(PTHREAD_SETNAME_NP)
@@ -703,12 +702,10 @@ static void StartWebThread()
 {
     webThreadStarted = TRUE;
 
-#if ENABLE(WORKERS)
     // Initialize ThreadGlobalData on the main UI thread so that the WebCore thread
     // can later set it's thread-specific data to point to the same objects.
     WebCore::ThreadGlobalData& unused = WebCore::threadGlobalData();
     (void)unused;
-#endif
 
     // Initialize AtomicString on the main thread.
     WTF::AtomicString::init();
@@ -1005,7 +1002,9 @@ void WebThreadSetDelegateSourceRunLoopMode(CFStringRef mode)
 
 void WebThreadEnable(void)
 {
-    static pthread_once_t initControl = PTHREAD_ONCE_INIT; 
+    RELEASE_ASSERT_WITH_MESSAGE(!WebCore::applicationIsWebProcess(), "The WebProcess should never run a Web Thread");
+
+    static pthread_once_t initControl = PTHREAD_ONCE_INIT;
     pthread_once(&initControl, StartWebThread);
 }
 

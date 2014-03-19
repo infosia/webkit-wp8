@@ -55,6 +55,7 @@ void RenderTableCol::styleDidChange(StyleDifference diff, const RenderStyle* old
         if (table && !table->selfNeedsLayout() && !table->normalChildNeedsLayout() && oldStyle && oldStyle->border() != style().border())
             table->invalidateCollapsedBorders();
         else if (oldStyle->width() != style().width()) {
+            table->recalcSectionsIfNeeded();
             for (auto& section : childrenOfType<RenderTableSection>(*table)) {
                 unsigned nEffCols = table->numEffCols();
                 for (unsigned j = 0; j < nEffCols; j++) {
@@ -198,6 +199,26 @@ const BorderValue& RenderTableCol::borderAdjoiningCellAfter(const RenderTableCel
 {
     ASSERT_UNUSED(cell, table()->colElement(cell->col() - 1) == this);
     return style().borderEnd();
+}
+
+LayoutUnit RenderTableCol::offsetLeft() const
+{
+    return table()->offsetLeftForColumn(*this);
+}
+
+LayoutUnit RenderTableCol::offsetTop() const
+{
+    return table()->offsetTopForColumn(*this);
+}
+
+LayoutUnit RenderTableCol::offsetWidth() const
+{
+    return table()->offsetWidthForColumn(*this);
+}
+
+LayoutUnit RenderTableCol::offsetHeight() const
+{
+    return table()->offsetHeightForColumn(*this);
 }
 
 }

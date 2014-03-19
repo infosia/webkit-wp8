@@ -60,12 +60,16 @@ public:
     void addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver&);
     void removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID);
 
-    bool isValid() const { return m_connection; }
-    bool isLaunching() const;
-    bool canSendMessage() const { return isValid() || isLaunching(); }
+    enum class State {
+        Launching,
+        Running,
+        Terminated,
+    };
+    State state() const;
 
     PlatformProcessIdentifier processIdentifier() const { return m_processLauncher->processIdentifier(); }
 
+    bool canSendMessage() const { return state() != State::Terminated;}
     bool sendMessage(std::unique_ptr<IPC::MessageEncoder>, unsigned messageSendFlags);
 
 protected:

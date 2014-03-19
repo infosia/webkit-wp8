@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -97,21 +97,25 @@ static inline bool isObservable(JSNode* jsNode, Node* node)
 static inline bool isReachableFromDOM(JSNode* jsNode, Node* node, SlotVisitor& visitor)
 {
     if (!node->inDocument()) {
-        // If a wrapper is the last reference to an image element
-        // that is loading but not in the document, the wrapper is observable
-        // because it is the only thing keeping the image element alive, and if
-        // the element is destroyed, its load event will not fire.
-        // FIXME: The DOM should manage this issue without the help of JavaScript wrappers.
-        if (isHTMLImageElement(node)) {
-            if (toHTMLImageElement(node)->hasPendingActivity())
-                return true;
+        if (node->isElementNode()) {
+            auto& element = toElement(*node);
+
+            // If a wrapper is the last reference to an image element
+            // that is loading but not in the document, the wrapper is observable
+            // because it is the only thing keeping the image element alive, and if
+            // the element is destroyed, its load event will not fire.
+            // FIXME: The DOM should manage this issue without the help of JavaScript wrappers.
+            if (isHTMLImageElement(element)) {
+                if (toHTMLImageElement(element).hasPendingActivity())
+                    return true;
+            }
+#if ENABLE(VIDEO)
+            else if (isHTMLAudioElement(element)) {
+                if (!toHTMLAudioElement(element).paused())
+                    return true;
+            }
+#endif
         }
-    #if ENABLE(VIDEO)
-        else if (isHTMLAudioElement(node)) {
-            if (!toHTMLAudioElement(node)->paused())
-                return true;
-        }
-    #endif
 
         // If a node is firing event listeners, its wrapper is observable because
         // its wrapper is responsible for marking those event listeners.
@@ -124,7 +128,7 @@ static inline bool isReachableFromDOM(JSNode* jsNode, Node* node, SlotVisitor& v
 
 bool JSNodeOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)
 {
-    JSNode* jsNode = jsCast<JSNode*>(handle.get().asCell());
+    JSNode* jsNode = jsCast<JSNode*>(handle.slot()->asCell());
     return isReachableFromDOM(jsNode, &jsNode->impl(), visitor);
 }
 

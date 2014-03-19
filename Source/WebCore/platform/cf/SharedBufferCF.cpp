@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -49,9 +49,9 @@ SharedBuffer::SharedBuffer(CFDataRef cfData)
 {
 }
 
-// Mac is a CF platform but has an even more efficient version of this method,
-// so only use this version for non-Mac
-#if !PLATFORM(MAC)
+// Using Foundation allows for an even more efficient implementation of this function,
+// so only use this version for non-Foundation.
+#if !USE(FOUNDATION)
 RetainPtr<CFDataRef> SharedBuffer::createCFData()
 {
     if (m_cfData) {

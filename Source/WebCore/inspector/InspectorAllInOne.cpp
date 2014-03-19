@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,18 +27,12 @@
 
 #include "CommandLineAPIHost.cpp"
 #include "CommandLineAPIModule.cpp"
-#include "ConsoleMessage.cpp"
 #include "DOMEditor.cpp"
 #include "DOMPatchSupport.cpp"
-#include "IdentifiersFactory.cpp"
-#include "InjectedScriptCanvasModule.cpp"
 #include "InspectorApplicationCacheAgent.cpp"
 #include "InspectorCSSAgent.cpp"
-#include "InspectorCanvasAgent.cpp"
 #include "InspectorClient.cpp"
-#include "InspectorConsoleAgent.cpp"
 #include "InspectorController.cpp"
-#include "InspectorCounters.cpp"
 #include "InspectorDOMAgent.cpp"
 #include "InspectorDOMDebuggerAgent.cpp"
 #include "InspectorDOMStorageAgent.cpp"
@@ -53,7 +47,6 @@
 #include "InspectorInstrumentation.cpp"
 #include "InspectorInstrumentationCookie.cpp"
 #include "InspectorLayerTreeAgent.cpp"
-#include "InspectorMemoryAgent.cpp"
 #include "InspectorNodeFinder.cpp"
 #include "InspectorOverlay.cpp"
 #include "InspectorPageAgent.cpp"
@@ -67,14 +60,12 @@
 #include "NetworkResourcesData.cpp"
 #include "PageConsoleAgent.cpp"
 #include "PageDebuggerAgent.cpp"
-#include "PageInjectedScriptHost.cpp"
-#include "PageInjectedScriptManager.cpp"
 #include "PageRuntimeAgent.cpp"
-#include "ScriptArguments.cpp"
-#include "ScriptCallFrame.cpp"
-#include "ScriptCallStack.cpp"
 #include "TimelineRecordFactory.cpp"
+#include "WebConsoleAgent.cpp"
 #include "WebDebuggerAgent.cpp"
+#include "WebInjectedScriptHost.cpp"
+#include "WebInjectedScriptManager.cpp"
 #include "WorkerConsoleAgent.cpp"
 #include "WorkerDebuggerAgent.cpp"
 #include "WorkerInspectorController.cpp"

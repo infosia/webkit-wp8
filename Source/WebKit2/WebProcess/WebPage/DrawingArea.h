@@ -88,10 +88,12 @@ public:
     virtual void updatePreferences(const WebPreferencesStore&) { }
     virtual void mainFrameContentSizeChanged(const WebCore::IntSize&) { }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual void setExposedRect(const WebCore::FloatRect&) = 0;
     virtual WebCore::FloatRect exposedRect() const = 0;
-    virtual void setCustomFixedPositionRect(const WebCore::FloatRect&) = 0;
+#endif
+#if PLATFORM(IOS)
+    virtual void setExposedContentRect(const WebCore::FloatRect&) = 0;
 #endif
     virtual void mainFrameScrollabilityChanged(bool) { }
 
@@ -104,6 +106,9 @@ public:
     virtual WebCore::GraphicsLayerFactory* graphicsLayerFactory() { return 0; }
     virtual void setRootCompositingLayer(WebCore::GraphicsLayer*) = 0;
     virtual void scheduleCompositingLayerFlush() = 0;
+
+    virtual WebCore::TransformationMatrix rootLayerTransform() const;
+    virtual void setRootLayerTransform(const WebCore::TransformationMatrix&) { }
 
 #if USE(COORDINATED_GRAPHICS)
     virtual void didReceiveCoordinatedLayerTreeHostMessage(IPC::Connection*, IPC::MessageDecoder&) = 0;
@@ -127,7 +132,7 @@ private:
                                          const WebCore::IntSize& /*scrollOffset*/) { }
     virtual void didUpdate() { }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Used by TiledCoreAnimationDrawingArea.
     virtual void updateGeometry(const WebCore::IntSize& viewSize, const WebCore::IntSize& layerPosition) { }
     virtual void setDeviceScaleFactor(float) { }

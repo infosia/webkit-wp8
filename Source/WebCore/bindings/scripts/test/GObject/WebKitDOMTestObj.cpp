@@ -147,7 +147,6 @@ static void webkit_dom_test_obj_finalize(GObject* object)
 static void webkit_dom_test_obj_set_property(GObject* object, guint propertyId, const GValue* value, GParamSpec* pspec)
 {
     WebCore::JSMainThreadNullState state;
-
     WebKitDOMTestObj* self = WEBKIT_DOM_TEST_OBJ(object);
     WebCore::TestObj* coreSelf = WebKit::core(self);
 
@@ -181,7 +180,7 @@ static void webkit_dom_test_obj_set_property(GObject* object, guint propertyId, 
         break;
     }
     case PROP_REFLECTED_STRING_ATTR: {
-        coreSelf->setAttribute(WebCore::HTMLNames::reflectedstringattrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
+        coreSelf->setAttributeWithoutSynchronization(WebCore::HTMLNames::reflectedstringattrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
         break;
     }
     case PROP_REFLECTED_INTEGRAL_ATTR: {
@@ -197,11 +196,11 @@ static void webkit_dom_test_obj_set_property(GObject* object, guint propertyId, 
         break;
     }
     case PROP_REFLECTED_URL_ATTR: {
-        coreSelf->setAttribute(WebCore::HTMLNames::reflectedurlattrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
+        coreSelf->setAttributeWithoutSynchronization(WebCore::HTMLNames::reflectedurlattrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
         break;
     }
     case PROP_REFLECTED_STRING_ATTR: {
-        coreSelf->setAttribute(WebCore::HTMLNames::customContentStringAttrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
+        coreSelf->setAttributeWithoutSynchronization(WebCore::HTMLNames::customContentStringAttrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
         break;
     }
     case PROP_REFLECTED_CUSTOM_INTEGRAL_ATTR: {
@@ -213,7 +212,7 @@ static void webkit_dom_test_obj_set_property(GObject* object, guint propertyId, 
         break;
     }
     case PROP_REFLECTED_CUSTOM_URL_ATTR: {
-        coreSelf->setAttribute(WebCore::HTMLNames::customContentURLAttrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
+        coreSelf->setAttributeWithoutSynchronization(WebCore::HTMLNames::customContentURLAttrAttr, WTF::String::fromUTF8(g_value_get_string(value)));
         break;
     }
     case PROP_ATTR_WITH_GETTER_EXCEPTION: {
@@ -297,7 +296,6 @@ static void webkit_dom_test_obj_set_property(GObject* object, guint propertyId, 
 static void webkit_dom_test_obj_get_property(GObject* object, guint propertyId, GValue* value, GParamSpec* pspec)
 {
     WebCore::JSMainThreadNullState state;
-
     WebKitDOMTestObj* self = WEBKIT_DOM_TEST_OBJ(object);
     WebCore::TestObj* coreSelf = WebKit::core(self);
 
@@ -1472,6 +1470,7 @@ gchar* webkit_dom_test_obj_conditional_method1(WebKitDOMTestObj* self)
     gchar* result = convertToUTF8String(item->conditionalMethod1());
     return result;
 #else
+    UNUSED_PARAM(self);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
     return 0;
 #endif /* ENABLE(Condition1) */
@@ -1485,6 +1484,7 @@ void webkit_dom_test_obj_conditional_method2(WebKitDOMTestObj* self)
     WebCore::TestObj* item = WebKit::core(self);
     item->conditionalMethod2();
 #else
+    UNUSED_PARAM(self);
 #if !ENABLE(Condition1)
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif
@@ -1502,6 +1502,7 @@ void webkit_dom_test_obj_conditional_method3(WebKitDOMTestObj* self)
     WebCore::TestObj* item = WebKit::core(self);
     item->conditionalMethod3();
 #else
+    UNUSED_PARAM(self);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition2")
 #endif /* ENABLE(Condition1) || ENABLE(Condition2) */
@@ -1532,6 +1533,8 @@ void webkit_dom_test_obj_overloaded_method1(WebKitDOMTestObj* self, glong arg)
     WebCore::TestObj* item = WebKit::core(self);
     item->overloadedMethod1(arg);
 #else
+    UNUSED_PARAM(self);
+    UNUSED_PARAM(arg);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif /* ENABLE(Condition1) */
 }
@@ -1546,6 +1549,8 @@ void webkit_dom_test_obj_overloaded_method1(WebKitDOMTestObj* self, const gchar*
     WTF::String convertedType = WTF::String::fromUTF8(type);
     item->overloadedMethod1(convertedType);
 #else
+    UNUSED_PARAM(self);
+    UNUSED_PARAM(type);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif /* ENABLE(Condition1) */
 }
@@ -1909,7 +1914,7 @@ void webkit_dom_test_obj_set_reflected_string_attr(WebKitDOMTestObj* self, const
     g_return_if_fail(value);
     WebCore::TestObj* item = WebKit::core(self);
     WTF::String convertedValue = WTF::String::fromUTF8(value);
-    item->setAttribute(WebCore::HTMLNames::reflectedstringattrAttr, convertedValue);
+    item->setAttributeWithoutSynchronization(WebCore::HTMLNames::reflectedstringattrAttr, convertedValue);
 }
 
 glong webkit_dom_test_obj_get_reflected_integral_attr(WebKitDOMTestObj* self)
@@ -1979,7 +1984,7 @@ void webkit_dom_test_obj_set_reflected_url_attr(WebKitDOMTestObj* self, const gc
     g_return_if_fail(value);
     WebCore::TestObj* item = WebKit::core(self);
     WTF::String convertedValue = WTF::String::fromUTF8(value);
-    item->setAttribute(WebCore::HTMLNames::reflectedurlattrAttr, convertedValue);
+    item->setAttributeWithoutSynchronization(WebCore::HTMLNames::reflectedurlattrAttr, convertedValue);
 }
 
 gchar* webkit_dom_test_obj_get_reflected_string_attr(WebKitDOMTestObj* self)
@@ -1998,7 +2003,7 @@ void webkit_dom_test_obj_set_reflected_string_attr(WebKitDOMTestObj* self, const
     g_return_if_fail(value);
     WebCore::TestObj* item = WebKit::core(self);
     WTF::String convertedValue = WTF::String::fromUTF8(value);
-    item->setAttribute(WebCore::HTMLNames::customContentStringAttrAttr, convertedValue);
+    item->setAttributeWithoutSynchronization(WebCore::HTMLNames::customContentStringAttrAttr, convertedValue);
 }
 
 glong webkit_dom_test_obj_get_reflected_custom_integral_attr(WebKitDOMTestObj* self)
@@ -2051,7 +2056,7 @@ void webkit_dom_test_obj_set_reflected_custom_url_attr(WebKitDOMTestObj* self, c
     g_return_if_fail(value);
     WebCore::TestObj* item = WebKit::core(self);
     WTF::String convertedValue = WTF::String::fromUTF8(value);
-    item->setAttribute(WebCore::HTMLNames::customContentURLAttrAttr, convertedValue);
+    item->setAttributeWithoutSynchronization(WebCore::HTMLNames::customContentURLAttrAttr, convertedValue);
 }
 
 glong webkit_dom_test_obj_get_attr_with_getter_exception(WebKitDOMTestObj* self, GError** error)
@@ -2304,6 +2309,7 @@ glong webkit_dom_test_obj_get_conditional_attr1(WebKitDOMTestObj* self)
     glong result = item->conditionalAttr1();
     return result;
 #else
+    UNUSED_PARAM(self);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
     return static_cast<glong>(0);
 #endif /* ENABLE(Condition1) */
@@ -2317,6 +2323,8 @@ void webkit_dom_test_obj_set_conditional_attr1(WebKitDOMTestObj* self, glong val
     WebCore::TestObj* item = WebKit::core(self);
     item->setConditionalAttr1(value);
 #else
+    UNUSED_PARAM(self);
+    UNUSED_PARAM(value);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif /* ENABLE(Condition1) */
 }
@@ -2330,6 +2338,7 @@ glong webkit_dom_test_obj_get_conditional_attr2(WebKitDOMTestObj* self)
     glong result = item->conditionalAttr2();
     return result;
 #else
+    UNUSED_PARAM(self);
 #if !ENABLE(Condition1)
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif
@@ -2348,6 +2357,8 @@ void webkit_dom_test_obj_set_conditional_attr2(WebKitDOMTestObj* self, glong val
     WebCore::TestObj* item = WebKit::core(self);
     item->setConditionalAttr2(value);
 #else
+    UNUSED_PARAM(self);
+    UNUSED_PARAM(value);
 #if !ENABLE(Condition1)
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
 #endif
@@ -2366,6 +2377,7 @@ glong webkit_dom_test_obj_get_conditional_attr3(WebKitDOMTestObj* self)
     glong result = item->conditionalAttr3();
     return result;
 #else
+    UNUSED_PARAM(self);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition2")
     return static_cast<glong>(0);
@@ -2380,6 +2392,8 @@ void webkit_dom_test_obj_set_conditional_attr3(WebKitDOMTestObj* self, glong val
     WebCore::TestObj* item = WebKit::core(self);
     item->setConditionalAttr3(value);
 #else
+    UNUSED_PARAM(self);
+    UNUSED_PARAM(value);
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition1")
     WEBKIT_WARN_FEATURE_NOT_PRESENT("Condition2")
 #endif /* ENABLE(Condition1) || ENABLE(Condition2) */

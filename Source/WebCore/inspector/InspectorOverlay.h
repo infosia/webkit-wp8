@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,8 +32,6 @@
 #include "Color.h"
 #include "FloatQuad.h"
 #include "LayoutRect.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
@@ -117,22 +115,26 @@ public:
 
     void hideHighlight();
     void highlightNode(Node*, const HighlightConfig&);
-    void highlightQuad(PassOwnPtr<FloatQuad>, const HighlightConfig&);
+    void highlightQuad(std::unique_ptr<FloatQuad>, const HighlightConfig&);
 
     Node* highlightedNode() const;
 
     void didSetSearchingForNode(bool enabled);
 
+    void setIndicating(bool indicating);
+
     PassRefPtr<Inspector::InspectorObject> buildObjectForHighlightedNode() const;
 
     void freePage();
 private:
+    bool shouldShowOverlay() const;
     void drawGutter();
     void drawNodeHighlight();
     void drawQuadHighlight();
     void drawPausedInDebuggerMessage();
     Page* overlayPage();
     void reset(const IntSize& viewportSize, const IntSize& frameViewFullSize);
+    void evaluateInOverlay(const String& method);
     void evaluateInOverlay(const String& method, const String& argument);
     void evaluateInOverlay(const String& method, PassRefPtr<Inspector::InspectorValue> argument);
 
@@ -141,10 +143,10 @@ private:
     String m_pausedInDebuggerMessage;
     RefPtr<Node> m_highlightNode;
     HighlightConfig m_nodeHighlightConfig;
-    OwnPtr<FloatQuad> m_highlightQuad;
-    OwnPtr<Page> m_overlayPage;
+    std::unique_ptr<FloatQuad> m_highlightQuad;
+    std::unique_ptr<Page> m_overlayPage;
     HighlightConfig m_quadHighlightConfig;
-    IntSize m_size;
+    bool m_indicating;
 };
 
 } // namespace WebCore

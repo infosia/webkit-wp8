@@ -23,12 +23,65 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "WKNavigationAction.h"
+#import "config.h"
+#import "WKNavigationActionInternal.h"
 
 #if WK_API_ENABLED
 
-@implementation WKNavigationAction
+#import <wtf/RetainPtr.h>
+
+@implementation WKNavigationAction {
+    RetainPtr<WKFrameInfo> _sourceFrame;
+    RetainPtr<WKFrameInfo> _destinationFrame;
+    RetainPtr<NSURLRequest> _request;
+    RetainPtr<NSURL> _originalURL;
+}
+
+- (NSString *)description
+{
+    return [NSString stringWithFormat:@"<%@: %p; navigationType = %ld; request = %@; sourceFrame = %@; destinationFrame = %@>", NSStringFromClass(self.class), self,
+        (long)_navigationType, _request.get(), _sourceFrame.get(), _destinationFrame.get()];
+}
+
+- (WKFrameInfo *)sourceFrame
+{
+    return _sourceFrame.get();
+}
+
+- (void)setSourceFrame:(WKFrameInfo *)sourceFrame
+{
+    _sourceFrame = sourceFrame;
+}
+
+- (WKFrameInfo *)destinationFrame
+{
+    return _destinationFrame.get();
+}
+
+- (void)setDestinationFrame:(WKFrameInfo *)destinationFrame
+{
+    _destinationFrame = destinationFrame;
+}
+
+- (NSURLRequest *)request
+{
+    return _request.get();
+}
+
+- (void)setRequest:(NSURLRequest *)request
+{
+    _request = adoptNS([request copy]);
+}
+
+- (void)_setOriginalURL:(NSURL *)originalURL
+{
+    _originalURL = adoptNS([originalURL copy]);
+}
+
+- (NSURL *)_originalURL
+{
+    return _originalURL.get();
+}
 
 @end
 

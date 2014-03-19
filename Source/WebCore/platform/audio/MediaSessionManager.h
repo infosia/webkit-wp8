@@ -27,6 +27,7 @@
 #define MediaSessionManager_h
 
 #include "MediaSession.h"
+#include "RemoteCommandListener.h"
 #include "Settings.h"
 #include <map>
 #include <wtf/Vector.h>
@@ -35,8 +36,22 @@ namespace WebCore {
 
 class HTMLMediaElement;
 class MediaSession;
+class RemoteCommandListener;
 
-class MediaSessionManager {
+class MediaSessionManagerClient {
+public:
+    virtual ~MediaSessionManagerClient() { }
+
+    virtual bool isListeningForRemoteControlCommands() = 0;
+    virtual void startListeningForRemoteControlCommands() = 0;
+    virtual void stopListeningForRemoteControlCommands() = 0;
+    virtual void didBeginPlayback() = 0;
+
+protected:
+    MediaSessionManagerClient() { }
+};
+
+class MediaSessionManager : RemoteCommandListenerClient {
 public:
     static MediaSessionManager& sharedManager();
     virtual ~MediaSessionManager() { }
@@ -65,9 +80,19 @@ public:
     SessionRestrictions restrictions(MediaSession::MediaType);
     virtual void resetRestrictions();
 
-    void sessionWillBeginPlayback(const MediaSession&) const;
-
+    virtual void sessionWillBeginPlayback(MediaSession&);
+    virtual void sessionWillEndPlayback(MediaSession&) { }
+    
     bool sessionRestrictsInlineVideoPlayback(const MediaSession&) const;
+
+#if ENABLE(IOS_AIRPLAY)
+    virtual void showPlaybackTargetPicker() { }
+#endif
+
+    virtual void didReceiveRemoteControlCommand(MediaSession::RemoteControlCommandType) override;
+
+    void addClient(MediaSessionManagerClient*);
+    void removeClient(MediaSessionManagerClient*);
 
 protected:
     friend class MediaSession;
@@ -75,13 +100,19 @@ protected:
 
     void addSession(MediaSession&);
     void removeSession(MediaSession&);
-
+    
+    void setCurrentSession(MediaSession* session) { m_activeSession = session; }
+    MediaSession* currentSession() { return m_activeSession; }
+    
 private:
     void updateSessionState();
 
     SessionRestrictions m_restrictions[MediaSession::WebAudio + 1];
 
     Vector<MediaSession*> m_sessions;
+    Vector<MediaSessionManagerClient*> m_clients;
+    std::unique_ptr<RemoteCommandListener> m_remoteCommandListener;
+    MediaSession* m_activeSession;
     bool m_interrupted;
 };
 

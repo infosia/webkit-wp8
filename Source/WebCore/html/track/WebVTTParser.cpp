@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2011, 2013 Google Inc.  All rights reserved.
  * Copyright (C) 2013 Cable Television Labs, Inc.
+ * Copyright (C) 2014 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -120,7 +121,7 @@ WebVTTParser::WebVTTParser(WebVTTParserClient* client, ScriptExecutionContext* c
     , m_state(Initial)
     , m_currentStartTime(0)
     , m_currentEndTime(0)
-    , m_tokenizer(WebVTTTokenizer::create())
+    , m_tokenizer(std::make_unique<WebVTTTokenizer>())
     , m_client(client)
 {
 }
@@ -166,23 +167,17 @@ void WebVTTParser::parseBytes(const char* data, unsigned length)
             break;
 
         case Header:
-            // 13-18 - Allow a header (comment area) under the WEBVTT line.
-#if ENABLE(WEBVTT_REGIONS)
+            collectMetadataHeader(line);
+
             if (line.isEmpty()) {
+#if ENABLE(WEBVTT_REGIONS)
+                // 13-18 - Allow a header (comment area) under the WEBVTT line.
                 if (m_client && m_regionList.size())
                     m_client->newRegionsParsed();
-
+#endif
                 m_state = Id;
                 break;
             }
-            collectHeader(line);
-
-            break;
-
-        case Metadata:
-#endif
-            if (line.isEmpty())
-                m_state = Id;
             break;
 
         case Id:
@@ -250,11 +245,11 @@ bool WebVTTParser::hasRequiredFileIdentifier(const String& line)
     return true;
 }
 
-#if ENABLE(WEBVTT_REGIONS)
-void WebVTTParser::collectHeader(const String& line)
+void WebVTTParser::collectMetadataHeader(const String& line)
 {
+#if ENABLE(WEBVTT_REGIONS)
     // 4.1 Extension of WebVTT header parsing (11 - 15)
-    DEFINE_STATIC_LOCAL(const AtomicString, regionHeaderName, ("Region", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, regionHeaderName, ("Region", AtomicString::ConstructFromLiteral));
 
     // 15.4 If line contains the character ":" (A U+003A COLON), then set metadata's
     // name to the substring of line before the first ":" character and
@@ -271,8 +266,10 @@ void WebVTTParser::collectHeader(const String& line)
         // 15.5.1 - 15.5.8 Region creation: Let region be a new text track region [...]
         createNewRegion();
     }
-}
+#else
+    UNUSED_PARAM(line);
 #endif
+}
 
 WebVTTParser::ParseState WebVTTParser::collectCueId(const String& line)
 {
@@ -295,9 +292,7 @@ WebVTTParser::ParseState WebVTTParser::collectTimingsAndSettings(const String& l
         return BadCue;
     if (position >= line.length())
         return BadCue;
-    char nextChar = line[position++];
-    if (nextChar != ' ' && nextChar != '\t')
-        return BadCue;
+    
     skipWhiteSpace(line, &position);
 
     // 6-9 - If the next three characters are not "-->", abort and return failure.
@@ -306,9 +301,7 @@ WebVTTParser::ParseState WebVTTParser::collectTimingsAndSettings(const String& l
     position += 3;
     if (position >= line.length())
         return BadCue;
-    nextChar = line[position++];
-    if (nextChar != ' ' && nextChar != '\t')
-        return BadCue;
+    
     skipWhiteSpace(line, &position);
 
     // 10-11 - Collect a WebVTT timestamp. If that fails, then abort and return failure. Otherwise, let cue's text track cue end time be the collected time.
@@ -402,7 +395,7 @@ void WebVTTParser::createNewRegion()
     if (!m_currentHeaderValue.length())
         return;
 
-    RefPtr<TextTrackRegion> region = TextTrackRegion::create();
+    RefPtr<TextTrackRegion> region = TextTrackRegion::create(*m_scriptExecutionContext);
     region->setRegionSettings(m_currentHeaderValue);
 
     // 15.5.10 If the text track list of regions regions contains a region

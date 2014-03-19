@@ -37,9 +37,11 @@
 #import <WebCore/EventListener.h>
 #import <WebCore/EventNames.h>
 #import <WebCore/HTMLElement.h>
+#import <WebCore/HTMLMediaElement.h>
 #import <WebCore/HTMLVideoElement.h>
 #import <WebCore/SoftLinking.h>
 #import <WebCore/WebCoreThreadRun.h>
+#import <QuartzCore/CoreAnimation.h>
 #import <wtf/RetainPtr.h>
 
 using namespace WebCore;
@@ -47,6 +49,10 @@ using namespace WebCore;
 WebVideoFullscreenModelMediaElement::WebVideoFullscreenModelMediaElement()
     : EventListener(EventListener::CPPEventListenerType)
     , m_isListening{false}
+{
+}
+
+WebVideoFullscreenModelMediaElement::~WebVideoFullscreenModelMediaElement()
 {
 }
 
@@ -64,13 +70,6 @@ void WebVideoFullscreenModelMediaElement::setMediaElement(HTMLMediaElement* medi
     }
     m_isListening = false;
 
-    if (m_mediaElement && m_borrowedVideoLayer) {
-        if (m_videoFullscreenInterface)
-            m_videoFullscreenInterface->setVideoLayer(nullptr);
-        m_mediaElement->returnPlatformLayer(m_borrowedVideoLayer.get());
-        m_borrowedVideoLayer.clear();
-    }
-
     m_mediaElement = mediaElement;
 
     if (!m_mediaElement)
@@ -83,26 +82,21 @@ void WebVideoFullscreenModelMediaElement::setMediaElement(HTMLMediaElement* medi
     m_mediaElement->addEventListener(eventNames().timeupdateEvent, this, false);
     m_isListening = true;
 
-    if (!m_videoFullscreenInterface)
-        return;
-
     m_videoFullscreenInterface->setDuration(m_mediaElement->duration());
     m_videoFullscreenInterface->setRate(m_mediaElement->isPlaying(), m_mediaElement->playbackRate());
-
-    m_borrowedVideoLayer = m_mediaElement->borrowPlatformLayer();
-    m_videoFullscreenInterface->setVideoLayer(m_borrowedVideoLayer.get());
 
     m_videoFullscreenInterface->setCurrentTime(m_mediaElement->currentTime(), [[NSProcessInfo processInfo] systemUptime]);
 
     if (isHTMLVideoElement(m_mediaElement.get())) {
         HTMLVideoElement *videoElement = toHTMLVideoElement(m_mediaElement.get());
         m_videoFullscreenInterface->setVideoDimensions(true, videoElement->videoWidth(), videoElement->videoHeight());
-    }
+    } else
+        m_videoFullscreenInterface->setVideoDimensions(false, 0, 0);
 }
 
 void WebVideoFullscreenModelMediaElement::handleEvent(WebCore::ScriptExecutionContext*, WebCore::Event* event)
 {
-    if (!m_mediaElement)
+    if (!m_mediaElement || !m_videoFullscreenInterface)
         return;
 
     LOG(Media, "handleEvent %s", event->type().characters8());
@@ -117,12 +111,16 @@ void WebVideoFullscreenModelMediaElement::handleEvent(WebCore::ScriptExecutionCo
         m_videoFullscreenInterface->setCurrentTime(m_mediaElement->currentTime(), [[NSProcessInfo processInfo] systemUptime]);
 }
 
-void WebVideoFullscreenModelMediaElement::requestExitFullScreen()
+void WebVideoFullscreenModelMediaElement::setVideoFullscreenLayer(PlatformLayer* videoLayer)
 {
+    if (m_videoFullscreenLayer == videoLayer)
+        return;
+    
+    m_videoFullscreenLayer = videoLayer;
+    
     __block RefPtr<WebVideoFullscreenModelMediaElement> protect(this);
     WebThreadRun(^{
-        m_mediaElement->pause();
-        m_mediaElement->exitFullscreen();
+        m_mediaElement->setVideoFullscreenLayer(m_videoFullscreenLayer.get());
         protect.clear();
     });
 }
@@ -162,13 +160,35 @@ void WebVideoFullscreenModelMediaElement::seekToTime(double time)
     });
 }
 
-void WebVideoFullscreenModelMediaElement::didExitFullscreen()
+void WebVideoFullscreenModelMediaElement::requestExitFullscreen()
 {
     __block RefPtr<WebVideoFullscreenModelMediaElement> protect(this);
     WebThreadRun(^{
-        setMediaElement(nullptr);
+        m_mediaElement->exitFullscreen();
         protect.clear();
     });
+}
+
+void WebVideoFullscreenModelMediaElement::setVideoLayerFrame(FloatRect rect)
+{
+    m_videoFrame = rect;
+    [m_videoFullscreenLayer setFrame:CGRect(rect)];
+    m_mediaElement->setVideoFullscreenFrame(rect);
+}
+
+void WebVideoFullscreenModelMediaElement::setVideoLayerGravity(WebVideoFullscreenModel::VideoGravity gravity)
+{
+    MediaPlayer::VideoGravity videoGravity = MediaPlayer::VideoGravityResizeAspect;
+    if (gravity == WebVideoFullscreenModel::VideoGravityResize)
+        videoGravity = MediaPlayer::VideoGravityResize;
+    else if (gravity == WebVideoFullscreenModel::VideoGravityResizeAspect)
+        videoGravity = MediaPlayer::VideoGravityResizeAspect;
+    else if (gravity == WebVideoFullscreenModel::VideoGravityResizeAspectFill)
+        videoGravity = MediaPlayer::VideoGravityResizeAspectFill;
+    else
+        ASSERT_NOT_REACHED();
+    
+    m_mediaElement->setVideoFullscreenGravity(videoGravity);
 }
 
 #endif

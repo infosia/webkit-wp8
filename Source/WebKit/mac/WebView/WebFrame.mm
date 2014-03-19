@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -109,7 +109,6 @@
 #import "WebMailDelegate.h"
 #import "WebResource.h"
 #import "WebUIKitDelegate.h"
-#import <JavaScriptCore/APIShims.h>
 #import <WebCore/Document.h>
 #import <WebCore/Editor.h>
 #import <WebCore/EditorClient.h>
@@ -694,9 +693,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 #if PLATFORM(IOS)
     ASSERT(WebThreadIsLockedOrDisabled());
     JSC::ExecState* exec = _private->coreFrame->script().globalObject(mainThreadNormalWorld())->globalExec();
-    // Need to use the full entry shim to prevent crashes arising from the UI thread being unknown
-    // to the JSC GC: <rdar://problem/11553172> Crash when breaking in the Web Inspector during stringByEvaluatingJavaScriptFromString:
-    JSC::APIEntryShim jscLock(exec);
+    JSC::JSLockHolder jscLock(exec);
 #endif
 
     JSC::JSValue result = _private->coreFrame->script().executeScript(string, forceUserGesture).jsValue();
@@ -904,10 +901,10 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
     RefPtr<DocumentFragment> fragment = document->createDocumentFragment();
 
-    for (auto node : nodesVector) {
+    for (auto* node : nodesVector) {
         RefPtr<Element> element = createDefaultParagraphElement(*document);
-        element->appendChild(node, ASSERT_NO_EXCEPTION);
-        fragment->appendChild(element.release(), ASSERT_NO_EXCEPTION);
+        element->appendChild(node);
+        fragment->appendChild(element.release());
     }
 
     return kit(fragment.release().get());
@@ -1053,7 +1050,7 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
 
 - (BOOL)_firstLayoutDone
 {
-    return _private->coreFrame->loader().stateMachine()->firstLayoutDone();
+    return _private->coreFrame->loader().stateMachine().firstLayoutDone();
 }
 
 - (BOOL)_isVisuallyNonEmpty
@@ -2157,6 +2154,22 @@ static inline WebDataSource *dataSource(DocumentLoader* loader)
         String strName(name);
         rootObject->setAccessibleName(strName);
     }
+#endif
+}
+
+- (BOOL)enhancedAccessibilityEnabled
+{
+#if HAVE(ACCESSIBILITY)
+    return AXObjectCache::accessibilityEnhancedUserInterfaceEnabled();
+#else
+    return NO;
+#endif
+}
+
+- (void)setEnhancedAccessibility:(BOOL)enable
+{
+#if HAVE(ACCESSIBILITY)
+    AXObjectCache::setEnhancedUserInterfaceAccessibility(enable);
 #endif
 }
 

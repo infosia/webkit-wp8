@@ -103,17 +103,19 @@ public:
 
     virtual bool lineOverlapsShapeBounds() const override
     {
-        return computedShape().lineOverlapsShapePaddingBounds(m_shapeLineTop, m_lineHeight);
+        return computedShape().lineOverlapsShapePaddingBounds(m_referenceBoxLineTop, m_lineHeight);
     }
 
 protected:
-    virtual LayoutBox resolvedLayoutBox() const override
+    virtual CSSBoxType referenceBox() const override
     {
-        if (shapeValue()->layoutBox() == BoxMissing)
+        if (shapeValue()->cssBox() == BoxMissing)
             return ContentBox;
 
-        return shapeValue()->layoutBox();
+        return shapeValue()->cssBox();
     }
+
+    virtual const RenderStyle& styleForWritingMode() const override;
 
 private:
     virtual LayoutRect computedShapeLogicalBoundingBox() const override { return computedShape().shapePaddingLogicalBoundingBox(); }

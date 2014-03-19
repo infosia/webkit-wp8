@@ -928,23 +928,34 @@ TEST_F(EWK2ViewTest, ewk_context_vibration_client_callbacks_set)
     // Vibrate for 5 seconds.
     loadVibrationHTMLString(webView(), "5000", &data);
     waitUntilTrue(data.testFinished);
-    ASSERT_TRUE(data.didReceiveVibrate);
+    ASSERT_TRUE(data.didReceiveVibrate && !data.didReceiveCancelVibration);
 
     // Cancel any existing vibrations.
     loadVibrationHTMLString(webView(), "0", &data);
     waitUntilTrue(data.testFinished);
-    ASSERT_TRUE(data.didReceiveCancelVibration);
+    ASSERT_TRUE(!data.didReceiveVibrate && data.didReceiveCancelVibration);
 
     // This case the pattern will cause the device to vibrate for 200 ms, be still for 100 ms, and then vibrate for 5000 ms.
     loadVibrationHTMLString(webView(), "[200, 100, 5000]", &data);
     waitUntilTrue(data.testFinished);
     ASSERT_EQ(2, data.vibrateCalledCount);
-    ASSERT_TRUE(data.didReceiveVibrate);
+    ASSERT_TRUE(data.didReceiveVibrate && !data.didReceiveCancelVibration);
 
     // Cancel outstanding vibration pattern.
     loadVibrationHTMLString(webView(), "[0]", &data);
     waitUntilTrue(data.testFinished);
-    ASSERT_TRUE(data.didReceiveCancelVibration);
+    ASSERT_TRUE(!data.didReceiveVibrate && data.didReceiveCancelVibration);
+
+    // Check that vibration works properly by continuous request.
+    data.expectedVibrationTime = 5;
+    loadVibrationHTMLString(webView(), "5", &data);
+    waitUntilTrue(data.testFinished);
+    ASSERT_TRUE(data.didReceiveVibrate && !data.didReceiveCancelVibration);
+
+    loadVibrationHTMLString(webView(), "5", &data);
+    waitUntilTrue(data.testFinished);
+    ASSERT_EQ(1, data.vibrateCalledCount);
+    ASSERT_TRUE(data.didReceiveVibrate && !data.didReceiveCancelVibration);
 
     // Stop listening for vibration events, by calling the function with null for the callbacks.
     evas_object_smart_callback_del(webView(), "vibrate", onVibrate);
@@ -999,27 +1010,6 @@ TEST_F(EWK2ViewTest, ewk_view_page_contents_get)
     obtainedPageContents = false;
     ASSERT_TRUE(ewk_view_page_contents_get(webView(), EWK_PAGE_CONTENTS_TYPE_STRING, PageContentsAsStringCallback, 0));
     waitUntilTrue(obtainedPageContents);
-}
-
-TEST_F(EWK2ViewTest, ewk_view_source_mode)
-{
-    const char indexHTML[] = "<html><body>Test Web View Mode<script>document.title=window.document.body.innerText;</script></body></html>";
-    const char contents[] = "Test Web View Mode";
-
-    // Default source mode is false.
-    EXPECT_FALSE(ewk_view_source_mode_get(webView()));
-
-    // Load web contents of the web page.
-    ewk_view_html_string_load(webView(), indexHTML, 0, 0);
-    EXPECT_TRUE(waitUntilTitleChangedTo(contents));
-
-    EXPECT_TRUE(ewk_view_source_mode_set(webView(), true));
-    EXPECT_TRUE(ewk_view_source_mode_get(webView()));
-
-    // TODO: Add a test case when the source mode is true.
-    //       But it needs a way to retrieve the body contents to compare the loaded contents
-    //       such as excuting the JavaScript, 'window.document.body.innerText'.
-    //       https://bugs.webkit.org/show_bug.cgi?id=101904.
 }
 
 TEST_F(EWK2ViewTest, ewk_view_user_agent)
@@ -1083,4 +1073,13 @@ TEST_F(EWK2UnitTestBase, ewk_view_script_execute)
     eina_strbuf_free(result);
 
     ASSERT_FALSE(ewk_view_script_execute(webView(), 0, 0, 0));
+}
+
+TEST_F(EWK2ViewTest, ewk_view_layout_fixed)
+{
+    // Fixed layout is not used in webview as default.
+    EXPECT_FALSE(ewk_view_layout_fixed_get(webView()));
+
+    EXPECT_TRUE(ewk_view_layout_fixed_set(webView(), true));
+    EXPECT_TRUE(ewk_view_layout_fixed_get(webView()));
 }

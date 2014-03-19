@@ -27,12 +27,13 @@
 #include "ThunkGenerators.h"
 
 #include "CodeBlock.h"
+#include "DFGSpeculativeJIT.h"
 #include "JITOperations.h"
 #include "JSArray.h"
 #include "JSArrayIterator.h"
 #include "JSStack.h"
 #include "MaxFrameExtentForSlowPathCall.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "SpecializedThunkJIT.h"
 #include <wtf/InlineASM.h>
 #include <wtf/StringPrintStream.h>
@@ -189,7 +190,7 @@ static MacroAssemblerCodeRef virtualForThunkGenerator(
             CCallHelpers::NotEqual, GPRInfo::regT1,
             CCallHelpers::TrustedImm32(JSValue::CellTag)));
 #endif
-    jit.loadPtr(CCallHelpers::Address(GPRInfo::regT0, JSCell::structureOffset()), GPRInfo::regT2);
+    AssemblyHelpers::emitLoadStructure(jit, GPRInfo::regT0, GPRInfo::regT2, GPRInfo::regT1);
     slowCase.append(
         jit.branchPtr(
             CCallHelpers::NotEqual,
@@ -428,7 +429,7 @@ MacroAssemblerCodeRef arityFixup(VM* vm)
     JSInterfaceJIT jit(vm);
 
     // We enter with fixup count, in aligned stack units, in regT0 and the return thunk in
-    // regT5. We use VM::currentReturnThunkPC instead of regT5 on X86-32.
+    // regT5 on 32-bit and regT7 on 64-bit.
 #if USE(JSVALUE64)
 #  if CPU(X86_64)
     jit.pop(JSInterfaceJIT::regT4);
@@ -466,7 +467,7 @@ MacroAssemblerCodeRef arityFixup(VM* vm)
     jit.storePtr(GPRInfo::regT1, MacroAssembler::BaseIndex(JSInterfaceJIT::regT6, JSInterfaceJIT::regT0, JSInterfaceJIT::TimesEight));
     
     // Install the new return PC.
-    jit.storePtr(GPRInfo::regT5, JSInterfaceJIT::Address(JSInterfaceJIT::callFrameRegister, CallFrame::returnPCOffset()));
+    jit.storePtr(GPRInfo::regT7, JSInterfaceJIT::Address(JSInterfaceJIT::callFrameRegister, CallFrame::returnPCOffset()));
 
 #  if CPU(X86_64)
     jit.push(JSInterfaceJIT::regT4);
@@ -514,13 +515,7 @@ MacroAssemblerCodeRef arityFixup(VM* vm)
     jit.storePtr(GPRInfo::regT1, MacroAssembler::BaseIndex(JSInterfaceJIT::regT3, JSInterfaceJIT::regT0, JSInterfaceJIT::TimesEight));
     
     // Install the new return PC.
-    // FIXME: I don't think currentReturnThunkPC is used and should be deleted.
-#  if 0
-    jit.loadPtr(&vm->currentReturnThunkPC, GPRInfo::regT2);
-    jit.storePtr(GPRInfo::regT2, JSInterfaceJIT::Address(JSInterfaceJIT::callFrameRegister, CallFrame::returnPCOffset()));
-#   else
     jit.storePtr(GPRInfo::regT5, JSInterfaceJIT::Address(JSInterfaceJIT::callFrameRegister, CallFrame::returnPCOffset()));
-#   endif
     
 #  if CPU(X86)
     jit.push(JSInterfaceJIT::regT4);
@@ -930,8 +925,7 @@ MacroAssemblerCodeRef imulThunkGenerator(VM* vm)
         nonIntArg0Jump.link(&jit);
         jit.loadDoubleArgument(0, SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0);
         jit.branchTruncateDoubleToInt32(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT0, SpecializedThunkJIT::BranchIfTruncateSuccessful).linkTo(doneLoadingArg0, &jit);
-        jit.xor32(SpecializedThunkJIT::regT0, SpecializedThunkJIT::regT0);
-        jit.jump(doneLoadingArg0);
+        jit.appendFailure(jit.jump());
     } else
         jit.appendFailure(nonIntArg0Jump);
 
@@ -939,8 +933,7 @@ MacroAssemblerCodeRef imulThunkGenerator(VM* vm)
         nonIntArg1Jump.link(&jit);
         jit.loadDoubleArgument(1, SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT1);
         jit.branchTruncateDoubleToInt32(SpecializedThunkJIT::fpRegT0, SpecializedThunkJIT::regT1, SpecializedThunkJIT::BranchIfTruncateSuccessful).linkTo(doneLoadingArg1, &jit);
-        jit.xor32(SpecializedThunkJIT::regT1, SpecializedThunkJIT::regT1);
-        jit.jump(doneLoadingArg1);
+        jit.appendFailure(jit.jump());
     } else
         jit.appendFailure(nonIntArg1Jump);
 
@@ -967,9 +960,7 @@ static MacroAssemblerCodeRef arrayIteratorNextThunkGenerator(VM* vm, ArrayIterat
     jit.load32(Address(SpecializedThunkJIT::regT4, JSArrayIterator::offsetOfNextIndex()), SpecializedThunkJIT::regT1);
     
     // Pull out the butterfly from iteratedObject
-    jit.loadPtr(Address(SpecializedThunkJIT::regT0, JSCell::structureOffset()), SpecializedThunkJIT::regT2);
-    
-    jit.load8(Address(SpecializedThunkJIT::regT2, Structure::indexingTypeOffset()), SpecializedThunkJIT::regT3);
+    jit.load8(Address(SpecializedThunkJIT::regT0, JSCell::indexingTypeOffset()), SpecializedThunkJIT::regT3);
     jit.loadPtr(Address(SpecializedThunkJIT::regT0, JSObject::butterflyOffset()), SpecializedThunkJIT::regT2);
     
     jit.and32(TrustedImm32(IndexingShapeMask), SpecializedThunkJIT::regT3);

@@ -61,6 +61,16 @@ JSClassRef AccessibilityController::wrapperClass()
     return JSAccessibilityController::accessibilityControllerClass();
 }
 
+void AccessibilityController::enableEnhancedAccessibility(bool enable)
+{
+    WKAccessibilityEnableEnhancedAccessibility(enable);
+}
+
+bool AccessibilityController::enhancedAccessibilityEnabled()
+{
+    return WKAccessibilityEnhancedAccessibilityEnabled();
+}
+
 #if !PLATFORM(GTK) && !PLATFORM(EFL)
 PassRefPtr<AccessibilityUIElement> AccessibilityController::rootElement()
 {
@@ -87,7 +97,7 @@ PassRefPtr<AccessibilityUIElement> AccessibilityController::elementAtPoint(int x
 
 // Unsupported methods on various platforms.
 // As they're implemented on other platforms this list should be modified.
-#if (!PLATFORM(GTK) && !PLATFORM(MAC) && !PLATFORM(EFL)) || !HAVE(ACCESSIBILITY)
+#if (!PLATFORM(GTK) && !PLATFORM(COCOA) && !PLATFORM(EFL)) || !HAVE(ACCESSIBILITY)
 bool AccessibilityController::addNotificationListener(JSValueRef) { return false; }
 bool AccessibilityController::removeNotificationListener() { return false; }
 PassRefPtr<AccessibilityUIElement> AccessibilityController::accessibleElementById(JSStringRef attribute) { return nullptr; }

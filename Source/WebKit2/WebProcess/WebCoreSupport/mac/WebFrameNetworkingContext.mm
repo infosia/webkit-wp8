@@ -42,9 +42,9 @@ using namespace WebCore;
 
 namespace WebKit {
     
-void WebFrameNetworkingContext::ensurePrivateBrowsingSession(uint64_t sessionID)
+void WebFrameNetworkingContext::ensurePrivateBrowsingSession(SessionID sessionID)
 {
-    ASSERT(SessionTracker::isEphemeralID(sessionID));
+    ASSERT(sessionID.isEphemeral());
 
     if (SessionTracker::session(sessionID))
         return;
@@ -55,7 +55,7 @@ void WebFrameNetworkingContext::ensurePrivateBrowsingSession(uint64_t sessionID)
     else
         base = SessionTracker::getIdentifierBase();
 
-    SessionTracker::setSession(sessionID, NetworkStorageSession::createPrivateBrowsingSession(base + '.' + String::number(sessionID)));
+    SessionTracker::setSession(sessionID, NetworkStorageSession::createPrivateBrowsingSession(base + '.' + String::number(sessionID.sessionID())));
 }
 
 void WebFrameNetworkingContext::setCookieAcceptPolicyForAllContexts(HTTPCookieAcceptPolicy policy)
@@ -100,11 +100,8 @@ ResourceError WebFrameNetworkingContext::blockedError(const ResourceRequest& req
 
 NetworkStorageSession& WebFrameNetworkingContext::storageSession() const
 {
-    ASSERT(isMainThread());
-
-    if (frame())
-        return *SessionTracker::session(webFrameLoaderClient()->webFrame()->page()->sessionID());
-    return NetworkStorageSession::defaultStorageSession();
+    ASSERT(RunLoop::isMain());
+    return *SessionTracker::session(frame() ? frame()->page()->sessionID() : SessionID::defaultSessionID());
 }
 
 WebFrameLoaderClient* WebFrameNetworkingContext::webFrameLoaderClient() const

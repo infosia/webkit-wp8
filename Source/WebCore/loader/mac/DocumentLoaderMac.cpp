@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -35,22 +35,24 @@
 namespace WebCore {
 
 #if !PLATFORM(IOS)
-static void scheduleAll(const ResourceLoaderSet& loaders, SchedulePair* pair)
+static void scheduleAll(const ResourceLoaderMap& loaders, SchedulePair* pair)
 {
-    const ResourceLoaderSet copy = loaders;
-    ResourceLoaderSet::const_iterator end = copy.end();
-    for (ResourceLoaderSet::const_iterator it = copy.begin(); it != end; ++it)
-        if (ResourceHandle* handle = (*it)->handle())
+    Vector<RefPtr<ResourceLoader>> loadersCopy;
+    copyValuesToVector(loaders, loadersCopy);
+    for (auto& loader : loadersCopy) {
+        if (ResourceHandle* handle = loader->handle())
             handle->schedule(pair);
+    }
 }
 
-static void unscheduleAll(const ResourceLoaderSet& loaders, SchedulePair* pair)
+static void unscheduleAll(const ResourceLoaderMap& loaders, SchedulePair* pair)
 {
-    const ResourceLoaderSet copy = loaders;
-    ResourceLoaderSet::const_iterator end = copy.end();
-    for (ResourceLoaderSet::const_iterator it = copy.begin(); it != end; ++it)
-        if (ResourceHandle* handle = (*it)->handle())
+    Vector<RefPtr<ResourceLoader>> loadersCopy;
+    copyValuesToVector(loaders, loadersCopy);
+    for (auto& loader : loadersCopy) {
+        if (ResourceHandle* handle = loader->handle())
             handle->unschedule(pair);
+    }
 }
 #endif
 

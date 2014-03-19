@@ -28,8 +28,6 @@
 
 #include "Attribute.h"
 #include "HTMLToken.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 
@@ -114,7 +112,7 @@ public:
         m_type = EndOfFile;
     }
 
-    /* Range and offset methods exposed for HTMLSourceTracker and HTMLViewSourceParser */
+    /* Range and offset methods exposed for HTMLSourceTracker */
     int startIndex() const { return m_range.start; }
     int endIndex() const { return m_range.end; }
 

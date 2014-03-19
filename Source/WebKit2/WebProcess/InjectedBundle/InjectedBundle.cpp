@@ -46,6 +46,7 @@
 #include "WebPage.h"
 #include "WebPreferencesStore.h"
 #include "WebProcess.h"
+#include "WebProcessCreationParameters.h"
 #include <JavaScriptCore/APICast.h>
 #include <JavaScriptCore/JSLock.h>
 #include <WebCore/ApplicationCache.h>
@@ -67,10 +68,11 @@
 #include <WebCore/ScriptController.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SecurityPolicy.h>
+#include <WebCore/SessionID.h>
 #include <WebCore/Settings.h>
 #include <WebCore/UserGestureIndicator.h>
 
-#if ENABLE(SHADOW_DOM) || ENABLE(CSS_REGIONS) || ENABLE(CSS_COMPOSITING)
+#if ENABLE(CSS_REGIONS) || ENABLE(CSS_COMPOSITING)
 #include <WebCore/RuntimeEnabledFeatures.h>
 #endif
 
@@ -83,11 +85,11 @@ using namespace JSC;
 
 namespace WebKit {
 
-InjectedBundle::InjectedBundle(const String& path)
-    : m_path(path)
+InjectedBundle::InjectedBundle(const WebProcessCreationParameters& parameters)
+    : m_path(parameters.injectedBundlePath)
     , m_platformBundle(0)
 {
-    initializeClient(0);
+    platformInitialize(parameters);
 }
 
 InjectedBundle::~InjectedBundle()
@@ -188,6 +190,15 @@ void InjectedBundle::overrideBoolPreferenceForTestRunner(WebPageGroupProxy* page
             webFrameLoaderClient->webFrame()->page()->setArtificialPluginInitializationDelayEnabled(enabled);
         }
     }
+
+#if ENABLE(IMAGE_CONTROLS)
+    if (preference == "WebKitImageControlsEnabled") {
+        WebPreferencesStore::overrideBoolValueForKey(WebPreferencesKey::imageControlsEnabledKey(), enabled);
+        for (HashSet<Page*>::iterator iter = pages.begin(); iter != pages.end(); ++iter)
+            (*iter)->settings().setImageControlsEnabled(enabled);
+        return;
+    }
+#endif
 
 #if ENABLE(CSS_REGIONS)
     if (preference == "WebKitCSSRegionsEnabled")
@@ -297,11 +308,11 @@ void InjectedBundle::setJavaScriptCanAccessClipboard(WebPageGroupProxy* pageGrou
 void InjectedBundle::setPrivateBrowsingEnabled(WebPageGroupProxy* pageGroup, bool enabled)
 {
     // FIXME (NetworkProcess): This test-only function doesn't work with NetworkProcess, <https://bugs.webkit.org/show_bug.cgi?id=115274>.
-#if PLATFORM(MAC) || USE(CFNETWORK) || USE(SOUP)
+#if PLATFORM(COCOA) || USE(CFNETWORK) || USE(SOUP)
     if (enabled)
-        WebFrameNetworkingContext::ensurePrivateBrowsingSession(SessionTracker::legacyPrivateSessionID);
+        WebFrameNetworkingContext::ensurePrivateBrowsingSession(SessionID::legacyPrivateSessionID());
     else
-        SessionTracker::destroySession(SessionTracker::legacyPrivateSessionID);
+        SessionTracker::destroySession(SessionID::legacyPrivateSessionID());
 #endif
     const HashSet<Page*>& pages = PageGroup::pageGroup(pageGroup->identifier())->pages();
     for (HashSet<Page*>::iterator iter = pages.begin(); iter != pages.end(); ++iter)
@@ -437,7 +448,7 @@ int InjectedBundle::pageNumberForElementById(WebFrame* frame, const String& id, 
     if (!coreFrame)
         return -1;
 
-    Element* element = coreFrame->document()->getElementById(AtomicString(id));
+    Element* element = coreFrame->document()->getElementById(id);
     if (!element)
         return -1;
 
@@ -524,7 +535,7 @@ void InjectedBundle::garbageCollectJavaScriptObjectsOnAlternateThreadForDebuggin
 size_t InjectedBundle::javaScriptObjectsCount()
 {
     JSLockHolder lock(JSDOMWindow::commonVM());
-    return JSDOMWindow::commonVM()->heap.objectCount();
+    return JSDOMWindow::commonVM().heap.objectCount();
 }
 
 void InjectedBundle::reportException(JSContextRef context, JSValueRef exception)
@@ -624,15 +635,6 @@ void InjectedBundle::setTabKeyCyclesThroughElements(WebPage* page, bool enabled)
 void InjectedBundle::setSerialLoadingEnabled(bool enabled)
 {
     resourceLoadScheduler()->setSerialLoadingEnabled(enabled);
-}
-
-void InjectedBundle::setShadowDOMEnabled(bool enabled)
-{
-#if ENABLE(SHADOW_DOM)
-    RuntimeEnabledFeatures::sharedFeatures().setShadowDOMEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
 }
 
 void InjectedBundle::setCSSRegionsEnabled(bool enabled)

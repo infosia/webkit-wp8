@@ -17,6 +17,7 @@ function Controller(root, video, host)
     this.updateBase();
     this.updateControls();
     this.updateDuration();
+    this.updateProgress();
     this.updateTime();
     this.updateReadyState();
     this.updatePlaying();
@@ -34,6 +35,9 @@ Controller.FullScreenControls = 1;
 
 Controller.PlayAfterSeeking = 0;
 Controller.PauseAfterSeeking = 1;
+
+/* Globals */
+Controller.gLastTimelineId = 0;
 
 Controller.prototype = {
 
@@ -54,6 +58,7 @@ Controller.prototype = {
         durationchange: 'handleDurationChange',
         play: 'handlePlay',
         pause: 'handlePause',
+        progress: 'handleProgress',
         volumechange: 'handleVolumeChange',
         webkitfullscreenchange: 'handleFullscreenChange',
     },
@@ -64,6 +69,7 @@ Controller.prototype = {
     ClassNames: {
         exit: 'exit',
         hidden: 'hidden',
+        hiding: 'hiding',
         list: 'list',
         muteBox: 'mute-box',
         muted: 'muted',
@@ -76,6 +82,8 @@ Controller.prototype = {
         thumbnailTrack: 'thumbnail-track',
         volumeBox: 'volume-box',
         noVideo: 'no-video',
+        down: 'down',
+        out: 'out',
     },
     KeyCodes: {
         enter: 13,
@@ -89,6 +97,13 @@ Controller.prototype = {
         up: 38,
         right: 39,
         down: 40
+    },
+
+    extend: function(child) {
+        for (var property in this) {
+            if (!child.hasOwnProperty(property))
+                child[property] = this[property];
+        }
     },
 
     // Localized string accessor
@@ -212,15 +227,15 @@ Controller.prototype = {
                 var handler = this[handlerName];
                 if (handler && handler instanceof Function)
                     handler.call(this, event);
-            } else {
-                if (!(this.listeners[event.type] instanceof Array))
-                    return;
-
-                this.listeners[event.type].forEach(function(entry) {
-                    if (entry.element === event.currentTarget && entry.handler instanceof Function)
-                        entry.handler.call(this, event);
-                }, this);
             }
+
+            if (!(this.listeners[event.type] instanceof Array))
+                return;
+
+            this.listeners[event.type].forEach(function(entry) {
+                if (entry.element === event.currentTarget && entry.handler instanceof Function)
+                    entry.handler.call(this, event);
+            }, this);
         } catch(e) {
             if (window.console)
                 console.error(e);
@@ -306,8 +321,10 @@ Controller.prototype = {
         currentTime.setAttribute('role', 'timer');
 
         var timeline = this.controls.timeline = document.createElement('input');
+        this.timelineID = ++Controller.gLastTimelineId;
         timeline.setAttribute('pseudo', '-webkit-media-controls-timeline');
         timeline.setAttribute('aria-label', this.UIString('Duration'));
+        timeline.style.backgroundImage = '-webkit-canvas(timeline-' + this.timelineID + ')';
         timeline.type = 'range';
         this.listenFor(timeline, 'change', this.handleTimelineChange);
         this.listenFor(timeline, 'mouseover', this.handleTimelineMouseOver);
@@ -457,6 +474,7 @@ Controller.prototype = {
     handleLoadStart: function(event)
     {
         this.controls.statusDisplay.innerText = this.UIString('Loading');
+        this.updateProgress();
     },
 
     handleError: function(event)
@@ -477,6 +495,7 @@ Controller.prototype = {
     handleStalled: function(event)
     {
         this.controls.statusDisplay.innerText = this.UIString('Stalled');
+        this.updateProgress();
     },
 
     handleWaiting: function(event)
@@ -489,6 +508,7 @@ Controller.prototype = {
         this.updateReadyState();
         this.updateCaptionButton();
         this.updateCaptionContainer();
+        this.updateProgress();
     },
 
     handleTimeUpdate: function(event)
@@ -501,16 +521,22 @@ Controller.prototype = {
     {
         this.updateDuration();
         this.updateTime();
+        this.updateProgress();
     },
 
     handlePlay: function(event)
     {
-        this.updatePlaying();
+        this.setPlaying(true);
     },
 
     handlePause: function(event)
     {
-        this.updatePlaying();
+        this.setPlaying(false);
+    },
+
+    handleProgress: function(event)
+    {
+        this.updateProgress();
     },
 
     handleVolumeChange: function(event)
@@ -572,9 +598,7 @@ Controller.prototype = {
     handleWrapperMouseMove: function(event)
     {
         this.showControls();
-        if (this.hideTimer)
-            clearTimeout(this.hideTimer);
-        this.hideTimer = setTimeout(this.hideControls.bind(this), this.HideControlsDelay);
+        this.resetHideControlsTimer();
 
         if (!this.isDragging)
             return;
@@ -587,8 +611,7 @@ Controller.prototype = {
     handleWrapperMouseOut: function(event)
     {
         this.hideControls();
-        if (this.hideTimer)
-            clearTimeout(this.hideTimer);
+        this.clearHideControlsTimer();
     },
 
     handleWrapperMouseUp: function(event)
@@ -842,6 +865,36 @@ Controller.prototype = {
         this.controls.timeline.max = this.video.duration;
     },
 
+    progressFillStyle: function(context)
+    {
+        var height = this.controls.timeline.offsetHeight;
+        var gradient = context.createLinearGradient(0, 0, 0, height);
+        gradient.addColorStop(0, 'rgb(2, 2, 2)');
+        gradient.addColorStop(1, 'rgb(23, 23, 23)');
+        return gradient;
+    },
+
+    updateProgress: function()
+    {
+        var width = this.controls.timeline.offsetWidth;
+        var height = this.controls.timeline.offsetHeight;
+        var context = document.getCSSCanvasContext('2d', 'timeline-' + this.timelineID, width, height);
+        context.clearRect(0, 0, width, height);
+
+        context.fillStyle = this.progressFillStyle(context);
+
+        var duration = this.video.duration;
+        var buffered = this.video.buffered;
+        for (var i = 0, end = buffered.length; i < end; ++i) {
+            var startTime = buffered.start(i);
+            var endTime = buffered.end(i);
+
+            var startX = width * startTime / duration;
+            var endX = width * endTime / duration;
+            context.fillRect(startX, 0, endX - startX, height);
+        }
+    },
+
     formatTime: function(time)
     {
         if (isNaN(time))
@@ -854,7 +907,16 @@ Controller.prototype = {
 
     updatePlaying: function()
     {
-        if (this.canPlay()) {
+        this.setPlaying(!this.canPlay());
+    },
+
+    setPlaying: function(isPlaying)
+    {
+        if (this.isPlaying === isPlaying)
+            return;
+        this.isPlaying = isPlaying;
+
+        if (!isPlaying) {
             this.controls.panel.classList.add(this.ClassNames.paused);
             this.controls.playButton.classList.add(this.ClassNames.paused);
             this.controls.playButton.setAttribute('aria-label', this.UIString('Play'));
@@ -864,9 +926,7 @@ Controller.prototype = {
             this.controls.playButton.setAttribute('aria-label', this.UIString('Pause'));
 
             this.hideControls();
-            if (this.hideTimer)
-                clearTimeout(this.hideTimer);
-            this.hideTimer = setTimeout(this.hideControls.bind(this), this.HideControlsDelay);
+            this.resetHideControlsTimer();
         }
     },
 
@@ -1152,4 +1212,17 @@ Controller.prototype = {
         return this.video instanceof HTMLAudioElement;
     },
 
+    clearHideControlsTimer: function()
+    {
+        if (this.hideTimer)
+            clearTimeout(this.hideTimer);
+        this.hideTimer = null;
+    },
+
+    resetHideControlsTimer: function()
+    {
+        if (this.hideTimer)
+            clearTimeout(this.hideTimer);
+        this.hideTimer = setTimeout(this.hideControls.bind(this), this.HideControlsDelay);
+    },
 };

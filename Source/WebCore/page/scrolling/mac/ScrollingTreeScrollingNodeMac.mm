@@ -78,6 +78,9 @@ void ScrollingTreeScrollingNodeMac::updateBeforeChildren(const ScrollingStateNod
     if (scrollingStateNode.hasChangedProperty(ScrollingStateNode::ScrollLayer))
         m_scrollLayer = scrollingStateNode.layer();
 
+    if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::ScrolledContentsLayer))
+        m_scrolledContentsLayer = scrollingStateNode.scrolledContentsLayer();
+
     if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::CounterScrollingLayer))
         m_counterScrollingLayer = scrollingStateNode.counterScrollingLayer();
 
@@ -124,7 +127,7 @@ void ScrollingTreeScrollingNodeMac::updateAfterChildren(const ScrollingStateNode
     if (scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::RequestedScrollPosition))
         setScrollPosition(scrollingStateNode.requestedScrollPosition());
 
-    if (scrollingStateNode.hasChangedProperty(ScrollingStateNode::ScrollLayer) || scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::TotalContentsSize) || scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::ViewportConstrainedObjectRect))
+    if (scrollingStateNode.hasChangedProperty(ScrollingStateNode::ScrollLayer) || scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::TotalContentsSize) || scrollingStateNode.hasChangedProperty(ScrollingStateScrollingNode::ViewportSize))
         updateMainFramePinState(scrollPosition());
 }
 
@@ -132,6 +135,15 @@ void ScrollingTreeScrollingNodeMac::handleWheelEvent(const PlatformWheelEvent& w
 {
     if (!canHaveScrollbars())
         return;
+
+    if (wheelEvent.phase() == PlatformWheelEventPhaseEnded || wheelEvent.phase() == PlatformWheelEventPhaseCancelled) {
+        // If the wheel event is ending or cancelled, then we can tell the ScrollbarPainter API that we won't
+        // be updating the position from our scrolling thread anymore for the time being.
+        if (m_verticalScrollbarPainter)
+            [m_verticalScrollbarPainter setUsePresentationValue:NO];
+        if (m_horizontalScrollbarPainter)
+            [m_horizontalScrollbarPainter setUsePresentationValue:NO];
+    }
 
     m_scrollElasticityController.handleWheelEvent(wheelEvent);
     scrollingTree().setOrClearLatchedNode(wheelEvent, scrollingNodeID());
@@ -207,10 +219,10 @@ bool ScrollingTreeScrollingNodeMac::pinnedInDirection(const FloatSize& delta)
     } else if (delta.width()) {
         if (delta.width() < 0) {
             // We are trying to scroll left.  Make sure we are not pinned to the left
-            limitDelta.setHeight(scrollPosition().x() - minimumScrollPosition().x());
+            limitDelta.setWidth(scrollPosition().x() - minimumScrollPosition().x());
         } else {
             // We are trying to scroll right.  Make sure we are not pinned to the right
-            limitDelta.setHeight(maximumScrollPosition().x() - scrollPosition().x());
+            limitDelta.setWidth(maximumScrollPosition().x() - scrollPosition().x());
         }
     }
 
@@ -331,25 +343,29 @@ void ScrollingTreeScrollingNodeMac::setScrollLayerPosition(const FloatPoint& pos
 
     ScrollBehaviorForFixedElements behaviorForFixed = scrollBehaviorForFixedElements();
     FloatPoint scrollOffset = position - toFloatSize(scrollOrigin());
+    FloatRect viewportRect(FloatPoint(), viewportSize());
+    
     // FIXME: scrollOffsetForFixedPosition() needs to do float math.
-    FloatSize scrollOffsetForFixedChildren = FrameView::scrollOffsetForFixedPosition(enclosingIntRect(viewportConstrainedObjectRect()), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), frameScaleFactor(), false, behaviorForFixed, headerHeight(), footerHeight());
+    FloatSize scrollOffsetForFixedChildren = FrameView::scrollOffsetForFixedPosition(enclosingLayoutRect(viewportRect),
+        totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), frameScaleFactor(), false, behaviorForFixed, headerHeight(), footerHeight());
+    
     if (m_counterScrollingLayer)
         m_counterScrollingLayer.get().position = FloatPoint(scrollOffsetForFixedChildren);
 
-    // Generally the banners should have the same horizontal-position computation as a fixed element. However,
-    // the banners are not affected by the frameScaleFactor(), so if there is currently a non-1 frameScaleFactor()
-    // then we should recompute scrollOffsetForFixedChildren for the banner with a scale factor of 1.
-    float horizontalScrollOffsetForBanner = scrollOffsetForFixedChildren.width();
-    if (frameScaleFactor() != 1)
-        horizontalScrollOffsetForBanner = FrameView::scrollOffsetForFixedPosition(enclosingIntRect(viewportConstrainedObjectRect()), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), 1, false, behaviorForFixed, headerHeight(), footerHeight()).width();
+    if (m_headerLayer || m_footerLayer) {
+        // Generally the banners should have the same horizontal-position computation as a fixed element. However,
+        // the banners are not affected by the frameScaleFactor(), so if there is currently a non-1 frameScaleFactor()
+        // then we should recompute scrollOffsetForFixedChildren for the banner with a scale factor of 1.
+        float horizontalScrollOffsetForBanner = scrollOffsetForFixedChildren.width();
+        if (frameScaleFactor() != 1)
+            horizontalScrollOffsetForBanner = FrameView::scrollOffsetForFixedPosition(enclosingLayoutRect(viewportRect), totalContentsSize(), flooredIntPoint(scrollOffset), scrollOrigin(), 1, false, behaviorForFixed, headerHeight(), footerHeight()).width();
 
-    if (m_headerLayer)
-        m_headerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, 0);
+        if (m_headerLayer)
+            m_headerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, 0);
 
-    if (m_footerLayer)
-        m_footerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, totalContentsSize().height() - footerHeight());
-
-    FloatRect viewportRect = viewportConstrainedObjectRect();
+        if (m_footerLayer)
+            m_footerLayer.get().position = FloatPoint(horizontalScrollOffsetForBanner, totalContentsSize().height() - footerHeight());
+    }
 
     if (m_verticalScrollbarPainter || m_horizontalScrollbarPainter) {
         [CATransaction begin];
@@ -384,6 +400,23 @@ void ScrollingTreeScrollingNodeMac::setScrollLayerPosition(const FloatPoint& pos
         m_children->at(i)->parentScrollPositionDidChange(viewportRect, FloatSize());
 }
 
+void ScrollingTreeScrollingNodeMac::updateForViewport(const FloatRect& viewportRect, double scale)
+{
+    // FIXME: correctly handle updates for zooming.
+    UNUSED_PARAM(scale);
+    FloatPoint scrollPosition = viewportRect.location();
+    updateMainFramePinState(scrollPosition);
+
+    if (shouldUpdateScrollLayerPositionSynchronously()) {
+        m_probableMainThreadScrollPosition = scrollPosition;
+        scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition, SetScrollingLayerPosition);
+        return;
+    }
+
+    setScrollLayerPosition(scrollPosition);
+    scrollingTree().scrollingTreeNodeDidScroll(scrollingNodeID(), scrollPosition);
+}
+
 FloatPoint ScrollingTreeScrollingNodeMac::minimumScrollPosition() const
 {
     IntPoint position;
@@ -396,8 +429,8 @@ FloatPoint ScrollingTreeScrollingNodeMac::minimumScrollPosition() const
 
 FloatPoint ScrollingTreeScrollingNodeMac::maximumScrollPosition() const
 {
-    FloatPoint position(totalContentsSizeForRubberBand().width() - viewportConstrainedObjectRect().width(),
-        totalContentsSizeForRubberBand().height() - viewportConstrainedObjectRect().height());
+    FloatPoint position(totalContentsSizeForRubberBand().width() - viewportSize().width(),
+        totalContentsSizeForRubberBand().height() - viewportSize().height());
 
     position = position.expandedTo(FloatPoint());
 
@@ -452,7 +485,8 @@ void ScrollingTreeScrollingNodeMac::logExposedUnfilledArea()
     }
 
     FloatPoint scrollPosition = this->scrollPosition();
-    unsigned unfilledArea = TileController::blankPixelCountForTiles(tiles, viewportConstrainedObjectRect(), IntPoint(-scrollPosition.x(), -scrollPosition.y()));
+    FloatRect viewPortRect(FloatPoint(), viewportSize());
+    unsigned unfilledArea = TileController::blankPixelCountForTiles(tiles, viewPortRect, IntPoint(-scrollPosition.x(), -scrollPosition.y()));
 
     if (unfilledArea || m_lastScrollHadUnfilledPixels)
         WTFLogAlways("SCROLLING: Exposed tileless area. Time: %f Unfilled Pixels: %u\n", WTF::monotonicallyIncreasingTime(), unfilledArea);

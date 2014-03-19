@@ -35,6 +35,7 @@
 #include <WebCore/ResourceHandleClient.h>
 #include <WebCore/ResourceLoaderOptions.h>
 #include <WebCore/ResourceRequest.h>
+#include <WebCore/SessionID.h>
 #include <wtf/MainThread.h>
 #include <wtf/RunLoop.h>
 
@@ -71,6 +72,7 @@ public:
 
     WebCore::ResourceLoadPriority priority() { return m_priority; }
     WebCore::ResourceRequest& request() { return m_request; }
+    WebCore::SessionID sessionID() const { return m_sessionID; }
 
     WebCore::ResourceHandle* handle() const { return m_handle.get(); }
     void didConvertHandleToDownload();
@@ -104,11 +106,10 @@ public:
     virtual void didReceiveDataArray(WebCore::ResourceHandle*, CFArrayRef) override;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static size_t fileBackedResourceMinimumSize();
 #if !PLATFORM(IOS)
     virtual void willCacheResponseAsync(WebCore::ResourceHandle*, NSCachedURLResponse *) override;
-    virtual void willStopBufferingData(WebCore::ResourceHandle*, const char*, unsigned) override;
 #endif
 #endif // PLATFORM(MAC)
 
@@ -122,8 +123,8 @@ public:
     bool isSynchronous() const;
     bool isLoadingMainResource() const { return m_isLoadingMainResource; }
     
-    void setHostRecord(HostRecord* hostRecord) { ASSERT(isMainThread()); m_hostRecord = hostRecord; }
-    HostRecord* hostRecord() const { ASSERT(isMainThread()); return m_hostRecord.get(); }
+    void setHostRecord(HostRecord* hostRecord) { ASSERT(RunLoop::isMain()); m_hostRecord = hostRecord; }
+    HostRecord* hostRecord() const { ASSERT(RunLoop::isMain()); return m_hostRecord.get(); }
 
     template<typename T>
     bool sendAbortingOnFailure(T&& message, unsigned messageSendFlags = 0)
@@ -174,7 +175,7 @@ private:
     ResourceLoadIdentifier m_identifier;
     uint64_t m_webPageID;
     uint64_t m_webFrameID;
-    uint64_t m_sessionID;
+    WebCore::SessionID m_sessionID;
     WebCore::ResourceRequest m_request;
     WebCore::ResourceLoadPriority m_priority;
     WebCore::ContentSniffingPolicy m_contentSniffingPolicy;

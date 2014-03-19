@@ -51,7 +51,7 @@
 #include "LLIntExceptions.h"
 #include "LowLevelInterpreter.h"
 #include "ObjectConstructor.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "ProtoCallFrame.h"
 #include "StructureRareDataInlines.h"
 #include <wtf/StringPrintStream.h>
@@ -118,6 +118,14 @@ namespace JSC { namespace LLInt {
         JSValue __r_returnValue = (value);      \
         LLINT_CHECK_EXCEPTION();                \
         LLINT_OP(1) = __r_returnValue;          \
+        LLINT_END_IMPL();                       \
+    } while (false)
+
+#define LLINT_RETURN_WITH_PC_ADJUSTMENT(value, pcAdjustment) do { \
+        JSValue __r_returnValue = (value);      \
+        LLINT_CHECK_EXCEPTION();                \
+        LLINT_OP(1) = __r_returnValue;          \
+        pc += (pcAdjustment);                   \
         LLINT_END_IMPL();                       \
     } while (false)
 
@@ -535,8 +543,8 @@ LLINT_SLOW_PATH_DECL(slow_path_check_has_instance)
         JSObject* baseObject = asObject(baseVal);
         ASSERT(!baseObject->structure()->typeInfo().implementsDefaultHasInstance());
         if (baseObject->structure()->typeInfo().implementsHasInstance()) {
-            pc += pc[4].u.operand;
-            LLINT_RETURN(jsBoolean(baseObject->methodTable()->customHasInstance(baseObject, exec, value)));
+            JSValue result = jsBoolean(baseObject->methodTable()->customHasInstance(baseObject, exec, value));
+            LLINT_RETURN_WITH_PC_ADJUSTMENT(result, pc[4].u.operand);
         }
     }
     LLINT_THROW(createInvalidParameterError(exec, "instanceof", baseVal));
@@ -573,9 +581,10 @@ LLINT_SLOW_PATH_DECL(slow_path_get_by_id)
         Structure* structure = baseCell->structure();
         
         if (!structure->isUncacheableDictionary()
-            && !structure->typeInfo().prohibitsPropertyCaching()) {
+            && !structure->typeInfo().prohibitsPropertyCaching()
+            && !structure->typeInfo().newImpurePropertyFiresWatchpoints()) {
             ConcurrentJITLocker locker(codeBlock->m_lock);
-            
+
             pc[4].u.structure.set(
                 vm, codeBlock->ownerExecutable(), structure);
             if (isInlineOffset(slot.cachedOffset())) {
@@ -627,7 +636,7 @@ LLINT_SLOW_PATH_DECL(slow_path_put_by_id)
     
     if (!LLINT_ALWAYS_ACCESS_SLOW
         && baseValue.isCell()
-        && slot.isCacheable()) {
+        && slot.isCacheablePut()) {
         
         JSCell* baseCell = baseValue.asCell();
         Structure* structure = baseCell->structure();
@@ -706,7 +715,7 @@ LLINT_SLOW_PATH_DECL(slow_path_del_by_id)
 inline JSValue getByVal(ExecState* exec, JSValue baseValue, JSValue subscript)
 {
     if (LIKELY(baseValue.isCell() && subscript.isString())) {
-        if (JSValue result = baseValue.asCell()->fastGetOwnProperty(exec, asString(subscript)->value(exec)))
+        if (JSValue result = baseValue.asCell()->fastGetOwnProperty(exec->vm(), asString(subscript)->value(exec)))
             return result;
     }
     
@@ -1155,7 +1164,7 @@ LLINT_SLOW_PATH_DECL(slow_path_size_frame_for_varargs)
     // - Set up a call frame while respecting the variable arguments.
     
     ExecState* execCallee = sizeFrameForVarargs(exec, &vm.interpreter->stack(),
-        LLINT_OP_C(4).jsValue(), pc[5].u.operand);
+        LLINT_OP_C(4).jsValue(), pc[5].u.operand, pc[6].u.operand);
     LLINT_CALL_CHECK_EXCEPTION(exec);
     
     vm.newCallFrameReturnValue = execCallee;
@@ -1174,7 +1183,7 @@ LLINT_SLOW_PATH_DECL(slow_path_call_varargs)
     
     ExecState* execCallee = vm.newCallFrameReturnValue;
 
-    loadVarargs(exec, execCallee, LLINT_OP_C(3).jsValue(), LLINT_OP_C(4).jsValue());
+    loadVarargs(exec, execCallee, LLINT_OP_C(3).jsValue(), LLINT_OP_C(4).jsValue(), pc[6].u.operand);
     LLINT_CALL_CHECK_EXCEPTION(exec);
     
     execCallee->uncheckedR(JSStack::Callee) = calleeAsValue;
@@ -1409,7 +1418,7 @@ LLINT_SLOW_PATH_DECL(slow_path_put_to_scope)
 
     // Covers implicit globals. Since they don't exist until they first execute, we didn't know how to cache them at compile time.
     if (modeAndType.type() == GlobalProperty || modeAndType.type() == GlobalPropertyWithVarInjectionChecks) {
-        if (slot.isCacheable() && slot.base() == scope && scope->structure()->propertyAccessesAreCacheable()) {
+        if (slot.isCacheablePut() && slot.base() == scope && scope->structure()->propertyAccessesAreCacheable()) {
             ConcurrentJITLocker locker(codeBlock->m_lock);
             pc[5].u.structure.set(exec->vm(), codeBlock->ownerExecutable(), scope->structure());
             pc[6].u.operand = slot.cachedOffset();
@@ -1436,9 +1445,15 @@ extern "C" SlowPathReturnType llint_stack_check_at_vm_entry(VM* vm, Register* ne
 }
 #endif
 
-extern "C" void llint_write_barrier_slow(ExecState*, JSCell* cell)
+extern "C" void llint_write_barrier_slow(ExecState* exec, JSCell* cell)
 {
-    Heap::writeBarrier(cell);
+    VM& vm = exec->vm();
+    vm.heap.writeBarrier(cell);
+}
+
+extern "C" NO_RETURN_DUE_TO_CRASH void llint_crash()
+{
+    CRASH();
 }
 
 } } // namespace JSC::LLInt

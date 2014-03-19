@@ -47,7 +47,6 @@ using namespace HTMLNames;
 RuleSet* CSSDefaultStyleSheets::defaultStyle;
 RuleSet* CSSDefaultStyleSheets::defaultQuirksStyle;
 RuleSet* CSSDefaultStyleSheets::defaultPrintStyle;
-RuleSet* CSSDefaultStyleSheets::defaultViewSourceStyle;
 
 StyleSheetContents* CSSDefaultStyleSheets::simpleDefaultStyleSheet;
 StyleSheetContents* CSSDefaultStyleSheets::defaultStyleSheet;
@@ -57,6 +56,7 @@ StyleSheetContents* CSSDefaultStyleSheets::mathMLStyleSheet;
 StyleSheetContents* CSSDefaultStyleSheets::mediaControlsStyleSheet;
 StyleSheetContents* CSSDefaultStyleSheets::fullscreenStyleSheet;
 StyleSheetContents* CSSDefaultStyleSheets::plugInsStyleSheet;
+StyleSheetContents* CSSDefaultStyleSheets::imageControlsStyleSheet;
 
 // FIXME: It would be nice to use some mechanism that guarantees this is in sync with the real UA stylesheet.
 static const char* simpleUserAgentStyleSheet = "html,body,div{display:block}head{display:none}body{margin:8px}div:focus,span:focus,a:focus{outline:auto 5px -webkit-focus-ring-color}a:-webkit-any-link{color:-webkit-link;text-decoration:underline}a:-webkit-any-link:active{color:-webkit-activelink}";
@@ -68,13 +68,13 @@ static inline bool elementCanUseSimpleDefaultStyle(Element* e)
 
 static const MediaQueryEvaluator& screenEval()
 {
-    DEFINE_STATIC_LOCAL(const MediaQueryEvaluator, staticScreenEval, ("screen"));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const MediaQueryEvaluator, staticScreenEval, ("screen"));
     return staticScreenEval;
 }
 
 static const MediaQueryEvaluator& printEval()
 {
-    DEFINE_STATIC_LOCAL(const MediaQueryEvaluator, staticPrintEval, ("print"));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const MediaQueryEvaluator, staticPrintEval, ("print"));
     return staticPrintEval;
 }
 
@@ -145,17 +145,6 @@ void CSSDefaultStyleSheets::loadSimpleDefaultStyle()
     // No need to initialize quirks sheet yet as there are no quirk rules for elements allowed in simple default style.
 }
 
-RuleSet* CSSDefaultStyleSheets::viewSourceStyle()
-{
-    if (!defaultViewSourceStyle) {
-        static StyleSheetContents* viewSourceStyleSheet = parseUASheet(sourceUserAgentStyleSheet, sizeof(sourceUserAgentStyleSheet));
-        defaultViewSourceStyle = std::make_unique<RuleSet>().release();
-        defaultViewSourceStyle->addRulesFromSheet(viewSourceStyleSheet, screenEval());
-    }
-    return defaultViewSourceStyle;
-}
-
-
 void CSSDefaultStyleSheets::ensureDefaultStyleSheetsForElement(Element* element, bool& changedDefaultStyle)
 {
     if (simpleDefaultStyleSheet && !elementCanUseSimpleDefaultStyle(element)) {
@@ -199,6 +188,16 @@ void CSSDefaultStyleSheets::ensureDefaultStyleSheetsForElement(Element* element,
         fullscreenStyleSheet = parseUASheet(fullscreenRules);
         defaultStyle->addRulesFromSheet(fullscreenStyleSheet, screenEval());
         defaultQuirksStyle->addRulesFromSheet(fullscreenStyleSheet, screenEval());
+        changedDefaultStyle = true;
+    }
+#endif
+
+#if ENABLE(IMAGE_CONTROLS)
+    if (!imageControlsStyleSheet && element->isImageControlsRootElement()) {
+        String imageControlsRules = RenderTheme::themeForPage(element->document().page())->imageControlsStyleSheet();
+        imageControlsStyleSheet = parseUASheet(imageControlsRules);
+        defaultStyle->addRulesFromSheet(imageControlsStyleSheet, screenEval());
+        defaultPrintStyle->addRulesFromSheet(imageControlsStyleSheet, printEval());
         changedDefaultStyle = true;
     }
 #endif

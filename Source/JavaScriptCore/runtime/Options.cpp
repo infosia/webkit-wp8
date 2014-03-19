@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -77,30 +77,36 @@ static bool parse(const char* string, OptionRange& value)
 }
 
 template<typename T>
-void overrideOptionWithHeuristic(T& variable, const char* name)
+bool overrideOptionWithHeuristic(T& variable, const char* name)
 {
 #if !OS(WINCE)
     const char* stringValue = getenv(name);
     if (!stringValue)
-        return;
+        return false;
     
     if (parse(stringValue, variable))
-        return;
+        return true;
     
     fprintf(stderr, "WARNING: failed to parse %s=%s\n", name, stringValue);
 #endif
+    return false;
 }
 
-static unsigned computeNumberOfWorkerThreads(int maxNumberOfWorkerThreads)
+static unsigned computeNumberOfWorkerThreads(int maxNumberOfWorkerThreads, int minimum = 1)
 {
     int cpusToUse = std::min(WTF::numberOfProcessorCores(), maxNumberOfWorkerThreads);
 
     // Be paranoid, it is the OS we're dealing with, after all.
     ASSERT(cpusToUse >= 1);
-    if (cpusToUse < 1)
-        cpusToUse = 1;
-    
-    return cpusToUse;
+    return std::max(cpusToUse, minimum);
+}
+
+static int32_t computePriorityDeltaOfWorkerThreads(int32_t twoCorePriorityDelta, int32_t multiCorePriorityDelta)
+{
+    if (WTF::numberOfProcessorCores() <= 2)
+        return twoCorePriorityDelta;
+
+    return multiCorePriorityDelta;
 }
 
 static unsigned computeNumberOfGCMarkers(unsigned maxNumberOfGCMarkers)
@@ -181,16 +187,29 @@ static void recomputeDependentOptions()
 #if !ENABLE(JIT)
     Options::useJIT() = false;
     Options::useDFGJIT() = false;
+    Options::useFTLJIT() = false;
 #endif
 #if !ENABLE(YARR_JIT)
     Options::useRegExpJIT() = false;
 #endif
+#if !ENABLE(CONCURRENT_JIT)
+    Options::enableConcurrentJIT() = false;
+#endif
+#if !ENABLE(DFG_JIT)
+    Options::useDFGJIT() = false;
+    Options::useFTLJIT() = false;
+#endif
+#if !ENABLE(FTL_JIT)
+    Options::useFTLJIT() = false;
+#endif
     
     if (Options::showDisassembly()
         || Options::showDFGDisassembly()
+        || Options::showFTLDisassembly()
         || Options::dumpBytecodeAtDFGTime()
         || Options::dumpGraphAtEachPhase()
         || Options::verboseCompilation()
+        || Options::verboseFTLCompilation()
         || Options::logCompilationChanges()
         || Options::validateGraph()
         || Options::validateGraphAtEachPhase()
@@ -236,7 +255,8 @@ void Options::initialize()
     // The evn var should be the name of the option prefixed with
     // "JSC_".
 #define FOR_EACH_OPTION(type_, name_, defaultValue_) \
-    overrideOptionWithHeuristic(name_(), "JSC_" #name_);
+    if (overrideOptionWithHeuristic(name_(), "JSC_" #name_)) \
+        s_options[OPT_##name_].didOverride = true;
     JSC_OPTIONS(FOR_EACH_OPTION)
 #undef FOR_EACH_OPTION
 
@@ -273,6 +293,7 @@ bool Options::setOption(const char* arg)
         bool success = parse(valueStr, value);          \
         if (success) {                                  \
             name_() = value;                            \
+            s_options[OPT_##name_].didOverride = true;  \
             recomputeDependentOptions();                \
             return true;                                \
         }                                               \

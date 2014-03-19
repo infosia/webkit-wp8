@@ -1,3 +1,369 @@
+2014-03-18  Jae Hyun Park  <jaepark@webkit.org>
+
+        [GTK][CMake] Fix WebKit unused parameter warnings
+        https://bugs.webkit.org/show_bug.cgi?id=130383
+
+        Reviewed by Martin Robinson.
+
+        * WebCoreSupport/AcceleratedCompositingContextGL.cpp: Fix unused parameters warning.
+        * WebCoreSupport/ChromeClientGtk.cpp: Ditto.
+        * WebCoreSupport/DragClientGtk.cpp: Ditto.
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp: Ditto.
+        * WebCoreSupport/EditorClientGtk.cpp: Ditto.
+        * WebCoreSupport/FrameLoaderClientGtk.cpp: Ditto.
+        * WebCoreSupport/InspectorClientGtk.cpp: Ditto.
+        * WebCoreSupport/PlatformStrategiesGtk.cpp: Ditto.
+        * WebCoreSupport/ProgressTrackerClientGtk.cpp: Ditto.
+        * WebCoreSupport/WebViewInputMethodFilter.cpp: Ditto.
+        * webkit/webkitdownload.cpp: Ditto.
+        * webkit/webkitfavicondatabase.cpp: Ditto.
+        * webkit/webkitsoupauthdialog.cpp: Ditto.
+        * webkit/webkitspellchecker.cpp: Ditto.
+        * webkit/webkitspellcheckerenchant.cpp: Ditto.
+        * webkit/webkitwebframe.cpp: Ditto.
+        * webkit/webkitwebinspector.cpp: Ditto.
+        * webkit/webkitwebview.cpp: Ditto.
+
+2014-03-14  Maciej Stachowiak  <mjs@apple.com>
+
+        Replace "Apple Computer, Inc." with "Apple Inc." in copyright headers
+        https://bugs.webkit.org/show_bug.cgi?id=130276
+        <rdar://problem/16266927>
+
+        Reviewed by Simon Fraser.
+
+        * WebCoreSupport/ContextMenuClientGtk.h:
+        * WebCoreSupport/DocumentLoaderGtk.cpp:
+        * WebCoreSupport/DocumentLoaderGtk.h:
+        * WebCoreSupport/EditorClientGtk.h:
+        * WebCoreSupport/FrameLoaderClientGtk.h:
+        * WebCoreSupport/InspectorClientGtk.h:
+        * WebCoreSupport/TextCheckerClientGtk.h:
+
+2014-03-12  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: Remove unused callId parameter from evaluateInWebInspector
+        https://bugs.webkit.org/show_bug.cgi?id=129744
+
+        Reviewed by Timothy Hatcher.
+
+        * webkit/webkitwebinspector.cpp:
+        (webkit_web_inspector_execute_script):
+        * webkit/webkitwebinspectorprivate.h:
+
+2014-03-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] [Stable] deadlock in gobject introspection
+        https://bugs.webkit.org/show_bug.cgi?id=125651
+
+        Reviewed by Sergio Villar Senin.
+
+        * webkit/webkitglobals.cpp:
+        (webkitExit): Dot not try to unref the default network session, it
+        will be finalized automatically when the process finishes.
+
+2014-03-07  Zan Dobersek  <zdobersek@igalia.com>
+
+        Move GTK WebKit1 code to std::unique_ptr
+        https://bugs.webkit.org/show_bug.cgi?id=129675
+
+        Reviewed by Anders Carlsson.
+
+        Replace uses of OwnPtr and PassOwnPtr in GTK-specific WebKit1 code with std::unique_ptr.
+
+        * WebCoreSupport/AcceleratedCompositingContext.h:
+        * WebCoreSupport/NavigatorContentUtilsClientGtk.cpp:
+        * WebCoreSupport/NavigatorContentUtilsClientGtk.h:
+        * webkit/webkitfavicondatabase.cpp:
+        (getIconPixbufCancelled):
+        (webkit_favicon_database_get_favicon_pixbuf):
+        * webkit/webkitwebview.cpp:
+        (webkit_web_view_init):
+        * webkit/webkitwebviewprivate.h:
+
+2014-03-06  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Expose the console object in JSContexts to interact with Web Inspector
+        https://bugs.webkit.org/show_bug.cgi?id=127944
+
+        Reviewed by Geoffrey Garen.
+
+        * WebCoreSupport/ChromeClientGtk.cpp:
+        (WebKit::ChromeClient::addMessageToConsole):
+        Update namespaces.
+
+2014-03-04  Zalan Bujtas  <zalan@apple.com>
+
+        Enable device pixel repaint rect tracking.
+        https://bugs.webkit.org/show_bug.cgi?id=129712
+
+        Reviewed by Simon Fraser.
+
+        Tracked repaint rects are device pixel snapped now to support hiDPI test cases.
+
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp:
+        (DumpRenderTreeSupportGtk::trackedRepaintRects):
+
+2014-03-03  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Fix some simple gtkdoc warnings for WebKit1
+        https://bugs.webkit.org/show_bug.cgi?id=129659
+
+        Reviewed by Carlos Garcia Campos.
+
+        * docs/webkitgtk-sections.txt: Make public some enum documentation that is used
+        in public APIs.
+        * webkit/webkitwebview.cpp: Fix typos and add documentation for enums previously
+        marked as private.
+        (webkit_web_view_class_init):
+        * webkit/webkitwebview.h: Ditto.
+
+2014-02-26  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Remove console.profiles from window.console API
+        https://bugs.webkit.org/show_bug.cgi?id=116883
+
+        Reviewed by Timothy Hatcher.
+
+        * webkit/webkitwebinspector.cpp:
+        (webkit_web_inspector_class_init):
+        Removed stale part of comment.
+
+2014-02-26  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] generate-gtkdoc can fail with WebKit1 or WebKit2 only builds
+        https://bugs.webkit.org/show_bug.cgi?id=129319
+
+        Reviewed by Carlos Garcia Campos.
+
+        * GNUmakefile.am: Do not generate the documentation configuration file if the port
+        is disabled.
+
+2014-02-25  Anders Carlsson  <andersca@apple.com>
+
+        Get rid of VisitedLinkStrategy
+        https://bugs.webkit.org/show_bug.cgi?id=129324
+
+        Reviewed by Dan Bernstein.
+
+        * WebCoreSupport/PlatformStrategiesGtk.cpp:
+        (PlatformStrategiesGtk::getPluginInfo):
+        * WebCoreSupport/PlatformStrategiesGtk.h:
+
+2014-02-24  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Mark view source mode methods as deprecated
+        https://bugs.webkit.org/show_bug.cgi?id=128920
+
+        Reviewed by Martin Robinson.
+
+        * webkit/webkitwebview.cpp: Mark set/get_view_source_mode as
+        deprecated in the documentation.
+        * webkit/webkitwebview.h: Add deprecation guards.
+
+2014-02-24  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] generate-gtkdoc should not generate documentation for source files for unbuilt source files
+        https://bugs.webkit.org/show_bug.cgi?id=128417
+
+        Reviewed by Carlos Garcia Campos.
+
+        * GNUmakefile.am: Generate a config file for generate-gtkdoc.
+
+2014-02-24  Enrique Ocaña González  <eocanha@igalia.com>
+
+        REGRESSION(r164438): [GTK] Tests /WebKitGtk/testcontextmenu, /WebKitGtk/testmimehandling, /WebKitGtk/testloading assert in Debug build
+        https://bugs.webkit.org/show_bug.cgi?id=129256
+
+        Reviewed by Carlos Garcia Campos.
+
+        * WebCoreSupport/FrameLoaderClientGtk.cpp: Manage error values not present in WebCore
+        (WebKit::toWebKitNetworkError):
+
+2014-02-24  Renata Hodovan  <rhodovan.u-szeged@partner.samsung.com>
+
+        Get rid of the unused 'immediate' parameters from repaint related functions
+        https://bugs.webkit.org/show_bug.cgi?id=129111
+
+        Reviewed by Simon Fraser.
+
+        Removing the 'immediate' parameters from repaint related functions - accoring
+        to the FIXME in RenderView::repaintViewRectangle() - since they have no effect.
+
+        * WebCoreSupport/ChromeClientGtk.cpp:
+        (WebKit::ChromeClient::invalidateRootView):
+        (WebKit::ChromeClient::invalidateContentsAndRootView):
+        (WebKit::ChromeClient::invalidateContentsForSlowScroll):
+        * WebCoreSupport/ChromeClientGtk.h:
+
+2014-02-23  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Change a url parameter type with URL in NavigatorContentUtils
+        https://bugs.webkit.org/show_bug.cgi?id=129202
+
+        Reviewed by Sam Weinig.
+
+        It would be good if we use *URL* for url parameters instead of using String.
+
+        Merge from blink. https://src.chromium.org/viewvc/blink?view=rev&revision=165458.
+
+        * WebCoreSupport/NavigatorContentUtilsClientGtk.cpp:
+        (WebKit::NavigatorContentUtilsClient::registerProtocolHandler):
+        * WebCoreSupport/NavigatorContentUtilsClientGtk.h:
+
+2014-02-20  Enrique Ocaña González  <eocanha@igalia.com>
+
+        WebKitGTK+ should stop using COMPILE_ASSERT_MATCHING_ENUM macros
+        https://bugs.webkit.org/show_bug.cgi?id=127800
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am: Removed AssertMatchingEnums.cpp
+        * WebCoreSupport/AssertMatchingEnums.cpp: Removed.
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp: Defined and applied type conversions.
+        (toWebCoreFindOptions):
+        (DumpRenderTreeSupportGtk::findString):
+        * WebCoreSupport/FrameLoaderClientGtk.cpp: Defined and applied type conversions.
+        (WebKit::toWebKitNetworkError):
+        (WebKit::FrameLoaderClient::dispatchDidFailLoading):
+        (WebKit::FrameLoaderClient::dispatchDidFailLoad):
+        (WebKit::FrameLoaderClient::shouldFallBack):
+        * webkit/webkitwebnavigationaction.cpp: Defined and applied type conversions.
+        (WebKit::kit):
+        (WebKit::core):
+        * webkit/webkitwebsettings.cpp: Defined and applied type conversions.
+        (WebKit::core):
+        * webkit/webkitwebview.cpp: Defined and applied type conversions.
+        (copyGtkTargetListConvertingWebCoreEnumValuesToWebKitEnumValues):
+        (webkit_web_view_dispose):
+        (webkit_web_view_init):
+        (webkit_web_view_get_copy_target_list):
+        (webkit_web_view_get_paste_target_list):
+        * webkit/webkitwebviewprivate.h: Added targetList private field, which mirrors PasteboardHelper::defaultPasteboardHelper()->targetList() but with the flags converted to WebKitWebViewTargetInfo
+
+2014-02-17  Sergio Correia  <sergio.correia@openbossa.org>
+
+        Replace uses of PassOwnPtr/OwnPtr with std::unique_ptr in WebCore/inspector
+        https://bugs.webkit.org/show_bug.cgi?id=128681
+
+        Reviewed by Timothy Hatcher.
+
+        Another step towards getting rid of PassOwnPtr/OwnPtr, now targeting
+        WebCore/inspector/*. Besides files in there, a few other files in
+        JavaScriptCore/inspector, WebKit/, WebKit2/WebProcess/WebCoreSupport/
+        and WebCore/testing were touched.
+
+        * WebCoreSupport/InspectorClientGtk.cpp:
+
+2014-02-17  Anders Carlsson  <andersca@apple.com>
+
+        WebKitGTK+ should stop calling functions to set the view source mode
+        https://bugs.webkit.org/show_bug.cgi?id=128919
+
+        Reviewed by Carlos Garcia Campos.
+
+        This is a first step towards getting rid of the view source mode from WebCore. 
+        View source shouldn't be a mode on the web page and can be implemented in other ways by
+        embedding apps. Furthermore, the inspector has an excellent view source mode.
+
+        * webkit/webkitwebview.cpp:
+        (webkit_web_view_set_view_source_mode):
+        (webkit_web_view_get_view_source_mode):
+        Turn these into no-ops.
+
+2014-02-11  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel rendering: Make GraphicsLayerClient::paintContents's clip rect subpixel based.
+        https://bugs.webkit.org/show_bug.cgi?id=128460
+
+        Reviewed by Simon Fraser.
+
+        GraphicsClient::paintContents takes clipRect as FloatRect now so that we can paint on
+        subpixel position.
+
+        No change in functionality.
+
+        * WebCoreSupport/AcceleratedCompositingContext.h:
+        * WebCoreSupport/AcceleratedCompositingContextGL.cpp:
+        (WebKit::AcceleratedCompositingContext::paintContents):
+
+2014-02-10  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GLIB] Add GUniqueOutPtr and use it instead of GOwnPtr
+        https://bugs.webkit.org/show_bug.cgi?id=127554
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Use GUniqueOutPtr instead of GOwnPtr.
+
+        * WebCoreSupport/FrameLoaderClientGtk.cpp:
+        (WebKit::FrameLoaderClient::dispatchDidFailLoad):
+        * WebCoreSupport/TextCheckerClientGtk.cpp:
+        * webkit/webkitdownload.cpp:
+        (webkit_download_open_stream_for_uri):
+        (webkit_download_set_destination_uri):
+        (webkit_download_received_data):
+        * webkit/webkitwebplugin.cpp:
+        (webkit_web_plugin_get_path):
+        * webkit/webkitwebview.cpp:
+        (webkit_web_view_expose_event):
+
+2014-02-09  Carlos Garnacho  <carlosg@gnome.org>
+
+        [GTK] Allow building with touch events enabled
+        https://bugs.webkit.org/show_bug.cgi?id=98931
+
+        Reviewed by Carlos Garcia Campos.
+
+        Even though WebKit1 GTK code doesn't implement touch events,
+        Fix build if ENABLE_TOUCH_EVENTS is present for WK2.
+
+        * WebCoreSupport/ChromeClientGtk.h:
+        (WebKit::ChromeClient::needTouchEvents): Add empty stub
+
+2014-02-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Cleanup the interface of FrameSelection
+        https://bugs.webkit.org/show_bug.cgi?id=128481
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp:
+        (DumpRenderTreeSupportGtk::rectangleForSelection):
+
+2014-02-08  Darin Adler  <darin@apple.com>
+
+        Change TextIterator to use StringView, preparing to wean it from deprecatedCharacters
+        https://bugs.webkit.org/show_bug.cgi?id=128233
+
+        Reviewed by Anders Carlsson.
+
+        * WebCoreSupport/TextCheckerClientGtk.cpp:
+        (WebKit::TextCheckerClientGtk::checkSpellingOfString): Use StringView.
+        (WebKit::TextCheckerClientGtk::checkGrammarOfString): Ditto.
+        * WebCoreSupport/TextCheckerClientGtk.h: Ditto.
+
+2014-02-07  Gavin Barraclough  <barraclough@apple.com>
+
+        Remove isInitialState flag from Page::setViewState
+        https://bugs.webkit.org/show_bug.cgi?id=128428
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/DumpRenderTreeSupportGtk.cpp:
+        (DumpRenderTreeSupportGtk::setPageVisibility):
+            - don't pass isInitialState to setViewState.
+
+2014-02-06  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Add Console support to JSContext Inspection
+        https://bugs.webkit.org/show_bug.cgi?id=127941
+
+        Reviewed by Geoffrey Garen.
+
+        * WebCoreSupport/ChromeClientGtk.cpp:
+        (WebKit::ChromeClient::addMessageToConsole):
+
 2014-02-05  Csaba Osztrogonác  <ossy@webkit.org>
 
         Remove ENABLE(SVG) guards

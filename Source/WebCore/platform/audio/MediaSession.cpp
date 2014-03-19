@@ -35,7 +35,7 @@ namespace WebCore {
 #if !LOG_DISABLED
 static const char* stateName(MediaSession::State state)
 {
-#define CASE(_state) case MediaSession::_state: return #_state; break;
+#define CASE(state) case MediaSession::state: return #state
     switch (state) {
     CASE(Idle);
     CASE(Playing);
@@ -115,6 +115,7 @@ bool MediaSession::clientWillPausePlayback()
     }
     
     setState(Paused);
+    MediaSessionManager::sharedManager().sessionWillEndPlayback(*this);
     return true;
 }
 
@@ -128,5 +129,30 @@ MediaSession::MediaType MediaSession::mediaType() const
 {
     return m_client.mediaType();
 }
+
+String MediaSession::title() const
+{
+    return m_client.mediaSessionTitle();
+}
+
+double MediaSession::duration() const
+{
+    return m_client.mediaSessionDuration();
+}
+
+double MediaSession::currentTime() const
+{
+    return m_client.mediaSessionCurrentTime();
+}
     
+bool MediaSession::canReceiveRemoteControlCommands() const
+{
+    return m_client.canReceiveRemoteControlCommands();
+}
+
+void MediaSession::didReceiveRemoteControlCommand(RemoteControlCommandType command)
+{
+    m_client.didReceiveRemoteControlCommand(command);
+}
+
 }

@@ -199,7 +199,7 @@ WebCore::IntRect DumpRenderTreeSupportEfl::selectionRectangle(const Evas_Object*
 {
     DRT_SUPPORT_FRAME_GET_OR_RETURN(ewkFrame, frame, WebCore::IntRect());
 
-    return enclosingIntRect(frame->selection().bounds());
+    return enclosingIntRect(frame->selection().selectionBounds());
 }
 
 // Compare with "WebKit/Tools/DumpRenderTree/mac/FrameLoadDelegate.mm
@@ -382,7 +382,7 @@ Eina_List* DumpRenderTreeSupportEfl::trackedRepaintRects(const Evas_Object* ewkF
     if (!frame->view())
         return 0;
 
-    const Vector<WebCore::IntRect>& repaintRects = frame->view()->trackedRepaintRects();
+    const Vector<WebCore::FloatRect>& repaintRects = frame->view()->trackedRepaintRects();
     size_t count = repaintRects.size();
     Eina_List* rectList = 0;
 
@@ -406,7 +406,7 @@ void DumpRenderTreeSupportEfl::garbageCollectorCollectOnAlternateThread(bool wai
 
 size_t DumpRenderTreeSupportEfl::javaScriptObjectsCount()
 {
-    return WebCore::JSDOMWindow::commonVM()->heap.objectCount();
+    return WebCore::JSDOMWindow::commonVM().heap.objectCount();
 }
 
 void DumpRenderTreeSupportEfl::setDeadDecodedDataDeletionInterval(double interval)
@@ -453,15 +453,14 @@ bool DumpRenderTreeSupportEfl::isTargetItem(const Ewk_History_Item* ewkHistoryIt
     return historyItem->isTargetItem();
 }
 
-void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView, long callId, const String& script)
+void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView, const String& script)
 {
 #if ENABLE(INSPECTOR)
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    page->inspectorController().evaluateForTestInFrontend(callId, script);
+    page->inspectorController().evaluateForTestInFrontend(script);
 #else
     UNUSED_PARAM(ewkView);
-    UNUSED_PARAM(callId);
     UNUSED_PARAM(script);
 #endif
 }

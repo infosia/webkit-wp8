@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -53,7 +53,7 @@ class WAKView;
 #endif
 #endif // PLATFORM(IOS)
 
-#if PLATFORM(MAC) && defined __OBJC__
+#if PLATFORM(COCOA) && defined __OBJC__
 @protocol WebCoreFrameScrollView;
 #endif
 
@@ -166,11 +166,24 @@ public:
     IntRect fixedVisibleContentRect() const { return m_fixedVisibleContentRect; }
 #endif
 
+    // Parts of the document can be visible through transparent or blured UI widgets of the chrome. Those parts
+    // contribute to painting but not to the scrollable area.
+    // The unobscuredContentRect is the area that is not covered by UI elements.
 #if PLATFORM(IOS)
-    // This is the area that is not covered by UI elements.
-    IntRect actualVisibleContentRect() const;
+    IntRect unobscuredContentRect() const;
+    IntRect unobscuredContentRectIncludingScrollbars() const { return unobscuredContentRect(); }
+#else
+    IntRect unobscuredContentRect() const { return visibleContentRect(); }
+    IntRect unobscuredContentRectIncludingScrollbars() const { return visibleContentRectIncludingScrollbars(); }
+#endif
+
+#if PLATFORM(IOS)
     // This is the area that is partially or fully exposed, and may extend under overlapping UI elements.
-    IntRect visibleExtentContentRect() const;
+    IntRect exposedContentRect() const;
+
+    // The given rects are only used if there is no platform widget.
+    void setExposedContentRect(const IntRect&);
+    void setUnobscuredContentRect(const IntRect&);
 
     void setActualScrollPosition(const IntPoint&);
     TileCache* tileCache();
@@ -211,10 +224,10 @@ public:
     int scrollY() const { return scrollPosition().y(); }
 
 #if PLATFORM(IOS)
-    int actualScrollX() const { return visibleContentRect().x(); }
-    int actualScrollY() const { return visibleContentRect().y(); }
+    int actualScrollX() const { return unobscuredContentRect().x(); }
+    int actualScrollY() const { return unobscuredContentRect().y(); }
     // FIXME: maybe fix scrollPosition() on iOS to return the actual scroll position.
-    IntPoint actualScrollPosition() const { return visibleContentRect().location(); }
+    IntPoint actualScrollPosition() const { return unobscuredContentRect().location(); }
 #endif
 
     // scrollOffset() anchors its (0,0) point at the top end of the header if this ScrollableArea
@@ -341,7 +354,7 @@ public:
 protected:
     ScrollView();
 
-    virtual void repaintContentRectangle(const IntRect&, bool now = false);
+    virtual void repaintContentRectangle(const IntRect&);
     virtual void paintContents(GraphicsContext*, const IntRect& damageRect) = 0;
 
     virtual void paintOverhangAreas(GraphicsContext*, const IntRect& horizontalOverhangArea, const IntRect& verticalOverhangArea, const IntRect& dirtyRect);
@@ -392,7 +405,12 @@ private:
     // whether it is safe to blit on scroll.
     bool m_canBlitOnScroll;
 
-#if !PLATFORM(IOS)
+    // FIXME: exposedContentRect is a very similar concept to fixedVisibleContentRect except it does not differentiate
+    // between exposed rect and unobscuredRects. The two attributes should eventually be merged.
+#if PLATFORM(IOS)
+    IntRect m_exposedContentRect;
+    IntRect m_unobscuredContentRect;
+#else
     IntRect m_fixedVisibleContentRect;
 #endif
     IntSize m_scrollOffset; // FIXME: Would rather store this as a position, but we will wait to make this change until more code is shared.
@@ -437,7 +455,7 @@ private:
     void platformSetScrollPosition(const IntPoint&);
     bool platformScroll(ScrollDirection, ScrollGranularity);
     void platformSetScrollbarsSuppressed(bool repaintOnUnsuppress);
-    void platformRepaintContentRectangle(const IntRect&, bool now);
+    void platformRepaintContentRectangle(const IntRect&);
     bool platformIsOffscreen() const;
     void platformSetScrollbarOverlayStyle(ScrollbarOverlayStyle);
    
@@ -446,7 +464,7 @@ private:
     void calculateOverhangAreasForPainting(IntRect& horizontalOverhangRect, IntRect& verticalOverhangRect);
     void updateOverhangAreas();
 
-#if PLATFORM(MAC) && defined __OBJC__
+#if PLATFORM(COCOA) && defined __OBJC__
 public:
     NSView* documentView() const;
 

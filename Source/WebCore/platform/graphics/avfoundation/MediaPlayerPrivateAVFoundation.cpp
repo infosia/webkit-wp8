@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -38,11 +38,12 @@
 #include "URL.h"
 #include "Logging.h"
 #include "PlatformLayer.h"
+#include "PlatformTimeRanges.h"
 #include "Settings.h"
 #include "SoftLinking.h"
-#include "TimeRanges.h"
 #include <CoreMedia/CoreMedia.h>
 #include <wtf/MainThread.h>
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
@@ -187,7 +188,7 @@ void MediaPlayerPrivateAVFoundation::load(const String& url)
 }
 
 #if ENABLE(MEDIA_SOURCE)
-void MediaPlayerPrivateAVFoundation::load(const String&, PassRefPtr<HTMLMediaSource>)
+void MediaPlayerPrivateAVFoundation::load(const String&, MediaSourcePrivateClient*)
 {
     m_networkState = MediaPlayer::FormatError;
     m_player->networkStateChanged();
@@ -385,12 +386,12 @@ void MediaPlayerPrivateAVFoundation::setDelayCharacteristicsChangedNotification(
         characteristicsChanged();
 }
 
-PassRefPtr<TimeRanges> MediaPlayerPrivateAVFoundation::buffered() const
+std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateAVFoundation::buffered() const
 {
     if (!m_cachedLoadedTimeRanges)
         m_cachedLoadedTimeRanges = platformBufferedTimeRanges();
 
-    return m_cachedLoadedTimeRanges->copy();
+    return PlatformTimeRanges::create(*m_cachedLoadedTimeRanges);
 }
 
 double MediaPlayerPrivateAVFoundation::maxTimeSeekableDouble() const
@@ -620,7 +621,7 @@ void MediaPlayerPrivateAVFoundation::rateChanged()
 
 void MediaPlayerPrivateAVFoundation::loadedTimeRangesChanged()
 {
-    m_cachedLoadedTimeRanges = 0;
+    m_cachedLoadedTimeRanges = nullptr;
     m_cachedMaxTimeLoaded = 0;
     invalidateCachedDuration();
 }
@@ -768,8 +769,9 @@ static const char* notificationName(MediaPlayerPrivateAVFoundation::Notification
 {
 #define DEFINE_TYPE_STRING_CASE(type) case MediaPlayerPrivateAVFoundation::Notification::type: return #type;
     switch (notification.type()) {
-        FOR_EACH_MEDIAPLAYERPRIVATEAVFOUNDATION_NOTIFICATION_TYPE(DEFINE_TYPE_STRING_CASE)
-        default: return "";
+    FOR_EACH_MEDIAPLAYERPRIVATEAVFOUNDATION_NOTIFICATION_TYPE(DEFINE_TYPE_STRING_CASE)
+    case MediaPlayerPrivateAVFoundation::Notification::FunctionType: return "FunctionType";
+    default: ASSERT_NOT_REACHED(); return "";
     }
 #undef DEFINE_TYPE_STRING_CASE
 }
@@ -890,6 +892,11 @@ void MediaPlayerPrivateAVFoundation::dispatchNotification()
     case Notification::FunctionType:
         notification.function()();
         break;
+    case Notification::TargetIsWirelessChanged:
+#if ENABLE(IOS_AIRPLAY)
+        playbackTargetIsWirelessChanged();
+#endif
+        break;
 
     case Notification::None:
         ASSERT_NOT_REACHED();
@@ -900,6 +907,10 @@ void MediaPlayerPrivateAVFoundation::dispatchNotification()
 void MediaPlayerPrivateAVFoundation::configureInbandTracks()
 {
     RefPtr<InbandTextTrackPrivateAVF> trackToEnable;
+    
+#if ENABLE(AVF_CAPTIONS)
+    synchronizeTextTrackState();
+#endif
 
     // AVFoundation can only emit cues for one track at a time, so enable the first track that is showing, or the first that
     // is hidden if none are showing. Otherwise disable all tracks.
@@ -955,11 +966,18 @@ void MediaPlayerPrivateAVFoundation::processNewAndRemovedTextTracks(const Vector
             m_textTracks.remove(i);
         }
     }
-    
+
+    unsigned inBandCount = 0;
     for (unsigned i = 0; i < m_textTracks.size(); ++i) {
         RefPtr<InbandTextTrackPrivateAVF> track = m_textTracks[i];
-        
-        track->setTextTrackIndex(i);
+
+#if ENABLE(AVF_CAPTIONS)
+        if (track->textTrackCategory() == InbandTextTrackPrivateAVF::OutOfBand)
+            continue;
+#endif
+
+        track->setTextTrackIndex(inBandCount);
+        ++inBandCount;
         if (track->hasBeenReported())
             continue;
         
@@ -969,6 +987,13 @@ void MediaPlayerPrivateAVFoundation::processNewAndRemovedTextTracks(const Vector
     LOG(Media, "MediaPlayerPrivateAVFoundation::processNewAndRemovedTextTracks(%p) - found %lu text tracks", this, m_textTracks.size());
 }
 
+#if ENABLE(IOS_AIRPLAY)
+void MediaPlayerPrivateAVFoundation::playbackTargetIsWirelessChanged()
+{
+    if (m_player)
+        m_player->currentPlaybackTargetIsWirelessChanged();
+}
+#endif
 } // namespace WebCore
 
 #endif

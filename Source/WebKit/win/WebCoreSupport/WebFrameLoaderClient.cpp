@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -127,23 +127,6 @@ bool WebFrameLoaderClient::hasWebView() const
 void WebFrameLoaderClient::makeRepresentation(DocumentLoader*)
 {
     notImplemented();
-}
-
-void WebFrameLoaderClient::forceLayout()
-{
-    Frame* frame = core(m_webFrame);
-    if (!frame)
-        return;
-
-    if (frame->document() && frame->document()->inPageCache())
-        return;
-
-    FrameView* view = frame->view();
-    if (!view)
-        return;
-
-    view->setNeedsLayout();
-    view->forceLayout(true);
 }
 
 void WebFrameLoaderClient::forceLayoutForNonHTML()
@@ -1184,11 +1167,11 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize& pluginSize,
             COMPtr<IWebEmbeddedView> view;
             HRESULT result = uiPrivate->embeddedViewWithArguments(webView, m_webFrame, argumentsBag.get(), &view);
             if (SUCCEEDED(result)) {
-                HWND parentWindow;
-                HRESULT hr = webView->viewWindow((OLE_HANDLE*)&parentWindow);
+                OLE_HANDLE parentWindow;
+                HRESULT hr = webView->viewWindow(&parentWindow);
                 ASSERT(SUCCEEDED(hr));
 
-                return EmbeddedWidget::create(view.get(), element, parentWindow, pluginSize);
+                return EmbeddedWidget::create(view.get(), element, reinterpret_cast<HWND>(parentWindow), pluginSize);
             }
         }
     }

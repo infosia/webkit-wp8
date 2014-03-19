@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -39,6 +39,7 @@
 using namespace WebCore;
 using namespace WebKit;
 
+static NSString * const platformCALayerPointer = @"WKPlatformCALayer";
 PlatformCALayerRemoteCustom::PlatformCALayerRemoteCustom(PlatformLayer* customLayer, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
     : PlatformCALayerRemote(LayerTypeCustom, owner, context)
 {
@@ -54,16 +55,31 @@ PlatformCALayerRemoteCustom::PlatformCALayerRemoteCustom(PlatformLayer* customLa
     }
 
     m_layerHostingContext->setRootLayer(customLayer);
+    [customLayer setValue:[NSValue valueWithPointer:this] forKey:platformCALayerPointer];
 
     m_platformLayer = customLayer;
     [customLayer web_disableAllActions];
+
+    m_providesContents = [customLayer isKindOfClass:NSClassFromString(@"WebGLLayer")];
 }
 
 PlatformCALayerRemoteCustom::~PlatformCALayerRemoteCustom()
 {
+    [m_platformLayer setValue:nil forKey:platformCALayerPointer];
 }
 
 uint32_t PlatformCALayerRemoteCustom::hostingContextID()
 {
     return m_layerHostingContext->contextID();
+}
+
+void PlatformCALayerRemoteCustom::setNeedsDisplay(const FloatRect* rect)
+{
+    if (m_providesContents) {
+        if (rect)
+            [m_platformLayer setNeedsDisplayInRect:*rect];
+        else
+            [m_platformLayer setNeedsDisplay];
+    } else
+        PlatformCALayerRemote::setNeedsDisplay(rect);
 }

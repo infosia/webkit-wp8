@@ -29,7 +29,6 @@
 #if ENABLE(DFG_JIT)
 
 #include "CCallHelpers.h"
-#include "CallFrameInlines.h"
 #include "CodeBlock.h"
 #include "DFGDisassembler.h"
 #include "DFGGraph.h"
@@ -250,7 +249,29 @@ public:
         addWeakReference(weakPtr);
         return result;
     }
-    
+
+    template<typename T>
+    Jump branchWeakStructure(RelationalCondition cond, T left, Structure* weakStructure)
+    {
+#if USE(JSVALUE64)
+        Jump result = branch32(cond, left, TrustedImm32(weakStructure->id()));
+        addWeakReference(weakStructure);
+        return result;
+#else
+        return branchWeakPtr(cond, left, weakStructure);
+#endif
+    }
+
+    template<typename T>
+    Jump branchStructurePtr(RelationalCondition cond, T left, Structure* structure)
+    {
+#if USE(JSVALUE64)
+        return branch32(cond, left, TrustedImm32(structure->id()));
+#else
+        return branchPtr(cond, left, TrustedImmPtr(structure));
+#endif
+    }
+
     void noticeOSREntry(BasicBlock& basicBlock, JITCompiler::Label blockHead, LinkBuffer& linkBuffer)
     {
         // OSR entry is not allowed into blocks deemed unreachable by control flow analysis.

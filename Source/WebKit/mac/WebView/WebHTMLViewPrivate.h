@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -38,11 +38,6 @@
 @class DOMNode;
 @class DOMRange;
 @class WebPluginController;
-
-@protocol WebHTMLHighlighter
-- (NSRect)highlightRectForLine:(NSRect)lineRect representedNode:(DOMNode *)node;
-- (void)paintHighlightForBox:(NSRect)boxRect onLine:(NSRect)lineRect behindText:(BOOL)text entireLine:(BOOL)line representedNode:(DOMNode *)node;
-@end
 
 extern const float _WebHTMLViewPrintingMinimumShrinkFactor;
 extern const float _WebHTMLViewPrintingMaximumShrinkFactor;
@@ -118,8 +113,6 @@ extern const float _WebHTMLViewPrintingMaximumShrinkFactor;
 - (DOMNode *)_increaseSelectionListLevelOrdered;
 - (DOMNode *)_increaseSelectionListLevelUnordered;
 - (void)_decreaseSelectionListLevel;
-- (void)_setHighlighter:(id <WebHTMLHighlighter>)highlighter ofType:(NSString *)type;
-- (void)_removeHighlighterOfType:(NSString *)type;
 - (DOMDocumentFragment *)_documentFragmentFromPasteboard:(NSPasteboard *)pasteboard forType:(NSString *)pboardType inContext:(DOMRange *)context subresources:(NSArray **)subresources;
 #endif
 

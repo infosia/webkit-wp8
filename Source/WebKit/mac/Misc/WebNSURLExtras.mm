@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -128,24 +128,8 @@ using namespace WTF;
  }
 
 - (NSURL *)_webkit_canonicalize
-{    
-    NSURLRequest *request = [[NSURLRequest alloc] initWithURL:self];
-    Class concreteClass = WKNSURLProtocolClassForRequest(request);
-    if (!concreteClass) {
-        [request release];
-        return self;
-    }
-    
-    // This applies NSURL's concept of canonicalization, but not URL's concept. It would
-    // make sense to apply both, but when we tried that it caused a performance degradation
-    // (see 5315926). It might make sense to apply only the URL concept and not the NSURL
-    // concept, but it's too risky to make that change for WebKit 3.0.
-    NSURLRequest *newRequest = [concreteClass canonicalRequestForRequest:request];
-    NSURL *newURL = [newRequest URL]; 
-    NSURL *result = [[newURL retain] autorelease]; 
-    [request release];
-    
-    return result;
+{
+    return URLByCanonicalizingURL(self);
 }
 
 - (NSURL *)_web_URLByTruncatingOneCharacterBeforeComponent:(CFURLComponentType)component

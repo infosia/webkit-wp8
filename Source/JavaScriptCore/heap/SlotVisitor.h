@@ -29,6 +29,7 @@
 #include "CopyToken.h"
 #include "HandleTypes.h"
 #include "MarkStack.h"
+#include "OpaqueRootSet.h"
 
 #include <wtf/HashSet.h>
 #include <wtf/text/StringHash.h>
@@ -54,6 +55,8 @@ public:
 
     MarkStackArray& markStack() { return m_stack; }
 
+    VM& vm();
+    const VM& vm() const;
     Heap* heap() const;
 
     void append(ConservativeRoots&);
@@ -68,6 +71,9 @@ public:
     void appendUnbarrieredValue(JSValue*);
     template<typename T>
     void appendUnbarrieredWeak(Weak<T>*);
+    template<typename T>
+    void appendUnbarrieredReadOnlyPointer(T*);
+    void appendUnbarrieredReadOnlyValue(JSValue);
     void unconditionallyAppend(JSCell*);
     
     void addOpaqueRoot(void*);
@@ -78,7 +84,7 @@ public:
     GCThreadSharedData& sharedData() const { return m_shared; }
     bool isEmpty() { return m_stack.isEmpty(); }
 
-    void setup();
+    void didStartMarking();
     void reset();
     void clearMarkStack();
 
@@ -129,7 +135,7 @@ private:
     void donateKnownParallel();
 
     MarkStackArray m_stack;
-    HashSet<void*> m_opaqueRoots; // Handle-owning data structures not visible to the garbage collector.
+    OpaqueRootSet m_opaqueRoots; // Handle-owning data structures not visible to the garbage collector.
     
     size_t m_bytesVisited;
     size_t m_bytesCopied;

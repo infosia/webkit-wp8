@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -75,7 +75,8 @@ static const SpeculatedType SpecFullRealNumber     = 0x07800000; // It's either 
 static const SpeculatedType SpecBytecodeNumber     = 0x0e800000; // It's either an Int32 or a Double.
 static const SpeculatedType SpecFullNumber         = 0x0f800000; // It's either an Int32, Int52, or a Double.
 static const SpeculatedType SpecBoolean            = 0x10000000; // It's definitely a Boolean.
-static const SpeculatedType SpecOther              = 0x20000000; // It's definitely none of the above.
+static const SpeculatedType SpecOther              = 0x20000000; // It's definitely either Null or Undefined.
+static const SpeculatedType SpecMisc               = 0x30000000; // It's definitely either a boolean, Null, or Undefined.
 static const SpeculatedType SpecHeapTop            = 0x3effffff; // It can be any of the above, except for SpecInt52.
 static const SpeculatedType SpecEmpty              = 0x40000000; // It's definitely an empty value marker.
 static const SpeculatedType SpecBytecodeTop        = 0x7effffff; // It can be any of the above, except for SpecInt52.
@@ -117,6 +118,11 @@ inline bool isFinalObjectOrOtherSpeculation(SpeculatedType value)
 inline bool isStringIdentSpeculation(SpeculatedType value)
 {
     return value == SpecStringIdent;
+}
+
+inline bool isNotStringVarSpeculation(SpeculatedType value)
+{
+    return !(value & SpecStringVar);
 }
 
 inline bool isStringSpeculation(SpeculatedType value)
@@ -335,6 +341,11 @@ inline bool isOtherSpeculation(SpeculatedType value)
     return value == SpecOther;
 }
 
+inline bool isMiscSpeculation(SpeculatedType value)
+{
+    return !!value && !(value & ~SpecMisc);
+}
+
 inline bool isOtherOrEmptySpeculation(SpeculatedType value)
 {
     return !value || value == SpecOther;
@@ -381,6 +392,10 @@ SpeculatedType speculationFromValue(JSValue);
 
 SpeculatedType speculationFromTypedArrayType(TypedArrayType); // only valid for typed views.
 TypedArrayType typedArrayTypeFromSpeculation(SpeculatedType);
+
+SpeculatedType leastUpperBoundOfStrictlyEquivalentSpeculations(SpeculatedType);
+
+bool valuesCouldBeEqual(SpeculatedType, SpeculatedType);
 
 } // namespace JSC
 

@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -114,7 +114,7 @@ PassOwnPtr<MediaPlayerPrivateInterface> MediaPlayerPrivateIOS::create(MediaPlaye
 void MediaPlayerPrivateIOS::registerMediaEngine(MediaEngineRegistrar registrar)
 {
     if (isAvailable())
-        registrar(create, getSupportedTypes, supportsType, 0, 0, 0);
+        registrar(create, getSupportedTypes, supportsType, 0, 0, 0, 0);
 }
 
 MediaPlayerPrivateIOS::MediaPlayerPrivateIOS(MediaPlayer* player)
@@ -497,16 +497,16 @@ float MediaPlayerPrivateIOS::maxTimeSeekable() const
     return [m_mediaPlayerHelper.get() _maxTimeSeekable];
 }
 
-PassRefPtr<TimeRanges> MediaPlayerPrivateIOS::buffered() const
+std::unique_ptr<PlatformTimeRanges> MediaPlayerPrivateIOS::buffered() const
 {
-    RefPtr<TimeRanges> timeRanges = TimeRanges::create();
+    auto timeRanges = PlatformTimeRanges::create();
 
     if (!m_mediaPlayerHelper)
-        return timeRanges.release();
+        return timeRanges;
 
     NSArray *ranges = [m_mediaPlayerHelper.get() _bufferedTimeRanges];
     if (!ranges)
-        return timeRanges.release();
+        return timeRanges;
 
     float timeRange[2];
     int count = [ranges count];
@@ -517,7 +517,7 @@ PassRefPtr<TimeRanges> MediaPlayerPrivateIOS::buffered() const
         timeRanges->add(timeRange[0], timeRange[1]);
     }
 
-    return timeRanges.release();
+    return timeRanges;
 }
 
 void MediaPlayerPrivateIOS::setSize(const IntSize&)
@@ -984,7 +984,7 @@ void MediaPlayerPrivateIOS::setSelectedTextTrack(NSNumber *trackID)
 
     setDelayCallbacks(true);
     {
-        LOG(Media, "MediaPlayerPrivateIOS::setCurrentTrack(%p) - selecting track id %i", this, [trackID intValue]);
+        LOG(Media, "MediaPlayerPrivateIOS::setSelectedTextTrack(%p) - selecting track id %i", this, [trackID intValue]);
         [m_deferredProperties.get() removeObjectForKey:DeferredPropertySelectedTrackKey];
         [m_mediaPlayerHelper.get() _setSelectedTextTrack:trackID];
     }

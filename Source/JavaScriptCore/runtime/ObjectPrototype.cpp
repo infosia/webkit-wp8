@@ -25,8 +25,7 @@
 #include "GetterSetter.h"
 #include "JSFunction.h"
 #include "JSString.h"
-#include "JSStringBuilder.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "StructureRareDataInlines.h"
 
 namespace JSC {
@@ -123,7 +122,7 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineGetter(ExecState* exec)
     descriptor.setGetter(get);
     descriptor.setEnumerable(true);
     descriptor.setConfigurable(true);
-    thisObject->methodTable()->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
+    thisObject->methodTable(exec->vm())->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
 
     return JSValue::encode(jsUndefined());
 }
@@ -143,7 +142,7 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineSetter(ExecState* exec)
     descriptor.setSetter(set);
     descriptor.setEnumerable(true);
     descriptor.setConfigurable(true);
-    thisObject->methodTable()->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
+    thisObject->methodTable(exec->vm())->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
 
     return JSValue::encode(jsUndefined());
 }
@@ -156,8 +155,10 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncLookupGetter(ExecState* exec)
 
     PropertySlot slot(thisObject);
     if (thisObject->getPropertySlot(exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), slot)
-        && slot.isAccessor())
-        return JSValue::encode(slot.getterSetter()->getter());
+        && slot.isAccessor()) {
+        JSObject* getter = slot.getterSetter()->getter();
+        return getter ? JSValue::encode(getter) : JSValue::encode(jsUndefined());
+    }
 
     return JSValue::encode(jsUndefined());
 }
@@ -170,8 +171,10 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncLookupSetter(ExecState* exec)
 
     PropertySlot slot(thisObject);
     if (thisObject->getPropertySlot(exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), slot)
-        && slot.isAccessor())
-        return JSValue::encode(slot.getterSetter()->setter());
+        && slot.isAccessor()) {
+        JSObject* setter = slot.getterSetter()->setter();
+        return setter ? JSValue::encode(setter) : JSValue::encode(jsUndefined());
+    }
 
     return JSValue::encode(jsUndefined());
 }
@@ -209,19 +212,20 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncToLocaleString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncToString(ExecState* exec)
 {
+    VM& vm = exec->vm();
     JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
     if (thisValue.isUndefinedOrNull())
-        return JSValue::encode(jsNontrivialString(exec, String(thisValue.isUndefined() ? ASCIILiteral("[object Undefined]") : ASCIILiteral("[object Null]"))));
+        return JSValue::encode(jsNontrivialString(&vm, String(thisValue.isUndefined() ? ASCIILiteral("[object Undefined]") : ASCIILiteral("[object Null]"))));
     JSObject* thisObject = thisValue.toObject(exec);
 
-    JSString* result = thisObject->structure()->objectToStringValue();
+    JSString* result = thisObject->structure(vm)->objectToStringValue();
     if (!result) {
-        RefPtr<StringImpl> newString = WTF::tryMakeString("[object ", thisObject->methodTable()->className(thisObject), "]");
+        RefPtr<StringImpl> newString = WTF::tryMakeString("[object ", thisObject->methodTable(exec->vm())->className(thisObject), "]");
         if (!newString)
             return JSValue::encode(throwOutOfMemoryError(exec));
 
-        result = jsNontrivialString(exec, newString.release());
-        thisObject->structure()->setObjectToStringValue(exec->vm(), thisObject, result);
+        result = jsNontrivialString(&vm, newString.release());
+        thisObject->structure(vm)->setObjectToStringValue(vm, thisObject, result);
     }
     return JSValue::encode(result);
 }

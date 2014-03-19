@@ -28,7 +28,7 @@
 
 #if ENABLE(FTL_JIT)
 
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace FTL {
 
@@ -58,6 +58,9 @@ void ExitValue::dumpInContext(PrintStream& out, DumpContext* context) const
         return;
     case ExitValueInJSStackAsDouble:
         out.print("InJSStackAsDouble:r", virtualRegister());
+        return;
+    case ExitValueArgumentsObjectThatWasNotCreated:
+        out.print("ArgumentsObjectThatWasNotCreated");
         return;
     case ExitValueRecovery:
         out.print("Recovery(", recoveryOpcode(), ", arg", leftRecoveryArgument(), ", arg", rightRecoveryArgument(), ", ", recoveryFormat(), ")");

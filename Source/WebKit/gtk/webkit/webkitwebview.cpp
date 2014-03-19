@@ -119,7 +119,7 @@
 #include <bindings/ScriptValue.h>
 #include <gdk/gdkkeysyms.h>
 #include <glib/gi18n-lib.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <gtk/gtk.h>
 #include <wtf/text/CString.h>
 
 #if ENABLE(DEVICE_ORIENTATION)
@@ -282,6 +282,47 @@ G_DEFINE_TYPE_WITH_CODE(WebKitWebView, webkit_web_view, GTK_TYPE_CONTAINER,
 static void webkit_web_view_settings_notify(WebKitWebSettings* webSettings, GParamSpec* pspec, WebKitWebView* webView);
 static void webkit_web_view_set_window_features(WebKitWebView* webView, WebKitWebWindowFeatures* webWindowFeatures);
 static void webkitWebViewDirectionChanged(WebKitWebView*, GtkTextDirection previousDirection, gpointer);
+
+static inline WebKitWebViewTargetInfo toWebKitWebViewTargetInfo(PasteboardHelper::PasteboardTargetType flags)
+{
+    switch (flags) {
+    case PasteboardHelper::TargetTypeMarkup:
+        return WEBKIT_WEB_VIEW_TARGET_INFO_HTML;
+        break;
+    case PasteboardHelper::TargetTypeText:
+        return WEBKIT_WEB_VIEW_TARGET_INFO_TEXT;
+        break;
+    case PasteboardHelper::TargetTypeImage:
+        return WEBKIT_WEB_VIEW_TARGET_INFO_IMAGE;
+        break;
+    case PasteboardHelper::TargetTypeURIList:
+        return WEBKIT_WEB_VIEW_TARGET_INFO_URI_LIST;
+        break;
+    case PasteboardHelper::TargetTypeNetscapeURL:
+        return WEBKIT_WEB_VIEW_TARGET_INFO_NETSCAPE_URL;
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+        return WEBKIT_WEB_VIEW_TARGET_INFO_HTML;
+    }
+}
+
+static GtkTargetList* copyGtkTargetListConvertingWebCoreEnumValuesToWebKitEnumValues(GtkTargetList* coreGtkTargetList)
+{
+    g_return_val_if_fail(coreGtkTargetList, nullptr);
+
+    GtkTargetList* targetListWithWebKitEnumValues = nullptr;
+    int tableSize = 0;
+    GtkTargetEntry* table(gtk_target_table_new_from_list(coreGtkTargetList, &tableSize));
+
+    for (int i = 0; i < tableSize; i++)
+        table[i].flags = toWebKitWebViewTargetInfo(static_cast<PasteboardHelper::PasteboardTargetType>(table[i].flags));
+
+    targetListWithWebKitEnumValues = gtk_target_list_new(table, tableSize);
+    gtk_target_table_free(table, tableSize);
+
+    return targetListWithWebKitEnumValues;
+}
 
 #if ENABLE(CONTEXT_MENUS)
 static void PopupMenuPositionFunc(GtkMenu* menu, gint *x, gint *y, gboolean *pushIn, gpointer userData)
@@ -670,7 +711,7 @@ static void webkit_web_view_set_property(GObject* object, guint prop_id, const G
 static gboolean webkit_web_view_expose_event(GtkWidget* widget, GdkEventExpose* event)
 {
     int rectCount;
-    GOwnPtr<GdkRectangle> rects;
+    GUniqueOutPtr<GdkRectangle> rects;
     gdk_region_get_rectangles(event->region, &rects.outPtr(), &rectCount);
 
     RefPtr<cairo_t> cr = adoptRef(gdk_cairo_create(event->window));
@@ -1087,7 +1128,7 @@ static WebKitNavigationResponse webkit_web_view_real_navigation_requested(WebKit
     return WEBKIT_NAVIGATION_RESPONSE_ACCEPT;
 }
 
-static void webkit_web_view_real_window_object_cleared(WebKitWebView*, WebKitWebFrame*, JSGlobalContextRef context, JSObjectRef window_object)
+static void webkit_web_view_real_window_object_cleared(WebKitWebView*, WebKitWebFrame*, JSGlobalContextRef, JSObjectRef)
 {
     notImplemented();
 }
@@ -1191,7 +1232,7 @@ static gboolean webkit_web_view_real_script_prompt(WebKitWebView* webView, WebKi
     return TRUE;
 }
 
-static gboolean webkit_web_view_real_console_message(WebKitWebView* webView, const gchar* message, unsigned int line, const gchar* sourceId)
+static gboolean webkit_web_view_real_console_message(WebKitWebView*, const gchar* message, unsigned line, const gchar* sourceId)
 {
     g_message("console message: %s @%d: %s\n", sourceId, line, message);
     return TRUE;
@@ -1291,12 +1332,12 @@ static gboolean webkit_web_view_real_should_allow_editing_action(WebKitWebView*)
     return TRUE;
 }
 
-static gboolean webkit_web_view_real_entering_fullscreen(WebKitWebView* webView)
+static gboolean webkit_web_view_real_entering_fullscreen(WebKitWebView*)
 {
     return FALSE;
 }
 
-static gboolean webkit_web_view_real_leaving_fullscreen(WebKitWebView* webView)
+static gboolean webkit_web_view_real_leaving_fullscreen(WebKitWebView*)
 {
     return FALSE;
 }
@@ -1381,6 +1422,7 @@ static void webkit_web_view_dispose(GObject* object)
     priv->webWindowFeatures.clear();
     priv->mainResource.clear();
     priv->subResources.clear();
+    priv->targetList.clear();
 
     G_OBJECT_CLASS(webkit_web_view_parent_class)->dispose(object);
 
@@ -1398,7 +1440,7 @@ static void webkit_web_view_finalize(GObject* object)
     G_OBJECT_CLASS(webkit_web_view_parent_class)->finalize(object);
 }
 
-static gboolean webkit_signal_accumulator_object_handled(GSignalInvocationHint* ihint, GValue* returnAccu, const GValue* handlerReturn, gpointer dummy)
+static gboolean webkit_signal_accumulator_object_handled(GSignalInvocationHint*, GValue* returnAccu, const GValue* handlerReturn, gpointer)
 {
     gpointer newWebView = g_value_get_object(handlerReturn);
     g_value_set_object(returnAccu, newWebView);
@@ -1407,7 +1449,7 @@ static gboolean webkit_signal_accumulator_object_handled(GSignalInvocationHint* 
     return !newWebView;
 }
 
-static gboolean webkit_navigation_request_handled(GSignalInvocationHint* ihint, GValue* returnAccu, const GValue* handlerReturn, gpointer dummy)
+static gboolean webkit_navigation_request_handled(GSignalInvocationHint*, GValue* returnAccu, const GValue* handlerReturn, gpointer)
 {
     WebKitNavigationResponse navigationResponse = (WebKitNavigationResponse)g_value_get_enum(handlerReturn);
     g_value_set_enum(returnAccu, navigationResponse);
@@ -1480,7 +1522,7 @@ static inline gint webViewConvertFontSizeToPixels(WebKitWebView* webView, double
     return fontSize / 72.0 * webViewGetDPI(webView);
 }
 
-static void webkit_web_view_screen_changed(GtkWidget* widget, GdkScreen* previousScreen)
+static void webkit_web_view_screen_changed(GtkWidget* widget, GdkScreen*)
 {
     WebKitWebView* webView = WEBKIT_WEB_VIEW(widget);
     WebKitWebViewPrivate* priv = webView->priv;
@@ -1554,7 +1596,7 @@ static void dragExitedCallback(GtkWidget* widget, DragData& dragData, bool dropH
     core(WEBKIT_WEB_VIEW(widget))->dragController().dragEnded();
 }
 
-static void webkit_web_view_drag_leave(GtkWidget* widget, GdkDragContext* context, guint time)
+static void webkit_web_view_drag_leave(GtkWidget* widget, GdkDragContext* context, guint /* time */)
 {
     WEBKIT_WEB_VIEW(widget)->priv->dragAndDropHelper.handleDragLeave(context, dragExitedCallback);
 }
@@ -1573,7 +1615,7 @@ static gboolean webkit_web_view_drag_motion(GtkWidget* widget, GdkDragContext* c
     return TRUE;
 }
 
-static void webkit_web_view_drag_data_received(GtkWidget* widget, GdkDragContext* context, gint x, gint y, GtkSelectionData* selectionData, guint info, guint time)
+static void webkit_web_view_drag_data_received(GtkWidget* widget, GdkDragContext* context, gint /* x */, gint /* y */, GtkSelectionData* selectionData, guint info, guint time)
 {
     WebKitWebView* webView = WEBKIT_WEB_VIEW(widget);
     IntPoint position;
@@ -1601,7 +1643,7 @@ static gboolean webkit_web_view_drag_drop(GtkWidget* widget, GdkDragContext* con
 }
 #endif // ENABLE(DRAG_SUPPORT)
 
-static gboolean webkit_web_view_query_tooltip(GtkWidget *widget, gint x, gint y, gboolean keyboard_mode, GtkTooltip *tooltip)
+static gboolean webkit_web_view_query_tooltip(GtkWidget *widget, gint /* x */, gint /* y */, gboolean keyboard_mode, GtkTooltip *tooltip)
 {
     WebKitWebViewPrivate* priv = WEBKIT_WEB_VIEW(widget)->priv;
 
@@ -2725,7 +2767,7 @@ static void webkit_web_view_class_init(WebKitWebViewClass* webViewClass)
     /**
      * WebKitWebView::should-show-delete-interface-for-element:
      * @web_view: the #WebKitWebView on which the signal is emitted
-     * @element: a #WebKitDOMHtmlElement
+     * @element: a #WebKitDOMHTMLElement
      *
      */
     webkit_web_view_signals[SHOULD_SHOW_DELETE_INTERFACE_FOR_ELEMENT] = g_signal_new("should-show-delete-interface-for-element",
@@ -2742,7 +2784,7 @@ static void webkit_web_view_class_init(WebKitWebViewClass* webViewClass)
      * @web_view: the #WebKitWebView on which the signal is emitted
      * @fromRange: a #WebKitDOMRange
      * @toRange: a #WebKitDOMRange
-     * @affinity: a #WebKitElectionAffinity
+     * @affinity: a #WebKitSelectionAffinity
      * @stillSelecting: bool
      *
      */
@@ -3811,7 +3853,7 @@ static void webkit_web_view_init(WebKitWebView* webView)
 
 #if ENABLE(GEOLOCATION)
     if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled()) {
-        priv->geolocationClientMock = adoptPtr(new GeolocationClientMock);
+        priv->geolocationClientMock = std::make_unique<GeolocationClientMock>();
         WebCore::provideGeolocationTo(priv->corePage, priv->geolocationClientMock.get());
         priv->geolocationClientMock.get()->setController(GeolocationController::from(priv->corePage));
     } else
@@ -3823,12 +3865,12 @@ static void webkit_web_view_init(WebKitWebView* webView)
 #endif
 
 #if ENABLE(MEDIA_STREAM)
-    priv->userMediaClient = adoptPtr(new UserMediaClientGtk);
+    priv->userMediaClient = std::make_unique<UserMediaClientGtk>();
     WebCore::provideUserMediaTo(priv->corePage, priv->userMediaClient.get());
 #endif
 
 #if ENABLE(NAVIGATOR_CONTENT_UTILS)
-    priv->navigatorContentUtilsClient = WebKit::NavigatorContentUtilsClient::create();
+    priv->navigatorContentUtilsClient = std::make_unique<WebKit::NavigatorContentUtilsClient>();
     WebCore::provideNavigatorContentUtilsTo(priv->corePage, priv->navigatorContentUtilsClient.get());
 #endif
 
@@ -3874,14 +3916,16 @@ static void webkit_web_view_init(WebKitWebView* webView)
 
     priv->subResources = adoptGRef(g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_object_unref));
 
+    priv->targetList = adoptGRef(copyGtkTargetListConvertingWebCoreEnumValuesToWebKitEnumValues(PasteboardHelper::defaultPasteboardHelper()->targetList()));
+
 #if ENABLE(DRAG_SUPPORT)
     priv->dragAndDropHelper.setWidget(GTK_WIDGET(webView));
     gtk_drag_dest_set(GTK_WIDGET(webView), static_cast<GtkDestDefaults>(0), 0, 0, static_cast<GdkDragAction>(GDK_ACTION_COPY | GDK_ACTION_COPY | GDK_ACTION_MOVE | GDK_ACTION_LINK | GDK_ACTION_PRIVATE));
-    gtk_drag_dest_set_target_list(GTK_WIDGET(webView), PasteboardHelper::defaultPasteboardHelper()->targetList());
+    gtk_drag_dest_set_target_list(GTK_WIDGET(webView), priv->targetList.get());
 #endif
 
     priv->selfScrolling = false;
-    priv->acceleratedCompositingContext = AcceleratedCompositingContext::create(webView);
+    priv->acceleratedCompositingContext = std::make_unique<AcceleratedCompositingContext>(webView);
 
     g_signal_connect(webView, "direction-changed", G_CALLBACK(webkitWebViewDirectionChanged), 0);
 }
@@ -4692,7 +4736,8 @@ void webkit_web_view_set_editable(WebKitWebView* webView, gboolean flag)
  **/
 GtkTargetList* webkit_web_view_get_copy_target_list(WebKitWebView* webView)
 {
-    return PasteboardHelper::defaultPasteboardHelper()->targetList();
+    webView->priv->targetList = adoptGRef(copyGtkTargetListConvertingWebCoreEnumValuesToWebKitEnumValues(PasteboardHelper::defaultPasteboardHelper()->targetList()));
+    return webView->priv->targetList.get();
 }
 
 /**
@@ -4709,7 +4754,8 @@ GtkTargetList* webkit_web_view_get_copy_target_list(WebKitWebView* webView)
  **/
 GtkTargetList* webkit_web_view_get_paste_target_list(WebKitWebView* webView)
 {
-    return PasteboardHelper::defaultPasteboardHelper()->targetList();
+    webView->priv->targetList = adoptGRef(copyGtkTargetListConvertingWebCoreEnumValuesToWebKitEnumValues(PasteboardHelper::defaultPasteboardHelper()->targetList()));
+    return webView->priv->targetList.get();
 }
 
 /**
@@ -5187,12 +5233,13 @@ void webkit_web_view_redo(WebKitWebView* webView)
  * nice and readable format.
  *
  * Since: 1.1.14
+ * Deprecated: 2.6
  */
-void webkit_web_view_set_view_source_mode (WebKitWebView* webView, gboolean mode)
+void webkit_web_view_set_view_source_mode (WebKitWebView* webView, gboolean /* mode */)
 {
     g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
 
-    core(webView)->mainFrame().setInViewSourceMode(mode);
+    g_warning("webkit_web_view_set_view_source_mode has been deprecated and is a no-op.");
 }
 
 /**
@@ -5202,12 +5249,14 @@ void webkit_web_view_set_view_source_mode (WebKitWebView* webView, gboolean mode
  * Return value: %TRUE if @web_view is in view source mode, %FALSE otherwise.
  *
  * Since: 1.1.14
+ * Deprecated: 2.6
  */
 gboolean webkit_web_view_get_view_source_mode (WebKitWebView* webView)
 {
     g_return_val_if_fail(WEBKIT_IS_WEB_VIEW(webView), FALSE);
 
-    return core(webView)->mainFrame().inViewSourceMode();
+    g_warning("webkit_web_view_get_view_source_mode has been deprecated and always returns FALSE.");
+    return FALSE;
 }
 
 // Internal subresource management
@@ -5495,7 +5544,7 @@ webkit_web_view_get_snapshot(WebKitWebView* webView)
 }
 
 #if ENABLE(ICONDATABASE)
-void webkitWebViewIconLoaded(WebKitFaviconDatabase* database, const char* frameURI, WebKitWebView* webView)
+void webkitWebViewIconLoaded(WebKitFaviconDatabase*, const char* /* frameURI */, WebKitWebView* webView)
 {
     // Since we definitely have an icon the WebView doesn't need to
     // listen for notifications any longer.
@@ -5519,7 +5568,7 @@ void webkitWebViewRegisterForIconNotification(WebKitWebView* webView, bool shoul
 }
 #endif
 
-void webkitWebViewDirectionChanged(WebKitWebView* webView, GtkTextDirection previousDirection, gpointer)
+void webkitWebViewDirectionChanged(WebKitWebView* webView, GtkTextDirection, gpointer)
 {
     g_return_if_fail(WEBKIT_IS_WEB_VIEW(webView));
 

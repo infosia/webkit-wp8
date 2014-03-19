@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -30,6 +30,7 @@
 #include "DecodeEscapeSequences.h"
 #include "MIMETypeRegistry.h"
 #include "TextEncoding.h"
+#include "UUID.h"
 #include <stdio.h>
 #include <unicode/uidna.h>
 #include <wtf/HashMap.h>
@@ -587,7 +588,11 @@ unsigned short URL::port() const
         return 0;
 
     bool ok = false;
-    unsigned number = charactersToUIntStrict(m_string.deprecatedCharacters() + m_hostEnd + 1, m_portEnd - m_hostEnd - 1, &ok);
+    unsigned number;
+    if (m_string.is8Bit())
+        number = charactersToUIntStrict(m_string.characters8() + m_hostEnd + 1, m_portEnd - m_hostEnd - 1, &ok);
+    else
+        number = charactersToUIntStrict(m_string.characters16() + m_hostEnd + 1, m_portEnd - m_hostEnd - 1, &ok);
     if (!ok || number > maximumValidPortNumber)
         return invalidPortNumber;
     return number;
@@ -1665,14 +1670,14 @@ static void encodeRelativeString(const String& rel, const TextEncoding& encoding
     }
 
     if (pathEnd == -1) {
-        CString decoded = pathEncoding.encode(s.data(), s.size(), URLEncodedEntitiesForUnencodables);
+        CString decoded = pathEncoding.encode(StringView(s.data(), s.size()), URLEncodedEntitiesForUnencodables);
         output.resize(decoded.length());
         memcpy(output.data(), decoded.data(), decoded.length());
     } else {
-        CString pathDecoded = pathEncoding.encode(s.data(), pathEnd, URLEncodedEntitiesForUnencodables);
+        CString pathDecoded = pathEncoding.encode(StringView(s.data(), pathEnd), URLEncodedEntitiesForUnencodables);
         // Unencodable characters in URLs are represented by converting
         // them to XML entities and escaping non-alphanumeric characters.
-        CString otherDecoded = encoding.encode(s.data() + pathEnd, s.size() - pathEnd, URLEncodedEntitiesForUnencodables);
+        CString otherDecoded = encoding.encode(StringView(s.data() + pathEnd, s.size() - pathEnd), URLEncodedEntitiesForUnencodables);
 
         output.resize(pathDecoded.length() + otherDecoded.length());
         memcpy(output.data(), pathDecoded.data(), pathDecoded.length());
@@ -1782,7 +1787,7 @@ bool protocolIsInHTTPFamily(const String& url)
 
 const URL& blankURL()
 {
-    DEFINE_STATIC_LOCAL(URL, staticBlankURL, (ParsedURLString, "about:blank"));
+    DEPRECATED_DEFINE_STATIC_LOCAL(URL, staticBlankURL, (ParsedURLString, "about:blank"));
     return staticBlankURL;
 }
 
@@ -1797,7 +1802,7 @@ bool isDefaultPortForProtocol(unsigned short port, const String& protocol)
         return false;
 
     typedef HashMap<String, unsigned, CaseFoldingHash> DefaultPortsMap;
-    DEFINE_STATIC_LOCAL(DefaultPortsMap, defaultPorts, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(DefaultPortsMap, defaultPorts, ());
     if (defaultPorts.isEmpty()) {
         defaultPorts.set("http", 80);
         defaultPorts.set("https", 443);
@@ -1945,6 +1950,11 @@ String URL::stringCenterEllipsizedToLength(unsigned length) const
         return string();
 
     return string().left(length / 2 - 1) + "..." + string().right(length / 2 - 2);
+}
+
+URL URL::fakeURLWithRelativePart(const String& relativePart)
+{
+    return URL(URL(), "webkit-fake-url://" + createCanonicalUUIDString() + '/' + relativePart);
 }
 
 }

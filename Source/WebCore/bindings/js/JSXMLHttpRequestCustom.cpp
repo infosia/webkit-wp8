@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -190,6 +190,13 @@ JSValue JSXMLHttpRequest::responseText(ExecState* exec) const
 
 JSValue JSXMLHttpRequest::response(ExecState* exec) const
 {
+    // FIXME: Use CachedAttribute for other types than JSON as well.
+    if (m_response && impl().responseCacheIsValid())
+        return m_response.get();
+
+    if (!impl().doneWithoutErrors() && impl().responseTypeCode() > XMLHttpRequest::ResponseTypeText)
+        return jsNull();
+
     switch (impl().responseTypeCode()) {
     case XMLHttpRequest::ResponseTypeDefault:
     case XMLHttpRequest::ResponseTypeText:
@@ -197,13 +204,6 @@ JSValue JSXMLHttpRequest::response(ExecState* exec) const
 
     case XMLHttpRequest::ResponseTypeJSON:
         {
-            // FIXME: Use CachedAttribute for other types as well.
-            if (m_response && impl().responseCacheIsValid())
-                return m_response.get();
-
-            if (!impl().doneWithoutErrors())
-                return jsNull();
-
             JSValue value = JSONParse(exec, impl().responseTextIgnoringResponseType());
             if (!value)
                 value = jsNull();

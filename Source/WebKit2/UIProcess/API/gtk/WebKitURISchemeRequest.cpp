@@ -21,6 +21,7 @@
 #include "WebKitURISchemeRequest.h"
 
 #include "APIData.h"
+#include "WebKitPrivate.h"
 #include "WebKitURISchemeRequestPrivate.h"
 #include "WebKitWebContextPrivate.h"
 #include "WebKitWebView.h"
@@ -28,7 +29,6 @@
 #include <WebCore/GUniquePtrSoup.h>
 #include <WebCore/ResourceError.h>
 #include <libsoup/soup.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
 #include <wtf/text/CString.h>
 
@@ -70,7 +70,7 @@ struct _WebKitURISchemeRequestPrivate {
 
 WEBKIT_DEFINE_TYPE(WebKitURISchemeRequest, webkit_uri_scheme_request, G_TYPE_OBJECT)
 
-static void webkit_uri_scheme_request_class_init(WebKitURISchemeRequestClass* requestClass)
+static void webkit_uri_scheme_request_class_init(WebKitURISchemeRequestClass*)
 {
 }
 
@@ -159,7 +159,7 @@ WebKitWebView* webkit_uri_scheme_request_get_web_view(WebKitURISchemeRequest* re
 static void webkitURISchemeRequestReadCallback(GInputStream* inputStream, GAsyncResult* result, WebKitURISchemeRequest* schemeRequest)
 {
     GRefPtr<WebKitURISchemeRequest> request = adoptGRef(schemeRequest);
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     gssize bytesRead = g_input_stream_read_finish(inputStream, result, &error.outPtr());
     if (bytesRead == -1) {
         webkit_uri_scheme_request_finish_error(request.get(), error.get());
@@ -231,7 +231,7 @@ void webkit_uri_scheme_request_finish_error(WebKitURISchemeRequest* request, GEr
 
     WebKitURISchemeRequestPrivate* priv = request->priv;
 
-    WebCore::ResourceError resourceError(g_quark_to_string(error->domain), error->code, priv->uri.data(), String::fromUTF8(error->message));
+    WebCore::ResourceError resourceError(g_quark_to_string(error->domain), toWebCoreError(error->code), priv->uri.data(), String::fromUTF8(error->message));
     priv->webRequestManager->didFailWithError(priv->requestID, resourceError);
     webkitWebContextDidFinishLoadingCustomProtocol(priv->webContext, priv->requestID);
 }

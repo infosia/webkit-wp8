@@ -32,7 +32,7 @@
 #include "DFGGraph.h"
 #include "DFGInsertionSet.h"
 #include "DFGPhase.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -175,7 +175,7 @@ public:
                         NodeFlags result = resultFor(format);
                         UseKind useKind = useKindFor(format);
                         
-                        node = m_insertionSet.insertNode(0, SpecNone, Phi, CodeOrigin());
+                        node = m_insertionSet.insertNode(0, SpecNone, Phi, NodeOrigin());
                         if (verbose)
                             dataLog("    Inserted new node: ", node, "\n");
                         node->mergeFlags(result);
@@ -184,7 +184,7 @@ public:
                         for (unsigned j = block->predecessors.size(); j--;) {
                             BasicBlock* predecessor = block->predecessors[j];
                             predecessor->appendNonTerminal(
-                                m_graph, SpecNone, Upsilon, predecessor->last()->codeOrigin,
+                                m_graph, SpecNone, Upsilon, predecessor->last()->origin,
                                 OpInfo(node), Edge(predecessor->variablesAtTail[i], useKind));
                         }
                         
@@ -210,7 +210,7 @@ public:
                             // the value was already on the stack.
                         } else {
                             m_insertionSet.insertNode(
-                                0, SpecNone, MovHint, CodeOrigin(),
+                                0, SpecNone, MovHint, NodeOrigin(),
                                 OpInfo(variable->local().offset()), Edge(node));
                         }
                     }
@@ -304,12 +304,7 @@ public:
         //   to the node specified by variablesAtHead.
         // - SetLocal gets NodeMustGenerate if it's flushed, or turns into a
         //   Check otherwise.
-        // - Flush loses its children but remains, because we want to know when a
-        //   flushed SetLocal's value is no longer needed. This also makes it simpler
-        //   to reason about the format of a local, since we can just do a backwards
-        //   analysis (see FlushLivenessAnalysisPhase). As part of the backwards
-        //   analysis, we say that the type of a local can be either int32, double,
-        //   value, or dead.
+        // - Flush loses its children and turns into a Phantom.
         // - PhantomLocal becomes Phantom, and its child is whatever is specified
         //   by variablesAtHead.
         // - SetArgument turns into GetArgument unless it's a captured variable.
@@ -363,6 +358,7 @@ public:
                     
                 case Flush: {
                     node->children.reset();
+                    node->convertToPhantom();
                     // This is only for Upsilons. An Upsilon will only refer to a Flush if
                     // there were no SetLocals or GetLocals in the block.
                     node->misc.replacement = block->variablesAtHead.operand(node->local());

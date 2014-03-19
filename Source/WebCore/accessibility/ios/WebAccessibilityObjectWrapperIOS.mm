@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,8 +29,11 @@
 #if HAVE(ACCESSIBILITY) && PLATFORM(IOS)
 
 #import "AccessibilityRenderObject.h"
+#import "AccessibilityScrollView.h"
 #import "AccessibilityTable.h"
 #import "AccessibilityTableCell.h"
+#import "Chrome.h"
+#import "ChromeClient.h"
 #import "Font.h"
 #import "Frame.h"
 #import "FrameSelection.h"
@@ -41,10 +44,12 @@
 #import "HTMLNames.h"
 #import "IntRect.h"
 #import "IntSize.h"
+#import "Page.h"
 #import "Range.h"
 #import "RenderView.h"
 #import "RuntimeApplicationChecksIOS.h"
 #import "SVGNames.h"
+#import "SVGElement.h"
 #import "TextIterator.h"
 #import "WAKScrollView.h"
 #import "WAKView.h"
@@ -993,16 +998,45 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     CGPoint cgPoint = CGPointMake(point.x(), point.y());
     
     FrameView* frameView = m_object->documentFrameView();
-    if (frameView) {
-        WAKView* view = frameView->documentView();
-        cgPoint = [view convertPoint:cgPoint toView:nil];
+    WAKView* documentView = frameView ? frameView->documentView() : nullptr;
+    if (documentView) {
+        cgPoint = [documentView convertPoint:cgPoint toView:nil];
+
+        // we need the web document view to give us our final screen coordinates
+        // because that can take account of the scroller
+        id webDocument = [self _accessibilityWebDocumentView];
+        if (webDocument)
+            cgPoint = [webDocument convertPoint:cgPoint toView:nil];
     }
-    
-    // we need the web document view to give us our final screen coordinates
-    // because that can take account of the scroller
-    id webDocument = [self _accessibilityWebDocumentView];
-    if (webDocument)
-        cgPoint = [webDocument convertPoint:cgPoint toView:nil];
+    else {
+        // Find the appropriate scroll view to use to convert the contents to the window.
+        ScrollView* scrollView = 0;
+        AccessibilityObject* parent = 0;
+        for (parent = m_object->parentObject(); parent; parent = parent->parentObject()) {
+            if (parent->isAccessibilityScrollView()) {
+                scrollView = toAccessibilityScrollView(parent)->scrollView();
+                break;
+            }
+        }
+        
+        IntPoint intPoint = flooredIntPoint(point);
+        if (scrollView)
+            intPoint = scrollView->contentsToRootView(intPoint);
+        
+        Page* page = m_object->page();
+        
+        // If we have an empty chrome client (like SVG) then we should use the page
+        // of the scroll view parent to help us get to the screen rect.
+        if (parent && page && page->chrome().client().isEmptyChromeClient())
+            page = parent->page();
+        
+        if (page) {
+            IntRect rect = IntRect(intPoint, IntSize(0, 0));
+            intPoint = page->chrome().rootViewToScreen(rect).location();
+        }
+        
+        cgPoint = (CGPoint)intPoint;
+    }
     
     return cgPoint;
 }
@@ -1018,16 +1052,42 @@ static void appendStringToResult(NSMutableString *result, NSString *string)
     CGRect frame = CGRectMake(point.x, point.y, size.width, size.height);
     
     FrameView* frameView = m_object->documentFrameView();
-    if (frameView) {
-        WAKView* view = frameView->documentView();
-        frame = [view convertRect:frame toView:nil];
+    WAKView* documentView = frameView ? frameView->documentView() : nil;
+    if (documentView) {
+        frame = [documentView convertRect:frame toView:nil];
+        
+        // we need the web document view to give us our final screen coordinates
+        // because that can take account of the scroller
+        id webDocument = [self _accessibilityWebDocumentView];
+        if (webDocument)
+            frame = [webDocument convertRect:frame toView:nil];
+        
+    } else {
+        // Find the appropriate scroll view to use to convert the contents to the window.
+        ScrollView* scrollView = 0;
+        AccessibilityObject* parent = 0;
+        for (parent = m_object->parentObject(); parent; parent = parent->parentObject()) {
+            if (parent->isAccessibilityScrollView()) {
+                scrollView = toAccessibilityScrollView(parent)->scrollView();
+                break;
+            }
+        }
+        
+        if (scrollView)
+            rect = scrollView->contentsToRootView(rect);
+        
+        Page* page = m_object->page();
+        
+        // If we have an empty chrome client (like SVG) then we should use the page
+        // of the scroll view parent to help us get to the screen rect.
+        if (parent && page && page->chrome().client().isEmptyChromeClient())
+            page = parent->page();
+        
+        if (page)
+            rect = page->chrome().rootViewToScreen(rect);
+        
+        frame = (CGRect)rect;
     }
-    
-    // we need the web document view to give us our final screen coordinates
-    // because that can take account of the scroller
-    id webDocument = [self _accessibilityWebDocumentView];
-    if (webDocument)
-        frame = [webDocument convertRect:frame toView:nil];
     
     return frame;
 }
@@ -1530,17 +1590,17 @@ static void AXAttributeStringSetStyle(NSMutableAttributedString* attrString, Ren
     }
 }
 
-static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, Node* node, const UChar* chars, int length)
+static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, Node* node, NSString *text)
 {
     // skip invisible text
     if (!node->renderer())
         return;
     
     // easier to calculate the range before appending the string
-    NSRange attrStringRange = NSMakeRange([attrString length], length);
+    NSRange attrStringRange = NSMakeRange([attrString length], [text length]);
     
     // append the string from this node
-    [[attrString mutableString] appendString:[NSString stringWithCharacters:chars length:length]];
+    [[attrString mutableString] appendString:text];
     
     // set new attributes
     AXAttributeStringSetStyle(attrString, node->renderer(), attrStringRange);
@@ -1585,7 +1645,7 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
         int offset = it.range()->startOffset(exception);
         
         // non-zero length means textual node, zero length means replaced node (AKA "attachments" in AX)
-        if (it.length() != 0) {
+        if (it.text().length() != 0) {
             if (!attributed) {
                 // First check if this is represented by a link.
                 AccessibilityObject* linkObject = AccessibilityObject::anchorElementForNode(node);
@@ -1600,9 +1660,9 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
                 String listMarkerText = m_object->listMarkerTextForNodeAndPosition(node, VisiblePosition(it.range()->startPosition())); 
                 
                 if (!listMarkerText.isEmpty()) 
-                    [array addObject:[NSString stringWithCharacters:listMarkerText.deprecatedCharacters() length:listMarkerText.length()]];
+                    [array addObject:listMarkerText];
                 // There was not an element representation, so just return the text.
-                [array addObject:[NSString stringWithCharacters:it.characters() length:it.length()]];
+                [array addObject:it.text().createNSString().get()];
             }
             else
             {
@@ -1610,13 +1670,13 @@ static void AXAttributedStringAppendText(NSMutableAttributedString* attrString, 
 
                 if (!listMarkerText.isEmpty()) {
                     NSMutableAttributedString* attrString = [[NSMutableAttributedString alloc] init];
-                    AXAttributedStringAppendText(attrString, node, listMarkerText.deprecatedCharacters(), listMarkerText.length());
+                    AXAttributedStringAppendText(attrString, node, listMarkerText);
                     [array addObject:attrString];
                     [attrString release];
                 }
                 
                 NSMutableAttributedString *attrString = [[NSMutableAttributedString alloc] init];
-                AXAttributedStringAppendText(attrString, node, it.characters(), it.length());
+                AXAttributedStringAppendText(attrString, node, it.text().createNSStringWithoutCopying().get());
                 [array addObject:attrString];
                 [attrString release];
             }

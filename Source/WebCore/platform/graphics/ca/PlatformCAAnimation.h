@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,7 +34,7 @@
 #include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 OBJC_CLASS CAPropertyAnimation;
 typedef CAPropertyAnimation* PlatformAnimationRef;
 #elif PLATFORM(WIN)
@@ -51,7 +51,7 @@ class TimingFunction;
 class PlatformCAAnimation : public RefCounted<PlatformCAAnimation> {
 public:
     friend class PlatformCALayer;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     friend class PlatformCALayerMac;
 #elif PLATFORM(WIN)
     friend class PlatformCALayerWin;
@@ -154,7 +154,7 @@ protected:
 private:
     AnimationType m_type;
     
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<CAPropertyAnimation> m_animation;
 #elif PLATFORM(WIN)
     RetainPtr<CACFAnimationRef> m_animation;

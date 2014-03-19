@@ -57,7 +57,7 @@ PassRefPtr<SVGScriptElement> SVGScriptElement::create(const QualifiedName& tagNa
 
 bool SVGScriptElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -197,12 +197,9 @@ PassRefPtr<Element> SVGScriptElement::cloneElementWithoutAttributesAndChildren()
 }
 
 #ifndef NDEBUG
-bool SVGScriptElement::isAnimatableAttribute(const QualifiedName& name) const
+bool SVGScriptElement::filterOutAnimatableAttribute(const QualifiedName& name) const
 {
-    if (name == SVGNames::typeAttr)
-        return false;
-
-    return SVGElement::isAnimatableAttribute(name);
+    return name == SVGNames::typeAttr;
 }
 #endif
 

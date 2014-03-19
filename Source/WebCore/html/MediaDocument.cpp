@@ -91,6 +91,7 @@ void MediaDocumentParser::createDocumentStructure()
     m_mediaElement->setAttribute(autoplayAttr, "");
 
     m_mediaElement->setAttribute(nameAttr, "media");
+    m_mediaElement->setAttribute(styleAttr, "max-width: 100%; max-height: 100%;");
 
     RefPtr<Element> sourceElement = document()->createElement(sourceTag, false);
     HTMLSourceElement& source = toHTMLSourceElement(*sourceElement);
@@ -187,7 +188,7 @@ void MediaDocument::defaultEventHandler(Event* event)
         if (!video)
             return;
 
-        KeyboardEvent* keyboardEvent = static_cast<KeyboardEvent*>(event);
+        KeyboardEvent* keyboardEvent = toKeyboardEvent(event);
         if (keyboardEvent->keyIdentifier() == "U+0020") { // space
             if (video->paused()) {
                 if (video->canPlay())

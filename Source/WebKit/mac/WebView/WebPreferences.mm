@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2006, 2007, 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2005, 2006, 2007, 2011, 2012, 2014 Apple Inc. All rights reserved.
  *           (C) 2006 Graham Dennis (graham.dennis@gmail.com)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -595,6 +595,10 @@ public:
 #if ENABLE(MEDIA_SOURCE)
         [NSNumber numberWithBool:NO], WebKitMediaSourceEnabledPreferenceKey,
 #endif
+#if ENABLE(IMAGE_CONTROLS)
+        [NSNumber numberWithBool:NO], WebKitImageControlsEnabledPreferenceKey,
+#endif
+        [NSNumber numberWithBool:NO], WebKitEnableInheritURIQueryComponentPreferenceKey,
         nil];
 
 #if !PLATFORM(IOS)
@@ -2153,6 +2157,16 @@ static NSString *classIBCreatorID = nil;
     return false;
 }
 
+- (BOOL)isInheritURIQueryComponentEnabled
+{
+    return [self _boolValueForKey: WebKitEnableInheritURIQueryComponentPreferenceKey];
+}
+
+- (void)setEnableInheritURIQueryComponent:(BOOL)flag
+{
+    [self _setBoolValue:flag forKey: WebKitEnableInheritURIQueryComponentPreferenceKey];
+}
+
 #if PLATFORM(IOS)
 - (BOOL)mediaPlaybackAllowsAirPlay
 {
@@ -2533,6 +2547,26 @@ static bool needsScreenFontsEnabledQuirk()
 - (void)setMediaSourceEnabled:(BOOL)enabled
 {
     [self _setBoolValue:enabled forKey:WebKitMediaSourceEnabledPreferenceKey];
+}
+
+- (BOOL)imageControlsEnabled
+{
+    return [self _boolValueForKey:WebKitImageControlsEnabledPreferenceKey];
+}
+
+- (void)setImageControlsEnabled:(BOOL)enabled
+{
+    [self _setBoolValue:enabled forKey:WebKitImageControlsEnabledPreferenceKey];
+}
+
+- (BOOL)shouldConvertPositionStyleOnCopy
+{
+    return [self _boolValueForKey:WebKitShouldConvertPositionStyleOnCopyPreferenceKey];
+}
+
+- (void)setShouldConvertPositionStyleOnCopy:(BOOL)enabled
+{
+    [self _setBoolValue:enabled forKey:WebKitShouldConvertPositionStyleOnCopyPreferenceKey];
 }
 
 @end

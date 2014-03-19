@@ -30,31 +30,54 @@
 
 #import "Logging.h"
 #import "MediaSession.h"
+#import "NotImplemented.h"
 #import "SoftLinking.h"
 #import "WebCoreSystemInterface.h"
 #import "WebCoreThreadRun.h"
 #import <AVFoundation/AVAudioSession.h>
+#import <MediaPlayer/MPMediaItem.h>
+#import <MediaPlayer/MPNowPlayingInfoCenter.h>
 #import <UIKit/UIApplication.h>
 #import <objc/runtime.h>
 #import <wtf/RetainPtr.h>
 
 SOFT_LINK_FRAMEWORK(AVFoundation)
-SOFT_LINK_FRAMEWORK(UIKit)
-
 SOFT_LINK_CLASS(AVFoundation, AVAudioSession)
-
 SOFT_LINK_POINTER(AVFoundation, AVAudioSessionInterruptionNotification, NSString *)
 SOFT_LINK_POINTER(AVFoundation, AVAudioSessionInterruptionTypeKey, NSString *)
 SOFT_LINK_POINTER(AVFoundation, AVAudioSessionInterruptionOptionKey, NSString *)
-SOFT_LINK_POINTER(UIKit, UIApplicationWillResignActiveNotification, NSString *)
-SOFT_LINK_POINTER(UIKit, UIApplicationWillEnterForegroundNotification, NSString *)
 
 #define AVAudioSession getAVAudioSessionClass()
 #define AVAudioSessionInterruptionNotification getAVAudioSessionInterruptionNotification()
 #define AVAudioSessionInterruptionTypeKey getAVAudioSessionInterruptionTypeKey()
 #define AVAudioSessionInterruptionOptionKey getAVAudioSessionInterruptionOptionKey()
+
+SOFT_LINK_FRAMEWORK(UIKit)
+SOFT_LINK_CLASS(UIKit, UIApplication)
+SOFT_LINK_POINTER(UIKit, UIApplicationWillResignActiveNotification, NSString *)
+SOFT_LINK_POINTER(UIKit, UIApplicationWillEnterForegroundNotification, NSString *)
+SOFT_LINK_POINTER(UIKit, UIApplicationDidBecomeActiveNotification, NSString *)
+
+#define UIApplication getUIApplicationClass()
 #define UIApplicationWillResignActiveNotification getUIApplicationWillResignActiveNotification()
 #define UIApplicationWillEnterForegroundNotification getUIApplicationWillEnterForegroundNotification()
+#define UIApplicationDidBecomeActiveNotification getUIApplicationDidBecomeActiveNotification()
+
+SOFT_LINK_FRAMEWORK(MediaPlayer)
+SOFT_LINK_CLASS(MediaPlayer, MPNowPlayingInfoCenter)
+SOFT_LINK_POINTER(MediaPlayer, MPMediaItemPropertyTitle, NSString *)
+SOFT_LINK_POINTER(MediaPlayer, MPMediaItemPropertyPlaybackDuration, NSString *)
+SOFT_LINK_POINTER(MediaPlayer, MPNowPlayingInfoPropertyElapsedPlaybackTime, NSString *)
+SOFT_LINK_POINTER(MediaPlayer, MPNowPlayingInfoPropertyPlaybackRate, NSString *)
+
+#define MPMediaItemPropertyTitle getMPMediaItemPropertyTitle()
+#define MPMediaItemPropertyPlaybackDuration getMPMediaItemPropertyPlaybackDuration()
+#define MPNowPlayingInfoPropertyElapsedPlaybackTime getMPNowPlayingInfoPropertyElapsedPlaybackTime()
+#define MPNowPlayingInfoPropertyPlaybackRate getMPNowPlayingInfoPropertyPlaybackRate()
+
+NSString* WebUIApplicationWillResignActiveNotification = @"WebUIApplicationWillResignActiveNotification";
+NSString* WebUIApplicationWillEnterForegroundNotification = @"WebUIApplicationWillEnterForegroundNotification";
+NSString* WebUIApplicationDidBecomeActiveNotification = @"WebUIApplicationDidBecomeActiveNotification";
 
 using namespace WebCore;
 
@@ -64,16 +87,16 @@ using namespace WebCore;
 
 - (id)initWithCallback:(MediaSessionManageriOS*)callback;
 - (void)clearCallback;
-- (void)interruption:(NSNotification*)notification;
-- (void)applicationWillEnterForeground:(NSNotification*)notification;
-- (void)applicationWillResignActive:(NSNotification*)notification;
+- (void)interruption:(NSNotification *)notification;
+- (void)applicationWillEnterForeground:(NSNotification *)notification;
+- (void)applicationWillResignActive:(NSNotification *)notification;
 @end
 
 namespace WebCore {
 
 MediaSessionManager& MediaSessionManager::sharedManager()
 {
-    DEFINE_STATIC_LOCAL(MediaSessionManageriOS, manager, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(MediaSessionManageriOS, manager, ());
     return manager;
 }
 
@@ -106,6 +129,53 @@ void MediaSessionManageriOS::resetRestrictions()
     addRestriction(MediaSession::Video, AutoPreloadingNotPermitted);
 }
 
+#if ENABLE(IOS_AIRPLAY)
+void MediaSessionManageriOS::showPlaybackTargetPicker()
+{
+    notImplemented();
+}
+#endif
+    
+void MediaSessionManageriOS::sessionWillBeginPlayback(MediaSession& session)
+{
+    MediaSessionManager::sessionWillBeginPlayback(session);
+    updateNowPlayingInfo();
+}
+    
+void MediaSessionManageriOS::sessionWillEndPlayback(MediaSession& session)
+{
+    MediaSessionManager::sessionWillEndPlayback(session);
+    updateNowPlayingInfo();
+}
+    
+void MediaSessionManageriOS::updateNowPlayingInfo()
+{
+    MPNowPlayingInfoCenter *nowPlaying = (MPNowPlayingInfoCenter *)[getMPNowPlayingInfoCenterClass() defaultCenter];
+    const MediaSession* currentSession = this->currentSession();
+    
+    if (!currentSession) {
+        [nowPlaying setNowPlayingInfo:nil];
+        return;
+    }
+    
+    RetainPtr<NSMutableDictionary> info = adoptNS([[NSMutableDictionary alloc] init]);
+    
+    String title = currentSession->title();
+    if (!title.isEmpty())
+        [info setValue:static_cast<NSString *>(title) forKey:MPMediaItemPropertyTitle];
+    
+    double duration = currentSession->duration();
+    if (std::isfinite(duration) && duration != MediaPlayer::invalidTime())
+        [info setValue:@(duration) forKey:MPMediaItemPropertyPlaybackDuration];
+    
+    double currentTime = currentSession->currentTime();
+    if (std::isfinite(currentTime))
+        [info setValue:@(currentTime) forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
+    
+    [info setValue:(currentSession->state() == MediaSession::Playing ? @YES : @NO) forKey:MPNowPlayingInfoPropertyPlaybackRate];
+    [nowPlaying setNowPlayingInfo:info.get()];
+}
+
 } // namespace WebCore
 
 @implementation WebMediaSessionHelper
@@ -120,10 +190,16 @@ void MediaSessionManageriOS::resetRestrictions()
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     [center addObserver:self selector:@selector(interruption:) name:AVAudioSessionInterruptionNotification object:[AVAudioSession sharedInstance]];
 
-    // FIXME: These need to be piped through from the UI process in WK2 mode.
     [center addObserver:self selector:@selector(applicationWillEnterForeground:) name:UIApplicationWillEnterForegroundNotification object:nil];
+    [center addObserver:self selector:@selector(applicationWillEnterForeground:) name:WebUIApplicationWillEnterForegroundNotification object:nil];
+    [center addObserver:self selector:@selector(applicationDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
+    [center addObserver:self selector:@selector(applicationDidBecomeActive:) name:WebUIApplicationDidBecomeActiveNotification object:nil];
     [center addObserver:self selector:@selector(applicationWillResignActive:) name:UIApplicationWillResignActiveNotification object:nil];
-
+    [center addObserver:self selector:@selector(applicationWillResignActive:) name:WebUIApplicationWillResignActiveNotification object:nil];
+    
+    // Now playing won't work unless we turn on the delivery of remote control events.
+    [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+    
     return self;
 }
 
@@ -164,14 +240,29 @@ void MediaSessionManageriOS::resetRestrictions()
 - (void)applicationWillEnterForeground:(NSNotification *)notification
 {
     UNUSED_PARAM(notification);
-    
+
     if (!_callback)
         return;
 
     WebThreadRun(^{
         if (!_callback)
             return;
-        
+
+        _callback->applicationWillEnterForeground();
+    });
+}
+
+- (void)applicationDidBecomeActive:(NSNotification *)notification
+{
+    UNUSED_PARAM(notification);
+
+    if (!_callback)
+        return;
+
+    WebThreadRun(^{
+        if (!_callback)
+            return;
+
         _callback->applicationWillEnterForeground();
     });
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (C) 2005, 2013 Apple Computer, Inc.  All rights reserved.
+# Copyright (C) 2005, 2013 Apple Inc.  All rights reserved.
 # Copyright (C) 2007 Eric Seidel <eric@webkit.org>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -12,7 +12,7 @@
 # 2.  Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution. 
-# 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+# 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 #     its contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission. 
 #
@@ -39,6 +39,7 @@ my $coverageSupport = 0;
 my $showHelp = 0;
 my $ftlJIT = 0;
 my $forceCLoop = 0;
+my $cli = 0;
 my $makeArgs = "";
 my $copyLibraries = 1;
 
@@ -50,6 +51,7 @@ Usage: $programName [options] [options to pass to build system]
   --[no-]ftl-jit                Toggle FTL JIT support (default: $ftlJIT)
   --[no-]copy-libraries         Toggle whether to copy libraries (default: $copyLibraries)
   --cloop                       Use C Loop interpreter (default: $forceCLoop)
+  --cli                         Build the new jsc command line interface (default: $cli)
   --makeargs=<arguments>        Optional Makefile flags
 EOF
 
@@ -58,6 +60,7 @@ GetOptions(
     'help' => \$showHelp,
     'ftl-jit!' => \$ftlJIT,
     'cloop!' => \$forceCLoop,
+    'cli!' => \$cli,
     'copy-libraries!' => \$copyLibraries,
     'makeargs=s' => \$makeArgs
 );
@@ -126,3 +129,6 @@ sub buildMyProject
 
 buildMyProject("Source/WTF", "WTF");
 buildMyProject("Source/JavaScriptCore", "JavaScriptCore");
+if (isAppleMacWebKit() && $cli) {
+    buildMyProject("Tools/jsc-cli", "jsc-cli");
+}

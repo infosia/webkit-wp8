@@ -44,6 +44,17 @@
 
 @property (nonatomic) CGSize minimumLayoutSizeOverride;
 
+// Define the inset of the scrollview unusable by the web page.
+@property (nonatomic, setter=_setObscuredInsets:) UIEdgeInsets _obscuredInsets;
+
+@property (nonatomic, setter=_setBackgroundExtendsBeyondPage:) BOOL _backgroundExtendsBeyondPage;
+
+// This is deprecated and should be removed entirely: <rdar://problem/16294704>.
+@property (readonly) UIColor *_pageExtendedBackgroundColor;
+
+- (void)_beginInteractiveObscuredInsetsChange;
+- (void)_endInteractiveObscuredInsetsChange;
+
 #else
 
 - (NSPrintOperation *)printOperationWithPrintInfo:(NSPrintInfo *)printInfo forFrame:(WKFrameRef)frameRef;
@@ -59,7 +70,6 @@
 - (void)enableFrameSizeUpdates;
 - (BOOL)frameSizeUpdatesDisabled;
 
-- (void)performDictionaryLookupAtCurrentMouseLocation;
 + (void)hideWordDefinitionWindow;
 
 @property (readwrite) CGFloat minimumLayoutWidth;
@@ -72,6 +82,7 @@
 @property (readwrite) double magnification;
 @property (readwrite) BOOL allowsBackForwardNavigationGestures;
 
+@property (readonly) NSColor *_pageExtendedBackgroundColor;
 @property(copy, nonatomic) NSColor *underlayColor;
 
 - (NSView*)fullScreenPlaceholderView;

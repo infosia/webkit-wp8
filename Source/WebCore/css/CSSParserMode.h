@@ -64,10 +64,11 @@ public:
     String charset;
     CSSParserMode mode;
     bool isHTMLDocument;
-    bool isCSSStickyPositionEnabled;
     bool isCSSRegionsEnabled;
     bool isCSSCompositingEnabled;
+#if ENABLE(CSS_GRID_LAYOUT)
     bool isCSSGridLayoutEnabled;
+#endif
     bool needsSiteSpecificQuirks;
     bool enforcesCSSMIMETypeInNoQuirksMode;
     bool useLegacyBackgroundSizeShorthandBehavior;

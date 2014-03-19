@@ -85,9 +85,11 @@ MasqueradesAsUndefined
 NamedConstructor=*
 NewImpurePropertyFiresWatchpoints
 NoInterfaceObject
+Nondeterministic
 NotEnumerable
 NotDeletable
 ObjCCustomImplementation
+ObjCExplicitAtomicString
 ObjCLegacyUnnamedParameters
 ObjCPolymorphic
 ObjCProtocol
@@ -97,6 +99,7 @@ RaisesException
 Reflect=*
 Replaceable
 ReplaceableConstructor
+ReportExtraMemoryCost
 ReturnNewObject
 SetterRaisesException
 SkipVTableValidation

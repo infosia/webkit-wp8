@@ -54,6 +54,11 @@ SharedMemory::Handle::Handle()
 
 SharedMemory::Handle::~Handle()
 {
+    clear();
+}
+
+void SharedMemory::Handle::clear()
+{
     if (!isNull())
         closeWithRetry(m_fileDescriptor);
 }
@@ -107,7 +112,7 @@ PassRefPtr<SharedMemory> SharedMemory::create(size_t size)
         tempName = name.utf8();
 
         do {
-            fileDescriptor = shm_open(tempName.data(), O_CREAT | O_CLOEXEC | O_RDWR, S_IRUSR | S_IWUSR);
+            fileDescriptor = shm_open(tempName.data(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
         } while (fileDescriptor == -1 && errno == EINTR);
     }
     if (fileDescriptor == -1) {

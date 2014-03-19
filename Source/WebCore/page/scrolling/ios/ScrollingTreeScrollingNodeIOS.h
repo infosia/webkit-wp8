@@ -50,7 +50,8 @@ private:
 
     FloatPoint scrollPosition() const;
     virtual void setScrollPosition(const FloatPoint&) override;
-    void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&);
+    virtual void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&) override;
+    virtual void updateForViewport(const FloatRect& viewportRect, double scale);
 
     void setScrollLayerPosition(const FloatPoint&);
 
@@ -61,6 +62,7 @@ private:
     void scrollByWithoutContentEdgeConstraints(const IntSize&);
 
     RetainPtr<CALayer> m_scrollLayer;
+    RetainPtr<CALayer> m_scrolledContentsLayer;
     RetainPtr<CALayer> m_counterScrollingLayer;
     RetainPtr<CALayer> m_headerLayer;
     RetainPtr<CALayer> m_footerLayer;

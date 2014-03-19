@@ -21,12 +21,12 @@
 #include "WebProcessTest.h"
 
 #include <gio/gio.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 
 typedef HashMap<String, std::function<PassOwnPtr<WebProcessTest> ()>> TestsMap;
 static TestsMap& testsMap()
 {
-    DEFINE_STATIC_LOCAL(TestsMap, s_testsMap, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(TestsMap, s_testsMap, ());
     return s_testsMap;
 }
 
@@ -80,7 +80,7 @@ static void busAcquiredCallback(GDBusConnection* connection, const char* name, g
     if (!introspectionData)
         introspectionData = g_dbus_node_info_new_for_xml(introspectionXML, 0);
 
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     unsigned registrationID = g_dbus_connection_register_object(
         connection,
         "/org/webkit/gtk/WebProcessTest",

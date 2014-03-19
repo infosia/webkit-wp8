@@ -59,18 +59,18 @@ public:
 
     virtual bool lineOverlapsShapeBounds() const override
     {
-        return computedShape().lineOverlapsShapeMarginBounds(m_shapeLineTop, m_lineHeight);
+        return computedShape().lineOverlapsShapeMarginBounds(m_referenceBoxLineTop, m_lineHeight);
     }
 
 protected:
-    virtual LayoutBox resolvedLayoutBox() const override
+    virtual CSSBoxType referenceBox() const override
     {
-        if (shapeValue()->layoutBox() == BoxMissing) {
+        if (shapeValue()->cssBox() == BoxMissing) {
             if (shapeValue()->type() == ShapeValue::Image)
                 return ContentBox;
             return MarginBox;
         }
-        return shapeValue()->layoutBox();
+        return shapeValue()->cssBox();
     }
 
 private:
@@ -81,11 +81,11 @@ private:
         return computedShape().getExcludedIntervals(lineTop, lineHeight, segments);
     }
 
-    virtual WritingMode writingMode() const;
+    virtual const RenderStyle& styleForWritingMode() const override;
 
     LayoutUnit m_leftMarginBoxDelta;
     LayoutUnit m_rightMarginBoxDelta;
-    LayoutUnit m_lineTop;
+    LayoutUnit m_borderBoxLineTop;
     bool m_lineOverlapsShape;
 };
 

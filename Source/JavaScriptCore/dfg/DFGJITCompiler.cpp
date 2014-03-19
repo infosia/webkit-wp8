@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,9 +41,10 @@
 #include "DFGSpeculativeJIT.h"
 #include "DFGThunks.h"
 #include "JSCJSValueInlines.h"
-#include "MaxFrameExtentForSlowPathCall.h"
-#include "VM.h"
 #include "LinkBuffer.h"
+#include "MaxFrameExtentForSlowPathCall.h"
+#include "JSCInlines.h"
+#include "VM.h"
 
 namespace JSC { namespace DFG {
 
@@ -159,8 +160,8 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
     m_jitCode->common.slowArguments = std::move(m_graph.m_slowArguments);
 
     BitVector usedJumpTables;
-    for (unsigned i = m_graph.m_switchData.size(); i--;) {
-        SwitchData& data = m_graph.m_switchData[i];
+    for (Bag<SwitchData>::iterator iter = m_graph.m_switchData.begin(); !!iter; ++iter) {
+        SwitchData& data = **iter;
         if (!data.didUseJumpTable)
             continue;
         
@@ -171,14 +172,14 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
         
         usedJumpTables.set(data.switchTableIndex);
         SimpleJumpTable& table = m_codeBlock->switchJumpTable(data.switchTableIndex);
-        table.ctiDefault = linkBuffer.locationOf(m_blockHeads[data.fallThrough->index]);
+        table.ctiDefault = linkBuffer.locationOf(m_blockHeads[data.fallThrough.block->index]);
         table.ctiOffsets.grow(table.branchOffsets.size());
         for (unsigned j = table.ctiOffsets.size(); j--;)
             table.ctiOffsets[j] = table.ctiDefault;
         for (unsigned j = data.cases.size(); j--;) {
             SwitchCase& myCase = data.cases[j];
             table.ctiOffsets[myCase.value.switchLookupValue() - table.min] =
-                linkBuffer.locationOf(m_blockHeads[myCase.target->index]);
+                linkBuffer.locationOf(m_blockHeads[myCase.target.block->index]);
         }
     }
     
@@ -192,8 +193,8 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
     // NOTE: we cannot clear string switch tables because (1) we're running concurrently
     // and we cannot deref StringImpl's and (2) it would be weird to deref those
     // StringImpl's since we refer to them.
-    for (unsigned i = m_graph.m_switchData.size(); i--;) {
-        SwitchData& data = m_graph.m_switchData[i];
+    for (Bag<SwitchData>::iterator switchDataIter = m_graph.m_switchData.begin(); !!switchDataIter; ++switchDataIter) {
+        SwitchData& data = **switchDataIter;
         if (!data.didUseJumpTable)
             continue;
         
@@ -201,7 +202,7 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
             continue;
         
         StringJumpTable& table = m_codeBlock->stringSwitchJumpTable(data.switchTableIndex);
-        table.ctiDefault = linkBuffer.locationOf(m_blockHeads[data.fallThrough->index]);
+        table.ctiDefault = linkBuffer.locationOf(m_blockHeads[data.fallThrough.block->index]);
         StringJumpTable::StringOffsetTable::iterator iter;
         StringJumpTable::StringOffsetTable::iterator end = table.offsetTable.end();
         for (iter = table.offsetTable.begin(); iter != end; ++iter)
@@ -210,7 +211,7 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
             SwitchCase& myCase = data.cases[j];
             iter = table.offsetTable.find(myCase.value.stringImpl());
             RELEASE_ASSERT(iter != end);
-            iter->value.ctiOffset = linkBuffer.locationOf(m_blockHeads[myCase.target->index]);
+            iter->value.ctiOffset = linkBuffer.locationOf(m_blockHeads[myCase.target.block->index]);
         }
     }
 
@@ -335,7 +336,7 @@ void JITCompiler::compileFunction()
     Label fromArityCheck(this);
     // Plant a check that sufficient space is available in the JSStack.
     addPtr(TrustedImm32(virtualRegisterForLocal(m_graph.requiredRegisterCountForExecutionAndExit() - 1).offset() * sizeof(Register)), GPRInfo::callFrameRegister, GPRInfo::regT1);
-    Jump stackOverflow = branchPtr(Above, AbsoluteAddress(m_vm->addressOfJSStackLimit()), GPRInfo::regT1);
+    Jump stackOverflow = branchPtr(Above, AbsoluteAddress(m_vm->addressOfStackLimit()), GPRInfo::regT1);
 
     // Move the stack pointer down to accommodate locals
     addPtr(TrustedImm32(m_graph.stackPointerOffset() * sizeof(Register)), GPRInfo::callFrameRegister, stackPointerRegister);
@@ -380,8 +381,14 @@ void JITCompiler::compileFunction()
         addPtr(TrustedImm32(maxFrameExtentForSlowPathCall), stackPointerRegister);
     branchTest32(Zero, GPRInfo::regT0).linkTo(fromArityCheck, this);
     emitStoreCodeOrigin(CodeOrigin(0));
-    move(TrustedImmPtr(m_vm->arityCheckFailReturnThunks->returnPCsFor(*m_vm, m_codeBlock->numParameters())), GPRInfo::regT5);
-    loadPtr(BaseIndex(GPRInfo::regT5, GPRInfo::regT0, timesPtr()), GPRInfo::regT5);
+    GPRReg thunkReg;
+#if USE(JSVALUE64)
+    thunkReg = GPRInfo::regT7;
+#else
+    thunkReg = GPRInfo::regT5;
+#endif
+    move(TrustedImmPtr(m_vm->arityCheckFailReturnThunks->returnPCsFor(*m_vm, m_codeBlock->numParameters())), thunkReg);
+    loadPtr(BaseIndex(thunkReg, GPRInfo::regT0, timesPtr()), thunkReg);
     m_callArityFixup = call();
     jump(fromArityCheck);
     

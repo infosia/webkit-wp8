@@ -157,29 +157,13 @@ private:
     // Used to construct static strings, which have an special refCount that can never hit zero.
     // This means that the static string will never be destroyed, which is important because
     // static strings will be shared across threads & ref-counted in a non-threadsafe manner.
-    enum ConstructStaticStringTag { ConstructStaticString };
-    StringImpl(const UChar* characters, unsigned length, ConstructStaticStringTag)
+    friend class NeverDestroyed<StringImpl>;
+    enum ConstructEmptyStringTag { ConstructEmptyString };
+    StringImpl(ConstructEmptyStringTag)
         : m_refCount(s_refCountFlagIsStaticString)
-        , m_length(length)
-        , m_data16(characters)
-        , m_hashAndFlags(s_hashFlagIsIdentifier | BufferOwned)
-    {
-        // Ensure that the hash is computed so that AtomicStringHash can call existingHash()
-        // with impunity. The empty string is special because it is never entered into
-        // AtomicString's HashKey, but still needs to compare correctly.
-        STRING_STATS_ADD_16BIT_STRING(m_length);
-
-        hash();
-    }
-
-    // Used to construct static strings, which have an special refCount that can never hit zero.
-    // This means that the static string will never be destroyed, which is important because
-    // static strings will be shared across threads & ref-counted in a non-threadsafe manner.
-    StringImpl(const LChar* characters, unsigned length, ConstructStaticStringTag)
-        : m_refCount(s_refCountFlagIsStaticString)
-        , m_length(length)
-        , m_data8(characters)
-        , m_hashAndFlags(s_hashFlag8BitBuffer | s_hashFlagIsIdentifier | BufferOwned)
+        , m_length(0)
+        , m_data8(reinterpret_cast<const LChar*>(&m_length))
+        , m_hashAndFlags(s_hashFlag8BitBuffer | s_hashFlagIsIdentifier | s_hashFlagIsAtomic | BufferOwned)
     {
         // Ensure that the hash is computed so that AtomicStringHash can call existingHash()
         // with impunity. The empty string is special because it is never entered into
@@ -915,95 +899,110 @@ inline bool equal(const LChar* a, StringImpl* b) { return equal(b, a); }
 inline bool equal(const char* a, StringImpl* b) { return equal(b, reinterpret_cast<const LChar*>(a)); }
 WTF_EXPORT_STRING_API bool equal(const StringImpl& a, const StringImpl& b);
 
+template<typename T>
+inline T loadUnaligned(const char* s)
+{
+#if COMPILER(CLANG)
+    T tmp;
+    memcpy(&tmp, s, sizeof(T));
+    return tmp;
+#else
+    // This may result in undefined behavior due to unaligned access.
+    return *reinterpret_cast<const T*>(s);
+#endif
+}
+
 // Do comparisons 8 or 4 bytes-at-a-time on architectures where it's safe.
 #if CPU(X86_64) || CPU(ARM64)
-ALWAYS_INLINE bool equal(const LChar* a, const LChar* b, unsigned length)
+ALWAYS_INLINE bool equal(const LChar* aLChar, const LChar* bLChar, unsigned length)
 {
     unsigned dwordLength = length >> 3;
 
+    const char* a = reinterpret_cast<const char*>(aLChar);
+    const char* b = reinterpret_cast<const char*>(bLChar);
+
     if (dwordLength) {
-        const uint64_t* aDWordCharacters = reinterpret_cast<const uint64_t*>(a);
-        const uint64_t* bDWordCharacters = reinterpret_cast<const uint64_t*>(b);
-
         for (unsigned i = 0; i != dwordLength; ++i) {
-            if (*aDWordCharacters++ != *bDWordCharacters++)
+            if (loadUnaligned<uint64_t>(a) != loadUnaligned<uint64_t>(b))
                 return false;
-        }
 
-        a = reinterpret_cast<const LChar*>(aDWordCharacters);
-        b = reinterpret_cast<const LChar*>(bDWordCharacters);
+            a += sizeof(uint64_t);
+            b += sizeof(uint64_t);
+        }
     }
 
     if (length & 4) {
-        if (*reinterpret_cast<const uint32_t*>(a) != *reinterpret_cast<const uint32_t*>(b))
+        if (loadUnaligned<uint32_t>(a) != loadUnaligned<uint32_t>(b))
             return false;
 
-        a += 4;
-        b += 4;
+        a += sizeof(uint32_t);
+        b += sizeof(uint32_t);
     }
 
     if (length & 2) {
-        if (*reinterpret_cast<const uint16_t*>(a) != *reinterpret_cast<const uint16_t*>(b))
+        if (loadUnaligned<uint16_t>(a) != loadUnaligned<uint16_t>(b))
             return false;
 
-        a += 2;
-        b += 2;
+        a += sizeof(uint16_t);
+        b += sizeof(uint16_t);
     }
 
-    if (length & 1 && (*a != *b))
+    if (length & 1 && (*reinterpret_cast<const LChar*>(a) != *reinterpret_cast<const LChar*>(b)))
         return false;
 
     return true;
 }
 
-ALWAYS_INLINE bool equal(const UChar* a, const UChar* b, unsigned length)
+ALWAYS_INLINE bool equal(const UChar* aUChar, const UChar* bUChar, unsigned length)
 {
     unsigned dwordLength = length >> 2;
-    
+
+    const char* a = reinterpret_cast<const char*>(aUChar);
+    const char* b = reinterpret_cast<const char*>(bUChar);
+
     if (dwordLength) {
-        const uint64_t* aDWordCharacters = reinterpret_cast<const uint64_t*>(a);
-        const uint64_t* bDWordCharacters = reinterpret_cast<const uint64_t*>(b);
-
         for (unsigned i = 0; i != dwordLength; ++i) {
-            if (*aDWordCharacters++ != *bDWordCharacters++)
+            if (loadUnaligned<uint64_t>(a) != loadUnaligned<uint64_t>(b))
                 return false;
-        }
 
-        a = reinterpret_cast<const UChar*>(aDWordCharacters);
-        b = reinterpret_cast<const UChar*>(bDWordCharacters);
+            a += sizeof(uint64_t);
+            b += sizeof(uint64_t);
+        }
     }
 
     if (length & 2) {
-        if (*reinterpret_cast<const uint32_t*>(a) != *reinterpret_cast<const uint32_t*>(b))
+        if (loadUnaligned<uint32_t>(a) != loadUnaligned<uint32_t>(b))
             return false;
 
-        a += 2;
-        b += 2;
+        a += sizeof(uint32_t);
+        b += sizeof(uint32_t);
     }
 
-    if (length & 1 && (*a != *b))
+    if (length & 1 && (*reinterpret_cast<const UChar*>(a) != *reinterpret_cast<const UChar*>(b)))
         return false;
 
     return true;
 }
 #elif CPU(X86)
-ALWAYS_INLINE bool equal(const LChar* a, const LChar* b, unsigned length)
+ALWAYS_INLINE bool equal(const LChar* aLChar, const LChar* bLChar, unsigned length)
 {
-    const uint32_t* aCharacters = reinterpret_cast<const uint32_t*>(a);
-    const uint32_t* bCharacters = reinterpret_cast<const uint32_t*>(b);
+    const char* a = reinterpret_cast<const char*>(aLChar);
+    const char* b = reinterpret_cast<const char*>(bLChar);
 
     unsigned wordLength = length >> 2;
     for (unsigned i = 0; i != wordLength; ++i) {
-        if (*aCharacters++ != *bCharacters++)
+        if (loadUnaligned<uint32_t>(a) != loadUnaligned<uint32_t>(b))
             return false;
+        a += sizeof(uint32_t);
+        b += sizeof(uint32_t);
     }
 
     length &= 3;
 
     if (length) {
-        const LChar* aRemainder = reinterpret_cast<const LChar*>(aCharacters);
-        const LChar* bRemainder = reinterpret_cast<const LChar*>(bCharacters);
-        
+        const LChar* aRemainder = reinterpret_cast<const LChar*>(a);
+        const LChar* bRemainder = reinterpret_cast<const LChar*>(b);
+
         for (unsigned i = 0; i <  length; ++i) {
             if (aRemainder[i] != bRemainder[i])
                 return false;
@@ -1013,20 +1012,22 @@ ALWAYS_INLINE bool equal(const LChar* a, const LChar* b, unsigned length)
     return true;
 }
 
-ALWAYS_INLINE bool equal(const UChar* a, const UChar* b, unsigned length)
+ALWAYS_INLINE bool equal(const UChar* aUChar, const UChar* bUChar, unsigned length)
 {
-    const uint32_t* aCharacters = reinterpret_cast<const uint32_t*>(a);
-    const uint32_t* bCharacters = reinterpret_cast<const uint32_t*>(b);
-    
+    const char* a = reinterpret_cast<const char*>(aUChar);
+    const char* b = reinterpret_cast<const char*>(bUChar);
+
     unsigned wordLength = length >> 1;
     for (unsigned i = 0; i != wordLength; ++i) {
-        if (*aCharacters++ != *bCharacters++)
+        if (loadUnaligned<uint32_t>(a) != loadUnaligned<uint32_t>(b))
             return false;
+        a += sizeof(uint32_t);
+        b += sizeof(uint32_t);
     }
-    
-    if (length & 1 && *reinterpret_cast<const UChar*>(aCharacters) != *reinterpret_cast<const UChar*>(bCharacters))
+
+    if (length & 1 && *reinterpret_cast<const UChar*>(a) != *reinterpret_cast<const UChar*>(b))
         return false;
-    
+
     return true;
 }
 #elif PLATFORM(IOS) && WTF_ARM_ARCH_AT_LEAST(7)
@@ -1297,7 +1298,7 @@ bool equalIgnoringNullity(const Vector<UChar, inlineCapacity>& a, StringImpl* b)
 }
 
 template<typename CharacterType1, typename CharacterType2>
-static inline int codePointCompare(unsigned l1, unsigned l2, const CharacterType1* c1, const CharacterType2* c2)
+inline int codePointCompare(unsigned l1, unsigned l2, const CharacterType1* c1, const CharacterType2* c2)
 {
     const unsigned lmin = l1 < l2 ? l1 : l2;
     unsigned pos = 0;
@@ -1316,22 +1317,22 @@ static inline int codePointCompare(unsigned l1, unsigned l2, const CharacterType
     return (l1 > l2) ? 1 : -1;
 }
 
-static inline int codePointCompare8(const StringImpl* string1, const StringImpl* string2)
+inline int codePointCompare8(const StringImpl* string1, const StringImpl* string2)
 {
     return codePointCompare(string1->length(), string2->length(), string1->characters8(), string2->characters8());
 }
 
-static inline int codePointCompare16(const StringImpl* string1, const StringImpl* string2)
+inline int codePointCompare16(const StringImpl* string1, const StringImpl* string2)
 {
     return codePointCompare(string1->length(), string2->length(), string1->characters16(), string2->characters16());
 }
 
-static inline int codePointCompare8To16(const StringImpl* string1, const StringImpl* string2)
+inline int codePointCompare8To16(const StringImpl* string1, const StringImpl* string2)
 {
     return codePointCompare(string1->length(), string2->length(), string1->characters8(), string2->characters16());
 }
 
-static inline int codePointCompare(const StringImpl* string1, const StringImpl* string2)
+inline int codePointCompare(const StringImpl* string1, const StringImpl* string2)
 {
     if (!string1)
         return (string2 && string2->length()) ? -1 : 0;
@@ -1351,7 +1352,7 @@ static inline int codePointCompare(const StringImpl* string1, const StringImpl* 
     return codePointCompare16(string1, string2);
 }
 
-static inline bool isSpaceOrNewline(UChar c)
+inline bool isSpaceOrNewline(UChar c)
 {
     // Use isASCIISpace() for basic Latin-1.
     // This will include newlines, which aren't included in Unicode DirWS.

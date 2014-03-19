@@ -29,6 +29,7 @@ list(APPEND WebCore_SOURCES
     accessibility/atk/WebKitAccessibleInterfaceImage.cpp
     accessibility/atk/WebKitAccessibleInterfaceSelection.cpp
     accessibility/atk/WebKitAccessibleInterfaceTable.cpp
+    accessibility/atk/WebKitAccessibleInterfaceTableCell.cpp
     accessibility/atk/WebKitAccessibleInterfaceText.cpp
     accessibility/atk/WebKitAccessibleInterfaceValue.cpp
     accessibility/atk/WebKitAccessibleUtil.cpp
@@ -157,7 +158,6 @@ list(APPEND WebCore_SOURCES
     platform/network/soup/CookieStorageSoup.cpp
     platform/network/soup/CredentialStorageSoup.cpp
     platform/network/soup/DNSSoup.cpp
-    platform/network/soup/GOwnPtrSoup.cpp
     platform/network/soup/NetworkStorageSessionSoup.cpp
     platform/network/soup/ProxyResolverSoup.cpp
     platform/network/soup/ProxyServerSoup.cpp
@@ -191,6 +191,8 @@ if (ENABLE_NETSCAPE_PLUGIN_API)
     list(APPEND WebCore_SOURCES
         plugins/efl/PluginPackageEfl.cpp
         plugins/efl/PluginViewEfl.cpp
+
+        plugins/x11/PluginViewX11.cpp
     )
 endif ()
 
@@ -278,9 +280,11 @@ endif ()
 
 if (ENABLE_VIDEO)
     list(APPEND WebCore_INCLUDE_DIRECTORIES
+        ${GSTREAMER_TAG_INCLUDE_DIRS}
         ${GSTREAMER_VIDEO_INCLUDE_DIRS}
     )
     list(APPEND WebCore_LIBRARIES
+        ${GSTREAMER_TAG_LIBRARIES}
         ${GSTREAMER_VIDEO_LIBRARIES}
     )
 endif ()
@@ -304,6 +308,8 @@ if (WTF_USE_3D_GRAPHICS)
     list(APPEND WebCore_SOURCES
         platform/graphics/cairo/DrawingBufferCairo.cpp
 
+        platform/graphics/efl/EvasGLContext.cpp
+        platform/graphics/efl/EvasGLSurface.cpp
         platform/graphics/efl/GraphicsContext3DEfl.cpp
         platform/graphics/efl/GraphicsContext3DPrivate.cpp
 

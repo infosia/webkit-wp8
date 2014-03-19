@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
  * Copyright (C) 2012 Research In Motion Limited. All rights reserved.
+ * Copyright (C) 2014 Collabora Ltd. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,6 +41,7 @@ Extensions3DOpenGLES::Extensions3DOpenGLES(GraphicsContext3D* context)
     , m_contextResetStatus(GL_NO_ERROR)
     , m_supportsOESvertexArrayObject(false)
     , m_supportsIMGMultisampledRenderToTexture(false)
+    , m_supportsANGLEinstancedArrays(false)
     , m_glFramebufferTexture2DMultisampleIMG(0)
     , m_glRenderbufferStorageMultisampleIMG(0)
     , m_glBindVertexArrayOES(0)
@@ -50,6 +52,9 @@ Extensions3DOpenGLES::Extensions3DOpenGLES(GraphicsContext3D* context)
     , m_glReadnPixelsEXT(0)
     , m_glGetnUniformfvEXT(0)
     , m_glGetnUniformivEXT(0)
+    , m_glVertexAttribDivisorANGLE(nullptr)
+    , m_glDrawArraysInstancedANGLE(nullptr)
+    , m_glDrawElementsInstancedANGLE(nullptr)
 {
 }
 
@@ -73,7 +78,7 @@ void Extensions3DOpenGLES::renderbufferStorageMultisampleIMG(unsigned long targe
         m_context->synthesizeGLError(GL_INVALID_OPERATION);
 }
 
-void Extensions3DOpenGLES::blitFramebuffer(long srcX0, long srcY0, long srcX1, long srcY1, long dstX0, long dstY0, long dstX1, long dstY1, unsigned long mask, unsigned long filter)
+void Extensions3DOpenGLES::blitFramebuffer(long /* srcX0 */, long /* srcY0 */, long /* srcX1 */, long /* srcY1 */, long /* dstX0 */, long /* dstY0 */, long /* dstX1 */, long /* dstY1 */, unsigned long /* mask */, unsigned long /* filter */)
 {
     notImplemented();
 }
@@ -84,11 +89,6 @@ void Extensions3DOpenGLES::renderbufferStorageMultisample(unsigned long target, 
         renderbufferStorageMultisampleIMG(target, samples, internalformat, width, height);
     else
         notImplemented();
-}
-
-void Extensions3DOpenGLES::copyTextureCHROMIUM(GC3Denum, Platform3DObject, Platform3DObject, GC3Dint, GC3Denum)
-{
-    notImplemented();
 }
 
 void Extensions3DOpenGLES::insertEventMarkerEXT(const String&)
@@ -156,9 +156,10 @@ void Extensions3DOpenGLES::bindVertexArrayOES(Platform3DObject array)
         m_context->synthesizeGLError(GL_INVALID_OPERATION);
 }
 
-void Extensions3DOpenGLES::drawBuffersEXT(GC3Dsizei n, const GC3Denum* bufs)
+void Extensions3DOpenGLES::drawBuffersEXT(GC3Dsizei /* n */, const GC3Denum* /* bufs */)
 {
     // FIXME: implement the support.
+    notImplemented();
 }
 
 int Extensions3DOpenGLES::getGraphicsResetStatusARB()
@@ -228,6 +229,39 @@ void Extensions3DOpenGLES::getnUniformivEXT(GC3Duint program, int location, GC3D
     m_context->synthesizeGLError(GL_INVALID_OPERATION);
 }
 
+void Extensions3DOpenGLES::drawArraysInstanced(GC3Denum mode, GC3Dint first, GC3Dsizei count, GC3Dsizei primcount)
+{
+    if (!m_glDrawArraysInstancedANGLE) {
+        m_context->synthesizeGLError(GL_INVALID_OPERATION);
+        return;
+    }
+
+    m_context->makeContextCurrent();
+    m_glDrawArraysInstancedANGLE(mode, first, count, primcount);
+}
+
+void Extensions3DOpenGLES::drawElementsInstanced(GC3Denum mode, GC3Dsizei count, GC3Denum type, long long offset, GC3Dsizei primcount)
+{
+    if (!m_glDrawElementsInstancedANGLE) {
+        m_context->synthesizeGLError(GL_INVALID_OPERATION);
+        return;
+    }
+
+    m_context->makeContextCurrent();
+    m_glDrawElementsInstancedANGLE(mode, count, type, reinterpret_cast<GLvoid*>(static_cast<intptr_t>(offset)), primcount);
+}
+
+void Extensions3DOpenGLES::vertexAttribDivisor(GC3Duint index, GC3Duint divisor)
+{
+    if (!m_glVertexAttribDivisorANGLE) {
+        m_context->synthesizeGLError(GL_INVALID_OPERATION);
+        return;
+    }
+
+    m_context->makeContextCurrent();
+    m_glVertexAttribDivisorANGLE(index, divisor);
+}
+
 bool Extensions3DOpenGLES::supportsExtension(const String& name)
 {
     if (m_availableExtensions.contains(name)) {
@@ -246,6 +280,11 @@ bool Extensions3DOpenGLES::supportsExtension(const String& name)
             m_glReadnPixelsEXT = reinterpret_cast<PFNGLREADNPIXELSEXTPROC>(eglGetProcAddress("glReadnPixelsEXT"));
             m_glGetnUniformfvEXT = reinterpret_cast<PFNGLGETNUNIFORMFVEXTPROC>(eglGetProcAddress("glGetnUniformfvEXT"));
             m_glGetnUniformivEXT = reinterpret_cast<PFNGLGETNUNIFORMIVEXTPROC>(eglGetProcAddress("glGetnUniformivEXT"));
+        } else if (!m_supportsANGLEinstancedArrays && name == "GL_ANGLE_instanced_arrays") {
+            m_glVertexAttribDivisorANGLE = reinterpret_cast<PFNGLVERTEXATTRIBDIVISORANGLEPROC>(eglGetProcAddress("glVertexAttribDivisorANGLE"));
+            m_glDrawArraysInstancedANGLE = reinterpret_cast<PFNGLDRAWARRAYSINSTANCEDANGLEPROC >(eglGetProcAddress("glDrawArraysInstancedANGLE"));
+            m_glDrawElementsInstancedANGLE = reinterpret_cast<PFNGLDRAWELEMENTSINSTANCEDANGLEPROC >(eglGetProcAddress("glDrawElementsInstancedANGLE"));
+            m_supportsANGLEinstancedArrays = true;
         } else if (name == "GL_EXT_draw_buffers") {
             // FIXME: implement the support.
             return false;

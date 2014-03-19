@@ -30,7 +30,7 @@
 #include "JSGlobalObject.h"
 #include "JSNameScope.h"
 #include "JSWithScope.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -111,7 +111,7 @@ static inline bool abstractAccess(ExecState* exec, JSScope* scope, const Identif
 JSObject* JSScope::objectAtScope(JSScope* scope)
 {
     JSObject* object = scope;
-    if (object->structure()->typeInfo().type() == WithScopeType)
+    if (object->type() == WithScopeType)
         return jsCast<JSWithScope*>(object)->object();
 
     return object;

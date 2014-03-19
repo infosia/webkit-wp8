@@ -38,7 +38,7 @@
 #include "HTMLNames.h"
 #include "TextTrackRegion.h"
 #include "WebVTTTokenizer.h"
-#include <wtf/PassOwnPtr.h>
+#include <memory>
 #include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
@@ -100,9 +100,6 @@ public:
     enum ParseState {
         Initial,
         Header,
-#if ENABLE(WEBVTT_REGIONS)
-        Metadata,
-#endif
         Id,
         TimingsAndSettings,
         CueText,
@@ -110,11 +107,8 @@ public:
         Finished
     };
 
-    static OwnPtr<WebVTTParser> create(WebVTTParserClient* client, ScriptExecutionContext* context)
-    {
-        return adoptPtr(new WebVTTParser(client, context));
-    }
-    
+    WebVTTParser(WebVTTParserClient*, ScriptExecutionContext*);
+
     static inline bool isRecognizedTag(const AtomicString& tagName)
     {
         return tagName == iTag
@@ -158,8 +152,6 @@ public:
     double collectTimeStamp(const String&, unsigned*);
 
 protected:
-    WebVTTParser(WebVTTParserClient*, ScriptExecutionContext*);
-
     ScriptExecutionContext* m_scriptExecutionContext;
     ParseState m_state;
 
@@ -173,8 +165,8 @@ private:
     void createNewCue();
     void resetCueValues();
 
+    void collectMetadataHeader(const String&);
 #if ENABLE(WEBVTT_REGIONS)
-    void collectHeader(const String&);
     void createNewRegion();
 #endif
 
@@ -194,7 +186,7 @@ private:
     String m_currentSettings;
     
     WebVTTToken m_token;
-    OwnPtr<WebVTTTokenizer> m_tokenizer;
+    std::unique_ptr<WebVTTTokenizer> m_tokenizer;
 
     RefPtr<ContainerNode> m_currentNode;
 

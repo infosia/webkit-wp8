@@ -26,14 +26,15 @@
 #ifndef CodeBlockSet_h
 #define CodeBlockSet_h
 
+#include "GCSegmentedArray.h"
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
-#include <wtf/Vector.h>
 
 namespace JSC {
 
+class BlockAllocator;
 class CodeBlock;
 class Heap;
 class SlotVisitor;
@@ -46,7 +47,7 @@ class CodeBlockSet {
     WTF_MAKE_NONCOPYABLE(CodeBlockSet);
 
 public:
-    CodeBlockSet();
+    CodeBlockSet(BlockAllocator&);
     ~CodeBlockSet();
     
     // Add a CodeBlock. This is only called by CodeBlock constructors.
@@ -57,11 +58,14 @@ public:
     
     // Mark a pointer that may be a CodeBlock that belongs to the set of DFG
     // blocks. This is defined in CodeBlock.h.
+    void mark(CodeBlock* candidateCodeBlock);
     void mark(void* candidateCodeBlock);
     
     // Delete all code blocks that are only referenced by this set (i.e. owned
     // by this set), and that have not been marked.
     void deleteUnmarkedAndUnreferenced();
+    
+    void remove(CodeBlock*);
     
     // Trace all marked code blocks. The CodeBlock is free to make use of
     // mayBeExecuting.
@@ -76,7 +80,7 @@ public:
     // visited.
     template<typename Functor> void iterate(Functor& functor)
     {
-        for (auto &codeBlock : m_set) {
+        for (auto& codeBlock : m_set) {
             bool done = functor(codeBlock);
             if (done)
                 break;
@@ -88,7 +92,7 @@ private:
     // arbitrary bogus pointers. I could have written a thingy that had peek types
     // and all, but that seemed like overkill.
     HashSet<CodeBlock* > m_set;
-    Vector<CodeBlock*> m_currentlyExecuting;
+    GCSegmentedArray<CodeBlock*> m_currentlyExecuting;
 };
 
 } // namespace JSC

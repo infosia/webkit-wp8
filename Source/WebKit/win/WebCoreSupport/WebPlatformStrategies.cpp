@@ -40,7 +40,7 @@ using namespace WebCore;
 
 void WebPlatformStrategies::initialize()
 {
-    DEFINE_STATIC_LOCAL(WebPlatformStrategies, platformStrategies, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(WebPlatformStrategies, platformStrategies, ());
 }
 
 WebPlatformStrategies::WebPlatformStrategies()
@@ -79,11 +79,6 @@ SharedWorkerStrategy* WebPlatformStrategies::createSharedWorkerStrategy()
 }
 
 StorageStrategy* WebPlatformStrategies::createStorageStrategy()
-{
-    return this;
-}
-
-VisitedLinkStrategy* WebPlatformStrategies::createVisitedLinkStrategy()
 {
     return this;
 }
@@ -154,14 +149,4 @@ void WebPlatformStrategies::getPluginInfo(const WebCore::Page*, Vector<WebCore::
 
         outPlugins[i] = info;
     }
-}
-
-bool WebPlatformStrategies::isLinkVisited(Page* page, LinkHash hash, const URL&, const AtomicString&)
-{
-    return page->group().isLinkVisited(hash);
-}
-
-void WebPlatformStrategies::addVisitedLink(Page* page, LinkHash hash)
-{
-    page->group().addVisitedLinkHash(hash);
 }

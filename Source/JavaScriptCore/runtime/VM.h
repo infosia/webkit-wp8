@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -44,6 +44,7 @@
 #include "PrivateName.h"
 #include "PrototypeMap.h"
 #include "SmallStrings.h"
+#include "SourceCode.h"
 #include "Strong.h"
 #include "ThunkGenerators.h"
 #include "TypedArrayController.h"
@@ -69,6 +70,7 @@
 namespace JSC {
 
     class ArityCheckFailReturnThunks;
+    class BuiltinExecutables;
     class CodeBlock;
     class CodeCache;
     class CommonIdentifiers;
@@ -228,7 +230,6 @@ namespace JSC {
         VMType vmType;
         ClientData* clientData;
         ExecState* topCallFrame;
-        void* stackPointerAtVMEntry;
         Watchdog watchdog;
 
         const OwnPtr<const HashTable> arrayConstructorTable;
@@ -281,8 +282,10 @@ namespace JSC {
         Strong<Structure> propertyTableStructure;
         Strong<Structure> mapDataStructure;
         Strong<Structure> weakMapDataStructure;
+#if ENABLE(PROMISES)
         Strong<Structure> promiseDeferredStructure;
         Strong<Structure> promiseReactionStructure;
+#endif
         Strong<JSCell> iterationTerminator;
 
         IdentifierTable* identifierTable;
@@ -341,9 +344,6 @@ namespace JSC {
         NativeExecutable* getHostFunction(NativeFunction, Intrinsic);
         
         std::unique_ptr<ArityCheckFailReturnThunks> arityCheckFailReturnThunks;
-#if CPU(X86)
-        void* currentReturnThunkPC;
-#endif // CPU(X86)
 #endif // ENABLE(JIT)
         std::unique_ptr<CommonSlowPaths::ArityCheckData> arityCheckData;
 #if ENABLE(FTL_JIT)
@@ -377,15 +377,23 @@ namespace JSC {
         JS_EXPORT_PRIVATE JSValue throwException(ExecState*, JSValue);
         JS_EXPORT_PRIVATE JSObject* throwException(ExecState*, JSObject*);
         
-        size_t reservedZoneSize() const { return m_reservedZoneSize; }
-        size_t updateStackLimitWithReservedZoneSize(size_t reservedZoneSize);
+        void* stackPointerAtVMEntry() const { return m_stackPointerAtVMEntry; }
+        void setStackPointerAtVMEntry(void*);
 
-        void** addressOfJSStackLimit() { return &m_jsStackLimit; }
+        size_t reservedZoneSize() const { return m_reservedZoneSize; }
+        size_t updateReservedZoneSize(size_t reservedZoneSize);
+
+#if ENABLE(FTL_JIT)
+        void updateFTLLargestStackSize(size_t);
+        void** addressOfFTLStackLimit() { return &m_ftlStackLimit; }
+#endif
+
 #if ENABLE(LLINT_C_LOOP)
         void* jsStackLimit() { return m_jsStackLimit; }
         void setJSStackLimit(void* limit) { m_jsStackLimit = limit; }
 #endif
         void* stackLimit() { return m_stackLimit; }
+        void** addressOfStackLimit() { return &m_stackLimit; }
 
         bool isSafeToRecurse(size_t neededStackInBytes = 0) const
         {
@@ -450,11 +458,13 @@ namespace JSC {
         BumpPointerAllocator m_regExpAllocator;
 
 #if ENABLE(REGEXP_TRACING)
-        typedef ListHashSet<RefPtr<RegExp>> RTTraceList;
+        typedef ListHashSet<RegExp*> RTTraceList;
         RTTraceList* m_rtTraceList;
 #endif
 
-        ThreadIdentifier exclusiveThread;
+        bool hasExclusiveThread() const { return m_apiLock->hasExclusiveThread(); }
+        std::thread::id exclusiveThread() const { return m_apiLock->exclusiveThread(); }
+        void setExclusiveThread(std::thread::id threadId) { m_apiLock->setExclusiveThread(threadId); }
 
         JS_EXPORT_PRIVATE void resetDateCache();
 
@@ -463,7 +473,7 @@ namespace JSC {
         JS_EXPORT_PRIVATE void dumpSampleData(ExecState* exec);
         RegExpCache* regExpCache() { return m_regExpCache; }
 #if ENABLE(REGEXP_TRACING)
-        void addRegExpToTrace(PassRefPtr<RegExp> regExp);
+        void addRegExpToTrace(RegExp*);
 #endif
         JS_EXPORT_PRIVATE void dumpRegExpTrace();
 
@@ -482,21 +492,20 @@ namespace JSC {
         bool haveEnoughNewStringsToHashCons() { return m_newStringsSinceLastHashCons > s_minNumberOfNewStringsToHashCons; }
         void resetNewStringsSinceLastHashCons() { m_newStringsSinceLastHashCons = 0; }
 
-        bool currentThreadIsHoldingAPILock() const
-        {
-            return m_apiLock->currentThreadIsHoldingLock() || exclusiveThread == currentThread();
-        }
+        bool currentThreadIsHoldingAPILock() const { return m_apiLock->currentThreadIsHoldingLock(); }
 
         JSLock& apiLock() { return *m_apiLock; }
         CodeCache* codeCache() { return m_codeCache.get(); }
 
-        void prepareToDiscardCode();
+        void waitForCompilationsToComplete();
         
         JS_EXPORT_PRIVATE void discardAllCode();
 
         void registerWatchpointForImpureProperty(const Identifier&, Watchpoint*);
         // FIXME: Use AtomicString once it got merged with Identifier.
         JS_EXPORT_PRIVATE void addImpureProperty(const String&);
+        
+        BuiltinExecutables* builtinExecutables() { return m_builtinExecutables.get(); }
 
     private:
         friend class LLIntOffsetsExtractor;
@@ -507,7 +516,7 @@ namespace JSC {
         static VM*& sharedInstanceInternal();
         void createNativeThunk();
 
-        void setStackLimit(void* limit) { m_stackLimit = limit; }
+        void updateStackLimit();
 
 #if ENABLE(ASSEMBLER)
         bool m_canUseAssembler;
@@ -521,6 +530,7 @@ namespace JSC {
 #if ENABLE(GC_VALIDATION)
         const ClassInfo* m_initializingObjectClass;
 #endif
+        void* m_stackPointerAtVMEntry;
         size_t m_reservedZoneSize;
 #if ENABLE(LLINT_C_LOOP)
         struct {
@@ -532,15 +542,18 @@ namespace JSC {
             void* m_stackLimit;
             void* m_jsStackLimit;
         };
+#if ENABLE(FTL_JIT)
+        void* m_ftlStackLimit;
+        size_t m_largestFTLStackSize;
+#endif
 #endif
         void* m_lastStackTop;
         JSValue m_exception;
         bool m_inDefineOwnProperty;
         OwnPtr<CodeCache> m_codeCache;
-        RefCountedArray<StackFrame> m_exceptionStack;
-
         LegacyProfiler* m_enabledProfiler;
-
+        OwnPtr<BuiltinExecutables> m_builtinExecutables;
+        RefCountedArray<StackFrame> m_exceptionStack;
         HashMap<String, RefPtr<WatchpointSet>> m_impurePropertyWatchpointSets;
     };
 

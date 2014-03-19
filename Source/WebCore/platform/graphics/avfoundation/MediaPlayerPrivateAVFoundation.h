@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -59,7 +59,10 @@ public:
     virtual void configureInbandTracks();
     virtual void setCurrentTrack(InbandTextTrackPrivateAVF*) { }
     virtual InbandTextTrackPrivateAVF* currentTrack() const = 0;
-
+#if ENABLE(IOS_AIRPLAY)
+    void playbackTargetIsWirelessChanged();
+#endif
+    
     class Notification {
     public:
 #define FOR_EACH_MEDIAPLAYERPRIVATEAVFOUNDATION_NOTIFICATION_TYPE(macro) \
@@ -81,6 +84,7 @@ public:
     macro(DurationChanged) \
     macro(ContentsNeedsDisplay) \
     macro(InbandTracksNeedConfiguration) \
+    macro(TargetIsWirelessChanged) \
 
         enum Type {
 #define DEFINE_TYPE_ENUM(type) type,
@@ -110,7 +114,7 @@ public:
         {
         }
 
-        Notification(WTF::Function<void ()> function)
+        Notification(std::function<void ()> function)
             : m_type(FunctionType)
             , m_time(0)
             , m_finished(false)
@@ -122,13 +126,13 @@ public:
         bool isValid() { return m_type != None; }
         double time() { return m_time; }
         bool finished() { return m_finished; }
-        Function<void ()>& function() { return m_function; }
+        std::function<void ()>& function() { return m_function; }
         
     private:
         Type m_type;
         double m_time;
         bool m_finished;
-        Function<void ()> m_function;
+        std::function<void ()> m_function;
     };
 
     void scheduleMainThreadNotification(Notification);
@@ -146,7 +150,7 @@ protected:
     // MediaPlayerPrivatePrivateInterface overrides.
     virtual void load(const String& url) override;
 #if ENABLE(MEDIA_SOURCE)
-    virtual void load(const String&, PassRefPtr<HTMLMediaSource>);
+    virtual void load(const String&, MediaSourcePrivateClient*);
 #endif
     virtual void cancelLoad() = 0;
 
@@ -174,7 +178,7 @@ protected:
     virtual MediaPlayer::ReadyState readyState() const override { return m_readyState; }
     virtual double maxTimeSeekableDouble() const override;
     virtual double minTimeSeekable() const override;
-    virtual PassRefPtr<TimeRanges> buffered() const override;
+    virtual std::unique_ptr<PlatformTimeRanges> buffered() const override;
     virtual bool didLoadingProgress() const override;
     virtual void setSize(const IntSize&) override;
     virtual void paint(GraphicsContext*, const IntRect&) = 0;
@@ -229,7 +233,7 @@ protected:
     virtual float rate() const = 0;
     virtual void seekToTime(double time, double negativeTolerance, double positiveTolerance) = 0;
     virtual unsigned long long totalBytes() const = 0;
-    virtual PassRefPtr<TimeRanges> platformBufferedTimeRanges() const = 0;
+    virtual std::unique_ptr<PlatformTimeRanges> platformBufferedTimeRanges() const = 0;
     virtual double platformMaxTimeSeekable() const = 0;
     virtual double platformMinTimeSeekable() const = 0;
     virtual float platformMaxTimeLoaded() const = 0;
@@ -290,6 +294,10 @@ protected:
     virtual size_t extraMemoryCost() const override;
 
     virtual void trackModeChanged() override;
+#if ENABLE(AVF_CAPTIONS)
+    virtual void notifyTrackModeChanged() { }
+    virtual void synchronizeTextTrackState() { }
+#endif
     void processNewAndRemovedTextTracks(const Vector<RefPtr<InbandTextTrackPrivateAVF>>&);
     void clearTextTracks();
     Vector<RefPtr<InbandTextTrackPrivateAVF>> m_textTracks;
@@ -304,7 +312,7 @@ private:
     Vector<Notification> m_queuedNotifications;
     mutable Mutex m_queueMutex;
 
-    mutable RefPtr<TimeRanges> m_cachedLoadedTimeRanges;
+    mutable std::unique_ptr<PlatformTimeRanges> m_cachedLoadedTimeRanges;
 
     MediaPlayer::NetworkState m_networkState;
     MediaPlayer::ReadyState m_readyState;

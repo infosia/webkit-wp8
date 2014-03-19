@@ -46,10 +46,15 @@
 struct OpaqueJSClass;
 struct OpaqueJSClassContextData;
 
+namespace Inspector {
+class JSGlobalObjectInspectorController;
+}
+
 namespace JSC {
 
 class ArrayPrototype;
 class BooleanPrototype;
+class ConsoleClient;
 class Debugger;
 class ErrorConstructor;
 class ErrorPrototype;
@@ -68,6 +73,7 @@ class JSStack;
 class LLIntOffsetsExtractor;
 class Microtask;
 class NativeErrorConstructor;
+class ObjectConstructor;
 class ProgramCodeBlock;
 class ProgramExecutable;
 class RegExpConstructor;
@@ -158,7 +164,10 @@ protected:
     WriteBarrier<NativeErrorConstructor> m_syntaxErrorConstructor;
     WriteBarrier<NativeErrorConstructor> m_typeErrorConstructor;
     WriteBarrier<NativeErrorConstructor> m_URIErrorConstructor;
+#if ENABLE(PROMISES)
     WriteBarrier<JSPromiseConstructor> m_promiseConstructor;
+#endif
+    WriteBarrier<ObjectConstructor> m_objectConstructor;
 
     WriteBarrier<JSFunction> m_evalFunction;
     WriteBarrier<JSFunction> m_callFunction;
@@ -169,7 +178,9 @@ protected:
     WriteBarrier<FunctionPrototype> m_functionPrototype;
     WriteBarrier<ArrayPrototype> m_arrayPrototype;
     WriteBarrier<RegExpPrototype> m_regExpPrototype;
+#if ENABLE(PROMISES)
     WriteBarrier<JSPromisePrototype> m_promisePrototype;
+#endif
 
     WriteBarrier<Structure> m_withScopeStructure;
     WriteBarrier<Structure> m_strictEvalActivationStructure;
@@ -197,6 +208,7 @@ protected:
     WriteBarrier<Structure> m_privateNameStructure;
     WriteBarrier<Structure> m_regExpMatchesArrayStructure;
     WriteBarrier<Structure> m_regExpStructure;
+    WriteBarrier<Structure> m_consoleStructure;
     WriteBarrier<Structure> m_internalFunctionStructure;
     
     WriteBarrier<Structure> m_iteratorResultStructure;
@@ -231,6 +243,7 @@ protected:
 #endif
 
 #if ENABLE(REMOTE_INSPECTOR)
+    std::unique_ptr<Inspector::JSGlobalObjectInspectorController> m_inspectorController;
     std::unique_ptr<JSGlobalObjectDebuggable> m_inspectorDebuggable;
 #endif
 
@@ -245,6 +258,7 @@ protected:
     bool m_evalEnabled;
     String m_evalDisabledErrorMessage;
     bool m_experimentsEnabled;
+    ConsoleClient* m_consoleClient;
 
     static JS_EXPORTDATA const GlobalObjectMethodTable s_globalObjectMethodTable;
     const GlobalObjectMethodTable* m_globalObjectMethodTable;
@@ -335,13 +349,16 @@ public:
     RegExpConstructor* regExpConstructor() const { return m_regExpConstructor.get(); }
 
     ErrorConstructor* errorConstructor() const { return m_errorConstructor.get(); }
+    ObjectConstructor* objectConstructor() const { return m_objectConstructor.get(); }
     NativeErrorConstructor* evalErrorConstructor() const { return m_evalErrorConstructor.get(); }
     NativeErrorConstructor* rangeErrorConstructor() const { return m_rangeErrorConstructor.get(); }
     NativeErrorConstructor* referenceErrorConstructor() const { return m_referenceErrorConstructor.get(); }
     NativeErrorConstructor* syntaxErrorConstructor() const { return m_syntaxErrorConstructor.get(); }
     NativeErrorConstructor* typeErrorConstructor() const { return m_typeErrorConstructor.get(); }
     NativeErrorConstructor* URIErrorConstructor() const { return m_URIErrorConstructor.get(); }
+#if ENABLE(PROMISES)
     JSPromiseConstructor* promiseConstructor() const { return m_promiseConstructor.get(); }
+#endif
 
     JSFunction* evalFunction() const { return m_evalFunction.get(); }
     JSFunction* callFunction() const { return m_callFunction.get(); }
@@ -362,7 +379,9 @@ public:
     DatePrototype* datePrototype() const { return m_datePrototype.get(); }
     RegExpPrototype* regExpPrototype() const { return m_regExpPrototype.get(); }
     ErrorPrototype* errorPrototype() const { return m_errorPrototype.get(); }
+#if ENABLE(PROMISES)
     JSPromisePrototype* promisePrototype() const { return m_promisePrototype.get(); }
+#endif
 
     Structure* withScopeStructure() const { return m_withScopeStructure.get(); }
     Structure* strictEvalActivationStructure() const { return m_strictEvalActivationStructure.get(); }
@@ -426,6 +445,13 @@ public:
     JS_EXPORT_PRIVATE void setInputCursor(PassRefPtr<InputCursor>);
     InputCursor& inputCursor() const { return *m_inputCursor; }
 #endif
+
+#if ENABLE(REMOTE_INSPECTOR)
+    Inspector::JSGlobalObjectInspectorController& inspectorController() const { return *m_inspectorController.get(); }
+#endif
+
+    JS_EXPORT_PRIVATE void setConsoleClient(ConsoleClient* consoleClient) { m_consoleClient = consoleClient; }
+    ConsoleClient* consoleClient() const { return m_consoleClient; }
 
     void setName(const String&);
     const String& name() const { return m_name; }
@@ -591,7 +617,7 @@ inline bool JSGlobalObject::hasOwnPropertyForWrite(ExecState* exec, PropertyName
 
 inline bool JSGlobalObject::symbolTableHasProperty(PropertyName propertyName)
 {
-    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.publicName());
+    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.uid());
     return !entry.isNull();
 }
 

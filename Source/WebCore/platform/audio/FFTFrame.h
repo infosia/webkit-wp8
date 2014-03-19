@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -42,10 +42,6 @@
 #endif
 
 #if !USE_ACCELERATE_FFT
-
-#if USE(WEBAUDIO_MKL)
-#include "mkl_dfti.h"
-#endif // USE(WEBAUDIO_MKL)
 
 #if USE(WEBAUDIO_GSTREAMER)
 #include <glib.h>
@@ -129,24 +125,6 @@ private:
     AudioFloatArray m_realData;
     AudioFloatArray m_imagData;
 #else // !USE_ACCELERATE_FFT
-
-#if USE(WEBAUDIO_MKL)
-    // Interleaves the planar real and imaginary data and returns a
-    // pointer to the resulting storage which can be used for in-place
-    // or out-of-place operations. FIXME: ideally all of the MKL
-    // routines would operate on planar data and this method would be
-    // removed.
-    float* getUpToDateComplexData();
-
-    static DFTI_DESCRIPTOR_HANDLE descriptorHandleForSize(unsigned fftSize);
-
-    static DFTI_DESCRIPTOR_HANDLE* descriptorHandles;
-
-    DFTI_DESCRIPTOR_HANDLE m_handle;
-    AudioFloatArray m_complexData;
-    AudioFloatArray m_realData;
-    AudioFloatArray m_imagData;
-#endif // USE(WEBAUDIO_MKL)
 
 #if USE(WEBAUDIO_FFMPEG)
     static RDFTContext* contextForSize(unsigned fftSize, int trans);

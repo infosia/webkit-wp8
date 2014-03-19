@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -84,8 +84,7 @@ static String getIndexedDBDatabasePath(ScriptExecutionContext* context)
         Document* document = toDocument(context);
         return document->page()->group().groupSettings().indexedDBDatabasePath();
     }
-    WorkerGlobalScope* workerGlobalScope = static_cast<WorkerGlobalScope*>(context);
-    const GroupSettings* groupSettings = workerGlobalScope->groupSettings();
+    const GroupSettings* groupSettings = toWorkerGlobalScope(context)->groupSettings();
     if (groupSettings)
         return groupSettings->indexedDBDatabasePath();
     return String();
@@ -103,7 +102,7 @@ PassRefPtr<IDBRequest> IDBFactory::getDatabaseNames(ScriptExecutionContext* cont
     }
 
     RefPtr<IDBRequest> request = IDBRequest::create(context, IDBAny::create(this), 0);
-    m_backend->getDatabaseNames(request, context->securityOrigin(), context, getIndexedDBDatabasePath(context));
+    m_backend->getDatabaseNames(request, *(context->securityOrigin()), *(context->topOrigin()), context, getIndexedDBDatabasePath(context));
     return request;
 }
 

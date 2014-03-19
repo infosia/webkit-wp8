@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -42,7 +42,7 @@
 #include <wtf/StdLibExtras.h>
 #include <wtf/StringExtras.h>
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
 #include "TextCodecMac.h"
 #endif
 
@@ -279,7 +279,7 @@ static void extendTextCodecMaps()
     TextCodecICU::registerEncodingNames(addToTextEncodingNameMap);
     TextCodecICU::registerCodecs(addToTextCodecMap);
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
     TextCodecMac::registerEncodingNames(addToTextEncodingNameMap);
     TextCodecMac::registerCodecs(addToTextCodecMap);
 #endif
@@ -336,12 +336,12 @@ const char* atomicCanonicalTextEncodingName(const CharacterType* characters, siz
 const char* atomicCanonicalTextEncodingName(const String& alias)
 {
     if (!alias.length())
-        return 0;
+        return nullptr;
 
     if (alias.is8Bit())
-        return atomicCanonicalTextEncodingName<LChar>(alias.characters8(), alias.length());
+        return atomicCanonicalTextEncodingName(alias.characters8(), alias.length());
 
-    return atomicCanonicalTextEncodingName<UChar>(alias.deprecatedCharacters(), alias.length());
+    return atomicCanonicalTextEncodingName(alias.characters16(), alias.length());
 }
 
 bool noExtendedTextEncodingNameUsed()

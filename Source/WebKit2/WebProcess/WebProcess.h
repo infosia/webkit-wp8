@@ -34,8 +34,9 @@
 #include "SandboxExtension.h"
 #include "SharedMemory.h"
 #include "TextCheckerState.h"
+#include "ViewUpdateDispatcher.h"
 #include "VisitedLinkTable.h"
-#include <WebCore/LinkHash.h>
+#include <WebCore/SessionID.h>
 #include <WebCore/Timer.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
@@ -44,7 +45,7 @@
 #include <wtf/text/AtomicString.h>
 #include <wtf/text/AtomicStringHash.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include <dispatch/dispatch.h>
 #endif
 
@@ -110,13 +111,12 @@ public:
 
     InjectedBundle* injectedBundle() const { return m_injectedBundle.get(); }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     mach_port_t compositingRenderServerPort() const { return m_compositingRenderServerPort; }
 #endif
-    
+
+    bool shouldTrackVisitedLinks() const { return m_shouldTrackVisitedLinks; }
     void setShouldTrackVisitedLinks(bool);
-    void addVisitedLink(WebCore::LinkHash);
-    bool isLinkVisited(WebCore::LinkHash) const;
 
     bool shouldPlugInAutoStartFromOrigin(const WebPage*, const String& pageOrigin, const String& pluginOrigin, const String& mimeType);
     void plugInDidStartFromOrigin(const String& pageOrigin, const String& pluginOrigin, const String& mimeType);
@@ -132,7 +132,7 @@ public:
     WebPageGroupProxy* webPageGroup(uint64_t pageGroupID);
     WebPageGroupProxy* webPageGroup(const WebPageGroupData&);
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     pid_t presenterApplicationPid() const { return m_presenterApplicationPid; }
     bool shouldForceScreenFontSubstitution() const { return m_shouldForceScreenFontSubstitution; }
 #endif
@@ -163,8 +163,8 @@ public:
 
     void setCacheModel(uint32_t);
 
-    void ensurePrivateBrowsingSession(uint64_t sessionID);
-    void destroyPrivateBrowsingSession(uint64_t sessionID);
+    void ensurePrivateBrowsingSession(WebCore::SessionID);
+    void destroyPrivateBrowsingSession(WebCore::SessionID);
 
     void pageDidEnterWindow(uint64_t pageID);
     void pageWillLeaveWindow(uint64_t pageID);
@@ -212,10 +212,6 @@ private:
     void userPreferredLanguagesChanged(const Vector<String>&) const;
     void fullKeyboardAccessModeChanged(bool fullKeyboardAccessEnabled);
 
-    void setVisitedLinkTable(const SharedMemory::Handle&);
-    void visitedLinkStateChanged(const Vector<WebCore::LinkHash>& linkHashes);
-    void allVisitedLinkStateChanged();
-
     bool isPlugInAutoStartOriginHash(unsigned plugInOriginHash);
     void didAddPlugInAutoStartOriginHash(unsigned plugInOriginHash, double expirationTime);
     void resetPlugInAutoStartOriginHashes(const HashMap<unsigned, double>& hashes);
@@ -247,6 +243,7 @@ private:
     void setMemoryCacheDisabled(bool);
 
     void postInjectedBundleMessage(const IPC::DataReference& messageData);
+    void setInjectedBundleParameter(const String& key, const IPC::DataReference&);
 
     // ChildProcess
     virtual void initializeProcess(const ChildProcessInitializationParameters&) override;
@@ -256,7 +253,7 @@ private:
     virtual bool shouldTerminate() override;
     virtual void terminate() override;
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if USE(APPKIT)
     virtual void stopRunLoop() override;
 #endif
 
@@ -279,11 +276,13 @@ private:
     RefPtr<InjectedBundle> m_injectedBundle;
 
     RefPtr<EventDispatcher> m_eventDispatcher;
+#if PLATFORM(IOS)
+    RefPtr<ViewUpdateDispatcher> m_viewUpdateDispatcher;
+#endif
 
     bool m_inDidClose;
 
-    // FIXME: The visited link table should not be per process.
-    VisitedLinkTable m_visitedLinkTable;
+    // FIXME: Whether visited links should be tracked or not should be handled in the UI process.
     bool m_shouldTrackVisitedLinks;
 
     HashMap<unsigned, double> m_plugInAutoStartOriginHashes;
@@ -292,7 +291,7 @@ private:
     bool m_hasSetCacheModel;
     CacheModel m_cacheModel;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     mach_port_t m_compositingRenderServerPort;
     pid_t m_presenterApplicationPid;
     dispatch_group_t m_clearResourceCachesDispatchGroup;

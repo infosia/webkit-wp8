@@ -39,7 +39,7 @@ static SoupCookieJar* cookieJarForSession(const NetworkStorageSession& session)
 
 static GRefPtr<SoupCookieJar>& defaultCookieJar()
 {
-    DEFINE_STATIC_LOCAL(GRefPtr<SoupCookieJar>, cookieJar, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(GRefPtr<SoupCookieJar>, cookieJar, ());
     return cookieJar;
 }
 
@@ -222,6 +222,10 @@ void deleteAllCookies(const NetworkStorageSession& session)
         soup_cookie_jar_delete_cookie(cookieJar, cookie);
         soup_cookie_free(cookie);
     }
+}
+
+void deleteAllCookiesModifiedAfterDate(const NetworkStorageSession&, double)
+{
 }
 
 }

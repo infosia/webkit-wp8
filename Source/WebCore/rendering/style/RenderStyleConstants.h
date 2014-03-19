@@ -73,7 +73,6 @@ enum PseudoId {
     NOPSEUDO, FIRST_LINE, FIRST_LETTER, BEFORE, AFTER, SELECTION, FIRST_LINE_INHERITED, SCROLLBAR,
     // Internal IDs follow:
     SCROLLBAR_THUMB, SCROLLBAR_BUTTON, SCROLLBAR_TRACK, SCROLLBAR_TRACK_PIECE, SCROLLBAR_CORNER, RESIZER,
-    INPUT_LIST_BUTTON,
     AFTER_LAST_INTERNAL_PSEUDOID,
     FULL_SCREEN, FULL_SCREEN_DOCUMENT, FULL_SCREEN_ANCESTOR, ANIMATING_FULL_SCREEN_TRANSITION,
     FIRST_PUBLIC_PSEUDOID = FIRST_LINE,
@@ -212,6 +211,10 @@ enum EUserSelect {
 // CSS3 Image Values
 enum ObjectFit {
     ObjectFitFill, ObjectFitContain, ObjectFitCover, ObjectFitNone, ObjectFitScaleDown
+};
+
+enum AspectRatioType {
+    AspectRatioAuto, AspectRatioFromIntrinsic, AspectRatioFromDimensions, AspectRatioSpecified
 };
 
 // Word Break Values. Matches WinIE, rather than CSS3
@@ -385,7 +388,9 @@ enum TextJustify {
 
 enum TextDecorationSkipItems {
     TextDecorationSkipNone = 0,
-    TextDecorationSkipInk = 1 << 0
+    TextDecorationSkipInk = 1 << 0,
+    TextDecorationSkipObjects = 1 << 1,
+    TextDecorationSkipAuto = 1 << 2
 };
 typedef unsigned TextDecorationSkip;
 
@@ -461,13 +466,15 @@ enum CursorVisibility {
 
 // The order of this enum must match the order of the display values in CSSValueKeywords.in.
 enum EDisplay {
-    INLINE, BLOCK, LIST_ITEM, RUN_IN, COMPACT, INLINE_BLOCK,
+    INLINE, BLOCK, LIST_ITEM, COMPACT, INLINE_BLOCK,
     TABLE, INLINE_TABLE, TABLE_ROW_GROUP,
     TABLE_HEADER_GROUP, TABLE_FOOTER_GROUP, TABLE_ROW,
     TABLE_COLUMN_GROUP, TABLE_COLUMN, TABLE_CELL,
     TABLE_CAPTION, BOX, INLINE_BOX,
     FLEX, INLINE_FLEX,
+#if ENABLE(CSS_GRID_LAYOUT)
     GRID, INLINE_GRID,
+#endif
     NONE
 };
 
@@ -534,7 +541,9 @@ enum WrapThrough { WrapThroughWrap, WrapThroughNone };
 
 enum RubyPosition { RubyPositionBefore, RubyPositionAfter };
 
+#if ENABLE(CSS_GRID_LAYOUT)
 enum GridAutoFlow { AutoFlowNone, AutoFlowColumn, AutoFlowRow };
+#endif
 
 // Reasonable maximum to prevent insane font sizes from causing crashes on some platforms (such as Windows).
 static const float maximumAllowedFontSize = 1000000.0f;
@@ -544,7 +553,10 @@ enum TextIndentLine { TextIndentFirstLine, TextIndentEachLine };
 enum TextIndentType { TextIndentNormal, TextIndentHanging };
 #endif
 
-enum LayoutBox { BoxMissing = 0, MarginBox, BorderBox, PaddingBox, ContentBox, BoundingBox };
+enum Isolation { IsolationAuto, IsolationIsolate };
+
+// Fill, Stroke, ViewBox are just used for SVG.
+enum CSSBoxType { BoxMissing = 0, MarginBox, BorderBox, PaddingBox, ContentBox, Fill, Stroke, ViewBox };
 
 } // namespace WebCore
 

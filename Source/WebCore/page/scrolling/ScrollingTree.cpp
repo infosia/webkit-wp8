@@ -58,23 +58,6 @@ ScrollingTree::~ScrollingTree()
 {
 }
 
-static bool shouldConsiderLatching(const PlatformWheelEvent& wheelEvent)
-{
-    return wheelEvent.phase() == PlatformWheelEventPhaseBegan
-        || wheelEvent.phase() == PlatformWheelEventPhaseMayBegin;
-}
-
-static bool eventShouldClearLatchedNode(const PlatformWheelEvent& wheelEvent)
-{
-    if (wheelEvent.phase() == PlatformWheelEventPhaseCancelled)
-        return true;
-    
-    if (wheelEvent.phase() == PlatformWheelEventPhaseNone && wheelEvent.momentumPhase() == PlatformWheelEventPhaseEnded)
-        return true;
-    
-    return false;
-}
-
 bool ScrollingTree::shouldHandleWheelEventSynchronously(const PlatformWheelEvent& wheelEvent)
 {
     // This method is invoked by the event handling thread
@@ -83,7 +66,7 @@ bool ScrollingTree::shouldHandleWheelEventSynchronously(const PlatformWheelEvent
     if (m_hasWheelEventHandlers)
         return true;
 
-    bool shouldSetLatch = shouldConsiderLatching(wheelEvent);
+    bool shouldSetLatch = wheelEvent.shouldConsiderLatching();
     
     if (hasLatchedNode() && !shouldSetLatch)
         return false;
@@ -103,9 +86,9 @@ bool ScrollingTree::shouldHandleWheelEventSynchronously(const PlatformWheelEvent
 
 void ScrollingTree::setOrClearLatchedNode(const PlatformWheelEvent& wheelEvent, ScrollingNodeID nodeID)
 {
-    if (shouldConsiderLatching(wheelEvent))
+    if (wheelEvent.shouldConsiderLatching())
         setLatchedNode(nodeID);
-    else if (eventShouldClearLatchedNode(wheelEvent))
+    else if (wheelEvent.shouldResetLatching())
         clearLatchedNode();
 }
 
@@ -115,7 +98,7 @@ void ScrollingTree::handleWheelEvent(const PlatformWheelEvent& wheelEvent)
         m_rootNode->handleWheelEvent(wheelEvent);
 }
 
-void ScrollingTree::scrollPositionChangedViaDelegatedScrolling(ScrollingNodeID nodeID, const IntPoint& scrollPosition)
+void ScrollingTree::viewportChangedViaDelegatedScrolling(ScrollingNodeID nodeID, const WebCore::FloatRect& viewportRect, double scale)
 {
     ScrollingTreeNode* node = nodeForID(nodeID);
     if (!node)
@@ -124,7 +107,7 @@ void ScrollingTree::scrollPositionChangedViaDelegatedScrolling(ScrollingNodeID n
     if (node->nodeType() != ScrollingNode)
         return;
 
-    toScrollingTreeScrollingNode(node)->setScrollPosition(scrollPosition);
+    toScrollingTreeScrollingNode(node)->updateForViewport(viewportRect, scale);
 }
 
 void ScrollingTree::commitNewTreeState(PassOwnPtr<ScrollingStateTree> scrollingStateTree)
@@ -214,13 +197,13 @@ void ScrollingTree::removeDestroyedNodes(const ScrollingStateTree& stateTree)
         if (!node)
             continue;
 
+        if (node->scrollingNodeID() == m_latchedNode)
+            clearLatchedNode();
+
         // Never destroy the root node. There will be a new root node in the state tree, and we will
         // associate it with our existing root node in updateTreeFromStateNode().
         if (node->parent())
             m_rootNode->removeChild(node);
-
-        if (node->scrollingNodeID() == m_latchedNode)
-            clearLatchedNode();
     }
 }
 
@@ -252,6 +235,13 @@ void ScrollingTree::setMainFrameScrollPosition(FloatPoint position)
 {
     MutexLocker lock(m_mutex);
     m_mainFrameScrollPosition = position;
+}
+
+bool ScrollingTree::isPointInNonFastScrollableRegion(IntPoint p)
+{
+    MutexLocker lock(m_mutex);
+    
+    return m_nonFastScrollableRegion.contains(p);
 }
 
 bool ScrollingTree::isRubberBandInProgress()

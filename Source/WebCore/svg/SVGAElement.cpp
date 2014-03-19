@@ -86,7 +86,7 @@ String SVGAElement::title() const
 
 bool SVGAElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -158,7 +158,7 @@ void SVGAElement::defaultEventHandler(Event* event)
             String url = stripLeadingAndTrailingHTMLSpaces(href());
 
             if (url[0] == '#') {
-                Element* targetElement = treeScope().getElementById(url.substring(1));
+                Element* targetElement = treeScope().getElementById(url.substringSharingImpl(1));
                 if (targetElement && isSVGSMILElement(*targetElement)) {
                     toSVGSMILElement(*targetElement).beginByLinkActivation();
                     event->setDefaultHandled();

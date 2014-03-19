@@ -91,7 +91,7 @@ void EventDispatcher::wheelEvent(uint64_t pageID, const WebWheelEvent& wheelEven
 {
     PlatformWheelEvent platformWheelEvent = platform(wheelEvent);
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     switch (wheelEvent.phase()) {
     case PlatformWheelEventPhaseBegan:
         m_recentWheelEventDeltaTracker->beginTrackingDeltas();
@@ -140,12 +140,12 @@ void EventDispatcher::wheelEvent(uint64_t pageID, const WebWheelEvent& wheelEven
     UNUSED_PARAM(canRubberBandAtBottom);
 #endif
 
-    RunLoop::main()->dispatch(bind(&EventDispatcher::dispatchWheelEvent, this, pageID, wheelEvent));
+    RunLoop::main().dispatch(bind(&EventDispatcher::dispatchWheelEvent, this, pageID, wheelEvent));
 }
 
 void EventDispatcher::dispatchWheelEvent(uint64_t pageID, const WebWheelEvent& wheelEvent)
 {
-    ASSERT(isMainThread());
+    ASSERT(RunLoop::isMain());
 
     WebPage* webPage = WebProcess::shared().webPage(pageID);
     if (!webPage)

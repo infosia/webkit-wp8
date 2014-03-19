@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -39,7 +39,6 @@
 #import <WebCore/Page.h>
 #import <WebCore/Settings.h>
 #import <WebCore/WebCoreThread.h>
-#import <wtf/PassOwnPtr.h>
 
 using namespace WebCore;
 
@@ -110,8 +109,8 @@ void WebInspectorClient::didSetSearchingForNode(bool enabled)
 #pragma mark -
 #pragma mark WebInspectorFrontendClient Implementation
 
-WebInspectorFrontendClient::WebInspectorFrontendClient(WebView* inspectedWebView, WebInspectorWindowController* windowController, InspectorController* inspectorController, Page* frontendPage, WTF::PassOwnPtr<Settings> settings)
-    : InspectorFrontendClientLocal(inspectorController,  frontendPage, settings)
+WebInspectorFrontendClient::WebInspectorFrontendClient(WebView* inspectedWebView, WebInspectorWindowController* windowController, InspectorController* inspectorController, Page* frontendPage, std::unique_ptr<Settings> settings)
+    : InspectorFrontendClientLocal(inspectorController,  frontendPage, std::move(settings))
 {
     // iOS does not have a local inspector, this should not be reached.
     notImplemented();

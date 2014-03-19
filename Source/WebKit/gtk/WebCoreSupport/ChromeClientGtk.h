@@ -96,9 +96,9 @@ namespace WebKit {
         virtual KeyboardUIMode keyboardUIMode();
 
         virtual IntRect windowResizerRect() const;
-        virtual void invalidateRootView(const IntRect&, bool);
-        virtual void invalidateContentsAndRootView(const IntRect&, bool);
-        virtual void invalidateContentsForSlowScroll(const IntRect&, bool);
+        virtual void invalidateRootView(const IntRect&);
+        virtual void invalidateContentsAndRootView(const IntRect&);
+        virtual void invalidateContentsForSlowScroll(const IntRect&);
         virtual void scroll(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect);
 
         virtual IntPoint screenToRootView(const IntPoint&) const;
@@ -122,8 +122,6 @@ namespace WebKit {
         virtual void runOpenPanel(Frame*, PassRefPtr<FileChooser>);
         virtual void loadIconForFiles(const Vector<WTF::String>&, FileIconLoader*);
 
-        virtual void formStateDidChange(const Node*) { }
-
         virtual void setCursor(const Cursor&);
         virtual void setCursorHiddenUntilMouseMoves(bool);
 
@@ -143,6 +141,7 @@ namespace WebKit {
 #endif
 
         virtual void numWheelEventHandlersChanged(unsigned) { }
+        virtual void needTouchEvents(bool) { }
 
         virtual void attachRootGraphicsLayer(Frame*, GraphicsLayer*);
         virtual void setNeedsOneShotDrawingSynchronization();

@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -36,9 +36,8 @@
 
 namespace WebCore {
 
-NetworkInfoController::NetworkInfoController(Page* page, NetworkInfoClient* client)
-    : m_page(page)
-    , m_client(client)
+NetworkInfoController::NetworkInfoController(NetworkInfoClient* client)
+    : m_client(client)
 {
 }
 
@@ -50,9 +49,9 @@ NetworkInfoController::~NetworkInfoController()
     m_client->networkInfoControllerDestroyed();
 }
 
-PassOwnPtr<NetworkInfoController> NetworkInfoController::create(Page* page, NetworkInfoClient* client)
+PassOwnPtr<NetworkInfoController> NetworkInfoController::create(NetworkInfoClient* client)
 {
-    return adoptPtr(new NetworkInfoController(page, client));
+    return adoptPtr(new NetworkInfoController(client));
 }
 
 void NetworkInfoController::addListener(NetworkInfoConnection* networkInfoConnection)
@@ -86,7 +85,7 @@ const char* NetworkInfoController::supplementName()
 
 void provideNetworkInfoTo(Page* page, NetworkInfoClient* client)
 {
-    NetworkInfoController::provideTo(page, NetworkInfoController::supplementName(), NetworkInfoController::create(page, client));
+    NetworkInfoController::provideTo(page, NetworkInfoController::supplementName(), NetworkInfoController::create(client));
 }
 
 } // namespace WebCore

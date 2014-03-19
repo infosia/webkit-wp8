@@ -7,7 +7,7 @@
     Copyright (C) 1999 Antti Koivisto (koivisto@kde.org)
     Copyright (C) 1999-2003 Lars Knoll (knoll@kde.org)
     Copyright (C) 2002-2003 Dirk Mueller (mueller@kde.org)
-    Copyright (C) 2002 Apple Computer, Inc.
+    Copyright (C) 2002 Apple Inc.
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -143,6 +143,46 @@ void SVGRenderStyle::copyNonInheritedFrom(const SVGRenderStyle* other)
     resources = other->resources;
 }
 
+Vector<PaintType> SVGRenderStyle::paintTypesForPaintOrder() const
+{
+    Vector<PaintType, 3> paintOrder;
+    switch (this->paintOrder()) {
+    case PaintOrderNormal:
+        FALLTHROUGH;
+    case PaintOrderFill:
+        paintOrder.append(PaintTypeFill);
+        paintOrder.append(PaintTypeStroke);
+        paintOrder.append(PaintTypeMarkers);
+        break;
+    case PaintOrderFillMarkers:
+        paintOrder.append(PaintTypeFill);
+        paintOrder.append(PaintTypeMarkers);
+        paintOrder.append(PaintTypeStroke);
+        break;
+    case PaintOrderStroke:
+        paintOrder.append(PaintTypeStroke);
+        paintOrder.append(PaintTypeFill);
+        paintOrder.append(PaintTypeMarkers);
+        break;
+    case PaintOrderStrokeMarkers:
+        paintOrder.append(PaintTypeStroke);
+        paintOrder.append(PaintTypeMarkers);
+        paintOrder.append(PaintTypeFill);
+        break;
+    case PaintOrderMarkers:
+        paintOrder.append(PaintTypeMarkers);
+        paintOrder.append(PaintTypeFill);
+        paintOrder.append(PaintTypeStroke);
+        break;
+    case PaintOrderMarkersStroke:
+        paintOrder.append(PaintTypeMarkers);
+        paintOrder.append(PaintTypeStroke);
+        paintOrder.append(PaintTypeFill);
+        break;
+    };
+    return paintOrder;
+}
+
 StyleDifference SVGRenderStyle::diff(const SVGRenderStyle* other) const
 {
     // NOTE: All comparisions that may return StyleDifferenceLayout have to go before those who return StyleDifferenceRepaint
@@ -202,6 +242,10 @@ StyleDifference SVGRenderStyle::diff(const SVGRenderStyle* other) const
         return StyleDifferenceRepaint;
     }
 
+    // vector-effect changes require a re-layout.
+    if (svg_noninherited_flags.f._vectorEffect != other->svg_noninherited_flags.f._vectorEffect)
+        return StyleDifferenceLayout;
+
     // NOTE: All comparisions below may only return StyleDifferenceRepaint
 
     // Painting related properties only need repaints. 
@@ -228,10 +272,6 @@ StyleDifference SVGRenderStyle::diff(const SVGRenderStyle* other) const
         || svg_inherited_flags._fillRule != other->svg_inherited_flags._fillRule
         || svg_inherited_flags._colorInterpolation != other->svg_inherited_flags._colorInterpolation
         || svg_inherited_flags._colorInterpolationFilters != other->svg_inherited_flags._colorInterpolationFilters)
-        return StyleDifferenceRepaint;
-
-    // FIXME: vector-effect is not taken into account in the layout-phase. Once this is fixed, we should relayout here.
-    if (svg_noninherited_flags.f._vectorEffect != other->svg_noninherited_flags.f._vectorEffect)
         return StyleDifferenceRepaint;
 
     if (svg_noninherited_flags.f.bufferedRendering != other->svg_noninherited_flags.f.bufferedRendering)

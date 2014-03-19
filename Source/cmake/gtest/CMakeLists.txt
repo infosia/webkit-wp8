@@ -6,6 +6,7 @@
 include_directories(${THIRDPARTY_DIR}/gtest
     ${THIRDPARTY_DIR}/gtest/include
     ${JAVASCRIPTCORE_DIR}
+    ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}
     ${WTF_DIR}
 )
 
@@ -21,7 +22,7 @@ add_library(gtest SHARED
     ${GTEST_DIR}/src/gtest-typed-test.cc
 )
 
-add_definitions(-DGTEST_CREATE_SHARED_LIBRARY=1)
+add_definitions(-DGTEST_CREATE_SHARED_LIBRARY=1 -DGTEST_HAS_RTTI=0)
 
 target_link_libraries(gtest
     WTF

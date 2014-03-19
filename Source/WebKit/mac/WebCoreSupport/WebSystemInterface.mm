@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -51,7 +51,7 @@ void InitWebCoreSystemInterface(void)
 #endif
     INIT(CGPatternCreateWithImageAndTransform);
     INIT(CGContextResetClip);
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !PLATFORM(IOS)
     INIT(CGContextDrawsWithCorrectShadowOffsets);
 #endif
 #if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
@@ -60,9 +60,7 @@ void InitWebCoreSystemInterface(void)
     INIT(CopyCFLocalizationPreferredName);
     INIT(CopyCONNECTProxyResponse);
     INIT(CopyNSURLResponseStatusLine);
-#if PLATFORM(MAC)
     INIT(CopyNSURLResponseCertificateChain);
-#endif
     INIT(CreateCustomCFReadStream);
 #if !PLATFORM(IOS)
     INIT(DrawCapsLockIndicator);
@@ -84,9 +82,7 @@ void InitWebCoreSystemInterface(void)
     INIT(SignedPublicKeyAndChallengeString);
     INIT(GetPreferredExtensionForMIMEType);
     INIT(GetWheelEventDeltas);
-#if PLATFORM(MAC)
     INIT(GetNSEventKeyChar);
-#endif
     INIT(HitTestMediaUIPart);
 #endif
     INIT(InitializeMaximumHTTPConnectionCountPerHost);
@@ -156,10 +152,12 @@ void InitWebCoreSystemInterface(void)
 #endif
     INIT(CreateCTTypesetterWithUniCharProviderAndOptions);
     INIT(CTRunGetInitialAdvance);
+#if PLATFORM(MAC) || PLATFORM(IOS_SIMULATOR)
+    INIT(SetCrashReportApplicationSpecificInformation);
+#endif
 #if !PLATFORM(IOS)
     INIT(RecommendedScrollerStyle);
     INIT(ExecutableWasLinkedOnOrBeforeSnowLeopard);
-    INIT(SetCrashReportApplicationSpecificInformation);
     INIT(CopyDefaultSearchProviderDisplayName);
     INIT(AVAssetResolvedURL);
     INIT(Cursor);
@@ -175,10 +173,8 @@ void InitWebCoreSystemInterface(void)
 #endif
 
 #if !PLATFORM(IOS)
-#if PLATFORM(MAC)
     INIT(SpeechSynthesisGetVoiceIdentifiers);
     INIT(SpeechSynthesisGetDefaultVoiceIdentifierForLocale);
-#endif
     INIT(GetAXTextMarkerTypeID);
     INIT(GetAXTextMarkerRangeTypeID);
     INIT(CreateAXTextMarker);
@@ -194,14 +190,10 @@ void InitWebCoreSystemInterface(void)
     INIT(CopyRequestWithStorageSession);
     INIT(CopyHTTPCookieStorage);
     INIT(GetHTTPCookieAcceptPolicy);
-#if PLATFORM(MAC)
     INIT(HTTPCookies);
-#endif
     INIT(HTTPCookiesForURL);
     INIT(SetHTTPCookiesForURL);
-#if PLATFORM(MAC)
     INIT(DeleteAllHTTPCookies);
-#endif
     INIT(DeleteHTTPCookie);
 
     INIT(GetCFURLResponseMIMEType);
@@ -214,20 +206,15 @@ void InitWebCoreSystemInterface(void)
     INIT(SetMetadataURL);
 #endif
 
-#if PLATFORM(MAC)
-    // FIXME: We should stop using this file in Chromium.
-
     INIT(DestroyRenderingResources);
 
 #if !PLATFORM(IOS)
     INIT(CreateVMPressureDispatchOnMainQueue);
-#endif
 
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
     INIT(CreateMemoryStatusPressureCriticalDispatchOnMainQueue);
 #endif
 
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
     INIT(ExecutableWasLinkedOnOrBeforeLion);
 #endif
 
@@ -243,7 +230,7 @@ void InitWebCoreSystemInterface(void)
     INIT(GetVendorNameForNavigator);
 #endif
 
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !PLATFORM(IOS)
     INIT(NSElasticDeltaForTimeDelta);
     INIT(NSElasticDeltaForReboundDelta);
     INIT(NSReboundDeltaForElasticDelta);
@@ -257,6 +244,8 @@ void InitWebCoreSystemInterface(void)
     INIT(CachePartitionKey);
 #endif
 
-#endif
+    INIT(ExernalDeviceTypeForPlayer);
+    INIT(ExernalDeviceDisplayNameForPlayer);
+
     didInit = true;
 }

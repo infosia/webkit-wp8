@@ -48,7 +48,7 @@
 
 namespace WebCore {
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 PassRefPtr<ScrollingCoordinator> ScrollingCoordinator::create(Page* page)
 {
 #if USE(COORDINATED_GRAPHICS)
@@ -94,6 +94,24 @@ bool ScrollingCoordinator::coordinatesScrollingForFrameView(FrameView* frameView
 
 Region ScrollingCoordinator::computeNonFastScrollableRegion(const Frame* frame, const IntPoint& frameLocation) const
 {
+#if PLATFORM(IOS)
+    // On iOS, we use nonFastScrollableRegion to represent the region covered by elements with touch event handlers.
+    ASSERT(frame->isMainFrame());
+    UNUSED_PARAM(frameLocation);
+
+    Document* document = frame->document();
+    if (!document)
+        return Region();
+
+    Vector<IntRect> touchRects;
+    document->getTouchRects(touchRects);
+    
+    Region touchRegion;
+    for (const auto& rect : touchRects)
+        touchRegion.unite(rect);
+
+    return touchRegion;
+#else
     Region nonFastScrollableRegion;
     FrameView* frameView = frame->view();
     if (!frameView)
@@ -114,10 +132,10 @@ Region ScrollingCoordinator::computeNonFastScrollableRegion(const Frame* frame, 
         }
     }
 
-    for (auto it = frameView->children().begin(), end = frameView->children().end(); it != end; ++it) {
-        if (!(*it)->isPluginViewBase())
+    for (const auto& child : frameView->children()) {
+        if (!child->isPluginViewBase())
             continue;
-        PluginViewBase* pluginViewBase = toPluginViewBase((*it).get());
+        PluginViewBase* pluginViewBase = toPluginViewBase(child.get());
         if (pluginViewBase->wantsWheelEvents())
             nonFastScrollableRegion.unite(pluginViewBase->frameRect());
     }
@@ -126,6 +144,7 @@ Region ScrollingCoordinator::computeNonFastScrollableRegion(const Frame* frame, 
         nonFastScrollableRegion.unite(computeNonFastScrollableRegion(subframe, offset));
 
     return nonFastScrollableRegion;
+#endif
 }
 
 unsigned ScrollingCoordinator::computeCurrentWheelEventHandlerCount()
@@ -236,7 +255,7 @@ void ScrollingCoordinator::frameViewRootLayerDidChange(FrameView* frameView)
     updateSynchronousScrollingReasons();
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 void ScrollingCoordinator::handleWheelEventPhase(PlatformWheelEventPhase phase)
 {
     ASSERT(isMainThread());

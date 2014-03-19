@@ -40,7 +40,7 @@
 #include "CSSFontValue.h"
 #include "CSSFunctionValue.h"
 #include "CSSGradientValue.h"
-#include "CSSGridTemplateValue.h"
+#include "CSSGridTemplateAreasValue.h"
 #include "CSSImageValue.h"
 #include "CSSInheritedValue.h"
 #include "CSSInitialValue.h"
@@ -237,7 +237,7 @@ private:
 
 const CSSParserContext& strictCSSParserContext()
 {
-    DEFINE_STATIC_LOCAL(CSSParserContext, strictContext, (CSSStrictMode));
+    DEPRECATED_DEFINE_STATIC_LOCAL(CSSParserContext, strictContext, (CSSStrictMode));
     return strictContext;
 }
 
@@ -245,10 +245,11 @@ CSSParserContext::CSSParserContext(CSSParserMode mode, const URL& baseURL)
     : baseURL(baseURL)
     , mode(mode)
     , isHTMLDocument(false)
-    , isCSSStickyPositionEnabled(false)
     , isCSSRegionsEnabled(false)
     , isCSSCompositingEnabled(false)
+#if ENABLE(CSS_GRID_LAYOUT)
     , isCSSGridLayoutEnabled(false)
+#endif
     , needsSiteSpecificQuirks(false)
     , enforcesCSSMIMETypeInNoQuirksMode(true)
     , useLegacyBackgroundSizeShorthandBehavior(false)
@@ -266,10 +267,11 @@ CSSParserContext::CSSParserContext(Document& document, const URL& baseURL, const
     , charset(charset)
     , mode(document.inQuirksMode() ? CSSQuirksMode : CSSStrictMode)
     , isHTMLDocument(document.isHTMLDocument())
-    , isCSSStickyPositionEnabled(document.cssStickyPositionEnabled())
     , isCSSRegionsEnabled(document.cssRegionsEnabled())
     , isCSSCompositingEnabled(document.cssCompositingEnabled())
+#if ENABLE(CSS_GRID_LAYOUT)
     , isCSSGridLayoutEnabled(document.cssGridLayoutEnabled())
+#endif
     , needsSiteSpecificQuirks(document.settings() ? document.settings()->needsSiteSpecificQuirks() : false)
     , enforcesCSSMIMETypeInNoQuirksMode(!document.settings() || document.settings()->enforceCSSMIMETypeInNoQuirksMode())
     , useLegacyBackgroundSizeShorthandBehavior(document.settings() ? document.settings()->useLegacyBackgroundSizeShorthandBehavior() : false)
@@ -288,10 +290,11 @@ bool operator==(const CSSParserContext& a, const CSSParserContext& b)
         && a.charset == b.charset
         && a.mode == b.mode
         && a.isHTMLDocument == b.isHTMLDocument
-        && a.isCSSStickyPositionEnabled == b.isCSSStickyPositionEnabled
         && a.isCSSRegionsEnabled == b.isCSSRegionsEnabled
         && a.isCSSCompositingEnabled == b.isCSSCompositingEnabled
+#if ENABLE(CSS_GRID_LAYOUT)
         && a.isCSSGridLayoutEnabled == b.isCSSGridLayoutEnabled
+#endif
         && a.needsSiteSpecificQuirks == b.needsSiteSpecificQuirks
         && a.enforcesCSSMIMETypeInNoQuirksMode == b.enforcesCSSMIMETypeInNoQuirksMode
         && a.useLegacyBackgroundSizeShorthandBehavior == b.useLegacyBackgroundSizeShorthandBehavior;
@@ -430,7 +433,7 @@ void CSSParser::parseSheet(StyleSheetContents* sheet, const String& string, int 
     setStyleSheet(sheet);
     m_defaultNamespace = starAtom; // Reset the default namespace.
     if (ruleSourceDataResult)
-        m_currentRuleDataStack = adoptPtr(new RuleSourceDataList());
+        m_currentRuleDataStack = std::make_unique<RuleSourceDataList>();
     m_ruleSourceDataResult = ruleSourceDataResult;
 
     m_logErrors = logErrors && sheet->singleOwnerDocument() && !sheet->baseURL().isEmpty() && sheet->singleOwnerDocument()->page();
@@ -439,7 +442,7 @@ void CSSParser::parseSheet(StyleSheetContents* sheet, const String& string, int 
     setupParser("", string, "");
     cssyyparse(this);
     sheet->shrinkToFit();
-    m_currentRuleDataStack.clear();
+    m_currentRuleDataStack.reset();
     m_ruleSourceDataResult = 0;
     m_rule = 0;
     m_ignoreErrorsInDeclaration = false;
@@ -672,14 +675,16 @@ static inline bool isValidKeywordPropertyAndValue(CSSPropertyID propertyId, int 
             return true;
         break;
     case CSSPropertyDisplay:
-        // inline | block | list-item | run-in | inline-block | table |
+        // inline | block | list-item | inline-block | table |
         // inline-table | table-row-group | table-header-group | table-footer-group | table-row |
         // table-column-group | table-column | table-cell | table-caption | -webkit-box | -webkit-inline-box | none | inherit
         // -webkit-flex | -webkit-inline-flex | -webkit-grid | -webkit-inline-grid
         if ((valueID >= CSSValueInline && valueID <= CSSValueWebkitInlineFlex) || valueID == CSSValueNone)
             return true;
+#if ENABLE(CSS_GRID_LAYOUT)
         if (parserContext.isCSSGridLayoutEnabled && (valueID == CSSValueWebkitGrid || valueID == CSSValueWebkitInlineGrid))
             return true;
+#endif
         break;
 
     case CSSPropertyEmptyCells: // show | hide | inherit
@@ -751,7 +756,7 @@ static inline bool isValidKeywordPropertyAndValue(CSSPropertyID propertyId, int 
     case CSSPropertyPosition: // static | relative | absolute | fixed | sticky | inherit
         if (valueID == CSSValueStatic || valueID == CSSValueRelative || valueID == CSSValueAbsolute || valueID == CSSValueFixed
 #if ENABLE(CSS_STICKY_POSITION)
-            || (parserContext.isCSSStickyPositionEnabled && valueID == CSSValueWebkitSticky)
+            || valueID == CSSValueWebkitSticky
 #endif
             )
             return true;
@@ -805,12 +810,16 @@ static inline bool isValidKeywordPropertyAndValue(CSSPropertyID propertyId, int 
             return true;
         break;
 #if ENABLE(CSS_COMPOSITING)
-    case CSSPropertyWebkitBlendMode:
+    case CSSPropertyWebkitMixBlendMode:
         if (parserContext.isCSSCompositingEnabled && (valueID == CSSValueNormal || valueID == CSSValueMultiply || valueID == CSSValueScreen
             || valueID == CSSValueOverlay || valueID == CSSValueDarken || valueID == CSSValueLighten ||  valueID == CSSValueColorDodge
             || valueID == CSSValueColorBurn || valueID == CSSValueHardLight || valueID == CSSValueSoftLight || valueID == CSSValueDifference
             || valueID == CSSValueExclusion || valueID == CSSValueHue || valueID == CSSValueSaturation || valueID == CSSValueColor
             || valueID == CSSValueLuminosity))
+            return true;
+        break;
+    case CSSPropertyWebkitIsolation:
+        if (parserContext.isCSSCompositingEnabled && (valueID == CSSValueAuto || valueID == CSSValueIsolate))
             return true;
         break;
 #endif
@@ -888,10 +897,12 @@ static inline bool isValidKeywordPropertyAndValue(CSSPropertyID propertyId, int 
         if (valueID == CSSValueNone || valueID == CSSValueManual || valueID == CSSValueAuto)
             return true;
         break;
+#if ENABLE(CSS_GRID_LAYOUT)
     case CSSPropertyWebkitGridAutoFlow:
         if (valueID == CSSValueNone || valueID == CSSValueRow || valueID == CSSValueColumn)
             return true;
         break;
+#endif
     case CSSPropertyWebkitLineAlign:
         if (valueID == CSSValueNone || valueID == CSSValueEdges)
             return true;
@@ -1081,7 +1092,8 @@ static inline bool isKeywordPropertyID(CSSPropertyID propertyId)
     case CSSPropertyVisibility:
     case CSSPropertyWebkitAppearance:
 #if ENABLE(CSS_COMPOSITING)
-    case CSSPropertyWebkitBlendMode:
+    case CSSPropertyWebkitMixBlendMode:
+    case CSSPropertyWebkitIsolation:
 #endif
     case CSSPropertyWebkitBackfaceVisibility:
     case CSSPropertyWebkitBorderAfterStyle:
@@ -1112,7 +1124,9 @@ static inline bool isKeywordPropertyID(CSSPropertyID propertyId)
     case CSSPropertyWebkitFontKerning:
     case CSSPropertyWebkitFontSmoothing:
     case CSSPropertyWebkitHyphens:
+#if ENABLE(CSS_GRID_LAYOUT)
     case CSSPropertyWebkitGridAutoFlow:
+#endif
     case CSSPropertyWebkitLineAlign:
     case CSSPropertyWebkitLineBreak:
     case CSSPropertyWebkitLineSnap:
@@ -1421,7 +1435,7 @@ bool CSSParser::parseDeclaration(MutableStyleProperties* declaration, const Stri
 
     RefPtr<CSSRuleSourceData> ruleSourceData = prpRuleSourceData;
     if (ruleSourceData) {
-        m_currentRuleDataStack = adoptPtr(new RuleSourceDataList());
+        m_currentRuleDataStack = std::make_unique<RuleSourceDataList>();
         m_currentRuleDataStack->append(ruleSourceData);
     }
 
@@ -1449,7 +1463,7 @@ bool CSSParser::parseDeclaration(MutableStyleProperties* declaration, const Stri
         }
 
         fixUnparsedPropertyRanges(ruleSourceData.get());
-        m_currentRuleDataStack.clear();
+        m_currentRuleDataStack.reset();
     }
 
     return ok;
@@ -2028,7 +2042,7 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
 #endif
 
     case CSSPropertyBackgroundAttachment:
-    case CSSPropertyWebkitBackgroundBlendMode:
+    case CSSPropertyBackgroundBlendMode:
     case CSSPropertyBackgroundClip:
     case CSSPropertyWebkitBackgroundClip:
     case CSSPropertyWebkitBackgroundComposite:
@@ -2061,12 +2075,12 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         CSSPropertyID propId1, propId2;
         bool result = false;
         if (parseFillProperty(propId, propId1, propId2, val1, val2)) {
-            OwnPtr<ShorthandScope> shorthandScope;
+            std::unique_ptr<ShorthandScope> shorthandScope;
             if (propId == CSSPropertyBackgroundPosition ||
                 propId == CSSPropertyBackgroundRepeat ||
                 propId == CSSPropertyWebkitMaskPosition ||
                 propId == CSSPropertyWebkitMaskRepeat) {
-                shorthandScope = adoptPtr(new ShorthandScope(this, propId));
+                shorthandScope = std::make_unique<ShorthandScope>(this, propId);
             }
             addProperty(propId1, val1.release(), important);
             if (val2)
@@ -2414,7 +2428,11 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         break;
 #endif
 #if ENABLE(CSS_COMPOSITING)
-    case CSSPropertyWebkitBlendMode:
+    case CSSPropertyWebkitMixBlendMode:
+        if (cssCompositingEnabled())
+            validPrimitive = true;
+        break;
+    case CSSPropertyWebkitIsolation:
         if (cssCompositingEnabled())
             validPrimitive = true;
         break;
@@ -2560,7 +2578,7 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         }
         return false;
     }
-
+#if ENABLE(CSS_GRID_LAYOUT)
     case CSSPropertyWebkitGridAutoColumns:
     case CSSPropertyWebkitGridAutoRows:
         if (!cssGridLayoutEnabled())
@@ -2568,8 +2586,8 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
         parsedValue = parseGridTrackSize(*m_valueList);
         break;
 
-    case CSSPropertyWebkitGridDefinitionColumns:
-    case CSSPropertyWebkitGridDefinitionRows:
+    case CSSPropertyWebkitGridTemplateColumns:
+    case CSSPropertyWebkitGridTemplateRows:
         if (!cssGridLayoutEnabled())
             return false;
         return parseGridTrackList(propId, important);
@@ -2597,13 +2615,13 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
             return false;
         return parseGridAreaShorthand(important);
 
-    case CSSPropertyWebkitGridTemplate:
+    case CSSPropertyWebkitGridTemplateAreas:
         if (!cssGridLayoutEnabled())
             return false;
 
-        parsedValue = parseGridTemplate();
+        parsedValue = parseGridTemplateAreas();
         break;
-
+#endif /* ENABLE(CSS_GRID_LAYOUT) */
     case CSSPropertyWebkitMarginCollapse: {
         if (num == 1) {
             ShorthandScope scope(this, CSSPropertyWebkitMarginCollapse);
@@ -2684,11 +2702,6 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
 
     case CSSPropertyWebkitFontSizeDelta:           // <length>
         validPrimitive = validUnit(value, FLength);
-        break;
-
-    case CSSPropertyWebkitHighlight:
-        if (id == CSSValueNone || value->unit == CSSPrimitiveValue::CSS_STRING)
-            validPrimitive = true;
         break;
 
     case CSSPropertyWebkitHyphenateCharacter:
@@ -2992,7 +3005,9 @@ bool CSSParser::parseValue(CSSPropertyID propId, bool important)
     case CSSPropertyWebkitFontKerning:
     case CSSPropertyWebkitFontSmoothing:
     case CSSPropertyWebkitHyphens:
+#if ENABLE(CSS_GRID_LAYOUT)
     case CSSPropertyWebkitGridAutoFlow:
+#endif
     case CSSPropertyWebkitLineAlign:
     case CSSPropertyWebkitLineBreak:
     case CSSPropertyWebkitLineSnap:
@@ -3180,11 +3195,8 @@ bool CSSParser::parseFillShorthand(CSSPropertyID propId, const CSSPropertyID* pr
                         else
                             addFillValue(clipValue, cssValuePool().createImplicitInitialValue()); // Some value was used for origin that is not supported by clip. Just reset clip instead.
                     }
-                    if (properties[i] == CSSPropertyBackgroundClip || properties[i] == CSSPropertyWebkitMaskClip) {
-                        // Update clipValue
-                        addFillValue(clipValue, val1.release());
+                    if (properties[i] == CSSPropertyBackgroundClip || properties[i] == CSSPropertyWebkitMaskClip)
                         foundClip = true;
-                    }
                     if (properties[i] == CSSPropertyBackgroundPosition || properties[i] == CSSPropertyWebkitMaskPosition)
                         foundPositionCSSProperty = true;
                 }
@@ -4310,7 +4322,7 @@ bool CSSParser::parseFillProperty(CSSPropertyID propId, CSSPropertyID& propId1, 
                         m_valueList->next();
                     }
                     break;
-                case CSSPropertyWebkitBackgroundBlendMode:
+                case CSSPropertyBackgroundBlendMode:
                     if (cssCompositingEnabled() && (val->id == CSSValueNormal || val->id == CSSValueMultiply
                         || val->id == CSSValueScreen || val->id == CSSValueOverlay || val->id == CSSValueDarken
                         || val->id == CSSValueLighten ||  val->id == CSSValueColorDodge || val->id == CSSValueColorBurn
@@ -4687,6 +4699,7 @@ bool CSSParser::parseAnimationProperty(CSSPropertyID propId, RefPtr<CSSValue>& r
     return false;
 }
 
+#if ENABLE(CSS_GRID_LAYOUT)
 // The function parses [ <integer> || <string> ] in <grid-line> (which can be stand alone or with 'span').
 bool CSSParser::parseIntegerOrStringFromGridPosition(RefPtr<CSSPrimitiveValue>& numericValue, RefPtr<CSSPrimitiveValue>& gridLineName)
 {
@@ -4993,6 +5006,7 @@ PassRefPtr<CSSPrimitiveValue> CSSParser::parseGridBreadth(CSSParserValue* curren
 
     return createPrimitiveNumericValue(currentValue);
 }
+#endif /* ENABLE(CSS_GRID_LAYOUT) */
 
 #if ENABLE(DASHBOARD_SUPPORT)
 
@@ -5135,7 +5149,8 @@ bool CSSParser::parseDashboardRegions(CSSPropertyID propId, bool important)
 
 #endif /* ENABLE(DASHBOARD_SUPPORT) */
 
-PassRefPtr<CSSValue> CSSParser::parseGridTemplate()
+#if ENABLE(CSS_GRID_LAYOUT)
+PassRefPtr<CSSValue> CSSParser::parseGridTemplateAreas()
 {
     NamedGridAreaMap gridAreaMap;
     size_t rowCount = 0;
@@ -5207,8 +5222,9 @@ PassRefPtr<CSSValue> CSSParser::parseGridTemplate()
     if (!rowCount || !columnCount)
         return 0;
 
-    return CSSGridTemplateValue::create(gridAreaMap, rowCount, columnCount);
+    return CSSGridTemplateAreasValue::create(gridAreaMap, rowCount, columnCount);
 }
+#endif /* ENABLE(CSS_GRID_LAYOUT) */
 
 PassRefPtr<CSSValue> CSSParser::parseCounterContent(CSSParserValueList* args, bool counters)
 {
@@ -5449,118 +5465,6 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeInset(CSSParserValueList* ar
     return shape;
 }
 
-PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeRectangle(CSSParserValueList* args)
-{
-    ASSERT(args);
-
-    // rect(x, y, width, height, [[rx], ry])
-    if (args->size() != 7 && args->size() != 9 && args->size() != 11)
-        return 0;
-
-    RefPtr<CSSBasicShapeRectangle> shape = CSSBasicShapeRectangle::create();
-
-    unsigned argumentNumber = 0;
-    CSSParserValue* argument = args->current();
-    while (argument) {
-        Units unitFlags = FLength | FPercent;
-        if (argumentNumber > 1) {
-            // Arguments width, height, rx, and ry cannot be negative.
-            unitFlags = unitFlags | FNonNeg;
-        }
-        if (!validUnit(argument, unitFlags))
-            return 0;
-
-        RefPtr<CSSPrimitiveValue> length = createPrimitiveNumericValue(argument);
-        ASSERT(argumentNumber < 6);
-        switch (argumentNumber) {
-        case 0:
-            shape->setX(length);
-            break;
-        case 1:
-            shape->setY(length);
-            break;
-        case 2:
-            shape->setWidth(length);
-            break;
-        case 3:
-            shape->setHeight(length);
-            break;
-        case 4:
-            shape->setRadiusX(length);
-            break;
-        case 5:
-            shape->setRadiusY(length);
-            break;
-        }
-        argument = args->next();
-        if (argument) {
-            if (!isComma(argument))
-                return 0;
-
-            argument = args->next();
-        }
-        argumentNumber++;
-    }
-
-    if (argumentNumber < 4)
-        return 0;
-    return shape;
-}
-
-PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeInsetRectangle(CSSParserValueList* args)
-{
-    ASSERT(args);
-
-    // inset-rectangle(top, right, bottom, left, [[rx], ry])
-    if (args->size() != 7 && args->size() != 9 && args->size() != 11)
-        return 0;
-
-    RefPtr<CSSBasicShapeInsetRectangle> shape = CSSBasicShapeInsetRectangle::create();
-
-    unsigned argumentNumber = 0;
-    CSSParserValue* argument = args->current();
-    while (argument) {
-        Units unitFlags = FLength | FPercent | FNonNeg;
-        if (!validUnit(argument, unitFlags))
-            return 0;
-
-        RefPtr<CSSPrimitiveValue> length = createPrimitiveNumericValue(argument);
-        ASSERT(argumentNumber < 6);
-        switch (argumentNumber) {
-        case 0:
-            shape->setTop(length);
-            break;
-        case 1:
-            shape->setRight(length);
-            break;
-        case 2:
-            shape->setBottom(length);
-            break;
-        case 3:
-            shape->setLeft(length);
-            break;
-        case 4:
-            shape->setRadiusX(length);
-            break;
-        case 5:
-            shape->setRadiusY(length);
-            break;
-        }
-        argument = args->next();
-        if (argument) {
-            if (!isComma(argument))
-                return 0;
-
-            argument = args->next();
-        }
-        argumentNumber++;
-    }
-
-    if (argumentNumber < 4)
-        return 0;
-    return shape;
-}
-
 PassRefPtr<CSSPrimitiveValue> CSSParser::parseShapeRadius(CSSParserValue* value)
 {
     if (value->id == CSSValueClosestSide || value->id == CSSValueFarthestSide)
@@ -5577,7 +5481,7 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeCircle(CSSParserValueList* a
     ASSERT(args);
 
     // circle(radius)
-    // circle(radius at <position>
+    // circle(radius at <position>)
     // circle(at <position>)
     // where position defines centerX and centerY using a CSS <position> data type.
     RefPtr<CSSBasicShapeCircle> shape = CSSBasicShapeCircle::create();
@@ -5598,12 +5502,11 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeCircle(CSSParserValueList* a
             return 0;
         }
 
-        if (argument->id == CSSValueAt) {
+        if (argument->id == CSSValueAt && args->next()) {
             RefPtr<CSSValue> centerX;
             RefPtr<CSSValue> centerY;
-            args->next(); // set list to start of position center
             parseFillPosition(args, centerX, centerY);
-            if (centerX && centerY) {
+            if (centerX && centerY && !args->current()) {
                 ASSERT(centerX->isPrimitiveValue());
                 ASSERT(centerY->isPrimitiveValue());
                 shape->setCenterX(toCSSPrimitiveValue(centerX.get()));
@@ -5617,64 +5520,14 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeCircle(CSSParserValueList* a
     return shape;
 }
 
-PassRefPtr<CSSBasicShape> CSSParser::parseDeprecatedBasicShapeCircle(CSSParserValueList* args)
-{
-    ASSERT(args);
-
-    // circle(centerX, centerY, radius)
-    if (args->size() != 5)
-        return 0;
-
-    RefPtr<CSSDeprecatedBasicShapeCircle> shape = CSSDeprecatedBasicShapeCircle::create();
-
-    unsigned argumentNumber = 0;
-    CSSParserValue* argument = args->current();
-    while (argument) {
-        Units unitFlags = FLength | FPercent;
-        if (argumentNumber == 2) {
-            // Argument radius cannot be negative.
-            unitFlags = unitFlags | FNonNeg;
-        }
-
-        if (!validUnit(argument, unitFlags))
-            return 0;
-
-        RefPtr<CSSPrimitiveValue> length = createPrimitiveNumericValue(argument);
-        ASSERT(argumentNumber < 3);
-        switch (argumentNumber) {
-        case 0:
-            shape->setCenterX(length);
-            break;
-        case 1:
-            shape->setCenterY(length);
-            break;
-        case 2:
-            shape->setRadius(length);
-            break;
-        }
-
-        argument = args->next();
-        if (argument) {
-            if (!isComma(argument))
-                return 0;
-            argument = args->next();
-        }
-        argumentNumber++;
-    }
-
-    if (argumentNumber < 3)
-        return 0;
-    return shape;
-}
-
 PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeEllipse(CSSParserValueList* args)
 {
     ASSERT(args);
 
     // ellipse(radiusX)
-    // ellipse(radiusX at <position>
+    // ellipse(radiusX at <position>)
     // ellipse(radiusX radiusY)
-    // ellipse(radiusX radiusY at <position>
+    // ellipse(radiusX radiusY at <position>)
     // ellipse(at <position>)
     // where position defines centerX and centerY using a CSS <position> data type.
     RefPtr<CSSBasicShapeEllipse> shape = CSSBasicShapeEllipse::create();
@@ -5698,13 +5551,13 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeEllipse(CSSParserValueList* 
             return 0;
         }
 
-        if (argument->id != CSSValueAt)
+        if (argument->id != CSSValueAt || !args->next()) // expecting ellipse(.. at <position>)
             return 0;
+
         RefPtr<CSSValue> centerX;
         RefPtr<CSSValue> centerY;
-        args->next(); // set list to start of position center
         parseFillPosition(args, centerX, centerY);
-        if (!centerX || !centerY)
+        if (!centerX || !centerY || args->current())
             return 0;
 
         ASSERT(centerX->isPrimitiveValue());
@@ -5713,57 +5566,6 @@ PassRefPtr<CSSBasicShape> CSSParser::parseBasicShapeEllipse(CSSParserValueList* 
         shape->setCenterY(toCSSPrimitiveValue(centerY.get()));
     }
 
-    return shape;
-}
-
-PassRefPtr<CSSBasicShape> CSSParser::parseDeprecatedBasicShapeEllipse(CSSParserValueList* args)
-{
-    ASSERT(args);
-
-    // ellipse(centerX, centerY, radiusX, radiusY)
-    if (args->size() != 7)
-        return 0;
-
-    RefPtr<CSSDeprecatedBasicShapeEllipse> shape = CSSDeprecatedBasicShapeEllipse::create();
-    unsigned argumentNumber = 0;
-    CSSParserValue* argument = args->current();
-    while (argument) {
-        Units unitFlags = FLength | FPercent;
-        if (argumentNumber > 1) {
-            // Arguments radiusX and radiusY cannot be negative.
-            unitFlags = unitFlags | FNonNeg;
-        }
-        if (!validUnit(argument, unitFlags))
-            return 0;
-
-        RefPtr<CSSPrimitiveValue> length = createPrimitiveNumericValue(argument);
-        ASSERT(argumentNumber < 4);
-        switch (argumentNumber) {
-        case 0:
-            shape->setCenterX(length);
-            break;
-        case 1:
-            shape->setCenterY(length);
-            break;
-        case 2:
-            shape->setRadiusX(length);
-            break;
-        case 3:
-            shape->setRadiusY(length);
-            break;
-        }
-
-        argument = args->next();
-        if (argument) {
-            if (!isComma(argument))
-                return 0;
-            argument = args->next();
-        }
-        argumentNumber++;
-    }
-
-    if (argumentNumber < 4)
-        return 0;
     return shape;
 }
 
@@ -5826,7 +5628,9 @@ static bool isBoxValue(CSSValueID valueId, CSSPropertyID propId)
     case CSSValueBorderBox:
     case CSSValueMarginBox:
         return true;
-    case CSSValueBoundingBox:
+    case CSSValueFill:
+    case CSSValueStroke:
+    case CSSValueViewBox:
         return propId == CSSPropertyWebkitClipPath;
     default: break;
     }
@@ -5917,20 +5721,6 @@ PassRefPtr<CSSValue> CSSParser::parseClipPath()
     return parseBasicShapeAndOrBox(CSSPropertyWebkitClipPath);
 }
 
-// FIXME This function is temporary to allow for an orderly transition between
-// the new CSS Shapes circle and ellipse syntax. It will be removed when the
-// old syntax is removed.
-static bool isDeprecatedBasicShape(CSSParserValueList* args)
-{
-    for (unsigned i = args->currentIndex(); i < args->size(); ++i) {
-        CSSParserValue* value = args->valueAt(i);
-        if (isComma(value))
-            return true;
-    }
-
-    return false;
-}
-
 PassRefPtr<CSSPrimitiveValue> CSSParser::parseBasicShape()
 {
     CSSParserValue* value = m_valueList->current();
@@ -5941,22 +5731,12 @@ PassRefPtr<CSSPrimitiveValue> CSSParser::parseBasicShape()
         return nullptr;
 
     RefPtr<CSSBasicShape> shape;
-    if (equalIgnoringCase(value->function->name, "rectangle("))
-        shape = parseBasicShapeRectangle(args);
-    else if (equalIgnoringCase(value->function->name, "circle("))
-        if (isDeprecatedBasicShape(args))
-            shape = parseDeprecatedBasicShapeCircle(args);
-        else
-            shape = parseBasicShapeCircle(args);
+    if (equalIgnoringCase(value->function->name, "circle("))
+        shape = parseBasicShapeCircle(args);
     else if (equalIgnoringCase(value->function->name, "ellipse("))
-        if (isDeprecatedBasicShape(args))
-            shape = parseDeprecatedBasicShapeEllipse(args);
-        else
-            shape = parseBasicShapeEllipse(args);
+        shape = parseBasicShapeEllipse(args);
     else if (equalIgnoringCase(value->function->name, "polygon("))
         shape = parseBasicShapePolygon(args);
-    else if (equalIgnoringCase(value->function->name, "inset-rectangle("))
-        shape = parseBasicShapeInsetRectangle(args);
     else if (equalIgnoringCase(value->function->name, "inset("))
         shape = parseBasicShapeInset(args);
 
@@ -7710,9 +7490,12 @@ bool CSSParser::parseBorderRadius(CSSPropertyID propId, bool important)
 bool CSSParser::parseAspectRatio(bool important)
 {
     unsigned num = m_valueList->size();
-    if (num == 1 && m_valueList->valueAt(0)->id == CSSValueNone) {
-        addProperty(CSSPropertyWebkitAspectRatio, cssValuePool().createIdentifierValue(CSSValueNone), important);
-        return true;
+    if (num == 1) {
+        CSSValueID valueId = m_valueList->valueAt(0)->id;
+        if (valueId == CSSValueAuto || valueId == CSSValueFromDimensions || valueId == CSSValueFromIntrinsic) {
+            addProperty(CSSPropertyWebkitAspectRatio, cssValuePool().createIdentifierValue(valueId), important);
+            return true;
+        }
     }
 
     if (num != 3)
@@ -9250,10 +9033,12 @@ bool CSSParser::cssCompositingEnabled() const
     return m_context.isCSSCompositingEnabled;
 }
 
+#if ENABLE(CSS_GRID_LAYOUT)
 bool CSSParser::cssGridLayoutEnabled() const
 {
     return m_context.isCSSGridLayoutEnabled;
 }
+#endif
 
 #if ENABLE(CSS_REGIONS)
 
@@ -9459,7 +9244,9 @@ bool CSSParser::parseTextDecorationSkip(bool important)
     do {
         switch (value->id) {
         case CSSValueNone:
+        case CSSValueAuto:
         case CSSValueInk:
+        case CSSValueObjects:
             addProperty(CSSPropertyWebkitTextDecorationSkip, cssValuePool().createIdentifierValue(value->id), important);
             return true;
         default:
@@ -11383,7 +11170,7 @@ PassRefPtr<StyleRuleBase> CSSParser::createSupportsRule(bool conditionIsSupporte
 void CSSParser::markSupportsRuleHeaderStart()
 {
     if (!m_supportsRuleDataStack)
-        m_supportsRuleDataStack = adoptPtr(new RuleSourceDataList());
+        m_supportsRuleDataStack = std::make_unique<RuleSourceDataList>();
 
     RefPtr<CSSRuleSourceData> data = CSSRuleSourceData::create(CSSRuleSourceData::SUPPORTS_RULE);
     data->ruleHeaderRange.start = tokenStartOffset();
@@ -11476,12 +11263,12 @@ void CSSParser::logError(const String& message, int lineNumber)
 {
     // FIXME: <http://webkit.org/b/114313> CSS parser console message errors should include column numbers.
     PageConsole& console = m_styleSheet->singleOwnerDocument()->page()->console();
-    console.addMessage(CSSMessageSource, WarningMessageLevel, message, m_styleSheet->baseURL().string(), lineNumber + 1, 0);
+    console.addMessage(MessageSource::CSS, MessageLevel::Warning, message, m_styleSheet->baseURL().string(), lineNumber + 1, 0);
 }
 
-PassRefPtr<StyleRuleKeyframes> CSSParser::createKeyframesRule(const String& name, PassOwnPtr<Vector<RefPtr<StyleKeyframe>>> popKeyframes)
+PassRefPtr<StyleRuleKeyframes> CSSParser::createKeyframesRule(const String& name, std::unique_ptr<Vector<RefPtr<StyleKeyframe>>> popKeyframes)
 {
-    OwnPtr<Vector<RefPtr<StyleKeyframe>>> keyframes = popKeyframes;
+    std::unique_ptr<Vector<RefPtr<StyleKeyframe>>> keyframes = std::move(popKeyframes);
     m_allowImportRules = m_allowNamespaceDeclarations = false;
     RefPtr<StyleRuleKeyframes> rule = StyleRuleKeyframes::create();
     for (size_t i = 0; i < keyframes->size(); ++i)
@@ -11491,7 +11278,7 @@ PassRefPtr<StyleRuleKeyframes> CSSParser::createKeyframesRule(const String& name
     return rule.release();
 }
 
-PassRefPtr<StyleRuleBase> CSSParser::createStyleRule(Vector<OwnPtr<CSSParserSelector>>* selectors)
+PassRefPtr<StyleRuleBase> CSSParser::createStyleRule(Vector<std::unique_ptr<CSSParserSelector>>* selectors)
 {
     RefPtr<StyleRule> rule;
     if (selectors) {
@@ -11585,11 +11372,11 @@ void CSSParser::rewriteSpecifiersWithElementName(const AtomicString& namespacePr
 
     // For shadow-ID pseudo-elements to be correctly matched, the ShadowDescendant combinator has to be used.
     // We therefore create a new Selector with that combinator here in any case, even if matching any (host) element in any namespace (i.e. '*').
-    lastShadowDescendant->setTagHistory(adoptPtr(new CSSParserSelector(tag)));
+    lastShadowDescendant->setTagHistory(std::make_unique<CSSParserSelector>(tag));
     lastShadowDescendant->setRelation(CSSSelector::ShadowDescendant);
 }
 
-OwnPtr<CSSParserSelector> CSSParser::rewriteSpecifiers(OwnPtr<CSSParserSelector> specifiers, OwnPtr<CSSParserSelector> newSpecifier)
+std::unique_ptr<CSSParserSelector> CSSParser::rewriteSpecifiers(std::unique_ptr<CSSParserSelector> specifiers, std::unique_ptr<CSSParserSelector> newSpecifier)
 {
 #if ENABLE(VIDEO_TRACK)
     if (newSpecifier->isCustomPseudoElement() || newSpecifier->pseudoType() == CSSSelector::PseudoCue) {
@@ -11597,27 +11384,27 @@ OwnPtr<CSSParserSelector> CSSParser::rewriteSpecifiers(OwnPtr<CSSParserSelector>
     if (newSpecifier->isCustomPseudoElement()) {
 #endif
         // Unknown pseudo element always goes at the top of selector chain.
-        newSpecifier->appendTagHistory(CSSSelector::ShadowDescendant, specifiers.release());
+        newSpecifier->appendTagHistory(CSSSelector::ShadowDescendant, std::move(specifiers));
         return newSpecifier;
     }
     if (specifiers->isCustomPseudoElement()) {
         // Specifiers for unknown pseudo element go right behind it in the chain.
-        specifiers->insertTagHistory(CSSSelector::SubSelector, newSpecifier.release(), CSSSelector::ShadowDescendant);
+        specifiers->insertTagHistory(CSSSelector::SubSelector, std::move(newSpecifier), CSSSelector::ShadowDescendant);
         return specifiers;
     }
-    specifiers->appendTagHistory(CSSSelector::SubSelector, newSpecifier.release());
+    specifiers->appendTagHistory(CSSSelector::SubSelector, std::move(newSpecifier));
     return specifiers;
 }
 
-PassRefPtr<StyleRuleBase> CSSParser::createPageRule(PassOwnPtr<CSSParserSelector> pageSelector)
+PassRefPtr<StyleRuleBase> CSSParser::createPageRule(std::unique_ptr<CSSParserSelector> pageSelector)
 {
     // FIXME: Margin at-rules are ignored.
     m_allowImportRules = m_allowNamespaceDeclarations = false;
     RefPtr<StyleRulePage> rule;
     if (pageSelector) {
         rule = StyleRulePage::create(createStyleProperties());
-        Vector<OwnPtr<CSSParserSelector>> selectorVector;
-        selectorVector.append(pageSelector);
+        Vector<std::unique_ptr<CSSParserSelector>> selectorVector;
+        selectorVector.append(std::move(pageSelector));
         rule->parserAdoptSelectorVector(selectorVector);
         processAndAddNewRuleToSourceTreeIfNeeded();
     } else
@@ -11626,22 +11413,22 @@ PassRefPtr<StyleRuleBase> CSSParser::createPageRule(PassOwnPtr<CSSParserSelector
     return rule.release();
 }
 
-OwnPtr<Vector<OwnPtr<CSSParserSelector>>> CSSParser::createSelectorVector()
+std::unique_ptr<Vector<std::unique_ptr<CSSParserSelector>>> CSSParser::createSelectorVector()
 {
     if (m_recycledSelectorVector) {
         m_recycledSelectorVector->shrink(0);
         return std::move(m_recycledSelectorVector);
     }
-    return adoptPtr(new Vector<OwnPtr<CSSParserSelector>>);
+    return std::make_unique<Vector<std::unique_ptr<CSSParserSelector>>>();
 }
 
-void CSSParser::recycleSelectorVector(OwnPtr<Vector<OwnPtr<CSSParserSelector>>> vector)
+void CSSParser::recycleSelectorVector(std::unique_ptr<Vector<std::unique_ptr<CSSParserSelector>>> vector)
 {
     if (vector && !m_recycledSelectorVector)
         m_recycledSelectorVector = std::move(vector);
 }
 
-PassRefPtr<StyleRuleBase> CSSParser::createRegionRule(Vector<OwnPtr<CSSParserSelector>>* regionSelector, RuleList* rules)
+PassRefPtr<StyleRuleBase> CSSParser::createRegionRule(Vector<std::unique_ptr<CSSParserSelector>>* regionSelector, RuleList* rules)
 {
     if (!cssRegionsEnabled() || !regionSelector || !rules) {
         popRuleData();
