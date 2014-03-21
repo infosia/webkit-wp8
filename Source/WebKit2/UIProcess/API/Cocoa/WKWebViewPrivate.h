@@ -94,6 +94,7 @@ typedef NS_ENUM(NSInteger, _WKPaginationMode) {
 #else
 @property (readonly) NSColor *_pageExtendedBackgroundColor;
 @property (nonatomic, setter=_setDrawsTransparentBackground:) BOOL _drawsTransparentBackground;
+@property (nonatomic, setter=_setTopContentInset:) CGFloat _topContentInset;
 #endif
 
 - (void)_runJavaScriptInMainFrame:(NSString *)scriptString;
@@ -106,6 +107,10 @@ typedef NS_ENUM(NSInteger, _WKPaginationMode) {
 @property (nonatomic, setter=_setPageLength:) CGFloat _pageLength;
 @property (nonatomic, setter=_setGapBetweenPages:) CGFloat _gapBetweenPages;
 @property (readonly) NSUInteger _pageCount;
+
+@property (nonatomic, readonly) BOOL _supportsTextZoom;
+@property (nonatomic, setter=_setTextZoomFactor:) double _textZoomFactor;
+@property (nonatomic, setter=_setPageZoomFactor:) double _pageZoomFactor;
 
 @end
 

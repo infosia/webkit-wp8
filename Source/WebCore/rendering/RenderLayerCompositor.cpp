@@ -1047,10 +1047,6 @@ void RenderLayerCompositor::computeCompositingRequirements(RenderLayer* ancestor
     layer.updateDescendantDependentFlags();
     layer.updateLayerListsIfNeeded();
 
-#if ENABLE(CSS_COMPOSITING)
-    layer.updateParentStackingContextShouldIsolateBlending();
-#endif
-
     if (layer.isFlowThreadCollectingGraphicsLayersUnderRegions()) {
         RenderFlowThread& flowThread = toRenderFlowThread(layer.renderer());
         layer.setHasCompositingDescendant(flowThread.hasCompositingRegionDescendant());
@@ -1476,7 +1472,7 @@ void RenderLayerCompositor::frameViewDidChangeSize()
 {
     if (m_clipLayer) {
         const FrameView& frameView = m_renderView.frameView();
-        m_clipLayer->setSize(frameView.unscaledVisibleContentSize());
+        m_clipLayer->setSize(frameView.unscaledTotalVisibleContentSize());
 
         frameViewDidScroll();
         updateOverflowControlsLayers();
@@ -1597,11 +1593,8 @@ String RenderLayerCompositor::layerTreeAsText(LayerTreeFlags flags)
 
     // The true root layer is not included in the dump, so if we want to report
     // its repaint rects, they must be included here.
-    if (flags & LayerTreeFlagsIncludeRepaintRects) {
-        String layerTreeTextWithRootRepaintRects = m_renderView.frameView().trackedRepaintRectsAsText();
-        layerTreeTextWithRootRepaintRects.append(layerTreeText);
-        return layerTreeTextWithRootRepaintRects;
-    }
+    if (flags & LayerTreeFlagsIncludeRepaintRects)
+        return m_renderView.frameView().trackedRepaintRectsAsText() + layerTreeText;
 
     return layerTreeText;
 }
@@ -1879,11 +1872,12 @@ void RenderLayerCompositor::updateRootLayerPosition()
 {
     if (m_rootContentLayer) {
         const IntRect& documentRect = m_renderView.documentRect();
-        m_rootContentLayer->setSize(documentRect.size());
-        m_rootContentLayer->setPosition(FloatPoint(documentRect.x(), documentRect.y() + m_renderView.frameView().headerHeight()));
+        m_rootContentLayer->setSize(documentRect.size());        
+        m_rootContentLayer->setPosition(FloatPoint(documentRect.x(), documentRect.y() + m_renderView.frameView().headerHeight()
+            + m_renderView.frameView().topContentInset()));
     }
     if (m_clipLayer)
-        m_clipLayer->setSize(m_renderView.frameView().unscaledVisibleContentSize());
+        m_clipLayer->setSize(m_renderView.frameView().unscaledTotalVisibleContentSize());
 
 #if ENABLE(RUBBER_BANDING)
     if (m_contentShadowLayer) {
@@ -2372,13 +2366,14 @@ bool RenderLayerCompositor::requiresCompositingForAnimation(RenderLayerModelObje
     if (!(m_compositingTriggers & ChromeClient::AnimationTrigger))
         return false;
 
+    const AnimationBase::RunningState activeAnimationState = AnimationBase::Running | AnimationBase::Paused | AnimationBase::FillingFowards;
     AnimationController& animController = renderer.animation();
-    return (animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyOpacity)
+    return (animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyOpacity, activeAnimationState)
             && (inCompositingMode() || (m_compositingTriggers & ChromeClient::AnimatedOpacityTrigger)))
 #if ENABLE(CSS_FILTERS)
-            || animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyWebkitFilter)
+            || animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyWebkitFilter, activeAnimationState)
 #endif // CSS_FILTERS
-            || animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyWebkitTransform);
+            || animController.isRunningAnimationOnRenderer(&renderer, CSSPropertyWebkitTransform, activeAnimationState);
 }
 
 bool RenderLayerCompositor::requiresCompositingForIndirectReason(RenderLayerModelObject& renderer, bool hasCompositedDescendants, bool hasBlendedDescendants, bool has3DTransformedDescendants, RenderLayer::IndirectCompositingReason& reason) const
@@ -2558,7 +2553,7 @@ bool RenderLayerCompositor::isRunningAcceleratedTransformAnimation(RenderLayerMo
     if (!(m_compositingTriggers & ChromeClient::AnimationTrigger))
         return false;
 
-    return renderer.animation().isRunningAnimationOnRenderer(&renderer, CSSPropertyWebkitTransform);
+    return renderer.animation().isRunningAcceleratedAnimationOnRenderer(&renderer, CSSPropertyWebkitTransform, AnimationBase::Running | AnimationBase::Paused);
 }
 
 // If an element has negative z-index children, those children render in front of the 
@@ -3126,7 +3121,7 @@ void RenderLayerCompositor::ensureRootLayer()
             m_clipLayer->addChild(m_scrollLayer.get());
             m_scrollLayer->addChild(m_rootContentLayer.get());
 
-            m_clipLayer->setSize(m_renderView.frameView().unscaledVisibleContentSize());
+            m_clipLayer->setSize(m_renderView.frameView().unscaledTotalVisibleContentSize());
 
             updateOverflowControlsLayers();
 

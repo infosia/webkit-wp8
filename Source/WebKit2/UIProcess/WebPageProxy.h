@@ -34,6 +34,7 @@
 #include "ContextMenuContextData.h"
 #include "DragControllerAction.h"
 #include "DrawingAreaProxy.h"
+#include "EditingRange.h"
 #include "EditorState.h"
 #include "GeolocationPermissionRequestManagerProxy.h"
 #include "InteractionInformationAtPosition.h"
@@ -96,6 +97,10 @@
 
 #if PLATFORM(COCOA)
 #include "LayerRepresentation.h"
+#endif
+
+#if PLATFORM(MAC)
+#include "AttributedString.h"
 #endif
 
 namespace API {
@@ -170,6 +175,8 @@ struct WebPopupItem;
 class WebVibrationProxy;
 #endif
 
+typedef GenericCallback<uint64_t> UnsignedCallback;
+typedef GenericCallback<EditingRange> EditingRangeCallback;
 typedef GenericCallback<StringImpl*> StringCallback;
 typedef GenericCallback<WebSerializedScriptValue*> ScriptValueCallback;
 
@@ -230,6 +237,96 @@ private:
 
     CallbackFunction m_callback;
 };
+
+// FIXME: Make a version of CallbackBase with two arguments, and define RectForCharacterRangeCallback as a specialization.
+class RectForCharacterRangeCallback : public CallbackBase {
+public:
+    typedef std::function<void (bool, const WebCore::IntRect&, const EditingRange&)> CallbackFunction;
+
+    static PassRefPtr<RectForCharacterRangeCallback> create(CallbackFunction callback)
+    {
+        return adoptRef(new RectForCharacterRangeCallback(callback));
+    }
+
+    virtual ~RectForCharacterRangeCallback()
+    {
+        ASSERT(!m_callback);
+    }
+
+    void performCallbackWithReturnValue(const WebCore::IntRect& rect, const EditingRange& range)
+    {
+        ASSERT(m_callback);
+
+        m_callback(false, rect, range);
+
+        m_callback = 0;
+    }
+    
+    void invalidate()
+    {
+        ASSERT(m_callback);
+
+        m_callback(true, WebCore::IntRect(), EditingRange());
+
+        m_callback = 0;
+    }
+
+private:
+
+    RectForCharacterRangeCallback(CallbackFunction callback)
+        : m_callback(callback)
+    {
+    }
+
+    CallbackFunction m_callback;
+};
+
+#if PLATFORM(MAC)
+
+// FIXME: Make a version of CallbackBase with two arguments, and define AttributedStringForCharacterRangeCallback as a specialization.
+class AttributedStringForCharacterRangeCallback : public CallbackBase {
+public:
+    typedef std::function<void (bool, const AttributedString&, const EditingRange&)> CallbackFunction;
+
+    static PassRefPtr<AttributedStringForCharacterRangeCallback> create(CallbackFunction callback)
+    {
+        return adoptRef(new AttributedStringForCharacterRangeCallback(callback));
+    }
+
+    virtual ~AttributedStringForCharacterRangeCallback()
+    {
+        ASSERT(!m_callback);
+    }
+
+    void performCallbackWithReturnValue(const AttributedString& string, const EditingRange& range)
+    {
+        ASSERT(m_callback);
+
+        m_callback(false, string, range);
+
+        m_callback = 0;
+    }
+    
+    void invalidate()
+    {
+        ASSERT(m_callback);
+
+        m_callback(true, AttributedString(), EditingRange());
+
+        m_callback = 0;
+    }
+
+private:
+
+    AttributedStringForCharacterRangeCallback(CallbackFunction callback)
+        : m_callback(callback)
+    {
+    }
+
+    CallbackFunction m_callback;
+};
+
+#endif
 
 #if PLATFORM(IOS)
 class GestureCallback : public CallbackBase {
@@ -426,6 +523,9 @@ public:
     bool drawsTransparentBackground() const { return m_drawsTransparentBackground; }
     void setDrawsTransparentBackground(bool);
 
+    float topContentInset() const { return m_topContentInset; }
+    void setTopContentInset(float);
+
     WebCore::Color underlayColor() const { return m_underlayColor; }
     void setUnderlayColor(const WebCore::Color&);
 
@@ -531,18 +631,6 @@ public:
     void windowAndViewFramesChanged(const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
     void setMainFrameIsScrollable(bool);
 
-    void setComposition(const String& text, Vector<WebCore::CompositionUnderline> underlines, const EditingRange& selectionRange, const EditingRange& replacementRange);
-    void confirmComposition();
-    void cancelComposition();
-    bool insertText(const String& text, const EditingRange& replacementRange);
-    bool insertDictatedText(const String& text, const EditingRange& replacementRange, const Vector<WebCore::TextAlternativeWithRange>& dictationAlternatives);
-    void getMarkedRange(EditingRange&);
-    void getSelectedRange(EditingRange&);
-    void getAttributedSubstringFromRange(const EditingRange&, AttributedString&);
-    uint64_t characterIndexForPoint(const WebCore::IntPoint);
-    WebCore::IntRect firstRectForCharacterRange(const EditingRange&);
-    bool executeKeypressCommands(const Vector<WebCore::KeypressCommand>&);
-
     void sendComplexTextInputToPlugin(uint64_t pluginComplexTextInputIdentifier, const String& textInput);
     bool shouldDelayWindowOrderingForEvent(const WebMouseEvent&);
     bool acceptsFirstMouse(int eventNumber, const WebMouseEvent&);
@@ -550,7 +638,33 @@ public:
     void setAcceleratedCompositingRootLayer(LayerOrView*);
     LayerOrView* acceleratedCompositingRootLayer() const;
 
-#if USE(APPKIT)
+    void insertTextAsync(const String& text, const EditingRange& replacementRange);
+    void getMarkedRangeAsync(PassRefPtr<EditingRangeCallback>);
+    void getSelectedRangeAsync(PassRefPtr<EditingRangeCallback>);
+    void characterIndexForPointAsync(const WebCore::IntPoint&, PassRefPtr<UnsignedCallback>);
+    void firstRectForCharacterRangeAsync(const EditingRange&, PassRefPtr<RectForCharacterRangeCallback>);
+    void setCompositionAsync(const String& text, Vector<WebCore::CompositionUnderline> underlines, const EditingRange& selectionRange, const EditingRange& replacementRange);
+    void confirmCompositionAsync();
+
+    void cancelComposition();
+
+#if PLATFORM(MAC)
+    void insertDictatedTextAsync(const String& text, const EditingRange& replacementRange, const Vector<WebCore::TextAlternativeWithRange>& dictationAlternatives);
+    void attributedSubstringForCharacterRangeAsync(const EditingRange&, PassRefPtr<AttributedStringForCharacterRangeCallback>);
+
+#if !USE(ASYNC_NSTEXTINPUTCLIENT)
+    bool insertText(const String& text, const EditingRange& replacementRange);
+    void setComposition(const String& text, Vector<WebCore::CompositionUnderline> underlines, const EditingRange& selectionRange, const EditingRange& replacementRange);
+    void confirmComposition();
+    bool insertDictatedText(const String& text, const EditingRange& replacementRange, const Vector<WebCore::TextAlternativeWithRange>& dictationAlternatives);
+    void getAttributedSubstringFromRange(const EditingRange&, AttributedString&);
+    void getMarkedRange(EditingRange&);
+    void getSelectedRange(EditingRange&);
+    uint64_t characterIndexForPoint(const WebCore::IntPoint);
+    WebCore::IntRect firstRectForCharacterRange(const EditingRange&);
+    bool executeKeypressCommands(const Vector<WebCore::KeypressCommand>&);
+#endif
+
     WKView* wkView() const;
     void intrinsicContentSizeDidChange(const WebCore::IntSize& intrinsicContentSize);
 #endif
@@ -1155,6 +1269,12 @@ private:
     void scriptValueCallback(const IPC::DataReference&, uint64_t);
     void computedPagesCallback(const Vector<WebCore::IntRect>&, double totalScaleFactorForPrinting, uint64_t);
     void validateCommandCallback(const String&, bool, int, uint64_t);
+    void unsignedCallback(uint64_t, uint64_t);
+    void editingRangeCallback(const EditingRange&, uint64_t);
+    void rectForCharacterRangeCallback(const WebCore::IntRect&, const EditingRange&, uint64_t);
+#if PLATFORM(MAC)
+    void attributedStringForCharacterRangeCallback(const AttributedString&, const EditingRange&, uint64_t);
+#endif
 #if PLATFORM(IOS)
     void gestureCallback(const WebCore::IntPoint&, uint32_t, uint32_t, uint32_t, uint64_t);
     void touchesCallback(const WebCore::IntPoint&, uint32_t, uint64_t);
@@ -1292,6 +1412,12 @@ private:
     HashMap<uint64_t, RefPtr<ScriptValueCallback>> m_scriptValueCallbacks;
     HashMap<uint64_t, RefPtr<ComputedPagesCallback>> m_computedPagesCallbacks;
     HashMap<uint64_t, RefPtr<ValidateCommandCallback>> m_validateCommandCallbacks;
+    HashMap<uint64_t, RefPtr<UnsignedCallback>> m_unsignedCallbacks;
+    HashMap<uint64_t, RefPtr<EditingRangeCallback>> m_editingRangeCallbacks;
+    HashMap<uint64_t, RefPtr<RectForCharacterRangeCallback>> m_rectForCharacterRangeCallbacks;
+#if PLATFORM(MAC)
+    HashMap<uint64_t, RefPtr<AttributedStringForCharacterRangeCallback>> m_attributedStringForCharacterRangeCallbacks;
+#endif
 #if PLATFORM(IOS)
     HashMap<uint64_t, RefPtr<GestureCallback>> m_gestureCallbacks;
     HashMap<uint64_t, RefPtr<TouchesCallback>> m_touchesCallbacks;
@@ -1338,6 +1464,7 @@ private:
     double m_pageScaleFactor;
     float m_intrinsicDeviceScaleFactor;
     float m_customDeviceScaleFactor;
+    float m_topContentInset;
 
     LayerHostingMode m_layerHostingMode;
 

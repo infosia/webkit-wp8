@@ -36,6 +36,7 @@
 #import "WebPageMessages.h"
 #import "WebPageProxy.h"
 #import "WebProcessProxy.h"
+#import <WebCore/IOSurface.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UIKit/UIScreenEdgePanGestureRecognizer.h>
 #import <UIKit/UIViewControllerTransitioning_Private.h>
@@ -43,15 +44,14 @@
 #import <UIKit/_UINavigationInteractiveTransition.h>
 #import <UIKit/_UINavigationParallaxTransition.h>
 
-#if USE(IOSURFACE)
-#import <IOSurface/IOSurface.h>
-#import <IOSurface/IOSurfacePrivate.h>
-#endif
-
 using namespace WebCore;
 
 @interface WKSwipeTransitionController : NSObject <_UINavigationInteractiveTransitionBaseDelegate>
 - (instancetype)initWithViewGestureController:(WebKit::ViewGestureController*)gestureController gestureRecognizerView:(UIView *)gestureRecognizerView;
+@end
+
+@interface _UIViewControllerTransitionContext (WKDetails)
+@property (nonatomic, copy, setter=_setInteractiveUpdateHandler:)  void (^_interactiveUpdateHandler)(BOOL interactionIsOver, CGFloat percentComplete, BOOL transitionCompleted, _UIViewControllerTransitionContext *);
 @end
 
 @implementation WKSwipeTransitionController
@@ -157,11 +157,10 @@ void ViewGestureController::beginSwipeGesture(_UINavigationInteractiveTransition
     m_snapshotView = adoptNS([[UIView alloc] initWithFrame:[m_liveSwipeView frame]]);
     if (snapshot) {
 #if USE(IOSURFACE)
-        uint32_t purgeabilityState = kIOSurfacePurgeableNonVolatile;
-        IOSurfaceSetPurgeable(snapshot.get(), kIOSurfacePurgeableNonVolatile, &purgeabilityState);
-        
-        if (purgeabilityState != kIOSurfacePurgeableEmpty)
+        if (snapshot->setIsPurgeable(false) == IOSurface::SurfaceState::Valid) {
             [m_snapshotView layer].contents = (id)snapshot.get();
+            m_currentSwipeSnapshotSurface = snapshot;
+        }
 #else
         [m_snapshotView layer].contents = (id)snapshot.get();
 #endif
@@ -194,6 +193,7 @@ void ViewGestureController::beginSwipeGesture(_UINavigationInteractiveTransition
     [transitionContext _setInteractor:transition];
     [transitionContext _setTransitionIsInFlight:YES];
     [transitionContext _setCompletionHandler:^(_UIViewControllerTransitionContext *context, BOOL didComplete) { endSwipeGesture(targetItem, context, !didComplete); }];
+    [transitionContext _setInteractiveUpdateHandler:^(BOOL, CGFloat, BOOL, _UIViewControllerTransitionContext *) { }];
 
     [transition setAnimationController:animationController.get()];
     [transition startInteractiveTransition:transitionContext.get()];
@@ -263,9 +263,9 @@ void ViewGestureController::removeSwipeSnapshot()
         return;
     
 #if USE(IOSURFACE)
-    IOSurfaceRef snapshotSurface = (IOSurfaceRef)[m_snapshotView layer].contents;
-    if (snapshotSurface)
-        IOSurfaceSetPurgeable(snapshotSurface, kIOSurfacePurgeableVolatile, nullptr);
+    if (m_currentSwipeSnapshotSurface)
+        m_currentSwipeSnapshotSurface->setIsPurgeable(true);
+    m_currentSwipeSnapshotSurface = nullptr;
 #endif
     
     [m_snapshotView removeFromSuperview];

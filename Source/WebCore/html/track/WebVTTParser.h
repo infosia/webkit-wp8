@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2011 Google Inc.  All rights reserved.
+ * Copyright (C) 2011, 2013 Google Inc.  All rights reserved.
  * Copyright (C) 2013 Cable Television Labs, Inc.
+ * Copyright (C) 2014 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -34,9 +35,11 @@
 
 #if ENABLE(VIDEO_TRACK)
 
+#include "BufferedLineReader.h"
 #include "DocumentFragment.h"
 #include "HTMLNames.h"
-#include "TextTrackRegion.h"
+#include "TextResourceDecoder.h"
+#include "VTTRegion.h"
 #include "WebVTTTokenizer.h"
 #include <memory>
 #include <wtf/text/StringBuilder.h>
@@ -93,10 +96,8 @@ private:
     String m_settings;
 };
 
-class WebVTTParser {
+class WebVTTParser final {
 public:
-    virtual ~WebVTTParser() { }
-
     enum ParseState {
         Initial,
         Header,
@@ -129,33 +130,37 @@ public:
         // U+0020 SPACE characters or U+0009 CHARACTER TABULATION (tab) characters.
         return c == ' ' || c == '\t';
     }
-    static String collectDigits(const String&, unsigned*);
+    static unsigned collectDigitsToInt(const String&, unsigned& position, int& number);
     static String collectWord(const String&, unsigned*);
+    static bool collectTimeStamp(const String&, unsigned&, double&);
 
 #if ENABLE(WEBVTT_REGIONS)
     // Useful functions for parsing percentage settings.
-    static float parseFloatPercentageValue(const String&, bool&);
-    static FloatPoint parseFloatPercentageValuePair(const String&, char, bool&);
+    static bool parseFloatPercentageValue(const String&, float&);
+    static bool parseFloatPercentageValuePair(const String&, char, FloatPoint&);
 #endif
 
     // Input data to the parser to parse.
     void parseBytes(const char* data, unsigned length);
+    void flush();
     void fileFinished();
 
     // Transfers ownership of last parsed cues to caller.
     void getNewCues(Vector<RefPtr<WebVTTCueData>>&);
 #if ENABLE(WEBVTT_REGIONS)
-    void getNewRegions(Vector<RefPtr<TextTrackRegion>>&);
+    void getNewRegions(Vector<RefPtr<VTTRegion>>&);
 #endif
 
-    PassRefPtr<DocumentFragment> createDocumentFragmentFromCueText(const String&);
-    double collectTimeStamp(const String&, unsigned*);
+    // Create the DocumentFragment representation of the WebVTT cue text.
+    static PassRefPtr<DocumentFragment> createDocumentFragmentFromCueText(Document&, const String&);
 
 protected:
     ScriptExecutionContext* m_scriptExecutionContext;
     ParseState m_state;
 
 private:
+    void parse();
+    void flushPendingCue();
     bool hasRequiredFileIdentifier(const String&);
     ParseState collectCueId(const String&);
     ParseState collectTimingsAndSettings(const String&);
@@ -167,36 +172,25 @@ private:
 
     void collectMetadataHeader(const String&);
 #if ENABLE(WEBVTT_REGIONS)
-    void createNewRegion();
+    void createNewRegion(const String& headerValue);
 #endif
 
-    void skipWhiteSpace(const String&, unsigned*);
-    String collectNextLine(const char* data, unsigned length, unsigned*);
+    static void skipWhiteSpace(const String&, unsigned&);
 
-    void constructTreeFromToken(Document*);
-
-    String m_currentHeaderName;
-    String m_currentHeaderValue;
-
-    Vector<char> m_buffer;
+    BufferedLineReader m_lineReader;
+    RefPtr<TextResourceDecoder> m_decoder;
     String m_currentId;
     double m_currentStartTime;
     double m_currentEndTime;
     StringBuilder m_currentContent;
     String m_currentSettings;
     
-    WebVTTToken m_token;
-    std::unique_ptr<WebVTTTokenizer> m_tokenizer;
-
-    RefPtr<ContainerNode> m_currentNode;
-
     WebVTTParserClient* m_client;
 
-    Vector<AtomicString> m_languageStack;
     Vector<RefPtr<WebVTTCueData>> m_cuelist;
 
 #if ENABLE(WEBVTT_REGIONS)
-    Vector<RefPtr<TextTrackRegion>> m_regionList;
+    Vector<RefPtr<VTTRegion>> m_regionList;
 #endif
 };
 

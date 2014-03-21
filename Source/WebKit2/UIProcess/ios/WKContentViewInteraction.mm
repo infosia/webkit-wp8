@@ -1410,13 +1410,13 @@ static void selectionChangedWithTouch(bool error, WKContentView *view, const Web
 - (void)setMarkedText:(NSString *)markedText selectedRange:(NSRange)selectedRange
 {
     _markedText = markedText;
-    _page->setComposition(markedText, Vector<WebCore::CompositionUnderline>(), selectedRange, EditingRange());
+    _page->setCompositionAsync(markedText, Vector<WebCore::CompositionUnderline>(), selectedRange, EditingRange());
 }
 
 - (void)unmarkText
 {
     _markedText = nil;
-    _page->confirmComposition();
+    _page->confirmCompositionAsync();
 }
 
 - (UITextPosition *)beginningOfDocument
@@ -1507,7 +1507,7 @@ static void selectionChangedWithTouch(bool error, WKContentView *view, const Web
 // Inserts the given string, replacing any selected or marked text.
 - (void)insertText:(NSString *)aStringValue
 {
-    _page->insertText(aStringValue, EditingRange());
+    _page->insertTextAsync(aStringValue, EditingRange());
 }
 
 - (BOOL)hasText
@@ -1918,6 +1918,14 @@ static UITextAutocapitalizationType toUITextAutocapitalize(WebAutocapitalizeType
 
 - (void)_selectionChanged
 {
+    _selectionNeedsUpdate = YES;
+}
+
+- (void)_updateChangedSelection
+{
+    if (!_selectionNeedsUpdate)
+        return;
+
     // FIXME: We need to figure out what to do if the selection is changed by Javascript.
     if (_textSelectionAssistant) {
         _markedText = (_page->editorState().hasComposition) ? _page->editorState().markedText : String();
@@ -1925,6 +1933,7 @@ static UITextAutocapitalizationType toUITextAutocapitalize(WebAutocapitalizeType
             [_textSelectionAssistant selectionChanged];
     } else
         [_webSelectionAssistant selectionChanged];
+    _selectionNeedsUpdate = NO;
 }
 
 #pragma mark - Implementation of UIWebTouchEventsGestureRecognizerDelegate.

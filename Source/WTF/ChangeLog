@@ -1,3 +1,196 @@
+2014-03-20  Darin Adler  <darin@apple.com>
+
+        Fix a header guard mistake (harmless but clearly wrong)
+        https://bugs.webkit.org/show_bug.cgi?id=130559
+
+        Reviewed by Andreas Kling.
+
+        * wtf/text/StringConcatenate.h: Correct the macro name in the header guard.
+
+2014-03-20  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        Move to using std::unique_ptr for EFL objects.
+        https://bugs.webkit.org/show_bug.cgi?id=129853
+
+        Reviewed by Gyuyoung Kim.
+
+        EflUniquePtr is a template alias of std::unique_ptr
+        with a custom deleter for each Efl Objects, which is motivated by GUniquePtr.
+        This patch replaces uses of OwnPtr and PassOwnPtr for Efl objects with EflUniquePtr.
+
+        * wtf/OwnPtrCommon.h:
+        * wtf/PlatformEfl.cmake:
+        * wtf/RunLoop.h:
+        * wtf/efl/MainThreadEfl.cpp:
+        (WTF::pipeObject):
+        (WTF::initializeMainThreadPlatform):
+        * wtf/efl/OwnPtrEfl.cpp: Removed.
+        * wtf/efl/RunLoopEfl.cpp:
+        (WTF::RunLoop::RunLoop):
+        * wtf/efl/UniquePtrEfl.h: Added.
+        (WTF::EflPtrDeleter::operator()):
+
+2014-03-20  Gavin Barraclough  <barraclough@apple.com>
+
+        Remove IdentifierTable typedef, isIdentifier()
+        https://bugs.webkit.org/show_bug.cgi?id=130533
+
+        Rubber stamped by Geoff Garen.
+
+        Code should use AtomicStringTable, isAtomic() directly.
+
+        * wtf/WTFThreadData.h:
+        (WTF::WTFThreadData::setCurrentAtomicStringTable):
+        (WTF::WTFThreadData::resetCurrentAtomicStringTable):
+            - removed IdentifierTypedef.
+        * wtf/text/StringImpl.h:
+        (WTF::StringImpl::flagIsAtomic):
+            - renamed flagIsIdentfier -> flagIsAtomic.
+
+2014-03-20  Gavin Barraclough  <barraclough@apple.com>
+
+        Merge AtomicString, Identifier
+        https://bugs.webkit.org/show_bug.cgi?id=128624
+
+        Reviewed by Geoff Garen.
+
+        WTF::StringImpl currently supports two uniquing mechanism - AtomicString and
+        Identifer - that is one too many.
+
+        Remove Identifier in favour of AtomicString. Identifier had two interesting
+        mechanisms that we preserve.
+
+        (1) JSC API VMs each get their own string table, switch the string table on
+            API entry/exit.
+        (2) JSC caches a pointer to the string table on the VM to avoid a thread
+            specific access. Adds a new AtomicString::add method to support this.
+
+        * wtf/WTFThreadData.cpp:
+        (WTF::WTFThreadData::WTFThreadData):
+            - remove allocation of IdentifierTable.
+        (WTF::WTFThreadData::~WTFThreadData):
+            - remove deletion of IdentifierTable.
+        * wtf/WTFThreadData.h:
+        (WTF::WTFThreadData::atomicStringTable):
+            - table is now switched by JSC API, return the current table.
+        (WTF::WTFThreadData::currentIdentifierTable):
+            - now returns the current AtomicStringTable.
+        (WTF::WTFThreadData::setCurrentIdentifierTable):
+            - now sets the current AtomicStringTable.
+        (WTF::WTFThreadData::resetCurrentIdentifierTable):
+            - now resets the AtomicStringTable.
+        * wtf/text/AtomicString.cpp:
+        (WTF::AtomicString::addSlowCase):
+            - add without thread-specific access to access string table.
+        * wtf/text/AtomicString.h:
+        (WTF::AtomicString::addWithStringTableProvider):
+            - add without thread-specific access (used by JSC, string table provided by VM or ExecState).
+        * wtf/text/AtomicStringTable.cpp:
+        (WTF::AtomicStringTable::create):
+            - renamed m_atomicStringTable -> m_defaultAtomicStringTable.
+        (WTF::AtomicStringTable::~AtomicStringTable):
+        (WTF::AtomicStringTable::destroy):
+            - clearing of table moved from AtomicStringTable::destroy to destructor.
+        * wtf/text/AtomicStringTable.h:
+            - added destructor.
+        * wtf/text/StringImpl.cpp:
+        (WTF::StringImpl::~StringImpl):
+            - Identifers no longer exist; no need to remove them from IdentifierTable.
+        * wtf/text/StringImpl.h:
+        (WTF::StringImpl::StringImpl):
+            - removed s_hashFlagIsIdentifier.
+        (WTF::StringImpl::flagIsIdentifier):
+            - s_hashFlagIsIdentifier -> s_hashFlagIsAtomic.
+        (WTF::StringImpl::isIdentifier):
+            - now synonymous to isAtomic().
+        * wtf/text/StringStatics.cpp:
+        (WTF::StringImpl::hashAndFlagsForEmptyUnique):
+            - removed s_hashFlagIsIdentifier.
+
+2014-03-20  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed Clang build fix for the GTK port after r165952.
+
+        * wtf/gobject/GMainLoopSource.h: Include the <functional> header for the std::function<> objects.
+
+2014-03-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GLIB] Add GMainLoopSource class to wrap idle and timeout sources
+        https://bugs.webkit.org/show_bug.cgi?id=130027
+
+        Reviewed by Martin Robinson.
+
+        GLib main loop sources like idle and timeouts are sometimes
+        unconvenient to use and it's very common to forget canceling the
+        source when the object is destroyed or reset the source ID in the
+        callback when called. GMainLoopSource is a wrapper class to make it
+        easier to handle sources and also to avoid those typical mistakes.
+        It forces to create sources with a name and the user doesn't have
+        to deal with the source ID anymore. The source is cancelled when
+        the object is deleted or when a new source is scheduled. It uses
+        std::function for callbacks so that we no longer need to use the
+        "proxy" static callbacks either. We can use std::bind to use a
+        function pointer or a member or even lambda functions. It also handles
+        repeating sources automatically depending on whether the given
+        function returns a bool or not.
+
+        * GNUmakefile.list.am:
+        * wtf/PlatformEfl.cmake:
+        * wtf/PlatformGTK.cmake:
+        * wtf/RunLoop.h:
+        * wtf/gobject/GMainLoopSource.cpp: Added.
+        (WTF::GMainLoopSource::createAndDeleteOnDestroy):
+        (WTF::GMainLoopSource::GMainLoopSource):
+        (WTF::GMainLoopSource::~GMainLoopSource):
+        (WTF::GMainLoopSource::cancel):
+        (WTF::GMainLoopSource::reset):
+        (WTF::GMainLoopSource::scheduleIdleSource):
+        (WTF::GMainLoopSource::schedule):
+        (WTF::GMainLoopSource::scheduleTimeoutSource):
+        (WTF::GMainLoopSource::scheduleAfterDelay):
+        (WTF::GMainLoopSource::voidCallback):
+        (WTF::GMainLoopSource::boolCallback):
+        (WTF::GMainLoopSource::socketCallback):
+        (WTF::GMainLoopSource::destroy):
+        (WTF::GMainLoopSource::voidSourceCallback):
+        (WTF::GMainLoopSource::boolSourceCallback):
+        (WTF::GMainLoopSource::socketSourceCallback):
+        * wtf/gobject/GMainLoopSource.h: Added.
+        (WTF::GMainLoopSource::isScheduled):
+        * wtf/gtk/MainThreadGtk.cpp:
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+        * wtf/gtk/RunLoopGtk.cpp:
+        (WTF::RunLoop::wakeUp):
+        (WTF::RunLoop::TimerBase::TimerBase):
+        (WTF::RunLoop::TimerBase::start):
+        (WTF::RunLoop::TimerBase::stop):
+        (WTF::RunLoop::TimerBase::isActive):
+
+2014-03-19  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=130494
+        EmptyUnique strings are Identifiers/Atomic
+
+        Reviewed by Geoff Garen.
+
+        EmptyUnique strings should set the Identifier/Atomic flag.
+
+        * wtf/text/AtomicString.h:
+        (WTF::AtomicString::add):
+            - Previously we assumed the only StringImpl that was validly allowed to claim to be
+              Atomic but not be in a table was the canonical empty string. Now that EmptyUniques
+              are also marked Atomic, all empty strings may pass this condition.
+        * wtf/text/StringImpl.cpp:
+        (WTF::StringImpl::~StringImpl):
+            - EmptyUnique strings are not in the Atomic/Identfiier tabels, so don't need removing.
+        * wtf/text/StringImpl.h:
+        (WTF::StringImpl::StringImpl):
+            - Change EmptyUnique constructor to call hashAndFlagsForEmptyUnique.
+        * wtf/text/StringStatics.cpp:
+        (WTF::StringImpl::hashAndFlagsForEmptyUnique):
+            - Allocate a sequential hash code (this should be just as good for distribution & better
+              for debugging than the random value) and set flags, now including Atomic & Identifier.
+
 2014-03-19  Gavin Barraclough  <barraclough@apple.com>
 
         Small cleanup of empty string

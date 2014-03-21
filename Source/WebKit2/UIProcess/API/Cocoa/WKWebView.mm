@@ -388,10 +388,14 @@
 - (void)_updateScrollViewBackground
 {
     UIColor *pageExtendedBackgroundColor = [self pageExtendedBackgroundColor];
-    if (pageExtendedBackgroundColor && [self _backgroundExtendsBeyondPage] && [_scrollView zoomScale] >= [_scrollView minimumZoomScale] && ![_scrollView isZoomBouncing])
-        [_scrollView setBackgroundColor:pageExtendedBackgroundColor];
-    else
-        [_scrollView setBackgroundColor:nil];
+
+    if ([_scrollView zoomScale] < [_scrollView minimumZoomScale]) {
+        CGFloat slope = 12;
+        CGFloat opacity = std::max(1 - slope * ([_scrollView minimumZoomScale] - [_scrollView zoomScale]), static_cast<CGFloat>(0));
+        pageExtendedBackgroundColor = [pageExtendedBackgroundColor colorWithAlphaComponent:opacity];
+    }
+
+    [_scrollView setBackgroundColor:pageExtendedBackgroundColor];
 }
 
 - (void)_didCommitLayerTree:(const WebKit::RemoteLayerTreeTransaction&)layerTreeTransaction
@@ -444,7 +448,7 @@
 
 - (void)_zoomToRect:(WebCore::FloatRect)targetRect atScale:(double)scale origin:(WebCore::FloatPoint)origin
 {
-    WebCore::FloatSize unobscuredContentSize = _page->unobscuredContentRect().size();
+    WebCore::FloatSize unobscuredContentSize([self _contentRectForUserInteraction].size);
     WebCore::FloatSize targetRectSizeAfterZoom = targetRect.size();
     targetRectSizeAfterZoom.scale(scale);
 
@@ -470,7 +474,7 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
 
 - (BOOL)_scrollToRect:(WebCore::FloatRect)targetRect origin:(WebCore::FloatPoint)origin minimumScrollDistance:(float)minimumScrollDistance
 {
-    WebCore::FloatRect unobscuredContentRect = _page->unobscuredContentRect();
+    WebCore::FloatRect unobscuredContentRect([self _contentRectForUserInteraction]);
     WebCore::FloatPoint unobscuredContentOffset = unobscuredContentRect.location();
     WebCore::FloatSize contentSize([_contentView bounds].size);
 
@@ -517,7 +521,7 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
 
     double currentScale = [_scrollView zoomScale];
 
-    WebCore::FloatSize unobscuredContentSize = _page->unobscuredContentRect().size();
+    WebCore::FloatSize unobscuredContentSize([self _contentRectForUserInteraction].size);
     double horizontalScale = unobscuredContentSize.width() * currentScale / targetRect.width();
     double verticalScale = unobscuredContentSize.height() * currentScale / targetRect.height();
 
@@ -629,6 +633,16 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
     [self _updateVisibleContentRects];
 }
 
+// Unobscured content rect where the user can interact. When the keyboard is up, this should be the area above or bellow the keyboard, wherever there is enough space.
+- (CGRect)_contentRectForUserInteraction
+{
+    // FIXME: handle split keyboard.
+    UIEdgeInsets obscuredInsets = _obscuredInsets;
+    obscuredInsets.bottom = std::max(_obscuredInsets.bottom, _keyboardVerticalOverlap);
+    CGRect unobscuredRect = UIEdgeInsetsInsetRect(self.bounds, obscuredInsets);
+    return [self convertRect:unobscuredRect toView:_contentView.get()];
+}
+
 - (void)_updateVisibleContentRects
 {
     if (![self usesStandardContentView])
@@ -637,9 +651,7 @@ static WebCore::FloatPoint constrainContentOffset(WebCore::FloatPoint contentOff
     CGRect fullViewRect = self.bounds;
     CGRect visibleRectInContentCoordinates = [self convertRect:fullViewRect toView:_contentView.get()];
 
-    UIEdgeInsets obscuredInsets = _obscuredInsets;
-    obscuredInsets.bottom = std::max(_obscuredInsets.bottom, _keyboardVerticalOverlap);
-    CGRect unobscuredRect = UIEdgeInsetsInsetRect(fullViewRect, obscuredInsets);
+    CGRect unobscuredRect = UIEdgeInsetsInsetRect(fullViewRect, _obscuredInsets);
     CGRect unobscuredRectInContentCoordinates = [self convertRect:unobscuredRect toView:_contentView.get()];
 
     CGFloat scaleFactor = [_scrollView zoomScale];
@@ -997,6 +1009,31 @@ static inline WebCore::LayoutMilestones layoutMilestones(_WKRenderingProgressEve
     return _page->pageCount();
 }
 
+- (BOOL)_supportsTextZoom
+{
+    return _page->supportsTextZoom();
+}
+
+- (double)_textZoomFactor
+{
+    return _page->textZoomFactor();
+}
+
+- (void)_setTextZoomFactor:(double)zoomFactor
+{
+    _page->setTextZoomFactor(zoomFactor);
+}
+
+- (double)_pageZoomFactor
+{
+    return _page->pageZoomFactor();
+}
+
+- (void)_setPageZoomFactor:(double)zoomFactor
+{
+    _page->setPageZoomFactor(zoomFactor);
+}
+
 #pragma mark iOS-specific methods
 
 #if PLATFORM(IOS)
@@ -1108,6 +1145,16 @@ static inline WebCore::LayoutMilestones layoutMilestones(_WKRenderingProgressEve
 - (void)_setDrawsTransparentBackground:(BOOL)drawsTransparentBackground
 {
     _page->setDrawsTransparentBackground(drawsTransparentBackground);
+}
+
+- (void)_setTopContentInset:(CGFloat)contentInset
+{
+    _page->setTopContentInset(contentInset);
+}
+
+- (CGFloat)_topContentInset
+{
+    return _page->topContentInset();
 }
 
 #endif

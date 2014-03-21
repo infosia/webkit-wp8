@@ -1,3 +1,552 @@
+2014-03-21  Mark Lam  <mark.lam@apple.com>
+
+        StackLayoutPhase should find the union'ed calleeVariable before accessing its machineLocal.
+        <https://webkit.org/b/130566>
+
+        Reviewed by Filip Pizlo.
+
+        * dfg/DFGStackLayoutPhase.cpp:
+        (JSC::DFG::StackLayoutPhase::run):
+
+2014-03-20  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should correctly compile GetByVal on Uint32Array that claims to return non-int32 values
+        https://bugs.webkit.org/show_bug.cgi?id=130562
+        <rdar://problem/16382842>
+
+        Reviewed by Geoffrey Garen.
+
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileGetByVal):
+        * tests/stress/uint32array-unsigned-load.js: Added.
+        (foo):
+
+2014-03-20  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: add frontend controller and models for replay sessions
+        https://bugs.webkit.org/show_bug.cgi?id=130145
+
+        Reviewed by Joseph Pecoraro.
+
+        * inspector/scripts/CodeGeneratorInspector.py: Add the conditional Replay domain.
+
+2014-03-20  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL ValueToInt32 mishandles the constant case, and by the way, there is a constant case that the FTL sees
+        https://bugs.webkit.org/show_bug.cgi?id=130546
+        <rdar://problem/16383308>
+
+        Reviewed by Mark Hahnenberg.
+        
+        Make AI do a better job of folding this.
+        
+        Also made the FTL backend be more tolerant of data representations. In this case it
+        didn't know that "constant" was a valid representation. There is a finite set of
+        possible representations, but broadly, we don't write code that presumes anything
+        about the representation of an input; that's what methods like lowJSValue() are for.
+        ValueToInt32 was previously not relying on those methods at all because it had some
+        hacks. Now, those hacks are just a fast-path optimization but ultimately we fall down
+        to lowJSValue().
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::compileValueToInt32):
+        (JSC::FTL::LowerDFGToLLVM::numberOrNotCellToInt32):
+        * tests/stress/value-to-int32-undefined-constant.js: Added.
+        (foo):
+        * tests/stress/value-to-int32-undefined.js: Added.
+        (foo):
+
+2014-03-20  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Add some assertions back
+        https://bugs.webkit.org/show_bug.cgi?id=130531
+
+        Reviewed by Geoffrey Garen.
+
+        We removed a useful set of assertions for verifying that MarkedBlocks were 
+        in the state that we expected them to be in after clearing marks in the Heap. 
+        We should add these back to catch bugs earlier.
+
+        * heap/MarkedBlock.h:
+        * heap/MarkedSpace.cpp:
+        (JSC::VerifyMarkedOrRetired::operator()):
+        (JSC::MarkedSpace::clearMarks):
+
+2014-03-20  Filip Pizlo  <fpizlo@apple.com>
+
+        Implement stackmap header version check and support new stackmap formats
+        https://bugs.webkit.org/show_bug.cgi?id=130535
+        <rdar://problem/16164284>
+
+        Reviewed by Geoffrey Garen.
+        
+        Add the notion of versioning so that LLVMers can happily implement new stackmap formats
+        without worrying about WebKit getting version-locked to LLVM. In the future, we will have
+        to implement parsing for a new LLVM stackmap format before it lands in LLVM, or we'll have
+        to have a "max usable LLVM revision" limit. But, thanks to versioning, we'll always be
+        happy to move backward in time to older versions of LLVM.
+
+        * ftl/FTLStackMaps.cpp:
+        (JSC::FTL::readObject):
+        (JSC::FTL::StackMaps::Constant::parse):
+        (JSC::FTL::StackMaps::StackSize::parse):
+        (JSC::FTL::StackMaps::Location::parse):
+        (JSC::FTL::StackMaps::Record::parse):
+        (JSC::FTL::StackMaps::parse):
+        (JSC::FTL::StackMaps::dump):
+        (JSC::FTL::StackMaps::dumpMultiline):
+        * ftl/FTLStackMaps.h:
+
+2014-03-20  Filip Pizlo  <fpizlo@apple.com>
+
+        Crash beneath operationTearOffActivation running this JS compression demo
+        https://bugs.webkit.org/show_bug.cgi?id=130295
+        <rdar://problem/16332337>
+
+        Reviewed by Oliver Hunt.
+        
+        Make sure that we flush things as if we were at a terminal, if we are at a block with
+        no forward edges. This fixes infinitely loopy code with captured variables.
+
+        Make sure that the CFG simplifier adds explicit flushes whenever it jettisons a block.
+        
+        Make it so that NodeIsFlushed is a thing. Previously only SSA used it and it computed
+        it by itself. Now it's an artifact of CPS rethreading.
+        
+        Add a bunch of tests. All of them previously either crashed or returned bad output due
+        to memory corruption.
+
+        * bytecode/CodeBlock.cpp:
+        (JSC::CodeBlock::isCaptured):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::flushForTerminal):
+        (JSC::DFG::ByteCodeParser::flushForReturn):
+        (JSC::DFG::ByteCodeParser::flushIfTerminal):
+        (JSC::DFG::ByteCodeParser::branchData):
+        (JSC::DFG::ByteCodeParser::parseBlock):
+        * dfg/DFGCFGSimplificationPhase.cpp:
+        (JSC::DFG::CFGSimplificationPhase::keepOperandAlive):
+        * dfg/DFGCPSRethreadingPhase.cpp:
+        (JSC::DFG::CPSRethreadingPhase::run):
+        (JSC::DFG::CPSRethreadingPhase::computeIsFlushed):
+        (JSC::DFG::CPSRethreadingPhase::addFlushedLocalOp):
+        (JSC::DFG::CPSRethreadingPhase::addFlushedLocalEdge):
+        * dfg/DFGCSEPhase.cpp:
+        (JSC::DFG::CSEPhase::performNodeCSE):
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::clearFlagsOnAllNodes):
+        * dfg/DFGGraph.h:
+        * dfg/DFGNode.h:
+        * dfg/DFGNodeFlags.cpp:
+        (JSC::DFG::dumpNodeFlags):
+        * dfg/DFGNodeFlags.h:
+        * dfg/DFGSSAConversionPhase.cpp:
+        (JSC::DFG::SSAConversionPhase::run):
+        * tests/stress/activation-test-loop.js: Added.
+        (Inner.this.doStuff):
+        (Inner):
+        (foo.inner.isDone):
+        (foo):
+        * tests/stress/inferred-infinite-loop-that-uses-captured-variables.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+        * tests/stress/infinite-loop-that-uses-captured-variables-before-throwing.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+        * tests/stress/infinite-loop-that-uses-captured-variables-but-they-do-not-escape.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+        * tests/stress/infinite-loop-that-uses-captured-variables-with-osr-entry.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+        * tests/stress/infinite-loop-that-uses-captured-variables.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+        * tests/stress/tricky-indirectly-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js: Added.
+        (bar):
+        (fuzz):
+        (foo.f):
+        (foo):
+        * tests/stress/tricky-inferred-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js: Added.
+        (bar):
+        (foo.f):
+        (foo):
+        * tests/stress/tricky-infinite-loop-that-uses-captured-variables-and-creates-the-activation-outside-the-loop.js: Added.
+        (bar):
+        (foo.f):
+        (foo):
+        * tests/stress/tricky-infinite-loop-that-uses-captured-variables.js: Added.
+        (bar):
+        (foo):
+        (noInline):
+
+2014-03-20  Oliver Hunt  <oliver@apple.com>
+
+        Incorrect behavior when mutating a typed array during set.
+        https://bugs.webkit.org/show_bug.cgi?id=130428
+
+        Reviewed by Geoffrey Garen.
+
+        This fixes a null derefence that occurs if a typed array
+        is mutated during the set() operation. The patch gets rid
+        of the "Quickly" version of setIndex that is assigning
+        JSValues of unknown type, as the numeric conversion can trigger
+        side effects that lead to neutering, and so we deref null.
+
+        * runtime/JSGenericTypedArrayView.h:
+        (JSC::JSGenericTypedArrayView::setIndex):
+        * runtime/JSGenericTypedArrayViewInlines.h:
+        (JSC::JSGenericTypedArrayView<Adaptor>::set):
+        (JSC::JSGenericTypedArrayView<Adaptor>::putByIndex):
+
+2014-03-20  Gavin Barraclough  <barraclough@apple.com>
+
+        Remove IdentifierTable typedef, isIdentifier()
+        https://bugs.webkit.org/show_bug.cgi?id=130533
+
+        Rubber stamped by Geoff Garen.
+
+        Code should use AtomicStringTable, isAtomic() directly.
+
+        * API/JSClassRef.cpp:
+        (OpaqueJSClass::~OpaqueJSClass):
+        (OpaqueJSClassContextData::OpaqueJSClassContextData):
+        (OpaqueJSClass::className):
+        * API/JSClassRef.h:
+        * bytecode/SpeculatedType.cpp:
+        (JSC::speculationFromCell):
+        * bytecompiler/BytecodeGenerator.cpp:
+        (JSC::BytecodeGenerator::BytecodeGenerator):
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::compileIn):
+        (JSC::DFG::SpeculativeJIT::speculateStringIdentAndLoadStorage):
+        * ftl/FTLLowerDFGToLLVM.cpp:
+        (JSC::FTL::LowerDFGToLLVM::speculateStringIdent):
+        * heap/Heap.cpp:
+        (JSC::Heap::collect):
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::atomicStringTable):
+        * parser/ASTBuilder.h:
+        (JSC::ASTBuilder::addVar):
+        * parser/Parser.cpp:
+        (JSC::Parser<LexerType>::createBindingPattern):
+        * runtime/Completion.cpp:
+        (JSC::checkSyntax):
+        (JSC::evaluate):
+        * runtime/Identifier.cpp:
+        (JSC::Identifier::checkCurrentAtomicStringTable):
+        * runtime/Identifier.h:
+        (JSC::Identifier::Identifier):
+        * runtime/IdentifierInlines.h:
+        (JSC::Identifier::add):
+        * runtime/JSCJSValue.cpp:
+        (JSC::JSValue::dumpInContext):
+        * runtime/JSLock.cpp:
+        (JSC::JSLock::didAcquireLock):
+        (JSC::JSLock::willReleaseLock):
+        (JSC::JSLock::DropAllLocks::DropAllLocks):
+        (JSC::JSLock::DropAllLocks::~DropAllLocks):
+        * runtime/JSLock.h:
+        * runtime/PropertyMapHashTable.h:
+        (JSC::PropertyTable::find):
+        (JSC::PropertyTable::get):
+        (JSC::PropertyTable::findWithString):
+        * runtime/PropertyName.h:
+        (JSC::PropertyName::PropertyName):
+        * runtime/PropertyNameArray.cpp:
+        (JSC::PropertyNameArray::add):
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+        (JSC::VM::~VM):
+        * runtime/VM.h:
+        (JSC::VM::atomicStringTable):
+
+2014-03-20  Gavin Barraclough  <barraclough@apple.com>
+
+        Merge AtomicString, Identifier
+        https://bugs.webkit.org/show_bug.cgi?id=128624
+
+        Reviewed by Geoff Garen.
+
+        WTF::StringImpl currently supports two uniquing mechanism - AtomicString and
+        Identifer - that is one too many.
+
+        Remove Identifier in favour of AtomicString. Identifier had two interesting
+        mechanisms that we preserve.
+
+        (1) JSC API VMs each get their own string table, switch the string table on
+            API entry/exit.
+        (2) JSC caches a pointer to the string table on the VM to avoid a thread
+            specific access. Adds a new AtomicString::add method to support this.
+
+        * API/JSAPIWrapperObject.mm:
+            - updated includes.
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+            - added IdentifierInlines.h.
+        * inspector/JSInjectedScriptHostPrototype.cpp:
+        * inspector/JSJavaScriptCallFramePrototype.cpp:
+            - updated includes.
+        * interpreter/CallFrame.h:
+        (JSC::ExecState::atomicStringTable):
+            - added, used via AtomicString::add to avoid thread-specific access.
+        * runtime/ConsolePrototype.cpp:
+            - updated includes.
+        * runtime/Identifier.cpp:
+        (JSC::Identifier::add):
+        (JSC::Identifier::add8):
+            - vm->smallStrings.singleCharacterStringRep now returns Atomic strings, use AtomicString::add.
+        * runtime/Identifier.h:
+        (JSC::Identifier::Identifier):
+            - added ASSERTS.
+        (JSC::Identifier::add):
+            - vm->smallStrings.singleCharacterStringRep now returns Atomic strings, use AtomicString::add.
+        * runtime/IdentifierInlines.h: Added.
+        (JSC::Identifier::add):
+            - moved from Identifier.h, use AtomicString::add.
+        * runtime/JSCInlines.h:
+            - added IdentifierInlines.h.
+        * runtime/JSLock.h:
+            - removed IdentifierTable.
+        * runtime/PropertyNameArray.cpp:
+            - updated includes.
+        * runtime/SmallStrings.cpp:
+        (JSC::SmallStringsStorage::SmallStringsStorage):
+            - ensure all single character strings are Atomic.
+        * runtime/VM.cpp:
+        (JSC::VM::VM):
+            - instantiate CommonIdentifiers with the correct AtomicStringTable set on thread data.
+        * runtime/VM.h:
+        (JSC::VM::atomicStringTable):
+            - added, used via AtomicString::add to avoid thread-specific access.
+
+2014-03-20  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [ARM64] Fix assembler build issues and add cacheFlush support for Linux
+        https://bugs.webkit.org/show_bug.cgi?id=130502
+
+        Reviewed by Michael Saboff.
+
+        Add limits.h for INT_MIN in ARM64Assembler(). Delete shouldBlindForSpecificArch(uintptr_t)
+        because on ARM64 uint64_t and uintptr_t is the same with GCC and Clang as well.
+        Add cacheFlush support for Linux.
+
+        * assembler/ARM64Assembler.h:
+        (JSC::ARM64Assembler::linuxPageFlush):
+        (JSC::ARM64Assembler::cacheFlush):
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::shouldBlindForSpecificArch):
+
+2014-03-19  Gavin Barraclough  <barraclough@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=130494
+        EmptyUnique strings are Identifiers/Atomic
+
+        Reviewed by Geoff Garen.
+
+        EmptyUnique strings should set the Identifier/Atomic flag.
+
+        This fixes an unreproducible bug we believe exists in Identifier handling.
+        Expected behaviour is that while Identifiers may reference EmptyUniques
+        (StringImpls allocated as UIDs for PrivateNames), these are not created
+        through the main Identifier constructor, the Identifier flag is not set
+        on PrivateNames, and we should never lookup EmptyUnique strings in the
+        IdentifierTable.
+
+        Unfortunately that was happening. Some tables used to implement property
+        access in the JIT hold StringImpl*s, and turn these back into Identifiers
+        using the identfiier constructor. Since the code generator will now plant
+        by-id (cachable) accesses to PrivateNames we can end up passing an
+        EmptyUnique to Identifier::add, potentially leading to PrivateNames being
+        uniqued together (though hard to prove, since the hash codes are random).
+
+        * runtime/PropertyName.h:
+        (JSC::PropertyName::PropertyName):
+        (JSC::PropertyName::uid):
+        (JSC::PropertyName::publicName):
+        (JSC::PropertyName::asIndex):
+            - PropertyName assumed that PrivateNames are not Identifiers - instead check isEmptyUnique().
+        * runtime/Structure.cpp:
+        (JSC::Structure::getPropertyNamesFromStructure):
+            - Structure assumed that PrivateNames are not Identifiers - instead check isEmptyUnique().
+
+2014-03-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, revert the DFGCommon.h change in r165938. It was not intentional.
+
+        * dfg/DFGCommon.h:
+
+2014-03-19  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        GC timer should intelligently choose between EdenCollections and FullCollections
+        https://bugs.webkit.org/show_bug.cgi?id=128261
+
+        Reviewed by Geoffrey Garen.
+
+        Most of the GCs while browsing the web are due to the GC timer. Currently the GC timer 
+        always does FullCollections. To reduce the impact of the GC timer on the system this patch
+        changes Heap so that it has two timers, one for each type of collection. The FullCollection
+        timer is notified at the end of EdenCollections how much the Heap has grown since the last 
+        FullCollection and when somebody notifies the Heap of abandoned memory (which usually wouldn't 
+        be detected by an EdenCollection).
+
+        * CMakeLists.txt:
+        * GNUmakefile.list.am:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * heap/EdenGCActivityCallback.cpp: Added.
+        (JSC::EdenGCActivityCallback::EdenGCActivityCallback):
+        (JSC::EdenGCActivityCallback::doCollection):
+        (JSC::EdenGCActivityCallback::lastGCLength):
+        (JSC::EdenGCActivityCallback::deathRate):
+        (JSC::EdenGCActivityCallback::gcTimeSlice):
+        * heap/EdenGCActivityCallback.h: Added.
+        (JSC::GCActivityCallback::createEdenTimer):
+        * heap/FullGCActivityCallback.cpp: Added.
+        (JSC::FullGCActivityCallback::FullGCActivityCallback):
+        (JSC::FullGCActivityCallback::doCollection):
+        (JSC::FullGCActivityCallback::lastGCLength):
+        (JSC::FullGCActivityCallback::deathRate):
+        (JSC::FullGCActivityCallback::gcTimeSlice):
+        * heap/FullGCActivityCallback.h: Added.
+        (JSC::GCActivityCallback::createFullTimer):
+        * heap/GCActivityCallback.cpp:
+        (JSC::GCActivityCallback::GCActivityCallback):
+        (JSC::GCActivityCallback::doWork):
+        (JSC::GCActivityCallback::scheduleTimer):
+        (JSC::GCActivityCallback::cancelTimer):
+        (JSC::GCActivityCallback::didAllocate):
+        (JSC::GCActivityCallback::willCollect):
+        (JSC::GCActivityCallback::cancel):
+        * heap/GCActivityCallback.h:
+        * heap/Heap.cpp:
+        (JSC::Heap::Heap):
+        (JSC::Heap::reportAbandonedObjectGraph):
+        (JSC::Heap::didAbandon):
+        (JSC::Heap::collectAllGarbage):
+        (JSC::Heap::collect):
+        (JSC::Heap::willStartCollection):
+        (JSC::Heap::updateAllocationLimits):
+        (JSC::Heap::didFinishCollection):
+        (JSC::Heap::setFullActivityCallback):
+        (JSC::Heap::setEdenActivityCallback):
+        (JSC::Heap::fullActivityCallback):
+        (JSC::Heap::edenActivityCallback):
+        (JSC::Heap::setGarbageCollectionTimerEnabled):
+        (JSC::Heap::didAllocate):
+        (JSC::Heap::shouldDoFullCollection):
+        * heap/Heap.h:
+        (JSC::Heap::lastFullGCLength):
+        (JSC::Heap::lastEdenGCLength):
+        (JSC::Heap::increaseLastFullGCLength):
+        (JSC::Heap::sizeBeforeLastEdenCollection):
+        (JSC::Heap::sizeAfterLastEdenCollection):
+        (JSC::Heap::sizeBeforeLastFullCollection):
+        (JSC::Heap::sizeAfterLastFullCollection):
+        * heap/HeapOperation.h:
+        * heap/HeapStatistics.cpp:
+        (JSC::HeapStatistics::showObjectStatistics):
+        * heap/HeapTimer.cpp:
+        (JSC::HeapTimer::timerDidFire):
+        * jsc.cpp:
+        (functionFullGC):
+        (functionEdenGC):
+        * runtime/Options.h:
+
+2014-03-19  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r165926.
+        https://bugs.webkit.org/show_bug.cgi?id=130488
+
+        broke the iOS build (Requested by estes on #webkit).
+
+        Reverted changeset:
+
+        "GC timer should intelligently choose between EdenCollections
+        and FullCollections"
+        https://bugs.webkit.org/show_bug.cgi?id=128261
+        http://trac.webkit.org/changeset/165926
+
+2014-03-13  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        GC timer should intelligently choose between EdenCollections and FullCollections
+        https://bugs.webkit.org/show_bug.cgi?id=128261
+
+        Reviewed by Geoffrey Garen.
+
+        Most of the GCs while browsing the web are due to the GC timer. Currently the GC timer 
+        always does FullCollections. To reduce the impact of the GC timer on the system this patch
+        changes Heap so that it has two timers, one for each type of collection. The FullCollection
+        timer is notified at the end of EdenCollections how much the Heap has grown since the last 
+        FullCollection and when somebody notifies the Heap of abandoned memory (which wouldn't be 
+        detected by an EdenCollection).
+
+        * heap/GCActivityCallback.cpp:
+        (JSC::GCActivityCallback::GCActivityCallback):
+        (JSC::GCActivityCallback::doWork):
+        (JSC::FullGCActivityCallback::FullGCActivityCallback):
+        (JSC::FullGCActivityCallback::doCollection):
+        (JSC::EdenGCActivityCallback::EdenGCActivityCallback):
+        (JSC::EdenGCActivityCallback::doCollection):
+        (JSC::GCActivityCallback::scheduleTimer):
+        (JSC::GCActivityCallback::cancelTimer):
+        (JSC::GCActivityCallback::didAllocate):
+        (JSC::GCActivityCallback::willCollect):
+        (JSC::GCActivityCallback::cancel):
+        * heap/GCActivityCallback.h:
+        (JSC::GCActivityCallback::GCActivityCallback):
+        (JSC::GCActivityCallback::createFullTimer):
+        (JSC::GCActivityCallback::createEdenTimer):
+        * heap/Heap.cpp:
+        (JSC::Heap::Heap):
+        (JSC::Heap::didAbandon):
+        (JSC::Heap::willStartCollection):
+        (JSC::Heap::updateAllocationLimits):
+        (JSC::Heap::setFullActivityCallback):
+        (JSC::Heap::setEdenActivityCallback):
+        (JSC::Heap::fullActivityCallback):
+        (JSC::Heap::edenActivityCallback):
+        (JSC::Heap::setGarbageCollectionTimerEnabled):
+        (JSC::Heap::didAllocate):
+        * heap/Heap.h:
+        * heap/HeapTimer.cpp:
+        (JSC::HeapTimer::timerDidFire):
+
+2014-03-19  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION(r165459): It broke 109 jsc stress test on ARM Thumb2 and Mac 32 bit
+        https://bugs.webkit.org/show_bug.cgi?id=130134
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGFixupPhase.cpp:
+        (JSC::DFG::FixupPhase::fixupNode): Can't do some optimizations if you don't have a lot of registers.
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::cachedGetById): Move stuff around before going into the IC code to ensure that we give the IC code the invariants it needs. This only happens in case of GetByIdFlush, where we are forced into using weird combinations of registers because the results have to be in t0/t1.
+        (JSC::DFG::SpeculativeJIT::compile): For a normal GetById, the register allocator should just do the right thing so nobody has to move anything around.
+        * jit/JITInlineCacheGenerator.cpp:
+        (JSC::JITGetByIdGenerator::JITGetByIdGenerator): Assert the things we want.
+        * jit/JITInlineCacheGenerator.h:
+        * jit/Repatch.cpp:
+        (JSC::generateGetByIdStub): Remove a previous incomplete hack to try to work around the DFG's problem.
+
+2014-03-19  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Normalize some of the older JSC options
+        https://bugs.webkit.org/show_bug.cgi?id=128753
+
+        Reviewed by Michael Saboff.
+
+        * runtime/Options.cpp:
+        (JSC::Options::initialize):
+
 2014-03-12  Mark Lam  <mark.lam@apple.com>
 
         Update type of local vars to match the type of String length.

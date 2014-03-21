@@ -159,6 +159,7 @@ Page::Page(PageClients& pageClients)
     , m_mediaVolume(1)
     , m_pageScaleFactor(1)
     , m_deviceScaleFactor(1)
+    , m_topContentInset(0)
     , m_suppressScrollbarAnimations(false)
     , m_didLoadUserStyleSheet(false)
     , m_userStyleSheetModificationTime(0)
@@ -695,10 +696,12 @@ void Page::setPageScaleFactor(float scale, const IntPoint& origin)
     FrameView* view = document->view();
 
     if (scale == m_pageScaleFactor) {
-        if (view && (view->scrollPosition() != origin || view->delegatesScrolling())) {
+        if (view && view->scrollPosition() != origin) {
             if (!m_settings->delegatesPageScaling())
                 document->updateLayoutIgnorePendingStylesheets();
-            view->setScrollPosition(origin);
+
+            if (!view->delegatesScrolling())
+                view->setScrollPosition(origin);
         }
         return;
     }
@@ -729,7 +732,6 @@ void Page::setPageScaleFactor(float scale, const IntPoint& origin)
     }
 }
 
-
 void Page::setDeviceScaleFactor(float scaleFactor)
 {
     if (m_deviceScaleFactor == scaleFactor)
@@ -747,7 +749,17 @@ void Page::setDeviceScaleFactor(float scaleFactor)
     pageCache()->markPagesForFullStyleRecalc(this);
     GraphicsContext::updateDocumentMarkerResources();
 }
-
+    
+void Page::setTopContentInset(float contentInset)
+{
+    if (m_topContentInset == contentInset)
+        return;
+    
+    m_topContentInset = contentInset;
+    if (RenderView* renderView = mainFrame().contentRenderer())
+        renderView->setNeedsLayout();
+}
+    
 void Page::setShouldSuppressScrollbarAnimations(bool suppressAnimations)
 {
     if (suppressAnimations == m_suppressScrollbarAnimations)
@@ -912,9 +924,7 @@ const String& Page::userStyleSheet() const
     if (!data)
         return m_userStyleSheet;
 
-    RefPtr<TextResourceDecoder> decoder = TextResourceDecoder::create("text/css");
-    m_userStyleSheet = decoder->decode(data->data(), data->size());
-    m_userStyleSheet.append(decoder->flush());
+    m_userStyleSheet = TextResourceDecoder::create("text/css")->decodeAndFlush(data->data(), data->size());
 
     return m_userStyleSheet;
 }

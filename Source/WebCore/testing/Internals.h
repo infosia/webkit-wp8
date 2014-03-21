@@ -255,6 +255,8 @@ public:
     void setHeaderHeight(float);
     void setFooterHeight(float);
 
+    void setTopContentInset(float);
+
 #if ENABLE(FULLSCREEN_API)
     void webkitWillEnterFullScreenForElement(Element*);
     void webkitDidEnterFullScreenForElement(Element*);
@@ -333,7 +335,8 @@ public:
     void endMediaSessionInterruption(const String&);
     void applicationWillEnterForeground() const;
     void applicationWillEnterBackground() const;
-    void setMediaSessionRestrictions(const String& mediaType, const String& restrictions, ExceptionCode& ec);
+    void setMediaSessionRestrictions(const String& mediaType, const String& restrictions, ExceptionCode&);
+    void postRemoteControlCommand(const String&, ExceptionCode&);
 
 private:
     explicit Internals(Document*);

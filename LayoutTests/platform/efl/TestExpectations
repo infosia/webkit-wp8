@@ -204,6 +204,9 @@ fast/canvas/canvas-quadratic-same-endpoint.html
 # Tests for features under development
 # ------------------------------------
 
+# Path::addPath needs to be implemented
+webkit.org/b/130464 fast/canvas/canvas-path-addPath.html
+
 # Unclassified failures
 fast/events/platform-wheelevent-paging-x-in-non-scrolling-div.html
 fast/events/platform-wheelevent-paging-x-in-non-scrolling-page.html
@@ -1762,8 +1765,6 @@ webkit.org/b/127475 fast/dom/inline-event-attributes-release.html [ Failure ]
 webkit.org/b/127476 fast/history/go-back-to-iframe-with-plugin.html [ Failure ]
 
 webkit.org/b/127477 css2.1/t1604-c542-letter-sp-00-b-a.html [ Missing ]
-
-webkit.org/b/127482 mathml/presentation/mo-stretch.html [ Failure ]
 
 webkit.org/b/127489 http/tests/misc/will-send-request-returns-null-on-redirect.html [ Failure ]
 

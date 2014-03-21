@@ -77,7 +77,6 @@ namespace JSC {
     class ExecState;
     class HandleStack;
     class Identifier;
-    class IdentifierTable;
     class Interpreter;
     class JSGlobalObject;
     class JSObject;
@@ -288,13 +287,15 @@ namespace JSC {
 #endif
         Strong<JSCell> iterationTerminator;
 
-        IdentifierTable* identifierTable;
+        AtomicStringTable* m_atomicStringTable;
         CommonIdentifiers* propertyNames;
         const MarkedArgumentBuffer* emptyList; // Lists are supposed to be allocated on the stack to have their elements properly marked, which is not the case here - but this list has nothing to mark.
         SmallStrings smallStrings;
         NumericStrings numericStrings;
         DateInstanceCache dateInstanceCache;
         WTF::SimpleStats machineCodeBytesPerBytecodeWordForBaselineJIT;
+
+        AtomicStringTable* atomicStringTable() const { return m_atomicStringTable; }
 
         void setInDefineOwnProperty(bool inDefineOwnProperty)
         {

@@ -1,3 +1,108 @@
+2014-03-21  Darin Adler  <darin@apple.com>
+
+        Improve idiom used for string building in a few places
+        https://bugs.webkit.org/show_bug.cgi?id=130561
+
+        Reviewed by Andreas Kling.
+
+        * WebView/WebHTMLRepresentation.mm:
+        (regExpForLabels): Use StringBuilder.
+
+2014-03-21  Darin Adler  <darin@apple.com>
+
+        Add a combined decodeAndFlush to TextResourceDecoder
+        https://bugs.webkit.org/show_bug.cgi?id=130560
+
+        Reviewed by Andreas Kling.
+
+        * WebView/WebView.mm:
+        (+[WebView _decodeData:]): Use decodeAndFlush.
+
+2014-03-20  Anders Carlsson  <andersca@apple.com>
+
+        Fix build.
+
+        * MigrateHeaders.make:
+
+2014-03-20  Pratik Solanki  <psolanki@apple.com>
+
+        [iOS] Get code to compile on older iOS versions
+        https://bugs.webkit.org/show_bug.cgi?id=130142
+        <rdar://problem/16302908>
+
+        Reviewed by Darin Adler.
+
+        * History/WebHistory.mm:
+        (getDayBoundaries):
+        * Plugins/WebPluginController.h:
+        * Plugins/WebPluginController.mm:
+        (+[WebPluginController plugInViewWithArguments:fromPluginPackage:]):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (pluginView):
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences _setAllowCompositingLayerVisualDegradation:]):
+        * WebView/WebPreferencesPrivate.h:
+
+2014-03-20  Lucas Forschler  <lforschler@apple.com>
+
+    Rollout r165944.  Build break.
+    
+2014-03-19  Pratik Solanki  <psolanki@apple.com>
+
+        [iOS] Get code to compile on older iOS versions
+        https://bugs.webkit.org/show_bug.cgi?id=130142
+        <rdar://problem/16302908>
+
+        Reviewed by Darin Adler.
+
+        * History/WebHistory.mm:
+        (getDayBoundaries):
+        * Plugins/WebPluginController.h:
+        * Plugins/WebPluginController.mm:
+        (+[WebPluginController plugInViewWithArguments:fromPluginPackage:]):
+        * WebCoreSupport/WebFrameLoaderClient.mm:
+        (pluginView):
+        * WebView/WebPreferences.mm:
+        (-[WebPreferences _setAllowCompositingLayerVisualDegradation:]):
+        * WebView/WebPreferencesPrivate.h:
+
+2014-03-19  Jer Noble  <jer.noble@apple.com>
+
+        [Mac][EME] Query whether decoder support exists before creating a new MediaKeys object.
+        https://bugs.webkit.org/show_bug.cgi?id=130459
+
+        Reviewed by Eric Carlson.
+
+        * WebCoreSupport/WebSystemInterface.mm:
+        (InitWebCoreSystemInterface): Initialize the new WCSI method.
+
+2014-03-19  Brady Eidson  <beidson@apple.com>
+
+        Filter out editable services from image menu for non-contenteditable images
+        <rdar://problem/16319645> and https://bugs.webkit.org/show_bug.cgi?id=130437
+
+        Reviewed by Tim Horton.
+
+        * Misc/WebSharingServicePickerController.h:
+        * Misc/WebSharingServicePickerController.mm:
+        (-[WebSharingServicePickerController sharingServicePicker:sharingServicesForItems:mask:proposedSharingServices:]):
+          Filter out editing services based on the includeEditorServices flag.
+        * WebCoreSupport/WebContextMenuClient.mm:
+        (WebContextMenuClient::contextMenuForEvent):
+
+2014-03-19  Jer Noble  <jer.noble@apple.com>
+
+        [iOS] Disable the video plugin proxy by default on WK1.
+        https://bugs.webkit.org/show_bug.cgi?id=130460
+
+        Reviewed by Eric Carlson.
+
+        Update the defaults to universally enable the AVFoundationEnabled preference, disable the
+        VideoPluginProxyEnabled preference, and on iOS only enable the AVKitEnabled preference.
+
+        * WebView/WebPreferences.mm:
+        (+[WebPreferences initialize]):
+
 2014-03-18  Samuel White  <samuel_white@apple.com>
 
         AX: Not able to use arrow keys to read text with VoiceOver before selection is set someplace (anyplace).

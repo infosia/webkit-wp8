@@ -1,3 +1,75 @@
+2014-03-20  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [EFL][GTK] Get CMake to find Freetype2 properly
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+
+        Reviewed by Martin Robinson.
+
+        Newer versions of CMake are not able to find Freetype2 correctly.
+        FindFreetype2.cmake checks for the version number in freetype.h header, since it seems that bug exists in
+        freetype2 repo, because a completely different version number is found in freetype2.pc.
+
+        * Source/cmake/FindFreetype2.cmake: Added.
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+
+2014-03-20  Brian Burg  <bburg@apple.com>
+
+        Web Replay: capture and replay mouse events
+        https://bugs.webkit.org/show_bug.cgi?id=129395
+
+        Reviewed by Joseph Pecoraro.
+
+        Create a manual test for capture/replay of mouse events.
+        Copy over the crypto-md5.js library from SunSpider.
+
+        * ManualTests/inspector/replay-mouse-events.html: Added.
+        * ManualTests/inspector/resources/crypto-md5.js: Added.
+
+2014-03-20  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][CMake] Add support for building with Clang
+        https://bugs.webkit.org/show_bug.cgi?id=130260
+
+        Reviewed by Martin Robinson.
+
+        * Source/PlatformGTK.cmake: Run the generate-gtkdoc script with the CFLAGS env set
+        to the list C compiler flags as constructed by CMake.
+        * Source/cmake/OptionsCommon.cmake: When building with Clang, use the -Qunused-arguments
+        compiler option to suppress verbose warnings about arguments that went unused by the driver.
+        * Source/cmake/OptionsGTK.cmake: Use -fno-omit-frame-pointer for both GCC and Clang.
+        -fno-tree-dce should be used only for GCC.
+        * Source/cmake/gtest/CMakeLists.txt: When building with Clang the GTest framework
+        should be built with GTEST_HAS_TR1_TUPLE macro defined to 0 to avoid build failures.
+
+2014-03-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r165962.
+        https://bugs.webkit.org/show_bug.cgi?id=130512
+
+        It broke the build (Requested by Ossy on #webkit).
+
+        Reverted changeset:
+
+        "[EFL][GTK] Get CMake to find Freetype2 properly"
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+        http://trac.webkit.org/changeset/165962
+
+2014-03-20  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [EFL][GTK] Get CMake to find Freetype2 properly
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+
+        Reviewed by Csaba Osztrogonác.
+
+        Newer versions of CMake are not able to find Freetype2 correctly.
+        FindFreetype2.cmake checks for the version number in freetype.h header, since it seems that bug exists in
+        freetype2 repo, because a completely different version number is found in freetype2.pc.
+
+        * Source/cmake/FindFreetype2.cmake: Added.
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+
 2014-03-17  Brendan Long  <b.long@cablelabs.com>
 
         [GStreamer] human readable language code for tracks

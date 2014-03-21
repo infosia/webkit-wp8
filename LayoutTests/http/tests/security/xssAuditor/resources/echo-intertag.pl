@@ -84,7 +84,14 @@ if ($cgi->param('relay-target-ids-for-event')) {
     print "}, true);\n";
     print "</script>\n";
 }
-print "<body>\n";
+if ($cgi->param('inHead')) {
+    print "<head>\n";
+} else {
+    print "<body>\n";
+}
+if ($cgi->param('replaceState')) {
+    print "<script>history.replaceState({}, '', '#must-not-appear');</script>\n";
+}
 print $cgi->param('q');
 if ($cgi->param('clutter')) {
     print $cgi->param('clutter');
@@ -133,5 +140,9 @@ if ($cgi->param('alert-cookie')) {
 if ($cgi->param('echo-report')) {
     print "<script src=/security/contentSecurityPolicy/resources/go-to-echo-report.js></script>\n";
 }
-print "</body>\n";
+if ($cgi->param('inHead')) {
+    print "</head>\n";
+} else {
+    print "</body>\n";
+}
 print "</html>\n";

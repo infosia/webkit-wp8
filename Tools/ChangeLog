@@ -1,3 +1,122 @@
+2014-03-21  Eva Balazsfalvi  <evab.u-szeged@partner.samsung.com>
+
+        [webkitpy] Fix has_valid_reviewer()
+        https://bugs.webkit.org/show_bug.cgi?id=130589
+
+        Reviewed by Csaba Osztrogonác.
+
+        * Scripts/webkitpy/common/checkout/changelog.py:
+        (ChangeLogEntry.has_valid_reviewer):
+        * Scripts/webkitpy/common/checkout/changelog_unittest.py:
+        (test_has_valid_reviewer):
+        * Scripts/webkitpy/common/config/committers.py:
+        (CommitterList._reviewer_only):
+        (CommitterList.committer_by_name):
+        (CommitterList.reviewer_by_email):
+        (CommitterList):
+        (CommitterList.reviewer_by_name):
+
+2014-03-21  Jozsef Berta  <jberta.u-szeged@partner.samsung.com>
+
+        Add cache support for jhbuild
+        https://bugs.webkit.org/show_bug.cgi?id=130588
+
+        Reviewed by Csaba Osztrogonác.
+
+        * jhbuild/jhbuildrc_common.py:
+        (init): Jhbuild can now save the dependencies locally, if the JHBUILD_MIRROR environment variable is set.
+
+2014-03-21  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [CMake] Add support for MAX_CPU_LOAD translated to -l in ninja and make
+        https://bugs.webkit.org/show_bug.cgi?id=130504
+
+        Reviewed by Martin Robinson.
+
+        * Scripts/build-webkit: Add the maxCPULoad() to the makeArgs in
+        CMake if not specified.
+        * Scripts/webkitdirs.pm:
+        (determineMaxCPULoad): Read MAX_CPU_LOAD as maxCPULoad.
+        (maxCPULoad): determineMaxCPULoad and return maxCPULoad.
+
+2014-03-21  Andreas Kling  <akling@apple.com>
+
+        RetainPtr API test should use CFArray instead of CFString for testing.
+        <rdar://problem/16384899>
+
+        Unreviewed bot fix.
+
+        * TestWebKitAPI/Tests/WTF/cf/RetainPtr.cpp:
+        (TestWebKitAPI::TEST):
+        * TestWebKitAPI/Tests/WTF/cf/RetainPtrHashing.cpp:
+        (TestWebKitAPI::TEST):
+
+2014-03-20  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        Move to using std::unique_ptr for EFL objects.
+        https://bugs.webkit.org/show_bug.cgi?id=129853
+
+        Reviewed by Gyuyoung Kim.
+
+        EflUniquePtr is a template alias of std::unique_ptr
+        with a custom deleter for each Efl Objects, which is motivated by GUniquePtr.
+        This patch replaces uses of OwnPtr and PassOwnPtr for Efl objects with EflUniquePtr.
+
+        * DumpRenderTree/efl/DumpRenderTree.cpp:
+        (main):
+        * ImageDiff/efl/ImageDiff.cpp:
+        (initEfl):
+        (main):
+
+2014-03-20  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed buildfix after r165983 for non Cocoa platforms
+
+        Renamed WKPreferencesPrivate.h to WKPreferencesRefPrivate.h
+
+        * TestWebKitAPI/Tests/WebKit2/ScrollPinningBehaviors.cpp:
+        * TestWebKitAPI/Tests/WebKit2/WKPreferences.cpp:
+        * WebKitTestRunner/TestController.cpp:
+
+2014-03-20  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][CMake] Add support for building with Clang
+        https://bugs.webkit.org/show_bug.cgi?id=130260
+
+        Reviewed by Martin Robinson.
+
+        * TestWebKitAPI/CMakeLists.txt: When building with Clang TestWebKitAPI should be
+        built with GTEST_HAS_TR1_TUPLE defined to 0 to avoid build failures occuring in the
+        included GTest framework headers.
+        * gtk/generate-gtkdoc:
+        (prepare_environment_for_gtkdoc_generation): Don't modify the CFLAGS env anymore
+        in case of using Clang since that is now set by the CMake rule.
+
+2014-03-19  Simon Fraser  <simon.fraser@apple.com>
+
+        Expose text and page zoom in WK2 SPI, and hook them up in MiniBrowser
+        https://bugs.webkit.org/show_bug.cgi?id=130476
+
+        Reviewed by Anders Carlsson.
+        
+        Hook up page/text zoom in MiniBrowser, make reload work, remove some logging.
+
+        * MiniBrowser/mac/WK1BrowserWindowController.m:
+        (-[WK1BrowserWindowController webView:decidePolicyForNavigationAction:request:frame:decisionListener:]):
+        Remove log.
+        * MiniBrowser/mac/WK2BrowserWindowController.m:
+        (-[WK2BrowserWindowController awakeFromNib]):
+        (-[WK2BrowserWindowController validateMenuItem:]):
+        (-[WK2BrowserWindowController reload:]):
+        Hook up reload.
+        (-[WK2BrowserWindowController toggleZoomMode:]):
+        (-[WK2BrowserWindowController resetZoom:]):
+        (-[WK2BrowserWindowController canResetZoom]):
+        (-[WK2BrowserWindowController currentZoomFactor]):
+        (-[WK2BrowserWindowController setCurrentZoomFactor:]):
+        (-[WK2BrowserWindowController canZoomIn]):
+        (-[WK2BrowserWindowController canZoomOut]):
+
 2014-03-19  Alexey Proskuryakov  <ap@apple.com>
 
         REGRESSION (OS X 10.9.2): PageVisibilityStateWithWindowChanges.WebKit2 API test fails

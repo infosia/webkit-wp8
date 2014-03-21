@@ -272,6 +272,7 @@ void Internals::resetToConsistentState(Page* page)
     if (mainFrameView) {
         mainFrameView->setHeaderHeight(0);
         mainFrameView->setFooterHeight(0);
+        page->setTopContentInset(0);
     }
 
     TextRun::setAllowsRoundingHacks(false);
@@ -1827,6 +1828,16 @@ void Internals::setFooterHeight(float height)
     FrameView* frameView = document->view();
     frameView->setFooterHeight(height);
 }
+    
+void Internals::setTopContentInset(float contentInset)
+{
+    Document* document = contextDocument();
+    if (!document)
+        return;
+    
+    Page* page = document->page();
+    page->setTopContentInset(contentInset);
+}
 
 #if ENABLE(FULLSCREEN_API)
 void Internals::webkitWillEnterFullScreenForElement(Element* element)
@@ -2290,5 +2301,33 @@ void Internals::setMediaSessionRestrictions(const String& mediaTypeString, const
 
     MediaSessionManager::sharedManager().addRestriction(mediaType, restrictions);
 }
-
+    
+void Internals::postRemoteControlCommand(const String& commandString, ExceptionCode& ec)
+{
+    MediaSession::RemoteControlCommandType command;
+    
+    if (equalIgnoringCase(commandString, "Play"))
+        command = MediaSession::PlayCommand;
+    else if (equalIgnoringCase(commandString, "Pause"))
+        command = MediaSession::PauseCommand;
+    else if (equalIgnoringCase(commandString, "Stop"))
+        command = MediaSession::StopCommand;
+    else if (equalIgnoringCase(commandString, "TogglePlayPause"))
+        command = MediaSession::TogglePlayPauseCommand;
+    else if (equalIgnoringCase(commandString, "BeginSeekingBackward"))
+        command = MediaSession::BeginSeekingBackwardCommand;
+    else if (equalIgnoringCase(commandString, "EndSeekingBackward"))
+        command = MediaSession::EndSeekingBackwardCommand;
+    else if (equalIgnoringCase(commandString, "BeginSeekingForward"))
+        command = MediaSession::BeginSeekingForwardCommand;
+    else if (equalIgnoringCase(commandString, "EndSeekingForward"))
+        command = MediaSession::EndSeekingForwardCommand;
+    else {
+        ec = INVALID_ACCESS_ERR;
+        return;
+    }
+    
+    MediaSessionManager::sharedManager().didReceiveRemoteControlCommand(command);
+}
+    
 }

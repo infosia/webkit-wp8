@@ -1,3 +1,685 @@
+2014-03-21  Brent Fulgham  <bfulgham@apple.com>
+
+        Unreviewed test fix after my last checkin. Add missing test expectation.
+
+        * http/tests/media/track/track-webvtt-slow-loading-expected.txt: Added.
+
+2014-03-21  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] incorrect clipping when the content has CSS Transforms like rotation
+        https://bugs.webkit.org/show_bug.cgi?id=110198
+
+        Reviewed by David Hyatt.
+
+        Added test that confirms the issue of transformed content being clipped was fixed.
+
+        * fast/regions/overflow-content-transform-rotate-expected.html: Added.
+        * fast/regions/overflow-content-transform-rotate.html: Added.
+
+2014-03-20  Brent Fulgham  <bfulgham@apple.com>
+
+        Merge WebVTT Tokenizer Updates
+        https://bugs.webkit.org/show_bug.cgi?id=130565
+
+        Reviewed by Eric Carlson.
+
+        Merged from Blink (patch by fs@opera.com):
+        https://chromium.googlesource.com/chromium/blink/+/923db263aa65d6efd71c5b55708ad7eea6b23f53
+        http://crbug.com/73813002
+        https://chromium.googlesource.com/chromium/blink/+/48375b1d56b2d8850ae93a6c6fb01c69fae82c75
+        http://crbug.com/77553004
+        https://chromium.googlesource.com/chromium/blink/+/98d4fc4f5cb716a31d11907120b10538d4ba0f09
+        http://crbug.com/78833002
+        https://chromium.googlesource.com/chromium/blink/+/0e53d4f9f140e979b7f32de495551684bc7f4cd2
+        http://crbug.com/81113003
+        https://chromium.googlesource.com/chromium/blink/+/730ef1e7f9a1919964f7e74e7ccb2f343e10a148
+        http://crbug.com/97103002
+        https://chromium.googlesource.com/chromium/blink/+/c373ee914ffabeaf833939129538251d8f2f4eca
+        http://crbug.com/98763004
+        https://chromium.googlesource.com/chromium/blink/+/4ddb4d57948228fa05e49e06bd58a1179c09f212
+        http://crbug.com/118263002
+
+        * TestExpectations:
+        * media/track/captions-webvtt/tc022-entities-wrong.vtt:
+        * media/track/captions-webvtt/tc022-entities.vtt:
+        * media/track/track-webvtt-tc022-entities-expected.txt:
+        * media/track/track-webvtt-tc022-entities.html:
+
+2014-03-21  Frédéric Wang  <fred.wang@free.fr>
+
+        Bug 130345 - Refine childShouldCreateRenderer for MathML elements
+        https://bugs.webkit.org/show_bug.cgi?id=130345
+
+        Reviewed by Chris Fleizach.
+
+        We update the references of some tests after the additional
+        restrictions on MathML children. We replace the foreign-*.html with a
+        single foreign-element-in-token.html and write more tests to verify the
+        accepted and reject content.
+
+        * mathml/msub-anonymous-child-render-crash-expected.txt: Update reference now that text is only allowed in some token MathML elements.
+        * mathml/presentation/annotation-children-expected.html: Added.
+        * mathml/presentation/annotation-children.html: Added.
+        * mathml/presentation/foreign-element-in-annotation-xml.html: Added.
+        * mathml/presentation/foreign-element-in-annotation-xml-expected.txt: Added.
+        * mathml/presentation/foreign-element-in-token-expected.txt: Added.
+        * mathml/presentation/foreign-element-in-token.html: Added.
+        * mathml/presentation/foreign-mi-expected-mismatch.html: Removed.
+        * mathml/presentation/foreign-mi.html: Removed.
+        * mathml/presentation/foreign-mn-expected-mismatch.html: Removed.
+        * mathml/presentation/foreign-mn.html: Removed.
+        * mathml/presentation/foreign-mtext-expected-mismatch.html: Removed.
+        * mathml/presentation/foreign-mtext-rejected-expected.html: Removed.
+        * mathml/presentation/foreign-mtext-rejected.html: Removed.
+        * mathml/presentation/foreign-mtext.html: Removed.
+        * mathml/presentation/semantics-2.html: the mtext elements can not be direct child of annotation-xml. wrap them in a math tag.
+        * mathml/presentation/semantics-3.html: ditto.
+        * mathml/presentation/semantics-4.html: ditto.
+
+2014-03-21  Mark Lam  <mark.lam@apple.com>
+
+        StackLayoutPhase should find the union'ed calleeVariable before accessing its machineLocal.
+        <https://webkit.org/b/130566>
+
+        Reviewed by Filip Pizlo.
+
+        * js/regress-130566-expected.txt: Added.
+        * js/regress-130566.html: Added.
+        * js/script-tests/regress-130566.js: Added.
+        (test.doTest):
+        (test.for):
+        (test):
+
+2014-03-21  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel rendering: RenderBox is positioned off by one when non-compositing transform is present.
+        https://bugs.webkit.org/show_bug.cgi?id=130430
+
+        Reviewed by Simon Fraser.
+
+        div {
+            position: absolute;
+             top: 10.25px;
+             left: 10.25px;
+         }
+
+         The <div> with (10.25px, 10.25px) is painted to (10.5px, 10.5px) after device pixel snapping on 2x display.
+         Moving <div> to its own RenderLayer should not change the painting position.
+
+         div {
+             position: absolute;
+             top: 10.25px;
+             left: 10.25px;
+             -webkit-transform: rotate(0deg);
+         }
+
+        When we paint the RenderLayer's content, the graphics context is translated by the rounded value of
+        renderer's offset from parent.
+
+            (10.25px,10.25px) -> rounded to (10.5px,10.5px).
+
+        When the translate moves the graphics context's origin over the renderer's top-left position,
+        the renderer's relative top-left coordinates end up being negative.
+
+            Graphics context translated by (10.5px,10.5px) -> pushes renderer's relative top-left coords to (-0.25px,-0.25px)
+
+        When we round (pixel snap) these negative coordinates, half-way values get translated to the wrong direction.
+
+        (relative coords (-0.25px,-0.25px) -> pixel snapped to (-0.5px,-0.5px) -> final absolute(painting) coords (10px,10px))
+
+        This patch changes the rounding to flooring to ensure that the relative top-left position never gets negative as the result
+        of subpixel shifting.
+
+        * TestExpectations:
+        * compositing/hidpi-box-positioned-off-by-one-when-non-compositing-transform-is-present-expected.html: Added.
+        * compositing/hidpi-box-positioned-off-by-one-when-non-compositing-transform-is-present.html: Added.
+        * fast/layers/hidpi-box-positioned-off-by-one-when-transform-is-present-expected.html: Added.
+        * fast/layers/hidpi-box-positioned-off-by-one-when-transform-is-present.html: Added.
+
+2014-03-19  Frédéric Wang  <fred.wang@free.fr>
+
+        Update some references for MathML pixels tests
+        https://bugs.webkit.org/show_bug.cgi?id=130455.
+
+        Reviewed by Chris Fleizach.
+
+        * TestExpectations: Remove failures for MathML pixel tests.
+        * mathml/presentation/mo.xhtml: Removed.
+        * mathml/presentation/roots.xhtml: Remove the test that is already covered by bug95015.html.
+        * mathml/presentation/row.xhtml: Removed.
+        * platform/efl/TestExpectations: Remove failure for mo-stretch.html
+        * platform/efl/mathml/presentation/mo-stretch-expected.png: Update reference.
+        * platform/efl/mathml/presentation/mo-stretch-expected.txt: Update reference.
+        * platform/efl/mathml/presentation/roots-expected.png: Update reference.
+        * platform/efl/mathml/presentation/roots-expected.txt: Update reference.
+        * platform/gtk/mathml/presentation/mo-expected.png: Removed.
+        * platform/gtk/mathml/presentation/mo-expected.txt: Removed.
+        * platform/gtk/mathml/presentation/roots-expected.png: Update reference.
+        * platform/gtk/mathml/presentation/roots-expected.txt: Update reference.
+        * platform/gtk/mathml/presentation/row-expected.png: Removed.
+        * platform/gtk/mathml/presentation/row-expected.txt: Removed.
+        * platform/mac/mathml/presentation/mo-expected.png: Removed.
+        * platform/mac/mathml/presentation/mo-expected.txt: Removed.
+        * platform/mac/mathml/presentation/roots-expected.txt: Update reference.
+        * platform/mac/mathml/presentation/row-expected.txt: Removed.
+        * platform/mac/mathml/presentation/row-expected.txt: Removed.
+        * platform/win/TestExpectations: Remove failure for mo-stretch.html and mspace-children.html
+
+2014-03-21  Andreas Kling  <akling@apple.com>
+
+        HTMLFrameOwnerElement should obey the SubframeLoadingDisabler when creating subframes
+        <rdar://problem/15675780>
+
+        Merge Blink r156744 by Adam Klein.
+
+        * fast/frames/set-iframe-src-in-pagehide-crash-expected.txt: Added.
+        * fast/frames/set-iframe-src-in-pagehide-crash.html: Added.
+
+2014-03-20  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: add frontend controller and models for replay sessions
+        https://bugs.webkit.org/show_bug.cgi?id=130145
+
+        Reviewed by Joseph Pecoraro.
+
+        Add tests for existing nondeterministic inputs handled in JSC.
+        They are skipped for all platforms until WEB_REPLAY is enabled.
+
+        The new mechanism here is the single-segment replay reftest. It will
+        load the test page once to inject test code into the inspector. Then,
+        the reftest will reload the test page and start capturing. The test
+        page performs some nondeterministic computation before the load event.
+        Then, the inspector test dumps the computed nondeterministic state.
+        Capturing is stopped, and the session is replayed once. When the load
+        event fires on the replayed page execution, the nondeterministic states
+        from capturing and replaying are compared. They should be the same.
+
+        * inspector/replay/javascript-random-seed-expected.txt: Added.
+        * inspector/replay/javascript-random-seed.html: Added.
+        * inspector/replay/replay-test.js: Added. This contains the bulk of
+        the replay-specific testing logic for the added tests.
+
+        (InspectorTestProxy.registerInitializer.):
+        (InspectorTestProxy.registerInitializer):
+
+2014-03-20  Brent Fulgham  <bfulgham@apple.com>
+
+        Rename TextTrackRegion/TextTrackRegionList to VTTRegion/VTTRegionList
+        https://bugs.webkit.org/show_bug.cgi?id=130543
+
+        Reviewed by Dean Jackson.
+
+        Merged from Blink (patch by philipj@opera.com):
+        https://chromium.googlesource.com/chromium/blink/+/69ee6d3399d64163e4936ac1bde222036c54c4b8
+        http://crbug.com/55653003
+
+        * media/track/regions-webvtt/text-track-cue-region-attribute.html:
+        * media/track/regions-webvtt/text-track-region-constructor-expected.txt: Removed.
+        * media/track/regions-webvtt/text-track-region-constructor.html: Removed.
+        * media/track/regions-webvtt/text-track-region-display-expected.txt: Removed.
+        * media/track/regions-webvtt/text-track-region-display.html: Removed.
+        * media/track/regions-webvtt/text-track-region-dom-layout-expected.txt: Removed.
+        * media/track/regions-webvtt/text-track-region-dom-layout.html: Removed.
+        * media/track/regions-webvtt/text-track-region-list-expected.txt: Removed.
+        * media/track/regions-webvtt/text-track-region-list.html: Removed.
+        * media/track/regions-webvtt/text-track-region-parser-expected.txt: Removed.
+        * media/track/regions-webvtt/text-track-region-parser.html: Removed.
+        * media/track/regions-webvtt/vtt-region-constructor-expected.txt: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-constructor-expected.txt.
+        * media/track/regions-webvtt/vtt-region-constructor.html: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-constructor.html.
+        * media/track/regions-webvtt/vtt-region-display-expected.txt: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-display-expected.txt.
+        * media/track/regions-webvtt/vtt-region-display.html: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-display.html.
+        * media/track/regions-webvtt/vtt-region-dom-layout-expected.txt: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-dom-layout-expected.txt.
+        * media/track/regions-webvtt/vtt-region-dom-layout.html: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-dom-layout.html.
+        * media/track/regions-webvtt/vtt-region-list-expected.txt: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-list-expected.txt.
+        * media/track/regions-webvtt/vtt-region-list.html: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-list.html.
+        * media/track/regions-webvtt/vtt-region-parser-expected.txt: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-parser-expected.txt.
+        * media/track/regions-webvtt/vtt-region-parser.html: Copied from LayoutTests/media/track/regions-webvtt/text-track-region-parser.html.
+
+2014-03-20  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] clamp RasterShape shapeMargin to reference box size
+        https://bugs.webkit.org/show_bug.cgi?id=130350
+
+        Reviewed by Dean Jackson.
+
+        Verify that a very large shape-margin value combined with a very small
+        shape-outside image defines a shape that matches the shape-outside
+        element's margin-box.
+
+        * fast/shapes/shape-outside-floats/shape-outside-one-pixel-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-one-pixel.html: Added.
+
+2014-03-20  Beth Dakin  <bdakin@apple.com>
+
+        Implement contentInset for Mac WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=130273
+
+        Reviewed by Simon Fraser.
+
+        Add two tests for hit-testing with a topContentInset.
+
+        * platform/mac-wk2/tiled-drawing/content-inset-hit-testing-expected.txt: Added.
+        * platform/mac-wk2/tiled-drawing/content-inset-hit-testing-in-frame-expected.txt: Added.
+        * platform/mac-wk2/tiled-drawing/content-inset-hit-testing-in-frame.html: Added.
+        * platform/mac-wk2/tiled-drawing/content-inset-hit-testing.html: Added.
+
+2014-03-20  Brent Fulgham  <bfulgham@apple.com>
+
+        Add a flushing mechanism for the WebVTTParser
+        https://bugs.webkit.org/show_bug.cgi?id=130532
+
+        Reviewed by Eric Carlson.
+
+        Merged from Blink (patch by vcarbune@chromium.org):
+        https://chromium.googlesource.com/chromium/blink/+/1ac2b3081492ab8661429230004013a9a3623f0f
+        http://crbug.com/54203003
+        https://chromium.googlesource.com/chromium/blink/+/24343d32bc36d20d59ef3e10040faddde65929e6
+        http://crbug.com/59453002
+        https://chromium.googlesource.com/chromium/blink/+/ef2793f1d9d207389589ecf9a136ea5c7170b4af
+        http://crbug.com/75233002
+        https://chromium.googlesource.com/chromium/blink/+/a29f2f8324abcd4826b41e7dc34373dee2ec57a9
+        http://crbug.com/52713005
+        https://chromium.googlesource.com/chromium/blink/+/7ce003c8d47b39f116f1f2a592a5dfb4a9e77228
+        http://crbug.com/64303004
+        https://chromium.googlesource.com/chromium/blink/+/18f896b3498478311e880f782813d5dfc8c0c7d1
+        http://crbug.com/96933004
+        https://chromium.googlesource.com/chromium/blink/+/8670e8ecb13254a651f5493ec83f4484d18c154e
+        http://crbug.com/98783005
+        https://chromium.googlesource.com/chromium/blink/+/4ac55780a6af3d76e0159c1d145330964ad56647
+        http://crbug.com/104713002
+
+        * http/tests/media/track: Added.
+        * http/tests/media/track/track-webvtt-slow-loading-2-expected.txt: Added.
+        * http/tests/media/track/track-webvtt-slow-loading-2.html: Added.
+        * http/tests/media/track/track-webvtt-slow-loading.html: Added.
+        * media/track/captions-webvtt/captions-multiline-lf.vtt: Added.
+        * media/track/track-webvtt-tc023-markup.html:
+
+2014-03-20  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] getClientRects returns wrong rectangle
+        https://bugs.webkit.org/show_bug.cgi?id=128614
+
+        Reviewed by Sam Weinig.
+
+        Added fast/multicol/newmulticol/client-rects.html and beefed up existing
+        fast/multicol/client-rects.html to use more writing modes.
+
+        * fast/multicol/client-rects.html:
+        * fast/multicol/newmulticol/client-rects-expected.html: Added.
+        * fast/multicol/newmulticol/client-rects.html: Added.
+        * platform/mac/fast/multicol/client-rects-expected.png:
+        * platform/mac/fast/multicol/client-rects-expected.txt:
+
+2014-03-19  Oliver Hunt  <oliver@apple.com>
+
+        Incorrect behavior when mutating a typed array during set.
+        https://bugs.webkit.org/show_bug.cgi?id=130428
+
+        Reviewed by Geoffrey Garen.
+
+        Test behaviour of TypedArray.set(array) when we neuter the array.
+
+        * js/typed-array-mutated-during-set-expected.txt: Added.
+        * js/typed-array-mutated-during-set.html: Added.
+
+2014-03-20  Daniel Bates  <dabates@apple.com>
+
+        Preserve original document URL for XSSAuditor reports
+
+        Merged from Blink (patch by Tom Sepez):
+        https://src.chromium.org/viewvc/blink?view=rev&revision=158406
+
+        * http/tests/security/xssAuditor/report-script-tag-replace-state-expected.txt: Added.
+        * http/tests/security/xssAuditor/report-script-tag-replace-state.html: Added.
+        * http/tests/security/xssAuditor/resources/echo-intertag.pl:
+
+2014-03-20  Daniel Bates  <dabates@apple.com>
+
+        XSSAuditor bypass with frameset tags
+
+        Merged from Blink (patch by Tom Sepez):
+        https://src.chromium.org/viewvc/blink?view=rev&revision=157794
+
+        * http/tests/security/xssAuditor/frameset-injection-expected.txt: Added.
+        * http/tests/security/xssAuditor/frameset-injection.html: Added.
+        * http/tests/security/xssAuditor/resources/echo-intertag.pl:
+
+2014-03-20  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] Cleanup scrollable regions tests
+        https://bugs.webkit.org/show_bug.cgi?id=130505
+
+        Reviewed by Mihnea Ovidenie.
+
+        Tests should only display red in case of failure. Purpose of the test should be very clearly stated.
+
+        * fast/regions/scrollable-last-region-expected.html:
+        * fast/regions/scrollable-last-region.html:
+        * fast/regions/scrollable-regions-hit-testing-inside-expected.html:
+        * fast/regions/scrollable-regions-hit-testing-inside.html:
+        * fast/regions/scrollable-single-region-bt-expected.html:
+        * fast/regions/scrollable-single-region-bt.html:
+        * fast/regions/scrollable-single-region-expected.html:
+        * fast/regions/scrollable-single-region-lr-expected.html:
+        * fast/regions/scrollable-single-region-lr.html:
+        * fast/regions/scrollable-single-region-relative-element-expected.html:
+        * fast/regions/scrollable-single-region-relative-element.html:
+        * fast/regions/scrollable-single-region-rl-expected.html:
+        * fast/regions/scrollable-single-region-rl.html:
+        * fast/regions/scrollable-single-region.html:
+        * fast/regions/wheel-scroll-abspos-expected.html:
+        * fast/regions/wheel-scroll-abspos.html:
+        * fast/regions/wheel-scroll-expected.html:
+        * fast/regions/wheel-scroll.html:
+        * fast/regions/wheel-scrollable-single-region-expected.html:
+        * fast/regions/wheel-scrollable-single-region.html:
+
+2014-03-20  Simon Fraser  <simon.fraser@apple.com>
+
+        A completed fill-forwards animation should not disable overlap testing
+        https://bugs.webkit.org/show_bug.cgi?id=130522
+        <rdar://problem/15862395>
+
+        Reviewed by Dean Jackson.
+        
+        Tests that dump layer trees when a fill-forwards animation has finished,
+        both when the final keyframe causes overlap, and when it does not.
+
+        * compositing/animation/filling-animation-overlap-at-end-expected.txt: Added.
+        * compositing/animation/filling-animation-overlap-at-end.html: Added.
+        * compositing/animation/filling-animation-overlap-expected.txt: Added.
+        * compositing/animation/filling-animation-overlap.html: Added.
+        * compositing/animation/layer-for-filling-animation-expected.txt: Added.
+        * compositing/animation/layer-for-filling-animation.html: Added.
+
+2014-03-20  Dirk Schulze  <krit@webkit.org>
+
+        Canvas methods clip/fill/stroke should not except 0 argument
+        https://bugs.webkit.org/show_bug.cgi?id=130497
+
+        Reviewed by Dean Jackson.
+
+        Add more exception tests for fill/stroke/clip.
+
+        * fast/canvas/canvas-clip-path-expected.txt:
+        * fast/canvas/canvas-fill-path-expected.txt:
+        * fast/canvas/canvas-stroke-path-expected.txt:
+        * fast/canvas/script-tests/canvas-clip-path.js:
+        * fast/canvas/script-tests/canvas-fill-path.js:
+        * fast/canvas/script-tests/canvas-stroke-path.js:
+
+2014-03-20  Carlos Alberto Lopez Perez  <clopez@igalia.com>
+
+        Unreviewed GTK Gardening.
+
+        Update expectation of accessibility/table-detection.html after r165535.
+        Update expectation of accessibility/aria-hidden-false-works-in-subtrees.html.
+
+        * platform/gtk/accessibility/aria-hidden-false-works-in-subtrees-expected.txt:
+        * platform/gtk/accessibility/table-detection-expected.txt:
+
+2014-03-20  Mihai Tica  <mitica@adobe.com>
+
+        [CSS Blending] Blending operation is not isolated when setting z-index on parent from javascript
+        https://bugs.webkit.org/show_bug.cgi?id=129307
+
+        Reviewed by Dean Jackson.
+
+        Test if setting or unsetting stacking context or blend mode from script correctly updates blending
+        isolation.
+
+        * css3/compositing/blend-mode-background.html: Added.
+        * fast/repaint/blend-mode-isolate-stacking-context-expected.txt: Added.
+        * fast/repaint/blend-mode-isolate-stacking-context.html: Added.
+        * platform/mac/css3/compositing/blend-mode-background-expected.png: Added.
+        * platform/mac/css3/compositing/blend-mode-background-expected.txt: Added.
+
+2014-03-20  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] Remove "visibility:hidden" from overflow-scrollable* tests
+        https://bugs.webkit.org/show_bug.cgi?id=130510
+
+        Reviewed by Andrei Bucur.
+
+        The visibility hidden option was needed to prevent these tests from failing before the 
+        visual overflow was properly implemented (bug 118665). It is now no longer required.
+
+        * fast/regions/overflow-scrollable-rel-pos-fragment-expected.html:
+        * fast/regions/overflow-scrollable-rel-pos-fragment.html:
+        * fast/regions/overflow-scrollable-rotated-fragment-expected.html:
+        * fast/regions/overflow-scrollable-rotated-fragment.html:
+        * fast/regions/overflow-scrollable-unsplittable-fragment-expected.html:
+        * fast/regions/overflow-scrollable-unsplittable-fragment.html:
+
+2014-03-20  Lorenzo Tilve  <ltilve@igalia.com>
+
+        "input" event is not fired when changing a select element's value
+        https://bugs.webkit.org/show_bug.cgi?id=117526
+
+        Reviewed by Antti Koivisto.
+
+        Add tests to verify that input event is dispatched when listbox
+        or menulist values are modified.
+
+        * fast/forms/select/listbox-oninput-fired-expected.txt: Added.
+        * fast/forms/select/listbox-oninput-fired.html: Added.
+        * fast/forms/select/menulist-oninput-fired-expected.txt: Added.
+        * fast/forms/select/menulist-oninput-fired.html: Added.
+
+2014-03-20  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] The height of a scrollable element flowed inside a scrollable region is not computed correctly
+        https://bugs.webkit.org/show_bug.cgi?id=129487
+
+        Reviewed by Andrei Bucur.
+
+        Added tests for different situations using scrollable regions and fixed a couple existing tests.
+
+        * fast/regions/clip-to-padding-box-margins.html: overflow-x and overflow-y cannot be hidden & visible.
+        * fast/regions/scrollable-last-region-expected.html: "hack" no longer needed now that the scroll content size is properly computed.
+        * fast/regions/scrollable-region-content-size-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-horiz-bt-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-horiz-bt.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow-horiz-bt-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow-horiz-bt.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow-vert-rl-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow-vert-rl.html: Added.
+        * fast/regions/scrollable-region-content-size-no-overflow.html: Added.
+        * fast/regions/scrollable-region-content-size-relative-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-relative.html: Added.
+        * fast/regions/scrollable-region-content-size-vert-rl-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-vert-rl.html: Added.
+        * fast/regions/scrollable-region-content-size-vertical-lr-expected.html: Added.
+        * fast/regions/scrollable-region-content-size-vertical-lr.html: Added.
+        * fast/regions/scrollable-region-content-size.html: Added.
+        * fast/regions/scrollable-region-scrollable-content-expected.html: Added.
+        * fast/regions/scrollable-region-scrollable-content.html: Added.
+
+2014-03-20  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel rendering: Nested layers with subpixel accumulation paint to wrong position.
+        https://bugs.webkit.org/show_bug.cgi?id=130153
+
+        Reviewed by Simon Fraser.
+
+        Subpixels (fractional device pixels here) can accumulate through nested layers. Subpixels
+        need to be propagated through the layer tree so that painting coordinates match layout coordinates.
+
+        Subpixel accumulation through nesting (absolute positioning, 2x display):
+        non-compositing case:
+        (nested boxes)  (layout pos) (norm.paint pos) (translate accumulation, subpixel accumulation, final paint pos)
+        div -> top: 1.3px   1.3px     1.5px      1.5px 0.2px -> snapped 0.0px -> 1.5px
+         div -> top: 1.3px   2.6px     2.5px      3.0px 0.4px -> snapped 0.5px -> 2.5px
+          div -> top: 1.3px   3.9px     4.0px      4.5px 0.6px -> snapped 0.5px -> 4.0px
+           div -> top: 1.3px   5.2px     5.0px      6.0px 0.8px -> snapped 1.0px -> 5.0px
+
+        compositing case:
+        (nested boxes)  (layout pos) (norm.paint pos) (device pixel offset + fractional offset, final pos)
+        div -> top: 1.3px   1.3px      1.5px      1.0px + 0.3px -> snapped -> 1.5px
+         div -> top: 1.3px   2.6px      2.5px      2.5px + 0.1px -> snapped -> 2.5px
+          div -> top: 1.3px   3.9px      4.0px      3.5px + 0.4px -> snapped -> 4.0px
+           div -> top: 1.3px   5.2px      5.0px      5.0px + 0.2px -> snapped -> 5.0px
+
+        * compositing/hidpi-nested-compositing-layers-with-subpixel-accumulation-expected.html: Added.
+        * compositing/hidpi-nested-compositing-layers-with-subpixel-accumulation.html: Added.
+        * fast/layers/hidpi-nested-layers-with-subpixel-accumulation-expected.html: Added.
+        * fast/layers/hidpi-nested-layers-with-subpixel-accumulation.html: Added.
+
+2014-03-20  Krzysztof Czech  <k.czech@samsung.com>
+
+        Unreviewed EFL gardening
+
+        Update expectation of table-detection.html after r165535.
+
+        * platform/efl-wk2/accessibility/table-detection-expected.txt:
+
+2014-03-20  Lorenzo Tilve  <ltilve@igalia.com>
+
+        Dispatch input event for Range element keyboard event
+        https://bugs.webkit.org/show_bug.cgi?id=129929
+
+        Reviewed by Kent Tamura.
+
+        For any value update, dispatch both input and change event.
+        Also removes extra dispatch change event, as event is dispatched
+        from TextFieldInputType:setValue.
+
+        Merged from Blink (patch by Habib Virji):
+        https://src.chromium.org/viewvc/blink?revision=168558&view=revision
+
+        * fast/forms/range/range-keyboard-oninput-event-expected.txt: Added.
+        * fast/forms/range/range-keyboard-oninput-event.html: Added.
+
+2014-03-20  Mihnea Ovidenie  <mihnea@adobe.com>
+
+        [CSSRegions] Content flowed in 0px height region not displayed
+        https://bugs.webkit.org/show_bug.cgi?id=98265
+
+        After the past work on overflow, this looks fixed. Add a test to make sure
+        we are covered for future regressions.
+
+        Reviewed by Andrei Bucur.
+
+        * fast/regions/overflow-content-zero-height-region-expected.html: Added.
+        * fast/regions/overflow-content-zero-height-region.html: Added.
+
+2014-03-19  Brent Fulgham  <bfulgham@apple.com>
+
+        Merge Misc. WebVTT Updates from Blink.
+        https://bugs.webkit.org/show_bug.cgi?id=130491
+
+        Reviewed by Eric Carlson.
+
+        Merged from Blink (patch by vcarbune@chromium.org):
+        https://chromium.googlesource.com/chromium/blink/+/fb62b2b54944bd19026192c049a1db250756fc12
+        http://crbug.com/40323003
+        https://chromium.googlesource.com/chromium/blink/+/29176fb0b394a97e85f4dabc07e18329f3ceae41
+        http://crbug.com/54463002
+        https://chromium.googlesource.com/chromium/blink/+/29476f839a08cb17c5a3fc713f7e454e7cea9c60
+        http://crbug.com/55853002
+        https://chromium.googlesource.com/chromium/blink/+/ba2378ef873e786cf2937034e012669cdd37dfe8
+        http://crbug.com/65343003
+        https://chromium.googlesource.com/chromium/blink/+/1915b9aa1bba45aebf28531b40ae627ecf9a3d59
+        http://crbug.com/62833005
+        https://chromium.googlesource.com/chromium/blink/+/ea46dbd0f1f29779a1cd4f59b19361b803f09a9b
+        http://crbug.com/64273013
+        https://chromium.googlesource.com/chromium/blink/+/9eb4bb6b627357bb94d66386a4123ec004cccfc4
+        http://crbug.com/101513002
+        https://chromium.googlesource.com/chromium/blink/+/192a843b32eafb77bf92c50ec50d334ba935028a
+        http://crbug.com/102403002
+        https://chromium.googlesource.com/chromium/blink/+/15f9efcc952fcf73184e28fb9db79633c1fa6653
+        http://crbug.com/104443002
+        https://chromium.googlesource.com/chromium/blink/+/74fd66b451a464683f7cb748855b1740a54b2c16
+        http://crbug.com/75243004
+
+        * media/track/captions-webvtt/tc030-interspersed-non-cue.vtt: Added.
+        * media/track/track-webvtt-tc027-empty-cue-expected.txt: Mark one test as expected to fail, since
+        the test (incorrectly) expects to fail on empty cues. The test will be updated in a future patch.
+        * media/track/track-webvtt-tc030-interspersed-non-cue-expected.txt: Added.
+        * media/track/track-webvtt-tc030-interspersed-non-cue.html: Added.
+
+2014-03-19  Zalan Bujtas  <zalan@apple.com>
+
+        Generated hidpi- images (actual) on ML WK2 Debug are blurry/color shifted.
+
+        Unreviewed TestExpectations update on ML WK2 debug.
+
+        * platform/mac-wk2/TestExpectations:
+
+2014-03-19  Eric Carlson  <eric.carlson@apple.com>
+
+        media/video-remote-control-playpause.html frequently fails on the bots
+        https://bugs.webkit.org/show_bug.cgi?id=130490
+
+        Unreviewed TestExpectations update.
+
+        * platform/mac/TestExpectations: Mark test as flakey while I try to reproduce it.
+
+2014-03-19  Dirk Schulze  <krit@webkit.org>
+
+        Implement isPointInPath and isPointInStroke with Path2D argument
+        https://bugs.webkit.org/show_bug.cgi?id=130473
+
+        Reviewed by Dean Jackson.
+
+        Test isPointInPath and isPointInStroke with Path2D argument.
+
+        * fast/canvas/canvas-path-isPointInPath-expected.txt: Added.
+        * fast/canvas/canvas-path-isPointInPath.html: Added.
+        * fast/canvas/canvas-path-isPointInStroke-expected.txt: Added.
+        * fast/canvas/canvas-path-isPointInStroke.html: Added.
+        * fast/canvas/script-tests/canvas-path-isPointInPath.js: Added.
+        * fast/canvas/script-tests/canvas-path-isPointInStroke.js: Added.
+
+2014-03-19  Antti Koivisto  <antti@apple.com>
+
+        Crash with long selector list
+        https://bugs.webkit.org/show_bug.cgi?id=123006
+
+        Reviewed by Andreas Kling.
+
+        * fast/css/long-selector-list-crash-expected.txt: Added.
+        * fast/css/long-selector-list-crash.html: Added.
+
+2014-03-19  Eric Carlson  <eric.carlson@apple.com>
+
+        Make Remote Control commands testable
+        https://bugs.webkit.org/show_bug.cgi?id=130358
+
+        Reviewed by Jer Noble.
+
+        * media/video-remote-control-playpause-expected.txt: Added.
+        * media/video-remote-control-playpause.html: Added.
+
+2014-03-19  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        Improving webkitGetUserMedia error handling and error messages
+        https://bugs.webkit.org/show_bug.cgi?id=130452
+
+        Reviewed by Eric Carlson.
+
+        Checking if first argument of webkitGetUserMedia is a valid Dictionary. If not, throw an exception with a
+        clearer message of the error.
+
+        * fast/mediastream/argument-types-expected.txt:
+        * fast/mediastream/script-tests/argument-types.js:
+
+2014-03-19  Dirk Schulze  <krit@webkit.org>
+
+        Implement method addPath for Path2D
+        https://bugs.webkit.org/show_bug.cgi?id=130461
+
+        Reviewed by Dean Jackson.
+
+        Test the addPath Path2D method.
+
+        * platform/efl/TestExpectations:
+        * platform/gtk/TestExpectations:
+        * fast/canvas/canvas-path-addPath-expected.txt: Added.
+        * fast/canvas/canvas-path-addPath.html: Added.
+
 2014-03-19  Brent Fulgham  <bfulgham@apple.com>
 
         Fix cue rendering test and include support for left/right alignment

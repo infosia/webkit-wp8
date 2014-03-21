@@ -113,12 +113,8 @@ StringImpl::~StringImpl()
 
     STRING_STATS_REMOVE_STRING(this);
 
-    if (isAtomic())
+    if (isAtomic() && m_length)
         AtomicString::remove(this);
-    if (isIdentifier()) {
-        if (!wtfThreadData().currentIdentifierTable()->remove(this))
-            CRASH();
-    }
 
     BufferOwnership ownership = bufferOwnership();
 
