@@ -28,6 +28,7 @@
 #include "AXObjectCache.h"
 #include "AnimationController.h"
 #include "ContentData.h"
+#include "ControlStates.h"
 #include "CursorList.h"
 #include "EventHandler.h"
 #include "Frame.h"
@@ -66,7 +67,13 @@ namespace WebCore {
 
 bool RenderElement::s_affectsParentBlock = false;
 bool RenderElement::s_noLongerAffectsParentBlock = false;
-
+    
+static HashMap<const RenderObject*, ControlStates*>& controlStatesRendererMap()
+{
+    static NeverDestroyed<HashMap<const RenderObject*, ControlStates*>> map;
+    return map;
+}
+    
 RenderElement::RenderElement(Element& element, PassRef<RenderStyle> style, unsigned baseTypeFlags)
     : RenderObject(element)
     , m_baseTypeFlags(baseTypeFlags)
@@ -112,12 +119,6 @@ RenderElement::~RenderElement()
         if (StyleImage* maskBoxImage = m_style->maskBoxImage().image())
             maskBoxImage->removeClient(this);
 
-#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
-        if (auto shapeValue = m_style->shapeInside()) {
-            if (auto shapeImage = shapeValue->image())
-                shapeImage->removeClient(this);
-        }
-#endif
 #if ENABLE(CSS_SHAPES)
         if (auto shapeValue = m_style->shapeOutside()) {
             if (auto shapeImage = shapeValue->image())
@@ -361,9 +362,6 @@ void RenderElement::initializeStyle()
     updateImage(nullptr, m_style->borderImage().image());
     updateImage(nullptr, m_style->maskBoxImage().image());
 
-#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
-    updateShapeImage(nullptr, m_style->shapeInside());
-#endif
 #if ENABLE(CSS_SHAPES)
     updateShapeImage(nullptr, m_style->shapeOutside());
 #endif
@@ -417,9 +415,6 @@ void RenderElement::setStyle(PassRef<RenderStyle> style)
     updateImage(oldStyle.get().borderImage().image(), m_style->borderImage().image());
     updateImage(oldStyle.get().maskBoxImage().image(), m_style->maskBoxImage().image());
 
-#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
-    updateShapeImage(oldStyle.get().shapeInside(), m_style->shapeInside());
-#endif
 #if ENABLE(CSS_SHAPES)
     updateShapeImage(oldStyle.get().shapeOutside(), m_style->shapeOutside());
 #endif
@@ -1348,6 +1343,30 @@ RenderNamedFlowThread* RenderElement::renderNamedFlowThreadWrapper()
     while (renderer && renderer->isAnonymousBlock() && !renderer->isRenderNamedFlowThread())
         renderer = renderer->parent();
     return renderer && renderer->isRenderNamedFlowThread() ? toRenderNamedFlowThread(renderer) : nullptr;
+}
+
+bool RenderElement::hasControlStatesForRenderer(const RenderObject* o)
+{
+    return controlStatesRendererMap().contains(o);
+}
+
+ControlStates* RenderElement::controlStatesForRenderer(const RenderObject* o)
+{
+    return controlStatesRendererMap().get(o);
+}
+
+void RenderElement::removeControlStatesForRenderer(const RenderObject* o)
+{
+    ControlStates* states = controlStatesRendererMap().get(o);
+    if (states) {
+        controlStatesRendererMap().remove(o);
+        delete states;
+    }
+}
+
+void RenderElement::addControlStatesForRenderer(const RenderObject* o, ControlStates* states)
+{
+    controlStatesRendererMap().add(o, states);
 }
 
 }

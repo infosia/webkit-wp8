@@ -806,7 +806,8 @@ private:
     {
         VariableAccessData* variable = m_node->variableAccessData();
         switch (variable->flushFormat()) {
-        case FlushedJSValue: {
+        case FlushedJSValue:
+        case FlushedArguments: {
             LValue value = lowJSValue(m_node->child1());
             m_out.store64(value, addressFor(variable->machineLocal()));
             break;
@@ -2502,7 +2503,7 @@ private:
         
         RELEASE_ASSERT(structure->indexingType() == m_node->indexingType());
         
-        if (!globalObject->isHavingABadTime() && !hasArrayStorage(m_node->indexingType())) {
+        if (!globalObject->isHavingABadTime() && !hasAnyArrayStorage(m_node->indexingType())) {
             unsigned numElements = m_node->numChildren();
             
             ArrayValues arrayValues = allocateJSArray(structure, numElements);
@@ -2579,7 +2580,7 @@ private:
         
         RELEASE_ASSERT(structure->indexingType() == m_node->indexingType());
         
-        if (!globalObject->isHavingABadTime() && !hasArrayStorage(m_node->indexingType())) {
+        if (!globalObject->isHavingABadTime() && !hasAnyArrayStorage(m_node->indexingType())) {
             unsigned numElements = m_node->numConstants();
             
             ArrayValues arrayValues = allocateJSArray(structure, numElements);
@@ -2616,7 +2617,7 @@ private:
         Structure* structure = globalObject->arrayStructureForIndexingTypeDuringAllocation(
             m_node->indexingType());
         
-        if (!globalObject->isHavingABadTime() && !hasArrayStorage(m_node->indexingType())) {
+        if (!globalObject->isHavingABadTime() && !hasAnyArrayStorage(m_node->indexingType())) {
             ASSERT(
                 hasUndecided(structure->indexingType())
                 || hasInt32(structure->indexingType())

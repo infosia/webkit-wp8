@@ -1102,8 +1102,13 @@ sub GenerateHeader
     } elsif ($codeGenerator->InheritsInterface($interface, "WorkerGlobalScope")) {
         push(@headerContent, "    $className(JSC::VM&, JSC::Structure*, PassRefPtr<$implType>);\n");
     } else {
-        push(@headerContent, "    $className(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<$implType>);\n");
-        push(@headerContent, "    void finishCreation(JSC::VM&);\n");
+        push(@headerContent, "    $className(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<$implType>);\n\n");
+        push(@headerContent, "    void finishCreation(JSC::VM& vm)\n");
+        push(@headerContent, "    {\n");
+        push(@headerContent, "        Base::finishCreation(vm);\n");
+        push(@headerContent, "        ASSERT(inherits(info()));\n");
+        push(@headerContent, "    }\n\n");
+
     }
 
     # structure flags
@@ -1994,12 +1999,6 @@ sub GenerateImplementation
         }
         push(@implContent, "{\n");
         push(@implContent, "}\n\n");
-
-        push(@implContent, "void ${className}::finishCreation(VM& vm)\n");
-        push(@implContent, "{\n");
-        push(@implContent, "    Base::finishCreation(vm);\n");
-        push(@implContent, "    ASSERT(inherits(info()));\n");
-        push(@implContent, "}\n\n");
     }
 
     unless (IsDOMGlobalObject($interface)) {
@@ -2822,14 +2821,13 @@ sub GenerateImplementation
                 push(@implContent, "#if ${conditionalString}\n");
             }
 
-            # FIXME: this casts into int to match our previous behavior which turned 0xFFFFFFFF in -1 for NodeFilter.SHOW_ALL
             push(@implContent, "EncodedJSValue ${getter}(ExecState* exec, JSObject*, EncodedJSValue, PropertyName)\n");
             push(@implContent, "{\n");
             if ($constant->type eq "DOMString") {
                 push(@implContent, "    return JSValue::encode(jsStringOrNull(exec, String(" . $constant->value . ")));\n");
             } else {
                 push(@implContent, "    UNUSED_PARAM(exec);\n");
-                push(@implContent, "    return JSValue::encode(jsNumber(static_cast<int>(" . $constant->value . ")));\n");
+                push(@implContent, "    return JSValue::encode(jsNumber(" . $constant->value . "));\n");
             }
             push(@implContent, "}\n\n");
             push(@implContent, "#endif\n") if $conditional;
@@ -3012,7 +3010,7 @@ extern "C" { extern void* ${vtableNameGnu}[]; }
 #endif
 END
 
-        push(@implContent, "JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, $implType* impl)\n");
+        push(@implContent, "JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, $implType* impl)\n");
         push(@implContent, "{\n");
         push(@implContent, <<END);
     if (!impl)
@@ -3057,13 +3055,13 @@ END
 #endif
 END
         push(@implContent, <<END) if $interface->extendedAttributes->{"ReportExtraMemoryCost"};
-    exec->heap()->reportExtraMemoryCost(impl->memoryCost());
+    globalObject->vm().heap.reportExtraMemoryCost(impl->memoryCost());
 END
 
         if ($svgPropertyType) {
-            push(@implContent, "    return createNewWrapper<$className, $implType>(exec, globalObject, impl);\n");
+            push(@implContent, "    return createNewWrapper<$className, $implType>(globalObject, impl);\n");
         } else {
-            push(@implContent, "    return createNewWrapper<$className>(exec, globalObject, impl);\n");
+            push(@implContent, "    return createNewWrapper<$className>(globalObject, impl);\n");
         }
 
         push(@implContent, "}\n\n");

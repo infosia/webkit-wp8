@@ -388,12 +388,6 @@ JSTestInterface::JSTestInterface(Structure* structure, JSDOMGlobalObject* global
 {
 }
 
-void JSTestInterface::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestInterface::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestInterfacePrototype::create(vm, globalObject, JSTestInterfacePrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -932,7 +926,7 @@ EncodedJSValue JSC_HOST_CALL jsTestInterfaceConstructorFunctionSupplementalMetho
 EncodedJSValue jsTestInterfaceIMPLEMENTSCONSTANT1(ExecState* exec, JSObject*, EncodedJSValue, PropertyName)
 {
     UNUSED_PARAM(exec);
-    return JSValue::encode(jsNumber(static_cast<int>(1)));
+    return JSValue::encode(jsNumber(1));
 }
 
 #endif
@@ -940,7 +934,7 @@ EncodedJSValue jsTestInterfaceIMPLEMENTSCONSTANT1(ExecState* exec, JSObject*, En
 EncodedJSValue jsTestInterfaceIMPLEMENTSCONSTANT2(ExecState* exec, JSObject*, EncodedJSValue, PropertyName)
 {
     UNUSED_PARAM(exec);
-    return JSValue::encode(jsNumber(static_cast<int>(2)));
+    return JSValue::encode(jsNumber(2));
 }
 
 #endif
@@ -948,7 +942,7 @@ EncodedJSValue jsTestInterfaceIMPLEMENTSCONSTANT2(ExecState* exec, JSObject*, En
 EncodedJSValue jsTestInterfaceSUPPLEMENTALCONSTANT1(ExecState* exec, JSObject*, EncodedJSValue, PropertyName)
 {
     UNUSED_PARAM(exec);
-    return JSValue::encode(jsNumber(static_cast<int>(1)));
+    return JSValue::encode(jsNumber(1));
 }
 
 #endif
@@ -956,7 +950,7 @@ EncodedJSValue jsTestInterfaceSUPPLEMENTALCONSTANT1(ExecState* exec, JSObject*, 
 EncodedJSValue jsTestInterfaceSUPPLEMENTALCONSTANT2(ExecState* exec, JSObject*, EncodedJSValue, PropertyName)
 {
     UNUSED_PARAM(exec);
-    return JSValue::encode(jsNumber(static_cast<int>(2)));
+    return JSValue::encode(jsNumber(2));
 }
 
 #endif
@@ -977,7 +971,7 @@ void JSTestInterfaceOwner::finalize(JSC::Handle<JSC::Unknown> handle, void* cont
     jsTestInterface->releaseImpl();
 }
 
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestInterface* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestInterface* impl)
 {
     if (!impl)
         return jsNull();
@@ -990,7 +984,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestInt
     // attribute to TestInterface.
     COMPILE_ASSERT(!__is_polymorphic(TestInterface), TestInterface_is_polymorphic_but_idl_claims_not_to_be);
 #endif
-    return createNewWrapper<JSTestInterface>(exec, globalObject, impl);
+    return createNewWrapper<JSTestInterface>(globalObject, impl);
 }
 
 TestInterface* toTestInterface(JSC::JSValue value)

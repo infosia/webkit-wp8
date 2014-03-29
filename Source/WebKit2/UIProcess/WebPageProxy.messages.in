@@ -22,7 +22,7 @@
 
 messages -> WebPageProxy {
     # UI messages
-    CreateNewPage(WebCore::ResourceRequest request, WebCore::WindowFeatures windowFeatures, uint32_t modifiers, int32_t mouseButton) -> (uint64_t newPageID, WebKit::WebPageCreationParameters newPageParameters)
+    CreateNewPage(uint64_t frameID, WebCore::ResourceRequest request, WebCore::WindowFeatures windowFeatures, uint32_t modifiers, int32_t mouseButton) -> (uint64_t newPageID, WebKit::WebPageCreationParameters newPageParameters)
     ShowPage()
     ClosePage(bool stopResponsivenessTimer)
     RunJavaScriptAlert(uint64_t frameID, String message) -> () Delayed
@@ -162,10 +162,12 @@ messages -> WebPageProxy {
     TouchesCallback(WebCore::IntPoint point, uint32_t touches, uint64_t callbackID)
     AutocorrectionDataCallback(Vector<WebCore::FloatRect> textRects, String fontName, double fontSize, uint64_t traits, uint64_t callbackID)
     AutocorrectionContextCallback(String beforeText, String markedText, String selectedText, String afterText, uint64_t location, uint64_t length, uint64_t callbackID)
+    DictationContextCallback(String selectedText, String beforeText, String afterText, uint64_t callbackID)
     InterpretKeyEvent(WebKit::EditorState state, bool isCharEvent) -> (bool handled)
     DidReceivePositionInformation(WebKit::InteractionInformationAtPosition information)
     SaveImageToLibrary(WebKit::SharedMemory::Handle handle, uint64_t size)
     DidUpdateBlockSelectionWithTouch(uint32_t touch, uint32_t flags, float growThreshold, float shrinkThreshold)
+    ShowPlaybackTargetPicker(bool hasVideo, WebCore::IntRect elementRect)
 #endif
 #if PLATFORM(GTK)
     PrintFinishedCallback(WebCore::ResourceError error, uint64_t callbackID)
@@ -201,6 +203,7 @@ messages -> WebPageProxy {
 
     # Editor notifications
     EditorStateChanged(WebKit::EditorState editorState)
+    CompositionWasCanceled(WebKit::EditorState editorState)
 
     # Find messages
     DidCountStringMatches(String string, uint32_t matchCount)
@@ -318,6 +321,11 @@ messages -> WebPageProxy {
     StartAssistingNode(WebKit::AssistedNodeInformation information)
     StopAssistingNode()
     NotifyRevealedSelection()
+
+#if ENABLE(INSPECTOR)
+    ShowInspectorIndication()
+    HideInspectorIndication()
+#endif
 #endif
 
     # Search popup menus

@@ -171,12 +171,6 @@ JSTestOverloadedConstructors::JSTestOverloadedConstructors(Structure* structure,
 {
 }
 
-void JSTestOverloadedConstructors::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestOverloadedConstructors::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestOverloadedConstructorsPrototype::create(vm, globalObject, JSTestOverloadedConstructorsPrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -238,7 +232,7 @@ extern "C" { extern void (*const __identifier("??_7TestOverloadedConstructors@We
 extern "C" { extern void* _ZTVN7WebCore26TestOverloadedConstructorsE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestOverloadedConstructors* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestOverloadedConstructors* impl)
 {
     if (!impl)
         return jsNull();
@@ -263,7 +257,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestOve
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestOverloadedConstructors>(exec, globalObject, impl);
+    return createNewWrapper<JSTestOverloadedConstructors>(globalObject, impl);
 }
 
 TestOverloadedConstructors* toTestOverloadedConstructors(JSC::JSValue value)

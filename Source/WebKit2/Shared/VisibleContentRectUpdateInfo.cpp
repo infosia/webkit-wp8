@@ -38,6 +38,10 @@ void VisibleContentRectUpdateInfo::encode(IPC::ArgumentEncoder& encoder) const
     encoder << m_scale;
     encoder << m_updateID;
     encoder << m_inStableState;
+    encoder << m_timestamp;
+    encoder << m_horizontalVelocity;
+    encoder << m_verticalVelocity;
+    encoder << m_scaleChangeRate;
 }
 
 bool VisibleContentRectUpdateInfo::decode(IPC::ArgumentDecoder& decoder, VisibleContentRectUpdateInfo& result)
@@ -54,6 +58,15 @@ bool VisibleContentRectUpdateInfo::decode(IPC::ArgumentDecoder& decoder, Visible
         return false;
     if (!decoder.decode(result.m_inStableState))
         return false;
+    if (!decoder.decode(result.m_timestamp))
+        return false;
+    if (!decoder.decode(result.m_horizontalVelocity))
+        return false;
+    if (!decoder.decode(result.m_verticalVelocity))
+        return false;
+    if (!decoder.decode(result.m_scaleChangeRate))
+        return false;
+
     return true;
 }
 

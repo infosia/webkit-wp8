@@ -159,6 +159,7 @@ const GlobalObjectMethodTable JSGlobalObject::s_globalObjectMethodTable = { &all
 
 JSGlobalObject::JSGlobalObject(VM& vm, Structure* structure, const GlobalObjectMethodTable* globalObjectMethodTable)
     : Base(vm, structure, 0)
+    , m_vm(vm)
 #if ENABLE(WEB_REPLAY)
     , m_inputCursor(EmptyInputCursor::create())
 #endif
@@ -196,11 +197,10 @@ void JSGlobalObject::setGlobalThis(VM& vm, JSObject* globalThis)
     m_globalThis.set(vm, this, globalThis);
 }
 
-void JSGlobalObject::init(JSObject* thisValue)
+void JSGlobalObject::init()
 {
     ASSERT(vm().currentThreadIsHoldingAPILock());
 
-    setGlobalThis(vm(), thisValue);
     JSGlobalObject::globalExec()->init(0, 0, this, CallFrame::noCaller(), 0, 0);
 
     m_debugger = 0;
@@ -510,7 +510,7 @@ inline bool hasBrokenIndexing(JSObject* object)
     IndexingType type = object->structure()->indexingType();
     // This could be made obviously more efficient, but isn't made so right now, because
     // we expect this to be an unlikely slow path anyway.
-    return hasUndecided(type) || hasInt32(type) || hasDouble(type) || hasContiguous(type) || hasFastArrayStorage(type);
+    return hasUndecided(type) || hasInt32(type) || hasDouble(type) || hasContiguous(type) || hasArrayStorage(type);
 }
 
 void ObjectsWithBrokenIndexingFinder::operator()(JSCell* cell)

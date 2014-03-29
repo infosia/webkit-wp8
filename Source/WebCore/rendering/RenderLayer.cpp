@@ -45,6 +45,7 @@
 #include "RenderLayer.h"
 
 #include "AnimationController.h"
+#include "BoxShape.h"
 #include "ColumnInfo.h"
 #include "CSSPropertyNames.h"
 #include "Chrome.h"
@@ -2087,14 +2088,7 @@ bool RenderLayer::hasAcceleratedTouchScrolling() const
     if (!scrollsOverflow())
         return false;
 
-    // Temporary: turn off accelerated scrolling in WK2.
-    if (Page* page = renderer().frame().page()) {
-        if (page->scrollingCoordinator())
-            return false;
-    }
-    
     Settings* settings = renderer().document().settings();
-
     // FIXME: settings should not be null at this point. If you find a reliable way to hit this assertion, please file a bug.
     // See <rdar://problem/10266101>.
     ASSERT(settings);
@@ -3482,12 +3476,12 @@ void RenderLayer::drawPlatformResizerImage(GraphicsContext* context, const Layou
         context->save();
         context->translate(resizerCornerRect.x() + cornerResizerSize.width(), resizerCornerRect.y() + resizerCornerRect.height() - cornerResizerSize.height());
         context->scale(FloatSize(-1.0, 1.0));
-        context->drawImage(resizeCornerImage.get(), renderer().style().colorSpace(), IntRect(IntPoint(), cornerResizerSize));
+        context->drawImage(resizeCornerImage.get(), renderer().style().colorSpace(), FloatRect(FloatPoint(), cornerResizerSize));
         context->restore();
         return;
     }
-    LayoutRect imageRect(resizerCornerRect.maxXMaxYCorner() - cornerResizerSize, cornerResizerSize);
-    context->drawImage(resizeCornerImage.get(), renderer().style().colorSpace(), pixelSnappedIntRect(imageRect));
+    FloatRect imageRect = pixelSnappedForPainting(LayoutRect(resizerCornerRect.maxXMaxYCorner() - cornerResizerSize, cornerResizerSize), renderer().document().deviceScaleFactor());
+    context->drawImage(resizeCornerImage.get(), renderer().style().colorSpace(), imageRect);
 }
 
 void RenderLayer::paintResizer(GraphicsContext* context, const LayoutPoint& paintOffset, const LayoutRect& damageRect)
@@ -3910,10 +3904,8 @@ bool RenderLayer::setupClipPath(GraphicsContext* context, const LayerPaintingInf
     if (style.clipPath()->type() == ClipPathOperation::Box) {
         BoxClipPathOperation& clippingPath = toBoxClipPathOperation(*(style.clipPath()));
 
-        LayoutRect referenceBox = computeReferenceBox(renderer(), clippingPath, offsetFromRoot, rootRelativeBounds);
-        // FIXME This does not properly compute the rounded corners as specified in all conditions.
-        // https://bugs.webkit.org/show_bug.cgi?id=127982
-        const RoundedRect& shapeRect = renderer().style().getRoundedBorderFor(referenceBox, &(renderer().view()));
+        RoundedRect shapeRect = computeRoundedRectForBoxShape(clippingPath.referenceBox(), toRenderBox(renderer()));
+        shapeRect.moveBy(offsetFromRoot);
 
         context->save();
         context->clipPath(clippingPath.pathForReferenceRect(shapeRect), RULE_NONZERO);

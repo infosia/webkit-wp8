@@ -268,7 +268,9 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, uin
     , m_viewState(ViewState::NoFlags)
     , m_backForwardList(WebBackForwardList::create(*this))
     , m_loadStateAtProcessExit(FrameLoadState::State::Finished)
+#if PLATFORM(MAC) && !USE(ASYNC_NSTEXTINPUTCLIENT)
     , m_temporarilyClosedComposition(false)
+#endif
     , m_textZoomFactor(1)
     , m_pageZoomFactor(1)
     , m_pageScaleFactor(1)
@@ -1052,6 +1054,19 @@ void WebPageProxy::viewStateDidChange(ViewState::Flags mayHaveChanged, WantsRepl
         process().updateProcessState();
 
     updateBackingStoreDiscardableState();
+}
+
+void WebPageProxy::layerHostingModeDidChange()
+{
+    if (!isValid())
+        return;
+
+    LayerHostingMode layerHostingMode = m_pageClient.viewLayerHostingMode();
+    if (m_layerHostingMode == layerHostingMode)
+        return;
+
+    m_layerHostingMode = layerHostingMode;
+    m_process->send(Messages::WebPage::SetLayerHostingMode(static_cast<unsigned>(layerHostingMode)), m_pageID);
 }
 
 void WebPageProxy::waitForDidUpdateViewState()
@@ -2658,9 +2673,12 @@ void WebPageProxy::willSubmitForm(uint64_t frameID, uint64_t sourceFrameID, cons
 
 // UIClient
 
-void WebPageProxy::createNewPage(const ResourceRequest& request, const WindowFeatures& windowFeatures, uint32_t opaqueModifiers, int32_t opaqueMouseButton, uint64_t& newPageID, WebPageCreationParameters& newPageParameters)
+void WebPageProxy::createNewPage(uint64_t frameID, const ResourceRequest& request, const WindowFeatures& windowFeatures, uint32_t opaqueModifiers, int32_t opaqueMouseButton, uint64_t& newPageID, WebPageCreationParameters& newPageParameters)
 {
-    RefPtr<WebPageProxy> newPage = m_uiClient->createNewPage(this, request, windowFeatures, static_cast<WebEvent::Modifiers>(opaqueModifiers), static_cast<WebMouseEvent::Button>(opaqueMouseButton));
+    WebFrameProxy* frame = m_process->webFrame(frameID);
+    MESSAGE_CHECK(frame);
+
+    RefPtr<WebPageProxy> newPage = m_uiClient->createNewPage(this, frame, request, windowFeatures, static_cast<WebEvent::Modifiers>(opaqueModifiers), static_cast<WebMouseEvent::Button>(opaqueMouseButton));
     if (!newPage) {
         newPageID = 0;
         return;
@@ -3104,6 +3122,8 @@ void WebPageProxy::editorStateChanged(const EditorState& editorState)
 {
 #if PLATFORM(COCOA)
     bool couldChangeSecureInputState = m_editorState.isInPasswordField != editorState.isInPasswordField || m_editorState.selectionIsNone;
+#endif
+#if PLATFORM(MAC) && !USE(ASYNC_NSTEXTINPUTCLIENT)
     bool closedComposition = !editorState.shouldIgnoreCompositionSelectionChange && !editorState.hasComposition && (m_editorState.hasComposition || m_temporarilyClosedComposition);
     m_temporarilyClosedComposition = editorState.shouldIgnoreCompositionSelectionChange && (m_temporarilyClosedComposition || m_editorState.hasComposition) && !editorState.hasComposition;
 #endif
@@ -3114,10 +3134,12 @@ void WebPageProxy::editorStateChanged(const EditorState& editorState)
     // Selection being none is a temporary state when editing. Flipping secure input state too quickly was causing trouble (not fully understood).
     if (couldChangeSecureInputState && !editorState.selectionIsNone)
         m_pageClient.updateSecureInputState();
+#endif
 
     if (editorState.shouldIgnoreCompositionSelectionChange)
         return;
 
+#if PLATFORM(MAC) && !USE(ASYNC_NSTEXTINPUTCLIENT)
     if (closedComposition)
         m_pageClient.notifyInputContextAboutDiscardedComposition();
     if (editorState.hasComposition) {
@@ -3126,15 +3148,22 @@ void WebPageProxy::editorStateChanged(const EditorState& editorState)
         cancelComposition();
         m_pageClient.notifyInputContextAboutDiscardedComposition();
     }
-#if PLATFORM(IOS)
-    else {
+#elif PLATFORM(IOS)
+    if (!editorState.hasComposition) {
         // We need to notify the client on iOS to make sure the selection is redrawn.
         notifyRevealedSelection();
     }
-#endif
 #elif PLATFORM(EFL) || PLATFORM(GTK)
     m_pageClient.updateTextInputState();
 #endif
+}
+
+void WebPageProxy::compositionWasCanceled(const EditorState& editorState)
+{
+#if PLATFORM(COCOA)
+    m_pageClient.notifyInputContextAboutDiscardedComposition();
+#endif
+    editorStateChanged(editorState);
 }
 
 // Undo management
@@ -4057,7 +4086,9 @@ void WebPageProxy::resetStateAfterProcessExited()
 
     // FIXME: Reset m_editorState.
     // FIXME: Notify input methods about abandoned composition.
+#if PLATFORM(MAC) && !USE(ASYNC_NSTEXTINPUTCLIENT)
     m_temporarilyClosedComposition = false;
+#endif
 
 #if PLATFORM(MAC)
     dismissCorrectionPanel(ReasonForDismissingAlternativeTextIgnored);

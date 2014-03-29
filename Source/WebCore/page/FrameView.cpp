@@ -1080,7 +1080,7 @@ void FrameView::layout(bool allowSubtree)
     if (inChildFrameLayoutWithFrameFlattening) {
         startLayoutAtMainFrameViewIfNeeded(allowSubtree);
         RenderElement* root = m_layoutRoot ? m_layoutRoot : frame().document()->renderView();
-        if (!root->needsLayout())
+        if (!root || !root->needsLayout())
             return;
     }
 
@@ -3491,9 +3491,6 @@ void FrameView::willPaintContents(GraphicsContext* context, const IntRect& dirty
 #endif
     if (paintingState.isTopLevelPainter)
         sCurrentPaintTimeStamp = monotonicallyIncreasingTime();
-
-    if (!context->paintingDisabled() && !document->printing())
-        flushCompositingStateForThisFrame(&frame());
 
     paintingState.paintBehavior = m_paintBehavior;
     

@@ -35,6 +35,7 @@
 #include "InspectorDOMAgent.h"
 
 #include "AXObjectCache.h"
+#include "AccessibilityNodeObject.h"
 #include "Attr.h"
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
@@ -1424,24 +1425,35 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
     if (!WebCore::AXObjectCache::accessibilityEnabled())
         WebCore::AXObjectCache::enableAccessibility();
 
+    Node* activeDescendantNode = nullptr;
+    bool busy = false;
     TypeBuilder::DOM::AccessibilityProperties::Checked::Enum checked = TypeBuilder::DOM::AccessibilityProperties::Checked::False;
+    RefPtr<Inspector::TypeBuilder::Array<int>> childNodeIds;
+    RefPtr<Inspector::TypeBuilder::Array<int>> controlledNodeIds;
     bool exists = false;
     bool expanded = false;
     bool disabled = false;
+    RefPtr<Inspector::TypeBuilder::Array<int>> flowedNodeIds;
     bool focused = false;
     bool ignored = true;
     bool ignoredByDefault = false;
     TypeBuilder::DOM::AccessibilityProperties::Invalid::Enum invalid = TypeBuilder::DOM::AccessibilityProperties::Invalid::False;
     bool hidden = false;
     String label; // FIXME: Waiting on http://webkit.org/b/121134
-    Node* axParentNode = node;
+    bool liveRegionAtomic = false;
+    TypeBuilder::DOM::AccessibilityProperties::LiveRegionStatus::Enum liveRegionStatus = TypeBuilder::DOM::AccessibilityProperties::LiveRegionStatus::Off;
+    Node* mouseEventNode = nullptr;
+    RefPtr<Inspector::TypeBuilder::Array<int>> ownedNodeIds;
+    Node* parentNode = nullptr;
     bool pressed = false;
     bool readonly = false;
     bool required = false;
     String role;
     bool selected = false;
+    RefPtr<Inspector::TypeBuilder::Array<int>> selectedChildNodeIds;
     bool supportsChecked = false;
     bool supportsExpanded = false;
+    bool supportsLiveRegion = false;
     bool supportsPressed = false;
     bool supportsRequired = false;
     bool supportsFocused = false;
@@ -1449,9 +1461,11 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
     if (AXObjectCache* axObjectCache = node->document().axObjectCache()) {
         if (AccessibilityObject* axObject = axObjectCache->getOrCreate(node)) {
 
-            if (AccessibilityObject* parentObject = axObject->parentObjectUnignored())
-                axParentNode = parentObject->node();
-            
+            if (AccessibilityObject* activeDescendant = axObject->activeDescendant())
+                activeDescendantNode = activeDescendant->node();
+
+            busy = axObject->ariaLiveRegionBusy();
+
             supportsChecked = axObject->supportsChecked();
             if (supportsChecked) {
                 int checkValue = axObject->checkboxOrRadioValue(); // Element using aria-checked.
@@ -1463,16 +1477,47 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
                     checked = TypeBuilder::DOM::AccessibilityProperties::Checked::True;
             }
             
+            const auto& children = axObject->children();
+            if (children.size()) {
+                childNodeIds = Inspector::TypeBuilder::Array<int>::create();
+                for (const auto& childObject : children) {
+                    if (Node* childNode = childObject->node())
+                        childNodeIds->addItem(pushNodePathToFrontend(childNode));
+                }
+            }
+
+            if (axObject->supportsARIAControls()) {
+                Vector<Element*> controlledElements;
+                axObject->elementsFromAttribute(controlledElements, aria_controlsAttr);
+                if (controlledElements.size()) {
+                    controlledNodeIds = Inspector::TypeBuilder::Array<int>::create();
+                    for (Element* controlledElement : controlledElements)
+                        controlledNodeIds->addItem(pushNodePathToFrontend(controlledElement));
+                }
+            }
+
             disabled = !axObject->isEnabled(); 
             exists = true;
             
             supportsExpanded = axObject->supportsARIAExpanded();
             if (supportsExpanded)
                 expanded = axObject->isExpanded();
+
+            if (axObject->supportsARIAFlowTo()) {
+                Vector<Element*> flowedElements;
+                axObject->elementsFromAttribute(flowedElements, aria_flowtoAttr);
+                if (flowedElements.size()) {
+                    flowedNodeIds = Inspector::TypeBuilder::Array<int>::create();
+                    for (Element* flowedElement : flowedElements)
+                        flowedNodeIds->addItem(pushNodePathToFrontend(flowedElement));
+                }
+            }
             
-            supportsFocused = toElement(node)->isFocusable();
-            if (supportsFocused)
-                focused = axObject->isFocused();
+            if (node->isElementNode()) {
+                supportsFocused = toElement(node)->isFocusable();
+                if (supportsFocused)
+                    focused = axObject->isFocused();
+            }
 
             ignored = axObject->accessibilityIsIgnored();
             ignoredByDefault = axObject->accessibilityIsIgnoredByDefault();
@@ -1490,6 +1535,32 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
             if (axObject->isARIAHidden() || axObject->isDOMHidden())
                 hidden = true;
             
+            if (axObject->supportsARIALiveRegion()) {
+                supportsLiveRegion = true;
+                liveRegionAtomic = axObject->ariaLiveRegionAtomic();
+                String ariaLive = axObject->ariaLiveRegionStatus();
+                if (ariaLive == "assertive")
+                    liveRegionStatus = TypeBuilder::DOM::AccessibilityProperties::LiveRegionStatus::Assertive;
+                else if (ariaLive == "polite")
+                    liveRegionStatus = TypeBuilder::DOM::AccessibilityProperties::LiveRegionStatus::Polite;
+            }
+
+            if (axObject->isAccessibilityNodeObject())
+                mouseEventNode = toAccessibilityNodeObject(axObject)->mouseButtonListener(MouseButtonListenerResultFilter::IncludeBodyElement);
+
+            if (axObject->supportsARIAOwns()) {
+                Vector<Element*> ownedElements;
+                axObject->elementsFromAttribute(ownedElements, aria_ownsAttr);
+                if (ownedElements.size()) {
+                    ownedNodeIds = Inspector::TypeBuilder::Array<int>::create();
+                    for (Element* ownedElement : ownedElements)
+                        ownedNodeIds->addItem(pushNodePathToFrontend(ownedElement));
+                }
+            }
+
+            if (AccessibilityObject* parentObject = axObject->parentObjectUnignored())
+                parentNode = parentObject->node();
+
             supportsPressed = axObject->ariaPressedIsPresent();
             if (supportsPressed)
                 pressed = axObject->isPressed();
@@ -1503,6 +1574,16 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
             
             role = axObject->computedRoleString();
             selected = axObject->isSelected();
+
+            AccessibilityObject::AccessibilityChildrenVector selectedChildren;
+            axObject->selectedChildren(selectedChildren);
+            if (selectedChildren.size()) {
+                selectedChildNodeIds = Inspector::TypeBuilder::Array<int>::create();
+                for (auto& selectedChildObject : selectedChildren) {
+                    if (Node* selectedChildNode = selectedChildObject->node())
+                        selectedChildNodeIds->addItem(pushNodePathToFrontend(selectedChildNode));
+                }
+            }
         }
     }
     
@@ -1513,14 +1594,22 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
         .setNodeId(pushNodePathToFrontend(node));
 
     if (exists) {
-        if (axParentNode && axParentNode != node)
-            value->setAxParentNodeId(pushNodePathToFrontend(axParentNode));
+        if (activeDescendantNode)
+            value->setActiveDescendantNodeId(pushNodePathToFrontend(activeDescendantNode));
+        if (busy)
+            value->setBusy(busy);
         if (supportsChecked)
             value->setChecked(checked);
+        if (childNodeIds)
+            value->setChildNodeIds(childNodeIds);
+        if (controlledNodeIds)
+            value->setControlledNodeIds(controlledNodeIds);
         if (disabled)
             value->setDisabled(disabled);
         if (supportsExpanded)
             value->setExpanded(expanded);
+        if (flowedNodeIds)
+            value->setFlowedNodeIds(flowedNodeIds);
         if (supportsFocused)
             value->setFocused(focused);
         if (ignored)
@@ -1531,6 +1620,16 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
             value->setInvalid(invalid);
         if (hidden)
             value->setHidden(hidden);
+        if (supportsLiveRegion) {
+            value->setLiveRegionAtomic(liveRegionAtomic);
+            value->setLiveRegionStatus(liveRegionStatus);
+        }
+        if (mouseEventNode)
+            value->setMouseEventNodeId(pushNodePathToFrontend(mouseEventNode));
+        if (ownedNodeIds)
+            value->setOwnedNodeIds(ownedNodeIds);
+        if (parentNode)
+            value->setParentNodeId(pushNodePathToFrontend(parentNode));
         if (supportsPressed)
             value->setPressed(pressed);
         if (readonly)
@@ -1539,6 +1638,8 @@ PassRefPtr<TypeBuilder::DOM::AccessibilityProperties> InspectorDOMAgent::buildOb
             value->setRequired(required);
         if (selected)
             value->setSelected(selected);
+        if (selectedChildNodeIds)
+            value->setSelectedChildNodeIds(selectedChildNodeIds);
     }
 
     return value.release();

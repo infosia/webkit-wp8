@@ -201,7 +201,6 @@ EXPORTS
         symbolWithPointer(?fromUTF8WithLatin1Fallback@String@WTF@@SA?AV12@PBEI@Z, ?fromUTF8WithLatin1Fallback@String@WTF@@SA?AV12@PEBE_K@Z)
         symbolWithPointer(?garbageCollectDocumentResources@CachedResourceLoader@WebCore@@QAEXXZ, ?garbageCollectDocumentResources@CachedResourceLoader@WebCore@@QEAAXXZ)
         symbolWithPointer(?getCachedDOMStructure@WebCore@@YAPAVStructure@JSC@@PAVJSDOMGlobalObject@1@PBUClassInfo@3@@Z, ?getCachedDOMStructure@WebCore@@YAPEAVStructure@JSC@@PEAVJSDOMGlobalObject@1@PEBUClassInfo@3@@Z)
-        symbolWithPointer(?getData16SlowCase@StringImpl@WTF@@ABEPB_WXZ, ?getData16SlowCase@StringImpl@WTF@@AEBAPEB_WXZ)
         symbolWithPointer(?getElementById@TreeScope@WebCore@@QBEPAVElement@2@ABVString@WTF@@@Z, ?getElementById@TreeScope@WebCore@@QEBAPEAVElement@2@AEBVString@WTF@@@Z)
         symbolWithPointer(?getLocationAndLengthFromRange@TextIterator@WebCore@@SA_NPAVNode@2@PBVRange@2@AAI2@Z, ?getLocationAndLengthFromRange@TextIterator@WebCore@@SA_NPEAVNode@2@PEBVRange@2@AEA_K2@Z)
         symbolWithPointer(?hitTest@RenderView@WebCore@@QAE_NABVHitTestRequest@2@AAVHitTestResult@2@@Z, ?hitTest@RenderView@WebCore@@QEAA_NAEBVHitTestRequest@2@AEAVHitTestResult@2@@Z)
@@ -243,6 +242,7 @@ EXPORTS
         symbolWithPointer(?markerTextForListItem@WebCore@@YA?AVString@WTF@@PAVElement@1@@Z, ?markerTextForListItem@WebCore@@YA?AVString@WTF@@PEAVElement@1@@Z)
         symbolWithPointer(?length@StaticNodeList@WebCore@@UBEIXZ, ?length@StaticNodeList@WebCore@@UEBAIXZ)
         symbolWithPointer(?shadowRoot@Element@WebCore@@QBEPAVShadowRoot@2@XZ, ?shadowRoot@Element@WebCore@@QEBAPEAVShadowRoot@2@XZ)
+#if ENABLE(VIDEO)
         symbolWithPointer(?sharedManager@MediaSessionManager@WebCore@@SAAAV12@XZ, ?sharedManager@MediaSessionManager@WebCore@@SAAEAV12@XZ)
         symbolWithPointer(?beginInterruption@MediaSessionManager@WebCore@@QAEXXZ, ?beginInterruption@MediaSessionManager@WebCore@@QEAAXXZ)
         symbolWithPointer(?endInterruption@MediaSessionManager@WebCore@@QAEXW4EndInterruptionFlags@MediaSession@2@@Z, ?endInterruption@MediaSessionManager@WebCore@@QEAAXW4EndInterruptionFlags@MediaSession@2@@Z)
@@ -251,6 +251,7 @@ EXPORTS
         symbolWithPointer(?restrictions@MediaSessionManager@WebCore@@QAEIW4MediaType@MediaSession@2@@Z, ?restrictions@MediaSessionManager@WebCore@@QEAAIW4MediaType@MediaSession@2@@Z)
         symbolWithPointer(?applicationWillEnterForeground@MediaSessionManager@WebCore@@QBEXXZ, ?applicationWillEnterForeground@MediaSessionManager@WebCore@@QEBAXXZ)
         symbolWithPointer(?applicationWillEnterBackground@MediaSessionManager@WebCore@@QBEXXZ, ?applicationWillEnterBackground@MediaSessionManager@WebCore@@QEBAXXZ)
+ #endif
         ?localUserSpecificStorageDirectory@WebCore@@YA?AVString@WTF@@XZ
         symbolWithPointer(?namedItem@StaticNodeList@WebCore@@UBEPAVNode@2@ABVAtomicString@WTF@@@Z, ?namedItem@StaticNodeList@WebCore@@UEBAPEAVNode@2@AEBVAtomicString@WTF@@@Z)
         ?number@String@WTF@@SA?AV12@_J@Z
@@ -475,6 +476,7 @@ EXPORTS
         symbolWithPointer(?visibleContentRect@ScrollableArea@WebCore@@QBE?AVIntRect@2@W4VisibleContentRectBehavior@12@@Z, ?visibleContentRect@ScrollableArea@WebCore@@QEBA?AVIntRect@2@W4VisibleContentRectBehavior@12@@Z)
         symbolWithPointer(?gAccessibilityEnhancedUserInterfaceEnabled@AXObjectCache@WebCore@@0_NA, ?gAccessibilityEnhancedUserInterfaceEnabled@AXObjectCache@WebCore@@0_NA)
         symbolWithPointer(?disableAccessibility@AXObjectCache@WebCore@@SAXXZ, ?disableAccessibility@AXObjectCache@WebCore@@SAXXZ)
+        symbolWithPointer(?setEnhancedUserInterfaceAccessibility@AXObjectCache@WebCore@@SAX_N@Z, ?setEnhancedUserInterfaceAccessibility@AXObjectCache@WebCore@@SAX_N@Z)
         symbolWithPointer(?sessionID@Page@WebCore@@QBE?AVSessionID@2@XZ, ?sessionID@Page@WebCore@@QEBA?AVSessionID@2@XZ)
         symbolWithPointer(?resourceForURL@MemoryCache@WebCore@@QAEPAVCachedResource@2@ABVURL@2@VSessionID@2@@Z, ?resourceForURL@MemoryCache@WebCore@@QEAAPEAVCachedResource@2@AEBVURL@2@VSessionID@2@@Z)
         symbolWithPointer(?makeDOMBindingsTypeErrorStringInternal@WebCore@@YA?AVString@WTF@@PBDZZ, ?makeDOMBindingsTypeErrorStringInternal@WebCore@@YA?AVString@WTF@@PEBDZZ)

@@ -280,8 +280,10 @@ Heap::Heap(VM* vm, HeapType heapType)
     , m_isSafeToCollect(false)
     , m_writeBarrierBuffer(256)
     , m_vm(vm)
-    , m_lastFullGCLength(0)
-    , m_lastEdenGCLength(0)
+    // We seed with 10ms so that GCActivityCallback::didAllocate doesn't continuously 
+    // schedule the timer if we've never done a collection.
+    , m_lastFullGCLength(0.01)
+    , m_lastEdenGCLength(0.01)
     , m_lastCodeDiscardTime(WTF::monotonicallyIncreasingTime())
     , m_fullActivityCallback(GCActivityCallback::createFullTimer(this))
 #if ENABLE(GGC)
@@ -848,7 +850,7 @@ void Heap::addToRememberedSet(const JSCell* cell)
 {
     ASSERT(cell);
     ASSERT(!Options::enableConcurrentJIT() || !isCompilationThread());
-    if (isInRememberedSet(cell))
+    if (isRemembered(cell))
         return;
     MarkedBlock::blockFor(cell)->setRemembered(cell);
     const_cast<JSCell*>(cell)->setRemembered(true);
@@ -1013,6 +1015,19 @@ void Heap::sweepArrayBuffers()
     GCPHASE(SweepingArrayBuffers);
     m_arrayBuffers.sweep();
 }
+
+struct MarkedBlockSnapshotFunctor : public MarkedBlock::VoidFunctor {
+    MarkedBlockSnapshotFunctor(Vector<MarkedBlock*>& blocks) 
+        : m_index(0) 
+        , m_blocks(blocks)
+    {
+    }
+
+    void operator()(MarkedBlock* block) { m_blocks[m_index++] = block; }
+
+    size_t m_index;
+    Vector<MarkedBlock*>& m_blocks;
+};
 
 void Heap::snapshotMarkedSpace()
 {

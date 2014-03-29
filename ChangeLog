@@ -1,3 +1,91 @@
+2014-03-28  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        [EFL] Bump glib version from 2.36 to 2.38 
+        https://bugs.webkit.org/show_bug.cgi?id=130886
+
+        Reviewed by Csaba Osztrogonác.
+
+        * Source/cmake/OptionsEfl.cmake: Required glib-2.38 version.
+
+2014-03-26  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Remove shape-inside support
+        https://bugs.webkit.org/show_bug.cgi?id=130698
+
+        Reviewed by David Hyatt.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * .gitignore: Remove references to autotools files.
+        * GNUmakefile.am: Removed.
+        * Source/autotools/CheckSystemAndBasicDependencies.m4: Removed.
+        * Source/autotools/CustomMacros.m4: Removed.
+        * Source/autotools/FindDependencies.m4: Removed.
+        * Source/autotools/PrintBuildConfiguration.m4: Removed.
+        * Source/autotools/ReadCommandLineArguments.m4: Removed.
+        * Source/autotools/SetupAutoconfHeader.m4: Removed.
+        * Source/autotools/SetupAutomake.m4: Removed.
+        * Source/autotools/SetupCompilerFlags.m4: Removed.
+        * Source/autotools/SetupLibtool.m4: Removed.
+        * Source/autotools/SetupWebKitFeatures.m4: Removed.
+        * Source/autotools/Versions.m4: Removed.
+        * Source/autotools/acinclude.m4: Removed.
+        * Source/autotools/dolt.m4: Removed.
+        * Source/autotools/gsettings.m4: Removed.
+        * Source/cmake/OptionsGTK.cmake:
+        * autogen.sh: Removed.
+        * configure.ac: Removed.
+
+2014-03-25  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [EFL] Add ARM64 build support
+        https://bugs.webkit.org/show_bug.cgi?id=130506
+
+        Rubber stamped by Gyuyoung Kim.
+
+        * CMakeLists.txt: Set WTF_CPU_ARM64 when aarch64 is defined.
+
+2014-03-25  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        [EFL][WK2] Add NETWORK_PROCESS build option
+        https://bugs.webkit.org/show_bug.cgi?id=130131
+
+        Reviewed by Gyuyoung Kim.
+
+        Add option to build EFL port with NETWORK_PROCESS set on. By default NETWORK_PROCESS is
+        set off.
+
+        * Source/cmake/OptionsEfl.cmake:
+
+2014-03-24  Brian Burg  <bburg@apple.com>
+
+        Web Replay: capture and replay keyboard events
+        https://bugs.webkit.org/show_bug.cgi?id=130314
+
+        Reviewed by Joseph Pecoraro.
+
+        * ManualTests/inspector/replay-keyboard-events.html: Added.
+
+2014-03-24  Sangyong Park  <sy302.park@gmail.com>
+
+        [EFL] Inspector page is not loaded.
+        https://bugs.webkit.org/show_bug.cgi?id=130661
+
+        Reviewed by Gyuyoung Kim.
+
+        Inspector page is not loaded, because some javascript files are not installed.
+        (InspectorJSBackendCommands.js, InspectorWebBackendCommands.js)
+
+        * Source/PlatformEfl.cmake:
+
 2014-03-20  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
 
         [EFL][GTK] Get CMake to find Freetype2 properly

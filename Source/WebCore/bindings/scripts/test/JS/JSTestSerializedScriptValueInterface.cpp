@@ -124,12 +124,6 @@ JSTestSerializedScriptValueInterface::JSTestSerializedScriptValueInterface(Struc
 {
 }
 
-void JSTestSerializedScriptValueInterface::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestSerializedScriptValueInterface::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestSerializedScriptValueInterfacePrototype::create(vm, globalObject, JSTestSerializedScriptValueInterfacePrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -337,7 +331,7 @@ extern "C" { extern void (*const __identifier("??_7TestSerializedScriptValueInte
 extern "C" { extern void* _ZTVN7WebCore34TestSerializedScriptValueInterfaceE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestSerializedScriptValueInterface* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestSerializedScriptValueInterface* impl)
 {
     if (!impl)
         return jsNull();
@@ -362,7 +356,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestSer
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestSerializedScriptValueInterface>(exec, globalObject, impl);
+    return createNewWrapper<JSTestSerializedScriptValueInterface>(globalObject, impl);
 }
 
 TestSerializedScriptValueInterface* toTestSerializedScriptValueInterface(JSC::JSValue value)

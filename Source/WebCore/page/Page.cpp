@@ -734,6 +734,10 @@ void Page::setPageScaleFactor(float scale, const IntPoint& origin)
 
 void Page::setDeviceScaleFactor(float scaleFactor)
 {
+    ASSERT(scaleFactor > 0);
+    if (scaleFactor <= 0)
+        return;
+    
     if (m_deviceScaleFactor == scaleFactor)
         return;
 
@@ -1515,6 +1519,9 @@ SessionID Page::sessionID() const
 
     if (settings().privateBrowsingEnabled())
         return SessionID::legacyPrivateSessionID();
+
+    if (!settings().usesMemoryCache())
+        return SessionID::bypassCacheSessionID();
 
     return SessionID::defaultSessionID();
 }

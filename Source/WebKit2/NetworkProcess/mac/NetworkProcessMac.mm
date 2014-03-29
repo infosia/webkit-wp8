@@ -40,20 +40,9 @@
 #import <WebCore/LocalizedStrings.h>
 #import <WebCore/MemoryPressureHandler.h>
 #import <WebKitSystemInterface.h>
-#import <mach/host_info.h>
-#import <mach/mach.h>
-#import <mach/mach_error.h>
 #import <notify.h>
 #import <sysexits.h>
 #import <wtf/text/WTFString.h>
-
-typedef struct _CFURLCache* CFURLCacheRef;
-extern "C" CFURLCacheRef CFURLCacheCopySharedURLCache();
-extern "C" void _CFURLCachePurgeMemoryCache(CFURLCacheRef);
-
-#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-extern "C" void _CFURLCacheSetMinSizeForVMCachedResource(CFURLCacheRef, CFIndex);
-#endif
 
 using namespace WebCore;
 
@@ -71,15 +60,10 @@ void NetworkProcess::initializeProcess(const ChildProcessInitializationParameter
 
 void NetworkProcess::initializeProcessName(const ChildProcessInitializationParameters& parameters)
 {
-#if PLATFORM(IOS)
-    UNUSED_PARAM(parameters);
-#else
     NSString *applicationName = [NSString stringWithFormat:WEB_UI_STRING("%@ Networking", "visible name of the network process. The argument is the application name."), (NSString *)parameters.uiProcessName];
     WKSetVisibleApplicationName((CFStringRef)applicationName);
-#endif
 }
 
-#if !PLATFORM(IOS)
 static void overrideSystemProxies(const String& httpProxy, const String& httpsProxy)
 {
     NSMutableDictionary *proxySettings = [NSMutableDictionary dictionary];
@@ -112,91 +96,17 @@ static void overrideSystemProxies(const String& httpProxy, const String& httpsPr
     if ([proxySettings count] > 0)
         WKCFNetworkSetOverrideSystemProxySettings((CFDictionaryRef)proxySettings);
 }
-#endif
-
-void NetworkProcess::platformLowMemoryHandler(bool)
-{
-    _CFURLCachePurgeMemoryCache(adoptCF(CFURLCacheCopySharedURLCache()).get());
-}
 
 void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters& parameters)
 {
-    m_diskCacheDirectory = parameters.diskCacheDirectory;
-
-    if (!m_diskCacheDirectory.isNull()) {
-        SandboxExtension::consumePermanently(parameters.diskCacheDirectoryExtensionHandle);
-        [NSURLCache setSharedURLCache:adoptNS([[NSURLCache alloc]
-            initWithMemoryCapacity:parameters.nsURLCacheMemoryCapacity
-            diskCapacity:parameters.nsURLCacheDiskCapacity
-            diskPath:parameters.diskCacheDirectory]).get()];
-    }
+    platformInitializeNetworkProcessCocoa(parameters);
 
 #if ENABLE(SEC_ITEM_SHIM)
     SecItemShim::shared().initialize(this);
 #endif
 
-#if !PLATFORM(IOS)
     if (!parameters.httpProxy.isNull() || !parameters.httpsProxy.isNull())
         overrideSystemProxies(parameters.httpProxy, parameters.httpsProxy);
-#endif
-
-#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-    RetainPtr<CFURLCacheRef> cache = adoptCF(CFURLCacheCopySharedURLCache());
-    if (!cache)
-        return;
-
-    _CFURLCacheSetMinSizeForVMCachedResource(cache.get(), NetworkResourceLoader::fileBackedResourceMinimumSize());
-#endif
-}
-
-static uint64_t memorySize()
-{
-    static host_basic_info_data_t hostInfo;
-
-    static dispatch_once_t once;
-    dispatch_once(&once, ^() {
-        mach_port_t host = mach_host_self();
-        mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
-        kern_return_t r = host_info(host, HOST_BASIC_INFO, (host_info_t)&hostInfo, &count);
-        mach_port_deallocate(mach_task_self(), host);
-
-        if (r != KERN_SUCCESS)
-            LOG_ERROR("%s : host_info(%d) : %s.\n", __FUNCTION__, r, mach_error_string(r));
-    });
-
-    return hostInfo.max_mem;
-}
-
-static uint64_t volumeFreeSize(const String& path)
-{
-    NSDictionary *fileSystemAttributesDictionary = [[NSFileManager defaultManager] attributesOfFileSystemForPath:(NSString *)path error:NULL];
-    return [[fileSystemAttributesDictionary objectForKey:NSFileSystemFreeSize] unsignedLongLongValue];
-}
-
-void NetworkProcess::platformSetCacheModel(CacheModel cacheModel)
-{
-
-    // As a fudge factor, use 1000 instead of 1024, in case the reported byte 
-    // count doesn't align exactly to a megabyte boundary.
-    uint64_t memSize = memorySize() / 1024 / 1000;
-    uint64_t diskFreeSize = volumeFreeSize(m_diskCacheDirectory) / 1024 / 1000;
-
-    unsigned cacheTotalCapacity = 0;
-    unsigned cacheMinDeadCapacity = 0;
-    unsigned cacheMaxDeadCapacity = 0;
-    double deadDecodedDataDeletionInterval = 0;
-    unsigned pageCacheCapacity = 0;
-    unsigned long urlCacheMemoryCapacity = 0;
-    unsigned long urlCacheDiskCapacity = 0;
-
-    calculateCacheSizes(cacheModel, memSize, diskFreeSize,
-        cacheTotalCapacity, cacheMinDeadCapacity, cacheMaxDeadCapacity, deadDecodedDataDeletionInterval,
-        pageCacheCapacity, urlCacheMemoryCapacity, urlCacheDiskCapacity);
-
-
-    NSURLCache *nsurlCache = [NSURLCache sharedURLCache];
-    [nsurlCache setMemoryCapacity:urlCacheMemoryCapacity];
-    [nsurlCache setDiskCapacity:std::max<unsigned long>(urlCacheDiskCapacity, [nsurlCache diskCapacity])]; // Don't shrink a big disk cache, since that would cause churn.
 }
 
 void NetworkProcess::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)

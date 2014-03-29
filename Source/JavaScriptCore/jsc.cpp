@@ -37,6 +37,7 @@
 #include "JSLock.h"
 #include "JSProxy.h"
 #include "JSString.h"
+#include "ProfilerDatabase.h"
 #include "SamplingTool.h"
 #include "StackVisitor.h"
 #include "StructureRareDataInlines.h"
@@ -350,7 +351,6 @@ public:
         GlobalObject* object = new (NotNull, allocateCell<GlobalObject>(vm.heap)) GlobalObject(vm, structure);
         object->finishCreation(vm, arguments);
         vm.heap.addFinalizer(object, destroy);
-        object->setGlobalThis(vm, JSProxy::create(vm, JSProxy::createStructure(vm, object, object->prototype()), object));
         return object;
     }
 

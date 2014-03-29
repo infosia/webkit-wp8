@@ -75,10 +75,10 @@ void RenderNamedFlowThread::clearContentElements()
 {
     for (auto& contentElement : m_contentElements) {
         ASSERT(contentElement);
-        ASSERT(contentElement->inNamedFlow());
+        ASSERT(contentElement->isNamedFlowContentNode());
         ASSERT(&contentElement->document() == &document());
         
-        contentElement->clearInNamedFlow();
+        contentElement->clearIsNamedFlowContentNode();
     }
     
     m_contentElements.clear();
@@ -297,9 +297,22 @@ LayoutRect RenderNamedFlowThread::decorationsClipRectForBoxInNamedFlowFragment(c
     
     // Now flip it again.
     flipForWritingModeLocalCoordinates(visualOverflowRect);
-    
-    // Take the scrolled offset of the region into consideration.
-    IntSize scrolledContentOffset = fragment.fragmentContainer().scrolledContentOffset();
+
+    // Take the scrolled offset of this object's parents into consideration.
+    IntSize scrolledContentOffset;
+    RenderBlock* containingBlock = box.containingBlock();
+    while (containingBlock) {
+        if (containingBlock->isRenderNamedFlowThread()) {
+            // We've reached the flow thread, take the scrolled offset of the region into consideration.
+            ASSERT(containingBlock == this);
+            scrolledContentOffset += fragment.fragmentContainer().scrolledContentOffset();
+            break;
+        }
+        
+        scrolledContentOffset += containingBlock->scrolledContentOffset();
+        containingBlock = containingBlock->containingBlock();
+    }
+
     if (!scrolledContentOffset.isZero()) {
         if (style().isFlippedBlocksWritingMode())
             scrolledContentOffset = -scrolledContentOffset;
@@ -484,7 +497,7 @@ void RenderNamedFlowThread::registerNamedFlowContentElement(Element& contentElem
 {
     ASSERT(&contentElement.document() == &document());
 
-    contentElement.setInNamedFlow();
+    contentElement.setIsNamedFlowContentNode();
 
     resetMarkForDestruction();
 
@@ -505,10 +518,10 @@ void RenderNamedFlowThread::registerNamedFlowContentElement(Element& contentElem
 void RenderNamedFlowThread::unregisterNamedFlowContentElement(Element& contentElement)
 {
     ASSERT(m_contentElements.contains(&contentElement));
-    ASSERT(contentElement.inNamedFlow());
+    ASSERT(contentElement.isNamedFlowContentNode());
     ASSERT(&contentElement.document() == &document());
 
-    contentElement.clearInNamedFlow();
+    contentElement.clearIsNamedFlowContentNode();
     m_contentElements.remove(&contentElement);
 
     if (canBeDestroyed())
@@ -621,7 +634,7 @@ static bool boxIntersectsRegion(LayoutUnit logicalTopForBox, LayoutUnit logicalB
 static Node* nextNodeInsideContentElement(const Node* currNode, const Element* contentElement)
 {
     ASSERT(currNode);
-    ASSERT(contentElement && contentElement->inNamedFlow());
+    ASSERT(contentElement && contentElement->isNamedFlowContentNode());
 
     if (currNode->renderer() && currNode->renderer()->isSVGRoot())
         return NodeTraversal::nextSkippingChildren(currNode, contentElement);

@@ -1354,6 +1354,8 @@ void AccessibilityObject::updateBackingStore()
     // Updating the layout may delete this object.
     if (Document* document = this->document())
         document->updateLayoutIgnorePendingStylesheets();
+    
+    updateChildrenIfNecessary();
 }
 #endif
 
@@ -1749,7 +1751,11 @@ AccessibilityRole AccessibilityObject::ariaRoleToWebCoreRole(const String& value
 String AccessibilityObject::computedRoleString() const
 {
     // FIXME: Need a few special cases that aren't in the RoleMap: option, etc. http://webkit.org/b/128296
-    return reverseAriaRoleMap().get(roleValue());
+    AccessibilityRole role = roleValue();
+    if (role == HorizontalRuleRole)
+        role = SplitterRole;
+    
+    return reverseAriaRoleMap().get(role);
 }
 
 bool AccessibilityObject::hasHighlighting() const

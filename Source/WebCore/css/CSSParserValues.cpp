@@ -25,6 +25,7 @@
 #include "CSSFunctionValue.h"
 #include "CSSSelector.h"
 #include "CSSSelectorList.h"
+#include "SelectorPseudoTypeMap.h"
 
 namespace WebCore {
 
@@ -34,6 +35,8 @@ void destroy(const CSSParserValue& value)
 {
     if (value.unit == CSSParserValue::Function)
         delete value.function;
+    else if (value.unit == CSSParserValue::ValueList)
+        delete value.valueList;
 }
 
 CSSParserValueList::~CSSParserValueList()
@@ -76,6 +79,8 @@ PassRefPtr<CSSValue> CSSParserValue::createCSSValue()
     }
     if (unit == CSSParserValue::Function)
         return CSSFunctionValue::create(function);
+    if (unit == CSSParserValue::ValueList)
+        return CSSValueList::createFromParserValueList(*valueList);
     if (unit >= CSSParserValue::Q_EMS)
         return CSSPrimitiveValue::createAllowingMarginQuirk(fValue, CSSPrimitiveValue::CSS_EMS);
 
@@ -164,6 +169,60 @@ CSSParserSelector* CSSParserSelector::parsePagePseudoSelector(const CSSParserStr
     return selector.release();
 }
 
+CSSParserSelector* CSSParserSelector::parsePseudoElementSelector(CSSParserString& pseudoTypeString)
+{
+    pseudoTypeString.lower();
+    AtomicString name = pseudoTypeString;
+
+    CSSSelector::PseudoType pseudoType = CSSSelector::parsePseudoElementType(name);
+    if (pseudoType == CSSSelector::PseudoUnknown)
+        return nullptr;
+
+    auto selector = std::make_unique<CSSParserSelector>();
+    selector->m_selector->m_match = CSSSelector::PseudoElement;
+    selector->m_selector->m_pseudoType = pseudoType;
+    selector->m_selector->setValue(name);
+    return selector.release();
+}
+
+#if ENABLE(VIDEO_TRACK)
+CSSParserSelector* CSSParserSelector::parsePseudoCueFunctionSelector(const CSSParserString& functionIdentifier, Vector<std::unique_ptr<CSSParserSelector>>* parsedSelectorVector)
+{
+    ASSERT_UNUSED(functionIdentifier, String(functionIdentifier) == "cue(");
+
+    std::unique_ptr<Vector<std::unique_ptr<CSSParserSelector>>> selectorVector(parsedSelectorVector);
+
+    if (!selectorVector)
+        return nullptr;
+
+    auto selector = std::make_unique<CSSParserSelector>();
+    selector->m_selector->m_match = CSSSelector::PseudoElement;
+    selector->m_selector->m_pseudoType = CSSSelector::PseudoCue;
+    selector->adoptSelectorVector(*selectorVector);
+    return selector.release();
+}
+#endif
+
+CSSParserSelector* CSSParserSelector::parsePseudoClassAndCompatibilityElementSelector(CSSParserString& pseudoTypeString)
+{
+    PseudoClassOrCompatibilityPseudoElement pseudoType = parsePseudoClassAndCompatibilityElementString(pseudoTypeString);
+    if (pseudoType.pseudoClass != CSSSelector::PseudoUnknown) {
+        auto selector = std::make_unique<CSSParserSelector>();
+        selector->m_selector->m_match = CSSSelector::PseudoClass;
+        selector->m_selector->m_pseudoType = pseudoType.pseudoClass;
+        return selector.release();
+    }
+    if (pseudoType.compatibilityPseudoElement != CSSSelector::PseudoUnknown) {
+        auto selector = std::make_unique<CSSParserSelector>();
+        selector->m_selector->m_match = CSSSelector::PseudoElement;
+        selector->m_selector->m_pseudoType = pseudoType.compatibilityPseudoElement;
+        AtomicString name = pseudoTypeString;
+        selector->m_selector->setValue(name);
+        return selector.release();
+    }
+    return nullptr;
+}
+
 CSSParserSelector::CSSParserSelector()
     : m_selector(std::make_unique<CSSSelector>())
 {
@@ -196,119 +255,12 @@ void CSSParserSelector::adoptSelectorVector(Vector<std::unique_ptr<CSSParserSele
     m_selector->setSelectorList(std::move(selectorList));
 }
 
-void CSSParserSelector::setPseudoTypeValue(const CSSParserString& pseudoTypeString)
+void CSSParserSelector::setPseudoClassValue(const CSSParserString& pseudoClassString)
 {
-    AtomicString name = pseudoTypeString;
-    m_selector->setValue(name);
+    ASSERT(m_selector->m_match == CSSSelector::PseudoClass);
 
-    CSSSelector::PseudoType pseudoType = CSSSelector::parsePseudoType(name);
-    bool element = false; // pseudo-element
-    bool compat = false; // single colon compatbility mode
-
-    switch (pseudoType) {
-    case CSSSelector::PseudoAfter:
-    case CSSSelector::PseudoBefore:
-    case CSSSelector::PseudoFirstLetter:
-    case CSSSelector::PseudoFirstLine:
-        compat = true;
-        FALLTHROUGH;
-#if ENABLE(VIDEO_TRACK)
-    case CSSSelector::PseudoCue:
-#endif
-    case CSSSelector::PseudoResizer:
-    case CSSSelector::PseudoScrollbar:
-    case CSSSelector::PseudoScrollbarCorner:
-    case CSSSelector::PseudoScrollbarButton:
-    case CSSSelector::PseudoScrollbarThumb:
-    case CSSSelector::PseudoScrollbarTrack:
-    case CSSSelector::PseudoScrollbarTrackPiece:
-    case CSSSelector::PseudoSelection:
-    case CSSSelector::PseudoUserAgentCustomElement:
-    case CSSSelector::PseudoWebKitCustomElement:
-        element = true;
-        break;
-    case CSSSelector::PseudoUnknown:
-    case CSSSelector::PseudoEmpty:
-    case CSSSelector::PseudoFirstChild:
-    case CSSSelector::PseudoFirstOfType:
-    case CSSSelector::PseudoLastChild:
-    case CSSSelector::PseudoLastOfType:
-    case CSSSelector::PseudoOnlyChild:
-    case CSSSelector::PseudoOnlyOfType:
-    case CSSSelector::PseudoNthChild:
-    case CSSSelector::PseudoNthOfType:
-    case CSSSelector::PseudoNthLastChild:
-    case CSSSelector::PseudoNthLastOfType:
-    case CSSSelector::PseudoLink:
-    case CSSSelector::PseudoVisited:
-    case CSSSelector::PseudoAny:
-    case CSSSelector::PseudoAnyLink:
-    case CSSSelector::PseudoAutofill:
-    case CSSSelector::PseudoHover:
-    case CSSSelector::PseudoDrag:
-    case CSSSelector::PseudoFocus:
-    case CSSSelector::PseudoActive:
-    case CSSSelector::PseudoChecked:
-    case CSSSelector::PseudoEnabled:
-    case CSSSelector::PseudoFullPageMedia:
-    case CSSSelector::PseudoDefault:
-    case CSSSelector::PseudoDisabled:
-    case CSSSelector::PseudoOptional:
-    case CSSSelector::PseudoRequired:
-    case CSSSelector::PseudoReadOnly:
-    case CSSSelector::PseudoReadWrite:
-    case CSSSelector::PseudoScope:
-    case CSSSelector::PseudoValid:
-    case CSSSelector::PseudoInvalid:
-    case CSSSelector::PseudoIndeterminate:
-    case CSSSelector::PseudoTarget:
-    case CSSSelector::PseudoLang:
-    case CSSSelector::PseudoNot:
-    case CSSSelector::PseudoRoot:
-    case CSSSelector::PseudoScrollbarBack:
-    case CSSSelector::PseudoScrollbarForward:
-    case CSSSelector::PseudoWindowInactive:
-    case CSSSelector::PseudoCornerPresent:
-    case CSSSelector::PseudoDecrement:
-    case CSSSelector::PseudoIncrement:
-    case CSSSelector::PseudoHorizontal:
-    case CSSSelector::PseudoVertical:
-    case CSSSelector::PseudoStart:
-    case CSSSelector::PseudoEnd:
-    case CSSSelector::PseudoDoubleButton:
-    case CSSSelector::PseudoSingleButton:
-    case CSSSelector::PseudoNoButton:
-#if ENABLE(FULLSCREEN_API)
-    case CSSSelector::PseudoFullScreen:
-    case CSSSelector::PseudoFullScreenDocument:
-    case CSSSelector::PseudoFullScreenAncestor:
-    case CSSSelector::PseudoAnimatingFullScreenTransition:
-#endif
-    case CSSSelector::PseudoInRange:
-    case CSSSelector::PseudoOutOfRange:
-#if ENABLE(VIDEO_TRACK)
-    case CSSSelector::PseudoFuture:
-    case CSSSelector::PseudoPast:
-#endif
-        break;
-    case CSSSelector::PseudoFirst:
-    case CSSSelector::PseudoLeft:
-    case CSSSelector::PseudoRight:
-        ASSERT_NOT_REACHED();
-        break;
-    }
-
-    unsigned matchType = m_selector->m_match;
-    if (matchType == CSSSelector::PseudoClass && element) {
-        if (!compat)
-            pseudoType = CSSSelector::PseudoUnknown;
-        else
-            matchType = CSSSelector::PseudoElement;
-    } else if (matchType == CSSSelector::PseudoElement && !element)
-        pseudoType = CSSSelector::PseudoUnknown;
-
-    m_selector->m_match = matchType;
-    m_selector->m_pseudoType = pseudoType;
+    PseudoClassOrCompatibilityPseudoElement pseudoType = parsePseudoClassAndCompatibilityElementString(pseudoClassString);
+    m_selector->m_pseudoType = pseudoType.pseudoClass;
 }
 
 bool CSSParserSelector::isSimple() const

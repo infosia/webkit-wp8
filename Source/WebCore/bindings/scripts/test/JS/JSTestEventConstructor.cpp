@@ -154,12 +154,6 @@ JSTestEventConstructor::JSTestEventConstructor(Structure* structure, JSDOMGlobal
 {
 }
 
-void JSTestEventConstructor::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestEventConstructor::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestEventConstructorPrototype::create(vm, globalObject, JSTestEventConstructorPrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -259,7 +253,7 @@ extern "C" { extern void (*const __identifier("??_7TestEventConstructor@WebCore@
 extern "C" { extern void* _ZTVN7WebCore20TestEventConstructorE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestEventConstructor* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestEventConstructor* impl)
 {
     if (!impl)
         return jsNull();
@@ -284,7 +278,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestEve
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestEventConstructor>(exec, globalObject, impl);
+    return createNewWrapper<JSTestEventConstructor>(globalObject, impl);
 }
 
 TestEventConstructor* toTestEventConstructor(JSC::JSValue value)

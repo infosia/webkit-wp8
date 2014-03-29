@@ -159,6 +159,10 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
     m_jitCode->common.machineCaptureStart = m_graph.m_machineCaptureStart;
     m_jitCode->common.slowArguments = std::move(m_graph.m_slowArguments);
 
+#if USE(JSVALUE32_64)
+    m_jitCode->common.doubleConstants = std::move(m_graph.m_doubleConstants);
+#endif
+
     BitVector usedJumpTables;
     for (Bag<SwitchData>::iterator iter = m_graph.m_switchData.begin(); !!iter; ++iter) {
         SwitchData& data = **iter;
@@ -233,20 +237,16 @@ void JITCompiler::link(LinkBuffer& linkBuffer)
         info.patch.deltaCallToSlowCase = differenceBetweenCodePtr(callReturnLocation, linkBuffer.locationOf(m_ins[i].m_slowPathGenerator->label()));
     }
     
-    RELEASE_ASSERT(!m_graph.m_plan.willTryToTierUp || m_jitCode->slowPathCalls.size() >= m_jsCalls.size());
-    m_codeBlock->setNumberOfCallLinkInfos(m_jsCalls.size());
     for (unsigned i = 0; i < m_jsCalls.size(); ++i) {
-        CallLinkInfo& info = m_codeBlock->callLinkInfo(i);
-        info.callType = m_jsCalls[i].m_callType;
-        info.codeOrigin = m_jsCalls[i].m_codeOrigin;
+        JSCallRecord& record = m_jsCalls[i];
+        CallLinkInfo& info = *record.m_info;
         ThunkGenerator generator = linkThunkGeneratorFor(
             info.callType == CallLinkInfo::Construct ? CodeForConstruct : CodeForCall,
             RegisterPreservationNotRequired);
-        linkBuffer.link(m_jsCalls[i].m_slowCall, FunctionPtr(m_vm->getCTIStub(generator).code().executableAddress()));
-        info.callReturnLocation = linkBuffer.locationOfNearCall(m_jsCalls[i].m_slowCall);
-        info.hotPathBegin = linkBuffer.locationOf(m_jsCalls[i].m_targetToCheck);
-        info.hotPathOther = linkBuffer.locationOfNearCall(m_jsCalls[i].m_fastCall);
-        info.calleeGPR = static_cast<unsigned>(m_jsCalls[i].m_callee);
+        linkBuffer.link(record.m_slowCall, FunctionPtr(m_vm->getCTIStub(generator).code().executableAddress()));
+        info.callReturnLocation = linkBuffer.locationOfNearCall(record.m_slowCall);
+        info.hotPathBegin = linkBuffer.locationOf(record.m_targetToCheck);
+        info.hotPathOther = linkBuffer.locationOfNearCall(record.m_fastCall);
     }
     
     MacroAssemblerCodeRef osrExitThunk = vm()->getCTIStub(osrExitGenerationThunkGenerator);
@@ -435,6 +435,28 @@ void JITCompiler::disassemble(LinkBuffer& linkBuffer)
     if (m_graph.m_plan.compilation)
         m_disassembler->reportToProfiler(m_graph.m_plan.compilation.get(), linkBuffer);
 }
+
+#if USE(JSVALUE32_64)
+void* JITCompiler::addressOfDoubleConstant(Node* node)
+{
+    ASSERT(m_graph.isNumberConstant(node));
+    JSValue jsvalue = node->valueOfJSConstant(codeBlock());
+    ASSERT(jsvalue.isDouble());
+
+    double value = jsvalue.asDouble();
+    auto it = m_graph.m_doubleConstantsMap.find(value);
+    if (it != m_graph.m_doubleConstantsMap.end())
+        return it->value;
+
+    if (!m_graph.m_doubleConstants)
+        m_graph.m_doubleConstants = std::make_unique<Bag<double>>();
+
+    double* addressInConstantPool = m_graph.m_doubleConstants->add();
+    *addressInConstantPool = value;
+    m_graph.m_doubleConstantsMap.add(value, addressInConstantPool);
+    return addressInConstantPool;
+}
+#endif
 
 } } // namespace JSC::DFG
 

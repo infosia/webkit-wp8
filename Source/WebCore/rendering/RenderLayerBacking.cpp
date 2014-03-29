@@ -299,8 +299,10 @@ void RenderLayerBacking::createPrimaryGraphicsLayer()
     m_graphicsLayer = createGraphicsLayer(layerName);
     m_creatingPrimaryGraphicsLayer = false;
 
-    if (m_usingTiledCacheLayer)
+    if (m_usingTiledCacheLayer) {
         m_childContainmentLayer = createGraphicsLayer("TiledBacking Flattening Layer");
+        m_graphicsLayer->addChild(m_childContainmentLayer.get());
+    }
 
     if (m_isMainFrameRenderViewLayer) {
 #if !PLATFORM(IOS)
@@ -1431,7 +1433,9 @@ bool RenderLayerBacking::updateScrollingLayers(bool needsScrollingLayers)
         m_scrollingLayer = createGraphicsLayer("Scrolling container");
         m_scrollingLayer->setDrawsContent(false);
         m_scrollingLayer->setMasksToBounds(true);
-
+#if PLATFORM(IOS)
+        m_scrollingLayer->setCustomBehavior(GraphicsLayer::CustomScrollingBehavior);
+#endif
         // Inner layer which renders the content that scrolls.
         m_scrollingContentsLayer = createGraphicsLayer("Scrolled Contents");
         m_scrollingContentsLayer->setDrawsContent(true);
@@ -1838,7 +1842,7 @@ bool RenderLayerBacking::containsPaintedContent(bool isSimpleContainer) const
 // that require painting. Direct compositing saves backing store.
 bool RenderLayerBacking::isDirectlyCompositedImage() const
 {
-    if (!renderer().isRenderImage() || m_owningLayer.hasBoxDecorationsOrBackground() || renderer().hasClip())
+    if (!renderer().isRenderImage() || renderer().isMedia() || m_owningLayer.hasBoxDecorationsOrBackground() || renderer().hasClip())
         return false;
 
     RenderImage& imageRenderer = toRenderImage(renderer());

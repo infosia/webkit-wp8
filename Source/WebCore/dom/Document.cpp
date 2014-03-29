@@ -1756,7 +1756,7 @@ void Document::recalcStyle(Style::Change change)
 
     m_inStyleRecalc = true;
     {
-        PostAttachCallbackDisabler disabler(*this);
+        Style::PostResolutionCallbackDisabler disabler(*this);
         WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
 
         if (m_pendingStyleRecalcShouldForce)
@@ -3452,24 +3452,28 @@ void Document::setCSSTarget(Element* n)
         n->didAffectSelector(AffectedSelectorTarget);
 }
 
-void Document::registerNodeList(LiveNodeList& list)
+void Document::registerNodeListForInvalidation(LiveNodeList& list)
 {
     m_nodeListAndCollectionCounts[list.invalidationType()]++;
-    if (list.isRootedAtDocument())
-        m_listsInvalidatedAtDocument.add(&list);
+    if (!list.isRootedAtDocument())
+        return;
+    ASSERT(!list.isRegisteredForInvalidationAtDocument());
+    list.setRegisteredForInvalidationAtDocument(true);
+    m_listsInvalidatedAtDocument.add(&list);
 }
 
-void Document::unregisterNodeList(LiveNodeList& list)
+void Document::unregisterNodeListForInvalidation(LiveNodeList& list)
 {
     m_nodeListAndCollectionCounts[list.invalidationType()]--;
-    if (list.isRootedAtDocument()) {
-        if (!m_listsInvalidatedAtDocument.size()) {
-            ASSERT(m_inInvalidateNodeListAndCollectionCaches);
-            return;
-        }
-        ASSERT(m_listsInvalidatedAtDocument.contains(&list));
-        m_listsInvalidatedAtDocument.remove(&list);
+    if (!list.isRegisteredForInvalidationAtDocument())
+        return;
+    if (!m_listsInvalidatedAtDocument.size()) {
+        ASSERT(m_inInvalidateNodeListAndCollectionCaches);
+        return;
     }
+    ASSERT(m_listsInvalidatedAtDocument.contains(&list));
+    m_listsInvalidatedAtDocument.remove(&list);
+    list.setRegisteredForInvalidationAtDocument(false);
 }
 
 void Document::registerCollection(HTMLCollection& collection)
@@ -5841,7 +5845,7 @@ void Document::updateHoverActiveState(const HitTestRequest& request, Element* in
     Element* oldActiveElement = m_activeElement.get();
     if (oldActiveElement && !request.active()) {
         // We are clearing the :active chain because the mouse has been released.
-        for (Element* curr = oldActiveElement; curr; curr = curr->parentElement()) {
+        for (Element* curr = oldActiveElement; curr; curr = curr->parentOrShadowHostElement()) {
             curr->setActive(false);
             m_userActionElements.setInActiveChain(curr, false);
         }

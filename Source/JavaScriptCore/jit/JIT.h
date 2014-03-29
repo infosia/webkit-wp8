@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -167,12 +167,11 @@ namespace JSC {
         MacroAssembler::Call returnAddress;
     };
 
-    struct StructureStubCompilationInfo {
+    struct CallCompilationInfo {
         MacroAssembler::DataLabelPtr hotPathBegin;
         MacroAssembler::Call hotPathOther;
         MacroAssembler::Call callReturnLocation;
-        CallLinkInfo::CallType callType;
-        unsigned bytecodeIndex;
+        CallLinkInfo* callLinkInfo;
     };
 
     // Near calls can only be patched to other JIT code, regular calls can be patched to JIT code or relinked to stub functions.
@@ -456,6 +455,7 @@ namespace JSC {
         void emit_op_call(Instruction*);
         void emit_op_call_eval(Instruction*);
         void emit_op_call_varargs(Instruction*);
+        void emit_op_construct_varargs(Instruction*);
         void emit_op_captured_mov(Instruction*);
         void emit_op_catch(Instruction*);
         void emit_op_construct(Instruction*);
@@ -555,6 +555,7 @@ namespace JSC {
         void emitSlow_op_call(Instruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_call_eval(Instruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_call_varargs(Instruction*, Vector<SlowCaseEntry>::iterator&);
+        void emitSlow_op_construct_varargs(Instruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_captured_mov(Instruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_construct(Instruction*, Vector<SlowCaseEntry>::iterator&);
         void emitSlow_op_to_this(Instruction*, Vector<SlowCaseEntry>::iterator&);
@@ -795,7 +796,7 @@ namespace JSC {
         Vector<JITGetByIdGenerator> m_getByIds;
         Vector<JITPutByIdGenerator> m_putByIds;
         Vector<ByValCompilationInfo> m_byValCompilationInfo;
-        Vector<StructureStubCompilationInfo> m_callStructureStubCompilationInfo;
+        Vector<CallCompilationInfo> m_callCompilationInfo;
         Vector<JumpTable> m_jmpTable;
 
         unsigned m_bytecodeOffset;

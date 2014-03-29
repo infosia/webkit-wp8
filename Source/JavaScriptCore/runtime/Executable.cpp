@@ -34,6 +34,7 @@
 #include "LLIntEntrypoint.h"
 #include "JSCInlines.h"
 #include "Parser.h"
+#include "ProfilerDatabase.h"
 #include <wtf/CommaPrinter.h>
 #include <wtf/Vector.h>
 #include <wtf/text/StringBuilder.h>
@@ -317,18 +318,7 @@ JSObject* ScriptExecutable::prepareForExecutionImpl(
     if (Options::validateBytecode())
         codeBlock->validate();
     
-    bool shouldUseLLInt;
-#if !ENABLE(JIT)
-    // No JIT implies use of the C Loop LLINT. Override the options to reflect this. 
-    Options::useLLInt() = true;
-    shouldUseLLInt = true;
-#elif ENABLE(LLINT)
-    shouldUseLLInt = Options::useLLInt();
-#else
-    shouldUseLLInt = false;
-#endif
-    
-    if (shouldUseLLInt)
+    if (Options::useLLInt())
         setupLLInt(vm, codeBlock.get());
     else
         setupJIT(vm, codeBlock.get());

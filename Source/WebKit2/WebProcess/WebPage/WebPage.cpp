@@ -147,6 +147,7 @@
 #include <WebCore/VisibleUnits.h>
 #include <WebCore/markup.h>
 #include <bindings/ScriptValue.h>
+#include <profiler/ProfilerDatabase.h>
 #include <runtime/JSCInlines.h>
 #include <runtime/JSCJSValue.h>
 #include <runtime/JSLock.h>
@@ -284,6 +285,7 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 #if PLATFORM(IOS)
     , m_shouldReturnWordAtSelection(false)
     , m_lastVisibleContentRectUpdateID(0)
+    , m_hasReceivedVisibleContentRectsAfterDidCommitLoad(false)
     , m_scaleWasSetByUIProcess(false)
     , m_userHasChangedPageScaleFactor(false)
     , m_viewportScreenSize(parameters.viewportScreenSize)
@@ -1530,14 +1532,17 @@ void WebPage::takeSnapshot(IntRect snapshotRect, IntSize bitmapSize, uint32_t op
     send(Messages::WebPageProxy::ImageCallback(handle, callbackID));
 }
 
-PassRefPtr<WebImage> WebPage::scaledSnapshotWithOptions(const IntRect& rect, double scaleFactor, SnapshotOptions options)
+PassRefPtr<WebImage> WebPage::scaledSnapshotWithOptions(const IntRect& rect, double additionalScaleFactor, SnapshotOptions options)
 {
     IntRect snapshotRect = rect;
     if (options & SnapshotOptionsRespectDrawingAreaTransform)
         snapshotRect = m_drawingArea->rootLayerTransform().inverse().mapRect(snapshotRect);
 
     IntSize bitmapSize = snapshotRect.size();
-    bitmapSize.scale(scaleFactor * corePage()->deviceScaleFactor());
+    double scaleFactor = additionalScaleFactor;
+    if (!(options & SnapshotOptionsExcludeDeviceScaleFactor))
+        scaleFactor *= corePage()->deviceScaleFactor();
+    bitmapSize.scale(scaleFactor);
 
     return snapshotAtSize(rect, bitmapSize, options);
 }
@@ -1568,8 +1573,11 @@ PassRefPtr<WebImage> WebPage::snapshotAtSize(const IntRect& rect, const IntSize&
 
     graphicsContext->fillRect(IntRect(IntPoint(), bitmapSize), frameView->baseBackgroundColor(), ColorSpaceDeviceRGB);
 
-    if (!(options & SnapshotOptionsExcludeDeviceScaleFactor))
-        graphicsContext->applyDeviceScaleFactor(corePage()->deviceScaleFactor());
+    if (!(options & SnapshotOptionsExcludeDeviceScaleFactor)) {
+        double deviceScaleFactor = corePage()->deviceScaleFactor();
+        graphicsContext->applyDeviceScaleFactor(deviceScaleFactor);
+        scaleFactor /= deviceScaleFactor;
+    }
 
     graphicsContext->scale(FloatSize(scaleFactor, scaleFactor));
     graphicsContext->translate(-snapshotRect.x(), -snapshotRect.y());
@@ -1955,8 +1963,10 @@ static bool handleTouchEvent(const WebTouchEvent& touchEvent, Page* page)
 
 void WebPage::touchEvent(const WebTouchEvent& touchEvent)
 {
+#if PLATFORM(IOS)
+    m_lastInteractionLocation = touchEvent.position();
+#endif
     bool handled = false;
-
     if (canHandleUserEvents()) {
         CurrentEvent currentEvent(touchEvent);
 
@@ -1967,6 +1977,9 @@ void WebPage::touchEvent(const WebTouchEvent& touchEvent)
 
 void WebPage::touchEventSyncForTesting(const WebTouchEvent& touchEvent, bool& handled)
 {
+#if PLATFORM(IOS)
+    m_lastInteractionLocation = touchEvent.position();
+#endif
     CurrentEvent currentEvent(touchEvent);
     handled = handleTouchEvent(touchEvent, m_page.get());
 }
@@ -4096,7 +4109,18 @@ void WebPage::cancelComposition()
 
 void WebPage::didChangeSelection()
 {
-    send(Messages::WebPageProxy::EditorStateChanged(editorState()));
+#if (PLATFORM(MAC) && USE(ASYNC_NSTEXTINPUTCLIENT))
+    Frame& frame = m_page->focusController().focusedOrMainFrame();
+    // Abandon the current inline input session if selection changed for any other reason but an input method direct action.
+    // FIXME: Many changes that affect composition node do not go through didChangeSelection(). We need to do something when DOM manipulation affects the composition, because otherwise input method's idea about it will be different from Editor's.
+    // FIXME: We can't cancel composition when selection changes to NoSelection, but we probably should.
+    if (frame.editor().hasComposition() && !frame.editor().ignoreCompositionSelectionChange() && !frame.selection().isNone()) {
+        frame.editor().cancelComposition();
+        send(Messages::WebPageProxy::CompositionWasCanceled(editorState()));
+    } else
+#endif
+        send(Messages::WebPageProxy::EditorStateChanged(editorState()));
+
 #if PLATFORM(IOS)
     m_drawingArea->scheduleCompositingLayerFlush();
 #endif
@@ -4222,6 +4246,7 @@ void WebPage::didCommitLoad(WebFrame* frame)
         }
     }
 #if PLATFORM(IOS)
+    m_hasReceivedVisibleContentRectsAfterDidCommitLoad = false;
     m_userHasChangedPageScaleFactor = false;
 
     Document* document = frame->coreFrame()->document();

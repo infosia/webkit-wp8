@@ -330,22 +330,10 @@ void WebFrameLoaderClient::convertMainResourceLoadToDownload(DocumentLoader* doc
 
 #if USE(CFNETWORK)
     ASSERT([WebDownload respondsToSelector:@selector(_downloadWithLoadingCFURLConnection:request:response:delegate:proxy:)]);
-    CFURLConnectionRef connection = handle->connection();
-    [WebDownload _downloadWithLoadingCFURLConnection:connection
-                                                                     request:request.cfURLRequest(UpdateHTTPBody)
-                                                                    response:response.cfURLResponse()
-                                                                    delegate:[webView downloadDelegate]
-                                                                       proxy:nil];
-
-    // Release the connection since the NSURLDownload (actually CFURLDownload) will retain the connection and use it.
-    handle->releaseConnectionForDownload();
-    CFRelease(connection);
+    auto connection = handle->releaseConnectionForDownload();
+    [WebDownload _downloadWithLoadingCFURLConnection:connection.get() request:request.cfURLRequest(UpdateHTTPBody) response:response.cfURLResponse() delegate:[webView downloadDelegate] proxy:nil];
 #else
-    [WebDownload _downloadWithLoadingConnection:handle->connection()
-                                                                request:request.nsURLRequest(UpdateHTTPBody)
-                                                               response:response.nsURLResponse()
-                                                               delegate:[webView downloadDelegate]
-                                                                  proxy:nil];
+    [WebDownload _downloadWithLoadingConnection:handle->connection() request:request.nsURLRequest(UpdateHTTPBody) response:response.nsURLResponse() delegate:[webView downloadDelegate] proxy:nil];
 #endif
 }
 
@@ -405,6 +393,9 @@ void WebFrameLoaderClient::dispatchWillSendRequest(DocumentLoader* loader, unsig
 
     NSURLRequest *currentURLRequest = request.nsURLRequest(UpdateHTTPBody);
     NSURLRequest *newURLRequest = currentURLRequest;
+#if ENABLE(INSPECTOR)
+    bool isHiddenFromInspector = request.hiddenFromInspector();
+#endif
 #if PLATFORM(IOS)
     bool isMainResourceRequest = request.isMainResourceRequest();
     if (implementations->webThreadWillSendRequestFunc) {
@@ -416,6 +407,9 @@ void WebFrameLoaderClient::dispatchWillSendRequest(DocumentLoader* loader, unsig
 
     if (newURLRequest != currentURLRequest)
         request = newURLRequest;
+#if ENABLE(INSPECTOR)
+    request.setHiddenFromInspector(isHiddenFromInspector);
+#endif
 #if PLATFORM(IOS)
     request.setMainResourceRequest(isMainResourceRequest);
 #endif
@@ -2106,8 +2100,7 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize& size, HTMLP
 
                     if (element->hasTagName(HTMLNames::embedTag) || element->hasTagName(HTMLNames::objectTag)) {
                         // Create a shadow subtree for the plugin element, the iframe player is injected in the shadow tree.
-                        HTMLPlugInImageElement* pluginElement = static_cast<HTMLPlugInImageElement*>(element);
-                        pluginElement->createShadowIFrameSubtree(embedSrc);
+                        toHTMLPlugInImageElement(*element).createShadowIFrameSubtree(embedSrc);
                         return nullptr;
                     }
 

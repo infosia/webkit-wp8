@@ -44,13 +44,17 @@ public:
     {
     }
 
-    VisibleContentRectUpdateInfo(uint64_t updateID, const WebCore::FloatRect& exposedRect, const WebCore::FloatRect& unobscuredRect, const WebCore::FloatRect& customFixedPositionRect, double scale, bool inStableState)
+    VisibleContentRectUpdateInfo(uint64_t updateID, const WebCore::FloatRect& exposedRect, const WebCore::FloatRect& unobscuredRect, const WebCore::FloatRect& customFixedPositionRect, double scale, bool inStableState, double timestamp, double horizontalVelocity, double verticalVelocity, double scaleChangeRate)
         : m_exposedRect(exposedRect)
         , m_unobscuredRect(unobscuredRect)
         , m_customFixedPositionRect(customFixedPositionRect)
         , m_scale(scale)
         , m_updateID(updateID)
         , m_inStableState(inStableState)
+        , m_timestamp(timestamp)
+        , m_horizontalVelocity(horizontalVelocity)
+        , m_verticalVelocity(verticalVelocity)
+        , m_scaleChangeRate(scaleChangeRate)
     {
     }
 
@@ -60,6 +64,11 @@ public:
     double scale() const { return m_scale; }
     uint64_t updateID() const { return m_updateID; }
     bool inStableState() const { return m_inStableState; }
+
+    double timestamp() const { return m_timestamp; }
+    double horizontalVelocity() const { return m_horizontalVelocity; }
+    double verticalVelocity() const { return m_verticalVelocity; }
+    double scaleChangeRate() const { return m_scaleChangeRate; }
 
     void encode(IPC::ArgumentEncoder&) const;
     static bool decode(IPC::ArgumentDecoder&, VisibleContentRectUpdateInfo&);
@@ -71,11 +80,16 @@ private:
     double m_scale;
     uint64_t m_updateID;
     bool m_inStableState;
+    double m_timestamp;
+    double m_horizontalVelocity;
+    double m_verticalVelocity;
+    double m_scaleChangeRate;
 };
 
 inline bool operator==(const VisibleContentRectUpdateInfo& a, const VisibleContentRectUpdateInfo& b)
 {
     // Note: the comparison doesn't include updateID since we care about equality based on the other data.
+    // The timestamp and velocity are also irrelevant for comparing updates.
     return a.scale() == b.scale()
         && a.exposedRect() == b.exposedRect()
         && a.unobscuredRect() == b.unobscuredRect()

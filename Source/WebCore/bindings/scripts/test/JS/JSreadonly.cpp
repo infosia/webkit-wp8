@@ -96,12 +96,6 @@ JSreadonly::JSreadonly(Structure* structure, JSDOMGlobalObject* globalObject, Pa
 {
 }
 
-void JSreadonly::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSreadonly::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSreadonlyPrototype::create(vm, globalObject, JSreadonlyPrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -155,7 +149,7 @@ void JSreadonlyOwner::finalize(JSC::Handle<JSC::Unknown> handle, void* context)
     jsreadonly->releaseImpl();
 }
 
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, readonly* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, readonly* impl)
 {
     if (!impl)
         return jsNull();
@@ -168,7 +162,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, readonl
     // attribute to readonly.
     COMPILE_ASSERT(!__is_polymorphic(readonly), readonly_is_polymorphic_but_idl_claims_not_to_be);
 #endif
-    return createNewWrapper<JSreadonly>(exec, globalObject, impl);
+    return createNewWrapper<JSreadonly>(globalObject, impl);
 }
 
 readonly* toreadonly(JSC::JSValue value)

@@ -263,11 +263,11 @@ static inline WebPage* webPage(HTMLPlugInElement* pluginElement)
     Frame* frame = pluginElement->document().frame();
     ASSERT(frame);
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(frame->loader().client());
-    WebPage* webPage = webFrameLoaderClient ? webFrameLoaderClient->webFrame()->page() : 0;
-    ASSERT(webPage);
+    WebFrame* webFrame = WebFrame::fromCoreFrame(*frame);
+    if (!webFrame)
+        return nullptr;
 
-    return webPage;
+    return webFrame->page();
 }
 
 PassRefPtr<PluginView> PluginView::create(PassRefPtr<HTMLPlugInElement> pluginElement, PassRefPtr<Plugin> plugin, const Plugin::Parameters& parameters)
@@ -544,7 +544,12 @@ bool PluginView::sendComplexTextInput(uint64_t pluginComplexTextInputIdentifier,
     m_plugin->sendComplexTextInput(textInput);
     return true;
 }
-
+    
+WebCore::AudioHardwareActivityType PluginView::audioHardwareActivity() const
+{
+    return m_plugin->audioHardwareActivity();
+}
+    
 NSObject *PluginView::accessibilityObject() const
 {
     if (!m_isInitialized || !m_plugin)
@@ -1149,8 +1154,7 @@ void PluginView::performFrameLoadURLRequest(URLRequest* request)
     // Now ask the frame to load the request.
     targetFrame->loader().load(FrameLoadRequest(targetFrame, request->request()));
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(targetFrame->loader().client());
-    WebFrame* targetWebFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    auto* targetWebFrame = WebFrame::fromCoreFrame(*targetFrame);
     ASSERT(targetWebFrame);
 
     if (WebFrame::LoadListener* loadListener = targetWebFrame->loadListener()) {

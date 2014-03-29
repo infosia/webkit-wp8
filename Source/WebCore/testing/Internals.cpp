@@ -99,6 +99,7 @@
 #include <bytecode/CodeBlock.h>
 #include <inspector/InspectorAgentBase.h>
 #include <inspector/InspectorValues.h>
+#include <runtime/JSCInlines.h>
 #include <runtime/JSCJSValue.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuffer.h>
@@ -281,7 +282,7 @@ void Internals::resetToConsistentState(Page* page)
 #if ENABLE(INSPECTOR)
     page->inspectorController().setProfilerEnabled(false);
 #endif
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     page->group().captionPreferences()->setCaptionsStyleSheetOverride(emptyString());
     page->group().captionPreferences()->setTestingMode(false);
 #endif
@@ -302,7 +303,7 @@ void Internals::resetToConsistentState(Page* page)
 Internals::Internals(Document* document)
     : ContextDestructionObserver(document)
 {
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     if (document && document->page())
         document->page()->group().captionPreferences()->setTestingMode(true);
 #endif
@@ -2116,7 +2117,7 @@ String Internals::captionsStyleSheetOverride(ExceptionCode& ec)
         return emptyString();
     }
 
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     return document->page()->group().captionPreferences()->captionsStyleSheetOverride();
 #else
     return emptyString();
@@ -2131,7 +2132,7 @@ void Internals::setCaptionsStyleSheetOverride(const String& override, ExceptionC
         return;
     }
 
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     document->page()->group().captionPreferences()->setCaptionsStyleSheetOverride(override);
 #else
     UNUSED_PARAM(override);
@@ -2146,7 +2147,7 @@ void Internals::setPrimaryAudioTrackLanguageOverride(const String& language, Exc
         return;
     }
 
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     document->page()->group().captionPreferences()->setPrimaryAudioTrackLanguageOverride(language);
 #else
     UNUSED_PARAM(language);
@@ -2161,7 +2162,7 @@ void Internals::setCaptionDisplayMode(const String& mode, ExceptionCode& ec)
         return;
     }
     
-#if ENABLE(VIDEO_TRACK) && !PLATFORM(WIN)
+#if ENABLE(VIDEO_TRACK)
     CaptionUserPreferences* captionPreferences = document->page()->group().captionPreferences();
     
     if (equalIgnoringCase(mode, "Automatic"))
@@ -2244,6 +2245,7 @@ void Internals::initializeMockMediaSource()
 }
 #endif
 
+#if ENABLE(VIDEO)
 void Internals::beginMediaSessionInterruption()
 {
     MediaSessionManager::sharedManager().beginInterruption();
@@ -2329,5 +2331,16 @@ void Internals::postRemoteControlCommand(const String& commandString, ExceptionC
     
     MediaSessionManager::sharedManager().didReceiveRemoteControlCommand(command);
 }
-    
+#endif // ENABLE(VIDEO)
+
+void Internals::simulateSystemSleep() const
+{
+    MediaSessionManager::sharedManager().systemWillSleep();
+}
+
+void Internals::simulateSystemWake() const
+{
+    MediaSessionManager::sharedManager().systemDidWake();
+}
+
 }

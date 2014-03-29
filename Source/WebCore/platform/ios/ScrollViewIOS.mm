@@ -38,6 +38,7 @@
 #import "WAKWindow.h"
 #import "WKViewPrivate.h"
 #import "WebCoreFrameView.h"
+#import <wtf/CurrentTime.h>
 
 using namespace std;
 
@@ -96,7 +97,7 @@ bool ScrollView::platformCanBlitOnScroll() const
     return [[scrollView() contentView] copiesOnScroll];
 }
 
-IntRect ScrollView::unobscuredContentRect() const
+IntRect ScrollView::unobscuredContentRect(VisibleContentRectIncludesScrollbars) const
 {
     if (WAKScrollView *view = static_cast<WAKScrollView *>(platformWidget())) {
         CGRect r = CGRectZero;
@@ -109,13 +110,63 @@ IntRect ScrollView::unobscuredContentRect() const
     if (!m_unobscuredContentRect.isEmpty())
         return m_unobscuredContentRect;
 
-    return visibleContentRectIncludingScrollbars();
+    return unobscuredContentRectInternal();
 }
 
 void ScrollView::setUnobscuredContentRect(const IntRect& rect)
 {
     ASSERT(!platformWidget());
     m_unobscuredContentRect = rect;
+}
+
+void ScrollView::setScrollVelocity(double horizontalVelocity, double verticalVelocity, double scaleChangeRate, double timestamp)
+{
+    m_horizontalVelocity = horizontalVelocity;
+    m_verticalVelocity = verticalVelocity;
+    m_scaleChangeRate = scaleChangeRate;
+    m_lastVelocityUpdateTime = timestamp;
+}
+
+FloatRect ScrollView::computeCoverageRect(double horizontalMargin, double verticalMargin) const
+{
+    FloatRect exposedContentRect = this->exposedContentRect();
+
+    double currentTime = monotonicallyIncreasingTime();
+    double timeDelta = currentTime - m_lastVelocityUpdateTime;
+
+    FloatRect futureRect = exposedContentRect;
+    futureRect.setLocation(FloatPoint(futureRect.location().x() + timeDelta * m_horizontalVelocity, futureRect.location().y() + timeDelta * m_verticalVelocity));
+
+    if (m_horizontalVelocity) {
+        futureRect.setWidth(futureRect.width() + horizontalMargin);
+        if (m_horizontalVelocity < 0)
+            futureRect.setX(futureRect.x() - horizontalMargin);
+    }
+
+    if (m_verticalVelocity) {
+        futureRect.setHeight(futureRect.height() + verticalMargin);
+        if (m_verticalVelocity < 0)
+            futureRect.setY(futureRect.y() - verticalMargin);
+    }
+
+    if (m_scaleChangeRate <= 0 && !m_horizontalVelocity && !m_verticalVelocity) {
+        futureRect.setWidth(futureRect.width() + horizontalMargin);
+        futureRect.setHeight(futureRect.height() + verticalMargin);
+        futureRect.setX(futureRect.x() - horizontalMargin / 2);
+        futureRect.setY(futureRect.y() - verticalMargin / 2);
+    }
+
+    IntSize contentSize = contentsSize();
+    if (futureRect.maxX() > contentSize.width())
+        futureRect.setX(contentSize.width() - futureRect.width());
+    if (futureRect.maxY() > contentSize.height())
+        futureRect.setY(contentSize.height() - futureRect.height());
+    if (futureRect.x() < 0)
+        futureRect.setX(0);
+    if (futureRect.y() < 0)
+        futureRect.setY(0);
+
+    return futureRect;
 }
 
 IntRect ScrollView::exposedContentRect() const

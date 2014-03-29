@@ -143,12 +143,6 @@ JSTestNamedConstructor::JSTestNamedConstructor(Structure* structure, JSDOMGlobal
 {
 }
 
-void JSTestNamedConstructor::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestNamedConstructor::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestNamedConstructorPrototype::create(vm, globalObject, JSTestNamedConstructorPrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -217,7 +211,7 @@ extern "C" { extern void (*const __identifier("??_7TestNamedConstructor@WebCore@
 extern "C" { extern void* _ZTVN7WebCore20TestNamedConstructorE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestNamedConstructor* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestNamedConstructor* impl)
 {
     if (!impl)
         return jsNull();
@@ -242,7 +236,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestNam
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestNamedConstructor>(exec, globalObject, impl);
+    return createNewWrapper<JSTestNamedConstructor>(globalObject, impl);
 }
 
 TestNamedConstructor* toTestNamedConstructor(JSC::JSValue value)

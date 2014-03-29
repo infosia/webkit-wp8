@@ -121,12 +121,6 @@ JSTestActiveDOMObject::JSTestActiveDOMObject(Structure* structure, JSDOMGlobalOb
 {
 }
 
-void JSTestActiveDOMObject::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestActiveDOMObject::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestActiveDOMObjectPrototype::create(vm, globalObject, JSTestActiveDOMObjectPrototype::createStructure(vm, globalObject, globalObject->objectPrototype()));
@@ -247,7 +241,7 @@ extern "C" { extern void (*const __identifier("??_7TestActiveDOMObject@WebCore@@
 extern "C" { extern void* _ZTVN7WebCore19TestActiveDOMObjectE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestActiveDOMObject* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestActiveDOMObject* impl)
 {
     if (!impl)
         return jsNull();
@@ -272,7 +266,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestAct
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestActiveDOMObject>(exec, globalObject, impl);
+    return createNewWrapper<JSTestActiveDOMObject>(globalObject, impl);
 }
 
 TestActiveDOMObject* toTestActiveDOMObject(JSC::JSValue value)

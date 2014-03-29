@@ -751,8 +751,8 @@ all : \
     PlugInsResources.h \
     SVGElementFactory.cpp \
     SVGNames.cpp \
-    SelectorPseudoTypeMap.cpp \
-    UserAgentScripts.h \
+    SelectorPseudoClassAndCompatibilityElementMap.cpp \
+    SelectorPseudoElementTypeMap.cpp \
     UserAgentStyleSheets.h \
     WebKitFontFamilyNames.cpp \
     WebKitFontFamilyNames.h \
@@ -797,9 +797,13 @@ CSSValueKeywords.h : $(WEBCORE_CSS_VALUE_KEYWORDS) css/makevalues.pl bindings/sc
 
 # CSS Selector pseudo type name to value map.
 
-WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS := $(WebCore)/css/SelectorPseudoTypeMap.in
-SelectorPseudoTypeMap.cpp : $(WebCore)/css/makeSelectorPseudoTypeMap.py $(WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS)
-	python "$(WebCore)/css/makeSelectorPseudoTypeMap.py" $(WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS) "$(FEATURE_DEFINES)"
+WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS := $(WebCore)/css/SelectorPseudoClassAndCompatibilityElementMap.in
+SelectorPseudoClassAndCompatibilityElementMap.cpp : $(WebCore)/css/makeSelectorPseudoClassAndCompatibilityElementMap.py $(WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS)
+	python "$(WebCore)/css/makeSelectorPseudoClassAndCompatibilityElementMap.py" $(WEBCORE_CSS_SELECTOR_PSEUDO_TYPE_MAP_KEYWORDS) "$(FEATURE_DEFINES)"
+
+WEBCORE_CSS_SELECTOR_PSEUDO_ELEMENTS_TYPE_MAP_KEYWORDS := $(WebCore)/css/SelectorPseudoElementTypeMap.in
+SelectorPseudoElementTypeMap.cpp : $(WebCore)/css/makeSelectorPseudoElementsMap.py $(WEBCORE_CSS_SELECTOR_PSEUDO_ELEMENTS_TYPE_MAP_KEYWORDS)
+	python "$(WebCore)/css/makeSelectorPseudoElementsMap.py" $(WEBCORE_CSS_SELECTOR_PSEUDO_ELEMENTS_TYPE_MAP_KEYWORDS) "$(FEATURE_DEFINES)"
 
 # --------
 
@@ -914,6 +918,8 @@ ifeq ($(OS),MACOS)
 endif
 
 ifdef USER_AGENT_SCRIPTS
+all : UserAgentScripts.h
+
 UserAgentScripts.h : Scripts/make-js-file-arrays.py $(USER_AGENT_SCRIPTS)
 	PYTHONPATH=$(InspectorScripts) python $< $@ UserAgentScriptsData.cpp $(USER_AGENT_SCRIPTS)
 endif

@@ -171,11 +171,10 @@ public:
     // Parts of the document can be visible through transparent or blured UI widgets of the chrome. Those parts
     // contribute to painting but not to the scrollable area.
     // The unobscuredContentRect is the area that is not covered by UI elements.
-#if PLATFORM(IOS)
-    IntRect unobscuredContentRect() const;
-    IntRect unobscuredContentRectIncludingScrollbars() const { return unobscuredContentRect(); }
-#else
     IntRect unobscuredContentRect(VisibleContentRectIncludesScrollbars = ExcludeScrollbars) const;
+#if PLATFORM(IOS)
+    IntRect unobscuredContentRectIncludingScrollbars() const { return unobscuredContentRect(IncludeScrollbars); }
+#else
     IntRect unobscuredContentRectIncludingScrollbars() const { return visibleContentRectIncludingScrollbars(); }
 #endif
 
@@ -186,6 +185,9 @@ public:
     // The given rects are only used if there is no platform widget.
     void setExposedContentRect(const IntRect&);
     void setUnobscuredContentRect(const IntRect&);
+
+    void setScrollVelocity(double horizontalVelocity, double verticalVelocity, double scaleChangeRate, double timestamp);
+    FloatRect computeCoverageRect(double horizontalMargin, double verticalMargin) const;
 
     void setActualScrollPosition(const IntPoint&);
     TileCache* tileCache();
@@ -392,6 +394,7 @@ protected:
 
 private:
     virtual IntRect visibleContentRectInternal(VisibleContentRectIncludesScrollbars, VisibleContentRectBehavior) const override;
+    IntRect unobscuredContentRectInternal(VisibleContentRectIncludesScrollbars = ExcludeScrollbars) const;
 
     RefPtr<Scrollbar> m_horizontalScrollbar;
     RefPtr<Scrollbar> m_verticalScrollbar;
@@ -414,6 +417,11 @@ private:
 #if PLATFORM(IOS)
     IntRect m_exposedContentRect;
     IntRect m_unobscuredContentRect;
+
+    double m_horizontalVelocity;
+    double m_verticalVelocity;
+    double m_scaleChangeRate;
+    double m_lastVelocityUpdateTime;
 #else
     IntRect m_fixedVisibleContentRect;
 #endif

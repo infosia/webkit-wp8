@@ -152,7 +152,7 @@
 #endif
 
 /* CPU(ARM64) - Apple */
-#if defined(__arm64__) && defined(__APPLE__)
+#if (defined(__arm64__) && defined(__APPLE__)) || defined(__aarch64__)
 #define WTF_CPU_ARM64 1
 #endif
 
@@ -912,6 +912,10 @@
 #include <wtf/gobject/GTypedefs.h>
 #endif
 
+#if PLATFORM(EFL)
+#include <wtf/efl/EflTypedefs.h>
+#endif
+
 /* FIXME: This define won't be needed once #27551 is fully landed. However, 
    since most ports try to support sub-project independence, adding new headers
    to WTF causes many ports to break, and so this way we can address the build
@@ -1044,6 +1048,10 @@
 
 #if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 #define HAVE_NS_ACTIVITY 1
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 10100
+#define WTF_USE_ASYNC_NSTEXTINPUTCLIENT 1
 #endif
 
 #endif /* WTF_Platform_h */

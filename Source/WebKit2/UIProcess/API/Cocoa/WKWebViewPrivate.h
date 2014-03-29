@@ -41,12 +41,13 @@ typedef NS_ENUM(NSInteger, _WKPaginationMode) {
 };
 
 @class WKBrowsingContextHandle;
-@class WKRemoteObjectRegistry;
+@class _WKRemoteObjectRegistry;
 @protocol WKHistoryDelegatePrivate;
 
 @interface WKWebView (WKPrivate)
 
-@property (nonatomic, readonly) WKRemoteObjectRegistry *_remoteObjectRegistry;
+// FIXME: This should return a _WKRemoteObjectRegistry *.
+@property (nonatomic, readonly) id _remoteObjectRegistry;
 @property (nonatomic, readonly) WKBrowsingContextHandle *_handle;
 
 @property (nonatomic, setter=_setObservedRenderingProgressEvents:) _WKRenderingProgressEvents _observedRenderingProgressEvents;
@@ -89,6 +90,9 @@ typedef NS_ENUM(NSInteger, _WKPaginationMode) {
 
 - (void)_beginInteractiveObscuredInsetsChange;
 - (void)_endInteractiveObscuredInsetsChange;
+
+- (void)_showInspectorIndication;
+- (void)_hideInspectorIndication;
 
 - (void)_snapshotRect:(CGRect)rectInViewCoordinates intoImageOfWidth:(CGFloat)imageWidth completionHandler:(void(^)(CGImageRef))completionHandler;
 #else

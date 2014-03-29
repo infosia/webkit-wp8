@@ -1095,7 +1095,7 @@ public:
     RoundedRect getRoundedInnerBorderFor(const LayoutRect& borderRect, bool includeLogicalLeftEdge = true, bool includeLogicalRightEdge = true) const;
 
     RoundedRect getRoundedInnerBorderFor(const LayoutRect& borderRect, LayoutUnit topWidth, LayoutUnit bottomWidth,
-        LayoutUnit leftWidth, LayoutUnit rightWidth, bool includeLogicalLeftEdge, bool includeLogicalRightEdge) const;
+        LayoutUnit leftWidth, LayoutUnit rightWidth, bool includeLogicalLeftEdge = true, bool includeLogicalRightEdge = true) const;
 
     void setBorderLeftWidth(float v) { SET_VAR(surround, border.m_left.m_width, v); }
     void setBorderLeftStyle(EBorderStyle v) { SET_VAR(surround, border.m_left.m_style, v); }
@@ -1498,24 +1498,6 @@ public:
     SVGLength kerning() const { return svgStyle().kerning(); }
     void setKerning(SVGLength k) { accessSVGStyle().setKerning(k); }
 
-#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
-    void setShapeInside(PassRefPtr<ShapeValue> value)
-    {
-        if (rareNonInheritedData->m_shapeInside == value)
-            return;
-        rareNonInheritedData.access()->m_shapeInside = value;
-    }
-    ShapeValue* shapeInside() const { return rareNonInheritedData->m_shapeInside.get(); }
-    ShapeValue* resolvedShapeInside() const
-    {
-        ShapeValue* shapeInside = this->shapeInside();
-        if (shapeInside && shapeInside->type() == ShapeValue::Outside)
-            return shapeOutside();
-        return shapeInside;
-    }
-
-    static ShapeValue* initialShapeInside() { return 0; }
-#endif
 #if ENABLE(CSS_SHAPES)
     void setShapeOutside(PassRefPtr<ShapeValue> value)
     {
@@ -1526,10 +1508,6 @@ public:
     ShapeValue* shapeOutside() const { return rareNonInheritedData->m_shapeOutside.get(); }
 
     static ShapeValue* initialShapeOutside() { return 0; }
-
-    const Length& shapePadding() const { return rareNonInheritedData->m_shapePadding; }
-    void setShapePadding(Length shapePadding) { SET_VAR(rareNonInheritedData, m_shapePadding, std::move(shapePadding)); }
-    static Length initialShapePadding() { return Length(0, Fixed); }
 
     const Length& shapeMargin() const { return rareNonInheritedData->m_shapeMargin; }
     void setShapeMargin(Length shapeMargin) { SET_VAR(rareNonInheritedData, m_shapeMargin, std::move(shapeMargin)); }

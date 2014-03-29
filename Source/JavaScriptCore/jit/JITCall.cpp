@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -157,6 +157,7 @@ void JIT::compileCallEvalSlowCase(Instruction* instruction, Vector<SlowCaseEntry
     linkSlowCase(iter);
 
     load64(Address(stackPointerRegister, sizeof(Register) * JSStack::Callee - sizeof(CallerFrameAndPC)), regT0);
+    move(TrustedImmPtr(&CallLinkInfo::dummy()), regT2);
     emitNakedCall(m_vm->getCTIStub(virtualCallThunkGenerator).code());
     addPtr(TrustedImm32(stackPointerOffsetFor(m_codeBlock) * sizeof(Register)), callFrameRegister, stackPointerRegister);
     checkStackPointerAlignment();
@@ -185,7 +186,8 @@ void JIT::compileOpCall(OpcodeID opcodeID, Instruction* instruction, unsigned ca
     */
     COMPILE_ASSERT(OPCODE_LENGTH(op_call) == OPCODE_LENGTH(op_construct), call_and_construct_opcodes_must_be_same_length);
     COMPILE_ASSERT(OPCODE_LENGTH(op_call) == OPCODE_LENGTH(op_call_varargs), call_and_call_varargs_opcodes_must_be_same_length);
-    if (opcodeID == op_call_varargs)
+    COMPILE_ASSERT(OPCODE_LENGTH(op_call) == OPCODE_LENGTH(op_construct_varargs), call_and_construct_varargs_opcodes_must_be_same_length);
+    if (opcodeID == op_call_varargs || opcodeID == op_construct_varargs)
         compileLoadVarargs(instruction);
     else {
         int argCount = instruction[3].u.operand;
@@ -219,16 +221,19 @@ void JIT::compileOpCall(OpcodeID opcodeID, Instruction* instruction, unsigned ca
     Jump slowCase = branchPtrWithPatch(NotEqual, regT0, addressOfLinkedFunctionCheck, TrustedImmPtr(0));
     addSlowCase(slowCase);
 
-    ASSERT(m_callStructureStubCompilationInfo.size() == callLinkInfoIndex);
-    m_callStructureStubCompilationInfo.append(StructureStubCompilationInfo());
-    m_callStructureStubCompilationInfo[callLinkInfoIndex].hotPathBegin = addressOfLinkedFunctionCheck;
-    m_callStructureStubCompilationInfo[callLinkInfoIndex].callType = CallLinkInfo::callTypeFor(opcodeID);
-    m_callStructureStubCompilationInfo[callLinkInfoIndex].bytecodeIndex = m_bytecodeOffset;
+    ASSERT(m_callCompilationInfo.size() == callLinkInfoIndex);
+    CallLinkInfo* info = m_codeBlock->addCallLinkInfo();
+    info->callType = CallLinkInfo::callTypeFor(opcodeID);
+    info->codeOrigin = CodeOrigin(m_bytecodeOffset);
+    info->calleeGPR = regT0;
+    m_callCompilationInfo.append(CallCompilationInfo());
+    m_callCompilationInfo[callLinkInfoIndex].hotPathBegin = addressOfLinkedFunctionCheck;
+    m_callCompilationInfo[callLinkInfoIndex].callLinkInfo = info;
 
     loadPtr(Address(regT0, OBJECT_OFFSETOF(JSFunction, m_scope)), regT2);
     store64(regT2, Address(MacroAssembler::stackPointerRegister, JSStack::ScopeChain * sizeof(Register) - sizeof(CallerFrameAndPC)));
 
-    m_callStructureStubCompilationInfo[callLinkInfoIndex].hotPathOther = emitNakedCall();
+    m_callCompilationInfo[callLinkInfoIndex].hotPathOther = emitNakedCall();
 
     addPtr(TrustedImm32(stackPointerOffsetFor(m_codeBlock) * sizeof(Register)), callFrameRegister, stackPointerRegister);
     checkStackPointerAlignment();
@@ -248,10 +253,11 @@ void JIT::compileOpCallSlowCase(OpcodeID opcodeID, Instruction* instruction, Vec
     linkSlowCase(iter);
 
     ThunkGenerator generator = linkThunkGeneratorFor(
-        opcodeID == op_construct ? CodeForConstruct : CodeForCall,
+        (opcodeID == op_construct || opcodeID == op_construct_varargs) ? CodeForConstruct : CodeForCall,
         RegisterPreservationNotRequired);
     
-    m_callStructureStubCompilationInfo[callLinkInfoIndex].callReturnLocation = emitNakedCall(m_vm->getCTIStub(generator).code());
+    move(TrustedImmPtr(m_callCompilationInfo[callLinkInfoIndex].callLinkInfo), regT2);
+    m_callCompilationInfo[callLinkInfoIndex].callReturnLocation = emitNakedCall(m_vm->getCTIStub(generator).code());
 
     addPtr(TrustedImm32(stackPointerOffsetFor(m_codeBlock) * sizeof(Register)), callFrameRegister, stackPointerRegister);
     checkStackPointerAlignment();
@@ -321,6 +327,11 @@ void JIT::emit_op_call_varargs(Instruction* currentInstruction)
 {
     compileOpCall(op_call_varargs, currentInstruction, m_callLinkInfoIndex++);
 }
+    
+void JIT::emit_op_construct_varargs(Instruction* currentInstruction)
+{
+    compileOpCall(op_construct_varargs, currentInstruction, m_callLinkInfoIndex++);
+}
 
 void JIT::emit_op_construct(Instruction* currentInstruction)
 {
@@ -341,7 +352,12 @@ void JIT::emitSlow_op_call_varargs(Instruction* currentInstruction, Vector<SlowC
 {
     compileOpCallSlowCase(op_call_varargs, currentInstruction, iter, m_callLinkInfoIndex++);
 }
-
+    
+void JIT::emitSlow_op_construct_varargs(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
+{
+    compileOpCallSlowCase(op_construct_varargs, currentInstruction, iter, m_callLinkInfoIndex++);
+}
+    
 void JIT::emitSlow_op_construct(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
     compileOpCallSlowCase(op_construct, currentInstruction, iter, m_callLinkInfoIndex++);

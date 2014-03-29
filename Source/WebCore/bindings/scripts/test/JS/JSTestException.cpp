@@ -113,12 +113,6 @@ JSTestException::JSTestException(Structure* structure, JSDOMGlobalObject* global
 {
 }
 
-void JSTestException::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
 JSObject* JSTestException::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
     return JSTestExceptionPrototype::create(vm, globalObject, JSTestExceptionPrototype::createStructure(vm, globalObject, globalObject->errorPrototype()));
@@ -199,7 +193,7 @@ extern "C" { extern void (*const __identifier("??_7TestException@WebCore@@6B@")[
 extern "C" { extern void* _ZTVN7WebCore13TestExceptionE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestException* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestException* impl)
 {
     if (!impl)
         return jsNull();
@@ -224,7 +218,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestExc
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    return createNewWrapper<JSTestException>(exec, globalObject, impl);
+    return createNewWrapper<JSTestException>(globalObject, impl);
 }
 
 TestException* toTestException(JSC::JSValue value)

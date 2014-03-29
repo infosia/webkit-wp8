@@ -370,8 +370,12 @@ struct WKViewInterpretKeyEventsParameters {
 {
     _data->_inResignFirstResponder = true;
 
+#if USE(ASYNC_NSTEXTINPUTCLIENT)
+    _data->_page->confirmCompositionAsync();
+#else
     if (_data->_page->editorState().hasComposition && !_data->_page->editorState().shouldIgnoreCompositionSelectionChange)
         _data->_page->cancelComposition();
+#endif
 
     [self _notifyInputContextAboutDiscardedComposition];
 
@@ -1344,6 +1348,10 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
         return;
     }
 
+    // FIXME: Remove the special case for NSFlagsChanged once <rdar://16393434> is fixed.
+    if ([event type] == NSFlagsChanged)
+        return;
+
     LOG(TextInput, "-> handleEventByInputMethod:%p %@", event, event);
     [[self inputContext] handleEventByInputMethod:event completionHandler:^(BOOL handled) {
         
@@ -1519,11 +1527,17 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     if ((theRange.location + theRange.length < theRange.location) && (theRange.location + theRange.length != 0))
         theRange.length = 0;
 
+    if (theRange.location == NSNotFound) {
+        LOG(TextInput, "    -> NSZeroRect");
+        completionHandlerPtr(NSZeroRect, theRange);
+        return;
+    }
+
     _data->_page->firstRectForCharacterRangeAsync(theRange, RectForCharacterRangeCallback::create([self, completionHandler](bool error, const IntRect& rect, const EditingRange& actualRange) {
         void (^completionHandlerBlock)(NSRect, NSRange) = (void (^)(NSRect, NSRange))completionHandler.get();
         if (error) {
             LOG(TextInput, "    ...firstRectForCharacterRange failed.");
-            completionHandlerBlock(NSMakeRect(0, 0, 0, 0), NSMakeRange(NSNotFound, 0));
+            completionHandlerBlock(NSZeroRect, NSMakeRange(NSNotFound, 0));
             return;
         }
 
@@ -1669,10 +1683,12 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     if ([[event charactersIgnoringModifiers] isEqualToString:@"\e"] && !([event modifierFlags] & NSDeviceIndependentModifierFlagsMask))
         return [super performKeyEquivalent:event];
 
-    // If we are already re-sending the event, then WebCore has already seen it, no need for custom processing.
-    BOOL eventWasSentToWebCore = (_data->_keyDownEventBeingResent == event);
-    if (eventWasSentToWebCore)
+    if (_data->_keyDownEventBeingResent) {
+        // WebCore has already seen the event, no need for custom processing.
+        // Note that we can get multiple events for each event being re-sent. For example, for Cmd+'=' AppKit
+        // first performs the original key equivalent, and if that isn't handled, it dispatches a synthetic Cmd+'+'.
         return [super performKeyEquivalent:event];
+    }
 
     ASSERT(event == [NSApp currentEvent]);
 
@@ -2050,7 +2066,14 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     // (type something; try ranges (1, -1) and (2, -1).
     if ((theRange.location + theRange.length < theRange.location) && (theRange.location + theRange.length != 0))
         theRange.length = 0;
-    
+
+    if (theRange.location == NSNotFound) {
+        if (actualRange)
+            *actualRange = theRange;
+        LOG(TextInput, "firstRectForCharacterRange:(NSNotFound, %u) -> NSZeroRect", theRange.length);
+        return NSZeroRect;
+    }
+
     NSRect resultRect = _data->_page->firstRectForCharacterRange(theRange);
     resultRect = [self convertRect:resultRect toView:nil];
     resultRect = [self.window convertRectToScreen:resultRect];
@@ -2358,6 +2381,8 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
                                                      name:NSWindowDidChangeBackingPropertiesNotification object:window];
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowDidChangeScreen:)
                                                      name:NSWindowDidChangeScreenNotification object:window];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowDidChangeLayerHosting:)
+                                                     name:@"_NSWindowDidChangeContentsHostedInLayerSurfaceNotification" object:window];
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_windowDidChangeOcclusionState:)
                                                      name:NSWindowDidChangeOcclusionStateNotification object:window];
@@ -2382,6 +2407,7 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
     [[NSNotificationCenter defaultCenter] removeObserver:self name:@"_NSWindowDidBecomeVisible" object:window];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowDidChangeBackingPropertiesNotification object:window];
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowDidChangeScreenNotification object:window];
+    [[NSNotificationCenter defaultCenter] removeObserver:self name:@"_NSWindowDidChangeContentsHostedInLayerSurfaceNotification" object:window];
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowDidChangeOcclusionStateNotification object:window];
 #endif
@@ -2455,6 +2481,11 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
 - (void)_windowDidChangeScreen:(NSNotification *)notification
 {
     [self doWindowDidChangeScreen];
+}
+
+- (void)_windowDidChangeLayerHosting:(NSNotification *)notification
+{
+    _data->_page->layerHostingModeDidChange();
 }
 
 - (void)_windowDidResignKey:(NSNotification *)notification

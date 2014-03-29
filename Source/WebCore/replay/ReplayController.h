@@ -151,6 +151,17 @@ private:
     EventLoopInputDispatcher& dispatcher() const;
 
     void setSessionState(SessionState);
+    void setForceDeterministicSettings(bool);
+
+    struct SavedSettings {
+        bool usesMemoryCache;
+        bool usesPageCache;
+
+        SavedSettings()
+            : usesMemoryCache(true)
+            , usesPageCache(false)
+        { }
+    };
 
     Page& m_page;
 
@@ -170,6 +181,7 @@ private:
     SessionState m_sessionState;
 
     DispatchSpeed m_dispatchSpeed;
+    SavedSettings m_savedSettings;
 };
 
 } // namespace WebCore

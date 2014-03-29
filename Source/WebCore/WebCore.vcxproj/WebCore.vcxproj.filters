@@ -4200,6 +4200,9 @@
     <ClCompile Include="..\html\track\VTTCue.cpp">
       <Filter>html\track</Filter>
     </ClCompile>
+    <ClCompile Include="..\html\track\VTTScanner.cpp">
+      <Filter>html\track</Filter>
+    </ClCompile>
     <ClCompile Include="..\html\track\WebVTTParser.cpp">
       <Filter>html\track</Filter>
     </ClCompile>
@@ -4908,6 +4911,9 @@
     <ClCompile Include="..\platform\graphics\GeneratedImage.cpp">
       <Filter>platform\graphics</Filter>
     </ClCompile>
+    <ClCompile Include="..\platform\graphics\GeometryUtilities.cpp">
+      <Filter>platform\graphics</Filter>
+    </ClCompile>
     <ClCompile Include="..\platform\graphics\FloatRect.cpp">
       <Filter>platform\graphics</Filter>
     </ClCompile>
@@ -5149,7 +5155,10 @@
     <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\CSSValueKeywords.cpp">
       <Filter>DerivedSources</Filter>
     </ClCompile>
-    <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SelectorPseudoTypeMap.cpp">
+    <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SelectorPseudoClassAndCompatibilityElementMap.cpp">
+      <Filter>DerivedSources</Filter>
+    </ClCompile>
+    <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\SelectorPseudoElementTypeMap.cpp">
       <Filter>DerivedSources</Filter>
     </ClCompile>
     <ClCompile Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\EventFactory.cpp">
@@ -7067,6 +7076,12 @@
     <ClCompile Include="..\platform\network\soup\SynchronousLoaderClientSoup.cpp">
       <Filter>platform\network\soup</Filter>
     </ClCompile>
+    <ClCompile Include="..\html\track\VTTRegion.cpp">
+      <Filter>html\track</Filter>
+    </ClCompile>
+    <ClCompile Include="..\html\track\VTTRegionList.cpp">
+      <Filter>html\track</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Modules\geolocation\Coordinates.h">
@@ -7952,6 +7967,9 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\ContextMenuItem.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\ControlStates.h">
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\CookiesStrategy.h">
@@ -11242,6 +11260,9 @@
     <ClInclude Include="..\html\track\LoadableTextTrack.h">
       <Filter>html\track</Filter>
     </ClInclude>
+    <ClInclude Include="..\html\track\ParsingUtilities.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
     <ClInclude Include="..\html\track\TextTrack.h">
       <Filter>html\track</Filter>
     </ClInclude>
@@ -11261,6 +11282,9 @@
       <Filter>html\track</Filter>
     </ClInclude>
     <ClInclude Include="..\html\track\VTTCue.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
+    <ClInclude Include="..\html\track\VTTScanner.h">
       <Filter>html\track</Filter>
     </ClInclude>
     <ClInclude Include="..\html\track\WebVTTParser.h">
@@ -14898,6 +14922,27 @@
     <ClInclude Include="..\platform\network\soup\SoupNetworkSession.h">
       <Filter>platform\network\soup</Filter>
     </ClInclude>
+    <ClInclude Include="..\platform\graphics\GeometryUtilities.h" />
+    <ClInclude Include="..\html\track\VTTRegion.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
+    <ClInclude Include="..\html\track\VTTRegionList.h">
+      <Filter>html\track</Filter>
+    </ClInclude>
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrack.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrack.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackCue.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackCue.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackCueList.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackCueList.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackList.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSTextTrackList.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTCue.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTCue.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTRegion.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTRegion.h" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTRegionList.cpp" />
+    <ClInclude Include="$(ConfigurationBuildDir)\obj$(PlatformArchitecture)\$(ProjectName)\DerivedSources\JSVTTRegionList.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\css\CSSGrammar.y.in">

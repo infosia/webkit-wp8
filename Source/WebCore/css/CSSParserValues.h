@@ -113,13 +113,17 @@ struct CSSParserValue {
         int iValue;
         CSSParserString string;
         CSSParserFunction* function;
+        CSSParserValueList* valueList;
     };
     enum {
-        Operator = 0x100000,
-        Function = 0x100001,
-        Q_EMS    = 0x100002
+        Operator  = 0x100000,
+        Function  = 0x100001,
+        ValueList = 0x100002,
+        Q_EMS     = 0x100003,
     };
     int unit;
+
+    void setFromValueList(std::unique_ptr<CSSParserValueList>);
 
     PassRefPtr<CSSValue> createCSSValue();
 };
@@ -172,6 +176,9 @@ class CSSParserSelector {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     static CSSParserSelector* parsePagePseudoSelector(const CSSParserString& pseudoTypeString);
+    static CSSParserSelector* parsePseudoElementSelector(CSSParserString& pseudoTypeString);
+    static CSSParserSelector* parsePseudoCueFunctionSelector(const CSSParserString& functionIdentifier, Vector<std::unique_ptr<CSSParserSelector>>* selectorVector);
+    static CSSParserSelector* parsePseudoClassAndCompatibilityElementSelector(CSSParserString& pseudoTypeString);
 
     CSSParserSelector();
     explicit CSSParserSelector(const QualifiedName&);
@@ -189,7 +196,7 @@ public:
 
     void adoptSelectorVector(Vector<std::unique_ptr<CSSParserSelector>>& selectorVector);
 
-    void setPseudoTypeValue(const CSSParserString& pseudoTypeString);
+    void setPseudoClassValue(const CSSParserString& pseudoClassString);
     CSSSelector::PseudoType pseudoType() const { return m_selector->pseudoType(); }
     bool isCustomPseudoElement() const { return m_selector->isCustomPseudoElement(); }
 
@@ -213,6 +220,12 @@ inline bool CSSParserSelector::hasShadowDescendant() const
     return m_selector->relation() == CSSSelector::ShadowDescendant;
 }
 
+inline void CSSParserValue::setFromValueList(std::unique_ptr<CSSParserValueList> valueList)
+{
+    id = CSSValueInvalid;
+    this->valueList = valueList.release();
+    unit = ValueList;
+}
 }
 
 #endif

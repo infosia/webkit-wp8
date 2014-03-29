@@ -99,11 +99,6 @@ void WebPageProxy::windowAndViewFramesChanged(const FloatRect&, const FloatPoint
     notImplemented();
 }
 
-void WebPageProxy::cancelComposition()
-{
-    notImplemented();
-}
-
 String WebPageProxy::stringSelectionForPasteboard()
 {
     notImplemented();
@@ -158,6 +153,17 @@ void WebPageProxy::autocorrectionDataCallback(const Vector<WebCore::FloatRect>& 
     }
 
     callback->performCallbackWithReturnValue(rects, fontName, fontSize, fontTraits);
+}
+
+void WebPageProxy::dictationContextCallback(const String& selectedText, const String& beforeText, const String& afterText, uint64_t callbackID)
+{
+    RefPtr<DictationContextCallback> callback = m_dictationContextCallbacks.take(callbackID);
+    if (!callback) {
+        ASSERT_NOT_REACHED();
+        return;
+    }
+
+    callback->performCallbackWithReturnValue(selectedText, beforeText, afterText);
 }
 
 void WebPageProxy::autocorrectionContextCallback(const String& beforeText, const String& markedText, const String& selectedText, const String& afterText, uint64_t location, uint64_t length, uint64_t callbackID)
@@ -216,7 +222,12 @@ void WebPageProxy::updateSelectionWithTouches(const WebCore::IntPoint point, uin
     m_touchesCallbacks.set(callbackID, callback);
     m_process->send(Messages::WebPage::UpdateSelectionWithTouches(point, touches, baseIsStart, callbackID), m_pageID);
 }
-
+    
+void WebPageProxy::replaceDictatedText(const String& oldText, const String& newText)
+{
+    m_process->send(Messages::WebPage::ReplaceDictatedText(oldText, newText), m_pageID);
+}
+    
 void WebPageProxy::requestAutocorrectionData(const String& textForAutocorrection, PassRefPtr<AutocorrectionDataCallback> callback)
 {
     if (!isValid()) {
@@ -246,6 +257,18 @@ bool WebPageProxy::applyAutocorrection(const String& correction, const String& o
     bool autocorrectionApplied = false;
     m_process->sendSync(Messages::WebPage::SyncApplyAutocorrection(correction, originalText), Messages::WebPage::SyncApplyAutocorrection::Reply(autocorrectionApplied), m_pageID);
     return autocorrectionApplied;
+}
+
+void WebPageProxy::requestDictationContext(PassRefPtr<DictationContextCallback> callback)
+{
+    if (!isValid()) {
+        callback->invalidate();
+        return;
+    }
+
+    uint64_t callbackID = callback->callbackID();
+    m_dictationContextCallbacks.set(callbackID, callback);
+    m_process->send(Messages::WebPage::RequestDictationContext(callbackID), m_pageID);
 }
 
 void WebPageProxy::requestAutocorrectionContext(PassRefPtr<AutocorrectionContextCallback> callback)
@@ -449,6 +472,18 @@ void WebPageProxy::stopAssistingNode()
     m_pageClient.stopAssistingNode();
 }
 
+#if ENABLE(INSPECTOR)
+void WebPageProxy::showInspectorIndication()
+{
+    m_pageClient.showInspectorIndication();
+}
+
+void WebPageProxy::hideInspectorIndication()
+{
+    m_pageClient.hideInspectorIndication();
+}
+#endif
+
 void WebPageProxy::focusNextAssistedNode(bool isForward)
 {
     process().send(Messages::WebPage::FocusNextAssistedNode(isForward), m_pageID);
@@ -492,6 +527,11 @@ void WebPageProxy::openPDFFromTemporaryFolderWithNativeApplication(const String&
 void WebPageProxy::setAcceleratedCompositingRootLayer(LayerOrView* rootLayer)
 {
     m_pageClient.setAcceleratedCompositingRootLayer(rootLayer);
+}
+
+void WebPageProxy::showPlaybackTargetPicker(bool hasVideo, const IntRect& elementRect)
+{
+    m_pageClient.showPlaybackTargetPicker(hasVideo, elementRect);
 }
 
 } // namespace WebKit

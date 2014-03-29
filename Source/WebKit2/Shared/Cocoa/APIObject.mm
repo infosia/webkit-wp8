@@ -28,12 +28,13 @@
 
 #if WK_API_ENABLED
 
+#import "_WKDownloadInternal.h"
 #import "WKBackForwardListInternal.h"
 #import "WKBackForwardListItemInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
 #import "WKConnectionInternal.h"
-#import "WKFrameHandleInternal.h"
+#import "_WKFrameHandleInternal.h"
 #import "WKNSArray.h"
 #import "WKNSData.h"
 #import "WKNSDictionary.h"
@@ -113,12 +114,16 @@ void* Object::newObject(size_t size, Type type)
         wrapper = [WKNSDictionary alloc];
         break;
 
+    case Type::Download:
+        wrapper = [_WKDownload alloc];
+        break;
+
     case Type::Error:
         wrapper = NSAllocateObject([WKNSError self], size, nullptr);
         break;
 
     case Type::FrameHandle:
-        wrapper = [WKFrameHandle alloc];
+        wrapper = [_WKFrameHandle alloc];
         break;
 
     case Type::NavigationData:

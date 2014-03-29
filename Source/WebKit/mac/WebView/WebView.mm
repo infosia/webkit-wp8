@@ -1893,12 +1893,12 @@ static bool fastDocumentTeardownEnabled()
     _private->page->setRemoteInspectionAllowed(allow);
 }
 
-- (void)setIndicatingForRemoteInspector:(BOOL)enabled
+- (void)setShowingInspectorIndication:(BOOL)showing
 {
 #if PLATFORM(IOS)
     ASSERT(WebThreadIsLocked());
 
-    if (enabled) {
+    if (showing) {
         if (!_private->indicateLayer) {
             _private->indicateLayer = [[WebIndicateLayer alloc] initWithWebView:self];
             [_private->indicateLayer setNeedsLayout];
@@ -1910,7 +1910,7 @@ static bool fastDocumentTeardownEnabled()
         _private->indicateLayer = nil;
     }
 #else
-    // FIXME: Needs implementation or put an implementation in WebCore::InspectorOverlay.
+    // Implemented in WebCore::InspectorOverlay.
 #endif
 }
 
@@ -3866,6 +3866,15 @@ static inline IMP getMethod(id o, SEL s)
     }
 
     return NO;
+}
+
+- (BOOL)_flushCompositingChanges
+{
+    Frame* frame = [self _mainCoreFrame];
+    if (frame && frame->view())
+        return frame->view()->flushCompositingStateIncludingSubframes();
+
+    return YES;
 }
 
 - (void)_setBaseCTM:(CGAffineTransform)transform forContext:(CGContextRef)context
@@ -8328,15 +8337,6 @@ static inline uint64_t roundUpToPowerOf2(uint64_t num)
     _private->needsOneShotDrawingSynchronization = needsSynchronization;
 }
 
-- (BOOL)_flushCompositingChanges
-{
-    Frame* frame = [self _mainCoreFrame];
-    if (frame && frame->view())
-        return frame->view()->flushCompositingStateIncludingSubframes();
-
-    return YES;
-}
-
 /*
     The order of events with compositing updates is this:
     
@@ -8398,8 +8398,6 @@ bool LayerFlushController::flushLayers()
     // Ensure fixed positions layers are where they should be.
     [m_webView _synchronizeCustomFixedPositionLayoutRect];
 #endif
-
-    [m_webView _viewWillDrawInternal];
 
     [m_webView _viewWillDrawInternal];
 

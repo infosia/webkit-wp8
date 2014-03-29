@@ -555,6 +555,8 @@ public:
     bool isInWindow() const { return m_viewState & WebCore::ViewState::IsInWindow; }
     void waitForDidUpdateViewState();
 
+    void layerHostingModeDidChange();
+
     WebCore::IntSize viewSize() const;
     bool isViewVisible() const { return m_viewState & WebCore::ViewState::IsVisible; }
     bool isViewWindowActive() const;
@@ -586,6 +588,8 @@ public:
     bool applyAutocorrection(const String& correction, const String& originalText);
     void requestAutocorrectionContext(PassRefPtr<AutocorrectionContextCallback>);
     void getAutocorrectionContext(String& contextBefore, String& markedText, String& selectedText, String& contextAfter, uint64_t& location, uint64_t& length);
+    void requestDictationContext(PassRefPtr<DictationContextCallback>);
+    void replaceDictatedText(const String& oldText, const String& newText);
     void didReceivePositionInformation(const InteractionInformationAtPosition&);
     void getPositionInformation(const WebCore::IntPoint&, InteractionInformationAtPosition&);
     void requestPositionInformation(const WebCore::IntPoint&);
@@ -646,8 +650,6 @@ public:
     void setCompositionAsync(const String& text, Vector<WebCore::CompositionUnderline> underlines, const EditingRange& selectionRange, const EditingRange& replacementRange);
     void confirmCompositionAsync();
 
-    void cancelComposition();
-
 #if PLATFORM(MAC)
     void insertDictatedTextAsync(const String& text, const EditingRange& replacementRange, const Vector<WebCore::TextAlternativeWithRange>& dictationAlternatives);
     void attributedSubstringForCharacterRangeAsync(const EditingRange&, PassRefPtr<AttributedStringForCharacterRangeCallback>);
@@ -663,6 +665,7 @@ public:
     uint64_t characterIndexForPoint(const WebCore::IntPoint);
     WebCore::IntRect firstRectForCharacterRange(const EditingRange&);
     bool executeKeypressCommands(const Vector<WebCore::KeypressCommand>&);
+    void cancelComposition();
 #endif
 
     WKView* wkView() const;
@@ -1107,7 +1110,7 @@ private:
     void willSubmitForm(uint64_t frameID, uint64_t sourceFrameID, const Vector<std::pair<String, String>>& textFieldValues, uint64_t listenerID, IPC::MessageDecoder&);
 
     // UI client
-    void createNewPage(const WebCore::ResourceRequest&, const WebCore::WindowFeatures&, uint32_t modifiers, int32_t mouseButton, uint64_t& newPageID, WebPageCreationParameters&);
+    void createNewPage(uint64_t frameID, const WebCore::ResourceRequest&, const WebCore::WindowFeatures&, uint32_t modifiers, int32_t mouseButton, uint64_t& newPageID, WebPageCreationParameters&);
     void showPage();
     void closePage(bool stopResponsivenessTimer);
     void runJavaScriptAlert(uint64_t frameID, const String&, RefPtr<Messages::WebPageProxy::RunJavaScriptAlert::DelayedReply>);
@@ -1182,6 +1185,7 @@ private:
 #endif
 
     void editorStateChanged(const EditorState&);
+    void compositionWasCanceled(const EditorState&);
 
     // Back/Forward list management
     void backForwardAddItem(uint64_t itemID);
@@ -1280,7 +1284,9 @@ private:
     void touchesCallback(const WebCore::IntPoint&, uint32_t, uint64_t);
     void autocorrectionDataCallback(const Vector<WebCore::FloatRect>&, const String&, float, uint64_t, uint64_t);
     void autocorrectionContextCallback(const String&, const String&, const String&, const String&, uint64_t, uint64_t, uint64_t);
+    void dictationContextCallback(const String&, const String&, const String&, uint64_t);
     void interpretKeyEvent(const EditorState&, bool isCharEvent, bool& handled);
+    void showPlaybackTargetPicker(bool hasVideo, const WebCore::IntRect& elementRect);
 #endif
 #if PLATFORM(GTK)
     void printFinishedCallback(const WebCore::ResourceError&, uint64_t);
@@ -1322,6 +1328,12 @@ private:
 
     void startAssistingNode(const AssistedNodeInformation&);
     void stopAssistingNode();
+
+#if ENABLE(INSPECTOR)
+    void showInspectorIndication();
+    void hideInspectorIndication();
+#endif
+
     void notifyRevealedSelection();
 #endif // PLATFORM(IOS)
 
@@ -1423,6 +1435,7 @@ private:
     HashMap<uint64_t, RefPtr<TouchesCallback>> m_touchesCallbacks;
     HashMap<uint64_t, RefPtr<AutocorrectionDataCallback>> m_autocorrectionCallbacks;
     HashMap<uint64_t, RefPtr<AutocorrectionContextCallback>> m_autocorrectionContextCallbacks;
+    HashMap<uint64_t, RefPtr<DictationContextCallback>> m_dictationContextCallbacks;
 #endif
 #if PLATFORM(GTK)
     HashMap<uint64_t, RefPtr<PrintFinishedCallback>> m_printFinishedCallbacks;
@@ -1457,7 +1470,9 @@ private:
     FrameLoadState::State m_loadStateAtProcessExit;
 
     EditorState m_editorState;
+#if PLATFORM(MAC) && !USE(ASYNC_NSTEXTINPUTCLIENT)
     bool m_temporarilyClosedComposition; // Editor state changed from hasComposition to !hasComposition, but that was only with shouldIgnoreCompositionSelectionChange yet.
+#endif
 
     double m_textZoomFactor;
     double m_pageZoomFactor;

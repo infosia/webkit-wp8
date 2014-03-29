@@ -428,7 +428,6 @@
       },
       "Brian Burg" : {
          "emails" : [
-            "bburg@apple.com",
             "burg@cs.washington.edu"
          ],
          "expertise" : "Developer Tools, Web Inspector",
@@ -962,6 +961,15 @@
          "expertise" : "WebKit-EFL API, Layout Test support",
          "nicks" : [
             "grzegorz"
+         ]
+      },
+	  "Gurpreet Kaur" : {
+         "emails" : [
+            "k.gurpreet@samsung.com",
+			"k.gurpreet@webkit.org"
+         ],         
+         "nicks" : [
+            "k.gurpreet"
          ]
       },
       "Gwang Yoon Hwang" : {
@@ -1696,6 +1704,14 @@
          ],
          "nicks" : [
             "pilgrim_google"
+         ]
+      },
+      "Martin Hock" : {
+         "emails" : [
+            "mhock@apple.com"
+         ],
+         "nicks" : [
+            "mhock"
          ]
       },
       "Mary Wu" : {
@@ -3870,7 +3886,7 @@
             "jmalonzo@gmail.com",
             "jmalonzo@webkit.org"
          ],
-         "expertise" : "The WebKitGtk Port, Autotools Build",
+         "expertise" : "The WebKitGtk Port",
          "nicks" : [
             "janm"
          ]

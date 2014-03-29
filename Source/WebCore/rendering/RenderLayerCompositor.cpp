@@ -420,7 +420,9 @@ void RenderLayerCompositor::flushPendingLayerChanges(bool isFlushRoot)
 
     if (GraphicsLayer* rootLayer = rootGraphicsLayer()) {
 #if PLATFORM(IOS)
-        rootLayer->flushCompositingState(frameView.exposedContentRect());
+        double horizontalMargin = defaultTileWidth / pageScaleFactor();
+        double verticalMargin = defaultTileHeight / pageScaleFactor();
+        rootLayer->flushCompositingState(frameView.computeCoverageRect(horizontalMargin, verticalMargin));
 #else
         // Having a m_clipLayer indicates that we're doing scrolling via GraphicsLayers.
         IntRect visibleRect = m_clipLayer ? IntRect(IntPoint(), frameView.contentsSize()) : frameView.visibleContentRect();
@@ -3480,7 +3482,7 @@ void RenderLayerCompositor::updateScrollCoordinatedLayer(RenderLayer& layer, Scr
         if (!nodeID)
             nodeID = scrollingCoordinator->uniqueScrollLayerID();
 
-        ScrollingNodeType nodeType = ScrollingNode;
+        ScrollingNodeType nodeType = FrameScrollingNode;
         if (layer.renderer().style().position() == FixedPosition)
             nodeType = FixedNode;
         else if (layer.renderer().style().position() == StickyPosition)
@@ -3498,7 +3500,8 @@ void RenderLayerCompositor::updateScrollCoordinatedLayer(RenderLayer& layer, Scr
         case StickyNode:
             scrollingCoordinator->updateViewportConstrainedNode(nodeID, computeStickyViewportConstraints(layer), backing->graphicsLayer());
             break;
-        case ScrollingNode:
+        case FrameScrollingNode:
+        case OverflowScrollingNode:
             break;
         }
         
@@ -3510,20 +3513,25 @@ void RenderLayerCompositor::updateScrollCoordinatedLayer(RenderLayer& layer, Scr
         if (!nodeID)
             nodeID = scrollingCoordinator->uniqueScrollLayerID();
 
-        nodeID = scrollingCoordinator->attachToStateTree(ScrollingNode, nodeID, parentNodeID);
+        nodeID = scrollingCoordinator->attachToStateTree(isRootLayer ? FrameScrollingNode : OverflowScrollingNode, nodeID, parentNodeID);
         backing->setScrollingNodeID(nodeID);
 
         GraphicsLayer* scrollingLayer = backing->scrollingLayer();
         GraphicsLayer* scrolledContentsLayer = backing->scrollingContentsLayer();
         GraphicsLayer* counterScrollingLayer = nullptr;
 
-        if (&layer == m_renderView.layer()) {
+        if (isRootLayer) {
             scrollingLayer = m_scrollLayer.get();
             scrolledContentsLayer = nullptr;
             counterScrollingLayer = fixedRootBackgroundLayer();
+            scrollingCoordinator->updateScrollingNode(nodeID, scrollingLayer, scrolledContentsLayer, counterScrollingLayer);
+        } else {
+            ScrollingCoordinator::ScrollingGeometry scrollingGeometry;
+            scrollingGeometry.scrollOrigin = layer.scrollOrigin();
+            scrollingGeometry.scrollPosition = layer.scrollPosition();
+            scrollingGeometry.contentSize = layer.contentsSize();
+            scrollingCoordinator->updateScrollingNode(nodeID, scrollingLayer, scrolledContentsLayer, counterScrollingLayer, &scrollingGeometry);
         }
-    
-        scrollingCoordinator->updateScrollingNode(nodeID, scrollingLayer, scrolledContentsLayer, counterScrollingLayer);
     }
 }
 

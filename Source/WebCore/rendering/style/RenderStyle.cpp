@@ -414,8 +414,7 @@ bool RenderStyle::changeRequiresLayout(const RenderStyle* other, unsigned& chang
             return true;
 
 #if ENABLE(CSS_SHAPES)
-        if (rareNonInheritedData->m_shapeMargin != other->rareNonInheritedData->m_shapeMargin
-            || rareNonInheritedData->m_shapePadding != other->rareNonInheritedData->m_shapePadding)
+        if (rareNonInheritedData->m_shapeMargin != other->rareNonInheritedData->m_shapeMargin)
             return true;
 #endif
 
@@ -459,11 +458,6 @@ bool RenderStyle::changeRequiresLayout(const RenderStyle* other, unsigned& chang
 #if ENABLE(DASHBOARD_SUPPORT)
         // If regions change, trigger a relayout to re-calc regions.
         if (rareNonInheritedData->m_dashboardRegions != other->rareNonInheritedData->m_dashboardRegions)
-            return true;
-#endif
-
-#if ENABLE(CSS_SHAPES) && ENABLE(CSS_SHAPE_INSIDE)
-        if (rareNonInheritedData->m_shapeInside != other->rareNonInheritedData->m_shapeInside)
             return true;
 #endif
     }

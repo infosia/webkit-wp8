@@ -171,7 +171,7 @@ void WebPage::performDictionaryLookupForSelection(Frame*, const VisibleSelection
     notImplemented();
 }
 
-void WebPage::performDictionaryLookupForRange(Frame*, Range*, NSDictionary *)
+void WebPage::performDictionaryLookupForRange(Frame*, Range&, NSDictionary *)
 {
     notImplemented();
 }
@@ -281,6 +281,15 @@ void WebPage::advanceToNextMisspelling(bool)
     notImplemented();
 }
 
+IntRect WebPage::rectForElementAtInteractionLocation()
+{
+    HitTestResult result = m_page->mainFrame().eventHandler().hitTestResultAtPoint(m_lastInteractionLocation, HitTestRequest::ReadOnly | HitTestRequest::Active | HitTestRequest::AllowChildFrameContent);
+    Node* hitNode = result.innerNode();
+    if (!hitNode || !hitNode->renderer())
+        return IntRect();
+    return result.innerNodeFrame()->view()->contentsToRootView(hitNode->renderer()->absoluteBoundingBoxRect(true));
+}
+
 void WebPage::handleTap(const IntPoint& point)
 {
     Frame& mainframe = m_page->mainFrame();
@@ -295,6 +304,7 @@ void WebPage::handleTap(const IntPoint& point)
     if (WKObservedContentChange() != WKContentNoChange)
         return;
 
+    m_lastInteractionLocation = roundedAdjustedPoint;
     mainframe.eventHandler().handleMousePressEvent(PlatformMouseEvent(roundedAdjustedPoint, roundedAdjustedPoint, LeftButton, PlatformEvent::MousePressed, 1, false, false, false, false, 0));
     mainframe.eventHandler().handleMouseReleaseEvent(PlatformMouseEvent(roundedAdjustedPoint, roundedAdjustedPoint, LeftButton, PlatformEvent::MouseReleased, 1, false, false, false, false, 0));
 }
@@ -369,6 +379,18 @@ void WebPage::setAssistedNodeSelectedIndex(uint32_t index, bool allowMultipleSel
     HTMLSelectElement* select = toHTMLSelectElement(m_assistedNode.get());
     select->optionSelectedByUser(index, true, allowMultipleSelection);
 }
+
+#if ENABLE(INSPECTOR)
+void WebPage::showInspectorIndication()
+{
+    send(Messages::WebPageProxy::ShowInspectorIndication());
+}
+
+void WebPage::hideInspectorIndication()
+{
+    send(Messages::WebPageProxy::HideInspectorIndication());
+}
+#endif
 
 static FloatQuad innerFrameQuad(Frame* frame, Node* assistedNode)
 {
@@ -1189,6 +1211,72 @@ void WebPage::convertSelectionRectsToRootView(FrameView* view, Vector<SelectionR
     }
 }
 
+void WebPage::requestDictationContext(uint64_t callbackID)
+{
+    Frame& frame = m_page->focusController().focusedOrMainFrame();
+    VisiblePosition startPosition = frame.selection().selection().start();
+    VisiblePosition endPosition = frame.selection().selection().end();
+    const unsigned dictationContextWordCount = 5;
+
+    String selectedText;
+    if (frame.selection().isRange())
+        selectedText = plainText(frame.selection().selection().toNormalizedRange().get());
+
+    String contextBefore;
+    if (startPosition != startOfEditableContent(startPosition)) {
+        VisiblePosition currentPosition = startPosition;
+        VisiblePosition lastPosition = startPosition;
+        for (unsigned i = 0; i < dictationContextWordCount; ++i) {
+            currentPosition = startOfWord(positionOfNextBoundaryOfGranularity(lastPosition, WordGranularity, DirectionBackward));
+            if (currentPosition.isNull())
+                break;
+            lastPosition = currentPosition;
+        }
+        if (lastPosition.isNotNull() && lastPosition != startPosition)
+            contextBefore = plainText(Range::create(*frame.document(), lastPosition, startPosition).get());
+    }
+
+    String contextAfter;
+    if (endPosition != endOfEditableContent(endPosition)) {
+        VisiblePosition currentPosition = endPosition;
+        VisiblePosition lastPosition = endPosition;
+        for (unsigned i = 0; i < dictationContextWordCount; ++i) {
+            currentPosition = endOfWord(positionOfNextBoundaryOfGranularity(lastPosition, WordGranularity, DirectionForward));
+            if (currentPosition.isNull())
+                break;
+            lastPosition = currentPosition;
+        }
+        if (lastPosition.isNotNull() && lastPosition != endPosition)
+            contextAfter = plainText(Range::create(*frame.document(), endPosition, lastPosition).get());
+    }
+
+    send(Messages::WebPageProxy::DictationContextCallback(selectedText, contextBefore, contextAfter, callbackID));
+}
+
+void WebPage::replaceDictatedText(const String& oldText, const String& newText)
+{
+    Frame& frame = m_page->focusController().focusedOrMainFrame();
+    if (frame.selection().isNone())
+        return;
+    
+    if (frame.selection().isRange()) {
+        frame.editor().deleteSelectionWithSmartDelete(false);
+        return;
+    }
+    VisiblePosition position = frame.selection().selection().start();
+    for (size_t i = 0; i < oldText.length(); ++i)
+        position = position.previous();
+    if (position.isNull())
+        position = startOfDocument(static_cast<Node*>(frame.document()->documentElement()));
+    RefPtr<Range> range = Range::create(*frame.document(), position, frame.selection().selection().start());
+
+    if (plainText(range.get()) != oldText)
+        return;
+
+    frame.selection().setSelectedRange(range.get(), UPSTREAM, true);
+    frame.editor().insertText(newText, 0);
+}
+
 void WebPage::requestAutocorrectionData(const String& textForAutocorrection, uint64_t callbackID)
 {
     RefPtr<Range> range;
@@ -1625,7 +1713,21 @@ void WebPage::viewportConfigurationChanged()
     else
         scale = m_viewportConfiguration.initialScale();
 
-    scalePage(scale, m_page->mainFrame().view()->scrollPosition());
+    FrameView& frameView = *m_page->mainFrame().view();
+    IntPoint scrollPosition = frameView.scrollPosition();
+    if (!m_hasReceivedVisibleContentRectsAfterDidCommitLoad) {
+        IntSize minimumLayoutSizeInDocumentCoordinate = m_viewportConfiguration.minimumLayoutSize();
+        minimumLayoutSizeInDocumentCoordinate.scale(scale);
+
+        IntRect unobscuredContentRect(scrollPosition, minimumLayoutSizeInDocumentCoordinate);
+        frameView.setUnobscuredContentRect(unobscuredContentRect);
+        frameView.setScrollVelocity(0, 0, 0, monotonicallyIncreasingTime());
+
+        // FIXME: We could send down the obscured margins to find a better exposed rect and unobscured rect.
+        // It is not a big deal at the moment because the tile coverage will always extend past the obscured bottom inset.
+        m_drawingArea->setExposedContentRect(unobscuredContentRect);
+    }
+    scalePage(scale, scrollPosition);
 }
 
 void WebPage::applicationWillResignActive()
@@ -1643,17 +1745,45 @@ void WebPage::applicationDidBecomeActive()
     [[NSNotificationCenter defaultCenter] postNotificationName:WebUIApplicationDidBecomeActiveNotification object:nil];
 }
 
+static inline FloatRect adjustExposedRectForBoundedScale(const FloatRect& exposedRect, double exposedRectScale, double boundedScale)
+{
+    if (exposedRectScale < boundedScale)
+        return exposedRect;
+
+    double overscaledWidth = exposedRect.width();
+    double missingHorizonalMargin = exposedRect.width() * exposedRectScale / boundedScale - overscaledWidth;
+
+    double overscaledHeight = exposedRect.height();
+    double missingVerticalMargin = exposedRect.height() * exposedRectScale / boundedScale - overscaledHeight;
+
+    return FloatRect(exposedRect.x() - missingHorizonalMargin / 2, exposedRect.y() - missingVerticalMargin / 2, exposedRect.width() + missingHorizonalMargin, exposedRect.height() + missingVerticalMargin);
+}
+
+static inline void adjustVelocityDataForBoundedScale(double& horizontalVelocity, double& verticalVelocity, double& scaleChangeRate, double exposedRectScale, double boundedScale)
+{
+    if (scaleChangeRate) {
+        horizontalVelocity = 0;
+        verticalVelocity = 0;
+    }
+
+    if (exposedRectScale != boundedScale)
+        scaleChangeRate = 0;
+}
+
 void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo& visibleContentRectUpdateInfo)
 {
+    m_hasReceivedVisibleContentRectsAfterDidCommitLoad = true;
     m_lastVisibleContentRectUpdateID = visibleContentRectUpdateInfo.updateID();
 
+    double boundedScale = std::min(m_viewportConfiguration.maximumScale(), std::max(m_viewportConfiguration.minimumScale(), visibleContentRectUpdateInfo.scale()));
+
     FloatRect exposedRect = visibleContentRectUpdateInfo.exposedRect();
-    m_drawingArea->setExposedContentRect(enclosingIntRect(exposedRect));
+    FloatRect adjustedExposedRect = adjustExposedRectForBoundedScale(exposedRect, visibleContentRectUpdateInfo.scale(), boundedScale);
+    m_drawingArea->setExposedContentRect(enclosingIntRect(adjustedExposedRect));
 
     IntRect roundedUnobscuredRect = roundedIntRect(visibleContentRectUpdateInfo.unobscuredRect());
     IntPoint scrollPosition = roundedUnobscuredRect.location();
 
-    double boundedScale = std::min(m_viewportConfiguration.maximumScale(), std::max(m_viewportConfiguration.minimumScale(), visibleContentRectUpdateInfo.scale()));
     float floatBoundedScale = boundedScale;
     if (floatBoundedScale != m_page->pageScaleFactor()) {
         m_scaleWasSetByUIProcess = true;
@@ -1666,6 +1796,13 @@ void WebPage::updateVisibleContentRects(const VisibleContentRectUpdateInfo& visi
 
     m_page->mainFrame().view()->setScrollOffset(scrollPosition);
     m_page->mainFrame().view()->setUnobscuredContentRect(roundedUnobscuredRect);
+
+    double horizontalVelocity = visibleContentRectUpdateInfo.horizontalVelocity();
+    double verticalVelocity = visibleContentRectUpdateInfo.verticalVelocity();
+    double scaleChangeRate = visibleContentRectUpdateInfo.scaleChangeRate();
+    adjustVelocityDataForBoundedScale(horizontalVelocity, verticalVelocity, scaleChangeRate, visibleContentRectUpdateInfo.scale(), boundedScale);
+
+    m_page->mainFrame().view()->setScrollVelocity(horizontalVelocity, verticalVelocity, scaleChangeRate, visibleContentRectUpdateInfo.timestamp());
 
     if (visibleContentRectUpdateInfo.inStableState())
         m_page->mainFrame().view()->setCustomFixedPositionLayoutRect(enclosingIntRect(visibleContentRectUpdateInfo.customFixedPositionRect()));

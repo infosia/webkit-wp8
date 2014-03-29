@@ -421,7 +421,7 @@ public:
     WebCore::IntPoint screenToRootView(const WebCore::IntPoint&);
     WebCore::IntRect rootViewToScreen(const WebCore::IntRect&);
 
-    PassRefPtr<WebImage> scaledSnapshotWithOptions(const WebCore::IntRect&, double scaleFactor, SnapshotOptions);
+    PassRefPtr<WebImage> scaledSnapshotWithOptions(const WebCore::IntRect&, double additionalScaleFactor, SnapshotOptions);
     PassRefPtr<WebImage> snapshotAtSize(const WebCore::IntRect&, const WebCore::IntSize& bitmapSize, SnapshotOptions);
 
     static const WebEvent* currentEvent();
@@ -452,6 +452,8 @@ public:
     void extendSelection(uint32_t granularity);
     void elementDidFocus(WebCore::Node*);
     void elementDidBlur(WebCore::Node*);
+    void requestDictationContext(uint64_t callbackID);
+    void replaceDictatedText(const String& oldText, const String& newText);
     void requestAutocorrectionData(const String& textForAutocorrection, uint64_t callbackID);
     void applyAutocorrection(const String& correction, const String& originalText, uint64_t callbackID);
     void syncApplyAutocorrection(const String& correction, const String& originalText, bool& correctionApplied);
@@ -466,6 +468,12 @@ public:
     void setAssistedNodeValue(const String&);
     void setAssistedNodeValueAsNumber(double);
     void setAssistedNodeSelectedIndex(uint32_t index, bool allowMultipleSelection);
+    WebCore::IntRect rectForElementAtInteractionLocation();
+
+#if ENABLE(INSPECTOR)
+    void showInspectorIndication();
+    void hideInspectorIndication();
+#endif
 #endif
 
     NotificationPermissionRequestManager* notificationPermissionRequestManager();
@@ -544,7 +552,6 @@ public:
     void confirmCompositionAsync();
 
 #if PLATFORM(MAC)
-    void cancelComposition(EditorState& newState);
     void insertDictatedTextAsync(const String& text, const EditingRange& replacementRange, const Vector<WebCore::DictationAlternative>& dictationAlternativeLocations);
     void attributedSubstringForCharacterRangeAsync(const EditingRange&, uint64_t callbackID);
 #if !USE(ASYNC_NSTEXTINPUTCLIENT)
@@ -558,6 +565,7 @@ public:
     void characterIndexForPoint(const WebCore::IntPoint point, uint64_t& result);
     void firstRectForCharacterRange(const EditingRange&, WebCore::IntRect& resultRect);
     void executeKeypressCommands(const Vector<WebCore::KeypressCommand>&, bool& handled, EditorState& newState);
+    void cancelComposition(EditorState& newState);
 #endif
 #endif
 
@@ -882,7 +890,7 @@ private:
 
 #if PLATFORM(COCOA)
     void performDictionaryLookupAtLocation(const WebCore::FloatPoint&);
-    void performDictionaryLookupForRange(WebCore::Frame*, WebCore::Range*, NSDictionary *options);
+    void performDictionaryLookupForRange(WebCore::Frame*, WebCore::Range&, NSDictionary *options);
 
     void windowAndViewFramesChanged(const WebCore::FloatRect& windowFrameInScreenCoordinates, const WebCore::FloatRect& windowFrameInUnflippedScreenCoordinates, const WebCore::FloatRect& viewFrameInWindowCoordinates, const WebCore::FloatPoint& accessibilityViewCoordinates);
 
@@ -1123,9 +1131,11 @@ private:
     RefPtr<WebCore::Range> m_currentWordRange;
     RefPtr<WebCore::Node> m_interactionNode;
     bool m_shouldReturnWordAtSelection;
+    WebCore::IntPoint m_lastInteractionLocation;
 
     WebCore::ViewportConfiguration m_viewportConfiguration;
     uint64_t m_lastVisibleContentRectUpdateID;
+    bool m_hasReceivedVisibleContentRectsAfterDidCommitLoad;
     bool m_scaleWasSetByUIProcess;
     bool m_userHasChangedPageScaleFactor;
     WebCore::FloatSize m_viewportScreenSize;

@@ -28,6 +28,7 @@
 #if WK_API_ENABLED
 
 @class _WKProcessPoolConfiguration;
+@protocol _WKDownloadDelegate;
 
 @interface WKProcessPool (WKPrivate)
 
@@ -40,6 +41,8 @@
 
 - (id)_objectForBundleParameter:(NSString *)parameter;
 - (void)_setObject:(id <NSCopying, NSSecureCoding>)object forBundleParameter:(NSString *)parameter;
+
+@property (nonatomic, weak, setter=_setDownloadDelegate:) id <_WKDownloadDelegate> _downloadDelegate;
 
 @end
 

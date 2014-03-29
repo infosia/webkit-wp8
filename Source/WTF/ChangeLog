@@ -1,3 +1,195 @@
+2014-03-28  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] Enable async text input implementation
+        https://bugs.webkit.org/show_bug.cgi?id=130856
+
+        Reviewed by Sam Weinig.
+
+        * wtf/Platform.h: Added a USE macro definition.
+
+2014-03-28  peavo@outlook.com  <peavo@outlook.com>
+
+        Null pointer crash in String::append(UChar).
+        https://bugs.webkit.org/show_bug.cgi?id=130900
+
+        Reviewed by Michael Saboff.
+
+        * wtf/text/WTFString.cpp:
+        (WTF::String::append): Check and initialize m_impl member first, to avoid null pointer crash.
+
+2014-03-27  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r166360.
+        https://bugs.webkit.org/show_bug.cgi?id=130869
+
+        Seems to have broken PLT (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "Connection::dispatchOneMessage() can be re-entered while
+        handling Cmd-key menu"
+        https://bugs.webkit.org/show_bug.cgi?id=130767
+        http://trac.webkit.org/changeset/166360
+
+2014-03-27  Alexey Proskuryakov  <ap@apple.com>
+
+        Connection::dispatchOneMessage() can be re-entered while handling Cmd-key menu
+        equivalents, ASSERT(!_data->_keyDownEventBeingResent)
+        https://bugs.webkit.org/show_bug.cgi?id=130767
+        <rdar://problem/16307487>
+
+        Reviewed by Darin Adler.
+
+        Changed RunLoop to wake up and fire timers only in default run loop mode by default,
+        and added an ability to add more modes (can't use AppKit symbols in WTF).
+
+        In addition to this bug, the change also blocks modal alerts from appearing under
+        menus during menu tracking.
+
+        * wtf/RunLoop.h:
+        * wtf/cf/RunLoopCF.cpp:
+        (WTF::RunLoop::RunLoop):
+        (WTF::RunLoop::addModeForWakeUpAndTimers):
+        (WTF::RunLoop::TimerBase::start):
+
+2014-03-26  Zan Dobersek  <zdobersek@igalia.com>
+
+        Unreviewed. Removing the remaining Automake cruft.
+
+        * GNUmakefile.list.am: Removed.
+
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * GNUmakefile.am: Removed.
+        * config.h: Removed references to the autotools configure file.
+
+2014-03-25  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [ARM64] GCC generates wrong code with -O2 flag in WTF::weakCompareAndSwap
+        https://bugs.webkit.org/show_bug.cgi?id=130500
+
+        Reviewed by Filip Pizlo.
+
+        Set the first operand to the exact register in the inline assembly with GCC.
+
+        * wtf/Atomics.h:
+        (WTF::weakCompareAndSwap):
+
+2014-03-25  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [EFL] Add ARM64 build support
+        https://bugs.webkit.org/show_bug.cgi?id=130506
+
+        Rubber stamped by Gyuyoung Kim.
+
+        * wtf/Platform.h: Set WTF_CPU_ARM64 when __aarch64__ is defined.
+
+2014-03-24  Andy Estes  <aestes@apple.com>
+
+        Fix the iOS build.
+
+        * wtf/ThreadingPthreads.cpp:
+        (WTF::createThreadInternal):
+        (WTF::setCurrentThreadQOSUtility):
+
+2014-03-24  Gavin Barraclough  <barraclough@apple.com>
+
+        Add support for thread QoS
+        https://bugs.webkit.org/show_bug.cgi?id=130688
+
+        Speculative EFL build fix.
+
+        * wtf/ThreadingPthreads.cpp:
+        (WTF::setCurrentThreadQOSUtility):
+
+2014-03-24  Gavin Barraclough  <barraclough@apple.com>
+
+        Add support for thread QoS
+        https://bugs.webkit.org/show_bug.cgi?id=130688
+
+        Reviewed by Andreas Kling.
+
+        * wtf/FastMalloc.cpp:
+        (WTF::TCMalloc_PageHeap::runScavengerThread):
+            - block freeing is a utility activity.
+        * wtf/Threading.h:
+            - declaration.
+        * wtf/ThreadingPthreads.cpp:
+        (WTF::createThreadInternal):
+            - default to interactive.
+        (WTF::setCurrentThreadQOSUtility):
+            - implementation.
+        * wtf/ThreadingWin.cpp:
+        (WTF::setCurrentThreadQOSUtility):
+            - no-op implementation.
+
+2014-03-23  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        Move all EFL typedefs into EflTypedefs.h.
+        https://bugs.webkit.org/show_bug.cgi?id=130511
+
+        Reviewed by Gyuyoung Kim.
+
+        * wtf/Platform.h: include EflTypedefs.h.
+        * wtf/efl/EflTypedefs.h: Added.
+        * wtf/efl/RefPtrEfl.h: Remove EFL typedefs.
+
+2014-03-22  Darin Adler  <darin@apple.com>
+
+        Remove String::deprecatedCharacters
+        https://bugs.webkit.org/show_bug.cgi?id=126854
+
+        Reviewed by Sam Weinig.
+
+        * wtf/text/StringBuilder.cpp:
+        (WTF::StringBuilder::reifyString): Removed code to update 16-bit shadow.
+
+        * wtf/text/StringBuilder.h: Removed deprecatedCharacters.
+        (WTF::StringBuilder::StringBuilder): Removed m_valid16BitShadowLength.
+        (WTF::StringBuilder::clear): Removed code to clear m_valid16BitShadowLength.
+        (WTF::StringBuilder::swap): Removed code to swap m_valid16BitShadowLength.
+
+        * wtf/text/StringImpl.cpp:
+        (WTF::StringImpl::~StringImpl): Removed code to free m_copyData16.
+        (WTF::StringImpl::upper): Use StringView::upconvertedCharacters for slow case.
+        (WTF::StringImpl::lower): Ditto.
+        (WTF::StringImpl::find): Use characters8/16 rather than deprecatedCharacters.
+        Added an 8-bit code path to one of the overloads. Might want to revisit later
+        to decide whether to use templates instead of copy/paste, or even use StringView
+        to cut down on duplicate code paths.
+        (WTF::StringImpl::findIgnoringCase): Ditto.
+        (WTF::StringImpl::sizeInBytes): Remove code to handle has16BitShadow case.
+        (WTF::equalIgnoringNullity): Added. To be called by the Vector template in the header.
+
+        * wtf/text/StringImpl.h: Removed deprecatedCharacters, has16BitShadow,
+        upconvertCharacters, getData16SlowCase, s_hashFlagHas16BitShadow, and m_copyData16.
+        (WTF::equalIgnoringNullity): Changed the template function into an inline that calls
+        a non-inline helper function. The non-inline function handles both 8-bit and 16-bit
+        strings.
+
+        * wtf/text/StringView.h:
+        (WTF::StringView::StringView): Added an overload so we can make one of these directly
+        from a StringImpl without first wrapping it in a string. Added an adapter so we can
+        use StringView as part of string concatenation. Added an append function so we can
+        append to a Vector<UChar>.
+
+        * wtf/text/WTFString.cpp:
+        (WTF::String::append): Use StringView::getCharactersWithUpconvert. Also changed
+        single-character append so it won't always turn an 8-bit string into a 16-bit one.
+        (WTF::String::insert): Removed one insert overload and changed the other to use
+        StringView::getCharactersWithUpconvert.
+        (WTF::String::truncate): Changed to use StringImpl::substring.
+        (WTF::String::percentage): Added characters8/16 paths instead of using
+        deprecatedCharacters.
+
+        * wtf/text/WTFString.h: Removed deprecatedCharacters, getCharactersWithUpconvert,
+        insert(UChar*, unsigned, unsigned), and the append overload for Vector<UChar>.
+
 2014-03-20  Darin Adler  <darin@apple.com>
 
         Fix a header guard mistake (harmless but clearly wrong)

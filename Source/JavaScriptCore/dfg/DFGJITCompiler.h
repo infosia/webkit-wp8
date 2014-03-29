@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -198,12 +198,7 @@ public:
     }
 
 #if USE(JSVALUE32_64)
-    void* addressOfDoubleConstant(Node* node)
-    {
-        ASSERT(m_graph.isNumberConstant(node));
-        unsigned constantIndex = node->constantNumber();
-        return &(codeBlock()->constantRegister(FirstConstantRegisterIndex + constantIndex));
-    }
+    void* addressOfDoubleConstant(Node*);
 #endif
 
     void addGetById(const JITGetByIdGenerator& gen, SlowPathGenerator* slowPath)
@@ -226,9 +221,9 @@ public:
         return m_jsCalls.size();
     }
 
-    void addJSCall(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo::CallType callType, GPRReg callee, CodeOrigin codeOrigin)
+    void addJSCall(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo* info)
     {
-        m_jsCalls.append(JSCallRecord(fastCall, slowCall, targetToCheck, callType, callee, codeOrigin));
+        m_jsCalls.append(JSCallRecord(fastCall, slowCall, targetToCheck, info));
     }
     
     void addWeakReference(JSCell* target)
@@ -353,22 +348,18 @@ private:
     Vector<Label> m_blockHeads;
 
     struct JSCallRecord {
-        JSCallRecord(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo::CallType callType, GPRReg callee, CodeOrigin codeOrigin)
+        JSCallRecord(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo* info)
             : m_fastCall(fastCall)
             , m_slowCall(slowCall)
             , m_targetToCheck(targetToCheck)
-            , m_callType(callType)
-            , m_callee(callee)
-            , m_codeOrigin(codeOrigin)
+            , m_info(info)
         {
         }
         
         Call m_fastCall;
         Call m_slowCall;
         DataLabelPtr m_targetToCheck;
-        CallLinkInfo::CallType m_callType;
-        GPRReg m_callee;
-        CodeOrigin m_codeOrigin;
+        CallLinkInfo* m_info;
     };
     
     Vector<InlineCacheWrapper<JITGetByIdGenerator>, 4> m_getByIds;

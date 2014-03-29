@@ -53,6 +53,8 @@ messages -> WebPage LegacyReceiver {
     UpdateBlockSelectionWithTouch(WebCore::IntPoint point, uint32_t touch, uint32_t handlePosition)
     SelectWithTwoTouches(WebCore::IntPoint from, WebCore::IntPoint to, uint32_t gestureType, uint32_t gestureState, uint64_t callbackID)
     ExtendSelection(uint32_t granularity)
+    RequestDictationContext(uint64_t callbackID)
+    ReplaceDictatedText(String oldText, String newText)
     RequestAutocorrectionData(String textForAutocorrection, uint64_t callbackID)
     ApplyAutocorrection(String correction, String originalText, uint64_t callbackID)
     SyncApplyAutocorrection(String correction, String originalText) -> (bool autocorrectionApplied)
@@ -305,7 +307,6 @@ messages -> WebPage LegacyReceiver {
     ConfirmCompositionAsync()
 #endif
 #if PLATFORM(MAC)
-    CancelComposition() -> (WebKit::EditorState newState)
     InsertDictatedTextAsync(String text, WebKit::EditingRange replacementRange, Vector<WebCore::DictationAlternative> dictationAlternatives)
     AttributedSubstringForCharacterRangeAsync(WebKit::EditingRange range, uint64_t callbackID);
 #endif
@@ -320,6 +321,7 @@ messages -> WebPage LegacyReceiver {
     CharacterIndexForPoint(WebCore::IntPoint point) -> (uint64_t result)
     FirstRectForCharacterRange(WebKit::EditingRange range) -> (WebCore::IntRect resultRect)
     ExecuteKeypressCommands(Vector<WebCore::KeypressCommand> savedCommands) -> (bool handled, WebKit::EditorState newState)
+    CancelComposition() -> (WebKit::EditorState newState)
 #endif
 
     SetMinimumLayoutSize(WebCore::IntSize minimumLayoutSize)

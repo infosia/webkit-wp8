@@ -48,6 +48,7 @@
 #import "WebKitSystemInterfaceIOS.h"
 #import <WebCore/FrameView.h>
 #import <UIKit/UIWindow_Private.h>
+#import <wtf/CurrentTime.h>
 #import <wtf/RetainPtr.h>
 
 #if __has_include(<QuartzCore/QuartzCorePrivate.h>)
@@ -61,13 +62,122 @@
 using namespace WebCore;
 using namespace WebKit;
 
+namespace WebKit {
+class HistoricalVelocityData {
+public:
+    struct VelocityData {
+        VelocityData()
+            : horizontalVelocity(0)
+            , verticalVelocity(0)
+            , scaleChangeRate(0)
+        {
+        }
+
+        VelocityData(double horizontalVelocity, double verticalVelocity, double scaleChangeRate)
+            : horizontalVelocity(horizontalVelocity)
+            , verticalVelocity(verticalVelocity)
+            , scaleChangeRate(scaleChangeRate)
+        {
+        }
+
+        double horizontalVelocity;
+        double verticalVelocity;
+        double scaleChangeRate;
+    };
+
+    HistoricalVelocityData()
+        : m_historySize(0)
+        , m_latestDataIndex(0)
+        , m_lastAppendTimestamp(0)
+    {
+    }
+
+    VelocityData velocityForNewData(CGPoint newPosition, double scale, double timestamp)
+    {
+        // Due to all the source of rect update, the input is very noisy. To smooth the output, we accumulate all changes
+        // within 1 frame as a single update. No speed computation is ever done on data within the same frame.
+        const double filteringThreshold = 1 / 60.;
+
+        VelocityData velocityData;
+        if (m_historySize > 0) {
+            unsigned oldestDataIndex;
+            unsigned distanceToLastHistoricalData = m_historySize - 1;
+            if (distanceToLastHistoricalData <= m_latestDataIndex)
+                oldestDataIndex = m_latestDataIndex - distanceToLastHistoricalData;
+            else
+                oldestDataIndex = m_historySize - (distanceToLastHistoricalData - m_latestDataIndex);
+
+            double timeDelta = timestamp - m_history[oldestDataIndex].timestamp;
+            if (timeDelta > filteringThreshold) {
+                Data& oldestData = m_history[oldestDataIndex];
+                velocityData = VelocityData((newPosition.x - oldestData.position.x) / timeDelta, (newPosition.y - oldestData.position.y) / timeDelta, (scale - oldestData.scale) / timeDelta);
+            }
+        }
+
+        double timeSinceLastAppend = timestamp - m_lastAppendTimestamp;
+        if (timeSinceLastAppend > filteringThreshold)
+            append(newPosition, scale, timestamp);
+        else
+            m_history[m_latestDataIndex] = { timestamp, newPosition, scale };
+        return velocityData;
+    }
+
+    void clear() { m_historySize = 0; }
+
+private:
+    void append(CGPoint newPosition, double scale, double timestamp)
+    {
+        m_latestDataIndex = (m_latestDataIndex + 1) % maxHistoryDepth;
+        m_history[m_latestDataIndex] = { timestamp, newPosition, scale };
+
+        unsigned size = m_historySize + 1;
+        if (size <= maxHistoryDepth)
+            m_historySize = size;
+
+        m_lastAppendTimestamp = timestamp;
+    }
+
+
+    static const unsigned maxHistoryDepth = 3;
+
+    unsigned m_historySize;
+    unsigned m_latestDataIndex;
+    double m_lastAppendTimestamp;
+
+    struct Data {
+        double timestamp;
+        CGPoint position;
+        double scale;
+    } m_history[maxHistoryDepth];
+};
+} // namespace WebKit
+
+@interface WKInspectorIndicationView : UIView
+@end
+
+@implementation WKInspectorIndicationView
+
+- (instancetype)initWithFrame:(CGRect)frame
+{
+    if (!(self = [super initWithFrame:frame]))
+        return nil;
+    self.userInteractionEnabled = NO;
+    self.backgroundColor = [UIColor colorWithRed:(111.0 / 255.0) green:(168.0 / 255.0) blue:(220.0 / 255.0) alpha:0.66f];
+    return self;
+}
+
+@end
+
 @implementation WKContentView {
     std::unique_ptr<PageClientImpl> _pageClient;
     RetainPtr<WKBrowsingContextController> _browsingContextController;
 
     RetainPtr<UIView> _rootContentView;
+    RetainPtr<WKInspectorIndicationView> _inspectorIndicationView;
 
     WKWebView *_webView;
+
+    HistoricalVelocityData _historicalKinematicData;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame context:(WebKit::WebContext&)context configuration:(WebKit::WebPageConfiguration)webPageConfiguration webView:(WKWebView *)webView
@@ -81,7 +191,7 @@ using namespace WebKit;
 
     _page = context.createWebPage(*_pageClient, std::move(webPageConfiguration));
     _page->initializeWebPage();
-    _page->setIntrinsicDeviceScaleFactor([UIScreen mainScreen].scale);
+    _page->setIntrinsicDeviceScaleFactor(WKGetScaleFactorForScreen([UIScreen mainScreen]));
     _page->setUseFixedLayout(true);
     _page->setDelegatesScrolling(true);
 
@@ -91,7 +201,6 @@ using namespace WebKit;
 
     _rootContentView = adoptNS([[UIView alloc] init]);
     [_rootContentView layer].masksToBounds = NO;
-    [_rootContentView setUserInteractionEnabled:NO];
 
     [self addSubview:_rootContentView.get()];
 
@@ -149,7 +258,7 @@ using namespace WebKit;
 - (WKBrowsingContextController *)browsingContextController
 {
     if (!_browsingContextController)
-        _browsingContextController = [[WKBrowsingContextController alloc] _initWithPageRef:toAPI(_page.get())];
+        _browsingContextController = adoptNS([[WKBrowsingContextController alloc] _initWithPageRef:toAPI(_page.get())]);
 
     return _browsingContextController.get();
 }
@@ -164,8 +273,40 @@ using namespace WebKit;
     return [self isEditable];
 }
 
+- (BOOL)isShowingInspectorIndication
+{
+    return !!_inspectorIndicationView;
+}
+
+- (void)setShowingInspectorIndication:(BOOL)show
+{
+    if (show) {
+        if (!_inspectorIndicationView) {
+            _inspectorIndicationView = adoptNS([[WKInspectorIndicationView alloc] initWithFrame:[self bounds]]);
+            [self insertSubview:_inspectorIndicationView.get() aboveSubview:_rootContentView.get()];
+        }
+    } else {
+        if (_inspectorIndicationView) {
+            [_inspectorIndicationView removeFromSuperview];
+            _inspectorIndicationView = nil;
+        }
+    }
+}
+
+static inline FloatRect fixedPositionRectFromExposedRect(CGRect unobscuredRect, CGSize documentSize, CGFloat scale)
+{
+    return FrameView::rectForViewportConstrainedObjects(enclosingLayoutRect(unobscuredRect), roundedLayoutSize(FloatSize(documentSize)), scale, false, StickToViewportBounds);
+}
+
 - (void)didUpdateVisibleRect:(CGRect)visibleRect unobscuredRect:(CGRect)unobscuredRect scale:(CGFloat)zoomScale inStableState:(BOOL)isStableState
 {
+    double timestamp = monotonicallyIncreasingTime();
+    HistoricalVelocityData::VelocityData velocityData;
+    if (!isStableState)
+        velocityData = _historicalKinematicData.velocityForNewData(visibleRect.origin, zoomScale, timestamp);
+    else
+        _historicalKinematicData.clear();
+
     double scaleNoiseThreshold = 0.0005;
     CGFloat filteredScale = zoomScale;
     if (!isStableState && fabs(filteredScale - _page->displayedContentScale()) < scaleNoiseThreshold) {
@@ -174,8 +315,8 @@ using namespace WebKit;
         filteredScale = _page->displayedContentScale();
     }
 
-    CGRect customFixedPositionRect = [self fixedPositionRectFromExposedRect:unobscuredRect scale:zoomScale];
-    _page->updateVisibleContentRects(VisibleContentRectUpdateInfo(_page->nextVisibleContentRectUpdateID(), visibleRect, unobscuredRect, customFixedPositionRect, filteredScale, isStableState));
+    FloatRect customFixedPositionRect = fixedPositionRectFromExposedRect(unobscuredRect, [self bounds].size, zoomScale);
+    _page->updateVisibleContentRects(VisibleContentRectUpdateInfo(_page->nextVisibleContentRectUpdateID(), visibleRect, unobscuredRect, customFixedPositionRect, filteredScale, isStableState, timestamp, velocityData.horizontalVelocity, velocityData.verticalVelocity, velocityData.scaleChangeRate));
     
     RemoteScrollingCoordinatorProxy* scrollingCoordinator = _page->scrollingCoordinatorProxy();
     scrollingCoordinator->viewportChangedViaDelegatedScrolling(scrollingCoordinator->rootScrollingNodeID(), unobscuredRect, zoomScale);
@@ -187,11 +328,6 @@ using namespace WebKit;
 - (void)setMinimumSize:(CGSize)size
 {
     _page->drawingArea()->setSize(IntSize(size), IntSize(), IntSize());
-}
-
-- (CGRect)fixedPositionRectFromExposedRect:(CGRect)unobscuredRect scale:(CGFloat)scale
-{
-    return (FloatRect)FrameView::rectForViewportConstrainedObjects(enclosingLayoutRect(unobscuredRect), roundedLayoutSize(FloatSize([self bounds].size)), scale, false, StickToViewportBounds);
 }
 
 - (void)setMinimumLayoutSize:(CGSize)size
@@ -238,7 +374,7 @@ using namespace WebKit;
 - (void)_updateForScreen:(UIScreen *)screen
 {
     ASSERT(screen);
-    _page->setIntrinsicDeviceScaleFactor(screen.scale);
+    _page->setIntrinsicDeviceScaleFactor(WKGetScaleFactorForScreen(screen));
     [self _accessibilityRegisterUIProcessTokens];
 }
 
@@ -292,6 +428,7 @@ using namespace WebKit;
 
     [self setBounds:{CGPointZero, contentsSize}];
     [_rootContentView setFrame:CGRectMake(0, 0, contentsSize.width, contentsSize.height)];
+    [_inspectorIndicationView setFrame:[self bounds]];
 
     [_webView _didCommitLayerTree:layerTreeTransaction];
     [self _updateChangedSelection];

@@ -57,12 +57,22 @@ SVGInlineTextBox::SVGInlineTextBox(RenderSVGInlineText& renderer)
 {
 }
 
-void SVGInlineTextBox::dirtyLineBoxes()
+void SVGInlineTextBox::dirtyOwnLineBoxes()
 {
     InlineTextBox::dirtyLineBoxes();
 
     // Clear the now stale text fragments
     clearTextFragments();
+}
+
+void SVGInlineTextBox::dirtyLineBoxes()
+{
+    dirtyOwnLineBoxes();
+
+    // And clear any following text fragments as the text on which they
+    // depend may now no longer exist, or glyph positions may be wrong
+    for (InlineTextBox* nextBox = nextTextBox(); nextBox; nextBox = nextBox->nextTextBox())
+        nextBox->dirtyOwnLineBoxes();
 }
 
 int SVGInlineTextBox::offsetForPosition(float, bool) const
@@ -401,8 +411,7 @@ TextRun SVGInlineTextBox::constructTextRun(RenderStyle* style, const SVGTextFrag
 {
     ASSERT(style);
 
-    TextRun run(renderer().deprecatedCharacters() + fragment.characterOffset
-                , fragment.length
+    TextRun run(StringView(renderer().text()).substring(fragment.characterOffset, fragment.length)
                 , 0 /* xPos, only relevant with allowTabs=true */
                 , 0 /* padding, only relevant for justified text, not relevant for SVG */
                 , TextRun::AllowTrailingExpansion
