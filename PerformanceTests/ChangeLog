@@ -1,3 +1,126 @@
+2014-04-02  Geoffrey Garen  <ggaren@apple.com>
+
+        Unreviewed.
+
+        Try to ignore some Xcode shmutz in MallocBench.
+
+        * MallocBench/MallocBench.xcodeproj: Added property svn:ignore.
+
+2014-04-02  Geoffrey Garen  <ggaren@apple.com>
+
+        Let's benchmark malloc
+        https://bugs.webkit.org/show_bug.cgi?id=131118
+
+        Reviewed by Mark Hahnenberg.
+
+        I want to replace fastMalloc with something faster (fasterMalloc?).
+        I wrote these benchmarks to test / drive development.
+
+        * MallocBench: Added.
+        * MallocBench/MallocBench: Added.
+        * MallocBench/MallocBench.xcodeproj: Added.
+        * MallocBench/MallocBench.xcodeproj/project.pbxproj: Added.
+        * MallocBench/MallocBench/Benchmark.cpp: Added.
+        (allocateHeap):
+        (deallocateHeap):
+        (Benchmark::Benchmark):
+        (Benchmark::printBenchmarks):
+        (Benchmark::runOnce):
+        (Benchmark::run):
+        (Benchmark::printReport):
+        (Benchmark::currentTimeMS):
+        (Benchmark::currentMemoryBytes):
+        * MallocBench/MallocBench/Benchmark.h: Added.
+        (Benchmark::Memory::Memory):
+        (Benchmark::Memory::operator-):
+        (Benchmark::isValid):
+        * MallocBench/MallocBench/CPUCount.cpp: Added.
+        (cpuCount):
+        * MallocBench/MallocBench/CPUCount.h: Added.
+        * MallocBench/MallocBench/CommandLine.cpp: Added.
+        (CommandLine::printUsage):
+        * MallocBench/MallocBench/CommandLine.h: Added.
+        (CommandLine::isValid):
+        (CommandLine::benchmarkName):
+        (CommandLine::isParallel):
+        (CommandLine::heapSize):
+        (CommandLine::measureHeap):
+        * MallocBench/MallocBench/Interpreter.cpp: Added.
+        (Interpreter::Interpreter):
+        (Interpreter::~Interpreter):
+        (Interpreter::run):
+        * MallocBench/MallocBench/Interpreter.h: Added.
+        * MallocBench/MallocBench/balloon.cpp: Added.
+        (benchmark_balloon):
+        * MallocBench/MallocBench/balloon.h: Added.
+        * MallocBench/MallocBench/big.cpp: Added.
+        (benchmark_big):
+        * MallocBench/MallocBench/big.h: Added.
+        * MallocBench/MallocBench/churn.cpp: Added.
+        (HeapDouble::operator new):
+        (HeapDouble::operator delete):
+        (HeapDouble::HeapDouble):
+        (HeapDouble::operator+=):
+        (benchmark_churn):
+        * MallocBench/MallocBench/churn.h: Added.
+        * MallocBench/MallocBench/crash.ops: Added.
+        * MallocBench/MallocBench/facebook.cpp: Added.
+        (benchmark_facebook):
+        * MallocBench/MallocBench/facebook.h: Added.
+        * MallocBench/MallocBench/facebook.ops: Added.
+        * MallocBench/MallocBench/fragment.cpp: Added.
+        (validate):
+        (benchmark_fragment):
+        (benchmark_fragment_iterate):
+        * MallocBench/MallocBench/fragment.h: Added.
+        * MallocBench/MallocBench/list.cpp: Added.
+        (benchmark_list_allocate):
+        (benchmark_list_traverse):
+        * MallocBench/MallocBench/list.h: Added.
+        * MallocBench/MallocBench/main.cpp: Added.
+        (main):
+        * MallocBench/MallocBench/mbmalloc.cpp: Added.
+        * MallocBench/MallocBench/mbmalloc.h: Added.
+        * MallocBench/MallocBench/medium.cpp: Added.
+        (benchmark_medium):
+        * MallocBench/MallocBench/medium.h: Added.
+        * MallocBench/MallocBench/message.cpp: Added.
+        (benchmark_message_one):
+        (benchmark_message_many):
+        * MallocBench/MallocBench/message.h: Added.
+        * MallocBench/MallocBench/realloc.cpp: Added.
+        (benchmark_realloc):
+        * MallocBench/MallocBench/realloc.h: Added.
+        * MallocBench/MallocBench/tree.cpp: Added.
+        (benchmark_tree_allocate):
+        (benchmark_tree_traverse):
+        (benchmark_tree_churn):
+        * MallocBench/MallocBench/tree.h: Added.
+        * MallocBench/run-malloc-benchmarks: Added.
+
+2014-03-29  Mark Lam  <mark.lam@apple.com>
+
+        LongSpider 3d-morph result check is inappropriate.
+        <https://webkit.org/b/130928>
+
+        Reviewed by Filip Pizlo.
+
+        The LongSpider 3d-morph component expected result check is incorrect.
+        The existing test checks if the leading digit of a sum starts with "-1".
+        However, it turned out that the expected sum is in the order of
+        -1.8735013540549517e-16 (i.e. very close to 0).  With small errors in
+        the terms of the sum adding up, it is very easy for the resultant sum 
+        to fluctuate.  There is no guarantee that the resultant sum's most
+        significant digit will start with -1 either.
+
+        The fix is to do a tolerance check on all the terms of the sum as well
+        as the total sum value instead.  The tolerance should be more lenient
+        for the sum which accumulates error from the individual terms, then for
+        individual terms.
+
+        * LongSpider/3d-morph.js:
+        (expect):
+
 2014-03-28  Zoltan Horvath  <zoltan@webkit.org>
 
         [CSS Shapes] Add performance tests for Shapes with Regions

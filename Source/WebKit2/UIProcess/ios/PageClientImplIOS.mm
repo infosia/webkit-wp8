@@ -28,7 +28,10 @@
 
 #if PLATFORM(IOS)
 
+#import "_WKDownloadInternal.h"
 #import "DataReference.h"
+#import "DownloadProxy.h"
+#import "FindIndicator.h"
 #import "NativeWebKeyboardEvent.h"
 #import "InteractionInformationAtPosition.h"
 #import "WKContentView.h"
@@ -152,6 +155,13 @@ void PageClientImpl::didCommitLoadForMainFrame(const String& mimeType, bool useC
 {
     [m_webView _setHasCustomContentView:useCustomContentProvider loadedMIMEType:mimeType];
     [m_contentView _didCommitLoadForMainFrame];
+}
+
+void PageClientImpl::handleDownloadRequest(DownloadProxy* download)
+{
+    ASSERT_ARG(download, download);
+    ASSERT([download->wrapper() isKindOfClass:[_WKDownload class]]);
+    [static_cast<_WKDownload *>(download->wrapper()) setOriginatingWebView:m_webView];
 }
 
 void PageClientImpl::setCursor(const Cursor&)
@@ -294,9 +304,9 @@ PassRefPtr<WebContextMenuProxy> PageClientImpl::createContextMenuProxy(WebPagePr
     return 0;
 }
 
-void PageClientImpl::setFindIndicator(PassRefPtr<FindIndicator>, bool, bool)
+void PageClientImpl::setFindIndicator(PassRefPtr<FindIndicator> findIndicator, bool fadeOut, bool animate)
 {
-    notImplemented();
+    [m_contentView _setFindIndicator:findIndicator fadeOut:fadeOut animate:animate];
 }
 
 void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext& layerTreeContext)

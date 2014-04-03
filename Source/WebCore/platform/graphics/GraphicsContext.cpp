@@ -569,9 +569,9 @@ void GraphicsContext::drawImage(Image* image, ColorSpace styleColorSpace, const 
     drawImage(image, styleColorSpace, r, FloatRect(FloatPoint(), image->size()), op, description, useLowQualityScale);
 }
 
-void GraphicsContext::drawImage(Image* image, ColorSpace styleColorSpace, const FloatPoint& dest, const IntRect& srcRect, CompositeOperator op, ImageOrientationDescription description)
+void GraphicsContext::drawImage(Image* image, ColorSpace styleColorSpace, const FloatPoint& dest, const FloatRect& srcRect, CompositeOperator op, ImageOrientationDescription description)
 {
-    drawImage(image, styleColorSpace, FloatRect(dest, srcRect.size()), FloatRect(srcRect), op, description);
+    drawImage(image, styleColorSpace, FloatRect(dest, srcRect.size()), srcRect, op, description);
 }
 
 void GraphicsContext::drawImage(Image* image, ColorSpace styleColorSpace, const FloatRect& dest, const FloatRect& src, CompositeOperator op, ImageOrientationDescription description, bool useLowQualityScale)
@@ -597,7 +597,7 @@ void GraphicsContext::drawImage(Image* image, ColorSpace styleColorSpace, const 
         setImageInterpolationQuality(previousInterpolationQuality);
 }
 
-void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, const IntRect& destRect, const IntPoint& srcPoint, const IntSize& tileSize, CompositeOperator op, bool useLowQualityScale, BlendMode blendMode)
+void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, const FloatRect& destRect, const FloatPoint& srcPoint, const FloatSize& tileSize, CompositeOperator op, bool useLowQualityScale, BlendMode blendMode)
 {
     if (paintingDisabled() || !image)
         return;
@@ -611,7 +611,7 @@ void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, c
         image->drawTiled(this, destRect, srcPoint, tileSize, styleColorSpace, op, blendMode);
 }
 
-void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, const IntRect& dest, const IntRect& srcRect,
+void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, const FloatRect& dest, const FloatRect& srcRect,
     const FloatSize& tileScaleFactor, Image::TileRule hRule, Image::TileRule vRule, CompositeOperator op, bool useLowQualityScale)
 {
     if (paintingDisabled() || !image)
@@ -632,35 +632,23 @@ void GraphicsContext::drawTiledImage(Image* image, ColorSpace styleColorSpace, c
         image->drawTiled(this, dest, srcRect, tileScaleFactor, hRule, vRule, styleColorSpace, op);
 }
 
-void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const IntPoint& p, CompositeOperator op, BlendMode blendMode)
+void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const FloatPoint& p, CompositeOperator op, BlendMode blendMode)
 {
     if (!image)
         return;
-    drawImageBuffer(image, styleColorSpace, FloatRect(IntRect(p, image->logicalSize())), FloatRect(FloatPoint(), FloatSize(image->logicalSize())), op, blendMode);
+    drawImageBuffer(image, styleColorSpace, FloatRect(p, image->logicalSize()), FloatRect(FloatPoint(), image->logicalSize()), op, blendMode);
 }
 
-void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const IntRect& r, CompositeOperator op, BlendMode blendMode, bool useLowQualityScale)
+void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const FloatRect& dest, CompositeOperator op, BlendMode blendMode, bool useLowQualityScale)
 {
     if (!image)
         return;
-    drawImageBuffer(image, styleColorSpace, FloatRect(r), FloatRect(FloatPoint(), FloatSize(image->logicalSize())), op, blendMode, useLowQualityScale);
+    drawImageBuffer(image, styleColorSpace, dest, FloatRect(FloatPoint(), FloatSize(image->logicalSize())), op, blendMode, useLowQualityScale);
 }
 
-void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const IntPoint& dest, const IntRect& srcRect, CompositeOperator op, BlendMode blendMode)
+void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const FloatPoint& dest, const FloatRect& srcRect, CompositeOperator op, BlendMode blendMode)
 {
-    drawImageBuffer(image, styleColorSpace, FloatRect(IntRect(dest, srcRect.size())), FloatRect(srcRect), op, blendMode);
-}
-
-void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const IntRect& dest, const IntRect& srcRect, CompositeOperator op, BlendMode blendMode, bool useLowQualityScale)
-{
-    drawImageBuffer(image, styleColorSpace, FloatRect(dest), FloatRect(srcRect), op, blendMode, useLowQualityScale);
-}
-
-void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const FloatRect& dest)
-{
-    if (!image)
-        return;
-    drawImageBuffer(image, styleColorSpace, dest, FloatRect(IntRect(IntPoint(), image->logicalSize())));
+    drawImageBuffer(image, styleColorSpace, FloatRect(dest, srcRect.size()), srcRect, op, blendMode);
 }
 
 void GraphicsContext::drawImageBuffer(ImageBuffer* image, ColorSpace styleColorSpace, const FloatRect& dest, const FloatRect& src, CompositeOperator op, BlendMode blendMode, bool useLowQualityScale)
@@ -892,21 +880,20 @@ static bool scalesMatch(AffineTransform a, AffineTransform b)
     return a.xScale() == b.xScale() && a.yScale() == b.yScale();
 }
 
-std::unique_ptr<ImageBuffer> GraphicsContext::createCompatibleBuffer(const IntSize& size, bool hasAlpha) const
+std::unique_ptr<ImageBuffer> GraphicsContext::createCompatibleBuffer(const FloatSize& size, bool hasAlpha) const
 {
     // Make the buffer larger if the context's transform is scaling it so we need a higher
     // resolution than one pixel per unit. Also set up a corresponding scale factor on the
     // graphics context.
 
     AffineTransform transform = getCTM(DefinitelyIncludeDeviceScale);
-    IntSize scaledSize(static_cast<int>(ceil(size.width() * transform.xScale())), static_cast<int>(ceil(size.height() * transform.yScale())));
+    FloatSize scaledSize(static_cast<int>(ceil(size.width() * transform.xScale())), static_cast<int>(ceil(size.height() * transform.yScale())));
 
     std::unique_ptr<ImageBuffer> buffer = ImageBuffer::createCompatibleBuffer(scaledSize, 1, ColorSpaceDeviceRGB, this, hasAlpha);
     if (!buffer)
         return nullptr;
 
-    buffer->context()->scale(FloatSize(static_cast<float>(scaledSize.width()) / size.width(),
-        static_cast<float>(scaledSize.height()) / size.height()));
+    buffer->context()->scale(FloatSize(scaledSize.width() / size.width(), scaledSize.height() / size.height()));
 
     return buffer;
 }

@@ -15,16 +15,6 @@ CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT 22 0 22)
 CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(WEBKIT2 32 0 7)
 CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE(JAVASCRIPTCORE 16 2 16)
 
-# This is a little confusing: WEBKIT_MICRO_VERSION and friends are used as
-# macros in files like WebKitVersion.h.in to expose the project version to
-# the API. Meanwhile WEBKIT_VERSION_MICRO (note the transposed words) is used
-# by the CMake files to hold the *library* version number, which we calculated
-# from the libtool triple above. We should consider ditching these below
-# and using PROJECT_VERSION_* directly.
-set(WEBKIT_MICRO_VERSION ${PROJECT_VERSION_PATCH})
-set(WEBKIT_MINOR_VERSION ${PROJECT_VERSION_MINOR})
-set(WEBKIT_MAJOR_VERSION ${PROJECT_VERSION_MAJOR})
-
 set(USE_GTK2 OFF CACHE BOOL "Whether or not to use GTK+ 2. WebKit2 only supports GTK+ 3.")
 set(ENABLE_CREDENTIAL_STORAGE ON CACHE BOOL "Whether or not to enable support for credential storage using libsecret.")
 
@@ -134,6 +124,7 @@ set(WebKit_OUTPUT_NAME webkitgtk-${WEBKITGTK_API_VERSION})
 set(WebKit2_OUTPUT_NAME webkit2gtk-${WEBKITGTK_API_VERSION})
 set(WebKit2_WebProcess_OUTPUT_NAME WebKitWebProcess)
 set(WebKit2_NetworkProcess_OUTPUT_NAME WebKitNetworkProcess)
+set(WebKit2_PluginProcess_OUTPUT_NAME WebKitPluginProcess)
 
 set(DATA_BUILD_DIR "${CMAKE_BINARY_DIR}/share/${WebKit_OUTPUT_NAME}")
 set(DATA_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/webkitgtk-${WEBKITGTK_API_VERSION}")
@@ -231,11 +222,19 @@ if (ENABLE_CREDENTIAL_STORAGE)
     set(ENABLE_CREDENTIAL_STORAGE 1)
 endif ()
 
-# We don't use find_package for GLX because it is part of -lGL, unlike EGL.
 find_package(OpenGL)
-check_include_files("GL/glx.h" GLX_FOUND)
-find_package(EGL)
 
+# This part can be simplified once CMake 2.8.6 is required and
+# CMakePushCheckState can be used. We need to have OPENGL_INCLUDE_DIR as part
+# of the directories check_include_files() looks for in case OpenGL is
+# installed into a non-standard location.
+set(REQUIRED_INCLUDES_OLD ${CMAKE_REQUIRED_INCLUDES})
+set(CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES} ${OPENGL_INCLUDE_DIR})
+# We don't use find_package for GLX because it is part of -lGL, unlike EGL.
+check_include_files("GL/glx.h" GLX_FOUND)
+set(CMAKE_REQUIRED_INCLUDES ${REQUIRED_INCLUDES_OLD})
+
+find_package(EGL)
 if (EGL_FOUND)
     set(WTF_USE_EGL 1)
 endif ()
@@ -244,7 +243,7 @@ if (ENABLE_SPELLCHECK)
     find_package(Enchant REQUIRED)
 endif ()
 
-if (${OPENGL_FOUND} AND (${GLX_FOUND} OR ${EGL_FOUND}))
+if (OPENGL_FOUND AND (GLX_FOUND OR EGL_FOUND))
     set(ENABLE_WEBGL 1)
     set(ENABLE_TEXTURE_MAPPER 1)
     set(WTF_USE_3D_GRAPHICS 1)
@@ -256,11 +255,11 @@ if (${OPENGL_FOUND} AND (${GLX_FOUND} OR ${EGL_FOUND}))
     add_definitions(-DWTF_USE_TEXTURE_MAPPER_GL=1)
     add_definitions(-DENABLE_3D_RENDERING=1)
 
-    if (${EGL_FOUND})
+    if (EGL_FOUND)
         add_definitions(-DWTF_USE_EGL=1)
     endif ()
 
-    if (${GLX_FOUND})
+    if (GLX_FOUND)
         add_definitions(-DWTF_USE_GLX=1)
     endif ()
 endif ()

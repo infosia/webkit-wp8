@@ -419,7 +419,7 @@ inline void StyleResolver::State::initForStyleResolve(Document& document, Elemen
     RenderStyle* docStyle = document.renderStyle();
     m_rootElementStyle = docElement && e != docElement ? docElement->renderStyle() : docStyle;
 
-    m_style = 0;
+    m_style = nullptr;
     m_pendingImageProperties.clear();
     m_fontDirty = false;
 }
@@ -1350,7 +1350,7 @@ void StyleResolver::adjustRenderStyle(RenderStyle& style, const RenderStyle& par
 
         // Only the root <svg> element in an SVG document fragment tree honors css position
         if (!(e->hasTagName(SVGNames::svgTag) && e->parentNode() && !e->parentNode()->isSVGElement()))
-            style.setPosition(RenderStyle::initialPosition());
+            style.setPosition(RenderStyle::NonInheritedFlags::initialPosition());
 
         // RenderSVGRoot handles zooming for the whole SVG subtree, so foreignObject content should
         // not be scaled again.
@@ -1941,7 +1941,7 @@ static bool createGridTrackList(CSSValue* value, Vector<GridTrackSize>& trackSiz
 static bool createGridPosition(CSSValue* value, GridPosition& position)
 {
     // We accept the specification's grammar:
-    // 'auto' | [ <integer> || <string> ] | [ span && [ <integer> || string ] ] | <ident>
+    // auto | <custom-ident> | [ <integer> && <custom-ident>? ] | [ span && [ <integer> || <custom-ident> ] ]
     if (value->isPrimitiveValue()) {
         CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(value);
         // We translate <ident> to <string> during parsing as it makes handling it simpler.
@@ -1958,8 +1958,7 @@ static bool createGridPosition(CSSValue* value, GridPosition& position)
     ASSERT(values->length());
 
     bool isSpanPosition = false;
-    // The specification makes the <integer> optional, in which case it default to '1'.
-    int gridLineNumber = 1;
+    int gridLineNumber = 0;
     String gridLineName;
 
     CSSValueListIterator it = values;
@@ -1983,7 +1982,7 @@ static bool createGridPosition(CSSValue* value, GridPosition& position)
 
     ASSERT(!it.hasMore());
     if (isSpanPosition)
-        position.setSpanPosition(gridLineNumber, gridLineName);
+        position.setSpanPosition(gridLineNumber ? gridLineNumber : 1, gridLineName);
     else
         position.setExplicitPosition(gridLineNumber, gridLineName);
 
@@ -3001,10 +3000,6 @@ void StyleResolver::applyProperty(CSSPropertyID id, CSSValue* value)
     case CSSPropertyWebkitShapeMargin:
     case CSSPropertyWebkitShapeImageThreshold:
     case CSSPropertyWebkitShapeOutside:
-#endif
-#if ENABLE(CSS_EXCLUSIONS)
-    case CSSPropertyWebkitWrapFlow:
-    case CSSPropertyWebkitWrapThrough:
 #endif
     case CSSPropertyWhiteSpace:
     case CSSPropertyWidows:

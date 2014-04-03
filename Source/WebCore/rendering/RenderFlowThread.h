@@ -303,10 +303,10 @@ protected:
     };
 
     // Map a layer to the region in which the layer is painted.
-    OwnPtr<LayerToRegionMap> m_layerToRegionMap;
+    std::unique_ptr<LayerToRegionMap> m_layerToRegionMap;
 
     // Map a region to the list of layers that paint in that region.
-    OwnPtr<RegionToLayerListMap> m_regionToLayerListMap;
+    std::unique_ptr<RegionToLayerListMap> m_regionToLayerListMap;
 
     // Map a box to the list of regions in which the box is rendered.
     typedef HashMap<const RenderBox*, RenderRegionRange> RenderRegionRangeMap;
@@ -346,6 +346,16 @@ public:
 private:
     RenderFlowThread* m_renderFlowThread;
     RenderFlowThread* m_previousRenderFlowThread;
+};
+
+class CurrentRenderFlowThreadDisabler {
+    WTF_MAKE_NONCOPYABLE(CurrentRenderFlowThreadDisabler);
+public:
+    CurrentRenderFlowThreadDisabler(RenderView*);
+    ~CurrentRenderFlowThreadDisabler();
+private:
+    RenderView* m_view;
+    RenderFlowThread* m_renderFlowThread;
 };
 
 // This structure is used by PODIntervalTree for debugging.

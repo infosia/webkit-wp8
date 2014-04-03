@@ -8,8 +8,16 @@ function PerfTestResult(runs, result, associatedBuild) {
     this.confidenceIntervalDelta = function () {
         return runs.scalingFactor() * this.unscaledConfidenceIntervalDelta();
     }
-    this.unscaledConfidenceIntervalDelta = function () {
-        return Statistics.confidenceIntervalDelta(0.95, result.iterationCount, result.sum, result.squareSum);
+    this.unscaledConfidenceIntervalDelta = function (defaultValue) {
+        var delta = Statistics.confidenceIntervalDelta(0.95, result.iterationCount, result.sum, result.squareSum);
+        if (isNaN(delta) && defaultValue !== undefined)
+            return defaultValue;
+        return delta;
+    }
+    this.isInUnscaledInterval = function (min, max) {
+        var mean = this.unscaledMean();
+        var delta = this.unscaledConfidenceIntervalDelta(0);
+        return min <= mean - delta && mean + delta <= max;
     }
     this.isBetterThan = function(other) { return runs.smallerIsBetter() == (this.mean() < other.mean()); }
     this.relativeDifference = function(other) { return (other.mean() - this.mean()) / this.mean(); }
@@ -68,26 +76,28 @@ function TestBuild(repositories, builders, platform, rawRun) {
     this.revision = function(repositoryName) { return revisions[repositoryName][0]; }
     this.formattedRevisions = function (previousBuild) {
         var result = {};
-        for (var repositoryName in revisions) {
+        for (var repositoryName in repositories) {
+            if (!revisions[repositoryName])
+                continue;
             var previousRevision = previousBuild ? previousBuild.revision(repositoryName) : undefined;
             var currentRevision = this.revision(repositoryName);
             if (previousRevision === currentRevision)
                 previousRevision = undefined;
 
             var revisionPrefix = '';
-            if (currentRevision.length < 10) { // SVN-like revision.
+            var revisionDelimitor = '-';
+            if (parseInt(currentRevision) == currentRevision) { // e.g. r12345.
                 revisionPrefix = 'r';
                 if (previousRevision)
                     previousRevision = (parseInt(previousRevision) + 1);
-            }
+            } else if (currentRevision.indexOf(' ') >= 0) // e.g. 10.9 13C64.
+                revisionDelimitor = ' - ';
 
-            var labelForThisRepository = revisionCount ? repositoryName : '';
-            if (previousRevision) {
-                if (labelForThisRepository)
-                    labelForThisRepository += ' ';
-                labelForThisRepository += revisionPrefix + previousRevision + '-' + revisionPrefix + currentRevision;
-            } else
-                labelForThisRepository += ' @ ' + revisionPrefix + currentRevision;
+            var labelForThisRepository;
+            if (previousRevision)
+                labelForThisRepository = revisionPrefix + previousRevision + revisionDelimitor + revisionPrefix + currentRevision;
+            else
+                labelForThisRepository = '@ ' + revisionPrefix + currentRevision;
 
             var url;
             var repository = repositories[repositoryName];
@@ -124,14 +134,14 @@ function PerfTestRuns(metric, platform) {
     var baselines = {};
     var unit = {'Combined': '', // Assume smaller is better for now.
         'FrameRate': 'fps',
-        'Runs': 'runs/s',
+        'Runs': '/s',
         'Time': 'ms',
-        'Malloc': 'bytes',
-        'JSHeap': 'bytes',
-        'Allocations': 'bytes',
-        'EndAllocations': 'bytes',
-        'MaxAllocations': 'bytes',
-        'MeanAllocations': 'bytes'}[metric.name];
+        'Malloc': 'B',
+        'JSHeap': 'B',
+        'Allocations': 'B',
+        'EndAllocations': 'B',
+        'MaxAllocations': 'B',
+        'MeanAllocations': 'B'}[metric.name];
 
     // We can't do this in PerfTestResult because all results for each metric need to share the same unit and the same scaling factor.
     function computeScalingFactorIfNeeded() {
@@ -141,10 +151,11 @@ function PerfTestRuns(metric, platform) {
             return;
 
         var mean = results[0].unscaledMean(); // FIXME: We should look at all values.
-        var kilo = unit == 'bytes' ? 1024 : 1000;
+        var kilo = unit == 'B' ? 1024 : 1000;
         if (mean > 2 * kilo * kilo && unit != 'ms') {
             cachedScalingFactor = 1 / kilo / kilo;
-            cachedUnit = 'M ' + unit;
+            var unitFirstChar = unit.charAt(0);
+            cachedUnit = 'M' + (unitFirstChar.toUpperCase() == unitFirstChar ? '' : ' ') + unit;
         } else if (mean > 2 * kilo) {
             cachedScalingFactor = 1 / kilo;
             cachedUnit = unit == 'ms' ? 's' : ('K ' + unit);
@@ -166,24 +177,38 @@ function PerfTestRuns(metric, platform) {
     this.lastResult = function () { return results[results.length - 1]; }
     this.resultAt = function (i) { return results[i]; }
 
-    var unscaledMeansCache;
-    var unscaledMeansCacheMinTime;
+    var resultsFilterCache;
+    var resultsFilterCacheMinTime;
+    function filteredResults(minTime) {
+        if (!minTime)
+            return results;
+        if (resultsFilterCacheMinTime != minTime) {
+            resultsFilterCache = results.filter(function (result) { return !minTime || result.build().time() >= minTime; });
+            resultsFilterCacheMinTime = minTime;
+        }
+        return resultsFilterCache;
+    }
+
     function unscaledMeansForAllResults(minTime) {
-        if (unscaledMeansCacheMinTime == minTime && unscaledMeansCache)
-            return unscaledMeansCache;
-        unscaledMeansCache = results.filter(function (result) { return !minTime || result.build().time() >= minTime; })
-            .map(function (result) { return result.unscaledMean(); });
-        unscaledMeansCacheMinTime = minTime;
-        return unscaledMeansCache;
+        return filteredResults(minTime).map(function (result) { return result.unscaledMean(); });
     }
 
     this.min = function (minTime) {
-        return this.scalingFactor() * unscaledMeansForAllResults(minTime)
-            .reduce(function (minSoFar, currentMean) { return Math.min(minSoFar, currentMean); }, Number.MAX_VALUE);
+        return this.scalingFactor() * filteredResults(minTime)
+            .reduce(function (minSoFar, result) { return Math.min(minSoFar, result.unscaledMean() - result.unscaledConfidenceIntervalDelta(0)); }, Number.MAX_VALUE);
     }
     this.max = function (minTime, baselineName) {
-        return this.scalingFactor() * unscaledMeansForAllResults(minTime)
-            .reduce(function (maxSoFar, currentMean) { return Math.max(maxSoFar, currentMean); }, Number.MIN_VALUE);
+        return this.scalingFactor() * filteredResults(minTime)
+            .reduce(function (maxSoFar, result) { return Math.max(maxSoFar, result.unscaledMean() + result.unscaledConfidenceIntervalDelta(0)); }, Number.MIN_VALUE);
+    }
+    this.countResults = function (minTime) {
+        return unscaledMeansForAllResults(minTime).length;
+    }
+    this.countResultsInInterval = function (minTime, min, max) {
+        var unscaledMin = min / this.scalingFactor();
+        var unscaledMax = max / this.scalingFactor();
+        return filteredResults(minTime).reduce(function (count, currentResult) {
+            return count + (currentResult.isInUnscaledInterval(unscaledMin, unscaledMax) ? 1 : 0); }, 0);
     }
     this.sampleStandardDeviation = function (minTime) {
         var unscaledMeans = unscaledMeansForAllResults(minTime);
@@ -193,7 +218,7 @@ function PerfTestRuns(metric, platform) {
         var unscaledMeans = unscaledMeansForAllResults(minTime);
         if (!unscaledMeans.length)
             return NaN;
-        return this.scalingFactor() * unscaledMeans.reduce(function (movingAverage, currentMean) { return alpha * movingAverage + (1 - alpha) * movingAverage; });
+        return this.scalingFactor() * unscaledMeans.reduce(function (movingAverage, currentMean) { return alpha * currentMean + (1 - alpha) * movingAverage; });
     }
     this.hasConfidenceInterval = function () { return !isNaN(this.lastResult().unscaledConfidenceIntervalDelta()); }
     var meanPlotCache;
@@ -352,7 +377,13 @@ function Tooltip(containerParent, className) {
         container.innerHTML = content;
         $(container).show();
         // FIXME: Style specific computation like this one shouldn't be in Tooltip class.
-        $(container).offset({left: x - $(container).outerWidth() / 2, top: y - $(container).outerHeight() - 15});
+        var top = y - $(container).outerHeight() - 15;
+        if (top < 0) {
+            $(container).addClass('inverted');
+            top = y + 15;
+        } else
+            $(container).removeClass('inverted');
+        $(container).offset({left: x - $(container).outerWidth() / 2, top: top});
     }
 
     this.hide = function () {

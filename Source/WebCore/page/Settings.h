@@ -146,7 +146,6 @@ public:
     //  - HTTP Cookies
     //  - Plug-ins (that support NPNVprivateModeBool)
     void setPrivateBrowsingEnabled(bool);
-    bool privateBrowsingEnabled() const { return m_privateBrowsingEnabled; }
 
     void setDNSPrefetchingEnabled(bool);
     bool dnsPrefetchingEnabled() const { return m_dnsPrefetchingEnabled; }
@@ -181,10 +180,7 @@ public:
 
     void setUsesPageCache(bool);
     bool usesPageCache() const { return m_usesPageCache; }
-
-    void setUsesMemoryCache(bool usesMemoryCache) { m_usesMemoryCache = usesMemoryCache; }
-    bool usesMemoryCache() const { return m_usesMemoryCache; }
-
+        
     void setFontRenderingMode(FontRenderingMode mode);
     FontRenderingMode fontRenderingMode() const;
 
@@ -236,9 +232,6 @@ public:
 
     void setScrollingPerformanceLoggingEnabled(bool);
     bool scrollingPerformanceLoggingEnabled() { return m_scrollingPerformanceLoggingEnabled; }
-        
-    void setAggressiveTileRetentionEnabled(bool);
-    bool aggressiveTileRetentionEnabled() { return m_aggressiveTileRetentionEnabled; }
 
     static void setShouldRespectPriorityInCSSAttributeSetters(bool);
     static bool shouldRespectPriorityInCSSAttributeSetters();
@@ -304,13 +297,11 @@ private:
     bool m_isJavaEnabled : 1;
     bool m_isJavaEnabledForLocalFiles : 1;
     bool m_loadsImagesAutomatically : 1;
-    bool m_privateBrowsingEnabled : 1;
     bool m_areImagesEnabled : 1;
     bool m_arePluginsEnabled : 1;
     bool m_isScriptEnabled : 1;
     bool m_needsAdobeFrameReloadingQuirk : 1;
     bool m_usesPageCache : 1;
-    bool m_usesMemoryCache : 1;
     unsigned m_fontRenderingMode : 1;
     bool m_showTiledScrollingIndicator : 1;
     bool m_tiledBackingStoreEnabled : 1;
@@ -321,7 +312,6 @@ private:
     bool m_touchEventEmulationEnabled : 1;
 #endif
     bool m_scrollingPerformanceLoggingEnabled : 1;
-    bool m_aggressiveTileRetentionEnabled : 1;
 
     double m_timeWithoutMouseMovementBeforeHidingControls;
 
