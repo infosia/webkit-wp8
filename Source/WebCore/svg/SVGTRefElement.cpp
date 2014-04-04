@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTRefElement.h"
 
 #include "EventListener.h"
@@ -58,9 +56,9 @@ PassRefPtr<SVGTRefElement> SVGTRefElement::create(const QualifiedName& tagName, 
 
 class SVGTRefTargetEventListener : public EventListener {
 public:
-    static PassRefPtr<SVGTRefTargetEventListener> create(SVGTRefElement* trefElement)
+    static PassRef<SVGTRefTargetEventListener> create(SVGTRefElement& trefElement)
     {
-        return adoptRef(new SVGTRefTargetEventListener(trefElement));
+        return adoptRef(*new SVGTRefTargetEventListener(trefElement));
     }
 
     static const SVGTRefTargetEventListener* cast(const EventListener* listener)
@@ -74,21 +72,20 @@ public:
     bool isAttached() const { return m_target.get(); }
 
 private:
-    SVGTRefTargetEventListener(SVGTRefElement* trefElement);
+    explicit SVGTRefTargetEventListener(SVGTRefElement& trefElement);
 
-    virtual void handleEvent(ScriptExecutionContext*, Event*) OVERRIDE;
-    virtual bool operator==(const EventListener&) OVERRIDE;
+    virtual void handleEvent(ScriptExecutionContext*, Event*) override;
+    virtual bool operator==(const EventListener&) override;
 
-    SVGTRefElement* m_trefElement;
+    SVGTRefElement& m_trefElement;
     RefPtr<Element> m_target;
 };
 
-SVGTRefTargetEventListener::SVGTRefTargetEventListener(SVGTRefElement* trefElement)
+SVGTRefTargetEventListener::SVGTRefTargetEventListener(SVGTRefElement& trefElement)
     : EventListener(SVGTRefTargetEventListenerType)
     , m_trefElement(trefElement)
     , m_target(0)
 {
-    ASSERT(m_trefElement);
 }
 
 void SVGTRefTargetEventListener::attach(PassRefPtr<Element> target)
@@ -115,7 +112,7 @@ void SVGTRefTargetEventListener::detach()
 bool SVGTRefTargetEventListener::operator==(const EventListener& listener)
 {
     if (const SVGTRefTargetEventListener* targetListener = SVGTRefTargetEventListener::cast(&listener))
-        return m_trefElement == targetListener->m_trefElement;
+        return &m_trefElement == &targetListener->m_trefElement;
     return false;
 }
 
@@ -123,15 +120,15 @@ void SVGTRefTargetEventListener::handleEvent(ScriptExecutionContext*, Event* eve
 {
     ASSERT(isAttached());
 
-    if (event->type() == eventNames().DOMSubtreeModifiedEvent && m_trefElement != event->target())
-        m_trefElement->updateReferencedText(m_target.get());
+    if (event->type() == eventNames().DOMSubtreeModifiedEvent && &m_trefElement != event->target())
+        m_trefElement.updateReferencedText(m_target.get());
     else if (event->type() == eventNames().DOMNodeRemovedFromDocumentEvent)
-        m_trefElement->detachTarget();
+        m_trefElement.detachTarget();
 }
 
 inline SVGTRefElement::SVGTRefElement(const QualifiedName& tagName, Document& document)
     : SVGTextPositioningElement(tagName, document)
-    , m_targetListener(SVGTRefTargetEventListener::create(this))
+    , m_targetListener(SVGTRefTargetEventListener::create(*this))
 {
     ASSERT(hasTagName(SVGNames::trefTag));
     registerAnimatedPropertiesForSVGTRefElement();
@@ -175,14 +172,14 @@ void SVGTRefElement::detachTarget()
 
     // Mark the referenced ID as pending.
     String id;
-    SVGURIReference::targetElementFromIRIString(href(), &document(), &id);
+    SVGURIReference::targetElementFromIRIString(href(), document(), &id);
     if (!id.isEmpty())
         document().accessSVGExtensions()->addPendingResource(id, this);
 }
 
 bool SVGTRefElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty())
         SVGURIReference::addSupportedAttributes(supportedAttributes);
     return supportedAttributes.contains<SVGAttributeHashTranslator>(attrName);
@@ -212,22 +209,22 @@ void SVGTRefElement::svgAttributeChanged(const QualifiedName& attrName)
 
     if (SVGURIReference::isKnownAttribute(attrName)) {
         buildPendingResource();
-        if (RenderObject* renderer = this->renderer())
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        if (auto renderer = this->renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     ASSERT_NOT_REACHED();
 }
 
-RenderElement* SVGTRefElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGTRefElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGInline(*this);
+    return createRenderer<RenderSVGInline>(*this, std::move(style));
 }
 
-bool SVGTRefElement::childShouldCreateRenderer(const Node* child) const
+bool SVGTRefElement::childShouldCreateRenderer(const Node& child) const
 {
-    return child->isInShadowTree();
+    return child.isInShadowTree();
 }
 
 bool SVGTRefElement::rendererIsNeeded(const RenderStyle& style)
@@ -255,7 +252,7 @@ void SVGTRefElement::buildPendingResource()
         return;
 
     String id;
-    RefPtr<Element> target = SVGURIReference::targetElementFromIRIString(href(), &document(), &id);
+    RefPtr<Element> target = SVGURIReference::targetElementFromIRIString(href(), document(), &id);
     if (!target.get()) {
         if (id.isEmpty())
             return;
@@ -275,21 +272,19 @@ void SVGTRefElement::buildPendingResource()
     updateReferencedText(target.get());
 }
 
-Node::InsertionNotificationRequest SVGTRefElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGTRefElement::insertedInto(ContainerNode& rootParent)
 {
     SVGElement::insertedInto(rootParent);
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         buildPendingResource();
     return InsertionDone;
 }
 
-void SVGTRefElement::removedFrom(ContainerNode* rootParent)
+void SVGTRefElement::removedFrom(ContainerNode& rootParent)
 {
     SVGElement::removedFrom(rootParent);
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         m_targetListener->detach();
 }
 
 }
-
-#endif // ENABLE(SVG)

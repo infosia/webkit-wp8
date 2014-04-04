@@ -24,15 +24,14 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */ 
 
-#if defined(BUILDING_WITH_CMAKE)
+#if defined(HAVE_CONFIG_H) && HAVE_CONFIG_H && defined(BUILDING_WITH_CMAKE)
 #include "cmakeconfig.h"
-#elif defined(BUILDING_GTK__)
-#include "autotoolsconfig.h"
 #endif
+
+#include <wtf/Platform.h>
 
 #include <runtime/JSExportMacros.h>
 #include <wtf/DisallowCType.h>
-#include <wtf/Platform.h>
 #include <wtf/ExportMacros.h>
 
 #ifdef __cplusplus
@@ -46,48 +45,6 @@
 #define EXTERN_C_BEGIN
 #define EXTERN_C_END
 #endif
-
-// For defining getters to a static value, where the getters have internal linkage
-#define DEFINE_STATIC_GETTER(type, name, arguments) \
-static const type& name() \
-{ \
-    DEFINE_STATIC_LOCAL(type, name##Value, arguments); \
-    return name##Value; \
-}
-
-#if defined(WIN32) || defined(_WIN32)
-
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0502
-#endif
-
-#ifndef WINVER
-#define WINVER 0x0502
-#endif
-
-/* If we don't define these, they get defined in windef.h. */
-/* We want to use std::min and std::max. */
-#ifndef max
-#define max max
-#endif
-#ifndef min
-#define min min
-#endif
-
-#ifndef _WINSOCKAPI_
-#define _WINSOCKAPI_ /* Prevent inclusion of winsock.h in windows.h */
-#endif
-
-#if !PLATFORM(QT)
-#include <WebCore/config.h>
-#endif
-#include <windows.h>
-
-#if USE(CG)
-#include <CoreGraphics/CoreGraphics.h>
-#endif
-
-#endif /* defined(WIN32) || defined(_WIN32) */
 
 #ifdef __cplusplus
 
@@ -104,8 +61,6 @@ static const type& name() \
 #define PLUGIN_ARCHITECTURE_MAC 1
 #elif (PLATFORM(GTK) || PLATFORM(EFL)) && (OS(UNIX) && !OS(MAC_OS_X)) && PLATFORM(X11)
 #define PLUGIN_ARCHITECTURE_X11 1
-#elif PLATFORM(QT)
-// Qt handles this features.prf
 #else
 #define PLUGIN_ARCHITECTURE_UNSUPPORTED 1
 #endif
@@ -114,7 +69,19 @@ static const type& name() \
 #define PLUGIN_ARCHITECTURE(ARCH) (defined PLUGIN_ARCHITECTURE_##ARCH && PLUGIN_ARCHITECTURE_##ARCH)
 
 #ifndef ENABLE_INSPECTOR_SERVER
-#if ENABLE(INSPECTOR) && (PLATFORM(QT) || PLATFORM(GTK) || PLATFORM(EFL))
+#if ENABLE(INSPECTOR) && ENABLE(WEB_SOCKETS) && (PLATFORM(GTK) || PLATFORM(EFL))
 #define ENABLE_INSPECTOR_SERVER 1
+#endif
+#endif
+
+#ifndef ENABLE_SEC_ITEM_SHIM
+#if PLATFORM(MAC)
+#define ENABLE_SEC_ITEM_SHIM 1
+#endif
+#endif
+
+#ifndef HAVE_WINDOW_SERVER_OCCLUSION_NOTIFICATIONS
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#define HAVE_WINDOW_SERVER_OCCLUSION_NOTIFICATIONS 1
 #endif
 #endif

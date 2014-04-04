@@ -19,13 +19,13 @@
 #include "config.h"
 #include "AcceleratedCompositingContext.h"
 
-#if USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#if USE(TEXTURE_MAPPER_GL)
 
 #include "CairoUtilities.h"
-#include "Frame.h"
 #include "FrameView.h"
 #include "GraphicsLayerTextureMapper.h"
 #include "GtkVersioning.h"
+#include "MainFrame.h"
 #include "PlatformContextCairo.h"
 #include "Settings.h"
 #include "TextureMapperGL.h"
@@ -169,6 +169,7 @@ bool AcceleratedCompositingContext::renderLayersToWindow(cairo_t* cr, const IntR
         m_needsExtraFlush = false;
         double nextFlush = std::max((1 / gFramesPerSecond) - (currentTime() - m_lastFlushTime), 0.0);
         m_layerFlushTimerCallbackId = g_timeout_add_full(GDK_PRIORITY_EVENTS, 1000 * nextFlush, reinterpret_cast<GSourceFunc>(layerFlushTimerFiredCallback), this, 0);
+        g_source_set_name_by_id(m_layerFlushTimerCallbackId, "[WebKit] layerFlushTimerFiredCallback");
     }
 
     return true;
@@ -269,6 +270,7 @@ void AcceleratedCompositingContext::setRootCompositingLayer(GraphicsLayer* graph
     scheduleLayerFlush();
 
     m_layerFlushTimerCallbackId = g_timeout_add_full(GDK_PRIORITY_EVENTS, 500, reinterpret_cast<GSourceFunc>(layerFlushTimerFiredCallback), this, 0);
+    g_source_set_name_by_id(m_layerFlushTimerCallbackId, "[WebKit] layerFlushTimerFiredCallback");
 }
 
 void AcceleratedCompositingContext::setNonCompositedContentsNeedDisplay(const IntRect& rect)
@@ -312,7 +314,7 @@ void AcceleratedCompositingContext::resizeRootLayer(const IntSize& newSize)
     scheduleLayerFlush();
 }
 
-void AcceleratedCompositingContext::scrollNonCompositedContents(const IntRect& scrollRect, const IntSize& scrollOffset)
+void AcceleratedCompositingContext::scrollNonCompositedContents(const IntRect& scrollRect, const IntSize& /* scrollOffset */)
 {
     m_nonCompositedContentLayer->setNeedsDisplayInRect(scrollRect);
     scheduleLayerFlush();
@@ -336,6 +338,7 @@ void AcceleratedCompositingContext::scheduleLayerFlush()
     // starve WebCore timers, which have a lower priority.
     double nextFlush = std::max(gScheduleDelay - (currentTime() - m_lastFlushTime), 0.0);
     m_layerFlushTimerCallbackId = g_timeout_add_full(GDK_PRIORITY_EVENTS, nextFlush * 1000, reinterpret_cast<GSourceFunc>(layerFlushTimerFiredCallback), this, 0);
+    g_source_set_name_by_id(m_layerFlushTimerCallbackId, "[WebKit] layerFlushTimerFiredCallback");
 }
 
 bool AcceleratedCompositingContext::flushPendingLayerChanges()
@@ -384,7 +387,7 @@ void AcceleratedCompositingContext::layerFlushTimerFired()
     flushAndRenderLayers();
 }
 
-void AcceleratedCompositingContext::notifyAnimationStarted(const GraphicsLayer*, double time)
+void AcceleratedCompositingContext::notifyAnimationStarted(const GraphicsLayer*, double /* time */)
 {
 
 }
@@ -393,14 +396,14 @@ void AcceleratedCompositingContext::notifyFlushRequired(const GraphicsLayer*)
 
 }
 
-void AcceleratedCompositingContext::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const IntRect& rectToPaint)
+void AcceleratedCompositingContext::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const FloatRect& rectToPaint)
 {
     context.save();
     context.clip(rectToPaint);
-    core(m_webView)->mainFrame().view()->paint(&context, rectToPaint);
+    core(m_webView)->mainFrame().view()->paint(&context, enclosingIntRect(rectToPaint));
     context.restore();
 }
 
 } // namespace WebKit
 
-#endif // USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#endif // USE(TEXTURE_MAPPER_GL)

@@ -29,7 +29,6 @@
 #include "APIObject.h"
 #include "DownloadProxyMap.h"
 #include "GenericCallback.h"
-#include "ImmutableArray.h"
 #include "ImmutableDictionary.h"
 #include "MessageReceiver.h"
 #include "MessageReceiverMap.h"
@@ -42,10 +41,9 @@
 #include "WebContextClient.h"
 #include "WebContextConnectionClient.h"
 #include "WebContextInjectedBundleClient.h"
-#include "WebDownloadClient.h"
-#include "WebHistoryClient.h"
 #include "WebProcessProxy.h"
 #include <WebCore/LinkHash.h>
+#include <WebCore/SessionID.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
@@ -54,14 +52,24 @@
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
+#if ENABLE(DATABASE_PROCESS)
+#include "DatabaseProcessProxy.h"
+#endif
+
 #if ENABLE(NETWORK_PROCESS)
 #include "NetworkProcessProxy.h"
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
+OBJC_CLASS NSMutableDictionary;
 OBJC_CLASS NSObject;
 OBJC_CLASS NSString;
 #endif
+
+namespace API {
+class DownloadClient;
+class HistoryClient;
+}
 
 namespace WebKit {
 
@@ -71,9 +79,10 @@ class WebIconDatabase;
 class WebPageGroup;
 class WebPageProxy;
 struct StatisticsData;
+struct WebPageConfiguration;
 struct WebProcessCreationParameters;
     
-typedef GenericCallback<WKDictionaryRef> DictionaryCallback;
+typedef GenericCallback<ImmutableDictionary*> DictionaryCallback;
 
 #if ENABLE(NETWORK_INFO)
 class WebNetworkInfoManagerProxy;
@@ -82,17 +91,21 @@ class WebNetworkInfoManagerProxy;
 struct NetworkProcessCreationParameters;
 #endif
 
-#if PLATFORM(MAC)
-extern NSString *SchemeForCustomProtocolRegisteredNotificationName;
-extern NSString *SchemeForCustomProtocolUnregisteredNotificationName;
+#if PLATFORM(COCOA)
+int networkProcessLatencyQOS();
+int networkProcessThroughputQOS();
+int webProcessLatencyQOS();
+int webProcessThroughputQOS();
 #endif
 
-class WebContext : public TypedAPIObject<APIObject::TypeContext>, private CoreIPC::MessageReceiver
+class WebContext : public API::ObjectImpl<API::Object::Type::Context>, private IPC::MessageReceiver
 #if ENABLE(NETSCAPE_PLUGIN_API)
     , private PluginInfoStoreClient
 #endif
     {
 public:
+    WebContext(const String& injectedBundlePath);
+
     static PassRefPtr<WebContext> create(const String& injectedBundlePath);
     virtual ~WebContext();
 
@@ -110,18 +123,18 @@ public:
         m_supplements.add(T::supplementName(), T::create(this));
     }
 
-    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, CoreIPC::MessageReceiver*);
-    void addMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID, CoreIPC::MessageReceiver*);
-    void removeMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID);
+    void addMessageReceiver(IPC::StringReference messageReceiverName, IPC::MessageReceiver&);
+    void addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver&);
+    void removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID);
 
-    bool dispatchMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-    bool dispatchSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, OwnPtr<CoreIPC::MessageEncoder>&);
+    bool dispatchMessage(IPC::Connection*, IPC::MessageDecoder&);
+    bool dispatchSyncMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&);
 
-    void initializeClient(const WKContextClient*);
-    void initializeInjectedBundleClient(const WKContextInjectedBundleClient*);
-    void initializeConnectionClient(const WKContextConnectionClient*);
-    void initializeHistoryClient(const WKContextHistoryClient*);
-    void initializeDownloadClient(const WKContextDownloadClient*);
+    void initializeClient(const WKContextClientBase*);
+    void initializeInjectedBundleClient(const WKContextInjectedBundleClientBase*);
+    void initializeConnectionClient(const WKContextConnectionClientBase*);
+    void setHistoryClient(std::unique_ptr<API::HistoryClient>);
+    void setDownloadClient(std::unique_ptr<API::DownloadClient>);
 
     void setProcessModel(ProcessModel); // Can only be called when there are no processes running.
     ProcessModel processModel() const { return m_processModel; }
@@ -130,15 +143,15 @@ public:
     unsigned maximumNumberOfProcesses() const { return m_webProcessCountLimit; }
 
     // WebProcess or NetworkProcess as approporiate for current process model. The connection must be non-null.
-    CoreIPC::Connection* networkingProcessConnection();
+    IPC::Connection* networkingProcessConnection();
 
-    template<typename U> void sendToAllProcesses(const U& message);
-    template<typename U> void sendToAllProcessesRelaunchingThemIfNecessary(const U& message);
-    template<typename U> void sendToOneProcess(const U& message);
+    template<typename T> void sendToAllProcesses(const T& message);
+    template<typename T> void sendToAllProcessesRelaunchingThemIfNecessary(const T& message);
+    template<typename T> void sendToOneProcess(T&& message);
 
     // Sends the message to WebProcess or NetworkProcess as approporiate for current process model.
-    template<typename U> void sendToNetworkingProcess(const U& message);
-    template<typename U> void sendToNetworkingProcessRelaunchingIfNecessary(const U& message);
+    template<typename T> void sendToNetworkingProcess(T&& message);
+    template<typename T> void sendToNetworkingProcessRelaunchingIfNecessary(T&& message);
 
     void processWillOpenConnection(WebProcessProxy*);
     void processWillCloseConnection(WebProcessProxy*);
@@ -149,19 +162,19 @@ public:
 
     StorageManager& storageManager() const { return *m_storageManager; }
 
-    PassRefPtr<WebPageProxy> createWebPage(PageClient*, WebPageGroup*, WebPageProxy* relatedPage = 0);
+    PassRefPtr<WebPageProxy> createWebPage(PageClient&, WebPageConfiguration);
 
     const String& injectedBundlePath() const { return m_injectedBundlePath; }
 
     DownloadProxy* download(WebPageProxy* initiatingPage, const WebCore::ResourceRequest&);
 
-    void setInjectedBundleInitializationUserData(PassRefPtr<APIObject> userData) { m_injectedBundleInitializationUserData = userData; }
+    void setInjectedBundleInitializationUserData(PassRefPtr<API::Object> userData) { m_injectedBundleInitializationUserData = userData; }
 
-    void postMessageToInjectedBundle(const String&, APIObject*);
+    void postMessageToInjectedBundle(const String&, API::Object*);
 
     // InjectedBundle client
-    void didReceiveMessageFromInjectedBundle(const String&, APIObject*);
-    void didReceiveSynchronousMessageFromInjectedBundle(const String&, APIObject*, RefPtr<APIObject>& returnData);
+    void didReceiveMessageFromInjectedBundle(const String&, API::Object*);
+    void didReceiveSynchronousMessageFromInjectedBundle(const String&, API::Object*, RefPtr<API::Object>& returnData);
 
     void populateVisitedLinks();
 
@@ -181,13 +194,15 @@ public:
     void registerURLSchemeAsNoAccess(const String&);
     void registerURLSchemeAsDisplayIsolated(const String&);
     void registerURLSchemeAsCORSEnabled(const String&);
+#if ENABLE(CACHE_PARTITIONING)
+    void registerURLSchemeAsCachePartitioned(const String&);
+#endif
 
-    void addVisitedLink(const String&);
-    void addVisitedLinkHash(WebCore::LinkHash);
+    VisitedLinkProvider& visitedLinkProvider() { return *m_visitedLinkProvider; }
 
     // MessageReceiver.
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-    virtual void didReceiveSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, OwnPtr<CoreIPC::MessageEncoder>&) OVERRIDE;
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+    virtual void didReceiveSyncMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&) override;
 
     void setCacheModel(CacheModel);
     CacheModel cacheModel() const { return m_cacheModel; }
@@ -204,9 +219,9 @@ public:
     
     // Downloads.
     DownloadProxy* createDownloadProxy();
-    WebDownloadClient& downloadClient() { return m_downloadClient; }
+    API::DownloadClient& downloadClient() { return *m_downloadClient; }
 
-    WebHistoryClient& historyClient() { return m_historyClient; }
+    API::HistoryClient& historyClient() { return *m_historyClient; }
     WebContextClient& client() { return m_client; }
 
     WebIconDatabase* iconDatabase() const { return m_iconDatabase.get(); }
@@ -233,8 +248,8 @@ public:
 
     void allowSpecificHTTPSCertificateForHost(const WebCertificateInfo*, const String& host);
 
-    WebProcessProxy* ensureSharedWebProcess();
-    WebProcessProxy* createNewWebProcessRespectingProcessCountLimit(); // Will return an existing one if limit is met.
+    WebProcessProxy& ensureSharedWebProcess();
+    WebProcessProxy& createNewWebProcessRespectingProcessCountLimit(); // Will return an existing one if limit is met.
     void warmInitialProcess();
 
     bool shouldTerminate(WebProcessProxy*);
@@ -251,7 +266,7 @@ public:
     void garbageCollectJavaScriptObjects();
     void setJavaScriptGarbageCollectorTimerEnabled(bool flag);
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static bool omitPDFSupport();
 #endif
 
@@ -261,7 +276,8 @@ public:
 
     PassRefPtr<ImmutableDictionary> plugInAutoStartOriginHashes() const;
     void setPlugInAutoStartOriginHashes(ImmutableDictionary&);
-    void setPlugInAutoStartOrigins(ImmutableArray&);
+    void setPlugInAutoStartOrigins(API::Array&);
+    void setPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(ImmutableDictionary&, double time);
 
     // Network Process Management
 
@@ -276,18 +292,23 @@ public:
     void getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply>);
 #endif
 
-
-#if PLATFORM(MAC)
-    void setProcessSuppressionEnabled(bool);
-    bool processSuppressionEnabled() const { return m_processSuppressionEnabled; }
-    bool canEnableProcessSuppressionForNetworkProcess() const;
-    bool canEnableProcessSuppressionForWebProcess(const WebProcessProxy*) const;
-    static bool canEnableProcessSuppressionForGlobalChildProcesses();
-    void updateProcessSuppressionStateOfChildProcesses();
+#if ENABLE(DATABASE_PROCESS)
+    void ensureDatabaseProcess();
+    void getDatabaseProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetDatabaseProcessConnection::DelayedReply>);
 #endif
+
+#if PLATFORM(COCOA)
+    bool processSuppressionEnabled() const;
+    static bool processSuppressionIsEnabledForAllContexts();
+    static bool processSuppressionPreferenceIsEnabledForAllContexts();
+#endif
+
+    void windowServerConnectionStateChanged();
 
     static void willStartUsingPrivateBrowsing();
     static void willStopUsingPrivateBrowsing();
+
+    static bool isEphemeralSession(WebCore::SessionID);
 
 #if USE(SOUP)
     void setIgnoreTLSErrors(bool);
@@ -295,21 +316,38 @@ public:
 #endif
 
     static void setInvalidMessageCallback(void (*)(WKStringRef));
-    static void didReceiveInvalidMessage(const CoreIPC::StringReference& messageReceiverName, const CoreIPC::StringReference& messageName);
+    static void didReceiveInvalidMessage(const IPC::StringReference& messageReceiverName, const IPC::StringReference& messageName);
 
     void processDidCachePage(WebProcessProxy*);
 
     bool isURLKnownHSTSHost(const String& urlString, bool privateBrowsingEnabled) const;
     void resetHSTSHosts();
 
+#if ENABLE(CUSTOM_PROTOCOLS)
+    void registerSchemeForCustomProtocol(const String&);
+    void unregisterSchemeForCustomProtocol(const String&);
+
+    static HashSet<String>& globalURLSchemesWithCustomProtocolHandlers();
+    static void registerGlobalURLSchemeAsHavingCustomProtocolHandlers(const String&);
+    static void unregisterGlobalURLSchemeAsHavingCustomProtocolHandlers(const String&);
+#endif
+
+#if PLATFORM(COCOA)
+    void updateProcessSuppressionState() const;
+
+    NSMutableDictionary *ensureBundleParameters();
+    NSMutableDictionary *bundleParameters() { return m_bundleParameters.get(); }
+#endif
+
+    void setMemoryCacheDisabled(bool);
+
 private:
-    WebContext(ProcessModel, const String& injectedBundlePath);
     void platformInitialize();
 
     void platformInitializeWebProcess(WebProcessCreationParameters&);
     void platformInvalidateContext();
 
-    WebProcessProxy* createNewWebProcess();
+    WebProcessProxy& createNewWebProcess();
 
     void requestWebContentStatistics(StatisticsRequest*);
     void requestNetworkingStatistics(StatisticsRequest*);
@@ -318,7 +356,16 @@ private:
     void platformInitializeNetworkProcess(NetworkProcessCreationParameters&);
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(IOS)
+    void writeWebContentToPasteboard(const WebCore::PasteboardWebContent&);
+    void writeImageToPasteboard(const WebCore::PasteboardImage&);
+    void writeStringToPasteboard(const String& pasteboardType, const String&);
+    void readStringFromPasteboard(uint64_t index, const String& pasteboardType, WTF::String&);
+    void readURLFromPasteboard(uint64_t index, const String& pasteboardType, String&);
+    void readBufferFromPasteboard(uint64_t index, const String& pasteboardType, SharedMemory::Handle&, uint64_t& size);
+    void getPasteboardItemsCount(uint64_t& itemsCount);
+#endif
+#if PLATFORM(COCOA)
     void getPasteboardTypes(const String& pasteboardName, Vector<String>& pasteboardTypes);
     void getPasteboardPathnamesForType(const String& pasteboardName, const String& pasteboardType, Vector<String>& pathnames);
     void getPasteboardStringForType(const String& pasteboardName, const String& pasteboardType, String&);
@@ -335,7 +382,7 @@ private:
     void setPasteboardBufferForType(const String& pasteboardName, const String& pasteboardType, const SharedMemory::Handle&, uint64_t size, uint64_t& newChangeCount);
 #endif
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
     // FIXME: This a dummy message, to avoid breaking the build for platforms that don't require
     // any synchronous messages, and should be removed when <rdar://problem/8775115> is fixed.
     void dummy(bool&);
@@ -344,8 +391,8 @@ private:
     void didGetStatistics(const StatisticsData&, uint64_t callbackID);
         
     // Implemented in generated WebContextMessageReceiver.cpp
-    void didReceiveWebContextMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-    void didReceiveSyncWebContextMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, OwnPtr<CoreIPC::MessageEncoder>&);
+    void didReceiveWebContextMessage(IPC::Connection*, IPC::MessageDecoder&);
+    void didReceiveSyncWebContextMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&);
 
     static void languageChanged(void* context);
     void languageChanged();
@@ -367,26 +414,22 @@ private:
     String cookieStorageDirectory() const;
     String platformDefaultCookieStorageDirectory() const;
 
-#if PLATFORM(MAC)
-    void processSuppressionEnabledChanged();
+#if PLATFORM(COCOA)
     void registerNotificationObservers();
     void unregisterNotificationObservers();
-#endif
-
-#if ENABLE(CUSTOM_PROTOCOLS)
-    void registerSchemeForCustomProtocol(const String&);
-    void unregisterSchemeForCustomProtocol(const String&);
 #endif
 
     void addPlugInAutoStartOriginHash(const String& pageOrigin, unsigned plugInOriginHash);
     void plugInDidReceiveUserInteraction(unsigned plugInOriginHash);
 
+    void setAnyPageGroupMightHavePrivateBrowsingEnabled(bool);
+
 #if ENABLE(NETSCAPE_PLUGIN_API)
     // PluginInfoStoreClient:
-    virtual void pluginInfoStoreDidLoadPlugins(PluginInfoStore*) OVERRIDE;
+    virtual void pluginInfoStoreDidLoadPlugins(PluginInfoStore*) override;
 #endif
 
-    CoreIPC::MessageReceiverMap m_messageReceiverMap;
+    IPC::MessageReceiverMap m_messageReceiverMap;
 
     ProcessModel m_processModel;
     unsigned m_webProcessCountLimit; // The limit has no effect when process model is ProcessModelSharedSecondaryProcess.
@@ -396,21 +439,23 @@ private:
 
     WebProcessProxy* m_processWithPageCache;
 
-    RefPtr<WebPageGroup> m_defaultPageGroup;
+    Ref<WebPageGroup> m_defaultPageGroup;
 
-    RefPtr<APIObject> m_injectedBundleInitializationUserData;
+    RefPtr<API::Object> m_injectedBundleInitializationUserData;
     String m_injectedBundlePath;
     WebContextInjectedBundleClient m_injectedBundleClient;
 
     WebContextClient m_client;
     WebContextConnectionClient m_connectionClient;
-    WebDownloadClient m_downloadClient;
-    WebHistoryClient m_historyClient;
+    std::unique_ptr<API::DownloadClient> m_downloadClient;
+    std::unique_ptr<API::HistoryClient> m_historyClient;
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
     PluginInfoStore m_pluginInfoStore;
 #endif
-    VisitedLinkProvider m_visitedLinkProvider;
+    RefPtr<VisitedLinkProvider> m_visitedLinkProvider;
+    bool m_visitedLinksPopulated;
+
     PlugInAutoStartProvider m_plugInAutoStartProvider;
         
     HashSet<String> m_schemesToRegisterAsEmptyDocument;
@@ -420,13 +465,16 @@ private:
     HashSet<String> m_schemesToRegisterAsNoAccess;
     HashSet<String> m_schemesToRegisterAsDisplayIsolated;
     HashSet<String> m_schemesToRegisterAsCORSEnabled;
+#if ENABLE(CACHE_PARTITIONING)
+    HashSet<String> m_schemesToRegisterAsCachePartitioned;
+#endif
 
     bool m_alwaysUsesComplexTextCodePath;
     bool m_shouldUseFontSmoothing;
 
     // Messages that were posted before any pages were created.
     // The client should use initialization messages instead, so that a restarted process would get the same state.
-    Vector<pair<String, RefPtr<APIObject>>> m_messagesToInjectedBundlePostedToEmptyContext;
+    Vector<std::pair<String, RefPtr<API::Object>>> m_messagesToInjectedBundlePostedToEmptyContext;
 
     CacheModel m_cacheModel;
 
@@ -449,9 +497,6 @@ private:
 
 #if PLATFORM(MAC)
     RetainPtr<NSObject> m_enhancedAccessibilityObserver;
-    RetainPtr<NSObject> m_customSchemeRegisteredObserver;
-    RetainPtr<NSObject> m_customSchemeUnregisteredObserver;
-
     RetainPtr<NSObject> m_automaticTextReplacementNotificationObserver;
     RetainPtr<NSObject> m_automaticSpellingCorrectionNotificationObserver;
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
@@ -475,30 +520,44 @@ private:
     bool m_usesNetworkProcess;
     RefPtr<NetworkProcessProxy> m_networkProcess;
 #endif
+
+#if ENABLE(DATABASE_PROCESS)
+    RefPtr<DatabaseProcessProxy> m_databaseProcess;
+#endif
     
     HashMap<uint64_t, RefPtr<DictionaryCallback>> m_dictionaryCallbacks;
     HashMap<uint64_t, RefPtr<StatisticsRequest>> m_statisticsRequests;
 
-#if PLATFORM(MAC)
-    bool m_processSuppressionEnabled;
-#endif
-
 #if USE(SOUP)
     bool m_ignoreTLSErrors;
 #endif
+
+    bool m_memoryCacheDisabled;
+
+#if PLATFORM(COCOA)
+    RetainPtr<NSMutableDictionary> m_bundleParameters;
+#endif
 };
 
-template<typename U> inline void WebContext::sendToNetworkingProcess(const U& message)
+template<typename T>
+void WebContext::sendToNetworkingProcess(T&& message)
 {
     switch (m_processModel) {
     case ProcessModelSharedSecondaryProcess:
+#if ENABLE(NETWORK_PROCESS)
+        if (m_usesNetworkProcess) {
+            if (m_networkProcess && m_networkProcess->canSendMessage())
+                m_networkProcess->send(std::forward<T>(message), 0);
+            return;
+        }
+#endif
         if (!m_processes.isEmpty() && m_processes[0]->canSendMessage())
-            m_processes[0]->send(message, 0);
+            m_processes[0]->send(std::forward<T>(message), 0);
         return;
     case ProcessModelMultipleSecondaryProcesses:
 #if ENABLE(NETWORK_PROCESS)
-        if (m_networkProcess->canSendMessage())
-            m_networkProcess->send(message, 0);
+        if (m_networkProcess && m_networkProcess->canSendMessage())
+            m_networkProcess->send(std::forward<T>(message), 0);
         return;
 #else
         break;
@@ -507,17 +566,25 @@ template<typename U> inline void WebContext::sendToNetworkingProcess(const U& me
     ASSERT_NOT_REACHED();
 }
 
-template<typename U> void WebContext::sendToNetworkingProcessRelaunchingIfNecessary(const U& message)
+template<typename T>
+void WebContext::sendToNetworkingProcessRelaunchingIfNecessary(T&& message)
 {
     switch (m_processModel) {
     case ProcessModelSharedSecondaryProcess:
+#if ENABLE(NETWORK_PROCESS)
+        if (m_usesNetworkProcess) {
+            ensureNetworkProcess();
+            m_networkProcess->send(std::forward<T>(message), 0);
+            return;
+        }
+#endif
         ensureSharedWebProcess();
-        m_processes[0]->send(message, 0);
+        m_processes[0]->send(std::forward<T>(message), 0);
         return;
     case ProcessModelMultipleSecondaryProcesses:
 #if ENABLE(NETWORK_PROCESS)
         ensureNetworkProcess();
-        m_networkProcess->send(message, 0);
+        m_networkProcess->send(std::forward<T>(message), 0);
         return;
 #else
         break;
@@ -526,17 +593,19 @@ template<typename U> void WebContext::sendToNetworkingProcessRelaunchingIfNecess
     ASSERT_NOT_REACHED();
 }
 
-template<typename U> inline void WebContext::sendToAllProcesses(const U& message)
+template<typename T>
+void WebContext::sendToAllProcesses(const T& message)
 {
     size_t processCount = m_processes.size();
     for (size_t i = 0; i < processCount; ++i) {
         WebProcessProxy* process = m_processes[i].get();
         if (process->canSendMessage())
-            process->send(message, 0);
+            process->send(T(message), 0);
     }
 }
 
-template<typename U> void WebContext::sendToAllProcessesRelaunchingThemIfNecessary(const U& message)
+template<typename T>
+void WebContext::sendToAllProcessesRelaunchingThemIfNecessary(const T& message)
 {
 // FIXME (Multi-WebProcess): WebContext doesn't track processes that have exited, so it cannot relaunch these. Perhaps this functionality won't be needed in this mode.
     if (m_processModel == ProcessModelSharedSecondaryProcess)
@@ -544,7 +613,8 @@ template<typename U> void WebContext::sendToAllProcessesRelaunchingThemIfNecessa
     sendToAllProcesses(message);
 }
 
-template<typename U> inline void WebContext::sendToOneProcess(const U& message)
+template<typename T>
+void WebContext::sendToOneProcess(T&& message)
 {
     if (m_processModel == ProcessModelSharedSecondaryProcess)
         ensureSharedWebProcess();
@@ -554,7 +624,7 @@ template<typename U> inline void WebContext::sendToOneProcess(const U& message)
     for (size_t i = 0; i < processCount; ++i) {
         WebProcessProxy* process = m_processes[i].get();
         if (process->canSendMessage()) {
-            process->send(message, 0);
+            process->send(std::forward<T>(message), 0);
             messageSent = true;
             break;
         }
@@ -564,7 +634,7 @@ template<typename U> inline void WebContext::sendToOneProcess(const U& message)
         warmInitialProcess();
         RefPtr<WebProcessProxy> process = m_processes.last();
         if (process->canSendMessage())
-            process->send(message, 0);
+            process->send(std::forward<T>(message), 0);
     }
 }
 

@@ -33,8 +33,6 @@
 #include "PageLoadClientEfl.h"
 #include "PagePolicyClientEfl.h"
 #include "PageUIClientEfl.h"
-#include "PageViewportController.h"
-#include "PageViewportControllerClientEfl.h"
 #include "SnapshotImageGL.h"
 #include "ViewClientEfl.h"
 #include "WKArray.h"
@@ -64,20 +62,18 @@
 #include "ewk_private.h"
 #include "ewk_security_origin_private.h"
 #include "ewk_settings_private.h"
-#include "ewk_view.h"
 #include "ewk_window_features_private.h"
 #include <Ecore_Evas.h>
 #include <Ecore_X.h>
 #include <Edje.h>
-#if USE(ACCELERATED_COMPOSITING)
 #include <Evas_GL.h>
-#endif
 #include <WebCore/CairoUtilitiesEfl.h>
 #include <WebCore/Cursor.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/PlatformContextCairo.h>
 #include <WebKit2/WKImageCairo.h>
 #include <wtf/MathExtras.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/StdLibExtras.h>
 
 #if ENABLE(VIBRATION)
@@ -92,10 +88,11 @@ using namespace EwkViewCallbacks;
 using namespace WebCore;
 using namespace WebKit;
 
-static const char smartClassName[] = "EWK2_View";
 static const int defaultCursorSize = 16;
 
 // Auxiliary functions.
+
+const char EwkView::smartClassName[] = "EWK2_View";
 
 static inline void smartDataChanged(Ewk_View_Smart_Data* smartData)
 {
@@ -110,7 +107,7 @@ static inline void smartDataChanged(Ewk_View_Smart_Data* smartData)
 
 static Evas_Smart* defaultSmartClassInstance()
 {
-    static Ewk_View_Smart_Class api = EWK_VIEW_SMART_CLASS_INIT_NAME_VERSION(smartClassName);
+    static Ewk_View_Smart_Class api = EWK_VIEW_SMART_CLASS_INIT_NAME_VERSION(EwkView::smartClassName);
     static Evas_Smart* smart = 0;
 
     if (!smart) {
@@ -135,6 +132,14 @@ static inline EwkView* toEwkView(const Ewk_View_Smart_Data* smartData)
     ASSERT(smartData->priv);
 
     return smartData->priv;
+}
+
+static inline EwkView* toEwkView(const Evas_Object* evasObject)
+{
+    ASSERT(evasObject);
+    ASSERT(isEwkViewEvasObject(evasObject));
+
+    return toEwkView(static_cast<Ewk_View_Smart_Data*>(evas_object_smart_data_get(evasObject)));
 }
 
 static inline void showEvasObjectsIfNeeded(const Ewk_View_Smart_Data* smartData)
@@ -213,6 +218,15 @@ void EwkViewEventHandler<EVAS_CALLBACK_MOUSE_WHEEL>::handleEvent(void* data, Eva
 }
 
 template <>
+void EwkViewEventHandler<EVAS_CALLBACK_MOUSE_IN>::handleEvent(void* data, Evas*, Evas_Object*, void*)
+{
+    Ewk_View_Smart_Data* smartData = static_cast<Ewk_View_Smart_Data*>(data);
+    EwkView* self = toEwkView(smartData);
+
+    self->updateCursor();
+}
+
+template <>
 void EwkViewEventHandler<EVAS_CALLBACK_KEY_DOWN>::handleEvent(void* data, Evas*, Evas_Object*, void* eventInfo)
 {
     Ewk_View_Smart_Data* smartData = static_cast<Ewk_View_Smart_Data*>(data);
@@ -246,7 +260,7 @@ typedef HashMap<WKPageRef, Evas_Object*> WKPageToEvasObjectMap;
 
 static inline WKPageToEvasObjectMap& wkPageToEvasObjectMap()
 {
-    DEFINE_STATIC_LOCAL(WKPageToEvasObjectMap, map, ());
+    static NeverDestroyed<WKPageToEvasObjectMap> map;
     return map;
 }
 
@@ -257,34 +271,29 @@ EwkView::EwkView(WKViewRef view, Evas_Object* evasObject)
     , m_evasObject(evasObject)
     , m_context(EwkContext::findOrCreateWrapper(WKPageGetContext(wkPage())))
     , m_pageGroup(EwkPageGroup::findOrCreateWrapper(WKPageGetPageGroup(wkPage())))
-#if USE(ACCELERATED_COMPOSITING)
-    , m_pendingSurfaceResize(false)
-#endif
-    , m_pageLoadClient(PageLoadClientEfl::create(this))
-    , m_pagePolicyClient(PagePolicyClientEfl::create(this))
-    , m_pageUIClient(PageUIClientEfl::create(this))
-    , m_contextMenuClient(ContextMenuClientEfl::create(this))
-    , m_findClient(FindClientEfl::create(this))
-    , m_formClient(FormClientEfl::create(this))
-    , m_viewClient(ViewClientEfl::create(this))
+    , m_pageLoadClient(std::make_unique<PageLoadClientEfl>(this))
+    , m_pagePolicyClient(std::make_unique<PagePolicyClientEfl>(this))
+    , m_pageUIClient(std::make_unique<PageUIClientEfl>(this))
+    , m_contextMenuClient(std::make_unique<ContextMenuClientEfl>(this))
+    , m_findClient(std::make_unique<FindClientEfl>(this))
+    , m_formClient(std::make_unique<FormClientEfl>(this))
+    , m_viewClient(std::make_unique<ViewClientEfl>(this))
 #if ENABLE(VIBRATION)
-    , m_vibrationClient(VibrationClientEfl::create(this))
+    , m_vibrationClient(std::make_unique<VibrationClientEfl>(this))
 #endif
-    , m_backForwardList(EwkBackForwardList::create(WKPageGetBackForwardList(wkPage())))
-    , m_settings(EwkSettings::create(this))
-    , m_cursorIdentifier(0)
+    , m_backForwardList(std::make_unique<EwkBackForwardList>(WKPageGetBackForwardList(wkPage())))
+    , m_settings(std::make_unique<EwkSettings>(WKPageGroupGetPreferences(WKPageGetPageGroup(wkPage()))))
+    , m_useCustomCursor(false)
     , m_userAgent(WKEinaSharedString(AdoptWK, WKPageCopyUserAgent(wkPage())))
     , m_mouseEventsEnabled(false)
 #if ENABLE(TOUCH_EVENTS)
     , m_touchEventsEnabled(false)
-    , m_gestureRecognizer(GestureRecognizer::create(this))
+    , m_gestureRecognizer(std::make_unique<GestureRecognizer>(this))
 #endif
     , m_displayTimer(this, &EwkView::displayTimerFired)
     , m_inputMethodContext(InputMethodContextEfl::create(this, smartData()->base.evas))
-#if USE(ACCELERATED_COMPOSITING)
-    , m_pageViewportControllerClient(PageViewportControllerClientEfl::create(this))
-    , m_pageViewportController(adoptPtr(new PageViewportController(page(), m_pageViewportControllerClient.get())))
-#endif
+    , m_pageViewportControllerClient(this)
+    , m_pageViewportController(page(), &m_pageViewportControllerClient)
     , m_isAccelerated(true)
 {
     ASSERT(m_evasObject);
@@ -292,8 +301,7 @@ EwkView::EwkView(WKViewRef view, Evas_Object* evasObject)
 
     // FIXME: Remove when possible.
     static_cast<WebViewEfl*>(webView())->setEwkView(this);
-#if USE(ACCELERATED_COMPOSITING)
-    m_evasGL = adoptPtr(evas_gl_new(evas_object_evas_get(m_evasObject)));
+    m_evasGL = EflUniquePtr<Evas_GL>(evas_gl_new(evas_object_evas_get(m_evasObject)));
     if (m_evasGL)
         m_evasGLContext = EvasGLContext::create(m_evasGL.get());
 
@@ -301,14 +309,13 @@ EwkView::EwkView(WKViewRef view, Evas_Object* evasObject)
         WARN("Failed to create Evas_GL, falling back to software mode.");
         m_isAccelerated = false;
     }
-#endif
+
+    m_pendingSurfaceResize = m_isAccelerated;
     WKViewInitialize(wkView());
 
     WKPageGroupRef wkPageGroup = WKPageGetPageGroup(wkPage());
     WKPreferencesRef wkPreferences = WKPageGroupGetPreferences(wkPageGroup);
-#if USE(ACCELERATED_COMPOSITING)
     WKPreferencesSetWebGLEnabled(wkPreferences, true);
-#endif
     WKPreferencesSetFullScreenEnabled(wkPreferences, true);
     WKPreferencesSetWebAudioEnabled(wkPreferences, true);
     WKPreferencesSetOfflineWebApplicationCacheEnabled(wkPreferences, true);
@@ -344,10 +351,10 @@ EwkView::~EwkView()
 
 EwkView* EwkView::create(WKViewRef webView, Evas* canvas, Evas_Smart* smart)
 {
-    EINA_SAFETY_ON_NULL_RETURN_VAL(canvas, 0);
+    EINA_SAFETY_ON_NULL_RETURN_VAL(canvas, nullptr);
 
     Evas_Object* evasObject = evas_object_smart_add(canvas, smart ? smart : defaultSmartClassInstance());
-    EINA_SAFETY_ON_NULL_RETURN_VAL(evasObject, 0);
+    EINA_SAFETY_ON_NULL_RETURN_VAL(evasObject, nullptr);
 
     Ewk_View_Smart_Data* smartData = toSmartData(evasObject);
     if (!smartData) {
@@ -410,41 +417,37 @@ WKPageRef EwkView::wkPage() const
     return WKViewGetPage(wkView());
 }
 
-void EwkView::setCursor(const Cursor& cursor)
+void EwkView::updateCursor()
 {
-    if (cursor.image()) {
-        // Custom cursor.
-        if (cursor.image() == m_cursorIdentifier)
+    Ewk_View_Smart_Data* sd = smartData();
+
+    if (m_useCustomCursor) {
+        Image* cursorImage = static_cast<Image*>(m_cursorIdentifier.image);
+        if (!cursorImage)
             return;
 
-        m_cursorIdentifier = cursor.image();
-
-        Ewk_View_Smart_Data* sd = smartData();
-        RefPtr<Evas_Object> cursorObject = adoptRef(cursor.image()->getEvasObject(sd->base.evas));
+        RefPtr<Evas_Object> cursorObject = adoptRef(cursorImage->getEvasObject(sd->base.evas));
         if (!cursorObject)
             return;
 
+        IntSize cursorSize = IntSize(cursorImage->size());
         // Resize cursor.
-        evas_object_resize(cursorObject.get(), cursor.image()->size().width(), cursor.image()->size().height());
+        evas_object_resize(cursorObject.get(), cursorSize.width(), cursorSize.height());
 
         // Get cursor hot spot.
         IntPoint hotSpot;
-        cursor.image()->getHotSpot(hotSpot);
+        cursorImage->getHotSpot(hotSpot);
 
         Ecore_Evas* ecoreEvas = ecore_evas_ecore_evas_get(sd->base.evas);
         // ecore_evas takes care of freeing the cursor object.
         ecore_evas_object_cursor_set(ecoreEvas, cursorObject.release().leakRef(), EVAS_LAYER_MAX, hotSpot.x(), hotSpot.y());
-
         return;
     }
 
-    // Standard cursor.
-    const char* group = cursor.platformCursor();
-    if (!group || group == m_cursorIdentifier)
+    const char* group = static_cast<const char*>(m_cursorIdentifier.group);
+    if (!group)
         return;
 
-    m_cursorIdentifier = group;
-    Ewk_View_Smart_Data* sd = smartData();
     RefPtr<Evas_Object> cursorObject = adoptRef(edje_object_add(sd->base.evas));
 
     Ecore_Evas* ecoreEvas = ecore_evas_ecore_evas_get(sd->base.evas);
@@ -482,6 +485,28 @@ void EwkView::setCursor(const Cursor& cursor)
 
     // ecore_evas takes care of freeing the cursor object.
     ecore_evas_object_cursor_set(ecoreEvas, cursorObject.release().leakRef(), EVAS_LAYER_MAX, hotspotX, hotspotY);
+}
+
+void EwkView::setCursor(const Cursor& cursor)
+{
+    if (cursor.image()) {
+        // Custom cursor.
+        if (cursor.image() == m_cursorIdentifier.image)
+            return;
+
+        m_cursorIdentifier.image = cursor.image();
+        m_useCustomCursor = true;
+    } else {
+        // Standard cursor.
+        const char* group = cursor.platformCursor();
+        if (!group || group == m_cursorIdentifier.group)
+            return;
+
+        m_cursorIdentifier.group = group;
+        m_useCustomCursor = false;
+    }
+
+    updateCursor();
 }
 
 void EwkView::setDeviceScaleFactor(float scale)
@@ -553,7 +578,6 @@ void EwkView::displayTimerFired(Timer<EwkView>*)
 {
     Ewk_View_Smart_Data* sd = smartData();
 
-#if USE(ACCELERATED_COMPOSITING)
     if (m_pendingSurfaceResize) {
         // Create a GL surface here so that Evas has no chance of painting to an empty GL surface.
         if (!createGLSurface())
@@ -563,7 +587,6 @@ void EwkView::displayTimerFired(Timer<EwkView>*)
 
         m_pendingSurfaceResize = false;
     }
-#endif
 
     if (!m_isAccelerated) {
         RefPtr<cairo_surface_t> surface = createSurfaceForImage(sd->image);
@@ -574,11 +597,11 @@ void EwkView::displayTimerFired(Timer<EwkView>*)
         evas_object_image_data_update_add(sd->image, 0, 0, sd->view.w, sd->view.h);
         return;
     }
-#if USE(ACCELERATED_COMPOSITING)
+
     evas_gl_make_current(m_evasGL.get(), m_evasGLSurface->surface(), m_evasGLContext->context());
 
     WKViewPaintToCurrentGLContext(wkView());
-#endif
+
     // sd->image is tied to a native surface, which is in the parent's coordinates.
     evas_object_image_data_update_add(sd->image, sd->view.x, sd->view.y, sd->view.w, sd->view.h);
 }
@@ -779,19 +802,19 @@ void EwkView::setTouchEventsEnabled(bool enabled)
         // supports the touch events.
         // See https://bugs.webkit.org/show_bug.cgi?id=97785 for details.
         Ewk_View_Smart_Data* sd = smartData();
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_DOWN, handleTouchDown, sd);
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_UP, handleTouchUp, sd);
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_MOVE, handleTouchMove, sd);
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_DOWN, handleTouchDown, sd);
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_UP, handleTouchUp, sd);
-        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_MOVE, handleTouchMove, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_DOWN, handleMouseDownForTouch, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_UP, handleMouseUpForTouch, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MOUSE_MOVE, handleMouseMoveForTouch, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_DOWN, handleMultiDownForTouch, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_UP, handleMultiUpForTouch, sd);
+        evas_object_event_callback_add(m_evasObject, EVAS_CALLBACK_MULTI_MOVE, handleMultiMoveForTouch, sd);
     } else {
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_DOWN, handleTouchDown);
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_UP, handleTouchUp);
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_MOVE, handleTouchMove);
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_DOWN, handleTouchDown);
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_UP, handleTouchUp);
-        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_MOVE, handleTouchMove);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_DOWN, handleMouseDownForTouch);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_UP, handleMouseUpForTouch);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MOUSE_MOVE, handleMouseMoveForTouch);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_DOWN, handleMultiDownForTouch);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_UP, handleMultiUpForTouch);
+        evas_object_event_callback_del(m_evasObject, EVAS_CALLBACK_MULTI_MOVE, handleMultiMoveForTouch);
     }
 }
 
@@ -806,7 +829,6 @@ void EwkView::doneWithTouchEvent(WKTouchEventRef event, bool wasEventHandled)
 }
 #endif
 
-#if USE(ACCELERATED_COMPOSITING)
 bool EwkView::createGLSurface()
 {
     if (!m_isAccelerated)
@@ -840,7 +862,6 @@ bool EwkView::createGLSurface()
 
     return true;
 }
-#endif
 
 #if ENABLE(INPUT_TYPE_COLOR)
 /**
@@ -858,7 +879,7 @@ void EwkView::requestColorPicker(WKColorPickerResultListenerRef listener, const 
     if (m_colorPicker)
         dismissColorPicker();
 
-    m_colorPicker = EwkColorPicker::create(listener, color);
+    m_colorPicker = std::make_unique<EwkColorPicker>(listener, color);
 
     sd->api->input_picker_color_request(sd, m_colorPicker.get());
 }
@@ -878,12 +899,9 @@ void EwkView::dismissColorPicker()
     if (sd->api->input_picker_color_dismiss)
         sd->api->input_picker_color_dismiss(sd);
 
-    m_colorPicker.clear();
+    m_colorPicker = nullptr;
 }
 #endif
-
-COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_RIGHT_TO_LEFT, RTL);
-COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_LEFT_TO_RIGHT, LTR);
 
 void EwkView::customContextMenuItemSelected(WKContextMenuItemRef contextMenuItem)
 {
@@ -893,7 +911,7 @@ void EwkView::customContextMenuItemSelected(WKContextMenuItemRef contextMenuItem
     if (!sd->api->custom_item_selected)
         return;
 
-    OwnPtr<EwkContextMenuItem> item = EwkContextMenuItem::create(contextMenuItem, 0);
+    std::unique_ptr<EwkContextMenuItem> item = std::make_unique<EwkContextMenuItem>(contextMenuItem, nullptr);
 
     sd->api->custom_item_selected(sd, item.get());
 }
@@ -930,9 +948,6 @@ void EwkView::hideContextMenu()
     m_contextMenu.clear();
 }
 
-COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_RIGHT_TO_LEFT, kWKPopupItemTextDirectionRTL);
-COMPILE_ASSERT_MATCHING_ENUM(EWK_TEXT_DIRECTION_LEFT_TO_RIGHT, kWKPopupItemTextDirectionLTR);
-
 void EwkView::requestPopupMenu(WKPopupMenuListenerRef popupMenuListener, const WKRect& rect, WKPopupItemTextDirection textDirection, double pageScaleFactor, WKArrayRef items, int32_t selectedIndex)
 {
     Ewk_View_Smart_Data* sd = smartData();
@@ -946,14 +961,21 @@ void EwkView::requestPopupMenu(WKPopupMenuListenerRef popupMenuListener, const W
     if (m_popupMenu)
         closePopupMenu();
 
-    m_popupMenu = EwkPopupMenu::create(this, popupMenuListener, items, selectedIndex);
+    m_popupMenu = std::make_unique<EwkPopupMenu>(this, popupMenuListener, items, selectedIndex);
 
     WKPoint popupMenuPosition = WKViewContentsToUserViewport(wkView(), rect.origin);
 
     Eina_Rectangle einaRect;
     EINA_RECTANGLE_SET(&einaRect, popupMenuPosition.x, popupMenuPosition.y, rect.size.width, rect.size.height);
 
-    sd->api->popup_menu_show(sd, einaRect, static_cast<Ewk_Text_Direction>(textDirection), pageScaleFactor, m_popupMenu.get());
+    switch (textDirection) {
+    case kWKPopupItemTextDirectionRTL:
+        sd->api->popup_menu_show(sd, einaRect, EWK_TEXT_DIRECTION_RIGHT_TO_LEFT, pageScaleFactor, m_popupMenu.get());
+        break;
+    case EWK_TEXT_DIRECTION_LEFT_TO_RIGHT:
+        sd->api->popup_menu_show(sd, einaRect, EWK_TEXT_DIRECTION_LEFT_TO_RIGHT, pageScaleFactor, m_popupMenu.get());
+        break;
+    }
 }
 
 void EwkView::closePopupMenu()
@@ -967,7 +989,7 @@ void EwkView::closePopupMenu()
     if (sd->api->popup_menu_hide)
         sd->api->popup_menu_hide(sd);
 
-    m_popupMenu.clear();
+    m_popupMenu = nullptr;
 }
 
 /**
@@ -1075,7 +1097,7 @@ EwkWindowFeatures* EwkView::windowFeatures()
     return m_windowFeatures.get();
 }
 
-WKPageRef EwkView::createNewPage(PassRefPtr<EwkUrlRequest> request, WKDictionaryRef windowFeatures)
+WKPageRef EwkView::createNewPage(PassRefPtr<EwkUrlRequest>, WKDictionaryRef windowFeatures)
 {
     Ewk_View_Smart_Data* sd = smartData();
     ASSERT(sd->api);
@@ -1085,7 +1107,7 @@ WKPageRef EwkView::createNewPage(PassRefPtr<EwkUrlRequest> request, WKDictionary
 
     RefPtr<EwkWindowFeatures> ewkWindowFeatures = EwkWindowFeatures::create(windowFeatures, this);
 
-    Evas_Object* newEwkView = sd->api->window_create(sd, request->url(), ewkWindowFeatures.get());
+    Evas_Object* newEwkView = sd->api->window_create(sd, ewkWindowFeatures.get());
     if (!newEwkView)
         return 0;
 
@@ -1139,6 +1161,7 @@ void EwkView::handleEvasObjectAdd(Evas_Object* evasObject)
 
     EwkViewEventHandler<EVAS_CALLBACK_FOCUS_IN>::subscribe(evasObject);
     EwkViewEventHandler<EVAS_CALLBACK_FOCUS_OUT>::subscribe(evasObject);
+    EwkViewEventHandler<EVAS_CALLBACK_MOUSE_IN>::subscribe(evasObject);
     EwkViewEventHandler<EVAS_CALLBACK_MOUSE_WHEEL>::subscribe(evasObject);
     EwkViewEventHandler<EVAS_CALLBACK_KEY_DOWN>::subscribe(evasObject);
     EwkViewEventHandler<EVAS_CALLBACK_KEY_UP>::subscribe(evasObject);
@@ -1205,12 +1228,10 @@ void EwkView::handleEvasObjectCalculate(Evas_Object* evasObject)
         smartData->view.h = height;
 
         WKViewSetSize(self->wkView(), WKSizeMake(width, height));
-#if USE(ACCELERATED_COMPOSITING)
         if (WKPageUseFixedLayout(self->wkPage()))
-            self->pageViewportController()->didChangeViewportSize(self->size());
+            self->pageViewportController().didChangeViewportSize(self->size());
 
         self->setNeedsSurfaceResize();
-#endif
     }
 }
 
@@ -1219,7 +1240,7 @@ void EwkView::handleEvasObjectShow(Evas_Object* evasObject)
     Ewk_View_Smart_Data* smartData = toSmartData(evasObject);
     ASSERT(smartData);
 
-    if (!toEwkView(smartData)->m_isAccelerated)
+    if (!toEwkView(smartData)->m_pendingSurfaceResize)
         showEvasObjectsIfNeeded(smartData);
 }
 
@@ -1237,18 +1258,7 @@ void EwkView::handleEvasObjectColorSet(Evas_Object* evasObject, int red, int gre
     Ewk_View_Smart_Data* smartData = toSmartData(evasObject);
     ASSERT(smartData);
 
-    EwkView* view = toEwkView(smartData);
-    ASSERT(view);
-
-    alpha = clampTo(alpha, 0, 255);
-    red = clampTo(red, 0, alpha);
-    green = clampTo(green, 0, alpha);
-    blue = clampTo(blue, 0, alpha);
-
     evas_object_image_alpha_set(smartData->image, alpha < 255);
-    WKViewSetDrawsBackground(view->wkView(), red || green || blue);
-    WKViewSetDrawsTransparentBackground(view->wkView(), alpha < 255);
-
     parentSmartClass.color_set(evasObject, red, green, blue, alpha);
 }
 
@@ -1314,7 +1324,7 @@ Eina_Bool EwkView::handleEwkViewKeyUp(Ewk_View_Smart_Data* smartData, const Evas
 }
 
 #if ENABLE(TOUCH_EVENTS)
-void EwkView::feedTouchEvents(Ewk_Touch_Event_Type type)
+void EwkView::feedTouchEvents(Ewk_Touch_Event_Type type, double timestamp)
 {
     Ewk_View_Smart_Data* sd = smartData();
 
@@ -1333,22 +1343,37 @@ void EwkView::feedTouchEvents(Ewk_Touch_Event_Type type)
     }
     WKRetainPtr<WKArrayRef> wkTouchPoints(AdoptWK, WKArrayCreateAdoptingValues(touchPoints.get(), length));
 
-    WKViewSendTouchEvent(wkView(), adoptWK(WKTouchEventCreate(static_cast<WKEventType>(type), wkTouchPoints.get(), toWKEventModifiers(evas_key_modifier_get(sd->base.evas)), ecore_time_get())).get());
+    WKViewSendTouchEvent(wkView(), adoptWK(WKTouchEventCreate(static_cast<WKEventType>(type), wkTouchPoints.get(), toWKEventModifiers(evas_key_modifier_get(sd->base.evas)), timestamp)).get());
 }
 
-void EwkView::handleTouchDown(void* /* data */, Evas* /* canvas */, Evas_Object* ewkView, void* /* eventInfo */)
+void EwkView::handleMouseDownForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
 {
-    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_START);
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_START, static_cast<Evas_Event_Mouse_Down*>(eventInfo)->timestamp / 1000.0);
 }
 
-void EwkView::handleTouchUp(void* /* data */, Evas* /* canvas */, Evas_Object* ewkView, void* /* eventInfo */)
+void EwkView::handleMouseUpForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
 {
-    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_END);
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_END, static_cast<Evas_Event_Mouse_Up*>(eventInfo)->timestamp / 1000.0);
 }
 
-void EwkView::handleTouchMove(void* /* data */, Evas* /* canvas */, Evas_Object* ewkView, void* /* eventInfo */)
+void EwkView::handleMouseMoveForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
 {
-    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_MOVE);
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_MOVE, static_cast<Evas_Event_Mouse_Move*>(eventInfo)->timestamp / 1000.0);
+}
+
+void EwkView::handleMultiDownForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
+{
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_START, static_cast<Evas_Event_Multi_Down*>(eventInfo)->timestamp / 1000.0);
+}
+
+void EwkView::handleMultiUpForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
+{
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_END, static_cast<Evas_Event_Multi_Up*>(eventInfo)->timestamp / 1000.0);
+}
+
+void EwkView::handleMultiMoveForTouch(void*, Evas*, Evas_Object* ewkView, void* eventInfo)
+{
+    toEwkView(ewkView)->feedTouchEvents(EWK_TOUCH_MOVE, static_cast<Evas_Event_Multi_Move*>(eventInfo)->timestamp / 1000.0);
 }
 #endif
 
@@ -1372,7 +1397,6 @@ PassRefPtr<cairo_surface_t> EwkView::takeSnapshot()
         ecore_main_loop_iterate();
 
     Ewk_View_Smart_Data* sd = smartData();
-#if USE(ACCELERATED_COMPOSITING)
     if (m_isAccelerated) {
         RefPtr<cairo_surface_t> snapshot = getImageSurfaceFromFrameBuffer(0, 0, sd->view.w, sd->view.h);
         // Resume all animations.
@@ -1380,7 +1404,7 @@ PassRefPtr<cairo_surface_t> EwkView::takeSnapshot()
 
         return snapshot.release();
     }
-#endif
+
     RefPtr<cairo_surface_t> snapshot = createSurfaceForImage(sd->image);
     // Resume all animations.
     WKViewResumeActiveDOMObjectsAndAnimations(wkView());
@@ -1398,16 +1422,17 @@ void EwkView::didFindZoomableArea(const WKPoint& point, const WKRect& area)
 bool EwkView::scrollBy(const IntSize& offset)
 {
     WKPoint oldPosition = WKViewGetContentPosition(wkView());
-    FloatPoint newPosition(oldPosition.x + offset.width(), oldPosition.y + offset.height());
+    float contentScale = WKViewGetContentScaleFactor(wkView());
+
+    float effectiveScale = contentScale * deviceScaleFactor();
+    FloatPoint newPosition(oldPosition.x + offset.width() / effectiveScale, oldPosition.y + offset.height() / effectiveScale);
 
     // Update new position to the PageViewportController.
-    float contentScale = WKViewGetContentScaleFactor(wkView());
-    newPosition.scale(1 / contentScale, 1 / contentScale);
-    newPosition = m_pageViewportController->boundContentsPositionAtScale(newPosition, contentScale);
-    m_pageViewportController->didChangeContentsVisibility(newPosition, contentScale);
+    newPosition = m_pageViewportController.boundContentsPositionAtScale(newPosition, contentScale);
+    m_pageViewportController.didChangeContentsVisibility(newPosition, contentScale);
 
     // Update new position to the WKView.
-    WKPoint position = WKPointMake(newPosition.x() * contentScale, newPosition.y() * contentScale);
+    WKPoint position = WKPointMake(newPosition.x(), newPosition.y());
     WKViewSetContentPosition(wkView(), position);
 
     // If the page position has not changed, notify the caller using the return value.
@@ -1416,38 +1441,3 @@ bool EwkView::scrollBy(const IntSize& offset)
 
 Evas_Smart_Class EwkView::parentSmartClass = EVAS_SMART_CLASS_INIT_NULL;
 
-// Free Ewk View functions.
-
-EwkView* toEwkView(const Evas_Object* evasObject)
-{
-    ASSERT(evasObject);
-    ASSERT(isEwkViewEvasObject(evasObject));
-
-    return toEwkView(static_cast<Ewk_View_Smart_Data*>(evas_object_smart_data_get(evasObject)));
-}
-
-bool isEwkViewEvasObject(const Evas_Object* evasObject)
-{
-    ASSERT(evasObject);
-
-    const char* evasObjectType = evas_object_type_get(evasObject);
-    const Evas_Smart* evasSmart = evas_object_smart_smart_get(evasObject);
-    if (!evasSmart) {
-        EINA_LOG_CRIT("%p (%s) is not a smart object!", evasObject, evasObjectType ? evasObjectType : "(null)");
-        return false;
-    }
-
-    const Evas_Smart_Class* smartClass = evas_smart_class_get(evasSmart);
-    if (!smartClass) {
-        EINA_LOG_CRIT("%p (%s) is not a smart class object!", evasObject, evasObjectType ? evasObjectType : "(null)");
-        return false;
-    }
-
-    if (smartClass->data != smartClassName) {
-        EINA_LOG_CRIT("%p (%s) is not of an ewk_view (need %p, got %p)!", evasObject, evasObjectType ? evasObjectType : "(null)",
-            smartClassName, smartClass->data);
-        return false;
-    }
-
-    return true;
-}

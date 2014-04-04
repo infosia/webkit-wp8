@@ -36,11 +36,6 @@ extern "C" {
 typedef void (*WKPageRenderTreeExternalRepresentationFunction)(WKStringRef, WKErrorRef, void*);
 WK_EXPORT void WKPageRenderTreeExternalRepresentation(WKPageRef page, void *context, WKPageRenderTreeExternalRepresentationFunction function);
 
-#ifdef __BLOCKS__
-typedef void (^WKPageRenderTreeExternalRepresentationBlock)(WKStringRef, WKErrorRef);
-WK_EXPORT void WKPageRenderTreeExternalRepresentation_b(WKPageRef page, WKPageRenderTreeExternalRepresentationBlock block);
-#endif
-
 enum {
     kWKDebugFlashViewUpdates = 1 << 0,
     kWKDebugFlashBackingStoreUpdates = 1 << 1
@@ -92,9 +87,15 @@ WK_EXPORT WKImageRef WKPageCreateSnapshotOfVisibleContent(WKPageRef page);
 
 WK_EXPORT void WKPageSetShouldSendEventsSynchronously(WKPageRef page, bool sync);
 
+WK_EXPORT bool WKPageGetAllowsRemoteInspection(WKPageRef page);
+WK_EXPORT void WKPageSetAllowsRemoteInspection(WKPageRef page, bool allow);
+
 WK_EXPORT void WKPageSetMediaVolume(WKPageRef page, float volume);
 WK_EXPORT void WKPageSetMayStartMediaWhenInWindow(WKPageRef page, bool mayStartMedia);
 
+typedef void (*WKPageGetBytecodeProfileFunction)(WKStringRef, WKErrorRef, void*);
+WK_EXPORT void WKPageGetBytecodeProfile(WKPageRef page, void* context, WKPageGetBytecodeProfileFunction function);
+    
 WK_EXPORT WKArrayRef WKPageCopyRelatedPages(WKPageRef page);
 
 typedef void (*WKPageInvalidMessageFunction)(uint32_t messageID);

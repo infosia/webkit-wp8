@@ -23,14 +23,15 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__LP64__) && defined(__clang__)
+#import <WebKit2/WKFoundation.h>
+
+#if WK_API_ENABLED
 
 #import <Foundation/Foundation.h>
-#import <WebKit2/WKDeclarationSpecifiers.h>
 
 @class WKDOMRange;
 
-WK_EXPORT
+WK_API_CLASS
 @interface WKDOMTextIterator : NSObject
 
 - (id)initWithRange:(WKDOMRange *)range;
@@ -44,4 +45,4 @@ WK_EXPORT
 
 @end
 
-#endif // defined(__LP64__) && defined(__clang__)
+#endif // WK_API_ENABLED

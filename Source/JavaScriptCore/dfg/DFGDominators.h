@@ -26,8 +26,6 @@
 #ifndef DFGDominators_h
 #define DFGDominators_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGAnalysis.h"
@@ -60,10 +58,10 @@ public:
     void dump(Graph& graph, PrintStream&) const;
     
 private:
-    bool iterateForBlock(Graph& graph, BlockIndex);
+    bool pruneDominators(Graph&, BlockIndex);
     
     Vector<FastBitVector> m_results; // For each block, the bitvector of blocks that dominate it.
-    FastBitVector m_scratch;
+    FastBitVector m_scratch; // A temporary bitvector with bit for each block. We recycle this to save new/deletes.
 };
 
 } } // namespace JSC::DFG

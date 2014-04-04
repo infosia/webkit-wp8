@@ -1,7 +1,14 @@
 list(APPEND WebKit2_SOURCES
-    Platform/CoreIPC/unix/AttachmentUnix.cpp
-    Platform/CoreIPC/unix/ConnectionUnix.cpp
+    NetworkProcess/soup/NetworkProcessSoup.cpp
+    NetworkProcess/soup/NetworkResourceLoadSchedulerSoup.cpp
+    NetworkProcess/soup/RemoteNetworkingContextSoup.cpp
 
+    NetworkProcess/unix/NetworkProcessMainUnix.cpp
+
+    Platform/IPC/unix/AttachmentUnix.cpp
+    Platform/IPC/unix/ConnectionUnix.cpp
+
+    Platform/efl/DispatchQueueEfl.cpp
     Platform/efl/LoggingEfl.cpp
     Platform/efl/ModuleEfl.cpp
     Platform/efl/WorkQueueEfl.cpp
@@ -15,6 +22,9 @@ list(APPEND WebKit2_SOURCES
     Shared/API/c/cairo/WKImageCairo.cpp
 
     Shared/API/c/efl/WKArrayEfl.cpp
+
+    Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp
+    Shared/CoordinatedGraphics/WebCoordinatedSurface.cpp
 
     Shared/Downloads/efl/DownloadSoupErrorsEfl.cpp
 
@@ -42,16 +52,15 @@ list(APPEND WebKit2_SOURCES
     Shared/linux/SeccompFilters/Syscall.cpp
     Shared/linux/SeccompFilters/SyscallPolicy.cpp
 
-    Shared/soup/PlatformCertificateInfo.cpp
     Shared/soup/WebCoreArgumentCodersSoup.cpp
 
     UIProcess/DefaultUndoController.cpp
-    UIProcess/PageViewportController.cpp
 
     UIProcess/API/C/CoordinatedGraphics/WKView.cpp
 
     UIProcess/API/C/cairo/WKIconDatabaseCairo.cpp
 
+    UIProcess/API/C/efl/WKColorPickerResultListener.cpp
     UIProcess/API/C/efl/WKEventEfl.cpp
     UIProcess/API/C/efl/WKPageEfl.cpp
     UIProcess/API/C/efl/WKPopupItem.cpp
@@ -62,13 +71,14 @@ list(APPEND WebKit2_SOURCES
     UIProcess/API/C/soup/WKCookieManagerSoup.cpp
     UIProcess/API/C/soup/WKSoupRequestManager.cpp
 
+    UIProcess/API/CoordinatedGraphics/WKCoordinatedScene.cpp
+
     UIProcess/API/cpp/efl/WKEinaSharedString.cpp
 
-    UIProcess/API/efl/EvasGLContext.cpp
-    UIProcess/API/efl/EvasGLSurface.cpp
     UIProcess/API/efl/EwkView.cpp
     UIProcess/API/efl/GestureRecognizer.cpp
     UIProcess/API/efl/SnapshotImageGL.cpp
+    UIProcess/API/efl/ewk_application_cache_manager.cpp
     UIProcess/API/efl/ewk_auth_request.cpp
     UIProcess/API/efl/ewk_back_forward_list.cpp
     UIProcess/API/efl/ewk_back_forward_list_item.cpp
@@ -100,6 +110,10 @@ list(APPEND WebKit2_SOURCES
     UIProcess/API/efl/ewk_view.cpp
     UIProcess/API/efl/ewk_window_features.cpp
 
+    UIProcess/CoordinatedGraphics/CoordinatedDrawingAreaProxy.cpp
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.cpp
+    UIProcess/CoordinatedGraphics/PageViewportController.cpp
+    UIProcess/CoordinatedGraphics/WebPageProxyCoordinatedGraphics.cpp
     UIProcess/CoordinatedGraphics/WebView.cpp
     UIProcess/CoordinatedGraphics/WebViewClient.cpp
 
@@ -108,6 +122,8 @@ list(APPEND WebKit2_SOURCES
     UIProcess/InspectorServer/soup/WebSocketServerSoup.cpp
 
     UIProcess/Launcher/efl/ProcessLauncherEfl.cpp
+
+    UIProcess/Network/soup/NetworkProcessProxySoup.cpp
 
     UIProcess/Plugins/unix/PluginInfoStoreUnix.cpp
     UIProcess/Plugins/unix/PluginProcessProxyUnix.cpp
@@ -136,9 +152,11 @@ list(APPEND WebKit2_SOURCES
     UIProcess/efl/TextCheckerEfl.cpp
     UIProcess/efl/VibrationClientEfl.cpp
     UIProcess/efl/ViewClientEfl.cpp
+    UIProcess/efl/WebColorPickerClient.cpp
+    UIProcess/efl/WebColorPickerEfl.cpp
+    UIProcess/efl/WebColorPickerResultListenerProxy.cpp
     UIProcess/efl/WebContextEfl.cpp
     UIProcess/efl/WebContextMenuProxyEfl.cpp
-    UIProcess/efl/WebFullScreenManagerProxyEfl.cpp
     UIProcess/efl/WebInspectorProxyEfl.cpp
     UIProcess/efl/WebPageProxyEfl.cpp
     UIProcess/efl/WebPopupItemEfl.cpp
@@ -148,6 +166,7 @@ list(APPEND WebKit2_SOURCES
     UIProcess/efl/WebUIPopupMenuClient.cpp
     UIProcess/efl/WebViewEfl.cpp
 
+    UIProcess/soup/WebContextSoup.cpp
     UIProcess/soup/WebCookieManagerProxySoup.cpp
     UIProcess/soup/WebSoupRequestManagerClient.cpp
     UIProcess/soup/WebSoupRequestManagerProxy.cpp
@@ -168,6 +187,10 @@ list(APPEND WebKit2_SOURCES
 
     WebProcess/WebCoreSupport/soup/WebFrameNetworkingContext.cpp
 
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedDrawingArea.cpp
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.cpp
+    WebProcess/WebPage/CoordinatedGraphics/WebPageCoordinatedGraphics.cpp
+
     WebProcess/WebPage/atk/WebPageAccessibilityObjectAtk.cpp
 
     WebProcess/WebPage/efl/WebInspectorEfl.cpp
@@ -183,7 +206,11 @@ list(APPEND WebKit2_SOURCES
 )
 
 list(APPEND WebKit2_MESSAGES_IN_FILES
+    UIProcess/CoordinatedGraphics/CoordinatedLayerTreeHostProxy.messages.in
+
     UIProcess/soup/WebSoupRequestManagerProxy.messages.in
+
+    WebProcess/WebPage/CoordinatedGraphics/CoordinatedLayerTreeHost.messages.in
 
     WebProcess/soup/WebSoupRequestManager.messages.in
 )
@@ -191,9 +218,14 @@ list(APPEND WebKit2_MESSAGES_IN_FILES
 list(APPEND WebKit2_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/efl"
     "${WEBCORE_DIR}/platform/graphics/cairo"
+    "${WEBCORE_DIR}/platform/graphics/efl"
+    "${WEBCORE_DIR}/platform/graphics/opentype"
     "${WEBCORE_DIR}/platform/network/soup"
     "${WEBCORE_DIR}/platform/text/enchant"
+    "${WEBKIT2_DIR}/NetworkProcess/unix"
+    "${WEBKIT2_DIR}/Platform/efl"
     "${WEBKIT2_DIR}/Shared/API/c/efl"
+    "${WEBKIT2_DIR}/Shared/CoordinatedGraphics"
     "${WEBKIT2_DIR}/Shared/Downloads/soup"
     "${WEBKIT2_DIR}/Shared/efl"
     "${WEBKIT2_DIR}/Shared/soup"
@@ -203,12 +235,15 @@ list(APPEND WebKit2_INCLUDE_DIRECTORIES
     "${WEBKIT2_DIR}/UIProcess/API/C/soup"
     "${WEBKIT2_DIR}/UIProcess/API/cpp/efl"
     "${WEBKIT2_DIR}/UIProcess/API/efl"
+    "${WEBKIT2_DIR}/UIProcess/CoordinatedGraphics"
+    "${WEBKIT2_DIR}/UIProcess/Network/CustomProtocols/soup"
     "${WEBKIT2_DIR}/UIProcess/efl"
     "${WEBKIT2_DIR}/UIProcess/soup"
     "${WEBKIT2_DIR}/WebProcess/efl"
     "${WEBKIT2_DIR}/WebProcess/soup"
     "${WEBKIT2_DIR}/WebProcess/WebCoreSupport/efl"
     "${WEBKIT2_DIR}/WebProcess/WebCoreSupport/soup"
+    "${WEBKIT2_DIR}/WebProcess/WebPage/CoordinatedGraphics"
     "${WTF_DIR}/wtf/efl/"
     "${WTF_DIR}/wtf/gobject"
     ${CAIRO_INCLUDE_DIRS}
@@ -244,7 +279,7 @@ list(APPEND WebKit2_LIBRARIES
     ${EO_LIBRARIES}
     ${EVAS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
-    ${Freetype_LIBRARIES}
+    ${FREETYPE2_LIBRARIES}
     ${GLIB_GIO_LIBRARIES}
     ${GLIB_GOBJECT_LIBRARIES}
     ${GLIB_LIBRARIES}
@@ -259,6 +294,10 @@ list(APPEND WebKit2_LIBRARIES
 
 list(APPEND WebProcess_SOURCES
     efl/MainEfl.cpp
+)
+
+list(APPEND NetworkProcess_SOURCES
+        unix/NetworkMainUnix.cpp
 )
 
 list(APPEND WebProcess_LIBRARIES
@@ -314,11 +353,15 @@ set(WEBKIT2_EXTRA_DEPENDENCIES
 )
 
 configure_file(efl/ewebkit2.pc.in ${CMAKE_BINARY_DIR}/WebKit2/efl/ewebkit2.pc @ONLY)
+configure_file(efl/EWebKit2Config.cmake.in ${CMAKE_BINARY_DIR}/WebKit2/efl/EWebKit2Config.cmake @ONLY)
+configure_file(efl/EWebKit2ConfigVersion.cmake.in ${CMAKE_BINARY_DIR}/WebKit2/efl/EWebKit2ConfigVersion.cmake @ONLY)
+
 set(EWebKit2_HEADERS
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/EWebKit2.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_auth_request.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_back_forward_list.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_back_forward_list_item.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_application_cache_manager.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_color_picker.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_context.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/UIProcess/API/efl/ewk_context_menu.h"
@@ -351,11 +394,14 @@ set(EWebKit2_HEADERS
 )
 
 install(FILES ${CMAKE_BINARY_DIR}/WebKit2/efl/ewebkit2.pc DESTINATION lib/pkgconfig)
+install(FILES
+        ${CMAKE_BINARY_DIR}/WebKit2/efl/EWebKit2Config.cmake
+        ${CMAKE_BINARY_DIR}/WebKit2/efl/EWebKit2ConfigVersion.cmake
+        DESTINATION lib/cmake/EWebKit2)
+
 install(FILES ${EWebKit2_HEADERS} DESTINATION include/${WebKit2_OUTPUT_NAME}-${PROJECT_VERSION_MAJOR})
 
 if (ENABLE_PLUGIN_PROCESS)
-    add_definitions(-DENABLE_PLUGIN_PROCESS=1)
-
     list(APPEND PluginProcess_INCLUDE_DIRECTORIES
         "${WEBKIT2_DIR}/PluginProcess/unix"
     )
@@ -366,19 +412,11 @@ if (ENABLE_PLUGIN_PROCESS)
         ${WEBKIT2_DIR}/unix/PluginMainUnix.cpp
     )
 
-    set(PluginProcess_LIBRARIES
-        WebKit2
-    )
-
     if (ENABLE_ECORE_X)
         list(APPEND PluginProcess_LIBRARIES
             ${ECORE_X_LIBRARIES}
         )
     endif ()
-
-    add_executable(PluginProcess ${PluginProcess_SOURCES})
-    target_link_libraries(PluginProcess ${PluginProcess_LIBRARIES})
-    install(TARGETS PluginProcess DESTINATION "${EXEC_INSTALL_DIR}")
 endif () # ENABLE_PLUGIN_PROCESS
 
 include_directories(${THIRDPARTY_DIR}/gtest/include)
@@ -403,6 +441,7 @@ set(EWK2UnitTests_LIBRARIES
 set(WEBKIT2_EFL_TEST_DIR "${WEBKIT2_DIR}/UIProcess/API/efl/tests")
 set(TEST_RESOURCES_DIR ${WEBKIT2_EFL_TEST_DIR}/resources)
 set(TEST_INJECTED_BUNDLE_DIR ${WEBKIT2_EFL_TEST_DIR}/InjectedBundle)
+set(WEBKIT2_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TestWebKitAPI/EWebKit2)
 
 add_definitions(-DTEST_RESOURCES_DIR=\"${TEST_RESOURCES_DIR}\"
     -DTEST_LIB_DIR=\"${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\"
@@ -410,6 +449,7 @@ add_definitions(-DTEST_RESOURCES_DIR=\"${TEST_RESOURCES_DIR}\"
     -DLIBEXECDIR=\"${CMAKE_INSTALL_PREFIX}/${EXEC_INSTALL_DIR}\"
     -DWEBPROCESSNAME=\"WebProcess\"
     -DPLUGINPROCESSNAME=\"PluginProcess\"
+    -DNETWORKPROCESSNAME=\"NetworkProcess\"
 )
 
 add_library(ewk2UnitTestUtils
@@ -424,6 +464,7 @@ target_link_libraries(ewk2UnitTestUtils ${EWK2UnitTests_LIBRARIES})
 # The "ewk" on the test name needs to be suffixed with "2", otherwise it
 # will clash with tests from the WebKit 1 test suite.
 set(EWK2UnitTests_BINARIES
+    test_ewk2_application_cache_manager
     test_ewk2_auth_request
     test_ewk2_back_forward_list
     test_ewk2_color_picker
@@ -441,6 +482,7 @@ set(EWK2UnitTests_BINARIES
     test_ewk2_popup_menu
     test_ewk2_refptr_evas_object
     test_ewk2_settings
+    test_ewk2_ssl
     test_ewk2_storage_manager
     test_ewk2_text_checker
     test_ewk2_view
@@ -455,8 +497,9 @@ set(EWK2UnitTests_BINARIES
 if (ENABLE_API_TESTS)
     foreach (testName ${EWK2UnitTests_BINARIES})
         add_executable(${testName} ${WEBKIT2_EFL_TEST_DIR}/${testName}.cpp)
-        add_test(${testName} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${testName})
+        add_test(${testName} ${WEBKIT2_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY}/${testName})
         set_tests_properties(${testName} PROPERTIES TIMEOUT 60)
+        set_target_properties(${testName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${WEBKIT2_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY})
         target_link_libraries(${testName} ${EWK2UnitTests_LIBRARIES} ewk2UnitTestUtils)
     endforeach ()
 

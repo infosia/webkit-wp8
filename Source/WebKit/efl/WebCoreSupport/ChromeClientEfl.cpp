@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Zack Rusin <zack@kde.org>
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2008 Kenneth Rohde Christiansen
  * Copyright (C) 2008 Diego Gonzalez
  * Copyright (C) 2009-2010 ProFUSION embedded systems
@@ -18,10 +18,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -43,7 +43,7 @@
 #include "FrameLoaderClientEfl.h"
 #include "HitTestResult.h"
 #include "IntRect.h"
-#include "KURL.h"
+#include "URL.h"
 #include "NavigationAction.h"
 #include "NotImplemented.h"
 #include "PopupMenuEfl.h"
@@ -150,8 +150,15 @@ void ChromeClientEfl::unfocus()
     evas_object_focus_set(m_view, EINA_FALSE);
 }
 
-Page* ChromeClientEfl::createWindow(Frame*, const FrameLoadRequest&, const WindowFeatures& features, const NavigationAction&)
+Page* ChromeClientEfl::createWindow(Frame* frame, const FrameLoadRequest&, const WindowFeatures& features, const NavigationAction&)
 {
+#if ENABLE(FULLSCREEN_API)
+    if (frame->document() && frame->document()->webkitCurrentFullScreenElement())
+        frame->document()->webkitCancelFullScreen();
+#else
+    UNUSED_PARAM(frame);
+#endif
+
     Evas_Object* newView = ewk_view_window_create(m_view, EINA_TRUE, &features);
     if (!newView)
         return 0;
@@ -351,7 +358,7 @@ IntPoint ChromeClientEfl::screenToRootView(const IntPoint& point) const
 
 PlatformPageClient ChromeClientEfl::platformPageClient() const
 {
-    return EWKPrivate::corePageClient(m_view);
+    return m_view;
 }
 
 void ChromeClientEfl::scrollbarsModeDidChange() const
@@ -363,7 +370,7 @@ void ChromeClientEfl::mouseDidMoveOverElement(const HitTestResult& hit, unsigned
     // FIXME, compare with old link, look at Qt impl.
     bool isLink = hit.isLiveLink();
     if (isLink) {
-        KURL url = hit.absoluteLinkURL();
+        URL url = hit.absoluteLinkURL();
         if (!url.isEmpty() && url != m_hoveredLinkURL) {
             const char* link[2];
             TextDirection dir;
@@ -376,7 +383,7 @@ void ChromeClientEfl::mouseDidMoveOverElement(const HitTestResult& hit, unsigned
         }
     } else if (!isLink && !m_hoveredLinkURL.isEmpty()) {
         ewk_view_mouse_link_hover_out(m_view);
-        m_hoveredLinkURL = KURL();
+        m_hoveredLinkURL = URL();
     }
 }
 
@@ -490,11 +497,6 @@ void ChromeClientEfl::runOpenPanel(Frame* frame, PassRefPtr<FileChooser> prpFile
         chooser->chooseFile(filenames[0]);
 }
 
-void ChromeClientEfl::formStateDidChange(const Node*)
-{
-    notImplemented();
-}
-
 void ChromeClientEfl::setCursor(const Cursor& cursor)
 {
     ewk_view_cursor_set(m_view, cursor);
@@ -522,12 +524,12 @@ void ChromeClientEfl::cancelGeolocationPermissionForFrame(Frame*, Geolocation*)
     notImplemented();
 }
 
-void ChromeClientEfl::invalidateContents(const IntRect& /*updateRect*/, bool /*immediate*/)
+void ChromeClientEfl::invalidateContents(const IntRect& /*updateRect*/)
 {
     notImplemented();
 }
 
-void ChromeClientEfl::invalidateRootView(const IntRect& updateRect, bool /*immediate*/)
+void ChromeClientEfl::invalidateRootView(const IntRect& updateRect)
 {
 #if USE(TILED_BACKING_STORE)
     ewk_view_tiled_backing_store_invalidate(m_view, updateRect);
@@ -537,7 +539,7 @@ void ChromeClientEfl::invalidateRootView(const IntRect& updateRect, bool /*immed
 #endif
 }
 
-void ChromeClientEfl::invalidateContentsAndRootView(const IntRect& updateRect, bool /*immediate*/)
+void ChromeClientEfl::invalidateContentsAndRootView(const IntRect& updateRect)
 {
     if (updateRect.isEmpty())
         return;
@@ -551,9 +553,9 @@ void ChromeClientEfl::invalidateContentsAndRootView(const IntRect& updateRect, b
     ewk_view_repaint(m_view, x, y, w, h);
 }
 
-void ChromeClientEfl::invalidateContentsForSlowScroll(const IntRect& updateRect, bool immediate)
+void ChromeClientEfl::invalidateContentsForSlowScroll(const IntRect& updateRect)
 {
-    invalidateContentsAndRootView(updateRect, immediate);
+    invalidateContentsAndRootView(updateRect);
 }
 
 void ChromeClientEfl::scroll(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect)
@@ -607,7 +609,6 @@ PassRefPtr<SearchPopupMenu> ChromeClientEfl::createSearchPopupMenu(PopupMenuClie
     return adoptRef(new SearchPopupMenuEfl(client));
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void ChromeClientEfl::attachRootGraphicsLayer(Frame*, GraphicsLayer* rootLayer)
 {
     ewk_view_root_graphics_layer_set(m_view, rootLayer);
@@ -627,7 +628,6 @@ ChromeClient::CompositingTriggerFlags ChromeClientEfl::allowedCompositingTrigger
 {
     return AllTriggers;
 }
-#endif
 
 #if ENABLE(FULLSCREEN_API)
 bool ChromeClientEfl::supportsFullScreenForElement(const WebCore::Element* element, bool withKeyboard)

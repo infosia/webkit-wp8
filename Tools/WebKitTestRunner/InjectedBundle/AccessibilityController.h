@@ -30,10 +30,7 @@
 #include "JSWrappable.h"
 #include <JavaScriptCore/JSObjectRef.h>
 #include <wtf/Platform.h>
-#if PLATFORM(WIN)
-#include <windows.h>
-#endif
-#if PLATFORM(GTK) || (PLATFORM(EFL) && HAVE(ACCESSIBILITY))
+#if HAVE(ACCESSIBILITY) && (PLATFORM(GTK) || PLATFORM(EFL))
 #include "AccessibilityNotificationHandlerAtk.h"
 #endif
 
@@ -47,6 +44,12 @@ public:
     void makeWindowObject(JSContextRef, JSObjectRef windowObject, JSValueRef* exception);
     virtual JSClassRef wrapperClass();
     
+    // Enhanced accessibility.
+    void enableEnhancedAccessibility(bool);
+    bool enhancedAccessibilityEnabled();
+    
+    JSRetainPtr<JSStringRef> platformName();
+
     // Controller Methods - platform-independent implementations.
     PassRefPtr<AccessibilityUIElement> rootElement();
     PassRefPtr<AccessibilityUIElement> focusedElement();
@@ -67,11 +70,11 @@ public:
 private:
     AccessibilityController();
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<NotificationHandler> m_globalNotificationHandler;
 #endif
 
-#if PLATFORM(GTK) || (PLATFORM(EFL) && HAVE(ACCESSIBILITY))
+#if HAVE(ACCESSIBILITY) && (PLATFORM(GTK) || PLATFORM(EFL))
     RefPtr<AccessibilityNotificationHandler> m_globalNotificationHandler;
 #endif
 };

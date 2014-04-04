@@ -23,7 +23,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFilterElement.h"
 
 #include "Attr.h"
@@ -84,13 +84,13 @@ PassRefPtr<SVGFilterElement> SVGFilterElement::create(const QualifiedName& tagNa
 
 const AtomicString& SVGFilterElement::filterResXIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGFilterResX", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGFilterResX", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
 const AtomicString& SVGFilterElement::filterResYIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGFilterResY", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGFilterResY", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
@@ -100,12 +100,12 @@ void SVGFilterElement::setFilterRes(unsigned filterResX, unsigned filterResY)
     setFilterResYBaseValue(filterResY);
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
 bool SVGFilterElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -174,7 +174,7 @@ void SVGFilterElement::svgAttributeChanged(const QualifiedName& attrName)
         updateRelativeLengthsInformation();
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
 void SVGFilterElement::childrenChanged(const ChildChange& change)
@@ -185,22 +185,22 @@ void SVGFilterElement::childrenChanged(const ChildChange& change)
         return;
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
-RenderElement* SVGFilterElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGFilterElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGResourceFilter(*this);
+    return createRenderer<RenderSVGResourceFilter>(*this, std::move(style));
 }
 
-bool SVGFilterElement::childShouldCreateRenderer(const Node* child) const
+bool SVGFilterElement::childShouldCreateRenderer(const Node& child) const
 {
-    if (!child->isSVGElement())
+    if (!child.isSVGElement())
         return false;
 
-    const SVGElement* svgElement = toSVGElement(child);
+    const SVGElement& svgElement = toSVGElement(child);
 
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, allowedChildElementTags, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, allowedChildElementTags, ());
     if (allowedChildElementTags.isEmpty()) {
         allowedChildElementTags.add(SVGNames::feBlendTag);
         allowedChildElementTags.add(SVGNames::feColorMatrixTag);
@@ -229,7 +229,7 @@ bool SVGFilterElement::childShouldCreateRenderer(const Node* child) const
         allowedChildElementTags.add(SVGNames::feTurbulenceTag);
     }
 
-    return allowedChildElementTags.contains<SVGAttributeHashTranslator>(svgElement->tagQName());
+    return allowedChildElementTags.contains<SVGAttributeHashTranslator>(svgElement.tagQName());
 }
 
 bool SVGFilterElement::selfHasRelativeLengths() const

@@ -30,14 +30,38 @@
 #include "Range.h"
 #include "TextIterator.h"
 #include "WebKitAccessibleWrapperAtk.h"
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/NeverDestroyed.h>
+#include <wtf/gobject/GRefPtr.h>
 #include <wtf/text/CString.h>
 
 namespace WebCore {
 
-void AXObjectCache::detachWrapper(AccessibilityObject* obj)
+void AXObjectCache::detachWrapper(AccessibilityObject* obj, AccessibilityDetachmentType detachmentType)
 {
-    webkitAccessibleDetach(WEBKIT_ACCESSIBLE(obj->wrapper()));
+    AtkObject* wrapper = obj->wrapper();
+    ASSERT(wrapper);
+
+    // If an object is being detached NOT because of the AXObjectCache being destroyed,
+    // then it's being removed from the accessibility tree and we should emit a signal.
+    if (detachmentType != CacheDestroyed) {
+        if (obj->document()) {
+            // Look for the right object to emit the signal from, but using the implementation
+            // of atk_object_get_parent from AtkObject class (which uses a cached pointer if set)
+            // since the accessibility hierarchy in WebCore will no longer be navigable.
+            gpointer webkitAccessibleClass = g_type_class_peek_parent(WEBKIT_ACCESSIBLE_GET_CLASS(wrapper));
+            gpointer atkObjectClass = g_type_class_peek_parent(webkitAccessibleClass);
+            AtkObject* atkParent = ATK_OBJECT_CLASS(atkObjectClass)->get_parent(ATK_OBJECT(wrapper));
+
+            // We don't want to emit any signal from an object outside WebKit's world.
+            if (WEBKIT_IS_ACCESSIBLE(atkParent)) {
+                // The accessibility hierarchy is already invalid, so the parent-children relationships
+                // in the AccessibilityObject tree are not there anymore, so we can't know the offset.
+                g_signal_emit_by_name(atkParent, "children-changed::remove", -1, wrapper);
+            }
+        }
+    }
+
+    webkitAccessibleDetach(WEBKIT_ACCESSIBLE(wrapper));
 }
 
 void AXObjectCache::attachWrapper(AccessibilityObject* obj)
@@ -45,6 +69,25 @@ void AXObjectCache::attachWrapper(AccessibilityObject* obj)
     AtkObject* atkObj = ATK_OBJECT(webkitAccessibleNew(obj));
     obj->setWrapper(atkObj);
     g_object_unref(atkObj);
+
+    // If an object is being attached and we are not in the middle of a layout update, then
+    // we should report ATs by emitting the children-changed::add signal from the parent.
+    Document* document = obj->document();
+    if (!document || document->childNeedsStyleRecalc())
+        return;
+
+    // Don't emit the signal for objects that we already know won't be exposed directly.
+    AccessibilityObject* coreParent = obj->parentObjectUnignored();
+    if (!coreParent || coreParent->accessibilityIsIgnoredByDefault())
+        return;
+
+    // Look for the right object to emit the signal from.
+    AtkObject* atkParent = coreParent->wrapper();
+    if (!atkParent)
+        return;
+
+    size_t index = coreParent->children(false).find(obj);
+    g_signal_emit_by_name(atkParent, "children-changed::add", index, atkObj);
 }
 
 static AccessibilityObject* getListObject(AccessibilityObject* object)
@@ -60,7 +103,7 @@ static AccessibilityObject* getListObject(AccessibilityObject* object)
     // For menu lists we need to return the first accessible child,
     // with role MenuListPopupRole, since that's the one holding the list
     // of items with role MenuListOptionRole.
-    AccessibilityObject::AccessibilityChildrenVector children = object->children();
+    const AccessibilityObject::AccessibilityChildrenVector& children = object->children();
     if (!children.size())
         return 0;
 
@@ -77,8 +120,8 @@ static void notifyChildrenSelectionChange(AccessibilityObject* object)
     // focused object and its associated list object, as per previous
     // calls to this function, in order to properly decide whether to
     // emit some signals or not.
-    DEFINE_STATIC_LOCAL(RefPtr<AccessibilityObject>, oldListObject, ());
-    DEFINE_STATIC_LOCAL(RefPtr<AccessibilityObject>, oldFocusedObject, ());
+    static NeverDestroyed<RefPtr<AccessibilityObject>> oldListObject;
+    static NeverDestroyed<RefPtr<AccessibilityObject>> oldFocusedObject;
 
     // Only list boxes and menu lists supported so far.
     if (!object || !(object->isListBox() || object->isMenuList()))
@@ -100,11 +143,11 @@ static void notifyChildrenSelectionChange(AccessibilityObject* object)
 
     AccessibilityObject* listObject = getListObject(object);
     if (!listObject) {
-        oldListObject = 0;
+        oldListObject.get() = 0;
         return;
     }
 
-    AccessibilityObject::AccessibilityChildrenVector items = listObject->children();
+    const AccessibilityObject::AccessibilityChildrenVector& items = listObject->children();
     if (changedItemIndex < 0 || changedItemIndex >= static_cast<int>(items.size()))
         return;
     AccessibilityObject* item = items.at(changedItemIndex).get();
@@ -112,29 +155,29 @@ static void notifyChildrenSelectionChange(AccessibilityObject* object)
     // Ensure the current list object is the same than the old one so
     // further comparisons make sense. Otherwise, just reset
     // oldFocusedObject so it won't be taken into account.
-    if (oldListObject != listObject)
-        oldFocusedObject = 0;
+    if (oldListObject.get() != listObject)
+        oldFocusedObject.get() = 0;
 
     AtkObject* axItem = item ? item->wrapper() : 0;
-    AtkObject* axOldFocusedObject = oldFocusedObject ? oldFocusedObject->wrapper() : 0;
+    AtkObject* axOldFocusedObject = oldFocusedObject.get() ? oldFocusedObject.get()->wrapper() : 0;
 
     // Old focused object just lost focus, so emit the events.
     if (axOldFocusedObject && axItem != axOldFocusedObject) {
         g_signal_emit_by_name(axOldFocusedObject, "focus-event", false);
-        g_signal_emit_by_name(axOldFocusedObject, "state-change", "focused", false);
+        atk_object_notify_state_change(axOldFocusedObject, ATK_STATE_FOCUSED, false);
     }
 
     // Emit needed events for the currently (un)selected item.
     if (axItem) {
         bool isSelected = item->isSelected();
-        g_signal_emit_by_name(axItem, "state-change", "selected", isSelected);
+        atk_object_notify_state_change(axItem, ATK_STATE_SELECTED, isSelected);
         g_signal_emit_by_name(axItem, "focus-event", isSelected);
-        g_signal_emit_by_name(axItem, "state-change", "focused", isSelected);
+        atk_object_notify_state_change(axItem, ATK_STATE_FOCUSED, isSelected);
     }
 
     // Update pointers to the previously involved objects.
-    oldListObject = listObject;
-    oldFocusedObject = item;
+    oldListObject.get() = listObject;
+    oldFocusedObject.get() = item;
 }
 
 void AXObjectCache::postPlatformNotification(AccessibilityObject* coreObject, AXNotification notification)
@@ -143,31 +186,47 @@ void AXObjectCache::postPlatformNotification(AccessibilityObject* coreObject, AX
     if (!axObject)
         return;
 
-    if (notification == AXCheckedStateChanged) {
+    switch (notification) {
+    case AXCheckedStateChanged:
         if (!coreObject->isCheckboxOrRadio())
             return;
-        g_signal_emit_by_name(axObject, "state-change", "checked", coreObject->isChecked());
-    } else if (notification == AXSelectedChildrenChanged || notification == AXMenuListValueChanged) {
+        atk_object_notify_state_change(axObject, ATK_STATE_CHECKED, coreObject->isChecked());
+        break;
+
+    case AXSelectedChildrenChanged:
+    case AXMenuListValueChanged:
         if (notification == AXMenuListValueChanged && coreObject->isMenuList()) {
             g_signal_emit_by_name(axObject, "focus-event", true);
-            g_signal_emit_by_name(axObject, "state-change", "focused", true);
+            atk_object_notify_state_change(axObject, ATK_STATE_FOCUSED, true);
         }
         notifyChildrenSelectionChange(coreObject);
-    } else if (notification == AXValueChanged) {
-        if (!ATK_IS_VALUE(axObject))
-            return;
+        break;
 
-        AtkPropertyValues propertyValues;
-        propertyValues.property_name = "accessible-value";
+    case AXValueChanged:
+        if (ATK_IS_VALUE(axObject)) {
+            AtkPropertyValues propertyValues;
+            propertyValues.property_name = "accessible-value";
 
-        memset(&propertyValues.new_value,  0, sizeof(GValue));
-        atk_value_get_current_value(ATK_VALUE(axObject), &propertyValues.new_value);
+            memset(&propertyValues.new_value,  0, sizeof(GValue));
+#if ATK_CHECK_VERSION(2,11,92)
+            double value;
+            atk_value_get_value_and_text(ATK_VALUE(axObject), &value, nullptr);
+            g_value_set_double(g_value_init(&propertyValues.new_value, G_TYPE_DOUBLE), value);
+#else
+            atk_value_get_current_value(ATK_VALUE(axObject), &propertyValues.new_value);
+#endif
 
-        g_signal_emit_by_name(ATK_OBJECT(axObject), "property-change::accessible-value", &propertyValues, NULL);
-    } else if (notification == AXLayoutComplete)
-        g_signal_emit_by_name(axObject, "state-change", "layout-complete", true);
-    else if (notification == AXInvalidStatusChanged)
-        g_signal_emit_by_name(axObject, "state-change", "invalid-entry", coreObject->invalidStatus() != "false");
+            g_signal_emit_by_name(ATK_OBJECT(axObject), "property-change::accessible-value", &propertyValues, NULL);
+        }
+        break;
+
+    case AXInvalidStatusChanged:
+        atk_object_notify_state_change(axObject, ATK_STATE_INVALID_ENTRY, coreObject->invalidStatus() != "false");
+        break;
+
+    default:
+        break;
+    }
 }
 
 void AXObjectCache::nodeTextChangePlatformNotification(AccessibilityObject* object, AXTextChange textChange, unsigned offset, const String& text)
@@ -214,7 +273,7 @@ void AXObjectCache::nodeTextChangePlatformNotification(AccessibilityObject* obje
         // Consider previous text objects that might be present for
         // the current accessibility object to ensure we emit the
         // right offset (e.g. multiline text areas).
-        RefPtr<Range> range = Range::create(&document, node->parentNode(), 0, node, 0);
+        RefPtr<Range> range = Range::create(document, node->parentNode(), 0, node, 0);
         offsetToEmit = offset + TextIterator::rangeLength(range.get());
     }
 
@@ -232,34 +291,34 @@ void AXObjectCache::frameLoadingEventPlatformNotification(AccessibilityObject* o
 
     switch (loadingEvent) {
     case AXObjectCache::AXLoadingStarted:
-        g_signal_emit_by_name(axObject, "state-change", "busy", true);
+        atk_object_notify_state_change(axObject, ATK_STATE_BUSY, true);
         break;
     case AXObjectCache::AXLoadingReloaded:
-        g_signal_emit_by_name(axObject, "state-change", "busy", true);
+        atk_object_notify_state_change(axObject, ATK_STATE_BUSY, true);
         g_signal_emit_by_name(axObject, "reload");
         break;
     case AXObjectCache::AXLoadingFailed:
         g_signal_emit_by_name(axObject, "load-stopped");
-        g_signal_emit_by_name(axObject, "state-change", "busy", false);
+        atk_object_notify_state_change(axObject, ATK_STATE_BUSY, false);
         break;
     case AXObjectCache::AXLoadingFinished:
         g_signal_emit_by_name(axObject, "load-complete");
-        g_signal_emit_by_name(axObject, "state-change", "busy", false);
+        atk_object_notify_state_change(axObject, ATK_STATE_BUSY, false);
         break;
     }
 }
 
-void AXObjectCache::handleFocusedUIElementChanged(Node* oldFocusedNode, Node* newFocusedNode)
+void AXObjectCache::platformHandleFocusedUIElementChanged(Node* oldFocusedNode, Node* newFocusedNode)
 {
     RefPtr<AccessibilityObject> oldObject = getOrCreate(oldFocusedNode);
     if (oldObject) {
         g_signal_emit_by_name(oldObject->wrapper(), "focus-event", false);
-        g_signal_emit_by_name(oldObject->wrapper(), "state-change", "focused", false);
+        atk_object_notify_state_change(oldObject->wrapper(), ATK_STATE_FOCUSED, false);
     }
     RefPtr<AccessibilityObject> newObject = getOrCreate(newFocusedNode);
     if (newObject) {
         g_signal_emit_by_name(newObject->wrapper(), "focus-event", true);
-        g_signal_emit_by_name(newObject->wrapper(), "state-change", "focused", true);
+        atk_object_notify_state_change(newObject->wrapper(), ATK_STATE_FOCUSED, true);
     }
 }
 

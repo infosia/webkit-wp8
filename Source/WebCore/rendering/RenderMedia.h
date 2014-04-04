@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,36 +35,28 @@ namespace WebCore {
 
 class RenderMedia : public RenderImage {
 public:
-    explicit RenderMedia(HTMLMediaElement&);
-    RenderMedia(HTMLMediaElement&, const IntSize& intrinsicSize);
+    RenderMedia(HTMLMediaElement&, PassRef<RenderStyle>);
+    RenderMedia(HTMLMediaElement&, PassRef<RenderStyle>, const IntSize& intrinsicSize);
     virtual ~RenderMedia();
 
     HTMLMediaElement& mediaElement() const { return toHTMLMediaElement(nodeForNonAnonymous()); }
 
-protected:
-    virtual void layout();
-
 private:
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 
-    virtual bool canHaveChildren() const OVERRIDE FINAL { return true; }
+    virtual bool canHaveChildren() const override final { return true; }
 
-    virtual const char* renderName() const OVERRIDE { return "RenderMedia"; }
-    virtual bool isMedia() const OVERRIDE FINAL { return true; }
-    virtual bool isImage() const OVERRIDE FINAL { return false; }
-    virtual void paintReplaced(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    virtual const char* renderName() const override { return "RenderMedia"; }
+    virtual bool isMedia() const override final { return true; }
+    virtual bool isImage() const override final { return false; }
+    virtual void paintReplaced(PaintInfo&, const LayoutPoint&) override;
 
-    virtual bool requiresForcedStyleRecalcPropagation() const OVERRIDE FINAL { return true; }
+    virtual bool requiresForcedStyleRecalcPropagation() const override final { return true; }
+
+    virtual bool shadowControlsNeedCustomLayoutMetrics() const { return true; }
 };
 
-inline RenderMedia* toRenderMedia(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isMedia());
-    return static_cast<RenderMedia*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderMedia(const RenderMedia*);
+RENDER_OBJECT_TYPE_CASTS(RenderMedia, isMedia())
 
 } // namespace WebCore
 

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -77,11 +77,12 @@ inline PropertyOffset Structure::get(VM& vm, PropertyName propertyName)
 {
     ASSERT(!isCompilationThread());
     ASSERT(structure()->classInfo() == info());
-    materializePropertyMapIfNecessary(vm);
+    DeferGC deferGC(vm.heap);
+    materializePropertyMapIfNecessary(vm, deferGC);
     if (!propertyTable())
         return invalidOffset;
 
-    PropertyMapEntry* entry = propertyTable()->find(propertyName.uid()).first;
+    PropertyMapEntry* entry = propertyTable()->get(propertyName.uid());
     return entry ? entry->offset : invalidOffset;
 }
 
@@ -89,7 +90,8 @@ inline PropertyOffset Structure::get(VM& vm, const WTF::String& name)
 {
     ASSERT(!isCompilationThread());
     ASSERT(structure()->classInfo() == info());
-    materializePropertyMapIfNecessary(vm);
+    DeferGC deferGC(vm.heap);
+    materializePropertyMapIfNecessary(vm, deferGC);
     if (!propertyTable())
         return invalidOffset;
 
@@ -230,6 +232,13 @@ ALWAYS_INLINE bool Structure::checkOffsetConsistency() const
         return true;
     }
 
+    // We cannot reliably assert things about the property table in the concurrent
+    // compilation thread. It is possible for the table to be stolen and then have
+    // things added to it, which leads to the offsets being all messed up. We could
+    // get around this by grabbing a lock here, but I think that would be overkill.
+    if (isCompilationThread())
+        return true;
+    
     RELEASE_ASSERT(numberOfSlotsForLastOffset(m_offset, m_inlineCapacity) == propertyTable->propertyStorageSize());
     unsigned totalSize = propertyTable->propertyStorageSize();
     RELEASE_ASSERT((totalSize < inlineCapacity() ? 0 : totalSize - inlineCapacity()) == numberOfOutOfLineSlotsForLastOffset(m_offset));

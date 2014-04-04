@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,7 +35,13 @@
 #include <wtf/HashSet.h>
 #include <wtf/StdLibExtras.h>
 
-using namespace std;
+#if PLATFORM(IOS)
+#include "Chrome.h"
+#include "ChromeClient.h"
+#include "Frame.h"
+#include "Page.h"
+#include "WKContentObservation.h"
+#endif
 
 namespace WebCore {
 
@@ -83,6 +89,16 @@ int DOMTimer::install(ScriptExecutionContext* context, PassOwnPtr<ScheduledActio
     // The timer is deleted when context is deleted (DOMTimer::contextDestroyed) or explicitly via DOMTimer::removeById(),
     // or if it is a one-time timer and it has fired (DOMTimer::fired).
     DOMTimer* timer = new DOMTimer(context, action, timeout, singleShot);
+#if PLATFORM(IOS)
+    if (context->isDocument()) {
+        Document& document = toDocument(*context);
+        bool didDeferTimeout = document.frame() && document.frame()->timersPaused();
+        if (!didDeferTimeout && timeout <= 100 && singleShot) {
+            WKSetObservedContentChange(WKContentIndeterminateChange);
+            WebThreadAddObservedContentModifier(timer); // Will only take affect if not already visibility change.
+        }
+    }
+#endif
 
     timer->suspendIfNeeded();
     InspectorInstrumentation::didInstallTimer(context, timer->m_timeoutId, timeout, singleShot);
@@ -106,6 +122,14 @@ void DOMTimer::removeById(ScriptExecutionContext* context, int timeoutId)
 void DOMTimer::fired()
 {
     ScriptExecutionContext* context = scriptExecutionContext();
+    ASSERT(context);
+#if PLATFORM(IOS)
+    Document* document = nullptr;
+    if (!context->isDocument()) {
+        document = toDocument(context);
+        ASSERT(!document->frame()->timersPaused());
+    }
+#endif
     timerNestingLevel = m_nestingLevel;
     ASSERT(!isSuspended());
     ASSERT(!context->activeDOMObjectsAreSuspended());
@@ -138,7 +162,34 @@ void DOMTimer::fired()
     // No access to member variables after this point.
     delete this;
 
+#if PLATFORM(IOS)
+    bool shouldReportLackOfChanges;
+    bool shouldBeginObservingChanges;
+    if (document) {
+        shouldReportLackOfChanges = WebThreadCountOfObservedContentModifiers() == 1;
+        shouldBeginObservingChanges = WebThreadContainsObservedContentModifier(this);
+    } else {
+        shouldReportLackOfChanges = false;
+        shouldBeginObservingChanges = false;
+    }
+
+    if (shouldBeginObservingChanges) {
+        WKBeginObservingContentChanges(false);
+        WebThreadRemoveObservedContentModifier(this);
+    }
+#endif
+
     action->execute(context);
+
+#if PLATFORM(IOS)
+    if (shouldBeginObservingChanges) {
+        WKStopObservingContentChanges();
+
+        if (WKObservedContentChange() == WKContentVisibilityChange || shouldReportLackOfChanges)
+            if (document && document->page())
+                document->page()->chrome().client().observedContentChange(document->frame());
+    }
+#endif
 
     InspectorInstrumentation::didFireTimer(cookie);
 
@@ -178,7 +229,7 @@ void DOMTimer::adjustMinimumTimerInterval(double oldMinimumTimerInterval)
 
 double DOMTimer::intervalClampedToMinimum(int timeout, double minimumTimerInterval) const
 {
-    double intervalMilliseconds = max(oneMillisecond, timeout * oneMillisecond);
+    double intervalMilliseconds = std::max(oneMillisecond, timeout * oneMillisecond);
 
     if (intervalMilliseconds < minimumTimerInterval && m_nestingLevel >= maxTimerNestingLevel)
         intervalMilliseconds = minimumTimerInterval;

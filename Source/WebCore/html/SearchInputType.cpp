@@ -38,13 +38,12 @@
 #include "RenderSearchField.h"
 #include "ShadowRoot.h"
 #include "TextControlInnerElements.h"
-#include <wtf/PassOwnPtr.h>
 
 namespace WebCore {
 
 using namespace HTMLNames;
 
-inline SearchInputType::SearchInputType(HTMLInputElement& element)
+SearchInputType::SearchInputType(HTMLInputElement& element)
     : BaseTextInputType(element)
     , m_resultsButton(0)
     , m_cancelButton(0)
@@ -52,26 +51,17 @@ inline SearchInputType::SearchInputType(HTMLInputElement& element)
 {
 }
 
-OwnPtr<InputType> SearchInputType::create(HTMLInputElement& element)
-{
-    return adoptPtr(new SearchInputType(element));
-}
-
-void SearchInputType::attach()
-{
-    TextFieldInputType::attach();
-    observeFeatureIfVisible(FeatureObserver::InputTypeSearch);
-}
-
 void SearchInputType::addSearchResult()
 {
+#if !PLATFORM(IOS)
     if (RenderObject* renderer = element().renderer())
         toRenderSearchField(renderer)->addSearchResult();
+#endif
 }
 
-RenderElement* SearchInputType::createRenderer(RenderArena& arena, RenderStyle&) const
+RenderPtr<RenderElement> SearchInputType::createInputRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSearchField(element());
+    return createRenderer<RenderSearchField>(element(), std::move(style));
 }
 
 const AtomicString& SearchInputType::formControlType() const
@@ -133,7 +123,7 @@ void SearchInputType::handleKeydownEvent(KeyboardEvent* event)
 
     const String& key = event->keyIdentifier();
     if (key == "U+001B") {
-        RefPtr<HTMLInputElement> input = &element();
+        Ref<HTMLInputElement> input(this->element());
         input->setValueForUser("");
         input->onSearch();
         event->setDefaultHandled();
@@ -162,7 +152,7 @@ void SearchInputType::startSearchEventTimer()
 
     // After typing the first key, we wait 0.5 seconds.
     // After the second key, 0.4 seconds, then 0.3, then 0.2 from then on.
-    m_searchEventTimer.startOneShot(max(0.2, 0.6 - 0.1 * length));
+    m_searchEventTimer.startOneShot(std::max(0.2, 0.6 - 0.1 * length));
 }
 
 void SearchInputType::stopSearchEventTimer()

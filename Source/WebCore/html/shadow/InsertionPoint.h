@@ -41,11 +41,6 @@ namespace WebCore {
 
 class InsertionPoint : public HTMLElement {
 public:
-    enum Type {
-        InternalType,
-        HTMLContentElementType
-    };
-
     enum MatchType {
         AlwaysMatches,
         NeverMatches,
@@ -59,10 +54,6 @@ public:
     bool isActive() const;
 
     virtual MatchType matchTypeFor(Node*) const { return AlwaysMatches; }
-    virtual Type insertionPointType() const { return InternalType; }
-
-    virtual void willAttachRenderers() OVERRIDE;
-    virtual void willDetachRenderers() OVERRIDE;
 
     bool shouldUseFallbackElements() const;
 
@@ -73,28 +64,20 @@ public:
 
 protected:
     InsertionPoint(const QualifiedName&, Document&);
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
-    virtual bool isInsertionPointNode() const OVERRIDE { return true; }
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
+    virtual void childrenChanged(const ChildChange&) override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
+    virtual bool isInsertionPointNode() const override { return true; }
 
 private:
 
     bool m_hasDistribution;
 };
 
-inline InsertionPoint* toInsertionPoint(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isInsertionPoint());
-    return static_cast<InsertionPoint*>(node);
-}
+inline bool isInsertionPoint(const Node& node) { return node.isInsertionPoint(); }
 
-inline const InsertionPoint* toInsertionPoint(const Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isInsertionPoint());
-    return static_cast<const InsertionPoint*>(node);
-}
+NODE_TYPE_CASTS(InsertionPoint);
 
 inline bool isActiveInsertionPoint(const Node* node)
 {
@@ -135,11 +118,11 @@ inline ShadowRoot* shadowRootOfParentForDistribution(const Node* node)
 
 InsertionPoint* findInsertionPointOf(const Node*);
 
-inline bool hasShadowRootOrActiveInsertionPointParent(const Node* node)
+inline bool hasShadowRootOrActiveInsertionPointParent(const Node& node)
 {
     return hasShadowRootParent(node)
-        || isActiveInsertionPoint(findInsertionPointOf(node))
-        || isActiveInsertionPoint(node->parentNode());
+        || isActiveInsertionPoint(findInsertionPointOf(&node))
+        || isActiveInsertionPoint(node.parentNode());
 }
 
 } // namespace WebCore

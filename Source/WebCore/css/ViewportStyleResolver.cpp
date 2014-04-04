@@ -36,7 +36,7 @@
 #include "Document.h"
 #include "Page.h"
 #include "RenderView.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "StyleRule.h"
 #include "ViewportArguments.h"
 
@@ -54,18 +54,18 @@ ViewportStyleResolver::~ViewportStyleResolver()
 
 void ViewportStyleResolver::addViewportRule(StyleRuleViewport* viewportRule)
 {
-    StylePropertySet* propertySet = viewportRule->mutableProperties();
+    StyleProperties& propertySet = viewportRule->mutableProperties();
 
-    unsigned propertyCount = propertySet->propertyCount();
+    unsigned propertyCount = propertySet.propertyCount();
     if (!propertyCount)
         return;
 
     if (!m_propertySet) {
-        m_propertySet = propertySet->mutableCopy();
+        m_propertySet = propertySet.mutableCopy();
         return;
     }
 
-    m_propertySet->mergeAndOverrideOnConflict(*propertySet);
+    m_propertySet->mergeAndOverrideOnConflict(propertySet);
 }
 
 void ViewportStyleResolver::clearDocument()
@@ -110,7 +110,7 @@ float ViewportStyleResolver::getViewportArgumentValue(CSSPropertyID id) const
     if (!value || !value->isPrimitiveValue())
         return defaultValue;
 
-    CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value.get());
+    CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(value.get());
 
     if (primitiveValue->isNumber() || primitiveValue->isPx())
         return primitiveValue->getFloatValue();

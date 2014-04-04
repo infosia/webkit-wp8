@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGPathUtilities.h"
 
 #include "Path.h"
@@ -117,7 +115,7 @@ bool buildPathFromString(const String& d, Path& result)
 
     SVGPathBuilder* builder = globalSVGPathBuilder(result);
 
-    OwnPtr<SVGPathStringSource> source = SVGPathStringSource::create(d);
+    auto source = std::make_unique<SVGPathStringSource>(d);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(NormalizedParsing);
     parser->cleanup();
@@ -133,7 +131,7 @@ bool buildSVGPathByteStreamFromSVGPathSegList(const SVGPathSegList& list, SVGPat
 
     SVGPathByteStreamBuilder* builder = globalSVGPathByteStreamBuilder(result);
 
-    OwnPtr<SVGPathSegListSource> source = SVGPathSegListSource::create(list);
+    auto source = std::make_unique<SVGPathSegListSource>(list);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode);
     parser->cleanup();
@@ -148,10 +146,10 @@ bool appendSVGPathByteStreamFromSVGPathSeg(PassRefPtr<SVGPathSeg> pathSeg, SVGPa
 
     SVGPathSegList appendedItemList(PathSegUnalteredRole);
     appendedItemList.append(pathSeg);
-    OwnPtr<SVGPathByteStream> appendedByteStream = SVGPathByteStream::create();
+    auto appendedByteStream = std::make_unique<SVGPathByteStream>();
 
     SVGPathByteStreamBuilder* builder = globalSVGPathByteStreamBuilder(appendedByteStream.get());
-    OwnPtr<SVGPathSegListSource> source = SVGPathSegListSource::create(appendedItemList);
+    auto source = std::make_unique<SVGPathSegListSource>(appendedItemList);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode, false);
     parser->cleanup();
@@ -170,7 +168,7 @@ bool buildPathFromByteStream(SVGPathByteStream* stream, Path& result)
 
     SVGPathBuilder* builder = globalSVGPathBuilder(result);
 
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(NormalizedParsing);
     parser->cleanup();
@@ -181,11 +179,11 @@ bool buildSVGPathSegListFromByteStream(SVGPathByteStream* stream, SVGPathElement
 {
     ASSERT(stream);
     if (stream->isEmpty())
-        return true; 
+        return true;
 
     SVGPathSegListBuilder* builder = globalSVGPathSegListBuilder(element, parsingMode == NormalizedParsing ? PathSegNormalizedRole : PathSegUnalteredRole, result);
 
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode);
     parser->cleanup();
@@ -196,11 +194,11 @@ bool buildStringFromByteStream(SVGPathByteStream* stream, String& result, PathPa
 {
     ASSERT(stream);
     if (stream->isEmpty())
-        return true; 
+        return true;
 
     SVGPathStringBuilder* builder = globalSVGPathStringBuilder();
 
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode);
     result = builder->result();
@@ -216,7 +214,7 @@ bool buildStringFromSVGPathSegList(const SVGPathSegList& list, String& result, P
 
     SVGPathStringBuilder* builder = globalSVGPathStringBuilder();
 
-    OwnPtr<SVGPathSegListSource> source = SVGPathSegListSource::create(list);
+    auto source = std::make_unique<SVGPathSegListSource>(list);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode);
     result = builder->result();
@@ -233,7 +231,7 @@ bool buildSVGPathByteStreamFromString(const String& d, SVGPathByteStream* result
 
     SVGPathByteStreamBuilder* builder = globalSVGPathByteStreamBuilder(result);
 
-    OwnPtr<SVGPathStringSource> source = SVGPathStringSource::create(d);
+    auto source = std::make_unique<SVGPathStringSource>(d);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(parsingMode);
     parser->cleanup();
@@ -253,8 +251,8 @@ bool buildAnimatedSVGPathByteStream(SVGPathByteStream* fromStream, SVGPathByteSt
 
     SVGPathByteStreamBuilder* builder = globalSVGPathByteStreamBuilder(result);
 
-    OwnPtr<SVGPathByteStreamSource> fromSource = SVGPathByteStreamSource::create(fromStream);
-    OwnPtr<SVGPathByteStreamSource> toSource = SVGPathByteStreamSource::create(toStream);
+    auto fromSource = std::make_unique<SVGPathByteStreamSource>(fromStream);
+    auto toSource = std::make_unique<SVGPathByteStreamSource>(toStream);
     SVGPathBlender* blender = globalSVGPathBlender();
     bool ok = blender->blendAnimatedPath(progress, fromSource.get(), toSource.get(), builder);
     blender->cleanup();
@@ -270,11 +268,11 @@ bool addToSVGPathByteStream(SVGPathByteStream* fromStream, SVGPathByteStream* by
 
     SVGPathByteStreamBuilder* builder = globalSVGPathByteStreamBuilder(fromStream);
 
-    OwnPtr<SVGPathByteStream> fromStreamCopy = fromStream->copy();
+    auto fromStreamCopy = fromStream->copy();
     fromStream->clear();
 
-    OwnPtr<SVGPathByteStreamSource> fromSource = SVGPathByteStreamSource::create(fromStreamCopy.get());
-    OwnPtr<SVGPathByteStreamSource> bySource = SVGPathByteStreamSource::create(byStream);
+    auto fromSource = std::make_unique<SVGPathByteStreamSource>(fromStreamCopy.get());
+    auto bySource = std::make_unique<SVGPathByteStreamSource>(byStream);
     SVGPathBlender* blender = globalSVGPathBlender();
     bool ok = blender->addAnimatedPath(fromSource.get(), bySource.get(), builder, repeatCount);
     blender->cleanup();
@@ -290,7 +288,7 @@ bool getSVGPathSegAtLengthFromSVGPathByteStream(SVGPathByteStream* stream, float
     PathTraversalState traversalState(PathTraversalState::TraversalSegmentAtLength);
     SVGPathTraversalStateBuilder* builder = globalSVGPathTraversalStateBuilder(traversalState, length);
 
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(NormalizedParsing);
     pathSeg = builder->pathSegmentIndex();
@@ -303,11 +301,11 @@ bool getTotalLengthOfSVGPathByteStream(SVGPathByteStream* stream, float& totalLe
     ASSERT(stream);
     if (stream->isEmpty())
         return false;
-    
+
     PathTraversalState traversalState(PathTraversalState::TraversalTotalLength);
     SVGPathTraversalStateBuilder* builder = globalSVGPathTraversalStateBuilder(traversalState, 0);
-    
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(NormalizedParsing);
     totalLength = builder->totalLength();
@@ -320,11 +318,11 @@ bool getPointAtLengthOfSVGPathByteStream(SVGPathByteStream* stream, float length
     ASSERT(stream);
     if (stream->isEmpty())
         return false;
-    
+
     PathTraversalState traversalState(PathTraversalState::TraversalPointAtLength);
     SVGPathTraversalStateBuilder* builder = globalSVGPathTraversalStateBuilder(traversalState, length);
-    
-    OwnPtr<SVGPathByteStreamSource> source = SVGPathByteStreamSource::create(stream);
+
+    auto source = std::make_unique<SVGPathByteStreamSource>(stream);
     SVGPathParser* parser = globalSVGPathParser(source.get(), builder);
     bool ok = parser->parsePathDataFromSource(NormalizedParsing);
     point = builder->currentPoint();
@@ -333,5 +331,3 @@ bool getPointAtLengthOfSVGPathByteStream(SVGPathByteStream* stream, float length
 }
 
 }
-
-#endif

@@ -19,7 +19,6 @@
  */
 
 #include "config.h"
-#if ENABLE(SVG)
 #include "SVGDocument.h"
 
 #include "EventNames.h"
@@ -35,7 +34,7 @@
 
 namespace WebCore {
 
-SVGDocument::SVGDocument(Frame* frame, const KURL& url)
+SVGDocument::SVGDocument(Frame* frame, const URL& url)
     : Document(frame, url, SVGDocumentClass)
 {
 }
@@ -93,14 +92,16 @@ void SVGDocument::updatePan(const FloatPoint& pos) const
     }
 }
 
-bool SVGDocument::childShouldCreateRenderer(const Node* child) const
+bool SVGDocument::childShouldCreateRenderer(const Node& child) const
 {
     if (isSVGSVGElement(child))
-        return toSVGSVGElement(child)->isValid();
+        return toSVGSVGElement(child).isValid();
     return true;
 }
 
+PassRefPtr<Document> SVGDocument::cloneDocumentWithoutChildren() const
+{
+    return create(nullptr, url());
 }
 
-// vim:ts=4:noet
-#endif // ENABLE(SVG)
+}

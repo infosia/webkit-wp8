@@ -24,14 +24,15 @@
 #include "RenderQuote.h"
 
 #include "QuotesData.h"
+#include "RenderTextFragment.h"
 #include "RenderView.h"
 
 using namespace WTF::Unicode;
 
 namespace WebCore {
 
-RenderQuote::RenderQuote(QuoteType quote)
-    : RenderText(nullptr, emptyString())
+RenderQuote::RenderQuote(Document& document, PassRef<RenderStyle> style, QuoteType quote)
+    : RenderInline(document, std::move(style))
     , m_type(quote)
     , m_depth(-1)
     , m_next(0)
@@ -47,29 +48,22 @@ RenderQuote::~RenderQuote()
     ASSERT(!m_previous);
 }
 
-RenderQuote* RenderQuote::createAnonymous(Document& document, QuoteType quote)
-{
-    RenderQuote* renderQuote = new (*document.renderArena()) RenderQuote(quote);
-    renderQuote->setDocumentForAnonymous(document);
-    return renderQuote;
-}
-
 void RenderQuote::willBeDestroyed()
 {
     detachQuote();
-    RenderText::willBeDestroyed();
+    RenderInline::willBeDestroyed();
 }
 
 void RenderQuote::willBeRemovedFromTree()
 {
-    RenderText::willBeRemovedFromTree();
+    RenderInline::willBeRemovedFromTree();
     detachQuote();
 }
 
 void RenderQuote::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
 {
-    RenderText::styleDidChange(diff, oldStyle);
-    setText(originalText());
+    RenderInline::styleDidChange(diff, oldStyle);
+    updateText();
 }
 
 const unsigned maxDistinctQuoteCharacters = 16;
@@ -323,7 +317,7 @@ static StringImpl* stringForQuoteCharacter(UChar character)
             return strings[i].string;
         if (!strings[i].character) {
             strings[i].character = character;
-            strings[i].string = StringImpl::create8BitIfPossible(&character, 1).leakRef();
+            strings[i].string = &StringImpl::create8BitIfPossible(&character, 1).leakRef();
             return strings[i].string;
         }
     }
@@ -343,7 +337,27 @@ static inline StringImpl* apostropheString()
     return apostropheString;
 }
 
-String RenderQuote::originalText() const
+void RenderQuote::updateText()
+{
+    String text = computeText();
+    if (m_text == text)
+        return;
+
+    while (RenderObject* child = lastChild())
+        child->destroy();
+
+    if (text == emptyString() || text == String()) {
+        m_text = String();
+        return;
+    }
+
+    m_text = text;
+
+    RenderTextFragment* fragment = new RenderTextFragment(document(), m_text.impl());
+    addChild(fragment);
+}
+
+String RenderQuote::computeText() const
 {
     if (m_depth < 0)
         return emptyString();
@@ -354,11 +368,11 @@ String RenderQuote::originalText() const
         return emptyString();
     case OPEN_QUOTE:
         isOpenQuote = true;
-        // fall through
+        FALLTHROUGH;
     case CLOSE_QUOTE:
-        if (const QuotesData* quotes = style()->quotes())
+        if (const QuotesData* quotes = style().quotes())
             return isOpenQuote ? quotes->openQuote(m_depth).impl() : quotes->closeQuote(m_depth).impl();
-        if (const QuotesForLanguage* quotes = quotesForLanguage(style()->locale()))
+        if (const QuotesForLanguage* quotes = quotesForLanguage(style().locale()))
             return stringForQuoteCharacter(isOpenQuote ? (m_depth ? quotes->open2 : quotes->open1) : (m_depth ? quotes->close2 : quotes->close1));
         // FIXME: Should the default be the quotes for "en" rather than straight quotes?
         return m_depth ? apostropheString() : quotationMarkString();
@@ -459,7 +473,7 @@ void RenderQuote::updateDepth()
     if (m_depth == depth)
         return;
     m_depth = depth;
-    setText(originalText());
+    updateText();
 }
 
 } // namespace WebCore

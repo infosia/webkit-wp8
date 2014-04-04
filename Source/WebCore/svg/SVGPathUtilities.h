@@ -20,10 +20,8 @@
 #ifndef SVGPathUtilities_h
 #define SVGPathUtilities_h
 
-#if ENABLE(SVG)
 #include "SVGPathConsumer.h"
 #include "SVGPoint.h"
-#include <wtf/OwnPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -59,5 +57,4 @@ bool getPointAtLengthOfSVGPathByteStream(SVGPathByteStream*, float length, SVGPo
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGPathUtilities_h

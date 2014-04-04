@@ -32,8 +32,9 @@
 #include "ScriptState.h"
 
 #include "Document.h"
-#include "Frame.h"
 #include "JSDOMWindowBase.h"
+#include "JSWorkerGlobalScope.h"
+#include "MainFrame.h"
 #include "Node.h"
 #include "Page.h"
 #include "ScriptController.h"
@@ -43,9 +44,6 @@
 #include <interpreter/CallFrame.h>
 #include <runtime/JSGlobalObject.h>
 
-#if ENABLE(WORKERS)
-#include "JSWorkerGlobalScope.h"
-#endif
 
 namespace WebCore {
 
@@ -54,7 +52,7 @@ DOMWindow* domWindowFromExecState(JSC::ExecState* scriptState)
     JSC::JSGlobalObject* globalObject = scriptState->lexicalGlobalObject();
     if (!globalObject->inherits(JSDOMWindowBase::info()))
         return 0;
-    return JSC::jsCast<JSDOMWindowBase*>(globalObject)->impl();
+    return &JSC::jsCast<JSDOMWindowBase*>(globalObject)->impl();
 }
 
 ScriptExecutionContext* scriptExecutionContextFromExecState(JSC::ExecState* scriptState)
@@ -73,7 +71,7 @@ JSC::ExecState* mainWorldExecState(Frame* frame)
     return shell->window()->globalExec();
 }
 
-JSC::ExecState* execStateFromNode(DOMWrapperWorld* world, Node* node)
+JSC::ExecState* execStateFromNode(DOMWrapperWorld& world, Node* node)
 {
     if (!node)
         return 0;
@@ -85,16 +83,14 @@ JSC::ExecState* execStateFromNode(DOMWrapperWorld* world, Node* node)
     return frame->script().globalObject(world)->globalExec();
 }
 
-JSC::ExecState* execStateFromPage(DOMWrapperWorld* world, Page* page)
+JSC::ExecState* execStateFromPage(DOMWrapperWorld& world, Page* page)
 {
     return page->mainFrame().script().globalObject(world)->globalExec();
 }
 
-#if ENABLE(WORKERS)
 JSC::ExecState* execStateFromWorkerGlobalScope(WorkerGlobalScope* workerGlobalScope)
 {
     return workerGlobalScope->script()->workerGlobalScopeWrapper()->globalExec();
 }
-#endif
 
 }

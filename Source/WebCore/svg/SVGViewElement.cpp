@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGViewElement.h"
 
 #include "Attribute.h"
@@ -59,7 +57,7 @@ PassRefPtr<SVGViewElement> SVGViewElement::create(const QualifiedName& tagName, 
 
 bool SVGViewElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
         SVGFitToViewBox::addSupportedAttributes(supportedAttributes);
@@ -92,5 +90,3 @@ void SVGViewElement::parseAttribute(const QualifiedName& name, const AtomicStrin
 }
 
 }
-
-#endif // ENABLE(SVG)

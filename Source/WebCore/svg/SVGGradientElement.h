@@ -21,7 +21,6 @@
 #ifndef SVGGradientElement_h
 #define SVGGradientElement_h
 
-#if ENABLE(SVG)
 #include "Gradient.h"
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedEnumeration.h"
@@ -91,13 +90,13 @@ protected:
     SVGGradientElement(const QualifiedName&, Document&);
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
 private:
-    virtual bool needsPendingResourceHandling() const { return false; }
+    virtual bool needsPendingResourceHandling() const override { return false; }
 
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual void childrenChanged(const ChildChange&) override;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGGradientElement)
         DECLARE_ANIMATED_ENUMERATION(SpreadMethod, spreadMethod, SVGSpreadMethodType)
@@ -108,13 +107,10 @@ private:
     END_DECLARE_ANIMATED_PROPERTIES
 };
 
-inline SVGGradientElement* toSVGGradientElement(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || (node->hasTagName(SVGNames::radialGradientTag) || node->hasTagName(SVGNames::linearGradientTag)));
-    return static_cast<SVGGradientElement*>(node);
-}
+void isSVGGradientElement(const SVGGradientElement&); // Catch unnecessary runtime check of type known at compile time.
+bool isSVGGradientElement(const Node&);
+NODE_TYPE_CASTS(SVGGradientElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

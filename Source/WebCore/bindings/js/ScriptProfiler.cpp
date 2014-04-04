@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,17 +26,16 @@
 
 #include "config.h"
 
-#if ENABLE(JAVASCRIPT_DEBUGGER)
-
 #include "ScriptProfiler.h"
 
-#include "Frame.h"
 #include "GCController.h"
 #include "JSDOMBinding.h"
 #include "JSDOMWindow.h"
+#include "MainFrame.h"
 #include "Page.h"
-#include "ScriptObject.h"
 #include "ScriptState.h"
+#include <bindings/ScriptObject.h>
+#include <bindings/ScriptValue.h>
 #include <profiler/LegacyProfiler.h>
 #include <wtf/Forward.h>
 
@@ -47,12 +46,12 @@ void ScriptProfiler::collectGarbage()
     gcController().garbageCollectSoon();
 }
 
-ScriptObject ScriptProfiler::objectByHeapObjectId(unsigned)
+Deprecated::ScriptObject ScriptProfiler::objectByHeapObjectId(unsigned)
 {
-    return ScriptObject();
+    return Deprecated::ScriptObject();
 }
 
-unsigned ScriptProfiler::getHeapObjectId(const ScriptValue&)
+unsigned ScriptProfiler::getHeapObjectId(const Deprecated::ScriptValue&)
 {
     return 0;
 }
@@ -68,12 +67,10 @@ void ScriptProfiler::startForPage(Page* inspectedPage, const String& title)
     start(scriptState, title);
 }
 
-#if ENABLE(WORKERS)
 void ScriptProfiler::startForWorkerGlobalScope(WorkerGlobalScope* context, const String& title)
 {
     start(execStateFromWorkerGlobalScope(context), title);
 }
-#endif
 
 PassRefPtr<ScriptProfile> ScriptProfiler::stop(JSC::ExecState* state, const String& title)
 {
@@ -87,13 +84,9 @@ PassRefPtr<ScriptProfile> ScriptProfiler::stopForPage(Page* inspectedPage, const
     return stop(scriptState, title);
 }
 
-#if ENABLE(WORKERS)
 PassRefPtr<ScriptProfile> ScriptProfiler::stopForWorkerGlobalScope(WorkerGlobalScope* context, const String& title)
 {
     return stop(execStateFromWorkerGlobalScope(context), title);
 }
-#endif
 
 } // namespace WebCore
-
-#endif // ENABLE(JAVASCRIPT_DEBUGGER)

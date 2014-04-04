@@ -154,7 +154,7 @@ struct Ewk_View_Smart_Class {
 
     // window creation and closing:
     //   - Create a new window with specified features and close window.
-    Evas_Object *(*window_create)(Ewk_View_Smart_Data *sd, const char* url, const Ewk_Window_Features *window_features);
+    Evas_Object *(*window_create)(Ewk_View_Smart_Data *sd, const Ewk_Window_Features *window_features);
     void (*window_close)(Ewk_View_Smart_Data *sd);
 };
 
@@ -277,6 +277,12 @@ typedef enum {
     EWK_PAGINATION_MODE_TOP_TO_BOTTOM, /**< go to the next page with scrolling top to bottom vertically. */
     EWK_PAGINATION_MODE_BOTTOM_TO_TOP /**< go to the next page with scrolling bottom to top vertically. */
 } Ewk_Pagination_Mode;
+
+/**
+ * @typedef Ewk_View_Script_Execute_Cb Ewk_View_Script_Execute_Cb
+ * @brief Callback type for use with ewk_view_script_execute()
+ */
+typedef void (*Ewk_View_Script_Execute_Cb)(Evas_Object *o, const char *return_value, void *user_data);
 
 /**
  * Creates a type name for the callback function used to get the page contents.
@@ -676,7 +682,7 @@ EAPI const char *ewk_view_user_agent_get(const Evas_Object *o);
  *
  * @return @c EINA_TRUE on success @c EINA_FALSE otherwise
  */
-EAPI Eina_Bool ewk_view_user_agent_set(Evas_Object *o, const char *encoding);
+EAPI Eina_Bool ewk_view_user_agent_set(Evas_Object *o, const char *user_agent);
 
 /**
  * Searches and hightlights the given string in the document.
@@ -833,22 +839,6 @@ EAPI Ewk_Pagination_Mode ewk_view_pagination_mode_get(const Evas_Object *o);
 EAPI Eina_Bool ewk_view_fullscreen_exit(Evas_Object *o);
 
 /**
- * Sets whether the ewk_view background matches page background color.
- *
- * If enabled sets view background color close to page color on page load.
- * This helps to reduce flicker on page scrolling and repainting in places
- * where page content is not ready for painting.
- * View background color can interfere with semi-transparent pages and is
- * disabled by default.
- *
- * @param o view object to enable/disable background matching
- * @param enabled a state to set
- *
- * @return @c EINA_TRUE on success or @c EINA_FALSE on failure
- */
-EAPI void ewk_view_draws_page_background_set(Evas_Object *o, Eina_Bool enabled);
-
-/**
  * Get contents of the current web page.
  *
  * @param o view object to get the page contents
@@ -861,28 +851,63 @@ EAPI void ewk_view_draws_page_background_set(Evas_Object *o, Eina_Bool enabled);
 EAPI Eina_Bool ewk_view_page_contents_get(const Evas_Object *o, Ewk_Page_Contents_Type type, Ewk_Page_Contents_Cb callback, void *user_data);
 
 /**
- * Sets the source mode as EINA_TRUE to display the web source code
- * or EINA_FALSE otherwise. The default value is EINA_FALSE.
+ * Requests execution of the given script.
  *
- * This method should be called before loading new contents on web view
- * so that the new view mode will be applied to the new contents.
+ * The result value for the execution can be retrieved from the asynchronous callback.
  *
- * @param o view object to set the view source mode
- * @param enabled a state to set view source mode
+ * @param o The view to execute script
+ * @param script JavaScript to execute
+ * @param callback The function to call when the execution is completed, may be @c NULL
+ * @param user_data User data, may be @c NULL
+ *
+ * @return @c EINA_TRUE on success or @c EINA_FALSE on failure
+ */
+EAPI Eina_Bool ewk_view_script_execute(Evas_Object *o, const char *script, Ewk_View_Script_Execute_Cb callback, void *user_data);
+
+/**
+ * Sets whether the ewk_view use fixed layout or not.
+ *
+ * The webview will use fixed layout if EINA_TRUE or not use it otherwise.
+ * The default value is EINA_FALSE.
+ *
+ * @param o view object to set fixed layout
+ * @param enabled a state to set
  *
  * @return @c EINA_TRUE on success, or @c EINA_FALSE on failure
  */
-EAPI Eina_Bool ewk_view_source_mode_set(Evas_Object *o, Eina_Bool enabled);
+EAPI Eina_Bool ewk_view_layout_fixed_set(Evas_Object *o, Eina_Bool enabled);
 
 /**
- * Gets the view source mode of the current web page.
+ * Queries if the webview is using fixed layout.
  *
- * @param o view object to get the view source mode
+ * @param o view object to query the status
  *
- * @return @c EINA_TRUE if the view mode is set to load source code, or
+ * @return @c EINA_TRUE if the webview is using fixed layout, or
  *         @c EINA_FALSE otherwise
  */
-EAPI Eina_Bool ewk_view_source_mode_get(const Evas_Object *o);
+EAPI Eina_Bool ewk_view_layout_fixed_get(const Evas_Object *o);
+
+/**
+ * Sets the background color and transparency of the view.
+ *
+ * @param o view object to change the background color
+ * @param r red color component
+ * @param g green color component
+ * @param b blue color component
+ * @param a transparency
+ */
+EAPI void ewk_view_bg_color_set(Evas_Object *o, int r, int g, int b, int a);
+
+/**
+ * Gets the background color of the view.
+ *
+ * @param o view object to get the background color
+ * @param r the pointer to store red color component
+ * @param g the pointer to store green color component
+ * @param b the pointer to store blue color component
+ * @param a the pointer to store alpha value
+ */
+EAPI void ewk_view_bg_color_get(const Evas_Object *o, int *r, int *g, int *b, int *a);
 
 #ifdef __cplusplus
 }

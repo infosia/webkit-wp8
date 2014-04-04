@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,6 +25,7 @@
 
 #include "config.h"
 
+#if !PLATFORM(IOS)
 #if ENABLE(TOUCH_EVENTS)
 
 #include "JSTouch.h"
@@ -35,14 +36,15 @@ using namespace JSC;
 
 namespace WebCore {
 
-JSValue toJSNewlyCreated(ExecState* exec, JSDOMGlobalObject* globalObject, Touch* touch)
+JSValue toJSNewlyCreated(ExecState*, JSDOMGlobalObject* globalObject, Touch* touch)
 {
     if (!touch)
         return jsNull();
 
-    return CREATE_DOM_WRAPPER(exec, globalObject, Touch, touch);
+    return CREATE_DOM_WRAPPER(globalObject, Touch, touch);
 }
 
 } // namespace WebCore
 
 #endif // ENABLE(TOUCH_EVENTS)
+#endif // !PLATFORM(IOS)

@@ -50,43 +50,43 @@ struct NetworkProcessCreationParameters;
 
 class NetworkProcessProxy : public ChildProcessProxy {
 public:
-    static PassRefPtr<NetworkProcessProxy> create(WebContext*);
+    static PassRefPtr<NetworkProcessProxy> create(WebContext&);
     ~NetworkProcessProxy();
 
     void getNetworkProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply>);
 
     DownloadProxy* createDownloadProxy();
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     void setProcessSuppressionEnabled(bool);
 #endif
 
 private:
-    NetworkProcessProxy(WebContext*);
+    NetworkProcessProxy(WebContext&);
 
     // ChildProcessProxy
-    virtual void getLaunchOptions(ProcessLauncher::LaunchOptions&) OVERRIDE;
-    virtual void connectionWillOpen(CoreIPC::Connection*) OVERRIDE;
-    virtual void connectionWillClose(CoreIPC::Connection*) OVERRIDE;
+    virtual void getLaunchOptions(ProcessLauncher::LaunchOptions&) override;
+    virtual void connectionWillOpen(IPC::Connection*) override;
+    virtual void connectionWillClose(IPC::Connection*) override;
 
     void platformGetLaunchOptions(ProcessLauncher::LaunchOptions&);
     void networkProcessCrashedOrFailedToLaunch();
 
-    // CoreIPC::Connection::Client
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-    virtual void didReceiveSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, OwnPtr<CoreIPC::MessageEncoder>&) OVERRIDE;
-    virtual void didClose(CoreIPC::Connection*) OVERRIDE;
-    virtual void didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference messageReceiverName, CoreIPC::StringReference messageName) OVERRIDE;
+    // IPC::Connection::Client
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+    virtual void didReceiveSyncMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&) override;
+    virtual void didClose(IPC::Connection*) override;
+    virtual void didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference messageReceiverName, IPC::StringReference messageName) override;
 
     // Message handlers
-    void didReceiveNetworkProcessProxyMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-    void didCreateNetworkConnectionToWebProcess(const CoreIPC::Attachment&);
+    void didReceiveNetworkProcessProxyMessage(IPC::Connection*, IPC::MessageDecoder&);
+    void didCreateNetworkConnectionToWebProcess(const IPC::Attachment&);
     void didReceiveAuthenticationChallenge(uint64_t pageID, uint64_t frameID, const WebCore::AuthenticationChallenge&, uint64_t challengeID);
 
     // ProcessLauncher::Client
-    virtual void didFinishLaunching(ProcessLauncher*, CoreIPC::Connection::Identifier);
+    virtual void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier);
 
-    WebContext* m_webContext;
+    WebContext& m_webContext;
     
     unsigned m_numPendingConnectionRequests;
     Deque<RefPtr<Messages::WebProcessProxy::GetNetworkProcessConnection::DelayedReply>> m_pendingConnectionReplies;

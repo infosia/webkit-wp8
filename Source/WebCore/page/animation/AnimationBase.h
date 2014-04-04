@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -43,8 +43,7 @@ class AnimationBase;
 class AnimationController;
 class CompositeAnimation;
 class Element;
-class Node;
-class RenderObject;
+class RenderElement;
 class RenderStyle;
 class TimingFunction;
 
@@ -53,10 +52,10 @@ class AnimationBase : public RefCounted<AnimationBase> {
     friend class CSSPropertyAnimation;
 
 public:
-    AnimationBase(const Animation& transition, RenderObject* renderer, CompositeAnimation* compAnim);
+    AnimationBase(const Animation& transition, RenderElement*, CompositeAnimation*);
     virtual ~AnimationBase() { }
 
-    RenderObject* renderer() const { return m_object; }
+    RenderElement* renderer() const { return m_object; }
     void clear()
     {
       endAnimation();
@@ -123,9 +122,11 @@ public:
     }
 
     bool postActive() const { return m_animState == AnimationStateDone; }
+    bool fillingForwards() const { return m_animState == AnimationStateFillingForwards; }
     bool active() const { return !postActive() && !preActive(); }
     bool running() const { return !isNew() && !postActive(); }
     bool paused() const { return m_pauseTime >= 0 || m_animState == AnimationStatePausedNew; }
+    bool inPausedState() const { return m_animState >= AnimationStatePausedNew && m_animState <= AnimationStatePausedRun; }
     bool isNew() const { return m_animState == AnimationStateNew || m_animState == AnimationStatePausedNew; }
     bool waitingForStartTime() const { return m_animState == AnimationStateStartWaitResponse; }
     bool waitingForStyleAvailable() const { return m_animState == AnimationStateStartWaitStyleAvailable; }
@@ -134,7 +135,7 @@ public:
 
     double progress(double scale, double offset, const TimingFunction*) const;
 
-    virtual void animate(CompositeAnimation*, RenderObject*, const RenderStyle* /*currentStyle*/, RenderStyle* /*targetStyle*/, RefPtr<RenderStyle>& /*animatedStyle*/) = 0;
+    virtual void animate(CompositeAnimation*, RenderElement*, const RenderStyle* /*currentStyle*/, RenderStyle* /*targetStyle*/, RefPtr<RenderStyle>& /*animatedStyle*/) = 0;
     virtual void getAnimatedStyle(RefPtr<RenderStyle>& /*animatedStyle*/) = 0;
 
     virtual bool shouldFireEvents() const { return false; }
@@ -154,15 +155,34 @@ public:
     // Does this animation/transition involve the given property?
     virtual bool affectsProperty(CSSPropertyID /*property*/) const { return false; }
 
-    bool isAnimatingProperty(CSSPropertyID property, bool acceleratedOnly, bool isRunningNow) const
+    enum RunningStates {
+        Delaying = 1 << 0,
+        Paused = 1 << 1,
+        Running = 1 << 2,
+        FillingFowards = 1 << 3
+    };
+    typedef unsigned RunningState;
+    bool isAnimatingProperty(CSSPropertyID property, bool acceleratedOnly, RunningState runningState) const
     {
         if (acceleratedOnly && !m_isAccelerated)
             return false;
-            
-        if (isRunningNow)
-            return (!waitingToStart() && !postActive()) && affectsProperty(property);
 
-        return !postActive() && affectsProperty(property);
+        if (!affectsProperty(property))
+            return false;
+
+        if ((runningState & Delaying) && preActive())
+            return true;
+
+        if ((runningState & Paused) && inPausedState())
+            return true;
+
+        if ((runningState & Running) && !inPausedState() && (m_animState >= AnimationStateStartWaitStyleAvailable && m_animState <= AnimationStateDone))
+            return true;
+
+        if ((runningState & FillingFowards) && m_animState == AnimationStateFillingForwards)
+            return true;
+
+        return false;
     }
 
     // FIXME: rename this using the "lists match" terminology.
@@ -214,7 +234,7 @@ protected:
 
     bool isAccelerated() const { return m_isAccelerated; }
 
-    static void setNeedsStyleRecalc(Node*);
+    static void setNeedsStyleRecalc(Element*);
     
     void getTimeToNextEvent(double& time, bool& isLooping) const;
 
@@ -234,7 +254,7 @@ protected:
     double m_totalDuration;
     double m_nextIterationDuration;
 
-    RenderObject* m_object;
+    RenderElement* m_object;
 
     RefPtr<Animation> m_animation;
     CompositeAnimation* m_compAnim;

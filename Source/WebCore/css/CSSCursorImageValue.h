@@ -33,9 +33,9 @@ class SVGElement;
 
 class CSSCursorImageValue : public CSSValue {
 public:
-    static PassRefPtr<CSSCursorImageValue> create(PassRefPtr<CSSValue> imageValue, bool hasHotSpot, const IntPoint& hotSpot)
+    static PassRef<CSSCursorImageValue> create(PassRef<CSSValue> imageValue, bool hasHotSpot, const IntPoint& hotSpot)
     {
-        return adoptRef(new CSSCursorImageValue(imageValue, hasHotSpot, hotSpot));
+        return adoptRef(*new CSSCursorImageValue(std::move(imageValue), hasHotSpot, hotSpot));
     }
 
     ~CSSCursorImageValue();
@@ -53,34 +53,32 @@ public:
 
     bool updateIfSVGCursorIsUsed(Element*);
     StyleImage* cachedImage(CachedResourceLoader*);
-    StyleImage* cachedOrPendingImage(Document*);
+    StyleImage* cachedOrPendingImage(Document&);
 
-#if ENABLE(SVG)
     void removeReferencedElement(SVGElement*);
-#endif
 
     bool equals(const CSSCursorImageValue&) const;
 
 private:
-    CSSCursorImageValue(PassRefPtr<CSSValue> imageValue, bool hasHotSpot, const IntPoint& hotSpot);
+    CSSCursorImageValue(PassRef<CSSValue> imageValue, bool hasHotSpot, const IntPoint& hotSpot);
 
-#if ENABLE(SVG)
+    void detachPendingImage();
+
     bool isSVGCursor() const;
     String cachedImageURL();
     void clearCachedImage();
-#endif
 
-    RefPtr<CSSValue> m_imageValue;
+    Ref<CSSValue> m_imageValue;
 
     bool m_hasHotSpot;
     IntPoint m_hotSpot;
     RefPtr<StyleImage> m_image;
     bool m_accessedImage;
 
-#if ENABLE(SVG)
     HashSet<SVGElement*> m_referencedElements;
-#endif
 };
+
+CSS_VALUE_TYPE_CASTS(CSSCursorImageValue, isCursorImageValue())
 
 } // namespace WebCore
 

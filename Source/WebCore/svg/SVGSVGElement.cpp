@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGSVGElement.h"
 
 #include "AffineTransform.h"
@@ -121,7 +119,7 @@ void SVGSVGElement::didMoveToNewDocument(Document* oldDocument)
 
 const AtomicString& SVGSVGElement::contentScriptType() const
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, defaultValue, ("text/ecmascript", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, defaultValue, ("text/ecmascript", AtomicString::ConstructFromLiteral));
     const AtomicString& n = fastGetAttribute(SVGNames::contentScriptTypeAttr);
     return n.isNull() ? defaultValue : n;
 }
@@ -133,7 +131,7 @@ void SVGSVGElement::setContentScriptType(const AtomicString& type)
 
 const AtomicString& SVGSVGElement::contentStyleType() const
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, defaultValue, ("text/css", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, defaultValue, ("text/css", AtomicString::ConstructFromLiteral));
     const AtomicString& n = fastGetAttribute(SVGNames::contentStyleTypeAttr);
     return n.isNull() ? defaultValue : n;
 }
@@ -221,7 +219,7 @@ void SVGSVGElement::setCurrentTranslate(const FloatPoint& translation)
 void SVGSVGElement::updateCurrentTranslate()
 {
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 
     if (parentNode() == &document() && document().renderView())
         document().renderView()->repaint();
@@ -304,8 +302,8 @@ void SVGSVGElement::svgAttributeChanged(const QualifiedName& attrName)
         || SVGLangSpace::isKnownAttribute(attrName)
         || SVGExternalResourcesRequired::isKnownAttribute(attrName)
         || SVGZoomAndPan::isKnownAttribute(attrName)) {
-        if (renderer())
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer());
+        if (auto renderer = this->renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -337,15 +335,13 @@ PassRefPtr<NodeList> SVGSVGElement::collectIntersectionOrEnclosureList(const Flo
 {
     Vector<Ref<Element>> elements;
 
-    auto svgDescendants = descendantsOfType<SVGElement>(referenceElement ? referenceElement : this);
-    for (auto it = svgDescendants.begin(), end = svgDescendants.end(); it != end; ++it) {
-        const SVGElement* svgElement = &*it;
+    for (auto& svgElement : descendantsOfType<SVGElement>(*(referenceElement ? referenceElement : this))) {
         if (collect == CollectIntersectionList) {
-            if (RenderSVGModelObject::checkIntersection(svgElement->renderer(), rect))
-                elements.append(*const_cast<SVGElement*>(svgElement));
+            if (RenderSVGModelObject::checkIntersection(svgElement.renderer(), rect))
+                elements.append(const_cast<SVGElement&>(svgElement));
         } else {
-            if (RenderSVGModelObject::checkEnclosure(svgElement->renderer(), rect))
-                elements.append(*const_cast<SVGElement*>(svgElement));
+            if (RenderSVGModelObject::checkEnclosure(svgElement.renderer(), rect))
+                elements.append(const_cast<SVGElement&>(svgElement));
         }
     }
 
@@ -445,7 +441,7 @@ AffineTransform SVGSVGElement::localCoordinateSpaceTransform(SVGLocatable::CTMSc
             // We also need to adjust for the zoom level factored into CSS coordinates (bug #96361).
             if (renderer->isSVGRoot()) {
                 location = toRenderSVGRoot(renderer)->localToBorderBoxTransform().mapPoint(location);
-                zoomFactor = 1 / renderer->style()->effectiveZoom();
+                zoomFactor = 1 / renderer->style().effectiveZoom();
             }
 
             // Translate in our CSS parent coordinate space
@@ -480,17 +476,17 @@ bool SVGSVGElement::rendererIsNeeded(const RenderStyle& style)
     return StyledElement::rendererIsNeeded(style);
 }
 
-RenderElement* SVGSVGElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGSVGElement::createElementRenderer(PassRef<RenderStyle> style)
 {
     if (isOutermostSVGSVGElement())
-        return new (arena) RenderSVGRoot(*this);
+        return createRenderer<RenderSVGRoot>(*this, std::move(style));
 
-    return new (arena) RenderSVGViewportContainer(*this);
+    return createRenderer<RenderSVGViewportContainer>(*this, std::move(style));
 }
 
-Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode& rootParent)
 {
-    if (rootParent->inDocument()) {
+    if (rootParent.inDocument()) {
         document().accessSVGExtensions()->addTimeContainer(this);
 
         // Animations are started at the end of document parsing and after firing the load event,
@@ -502,9 +498,9 @@ Node::InsertionNotificationRequest SVGSVGElement::insertedInto(ContainerNode* ro
     return SVGGraphicsElement::insertedInto(rootParent);
 }
 
-void SVGSVGElement::removedFrom(ContainerNode* rootParent)
+void SVGSVGElement::removedFrom(ContainerNode& rootParent)
 {
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         document().accessSVGExtensions()->removeTimeContainer(this);
     SVGGraphicsElement::removedFrom(rootParent);
 }
@@ -535,7 +531,7 @@ void SVGSVGElement::setCurrentTime(float seconds)
 {
     if (std::isnan(seconds))
         return;
-    seconds = max(seconds, 0.0f);
+    seconds = std::max(seconds, 0.0f);
     m_timeContainer->setElapsed(seconds);
 }
 
@@ -583,7 +579,7 @@ FloatSize SVGSVGElement::currentViewportSize() const
 
     if (renderer()->isSVGRoot()) {
         LayoutRect contentBoxRect = toRenderSVGRoot(renderer())->contentBoxRect();
-        return FloatSize(contentBoxRect.width() / renderer()->style()->effectiveZoom(), contentBoxRect.height() / renderer()->style()->effectiveZoom());
+        return FloatSize(contentBoxRect.width() / renderer()->style().effectiveZoom(), contentBoxRect.height() / renderer()->style().effectiveZoom());
     }
 
     FloatRect viewportRect = toRenderSVGViewportContainer(renderer())->viewport();
@@ -649,7 +645,7 @@ Length SVGSVGElement::intrinsicWidth(ConsiderCSSMode mode) const
     }
 
     ASSERT(renderer());
-    return renderer()->style()->width();
+    return renderer()->style().width();
 }
 
 Length SVGSVGElement::intrinsicHeight(ConsiderCSSMode mode) const
@@ -663,7 +659,7 @@ Length SVGSVGElement::intrinsicHeight(ConsiderCSSMode mode) const
     }
 
     ASSERT(renderer());
-    return renderer()->style()->height();
+    return renderer()->style().height();
 }
 
 AffineTransform SVGSVGElement::viewBoxToViewTransform(float viewWidth, float viewHeight) const
@@ -685,7 +681,7 @@ AffineTransform SVGSVGElement::viewBoxToViewTransform(float viewWidth, float vie
 
 void SVGSVGElement::setupInitialView(const String& fragmentIdentifier, Element* anchorNode)
 {
-    RenderObject* renderer = this->renderer();
+    auto renderer = this->renderer();
     SVGViewSpec* view = m_viewSpec.get();
     if (view)
         view->reset();
@@ -696,7 +692,7 @@ void SVGSVGElement::setupInitialView(const String& fragmentIdentifier, Element* 
     if (fragmentIdentifier.startsWith("xpointer(")) {
         // FIXME: XPointer references are ignored (https://bugs.webkit.org/show_bug.cgi?id=17491)
         if (renderer && hadUseCurrentView)
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -710,7 +706,7 @@ void SVGSVGElement::setupInitialView(const String& fragmentIdentifier, Element* 
             view->reset();
 
         if (renderer && (hadUseCurrentView || m_useCurrentView))
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -725,8 +721,8 @@ void SVGSVGElement::setupInitialView(const String& fragmentIdentifier, Element* 
                 SVGSVGElement* svg = static_cast<SVGSVGElement*>(element);
                 svg->inheritViewAttributes(viewElement);
 
-                if (RenderObject* renderer = svg->renderer())
-                    RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+                if (RenderElement* renderer = svg->renderer())
+                    RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
             }
         }
         return;
@@ -769,21 +765,20 @@ void SVGSVGElement::documentDidResumeFromPageCache()
 
 // getElementById on SVGSVGElement is restricted to only the child subtree defined by the <svg> element.
 // See http://www.w3.org/TR/SVG11/struct.html#InterfaceSVGSVGElement
-Element* SVGSVGElement::getElementById(const AtomicString& id)
+Element* SVGSVGElement::getElementById(const String& id)
 {
-    Element* element = treeScope()->getElementById(id);
+    Element* element = treeScope().getElementById(id);
     if (element && element->isDescendantOf(this))
         return element;
 
+    // FIXME: This should use treeScope().getAllElementsById.
     // Fall back to traversing our subtree. Duplicate ids are allowed, the first found will
     // be returned.
-    for (auto element = elementDescendants(this).begin(), end = elementDescendants(this).end(); element != end; ++element) {
-        if (element->getIdAttribute() == id)
-            return &*element;
+    for (auto& element : descendantsOfType<Element>(*this)) {
+        if (element.getIdAttribute() == id)
+            return &element;
     }
     return 0;
 }
 
 }
-
-#endif // ENABLE(SVG)

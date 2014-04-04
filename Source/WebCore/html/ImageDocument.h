@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
@@ -32,9 +32,9 @@ namespace WebCore {
 class CachedImage;
 class ImageDocumentElement;
 
-class ImageDocument FINAL : public HTMLDocument {
+class ImageDocument final : public HTMLDocument {
 public:
-    static PassRefPtr<ImageDocument> create(Frame* frame, const KURL& url)
+    static PassRefPtr<ImageDocument> create(Frame* frame, const URL& url)
     {
         return adoptRef(new ImageDocument(frame, url));
     }
@@ -48,9 +48,9 @@ public:
     void imageClicked(int x, int y);
 
 private:
-    ImageDocument(Frame*, const KURL&);
+    ImageDocument(Frame*, const URL&);
 
-    virtual PassRefPtr<DocumentParser> createParser();
+    virtual PassRefPtr<DocumentParser> createParser() override;
     
     void createDocumentStructure();
     void resizeImageToFit();
@@ -71,20 +71,10 @@ private:
     bool m_shouldShrinkImage;
 };
 
-inline ImageDocument* toImageDocument(Document* document)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!document || document->isImageDocument());
-    return static_cast<ImageDocument*>(document);
-}
+inline bool isImageDocument(const Document& document) { return document.isImageDocument(); }
+void isImageDocument(const ImageDocument&); // Catch unnecessary runtime check of type known at compile time.
 
-inline const ImageDocument* toImageDocument(const Document* document)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!document || document->isImageDocument());
-    return static_cast<const ImageDocument*>(document);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toImageDocument(const ImageDocument*);
+DOCUMENT_TYPE_CASTS(ImageDocument)
 
 }
 

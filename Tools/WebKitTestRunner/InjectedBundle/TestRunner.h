@@ -33,23 +33,13 @@
 #include <string>
 #include <wtf/PassRefPtr.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include <wtf/RetainPtr.h>
 #include <CoreFoundation/CFRunLoop.h>
 typedef RetainPtr<CFRunLoopTimerRef> PlatformTimerRef;
-#elif PLATFORM(WIN)
-typedef UINT_PTR PlatformTimerRef;
-#elif PLATFORM(QT)
-#include <QTimer>
-typedef QTimer PlatformTimerRef;
 #elif PLATFORM(GTK)
 typedef unsigned int PlatformTimerRef;
 #elif PLATFORM(EFL)
-#if USE(EO)
-typedef struct _Eo Ecore_Timer;
-#else
-typedef struct _Ecore_Timer Ecore_Timer;
-#endif
 typedef Ecore_Timer* PlatformTimerRef;
 #endif
 
@@ -146,7 +136,6 @@ public:
     void clearApplicationCacheForOrigin(JSStringRef origin);
     void setAppCacheMaximumSize(uint64_t);
     long long applicationCacheDiskUsageForOrigin(JSStringRef origin);
-    void setApplicationCacheOriginQuota(unsigned long long);
     void disallowIncreaseForApplicationCacheQuota();
     bool shouldDisallowIncreaseForApplicationCacheQuota() { return m_disallowIncreaseForApplicationCacheQuota; }
     JSValueRef originsWithApplicationCache();
@@ -204,7 +193,7 @@ public:
 
     void showWebInspector();
     void closeWebInspector();
-    void evaluateInWebInspector(long callId, JSStringRef script);
+    void evaluateInWebInspector(JSStringRef script);
 
     void setPOSIXLocale(JSStringRef);
 
@@ -224,6 +213,12 @@ public:
     
     bool globalFlag() const { return m_globalFlag; }
     void setGlobalFlag(bool value) { m_globalFlag = value; }
+
+    double databaseDefaultQuota() const { return m_databaseDefaultQuota; }
+    void setDatabaseDefaultQuota(double quota) { m_databaseDefaultQuota = quota; }
+
+    double databaseMaxQuota() const { return m_databaseMaxQuota; }
+    void setDatabaseMaxQuota(double quota) { m_databaseMaxQuota = quota; }
 
     void addChromeInputField(JSValueRef);
     void removeChromeInputField(JSValueRef);
@@ -256,8 +251,6 @@ public:
     void setGeolocationPermission(bool);
     void setMockGeolocationPosition(double latitude, double longitude, double accuracy, JSValueRef altitude, JSValueRef altitudeAccuracy, JSValueRef heading, JSValueRef speed);
     void setMockGeolocationPositionUnavailableError(JSStringRef message);
-
-    JSRetainPtr<JSStringRef> platformName();
 
     void setPageVisibility(JSStringRef state);
     void resetPageVisibility();
@@ -325,6 +318,9 @@ private:
     bool m_customFullScreenBehavior;
 
     int m_timeout;
+
+    double m_databaseDefaultQuota;
+    double m_databaseMaxQuota;
 
     bool m_userStyleSheetEnabled;
     WKRetainPtr<WKStringRef> m_userStyleSheetLocation;

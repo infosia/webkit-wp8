@@ -366,7 +366,7 @@ void EventSenderProxy::mouseUp(unsigned button, WKEventModifiers wkModifiers)
         m_mouseButton = kWKEventMouseButtonNoButton;
 
     m_clickPosition = m_position;
-    m_clickTime = ecore_time_get();
+    m_clickTime = currentEventTime();
 }
 
 void EventSenderProxy::mouseMoveTo(double x, double y)
@@ -390,6 +390,13 @@ void EventSenderProxy::mouseScrollBy(int horizontal, int vertical)
 void EventSenderProxy::continuousMouseScrollBy(int horizontal, int vertical, bool paged)
 {
     notImplemented();
+}
+
+void EventSenderProxy::mouseScrollByWithWheelAndMomentumPhases(int x, int y, int /*phase*/, int /*momentum*/)
+{
+    // EFL does not have the concept of wheel gesture phases or momentum. Just relay to
+    // the mouse wheel handler.
+    mouseScrollBy(x, y);
 }
 
 void EventSenderProxy::leapForward(int milliseconds)

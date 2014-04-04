@@ -33,15 +33,13 @@
 #import "PluginProcessCreationParameters.h"
 #import "PluginProcessMessages.h"
 #import "WebKitSystemInterface.h"
+#import <QuartzCore/CARemoteLayerServer.h>
 #import <WebCore/FileSystem.h>
-#import <WebCore/KURL.h>
-#import <WebCore/RuntimeApplicationChecks.h>
+#import <WebCore/URL.h>
 #import <crt_externs.h>
 #import <mach-o/dyld.h>
 #import <spawn.h>
 #import <wtf/text/CString.h>
-
-#import <QuartzCore/CARemoteLayerServer.h>
 
 @interface WKPlaceholderModalWindow : NSWindow 
 @end
@@ -69,8 +67,12 @@ bool PluginProcessProxy::pluginNeedsExecutableHeap(const PluginModuleInfo& plugi
     
     if (pluginInfo.bundleIdentifier == "com.apple.QuickTime Plugin.plugin")
         return false;
-    
-    return true;
+
+    // We only allow 32-bit plug-ins to have the heap marked executable.
+    if (pluginInfo.pluginArchitecture == CPU_TYPE_X86)
+        return true;
+
+    return false;
 }
 
 bool PluginProcessProxy::createPropertyListFile(const PluginModuleInfo& plugin)
@@ -123,23 +125,17 @@ bool PluginProcessProxy::createPropertyListFile(const PluginModuleInfo& plugin)
     return true;
 }
 
-#if HAVE(XPC)
 static bool shouldUseXPC()
 {
     if (id value = [[NSUserDefaults standardUserDefaults] objectForKey:@"WebKit2UseXPCServiceForWebProcess"])
         return [value boolValue];
 
 #if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
-    // FIXME: Temporary workaround for <rdar://problem/13236883>
-    if (applicationIsSafari())
-        return false;
-
     return true;
 #else
     return false;
 #endif
 }
-#endif
 
 void PluginProcessProxy::platformGetLaunchOptions(ProcessLauncher::LaunchOptions& launchOptions, const PluginProcessAttributes& pluginProcessAttributes)
 {
@@ -151,9 +147,8 @@ void PluginProcessProxy::platformGetLaunchOptions(ProcessLauncher::LaunchOptions
     if (pluginProcessAttributes.sandboxPolicy == PluginProcessSandboxPolicyUnsandboxed)
         launchOptions.extraInitializationData.add("disable-sandbox", "1");
 
-#if HAVE(XPC)
-    launchOptions.useXPC = shouldUseXPC();
-#endif
+    // FIXME: We should still use XPC for plug-ins that want the heap to be executable, see <rdar://problem/16059483>.
+    launchOptions.useXPC = shouldUseXPC() && !launchOptions.executableHeap;
 }
 
 void PluginProcessProxy::platformInitializePluginProcess(PluginProcessCreationParameters& parameters)
@@ -161,24 +156,20 @@ void PluginProcessProxy::platformInitializePluginProcess(PluginProcessCreationPa
     // For now only Flash is known to behave with asynchronous plug-in initialization.
     parameters.supportsAsynchronousPluginInitialization = m_pluginProcessAttributes.moduleInfo.bundleIdentifier == "com.macromedia.Flash Player.plugin";
 
-#if USE(ACCELERATED_COMPOSITING) && HAVE(HOSTED_CORE_ANIMATION)
+#if HAVE(HOSTED_CORE_ANIMATION)
     mach_port_t renderServerPort = [[CARemoteLayerServer sharedServer] serverPort];
     if (renderServerPort != MACH_PORT_NULL)
-        parameters.acceleratedCompositingPort = CoreIPC::MachPort(renderServerPort, MACH_MSG_TYPE_COPY_SEND);
+        parameters.acceleratedCompositingPort = IPC::MachPort(renderServerPort, MACH_MSG_TYPE_COPY_SEND);
 #endif
 }
 
 bool PluginProcessProxy::getPluginProcessSerialNumber(ProcessSerialNumber& pluginProcessSerialNumber)
 {
     pid_t pluginProcessPID = processIdentifier();
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     return GetProcessForPID(pluginProcessPID, &pluginProcessSerialNumber) == noErr;
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 }
 
 void PluginProcessProxy::makePluginProcessTheFrontProcess()
@@ -187,28 +178,20 @@ void PluginProcessProxy::makePluginProcessTheFrontProcess()
     if (!getPluginProcessSerialNumber(pluginProcessSerialNumber))
         return;
 
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     SetFrontProcess(&pluginProcessSerialNumber);
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 }
 
 void PluginProcessProxy::makeUIProcessTheFrontProcess()
 {
     ProcessSerialNumber processSerialNumber;
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     GetCurrentProcess(&processSerialNumber);
     SetFrontProcess(&processSerialNumber);            
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 }
 
 void PluginProcessProxy::setFullscreenWindowIsShowing(bool fullscreenWindowIsShowing)
@@ -240,14 +223,10 @@ void PluginProcessProxy::exitFullscreen()
 {
     // If the plug-in host is the current application then we should bring ourselves to the front when it exits full-screen mode.
     ProcessSerialNumber frontProcessSerialNumber;
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     GetFrontProcess(&frontProcessSerialNumber);
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 
     // The UI process must be the front process in order to change the presentation mode.
     makeUIProcessTheFrontProcess();
@@ -260,23 +239,15 @@ void PluginProcessProxy::exitFullscreen()
     // If the plug-in process was not the front process, switch back to the previous front process.
     // (Otherwise we'll keep the UI process as the front process).
     Boolean isPluginProcessFrontProcess;
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     SameProcess(&frontProcessSerialNumber, &pluginProcessSerialNumber, &isPluginProcessFrontProcess);
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
     if (!isPluginProcessFrontProcess) {
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
         SetFrontProcess(&frontProcessSerialNumber);
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
     }
 }
 
@@ -299,7 +270,7 @@ void PluginProcessProxy::beginModal()
     ASSERT(!m_activationObserver);
     
     m_placeholderWindow = adoptNS([[WKPlaceholderModalWindow alloc] initWithContentRect:NSMakeRect(0, 0, 1, 1) styleMask:NSBorderlessWindowMask backing:NSBackingStoreBuffered defer:YES]);
-    [m_placeholderWindow.get() setReleasedWhenClosed:NO];
+    [m_placeholderWindow setReleasedWhenClosed:NO];
     
     m_activationObserver = [[NSNotificationCenter defaultCenter] addObserverForName:NSApplicationWillBecomeActiveNotification object:NSApp queue:nil
                                                                          usingBlock:^(NSNotification *){ applicationDidBecomeActive(); }];
@@ -310,7 +281,7 @@ void PluginProcessProxy::beginModal()
 
     [NSApp runModalForWindow:m_placeholderWindow.get()];
     
-    [m_placeholderWindow.get() orderOut:nil];
+    [m_placeholderWindow orderOut:nil];
     m_placeholderWindow = nullptr;
 }
 
@@ -462,10 +433,10 @@ void PluginProcessProxy::openURL(const String& urlString, bool& result, int32_t&
 
     result = true;
     CFURLRef launchedURL;
-    status = LSOpenCFURLRef(KURL(ParsedURLString, urlString).createCFURL().get(), &launchedURL);
+    status = LSOpenCFURLRef(URL(ParsedURLString, urlString).createCFURL().get(), &launchedURL);
 
     if (launchedURL) {
-        launchedURLString = KURL(launchedURL).string();
+        launchedURLString = URL(launchedURL).string();
         CFRelease(launchedURL);
     }
 }
@@ -489,6 +460,18 @@ void PluginProcessProxy::openFile(const String& fullPath, bool& result)
 
     result = true;
     [[NSWorkspace sharedWorkspace] openFile:fullPath];
+}
+
+int pluginProcessLatencyQOS()
+{
+    static int qos = [[NSUserDefaults standardUserDefaults] integerForKey:@"WebKitPluginProcessLatencyQOS"];
+    return qos;
+}
+
+int pluginProcessThroughputQOS()
+{
+    static int qos = [[NSUserDefaults standardUserDefaults] integerForKey:@"WebKitPluginProcessThroughputQOS"];
+    return qos;
 }
 
 } // namespace WebKit

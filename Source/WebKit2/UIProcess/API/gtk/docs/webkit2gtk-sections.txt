@@ -24,6 +24,7 @@ WEBKIT_OBSOLETE_API
 <TITLE>WebKitWebContext</TITLE>
 WebKitWebContext
 WebKitCacheModel
+WebKitProcessModel
 WebKitTLSErrorsPolicy
 webkit_web_context_get_default
 webkit_web_context_get_cache_model
@@ -46,8 +47,12 @@ webkit_web_context_set_preferred_languages
 webkit_web_context_set_tls_errors_policy
 webkit_web_context_get_tls_errors_policy
 webkit_web_context_set_web_extensions_directory
+webkit_web_context_set_web_extensions_initialization_user_data
 webkit_web_context_prefetch_dns
 webkit_web_context_set_disk_cache_directory
+webkit_web_context_allow_tls_certificate_for_host
+webkit_web_context_get_process_model
+webkit_web_context_set_process_model
 
 <SUBSECTION URI Scheme>
 WebKitURISchemeRequestCallback
@@ -90,6 +95,7 @@ WEBKIT_EDITING_COMMAND_REDO
 <SUBSECTION>
 webkit_web_view_new
 webkit_web_view_new_with_context
+webkit_web_view_new_with_related_view
 webkit_web_view_new_with_group
 webkit_web_view_get_context
 webkit_web_view_get_group
@@ -363,6 +369,12 @@ webkit_settings_get_enable_accelerated_2d_canvas
 webkit_settings_set_enable_accelerated_2d_canvas
 webkit_settings_get_enable_write_console_messages_to_stdout
 webkit_settings_set_enable_write_console_messages_to_stdout
+webkit_settings_get_enable_media_stream
+webkit_settings_set_enable_media_stream
+webkit_settings_get_enable_spatial_navigation
+webkit_settings_set_enable_spatial_navigation
+webkit_settings_get_enable_mediasource
+webkit_settings_set_enable_mediasource
 
 <SUBSECTION Standard>
 WebKitSettingsClass
@@ -561,6 +573,7 @@ webkit_navigation_policy_decision_get_type
 WebKitResponsePolicyDecision
 webkit_response_policy_decision_get_request
 webkit_response_policy_decision_get_response
+webkit_response_policy_decision_is_mime_type_supported
 
 <SUBSECTION Standard>
 WebKitResponsePolicyDecisionClass
@@ -1018,6 +1031,7 @@ webkit_web_view_group_get_type
 <FILE>WebKitWebExtension</FILE>
 WebKitWebExtension
 WebKitWebExtensionInitializeFunction
+WebKitWebExtensionInitializeWithUserDataFunction
 webkit_web_extension_get_page
 
 <SUBSECTION Standard>
@@ -1096,4 +1110,19 @@ WEBKIT_SCRIPT_WORLD_GET_CLASS
 <SUBSECTION Private>
 WebKitScriptWorldPrivate
 webkit_script_world_get_type
+</SECTION>
+
+<SECTION>
+<FILE>WebKitCertificateInfo</FILE>
+WebKitCertificateInfo
+webkit_certificate_info_copy
+webkit_certificate_info_free
+webkit_certificate_info_get_tls_certificate
+webkit_certificate_info_get_tls_errors
+
+<SUBSECTION Standard>
+WEBKIT_TYPE_CERTIFICATE_INFO
+
+<SUBSECTION Private>
+webkit_certificate_info_get_type
 </SECTION>

@@ -46,6 +46,12 @@ class Checkout(object):
         self._executive = executive or self._scm._executive
         self._filesystem = filesystem or self._scm._filesystem
 
+    def scripts_directory(self):
+        return self._filesystem.join(self._scm.checkout_root, "Tools", "Scripts")
+
+    def script_path(self, script_name):
+        return self._filesystem.join(self.scripts_directory(), script_name)
+
     def is_path_to_changelog(self, path):
         return self._filesystem.basename(path) == "ChangeLog"
 
@@ -84,10 +90,11 @@ class Checkout(object):
             return None
         changelog_entry = changelog_entries[0]
         return {
-            "bug_id": parse_bug_id_from_changelog(changelog_entry.contents()),
+            "bug_id": changelog_entry.bug_id(),
             "author_name": changelog_entry.author_name(),
             "author_email": changelog_entry.author_email(),
             "author": changelog_entry.author(),
+            "bug_description": changelog_entry.bug_description(),
             "reviewer_text": changelog_entry.reviewer_text(),
             "reviewer": changelog_entry.reviewer(),
             "contents": changelog_entry.contents(),
@@ -125,7 +132,7 @@ class Checkout(object):
             raise ScriptError(message="Found no modified ChangeLogs, cannot create a commit message.\n"
                               "All changes require a ChangeLog.  See:\n %s" % urls.contribution_guidelines)
 
-        message_text = self._scm.run([self._scm.script_path('commit-log-editor'), '--print-log'] + changelog_paths, return_stderr=return_stderr)
+        message_text = self._scm.run([self.script_path('commit-log-editor'), '--print-log'] + changelog_paths, return_stderr=return_stderr)
         return CommitMessage(message_text.splitlines())
 
     def recent_commit_infos_for_files(self, paths):
@@ -150,7 +157,7 @@ class Checkout(object):
         # We should detect and handle that case.
         # FIXME: Move _scm.script_path here once we get rid of all the dependencies.
         # --force (continue after errors) is the common case, so we always use it.
-        args = [self._scm.script_path('svn-apply'), "--force"]
+        args = [self.script_path('svn-apply'), "--force"]
         if patch.reviewer():
             args += ['--reviewer', patch.reviewer().full_name]
         self._executive.run_command(args, input=patch.contents(), cwd=self._scm.checkout_root)

@@ -15,10 +15,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,7 +32,6 @@
 #include "config.h"
 #include "EventTarget.h"
 
-#include "Event.h"
 #include "EventException.h"
 #include "InspectorInstrumentation.h"
 #include "ScriptController.h"
@@ -178,41 +177,6 @@ static const AtomicString& legacyType(const Event* event)
     return emptyAtom;
 }
 
-static inline bool shouldObserveLegacyType(const AtomicString& legacyTypeName, bool hasLegacyTypeListeners, bool hasNewTypeListeners, FeatureObserver::Feature& feature)
-{
-    if (legacyTypeName == eventNames().webkitTransitionEndEvent) {
-        if (hasLegacyTypeListeners) {
-            if (hasNewTypeListeners)
-                feature = FeatureObserver::PrefixedAndUnprefixedTransitionEndEvent;
-            else
-                feature = FeatureObserver::PrefixedTransitionEndEvent;
-        } else {
-            ASSERT(hasNewTypeListeners);
-            feature = FeatureObserver::UnprefixedTransitionEndEvent;
-        }
-        return true;
-    }
-    return false;
-}
-
-void EventTarget::setupLegacyTypeObserverIfNeeded(const AtomicString& legacyTypeName, bool hasLegacyTypeListeners, bool hasNewTypeListeners)
-{
-    ASSERT(!legacyTypeName.isEmpty());
-    ASSERT(hasLegacyTypeListeners || hasNewTypeListeners);
-
-    ScriptExecutionContext* context = scriptExecutionContext();
-    if (!context || !context->isDocument())
-        return;
-
-    Document* document = toDocument(context);
-    if (!document->domWindow())
-        return;
-
-    FeatureObserver::Feature feature;
-    if (shouldObserveLegacyType(legacyTypeName, hasLegacyTypeListeners, hasNewTypeListeners, feature))
-        FeatureObserver::observe(document->domWindow(), feature);
-}
-
 bool EventTarget::fireEventListeners(Event* event)
 {
     ASSERT(!NoEventDispatchAssertion::isEventDispatchForbidden());
@@ -238,9 +202,6 @@ bool EventTarget::fireEventListeners(Event* event)
         event->setType(typeName);
     }
 
-    if (!legacyTypeName.isEmpty() && (legacyListenersVector || listenersVector))
-        setupLegacyTypeObserverIfNeeded(legacyTypeName, !!legacyListenersVector, !!listenersVector);
-
     return !event->defaultPrevented();
 }
         
@@ -256,8 +217,17 @@ void EventTarget::fireEventListeners(Event* event, EventTargetData* d, EventList
     size_t i = 0;
     size_t size = entry.size();
     if (!d->firingEventIterators)
-        d->firingEventIterators = adoptPtr(new FiringEventIteratorVector);
+        d->firingEventIterators = std::make_unique<FiringEventIteratorVector>();
     d->firingEventIterators->append(FiringEventIterator(event->type(), i, size));
+
+    ScriptExecutionContext* context = scriptExecutionContext();
+    Document* document = nullptr;
+    InspectorInstrumentationCookie willDispatchEventCookie;
+    if (context && context->isDocument()) {
+        document = toDocument(context);
+        willDispatchEventCookie = InspectorInstrumentation::willDispatchEvent(document, *event, size > 0);
+    }
+
     for (; i < size; ++i) {
         RegisteredEventListener& registeredListener = entry[i];
         if (event->eventPhase() == Event::CAPTURING_PHASE && !registeredListener.useCapture)
@@ -270,7 +240,6 @@ void EventTarget::fireEventListeners(Event* event, EventTargetData* d, EventList
         if (event->immediatePropagationStopped())
             break;
 
-        ScriptExecutionContext* context = scriptExecutionContext();
         InspectorInstrumentationCookie cookie = InspectorInstrumentation::willHandleEvent(context, event);
         // To match Mozilla, the AT_TARGET phase fires both capturing and bubbling
         // event listeners, even though that violates some versions of the DOM spec.
@@ -280,18 +249,16 @@ void EventTarget::fireEventListeners(Event* event, EventTargetData* d, EventList
         InspectorInstrumentation::didHandleEvent(cookie);
     }
     d->firingEventIterators->removeLast();
-    if (userEventWasHandled) {
-        ScriptExecutionContext* context = scriptExecutionContext();
-        if (context && context->isDocument()) {
-            Document* document = toDocument(context);
-            document->resetLastHandledUserGestureTimestamp();
-        }
-    }
+    if (userEventWasHandled && document)
+        document->resetLastHandledUserGestureTimestamp();
+
+    if (document)
+        InspectorInstrumentation::didDispatchEvent(willDispatchEventCookie);
 }
 
 const EventListenerVector& EventTarget::getEventListeners(const AtomicString& eventType)
 {
-    DEFINE_STATIC_LOCAL(EventListenerVector, emptyVector, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(EventListenerVector, emptyVector, ());
 
     EventTargetData* d = eventTargetData();
     if (!d)

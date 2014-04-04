@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +26,6 @@
 #ifndef DFGGraph_h
 #define DFGGraph_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "AssemblyHelpers.h"
@@ -40,7 +38,9 @@
 #include "DFGNode.h"
 #include "DFGNodeAllocator.h"
 #include "DFGPlan.h"
+#include "DFGScannable.h"
 #include "DFGVariadicFunction.h"
+#include "InlineCallFrameSet.h"
 #include "JSStack.h"
 #include "MethodOfGettingAValueProfile.h"
 #include <wtf/BitVector.h>
@@ -60,6 +60,12 @@ struct StorageAccessData {
     unsigned identifierNumber;
 };
 
+struct InlineVariableData {
+    InlineCallFrame* inlineCallFrame;
+    unsigned argumentPositionStart;
+    VariableAccessData* calleeVariable;
+};
+
 enum AddSpeculationMode {
     DontSpeculateInt32,
     SpeculateInt32AndTruncateConstants,
@@ -71,7 +77,7 @@ enum AddSpeculationMode {
 //
 // The order may be significant for nodes with side-effects (property accesses, value conversions).
 // Nodes that are 'dead' remain in the vector with refCount 0.
-class Graph {
+class Graph : public virtual Scannable {
 public:
     Graph(VM&, Plan&, LongLivedState&);
     ~Graph();
@@ -169,7 +175,10 @@ public:
     
     void convertToConstant(Node* node, JSValue value)
     {
-        convertToConstant(node, constantRegisterForConstant(value));
+        if (value.isObject())
+            node->convertToWeakConstant(value.asCell());
+        else
+            convertToConstant(node, constantRegisterForConstant(value));
     }
 
     // CodeBlock is optional, but may allow additional information to be dumped (e.g. Identifier names).
@@ -287,6 +296,13 @@ public:
             && negate->canSpeculateInt52();
     }
     
+    VirtualRegister bytecodeRegisterForArgument(CodeOrigin codeOrigin, int argument)
+    {
+        return VirtualRegister(
+            codeOrigin.inlineCallFrame->stackOffset +
+            baselineCodeBlockFor(codeOrigin)->argumentIndexAfterCapture(argument));
+    }
+    
     // Helper methods to check nodes for constants.
     bool isConstant(Node* node)
     {
@@ -346,7 +362,13 @@ public:
     }
     int32_t valueOfInt32Constant(Node* node)
     {
-        return valueOfJSConstant(node).asInt32();
+        JSValue value = valueOfJSConstant(node);
+        if (!value.isInt32()) {
+            dataLog("Value isn't int32: ", value, "\n");
+            dump();
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+        return value.asInt32();
     }
     double valueOfNumberConstant(Node* node)
     {
@@ -402,9 +424,28 @@ public:
         return executableFor(codeOrigin.inlineCallFrame);
     }
     
+    CodeBlock* baselineCodeBlockFor(InlineCallFrame* inlineCallFrame)
+    {
+        if (!inlineCallFrame)
+            return m_profiledBlock;
+        return baselineCodeBlockForInlineCallFrame(inlineCallFrame);
+    }
+    
     CodeBlock* baselineCodeBlockFor(const CodeOrigin& codeOrigin)
     {
         return baselineCodeBlockForOriginAndBaselineCodeBlock(codeOrigin, m_profiledBlock);
+    }
+    
+    bool isStrictModeFor(CodeOrigin codeOrigin)
+    {
+        if (!codeOrigin.inlineCallFrame)
+            return m_codeBlock->isStrictMode();
+        return jsCast<FunctionExecutable*>(codeOrigin.inlineCallFrame->executable.get())->isStrictMode();
+    }
+    
+    ECMAMode ecmaModeFor(CodeOrigin codeOrigin)
+    {
+        return isStrictModeFor(codeOrigin) ? StrictMode : NotStrictMode;
     }
     
     bool masqueradesAsUndefinedWatchpointIsStillValid(const CodeOrigin& codeOrigin)
@@ -425,42 +466,73 @@ public:
     
     bool hasExitSite(Node* node, ExitKind exitKind)
     {
-        return hasExitSite(node->codeOrigin, exitKind);
+        return hasExitSite(node->origin.semantic, exitKind);
     }
     
-    int argumentsRegisterFor(const CodeOrigin& codeOrigin)
+    VirtualRegister argumentsRegisterFor(InlineCallFrame* inlineCallFrame)
     {
-        if (!codeOrigin.inlineCallFrame)
+        if (!inlineCallFrame)
+            return m_profiledBlock->argumentsRegister();
+        
+        return VirtualRegister(baselineCodeBlockForInlineCallFrame(
+            inlineCallFrame)->argumentsRegister().offset() +
+            inlineCallFrame->stackOffset);
+    }
+    
+    VirtualRegister argumentsRegisterFor(const CodeOrigin& codeOrigin)
+    {
+        return argumentsRegisterFor(codeOrigin.inlineCallFrame);
+    }
+    
+    VirtualRegister machineArgumentsRegisterFor(InlineCallFrame* inlineCallFrame)
+    {
+        if (!inlineCallFrame)
             return m_codeBlock->argumentsRegister();
         
-        return baselineCodeBlockForInlineCallFrame(
-            codeOrigin.inlineCallFrame)->argumentsRegister() +
-            codeOrigin.inlineCallFrame->stackOffset;
+        return inlineCallFrame->argumentsRegister;
     }
     
-    int uncheckedArgumentsRegisterFor(const CodeOrigin& codeOrigin)
+    VirtualRegister machineArgumentsRegisterFor(const CodeOrigin& codeOrigin)
     {
-        if (!codeOrigin.inlineCallFrame)
-            return m_codeBlock->uncheckedArgumentsRegister();
+        return machineArgumentsRegisterFor(codeOrigin.inlineCallFrame);
+    }
+    
+    VirtualRegister uncheckedArgumentsRegisterFor(InlineCallFrame* inlineCallFrame)
+    {
+        if (!inlineCallFrame)
+            return m_profiledBlock->uncheckedArgumentsRegister();
         
-        CodeBlock* codeBlock = baselineCodeBlockForInlineCallFrame(
-            codeOrigin.inlineCallFrame);
+        CodeBlock* codeBlock = baselineCodeBlockForInlineCallFrame(inlineCallFrame);
         if (!codeBlock->usesArguments())
-            return InvalidVirtualRegister;
+            return VirtualRegister();
         
-        return codeBlock->argumentsRegister() +
-            codeOrigin.inlineCallFrame->stackOffset;
+        return VirtualRegister(codeBlock->argumentsRegister().offset() +
+            inlineCallFrame->stackOffset);
     }
     
-    int uncheckedActivationRegisterFor(const CodeOrigin&)
+    VirtualRegister uncheckedArgumentsRegisterFor(const CodeOrigin& codeOrigin)
     {
-        // This will ignore CodeOrigin because we don't inline code that uses activations.
-        // Hence for inlined call frames it will return the outermost code block's
-        // activation register. This method is only used to compare the result to a local
-        // to see if we're mucking with the activation register. Hence if we return the
-        // "wrong" activation register for the frame then it will compare false, which is
-        // what we wanted.
-        return m_codeBlock->uncheckedActivationRegister();
+        return uncheckedArgumentsRegisterFor(codeOrigin.inlineCallFrame);
+    }
+    
+    VirtualRegister activationRegister()
+    {
+        return m_profiledBlock->activationRegister();
+    }
+    
+    VirtualRegister uncheckedActivationRegister()
+    {
+        return m_profiledBlock->uncheckedActivationRegister();
+    }
+    
+    VirtualRegister machineActivationRegister()
+    {
+        return m_profiledBlock->activationRegister();
+    }
+    
+    VirtualRegister uncheckedMachineActivationRegister()
+    {
+        return m_profiledBlock->uncheckedActivationRegister();
     }
     
     ValueProfile* valueProfileFor(Node* node)
@@ -468,24 +540,24 @@ public:
         if (!node)
             return 0;
         
-        CodeBlock* profiledBlock = baselineCodeBlockFor(node->codeOrigin);
+        CodeBlock* profiledBlock = baselineCodeBlockFor(node->origin.semantic);
         
         if (node->op() == GetArgument)
-            return profiledBlock->valueProfileForArgument(operandToArgument(node->local()));
+            return profiledBlock->valueProfileForArgument(node->local().toArgument());
         
         if (node->hasLocal(*this)) {
             if (m_form == SSA)
                 return 0;
-            if (!operandIsArgument(node->local()))
+            if (!node->local().isArgument())
                 return 0;
-            int argument = operandToArgument(node->local());
+            int argument = node->local().toArgument();
             if (node->variableAccessData() != m_arguments[argument]->variableAccessData())
                 return 0;
             return profiledBlock->valueProfileForArgument(argument);
         }
         
         if (node->hasHeapPrediction())
-            return profiledBlock->valueProfileForBytecodeOffset(node->codeOrigin.bytecodeIndex);
+            return profiledBlock->valueProfileForBytecodeOffset(node->origin.semantic.bytecodeIndex);
         
         return 0;
     }
@@ -495,21 +567,16 @@ public:
         if (!node)
             return MethodOfGettingAValueProfile();
         
-        CodeBlock* profiledBlock = baselineCodeBlockFor(node->codeOrigin);
+        CodeBlock* profiledBlock = baselineCodeBlockFor(node->origin.semantic);
         
         if (node->op() == GetLocal) {
             return MethodOfGettingAValueProfile::fromLazyOperand(
                 profiledBlock,
                 LazyOperandValueProfileKey(
-                    node->codeOrigin.bytecodeIndex, node->local()));
+                    node->origin.semantic.bytecodeIndex, node->local()));
         }
         
         return MethodOfGettingAValueProfile(valueProfileFor(node));
-    }
-    
-    bool needsActivation() const
-    {
-        return m_codeBlock->needsFullScopeChain() && m_codeBlock->codeType() != GlobalCode;
     }
     
     bool usesArguments() const
@@ -584,14 +651,8 @@ public:
         if (!(node->flags() & NodeMightClobber))
             return false;
         switch (node->op()) {
-        case ValueAdd:
-        case CompareLess:
-        case CompareLessEq:
-        case CompareGreater:
-        case CompareGreaterEq:
-        case CompareEq:
-            return !isPredictedNumerical(node);
         case GetByVal:
+        case PutByValDirect:
         case PutByVal:
         case PutByValAlias:
             return !byValIsPure(node);
@@ -719,6 +780,8 @@ public:
     
     void invalidateCFG();
     
+    void clearFlagsOnAllNodes(NodeFlags);
+    
     void clearReplacements();
     void initializeNodeOwners();
     
@@ -730,6 +793,24 @@ public:
     DesiredWatchpoints& watchpoints() { return m_plan.watchpoints; }
     DesiredStructureChains& chains() { return m_plan.chains; }
     
+    FullBytecodeLiveness& livenessFor(CodeBlock*);
+    FullBytecodeLiveness& livenessFor(InlineCallFrame*);
+    bool isLiveInBytecode(VirtualRegister, CodeOrigin);
+    
+    unsigned frameRegisterCount();
+    unsigned stackPointerOffset();
+    unsigned requiredRegisterCountForExit();
+    unsigned requiredRegisterCountForExecutionAndExit();
+    
+    JSActivation* tryGetActivation(Node*);
+    WriteBarrierBase<Unknown>* tryGetRegisters(Node*);
+    
+    JSArrayBufferView* tryGetFoldableView(Node*);
+    JSArrayBufferView* tryGetFoldableView(Node*, ArrayMode);
+    JSArrayBufferView* tryGetFoldableViewForChild1(Node*);
+    
+    virtual void visitChildren(SlotVisitor&) override;
+    
     VM& m_vm;
     Plan& m_plan;
     CodeBlock* m_codeBlock;
@@ -737,6 +818,8 @@ public:
     
     NodeAllocator& m_allocator;
 
+    Operands<AbstractValue> m_mustHandleAbstractValues;
+    
     Vector< RefPtr<BasicBlock> , 8> m_blocks;
     Vector<Edge, 16> m_varArgChildren;
     Vector<StorageAccessData> m_storageAccessData;
@@ -746,15 +829,28 @@ public:
     SegmentedVector<StructureSet, 16> m_structureSet;
     SegmentedVector<StructureTransitionData, 8> m_structureTransitionData;
     SegmentedVector<NewArrayBufferData, 4> m_newArrayBufferData;
-    SegmentedVector<SwitchData, 4> m_switchData;
+    Bag<BranchData> m_branchData;
+    Bag<SwitchData> m_switchData;
+    Bag<MultiGetByOffsetData> m_multiGetByOffsetData;
+    Bag<MultiPutByOffsetData> m_multiPutByOffsetData;
+    Vector<InlineVariableData, 4> m_inlineVariableData;
+    OwnPtr<InlineCallFrameSet> m_inlineCallFrames;
+    HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>> m_bytecodeLiveness;
     bool m_hasArguments;
     HashSet<ExecutableBase*> m_executablesWhoseArgumentsEscaped;
-    BitVector m_preservedVars;
     BitVector m_lazyVars;
     Dominators m_dominators;
     NaturalLoops m_naturalLoops;
     unsigned m_localVars;
+    unsigned m_nextMachineLocal;
     unsigned m_parameterSlots;
+    int m_machineCaptureStart;
+    std::unique_ptr<SlowArgument[]> m_slowArguments;
+
+#if USE(JSVALUE32_64)
+    HashMap<double, double*> m_doubleConstantsMap;
+    std::unique_ptr<Bag<double>> m_doubleConstants;
+#endif
     
     OptimizationFixpointState m_fixpointState;
     GraphForm m_form;

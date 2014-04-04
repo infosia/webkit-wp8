@@ -27,23 +27,21 @@
 #include "config.h"
 
 #if USE(COORDINATED_GRAPHICS)
+
 #include "CompositingCoordinator.h"
 
-#include "Frame.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
 #include "InspectorController.h"
+#include "MainFrame.h"
 #include "Page.h"
 #include "Settings.h"
 #include <wtf/CurrentTime.h>
 #include <wtf/TemporaryChange.h>
 
-namespace WebCore {
+// FIXME: Having this in the platform directory is a layering violation. This does not belong here.
 
-PassOwnPtr<CompositingCoordinator> CompositingCoordinator::create(Page* page, CompositingCoordinator::Client* client)
-{
-    return adoptPtr(new CompositingCoordinator(page, client));
-}
+namespace WebCore {
 
 CompositingCoordinator::~CompositingCoordinator()
 {
@@ -87,7 +85,7 @@ void CompositingCoordinator::setRootCompositingLayer(GraphicsLayer* layer)
 void CompositingCoordinator::sizeDidChange(const IntSize& newSize)
 {
     m_rootLayer->setSize(newSize);
-    m_client->notifyFlushRequired();
+    notifyFlushRequired(m_rootLayer.get());
 }
 
 bool CompositingCoordinator::flushPendingLayerChanges()
@@ -128,7 +126,7 @@ bool CompositingCoordinator::flushPendingLayerChanges()
 void CompositingCoordinator::syncDisplayState()
 {
 #if ENABLE(INSPECTOR)
-    m_page->inspectorController()->didBeginFrame();
+    m_page->inspectorController().didBeginFrame();
 #endif
 
 #if ENABLE(REQUEST_ANIMATION_FRAME) && !USE(REQUEST_ANIMATION_FRAME_TIMER) && !USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
@@ -161,11 +159,6 @@ void CompositingCoordinator::clearPendingStateChanges()
 
     m_state.updateAtlasesToCreate.clear();
     m_state.updateAtlasesToRemove.clear();
-
-#if ENABLE(CSS_SHADERS)
-    m_state.customFiltersToCreate.clear();
-    m_state.customFiltersToRemove.clear();
-#endif
 }
 
 void CompositingCoordinator::initializeRootCompositingLayerIfNeeded()
@@ -193,7 +186,6 @@ void CompositingCoordinator::createRootLayer(const IntSize& size)
 void CompositingCoordinator::syncLayerState(CoordinatedLayerID id, CoordinatedGraphicsLayerState& state)
 {
     m_shouldSyncFrame = true;
-    m_client->willSyncLayerState(state);
     m_state.layersToUpdate.append(std::make_pair(id, state));
 }
 
@@ -237,6 +229,10 @@ void CompositingCoordinator::removeImageBacking(CoordinatedImageBackingID imageI
     m_imageBackings.remove(imageID);
 
     m_state.imagesToRemove.append(imageID);
+
+    size_t imageIDPosition = m_state.imagesToClear.find(imageID);
+    if (imageIDPosition != notFound)
+        m_state.imagesToClear.remove(imageIDPosition);
 }
 
 void CompositingCoordinator::flushPendingImageBackingChanges()
@@ -252,24 +248,25 @@ void CompositingCoordinator::notifyAnimationStarted(const GraphicsLayer*, double
 
 void CompositingCoordinator::notifyFlushRequired(const GraphicsLayer*)
 {
-    m_client->notifyFlushRequired();
+    if (!isFlushingLayerChanges())
+        m_client->notifyFlushRequired();
 }
 
 
-void CompositingCoordinator::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const IntRect& clipRect)
+void CompositingCoordinator::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const FloatRect& clipRect)
 {
-    m_client->paintLayerContents(graphicsLayer, graphicsContext, clipRect);
+    m_client->paintLayerContents(graphicsLayer, graphicsContext, enclosingIntRect(clipRect));
 }
 
-PassOwnPtr<GraphicsLayer> CompositingCoordinator::createGraphicsLayer(GraphicsLayerClient* client)
+std::unique_ptr<GraphicsLayer> CompositingCoordinator::createGraphicsLayer(GraphicsLayerClient* client)
 {
     CoordinatedGraphicsLayer* layer = new CoordinatedGraphicsLayer(client);
     layer->setCoordinator(this);
     m_registeredLayers.add(layer->id(), layer);
     m_state.layersToCreate.append(layer->id());
     layer->setNeedsVisibleRectAdjustment();
-    m_client->notifyFlushRequired();
-    return adoptPtr(layer);
+    notifyFlushRequired(layer);
+    return std::unique_ptr<GraphicsLayer>(layer);
 }
 
 float CompositingCoordinator::deviceScaleFactor() const
@@ -349,7 +346,7 @@ void CompositingCoordinator::detachLayer(CoordinatedGraphicsLayer* layer)
     }
 
     m_state.layersToRemove.append(layer->id());
-    m_client->notifyFlushRequired();
+    notifyFlushRequired(layer);
 }
 
 void CompositingCoordinator::commitScrollOffset(uint32_t layerID, const WebCore::IntSize& offset)
@@ -391,7 +388,7 @@ bool CompositingCoordinator::paintToSurface(const IntSize& size, CoordinatedSurf
     }
 
     static const int ScratchBufferDimension = 1024; // Should be a power of two.
-    m_updateAtlases.append(adoptPtr(new UpdateAtlas(this, ScratchBufferDimension, flags)));
+    m_updateAtlases.append(std::make_unique<UpdateAtlas>(this, ScratchBufferDimension, flags));
     scheduleReleaseInactiveAtlases();
     return m_updateAtlases.last()->paintOnAvailableBuffer(size, atlasID, offset, client);
 }
@@ -407,7 +404,7 @@ void CompositingCoordinator::scheduleReleaseInactiveAtlases()
 void CompositingCoordinator::releaseInactiveAtlasesTimerFired(Timer<CompositingCoordinator>*)
 {
     // We always want to keep one atlas for root contents layer.
-    OwnPtr<UpdateAtlas> atlasToKeepAnyway;
+    std::unique_ptr<UpdateAtlas> atlasToKeepAnyway;
     bool foundActiveAtlasForRootContentsLayer = false;
     for (int i = m_updateAtlases.size() - 1;  i >= 0; --i) {
         UpdateAtlas* atlas = m_updateAtlases[i].get();
@@ -416,7 +413,7 @@ void CompositingCoordinator::releaseInactiveAtlasesTimerFired(Timer<CompositingC
         bool usableForRootContentsLayer = !atlas->supportsAlpha();
         if (atlas->isInactive()) {
             if (!foundActiveAtlasForRootContentsLayer && !atlasToKeepAnyway && usableForRootContentsLayer)
-                atlasToKeepAnyway = m_updateAtlases[i].release();
+                atlasToKeepAnyway = std::move(m_updateAtlases[i]);
             m_updateAtlases.remove(i);
         } else if (usableForRootContentsLayer)
             foundActiveAtlasForRootContentsLayer = true;

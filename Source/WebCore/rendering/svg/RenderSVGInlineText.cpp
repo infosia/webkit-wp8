@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
- * Copyright (C) 2006 Apple Computer Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) 2008 Rob Buis <buis@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
@@ -22,8 +22,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGInlineText.h"
 
 #include "CSSFontSelector.h"
@@ -68,17 +66,22 @@ static String applySVGWhitespaceRules(const String& string, bool preserveWhiteSp
 }
 
 RenderSVGInlineText::RenderSVGInlineText(Text& textNode, const String& string)
-    : RenderText(&textNode, applySVGWhitespaceRules(string, false))
+    : RenderText(textNode, applySVGWhitespaceRules(string, false))
     , m_scalingFactor(1)
-    , m_layoutAttributes(this)
+    , m_layoutAttributes(*this)
 {
+}
+
+String RenderSVGInlineText::originalText() const
+{
+    return textNode().data();
 }
 
 void RenderSVGInlineText::setTextInternal(const String& text)
 {
     RenderText::setTextInternal(text);
-    if (RenderSVGText* textRenderer = RenderSVGText::locateRenderSVGTextAncestor(this))
-        textRenderer->subtreeTextDidChange(this);
+    if (auto* textAncestor = RenderSVGText::locateRenderSVGTextAncestor(*this))
+        textAncestor->subtreeTextDidChange(this);
 }
 
 void RenderSVGInlineText::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
@@ -86,7 +89,7 @@ void RenderSVGInlineText::styleDidChange(StyleDifference diff, const RenderStyle
     RenderText::styleDidChange(diff, oldStyle);
     updateScaledFont();
 
-    bool newPreserves = style() ? style()->whiteSpace() == PRE : false;
+    bool newPreserves = style().whiteSpace() == PRE;
     bool oldPreserves = oldStyle ? oldStyle->whiteSpace() == PRE : false;
     if (oldPreserves && !newPreserves) {
         setText(applySVGWhitespaceRules(originalText(), false), true);
@@ -102,15 +105,15 @@ void RenderSVGInlineText::styleDidChange(StyleDifference diff, const RenderStyle
         return;
 
     // The text metrics may be influenced by style changes.
-    if (RenderSVGText* textRenderer = RenderSVGText::locateRenderSVGTextAncestor(this))
-        textRenderer->subtreeStyleDidChange(this);
+    if (auto* textAncestor = RenderSVGText::locateRenderSVGTextAncestor(*this))
+        textAncestor->subtreeStyleDidChange(this);
 }
 
-InlineTextBox* RenderSVGInlineText::createTextBox()
+std::unique_ptr<InlineTextBox> RenderSVGInlineText::createTextBox()
 {
-    InlineTextBox* box = new (renderArena()) SVGInlineTextBox(*this);
+    auto box = std::make_unique<SVGInlineTextBox>(*this);
     box->setHasVirtualLogicalHeight();
-    return box;
+    return std::move(box);
 }
 
 LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, int caretOffset, LayoutUnit*)
@@ -118,7 +121,7 @@ LayoutRect RenderSVGInlineText::localCaretRect(InlineBox* box, int caretOffset, 
     if (!box || !box->isInlineTextBox())
         return LayoutRect();
 
-    InlineTextBox* textBox = static_cast<InlineTextBox*>(box);
+    InlineTextBox* textBox = toInlineTextBox(box);
     if (static_cast<unsigned>(caretOffset) < textBox->start() || static_cast<unsigned>(caretOffset) > textBox->start() + textBox->len())
         return LayoutRect();
 
@@ -219,31 +222,26 @@ VisiblePosition RenderSVGInlineText::positionForPoint(const LayoutPoint& point)
 
 void RenderSVGInlineText::updateScaledFont()
 {
-    computeNewScaledFontForStyle(this, style(), m_scalingFactor, m_scaledFont);
+    computeNewScaledFontForStyle(*this, style(), m_scalingFactor, m_scaledFont);
 }
 
-void RenderSVGInlineText::computeNewScaledFontForStyle(RenderObject* renderer, const RenderStyle* style, float& scalingFactor, Font& scaledFont)
+void RenderSVGInlineText::computeNewScaledFontForStyle(const RenderObject& renderer, const RenderStyle& style, float& scalingFactor, Font& scaledFont)
 {
-    ASSERT(style);
-    ASSERT(renderer);
-
     // Alter font-size to the right on-screen value to avoid scaling the glyphs themselves, except when GeometricPrecision is specified
     scalingFactor = SVGRenderingContext::calculateScreenFontSizeScalingFactor(renderer);
-    if (scalingFactor == 1 || !scalingFactor || style->fontDescription().textRenderingMode() == GeometricPrecision) {
+    if (scalingFactor == 1 || !scalingFactor || style.fontDescription().textRenderingMode() == GeometricPrecision) {
         scalingFactor = 1;
-        scaledFont = style->font();
+        scaledFont = style.font();
         return;
     }
 
-    FontDescription fontDescription(style->fontDescription());
+    FontDescription fontDescription(style.fontDescription());
 
     // FIXME: We need to better handle the case when we compute very small fonts below (below 1pt).
-    fontDescription.setComputedSize(Style::computedFontSizeFromSpecifiedSizeForSVGInlineText(fontDescription.computedSize(), fontDescription.isAbsoluteSize(), scalingFactor, renderer->document()));
+    fontDescription.setComputedSize(Style::computedFontSizeFromSpecifiedSizeForSVGInlineText(fontDescription.computedSize(), fontDescription.isAbsoluteSize(), scalingFactor, renderer.document()));
 
     scaledFont = Font(fontDescription, 0, 0);
-    scaledFont.update(renderer->document().ensureStyleResolver().fontSelector());
+    scaledFont.update(renderer.document().ensureStyleResolver().fontSelector());
 }
 
 }
-
-#endif // ENABLE(SVG)

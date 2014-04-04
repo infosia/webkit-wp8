@@ -21,7 +21,6 @@
 #ifndef SVGPathElement_h
 #define SVGPathElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedNumber.h"
 #include "SVGExternalResourcesRequired.h"
@@ -53,7 +52,7 @@ class SVGPathSegCurvetoQuadraticSmoothAbs;
 class SVGPathSegCurvetoQuadraticSmoothRel;
 class SVGPathSegListPropertyTearOff;
 
-class SVGPathElement FINAL : public SVGGraphicsElement,
+class SVGPathElement final : public SVGGraphicsElement,
                              public SVGExternalResourcesRequired {
 public:
     static PassRefPtr<SVGPathElement> create(const QualifiedName&, Document&);
@@ -92,7 +91,7 @@ public:
 
     void pathSegListChanged(SVGPathSegRole, ListModification = ListModificationUnknown);
 
-    virtual FloatRect getBBox(StyleUpdateStrategy = AllowStyleUpdate);
+    virtual FloatRect getBBox(StyleUpdateStrategy = AllowStyleUpdate) override;
 
     static const SVGPropertyInfo* dPropertyInfo();
 
@@ -101,13 +100,13 @@ public:
 private:
     SVGPathElement(const QualifiedName&, Document&);
 
-    virtual bool isValid() const { return SVGTests::isValid(); }
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool isValid() const override { return SVGTests::isValid(); }
+    virtual bool supportsFocus() const override { return true; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual bool supportsMarkers() const { return true; }
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual bool supportsMarkers() const override { return true; }
 
     // Custom 'd' property
     static void synchronizeD(SVGElement* contextElement);
@@ -118,22 +117,21 @@ private:
         DECLARE_ANIMATED_BOOLEAN(ExternalResourcesRequired, externalResourcesRequired)
     END_DECLARE_ANIMATED_PROPERTIES
 
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&) OVERRIDE;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 
-    virtual Node::InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
+    virtual Node::InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
     void invalidateMPathDependencies();
 
 private:
-    OwnPtr<SVGPathByteStream> m_pathByteStream;
+    std::unique_ptr<SVGPathByteStream> m_pathByteStream;
     mutable SVGSynchronizableAnimatedProperty<SVGPathSegList> m_pathSegList;
     bool m_isAnimValObserved;
 };
 
-ELEMENT_TYPE_CASTS(SVGPathElement)
+NODE_TYPE_CASTS(SVGPathElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

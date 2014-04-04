@@ -42,7 +42,6 @@
 #include <WebCore/DocumentLoader.h>
 #include <WebCore/EventHandler.h>
 #include <WebCore/FocusController.h>
-#include <WebCore/Frame.h>
 #include <WebCore/FrameLoadRequest.h>
 #include <WebCore/FrameLoader.h>
 #include <WebCore/FrameLoaderClient.h>
@@ -52,6 +51,7 @@
 #include <WebCore/HTMLPlugInImageElement.h>
 #include <WebCore/HostWindow.h>
 #include <WebCore/MIMETypeRegistry.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/MouseEvent.h>
 #include <WebCore/NetscapePlugInStreamLoader.h>
 #include <WebCore/NetworkingContext.h>
@@ -63,12 +63,12 @@
 #include <WebCore/RenderEmbeddedObject.h>
 #include <WebCore/ResourceLoadScheduler.h>
 #include <WebCore/ScriptController.h>
-#include <WebCore/ScriptValue.h>
 #include <WebCore/ScrollView.h>
 #include <WebCore/SecurityOrigin.h>
 #include <WebCore/SecurityPolicy.h>
 #include <WebCore/Settings.h>
 #include <WebCore/UserGestureIndicator.h>
+#include <bindings/ScriptValue.h>
 #include <wtf/text/StringBuilder.h>
 
 using namespace JSC;
@@ -212,7 +212,7 @@ static uint32_t lastModifiedDate(const ResourceResponse& response)
 void PluginView::Stream::didReceiveResponse(NetscapePlugInStreamLoader*, const ResourceResponse& response)
 {
     // Compute the stream related data from the resource response.
-    const KURL& responseURL = response.url();
+    const URL& responseURL = response.url();
     const String& mimeType = response.mimeType();
     long long expectedContentLength = response.expectedContentLength();
     
@@ -263,11 +263,11 @@ static inline WebPage* webPage(HTMLPlugInElement* pluginElement)
     Frame* frame = pluginElement->document().frame();
     ASSERT(frame);
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(frame->loader().client());
-    WebPage* webPage = webFrameLoaderClient ? webFrameLoaderClient->webFrame()->page() : 0;
-    ASSERT(webPage);
+    WebFrame* webFrame = WebFrame::fromCoreFrame(*frame);
+    if (!webFrame)
+        return nullptr;
 
-    return webPage;
+    return webFrame->page();
 }
 
 PassRefPtr<PluginView> PluginView::create(PassRefPtr<HTMLPlugInElement> pluginElement, PassRefPtr<Plugin> plugin, const Plugin::Parameters& parameters)
@@ -330,7 +330,7 @@ void PluginView::destroyPluginAndReset()
         m_pendingURLRequests.clear();
         m_pendingURLRequestsTimer.stop();
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         if (m_webPage)
             pluginFocusOrWindowFocusChanged(false);
 #endif
@@ -364,6 +364,21 @@ void PluginView::recreateAndInitialize(PassRefPtr<Plugin> plugin)
     initializePlugin();
 }
 
+void PluginView::setLayerHostingMode(LayerHostingMode layerHostingMode)
+{
+#if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
+    if (!m_plugin)
+        return;
+
+    if (m_isInitialized)
+        m_plugin->setLayerHostingMode(layerHostingMode);
+    else
+        m_parameters.layerHostingMode = layerHostingMode;
+#else
+    UNUSED_PARAM(layerHostingMode);
+#endif
+}
+
 Frame* PluginView::frame() const
 {
     return m_pluginElement->document().frame();
@@ -383,7 +398,7 @@ void PluginView::manualLoadDidReceiveResponse(const ResourceResponse& response)
     }
 
     // Compute the stream related data from the resource response.
-    const KURL& responseURL = response.url();
+    const URL& responseURL = response.url();
     const String& mimeType = response.mimeType();
     long long expectedContentLength = response.expectedContentLength();
     
@@ -481,21 +496,25 @@ void PluginView::webPageDestroyed()
     m_webPage = 0;
 }
 
-#if PLATFORM(MAC)    
-void PluginView::setWindowIsVisible(bool windowIsVisible)
+void PluginView::viewStateDidChange(ViewState::Flags changed)
 {
-    if (!m_isInitialized || !m_plugin)
-        return;
-
-    m_plugin->windowVisibilityChanged(windowIsVisible);
+#if PLATFORM(COCOA)
+    platformViewStateDidChange(changed);
+#else
+    UNUSED_PARAM(changed);
+#endif
 }
 
-void PluginView::setWindowIsFocused(bool windowIsFocused)
+#if PLATFORM(COCOA)
+void PluginView::platformViewStateDidChange(ViewState::Flags changed)
 {
-    if (!m_isInitialized || !m_plugin)
+    if (!m_plugin || !m_isInitialized)
         return;
 
-    m_plugin->windowFocusChanged(windowIsFocused);    
+    if (changed & ViewState::IsVisibleOrOccluded)
+        m_plugin->windowVisibilityChanged(m_webPage->isVisibleOrOccluded());
+    if (changed & ViewState::WindowIsActive)
+        m_plugin->windowFocusChanged(m_webPage->windowIsFocused());
 }
 
 void PluginView::setDeviceScaleFactor(float scaleFactor)
@@ -525,18 +544,10 @@ bool PluginView::sendComplexTextInput(uint64_t pluginComplexTextInputIdentifier,
     m_plugin->sendComplexTextInput(textInput);
     return true;
 }
-
-void PluginView::setLayerHostingMode(LayerHostingMode layerHostingMode)
+    
+WebCore::AudioHardwareActivityType PluginView::audioHardwareActivity() const
 {
-    if (!m_plugin)
-        return;
-
-    if (!m_isInitialized) {
-        m_parameters.layerHostingMode = layerHostingMode;
-        return;
-    }
-
-    m_plugin->setLayerHostingMode(layerHostingMode);
+    return m_plugin->audioHardwareActivity();
 }
     
 NSObject *PluginView::accessibilityObject() const
@@ -582,16 +593,18 @@ void PluginView::didFailToInitializePlugin()
 {
     m_plugin = 0;
 
+#if ENABLE(NETSCAPE_PLUGIN_API)
     String frameURLString = frame()->loader().documentLoader()->responseURL().string();
     String pageURLString = m_webPage->corePage()->mainFrame().loader().documentLoader()->responseURL().string();
     m_webPage->send(Messages::WebPageProxy::DidFailToInitializePlugin(m_parameters.mimeType, frameURLString, pageURLString));
+#endif // ENABLE(NETSCAPE_PLUGIN_API)
 }
 
 void PluginView::didInitializePlugin()
 {
     m_isInitialized = true;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     windowAndViewFramesChanged(m_webPage->windowFrameInScreenCoordinates(), m_webPage->viewFrameInWindowCoordinates());
 #endif
 
@@ -602,7 +615,7 @@ void PluginView::didInitializePlugin()
 
     redeliverManualStream();
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (m_pluginElement->displayState() < HTMLPlugInElement::Restarting) {
         if (m_plugin->pluginLayer() && frame()) {
             frame()->view()->enterCompositingMode();
@@ -622,8 +635,8 @@ void PluginView::didInitializePlugin()
             m_pluginElement->dispatchPendingMouseClick();
     }
 
-    setWindowIsVisible(m_webPage->windowIsVisible());
-    setWindowIsFocused(m_webPage->windowIsFocused());
+    m_plugin->windowVisibilityChanged(m_webPage->isVisible());
+    m_plugin->windowFocusChanged(m_webPage->windowIsFocused());
 #endif
 
     if (wantsWheelEvents()) {
@@ -634,7 +647,7 @@ void PluginView::didInitializePlugin()
     }
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 PlatformLayer* PluginView::platformLayer() const
 {
     // The plug-in can be null here if it failed to initialize.
@@ -883,9 +896,9 @@ void PluginView::handleEvent(Event* event)
         // FIXME: Clicking in a scroll bar should not change focus.
         if (currentEvent->type() == WebEvent::MouseDown) {
             focusPluginElement();
-            frame()->eventHandler().setCapturingMouseEventsNode(m_pluginElement.get());
+            frame()->eventHandler().setCapturingMouseEventsElement(m_pluginElement.get());
         } else if (currentEvent->type() == WebEvent::MouseUp)
-            frame()->eventHandler().setCapturingMouseEventsNode(0);
+            frame()->eventHandler().setCapturingMouseEventsElement(nullptr);
 
         didHandleEvent = m_plugin->handleMouseEvent(static_cast<const WebMouseEvent&>(*currentEvent));
         if (event->type() != eventNames().mousemoveEvent)
@@ -1141,8 +1154,7 @@ void PluginView::performFrameLoadURLRequest(URLRequest* request)
     // Now ask the frame to load the request.
     targetFrame->loader().load(FrameLoadRequest(targetFrame, request->request()));
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(targetFrame->loader().client());
-    WebFrame* targetWebFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    auto* targetWebFrame = WebFrame::fromCoreFrame(*targetFrame);
     ASSERT(targetWebFrame);
 
     if (WebFrame::LoadListener* loadListener = targetWebFrame->loadListener()) {
@@ -1177,7 +1189,7 @@ void PluginView::performJavaScriptURLRequest(URLRequest* request)
     // Evaluate the JavaScript code. Note that running JavaScript here could cause the plug-in to be destroyed, so we
     // grab references to the plug-in here.
     RefPtr<Plugin> plugin = m_plugin;
-    ScriptValue result = frame->script().executeScript(jsString, request->allowPopups());
+    Deprecated::ScriptValue result = frame->script().executeScript(jsString, request->allowPopups());
 
     // Check if evaluating the JavaScript destroyed the plug-in.
     if (!plugin->controller())
@@ -1257,7 +1269,7 @@ void PluginView::invalidateRect(const IntRect& dirtyRect)
     if (!parent() || !m_plugin || !m_isInitialized)
         return;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (m_plugin->pluginLayer())
         return;
 #endif
@@ -1308,7 +1320,7 @@ String PluginView::userAgent()
     if (!frame)
         return String();
     
-    return frame->loader().client().userAgent(KURL());
+    return frame->loader().client().userAgent(URL());
 }
 
 void PluginView::loadURL(uint64_t requestID, const String& method, const String& urlString, const String& target, 
@@ -1365,7 +1377,7 @@ NPObject* PluginView::windowScriptNPObject()
         return 0;
     }
 
-    return m_npRuntimeObjectMap.getOrCreateNPObject(*pluginWorld()->vm(), frame()->script().windowShell(pluginWorld())->window());
+    return m_npRuntimeObjectMap.getOrCreateNPObject(pluginWorld().vm(), frame()->script().windowShell(pluginWorld())->window());
 }
 
 NPObject* PluginView::pluginElementNPObject()
@@ -1381,7 +1393,7 @@ NPObject* PluginView::pluginElementNPObject()
     JSObject* object = frame()->script().jsObjectForPluginElement(m_pluginElement.get());
     ASSERT(object);
 
-    return m_npRuntimeObjectMap.getOrCreateNPObject(*pluginWorld()->vm(), object);
+    return m_npRuntimeObjectMap.getOrCreateNPObject(pluginWorld().vm(), object);
 }
 
 bool PluginView::evaluate(NPObject* npObject, const String& scriptString, NPVariant* result, bool allowPopups)
@@ -1452,7 +1464,7 @@ void PluginView::willSendEventToPlugin()
     m_webPage->send(Messages::WebPageProxy::StopResponsivenessTimer());
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 void PluginView::pluginFocusOrWindowFocusChanged(bool pluginHasFocusAndWindowHasFocus)
 {
     if (m_webPage)
@@ -1489,18 +1501,18 @@ String PluginView::proxiesForURL(const String& urlString)
 {
     const FrameLoader* frameLoader = frame() ? &frame()->loader() : 0;
     const NetworkingContext* context = frameLoader ? frameLoader->networkingContext() : 0;
-    Vector<ProxyServer> proxyServers = proxyServersForURL(KURL(KURL(), urlString), context);
+    Vector<ProxyServer> proxyServers = proxyServersForURL(URL(URL(), urlString), context);
     return toString(proxyServers);
 }
 
 String PluginView::cookiesForURL(const String& urlString)
 {
-    return cookies(&m_pluginElement->document(), KURL(KURL(), urlString));
+    return cookies(&m_pluginElement->document(), URL(URL(), urlString));
 }
 
 void PluginView::setCookiesForURL(const String& urlString, const String& cookieString)
 {
-    setCookies(&m_pluginElement->document(), KURL(KURL(), urlString), cookieString);
+    setCookies(&m_pluginElement->document(), URL(URL(), urlString), cookieString);
 }
 
 bool PluginView::getAuthenticationInfo(const ProtectionSpace& protectionSpace, String& username, String& password)
@@ -1527,7 +1539,7 @@ bool PluginView::isPrivateBrowsingEnabled()
     if (!frame()->document()->securityOrigin()->canAccessPluginStorage(frame()->document()->topOrigin()))
         return true;
 
-    return frame()->settings().privateBrowsingEnabled();
+    return frame()->page()->usesEphemeralSession();
 }
 
 bool PluginView::asynchronousPluginInitializationEnabled() const
@@ -1567,7 +1579,7 @@ void PluginView::unprotectPluginFromDestruction()
     // the destroyed object higher on the stack. To prevent this, if the plug-in has
     // only one remaining reference, call deref() asynchronously.
     if (hasOneRef())
-        RunLoop::main()->dispatch(bind(derefPluginView, this));
+        RunLoop::main().dispatch(bind(derefPluginView, this));
     else
         deref();
 }
@@ -1604,7 +1616,7 @@ void PluginView::windowedPluginGeometryDidChange(const WebCore::IntRect& frameRe
 }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 static bool isAlmostSolidColor(BitmapImage* bitmap)
 {
     CGImageRef image = bitmap->getCGImageRef();
@@ -1667,7 +1679,7 @@ static bool isAlmostSolidColor(BitmapImage* bitmap)
 }
 #endif
 
-void PluginView::pluginSnapshotTimerFired(DeferrableOneShotTimer<PluginView>*)
+void PluginView::pluginSnapshotTimerFired(DeferrableOneShotTimer<PluginView>&)
 {
     ASSERT(m_plugin);
 
@@ -1679,9 +1691,9 @@ void PluginView::pluginSnapshotTimerFired(DeferrableOneShotTimer<PluginView>*)
             snapshotImage = snapshot->createImage();
         m_pluginElement->updateSnapshot(snapshotImage.get());
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         unsigned maximumSnapshotRetries = frame() ? frame()->settings().maximumPlugInSnapshotAttempts() : 0;
-        if (snapshotImage && isAlmostSolidColor(static_cast<BitmapImage*>(snapshotImage.get())) && m_countSnapshotRetries < maximumSnapshotRetries) {
+        if (snapshotImage && isAlmostSolidColor(toBitmapImage(snapshotImage.get())) && m_countSnapshotRetries < maximumSnapshotRetries) {
             ++m_countSnapshotRetries;
             m_pluginSnapshotTimer.restart();
             return;

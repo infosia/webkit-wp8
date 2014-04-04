@@ -18,31 +18,21 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceMasker.h"
 
-#include "AffineTransform.h"
 #include "Element.h"
+#include "ElementIterator.h"
 #include "FloatPoint.h"
-#include "FloatRect.h"
-#include "GraphicsContext.h"
 #include "Image.h"
-#include "ImageBuffer.h"
 #include "IntRect.h"
-#include "RenderSVGResource.h"
-#include "SVGElement.h"
-#include "SVGMaskElement.h"
 #include "SVGRenderingContext.h"
-#include "SVGUnitTypes.h"
-#include <wtf/Vector.h>
 
 namespace WebCore {
 
 RenderSVGResourceType RenderSVGResourceMasker::s_resourceType = MaskerResourceType;
 
-RenderSVGResourceMasker::RenderSVGResourceMasker(SVGMaskElement& element)
-    : RenderSVGResourceContainer(element)
+RenderSVGResourceMasker::RenderSVGResourceMasker(SVGMaskElement& element, PassRef<RenderStyle> style)
+    : RenderSVGResourceContainer(element, std::move(style))
 {
 }
 
@@ -58,41 +48,37 @@ void RenderSVGResourceMasker::removeAllClientsFromCache(bool markForInvalidation
     markAllClientsForInvalidation(markForInvalidation ? LayoutAndBoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourceMasker::removeClientFromCache(RenderObject* client, bool markForInvalidation)
+void RenderSVGResourceMasker::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
-    ASSERT(client);
-    m_masker.remove(client);
+    m_masker.remove(&client);
 
     markClientForInvalidation(client, markForInvalidation ? BoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-bool RenderSVGResourceMasker::applyResource(RenderObject* object, RenderStyle*, GraphicsContext*& context, unsigned short resourceMode)
+bool RenderSVGResourceMasker::applyResource(RenderElement& renderer, const RenderStyle&, GraphicsContext*& context, unsigned short resourceMode)
 {
-    ASSERT(object);
     ASSERT(context);
     ASSERT_UNUSED(resourceMode, resourceMode == ApplyToDefaultMode);
 
-    bool missingMaskerData = !m_masker.contains(object);
+    bool missingMaskerData = !m_masker.contains(&renderer);
     if (missingMaskerData)
-        m_masker.set(object, createOwned<MaskerData>().release());
+        m_masker.set(&renderer, std::make_unique<MaskerData>());
 
-    MaskerData* maskerData = m_masker.get(object);
+    MaskerData* maskerData = m_masker.get(&renderer);
 
     AffineTransform absoluteTransform;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(object, absoluteTransform);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(renderer, absoluteTransform);
 
-    FloatRect repaintRect = object->repaintRectInLocalCoordinates();
+    FloatRect repaintRect = renderer.repaintRectInLocalCoordinates();
 
     if (!maskerData->maskImage && !repaintRect.isEmpty()) {
-        ASSERT(style());
-        const SVGRenderStyle* svgStyle = style()->svgStyle();
-        ASSERT(svgStyle);
-        ColorSpace colorSpace = svgStyle->colorInterpolation() == CI_LINEARRGB ? ColorSpaceLinearRGB : ColorSpaceDeviceRGB;
+        const SVGRenderStyle& svgStyle = style().svgStyle();
+        ColorSpace colorSpace = svgStyle.colorInterpolation() == CI_LINEARRGB ? ColorSpaceLinearRGB : ColorSpaceDeviceRGB;
         if (!SVGRenderingContext::createImageBuffer(repaintRect, absoluteTransform, maskerData->maskImage, colorSpace, Unaccelerated))
             return false;
 
-        if (!drawContentIntoMaskImage(maskerData, colorSpace, object)) {
-            maskerData->maskImage.clear();
+        if (!drawContentIntoMaskImage(maskerData, colorSpace, &renderer)) {
+            maskerData->maskImage.reset();
         }
     }
 
@@ -118,16 +104,16 @@ bool RenderSVGResourceMasker::drawContentIntoMaskImage(MaskerData* maskerData, C
     }
 
     // Draw the content into the ImageBuffer.
-    for (Node* node = maskElement().firstChild(); node; node = node->nextSibling()) {
-        RenderObject* renderer = node->renderer();
-        if (!node->isSVGElement() || !renderer)
+    for (auto& child : childrenOfType<SVGElement>(maskElement())) {
+        auto renderer = child.renderer();
+        if (!renderer)
             continue;
         if (renderer->needsLayout())
             return false;
-        RenderStyle* style = renderer->style();
-        if (!style || style->display() == NONE || style->visibility() != VISIBLE)
+        const RenderStyle& style = renderer->style();
+        if (style.display() == NONE || style.visibility() != VISIBLE)
             continue;
-        SVGRenderingContext::renderSubtreeToImageBuffer(maskerData->maskImage.get(), renderer, maskContentTransformation);
+        SVGRenderingContext::renderSubtreeToImageBuffer(maskerData->maskImage.get(), *renderer, maskContentTransformation);
     }
 
 #if !USE(CG)
@@ -136,10 +122,8 @@ bool RenderSVGResourceMasker::drawContentIntoMaskImage(MaskerData* maskerData, C
     UNUSED_PARAM(colorSpace);
 #endif
 
-    ASSERT(style());
-    ASSERT(style()->svgStyle());
     // Create the luminance mask.
-    if (style()->svgStyle()->maskType() == MT_LUMINANCE)
+    if (style().svgStyle().maskType() == MT_LUMINANCE)
         maskerData->maskImage->convertToLuminanceMask();
 
     return true;
@@ -151,16 +135,16 @@ void RenderSVGResourceMasker::calculateMaskContentRepaintRect()
         RenderObject* renderer = childNode->renderer();
         if (!childNode->isSVGElement() || !renderer)
             continue;
-        RenderStyle* style = renderer->style();
-        if (!style || style->display() == NONE || style->visibility() != VISIBLE)
+        const RenderStyle& style = renderer->style();
+        if (style.display() == NONE || style.visibility() != VISIBLE)
              continue;
         m_maskContentBoundaries.unite(renderer->localToParentTransform().mapRect(renderer->repaintRectInLocalCoordinates()));
     }
 }
 
-FloatRect RenderSVGResourceMasker::resourceBoundingBox(RenderObject* object)
+FloatRect RenderSVGResourceMasker::resourceBoundingBox(const RenderObject& object)
 {
-    FloatRect objectBoundingBox = object->objectBoundingBox();
+    FloatRect objectBoundingBox = object.objectBoundingBox();
     FloatRect maskBoundaries = SVGLengthContext::resolveRectangle<SVGMaskElement>(&maskElement(), maskElement().maskUnits(), objectBoundingBox);
 
     // Resource was not layouted yet. Give back clipping rect of the mask.
@@ -183,5 +167,3 @@ FloatRect RenderSVGResourceMasker::resourceBoundingBox(RenderObject* object)
 }
 
 }
-
-#endif // ENABLE(SVG)

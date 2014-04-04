@@ -38,8 +38,12 @@ def __lldb_init_module(debugger, dict):
     debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFAtomicString_SummaryProvider WTF::AtomicString')
     debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFVector_SummaryProvider -x "WTF::Vector<.+>$"')
     debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFHashTable_SummaryProvider -x "WTF::HashTable<.+>$"')
+    debugger.HandleCommand('type summary add --expand -F lldb_webkit.WTFMediaTime_SummaryProvider WTF::MediaTime')
     debugger.HandleCommand('type synthetic add -x "WTF::Vector<.+>$" --python-class lldb_webkit.WTFVectorProvider')
     debugger.HandleCommand('type synthetic add -x "WTF::HashTable<.+>$" --python-class lldb_webkit.WTFHashTableProvider')
+    debugger.HandleCommand('type summary add -F lldb_webkit.WebCoreLayoutUnit_SummaryProvider WebCore::LayoutUnit')
+    debugger.HandleCommand('type summary add -F lldb_webkit.WebCoreLayoutSize_SummaryProvider WebCore::LayoutSize')
+    debugger.HandleCommand('type summary add -F lldb_webkit.WebCoreLayoutPoint_SummaryProvider WebCore::LayoutPoint')
 
 def WTFString_SummaryProvider(valobj, dict):
     provider = WTFStringProvider(valobj, dict)
@@ -63,6 +67,34 @@ def WTFVector_SummaryProvider(valobj, dict):
 def WTFHashTable_SummaryProvider(valobj, dict):
     provider = WTFHashTableProvider(valobj, dict)
     return "{ tableSize = %d, keyCount = %d }" % (provider.tableSize(), provider.keyCount())
+
+
+def WTFMediaTime_SummaryProvider(valobj, dict):
+    provider = WTFMediaTimeProvider(valobj, dict)
+    if provider.isInvalid():
+        return "{ Invalid }"
+    if provider.isPositiveInfinity():
+        return "{ +Infinity }"
+    if provider.isNegativeInfinity():
+        return "{ -Infinity }"
+    if provider.isIndefinite():
+        return "{ Indefinite }"
+    return "{ %d/%d, %f }" % (provider.timeValue(), provider.timeScale(), float(provider.timeValue()) / provider.timeScale())
+
+
+def WebCoreLayoutUnit_SummaryProvider(valobj, dict):
+    provider = WebCoreLayoutUnitProvider(valobj, dict)
+    return "{ %s }" % provider.to_string()
+
+
+def WebCoreLayoutSize_SummaryProvider(valobj, dict):
+    provider = WebCoreLayoutSizeProvider(valobj, dict)
+    return "{ width = %s, height = %s }" % (provider.get_width(), provider.get_height())
+
+
+def WebCoreLayoutPoint_SummaryProvider(valobj, dict):
+    provider = WebCoreLayoutPointProvider(valobj, dict)
+    return "{ x = %s, y = %s }" % (provider.get_x(), provider.get_y())
 
 # FIXME: Provide support for the following types:
 # def WTFVector_SummaryProvider(valobj, dict):
@@ -169,6 +201,44 @@ class WTFStringProvider:
         return impl.to_string()
 
 
+class WebCoreLayoutUnitProvider:
+    "Print a WebCore::LayoutUnit"
+    def __init__(self, valobj, dict):
+        self.valobj = valobj
+
+    def to_string(self):
+        layoutUnitValue = self.valobj.GetChildMemberWithName('m_value').GetValueAsSigned(0)
+        # figure out the layout unit denominator by checking infinite IntRect's value. It ensures that this function works even when subpixel is off.
+        infiniteWidth = self.valobj.GetFrame().EvaluateExpression('IntRect::infiniteRect()').GetChildMemberWithName('m_size').GetChildMemberWithName('m_width').GetValueAsSigned(0)
+        # denominator = maxint / current infinite width value
+        denominator = int(2147483647 / infiniteWidth) if infiniteWidth else 64
+        return "%gpx (%d)" % (float(layoutUnitValue) / denominator, layoutUnitValue)
+
+
+class WebCoreLayoutSizeProvider:
+    "Print a WebCore::LayoutSize"
+    def __init__(self, valobj, dict):
+        self.valobj = valobj
+
+    def get_width(self):
+        return WebCoreLayoutUnitProvider(self.valobj.GetChildMemberWithName('m_width'), dict).to_string()
+
+    def get_height(self):
+        return WebCoreLayoutUnitProvider(self.valobj.GetChildMemberWithName('m_height'), dict).to_string()
+
+
+class WebCoreLayoutPointProvider:
+    "Print a WebCore::LayoutPoint"
+    def __init__(self, valobj, dict):
+        self.valobj = valobj
+
+    def get_x(self):
+        return WebCoreLayoutUnitProvider(self.valobj.GetChildMemberWithName('m_x'), dict).to_string()
+
+    def get_y(self):
+        return WebCoreLayoutUnitProvider(self.valobj.GetChildMemberWithName('m_y'), dict).to_string()
+
+
 class WTFVectorProvider:
     def __init__(self, valobj, internal_dict):
         self.valobj = valobj
@@ -263,3 +333,26 @@ class WTFHashTableProvider:
 
     def has_children(self):
         return True
+
+
+class WTFMediaTimeProvider:
+    def __init__(self, valobj, internal_dict):
+        self.valobj = valobj
+
+    def timeValue(self):
+        return self.valobj.GetChildMemberWithName('m_timeValue').GetValueAsSigned(0)
+
+    def timeScale(self):
+        return self.valobj.GetChildMemberWithName('m_timeScale').GetValueAsSigned(0)
+
+    def isInvalid(self):
+        return not self.valobj.GetChildMemberWithName('m_timeFlags').GetValueAsSigned(0) & (1 << 0)
+
+    def isPositiveInfinity(self):
+        return self.valobj.GetChildMemberWithName('m_timeFlags').GetValueAsSigned(0) & (1 << 2)
+
+    def isNegativeInfinity(self):
+        return self.valobj.GetChildMemberWithName('m_timeFlags').GetValueAsSigned(0) & (1 << 3)
+
+    def isIndefinite(self):
+        return self.valobj.GetChildMemberWithName('m_timeFlags').GetValueAsSigned(0) & (1 << 4)

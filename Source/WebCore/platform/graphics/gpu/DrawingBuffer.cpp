@@ -39,7 +39,7 @@
 
 namespace WebCore {
 
-#if PLATFORM(WIN) || PLATFORM(QT) || USE(CAIRO)
+#if PLATFORM(WIN) || USE(CAIRO)
 DrawingBuffer::DrawingBuffer(GraphicsContext3D* context, const IntSize& size, bool multisampleExtensionSupported, bool packedDepthStencilExtensionSupported, PreserveDrawingBuffer preserveDrawingBuffer, AlphaRequirement alpha)
     : m_preserveDrawingBuffer(preserveDrawingBuffer)
     , m_alpha(alpha)
@@ -89,9 +89,7 @@ DrawingBuffer::~DrawingBuffer()
 // Global resource ceiling (expressed in terms of pixels) for DrawingBuffer creation and resize.
 // When this limit is set, DrawingBuffer::create() and DrawingBuffer::reset() calls that would
 // exceed the global cap will instead clear the buffer.
-#if !PLATFORM(BLACKBERRY)
 static int s_maximumResourceUsePixels = 0;
-#endif
 static int s_currentResourceUsePixels = 0;
 static const float s_resourceAdjustedRatio = 0.5;
 

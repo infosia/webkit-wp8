@@ -38,15 +38,16 @@ public:
 
     static JSNameScope* create(ExecState* exec, const Identifier& identifier, JSValue value, unsigned attributes)
     {
-        JSNameScope* scopeObject = new (NotNull, allocateCell<JSNameScope>(*exec->heap())) JSNameScope(exec, exec->scope());
-        scopeObject->finishCreation(exec, identifier, value, attributes);
+        VM& vm = exec->vm();
+        JSNameScope* scopeObject = new (NotNull, allocateCell<JSNameScope>(vm.heap)) JSNameScope(vm, exec->lexicalGlobalObject(), exec->scope());
+        scopeObject->finishCreation(vm, identifier, value, attributes);
         return scopeObject;
     }
 
-    static JSNameScope* create(ExecState* exec, const Identifier& identifier, JSValue value, unsigned attributes, JSScope* next)
+    static JSNameScope* create(VM& vm, JSGlobalObject* globalObject, const Identifier& identifier, JSValue value, unsigned attributes, JSScope* next)
     {
-        JSNameScope* scopeObject = new (NotNull, allocateCell<JSNameScope>(*exec->heap())) JSNameScope(exec, next);
-        scopeObject->finishCreation(exec, identifier, value, attributes);
+        JSNameScope* scopeObject = new (NotNull, allocateCell<JSNameScope>(vm.heap)) JSNameScope(vm, globalObject, next);
+        scopeObject->finishCreation(vm, identifier, value, attributes);
         return scopeObject;
     }
 
@@ -60,20 +61,20 @@ public:
     DECLARE_INFO;
 
 protected:
-    void finishCreation(ExecState* exec, const Identifier& identifier, JSValue value, unsigned attributes)
+    void finishCreation(VM& vm, const Identifier& identifier, JSValue value, unsigned attributes)
     {
-        Base::finishCreation(exec->vm());
-        m_registerStore.set(exec->vm(), this, value);
+        Base::finishCreation(vm);
+        m_registerStore.set(vm, this, value);
         symbolTable()->add(identifier.impl(), SymbolTableEntry(-1, attributes));
     }
 
     static const unsigned StructureFlags = OverridesGetOwnPropertySlot | OverridesVisitChildren | Base::StructureFlags;
 
 private:
-    JSNameScope(ExecState* exec, JSScope* next)
+    JSNameScope(VM& vm, JSGlobalObject* globalObject, JSScope* next)
         : Base(
-            exec->vm(),
-            exec->lexicalGlobalObject()->nameScopeStructure(),
+            vm,
+            globalObject->nameScopeStructure(),
             reinterpret_cast<Register*>(&m_registerStore + 1),
             next
         )

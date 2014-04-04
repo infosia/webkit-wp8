@@ -30,7 +30,7 @@
 #include "Node.h"
 #include "RuleSet.h"
 #include "SecurityOrigin.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "StyleRule.h"
 #include "StyleRuleImport.h"
 #include <wtf/Deque.h>
@@ -145,7 +145,7 @@ void StyleSheetContents::parserAppendRule(PassRefPtr<StyleRuleBase> rule)
     // NOTE: The selector list has to fit into RuleData. <http://webkit.org/b/118369>
     // If we're adding a rule with a huge number of selectors, split it up into multiple rules
     if (rule->isStyleRule() && toStyleRule(rule.get())->selectorList().componentCount() > RuleData::maximumSelectorComponentCount) {
-        Vector<RefPtr<StyleRule> > rules = toStyleRule(rule.get())->splitIntoMultipleRulesWithMaximumSelectorComponentCount(RuleData::maximumSelectorComponentCount);
+        Vector<RefPtr<StyleRule>> rules = toStyleRule(rule.get())->splitIntoMultipleRulesWithMaximumSelectorComponentCount(RuleData::maximumSelectorComponentCount);
         m_childRules.appendVector(rules);
         return;
     }
@@ -306,7 +306,7 @@ void StyleSheetContents::parseAuthorStyleSheet(const CachedCSSStyleSheet* cached
     }
     if (m_parserContext.needsSiteSpecificQuirks && isStrictParserMode(m_parserContext.mode)) {
         // Work around <https://bugs.webkit.org/show_bug.cgi?id=28350>.
-        DEFINE_STATIC_LOCAL(const String, mediaWikiKHTMLFixesStyleSheet, (ASCIILiteral("/* KHTML fix stylesheet */\n/* work around the horizontal scrollbars */\n#column-content { margin-left: 0; }\n\n")));
+        DEPRECATED_DEFINE_STATIC_LOCAL(const String, mediaWikiKHTMLFixesStyleSheet, (ASCIILiteral("/* KHTML fix stylesheet */\n/* work around the horizontal scrollbars */\n#column-content { margin-left: 0; }\n\n")));
         // There are two variants of KHTMLFixes.css. One is equal to mediaWikiKHTMLFixesStyleSheet,
         // while the other lacks the second trailing newline.
         if (baseURL().string().endsWith("/KHTMLFixes.css") && !sheetText.isNull() && mediaWikiKHTMLFixesStyleSheet.startsWith(sheetText)
@@ -397,12 +397,12 @@ Document* StyleSheetContents::singleOwnerDocument() const
     return ownerNode ? &ownerNode->document() : 0;
 }
 
-KURL StyleSheetContents::completeURL(const String& url) const
+URL StyleSheetContents::completeURL(const String& url) const
 {
     return CSSParser::completeURL(m_parserContext, url);
 }
 
-void StyleSheetContents::addSubresourceStyleURLs(ListHashSet<KURL>& urls)
+void StyleSheetContents::addSubresourceStyleURLs(ListHashSet<URL>& urls)
 {
     Deque<StyleSheetContents*> styleSheetQueue;
     styleSheetQueue.append(this);
@@ -427,7 +427,7 @@ void StyleSheetContents::addSubresourceStyleURLs(ListHashSet<KURL>& urls)
     }
 }
 
-static bool childRulesHaveFailedOrCanceledSubresources(const Vector<RefPtr<StyleRuleBase> >& rules)
+static bool childRulesHaveFailedOrCanceledSubresources(const Vector<RefPtr<StyleRuleBase>>& rules)
 {
     for (unsigned i = 0; i < rules.size(); ++i) {
         const StyleRuleBase* rule = rules[i].get();
@@ -448,14 +448,11 @@ static bool childRulesHaveFailedOrCanceledSubresources(const Vector<RefPtr<Style
             if (childRulesHaveFailedOrCanceledSubresources(static_cast<const StyleRuleRegion*>(rule)->childRules()))
                 return true;
             break;
-#if ENABLE(SHADOW_DOM)
-        case StyleRuleBase::HostInternal:
-            if (childRulesHaveFailedOrCanceledSubresources(static_cast<const StyleRuleHost*>(rule)->childRules()))
-                return true;
-            break;
-#endif
         case StyleRuleBase::Import:
             ASSERT_NOT_REACHED();
+#if ASSERT_DISABLED
+            FALLTHROUGH;
+#endif
         case StyleRuleBase::Page:
         case StyleRuleBase::Keyframes:
         case StyleRuleBase::Unknown:
@@ -466,9 +463,6 @@ static bool childRulesHaveFailedOrCanceledSubresources(const Vector<RefPtr<Style
 #endif
 #if ENABLE(CSS_DEVICE_ADAPTATION)
         case StyleRuleBase::Viewport:
-#endif
-#if ENABLE(CSS_SHADERS)
-        case StyleRuleBase::Filter:
 #endif
             break;
         }

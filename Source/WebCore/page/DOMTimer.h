@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,7 +35,7 @@ namespace WebCore {
 
     class ScheduledAction;
 
-    class DOMTimer FINAL : public SuspendableTimer {
+    class DOMTimer final : public SuspendableTimer {
     public:
         virtual ~DOMTimer();
         // Creates a new timer owned by specified ScriptExecutionContext, starts it
@@ -50,18 +50,18 @@ namespace WebCore {
 
     private:
         DOMTimer(ScriptExecutionContext*, PassOwnPtr<ScheduledAction>, int interval, bool singleShot);
-        virtual void fired() OVERRIDE;
+        virtual void fired() override;
 
         // ActiveDOMObject
-        virtual void contextDestroyed() OVERRIDE;
+        virtual void contextDestroyed() override;
 
         // SuspendableTimer
-        virtual void didStop() OVERRIDE;
+        virtual void didStop() override;
 
         double intervalClampedToMinimum(int timeout, double minimumTimerInterval) const;
 
         // Retuns timer fire time rounded to the next multiple of timer alignment interval.
-        virtual double alignedFireTime(double) const OVERRIDE;
+        virtual double alignedFireTime(double) const override;
 
         int m_timeoutId;
         int m_nestingLevel;

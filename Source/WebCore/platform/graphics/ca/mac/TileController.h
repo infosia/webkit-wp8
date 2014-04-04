@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,8 +27,9 @@
 #define TileController_h
 
 #include "FloatRect.h"
-#include "IntPointHash.h"
 #include "IntRect.h"
+#include "PlatformCALayer.h"
+#include "PlatformCALayerClient.h"
 #include "TiledBacking.h"
 #include "Timer.h"
 #include <wtf/Deque.h>
@@ -37,34 +38,29 @@
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RetainPtr.h>
 
-OBJC_CLASS CALayer;
-OBJC_CLASS WebTiledBackingLayer;
-OBJC_CLASS WebTileLayer;
-OBJC_CLASS WebTiledScrollingIndicatorLayer;
-
 namespace WebCore {
 
 class FloatRect;
 class IntPoint;
 class IntRect;
+class TileGrid;
 
-typedef Vector<RetainPtr<WebTileLayer> > WebTileLayerList;
+typedef Vector<RetainPtr<PlatformLayer>> PlatformLayerList;
 
-class TileController : public TiledBacking {
+class TileController final : public TiledBacking, public PlatformCALayerClient {
     WTF_MAKE_NONCOPYABLE(TileController);
 
 public:
-    static PassOwnPtr<TileController> create(WebTiledBackingLayer*);
+    static PassOwnPtr<TileController> create(PlatformCALayer*);
     ~TileController();
 
     void tileCacheLayerBoundsChanged();
 
     void setNeedsDisplay();
     void setNeedsDisplayInRect(const IntRect&);
-    void drawLayer(WebTileLayer *, CGContextRef);
 
-    void setScale(CGFloat);
-    CGFloat scale() const { return m_scale; }
+    void setScale(float);
+    float scale() const;
 
     bool acceleratesDrawing() const { return m_acceleratesDrawing; }
     void setAcceleratesDrawing(bool);
@@ -72,107 +68,118 @@ public:
     void setTilesOpaque(bool);
     bool tilesAreOpaque() const { return m_tilesAreOpaque; }
 
-    CALayer *tileContainerLayer() const { return m_tileContainerLayer.get(); }
+    PlatformCALayer& rootLayer() { return *m_tileCacheLayer; }
 
     void setTileDebugBorderWidth(float);
-    void setTileDebugBorderColor(CGColorRef);
+    void setTileDebugBorderColor(Color);
 
-    virtual FloatRect visibleRect() const OVERRIDE { return m_visibleRect; }
+    virtual FloatRect visibleRect() const override { return m_visibleRect; }
 
     unsigned blankPixelCount() const;
-    static unsigned blankPixelCountForTiles(const WebTileLayerList&, const FloatRect&, const IntPoint&);
+    static unsigned blankPixelCountForTiles(const PlatformLayerList&, const FloatRect&, const IntPoint&);
 
-    // Only public for the WebTileCacheMapLayer.
-    void drawTileMapContents(CGContextRef, CGRect);
+#if PLATFORM(IOS)
+    unsigned numberOfUnparentedTiles() const;
+    void removeUnparentedTilesNow();
+#endif
 
 public:
-    // Only public for inline methods in the implementation file.
-    typedef IntPoint TileIndex;
-    typedef unsigned TileCohort;
-    static const TileCohort VisibleTileCohort = UINT_MAX;
+    // Public for TileGrid
+    bool isInWindow() const { return m_isInWindow; }
 
-    struct TileInfo {
-        RetainPtr<WebTileLayer> layer;
-        TileCohort cohort; // VisibleTileCohort is visible.
-        bool hasStaleContent;
-        
-        TileInfo()
-            : cohort(VisibleTileCohort)
-            , hasStaleContent(false)
-        { }
-    };
+    float deviceScaleFactor() const { return m_deviceScaleFactor; }
+    FloatRect exposedRect() const { return m_exposedRect; }
 
-private:
-    TileController(WebTiledBackingLayer*);
+    Color tileDebugBorderColor() const { return m_tileDebugBorderColor; }
+    float tileDebugBorderWidth() const { return m_tileDebugBorderWidth; }
 
-    // TiledBacking member functions.
-    virtual void setVisibleRect(const FloatRect&) OVERRIDE;
-    virtual bool tilesWouldChangeForVisibleRect(const FloatRect&) const OVERRIDE;
-    virtual void setExposedRect(const FloatRect&) OVERRIDE;
-    virtual bool clipsToExposedRect() OVERRIDE { return m_clipsToExposedRect; }
-    virtual void setClipsToExposedRect(bool) OVERRIDE;
-    virtual void prepopulateRect(const FloatRect&) OVERRIDE;
-    virtual void setIsInWindow(bool) OVERRIDE;
-    virtual void setTileCoverage(TileCoverage) OVERRIDE;
-    virtual TileCoverage tileCoverage() const OVERRIDE { return m_tileCoverage; }
-    virtual void forceRepaint() OVERRIDE;
-    virtual IntSize tileSize() const OVERRIDE { return m_tileSize; }
-    virtual IntRect tileGridExtent() const OVERRIDE;
-    virtual void setScrollingPerformanceLoggingEnabled(bool flag) OVERRIDE { m_scrollingPerformanceLoggingEnabled = flag; }
-    virtual bool scrollingPerformanceLoggingEnabled() const OVERRIDE { return m_scrollingPerformanceLoggingEnabled; }
-    virtual void setAggressivelyRetainsTiles(bool flag) OVERRIDE { m_aggressivelyRetainsTiles = flag; }
-    virtual bool aggressivelyRetainsTiles() const OVERRIDE { return m_aggressivelyRetainsTiles; }
-    virtual void setUnparentsOffscreenTiles(bool flag) OVERRIDE { m_unparentsOffscreenTiles = flag; }
-    virtual bool unparentsOffscreenTiles() const OVERRIDE { return m_unparentsOffscreenTiles; }
-    virtual double retainedTileBackingStoreMemory() const OVERRIDE;
-    virtual IntRect tileCoverageRect() const OVERRIDE;
-    virtual CALayer *tiledScrollingIndicatorLayer() OVERRIDE;
-    virtual void setScrollingModeIndication(ScrollingModeIndication) OVERRIDE;
+    virtual IntSize tileSize() const override { return m_tileSize; }
+    virtual IntRect bounds() const override;
+    virtual bool hasMargins() const override;
+    virtual int topMarginHeight() const override;
+    virtual int bottomMarginHeight() const override;
+    virtual int leftMarginWidth() const override;
+    virtual int rightMarginWidth() const override;
+    virtual TileCoverage tileCoverage() const override { return m_tileCoverage; }
+    virtual bool unparentsOffscreenTiles() const override { return m_unparentsOffscreenTiles; }
 
-    IntRect bounds() const;
-
-    IntRect rectForTileIndex(const TileIndex&) const;
-    void getTileIndexRangeForRect(const IntRect&, TileIndex& topLeft, TileIndex& bottomRight) const;
+    IntRect boundsWithoutMargin() const;
 
     FloatRect computeTileCoverageRect(const FloatRect& previousVisibleRect, const FloatRect& currentVisibleRect) const;
-    IntSize tileSizeForCoverageRect(const FloatRect&) const;
+
+    IntRect boundsAtLastRevalidate() const { return m_boundsAtLastRevalidate; }
+    IntRect boundsAtLastRevalidateWithoutMargin() const;
+    FloatRect visibleRectAtLastRevalidate() const { return m_visibleRectAtLastRevalidate; }
+    void didRevalidateTiles();
+
+    bool shouldAggressivelyRetainTiles() const;
+    bool shouldTemporarilyRetainTileCohorts() const;
+
+    typedef HashMap<PlatformCALayer*, int> RepaintCountMap;
+    RepaintCountMap& repaintCountMap() { return m_tileRepaintCounts; }
+
+    void updateTileCoverageMap();
+
+    RefPtr<PlatformCALayer> createTileLayer(const IntRect&);
+
+    Vector<RefPtr<PlatformCALayer>> containerLayers();
+
+private:
+    TileController(PlatformCALayer*);
+
+    TileGrid& tileGrid() { return *m_tileGrid; }
+    const TileGrid& tileGrid() const { return *m_tileGrid; }
+
+    // TiledBacking member functions.
+    virtual void setVisibleRect(const FloatRect&) override;
+    virtual bool tilesWouldChangeForVisibleRect(const FloatRect&) const override;
+    virtual void setExposedRect(const FloatRect&) override;
+    virtual void prepopulateRect(const FloatRect&) override;
+    virtual void setIsInWindow(bool) override;
+    virtual void setTileCoverage(TileCoverage) override;
+    virtual void revalidateTiles() override;
+    virtual void forceRepaint() override;
+    virtual IntRect tileGridExtent() const override;
+    virtual void setScrollingPerformanceLoggingEnabled(bool flag) override { m_scrollingPerformanceLoggingEnabled = flag; }
+    virtual bool scrollingPerformanceLoggingEnabled() const override { return m_scrollingPerformanceLoggingEnabled; }
+    virtual void setUnparentsOffscreenTiles(bool flag) override { m_unparentsOffscreenTiles = flag; }
+    virtual double retainedTileBackingStoreMemory() const override;
+    virtual IntRect tileCoverageRect() const override;
+    virtual PlatformCALayer* tiledScrollingIndicatorLayer() override;
+    virtual void setScrollingModeIndication(ScrollingModeIndication) override;
+    virtual void setTileMargins(int marginTop, int marginBottom, int marginLeft, int marginRight) override;
+
+    // PlatformCALayerClient
+    virtual void platformCALayerLayoutSublayersOfLayer(PlatformCALayer*) override { }
+    virtual bool platformCALayerRespondsToLayoutChanges() const override { return false; }
+    virtual void platformCALayerAnimationStarted(CFTimeInterval) override { }
+    virtual GraphicsLayer::CompositingCoordinatesOrientation platformCALayerContentsOrientation() const override { return GraphicsLayer::CompositingCoordinatesTopDown; }
+    virtual void platformCALayerPaintContents(PlatformCALayer*, GraphicsContext&, const FloatRect&) override;
+    virtual bool platformCALayerShowDebugBorders() const override;
+    virtual bool platformCALayerShowRepaintCounter(PlatformCALayer*) const override;
+    virtual int platformCALayerIncrementRepaintCount(PlatformCALayer*) override;
+
+    virtual bool platformCALayerContentsOpaque() const override { return m_tilesAreOpaque; }
+    virtual bool platformCALayerDrawsContent() const override { return true; }
+    virtual void platformCALayerLayerDidDisplay(PlatformLayer*) override { }
+
+    virtual void platformCALayerSetNeedsToRevalidateTiles() override { }
+    virtual float platformCALayerDeviceScaleFactor() const override;
 
     void scheduleTileRevalidation(double interval);
     void tileRevalidationTimerFired(Timer<TileController>*);
 
-    void scheduleCohortRemoval();
-    void cohortRemovalTimerFired(Timer<TileController>*);
-    
-    typedef unsigned TileValidationPolicyFlags;
+    void setNeedsRevalidateTiles();
 
-    void revalidateTiles(TileValidationPolicyFlags foregroundValidationPolicy = 0, TileValidationPolicyFlags backgroundValidationPolicy = 0);
-    enum class CoverageType { PrimaryTiles, SecondaryTiles };
+    void drawTileMapContents(CGContextRef, CGRect);
 
-    // Returns the bounds of the covered tiles.
-    IntRect ensureTilesForRect(const FloatRect&, CoverageType);
-    void updateTileCoverageMap();
+    PlatformCALayerClient* owningGraphicsLayer() const { return m_tileCacheLayer->owner(); }
 
-    void removeAllTiles();
-    void removeAllSecondaryTiles();
-    void removeTilesInCohort(TileCohort);
+    PlatformCALayer* m_tileCacheLayer;
+    RefPtr<PlatformCALayer> m_tiledScrollingIndicatorLayer; // Used for coverage visualization.
+    RefPtr<PlatformCALayer> m_visibleRectIndicatorLayer;
 
-    TileCohort nextTileCohort() const;
-    void startedNewCohort(TileCohort);
-    
-    TileCohort newestTileCohort() const;
-    TileCohort oldestTileCohort() const;
-
-    void setTileNeedsDisplayInRect(const TileIndex&, TileInfo&, const IntRect& repaintRectInTileCoords, const IntRect& coverageRectInTileCoords);
-
-    WebTileLayer* tileLayerAtIndex(const TileIndex&) const;
-    RetainPtr<WebTileLayer> createTileLayer(const IntRect&);
-
-    bool shouldShowRepaintCounters() const;
-    void drawRepaintCounter(WebTileLayer *, CGContextRef);
-
-    WebTiledBackingLayer* m_tileCacheLayer;
-    RetainPtr<CALayer> m_tileContainerLayer;
-    RetainPtr<WebTiledScrollingIndicatorLayer> m_tiledScrollingIndicatorLayer; // Used for coverage visualization.
+    std::unique_ptr<TileGrid> m_tileGrid;
 
     IntSize m_tileSize;
     FloatRect m_visibleRect;
@@ -180,37 +187,31 @@ private:
     FloatRect m_exposedRect; // The exposed area of containing platform views.
     IntRect m_boundsAtLastRevalidate;
 
-    typedef HashMap<TileIndex, TileInfo> TileMap;
-    TileMap m_tiles;
     Timer<TileController> m_tileRevalidationTimer;
-    Timer<TileController> m_cohortRemovalTimer;
 
-    struct TileCohortInfo {
-        TileCohort cohort;
-        double creationTime; // in monotonicallyIncreasingTime().
-        TileCohortInfo(TileCohort inCohort, double inTime)
-            : cohort(inCohort)
-            , creationTime(inTime)
-        { }
-    };
-    typedef Deque<TileCohortInfo> TileCohortList;
-    TileCohortList m_cohortList;
-    
-    IntRect m_primaryTileCoverageRect; // In tile coords.
+    RepaintCountMap m_tileRepaintCounts;
 
-    CGFloat m_scale;
-    CGFloat m_deviceScaleFactor;
+    float m_deviceScaleFactor;
 
     TileCoverage m_tileCoverage;
+
+    // m_marginTop and m_marginBottom are the height in pixels of the top and bottom margin tiles. The width
+    // of those tiles will be equivalent to the width of the other tiles in the grid. m_marginRight and
+    // m_marginLeft are the width in pixels of the right and left margin tiles, respectively. The height of
+    // those tiles will be equivalent to the height of the other tiles in the grid.
+    int m_marginTop;
+    int m_marginBottom;
+    int m_marginLeft;
+    int m_marginRight;
+
     bool m_isInWindow;
     bool m_scrollingPerformanceLoggingEnabled;
-    bool m_aggressivelyRetainsTiles;
     bool m_unparentsOffscreenTiles;
     bool m_acceleratesDrawing;
     bool m_tilesAreOpaque;
-    bool m_clipsToExposedRect;
+    bool m_hasTilesWithTemporaryScaleFactor; // Used to make low-res tiles when zooming.
 
-    RetainPtr<CGColorRef> m_tileDebugBorderColor;
+    Color m_tileDebugBorderColor;
     float m_tileDebugBorderWidth;
     ScrollingModeIndication m_indicatorMode;
 };

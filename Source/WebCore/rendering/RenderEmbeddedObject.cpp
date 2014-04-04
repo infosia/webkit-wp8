@@ -100,9 +100,8 @@ static const Color& unavailablePluginBorderColor()
     return standard;
 }
 
-RenderEmbeddedObject::RenderEmbeddedObject(HTMLFrameOwnerElement& element)
-    : RenderWidget(element)
-    , m_hasFallbackContent(false)
+RenderEmbeddedObject::RenderEmbeddedObject(HTMLFrameOwnerElement& element, PassRef<RenderStyle> style)
+    : RenderWidget(element, std::move(style))
     , m_isPluginUnavailable(false)
     , m_isUnavailablePluginIndicatorHidden(false)
     , m_unavailablePluginIndicatorIsPressed(false)
@@ -117,14 +116,13 @@ RenderEmbeddedObject::~RenderEmbeddedObject()
     view().frameView().removeEmbeddedObjectToUpdate(*this);
 }
 
-RenderEmbeddedObject* RenderEmbeddedObject::createForApplet(HTMLAppletElement& applet)
+RenderPtr<RenderEmbeddedObject> RenderEmbeddedObject::createForApplet(HTMLAppletElement& applet, PassRef<RenderStyle> style)
 {
-    RenderEmbeddedObject* renderer = new (*applet.document().renderArena()) RenderEmbeddedObject(applet);
+    auto renderer = createRenderer<RenderEmbeddedObject>(applet, std::move(style));
     renderer->setInline(true);
     return renderer;
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 bool RenderEmbeddedObject::requiresLayer() const
 {
     if (RenderWidget::requiresLayer())
@@ -135,10 +133,15 @@ bool RenderEmbeddedObject::requiresLayer() const
 
 bool RenderEmbeddedObject::allowsAcceleratedCompositing() const
 {
+#if PLATFORM(IOS)
+    // The timing of layer creation is different on the phone, since the plugin can only be manipulated from the main thread.
+    return widget() && widget()->isPluginViewBase() && toPluginViewBase(widget())->willProvidePluginLayer();
+#else
     return widget() && widget()->isPluginViewBase() && toPluginViewBase(widget())->platformLayer();
-}
 #endif
+}
 
+#if !PLATFORM(IOS)
 static String unavailablePluginReplacementText(RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)
 {
     switch (pluginUnavailabilityReason) {
@@ -155,6 +158,7 @@ static String unavailablePluginReplacementText(RenderEmbeddedObject::PluginUnava
     ASSERT_NOT_REACHED();
     return String();
 }
+#endif
 
 static bool shouldUnavailablePluginMessageBeButton(Document& document, RenderEmbeddedObject::PluginUnavailabilityReason pluginUnavailabilityReason)
 {
@@ -164,11 +168,19 @@ static bool shouldUnavailablePluginMessageBeButton(Document& document, RenderEmb
 
 void RenderEmbeddedObject::setPluginUnavailabilityReason(PluginUnavailabilityReason pluginUnavailabilityReason)
 {
+#if PLATFORM(IOS)
+    UNUSED_PARAM(pluginUnavailabilityReason);
+#else
     setPluginUnavailabilityReasonWithDescription(pluginUnavailabilityReason, unavailablePluginReplacementText(pluginUnavailabilityReason));
+#endif
 }
 
 void RenderEmbeddedObject::setPluginUnavailabilityReasonWithDescription(PluginUnavailabilityReason pluginUnavailabilityReason, const String& description)
 {
+#if PLATFORM(IOS)
+    UNUSED_PARAM(pluginUnavailabilityReason);
+    UNUSED_PARAM(description);
+#else
     ASSERT(!m_isPluginUnavailable);
     m_isPluginUnavailable = true;
     m_pluginUnavailabilityReason = pluginUnavailabilityReason;
@@ -177,6 +189,7 @@ void RenderEmbeddedObject::setPluginUnavailabilityReasonWithDescription(PluginUn
         m_unavailablePluginReplacementText = unavailablePluginReplacementText(pluginUnavailabilityReason);
     else
         m_unavailablePluginReplacementText = description;
+#endif
 }
 
 void RenderEmbeddedObject::setUnavailablePluginIndicatorIsPressed(bool pressed)
@@ -206,7 +219,11 @@ void RenderEmbeddedObject::paintSnapshotImage(PaintInfo& paintInfo, const Layout
         return;
 
     bool useLowQualityScaling = shouldPaintAtLowQuality(context, image, image, alignedRect.size());
-    context->drawImage(image, style()->colorSpace(), alignedRect, CompositeSourceOver, ImageOrientationDescription(shouldRespectImageOrientation()), useLowQualityScaling);
+    ImageOrientationDescription orientationDescription(shouldRespectImageOrientation());
+#if ENABLE(CSS_IMAGE_ORIENTATION)
+    orientationDescription.setImageOrientationEnum(style().imageOrientation());
+#endif
+    context->drawImage(image, style().colorSpace(), alignedRect, CompositeSourceOver, orientationDescription, useLowQualityScaling);
 }
 
 void RenderEmbeddedObject::paintContents(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
@@ -297,7 +314,7 @@ void RenderEmbeddedObject::paintReplaced(PaintInfo& paintInfo, const LayoutPoint
 
     GraphicsContextStateSaver stateSaver(*context);
     context->clip(contentRect);
-    context->setFillColor(m_unavailablePluginIndicatorIsPressed ? replacementTextRoundedRectPressedColor() : replacementTextRoundedRectColor(), style()->colorSpace());
+    context->setFillColor(m_unavailablePluginIndicatorIsPressed ? replacementTextRoundedRectPressedColor() : replacementTextRoundedRectColor(), style().colorSpace());
     context->fillPath(background);
 
     Path strokePath;
@@ -305,21 +322,21 @@ void RenderEmbeddedObject::paintReplaced(PaintInfo& paintInfo, const LayoutPoint
     strokeRect.inflate(1);
     strokePath.addRoundedRect(strokeRect, FloatSize(replacementTextRoundedRectRadius + 1, replacementTextRoundedRectRadius + 1));
 
-    context->setStrokeColor(unavailablePluginBorderColor(), style()->colorSpace());
+    context->setStrokeColor(unavailablePluginBorderColor(), style().colorSpace());
     context->setStrokeThickness(2);
     context->strokePath(strokePath);
 
     const FontMetrics& fontMetrics = font.fontMetrics();
     float labelX = roundf(replacementTextRect.location().x() + replacementTextRoundedRectLeftTextMargin);
     float labelY = roundf(replacementTextRect.location().y() + (replacementTextRect.size().height() - fontMetrics.height()) / 2 + fontMetrics.ascent() + replacementTextRoundedRectTopTextMargin);
-    context->setFillColor(replacementTextColor(), style()->colorSpace());
+    context->setFillColor(replacementTextColor(), style().colorSpace());
     context->drawBidiText(font, run, FloatPoint(labelX, labelY));
 
     if (shouldUnavailablePluginMessageBeButton(document(), m_pluginUnavailabilityReason)) {
         arrowRect.inflate(-replacementArrowCirclePadding);
 
         context->beginTransparencyLayer(1.0);
-        context->setFillColor(replacementTextColor(), style()->colorSpace());
+        context->setFillColor(replacementTextColor(), style().colorSpace());
         context->fillEllipse(arrowRect);
 
         context->setCompositeOperation(CompositeClear);
@@ -393,7 +410,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     // Check the opacity of each layer containing the element or its ancestors.
     float opacity = 1.0;
     for (RenderLayer* layer = enclosingLayer(); layer; layer = layer->parent()) {
-        opacity *= layer->renderer().style()->opacity();
+        opacity *= layer->renderer().style().opacity();
         if (opacity < 0.1)
             return true;
     }
@@ -405,7 +422,7 @@ bool RenderEmbeddedObject::isReplacementObscured() const
     if (rect.isEmpty())
         return true;
 
-    RenderView* rootRenderView = document().topDocument()->renderView();
+    RenderView* rootRenderView = document().topDocument().renderView();
     ASSERT(rootRenderView);
     if (!rootRenderView)
         return true;
@@ -475,7 +492,7 @@ void RenderEmbeddedObject::layout()
         view().frameView().addEmbeddedObjectToUpdate(*this);
     }
 
-    setNeedsLayout(false);
+    clearNeedsLayout();
 
     LayoutSize newSize = contentBoxRect().size();
 
@@ -510,35 +527,16 @@ void RenderEmbeddedObject::layout()
     // When calling layout() on a child node, a parent must either push a LayoutStateMaintainter, or
     // instantiate LayoutStateDisabler. Since using a LayoutStateMaintainer is slightly more efficient,
     // and this method will be called many times per second during playback, use a LayoutStateMaintainer:
-    LayoutStateMaintainer statePusher(&view(), this, locationOffset(), hasTransform() || hasReflection() || style()->isFlippedBlocksWritingMode());
+    LayoutStateMaintainer statePusher(view(), *this, locationOffset(), hasTransform() || hasReflection() || style().isFlippedBlocksWritingMode());
     
     childBox->setLocation(LayoutPoint(borderLeft(), borderTop()) + LayoutSize(paddingLeft(), paddingTop()));
-    childBox->style()->setHeight(Length(newSize.height(), Fixed));
-    childBox->style()->setWidth(Length(newSize.width(), Fixed));
-    childBox->setNeedsLayout(true, MarkOnlyThis);
+    childBox->style().setHeight(Length(newSize.height(), Fixed));
+    childBox->style().setWidth(Length(newSize.width(), Fixed));
+    childBox->setNeedsLayout(MarkOnlyThis);
     childBox->layout();
-    setChildNeedsLayout(false);
+    clearChildNeedsLayout();
     
     statePusher.pop();
-}
-
-void RenderEmbeddedObject::viewCleared()
-{
-    // This is required for <object> elements whose contents are rendered by WebCore (e.g. src="foo.html").
-    if (widget() && widget()->isFrameView()) {
-        FrameView* view = toFrameView(widget());
-        int marginWidth = -1;
-        int marginHeight = -1;
-        if (isHTMLIFrameElement(frameOwnerElement())) {
-            HTMLIFrameElement& iframe = toHTMLIFrameElement(frameOwnerElement());
-            marginWidth = iframe.marginWidth();
-            marginHeight = iframe.marginHeight();
-        }
-        if (marginWidth != -1)
-            view->setMarginWidth(marginWidth);
-        if (marginHeight != -1)
-            view->setMarginHeight(marginHeight);
-    }
 }
 
 bool RenderEmbeddedObject::nodeAtPoint(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction hitTestAction)
@@ -569,7 +567,7 @@ bool RenderEmbeddedObject::nodeAtPoint(const HitTestRequest& request, HitTestRes
     return true;
 }
 
-bool RenderEmbeddedObject::scroll(ScrollDirection direction, ScrollGranularity granularity, float, Node**)
+bool RenderEmbeddedObject::scroll(ScrollDirection direction, ScrollGranularity granularity, float, Element**, RenderBox*, const IntPoint&)
 {
     if (!widget() || !widget()->isPluginViewBase())
         return false;
@@ -577,10 +575,10 @@ bool RenderEmbeddedObject::scroll(ScrollDirection direction, ScrollGranularity g
     return toPluginViewBase(widget())->scroll(direction, granularity);
 }
 
-bool RenderEmbeddedObject::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Node** stopNode)
+bool RenderEmbeddedObject::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Element** stopElement)
 {
     // Plugins don't expose a writing direction, so assuming horizontal LTR.
-    return scroll(logicalToPhysical(direction, true, false), granularity, multiplier, stopNode);
+    return scroll(logicalToPhysical(direction, true, false), granularity, multiplier, stopElement);
 }
 
 
@@ -610,20 +608,20 @@ void RenderEmbeddedObject::handleUnavailablePluginIndicatorEvent(Event* event)
     if (!event->isMouseEvent())
         return;
 
-    MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
+    MouseEvent* mouseEvent = toMouseEvent(event);
     HTMLPlugInElement& element = toHTMLPlugInElement(frameOwnerElement());
-    if (event->type() == eventNames().mousedownEvent && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mousedownEvent && toMouseEvent(event)->button() == LeftButton) {
         m_mouseDownWasInUnavailablePluginIndicator = isInUnavailablePluginIndicator(mouseEvent);
         if (m_mouseDownWasInUnavailablePluginIndicator) {
-            frame().eventHandler().setCapturingMouseEventsNode(&element);
+            frame().eventHandler().setCapturingMouseEventsElement(&element);
             element.setIsCapturingMouseEvents(true);
             setUnavailablePluginIndicatorIsPressed(true);
         }
         event->setDefaultHandled();
     }
-    if (event->type() == eventNames().mouseupEvent && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mouseupEvent && toMouseEvent(event)->button() == LeftButton) {
         if (m_unavailablePluginIndicatorIsPressed) {
-            frame().eventHandler().setCapturingMouseEventsNode(0);
+            frame().eventHandler().setCapturingMouseEventsElement(nullptr);
             element.setIsCapturingMouseEvents(false);
             setUnavailablePluginIndicatorIsPressed(false);
         }
@@ -646,16 +644,17 @@ CursorDirective RenderEmbeddedObject::getCursor(const LayoutPoint& point, Cursor
         cursor = handCursor();
         return SetCursor;
     }
+    if (widget() && widget()->isPluginViewBase()) {
+        // A plug-in is responsible for setting the cursor when the pointer is over it.
+        return DoNotSetCursor;
+    }
     return RenderWidget::getCursor(point, cursor);
 }
 
 bool RenderEmbeddedObject::canHaveChildren() const
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    if (!node())
-        return false;
-
-    if (toElement(node())->isMediaElement())
+    if (frameOwnerElement().isMediaElement())
         return true;
 #endif
 

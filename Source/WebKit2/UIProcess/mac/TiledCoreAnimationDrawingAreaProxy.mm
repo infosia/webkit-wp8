@@ -26,7 +26,7 @@
 #import "config.h"
 #import "TiledCoreAnimationDrawingAreaProxy.h"
 
-#if ENABLE(THREADED_SCROLLING)
+#if !PLATFORM(IOS)
 
 #import "ColorSpaceData.h"
 #import "DrawingAreaMessages.h"
@@ -51,20 +51,7 @@ TiledCoreAnimationDrawingAreaProxy::~TiledCoreAnimationDrawingAreaProxy()
 
 void TiledCoreAnimationDrawingAreaProxy::deviceScaleFactorDidChange()
 {
-    m_webPageProxy->process()->send(Messages::DrawingArea::SetDeviceScaleFactor(m_webPageProxy->deviceScaleFactor()), m_webPageProxy->pageID());
-}
-
-void TiledCoreAnimationDrawingAreaProxy::visibilityDidChange()
-{
-    if (!m_webPageProxy->isViewVisible())
-        m_webPageProxy->process()->send(Messages::DrawingArea::SuspendPainting(), m_webPageProxy->pageID());
-    else
-        m_webPageProxy->process()->send(Messages::DrawingArea::ResumePainting(), m_webPageProxy->pageID());
-}
-
-void TiledCoreAnimationDrawingAreaProxy::layerHostingModeDidChange()
-{
-    m_webPageProxy->process()->send(Messages::DrawingArea::SetLayerHostingMode(m_webPageProxy->layerHostingMode()), m_webPageProxy->pageID());
+    m_webPageProxy->process().send(Messages::DrawingArea::SetDeviceScaleFactor(m_webPageProxy->deviceScaleFactor()), m_webPageProxy->pageID());
 }
 
 void TiledCoreAnimationDrawingAreaProxy::sizeDidChange()
@@ -80,20 +67,20 @@ void TiledCoreAnimationDrawingAreaProxy::sizeDidChange()
     sendUpdateGeometry();
 }
 
-void TiledCoreAnimationDrawingAreaProxy::waitForPossibleGeometryUpdate(double timeout)
+void TiledCoreAnimationDrawingAreaProxy::waitForPossibleGeometryUpdate(std::chrono::milliseconds timeout)
 {
     if (!m_isWaitingForDidUpdateGeometry)
         return;
 
-    if (m_webPageProxy->process()->isLaunching())
+    if (m_webPageProxy->process().state() != WebProcessProxy::State::Running)
         return;
 
-    m_webPageProxy->process()->connection()->waitForAndDispatchImmediately<Messages::DrawingAreaProxy::DidUpdateGeometry>(m_webPageProxy->pageID(), timeout);
+    m_webPageProxy->process().connection()->waitForAndDispatchImmediately<Messages::DrawingAreaProxy::DidUpdateGeometry>(m_webPageProxy->pageID(), timeout);
 }
 
 void TiledCoreAnimationDrawingAreaProxy::colorSpaceDidChange()
 {
-    m_webPageProxy->process()->send(Messages::DrawingArea::SetColorSpace(m_webPageProxy->colorSpace()), m_webPageProxy->pageID());
+    m_webPageProxy->process().send(Messages::DrawingArea::SetColorSpace(m_webPageProxy->colorSpace()), m_webPageProxy->pageID());
 }
 
 void TiledCoreAnimationDrawingAreaProxy::minimumLayoutSizeDidChange()
@@ -152,10 +139,20 @@ void TiledCoreAnimationDrawingAreaProxy::sendUpdateGeometry()
     m_lastSentMinimumLayoutSize = m_webPageProxy->minimumLayoutSize();
     m_lastSentSize = m_size;
     m_lastSentLayerPosition = m_layerPosition;
-    m_webPageProxy->process()->send(Messages::DrawingArea::UpdateGeometry(m_size, m_layerPosition), m_webPageProxy->pageID());
+    m_webPageProxy->process().send(Messages::DrawingArea::UpdateGeometry(m_size, m_layerPosition), m_webPageProxy->pageID());
     m_isWaitingForDidUpdateGeometry = true;
+}
+
+void TiledCoreAnimationDrawingAreaProxy::adjustTransientZoom(double scale, FloatPoint origin)
+{
+    m_webPageProxy->process().send(Messages::DrawingArea::AdjustTransientZoom(scale, origin), m_webPageProxy->pageID());
+}
+
+void TiledCoreAnimationDrawingAreaProxy::commitTransientZoom(double scale, FloatPoint origin)
+{
+    m_webPageProxy->process().send(Messages::DrawingArea::CommitTransientZoom(scale, origin), m_webPageProxy->pageID());
 }
 
 } // namespace WebKit
 
-#endif // ENABLE(THREADED_SCROLLING)
+#endif // !PLATFORM(IOS)

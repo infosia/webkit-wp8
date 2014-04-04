@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -51,7 +51,7 @@ namespace WebCore {
     
         String data() const { return m_data; }
 
-        virtual EventInterface eventInterface() const;
+        virtual EventInterface eventInterface() const override;
 
         bool isLineBreak() const { return m_inputType == TextEventInputLineBreak; }
         bool isComposition() const { return m_inputType == TextEventInputComposition; }
@@ -73,6 +73,8 @@ namespace WebCore {
                   bool shouldSmartReplace, bool shouldMatchStyle);
         TextEvent(PassRefPtr<AbstractView>, const String& data, const Vector<DictationAlternative>& dictationAlternatives);
 
+        virtual bool isTextEvent() const override;
+
         TextEventInputType m_inputType;
         String m_data;
 
@@ -81,6 +83,8 @@ namespace WebCore {
         bool m_shouldMatchStyle;
         Vector<DictationAlternative> m_dictationAlternatives;
     };
+
+EVENT_TYPE_CASTS(TextEvent)
 
 } // namespace WebCore
 

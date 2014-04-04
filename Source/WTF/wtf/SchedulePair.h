@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -35,7 +35,7 @@
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 OBJC_CLASS NSRunLoop;
 #endif
 
@@ -45,7 +45,7 @@ class SchedulePair : public RefCounted<SchedulePair> {
 public:
     static PassRefPtr<SchedulePair> create(CFRunLoopRef runLoop, CFStringRef mode) { return adoptRef(new SchedulePair(runLoop, mode)); }
 
-#if PLATFORM(MAC) && !USE(CFNETWORK)
+#if USE(FOUNDATION) && !USE(CFNETWORK)
     static PassRefPtr<SchedulePair> create(NSRunLoop* runLoop, CFStringRef mode) { return adoptRef(new SchedulePair(runLoop, mode)); }
     NSRunLoop* nsRunLoop() const { return m_nsRunLoop.get(); }
 #endif
@@ -63,7 +63,7 @@ private:
             m_mode = adoptCF(CFStringCreateCopy(0, mode));
     }
 
-#if PLATFORM(MAC) && !USE(CFNETWORK)
+#if USE(FOUNDATION) && !USE(CFNETWORK)
     WTF_EXPORT_PRIVATE SchedulePair(NSRunLoop*, CFStringRef);
     RetainPtr<NSRunLoop*> m_nsRunLoop;
 #endif

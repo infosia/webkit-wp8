@@ -30,7 +30,6 @@
 #include "Timer.h"
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/Vector.h>
 
@@ -55,7 +54,7 @@ public:
     void notifyScriptReady(ScriptElement*, ExecutionType);
 
 private:
-    void timerFired(Timer<ScriptRunner>*);
+    void timerFired(Timer<ScriptRunner>&);
 
     Document& m_document;
     Vector<PendingScript> m_scriptsToExecuteInOrder;

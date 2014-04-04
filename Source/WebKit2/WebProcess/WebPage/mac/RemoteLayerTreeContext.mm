@@ -26,30 +26,22 @@
 #import "config.h"
 #import "RemoteLayerTreeContext.h"
 
-#import "RemoteGraphicsLayer.h"
+#import "GenericCallback.h"
+#import "GraphicsLayerCARemote.h"
+#import "PlatformCALayerRemote.h"
 #import "RemoteLayerTreeTransaction.h"
-#import "RemoteLayerTreeHostMessages.h"
 #import "WebPage.h"
-#import <WebCore/Frame.h>
 #import <WebCore/FrameView.h>
+#import <WebCore/MainFrame.h>
 #import <WebCore/Page.h>
-#import <wtf/PassOwnPtr.h>
 #import <wtf/TemporaryChange.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-PassOwnPtr<RemoteLayerTreeContext> RemoteLayerTreeContext::create(WebPage* webPage)
-{
-    return adoptPtr(new RemoteLayerTreeContext(webPage));
-}
-
 RemoteLayerTreeContext::RemoteLayerTreeContext(WebPage* webPage)
     : m_webPage(webPage)
-    , m_layerFlushTimer(this, &RemoteLayerTreeContext::layerFlushTimerFired)
-    , m_rootLayerID(0)
-    , m_currentTransaction(nullptr)
 {
 }
 
@@ -57,59 +49,71 @@ RemoteLayerTreeContext::~RemoteLayerTreeContext()
 {
 }
 
-void RemoteLayerTreeContext::setRootLayer(GraphicsLayer* rootLayer)
+void RemoteLayerTreeContext::layerWasCreated(PlatformCALayerRemote* layer, PlatformCALayer::LayerType type)
 {
-    ASSERT(rootLayer);
+    RemoteLayerTreeTransaction::LayerCreationProperties creationProperties;
+    creationProperties.layerID = layer->layerID();
+    creationProperties.type = type;
 
-    m_rootLayerID = static_cast<RemoteGraphicsLayer*>(rootLayer)->layerID();
+    if (type == PlatformCALayer::LayerTypeCustom)
+        creationProperties.hostingContextID = layer->hostingContextID();
+
+    m_createdLayers.append(creationProperties);
 }
 
-void RemoteLayerTreeContext::layerWillBeDestroyed(RemoteGraphicsLayer* graphicsLayer)
+void RemoteLayerTreeContext::layerWillBeDestroyed(PlatformCALayerRemote* layer)
 {
-    ASSERT(!m_destroyedLayers.contains(graphicsLayer->layerID()));
-
-    m_destroyedLayers.append(graphicsLayer->layerID());
+    ASSERT(!m_destroyedLayers.contains(layer->layerID()));
+    m_destroyedLayers.append(layer->layerID());
+    
+    m_layersAwaitingAnimationStart.remove(layer->layerID());
 }
 
-void RemoteLayerTreeContext::scheduleLayerFlush()
+void RemoteLayerTreeContext::outOfTreeLayerWasAdded(GraphicsLayer* layer)
 {
-    if (m_layerFlushTimer.isActive())
-        return;
-
-    m_layerFlushTimer.startOneShot(0);
+    ASSERT(!m_outOfTreeLayers.contains(layer));
+    m_outOfTreeLayers.append(layer);
 }
 
-RemoteLayerTreeTransaction& RemoteLayerTreeContext::currentTransaction()
+void RemoteLayerTreeContext::outOfTreeLayerWillBeRemoved(GraphicsLayer* layer)
 {
-    ASSERT(m_currentTransaction);
-
-    return *m_currentTransaction;
+    size_t layerIndex = m_outOfTreeLayers.find(layer);
+    ASSERT(layerIndex != notFound);
+    m_outOfTreeLayers.remove(layerIndex);
 }
 
-PassOwnPtr<GraphicsLayer> RemoteLayerTreeContext::createGraphicsLayer(GraphicsLayerClient* client)
+std::unique_ptr<GraphicsLayer> RemoteLayerTreeContext::createGraphicsLayer(GraphicsLayerClient* client)
 {
-    return RemoteGraphicsLayer::create(client, this);
+    return std::make_unique<GraphicsLayerCARemote>(client, this);
 }
 
-void RemoteLayerTreeContext::layerFlushTimerFired(WebCore::Timer<RemoteLayerTreeContext>*)
+void RemoteLayerTreeContext::flushOutOfTreeLayers()
 {
-    flushLayers();
+    for (const auto& layer : m_outOfTreeLayers)
+        layer->flushCompositingStateForThisLayerOnly();
 }
 
-void RemoteLayerTreeContext::flushLayers()
+void RemoteLayerTreeContext::buildTransaction(RemoteLayerTreeTransaction& transaction, PlatformCALayer& rootLayer)
 {
-    ASSERT(!m_currentTransaction);
+    PlatformCALayerRemote& rootLayerRemote = toPlatformCALayerRemote(rootLayer);
+    transaction.setRootLayerID(rootLayerRemote.layerID());
 
-    RemoteLayerTreeTransaction transaction;
-    transaction.setRootLayerID(m_rootLayerID);
+    rootLayerRemote.recursiveBuildTransaction(transaction);
+
+    transaction.setCreatedLayers(std::move(m_createdLayers));
     transaction.setDestroyedLayerIDs(std::move(m_destroyedLayers));
+}
 
-    TemporaryChange<RemoteLayerTreeTransaction*> transactionChange(m_currentTransaction, &transaction);
+void RemoteLayerTreeContext::willStartAnimationOnLayer(PlatformCALayerRemote* layer)
+{
+    m_layersAwaitingAnimationStart.add(layer->layerID(), layer);
+}
 
-    m_webPage->layoutIfNeeded();
-    m_webPage->corePage()->mainFrame().view()->flushCompositingStateIncludingSubframes();
-
-    m_webPage->send(Messages::RemoteLayerTreeHost::Commit(transaction));
+void RemoteLayerTreeContext::animationDidStart(WebCore::GraphicsLayer::PlatformLayerID layerID, double startTime)
+{
+    auto it = m_layersAwaitingAnimationStart.find(layerID);
+    if (it != m_layersAwaitingAnimationStart.end())
+        it->value->animationStarted(startTime);
 }
 
 } // namespace WebKit

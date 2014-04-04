@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -36,7 +36,7 @@
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/HashMap.h>
 #include <wtf/text/CString.h>
-#include <wtf/text/WTFString.h>
+#include <wtf/text/StringBuilder.h>
 
 #include <windows.h>
 #include <shlobj.h>
@@ -68,6 +68,17 @@ static bool getFileSizeFromFindData(const WIN32_FIND_DATAW& findData, long long&
     return true;
 }
 
+static void getFileCreationTimeFromFindData(const WIN32_FIND_DATAW& findData, time_t& time)
+{
+    ULARGE_INTEGER fileTime;
+    fileTime.HighPart = findData.ftCreationTime.dwHighDateTime;
+    fileTime.LowPart = findData.ftCreationTime.dwLowDateTime;
+
+    // Information about converting time_t to FileTime is available at http://msdn.microsoft.com/en-us/library/ms724228%28v=vs.85%29.aspx
+    time = fileTime.QuadPart / 10000000 - kSecondsFromFileTimeToTimet;
+}
+
+
 static void getFileModificationTimeFromFindData(const WIN32_FIND_DATAW& findData, time_t& time)
 {
     ULARGE_INTEGER fileTime;
@@ -94,6 +105,16 @@ bool getFileModificationTime(const String& path, time_t& time)
         return false;
 
     getFileModificationTimeFromFindData(findData, time);
+    return true;
+}
+
+bool getFileCreationTime(const String& path, time_t& time)
+{
+    WIN32_FIND_DATAW findData;
+    if (!getFindData(path, findData))
+        return false;
+
+    getFileCreationTimeFromFindData(findData, time);
     return true;
 }
 
@@ -135,39 +156,43 @@ bool deleteEmptyDirectory(const String& path)
 
 String pathByAppendingComponent(const String& path, const String& component)
 {
-    Vector<UChar> buffer(MAX_PATH);
-
 #if OS(WINCE)
-    buffer.append(path.characters(), path.length());
+    StringBuilder builder;
+
+    builder.append(path);
 
     UChar lastPathCharacter = path[path.length() - 1];
     if (lastPathCharacter != L'\\' && lastPathCharacter != L'/' && component[0] != L'\\' && component[0] != L'/')
-        buffer.append(PlatformFilePathSeparator);
+        builder.append(PlatformFilePathSeparator);
 
-    buffer.append(component.characters(), component.length());
-    buffer.shrinkToFit();
+    builder.append(component);
+
+    return builder.toString();
 #else
+    Vector<UChar> buffer(MAX_PATH);
+
     if (path.length() + 1 > buffer.size())
         return String();
 
-    memcpy(buffer.data(), path.characters(), path.length() * sizeof(UChar));
+    StringView(path).getCharactersWithUpconvert(buffer.data());
     buffer[path.length()] = '\0';
 
-    String componentCopy = component;
-    if (!PathAppendW(buffer.data(), componentCopy.charactersWithNullTermination().data()))
+    if (!PathAppendW(buffer.data(), component.charactersWithNullTermination().data()))
         return String();
 
-    buffer.resize(wcslen(buffer.data()));
-#endif
+    buffer.shrink(wcslen(buffer.data()));
 
     return String::adopt(buffer);
+#endif
 }
 
 #if !USE(CF)
 
 CString fileSystemRepresentation(const String& path)
 {
-    const UChar* characters = path.characters();
+    auto upconvertedCharacters = path.upconvertedCharacters();
+
+    const UChar* characters = upconvertedCharacters;
     int size = WideCharToMultiByte(CP_ACP, 0, characters, path.length(), 0, 0, 0, 0) - 1;
 
     char* buffer;
@@ -233,7 +258,7 @@ String directoryName(const String& path)
 
 static String bundleName()
 {
-    DEFINE_STATIC_LOCAL(String, name, (ASCIILiteral("WebKit")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, name, (ASCIILiteral("WebKit")));
 
 #if USE(CF)
     static bool initialized;
@@ -262,7 +287,7 @@ static String storageDirectory(DWORD pathIdentifier)
     buffer.resize(wcslen(buffer.data()));
     String directory = String::adopt(buffer);
 
-    DEFINE_STATIC_LOCAL(String, companyNameDirectory, (ASCIILiteral("Apple Computer\\")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, companyNameDirectory, (ASCIILiteral("Apple Computer\\")));
     directory = pathByAppendingComponent(directory, companyNameDirectory + bundleName());
     if (!makeAllDirectories(directory))
         return String();
@@ -382,6 +407,19 @@ int writeToFile(PlatformFileHandle handle, const char* data, int length)
     if (!success)
         return -1;
     return static_cast<int>(bytesWritten);
+}
+
+int readFromFile(PlatformFileHandle handle, char* data, int length)
+{
+    if (!isHandleValid(handle))
+        return -1;
+
+    DWORD bytesRead;
+    bool success = ::ReadFile(handle, data, length, &bytesRead, 0);
+
+    if (!success)
+        return -1;
+    return static_cast<int>(bytesRead);
 }
 
 bool unloadModule(PlatformModule module)

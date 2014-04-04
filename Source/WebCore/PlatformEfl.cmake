@@ -8,6 +8,7 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/graphics/freetype"
     "${WEBCORE_DIR}/platform/graphics/harfbuzz/"
     "${WEBCORE_DIR}/platform/graphics/harfbuzz/ng"
+    "${WEBCORE_DIR}/platform/graphics/opentype"
     "${WEBCORE_DIR}/platform/linux"
     "${WEBCORE_DIR}/platform/mediastream/gstreamer"
     "${WEBCORE_DIR}/platform/network/soup"
@@ -28,16 +29,19 @@ list(APPEND WebCore_SOURCES
     accessibility/atk/WebKitAccessibleInterfaceImage.cpp
     accessibility/atk/WebKitAccessibleInterfaceSelection.cpp
     accessibility/atk/WebKitAccessibleInterfaceTable.cpp
+    accessibility/atk/WebKitAccessibleInterfaceTableCell.cpp
     accessibility/atk/WebKitAccessibleInterfaceText.cpp
     accessibility/atk/WebKitAccessibleInterfaceValue.cpp
     accessibility/atk/WebKitAccessibleUtil.cpp
     accessibility/atk/WebKitAccessibleWrapperAtk.cpp
 
-    editing/SmartReplaceICU.cpp
+    editing/SmartReplace.cpp
 
     editing/atk/FrameSelectionAtk.cpp
 
     editing/efl/EditorEfl.cpp
+
+    html/shadow/MediaControlsApple.cpp
 
     loader/soup/CachedRawResourceSoup.cpp
     loader/soup/SubresourceLoaderSoup.cpp
@@ -58,7 +62,6 @@ list(APPEND WebCore_SOURCES
 
     platform/cairo/WidgetBackingStoreCairo.cpp
 
-    platform/efl/AsyncFileSystemEfl.cpp
     platform/efl/BatteryProviderEfl.cpp
     platform/efl/CursorEfl.cpp
     platform/efl/DragDataEfl.cpp
@@ -81,8 +84,6 @@ list(APPEND WebCore_SOURCES
     platform/efl/PlatformScreenEfl.cpp
     platform/efl/PlatformWheelEventEfl.cpp
     platform/efl/RenderThemeEfl.cpp
-    platform/efl/RunLoopEfl.cpp
-    platform/efl/ScrollViewEfl.cpp
     platform/efl/ScrollbarEfl.cpp
     platform/efl/ScrollbarThemeEfl.cpp
     platform/efl/SharedTimerEfl.cpp
@@ -123,23 +124,25 @@ list(APPEND WebCore_SOURCES
     platform/graphics/freetype/GlyphPageTreeNodeFreeType.cpp
     platform/graphics/freetype/SimpleFontDataFreeType.cpp
 
+    platform/graphics/gstreamer/AudioTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/GRefPtrGStreamer.cpp
-    platform/graphics/gstreamer/GStreamerGWorld.cpp
     platform/graphics/gstreamer/GStreamerUtilities.cpp
-    platform/graphics/gstreamer/GStreamerVersioning.cpp
     platform/graphics/gstreamer/ImageGStreamerCairo.cpp
     platform/graphics/gstreamer/InbandTextTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamer.cpp
     platform/graphics/gstreamer/MediaPlayerPrivateGStreamerBase.cpp
-    platform/graphics/gstreamer/PlatformVideoWindowEfl.cpp
     platform/graphics/gstreamer/TextCombinerGStreamer.cpp
     platform/graphics/gstreamer/TextSinkGStreamer.cpp
+    platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp
     platform/graphics/gstreamer/VideoSinkGStreamer.cpp
+    platform/graphics/gstreamer/VideoTrackPrivateGStreamer.cpp
     platform/graphics/gstreamer/WebKitWebSourceGStreamer.cpp
 
     platform/graphics/harfbuzz/HarfBuzzFace.cpp
     platform/graphics/harfbuzz/HarfBuzzFaceCairo.cpp
     platform/graphics/harfbuzz/HarfBuzzShaper.cpp
+
+    platform/graphics/opentype/OpenTypeVerticalData.cpp
 
     platform/image-decoders/cairo/ImageDecoderCairo.cpp
 
@@ -150,11 +153,11 @@ list(APPEND WebCore_SOURCES
     platform/network/efl/NetworkStateNotifierEfl.cpp
 
     platform/network/soup/AuthenticationChallengeSoup.cpp
+    platform/network/soup/CertificateInfo.cpp
     platform/network/soup/CookieJarSoup.cpp
     platform/network/soup/CookieStorageSoup.cpp
     platform/network/soup/CredentialStorageSoup.cpp
     platform/network/soup/DNSSoup.cpp
-    platform/network/soup/GOwnPtrSoup.cpp
     platform/network/soup/NetworkStorageSessionSoup.cpp
     platform/network/soup/ProxyResolverSoup.cpp
     platform/network/soup/ProxyServerSoup.cpp
@@ -163,11 +166,14 @@ list(APPEND WebCore_SOURCES
     platform/network/soup/ResourceRequestSoup.cpp
     platform/network/soup/ResourceResponseSoup.cpp
     platform/network/soup/SocketStreamHandleSoup.cpp
-    platform/network/soup/SoupURIUtils.cpp
+    platform/network/soup/SoupNetworkSession.cpp
     platform/network/soup/SynchronousLoaderClientSoup.cpp
 
     platform/posix/FileSystemPOSIX.cpp
     platform/posix/SharedBufferPOSIX.cpp
+
+    platform/soup/SharedBufferSoup.cpp
+    platform/soup/URLSoup.cpp
 
     platform/text/LocaleICU.cpp
 
@@ -176,15 +182,21 @@ list(APPEND WebCore_SOURCES
     platform/text/enchant/TextCheckerEnchant.cpp
 )
 
-if (ENABLE_BATTERY_STATUS)
+if (ENABLE_BATTERY_STATUS OR (EFL_REQUIRED_VERSION VERSION_LESS 1.8))
     list(APPEND WebCore_INCLUDE_DIRECTORIES ${DBUS_INCLUDE_DIRS})
+    list(APPEND WebCore_INCLUDE_DIRECTORIES ${E_DBUS_INCLUDE_DIRS})
+    list(APPEND WebCore_INCLUDE_DIRECTORIES ${E_DBUS_EUKIT_INCLUDE_DIRS})
     list(APPEND WebCore_LIBRARIES ${DBUS_LIBRARIES})
+    list(APPEND WebCore_LIBRARIES ${E_DBUS_LIBRARIES})
+    list(APPEND WebCore_LIBRARIES ${E_DBUS_EUKIT_LIBRARIES})
 endif ()
 
 if (ENABLE_NETSCAPE_PLUGIN_API)
     list(APPEND WebCore_SOURCES
         plugins/efl/PluginPackageEfl.cpp
         plugins/efl/PluginViewEfl.cpp
+
+        plugins/x11/PluginViewX11.cpp
     )
 endif ()
 
@@ -210,10 +222,8 @@ list(APPEND WebCore_LIBRARIES
     ${EINA_LIBRARIES}
     ${EO_LIBRARIES}
     ${EVAS_LIBRARIES}
-    ${E_DBUS_EUKIT_LIBRARIES}
-    ${E_DBUS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
-    ${FREETYPE_LIBRARIES}
+    ${FREETYPE2_LIBRARIES}
     ${GLIB_GIO_LIBRARIES}
     ${GLIB_GOBJECT_LIBRARIES}
     ${GLIB_LIBRARIES}
@@ -234,13 +244,11 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     ${ECORE_FILE_INCLUDE_DIRS}
     ${ECORE_X_INCLUDE_DIRS}
     ${EO_INCLUDE_DIRS}
-    ${E_DBUS_INCLUDE_DIRS}
-    ${E_DBUS_EUKIT_INCLUDE_DIRS}
     ${EDJE_INCLUDE_DIRS}
     ${EEZE_INCLUDE_DIRS}
     ${EINA_INCLUDE_DIRS}
     ${EVAS_INCLUDE_DIRS}
-    ${FREETYPE_INCLUDE_DIRS}
+    ${FREETYPE2_INCLUDE_DIRS}
     ${LIBXML2_INCLUDE_DIR}
     ${LIBXSLT_INCLUDE_DIR}
     ${SQLITE_INCLUDE_DIR}
@@ -272,17 +280,16 @@ endif ()
 
 if (ENABLE_VIDEO)
     list(APPEND WebCore_INCLUDE_DIRECTORIES
+        ${GSTREAMER_TAG_INCLUDE_DIRS}
         ${GSTREAMER_VIDEO_INCLUDE_DIRS}
     )
     list(APPEND WebCore_LIBRARIES
+        ${GSTREAMER_TAG_LIBRARIES}
         ${GSTREAMER_VIDEO_LIBRARIES}
     )
 endif ()
 
 if (WTF_USE_3D_GRAPHICS)
-    set(WTF_USE_OPENGL 1)
-    add_definitions(-DWTF_USE_OPENGL=1)
-
     list(APPEND WebCore_INCLUDE_DIRECTORIES
         "${WEBCORE_DIR}/platform/graphics/opengl"
         "${WEBCORE_DIR}/platform/graphics/surfaces"
@@ -301,6 +308,8 @@ if (WTF_USE_3D_GRAPHICS)
     list(APPEND WebCore_SOURCES
         platform/graphics/cairo/DrawingBufferCairo.cpp
 
+        platform/graphics/efl/EvasGLContext.cpp
+        platform/graphics/efl/EvasGLSurface.cpp
         platform/graphics/efl/GraphicsContext3DEfl.cpp
         platform/graphics/efl/GraphicsContext3DPrivate.cpp
 
@@ -308,6 +317,7 @@ if (WTF_USE_3D_GRAPHICS)
         platform/graphics/opengl/GLPlatformContext.cpp
         platform/graphics/opengl/GLPlatformSurface.cpp
         platform/graphics/opengl/GraphicsContext3DOpenGLCommon.cpp
+        platform/graphics/opengl/TemporaryOpenGLSetting.cpp
 
         platform/graphics/surfaces/GLTransportSurface.cpp
         platform/graphics/surfaces/GraphicsSurface.cpp
@@ -351,12 +361,16 @@ if (WTF_USE_3D_GRAPHICS)
 
     list(APPEND WebCore_LIBRARIES
         ${X11_X11_LIB}
-        ${X11_Xcomposite_LIB}
-        ${X11_Xrender_LIB}
     )
+
     if (WTF_USE_EGL)
         list(APPEND WebCore_LIBRARIES
             ${EGL_LIBRARY}
+        )
+    elseif (X11_Xcomposite_FOUND AND X11_Xrender_FOUND)
+        list(APPEND WebCore_LIBRARIES
+            ${X11_Xcomposite_LIB}
+            ${X11_Xrender_LIB}
         )
     endif ()
 endif ()

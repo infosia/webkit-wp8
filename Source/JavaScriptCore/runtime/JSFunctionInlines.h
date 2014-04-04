@@ -35,7 +35,7 @@ inline JSFunction::JSFunction(VM& vm, FunctionExecutable* executable, JSScope* s
     : Base(vm, scope->globalObject()->functionStructure())
     , m_executable(vm, this, executable)
     , m_scope(vm, this, scope)
-    , m_allocationProfileWatchpoint(InitializedBlind) // See comment in JSFunction.cpp concerning the reason for using InitializedBlind as opposed to InitializedWatching.
+    , m_allocationProfileWatchpoint(ClearWatchpoint) // See comment in JSFunction.cpp concerning the reason for using ClearWatchpoint as opposed to IsWatched.
 {
 }
 
@@ -53,14 +53,22 @@ inline bool JSFunction::isHostFunction() const
 
 inline NativeFunction JSFunction::nativeFunction()
 {
-    ASSERT(isHostFunction());
+    ASSERT(isHostFunctionNonInline());
     return static_cast<NativeExecutable*>(m_executable.get())->function();
 }
 
 inline NativeFunction JSFunction::nativeConstructor()
 {
-    ASSERT(isHostFunction());
+    ASSERT(isHostFunctionNonInline());
     return static_cast<NativeExecutable*>(m_executable.get())->constructor();
+}
+
+inline bool isHostFunction(JSValue value, NativeFunction nativeFunction)
+{
+    JSFunction* function = jsCast<JSFunction*>(getJSFunction(value));
+    if (!function || !function->isHostFunction())
+        return false;
+    return function->nativeFunction() == nativeFunction;
 }
 
 } // namespace JSC

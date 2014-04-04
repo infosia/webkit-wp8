@@ -34,11 +34,9 @@
 #include <wtf/MainThread.h>
 #include <wtf/MathExtras.h>
 #include <wtf/unicode/CharacterNames.h>
-#include <wtf/unicode/Unicode.h>
 
 using namespace WTF;
 using namespace Unicode;
-using namespace std;
 
 namespace WebCore {
 
@@ -129,37 +127,35 @@ int Font::emphasisMarkHeight(const AtomicString& mark) const
 
 float Font::getGlyphsAndAdvancesForSimpleText(const TextRun& run, int from, int to, GlyphBuffer& glyphBuffer, ForTextEmphasisOrNot forTextEmphasis) const
 {
-    WidthIterator it(this, run, 0, false, forTextEmphasis);
-    GlyphBuffer localGlyphBuffer;
-    it.advance(run.length(), &localGlyphBuffer);
+    float initialAdvance;
 
-    if (localGlyphBuffer.isEmpty())
+    WidthIterator it(this, run, 0, false, forTextEmphasis);
+    // FIXME: Using separate glyph buffers for the prefix and the suffix is incorrect when kerning or
+    // ligatures are enabled.
+    GlyphBuffer localGlyphBuffer;
+    it.advance(from, &localGlyphBuffer);
+    float beforeWidth = it.m_runWidthSoFar;
+    it.advance(to, &glyphBuffer);
+
+    if (glyphBuffer.isEmpty())
         return 0;
 
-    float totalWidth = it.m_runWidthSoFar;
-    float beforeWidth = 0;
-    int glyphPos = 0;
-    for (; glyphPos < localGlyphBuffer.size() && it.m_characterIndexOfGlyph[glyphPos] < from; ++glyphPos)
-        beforeWidth += localGlyphBuffer.advanceAt(glyphPos).width();
-    int glyphFrom = glyphPos;
-
-    float afterWidth = totalWidth;
-    glyphPos = localGlyphBuffer.size() - 1;
-    for (; glyphPos >= glyphFrom && it.m_characterIndexOfGlyph[glyphPos] >= to; --glyphPos)
-        afterWidth -= localGlyphBuffer.advanceAt(glyphPos).width();
-    int glyphTo = glyphPos + 1;
-
-    glyphBuffer.add(&localGlyphBuffer, glyphFrom, glyphTo - glyphFrom);
+    float afterWidth = it.m_runWidthSoFar;
 
     if (run.rtl()) {
-        glyphBuffer.reverse(0, glyphBuffer.size());
-        return totalWidth - afterWidth;
-    }
+        float finalRoundingWidth = it.m_finalRoundingWidth;
+        it.advance(run.length(), &localGlyphBuffer);
+        initialAdvance = finalRoundingWidth + it.m_runWidthSoFar - afterWidth;
+    } else
+        initialAdvance = beforeWidth;
 
-    return beforeWidth;
+    if (run.rtl())
+        glyphBuffer.reverse(0, glyphBuffer.size());
+
+    return initialAdvance;
 }
 
-void Font::drawSimpleText(GraphicsContext* context, const TextRun& run, const FloatPoint& point, int from, int to) const
+float Font::drawSimpleText(GraphicsContext* context, const TextRun& run, const FloatPoint& point, int from, int to) const
 {
     // This glyph buffer holds our glyphs+advances+font data for each glyph.
     GlyphBuffer glyphBuffer;
@@ -167,10 +163,12 @@ void Font::drawSimpleText(GraphicsContext* context, const TextRun& run, const Fl
     float startX = point.x() + getGlyphsAndAdvancesForSimpleText(run, from, to, glyphBuffer);
 
     if (glyphBuffer.isEmpty())
-        return;
+        return 0;
 
     FloatPoint startPoint(startX, point.y());
     drawGlyphBuffer(context, run, glyphBuffer, startPoint);
+
+    return startPoint.x() - startX;
 }
 
 void Font::drawEmphasisMarksForSimpleText(GraphicsContext* context, const TextRun& run, const AtomicString& mark, const FloatPoint& point, int from, int to) const
@@ -184,8 +182,8 @@ void Font::drawEmphasisMarksForSimpleText(GraphicsContext* context, const TextRu
     drawEmphasisMarks(context, run, glyphBuffer, mark, FloatPoint(point.x() + initialAdvance, point.y()));
 }
 
-void Font::drawGlyphBuffer(GraphicsContext* context, const TextRun& run, const GlyphBuffer& glyphBuffer, const FloatPoint& point) const
-{   
+void Font::drawGlyphBuffer(GraphicsContext* context, const TextRun& run, const GlyphBuffer& glyphBuffer, FloatPoint& point) const
+{
 #if !ENABLE(SVG_FONTS)
     UNUSED_PARAM(run);
 #endif
@@ -208,7 +206,7 @@ void Font::drawGlyphBuffer(GraphicsContext* context, const TextRun& run, const G
         if (nextFontData != fontData || nextOffset != offset) {
 #if ENABLE(SVG_FONTS)
             if (renderingContext && fontData->isSVGFont())
-                renderingContext->drawSVGGlyphs(context, run, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
+                renderingContext->drawSVGGlyphs(context, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
             else
 #endif
                 drawGlyphs(context, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
@@ -226,10 +224,13 @@ void Font::drawGlyphBuffer(GraphicsContext* context, const TextRun& run, const G
 
 #if ENABLE(SVG_FONTS)
     if (renderingContext && fontData->isSVGFont())
-        renderingContext->drawSVGGlyphs(context, run, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
+        renderingContext->drawSVGGlyphs(context, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
     else
 #endif
+    {
         drawGlyphs(context, fontData, glyphBuffer, lastFrom, nextGlyph - lastFrom, startPoint);
+        point.setX(nextX);
+    }
 }
 
 inline static float offsetToMiddleOfGlyph(const SimpleFontData* fontData, Glyph glyph)
@@ -285,8 +286,8 @@ float Font::floatWidthForSimpleText(const TextRun& run, HashSet<const SimpleFont
     it.advance(run.length(), (typesettingFeatures() & (Kerning | Ligatures)) ? &glyphBuffer : 0);
 
     if (glyphOverflow) {
-        glyphOverflow->top = max<int>(glyphOverflow->top, ceilf(-it.minGlyphBoundingBoxY()) - (glyphOverflow->computeBounds ? 0 : fontMetrics().ascent()));
-        glyphOverflow->bottom = max<int>(glyphOverflow->bottom, ceilf(it.maxGlyphBoundingBoxY()) - (glyphOverflow->computeBounds ? 0 : fontMetrics().descent()));
+        glyphOverflow->top = std::max<int>(glyphOverflow->top, ceilf(-it.minGlyphBoundingBoxY()) - (glyphOverflow->computeBounds ? 0 : fontMetrics().ascent()));
+        glyphOverflow->bottom = std::max<int>(glyphOverflow->bottom, ceilf(it.maxGlyphBoundingBoxY()) - (glyphOverflow->computeBounds ? 0 : fontMetrics().descent()));
         glyphOverflow->left = ceilf(it.firstGlyphOverflow());
         glyphOverflow->right = ceilf(it.lastGlyphOverflow());
     }
@@ -298,22 +299,15 @@ FloatRect Font::selectionRectForSimpleText(const TextRun& run, const FloatPoint&
 {
     GlyphBuffer glyphBuffer;
     WidthIterator it(this, run);
-    it.advance(run.length(), &glyphBuffer);
-
-    float totalWidth = it.m_runWidthSoFar;
-    float beforeWidth = 0;
-    int glyphPos = 0;
-    for (; glyphPos < glyphBuffer.size() && it.m_characterIndexOfGlyph[glyphPos] < from; ++glyphPos)
-        beforeWidth += glyphBuffer.advanceAt(glyphPos).width();
-    int glyphFrom = glyphPos;
-
-    float afterWidth = totalWidth;
-    glyphPos = glyphBuffer.size() - 1;
-    for (; glyphPos >= glyphFrom && it.m_characterIndexOfGlyph[glyphPos] >= to; --glyphPos)
-        afterWidth -= glyphBuffer.advanceAt(glyphPos).width();
+    it.advance(from, &glyphBuffer);
+    float beforeWidth = it.m_runWidthSoFar;
+    it.advance(to, &glyphBuffer);
+    float afterWidth = it.m_runWidthSoFar;
 
     // Using roundf() rather than ceilf() for the right edge as a compromise to ensure correct caret positioning.
     if (run.rtl()) {
+        it.advance(run.length(), &glyphBuffer);
+        float totalWidth = it.m_runWidthSoFar;
         return FloatRect(floorf(point.x() + totalWidth - afterWidth), point.y(), roundf(point.x() + totalWidth - beforeWidth) - floorf(point.x() + totalWidth - afterWidth), h);
     }
 
@@ -322,50 +316,45 @@ FloatRect Font::selectionRectForSimpleText(const TextRun& run, const FloatPoint&
 
 int Font::offsetForPositionForSimpleText(const TextRun& run, float x, bool includePartialGlyphs) const
 {
-    GlyphBuffer glyphBuffer;
-    WidthIterator it(this, run);
-    it.advance(run.length(), &glyphBuffer);
+    float delta = x;
 
-    int characterOffset = 0;
+    WidthIterator it(this, run);
+    GlyphBuffer localGlyphBuffer;
+    unsigned offset;
     if (run.rtl()) {
-        float currentX = it.m_runWidthSoFar;
-        for (int glyphPosition = 0; glyphPosition <= glyphBuffer.size(); ++glyphPosition) {
-            if (glyphPosition == glyphBuffer.size()) {
-                characterOffset = run.length();
+        delta -= floatWidthForSimpleText(run);
+        while (1) {
+            offset = it.m_currentCharacter;
+            float w;
+            if (!it.advanceOneCharacter(w, localGlyphBuffer))
                 break;
-            }
-            characterOffset = it.m_characterIndexOfGlyph[glyphPosition];
-            float glyphWidth = glyphBuffer.advanceAt(glyphPosition).width();
+            delta += w;
             if (includePartialGlyphs) {
-                if (currentX - glyphWidth / 2.0f <= x)
+                if (delta - w / 2 >= 0)
                     break;
             } else {
-                if (currentX - glyphWidth <= x)
+                if (delta >= 0)
                     break;
             }
-            currentX -= glyphWidth;
         }
     } else {
-        float currentX = 0;
-        for (int glyphPosition = 0; glyphPosition <= glyphBuffer.size(); ++glyphPosition) {
-            if (glyphPosition == glyphBuffer.size()) {
-                characterOffset = run.length();
+        while (1) {
+            offset = it.m_currentCharacter;
+            float w;
+            if (!it.advanceOneCharacter(w, localGlyphBuffer))
                 break;
-            }
-            characterOffset = it.m_characterIndexOfGlyph[glyphPosition];
-            float glyphWidth = glyphBuffer.advanceAt(glyphPosition).width();
+            delta -= w;
             if (includePartialGlyphs) {
-                if (currentX + glyphWidth / 2.0f >= x)
+                if (delta + w / 2 <= 0)
                     break;
             } else {
-                if (currentX + glyphWidth >= x)
+                if (delta <= 0)
                     break;
             }
-            currentX += glyphWidth;
         }
     }
 
-    return characterOffset;
+    return offset;
 }
 
-} // namespace WebCore
+}

@@ -23,9 +23,9 @@
 #include "HTMLProgressElement.h"
 
 #include "Attribute.h"
+#include "ElementIterator.h"
 #include "EventNames.h"
 #include "ExceptionCode.h"
-#include "HTMLDivElement.h"
 #include "HTMLNames.h"
 #include "HTMLParserIdioms.h"
 #include "ProgressShadowElement.h"
@@ -58,15 +58,15 @@ PassRefPtr<HTMLProgressElement> HTMLProgressElement::create(const QualifiedName&
     return progress.release();
 }
 
-RenderElement* HTMLProgressElement::createRenderer(RenderArena& arena, RenderStyle& style)
+RenderPtr<RenderElement> HTMLProgressElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    if (!style.hasAppearance() || hasAuthorShadowRoot())
-        return RenderElement::createFor(*this, style);
+    if (!style.get().hasAppearance())
+        return RenderElement::createFor(*this, std::move(style));
 
-    return new (arena) RenderProgress(this);
+    return createRenderer<RenderProgress>(*this, std::move(style));
 }
 
-bool HTMLProgressElement::childShouldCreateRenderer(const Node* child) const
+bool HTMLProgressElement::childShouldCreateRenderer(const Node& child) const
 {
     return hasShadowRootParent(child) && HTMLElement::childShouldCreateRenderer(child);
 }
@@ -74,11 +74,8 @@ bool HTMLProgressElement::childShouldCreateRenderer(const Node* child) const
 RenderProgress* HTMLProgressElement::renderProgress() const
 {
     if (renderer() && renderer()->isProgress())
-        return static_cast<RenderProgress*>(renderer());
-
-    RenderObject* renderObject = userAgentShadowRoot()->firstChild()->renderer();
-    ASSERT_WITH_SECURITY_IMPLICATION(!renderObject || renderObject->isProgress());
-    return static_cast<RenderProgress*>(renderObject);
+        return toRenderProgress(renderer());
+    return toRenderProgress(descendantsOfType<Element>(*userAgentShadowRoot()).first()->renderer());
 }
 
 void HTMLProgressElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
@@ -109,7 +106,7 @@ void HTMLProgressElement::setValue(double value, ExceptionCode& ec)
         ec = NOT_SUPPORTED_ERR;
         return;
     }
-    setAttribute(valueAttr, String::number(value >= 0 ? value : 0));
+    setAttribute(valueAttr, AtomicString::number(value >= 0 ? value : 0));
 }
 
 double HTMLProgressElement::max() const
@@ -124,7 +121,7 @@ void HTMLProgressElement::setMax(double max, ExceptionCode& ec)
         ec = NOT_SUPPORTED_ERR;
         return;
     }
-    setAttribute(maxAttr, String::number(max > 0 ? max : 1));
+    setAttribute(maxAttr, AtomicString::number(max > 0 ? max : 1));
 }
 
 double HTMLProgressElement::position() const

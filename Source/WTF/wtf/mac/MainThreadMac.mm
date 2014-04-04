@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -124,7 +124,7 @@ void scheduleDispatchFunctionsOnMainThread()
 {
     ASSERT(staticMainThreadCaller);
 
-    if (isMainThread()) {
+    if (isWebThread()) {
         postTimer();
         return;
     }
@@ -140,9 +140,14 @@ void scheduleDispatchFunctionsOnMainThread()
 }
 
 #if USE(WEB_THREAD)
+static bool webThreadIsUninitializedOrLockedOrDisabled()
+{
+    return !WebCoreWebThreadIsLockedOrDisabled || WebCoreWebThreadIsLockedOrDisabled();
+}
+
 bool isMainThread()
 {
-    return (isWebThread() || pthread_main_np()) && WebCoreWebThreadIsLockedOrDisabled();
+    return (isWebThread() || pthread_main_np()) && webThreadIsUninitializedOrLockedOrDisabled();
 }
 
 bool isUIThread()
@@ -183,7 +188,7 @@ bool canAccessThreadLocalDataForThread(ThreadIdentifier threadId)
         return true;
 
     if (threadId == sWebThreadIdentifier || threadId == sApplicationUIThreadIdentifier)
-        return (currentThreadId == sWebThreadIdentifier || currentThreadId == sApplicationUIThreadIdentifier) && WebCoreWebThreadIsLockedOrDisabled();
+        return (currentThreadId == sWebThreadIdentifier || currentThreadId == sApplicationUIThreadIdentifier) && webThreadIsUninitializedOrLockedOrDisabled();
 
     return false;
 }

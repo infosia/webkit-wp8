@@ -39,7 +39,7 @@ public:
         return ptr;
     }
 
-    static JSC::JSObject* createPrototype(JSC::ExecState*, JSC::JSGlobalObject*);
+    static JSC::JSObject* createPrototype(JSC::VM&, JSC::JSGlobalObject*);
     static bool getOwnPropertySlot(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);
     static void destroy(JSC::JSCell*);
     ~JSTestOverloadedConstructors();
@@ -50,8 +50,8 @@ public:
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
     }
 
-    static JSC::JSValue getConstructor(JSC::ExecState*, JSC::JSGlobalObject*);
-    TestOverloadedConstructors* impl() const { return m_impl; }
+    static JSC::JSValue getConstructor(JSC::VM&, JSC::JSGlobalObject*);
+    TestOverloadedConstructors& impl() const { return *m_impl; }
     void releaseImpl() { m_impl->deref(); m_impl = 0; }
 
     void releaseImplIfNotNull()
@@ -66,8 +66,14 @@ private:
     TestOverloadedConstructors* m_impl;
 protected:
     JSTestOverloadedConstructors(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<TestOverloadedConstructors>);
-    void finishCreation(JSC::VM&);
-    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | Base::StructureFlags;
+
+    void finishCreation(JSC::VM& vm)
+    {
+        Base::finishCreation(vm);
+        ASSERT(inherits(info()));
+    }
+
+    static const unsigned StructureFlags = JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestOverloadedConstructorsOwner : public JSC::WeakHandleOwner {
@@ -76,15 +82,15 @@ public:
     virtual void finalize(JSC::Handle<JSC::Unknown>, void* context);
 };
 
-inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld*, TestOverloadedConstructors*)
+inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, TestOverloadedConstructors*)
 {
-    DEFINE_STATIC_LOCAL(JSTestOverloadedConstructorsOwner, jsTestOverloadedConstructorsOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSTestOverloadedConstructorsOwner, jsTestOverloadedConstructorsOwner, ());
     return &jsTestOverloadedConstructorsOwner;
 }
 
-inline void* wrapperContext(DOMWrapperWorld* world, TestOverloadedConstructors*)
+inline void* wrapperContext(DOMWrapperWorld& world, TestOverloadedConstructors*)
 {
-    return world;
+    return &world;
 }
 
 JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject*, TestOverloadedConstructors*);
@@ -93,7 +99,7 @@ TestOverloadedConstructors* toTestOverloadedConstructors(JSC::JSValue);
 class JSTestOverloadedConstructorsPrototype : public JSC::JSNonFinalObject {
 public:
     typedef JSC::JSNonFinalObject Base;
-    static JSC::JSObject* self(JSC::ExecState*, JSC::JSGlobalObject*);
+    static JSC::JSObject* self(JSC::VM&, JSC::JSGlobalObject*);
     static JSTestOverloadedConstructorsPrototype* create(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::Structure* structure)
     {
         JSTestOverloadedConstructorsPrototype* ptr = new (NotNull, JSC::allocateCell<JSTestOverloadedConstructorsPrototype>(vm.heap)) JSTestOverloadedConstructorsPrototype(vm, globalObject, structure);
@@ -102,6 +108,7 @@ public:
     }
 
     DECLARE_INFO;
+    static bool getOwnPropertySlot(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype)
     {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -110,20 +117,20 @@ public:
 private:
     JSTestOverloadedConstructorsPrototype(JSC::VM& vm, JSC::JSGlobalObject*, JSC::Structure* structure) : JSC::JSNonFinalObject(vm, structure) { }
 protected:
-    static const unsigned StructureFlags = Base::StructureFlags;
+    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestOverloadedConstructorsConstructor : public DOMConstructorObject {
 private:
     JSTestOverloadedConstructorsConstructor(JSC::Structure*, JSDOMGlobalObject*);
-    void finishCreation(JSC::ExecState*, JSDOMGlobalObject*);
+    void finishCreation(JSC::VM&, JSDOMGlobalObject*);
 
 public:
     typedef DOMConstructorObject Base;
-    static JSTestOverloadedConstructorsConstructor* create(JSC::ExecState* exec, JSC::Structure* structure, JSDOMGlobalObject* globalObject)
+    static JSTestOverloadedConstructorsConstructor* create(JSC::VM& vm, JSC::Structure* structure, JSDOMGlobalObject* globalObject)
     {
-        JSTestOverloadedConstructorsConstructor* ptr = new (NotNull, JSC::allocateCell<JSTestOverloadedConstructorsConstructor>(*exec->heap())) JSTestOverloadedConstructorsConstructor(structure, globalObject);
-        ptr->finishCreation(exec, globalObject);
+        JSTestOverloadedConstructorsConstructor* ptr = new (NotNull, JSC::allocateCell<JSTestOverloadedConstructorsConstructor>(vm.heap)) JSTestOverloadedConstructorsConstructor(structure, globalObject);
+        ptr->finishCreation(vm, globalObject);
         return ptr;
     }
 
@@ -145,7 +152,7 @@ protected:
 
 // Attributes
 
-JSC::JSValue jsTestOverloadedConstructorsConstructor(JSC::ExecState*, JSC::JSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestOverloadedConstructorsConstructor(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
 
 } // namespace WebCore
 

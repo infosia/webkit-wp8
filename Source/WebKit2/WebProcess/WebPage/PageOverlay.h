@@ -28,8 +28,8 @@
 
 #include "APIObject.h"
 #include "WKBase.h"
-#include <WebCore/RunLoop.h>
 #include <wtf/PassRefPtr.h>
+#include <wtf/RunLoop.h>
 
 namespace WebCore {
     class GraphicsContext;
@@ -42,7 +42,7 @@ namespace WebKit {
 class WebMouseEvent;
 class WebPage;
 
-class PageOverlay : public TypedAPIObject<APIObject::TypeBundlePageOverlay> {
+class PageOverlay : public API::ObjectImpl<API::Object::Type::BundlePageOverlay> {
 public:
     class Client {
     protected:
@@ -76,6 +76,8 @@ public:
     void startFadeOutAnimation();
     void stopFadeOutAnimation();
 
+    void clear();
+
     Client* client() const { return m_client; }
     
 protected:
@@ -90,7 +92,7 @@ private:
     Client* m_client;
     WebPage* m_webPage;
 
-    WebCore::RunLoop::Timer<PageOverlay> m_fadeAnimationTimer;
+    RunLoop::Timer<PageOverlay> m_fadeAnimationTimer;
     double m_fadeAnimationStartTime;
     double m_fadeAnimationDuration;
 

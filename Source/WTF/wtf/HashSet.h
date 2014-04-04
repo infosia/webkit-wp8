@@ -21,6 +21,7 @@
 #ifndef WTF_HashSet_h
 #define WTF_HashSet_h
 
+#include <initializer_list>
 #include <wtf/FastMalloc.h>
 #include <wtf/HashTable.h>
 
@@ -29,11 +30,9 @@ namespace WTF {
     struct IdentityExtractor;
     
     template<typename Value, typename HashFunctions, typename Traits> class HashSet;
-    template<typename Value, typename HashFunctions, typename Traits>
-    void deleteAllValues(const HashSet<Value, HashFunctions, Traits>&);
 
     template<typename ValueArg, typename HashArg = typename DefaultHash<ValueArg>::Hash,
-        typename TraitsArg = HashTraits<ValueArg> > class HashSet {
+        typename TraitsArg = HashTraits<ValueArg>> class HashSet {
         WTF_MAKE_FAST_ALLOCATED;
     private:
         typedef HashArg HashFunctions;
@@ -50,6 +49,16 @@ namespace WTF {
         typedef HashTableConstIteratorAdapter<HashTableType, ValueType> iterator;
         typedef HashTableConstIteratorAdapter<HashTableType, ValueType> const_iterator;
         typedef typename HashTableType::AddResult AddResult;
+
+        HashSet()
+        {
+        }
+
+        HashSet(std::initializer_list<ValueArg> initializerList)
+        {
+            for (const auto& value : initializerList)
+                add(value);
+        }
 
         void swap(HashSet&);
 
@@ -71,8 +80,8 @@ namespace WTF {
         template<typename HashTranslator, typename T> iterator find(const T&) const;
         template<typename HashTranslator, typename T> bool contains(const T&) const;
 
-        // The return value is a pair of an interator to the new value's location, 
-        // and a bool that is true if an new entry was added.
+        // The return value includes both an iterator to the added value's location,
+        // and an isNewEntry bool that indicates if it is a new or existing entry in the set.
         AddResult add(const ValueType&);
         AddResult add(ValueType&&);
 
@@ -100,8 +109,6 @@ namespace WTF {
         bool operator==(const HashSet&) const;
 
     private:
-        friend void deleteAllValues<>(const HashSet&);
-
         HashTableType m_impl;
     };
 
@@ -171,14 +178,14 @@ namespace WTF {
     template<typename HashTranslator, typename T>
     inline auto HashSet<Value, HashFunctions, Traits>::find(const T& value) const -> iterator
     {
-        return m_impl.template find<HashSetTranslatorAdapter<HashTranslator> >(value);
+        return m_impl.template find<HashSetTranslatorAdapter<HashTranslator>>(value);
     }
 
     template<typename Value, typename HashFunctions, typename Traits>
     template<typename HashTranslator, typename T>
     inline bool HashSet<Value, HashFunctions, Traits>::contains(const T& value) const
     {
-        return m_impl.template contains<HashSetTranslatorAdapter<HashTranslator> >(value);
+        return m_impl.template contains<HashSetTranslatorAdapter<HashTranslator>>(value);
     }
 
     template<typename T, typename U, typename V>
@@ -197,7 +204,7 @@ namespace WTF {
     template<typename HashTranslator, typename T>
     inline auto HashSet<Value, HashFunctions, Traits>::add(const T& value) -> AddResult
     {
-        return m_impl.template addPassingHashCode<HashSetTranslatorAdapter<HashTranslator> >(value, value);
+        return m_impl.template addPassingHashCode<HashSetTranslatorAdapter<HashTranslator>>(value, value);
     }
 
     template<typename T, typename U, typename V>
@@ -259,21 +266,6 @@ namespace WTF {
         }
 
         return true;
-    }
-
-    template<typename ValueType, typename HashTableType>
-    void deleteAllValues(HashTableType& collection)
-    {
-        typedef typename HashTableType::const_iterator iterator;
-        iterator end = collection.end();
-        for (iterator it = collection.begin(); it != end; ++it)
-            delete *it;
-    }
-
-    template<typename T, typename U, typename V>
-    inline void deleteAllValues(const HashSet<T, U, V>& collection)
-    {
-        deleteAllValues<typename HashSet<T, U, V>::ValueType>(collection.m_impl);
     }
 
     template<typename C, typename W>

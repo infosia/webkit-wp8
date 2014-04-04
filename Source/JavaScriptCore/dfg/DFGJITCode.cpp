@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,11 +29,16 @@
 #if ENABLE(DFG_JIT)
 
 #include "CodeBlock.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
 JITCode::JITCode()
     : DirectJITCode(DFGJIT)
+#if ENABLE(FTL_JIT)
+    , osrEntryRetry(0)
+    , abandonOSREntry(false)
+#endif // ENABLE(FTL_JIT)
 {
 }
 
@@ -80,8 +85,9 @@ void JITCode::reconstruct(
     for (size_t i = result.size(); i--;) {
         int operand = result.operandForIndex(i);
         
-        if (operandIsArgument(operand)
-            && !operandToArgument(operand)
+        if (codeOrigin == CodeOrigin(0)
+            && operandIsArgument(operand)
+            && !VirtualRegister(operand).toArgument()
             && codeBlock->codeType() == FunctionCode
             && codeBlock->specializationKind() == CodeForConstruct) {
             // Ugh. If we're in a constructor, the 'this' argument may hold garbage. It will
@@ -92,31 +98,7 @@ void JITCode::reconstruct(
             continue;
         }
         
-        ValueRecovery recovery = recoveries[i];
-        JSValue value;
-        switch (recovery.technique()) {
-        case AlreadyInJSStack:
-        case AlreadyInJSStackAsUnboxedCell:
-        case AlreadyInJSStackAsUnboxedBoolean:
-            value = exec->r(operand).jsValue();
-            break;
-        case AlreadyInJSStackAsUnboxedInt32:
-            value = jsNumber(exec->r(operand).unboxedInt32());
-            break;
-        case AlreadyInJSStackAsUnboxedInt52:
-            value = jsNumber(exec->r(operand).unboxedInt52());
-            break;
-        case AlreadyInJSStackAsUnboxedDouble:
-            value = jsDoubleNumber(exec->r(operand).unboxedDouble());
-            break;
-        case Constant:
-            value = recovery.constant();
-            break;
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-            break;
-        }
-        result[i] = value;
+        result[i] = recoveries[i].recover(exec);
     }
 }
 
@@ -180,6 +162,7 @@ void JITCode::setOptimizationThresholdBasedOnCompilationResult(
     switch (result) {
     case CompilationSuccessful:
         optimizeNextInvocation(codeBlock);
+        codeBlock->baselineVersion()->m_hasBeenCompiledWithFTL = true;
         return;
     case CompilationFailed:
         dontOptimizeAnytimeSoon(codeBlock);

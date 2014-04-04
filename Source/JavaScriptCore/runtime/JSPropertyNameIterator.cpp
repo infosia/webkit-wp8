@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -29,6 +29,7 @@
 #include "config.h"
 #include "JSPropertyNameIterator.h"
 
+#include "JSCInlines.h"
 #include "JSGlobalObject.h"
 #include <wtf/StdLibExtras.h>
 
@@ -50,6 +51,8 @@ JSPropertyNameIterator* JSPropertyNameIterator::create(ExecState* exec, JSObject
             o->structure()->enumerationCache()->cachedStructure() != o->structure() ||
             o->structure()->enumerationCache()->cachedPrototypeChain() != o->structure()->prototypeChain(exec));
 
+    VM& vm = exec->vm();
+
     PropertyNameArray propertyNames(exec);
     o->methodTable()->getPropertyNames(o, exec, propertyNames, ExcludeDontEnumProperties);
     size_t numCacheableSlots = 0;
@@ -57,8 +60,8 @@ JSPropertyNameIterator* JSPropertyNameIterator::create(ExecState* exec, JSObject
         && !o->structure()->isUncacheableDictionary() && !o->structure()->typeInfo().overridesGetPropertyNames())
         numCacheableSlots = propertyNames.numCacheableSlots();
     
-    JSPropertyNameIterator* jsPropertyNameIterator = new (NotNull, allocateCell<JSPropertyNameIterator>(*exec->heap())) JSPropertyNameIterator(exec, propertyNames.data(), numCacheableSlots);
-    jsPropertyNameIterator->finishCreation(exec, propertyNames.data(), o);
+    JSPropertyNameIterator* jsPropertyNameIterator = new (NotNull, allocateCell<JSPropertyNameIterator>(vm.heap)) JSPropertyNameIterator(exec, propertyNames.data(), numCacheableSlots);
+    jsPropertyNameIterator->finishCreation(vm, propertyNames.data(), o);
 
     if (o->structure()->isDictionary())
         return jsPropertyNameIterator;
@@ -77,9 +80,9 @@ JSPropertyNameIterator* JSPropertyNameIterator::create(ExecState* exec, JSObject
             return jsPropertyNameIterator;
     }
 
-    jsPropertyNameIterator->setCachedPrototypeChain(exec->vm(), structureChain);
-    jsPropertyNameIterator->setCachedStructure(exec->vm(), o->structure());
-    o->structure()->setEnumerationCache(exec->vm(), jsPropertyNameIterator);
+    jsPropertyNameIterator->setCachedPrototypeChain(vm, structureChain);
+    jsPropertyNameIterator->setCachedStructure(vm, o->structure());
+    o->structure()->setEnumerationCache(vm, jsPropertyNameIterator);
     return jsPropertyNameIterator;
 }
 

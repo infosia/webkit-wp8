@@ -52,16 +52,6 @@ static double parserTimeLimit(Page* page)
     return defaultParserTimeLimit;
 }
 
-static int parserChunkSize(Page* page)
-{
-    // FIXME: We may need to divide the value from customHTMLTokenizerChunkSize
-    // by some constant to translate from the "character" based behavior of the
-    // old LegacyHTMLDocumentParser to the token-based behavior of this parser.
-    if (page && page->hasCustomHTMLTokenizerChunkSize())
-        return page->customHTMLTokenizerChunkSize();
-    return defaultParserChunkSize;
-}
-
 ActiveParserSession::ActiveParserSession(Document* document)
     : m_document(document)
 {
@@ -94,10 +84,10 @@ PumpSession::~PumpSession()
 {
 }
 
-HTMLParserScheduler::HTMLParserScheduler(HTMLDocumentParser* parser)
+HTMLParserScheduler::HTMLParserScheduler(HTMLDocumentParser& parser)
     : m_parser(parser)
-    , m_parserTimeLimit(parserTimeLimit(m_parser->document()->page()))
-    , m_parserChunkSize(parserChunkSize(m_parser->document()->page()))
+    , m_parserTimeLimit(parserTimeLimit(m_parser.document()->page()))
+    , m_parserChunkSize(defaultParserChunkSize)
     , m_continueNextChunkTimer(this, &HTMLParserScheduler::continueNextChunkTimerFired)
     , m_isSuspendedWithActiveTimer(false)
 #if !ASSERT_DISABLED
@@ -111,24 +101,25 @@ HTMLParserScheduler::~HTMLParserScheduler()
     m_continueNextChunkTimer.stop();
 }
 
-void HTMLParserScheduler::continueNextChunkTimerFired(Timer<HTMLParserScheduler>* timer)
+void HTMLParserScheduler::continueNextChunkTimerFired(Timer<HTMLParserScheduler>& timer)
 {
     ASSERT(!m_suspended);
-    ASSERT_UNUSED(timer, timer == &m_continueNextChunkTimer);
+    ASSERT_UNUSED(timer, &timer == &m_continueNextChunkTimer);
+
     // FIXME: The timer class should handle timer priorities instead of this code.
     // If a layout is scheduled, wait again to let the layout timer run first.
-    if (m_parser->document()->isLayoutTimerActive()) {
+    if (m_parser.document()->isLayoutTimerActive()) {
         m_continueNextChunkTimer.startOneShot(0);
         return;
     }
-    m_parser->resumeParsingAfterYield();
+    m_parser.resumeParsingAfterYield();
 }
 
 void HTMLParserScheduler::checkForYieldBeforeScript(PumpSession& session)
 {
     // If we've never painted before and a layout is pending, yield prior to running
     // scripts to give the page a chance to paint earlier.
-    Document* document = m_parser->document();
+    Document* document = m_parser.document();
     bool needsFirstPaint = document->view() && !document->view()->hasEverPainted();
     if (needsFirstPaint && document->isLayoutTimerActive())
         session.needsYield = true;

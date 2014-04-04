@@ -30,6 +30,7 @@
 #include "CodeBlock.h"
 #include "JITExceptions.h"
 #include "LLIntCommon.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace CommonSlowPaths {
 
@@ -41,7 +42,6 @@ void interpreterThrowInCaller(ExecState* exec, JSObject* error)
 #if LLINT_SLOW_PATH_TRACING
     dataLog("Throwing exception ", vm->exception(), ".\n");
 #endif
-    genericUnwind(vm, exec, vm->exception());
 }
 
 } } // namespace JSC::LLInt

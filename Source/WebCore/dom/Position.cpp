@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2006, 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2009, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,12 +29,14 @@
 #include "CSSComputedStyleDeclaration.h"
 #include "HTMLNames.h"
 #include "HTMLTableElement.h"
+#include "InlineElementBox.h"
 #include "InlineIterator.h"
 #include "InlineTextBox.h"
 #include "Logging.h"
 #include "PositionIterator.h"
 #include "RenderBlock.h"
 #include "RenderInline.h"
+#include "RenderIterator.h"
 #include "RenderLineBreak.h"
 #include "RenderText.h"
 #include "RuntimeEnabledFeatures.h"
@@ -65,10 +67,8 @@ static bool hasInlineBoxWrapper(RenderObject& renderer)
 static Node* nextRenderedEditable(Node* node)
 {
     while ((node = nextLeafNode(node))) {
-        if (!node->rendererIsEditable())
-            continue;
         RenderObject* renderer = node->renderer();
-        if (!renderer)
+        if (!renderer || !node->hasEditableStyle())
             continue;
         if (hasInlineBoxWrapper(*renderer))
             return node;
@@ -79,10 +79,8 @@ static Node* nextRenderedEditable(Node* node)
 static Node* previousRenderedEditable(Node* node)
 {
     while ((node = previousLeafNode(node))) {
-        if (!node->rendererIsEditable())
-            continue;
         RenderObject* renderer = node->renderer();
-        if (!renderer)
+        if (!renderer || !node->hasEditableStyle())
             continue;
         if (hasInlineBoxWrapper(*renderer))
             return node;
@@ -96,11 +94,7 @@ Position::Position(PassRefPtr<Node> anchorNode, LegacyEditingOffset offset)
     , m_anchorType(anchorTypeForLegacyEditingPosition(m_anchorNode.get(), m_offset))
     , m_isLegacyEditingPosition(true)
 {
-#if ENABLE(SHADOW_DOM)
-    ASSERT((m_anchorNode && RuntimeEnabledFeatures::shadowDOMEnabled()) || !m_anchorNode || !m_anchorNode->isShadowRoot() || m_anchorNode == containerNode());
-#else
     ASSERT(!m_anchorNode || !m_anchorNode->isShadowRoot() || m_anchorNode == containerNode());
-#endif
     ASSERT(!m_anchorNode || !m_anchorNode->isPseudoElement());
 }
 
@@ -110,14 +104,8 @@ Position::Position(PassRefPtr<Node> anchorNode, AnchorType anchorType)
     , m_anchorType(anchorType)
     , m_isLegacyEditingPosition(false)
 {
-#if ENABLE(SHADOW_DOM)
-    ASSERT((m_anchorNode && RuntimeEnabledFeatures::shadowDOMEnabled()) || !m_anchorNode || !m_anchorNode->isShadowRoot() || m_anchorNode == containerNode());
-#else
     ASSERT(!m_anchorNode || !m_anchorNode->isShadowRoot() || m_anchorNode == containerNode());
-#endif
-
     ASSERT(!m_anchorNode || !m_anchorNode->isPseudoElement());
-
     ASSERT(anchorType != PositionIsOffsetInAnchor);
     ASSERT(!((anchorType == PositionIsBeforeChildren || anchorType == PositionIsAfterChildren)
         && (m_anchorNode->isTextNode() || editingIgnoresContent(m_anchorNode.get()))));
@@ -129,15 +117,8 @@ Position::Position(PassRefPtr<Node> anchorNode, int offset, AnchorType anchorTyp
     , m_anchorType(anchorType)
     , m_isLegacyEditingPosition(false)
 {
-#if ENABLE(SHADOW_DOM)
-    ASSERT((m_anchorNode && RuntimeEnabledFeatures::shadowDOMEnabled())
-           || !m_anchorNode || !editingIgnoresContent(m_anchorNode.get()) || !m_anchorNode->isShadowRoot());
-#else
     ASSERT(!m_anchorNode || !editingIgnoresContent(m_anchorNode.get()) || !m_anchorNode->isShadowRoot());
-#endif
-
     ASSERT(!m_anchorNode || !m_anchorNode->isPseudoElement());
-
     ASSERT(anchorType == PositionIsOffsetInAnchor);
 }
 
@@ -239,13 +220,13 @@ Position Position::parentAnchoredEquivalent() const
     
     // FIXME: This should only be necessary for legacy positions, but is also needed for positions before and after Tables
     if (m_offset <= 0 && (m_anchorType != PositionIsAfterAnchor && m_anchorType != PositionIsAfterChildren)) {
-        if (findParent(m_anchorNode.get()) && (editingIgnoresContent(m_anchorNode.get()) || isTableElement(m_anchorNode.get())))
+        if (findParent(m_anchorNode.get()) && (editingIgnoresContent(m_anchorNode.get()) || isRenderedTable(m_anchorNode.get())))
             return positionInParentBeforeNode(m_anchorNode.get());
         return Position(m_anchorNode.get(), 0, PositionIsOffsetInAnchor);
     }
     if (!m_anchorNode->offsetInCharacters()
         && (m_anchorType == PositionIsAfterAnchor || m_anchorType == PositionIsAfterChildren || static_cast<unsigned>(m_offset) == m_anchorNode->childNodeCount())
-        && (editingIgnoresContent(m_anchorNode.get()) || isTableElement(m_anchorNode.get()))
+        && (editingIgnoresContent(m_anchorNode.get()) || isRenderedTable(m_anchorNode.get()))
         && containerNode()) {
         return positionInParentAfterNode(m_anchorNode.get());
     }
@@ -437,15 +418,15 @@ bool Position::atLastEditingPositionForNode() const
 bool Position::atEditingBoundary() const
 {
     Position nextPosition = downstream(CanCrossEditingBoundary);
-    if (atFirstEditingPositionForNode() && nextPosition.isNotNull() && !nextPosition.deprecatedNode()->rendererIsEditable())
+    if (atFirstEditingPositionForNode() && nextPosition.isNotNull() && !nextPosition.deprecatedNode()->hasEditableStyle())
         return true;
         
     Position prevPosition = upstream(CanCrossEditingBoundary);
-    if (atLastEditingPositionForNode() && prevPosition.isNotNull() && !prevPosition.deprecatedNode()->rendererIsEditable())
+    if (atLastEditingPositionForNode() && prevPosition.isNotNull() && !prevPosition.deprecatedNode()->hasEditableStyle())
         return true;
         
-    return nextPosition.isNotNull() && !nextPosition.deprecatedNode()->rendererIsEditable()
-        && prevPosition.isNotNull() && !prevPosition.deprecatedNode()->rendererIsEditable();
+    return nextPosition.isNotNull() && !nextPosition.deprecatedNode()->hasEditableStyle()
+        && prevPosition.isNotNull() && !prevPosition.deprecatedNode()->hasEditableStyle();
 }
 
 Node* Position::parentEditingBoundary() const
@@ -458,7 +439,7 @@ Node* Position::parentEditingBoundary() const
         return 0;
 
     Node* boundary = m_anchorNode.get();
-    while (boundary != documentElement && boundary->nonShadowBoundaryParentNode() && m_anchorNode->rendererIsEditable() == boundary->parentNode()->rendererIsEditable())
+    while (boundary != documentElement && boundary->nonShadowBoundaryParentNode() && m_anchorNode->hasEditableStyle() == boundary->parentNode()->hasEditableStyle())
         boundary = boundary->nonShadowBoundaryParentNode();
     
     return boundary;
@@ -477,30 +458,6 @@ bool Position::atEndOfTree() const
     if (isNull())
         return true;
     return !findParent(deprecatedNode()) && m_offset >= lastOffsetForEditing(deprecatedNode());
-}
-
-int Position::renderedOffset() const
-{
-    if (!deprecatedNode()->isTextNode())
-        return m_offset;
-   
-    if (!deprecatedNode()->renderer())
-        return m_offset;
-                    
-    int result = 0;
-    RenderText* textRenderer = toRenderText(deprecatedNode()->renderer());
-    for (InlineTextBox *box = textRenderer->firstTextBox(); box; box = box->nextTextBox()) {
-        int start = box->start();
-        int end = box->start() + box->len();
-        if (m_offset < start)
-            return result;
-        if (m_offset <= end) {
-            result += m_offset - start;
-            return result;
-        }
-        result += box->len();
-    }
-    return result;
 }
 
 // return first preceding DOM position rendered at a different location, or "this"
@@ -617,17 +574,17 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
     // FIXME: PositionIterator should respect Before and After positions.
     PositionIterator lastVisible = m_anchorType == PositionIsAfterAnchor ? createLegacyEditingPosition(m_anchorNode.get(), caretMaxOffset(m_anchorNode.get())) : *this;
     PositionIterator currentPos = lastVisible;
-    bool startEditable = startNode->rendererIsEditable();
+    bool startEditable = startNode->hasEditableStyle();
     Node* lastNode = startNode;
     bool boundaryCrossed = false;
     for (; !currentPos.atStart(); currentPos.decrement()) {
         Node* currentNode = currentPos.node();
         
         // Don't check for an editability change if we haven't moved to a different node,
-        // to avoid the expense of computing rendererIsEditable().
+        // to avoid the expense of computing hasEditableStyle().
         if (currentNode != lastNode) {
             // Don't change editability.
-            bool currentEditable = currentNode->rendererIsEditable();
+            bool currentEditable = currentNode->hasEditableStyle();
             if (startEditable != currentEditable) {
                 if (rule == CannotCrossEditingBoundary)
                     break;
@@ -643,7 +600,7 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
 
         // skip position in unrendered or invisible node
         RenderObject* renderer = currentNode->renderer();
-        if (!renderer || renderer->style()->visibility() != VISIBLE)
+        if (!renderer || renderer->style().visibility() != VISIBLE)
             continue;
                  
         if (rule == CanCrossEditingBoundary && boundaryCrossed) {
@@ -661,14 +618,19 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
             return lastVisible;
 
         // Return position after tables and nodes which have content that can be ignored.
-        if (editingIgnoresContent(currentNode) || isTableElement(currentNode)) {
+        if (editingIgnoresContent(currentNode) || isRenderedTable(currentNode)) {
             if (currentPos.atEndOfNode())
                 return positionAfterNode(currentNode);
             continue;
         }
 
         // return current position if it is in rendered text
-        if (renderer->isText() && toRenderText(renderer)->firstTextBox()) {
+        if (renderer->isText()) {
+            auto& textRenderer = toRenderText(*renderer);
+            textRenderer.ensureLineBoxes();
+
+            if (!textRenderer.firstTextBox())
+                continue;
             if (currentNode != startNode) {
                 // This assertion fires in layout tests in the case-transform.html test because
                 // of a mix-up between offsets in the text in the DOM tree with text in the
@@ -679,9 +641,8 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
             }
 
             unsigned textOffset = currentPos.offsetInLeafNode();
-            RenderText* textRenderer = toRenderText(renderer);
-            InlineTextBox* lastTextBox = textRenderer->lastTextBox();
-            for (InlineTextBox* box = textRenderer->firstTextBox(); box; box = box->nextTextBox()) {
+            auto lastTextBox = textRenderer.lastTextBox();
+            for (auto box = textRenderer.firstTextBox(); box; box = box->nextTextBox()) {
                 if (textOffset <= box->start() + box->len()) {
                     if (textOffset > box->start())
                         return currentPos;
@@ -700,7 +661,7 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
                     otherBox = otherBox->nextLeafChild();
                     if (!otherBox)
                         break;
-                    if (otherBox == lastTextBox || (&otherBox->renderer() == textRenderer && static_cast<InlineTextBox*>(otherBox)->start() > textOffset))
+                    if (otherBox == lastTextBox || (&otherBox->renderer() == &textRenderer && toInlineTextBox(otherBox)->start() > textOffset))
                         continuesOnNextLine = false;
                 }
 
@@ -709,7 +670,7 @@ Position Position::upstream(EditingBoundaryCrossingRule rule) const
                     otherBox = otherBox->prevLeafChild();
                     if (!otherBox)
                         break;
-                    if (otherBox == lastTextBox || (&otherBox->renderer() == textRenderer && static_cast<InlineTextBox*>(otherBox)->start() > textOffset))
+                    if (otherBox == lastTextBox || (&otherBox->renderer() == &textRenderer && toInlineTextBox(otherBox)->start() > textOffset))
                         continuesOnNextLine = false;
                 }
 
@@ -740,17 +701,17 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
     // FIXME: PositionIterator should respect Before and After positions.
     PositionIterator lastVisible = m_anchorType == PositionIsAfterAnchor ? createLegacyEditingPosition(m_anchorNode.get(), caretMaxOffset(m_anchorNode.get())) : *this;
     PositionIterator currentPos = lastVisible;
-    bool startEditable = startNode->rendererIsEditable();
+    bool startEditable = startNode->hasEditableStyle();
     Node* lastNode = startNode;
     bool boundaryCrossed = false;
     for (; !currentPos.atEnd(); currentPos.increment()) {   
         Node* currentNode = currentPos.node();
         
         // Don't check for an editability change if we haven't moved to a different node,
-        // to avoid the expense of computing rendererIsEditable().
+        // to avoid the expense of computing hasEditableStyle().
         if (currentNode != lastNode) {
             // Don't change editability.
-            bool currentEditable = currentNode->rendererIsEditable();
+            bool currentEditable = currentNode->hasEditableStyle();
             if (startEditable != currentEditable) {
                 if (rule == CannotCrossEditingBoundary)
                     break;
@@ -776,7 +737,7 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
 
         // skip position in unrendered or invisible node
         RenderObject* renderer = currentNode->renderer();
-        if (!renderer || renderer->style()->visibility() != VISIBLE)
+        if (!renderer || renderer->style().visibility() != VISIBLE)
             continue;
             
         if (rule == CanCrossEditingBoundary && boundaryCrossed) {
@@ -789,23 +750,27 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
             lastVisible = currentPos;
 
         // Return position before tables and nodes which have content that can be ignored.
-        if (editingIgnoresContent(currentNode) || isTableElement(currentNode)) {
+        if (editingIgnoresContent(currentNode) || isRenderedTable(currentNode)) {
             if (currentPos.offsetInLeafNode() <= renderer->caretMinOffset())
                 return createLegacyEditingPosition(currentNode, renderer->caretMinOffset());
             continue;
         }
 
         // return current position if it is in rendered text
-        if (renderer->isText() && toRenderText(renderer)->firstTextBox()) {
+        if (renderer->isText()) {
+            auto& textRenderer = toRenderText(*renderer);
+            textRenderer.ensureLineBoxes();
+
+            if (!textRenderer.firstTextBox())
+                continue;
             if (currentNode != startNode) {
                 ASSERT(currentPos.atStartOfNode());
                 return createLegacyEditingPosition(currentNode, renderer->caretMinOffset());
             }
 
             unsigned textOffset = currentPos.offsetInLeafNode();
-            RenderText* textRenderer = toRenderText(renderer);
-            InlineTextBox* lastTextBox = textRenderer->lastTextBox();
-            for (InlineTextBox* box = textRenderer->firstTextBox(); box; box = box->nextTextBox()) {
+            auto lastTextBox = textRenderer.lastTextBox();
+            for (auto box = textRenderer.firstTextBox(); box; box = box->nextTextBox()) {
                 if (textOffset <= box->end()) {
                     if (textOffset >= box->start())
                         return currentPos;
@@ -824,7 +789,7 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
                     otherBox = otherBox->nextLeafChild();
                     if (!otherBox)
                         break;
-                    if (otherBox == lastTextBox || (&otherBox->renderer() == textRenderer && static_cast<InlineTextBox*>(otherBox)->start() >= textOffset))
+                    if (otherBox == lastTextBox || (&otherBox->renderer() == &textRenderer && toInlineTextBox(otherBox)->start() >= textOffset))
                         continuesOnNextLine = false;
                 }
 
@@ -833,7 +798,7 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
                     otherBox = otherBox->prevLeafChild();
                     if (!otherBox)
                         break;
-                    if (otherBox == lastTextBox || (&otherBox->renderer() == textRenderer && static_cast<InlineTextBox*>(otherBox)->start() >= textOffset))
+                    if (otherBox == lastTextBox || (&otherBox->renderer() == &textRenderer && toInlineTextBox(otherBox)->start() >= textOffset))
                         continuesOnNextLine = false;
                 }
 
@@ -846,46 +811,80 @@ Position Position::downstream(EditingBoundaryCrossingRule rule) const
     return lastVisible;
 }
 
-static int boundingBoxLogicalHeight(RenderObject *o, const IntRect &rect)
+unsigned Position::positionCountBetweenPositions(const Position& a, const Position& b)
 {
-    return o->style()->isHorizontalWritingMode() ? rect.height() : rect.width();
+    if (a.isNull() || b.isNull())
+        return UINT_MAX;
+    
+    Position endPos;
+    Position pos;
+    if (a > b) {
+        endPos = a;
+        pos = b;
+    } else if (a < b) {
+        endPos = b;
+        pos = a;
+    } else
+        return 0;
+    
+    unsigned posCount = 0;
+    while (!pos.atEndOfTree() && pos != endPos) {
+        pos = pos.next();
+        ++posCount;
+    }
+    return posCount;
 }
 
-bool Position::hasRenderedNonAnonymousDescendantsWithHeight(RenderObject* renderer)
+static int boundingBoxLogicalHeight(RenderObject *o, const IntRect &rect)
 {
-    RenderObject* stop = renderer->nextInPreOrderAfterChildren();
-    for (RenderObject *o = renderer->firstChildSlow(); o && o != stop; o = o->nextInPreOrder())
-        if (o->nonPseudoNode()) {
-            if ((o->isText() && boundingBoxLogicalHeight(o, toRenderText(o)->linesBoundingBox()))
-                || (o->isLineBreak() && boundingBoxLogicalHeight(o, toRenderLineBreak(o)->linesBoundingBox()))
-                || (o->isBox() && toRenderBox(o)->pixelSnappedLogicalHeight())
-                || (o->isRenderInline() && isEmptyInline(o) && boundingBoxLogicalHeight(o, toRenderInline(o)->linesBoundingBox())))
+    return o->style().isHorizontalWritingMode() ? rect.height() : rect.width();
+}
+
+bool Position::hasRenderedNonAnonymousDescendantsWithHeight(const RenderElement& renderer)
+{
+    RenderObject* stop = renderer.nextInPreOrderAfterChildren();
+    for (RenderObject* o = renderer.firstChild(); o && o != stop; o = o->nextInPreOrder()) {
+        if (!o->nonPseudoNode())
+            continue;
+        if (o->isText()) {
+            if (boundingBoxLogicalHeight(o, toRenderText(o)->linesBoundingBox()))
                 return true;
+            continue;
         }
+        if (o->isLineBreak()) {
+            if (boundingBoxLogicalHeight(o, toRenderLineBreak(o)->linesBoundingBox()))
+                return true;
+            continue;
+        }
+        if (o->isBox()) {
+            if (toRenderBox(o)->pixelSnappedLogicalHeight())
+                return true;
+            continue;
+        }
+        if (o->isRenderInline()) {
+            const RenderInline& renderInline = toRenderInline(*o);
+            if (isEmptyInline(renderInline) && boundingBoxLogicalHeight(o, renderInline.linesBoundingBox()))
+                return true;
+            continue;
+        }
+    }
     return false;
 }
 
 bool Position::nodeIsUserSelectNone(Node* node)
 {
-    return node && node->renderer() && node->renderer()->style()->userSelect() == SELECT_NONE;
+    return node && node->renderer() && node->renderer()->style().userSelect() == SELECT_NONE;
 }
 
 ContainerNode* Position::findParent(const Node* node)
 {
-    // FIXME: See http://web.ug/82697
-
-#if ENABLE(SHADOW_DOM)
-    if (RuntimeEnabledFeatures::shadowDOMEnabled())
-        return node->parentNode();
-#endif
-
     return node->nonShadowBoundaryParentNode();
 }
 
 #if ENABLE(USERSELECT_ALL)
 bool Position::nodeIsUserSelectAll(const Node* node)
 {
-    return node && node->renderer() && node->renderer()->style()->userSelect() == SELECT_ALL;
+    return node && node->renderer() && node->renderer()->style().userSelect() == SELECT_ALL;
 }
 
 Node* Position::rootUserSelectAllForNode(Node* node)
@@ -920,7 +919,7 @@ bool Position::isCandidate() const
     if (!renderer)
         return false;
     
-    if (renderer->style()->visibility() != VISIBLE)
+    if (renderer->style().visibility() != VISIBLE)
         return false;
 
     if (renderer->isBR())
@@ -928,49 +927,28 @@ bool Position::isCandidate() const
         return !m_offset && m_anchorType != PositionIsAfterAnchor && !nodeIsUserSelectNone(deprecatedNode()->parentNode());
 
     if (renderer->isText())
-        return !nodeIsUserSelectNone(deprecatedNode()) && inRenderedText();
+        return !nodeIsUserSelectNone(deprecatedNode()) && toRenderText(renderer)->containsCaretOffset(m_offset);
 
-    if (isTableElement(deprecatedNode()) || editingIgnoresContent(deprecatedNode()))
+    if (isRenderedTable(deprecatedNode()) || editingIgnoresContent(deprecatedNode()))
         return (atFirstEditingPositionForNode() || atLastEditingPositionForNode()) && !nodeIsUserSelectNone(deprecatedNode()->parentNode());
 
     if (m_anchorNode->hasTagName(htmlTag))
         return false;
         
+    if (isRendererReplacedElement(renderer))
+        return !nodeIsUserSelectNone(deprecatedNode()) && atFirstEditingPositionForNode();
+
     if (renderer->isRenderBlockFlow()) {
-        if (toRenderBlock(renderer)->logicalHeight() || m_anchorNode->hasTagName(bodyTag)) {
-            if (!Position::hasRenderedNonAnonymousDescendantsWithHeight(renderer))
+        RenderBlockFlow& block = toRenderBlockFlow(*renderer);
+        if (block.logicalHeight() || m_anchorNode->hasTagName(bodyTag)) {
+            if (!Position::hasRenderedNonAnonymousDescendantsWithHeight(block))
                 return atFirstEditingPositionForNode() && !Position::nodeIsUserSelectNone(deprecatedNode());
-            return m_anchorNode->rendererIsEditable() && !Position::nodeIsUserSelectNone(deprecatedNode()) && atEditingBoundary();
+            return m_anchorNode->hasEditableStyle() && !Position::nodeIsUserSelectNone(deprecatedNode()) && atEditingBoundary();
         }
-    } else
-        return m_anchorNode->rendererIsEditable() && !Position::nodeIsUserSelectNone(deprecatedNode()) && atEditingBoundary();
-
-    return false;
-}
-
-bool Position::inRenderedText() const
-{
-    if (isNull() || !deprecatedNode()->isTextNode())
         return false;
-        
-    RenderObject* renderer = deprecatedNode()->renderer();
-    if (!renderer)
-        return false;
-    
-    RenderText *textRenderer = toRenderText(renderer);
-    for (InlineTextBox *box = textRenderer->firstTextBox(); box; box = box->nextTextBox()) {
-        if (m_offset < static_cast<int>(box->start()) && !textRenderer->containsReversedText()) {
-            // The offset we're looking for is before this node
-            // this means the offset must be in content that is
-            // not rendered. Return false.
-            return false;
-        }
-        if (box->containsCaretOffset(m_offset))
-            // Return false for offsets inside composed characters.
-            return m_offset == 0 || m_offset == textRenderer->nextOffset(textRenderer->previousOffset(m_offset));
     }
-    
-    return false;
+
+    return m_anchorNode->hasEditableStyle() && !Position::nodeIsUserSelectNone(deprecatedNode()) && atEditingBoundary();
 }
 
 bool Position::isRenderedCharacter() const
@@ -978,23 +956,11 @@ bool Position::isRenderedCharacter() const
     if (isNull() || !deprecatedNode()->isTextNode())
         return false;
         
-    RenderObject* renderer = deprecatedNode()->renderer();
+    RenderText* renderer = toText(deprecatedNode())->renderer();
     if (!renderer)
         return false;
     
-    RenderText* textRenderer = toRenderText(renderer);
-    for (InlineTextBox* box = textRenderer->firstTextBox(); box; box = box->nextTextBox()) {
-        if (m_offset < static_cast<int>(box->start()) && !textRenderer->containsReversedText()) {
-            // The offset we're looking for is before this node
-            // this means the offset must be in content that is
-            // not rendered. Return false.
-            return false;
-        }
-        if (m_offset >= static_cast<int>(box->start()) && m_offset < static_cast<int>(box->start() + box->len()))
-            return true;
-    }
-    
-    return false;
+    return renderer->containsRenderedCharacterOffset(m_offset);
 }
 
 static bool inSameEnclosingBlockFlowElement(Node* a, Node* b)
@@ -1015,8 +981,8 @@ bool Position::rendersInDifferentPosition(const Position &pos) const
     if (!posRenderer)
         return false;
 
-    if (renderer->style()->visibility() != VISIBLE ||
-        posRenderer->style()->visibility() != VISIBLE)
+    if (renderer->style().visibility() != VISIBLE ||
+        posRenderer->style().visibility() != VISIBLE)
         return false;
     
     if (deprecatedNode() == pos.deprecatedNode()) {
@@ -1041,14 +1007,14 @@ bool Position::rendersInDifferentPosition(const Position &pos) const
     if (!inSameEnclosingBlockFlowElement(deprecatedNode(), pos.deprecatedNode()))
         return true;
 
-    if (deprecatedNode()->isTextNode() && !inRenderedText())
+    if (renderer->isText() && !toRenderText(renderer)->containsCaretOffset(m_offset))
         return false;
 
-    if (pos.deprecatedNode()->isTextNode() && !pos.inRenderedText())
+    if (posRenderer->isText() && !toRenderText(posRenderer)->containsCaretOffset(pos.m_offset))
         return false;
 
-    int thisRenderedOffset = renderedOffset();
-    int posRenderedOffset = pos.renderedOffset();
+    int thisRenderedOffset = renderer->isText() ? toRenderText(renderer)->countRenderedCharacterOffsetsUntil(m_offset) : m_offset;
+    int posRenderedOffset = posRenderer->isText() ? toRenderText(posRenderer)->countRenderedCharacterOffsetsUntil(pos.m_offset) : pos.m_offset;
 
     if (renderer == posRenderer && thisRenderedOffset == posRenderedOffset)
         return false;
@@ -1102,7 +1068,7 @@ Position Position::leadingWhitespacePosition(EAffinity affinity, bool considerNo
     if (prev != *this && inSameEnclosingBlockFlowElement(deprecatedNode(), prev.deprecatedNode()) && prev.deprecatedNode()->isTextNode()) {
         String string = toText(prev.deprecatedNode())->data();
         UChar c = string[prev.deprecatedEditingOffset()];
-        if (considerNonCollapsibleWhitespace ? (isSpaceOrNewline(c) || c == noBreakSpace) : isCollapsibleWhitespace(c))
+        if (considerNonCollapsibleWhitespace ? (isSpaceOrNewline(c) || c == noBreakSpace) : deprecatedIsCollapsibleWhitespace(c))
             if (isEditablePosition(prev))
                 return prev;
     }
@@ -1121,7 +1087,7 @@ Position Position::trailingWhitespacePosition(EAffinity, bool considerNonCollaps
     UChar c = v.characterAfter();
     // The space must not be in another paragraph and it must be editable.
     if (!isEndOfParagraph(v) && v.next(CannotCrossEditingBoundary).isNotNull())
-        if (considerNonCollapsibleWhitespace ? (isSpaceOrNewline(c) || c == noBreakSpace) : isCollapsibleWhitespace(c))
+        if (considerNonCollapsibleWhitespace ? (isSpaceOrNewline(c) || c == noBreakSpace) : deprecatedIsCollapsibleWhitespace(c))
             return *this;
     
     return Position();
@@ -1197,7 +1163,8 @@ void Position::getInlineBoxAndOffset(EAffinity affinity, TextDirection primaryDi
     if (renderer->isBR())
         inlineBox = !caretOffset ? toRenderLineBreak(renderer)->inlineBoxWrapper() : nullptr;
     else if (renderer->isText()) {
-        RenderText* textRenderer = toRenderText(renderer);
+        auto textRenderer = toRenderText(renderer);
+        textRenderer->ensureLineBoxes();
 
         InlineTextBox* box;
         InlineTextBox* candidate = 0;
@@ -1229,7 +1196,7 @@ void Position::getInlineBoxAndOffset(EAffinity affinity, TextDirection primaryDi
         inlineBox = box ? box : candidate;
     } else {
         inlineBox = 0;
-        if (canHaveChildrenForEditing(deprecatedNode()) && renderer->isRenderBlockFlow() && hasRenderedNonAnonymousDescendantsWithHeight(renderer)) {
+        if (canHaveChildrenForEditing(deprecatedNode()) && renderer->isRenderBlockFlow() && hasRenderedNonAnonymousDescendantsWithHeight(toRenderBlock(*renderer))) {
             // Try a visually equivalent position with possibly opposite editability. This helps in case |this| is in
             // an editable block but surrounded by non-editable positions. It acts to negate the logic at the beginning
             // of RenderObject::createVisiblePosition().
@@ -1344,15 +1311,11 @@ void Position::getInlineBoxAndOffset(EAffinity affinity, TextDirection primaryDi
 
 TextDirection Position::primaryDirection() const
 {
-    TextDirection primaryDirection = LTR;
-    for (const RenderObject* r = m_anchorNode->renderer(); r; r = r->parent()) {
-        if (r->isRenderBlockFlow()) {
-            primaryDirection = r->style()->direction();
-            break;
-        }
-    }
-
-    return primaryDirection;
+    if (!m_anchorNode->renderer())
+        return LTR;
+    if (auto* blockFlow = lineageOfType<RenderBlockFlow>(*m_anchorNode->renderer()).first())
+        return blockFlow->style().direction();
+    return LTR;
 }
 
 

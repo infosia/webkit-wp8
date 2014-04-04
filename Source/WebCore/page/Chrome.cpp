@@ -26,11 +26,11 @@
 #include "DNS.h"
 #include "DateTimeChooser.h"
 #include "Document.h"
+#include "DocumentType.h"
 #include "FileIconLoader.h"
 #include "FileChooser.h"
 #include "FileList.h"
 #include "FloatRect.h"
-#include "Frame.h"
 #include "FrameTree.h"
 #include "Geolocation.h"
 #include "HTMLFormElement.h"
@@ -39,6 +39,7 @@
 #include "HitTestResult.h"
 #include "Icon.h"
 #include "InspectorInstrumentation.h"
+#include "MainFrame.h"
 #include "Page.h"
 #include "PageGroupLoadDeferrer.h"
 #include "PopupOpeningObserver.h"
@@ -60,12 +61,14 @@
 namespace WebCore {
 
 using namespace HTMLNames;
-using namespace std;
 
 Chrome::Chrome(Page& page, ChromeClient& client)
     : m_page(page)
     , m_client(client)
     , m_displayID(0)
+#if PLATFORM(IOS)
+    , m_isDispatchViewportDataDidChangeSuppressed(false)
+#endif
 {
 }
 
@@ -74,19 +77,19 @@ Chrome::~Chrome()
     m_client.chromeDestroyed();
 }
 
-void Chrome::invalidateRootView(const IntRect& updateRect, bool immediate)
+void Chrome::invalidateRootView(const IntRect& updateRect)
 {
-    m_client.invalidateRootView(updateRect, immediate);
+    m_client.invalidateRootView(updateRect);
 }
 
-void Chrome::invalidateContentsAndRootView(const IntRect& updateRect, bool immediate)
+void Chrome::invalidateContentsAndRootView(const IntRect& updateRect)
 {
-    m_client.invalidateContentsAndRootView(updateRect, immediate);
+    m_client.invalidateContentsAndRootView(updateRect);
 }
 
-void Chrome::invalidateContentsForSlowScroll(const IntRect& updateRect, bool immediate)
+void Chrome::invalidateContentsForSlowScroll(const IntRect& updateRect)
 {
-    m_client.invalidateContentsForSlowScroll(updateRect, immediate);
+    m_client.invalidateContentsForSlowScroll(updateRect);
 }
 
 void Chrome::scroll(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect)
@@ -120,11 +123,6 @@ PlatformPageClient Chrome::platformPageClient() const
 void Chrome::contentsSizeChanged(Frame* frame, const IntSize& size) const
 {
     m_client.contentsSizeChanged(frame, size);
-}
-
-void Chrome::layoutUpdated(Frame* frame) const
-{
-    m_client.layoutUpdated(frame);
 }
 
 void Chrome::scrollRectIntoView(const IntRect& rect) const
@@ -404,7 +402,7 @@ void Chrome::setToolTip(const HitTestResult& result)
                     if (HTMLFormElement* form = input->form()) {
                         toolTip = form->action();
                         if (form->renderer())
-                            toolTipDirection = form->renderer()->style()->direction();
+                            toolTipDirection = form->renderer()->style().direction();
                         else
                             toolTipDirection = LTR;
                     }
@@ -463,13 +461,6 @@ void Chrome::disableSuddenTermination()
     m_client.disableSuddenTermination();
 }
 
-#if ENABLE(DIRECTORY_UPLOAD)
-void Chrome::enumerateChosenDirectory(FileChooser* fileChooser)
-{
-    m_client.enumerateChosenDirectory(fileChooser);
-}
-#endif
-
 #if ENABLE(INPUT_TYPE_COLOR)
 PassOwnPtr<ColorChooser> Chrome::createColorChooser(ColorChooserClient* client, const Color& initialColor)
 {
@@ -478,7 +469,7 @@ PassOwnPtr<ColorChooser> Chrome::createColorChooser(ColorChooserClient* client, 
 }
 #endif
 
-#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES) && !PLATFORM(IOS)
 PassRefPtr<DateTimeChooser> Chrome::openDateTimeChooser(DateTimeChooserClient* client, const DateTimeChooserParameters& parameters)
 {
     notifyPopupOpeningObservers();
@@ -499,17 +490,29 @@ void Chrome::loadIconForFiles(const Vector<String>& filenames, FileIconLoader* l
 
 void Chrome::dispatchViewportPropertiesDidChange(const ViewportArguments& arguments) const
 {
+#if PLATFORM(IOS)
+    if (m_isDispatchViewportDataDidChangeSuppressed)
+        return;
+#endif
     m_client.dispatchViewportPropertiesDidChange(arguments);
 }
 
 void Chrome::setCursor(const Cursor& cursor)
 {
+#if ENABLE(CURSOR_SUPPORT)
     m_client.setCursor(cursor);
+#else
+    UNUSED_PARAM(cursor);
+#endif
 }
 
 void Chrome::setCursorHiddenUntilMouseMoves(bool hiddenUntilMouseMoves)
 {
+#if ENABLE(CURSOR_SUPPORT)
     m_client.setCursorHiddenUntilMouseMoves(hiddenUntilMouseMoves);
+#else
+    UNUSED_PARAM(hiddenUntilMouseMoves);
+#endif
 }
 
 #if ENABLE(REQUEST_ANIMATION_FRAME)
@@ -541,22 +544,13 @@ void Chrome::windowScreenDidChange(PlatformDisplayID displayID)
 
 // --------
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+#if ENABLE(DASHBOARD_SUPPORT)
 void ChromeClient::annotatedRegionsChanged()
 {
 }
 #endif
 
 void ChromeClient::populateVisitedLinks()
-{
-}
-
-FloatRect ChromeClient::customHighlightRect(Node*, const AtomicString&, const FloatRect&)
-{
-    return FloatRect();
-}
-
-void ChromeClient::paintCustomHighlight(Node*, const AtomicString&, const FloatRect&, const FloatRect&, bool, bool)
 {
 }
 
@@ -569,11 +563,6 @@ String ChromeClient::generateReplacementFile(const String&)
 {
     ASSERT_NOT_REACHED();
     return String();
-}
-
-bool ChromeClient::paintCustomOverhangArea(GraphicsContext*, const IntRect&, const IntRect&, const IntRect&)
-{
-    return false;
 }
 
 bool Chrome::selectItemWritingDirectionIsNatural()
@@ -607,6 +596,21 @@ bool Chrome::requiresFullscreenForVideoPlayback()
 {
     return m_client.requiresFullscreenForVideoPlayback();
 }
+
+#if PLATFORM(IOS)
+// FIXME: Make argument, frame, a reference.
+void Chrome::didReceiveDocType(Frame* frame)
+{
+    ASSERT(frame);
+    if (!frame->isMainFrame())
+        return;
+
+    bool hasMobileDocType = false;
+    if (DocumentType* documentType = frame->document()->doctype())
+        hasMobileDocType = documentType->publicId().contains("xhtml mobile", false);
+    m_client.didReceiveMobileDocType(hasMobileDocType);
+}
+#endif
 
 void Chrome::registerPopupOpeningObserver(PopupOpeningObserver* observer)
 {

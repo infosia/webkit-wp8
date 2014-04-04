@@ -61,7 +61,7 @@ static int64_t generateFormDataIdentifier()
     return ++nextIdentifier;
 }
 
-static void appendMailtoPostFormDataToURL(KURL& url, const FormData& data, const String& encodingType)
+static void appendMailtoPostFormDataToURL(URL& url, const FormData& data, const String& encodingType)
 {
     String body = data.flattenToString();
 
@@ -76,15 +76,15 @@ static void appendMailtoPostFormDataToURL(KURL& url, const FormData& data, const
     body = String(bodyData.data(), bodyData.size()).replaceWithLiteral('+', "%20");
 
     String query = url.query();
-    if (!query.isEmpty())
-        query.append('&');
-    query.append(body);
-    url.setQuery(query);
+    if (query.isEmpty())
+        url.setQuery(body);
+    else
+        url.setQuery(query + '&' + body);
 }
 
 void FormSubmission::Attributes::parseAction(const String& action)
 {
-    // FIXME: Can we parse into a KURL?
+    // FIXME: Can we parse into a URL?
     m_action = stripLeadingAndTrailingHTMLSpaces(action);
 }
 
@@ -124,7 +124,7 @@ void FormSubmission::Attributes::copyFrom(const Attributes& other)
     m_acceptCharset = other.m_acceptCharset;
 }
 
-inline FormSubmission::FormSubmission(Method method, const KURL& action, const String& target, const String& contentType, PassRefPtr<FormState> state, PassRefPtr<FormData> data, const String& boundary, bool lockHistory, PassRefPtr<Event> event)
+inline FormSubmission::FormSubmission(Method method, const URL& action, const String& target, const String& contentType, PassRefPtr<FormState> state, PassRefPtr<FormData> data, const String& boundary, LockHistory lockHistory, PassRefPtr<Event> event)
     : m_method(method)
     , m_action(action)
     , m_target(target)
@@ -137,7 +137,7 @@ inline FormSubmission::FormSubmission(Method method, const KURL& action, const S
 {
 }
 
-PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const Attributes& attributes, PassRefPtr<Event> event, bool lockHistory, FormSubmissionTrigger trigger)
+PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const Attributes& attributes, PassRefPtr<Event> event, LockHistory lockHistory, FormSubmissionTrigger trigger)
 {
     ASSERT(form);
 
@@ -145,7 +145,7 @@ PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const A
     if (event && event->target()) {
         for (Node* node = event->target()->toNode(); node; node = node->parentNode()) {
             if (node->isElementNode() && toElement(node)->isFormControlElement()) {
-                submitButton = static_cast<HTMLFormControlElement*>(node);
+                submitButton = toHTMLFormControlElement(node);
                 break;
             }
         }
@@ -166,7 +166,7 @@ PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const A
     }
     
     Document& document = form->document();
-    KURL actionURL = document.completeURL(copiedAttributes.action().isEmpty() ? document.url().string() : copiedAttributes.action());
+    URL actionURL = document.completeURL(copiedAttributes.action().isEmpty() ? document.url().string() : copiedAttributes.action());
     bool isMailtoForm = actionURL.protocolIs("mailto");
     bool isMultiPartForm = false;
     String encodingType = copiedAttributes.encodingType();
@@ -179,23 +179,23 @@ PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const A
         }
     }
 
-    TextEncoding dataEncoding = isMailtoForm ? UTF8Encoding() : FormDataBuilder::encodingFromAcceptCharset(copiedAttributes.acceptCharset(), &document);
+    TextEncoding dataEncoding = isMailtoForm ? UTF8Encoding() : FormDataBuilder::encodingFromAcceptCharset(copiedAttributes.acceptCharset(), document);
     RefPtr<DOMFormData> domFormData = DOMFormData::create(dataEncoding.encodingForFormSubmission());
-    Vector<pair<String, String> > formValues;
+    Vector<std::pair<String, String>> formValues;
 
     bool containsPasswordData = false;
     for (unsigned i = 0; i < form->associatedElements().size(); ++i) {
-        FormAssociatedElement* control = form->associatedElements()[i];
-        HTMLElement* element = toHTMLElement(control);
-        if (!element->isDisabledFormControl())
-            control->appendFormData(*domFormData, isMultiPartForm);
+        FormAssociatedElement& control = *form->associatedElements()[i];
+        HTMLElement& element = control.asHTMLElement();
+        if (!element.isDisabledFormControl())
+            control.appendFormData(*domFormData, isMultiPartForm);
         if (isHTMLInputElement(element)) {
-            HTMLInputElement* input = toHTMLInputElement(element);
-            if (input->isTextField()) {
-                formValues.append(pair<String, String>(input->name().string(), input->value()));
-                input->addSearchResult();
+            HTMLInputElement& input = toHTMLInputElement(element);
+            if (input.isTextField()) {
+                formValues.append(std::pair<String, String>(input.name().string(), input.value()));
+                input.addSearchResult();
             }
-            if (input->isPasswordField() && !input->value().isEmpty())
+            if (input.isPasswordField() && !input.value().isEmpty())
                 containsPasswordData = true;
         }
     }
@@ -222,12 +222,12 @@ PassRefPtr<FormSubmission> FormSubmission::create(HTMLFormElement* form, const A
     return adoptRef(new FormSubmission(copiedAttributes.method(), actionURL, targetOrBaseTarget, encodingType, formState.release(), formData.release(), boundary, lockHistory, event));
 }
 
-KURL FormSubmission::requestURL() const
+URL FormSubmission::requestURL() const
 {
     if (m_method == FormSubmission::PostMethod)
         return m_action;
 
-    KURL requestURL(m_action);
+    URL requestURL(m_action);
     requestURL.setQuery(m_formData->flattenToString());    
     return requestURL;
 }

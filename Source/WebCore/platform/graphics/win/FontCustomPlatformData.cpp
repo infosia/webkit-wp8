@@ -24,7 +24,6 @@
 #include "FontPlatformData.h"
 #include "OpenTypeUtilities.h"
 #include "SharedBuffer.h"
-#include "WOFFFileFormat.h"
 #include <ApplicationServices/ApplicationServices.h>
 #include <WebKitSystemInterface/WebKitSystemInterface.h>
 #include <wtf/RetainPtr.h>
@@ -46,7 +45,7 @@ FontPlatformData FontCustomPlatformData::fontPlatformData(int size, bool bold, b
     ASSERT(m_fontReference);
 
     LOGFONT& logFont = *static_cast<LOGFONT*>(malloc(sizeof(LOGFONT)));
-    memcpy(logFont.lfFaceName, m_name.charactersWithNullTermination().data(), sizeof(logFont.lfFaceName[0]) * min(static_cast<size_t>(LF_FACESIZE), 1 + m_name.length()));
+    memcpy(logFont.lfFaceName, m_name.charactersWithNullTermination().data(), sizeof(logFont.lfFaceName[0]) * std::min<size_t>(static_cast<size_t>(LF_FACESIZE), 1 + m_name.length()));
 
     logFont.lfHeight = -size;
     if (renderingMode == NormalRenderingMode)
@@ -81,26 +80,14 @@ static String createUniqueFontName()
     return fontName;
 }
 
-FontCustomPlatformData* createFontCustomPlatformData(SharedBuffer* buffer)
+std::unique_ptr<FontCustomPlatformData> createFontCustomPlatformData(SharedBuffer& buffer)
 {
-    ASSERT_ARG(buffer, buffer);
-
-    RefPtr<SharedBuffer> sfntBuffer;
-    if (isWOFF(buffer)) {
-        Vector<char> sfnt;
-        if (!convertWOFFToSfnt(buffer, sfnt))
-            return 0;
-
-        sfntBuffer = SharedBuffer::adoptVector(sfnt);
-        buffer = sfntBuffer.get();
-    }
-
     String fontName = createUniqueFontName();
     HANDLE fontReference;
     fontReference = renameAndActivateFont(buffer, fontName);
     if (!fontReference)
-        return 0;
-    return new FontCustomPlatformData(fontReference, fontName);
+        return nullptr;
+    return std::make_unique<FontCustomPlatformData>(fontReference, fontName);
 }
 
 bool FontCustomPlatformData::supportsFormat(const String& format)

@@ -18,7 +18,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -50,7 +50,7 @@
 #include <JavaScriptCore/JSRetainPtr.h>
 #include <JavaScriptCore/JSStringRef.h>
 #include <JavaScriptCore/OpaqueJSString.h>
-#include <KURL.h>
+#include <URL.h>
 #include <editing/FindOptions.h>
 #include <stdio.h>
 #include <wtf/text/WTFString.h>
@@ -157,8 +157,8 @@ JSStringRef TestRunner::pathToLocalResource(JSContextRef context, JSStringRef ur
 
 void TestRunner::queueLoad(JSStringRef url, JSStringRef target)
 {
-    WebCore::KURL baseURL(WebCore::KURL(), String::fromUTF8(ewk_frame_uri_get(browser->mainFrame())));
-    WebCore::KURL absoluteURL(baseURL, url->string());
+    WebCore::URL baseURL(WebCore::URL(), String::fromUTF8(ewk_frame_uri_get(browser->mainFrame())));
+    WebCore::URL absoluteURL(baseURL, url->string());
 
     JSRetainPtr<JSStringRef> jsAbsoluteURL(
         Adopt, JSStringCreateWithUTF8CString(absoluteURL.string().utf8().data()));
@@ -196,7 +196,7 @@ void TestRunner::setScrollbarPolicy(JSStringRef, JSStringRef)
 
 void TestRunner::addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
 {
-    WebCore::KURL kurl;
+    WebCore::URL kurl;
     kurl.setProtocol(String(protocol->characters(), protocol->length()));
     kurl.setHost(String(host->characters(), host->length()));
 
@@ -205,7 +205,7 @@ void TestRunner::addOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStrin
 
 void TestRunner::removeOriginAccessWhitelistEntry(JSStringRef sourceOrigin, JSStringRef protocol, JSStringRef host, bool includeSubdomains)
 {
-    WebCore::KURL kurl;
+    WebCore::URL kurl;
     kurl.setProtocol(String(protocol->characters(), protocol->length()));
     kurl.setHost(String(host->characters(), host->length()));
 
@@ -530,13 +530,6 @@ void TestRunner::clearAllApplicationCaches()
     ewk_settings_application_cache_clear();
 }
 
-void TestRunner::setApplicationCacheOriginQuota(unsigned long long quota)
-{
-    Ewk_Security_Origin* origin = ewk_frame_security_origin_get(browser->mainFrame());
-    ewk_security_origin_application_cache_quota_set(origin, quota);
-    ewk_security_origin_free(origin);
-}
-
 void TestRunner::clearApplicationCacheForOrigin(OpaqueJSString* url)
 {
     Ewk_Security_Origin* origin = ewk_security_origin_new_from_string(url->string().utf8().data());
@@ -694,9 +687,9 @@ void TestRunner::closeWebInspector()
     ewk_view_inspector_close(browser->mainView());
 }
 
-void TestRunner::evaluateInWebInspector(long callId, JSStringRef script)
+void TestRunner::evaluateInWebInspector(JSStringRef script)
 {
-    DumpRenderTreeSupportEfl::evaluateInWebInspector(browser->mainView(), callId, script->string());
+    DumpRenderTreeSupportEfl::evaluateInWebInspector(browser->mainView(), script->string());
 }
 
 void TestRunner::evaluateScriptInIsolatedWorldAndReturnValue(unsigned, JSObjectRef, JSStringRef)
@@ -824,8 +817,6 @@ void TestRunner::setPageVisibility(const char* visibility)
         ewk_view_visibility_state_set(browser->mainView(), EWK_PAGE_VISIBILITY_STATE_HIDDEN, false);
     else if (newVisibility == "prerender")
         ewk_view_visibility_state_set(browser->mainView(), EWK_PAGE_VISIBILITY_STATE_PRERENDER, false);
-    else if (newVisibility == "unloaded")
-        ewk_view_visibility_state_set(browser->mainView(), EWK_PAGE_VISIBILITY_STATE_UNLOADED, false);
 }
 
 void TestRunner::setAutomaticLinkDetectionEnabled(bool)
@@ -841,10 +832,4 @@ void TestRunner::setStorageDatabaseIdleInterval(double)
 void TestRunner::closeIdleLocalStorageDatabases()
 {
     notImplemented();
-}
-
-JSRetainPtr<JSStringRef> TestRunner::platformName() const
-{
-    JSRetainPtr<JSStringRef> platformName(Adopt, JSStringCreateWithUTF8CString("efl"));
-    return platformName;
 }

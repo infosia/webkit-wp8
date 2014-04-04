@@ -1,6 +1,5 @@
 namespace="SVG"
 namespaceURI="http://www.w3.org/2000/svg"
-guardFactoryWith="ENABLE(SVG)"
 fallbackInterfaceName="SVGUnknownElement"
 fallbackJSInterfaceName="SVGElement"
 
@@ -79,12 +78,12 @@ missing_glyph generateTypeHelpers
 mpath interfaceName=SVGMPathElement, generateTypeHelpers
 path generateTypeHelpers
 pattern generateTypeHelpers
-polygon
-polyline
+polygon generateTypeHelpers
+polyline generateTypeHelpers
 radialGradient generateTypeHelpers
 rect generateTypeHelpers
 script constructorNeedsCreatedByParser, generateTypeHelpers
-stop
+stop generateTypeHelpers
 style constructorNeedsCreatedByParser, generateTypeHelpers
 svg interfaceName=SVGSVGElement, generateTypeHelpers
 switch

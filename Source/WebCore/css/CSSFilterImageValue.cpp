@@ -34,7 +34,7 @@
 #include "CrossfadeGeneratedImage.h"
 #include "FilterEffectRenderer.h"
 #include "ImageBuffer.h"
-#include "RenderObject.h"
+#include "RenderElement.h"
 #include "StyleCachedImage.h"
 #include "StyleGeneratedImage.h"
 #include "StyleResolver.h"
@@ -59,13 +59,13 @@ String CSSFilterImageValue::customCSSText() const
     return result.toString();
 }
 
-IntSize CSSFilterImageValue::fixedSize(const RenderObject* renderer)
+FloatSize CSSFilterImageValue::fixedSize(const RenderElement* renderer)
 {
     CachedResourceLoader* cachedResourceLoader = renderer->document().cachedResourceLoader();
     CachedImage* cachedImage = cachedImageForCSSValue(m_imageValue.get(), cachedResourceLoader);
 
     if (!cachedImage)
-        return IntSize();
+        return FloatSize();
 
     return cachedImage->imageForRenderer(renderer)->size();
 }
@@ -75,7 +75,7 @@ bool CSSFilterImageValue::isPending() const
     return CSSImageGeneratorValue::subimageIsPending(m_imageValue.get());
 }
 
-bool CSSFilterImageValue::knownToBeOpaque(const RenderObject*) const
+bool CSSFilterImageValue::knownToBeOpaque(const RenderElement*) const
 {
     return false;
 }
@@ -96,7 +96,7 @@ void CSSFilterImageValue::loadSubimages(CachedResourceLoader* cachedResourceLoad
     m_filterSubimageObserver.setReady(true);
 }
 
-PassRefPtr<Image> CSSFilterImageValue::image(RenderObject* renderer, const IntSize& size)
+PassRefPtr<Image> CSSFilterImageValue::image(RenderElement* renderer, const FloatSize& size)
 {
     if (size.isEmpty())
         return 0;
@@ -113,13 +113,13 @@ PassRefPtr<Image> CSSFilterImageValue::image(RenderObject* renderer, const IntSi
         return Image::nullImage();
 
     // Transform Image into ImageBuffer.
-    OwnPtr<ImageBuffer> texture = ImageBuffer::create(size);
+    std::unique_ptr<ImageBuffer> texture = ImageBuffer::create(size);
     if (!texture)
         return Image::nullImage();
     texture->context()->drawImage(image, ColorSpaceDeviceRGB, IntPoint());
 
     RefPtr<FilterEffectRenderer> filterRenderer = FilterEffectRenderer::create();
-    filterRenderer->setSourceImage(texture.release());
+    filterRenderer->setSourceImage(std::move(texture));
     filterRenderer->setSourceImageRect(FloatRect(FloatPoint(), size));
     filterRenderer->setFilterRegion(FloatRect(FloatPoint(), size));
     if (!filterRenderer->build(renderer, m_filterOperations, FilterFunction))
@@ -133,11 +133,8 @@ PassRefPtr<Image> CSSFilterImageValue::image(RenderObject* renderer, const IntSi
 
 void CSSFilterImageValue::filterImageChanged(const IntRect&)
 {
-    HashCountedSet<RenderObject*>::const_iterator end = clients().end();
-    for (HashCountedSet<RenderObject*>::const_iterator curr = clients().begin(); curr != end; ++curr) {
-        RenderObject* client = const_cast<RenderObject*>(curr->key);
-        client->imageChanged(static_cast<WrappedImagePtr>(this));
-    }
+    for (auto it = clients().begin(), end = clients().end(); it != end; ++it)
+        it->key->imageChanged(static_cast<WrappedImagePtr>(this));
 }
 
 void CSSFilterImageValue::createFilterOperations(StyleResolver* resolver)

@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGImageElement.h"
 
 #include "Attribute.h"
@@ -62,9 +60,8 @@ inline SVGImageElement::SVGImageElement(const QualifiedName& tagName, Document& 
     , m_y(LengthModeHeight)
     , m_width(LengthModeWidth)
     , m_height(LengthModeHeight)
-    , m_imageLoader(this)
+    , m_imageLoader(*this)
 {
-    ASSERT(isSVGImageElement(this));
     registerAnimatedPropertiesForSVGImageElement();
 }
 
@@ -75,7 +72,7 @@ PassRefPtr<SVGImageElement> SVGImageElement::create(const QualifiedName& tagName
 
 bool SVGImageElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -96,7 +93,7 @@ bool SVGImageElement::isPresentationAttribute(const QualifiedName& name) const
     return SVGGraphicsElement::isPresentationAttribute(name);
 }
 
-void SVGImageElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStylePropertySet* style)
+void SVGImageElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (!isSupportedAttribute(name))
         SVGGraphicsElement::collectStyleForPresentationAttribute(name, value, style);
@@ -155,20 +152,20 @@ void SVGImageElement::svgAttributeChanged(const QualifiedName& attrName)
         return;
     }
 
-    RenderObject* renderer = this->renderer();
+    auto renderer = this->renderer();
     if (!renderer)
         return;
 
     if (isLengthAttribute) {
         if (toRenderSVGImage(renderer)->updateImageViewport())
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     if (attrName == SVGNames::preserveAspectRatioAttr
         || SVGLangSpace::isKnownAttribute(attrName)
         || SVGExternalResourcesRequired::isKnownAttribute(attrName)) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -183,9 +180,9 @@ bool SVGImageElement::selfHasRelativeLengths() const
         || height().isRelative();
 }
 
-RenderElement* SVGImageElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGImageElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGImage(*this);
+    return createRenderer<RenderSVGImage>(*this, std::move(style));
 }
 
 bool SVGImageElement::haveLoadedRequiredResources()
@@ -196,17 +193,17 @@ bool SVGImageElement::haveLoadedRequiredResources()
 void SVGImageElement::didAttachRenderers()
 {
     if (RenderSVGImage* imageObj = toRenderSVGImage(renderer())) {
-        if (imageObj->imageResource()->hasImage())
+        if (imageObj->imageResource().hasImage())
             return;
 
-        imageObj->imageResource()->setCachedImage(m_imageLoader.image());
+        imageObj->imageResource().setCachedImage(m_imageLoader.image());
     }
 }
 
-Node::InsertionNotificationRequest SVGImageElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGImageElement::insertedInto(ContainerNode& rootParent)
 {
     SVGGraphicsElement::insertedInto(rootParent);
-    if (!rootParent->inDocument())
+    if (!rootParent.inDocument())
         return InsertionDone;
     // Update image loader, as soon as we're living in the tree.
     // We can only resolve base URIs properly, after that!
@@ -219,7 +216,7 @@ const AtomicString& SVGImageElement::imageSourceURL() const
     return getAttribute(XLinkNames::hrefAttr);
 }
 
-void SVGImageElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) const
+void SVGImageElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     SVGGraphicsElement::addSubresourceAttributeURLs(urls);
 
@@ -233,5 +230,3 @@ void SVGImageElement::didMoveToNewDocument(Document* oldDocument)
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,10 +24,14 @@
  */
 
 #include "config.h"
+
+#if USE(CURL)
+
 #include "CurlDownload.h"
 
 #include "HTTPParsers.h"
 #include "MainThreadTask.h"
+#include "ResourceHandleManager.h"
 #include "ResourceRequest.h"
 #include <wtf/MainThread.h>
 #include <wtf/text/CString.h>
@@ -248,7 +252,7 @@ CurlDownload::~CurlDownload()
     moveFileToDestination();
 }
 
-void CurlDownload::init(CurlDownloadListener* listener, const KURL& url)
+void CurlDownload::init(CurlDownloadListener* listener, const URL& url)
 {
     if (!listener)
         return;
@@ -274,9 +278,9 @@ void CurlDownload::init(CurlDownloadListener* listener, const KURL& url)
     if (certPath)
         curl_easy_setopt(m_curlHandle, CURLOPT_CAINFO, certPath);
 
-    const char* cookieJarPath = getenv("CURL_COOKIE_JAR_PATH");
-    if (cookieJarPath)
-        curl_easy_setopt(m_curlHandle, CURLOPT_COOKIEFILE, cookieJarPath);
+    CURLSH* curlsh = ResourceHandleManager::sharedInstance()->getCurlShareHandle();
+    if (curlsh)
+        curl_easy_setopt(m_curlHandle, CURLOPT_SHARE, curlsh);
 
     m_listener = listener;
 }
@@ -288,7 +292,7 @@ void CurlDownload::init(CurlDownloadListener* listener, ResourceHandle*, const R
 
     MutexLocker locker(m_mutex);
 
-    KURL url(ParsedURLString, request.url());
+    URL url(ParsedURLString, request.url());
 
     init(listener, url);
 
@@ -390,7 +394,7 @@ void CurlDownload::didReceiveHeader(const String& header)
         if (httpCode >= 200 && httpCode < 300) {
             const char* url = 0;
             err = curl_easy_getinfo(m_curlHandle, CURLINFO_EFFECTIVE_URL, &url);
-            m_response.setURL(KURL(ParsedURLString, url));
+            m_response.setURL(URL(ParsedURLString, url));
 
             m_response.setMimeType(extractMIMETypeFromMediaType(m_response.httpHeaderField("Content-Type")));
             m_response.setTextEncodingName(extractCharsetFromMediaType(m_response.httpHeaderField("Content-Type")));
@@ -497,3 +501,5 @@ void CurlDownload::receivedResponseCallback(CurlDownload* download)
 }
 
 }
+
+#endif

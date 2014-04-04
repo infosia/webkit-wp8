@@ -34,7 +34,7 @@
 #if ENABLE(BLOB)
 
 #include "FileError.h"
-#include "KURL.h"
+#include "URL.h"
 #include "TextEncoding.h"
 #include "ThreadableLoaderClient.h"
 #include <wtf/Forward.h>
@@ -77,18 +77,12 @@ public:
 
     String stringResult();
     PassRefPtr<JSC::ArrayBuffer> arrayBufferResult() const;
-#if ENABLE(STREAM)
-    PassRefPtr<Blob> blobResult();
-#endif // ENABLE(STREAM)
     unsigned bytesLoaded() const { return m_bytesLoaded; }
     unsigned totalBytes() const { return m_totalBytes; }
     int errorCode() const { return m_errorCode; }
 
     void setEncoding(const String&);
     void setDataType(const String& dataType) { m_dataType = dataType; }
-#if ENABLE(STREAM)
-    void setRange(unsigned, unsigned);
-#endif // ENABLE(STREAM)
 
 private:
     void terminate();
@@ -106,7 +100,7 @@ private:
     TextEncoding m_encoding;
     String m_dataType;
 
-    KURL m_urlForReading;
+    URL m_urlForReading;
     RefPtr<ThreadableLoader> m_loader;
 
     RefPtr<JSC::ArrayBuffer> m_rawData;

@@ -54,10 +54,10 @@ void HTMLMetaElement::parseAttribute(const QualifiedName& name, const AtomicStri
         HTMLElement::parseAttribute(name, value);
 }
 
-Node::InsertionNotificationRequest HTMLMetaElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLMetaElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (insertionPoint->inDocument())
+    if (insertionPoint.inDocument())
         process();
     return InsertionDone;
 }
@@ -73,14 +73,14 @@ void HTMLMetaElement::process()
 
     if (equalIgnoringCase(name(), "viewport"))
         document().processViewport(contentValue, ViewportArguments::ViewportMeta);
+#if PLATFORM(IOS)
+    else if (equalIgnoringCase(name(), "format-detection"))
+        document().processFormatDetection(contentValue);
+    else if (equalIgnoringCase(name(), "apple-mobile-web-app-orientations"))
+        document().processWebAppOrientations();
+#endif
     else if (equalIgnoringCase(name(), "referrer"))
         document().processReferrerPolicy(contentValue);
-#if ENABLE(LEGACY_VIEWPORT_ADAPTION)
-    else if (equalIgnoringCase(name(), "handheldfriendly") && equalIgnoringCase(contentValue, "true"))
-        document().processViewport("width=device-width", ViewportArguments::HandheldFriendlyMeta);
-    else if (equalIgnoringCase(name(), "mobileoptimized"))
-        document().processViewport("width=device-width, initial-scale=1", ViewportArguments::MobileOptimizedMeta);
-#endif
 
     // Get the document to process the tag, but only if we're actually part of DOM tree (changing a meta tag while
     // it's not in the tree shouldn't have any effect on the document)

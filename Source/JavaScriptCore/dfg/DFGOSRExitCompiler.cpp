@@ -34,7 +34,7 @@
 #include "DFGOSRExitPreparation.h"
 #include "LinkBuffer.h"
 #include "OperandsInlines.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "RepatchBuffer.h"
 #include <wtf/StringPrintStream.h>
 
@@ -76,13 +76,6 @@ void compileOSRExit(ExecState* exec)
     if (exit.m_recoveryIndex != UINT_MAX)
         recovery = &codeBlock->jitCode()->dfg()->speculationRecovery[exit.m_recoveryIndex];
 
-#if DFG_ENABLE(DEBUG_VERBOSE)
-    dataLog(
-        "Generating OSR exit #", exitIndex, " (seq#", exit.m_streamIndex,
-        ", bc#", exit.m_codeOrigin.bytecodeIndex, ", ",
-        exit.m_kind, ") for ", *codeBlock, ".\n");
-#endif
-
     {
         CCallHelpers jit(vm, codeBlock);
         OSRExitCompiler exitCompiler(jit);
@@ -95,8 +88,7 @@ void compileOSRExit(ExecState* exec)
             
             Profiler::OSRExit* profilerExit = compilation->addOSRExit(
                 exitIndex, Profiler::OriginStack(database, codeBlock, exit.m_codeOrigin),
-                exit.m_kind,
-                exit.m_watchpointIndex != std::numeric_limits<unsigned>::max());
+                exit.m_kind, isWatchpoint(exit.m_kind));
             jit.add64(CCallHelpers::TrustedImm32(1), CCallHelpers::AbsoluteAddress(profilerExit->counterAddress()));
         }
         
@@ -104,7 +96,7 @@ void compileOSRExit(ExecState* exec)
         
         LinkBuffer patchBuffer(*vm, &jit, codeBlock);
         exit.m_code = FINALIZE_CODE_IF(
-            shouldShowDisassembly(),
+            shouldShowDisassembly() || Options::verboseOSR(),
             patchBuffer,
             ("DFG OSR exit #%u (%s, %s) from %s, with operands = %s",
                 exitIndex, toCString(exit.m_codeOrigin).data(),

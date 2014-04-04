@@ -19,7 +19,7 @@
 #include "config.h"
 #include "GLContext.h"
 
-#if USE(OPENGL) || (PLATFORM(NIX) && USE(OPENGL_ES_2))
+#if USE(OPENGL)
 
 #if USE(EGL)
 #include "GLContextEGL.h"
@@ -37,10 +37,8 @@
 
 #if PLATFORM(GTK)
 #include <gdk/gdk.h>
-#ifndef GTK_API_VERSION_2
-#ifdef GDK_WINDOWING_WAYLAND
+#if PLATFORM(WAYLAND) && !defined(GTK_API_VERSION_2) && defined(GDK_WINDOWING_WAYLAND)
 #include <gdk/gdkwayland.h>
-#endif
 #endif
 #endif
 
@@ -70,7 +68,7 @@ inline ThreadGlobalGLContext* currentContext()
 
 GLContext* GLContext::sharingContext()
 {
-    DEFINE_STATIC_LOCAL(OwnPtr<GLContext>, sharing, (createOffscreenContext()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(OwnPtr<GLContext>, sharing, (createOffscreenContext()));
     return sharing.get();
 }
 
@@ -93,7 +91,6 @@ void GLContext::cleanupSharedX11Display()
     XCloseDisplay(gSharedX11Display);
     gSharedX11Display = 0;
 }
-#endif // PLATFORM(X11)
 
 // Because of driver bugs, exiting the program when there are active pbuffers
 // can crash the X server (this has been observed with the official Nvidia drivers).
@@ -103,7 +100,7 @@ void GLContext::cleanupSharedX11Display()
 typedef Vector<GLContext*> ActiveContextList;
 static ActiveContextList& activeContextList()
 {
-    DEFINE_STATIC_LOCAL(ActiveContextList, activeContexts, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(ActiveContextList, activeContexts, ());
     return activeContexts;
 }
 
@@ -140,16 +137,14 @@ void GLContext::cleanupActiveContextsAtExit()
     for (size_t i = 0; i < contextList.size(); ++i)
         delete contextList[i];
 
-#if PLATFORM(X11)
     cleanupSharedX11Display();
-#endif
 }
-
+#endif // PLATFORM(X11)
 
 
 PassOwnPtr<GLContext> GLContext::createContextForWindow(GLNativeWindowType windowHandle, GLContext* sharingContext)
 {
-#if PLATFORM(GTK) && defined(GDK_WINDOWING_WAYLAND) && USE(EGL)
+#if PLATFORM(GTK) && PLATFORM(WAYLAND) && !defined(GTK_API_VERSION_2) && defined(GDK_WINDOWING_WAYLAND) && USE(EGL)
     GdkDisplay* display = gdk_display_manager_get_default_display(gdk_display_manager_get());
 
     if (GDK_IS_WAYLAND_DISPLAY(display)) {
@@ -159,7 +154,6 @@ PassOwnPtr<GLContext> GLContext::createContextForWindow(GLNativeWindowType windo
     }
 #endif
 
-#if !PLATFORM(NIX)
 #if USE(GLX)
     if (OwnPtr<GLContext> glxContext = GLContextGLX::createContext(windowHandle, sharingContext))
         return glxContext.release();
@@ -168,13 +162,14 @@ PassOwnPtr<GLContext> GLContext::createContextForWindow(GLNativeWindowType windo
     if (OwnPtr<GLContext> eglContext = GLContextEGL::createContext(windowHandle, sharingContext))
         return eglContext.release();
 #endif
-#endif
     return nullptr;
 }
 
 GLContext::GLContext()
 {
+#if PLATFORM(X11)
     addActiveContext(this);
+#endif
 }
 
 PassOwnPtr<GLContext> GLContext::createOffscreenContext(GLContext* sharingContext)
@@ -186,7 +181,9 @@ GLContext::~GLContext()
 {
     if (this == currentContext()->context())
         currentContext()->setContext(0);
+#if PLATFORM(X11)
     removeActiveContext(this);
+#endif
 }
 
 bool GLContext::makeContextCurrent()

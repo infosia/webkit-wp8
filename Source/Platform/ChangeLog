@@ -1,3 +1,108 @@
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * GNUmakefile.am: Removed.
+
+2014-01-20  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [CMAKE] Remove Nix from CMake scripts
+        https://bugs.webkit.org/show_bug.cgi?id=127264
+
+        Reviewed by Anders Carlsson.
+
+        * CMakeLists.txt: Removed.
+
+2014-01-16  Benjamin Poulain  <bpoulain@apple.com>
+
+        Remove Nix from Source/Platform
+        https://bugs.webkit.org/show_bug.cgi?id=127132
+
+        Reviewed by Anders Carlsson.
+
+        * PlatformNix.cmake: Removed.
+        * nix: Removed.
+
+2013-12-11  José Dapena Paz  <jdapena@igalia.com> and Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Add a UPower-based BatteryProvider
+        https://bugs.webkit.org/show_bug.cgi?id=115719
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am: Add the Source/WebCore/platform/glib directory to the list of directories searched
+        for header inclusion. Add the upower-glib dependency CFLAGS to the list of libPlatform's CPPFLAGS.
+
+2013-12-02  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        Nix Upstream: Updating Platform files
+        https://bugs.webkit.org/show_bug.cgi?id=124982
+
+        Reviewed by Benjamin Poulain.
+
+        Adding new Platform files that are missing in the trunk.
+
+        * PlatformNix.cmake:
+        * nix/public/AudioDestinationConsumer.h: Added.
+        (Nix::AudioDestinationConsumer::~AudioDestinationConsumer):
+        * nix/public/MediaConstraints.h: Added.
+        * nix/public/MediaStream.h: Added.
+        * nix/public/MediaStreamAudioSource.h: Added.
+        * nix/public/MediaStreamCenter.h: Added.
+        * nix/public/MediaStreamSource.h: Added.
+        * nix/public/PrivatePtr.h: Added.
+
+2013-11-26  Marcelo Lira  <marcelo.lira@openbossa.org>
+
+        Nix upstreaming - Adding build files and supporting scripts
+        https://bugs.webkit.org/show_bug.cgi?id=118367
+
+        Reviewed by Ryosuke Niwa.
+
+        * CMakeLists.txt: Added.
+        * PlatformNix.cmake: Added.
+
+2013-11-07  Denis Nomiyama  <d.nomiyama@samsung.com>
+
+        [GTK] Glyphs in vertical text tests are rotated 90 degrees clockwise
+        https://bugs.webkit.org/show_bug.cgi?id=50619
+
+        Reviewed by Martin Robinson.
+
+        Added WebCore/platform/graphics/opentype to the include path.
+
+        * GNUmakefile.am:
+
+2013-10-29  Hugo Parente Lima  <hugo.lima@openbossa.org>
+
+        Adding Nix files in Source/Platform to trunk
+        https://bugs.webkit.org/show_bug.cgi?id=118331
+
+        Reviewed by Benjamin Poulain.
+
+        Add files part of Nix public API used to implement
+        backends for some WebKit subsystems on Application side.
+
+        * nix/public/AudioDevice.h: Added.
+        * nix/public/Canvas.h: Added.
+        * nix/public/Color.h: Added.
+        * nix/public/Common.h: Added.
+        * nix/public/FFTFrame.h: Added.
+        * nix/public/Gamepad.h: Added.
+        * nix/public/Gamepads.h: Added.
+        * nix/public/MediaPlayer.h: Added.
+        * nix/public/MultiChannelPCMData.h: Added.
+        * nix/public/Platform.h: Added.
+        * nix/public/Rect.h: Added.
+        * nix/public/Size.h: Added.
+        * nix/public/ThemeEngine.h: Added.
+        * nix/src/DefaultWebThemeEngine.cpp: Added.
+        * nix/src/DefaultWebThemeEngine.h: Added.
+        * nix/src/Platform.cpp: Added.
+
 2013-06-14  Zan Dobersek  <zdobersek@igalia.com>
 
         Unreviewed GTK build fix.

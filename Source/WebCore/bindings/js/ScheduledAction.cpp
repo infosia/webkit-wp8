@@ -33,23 +33,20 @@
 #include "JSDOMWindow.h"
 #include "JSMainThreadExecState.h"
 #include "JSMainThreadExecStateInstrumentation.h"
+#include "JSWorkerGlobalScope.h"
 #include "ScriptController.h"
 #include "ScriptExecutionContext.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
-#include <runtime/JSLock.h>
-
-#if ENABLE(WORKERS)
-#include "JSWorkerGlobalScope.h"
 #include "WorkerGlobalScope.h"
 #include "WorkerThread.h"
-#endif
+#include <bindings/ScriptValue.h>
+#include <runtime/JSLock.h>
 
 using namespace JSC;
 
 namespace WebCore {
 
-PassOwnPtr<ScheduledAction> ScheduledAction::create(ExecState* exec, DOMWrapperWorld* isolatedWorld, ContentSecurityPolicy* policy)
+PassOwnPtr<ScheduledAction> ScheduledAction::create(ExecState* exec, DOMWrapperWorld& isolatedWorld, ContentSecurityPolicy* policy)
 {
     JSValue v = exec->argument(0);
     CallData callData;
@@ -65,9 +62,9 @@ PassOwnPtr<ScheduledAction> ScheduledAction::create(ExecState* exec, DOMWrapperW
     return adoptPtr(new ScheduledAction(exec, v, isolatedWorld));
 }
 
-ScheduledAction::ScheduledAction(ExecState* exec, JSValue function, DOMWrapperWorld* isolatedWorld)
+ScheduledAction::ScheduledAction(ExecState* exec, JSValue function, DOMWrapperWorld& isolatedWorld)
     : m_function(exec->vm(), function)
-    , m_isolatedWorld(isolatedWorld)
+    , m_isolatedWorld(&isolatedWorld)
 {
     // setTimeout(function, interval, arg0, arg1...).
     // Start at 2 to skip function and interval.
@@ -79,14 +76,8 @@ void ScheduledAction::execute(ScriptExecutionContext* context)
 {
     if (context->isDocument())
         execute(toDocument(context));
-#if ENABLE(WORKERS)
-    else {
-        ASSERT(context->isWorkerGlobalScope());
-        execute(static_cast<WorkerGlobalScope*>(context));
-    }
-#else
-    ASSERT(context->isDocument());
-#endif
+    else
+        execute(toWorkerGlobalScope(context));
 }
 
 void ScheduledAction::executeFunctionInContext(JSGlobalObject* globalObject, JSValue thisValue, ScriptExecutionContext* context)
@@ -113,7 +104,7 @@ void ScheduledAction::executeFunctionInContext(JSGlobalObject* globalObject, JSV
     else
         JSC::call(exec, m_function.get(), callType, callData, thisValue, args);
 
-    InspectorInstrumentation::didCallFunction(cookie);
+    InspectorInstrumentation::didCallFunction(cookie, context);
 
     if (exec->hadException())
         reportCurrentException(exec);
@@ -121,25 +112,24 @@ void ScheduledAction::executeFunctionInContext(JSGlobalObject* globalObject, JSV
 
 void ScheduledAction::execute(Document* document)
 {
-    JSDOMWindow* window = toJSDOMWindow(document->frame(), m_isolatedWorld.get());
+    JSDOMWindow* window = toJSDOMWindow(document->frame(), *m_isolatedWorld);
     if (!window)
         return;
 
-    RefPtr<Frame> frame = window->impl()->frame();
+    RefPtr<Frame> frame = window->impl().frame();
     if (!frame || !frame->script().canExecuteScripts(AboutToExecuteScript))
         return;
 
     if (m_function)
         executeFunctionInContext(window, window->shell(), document);
     else
-        frame->script().executeScriptInWorld(m_isolatedWorld.get(), m_code);
+        frame->script().executeScriptInWorld(*m_isolatedWorld, m_code);
 }
 
-#if ENABLE(WORKERS)
 void ScheduledAction::execute(WorkerGlobalScope* workerGlobalScope)
 {
     // In a Worker, the execution should always happen on a worker thread.
-    ASSERT(workerGlobalScope->thread()->threadID() == currentThread());
+    ASSERT(workerGlobalScope->thread().threadID() == currentThread());
 
     WorkerScriptController* scriptController = workerGlobalScope->script();
 
@@ -151,6 +141,5 @@ void ScheduledAction::execute(WorkerGlobalScope* workerGlobalScope)
         scriptController->evaluate(code);
     }
 }
-#endif // ENABLE(WORKERS)
 
 } // namespace WebCore

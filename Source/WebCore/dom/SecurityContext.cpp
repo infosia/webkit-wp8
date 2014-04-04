@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY GOOGLE, INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,8 +35,7 @@
 namespace WebCore {
 
 SecurityContext::SecurityContext()
-    : m_mayDisplaySeamlesslyWithParent(false)
-    , m_haveInitializedSecurityOrigin(false)
+    : m_haveInitializedSecurityOrigin(false)
     , m_sandboxFlags(SandboxNone)
 {
 }
@@ -56,7 +55,7 @@ void SecurityContext::setContentSecurityPolicy(PassOwnPtr<ContentSecurityPolicy>
     m_contentSecurityPolicy = contentSecurityPolicy;
 }
 
-bool SecurityContext::isSecureTransitionTo(const KURL& url) const
+bool SecurityContext::isSecureTransitionTo(const URL& url) const
 {
     // If we haven't initialized our security origin by now, this is probably
     // a new window created via the API (i.e., that lacks an origin and lacks

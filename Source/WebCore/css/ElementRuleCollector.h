@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,32 +25,32 @@
 #include "MediaQueryEvaluator.h"
 #include "SelectorChecker.h"
 #include "StyleResolver.h"
+#include <memory>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
 class DocumentRuleSets;
+class MatchRequest;
 class RenderRegion;
 class RuleData;
 class RuleSet;
 class SelectorFilter;
-class StyleScopeResolver;
 
 class ElementRuleCollector {
 public:
-    ElementRuleCollector(StyleResolver* styleResolver, const StyleResolver::State& state)
-        : m_state(state)
-        , m_ruleSets(styleResolver->ruleSets())
-        , m_selectorFilter(styleResolver->selectorFilter())
-        , m_inspectorCSSOMWrappers(styleResolver->inspectorCSSOMWrappers())
-        , m_scopeResolver(styleResolver->scopeResolver())
+    ElementRuleCollector(Element& element, RenderStyle* style, const DocumentRuleSets& ruleSets, const SelectorFilter& selectorFilter)
+        : m_element(element)
+        , m_style(style)
+        , m_ruleSets(ruleSets)
+        , m_selectorFilter(selectorFilter)
         , m_isPrintStyle(false)
         , m_regionForStyling(0)
         , m_pseudoStyleRequest(NOPSEUDO)
         , m_sameOriginOnly(false)
         , m_mode(SelectorChecker::ResolvingStyle)
-        , m_canUseFastReject(m_selectorFilter.parentStackIsConsistent(state.parentNode()))
+        , m_canUseFastReject(m_selectorFilter.parentStackIsConsistent(element.parentNode()))
     {
     }
 
@@ -68,35 +68,30 @@ public:
     bool hasAnyMatchingRules(RuleSet*);
 
     StyleResolver::MatchResult& matchedResult();
-    const Vector<RefPtr<StyleRuleBase> >& matchedRuleList() const;
+    const Vector<RefPtr<StyleRule>>& matchedRuleList() const;
+
+    bool hasMatchedRules() const { return m_matchedRules && !m_matchedRules->isEmpty(); }
+    void clearMatchedRules();
 
 private:
-    Document& document() { return m_state.document(); }
-    void addElementStyleProperties(const StylePropertySet*, bool isCacheable = true);
+    void addElementStyleProperties(const StyleProperties*, bool isCacheable = true);
 
     void matchUARules(RuleSet*);
-    void matchScopedAuthorRules(bool includeEmptyRules);
-    void matchHostRules(bool includeEmptyRules);
 
     void collectMatchingRules(const MatchRequest&, StyleResolver::RuleRange&);
     void collectMatchingRulesForRegion(const MatchRequest&, StyleResolver::RuleRange&);
     void collectMatchingRulesForList(const Vector<RuleData>*, const MatchRequest&, StyleResolver::RuleRange&);
-    bool ruleMatches(const RuleData&, const ContainerNode* scope, PseudoId&);
+    bool ruleMatches(const RuleData&, PseudoId&);
 
     void sortMatchedRules();
     void sortAndTransferMatchedRules();
 
     void addMatchedRule(const RuleData*);
-    void clearMatchedRules();
 
-    template<bool hasInspectorFrontends>
-    void doCollectMatchingRulesForList(const Vector<RuleData>*, const MatchRequest&, StyleResolver::RuleRange&);
-
-    const StyleResolver::State& m_state;
-    DocumentRuleSets& m_ruleSets;
-    SelectorFilter& m_selectorFilter;
-    InspectorCSSOMWrappers& m_inspectorCSSOMWrappers;
-    StyleScopeResolver* m_scopeResolver;
+    Element& m_element;
+    RenderStyle* m_style;
+    const DocumentRuleSets& m_ruleSets;
+    const SelectorFilter& m_selectorFilter;
 
     bool m_isPrintStyle;
     RenderRegion* m_regionForStyling;
@@ -105,10 +100,10 @@ private:
     SelectorChecker::Mode m_mode;
     bool m_canUseFastReject;
 
-    OwnPtr<Vector<const RuleData*, 32> > m_matchedRules;
+    std::unique_ptr<Vector<const RuleData*, 32>> m_matchedRules;
 
     // Output.
-    Vector<RefPtr<StyleRuleBase> > m_matchedRuleList;
+    Vector<RefPtr<StyleRule>> m_matchedRuleList;
     StyleResolver::MatchResult m_result;
 };
 

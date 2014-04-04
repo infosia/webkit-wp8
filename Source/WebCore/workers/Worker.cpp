@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,8 +27,6 @@
 
 #include "config.h"
 
-#if ENABLE(WORKERS)
-
 #include "Worker.h"
 
 #include "DOMWindow.h"
@@ -38,7 +36,6 @@
 #include "EventListener.h"
 #include "EventNames.h"
 #include "ExceptionCode.h"
-#include "FeatureObserver.h"
 #include "Frame.h"
 #include "FrameLoader.h"
 #include "InspectorInstrumentation.h"
@@ -62,7 +59,7 @@ void networkStateChanged(bool isOnLine)
         (*it)->notifyNetworkStateChange(isOnLine);
 }
 
-inline Worker::Worker(ScriptExecutionContext* context)
+inline Worker::Worker(ScriptExecutionContext& context)
     : AbstractWorker(context)
     , m_contextProxy(WorkerGlobalScopeProxy::create(this))
 {
@@ -75,16 +72,18 @@ inline Worker::Worker(ScriptExecutionContext* context)
     ASSERT_UNUSED(addResult, addResult.isNewEntry);
 }
 
-PassRefPtr<Worker> Worker::create(ScriptExecutionContext* context, const String& url, ExceptionCode& ec)
+PassRefPtr<Worker> Worker::create(ScriptExecutionContext& context, const String& url, ExceptionCode& ec)
 {
     ASSERT(isMainThread());
-    FeatureObserver::observe(static_cast<Document*>(context)->domWindow(), FeatureObserver::WorkerStart);
+
+    // We don't currently support nested workers, so workers can only be created from documents.
+    ASSERT_WITH_SECURITY_IMPLICATION(context.isDocument());
 
     RefPtr<Worker> worker = adoptRef(new Worker(context));
 
     worker->suspendIfNeeded();
 
-    KURL scriptURL = worker->resolveURL(url, ec);
+    URL scriptURL = worker->resolveURL(url, ec);
     if (scriptURL.isEmpty())
         return 0;
 
@@ -92,10 +91,7 @@ PassRefPtr<Worker> Worker::create(ScriptExecutionContext* context, const String&
     worker->setPendingActivity(worker.get());
 
     worker->m_scriptLoader = WorkerScriptLoader::create();
-#if PLATFORM(BLACKBERRY)
-    worker->m_scriptLoader->setTargetType(ResourceRequest::TargetIsWorker);
-#endif
-    worker->m_scriptLoader->loadAsynchronously(context, scriptURL, DenyCrossOriginRequests, worker.get());
+    worker->m_scriptLoader->loadAsynchronously(&context, scriptURL, DenyCrossOriginRequests, worker.get());
 
     return worker.release();
 }
@@ -106,11 +102,6 @@ Worker::~Worker()
     ASSERT(scriptExecutionContext()); // The context is protected by worker context proxy, so it cannot be destroyed while a Worker exists.
     allWorkers->remove(this);
     m_contextProxy->workerObjectDestroyed();
-}
-
-EventTargetInterface Worker::eventTargetInterface() const
-{
-    return WorkerEventTargetInterfaceType;
 }
 
 void Worker::postMessage(PassRefPtr<SerializedScriptValue> message, MessagePort* port, ExceptionCode& ec)
@@ -124,10 +115,10 @@ void Worker::postMessage(PassRefPtr<SerializedScriptValue> message, MessagePort*
 void Worker::postMessage(PassRefPtr<SerializedScriptValue> message, const MessagePortArray* ports, ExceptionCode& ec)
 {
     // Disentangle the port in preparation for sending it to the remote context.
-    OwnPtr<MessagePortChannelArray> channels = MessagePort::disentanglePorts(ports, ec);
+    std::unique_ptr<MessagePortChannelArray> channels = MessagePort::disentanglePorts(ports, ec);
     if (ec)
         return;
-    m_contextProxy->postMessageToWorkerGlobalScope(message, channels.release());
+    m_contextProxy->postMessageToWorkerGlobalScope(message, std::move(channels));
 }
 
 void Worker::terminate()
@@ -178,5 +169,3 @@ void Worker::notifyFinished()
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)

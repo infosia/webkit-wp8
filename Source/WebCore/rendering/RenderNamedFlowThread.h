@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -43,35 +43,34 @@ typedef ListHashSet<RenderNamedFlowThread*> RenderNamedFlowThreadList;
 typedef HashCountedSet<RenderNamedFlowThread*> RenderNamedFlowThreadCountedSet;
 typedef ListHashSet<Element*> NamedFlowContentElements;
 
-class RenderNamedFlowThread FINAL : public RenderFlowThread {
+class RenderNamedFlowThread final : public RenderFlowThread {
 public:
+    RenderNamedFlowThread(Document&, PassRef<RenderStyle>, PassRef<WebKitNamedFlow>);
     virtual ~RenderNamedFlowThread();
-
-    static RenderNamedFlowThread* createAnonymous(Document&, PassRefPtr<WebKitNamedFlow>);
 
     const AtomicString& flowThreadName() const;
 
     const RenderRegionList& invalidRenderRegionList() const { return m_invalidRegionList; }
 
-    RenderObject* nextRendererForNode(Node*) const;
-    RenderObject* previousRendererForNode(Node*) const;
+    RenderElement* nextRendererForElement(Element&) const;
 
-    void addFlowChild(RenderObject* newChild);
-    void removeFlowChild(RenderObject*);
+    void addFlowChild(RenderElement&);
+    void removeFlowChild(RenderElement&);
     bool hasChildren() const { return !m_flowThreadChildList.isEmpty(); }
 #ifndef NDEBUG
-    bool hasChild(RenderObject* child) const { return m_flowThreadChildList.contains(child); }
+    bool hasChild(RenderElement& child) const { return m_flowThreadChildList.contains(&child); }
 #endif
 
     void pushDependencies(RenderNamedFlowThreadList&);
 
-    virtual void addRegionToThread(RenderRegion*) OVERRIDE;
-    virtual void removeRegionFromThread(RenderRegion*) OVERRIDE;
+    virtual void addRegionToThread(RenderRegion*) override;
+    virtual void removeRegionFromThread(RenderRegion*) override;
 
-    virtual void regionChangedWritingMode(RenderRegion*) OVERRIDE;
+    virtual void regionChangedWritingMode(RenderRegion*) override;
 
-    bool overset() const { return m_overset; }
-    void computeOversetStateForRegions(LayoutUnit oldClientAfterEdge);
+    LayoutRect decorationsClipRectForBoxInNamedFlowFragment(const RenderBox&, RenderNamedFlowFragment&) const;
+
+    RenderNamedFlowFragment* fragmentFromAbsolutePointAndBox(const IntPoint&, const RenderBox& flowedBox);
 
     void registerNamedFlowContentElement(Element&);
     void unregisterNamedFlowContentElement(Element&);
@@ -79,37 +78,55 @@ public:
     bool hasContentElement(Element&) const;
 
     bool isMarkedForDestruction() const;
-    void getRanges(Vector<RefPtr<Range> >&, const RenderRegion*) const;
+    void getRanges(Vector<RefPtr<Range>>&, const RenderNamedFlowFragment*) const;
+
+    virtual bool collectsGraphicsLayersUnderRegions() const override;
+
+    // Check if the content is flown into at least a region with region styling rules.
+    bool hasRegionsWithStyling() const { return m_hasRegionsWithStyling; }
+    void checkRegionsWithStyling();
+
+    void clearRenderObjectCustomStyle(const RenderObject*);
+
+    virtual void removeFlowChildInfo(RenderObject*) override final;
+
+    LayoutUnit flowContentBottom() const { return m_flowContentBottom; }
+    void dispatchNamedFlowEvents();
+
+    void setDispatchRegionLayoutUpdateEvent(bool value) { m_dispatchRegionLayoutUpdateEvent = value; }
+    void setDispatchRegionOversetChangeEvent(bool value) { m_dispatchRegionOversetChangeEvent = value; }
 
 protected:
     void setMarkForDestruction();
     void resetMarkForDestruction();
 
 private:
-    explicit RenderNamedFlowThread(PassRefPtr<WebKitNamedFlow>);
+    virtual const char* renderName() const override;
+    virtual bool isRenderNamedFlowThread() const override { return true; }
+    virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const override;
+    virtual void computeOverflow(LayoutUnit, bool = false) override;
+    virtual void layout() override final;
 
-    virtual const char* renderName() const OVERRIDE;
-    virtual bool isRenderNamedFlowThread() const OVERRIDE { return true; }
-    virtual bool isChildAllowed(RenderObject*, RenderStyle*) const OVERRIDE;
-
-    virtual void dispatchRegionLayoutUpdateEvent() OVERRIDE;
-    virtual void dispatchRegionOversetChangeEvent() OVERRIDE;
+    void dispatchRegionLayoutUpdateEventIfNeeded();
+    void dispatchRegionOversetChangeEventIfNeeded();
 
     bool dependsOn(RenderNamedFlowThread* otherRenderFlowThread) const;
     void addDependencyOnFlowThread(RenderNamedFlowThread*);
     void removeDependencyOnFlowThread(RenderNamedFlowThread*);
 
-    void addRegionToNamedFlowThread(RenderRegion*);
+    void addFragmentToNamedFlowThread(RenderNamedFlowFragment*);
 
     void checkInvalidRegions();
 
     bool canBeDestroyed() const { return m_invalidRegionList.isEmpty() && m_regionList.isEmpty() && m_contentElements.isEmpty(); }
-    void regionLayoutUpdateEventTimerFired(Timer<RenderNamedFlowThread>*);
-    void regionOversetChangeEventTimerFired(Timer<RenderNamedFlowThread>*);
+    void regionLayoutUpdateEventTimerFired(Timer<RenderNamedFlowThread>&);
+    void regionOversetChangeEventTimerFired(Timer<RenderNamedFlowThread>&);
     void clearContentElements();
     void updateWritingMode();
 
-private:
+    WebKitNamedFlow& namedFlow() { return m_namedFlow.get(); }
+    const WebKitNamedFlow& namedFlow() const { return m_namedFlow.get(); }
+
     // Observer flow threads have invalid regions that depend on the state of this thread
     // to re-validate their regions. Keeping a set of observer threads make it easy
     // to notify them when a region was removed from this flow.
@@ -121,38 +138,27 @@ private:
     RenderNamedFlowThreadCountedSet m_layoutBeforeThreadsSet;
 
     // Holds the sorted children of a named flow. This is the only way we can get the ordering right.
-    typedef ListHashSet<RenderObject*> FlowThreadChildList;
-    FlowThreadChildList m_flowThreadChildList;
+    ListHashSet<RenderElement*> m_flowThreadChildList;
 
     NamedFlowContentElements m_contentElements;
 
     RenderRegionList m_invalidRegionList;
 
-    bool m_overset : 1;
+    bool m_hasRegionsWithStyling : 1;
+    bool m_dispatchRegionLayoutUpdateEvent : 1;
+    bool m_dispatchRegionOversetChangeEvent : 1;
 
     // The DOM Object that represents a named flow.
-    RefPtr<WebKitNamedFlow> m_namedFlow;
+    Ref<WebKitNamedFlow> m_namedFlow;
 
     Timer<RenderNamedFlowThread> m_regionLayoutUpdateEventTimer;
     Timer<RenderNamedFlowThread> m_regionOversetChangeEventTimer;
+
+    LayoutUnit m_flowContentBottom;
 };
 
-inline RenderNamedFlowThread* toRenderNamedFlowThread(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderNamedFlowThread());
-    return static_cast<RenderNamedFlowThread*>(object);
-}
-
-inline const RenderNamedFlowThread* toRenderNamedFlowThread(const RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isRenderNamedFlowThread());
-    return static_cast<const RenderNamedFlowThread*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderNamedFlowThread(const RenderNamedFlowThread*);
+RENDER_OBJECT_TYPE_CASTS(RenderNamedFlowThread, isRenderNamedFlowThread())
 
 } // namespace WebCore
 
 #endif // RenderNamedFlowThread_h
-

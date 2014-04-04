@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,13 +27,12 @@
 #include "LayerPool.h"
 
 #include "Logging.h"
-#include "WebTileLayer.h"
 #include <wtf/CurrentTime.h>
 
 namespace WebCore {
-    
+
 static const double capacityDecayTime = 5;
-    
+
 LayerPool::LayerPool()
     : m_totalBytes(0)
     , m_maxBytesForPool(48 * 1024 * 1024)
@@ -66,9 +65,9 @@ LayerPool::LayerList& LayerPool::listOfLayersWithSize(const IntSize& size, Acces
     return it->value;
 }
 
-void LayerPool::addLayer(const RetainPtr<WebTileLayer>& layer)
+void LayerPool::addLayer(const RefPtr<PlatformCALayer>& layer)
 {
-    IntSize layerSize([layer.get() bounds].size);
+    IntSize layerSize(expandedIntSize(layer->bounds().size()));
     if (!canReuseLayerWithSize(layerSize))
         return;
 
@@ -79,7 +78,7 @@ void LayerPool::addLayer(const RetainPtr<WebTileLayer>& layer)
     schedulePrune();
 }
 
-RetainPtr<WebTileLayer> LayerPool::takeLayerWithSize(const IntSize& size)
+RefPtr<PlatformCALayer> LayerPool::takeLayerWithSize(const IntSize& size)
 {
     if (!canReuseLayerWithSize(size))
         return nil;
@@ -107,7 +106,7 @@ void LayerPool::schedulePrune()
     m_pruneTimer.startOneShot(1);
 }
 
-void LayerPool::pruneTimerFired(Timer<LayerPool>*)
+void LayerPool::pruneTimerFired(Timer<LayerPool>&)
 {
     unsigned shrinkTo = decayedCapacity();
     while (m_totalBytes > shrinkTo) {

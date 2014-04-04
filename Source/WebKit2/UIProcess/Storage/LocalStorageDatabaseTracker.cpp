@@ -26,6 +26,7 @@
 #include "config.h"
 #include "LocalStorageDatabaseTracker.h"
 
+#include "LocalStorageDetails.h"
 #include "WorkQueue.h"
 #include <WebCore/FileSystem.h>
 #include <WebCore/SQLiteStatement.h>
@@ -53,7 +54,9 @@ LocalStorageDatabaseTracker::~LocalStorageDatabaseTracker()
 void LocalStorageDatabaseTracker::setLocalStorageDirectory(const String& localStorageDirectory)
 {
     // FIXME: We should come up with a better idiom for safely copying strings across threads.
-    RefPtr<StringImpl> copiedLocalStorageDirectory = localStorageDirectory.impl() ? localStorageDirectory.impl()->isolatedCopy() : nullptr;
+    RefPtr<StringImpl> copiedLocalStorageDirectory;
+    if (localStorageDirectory.impl())
+        copiedLocalStorageDirectory = localStorageDirectory.impl()->isolatedCopy();
 
     m_queue->dispatch(bind(&LocalStorageDatabaseTracker::setLocalStorageDirectoryInternal, this, copiedLocalStorageDirectory.release()));
 }
@@ -126,10 +129,29 @@ Vector<RefPtr<WebCore::SecurityOrigin>> LocalStorageDatabaseTracker::origins() c
     Vector<RefPtr<SecurityOrigin>> origins;
     origins.reserveInitialCapacity(m_origins.size());
 
-    for (HashSet<String>::const_iterator it = m_origins.begin(), end = m_origins.end(); it != end; ++it)
-        origins.uncheckedAppend(SecurityOrigin::createFromDatabaseIdentifier(*it));
+    for (const String& origin : m_origins)
+        origins.uncheckedAppend(SecurityOrigin::createFromDatabaseIdentifier(origin));
 
     return origins;
+}
+
+Vector<LocalStorageDetails> LocalStorageDatabaseTracker::details()
+{
+    Vector<LocalStorageDetails> result;
+    result.reserveInitialCapacity(m_origins.size());
+
+    for (const String& origin : m_origins) {
+        String filePath = pathForDatabaseWithOriginIdentifier(origin);
+        time_t time;
+
+        LocalStorageDetails details;
+        details.originIdentifier = origin.isolatedCopy();
+        details.creationTime = getFileCreationTime(filePath, time) ? time : 0;
+        details.modificationTime = getFileModificationTime(filePath, time) ? time : 0;
+        result.uncheckedAppend(details);
+    }
+
+    return result;
 }
 
 void LocalStorageDatabaseTracker::setLocalStorageDirectoryInternal(StringImpl* localStorageDirectory)

@@ -26,22 +26,22 @@
 
 namespace WebCore {
 
-class SVGVKernElement FINAL : public SVGElement {
+class SVGVKernElement final : public SVGElement {
 public:
     static PassRefPtr<SVGVKernElement> create(const QualifiedName&, Document&);
 
-    void buildVerticalKerningPair(KerningPairVector&);
+    void buildVerticalKerningPair(SVGKerningMap&);
 
 private:
     SVGVKernElement(const QualifiedName&, Document&);
 
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
-    virtual bool rendererIsNeeded(const RenderStyle&) { return false; }
+    virtual bool rendererIsNeeded(const RenderStyle&) override { return false; }
 };
 
-ELEMENT_TYPE_CASTS(SVGVKernElement)
+NODE_TYPE_CASTS(SVGVKernElement)
 
 } // namespace WebCore
 

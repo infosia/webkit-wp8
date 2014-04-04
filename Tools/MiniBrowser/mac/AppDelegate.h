@@ -24,9 +24,7 @@
  */
 
 @interface BrowserAppDelegate : NSObject <NSApplicationDelegate> {
-    WKContextRef _processContext;
-    WKPageGroupRef _pageGroup;
-    NSMutableSet *_browserWindows;
+    NSMutableSet *_browserWindowControllers;
 }
 
 - (void)browserWindowWillClose:(NSWindow *)window;

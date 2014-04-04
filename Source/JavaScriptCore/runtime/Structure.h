@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,11 +37,13 @@
 #include "PropertyOffset.h"
 #include "Protect.h"
 #include "PutPropertySlot.h"
+#include "StructureIDBlob.h"
 #include "StructureRareData.h"
 #include "StructureTransitionTable.h"
 #include "JSTypeInfo.h"
 #include "Watchpoint.h"
 #include "Weak.h"
+#include "WriteBarrierInlines.h"
 #include <wtf/CompilationThread.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/PrintStream.h>
@@ -51,6 +53,7 @@
 
 namespace JSC {
 
+class DeferGC;
 class LLIntOffsetsExtractor;
 class PropertyNameArray;
 class PropertyNameArrayData;
@@ -77,6 +80,8 @@ public:
     
     static Structure* create(VM&, JSGlobalObject*, JSValue prototype, const TypeInfo&, const ClassInfo*, IndexingType = NonArray, unsigned inlineCapacity = 0);
 
+    ~Structure();
+
 protected:
     void finishCreation(VM& vm)
     {
@@ -94,6 +99,10 @@ protected:
     }
 
 public:
+    StructureID id() const { return m_blob.structureID(); }
+    int32_t objectInitializationBlob() const { return m_blob.blobExcludingStructureID(); }
+    int64_t idBlob() const { return m_blob.blob(); }
+
     static void dumpStatistics();
 
     JS_EXPORT_PRIVATE static Structure* addPropertyTransition(VM&, Structure*, PropertyName, unsigned attributes, JSCell* specificValue, PropertyOffset&, PutPropertySlot::Context = PutPropertySlot::UnknownContext);
@@ -133,12 +142,20 @@ public:
 
     bool propertyAccessesAreCacheable() { return m_dictionaryKind != UncachedDictionaryKind && !typeInfo().prohibitsPropertyCaching(); }
 
+    // We use SlowPath in GetByIdStatus for structures that may get new impure properties later to prevent
+    // DFG from inlining property accesses since structures don't transition when a new impure property appears.
+    bool takesSlowPathInDFGForImpureProperty()
+    {
+        ASSERT(!typeInfo().hasImpureGetOwnPropertySlot() || typeInfo().newImpurePropertyFiresWatchpoints());
+        return typeInfo().hasImpureGetOwnPropertySlot();
+    }
+
     // Type accessors.
-    const TypeInfo& typeInfo() const { ASSERT(structure()->classInfo() == info()); return m_typeInfo; }
+    TypeInfo typeInfo() const { ASSERT(structure()->classInfo() == info()); return m_blob.typeInfo(m_outOfLineTypeFlags); }
     bool isObject() const { return typeInfo().isObject(); }
 
-    IndexingType indexingType() const { return m_indexingType & AllArrayTypes; }
-    IndexingType indexingTypeIncludingHistory() const { return m_indexingType; }
+    IndexingType indexingType() const { return m_blob.indexingType() & AllArrayTypes; }
+    IndexingType indexingTypeIncludingHistory() const { return m_blob.indexingType(); }
         
     bool mayInterceptIndexedAccesses() const
     {
@@ -300,6 +317,11 @@ public:
 
     const ClassInfo* classInfo() const { return m_classInfo; }
 
+    static ptrdiff_t structureIDOffset()
+    {
+        return OBJECT_OFFSETOF(Structure, m_blob) + StructureIDBlob::structureIDOffset();
+    }
+
     static ptrdiff_t prototypeOffset()
     {
         return OBJECT_OFFSETOF(Structure, m_prototype);
@@ -310,16 +332,6 @@ public:
         return OBJECT_OFFSETOF(Structure, m_globalObject);
     }
 
-    static ptrdiff_t typeInfoFlagsOffset()
-    {
-        return OBJECT_OFFSETOF(Structure, m_typeInfo) + TypeInfo::flagsOffset();
-    }
-
-    static ptrdiff_t typeInfoTypeOffset()
-    {
-        return OBJECT_OFFSETOF(Structure, m_typeInfo) + TypeInfo::typeOffset();
-    }
-        
     static ptrdiff_t classInfoOffset()
     {
         return OBJECT_OFFSETOF(Structure, m_classInfo);
@@ -327,7 +339,7 @@ public:
         
     static ptrdiff_t indexingTypeOffset()
     {
-        return OBJECT_OFFSETOF(Structure, m_indexingType);
+        return OBJECT_OFFSETOF(Structure, m_blob) + StructureIDBlob::indexingTypeOffset();
     }
 
     static Structure* createStructure(VM&);
@@ -350,7 +362,7 @@ public:
         
     void notifyTransitionFromThisStructure() const
     {
-        m_transitionWatchpointSet.notifyWrite();
+        m_transitionWatchpointSet.fireAll();
     }
     
     InlineWatchpointSet& transitionWatchpointSet() const
@@ -393,7 +405,7 @@ private:
     PropertyOffset putSpecificValue(VM&, PropertyName, unsigned attributes, JSCell* specificValue);
     PropertyOffset remove(PropertyName);
 
-    void createPropertyMap(const ConcurrentJITLocker&, VM&, unsigned keyCount = 0);
+    void createPropertyMap(const GCSafeConcurrentJITLocker&, VM&, unsigned keyCount = 0);
     void checkConsistency();
 
     bool despecifyFunction(VM&, PropertyName);
@@ -404,7 +416,7 @@ private:
     PropertyTable* copyPropertyTable(VM&, Structure* owner);
     PropertyTable* copyPropertyTableForPinning(VM&, Structure* owner);
     JS_EXPORT_PRIVATE void materializePropertyMap(VM&);
-    void materializePropertyMapIfNecessary(VM& vm)
+    void materializePropertyMapIfNecessary(VM& vm, DeferGC&)
     {
         ASSERT(!isCompilationThread());
         ASSERT(structure()->classInfo() == info());
@@ -412,7 +424,7 @@ private:
         if (!propertyTable() && previousID())
             materializePropertyMap(vm);
     }
-    void materializePropertyMapIfNecessaryForPinning(VM& vm)
+    void materializePropertyMapIfNecessaryForPinning(VM& vm, DeferGC&)
     {
         ASSERT(structure()->classInfo() == info());
         checkOffsetConsistency();
@@ -468,7 +480,12 @@ private:
     static const int s_maxTransitionLengthForNonEvalPutById = 512;
 
     static const unsigned maxSpecificFunctionThrashCount = 3;
-        
+    
+    // These need to be properly aligned at the beginning of the 'Structure'
+    // part of the object.
+    StructureIDBlob m_blob;
+    TypeInfo::OutOfLineTypeFlags m_outOfLineTypeFlags;
+
     WriteBarrier<JSGlobalObject> m_globalObject;
     WriteBarrier<Unknown> m_prototype;
     mutable WriteBarrier<StructureChain> m_cachedPrototypeChain;
@@ -492,8 +509,6 @@ private:
     // m_offset does not account for anonymous slots
     PropertyOffset m_offset;
 
-    TypeInfo m_typeInfo;
-    IndexingType m_indexingType;
     uint8_t m_inlineCapacity;
     
     ConcurrentJITLock m_lock;
@@ -507,7 +522,7 @@ private:
     unsigned m_specificFunctionThrashCount : 2;
     unsigned m_preventExtensions : 1;
     unsigned m_didTransition : 1;
-    unsigned m_staticFunctionReified;
+    unsigned m_staticFunctionReified : 1;
 };
 
 } // namespace JSC

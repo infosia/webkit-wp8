@@ -26,15 +26,12 @@
 #include "config.h"
 #include "SMILTimeContainer.h"
 
-#if ENABLE(SVG)
 #include "Document.h"
 #include "ElementIterator.h"
 #include "SVGNames.h"
 #include "SVGSMILElement.h"
 #include "SVGSVGElement.h"
 #include <wtf/CurrentTime.h>
-
-using namespace std;
 
 namespace WebCore {
 
@@ -43,7 +40,8 @@ static const double animationFrameDelay = 0.025;
 SMILTimeContainer::SMILTimeContainer(SVGSVGElement* owner) 
     : m_beginTime(0)
     , m_pauseTime(0)
-    , m_accumulatedPauseTime(0)
+    , m_accumulatedActiveTime(0)
+    , m_resumeTime(0)
     , m_presetStartTime(0)
     , m_documentOrderIndexesDirty(false)
     , m_timer(this, &SMILTimeContainer::timerFired)
@@ -72,9 +70,9 @@ void SMILTimeContainer::schedule(SVGSMILElement* animation, SVGElement* target, 
 #endif
 
     ElementAttributePair key(target, attributeName);
-    OwnPtr<AnimationsVector>& scheduled = m_scheduledAnimations.add(key, nullptr).iterator->value;
+    std::unique_ptr<AnimationsVector>& scheduled = m_scheduledAnimations.add(key, nullptr).iterator->value;
     if (!scheduled)
-        scheduled = adoptPtr(new AnimationsVector);
+        scheduled = std::make_unique<AnimationsVector>();
     ASSERT(!scheduled->contains(animation));
     scheduled->append(animation);
 
@@ -110,7 +108,9 @@ SMILTime SMILTimeContainer::elapsed() const
 {
     if (!m_beginTime)
         return 0;
-    return monotonicallyIncreasingTime() - m_beginTime - m_accumulatedPauseTime;
+    if (isPaused())
+        return m_accumulatedActiveTime;
+    return monotonicallyIncreasingTime() + m_accumulatedActiveTime - m_resumeTime;
 }
 
 bool SMILTimeContainer::isActive() const
@@ -135,7 +135,7 @@ void SMILTimeContainer::begin()
 
     // If 'm_presetStartTime' is set, the timeline was modified via setElapsed() before the document began.
     // In this case pass on 'seekToTime=true' to updateAnimations().
-    m_beginTime = now - m_presetStartTime;
+    m_beginTime = m_resumeTime = now - m_presetStartTime;
     updateAnimations(SMILTime(m_presetStartTime), m_presetStartTime ? true : false);
     m_presetStartTime = 0;
 
@@ -148,19 +148,19 @@ void SMILTimeContainer::begin()
 void SMILTimeContainer::pause()
 {
     ASSERT(!isPaused());
-    m_pauseTime = monotonicallyIncreasingTime();
 
-    if (m_beginTime)
+    m_pauseTime = monotonicallyIncreasingTime();
+    if (m_beginTime) {
+        m_accumulatedActiveTime += m_pauseTime - m_resumeTime;
         m_timer.stop();
+    }
 }
 
 void SMILTimeContainer::resume()
 {
     ASSERT(isPaused());
 
-    if (m_beginTime)
-        m_accumulatedPauseTime += monotonicallyIncreasingTime() - m_pauseTime;
-
+    m_resumeTime = monotonicallyIncreasingTime();
     m_pauseTime = 0;
     startTimer(0);
 }
@@ -179,9 +179,11 @@ void SMILTimeContainer::setElapsed(SMILTime time)
     double now = monotonicallyIncreasingTime();
     m_beginTime = now - time.value();
 
-    m_accumulatedPauseTime = 0;
-    if (m_pauseTime)
-        m_pauseTime = now;
+    if (m_pauseTime) {
+        m_resumeTime = m_pauseTime = now;
+        m_accumulatedActiveTime = time.value();
+    } else
+        m_resumeTime = m_beginTime;
 
 #ifndef NDEBUG
     m_preventScheduledAnimationsChanges = true;
@@ -208,7 +210,7 @@ void SMILTimeContainer::startTimer(SMILTime fireTime, SMILTime minimumDelay)
     if (!fireTime.isFinite())
         return;
 
-    SMILTime delay = max(fireTime - elapsed(), minimumDelay);
+    SMILTime delay = std::max(fireTime - elapsed(), minimumDelay);
     m_timer.startOneShot(delay.value());
 }
 
@@ -223,9 +225,8 @@ void SMILTimeContainer::updateDocumentOrderIndexes()
 {
     unsigned timingElementCount = 0;
 
-    auto smilDescendants = descendantsOfType<SVGSMILElement>(m_ownerSVGElement);
-    for (auto smilElement = smilDescendants.begin(), end = smilDescendants.end(); smilElement != end; ++smilElement)
-        smilElement->setDocumentOrderIndex(timingElementCount++);
+    for (auto& smilElement : descendantsOfType<SVGSMILElement>(*m_ownerSVGElement))
+        smilElement.setDocumentOrderIndex(timingElementCount++);
 
     m_documentOrderIndexesDirty = false;
 }
@@ -296,7 +297,7 @@ void SMILTimeContainer::updateAnimations(SMILTime elapsed, bool seekToTime)
 
             SMILTime nextFireTime = animation->nextProgressTime();
             if (nextFireTime.isFinite())
-                earliestFireTime = min(nextFireTime, earliestFireTime);
+                earliestFireTime = std::min(nextFireTime, earliestFireTime);
         }
 
         if (resultElement)
@@ -324,5 +325,3 @@ void SMILTimeContainer::updateAnimations(SMILTime elapsed, bool seekToTime)
 }
 
 }
-
-#endif // ENABLE(SVG)

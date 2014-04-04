@@ -26,7 +26,6 @@
 
 #include "DOMWindow.h"
 #include "Event.h"
-#include "EventDispatchMediator.h"
 
 namespace WebCore {
 
@@ -61,8 +60,8 @@ public:
     AbstractView* view() const { return m_view.get(); }
     int detail() const { return m_detail; }
 
-    virtual EventInterface eventInterface() const;
-    virtual bool isUIEvent() const;
+    virtual EventInterface eventInterface() const override;
+    virtual bool isUIEvent() const override;
 
     virtual int keyCode() const;
     virtual int charCode() const;
@@ -85,6 +84,8 @@ private:
     RefPtr<AbstractView> m_view;
     int m_detail;
 };
+
+EVENT_TYPE_CASTS(UIEvent)
 
 } // namespace WebCore
 

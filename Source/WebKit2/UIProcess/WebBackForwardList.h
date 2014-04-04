@@ -27,10 +27,9 @@
 #define WebBackForwardList_h
 
 #include "APIObject.h"
-#include "ImmutableArray.h"
 #include "WebBackForwardListItem.h"
 #include "WebPageProxy.h"
-#include <wtf/PassRefPtr.h>
+#include <wtf/PassRef.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
 #if USE(CF)
@@ -39,19 +38,17 @@
 
 namespace WebKit {
 
-typedef Vector<RefPtr<WebBackForwardListItem>> BackForwardListItemVector;
-
 /*
  *          Current
  *   |---------*--------------| Entries
  *      Back        Forward
  */
 
-class WebBackForwardList : public TypedAPIObject<APIObject::TypeBackForwardList> {
+class WebBackForwardList : public API::ObjectImpl<API::Object::Type::BackForwardList> {
 public:
-    static PassRefPtr<WebBackForwardList> create(WebPageProxy* page)
+    static PassRef<WebBackForwardList> create(WebPageProxy& page)
     {
-        return adoptRef(new WebBackForwardList(page));
+        return adoptRef(*new WebBackForwardList(page));
     }
     void pageClosed();
 
@@ -61,10 +58,10 @@ public:
     void goToItem(WebBackForwardListItem*);
     void clear();
 
-    WebBackForwardListItem* currentItem();
-    WebBackForwardListItem* backItem();
-    WebBackForwardListItem* forwardItem();
-    WebBackForwardListItem* itemAtIndex(int);
+    WebBackForwardListItem* currentItem() const;
+    WebBackForwardListItem* backItem() const;
+    WebBackForwardListItem* forwardItem() const;
+    WebBackForwardListItem* itemAtIndex(int) const;
     
     const BackForwardListItemVector& entries() const { return m_entries; }
 
@@ -72,8 +69,11 @@ public:
     int backListCount() const;
     int forwardListCount() const;
 
-    PassRefPtr<ImmutableArray> backListAsImmutableArrayWithLimit(unsigned limit) const;
-    PassRefPtr<ImmutableArray> forwardListAsImmutableArrayWithLimit(unsigned limit) const;
+    PassRefPtr<API::Array> backList() const;
+    PassRefPtr<API::Array> forwardList() const;
+
+    PassRefPtr<API::Array> backListAsAPIArrayWithLimit(unsigned limit) const;
+    PassRefPtr<API::Array> forwardListAsAPIArrayWithLimit(unsigned limit) const;
 
 #if USE(CF)
     CFDictionaryRef createCFDictionaryRepresentation(WebPageProxy::WebPageProxySessionStateFilterCallback, void* context) const;
@@ -83,7 +83,7 @@ public:
 #endif
 
 private:
-    explicit WebBackForwardList(WebPageProxy*);
+    explicit WebBackForwardList(WebPageProxy&);
 
     WebPageProxy* m_page;
     BackForwardListItemVector m_entries;

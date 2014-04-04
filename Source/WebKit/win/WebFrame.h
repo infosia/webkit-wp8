@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,7 +34,7 @@
 #include <WebCore/AdjustViewSizeOrNot.h>
 #include <WebCore/FrameWin.h>
 #include <WebCore/GraphicsContext.h>
-#include <WebCore/KURL.h>
+#include <WebCore/URL.h>
 #include <WebCore/ResourceHandleClient.h>
 
 #include <WTF/RefPtr.h>
@@ -318,7 +318,7 @@ public:
     HRESULT matchLabelsAgainstElement(const BSTR* labels, int cLabels, IDOMElement* againstElement, BSTR* result);
     HRESULT canProvideDocumentSource(bool* result);
 
-    WebCore::KURL url() const;
+    WebCore::URL url() const;
 
     WebView* webView() const;
     void setWebView(WebView*);
@@ -341,7 +341,7 @@ protected:
     class WebFramePrivate;
     WebFramePrivate*    d;
     bool                m_quickRedirectComing;
-    WebCore::KURL       m_originalRequestURL;
+    WebCore::URL       m_originalRequestURL;
     bool                m_inPrintingMode;
     Vector<WebCore::IntRect> m_pageRects;
     int m_pageHeight;   // height of the page adjusted by margins

@@ -35,10 +35,8 @@
 #include "NPRemoteObjectMap.h"
 #include "NPRuntimeUtilities.h"
 #include "NPVariantData.h"
-#include <WebCore/RunLoop.h>
 #include <wtf/MainThread.h>
-
-using namespace WebCore;
+#include <wtf/RunLoop.h>
 
 namespace WebKit {
 
@@ -59,7 +57,7 @@ NPObjectProxy::NPObjectProxy()
 
 NPObjectProxy::~NPObjectProxy()
 {
-    ASSERT(isMainThread());
+    ASSERT(RunLoop::isMain());
 
     if (!m_npRemoteObjectMap)
         return;
@@ -305,7 +303,7 @@ void NPObjectProxy::NP_Deallocate(NPObject* npObject)
     // that is known to be misused during plugin teardown, and to not be concerned about change in behavior if this
     // occured at any other time.
     if (!isMainThread()) {
-        RunLoop::main()->dispatch(bind(&NPObjectProxy::NP_Deallocate, npObject));
+        RunLoop::main().dispatch(bind(&NPObjectProxy::NP_Deallocate, npObject));
         return;
     }
     

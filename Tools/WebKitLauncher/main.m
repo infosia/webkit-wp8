@@ -185,11 +185,18 @@ static NSString *determineExecutablePath(NSBundle *bundle)
 
 static NSString *currentMacOSXVersion()
 {
-    SInt32 version;
-    if (Gestalt(gestaltSystemVersion, &version) != noErr)
-        return @"10.4";
+    // Can't use -[NSProcessInfo operatingSystemVersionString] because it has too much stuff we don't want.
+    NSString *systemLibraryPath = [NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSSystemDomainMask, YES) objectAtIndex:0];
+    NSString *systemVersionPlistPath = [systemLibraryPath stringByAppendingPathComponent:@"CoreServices/SystemVersion.plist"];
+    NSDictionary *systemVersionInfo = [NSDictionary dictionaryWithContentsOfFile:systemVersionPlistPath];
+    return [systemVersionInfo objectForKey:@"ProductVersion"];
+}
 
-    return [NSString stringWithFormat:@"%lx.%lx", (long)(version & 0xFF00) >> 8, (long)(version & 0x00F0) >> 4l];
+static NSString *currentMacOSXMajorVersion()
+{
+    NSArray *allComponents = [currentMacOSXVersion() componentsSeparatedByString:@"."];
+    NSArray *majorAndMinorComponents = [allComponents objectsAtIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, 2)]];
+    return [majorAndMinorComponents componentsJoinedByString:@"."];
 }
 
 static NSString *fallbackMacOSXVersion(NSString *systemVersion)
@@ -221,7 +228,7 @@ int main(int argc, char *argv[])
 {
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
-    NSString *systemVersion = currentMacOSXVersion();
+    NSString *systemVersion = currentMacOSXMajorVersion();
     NSString *frameworkPath = [[[NSBundle mainBundle] privateFrameworksPath] stringByAppendingPathComponent:systemVersion];
 
     BOOL frameworkPathIsUsable = checkFrameworkPath(frameworkPath);
@@ -239,6 +246,10 @@ int main(int argc, char *argv[])
                             [NSString stringWithFormat:@"Nightly builds of WebKit are not supported on OS X %@ at this time.", systemVersion]);
 
     NSString *pathToEnablerLib = [[NSBundle mainBundle] pathForResource:@"WebKitNightlyEnabler" ofType:@"dylib"];
+    NSString *dyldInsertLibraries = pathToEnablerLib;
+    NSString *pathToASanCrashReporterLib = [[NSBundle mainBundle] pathForResource:@"libasancrashreporter" ofType:@"dylib"];
+    if (pathToASanCrashReporterLib)
+        dyldInsertLibraries = [@[ pathToASanCrashReporterLib, pathToEnablerLib ] componentsJoinedByString:@":"];
 
     NSBundle *safariBundle = locateSafariBundle();
     NSString *executablePath = determineExecutablePath(safariBundle);
@@ -256,7 +267,7 @@ int main(int argc, char *argv[])
 
     NSMutableArray *arguments = [NSMutableArray arrayWithObject:executablePath];
     NSMutableDictionary *environment = [[[NSDictionary dictionaryWithObjectsAndKeys:frameworkPath, @"DYLD_FRAMEWORK_PATH", @"YES", @"WEBKIT_UNSET_DYLD_FRAMEWORK_PATH",
-                                                                                    pathToEnablerLib, @"DYLD_INSERT_LIBRARIES", [[NSBundle mainBundle] executablePath], @"WebKitAppPath", nil] mutableCopy] autorelease];
+                                                                                    dyldInsertLibraries, @"DYLD_INSERT_LIBRARIES", [[NSBundle mainBundle] executablePath], @"WebKitAppPath", nil] mutableCopy] autorelease];
     [environment addEntriesFromDictionary:[[NSProcessInfo processInfo] environment]];
     addStartPageToArgumentsIfNeeded(arguments);
 

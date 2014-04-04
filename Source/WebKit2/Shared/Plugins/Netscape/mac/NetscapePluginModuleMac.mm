@@ -213,10 +213,8 @@ static bool getPluginInfoFromPropertyLists(CFBundleRef bundle, PluginModuleInfo&
     return true;    
 }
 
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
 
 class ResourceMap {
 public:
@@ -286,9 +284,7 @@ static bool getStringListResource(ResID resourceID, Vector<String>& stringList) 
     return true;
 }
 
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 
 static const ResID PluginNameOrDescriptionStringNumber = 126;
 static const ResID MIMEDescriptionStringNumber = 127;
@@ -296,7 +292,7 @@ static const ResID MIMEListStringStringNumber = 128;
 
 static bool getPluginInfoFromCarbonResources(CFBundleRef bundle, PluginModuleInfo& plugin)
 {
-    ASSERT(isMainThread());
+    ASSERT(RunLoop::isMain());
 
     ResourceMap resourceMap(bundle);
     if (!resourceMap.isValid())

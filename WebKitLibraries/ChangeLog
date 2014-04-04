@@ -1,3 +1,482 @@
+2014-04-02  Dean Jackson  <dino@apple.com>
+
+        Update WKSI.
+        <rdar://problem/16321286>
+
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-04-02  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Enable the CANVAS_PATH feature.
+        https://bugs.webkit.org/show_bug.cgi?id=131114
+
+        Reviewed by Dean Jackson.
+
+        This code build and runs on Windows just fine. It was overlooked when the feature
+        was activated on other platforms.
+
+        * win/tools/vsprops/FeatureDefines.props: Turn on the feature.
+        * win/tools/vsprops/FeatureDefinesCairo.props: Ditto.
+
+2014-03-31  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Unreviewed build fix after r166496.
+
+        * win/tools/vsprops/GStreamerCommon.props:
+        Added gio-2.0.lib to list of GStreamer includes.
+
+2014-03-24  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Enable WebVTT Regions on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=130680
+
+        Reviewed by Eric Carlson.
+
+        * win/tools/vsprops/FeatureDefines.props: Turn on WEBVTT_REGIONS
+        * win/tools/vsprops/FeatureDefinesCairo.props: Ditto.
+
+2014-03-19  Jer Noble  <jer.noble@apple.com>
+
+        [Mac][EME] Query whether decoder support exists before creating a new MediaKeys object.
+        https://bugs.webkit.org/show_bug.cgi?id=130459
+
+        Reviewed by Eric Carlson.
+
+        * WebKitSystemInterface.h:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-18  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Unreviewed build fix after r165763.
+
+        * win/tools/vsprops/GStreamerCommon.props:
+        Link to gsttag-1.0.lib in addition to other GStreamer libraries.
+
+2014-03-14  Maciej Stachowiak  <mjs@apple.com>
+
+        Replace "Apple Computer, Inc." with "Apple Inc." in copyright headers
+        https://bugs.webkit.org/show_bug.cgi?id=130276
+        <rdar://problem/16266927>
+        
+        Reviewed by Simon Fraser.
+
+        * win/include/WebKitSystemInterface/WebKitSystemInterface.h:
+        * win/tools/scripts/auto-version.sh:
+
+2014-03-14  Dean Jackson  <dino@apple.com>
+
+        Remove libWebKitSystemInterfaceLion.a
+        https://bugs.webkit.org/show_bug.cgi?id=130254
+
+        Reviewed by Geoffrey Garen and Andreas Kling.
+
+        We don't support Lion any more.
+
+        * libWebKitSystemInterfaceLion.a: Removed.
+
+2014-03-13  Dean Jackson  <dino@apple.com>
+
+        <rdar://problem/16317198>
+
+        Update WKSI to fix a small leak on iOS.
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-12  Dean Jackson  <dino@apple.com>
+
+        [WebGL] WebKit1 + WebKit2 iOS clients should check load policy
+        https://bugs.webkit.org/show_bug.cgi?id=130162
+
+        Add iOS implementations of WebGL load policy queries.
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-10  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Pass environment to Pre-Build, Pre-Link, and Post-Build Stages.
+        https://bugs.webkit.org/show_bug.cgi?id=130023
+
+        Reviewed by Dean Jackson.
+
+        * win/tools/vsprops/common.props: Pass WEBKIT_LIBRARIES value to subprocesses.
+        * win/tools/vsprops/debugsuffix.props: Make sure OFFICIAL_BUILD is set.
+        * win/tools/vsprops/production.props: Ditto.
+
+2014-03-06  Dean Jackson  <dino@apple.com>
+
+        Update WebKitSystemInterface.
+        <rdar://problem/16256214>
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-05  Dean Jackson  <dino@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=129722
+        Update WKSI, again, to fix the build.
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-05  Dean Jackson  <dino@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=129722
+
+        And remember to copy the header file!
+
+        * WebKitSystemInterface.h:
+
+2014-03-05  Dean Jackson  <dino@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=129722
+        Update WKSI.
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-03-05  Eric Carlson  <eric.carlson@apple.com>
+
+        [iOS] Show external device name/type in placeholder
+        https://bugs.webkit.org/show_bug.cgi?id=129723
+
+        Reviewed by Jer Noble.
+
+        * WebKitSystemInterface.h:
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-02-21  Jeffrey Pfau  <jpfau@apple.com>
+
+        [Mac] Cache callbacks for cache partitioning may be passed null
+        https://bugs.webkit.org/show_bug.cgi?id=129175
+
+        Reviewed by Brady Eidson.
+
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-02-11  Roger Fong  <roger_fong@apple.com>
+
+        [Windows] Set ENABLE_CSS_SHAPE_INSIDE feature flag on Windows.
+
+        * win/tools/vsprops/FeatureDefines.props:
+
+2014-02-04  Andreas Kling  <akling@apple.com>
+
+        Remove <iframe seamless> support.
+        <https://webkit.org/b/128213>
+
+        Rubber-stamped by Antti Koivisto.
+
+        * win/tools/vsprops/FeatureDefines.props:
+
+2014-01-29  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Remove ENABLE(JAVASCRIPT_DEBUGGER) leftovers
+        https://bugs.webkit.org/show_bug.cgi?id=127845
+
+        Reviewed by Joseph Pecoraro.
+
+        * win/tools/vsprops/FeatureDefines.props:
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+
+2014-01-23  Roger Fong  <roger_fong@apple.com>
+
+        [Windows] Unreviewed. Disable unnecessary warning C4309, "truncation of constant value".
+
+        * win/tools/vsprops/common.props:
+
+2014-01-16  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] [iOS] Add support for CFHTTPCookieStorageAcceptPolicyExclusivelyFromMainDocumentDomain
+        https://bugs.webkit.org/show_bug.cgi?id=127139
+
+        Reviewed by Brady Eidson.
+
+        * WebKitSystemInterface.h:
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+        Update WebKitSystemInterface.
+
+2014-01-16  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel layout: Enable subpixel layout for Apple Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=127074
+
+        Reviewed by Antti Koivisto.
+
+        This should make the Apple Windows bots happier. It probably still needs rebaselining.
+
+        * win/tools/vsprops/FeatureDefines.props:
+
+2014-01-11  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] [Windows] Stop scheduling network requests in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=126789
+        <rdar://problem/15114727>
+
+        Update Windows WKSI.
+
+        * win/include/WebKitSystemInterface/WebKitSystemInterface.h:
+        * win/lib32/WebKitSystemInterface.lib:
+
+2014-01-11  Alexey Proskuryakov  <ap@apple.com>
+
+        [Mac] [Windows] Stop scheduling network requests in WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=126789
+        <rdar://problem/15114727>
+
+        Update WKSI.
+
+        * WebKitSystemInterface.h:
+        * libWebKitSystemInterfaceLion.a:
+        * libWebKitSystemInterfaceMavericks.a:
+        * libWebKitSystemInterfaceMountainLion.a:
+
+2014-01-10  peavo@outlook.com  <peavo@outlook.com>
+
+        [WinCairo] Crash when rendering (in pixman dll)
+        https://bugs.webkit.org/show_bug.cgi?id=126750
+
+        Reviewed by Brent Fulgham.
+
+        Since we link with cairo.lib, and the gstreamer installation also comes with cairo.lib,
+        we link with the wrong cairo.lib, and loads gstreamers cairo dll, instead of our own.
+        We should user our own cairo dll for rendering.
+
+        * win/tools/vsprops/GStreamer32.props: Put gstreamer lib path last, so we link with the correct cairo.lib.
+        * win/tools/vsprops/GStreamer64.props: Ditto.
+
+2014-01-03  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Enable video using GStreamer.
+        https://bugs.webkit.org/show_bug.cgi?id=126015
+
+        Reviewed by Darin Adler.
+
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+        Define ENABLE_MEDIA_CONTROLS_SCRIPT, ENABLE_VIDEO_TRACK, and ENABLE_VIDEO.
+
+2013-12-30  Roger Fong  <roger_fong@apple.com>
+
+        [Windows] Disable some annoying build warnings.
+
+        * win/tools/vsprops/common.props:
+
+2013-12-23  Lucas Forschler  <lforschler@apple.com>
+
+        <rdar://problem/15682948> Update copyright strings
+
+        Reviewed by Dan Bernstein.
+
+        * win/tools/scripts/COPYRIGHT-END-YEAR:
+
+2013-12-19  Alex Christensen  <achristensen@webkit.org>
+
+        Final preparations for GStreamer on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=125958
+
+        Reviewed by Benjamin Poulain.
+
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+        Removed duplicate ENABLE_VIDEO_TRACK definition.
+
+2013-12-18  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Unreviewed build fix after r160798.
+
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+        Removed ENABLE_MEDIA_CONTROLS_SCRIPT definition for now.
+
+2013-12-18  Alex Christensen  <achristensen@webkit.org>
+
+        [WinCairo] Preparation for GStreamer on Windows.
+        https://bugs.webkit.org/show_bug.cgi?id=125946
+
+        Reviewed by Brent Fulgham.
+
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+        Added ENABLE_MEDIA_CONTROLS_SCRIPT and ENABLE_VIDEO_TRACK for DerivedSources.make.
+        * win/tools/vsprops/GStreamer32.props: Added.
+        * win/tools/vsprops/GStreamer64.props: Added.
+        * win/tools/vsprops/GStreamerCommon.props: Added.
+
+2013-12-13  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Unreviewed build fix for VS2013
+
+        * win/lib32/WebKitSystemInterface.lib: Updated to use VS2013 _MSC_VER symbols
+        for linking.
+
+2013-12-09  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, update LLVM binary drops to r196830.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-12-05  Bear Travis  <betravis@adobe.com>
+
+        [CSS Shapes] Enable CSS Shapes on Windows
+        https://bugs.webkit.org/show_bug.cgi?id=89957
+
+        Reviewed by Brent Fulgham.
+
+        Turn on CSS_SHAPES on Windows now that bug 121883 has been fixed.
+
+        * win/tools/vsprops/FeatureDefines.props:
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+
+2013-11-26  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Enable HTML template element on Windows ports
+        https://bugs.webkit.org/show_bug.cgi?id=124758
+
+        Reviewed by Andreas Kling.
+
+        Enable TEMPLATE_ELEMENT. Also removed UNDO_MANAGER since that feature has been removed
+        from the tree in r133326.
+
+        * win/tools/vsprops/FeatureDefines.props:
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+
+2013-11-21  Peter Molnar  <pmolnar.u-szeged@partner.samsung.com>
+
+        Remove ENABLE_WORKERS
+        https://bugs.webkit.org/show_bug.cgi?id=105784
+
+        Reviewed by Darin Adler.
+
+        * win/tools/vsprops/FeatureDefines.props:
+        * win/tools/vsprops/FeatureDefinesCairo.props:
+
+2013-11-17  Filip Pizlo  <fpizlo@apple.com>
+
+        Update binary drops to include atrick's "Ran out of registers" fix in r194942.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-11-08  Filip Pizlo  <fpizlo@apple.com>
+
+        Update binary drops to a version that includes new stackmap fixes and exposes the new calling conventions.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-11-03  Filip Pizlo  <fpizlo@apple.com>
+
+        Update binary drops to a version that includes my pretty stack trace changes.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-11-02  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, update binary drops.
+        
+        These include my LLVMDisablePrettyStackTrace() fix and are built with --enable-crash-overrides=no
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-10-21  Mark Rowe  <mrowe@apple.com>
+
+        Add a version of WebKitSystemInterface for Mavericks.
+
+        Reviewed by Ryosuke Niwa.
+
+        * libWebKitSystemInterfaceMavericks.a: Added.
+
+2013-10-17  Anthony Johnson  <anthony.johnson@flexsim.com>
+
+        Crash fix for Windows XP.
+        https://bugs.webkit.org/show_bug.cgi?id=122790
+
+        Reviewed by Geoffrey Garen.
+
+        * win/tools/vsprops/common.props:
+        Replaced stack and heap sizes of zero with blank stack and heap sizes.
+
+2013-10-16  Filip Pizlo  <fpizlo@apple.com>
+
+        libllvmForJSC shouldn't call exit(1) on report_fatal_error()
+        https://bugs.webkit.org/show_bug.cgi?id=122905
+        <rdar://problem/15237856>
+
+        Reviewed by Michael Saboff.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-10-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Update the binary drops to the latest version of LLVM, built without -fvisibility=hidden
+        now that we have soft linking. Also include DataTypes.h in the drop.
+
+        Rubber stamped by Michael Saboff.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-10-01  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL should use the new version of LLVM MCJIT memory manager APIs that take a SectionName
+        https://bugs.webkit.org/show_bug.cgi?id=122193
+
+        Reviewed by Geoffrey Garen.
+
+        * LLVMIncludesMountainLion.tar.bz2:
+        * LLVMLibrariesMountainLion.tar.bz2:
+
+2013-10-01  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Implement the media controls in JavaScript.
+        https://bugs.webkit.org/show_bug.cgi?id=122166
+
+        Reviewed by Jer Noble.
+
+        * win/tools/vsprops/FeatureDefines.props: Activate the
+        ENABLE_MEDIA_CONTROLS_SCRIPT flag.
+
+2013-09-24  Bear Travis  <betravis@adobe.com>
+
+        Disable CSS_SHAPES on Windows
+        https://bugs.webkit.org/show_bug.cgi?id=121879
+
+        Reviewed by Brent Fulgham.
+
+        Enabling CSS_SHAPES on Windows is currently causing crashes in DRT.
+        Turn the feature off until it can be appropriately fixed.
+
+        * win/tools/vsprops/FeatureDefines.props: Disable on Win port
+        * win/tools/vsprops/FeatureDefinesCairo.props: Disable on WinCairo port
+
+2013-09-23  Patrick Gansterer  <paroga@webkit.org>
+
+        use NOMINMAX instead of #define min min
+        https://bugs.webkit.org/show_bug.cgi?id=73563
+
+        Reviewed by Brent Fulgham.
+
+        Use NOMINMAX instead of #define min/max as a cleaner
+        way of ensuring that Windows system header files don't
+        define min/max as macro in the first place.
+
+        * win/tools/vsprops/common.props:
+
 2013-09-20  Mark Rowe  <mrowe@apple.com>
 
         Fix link errors for external users when building WebKit with Xcode 5.

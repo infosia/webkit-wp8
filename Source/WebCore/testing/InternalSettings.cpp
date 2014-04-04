@@ -30,10 +30,10 @@
 #include "CaptionUserPreferences.h"
 #include "Document.h"
 #include "ExceptionCode.h"
-#include "Frame.h"
 #include "FrameView.h"
 #include "Language.h"
 #include "LocaleToScriptMapping.h"
+#include "MainFrame.h"
 #include "Page.h"
 #include "PageGroup.h"
 #include "RuntimeEnabledFeatures.h"
@@ -66,16 +66,8 @@
 namespace WebCore {
 
 InternalSettings::Backup::Backup(Settings& settings)
-    : m_originalCSSExclusionsEnabled(RuntimeEnabledFeatures::cssExclusionsEnabled())
-    , m_originalCSSShapesEnabled(RuntimeEnabledFeatures::cssShapesEnabled())
-    , m_originalCSSVariablesEnabled(settings.cssVariablesEnabled())
-#if ENABLE(SHADOW_DOM)
-    , m_originalShadowDOMEnabled(RuntimeEnabledFeatures::shadowDOMEnabled())
-    , m_originalAuthorShadowDOMForAnyElementEnabled(RuntimeEnabledFeatures::authorShadowDOMForAnyElementEnabled())
-#endif
-#if ENABLE(STYLE_SCOPED)
-    , m_originalStyleScoped(RuntimeEnabledFeatures::styleScopedEnabled())
-#endif
+    : m_originalCSSExclusionsEnabled(RuntimeEnabledFeatures::sharedFeatures().cssExclusionsEnabled())
+    , m_originalCSSShapesEnabled(RuntimeEnabledFeatures::sharedFeatures().cssShapesEnabled())
     , m_originalEditingBehavior(settings.editingBehaviorType())
 #if ENABLE(TEXT_AUTOSIZING)
     , m_originalTextAutosizingEnabled(settings.textAutosizingEnabled())
@@ -85,7 +77,7 @@ InternalSettings::Backup::Backup(Settings& settings)
     , m_originalMediaTypeOverride(settings.mediaTypeOverride())
     , m_originalCanvasUsesAcceleratedDrawing(settings.canvasUsesAcceleratedDrawing())
     , m_originalMockScrollbarsEnabled(settings.mockScrollbarsEnabled())
-    , m_langAttributeAwareFormControlUIEnabled(RuntimeEnabledFeatures::langAttributeAwareFormControlUIEnabled())
+    , m_langAttributeAwareFormControlUIEnabled(RuntimeEnabledFeatures::sharedFeatures().langAttributeAwareFormControlUIEnabled())
     , m_imagesEnabled(settings.areImagesEnabled())
     , m_minimumTimerInterval(settings.minDOMTimerInterval())
 #if ENABLE(VIDEO_TRACK)
@@ -97,22 +89,45 @@ InternalSettings::Backup::Backup(Settings& settings)
     , m_originalTimeWithoutMouseMovementBeforeHidingControls(settings.timeWithoutMouseMovementBeforeHidingControls())
     , m_useLegacyBackgroundSizeShorthandBehavior(settings.useLegacyBackgroundSizeShorthandBehavior())
     , m_autoscrollForDragAndDropEnabled(settings.autoscrollForDragAndDropEnabled())
+    , m_pluginReplacementEnabled(RuntimeEnabledFeatures::sharedFeatures().pluginReplacementEnabled())
+    , m_shouldConvertPositionStyleOnCopy(settings.shouldConvertPositionStyleOnCopy())
 {
 }
 
 void InternalSettings::Backup::restoreTo(Settings& settings)
 {
-    RuntimeEnabledFeatures::setCSSExclusionsEnabled(m_originalCSSExclusionsEnabled);
-    RuntimeEnabledFeatures::setCSSShapesEnabled(m_originalCSSShapesEnabled);
-    settings.setCSSVariablesEnabled(m_originalCSSVariablesEnabled);
-#if ENABLE(SHADOW_DOM)
-    RuntimeEnabledFeatures::setShadowDOMEnabled(m_originalShadowDOMEnabled);
-    RuntimeEnabledFeatures::setAuthorShadowDOMForAnyElementEnabled(m_originalAuthorShadowDOMForAnyElementEnabled);
-#endif
-#if ENABLE(STYLE_SCOPED)
-    RuntimeEnabledFeatures::setStyleScopedEnabled(m_originalStyleScoped);
-#endif
+    RuntimeEnabledFeatures::sharedFeatures().setCSSExclusionsEnabled(m_originalCSSExclusionsEnabled);
+    RuntimeEnabledFeatures::sharedFeatures().setCSSShapesEnabled(m_originalCSSShapesEnabled);
     settings.setEditingBehaviorType(m_originalEditingBehavior);
+
+    for (const auto& standardFont : m_standardFontFamilies)
+        settings.setStandardFontFamily(standardFont.value, static_cast<UScriptCode>(standardFont.key));
+    m_standardFontFamilies.clear();
+
+    for (const auto& fixedFont : m_fixedFontFamilies)
+        settings.setFixedFontFamily(fixedFont.value, static_cast<UScriptCode>(fixedFont.key));
+    m_fixedFontFamilies.clear();
+
+    for (const auto& serifFont : m_serifFontFamilies)
+        settings.setSerifFontFamily(serifFont.value, static_cast<UScriptCode>(serifFont.key));
+    m_serifFontFamilies.clear();
+
+    for (const auto& sansSerifFont : m_sansSerifFontFamilies)
+        settings.setSansSerifFontFamily(sansSerifFont.value, static_cast<UScriptCode>(sansSerifFont.key));
+    m_sansSerifFontFamilies.clear();
+
+    for (const auto& cursiveFont : m_cursiveFontFamilies)
+        settings.setCursiveFontFamily(cursiveFont.value, static_cast<UScriptCode>(cursiveFont.key));
+    m_cursiveFontFamilies.clear();
+
+    for (const auto& fantasyFont : m_fantasyFontFamilies)
+        settings.setFantasyFontFamily(fantasyFont.value, static_cast<UScriptCode>(fantasyFont.key));
+    m_fantasyFontFamilies.clear();
+
+    for (const auto& pictographFont : m_pictographFontFamilies)
+        settings.setPictographFontFamily(pictographFont.value, static_cast<UScriptCode>(pictographFont.key));
+    m_pictographFontFamilies.clear();
+
 #if ENABLE(TEXT_AUTOSIZING)
     settings.setTextAutosizingEnabled(m_originalTextAutosizingEnabled);
     settings.setTextAutosizingWindowSizeOverride(m_originalTextAutosizingWindowSizeOverride);
@@ -121,7 +136,7 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     settings.setMediaTypeOverride(m_originalMediaTypeOverride);
     settings.setCanvasUsesAcceleratedDrawing(m_originalCanvasUsesAcceleratedDrawing);
     settings.setMockScrollbarsEnabled(m_originalMockScrollbarsEnabled);
-    RuntimeEnabledFeatures::setLangAttributeAwareFormControlUIEnabled(m_langAttributeAwareFormControlUIEnabled);
+    RuntimeEnabledFeatures::sharedFeatures().setLangAttributeAwareFormControlUIEnabled(m_langAttributeAwareFormControlUIEnabled);
     settings.setImagesEnabled(m_imagesEnabled);
     settings.setMinDOMTimerInterval(m_minimumTimerInterval);
 #if ENABLE(VIDEO_TRACK)
@@ -133,6 +148,8 @@ void InternalSettings::Backup::restoreTo(Settings& settings)
     settings.setTimeWithoutMouseMovementBeforeHidingControls(m_originalTimeWithoutMouseMovementBeforeHidingControls);
     settings.setUseLegacyBackgroundSizeShorthandBehavior(m_useLegacyBackgroundSizeShorthandBehavior);
     settings.setAutoscrollForDragAndDropEnabled(m_autoscrollForDragAndDropEnabled);
+    settings.setShouldConvertPositionStyleOnCopy(m_shouldConvertPositionStyleOnCopy);
+    RuntimeEnabledFeatures::sharedFeatures().setPluginReplacementEnabled(m_pluginReplacementEnabled);
 }
 
 // We can't use RefCountedSupplement because that would try to make InternalSettings RefCounted
@@ -144,7 +161,7 @@ public:
         : m_internalSettings(InternalSettings::create(page)) { }
     virtual ~InternalSettingsWrapper() { m_internalSettings->hostDestroyed(); }
 #if !ASSERT_DISABLED
-    virtual bool isRefCountedWrapper() const OVERRIDE { return true; }
+    virtual bool isRefCountedWrapper() const override { return true; }
 #endif
     InternalSettings* internalSettings() const { return m_internalSettings.get(); }
 
@@ -199,49 +216,6 @@ void InternalSettings::setMockScrollbarsEnabled(bool enabled, ExceptionCode& ec)
     settings()->setMockScrollbarsEnabled(enabled);
 }
 
-static bool urlIsWhitelistedForSetShadowDOMEnabled(const String& url)
-{
-    // This check is just for preventing fuzzers from crashing because of unintended API calls.
-    // You can list your test if needed.
-    return notFound != url.find("fast/dom/shadow/content-shadow-unknown.html")
-        || notFound != url.find("fast/dom/shadow/insertion-points-with-shadow-disabled.html");
-}
-
-void InternalSettings::setShadowDOMEnabled(bool enabled, ExceptionCode& ec)
-{
-    if (!urlIsWhitelistedForSetShadowDOMEnabled(page()->mainFrame().document()->url().string())) {
-        ec = INVALID_ACCESS_ERR;
-        return;
-    }
-
-#if ENABLE(SHADOW_DOM)
-    RuntimeEnabledFeatures::setShadowDOMEnabled(enabled);
-#else
-    // Even SHADOW_DOM is off, InternalSettings allows setShadowDOMEnabled(false) to
-    // have broader test coverage. But it cannot be setShadowDOMEnabled(true).
-    if (enabled)
-        ec = INVALID_ACCESS_ERR;
-#endif
-}
-
-void InternalSettings::setAuthorShadowDOMForAnyElementEnabled(bool isEnabled)
-{
-#if ENABLE(SHADOW_DOM)
-    RuntimeEnabledFeatures::setAuthorShadowDOMForAnyElementEnabled(isEnabled);
-#else
-    UNUSED_PARAM(isEnabled);
-#endif
-}
-
-void InternalSettings::setStyleScopedEnabled(bool enabled)
-{
-#if ENABLE(STYLE_SCOPED)
-    RuntimeEnabledFeatures::setStyleScopedEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
-}
-
 void InternalSettings::setTouchEventEmulationEnabled(bool enabled, ExceptionCode& ec)
 {
 #if ENABLE(TOUCH_EVENTS)
@@ -253,54 +227,74 @@ void InternalSettings::setTouchEventEmulationEnabled(bool enabled, ExceptionCode
 #endif
 }
 
-typedef void (Settings::*SetFontFamilyFunction)(const AtomicString&, UScriptCode);
-static void setFontFamily(Settings* settings, const String& family, const String& script, SetFontFamilyFunction setter)
-{
-    UScriptCode code = scriptNameToCode(script);
-    if (code != USCRIPT_INVALID_CODE)
-        (settings->*setter)(family, code);
-}
-
 void InternalSettings::setStandardFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setStandardFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_standardFontFamilies.add(code, settings()->standardFontFamily(code));
+    settings()->setStandardFontFamily(family, code);
 }
 
 void InternalSettings::setSerifFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setSerifFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_serifFontFamilies.add(code, settings()->serifFontFamily(code));
+    settings()->setSerifFontFamily(family, code);
 }
 
 void InternalSettings::setSansSerifFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setSansSerifFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_sansSerifFontFamilies.add(code, settings()->sansSerifFontFamily(code));
+    settings()->setSansSerifFontFamily(family, code);
 }
 
 void InternalSettings::setFixedFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setFixedFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_fixedFontFamilies.add(code, settings()->fixedFontFamily(code));
+    settings()->setFixedFontFamily(family, code);
 }
 
 void InternalSettings::setCursiveFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setCursiveFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_cursiveFontFamilies.add(code, settings()->cursiveFontFamily(code));
+    settings()->setCursiveFontFamily(family, code);
 }
 
 void InternalSettings::setFantasyFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setFantasyFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_fantasyFontFamilies.add(code, settings()->fantasyFontFamily(code));
+    settings()->setFantasyFontFamily(family, code);
 }
 
 void InternalSettings::setPictographFontFamily(const String& family, const String& script, ExceptionCode& ec)
 {
     InternalSettingsGuardForSettings();
-    setFontFamily(settings(), family, script, &Settings::setPictographFontFamily);
+    UScriptCode code = scriptNameToCode(script);
+    if (code == USCRIPT_INVALID_CODE)
+        return;
+    m_backup.m_pictographFontFamilies.add(code, settings()->pictographFontFamily(code));
+    settings()->setPictographFontFamily(family, code);
 }
 
 void InternalSettings::setTextAutosizingEnabled(bool enabled, ExceptionCode& ec)
@@ -346,25 +340,13 @@ void InternalSettings::setTextAutosizingFontScaleFactor(float fontScaleFactor, E
 void InternalSettings::setCSSExclusionsEnabled(bool enabled, ExceptionCode& ec)
 {
     UNUSED_PARAM(ec);
-    RuntimeEnabledFeatures::setCSSExclusionsEnabled(enabled);
+    RuntimeEnabledFeatures::sharedFeatures().setCSSExclusionsEnabled(enabled);
 }
 
 void InternalSettings::setCSSShapesEnabled(bool enabled, ExceptionCode& ec)
 {
     UNUSED_PARAM(ec);
-    RuntimeEnabledFeatures::setCSSShapesEnabled(enabled);
-}
-
-void InternalSettings::setCSSVariablesEnabled(bool enabled, ExceptionCode& ec)
-{
-    InternalSettingsGuardForSettings();
-    settings()->setCSSVariablesEnabled(enabled);
-}
-
-bool InternalSettings::cssVariablesEnabled(ExceptionCode& ec)
-{
-    InternalSettingsGuardForSettingsReturn(false);
-    return settings()->cssVariablesEnabled();
+    RuntimeEnabledFeatures::sharedFeatures().setCSSShapesEnabled(enabled);
 }
 
 void InternalSettings::setCanStartMedia(bool enabled, ExceptionCode& ec)
@@ -449,7 +431,7 @@ void InternalSettings::setStorageBlockingPolicy(const String& mode, ExceptionCod
 
 void InternalSettings::setLangAttributeAwareFormControlUIEnabled(bool enabled)
 {
-    RuntimeEnabledFeatures::setLangAttributeAwareFormControlUIEnabled(enabled);
+    RuntimeEnabledFeatures::sharedFeatures().setLangAttributeAwareFormControlUIEnabled(enabled);
 }
 
 void InternalSettings::setImagesEnabled(bool enabled, ExceptionCode& ec)
@@ -486,6 +468,29 @@ void InternalSettings::setAutoscrollForDragAndDropEnabled(bool enabled, Exceptio
 {
     InternalSettingsGuardForSettings();
     settings()->setAutoscrollForDragAndDropEnabled(enabled);
+}
+
+void InternalSettings::setFontFallbackPrefersPictographs(bool preferPictographs, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setFontFallbackPrefersPictographs(preferPictographs);
+}
+
+void InternalSettings::setPluginReplacementEnabled(bool enabled)
+{
+    RuntimeEnabledFeatures::sharedFeatures().setPluginReplacementEnabled(enabled);
+}
+
+void InternalSettings::setBackgroundShouldExtendBeyondPage(bool hasExtendedBackground, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setBackgroundShouldExtendBeyondPage(hasExtendedBackground);
+}
+
+void InternalSettings::setShouldConvertPositionStyleOnCopy(bool convert, ExceptionCode& ec)
+{
+    InternalSettingsGuardForSettings();
+    settings()->setShouldConvertPositionStyleOnCopy(convert);
 }
 
 }

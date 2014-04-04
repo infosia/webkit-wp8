@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,7 +28,6 @@
 
 #include "APICallbackFunction.h"
 #include "APICast.h"
-#include "APIShims.h"
 #include "CodeBlock.h"
 #include "Error.h"
 #include "ExceptionHelpers.h"
@@ -36,7 +35,7 @@
 #include "JSFunction.h"
 #include "JSGlobalObject.h"
 #include "JSLock.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include <wtf/Vector.h>
 
 namespace JSC {
@@ -45,8 +44,8 @@ STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(JSCallbackFunction);
 
 const ClassInfo JSCallbackFunction::s_info = { "CallbackFunction", &InternalFunction::s_info, 0, 0, CREATE_METHOD_TABLE(JSCallbackFunction) };
 
-JSCallbackFunction::JSCallbackFunction(JSGlobalObject* globalObject, Structure* structure, JSObjectCallAsFunctionCallback callback)
-    : InternalFunction(globalObject, structure)
+JSCallbackFunction::JSCallbackFunction(VM& vm, Structure* structure, JSObjectCallAsFunctionCallback callback)
+    : InternalFunction(vm, structure)
     , m_callback(callback)
 {
 }
@@ -57,10 +56,10 @@ void JSCallbackFunction::finishCreation(VM& vm, const String& name)
     ASSERT(inherits(info()));
 }
 
-JSCallbackFunction* JSCallbackFunction::create(ExecState* exec, JSGlobalObject* globalObject, JSObjectCallAsFunctionCallback callback, const String& name)
+JSCallbackFunction* JSCallbackFunction::create(VM& vm, JSGlobalObject* globalObject, JSObjectCallAsFunctionCallback callback, const String& name)
 {
-    JSCallbackFunction* function = new (NotNull, allocateCell<JSCallbackFunction>(*exec->heap())) JSCallbackFunction(globalObject, globalObject->callbackFunctionStructure(), callback);
-    function->finishCreation(exec->vm(), name);
+    JSCallbackFunction* function = new (NotNull, allocateCell<JSCallbackFunction>(vm.heap)) JSCallbackFunction(vm, globalObject->callbackFunctionStructure(), callback);
+    function->finishCreation(vm, name);
     return function;
 }
 

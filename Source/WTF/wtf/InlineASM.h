@@ -26,8 +26,6 @@
 #ifndef InlineASM_h
 #define InlineASM_h
 
-#include <wtf/Platform.h>
-
 /* asm directive helpers */ 
 
 #if OS(DARWIN) || (OS(WINDOWS) && CPU(X86))
@@ -82,8 +80,7 @@
 #elif   OS(LINUX)               \
      || OS(FREEBSD)             \
      || OS(OPENBSD)             \
-     || OS(NETBSD)              \
-     || OS(QNX)
+     || OS(NETBSD)
     // GNU as-compatible syntax.
 #define LOCAL_LABEL_STRING(name) ".L" #name
 #endif

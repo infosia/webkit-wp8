@@ -30,7 +30,7 @@
 #include "PageRuleCollector.h"
 
 #include "CSSDefaultStyleSheets.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "StyleRule.h"
 
 namespace WebCore {
@@ -99,9 +99,9 @@ static bool checkPageSelectorComponents(const CSSSelector* selector, bool isLeft
         }
 
         CSSSelector::PseudoType pseudoType = component->pseudoType();
-        if ((pseudoType == CSSSelector::PseudoLeftPage && !isLeftPage)
-            || (pseudoType == CSSSelector::PseudoRightPage && isLeftPage)
-            || (pseudoType == CSSSelector::PseudoFirstPage && !isFirstPage))
+        if ((pseudoType == CSSSelector::PseudoLeft && !isLeftPage)
+            || (pseudoType == CSSSelector::PseudoRight && isLeftPage)
+            || (pseudoType == CSSSelector::PseudoFirst && !isFirstPage))
         {
             return false;
         }
@@ -118,7 +118,7 @@ void PageRuleCollector::matchPageRulesForList(Vector<StyleRulePage*>& matchedRul
             continue;
 
         // If the rule has no properties to apply, then ignore it.
-        const StylePropertySet& properties = rule->properties();
+        const StyleProperties& properties = rule->properties();
         if (properties.isEmpty())
             continue;
 

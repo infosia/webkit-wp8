@@ -38,7 +38,7 @@
 
 namespace WebCore {
 
-class HTMLDataListElement FINAL : public HTMLElement {
+class HTMLDataListElement final : public HTMLElement {
 public:
     static PassRefPtr<HTMLDataListElement> create(const QualifiedName&, Document&);
 
@@ -49,6 +49,8 @@ public:
 private:
     HTMLDataListElement(const QualifiedName&, Document&);
 };
+
+NODE_TYPE_CASTS(HTMLDataListElement)
 
 } // namespace WebCore
 #endif // ENABLE(DATALIST_ELEMENT)

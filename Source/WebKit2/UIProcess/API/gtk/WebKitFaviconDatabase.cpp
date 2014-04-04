@@ -27,10 +27,10 @@
 #include <WebCore/Image.h>
 #include <WebCore/IntSize.h>
 #include <WebCore/RefPtrCairo.h>
-#include <WebCore/RunLoop.h>
 #include <glib/gi18n-lib.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/RunLoop.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
 using namespace WebKit;
@@ -164,13 +164,13 @@ static void processPendingIconsForPageURL(WebKitFaviconDatabase* database, const
     if (!pendingIconRequests)
         return;
 
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     RefPtr<cairo_surface_t> icon = getIconSurfaceSynchronously(database, pageURL, &error.outPtr());
 
     for (size_t i = 0; i < pendingIconRequests->size(); ++i) {
         GTask* task = pendingIconRequests->at(i).get();
         if (error)
-            g_task_return_error(task, error.release());
+            g_task_return_error(task, error.release().release());
         else {
             GetFaviconSurfaceAsyncData* data = static_cast<GetFaviconSurfaceAsyncData*>(g_task_get_task_data(task));
             data->icon = icon;
@@ -181,7 +181,7 @@ static void processPendingIconsForPageURL(WebKitFaviconDatabase* database, const
     deletePendingIconRequests(database, pendingIconRequests, pageURL);
 }
 
-static void didChangeIconForPageURLCallback(WKIconDatabaseRef wkIconDatabase, WKURLRef wkPageURL, const void* clientInfo)
+static void didChangeIconForPageURLCallback(WKIconDatabaseRef, WKURLRef wkPageURL, const void* clientInfo)
 {
     WebKitFaviconDatabase* database = WEBKIT_FAVICON_DATABASE(clientInfo);
     if (!database->priv->iconDatabase->isUrlImportCompleted())
@@ -203,7 +203,7 @@ static void didChangeIconForPageURLCallback(WKIconDatabaseRef wkIconDatabase, WK
     g_signal_emit(database, signals[FAVICON_CHANGED], 0, pageURL.utf8().data(), currentIconURL.utf8().data());
 }
 
-static void iconDataReadyForPageURLCallback(WKIconDatabaseRef wkIconDatabase, WKURLRef wkPageURL, const void* clientInfo)
+static void iconDataReadyForPageURLCallback(WKIconDatabaseRef, WKURLRef wkPageURL, const void* clientInfo)
 {
     ASSERT(RunLoop::isMain());
     processPendingIconsForPageURL(WEBKIT_FAVICON_DATABASE(clientInfo), toImpl(wkPageURL)->string());
@@ -214,14 +214,16 @@ WebKitFaviconDatabase* webkitFaviconDatabaseCreate(WebIconDatabase* iconDatabase
     WebKitFaviconDatabase* faviconDatabase = WEBKIT_FAVICON_DATABASE(g_object_new(WEBKIT_TYPE_FAVICON_DATABASE, NULL));
     faviconDatabase->priv->iconDatabase = iconDatabase;
 
-    WKIconDatabaseClient wkIconDatabaseClient = {
-        kWKIconDatabaseClientCurrentVersion,
-        faviconDatabase, // clientInfo
+    WKIconDatabaseClientV1 wkIconDatabaseClient = {
+        {
+            1, // version
+            faviconDatabase, // clientInfo
+        },
         didChangeIconForPageURLCallback,
         0, // didRemoveAllIconsCallback
         iconDataReadyForPageURLCallback,
     };
-    WKIconDatabaseSetIconDatabaseClient(toAPI(iconDatabase), &wkIconDatabaseClient);
+    WKIconDatabaseSetIconDatabaseClient(toAPI(iconDatabase), &wkIconDatabaseClient.base);
     return faviconDatabase;
 }
 
@@ -288,7 +290,7 @@ void webkit_favicon_database_get_favicon(WebKitFaviconDatabase* database, const 
 
     // We ask for the icon directly. If we don't get the icon data now,
     // we'll be notified later (even if the database is still importing icons).
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     data->icon = getIconSurfaceSynchronously(database, data->pageURL, &error.outPtr());
     if (data->icon) {
         g_task_return_boolean(task.get(), TRUE);
@@ -299,7 +301,7 @@ void webkit_favicon_database_get_favicon(WebKitFaviconDatabase* database, const 
     data->shouldReleaseIconForPageURL = true;
 
     if (g_error_matches(error.get(), WEBKIT_FAVICON_DATABASE_ERROR, WEBKIT_FAVICON_DATABASE_ERROR_FAVICON_NOT_FOUND)) {
-        g_task_return_error(task.get(), error.release());
+        g_task_return_error(task.get(), error.release().release());
         return;
     }
 

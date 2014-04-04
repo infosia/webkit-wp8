@@ -27,6 +27,8 @@
 
 #include "ArrayProfile.h"
 #include "CodeBlock.h"
+#include "CommonSlowPaths.h"
+#include "Debugger.h"
 #include "Executable.h"
 #include "Heap.h"
 #include "Interpreter.h"
@@ -45,7 +47,7 @@
 #include "JumpTable.h"
 #include "LLIntOfflineAsmConfig.h"
 #include "MarkedSpace.h"
-
+#include "ProtoCallFrame.h"
 #include "Structure.h"
 #include "StructureChain.h"
 #include "ValueProfile.h"

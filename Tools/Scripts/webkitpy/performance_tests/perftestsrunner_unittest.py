@@ -111,18 +111,6 @@ class MainTest(unittest.TestCase):
         port.skipped_perf_tests = lambda: ['inspector/unsupported_test1.html', 'unsupported']
         self.assertItemsEqual(self._collect_tests_and_sort_test_name(runner), ['inspector/test1.html', 'inspector/test2.html', 'inspector/unsupported_test1.html', 'unsupported/unsupported_test2.html'])
 
-    def test_collect_tests_should_ignore_replay_tests_by_default(self):
-        runner, port = self.create_runner()
-        self._add_file(runner, 'Replay', 'www.webkit.org.replay')
-        self.assertItemsEqual(runner._collect_tests(), [])
-
-    def test_collect_tests_with_replay_tests(self):
-        runner, port = self.create_runner(args=['--replay'])
-        self._add_file(runner, 'Replay', 'www.webkit.org.replay')
-        tests = runner._collect_tests()
-        self.assertEqual(len(tests), 1)
-        self.assertEqual(tests[0].__class__.__name__, 'ReplayPerfTest')
-
     def test_default_args(self):
         runner, port = self.create_runner()
         options, args = PerfTestsRunner._parse_args([])
@@ -130,10 +118,9 @@ class MainTest(unittest.TestCase):
         self.assertEqual(options.time_out_ms, 600 * 1000)
         self.assertTrue(options.generate_results)
         self.assertTrue(options.show_results)
-        self.assertFalse(options.replay)
         self.assertTrue(options.use_skipped_list)
         self.assertEqual(options.repeat, 1)
-        self.assertEqual(options.test_runner_count, DEFAULT_TEST_RUNNER_COUNT)
+        self.assertEqual(options.test_runner_count, -1)
 
     def test_parse_args(self):
         runner, port = self.create_runner()
@@ -199,33 +186,37 @@ class MainTest(unittest.TestCase):
                 return mock.upload_single_text_file_return_value
 
         MockFileUploader.upload_single_text_file_return_value = StringIO.StringIO('OK')
-        self.assertTrue(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
+        self.assertTrue(runner._upload_json('https://some.host', 'some.json', '/some/path', MockFileUploader))
         self.assertEqual(MockFileUploader.called, ['FileUploader', 'upload_single_text_file'])
+
+        MockFileUploader.reset()
+        MockFileUploader.upload_single_text_file_return_value = StringIO.StringIO('OK')
+        self.assertTrue(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
 
         MockFileUploader.reset()
         MockFileUploader.upload_single_text_file_return_value = StringIO.StringIO('Some error')
         output = OutputCapture()
         output.capture_output()
-        self.assertFalse(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
+        self.assertFalse(runner._upload_json('https://some.host', 'some.json', '/some/path', MockFileUploader))
         _, _, logs = output.restore_output()
         self.assertEqual(logs, 'Uploaded JSON to https://some.host/some/path but got a bad response:\nSome error\n')
 
         # Throwing an exception upload_single_text_file shouldn't blow up _upload_json
         MockFileUploader.reset()
         MockFileUploader.upload_single_text_file_throws = True
-        self.assertFalse(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
+        self.assertFalse(runner._upload_json('https://some.host', 'some.json', '/some/path', MockFileUploader))
         self.assertEqual(MockFileUploader.called, ['FileUploader', 'upload_single_text_file'])
 
         MockFileUploader.reset()
         MockFileUploader.upload_single_text_file_return_value = StringIO.StringIO('{"status": "OK"}')
-        self.assertTrue(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
+        self.assertTrue(runner._upload_json('https://some.host', 'some.json', '/some/path', MockFileUploader))
         self.assertEqual(MockFileUploader.called, ['FileUploader', 'upload_single_text_file'])
 
         MockFileUploader.reset()
         MockFileUploader.upload_single_text_file_return_value = StringIO.StringIO('{"status": "SomethingHasFailed", "failureStored": false}')
         output = OutputCapture()
         output.capture_output()
-        self.assertFalse(runner._upload_json('some.host', 'some.json', '/some/path', MockFileUploader))
+        self.assertFalse(runner._upload_json('https://some.host', 'some.json', '/some/path', MockFileUploader))
         _, _, logs = output.restore_output()
         serialized_json = json.dumps({'status': 'SomethingHasFailed', 'failureStored': False}, indent=4)
         self.assertEqual(logs, 'Uploaded JSON to https://some.host/some/path but got an error:\n%s\n' % serialized_json)

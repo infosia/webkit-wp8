@@ -102,21 +102,11 @@
 #include <sys/timeb.h>
 #endif
 
-#if OS(QNX)
-// qnx6 defines timegm in nbutil.h
-#include <nbutil.h>
-#endif
-
 using namespace WTF;
 
 namespace WTF {
 
 /* Constants */
-
-static const double minutesPerDay = 24.0 * 60.0;
-static const double secondsPerYear = 24.0 * 60.0 * 60.0 * 365.0;
-
-static const double usecPerSec = 1000000.0;
 
 static const double maxUnixTime = 2145859200.0; // 12/31/2037
 // ECMAScript asks not to support for a date of which total
@@ -184,12 +174,12 @@ double msToDays(double ms)
     return floor(ms / msPerDay);
 }
 
-static String twoDigitStringFromNumber(int number)
+static void appendTwoDigitNumber(StringBuilder& builder, int number)
 {
-    ASSERT(number >= 0 && number < 100);
-    if (number > 9)
-        return String::number(number);
-    return makeString("0", String::number(number));
+    ASSERT(number >= 0);
+    ASSERT(number < 100);
+    builder.append(static_cast<LChar>('0' + number / 10));
+    builder.append(static_cast<LChar>('0' + number % 10));
 }
 
 int msToYear(double ms)
@@ -416,6 +406,19 @@ static int32_t calculateUTCOffset()
 #endif
 }
 
+#if OS(WINDOWS)
+// Code taken from http://support.microsoft.com/kb/167296
+static void UnixTimeToFileTime(time_t t, LPFILETIME pft)
+{
+    // Note that LONGLONG is a 64-bit value
+    LONGLONG ll;
+
+    ll = Int32x32To64(t, 10000000) + 116444736000000000;
+    pft->dwLowDateTime = (DWORD)ll;
+    pft->dwHighDateTime = ll >> 32;
+}
+#endif
+
 /*
  * Get the DST offset for the time passed in.
  */
@@ -425,6 +428,22 @@ static double calculateDSTOffset(time_t localTime, double utcOffset)
     UNUSED_PARAM(localTime);
     UNUSED_PARAM(utcOffset);
     return 0;
+#elif OS(WINDOWS)
+    FILETIME utcFileTime;
+    UnixTimeToFileTime(localTime, &utcFileTime);
+    SYSTEMTIME utcSystemTime, localSystemTime;
+    FileTimeToSystemTime(&utcFileTime, &utcSystemTime);
+    SystemTimeToTzSpecificLocalTime(0, &utcSystemTime, &localSystemTime);
+
+    double offsetTime = (localTime * msPerSecond) + utcOffset;
+
+    // Offset from UTC but doesn't include DST obviously
+    int offsetHour =  msToHours(offsetTime);
+    int offsetMinute =  msToMinutes(offsetTime);
+
+    double diff = ((localSystemTime.wHour - offsetHour) * secondsPerHour) + ((localSystemTime.wMinute - offsetMinute) * 60);
+
+    return diff * msPerSecond;
 #else
     //input is UTC so we have to shift back to local time to determine DST thus the + getUTCOffset()
     double offsetTime = (localTime * msPerSecond) + utcOffset;
@@ -498,12 +517,10 @@ void initializeDates()
 
 static inline double ymdhmsToSeconds(int year, long mon, long day, long hour, long minute, double second)
 {
-    double days = (day - 32075)
-        + floor(1461 * (year + 4800.0 + (mon - 14) / 12) / 4)
-        + 367 * (mon - 2 - (mon - 14) / 12 * 12) / 12
-        - floor(3 * ((year + 4900.0 + (mon - 14) / 12) / 100) / 4)
-        - 2440588;
-    return ((days * hoursPerDay + hour) * minutesPerHour + minute) * secondsPerMinute + second;
+    int mday = firstDayOfMonth[isLeapYear(year)][mon - 1];
+    double ydays = daysFrom1970ToYear(year);
+
+    return (second + minute * secondsPerMinute + hour * secondsPerHour + (mday + day - 1 + ydays) * secondsPerDay);
 }
 
 // We follow the recommendation of RFC 2822 to consider all
@@ -1101,17 +1118,17 @@ String makeRFC2822DateString(unsigned dayOfWeek, unsigned day, unsigned month, u
     stringBuilder.appendNumber(year);
     stringBuilder.append(' ');
 
-    stringBuilder.append(twoDigitStringFromNumber(hours));
+    appendTwoDigitNumber(stringBuilder, hours);
     stringBuilder.append(':');
-    stringBuilder.append(twoDigitStringFromNumber(minutes));
+    appendTwoDigitNumber(stringBuilder, minutes);
     stringBuilder.append(':');
-    stringBuilder.append(twoDigitStringFromNumber(seconds));
+    appendTwoDigitNumber(stringBuilder, seconds);
     stringBuilder.append(' ');
 
     stringBuilder.append(utcOffset > 0 ? '+' : '-');
     int absoluteUTCOffset = abs(utcOffset);
-    stringBuilder.append(twoDigitStringFromNumber(absoluteUTCOffset / 60));
-    stringBuilder.append(twoDigitStringFromNumber(absoluteUTCOffset % 60));
+    appendTwoDigitNumber(stringBuilder, absoluteUTCOffset / 60);
+    appendTwoDigitNumber(stringBuilder, absoluteUTCOffset % 60);
 
     return stringBuilder.toString();
 }

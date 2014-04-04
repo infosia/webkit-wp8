@@ -30,6 +30,7 @@
 #include "NetworkConnectionToWebProcessMessages.h"
 #include "NetworkProcessConnection.h"
 #include "NetworkResourceLoadParameters.h"
+#include "SessionTracker.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebErrors.h"
 #include "WebFrame.h"
@@ -46,6 +47,7 @@
 #include <WebCore/ReferrerPolicy.h>
 #include <WebCore/ResourceBuffer.h>
 #include <WebCore/ResourceLoader.h>
+#include <WebCore/SessionID.h>
 #include <WebCore/Settings.h>
 #include <WebCore/SubresourceLoader.h>
 #include <wtf/text/CString.h>
@@ -105,7 +107,6 @@ void WebResourceLoadScheduler::scheduleLoad(ResourceLoader* resourceLoader, Cach
 
     ContentSniffingPolicy contentSniffingPolicy = resourceLoader->shouldSniffContent() ? SniffContent : DoNotSniffContent;
     StoredCredentials allowStoredCredentials = resourceLoader->shouldUseCredentialStorage() ? AllowStoredCredentials : DoNotAllowStoredCredentials;
-    bool privateBrowsingEnabled = resourceLoader->frameLoader()->frame().settings().privateBrowsingEnabled();
 
     // FIXME: Some entities in WebCore use WebCore's "EmptyFrameLoaderClient" instead of having a proper WebFrameLoaderClient.
     // EmptyFrameLoaderClient shouldn't exist and everything should be using a WebFrameLoaderClient,
@@ -118,13 +119,13 @@ void WebResourceLoadScheduler::scheduleLoad(ResourceLoader* resourceLoader, Cach
     loadParameters.identifier = identifier;
     loadParameters.webPageID = webPage ? webPage->pageID() : 0;
     loadParameters.webFrameID = webFrame ? webFrame->frameID() : 0;
+    loadParameters.sessionID = webPage ? webPage->sessionID() : SessionID::defaultSessionID();
     loadParameters.request = resourceLoader->request();
     loadParameters.priority = priority;
     loadParameters.contentSniffingPolicy = contentSniffingPolicy;
     loadParameters.allowStoredCredentials = allowStoredCredentials;
     // If there is no WebFrame then this resource cannot be authenticated with the client.
     loadParameters.clientCredentialPolicy = (webFrame && webPage) ? resourceLoader->clientCredentialPolicy() : DoNotAskClientForAnyCredentials;
-    loadParameters.inPrivateBrowsingMode = privateBrowsingEnabled;
     loadParameters.shouldClearReferrerOnHTTPSToHTTPRedirect = shouldClearReferrerOnHTTPSToHTTPRedirect;
     loadParameters.isMainResource = resource && resource->type() == CachedResource::MainResource;
 
@@ -185,7 +186,7 @@ void WebResourceLoadScheduler::remove(ResourceLoader* resourceLoader)
     loader->detachFromCoreLoader();
 }
 
-void WebResourceLoadScheduler::crossOriginRedirectReceived(ResourceLoader*, const KURL&)
+void WebResourceLoadScheduler::crossOriginRedirectReceived(ResourceLoader*, const URL&)
 {
     // We handle cross origin redirects entirely within the NetworkProcess.
     // We override this call in the WebProcess to make it a no-op.

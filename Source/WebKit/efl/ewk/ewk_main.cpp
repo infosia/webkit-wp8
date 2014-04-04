@@ -29,6 +29,7 @@
 #include "ResourceHandle.h"
 #include "ScriptController.h"
 #include "Settings.h"
+#include "SoupNetworkSession.h"
 #include "StorageTracker.h"
 #include "StorageTrackerClientEfl.h"
 #include "ewk_auth_soup_private.h"
@@ -94,6 +95,11 @@ int ewk_init(void)
         goto error_ecore_evas;
     }
 
+    if (!efreet_init()) {
+        CRITICAL("could not init efreet.");
+        goto error_efreet;
+    }
+
     if (!edje_init()) {
         CRITICAL("could not init edje.");
         goto error_edje;
@@ -118,6 +124,8 @@ error_ecore_x:
     edje_shutdown();
 #endif
 error_edje:
+    efreet_shutdown();
+error_efreet:
     ecore_evas_shutdown();
 error_ecore_evas:
     ecore_shutdown();
@@ -142,6 +150,7 @@ int ewk_shutdown(void)
     ecore_x_shutdown();
 #endif
     edje_shutdown();
+    efreet_shutdown();
     ecore_evas_shutdown();
     ecore_shutdown();
     evas_shutdown();
@@ -154,7 +163,7 @@ int ewk_shutdown(void)
 
 static WebCore::StorageTrackerClientEfl* trackerClient()
 {
-    DEFINE_STATIC_LOCAL(WebCore::StorageTrackerClientEfl, trackerClient, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(WebCore::StorageTrackerClientEfl, trackerClient, ());
     return &trackerClient;
 }
 
@@ -196,9 +205,8 @@ Eina_Bool _ewk_init_body(void)
 
     WebCore::StorageTracker::initializeTracker(localStorageDirectory.utf8().data(), trackerClient());
 
-    SoupSession* session = WebCore::ResourceHandle::defaultSession();
     SoupSessionFeature* auth_dialog = static_cast<SoupSessionFeature*>(g_object_new(EWK_TYPE_SOUP_AUTH_DIALOG, 0));
-    soup_session_add_feature(session, auth_dialog);
+    soup_session_add_feature(WebCore::SoupNetworkSession::defaultSession().soupSession(), auth_dialog);
 
     WebCore::ResourceHandle::setIgnoreSSLErrors(true);
 

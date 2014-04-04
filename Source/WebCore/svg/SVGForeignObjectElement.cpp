@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGForeignObjectElement.h"
 
 #include "Attribute.h"
@@ -71,7 +69,7 @@ PassRefPtr<SVGForeignObjectElement> SVGForeignObjectElement::create(const Qualif
 
 bool SVGForeignObjectElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -122,20 +120,20 @@ void SVGForeignObjectElement::svgAttributeChanged(const QualifiedName& attrName)
     if (isLengthAttribute)
         updateRelativeLengthsInformation();
 
-    if (RenderObject* renderer = this->renderer())
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+    if (auto renderer = this->renderer())
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
-RenderElement* SVGForeignObjectElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGForeignObjectElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGForeignObject(*this);
+    return createRenderer<RenderSVGForeignObject>(*this, std::move(style));
 }
 
-bool SVGForeignObjectElement::childShouldCreateRenderer(const Node* child) const
+bool SVGForeignObjectElement::childShouldCreateRenderer(const Node& child) const
 {
     // Disallow arbitary SVG content. Only allow proper <svg xmlns="svgNS"> subdocuments.
-    if (child->isSVGElement())
-        return child->hasTagName(SVGNames::svgTag);
+    if (child.isSVGElement())
+        return child.hasTagName(SVGNames::svgTag);
 
     // Skip over SVG rules which disallow non-SVG kids
     return StyledElement::childShouldCreateRenderer(child);
@@ -168,5 +166,3 @@ bool SVGForeignObjectElement::selfHasRelativeLengths() const
 }
 
 }
-
-#endif

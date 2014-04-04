@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,13 +26,11 @@
 #include "config.h"
 #include "CACFLayerTreeHost.h"
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "CACFLayerTreeHostClient.h"
 #include "DefWndProcWindowClass.h"
 #include "LayerChangesFlusher.h"
 #include "LegacyCACFLayerTreeHost.h"
-#include "PlatformCALayer.h"
+#include "PlatformCALayerWin.h"
 #include "WKCACFViewLayerTreeHost.h"
 #include "WebCoreInstanceHandle.h"
 #include <limits.h>
@@ -123,7 +121,7 @@ PassRefPtr<CACFLayerTreeHost> CACFLayerTreeHost::create()
 
 CACFLayerTreeHost::CACFLayerTreeHost()
     : m_client(0)
-    , m_rootLayer(PlatformCALayer::create(PlatformCALayer::LayerTypeRootLayer, 0))
+    , m_rootLayer(PlatformCALayerWin::create(PlatformCALayer::LayerTypeRootLayer, 0))
     , m_window(0)
     , m_shouldFlushPendingGraphicsLayerChanges(false)
     , m_isFlushingLayerChanges(false)
@@ -328,5 +326,3 @@ CGRect CACFLayerTreeHost::bounds() const
 }
 
 }
-
-#endif // USE(ACCELERATED_COMPOSITING)

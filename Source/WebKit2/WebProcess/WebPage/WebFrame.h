@@ -27,7 +27,6 @@
 #define WebFrame_h
 
 #include "APIObject.h"
-#include "ImmutableArray.h"
 #include "WKBase.h"
 #include "WebFrameLoaderClient.h"
 #include <JavaScriptCore/JSBase.h>
@@ -39,12 +38,16 @@
 #include <wtf/RefPtr.h>
 #include <wtf/RetainPtr.h>
 
+namespace API {
+class Array;
+}
+
 namespace WebCore {
 class Frame;
 class HTMLFrameOwnerElement;
 class IntPoint;
 class IntRect;
-class KURL;
+class URL;
 }
 
 namespace WebKit {
@@ -55,7 +58,7 @@ class InjectedBundleRangeHandle;
 class InjectedBundleScriptWorld;
 class WebPage;
 
-class WebFrame : public TypedAPIObject<APIObject::TypeBundleFrame> {
+class WebFrame : public API::ObjectImpl<API::Object::Type::BundleFrame> {
 public:
     static PassRefPtr<WebFrame> createWithCoreMainFrame(WebPage*, WebCore::Frame*);
     static PassRefPtr<WebFrame> createSubframe(WebPage*, const String& frameName, WebCore::HTMLFrameOwnerElement*);
@@ -65,6 +68,8 @@ public:
     void invalidate();
 
     WebPage* page() const;
+
+    static WebFrame* fromCoreFrame(WebCore::Frame&);
     WebCore::Frame* coreFrame() const { return m_coreFrame; }
 
     uint64_t frameID() const { return m_frameID; }
@@ -89,7 +94,7 @@ public:
     String innerText() const;
     bool isFrameSet() const;
     WebFrame* parentFrame() const;
-    PassRefPtr<ImmutableArray> childFrames();
+    PassRefPtr<API::Array> childFrames();
     JSGlobalContextRef jsContext();
     JSGlobalContextRef jsContextForWorld(InjectedBundleScriptWorld*);
     WebCore::IntRect contentBounds() const;
@@ -116,11 +121,11 @@ public:
     
     unsigned pendingUnloadCount() const;
     
-    bool allowsFollowingLink(const WebCore::KURL&) const;
+    bool allowsFollowingLink(const WebCore::URL&) const;
 
     String provisionalURL() const;
-    String suggestedFilenameForResourceWithURL(const WebCore::KURL&) const;
-    String mimeTypeForResourceWithURL(const WebCore::KURL&) const;
+    String suggestedFilenameForResourceWithURL(const WebCore::URL&) const;
+    String mimeTypeForResourceWithURL(const WebCore::URL&) const;
 
     void setTextDirection(const String&);
 
@@ -135,14 +140,14 @@ public:
     void setLoadListener(LoadListener* loadListener) { m_loadListener = loadListener; }
     LoadListener* loadListener() const { return m_loadListener; }
     
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     typedef bool (*FrameFilterFunction)(WKBundleFrameRef, WKBundleFrameRef subframe, void* context);
     RetainPtr<CFDataRef> webArchiveData(FrameFilterFunction, void* context);
 #endif
 
 private:
-    static PassRefPtr<WebFrame> create(PassOwnPtr<WebFrameLoaderClient>);
-    WebFrame(PassOwnPtr<WebFrameLoaderClient>);
+    static PassRefPtr<WebFrame> create(std::unique_ptr<WebFrameLoaderClient>);
+    WebFrame(std::unique_ptr<WebFrameLoaderClient>);
 
     WebCore::Frame* m_coreFrame;
 
@@ -150,7 +155,7 @@ private:
     WebCore::FramePolicyFunction m_policyFunction;
     uint64_t m_policyDownloadID;
 
-    OwnPtr<WebFrameLoaderClient> m_frameLoaderClient;
+    std::unique_ptr<WebFrameLoaderClient> m_frameLoaderClient;
     LoadListener* m_loadListener;
     
     uint64_t m_frameID;

@@ -33,8 +33,9 @@
 namespace WebCore {
 
 class FloatPoint;
+class RenderElement;
 
-typedef void (*NodeCallback)(Node*, unsigned);
+typedef void (*NodeCallback)(Node&, unsigned);
 
 namespace Private { 
     template<class GenericNode, class GenericNodeContainer>
@@ -89,10 +90,10 @@ public:
     unsigned childNodeCount() const;
     Node* childNode(unsigned index) const;
 
-    bool insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode& = ASSERT_NO_EXCEPTION, AttachBehavior = AttachNow);
-    bool replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode& = ASSERT_NO_EXCEPTION, AttachBehavior = AttachNow);
+    bool insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode& = ASSERT_NO_EXCEPTION);
+    bool replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode& = ASSERT_NO_EXCEPTION);
     bool removeChild(Node* child, ExceptionCode& = ASSERT_NO_EXCEPTION);
-    bool appendChild(PassRefPtr<Node> newChild, ExceptionCode& = ASSERT_NO_EXCEPTION, AttachBehavior = AttachNow);
+    bool appendChild(PassRefPtr<Node> newChild, ExceptionCode& = ASSERT_NO_EXCEPTION);
 
     // These methods are only used during parsing.
     // They don't send DOM mutation events or handle reparenting.
@@ -106,8 +107,7 @@ public:
 
     void cloneChildNodes(ContainerNode* clone);
 
-    virtual LayoutRect boundingBox() const OVERRIDE;
-    virtual void scheduleSetNeedsStyleRecalc(StyleChangeType = FullStyleChange) OVERRIDE FINAL;
+    virtual LayoutRect boundingBox() const override;
 
     enum ChildChangeType { ElementInserted, ElementRemoved, TextInserted, TextRemoved, TextChanged, AllChildrenRemoved, NonContentsChildChanged };
     enum ChildChangeSource { ChildChangeSourceParser, ChildChangeSourceAPI };
@@ -121,15 +121,26 @@ public:
 
     void disconnectDescendantFrames();
 
-    virtual bool childShouldCreateRenderer(const Node*) const { return true; }
+    virtual bool childShouldCreateRenderer(const Node&) const { return true; }
 
     using Node::setAttributeEventListener;
     void setAttributeEventListener(const AtomicString& eventType, const QualifiedName& attributeName, const AtomicString& value);
 
-protected:
-    explicit ContainerNode(Document*, ConstructionType = CreateContainer);
+    RenderElement* renderer() const;
 
-    static void queuePostAttachCallback(NodeCallback, Node*, unsigned = 0);
+    Element* querySelector(const String& selectors, ExceptionCode&);
+    RefPtr<NodeList> querySelectorAll(const String& selectors, ExceptionCode&);
+
+    PassRefPtr<NodeList> getElementsByTagName(const AtomicString&);
+    PassRefPtr<NodeList> getElementsByTagNameNS(const AtomicString& namespaceURI, const AtomicString& localName);
+    PassRefPtr<NodeList> getElementsByName(const String& elementName);
+    PassRefPtr<NodeList> getElementsByClassName(const String& classNames);
+    PassRefPtr<RadioNodeList> radioNodeList(const AtomicString&);
+
+protected:
+    explicit ContainerNode(Document&, ConstructionType = CreateContainer);
+
+    static void queuePostAttachCallback(NodeCallback, Node&, unsigned = 0);
     static bool postAttachCallbacksAreSuspended();
 
     template<class GenericNode, class GenericNodeContainer>
@@ -147,8 +158,8 @@ private:
     void insertBeforeCommon(Node& nextChild, Node& oldChild);
 
     static void dispatchPostAttachCallbacks();
-    void suspendPostAttachCallbacks();
-    void resumePostAttachCallbacks();
+    static void suspendPostAttachCallbacks(Document&);
+    static void resumePostAttachCallbacks(Document&);
 
     bool getUpperLeftCorner(FloatPoint&) const;
     bool getLowerRightCorner(FloatPoint&) const;
@@ -156,42 +167,22 @@ private:
     void notifyChildInserted(Node& child, ChildChangeSource);
     void notifyChildRemoved(Node& child, Node* previousSibling, Node* nextSibling, ChildChangeSource);
 
-    void updateTreeAfterInsertion(Node& child, AttachBehavior);
+    void updateTreeAfterInsertion(Node& child);
 
-    bool isContainerNode() const WTF_DELETED_FUNCTION;
+    bool isContainerNode() const = delete;
+
+    void willRemoveChild(Node& child);
 
     Node* m_firstChild;
     Node* m_lastChild;
 };
 
-inline ContainerNode* toContainerNode(Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isContainerNode());
-    return static_cast<ContainerNode*>(node);
-}
+inline bool isContainerNode(const Node& node) { return node.isContainerNode(); }
+void isContainerNode(const ContainerNode&); // Catch unnecessary runtime check of type known at compile time.
 
-inline const ContainerNode* toContainerNode(const Node* node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->isContainerNode());
-    return static_cast<const ContainerNode*>(node);
-}
+NODE_TYPE_CASTS(ContainerNode)
 
-inline ContainerNode& toContainerNode(Node& node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(node.isContainerNode());
-    return static_cast<ContainerNode&>(node);
-}
-inline const ContainerNode& toContainerNode(const Node& node)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(node.isContainerNode());
-    return static_cast<const ContainerNode&>(node);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toContainerNode(const ContainerNode*);
-void toContainerNode(const ContainerNode&);
-
-inline ContainerNode::ContainerNode(Document* document, ConstructionType type)
+inline ContainerNode::ContainerNode(Document& document, ConstructionType type)
     : Node(document, type)
     , m_firstChild(0)
     , m_lastChild(0)
@@ -245,7 +236,7 @@ inline bool Node::needsNodeRenderingTraversalSlowPath() const
 
 inline bool Node::isTreeScope() const
 {
-    return treeScope()->rootNode() == this;
+    return &treeScope().rootNode() == this;
 }
 
 // This constant controls how much buffer is initially allocated
@@ -282,12 +273,12 @@ public:
     PassRefPtr<Node> nextNode()
     {
         if (LIKELY(!hasSnapshot())) {
-            RefPtr<Node> node = m_currentNode;
+            RefPtr<Node> node = m_currentNode.release();
             if (node)
                 m_currentNode = node->nextSibling();
             return node.release();
         }
-        Vector<RefPtr<Node> >& nodeVector = *m_childNodes;
+        Vector<RefPtr<Node>>& nodeVector = *m_childNodes;
         if (m_currentIndex >= nodeVector.size())
             return 0;
         return nodeVector[m_currentIndex++];
@@ -297,7 +288,7 @@ public:
     {
         if (hasSnapshot())
             return;
-        m_childNodes = adoptPtr(new Vector<RefPtr<Node> >());
+        m_childNodes = adoptPtr(new Vector<RefPtr<Node>>());
         Node* node = m_currentNode.get();
         while (node) {
             m_childNodes->append(node);
@@ -322,25 +313,8 @@ private:
 
     RefPtr<Node> m_currentNode;
     unsigned m_currentIndex;
-    OwnPtr<Vector<RefPtr<Node> > > m_childNodes; // Lazily instantiated.
+    OwnPtr<Vector<RefPtr<Node>>> m_childNodes; // Lazily instantiated.
     ChildNodesLazySnapshot* m_nextSnapshot;
-};
-
-class PostAttachCallbackDisabler {
-public:
-    PostAttachCallbackDisabler(ContainerNode& node)
-        : m_node(node)
-    {
-        m_node.suspendPostAttachCallbacks();
-    }
-
-    ~PostAttachCallbackDisabler()
-    {
-        m_node.resumePostAttachCallbacks();
-    }
-
-private:
-    ContainerNode& m_node;
 };
 
 } // namespace WebCore

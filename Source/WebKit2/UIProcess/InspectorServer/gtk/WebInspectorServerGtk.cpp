@@ -33,7 +33,7 @@
 #include <WebCore/MIMETypeRegistry.h>
 #include <gio/gio.h>
 #include <glib.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringConcatenate.h>
@@ -43,7 +43,7 @@ namespace WebKit {
 bool WebInspectorServer::platformResourceForPath(const String& path, Vector<char>& data, String& contentType)
 {
     // The page list contains an unformated list of pages that can be inspected with a link to open a session.
-    if (path == "/pagelist.json") {
+    if (path == "/pagelist.json" || path == "/json") {
         buildPageList(data, contentType);
         return true;
     }
@@ -54,7 +54,7 @@ bool WebInspectorServer::platformResourceForPath(const String& path, Vector<char
         return false;
 
     GRefPtr<GFile> file = adoptGRef(g_file_new_for_uri(resourceURI.data()));
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     GRefPtr<GFileInfo> fileInfo = adoptGRef(g_file_query_info(file.get(), G_FILE_ATTRIBUTE_STANDARD_SIZE "," G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE, G_FILE_QUERY_INFO_NONE, 0, &error.outPtr()));
     if (!fileInfo) {
         StringBuilder builder;
@@ -78,12 +78,20 @@ bool WebInspectorServer::platformResourceForPath(const String& path, Vector<char
     if (!g_input_stream_read_all(G_INPUT_STREAM(inputStream.get()), data.data(), data.size(), 0, 0, 0))
         return false;
 
-    contentType = GOwnPtr<gchar>(g_file_info_get_attribute_as_string(fileInfo.get(), G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE)).get();
+    contentType = GUniquePtr<gchar>(g_file_info_get_attribute_as_string(fileInfo.get(), G_FILE_ATTRIBUTE_STANDARD_FAST_CONTENT_TYPE)).get();
     return true;
 }
 
 void WebInspectorServer::buildPageList(Vector<char>& data, String& contentType)
 {
+    // chromedevtools (http://code.google.com/p/chromedevtools) 0.3.8 expected JSON format:
+    // {
+    //  "title": "Foo",
+    //  "url": "http://foo",
+    //  "devtoolsFrontendUrl": "/Main.html?ws=localhost:9222/devtools/page/1",
+    //  "webSocketDebuggerUrl": "ws://localhost:9222/devtools/page/1"
+    // },
+
     StringBuilder builder;
     builder.appendLiteral("[ ");
     ClientMap::iterator end = m_clientMap.end();
@@ -94,11 +102,25 @@ void WebInspectorServer::buildPageList(Vector<char>& data, String& contentType)
         builder.appendLiteral("{ \"id\": ");
         builder.appendNumber(it->key);
         builder.appendLiteral(", \"title\": \"");
-        builder.append(webPage->pageTitle());
+        builder.append(webPage->pageLoadState().title());
         builder.appendLiteral("\", \"url\": \"");
-        builder.append(webPage->activeURL());
+        builder.append(webPage->pageLoadState().activeURL());
         builder.appendLiteral("\", \"inspectorUrl\": \"");
         builder.appendLiteral("/Main.html?page=");
+        builder.appendNumber(it->key);
+        builder.appendLiteral("\", \"devtoolsFrontendUrl\": \"");
+        builder.appendLiteral("/Main.html?ws=");
+        builder.append(bindAddress());
+        builder.appendLiteral(":");
+        builder.appendNumber(port());
+        builder.appendLiteral("/devtools/page/");
+        builder.appendNumber(it->key);
+        builder.appendLiteral("\", \"webSocketDebuggerUrl\": \"");
+        builder.appendLiteral("ws://");
+        builder.append(bindAddress());
+        builder.appendLiteral(":");
+        builder.appendNumber(port());
+        builder.appendLiteral("/devtools/page/");
         builder.appendNumber(it->key);
         builder.appendLiteral("\" }");
     }

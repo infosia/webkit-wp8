@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
 #include "JSGlobalObject.h"
 #include "JSNameScope.h"
 #include "JSWithScope.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -53,19 +53,19 @@ static inline bool abstractAccess(ExecState* exec, JSScope* scope, const Identif
     if (JSActivation* activation = jsDynamicCast<JSActivation*>(scope)) {
         if (ident == exec->propertyNames().arguments) {
             // We know the property will be at this activation scope, but we don't know how to cache it.
-            op = ResolveOp(Dynamic, 0, 0, 0);
+            op = ResolveOp(Dynamic, 0, 0, 0, 0, 0);
             return true;
         }
 
         SymbolTableEntry entry = activation->symbolTable()->get(ident.impl());
         if (entry.isReadOnly() && getOrPut == Put) {
             // We know the property will be at this activation scope, but we don't know how to cache it.
-            op = ResolveOp(Dynamic, 0, 0, 0);
+            op = ResolveOp(Dynamic, 0, 0, 0, 0, 0);
             return true;
         }
 
         if (!entry.isNull()) {
-            op = ResolveOp(makeType(ClosureVar, needsVarInjectionChecks), depth, activation->structure(), entry.getIndex());
+            op = ResolveOp(makeType(ClosureVar, needsVarInjectionChecks), depth, 0, activation, entry.watchpointSet(), entry.getIndex());
             return true;
         }
 
@@ -77,18 +77,14 @@ static inline bool abstractAccess(ExecState* exec, JSScope* scope, const Identif
     if (JSGlobalObject* globalObject = jsDynamicCast<JSGlobalObject*>(scope)) {
         SymbolTableEntry entry = globalObject->symbolTable()->get(ident.impl());
         if (!entry.isNull()) {
-            if (getOrPut == Put) {
-                if (entry.isReadOnly()) {
-                    // We know the property will be at global scope, but we don't know how to cache it.
-                    op = ResolveOp(Dynamic, 0, 0, 0);
-                    return true;
-                }
-
-                // It's likely that we'll write to this var, so notify now and avoid the overhead of doing so at runtime.
-                entry.notifyWrite();
+            if (getOrPut == Put && entry.isReadOnly()) {
+                // We know the property will be at global scope, but we don't know how to cache it.
+                op = ResolveOp(Dynamic, 0, 0, 0, 0, 0);
+                return true;
             }
 
-            op = ResolveOp(makeType(GlobalVar, needsVarInjectionChecks), depth, globalObject->structure(), 
+            op = ResolveOp(
+                makeType(GlobalVar, needsVarInjectionChecks), depth, 0, 0, entry.watchpointSet(),
                 reinterpret_cast<uintptr_t>(globalObject->registerAt(entry.getIndex()).slot()));
             return true;
         }
@@ -100,22 +96,22 @@ static inline bool abstractAccess(ExecState* exec, JSScope* scope, const Identif
             || (globalObject->structure()->hasReadOnlyOrGetterSetterPropertiesExcludingProto() && getOrPut == Put)) {
             // We know the property will be at global scope, but we don't know how to cache it.
             ASSERT(!scope->next());
-            op = ResolveOp(makeType(GlobalProperty, needsVarInjectionChecks), depth, 0, 0);
+            op = ResolveOp(makeType(GlobalProperty, needsVarInjectionChecks), depth, 0, 0, 0, 0);
             return true;
         }
 
-        op = ResolveOp(makeType(GlobalProperty, needsVarInjectionChecks), depth, globalObject->structure(), slot.cachedOffset());
+        op = ResolveOp(makeType(GlobalProperty, needsVarInjectionChecks), depth, globalObject->structure(), 0, 0, slot.cachedOffset());
         return true;
     }
 
-    op = ResolveOp(Dynamic, 0, 0, 0);
+    op = ResolveOp(Dynamic, 0, 0, 0, 0, 0);
     return true;
 }
 
 JSObject* JSScope::objectAtScope(JSScope* scope)
 {
     JSObject* object = scope;
-    if (object->structure()->typeInfo().type() == WithScopeType)
+    if (object->type() == WithScopeType)
         return jsCast<JSWithScope*>(object)->object();
 
     return object;
@@ -146,7 +142,7 @@ JSValue JSScope::resolve(ExecState* exec, JSScope* scope, const Identifier& iden
 
 ResolveOp JSScope::abstractResolve(ExecState* exec, JSScope* scope, const Identifier& ident, GetOrPut getOrPut, ResolveType unlinkedType)
 {
-    ResolveOp op(Dynamic, 0, 0, 0);
+    ResolveOp op(Dynamic, 0, 0, 0, 0, 0);
     if (unlinkedType == Dynamic)
         return op;
 
@@ -159,6 +155,30 @@ ResolveOp JSScope::abstractResolve(ExecState* exec, JSScope* scope, const Identi
     }
 
     return op;
+}
+
+const char* resolveModeName(ResolveMode mode)
+{
+    static const char* const names[] = {
+        "ThrowIfNotFound",
+        "DoNotThrowIfNotFound"
+    };
+    return names[mode];
+}
+
+const char* resolveTypeName(ResolveType type)
+{
+    static const char* const names[] = {
+        "GlobalProperty",
+        "GlobalVar",
+        "ClosureVar",
+        "GlobalPropertyWithVarInjectionChecks",
+        "GlobalVarWithVarInjectionChecks",
+        "ClosureVarWithVarInjectionChecks",
+        "Dynamic"
+    };
+    ASSERT(type < sizeof(names) / sizeof(names[0]));
+    return names[type];
 }
 
 } // namespace JSC

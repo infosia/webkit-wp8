@@ -42,12 +42,12 @@ static uint64_t generateNPObjectID()
     return ++generateNPObjectID;
 }
 
-PassRefPtr<NPRemoteObjectMap> NPRemoteObjectMap::create(CoreIPC::Connection* connection)
+PassRefPtr<NPRemoteObjectMap> NPRemoteObjectMap::create(IPC::Connection* connection)
 {
     return adoptRef(new NPRemoteObjectMap(connection));
 }
 
-NPRemoteObjectMap::NPRemoteObjectMap(CoreIPC::Connection* connection)
+NPRemoteObjectMap::NPRemoteObjectMap(IPC::Connection* connection)
     : m_connection(connection)
 {
 }
@@ -78,7 +78,7 @@ void NPRemoteObjectMap::npObjectProxyDestroyed(NPObject* npObject)
 uint64_t NPRemoteObjectMap::registerNPObject(NPObject* npObject, Plugin* plugin)
 {
     uint64_t npObjectID = generateNPObjectID();
-    m_registeredNPObjects.set(npObjectID, NPObjectMessageReceiver::create(this, plugin, npObjectID, npObject).leakPtr());
+    m_registeredNPObjects.set(npObjectID, std::make_unique<NPObjectMessageReceiver>(this, plugin, npObjectID, npObject).release());
 
     return npObjectID;
 }
@@ -206,7 +206,7 @@ void NPRemoteObjectMap::pluginDestroyed(Plugin* plugin)
     }
 
     // Now delete all the receivers.
-    deleteAllValues(messageReceivers);
+    deprecatedDeleteAllValues(messageReceivers);
 
     Vector<NPObjectProxy*> objectProxies;
     for (HashSet<NPObjectProxy*>::const_iterator it = m_npObjectProxies.begin(), end = m_npObjectProxies.end(); it != end; ++it) {
@@ -227,7 +227,7 @@ void NPRemoteObjectMap::pluginDestroyed(Plugin* plugin)
     }
 }
 
-void NPRemoteObjectMap::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder, OwnPtr<CoreIPC::MessageEncoder>& replyEncoder)
+void NPRemoteObjectMap::didReceiveSyncMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder, std::unique_ptr<IPC::MessageEncoder>& replyEncoder)
 {
     NPObjectMessageReceiver* messageReceiver = m_registeredNPObjects.get(decoder.destinationID());
     if (!messageReceiver)

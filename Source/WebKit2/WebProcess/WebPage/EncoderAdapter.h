@@ -26,11 +26,11 @@
 #ifndef EncoderAdapter_h
 #define EncoderAdapter_h
 
+#include "ArgumentEncoder.h"
 #include <wtf/Encoder.h>
 #include <wtf/Forward.h>
-#include <wtf/OwnPtr.h>
 
-namespace CoreIPC {
+namespace IPC {
     class ArgumentEncoder;
     class DataReference;
 }
@@ -41,7 +41,7 @@ class EncoderAdapter : public Encoder {
 public:
     EncoderAdapter();
 
-    CoreIPC::DataReference dataReference() const;
+    IPC::DataReference dataReference() const;
 
 private:
     virtual void encodeBytes(const uint8_t*, size_t);
@@ -55,7 +55,7 @@ private:
     virtual void encodeDouble(double);
     virtual void encodeString(const String&);
 
-    OwnPtr<CoreIPC::ArgumentEncoder> m_encoder;
+    IPC::ArgumentEncoder m_encoder;
 };
 
 } // namespace WebKit

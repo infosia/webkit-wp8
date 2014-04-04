@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -47,7 +47,7 @@ class NetworkInfoController;
 
 class NetworkInfoConnection : public RefCounted<NetworkInfoConnection>, public EventTarget, public ActiveDOMObject {
 public:
-    static PassRefPtr<NetworkInfoConnection> create(Navigator*);
+    static PassRef<NetworkInfoConnection> create(Navigator*);
 
     ~NetworkInfoConnection();
 
@@ -76,10 +76,10 @@ private:
     explicit NetworkInfoConnection(Navigator*);
 
     // EventTarget implementation.
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
+    virtual EventTargetData* eventTargetData() override;
+    virtual EventTargetData& ensureEventTargetData() override;
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
     // EventTarget implementation.
     EventTargetData m_eventTargetData;

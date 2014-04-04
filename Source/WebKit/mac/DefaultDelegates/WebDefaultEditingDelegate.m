@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -25,8 +25,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#import <Cocoa/Cocoa.h>
 
 #import <WebKit/WebDefaultEditingDelegate.h>
 
@@ -47,10 +45,12 @@ static WebDefaultEditingDelegate *sharedDelegate = nil;
     return sharedDelegate;
 }
 
+#if ENABLE(DELETION_UI)
 - (BOOL)webView:(WebView *)webView shouldShowDeleteInterfaceForElement:(DOMHTMLElement *)element
 {
     return NO;
 }
+#endif
 
 - (BOOL)webView:(WebView *)webView shouldBeginEditingInDOMRange:(DOMRange *)range
 {
@@ -102,9 +102,21 @@ static WebDefaultEditingDelegate *sharedDelegate = nil;
     return NO;
 }
 
+#if !PLATFORM(IOS)
 - (void)webView:(WebView *)webView didWriteSelectionToPasteboard:(NSPasteboard *)pasteboard
 {
 }
+#else
+- (NSArray *)supportedPasteboardTypesForCurrentSelection
+{
+    return nil;
+}
+
+- (DOMDocumentFragment *)documentFragmentForPasteboardItemAtIndex:(NSInteger)index
+{
+    return nil;
+}
+#endif
 
 - (void)webViewDidBeginEditing:(NSNotification *)notification
 {

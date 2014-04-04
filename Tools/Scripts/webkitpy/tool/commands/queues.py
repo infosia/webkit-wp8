@@ -30,6 +30,7 @@
 import codecs
 import logging
 import os
+import re
 import sys
 import time
 import traceback
@@ -39,6 +40,7 @@ from optparse import make_option
 from StringIO import StringIO
 
 from webkitpy.common.config.committervalidator import CommitterValidator
+from webkitpy.common.config.ports import DeprecatedPort
 from webkitpy.common.net.bugzilla import Attachment
 from webkitpy.common.net.statusserver import StatusServer
 from webkitpy.common.system.executive import ScriptError
@@ -272,9 +274,11 @@ class PatchProcessingQueue(AbstractPatchQueue):
         AbstractPatchQueue.begin_work_queue(self)
         if not self.port_name:
             return
-        self._port = self._tool.port_factory.get(self._new_port_name_from_old(self.port_name, self._tool.platform))
+        # FIXME: This is only used for self._deprecated_port.flag()
+        self._deprecated_port = DeprecatedPort.port(self.port_name)
         # FIXME: This violates abstraction
-        self._tool._port = self._port
+        self._tool._deprecated_port = self._deprecated_port
+        self._port = self._tool.port_factory.get(self._new_port_name_from_old(self.port_name, self._tool.platform))
 
     def _upload_results_archive_for_patch(self, patch, results_archive_zip):
         if not self._port:
@@ -347,7 +351,7 @@ class CommitQueue(PatchProcessingQueue, StepSequenceErrorHandler, CommitQueueTas
     # CommitQueueTaskDelegate methods
 
     def run_command(self, command):
-        self.run_webkit_patch(command + [self._port.tooling_flag()])
+        self.run_webkit_patch(command + [self._deprecated_port.flag()])
 
     def command_passed(self, message, patch):
         self._update_status(message, patch=patch)
@@ -462,7 +466,8 @@ class StyleQueue(AbstractReviewQueue, StyleQueueTaskDelegate):
             self._did_error(patch, "%s unable to apply patch." % self.name)
             return False
         except ScriptError, e:
-            message = "Attachment %s did not pass %s:\n\n%s\n\nIf any of these errors are false positives, please file a bug against check-webkit-style." % (patch.id(), self.name, e.output)
+            output = re.sub(r'Failed to run .+ exit_code: 1', '', e.output)
+            message = "Attachment %s did not pass %s:\n\n%s\n\nIf any of these errors are false positives, please file a bug against check-webkit-style." % (patch.id(), self.name, output)
             self._tool.bugs.post_comment_to_bug(patch.bug_id(), message, cc=self.watchers)
             self._did_fail(patch)
             return False

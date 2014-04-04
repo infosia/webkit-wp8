@@ -24,24 +24,33 @@
 #include "RenderTextFragment.h"
 
 #include "RenderBlock.h"
+#include "RenderIterator.h"
 #include "Text.h"
 
 namespace WebCore {
 
-RenderTextFragment::RenderTextFragment(Text* textNode, const String& text, int startOffset, int length)
+RenderTextFragment::RenderTextFragment(Text& textNode, const String& text, int startOffset, int length)
     : RenderText(textNode, text.substring(startOffset, length))
     , m_start(startOffset)
     , m_end(length)
-    , m_firstLetter(0)
+    , m_firstLetter(nullptr)
 {
 }
 
-RenderTextFragment::RenderTextFragment(Text* textNode, const String& text)
+RenderTextFragment::RenderTextFragment(Document& document, const String& text, int startOffset, int length)
+    : RenderText(document, text.substring(startOffset, length))
+    , m_start(startOffset)
+    , m_end(length)
+    , m_firstLetter(nullptr)
+{
+}
+
+RenderTextFragment::RenderTextFragment(Document& textNode, const String& text)
     : RenderText(textNode, text)
     , m_start(0)
     , m_end(text.length())
     , m_contentString(text)
-    , m_firstLetter(0)
+    , m_firstLetter(nullptr)
 {
 }
 
@@ -49,29 +58,9 @@ RenderTextFragment::~RenderTextFragment()
 {
 }
 
-RenderTextFragment* RenderTextFragment::createAnonymous(Document& document, const String& text, int startOffset, int length)
-{
-    RenderTextFragment* fragment = new (*document.renderArena()) RenderTextFragment(nullptr, text, startOffset, length);
-    fragment->setDocumentForAnonymous(document);
-    return fragment;
-}
-
-RenderTextFragment* RenderTextFragment::createAnonymous(Document& document, const String& text)
-{
-    RenderTextFragment* fragment = new (*document.renderArena()) RenderTextFragment(nullptr, text);
-    fragment->setDocumentForAnonymous(document);
-    return fragment;
-}
-
-String RenderTextFragment::originalText() const
-{
-    String result = textNode() ? textNode()->data() : contentString();
-    return result.substring(start(), end());
-}
-
 bool RenderTextFragment::canBeSelectionLeaf() const
 {
-    return textNode() && textNode()->rendererIsEditable();
+    return textNode() && textNode()->hasEditableStyle();
 }
 
 void RenderTextFragment::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
@@ -79,7 +68,7 @@ void RenderTextFragment::styleDidChange(StyleDifference diff, const RenderStyle*
     RenderText::styleDidChange(diff, oldStyle);
 
     if (RenderBlock* block = blockForAccompanyingFirstLetter()) {
-        block->style()->removeCachedPseudoStyle(FIRST_LETTER);
+        block->style().removeCachedPseudoStyle(FIRST_LETTER);
         block->updateFirstLetter();
     }
 }
@@ -108,14 +97,6 @@ void RenderTextFragment::setText(const String& text, bool force)
     textNode()->setRenderer(this);
 }
 
-void RenderTextFragment::transformText()
-{
-    // Don't reset first-letter here because we are only transforming the truncated fragment.
-    String textToTransform = originalText();
-    if (!textToTransform.isNull())
-        RenderText::setText(textToTransform, true);
-}
-
 UChar RenderTextFragment::previousCharacter() const
 {
     if (start()) {
@@ -127,15 +108,15 @@ UChar RenderTextFragment::previousCharacter() const
     return RenderText::previousCharacter();
 }
 
-RenderBlock* RenderTextFragment::blockForAccompanyingFirstLetter() const
+RenderBlock* RenderTextFragment::blockForAccompanyingFirstLetter()
 {
     if (!m_firstLetter)
-        return 0;
-    for (RenderObject* block = m_firstLetter->parent(); block; block = block->parent()) {
-        if (block->style()->hasPseudoStyle(FIRST_LETTER) && block->canHaveChildren() && block->isRenderBlock())
-            return toRenderBlock(block);
+        return nullptr;
+    for (auto& block : ancestorsOfType<RenderBlock>(*m_firstLetter)) {
+        if (block.style().hasPseudoStyle(FIRST_LETTER) && block.canHaveChildren())
+            return &block;
     }
-    return 0;
+    return nullptr;
 }
 
 } // namespace WebCore

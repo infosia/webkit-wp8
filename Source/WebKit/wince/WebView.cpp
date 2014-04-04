@@ -42,6 +42,7 @@
 #include "InitializeThreading.h"
 #include "InspectorClientWinCE.h"
 #include "IntSize.h"
+#include "MainFrame.h"
 #include "NotImplemented.h"
 #include "Page.h"
 #include "PlatformKeyboardEvent.h"
@@ -99,13 +100,13 @@ WebView::WebView(HWND hwnd, unsigned features)
     pageClients.inspectorClient = new WebKit::InspectorClientWinCE(this);
     m_page = new Page(pageClients);
 
-    Settings* settings = m_page->settings();
-    settings->setDefaultFixedFontSize(14);
-    settings->setDefaultFontSize(14);
-    settings->setMinimumFontSize(8);
-    settings->setMinimumLogicalFontSize(8);
-    settings->setScriptEnabled(true);
-    settings->setLoadsImagesAutomatically(true);
+    Settings& settings = m_page->settings();
+    settings.setDefaultFixedFontSize(14);
+    settings.setDefaultFontSize(14);
+    settings.setMinimumFontSize(8);
+    settings.setMinimumLogicalFontSize(8);
+    settings.setScriptEnabled(true);
+    settings.setLoadsImagesAutomatically(true);
 
     WebKit::FrameLoaderClientWinCE* loaderClient = new WebKit::FrameLoaderClientWinCE(this);
     RefPtr<Frame> frame = Frame::create(m_page, 0, loaderClient);
@@ -155,16 +156,14 @@ void WebView::cleanup()
     UnregisterClass(kWebViewWindowClassName, WebCore::instanceHandle());
 }
 
-PassRefPtr<Frame> WebView::createFrame(const KURL& url, const String& name, HTMLFrameOwnerElement* ownerElement, const String& referrer,
-                                       bool /*allowsScrolling*/, int /*marginWidth*/, int /*marginHeight*/)
+PassRefPtr<Frame> WebView::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement* ownerElement, const String& referrer,
+    bool /*allowsScrolling*/, int /*marginWidth*/, int /*marginHeight*/, Frame* parentFrame)
 {
-    Frame* coreFrame = m_frame;
-
     WebKit::FrameLoaderClientWinCE *loaderClient = new WebKit::FrameLoaderClientWinCE(this);
     RefPtr<Frame> childFrame = Frame::create(m_page, ownerElement, loaderClient);
     loaderClient->setFrame(childFrame.get());
 
-    coreFrame->tree().appendChild(childFrame);
+    parentFrame->tree().appendChild(childFrame);
     childFrame->tree().setName(name);
     childFrame->init();
 
@@ -172,7 +171,7 @@ PassRefPtr<Frame> WebView::createFrame(const KURL& url, const String& name, HTML
     if (!childFrame->page())
         return 0;
 
-    coreFrame->loader().loadURLIntoChildFrame(url, referrer, childFrame.get());
+    parentFrame->loader().loadURLIntoChildFrame(url, referrer, childFrame.get());
 
     // The frame's onload handler may have removed it from the document.
     if (!childFrame->tree().parent())
@@ -239,7 +238,7 @@ void WebView::paint(HDC hDC, const IntRect& clipRect)
     if (!frameView)
         return;
 
-    OwnPtr<HRGN> clipRgn = adoptPtr(CreateRectRgn(clipRect.x(), clipRect.y(), clipRect.maxX(), clipRect.maxY()));
+    auto clipRgn = adoptGDIObject(::CreateRectRgn(clipRect.x(), clipRect.y(), clipRect.maxX(), clipRect.maxY()));
     SelectClipRgn(hDC, clipRgn.get());
 
     frameView->updateLayoutAndStyleIfNeededRecursive();
@@ -264,8 +263,8 @@ bool WebView::handlePaint(HWND hWnd)
             RECT rcClient;
             GetClientRect(m_windowHandle, &rcClient);
 
-            m_doubleBufferDC = adoptPtr(CreateCompatibleDC(hDC));
-            m_doubleBufferBitmap = adoptPtr(CreateCompatibleBitmap(hDC, rcClient.right, rcClient.bottom));
+            m_doubleBufferDC = adoptGDIObject(::CreateCompatibleDC(hDC));
+            m_doubleBufferBitmap = adoptGDIObject(::CreateCompatibleBitmap(hDC, rcClient.right, rcClient.bottom));
             SelectObject(m_doubleBufferDC.get(), m_doubleBufferBitmap.get());
         }
 
@@ -411,12 +410,12 @@ LRESULT WebView::wndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case WM_LBUTTONUP:
         case WM_MBUTTONUP:
         case WM_RBUTTONUP:
-            if (frame()->eventHandler() && view()->didFirstLayout())
+            if (view()->didFirstLayout())
                 handled = handleMouseEvent(hWnd, message, wParam, lParam);
             break;
 
         case WM_MOUSEWHEEL:
-            if (frame()->eventHandler() && view()->didFirstLayout())
+            if (view()->didFirstLayout())
                 handled = handleMouseWheel(hWnd, wParam, lParam, wParam & MK_SHIFT);
             break;
 

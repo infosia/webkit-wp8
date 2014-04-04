@@ -26,7 +26,7 @@
 #include "Timer.h"
 #include <wtf/CurrentTime.h>
 
-#if USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER)
+#if USE(TEXTURE_MAPPER)
 
 namespace WebCore {
 
@@ -121,10 +121,10 @@ PassRefPtr<BitmapTexture> BitmapTexturePool::acquireTexture(const IntSize& size,
     return selectedEntry->m_texture;
 }
 
-PassRefPtr<BitmapTexture> TextureMapper::acquireTextureFromPool(const IntSize& size)
+PassRefPtr<BitmapTexture> TextureMapper::acquireTextureFromPool(const IntSize& size, const BitmapTexture::Flags flags)
 {
     RefPtr<BitmapTexture> selectedTexture = m_texturePool->acquireTexture(size, this);
-    selectedTexture->reset(size, BitmapTexture::SupportsAlpha);
+    selectedTexture->reset(size, flags);
     return selectedTexture;
 }
 
@@ -150,7 +150,7 @@ TextureMapper::~TextureMapper()
 
 void BitmapTexture::updateContents(TextureMapper* textureMapper, GraphicsLayer* sourceLayer, const IntRect& targetRect, const IntPoint& offset, UpdateContentsFlag updateContentsFlag)
 {
-    OwnPtr<ImageBuffer> imageBuffer = ImageBuffer::create(targetRect.size());
+    std::unique_ptr<ImageBuffer> imageBuffer = ImageBuffer::create(targetRect.size());
     GraphicsContext* context = imageBuffer->context();
     context->setImageInterpolationQuality(textureMapper->imageInterpolationQuality());
     context->setTextDrawingMode(textureMapper->textDrawingMode());

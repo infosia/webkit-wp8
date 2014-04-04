@@ -51,34 +51,44 @@
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Production|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release_WinCairo|Win32'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug_WinCairo|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120_xp</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Production|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -145,7 +155,9 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClCompile Include="..\src\common\event_tracer.cpp" />
     <ClCompile Include="..\src\libGLESv2\Buffer.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\IndexRangeCache.cpp" />
     <ClCompile Include="..\src\third_party\murmurhash\MurmurHash3.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -195,40 +207,40 @@
     <ClCompile Include="..\src\common\RefCountObject.cpp" />
     <ClCompile Include="..\src\libGLESv2\Renderbuffer.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\Blit.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Fence11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Fence9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\Fence11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\Fence9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\BufferStorage.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\BufferStorage11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\BufferStorage9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\BufferStorage11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\BufferStorage9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\Image.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Image9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\Image9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\IndexBuffer.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\IndexBuffer11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\IndexBuffer9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\IndexBuffer11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\IndexBuffer9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\IndexDataManager.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\ImageSSE2.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Image11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\Image11.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\InputLayoutCache.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Query11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Query9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\Query11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\Query9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\Renderer.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Renderer11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\renderer11_utils.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\Renderer9.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\renderer9_utils.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\RenderTarget11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\Renderer11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\renderer11_utils.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\Renderer9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\renderer9_utils.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\RenderTarget11.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\RenderTarget9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\RenderStateCache.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\ShaderExecutable11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\ShaderExecutable9.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\SwapChain11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\SwapChain9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\ShaderExecutable11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\ShaderExecutable9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\SwapChain11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\SwapChain9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\TextureStorage.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\TextureStorage11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\TextureStorage9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\TextureStorage11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\TextureStorage9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\VertexBuffer.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\VertexBuffer11.cpp" />
-    <ClCompile Include="..\src\libGLESv2\renderer\VertexBuffer9.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d11\VertexBuffer11.cpp" />
+    <ClCompile Include="..\src\libGLESv2\renderer\d3d9\VertexBuffer9.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\VertexDataManager.cpp" />
     <ClCompile Include="..\src\libGLESv2\renderer\VertexDeclarationCache.cpp" />
     <ClCompile Include="..\src\libGLESv2\ResourceManager.cpp" />
@@ -238,9 +250,10 @@
     <ClCompile Include="..\src\libGLESv2\utilities.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\GLES2\gl2softlinking.h" />
     <ClInclude Include="..\src\common\debug.h" />
+    <ClInclude Include="..\src\common\event_tracer.h" />
     <ClInclude Include="..\src\common\system.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\IndexRangeCache.h" />
     <ClInclude Include="..\src\third_party\murmurhash\MurmurHash3.h" />
     <ClInclude Include="..\src\libGLESv2\angletypes.h" />
     <ClInclude Include="..\src\libGLESv2\BinaryStream.h" />
@@ -262,37 +275,37 @@
     <ClInclude Include="..\src\common\RefCountObject.h" />
     <ClInclude Include="..\src\libGLESv2\Renderbuffer.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\Blit.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Fence11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Fence9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\Fence11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\Fence9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\FenceImpl.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\BufferStorage.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\BufferStorage11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\BufferStorage9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\BufferStorage11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\BufferStorage9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\generatemip.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\Image.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Image11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Image9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\Image11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\Image9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\IndexBuffer.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\IndexBuffer11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\IndexBuffer9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\IndexBuffer11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\IndexBuffer9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\IndexDataManager.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\InputLayoutCache.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Query11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\Query11.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\QueryImpl.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Query9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\Query9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\Renderer.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Renderer11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\renderer11_utils.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\Renderer9.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\renderer9_utils.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\Renderer11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\renderer11_utils.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\Renderer9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\renderer9_utils.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\RenderTarget.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\RenderTarget11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\RenderTarget9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\RenderTarget11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\RenderTarget9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\RenderStateCache.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\ShaderCache.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\ShaderExecutable.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\ShaderExecutable11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\ShaderExecutable9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\ShaderExecutable11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\ShaderExecutable9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\shaders\compiled\clear11vs.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\shaders\compiled\clearmultiple11ps.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\shaders\compiled\clearsingle11ps.h" />
@@ -307,15 +320,15 @@
     <ClInclude Include="..\src\libGLESv2\renderer\shaders\compiled\passthroughrgba11ps.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\shaders\compiled\standardvs.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\SwapChain.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\SwapChain11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\SwapChain9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\SwapChain11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\SwapChain9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\TextureStorage.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\TextureStorage11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\TextureStorage9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\TextureStorage11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\TextureStorage9.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\VertexBuffer.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\VertexBuffer11.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\VertexBuffer9.h" />
-    <ClInclude Include="..\src\libGLESv2\renderer\vertexconversion.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d11\VertexBuffer11.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\VertexBuffer9.h" />
+    <ClInclude Include="..\src\libGLESv2\renderer\d3d9\vertexconversion.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\VertexDataManager.h" />
     <ClInclude Include="..\src\libGLESv2\renderer\VertexDeclarationCache.h" />
     <ClInclude Include="..\src\libGLESv2\resource.h" />
@@ -328,11 +341,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\libGLESv2\libGLESv2.def" />
-    <None Include="..\src\libGLESv2\renderer\shaders\Blit.ps" />
-    <None Include="..\src\libGLESv2\renderer\shaders\Blit.vs" />
-    <None Include="..\src\libGLESv2\renderer\shaders\Clear11.hlsl" />
-    <None Include="..\src\libGLESv2\renderer\shaders\generate_shaders.bat" />
-    <None Include="..\src\libGLESv2\renderer\shaders\Passthrough11.hlsl" />
+    <None Include="..\src\libGLESv2\renderer\d3d9\shaders\Blit.ps" />
+    <None Include="..\src\libGLESv2\renderer\d3d9\shaders\Blit.vs" />
+    <None Include="..\src\libGLESv2\renderer\d3d11\shaders\Clear11.hlsl" />
+    <None Include="..\src\libGLESv2\renderer\d3d9\shaders\generate_shaders.bat" />
+    <None Include="..\src\libGLESv2\renderer\d3d11\shaders\Passthrough11.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\libGLESv2\libGLESv2.rc" />

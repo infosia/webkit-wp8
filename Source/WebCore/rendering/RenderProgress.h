@@ -28,9 +28,9 @@ namespace WebCore {
 
 class HTMLProgressElement;
 
-class RenderProgress FINAL : public RenderBlockFlow {
+class RenderProgress final : public RenderBlockFlow {
 public:
-    explicit RenderProgress(HTMLElement*);
+    RenderProgress(HTMLElement&, PassRef<RenderStyle>);
     virtual ~RenderProgress();
 
     double position() const { return m_position; }
@@ -38,18 +38,17 @@ public:
     double animationStartTime() const { return m_animationStartTime; }
 
     bool isDeterminate() const;
-    virtual void updateFromElement() OVERRIDE;
+    virtual void updateFromElement() override;
 
     HTMLProgressElement* progressElement() const;
 
 private:
-    virtual const char* renderName() const OVERRIDE { return "RenderProgress"; }
-    virtual bool isProgress() const OVERRIDE { return true; }
-    virtual bool requiresForcedStyleRecalcPropagation() const OVERRIDE { return true; }
-    virtual bool canBeReplacedWithInlineRunIn() const OVERRIDE;
-    virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const OVERRIDE;
+    virtual const char* renderName() const override { return "RenderProgress"; }
+    virtual bool isProgress() const override { return true; }
+    virtual bool requiresForcedStyleRecalcPropagation() const override { return true; }
+    virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const override;
 
-    void animationTimerFired(Timer<RenderProgress>*);
+    void animationTimerFired(Timer<RenderProgress>&);
     void updateAnimationState();
 
     double m_position;
@@ -60,14 +59,7 @@ private:
     Timer<RenderProgress> m_animationTimer;
 };
 
-inline RenderProgress* toRenderProgress(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isProgress());
-    return static_cast<RenderProgress*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderProgress(const RenderProgress*);
+RENDER_OBJECT_TYPE_CASTS(RenderProgress, isProgress())
 
 } // namespace WebCore
 

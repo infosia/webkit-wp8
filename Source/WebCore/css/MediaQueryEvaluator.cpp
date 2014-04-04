@@ -16,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,10 +37,10 @@
 #include "ChromeClient.h"
 #include "DOMWindow.h"
 #include "FloatRect.h"
-#include "Frame.h"
 #include "FrameView.h"
 #include "InspectorInstrumentation.h"
 #include "IntRect.h"
+#include "MainFrame.h"
 #include "MediaFeatureNames.h"
 #include "MediaList.h"
 #include "MediaQuery.h"
@@ -55,8 +55,12 @@
 #include "StyleResolver.h"
 #include <wtf/HashMap.h>
 
-#if ENABLE(3D_RENDERING) && USE(ACCELERATED_COMPOSITING)
+#if ENABLE(3D_RENDERING)
 #include "RenderLayerCompositor.h"
+#endif
+
+#if PLATFORM(IOS)
+#include "WebCoreSystemInterface.h"
 #endif
 
 namespace WebCore {
@@ -130,7 +134,7 @@ bool MediaQueryEvaluator::eval(const MediaQuerySet* querySet, StyleResolver* sty
     if (!querySet)
         return true;
 
-    const Vector<OwnPtr<MediaQuery> >& queries = querySet->queryVector();
+    auto& queries = querySet->queryVector();
     if (!queries.size())
         return true; // empty query list evaluates to true
 
@@ -143,7 +147,7 @@ bool MediaQueryEvaluator::eval(const MediaQuerySet* querySet, StyleResolver* sty
             continue;
 
         if (mediaTypeMatch(query->mediaType())) {
-            const Vector<OwnPtr<MediaQueryExp>>& expressions = query->expressions();
+            auto& expressions = query->expressions();
             // iterate through expressions, stop if any of them eval to false
             // (AND semantics)
             size_t j = 0;
@@ -182,7 +186,7 @@ bool compareValue(T a, T b, MediaFeaturePrefix op)
 static bool compareAspectRatioValue(CSSValue* value, int width, int height, MediaFeaturePrefix op)
 {
     if (value->isAspectRatioValue()) {
-        CSSAspectRatioValue* aspectRatio = static_cast<CSSAspectRatioValue*>(value);
+        CSSAspectRatioValue* aspectRatio = toCSSAspectRatioValue(value);
         return compareValue(width * static_cast<int>(aspectRatio->denominatorValue()), height * static_cast<int>(aspectRatio->numeratorValue()), op);
     }
 
@@ -192,8 +196,8 @@ static bool compareAspectRatioValue(CSSValue* value, int width, int height, Medi
 static bool numberValue(CSSValue* value, float& result)
 {
     if (value->isPrimitiveValue()
-        && static_cast<CSSPrimitiveValue*>(value)->isNumber()) {
-        result = static_cast<CSSPrimitiveValue*>(value)->getFloatValue(CSSPrimitiveValue::CSS_NUMBER);
+        && toCSSPrimitiveValue(value)->isNumber()) {
+        result = toCSSPrimitiveValue(value)->getFloatValue(CSSPrimitiveValue::CSS_NUMBER);
         return true;
     }
     return false;
@@ -242,7 +246,7 @@ static bool orientationMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* fr
     int width = view->layoutWidth();
     int height = view->layoutHeight();
     if (value && value->isPrimitiveValue()) {
-        const CSSValueID id = static_cast<CSSPrimitiveValue*>(value)->getValueID();
+        const CSSValueID id = toCSSPrimitiveValue(value)->getValueID();
         if (width > height) // Square viewport is portrait.
             return CSSValueLandscape == id;
         return CSSValuePortrait == id;
@@ -306,19 +310,19 @@ static bool evalResolution(CSSValue* value, Frame* frame, MediaFeaturePrefix op)
     if (!value->isPrimitiveValue())
         return false;
 
-    CSSPrimitiveValue* resolution = static_cast<CSSPrimitiveValue*>(value);
+    CSSPrimitiveValue* resolution = toCSSPrimitiveValue(value);
     return compareValue(deviceScaleFactor, resolution->isNumber() ? resolution->getFloatValue() : resolution->getFloatValue(CSSPrimitiveValue::CSS_DPPX), op);
 }
 
 static bool device_pixel_ratioMediaFeatureEval(CSSValue *value, RenderStyle*, Frame* frame, MediaFeaturePrefix op)
 {
-    return (!value || static_cast<CSSPrimitiveValue*>(value)->isNumber()) && evalResolution(value, frame, op);
+    return (!value || toCSSPrimitiveValue(value)->isNumber()) && evalResolution(value, frame, op);
 }
 
 static bool resolutionMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* frame, MediaFeaturePrefix op)
 {
 #if ENABLE(RESOLUTION_MEDIA_QUERY)
-    return (!value || static_cast<CSSPrimitiveValue*>(value)->isResolution()) && evalResolution(value, frame, op);
+    return (!value || toCSSPrimitiveValue(value)->isResolution()) && evalResolution(value, frame, op);
 #else
     UNUSED_PARAM(value);
     UNUSED_PARAM(frame);
@@ -342,7 +346,7 @@ static bool computeLength(CSSValue* value, bool strict, RenderStyle* style, Rend
     if (!value->isPrimitiveValue())
         return false;
 
-    CSSPrimitiveValue* primitiveValue = static_cast<CSSPrimitiveValue*>(value);
+    CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(value);
 
     if (primitiveValue->isNumber()) {
         result = primitiveValue->getIntValue();
@@ -364,7 +368,6 @@ static bool device_heightMediaFeatureEval(CSSValue* value, RenderStyle* style, F
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         long height = sg.height();
-        InspectorInstrumentation::applyScreenHeightOverride(frame, &height);
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(static_cast<int>(height), length, op);
     }
     // ({,min-,max-}device-height)
@@ -379,7 +382,6 @@ static bool device_widthMediaFeatureEval(CSSValue* value, RenderStyle* style, Fr
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         long width = sg.width();
-        InspectorInstrumentation::applyScreenWidthOverride(frame, &width);
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(static_cast<int>(width), length, op);
     }
     // ({,min-,max-}device-width)
@@ -396,7 +398,7 @@ static bool heightMediaFeatureEval(CSSValue* value, RenderStyle* style, Frame* f
     if (value) {
         int height = view->layoutHeight();
         if (RenderView* renderView = frame->document()->renderView())
-            height = adjustForAbsoluteZoom(height, renderView);
+            height = adjustForAbsoluteZoom(height, *renderView);
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(height, length, op);
@@ -414,7 +416,7 @@ static bool widthMediaFeatureEval(CSSValue* value, RenderStyle* style, Frame* fr
     if (value) {
         int width = view->layoutWidth();
         if (RenderView* renderView = frame->document()->renderView())
-            width = adjustForAbsoluteZoom(width, renderView);
+            width = adjustForAbsoluteZoom(width, *renderView);
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(width, length, op);
@@ -569,10 +571,8 @@ static bool transform_3dMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* f
 
 #if ENABLE(3D_RENDERING)
     bool threeDEnabled = false;
-#if USE(ACCELERATED_COMPOSITING)
     if (RenderView* view = frame->contentRenderer())
         threeDEnabled = view->compositor().canRender3DTransforms();
-#endif
 
     returnValueIfNoParameter = threeDEnabled;
     have3dRendering = threeDEnabled ? 1 : 0;
@@ -596,7 +596,7 @@ static bool view_modeMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* fram
     if (!value)
         return true;
 
-    const int viewModeCSSKeywordID = static_cast<CSSPrimitiveValue*>(value)->getValueID();
+    const int viewModeCSSKeywordID = toCSSPrimitiveValue(value)->getValueID();
     const Page::ViewMode viewMode = frame->page()->viewMode();
     bool result = false;
     switch (viewMode) {
@@ -623,6 +623,22 @@ static bool view_modeMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* fram
     return result;
 }
 #endif // ENABLE(VIEW_MODE_CSS_MEDIA)
+
+// FIXME: Find a better place for this function. Maybe ChromeClient?
+static inline bool isRunningOnIPhoneOrIPod()
+{
+#if PLATFORM(IOS)
+    static wkDeviceClass deviceClass = iosDeviceClass();
+    return deviceClass == wkDeviceClassiPhone || deviceClass == wkDeviceClassiPod;
+#else
+    return false;
+#endif
+}
+
+static bool video_playable_inlineMediaFeatureEval(CSSValue*, RenderStyle*, Frame* frame, MediaFeaturePrefix)
+{
+    return !isRunningOnIPhoneOrIPod() || frame->settings().mediaPlaybackAllowsInline();
+}
 
 enum PointerDeviceType { TouchPointer, MousePointer, NoPointer, UnknownPointer };
 
@@ -678,7 +694,7 @@ static bool pointerMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* frame,
     if (!value->isPrimitiveValue())
         return false;
 
-    const CSSValueID id = static_cast<CSSPrimitiveValue*>(value)->getValueID();
+    const CSSValueID id = toCSSPrimitiveValue(value)->getValueID();
     return (pointer == NoPointer && id == CSSValueNone)
         || (pointer == TouchPointer && id == CSSValueCoarse)
         || (pointer == MousePointer && id == CSSValueFine);

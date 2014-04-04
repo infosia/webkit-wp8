@@ -27,10 +27,8 @@
 
 #import "WK1BrowserWindowController.h"
 #import "WK2BrowserWindowController.h"
-
-#import <WebKit2/WKContextPrivate.h>
-#import <WebKit2/WKStringCF.h>
-#import <WebKit2/WKURLCF.h>
+#import <WebKit/WebHistory.h>
+#import <WebKit2/WebKit2.h>
 
 static NSString *defaultURL = @"http://www.webkit.org/";
 
@@ -41,116 +39,11 @@ enum {
 
 @implementation BrowserAppDelegate
 
-void didReceiveMessageFromInjectedBundle(WKContextRef context, WKStringRef messageName, WKTypeRef messageBody, const void *clientInfo)
-{
-    CFStringRef cfMessageName = WKStringCopyCFString(0, messageName);
-
-    WKTypeID typeID = WKGetTypeID(messageBody);
-    if (typeID == WKStringGetTypeID()) {
-        CFStringRef cfMessageBody = WKStringCopyCFString(0, (WKStringRef)messageBody);
-        LOG(@"ContextInjectedBundleClient - didReceiveMessage - MessageName: %@ MessageBody %@", cfMessageName, cfMessageBody);
-        CFRelease(cfMessageBody);
-    } else {
-        LOG(@"ContextInjectedBundleClient - didReceiveMessage - MessageName: %@ (MessageBody Unhandled)\n", cfMessageName);
-    }
-    
-    CFRelease(cfMessageName);
-
-    WKStringRef newMessageName = WKStringCreateWithCFString(CFSTR("Response"));
-    WKStringRef newMessageBody = WKStringCreateWithCFString(CFSTR("Roger that!"));
-
-    WKContextPostMessageToInjectedBundle(context, newMessageName, newMessageBody);
-    
-    WKRelease(newMessageName);
-    WKRelease(newMessageBody);
-}
-
-// MARK: History Client Callbacks
-
-static void didNavigateWithNavigationData(WKContextRef context, WKPageRef page, WKNavigationDataRef navigationData, WKFrameRef frame, const void *clientInfo)
-{
-    WKStringRef wkTitle = WKNavigationDataCopyTitle(navigationData);
-    CFStringRef title = WKStringCopyCFString(0, wkTitle);
-    WKRelease(wkTitle);
-
-    WKURLRef wkURL = WKNavigationDataCopyURL(navigationData);
-    CFURLRef url = WKURLCopyCFURL(0, wkURL);
-    WKRelease(wkURL);
-
-    LOG(@"HistoryClient - didNavigateWithNavigationData - title: %@ - url: %@", title, url);
-    CFRelease(title);
-    CFRelease(url);
-}
-
-static void didPerformClientRedirect(WKContextRef context, WKPageRef page, WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef frame, const void *clientInfo)
-{
-    CFURLRef cfSourceURL = WKURLCopyCFURL(0, sourceURL);
-    CFURLRef cfDestinationURL = WKURLCopyCFURL(0, destinationURL);
-    LOG(@"HistoryClient - didPerformClientRedirect - sourceURL: %@ - destinationURL: %@", cfSourceURL, cfDestinationURL);
-    CFRelease(cfSourceURL);
-    CFRelease(cfDestinationURL);
-}
-
-static void didPerformServerRedirect(WKContextRef context, WKPageRef page, WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef frame, const void *clientInfo)
-{
-    CFURLRef cfSourceURL = WKURLCopyCFURL(0, sourceURL);
-    CFURLRef cfDestinationURL = WKURLCopyCFURL(0, destinationURL);
-    LOG(@"HistoryClient - didPerformServerRedirect - sourceURL: %@ - destinationURL: %@", cfSourceURL, cfDestinationURL);
-    CFRelease(cfSourceURL);
-    CFRelease(cfDestinationURL);
-}
-
-static void didUpdateHistoryTitle(WKContextRef context, WKPageRef page, WKStringRef title, WKURLRef URL, WKFrameRef frame, const void *clientInfo)
-{
-    CFStringRef cfTitle = WKStringCopyCFString(0, title);
-    CFURLRef cfURL = WKURLCopyCFURL(0, URL);
-    LOG(@"HistoryClient - didUpdateHistoryTitle - title: %@ - URL: %@", cfTitle, cfURL);
-    CFRelease(cfTitle);
-    CFRelease(cfURL);
-}
-
-static void populateVisitedLinks(WKContextRef context, const void *clientInfo)
-{
-    LOG(@"HistoryClient - populateVisitedLinks");
-}
-
 - (id)init
 {
     self = [super init];
     if (self) {
-        WKContextHistoryClient historyClient = {
-            kWKContextHistoryClientCurrentVersion,
-            self,
-            didNavigateWithNavigationData,
-            didPerformClientRedirect,
-            didPerformServerRedirect,
-            didUpdateHistoryTitle,
-            populateVisitedLinks
-        };
-
-        CFStringRef bundlePathCF = (CFStringRef)[[NSBundle mainBundle] pathForAuxiliaryExecutable:@"WebBundle.bundle"];
-        WKStringRef bundlePath = WKStringCreateWithCFString(bundlePathCF);
-
-        _processContext = WKContextCreateWithInjectedBundlePath(bundlePath);
-        
-        WKContextInjectedBundleClient bundleClient = {
-            kWKContextInjectedBundleClientCurrentVersion,
-            0,      /* clientInfo */
-            didReceiveMessageFromInjectedBundle,
-            0,      /* didReceiveSynchronousMessageFromInjectedBundle */
-            0       /* getInjectedBundleInitializationUserData */
-        };
-        WKContextSetInjectedBundleClient(_processContext, &bundleClient);
-        WKContextSetHistoryClient(_processContext, &historyClient);
-        WKContextSetCacheModel(_processContext, kWKCacheModelPrimaryWebBrowser);
-
-        WKRelease(bundlePath);
-        
-        WKStringRef pageGroupIdentifier = WKStringCreateWithCFString(CFSTR("MiniBrowser"));
-        _pageGroup = WKPageGroupCreateWithIdentifier(pageGroupIdentifier);
-        WKRelease(pageGroupIdentifier);
-
-        _browserWindows = [[NSMutableSet alloc] init];
+        _browserWindowControllers = [[NSMutableSet alloc] init];
     }
 
     return self;
@@ -162,81 +55,82 @@ static void populateVisitedLinks(WKContextRef context, const void *clientInfo)
     
     if (![sender respondsToSelector:@selector(tag)] || [sender tag] == WebKit1NewWindowTag)
         controller = [[WK1BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
+#if WK_API_ENABLED
     else if ([sender tag] == WebKit2NewWindowTag)
-        controller = [[WK2BrowserWindowController alloc] initWithContext:_processContext pageGroup:_pageGroup];
-
+        controller = [[WK2BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
+#endif
     if (!controller)
         return;
 
     [[controller window] makeKeyAndOrderFront:sender];
-    [_browserWindows addObject:[controller window]];
+    [_browserWindowControllers addObject:controller];
     
     [controller loadURLString:defaultURL];
 }
 
 - (void)browserWindowWillClose:(NSWindow *)window
 {
-    [_browserWindows removeObject:window];
+    [_browserWindowControllers removeObject:window.windowController];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
+    WebHistory *webHistory = [[WebHistory alloc] init];
+    [WebHistory setOptionalSharedHistory:webHistory];
+    [webHistory release];
+
     [self newWindow:self];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
-    for (NSWindow* window in _browserWindows) {
-        id delegate = [window delegate];
-        assert([delegate isKindOfClass:[BrowserWindowController class]]);
-        BrowserWindowController *controller = (BrowserWindowController *)delegate;
+    for (BrowserWindowController* controller in _browserWindowControllers)
         [controller applicationTerminating];
-    }
-
-    WKRelease(_processContext);
-    _processContext = 0;
 }
 
 - (BrowserWindowController *)frontmostBrowserWindowController
 {
-    NSArray* windows = [NSApp windows];
-    for (NSWindow* window in windows) {
+    for (NSWindow* window in [NSApp windows]) {
         id delegate = [window delegate];
-        assert([delegate isKindOfClass:[BrowserWindowController class]]);
+
+        if (![delegate isKindOfClass:[BrowserWindowController class]])
+            continue;
+
         BrowserWindowController *controller = (BrowserWindowController *)delegate;
-        assert([_browserWindows containsObject:[controller window]]);
+        assert([_browserWindowControllers containsObject:controller]);
         return controller;
     }
 
-    return 0;
+    return nil;
 }
 
 - (IBAction)openDocument:(id)sender
 {
-    NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
-    [openPanel beginForDirectory:nil
-        file:nil
-        types:nil
-        modelessDelegate:self
-        didEndSelector:@selector(openPanelDidEnd:returnCode:contextInfo:)
-        contextInfo:0];
-}
+    BrowserWindowController *browserWindowController = [self frontmostBrowserWindowController];
 
-- (void)openPanelDidEnd:(NSOpenPanel *)sheet returnCode:(int)returnCode contextInfo:(void *)contextInfo
-{
-    [sheet autorelease];
-    if (returnCode != NSOKButton || ![[sheet filenames] count])
+    if (browserWindowController) {
+        NSOpenPanel *openPanel = [[NSOpenPanel openPanel] retain];
+        [openPanel beginSheetModalForWindow:browserWindowController.window completionHandler:^(NSInteger result) {
+            if (result != NSOKButton)
+                return;
+
+            NSURL *url = [openPanel.URLs objectAtIndex:0];
+            [browserWindowController loadURLString:[url absoluteString]];
+        }];
         return;
-    
-    NSString* filePath = [[sheet filenames] objectAtIndex:0];
-
-    BrowserWindowController *controller = [self frontmostBrowserWindowController];
-    if (!controller) {
-        controller = [[WK2BrowserWindowController alloc] initWithContext:_processContext pageGroup:_pageGroup]; // FIXME: add a way to open in WK1 also.
-        [[controller window] makeKeyAndOrderFront:self];
     }
-    
-    [controller loadURLString:[[NSURL fileURLWithPath:filePath] absoluteString]];
+
+    NSOpenPanel *openPanel = [NSOpenPanel openPanel];
+    [openPanel beginWithCompletionHandler:^(NSInteger result) {
+        if (result != NSOKButton)
+            return;
+
+        BrowserWindowController *newBrowserWindowController = [[WK1BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
+        [newBrowserWindowController.window makeKeyAndOrderFront:self];
+
+        NSURL *url = [openPanel.URLs objectAtIndex:0];
+        [newBrowserWindowController loadURLString:[url absoluteString]];
+    }];
 }
 
 @end

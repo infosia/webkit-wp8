@@ -28,6 +28,7 @@
 #include "CachedResourceLoader.h"
 #include "CachedResourceRequest.h"
 #include "CachedResourceRequestInitiators.h"
+#include "CrossOriginAccessControl.h"
 #include "Document.h"
 #include "Element.h"
 #include "MemoryCache.h"
@@ -51,8 +52,15 @@ CSSImageValue::CSSImageValue(const String& url, StyleImage* image)
 {
 }
 
+inline void CSSImageValue::detachPendingImage()
+{
+    if (m_image && m_image->isPendingImage())
+        toStylePendingImage(*m_image).detachFromCSSValue();
+}
+
 CSSImageValue::~CSSImageValue()
 {
+    detachPendingImage();
 }
 
 StyleImage* CSSImageValue::cachedOrPendingImage()
@@ -75,11 +83,17 @@ StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader, const
             request.setInitiator(cachedResourceRequestInitiators().css);
         else
             request.setInitiator(m_initiatorName);
-        if (CachedResourceHandle<CachedImage> cachedImage = loader->requestImage(request))
+
+        if (options.requestOriginPolicy == PotentiallyCrossOriginEnabled)
+            updateRequestForAccessControl(request.mutableResourceRequest(), loader->document()->securityOrigin(), options.allowCredentials);
+
+        if (CachedResourceHandle<CachedImage> cachedImage = loader->requestImage(request)) {
+            detachPendingImage();
             m_image = StyleCachedImage::create(cachedImage.get());
+        }
     }
 
-    return (m_image && m_image->isCachedImage()) ? static_cast<StyleCachedImage*>(m_image.get()) : 0;
+    return (m_image && m_image->isCachedImage()) ? toStyleCachedImage(m_image.get()) : nullptr;
 }
 
 StyleCachedImage* CSSImageValue::cachedImage(CachedResourceLoader* loader)
@@ -91,7 +105,7 @@ bool CSSImageValue::hasFailedOrCanceledSubresources() const
 {
     if (!m_image || !m_image->isCachedImage())
         return false;
-    CachedResource* cachedResource = static_cast<StyleCachedImage*>(m_image.get())->cachedImage();
+    CachedResource* cachedResource = toStyleCachedImage(*m_image).cachedImage();
     if (!cachedResource)
         return true;
     return cachedResource->loadFailedOrCanceled();
@@ -115,7 +129,7 @@ PassRefPtr<CSSValue> CSSImageValue::cloneForCSSOM() const
     return uriValue.release();
 }
 
-bool CSSImageValue::knownToBeOpaque(const RenderObject* renderer) const
+bool CSSImageValue::knownToBeOpaque(const RenderElement* renderer) const
 {
     return m_image ? m_image->knownToBeOpaque(renderer) : false;
 }

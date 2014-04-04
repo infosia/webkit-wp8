@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,6 +27,10 @@
 #define WebCoreSystemInterface_h
 
 #include <objc/objc.h>
+
+#if PLATFORM(IOS)
+#include "WebCoreSystemInterfaceIOS.h"
+#endif
 
 typedef const struct __CFString * CFStringRef;
 typedef const struct __CFNumber * CFNumberRef;
@@ -53,22 +57,32 @@ typedef const struct __CTLine * CTLineRef;
 typedef const struct __CTRun * CTRunRef;
 typedef const struct __CTTypesetter * CTTypesetterRef;
 typedef const struct __AXUIElement *AXUIElementRef;
+#if !PLATFORM(IOS)
 typedef struct _NSRange NSRange;
 
 typedef UInt32 FMFont;
 typedef FMFont ATSUFontID;
 typedef UInt16 ATSGlyphRef;
-
-#if PLATFORM(MAC) && USE(CA)
-typedef struct __IOSurface *IOSurfaceRef;
 #endif
 
+#if PLATFORM(COCOA) && USE(CA)
+#if !PLATFORM(IOS_SIMULATOR)
+typedef struct __IOSurface *IOSurfaceRef;
+#endif // !PLATFORM(IOS_SIMULATOR)
+#endif
+
+#if !PLATFORM(IOS)
 #ifdef NSGEOMETRY_TYPES_SAME_AS_CGGEOMETRY_TYPES
 typedef struct CGPoint NSPoint;
 typedef struct CGRect NSRect;
 #else
 typedef struct _NSPoint NSPoint;
 typedef struct _NSRect NSRect;
+#endif
+#endif // !PLATFORM(IOS)
+
+#if PLATFORM(IOS)
+#include <CoreGraphics/CoreGraphics.h>
 #endif
 
 #if USE(CFNETWORK)
@@ -80,6 +94,7 @@ typedef const struct _CFURLRequest* CFURLRequestRef;
 #endif
 
 OBJC_CLASS AVAsset;
+OBJC_CLASS AVPlayer;
 OBJC_CLASS CALayer;
 OBJC_CLASS NSArray;
 OBJC_CLASS NSButtonCell;
@@ -104,7 +119,6 @@ OBJC_CLASS NSView;
 OBJC_CLASS NSWindow;
 OBJC_CLASS QTMovie;
 OBJC_CLASS QTMovieView;
-OBJC_CLASS WebFilterEvaluator;
 
 extern "C" {
 
@@ -120,7 +134,7 @@ typedef enum {
     wkPatternTilingConstantSpacing
 } wkPatternTiling;
 extern void (*wkCGContextResetClip)(CGContextRef);
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 extern bool (*wkCGContextDrawsWithCorrectShadowOffsets)(CGContextRef);
 #endif
 extern CGPatternRef (*wkCGPatternCreateWithImageAndTransform)(CGImageRef, CGAffineTransform, int);
@@ -136,6 +150,7 @@ extern CFReadStreamRef (*wkCreateCustomCFReadStream)(void *(*formCreate)(CFReadS
 extern CFStringRef (*wkCopyCFLocalizationPreferredName)(CFStringRef);
 extern NSString* (*wkCopyNSURLResponseStatusLine)(NSURLResponse*);
 extern CFArrayRef (*wkCopyNSURLResponseCertificateChain)(NSURLResponse*);
+#if !PLATFORM(IOS)
 extern void (*wkDrawBezeledTextFieldCell)(NSRect, BOOL enabled);
 extern void (*wkDrawTextFieldCellFocusRing)(NSTextFieldCell*, NSRect);
 extern void (*wkDrawCapsLockIndicator)(CGContextRef, CGRect);
@@ -144,16 +159,22 @@ extern void (*wkDrawFocusRing)(CGContextRef, CGColorRef, int radius);
 extern NSFont* (*wkGetFontInLanguageForRange)(NSFont*, NSString*, NSRange);
 extern NSFont* (*wkGetFontInLanguageForCharacter)(NSFont*, UniChar);
 extern BOOL (*wkGetGlyphTransformedAdvances)(CGFontRef, NSFont*, CGAffineTransform*, ATSGlyphRef*, CGSize* advance);
+#endif
+#if !PLATFORM(IOS)
 extern void (*wkDrawMediaSliderTrack)(CGContextRef context, CGRect rect, float timeLoaded, float currentTime,
     float duration, unsigned state);
 extern void (*wkDrawMediaUIPart)(int part, CGContextRef context, CGRect rect, unsigned state);
 extern CFStringRef (*wkSignedPublicKeyAndChallengeString)(unsigned keySize, CFStringRef challenge, CFStringRef keyDescription);
 extern NSString* (*wkGetPreferredExtensionForMIMEType)(NSString*);
 extern NSArray* (*wkGetExtensionsForMIMEType)(NSString*);
+#endif
 extern NSString* (*wkGetMIMETypeForExtension)(NSString*);
+#if !PLATFORM(IOS)
 extern ATSUFontID (*wkGetNSFontATSUFontId)(NSFont*);
 extern double (*wkGetNSURLResponseCalculatedExpiration)(NSURLResponse *response);
+#endif
 extern NSDate *(*wkGetNSURLResponseLastModifiedDate)(NSURLResponse *response);
+#if !PLATFORM(IOS)
 extern BOOL (*wkGetNSURLResponseMustRevalidate)(NSURLResponse *response);
 extern void (*wkGetWheelEventDeltas)(NSEvent*, float* deltaX, float* deltaY, BOOL* continuous);
 extern UInt8 (*wkGetNSEventKeyChar)(NSEvent *);
@@ -191,12 +212,10 @@ extern void (*wkQTMovieViewSetDrawSynchronously)(QTMovieView*, BOOL);
 extern NSArray *(*wkQTGetSitesInMediaDownloadCache)();
 extern void (*wkQTClearMediaDownloadCacheForSite)(NSString *site);
 extern void (*wkQTClearMediaDownloadCache)();
-#if PLATFORM(MAC)
 extern void (*wkSetCGFontRenderingMode)(CGContextRef, NSFont*, BOOL);
-#else
-extern void (*wkSetCGFontRenderingMode)(CGContextRef, NSFont*);
-#endif
+extern void (*wkSetCookieStoragePrivateBrowsingEnabled)(BOOL);
 extern void (*wkSetDragImage)(NSImage*, NSPoint offset);
+#endif
 extern void (*wkSetNSURLConnectionDefersCallbacks)(NSURLConnection *, BOOL);
 extern void (*wkSetNSURLRequestShouldContentSniff)(NSMutableURLRequest *, BOOL);
 extern void (*wkSetBaseCTM)(CGContextRef, CGAffineTransform);
@@ -208,10 +227,11 @@ extern void (*wkSignalCFReadStreamEnd)(CFReadStreamRef stream);
 extern void (*wkSignalCFReadStreamError)(CFReadStreamRef stream, CFStreamError *error);
 extern void (*wkSignalCFReadStreamHasBytes)(CFReadStreamRef stream);
 extern unsigned (*wkInitializeMaximumHTTPConnectionCountPerHost)(unsigned preferredConnectionCount);
-extern int (*wkGetHTTPPipeliningPriority)(CFURLRequestRef);
-extern void (*wkSetHTTPPipeliningMaximumPriority)(int maximumPriority);
-extern void (*wkSetHTTPPipeliningPriority)(CFURLRequestRef, int priority);
-extern void (*wkSetHTTPPipeliningMinimumFastLanePriority)(int priority);
+extern int (*wkGetHTTPRequestPriority)(CFURLRequestRef);
+extern void (*wkSetHTTPRequestMaximumPriority)(int maximumPriority);
+extern void (*wkSetHTTPRequestPriority)(CFURLRequestRef, int priority);
+extern void (*wkSetHTTPRequestMinimumFastLanePriority)(int priority);
+extern void (*wkHTTPRequestEnablePipelining)(CFURLRequestRef);
 extern void (*wkSetCONNECTProxyForStream)(CFReadStreamRef, CFStringRef proxyHost, CFNumberRef proxyPort);
 extern void (*wkSetCONNECTProxyAuthorizationForStream)(CFReadStreamRef, CFStringRef proxyAuthorizationString);
 extern CFHTTPMessageRef (*wkCopyCONNECTProxyResponse)(CFReadStreamRef, CFURLRef responseURL, CFStringRef proxyHost, CFNumberRef proxyPort);
@@ -221,11 +241,13 @@ extern bool (*wkGetVerticalGlyphsForCharacters)(CTFontRef, const UniChar[], CGGl
 
 extern BOOL (*wkUseSharedMediaUI)();
 
+#if !PLATFORM(IOS)
 extern void* wkGetHyphenationLocationBeforeIndex;
+#endif
 
 extern CTLineRef (*wkCreateCTLineWithUniCharProvider)(const UniChar* (*provide)(CFIndex stringIndex, CFIndex* charCount, CFDictionaryRef* attributes, void*), void (*dispose)(const UniChar* chars, void*), void*);
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 enum {
     wkCTFontTransformApplyShaping = (1 << 0),
     wkCTFontTransformApplyPositioning = (1 << 1)
@@ -240,26 +262,30 @@ extern CTTypesetterRef (*wkCreateCTTypesetterWithUniCharProviderAndOptions)(cons
 
 extern CGSize (*wkCTRunGetInitialAdvance)(CTRunRef);
 
-#if PLATFORM(MAC) && USE(CA)
+#if PLATFORM(COCOA) && USE(CA) && !PLATFORM(IOS_SIMULATOR)
 extern CGContextRef (*wkIOSurfaceContextCreate)(IOSurfaceRef surface, unsigned width, unsigned height, CGColorSpaceRef colorSpace);
 extern CGImageRef (*wkIOSurfaceContextCreateImage)(CGContextRef context);
 #endif
 
+#if PLATFORM(MAC) || PLATFORM(IOS_SIMULATOR)
+extern void (*wkSetCrashReportApplicationSpecificInformation)(CFStringRef);
+#endif
+
+#if !PLATFORM(IOS)
 extern int (*wkRecommendedScrollerStyle)(void);
 
 extern bool (*wkExecutableWasLinkedOnOrBeforeSnowLeopard)(void);
 
 extern CFStringRef (*wkCopyDefaultSearchProviderDisplayName)(void);
-extern void (*wkSetCrashReportApplicationSpecificInformation)(CFStringRef);
 
 extern NSURL *(*wkAVAssetResolvedURL)(AVAsset*);
 
 extern NSCursor *(*wkCursor)(const char*);
+#endif // !PLATFORM(IOS)
     
-#if PLATFORM(MAC)
+#if !PLATFORM(IOS)
 extern NSArray *(*wkSpeechSynthesisGetVoiceIdentifiers)(void);
 extern NSString *(*wkSpeechSynthesisGetDefaultVoiceIdentifierForLocale)(NSLocale *);
-#endif
 
 extern void (*wkUnregisterUniqueIdForElement)(id element);
 extern void (*wkAccessibilityHandleFocusChanged)(void);    
@@ -271,6 +297,13 @@ extern CFTypeRef (*wkCopyAXTextMarkerRangeEnd)(CFTypeRef range);
 extern CFTypeRef (*wkCreateAXTextMarker)(const void *bytes, size_t len);
 extern BOOL (*wkGetBytesFromAXTextMarker)(CFTypeRef textMarker, void *bytes, size_t length);
 extern AXUIElementRef (*wkCreateAXUIElementRef)(id element);
+#endif // !PLATFORM(IOS)
+
+#if PLATFORM(IOS)
+extern CGSize (*wkGetViewportScreenSize)(void);
+extern void (*wkSetLayerContentsScale)(CALayer *);
+extern float (*wkGetScreenScaleFactor)(void);
+#endif
 
 typedef const struct __CFURLStorageSession* CFURLStorageSessionRef;
 extern CFURLStorageSessionRef (*wkCreatePrivateStorageSession)(CFStringRef);
@@ -281,7 +314,7 @@ extern CFHTTPCookieStorageRef (*wkCopyHTTPCookieStorage)(CFURLStorageSessionRef)
 extern unsigned (*wkGetHTTPCookieAcceptPolicy)(CFHTTPCookieStorageRef);
 extern void (*wkSetHTTPCookieAcceptPolicy)(CFHTTPCookieStorageRef, unsigned);
 extern NSArray *(*wkHTTPCookies)(CFHTTPCookieStorageRef);
-extern NSArray *(*wkHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSURL *);
+extern NSArray *(*wkHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSURL *, NSURL *);
 extern void (*wkSetHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSArray *, NSURL *, NSURL *);
 extern void (*wkDeleteHTTPCookie)(CFHTTPCookieStorageRef, NSHTTPCookie *);
 extern void (*wkDeleteAllHTTPCookies)(CFHTTPCookieStorageRef);
@@ -302,32 +335,27 @@ extern CFArrayRef (*wkCFURLRequestCopyHTTPRequestBodyParts)(CFURLRequestRef);
 extern void (*wkCFURLRequestSetHTTPRequestBodyParts)(CFMutableURLRequestRef, CFArrayRef bodyParts);
 extern void (*wkSetRequestStorageSession)(CFURLStorageSessionRef, CFMutableURLRequestRef);
 #endif
+#if !PLATFORM(IOS)
 extern void (*wkSetMetadataURL)(NSString *urlString, NSString *referrer, NSString *path);
+#endif
 
+#if !PLATFORM(IOS)
 #import <dispatch/dispatch.h>
 
 extern dispatch_source_t (*wkCreateVMPressureDispatchOnMainQueue)(void);
+#endif
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
 extern dispatch_source_t (*wkCreateMemoryStatusPressureCriticalDispatchOnMainQueue)(void);
 #endif
     
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 extern bool (*wkExecutableWasLinkedOnOrBeforeLion)(void);
 #endif
 
 extern void (*wkCGPathAddRoundedRect)(CGMutablePathRef path, const CGAffineTransform* matrix, CGRect rect, CGFloat cornerWidth, CGFloat cornerHeight);
 
 extern void (*wkCFURLRequestAllowAllPostCaching)(CFURLRequestRef);
-
-#if USE(CONTENT_FILTERING)
-extern BOOL (*wkFilterIsManagedSession)(void);
-extern WebFilterEvaluator *(*wkFilterCreateInstance)(NSURLResponse *);
-extern BOOL (*wkFilterWasBlocked)(WebFilterEvaluator *);
-extern BOOL (*wkFilterIsBuffering)(WebFilterEvaluator *);
-extern NSData *(*wkFilterAddData)(WebFilterEvaluator *, NSData *);
-extern NSData *(*wkFilterDataComplete)(WebFilterEvaluator *);
-#endif
 
 #if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 extern CGFloat (*wkNSElasticDeltaForTimeDelta)(CGFloat initialPosition, CGFloat initialVelocity, CGFloat elapsedTime);
@@ -342,6 +370,17 @@ extern bool (*wkIsPublicSuffix)(NSString *host);
 #if ENABLE(CACHE_PARTITIONING)
 extern CFStringRef (*wkCachePartitionKey)(void);
 #endif
+
+typedef enum {
+    wkExternalPlaybackTypeNone,
+    wkExternalPlaybackTypeAirPlay,
+    wkExternalPlaybackTypeTVOut,
+} wkExternalPlaybackType;
+extern int (*wkExernalDeviceTypeForPlayer)(AVPlayer *);
+extern NSString *(*wkExernalDeviceDisplayNameForPlayer)(AVPlayer *);
+
+extern bool (*wkQueryDecoderAvailability)(void);
+
 }
 
 #endif

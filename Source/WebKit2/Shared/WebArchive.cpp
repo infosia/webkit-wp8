@@ -26,11 +26,11 @@
 #include "config.h"
 #include "WebArchive.h"
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 
-#include "ImmutableArray.h"
+#include "APIArray.h"
+#include "APIData.h"
 #include "WebArchiveResource.h"
-#include "WebData.h"
 #include <WebCore/LegacyWebArchive.h>
 #include <wtf/RetainPtr.h>
 
@@ -38,12 +38,12 @@ using namespace WebCore;
 
 namespace WebKit {
 
-PassRefPtr<WebArchive> WebArchive::create(WebArchiveResource* mainResource, ImmutableArray* subresources, ImmutableArray* subframeArchives)
+PassRefPtr<WebArchive> WebArchive::create(WebArchiveResource* mainResource, PassRefPtr<API::Array> subresources, PassRefPtr<API::Array> subframeArchives)
 {
     return adoptRef(new WebArchive(mainResource, subresources, subframeArchives));
 }
 
-PassRefPtr<WebArchive> WebArchive::create(WebData* data)
+PassRefPtr<WebArchive> WebArchive::create(API::Data* data)
 {
     return adoptRef(new WebArchive(data));
 }
@@ -58,7 +58,7 @@ PassRefPtr<WebArchive> WebArchive::create(Range* range)
     return adoptRef(new WebArchive(LegacyWebArchive::create(range)));
 }
 
-WebArchive::WebArchive(WebArchiveResource* mainResource, ImmutableArray* subresources, ImmutableArray* subframeArchives)
+WebArchive::WebArchive(WebArchiveResource* mainResource, PassRefPtr<API::Array> subresources, PassRefPtr<API::Array> subframeArchives)
     : m_cachedMainResource(mainResource)
     , m_cachedSubresources(subresources)
     , m_cachedSubframeArchives(subframeArchives)
@@ -82,7 +82,7 @@ WebArchive::WebArchive(WebArchiveResource* mainResource, ImmutableArray* subreso
     m_legacyWebArchive = LegacyWebArchive::create(coreMainResource.release(), coreArchiveResources, coreSubframeLegacyWebArchives);
 }
 
-WebArchive::WebArchive(WebData* data)
+WebArchive::WebArchive(API::Data* data)
 {
     RefPtr<SharedBuffer> buffer = SharedBuffer::create(data->bytes(), data->size());
     m_legacyWebArchive = LegacyWebArchive::create(buffer.get());
@@ -104,29 +104,31 @@ WebArchiveResource* WebArchive::mainResource()
     return m_cachedMainResource.get();
 }
 
-ImmutableArray* WebArchive::subresources()
+API::Array* WebArchive::subresources()
 {
     if (!m_cachedSubresources) {
-        Vector<RefPtr<APIObject>> subresources;
-        subresources.reserveCapacity(m_legacyWebArchive->subresources().size());
-        for (unsigned i = 0; i < m_legacyWebArchive->subresources().size(); ++i)
-            subresources.append(WebArchiveResource::create(m_legacyWebArchive->subresources()[i].get()));
+        Vector<RefPtr<API::Object>> subresources;
+        subresources.reserveInitialCapacity(m_legacyWebArchive->subresources().size());
 
-        m_cachedSubresources = ImmutableArray::adopt(subresources);
+        for (const auto& subresource : m_legacyWebArchive->subresources())
+            subresources.uncheckedAppend(WebArchiveResource::create(subresource));
+
+        m_cachedSubresources = API::Array::create(std::move(subresources));
     }
 
     return m_cachedSubresources.get();
 }
 
-ImmutableArray* WebArchive::subframeArchives()
+API::Array* WebArchive::subframeArchives()
 {
     if (!m_cachedSubframeArchives) {
-        Vector<RefPtr<APIObject>> subframeWebArchives;
-        subframeWebArchives.reserveCapacity(m_legacyWebArchive->subframeArchives().size());
-        for (unsigned i = 0; i < m_legacyWebArchive->subframeArchives().size(); ++i)
-            subframeWebArchives.append(WebArchive::create(static_cast<LegacyWebArchive*>(m_legacyWebArchive->subframeArchives()[i].get())));
+        Vector<RefPtr<API::Object>> subframeWebArchives;
+        subframeWebArchives.reserveInitialCapacity(m_legacyWebArchive->subframeArchives().size());
 
-        m_cachedSubframeArchives = ImmutableArray::adopt(subframeWebArchives);
+        for (const auto& subframeArchive : m_legacyWebArchive->subframeArchives())
+            subframeWebArchives.uncheckedAppend(WebArchive::create(static_cast<LegacyWebArchive*>(subframeArchive.get())));
+
+        m_cachedSubframeArchives = API::Array::create(std::move(subframeWebArchives));
     }
 
     return m_cachedSubframeArchives.get();
@@ -138,14 +140,14 @@ static void releaseCFData(unsigned char*, const void* data)
     CFRelease(data);
 }
 
-PassRefPtr<WebData> WebArchive::data()
+PassRefPtr<API::Data> WebArchive::data()
 {
     RetainPtr<CFDataRef> rawDataRepresentation = m_legacyWebArchive->rawDataRepresentation();
 
     // Balanced by CFRelease in releaseCFData.
     CFRetain(rawDataRepresentation.get());
 
-    return WebData::createWithoutCopying(CFDataGetBytePtr(rawDataRepresentation.get()), CFDataGetLength(rawDataRepresentation.get()), releaseCFData, rawDataRepresentation.get());
+    return API::Data::createWithoutCopying(CFDataGetBytePtr(rawDataRepresentation.get()), CFDataGetLength(rawDataRepresentation.get()), releaseCFData, rawDataRepresentation.get());
 }
 
 LegacyWebArchive* WebArchive::coreLegacyWebArchive()
@@ -155,4 +157,4 @@ LegacyWebArchive* WebArchive::coreLegacyWebArchive()
 
 } // namespace WebKit
 
-#endif // PLATFORM(MAC)
+#endif // PLATFORM(COCOA)

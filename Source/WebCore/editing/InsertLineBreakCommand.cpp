@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005, 2006 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,16 +27,14 @@
 #include "InsertLineBreakCommand.h"
 
 #include "Document.h"
-#include "EditingStyle.h"
 #include "Frame.h"
 #include "FrameSelection.h"
 #include "HTMLElement.h"
 #include "HTMLNames.h"
 #include "HTMLTableElement.h"
-#include "Range.h"
-#include "RenderObject.h"
+#include "RenderElement.h"
+#include "RenderText.h"
 #include "Text.h"
-#include "VisiblePosition.h"
 #include "VisibleUnits.h"
 #include "htmlediting.h"
 
@@ -85,7 +83,7 @@ bool InsertLineBreakCommand::shouldUseBreakElement(const Position& insertionPos)
     // the input element, and in that case we need to check the input element's
     // parent's renderer.
     Position p(insertionPos.parentAnchoredEquivalent());
-    return p.deprecatedNode()->renderer() && !p.deprecatedNode()->renderer()->style()->preserveNewline();
+    return p.deprecatedNode()->renderer() && !p.deprecatedNode()->renderer()->style().preserveNewline();
 }
 
 void InsertLineBreakCommand::doApply()
@@ -109,7 +107,7 @@ void InsertLineBreakCommand::doApply()
 
     RefPtr<Node> nodeToInsert;
     if (shouldUseBreakElement(pos))
-        nodeToInsert = createBreakElement(&document());
+        nodeToInsert = createBreakElement(document());
     else
         nodeToInsert = document().createTextNode("\n");
     
@@ -151,7 +149,7 @@ void InsertLineBreakCommand::doApply()
             Position positionBeforeTextNode(positionInParentBeforeNode(textNode));
             // Clear out all whitespace and insert one non-breaking space
             deleteInsignificantTextDownstream(endingPosition);
-            ASSERT(!textNode->renderer() || textNode->renderer()->style()->collapseWhiteSpace());
+            ASSERT(!textNode->renderer() || textNode->renderer()->style().collapseWhiteSpace());
             // Deleting insignificant whitespace will remove textNode if it contains nothing but insignificant whitespace.
             if (textNode->inDocument())
                 insertTextIntoNode(textNode, 0, nonBreakingSpaceString());

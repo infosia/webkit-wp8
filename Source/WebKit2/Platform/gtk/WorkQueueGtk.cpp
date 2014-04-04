@@ -35,8 +35,8 @@
 // WorkQueue::EventSource
 class WorkQueue::EventSource {
 public:
-    EventSource(const Function<void()>& function, WorkQueue* workQueue)
-        : m_function(function)
+    EventSource(std::function<void()> function, WorkQueue* workQueue)
+        : m_function(std::move(function))
         , m_workQueue(workQueue)
     {
         ASSERT(workQueue);
@@ -56,13 +56,6 @@ public:
         return FALSE;
     }
 
-    static gboolean performWorkOnTermination(GPid, gint, EventSource* eventSource)
-    {
-        ASSERT(eventSource);
-        eventSource->performWork();
-        return FALSE;
-    }
-
     static void deleteEventSource(EventSource* eventSource)
     {
         ASSERT(eventSource);
@@ -70,17 +63,16 @@ public:
     }
 
 private:
-    Function<void()> m_function;
+    std::function<void ()> m_function;
     RefPtr<WorkQueue> m_workQueue;
 };
 
 class WorkQueue::SocketEventSource : public WorkQueue::EventSource {
 public:
-    SocketEventSource(const Function<void()>& function, WorkQueue* workQueue, int condition, GCancellable* cancellable, const Function<void()>& closeFunction)
-        : EventSource(function, workQueue)
-        , m_condition(condition)
+    SocketEventSource(std::function<void ()> function, WorkQueue* workQueue, GCancellable* cancellable, std::function<void ()> closeFunction)
+        : EventSource(std::move(function), workQueue)
         , m_cancellable(cancellable)
-        , m_closeFunction(closeFunction)
+        , m_closeFunction(std::move(closeFunction))
     {
         ASSERT(cancellable);
     }
@@ -95,33 +87,37 @@ public:
         m_closeFunction();
     }
 
-    bool checkCondition(GIOCondition condition) const
+    bool isCancelled() const
     {
-        return condition & m_condition;
+        return g_cancellable_is_cancelled(m_cancellable);
     }
 
-    static gboolean eventCallback(GSocket* socket, GIOCondition condition, SocketEventSource* eventSource)
+    static gboolean eventCallback(GSocket*, GIOCondition condition, SocketEventSource* eventSource)
     {
         ASSERT(eventSource);
 
-        if (condition & G_IO_HUP || condition & G_IO_ERR) {
+        if (eventSource->isCancelled()) {
+            // EventSource has been cancelled, return FALSE to destroy the source.
+            return FALSE;
+        }
+
+        if (condition & G_IO_HUP || condition & G_IO_ERR || condition & G_IO_NVAL) {
             eventSource->didClose();
             return FALSE;
         }
 
-        if (eventSource->checkCondition(condition)) {
+        if (condition & G_IO_IN) {
             eventSource->performWork();
             return TRUE;
         }
 
-        // EventSource has been cancelled, return FALSE to destroy the source.
+        ASSERT_NOT_REACHED();
         return FALSE;
     }
 
 private:
-    int m_condition;
     GCancellable* m_cancellable;
-    Function<void()> m_closeFunction;
+    std::function<void ()> m_closeFunction;
 };
 
 // WorkQueue
@@ -173,15 +169,15 @@ void WorkQueue::workQueueThreadBody()
     g_main_loop_run(m_eventLoop.get());
 }
 
-void WorkQueue::registerSocketEventHandler(int fileDescriptor, int condition, const Function<void()>& function, const Function<void()>& closeFunction)
+void WorkQueue::registerSocketEventHandler(int fileDescriptor, std::function<void ()> function, std::function<void ()> closeFunction)
 {
     GRefPtr<GSocket> socket = adoptGRef(g_socket_new_from_fd(fileDescriptor, 0));
     ASSERT(socket);
     GRefPtr<GCancellable> cancellable = adoptGRef(g_cancellable_new());
-    GRefPtr<GSource> dispatchSource = adoptGRef(g_socket_create_source(socket.get(), static_cast<GIOCondition>(condition), cancellable.get()));
+    GRefPtr<GSource> dispatchSource = adoptGRef(g_socket_create_source(socket.get(), G_IO_IN, cancellable.get()));
     ASSERT(dispatchSource);
-    SocketEventSource* eventSource = new SocketEventSource(function, this, condition, cancellable.get(), closeFunction);
-    ASSERT(eventSource);
+    SocketEventSource* eventSource = new SocketEventSource(std::move(function), this,
+        cancellable.get(), std::move(closeFunction));
 
     g_source_set_callback(dispatchSource.get(), reinterpret_cast<GSourceFunc>(&WorkQueue::SocketEventSource::eventCallback),
         eventSource, reinterpret_cast<GDestroyNotify>(&WorkQueue::EventSource::deleteEventSource));
@@ -190,7 +186,7 @@ void WorkQueue::registerSocketEventHandler(int fileDescriptor, int condition, co
     {
         MutexLocker locker(m_eventSourcesLock);
         Vector<SocketEventSource*> sources;
-        SocketEventSourceIterator it = m_eventSources.find(fileDescriptor);
+        auto it = m_eventSources.find(fileDescriptor);
         if (it != m_eventSources.end())
             sources = it->value;
 
@@ -207,9 +203,8 @@ void WorkQueue::unregisterSocketEventHandler(int fileDescriptor)
 
     MutexLocker locker(m_eventSourcesLock);
 
-    SocketEventSourceIterator it = m_eventSources.find(fileDescriptor);
-    ASSERT(it != m_eventSources.end());
     ASSERT(m_eventSources.contains(fileDescriptor));
+    auto it = m_eventSources.find(fileDescriptor);
 
     if (it != m_eventSources.end()) {
         Vector<SocketEventSource*> sources = it->value;
@@ -220,35 +215,26 @@ void WorkQueue::unregisterSocketEventHandler(int fileDescriptor)
     }
 }
 
-void WorkQueue::dispatchOnSource(GSource* dispatchSource, const Function<void()>& function, GSourceFunc sourceCallback)
+void WorkQueue::dispatchOnSource(GSource* dispatchSource, std::function<void ()> function, GSourceFunc sourceCallback)
 {
-    g_source_set_callback(dispatchSource, sourceCallback, new EventSource(function, this),
+    g_source_set_callback(dispatchSource, sourceCallback, new EventSource(std::move(function), this),
         reinterpret_cast<GDestroyNotify>(&WorkQueue::EventSource::deleteEventSource));
 
     g_source_attach(dispatchSource, m_eventContext.get());
 }
 
-void WorkQueue::dispatch(const Function<void()>& function)
+void WorkQueue::dispatch(std::function<void ()> function)
 {
     GRefPtr<GSource> dispatchSource = adoptGRef(g_idle_source_new());
-    ASSERT(dispatchSource);
     g_source_set_priority(dispatchSource.get(), G_PRIORITY_DEFAULT);
-
-    dispatchOnSource(dispatchSource.get(), function, reinterpret_cast<GSourceFunc>(&WorkQueue::EventSource::performWorkOnce));
+    dispatchOnSource(dispatchSource.get(), std::move(function),
+        reinterpret_cast<GSourceFunc>(&WorkQueue::EventSource::performWorkOnce));
 }
 
-void WorkQueue::dispatchAfterDelay(const Function<void()>& function, double delay)
+void WorkQueue::dispatchAfter(std::chrono::nanoseconds duration, std::function<void ()> function)
 {
-    GRefPtr<GSource> dispatchSource = adoptGRef(g_timeout_source_new(static_cast<guint>(delay * 1000)));
-    ASSERT(dispatchSource);
-
-    dispatchOnSource(dispatchSource.get(), function, reinterpret_cast<GSourceFunc>(&WorkQueue::EventSource::performWorkOnce));
-}
-
-void WorkQueue::dispatchOnTermination(WebKit::PlatformProcessIdentifier process, const Function<void()>& function)
-{
-    GRefPtr<GSource> dispatchSource = adoptGRef(g_child_watch_source_new(process));
-    ASSERT(dispatchSource);
-
-    dispatchOnSource(dispatchSource.get(), function, reinterpret_cast<GSourceFunc>(&WorkQueue::EventSource::performWorkOnTermination));
+    GRefPtr<GSource> dispatchSource = adoptGRef(g_timeout_source_new(
+        static_cast<guint>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count())));
+    dispatchOnSource(dispatchSource.get(), std::move(function),
+        reinterpret_cast<GSourceFunc>(&WorkQueue::EventSource::performWorkOnce));
 }

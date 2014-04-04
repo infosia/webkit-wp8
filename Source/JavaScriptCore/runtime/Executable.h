@@ -26,6 +26,7 @@
 #ifndef Executable_h
 #define Executable_h
 
+#include "ArityCheckMode.h"
 #include "CallData.h"
 #include "CodeBlockHash.h"
 #include "CodeSpecializationKind.h"
@@ -36,7 +37,7 @@
 #include "Interpreter.h"
 #include "JITCode.h"
 #include "JSGlobalObject.h"
-#include "LLIntCLoop.h"
+#include "RegisterPreservationMode.h"
 #include "SamplingTool.h"
 #include "SourceCode.h"
 #include "UnlinkedCodeBlock.h"
@@ -93,9 +94,17 @@ public:
         
     CodeBlockHash hashFor(CodeSpecializationKind) const;
 
+    bool isEvalExecutable()
+    {
+        return structure()->typeInfo().type() == EvalExecutableType;
+    }
     bool isFunctionExecutable()
     {
-        return structure()->typeInfo().type() == FunctionExecutableType;
+        return type() == FunctionExecutableType;
+    }
+    bool isProgramExecutable()
+    {
+        return structure()->typeInfo().type() == ProgramExecutableType;
     }
 
     bool isHostFunction() const
@@ -111,14 +120,13 @@ public:
     DECLARE_EXPORT_INFO;
 
 protected:
-    static const unsigned StructureFlags = 0;
+    static const unsigned StructureFlags = StructureIsImmortal;
     int m_numParametersForCall;
     int m_numParametersForConstruct;
 
 public:
     static void clearCodeVirtual(ExecutableBase*);
 
-#if ENABLE(JIT)
     PassRefPtr<JITCode> generatedJITCodeForCall()
     {
         ASSERT(m_jitCodeForCall);
@@ -138,37 +146,94 @@ public:
         ASSERT(kind == CodeForConstruct);
         return generatedJITCodeForConstruct();
     }
-
-    MacroAssemblerCodePtr generatedJITCodeForCallWithArityCheck()
+    
+    MacroAssemblerCodePtr entrypointFor(
+        VM& vm, CodeSpecializationKind kind, ArityCheckMode arity, RegisterPreservationMode registers)
     {
-        ASSERT(m_jitCodeForCall);
-        ASSERT(m_jitCodeForCallWithArityCheck);
-        return m_jitCodeForCallWithArityCheck;
+        // Check if we have a cached result. We only have it for arity check because we use the
+        // no-arity entrypoint in non-virtual calls, which will "cache" this value directly in
+        // machine code.
+        if (arity == MustCheckArity) {
+            switch (kind) {
+            case CodeForCall:
+                switch (registers) {
+                case RegisterPreservationNotRequired:
+                    if (MacroAssemblerCodePtr result = m_jitCodeForCallWithArityCheck)
+                        return result;
+                    break;
+                case MustPreserveRegisters:
+                    if (MacroAssemblerCodePtr result = m_jitCodeForCallWithArityCheckAndPreserveRegs)
+                        return result;
+                    break;
+                }
+                break;
+            case CodeForConstruct:
+                switch (registers) {
+                case RegisterPreservationNotRequired:
+                    if (MacroAssemblerCodePtr result = m_jitCodeForConstructWithArityCheck)
+                        return result;
+                    break;
+                case MustPreserveRegisters:
+                    if (MacroAssemblerCodePtr result = m_jitCodeForConstructWithArityCheckAndPreserveRegs)
+                        return result;
+                    break;
+                }
+                break;
+            }
+        }
+        MacroAssemblerCodePtr result =
+            generatedJITCodeFor(kind)->addressForCall(vm, this, arity, registers);
+        if (arity == MustCheckArity) {
+            // Cache the result; this is necessary for the JIT's virtual call optimizations.
+            switch (kind) {
+            case CodeForCall:
+                switch (registers) {
+                case RegisterPreservationNotRequired:
+                    m_jitCodeForCallWithArityCheck = result;
+                    break;
+                case MustPreserveRegisters:
+                    m_jitCodeForCallWithArityCheckAndPreserveRegs = result;
+                    break;
+                }
+                break;
+            case CodeForConstruct:
+                switch (registers) {
+                case RegisterPreservationNotRequired:
+                    m_jitCodeForConstructWithArityCheck = result;
+                    break;
+                case MustPreserveRegisters:
+                    m_jitCodeForConstructWithArityCheckAndPreserveRegs = result;
+                    break;
+                }
+                break;
+            }
+        }
+        return result;
     }
 
-    MacroAssemblerCodePtr generatedJITCodeForConstructWithArityCheck()
+    static ptrdiff_t offsetOfJITCodeWithArityCheckFor(
+        CodeSpecializationKind kind, RegisterPreservationMode registers)
     {
-        ASSERT(m_jitCodeForConstruct);
-        ASSERT(m_jitCodeForConstructWithArityCheck);
-        return m_jitCodeForConstructWithArityCheck;
+        switch (kind) {
+        case CodeForCall:
+            switch (registers) {
+            case RegisterPreservationNotRequired:
+                return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForCallWithArityCheck);
+            case MustPreserveRegisters:
+                return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForCallWithArityCheckAndPreserveRegs);
+            }
+        case CodeForConstruct:
+            switch (registers) {
+            case RegisterPreservationNotRequired:
+                return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForConstructWithArityCheck);
+            case MustPreserveRegisters:
+                return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForConstructWithArityCheckAndPreserveRegs);
+            }
+        }
+        RELEASE_ASSERT_NOT_REACHED();
+        return 0;
     }
-        
-    MacroAssemblerCodePtr generatedJITCodeWithArityCheckFor(CodeSpecializationKind kind)
-    {
-        if (kind == CodeForCall)
-            return generatedJITCodeForCallWithArityCheck();
-        ASSERT(kind == CodeForConstruct);
-        return generatedJITCodeForConstructWithArityCheck();
-    }
-        
-    static ptrdiff_t offsetOfJITCodeWithArityCheckFor(CodeSpecializationKind kind)
-    {
-        if (kind == CodeForCall)
-            return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForCallWithArityCheck);
-        ASSERT(kind == CodeForConstruct);
-        return OBJECT_OFFSETOF(ExecutableBase, m_jitCodeForConstructWithArityCheck);
-    }
-        
+    
     static ptrdiff_t offsetOfNumParametersFor(CodeSpecializationKind kind)
     {
         if (kind == CodeForCall)
@@ -176,7 +241,6 @@ public:
         ASSERT(kind == CodeForConstruct);
         return OBJECT_OFFSETOF(ExecutableBase, m_numParametersForConstruct);
     }
-#endif // ENABLE(JIT)
 
     bool hasJITCodeForCall() const
     {
@@ -205,48 +269,9 @@ public:
             return intrinsic();
         return NoIntrinsic;
     }
-        
-#if ENABLE(JIT) || ENABLE(LLINT_C_LOOP)
-    MacroAssemblerCodePtr hostCodeEntryFor(CodeSpecializationKind kind)
-    {
-#if ENABLE(JIT)
-        return generatedJITCodeFor(kind)->addressForCall();
-#else
-        return LLInt::CLoop::hostCodeEntryFor(kind);
-#endif
-    }
-
-    MacroAssemblerCodePtr jsCodeEntryFor(CodeSpecializationKind kind)
-    {
-#if ENABLE(JIT)
-        return generatedJITCodeFor(kind)->addressForCall();
-#else
-        return LLInt::CLoop::jsCodeEntryFor(kind);
-#endif
-    }
-
-    MacroAssemblerCodePtr jsCodeWithArityCheckEntryFor(CodeSpecializationKind kind)
-    {
-#if ENABLE(JIT)
-        return generatedJITCodeWithArityCheckFor(kind);
-#else
-        return LLInt::CLoop::jsCodeEntryWithArityCheckFor(kind);
-#endif
-    }
-
-    static void* catchRoutineFor(HandlerInfo* handler, Instruction* catchPCForInterpreter)
-    {
-#if ENABLE(JIT)
-        UNUSED_PARAM(catchPCForInterpreter);
-        return handler->nativeCode.executableAddress();
-#else
-        UNUSED_PARAM(handler);
-        return LLInt::CLoop::catchRoutineFor(catchPCForInterpreter);
-#endif
-    }
     
-#endif // ENABLE(JIT || ENABLE(LLINT_C_LOOP)
-
+    void dump(PrintStream&) const;
+        
 protected:
     ExecutableBase* m_prev;
     ExecutableBase* m_next;
@@ -255,6 +280,8 @@ protected:
     RefPtr<JITCode> m_jitCodeForConstruct;
     MacroAssemblerCodePtr m_jitCodeForCallWithArityCheck;
     MacroAssemblerCodePtr m_jitCodeForConstructWithArityCheck;
+    MacroAssemblerCodePtr m_jitCodeForCallWithArityCheckAndPreserveRegs;
+    MacroAssemblerCodePtr m_jitCodeForConstructWithArityCheckAndPreserveRegs;
 };
 
 class NativeExecutable : public ExecutableBase {
@@ -263,30 +290,13 @@ class NativeExecutable : public ExecutableBase {
 public:
     typedef ExecutableBase Base;
 
-#if ENABLE(JIT)
-    static NativeExecutable* create(VM& vm, MacroAssemblerCodeRef callThunk, NativeFunction function, MacroAssemblerCodeRef constructThunk, NativeFunction constructor, Intrinsic intrinsic)
+    static NativeExecutable* create(VM& vm, PassRefPtr<JITCode> callThunk, NativeFunction function, PassRefPtr<JITCode> constructThunk, NativeFunction constructor, Intrinsic intrinsic)
     {
         NativeExecutable* executable;
-        if (!callThunk) {
-            executable = new (NotNull, allocateCell<NativeExecutable>(vm.heap)) NativeExecutable(vm, function, constructor);
-            executable->finishCreation(vm, 0, 0, intrinsic);
-        } else {
-            executable = new (NotNull, allocateCell<NativeExecutable>(vm.heap)) NativeExecutable(vm, function, constructor);
-            executable->finishCreation(vm, JITCode::hostFunction(callThunk), JITCode::hostFunction(constructThunk), intrinsic);
-        }
+        executable = new (NotNull, allocateCell<NativeExecutable>(vm.heap)) NativeExecutable(vm, function, constructor);
+        executable->finishCreation(vm, callThunk, constructThunk, intrinsic);
         return executable;
     }
-#endif
-
-#if ENABLE(LLINT_C_LOOP)
-    static NativeExecutable* create(VM& vm, NativeFunction function, NativeFunction constructor)
-    {
-        ASSERT(!vm.canUseJIT());
-        NativeExecutable* executable = new (NotNull, allocateCell<NativeExecutable>(vm.heap)) NativeExecutable(vm, function, constructor);
-        executable->finishCreation(vm);
-        return executable;
-    }
-#endif
 
 #if ENABLE(JIT)
     static void destroy(JSCell*);
@@ -320,17 +330,13 @@ public:
     Intrinsic intrinsic() const;
 
 protected:
-#if ENABLE(JIT)
     void finishCreation(VM& vm, PassRefPtr<JITCode> callThunk, PassRefPtr<JITCode> constructThunk, Intrinsic intrinsic)
     {
         Base::finishCreation(vm);
-        m_jitCodeForCallWithArityCheck = callThunk ? callThunk->addressForCall() : MacroAssemblerCodePtr();
-        m_jitCodeForConstructWithArityCheck = constructThunk ? constructThunk->addressForCall() : MacroAssemblerCodePtr();
         m_jitCodeForCall = callThunk;
         m_jitCodeForConstruct = constructThunk;
         m_intrinsic = intrinsic;
     }
-#endif
 
 private:
     NativeExecutable(VM& vm, NativeFunction function, NativeFunction constructor)
@@ -355,6 +361,8 @@ public:
         , m_source(source)
         , m_features(isInStrictContext ? StrictModeFeature : 0)
         , m_neverInline(false)
+        , m_startColumn(UINT_MAX)
+        , m_endColumn(UINT_MAX)
     {
     }
 
@@ -363,6 +371,8 @@ public:
         , m_source(source)
         , m_features(isInStrictContext ? StrictModeFeature : 0)
         , m_neverInline(false)
+        , m_startColumn(UINT_MAX)
+        , m_endColumn(UINT_MAX)
     {
     }
 
@@ -378,11 +388,13 @@ public:
     int lineNo() const { return m_firstLine; }
     int lastLine() const { return m_lastLine; }
     unsigned startColumn() const { return m_startColumn; }
+    unsigned endColumn() const { return m_endColumn; }
 
     bool usesEval() const { return m_features & EvalFeature; }
     bool usesArguments() const { return m_features & ArgumentsFeature; }
     bool needsActivation() const { return m_hasCapturedVariables || m_features & (EvalFeature | WithFeature | CatchFeature); }
     bool isStrictMode() const { return m_features & StrictModeFeature; }
+    ECMAMode ecmaMode() const { return isStrictMode() ? StrictMode : NotStrictMode; }
         
     void setNeverInline(bool value) { m_neverInline = value; }
     bool neverInline() const { return m_neverInline; }
@@ -394,28 +406,33 @@ public:
         
     DECLARE_INFO;
 
-    void recordParse(CodeFeatures features, bool hasCapturedVariables, int firstLine, int lastLine, unsigned startColumn)
+    void recordParse(CodeFeatures features, bool hasCapturedVariables, int firstLine, int lastLine, unsigned startColumn, unsigned endColumn)
     {
         m_features = features;
         m_hasCapturedVariables = hasCapturedVariables;
         m_firstLine = firstLine;
         m_lastLine = lastLine;
+        ASSERT(startColumn != UINT_MAX);
         m_startColumn = startColumn;
+        ASSERT(endColumn != UINT_MAX);
+        m_endColumn = endColumn;
     }
 
     void installCode(CodeBlock*);
-    PassRefPtr<CodeBlock> newCodeBlockFor(CodeSpecializationKind, JSScope*, JSObject*& exception);
+    PassRefPtr<CodeBlock> newCodeBlockFor(CodeSpecializationKind, JSFunction*, JSScope**, JSObject*& exception);
     PassRefPtr<CodeBlock> newReplacementCodeBlockFor(CodeSpecializationKind);
     
-    JSObject* prepareForExecution(ExecState* exec, JSScope* scope, CodeSpecializationKind kind)
+    JSObject* prepareForExecution(ExecState* exec, JSFunction* function, JSScope** scope, CodeSpecializationKind kind)
     {
         if (hasJITCodeFor(kind))
             return 0;
-        return prepareForExecutionImpl(exec, scope, kind);
+        return prepareForExecutionImpl(exec, function, scope, kind);
     }
 
+    template <typename Functor> void forEachCodeBlock(Functor&&);
+
 private:
-    JSObject* prepareForExecutionImpl(ExecState*, JSScope*, CodeSpecializationKind);
+    JSObject* prepareForExecutionImpl(ExecState*, JSFunction*, JSScope**, CodeSpecializationKind);
 
 protected:
     void finishCreation(VM& vm)
@@ -436,6 +453,7 @@ protected:
     int m_firstLine;
     int m_lastLine;
     unsigned m_startColumn;
+    unsigned m_endColumn;
 };
 
 class EvalExecutable : public ScriptExecutable {
@@ -452,12 +470,11 @@ public:
 
     static EvalExecutable* create(ExecState*, const SourceCode&, bool isInStrictContext);
 
-#if ENABLE(JIT)
     PassRefPtr<JITCode> generatedJITCode()
     {
         return generatedJITCodeForCall();
     }
-#endif
+
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
     {
         return Structure::create(vm, globalObject, proto, TypeInfo(EvalExecutableType, StructureFlags), info());
@@ -469,7 +486,7 @@ public:
 
     void clearCode();
 
-    ExecutableInfo executableInfo() const { return ExecutableInfo(needsActivation(), usesEval(), isStrictMode(), false); }
+    ExecutableInfo executableInfo() const { return ExecutableInfo(needsActivation(), usesEval(), isStrictMode(), false, false); }
 
     unsigned numVariables() { return m_unlinkedEvalCodeBlock->numVariables(); }
     unsigned numberOfFunctionDecls() { return m_unlinkedEvalCodeBlock->numberOfFunctionDecls(); }
@@ -509,12 +526,10 @@ public:
 
     JSObject* checkSyntax(ExecState*);
 
-#if ENABLE(JIT)
     PassRefPtr<JITCode> generatedJITCode()
     {
         return generatedJITCodeForCall();
     }
-#endif
         
     static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
     {
@@ -527,7 +542,7 @@ public:
 
     void clearCode();
 
-    ExecutableInfo executableInfo() const { return ExecutableInfo(needsActivation(), usesEval(), isStrictMode(), false); }
+    ExecutableInfo executableInfo() const { return ExecutableInfo(needsActivation(), usesEval(), isStrictMode(), false, false); }
 
 private:
     friend class ScriptExecutable;
@@ -548,9 +563,9 @@ class FunctionExecutable : public ScriptExecutable {
 public:
     typedef ScriptExecutable Base;
 
-    static FunctionExecutable* create(VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, unsigned firstLine, unsigned lastLine, unsigned startColumn)
+    static FunctionExecutable* create(VM& vm, const SourceCode& source, UnlinkedFunctionExecutable* unlinkedExecutable, unsigned firstLine, unsigned lastLine, unsigned startColumn, unsigned endColumn, bool bodyIncludesBraces = true)
     {
-        FunctionExecutable* executable = new (NotNull, allocateCell<FunctionExecutable>(vm.heap)) FunctionExecutable(vm, source, unlinkedExecutable, firstLine, lastLine, startColumn);
+        FunctionExecutable* executable = new (NotNull, allocateCell<FunctionExecutable>(vm.heap)) FunctionExecutable(vm, source, unlinkedExecutable, firstLine, lastLine, startColumn, endColumn, bodyIncludesBraces);
         executable->finishCreation(vm);
         return executable;
     }
@@ -616,12 +631,14 @@ public:
         return baselineCodeBlockFor(kind);
     }
         
+    FunctionMode functionMode() { return m_unlinkedExecutable->functionMode(); }
+    bool isBuiltinFunction() const { return m_unlinkedExecutable->isBuiltinFunction(); }
     const Identifier& name() { return m_unlinkedExecutable->name(); }
     const Identifier& inferredName() { return m_unlinkedExecutable->inferredName(); }
     JSString* nameValue() const { return m_unlinkedExecutable->nameValue(); }
     size_t parameterCount() const { return m_unlinkedExecutable->parameterCount(); } // Excluding 'this'!
     String paramString() const;
-    SharedSymbolTable* symbolTable(CodeSpecializationKind kind) const { return m_unlinkedExecutable->symbolTable(kind); }
+    SymbolTable* symbolTable(CodeSpecializationKind);
 
     void clearCodeIfNotCompiling();
     void clearUnlinkedCodeForRecompilationIfNotCompiling();
@@ -637,8 +654,10 @@ public:
 
     void clearCode();
 
+    bool bodyIncludesBraces() const { return m_bodyIncludesBraces; }
+
 private:
-    FunctionExecutable(VM&, const SourceCode&, UnlinkedFunctionExecutable*, unsigned firstLine, unsigned lastLine, unsigned startColumn);
+    FunctionExecutable(VM&, const SourceCode&, UnlinkedFunctionExecutable*, unsigned firstLine, unsigned lastLine, unsigned startColumn, unsigned endColumn, bool bodyIncludesBraces);
 
     bool isCompiling()
     {
@@ -657,19 +676,13 @@ private:
     WriteBarrier<UnlinkedFunctionExecutable> m_unlinkedExecutable;
     RefPtr<FunctionCodeBlock> m_codeBlockForCall;
     RefPtr<FunctionCodeBlock> m_codeBlockForConstruct;
+    bool m_bodyIncludesBraces;
+    bool m_didParseForTheFirstTime;
 };
-
-inline bool isHostFunction(JSValue value, NativeFunction nativeFunction)
-{
-    JSFunction* function = jsCast<JSFunction*>(getJSFunction(value));
-    if (!function || !function->isHostFunction())
-        return false;
-    return function->nativeFunction() == nativeFunction;
-}
 
 inline void ExecutableBase::clearCodeVirtual(ExecutableBase* executable)
 {
-    switch (executable->structure()->typeInfo().type()) {
+    switch (executable->type()) {
     case EvalExecutableType:
         return jsCast<EvalExecutable*>(executable)->clearCode();
     case ProgramExecutableType:
@@ -683,7 +696,7 @@ inline void ExecutableBase::clearCodeVirtual(ExecutableBase* executable)
 
 inline void ScriptExecutable::unlinkCalls()
 {
-    switch (structure()->typeInfo().type()) {
+    switch (type()) {
     case EvalExecutableType:
         return jsCast<EvalExecutable*>(this)->unlinkCalls();
     case ProgramExecutableType:

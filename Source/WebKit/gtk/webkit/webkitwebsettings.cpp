@@ -28,17 +28,18 @@
 
 #include "EditingBehavior.h"
 #include "FileSystem.h"
-#include "KURL.h"
+#include "URL.h"
 #include "PluginDatabase.h"
 #include "UserAgentGtk.h"
 #include "webkitenumtypes.h"
 #include "webkitglobalsprivate.h"
 #include "webkitversion.h"
 #include "webkitwebsettingsprivate.h"
-#include <wtf/gobject/GOwnPtr.h>
+#include <glib/gi18n-lib.h>
+#include <wtf/NeverDestroyed.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringConcatenate.h>
-#include <glib/gi18n-lib.h>
 
 /**
  * SECTION:webkitwebsettings
@@ -121,9 +122,9 @@ enum {
     PROP_ENABLE_SMOOTH_SCROLLING,
     PROP_MEDIA_PLAYBACK_REQUIRES_USER_GESTURE,
     PROP_MEDIA_PLAYBACK_ALLOWS_INLINE,
-    PROP_ENABLE_CSS_SHADERS,
     PROP_ENABLE_RUNNING_OF_INSECURE_CONTENT,
-    PROP_ENABLE_DISPLAY_OF_INSECURE_CONTENT
+    PROP_ENABLE_DISPLAY_OF_INSECURE_CONTENT,
+    PROP_ENABLE_MEDIA_SOURCE
 };
 
 static void webkit_web_settings_finalize(GObject* object);
@@ -483,7 +484,7 @@ static void webkit_web_settings_class_init(WebKitWebSettingsClass* klass)
     *
     * Since: 1.5.2
     */
-    GOwnPtr<gchar> localStoragePath(g_build_filename(g_get_user_data_dir(), "webkit", "databases", NULL));
+    GUniquePtr<gchar> localStoragePath(g_build_filename(g_get_user_data_dir(), "webkit", "databases", NULL));
     g_object_class_install_property(gobject_class,
                                     PROP_HTML5_LOCAL_STORAGE_DATABASE_PATH,
                                     g_param_spec_string("html5-local-storage-database-path",
@@ -825,14 +826,25 @@ static void webkit_web_settings_class_init(WebKitWebSettingsClass* klass)
                                                          FALSE,
                                                          flags));
 
-    /* Undocumented for now */
+    /**
+    * WebKitWebSettings:enable-fullscreen:
+    *
+    *
+    * Whether to enable the Javascript Fullscreen API. The API
+    * allows any HTML element to request fullscreen display. See also
+    * the current draft of the spec:
+    * http://www.w3.org/TR/fullscreen/
+    *
+    * Since: 2.4
+    */
     g_object_class_install_property(gobject_class,
-                                    PROP_ENABLE_FULLSCREEN,
-                                    g_param_spec_boolean("enable-fullscreen",
-                                                         _("Enable Fullscreen"),
-                                                         _("Whether the Mozilla style API should be enabled."),
-                                                         FALSE,
-                                                         flags));
+        PROP_ENABLE_FULLSCREEN,
+        g_param_spec_boolean("enable-fullscreen",
+            _("Enable Fullscreen"),
+            _("Whether to enable the Javascript Fullscreen API"),
+            TRUE,
+            flags));
+
     /**
     * WebKitWebSettings:enable-webgl:
     *
@@ -975,25 +987,6 @@ static void webkit_web_settings_class_init(WebKitWebSettingsClass* klass)
                                                          flags));
 
     /**
-    * WebKitWebSettings:enable-css-shaders:
-    *
-    * Enable or disable support for css shaders (css custom filters).
-    * Accelerated compositing needs to be enabled at compile time, but needs
-    * not be enabled at runtime.
-    *
-    * See also https://dvcs.w3.org/hg/FXTF/raw-file/tip/custom/index.html
-    *
-    * Since: 2.0
-    */
-    g_object_class_install_property(gobject_class,
-                                    PROP_ENABLE_CSS_SHADERS,
-                                    g_param_spec_boolean("enable-css-shaders",
-                                                         _("Enable CSS shaders"),
-                                                         _("Whether to enable css shaders"),
-                                                         FALSE,
-                                                         flags));
-
-    /**
     * WebKitWebSettings:enable-display-of-insecure-content:
     *
     * Whether pages loaded via HTTPS should load subresources such as
@@ -1023,6 +1016,26 @@ static void webkit_web_settings_class_init(WebKitWebSettingsClass* klass)
             _("Enable running of insecure content"),
             _("Whether non-HTTPS resources can run on HTTPS pages."),
             TRUE,
+            flags));
+
+    /**
+    * WebKitWebSettings:enable-mediasource:
+    *
+    * Enable or disable support for MediaSource on pages. MediaSource is an
+    * experimental proposal which extends HTMLMediaElement to allow
+    * JavaScript to generate media streams for playback.  The standard is
+    * currently a work-in-progress by the W3C HTML Media Task Force.
+    *
+    * See also http://www.w3.org/TR/media-source/
+    *
+    * Since: 2.4
+    */
+    g_object_class_install_property(gobject_class,
+        PROP_ENABLE_MEDIA_SOURCE,
+        g_param_spec_boolean("enable-mediasource",
+            _("Enable MediaSource"),
+            _("Whether MediaSource should be enabled."),
+            FALSE,
             flags));
 }
 
@@ -1208,9 +1221,6 @@ static void webkit_web_settings_set_property(GObject* object, guint prop_id, con
     case PROP_ENABLE_SMOOTH_SCROLLING:
         priv->enableSmoothScrolling = g_value_get_boolean(value);
         break;
-    case PROP_ENABLE_CSS_SHADERS:
-        priv->enableCSSShaders = g_value_get_boolean(value);
-        break;
     case PROP_MEDIA_PLAYBACK_REQUIRES_USER_GESTURE:
         priv->mediaPlaybackRequiresUserGesture = g_value_get_boolean(value);
         break;
@@ -1222,6 +1232,9 @@ static void webkit_web_settings_set_property(GObject* object, guint prop_id, con
         break;
     case PROP_ENABLE_RUNNING_OF_INSECURE_CONTENT:
         priv->enableRunningOfInsecureContent = g_value_get_boolean(value);
+        break;
+    case PROP_ENABLE_MEDIA_SOURCE:
+        priv->enableMediaSource = g_value_get_boolean(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -1397,9 +1410,6 @@ static void webkit_web_settings_get_property(GObject* object, guint prop_id, GVa
     case PROP_ENABLE_SMOOTH_SCROLLING:
         g_value_set_boolean(value, priv->enableSmoothScrolling);
         break;
-    case PROP_ENABLE_CSS_SHADERS:
-        g_value_set_boolean(value, priv->enableCSSShaders);
-        break;
     case PROP_MEDIA_PLAYBACK_REQUIRES_USER_GESTURE:
         g_value_set_boolean(value, priv->mediaPlaybackRequiresUserGesture);
         break;
@@ -1411,6 +1421,9 @@ static void webkit_web_settings_get_property(GObject* object, guint prop_id, GVa
         break;
     case PROP_ENABLE_RUNNING_OF_INSECURE_CONTENT:
         g_value_set_boolean(value, priv->enableRunningOfInsecureContent);
+        break;
+    case PROP_ENABLE_MEDIA_SOURCE:
+        g_value_set_boolean(value, priv->enableMediaSource);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -1442,9 +1455,9 @@ WebKitWebSettings* webkit_web_settings_new()
 WebKitWebSettings* webkit_web_settings_copy(WebKitWebSettings* original)
 {
     unsigned numberOfProperties = 0;
-    GOwnPtr<GParamSpec*> properties(g_object_class_list_properties(
+    GUniquePtr<GParamSpec*> properties(g_object_class_list_properties(
         G_OBJECT_CLASS(WEBKIT_WEB_SETTINGS_GET_CLASS(original)), &numberOfProperties));
-    GOwnPtr<GParameter> parameters(g_new0(GParameter, numberOfProperties));
+    GUniquePtr<GParameter> parameters(g_new0(GParameter, numberOfProperties));
 
     for (size_t i = 0; i < numberOfProperties; i++) {
         GParamSpec* property = properties.get()[i];
@@ -1574,33 +1587,33 @@ static void initializeOtherGoogleDomains(Vector<String>& otherGoogleDomains)
 
 static bool isGoogleDomain(String host)
 {
-    DEFINE_STATIC_LOCAL(HashSet<String>, googleDomains, ());
-    DEFINE_STATIC_LOCAL(Vector<String>, otherGoogleDomains, ());
+    static NeverDestroyed<HashSet<String>> googleDomains;
+    static NeverDestroyed<Vector<String>> otherGoogleDomains;
 
-    if (googleDomains.isEmpty())
-        initializeDomainsList(googleDomains);
+    if (googleDomains.get().isEmpty())
+        initializeDomainsList(googleDomains.get());
 
-    if (otherGoogleDomains.isEmpty())
-        initializeOtherGoogleDomains(otherGoogleDomains);
+    if (otherGoogleDomains.get().isEmpty())
+        initializeOtherGoogleDomains(otherGoogleDomains.get());
 
     // First check if this is one of the various google.com international domains.
     int position = host.find(".google.");
-    if (position > 0 && googleDomains.contains(host.substring(position + sizeof(".google.") - 1)))
+    if (position > 0 && googleDomains.get().contains(host.substring(position + sizeof(".google.") - 1)))
         return true;
 
     // Then we check the possibility of it being one of the other, .com-only google domains.
-    for (unsigned int i = 0; i < otherGoogleDomains.size(); i++) {
-        if (host.endsWith(otherGoogleDomains.at(i)))
+    for (unsigned i = 0; i < otherGoogleDomains.get().size(); i++) {
+        if (host.endsWith(otherGoogleDomains.get().at(i)))
             return true;
     }
 
     return false;
 }
 
-static String userAgentForURL(const KURL& url)
+static String userAgentForURL(const URL& url)
 {
     // For Google domains, drop the browser's custom User Agent string, and use the
-    // standard Chrome one, so they don't give us a broken experience.
+    // standard one, so they don't give us a broken experience.
     if (isGoogleDomain(url.host()))
         return standardUserAgent();
 
@@ -1635,7 +1648,7 @@ static String userAgentForURL(const KURL& url)
 char* webkitWebSettingsUserAgentForURI(WebKitWebSettings* webSettings, const char* uri)
 {
     if (webSettings->priv->enableSiteSpecificQuirks) {
-        String userAgentString = userAgentForURL(WebCore::KURL(WebCore::KURL(), String::fromUTF8(uri)));
+        String userAgentString = userAgentForURL(WebCore::URL(WebCore::URL(), String::fromUTF8(uri)));
         if (!userAgentString.isEmpty())
             return g_strdup(userAgentString.utf8().data());
     }
@@ -1645,9 +1658,19 @@ char* webkitWebSettingsUserAgentForURI(WebKitWebSettings* webSettings, const cha
 
 namespace WebKit {
 
-WebCore::EditingBehaviorType core(WebKitEditingBehavior type)
+inline WebCore::EditingBehaviorType core(WebKitEditingBehavior type)
 {
-    return static_cast<WebCore::EditingBehaviorType>(type);
+    switch (type) {
+    case WEBKIT_EDITING_BEHAVIOR_MAC:
+        return EditingMacBehavior;
+    case WEBKIT_EDITING_BEHAVIOR_WINDOWS:
+        return EditingWindowsBehavior;
+    case WEBKIT_EDITING_BEHAVIOR_UNIX:
+        return EditingUnixBehavior;
+    default:
+        ASSERT_NOT_REACHED();
+        return EditingMacBehavior;
+    }
 }
 
 }

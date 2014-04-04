@@ -1,0 +1,160 @@
+{
+    "types": {
+        "Global": [
+            { "name": "bool", "mode": "SCALAR" },
+            { "name": "double", "mode": "SCALAR" },
+            { "name": "int", "mode": "SCALAR" },
+            { "name": "unsigned", "mode": "SCALAR" },
+            { "name": "unsigned long", "mode": "SCALAR" },
+            { "name": "unsigned long long", "mode": "SCALAR" }
+        ],
+
+        "WTF": [
+            {
+                "name": "String", "mode": "HEAVY_SCALAR",
+                "header": "wtf/text/WTFString.h"
+            }
+        ],
+
+        "JavaScriptCore": [
+            {
+                "name": "InputQueue", "mode": "SCALAR", "storage": "uint8_t",
+                "flags": ["ENUM_CLASS"],
+                "values": ["EventLoopInput", "LoaderMemoizedData", "ScriptMemoizedData", "Count"],
+                "header": "replay/NondeterministicInput.h"
+            }
+        ],
+
+        "WebCore": [
+            {
+                "name": "EncodedCType", "mode": "SCALAR", "storage": "uint8_t",
+                "flags": ["ENUM_CLASS"],
+                "values": [
+                    "Boolean",
+                    "Int",
+                    "String",
+                    "Unsigned"
+                ],
+                "header": "replay/MemoizedDOMResult.h"
+            },
+            {
+                "name": "Modifiers", "mode": "SCALAR", "storage": "uint8_t",
+                "enclosing_class": "PlatformEvent",
+                "flags": ["ENUM"],
+                "values": ["AltKey", "CtrlKey", "MetaKey", "ShiftKey"],
+                "header": "platform/PlatformEvent.h"
+            },
+            {
+                "name": "MouseButton", "mode": "SCALAR", "storage": "int8_t",
+                "flags": ["ENUM"],
+                "values": ["NoButton", "LeftButton", "MiddleButton", "RightButton"],
+                "header": "platform/PlatformMouseEvent.h"
+            },
+            {
+                "name": "Page", "mode": "OWNED",
+                "header": "page/Page.h"
+            },
+            {
+                "name": "PlatformKeyboardEvent", "mode": "OWNED",
+                "header": "platform/PlatformKeyboardEvent.h"
+            },
+            {
+                "name": "PlatformMouseEvent", "mode": "OWNED",
+                "header": "platform/PlatformMouseEvent.h"
+            },
+            {
+                "name": "SecurityOrigin", "mode": "SHARED",
+                "header": "page/SecurityOrigin.h"
+            },
+            {
+                "name": "Type", "mode": "SCALAR", "storage": "uint8_t",
+                "enclosing_class": "PlatformEvent",
+                "flags": ["ENUM"],
+                "values": [
+                    "NoType",
+                    "KeyDown",
+                    "KeyUp",
+                    "RawKeyDown",
+                    "Char",
+                    "MouseMoved",
+                    "MousePressed",
+                    "MouseReleased",
+                    "MouseScroll",
+                    "Wheel"
+                ],
+                "guarded_values": {
+                    "ENABLE(TOUCH_EVENTS)": [
+                        "TouchStart",
+                        "TouchMove",
+                        "TouchEnd",
+                        "TouchCancel"
+                    ]
+                },
+                "header": "platform/PlatformEvent.h"
+            },
+            {
+                "name": "URL", "mode": "HEAVY_SCALAR",
+                "header": "platform/URL.h"
+            }
+        ]
+    },
+
+    "inputs": [
+        {
+            "name": "BeginSegmentSentinel",
+            "description": "A sentinel input to signal the start of a segment.",
+            "queue": "EVENT_LOOP",
+            "members": [ ]
+        },
+        {
+            "name": "EndSegmentSentinel",
+            "description": "A sentinel input to signal the end of a segment.",
+            "queue": "EVENT_LOOP",
+            "members": [ ]
+        },
+        {
+            "name": "HandleMouseMove",
+            "description": "The embedder signalled a mouse move event.",
+            "queue": "EVENT_LOOP",
+            "members": [
+                { "name": "platformEvent", "type": "PlatformMouseEvent" },
+                { "name": "scrollbarTargeted", "type": "bool" }
+            ]
+        },
+        {
+            "name": "HandleMousePress",
+            "description": "The embedder signalled a mouse press event.",
+            "queue": "EVENT_LOOP",
+            "members": [
+                { "name": "platformEvent", "type": "PlatformMouseEvent" }
+            ]
+        },
+        {
+            "name": "HandleMouseRelease",
+            "description": "The embedder signalled a mouse release event.",
+            "queue": "EVENT_LOOP",
+            "members": [
+                { "name": "platformEvent", "type": "PlatformMouseEvent" }
+            ]
+        },
+        {
+            "name": "HandleKeyPress",
+            "description": "The embedder signalled a key press event.",
+            "queue": "EVENT_LOOP",
+            "members": [
+                { "name": "platformEvent", "type": "PlatformKeyboardEvent" }
+            ]
+        },
+        {
+            "name": "InitialNavigation",
+            "description": "Initiate the initial main frame navigation.",
+            "queue": "EVENT_LOOP",
+            "flags": ["HIDDEN", "CREATE_FROM_PAGE"],
+            "members": [
+                { "name": "securityOrigin", "type": "SecurityOrigin" },
+                { "name": "url", "type": "URL" },
+                { "name": "referrer", "type": "String" }
+            ]
+        }
+    ]
+}

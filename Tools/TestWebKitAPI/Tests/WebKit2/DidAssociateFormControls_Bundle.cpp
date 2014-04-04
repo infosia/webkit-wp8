@@ -36,7 +36,7 @@ class DidAssociateFormControlsTest : public InjectedBundleTest {
 public:
     DidAssociateFormControlsTest(const std::string& identifier);
 
-    virtual void didCreatePage(WKBundleRef, WKBundlePageRef) OVERRIDE;
+    virtual void didCreatePage(WKBundleRef, WKBundlePageRef) override;
 };
 
 static InjectedBundleTest::Register<DidAssociateFormControlsTest> registrar("DidAssociateFormControlsTest");
@@ -50,9 +50,9 @@ static void didAssociateFormControls(WKBundlePageRef page, WKArrayRef elementHan
 {
     WKRetainPtr<WKMutableDictionaryRef> messageBody = adoptWK(WKMutableDictionaryCreate());
 
-    WKDictionaryAddItem(messageBody.get(), Util::toWK("Page").get(), page);
+    WKDictionarySetItem(messageBody.get(), Util::toWK("Page").get(), page);
     WKRetainPtr<WKUInt64Ref> numberOfElements = adoptWK(WKUInt64Create(WKArrayGetSize(elementHandles)));
-    WKDictionaryAddItem(messageBody.get(), Util::toWK("NumberOfControls").get(), numberOfElements.get());
+    WKDictionarySetItem(messageBody.get(), Util::toWK("NumberOfControls").get(), numberOfElements.get());
 
     WKBundlePostMessage(InjectedBundleController::shared().bundle(), Util::toWK("DidReceiveDidAssociateFormControls").get(), messageBody.get());
 }
@@ -64,15 +64,15 @@ DidAssociateFormControlsTest::DidAssociateFormControlsTest(const std::string& id
 
 void DidAssociateFormControlsTest::didCreatePage(WKBundleRef bundle, WKBundlePageRef page)
 {
-    WKBundlePageFormClient formClient;
+    WKBundlePageFormClientV2 formClient;
     memset(&formClient, 0, sizeof(formClient));
 
-    formClient.version = 2;
-    formClient.clientInfo = this;
+    formClient.base.version = 2;
+    formClient.base.clientInfo = this;
     formClient.shouldNotifyOnFormChanges = shouldNotifyOnFormChanges;
     formClient.didAssociateFormControls = didAssociateFormControls;
 
-    WKBundlePageSetFormClient(page, &formClient);
+    WKBundlePageSetFormClient(page, &formClient.base);
 }
 
 } // namespace TestWebKitAPI

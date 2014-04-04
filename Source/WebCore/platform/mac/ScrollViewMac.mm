@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,8 +33,6 @@
 #import "Logging.h"
 #import "NotImplemented.h"
 #import "WebCoreFrameView.h"
-
-using namespace std;
 
 @interface NSWindow (WebWindowDetails)
 - (BOOL)_needsToResetDragMargins;
@@ -134,7 +132,7 @@ void ScrollView::platformSetContentsSize()
     int w = m_contentsSize.width();
     int h = m_contentsSize.height();
     LOG(Frames, "%p %@ at w %d h %d\n", documentView(), [(id)[documentView() class] className], w, h);            
-    [documentView() setFrameSize:NSMakeSize(max(0, w), max(0, h))];
+    [documentView() setFrameSize:NSMakeSize(std::max(0, w), std::max(0, h))];
     END_BLOCK_OBJC_EXCEPTIONS;
 }
 
@@ -150,7 +148,7 @@ void ScrollView::platformSetScrollPosition(const IntPoint& scrollPoint)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
     NSPoint floatPoint = scrollPoint;
-    NSPoint tempPoint = { max(-[scrollView() scrollOrigin].x, floatPoint.x), max(-[scrollView() scrollOrigin].y, floatPoint.y) };  // Don't use NSMakePoint to work around 4213314.
+    NSPoint tempPoint = { std::max(-[scrollView() scrollOrigin].x, floatPoint.x), std::max(-[scrollView() scrollOrigin].y, floatPoint.y) };  // Don't use NSMakePoint to work around 4213314.
     [documentView() scrollPoint:tempPoint];
     END_BLOCK_OBJC_EXCEPTIONS;
 }
@@ -162,15 +160,12 @@ bool ScrollView::platformScroll(ScrollDirection, ScrollGranularity)
     return false;
 }
 
-void ScrollView::platformRepaintContentRectangle(const IntRect& rect, bool now)
+void ScrollView::platformRepaintContentRectangle(const IntRect& rect)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
     NSView *view = documentView();
     [view setNeedsDisplayInRect:rect];
-    if (now) {
-        [[view window] displayIfNeeded];
-        [[view window] flushWindowIfNeeded];
-    }
+
     END_BLOCK_OBJC_EXCEPTIONS;
 }
 
@@ -182,7 +177,10 @@ IntRect ScrollView::platformContentsToScreen(const IntRect& rect) const
     if (NSView* documentView = this->documentView()) {
         NSRect tempRect = rect;
         tempRect = [documentView convertRect:tempRect toView:nil];
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         tempRect.origin = [[documentView window] convertBaseToScreen:tempRect.origin];
+#pragma clang diagnostic pop
         return enclosingIntRect(tempRect);
     }
     END_BLOCK_OBJC_EXCEPTIONS;
@@ -193,7 +191,10 @@ IntPoint ScrollView::platformScreenToContents(const IntPoint& point) const
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
     if (NSView* documentView = this->documentView()) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         NSPoint windowCoord = [[documentView window] convertScreenToBase: point];
+#pragma clang diagnostic pop
         return IntPoint([documentView convertPoint:windowCoord fromView:nil]);
     }
     END_BLOCK_OBJC_EXCEPTIONS;
@@ -205,7 +206,6 @@ bool ScrollView::platformIsOffscreen() const
     return ![platformWidget() window] || ![[platformWidget() window] isVisible];
 }
 
-#if USE(SCROLLBAR_PAINTER)
 static inline NSScrollerKnobStyle toNSScrollerKnobStyle(ScrollbarOverlayStyle style)
 {
     switch (style) {
@@ -217,15 +217,10 @@ static inline NSScrollerKnobStyle toNSScrollerKnobStyle(ScrollbarOverlayStyle st
         return NSScrollerKnobStyleDefault;
     }
 }
-#endif
 
 void ScrollView::platformSetScrollbarOverlayStyle(ScrollbarOverlayStyle overlayStyle)
 {
-#if USE(SCROLLBAR_PAINTER)
     [scrollView() setScrollerKnobStyle:toNSScrollerKnobStyle(overlayStyle)];
-#else
-    UNUSED_PARAM(overlayStyle);
-#endif
 }
 
 void ScrollView::platformSetScrollOrigin(const IntPoint& origin, bool updatePositionAtAll, bool updatePositionSynchronously)

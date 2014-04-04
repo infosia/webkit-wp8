@@ -50,6 +50,7 @@
 #include <unistd.h>
 #include <wtf/Assertions.h>
 #include <wtf/OwnPtr.h>
+#include <wtf/efl/UniquePtrEfl.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -156,11 +157,6 @@ static bool shouldDumpAsText(const String& pathOrURL)
     return pathOrURL.contains("dumpAsText/");
 }
 
-static bool shouldOpenWebInspector(const String& pathOrURL)
-{
-    return pathOrURL.contains("inspector/");
-}
-
 static void sendPixelResultsEOF()
 {
     puts("#EOF");
@@ -243,8 +239,6 @@ static void createTestRunner(const String& testURL, const String& expectedPixelH
         gTestRunner->setDumpFrameLoadCallbacks(true);
 
     gTestRunner->setDeveloperExtrasEnabled(true);
-    if (shouldOpenWebInspector(testURL))
-        gTestRunner->showWebInspector();
 
     gTestRunner->setDumpHistoryDelegateCallbacks(isGlobalHistoryTest(testURL));
 
@@ -436,7 +430,7 @@ void dump()
 static Ecore_Evas* initEcoreEvas()
 {
     Ecore_Evas* ecoreEvas = 0;
-#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+#if defined(HAVE_ECORE_X)
     ecoreEvas = ecore_evas_new("opengl_x11", 0, 0, 800, 600, 0);
     if (!ecoreEvas)
 #endif
@@ -464,7 +458,7 @@ int main(int argc, char** argv)
 
     WTFInstallReportBacktraceOnCrashHook();
 
-    OwnPtr<Ecore_Evas> ecoreEvas = adoptPtr(initEcoreEvas());
+    EflUniquePtr<Ecore_Evas> ecoreEvas(initEcoreEvas());
     browser = DumpRenderTreeChrome::create(ecore_evas_get(ecoreEvas.get()));
     addFontsToEnvironment();
 
@@ -477,7 +471,7 @@ int main(int argc, char** argv)
             runTest(argv[i]);
     }
 
-    ecoreEvas.clear();
+    ecoreEvas = nullptr;
 
     shutdownEfl();
     return EXIT_SUCCESS;

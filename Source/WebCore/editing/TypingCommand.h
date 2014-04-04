@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -57,15 +57,18 @@ public:
     };
     typedef unsigned Options;
 
-    static void deleteSelection(Document*, Options = 0);
-    static void deleteKeyPressed(Document*, Options = 0, TextGranularity = CharacterGranularity);
-    static void forwardDeleteKeyPressed(Document*, Options = 0, TextGranularity = CharacterGranularity);
-    static void insertText(Document*, const String&, Options, TextCompositionType = TextCompositionNone);
-    static void insertText(Document*, const String&, const VisibleSelection&, Options, TextCompositionType = TextCompositionNone);
-    static void insertLineBreak(Document*, Options);
-    static void insertParagraphSeparator(Document*, Options);
-    static void insertParagraphSeparatorInQuotedContent(Document*);
+    static void deleteSelection(Document&, Options = 0);
+    static void deleteKeyPressed(Document&, Options = 0, TextGranularity = CharacterGranularity);
+    static void forwardDeleteKeyPressed(Document&, Options = 0, TextGranularity = CharacterGranularity);
+    static void insertText(Document&, const String&, Options, TextCompositionType = TextCompositionNone);
+    static void insertText(Document&, const String&, const VisibleSelection&, Options, TextCompositionType = TextCompositionNone);
+    static void insertLineBreak(Document&, Options);
+    static void insertParagraphSeparator(Document&, Options);
+    static void insertParagraphSeparatorInQuotedContent(Document&);
     static void closeTyping(Frame*);
+#if PLATFORM(IOS)
+    static void ensureLastEditCommandHasCurrentSelectionIfOpenForMoreTyping(Frame*, const VisibleSelection&);
+#endif
 
     void insertText(const String &text, bool selectInsertedText);
     void insertTextRunWithoutNewlines(const String &text, bool selectInsertedText);
@@ -76,6 +79,10 @@ public:
     void forwardDeleteKeyPressed(TextGranularity, bool killRing);
     void deleteSelection(bool smartDelete);
     void setCompositionType(TextCompositionType type) { m_compositionType = type; }
+
+#if PLATFORM(IOS)
+    void setEndingSelectionOnLastInsertCommand(const VisibleSelection& selection);
+#endif
 
 private:
     static PassRefPtr<TypingCommand> create(Document& document, ETypingCommand command, const String& text = "", Options options = 0, TextGranularity granularity = CharacterGranularity)

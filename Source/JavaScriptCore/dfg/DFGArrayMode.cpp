@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,7 @@
 
 #include "DFGAbstractValue.h"
 #include "DFGGraph.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -49,7 +49,7 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJITLocker& locker, ArrayProfil
     case asArrayModes(NonArray):
         if (action == Array::Write && !profile->mayInterceptIndexedAccesses(locker))
             return ArrayMode(Array::Undecided, nonArray, Array::OutOfBounds, Array::Convert);
-        return ArrayMode(Array::SelectUsingPredictions, nonArray);
+        return ArrayMode(Array::SelectUsingPredictions, nonArray).withSpeculationFromProfile(locker, profile, makeSafe);
 
     case asArrayModes(ArrayWithUndecided):
         if (action == Array::Write)
@@ -59,7 +59,7 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJITLocker& locker, ArrayProfil
     case asArrayModes(NonArray) | asArrayModes(ArrayWithUndecided):
         if (action == Array::Write && !profile->mayInterceptIndexedAccesses(locker))
             return ArrayMode(Array::Undecided, Array::PossiblyArray, Array::OutOfBounds, Array::Convert);
-        return ArrayMode(Array::SelectUsingPredictions);
+        return ArrayMode(Array::SelectUsingPredictions).withSpeculationFromProfile(locker, profile, makeSafe);
 
     case asArrayModes(NonArrayWithInt32):
         return ArrayMode(Array::Int32, nonArray, Array::AsIs).withProfile(locker, profile, makeSafe);
@@ -100,7 +100,7 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJITLocker& locker, ArrayProfil
 
     default:
         if ((observed & asArrayModes(NonArray)) && profile->mayInterceptIndexedAccesses(locker))
-            return ArrayMode(Array::SelectUsingPredictions);
+            return ArrayMode(Array::SelectUsingPredictions).withSpeculationFromProfile(locker, profile, makeSafe);
         
         Array::Type type;
         Array::Class arrayClass;
@@ -131,7 +131,10 @@ ArrayMode ArrayMode::fromObserved(const ConcurrentJITLocker& locker, ArrayProfil
     }
 }
 
-ArrayMode ArrayMode::refine(SpeculatedType base, SpeculatedType index, SpeculatedType value, NodeFlags flags) const
+ArrayMode ArrayMode::refine(
+    Graph& graph, Node* node,
+    SpeculatedType base, SpeculatedType index, SpeculatedType value,
+    NodeFlags flags) const
 {
     if (!base || !index) {
         // It can be that we had a legitimate arrayMode but no incoming predictions. That'll
@@ -186,7 +189,7 @@ ArrayMode ArrayMode::refine(SpeculatedType base, SpeculatedType index, Speculate
             return withConversion(Array::RageConvert);
         return *this;
         
-    case Array::SelectUsingPredictions:
+    case Array::SelectUsingPredictions: {
         base &= ~SpecOther;
         
         if (isStringSpeculation(base))
@@ -195,34 +198,49 @@ ArrayMode ArrayMode::refine(SpeculatedType base, SpeculatedType index, Speculate
         if (isArgumentsSpeculation(base))
             return withType(Array::Arguments);
         
+        ArrayMode result;
+        switch (node->op()) {
+        case PutByVal:
+            if (graph.hasExitSite(node->origin.semantic, OutOfBounds) || !isInBounds())
+                result = withSpeculation(Array::OutOfBounds);
+            else
+                result = withSpeculation(Array::InBounds);
+            break;
+            
+        default:
+            result = withSpeculation(Array::InBounds);
+            break;
+        }
+        
         if (isInt8ArraySpeculation(base))
-            return withType(Array::Int8Array);
+            return result.withType(Array::Int8Array);
         
         if (isInt16ArraySpeculation(base))
-            return withType(Array::Int16Array);
+            return result.withType(Array::Int16Array);
         
         if (isInt32ArraySpeculation(base))
-            return withType(Array::Int32Array);
+            return result.withType(Array::Int32Array);
         
         if (isUint8ArraySpeculation(base))
-            return withType(Array::Uint8Array);
+            return result.withType(Array::Uint8Array);
         
         if (isUint8ClampedArraySpeculation(base))
-            return withType(Array::Uint8ClampedArray);
+            return result.withType(Array::Uint8ClampedArray);
         
         if (isUint16ArraySpeculation(base))
-            return withType(Array::Uint16Array);
+            return result.withType(Array::Uint16Array);
         
         if (isUint32ArraySpeculation(base))
-            return withType(Array::Uint32Array);
+            return result.withType(Array::Uint32Array);
         
         if (isFloat32ArraySpeculation(base))
-            return withType(Array::Float32Array);
+            return result.withType(Array::Float32Array);
         
         if (isFloat64ArraySpeculation(base))
-            return withType(Array::Float64Array);
+            return result.withType(Array::Float64Array);
 
         return ArrayMode(Array::Generic);
+    }
 
     default:
         return *this;
@@ -265,7 +283,7 @@ Structure* ArrayMode::originalArrayStructure(Graph& graph, const CodeOrigin& cod
 
 Structure* ArrayMode::originalArrayStructure(Graph& graph, Node* node) const
 {
-    return originalArrayStructure(graph, node->codeOrigin);
+    return originalArrayStructure(graph, node->origin.semantic);
 }
 
 bool ArrayMode::alreadyChecked(Graph& graph, Node* node, AbstractValue& value, IndexingType shape) const
@@ -275,7 +293,7 @@ bool ArrayMode::alreadyChecked(Graph& graph, Node* node, AbstractValue& value, I
         return value.m_currentKnownStructure.hasSingleton()
             && (value.m_currentKnownStructure.singleton()->indexingType() & IndexingShapeMask) == shape
             && (value.m_currentKnownStructure.singleton()->indexingType() & IsArray)
-            && graph.globalObjectFor(node->codeOrigin)->isOriginalArrayStructure(value.m_currentKnownStructure.singleton());
+            && graph.globalObjectFor(node->origin.semantic)->isOriginalArrayStructure(value.m_currentKnownStructure.singleton());
         
     case Array::Array:
         if (arrayModesAlreadyChecked(value.m_arrayModes, asArrayModes(shape | IsArray)))
@@ -326,14 +344,14 @@ bool ArrayMode::alreadyChecked(Graph& graph, Node* node, AbstractValue& value) c
             if (arrayModesAlreadyChecked(value.m_arrayModes, asArrayModes(ArrayWithArrayStorage) | asArrayModes(ArrayWithSlowPutArrayStorage)))
                 return true;
             return value.m_currentKnownStructure.hasSingleton()
-                && hasArrayStorage(value.m_currentKnownStructure.singleton()->indexingType())
+                && hasAnyArrayStorage(value.m_currentKnownStructure.singleton()->indexingType())
                 && (value.m_currentKnownStructure.singleton()->indexingType() & IsArray);
         
         default:
             if (arrayModesAlreadyChecked(value.m_arrayModes, asArrayModes(NonArrayWithArrayStorage) | asArrayModes(ArrayWithArrayStorage) | asArrayModes(NonArrayWithSlowPutArrayStorage) | asArrayModes(ArrayWithSlowPutArrayStorage)))
                 return true;
             return value.m_currentKnownStructure.hasSingleton()
-                && hasArrayStorage(value.m_currentKnownStructure.singleton()->indexingType());
+                && hasAnyArrayStorage(value.m_currentKnownStructure.singleton()->indexingType());
         }
         
     case Array::Arguments:
@@ -546,6 +564,36 @@ Array::Type toArrayType(TypedArrayType type)
     default:
         return Array::Generic;
     }
+}
+
+bool permitsBoundsCheckLowering(Array::Type type)
+{
+    switch (type) {
+    case Array::Int32:
+    case Array::Double:
+    case Array::Contiguous:
+    case Array::Int8Array:
+    case Array::Int16Array:
+    case Array::Int32Array:
+    case Array::Uint8Array:
+    case Array::Uint8ClampedArray:
+    case Array::Uint16Array:
+    case Array::Uint32Array:
+    case Array::Float32Array:
+    case Array::Float64Array:
+        return true;
+    default:
+        // These don't allow for bounds check lowering either because the bounds
+        // check involves something other than GetArrayLength (like ArrayStorage),
+        // or because the bounds check isn't a speculation (like String, sort of),
+        // or because the type implies an impure access.
+        return false;
+    }
+}
+
+bool ArrayMode::permitsBoundsCheckLowering() const
+{
+    return DFG::permitsBoundsCheckLowering(type()) && isInBounds();
 }
 
 void ArrayMode::dump(PrintStream& out) const

@@ -25,8 +25,7 @@
 #include "GetterSetter.h"
 #include "JSFunction.h"
 #include "JSString.h"
-#include "JSStringBuilder.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "StructureRareDataInlines.h"
 
 namespace JSC {
@@ -45,15 +44,13 @@ STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(ObjectPrototype);
 
 const ClassInfo ObjectPrototype::s_info = { "Object", &JSNonFinalObject::s_info, 0, 0, CREATE_METHOD_TABLE(ObjectPrototype) };
 
-ObjectPrototype::ObjectPrototype(ExecState* exec, Structure* stucture)
-    : JSNonFinalObject(exec->vm(), stucture)
+ObjectPrototype::ObjectPrototype(VM& vm, Structure* stucture)
+    : JSNonFinalObject(vm, stucture)
 {
 }
 
-void ObjectPrototype::finishCreation(ExecState* exec, JSGlobalObject* globalObject)
+void ObjectPrototype::finishCreation(VM& vm, JSGlobalObject* globalObject)
 {
-    VM& vm = exec->vm();
-    
     Base::finishCreation(vm);
     ASSERT(inherits(info()));
     vm.prototypeMap.addPrototype(this);
@@ -70,10 +67,10 @@ void ObjectPrototype::finishCreation(ExecState* exec, JSGlobalObject* globalObje
     JSC_NATIVE_FUNCTION(vm.propertyNames->__lookupSetter__, objectProtoFuncLookupSetter, DontEnum, 1);
 }
 
-ObjectPrototype* ObjectPrototype::create(ExecState* exec, JSGlobalObject* globalObject, Structure* structure)
+ObjectPrototype* ObjectPrototype::create(VM& vm, JSGlobalObject* globalObject, Structure* structure)
 {
-    ObjectPrototype* prototype = new (NotNull, allocateCell<ObjectPrototype>(*exec->heap())) ObjectPrototype(exec, structure);
-    prototype->finishCreation(exec, globalObject);
+    ObjectPrototype* prototype = new (NotNull, allocateCell<ObjectPrototype>(vm.heap)) ObjectPrototype(vm, structure);
+    prototype->finishCreation(vm, globalObject);
     return prototype;
 }
 
@@ -81,19 +78,19 @@ ObjectPrototype* ObjectPrototype::create(ExecState* exec, JSGlobalObject* global
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncValueOf(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
+    JSValue thisValue = exec->thisValue().toThis(exec, StrictMode);
     return JSValue::encode(thisValue.toObject(exec));
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncHasOwnProperty(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
+    JSValue thisValue = exec->thisValue().toThis(exec, StrictMode);
     return JSValue::encode(jsBoolean(thisValue.toObject(exec)->hasOwnProperty(exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)))));
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncIsPrototypeOf(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
+    JSValue thisValue = exec->thisValue().toThis(exec, StrictMode);
     JSObject* thisObj = thisValue.toObject(exec);
 
     if (!exec->argument(0).isObject())
@@ -112,7 +109,7 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncIsPrototypeOf(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineGetter(ExecState* exec)
 {
-    JSObject* thisObject = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* thisObject = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
@@ -125,14 +122,14 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineGetter(ExecState* exec)
     descriptor.setGetter(get);
     descriptor.setEnumerable(true);
     descriptor.setConfigurable(true);
-    thisObject->methodTable()->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
+    thisObject->methodTable(exec->vm())->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
 
     return JSValue::encode(jsUndefined());
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineSetter(ExecState* exec)
 {
-    JSObject* thisObject = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* thisObject = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
@@ -145,42 +142,46 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncDefineSetter(ExecState* exec)
     descriptor.setSetter(set);
     descriptor.setEnumerable(true);
     descriptor.setConfigurable(true);
-    thisObject->methodTable()->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
+    thisObject->methodTable(exec->vm())->defineOwnProperty(thisObject, exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), descriptor, false);
 
     return JSValue::encode(jsUndefined());
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncLookupGetter(ExecState* exec)
 {
-    JSObject* thisObject = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* thisObject = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
     PropertySlot slot(thisObject);
     if (thisObject->getPropertySlot(exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), slot)
-        && slot.isAccessor())
-        return JSValue::encode(slot.getterSetter()->getter());
+        && slot.isAccessor()) {
+        JSObject* getter = slot.getterSetter()->getter();
+        return getter ? JSValue::encode(getter) : JSValue::encode(jsUndefined());
+    }
 
     return JSValue::encode(jsUndefined());
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncLookupSetter(ExecState* exec)
 {
-    JSObject* thisObject = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* thisObject = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
     PropertySlot slot(thisObject);
     if (thisObject->getPropertySlot(exec, Identifier(exec, exec->argument(0).toString(exec)->value(exec)), slot)
-        && slot.isAccessor())
-        return JSValue::encode(slot.getterSetter()->setter());
+        && slot.isAccessor()) {
+        JSObject* setter = slot.getterSetter()->setter();
+        return setter ? JSValue::encode(setter) : JSValue::encode(jsUndefined());
+    }
 
     return JSValue::encode(jsUndefined());
 }
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncPropertyIsEnumerable(ExecState* exec)
 {
-    JSObject* thisObject = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* thisObject = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     Identifier propertyName(exec, exec->argument(0).toString(exec)->value(exec));
 
     PropertyDescriptor descriptor;
@@ -192,7 +193,7 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncPropertyIsEnumerable(ExecState* exec
 EncodedJSValue JSC_HOST_CALL objectProtoFuncToLocaleString(ExecState* exec)
 {
     // 1. Let O be the result of calling ToObject passing the this value as the argument.
-    JSObject* object = exec->hostThisValue().toThis(exec, StrictMode).toObject(exec);
+    JSObject* object = exec->thisValue().toThis(exec, StrictMode).toObject(exec);
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
 
@@ -211,19 +212,20 @@ EncodedJSValue JSC_HOST_CALL objectProtoFuncToLocaleString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL objectProtoFuncToString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue().toThis(exec, StrictMode);
+    VM& vm = exec->vm();
+    JSValue thisValue = exec->thisValue().toThis(exec, StrictMode);
     if (thisValue.isUndefinedOrNull())
-        return JSValue::encode(jsNontrivialString(exec, String(thisValue.isUndefined() ? ASCIILiteral("[object Undefined]") : ASCIILiteral("[object Null]"))));
+        return JSValue::encode(jsNontrivialString(&vm, String(thisValue.isUndefined() ? ASCIILiteral("[object Undefined]") : ASCIILiteral("[object Null]"))));
     JSObject* thisObject = thisValue.toObject(exec);
 
-    JSString* result = thisObject->structure()->objectToStringValue();
+    JSString* result = thisObject->structure(vm)->objectToStringValue();
     if (!result) {
-        RefPtr<StringImpl> newString = WTF::tryMakeString("[object ", thisObject->methodTable()->className(thisObject), "]");
+        RefPtr<StringImpl> newString = WTF::tryMakeString("[object ", thisObject->methodTable(exec->vm())->className(thisObject), "]");
         if (!newString)
             return JSValue::encode(throwOutOfMemoryError(exec));
 
-        result = jsNontrivialString(exec, newString.release());
-        thisObject->structure()->setObjectToStringValue(exec->vm(), thisObject, result);
+        result = jsNontrivialString(&vm, newString.release());
+        thisObject->structure(vm)->setObjectToStringValue(vm, thisObject, result);
     }
     return JSValue::encode(result);
 }

@@ -35,6 +35,7 @@
 
 namespace WTF {
 
+class AtomicStringTable;
 struct AtomicStringHash;
 
 class AtomicString {
@@ -74,20 +75,24 @@ public:
         COMPILE_ASSERT((charactersCount - 1 <= ((unsigned(~0) - sizeof(StringImpl)) / sizeof(LChar))), AtomicStringFromLiteralCannotOverflow);
     }
 
-#if COMPILER_SUPPORTS(CXX_RVALUE_REFERENCES)
     // We have to declare the copy constructor and copy assignment operator as well, otherwise
     // they'll be implicitly deleted by adding the move constructor and move assignment operator.
     AtomicString(const AtomicString& other) : m_string(other.m_string) { }
     AtomicString(AtomicString&& other) : m_string(std::move(other.m_string)) { }
     AtomicString& operator=(const AtomicString& other) { m_string = other.m_string; return *this; }
     AtomicString& operator=(AtomicString&& other) { m_string = std::move(other.m_string); return *this; }
-#endif
 
     // Hash table deleted values, which are only constructed and never copied or destroyed.
     AtomicString(WTF::HashTableDeletedValueType) : m_string(WTF::HashTableDeletedValue) { }
     bool isHashTableDeletedValue() const { return m_string.isHashTableDeletedValue(); }
 
-    WTF_EXPORT_STRING_API static AtomicStringImpl* find(const StringImpl*);
+    WTF_EXPORT_STRING_API static AtomicStringImpl* findStringWithHash(const StringImpl&);
+    static AtomicStringImpl* find(StringImpl* string)
+    {
+        if (!string || string->isAtomic())
+            return static_cast<AtomicStringImpl*>(string);
+        return findSlowCase(*string);
+    }
 
     operator const String&() const { return m_string; }
     const String& string() const { return m_string; };
@@ -95,13 +100,17 @@ public:
     AtomicStringImpl* impl() const { return static_cast<AtomicStringImpl *>(m_string.impl()); }
 
     bool is8Bit() const { return m_string.is8Bit(); }
-    const UChar* characters() const { return m_string.characters(); }
     const LChar* characters8() const { return m_string.characters8(); }
     const UChar* characters16() const { return m_string.characters16(); }
     unsigned length() const { return m_string.length(); }
     
     UChar operator[](unsigned int i) const { return m_string[i]; }
-    
+
+    WTF_EXPORT_STRING_API static AtomicString number(int);
+    WTF_EXPORT_STRING_API static AtomicString number(unsigned);
+    WTF_EXPORT_STRING_API static AtomicString number(double);
+    // If we need more overloads of the number function, we can add all the others that String has, but these seem to do for now.
+
     bool contains(UChar c) const { return m_string.contains(c); }
     bool contains(const LChar* s, bool caseSensitive = true) const
         { return m_string.contains(s, caseSensitive); }
@@ -150,14 +159,6 @@ public:
     AtomicString(NSString* s) : m_string(add((CFStringRef)s)) { }
     operator NSString*() const { return m_string; }
 #endif
-#if PLATFORM(QT)
-    AtomicString(const QString& s) : m_string(add(String(s).impl())) { }
-    operator QString() const { return m_string; }
-#endif
-#if PLATFORM(BLACKBERRY)
-    AtomicString(const BlackBerry::Platform::String& s) : m_string(add(String(s).impl())) { }
-    operator BlackBerry::Platform::String() const { return m_string; }
-#endif
 
     // AtomicString::fromUTF8 will return a null string if
     // the input data contains invalid UTF-8 sequences.
@@ -168,12 +169,6 @@ public:
     void show() const;
 #endif
 
-private:
-    // The explicit constructors with AtomicString::ConstructFromLiteral must be used for literals.
-    AtomicString(ASCIILiteral);
-
-    String m_string;
-    
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const LChar*);
     ALWAYS_INLINE static PassRefPtr<StringImpl> add(const char* s) { return add(reinterpret_cast<const LChar*>(s)); };
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(const LChar*, unsigned length);
@@ -185,17 +180,36 @@ private:
     ALWAYS_INLINE static PassRefPtr<StringImpl> add(StringImpl* string)
     {
         if (!string || string->isAtomic()) {
-            ASSERT_WITH_MESSAGE(!string || isInAtomicStringTable(string), "The atomic string comes from an other thread!");
+            ASSERT_WITH_MESSAGE(!string || !string->length() || isInAtomicStringTable(string), "The atomic string comes from an other thread!");
             return string;
         }
         return addSlowCase(string);
     }
     WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> addFromLiteralData(const char* characters, unsigned length);
-    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> addSlowCase(StringImpl*);
 #if USE(CF)
-    static PassRefPtr<StringImpl> add(CFStringRef);
+    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> add(CFStringRef);
 #endif
 
+    template<typename StringTableProvider>
+    ALWAYS_INLINE static PassRefPtr<StringImpl> addWithStringTableProvider(StringTableProvider& stringTableProvider, StringImpl* string)
+    {
+        if (!string || string->isAtomic()) {
+            ASSERT_WITH_MESSAGE(!string || !string->length() || isInAtomicStringTable(string), "The atomic string comes from an other thread!");
+            return string;
+        }
+        return addSlowCase(stringTableProvider.atomicStringTable(), string);
+    }
+
+private:
+    // The explicit constructors with AtomicString::ConstructFromLiteral must be used for literals.
+    AtomicString(ASCIILiteral);
+
+    String m_string;
+    
+    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> addSlowCase(StringImpl*);
+    WTF_EXPORT_STRING_API static PassRefPtr<StringImpl> addSlowCase(AtomicStringTable*, StringImpl*);
+
+    WTF_EXPORT_STRING_API static AtomicStringImpl* findSlowCase(StringImpl&);
     WTF_EXPORT_STRING_API static AtomicString fromUTF8Internal(const char*, const char*);
 
 #if !ASSERT_DISABLED

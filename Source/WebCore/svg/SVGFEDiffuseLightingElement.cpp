@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEDiffuseLightingElement.h"
 
 #include "Attr.h"
@@ -67,19 +67,19 @@ PassRefPtr<SVGFEDiffuseLightingElement> SVGFEDiffuseLightingElement::create(cons
 
 const AtomicString& SVGFEDiffuseLightingElement::kernelUnitLengthXIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGKernelUnitLengthX", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGKernelUnitLengthX", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
 const AtomicString& SVGFEDiffuseLightingElement::kernelUnitLengthYIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGKernelUnitLengthY", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGKernelUnitLengthY", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
 bool SVGFEDiffuseLightingElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::inAttr);
         supportedAttributes.add(SVGNames::diffuseConstantAttr);
@@ -131,8 +131,7 @@ bool SVGFEDiffuseLightingElement::setFilterEffectAttribute(FilterEffect* effect,
     if (attrName == SVGNames::lighting_colorAttr) {
         RenderObject* renderer = this->renderer();
         ASSERT(renderer);
-        ASSERT(renderer->style());
-        return diffuseLighting->setLightingColor(renderer->style()->svgStyle()->lightingColor());
+        return diffuseLighting->setLightingColor(renderer->style().svgStyle().lightingColor());
     }
     if (attrName == SVGNames::surfaceScaleAttr)
         return diffuseLighting->setSurfaceScale(surfaceScale());
@@ -218,8 +217,7 @@ PassRefPtr<FilterEffect> SVGFEDiffuseLightingElement::build(SVGFilterBuilder* fi
     if (!renderer)
         return 0;
     
-    ASSERT(renderer->style());
-    Color color = renderer->style()->svgStyle()->lightingColor();
+    Color color = renderer->style().svgStyle().lightingColor();
 
     RefPtr<FilterEffect> effect = FEDiffuseLighting::create(filter, color, surfaceScale(), diffuseConstant(),
                                                                 kernelUnitLengthX(), kernelUnitLengthY(), lightSource.release());
@@ -229,4 +227,4 @@ PassRefPtr<FilterEffect> SVGFEDiffuseLightingElement::build(SVGFilterBuilder* fi
 
 }
 
-#endif // ENABLE(SVG)
+#endif

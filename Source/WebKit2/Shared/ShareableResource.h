@@ -26,6 +26,8 @@
 #ifndef ShareableResource_h
 #define ShareableResource_h
 
+#if ENABLE(SHAREABLE_RESOURCE)
+
 #include "SharedMemory.h"
 
 #include <wtf/PassRefPtr.h>
@@ -49,8 +51,8 @@ public:
         bool isNull() const { return m_handle.isNull(); }
         unsigned size() const { return m_size; }
 
-        void encode(CoreIPC::ArgumentEncoder&) const;
-        static bool decode(CoreIPC::ArgumentDecoder&, Handle&);
+        void encode(IPC::ArgumentEncoder&) const;
+        static bool decode(IPC::ArgumentDecoder&, Handle&);
 
         PassRefPtr<WebCore::SharedBuffer> tryWrapInSharedBuffer() const;
 
@@ -86,5 +88,7 @@ private:
 };
 
 } // namespace WebKit
+
+#endif // ENABLE(SHAREABLE_RESOURCE)
 
 #endif // ShareableResource_h

@@ -30,7 +30,7 @@
 
 #include "JSScope.h"
 #include "JSVariableObject.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace FTL {
 
@@ -45,7 +45,9 @@ AbstractHeapRepository::AbstractHeapRepository(LContext context)
     FOR_EACH_ABSTRACT_FIELD(ABSTRACT_FIELD_INITIALIZATION)
 #undef ABSTRACT_FIELD_INITIALIZATION
     
-#define INDEXED_ABSTRACT_HEAP_INITIALIZATION(name, size) , name(context, &root, #name, size)
+    , JSCell_freeListNext(JSCell_structureID)
+    
+#define INDEXED_ABSTRACT_HEAP_INITIALIZATION(name, offset, size) , name(context, &root, #name, offset, size)
     FOR_EACH_INDEXED_ABSTRACT_HEAP(INDEXED_ABSTRACT_HEAP_INITIALIZATION)
 #undef INDEXED_ABSTRACT_HEAP_INITIALIZATION
     
@@ -61,6 +63,8 @@ AbstractHeapRepository::AbstractHeapRepository(LContext context)
     
     RELEASE_ASSERT(m_tbaaKind);
     RELEASE_ASSERT(root.m_tbaaMetadata);
+    
+    RELEASE_ASSERT(!JSCell_freeListNext.offset());
 }
 
 AbstractHeapRepository::~AbstractHeapRepository()

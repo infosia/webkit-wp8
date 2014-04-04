@@ -115,13 +115,16 @@ void PopupMenuMac::populate()
         [menuItem setTitle:[[string string] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
         [menuItem setEnabled:m_client->itemIsEnabled(i)];
         [menuItem setToolTip:m_client->itemToolTip(i)];
-        
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         // Allow the accessible text of the item to be overriden if necessary.
         if (AXObjectCache::accessibilityEnabled()) {
             NSString *accessibilityOverride = m_client->itemAccessibilityText(i);
             if ([accessibilityOverride length])
                 [menuItem accessibilitySetOverrideValue:accessibilityOverride forAttribute:NSAccessibilityDescriptionAttribute];
         }
+#pragma clang diagnostic pop
     }
 
     [[m_popup menu] setMenuChangedMessagesEnabled:messagesEnabled];
@@ -172,7 +175,7 @@ void PopupMenuMac::show(const IntRect& r, FrameView* v, int index)
 
     // Save the current event that triggered the popup, so we can clean up our event
     // state after the NSMenu goes away.
-    RefPtr<Frame> frame = &v->frame();
+    Ref<Frame> frame(v->frame());
     RetainPtr<NSEvent> event = frame->eventHandler().currentNSEvent();
     
     Ref<PopupMenuMac> protector(*this);

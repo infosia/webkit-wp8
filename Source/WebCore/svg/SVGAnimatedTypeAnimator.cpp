@@ -20,8 +20,6 @@
 
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimatedTypeAnimator.h"
 
 #include "SVGAttributeToPropertyMap.h"
@@ -33,7 +31,7 @@ SVGElementAnimatedProperties::SVGElementAnimatedProperties()
     : element(0)
 { }
 
-SVGElementAnimatedProperties::SVGElementAnimatedProperties(SVGElement* element, Vector<RefPtr<SVGAnimatedProperty> >& properties)
+SVGElementAnimatedProperties::SVGElementAnimatedProperties(SVGElement* element, Vector<RefPtr<SVGAnimatedProperty>>& properties)
     : element(element)
     , properties(properties)
 { }
@@ -48,13 +46,13 @@ SVGAnimatedTypeAnimator::SVGAnimatedTypeAnimator(AnimatedPropertyType type, SVGA
 SVGAnimatedTypeAnimator::~SVGAnimatedTypeAnimator()
 { }
 
-void SVGAnimatedTypeAnimator::calculateFromAndToValues(OwnPtr<SVGAnimatedType>& from, OwnPtr<SVGAnimatedType>& to, const String& fromString, const String& toString)
+void SVGAnimatedTypeAnimator::calculateFromAndToValues(std::unique_ptr<SVGAnimatedType>& from, std::unique_ptr<SVGAnimatedType>& to, const String& fromString, const String& toString)
 {
     from = constructFromString(fromString);
     to = constructFromString(toString);
 }
 
-void SVGAnimatedTypeAnimator::calculateFromAndByValues(OwnPtr<SVGAnimatedType>& from, OwnPtr<SVGAnimatedType>& to, const String& fromString, const String& byString)
+void SVGAnimatedTypeAnimator::calculateFromAndByValues(std::unique_ptr<SVGAnimatedType>& from, std::unique_ptr<SVGAnimatedType>& to, const String& fromString, const String& byString)
 {
     from = constructFromString(fromString);
     to = constructFromString(byString);
@@ -67,7 +65,7 @@ SVGElementAnimatedPropertyList SVGAnimatedTypeAnimator::findAnimatedPropertiesFo
 
     SVGElementAnimatedPropertyList propertiesByInstance;
 
-    Vector<RefPtr<SVGAnimatedProperty> > targetProperties;
+    Vector<RefPtr<SVGAnimatedProperty>> targetProperties;
     targetElement->localAttributeToPropertyMap().animatedPropertiesForAttribute(targetElement, attributeName, targetProperties);
 
     if (!SVGAnimatedType::supportsAnimVal(m_type))
@@ -83,7 +81,7 @@ SVGElementAnimatedPropertyList SVGAnimatedTypeAnimator::findAnimatedPropertiesFo
         if (!shadowTreeElement)
             continue;
 
-        Vector<RefPtr<SVGAnimatedProperty> > instanceProperties;
+        Vector<RefPtr<SVGAnimatedProperty>> instanceProperties;
         targetElement->localAttributeToPropertyMap().animatedPropertiesForAttribute(shadowTreeElement, attributeName, instanceProperties);
 
         SVGElementAnimatedProperties instancePropertiesPair(shadowTreeElement, instanceProperties);
@@ -108,5 +106,3 @@ SVGElementAnimatedPropertyList SVGAnimatedTypeAnimator::findAnimatedPropertiesFo
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

@@ -43,7 +43,7 @@ void WebEditorClient::getEditorCommandsForKeyEvent(const KeyboardEvent* event, V
        UI needs to receive event type because only knows current NativeWebKeyboardEvent.*/
     WebProcess::shared().parentProcessConnection()->sendSync(Messages::WebPageProxy::GetEditorCommandsForKeyEvent(event->type()),
                                                 Messages::WebPageProxy::GetEditorCommandsForKeyEvent::Reply(pendingEditorCommands),
-                                                m_page->pageID(), CoreIPC::Connection::NoTimeout);
+                                                m_page->pageID(), std::chrono::milliseconds::max());
 }
 
 bool WebEditorClient::executePendingEditorCommands(Frame* frame, Vector<WTF::String> pendingEditorCommands, bool allowTextInsertion)
@@ -148,7 +148,7 @@ public:
 private:
     GClosure* m_closure;
 
-    static void destroyOnClosureFinalization(gpointer data, GClosure* closure)
+    static void destroyOnClosureFinalization(gpointer data, GClosure*)
     {
         // Calling delete void* will free the memory but won't invoke
         // the destructor, something that is a must for us.
@@ -159,14 +159,15 @@ private:
 
 static Frame* frameSettingClipboard;
 
-static void collapseSelection(GtkClipboard* clipboard, Frame* frame)
+static void collapseSelection(GtkClipboard*, Frame* frame)
 {
     if (frameSettingClipboard && frameSettingClipboard == frame)
         return;
 
     // Collapse the selection without clearing it.
     ASSERT(frame);
-    frame->selection().setBase(frame->selection().extent(), frame->selection().affinity());
+    const VisibleSelection& selection = frame->selection().selection();
+    frame->selection().setBase(selection.extent(), selection.affinity());
 }
 #endif
 

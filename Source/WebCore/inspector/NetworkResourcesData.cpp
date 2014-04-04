@@ -46,10 +46,12 @@ static size_t maximumResourcesContentSize = 100 * 1000 * 1000;
 static size_t maximumSingleResourceContentSize = 10 * 1000 * 1000;
 }
 
+using namespace Inspector;
+
 namespace WebCore {
 
 
-PassRefPtr<XHRReplayData> XHRReplayData::create(const String &method, const KURL& url, bool async, PassRefPtr<FormData> formData, bool includeCredentials)
+PassRefPtr<XHRReplayData> XHRReplayData::create(const String &method, const URL& url, bool async, PassRefPtr<FormData> formData, bool includeCredentials)
 {
     return adoptRef(new XHRReplayData(method, url, async, formData, includeCredentials));
 }
@@ -59,7 +61,7 @@ void XHRReplayData::addHeader(const AtomicString& key, const String& value)
     m_headers.set(key, value);
 }
 
-XHRReplayData::XHRReplayData(const String &method, const KURL& url, bool async, PassRefPtr<FormData> formData, bool includeCredentials)
+XHRReplayData::XHRReplayData(const String &method, const URL& url, bool async, PassRefPtr<FormData> formData, bool includeCredentials)
     : m_method(method)
     , m_url(url)
     , m_async(async)
@@ -75,7 +77,7 @@ NetworkResourcesData::ResourceData::ResourceData(const String& requestId, const 
     , m_base64Encoded(false)
     , m_isContentEvicted(false)
     , m_type(InspectorPageAgent::OtherResource)
-    , m_cachedResource(0)
+    , m_cachedResource(nullptr)
 {
 }
 
@@ -133,8 +135,7 @@ size_t NetworkResourcesData::ResourceData::decodeDataToContent()
 {
     ASSERT(!hasContent());
     size_t dataLength = m_dataBuffer->size();
-    m_content = m_decoder->decode(m_dataBuffer->data(), m_dataBuffer->size());
-    m_content.append(m_decoder->flush());
+    m_content = m_decoder->decodeAndFlush(m_dataBuffer->data(), m_dataBuffer->size());
     m_dataBuffer = nullptr;
     return contentSizeInBytes(m_content) - dataLength;
 }
@@ -280,7 +281,7 @@ XHRReplayData* NetworkResourcesData::xhrReplayData(const String& requestId)
 
     ResourceData* resourceData = resourceDataForRequestId(requestId);
     if (!resourceData)
-        return 0;
+        return nullptr;
     return resourceData->xhrReplayData();
 }
 
@@ -321,7 +322,7 @@ Vector<String> NetworkResourcesData::removeCachedResource(CachedResource* cached
     for (it = m_requestIdToResourceDataMap.begin(); it != end; ++it) {
         ResourceData* resourceData = it->value;
         if (resourceData->cachedResource() == cachedResource) {
-            resourceData->setCachedResource(0);
+            resourceData->setCachedResource(nullptr);
             result.append(it->key);
         }
     }
@@ -360,7 +361,7 @@ void NetworkResourcesData::setResourcesDataSizeLimits(size_t maximumResourcesCon
 NetworkResourcesData::ResourceData* NetworkResourcesData::resourceDataForRequestId(const String& requestId)
 {
     if (requestId.isNull())
-        return 0;
+        return nullptr;
     return m_requestIdToResourceDataMap.get(requestId);
 }
 

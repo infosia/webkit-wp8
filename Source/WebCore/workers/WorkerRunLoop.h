@@ -31,8 +31,6 @@
 #ifndef WorkerRunLoop_h
 #define WorkerRunLoop_h
 
-#if ENABLE(WORKERS)
-
 #include "ScriptExecutionContext.h"
 #include <wtf/MessageQueue.h>
 #include <wtf/OwnPtr.h>
@@ -71,7 +69,7 @@ namespace WebCore {
         class Task {
             WTF_MAKE_NONCOPYABLE(Task); WTF_MAKE_FAST_ALLOCATED;
         public:
-            static PassOwnPtr<Task> create(PassOwnPtr<ScriptExecutionContext::Task> task, const String& mode);
+            static std::unique_ptr<Task> create(PassOwnPtr<ScriptExecutionContext::Task>, const String& mode);
             ~Task() { }
             const String& mode() const { return m_mode; }
             void performTask(const WorkerRunLoop&, ScriptExecutionContext*);
@@ -98,7 +96,5 @@ namespace WebCore {
     };
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)
 
 #endif // WorkerRunLoop_h

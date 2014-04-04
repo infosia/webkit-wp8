@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2008 Apple Inc. All Rights Reserved.
  * Copyright (C) 2009 Jan Michael Alonzo
+ * Copyright (C) 2013 Samsung Electronics. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,58 +35,160 @@
 #include <JavaScriptCore/OpaqueJSString.h>
 #include <atk/atk.h>
 #include <wtf/Assertions.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/WTFString.h>
 #include <wtf/unicode/CharacterNames.h>
 
-static String coreAttributeToAtkAttribute(JSStringRef attribute)
+namespace {
+
+#if ATK_CHECK_VERSION(2,11,92)
+enum RangeLimit {
+    RangeLimitMinimum,
+    RangeLimitMaximum
+};
+#endif
+
+enum AtkAttributeType {
+    ObjectAttributeType,
+    TextAttributeType
+};
+
+enum AttributeDomain {
+    CoreDomain = 0,
+    AtkDomain
+};
+
+enum AttributesIndex {
+    // Attribute names.
+    InvalidNameIndex = 0,
+    PlaceholderNameIndex,
+    PosInSetIndex,
+    SetSizeIndex,
+    SortNameIndex,
+
+    // Attribute values.
+    SortAscendingValueIndex,
+    SortDescendingValueIndex,
+    SortUnknownValueIndex,
+
+    NumberOfAttributes
+};
+
+// Attribute names & Values (keep on sync with enum AttributesIndex).
+const String attributesMap[][2] = {
+    // Attribute names.
+    { "AXInvalid", "invalid" },
+    { "AXARIAPosInSet", "posinset" },
+    { "AXARIASetSize", "setsize" },
+    { "AXPlaceholderValue", "placeholder-text" } ,
+    { "AXSortDirection", "sort" },
+
+    // Attribute values.
+    { "AXAscendingSortDirection", "ascending" },
+    { "AXDescendingSortDirection", "descending" },
+    { "AXUnknownSortDirection", "unknown" }
+};
+
+#if ATK_CHECK_VERSION(2, 11, 3)
+const char* landmarkStringBanner = "AXLandmarkBanner";
+const char* landmarkStringComplementary = "AXLandmarkComplementary";
+const char* landmarkStringContentinfo = "AXLandmarkContentInfo";
+const char* landmarkStringMain = "AXLandmarkMain";
+const char* landmarkStringNavigation = "AXLandmarkNavigation";
+const char* landmarkStringSearch = "AXLandmarkSearch";
+#endif
+
+String jsStringToWTFString(JSStringRef attribute)
 {
     size_t bufferSize = JSStringGetMaximumUTF8CStringSize(attribute);
-    GOwnPtr<gchar> buffer(static_cast<gchar*>(g_malloc(bufferSize)));
+    GUniquePtr<gchar> buffer(static_cast<gchar*>(g_malloc(bufferSize)));
     JSStringGetUTF8CString(attribute, buffer.get(), bufferSize);
 
-    String attributeString = String::fromUTF8(buffer.get());
-    if (attributeString == "AXInvalid")
-        return "aria-invalid";
-
-    if (attributeString == "AXPlaceholderValue")
-        return "placeholder-text";
-
-    if (attributeString == "AXSortDirection")
-        return "sort";
-
-    return String();
+    return String::fromUTF8(buffer.get());
 }
 
-static String getAttributeSetValueForId(AtkObject* accessible, const char* id)
+String coreAttributeToAtkAttribute(JSStringRef attribute)
 {
-    const char* attributeValue = 0;
-    AtkAttributeSet* attributeSet = atk_object_get_attributes(accessible);
+    String attributeString = jsStringToWTFString(attribute);
+    for (int i = 0; i < NumberOfAttributes; ++i) {
+        if (attributesMap[i][CoreDomain] == attributeString)
+            return attributesMap[i][AtkDomain];
+    }
+
+    return attributeString;
+}
+
+String atkAttributeValueToCoreAttributeValue(AtkAttributeType type, const String& id, const String& value)
+{
+    if (type == ObjectAttributeType) {
+        // We need to translate ATK values exposed for 'aria-sort' (e.g. 'ascending')
+        // into those expected by the layout tests (e.g. 'AXAscendingSortDirection').
+        if (id == attributesMap[SortNameIndex][AtkDomain] && !value.isEmpty()) {
+            if (value == attributesMap[SortAscendingValueIndex][AtkDomain])
+                return attributesMap[SortAscendingValueIndex][CoreDomain];
+            if (value == attributesMap[SortDescendingValueIndex][AtkDomain])
+                return attributesMap[SortDescendingValueIndex][CoreDomain];
+
+            return attributesMap[SortUnknownValueIndex][CoreDomain];
+        }
+    } else if (type == TextAttributeType) {
+        // In case of 'aria-invalid' when the attribute empty or has "false" for ATK
+        // it should not be mapped at all, but layout tests will expect 'false'.
+        if (id == attributesMap[InvalidNameIndex][AtkDomain] && value.isEmpty())
+            return "false";
+    }
+
+    return value;
+}
+
+AtkAttributeSet* getAttributeSet(AtkObject* accessible, AtkAttributeType type)
+{
+    if (type == ObjectAttributeType)
+        return atk_object_get_attributes(accessible);
+
+    if (type == TextAttributeType) {
+        if (!ATK_IS_TEXT(accessible))
+            return nullptr;
+
+        return atk_text_get_default_attributes(ATK_TEXT(accessible));
+    }
+
+    ASSERT_NOT_REACHED();
+    return nullptr;
+}
+
+String getAttributeSetValueForId(AtkObject* accessible, AtkAttributeType type, String id)
+{
+    AtkAttributeSet* attributeSet = getAttributeSet(accessible, type);
+    if (!attributeSet)
+        return String();
+
+    String attributeValue;
     for (AtkAttributeSet* attributes = attributeSet; attributes; attributes = attributes->next) {
         AtkAttribute* atkAttribute = static_cast<AtkAttribute*>(attributes->data);
-        if (!strcmp(atkAttribute->name, id)) {
-            attributeValue = atkAttribute->value;
+        if (id == atkAttribute->name) {
+            attributeValue = String::fromUTF8(atkAttribute->value);
             break;
         }
     }
-
-    String atkAttributeValue = String::fromUTF8(attributeValue);
     atk_attribute_set_free(attributeSet);
 
-    return atkAttributeValue;
+    return atkAttributeValueToCoreAttributeValue(type, id, attributeValue);
 }
 
-static String getAtkAttributeSetAsString(AtkObject* accessible)
+String getAtkAttributeSetAsString(AtkObject* accessible, AtkAttributeType type)
 {
-    StringBuilder builder;
+    AtkAttributeSet* attributeSet = getAttributeSet(accessible, type);
+    if (!attributeSet)
+        return String();
 
-    AtkAttributeSet* attributeSet = atk_object_get_attributes(accessible);
+    StringBuilder builder;
     for (AtkAttributeSet* attributes = attributeSet; attributes; attributes = attributes->next) {
         AtkAttribute* attribute = static_cast<AtkAttribute*>(attributes->data);
-        GOwnPtr<gchar> attributeData(g_strconcat(attribute->name, ":", attribute->value, NULL));
+        GUniquePtr<gchar> attributeData(g_strconcat(attribute->name, ":", attribute->value, NULL));
         builder.append(attributeData.get());
         if (attributes->next)
             builder.append(", ");
@@ -95,11 +198,33 @@ static String getAtkAttributeSetAsString(AtkObject* accessible)
     return builder.toString();
 }
 
-static inline const char* roleToString(AtkRole role)
+const char* roleToString(AtkObject* object)
 {
+    AtkRole role = atk_object_get_role(object);
+
+#if ATK_CHECK_VERSION(2, 11, 3)
+    if (role == ATK_ROLE_LANDMARK) {
+        String xmlRolesValue = getAttributeSetValueForId(object, ObjectAttributeType, "xml-roles");
+        if (equalIgnoringCase(xmlRolesValue, "banner"))
+            return landmarkStringBanner;
+        if (equalIgnoringCase(xmlRolesValue, "complementary"))
+            return landmarkStringComplementary;
+        if (equalIgnoringCase(xmlRolesValue, "contentinfo"))
+            return landmarkStringContentinfo;
+        if (equalIgnoringCase(xmlRolesValue, "main"))
+            return landmarkStringMain;
+        if (equalIgnoringCase(xmlRolesValue, "navigation"))
+            return landmarkStringNavigation;
+        if (equalIgnoringCase(xmlRolesValue, "search"))
+            return landmarkStringSearch;
+    }
+#endif
+
     switch (role) {
     case ATK_ROLE_ALERT:
         return "AXAlert";
+    case ATK_ROLE_DIALOG:
+        return "AXDialog";
     case ATK_ROLE_CANVAS:
         return "AXCanvas";
     case ATK_ROLE_CHECK_BOX:
@@ -110,8 +235,14 @@ static inline const char* roleToString(AtkRole role)
         return "AXColumnHeader";
     case ATK_ROLE_COMBO_BOX:
         return "AXComboBox";
+    case ATK_ROLE_COMMENT:
+        return "AXComment";
     case ATK_ROLE_DOCUMENT_FRAME:
+        return "AXDocument";
+    case ATK_ROLE_DOCUMENT_WEB:
         return "AXWebArea";
+    case ATK_ROLE_EMBEDDED:
+        return "AXEmbedded";
     case ATK_ROLE_ENTRY:
         return "AXTextField";
     case ATK_ROLE_FOOTER:
@@ -162,6 +293,8 @@ static inline const char* roleToString(AtkRole role)
         return "AXRadioMenuItem";
     case ATK_ROLE_ROW_HEADER:
         return "AXRowHeader";
+    case ATK_ROLE_CHECK_MENU_ITEM:
+        return "AXCheckMenuItem";
     case ATK_ROLE_RULER:
         return "AXRuler";
     case ATK_ROLE_SCROLL_BAR:
@@ -169,13 +302,15 @@ static inline const char* roleToString(AtkRole role)
     case ATK_ROLE_SCROLL_PANE:
         return "AXScrollArea";
     case ATK_ROLE_SECTION:
-        return "AXDiv";
+        return "AXSection";
     case ATK_ROLE_SEPARATOR:
-        return "AXHorizontalRule";
+        return "AXSeparator";
     case ATK_ROLE_SLIDER:
         return "AXSlider";
     case ATK_ROLE_SPIN_BUTTON:
         return "AXSpinButton";
+    case ATK_ROLE_STATUSBAR:
+        return "AXStatusBar";
     case ATK_ROLE_TABLE:
         return "AXTable";
     case ATK_ROLE_TABLE_CELL:
@@ -202,6 +337,28 @@ static inline const char* roleToString(AtkRole role)
         return "AXWindow";
     case ATK_ROLE_UNKNOWN:
         return "AXUnknown";
+#if ATK_CHECK_VERSION(2, 11, 3)
+    case ATK_ROLE_ARTICLE:
+        return "AXArticle";
+    case ATK_ROLE_DEFINITION:
+        return "AXDefinition";
+    case ATK_ROLE_LOG:
+        return "AXLog";
+    case ATK_ROLE_MARQUEE:
+        return "AXMarquee";
+    case ATK_ROLE_MATH:
+        return "AXMath";
+    case ATK_ROLE_TIMER:
+        return "AXTimer";
+#endif
+#if ATK_CHECK_VERSION(2, 11, 4)
+    case ATK_ROLE_DESCRIPTION_LIST:
+        return "AXDescriptionList";
+    case ATK_ROLE_DESCRIPTION_TERM:
+        return "AXDescriptionTerm";
+    case ATK_ROLE_DESCRIPTION_VALUE:
+        return "AXDescriptionValue";
+#endif
     default:
         // We want to distinguish ATK_ROLE_UNKNOWN from a known AtkRole which
         // our DRT isn't properly handling.
@@ -209,7 +366,7 @@ static inline const char* roleToString(AtkRole role)
     }
 }
 
-static inline gchar* replaceCharactersForResults(gchar* str)
+inline gchar* replaceCharactersForResults(gchar* str)
 {
     String uString = String::fromUTF8(str);
 
@@ -225,7 +382,7 @@ static inline gchar* replaceCharactersForResults(gchar* str)
     return g_strdup(uString.utf8().data());
 }
 
-static bool checkElementState(PlatformUIElement element, AtkStateType stateType)
+bool checkElementState(PlatformUIElement element, AtkStateType stateType)
 {
     if (!ATK_IS_OBJECT(element))
         return false;
@@ -234,7 +391,7 @@ static bool checkElementState(PlatformUIElement element, AtkStateType stateType)
     return atk_state_set_contains_state(stateSet.get(), stateType);
 }
 
-static String attributesOfElement(AccessibilityUIElement* element)
+String attributesOfElement(AccessibilityUIElement* element)
 {
     StringBuilder builder;
 
@@ -244,7 +401,7 @@ static String attributesOfElement(AccessibilityUIElement* element)
     builder.append("AXParent: ");
     AccessibilityUIElement parent = element->parentElement();
     if (AtkObject* atkParent = parent.platformUIElement()) {
-        builder.append(roleToString(atk_object_get_role(atkParent)));
+        builder.append(roleToString(atkParent));
         const char* parentName = atk_object_get_name(atkParent);
         if (parentName && g_utf8_strlen(parentName, -1))
             builder.append(String::format(": %s", parentName));
@@ -278,12 +435,181 @@ static String attributesOfElement(AccessibilityUIElement* element)
     builder.append(String::format("AXRequired: %d\n", element->isRequired()));
     builder.append(String::format("AXChecked: %d\n", element->isChecked()));
 
+    String url = element->url()->string();
+    if (!url.isEmpty())
+        builder.append(String::format("%s\n", url.utf8().data()));
+
     // We append the ATK specific attributes as a single line at the end.
     builder.append("AXPlatformAttributes: ");
-    builder.append(getAtkAttributeSetAsString(element->platformUIElement()));
+    builder.append(getAtkAttributeSetAsString(element->platformUIElement(), ObjectAttributeType));
 
     return builder.toString();
 }
+
+static JSStringRef createStringWithAttributes(const Vector<AccessibilityUIElement>& elements)
+{
+    StringBuilder builder;
+
+    for (Vector<AccessibilityUIElement>::const_iterator it = elements.begin(); it != elements.end(); ++it) {
+        builder.append(attributesOfElement(const_cast<AccessibilityUIElement*>(it)));
+        builder.append("\n------------\n");
+    }
+
+    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+}
+
+static Vector<AccessibilityUIElement> getRowHeaders(AtkTable* accessible)
+{
+    Vector<AccessibilityUIElement> rowHeaders;
+
+    int rowsCount = atk_table_get_n_rows(accessible);
+    for (int row = 0; row < rowsCount; ++row)
+        rowHeaders.append(AccessibilityUIElement(atk_table_get_row_header(accessible, row)));
+
+    return rowHeaders;
+}
+
+static Vector<AccessibilityUIElement> getColumnHeaders(AtkTable* accessible)
+{
+    Vector<AccessibilityUIElement> columnHeaders;
+
+    int columnsCount = atk_table_get_n_columns(accessible);
+    for (int column = 0; column < columnsCount; ++column)
+        columnHeaders.append(AccessibilityUIElement(atk_table_get_column_header(accessible, column)));
+
+    return columnHeaders;
+}
+
+static Vector<AccessibilityUIElement> getVisibleCells(AccessibilityUIElement* element)
+{
+    Vector<AccessibilityUIElement> visibleCells;
+
+    AtkTable* accessible = ATK_TABLE(element->platformUIElement());
+    int rowsCount = atk_table_get_n_rows(accessible);
+    int columnsCount = atk_table_get_n_columns(accessible);
+
+    for (int row = 0; row < rowsCount; ++row) {
+        for (int column = 0; column < columnsCount; ++column)
+            visibleCells.append(element->cellForColumnAndRow(column, row));
+    }
+
+    return visibleCells;
+}
+
+#if ATK_CHECK_VERSION(2,11,90)
+static void convertGPtrArrayToVector(const GPtrArray* array, Vector<AccessibilityUIElement>& elements)
+{
+    for (guint i = 0; i < array->len; i++) {
+        if (AtkObject* atkObject = static_cast<AtkObject*>(g_ptr_array_index(array, i)))
+            elements.append(AccessibilityUIElement(atkObject));
+    }
+}
+#endif
+
+JSStringRef indexRangeInTable(PlatformUIElement element, bool isRowRange)
+{
+    GUniquePtr<gchar> rangeString(g_strdup("{0, 0}"));
+
+#if ATK_CHECK_VERSION(2,11,90)
+    if (!ATK_IS_TABLE_CELL(element))
+        return JSStringCreateWithUTF8CString(rangeString.get());
+#else
+    if (!ATK_IS_OBJECT(element))
+        return JSStringCreateWithUTF8CString(rangeString.get());
+
+    AtkObject* axTable = atk_object_get_parent(ATK_OBJECT(element));
+    if (!axTable || !ATK_IS_TABLE(axTable))
+        return JSStringCreateWithUTF8CString(rangeString.get());
+
+    // Look for the cell in the table.
+    gint indexInParent = atk_object_get_index_in_parent(ATK_OBJECT(element));
+    if (indexInParent == -1)
+        return JSStringCreateWithUTF8CString(rangeString.get());
+#endif
+
+    gint row = -1;
+    gint column = -1;
+    gint rowSpan = -1;
+    gint columnSpan = -1;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_table_cell_get_row_column_span(ATK_TABLE_CELL(element), &row, &column, &rowSpan, &columnSpan);
+#else
+    row = atk_table_get_row_at_index(ATK_TABLE(axTable), indexInParent);
+    column = atk_table_get_column_at_index(ATK_TABLE(axTable), indexInParent);
+    rowSpan = atk_table_get_row_extent_at(ATK_TABLE(axTable), row, column);
+    columnSpan = atk_table_get_column_extent_at(ATK_TABLE(axTable), row, column);
+#endif
+
+    // Get the actual values, if row and columns are valid values.
+    if (row != -1 && column != -1) {
+        int base = 0;
+        int length = 0;
+        if (isRowRange) {
+            base = row;
+            length = rowSpan;
+        } else {
+            base = column;
+            length = columnSpan;
+        }
+        rangeString.reset(g_strdup_printf("{%d, %d}", base, length));
+    }
+
+    return JSStringCreateWithUTF8CString(rangeString.get());
+}
+
+#if ATK_CHECK_VERSION(2,11,92)
+static double rangeMinMaxValue(AtkValue* atkValue, RangeLimit rangeLimit)
+{
+    AtkRange* range = atk_value_get_range(atkValue);
+    if (!range)
+        return 0;
+
+    double rangeValue = 0;
+    switch (rangeLimit) {
+    case RangeLimitMinimum:
+        rangeValue = atk_range_get_lower_limit(range);
+        break;
+    case RangeLimitMaximum:
+        rangeValue = atk_range_get_upper_limit(range);
+        break;
+    };
+
+    atk_range_free(range);
+    return rangeValue;
+}
+#endif
+
+void alterCurrentValue(PlatformUIElement element, int factor)
+{
+    if (!ATK_IS_VALUE(element))
+        return;
+
+#if ATK_CHECK_VERSION(2,11,92)
+    double currentValue;
+    atk_value_get_value_and_text(ATK_VALUE(element), &currentValue, nullptr);
+
+    double increment = atk_value_get_increment(ATK_VALUE(element));
+    atk_value_set_value(ATK_VALUE(element), currentValue + factor * increment);
+#else
+    GValue currentValue = G_VALUE_INIT;
+    atk_value_get_current_value(ATK_VALUE(element), &currentValue);
+
+    GValue increment = G_VALUE_INIT;
+    atk_value_get_minimum_increment(ATK_VALUE(element), &increment);
+
+    GValue newValue = G_VALUE_INIT;
+    g_value_init(&newValue, G_TYPE_FLOAT);
+
+    g_value_set_float(&newValue, g_value_get_float(&currentValue) + factor * g_value_get_float(&increment));
+    atk_value_set_current_value(ATK_VALUE(element), &newValue);
+
+    g_value_unset(&newValue);
+    g_value_unset(&increment);
+    g_value_unset(&currentValue);
+#endif
+}
+
+} // namespace
 
 AccessibilityUIElement::AccessibilityUIElement(PlatformUIElement element)
     : m_element(element)
@@ -317,6 +643,9 @@ void AccessibilityUIElement::getDocumentLinks(Vector<AccessibilityUIElement>&)
 
 void AccessibilityUIElement::getChildren(Vector<AccessibilityUIElement>& children)
 {
+    if (!ATK_IS_OBJECT(m_element))
+        return;
+
     int count = childrenCount();
     for (int i = 0; i < count; i++) {
         AtkObject* child = atk_object_ref_accessible_child(ATK_OBJECT(m_element), i);
@@ -326,6 +655,9 @@ void AccessibilityUIElement::getChildren(Vector<AccessibilityUIElement>& childre
 
 void AccessibilityUIElement::getChildrenWithRange(Vector<AccessibilityUIElement>& elementVector, unsigned start, unsigned end)
 {
+    if (!ATK_IS_OBJECT(m_element))
+        return;
+
     for (unsigned i = start; i < end; i++) {
         AtkObject* child = atk_object_ref_accessible_child(ATK_OBJECT(m_element), i);
         elementVector.append(AccessibilityUIElement(child));
@@ -334,57 +666,55 @@ void AccessibilityUIElement::getChildrenWithRange(Vector<AccessibilityUIElement>
 
 int AccessibilityUIElement::rowCount()
 {
-    if (!m_element)
+    if (!ATK_IS_TABLE(m_element))
         return 0;
-
-    ASSERT(ATK_IS_TABLE(m_element));
 
     return atk_table_get_n_rows(ATK_TABLE(m_element));
 }
 
 int AccessibilityUIElement::columnCount()
 {
-    if (!m_element)
+    if (!ATK_IS_TABLE(m_element))
         return 0;
-
-    ASSERT(ATK_IS_TABLE(m_element));
 
     return atk_table_get_n_columns(ATK_TABLE(m_element));
 }
 
 int AccessibilityUIElement::childrenCount()
 {
-    if (!m_element)
+    if (!ATK_IS_OBJECT(m_element))
         return 0;
-
-    ASSERT(ATK_IS_OBJECT(m_element));
 
     return atk_object_get_n_accessible_children(ATK_OBJECT(m_element));
 }
 
 AccessibilityUIElement AccessibilityUIElement::elementAtPoint(int x, int y)
 {
-    if (!m_element)
-        return 0;
+    if (!ATK_IS_COMPONENT(m_element))
+        return nullptr;
 
-    return AccessibilityUIElement(atk_component_ref_accessible_at_point(ATK_COMPONENT(m_element), x, y, ATK_XY_WINDOW));
+    GRefPtr<AtkObject> objectAtPoint = adoptGRef(atk_component_ref_accessible_at_point(ATK_COMPONENT(m_element), x, y, ATK_XY_WINDOW));
+    return AccessibilityUIElement(objectAtPoint ? objectAtPoint.get() : m_element);
 }
 
 AccessibilityUIElement AccessibilityUIElement::linkedUIElementAtIndex(unsigned index)
 {
     // FIXME: implement
-    return 0;
+    return nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::getChildAtIndex(unsigned index)
 {
+    if (!ATK_IS_OBJECT(m_element))
+        return nullptr;
+
     Vector<AccessibilityUIElement> children;
     getChildrenWithRange(children, index, index + 1);
 
     if (children.size() == 1)
         return children.at(0);
 
-    return 0;
+    return nullptr;
 }
 
 unsigned AccessibilityUIElement::indexOfChild(AccessibilityUIElement* element)
@@ -395,7 +725,7 @@ unsigned AccessibilityUIElement::indexOfChild(AccessibilityUIElement* element)
 
 JSStringRef AccessibilityUIElement::allAttributes()
 {
-    if (!m_element || !ATK_IS_OBJECT(m_element))
+    if (!ATK_IS_OBJECT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
     return JSStringCreateWithUTF8CString(attributesOfElement(this).utf8().data());
@@ -415,14 +745,14 @@ JSStringRef AccessibilityUIElement::attributesOfDocumentLinks()
 
 AccessibilityUIElement AccessibilityUIElement::titleUIElement()
 {
-    if (!m_element)
-        return 0;
+    if (!ATK_IS_OBJECT(m_element))
+        return nullptr;
 
     AtkRelationSet* set = atk_object_ref_relation_set(ATK_OBJECT(m_element));
     if (!set)
-        return 0;
+        return nullptr;
 
-    AtkObject* target = 0;
+    AtkObject* target = nullptr;
     int count = atk_relation_set_get_n_relations(set);
     for (int i = 0; i < count; i++) {
         AtkRelation* relation = atk_relation_set_get_relation(set, i);
@@ -434,32 +764,27 @@ AccessibilityUIElement AccessibilityUIElement::titleUIElement()
     }
 
     g_object_unref(set);
-    return target ? AccessibilityUIElement(target) : 0;
+    return target ? AccessibilityUIElement(target) : nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::parentElement()
 {
-    if (!m_element)
-        return 0;
-
-    ASSERT(ATK_IS_OBJECT(m_element));
+    if (!ATK_IS_OBJECT(m_element))
+        return nullptr;
 
     AtkObject* parent =  atk_object_get_parent(ATK_OBJECT(m_element));
-    return parent ? AccessibilityUIElement(parent) : 0;
+    return parent ? AccessibilityUIElement(parent) : nullptr;
 }
 
 JSStringRef AccessibilityUIElement::attributesOfChildren()
 {
+    if (!ATK_IS_OBJECT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
     Vector<AccessibilityUIElement> children;
     getChildren(children);
 
-    StringBuilder builder;
-    for (Vector<AccessibilityUIElement>::iterator it = children.begin(); it != children.end(); ++it) {
-        builder.append(attributesOfElement(it));
-        builder.append("\n------------\n");
-    }
-
-    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+    return createStringWithAttributes(children);
 }
 
 JSStringRef AccessibilityUIElement::parameterizedAttributeNames()
@@ -470,134 +795,215 @@ JSStringRef AccessibilityUIElement::parameterizedAttributeNames()
 
 JSStringRef AccessibilityUIElement::role()
 {
-    if (!m_element || !ATK_IS_OBJECT(m_element))
+    if (!ATK_IS_OBJECT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
-    AtkRole role = atk_object_get_role(ATK_OBJECT(m_element));
-    if (!role)
+    if (!atk_object_get_role(ATK_OBJECT(m_element)))
         return JSStringCreateWithCharacters(0, 0);
 
-    GOwnPtr<char> roleStringWithPrefix(g_strdup_printf("AXRole: %s", roleToString(role)));
+    GUniquePtr<char> roleStringWithPrefix(g_strdup_printf("AXRole: %s", roleToString(ATK_OBJECT(m_element))));
     return JSStringCreateWithUTF8CString(roleStringWithPrefix.get());
 }
 
 JSStringRef AccessibilityUIElement::subrole()
 {
-    return 0;
+    return nullptr;
 }
 
 JSStringRef AccessibilityUIElement::roleDescription()
 {
-    return 0;
+    return nullptr;
+}
+
+JSStringRef AccessibilityUIElement::computedRoleString()
+{
+    // FIXME: implement http://webkit.org/b/128420
+    return nullptr;
 }
 
 JSStringRef AccessibilityUIElement::title()
 {
+    if (!ATK_IS_OBJECT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
     const gchar* name = atk_object_get_name(ATK_OBJECT(m_element));
-    GOwnPtr<gchar> axTitle(g_strdup_printf("AXTitle: %s", name ? name : ""));
+    GUniquePtr<gchar> axTitle(g_strdup_printf("AXTitle: %s", name ? name : ""));
 
     return JSStringCreateWithUTF8CString(axTitle.get());
 }
 
 JSStringRef AccessibilityUIElement::description()
 {
-    const gchar* description = atk_object_get_description(ATK_OBJECT(m_element));
+    if (!ATK_IS_OBJECT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
 
+    const gchar* description = atk_object_get_description(ATK_OBJECT(m_element));
     if (!description)
         return JSStringCreateWithCharacters(0, 0);
 
-    GOwnPtr<gchar> axDesc(g_strdup_printf("AXDescription: %s", description));
+    GUniquePtr<gchar> axDesc(g_strdup_printf("AXDescription: %s", description));
 
     return JSStringCreateWithUTF8CString(axDesc.get());
 }
 
 JSStringRef AccessibilityUIElement::stringValue()
 {
-    if (!m_element || !ATK_IS_TEXT(m_element))
+    if (!ATK_IS_TEXT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
-    GOwnPtr<gchar> text(atk_text_get_text(ATK_TEXT(m_element), 0, -1));
-    GOwnPtr<gchar> textWithReplacedCharacters(replaceCharactersForResults(text.get()));
-    GOwnPtr<gchar> axValue(g_strdup_printf("AXValue: %s", textWithReplacedCharacters.get()));
+    GUniquePtr<gchar> text(atk_text_get_text(ATK_TEXT(m_element), 0, -1));
+    GUniquePtr<gchar> textWithReplacedCharacters(replaceCharactersForResults(text.get()));
+    GUniquePtr<gchar> axValue(g_strdup_printf("AXValue: %s", textWithReplacedCharacters.get()));
 
     return JSStringCreateWithUTF8CString(axValue.get());
 }
 
 JSStringRef AccessibilityUIElement::language()
 {
-    if (!m_element)
+    if (!ATK_IS_OBJECT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
     const gchar* locale = atk_object_get_object_locale(ATK_OBJECT(m_element));
     if (!locale)
         return JSStringCreateWithCharacters(0, 0);
 
-    GOwnPtr<char> axValue(g_strdup_printf("AXLanguage: %s", locale));
+    GUniquePtr<char> axValue(g_strdup_printf("AXLanguage: %s", locale));
     return JSStringCreateWithUTF8CString(axValue.get());
 }
 
 JSStringRef AccessibilityUIElement::helpText() const
 {
-    // FIXME: We need to provide a proper implementation for this that does
-    // not depend on Mac specific concepts such as ATK_RELATION_DESCRIBED_BY,
-    // once it's implemented (see http://webkit.org/b/121684).
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_OBJECT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    AtkRelationSet* relationSet = atk_object_ref_relation_set(ATK_OBJECT(m_element));
+    if (!relationSet)
+        return nullptr;
+
+    AtkRelation* relation = atk_relation_set_get_relation_by_type(relationSet, ATK_RELATION_DESCRIBED_BY);
+    if (!relation)
+        return nullptr;
+
+    GPtrArray* targetList = atk_relation_get_target(relation);
+    if (!targetList || !targetList->len)
+        return nullptr;
+
+    StringBuilder builder;
+    builder.append("AXHelp: ");
+
+    for (int targetCount = 0; targetCount < targetList->len; targetCount++) {
+        if (AtkObject* target = static_cast<AtkObject*>(g_ptr_array_index(targetList, targetCount))) {
+            GUniquePtr<gchar> text(atk_text_get_text(ATK_TEXT(target), 0, -1));
+            if (!builder.isEmpty())
+                builder.append(" ");
+            builder.append(text.get());
+        }
+    }
+
+    g_object_unref(relationSet);
+
+    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+
 }
 
 double AccessibilityUIElement::x()
 {
-    int x, y;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
 
-    atk_component_get_position(ATK_COMPONENT(m_element), &x, &y, ATK_XY_SCREEN);
+    int x;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), &x, nullptr, nullptr, nullptr, ATK_XY_SCREEN);
+#else
+    atk_component_get_position(ATK_COMPONENT(m_element), &x, nullptr, ATK_XY_SCREEN);
+#endif
 
     return x;
 }
 
 double AccessibilityUIElement::y()
 {
-    int x, y;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
 
-    atk_component_get_position(ATK_COMPONENT(m_element), &x, &y, ATK_XY_SCREEN);
+    int y;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), nullptr, &y, nullptr, nullptr, ATK_XY_SCREEN);
+#else
+    atk_component_get_position(ATK_COMPONENT(m_element), nullptr, &y, ATK_XY_SCREEN);
+#endif
 
     return y;
 }
 
 double AccessibilityUIElement::width()
 {
-    int width, height;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
 
-    atk_component_get_size(ATK_COMPONENT(m_element), &width, &height);
+    int width;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), nullptr, nullptr, &width, nullptr, ATK_XY_WINDOW);
+#else
+    atk_component_get_size(ATK_COMPONENT(m_element), &width, nullptr);
+#endif
 
     return width;
 }
 
 double AccessibilityUIElement::height()
 {
-    int width, height;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
 
-    atk_component_get_size(ATK_COMPONENT(m_element), &width, &height);
+    int height;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), nullptr, nullptr, nullptr, &height, ATK_XY_WINDOW);
+#else
+    atk_component_get_size(ATK_COMPONENT(m_element), nullptr, &height);
+#endif
 
     return height;
 }
 
 double AccessibilityUIElement::clickPointX()
 {
-    // Note: This is not something we have in ATK.
-    return 0.f;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
+
+    int x, width;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), &x, nullptr, &width, nullptr, ATK_XY_WINDOW);
+#else
+    atk_component_get_position(ATK_COMPONENT(m_element), &x, nullptr, ATK_XY_WINDOW);
+    atk_component_get_size(ATK_COMPONENT(m_element), &width, nullptr);
+#endif
+
+    return x + width / 2.0;
 }
 
 double AccessibilityUIElement::clickPointY()
 {
-    // Note: This is not something we have in ATK.
-    return 0.f;
+    if (!ATK_IS_COMPONENT(m_element))
+        return 0;
+
+    int y, height;
+#if ATK_CHECK_VERSION(2,11,90)
+    atk_component_get_extents(ATK_COMPONENT(m_element), nullptr, &y, nullptr, &height, ATK_XY_WINDOW);
+#else
+    atk_component_get_position(ATK_COMPONENT(m_element), nullptr, &y, ATK_XY_WINDOW);
+    atk_component_get_size(ATK_COMPONENT(m_element), nullptr, &height);
+#endif
+
+    return y + height / 2.0;
 }
 
 JSStringRef AccessibilityUIElement::orientation() const
 {
-    if (!m_element || !ATK_IS_OBJECT(m_element))
+    if (!ATK_IS_OBJECT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
-    const char* axOrientation = 0;
+    const char* axOrientation = nullptr;
     if (checkElementState(m_element, ATK_STATE_HORIZONTAL))
         axOrientation = "AXOrientation: AXHorizontalOrientation";
     else if (checkElementState(m_element, ATK_STATE_VERTICAL))
@@ -611,41 +1017,65 @@ JSStringRef AccessibilityUIElement::orientation() const
 
 double AccessibilityUIElement::intValue() const
 {
-    GValue value = { 0, { { 0 } } };
+    if (!ATK_IS_OBJECT(m_element))
+        return 0;
 
-    if (!ATK_IS_VALUE(m_element))
-        return 0.0f;
+    if (ATK_IS_VALUE(m_element)) {
+#if ATK_CHECK_VERSION(2,11,92)
+        double value;
+        atk_value_get_value_and_text(ATK_VALUE(m_element), &value, nullptr);
+        return value;
+#else
+        GValue value = G_VALUE_INIT;
+        atk_value_get_current_value(ATK_VALUE(m_element), &value);
+        if (!G_VALUE_HOLDS_FLOAT(&value))
+            return 0;
+        return g_value_get_float(&value);
+#endif
+    }
 
-    atk_value_get_current_value(ATK_VALUE(m_element), &value);
-    if (!G_VALUE_HOLDS_FLOAT(&value))
-        return 0.0f;
-    return g_value_get_float(&value);
+    // Consider headings as an special case when returning the "int value" of
+    // an AccessibilityUIElement, so we can reuse some tests to check the level
+    // both for HTML headings and objects with the aria-level attribute.
+    if (atk_object_get_role(ATK_OBJECT(m_element)) == ATK_ROLE_HEADING) {
+        String headingLevel = getAttributeSetValueForId(ATK_OBJECT(m_element), ObjectAttributeType, "level");
+        bool ok;
+        double headingLevelValue = headingLevel.toDouble(&ok);
+        if (ok)
+            return headingLevelValue;
+    }
+
+    return 0;
 }
 
 double AccessibilityUIElement::minValue()
 {
-    GValue value = { 0, { { 0 } } };
-
     if (!ATK_IS_VALUE(m_element))
-        return 0.0f;
-
+        return 0;
+#if ATK_CHECK_VERSION(2,11,92)
+    return rangeMinMaxValue(ATK_VALUE(m_element), RangeLimitMinimum);
+#else
+    GValue value = G_VALUE_INIT;
     atk_value_get_minimum_value(ATK_VALUE(m_element), &value);
     if (!G_VALUE_HOLDS_FLOAT(&value))
-        return 0.0f;
+        return 0;
     return g_value_get_float(&value);
+#endif
 }
 
 double AccessibilityUIElement::maxValue()
 {
-    GValue value = { 0, { { 0 } } };
-
     if (!ATK_IS_VALUE(m_element))
-        return 0.0f;
-
+        return 0;
+#if ATK_CHECK_VERSION(2,11,92)
+    return rangeMinMaxValue(ATK_VALUE(m_element), RangeLimitMaximum);
+#else
+    GValue value = G_VALUE_INIT;
     atk_value_get_maximum_value(ATK_VALUE(m_element), &value);
     if (!G_VALUE_HOLDS_FLOAT(&value))
-        return 0.0f;
+        return 0;
     return g_value_get_float(&value);
+#endif
 }
 
 JSStringRef AccessibilityUIElement::valueDescription()
@@ -668,8 +1098,11 @@ int AccessibilityUIElement::insertionPointLineNumber()
 
 bool AccessibilityUIElement::isPressActionSupported()
 {
-    // FIXME: implement
-    return false;
+    if (!ATK_IS_ACTION(m_element))
+        return false;
+
+    const gchar* actionName = atk_action_get_name(ATK_ACTION(m_element), 0);
+    return equalIgnoringCase(actionName, String("press")) || equalIgnoringCase(actionName, String("jump"));
 }
 
 bool AccessibilityUIElement::isIncrementActionSupported()
@@ -718,7 +1151,7 @@ bool AccessibilityUIElement::ariaIsGrabbed() const
 
 JSStringRef AccessibilityUIElement::ariaDropEffects() const
 {   
-    return 0; 
+    return nullptr; 
 }
 
 bool AccessibilityUIElement::isExpanded() const
@@ -743,16 +1176,31 @@ bool AccessibilityUIElement::isChecked() const
     return isChecked;
 }
 
+bool AccessibilityUIElement::isIndeterminate() const
+{
+    if (!ATK_IS_OBJECT(m_element))
+        return false;
+
+    GRefPtr<AtkStateSet> stateSet = adoptGRef(atk_object_ref_state_set(ATK_OBJECT(m_element)));
+    return atk_state_set_contains_state(stateSet.get(), ATK_STATE_INDETERMINATE);
+}
+
 JSStringRef AccessibilityUIElement::attributesOfColumnHeaders()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<AccessibilityUIElement> columnHeaders = getColumnHeaders(ATK_TABLE(m_element));
+    return createStringWithAttributes(columnHeaders);
 }
 
 JSStringRef AccessibilityUIElement::attributesOfRowHeaders()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<AccessibilityUIElement> rowHeaders = getRowHeaders(ATK_TABLE(m_element));
+    return createStringWithAttributes(rowHeaders);
 }
 
 JSStringRef AccessibilityUIElement::attributesOfColumns()
@@ -769,8 +1217,11 @@ JSStringRef AccessibilityUIElement::attributesOfRows()
 
 JSStringRef AccessibilityUIElement::attributesOfVisibleCells()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TABLE(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    Vector<AccessibilityUIElement> visibleCells = getVisibleCells(this);
+    return createStringWithAttributes(visibleCells);
 }
 
 JSStringRef AccessibilityUIElement::attributesOfHeader()
@@ -785,46 +1236,6 @@ int AccessibilityUIElement::indexInTable()
     return 0;
 }
 
-static JSStringRef indexRangeInTable(PlatformUIElement element, bool isRowRange)
-{
-    GOwnPtr<gchar> rangeString(g_strdup("{0, 0}"));
-
-    if (!element)
-        return JSStringCreateWithUTF8CString(rangeString.get());
-
-    ASSERT(ATK_IS_OBJECT(element));
-
-    AtkObject* axTable = atk_object_get_parent(ATK_OBJECT(element));
-    if (!axTable || !ATK_IS_TABLE(axTable))
-        return JSStringCreateWithUTF8CString(rangeString.get());
-
-    // Look for the cell in the table.
-    gint indexInParent = atk_object_get_index_in_parent(ATK_OBJECT(element));
-    if (indexInParent == -1)
-        return JSStringCreateWithUTF8CString(rangeString.get());
-
-    int row = -1;
-    int column = -1;
-    row = atk_table_get_row_at_index(ATK_TABLE(axTable), indexInParent);
-    column = atk_table_get_column_at_index(ATK_TABLE(axTable), indexInParent);
-
-    // Get the actual values, if row and columns are valid values.
-    if (row != -1 && column != -1) {
-        int base = 0;
-        int length = 0;
-        if (isRowRange) {
-            base = row;
-            length = atk_table_get_row_extent_at(ATK_TABLE(axTable), row, column);
-        } else {
-            base = column;
-            length = atk_table_get_column_extent_at(ATK_TABLE(axTable), row, column);
-        }
-        rangeString.set(g_strdup_printf("{%d, %d}", base, length));
-    }
-
-    return JSStringCreateWithUTF8CString(rangeString.get());
-}
-
 JSStringRef AccessibilityUIElement::rowIndexRange()
 {
     // Range in table for rows.
@@ -837,10 +1248,22 @@ JSStringRef AccessibilityUIElement::columnIndexRange()
     return indexRangeInTable(m_element, false);
 }
 
-int AccessibilityUIElement::lineForIndex(int)
+int AccessibilityUIElement::lineForIndex(int index)
 {
-    // FIXME: implement
-    return 0;
+    if (!ATK_IS_TEXT(m_element))
+        return -1;
+
+    if (index < 0 || index > atk_text_get_character_count(ATK_TEXT(m_element)))
+        return -1;
+
+    GUniquePtr<gchar> text(atk_text_get_text(ATK_TEXT(m_element), 0, index));
+    int lineNo = 0;
+    for (gchar* offset = text.get(); *offset; ++offset) {
+        if (*offset == '\n')
+            ++lineNo;
+    }
+
+    return lineNo;
 }
 
 JSStringRef AccessibilityUIElement::boundsForRange(unsigned location, unsigned length)
@@ -849,10 +1272,13 @@ JSStringRef AccessibilityUIElement::boundsForRange(unsigned location, unsigned l
     return JSStringCreateWithCharacters(0, 0);
 }
 
-JSStringRef AccessibilityUIElement::stringForRange(unsigned, unsigned) 
+JSStringRef AccessibilityUIElement::stringForRange(unsigned location, unsigned length)
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TEXT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    String string = atk_text_get_text(ATK_TEXT(m_element), location, location + length);
+    return JSStringCreateWithUTF8CString(string.utf8().data());
 } 
 
 JSStringRef AccessibilityUIElement::attributedStringForRange(unsigned, unsigned)
@@ -867,62 +1293,81 @@ bool AccessibilityUIElement::attributedStringRangeIsMisspelled(unsigned location
     return false;
 }
 
-AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly)
+unsigned AccessibilityUIElement::uiElementCountForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
 {
     // FIXME: implement
     return 0;
 }
 
+AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
+{
+    // FIXME: implement
+    return nullptr;
+}
+
+JSStringRef AccessibilityUIElement::selectTextWithCriteria(JSContextRef context, JSStringRef ambiguityResolution, JSValueRef searchStrings, JSStringRef replacementString)
+{
+    // FIXME: implement
+    return nullptr;
+}
+
 AccessibilityUIElement AccessibilityUIElement::cellForColumnAndRow(unsigned column, unsigned row)
 {
-    if (!m_element)
-        return 0;
-
-    ASSERT(ATK_IS_TABLE(m_element));
+    if (!ATK_IS_TABLE(m_element))
+        return nullptr;
 
     // Adopt the AtkObject representing the cell because
     // at_table_ref_at() transfers full ownership.
     GRefPtr<AtkObject> foundCell = adoptGRef(atk_table_ref_at(ATK_TABLE(m_element), row, column));
-    return foundCell ? AccessibilityUIElement(foundCell.get()) : 0;
+    return foundCell ? AccessibilityUIElement(foundCell.get()) : nullptr;
 }
 
 JSStringRef AccessibilityUIElement::selectedTextRange()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_TEXT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    gint start, end;
+    g_free(atk_text_get_selection(ATK_TEXT(m_element), 0, &start, &end));
+
+    GUniquePtr<gchar> selection(g_strdup_printf("{%d, %d}", start, end - start));
+    return JSStringCreateWithUTF8CString(selection.get());
 }
 
 void AccessibilityUIElement::setSelectedTextRange(unsigned location, unsigned length)
 {
-    // FIXME: implement
+    if (!ATK_IS_TEXT(m_element))
+        return;
+
+    atk_text_set_selection(ATK_TEXT(m_element), 0, location, location + length);
 }
 
 JSStringRef AccessibilityUIElement::stringAttributeValue(JSStringRef attribute)
 {
-    if (!m_element)
+    if (!ATK_IS_OBJECT(m_element))
         return JSStringCreateWithCharacters(0, 0);
 
     String atkAttributeName = coreAttributeToAtkAttribute(attribute);
-    if (atkAttributeName.isEmpty())
-        return JSStringCreateWithCharacters(0, 0);
 
-    String attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), atkAttributeName.utf8().data());
+    // Try object attributes first.
+    String attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), ObjectAttributeType, atkAttributeName);
 
-    // In case of 'aria-invalid' when the attribute empty or has "false" for ATK
-    // according to http://www.w3.org/WAI/PF/aria-implementation/#mapping attribute
-    // is not mapped but layout tests will expect 'false'.
-    if (attributeValue.isEmpty() && atkAttributeName == "aria-invalid")
-        return JSStringCreateWithUTF8CString("false");
+    // Try text attributes if the requested one was not found and we have an AtkText object.
+    if (attributeValue.isEmpty() && ATK_IS_TEXT(m_element))
+        attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), TextAttributeType, atkAttributeName);
 
-    // We need to translate ATK values exposed for 'aria-sort' (e.g. 'ascending')
-    // into those expected by the layout tests (e.g. 'AXAscendingSortDirection').
-    if (atkAttributeName == "sort") {
-        if (attributeValue == "ascending")
-            return JSStringCreateWithUTF8CString("AXAscendingSortDirection");
-        if (attributeValue == "descending")
-            return JSStringCreateWithUTF8CString("AXDescendingSortDirection");
+    // Additional check to make sure that the exposure of the state ATK_STATE_INVALID_ENTRY
+    // is consistent with the exposure of aria-invalid as a text attribute, if present.
+    if (atkAttributeName == attributesMap[InvalidNameIndex][AtkDomain]) {
+        bool isInvalidState = checkElementState(m_element, ATK_STATE_INVALID_ENTRY);
+        if (attributeValue.isEmpty())
+            return JSStringCreateWithUTF8CString(isInvalidState ? "true" : "false");
 
-        return JSStringCreateWithUTF8CString("AXUnknownSortDirection");
+        // If the text attribute was there, check that it's consistent with
+        // what the state says or force the test to fail otherwise.
+        bool isAriaInvalid = attributeValue != "false";
+        if (isInvalidState != isAriaInvalid)
+            return JSStringCreateWithCharacters(0, 0);
     }
 
     return JSStringCreateWithUTF8CString(attributeValue.utf8().data());
@@ -930,8 +1375,20 @@ JSStringRef AccessibilityUIElement::stringAttributeValue(JSStringRef attribute)
 
 double AccessibilityUIElement::numberAttributeValue(JSStringRef attribute)
 {
-    // FIXME: implement
-    return 0.0f;
+    if (!ATK_IS_OBJECT(m_element))
+        return 0;
+
+    String atkAttributeName = coreAttributeToAtkAttribute(attribute);
+    if (atkAttributeName.isEmpty())
+        return 0;
+
+    if (atkAttributeName == "setsize" || atkAttributeName == "posinset") {
+        String attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), ObjectAttributeType, atkAttributeName);
+        if (!attributeValue.isEmpty())
+            return attributeValue.toDouble();
+    }
+
+    return 0;
 }
 
 bool AccessibilityUIElement::boolAttributeValue(JSStringRef attribute)
@@ -942,37 +1399,31 @@ bool AccessibilityUIElement::boolAttributeValue(JSStringRef attribute)
 
 bool AccessibilityUIElement::isAttributeSettable(JSStringRef attribute)
 {
-    // FIXME: implement
+    if (!ATK_IS_OBJECT(m_element))
+        return false;
+
+    String attributeString = jsStringToWTFString(attribute);
+    if (attributeString == "AXValue")
+        return checkElementState(m_element, ATK_STATE_EDITABLE);
+
     return false;
 }
 
 bool AccessibilityUIElement::isAttributeSupported(JSStringRef attribute)
 {
-    return false;
-}
+    if (!ATK_IS_OBJECT(m_element))
+        return false;
 
-static void alterCurrentValue(PlatformUIElement element, int factor)
-{
-    if (!element)
-        return;
+    String atkAttributeName = coreAttributeToAtkAttribute(attribute);
+    if (atkAttributeName.isEmpty())
+        return false;
 
-    ASSERT(ATK_IS_VALUE(element));
+    // For now, an attribute is supported whether it's exposed as a object or a text attribute.
+    String attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), ObjectAttributeType, atkAttributeName);
+    if (attributeValue.isEmpty())
+        attributeValue = getAttributeSetValueForId(ATK_OBJECT(m_element), TextAttributeType, atkAttributeName);
 
-    GValue currentValue = G_VALUE_INIT;
-    atk_value_get_current_value(ATK_VALUE(element), &currentValue);
-
-    GValue increment = G_VALUE_INIT;
-    atk_value_get_minimum_increment(ATK_VALUE(element), &increment);
-
-    GValue newValue = G_VALUE_INIT;
-    g_value_init(&newValue, G_TYPE_FLOAT);
-
-    g_value_set_float(&newValue, g_value_get_float(&currentValue) + factor * g_value_get_float(&increment));
-    atk_value_set_current_value(ATK_VALUE(element), &newValue);
-
-    g_value_unset(&newValue);
-    g_value_unset(&increment);
-    g_value_unset(&currentValue);
+    return !attributeValue.isEmpty();
 }
 
 void AccessibilityUIElement::increment()
@@ -987,11 +1438,6 @@ void AccessibilityUIElement::decrement()
 
 void AccessibilityUIElement::press()
 {
-    if (!m_element)
-        return;
-
-    ASSERT(ATK_IS_OBJECT(m_element));
-
     if (!ATK_IS_ACTION(m_element))
         return;
 
@@ -1004,34 +1450,62 @@ void AccessibilityUIElement::showMenu()
     // FIXME: implement
 }
 
+AccessibilityUIElement accessibilityElementAtIndex(AtkObject* element, AtkRelationType relationType, unsigned index)
+{
+    if (!ATK_IS_OBJECT(element))
+        return nullptr;
+
+    AtkRelationSet* relationSet = atk_object_ref_relation_set(element);
+    if (!relationSet)
+        return nullptr;
+
+    AtkRelation* relation = atk_relation_set_get_relation_by_type(relationSet, relationType);
+    if (!relation)
+        return nullptr;
+
+    GPtrArray* targetList = atk_relation_get_target(relation);
+    if (!targetList || !targetList->len || index >= targetList->len)
+        return nullptr;
+
+    AtkObject* target = static_cast<AtkObject*>(g_ptr_array_index(targetList, index));
+    g_object_unref(relationSet);
+
+    return target ? AccessibilityUIElement(target) : nullptr;
+}
+
 AccessibilityUIElement AccessibilityUIElement::disclosedRowAtIndex(unsigned index)
 {
-    return 0;
+    return nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::ariaOwnsElementAtIndex(unsigned index)
 {
-    return 0;
+    return nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::ariaFlowToElementAtIndex(unsigned index)
 {
-    return 0;
+    return accessibilityElementAtIndex(m_element, ATK_RELATION_FLOWS_TO, index);
+}
+
+AccessibilityUIElement AccessibilityUIElement::ariaControlsElementAtIndex(unsigned index)
+{
+    return accessibilityElementAtIndex(m_element, ATK_RELATION_CONTROLLER_FOR, index);
 }
 
 AccessibilityUIElement AccessibilityUIElement::selectedRowAtIndex(unsigned index)
 {
-    return 0;
+    return nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::rowAtIndex(unsigned index)
 {
-    return 0;
+    return nullptr;
 }
 
 AccessibilityUIElement AccessibilityUIElement::disclosedByRow()
 {
-    return 0;
+    return nullptr;
 }
 
 JSStringRef AccessibilityUIElement::accessibilityValue() const
@@ -1042,6 +1516,9 @@ JSStringRef AccessibilityUIElement::accessibilityValue() const
 
 JSStringRef AccessibilityUIElement::documentEncoding()
 {
+    if (!ATK_IS_DOCUMENT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
     AtkRole role = atk_object_get_role(ATK_OBJECT(m_element));
     if (role != ATK_ROLE_DOCUMENT_FRAME)
         return JSStringCreateWithCharacters(0, 0);
@@ -1051,6 +1528,9 @@ JSStringRef AccessibilityUIElement::documentEncoding()
 
 JSStringRef AccessibilityUIElement::documentURI()
 {
+    if (!ATK_IS_DOCUMENT(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
     AtkRole role = atk_object_get_role(ATK_OBJECT(m_element));
     if (role != ATK_ROLE_DOCUMENT_FRAME)
         return JSStringCreateWithCharacters(0, 0);
@@ -1060,8 +1540,16 @@ JSStringRef AccessibilityUIElement::documentURI()
 
 JSStringRef AccessibilityUIElement::url()
 {
-    // FIXME: implement
-    return JSStringCreateWithCharacters(0, 0);
+    if (!ATK_IS_HYPERLINK_IMPL(m_element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    AtkHyperlink* hyperlink = atk_hyperlink_impl_get_hyperlink(ATK_HYPERLINK_IMPL(m_element));
+    GUniquePtr<char> hyperlinkURI(atk_hyperlink_get_uri(hyperlink, 0));
+
+    // Build the result string, stripping the absolute URL paths if present.
+    char* localURI = g_strstr_len(hyperlinkURI.get(), -1, "LayoutTests");
+    String axURL = String::format("AXURL: %s", localURI ? localURI : hyperlinkURI.get());
+    return JSStringCreateWithUTF8CString(axURL.utf8().data());
 }
 
 bool AccessibilityUIElement::addNotificationListener(JSObjectRef functionCallback)
@@ -1085,7 +1573,7 @@ void AccessibilityUIElement::removeNotificationListener()
     // Programmers should not be trying to remove a listener that's already removed.
     ASSERT(m_notificationHandler);
 
-    m_notificationHandler = 0;
+    m_notificationHandler = nullptr;
 }
 
 bool AccessibilityUIElement::isFocusable() const
@@ -1111,8 +1599,7 @@ bool AccessibilityUIElement::isMultiSelectable() const
 
 bool AccessibilityUIElement::isSelectedOptionActive() const
 {
-    // FIXME: implement
-    return false;
+    return checkElementState(m_element, ATK_STATE_ACTIVE);
 }
 
 bool AccessibilityUIElement::isVisible() const
@@ -1141,10 +1628,11 @@ bool AccessibilityUIElement::isIgnored() const
 
 bool AccessibilityUIElement::hasPopup() const
 {
-    if (!m_element || !ATK_IS_OBJECT(m_element))
+    if (!ATK_IS_OBJECT(m_element))
         return false;
 
-    return equalIgnoringCase(getAttributeSetValueForId(ATK_OBJECT(m_element), "haspopup"), "true");
+    String hasPopupValue = getAttributeSetValueForId(ATK_OBJECT(m_element), ObjectAttributeType, "haspopup");
+    return equalIgnoringCase(hasPopupValue, "true");
 }
 
 void AccessibilityUIElement::takeFocus()
@@ -1185,7 +1673,123 @@ void AccessibilityUIElement::scrollToGlobalPoint(int x, int y)
 JSStringRef AccessibilityUIElement::classList() const
 {
     // FIXME: implement
-    return 0;
+    return nullptr;
+}
+
+JSStringRef stringAtOffset(PlatformUIElement element, AtkTextBoundary boundary, int offset)
+{
+    if (!ATK_IS_TEXT(element))
+        return JSStringCreateWithCharacters(0, 0);
+
+    gint startOffset, endOffset;
+    StringBuilder builder;
+
+#if ATK_CHECK_VERSION(2, 10, 0)
+    AtkTextGranularity granularity;
+    switch (boundary) {
+    case ATK_TEXT_BOUNDARY_CHAR:
+        granularity = ATK_TEXT_GRANULARITY_CHAR;
+        break;
+    case ATK_TEXT_BOUNDARY_WORD_START:
+        granularity = ATK_TEXT_GRANULARITY_WORD;
+        break;
+    case ATK_TEXT_BOUNDARY_LINE_START:
+        granularity = ATK_TEXT_GRANULARITY_LINE;
+        break;
+    case ATK_TEXT_BOUNDARY_SENTENCE_START:
+        granularity = ATK_TEXT_GRANULARITY_SENTENCE;
+        break;
+    default:
+        return JSStringCreateWithCharacters(0, 0);
+    }
+
+    builder.append(atk_text_get_string_at_offset(ATK_TEXT(element), offset, granularity, &startOffset, &endOffset));
+#else
+    builder.append(atk_text_get_text_at_offset(ATK_TEXT(element), offset, boundary, &startOffset, &endOffset));
+#endif
+    builder.append(String::format(", %i, %i", startOffset, endOffset));
+    return JSStringCreateWithUTF8CString(builder.toString().utf8().data());
+}
+
+JSStringRef AccessibilityUIElement::characterAtOffset(int offset)
+{
+    return stringAtOffset(m_element, ATK_TEXT_BOUNDARY_CHAR, offset);
+}
+
+JSStringRef AccessibilityUIElement::wordAtOffset(int offset)
+{
+    return stringAtOffset(m_element, ATK_TEXT_BOUNDARY_WORD_START, offset);
+}
+
+JSStringRef AccessibilityUIElement::lineAtOffset(int offset)
+{
+    return stringAtOffset(m_element, ATK_TEXT_BOUNDARY_LINE_START, offset);
+}
+
+JSStringRef AccessibilityUIElement::sentenceAtOffset(int offset)
+{
+    return stringAtOffset(m_element, ATK_TEXT_BOUNDARY_SENTENCE_START, offset);
+}
+
+unsigned AccessibilityUIElement::selectedChildrenCount() const
+{
+    if (!ATK_IS_SELECTION(m_element))
+        return 0;
+
+    return atk_selection_get_selection_count(ATK_SELECTION(m_element));
+}
+
+AccessibilityUIElement AccessibilityUIElement::selectedChildAtIndex(unsigned index) const
+{
+    if (!ATK_IS_SELECTION(m_element))
+        return nullptr;
+
+    GRefPtr<AtkObject> child = adoptGRef(atk_selection_ref_selection(ATK_SELECTION(m_element), index));
+    return child ? AccessibilityUIElement(child.get()) : nullptr;
+}
+
+void AccessibilityUIElement::setSelectedChildAtIndex(unsigned index) const
+{
+    if (!ATK_IS_SELECTION(m_element))
+        return;
+
+    atk_selection_add_selection(ATK_SELECTION(m_element), index);
+}
+
+void AccessibilityUIElement::removeSelectionAtIndex(unsigned index) const
+{
+    if (!ATK_IS_SELECTION(m_element))
+        return;
+
+    atk_selection_remove_selection(ATK_SELECTION(m_element), index);
+}
+
+void AccessibilityUIElement::columnHeaders(Vector<AccessibilityUIElement>& columns) const
+{
+#if ATK_CHECK_VERSION(2,11,90)
+    if (!ATK_IS_TABLE_CELL(m_element))
+        return;
+
+    GRefPtr<GPtrArray> array = adoptGRef(atk_table_cell_get_column_header_cells(ATK_TABLE_CELL(m_element)));
+    if (!array)
+        return;
+
+    convertGPtrArrayToVector(array.get(), columns);
+#endif
+}
+
+void AccessibilityUIElement::rowHeaders(Vector<AccessibilityUIElement>& cells) const
+{
+#if ATK_CHECK_VERSION(2,11,90)
+    if (!ATK_IS_TABLE_CELL(m_element))
+        return;
+
+    GRefPtr<GPtrArray> array = adoptGRef(atk_table_cell_get_row_header_cells(ATK_TABLE_CELL(m_element)));
+    if (!array)
+        return;
+
+    convertGPtrArrayToVector(array.get(), cells);
+#endif
 }
 
 #endif

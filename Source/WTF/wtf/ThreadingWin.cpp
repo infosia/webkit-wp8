@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -148,19 +148,6 @@ void initializeCurrentThreadInternal(const char* szThreadName)
 #endif
 }
 
-static Mutex* atomicallyInitializedStaticMutex;
-
-void lockAtomicallyInitializedStaticMutex()
-{
-    ASSERT(atomicallyInitializedStaticMutex);
-    atomicallyInitializedStaticMutex->lock();
-}
-
-void unlockAtomicallyInitializedStaticMutex()
-{
-    atomicallyInitializedStaticMutex->unlock();
-}
-
 static Mutex& threadMapMutex()
 {
     static Mutex mutex;
@@ -169,14 +156,17 @@ static Mutex& threadMapMutex()
 
 void initializeThreading()
 {
-    if (atomicallyInitializedStaticMutex)
+    static bool isInitialized;
+    
+    if (isInitialized)
         return;
+
+    isInitialized = true;
 
     WTF::double_conversion::initialize();
     // StringImpl::empty() does not construct its static string in a threadsafe fashion,
     // so ensure it has been initialized from here.
     StringImpl::empty();
-    atomicallyInitializedStaticMutex = new Mutex;
     threadMapMutex();
     initializeRandomNumberGenerator();
     wtfThreadData();
@@ -256,6 +246,21 @@ ThreadIdentifier createThreadInternal(ThreadFunction entryPoint, void* data, con
     return threadID;
 }
 
+void changeThreadPriority(ThreadIdentifier threadID, int delta)
+{
+    ASSERT(threadID);
+
+    HANDLE threadHandle = threadHandleForIdentifier(threadID);
+    if (!threadHandle)
+        LOG_ERROR("ThreadIdentifier %u does not correspond to an active thread", threadID);
+
+    SetThreadPriority(threadHandle, THREAD_PRIORITY_NORMAL + delta);
+}
+
+void setCurrentThreadQOSUtility()
+{
+}
+
 int waitForThreadCompletion(ThreadIdentifier threadID)
 {
     ASSERT(threadID);
@@ -282,11 +287,6 @@ void detachThread(ThreadIdentifier threadID)
     if (threadHandle)
         CloseHandle(threadHandle);
     clearThreadHandleForIdentifier(threadID);
-}
-
-void yield()
-{
-    ::Sleep(1);
 }
 
 ThreadIdentifier currentThread()

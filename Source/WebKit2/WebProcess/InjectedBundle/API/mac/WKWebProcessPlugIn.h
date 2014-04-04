@@ -23,7 +23,9 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__LP64__) && defined(__clang__)
+#import <WebKit2/WKFoundation.h>
+
+#if WK_API_ENABLED
 
 #import <Foundation/Foundation.h>
 #import <WebKit2/WKBase.h>
@@ -37,16 +39,15 @@
 - (void)webProcessPlugIn:(WKWebProcessPlugInController *)plugInController initializeWithObject:(id)initializationObject;
 - (void)webProcessPlugIn:(WKWebProcessPlugInController *)plugInController didCreateBrowserContextController:(WKWebProcessPlugInBrowserContextController *)browserContextController;
 - (void)webProcessPlugIn:(WKWebProcessPlugInController *)plugInController willDestroyBrowserContextController:(WKWebProcessPlugInBrowserContextController *)browserContextController;
-
-- (void)webProcessPlugInInitialize:(WKWebProcessPlugInController *)plugInController DEPRECATED_ATTRIBUTE;
-
 @end
 
-WK_EXPORT
+WK_API_CLASS
 @interface WKWebProcessPlugInController : NSObject
 
-@property(readonly) WKConnection *connection;
+@property (readonly) WKConnection *connection;
+
+@property (readonly) id parameters;
 
 @end
 
-#endif // defined(__LP64__) && defined(__clang__)
+#endif // WK_API_ENABLED

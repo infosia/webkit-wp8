@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,9 +37,7 @@
 #include "InbandTextTrackPrivate.h"
 #include "InbandWebVTTTextTrack.h"
 #include "Logging.h"
-#include "TextTrackCueGeneric.h"
 #include "TextTrackCueList.h"
-#include "WebVTTParser.h"
 #include <math.h>
 #include <wtf/text/CString.h>
 
@@ -59,9 +57,9 @@ PassRefPtr<InbandTextTrack> InbandTextTrack::create(ScriptExecutionContext* cont
     }
 }
 
-InbandTextTrack::InbandTextTrack(ScriptExecutionContext* context, TextTrackClient* client, PassRefPtr<InbandTextTrackPrivate> tracksPrivate)
-    : TextTrack(context, client, emptyString(), tracksPrivate->label(), tracksPrivate->language(), InBand)
-    , m_private(tracksPrivate)
+InbandTextTrack::InbandTextTrack(ScriptExecutionContext* context, TextTrackClient* client, PassRefPtr<InbandTextTrackPrivate> trackPrivate)
+    : TextTrack(context, client, emptyAtom, trackPrivate->id(), trackPrivate->label(), trackPrivate->language(), InBand)
+    , m_private(trackPrivate)
 {
     m_private->setClient(this);
     
@@ -153,22 +151,28 @@ bool InbandTextTrack::isEasyToRead() const
 size_t InbandTextTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
-    return m_private->textTrackIndex();
+    return m_private->trackIndex();
 }
 
-void InbandTextTrack::labelChanged(InbandTextTrackPrivate* trackPrivate, const String& label)
+void InbandTextTrack::idChanged(TrackPrivateBase* trackPrivate, const AtomicString& id)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setId(id);
+}
+
+void InbandTextTrack::labelChanged(TrackPrivateBase* trackPrivate, const AtomicString& label)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setLabel(label);
 }
 
-void InbandTextTrack::languageChanged(InbandTextTrackPrivate* trackPrivate, const String& language)
+void InbandTextTrack::languageChanged(TrackPrivateBase* trackPrivate, const AtomicString& language)
 {
     ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     setLanguage(language);
 }
 
-void InbandTextTrack::willRemoveTextTrackPrivate(InbandTextTrackPrivate* trackPrivate)
+void InbandTextTrack::willRemove(TrackPrivateBase* trackPrivate)
 {
     if (!mediaElement())
         return;

@@ -25,34 +25,45 @@
 
 #include "config.h"
 #include "DrawingArea.h"
+#include <WebCore/TransformationMatrix.h>
+#include <wtf/Functional.h>
 
 // Subclasses
-#include "DrawingAreaImpl.h"
-
-#if PLATFORM(MAC) && ENABLE(THREADED_SCROLLING)
-#include "TiledCoreAnimationDrawingArea.h"
-#endif
-
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "RemoteLayerTreeDrawingArea.h"
+#include "TiledCoreAnimationDrawingArea.h"
+#else
+#if USE(COORDINATED_GRAPHICS)
+#include "CoordinatedDrawingArea.h"
+#else
+#include "DrawingAreaImpl.h"
+#endif
 #endif
 
 #include "WebPageCreationParameters.h"
 
+using namespace WebCore;
+
 namespace WebKit {
 
-PassOwnPtr<DrawingArea> DrawingArea::create(WebPage* webPage, const WebPageCreationParameters& parameters)
+std::unique_ptr<DrawingArea> DrawingArea::create(WebPage* webPage, const WebPageCreationParameters& parameters)
 {
     switch (parameters.drawingAreaType) {
-    case DrawingAreaTypeImpl:
-        return DrawingAreaImpl::create(webPage, parameters);
-#if PLATFORM(MAC) && ENABLE(THREADED_SCROLLING)
+#if PLATFORM(COCOA)
+#if !PLATFORM(IOS)
     case DrawingAreaTypeTiledCoreAnimation:
-        return TiledCoreAnimationDrawingArea::create(webPage, parameters);
+        return std::make_unique<TiledCoreAnimationDrawingArea>(webPage, parameters);
 #endif
-#if PLATFORM(MAC)
     case DrawingAreaTypeRemoteLayerTree:
-        return RemoteLayerTreeDrawingArea::create(webPage, parameters);
+        return std::make_unique<RemoteLayerTreeDrawingArea>(webPage, parameters);
+#else
+#if USE(COORDINATED_GRAPHICS)
+    case DrawingAreaTypeCoordinated:
+        return std::make_unique<CoordinatedDrawingArea>(webPage, parameters);
+#else
+    case DrawingAreaTypeImpl:
+        return std::make_unique<DrawingAreaImpl>(webPage, parameters);
+#endif
 #endif
     }
 
@@ -69,10 +80,15 @@ DrawingArea::~DrawingArea()
 {
 }
 
-void DrawingArea::dispatchAfterEnsuringUpdatedScrollPosition(const Function<void ()>& function)
+void DrawingArea::dispatchAfterEnsuringUpdatedScrollPosition(std::function<void ()> function)
 {
     // Scroll position updates are synchronous by default so we can just call the function right away here.
     function();
+}
+
+TransformationMatrix DrawingArea::rootLayerTransform() const
+{
+    return TransformationMatrix();
 }
 
 } // namespace WebKit

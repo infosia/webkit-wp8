@@ -15,10 +15,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,12 +35,16 @@
 #include "EventListenerMap.h"
 #include "EventNames.h"
 #include "EventTargetInterfaces.h"
+#include <memory>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
-#include <wtf/text/AtomicStringHash.h>
+
+namespace WTF {
+class AtomicString;
+}
 
 namespace WebCore {
-
+    
     class AudioNode;
     class AudioContext;
     class AudioTrackList;
@@ -97,7 +101,7 @@ namespace WebCore {
         ~EventTargetData();
 
         EventListenerMap eventListenerMap;
-        OwnPtr<FiringEventIteratorVector> firingEventIterators;
+        std::unique_ptr<FiringEventIteratorVector> firingEventIterators;
     };
 
     enum EventTargetInterface {
@@ -132,7 +136,7 @@ namespace WebCore {
         bool clearAttributeEventListener(const AtomicString& eventType);
         EventListener* getAttributeEventListener(const AtomicString& eventType);
 
-        bool hasEventListeners();
+        bool hasEventListeners() const;
         bool hasEventListeners(const AtomicString& eventType);
         bool hasCapturingEventListeners(const AtomicString& eventType);
         const EventListenerVector& getEventListeners(const AtomicString& eventType);
@@ -154,9 +158,16 @@ namespace WebCore {
         virtual void derefEventTarget() = 0;
         
         void fireEventListeners(Event*, EventTargetData*, EventListenerVector&);
-        void setupLegacyTypeObserverIfNeeded(const AtomicString& legacyTypeName, bool hasLegacyTypeListeners, bool hasNewTypeListeners);
 
         friend class EventListenerIterator;
+    };
+
+    class EventTargetWithInlineData : public EventTarget {
+    protected:
+        virtual EventTargetData* eventTargetData() override final { return &m_eventTargetData; }
+        virtual EventTargetData& ensureEventTargetData() override final { return m_eventTargetData; }
+    private:
+        EventTargetData m_eventTargetData;
     };
 
     // FIXME: These macros should be split into separate DEFINE and DECLARE
@@ -204,9 +215,9 @@ namespace WebCore {
         return d->firingEventIterators && !d->firingEventIterators->isEmpty();
     }
 
-    inline bool EventTarget::hasEventListeners()
+    inline bool EventTarget::hasEventListeners() const
     {
-        EventTargetData* d = eventTargetData();
+        EventTargetData* d = const_cast<EventTarget*>(this)->eventTargetData();
         if (!d)
             return false;
         return !d->eventListenerMap.isEmpty();

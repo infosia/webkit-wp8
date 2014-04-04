@@ -1,10 +1,4 @@
 {
-    "GTK EWS": {
-        "port": "gtk",
-        "watchers": [
-            "xan.lopez@gmail.com"
-        ]
-    },
     "GTK WK2 EWS": {
         "port": "gtk-wk2",
         "watchers": [
@@ -21,18 +15,6 @@
         "port": "efl-wk2",
         "watchers": [
             "gyuyoung.kim@webkit.org"
-        ]
-    },
-    "Qt EWS": {
-        "port": "qt",
-        "watchers": [
-            "webkit-ews@sed.inf.u-szeged.hu"
-        ]
-    },
-    "Qt WK2 EWS": {
-        "port": "qt-wk2",
-        "watchers": [
-            "webkit-ews@sed.inf.u-szeged.hu"
         ]
     },
     "Win EWS": {

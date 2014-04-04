@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -42,8 +42,8 @@ public:
 private:    
     virtual bool isIdentity() const { return m_matrix.isIdentity(); }
 
-    virtual OperationType getOperationType() const { return MATRIX_3D; }
-    virtual bool isSameType(const TransformOperation& o) const { return o.getOperationType() == MATRIX_3D; }
+    virtual OperationType type() const { return MATRIX_3D; }
+    virtual bool isSameType(const TransformOperation& o) const { return o.type() == MATRIX_3D; }
 
     virtual bool operator==(const TransformOperation& o) const
     {

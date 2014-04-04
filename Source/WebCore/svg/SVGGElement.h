@@ -21,14 +21,13 @@
 #ifndef SVGGElement_h
 #define SVGGElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedBoolean.h"
 #include "SVGExternalResourcesRequired.h"
 #include "SVGGraphicsElement.h"
 
 namespace WebCore {
 
-class SVGGElement FINAL : public SVGGraphicsElement,
+class SVGGElement final : public SVGGraphicsElement,
                           public SVGExternalResourcesRequired {
 public:
     static PassRefPtr<SVGGElement> create(const QualifiedName&, Document&);
@@ -36,16 +35,16 @@ public:
 private:
     SVGGElement(const QualifiedName&, Document&);
 
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 
-    virtual bool isValid() const { return SVGTests::isValid(); }
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool isValid() const override { return SVGTests::isValid(); }
+    virtual bool supportsFocus() const override { return true; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
-    virtual bool rendererIsNeeded(const RenderStyle&);
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGGElement)
         DECLARE_ANIMATED_BOOLEAN(ExternalResourcesRequired, externalResourcesRequired)
@@ -54,5 +53,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

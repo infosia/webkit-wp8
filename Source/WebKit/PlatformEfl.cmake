@@ -5,6 +5,7 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/graphics/cairo"
     "${WEBCORE_DIR}/platform/graphics/efl"
     "${WEBCORE_DIR}/platform/graphics/freetype"
+    "${WEBCORE_DIR}/platform/graphics/opentype"
     "${WEBCORE_DIR}/platform/mock"
     "${WEBCORE_DIR}/platform/network/soup"
     ${CAIRO_INCLUDE_DIRS}
@@ -24,14 +25,6 @@ list(APPEND WebKit_INCLUDE_DIRECTORIES
     ${LIBXSLT_INCLUDE_DIR}
     ${SQLITE_INCLUDE_DIR}
 )
-
-if (ENABLE_SVG)
-    list(APPEND WebKit_INCLUDE_DIRECTORIES
-        "${WEBCORE_DIR}/svg"
-        "${WEBCORE_DIR}/svg/animation"
-        "${WEBCORE_DIR}/rendering/svg"
-    )
-endif ()
 
 if (ENABLE_VIDEO)
     list(APPEND WebKit_INCLUDE_DIRECTORIES
@@ -100,7 +93,6 @@ endif ()
 
 list(APPEND WebKit_SOURCES
     efl/WebCoreSupport/AcceleratedCompositingContextEfl.cpp
-    efl/WebCoreSupport/AssertMatchingEnums.cpp
     efl/WebCoreSupport/BatteryClientEfl.cpp
     efl/WebCoreSupport/ChromeClientEfl.cpp
     efl/WebCoreSupport/ColorChooserEfl.cpp
@@ -112,14 +104,13 @@ list(APPEND WebKit_SOURCES
     efl/WebCoreSupport/EditorClientEfl.cpp
     efl/WebCoreSupport/FrameLoaderClientEfl.cpp
     efl/WebCoreSupport/FrameNetworkingContextEfl.cpp
-    efl/WebCoreSupport/FullscreenVideoControllerEfl.cpp
     efl/WebCoreSupport/IconDatabaseClientEfl.cpp
     efl/WebCoreSupport/InspectorClientEfl.cpp
     efl/WebCoreSupport/NavigatorContentUtilsClientEfl.cpp
     efl/WebCoreSupport/NetworkInfoClientEfl.cpp
     efl/WebCoreSupport/NotificationPresenterClientEfl.cpp
-    efl/WebCoreSupport/PageClientEfl.cpp
     efl/WebCoreSupport/PlatformStrategiesEfl.cpp
+    efl/WebCoreSupport/ProgressTrackerClientEfl.cpp
     efl/WebCoreSupport/PopupMenuEfl.cpp
     efl/WebCoreSupport/SearchPopupMenuEfl.cpp
     efl/WebCoreSupport/StorageTrackerClientEfl.cpp
@@ -140,13 +131,8 @@ list(APPEND WebKit_SOURCES
     efl/ewk/ewk_security_origin.cpp
     efl/ewk/ewk_security_policy.cpp
     efl/ewk/ewk_settings.cpp
-    efl/ewk/ewk_tiled_backing_store.cpp
-    efl/ewk/ewk_tiled_matrix.cpp
-    efl/ewk/ewk_tiled_model.cpp
     efl/ewk/ewk_touch_event.cpp
     efl/ewk/ewk_view.cpp
-    efl/ewk/ewk_view_single.cpp
-    efl/ewk/ewk_view_tiled.cpp
     efl/ewk/ewk_web_database.cpp
     efl/ewk/ewk_window_features.cpp
 )
@@ -163,7 +149,7 @@ list(APPEND WebKit_LIBRARIES
     ${EO_LIBRARIES}
     ${EVAS_LIBRARIES}
     ${FONTCONFIG_LIBRARIES}
-    ${FREETYPE_LIBRARIES}
+    ${FREETYPE2_LIBRARIES}
     ${GLIB_GOBJECT_LIBRARIES}
     ${GLIB_LIBRARIES}
     ${HARFBUZZ_LIBRARIES}
@@ -186,12 +172,14 @@ else ()
     set(LIBS_PRIVATE "")
 endif ()
 
-configure_file(
-    efl/ewebkit.pc.in
-    ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc
-    @ONLY)
-install(FILES ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc
-    DESTINATION lib/pkgconfig)
+configure_file(efl/ewebkit.pc.in ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc @ONLY)
+configure_file(efl/EWebKitConfig.cmake.in ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfig.cmake @ONLY)
+configure_file(efl/EWebKitConfigVersion.cmake.in ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfigVersion.cmake @ONLY)
+install(FILES ${CMAKE_BINARY_DIR}/WebKit/efl/ewebkit.pc DESTINATION lib/pkgconfig)
+install(FILES
+        ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfig.cmake
+        ${CMAKE_BINARY_DIR}/WebKit/efl/EWebKitConfigVersion.cmake
+        DESTINATION lib/cmake/EWebKit)
 
 unset(LIBS_PRIVATE)
 
@@ -264,6 +252,7 @@ add_library(ewkTestUtils
 target_link_libraries(ewkTestUtils ${EWKUnitTests_LIBRARIES})
 
 set(WEBKIT_EFL_TEST_DIR "${WEBKIT_DIR}/efl/tests/")
+set(WEBKIT_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/TestWebKitAPI/EWebKit)
 
 set(EWKUnitTests_BINARIES
     test_ewk_contextmenu
@@ -275,10 +264,10 @@ set(EWKUnitTests_BINARIES
 if (ENABLE_API_TESTS)
     foreach (testName ${EWKUnitTests_BINARIES})
         add_executable(${testName} ${WEBKIT_EFL_TEST_DIR}/${testName}.cpp ${WEBKIT_EFL_TEST_DIR}/test_runner.cpp)
-        add_test(${testName} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${testName})
+        add_test(${testName} ${WEBKIT_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY}/${testName})
         set_tests_properties(${testName} PROPERTIES TIMEOUT 60)
+        set_target_properties(${testName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${WEBKIT_EFL_TEST_RUNTIME_OUTPUT_DIRECTORY})
         target_link_libraries(${testName} ${EWKUnitTests_LIBRARIES} ewkTestUtils)
-        set_target_properties(${testName} PROPERTIES FOLDER "WebKit")
     endforeach ()
 endif ()
 

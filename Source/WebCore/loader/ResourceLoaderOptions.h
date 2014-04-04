@@ -57,7 +57,8 @@ enum SecurityCheckPolicy {
 
 enum RequestOriginPolicy {
     UseDefaultOriginRestrictionsForType,
-    RestrictToSameOrigin
+    RestrictToSameOrigin,
+    PotentiallyCrossOriginEnabled // Indicates "potentially CORS-enabled fetch" in HTML standard.
 };
 
 struct ResourceLoaderOptions {
@@ -82,13 +83,13 @@ struct ResourceLoaderOptions {
         , requestOriginPolicy(requestOriginPolicy)
     {
     }
-    SendCallbackPolicy sendLoadCallbacks;
-    ContentSniffingPolicy sniffContent;
-    DataBufferingPolicy dataBufferingPolicy;
-    StoredCredentials allowCredentials; // Whether HTTP credentials and cookies are sent with the request.
-    ClientCredentialPolicy clientCredentialPolicy; // When we should ask the client for credentials (if we allow credentials at all).
-    SecurityCheckPolicy securityCheck;
-    RequestOriginPolicy requestOriginPolicy;
+    SendCallbackPolicy sendLoadCallbacks : 1;
+    ContentSniffingPolicy sniffContent : 1;
+    DataBufferingPolicy dataBufferingPolicy : 1;
+    StoredCredentials allowCredentials : 1; // Whether HTTP credentials and cookies are sent with the request.
+    ClientCredentialPolicy clientCredentialPolicy : 2; // When we should ask the client for credentials (if we allow credentials at all).
+    SecurityCheckPolicy securityCheck : 1;
+    RequestOriginPolicy requestOriginPolicy : 2;
 };
 
 } // namespace WebCore    

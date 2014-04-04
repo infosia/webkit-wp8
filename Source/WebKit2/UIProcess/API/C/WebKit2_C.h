@@ -30,8 +30,8 @@
 #include <WebKit2/WKType.h>
 
 #include <WebKit2/WKArray.h>
-#include <WebKit2/WKBackForwardList.h>
-#include <WebKit2/WKBackForwardListItem.h>
+#include <WebKit2/WKBackForwardListRef.h>
+#include <WebKit2/WKBackForwardListItemRef.h>
 #include <WebKit2/WKConnectionRef.h>
 #include <WebKit2/WKContext.h>
 #include <WebKit2/WKData.h>
@@ -43,17 +43,16 @@
 #include <WebKit2/WKGeolocationManager.h>
 #include <WebKit2/WKGeolocationPermissionRequest.h>
 #include <WebKit2/WKGeolocationPosition.h>
-#include <WebKit2/WKGraphicsContext.h>
 #include <WebKit2/WKHitTestResult.h>
 #include <WebKit2/WKMutableArray.h>
 #include <WebKit2/WKMutableDictionary.h>
-#include <WebKit2/WKNavigationData.h>
+#include <WebKit2/WKNavigationDataRef.h>
 #include <WebKit2/WKNumber.h>
 #include <WebKit2/WKOpenPanelParameters.h>
 #include <WebKit2/WKOpenPanelResultListener.h>
 #include <WebKit2/WKPage.h>
 #include <WebKit2/WKPageGroup.h>
-#include <WebKit2/WKPreferences.h>
+#include <WebKit2/WKPreferencesRef.h>
 #include <WebKit2/WKString.h>
 #include <WebKit2/WKURL.h>
 #include <WebKit2/WKURLRequest.h>
@@ -61,7 +60,7 @@
 
 #if defined(__OBJC__) && __OBJC__
 #import <WebKit2/WKView.h>
-#elif !((defined(__APPLE__) && __APPLE__) || defined(BUILDING_QT__))
+#elif !(defined(__APPLE__) && __APPLE__)
 #include <WebKit2/WKView.h>
 #endif
 

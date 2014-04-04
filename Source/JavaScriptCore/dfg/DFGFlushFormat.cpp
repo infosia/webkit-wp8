@@ -28,6 +28,8 @@
 
 #if ENABLE(DFG_JIT)
 
+#include "JSCInlines.h"
+
 namespace WTF {
 
 using namespace JSC::DFG;
@@ -55,6 +57,12 @@ void printInternal(PrintStream& out, FlushFormat format)
         return;
     case FlushedJSValue:
         out.print("FlushedJSValue");
+        return;
+    case FlushedArguments:
+        out.print("FlushedArguments");
+        return;
+    case ConflictingFlush:
+        out.print("ConflictingFlush");
         return;
     }
     RELEASE_ASSERT_NOT_REACHED();

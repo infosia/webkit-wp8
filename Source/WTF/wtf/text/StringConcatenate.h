@@ -28,7 +28,7 @@
 
 #include <string.h>
 
-#ifndef WTFString_h
+#ifndef AtomicString_h
 #include <wtf/text/AtomicString.h>
 #endif
 
@@ -297,9 +297,9 @@ private:
 };
 
 template<>
-class StringTypeAdapter<Vector<char> > {
+class StringTypeAdapter<Vector<char>> {
 public:
-    StringTypeAdapter<Vector<char> >(const Vector<char>& buffer)
+    StringTypeAdapter<Vector<char>>(const Vector<char>& buffer)
         : m_buffer(buffer)
     {
     }
@@ -325,9 +325,9 @@ private:
 };
 
 template<>
-class StringTypeAdapter<Vector<LChar> > {
+class StringTypeAdapter<Vector<LChar>> {
 public:
-    StringTypeAdapter<Vector<LChar> >(const Vector<LChar>& buffer)
+    StringTypeAdapter<Vector<LChar>>(const Vector<LChar>& buffer)
         : m_buffer(buffer)
     {
     }
@@ -701,7 +701,7 @@ PassRefPtr<StringImpl> tryMakeString(StringType1 string1, StringType2 string2, S
     if (overflow)
         return 0;
 
-    if (adapter1.is8Bit() && adapter2.is8Bit() && adapter3.is8Bit() && adapter4.is8Bit() && adapter5.is8Bit() && adapter6.is8Bit()) {
+    if (adapter1.is8Bit() && adapter2.is8Bit() && adapter3.is8Bit() && adapter4.is8Bit() && adapter5.is8Bit() && adapter6.is8Bit() && adapter7.is8Bit()) {
         LChar* buffer;
         RefPtr<StringImpl> resultImpl = StringImpl::tryCreateUninitialized(length, buffer);
         if (!resultImpl)

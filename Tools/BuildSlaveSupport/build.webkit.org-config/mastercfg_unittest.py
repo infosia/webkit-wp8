@@ -60,7 +60,7 @@ class MasterCfgTest(unittest.TestCase):
             '13981 total leaks found for a total of 197,936 bytes!',
             '1 unique leaks found!',
         ]
-        run_webkit_tests._parseNewRunWebKitTestsOutput(log_text)
+        run_webkit_tests._parseRunWebKitTestsOutput(log_text)
         self.assertEqual(run_webkit_tests.incorrectLayoutLines, expected_incorrect_lines)
 
     def test_nrwt_missing_results(self):
@@ -83,7 +83,7 @@ Regressions: Unexpected missing results (1)
 Regressions: Unexpected text-only failures (1)
   svg/custom/zero-path-square-cap-rendering2.svg [ Failure ]
 """
-        run_webkit_tests._parseNewRunWebKitTestsOutput(log_text)
+        run_webkit_tests._parseRunWebKitTestsOutput(log_text)
         self.assertEqual(set(run_webkit_tests.incorrectLayoutLines),
             set(['2 new passes', '3 flakes', '1 missing results', '1 failures']))
 
@@ -199,129 +199,6 @@ Results for LayoutTests/js tests:
 Results for JSC stress tests:
     284 failures found.
     OK.""")
-
-
-class RunQtAPITestsTest(unittest.TestCase):
-    def assertResults(self, expected_result, expected_text, stdio):
-        rc = 0
-        cmd = StubRemoteCommand(rc, stdio)
-        step = RunQtAPITests()
-        step.commandComplete(cmd)
-        actual_results = step.evaluateCommand(cmd)
-        actual_text = str(step.getText2(cmd, actual_results)[0])
-
-        self.assertEqual(expected_result, actual_results)
-        self.assertEqual(actual_text, expected_text)
-
-    def test_timeout(self):
-        self.assertResults(FAILURE, "API tests", """INFO:Exec:Running... WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_qquickwebview
-INFO:Exec:Running... WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qmltests/tst_qmltests
-Qml debugging is enabled. Only use this in a safe environment!
-INFO:Exec:Finished WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_qquickwebview
-ERROR:Exec:Timeout, process 'WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qmltests/tst_qmltests' (2336) was terminated
-INFO:Exec:Finished WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qmltests/tst_qmltests
-********* Start testing of tst_QQuickWebView *********
-Config: Using QTest library 5.0.0, Qt 5.0.0
-PASS   : tst_QQuickWebView::initTestCase()
-QWARN  : tst_QQuickWebView::accessPage() QQuickCanvas: platform does not support threaded rendering!
-.
-.
-.
-
-**********************************************************************
-**        TOTALS: 16 passed, 0 failed, 0 skipped, 0 crashed         **
-**********************************************************************""")
-
-    def test_success(self):
-        self.assertResults(SUCCESS, "API tests", """INFO:Exec:Running... WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_qquickwebview
-INFO:Exec:Running... WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qmltests/tst_qmltests
-Qml debugging is enabled. Only use this in a safe environment!
-INFO:Exec:Finished WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_qquickwebview
-********* Start testing of tst_QQuickWebView *********
-Config: Using QTest library 5.0.0, Qt 5.0.0
-PASS   : tst_QQuickWebView::initTestCase()
-QWARN  : tst_QQuickWebView::accessPage() QQuickCanvas: platform does not support threaded rendering!
-.
-.
-.
-
-**********************************************************************
-**        TOTALS: 16 passed, 0 failed, 0 skipped, 0 crashed         **
-**********************************************************************""")
-
-    def test_failure(self):
-        self.assertResults(WARNINGS, "16 passed, 1 failed, 0 skipped, 0 crashed", """********* Start testing of tst_QDeclarativeWebView *********
-PASS   : tst_QDeclarativeWebView::pressGrabTime()
-PASS   : tst_QDeclarativeWebView::renderingEnabled()
-PASS   : tst_QDeclarativeWebView::setHtml()
-PASS   : tst_QDeclarativeWebView::settings()
-FAIL!  : tst_QDeclarativeWebView::backgroundColor() Compared values are not the same
-   Loc: [/ramdisk/qt-linux-release/build/Source/WebKit/qt/tests/qdeclarativewebview/tst_qdeclarativewebview.cpp(532)]
-PASS   : tst_QDeclarativeWebView::cleanupTestCase()
-.
-.
-.
-
-**********************************************************************
-**        TOTALS: 16 passed, 1 failed, 0 skipped, 0 crashed         **
-**********************************************************************""")
-
-    def test_timeout_and_failure(self):
-        self.assertResults(FAILURE, "Failure: timeout occured during testing", """INFO:Exec:Finished WebKitBuild/Release/Source/WebKit/qt/tests/benchmarks/painting/tst_painting
-ERROR:Exec:Timeout, process 'WebKitBuild/Release/Source/WebKit/qt/tests/qwebpage/tst_qwebpage' (13000) was terminated
-INFO:Exec:Finished WebKitBuild/Release/Source/WebKit/qt/tests/qwebpage/tst_qwebpage
-********* Start testing of tst_Loading *********
-Config: Using QTest library 4.8.0, Qt 4.8.0
-PASS   : tst_Loading::initTestCase()
-QDEBUG : tst_Loading::load(amazon) loaded the Generic plugin
-RESULT : tst_Loading::load():"amazon":
-     1,843 msecs per iteration (total: 1,843, iterations: 1)
-RESULT : tst_Loading::load():"kde":
-     139 msecs per iteration (total: 139, iterations: 1)
-RESULT : tst_Loading::load():"apple":
-     740 msecs per iteration (total: 740, iterations: 1)
-PASS   : tst_Loading::load()
-PASS   : tst_Loading::cleanupTestCase()
-Totals: 3 passed, 0 failed, 0 skipped
-********* Finished testing of tst_Loading *********
-.
-.
-.
-PASS   : tst_QDeclarativeWebView::renderingEnabled()
-PASS   : tst_QDeclarativeWebView::setHtml()
-PASS   : tst_QDeclarativeWebView::settings()
-FAIL!  : tst_QDeclarativeWebView::backgroundColor() Compared values are not the same
-   Loc: [/ramdisk/qt-linux-release/build/Source/WebKit/qt/tests/qdeclarativewebview/tst_qdeclarativewebview.cpp(532)]
-PASS   : tst_QDeclarativeWebView::cleanupTestCase()
-Totals: 16 passed, 3 failed, 1 skipped
-.
-.
-.
-**********************************************************************
-**        TOTALS: 73 passed, 3 failed, 1 skipped, 0 crashed         **
-**********************************************************************""")
-
-    def test_crash(self):
-        self.assertResults(FAILURE, "API tests", """********* Start testing of tst_QQuickWebView *********
-Config: Using QTest library 5.0.0, Qt 5.0.0
-PASS   : tst_QQuickWebView::initTestCase()
-PASS   : tst_QQuickWebView::accessPage()
-
-CRASHED: WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_qquickwebview
-
-CRASHED: WebKitBuild/Release/Source/WebKit2/UIProcess/API/qt/tests/qquickwebview/tst_hello
-
-********* Start testing of tst_publicapi *********
-Config: Using QTest library 5.0.0, Qt 5.0.0
-PASS   : tst_publicapi::initTestCase()
-PASS   : tst_publicapi::publicAPI()
-PASS   : tst_publicapi::cleanupTestCase()
-Totals: 3 passed, 0 failed, 0 skipped
-********* Finished testing of tst_publicapi *********
-**********************************************************************
-**        TOTALS: 92 passed, 0 failed, 0 skipped, 2 crashed         **
-**********************************************************************""")
-
 
 
 class RunUnitTestsTest(unittest.TestCase):
@@ -503,6 +380,51 @@ class BuildStepsConstructorTest(unittest.TestCase):
                 buildStepName = str(buildStepFactory).split('.')[-1]
                 self.fail("Error during instantiation %s buildstep for %s builder: %s\n" % (buildStepName, builderName, e))
         return doTest
+
+class RunGtkWebKitGObjectDOMBindingsAPIBreakTestsTest(unittest.TestCase):
+    def assertResults(self, expected_missing, expected_new, stdio):
+        expected_text = ""
+        expected_results = SUCCESS
+        if expected_new:
+            expected_results = WARNINGS
+        if expected_missing:
+            expected_results = FAILURE
+
+        cmd = StubRemoteCommand(0, stdio)
+        step = RunGtkWebKitGObjectDOMBindingsAPIBreakTests()
+        step.commandComplete(cmd)
+
+        actual_results = step.evaluateCommand(cmd)
+        self.assertEqual(expected_results, actual_results)
+        self.assertEqual(expected_missing, step.missingAPI)
+        self.assertEqual(expected_new, step.newAPI)
+
+    def test_missing_and_new_api(self):
+        self.assertResults(expected_missing=True, expected_new=True, stdio="""Missing API (API break!) detected in GObject DOM bindings
+    gboolean webkit_dom_html_input_element_get_webkitdirectory(WebKitDOMHTMLInputElement*)
+    gchar* webkit_dom_text_track_cue_get_text(WebKitDOMTextTrackCue*)
+
+New API detected in GObject DOM bindings
+    void webkit_dom_html_input_element_set_capture(WebKitDOMHTMLInputElement*, gboolean)
+    gboolean webkit_dom_html_input_element_get_capture(WebKitDOMHTMLInputElement*)
+    void webkit_dom_text_track_add_cue(WebKitDOMTextTrack*, WebKitDOMTextTrackCue*, GError**)
+    gchar* webkit_dom_document_get_origin(WebKitDOMDocument*)""")
+
+    def test_missing_api(self):
+        self.assertResults(expected_missing=True, expected_new=False, stdio="""Missing API (API break!) detected in GObject DOM bindings
+    gboolean webkit_dom_html_input_element_get_webkitdirectory(WebKitDOMHTMLInputElement*)
+    gchar* webkit_dom_text_track_cue_get_text(WebKitDOMTextTrackCue*)""")
+
+    def test_new_api(self):
+        self.assertResults(expected_missing=False, expected_new=True, stdio="""New API detected in GObject DOM bindings
+    void webkit_dom_html_input_element_set_capture(WebKitDOMHTMLInputElement*, gboolean)
+    gboolean webkit_dom_html_input_element_get_capture(WebKitDOMHTMLInputElement*)
+    void webkit_dom_text_track_add_cue(WebKitDOMTextTrack*, WebKitDOMTextTrackCue*, GError**)
+    gchar* webkit_dom_document_get_origin(WebKitDOMDocument*)""")
+
+    def test_success(self):
+        self.assertResults(expected_missing=False, expected_new=False, stdio="")
+
 
 # FIXME: We should run this file as part of test-webkitpy.
 # Unfortunately test-webkitpy currently requires that unittests

@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,7 +40,6 @@ using namespace WebCore;
     if (!self)
         return nil;
 
-    _tileController = TileController::create(self);
 #ifndef NDEBUG
     [self setName:@"WebTiledBackingLayer"];
 #endif
@@ -60,6 +59,13 @@ using namespace WebCore;
 
     ASSERT_NOT_REACHED();
     return nil;
+}
+
+- (TileController*)createTileController:(PlatformCALayer*)rootLayer
+{
+    ASSERT(!_tileController);
+    _tileController = TileController::create(rootLayer);
+    return _tileController.get();
 }
 
 - (id<CAAction>)actionForKey:(NSString *)key
@@ -112,11 +118,6 @@ using namespace WebCore;
     _tileController->setScale(contentsScale);
 }
 
-- (CALayer *)tileContainerLayer
-{
-    return _tileController->tileContainerLayer();
-}
-
 - (WebCore::TiledBacking*)tiledBacking
 {
     return _tileController.get();
@@ -131,7 +132,7 @@ using namespace WebCore;
 
 - (void)setBorderColor:(CGColorRef)borderColor
 {
-    _tileController->setTileDebugBorderColor(borderColor);
+    _tileController->setTileDebugBorderColor(Color(borderColor));
 }
 
 - (void)setBorderWidth:(CGFloat)borderWidth

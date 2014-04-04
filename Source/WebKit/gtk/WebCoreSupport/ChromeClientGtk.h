@@ -25,7 +25,7 @@
 #include "GtkAdjustmentWatcher.h"
 #include "IntRect.h"
 #include "IntSize.h"
-#include "KURL.h"
+#include "URL.h"
 #include "PopupMenu.h"
 #include "Region.h"
 #include "SearchPopupMenu.h"
@@ -96,9 +96,9 @@ namespace WebKit {
         virtual KeyboardUIMode keyboardUIMode();
 
         virtual IntRect windowResizerRect() const;
-        virtual void invalidateRootView(const IntRect&, bool);
-        virtual void invalidateContentsAndRootView(const IntRect&, bool);
-        virtual void invalidateContentsForSlowScroll(const IntRect&, bool);
+        virtual void invalidateRootView(const IntRect&);
+        virtual void invalidateContentsAndRootView(const IntRect&);
+        virtual void invalidateContentsForSlowScroll(const IntRect&);
         virtual void scroll(const IntSize& scrollDelta, const IntRect& rectToScroll, const IntRect& clipRect);
 
         virtual IntPoint screenToRootView(const IntPoint&) const;
@@ -122,8 +122,6 @@ namespace WebKit {
         virtual void runOpenPanel(Frame*, PassRefPtr<FileChooser>);
         virtual void loadIconForFiles(const Vector<WTF::String>&, FileIconLoader*);
 
-        virtual void formStateDidChange(const Node*) { }
-
         virtual void setCursor(const Cursor&);
         virtual void setCursorHiddenUntilMouseMoves(bool);
 
@@ -134,11 +132,6 @@ namespace WebKit {
         virtual bool hasOpenedPopup() const;
         virtual PassRefPtr<PopupMenu> createPopupMenu(PopupMenuClient*) const;
         virtual PassRefPtr<SearchPopupMenu> createSearchPopupMenu(PopupMenuClient*) const;
-#if ENABLE(VIDEO) && USE(NATIVE_FULLSCREEN_VIDEO)
-        virtual bool supportsFullscreenForNode(const Node*);
-        virtual void enterFullscreenForNode(Node*);
-        virtual void exitFullscreenForNode(Node*);
-#endif
 
 #if ENABLE(FULLSCREEN_API)
         virtual bool supportsFullScreenForElement(const Element*, bool withKeyboard);
@@ -147,15 +140,13 @@ namespace WebKit {
         void cancelFullScreen();
 #endif
 
-        virtual bool shouldRubberBandInDirection(ScrollDirection) const { return true; }
         virtual void numWheelEventHandlersChanged(unsigned) { }
+        virtual void needTouchEvents(bool) { }
 
-#if USE(ACCELERATED_COMPOSITING) 
         virtual void attachRootGraphicsLayer(Frame*, GraphicsLayer*);
         virtual void setNeedsOneShotDrawingSynchronization();
         virtual void scheduleCompositingLayerFlush();
         virtual CompositingTriggerFlags allowedCompositingTriggers() const;
-#endif 
 
         void performAllPendingScrolls();
         void paint(Timer<ChromeClient>*);
@@ -167,7 +158,7 @@ namespace WebKit {
     private:
         WebKitWebView* m_webView;
         GtkAdjustmentWatcher m_adjustmentWatcher;
-        KURL m_hoveredLinkURL;
+        URL m_hoveredLinkURL;
         unsigned int m_closeSoonTimer;
 
         Timer <ChromeClient> m_displayTimer;

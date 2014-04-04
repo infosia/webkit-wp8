@@ -27,6 +27,7 @@
 #include "WKBundleFrame.h"
 #include "WKBundleFramePrivate.h"
 
+#include "APIArray.h"
 #include "InjectedBundleHitTestResult.h"
 #include "WKAPICast.h"
 #include "WKBundleAPICast.h"
@@ -159,7 +160,7 @@ WKStringRef WKBundleFrameCopyLayerTreeAsText(WKBundleFrameRef frameRef)
 
 bool WKBundleFrameAllowsFollowingLink(WKBundleFrameRef frameRef, WKURLRef urlRef)
 {
-    return toImpl(frameRef)->allowsFollowingLink(WebCore::KURL(WebCore::KURL(), toWTFString(urlRef)));
+    return toImpl(frameRef)->allowsFollowingLink(WebCore::URL(WebCore::URL(), toWTFString(urlRef)));
 }
 
 bool WKBundleFrameHandlesPageScaleGesture(WKBundleFrameRef frameRef)
@@ -204,12 +205,12 @@ bool WKBundleFrameGetDocumentBackgroundColor(WKBundleFrameRef frameRef, double* 
 
 WKStringRef WKBundleFrameCopySuggestedFilenameForResourceWithURL(WKBundleFrameRef frameRef, WKURLRef urlRef)
 {
-    return toCopiedAPI(toImpl(frameRef)->suggestedFilenameForResourceWithURL(WebCore::KURL(WebCore::KURL(), toWTFString(urlRef))));
+    return toCopiedAPI(toImpl(frameRef)->suggestedFilenameForResourceWithURL(WebCore::URL(WebCore::URL(), toWTFString(urlRef))));
 }
 
 WKStringRef WKBundleFrameCopyMIMETypeForResourceWithURL(WKBundleFrameRef frameRef, WKURLRef urlRef)
 {
-    return toCopiedAPI(toImpl(frameRef)->mimeTypeForResourceWithURL(WebCore::KURL(WebCore::KURL(), toWTFString(urlRef))));
+    return toCopiedAPI(toImpl(frameRef)->mimeTypeForResourceWithURL(WebCore::URL(WebCore::URL(), toWTFString(urlRef))));
 }
 
 bool WKBundleFrameContainsAnyFormElements(WKBundleFrameRef frameRef)
@@ -234,7 +235,7 @@ WKDataRef WKBundleFrameCopyWebArchive(WKBundleFrameRef frameRef)
 
 WKDataRef WKBundleFrameCopyWebArchiveFilteringSubframes(WKBundleFrameRef frameRef, WKBundleFrameFrameFilterCallback frameFilterCallback, void* context)
 {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<CFDataRef> data = toImpl(frameRef)->webArchiveData(frameFilterCallback, context);
     if (data)
         return WKDataCreate(CFDataGetBytePtr(data.get()), CFDataGetLength(data.get()));

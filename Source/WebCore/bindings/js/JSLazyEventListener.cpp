@@ -25,6 +25,7 @@
 #include "JSNode.h"
 #include "ScriptController.h"
 #include <runtime/FunctionConstructor.h>
+#include <runtime/IdentifierInlines.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
@@ -35,7 +36,7 @@ namespace WebCore {
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, eventListenerCounter, ("JSLazyEventListener"));
 
-JSLazyEventListener::JSLazyEventListener(const String& functionName, const String& eventParameterName, const String& code, ContainerNode* node, const String& sourceURL, const TextPosition& position, JSObject* wrapper, DOMWrapperWorld* isolatedWorld)
+JSLazyEventListener::JSLazyEventListener(const String& functionName, const String& eventParameterName, const String& code, ContainerNode* node, const String& sourceURL, const TextPosition& position, JSObject* wrapper, DOMWrapperWorld& isolatedWorld)
     : JSEventListener(0, wrapper, true, isolatedWorld)
     , m_functionName(functionName)
     , m_eventParameterName(eventParameterName)

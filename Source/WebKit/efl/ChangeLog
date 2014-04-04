@@ -1,3 +1,1249 @@
+2014-04-02  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Use Evas_Touch_Point_State instead of Ewk_Touch_Point_Type
+        https://bugs.webkit.org/show_bug.cgi?id=131151
+
+        Reviewed by Gyuyoung Kim.
+
+        Like ewebkit2, we'd beter to use EFL type instead of WebKit specific type
+        In addition, changed type of id as int to match with ewebkit2.
+
+        * ewk/ewk_frame.h: Replace Ewk_Touch_Point_Type to Evas_Touch_Point_State.
+        * ewk/ewk_touch_event.cpp:
+        (toPlatformTouchPointState):
+
+2014-04-02  Martin Hock  <mhock@apple.com>
+
+        Unify private browsing with sessions.
+        https://bugs.webkit.org/show_bug.cgi?id=130099
+
+        Reviewed by Alexey Proskuryakov.
+
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new): Change WebCore::Settings::privateBrowsingEnabled() to Page::sessionID().isEphemeral().
+        (ewk_view_setting_private_browsing_set): Change WebCore::Settings::setPrivateBrowsingEnabled() to Page::enableLegacyPrivateBrowsing().
+
+2014-04-02  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Composite all layers into one evas_object using TextureMapper.
+        https://bugs.webkit.org/show_bug.cgi?id=130969
+
+        Reviewed by Gyuyoung Kim.
+
+        The EFL port uses two evas_objects to render the entire webpage: backing_store and compositingObject.
+        backing_store is used to paint a non-composited layer with ewk functions,
+        whereas compositingObject is used to paint other layers with TextureMapper.
+        These evas_objects are eventually composited into the window buffer by Evas.
+
+        This patch moves to use only one evas_object by integrating these two evas_objects,
+        and makes that TextureMapper handles all rendering paths like WebKit2.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        (WebCore::AcceleratedCompositingContext::AcceleratedCompositingContext):
+        (WebCore::AcceleratedCompositingContext::~AcceleratedCompositingContext):
+        (WebCore::AcceleratedCompositingContext::resize):
+        (WebCore::AcceleratedCompositingContext::flushAndRenderLayers):
+        (WebCore::AcceleratedCompositingContext::flushPendingLayerChanges):
+        (WebCore::AcceleratedCompositingContext::paintToGraphicsContext):
+        (WebCore::AcceleratedCompositingContext::paintToCurrentGLContext):
+        (WebCore::AcceleratedCompositingContext::compositeLayers):
+        (WebCore::AcceleratedCompositingContext::initialize): Deleted.
+        (WebCore::AcceleratedCompositingContext::canComposite): Deleted.
+        (WebCore::AcceleratedCompositingContext::compositeLayersToContext): Deleted.
+        (WebCore::AcceleratedCompositingContext::attachRootGraphicsLayer): Deleted.
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        (WebCore::AcceleratedCompositingContext::setRootGraphicsLayer):
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+        (_ewk_view_accelerated_compositing_cb):
+        (_ewk_view_smart_add):
+        (_ewk_view_smart_resize):
+        (_ewk_view_smart_calculate):
+        (_ewk_view_smart_show):
+        (_ewk_view_smart_hide):
+        (_ewk_view_smart_flush):
+        (_ewk_view_smart_zoom_weak_set):
+        (_ewk_view_smart_zoom_weak_smooth_scale_set):
+        (ewk_view_bg_color_set):
+        (ewk_view_scroll):
+        (ewk_view_root_graphics_layer_set):
+        (ewk_view_mark_for_sync):
+        (_ewk_view_scrolls_flush): Deleted.
+        (_ewk_view_scroll_process): Deleted.
+        (_ewk_view_smart_scrolls_process): Deleted.
+        (_ewk_view_smart_repaints_process): Deleted.
+        (ewk_view_scrolls_process): Deleted.
+        (_ewk_view_accelerated_compositing_context_create_if_needed): Deleted.
+        (_ewk_view_accelerated_compositing_object_create_if_needed): Deleted.
+        * ewk/ewk_view.h:
+
+2014-03-23  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        Move all EFL typedefs into EflTypedefs.h.
+        https://bugs.webkit.org/show_bug.cgi?id=130511
+
+        Reviewed by Gyuyoung Kim.
+
+        * WebCoreSupport/BatteryClientEfl.h: Remove EFL typedefs.
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h: Ditto.
+        * WebCoreSupport/EditorClientEfl.h: Ditto.
+        * WebCoreSupport/FrameNetworkingContextEfl.h: Ditto.
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.h: Ditto.
+        * WebCoreSupport/ProgressTrackerClientEfl.h: Ditto.
+
+2014-03-20  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        Move to using std::unique_ptr for EFL objects.
+        https://bugs.webkit.org/show_bug.cgi?id=129853
+
+        Reviewed by Gyuyoung Kim.
+
+        EflUniquePtr is a template alias of std::unique_ptr
+        with a custom deleter for each Efl Objects, which is motivated by GUniquePtr.
+        This patch replaces uses of OwnPtr and PassOwnPtr for Efl objects with EflUniquePtr.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        (WebCore::AcceleratedCompositingContext::initialize):
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        * WebCoreSupport/BatteryClientEfl.h:
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h:
+        * WebCoreSupport/EditorClientEfl.h:
+        * WebCoreSupport/FrameNetworkingContextEfl.h:
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.h:
+        * ewk/ewk_view.cpp:
+        (_ewk_view_editor_command_string_get):
+        * tests/UnitTestUtils/EWKTestView.cpp:
+        (EWKUnitTests::EWKTestView::init):
+        * tests/UnitTestUtils/EWKTestView.h:
+
+2014-03-14  Maciej Stachowiak  <mjs@apple.com>
+
+        Replace "Apple Computer, Inc." with "Apple Inc." in copyright headers
+        https://bugs.webkit.org/show_bug.cgi?id=130276
+        <rdar://problem/16266927>
+
+        Reviewed by Simon Fraser.
+
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        * WebCoreSupport/ContextMenuClientEfl.cpp:
+        * WebCoreSupport/ContextMenuClientEfl.h:
+        * WebCoreSupport/DeviceMotionClientEfl.cpp:
+        * WebCoreSupport/DeviceOrientationClientEfl.cpp:
+        * WebCoreSupport/DragClientEfl.cpp:
+        * WebCoreSupport/EditorClientEfl.h:
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+        * WebCoreSupport/FrameNetworkingContextEfl.cpp:
+        * WebCoreSupport/FrameNetworkingContextEfl.h:
+        * WebCoreSupport/InspectorClientEfl.h:
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.cpp:
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.h:
+        * WebCoreSupport/NetworkInfoClientEfl.cpp:
+
+2014-03-12  Sergio Villar Senin  <svillar@igalia.com>
+
+        Rename DEFINE_STATIC_LOCAL to DEPRECATED_DEFINE_STATIC_LOCAL
+        https://bugs.webkit.org/show_bug.cgi?id=129612
+
+        Reviewed by Darin Adler.
+
+        For new code use static NeverDestroyed<T> instead.
+
+        * WebCoreSupport/PlatformStrategiesEfl.cpp:
+        (PlatformStrategiesEfl::initialize):
+        * ewk/ewk_main.cpp:
+        (trackerClient):
+
+2014-03-12  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: Remove unused callId parameter from evaluateInWebInspector
+        https://bugs.webkit.org/show_bug.cgi?id=129744
+
+        Reviewed by Timothy Hatcher.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::evaluateInWebInspector):
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h:
+
+2014-03-12  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Revise AcceleratedCompositingEfl implementation.
+        https://bugs.webkit.org/show_bug.cgi?id=130072
+
+        Reviewed by Gyuyoung Kim.
+
+        This patch revises the AcceleratedCompositingEfl class implementation
+        similar with gtk port.
+        And accelerated compositing will be enabled by default on WK1 efl.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        (WebCore::AcceleratedCompositingContext::AcceleratedCompositingContext):
+        (WebCore::AcceleratedCompositingContext::initialize):
+        (WebCore::AcceleratedCompositingContext::syncLayers):
+        (WebCore::AcceleratedCompositingContext::resize):
+        (WebCore::AcceleratedCompositingContext::canComposite):
+        (WebCore::AcceleratedCompositingContext::flushAndRenderLayers):
+        (WebCore::AcceleratedCompositingContext::flushPendingLayerChanges):
+        (WebCore::AcceleratedCompositingContext::compositeLayersToContext):
+        (WebCore::AcceleratedCompositingContext::attachRootGraphicsLayer):
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+        (_ewk_view_accelerated_compositing_cb):
+        (_ewk_view_accelerated_compositing_context_create_if_needed):
+
+2014-03-10  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Modify accelerated compositing related functions in ewk_view.
+        https://bugs.webkit.org/show_bug.cgi?id=129875
+
+        Reviewed by Gyuyoung Kim.
+
+        The compositing object will be created when root layer is attached.
+        So we don't need to expose the create function.
+        And this patch adds show(), hide() and resize() for compositing object.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h: move resize() to public.
+        * ewk/ewk_view.cpp:
+        (_ewk_view_smart_resize): add to resize the compositing object.
+        (_ewk_view_smart_show): add to show the compositing object.
+        (_ewk_view_smart_hide): add to hide the compositing object.
+        (_ewk_view_accelerated_compositing_context_create_if_needed):
+        modify the creation for the compositing object.
+        (_ewk_view_accelerated_compositing_object_create_if_needed):
+        add a return value.
+        (ewk_view_root_graphics_layer_set):
+        If root layer is not 0, we create the compositing object and AcceleratedCompositingContext.
+        * ewk/ewk_view_private.h: remove to expose the compositing object creation API.
+
+2014-03-07  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Replace GraphicsContext3D with Evas_GL in AcceleratedCompositingContext.
+        https://bugs.webkit.org/show_bug.cgi?id=129676
+
+        Reviewed by Gyuyoung Kim.
+
+        TextureMapperGL has its own GraphicsContext3D created by createForCurrentGLContext().
+        So AcceleratedCompositingContext doesn't need to create and set it to TextureMapperGL.
+
+        We now should do 'makeCurrentContext' with a platform specific context before createForCurrentGLContext().
+        This patch removes GraphicsContext3D related codes in AcceleratedCompositingContext
+        and adds EvasGLContext/Surface to it instead.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        (WebCore::AcceleratedCompositingContext::initialize):
+        (WebCore::AcceleratedCompositingContext::resize):
+        (WebCore::AcceleratedCompositingContext::renderLayers):
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        * ewk/ewk_view.cpp:
+        * ewk/ewk_view_private.h:
+
+2014-03-04  Zalan Bujtas  <zalan@apple.com>
+
+        Enable device pixel repaint rect tracking.
+        https://bugs.webkit.org/show_bug.cgi?id=129712
+
+        Reviewed by Simon Fraser.
+
+        Tracked repaint rects are device pixel snapped now to support hiDPI test cases.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::trackedRepaintRects):
+
+2014-02-25  Anders Carlsson  <andersca@apple.com>
+
+        Get rid of VisitedLinkStrategy
+        https://bugs.webkit.org/show_bug.cgi?id=129324
+
+        Reviewed by Dan Bernstein.
+
+        * WebCoreSupport/PlatformStrategiesEfl.cpp:
+        (PlatformStrategiesEfl::getPluginInfo):
+        * WebCoreSupport/PlatformStrategiesEfl.h:
+
+2014-02-24  Renata Hodovan  <rhodovan.u-szeged@partner.samsung.com>
+
+        Get rid of the unused 'immediate' parameters from repaint related functions
+        https://bugs.webkit.org/show_bug.cgi?id=129111
+
+        Reviewed by Simon Fraser.
+
+        Removing the 'immediate' parameters from repaint related functions - accoring
+        to the FIXME in RenderView::repaintViewRectangle() - since they have no effect.
+
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::invalidateContents):
+        (WebCore::ChromeClientEfl::invalidateRootView):
+        (WebCore::ChromeClientEfl::invalidateContentsAndRootView):
+        (WebCore::ChromeClientEfl::invalidateContentsForSlowScroll):
+        * WebCoreSupport/ChromeClientEfl.h:
+
+2014-02-23  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Change a url parameter type with URL in NavigatorContentUtils
+        https://bugs.webkit.org/show_bug.cgi?id=129202
+
+        Reviewed by Sam Weinig.
+
+        It would be good if we use *URL* for url parameters instead of using String.
+
+        Merge from blink. https://src.chromium.org/viewvc/blink?view=rev&revision=165458.
+
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.cpp:
+        (WebCore::NavigatorContentUtilsClientEfl::registerProtocolHandler):
+        (WebCore::NavigatorContentUtilsClientEfl::isProtocolHandlerRegistered):
+        (WebCore::NavigatorContentUtilsClientEfl::unregisterProtocolHandler):
+        * WebCoreSupport/NavigatorContentUtilsClientEfl.h:
+
+2014-02-17  Sergio Correia  <sergio.correia@openbossa.org>
+
+        Replace uses of PassOwnPtr/OwnPtr with std::unique_ptr in WebCore/inspector
+        https://bugs.webkit.org/show_bug.cgi?id=128681
+
+        Reviewed by Timothy Hatcher.
+
+        Another step towards getting rid of PassOwnPtr/OwnPtr, now targeting
+        WebCore/inspector/*. Besides files in there, a few other files in
+        JavaScriptCore/inspector, WebKit/, WebKit2/WebProcess/WebCoreSupport/
+        and WebCore/testing were touched.
+
+        * WebCoreSupport/InspectorClientEfl.cpp:
+
+2014-02-15  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Do not include cairo header in the public headers
+        https://bugs.webkit.org/show_bug.cgi?id=128779
+
+        Reviewed by Gyuyoung Kim.
+
+        Although ewebkit used cairo internally, it's not good for EFL developers
+        to use it.
+        Indeed, almost APIs which returns cairo_surface are duplicated with other APIs
+        which returns evas_object.
+
+        * ewk/ewk_history.cpp:
+        Removed ewk_history_item_icon_surface_get.
+        ewk_history_item_icon_object_add will be used instead.
+        * ewk/ewk_history.h:
+        * ewk/ewk_settings.cpp:
+        Removed ewk_settings_icon_database_icon_surface_get.
+        ewk_settings_icon_database_icon_object_get will be used instead.
+        * ewk/ewk_settings.h:
+        * ewk/ewk_view.cpp:
+        (ewk_view_screenshot_contents_get):
+        Implemented to replace ewk_view_paint and ewk_view_paint_contents.
+        * ewk/ewk_view.h:
+        * tests/test_ewk_view.cpp:
+        (TEST_F): Added test case for ewk_view_screenshot_contents_get
+
+2014-02-13  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Do not include libsoup header in the public headers
+        https://bugs.webkit.org/show_bug.cgi?id=128701
+
+        Reviewed by Gyuyoung Kim.
+
+        Although ewebkit used libsoup internally, it's not good for EFL developers
+        to use it.
+        Instead, we should provide some wrapper APIs like ewk_network_proxy_uri_set
+        for future changes.
+
+        * ewk/ewk_network.cpp: Removed soup related header,APIs and comments.
+        (ewk_network_tls_ca_certificates_path_set):
+        * ewk/ewk_network.h: Ditto.
+        * ewk/ewk_view.cpp: Ditto.
+        * ewk/ewk_view.h: Ditto.
+
+2014-02-12  Raphael Kubo da Costa  <raphael.kubo.da.costa@intel.com>
+
+        Update the HTML Media Capture implementation.
+        https://bugs.webkit.org/show_bug.cgi?id=118465
+
+        Reviewed by Darin Adler.
+
+        Make the implementation in WebKit compatible with the 2013-05-09
+        version of the spec, which makes the "capture" attribute a boolean
+        instead of an enum.
+
+        * ewk/ewk_file_chooser.cpp:
+        (ewk_file_chooser_capture_get): Return an Eina_Bool now.
+        * ewk/ewk_file_chooser.h: Get rid of Ewk_File_Chooser_Capture_Type.
+
+2014-02-09  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Remove PageClientEfl
+        https://bugs.webkit.org/show_bug.cgi?id=128508
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        Removed dependencies of PageClientEfl.
+        (WebCore::AcceleratedCompositingContext::initialize):
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::platformPageClient):
+        * WebCoreSupport/PageClientEfl.cpp: Removed.
+        * WebCoreSupport/PageClientEfl.h: Removed.
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+
+2014-02-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Cleanup the interface of FrameSelection
+        https://bugs.webkit.org/show_bug.cgi?id=128481
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::selectionRectangle):
+
+2014-02-08  Darin Adler  <darin@apple.com>
+
+        Change TextIterator to use StringView, preparing to wean it from deprecatedCharacters
+        https://bugs.webkit.org/show_bug.cgi?id=128233
+
+        Reviewed by Anders Carlsson.
+
+        * WebCoreSupport/EditorClientEfl.cpp:
+        (WebCore::EditorClientEfl::checkSpellingOfString): Use StringView.
+        (WebCore::EditorClientEfl::checkGrammarOfString): Ditto.
+        * WebCoreSupport/EditorClientEfl.h: Ditto.
+
+2014-02-07  Gavin Barraclough  <barraclough@apple.com>
+
+        Remove isInitialState flag from Page::setViewState
+        https://bugs.webkit.org/show_bug.cgi?id=128428
+
+        Reviewed by Sam Weinig.
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_visibility_state_set):
+            - don't pass isInitialState to setViewState.
+
+2014-02-05  Andreas Kling  <akling@apple.com>
+
+        Remove ENABLE(DIRECTORY_UPLOAD).
+        <https://webkit.org/b/128275>
+
+        Rubber-stamped by Ryosuke Niwa.
+
+        * ewk/ewk_file_chooser.cpp:
+        (ewk_file_chooser_allows_directory_upload_get):
+
+2014-02-04  Andreas Kling  <akling@apple.com>
+
+        Remove <iframe seamless> support.
+        <https://webkit.org/b/128213>
+
+        Rubber-stamped by Antti Koivisto.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h:
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+
+2014-01-31  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Remove inline member functions of FrameSelection that access m_selection
+        https://bugs.webkit.org/show_bug.cgi?id=127986
+
+        Reviewed by Enrica Casucci.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::selectedRange):
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_text_selection_type_get):
+
+2014-01-30  Andrei Bucur  <abucur@adobe.com>
+
+        Remove the ACCELERATED_COMPOSITING flag
+        https://bugs.webkit.org/show_bug.cgi?id=127833
+
+        Reviewed by Antti Koivisto.
+
+        Remove the USE(ACCELERATED_COMPOSITING) conditionals from the code base and make AC
+        mandatory.
+
+        Another patch will be required to remove the flag support from the EFL build system.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::allowedCompositingTriggers):
+        * WebCoreSupport/ChromeClientEfl.h:
+        * WebCoreSupport/PageClientEfl.cpp:
+        (PageClientEfl::acceleratedCompositingContext):
+        * WebCoreSupport/PageClientEfl.h:
+        * ewk/ewk_private.h:
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+        (_ewk_view_priv_del):
+        (ewk_view_mark_for_sync):
+        * ewk/ewk_view_private.h:
+
+2014-01-29  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        EFL port should stop using COMPILE_ASSERT_MATCHING_ENUM macros
+        https://bugs.webkit.org/show_bug.cgi?id=127801
+
+        Reviewed by Anders Carlsson.
+
+        Instead of COMPILE_ASSERT_MATCHING_ENUMS with static_cast, this patch
+        added switch and conversion functions if needed.
+
+        * WebCoreSupport/AssertMatchingEnums.cpp: Removed.
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::dispatchDecidePolicyForNavigationAction):
+        * ewk/ewk_contextmenu.cpp:
+        (toEwkContextMenuAction):
+        * ewk/ewk_contextmenu.h:
+        Added missing enum variables. These are required not to break the build.
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_text_selection_type_get):
+        * ewk/ewk_touch_event.cpp:
+        (toPlatformTouchPointState):
+        (WebKitPlatformTouchEvent::WebKitPlatformTouchEvent):
+        * ewk/ewk_view.cpp:
+        (ewk_view_text_direction_set):
+        (ewk_view_navigation_policy_decision):
+        (toViewMode):
+        (toEwkViewMode):
+        (ewk_view_mode_set):
+        (ewk_view_mode_get):
+        (ewk_view_visibility_state_get):
+        * ewk/ewk_view_private.h:
+
+2014-01-28  Zan Dobersek  <zdobersek@igalia.com>
+
+        Remove unnecessary forward declarations of MessagePortChannel, MessagePortChannelArray in DumpRenderTreeSupportEfl.h
+        https://bugs.webkit.org/show_bug.cgi?id=127654
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h: Remove the forward declarations of MessagePortChannel
+        and MessagePortChannelArray. They were most likely at one point used in DRT support methods, but are
+        not necessary anymore.
+
+2014-01-27  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Make webkit_uri_scheme_request_get_web_view() work with CustomProtocols
+        https://bugs.webkit.org/show_bug.cgi?id=127614
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Remove initiatingPageID() method form the FrameNetworkingContext.
+
+        * WebCoreSupport/FrameNetworkingContextEfl.cpp:
+        * WebCoreSupport/FrameNetworkingContextEfl.h:
+
+2014-01-27  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Remove ewk_history_item_time_last_visited_get and ewk_history_item_visit_count
+        https://bugs.webkit.org/show_bug.cgi?id=127662
+
+        Reviewed by Gyuyoung Kim.
+
+        These APIs are exposing WebCore's internal structure, but they removed
+        from WebCore since 162808.
+
+        This patch removed not to support them because applications can do it
+        if they want.
+
+        * ewk/ewk_history.cpp:
+        * ewk/ewk_history.h:
+
+2014-01-26  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix on the EFL build since r162808
+
+        lastVisitedTime and visitCount are removed from WebCore::HistoryItem
+
+        * ewk/ewk_history.cpp:
+        (ewk_history_item_new):
+        (ewk_history_item_time_last_visited_get):
+        (ewk_history_item_visit_count):
+
+2014-01-25  Anders Carlsson  <andersca@apple.com>
+
+        Remove an unused FrameLoaderClient function
+        https://bugs.webkit.org/show_bug.cgi?id=127628
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+
+2014-01-25  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Fix broken rendering while navigating history in EWebLauncher
+        https://bugs.webkit.org/show_bug.cgi?id=127601
+
+        Reviewed by Anders Carlsson.
+
+        When scrolled after requested repaints, rendering was broken because scrollDelta
+        changed repaints area.
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_scroll):
+
+2014-01-24  Anders Carlsson  <andersca@apple.com>
+
+        Remove back/forward list related functions from Page
+        https://bugs.webkit.org/show_bug.cgi?id=127596
+
+        Reviewed by Andreas Kling.
+
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_navigate):
+        (ewk_frame_navigate_possible):
+
+2014-01-23  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Remove recompileAllJSFunctions timer in ScriptDebugServer
+        https://bugs.webkit.org/show_bug.cgi?id=127409
+
+        Reviewed by Geoffrey Garen.
+
+        * WebCoreSupport/InspectorClientEfl.cpp:
+        (WebCore::InspectorFrontendClientEfl::destroyInspectorWindow):
+        Include InspectorDisconnectReason.
+
+2014-01-23  Simon Fraser  <simon.fraser@apple.com>
+
+        Fix EFL.
+
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_visible_content_geometry_get):
+
+2014-01-22  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Remove unnecessary smart method since ewk_view_tiled removed
+        https://bugs.webkit.org/show_bug.cgi?id=127417
+
+        Reviewed by Gyuyoung Kim.
+
+        pre_render related codes is only for ewk_view_tiled.
+        In addition, we don't have any requirement to override repaints_process
+        and scroll_process now.
+
+        * ewk/ewk_view.cpp:
+        (_ewk_view_smart_repaints_process):
+        (_ewk_view_smart_calculate):
+        (ewk_view_smart_set):
+        (ewk_view_scrolls_process):
+        * ewk/ewk_view.h:
+
+2014-01-19  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Remove and refactor the APIs which use single and base keyword
+        https://bugs.webkit.org/show_bug.cgi?id=127214
+
+        Reviewed by Gyuyoung Kim.
+
+        Since removed ewk_vie_tiled, we don't need to use single or base in the API name.
+        Removed them and clean up the code.
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_smart_set):
+        (_ewk_view_smart_class_new):
+        (ewk_view_add):
+        * ewk/ewk_view.h:
+        * ewk/ewk_view_private.h:
+        Removed the class names and macro to distinguish single or tiled.
+        * tests/UnitTestUtils/EWKTestView.cpp:
+        (EWKUnitTests::EWKTestView::init):
+
+2014-01-18  Brian Burg  <bburg@apple.com>
+
+        Another build fix attempt for Windows and EFL WebKit1.
+
+        * ewk/ewk_paint_context.cpp:
+        (ewk_paint_context_paint_contents):
+        * ewk/ewk_view.cpp:
+        (_ewk_view_smart_repaints_process):
+
+2014-01-18  Brian Burg  <bburg@apple.com>
+
+        Web Inspector: Page should use std::unique_ptr for InspectorController
+        https://bugs.webkit.org/show_bug.cgi?id=127068
+
+        Reviewed by Joseph Pecoraro.
+
+        Convert call sites to use a InspectorController reference.
+        Convert instantiations of InspectorFrontendClient to use std::unique_ptr.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::evaluateInWebInspector):
+        * WebCoreSupport/InspectorClientEfl.cpp:
+        (WebCore::InspectorClientEfl::openInspectorFrontend):
+        * ewk/ewk_view.cpp:
+        (ewk_view_inspector_show):
+        (ewk_view_inspector_close):
+
+2014-01-17  Anders Carlsson  <andersca@apple.com>
+
+        Remove another unused FrameLoaderClient callback
+        https://bugs.webkit.org/show_bug.cgi?id=127192
+
+        Reviewed by Dan Bernstein.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+
+2014-01-17  Anders Carlsson  <andersca@apple.com>
+
+        Remove didPerformFirstNavigation from all FrameLoaderClient subclasses
+        https://bugs.webkit.org/show_bug.cgi?id=127190
+
+        Reviewed by Dan Bernstein.
+
+        According to the EFl maintainers, this is not used by any applications so it's safe to remove it.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+        * ewk/ewk_frame.cpp:
+        * ewk/ewk_frame_private.h:
+
+2014-01-16  Jaehun Lim  <ljaehun.lim@samsung.com>
+
+        Use final instead of FINAL
+
+        Unreviewed build fix.
+
+        * WebCoreSupport/ProgressTrackerClientEfl.h:
+
+2014-01-16  Peter Molnar  <pmolnar.u-szeged@partner.samsung.com>
+
+        Remove workaround for compilers not supporting explicit override control
+        https://bugs.webkit.org/show_bug.cgi?id=127111
+
+        Reviewed by Anders Carlsson.
+
+        Now all compilers support explicit override control, this workaround can be removed.
+
+        * WebCoreSupport/InspectorClientEfl.h:
+        * WebCoreSupport/ProgressTrackerClientEfl.h:
+
+2014-01-15  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Implement ProgressTrackerClientEfl to fix the crash
+        https://bugs.webkit.org/show_bug.cgi?id=127031
+
+        Reviewed by Gyuyoung Kim.
+
+        Implmemented and moved ProgressTrackerClient logic from FrameLoaderClientEfl.
+        ProgressTrackerClient should be indenpendent instance since r162034
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+        * WebCoreSupport/ProgressTrackerClientEfl.cpp:
+        (WebCore::ProgressTrackerClientEfl::ProgressTrackerClientEfl):
+        (WebCore::ProgressTrackerClientEfl::progressTrackerDestroyed):
+        (WebCore::ProgressTrackerClientEfl::progressStarted):
+        (WebCore::ProgressTrackerClientEfl::progressEstimateChanged):
+        (WebCore::ProgressTrackerClientEfl::progressFinished):
+        * WebCoreSupport/ProgressTrackerClientEfl.h: Added.
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+
+2014-01-13  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Do not store reference variables as a pointer in private data structure
+        https://bugs.webkit.org/show_bug.cgi?id=126945
+
+        Reviewed by Gyuyoung Kim.
+
+        Remove pageSettings, mainFrame and storageSession variables from Ewk_View_Private_Data.
+
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+        (_ewk_view_smart_add):
+        (_ewk_view_smart_repaints_process):
+        (_ewk_view_smart_calculate):
+        (ewk_view_fixed_layout_size_set):
+        (ewk_view_fixed_layout_size_get):
+        (ewk_view_bg_color_set):
+        (ewk_view_setting_user_agent_set):
+        (ewk_view_setting_user_stylesheet_set):
+        (ewk_view_setting_auto_load_images_set):
+        (ewk_view_setting_auto_shrink_images_set):
+        (ewk_view_setting_enable_scripts_set):
+        (ewk_view_setting_enable_plugins_set):
+        (ewk_view_setting_enable_frame_flattening_set):
+        (ewk_view_setting_scripts_can_open_windows_set):
+        (ewk_view_setting_scripts_can_close_windows_set):
+        (ewk_view_setting_scripts_can_access_clipboard_set):
+        (ewk_view_setting_resizable_textareas_set):
+        (ewk_view_setting_private_browsing_set):
+        (ewk_view_setting_application_cache_set):
+        (ewk_view_setting_caret_browsing_set):
+        (ewk_view_setting_encoding_default_set):
+        (ewk_view_setting_encoding_detector_set):
+        (ewk_view_setting_enable_developer_extras_set):
+        (ewk_view_setting_font_minimum_size_set):
+        (ewk_view_setting_font_minimum_logical_size_set):
+        (ewk_view_setting_font_default_size_set):
+        (ewk_view_setting_font_monospace_size_set):
+        (ewk_view_font_family_name_set):
+        (ewk_view_setting_spatial_navigation_set):
+        (ewk_view_setting_local_storage_set):
+        (ewk_view_setting_page_cache_set):
+        (ewk_view_setting_local_storage_database_path_set):
+        (ewk_view_setting_minimum_timer_interval_set):
+        (ewk_view_setting_enable_webgl_set):
+        (ewk_view_setting_enable_hyperlink_auditing_set):
+        (ewk_view_setting_allow_universal_access_from_file_urls_set):
+        (ewk_view_setting_allow_file_access_from_file_urls_set):
+        (ewk_view_layout_if_needed_recursive):
+        (ewk_view_paint):
+        (ewk_view_paint_contents):
+        (ewk_view_js_object_add):
+        (ewk_view_page_rect_get):
+        (ewk_view_soup_session_get):
+        (ewk_view_soup_session_set):
+        (ewk_view_setting_enable_xss_auditor_set):
+        (ewk_view_setting_should_display_captions_set):
+        (ewk_view_setting_should_display_subtitles_set):
+        (ewk_view_setting_should_display_text_descriptions_set):
+        (ewk_view_setting_enable_fullscreen_set):
+        (ewk_view_setting_tiled_backing_store_enabled_set):
+        (ewk_view_setting_tiled_backing_store_enabled_get):
+        (ewk_view_tiled_backing_store_invalidate):
+        (EWKPrivate::storageSession):
+
+2014-01-13  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [SOUP] Add SoupNetworkSession class to wrap a SoupSession
+        https://bugs.webkit.org/show_bug.cgi?id=126813
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Use the new SoupNetworkSession API.
+
+        * ewk/ewk_cookies.cpp:
+        (ewk_cookies_file_set):
+        * ewk/ewk_main.cpp:
+        (_ewk_init_body):
+        * ewk/ewk_network.cpp:
+        (ewk_network_proxy_uri_set):
+        (ewk_network_proxy_uri_get):
+        (ewk_network_tls_certificate_check_get):
+        (ewk_network_tls_certificate_check_set):
+        (ewk_network_tls_ca_certificates_path_get):
+        (ewk_network_tls_ca_certificates_path_set):
+        (ewk_network_default_soup_session_get):
+        * ewk/ewk_view.cpp:
+        (ewk_view_soup_session_get):
+        (ewk_view_soup_session_set):
+
+2014-01-12  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        Fix build warnings by unused parameter
+        https://bugs.webkit.org/show_bug.cgi?id=126867
+
+        Reviewed by Gyuyoung Kim.
+
+        * WebCoreSupport/EditorClientEfl.h:
+        (WebCore::EditorClientEfl::checkTextOfParagraph): Remove unused parameter 'checkingTypes'.
+
+2014-01-11  Anders Carlsson  <andersca@apple.com>
+
+        Build fix.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::progressStarted):
+
+2014-01-10  Anders Carlsson  <andersca@apple.com>
+
+        Tweak ProgressTrackerClient functions
+        https://bugs.webkit.org/show_bug.cgi?id=126808
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::progressStarted):
+        (WebCore::FrameLoaderClientEfl::progressEstimateChanged):
+        (WebCore::FrameLoaderClientEfl::progressFinished):
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+
+2014-01-10  Anders Carlsson  <andersca@apple.com>
+
+        Move progress tracking functions from FrameLoaderClient to a new ProgressTrackerClient
+        https://bugs.webkit.org/show_bug.cgi?id=126801
+
+        Reviewed by Sam Weinig.
+
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new):
+
+2014-01-08  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Merge ewk_view_single into ewk_view
+        https://bugs.webkit.org/show_bug.cgi?id=126508
+
+        Reviewed by Gyuyoung Kim.
+
+        Since ewk_view_tiled is removed at r161134, we don't need to keep
+        ewk_view_single out of ewk_view.cpp.
+
+        This patch moves the logic of ewk_view_single to ewk_view and refactors it.
+        In addition, replaces 0.00001 to episilon.
+
+        * ewk/ewk_view.cpp:
+        (_ewk_view_smart_add):
+        (_ewk_view_smart_resize): Merged with the logic of ewk_view_single.
+        (_ewk_view_screen_move): Moved from ewk_view_single.cpp.
+        (_ewk_view_scroll_process): Ditto.
+        (_ewk_view_smart_scrolls_process): Ditto.
+        (_ewk_view_smart_repaints_process): Ditto.
+        (_ewk_view_smart_calculate): Removed unnecessary check routine for scrolls_process.
+        (_ewk_view_smart_zoom_weak_set):
+        (_ewk_view_smart_zoom_weak_smooth_scale_set):
+        (ewk_view_base_smart_set): Merged smart method of ewk_view_single.
+        (ewk_view_single_smart_set):
+        (_ewk_view_single_smart_class_new):
+        (ewk_view_single_add):
+        (ewk_view_bg_color_set):
+        (ewk_view_pre_render_region):
+        (ewk_view_scrolls_process):
+        * ewk/ewk_view.h:
+        * ewk/ewk_view_private.h: Removed unncessary functions.
+        * ewk/ewk_view_single.cpp: Removed.
+
+2014-01-08  Anders Carlsson  <andersca@apple.com>
+
+        Add WTF::StringView and use it for grammar checking
+        https://bugs.webkit.org/show_bug.cgi?id=126644
+
+        Reviewed by Antti Koivisto.
+
+        Update to match WebCore changes.
+
+        * WebCoreSupport/EditorClientEfl.h:
+        (WebCore::EditorClientEfl::checkTextOfParagraph):
+
+2014-01-05  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        [EFL] Fix failing WebKit1 API test of ewk_view_setting_tiled_backing_store
+        https://bugs.webkit.org/show_bug.cgi?id=126509
+
+        Reviewed by Gyuyoung Kim.
+
+        In WebKit1 EFL port, unit test was using a webview based on tiled backing store,
+        so ewk_view_setting_tiled_backing_store_enabled_set() was set as true as default.
+        As we do not need to use tiled backing store, we disable tiled backing store
+        and remove unnecessary EwkViewType in unit test webview.
+
+        * tests/UnitTestUtils/EWKTestView.cpp:
+        (EWKUnitTests::EWKTestView::init):
+        * tests/UnitTestUtils/EWKTestView.h:
+        * tests/test_ewk_view.cpp: Fix wrong comment in the unit test.
+
+2014-01-02  Gavin Barraclough  <barraclough@apple.com>
+
+        Merge didMoveOnscreen / page visibility to isVisible
+        https://bugs.webkit.org/show_bug.cgi?id=126268
+
+        Reviewed by Tim Horton.
+
+        The onscreen state most closely tracks view visibility (though currently
+        also tracks a mix of in-window state). Make more consistent, simplify,
+        and move all animation suspension logic to Page, so it can be controlled
+        by the PageThrottler.
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_visibility_state_set):
+            - setVisibilityState -> setIsVisible/setIsPrerender.
+
+2013-12-29  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Remove ewk_view_tiled
+        https://bugs.webkit.org/show_bug.cgi?id=125961
+
+        Reviewed by Gyuyoung Kim.
+
+        We didn't use ewk_view_tiled very long time while we focused webkit2/efl.
+        There are many bugs and we don't have plan to fix them.
+        Instead, We will use WebCore's TiledBackingStore and it looks more stable.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::transitionToCommittedForNewPage):
+        * ewk/ewk_tiled_backing_store.cpp: Removed.
+        * ewk/ewk_tiled_backing_store_private.h: Removed.
+        * ewk/ewk_tiled_matrix.cpp: Removed.
+        * ewk/ewk_tiled_matrix_private.h: Removed.
+        * ewk/ewk_tiled_model.cpp: Removed.
+        * ewk/ewk_tiled_model_private.h: Removed.
+        * ewk/ewk_view.cpp:
+        * ewk/ewk_view.h:
+        * ewk/ewk_view_private.h:
+        * ewk/ewk_view_tiled.cpp: Removed.
+        * tests/UnitTestUtils/EWKTestView.cpp:
+        (EWKUnitTests::EWKTestView::init):
+
+2013-12-23  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed build fix after r161033
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_js_object_add): Passed thisObject to constructor of PutPropertySlot.
+
+2013-12-11  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Push More Inspector Required Classes Down into JavaScriptCore
+        https://bugs.webkit.org/show_bug.cgi?id=125324
+
+        Reviewed by Timothy Hatcher.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        * ewk/ewk_frame.cpp:
+
+2013-11-23  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [GStreamer] Remove 0.10 codepath
+        https://bugs.webkit.org/show_bug.cgi?id=124534
+
+        Reviewed by Philippe Normand.
+
+        * WebCoreSupport/FullscreenVideoControllerEfl.cpp: Removed.
+
+2013-11-21  Peter Molnar  <pmolnar.u-szeged@partner.samsung.com>
+
+        Remove ENABLE_WORKERS
+        https://bugs.webkit.org/show_bug.cgi?id=105784
+
+        Reviewed by Darin Adler.
+
+        * ewk/ewk_settings.cpp:
+        (ewk_settings_memory_cache_clear):
+
+2013-11-18  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Initialize efreet before getting directories
+        https://bugs.webkit.org/show_bug.cgi?id=124560
+
+        Reviewed by Gyuyoung Kim.
+
+        efreet is used to get several directories including home dierectory since
+        r123731, but it does not call efreet_init/efreet_shutdown explicitly.
+
+        * ewk/ewk_main.cpp: Call efreet_init()/efreet_shutdown() explicitly.
+        (ewk_init):
+        (ewk_shutdown):
+
+2013-11-18  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL] Add EWebKitConfig.cmake and EWebKit2Config.cmake
+        https://bugs.webkit.org/show_bug.cgi?id=124478
+
+        Reviewed by Gyuyoung Kim.
+
+        EWebKit is built using CMake but applications use *.pc to use it.
+        This patch provides EWebKitConfig.cmake and EWebKit2Config.cmake
+        for applications which use EWebkit and is compiled by CMake.
+
+        * EWebKitConfig.cmake.in: Added.
+        * EWebKitConfigVersion.cmake.in: Added.
+
+2013-11-15  Alberto Garcia  <berto@igalia.com>
+
+        [EFL] Leak in ewk_frame_certificate_status_get()
+        https://bugs.webkit.org/show_bug.cgi?id=124401
+
+        Reviewed by Carlos Garcia Campos.
+
+        The SoupMessage object is being leaked. In in this case that
+        object is not even necessary since ResourceRequest already
+        provides a way to get the soup flags directly.
+
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_certificate_status_get):
+
+2013-11-10  Tibor Meszaros  <mtibor@inf.u-szeged.hu>
+
+        Cleanup the EFL --minimal build from unused parameters
+        https://bugs.webkit.org/show_bug.cgi?id=124048
+
+        Reviewed by Gyuyoung Kim.
+
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::createWindow):
+        * ewk/ewk_settings.cpp:
+        (ewk_settings_web_database_path_set):
+        * ewk/ewk_view.cpp:
+        (ewk_view_visibility_state_set):
+        (ewk_view_visibility_state_get):
+
+2013-11-05  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [GStreamer] Remove NATIVE_FULLSCREEN_VIDEO support
+        https://bugs.webkit.org/show_bug.cgi?id=123437
+
+        Reviewed by Philippe Normand.
+
+        Removed some dead code as no GStreamer port is using the native
+        fullscreen video support.
+
+        * WebCoreSupport/FullscreenVideoControllerEfl.h: Removed.
+
+2013-11-01  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [EFL][WK1] Rendering is broken when scrolled ewk_view_single repeatedly
+        https://bugs.webkit.org/show_bug.cgi?id=123609
+
+        Reviewed by Gyuyoung Kim.
+
+        ewk_view_single adds wrong updateRects except last one in scrolls_process,
+        because previous updateRects are not considered accumulated scrollOffsets.
+
+        * ewk/ewk_view_single.cpp:
+        (_ewk_view_single_smart_scrolls_process):
+        Merged scrollOffsets to calculate updateRects once.
+        It will also reduce unnecessary memory copy operations.
+
+2013-10-16  Jochen Eisinger  <jochen@chromium.org>
+
+        A page should exit fullscreen mode if it opens a new popup
+        https://bugs.webkit.org/show_bug.cgi?id=122865
+
+        Reviewed by Jer Noble.
+
+        If a fullscreen page opens a popup, the popup would be hidden and
+        therefore invisible to the user. To avoid this, exit fullscreen mode
+        before opening a new window.
+
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::createWindow):
+
+2013-10-07  Sam Weinig  <sam@webkit.org>
+
+        Consolidate findString functions
+        https://bugs.webkit.org/show_bug.cgi?id=122480
+
+        Reviewed by Darin Adler.
+
+        * ewk/ewk_frame.cpp:
+        (ewk_frame_text_search):
+        * ewk/ewk_view.cpp:
+        (ewk_view_text_search):
+
+2013-10-07  Sam Weinig  <sam@webkit.org>
+
+        CTTE: Use references in and around DragController
+        https://bugs.webkit.org/show_bug.cgi?id=122427
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/DragClientEfl.cpp:
+        (WebCore::DragClientEfl::willPerformDragDestinationAction):
+        (WebCore::DragClientEfl::willPerformDragSourceAction):
+        (WebCore::DragClientEfl::actionMaskForDrag):
+        (WebCore::DragClientEfl::startDrag):
+        * WebCoreSupport/DragClientEfl.h:
+
+2013-10-04  Anders Carlsson  <andersca@apple.com>
+
+        FramePolicyFunction should be an std::function
+        https://bugs.webkit.org/show_bug.cgi?id=122362
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::callPolicyFunction):
+        (WebCore::FrameLoaderClientEfl::dispatchWillSubmitForm):
+        (WebCore::FrameLoaderClientEfl::dispatchDecidePolicyForResponse):
+        (WebCore::FrameLoaderClientEfl::dispatchDecidePolicyForNewWindowAction):
+        (WebCore::FrameLoaderClientEfl::dispatchDecidePolicyForNavigationAction):
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+
+2013-10-03  Sam Weinig  <sam@webkit.org>
+
+        Remove shouldRubberBandInDirection from the WKBundlePageUIClient
+        https://bugs.webkit.org/show_bug.cgi?id=122309
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/ChromeClientEfl.h:
+
+2013-10-01  Sam Weinig  <sam@webkit.org>
+
+        CTTE: DOMWrapperWorlds should be passed around by reference
+        https://bugs.webkit.org/show_bug.cgi?id=122206
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::evaluateScriptInIsolatedWorld):
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::dispatchDidClearWindowObjectInWorld):
+        * WebCoreSupport/FrameLoaderClientEfl.h:
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        Fix the build.
+
+        * ewk/ewk_settings.cpp:
+
+2013-09-30  Sam Weinig  <sam@webkit.org>
+
+        Remove support for DOMFileSystem
+        https://bugs.webkit.org/show_bug.cgi?id=122137
+
+        Reviewed by Anders Carlsson.
+
+        * ewk/ewk_settings.cpp:
+        (ewk_settings_file_system_path_set):
+
+2013-09-28  Darin Adler  <darin@apple.com>
+
+        Add Frame::mainFrame and Frame::isMainFrame
+        https://bugs.webkit.org/show_bug.cgi?id=122064
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::dispatchWillSendRequest):
+        (WebCore::FrameLoaderClientEfl::assignIdentifierToInitialRequest):
+        (WebCore::FrameLoaderClientEfl::updateGlobalHistory):
+        Call isMainFrame.
+
+2013-09-26  Darin Adler  <darin@apple.com>
+
+        rename KURL to URL
+        https://bugs.webkit.org/show_bug.cgi?id=16214
+
+        Reviewed by Andreas Kling.
+
+        * many files: Renamed, using script.
+
+2013-09-27  Darin Adler  <darin@apple.com>
+
+        Add empty MainFrame class
+        https://bugs.webkit.org/show_bug.cgi?id=121770
+
+        Reviewed by Andreas Kling.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        * WebCoreSupport/InspectorClientEfl.cpp:
+        * ewk/ewk_view.cpp:
+        Include MainFrame.h instead of Frame.h as needed.
+
+2013-09-25  Brent Fulgham  <bfulgham@apple.com>
+
+        Refactor RuntimeEnabledFeatures as a Singleton.
+        https://bugs.webkit.org/show_bug.cgi?id=121883.
+
+        Reviewed by Jer Noble.
+
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::setCSSRegionsEnabled): Use singleton.
+        (DumpRenderTreeSupportEfl::setSeamlessIFramesEnabled): Ditto.
+        * ewk/ewk_settings.cpp:
+        (ewk_settings_shadow_dom_enable_get): Ditto.
+        (ewk_settings_shadow_dom_enable_set):
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_new): Ditto.
+
 2013-09-20  Mario Sanchez Prada  <mario.prada@samsung.com>
 
         [ATK] Do not expose aria-help in ATK based platforms

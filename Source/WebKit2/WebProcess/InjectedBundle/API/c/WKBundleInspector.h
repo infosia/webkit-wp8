@@ -28,8 +28,6 @@
 
 #include <WebKit2/WKBase.h>
 
-#if ENABLE(INSPECTOR)
-
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
@@ -43,14 +41,12 @@ WK_EXPORT WKTypeID WKBundleInspectorGetTypeID();
 WK_EXPORT void WKBundleInspectorShow(WKBundleInspectorRef inspector);
 WK_EXPORT void WKBundleInspectorClose(WKBundleInspectorRef inspector);
 
-WK_EXPORT void WKBundleInspectorEvaluateScriptForTest(WKBundleInspectorRef inspector, long callID, WKStringRef script);
+WK_EXPORT void WKBundleInspectorEvaluateScriptForTest(WKBundleInspectorRef inspector, WKStringRef script);
 WK_EXPORT void WKBundleInspectorSetPageProfilingEnabled(WKBundleInspectorRef inspector, bool enabled);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // ENABLE(INSPECTOR)
 
 #endif // WKBundleInspector_h
 

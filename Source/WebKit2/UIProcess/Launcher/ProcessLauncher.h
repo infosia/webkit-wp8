@@ -42,7 +42,7 @@ public:
     public:
         virtual ~Client() { }
         
-        virtual void didFinishLaunching(ProcessLauncher*, CoreIPC::Connection::Identifier) = 0;
+        virtual void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier) = 0;
     };
     
     enum ProcessType {
@@ -53,20 +53,21 @@ public:
 #if ENABLE(NETWORK_PROCESS)
         NetworkProcess,
 #endif
+#if ENABLE(DATABASE_PROCESS)
+        DatabaseProcess,
+#endif
     };
 
     struct LaunchOptions {
         ProcessType processType;
         HashMap<String, String> extraInitializationData;
-#if PLATFORM(MAC)
+#if OS(DARWIN)
         static const cpu_type_t MatchCurrentArchitecture = 0;
         cpu_type_t architecture;
         bool executableHeap;
-#if HAVE(XPC)
         bool useXPC;
 #endif
-#endif
-#if PLATFORM(EFL)
+#if PLATFORM(EFL) || PLATFORM(GTK)
 #ifndef NDEBUG
         String processCmdPrefix;
 #endif
@@ -91,7 +92,7 @@ private:
     ProcessLauncher(Client*, const LaunchOptions& launchOptions);
 
     void launchProcess();
-    void didFinishLaunchingProcess(PlatformProcessIdentifier, CoreIPC::Connection::Identifier);
+    void didFinishLaunchingProcess(PlatformProcessIdentifier, IPC::Connection::Identifier);
 
     void platformInvalidate();
 

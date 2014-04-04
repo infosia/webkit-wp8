@@ -99,6 +99,7 @@ StylePropertyShorthand webkitColumnsShorthand();
 StylePropertyShorthand webkitColumnRuleShorthand();
 StylePropertyShorthand webkitFlexFlowShorthand();
 StylePropertyShorthand webkitFlexShorthand();
+StylePropertyShorthand webkitGridAreaShorthand();
 StylePropertyShorthand webkitGridColumnShorthand();
 StylePropertyShorthand webkitGridRowShorthand();
 StylePropertyShorthand webkitMarginCollapseShorthand();
@@ -112,13 +113,9 @@ StylePropertyShorthand webkitTransitionShorthand();
 StylePropertyShorthand webkitTransformOriginShorthand();
 StylePropertyShorthand widthShorthand();
 
-#if ENABLE(CSS3_TEXT)
 StylePropertyShorthand webkitTextDecorationShorthand();
-#endif
 
-#if ENABLE(SVG)
 StylePropertyShorthand markerShorthand();
-#endif
 
 // Returns empty value if the property is not a shorthand.
 StylePropertyShorthand shorthandForProperty(CSSPropertyID);

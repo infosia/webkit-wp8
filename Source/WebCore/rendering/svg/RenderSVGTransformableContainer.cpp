@@ -20,19 +20,15 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGTransformableContainer.h"
 
-#include "SVGGraphicsElement.h"
 #include "SVGNames.h"
-#include "SVGRenderSupport.h"
 #include "SVGUseElement.h"
 
 namespace WebCore {
     
-RenderSVGTransformableContainer::RenderSVGTransformableContainer(SVGGraphicsElement& element)
-    : RenderSVGContainer(element)
+RenderSVGTransformableContainer::RenderSVGTransformableContainer(SVGGraphicsElement& element, PassRef<RenderStyle> style)
+    : RenderSVGContainer(element, std::move(style))
     , m_needsTransformUpdate(true)
     , m_didTransformToRootUpdate(false)
 {
@@ -73,5 +69,3 @@ bool RenderSVGTransformableContainer::calculateLocalTransform()
 }
 
 }
-
-#endif // ENABLE(SVG)

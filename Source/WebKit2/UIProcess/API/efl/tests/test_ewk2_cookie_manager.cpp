@@ -22,10 +22,9 @@
 
 #include "UnitTestUtils/EWK2UnitTestBase.h"
 #include "UnitTestUtils/EWK2UnitTestServer.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 
 using namespace EWK2UnitTest;
 using namespace WTF;
@@ -64,18 +63,15 @@ public:
         soup_message_body_complete(message->response_body);
     }
 
-    static void getAcceptPolicyCallback(Ewk_Cookie_Accept_Policy policy, Ewk_Error* error, void* event_info)
+    static void getAcceptPolicyCallback(Ewk_Cookie_Accept_Policy policy, void* event_info)
     {
-        ASSERT_FALSE(error);
         Ewk_Cookie_Accept_Policy* ret = static_cast<Ewk_Cookie_Accept_Policy*>(event_info);
         *ret = policy;
         ecore_main_loop_quit();
     }
 
-    static void getHostnamesWithCookiesCallback(Eina_List* hostnames, Ewk_Error* error, void* event_info)
+    static void getHostnamesWithCookiesCallback(Eina_List* hostnames, void* event_info)
     {
-        ASSERT_FALSE(error);
-
         Eina_List** ret = static_cast<Eina_List**>(event_info);
         Eina_List* l;
         void* data;
@@ -99,7 +95,7 @@ protected:
     Ewk_Cookie_Accept_Policy getAcceptPolicy(Ewk_Cookie_Manager* manager)
     {
         Ewk_Cookie_Accept_Policy policy = EWK_COOKIE_ACCEPT_POLICY_ALWAYS;
-        ewk_cookie_manager_async_accept_policy_get(manager, getAcceptPolicyCallback, &policy);
+        ewk_cookie_manager_accept_policy_async_get(manager, getAcceptPolicyCallback, &policy);
         ecore_main_loop_begin();
         return policy;
     }
@@ -107,7 +103,7 @@ protected:
     Eina_List* getHostnamesWithCookies(Ewk_Cookie_Manager* manager)
     {
         Eina_List* ret = 0;
-        ewk_cookie_manager_async_hostnames_with_cookies_get(manager, getHostnamesWithCookiesCallback, &ret);
+        ewk_cookie_manager_hostnames_with_cookies_async_get(manager, getHostnamesWithCookiesCallback, &ret);
         ecore_main_loop_begin();
         return ret;
     }
@@ -130,15 +126,16 @@ protected:
 
 TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_accept_policy)
 {
-    OwnPtr<EWK2UnitTestServer> httpServer = adoptPtr(new EWK2UnitTestServer);
+    std::unique_ptr<EWK2UnitTestServer> httpServer = std::make_unique<EWK2UnitTestServer>();
     httpServer->run(serverCallback);
 
     Ewk_Cookie_Manager* cookieManager = ewk_context_cookie_manager_get(ewk_view_context_get(webView()));
     ASSERT_TRUE(cookieManager);
 
+    ASSERT_TRUE(loadUrlSync(httpServer->getURLForPath("/index.html").data()));
+
     // Default policy is EWK_COOKIE_ACCEPT_POLICY_NO_THIRD_PARTY.
     ASSERT_EQ(EWK_COOKIE_ACCEPT_POLICY_NO_THIRD_PARTY, getAcceptPolicy(cookieManager));
-    ASSERT_TRUE(loadUrlSync(httpServer->getURLForPath("/index.html").data()));
 
     Eina_List* hostnames = getHostnamesWithCookies(cookieManager);
     ASSERT_EQ(1, eina_list_count(hostnames));
@@ -168,11 +165,14 @@ TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_accept_policy)
 
 TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_changes_watch)
 {
-    OwnPtr<EWK2UnitTestServer> httpServer = adoptPtr(new EWK2UnitTestServer);
+    std::unique_ptr<EWK2UnitTestServer> httpServer = std::make_unique<EWK2UnitTestServer>();
     httpServer->run(serverCallback);
 
     Ewk_Cookie_Manager* cookieManager = ewk_context_cookie_manager_get(ewk_view_context_get(webView()));
     ASSERT_TRUE(cookieManager);
+
+    // Load default test page to guarantee that WebProcess or NetworkProcess is launched.
+    ASSERT_TRUE(loadUrlSync(environment->defaultTestPageUrl()));
 
     ewk_cookie_manager_accept_policy_set(cookieManager, EWK_COOKIE_ACCEPT_POLICY_ALWAYS);
     ASSERT_EQ(EWK_COOKIE_ACCEPT_POLICY_ALWAYS, getAcceptPolicy(cookieManager));
@@ -184,15 +184,11 @@ TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_changes_watch)
     // Check for cookie changes notifications
     ASSERT_TRUE(loadUrlSync(httpServer->getURLForPath("/index.html").data()));
 
-    while (!cookiesChanged)
-        ecore_main_loop_iterate();
-    ASSERT_TRUE(cookiesChanged);
+    ASSERT_TRUE(waitUntilTrue(cookiesChanged));
 
     cookiesChanged = false;
     ewk_cookie_manager_cookies_clear(cookieManager);
-    while (!cookiesChanged)
-        ecore_main_loop_iterate();
-    ASSERT_TRUE(cookiesChanged);
+    ASSERT_TRUE(waitUntilTrue(cookiesChanged));
 
     // Stop watching for notifications
     ewk_cookie_manager_changes_watch(cookieManager, 0, 0);
@@ -205,10 +201,12 @@ TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_changes_watch)
     ewk_cookie_manager_changes_watch(cookieManager, onCookiesChanged, &cookiesChanged);
 
     // Make sure we don't get notifications when loading setting an existing persistent storage
-    char textStorage1[] = "/tmp/txt-cookie.XXXXXX";
-    ASSERT_TRUE(mktemp(textStorage1));
-    char textStorage2[] = "/tmp/txt-cookie.XXXXXX";
-    ASSERT_TRUE(mktemp(textStorage2));
+    char storageDirectory[] = "/tmp/ewk2_cookie_manager-XXXXXX";
+    ASSERT_TRUE(mkdtemp(storageDirectory));
+    char textStorage1[64];
+    snprintf(textStorage1, sizeof(textStorage1), "%s/txt-cookie1", storageDirectory);
+    char textStorage2[64];
+    snprintf(textStorage2, sizeof(textStorage2), "%s/txt-cookie2", storageDirectory);
 
     ewk_cookie_manager_persistent_storage_set(cookieManager, textStorage1, EWK_COOKIE_PERSISTENT_STORAGE_TEXT);
     ASSERT_TRUE(loadUrlSync(httpServer->getURLForPath("/index.html").data()));
@@ -227,15 +225,19 @@ TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_changes_watch)
     ewk_cookie_manager_changes_watch(cookieManager, 0, 0);
     unlink(textStorage1);
     unlink(textStorage2);
+    rmdir(storageDirectory);
 }
 
 TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_cookies_delete)
 {
-    OwnPtr<EWK2UnitTestServer> httpServer = adoptPtr(new EWK2UnitTestServer);
+    std::unique_ptr<EWK2UnitTestServer> httpServer = std::make_unique<EWK2UnitTestServer>();
     httpServer->run(serverCallback);
 
     Ewk_Cookie_Manager* cookieManager = ewk_context_cookie_manager_get(ewk_view_context_get(webView()));
     ASSERT_TRUE(cookieManager);
+
+    // Load default test page to guarantee that WebProcess or NetworkProcess is launched.
+    ASSERT_TRUE(loadUrlSync(environment->defaultTestPageUrl()));
 
     ewk_cookie_manager_accept_policy_set(cookieManager, EWK_COOKIE_ACCEPT_POLICY_ALWAYS);
     ASSERT_EQ(EWK_COOKIE_ACCEPT_POLICY_ALWAYS, getAcceptPolicy(cookieManager));
@@ -267,17 +269,22 @@ TEST_F(EWK2CookieManagerTest, ewk_cookie_manager_cookies_delete)
 
 TEST_F(EWK2CookieManagerTest, DISABLED_ewk_cookie_manager_permanent_storage)
 {
-    OwnPtr<EWK2UnitTestServer> httpServer = adoptPtr(new EWK2UnitTestServer);
+    std::unique_ptr<EWK2UnitTestServer> httpServer = std::make_unique<EWK2UnitTestServer>();
     httpServer->run(serverCallback);
 
     // Generate unique names for cookie storages.
-    char textStorage[] = "/tmp/txt-cookie.XXXXXX";
-    ASSERT_TRUE(mktemp(textStorage));
-    char sqliteStorage[] = "/tmp/sqlite-cookie.XXXXXX";
-    ASSERT_TRUE(mktemp(sqliteStorage));
+    char storageDirectory[] = "/tmp/ewk2_cookie_manager-XXXXXX";
+    ASSERT_TRUE(mkdtemp(storageDirectory));
+    char textStorage[64];
+    snprintf(textStorage, sizeof(textStorage), "%s/txt-cookie", storageDirectory);
+    char sqliteStorage[64];
+    snprintf(sqliteStorage, sizeof(sqliteStorage), "%s/sqlite-cookie", storageDirectory);
 
     Ewk_Cookie_Manager* cookieManager = ewk_context_cookie_manager_get(ewk_view_context_get(webView()));
     ASSERT_TRUE(cookieManager);
+
+    // Load default test page to guarantee that WebProcess or NetworkProcess is launched.
+    ASSERT_TRUE(loadUrlSync(environment->defaultTestPageUrl()));
 
     ewk_cookie_manager_accept_policy_set(cookieManager, EWK_COOKIE_ACCEPT_POLICY_ALWAYS);
     ASSERT_EQ(EWK_COOKIE_ACCEPT_POLICY_ALWAYS, getAcceptPolicy(cookieManager));
@@ -311,4 +318,5 @@ TEST_F(EWK2CookieManagerTest, DISABLED_ewk_cookie_manager_permanent_storage)
     // Final clean up.
     unlink(textStorage);
     unlink(sqliteStorage);
+    rmdir(storageDirectory);
 }

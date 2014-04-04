@@ -1,5 +1,6 @@
 Tests that TextTrack's cues are indexed and updated in order during video playback. Test uses the cuechange event.
 
+
 EVENT(canplaythrough)
 EXPECTED (testTrack.track.cues.length == '3') OK
 RUN(video.play())
@@ -7,7 +8,7 @@ RUN(video.play())
 EVENT(cuechange) from TextTrack
 EVENT(cuechange) from <track>
 Cue entered
-EXPECTED ([object TextTrackCue] == '[object TextTrackCue]') OK
+EXPECTED ([object VTTCue] == '[object VTTCue]') OK
 EXPECTED (currentCue.id == '1') OK
 
 EVENT(cuechange) from TextTrack
@@ -17,7 +18,7 @@ Cue exited
 EVENT(cuechange) from TextTrack
 EVENT(cuechange) from <track>
 Cue entered
-EXPECTED ([object TextTrackCue] == '[object TextTrackCue]') OK
+EXPECTED ([object VTTCue] == '[object VTTCue]') OK
 EXPECTED (currentCue.id == '2') OK
 
 EVENT(cuechange) from TextTrack
@@ -27,7 +28,7 @@ Cue exited
 EVENT(cuechange) from TextTrack
 EVENT(cuechange) from <track>
 Cue entered
-EXPECTED ([object TextTrackCue] == '[object TextTrackCue]') OK
+EXPECTED ([object VTTCue] == '[object VTTCue]') OK
 EXPECTED (currentCue.id == '3') OK
 
 EVENT(cuechange) from TextTrack

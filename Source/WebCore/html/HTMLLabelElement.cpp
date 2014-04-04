@@ -38,12 +38,10 @@ using namespace HTMLNames;
 
 static LabelableElement* nodeAsSupportedLabelableElement(Node* node)
 {
-    if (!node || !isLabelableElement(node))
-        return 0;
-    LabelableElement* labelableElement = static_cast<LabelableElement*>(node);
-    if (!labelableElement->supportLabels())
-        return 0;
-    return labelableElement;
+    if (!node || !isLabelableElement(*node))
+        return nullptr;
+    LabelableElement& element = toLabelableElement(*node);
+    return element.supportLabels() ? &element : nullptr;
 }
 
 inline HTMLLabelElement::HTMLLabelElement(const QualifiedName& tagName, Document& document)
@@ -69,17 +67,16 @@ LabelableElement* HTMLLabelElement::control()
         // Search the children and descendants of the label element for a form element.
         // per http://dev.w3.org/html5/spec/Overview.html#the-label-element
         // the form element must be "labelable form-associated element".
-        auto labelableDescendants = descendantsOfType<LabelableElement>(this);
-        for (auto labelableElement = labelableDescendants.begin(), end = labelableDescendants.end(); labelableElement != end; ++labelableElement) {
-            if (labelableElement->supportLabels())
-                return &*labelableElement;
+        for (auto& labelableElement : descendantsOfType<LabelableElement>(*this)) {
+            if (labelableElement.supportLabels())
+                return &labelableElement;
         }
-        return 0;
+        return nullptr;
     }
     
     // Find the first element whose id is controlId. If it is found and it is a labelable form control,
     // return it, otherwise return 0.
-    return nodeAsSupportedLabelableElement(treeScope()->getElementById(controlId));
+    return nodeAsSupportedLabelableElement(treeScope().getElementById(controlId));
 }
 
 HTMLFormElement* HTMLLabelElement::form() const
@@ -144,10 +141,7 @@ void HTMLLabelElement::defaultEventHandler(Event* evt)
 
 bool HTMLLabelElement::willRespondToMouseClickEvents()
 {
-    if (control() && control()->willRespondToMouseClickEvents())
-        return true;
-
-    return HTMLElement::willRespondToMouseClickEvents();
+    return (control() && control()->willRespondToMouseClickEvents()) || HTMLElement::willRespondToMouseClickEvents();
 }
 
 void HTMLLabelElement::focus(bool, FocusDirection direction)

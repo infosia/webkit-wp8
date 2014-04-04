@@ -28,8 +28,13 @@
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 
+namespace WebCore {
+class Image;
+}
+
 namespace WebKit {
 
+class ShareableBitmap;
 class WebPage;
 
 class WebContextMenu : public RefCounted<WebContextMenu> {
@@ -45,9 +50,13 @@ public:
     void itemSelected(const WebContextMenuItemData&);
     Vector<WebContextMenuItemData> items() const;
 
+#if ENABLE(IMAGE_CONTROLS)
+    void replaceControlledImage(PassRefPtr<WebCore::Image>);
+#endif
+
 private:
     WebContextMenu(WebPage*);
-    void menuItemsWithUserData(Vector<WebContextMenuItemData>&, RefPtr<APIObject>&) const;
+    void menuItemsWithUserData(Vector<WebContextMenuItemData>&, RefPtr<API::Object>&) const;
 
     WebPage* m_page;
 };

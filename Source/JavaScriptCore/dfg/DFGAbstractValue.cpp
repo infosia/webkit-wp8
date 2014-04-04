@@ -29,7 +29,7 @@
 #if ENABLE(DFG_JIT)
 
 #include "DFGGraph.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -65,12 +65,12 @@ void AbstractValue::set(Graph& graph, JSValue value)
         m_futurePossibleStructure.clear();
         m_arrayModes = 0;
     }
-        
+    
     m_type = speculationFromValue(value);
     if (m_type == SpecInt52AsDouble)
         m_type = SpecInt52;
     m_value = value;
-        
+    
     checkConsistency();
 }
 
@@ -153,6 +153,7 @@ FiltrationResult AbstractValue::filterByValue(JSValue value)
 
 void AbstractValue::setFuturePossibleStructure(Graph& graph, Structure* structure)
 {
+    ASSERT(structure);
     if (graph.watchpoints().isStillValid(structure->transitionWatchpointSet()))
         m_futurePossibleStructure = structure;
     else

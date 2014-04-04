@@ -2,7 +2,7 @@
 
 LICENSE=$(cat <<EOF
 /*
- * Copyright (C) 2007-2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2007-2014 Apple Inc. All rights reserved.
  * Copyright (C) 2009-2011 Google Inc. All rights reserved.
  * Copyright (C) 2009-2010 Joseph Pecoraro. All rights reserved.
  * Copyright (C) 2008 Matt Lilek. All rights reserved.
@@ -13,6 +13,8 @@ LICENSE=$(cat <<EOF
  * Copyright (C) 2013 Matt Holden <jftholden@yahoo.com>
  * Copyright (C) 2013 Samsung Electronics. All rights reserved.
  * Copyright (C) 2013 Seokju Kwon (seokju.kwon@gmail.com)
+ * Copyright (C) 2013 Adobe Systems Inc. All rights reserved.
+ * Copyright (C) 2013 University of Washington. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,6 +42,10 @@ EOF
 
 CODE_MIRROR_LICENSE=$(echo "/*" && sed 's/^/ * /' "${SRCROOT}/UserInterface/External/CodeMirror/LICENSE" && echo " */")
 
+# Copy over dynamically loaded files from other frameworks, even if we aren't combining resources.
+ditto "${JAVASCRIPTCORE_PRIVATE_HEADERS_DIR}/InspectorJSBackendCommands.js" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Protocol/InspectorJSBackendCommands.js"
+ditto "${WEBCORE_PRIVATE_HEADERS_DIR}/InspectorWebBackendCommands.js" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Protocol/InspectorWebBackendCommands.js"
+
 if [[ ${COMBINE_INSPECTOR_RESOURCES:=YES} == "YES" ]]; then
     # Combine the JavaScript and CSS files in Production builds into single files (Main.js and Main.css).
     "${SRCROOT}/Scripts/combine-resources.pl" --input-html "${SRCROOT}/UserInterface/Main.html" --derived-sources-dir "${DERIVED_SOURCES_DIR}" --output-dir "${DERIVED_SOURCES_DIR}" --output-script-name "Main.js" --output-style-name "Main.css"
@@ -49,6 +55,9 @@ if [[ ${COMBINE_INSPECTOR_RESOURCES:=YES} == "YES" ]]; then
 
     # Remove console.assert calls from the Main.js file.
     "${SRCROOT}/Scripts/remove-console-asserts.pl" --input-script "${DERIVED_SOURCES_DIR}/Main.js" --output-script "${DERIVED_SOURCES_DIR}/Main.js"
+
+    # Fix Image URLs in the Main.css file by removing the "../".
+    sed -i "" -e "s/\.\.\/Images/Images/g" "${DERIVED_SOURCES_DIR}/Main.css"
 
     # Export the license into Main.js.
     echo "${LICENSE}" > "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Main.js"
@@ -69,9 +78,8 @@ if [[ ${COMBINE_INSPECTOR_RESOURCES:=YES} == "YES" ]]; then
     ditto "${DERIVED_SOURCES_DIR}/Main.html" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Main.html"
     ditto "${SRCROOT}/UserInterface/Images" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Images"
 
-    # Copy over files that are dynamically loaded. The default InspectorBackendCommands.js and the Legacy directory.
-    ditto "${SRCROOT}/UserInterface/InspectorBackendCommands.js" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/InspectorBackendCommands.js"
-    ditto "${SRCROOT}/UserInterface/Legacy" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Legacy"
+    # Copy the Legacy directory.
+    ditto "${SRCROOT}/UserInterface/Protocol/Legacy" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Protocol/Legacy"
 else
     # Keep the files separate for engineering builds.
     ditto "${SRCROOT}/UserInterface" "${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"

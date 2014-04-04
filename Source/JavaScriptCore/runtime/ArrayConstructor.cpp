@@ -32,7 +32,7 @@
 #include "JSArray.h"
 #include "JSFunction.h"
 #include "Lookup.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -54,21 +54,21 @@ const ClassInfo ArrayConstructor::s_info = { "Function", &InternalFunction::s_in
 @end
 */
 
-ArrayConstructor::ArrayConstructor(JSGlobalObject* globalObject, Structure* structure)
-    : InternalFunction(globalObject, structure)
+ArrayConstructor::ArrayConstructor(VM& vm, Structure* structure)
+    : InternalFunction(vm, structure)
 {
 }
 
-void ArrayConstructor::finishCreation(ExecState* exec, ArrayPrototype* arrayPrototype)
+void ArrayConstructor::finishCreation(VM& vm, ArrayPrototype* arrayPrototype)
 {
-    Base::finishCreation(exec->vm(), arrayPrototype->classInfo()->className);
-    putDirectWithoutTransition(exec->vm(), exec->propertyNames().prototype, arrayPrototype, DontEnum | DontDelete | ReadOnly);
-    putDirectWithoutTransition(exec->vm(), exec->propertyNames().length, jsNumber(1), ReadOnly | DontEnum | DontDelete);
+    Base::finishCreation(vm, arrayPrototype->classInfo()->className);
+    putDirectWithoutTransition(vm, vm.propertyNames->prototype, arrayPrototype, DontEnum | DontDelete | ReadOnly);
+    putDirectWithoutTransition(vm, vm.propertyNames->length, jsNumber(1), ReadOnly | DontEnum | DontDelete);
 }
 
 bool ArrayConstructor::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot &slot)
 {
-    return getStaticFunctionSlot<InternalFunction>(exec, ExecState::arrayConstructorTable(exec), jsCast<ArrayConstructor*>(object), propertyName, slot);
+    return getStaticFunctionSlot<InternalFunction>(exec, ExecState::arrayConstructorTable(exec->vm()), jsCast<ArrayConstructor*>(object), propertyName, slot);
 }
 
 // ------------------------------ Functions ---------------------------

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,12 +26,12 @@
 #ifndef FTLExitValue_h
 #define FTLExitValue_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(FTL_JIT)
 
 #include "FTLExitArgument.h"
+#include "FTLRecoveryOpcode.h"
 #include "JSCJSValue.h"
+#include "VirtualRegister.h"
 #include <wtf/PrintStream.h>
 
 namespace JSC { namespace FTL {
@@ -50,7 +50,9 @@ enum ExitValueKind {
     ExitValueInJSStack,
     ExitValueInJSStackAsInt32,
     ExitValueInJSStackAsInt52,
-    ExitValueInJSStackAsDouble
+    ExitValueInJSStackAsDouble,
+    ExitValueArgumentsObjectThatWasNotCreated,
+    ExitValueRecovery
 };
 
 class ExitValue {
@@ -69,31 +71,35 @@ public:
         return result;
     }
     
-    static ExitValue inJSStack()
+    static ExitValue inJSStack(VirtualRegister reg)
     {
         ExitValue result;
         result.m_kind = ExitValueInJSStack;
+        result.u.virtualRegister = reg.offset();
         return result;
     }
     
-    static ExitValue inJSStackAsInt32()
+    static ExitValue inJSStackAsInt32(VirtualRegister reg)
     {
         ExitValue result;
         result.m_kind = ExitValueInJSStackAsInt32;
+        result.u.virtualRegister = reg.offset();
         return result;
     }
     
-    static ExitValue inJSStackAsInt52()
+    static ExitValue inJSStackAsInt52(VirtualRegister reg)
     {
         ExitValue result;
         result.m_kind = ExitValueInJSStackAsInt52;
+        result.u.virtualRegister = reg.offset();
         return result;
     }
     
-    static ExitValue inJSStackAsDouble()
+    static ExitValue inJSStackAsDouble(VirtualRegister reg)
     {
         ExitValue result;
         result.m_kind = ExitValueInJSStackAsDouble;
+        result.u.virtualRegister = reg.offset();
         return result;
     }
     
@@ -113,6 +119,24 @@ public:
         return result;
     }
     
+    static ExitValue argumentsObjectThatWasNotCreated()
+    {
+        ExitValue result;
+        result.m_kind = ExitValueArgumentsObjectThatWasNotCreated;
+        return result;
+    }
+    
+    static ExitValue recovery(RecoveryOpcode opcode, unsigned leftArgument, unsigned rightArgument, ValueFormat format)
+    {
+        ExitValue result;
+        result.m_kind = ExitValueRecovery;
+        result.u.recovery.opcode = opcode;
+        result.u.recovery.leftArgument = leftArgument;
+        result.u.recovery.rightArgument = rightArgument;
+        result.u.recovery.format = format;
+        return result;
+    }
+    
     ExitValueKind kind() const { return m_kind; }
     
     bool isDead() const { return kind() == ExitValueDead; }
@@ -121,6 +145,7 @@ public:
         switch (kind()) {
         case ExitValueInJSStack:
         case ExitValueInJSStackAsInt32:
+        case ExitValueInJSStackAsInt52:
         case ExitValueInJSStackAsDouble:
             return true;
         default:
@@ -129,11 +154,37 @@ public:
     }
     bool isConstant() const { return kind() == ExitValueConstant; }
     bool isArgument() const { return kind() == ExitValueArgument; }
+    bool isArgumentsObjectThatWasNotCreated() const { return kind() == ExitValueArgumentsObjectThatWasNotCreated; }
+    bool isRecovery() const { return kind() == ExitValueRecovery; }
     
     ExitArgument exitArgument() const
     {
         ASSERT(isArgument());
         return ExitArgument(u.argument);
+    }
+    
+    unsigned leftRecoveryArgument() const
+    {
+        ASSERT(isRecovery());
+        return u.recovery.leftArgument;
+    }
+    
+    unsigned rightRecoveryArgument() const
+    {
+        ASSERT(isRecovery());
+        return u.recovery.rightArgument;
+    }
+    
+    ValueFormat recoveryFormat() const
+    {
+        ASSERT(isRecovery());
+        return static_cast<ValueFormat>(u.recovery.format);
+    }
+    
+    RecoveryOpcode recoveryOpcode() const
+    {
+        ASSERT(isRecovery());
+        return static_cast<RecoveryOpcode>(u.recovery.opcode);
     }
     
     JSValue constant() const
@@ -142,6 +193,58 @@ public:
         return JSValue::decode(u.constant);
     }
     
+    VirtualRegister virtualRegister() const
+    {
+        ASSERT(isInJSStackSomehow());
+        return VirtualRegister(u.virtualRegister);
+    }
+    
+    ExitValue withVirtualRegister(VirtualRegister virtualRegister)
+    {
+        ASSERT(isInJSStackSomehow());
+        ExitValue result;
+        result.m_kind = m_kind;
+        result.u.virtualRegister = virtualRegister.offset();
+        return result;
+    }
+
+    // If it's in the JSStack somehow, this will tell you what format it's in, in a manner
+    // that is compatible with exitArgument().format(). If it's a constant or it's dead, it
+    // will claim to be a JSValue. If it's an argument then it will tell you the argument's
+    // format.
+    ValueFormat valueFormat() const
+    {
+        switch (kind()) {
+        case InvalidExitValue:
+            RELEASE_ASSERT_NOT_REACHED();
+            return InvalidValueFormat;
+            
+        case ExitValueDead:
+        case ExitValueConstant:
+        case ExitValueInJSStack:
+        case ExitValueArgumentsObjectThatWasNotCreated:
+            return ValueFormatJSValue;
+            
+        case ExitValueArgument:
+            return exitArgument().format();
+            
+        case ExitValueInJSStackAsInt32:
+            return ValueFormatInt32;
+            
+        case ExitValueInJSStackAsInt52:
+            return ValueFormatInt52;
+            
+        case ExitValueInJSStackAsDouble:
+            return ValueFormatDouble;
+            
+        case ExitValueRecovery:
+            return recoveryFormat();
+        }
+        
+        RELEASE_ASSERT_NOT_REACHED();
+        return InvalidValueFormat;
+    }
+
     void dump(PrintStream&) const;
     void dumpInContext(PrintStream&, DumpContext*) const;
     
@@ -150,6 +253,13 @@ private:
     union {
         ExitArgumentRepresentation argument;
         EncodedJSValue constant;
+        int virtualRegister;
+        struct {
+            uint16_t leftArgument;
+            uint16_t rightArgument;
+            uint16_t opcode;
+            uint16_t format;
+        } recovery;
     } u;
 };
 

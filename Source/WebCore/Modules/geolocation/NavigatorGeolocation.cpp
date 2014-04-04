@@ -2,7 +2,7 @@
  *  Copyright (C) 2000 Harri Porten (porten@kde.org)
  *  Copyright (c) 2000 Daniel Molkentin (molkentin@kde.org)
  *  Copyright (c) 2000 Stefan Schimanski (schimmi@kde.org)
- *  Copyright (C) 2003, 2004, 2005, 2006 Apple Computer, Inc.
+ *  Copyright (C) 2003, 2004, 2005, 2006 Apple Inc.
  *  Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies)
  *
  *  This library is free software; you can redistribute it and/or
@@ -56,6 +56,14 @@ NavigatorGeolocation* NavigatorGeolocation::from(Navigator* navigator)
     }
     return supplement;
 }
+
+#if PLATFORM(IOS)
+void NavigatorGeolocation::resetAllGeolocationPermission()
+{
+    if (m_geolocation)
+        m_geolocation->resetAllGeolocationPermission();
+}
+#endif // PLATFORM(IOS)
 
 Geolocation* NavigatorGeolocation::geolocation(Navigator* navigator)
 {

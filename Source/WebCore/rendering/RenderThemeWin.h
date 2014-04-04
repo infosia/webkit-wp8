@@ -1,7 +1,7 @@
 /*
  * This file is part of the WebKit project.
  *
- * Copyright (C) 2006, 2008, 2013 Apple Computer, Inc.
+ * Copyright (C) 2006, 2008, 2013 Apple Inc.
  * Copyright (C) 2009 Kenneth Rohde Christiansen
  *
  * This library is free software; you can redistribute it and/or
@@ -89,7 +89,7 @@ public:
     virtual bool paintMenuList(RenderObject*, const PaintInfo&, const IntRect&);
     virtual void adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
 
-    virtual bool paintMenuListButton(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual bool paintMenuListButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&);
 
     virtual bool paintSliderTrack(RenderObject* o, const PaintInfo& i, const IntRect& r);
     virtual bool paintSliderThumb(RenderObject* o, const PaintInfo& i, const IntRect& r);
@@ -103,11 +103,11 @@ public:
     virtual void adjustSearchFieldCancelButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchFieldCancelButton(RenderObject*, const PaintInfo&, const IntRect&);
 
-    virtual void adjustSearchFieldDecorationStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintSearchFieldDecoration(RenderObject*, const PaintInfo&, const IntRect&) { return false; }
+    virtual void adjustSearchFieldDecorationPartStyle(StyleResolver*, RenderStyle*, Element*) const;
+    virtual bool paintSearchFieldDecorationPart(RenderObject*, const PaintInfo&, const IntRect&) { return false; }
 
-    virtual void adjustSearchFieldResultsDecorationStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintSearchFieldResultsDecoration(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual void adjustSearchFieldResultsDecorationPartStyle(StyleResolver*, RenderStyle*, Element*) const;
+    virtual bool paintSearchFieldResultsDecorationPart(RenderObject*, const PaintInfo&, const IntRect&);
 
     virtual void adjustSearchFieldResultsButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchFieldResultsButton(RenderObject*, const PaintInfo&, const IntRect&);
@@ -123,31 +123,15 @@ public:
     virtual bool supportsFocusRing(const RenderStyle*) const;
 
 #if ENABLE(VIDEO)
-    virtual String extraMediaControlsStyleSheet();
-#if ENABLE(FULLSCREEN_API)
-    virtual String extraFullScreenStyleSheet();
-#endif
-    virtual bool supportsClosedCaptioning() const;
-    virtual bool paintMediaControlsBackground(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaRewindButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSeekForwardButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSliderTrack(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSliderThumb(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaVolumeSliderContainer(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaVolumeSliderTrack(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaVolumeSliderThumb(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual IntPoint volumeSliderOffsetFromMuteButton(RenderBox*, const IntSize&) const OVERRIDE;
+    virtual String mediaControlsStyleSheet() override;
+    virtual String mediaControlsScript() override;
 #endif
 
 #if ENABLE(METER_ELEMENT)
-    virtual IntSize meterSizeForBounds(const RenderMeter*, const IntRect&) const OVERRIDE;
-    virtual bool supportsMeter(ControlPart) const OVERRIDE;
-    virtual void adjustMeterStyle(StyleResolver*, RenderStyle*, Element*) const OVERRIDE;
-    virtual bool paintMeter(RenderObject*, const PaintInfo&, const IntRect&) OVERRIDE;
+    virtual IntSize meterSizeForBounds(const RenderMeter*, const IntRect&) const override;
+    virtual bool supportsMeter(ControlPart) const override;
+    virtual void adjustMeterStyle(StyleResolver*, RenderStyle*, Element*) const override;
+    virtual bool paintMeter(RenderObject*, const PaintInfo&, const IntRect&) override;
 #endif
 
     virtual bool shouldShowPlaceholderWhenFocused() const { return true; }

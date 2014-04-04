@@ -26,43 +26,53 @@
 #ifndef RemoteLayerTreeContext_h
 #define RemoteLayerTreeContext_h
 
+#include "LayerTreeContext.h"
+#include "RemoteLayerTreeTransaction.h"
+#include "WebPage.h"
 #include <WebCore/GraphicsLayerFactory.h>
-#include <WebCore/Timer.h>
+#include <WebCore/PlatformCALayer.h>
 #include <wtf/Vector.h>
 
 namespace WebKit {
 
-class RemoteGraphicsLayer;
-class RemoteLayerTreeTransaction;
+class PlatformCALayerRemote;
 class WebPage;
 
+// FIXME: This class doesn't do much now. Roll into RemoteLayerTreeDrawingArea?
 class RemoteLayerTreeContext : public WebCore::GraphicsLayerFactory {
 public:
-    static PassOwnPtr<RemoteLayerTreeContext> create(WebPage*);
+    explicit RemoteLayerTreeContext(WebPage*);
     ~RemoteLayerTreeContext();
 
-    void setRootLayer(WebCore::GraphicsLayer*);
-    void layerWillBeDestroyed(RemoteGraphicsLayer*);
+    void layerWasCreated(PlatformCALayerRemote*, WebCore::PlatformCALayer::LayerType);
+    void layerWillBeDestroyed(PlatformCALayerRemote*);
 
-    void scheduleLayerFlush();
+    void outOfTreeLayerWasAdded(WebCore::GraphicsLayer*);
+    void outOfTreeLayerWillBeRemoved(WebCore::GraphicsLayer*);
 
-    RemoteLayerTreeTransaction& currentTransaction();
+    LayerHostingMode layerHostingMode() const { return m_webPage->layerHostingMode(); }
+
+    void flushOutOfTreeLayers();
+    void buildTransaction(RemoteLayerTreeTransaction&, WebCore::PlatformCALayer& rootLayer);
+
+    // From the UI process
+    void animationDidStart(WebCore::GraphicsLayer::PlatformLayerID, double startTime);
+
+    void willStartAnimationOnLayer(PlatformCALayerRemote*);
 
 private:
-    explicit RemoteLayerTreeContext(WebPage*);
-
     // WebCore::GraphicsLayerFactory
-    virtual PassOwnPtr<WebCore::GraphicsLayer> createGraphicsLayer(WebCore::GraphicsLayerClient*) OVERRIDE;
-
-    void layerFlushTimerFired(WebCore::Timer<RemoteLayerTreeContext>*);
-    void flushLayers();
+    virtual std::unique_ptr<WebCore::GraphicsLayer> createGraphicsLayer(WebCore::GraphicsLayerClient*) override;
 
     WebPage* m_webPage;
-    WebCore::Timer<RemoteLayerTreeContext> m_layerFlushTimer;
 
-    uint64_t m_rootLayerID;
-    Vector<uint64_t> m_destroyedLayers;
-    RemoteLayerTreeTransaction* m_currentTransaction;
+    RefPtr<PlatformCALayerRemote> m_rootLayer;
+    Vector<WebCore::GraphicsLayer*> m_outOfTreeLayers;
+
+    Vector<RemoteLayerTreeTransaction::LayerCreationProperties> m_createdLayers;
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> m_destroyedLayers;
+    
+    HashMap<WebCore::GraphicsLayer::PlatformLayerID, PlatformCALayerRemote*> m_layersAwaitingAnimationStart;
 };
 
 } // namespace WebKit

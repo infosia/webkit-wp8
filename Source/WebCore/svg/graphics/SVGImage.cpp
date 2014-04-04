@@ -26,18 +26,16 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGImage.h"
 
 #include "Chrome.h"
 #include "DocumentLoader.h"
 #include "ElementIterator.h"
-#include "Frame.h"
 #include "FrameView.h"
 #include "ImageBuffer.h"
 #include "ImageObserver.h"
 #include "IntRect.h"
+#include "MainFrame.h"
 #include "RenderSVGRoot.h"
 #include "RenderStyle.h"
 #include "SVGDocument.h"
@@ -57,7 +55,7 @@ SVGImage::~SVGImage()
 {
     if (m_page) {
         // Store m_page in a local variable, clearing m_page, so that SVGImageChromeClient knows we're destructed.
-        OwnPtr<Page> currentPage = m_page.release();
+        std::unique_ptr<Page> currentPage = std::move(m_page);
         currentPage->mainFrame().loader().frameDetached(); // Break both the loader and view references to the frame
     }
 
@@ -75,8 +73,7 @@ bool SVGImage::hasSingleSecurityOrigin() const
         return true;
 
     // Don't allow foreignObject elements since they can leak information with arbitrary HTML (like spellcheck or control theme).
-    auto foreignObjectDescendants = descendantsOfType<SVGForeignObjectElement>(rootElement);
-    if (foreignObjectDescendants.begin() != foreignObjectDescendants.end())
+    if (descendantsOfType<SVGForeignObjectElement>(*rootElement).first())
         return false;
 
     // Because SVG image rendering disallows external resources and links,
@@ -84,7 +81,7 @@ bool SVGImage::hasSingleSecurityOrigin() const
     return true;
 }
 
-void SVGImage::setContainerSize(const IntSize& size)
+void SVGImage::setContainerSize(const FloatSize& size)
 {
     if (!m_page || !usesContainerSize())
         return;
@@ -99,7 +96,7 @@ void SVGImage::setContainerSize(const IntSize& size)
     FrameView* view = frameView();
     view->resize(this->containerSize());
 
-    renderer->setContainerSize(size);
+    renderer->setContainerSize(IntSize(size));
 }
 
 IntSize SVGImage::containerSize() const
@@ -120,7 +117,7 @@ IntSize SVGImage::containerSize() const
         return containerSize;
 
     // Assure that a container size is always given for a non-identity zoom level.
-    ASSERT(renderer->style()->effectiveZoom() == 1);
+    ASSERT(renderer->style().effectiveZoom() == 1);
 
     FloatSize currentSize;
     if (rootElement->intrinsicWidth().isFixed() && rootElement->intrinsicHeight().isFixed())
@@ -158,7 +155,7 @@ void SVGImage::drawForContainer(GraphicsContext* context, const FloatSize contai
     adjustedSrcSize.scale(roundedContainerSize.width() / containerSize.width(), roundedContainerSize.height() / containerSize.height());
     scaledSrc.setSize(adjustedSrcSize);
 
-    draw(context, dstRect, scaledSrc, colorSpace, compositeOp, blendMode);
+    draw(context, dstRect, scaledSrc, colorSpace, compositeOp, blendMode, ImageOrientationDescription());
 
     setImageObserver(observer);
 }
@@ -171,11 +168,11 @@ PassNativeImagePtr SVGImage::nativeImageForCurrentFrame()
     if (!m_page)
         return 0;
 
-    OwnPtr<ImageBuffer> buffer = ImageBuffer::create(size(), 1);
+    std::unique_ptr<ImageBuffer> buffer = ImageBuffer::create(size(), 1);
     if (!buffer) // failed to allocate image
         return 0;
 
-    draw(buffer->context(), rect(), rect(), ColorSpaceDeviceRGB, CompositeSourceOver, BlendModeNormal);
+    draw(buffer->context(), rect(), rect(), ColorSpaceDeviceRGB, CompositeSourceOver, BlendModeNormal, ImageOrientationDescription());
 
     // FIXME: WK(Bug 113657): We should use DontCopyBackingStore here.
     return buffer->copyImage(CopyBackingStore)->nativeImageForCurrentFrame();
@@ -183,7 +180,7 @@ PassNativeImagePtr SVGImage::nativeImageForCurrentFrame()
 #endif
 
 void SVGImage::drawPatternForContainer(GraphicsContext* context, const FloatSize containerSize, float zoom, const FloatRect& srcRect,
-    const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace colorSpace, CompositeOperator compositeOp, const FloatRect& dstRect)
+    const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace colorSpace, CompositeOperator compositeOp, const FloatRect& dstRect, BlendMode blendMode)
 {
     FloatRect zoomedContainerRect = FloatRect(FloatPoint(), containerSize);
     zoomedContainerRect.scale(zoom);
@@ -197,10 +194,13 @@ void SVGImage::drawPatternForContainer(GraphicsContext* context, const FloatSize
     FloatRect imageBufferSize = zoomedContainerRect;
     imageBufferSize.scale(imageBufferScale.width(), imageBufferScale.height());
 
-    OwnPtr<ImageBuffer> buffer = ImageBuffer::create(expandedIntSize(imageBufferSize.size()), 1);
+    std::unique_ptr<ImageBuffer> buffer = ImageBuffer::create(expandedIntSize(imageBufferSize.size()), 1);
     if (!buffer) // Failed to allocate buffer.
         return;
     drawForContainer(buffer->context(), containerSize, zoom, imageBufferSize, zoomedContainerRect, ColorSpaceDeviceRGB, CompositeSourceOver, BlendModeNormal);
+    if (context->drawLuminanceMask())
+        buffer->convertToLuminanceMask();
+
     RefPtr<Image> image = buffer->copyImage(DontCopyBackingStore, Unscaled);
     image->setSpaceSize(spaceSize());
 
@@ -210,21 +210,26 @@ void SVGImage::drawPatternForContainer(GraphicsContext* context, const FloatSize
     AffineTransform unscaledPatternTransform(patternTransform);
     unscaledPatternTransform.scale(1 / imageBufferScale.width(), 1 / imageBufferScale.height());
 
-    image->drawPattern(context, scaledSrcRect, unscaledPatternTransform, phase, colorSpace, compositeOp, dstRect);
+    context->setDrawLuminanceMask(false);
+    image->drawPattern(context, scaledSrcRect, unscaledPatternTransform, phase, colorSpace, compositeOp, dstRect, blendMode);
 }
 
-void SVGImage::draw(GraphicsContext* context, const FloatRect& dstRect, const FloatRect& srcRect, ColorSpace, CompositeOperator compositeOp, BlendMode blendMode)
+void SVGImage::draw(GraphicsContext* context, const FloatRect& dstRect, const FloatRect& srcRect, ColorSpace, CompositeOperator compositeOp, BlendMode blendMode, ImageOrientationDescription)
 {
     if (!m_page)
         return;
 
     FrameView* view = frameView();
+    ASSERT(view);
 
     GraphicsContextStateSaver stateSaver(*context);
     context->setCompositeOperation(compositeOp, blendMode);
     context->clip(enclosingIntRect(dstRect));
-    if (compositeOp != CompositeSourceOver)
+    bool compositingRequiresTransparencyLayer = compositeOp != CompositeSourceOver || blendMode != BlendModeNormal;
+    if (compositingRequiresTransparencyLayer) {
         context->beginTransparencyLayer(1);
+        context->setCompositeOperation(CompositeSourceOver, BlendModeNormal);
+    }
 
     FloatSize scale(dstRect.width() / srcRect.width(), dstRect.height() / srcRect.height());
     
@@ -243,10 +248,13 @@ void SVGImage::draw(GraphicsContext* context, const FloatRect& dstRect, const Fl
 
     view->paint(context, enclosingIntRect(srcRect));
 
-    if (compositeOp != CompositeSourceOver)
+    if (compositingRequiresTransparencyLayer)
         context->endTransparencyLayer();
 
     stateSaver.restore();
+
+    if (!m_url.isEmpty())
+        view->scrollToFragment(m_url);
 
     if (imageObserver())
         imageObserver()->didDraw(this);
@@ -343,7 +351,7 @@ bool SVGImage::dataChanged(bool allDataReceived)
     if (allDataReceived) {
         Page::PageClients pageClients;
         fillWithEmptyClients(pageClients);
-        m_chromeClient = adoptPtr(new SVGImageChromeClient(this));
+        m_chromeClient = std::make_unique<SVGImageChromeClient>(this);
         pageClients.chromeClient = m_chromeClient.get();
 
         // FIXME: If this SVG ends up loading itself, we might leak the world.
@@ -352,7 +360,7 @@ bool SVGImage::dataChanged(bool allDataReceived)
         // This will become an issue when SVGImage will be able to load other
         // SVGImage objects, but we're safe now, because SVGImage can only be
         // loaded by a top-level document.
-        m_page = adoptPtr(new Page(pageClients));
+        m_page = std::make_unique<Page>(pageClients);
         m_page->settings().setMediaEnabled(false);
         m_page->settings().setScriptEnabled(false);
         m_page->settings().setPluginsEnabled(false);
@@ -367,16 +375,16 @@ bool SVGImage::dataChanged(bool allDataReceived)
         frame.view()->setTransparent(true); // SVG Images are transparent.
 
         ASSERT(loader.activeDocumentLoader()); // DocumentLoader should have been created by frame->init().
-        loader.activeDocumentLoader()->writer()->setMIMEType("image/svg+xml");
-        loader.activeDocumentLoader()->writer()->begin(KURL()); // create the empty document
-        loader.activeDocumentLoader()->writer()->addData(data()->data(), data()->size());
-        loader.activeDocumentLoader()->writer()->end();
+        loader.activeDocumentLoader()->writer().setMIMEType("image/svg+xml");
+        loader.activeDocumentLoader()->writer().begin(URL()); // create the empty document
+        loader.activeDocumentLoader()->writer().addData(data()->data(), data()->size());
+        loader.activeDocumentLoader()->writer().end();
 
         // Set the intrinsic size before a container size is available.
         m_intrinsicSize = containerSize();
     }
 
-    return m_page;
+    return m_page != nullptr;
 }
 
 String SVGImage::filenameExtension() const
@@ -396,5 +404,3 @@ bool isInSVGImage(const Element* element)
 }
 
 }
-
-#endif // ENABLE(SVG)

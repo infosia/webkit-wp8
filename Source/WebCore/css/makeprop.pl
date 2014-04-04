@@ -37,10 +37,10 @@ die "We've reached more than 1024 CSS properties, please make sure to update CSS
 my %namesHash;
 my @duplicates = ();
 
-my $numPredefinedProperties = 2;
+my $numPredefinedProperties = 1;
 my @names = ();
-my %nameIsInherited = {};
-my %nameToId = {};
+my %nameIsInherited;
+my %nameToId;
 my @aliases = ();
 foreach (@NAMES) {
   next if (m/(^\s*$)/);
@@ -102,6 +102,7 @@ print GPERF << "EOF";
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored \"-Wunknown-pragmas\"
 #pragma clang diagnostic ignored \"-Wdeprecated-register\"
+#pragma clang diagnostic ignored \"-Wimplicit-fallthrough\"
 #endif
 
 namespace WebCore {
@@ -204,7 +205,6 @@ String getJSPropertyName(CSSPropertyID id)
 
 static const bool isInheritedPropertyTable[numCSSProperties + $numPredefinedProperties] = {
     false, // CSSPropertyInvalid
-    false, // CSSPropertyVariable
 EOF
 
 foreach my $name (@names) {
@@ -250,9 +250,6 @@ namespace WebCore {
 
 enum CSSPropertyID {
     CSSPropertyInvalid = 0,
-#if ENABLE(CSS_VARIABLES)
-    CSSPropertyVariable = 1,
-#endif
 EOF
 
 my $first = $numPredefinedProperties;

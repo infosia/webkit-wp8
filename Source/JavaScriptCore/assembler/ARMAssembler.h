@@ -41,15 +41,15 @@ namespace JSC {
             r0 = 0,
             r1,
             r2,
-            r3, S0 = r3, /* Same as thumb assembler. */
+            r3,
             r4,
             r5,
-            r6,
+            r6, S0 = r6,
             r7,
             r8,
             r9,
             r10,
-            r11,
+            r11, fp = r11, // frame pointer
             r12, ip = r12, S1 = r12,
             r13, sp = r13,
             r14, lr = r14,
@@ -151,6 +151,14 @@ namespace JSC {
         {
         }
 
+        ARMBuffer& buffer() { return m_buffer; }
+
+        static RegisterID firstRegister() { return ARMRegisters::r0; }
+        static RegisterID lastRegister() { return ARMRegisters::r15; }
+
+        static FPRegisterID firstFPRegister() { return ARMRegisters::d0; }
+        static FPRegisterID lastFPRegister() { return ARMRegisters::d31; }
+
         // ARM conditional constants
         typedef enum {
             EQ = 0x00000000, // Zero / Equal.
@@ -222,6 +230,7 @@ namespace JSC {
             MOVT = 0x03400000,
 #endif
             NOP = 0xe1a00000,
+            DMB_SY = 0xf57ff05f,
         };
 
         enum {
@@ -688,6 +697,11 @@ namespace JSC {
             m_buffer.putInt(NOP);
         }
 
+        void dmbSY()
+        {
+            m_buffer.putInt(DMB_SY);
+        }
+
         void bx(int rm, Condition cc = AL)
         {
             emitInstruction(toARMWord(cc) | BX, 0, 0, RM(rm));
@@ -806,7 +820,7 @@ namespace JSC {
             return loadBranchTarget(ARMRegisters::pc, cc, useConstantPool);
         }
 
-        PassRefPtr<ExecutableMemoryHandle> executableCopy(VM&, void* ownerUID, JITCompilationEffort);
+        void prepareExecutableCopy(void* to);
 
         unsigned debugOffset() { return m_buffer.debugOffset(); }
 
@@ -1086,9 +1100,6 @@ namespace JSC {
         }
 #endif
 
-#if OS(LINUX) && COMPILER(RVCT)
-        static __asm void cacheFlush(void* code, size_t);
-#else
         static void cacheFlush(void* code, size_t size)
         {
 #if OS(LINUX) && COMPILER(GCC)
@@ -1110,16 +1121,10 @@ namespace JSC {
             linuxPageFlush(current, end);
 #elif OS(WINCE)
             CacheRangeFlush(code, size, CACHE_SYNC_ALL);
-#elif OS(QNX) && ENABLE(ASSEMBLER_WX_EXCLUSIVE)
-            UNUSED_PARAM(code);
-            UNUSED_PARAM(size);
-#elif OS(QNX)
-            msync(code, size, MS_INVALIDATE_ICACHE);
 #else
 #error "The cacheFlush support is missing on this platform."
 #endif
         }
-#endif
 
     private:
         static ARMWord RM(int reg)

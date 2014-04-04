@@ -37,8 +37,10 @@
 #include <wtf/text/WTFString.h>
 #if PLATFORM(GTK) || PLATFORM(EFL)
 #include <glib.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #endif
+
+#include <sys/wait.h>
 
 using namespace WebCore;
 
@@ -53,6 +55,10 @@ void PluginProcessProxy::platformGetLaunchOptions(ProcessLauncher::LaunchOptions
 #endif
 
     launchOptions.extraInitializationData.add("plugin-path", pluginProcessAttributes.moduleInfo.path);
+#if PLATFORM(GTK)
+    if (pluginProcessAttributes.moduleInfo.requiresGtk2)
+        launchOptions.extraInitializationData.add("requires-gtk2", emptyString());
+#endif
 }
 
 void PluginProcessProxy::platformInitializePluginProcess(PluginProcessCreationParameters&)
@@ -72,19 +78,21 @@ bool PluginProcessProxy::scanPlugin(const String& pluginPath, RawPluginMetaData&
     argv[3] = 0;
 
     int status;
-    GOwnPtr<char> stdOut;
+    GUniqueOutPtr<char> stdOut;
 
     // If the disposition of SIGCLD signal is set to SIG_IGN (default)
     // then the signal will be ignored and g_spawn_sync() will not be
     // able to return the status.
     // As a consequence, we make sure that the disposition is set to
     // SIG_DFL before calling g_spawn_sync().
+#if defined(SIGCLD)
     struct sigaction action;
     sigaction(SIGCLD, 0, &action);
     if (action.sa_handler == SIG_IGN) {
         action.sa_handler = SIG_DFL;
         sigaction(SIGCLD, &action, 0);
     }
+#endif
 
     if (!g_spawn_sync(0, argv, 0, G_SPAWN_STDERR_TO_DEV_NULL, 0, 0, &stdOut.outPtr(), 0, &status, 0))
         return false;
@@ -103,6 +111,10 @@ bool PluginProcessProxy::scanPlugin(const String& pluginPath, RawPluginMetaData&
     result.name.swap(lines[0]);
     result.description.swap(lines[1]);
     result.mimeDescription.swap(lines[2]);
+#if PLATFORM(GTK)
+    if (lines.size() > 3)
+        result.requiresGtk2 = lines[3] == "requires-gtk2";
+#endif
     return !result.mimeDescription.isEmpty();
 #else // PLATFORM(GTK) || PLATFORM(EFL)
     return false;

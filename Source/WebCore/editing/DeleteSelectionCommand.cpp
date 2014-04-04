@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,7 +28,6 @@
 
 #include "Document.h"
 #include "DocumentMarkerController.h"
-#include "EditingBoundary.h"
 #include "Editor.h"
 #include "EditorClient.h"
 #include "Element.h"
@@ -39,6 +38,7 @@
 #include "HTMLTableElement.h"
 #include "NodeTraversal.h"
 #include "RenderTableCell.h"
+#include "RenderText.h"
 #include "Text.h"
 #include "VisibleUnits.h"
 
@@ -134,7 +134,9 @@ void DeleteSelectionCommand::initializeStartEnd(Position& start, Position& end)
         
         if (!startSpecialContainer && !endSpecialContainer)
             break;
-            
+
+        m_mergeBlocksAfterDelete = false;
+
         if (VisiblePosition(start) != m_selectionToDelete.visibleStart() || VisiblePosition(end) != m_selectionToDelete.visibleEnd())
             break;
 
@@ -289,7 +291,7 @@ void DeleteSelectionCommand::saveTypingStyleState()
     }
 
     // Figure out the typing style in effect before the delete is done.
-    m_typingStyle = EditingStyle::create(m_selectionToDelete.start());
+    m_typingStyle = EditingStyle::create(m_selectionToDelete.start(), EditingStyle::EditingPropertiesInEffect);
     m_typingStyle->removeStyleAddedByNode(enclosingAnchorElement(m_selectionToDelete.start()));
 
     // If we're deleting into a Mail blockquote, save the style at end() instead of start()
@@ -338,7 +340,7 @@ static Position firstEditablePositionInNode(Node* node)
 {
     ASSERT(node);
     Node* next = node;
-    while (next && !next->rendererIsEditable())
+    while (next && !next->hasEditableStyle())
         next = NodeTraversal::next(next, node);
     return next ? firstPositionInOrBeforeNode(next) : Position();
 }
@@ -350,7 +352,7 @@ void DeleteSelectionCommand::removeNode(PassRefPtr<Node> node, ShouldAssumeConte
         
     if (m_startRoot != m_endRoot && !(node->isDescendantOf(m_startRoot.get()) && node->isDescendantOf(m_endRoot.get()))) {
         // If a node is not in both the start and end editable roots, remove it only if its inside an editable region.
-        if (!node->parentNode()->rendererIsEditable()) {
+        if (!node->parentNode()->hasEditableStyle()) {
             // Don't remove non-editable atomic nodes.
             if (!node->firstChild())
                 return;
@@ -574,12 +576,12 @@ void DeleteSelectionCommand::fixupWhitespace()
     // FIXME: isRenderedCharacter should be removed, and we should use VisiblePosition::characterAfter and VisiblePosition::characterBefore
     if (m_leadingWhitespace.isNotNull() && !m_leadingWhitespace.isRenderedCharacter() && m_leadingWhitespace.deprecatedNode()->isTextNode()) {
         Text* textNode = toText(m_leadingWhitespace.deprecatedNode());
-        ASSERT(!textNode->renderer() || textNode->renderer()->style()->collapseWhiteSpace());
+        ASSERT(!textNode->renderer() || textNode->renderer()->style().collapseWhiteSpace());
         replaceTextInNodePreservingMarkers(textNode, m_leadingWhitespace.deprecatedEditingOffset(), 1, nonBreakingSpaceString());
     }
     if (m_trailingWhitespace.isNotNull() && !m_trailingWhitespace.isRenderedCharacter() && m_trailingWhitespace.deprecatedNode()->isTextNode()) {
         Text* textNode = toText(m_trailingWhitespace.deprecatedNode());
-        ASSERT(!textNode->renderer() ||textNode->renderer()->style()->collapseWhiteSpace());
+        ASSERT(!textNode->renderer() || textNode->renderer()->style().collapseWhiteSpace());
         replaceTextInNodePreservingMarkers(textNode, m_trailingWhitespace.deprecatedEditingOffset(), 1, nonBreakingSpaceString());
     }
 }
@@ -627,14 +629,14 @@ void DeleteSelectionCommand::mergeParagraphs()
     
     // We need to merge into m_upstreamStart's block, but it's been emptied out and collapsed by deletion.
     if (!mergeDestination.deepEquivalent().deprecatedNode() || !mergeDestination.deepEquivalent().deprecatedNode()->isDescendantOf(enclosingBlock(m_upstreamStart.containerNode())) || m_startsAtEmptyLine) {
-        insertNodeAt(createBreakElement(&document()).get(), m_upstreamStart);
+        insertNodeAt(createBreakElement(document()).get(), m_upstreamStart);
         mergeDestination = VisiblePosition(m_upstreamStart);
     }
     
     if (mergeDestination == startOfParagraphToMove)
         return;
         
-    VisiblePosition endOfParagraphToMove = endOfParagraph(startOfParagraphToMove);
+    VisiblePosition endOfParagraphToMove = endOfParagraph(startOfParagraphToMove, CanSkipOverEditingBoundary);
     
     if (mergeDestination == endOfParagraphToMove)
         return;
@@ -657,8 +659,8 @@ void DeleteSelectionCommand::mergeParagraphs()
         return;
     }
     
-    RefPtr<Range> range = Range::create(&document(), startOfParagraphToMove.deepEquivalent().parentAnchoredEquivalent(), endOfParagraphToMove.deepEquivalent().parentAnchoredEquivalent());
-    RefPtr<Range> rangeToBeReplaced = Range::create(&document(), mergeDestination.deepEquivalent().parentAnchoredEquivalent(), mergeDestination.deepEquivalent().parentAnchoredEquivalent());
+    RefPtr<Range> range = Range::create(document(), startOfParagraphToMove.deepEquivalent().parentAnchoredEquivalent(), endOfParagraphToMove.deepEquivalent().parentAnchoredEquivalent());
+    RefPtr<Range> rangeToBeReplaced = Range::create(document(), mergeDestination.deepEquivalent().parentAnchoredEquivalent(), mergeDestination.deepEquivalent().parentAnchoredEquivalent());
     if (!frame().editor().client()->shouldMoveRangeAfterDelete(range.get(), rangeToBeReplaced.get()))
         return;
     
@@ -760,7 +762,7 @@ String DeleteSelectionCommand::originalStringForAutocorrectionAtBeginningOfSelec
     if (nextPosition.isNull())
         return String();
 
-    RefPtr<Range> rangeOfFirstCharacter = Range::create(&document(), startOfSelection.deepEquivalent(), nextPosition.deepEquivalent());
+    RefPtr<Range> rangeOfFirstCharacter = Range::create(document(), startOfSelection.deepEquivalent(), nextPosition.deepEquivalent());
     Vector<DocumentMarker*> markers = document().markers().markersInRange(rangeOfFirstCharacter.get(), DocumentMarker::Autocorrected);
     for (size_t i = 0; i < markers.size(); ++i) {
         const DocumentMarker* marker = markers[i];
@@ -851,7 +853,7 @@ void DeleteSelectionCommand::doApply()
     
     removePreviouslySelectedEmptyTableRows();
     
-    RefPtr<Node> placeholder = m_needPlaceholder ? createBreakElement(&document()).get() : 0;
+    RefPtr<Node> placeholder = m_needPlaceholder ? createBreakElement(document()).get() : 0;
     
     if (placeholder) {
         if (m_sanitizeMarkup)
@@ -859,7 +861,24 @@ void DeleteSelectionCommand::doApply()
         insertNodeAt(placeholder.get(), m_endingPosition);
     }
 
+#if PLATFORM(IOS)
+    // This checking is due to iphone shows the last entered character momentarily, removing and adding back the 
+    // space when deleting password cause space been showed insecurely.
+    bool isSecure = NO;
+    Node* node = m_endingPosition.deprecatedNode();
+    if (node && node->isTextNode()) {
+        Text* textNode = static_cast<Text*>(node);    
+        if (textNode->length() > 0) {
+            RenderObject* renderer = textNode->renderer();
+            isSecure = renderer->style().textSecurity() != TSNONE;
+        }
+    }
+        
+    if (!isSecure)
+        rebalanceWhitespaceAt(m_endingPosition);
+#else
     rebalanceWhitespaceAt(m_endingPosition);
+#endif
 
     calculateTypingStyleAfterDelete();
 

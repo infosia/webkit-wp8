@@ -96,7 +96,7 @@ class LayoutTestRunner(object):
         self._printer.num_started = 0
 
         if not retrying:
-            self._printer.print_expected(run_results, self._expectations.get_tests_with_result_type)
+            self._printer.print_expected(run_results, self._expectations.model().get_tests_with_result_type)
 
         for test_name in set(tests_to_skip):
             result = test_results.TestResult(test_name)
@@ -188,8 +188,8 @@ class LayoutTestRunner(object):
             expected = True
         else:
             expected = self._expectations.matches_an_expected_result(result.test_name, result.type, self._options.pixel_tests or result.reftest_type)
-            exp_str = self._expectations.get_expectations_string(result.test_name)
-            got_str = self._expectations.expectation_to_string(result.type)
+            exp_str = self._expectations.model().get_expectations_string(result.test_name)
+            got_str = self._expectations.model().expectation_to_string(result.type)
 
         run_results.add(result, expected, self._test_is_slow(result.test_name))
 
@@ -305,7 +305,7 @@ class Worker(object):
         start = time.time()
         self._caller.post('started_test', test_input, test_timeout_sec)
 
-        result = self._run_test_with_timeout(test_input, test_timeout_sec, stop_when_done)
+        result = self._run_test_with_or_without_timeout(test_input, test_timeout_sec, stop_when_done)
         result.shard_name = shard_name
         result.worker_name = self._name
         result.total_run_time = time.time() - start
@@ -345,7 +345,7 @@ class Worker(object):
             _log.debug("%s killing driver" % self._name)
             driver.stop()
 
-    def _run_test_with_timeout(self, test_input, timeout, stop_when_done):
+    def _run_test_with_or_without_timeout(self, test_input, timeout, stop_when_done):
         if self._options.run_singly:
             return self._run_test_in_another_thread(test_input, timeout, stop_when_done)
         return self._run_test_in_this_thread(test_input, stop_when_done)
@@ -384,7 +384,7 @@ class Worker(object):
         """
         worker = self
 
-        driver = self._port.create_driver(self._worker_number)
+        driver = self._port.create_driver(self._worker_number, self._options.no_timeout)
 
         class SingleTestThread(threading.Thread):
             def __init__(self):
@@ -428,7 +428,7 @@ class Worker(object):
         if self._driver and self._driver.has_crashed():
             self._kill_driver()
         if not self._driver:
-            self._driver = self._port.create_driver(self._worker_number)
+            self._driver = self._port.create_driver(self._worker_number, self._options.no_timeout)
         return self._run_single_test(self._driver, test_input, stop_when_done)
 
     def _run_single_test(self, driver, test_input, stop_when_done):

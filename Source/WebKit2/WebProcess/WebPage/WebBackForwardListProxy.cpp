@@ -36,13 +36,11 @@
 #include <WebCore/HistoryItem.h>
 #include <WebCore/PageCache.h>
 #include <wtf/HashMap.h>
+#include <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 
 namespace WebKit {
-
-static const unsigned DefaultCapacity = 100;
-static const unsigned NoCurrentItemIndex = UINT_MAX;
 
 // FIXME <rdar://problem/8819268>: This leaks all HistoryItems that go into these maps.
 // We need to clear up the life time of these objects.
@@ -52,13 +50,13 @@ typedef HashMap<RefPtr<HistoryItem>, uint64_t> HistoryItemToIDMap;
 
 static IDToHistoryItemMap& idToHistoryItemMap()
 {
-    DEFINE_STATIC_LOCAL(IDToHistoryItemMap, map, ());
+    static NeverDestroyed<IDToHistoryItemMap> map;;
     return map;
 } 
 
 static HistoryItemToIDMap& historyItemToIDMap()
 {
-    DEFINE_STATIC_LOCAL(HistoryItemToIDMap, map, ());
+    static NeverDestroyed<HistoryItemToIDMap> map;
     return map;
 } 
 

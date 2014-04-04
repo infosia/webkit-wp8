@@ -44,23 +44,16 @@
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
+#include "SVGNames.h"
+#include "SVGStyleElement.h"
 #include "ScriptElement.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "TextResourceDecoder.h"
 #include "TreeDepthLimit.h"
-#include "XMLErrors.h"
 #include <wtf/Ref.h>
 #include <wtf/StringExtras.h>
 #include <wtf/Threading.h>
 #include <wtf/Vector.h>
-
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#include "SVGStyleElement.h"
-#endif
-
-using namespace std;
 
 namespace WebCore {
 
@@ -135,7 +128,7 @@ void XMLDocumentParser::append(PassRefPtr<StringImpl> inputSource)
 void XMLDocumentParser::handleError(XMLErrors::ErrorType type, const char* m, TextPosition position)
 {
     if (!m_xmlErrors)
-        m_xmlErrors = adoptPtr(new XMLErrors(document()));
+        m_xmlErrors = std::make_unique<XMLErrors>(document());
     m_xmlErrors->handleError(type, m, position);
     if (type != XMLErrors::warning)
         m_sawError = true;
@@ -168,9 +161,6 @@ void XMLDocumentParser::exitText()
     m_leafTextNode->appendData(toString(m_bufferedText.data(), m_bufferedText.size()), IGNORE_EXCEPTION);
     Vector<xmlChar> empty;
     m_bufferedText.swap(empty);
-
-    if (m_view && m_leafTextNode->parentNode() && m_leafTextNode->parentNode()->attached() && !m_leafTextNode->attached())
-        Style::attachTextRenderer(*m_leafTextNode);
 
     m_leafTextNode = 0;
 }
@@ -277,7 +267,7 @@ void XMLDocumentParser::pauseParsing()
     m_parserPaused = true;
 }
 
-bool XMLDocumentParser::parseDocumentFragment(const String& chunk, DocumentFragment* fragment, Element* contextElement, ParserContentPolicy parserContentPolicy)
+bool XMLDocumentParser::parseDocumentFragment(const String& chunk, DocumentFragment& fragment, Element* contextElement, ParserContentPolicy parserContentPolicy)
 {
     if (!chunk.length())
         return true;
@@ -285,17 +275,16 @@ bool XMLDocumentParser::parseDocumentFragment(const String& chunk, DocumentFragm
     // FIXME: We need to implement the HTML5 XML Fragment parsing algorithm:
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-xhtml-syntax.html#xml-fragment-parsing-algorithm
     // For now we have a hack for script/style innerHTML support:
-    if (contextElement && (contextElement->hasLocalName(HTMLNames::scriptTag) || contextElement->hasLocalName(HTMLNames::styleTag))) {
-        fragment->parserAppendChild(fragment->document().createTextNode(chunk));
+    if (contextElement && (contextElement->hasLocalName(HTMLNames::scriptTag.localName()) || contextElement->hasLocalName(HTMLNames::styleTag.localName()))) {
+        fragment.parserAppendChild(fragment.document().createTextNode(chunk));
         return true;
     }
 
     RefPtr<XMLDocumentParser> parser = XMLDocumentParser::create(fragment, contextElement, parserContentPolicy);
     bool wellFormed = parser->appendFragmentSource(chunk);
-    // Do not call finish().  Current finish() and doEnd() implementations touch the main Document/loader
-    // and can cause crashes in the fragment case.
+    // Do not call finish(). The finish() and doEnd() implementations touch the main document and loader and can cause crashes in the fragment case.
     parser->detach(); // Allows ~DocumentParser to assert it was detached before destruction.
-    return wellFormed; // appendFragmentSource()'s wellFormed is more permissive than wellFormed().
+    return wellFormed; // appendFragmentSource()'s wellFormed is more permissive than Document::wellFormed().
 }
 
 } // namespace WebCore

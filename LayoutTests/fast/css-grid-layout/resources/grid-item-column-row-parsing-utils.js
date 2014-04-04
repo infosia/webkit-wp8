@@ -30,13 +30,14 @@ window.testColumnRowCSSParsing = function(id, columnValue, rowValue)
 window.testColumnRowJSParsing = function(columnValue, rowValue, expectedColumnValue, expectedRowValue)
 {
     var gridItem = document.createElement("div");
-    document.body.appendChild(gridItem);
+    var gridElement = document.getElementsByClassName("grid")[0];
+    gridElement.appendChild(gridItem);
     gridItem.style.webkitGridColumn = columnValue;
     gridItem.style.webkitGridRow = rowValue;
 
     checkColumnRowValues(gridItem, expectedColumnValue ? expectedColumnValue : columnValue, expectedRowValue ? expectedRowValue : rowValue);
 
-    document.body.removeChild(gridItem);
+    gridElement.removeChild(gridItem);
 }
 
 window.testColumnRowInvalidJSParsing = function(columnValue, rowValue)
@@ -51,26 +52,156 @@ window.testColumnRowInvalidJSParsing = function(columnValue, rowValue)
     document.body.removeChild(gridItem);
 }
 
-window.testColumnStartRowStartJSParsing = function(columnStartValue, rowStartValue)
+window.testColumnStartRowStartJSParsing = function(columnStartValue, rowStartValue, expectedColumnStartValue, expectedRowStartValue)
 {
     var gridItem = document.createElement("div");
-    document.body.appendChild(gridItem);
+    var gridElement = document.getElementsByClassName("grid")[0];
+    gridElement.appendChild(gridItem);
     gridItem.style.webkitGridColumnStart = columnStartValue;
     gridItem.style.webkitGridRowStart = rowStartValue;
 
-    checkColumnRowValues(gridItem, columnStartValue + " / auto", rowStartValue + " / auto");
+    if (expectedColumnStartValue === undefined)
+        expectedColumnStartValue = columnStartValue;
+    if (expectedRowStartValue === undefined)
+        expectedRowStartValue = rowStartValue;
+
+    checkColumnRowValues(gridItem, expectedColumnStartValue + " / auto", expectedRowStartValue + " / auto");
+
+    gridElement.removeChild(gridItem);
+}
+
+window.testColumnEndRowEndJSParsing = function(columnEndValue, rowEndValue, expectedColumnEndValue, expectedRowEndValue)
+{
+    var gridItem = document.createElement("div");
+    var gridElement = document.getElementsByClassName("grid")[0];
+    gridElement.appendChild(gridItem);
+    gridItem.style.webkitGridColumnEnd = columnEndValue;
+    gridItem.style.webkitGridRowEnd = rowEndValue;
+
+    if (expectedColumnEndValue === undefined)
+        expectedColumnEndValue = columnEndValue;
+    if (expectedRowEndValue === undefined)
+        expectedRowEndValue = rowEndValue;
+
+    checkColumnRowValues(gridItem, "auto / " + expectedColumnEndValue, "auto / " + expectedRowEndValue);
+
+    gridElement.removeChild(gridItem);
+}
+
+var placeholderParentStartValueForInherit = "6";
+var placeholderParentEndValueForInherit = "span 2";
+var placeholderParentColumnValueForInherit = placeholderParentStartValueForInherit + " / " + placeholderParentEndValueForInherit;
+var placeholderParentBeforeValueForInherit = "span 1";
+var placeholderParentAfterValueForInherit = "7";
+var placeholderParentRowValueForInherit = placeholderParentBeforeValueForInherit + " / " + placeholderParentAfterValueForInherit;
+
+var placeholderStartValueForInitial = "1";
+var placeholderEndValueForInitial = "span 2";
+var placeholderColumnValueForInitial = placeholderStartValueForInitial + " / " + placeholderEndValueForInitial;
+var placeholderBeforeValueForInitial = "span 3";
+var placeholderAfterValueForInitial = "5";
+var placeholderRowValueForInitial = placeholderBeforeValueForInitial + " / " + placeholderAfterValueForInitial;
+
+function setupInheritTest()
+{
+    var parentElement = document.createElement("div");
+    document.body.appendChild(parentElement);
+    parentElement.style.webkitGridColumn = placeholderParentColumnValueForInherit;
+    parentElement.style.webkitGridRow = placeholderParentRowValueForInherit;
+
+    var gridItem = document.createElement("div");
+    parentElement.appendChild(gridItem);
+    return parentElement;
+}
+
+function setupInitialTest()
+{
+    var gridItem = document.createElement("div");
+    document.body.appendChild(gridItem);
+    gridItem.style.webkitGridColumn = placeholderColumnValueForInitial;
+    gridItem.style.webkitGridRow = placeholderRowValueForInitial;
+
+    checkColumnRowValues(gridItem, placeholderColumnValueForInitial, placeholderRowValueForInitial);
+    return gridItem;
+}
+
+window.testColumnRowInheritJSParsing = function(columnValue, rowValue)
+{
+    var parentElement = setupInheritTest();
+    var gridItem = parentElement.firstChild;
+    gridItem.style.webkitGridColumn = columnValue;
+    gridItem.style.webkitGridRow = rowValue;
+
+    checkColumnRowValues(gridItem, columnValue !== "inherit" ? columnValue : placeholderParentColumnValueForInherit, rowValue !== "inherit" ? rowValue : placeholderParentRowValueForInherit);
+
+    document.body.removeChild(parentElement);
+}
+
+window.testStartBeforeInheritJSParsing = function(startValue, beforeValue)
+{
+    var parentElement = setupInheritTest();
+    var gridItem = parentElement.firstChild;
+    gridItem.style.webkitGridColumnStart = startValue;
+    gridItem.style.webkitGridRowStart = beforeValue;
+
+    // Initial value is 'auto' but we shouldn't touch the opposite grid line.
+    var columnValueForInherit = (startValue !== "inherit" ? startValue : placeholderParentStartValueForInherit) + " / auto";
+    var rowValueForInherit = (beforeValue !== "inherit" ? beforeValue : placeholderParentBeforeValueForInherit) + " / auto";
+    checkColumnRowValues(parentElement.firstChild, columnValueForInherit, rowValueForInherit);
+
+    document.body.removeChild(parentElement);
+}
+
+window.testEndAfterInheritJSParsing = function(endValue, afterValue)
+{
+    var parentElement = setupInheritTest();
+    var gridItem = parentElement.firstChild;
+    gridItem.style.webkitGridColumnEnd = endValue;
+    gridItem.style.webkitGridRowEnd = afterValue;
+
+    // Initial value is 'auto' but we shouldn't touch the opposite grid line.
+    var columnValueForInherit = "auto / " + (endValue !== "inherit" ? endValue : placeholderParentEndValueForInherit);
+    var rowValueForInherit = "auto / " + (afterValue !== "inherit" ? afterValue : placeholderParentAfterValueForInherit);
+    checkColumnRowValues(parentElement.firstChild, columnValueForInherit, rowValueForInherit);
+
+    document.body.removeChild(parentElement);
+}
+
+window.testColumnRowInitialJSParsing = function()
+{
+    var gridItem = setupInitialTest();
+
+    gridItem.style.webkitGridColumn = "initial";
+    checkColumnRowValues(gridItem, "auto / auto", placeholderRowValueForInitial);
+
+    gridItem.style.webkitGridRow = "initial";
+    checkColumnRowValues(gridItem, "auto / auto", "auto / auto");
 
     document.body.removeChild(gridItem);
 }
 
-window.testColumnEndRowEndJSParsing = function(columnEndValue, rowEndValue)
+window.testStartBeforeInitialJSParsing = function()
 {
-    var gridItem = document.createElement("div");
-    document.body.appendChild(gridItem);
-    gridItem.style.webkitGridColumnEnd = columnEndValue;
-    gridItem.style.webkitGridRowEnd = rowEndValue;
+    var gridItem = setupInitialTest();
 
-    checkColumnRowValues(gridItem, "auto / " + columnEndValue, "auto / " + rowEndValue);
+    gridItem.style.webkitGridColumnStart = "initial";
+    checkColumnRowValues(gridItem, "auto / " + placeholderEndValueForInitial, placeholderRowValueForInitial);
+
+    gridItem.style.webkitGridRowStart = "initial";
+    checkColumnRowValues(gridItem,  "auto / " + placeholderEndValueForInitial, "auto / " + placeholderAfterValueForInitial);
+
+    document.body.removeChild(gridItem);
+}
+
+window.testEndAfterInitialJSParsing = function()
+{
+    var gridItem = setupInitialTest();
+
+    gridItem.style.webkitGridColumnEnd = "initial";
+    checkColumnRowValues(gridItem, placeholderStartValueForInitial + " / auto", placeholderRowValueForInitial);
+
+    gridItem.style.webkitGridRowEnd = "initial";
+    checkColumnRowValues(gridItem, placeholderStartValueForInitial + " / auto", placeholderBeforeValueForInitial + " / auto");
 
     document.body.removeChild(gridItem);
 }

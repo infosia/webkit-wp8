@@ -2,7 +2,7 @@
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2000 Stefan Schimanski (1Stein@gmx.de)
- * Copyright (C) 2004, 2005, 2006 Apple Computer, Inc.
+ * Copyright (C) 2004, 2005, 2006 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -35,17 +35,28 @@
 #include "FrameLoader.h"
 #include "FrameTree.h"
 #include "HTMLNames.h"
+#include "Logging.h"
+#include "MIMETypeRegistry.h"
 #include "Page.h"
+#include "PluginData.h"
+#include "PluginReplacement.h"
 #include "PluginViewBase.h"
 #include "RenderEmbeddedObject.h"
 #include "RenderSnapshottedPlugIn.h"
 #include "RenderWidget.h"
+#include "RuntimeEnabledFeatures.h"
 #include "ScriptController.h"
 #include "Settings.h"
+#include "ShadowRoot.h"
+#include "SubframeLoader.h"
 #include "Widget.h"
 
 #if ENABLE(NETSCAPE_PLUGIN_API)
 #include "npruntime_impl.h"
+#endif
+
+#if PLATFORM(COCOA)
+#include "QuickTimePluginReplacement.h"
 #endif
 
 namespace WebCore {
@@ -55,6 +66,7 @@ using namespace HTMLNames;
 HTMLPlugInElement::HTMLPlugInElement(const QualifiedName& tagName, Document& document)
     : HTMLFrameOwnerElement(tagName, document)
     , m_inBeforeLoadEventHandler(false)
+    , m_swapRendererTimer(this, &HTMLPlugInElement::swapRendererTimerFired)
 #if ENABLE(NETSCAPE_PLUGIN_API)
     , m_NPObject(0)
 #endif
@@ -78,7 +90,7 @@ HTMLPlugInElement::~HTMLPlugInElement()
 
 bool HTMLPlugInElement::canProcessDrag() const
 {
-    const PluginViewBase* plugin = pluginWidget() && pluginWidget()->isPluginViewBase() ? static_cast<const PluginViewBase*>(pluginWidget()) : 0;
+    const PluginViewBase* plugin = pluginWidget() && pluginWidget()->isPluginViewBase() ? toPluginViewBase(pluginWidget()) : nullptr;
     return plugin ? plugin->canProcessDrag() : false;
 }
 
@@ -86,12 +98,8 @@ bool HTMLPlugInElement::willRespondToMouseClickEvents()
 {
     if (isDisabledFormControl())
         return false;
-    RenderObject* r = renderer();
-    if (!r)
-        return false;
-    if (!r->isEmbeddedObject() && !r->isWidget())
-        return false;
-    return true;
+    auto renderer = this->renderer();
+    return renderer && renderer->isWidget();
 }
 
 void HTMLPlugInElement::willDetachRenderers()
@@ -100,7 +108,7 @@ void HTMLPlugInElement::willDetachRenderers()
 
     if (m_isCapturingMouseEvents) {
         if (Frame* frame = document().frame())
-            frame->eventHandler().setCapturingMouseEventsNode(0);
+            frame->eventHandler().setCapturingMouseEventsElement(nullptr);
         m_isCapturingMouseEvents = false;
     }
 
@@ -171,7 +179,7 @@ bool HTMLPlugInElement::isPresentationAttribute(const QualifiedName& name) const
     return HTMLFrameOwnerElement::isPresentationAttribute(name);
 }
 
-void HTMLPlugInElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStylePropertySet* style)
+void HTMLPlugInElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (name == widthAttr)
         addHTMLLengthToStyle(style, CSSPropertyWidth, value);
@@ -197,15 +205,18 @@ void HTMLPlugInElement::defaultEventHandler(Event* event)
 
     // FIXME: Mouse down and scroll events are passed down to plug-in via custom code in EventHandler; these code paths should be united.
 
-    RenderObject* r = renderer();
-    if (r && r->isEmbeddedObject()) {
-        if (toRenderEmbeddedObject(r)->isPluginUnavailable()) {
-            toRenderEmbeddedObject(r)->handleUnavailablePluginIndicatorEvent(event);
+    auto renderer = this->renderer();
+    if (!renderer || !renderer->isWidget())
+        return;
+
+    if (renderer->isEmbeddedObject()) {
+        if (toRenderEmbeddedObject(renderer)->isPluginUnavailable()) {
+            toRenderEmbeddedObject(renderer)->handleUnavailablePluginIndicatorEvent(event);
             return;
         }
 
-        if (r->isSnapshottedPlugIn() && displayState() < Restarting) {
-            toRenderSnapshottedPlugIn(r)->handleEvent(event);
+        if (toRenderEmbeddedObject(renderer)->isSnapshottedPlugIn() && displayState() < Restarting) {
+            toRenderSnapshottedPlugIn(renderer)->handleEvent(event);
             HTMLFrameOwnerElement::defaultEventHandler(event);
             return;
         }
@@ -214,9 +225,7 @@ void HTMLPlugInElement::defaultEventHandler(Event* event)
             return;
     }
 
-    if (!r || !r->isWidget())
-        return;
-    RefPtr<Widget> widget = toRenderWidget(r)->widget();
+    RefPtr<Widget> widget = toRenderWidget(renderer)->widget();
     if (!widget)
         return;
     widget->handleEvent(event);
@@ -225,17 +234,17 @@ void HTMLPlugInElement::defaultEventHandler(Event* event)
     HTMLFrameOwnerElement::defaultEventHandler(event);
 }
 
-bool HTMLPlugInElement::isKeyboardFocusable(KeyboardEvent* event) const
+bool HTMLPlugInElement::isKeyboardFocusable(KeyboardEvent*) const
 {
-    UNUSED_PARAM(event);
+    // FIXME: Why is this check needed?
     if (!document().page())
         return false;
 
-    const PluginViewBase* plugin = pluginWidget() && pluginWidget()->isPluginViewBase() ? static_cast<const PluginViewBase*>(pluginWidget()) : 0;
-    if (plugin)
-        return plugin->supportsKeyboardFocus();
+    Widget* widget = pluginWidget();
+    if (!widget || !widget->isPluginViewBase())
+        return false;
 
-    return false;
+    return toPluginViewBase(widget)->supportsKeyboardFocus();
 }
 
 bool HTMLPlugInElement::isPluginElement() const
@@ -264,5 +273,139 @@ NPObject* HTMLPlugInElement::getNPObject()
 }
 
 #endif /* ENABLE(NETSCAPE_PLUGIN_API) */
+
+RenderPtr<RenderElement> HTMLPlugInElement::createElementRenderer(PassRef<RenderStyle> style)
+{
+    if (m_pluginReplacement && m_pluginReplacement->willCreateRenderer())
+        return m_pluginReplacement->createElementRenderer(*this, std::move(style));
+
+    return createRenderer<RenderEmbeddedObject>(*this, std::move(style));
+}
+
+void HTMLPlugInElement::swapRendererTimerFired(Timer<HTMLPlugInElement>&)
+{
+    ASSERT(displayState() == PreparingPluginReplacement || displayState() == DisplayingSnapshot);
+    if (userAgentShadowRoot())
+        return;
+    
+    // Create a shadow root, which will trigger the code to add a snapshot container
+    // and reattach, thus making a new Renderer.
+    ensureUserAgentShadowRoot();
+}
+
+void HTMLPlugInElement::setDisplayState(DisplayState state)
+{
+    m_displayState = state;
+    
+    if ((state == DisplayingSnapshot || displayState() == PreparingPluginReplacement) && !m_swapRendererTimer.isActive())
+        m_swapRendererTimer.startOneShot(0);
+}
+
+void HTMLPlugInElement::didAddUserAgentShadowRoot(ShadowRoot* root)
+{
+    if (!m_pluginReplacement || !document().page() || displayState() != PreparingPluginReplacement)
+        return;
+    
+    root->setResetStyleInheritance(true);
+    if (m_pluginReplacement->installReplacement(root)) {
+        setDisplayState(DisplayingPluginReplacement);
+        setNeedsStyleRecalc(ReconstructRenderTree);
+    }
+}
+
+#if PLATFORM(COCOA)
+static void registrar(const ReplacementPlugin&);
+#endif
+
+static Vector<ReplacementPlugin*>& registeredPluginReplacements()
+{
+    DEPRECATED_DEFINE_STATIC_LOCAL(Vector<ReplacementPlugin*>, registeredReplacements, ());
+    static bool enginesQueried = false;
+    
+    if (enginesQueried)
+        return registeredReplacements;
+    enginesQueried = true;
+
+#if PLATFORM(COCOA)
+    QuickTimePluginReplacement::registerPluginReplacement(registrar);
+#endif
+    
+    return registeredReplacements;
+}
+
+#if PLATFORM(COCOA)
+static void registrar(const ReplacementPlugin& replacement)
+{
+    registeredPluginReplacements().append(new ReplacementPlugin(replacement));
+}
+#endif
+
+static ReplacementPlugin* pluginReplacementForType(const URL& url, const String& mimeType)
+{
+    Vector<ReplacementPlugin*>& replacements = registeredPluginReplacements();
+    if (replacements.isEmpty())
+        return nullptr;
+
+    String extension;
+    String lastPathComponent = url.lastPathComponent();
+    size_t dotOffset = lastPathComponent.reverseFind('.');
+    if (dotOffset != notFound)
+        extension = lastPathComponent.substring(dotOffset + 1);
+
+    String type = mimeType;
+    if (type.isEmpty() && url.protocolIsData())
+        type = mimeTypeFromDataURL(url.string());
+    
+    if (type.isEmpty() && !extension.isEmpty()) {
+        for (size_t i = 0; i < replacements.size(); i++)
+            if (replacements[i]->supportsFileExtension(extension))
+                return replacements[i];
+    }
+    
+    if (type.isEmpty()) {
+        if (extension.isEmpty())
+            return nullptr;
+        type = MIMETypeRegistry::getMediaMIMETypeForExtension(extension);
+    }
+
+    if (type.isEmpty())
+        return nullptr;
+
+    for (unsigned i = 0; i < replacements.size(); i++)
+        if (replacements[i]->supportsType(type))
+            return replacements[i];
+
+    return nullptr;
+}
+
+bool HTMLPlugInElement::requestObject(const String& url, const String& mimeType, const Vector<String>& paramNames, const Vector<String>& paramValues)
+{
+    if (!RuntimeEnabledFeatures::sharedFeatures().pluginReplacementEnabled())
+        return false;
+
+    if (m_pluginReplacement)
+        return true;
+
+    URL completedURL;
+    if (!url.isEmpty())
+        completedURL = document().completeURL(url);
+
+    ReplacementPlugin* replacement = pluginReplacementForType(completedURL, mimeType);
+    if (!replacement)
+        return false;
+
+    LOG(Plugins, "%p - Found plug-in replacement for %s.", this, completedURL.string().utf8().data());
+
+    m_pluginReplacement = replacement->create(*this, paramNames, paramValues);
+    setDisplayState(PreparingPluginReplacement);
+    return true;
+}
+
+JSC::JSObject* HTMLPlugInElement::scriptObjectForPluginReplacement()
+{
+    if (m_pluginReplacement)
+        return m_pluginReplacement->scriptObject();
+    return nullptr;
+}
 
 }

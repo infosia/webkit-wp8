@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Google Inc. All rights reserved.
+ * Copyright (C) 2011, 2013 Google Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,15 +33,14 @@
 #include "HTMLNames.h"
 #include "Logging.h"
 #include "RuntimeEnabledFeatures.h"
-
-using namespace std;
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
 using namespace HTMLNames;
 
 #if !LOG_DISABLED
-static String urlForLoggingTrack(const KURL& url)
+static String urlForLoggingTrack(const URL& url)
 {
     static const unsigned maximumURLLengthForLogging = 128;
     
@@ -70,30 +69,30 @@ PassRefPtr<HTMLTrackElement> HTMLTrackElement::create(const QualifiedName& tagNa
     return adoptRef(new HTMLTrackElement(tagName, document));
 }
 
-Node::InsertionNotificationRequest HTMLTrackElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLTrackElement::insertedInto(ContainerNode& insertionPoint)
 {
     // Since we've moved to a new parent, we may now be able to load.
     scheduleLoad();
 
     HTMLElement::insertedInto(insertionPoint);
     HTMLMediaElement* parent = mediaElement();
-    if (insertionPoint == parent) {
+    if (&insertionPoint == parent) {
         ensureTrack();
         parent->didAddTextTrack(this);
     }
     return InsertionDone;
 }
 
-void HTMLTrackElement::removedFrom(ContainerNode* insertionPoint)
+void HTMLTrackElement::removedFrom(ContainerNode& insertionPoint)
 {
-    if (!parentNode() && WebCore::isMediaElement(insertionPoint))
-        toHTMLMediaElement(insertionPoint)->didRemoveTextTrack(this);
+    if (!parentNode() && isHTMLMediaElement(insertionPoint))
+        toHTMLMediaElement(insertionPoint).didRemoveTextTrack(this);
     HTMLElement::removedFrom(insertionPoint);
 }
 
 void HTMLTrackElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
-    if (RuntimeEnabledFeatures::webkitVideoTrackEnabled()) {
+    if (RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled()) {
         if (name == srcAttr) {
             if (!value.isEmpty())
                 scheduleLoad();
@@ -113,16 +112,6 @@ void HTMLTrackElement::parseAttribute(const QualifiedName& name, const AtomicStr
     }
 
     HTMLElement::parseAttribute(name, value);
-}
-
-KURL HTMLTrackElement::src() const
-{
-    return document().completeURL(getAttribute(srcAttr));
-}
-
-void HTMLTrackElement::setSrc(const String& url)
-{
-    setAttribute(srcAttr, url);
 }
 
 String HTMLTrackElement::kind()
@@ -196,7 +185,7 @@ void HTMLTrackElement::scheduleLoad()
     if (m_loadTimer.isActive())
         return;
 
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+    if (!RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled())
         return;
 
     // 2. If the text track's text track mode is not set to one of hidden or showing, abort these steps.
@@ -211,7 +200,7 @@ void HTMLTrackElement::scheduleLoad()
     m_loadTimer.startOneShot(0);
 }
 
-void HTMLTrackElement::loadTimerFired(Timer<HTMLTrackElement>*)
+void HTMLTrackElement::loadTimerFired(Timer<HTMLTrackElement>&)
 {
     if (!fastHasAttribute(srcAttr))
         return;
@@ -220,21 +209,21 @@ void HTMLTrackElement::loadTimerFired(Timer<HTMLTrackElement>*)
     setReadyState(HTMLTrackElement::LOADING);
 
     // 7. Let URL be the track URL of the track element.
-    KURL url = getNonEmptyURLAttribute(srcAttr);
+    URL url = getNonEmptyURLAttribute(srcAttr);
 
     // 8. If the track element's parent is a media element then let CORS mode be the state of the parent media
     // element's crossorigin content attribute. Otherwise, let CORS mode be No CORS.
-    if (!canLoadUrl(url)) {
-        didCompleteLoad(&ensureTrack(), HTMLTrackElement::Failure);
+    if (!canLoadURL(url)) {
+        didCompleteLoad(HTMLTrackElement::Failure);
         return;
     }
 
     ensureTrack().scheduleLoad(url);
 }
 
-bool HTMLTrackElement::canLoadUrl(const KURL& url)
+bool HTMLTrackElement::canLoadURL(const URL& url)
 {
-    if (!RuntimeEnabledFeatures::webkitVideoTrackEnabled())
+    if (!RuntimeEnabledFeatures::sharedFeatures().webkitVideoTrackEnabled())
         return false;
 
     HTMLMediaElement* parent = mediaElement();
@@ -250,14 +239,14 @@ bool HTMLTrackElement::canLoadUrl(const KURL& url)
         return false;
 
     if (!document().contentSecurityPolicy()->allowMediaFromSource(url)) {
-        LOG(Media, "HTMLTrackElement::canLoadUrl(%s) -> rejected by Content Security Policy", urlForLoggingTrack(url).utf8().data());
+        LOG(Media, "HTMLTrackElement::canLoadURL(%s) -> rejected by Content Security Policy", urlForLoggingTrack(url).utf8().data());
         return false;
     }
     
     return dispatchBeforeLoadEvent(url.string());
 }
 
-void HTMLTrackElement::didCompleteLoad(LoadableTextTrack*, LoadStatus status)
+void HTMLTrackElement::didCompleteLoad(LoadStatus status)
 {
     // 4.8.10.12.3 Sourcing out-of-band text tracks (continued)
     

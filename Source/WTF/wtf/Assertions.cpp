@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,7 +41,6 @@
 #include <wtf/text/WTFString.h>
 
 #include <stdio.h>
-#include <stdarg.h>
 #include <string.h>
 
 #if HAVE(SIGNAL_H)
@@ -68,10 +67,6 @@
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <execinfo.h>
-#endif
-
-#if PLATFORM(BLACKBERRY)
-#include <BlackBerryPlatformLog.h>
 #endif
 
 extern "C" {
@@ -116,8 +111,6 @@ static void vprintf_stderr_common(const char* format, va_list args)
 
     // Fall through to write to stderr in the same manner as other platforms.
 
-#elif PLATFORM(BLACKBERRY)
-    BBLOGV(BlackBerry::Platform::LogLevelCritical, format, args);
 #elif HAVE(ISDEBUGGERPRESENT)
     if (IsDebuggerPresent()) {
         size_t size = 1024;
@@ -152,12 +145,10 @@ static void vprintf_stderr_common(const char* format, va_list args)
         } while (size > 1024);
     }
 #endif
-#if !PLATFORM(BLACKBERRY)
     vfprintf(stderr, format, args);
-#endif
 }
 
-#if COMPILER(CLANG) || (COMPILER(GCC) && GCC_VERSION_AT_LEAST(4, 6, 0))
+#if COMPILER(CLANG) || COMPILER(GCC)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #endif
@@ -190,7 +181,7 @@ static void vprintf_stderr_with_trailing_newline(const char* format, va_list arg
     vprintf_stderr_common(formatWithNewline.get(), args);
 }
 
-#if COMPILER(CLANG) || (COMPILER(GCC) && GCC_VERSION_AT_LEAST(4, 6, 0))
+#if COMPILER(CLANG) || COMPILER(GCC)
 #pragma GCC diagnostic pop
 #endif
 
@@ -277,7 +268,7 @@ void WTFReportBacktrace()
 }
 
 #if OS(DARWIN) || OS(LINUX)
-#  if PLATFORM(QT) || PLATFORM(GTK)
+#  if PLATFORM(GTK)
 #    if defined(__GLIBC__) && !defined(__UCLIBC__)
 #      define WTF_USE_BACKTRACE_SYMBOLS 1
 #    endif
@@ -341,6 +332,20 @@ void WTFCrash()
     WTFReportBacktrace();
     *(int *)(uintptr_t)0xbbadbeef = 0;
     // More reliable, but doesn't say BBADBEEF.
+#if COMPILER(CLANG)
+    __builtin_trap();
+#else
+    ((void(*)())0)();
+#endif
+}
+    
+void WTFCrashWithSecurityImplication()
+{
+    if (globalHook)
+        globalHook();
+    WTFReportBacktrace();
+    *(int *)(uintptr_t)0xfbadbeef = 0;
+    // More reliable, but doesn't say fbadbeef.
 #if COMPILER(CLANG)
     __builtin_trap();
 #else
@@ -428,12 +433,26 @@ void WTFLogVerbose(const char* file, int line, const char* function, WTFLogChann
     printCallSite(file, line, function);
 }
 
+void WTFLogAlwaysV(const char* format, va_list args)
+{
+    vprintf_stderr_with_trailing_newline(format, args);
+}
+
 void WTFLogAlways(const char* format, ...)
 {
     va_list args;
     va_start(args, format);
-    vprintf_stderr_with_trailing_newline(format, args);
+    WTFLogAlwaysV(format, args);
     va_end(args);
+}
+
+void WTFLogAlwaysAndCrash(const char* format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    WTFLogAlwaysV(format, args);
+    va_end(args);
+    WTFCrash();
 }
 
 WTFLogChannel* WTFLogChannelByName(WTFLogChannel* channels[], size_t count, const char* name)

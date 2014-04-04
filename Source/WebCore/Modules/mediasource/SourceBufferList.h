@@ -43,7 +43,7 @@ namespace WebCore {
 
 class SourceBuffer;
 
-class SourceBufferList : public RefCounted<SourceBufferList>, public ScriptWrappable, public EventTarget {
+class SourceBufferList final : public RefCounted<SourceBufferList>, public ScriptWrappable, public EventTargetWithInlineData {
 public:
     static PassRefPtr<SourceBufferList> create(ScriptExecutionContext* context)
     {
@@ -59,30 +59,28 @@ public:
     bool contains(SourceBuffer* buffer) { return m_list.find(buffer) != notFound; }
     void clear();
 
+    Vector<RefPtr<SourceBuffer>>::iterator begin() { return m_list.begin(); }
+    Vector<RefPtr<SourceBuffer>>::iterator end() { return m_list.end(); }
+
     // EventTarget interface
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
+    virtual EventTargetInterface eventTargetInterface() const override { return SourceBufferListEventTargetInterfaceType; }
+    virtual ScriptExecutionContext* scriptExecutionContext() const override { return m_scriptExecutionContext; }
 
     using RefCounted<SourceBufferList>::ref;
     using RefCounted<SourceBufferList>::deref;
 
-protected:
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
-
 private:
-    SourceBufferList(ScriptExecutionContext*);
+    explicit SourceBufferList(ScriptExecutionContext*);
 
     void scheduleEvent(const AtomicString&);
 
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
-    EventTargetData m_eventTargetData;
     ScriptExecutionContext* m_scriptExecutionContext;
     GenericEventQueue m_asyncEventQueue;
 
-    Vector<RefPtr<SourceBuffer> > m_list;
+    Vector<RefPtr<SourceBuffer>> m_list;
 };
 
 } // namespace WebCore

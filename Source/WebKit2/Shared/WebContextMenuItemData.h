@@ -31,7 +31,11 @@
 #include <WebCore/ContextMenuItem.h>
 #include <wtf/text/WTFString.h>
 
-namespace CoreIPC {
+namespace API {
+class Object;
+}
+
+namespace IPC {
     class ArgumentDecoder;
     class ArgumentEncoder;
 }
@@ -41,8 +45,6 @@ namespace WebCore {
 }
 
 namespace WebKit {
-
-class APIObject;
 
 class WebContextMenuItemData {
 public:
@@ -60,11 +62,11 @@ public:
     
     WebCore::ContextMenuItem core() const;
     
-    APIObject* userData() const;
-    void setUserData(APIObject*);
+    API::Object* userData() const;
+    void setUserData(API::Object*);
     
-    void encode(CoreIPC::ArgumentEncoder&) const;
-    static bool decode(CoreIPC::ArgumentDecoder&, WebContextMenuItemData&);
+    void encode(IPC::ArgumentEncoder&) const;
+    static bool decode(IPC::ArgumentDecoder&, WebContextMenuItemData&);
 
 private:
     WebCore::ContextMenuItemType m_type;
@@ -73,7 +75,7 @@ private:
     bool m_enabled;
     bool m_checked;
     Vector<WebContextMenuItemData> m_submenu;
-    RefPtr<APIObject> m_userData;
+    RefPtr<API::Object> m_userData;
 };
 
 Vector<WebContextMenuItemData> kitItems(const Vector<WebCore::ContextMenuItem>&, WebCore::ContextMenu*);

@@ -24,11 +24,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(WIN32) || defined(_WIN32)
-#define max max
-#define min min
-#endif
-
 // FIXME: We need to be able to include these defines from a config.h somewhere.
 #define JS_EXPORT_PRIVATE
 #define WTF_EXPORT_PRIVATE
@@ -49,7 +44,9 @@
 #include <CoreGraphics/CGImage.h>
 #include <ImageIO/CGImageDestination.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(IOS)
+#include <MobileCoreServices/UTCoreTypes.h>
+#elif PLATFORM(MAC)
 #include <LaunchServices/UTCoreTypes.h>
 #endif
 
@@ -65,10 +62,6 @@ typedef float CGFloat;
 using namespace std;
 
 #if PLATFORM(WIN)
-static inline float strtof(const char *nptr, char **endptr)
-{
-    return strtod(nptr, endptr);
-}
 static const CFStringRef kUTTypePNG = CFSTR("public.png");
 #endif
 

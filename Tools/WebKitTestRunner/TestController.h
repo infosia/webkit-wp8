@@ -26,9 +26,9 @@
 #ifndef TestController_h
 #define TestController_h
 
+#include "GeolocationProviderMock.h"
 #include "WebNotificationProvider.h"
 #include "WorkQueueManager.h"
-#include <GeolocationProviderMock.h>
 #include <WebKit2/WKRetainPtr.h>
 #include <string>
 #include <vector>
@@ -66,6 +66,7 @@ public:
     EventSenderProxy* eventSenderProxy() { return m_eventSenderProxy.get(); }
 
     void ensureViewSupportsOptions(WKDictionaryRef options);
+    bool shouldUseRemoteLayerTree() const { return m_shouldUseRemoteLayerTree; }
     
     // Runs the run loop until `done` is true or the timeout elapses.
     enum TimeoutDuration { ShortTimeout, LongTimeout, NoTimeout, CustomTimeout };
@@ -90,9 +91,10 @@ public:
     void setCustomPolicyDelegate(bool enabled, bool permissive);
 
     // Page Visibility.
-    void setVisibilityState(WKPageVisibilityState, bool isInitialState);
+    void setHidden(bool);
 
     bool resetStateToConsistentValues();
+    void resetPreferencesToConsistentValues();
 
     WorkQueueManager& workQueueManager() { return m_workQueueManager; }
 
@@ -101,6 +103,8 @@ public:
     void setAuthenticationPassword(String password) { m_authenticationPassword = password; }
 
     void setBlockAllPlugins(bool shouldBlock) { m_shouldBlockAllPlugins = shouldBlock; }
+
+    void setShouldLogHistoryClientCallbacks(bool shouldLog) { m_shouldLogHistoryClientCallbacks = shouldLog; }
 
 private:
     void initialize(int argc, const char* argv[]);
@@ -151,11 +155,24 @@ private:
     void didReceiveAuthenticationChallengeInFrame(WKPageRef, WKFrameRef, WKAuthenticationChallengeRef);
 
     // WKPagePolicyClient
-    static void decidePolicyForNavigationAction(WKPageRef, WKFrameRef, WKFrameNavigationType, WKEventModifiers, WKEventMouseButton, WKURLRequestRef, WKFramePolicyListenerRef, WKTypeRef, const void*);
+    static void decidePolicyForNavigationAction(WKPageRef, WKFrameRef, WKFrameNavigationType, WKEventModifiers, WKEventMouseButton, WKFrameRef, WKURLRequestRef, WKFramePolicyListenerRef, WKTypeRef, const void*);
     void decidePolicyForNavigationAction(WKFramePolicyListenerRef);
 
-    static void decidePolicyForResponse(WKPageRef, WKFrameRef, WKURLResponseRef, WKURLRequestRef, WKFramePolicyListenerRef, WKTypeRef, const void*);
+    static void decidePolicyForResponse(WKPageRef, WKFrameRef, WKURLResponseRef, WKURLRequestRef, bool canShowMIMEType, WKFramePolicyListenerRef, WKTypeRef, const void*);
     void decidePolicyForResponse(WKFrameRef, WKURLResponseRef, WKFramePolicyListenerRef);
+
+    // WKContextHistoryClient
+    static void didNavigateWithNavigationData(WKContextRef, WKPageRef, WKNavigationDataRef, WKFrameRef, const void*);
+    void didNavigateWithNavigationData(WKNavigationDataRef, WKFrameRef);
+
+    static void didPerformClientRedirect(WKContextRef, WKPageRef, WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef, const void*);
+    void didPerformClientRedirect(WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef);
+
+    static void didPerformServerRedirect(WKContextRef, WKPageRef, WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef, const void*);
+    void didPerformServerRedirect(WKURLRef sourceURL, WKURLRef destinationURL, WKFrameRef);
+
+    static void didUpdateHistoryTitle(WKContextRef, WKPageRef, WKStringRef title, WKURLRef, WKFrameRef, const void*);
+    void didUpdateHistoryTitle(WKStringRef title, WKURLRef, WKFrameRef);
 
     static WKPageRef createOtherPage(WKPageRef oldPage, WKURLRequestRef, WKDictionaryRef, WKEventModifiers, WKEventMouseButton, const void*);
 
@@ -217,12 +234,13 @@ private:
 
     bool m_shouldBlockAllPlugins;
 
-    OwnPtr<EventSenderProxy> m_eventSenderProxy;
+    bool m_forceComplexText;
+    bool m_shouldUseAcceleratedDrawing;
+    bool m_shouldUseRemoteLayerTree;
 
-#if PLATFORM(QT)
-    class RunLoop;
-    RunLoop* m_runLoop;
-#endif
+    bool m_shouldLogHistoryClientCallbacks;
+
+    OwnPtr<EventSenderProxy> m_eventSenderProxy;
 
     WorkQueueManager m_workQueueManager;
 };

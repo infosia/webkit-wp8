@@ -26,22 +26,20 @@
 #include "config.h"
 #include "LazyOperandValueProfile.h"
 
-#if ENABLE(VALUE_PROFILER)
-
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
 CompressedLazyOperandValueProfileHolder::CompressedLazyOperandValueProfileHolder() { }
 CompressedLazyOperandValueProfileHolder::~CompressedLazyOperandValueProfileHolder() { }
 
-void CompressedLazyOperandValueProfileHolder::computeUpdatedPredictions(const ConcurrentJITLocker& locker, HeapOperation operation)
+void CompressedLazyOperandValueProfileHolder::computeUpdatedPredictions(const ConcurrentJITLocker& locker)
 {
     if (!m_data)
         return;
     
     for (unsigned i = 0; i < m_data->size(); ++i)
-        m_data->at(i).computeUpdatedPrediction(locker, operation);
+        m_data->at(i).computeUpdatedPrediction(locker);
 }
 
 LazyOperandValueProfile* CompressedLazyOperandValueProfileHolder::add(
@@ -99,6 +97,4 @@ SpeculatedType LazyOperandValueProfileParser::prediction(
 }
 
 } // namespace JSC
-
-#endif // ENABLE(VALUE_PROFILER)
 

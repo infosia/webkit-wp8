@@ -34,7 +34,7 @@
 #include "FTLExitArgument.h"
 #include "FTLExitArgumentList.h"
 #include "FTLJITCode.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace FTL {
 
@@ -43,13 +43,12 @@ using namespace DFG;
 OSRExit::OSRExit(
     ExitKind exitKind, ValueFormat profileValueFormat,
     MethodOfGettingAValueProfile valueProfile, CodeOrigin codeOrigin,
-    CodeOrigin originForProfile, int lastSetOperand, unsigned numberOfArguments,
+    CodeOrigin originForProfile, unsigned numberOfArguments,
     unsigned numberOfLocals)
     : OSRExitBase(exitKind, codeOrigin, originForProfile)
     , m_profileValueFormat(profileValueFormat)
     , m_valueProfile(valueProfile)
     , m_patchableCodeOffset(0)
-    , m_lastSetOperand(lastSetOperand)
     , m_values(numberOfArguments, numberOfLocals)
 {
 }
@@ -60,42 +59,6 @@ CodeLocationJump OSRExit::codeLocationForRepatch(CodeBlock* ftlCodeBlock) const
         reinterpret_cast<char*>(
             ftlCodeBlock->jitCode()->ftl()->exitThunks().dataLocation()) +
         m_patchableCodeOffset);
-}
-
-void OSRExit::convertToForward(
-    BasicBlock* block, Node* currentNode, unsigned nodeIndex,
-    const FormattedValue &value, ExitArgumentList& arguments)
-{
-    Node* node;
-    Node* lastMovHint;
-    if (!doSearchForForwardConversion(block, currentNode, nodeIndex, !!value, node, lastMovHint))
-        return;
-
-    ASSERT(node->codeOrigin != currentNode->codeOrigin);
-    
-    m_codeOrigin = node->codeOrigin;
-    
-    if (!value)
-        return;
-    
-    int overriddenOperand = lastMovHint->local();
-    m_lastSetOperand = overriddenOperand;
-    
-    // Is the value for this operand being passed as an argument to the exit, or is
-    // it something else? If it's an argument already, then replace that argument;
-    // otherwise add another argument.
-    if (m_values[overriddenOperand].isArgument()) {
-        ExitArgument exitArgument = m_values[overriddenOperand].exitArgument();
-        arguments[exitArgument.argument()] = value.value();
-        m_values[overriddenOperand] = ExitValue::exitArgument(
-            exitArgument.withFormat(value.format()));
-        return;
-    }
-    
-    unsigned argument = arguments.size();
-    arguments.append(value.value());
-    m_values[m_lastSetOperand] = ExitValue::exitArgument(
-        ExitArgument(value.format(), argument));
 }
 
 } } // namespace JSC::FTL

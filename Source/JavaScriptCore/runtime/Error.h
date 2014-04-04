@@ -70,11 +70,12 @@ namespace JSC {
     // Convenience wrappers, wrap result as an EncodedJSValue.
     inline EncodedJSValue throwVMError(ExecState* exec, JSValue error) { return JSValue::encode(exec->vm().throwException(exec, error)); }
     inline EncodedJSValue throwVMTypeError(ExecState* exec) { return JSValue::encode(throwTypeError(exec)); }
-
+    inline EncodedJSValue throwVMTypeError(ExecState* exec, const String& errorMessage) { return JSValue::encode(throwTypeError(exec, errorMessage)); }
+    
     class StrictModeTypeErrorFunction : public InternalFunction {
     private:
-        StrictModeTypeErrorFunction(JSGlobalObject* globalObject, Structure* structure, const String& message)
-            : InternalFunction(globalObject, structure)
+        StrictModeTypeErrorFunction(VM& vm, Structure* structure, const String& message)
+            : InternalFunction(vm, structure)
             , m_message(message)
         {
         }
@@ -84,10 +85,10 @@ namespace JSC {
     public:
         typedef InternalFunction Base;
 
-        static StrictModeTypeErrorFunction* create(ExecState* exec, JSGlobalObject* globalObject, Structure* structure, const String& message)
+        static StrictModeTypeErrorFunction* create(VM& vm, Structure* structure, const String& message)
         {
-            StrictModeTypeErrorFunction* function = new (NotNull, allocateCell<StrictModeTypeErrorFunction>(*exec->heap())) StrictModeTypeErrorFunction(globalObject, structure, message);
-            function->finishCreation(exec->vm(), String());
+            StrictModeTypeErrorFunction* function = new (NotNull, allocateCell<StrictModeTypeErrorFunction>(vm.heap)) StrictModeTypeErrorFunction(vm, structure, message);
+            function->finishCreation(vm, String());
             return function;
         }
     

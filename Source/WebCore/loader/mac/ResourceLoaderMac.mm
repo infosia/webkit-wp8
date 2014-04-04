@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -79,7 +79,7 @@ void ResourceLoader::didReceiveDataArray(CFArrayRef dataArray)
     CFIndex arrayCount = CFArrayGetCount(dataArray);
     for (CFIndex i = 0; i < arrayCount; ++i) {
         CFDataRef data = static_cast<CFDataRef>(CFArrayGetValueAtIndex(dataArray, i));
-        int dataLen = static_cast<int>(CFDataGetLength(data));
+        unsigned dataLen = static_cast<unsigned>(CFDataGetLength(data));
 
         if (m_options.dataBufferingPolicy == BufferData) {
             if (!m_resourceData)
@@ -91,7 +91,7 @@ void ResourceLoader::didReceiveDataArray(CFArrayRef dataArray)
         // However, with today's computers and networking speeds, this won't happen in practice.
         // Could be an issue with a giant local file.
         if (m_options.sendLoadCallbacks == SendCallbacks && m_frame)
-            frameLoader()->notifier()->didReceiveData(this, reinterpret_cast<const char*>(CFDataGetBytePtr(data)), dataLen, dataLen);
+            frameLoader()->notifier().didReceiveData(this, reinterpret_cast<const char*>(CFDataGetBytePtr(data)), dataLen, dataLen);
     }
 }
 

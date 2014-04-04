@@ -23,7 +23,7 @@ descriptorShouldBe("Array.prototype", "'concat'", {writable: true, enumerable: f
 descriptorShouldBe("Date.prototype", "'toISOString'", {writable: true, enumerable: false, configurable: true, value: "Date.prototype.toISOString"});
 descriptorShouldBe("String.prototype", "'concat'", {writable: true, enumerable: false, configurable: true, value:"String.prototype.concat"});
 descriptorShouldBe("RegExp.prototype", "'exec'", {writable: true, enumerable: false, configurable: true, value:"RegExp.prototype.exec"});
-descriptorShouldBe("document.__proto__.__proto__", "'createElement'", {writable: true, enumerable: true, configurable: false, value:"document.createElement"});
+descriptorShouldBe("document.__proto__.__proto__", "'createElement'", {writable: true, enumerable: true, configurable: true, value:"document.createElement"});
 descriptorShouldBe("Number", "'NEGATIVE_INFINITY'", {writable: false, enumerable: false, configurable: false, value:"Number.NEGATIVE_INFINITY"});
 descriptorShouldBe("RegExp", "'$_'", {writable: true, enumerable: false, configurable: true, value:"RegExp.$_"});
 descriptorShouldBe("/a/g", "'global'", {writable: true, enumerable: false, configurable: false, value:true});
@@ -44,19 +44,19 @@ descriptorShouldBe("global", "'NaN'", {writable: false, enumerable: false, confi
 descriptorShouldBe("global", "'Infinity'", {writable: false, enumerable: false, configurable: false, value:"Infinity"});
 descriptorShouldBe("global", "'window'", {writable: false, enumerable: true, configurable: false, value:"global"});
 descriptorShouldBe("global", "'XMLHttpRequest'", {writable: true, enumerable: false, configurable: true, value:"XMLHttpRequest"});
-descriptorShouldBe("global", "'length'", {writable: true, enumerable: true, configurable: false, value:"global.length"});
+descriptorShouldBe("global", "'length'", {get: undefined, set: undefined, enumerable: true, configurable: false});
 descriptorShouldBe("global", "0", {writable: true, enumerable: false, configurable: false, value:"global[0]"});
-descriptorShouldBe("document.getElementsByTagName('div')", "'length'", {writable: false, enumerable: true, configurable: false, value:"1"});
+descriptorShouldBe("document.getElementsByTagName('div')", "'length'", {get: undefined, set: undefined, enumerable: true, configurable: false});
 descriptorShouldBe("document.getElementsByTagName('div')", "0", {writable: false, enumerable: true, configurable: false, value:"document.getElementsByTagName('div')[0]"});
 descriptorShouldBe("document.getElementsByClassName('pass')", "0", {writable: false, enumerable: true, configurable: false, value:"document.getElementsByClassName('pass')[0]"});
-descriptorShouldBe("document.getElementsByClassName('pass')", "'length'", {writable: false, enumerable: true, configurable: false, value:"document.getElementsByClassName('pass').length"});
+descriptorShouldBe("document.getElementsByClassName('pass')", "'length'", {get: undefined, set: undefined, enumerable: true, configurable: false});
 var canvas = document.createElement("canvas");
 var canvasPixelArray = canvas.getContext("2d").createImageData(10,10).data;
 descriptorShouldBe("canvasPixelArray", "'length'", {writable: false, enumerable: true, configurable: false, value:"canvasPixelArray.length"});
 descriptorShouldBe("canvasPixelArray", "0", {writable: true, enumerable: true, configurable: false, value:"canvasPixelArray[0]"});
 var select = document.createElement("select");
 select.innerHTML = "<option>foo</option>";
-descriptorShouldBe("select", "'length'", {writable: false, enumerable: true, configurable: false, value:"select.length"});
+descriptorShouldBe("select", "'length'", {get: undefined, set: undefined, enumerable: true, configurable: false});
 descriptorShouldBe("select", "0", {writable: true, enumerable: true, configurable: false, value:"select[0]"});
 
 var objectWithGetter = {};

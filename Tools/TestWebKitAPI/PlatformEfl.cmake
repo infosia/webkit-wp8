@@ -2,16 +2,13 @@ add_custom_target(forwarding-headersEflForTestWebKitAPI
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include efl
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include CoordinatedGraphics
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${TESTWEBKITAPI_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include efl
-)
-set(ForwardingHeadersForTestWebKitAPI_NAME forwarding-headersEflForTestWebKitAPI)
-
-add_custom_target(forwarding-headersSoupForTestWebKitAPI
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${WEBKIT2_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include soup
     COMMAND ${PERL_EXECUTABLE} ${WEBKIT2_DIR}/Scripts/generate-forwarding-headers.pl ${TESTWEBKITAPI_DIR} ${DERIVED_SOURCES_WEBKIT2_DIR}/include soup
 )
-set(ForwardingNetworkHeadersForTestWebKitAPI_NAME forwarding-headersSoupForTestWebKitAPI)
+set(ForwardingHeadersForTestWebKitAPI_NAME forwarding-headersEflForTestWebKitAPI)
 
 include_directories(
+    ${DERIVED_SOURCES_WEBKIT2_DIR}/include
     ${WEBKIT2_DIR}/UIProcess/API/C/CoordinatedGraphics
     ${WEBKIT2_DIR}/UIProcess/API/C/soup
     ${WEBKIT2_DIR}/UIProcess/API/C/efl
@@ -49,7 +46,7 @@ set(webkit2_api_harness_SOURCES
 
 set(test_webcore_BINARIES
     LayoutUnit
-    KURL
+    URL
 )
 
 # In here we list the bundles that are used by our specific WK2 API Tests
@@ -85,7 +82,6 @@ set(test_webkit2_api_BINARIES
     NewFirstVisuallyNonEmptyLayoutForImages
     PageLoadBasic
     PageLoadDidChangeLocationWithinPageForFrame
-    PageVisibilityState
     ParentFrame
     PreventEmptyUserAgent
     PrivateBrowsingPushStateNoHistoryCallback
@@ -95,7 +91,6 @@ set(test_webkit2_api_BINARIES
     ShouldGoToBackForwardListItem
     TerminateTwice
     UserMessage
-    WKConnection
     WKPreferences
     WKString
     WKStringJSString
@@ -107,25 +102,26 @@ set(test_webkit2_api_BINARIES
     efl/WKViewClientWebProcessCallbacks
 )
 
-# Seccomp filters is an internal API and its symbols
-# are not (and should not) be exposed by default. We
-# can only test it when building shared core.
-if (ENABLE_SECCOMP_FILTERS AND SHARED_CORE)
-    list(APPEND test_webkit2_api_BINARIES
-        SeccompFilters
-    )
-endif ()
-
 set(test_webkit2_api_fail_BINARIES
     CanHandleRequest
     DOMWindowExtensionBasic
     DownloadDecideDestinationCrash
+    Geolocation
     NewFirstVisuallyNonEmptyLayoutFrames
     ResizeReversePaginatedWebView
     RestoreSessionStateContainingFormData
     ScrollPinningBehaviors
     WKPageGetScaleFactorNotZero
 )
+
+# Seccomp filters is an internal API and its symbols
+# are not (and should not) be exposed by default. We
+# can only test it when building shared core.
+if (ENABLE_SECCOMP_FILTERS AND SHARED_CORE)
+    list(APPEND test_webkit2_api_fail_BINARIES
+        SeccompFilters
+    )
+endif ()
 
 # Tests disabled because of missing features on the test harness:
 #

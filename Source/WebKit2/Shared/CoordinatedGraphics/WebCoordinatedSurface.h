@@ -43,8 +43,8 @@ public:
     public:
         Handle();
 
-        void encode(CoreIPC::ArgumentEncoder&) const;
-        static bool decode(CoreIPC::ArgumentDecoder&, Handle&);
+        void encode(IPC::ArgumentEncoder&) const;
+        static bool decode(IPC::ArgumentDecoder&, Handle&);
 
 #if USE(GRAPHICS_SURFACE)
         WebCore::GraphicsSurfaceToken graphicsSurfaceToken() const { return m_graphicsSurfaceToken; }
@@ -71,10 +71,10 @@ public:
 
     virtual ~WebCoordinatedSurface();
 
-    virtual void paintToSurface(const WebCore::IntRect&, WebCore::CoordinatedSurface::Client*) OVERRIDE;
+    virtual void paintToSurface(const WebCore::IntRect&, WebCore::CoordinatedSurface::Client*) override;
 
 #if USE(TEXTURE_MAPPER)
-    virtual void copyToTexture(PassRefPtr<WebCore::BitmapTexture>, const WebCore::IntRect& target, const WebCore::IntPoint& sourceOffset) OVERRIDE;
+    virtual void copyToTexture(PassRefPtr<WebCore::BitmapTexture>, const WebCore::IntRect& target, const WebCore::IntPoint& sourceOffset) override;
 #endif
 
 private:
@@ -83,7 +83,7 @@ private:
     // Create a WebCoordinatedSurface referencing an existing ShareableBitmap.
     static PassRefPtr<WebCoordinatedSurface> create(const WebCore::IntSize&, Flags, PassRefPtr<ShareableBitmap>);
 
-    PassOwnPtr<WebCore::GraphicsContext> createGraphicsContext(const WebCore::IntRect&);
+    std::unique_ptr<WebCore::GraphicsContext> createGraphicsContext(const WebCore::IntRect&);
 #if USE(GRAPHICS_SURFACE)
     WebCoordinatedSurface(const WebCore::IntSize&, Flags, PassRefPtr<WebCore::GraphicsSurface>);
     // Create a shareable bitmap backed by a graphics surface.

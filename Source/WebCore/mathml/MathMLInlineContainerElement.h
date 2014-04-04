@@ -36,11 +36,14 @@ class MathMLInlineContainerElement : public MathMLElement {
 public:
     static PassRefPtr<MathMLInlineContainerElement> create(const QualifiedName& tagName, Document&);
 
+    virtual bool isPresentationMathML() const override { return true; }
+
 protected:
     MathMLInlineContainerElement(const QualifiedName& tagName, Document&);
+    void childrenChanged(const ChildChange&);
 
 private:
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 };
     
 }

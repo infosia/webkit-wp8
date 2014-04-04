@@ -63,7 +63,7 @@ class SpecialRegister
     end
 end
 
-ARM_EXTRA_GPRS = [SpecialRegister.new("r9"), SpecialRegister.new("r8"), SpecialRegister.new("r3")]
+ARM_EXTRA_GPRS = [SpecialRegister.new("r6"), SpecialRegister.new("r10"), SpecialRegister.new("r12")]
 ARM_EXTRA_FPRS = [SpecialRegister.new("d7")]
 ARM_SCRATCH_FPR = SpecialRegister.new("d6")
 
@@ -97,9 +97,11 @@ class RegisterID
         when "t3"
             "r4"
         when "t4"
-            "r10"
+            "r8"
+        when "t5"
+            "r9"
         when "cfr"
-            "r5"
+            isARMv7 ?  "r7" : "r11"
         when "lr"
             "lr"
         when "sp"
@@ -217,7 +219,7 @@ class Sequence
             end
         }
         result = riscLowerMalformedAddressesDouble(result)
-        result = riscLowerMisplacedImmediates(result, ["storeb", "storei", "storep"])
+        result = riscLowerMisplacedImmediates(result, ["storeb", "storei", "storep", "storeq"])
         result = riscLowerMalformedImmediates(result, 0..0xff)
         result = riscLowerMisplacedAddresses(result)
         result = riscLowerRegisterReuse(result)
@@ -333,7 +335,7 @@ class Instruction
                 else
                     $asm.puts "adds #{operands[2].armOperand}, #{operands[1].armOperand}, #{operands[0].armOperand}"
                 end
-            elsif operands.size == 3 and operands[0].immediate?
+            elsif operands.size == 3 and operands[0].register?
                 raise unless operands[1].register?
                 raise unless operands[2].register?
                 $asm.puts "adds #{armFlippedOperands(operands)}"
@@ -451,9 +453,27 @@ class Instruction
             # FIXME: either support this or remove it.
             raise "ARM does not support this opcode yet, #{codeOrigin}"
         when "pop"
-            $asm.puts "pop #{operands[0].armOperand}"
+            operands.each {
+                | op |
+                $asm.puts "pop { #{op.armOperand} }"
+            }
         when "push"
-            $asm.puts "push #{operands[0].armOperand}"
+            operands.each {
+                | op |
+                $asm.puts "push { #{op.armOperand} }"
+            }
+        when "popCalleeSaves"
+            if isARMv7
+                $asm.puts "pop {r4-r6, r8-r11}"                
+            else
+                $asm.puts "pop {r4-r10}"
+            end
+        when "pushCalleeSaves"
+            if isARMv7
+                $asm.puts "push {r4-r6, r8-r11}"
+            else
+                $asm.puts "push {r4-r10}"
+            end
         when "move"
             if operands[0].immediate?
                 armMoveImmediate(operands[0].value, operands[1])
@@ -579,6 +599,10 @@ class Instruction
         when "smulli"
             raise "Wrong number of arguments to smull in #{self.inspect} at #{codeOriginString}" unless operands.length == 4
             $asm.puts "smull #{operands[2].armOperand}, #{operands[3].armOperand}, #{operands[0].armOperand}, #{operands[1].armOperand}"
+        when "memfence"
+            $asm.puts "dmb sy"
+        when "clrbp"
+            $asm.puts "bic #{operands[2].armOperand}, #{operands[0].armOperand}, #{operands[1].armOperand}"
         else
             lowerDefault
         end

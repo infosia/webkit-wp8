@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,24 +26,30 @@
 #ifndef WebLayer_h
 #define WebLayer_h
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #import <QuartzCore/QuartzCore.h>
+#import <WebCore/FloatRect.h>
+#import <wtf/Vector.h>
 
-namespace WebCore {
-    class GraphicsLayer;
-    class PlatformCALayer;
-    class PlatformCALayerClient;
-}
+const unsigned webLayerMaxRectsToPaint = 5;
+const float webLayerWastedSpaceThreshold = 0.75f;
 
-@interface WebLayer : CALayer 
-{
-}
+@interface WebSimpleLayer : CALayer
 @end
 
-// Functions allows us to share implementation across WebTiledLayer and WebLayer
-void drawLayerContents(CGContextRef, CALayer *, WebCore::PlatformCALayer*);
+@interface WebLayer : WebSimpleLayer
+@end
 
-#endif // USE(ACCELERATED_COMPOSITING)
+namespace WebCore {
+class GraphicsLayer;
+class PlatformCALayer;
+class PlatformCALayerClient;
+
+typedef Vector<FloatRect, webLayerMaxRectsToPaint> RepaintRectList;
+
+// Functions allows us to share implementation across WebTiledLayer and WebLayer
+RepaintRectList collectRectsToPaint(CGContextRef, PlatformCALayer*);
+void drawLayerContents(CGContextRef, PlatformCALayer*, RepaintRectList& dirtyRects);
+void drawRepaintIndicator(CGContextRef, PlatformCALayer*, int repaintCount, CGColorRef customBackgroundColor);
+}
 
 #endif // WebLayer_h

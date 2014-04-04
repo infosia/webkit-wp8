@@ -31,16 +31,14 @@
 #ifndef WorkerGlobalScopeProxy_h
 #define WorkerGlobalScopeProxy_h
 
-#if ENABLE(WORKERS)
-
 #include "MessagePort.h"
 #include "WorkerThread.h"
+#include <memory>
 #include <wtf/Forward.h>
-#include <wtf/PassOwnPtr.h>
 
 namespace WebCore {
 
-    class KURL;
+    class URL;
     class Worker;
 
     // A proxy to talk to the worker context.
@@ -50,11 +48,11 @@ namespace WebCore {
 
         virtual ~WorkerGlobalScopeProxy() { }
 
-        virtual void startWorkerGlobalScope(const KURL& scriptURL, const String& userAgent, const String& sourceCode, WorkerThreadStartMode) = 0;
+        virtual void startWorkerGlobalScope(const URL& scriptURL, const String& userAgent, const String& sourceCode, WorkerThreadStartMode) = 0;
 
         virtual void terminateWorkerGlobalScope() = 0;
 
-        virtual void postMessageToWorkerGlobalScope(PassRefPtr<SerializedScriptValue>, PassOwnPtr<MessagePortChannelArray>) = 0;
+        virtual void postMessageToWorkerGlobalScope(PassRefPtr<SerializedScriptValue>, std::unique_ptr<MessagePortChannelArray>) = 0;
 
         virtual bool hasPendingActivity() const = 0;
 
@@ -75,7 +73,5 @@ namespace WebCore {
     };
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)
 
 #endif // WorkerGlobalScopeProxy_h

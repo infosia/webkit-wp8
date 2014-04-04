@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -29,48 +29,52 @@
 #ifndef VM_h
 #define VM_h
 
-#include "CachedTranscendentalFunction.h"
 #include "DateInstanceCache.h"
 #include "ExecutableAllocator.h"
 #include "Heap.h"
 #include "Intrinsic.h"
-#include "JITThunks.h"
 #include "JITThunks.h"
 #include "JSCJSValue.h"
 #include "JSLock.h"
 #include "LLIntData.h"
 #include "MacroAssemblerCodeRef.h"
 #include "NumericStrings.h"
-#include "ProfilerDatabase.h"
 #include "PrivateName.h"
 #include "PrototypeMap.h"
 #include "SmallStrings.h"
+#include "SourceCode.h"
 #include "Strong.h"
 #include "ThunkGenerators.h"
 #include "TypedArrayController.h"
 #include "Watchdog.h"
+#include "Watchpoint.h"
 #include "WeakRandom.h"
 #include <wtf/BumpPointerAllocator.h>
 #include <wtf/DateMath.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
+#include <wtf/HashSet.h>
 #include <wtf/RefCountedArray.h>
 #include <wtf/SimpleStats.h>
+#include <wtf/StackBounds.h>
 #include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/ThreadSpecific.h>
 #include <wtf/WTFThreadData.h>
+#include <wtf/text/WTFString.h>
 #if ENABLE(REGEXP_TRACING)
 #include <wtf/ListHashSet.h>
 #endif
 
 namespace JSC {
 
+    class ArityCheckFailReturnThunks;
+    class BuiltinExecutables;
     class CodeBlock;
     class CodeCache;
     class CommonIdentifiers;
     class ExecState;
     class HandleStack;
-    class IdentifierTable;
+    class Identifier;
     class Interpreter;
     class JSGlobalObject;
     class JSObject;
@@ -92,13 +96,26 @@ namespace JSC {
     class UnlinkedEvalCodeBlock;
     class UnlinkedFunctionExecutable;
     class UnlinkedProgramCodeBlock;
+    class VMEntryScope;
+    class Watchpoint;
+    class WatchpointSet;
 
 #if ENABLE(DFG_JIT)
     namespace DFG {
     class LongLivedState;
-    class Worklist;
     }
 #endif // ENABLE(DFG_JIT)
+#if ENABLE(FTL_JIT)
+    namespace FTL {
+    class Thunks;
+    }
+#endif // ENABLE(FTL_JIT)
+    namespace CommonSlowPaths {
+    struct ArityCheckData;
+    }
+    namespace Profiler {
+    class Database;
+    }
 
     struct HashTable;
     struct Instruction;
@@ -182,7 +199,7 @@ namespace JSC {
 
         bool isSharedInstance() { return vmType == APIShared; }
         bool usingAPI() { return vmType != Default; }
-        static bool sharedInstanceExists();
+        JS_EXPORT_PRIVATE static bool sharedInstanceExists();
         JS_EXPORT_PRIVATE static VM& sharedInstance();
 
         JS_EXPORT_PRIVATE static PassRefPtr<VM> create(HeapType = SmallHeap);
@@ -192,10 +209,6 @@ namespace JSC {
 
         void makeUsableFromMultipleThreads() { heap.machineThreads().makeUsableFromMultipleThreads(); }
         
-#if ENABLE(DFG_JIT)
-        DFG::Worklist* ensureWorklist();
-#endif // ENABLE(DFG_JIT)
-
     private:
         RefPtr<JSLock> m_apiLock;
 
@@ -212,7 +225,6 @@ namespace JSC {
         
 #if ENABLE(DFG_JIT)
         OwnPtr<DFG::LongLivedState> dfgState;
-        RefPtr<DFG::Worklist> worklist;
 #endif // ENABLE(DFG_JIT)
 
         VMType vmType;
@@ -240,7 +252,6 @@ namespace JSC {
 #if ENABLE(PROMISES)
         const OwnPtr<const HashTable> promisePrototypeTable;
         const OwnPtr<const HashTable> promiseConstructorTable;
-        const OwnPtr<const HashTable> promiseResolverPrototypeTable;
 #endif
 
         Strong<Structure> structureStructure;
@@ -259,9 +270,10 @@ namespace JSC {
         Strong<Structure> programExecutableStructure;
         Strong<Structure> functionExecutableStructure;
         Strong<Structure> regExpStructure;
-        Strong<Structure> sharedSymbolTableStructure;
+        Strong<Structure> symbolTableStructure;
         Strong<Structure> structureChainStructure;
         Strong<Structure> sparseArrayValueMapStructure;
+        Strong<Structure> arrayBufferNeuteringWatchpointStructure;
         Strong<Structure> withScopeStructure;
         Strong<Structure> unlinkedFunctionExecutableStructure;
         Strong<Structure> unlinkedProgramCodeBlockStructure;
@@ -270,14 +282,21 @@ namespace JSC {
         Strong<Structure> propertyTableStructure;
         Strong<Structure> mapDataStructure;
         Strong<Structure> weakMapDataStructure;
+#if ENABLE(PROMISES)
+        Strong<Structure> promiseDeferredStructure;
+        Strong<Structure> promiseReactionStructure;
+#endif
+        Strong<JSCell> iterationTerminator;
 
-        IdentifierTable* identifierTable;
+        AtomicStringTable* m_atomicStringTable;
         CommonIdentifiers* propertyNames;
         const MarkedArgumentBuffer* emptyList; // Lists are supposed to be allocated on the stack to have their elements properly marked, which is not the case here - but this list has nothing to mark.
         SmallStrings smallStrings;
         NumericStrings numericStrings;
         DateInstanceCache dateInstanceCache;
         WTF::SimpleStats machineCodeBytesPerBytecodeWordForBaselineJIT;
+
+        AtomicStringTable* atomicStringTable() const { return m_atomicStringTable; }
 
         void setInDefineOwnProperty(bool inDefineOwnProperty)
         {
@@ -289,10 +308,10 @@ namespace JSC {
             return m_inDefineOwnProperty;
         }
 
-        LegacyProfiler* enabledProfiler()
-        {
-            return m_enabledProfiler;
-        }
+        LegacyProfiler* enabledProfiler() { return m_enabledProfiler; }
+        void setEnabledProfiler(LegacyProfiler*);
+
+        void* enabledProfilerAddress() { return &m_enabledProfiler; }
 
 #if ENABLE(JIT) && ENABLE(LLINT)
         bool canUseJIT() { return m_canUseJIT; }
@@ -314,7 +333,7 @@ namespace JSC {
         PrototypeMap prototypeMap;
 
         OwnPtr<ParserArena> parserArena;
-        typedef HashMap<RefPtr<SourceProvider>, RefPtr<SourceProviderCache> > SourceProviderCacheMap;
+        typedef HashMap<RefPtr<SourceProvider>, RefPtr<SourceProviderCache>> SourceProviderCacheMap;
         SourceProviderCacheMap sourceProviderCacheMap;
         OwnPtr<Keywords> keywords;
         Interpreter* interpreter;
@@ -325,6 +344,12 @@ namespace JSC {
             return jitStubs->ctiStub(this, generator);
         }
         NativeExecutable* getHostFunction(NativeFunction, Intrinsic);
+        
+        std::unique_ptr<ArityCheckFailReturnThunks> arityCheckFailReturnThunks;
+#endif // ENABLE(JIT)
+        std::unique_ptr<CommonSlowPaths::ArityCheckData> arityCheckData;
+#if ENABLE(FTL_JIT)
+        std::unique_ptr<FTL::Thunks> ftlThunks;
 #endif
         NativeExecutable* getHostFunction(NativeFunction, NativeFunction constructor);
 
@@ -332,7 +357,17 @@ namespace JSC {
         {
             return OBJECT_OFFSETOF(VM, m_exception);
         }
-        
+
+        static ptrdiff_t callFrameForThrowOffset()
+        {
+            return OBJECT_OFFSETOF(VM, callFrameForThrow);
+        }
+
+        static ptrdiff_t targetMachinePCForThrowOffset()
+        {
+            return OBJECT_OFFSETOF(VM, targetMachinePCForThrow);
+        }
+
         JS_EXPORT_PRIVATE void clearException();
         JS_EXPORT_PRIVATE void clearExceptionStack();
         void getExceptionInfo(JSValue& exception, RefCountedArray<StackFrame>& exceptionStack);
@@ -344,11 +379,40 @@ namespace JSC {
         JS_EXPORT_PRIVATE JSValue throwException(ExecState*, JSValue);
         JS_EXPORT_PRIVATE JSObject* throwException(ExecState*, JSObject*);
         
+        void* stackPointerAtVMEntry() const { return m_stackPointerAtVMEntry; }
+        void setStackPointerAtVMEntry(void*);
+
+        size_t reservedZoneSize() const { return m_reservedZoneSize; }
+        size_t updateReservedZoneSize(size_t reservedZoneSize);
+
+#if ENABLE(FTL_JIT)
+        void updateFTLLargestStackSize(size_t);
+        void** addressOfFTLStackLimit() { return &m_ftlStackLimit; }
+#endif
+
+#if ENABLE(LLINT_C_LOOP)
+        void* jsStackLimit() { return m_jsStackLimit; }
+        void setJSStackLimit(void* limit) { m_jsStackLimit = limit; }
+#endif
+        void* stackLimit() { return m_stackLimit; }
+        void** addressOfStackLimit() { return &m_stackLimit; }
+
+        bool isSafeToRecurse(size_t neededStackInBytes = 0) const
+        {
+            ASSERT(wtfThreadData().stack().isGrowingDownward());
+            int8_t* curr = reinterpret_cast<int8_t*>(&curr);
+            int8_t* limit = reinterpret_cast<int8_t*>(m_stackLimit);
+            return curr >= limit && static_cast<size_t>(curr - limit) >= neededStackInBytes;
+        }
+
+        void* lastStackTop() { return m_lastStackTop; }
+        void setLastStackTop(void* lastStackTop) { m_lastStackTop = lastStackTop; }
+
         const ClassInfo* const jsArrayClassInfo;
         const ClassInfo* const jsFinalObjectClassInfo;
 
-        ReturnAddressPtr exceptionLocation;
         JSValue hostCallReturnValue;
+        ExecState* newCallFrameReturnValue;
         ExecState* callFrameForThrow;
         void* targetMachinePCForThrow;
         Instruction* targetInterpreterPCForThrow;
@@ -369,7 +433,9 @@ namespace JSC {
                 // max(scratch buffer size) * 4.
                 sizeOfLastScratchBuffer = size * 2;
 
-                scratchBuffers.append(ScratchBuffer::create(sizeOfLastScratchBuffer));
+                ScratchBuffer* newBuffer = ScratchBuffer::create(sizeOfLastScratchBuffer);
+                RELEASE_ASSERT(newBuffer);
+                scratchBuffers.append(newBuffer);
             }
 
             ScratchBuffer* result = scratchBuffers.last();
@@ -379,7 +445,7 @@ namespace JSC {
 
         void gatherConservativeRoots(ConservativeRoots&);
 
-        JSGlobalObject* dynamicGlobalObject;
+        VMEntryScope* entryScope;
 
         HashSet<JSObject*> stringRecursionCheckVisitedObjects;
 
@@ -388,20 +454,19 @@ namespace JSC {
         String cachedDateString;
         double cachedDateStringValue;
 
-        LegacyProfiler* m_enabledProfiler;
         OwnPtr<Profiler::Database> m_perBytecodeProfiler;
         RefPtr<TypedArrayController> m_typedArrayController;
         RegExpCache* m_regExpCache;
         BumpPointerAllocator m_regExpAllocator;
 
 #if ENABLE(REGEXP_TRACING)
-        typedef ListHashSet<RefPtr<RegExp> > RTTraceList;
+        typedef ListHashSet<RegExp*> RTTraceList;
         RTTraceList* m_rtTraceList;
 #endif
 
-        ThreadIdentifier exclusiveThread;
-
-        CachedTranscendentalFunction<std::sin> cachedSin;
+        bool hasExclusiveThread() const { return m_apiLock->hasExclusiveThread(); }
+        std::thread::id exclusiveThread() const { return m_apiLock->exclusiveThread(); }
+        void setExclusiveThread(std::thread::id threadId) { m_apiLock->setExclusiveThread(threadId); }
 
         JS_EXPORT_PRIVATE void resetDateCache();
 
@@ -410,7 +475,7 @@ namespace JSC {
         JS_EXPORT_PRIVATE void dumpSampleData(ExecState* exec);
         RegExpCache* regExpCache() { return m_regExpCache; }
 #if ENABLE(REGEXP_TRACING)
-        void addRegExpToTrace(PassRefPtr<RegExp> regExp);
+        void addRegExpToTrace(RegExp*);
 #endif
         JS_EXPORT_PRIVATE void dumpRegExpTrace();
 
@@ -429,25 +494,32 @@ namespace JSC {
         bool haveEnoughNewStringsToHashCons() { return m_newStringsSinceLastHashCons > s_minNumberOfNewStringsToHashCons; }
         void resetNewStringsSinceLastHashCons() { m_newStringsSinceLastHashCons = 0; }
 
-        bool currentThreadIsHoldingAPILock() const
-        {
-            return m_apiLock->currentThreadIsHoldingLock() || exclusiveThread == currentThread();
-        }
+        bool currentThreadIsHoldingAPILock() const { return m_apiLock->currentThreadIsHoldingLock(); }
 
         JSLock& apiLock() { return *m_apiLock; }
         CodeCache* codeCache() { return m_codeCache.get(); }
 
-        void prepareToDiscardCode();
+        void waitForCompilationsToComplete();
         
         JS_EXPORT_PRIVATE void discardAllCode();
+
+        void registerWatchpointForImpureProperty(const Identifier&, Watchpoint*);
+        // FIXME: Use AtomicString once it got merged with Identifier.
+        JS_EXPORT_PRIVATE void addImpureProperty(const String&);
+        
+        BuiltinExecutables* builtinExecutables() { return m_builtinExecutables.get(); }
 
     private:
         friend class LLIntOffsetsExtractor;
         friend class ClearExceptionScope;
+        friend class RecursiveAllocationScope;
         
         VM(VMType, HeapType);
         static VM*& sharedInstanceInternal();
         void createNativeThunk();
+
+        void updateStackLimit();
+
 #if ENABLE(ASSEMBLER)
         bool m_canUseAssembler;
 #endif
@@ -460,10 +532,31 @@ namespace JSC {
 #if ENABLE(GC_VALIDATION)
         const ClassInfo* m_initializingObjectClass;
 #endif
+        void* m_stackPointerAtVMEntry;
+        size_t m_reservedZoneSize;
+#if ENABLE(LLINT_C_LOOP)
+        struct {
+            void* m_stackLimit;
+            void* m_jsStackLimit;
+        };
+#else
+        union {
+            void* m_stackLimit;
+            void* m_jsStackLimit;
+        };
+#if ENABLE(FTL_JIT)
+        void* m_ftlStackLimit;
+        size_t m_largestFTLStackSize;
+#endif
+#endif
+        void* m_lastStackTop;
         JSValue m_exception;
         bool m_inDefineOwnProperty;
         OwnPtr<CodeCache> m_codeCache;
+        LegacyProfiler* m_enabledProfiler;
+        OwnPtr<BuiltinExecutables> m_builtinExecutables;
         RefCountedArray<StackFrame> m_exceptionStack;
+        HashMap<String, RefPtr<WatchpointSet>> m_impurePropertyWatchpointSets;
     };
 
 #if ENABLE(GC_VALIDATION)
@@ -482,6 +575,13 @@ namespace JSC {
     {
         return &m_vm->heap;
     }
+
+#if !ENABLE(LLINT_C_LOOP)
+    extern "C" void sanitizeStackForVMImpl(VM*);
+#endif
+
+    void sanitizeStackForVM(VM*);
+    void logSanitizeStack(VM*);
 
 } // namespace JSC
 

@@ -28,88 +28,87 @@
 
 #include "DataReference.h"
 #include "WebCoreArgumentCoders.h"
-#include <wtf/text/WTFString.h>
+#include <wtf/text/StringView.h>
 
 namespace WebKit {
 
 EncoderAdapter::EncoderAdapter()
-    : m_encoder(CoreIPC::ArgumentEncoder::create())
 {
     // Keep format compatibility by decoding an unused uint64_t value
     // that used to be encoded by the argument encoder.
-    *m_encoder << static_cast<uint64_t>(0);
+    m_encoder << static_cast<uint64_t>(0);
 }
 
-CoreIPC::DataReference EncoderAdapter::dataReference() const
+IPC::DataReference EncoderAdapter::dataReference() const
 {
-    return CoreIPC::DataReference(m_encoder->buffer(), m_encoder->bufferSize());
+    return IPC::DataReference(m_encoder.buffer(), m_encoder.bufferSize());
 }
 
 void EncoderAdapter::encodeBytes(const uint8_t* bytes, size_t size)
 {
-    *m_encoder << CoreIPC::DataReference(bytes, size);
+    m_encoder << IPC::DataReference(bytes, size);
 }
 
 void EncoderAdapter::encodeBool(bool value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeUInt16(uint16_t value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeUInt32(uint32_t value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeUInt64(uint64_t value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeInt32(int32_t value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeInt64(int64_t value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeFloat(float value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeDouble(double value)
 {
-    *m_encoder << value;
+    m_encoder << value;
 }
 
 void EncoderAdapter::encodeString(const String& value)
 {
-    // This mimics the CoreIPC binary encoding of Strings prior to r88886.
-    // Whenever the CoreIPC binary encoding changes, we'll have to "undo" the changes here.
-    // FIXME: We shouldn't use the CoreIPC binary encoding format for history,
+    // This mimics the IPC binary encoding of Strings prior to r88886.
+    // Whenever the IPC binary encoding changes, we'll have to "undo" the changes here.
+    // FIXME: We shouldn't use the IPC binary encoding format for history,
     // and we should come up with a migration strategy so we can actually bump the version number
     // without breaking encoding/decoding of the history tree.
 
     // Special case the null string.
     if (value.isNull()) {
-        *m_encoder << std::numeric_limits<uint32_t>::max();
+        m_encoder << std::numeric_limits<uint32_t>::max();
         return;
     }
 
     uint32_t length = value.length();
-    *m_encoder << length;
+    m_encoder << length;
 
     uint64_t lengthInBytes = length * sizeof(UChar);
-    *m_encoder << lengthInBytes;
-    m_encoder->encodeFixedLengthData(reinterpret_cast<const uint8_t*>(value.characters()), length * sizeof(UChar), __alignof(UChar)); 
+    m_encoder << lengthInBytes;
+    m_encoder.encodeFixedLengthData(reinterpret_cast<const uint8_t*>(StringView(value).upconvertedCharacters().get()), length * sizeof(UChar), alignof(UChar));
 }
 
 }

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,7 +33,7 @@ namespace WTF {
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableKeysIterator;
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableValuesIterator;
 
-    template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > {
+    template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> {
     private:
         typedef KeyValuePair<KeyType, MappedType> ValueType;
     public:
@@ -56,7 +56,7 @@ namespace WTF {
         typename HashTableType::const_iterator m_impl;
     };
 
-    template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > {
+    template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> {
     private:
         typedef KeyValuePair<KeyType, MappedType> ValueType;
     public:
@@ -86,7 +86,7 @@ namespace WTF {
 
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableConstKeysIterator {
     private:
-        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > ConstIterator;
+        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> ConstIterator;
 
     public:
         HashTableConstKeysIterator(const ConstIterator& impl) : m_impl(impl) {}
@@ -103,7 +103,7 @@ namespace WTF {
 
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableConstValuesIterator {
     private:
-        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > ConstIterator;
+        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> ConstIterator;
 
     public:
         HashTableConstValuesIterator(const ConstIterator& impl) : m_impl(impl) {}
@@ -120,8 +120,8 @@ namespace WTF {
 
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableKeysIterator {
     private:
-        typedef HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > Iterator;
-        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > ConstIterator;
+        typedef HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> Iterator;
+        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> ConstIterator;
 
     public:
         HashTableKeysIterator(const Iterator& impl) : m_impl(impl) {}
@@ -143,8 +143,8 @@ namespace WTF {
 
     template<typename HashTableType, typename KeyType, typename MappedType> struct HashTableValuesIterator {
     private:
-        typedef HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > Iterator;
-        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType> > ConstIterator;
+        typedef HashTableIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> Iterator;
+        typedef HashTableConstIteratorAdapter<HashTableType, KeyValuePair<KeyType, MappedType>> ConstIterator;
 
     public:
         HashTableValuesIterator(const Iterator& impl) : m_impl(impl) {}

@@ -23,11 +23,13 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__LP64__) && defined(__clang__)
+#import <WebKit2/WKFoundation.h>
+
+#if WK_API_ENABLED
 
 #import <WebKit2/WKDOMNode.h>
 
-WK_EXPORT
+WK_API_CLASS
 @interface WKDOMElement : WKDOMNode
 
 - (BOOL)hasAttribute:(NSString *)attribute;
@@ -38,4 +40,4 @@ WK_EXPORT
 
 @end
 
-#endif // defined(__LP64__) && defined(__clang__)
+#endif // WK_API_ENABLED

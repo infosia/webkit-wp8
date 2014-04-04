@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,25 +26,27 @@
 #include "config.h"
 #include "RenderMultiColumnFlowThread.h"
 
-#include "RenderMultiColumnBlock.h"
+#include "LayoutState.h"
 #include "RenderMultiColumnSet.h"
+#include "TransformState.h"
 
 namespace WebCore {
 
-RenderMultiColumnFlowThread::RenderMultiColumnFlowThread()
+RenderMultiColumnFlowThread::RenderMultiColumnFlowThread(Document& document, PassRef<RenderStyle> style)
+    : RenderFlowThread(document, std::move(style))
+    , m_columnCount(1)
+    , m_columnWidth(0)
+    , m_columnHeightAvailable(0)
+    , m_inBalancingPass(false)
+    , m_needsRebalancing(false)
+    , m_progressionIsInline(false)
+    , m_progressionIsReversed(false)
 {
     setFlowThreadState(InsideInFlowThread);
 }
 
 RenderMultiColumnFlowThread::~RenderMultiColumnFlowThread()
 {
-}
-
-RenderMultiColumnFlowThread* RenderMultiColumnFlowThread::createAnonymous(Document& document)
-{
-    RenderMultiColumnFlowThread* renderer = new (*document.renderArena()) RenderMultiColumnFlowThread();
-    renderer->setDocumentForAnonymous(document);
-    return renderer;
 }
 
 const char* RenderMultiColumnFlowThread::renderName() const
@@ -61,8 +63,7 @@ void RenderMultiColumnFlowThread::computeLogicalHeight(LayoutUnit logicalHeight,
 
 LayoutUnit RenderMultiColumnFlowThread::initialLogicalWidth() const
 {
-    RenderMultiColumnBlock* parentBlock = toRenderMultiColumnBlock(parent());
-    return parentBlock->columnWidth();
+    return columnWidth();
 }
 
 void RenderMultiColumnFlowThread::autoGenerateRegionsToBlockOffset(LayoutUnit /*offset*/)
@@ -91,9 +92,9 @@ void RenderMultiColumnFlowThread::autoGenerateRegionsToBlockOffset(LayoutUnit /*
     
     invalidateRegions();
 
-    RenderMultiColumnBlock* parentBlock = toRenderMultiColumnBlock(parent());
-    firstSet = RenderMultiColumnSet::createAnonymous(*this);
-    firstSet->setStyle(RenderStyle::createAnonymousStyleWithDisplay(parentBlock->style(), BLOCK));
+    RenderBlockFlow* parentBlock = toRenderBlockFlow(parent());
+    firstSet = new RenderMultiColumnSet(*this, RenderStyle::createAnonymousStyleWithDisplay(&parentBlock->style(), BLOCK));
+    firstSet->initializeStyle();
     parentBlock->RenderBlock::addChild(firstSet);
 
     // Even though we aren't placed yet, we can go ahead and set up our size. At this point we're
@@ -114,6 +115,100 @@ void RenderMultiColumnFlowThread::updateMinimumPageHeight(const RenderBlock* blo
 {
     if (RenderMultiColumnSet* multicolSet = toRenderMultiColumnSet(regionAtBlockOffset(block, offset)))
         multicolSet->updateMinimumColumnHeight(minHeight);
+}
+
+bool RenderMultiColumnFlowThread::addForcedRegionBreak(const RenderBlock* block, LayoutUnit offset, RenderBox* /*breakChild*/, bool /*isBefore*/, LayoutUnit* offsetBreakAdjustment)
+{
+    if (RenderMultiColumnSet* multicolSet = toRenderMultiColumnSet(regionAtBlockOffset(block, offset))) {
+        multicolSet->addForcedBreak(offset);
+        if (offsetBreakAdjustment)
+            *offsetBreakAdjustment = pageLogicalHeightForOffset(offset) ? pageRemainingLogicalHeightForOffset(offset, IncludePageBoundary) : LayoutUnit::fromPixel(0);
+        return true;
+    }
+    return false;
+}
+
+void RenderMultiColumnFlowThread::computeLineGridPaginationOrigin(LayoutState& layoutState) const
+{
+    if (!progressionIsInline())
+        return;
+    
+    // We need to cache a line grid pagination origin so that we understand how to reset the line grid
+    // at the top of each column.
+    // Get the current line grid and offset.
+    const auto lineGrid = layoutState.lineGrid();
+    if (!lineGrid)
+        return;
+
+    // Get the hypothetical line box used to establish the grid.
+    auto lineGridBox = lineGrid->lineGridBox();
+    if (!lineGridBox)
+        return;
+    
+    bool isHorizontalWritingMode = lineGrid->isHorizontalWritingMode();
+
+    LayoutUnit lineGridBlockOffset = isHorizontalWritingMode ? layoutState.lineGridOffset().height() : layoutState.lineGridOffset().width();
+
+    // Now determine our position on the grid. Our baseline needs to be adjusted to the nearest baseline multiple
+    // as established by the line box.
+    // FIXME: Need to handle crazy line-box-contain values that cause the root line box to not be considered. I assume
+    // the grid should honor line-box-contain.
+    LayoutUnit gridLineHeight = lineGridBox->lineBottomWithLeading() - lineGridBox->lineTopWithLeading();
+    if (!gridLineHeight)
+        return;
+
+    LayoutUnit firstLineTopWithLeading = lineGridBlockOffset + lineGridBox->lineTopWithLeading();
+    
+    if (layoutState.isPaginated() && layoutState.pageLogicalHeight()) {
+        LayoutUnit pageLogicalTop = isHorizontalWritingMode ? layoutState.pageOffset().height() : layoutState.pageOffset().width();
+        if (pageLogicalTop > firstLineTopWithLeading) {
+            // Shift to the next highest line grid multiple past the page logical top. Cache the delta
+            // between this new value and the page logical top as the pagination origin.
+            LayoutUnit remainder = roundToInt(pageLogicalTop - firstLineTopWithLeading) % roundToInt(gridLineHeight);
+            LayoutUnit paginationDelta = gridLineHeight - remainder;
+            if (isHorizontalWritingMode)
+                layoutState.setLineGridPaginationOrigin(LayoutSize(layoutState.lineGridPaginationOrigin().width(), paginationDelta));
+            else
+                layoutState.setLineGridPaginationOrigin(LayoutSize(paginationDelta, layoutState.lineGridPaginationOrigin().height()));
+        }
+    }
+}
+
+RenderRegion* RenderMultiColumnFlowThread::mapFromFlowToRegion(TransformState& transformState) const
+{
+    if (!hasValidRegionInfo())
+        return nullptr;
+
+    // Get back into our local flow thread space.
+    LayoutRect boxRect = transformState.mappedQuad().enclosingBoundingBox();
+    flipForWritingMode(boxRect);
+
+    // FIXME: We need to refactor RenderObject::absoluteQuads to be able to split the quads across regions,
+    // for now we just take the center of the mapped enclosing box and map it to a column.
+    LayoutPoint center = boxRect.center();
+    LayoutUnit centerOffset = isHorizontalWritingMode() ? center.y() : center.x();
+    RenderRegion* renderRegion = const_cast<RenderMultiColumnFlowThread*>(this)->regionAtBlockOffset(this, centerOffset, true, DisallowRegionAutoGeneration);
+    if (!renderRegion)
+        return nullptr;
+
+    // Now that we know which multicolumn set we hit, we need to get the appropriate translation offset for the column.
+    RenderMultiColumnSet* columnSet = toRenderMultiColumnSet(renderRegion);
+    LayoutPoint translationOffset = columnSet->columnTranslationForOffset(centerOffset);
+    
+    // Now we know how we want the rect to be translated into the region.
+    LayoutRect flippedRegionRect(renderRegion->flowThreadPortionRect());
+    if (isHorizontalWritingMode())
+        flippedRegionRect.setHeight(columnSet->computedColumnHeight());
+    else
+        flippedRegionRect.setWidth(columnSet->computedColumnHeight());
+    flipForWritingMode(flippedRegionRect);
+    
+    flippedRegionRect.moveBy(-translationOffset);
+    
+    // There is an additional offset to apply, which is the offset of the region within the multi-column space.
+    transformState.move(renderRegion->contentBoxRect().location() - flippedRegionRect.location());
+
+    return renderRegion;
 }
 
 }

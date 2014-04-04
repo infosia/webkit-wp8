@@ -25,19 +25,16 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGEllipse.h"
 
 #include "SVGCircleElement.h"
 #include "SVGEllipseElement.h"
-#include "SVGGraphicsElement.h"
 #include "SVGNames.h"
 
 namespace WebCore {
 
-RenderSVGEllipse::RenderSVGEllipse(SVGGraphicsElement& element)
-    : RenderSVGShape(element)
+RenderSVGEllipse::RenderSVGEllipse(SVGGraphicsElement& element, PassRef<RenderStyle> style)
+    : RenderSVGShape(element, std::move(style))
     , m_usePathFallback(false)
 {
 }
@@ -71,7 +68,7 @@ void RenderSVGEllipse::updateShapeFromElement()
 
     m_fillBoundingBox = FloatRect(m_center.x() - m_radii.width(), m_center.y() - m_radii.height(), 2 * m_radii.width(), 2 * m_radii.height());
     m_strokeBoundingBox = m_fillBoundingBox;
-    if (style()->svgStyle()->hasStroke())
+    if (style().svgStyle().hasStroke())
         m_strokeBoundingBox.inflate(strokeWidth() / 2);
 }
 
@@ -105,7 +102,7 @@ void RenderSVGEllipse::fillShape(GraphicsContext* context) const
 
 void RenderSVGEllipse::strokeShape(GraphicsContext* context) const
 {
-    if (!style()->svgStyle()->hasVisibleStroke())
+    if (!style().svgStyle().hasVisibleStroke())
         return;
     if (m_usePathFallback) {
         RenderSVGShape::strokeShape(context);
@@ -154,5 +151,3 @@ bool RenderSVGEllipse::shapeDependentFillContains(const FloatPoint& point, const
 }
 
 }
-
-#endif // ENABLE(SVG)

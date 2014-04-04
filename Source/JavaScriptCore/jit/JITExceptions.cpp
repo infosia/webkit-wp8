@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,35 +27,26 @@
 #include "JITExceptions.h"
 
 #include "CallFrame.h"
-#include "CallFrameInlines.h"
 #include "CodeBlock.h"
 #include "Interpreter.h"
+#include "JITStubs.h"
 #include "JSCJSValue.h"
+#include "LLIntData.h"
+#include "LLIntOpcode.h"
+#include "LLIntThunks.h"
+#include "Opcode.h"
+#include "JSCInlines.h"
 #include "VM.h"
-#include "Operations.h"
-
-#if ENABLE(JIT) || ENABLE(LLINT)
 
 namespace JSC {
 
-#if USE(JSVALUE32_64)
-EncodedExceptionHandler encode(ExceptionHandler handler)
+void genericUnwind(VM* vm, ExecState* callFrame, JSValue exceptionValue)
 {
-    ExceptionHandlerUnion u;
-    u.handler = handler;
-    return u.encodedHandler;
-}
-#endif
-
-ExceptionHandler uncaughtExceptionHandler()
-{
-    void* catchRoutine = FunctionPtr(LLInt::getCodePtr(ctiOpThrowNotCaught)).value();
-    ExceptionHandler exceptionHandler = { 0, catchRoutine};
-    return exceptionHandler;
-}
-
-ExceptionHandler genericUnwind(VM* vm, ExecState* callFrame, JSValue exceptionValue)
-{
+    if (Options::breakOnThrow()) {
+        dataLog("In call frame ", RawPointer(callFrame), " for code block ", *callFrame->codeBlock(), "\n");
+        CRASH();
+    }
+    
     RELEASE_ASSERT(exceptionValue);
     HandlerInfo* handler = vm->interpreter->unwind(callFrame, exceptionValue); // This may update callFrame.
 
@@ -63,19 +54,19 @@ ExceptionHandler genericUnwind(VM* vm, ExecState* callFrame, JSValue exceptionVa
     Instruction* catchPCForInterpreter = 0;
     if (handler) {
         catchPCForInterpreter = &callFrame->codeBlock()->instructions()[handler->target];
-        catchRoutine = ExecutableBase::catchRoutineFor(handler, catchPCForInterpreter);
+#if ENABLE(JIT)
+        catchRoutine = handler->nativeCode.executableAddress();
+#else
+        catchRoutine = catchPCForInterpreter->u.pointer;
+#endif
     } else
-        catchRoutine = FunctionPtr(LLInt::getCodePtr(ctiOpThrowNotCaught)).value();
+        catchRoutine = LLInt::getCodePtr(handleUncaughtException);
     
     vm->callFrameForThrow = callFrame;
     vm->targetMachinePCForThrow = catchRoutine;
     vm->targetInterpreterPCForThrow = catchPCForInterpreter;
     
     RELEASE_ASSERT(catchRoutine);
-    ExceptionHandler exceptionHandler = { callFrame, catchRoutine};
-    return exceptionHandler;
 }
 
-}
-
-#endif
+} // namespace JSC

@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGStopElement.h"
 
 #include "Attribute.h"
@@ -56,7 +54,7 @@ PassRefPtr<SVGStopElement> SVGStopElement::create(const QualifiedName& tagName, 
 
 bool SVGStopElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty())
         supportedAttributes.add(SVGNames::offsetAttr);
     return supportedAttributes.contains<SVGAttributeHashTranslator>(attrName);
@@ -89,20 +87,18 @@ void SVGStopElement::svgAttributeChanged(const QualifiedName& attrName)
 
     SVGElementInstance::InvalidationGuard invalidationGuard(this);
 
-    if (!renderer())
-        return;
-
     if (attrName == SVGNames::offsetAttr) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer());
+        if (auto renderer = this->renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     ASSERT_NOT_REACHED();
 }
 
-RenderElement* SVGStopElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGStopElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGGradientStop(this);
+    return createRenderer<RenderSVGGradientStop>(*this, std::move(style));
 }
 
 bool SVGStopElement::rendererIsNeeded(const RenderStyle&)
@@ -112,17 +108,15 @@ bool SVGStopElement::rendererIsNeeded(const RenderStyle&)
 
 Color SVGStopElement::stopColorIncludingOpacity() const
 {
-    RenderStyle* style = renderer() ? renderer()->style() : 0;
+    RenderStyle* style = renderer() ? &renderer()->style() : nullptr;
     // FIXME: This check for null style exists to address Bug WK 90814, a rare crash condition in
     // which the renderer or style is null. This entire class is scheduled for removal (Bug WK 86941)
     // and we will tolerate this null check until then.
-    if (!style || !style->svgStyle())
+    if (!style)
         return Color(Color::transparent, true); // Transparent black.
 
-    const SVGRenderStyle* svgStyle = style->svgStyle();
-    return colorWithOverrideAlpha(svgStyle->stopColor().rgb(), svgStyle->stopOpacity());
+    const SVGRenderStyle& svgStyle = style->svgStyle();
+    return colorWithOverrideAlpha(svgStyle.stopColor().rgb(), svgStyle.stopOpacity());
 }
 
 }
-
-#endif // ENABLE(SVG)

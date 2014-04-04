@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2006 James G. Speth (speth@end.com)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -126,7 +126,7 @@ static BOOL _allowsScriptsFullAccess = NO;
 
 - (NSString *)classNameOfObject:(id)obj
 {
-    return [obj className];
+    return NSStringFromClass([obj class]);
 }
 
 @end

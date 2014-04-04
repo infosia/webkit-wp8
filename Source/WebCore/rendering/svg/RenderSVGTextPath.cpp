@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGTextPath.h"
 
 #include "FloatQuad.h"
@@ -34,8 +32,8 @@
 
 namespace WebCore {
 
-RenderSVGTextPath::RenderSVGTextPath(SVGTextPathElement& element)
-    : RenderSVGInline(element)
+RenderSVGTextPath::RenderSVGTextPath(SVGTextPathElement& element, PassRef<RenderStyle> style)
+    : RenderSVGInline(element, std::move(style))
 {
 }
 
@@ -46,7 +44,7 @@ SVGTextPathElement& RenderSVGTextPath::textPathElement() const
 
 Path RenderSVGTextPath::layoutPath() const
 {
-    Element* targetElement = SVGURIReference::targetElementFromIRIString(textPathElement().href(), &document());
+    Element* targetElement = SVGURIReference::targetElementFromIRIString(textPathElement().href(), document());
     if (!targetElement || !targetElement->hasTagName(SVGNames::pathTag))
         return Path();
     
@@ -80,5 +78,3 @@ bool RenderSVGTextPath::stretchMethod() const
 }
 
 }
-
-#endif // ENABLE(SVG)

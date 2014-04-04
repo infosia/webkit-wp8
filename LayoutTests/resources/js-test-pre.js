@@ -10,13 +10,24 @@ didFailSomeTests = false;
 
 (function() {
 
+    function createHTMLElement(tagName)
+    {
+        // FIXME: In an XML document, document.createElement() creates an element with a null namespace URI.
+        // So, we need use document.createElementNS() to explicitly create an element with the specified
+        // tag name in the HTML namespace. We can remove this function and use document.createElement()
+        // directly once we fix <https://bugs.webkit.org/show_bug.cgi?id=131074>.
+        if (document.createElementNS)
+            return document.createElementNS("http://www.w3.org/1999/xhtml", tagName);
+        return document.createElement(tagName);
+    }
+
     function getOrCreate(id, tagName)
     {
         var element = document.getElementById(id);
         if (element)
             return element;
 
-        element = document.createElement(tagName);
+        element = createHTMLElement(tagName);
         element.id = id;
         var refNode;
         var parent = document.body || document.documentElement;
@@ -32,7 +43,7 @@ didFailSomeTests = false;
     description = function description(msg, quiet)
     {
         // For MSIE 6 compatibility
-        var span = document.createElement("span");
+        var span = createHTMLElement("span");
         if (quiet)
             span.innerHTML = '<p>' + msg + '</p><p>On success, you will see no "<span class="fail">FAIL</span>" messages, followed by "<span class="pass">TEST COMPLETE</span>".</p>';
         else
@@ -47,7 +58,7 @@ didFailSomeTests = false;
 
     debug = function debug(msg)
     {
-        var span = document.createElement("span");
+        var span = createHTMLElement("span");
         getOrCreate("console", "div").appendChild(span); // insert it first so XHTML knows the namespace
         span.innerHTML = msg + '<br />';
     };
@@ -68,7 +79,7 @@ didFailSomeTests = false;
 
     function insertStyleSheet()
     {
-        var styleElement = document.createElement("style");
+        var styleElement = createHTMLElement("style");
         styleElement.textContent = css;
         (document.head || document.documentElement).appendChild(styleElement);
     }
@@ -264,26 +275,19 @@ function dfgShouldBe(theFunction, _a, _b)
   return values.length;
 }
 
-// Execute condition every 5 milliseconds until it succeed or failureTime is reached.
-// completionHandler is executed on success, failureHandler is executed on timeout.
-function _waitForCondition(condition, failureTime, completionHandler, failureHandler)
+// Execute condition every 5 milliseconds until it succeeds.
+function _waitForCondition(condition, completionHandler)
 {
-  if (condition()) {
+  if (condition())
     completionHandler();
-  } else if (Date.now() > failureTime) {
-    failureHandler();
-  } else {
-    setTimeout(_waitForCondition, 5, condition, failureTime, completionHandler, failureHandler);
-  }
+  else
+    setTimeout(_waitForCondition, 5, condition, completionHandler);
 }
 
-function shouldBecomeEqual(_a, _b, completionHandler, timeout)
+function shouldBecomeEqual(_a, _b, completionHandler)
 {
   if (typeof _a != "string" || typeof _b != "string")
     debug("WARN: shouldBecomeEqual() expects string arguments");
-
-  if (timeout === undefined)
-    timeout = 500;
 
   var condition = function() {
     var exception;
@@ -302,20 +306,15 @@ function shouldBecomeEqual(_a, _b, completionHandler, timeout)
     }
     return false;
   };
-  var failureTime = Date.now() + timeout;
-  var failureHandler = function () {
-    testFailed(_a + " failed to change to " + _b + " in " + (timeout / 1000) + " seconds.");
-    completionHandler();
-  };
-  _waitForCondition(condition, failureTime, completionHandler, failureHandler);
+  _waitForCondition(condition, completionHandler);
 }
 
-function shouldBecomeEqualToString(value, reference, completionHandler, timeout)
+function shouldBecomeEqualToString(value, reference, completionHandler)
 {
   if (typeof value !== "string" || typeof reference !== "string")
     debug("WARN: shouldBecomeEqualToString() expects string arguments");
   var unevaledString = JSON.stringify(reference);
-  shouldBecomeEqual(value, unevaledString, completionHandler, timeout);
+  shouldBecomeEqual(value, unevaledString, completionHandler);
 }
 
 function shouldBeType(_a, _type) {
@@ -397,12 +396,10 @@ function shouldNotBe(_a, _b, quiet)
     testFailed(_a + " should not be " + _bv + ".");
 }
 
-function shouldBecomeDifferent(_a, _b, completionHandler, timeout)
+function shouldBecomeDifferent(_a, _b, completionHandler)
 {
   if (typeof _a != "string" || typeof _b != "string")
     debug("WARN: shouldBecomeDifferent() expects string arguments");
-  if (timeout === undefined)
-    timeout = 500;
 
   var condition = function() {
     var exception;
@@ -421,12 +418,7 @@ function shouldBecomeDifferent(_a, _b, completionHandler, timeout)
     }
     return false;
   };
-  var failureTime = Date.now() + timeout;
-  var failureHandler = function () {
-    testFailed(_a + " did not become different from " + _b + " in " + (timeout / 1000) + " seconds.");
-    completionHandler();
-  };
-  _waitForCondition(condition, failureTime, completionHandler, failureHandler);
+  _waitForCondition(condition, completionHandler);
 }
 
 function shouldBeTrue(_a) { shouldBe(_a, "true"); }
@@ -581,6 +573,14 @@ function shouldBeGreaterThanOrEqual(_a, _b) {
         testFailed(_a + " should be >= " + _b + ". Was " + _av + " (of type " + typeof _av + ").");
     else
         testPassed(_a + " is >= " + _b);
+}
+
+function expectTrue(v, msg) {
+  if (v) {
+    testPassed(msg);
+  } else {
+    testFailed(msg);
+  }
 }
 
 function shouldNotThrow(_a) {

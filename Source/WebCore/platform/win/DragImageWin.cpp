@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,6 +26,7 @@
 #include "config.h"
 #include "DragImage.h"
 
+#include "FloatRoundedRect.h"
 #include "Font.h"
 #include "FontCache.h"
 #include "FontDescription.h"
@@ -33,7 +34,7 @@
 #include "GraphicsContext.h"
 #include "HWndDC.h"
 #include "Image.h"
-#include "KURL.h"
+#include "URL.h"
 #include "StringTruncator.h"
 #include "TextRun.h"
 #include "WebCoreTextRenderer.h"
@@ -121,7 +122,7 @@ static Font dragLabelFont(int size, bool bold, FontRenderingMode renderingMode)
     return result;
 }
 
-DragImageRef createDragImageForLink(KURL& url, const String& inLabel, FontRenderingMode fontRenderingMode)
+DragImageRef createDragImageForLink(URL& url, const String& inLabel, FontRenderingMode fontRenderingMode)
 {
     // This is more or less an exact match for the Mac OS X code.
 
@@ -195,7 +196,7 @@ DragImageRef createDragImageForLink(KURL& url, const String& inLabel, FontRender
     static const Color backgroundColor(140, 140, 140);
     static const IntSize radii(DragLabelRadius, DragLabelRadius);
     IntRect rect(0, 0, imageSize.width(), imageSize.height());
-    context.fillRoundedRect(rect, radii, radii, radii, radii, backgroundColor, ColorSpaceDeviceRGB);
+    context.fillRoundedRect(FloatRoundedRect(rect, radii, radii, radii, radii), backgroundColor, ColorSpaceDeviceRGB);
  
     // Draw the text
     static const Color topColor(0, 0, 0, 255); // original alpha = 0.75

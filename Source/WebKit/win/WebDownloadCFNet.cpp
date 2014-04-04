@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,7 +37,6 @@
 #include "WebURLCredential.h"
 #include "WebURLResponse.h"
 
-#include <wtf/platform.h>
 #include <wtf/text/CString.h>
 
 #include <io.h>
@@ -101,7 +100,7 @@ void WebDownload::init(ResourceHandle* handle, const ResourceRequest& request, c
     CFRelease(connection);
 }
 
-void WebDownload::init(const KURL& url, IWebDownloadDelegate* delegate)
+void WebDownload::init(const URL& url, IWebDownloadDelegate* delegate)
 {
     m_delegate = delegate ? delegate : DefaultDownloadDelegate::sharedInstance();
     LOG_ERROR("Delegate is %p", m_delegate.get());
@@ -483,7 +482,7 @@ void WebDownload::didFinish()
         
         bool reportBundlePathAsFinalPath = true;
 
-        BString destinationBSTR(m_destination.characters(), m_destination.length());
+        BString destinationBSTR(m_destination);
         if (FAILED(m_delegate->decideDestinationWithSuggestedFilename(this, destinationBSTR)))
             LOG_ERROR("delegate->decideDestinationWithSuggestedFilename() failed");
 

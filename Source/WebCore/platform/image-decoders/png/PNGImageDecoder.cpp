@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  * Copyright (C) Research In Motion Limited 2009-2010. All rights reserved.
  *
@@ -66,9 +66,6 @@ const double cInverseGamma = 0.45455;
 const unsigned long cMaxPNGSize = 1000000UL;
 
 // Called if the decoding of the image fails.
-#if PLATFORM(QT)
-static void PNGAPI decodingFailed(png_structp, png_const_charp) NO_RETURN;
-#endif
 static void PNGAPI decodingFailed(png_structp png, png_const_charp)
 {
     longjmp(JMPBUF(png), 1);

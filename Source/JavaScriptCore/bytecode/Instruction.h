@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -35,6 +35,7 @@
 #include "SpecialPointer.h"
 #include "Structure.h"
 #include "StructureChain.h"
+#include "VirtualRegister.h"
 #include <wtf/VectorTraits.h>
 
 namespace JSC {
@@ -42,6 +43,7 @@ namespace JSC {
 class ArrayAllocationProfile;
 class ArrayProfile;
 class ObjectAllocationProfile;
+class VariableWatchpointSet;
 struct LLIntCallLinkInfo;
 struct ValueProfile;
 
@@ -88,16 +90,13 @@ struct Instruction {
     Instruction(PropertySlot::GetValueFunc getterFunc) { u.getterFunc = getterFunc; }
         
     Instruction(LLIntCallLinkInfo* callLinkInfo) { u.callLinkInfo = callLinkInfo; }
-        
     Instruction(ValueProfile* profile) { u.profile = profile; }
     Instruction(ArrayProfile* profile) { u.arrayProfile = profile; }
     Instruction(ArrayAllocationProfile* profile) { u.arrayAllocationProfile = profile; }
     Instruction(ObjectAllocationProfile* profile) { u.objectAllocationProfile = profile; }
-        
     Instruction(WriteBarrier<Unknown>* registerPointer) { u.registerPointer = registerPointer; }
-        
     Instruction(Special::Pointer pointer) { u.specialPointer = pointer; }
-        
+    Instruction(StringImpl* uid) { u.uid = uid; }
     Instruction(bool* predicatePointer) { u.predicatePointer = predicatePointer; }
 
     union {
@@ -110,10 +109,13 @@ struct Instruction {
         Special::Pointer specialPointer;
         PropertySlot::GetValueFunc getterFunc;
         LLIntCallLinkInfo* callLinkInfo;
+        StringImpl* uid;
         ValueProfile* profile;
         ArrayProfile* arrayProfile;
         ArrayAllocationProfile* arrayAllocationProfile;
         ObjectAllocationProfile* objectAllocationProfile;
+        VariableWatchpointSet* watchpointSet;
+        WriteBarrierBase<JSActivation> activation;
         void* pointer;
         bool* predicatePointer;
     } u;

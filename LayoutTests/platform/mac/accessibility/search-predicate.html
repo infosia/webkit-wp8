@@ -35,6 +35,7 @@
 <thead><tr><td>second table heading level 1</td></tr></thead>
 <tbody><tr><td>second table body level 1</td></tr></tbody>
 </table>
+<ul role="tree"><li role="treeitem">tree item</li></ul>
 
 <h1>isVisible test start</h1>
 <div id="group" style="overflow: scroll; width:100px; height:100px;">
@@ -210,6 +211,12 @@
         // Misspelled word.
         // FIXME: Handle this search key.
         
+        // Outline.
+        startElement = accessibilityController.focusedElement.childAtIndex(0);
+        resultElement = containerElement.uiElementForSearchPredicate(startElement, true, "AXOutlineSearchKey", "", false);
+        shouldBe("resultElement.role", "'AXRole: AXOutline'");
+        shouldBe("resultElement.childAtIndex(0).childAtIndex(0).stringValue", "'AXValue: tree item'");
+        
         // Plain text.
         startElement = accessibilityController.focusedElement.childAtIndex(0);
         resultElement = containerElement.uiElementForSearchPredicate(startElement, true, "AXPlainTextSearchKey", "", false);
@@ -364,7 +371,7 @@
         
         // there should be no more visible buttons
         resultElement = containerElement.uiElementForSearchPredicate(resultElement, true, "AXButtonSearchKey", "", true);
-        shouldBe("resultElement.role", "'AXRole: '");
+        shouldBeUndefined("resultElement");
         
     }
     

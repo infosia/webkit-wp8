@@ -28,7 +28,6 @@
 #include "CachedResourceRequest.h"
 #include "CachedXSLStyleSheet.h"
 #include "Document.h"
-#include "DocumentStyleSheetCollection.h"
 #include "ExceptionCode.h"
 #include "Frame.h"
 #include "FrameLoader.h"
@@ -67,7 +66,7 @@ ProcessingInstruction::~ProcessingInstruction()
         m_cachedSheet->removeClient(this);
 
     if (inDocument())
-        document().styleSheetCollection()->removeStyleSheetCandidateNode(this);
+        document().styleSheetCollection().removeStyleSheetCandidateNode(*this);
 }
 
 String ProcessingInstruction::nodeName() const
@@ -127,7 +126,7 @@ void ProcessingInstruction::checkStyleSheet()
             // We need to make a synthetic XSLStyleSheet that is embedded.  It needs to be able
             // to kick off import/include loads that can hang off some parent sheet.
             if (m_isXSL) {
-                KURL finalURL(ParsedURLString, m_localHref);
+                URL finalURL(ParsedURLString, m_localHref);
                 m_sheet = XSLStyleSheet::createEmbedded(this, finalURL);
                 m_loading = false;
             }
@@ -143,7 +142,7 @@ void ProcessingInstruction::checkStyleSheet()
                 return;
             
             m_loading = true;
-            document().styleSheetCollection()->addPendingSheet();
+            document().styleSheetCollection().addPendingSheet();
             
             CachedResourceRequest request(ResourceRequest(document().completeURL(href)));
 #if ENABLE(XSLT)
@@ -164,7 +163,7 @@ void ProcessingInstruction::checkStyleSheet()
             else {
                 // The request may have been denied if (for example) the stylesheet is local and the document is remote.
                 m_loading = false;
-                document().styleSheetCollection()->removePendingSheet();
+                document().styleSheetCollection().removePendingSheet();
             }
         }
     }
@@ -182,13 +181,13 @@ bool ProcessingInstruction::isLoading() const
 bool ProcessingInstruction::sheetLoaded()
 {
     if (!isLoading()) {
-        document().styleSheetCollection()->removePendingSheet();
+        document().styleSheetCollection().removePendingSheet();
         return true;
     }
     return false;
 }
 
-void ProcessingInstruction::setCSSStyleSheet(const String& href, const KURL& baseURL, const String& charset, const CachedCSSStyleSheet* sheet)
+void ProcessingInstruction::setCSSStyleSheet(const String& href, const URL& baseURL, const String& charset, const CachedCSSStyleSheet* sheet)
 {
     if (!inDocument()) {
         ASSERT(!m_sheet);
@@ -196,16 +195,14 @@ void ProcessingInstruction::setCSSStyleSheet(const String& href, const KURL& bas
     }
 
     ASSERT(m_isCSS);
-    CSSParserContext parserContext(&document(), baseURL, charset);
+    CSSParserContext parserContext(document(), baseURL, charset);
 
-    RefPtr<StyleSheetContents> newSheet = StyleSheetContents::create(href, parserContext);
+    auto cssSheet = CSSStyleSheet::create(StyleSheetContents::create(href, parserContext), this);
+    cssSheet.get().setDisabled(m_alternate);
+    cssSheet.get().setTitle(m_title);
+    cssSheet.get().setMediaQueries(MediaQuerySet::create(m_media));
 
-    RefPtr<CSSStyleSheet> cssSheet = CSSStyleSheet::create(newSheet, this);
-    cssSheet->setDisabled(m_alternate);
-    cssSheet->setTitle(m_title);
-    cssSheet->setMediaQueries(MediaQuerySet::create(m_media));
-
-    m_sheet = cssSheet.release();
+    m_sheet = std::move(cssSheet);
 
     // We don't need the cross-origin security check here because we are
     // getting the sheet text in "strict" mode. This enforces a valid CSS MIME
@@ -214,7 +211,7 @@ void ProcessingInstruction::setCSSStyleSheet(const String& href, const KURL& bas
 }
 
 #if ENABLE(XSLT)
-void ProcessingInstruction::setXSLStyleSheet(const String& href, const KURL& baseURL, const String& sheet)
+void ProcessingInstruction::setXSLStyleSheet(const String& href, const URL& baseURL, const String& sheet)
 {
     ASSERT(m_isXSL);
     m_sheet = XSLStyleSheet::create(this, href, baseURL);
@@ -225,7 +222,7 @@ void ProcessingInstruction::setXSLStyleSheet(const String& href, const KURL& bas
 void ProcessingInstruction::parseStyleSheet(const String& sheet)
 {
     if (m_isCSS)
-        static_cast<CSSStyleSheet*>(m_sheet.get())->contents()->parseString(sheet);
+        static_cast<CSSStyleSheet*>(m_sheet.get())->contents().parseString(sheet);
 #if ENABLE(XSLT)
     else if (m_isXSL)
         static_cast<XSLStyleSheet*>(m_sheet.get())->parseString(sheet);
@@ -238,7 +235,7 @@ void ProcessingInstruction::parseStyleSheet(const String& sheet)
     m_loading = false;
 
     if (m_isCSS)
-        static_cast<CSSStyleSheet*>(m_sheet.get())->contents()->checkLoaded();
+        static_cast<CSSStyleSheet*>(m_sheet.get())->contents().checkLoaded();
 #if ENABLE(XSLT)
     else if (m_isXSL)
         static_cast<XSLStyleSheet*>(m_sheet.get())->checkLoaded();
@@ -254,7 +251,7 @@ void ProcessingInstruction::setCSSStyleSheet(PassRefPtr<CSSStyleSheet> sheet)
     sheet->setDisabled(m_alternate);
 }
 
-void ProcessingInstruction::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) const
+void ProcessingInstruction::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     if (!sheet())
         return;
@@ -262,23 +259,23 @@ void ProcessingInstruction::addSubresourceAttributeURLs(ListHashSet<KURL>& urls)
     addSubresourceURL(urls, sheet()->baseURL());
 }
 
-Node::InsertionNotificationRequest ProcessingInstruction::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest ProcessingInstruction::insertedInto(ContainerNode& insertionPoint)
 {
     CharacterData::insertedInto(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return InsertionDone;
-    document().styleSheetCollection()->addStyleSheetCandidateNode(this, m_createdByParser);
+    document().styleSheetCollection().addStyleSheetCandidateNode(*this, m_createdByParser);
     checkStyleSheet();
     return InsertionDone;
 }
 
-void ProcessingInstruction::removedFrom(ContainerNode* insertionPoint)
+void ProcessingInstruction::removedFrom(ContainerNode& insertionPoint)
 {
     CharacterData::removedFrom(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return;
     
-    document().styleSheetCollection()->removeStyleSheetCandidateNode(this);
+    document().styleSheetCollection().removeStyleSheetCandidateNode(*this);
 
     if (m_sheet) {
         ASSERT(m_sheet->ownerNode() == this);

@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2012 Samsung Electronics. All rights reserved.
+ * Copyright (C) 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,6 +26,7 @@
 InspectorFrontendAPI = {};
 
 InspectorTest = {};
+InspectorTest.dumpInspectorProtocolMessages = false;
 InspectorTest._dispatchTable = [];
 InspectorTest._requestId = -1;
 InspectorTest.eventHandler = {};
@@ -41,6 +43,11 @@ InspectorTest.sendCommand = function(method, params, handler)
     var messageObject = { "method": method,
                           "params": params,
                           "id": this._requestId };
+
+    // This matches the debug dumping in InspectorBackend, which is bypassed
+    // by InspectorTest. Return messages should be dumped by InspectorBackend.
+    if (this.dumpInspectorProtocolMessages)
+        console.log("frontend: " + JSON.stringify(messageObject));
 
     InspectorFrontendHost.sendMessageToBackend(JSON.stringify(messageObject));
 
@@ -62,7 +69,35 @@ InspectorFrontendAPI.dispatchMessageAsync = function(messageObject)
         var eventHandler = InspectorTest.eventHandler[eventName];
         if (eventHandler)
             eventHandler(messageObject);
+        else if (InspectorTest.defaultEventHandler)
+            InspectorTest.defaultEventHandler(messageObject);
     }
+}
+
+/**
+* Registers an event handler for messages coming from the InspectorBackend.
+* If multiple callbacks are registered for the same event, it will chain the execution.
+* @param {string} event name
+* @param {function} handler to be executed
+* @param {boolean} execute the handler before all other handlers
+*/
+InspectorTest.addEventListener = function(eventName, callback, capture)
+{
+    if (!InspectorTest.eventHandler[eventName]) {
+        InspectorTest.eventHandler[eventName] = callback;
+        return;
+    }
+    var firstHandler = InspectorTest.eventHandler[eventName];
+    var secondHandler = callback;
+    if (capture) {
+        // Swap firstHandler with the new callback, so that we execute the callback first.
+        [firstHandler, secondHandler] = [secondHandler, firstHandler];
+    }
+    InspectorTest.eventHandler[eventName] = function(messageObject)
+    {
+        firstHandler(messageObject);
+        secondHandler(messageObject);
+    };
 }
 
 /**
@@ -72,6 +107,17 @@ InspectorFrontendAPI.dispatchMessageAsync = function(messageObject)
 InspectorTest.log = function(message)
 {
     this.sendCommand("Runtime.evaluate", { "expression": "log(" + JSON.stringify(message) + ")" } );
+}
+
+/**
+* Logs an assert message to document.
+* @param {boolean} condition
+* @param {string} message
+*/
+InspectorTest.assert = function(condition, message)
+{
+    var status = condition ? "PASS" : "FAIL";
+    this.sendCommand("Runtime.evaluate", { "expression": "log(" + JSON.stringify(status + ": " + message) + ")" } );
 }
 
 /**
@@ -92,7 +138,7 @@ InspectorTest.completeTest = function()
 InspectorTest.checkForError = function(responseObject)
 {
     if (responseObject.error) {
-        InspectorTest.log("PROTOCOL ERROR: " + responseObject.error.message);
+        InspectorTest.log("PROTOCOL ERROR: " + JSON.stringify(responseObject.error));
         InspectorTest.completeTest();
         throw "PROTOCOL ERROR";
     }
@@ -106,8 +152,126 @@ InspectorTest.importScript = function(scriptName)
     var xhr = new XMLHttpRequest();
     xhr.open("GET", scriptName, false);
     xhr.send(null);
-    window.eval(xhr.responseText);
+    if (xhr.status !== 0 && xhr.status !== 200)
+        throw new Error("Invalid script URL: " + scriptName);
+    var script = "try { " + xhr.responseText + "} catch (e) { alert(" + JSON.stringify("Error in: " + scriptName) + "); throw e; }";
+    window.eval(script);
 }
+
+// FIXME: Move model tests off of the stub inspector page, and delete this function
+// since it's now implemented as Test.html. <https://webkit.org/b/129217>
+InspectorTest.initializeInspectorModels = function()
+{
+    // Catch any errors and finish the test early.
+    console.error = window.onerror = function()
+    {
+        InspectorTest.log(Array.prototype.join.call(arguments, ', '));
+        InspectorTest.completeTest();
+    };
+
+    console.assert = function(assertion, message)
+    {
+        if (assertion)
+            return;
+
+        InspectorTest.log("ASSERT:" + message);
+        InspectorTest.completeTest();
+    };
+
+    // Note: This function overwrites the InspectorFrontendAPI, so there's currently no
+    // way to intercept the messages from the backend.
+
+    var inspectorScripts = [
+        "Base/WebInspector",
+        "Base/Object",
+
+        "Base/DOMUtilities",
+        "Base/URLUtilities",
+        "Base/Utilities",
+
+        "Protocol/CSSObserver",
+        "Protocol/DOMObserver",
+        "Protocol/DebuggerObserver",
+        "Protocol/InspectorBackend",
+        "Protocol/InspectorFrontendAPI",
+        "Protocol/InspectorFrontendHostStub",
+        "Protocol/InspectorJSBackendCommands",
+        "Protocol/InspectorObserver",
+        "Protocol/InspectorWebBackendCommands",
+        "Protocol/MessageDispatcher",
+        "Protocol/PageObserver",
+        "Protocol/RemoteObject",
+        "Protocol/RuntimeObserver",
+
+        "Models/BreakpointAction",
+        "Models/SourceCode",
+
+        "Models/Breakpoint",
+        "Models/Color",
+        "Models/ContentFlow",
+        "Models/DOMNode",
+        "Models/DOMStorageObject",
+        "Models/DOMTree",
+        "Models/ExecutionContext",
+        "Models/ExecutionContextList",
+        "Models/Frame",
+        "Models/IndexedDatabase",
+        "Models/IndexedDatabaseObjectStore",
+        "Models/IndexedDatabaseObjectStoreIndex",
+        "Models/Probe",
+        "Models/ProbeSet",
+        "Models/ProbeSetDataFrame",
+        "Models/ProbeSetDataTable",
+        "Models/Resource",
+        "Models/ResourceCollection",
+        "Models/Revision",
+        "Models/Script",
+        "Models/Setting",
+        "Models/SourceCodeLocation",
+        "Models/SourceCodeRevision",
+        "Models/SourceMapResource",
+        "Models/TextRange",
+
+        "Controllers/CSSStyleManager",
+        "Controllers/DOMTreeManager",
+        "Controllers/DebuggerManager",
+        "Controllers/FrameResourceManager",
+        "Controllers/ProbeManager",
+        "Controllers/RuntimeManager",
+        "Controllers/RuntimeManager",
+        "Controllers/StorageManager"
+    ];
+
+    // This corresponds to loading the scripts in Main.hml.
+    for (var i = 0; i < inspectorScripts.length; ++i)
+        InspectorTest.importScript("../../../../../Source/WebInspectorUI/UserInterface/" + inspectorScripts[i] + ".js");
+
+    // The initialization should be in sync with WebInspector.loaded in Main.js.
+    // FIXME: As soon as we can support all the observers and managers we should remove UI related tasks
+    // from WebInspector.loaded, so that it can be used from the LayoutTests.
+
+    InspectorFrontendHost.loaded();
+
+    // Enable agents.
+    InspectorAgent.enable();
+
+    InspectorBackend.registerInspectorDispatcher(new WebInspector.InspectorObserver);
+    InspectorBackend.registerPageDispatcher(new WebInspector.PageObserver);
+    InspectorBackend.registerDOMDispatcher(new WebInspector.DOMObserver);
+    InspectorBackend.registerDebuggerDispatcher(new WebInspector.DebuggerObserver);
+    InspectorBackend.registerCSSDispatcher(new WebInspector.CSSObserver);
+    if (InspectorBackend.registerRuntimeDispatcher)
+        InspectorBackend.registerRuntimeDispatcher(new WebInspector.RuntimeObserver);
+
+    WebInspector.frameResourceManager = new WebInspector.FrameResourceManager;
+    WebInspector.storageManager = new WebInspector.StorageManager;
+    WebInspector.domTreeManager = new WebInspector.DOMTreeManager;
+    WebInspector.cssStyleManager = new WebInspector.CSSStyleManager;
+    WebInspector.debuggerManager = new WebInspector.DebuggerManager;
+    WebInspector.runtimeManager = new WebInspector.RuntimeManager;
+    WebInspector.probeManager = new WebInspector.ProbeManager;
+}
+
 
 window.addEventListener("message", function(event) {
     try {

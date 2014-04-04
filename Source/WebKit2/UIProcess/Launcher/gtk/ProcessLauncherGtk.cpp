@@ -33,17 +33,16 @@
 #include <WebCore/FileSystem.h>
 #include <WebCore/NetworkingContext.h>
 #include <WebCore/ResourceHandle.h>
-#include <WebCore/RunLoop.h>
 #include <errno.h>
 #include <glib.h>
 #include <locale.h>
+#include <wtf/RunLoop.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/gobject/GlibUtilities.h>
 
-#if OS(LINUX)
-#include <sys/prctl.h>
+#if OS(UNIX)
 #include <sys/socket.h>
 #endif
 
@@ -82,6 +81,8 @@ void ProcessLauncher::launchProcess()
         break;
     case PluginProcess:
         executablePath = executablePathOfPluginProcess();
+        if (m_launchOptions.extraInitializationData.contains("requires-gtk2"))
+            executablePath.append('2');
         pluginPath = m_launchOptions.extraInitializationData.get("plugin-path");
         realPluginPath = fileSystemRepresentation(pluginPath);
         break;
@@ -96,14 +97,34 @@ void ProcessLauncher::launchProcess()
     }
 
     realExecutablePath = fileSystemRepresentation(executablePath);
-    GOwnPtr<gchar> socket(g_strdup_printf("%d", sockets[0]));
-    char* argv[4];
-    argv[0] = const_cast<char*>(realExecutablePath.data());
-    argv[1] = socket.get();
-    argv[2] = const_cast<char*>(realPluginPath.data());
-    argv[3] = 0;
+    GUniquePtr<gchar> socket(g_strdup_printf("%d", sockets[0]));
 
-    GOwnPtr<GError> error;
+    unsigned nargs = 4; // size of the argv array for g_spawn_async()
+
+#ifndef NDEBUG
+    Vector<CString> prefixArgs;
+    if (!m_launchOptions.processCmdPrefix.isNull()) {
+        Vector<String> splitArgs;
+        m_launchOptions.processCmdPrefix.split(' ', splitArgs);
+        for (auto it = splitArgs.begin(); it != splitArgs.end(); it++)
+            prefixArgs.append(it->utf8());
+        nargs += prefixArgs.size();
+    }
+#endif
+
+    char** argv = g_newa(char*, nargs);
+    unsigned i = 0;
+#ifndef NDEBUG
+    // If there's a prefix command, put it before the rest of the args.
+    for (auto it = prefixArgs.begin(); it != prefixArgs.end(); it++)
+        argv[i++] = const_cast<char*>(it->data());
+#endif
+    argv[i++] = const_cast<char*>(realExecutablePath.data());
+    argv[i++] = socket.get();
+    argv[i++] = const_cast<char*>(realPluginPath.data());
+    argv[i++] = 0;
+
+    GUniqueOutPtr<GError> error;
     if (!g_spawn_async(0, argv, 0, G_SPAWN_LEAVE_DESCRIPTORS_OPEN, childSetupFunction, GINT_TO_POINTER(sockets[1]), &pid, &error.outPtr())) {
         g_printerr("Unable to fork a new WebProcess: %s.\n", error->message);
         ASSERT_NOT_REACHED();
@@ -113,7 +134,7 @@ void ProcessLauncher::launchProcess()
     m_processIdentifier = pid;
 
     // We've finished launching the process, message back to the main run loop.
-    RunLoop::main()->dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, m_processIdentifier, sockets[1]));
+    RunLoop::main().dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, m_processIdentifier, sockets[1]));
 }
 
 void ProcessLauncher::terminateProcess()

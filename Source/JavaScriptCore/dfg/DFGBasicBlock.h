@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,9 @@
 #if ENABLE(DFG_JIT)
 
 #include "DFGAbstractValue.h"
+#include "DFGAvailability.h"
 #include "DFGBranchDirection.h"
+#include "DFGFlushedAt.h"
 #include "DFGNode.h"
 #include "DFGVariadicFunction.h"
 #include "Operands.h"
@@ -46,7 +48,9 @@ class InsertionSet;
 typedef Vector<BasicBlock*, 2> PredecessorList;
 
 struct BasicBlock : RefCounted<BasicBlock> {
-    BasicBlock(unsigned bytecodeBegin, unsigned numArguments, unsigned numLocals);
+    BasicBlock(
+        unsigned bytecodeBegin, unsigned numArguments, unsigned numLocals,
+        float executionCount);
     ~BasicBlock();
     
     void ensureLocals(unsigned newNumLocals);
@@ -132,15 +136,15 @@ struct BasicBlock : RefCounted<BasicBlock> {
     Operands<AbstractValue> valuesAtHead;
     Operands<AbstractValue> valuesAtTail;
     
+    float executionCount;
+    
     // These fields are reserved for NaturalLoops.
     static const unsigned numberOfInnerMostLoopIndices = 2;
     unsigned innerMostLoopIndices[numberOfInnerMostLoopIndices];
 
     struct SSAData {
-        Operands<FlushFormat> flushFormatAtHead;
-        Operands<FlushFormat> flushFormatAtTail;
-        Operands<Node*> availabilityAtHead;
-        Operands<Node*> availabilityAtTail;
+        Operands<Availability> availabilityAtHead;
+        Operands<Availability> availabilityAtTail;
         HashSet<Node*> liveAtHead;
         HashSet<Node*> liveAtTail;
         HashMap<Node*, AbstractValue> valuesAtHead;

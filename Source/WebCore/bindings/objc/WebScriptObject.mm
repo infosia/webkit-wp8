@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007, 2008 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2006, 2007, 2008, 2013 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,27 +10,24 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #import "config.h"
 #import "WebScriptObjectPrivate.h"
 
-#import "BindingSecurity.h"
 #import "BridgeJSC.h"
-#import "Console.h"
 #import "DOMInternal.h"
-#import "DOMWindow.h"
 #import "Frame.h"
 #import "JSDOMWindow.h"
 #import "JSDOMWindowCustom.h"
@@ -125,7 +122,7 @@ id createJSWrapper(JSC::JSObject* object, PassRefPtr<JSC::Bindings::RootObject> 
 
 static void addExceptionToConsole(ExecState* exec)
 {
-    JSDOMWindow* window = asJSDOMWindow(exec->dynamicGlobalObject());
+    JSDOMWindow* window = asJSDOMWindow(exec->vmEntryGlobalObject());
     if (!window || !exec->hadException())
         return;
     reportCurrentException(exec);
@@ -377,9 +374,9 @@ static void getListFromNSArray(ExecState *exec, NSArray *array, RootObject* root
     ASSERT(!exec->hadException());
 
     JSLockHolder lock(exec);
-
-    PutPropertySlot slot;
-    [self _imp]->methodTable()->put([self _imp], exec, Identifier(exec, String(key)), convertObjcValueToValue(exec, &value, ObjcObjectType, [self _rootObject]), slot);
+    JSObject* object = JSC::jsDynamicCast<JSObject*>([self _imp]);
+    PutPropertySlot slot(object);
+    object->methodTable()->put(object, exec, Identifier(exec, String(key)), convertObjcValueToValue(exec, &value, ObjcObjectType, [self _rootObject]), slot);
 
     if (exec->hadException()) {
         addExceptionToConsole(exec);
@@ -536,7 +533,7 @@ static void getListFromNSArray(ExecState *exec, NSArray *array, RootObject* root
 
         if (object->inherits(JSHTMLElement::info())) {
             // Plugin elements cache the instance internally.
-            if (ObjcInstance* instance = static_cast<ObjcInstance*>(pluginInstance(*jsCast<JSHTMLElement*>(object)->impl())))
+            if (ObjcInstance* instance = static_cast<ObjcInstance*>(pluginInstance(jsCast<JSHTMLElement*>(object)->impl())))
                 return instance->getObject();
         } else if (object->inherits(ObjCRuntimeObject::info())) {
             ObjCRuntimeObject* runtimeObject = static_cast<ObjCRuntimeObject*>(object);
@@ -549,11 +546,8 @@ static void getListFromNSArray(ExecState *exec, NSArray *array, RootObject* root
         return [WebScriptObject scriptObjectForJSObject:toRef(object) originRootObject:originRootObject rootObject:rootObject];
     }
 
-    if (value.isString()) {
-        ExecState* exec = rootObject->globalObject()->globalExec();
-        const String& u = asString(value)->value(exec);
-        return [NSString stringWithCharacters:u.characters() length:u.length()];
-    }
+    if (value.isString())
+        return asString(value)->value(rootObject->globalObject()->globalExec());
 
     if (value.isNumber())
         return [NSNumber numberWithDouble:value.asNumber()];

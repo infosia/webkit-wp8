@@ -21,8 +21,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimateTransformElement.h"
 
 #include "Attribute.h"
@@ -57,7 +55,7 @@ bool SVGAnimateTransformElement::hasValidAttributeType()
 
 bool SVGAnimateTransformElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty())
         supportedAttributes.add(SVGNames::typeAttr);
     return supportedAttributes.contains<SVGAttributeHashTranslator>(attrName);
@@ -81,5 +79,3 @@ void SVGAnimateTransformElement::parseAttribute(const QualifiedName& name, const
 }
 
 }
-
-#endif // ENABLE(SVG)

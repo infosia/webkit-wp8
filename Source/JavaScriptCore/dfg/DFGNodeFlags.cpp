@@ -28,17 +28,15 @@
 
 #if ENABLE(DFG_JIT)
 
+#include "JSCInlines.h"
 #include <wtf/CommaPrinter.h>
+#include <wtf/StringPrintStream.h>
 
 namespace JSC { namespace DFG {
 
-void dumpNodeFlags(PrintStream& out, NodeFlags flags)
+void dumpNodeFlags(PrintStream& actualOut, NodeFlags flags)
 {
-    if (!((flags & ~NodeRelevantToOSR) ^ NodeDoesNotExit)) {
-        out.print("<empty>");
-        return;
-    }
-
+    StringPrintStream out;
     CommaPrinter comma("|");
     
     if (flags & NodeResultMask) {
@@ -51,6 +49,9 @@ void dumpNodeFlags(PrintStream& out, NodeFlags flags)
             break;
         case NodeResultInt32:
             out.print(comma, "Int32");
+            break;
+        case NodeResultInt52:
+            out.print(comma, "Int52");
             break;
         case NodeResultBoolean:
             out.print(comma, "Boolean");
@@ -99,8 +100,14 @@ void dumpNodeFlags(PrintStream& out, NodeFlags flags)
     if (!(flags & NodeDoesNotExit))
         out.print(comma, "CanExit");
     
-    if (flags & NodeExitsForward)
-        out.print(comma, "NodeExitsForward");
+    if (flags & NodeIsFlushed)
+        out.print(comma, "IsFlushed");
+    
+    CString string = out.toCString();
+    if (!string.length())
+        actualOut.print("<empty>");
+    else
+        actualOut.print(string);
 }
 
 } } // namespace JSC::DFG

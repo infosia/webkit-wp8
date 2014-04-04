@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,6 +26,7 @@
 #include "config.h"
 #include "RenderGeometryMap.h"
 
+#include "RenderFlowThread.h"
 #include "RenderLayer.h"
 #include "RenderView.h"
 #include "TransformState.h"
@@ -161,17 +162,16 @@ void RenderGeometryMap::pushMappingsToAncestor(const RenderObject* renderer, con
 static bool canMapBetweenRenderers(const RenderObject& renderer, const RenderObject& ancestor)
 {
     for (const RenderObject* current = &renderer; ; current = current->parent()) {
-        const RenderStyle* style = current->style();
-        if (style->position() == FixedPosition || style->isFlippedBlocksWritingMode())
+        const RenderStyle& style = current->style();
+        if (style.position() == FixedPosition || style.isFlippedBlocksWritingMode())
             return false;
-        
+
         if (current->hasColumns() || current->hasTransform() || current->isRenderFlowThread())
             return false;
 
-    #if ENABLE(SVG)
         if (current->isSVGRoot())
             return false;
-    #endif
+
         if (current == &ancestor)
             break;
     }
@@ -229,7 +229,7 @@ void RenderGeometryMap::push(const RenderObject* renderer, const TransformationM
     
     RenderGeometryMapStep& step = m_mapping[m_insertionPosition];
     if (!t.isIntegerTranslation())
-        step.m_transform = adoptPtr(new TransformationMatrix(t));
+        step.m_transform = std::make_unique<TransformationMatrix>(t);
     else
         step.m_offset = LayoutSize(t.e(), t.f());
 
@@ -246,9 +246,15 @@ void RenderGeometryMap::pushView(const RenderView* view, const LayoutSize& scrol
     RenderGeometryMapStep& step = m_mapping[m_insertionPosition];
     step.m_offset = scrollOffset;
     if (t)
-        step.m_transform = adoptPtr(new TransformationMatrix(*t));
+        step.m_transform = std::make_unique<TransformationMatrix>(*t);
     
     stepInserted(step);
+}
+
+void RenderGeometryMap::pushRenderFlowThread(const RenderFlowThread* flowThread)
+{
+    m_mapping.append(RenderGeometryMapStep(flowThread, false, false, false, false));
+    stepInserted(m_mapping.last());
 }
 
 void RenderGeometryMap::popMappingsToAncestor(const RenderLayerModelObject* ancestorRenderer)

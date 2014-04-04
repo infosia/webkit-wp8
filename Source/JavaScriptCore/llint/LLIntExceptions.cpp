@@ -31,10 +31,9 @@
 #include "CallFrame.h"
 #include "CodeBlock.h"
 #include "Instruction.h"
-#include "JITExceptions.h"
 #include "LLIntCommon.h"
 #include "LowLevelInterpreter.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace LLInt {
 
@@ -44,30 +43,23 @@ Instruction* returnToThrowForThrownException(ExecState* exec)
     return LLInt::exceptionInstructions();
 }
 
-static void doThrow(ExecState* exec)
-{
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
-    genericUnwind(vm, exec, vm->exception());
-}
-
 Instruction* returnToThrow(ExecState* exec)
 {
+    UNUSED_PARAM(exec);
 #if LLINT_SLOW_PATH_TRACING
     VM* vm = &exec->vm();
     dataLog("Throwing exception ", vm->exception(), " (returnToThrow).\n");
 #endif
-    doThrow(exec);
     return LLInt::exceptionInstructions();
 }
 
 void* callToThrow(ExecState* exec)
 {
+    UNUSED_PARAM(exec);
 #if LLINT_SLOW_PATH_TRACING
     VM* vm = &exec->vm();
     dataLog("Throwing exception ", vm->exception(), " (callToThrow).\n");
 #endif
-    doThrow(exec);
     return LLInt::getCodePtr(llint_throw_during_call_trampoline);
 }
 

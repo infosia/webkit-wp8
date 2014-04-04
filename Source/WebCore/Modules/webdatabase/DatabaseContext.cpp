@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -102,6 +102,9 @@ DatabaseContext::DatabaseContext(ScriptExecutionContext* context)
     , m_hasOpenDatabases(false)
     , m_isRegistered(true) // will register on construction below.
     , m_hasRequestedTermination(false)
+#if PLATFORM(IOS)
+    , m_paused(false)
+#endif //PLATFORM(IOS)
 {
     // ActiveDOMObject expects this to be called to set internal flags.
     suspendIfNeeded();
@@ -161,6 +164,9 @@ PassRefPtr<DatabaseBackendContext> DatabaseContext::backend()
 DatabaseThread* DatabaseContext::databaseThread()
 {
     if (!m_databaseThread && !m_hasOpenDatabases) {
+#if PLATFORM(IOS)
+        MutexLocker lock(m_databaseThreadMutex);
+#endif //PLATFORM(IOS)
         // It's OK to ask for the m_databaseThread after we've requested
         // termination because we're still using it to execute the closing
         // of the database. However, it is NOT OK to create a new thread
@@ -172,10 +178,25 @@ DatabaseThread* DatabaseContext::databaseThread()
         m_databaseThread = DatabaseThread::create();
         if (!m_databaseThread->start())
             m_databaseThread = 0;
+#if PLATFORM(IOS)
+        if (m_databaseThread)
+            m_databaseThread->setPaused(m_paused);
+#endif //PLATFORM(IOS)
     }
 
     return m_databaseThread.get();
 }
+
+#if PLATFORM(IOS)
+void DatabaseContext::setPaused(bool paused)
+{
+    MutexLocker lock(m_databaseThreadMutex);
+
+    m_paused = paused;
+    if (m_databaseThread)
+        m_databaseThread->setPaused(m_paused);
+}
+#endif // PLATFORM(IOS)
 
 bool DatabaseContext::stopDatabases(DatabaseTaskSynchronizer* cleanupSync)
 {
@@ -206,7 +227,7 @@ bool DatabaseContext::allowDatabaseAccess() const
 {
     if (m_scriptExecutionContext->isDocument()) {
         Document* document = toDocument(m_scriptExecutionContext);
-        if (!document->page() || (document->page()->settings().privateBrowsingEnabled() && !SchemeRegistry::allowsDatabaseAccessInPrivateBrowsing(document->securityOrigin()->protocol())))
+        if (!document->page() || (document->page()->usesEphemeralSession() && !SchemeRegistry::allowsDatabaseAccessInPrivateBrowsing(document->securityOrigin()->protocol())))
             return false;
         return true;
     }

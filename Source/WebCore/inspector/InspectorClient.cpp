@@ -34,11 +34,13 @@
 
 #include "InspectorClient.h"
 
-#include "Frame.h"
+#include "MainFrame.h"
 #include "Page.h"
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
+#include <bindings/ScriptValue.h>
+
+using namespace Inspector;
 
 namespace WebCore {
 

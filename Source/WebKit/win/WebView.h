@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCfLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABIuLITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -31,8 +31,11 @@
 #include "WebKit.h"
 #include "WebFrame.h"
 #include "WebPreferences.h"
+#include <WebCore/CACFLayerTreeHostClient.h>
 #include <WebCore/COMPtr.h>
 #include <WebCore/DragActions.h>
+#include <WebCore/GraphicsLayer.h>
+#include <WebCore/GraphicsLayerClient.h>
 #include <WebCore/IntRect.h>
 #include <WebCore/SharedGDIObject.h>
 #include <WebCore/SuspendableTimer.h>
@@ -41,17 +44,12 @@
 #include <wtf/OwnPtr.h>
 #include <wtf/RefPtr.h>
 
-#if USE(ACCELERATED_COMPOSITING)
-#include <WebCore/CACFLayerTreeHostClient.h>
-#include <WebCore/GraphicsLayerClient.h>
-#endif
-
 #if ENABLE(FULLSCREEN_API)
 #include <WebCore/FullScreenControllerClient.h>
 #endif
 
 namespace WebCore {
-#if USE(ACCELERATED_COMPOSITING)
+#if USE(CA)
     class CACFLayerTreeHost;
 #endif
     class FullScreenController;
@@ -86,10 +84,8 @@ class WebView
     , public IWebNotificationObserver
     , public IDropTarget
     , WebCore::WindowMessageListener
-#if USE(ACCELERATED_COMPOSITING)
     , WebCore::GraphicsLayerClient
     , WebCore::CACFLayerTreeHostClient
-#endif
 #if ENABLE(FULLSCREEN_API)
     , WebCore::FullScreenControllerClient
 #endif
@@ -908,7 +904,7 @@ public:
 
     // Convenient to be able to violate the rules of COM here for easy movement to the frame.
     WebFrame* topLevelFrame() const { return m_mainFrame; }
-    const WTF::String& userAgentForKURL(const WebCore::KURL& url);
+    const WTF::String& userAgentForKURL(const WebCore::URL& url);
 
     static bool canHandleRequest(const WebCore::ResourceRequest&);
 
@@ -947,12 +943,10 @@ public:
     bool onGetObject(WPARAM, LPARAM, LRESULT&) const;
     static STDMETHODIMP AccessibleObjectFromWindow(HWND, DWORD objectID, REFIID, void** ppObject);
 
-    void downloadURL(const WebCore::KURL&);
+    void downloadURL(const WebCore::URL&);
 
-#if USE(ACCELERATED_COMPOSITING)
     void flushPendingGraphicsLayerChangesSoon();
     void setRootChildLayer(WebCore::GraphicsLayer*);
-#endif
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
     WebCore::GraphicsDeviceAdapter* graphicsDeviceAdapter() const;
@@ -1022,15 +1016,13 @@ private:
     // (see https://bugs.webkit.org/show_bug.cgi?id=29264)
     DWORD m_lastDropEffect;
 
-#if USE(ACCELERATED_COMPOSITING)
     // GraphicsLayerClient
     virtual void notifyAnimationStarted(const WebCore::GraphicsLayer*, double time);
     virtual void notifyFlushRequired(const WebCore::GraphicsLayer*);
-    virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect& inClip);
+    virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::FloatRect& inClip);
 
     // CACFLayerTreeHostClient
     virtual void flushPendingGraphicsLayerChanges();
-#endif
 
     bool m_shouldInvertColors;
     void setShouldInvertColors(bool);
@@ -1151,14 +1143,13 @@ protected:
     OwnPtr<FullscreenVideoController> m_fullScreenVideoController;
 #endif
 
-#if USE(ACCELERATED_COMPOSITING)
     bool isAcceleratedCompositing() const { return m_isAcceleratedCompositing; }
     void setAcceleratedCompositing(bool);
-
+#if USE(CA)
     RefPtr<WebCore::CACFLayerTreeHost> m_layerTreeHost;
-    OwnPtr<WebCore::GraphicsLayer> m_backingLayer;
-    bool m_isAcceleratedCompositing;
 #endif
+    std::unique_ptr<WebCore::GraphicsLayer> m_backingLayer;
+    bool m_isAcceleratedCompositing;
 
     bool m_nextDisplayIsSynchronous;
     bool m_usesLayeredWindow;

@@ -26,7 +26,7 @@
 #include "ContextMenu.h"
 #include "ContextMenuController.h"
 #include "HitTestResult.h"
-#include "KURL.h"
+#include "URL.h"
 #include "LocalizedStrings.h"
 #include "NotImplemented.h"
 #include "Page.h"
@@ -74,7 +74,7 @@ static GtkWidget* inputMethodsMenuItem (WebKitWebView* webView)
 
 static int getUnicodeMenuItemPosition(GtkMenu* menu)
 {
-    GOwnPtr<GList> items(gtk_container_get_children(GTK_CONTAINER(menu)));
+    GUniquePtr<GList> items(gtk_container_get_children(GTK_CONTAINER(menu)));
     int unicodeMenuItemPosition = -1;
     GList* iter;
     int i = 0;
@@ -123,7 +123,7 @@ void ContextMenuClient::contextMenuItemSelected(ContextMenuItem*, const ContextM
     notImplemented();
 }
 
-void ContextMenuClient::downloadURL(const KURL& url)
+void ContextMenuClient::downloadURL(const URL& url)
 {
     WebKitNetworkRequest* networkRequest = webkit_network_request_new(url.string().utf8().data());
 

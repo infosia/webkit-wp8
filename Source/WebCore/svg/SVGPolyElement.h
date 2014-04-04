@@ -21,7 +21,6 @@
 #ifndef SVGPolyElement_h
 #define SVGPolyElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedBoolean.h"
 #include "SVGExternalResourcesRequired.h"
 #include "SVGGraphicsElement.h"
@@ -30,8 +29,7 @@
 
 namespace WebCore {
 
-class SVGPolyElement : public SVGGraphicsElement
-                     , public SVGExternalResourcesRequired {
+class SVGPolyElement : public SVGGraphicsElement, public SVGExternalResourcesRequired {
 public:
     SVGListPropertyTearOff<SVGPointList>* points();
     SVGListPropertyTearOff<SVGPointList>* animatedPoints();
@@ -44,14 +42,14 @@ protected:
     SVGPolyElement(const QualifiedName&, Document&);
 
 private:
-    virtual bool isValid() const { return SVGTests::isValid(); }
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool isValid() const override { return SVGTests::isValid(); }
+    virtual bool supportsFocus() const override { return true; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE; 
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override; 
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
-    virtual bool supportsMarkers() const { return true; }
+    virtual bool supportsMarkers() const override { return true; }
 
     // Custom 'points' property
     static void synchronizePoints(SVGElement* contextElement);
@@ -65,19 +63,10 @@ protected:
     mutable SVGSynchronizableAnimatedProperty<SVGPointList> m_points;
 };
 
-inline SVGPolyElement& toSVGPolyElement(SVGElement& element)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(element.hasTagName(SVGNames::polygonTag) || element.hasTagName(SVGNames::polylineTag));
-    return static_cast<SVGPolyElement&>(element);
-}
-
-inline SVGPolyElement* toSVGPolyElement(SVGElement* element)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!element || element->hasTagName(SVGNames::polygonTag) || element->hasTagName(SVGNames::polylineTag));
-    return static_cast<SVGPolyElement*>(element);
-}
+void isSVGPolyElement(const SVGPolyElement&); // Catch unnecessary runtime check of type known at compile time.
+bool isSVGPolyElement(const Node&);
+NODE_TYPE_CASTS(SVGPolyElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

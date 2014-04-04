@@ -26,6 +26,8 @@
 #include "config.h"
 #include "NetworkConnectionToWebProcess.h"
 
+#if ENABLE(NETWORK_PROCESS)
+
 #include "BlobRegistrationData.h"
 #include "ConnectionStack.h"
 #include "NetworkBlobRegistry.h"
@@ -35,27 +37,27 @@
 #include "NetworkResourceLoader.h"
 #include "NetworkResourceLoaderMessages.h"
 #include "RemoteNetworkingContext.h"
+#include "SessionTracker.h"
 #include <WebCore/BlobData.h>
 #include <WebCore/PlatformCookieJar.h>
 #include <WebCore/ResourceLoaderOptions.h>
 #include <WebCore/ResourceRequest.h>
-#include <WebCore/RunLoop.h>
-
-#if ENABLE(NETWORK_PROCESS)
+#include <WebCore/SessionID.h>
+#include <wtf/RunLoop.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-PassRefPtr<NetworkConnectionToWebProcess> NetworkConnectionToWebProcess::create(CoreIPC::Connection::Identifier connectionIdentifier)
+PassRefPtr<NetworkConnectionToWebProcess> NetworkConnectionToWebProcess::create(IPC::Connection::Identifier connectionIdentifier)
 {
     return adoptRef(new NetworkConnectionToWebProcess(connectionIdentifier));
 }
 
-NetworkConnectionToWebProcess::NetworkConnectionToWebProcess(CoreIPC::Connection::Identifier connectionIdentifier)
+NetworkConnectionToWebProcess::NetworkConnectionToWebProcess(IPC::Connection::Identifier connectionIdentifier)
     : m_serialLoadingEnabled(false)
 {
-    m_connection = CoreIPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
+    m_connection = IPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
     m_connection->setOnlySendMessagesAsDispatchWhenWaitingForSyncReplyWhenProcessingSuchAMessage(true);
     m_connection->open();
 }
@@ -64,7 +66,7 @@ NetworkConnectionToWebProcess::~NetworkConnectionToWebProcess()
 {
 }
     
-void NetworkConnectionToWebProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
+void NetworkConnectionToWebProcess::didReceiveMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder)
 {
     if (decoder.messageReceiverName() == Messages::NetworkConnectionToWebProcess::messageReceiverName()) {
         didReceiveNetworkConnectionToWebProcessMessage(connection, decoder);
@@ -81,7 +83,7 @@ void NetworkConnectionToWebProcess::didReceiveMessage(CoreIPC::Connection* conne
     ASSERT_NOT_REACHED();
 }
 
-void NetworkConnectionToWebProcess::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder, OwnPtr<CoreIPC::MessageEncoder>& reply)
+void NetworkConnectionToWebProcess::didReceiveSyncMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder, std::unique_ptr<IPC::MessageEncoder>& reply)
 {
     if (decoder.messageReceiverName() == Messages::NetworkConnectionToWebProcess::messageReceiverName()) {
         didReceiveSyncNetworkConnectionToWebProcessMessage(connection, decoder, reply);
@@ -90,7 +92,7 @@ void NetworkConnectionToWebProcess::didReceiveSyncMessage(CoreIPC::Connection* c
     ASSERT_NOT_REACHED();
 }
 
-void NetworkConnectionToWebProcess::didClose(CoreIPC::Connection*)
+void NetworkConnectionToWebProcess::didClose(IPC::Connection*)
 {
     // Protect ourself as we might be otherwise be deleted during this function.
     Ref<NetworkConnectionToWebProcess> protector(*this);
@@ -106,7 +108,7 @@ void NetworkConnectionToWebProcess::didClose(CoreIPC::Connection*)
     NetworkProcess::shared().removeNetworkConnectionToWebProcess(this);
 }
 
-void NetworkConnectionToWebProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
+void NetworkConnectionToWebProcess::didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference, IPC::StringReference)
 {
 }
 
@@ -147,10 +149,10 @@ void NetworkConnectionToWebProcess::setSerialLoadingEnabled(bool enabled)
     m_serialLoadingEnabled = enabled;
 }
 
-static NetworkStorageSession& storageSession(bool privateBrowsingEnabled)
+static NetworkStorageSession& storageSession(SessionID sessionID)
 {
-    if (privateBrowsingEnabled) {
-        NetworkStorageSession* privateSession = RemoteNetworkingContext::privateBrowsingSession();
+    if (sessionID.isEphemeral()) {
+        NetworkStorageSession* privateSession = SessionTracker::session(sessionID);
         if (privateSession)
             return *privateSession;
         // Some requests with private browsing mode requested may still be coming shortly after NetworkProcess was told to destroy its session.
@@ -160,9 +162,9 @@ static NetworkStorageSession& storageSession(bool privateBrowsingEnabled)
     return NetworkStorageSession::defaultStorageSession();
 }
 
-void NetworkConnectionToWebProcess::startDownload(bool privateBrowsingEnabled, uint64_t downloadID, const ResourceRequest& request)
+void NetworkConnectionToWebProcess::startDownload(SessionID, uint64_t downloadID, const ResourceRequest& request)
 {
-    // FIXME: Do something with the private browsing flag.
+    // FIXME: Do something with the session ID.
     NetworkProcess::shared().downloadManager().startDownload(downloadID, request);
 }
 
@@ -182,37 +184,37 @@ void NetworkConnectionToWebProcess::convertMainResourceLoadToDownload(uint64_t m
     loader->didConvertHandleToDownload();
 }
 
-void NetworkConnectionToWebProcess::cookiesForDOM(bool privateBrowsingEnabled, const KURL& firstParty, const KURL& url, String& result)
+void NetworkConnectionToWebProcess::cookiesForDOM(SessionID sessionID, const URL& firstParty, const URL& url, String& result)
 {
-    result = WebCore::cookiesForDOM(storageSession(privateBrowsingEnabled), firstParty, url);
+    result = WebCore::cookiesForDOM(storageSession(sessionID), firstParty, url);
 }
 
-void NetworkConnectionToWebProcess::setCookiesFromDOM(bool privateBrowsingEnabled, const KURL& firstParty, const KURL& url, const String& cookieString)
+void NetworkConnectionToWebProcess::setCookiesFromDOM(SessionID sessionID, const URL& firstParty, const URL& url, const String& cookieString)
 {
-    WebCore::setCookiesFromDOM(storageSession(privateBrowsingEnabled), firstParty, url, cookieString);
+    WebCore::setCookiesFromDOM(storageSession(sessionID), firstParty, url, cookieString);
 }
 
-void NetworkConnectionToWebProcess::cookiesEnabled(bool privateBrowsingEnabled, const KURL& firstParty, const KURL& url, bool& result)
+void NetworkConnectionToWebProcess::cookiesEnabled(SessionID sessionID, const URL& firstParty, const URL& url, bool& result)
 {
-    result = WebCore::cookiesEnabled(storageSession(privateBrowsingEnabled), firstParty, url);
+    result = WebCore::cookiesEnabled(storageSession(sessionID), firstParty, url);
 }
 
-void NetworkConnectionToWebProcess::cookieRequestHeaderFieldValue(bool privateBrowsingEnabled, const KURL& firstParty, const KURL& url, String& result)
+void NetworkConnectionToWebProcess::cookieRequestHeaderFieldValue(SessionID sessionID, const URL& firstParty, const URL& url, String& result)
 {
-    result = WebCore::cookieRequestHeaderFieldValue(storageSession(privateBrowsingEnabled), firstParty, url);
+    result = WebCore::cookieRequestHeaderFieldValue(storageSession(sessionID), firstParty, url);
 }
 
-void NetworkConnectionToWebProcess::getRawCookies(bool privateBrowsingEnabled, const KURL& firstParty, const KURL& url, Vector<Cookie>& result)
+void NetworkConnectionToWebProcess::getRawCookies(SessionID sessionID, const URL& firstParty, const URL& url, Vector<Cookie>& result)
 {
-    WebCore::getRawCookies(storageSession(privateBrowsingEnabled), firstParty, url, result);
+    WebCore::getRawCookies(storageSession(sessionID), firstParty, url, result);
 }
 
-void NetworkConnectionToWebProcess::deleteCookie(bool privateBrowsingEnabled, const KURL& url, const String& cookieName)
+void NetworkConnectionToWebProcess::deleteCookie(SessionID sessionID, const URL& url, const String& cookieName)
 {
-    WebCore::deleteCookie(storageSession(privateBrowsingEnabled), url, cookieName);
+    WebCore::deleteCookie(storageSession(sessionID), url, cookieName);
 }
 
-void NetworkConnectionToWebProcess::registerBlobURL(const KURL& url, const BlobRegistrationData& data)
+void NetworkConnectionToWebProcess::registerBlobURL(const URL& url, const BlobRegistrationData& data)
 {
     Vector<RefPtr<SandboxExtension>> extensions;
     for (size_t i = 0, count = data.sandboxExtensions().size(); i < count; ++i) {
@@ -223,12 +225,12 @@ void NetworkConnectionToWebProcess::registerBlobURL(const KURL& url, const BlobR
     NetworkBlobRegistry::shared().registerBlobURL(this, url, data.releaseData(), extensions);
 }
 
-void NetworkConnectionToWebProcess::registerBlobURLFromURL(const KURL& url, const KURL& srcURL)
+void NetworkConnectionToWebProcess::registerBlobURLFromURL(const URL& url, const URL& srcURL)
 {
     NetworkBlobRegistry::shared().registerBlobURL(this, url, srcURL);
 }
 
-void NetworkConnectionToWebProcess::unregisterBlobURL(const KURL& url)
+void NetworkConnectionToWebProcess::unregisterBlobURL(const URL& url)
 {
     NetworkBlobRegistry::shared().unregisterBlobURL(this, url);
 }

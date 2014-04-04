@@ -23,16 +23,15 @@
 #ifndef RenderSVGViewportContainer_h
 #define RenderSVGViewportContainer_h
 
-#if ENABLE(SVG)
 #include "RenderSVGContainer.h"
 
 namespace WebCore {
 
 // This is used for non-root <svg> elements and <marker> elements, neither of which are SVGTransformable
 // thus we inherit from RenderSVGContainer instead of RenderSVGTransformableContainer
-class RenderSVGViewportContainer FINAL : public RenderSVGContainer {
+class RenderSVGViewportContainer final : public RenderSVGContainer {
 public:
-    explicit RenderSVGViewportContainer(SVGSVGElement&);
+    RenderSVGViewportContainer(SVGSVGElement&, PassRef<RenderStyle>);
 
     SVGSVGElement& svgSVGElement() const;
 
@@ -44,10 +43,10 @@ public:
     virtual void determineIfLayoutSizeChanged();
     virtual void setNeedsTransformUpdate() { m_needsTransformUpdate = true; }
 
-    virtual void paint(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    virtual void paint(PaintInfo&, const LayoutPoint&) override;
 
 private:
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 
     virtual bool isSVGViewportContainer() const { return true; }
     virtual const char* renderName() const { return "RenderSVGViewportContainer"; }
@@ -67,23 +66,9 @@ private:
     bool m_isLayoutSizeChanged : 1;
     bool m_needsTransformUpdate : 1;
 };
-  
-inline RenderSVGViewportContainer* toRenderSVGViewportContainer(RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isSVGViewportContainer());
-    return static_cast<RenderSVGViewportContainer*>(object);
-}
 
-inline const RenderSVGViewportContainer* toRenderSVGViewportContainer(const RenderObject* object)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!object || object->isSVGViewportContainer());
-    return static_cast<const RenderSVGViewportContainer*>(object);
-}
-
-// This will catch anyone doing an unnecessary cast.
-void toRenderSVGViewportContainer(const RenderSVGViewportContainer*);
+RENDER_OBJECT_TYPE_CASTS(RenderSVGViewportContainer, isSVGViewportContainer())
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // RenderSVGViewportContainer_h

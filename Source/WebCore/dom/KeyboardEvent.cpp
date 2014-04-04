@@ -24,9 +24,7 @@
 #include "KeyboardEvent.h"
 
 #include "Document.h"
-#include "DOMWindow.h"
 #include "EventDispatcher.h"
-#include "EventNames.h"
 #include "EventHandler.h"
 #include "Frame.h"
 #include "PlatformKeyboardEvent.h"
@@ -104,16 +102,27 @@ KeyboardEventInit::KeyboardEventInit()
 KeyboardEvent::KeyboardEvent()
     : m_location(DOM_KEY_LOCATION_STANDARD)
     , m_altGraphKey(false)
+#if PLATFORM(COCOA)
+    , m_handledByInputMethod(false)
+#endif
 {
 }
 
 KeyboardEvent::KeyboardEvent(const PlatformKeyboardEvent& key, AbstractView* view)
     : UIEventWithKeyState(eventTypeForKeyboardEventType(key.type()),
                           true, true, key.timestamp(), view, 0, key.ctrlKey(), key.altKey(), key.shiftKey(), key.metaKey())
-    , m_keyEvent(adoptPtr(new PlatformKeyboardEvent(key)))
+    , m_keyEvent(std::make_unique<PlatformKeyboardEvent>(key))
     , m_keyIdentifier(key.keyIdentifier())
     , m_location(keyLocationCode(key))
     , m_altGraphKey(false)
+#if PLATFORM(COCOA)
+#if USE(APPKIT)
+    , m_handledByInputMethod(key.handledByInputMethod())
+    , m_keypressCommands(key.commands())
+#else
+    , m_handledByInputMethod(false)
+#endif
+#endif
 {
 }
 
@@ -122,6 +131,9 @@ KeyboardEvent::KeyboardEvent(const AtomicString& eventType, const KeyboardEventI
     , m_keyIdentifier(initializer.keyIdentifier)
     , m_location(initializer.location)
     , m_altGraphKey(false)
+#if PLATFORM(COCOA)
+    , m_handledByInputMethod(false)
+#endif
 {
 }
 
@@ -209,24 +221,8 @@ KeyboardEvent* findKeyboardEvent(Event* event)
 {
     for (Event* e = event; e; e = e->underlyingEvent())
         if (e->isKeyboardEvent())
-            return static_cast<KeyboardEvent*>(e);
+            return toKeyboardEvent(e);
     return 0;
-}
-
-PassRefPtr<KeyboardEventDispatchMediator> KeyboardEventDispatchMediator::create(PassRefPtr<KeyboardEvent> event)
-{
-    return adoptRef(new KeyboardEventDispatchMediator(event));
-}
-
-KeyboardEventDispatchMediator::KeyboardEventDispatchMediator(PassRefPtr<KeyboardEvent> event)
-    : EventDispatchMediator(event)
-{
-}
-
-bool KeyboardEventDispatchMediator::dispatchEvent(EventDispatcher* dispatcher) const
-{
-    // Make sure not to return true if we already took default action while handling the event.
-    return EventDispatchMediator::dispatchEvent(dispatcher) && !event()->defaultHandled();
 }
 
 } // namespace WebCore

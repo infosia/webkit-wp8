@@ -48,7 +48,7 @@ using namespace std;
 #endif
 
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='" PROCESSORARCHITECTURE "' publicKeyToken='6595b64144ccf1df' language='*'\"")
-#if defined(_MSC_VER) && (_MSC_VER >= 1600)
+#if defined(_MSC_VER) && (_MSC_VER >= 1600) && !defined(WIN_CAIRO)
 #pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.VC80.CRT' version='8.0.50727.6195' processorArchitecture='" PROCESSORARCHITECTURE "' publicKeyToken='1fc8b3b9a1e18e3b' language='*'\"")
 #endif
 
@@ -95,6 +95,11 @@ static wstring applePathFromRegistry(const wstring& key, const wstring& value)
     return path;
 }
 
+static wstring appleApplicationSupportDirectory()
+{
+    return applePathFromRegistry(L"SOFTWARE\\Apple Inc.\\Apple Application Support", L"InstallDir");
+}
+
 static wstring copyEnvironmentVariable(const wstring& variable)
 {
     DWORD length = ::GetEnvironmentVariableW(variable.c_str(), 0, 0);
@@ -130,11 +135,23 @@ static bool directoryExists(const wstring& path)
 
 static bool modifyPath(const wstring& programName)
 {
+#ifdef WIN_CAIRO
+
 #if defined(_M_X64)
-    static const wstring pathPrefix = L"C:\\Program Files\\Common Files\\Apple\\Apple Application Support";
+    wstring pathGStreamer = copyEnvironmentVariable(L"GSTREAMER_1_0_ROOT_X86_64") + L"bin";
+    wstring pathWinCairo = copyEnvironmentVariable(L"WEBKIT_LIBRARIES") + L"\\bin64";
 #else
-    static const wstring pathPrefix = L"C:\\Program Files (x86)\\Common Files\\Apple\\Apple Application Support";
+    wstring pathGStreamer = copyEnvironmentVariable(L"GSTREAMER_1_0_ROOT_X86") + L"bin";
+    wstring pathWinCairo = copyEnvironmentVariable(L"WEBKIT_LIBRARIES") + L"\\bin32";
 #endif
+    prependPath(pathWinCairo);
+    if (directoryExists(pathGStreamer))
+        prependPath(pathGStreamer);
+    return true;
+
+#else
+
+    const wstring& pathPrefix = appleApplicationSupportDirectory();
 
     if (!directoryExists(pathPrefix)) {
         fatalError(programName, L"Failed to determine path to AAS directory.");
@@ -146,6 +163,7 @@ static bool modifyPath(const wstring& programName)
 
     fatalError(programName, L"Failed to modify PATH environment variable.");
     return false;
+#endif
 }
 
 static wstring getLastErrorString(HRESULT hr)

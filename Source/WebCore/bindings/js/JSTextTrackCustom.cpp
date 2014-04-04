@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -42,10 +42,38 @@ void JSTextTrack::visitChildren(JSCell* cell, SlotVisitor& visitor)
     ASSERT(jsTextTrack->structure()->typeInfo().overridesVisitChildren());
     Base::visitChildren(jsTextTrack, visitor);
 
-    TextTrack* textTrack = static_cast<TextTrack*>(jsTextTrack->impl());
-    visitor.addOpaqueRoot(root(textTrack));
+    TextTrack& textTrack = jsTextTrack->impl();
+    visitor.addOpaqueRoot(root(&textTrack));
 
-    textTrack->visitJSEventListeners(visitor);
+    textTrack.visitJSEventListeners(visitor);
+}
+
+void JSTextTrack::setKind(ExecState* exec, JSValue value)
+{
+    UNUSED_PARAM(exec);
+#if ENABLE(MEDIA_SOURCE)
+    const String& nativeValue(value.isEmpty() ? String() : value.toString(exec)->value(exec));
+    if (exec->hadException())
+        return;
+    impl().setKind(nativeValue);
+#else
+    UNUSED_PARAM(value);
+    return;
+#endif
+}
+
+void JSTextTrack::setLanguage(ExecState* exec, JSValue value)
+{
+    UNUSED_PARAM(exec);
+#if ENABLE(MEDIA_SOURCE)
+    const String& nativeValue(value.isEmpty() ? String() : value.toString(exec)->value(exec));
+    if (exec->hadException())
+        return;
+    impl().setLanguage(nativeValue);
+#else
+    UNUSED_PARAM(value);
+    return;
+#endif
 }
 
 } // namespace WebCore

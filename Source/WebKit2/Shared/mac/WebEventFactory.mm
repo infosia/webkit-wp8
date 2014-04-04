@@ -29,6 +29,7 @@
 #if USE(APPKIT)
 
 #import "WebKitSystemInterface.h"
+#import <WebCore/KeyboardEvent.h>
 #import <WebCore/PlatformEventFactoryMac.h>
 #import <WebCore/Scrollbar.h>
 #import <WebCore/WindowsKeyboardCodes.h>
@@ -145,7 +146,10 @@ static NSPoint flipScreenPoint(const NSPoint& screenPoint, NSScreen *screen)
 
 static NSPoint globalPoint(const NSPoint& windowPoint, NSWindow *window)
 {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     return flipScreenPoint([window convertBaseToScreen:windowPoint], screenForWindow(window));
+#pragma clang diagnostic pop
 }
 
 static NSPoint globalPointForEvent(NSEvent *event)
@@ -236,21 +240,6 @@ static WebWheelEvent::Phase momentumPhaseForEvent(NSEvent *event)
 
     return static_cast<WebWheelEvent::Phase>(phase);
 }
-
-#if ENABLE(GESTURE_EVENTS)
-static WebEvent::Type gestureEventTypeForEvent(NSEvent *event)
-{
-    switch ([event type]) {
-    case NSEventTypeBeginGesture:
-        return WebEvent::GestureScrollBegin;
-    case NSEventTypeEndGesture:
-        return WebEvent::GestureScrollEnd;
-    default:
-        ASSERT_NOT_REACHED();
-        return WebEvent::GestureScrollEnd;
-    }
-}
-#endif
 
 static inline String textFromEvent(NSEvent* event)
 {
@@ -394,13 +383,7 @@ WebWheelEvent WebEventFactory::createWebWheelEvent(NSEvent *event, NSView *windo
     }
 
     WebWheelEvent::Granularity granularity  = WebWheelEvent::ScrollByPixelWheelEvent;
-
-#if HAVE(INVERTED_WHEEL_EVENTS)
     bool directionInvertedFromDevice        = [event isDirectionInvertedFromDevice];
-#else
-    bool directionInvertedFromDevice        = false;
-#endif
-
     WebWheelEvent::Phase phase              = phaseForEvent(event);
     WebWheelEvent::Phase momentumPhase      = momentumPhaseForEvent(event);
     bool hasPreciseScrollingDeltas          = continuous;
@@ -423,7 +406,7 @@ WebWheelEvent WebEventFactory::createWebWheelEvent(NSEvent *event, NSView *windo
     return WebWheelEvent(WebEvent::Wheel, IntPoint(position), IntPoint(globalPosition), FloatSize(deltaX, deltaY), FloatSize(wheelTicksX, wheelTicksY), granularity, directionInvertedFromDevice, phase, momentumPhase, hasPreciseScrollingDeltas, scrollCount, unacceleratedScrollingDelta, modifiers, timestamp);
 }
 
-WebKeyboardEvent WebEventFactory::createWebKeyboardEvent(NSEvent *event, NSView *)
+WebKeyboardEvent WebEventFactory::createWebKeyboardEvent(NSEvent *event, bool handledByInputMethod, const Vector<WebCore::KeypressCommand>& commands)
 {
     WebEvent::Type type             = isKeyUpEvent(event) ? WebEvent::KeyUp : WebEvent::KeyDown;
     String text                     = textFromEvent(event);
@@ -456,21 +439,8 @@ WebKeyboardEvent WebEventFactory::createWebKeyboardEvent(NSEvent *event, NSView 
         unmodifiedText = "\x9";
     }
 
-    return WebKeyboardEvent(type, text, unmodifiedText, keyIdentifier, windowsVirtualKeyCode, nativeVirtualKeyCode, macCharCode, autoRepeat, isKeypad, isSystemKey, modifiers, timestamp);
+    return WebKeyboardEvent(type, text, unmodifiedText, keyIdentifier, windowsVirtualKeyCode, nativeVirtualKeyCode, macCharCode, handledByInputMethod, commands, autoRepeat, isKeypad, isSystemKey, modifiers, timestamp);
 }
-
-#if ENABLE(GESTURE_EVENTS)
-WebGestureEvent WebEventFactory::createWebGestureEvent(NSEvent *event, NSView *windowView)
-{
-    WebEvent::Type type             = gestureEventTypeForEvent(event);
-    NSPoint position                = pointForEvent(event, windowView);
-    NSPoint globalPosition          = globalPointForEvent(event);
-    WebEvent::Modifiers modifiers   = modifiersForEvent(event);
-    double timestamp                = eventTimeStampSince1970(event);
-
-    return WebGestureEvent(type, IntPoint(position), IntPoint(globalPosition), modifiers, timestamp);
-}
-#endif
 
 } // namespace WebKit
 

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2000 Harri Porten (porten@kde.org)
  *  Copyright (C) 2006 Jon Shier (jshier@iastate.edu)
- *  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reseved.
+ *  Copyright (C) 2003-2009, 2014 Apple Inc. All rights reseved.
  *  Copyright (C) 2006 Alexey Proskuryakov (ap@webkit.org)
  *
  *  This library is free software; you can redistribute it and/or
@@ -23,9 +23,7 @@
 #include "config.h"
 #include "JSDOMWindowBase.h"
 
-#include "BindingSecurity.h"
 #include "Chrome.h"
-#include "Console.h"
 #include "DOMWindow.h"
 #include "Frame.h"
 #include "InspectorController.h"
@@ -38,7 +36,14 @@
 #include "SecurityOrigin.h"
 #include "Settings.h"
 #include "WebCoreJSClientData.h"
+#include <runtime/Microtask.h>
 #include <wtf/MainThread.h>
+
+#if PLATFORM(IOS)
+#include "ChromeClient.h"
+#include "WebSafeGCActivityCallbackIOS.h"
+#include "WebSafeIncrementalSweeperIOS.h"
+#endif
 
 using namespace JSC;
 
@@ -51,10 +56,10 @@ static bool shouldAllowAccessFrom(const JSGlobalObject* thisObject, ExecState* e
 
 const ClassInfo JSDOMWindowBase::s_info = { "Window", &JSDOMGlobalObject::s_info, 0, 0, CREATE_METHOD_TABLE(JSDOMWindowBase) };
 
-const GlobalObjectMethodTable JSDOMWindowBase::s_globalObjectMethodTable = { &shouldAllowAccessFrom, &supportsProfiling, &supportsRichSourceInfo, &shouldInterruptScript, &javaScriptExperimentsEnabled, &queueTaskToEventLoop };
+const GlobalObjectMethodTable JSDOMWindowBase::s_globalObjectMethodTable = { &shouldAllowAccessFrom, &supportsProfiling, &supportsRichSourceInfo, &shouldInterruptScript, &javaScriptExperimentsEnabled, &queueTaskToEventLoop, &shouldInterruptScriptBeforeTimeout };
 
 JSDOMWindowBase::JSDOMWindowBase(VM& vm, Structure* structure, PassRefPtr<DOMWindow> window, JSDOMWindowShell* shell)
-    : JSDOMGlobalObject(vm, structure, shell->world(), &s_globalObjectMethodTable)
+    : JSDOMGlobalObject(vm, structure, &shell->world(), &s_globalObjectMethodTable)
     , m_impl(window)
     , m_shell(shell)
 {
@@ -92,17 +97,17 @@ ScriptExecutionContext* JSDOMWindowBase::scriptExecutionContext() const
 
 void JSDOMWindowBase::printErrorMessage(const String& message) const
 {
-    printErrorMessageForFrame(impl()->frame(), message);
+    printErrorMessageForFrame(impl().frame(), message);
 }
 
 bool JSDOMWindowBase::supportsProfiling(const JSGlobalObject* object)
 {
-#if !ENABLE(JAVASCRIPT_DEBUGGER) || !ENABLE(INSPECTOR)
+#if !ENABLE(INSPECTOR)
     UNUSED_PARAM(object);
     return false;
 #else
     const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    Frame* frame = thisObject->impl()->frame();
+    Frame* frame = thisObject->impl().frame();
     if (!frame)
         return false;
 
@@ -110,18 +115,18 @@ bool JSDOMWindowBase::supportsProfiling(const JSGlobalObject* object)
     if (!page)
         return false;
 
-    return page->inspectorController()->profilerEnabled();
-#endif
+    return page->inspectorController().profilerEnabled();
+#endif // ENABLE(INSPECTOR)
 }
 
 bool JSDOMWindowBase::supportsRichSourceInfo(const JSGlobalObject* object)
 {
-#if !ENABLE(JAVASCRIPT_DEBUGGER) || !ENABLE(INSPECTOR)
+#if !ENABLE(INSPECTOR)
     UNUSED_PARAM(object);
     return false;
 #else
     const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    Frame* frame = thisObject->impl()->frame();
+    Frame* frame = thisObject->impl().frame();
     if (!frame)
         return false;
 
@@ -129,19 +134,15 @@ bool JSDOMWindowBase::supportsRichSourceInfo(const JSGlobalObject* object)
     if (!page)
         return false;
 
-    bool enabled = page->inspectorController()->enabled();
+    bool enabled = page->inspectorController().enabled();
     ASSERT(enabled || !thisObject->debugger());
     ASSERT(enabled || !supportsProfiling(thisObject));
     return enabled;
 #endif
 }
 
-bool JSDOMWindowBase::shouldInterruptScript(const JSGlobalObject* object)
+static inline bool shouldInterruptScriptToPreventInfiniteRecursionWhenClosingPage(Page* page)
 {
-    const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    ASSERT(thisObject->impl()->frame());
-    Page* page = thisObject->impl()->frame()->page();
-
     // See <rdar://problem/5479443>. We don't think that page can ever be NULL
     // in this case, but if it is, we've gotten into a state where we may have
     // hung the UI, with no way to ask the client whether to cancel execution.
@@ -149,25 +150,47 @@ bool JSDOMWindowBase::shouldInterruptScript(const JSGlobalObject* object)
     // ensuring that we never hang. We might want to consider other solutions
     // if we discover problems with this one.
     ASSERT(page);
-    if (!page)
+    return !page;
+}
+
+bool JSDOMWindowBase::shouldInterruptScript(const JSGlobalObject* object)
+{
+    const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
+    ASSERT(thisObject->impl().frame());
+    Page* page = thisObject->impl().frame()->page();
+    return shouldInterruptScriptToPreventInfiniteRecursionWhenClosingPage(page) || page->chrome().shouldInterruptJavaScript();
+}
+
+bool JSDOMWindowBase::shouldInterruptScriptBeforeTimeout(const JSGlobalObject* object)
+{
+    const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
+    ASSERT(thisObject->impl().frame());
+    Page* page = thisObject->impl().frame()->page();
+
+    if (shouldInterruptScriptToPreventInfiniteRecursionWhenClosingPage(page))
         return true;
 
-    return page->chrome().shouldInterruptJavaScript();
+#if PLATFORM(IOS)
+    if (page->chrome().client().isStopping())
+        return true;
+#endif
+
+    return JSGlobalObject::shouldInterruptScriptBeforeTimeout(object);
 }
 
 bool JSDOMWindowBase::javaScriptExperimentsEnabled(const JSGlobalObject* object)
 {
     const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    Frame* frame = thisObject->impl()->frame();
+    Frame* frame = thisObject->impl().frame();
     if (!frame)
         return false;
     return frame->settings().javaScriptExperimentsEnabled();
 }
 
-void JSDOMWindowBase::queueTaskToEventLoop(const JSGlobalObject* object, GlobalObjectMethodTable::QueueTaskToEventLoopCallbackFunctionPtr functionPtr, PassRefPtr<TaskContext> taskContext)
+void JSDOMWindowBase::queueTaskToEventLoop(const JSGlobalObject* object, PassRefPtr<Microtask> task)
 {
     const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    thisObject->scriptExecutionContext()->postTask(JSGlobalObjectTask::create((JSDOMWindowBase*)thisObject, functionPtr, taskContext));
+    thisObject->scriptExecutionContext()->postTask(JSGlobalObjectTask::create((JSDOMWindowBase*)thisObject, task));
 }
 
 void JSDOMWindowBase::willRemoveFromWindowShell()
@@ -180,19 +203,31 @@ JSDOMWindowShell* JSDOMWindowBase::shell() const
     return m_shell;
 }
 
-VM* JSDOMWindowBase::commonVM()
+VM& JSDOMWindowBase::commonVM()
 {
     ASSERT(isMainThread());
 
-    static VM* vm = 0;
+    static VM* vm = nullptr;
     if (!vm) {
         ScriptController::initializeThreading();
         vm = VM::createLeaked(LargeHeap).leakRef();
-        vm->exclusiveThread = currentThread();
+#if !PLATFORM(IOS)
+        vm->setExclusiveThread(std::this_thread::get_id());
+#else
+        vm->heap.setFullActivityCallback(WebSafeFullGCActivityCallback::create(&vm->heap));
+#if ENABLE(GGC)
+        vm->heap.setEdenActivityCallback(WebSafeEdenGCActivityCallback::create(&vm->heap));
+#else
+        vm->heap.setEdenActivityCallback(vm->heap.fullActivityCallback());
+#endif
+        vm->heap.setIncrementalSweeper(WebSafeIncrementalSweeper::create(&vm->heap));
+        vm->makeUsableFromMultipleThreads();
+        vm->heap.machineThreads().addCurrentThread();
+#endif
         initNormalWorldClientData(vm);
     }
 
-    return vm;
+    return *vm;
 }
 
 // JSDOMGlobalObject* is ignored, accessing a window in any context will
@@ -212,7 +247,7 @@ JSValue toJS(ExecState* exec, DOMWindow* domWindow)
     return frame->script().windowShell(currentWorld(exec));
 }
 
-JSDOMWindow* toJSDOMWindow(Frame* frame, DOMWrapperWorld* world)
+JSDOMWindow* toJSDOMWindow(Frame* frame, DOMWrapperWorld& world)
 {
     if (!frame)
         return 0;

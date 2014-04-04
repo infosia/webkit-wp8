@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -34,9 +34,11 @@
 #import "EventSendingController.h"
 #import "MockWebNotificationProvider.h"
 #import "TestRunner.h"
+
 #import <WebKit/WebApplicationCache.h>
 #import <WebKit/WebFramePrivate.h>
 #import <WebKit/WebHTMLViewPrivate.h>
+#import <WebKit/WebDatabaseManagerPrivate.h>
 #import <WebKit/WebQuotaManager.h>
 #import <WebKit/WebSecurityOriginPrivate.h>
 #import <WebKit/WebUIDelegatePrivate.h>
@@ -44,7 +46,9 @@
 #import <WebKit/WebViewPrivate.h>
 #import <wtf/Assertions.h>
 
+#if !PLATFORM(IOS)
 DumpRenderTreeDraggingInfo *draggingInfo = nil;
+#endif
 
 @implementation UIDelegate
 
@@ -78,16 +82,20 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 
 - (void)modalWindowWillClose:(NSNotification *)notification
 {
+#if !PLATFORM(IOS)
     [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowWillCloseNotification object:nil];
     [NSApp abortModal];
+#endif
 }
 
 - (void)webViewRunModal:(WebView *)sender
 {
+#if !PLATFORM(IOS)
     gTestRunner->setWindowIsKey(false);
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(modalWindowWillClose:) name:NSWindowWillCloseNotification object:nil];
     [NSApp runModalForWindow:[sender window]];
     gTestRunner->setWindowIsKey(true);
+#endif
 }
 
 - (void)webView:(WebView *)sender runJavaScriptAlertPanelWithMessage:(NSString *)message initiatedByFrame:(WebFrame *)frame
@@ -121,6 +129,7 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 }
 
 
+#if !PLATFORM(IOS)
 - (void)webView:(WebView *)sender dragImage:(NSImage *)anImage at:(NSPoint)viewLocation offset:(NSSize)initialOffset event:(NSEvent *)event pasteboard:(NSPasteboard *)pboard source:(id)sourceObj slideBack:(BOOL)slideFlag forView:(NSView *)view
 {
      assert(!draggingInfo);
@@ -128,6 +137,7 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
      [sender draggingUpdated:draggingInfo];
      [EventSendingController replaySavedEvents];
 }
+#endif
 
 - (void)webViewFocus:(WebView *)webView
 {
@@ -172,8 +182,23 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
             [origin port], [databaseIdentifier UTF8String]);
     }
 
-    static const unsigned long long defaultQuota = 5 * 1024 * 1024;    
-    [[origin databaseQuotaManager] setQuota:defaultQuota];
+    NSDictionary *databaseDetails = [[WebDatabaseManager sharedWebDatabaseManager] detailsForDatabase:databaseIdentifier withOrigin:origin];
+    unsigned long long expectedSize = [[databaseDetails objectForKey:WebDatabaseExpectedSizeKey] unsignedLongLongValue];
+    unsigned long long defaultQuota = 5 * 1024 * 1024;
+    double testDefaultQuota = gTestRunner->databaseDefaultQuota();
+    if (testDefaultQuota >= 0)
+        defaultQuota = testDefaultQuota;
+
+    unsigned long long newQuota = defaultQuota;
+
+    double maxQuota = gTestRunner->databaseMaxQuota();
+    if (maxQuota >= 0) {
+        if (defaultQuota < expectedSize && expectedSize <= maxQuota) {
+            newQuota = expectedSize;
+            printf("UI DELEGATE DATABASE CALLBACK: increased quota to %llu\n", newQuota);
+        }
+    }
+    [[origin databaseQuotaManager] setQuota:newQuota];
 }
 
 - (void)webView:(WebView *)sender exceededApplicationCacheOriginQuotaForSecurityOrigin:(WebSecurityOrigin *)origin totalSpaceNeeded:(NSUInteger)totalSpaceNeeded
@@ -255,9 +280,14 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
 
 - (BOOL)webView:(WebView *)webView supportsFullScreenForElement:(DOMElement*)element withKeyboard:(BOOL)withKeyboard
 {
+#if PLATFORM(IOS)
+    return NO;
+#else
     return YES;
+#endif
 }
 
+#if ENABLE(FULLSCREEN_API)
 - (void)enterFullScreenWithListener:(NSObject<WebKitFullScreenListener>*)listener
 {
     [listener webkitWillEnterFullScreen];
@@ -287,6 +317,7 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
     [listener webkitWillExitFullScreen];
     [listener webkitDidExitFullScreen];
 }
+#endif
 
 - (BOOL)webView:(WebView *)webView didPressMissingPluginButton:(DOMElement *)element
 {
@@ -312,10 +343,24 @@ DumpRenderTreeDraggingInfo *draggingInfo = nil;
     }
 }
 
+- (void)webView:(WebView *)webView decidePolicyForUserMediaRequestFromOrigin:(WebSecurityOrigin *)origin listener:(id<WebAllowDenyPolicyListener>)listener
+{
+    // Allow all user media requests for now.
+    [listener allow];
+}
+
+- (NSData *)webCryptoMasterKeyForWebView:(WebView *)sender
+{
+    // Any 128 bit key would do, all we need for testing is to implement the callback.
+    return [NSData dataWithBytes:"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f" length:16];
+}
+
 - (void)dealloc
 {
+#if !PLATFORM(IOS)
     [draggingInfo release];
     draggingInfo = nil;
+#endif
     [m_pendingGeolocationPermissionListeners release];
     m_pendingGeolocationPermissionListeners = nil;
 

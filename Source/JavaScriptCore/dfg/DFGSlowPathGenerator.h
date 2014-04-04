@@ -26,8 +26,6 @@
 #ifndef DFGSlowPathGenerator_h
 #define DFGSlowPathGenerator_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGCommon.h"
@@ -48,15 +46,11 @@ public:
     virtual ~SlowPathGenerator() { }
     void generate(SpeculativeJIT* jit)
     {
-#if DFG_ENABLE(DEBUG_VERBOSE)
-        dataLogF("Generating slow path %p at offset 0x%x\n", this, jit->m_jit.debugOffset());
-#endif
         m_label = jit->m_jit.label();
         jit->m_currentNode = m_currentNode;
         generateInternal(jit);
-#if !ASSERT_DISABLED
-        jit->m_jit.breakpoint(); // make sure that the generator jumps back to somewhere
-#endif
+        if (!ASSERT_DISABLED)
+            jit->m_jit.breakpoint(); // make sure that the generator jumps back to somewhere
     }
     MacroAssembler::Label label() const { return m_label; }
     virtual MacroAssembler::Call call() const
@@ -110,7 +104,7 @@ public:
             jit->silentSpillAllRegistersImpl(false, m_plans, extractResult(result));
     }
     
-    virtual MacroAssembler::Call call() const
+    virtual MacroAssembler::Call call() const override
     {
         return m_call;
     }
@@ -160,7 +154,7 @@ public:
     }
     
 protected:
-    void generateInternal(SpeculativeJIT* jit)
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         this->setUp(jit);
         this->recordCall(jit->callOperation(this->m_function, extractResult(this->m_result)));
@@ -184,7 +178,7 @@ public:
     }
     
 protected:
-    void generateInternal(SpeculativeJIT* jit)
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         this->setUp(jit);
         this->recordCall(jit->callOperation(this->m_function, extractResult(this->m_result), m_argument1));
@@ -212,7 +206,7 @@ public:
     }
     
 protected:
-    void generateInternal(SpeculativeJIT* jit)
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         this->setUp(jit);
         this->recordCall(jit->callOperation(this->m_function, extractResult(this->m_result), m_argument1, m_argument2));
@@ -242,7 +236,7 @@ public:
     }
 
 protected:    
-    void generateInternal(SpeculativeJIT* jit)
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         this->setUp(jit);
         this->recordCall(
@@ -441,7 +435,7 @@ public:
     }
 
 protected:
-    virtual void generateInternal(SpeculativeJIT* jit)
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         this->linkFrom(jit);
         for (unsigned i = numberOfAssignments; i--;)

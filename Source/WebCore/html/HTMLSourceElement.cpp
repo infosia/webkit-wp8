@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,8 +34,6 @@
 #include "HTMLNames.h"
 #include "Logging.h"
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -53,7 +51,7 @@ PassRefPtr<HTMLSourceElement> HTMLSourceElement::create(const QualifiedName& tag
     return adoptRef(new HTMLSourceElement(tagName, document));
 }
 
-Node::InsertionNotificationRequest HTMLSourceElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLSourceElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
     Element* parent = parentElement();
@@ -62,11 +60,11 @@ Node::InsertionNotificationRequest HTMLSourceElement::insertedInto(ContainerNode
     return InsertionDone;
 }
 
-void HTMLSourceElement::removedFrom(ContainerNode* removalRoot)
+void HTMLSourceElement::removedFrom(ContainerNode& removalRoot)
 {
     Element* parent = parentElement();
-    if (!parent && removalRoot->isElementNode())
-        parent = toElement(removalRoot);
+    if (!parent && removalRoot.isElementNode())
+        parent = &toElement(removalRoot);
     if (parent && parent->isMediaElement())
         toHTMLMediaElement(parent)->sourceWasRemoved(this);
     HTMLElement::removedFrom(removalRoot);
@@ -112,7 +110,7 @@ void HTMLSourceElement::cancelPendingErrorEvent()
     m_errorEventTimer.stop();
 }
 
-void HTMLSourceElement::errorEventTimerFired(Timer<HTMLSourceElement>*)
+void HTMLSourceElement::errorEventTimerFired(Timer<HTMLSourceElement>&)
 {
     LOG(Media, "HTMLSourceElement::errorEventTimerFired - %p", this);
     dispatchEvent(Event::create(eventNames().errorEvent, false, true));

@@ -30,6 +30,7 @@
 #if ENABLE(ASSEMBLER) && CPU(ARM_THUMB2)
 
 #include "AssemblerBuffer.h"
+#include <limits.h>
 #include <wtf/Assertions.h>
 #include <wtf/Vector.h>
 #include <stdint.h>
@@ -45,11 +46,11 @@ namespace ARMRegisters {
         r4,
         r5,
         r6,
-        r7, wr = r7,   // thumb work register
+        r7, fp = r7,   // frame pointer
         r8,
         r9, sb = r9,   // static base
         r10, sl = r10, // stack limit
-        r11, fp = r11, // frame pointer
+        r11,
         r12, ip = r12,
         r13, sp = r13,
         r14, lr = r14,
@@ -489,6 +490,13 @@ public:
     typedef ARMRegisters::FPSingleRegisterID FPSingleRegisterID;
     typedef ARMRegisters::FPDoubleRegisterID FPDoubleRegisterID;
     typedef ARMRegisters::FPQuadRegisterID FPQuadRegisterID;
+    typedef FPDoubleRegisterID FPRegisterID;
+    
+    static RegisterID firstRegister() { return ARMRegisters::r0; }
+    static RegisterID lastRegister() { return ARMRegisters::r13; }
+    
+    static FPRegisterID firstFPRegister() { return ARMRegisters::d0; }
+    static FPRegisterID lastFPRegister() { return ARMRegisters::d31; }
 
     // (HS, LO, HI, LS) -> (AE, B, A, BE)
     // (VS, VC) -> (O, NO)
@@ -575,6 +583,8 @@ public:
     {
     }
 
+    AssemblerBuffer& buffer() { return m_formatter.m_buffer; }
+
 private:
 
     // ARMv7, Appx-A.6.3
@@ -646,6 +656,8 @@ private:
     typedef enum {
         OP_B_T1         = 0xD000,
         OP_B_T2         = 0xE000,
+        OP_POP_T2       = 0xE8BD,
+        OP_PUSH_T2      = 0xE92D,
         OP_AND_reg_T2   = 0xEA00,
         OP_TST_reg_T2   = 0xEA10,
         OP_ORR_reg_T2   = 0xEA40,
@@ -706,6 +718,7 @@ private:
         OP_MOVT         = 0xF2C0,
         OP_UBFX_T1      = 0xF3C0,
         OP_NOP_T2a      = 0xF3AF,
+        OP_DMB_SY_T2a   = 0xF3BF,
         OP_STRB_imm_T3  = 0xF800,
         OP_STRB_reg_T2  = 0xF800,
         OP_LDRB_imm_T3  = 0xF810,
@@ -762,6 +775,7 @@ private:
         OP_VCVTSD_T1b   = 0x0A40,
         OP_VCVTDS_T1b   = 0x0A40,
         OP_NOP_T2b      = 0x8000,
+        OP_DMB_SY_T2b   = 0x8F5F,
         OP_B_T3b        = 0x8000,
         OP_B_T4b        = 0x9000,
     } OpcodeID2;
@@ -845,7 +859,7 @@ public:
         ASSERT(rn != ARMRegisters::pc);
         ASSERT(imm.isValid());
 
-        if (rn == ARMRegisters::sp) {
+        if (rn == ARMRegisters::sp && imm.isUInt16()) {
             ASSERT(!(imm.getUInt16() & 3));
             if (!(rd & 8) && imm.isUInt10()) {
                 m_formatter.oneWordOp5Reg3Imm8(OP_ADD_SP_imm_T1, rd, static_cast<uint8_t>(imm.getUInt10() >> 2));
@@ -884,6 +898,11 @@ public:
     // NOTE: In an IT block, add doesn't modify the flags register.
     ALWAYS_INLINE void add(RegisterID rd, RegisterID rn, RegisterID rm)
     {
+        if (rd == ARMRegisters::sp) {
+            mov(rd, rn);
+            rn = rd;
+        }
+
         if (rd == rn)
             m_formatter.oneWordOp8RegReg143(OP_ADD_reg_T2, rm, rd);
         else if (rd == rm)
@@ -1337,7 +1356,7 @@ public:
         m_formatter.twoWordOp5i6Imm4Reg4EncodedImm(OP_MOV_imm_T3, imm.m_value.imm4, rd, imm);
     }
     
-#if OS(LINUX) || OS(QNX)
+#if OS(LINUX)
     static void revertJumpTo_movT3movtcmpT2(void* instructionStart, RegisterID left, RegisterID right, uintptr_t imm)
     {
         uint16_t* address = static_cast<uint16_t*>(instructionStart);
@@ -1476,6 +1495,22 @@ public:
         ASSERT(!BadReg(rn));
         ASSERT(!BadReg(rm));
         m_formatter.twoWordOp12Reg4FourFours(OP_ROR_reg_T2, rn, FourFours(0xf, rd, 0, rm));
+    }
+
+    ALWAYS_INLINE void pop(uint32_t registerList)
+    {
+        ASSERT(WTF::bitCount(registerList) > 1);
+        ASSERT(!((1 << ARMRegisters::pc) & registerList) || !((1 << ARMRegisters::lr) & registerList));
+        ASSERT(!((1 << ARMRegisters::sp) & registerList));
+        m_formatter.twoWordOp16Imm16(OP_POP_T2, registerList);
+    }
+
+    ALWAYS_INLINE void push(uint32_t registerList)
+    {
+        ASSERT(WTF::bitCount(registerList) > 1);
+        ASSERT(!((1 << ARMRegisters::pc) & registerList));
+        ASSERT(!((1 << ARMRegisters::sp) & registerList));
+        m_formatter.twoWordOp16Imm16(OP_PUSH_T2, registerList);
     }
 
 #if CPU(APPLE_ARMV7S)
@@ -1973,6 +2008,11 @@ public:
     {
         m_formatter.twoWordOp16Op16(OP_NOP_T2a, OP_NOP_T2b);
     }
+    
+    void dmbSY()
+    {
+        m_formatter.twoWordOp16Op16(OP_DMB_SY_T2a, OP_DMB_SY_T2b);
+    }
 
     AssemblerLabel labelIgnoringWatchpoints()
     {
@@ -2021,13 +2061,6 @@ public:
         return b.m_offset - a.m_offset;
     }
 
-    int executableOffsetFor(int location)
-    {
-        if (!location)
-            return 0;
-        return static_cast<int32_t*>(m_formatter.data())[location / sizeof(int32_t) - 1];
-    }
-    
     int jumpSizeDelta(JumpType jumpType, JumpLinkType jumpLinkType) { return JUMP_ENUM_SIZE(jumpType) - JUMP_ENUM_SIZE(jumpLinkType); }
     
     // Assembler admin methods:
@@ -2178,7 +2211,6 @@ public:
     {
         ASSERT(!(reinterpret_cast<intptr_t>(code) & 1));
         ASSERT(from.isSet());
-        ASSERT(reinterpret_cast<intptr_t>(to) & 1);
 
         setPointer(reinterpret_cast<uint16_t*>(reinterpret_cast<intptr_t>(code) + from.m_offset) - 1, to, false);
     }
@@ -2201,7 +2233,6 @@ public:
     static void relinkCall(void* from, void* to)
     {
         ASSERT(!(reinterpret_cast<intptr_t>(from) & 1));
-        ASSERT(reinterpret_cast<intptr_t>(to) & 1);
 
         setPointer(reinterpret_cast<uint16_t*>(from) - 1, to, true);
     }
@@ -2255,7 +2286,7 @@ public:
         ASSERT(!(bitwise_cast<uintptr_t>(instructionStart) & 1));
         ASSERT(!(bitwise_cast<uintptr_t>(to) & 1));
 
-#if OS(LINUX) || OS(QNX)
+#if OS(LINUX)
         if (canBeJumpT4(reinterpret_cast<uint16_t*>(instructionStart), to)) {
             uint16_t* ptr = reinterpret_cast<uint16_t*>(instructionStart) + 2;
             linkJumpT4(ptr, to);
@@ -2274,7 +2305,7 @@ public:
     
     static ptrdiff_t maxJumpReplacementSize()
     {
-#if OS(LINUX) || OS(QNX)
+#if OS(LINUX)
         return 10;
 #else
         return 4;
@@ -2364,13 +2395,6 @@ public:
         linuxPageFlush(current, end);
 #elif OS(WINCE)
         CacheRangeFlush(code, size, CACHE_SYNC_ALL);
-#elif OS(QNX)
-#if !ENABLE(ASSEMBLER_WX_EXCLUSIVE)
-        msync(code, size, MS_INVALIDATE_ICACHE);
-#else
-        UNUSED_PARAM(code);
-        UNUSED_PARAM(size);
-#endif
 #else
 #error "The cacheFlush support is missing on this platform."
 #endif
@@ -2785,6 +2809,12 @@ private:
             m_buffer.putShort(op2);
         }
 
+        ALWAYS_INLINE void twoWordOp16Imm16(OpcodeID1 op1, uint16_t imm)
+        {
+            m_buffer.putShort(op1);
+            m_buffer.putShort(imm);
+        }
+        
         ALWAYS_INLINE void twoWordOp5i6Imm4Reg4EncodedImm(OpcodeID1 op, int imm4, RegisterID rd, ARMThumbImmediate imm)
         {
             ARMThumbImmediate newImm = imm;
@@ -2845,7 +2875,6 @@ private:
 
         unsigned debugOffset() { return m_buffer.debugOffset(); }
 
-    private:
         AssemblerBuffer m_buffer;
     } m_formatter;
 

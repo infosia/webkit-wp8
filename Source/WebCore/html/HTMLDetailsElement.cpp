@@ -22,13 +22,12 @@
 #include "HTMLDetailsElement.h"
 
 #if ENABLE(DETAILS_ELEMENT)
-#include "HTMLContentElement.h"
-#include "HTMLNames.h"
+#include "ElementIterator.h"
 #include "HTMLSummaryElement.h"
+#include "InsertionPoint.h"
 #include "LocalizedStrings.h"
 #include "MouseEvent.h"
 #include "RenderBlockFlow.h"
-#include "ShadowRoot.h"
 #include "Text.h"
 
 namespace WebCore {
@@ -37,7 +36,7 @@ using namespace HTMLNames;
 
 static const AtomicString& summaryQuerySelector()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, selector, ("summary:first-of-type", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, selector, ("summary:first-of-type", AtomicString::ConstructFromLiteral));
     return selector;
 };
 
@@ -51,7 +50,7 @@ private:
     {
     }
 
-    virtual MatchType matchTypeFor(Node* node) const OVERRIDE
+    virtual MatchType matchTypeFor(Node* node) const override
     {
         if (node->isElementNode() && node == node->parentNode()->querySelector(summaryQuerySelector(), ASSERT_NO_EXCEPTION))
             return NeverMatches;
@@ -80,7 +79,7 @@ private:
     {
     }
 
-    virtual MatchType matchTypeFor(Node* node) const OVERRIDE
+    virtual MatchType matchTypeFor(Node* node) const override
     {
         if (node->isElementNode() && node == node->parentNode()->querySelector(summaryQuerySelector(), ASSERT_NO_EXCEPTION))
             return AlwaysMatches;
@@ -112,23 +111,21 @@ HTMLDetailsElement::HTMLDetailsElement(const QualifiedName& tagName, Document& d
     ASSERT(hasTagName(detailsTag));
 }
 
-RenderElement* HTMLDetailsElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> HTMLDetailsElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderBlockFlow(this);
+    return createRenderer<RenderBlockFlow>(*this, std::move(style));
 }
 
 void HTMLDetailsElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsSummaryElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(DetailsContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsSummaryElement::create(document()), ASSERT_NO_EXCEPTION);
+    root->appendChild(DetailsContentElement::create(document()), ASSERT_NO_EXCEPTION);
 }
 
-Element* HTMLDetailsElement::findMainSummary() const
+const Element* HTMLDetailsElement::findMainSummary() const
 {
-    for (Node* child = firstChild(); child; child = child->nextSibling()) {
-        if (child->hasTagName(summaryTag))
-            return toElement(child);
-    }
+    if (auto summary = childrenOfType<HTMLSummaryElement>(*this).first())
+        return summary;
 
     return static_cast<DetailsSummaryElement*>(userAgentShadowRoot()->firstChild())->fallbackSummary();
 }
@@ -138,15 +135,15 @@ void HTMLDetailsElement::parseAttribute(const QualifiedName& name, const AtomicS
     if (name == openAttr) {
         bool oldValue = m_isOpen;
         m_isOpen = !value.isNull();
-        if (oldValue != m_isOpen && attached())
-            Style::reattachRenderTree(*this);
+        if (oldValue != m_isOpen)
+            setNeedsStyleRecalc(ReconstructRenderTree);
     } else
         HTMLElement::parseAttribute(name, value);
 }
 
-bool HTMLDetailsElement::childShouldCreateRenderer(const Node* child) const
+bool HTMLDetailsElement::childShouldCreateRenderer(const Node& child) const
 {
-    if (child->isPseudoElement())
+    if (child.isPseudoElement())
         return HTMLElement::childShouldCreateRenderer(child);
 
     if (!hasShadowRootOrActiveInsertionPointParent(child))
@@ -155,10 +152,10 @@ bool HTMLDetailsElement::childShouldCreateRenderer(const Node* child) const
     if (m_isOpen)
         return HTMLElement::childShouldCreateRenderer(child);
 
-    if (!child->hasTagName(summaryTag))
+    if (!child.hasTagName(summaryTag))
         return false;
 
-    return child == findMainSummary() && HTMLElement::childShouldCreateRenderer(child);
+    return &child == findMainSummary() && HTMLElement::childShouldCreateRenderer(child);
 }
 
 void HTMLDetailsElement::toggleOpen()

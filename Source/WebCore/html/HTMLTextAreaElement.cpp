@@ -45,6 +45,7 @@
 #include "RenderTextControlMultiLine.h"
 #include "ShadowRoot.h"
 #include "Text.h"
+#include "TextBreakIterator.h"
 #include "TextControlInnerElements.h"
 #include "TextIterator.h"
 #include "TextNodeTraversal.h"
@@ -110,11 +111,12 @@ PassRefPtr<HTMLTextAreaElement> HTMLTextAreaElement::create(const QualifiedName&
 void HTMLTextAreaElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
     root->appendChild(TextControlInnerTextElement::create(document()), ASSERT_NO_EXCEPTION);
+    updateInnerTextElementEditability();
 }
 
 const AtomicString& HTMLTextAreaElement::formControlType() const
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, textarea, ("textarea", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, textarea, ("textarea", AtomicString::ConstructFromLiteral));
     return textarea;
 }
 
@@ -151,7 +153,7 @@ bool HTMLTextAreaElement::isPresentationAttribute(const QualifiedName& name) con
     return HTMLTextFormControlElement::isPresentationAttribute(name);
 }
 
-void HTMLTextAreaElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStylePropertySet* style)
+void HTMLTextAreaElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (name == wrapAttr) {
         if (shouldWrapText()) {
@@ -208,9 +210,9 @@ void HTMLTextAreaElement::parseAttribute(const QualifiedName& name, const Atomic
         HTMLTextFormControlElement::parseAttribute(name, value);
 }
 
-RenderElement* HTMLTextAreaElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> HTMLTextAreaElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderTextControlMultiLine(*this);
+    return createRenderer<RenderTextControlMultiLine>(*this, std::move(style));
 }
 
 bool HTMLTextAreaElement::appendFormData(FormDataList& encoding, bool)
@@ -269,7 +271,7 @@ void HTMLTextAreaElement::defaultEventHandler(Event* event)
     if (renderer() && (event->isMouseEvent() || event->isDragEvent() || event->eventInterface() == WheelEventInterfaceType || event->type() == eventNames().blurEvent))
         forwardEvent(event);
     else if (renderer() && event->isBeforeTextInsertedEvent())
-        handleBeforeTextInsertedEvent(static_cast<BeforeTextInsertedEvent*>(event));
+        handleBeforeTextInsertedEvent(toBeforeTextInsertedEvent(event));
 
     HTMLTextFormControlElement::defaultEventHandler(event);
 }
@@ -322,11 +324,10 @@ String HTMLTextAreaElement::sanitizeUserInputValue(const String& proposedValue, 
     return proposedValue.left(numCharactersInGraphemeClusters(proposedValue, maxLength));
 }
 
-HTMLElement* HTMLTextAreaElement::innerTextElement() const
+TextControlInnerTextElement* HTMLTextAreaElement::innerTextElement() const
 {
     Node* node = userAgentShadowRoot()->firstChild();
-    ASSERT(!node || node->hasTagName(divTag));
-    return toHTMLElement(node);
+    return toTextControlInnerTextElement(node);
 }
 
 void HTMLTextAreaElement::rendererWillBeDestroyed()
@@ -342,7 +343,6 @@ void HTMLTextAreaElement::updateValue() const
     ASSERT(renderer());
     m_value = innerTextValue();
     const_cast<HTMLTextAreaElement*>(this)->setFormControlValueMatchesRenderer(true);
-    const_cast<HTMLTextAreaElement*>(this)->notifyFormStateChanged();
     m_isDirty = true;
     m_wasModifiedByUser = true;
     const_cast<HTMLTextAreaElement*>(this)->updatePlaceholderVisibility(false);
@@ -395,7 +395,6 @@ void HTMLTextAreaElement::setValueCommon(const String& newValue)
         setSelectionRange(endOfString, endOfString);
     }
 
-    notifyFormStateChanged();
     setTextAsOfLastFormControlChangeEvent(normalizedValue);
 }
 
@@ -440,7 +439,7 @@ void HTMLTextAreaElement::setMaxLength(int newValue, ExceptionCode& ec)
     if (newValue < 0)
         ec = INDEX_SIZE_ERR;
     else
-        setAttribute(maxlengthAttr, String::number(newValue));
+        setIntegralAttribute(maxlengthAttr, newValue);
 }
 
 String HTMLTextAreaElement::validationMessage() const
@@ -498,12 +497,12 @@ void HTMLTextAreaElement::accessKeyAction(bool)
 
 void HTMLTextAreaElement::setCols(int cols)
 {
-    setAttribute(colsAttr, String::number(cols));
+    setIntegralAttribute(colsAttr, cols);
 }
 
 void HTMLTextAreaElement::setRows(int rows)
 {
-    setAttribute(rowsAttr, String::number(rows));
+    setIntegralAttribute(rowsAttr, rows);
 }
 
 bool HTMLTextAreaElement::shouldUseInputMethod()
@@ -523,7 +522,7 @@ bool HTMLTextAreaElement::matchesReadOnlyPseudoClass() const
 
 bool HTMLTextAreaElement::matchesReadWritePseudoClass() const
 {
-    return !isReadOnly();
+    return !isDisabledOrReadOnly();
 }
 
 void HTMLTextAreaElement::updatePlaceholderText()
@@ -545,4 +544,9 @@ void HTMLTextAreaElement::updatePlaceholderText()
     m_placeholder->setInnerText(placeholderText, ASSERT_NO_EXCEPTION);
 }
 
+bool HTMLTextAreaElement::willRespondToMouseClickEvents()
+{
+    return !isDisabledFormControl();
 }
+
+} // namespace WebCore

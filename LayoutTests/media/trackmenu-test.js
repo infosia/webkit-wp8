@@ -18,6 +18,8 @@ function clickCCButton()
 
 function startTrackMenuTest(testFunction)
 {
+    internals.suspendAnimations();
+
     if (window.eventSender) {
         consoleWrite("<br>*** Set the user language preference.");
         run("internals.setUserPreferredLanguages(['en'])");
@@ -31,19 +33,22 @@ function getTrackListElement()
 {
   var trackListElement;
   try {
-      trackListElement = mediaControlsElement(internals.shadowRoot(video).firstChild, "-webkit-media-controls-closed-captions-track-list");
+      trackListElement = mediaControlsElement(internals.shadowRoot(video).firstChild, "-webkit-media-controls-closed-captions-container");
   } catch (exception) {
       failTest(exception.description);
       return null;
   }
+
   return trackListElement;
 }
 
 function trackMenuList()
 {
     trackListElement = getTrackListElement();
-    if (!trackListElement)
+    if (!trackListElement){
+        failTest("Could not find the track list menu");
         return;
+    }
 
     // Track list should have a <ul> with <li> children.
     var trackList = trackListElement.querySelector("ul");

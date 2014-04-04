@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -53,7 +53,7 @@ JSValue JSXSLTProcessor::setParameter(ExecState* exec)
     String namespaceURI = exec->uncheckedArgument(0).toString(exec)->value(exec);
     String localName = exec->uncheckedArgument(1).toString(exec)->value(exec);
     String value = exec->uncheckedArgument(2).toString(exec)->value(exec);
-    impl()->setParameter(namespaceURI, localName, value);
+    impl().setParameter(namespaceURI, localName, value);
     return jsUndefined();
 }
 
@@ -63,7 +63,7 @@ JSValue JSXSLTProcessor::getParameter(ExecState* exec)
         return jsUndefined();
     String namespaceURI = exec->uncheckedArgument(0).toString(exec)->value(exec);
     String localName = exec->uncheckedArgument(1).toString(exec)->value(exec);
-    String value = impl()->getParameter(namespaceURI, localName);
+    String value = impl().getParameter(namespaceURI, localName);
     return jsStringOrUndefined(exec, value);
 }
 
@@ -73,7 +73,7 @@ JSValue JSXSLTProcessor::removeParameter(ExecState* exec)
         return jsUndefined();
     String namespaceURI = exec->uncheckedArgument(0).toString(exec)->value(exec);
     String localName = exec->uncheckedArgument(1).toString(exec)->value(exec);
-    impl()->removeParameter(namespaceURI, localName);
+    impl().removeParameter(namespaceURI, localName);
     return jsUndefined();
 }
 

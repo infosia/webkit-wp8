@@ -32,18 +32,18 @@
 #include "ANGLEWebKitBridge.h"
 #include "GraphicsContext3D.h"
 
-#if PLATFORM(BLACKBERRY)
-#include <BlackBerryPlatformLog.h>
-#endif
-
+#if PLATFORM(IOS)
+#include <OpenGLES/ES2/glext.h>
+#else
 #if USE(OPENGL_ES_2)
 #include "OpenGLESShims.h"
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #elif PLATFORM(MAC)
 #include <OpenGL/gl.h>
-#elif PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(QT) || PLATFORM(WIN) || PLATFORM(NIX)
+#elif PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(WIN)
 #include "OpenGLShims.h"
+#endif
 #endif
 
 #include <wtf/MainThread.h>
@@ -57,6 +57,7 @@ Extensions3DOpenGLCommon::Extensions3DOpenGLCommon(GraphicsContext3D* context)
     , m_isNVIDIA(false)
     , m_isAMD(false)
     , m_isIntel(false)
+    , m_isImagination(false)
     , m_maySupportMultisampling(true)
     , m_requiresBuiltInFunctionEmulation(false)
 {
@@ -70,6 +71,8 @@ Extensions3DOpenGLCommon::Extensions3DOpenGLCommon(GraphicsContext3D* context)
         m_isAMD = true;
     if (vendorComponents.contains("intel"))
         m_isIntel = true;
+    if (vendorComponents.contains("imagination"))
+        m_isImagination = true;
 
 #if PLATFORM(MAC)
     if (m_isAMD || m_isIntel)
@@ -170,7 +173,7 @@ String Extensions3DOpenGLCommon::getTranslatedShaderSourceANGLE(Platform3DObject
 
     String translatedShaderSource;
     String shaderInfoLog;
-    int extraCompileOptions = SH_MAP_LONG_VARIABLE_NAMES | SH_CLAMP_INDIRECT_ARRAY_BOUNDS;
+    int extraCompileOptions = SH_MAP_LONG_VARIABLE_NAMES | SH_CLAMP_INDIRECT_ARRAY_BOUNDS | SH_UNFOLD_SHORT_CIRCUIT | SH_ENFORCE_PACKING_RESTRICTIONS | SH_INIT_VARYINGS_WITHOUT_STATIC_USE;
 
     if (m_requiresBuiltInFunctionEmulation)
         extraCompileOptions |= SH_EMULATE_BUILT_IN_FUNCTIONS;
@@ -184,7 +187,7 @@ String Extensions3DOpenGLCommon::getTranslatedShaderSourceANGLE(Platform3DObject
     size_t numSymbols = symbols.size();
     for (size_t i = 0; i < numSymbols; ++i) {
         ANGLEShaderSymbol shaderSymbol = symbols[i];
-        GraphicsContext3D::SymbolInfo symbolInfo(shaderSymbol.dataType, shaderSymbol.size, shaderSymbol.mappedName);
+        GraphicsContext3D::SymbolInfo symbolInfo(shaderSymbol.dataType, shaderSymbol.size, shaderSymbol.mappedName, shaderSymbol.precision, shaderSymbol.staticUse);
         entry.symbolMap(shaderSymbol.symbolType).set(shaderSymbol.name, symbolInfo);
     }
 

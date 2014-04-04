@@ -40,8 +40,6 @@
 
 namespace WebCore {
 
-const size_t DefaultBufferSize = 4096;
-
 PassRefPtr<ScriptProcessorNode> ScriptProcessorNode::create(AudioContext* context, float sampleRate, size_t bufferSize, unsigned numberOfInputChannels, unsigned numberOfOutputChannels)
 {
     // Check for valid buffer size.
@@ -55,17 +53,17 @@ PassRefPtr<ScriptProcessorNode> ScriptProcessorNode::create(AudioContext* contex
     case 16384:
         break;
     default:
-        return 0;
+        return nullptr;
     }
 
     if (!numberOfInputChannels && !numberOfOutputChannels)
-        return 0;
+        return nullptr;
 
     if (numberOfInputChannels > AudioContext::maxNumberOfChannels())
-        return 0;
+        return nullptr;
 
     if (numberOfOutputChannels > AudioContext::maxNumberOfChannels())
-        return 0;
+        return nullptr;
 
     return adoptRef(new ScriptProcessorNode(context, sampleRate, bufferSize, numberOfInputChannels, numberOfOutputChannels));
 }
@@ -88,8 +86,8 @@ ScriptProcessorNode::ScriptProcessorNode(AudioContext* context, float sampleRate
 
     ASSERT(numberOfInputChannels <= AudioContext::maxNumberOfChannels());
 
-    addInput(adoptPtr(new AudioNodeInput(this)));
-    addOutput(adoptPtr(new AudioNodeOutput(this, numberOfOutputChannels)));
+    addInput(std::make_unique<AudioNodeInput>(this));
+    addOutput(std::make_unique<AudioNodeOutput>(this, numberOfOutputChannels));
 
     setNodeType(NodeTypeJavaScript);
 

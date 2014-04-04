@@ -48,12 +48,8 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 
-#if USE(CF) && !PLATFORM(QT)
+#if USE(CF)
 #include "WebArchiveDumpSupport.h"
-#endif
-
-#if PLATFORM(QT)
-#include "DumpRenderTreeSupportQt.h"
 #endif
 
 using namespace std;
@@ -272,9 +268,8 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
     : m_page(page)
     , m_world(AdoptWK, WKBundleScriptWorldCreateWorld())
 {
-    WKBundlePageLoaderClient loaderClient = {
-        kWKBundlePageLoaderClientCurrentVersion,
-        this,
+    WKBundlePageLoaderClientV7 loaderClient = {
+        { 7, this },
         didStartProvisionalLoadForFrame,
         didReceiveServerRedirectForProvisionalLoadForFrame,
         didFailProvisionalLoadWithErrorForFrame,
@@ -311,11 +306,10 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         0, // willLoadDataRequest
         0, // willDestroyFrame
     };
-    WKBundlePageSetPageLoaderClient(m_page, &loaderClient);
+    WKBundlePageSetPageLoaderClient(m_page, &loaderClient.base);
 
-    WKBundlePageResourceLoadClient resourceLoadClient = {
-        kWKBundlePageResourceLoadClientCurrentVersion,
-        this,
+    WKBundlePageResourceLoadClientV1 resourceLoadClient = {
+        { 1, this },
         didInitiateLoadForResource,
         willSendRequestForFrame,
         didReceiveResponseForResource,
@@ -325,21 +319,19 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         shouldCacheResponse,
         0 // shouldUseCredentialStorage
     };
-    WKBundlePageSetResourceLoadClient(m_page, &resourceLoadClient);
+    WKBundlePageSetResourceLoadClient(m_page, &resourceLoadClient.base);
 
-    WKBundlePagePolicyClient policyClient = {
-        kWKBundlePagePolicyClientCurrentVersion,
-        this,
+    WKBundlePagePolicyClientV0 policyClient = {
+        { 0, this },
         decidePolicyForNavigationAction,
         decidePolicyForNewWindowAction,
         decidePolicyForResponse,
         unableToImplementPolicy
     };
-    WKBundlePageSetPolicyClient(m_page, &policyClient);
+    WKBundlePageSetPolicyClient(m_page, &policyClient.base);
 
-    WKBundlePageUIClient uiClient = {
-        kWKBundlePageUIClientCurrentVersion,
-        this,
+    WKBundlePageUIClientV2 uiClient = {
+        { 2, this },
         willAddMessageToConsole,
         willSetStatusbarText,
         willRunJavaScriptAlert,
@@ -361,11 +353,10 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         0, /*plugInExtraStyleSheet*/
         0, /*plugInExtraScript*/
     };
-    WKBundlePageSetUIClient(m_page, &uiClient);
+    WKBundlePageSetUIClient(m_page, &uiClient.base);
 
-    WKBundlePageEditorClient editorClient = {
-        kWKBundlePageEditorClientCurrentVersion,
-        this,
+    WKBundlePageEditorClientV1 editorClient = {
+        { 1, this },
         shouldBeginEditing,
         shouldEndEditing,
         shouldInsertNode,
@@ -381,12 +372,11 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         0, /* getPasteboardDataForRange */
         0  /* didWriteToPasteboard */
     };
-    WKBundlePageSetEditorClient(m_page, &editorClient);
+    WKBundlePageSetEditorClient(m_page, &editorClient.base);
 
 #if ENABLE(FULLSCREEN_API)
-    WKBundlePageFullScreenClient fullScreenClient = {
-        kWKBundlePageFullScreenClientCurrentVersion,
-        this,
+    WKBundlePageFullScreenClientV1 fullScreenClient = {
+        { 1, this },
         supportsFullScreen,
         enterFullScreenForElement,
         exitFullScreenForElement,
@@ -394,7 +384,7 @@ InjectedBundlePage::InjectedBundlePage(WKBundlePageRef page)
         beganExitFullScreen,
         closeFullScreen,
     };
-    WKBundlePageSetFullScreenClient(m_page, &fullScreenClient);
+    WKBundlePageSetFullScreenClient(m_page, &fullScreenClient.base);
 #endif
 }
 
@@ -428,11 +418,7 @@ void InjectedBundlePage::resetAfterTest()
 {
     WKBundleFrameRef frame = WKBundlePageGetMainFrame(m_page);
     JSGlobalContextRef context = WKBundleFrameGetJavaScriptContext(frame);
-#if PLATFORM(QT)
-    DumpRenderTreeSupportQt::resetInternalsObject(context);
-#else
     WebCoreTestSupport::resetInternalsObject(context);
-#endif
     assignedUrlsCache.clear();
 }
 
@@ -827,14 +813,11 @@ void InjectedBundlePage::dumpAllFramesText(StringBuilder& stringBuilder)
 
 void InjectedBundlePage::dumpDOMAsWebArchive(WKBundleFrameRef frame, StringBuilder& stringBuilder)
 {
-#if USE(CF) && !PLATFORM(QT)
+#if USE(CF)
     WKRetainPtr<WKDataRef> wkData = adoptWK(WKBundleFrameCopyWebArchive(frame));
     RetainPtr<CFDataRef> cfData = adoptCF(CFDataCreate(0, WKDataGetBytes(wkData.get()), WKDataGetSize(wkData.get())));
     RetainPtr<CFStringRef> cfString = adoptCF(createXMLStringFromWebArchiveData(cfData.get()));
     stringBuilder.append(cfString.get());
-#else
-    UNUSED_PARAM(frame);
-    UNUSED_PARAM(stringBuilder);
 #endif
 }
 
@@ -964,11 +947,7 @@ void InjectedBundlePage::didClearWindowForFrame(WKBundleFrameRef frame, WKBundle
     InjectedBundle::shared().textInputController()->makeWindowObject(context, window, &exception);
     InjectedBundle::shared().accessibilityController()->makeWindowObject(context, window, &exception);
 
-#if PLATFORM(QT)
-    DumpRenderTreeSupportQt::injectInternalsObject(context);
-#else
     WebCoreTestSupport::injectInternalsObject(context);
-#endif
 }
 
 void InjectedBundlePage::didCancelClientRedirectForFrame(WKBundleFrameRef frame)
@@ -1463,8 +1442,26 @@ uint64_t InjectedBundlePage::didExceedDatabaseQuota(WKSecurityOriginRef origin, 
         InjectedBundle::shared().outputText(stringBuilder.toString());
     }
 
-    static const uint64_t defaultQuota = 5 * 1024 * 1024;
-    return defaultQuota;
+    uint64_t defaultQuota = 5 * 1024 * 1024;
+    double testDefaultQuota = InjectedBundle::shared().testRunner()->databaseDefaultQuota();
+    if (testDefaultQuota >= 0)
+        defaultQuota = testDefaultQuota;
+
+    unsigned long long newQuota = defaultQuota;
+
+    double maxQuota = InjectedBundle::shared().testRunner()->databaseMaxQuota();
+    if (maxQuota >= 0) {
+        if (defaultQuota < expectedUsageBytes && expectedUsageBytes <= maxQuota) {
+            newQuota = expectedUsageBytes;
+
+            StringBuilder stringBuilder;
+            stringBuilder.appendLiteral("UI DELEGATE DATABASE CALLBACK: increased quota to ");
+            stringBuilder.appendNumber(newQuota);
+            stringBuilder.append('\n');
+            InjectedBundle::shared().outputText(stringBuilder.toString());
+        }
+    }
+    return newQuota;
 }
 
 // Editor Client Callbacks
@@ -1865,7 +1862,7 @@ void InjectedBundlePage::dumpBackForwardList(StringBuilder& stringBuilder)
     stringBuilder.appendLiteral("===============================================\n");
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 void InjectedBundlePage::platformDidStartProvisionalLoadForFrame(WKBundleFrameRef)
 {
 }

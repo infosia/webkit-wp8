@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007, 2008, 2013 Apple Computer, Inc.
+ * Copyright (C) 2007, 2008, 2013 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -80,17 +80,15 @@ static String createUniqueFontName()
     return fontName;
 }
 
-FontCustomPlatformData* createFontCustomPlatformData(SharedBuffer* buffer)
+std::unique_ptr<FontCustomPlatformData> createFontCustomPlatformData(SharedBuffer& buffer)
 {
-    ASSERT_ARG(buffer, buffer);
-
     String fontName = createUniqueFontName();
     HANDLE fontReference = renameAndActivateFont(buffer, fontName);
 
     if (!fontReference)
-        return 0;
+        return nullptr;
 
-    return new FontCustomPlatformData(fontReference, fontName);
+    return std::make_unique<FontCustomPlatformData>(fontReference, fontName);
 }
 
 bool FontCustomPlatformData::supportsFormat(const String& format)

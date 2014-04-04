@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,10 +28,20 @@
 
 #import "GraphicsContextCG.h"
 #import "GraphicsContextPlatformPrivateCG.h"
+#import "IntRect.h"
+#if USE(APPKIT)
 #import <AppKit/AppKit.h>
+#endif
 #import <wtf/StdLibExtras.h>
 
+#if PLATFORM(IOS)
+#import "Color.h"
+#import "WKGraphics.h"
+#endif
+
+#if !PLATFORM(IOS)
 #import "LocalCurrentGraphicsContext.h"
+#endif
 #import "WebCoreSystemInterface.h"
 
 @class NSColor;
@@ -45,6 +55,7 @@ namespace WebCore {
 // calls in this file are all exception-safe, so we don't block
 // exceptions for those.
 
+#if !PLATFORM(IOS)
 static void drawFocusRingToContext(CGContextRef context, CGPathRef focusRingPath, CGColorRef color, int radius)
 {
     CGContextBeginPath(context);
@@ -64,9 +75,11 @@ void GraphicsContext::drawFocusRing(const Path& path, int width, int /*offset*/,
 
     drawFocusRingToContext(platformContext(), path.platformPath(), colorRef, radius);
 }
+#endif // !PLATFORM(IOS)
 
 void GraphicsContext::drawFocusRing(const Vector<IntRect>& rects, int width, int offset, const Color& color)
 {
+#if !PLATFORM(IOS)
     if (paintingDisabled())
         return;
 
@@ -80,9 +93,16 @@ void GraphicsContext::drawFocusRing(const Vector<IntRect>& rects, int width, int
         CGPathAddRect(focusRingPath.get(), 0, CGRectInset(rects[i], -offset, -offset));
 
     drawFocusRingToContext(platformContext(), focusRingPath.get(), colorRef, radius);
+#else
+    UNUSED_PARAM(rects);
+    UNUSED_PARAM(width);
+    UNUSED_PARAM(offset);
+    UNUSED_PARAM(color);
+#endif
 }
 
 
+#if !PLATFORM(IOS)
 static NSColor* makePatternColor(NSString* firstChoiceName, NSString* secondChoiceName, NSColor* defaultColor, bool& usingDot)
 {
     // Eventually we should be able to get rid of the secondChoiceName. For the time being we need both to keep
@@ -98,6 +118,26 @@ static NSColor* makePatternColor(NSString* firstChoiceName, NSString* secondChoi
         color = defaultColor;
     return color;
 }
+#else
+static RetainPtr<CGPatternRef> createDotPattern(bool& usingDot, const char* resourceName)
+{
+    RetainPtr<CGImageRef> image = adoptCF(WKGraphicsCreateImageFromBundleWithName(resourceName));
+    ASSERT(image); // if image is not available, we want to know
+    usingDot = true;
+    return adoptCF(WKCreatePatternFromCGImage(image.get()));
+}
+#endif // !PLATFORM(IOS)
+
+static NSColor *spellingPatternColor = nullptr;
+static NSColor *grammarPatternColor = nullptr;
+static NSColor *correctionPatternColor = nullptr;
+
+void GraphicsContext::updateDocumentMarkerResources()
+{
+    spellingPatternColor = nullptr;
+    grammarPatternColor = nullptr;
+    correctionPatternColor = nullptr;
+}
 
 // WebKit on Mac is a standard platform component, so it must use the standard platform artwork for underline.
 void GraphicsContext::drawLineForDocumentMarker(const FloatPoint& point, float width, DocumentMarkerLineStyle style)
@@ -110,25 +150,42 @@ void GraphicsContext::drawLineForDocumentMarker(const FloatPoint& point, float w
     float patternWidth = cMisspellingLinePatternWidth;
 
     bool usingDot;
+#if !PLATFORM(IOS)
     NSColor *patternColor;
+#else
+    CGPatternRef dotPattern;
+#endif
     switch (style) {
         case DocumentMarkerSpellingLineStyle:
         {
             // Constants for spelling pattern color.
             static bool usingDotForSpelling = false;
-            static NSColor *spellingPatternColor = [makePatternColor(@"NSSpellingDot", @"SpellingDot", [NSColor redColor], usingDotForSpelling) retain];
+#if !PLATFORM(IOS)
+            if (!spellingPatternColor)
+                spellingPatternColor = [makePatternColor(@"NSSpellingDot", @"SpellingDot", [NSColor redColor], usingDotForSpelling) retain];
             usingDot = usingDotForSpelling;
             patternColor = spellingPatternColor;
+#else
+            static CGPatternRef spellingPattern = createDotPattern(usingDotForSpelling, "SpellingDot").leakRef();
+            dotPattern = spellingPattern;
+#endif
+            usingDot = usingDotForSpelling;
             break;
         }
         case DocumentMarkerGrammarLineStyle:
         {
+#if !PLATFORM(IOS)
             // Constants for grammar pattern color.
             static bool usingDotForGrammar = false;
-            static NSColor *grammarPatternColor = [makePatternColor(@"NSGrammarDot", @"GrammarDot", [NSColor greenColor], usingDotForGrammar) retain];
+            if (!grammarPatternColor)
+                grammarPatternColor = [makePatternColor(@"NSGrammarDot", @"GrammarDot", [NSColor greenColor], usingDotForGrammar) retain];
             usingDot = usingDotForGrammar;
             patternColor = grammarPatternColor;
             break;
+#else
+            ASSERT_NOT_REACHED();
+            return;
+#endif
         }
 #if PLATFORM(MAC)
         // To support correction panel.
@@ -137,26 +194,44 @@ void GraphicsContext::drawLineForDocumentMarker(const FloatPoint& point, float w
         {
             // Constants for spelling pattern color.
             static bool usingDotForSpelling = false;
-            static NSColor *spellingPatternColor = [makePatternColor(@"NSCorrectionDot", @"CorrectionDot", [NSColor blueColor], usingDotForSpelling) retain];
+            if (!correctionPatternColor)
+                correctionPatternColor = [makePatternColor(@"NSCorrectionDot", @"CorrectionDot", [NSColor blueColor], usingDotForSpelling) retain];
             usingDot = usingDotForSpelling;
-            patternColor = spellingPatternColor;
+            patternColor = correctionPatternColor;
             break;
         }
 #endif
+#if PLATFORM(IOS)
+        case TextCheckingDictationPhraseWithAlternativesLineStyle:
+        {
+            static bool usingDotForDictationPhraseWithAlternatives = false;
+            static CGPatternRef dictationPhraseWithAlternativesPattern = createDotPattern(usingDotForDictationPhraseWithAlternatives, "DictationPhraseWithAlternativesDot").leakRef();
+            dotPattern = dictationPhraseWithAlternativesPattern;
+            usingDot = usingDotForDictationPhraseWithAlternatives;
+            break;
+        }
+#endif // PLATFORM(IOS)
         default:
+#if PLATFORM(IOS)
+            // FIXME: Should remove default case so we get compile-time errors.
+            ASSERT_NOT_REACHED();
+#endif // PLATFORM(IOS)
             return;
     }
+    
+    FloatPoint offsetPoint = point;
 
     // Make sure to draw only complete dots.
-    // NOTE: Code here used to shift the underline to the left and increase the width
-    // to make sure everything gets underlined, but that results in drawing out of
-    // bounds (e.g. when at the edge of a view) and could make it appear that the
-    // space between adjacent misspelled words was underlined.
     if (usingDot) {
         // allow slightly more considering that the pattern ends with a transparent pixel
         float widthMod = fmodf(width, patternWidth);
-        if (patternWidth - widthMod > cMisspellingLinePatternGapWidth)
+        if (patternWidth - widthMod > cMisspellingLinePatternGapWidth) {
+            float gapIncludeWidth = 0;
+            if (width > patternWidth)
+                gapIncludeWidth = cMisspellingLinePatternGapWidth;
+            offsetPoint.move(floor((widthMod + gapIncludeWidth) / 2), 0);
             width -= widthMod;
+        }
     }
     
     // FIXME: This code should not use NSGraphicsContext currentContext
@@ -165,20 +240,33 @@ void GraphicsContext::drawLineForDocumentMarker(const FloatPoint& point, float w
     // for transforms.
 
     // Draw underline.
+#if !PLATFORM(IOS)
     LocalCurrentGraphicsContext localContext(this);
     NSGraphicsContext *currentContext = [NSGraphicsContext currentContext];
     CGContextRef context = (CGContextRef)[currentContext graphicsPort];
+#else
+    CGContextRef context = platformContext();
+#endif
     CGContextSaveGState(context);
 
+#if !PLATFORM(IOS)
     [patternColor set];
+#else
+    WKSetPattern(context, dotPattern, YES, YES);
+#endif
 
-    wkSetPatternPhaseInUserSpace(context, point);
+    wkSetPatternPhaseInUserSpace(context, offsetPoint);
 
-    NSRectFillUsingOperation(NSMakeRect(point.x(), point.y(), width, patternHeight), NSCompositeSourceOver);
+#if !PLATFORM(IOS)
+    NSRectFillUsingOperation(NSMakeRect(offsetPoint.x(), offsetPoint.y(), width, patternHeight), NSCompositeSourceOver);
+#else
+    WKRectFillUsingOperation(context, CGRectMake(offsetPoint.x(), offsetPoint.y(), width, patternHeight), kCGCompositeSover);
+#endif
     
     CGContextRestoreGState(context);
 }
 
+#if !PLATFORM(IOS)
 CGColorSpaceRef linearRGBColorSpaceRef()
 {
     static CGColorSpaceRef linearSRGBSpace = 0;
@@ -198,5 +286,6 @@ CGColorSpaceRef linearRGBColorSpaceRef()
 
     return linearSRGBSpace;
 }
+#endif
 
 }

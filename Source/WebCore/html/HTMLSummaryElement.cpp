@@ -23,15 +23,13 @@
 
 #if ENABLE(DETAILS_ELEMENT)
 #include "DetailsMarkerControl.h"
-#include "HTMLContentElement.h"
 #include "HTMLDetailsElement.h"
-#include "HTMLNames.h"
+#include "InsertionPoint.h"
 #include "KeyboardEvent.h"
 #include "MouseEvent.h"
 #include "NodeRenderingTraversal.h"
 #include "PlatformMouseEvent.h"
 #include "RenderBlockFlow.h"
-#include "ShadowRoot.h"
 
 namespace WebCore {
 
@@ -66,14 +64,14 @@ HTMLSummaryElement::HTMLSummaryElement(const QualifiedName& tagName, Document& d
     ASSERT(hasTagName(summaryTag));
 }
 
-RenderElement* HTMLSummaryElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> HTMLSummaryElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderBlockFlow(this);
+    return createRenderer<RenderBlockFlow>(*this, std::move(style));
 }
 
-bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
+bool HTMLSummaryElement::childShouldCreateRenderer(const Node& child) const
 {
-    if (child->isPseudoElement())
+    if (child.isPseudoElement())
         return HTMLElement::childShouldCreateRenderer(child);
 
     return hasShadowRootOrActiveInsertionPointParent(child) && HTMLElement::childShouldCreateRenderer(child);
@@ -81,8 +79,8 @@ bool HTMLSummaryElement::childShouldCreateRenderer(const Node* child) const
 
 void HTMLSummaryElement::didAddUserAgentShadowRoot(ShadowRoot* root)
 {
-    root->appendChild(DetailsMarkerControl::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
-    root->appendChild(SummaryContentElement::create(document()), ASSERT_NO_EXCEPTION, AttachLazily);
+    root->appendChild(DetailsMarkerControl::create(document()), ASSERT_NO_EXCEPTION);
+    root->appendChild(SummaryContentElement::create(document()), ASSERT_NO_EXCEPTION);
 }
 
 HTMLDetailsElement* HTMLSummaryElement::detailsElement() const
@@ -90,7 +88,7 @@ HTMLDetailsElement* HTMLSummaryElement::detailsElement() const
     Node* mayDetails = NodeRenderingTraversal::parent(this);
     if (!mayDetails || !mayDetails->hasTagName(detailsTag))
         return 0;
-    return static_cast<HTMLDetailsElement*>(mayDetails);
+    return toHTMLDetailsElement(mayDetails);
 }
 
 bool HTMLSummaryElement::isMainSummary() const
@@ -128,13 +126,13 @@ void HTMLSummaryElement::defaultEventHandler(Event* event)
         }
 
         if (event->isKeyboardEvent()) {
-            if (event->type() == eventNames().keydownEvent && static_cast<KeyboardEvent*>(event)->keyIdentifier() == "U+0020") {
+            if (event->type() == eventNames().keydownEvent && toKeyboardEvent(event)->keyIdentifier() == "U+0020") {
                 setActive(true, true);
                 // No setDefaultHandled() - IE dispatches a keypress in this case.
                 return;
             }
             if (event->type() == eventNames().keypressEvent) {
-                switch (static_cast<KeyboardEvent*>(event)->charCode()) {
+                switch (toKeyboardEvent(event)->charCode()) {
                 case '\r':
                     dispatchSimulatedClick(event);
                     event->setDefaultHandled();
@@ -145,7 +143,7 @@ void HTMLSummaryElement::defaultEventHandler(Event* event)
                     return;
                 }
             }
-            if (event->type() == eventNames().keyupEvent && static_cast<KeyboardEvent*>(event)->keyIdentifier() == "U+0020") {
+            if (event->type() == eventNames().keyupEvent && toKeyboardEvent(event)->keyIdentifier() == "U+0020") {
                 if (active())
                     dispatchSimulatedClick(event);
                 event->setDefaultHandled();

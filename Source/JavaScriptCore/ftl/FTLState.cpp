@@ -39,10 +39,12 @@ using namespace DFG;
 
 State::State(Graph& graph)
     : graph(graph)
-    , context(LLVMContextCreate())
+    , context(llvm->ContextCreate())
     , module(0)
     , function(0)
     , generatedFunction(0)
+    , compactUnwind(0)
+    , compactUnwindSize(0)
 {
     switch (graph.m_plan.mode) {
     case FTLMode: {
@@ -67,7 +69,7 @@ State::State(Graph& graph)
 
 State::~State()
 {
-    LLVMContextDispose(context);
+    llvm->ContextDispose(context);
 }
 
 void State::dumpState(const char* when)

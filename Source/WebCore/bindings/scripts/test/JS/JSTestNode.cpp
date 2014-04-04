@@ -31,23 +31,19 @@ using namespace JSC;
 
 namespace WebCore {
 
-/* Hash table */
+/* Hash table for constructor */
 
-static const HashTableValue JSTestNodeTableValues[] =
-{
-    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestNodeConstructor), (intptr_t)0 },
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSTestNodeConstructorTableIndex[1] = {
+    { -1, -1 },
 };
 
-static const HashTable JSTestNodeTable = { 2, 1, JSTestNodeTableValues, 0 };
-/* Hash table for constructor */
 
 static const HashTableValue JSTestNodeConstructorTableValues[] =
 {
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSTestNodeConstructorTable = { 1, 0, JSTestNodeConstructorTableValues, 0 };
+static const HashTable JSTestNodeConstructorTable = { 0, 0, false, JSTestNodeConstructorTableValues, 0, JSTestNodeConstructorTableIndex };
 EncodedJSValue JSC_HOST_CALL JSTestNodeConstructor::constructJSTestNode(ExecState* exec)
 {
     JSTestNodeConstructor* castedThis = jsCast<JSTestNodeConstructor*>(exec->callee());
@@ -62,12 +58,12 @@ JSTestNodeConstructor::JSTestNodeConstructor(Structure* structure, JSDOMGlobalOb
 {
 }
 
-void JSTestNodeConstructor::finishCreation(ExecState* exec, JSDOMGlobalObject* globalObject)
+void JSTestNodeConstructor::finishCreation(VM& vm, JSDOMGlobalObject* globalObject)
 {
-    Base::finishCreation(exec->vm());
+    Base::finishCreation(vm);
     ASSERT(inherits(info()));
-    putDirect(exec->vm(), exec->propertyNames().prototype, JSTestNodePrototype::self(exec, globalObject), DontDelete | ReadOnly);
-    putDirect(exec->vm(), exec->propertyNames().length, jsNumber(0), ReadOnly | DontDelete | DontEnum);
+    putDirect(vm, vm.propertyNames->prototype, JSTestNodePrototype::self(vm, globalObject), DontDelete | ReadOnly);
+    putDirect(vm, vm.propertyNames->length, jsNumber(0), ReadOnly | DontDelete | DontEnum);
 }
 
 bool JSTestNodeConstructor::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
@@ -83,53 +79,63 @@ ConstructType JSTestNodeConstructor::getConstructData(JSCell*, ConstructData& co
 
 /* Hash table for prototype */
 
-static const HashTableValue JSTestNodePrototypeTableValues[] =
-{
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSTestNodePrototypeTableIndex[2] = {
+    { -1, -1 },
+    { 0, -1 },
 };
 
-static const HashTable JSTestNodePrototypeTable = { 1, 0, JSTestNodePrototypeTableValues, 0 };
+
+static const HashTableValue JSTestNodePrototypeTableValues[] =
+{
+    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestNodeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
+};
+
+static const HashTable JSTestNodePrototypeTable = { 1, 1, true, JSTestNodePrototypeTableValues, 0, JSTestNodePrototypeTableIndex };
 const ClassInfo JSTestNodePrototype::s_info = { "TestNodePrototype", &Base::s_info, &JSTestNodePrototypeTable, 0, CREATE_METHOD_TABLE(JSTestNodePrototype) };
 
-JSObject* JSTestNodePrototype::self(ExecState* exec, JSGlobalObject* globalObject)
+JSObject* JSTestNodePrototype::self(VM& vm, JSGlobalObject* globalObject)
 {
-    return getDOMPrototype<JSTestNode>(exec, globalObject);
+    return getDOMPrototype<JSTestNode>(vm, globalObject);
 }
 
-const ClassInfo JSTestNode::s_info = { "TestNode", &Base::s_info, &JSTestNodeTable, 0 , CREATE_METHOD_TABLE(JSTestNode) };
+bool JSTestNodePrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
+{
+    JSTestNodePrototype* thisObject = jsCast<JSTestNodePrototype*>(object);
+    return getStaticPropertySlot<JSTestNodePrototype, JSObject>(exec, JSTestNodePrototypeTable, thisObject, propertyName, slot);
+}
+
+const ClassInfo JSTestNode::s_info = { "TestNode", &Base::s_info, 0, 0 , CREATE_METHOD_TABLE(JSTestNode) };
 
 JSTestNode::JSTestNode(Structure* structure, JSDOMGlobalObject* globalObject, PassRefPtr<TestNode> impl)
     : JSNode(structure, globalObject, impl)
 {
 }
 
-void JSTestNode::finishCreation(VM& vm)
+JSObject* JSTestNode::createPrototype(VM& vm, JSGlobalObject* globalObject)
 {
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
-}
-
-JSObject* JSTestNode::createPrototype(ExecState* exec, JSGlobalObject* globalObject)
-{
-    return JSTestNodePrototype::create(exec->vm(), globalObject, JSTestNodePrototype::createStructure(exec->vm(), globalObject, JSNodePrototype::self(exec, globalObject)));
+    return JSTestNodePrototype::create(vm, globalObject, JSTestNodePrototype::createStructure(vm, globalObject, JSNodePrototype::self(vm, globalObject)));
 }
 
 bool JSTestNode::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
     JSTestNode* thisObject = jsCast<JSTestNode*>(object);
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    return getStaticValueSlot<JSTestNode, Base>(exec, JSTestNodeTable, thisObject, propertyName, slot);
+    return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-JSValue jsTestNodeConstructor(ExecState* exec, JSValue slotBase, PropertyName)
+EncodedJSValue jsTestNodeConstructor(ExecState* exec, JSObject* baseValue, EncodedJSValue thisValue, PropertyName)
 {
-    JSTestNode* domObject = jsCast<JSTestNode*>(asObject(slotBase));
-    return JSTestNode::getConstructor(exec, domObject->globalObject());
+    UNUSED_PARAM(baseValue);
+    UNUSED_PARAM(thisValue);
+    JSTestNodePrototype* domObject = jsDynamicCast<JSTestNodePrototype*>(baseValue);
+    if (!domObject)
+        return throwVMTypeError(exec);
+    return JSValue::encode(JSTestNode::getConstructor(exec->vm(), domObject->globalObject()));
 }
 
-JSValue JSTestNode::getConstructor(ExecState* exec, JSGlobalObject* globalObject)
+JSValue JSTestNode::getConstructor(VM& vm, JSGlobalObject* globalObject)
 {
-    return getDOMConstructor<JSTestNodeConstructor>(exec, jsCast<JSDOMGlobalObject*>(globalObject));
+    return getDOMConstructor<JSTestNodeConstructor>(vm, jsCast<JSDOMGlobalObject*>(globalObject));
 }
 
 void JSTestNode::visitChildren(JSCell* cell, SlotVisitor& visitor)
@@ -139,7 +145,7 @@ void JSTestNode::visitChildren(JSCell* cell, SlotVisitor& visitor)
     COMPILE_ASSERT(StructureFlags & OverridesVisitChildren, OverridesVisitChildrenWithoutSettingFlag);
     ASSERT(thisObject->structure()->typeInfo().overridesVisitChildren());
     Base::visitChildren(thisObject, visitor);
-    thisObject->impl()->visitJSEventListeners(visitor);
+    thisObject->impl().visitJSEventListeners(visitor);
 }
 
 

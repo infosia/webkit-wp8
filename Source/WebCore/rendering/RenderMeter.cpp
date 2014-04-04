@@ -26,14 +26,12 @@
 #include "HTMLNames.h"
 #include "RenderTheme.h"
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
 
-RenderMeter::RenderMeter(HTMLElement* element)
-    : RenderBlockFlow(element)
+RenderMeter::RenderMeter(HTMLElement& element, PassRef<RenderStyle> style)
+    : RenderBlockFlow(element, std::move(style))
 {
 }
 
@@ -56,7 +54,7 @@ void RenderMeter::updateLogicalWidth()
 {
     RenderBox::updateLogicalWidth();
 
-    IntSize frameSize = theme()->meterSizeForBounds(this, pixelSnappedIntRect(frameRect()));
+    IntSize frameSize = theme().meterSizeForBounds(this, pixelSnappedIntRect(frameRect()));
     setLogicalWidth(isHorizontalWritingMode() ? frameSize.width() : frameSize.height());
 }
 
@@ -69,7 +67,7 @@ void RenderMeter::computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logi
         frame.setHeight(computedValues.m_extent);
     else
         frame.setWidth(computedValues.m_extent);
-    IntSize frameSize = theme()->meterSizeForBounds(this, pixelSnappedIntRect(frame));
+    IntSize frameSize = theme().meterSizeForBounds(this, pixelSnappedIntRect(frame));
     computedValues.m_extent = isHorizontalWritingMode() ? frameSize.height() : frameSize.width();
 }
 

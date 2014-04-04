@@ -35,7 +35,9 @@
 #include <algorithm>
 #include <wtf/MathExtras.h>
 
-using namespace std;
+#if PLATFORM(IOS)
+#include "ScriptController.h"
+#endif
 
 namespace WebCore {
 
@@ -93,7 +95,7 @@ void AudioScheduledSourceNode::updateSchedulingInfo(size_t quantumFrameSize,
     }
 
     quantumFrameOffset = startFrame > quantumStartFrame ? startFrame - quantumStartFrame : 0;
-    quantumFrameOffset = min(quantumFrameOffset, quantumFrameSize); // clamp to valid range
+    quantumFrameOffset = std::min(quantumFrameOffset, quantumFrameSize); // clamp to valid range
     nonSilentFramesToProcess = quantumFrameSize - quantumFrameOffset;
 
     if (!nonSilentFramesToProcess) {
@@ -154,12 +156,12 @@ void AudioScheduledSourceNode::start(double when, ExceptionCode& ec)
 void AudioScheduledSourceNode::stop(double when, ExceptionCode& ec)
 {
     ASSERT(isMainThread());
-    if (!(m_playbackState == SCHEDULED_STATE || m_playbackState == PLAYING_STATE) || (m_endTime != UnknownTime)) {
+    if ((m_playbackState == UNSCHEDULED_STATE) || (m_endTime != UnknownTime)) {
         ec = INVALID_STATE_ERR;
         return;
     }
     
-    when = max(0.0, when);
+    when = std::max<double>(0, when);
     m_endTime = when;
 }
 

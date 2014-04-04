@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -39,14 +39,14 @@
 #import <WebCore/DOMWindow.h>
 #import <WebCore/Frame.h>
 #import <WebCore/JSDOMWindow.h>
-#import <WebCore/KURL.h>
+#import <WebCore/URL.h>
 #import <WebCore/ScriptController.h>
 
 using namespace JSC;
 using namespace WebCore;
 
 @interface WebScriptCallFrame (WebScriptDebugDelegateInternal)
-- (WebScriptCallFrame *)_initWithGlobalObject:(WebScriptObject *)globalObj debuggerCallFrame:(const DebuggerCallFrame&)debuggerCallFrame;
+- (WebScriptCallFrame *)_initWithGlobalObject:(WebScriptObject *)globalObj functionName:(String)functionName exceptionValue:(JSC::JSValue)exceptionValue;
 @end
 
 static NSString *toNSString(SourceProvider* sourceProvider)
@@ -62,19 +62,21 @@ static NSURL *toNSURL(const String& s)
 {
     if (s.isEmpty())
         return nil;
-    return KURL(ParsedURLString, s);
+    return URL(ParsedURLString, s);
 }
 
 static WebFrame *toWebFrame(JSGlobalObject* globalObject)
 {
     JSDOMWindow* window = static_cast<JSDOMWindow*>(globalObject);
-    return kit(window->impl()->frame());
+    return kit(window->impl().frame());
 }
 
 WebScriptDebugger::WebScriptDebugger(JSGlobalObject* globalObject)
     : m_callingDelegate(false)
     , m_globalObject(globalObject->vm(), globalObject)
 {
+    setPauseOnExceptionsState(PauseOnAllExceptions);
+    deactivateBreakpoints();
     attach(globalObject);
 }
 
@@ -90,7 +92,7 @@ void WebScriptDebugger::sourceParsed(ExecState* exec, SourceProvider* sourceProv
     NSURL *nsURL = toNSURL(sourceProvider->url());
     int firstLine = sourceProvider->startPosition().m_line.oneBasedInt();
 
-    WebFrame *webFrame = toWebFrame(exec->dynamicGlobalObject());
+    WebFrame *webFrame = toWebFrame(exec->vmEntryGlobalObject());
     WebView *webView = [webFrame webView];
     WebScriptDebugDelegateImplementationCache* implementations = WebViewGetScriptDebugDelegateImplementations(webView);
 
@@ -116,23 +118,30 @@ void WebScriptDebugger::sourceParsed(ExecState* exec, SourceProvider* sourceProv
     m_callingDelegate = false;
 }
 
-void WebScriptDebugger::exception(const DebuggerCallFrame& debuggerCallFrame, bool hasHandler)
+void WebScriptDebugger::handlePause(Debugger::ReasonForPause reason, JSGlobalObject* globalObject)
 {
     if (m_callingDelegate)
         return;
 
+    if (reason != Debugger::PausedForException)
+        return;
+
     m_callingDelegate = true;
 
-    WebFrame *webFrame = toWebFrame(debuggerCallFrame.dynamicGlobalObject());
+    WebFrame *webFrame = toWebFrame(globalObject);
     WebView *webView = [webFrame webView];
-    RetainPtr<WebScriptCallFrame> callFrame = adoptNS([[WebScriptCallFrame alloc] _initWithGlobalObject:core(webFrame)->script().windowScriptObject() debuggerCallFrame:debuggerCallFrame]);
+    DebuggerCallFrame* debuggerCallFrame = currentDebuggerCallFrame();
+    JSValue exceptionValue = currentException();
+    String functionName = debuggerCallFrame->functionName();
+    RetainPtr<WebScriptCallFrame> webCallFrame = adoptNS([[WebScriptCallFrame alloc] _initWithGlobalObject:core(webFrame)->script().windowScriptObject() functionName:functionName exceptionValue:exceptionValue]);
 
     WebScriptDebugDelegateImplementationCache* cache = WebViewGetScriptDebugDelegateImplementations(webView);
     if (cache->exceptionWasRaisedFunc) {
-        if (cache->exceptionWasRaisedExpectsHasHandlerFlag)
-            CallScriptDebugDelegate(cache->exceptionWasRaisedFunc, webView, @selector(webView:exceptionWasRaised:hasHandler:sourceId:line:forWebFrame:), callFrame.get(), hasHandler, debuggerCallFrame.sourceId(), debuggerCallFrame.line(), webFrame);
-        else
-            CallScriptDebugDelegate(cache->exceptionWasRaisedFunc, webView, @selector(webView:exceptionWasRaised:sourceId:line:forWebFrame:), callFrame.get(), debuggerCallFrame.sourceId(), debuggerCallFrame.line(), webFrame);
+        if (cache->exceptionWasRaisedExpectsHasHandlerFlag) {
+            bool hasHandler = hasHandlerForExceptionCallback();
+            CallScriptDebugDelegate(cache->exceptionWasRaisedFunc, webView, @selector(webView:exceptionWasRaised:hasHandler:sourceId:line:forWebFrame:), webCallFrame.get(), hasHandler, debuggerCallFrame->sourceID(), debuggerCallFrame->line(), webFrame);
+        } else
+            CallScriptDebugDelegate(cache->exceptionWasRaisedFunc, webView, @selector(webView:exceptionWasRaised:sourceId:line:forWebFrame:), webCallFrame.get(), debuggerCallFrame->sourceID(), debuggerCallFrame->line(), webFrame);
     }
 
     m_callingDelegate = false;

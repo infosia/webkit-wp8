@@ -38,21 +38,21 @@
 #import "HTMLElement.h"
 #import "HTMLNames.h"
 #import "HTMLParserIdioms.h"
-#import "KURL.h"
+#import "Image.h"
 #import "LegacyWebArchive.h"
 #import "Page.h"
+#import "PasteboardStrategy.h"
+#import "PlatformStrategies.h"
 #import "RenderImage.h"
+#import "RuntimeApplicationChecksIOS.h"
+#import "SharedBuffer.h"
 #import "SoftLinking.h"
 #import "Text.h"
+#import "URL.h"
+#import "WebNSAttributedStringExtras.h"
 #import "htmlediting.h"
 #import "markup.h"
-#import "WebNSAttributedStringExtras.h"
 #import <MobileCoreServices/MobileCoreServices.h>
-
-@interface NSHTMLReader
-- (id)initWithDOMRange:(DOMRange *)domRange;
-- (NSAttributedString *)attributedString;
-@end
 
 @interface NSAttributedString (NSAttributedStringKitAdditions)
 - (id)initWithRTF:(NSData *)data documentAttributes:(NSDictionary **)dict;
@@ -62,12 +62,10 @@
 - (BOOL)containsAttachments;
 @end
 
-SOFT_LINK_PRIVATE_FRAMEWORK(UIFoundation)
-SOFT_LINK_CLASS(UIFoundation, NSHTMLReader)
+// FIXME: The following soft linking and #define needs to be shared with PlatformPasteboardIOS.mm and EditorIOS.mm
 
 SOFT_LINK_FRAMEWORK(MobileCoreServices)
 
-SOFT_LINK(MobileCoreServices, UTTypeConformsTo, Boolean, (CFStringRef inUTI, CFStringRef inConformsToUTI), (inUTI, inConformsToUTI))
 SOFT_LINK(MobileCoreServices, UTTypeCreatePreferredIdentifierForTag, CFStringRef, (CFStringRef inTagClass, CFStringRef inTag, CFStringRef inConformingToUTI), (inTagClass, inTag, inConformingToUTI))
 SOFT_LINK(MobileCoreServices, UTTypeCopyPreferredTagWithClass, CFStringRef, (CFStringRef inUTI, CFStringRef inTagClass), (inUTI, inTagClass))
 
@@ -93,16 +91,31 @@ SOFT_LINK_CONSTANT(MobileCoreServices, kUTTypeRTF, CFStringRef)
 #define kUTTypeRTFD getkUTTypeRTFD()
 #define kUTTypeRTF getkUTTypeRTF()
 
-SOFT_LINK_FRAMEWORK(AppSupport)
-SOFT_LINK(AppSupport, CPSharedResourcesDirectory, CFStringRef, (void), ())
-
 namespace WebCore {
 
 // FIXME: Does this need to be declared in the header file?
 NSString *WebArchivePboardType = @"Apple Web Archive pasteboard type";
 
+// Making this non-inline so that WebKit 2's decoding doesn't have to include SharedBuffer.h.
+PasteboardWebContent::PasteboardWebContent()
+{
+}
+
+PasteboardWebContent::~PasteboardWebContent()
+{
+}
+    
+// Making this non-inline so that WebKit 2's decoding doesn't have to include Image.h.
+PasteboardImage::PasteboardImage()
+{
+}
+
+PasteboardImage::~PasteboardImage()
+{
+}
+
 Pasteboard::Pasteboard()
-    : m_frame(0)
+    : m_changeCount(platformStrategies()->pasteboardStrategy()->changeCount())
 {
 }
 
@@ -116,97 +129,29 @@ PassOwnPtr<Pasteboard> Pasteboard::createPrivate()
     return adoptPtr(new Pasteboard);
 }
 
-void Pasteboard::setFrame(Frame* frame)
+void Pasteboard::write(const PasteboardWebContent& content)
 {
-    m_frame = frame;
-    m_changeCount = m_frame->editor().client()->pasteboardChangeCount();
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(content);
 }
 
-void Pasteboard::writeSelection(Range* selectedRange, bool /*canSmartCopyOrDelete*/, Frame *frame, ShouldSerializeSelectedTextForClipboard shouldSerializeSelectedTextForClipboard)
+String Pasteboard::resourceMIMEType(const NSString *mimeType)
 {
-    ASSERT(selectedRange);
-    ASSERT(frame);
-
-    // If the selection is at the beginning of content inside an anchor tag
-    // we move the selection start to include the anchor.
-    ExceptionCode ec;
-    Node* commonAncestor = selectedRange->commonAncestorContainer(ec);
-    ASSERT(commonAncestor);
-    Node* enclosingAnchor = enclosingNodeWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
-    if (enclosingAnchor && comparePositions(firstPositionInOrBeforeNode(selectedRange->startPosition().anchorNode()), selectedRange->startPosition()) >= 0)
-        selectedRange->setStart(enclosingAnchor, 0, ec);
-
-    RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
-
-    // Put WebArchive on the pasteboard.
-    RefPtr<LegacyWebArchive> archive = LegacyWebArchive::createFromSelection(frame);
-    RetainPtr<CFDataRef> data = archive ? archive->rawDataRepresentation() : 0;
-    if (data)
-        [representations.get() setValue:(NSData *)data.get() forKey:WebArchivePboardType];
-
-    RetainPtr<NSHTMLReader> converter = adoptNS([[getNSHTMLReaderClass() alloc] initWithDOMRange:kit(selectedRange)]);
-    if (converter) {
-        NSAttributedString *attributedString = [converter.get() attributedString];
-        NSData* RTFDData = [attributedString RTFDFromRange:NSMakeRange(0, [attributedString length]) documentAttributes:nil];
-        if (RTFDData)
-            [representations.get() setValue:RTFDData forKey:(NSString *)kUTTypeRTFD];
-        if ([attributedString containsAttachments])
-            attributedString = attributedStringByStrippingAttachmentCharacters(attributedString);
-        NSData* RTFData = [attributedString RTFFromRange:NSMakeRange(0, [attributedString length]) documentAttributes:nil];
-        if (RTFData)
-            [representations.get() setValue:RTFData forKey:(NSString *)kUTTypeRTF];
-    }
-
-    // Put plain string on the pasteboard.
-    String text = shouldSerializeSelectedTextForClipboard == IncludeImageAltTextForClipboard
-        ? frame->editor().selectedTextForClipboard() : frame->editor().selectedText();
-    text.replace(noBreakSpace, ' ');
-    [representations.get() setValue:text forKey:(NSString *)kUTTypeText];
-
-    frame->editor().client()->writeDataToPasteboard(representations.get());
+    return String(adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, (CFStringRef)mimeType, NULL)).get());
 }
 
-void Pasteboard::writePlainText(const String& text, Frame *frame)
+void Pasteboard::write(const PasteboardImage& pasteboardImage)
 {
-    ASSERT(frame);
-
-    RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
-    [representations.get() setValue:text forKey:(NSString *)kUTTypeText];
-    frame->editor().client()->writeDataToPasteboard(representations.get());
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(pasteboardImage);
 }
 
-void Pasteboard::writeImage(Node* node, Frame* frame)
+void Pasteboard::writePlainText(const String& text, SmartReplaceOption)
 {
-    ASSERT(node);
-
-    if (!(node->renderer() && node->renderer()->isImage()))
-        return;
-
-    RenderImage* renderer = toRenderImage(node->renderer());
-    CachedImage* cachedImage = renderer->cachedImage();
-    if (!cachedImage || cachedImage->errorOccurred())
-        return;
-
-    Image* image = cachedImage->imageForRenderer(renderer);
-    ASSERT(image);
-
-    RetainPtr<NSData> imageData = image->data()->createNSData();
-
-    if (!imageData)
-        return;
-
-    RetainPtr<NSMutableDictionary> dictionary = adoptNS([[NSMutableDictionary alloc] init]);
-    NSString *mimeType = cachedImage->response().mimeType();
-    RetainPtr<CFStringRef> uti = adoptCF(UTTypeCreatePreferredIdentifierForTag(kUTTagClassMIMEType, (CFStringRef)mimeType, NULL));
-    if (uti) {
-        [dictionary.get() setObject:imageData.get() forKey:(NSString *)uti.get()];
-        [dictionary.get() setObject:(NSString *)node->document().completeURL(stripLeadingAndTrailingHTMLSpaces(static_cast<HTMLElement*>(node)->getAttribute("src"))) forKey:(NSString *)kUTTypeURL];
-    }
-    frame->editor().client()->writeDataToPasteboard(dictionary.get());
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(kUTTypeText, text);
 }
 
-void Pasteboard::writePlainText(const String&, SmartReplaceOption)
+void Pasteboard::write(const PasteboardURL& pasteboardURL)
 {
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(kUTTypeURL, pasteboardURL.url.string());
 }
 
 void Pasteboard::writePasteboard(const Pasteboard&)
@@ -220,241 +165,83 @@ bool Pasteboard::canSmartReplace()
 
 void Pasteboard::read(PasteboardPlainText& text)
 {
-    RetainPtr<NSArray> pasteboardItem = m_frame->editor().client()->readDataFromPasteboard((NSString *)kUTTypeText, 0);
-
-    if ([pasteboardItem.get() count] == 0)
-        return;
-
-    id value = [pasteboardItem.get() objectAtIndex:0];
-    ASSERT([value isKindOfClass:[NSString class]]);
-    if ([value isKindOfClass:[NSString class]])
-        text.text = (NSString *)value;
+    PasteboardStrategy& strategy = *platformStrategies()->pasteboardStrategy();
+    text.text = strategy.readStringFromPasteboard(0, kUTTypeText);
 }
 
 static NSArray* supportedImageTypes()
 {
-    return [NSArray arrayWithObjects:(id)kUTTypePNG, (id)kUTTypeTIFF, (id)kUTTypeJPEG, (id)kUTTypeGIF, nil];
+    return @[(id)kUTTypePNG, (id)kUTTypeTIFF, (id)kUTTypeJPEG, (id)kUTTypeGIF];
+}
+
+void Pasteboard::read(PasteboardWebContentReader& reader)
+{
+    PasteboardStrategy& strategy = *platformStrategies()->pasteboardStrategy();
+
+    int numberOfItems = strategy.getPasteboardItemsCount();
+
+    if (!numberOfItems)
+        return;
+
+    NSArray *types = supportedPasteboardTypes();
+    int numberOfTypes = [types count];
+
+    for (int i = 0; i < numberOfItems; i++) {
+        for (int typeIndex = 0; typeIndex < numberOfTypes; typeIndex++) {
+            NSString *type = [types objectAtIndex:typeIndex];
+
+            if ([type isEqualToString:WebArchivePboardType]) {
+                if (RefPtr<SharedBuffer> buffer = strategy.readBufferFromPasteboard(i, WebArchivePboardType)) {
+                    if (reader.readWebArchive(buffer.release()))
+                        break;
+                }
+            }
+
+             if ([type isEqualToString:(NSString *)kUTTypeRTFD]) {
+                if (RefPtr<SharedBuffer> buffer = strategy.readBufferFromPasteboard(i, kUTTypeRTFD)) {
+                    if (reader.readRTFD(buffer.release()))
+                        break;
+                }
+            }
+
+            if ([type isEqualToString:(NSString *)kUTTypeRTF]) {
+                if (RefPtr<SharedBuffer> buffer = strategy.readBufferFromPasteboard(i, kUTTypeRTF)) {
+                    if (reader.readRTF(buffer.release()))
+                        break;
+                }
+            }
+
+            if ([supportedImageTypes() containsObject:type]) {
+                if (RefPtr<SharedBuffer> buffer = strategy.readBufferFromPasteboard(i, type)) {
+                    if (reader.readImage(buffer.release(), type))
+                        break;
+                }
+        }
+
+            if ([type isEqualToString:(NSString *)kUTTypeURL]) {
+                URL url = strategy.readURLFromPasteboard(i, kUTTypeURL);
+                if (!url.isNull() && reader.readURL(url, String()))
+                    break;
+            }
+            
+            if ([type isEqualToString:(NSString *)kUTTypeText]) {
+                String string = strategy.readStringFromPasteboard(i, kUTTypeText);
+                if (!string.isNull() && reader.readPlainText(string))
+                    break;
+            }
+
+        }
+    }
 }
 
 NSArray* Pasteboard::supportedPasteboardTypes()
 {
-    return [NSArray arrayWithObjects:(id)WebArchivePboardType, (id)kUTTypePNG, (id)kUTTypeTIFF, (id)kUTTypeJPEG, (id)kUTTypeGIF, (id)kUTTypeURL, (id)kUTTypeText, (id)kUTTypeRTFD, (id)kUTTypeRTF, nil];
-}
-
-#define WebDataProtocolScheme @"webkit-fake-url"
-
-static NSURL* uniqueURLWithRelativePart(NSString *relativePart)
-{
-    CFUUIDRef UUIDRef = CFUUIDCreate(kCFAllocatorDefault);
-    NSString *UUIDString = (NSString *)CFUUIDCreateString(kCFAllocatorDefault, UUIDRef);
-    CFRelease(UUIDRef);
-    NSURL *URL = [NSURL URLWithString:[NSString stringWithFormat:@"%@://%@/%@", WebDataProtocolScheme, UUIDString, relativePart]];
-    CFRelease(UUIDString);
-
-    return URL;
-}
-
-static PassRefPtr<DocumentFragment> documentFragmentWithImageResource(Frame* frame, PassRefPtr<ArchiveResource> resource)
-{
-    RefPtr<Element> imageElement = frame->document()->createElement(HTMLNames::imgTag, false);
-
-    if (DocumentLoader* loader = frame->loader().documentLoader())
-        loader->addArchiveResource(resource.get());
-
-    NSURL *URL = resource->url();
-    imageElement->setAttribute(HTMLNames::srcAttr, [URL isFileURL] ? [URL absoluteString] : resource->url());
-    RefPtr<DocumentFragment> fragment = frame->document()->createDocumentFragment();
-    fragment->appendChild(imageElement.release());
-    return fragment.release();
-}
-
-static PassRefPtr<DocumentFragment> documentFragmentWithLink(Document* document, const String& urlString)
-{
-    RefPtr<Element> anchorElement = document->createElement(HTMLNames::aTag, false);
-
-    anchorElement->setAttribute(HTMLNames::hrefAttr, urlString);
-    anchorElement->appendChild(document->createTextNode(urlString));
-
-    RefPtr<DocumentFragment> fragment = document->createDocumentFragment();
-    fragment->appendChild(anchorElement.release());
-    return fragment.release();
-}
-
-static PassRefPtr<DocumentFragment> documentFragmentWithRTF(Frame* frame, NSString *pasteboardType, NSData* pasteboardData)
-{
-    if (!frame || !frame->document() || !frame->document()->isHTMLDocument())
-        return 0;
-
-    RetainPtr<NSAttributedString> string;
-    if ([pasteboardType isEqualToString:(NSString *)kUTTypeRTFD])
-        string = [[NSAttributedString alloc] initWithRTFD:pasteboardData documentAttributes:NULL];
-
-    if (!string)
-        string = [[NSAttributedString alloc] initWithRTF:pasteboardData documentAttributes:NULL];
-
-    if (!string)
-        return 0;
-
-    bool wasDeferringCallbacks = frame->page()->defersLoading();
-    if (!wasDeferringCallbacks)
-        frame->page()->setDefersLoading(true);
-
-    Vector<RefPtr<ArchiveResource> > resources;
-    RefPtr<DocumentFragment> fragment = frame->editor().client()->documentFragmentFromAttributedString(string.get(), resources);
-
-    size_t size = resources.size();
-    if (size) {
-        DocumentLoader* loader = frame->loader().documentLoader();
-        for (size_t i = 0; i < size; ++i)
-            loader->addArchiveResource(resources[i]);
-    }
-
-    if (!wasDeferringCallbacks)
-        frame->page()->setDefersLoading(false);
-
-    return fragment.release();
-}
-
-PassRefPtr<DocumentFragment> Pasteboard::documentFragmentForPasteboardItemAtIndex(Frame* frame, int index, bool allowPlainText, bool& chosePlainText)
-{
-    RefPtr<DocumentFragment> fragment = frame->editor().client()->documentFragmentFromDelegate(index);
-    if (fragment)
-        return fragment.release();
-
-    // First try to ask the client about the supported types. It will return null if the client
-    // has no selection.
-    NSArray *supportedTypes = frame->editor().client()->supportedPasteboardTypesForCurrentSelection();
-    if (!supportedTypes)
-        supportedTypes = supportedPasteboardTypes();
-    int numberOfTypes = [supportedTypes count];
-
-    for (int i = 0; i < numberOfTypes; i++) {
-        NSString *type = [supportedTypes objectAtIndex:i];
-        RetainPtr<NSArray> pasteboardItem = frame->editor().client()->readDataFromPasteboard(type, index);
-
-        if ([pasteboardItem.get() count] == 0)
-            continue;
-
-        if ([type isEqualToString:WebArchivePboardType]) {
-            if (!frame->document())
-                return 0;
-
-            // We put [WebArchive data] on the pasteboard in -copy: instead of the archive itself until there is API to provide the WebArchive.
-            NSData *data = [pasteboardItem.get() objectAtIndex:0];
-            RefPtr<LegacyWebArchive> coreArchive = LegacyWebArchive::create(SharedBuffer::wrapNSData(data).get());
-            if (coreArchive) {
-                RefPtr<ArchiveResource> mainResource = coreArchive->mainResource();
-                if (mainResource) {
-                    NSString *MIMEType = mainResource->mimeType();
-                    if (frame->loader().client().canShowMIMETypeAsHTML(MIMEType)) {
-                        RetainPtr<NSString> markupString = adoptNS([[NSString alloc] initWithData:[mainResource->data()->createNSData() autorelease] encoding:NSUTF8StringEncoding]);
-                        if (DocumentLoader* loader = frame->loader().documentLoader())
-                            loader->addAllArchiveResources(coreArchive.get());
-
-                        fragment = createFragmentFromMarkup(frame->document(), markupString.get(), mainResource->url(), DisallowScriptingContent);
-                    }
-                }
-                if (fragment)
-                    return fragment.release();
-            }
-        }
-
-        if ([type isEqualToString:(NSString *)kUTTypeRTFD])
-            return documentFragmentWithRTF(frame, (NSString *)kUTTypeRTFD, [pasteboardItem.get() objectAtIndex:0]);
-
-        if ([type isEqualToString:(NSString *)kUTTypeRTF])
-            return documentFragmentWithRTF(frame, (NSString *)kUTTypeRTF, [pasteboardItem.get() objectAtIndex:0]);
-
-        if ([supportedImageTypes() containsObject:type]) {
-            RetainPtr<NSString> filenameExtension = adoptNS((NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)type, kUTTagClassFilenameExtension));
-            NSString *relativeURLPart = [@"image" stringByAppendingString:filenameExtension.get()];
-            RetainPtr<NSString> mimeType = adoptNS((NSString *)UTTypeCopyPreferredTagWithClass((CFStringRef)type, kUTTagClassMIMEType));
-            NSData *data = [pasteboardItem.get() objectAtIndex:0];
-            return documentFragmentWithImageResource(frame, ArchiveResource::create(SharedBuffer::wrapNSData([[data copy] autorelease]), uniqueURLWithRelativePart(relativeURLPart), mimeType.get(), "", ""));
-        }
-        if ([type isEqualToString:(NSString *)kUTTypeURL]) {
-            id value = [pasteboardItem.get() objectAtIndex:0];
-            if (![value isKindOfClass:[NSURL class]]) {
-                ASSERT([value isKindOfClass:[NSURL class]]);
-                return 0;
-            }
-            NSURL *url = (NSURL *)value;
-
-            if (!frame->editor().client()->hasRichlyEditableSelection()) {
-                fragment = createFragmentFromText(frame->selection().toNormalizedRange().get(), [url absoluteString]);
-                if (fragment)
-                    return fragment.release();
-            }
-
-            if ([url isFileURL]) {
-                NSString *localPath = [url relativePath];
-                // Only allow url attachments from ~/Media for now.
-                if (![localPath hasPrefix:[(NSString *)CPSharedResourcesDirectory() stringByAppendingString:@"/Media/DCIM/"]])
-                    continue;
-
-                RetainPtr<NSString> fileType = adoptNS((NSString *)UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (CFStringRef)[localPath pathExtension], NULL));
-                NSData *data = [NSData dataWithContentsOfFile:localPath];
-                if (UTTypeConformsTo((CFStringRef)fileType.get(), kUTTypePNG))
-                    return documentFragmentWithImageResource(frame, ArchiveResource::create(SharedBuffer::wrapNSData([[data copy] autorelease]), uniqueURLWithRelativePart(@"image.png"), @"image/png", "", ""));
-                else if (UTTypeConformsTo((CFStringRef)fileType.get(), kUTTypeJPEG))
-                    return documentFragmentWithImageResource(frame, ArchiveResource::create(SharedBuffer::wrapNSData([[data copy] autorelease]), uniqueURLWithRelativePart(@"image.jpg"), @"image/jpg", "", ""));
-            } else {
-                // Create a link with URL text.
-                return documentFragmentWithLink(frame->document(), [url absoluteString]);
-            }
-        }
-        if (allowPlainText && [type isEqualToString:(NSString *)kUTTypeText]) {
-            id value = [pasteboardItem.get() objectAtIndex:0];
-            if (![value isKindOfClass:[NSString class]]) {
-                ASSERT([value isKindOfClass:[NSString class]]);
-                return 0;
-            }
-
-            chosePlainText = true;
-            fragment = createFragmentFromText(frame->selection().toNormalizedRange().get(), (NSString *)value);
-            if (fragment)
-                return fragment.release();
-        }
-    }
-
-    return 0;
-}
-
-PassRefPtr<DocumentFragment> Pasteboard::documentFragment(Frame* frame, PassRefPtr<Range> /*context*/, bool allowPlainText, bool& chosePlainText)
-{
-    chosePlainText = false;
-
-    if (!frame)
-        return 0;
-
-    int numberOfItems = frame->editor().client()->getPasteboardItemsCount();
-
-    if (!numberOfItems)
-        return 0;
-
-    // In the common case there is just one item on the pasteboard, avoid the expense of transferring the content of
-    // fragmentForCurrentItem to the main fragment.
-    RefPtr<DocumentFragment> fragment = documentFragmentForPasteboardItemAtIndex(frame, 0, allowPlainText, chosePlainText);
-
-    for (int i = 1; i < numberOfItems; i++) {
-        RefPtr<DocumentFragment> fragmentForCurrentItem = documentFragmentForPasteboardItemAtIndex(frame, i, allowPlainText, chosePlainText);
-        if (!fragment)
-            fragment = fragmentForCurrentItem;
-        else if (fragmentForCurrentItem && fragmentForCurrentItem->firstChild()) {
-            ExceptionCode ec;
-            fragment->appendChild(fragmentForCurrentItem->firstChild(), ec);
-        }
-    }
-
-    if (fragment)
-        return fragment.release();
-
-    return 0;
+    return @[(id)WebArchivePboardType, (id)kUTTypePNG, (id)kUTTypeTIFF, (id)kUTTypeJPEG, (id)kUTTypeGIF, (id)kUTTypeURL, (id)kUTTypeText, (id)kUTTypeRTFD, (id)kUTTypeRTF];
 }
 
 bool Pasteboard::hasData()
 {
-    return m_frame->editor().client()->getPasteboardItemsCount() != 0;
+    return platformStrategies()->pasteboardStrategy()->getPasteboardItemsCount() != 0;
 }
 
 static String utiTypeFromCocoaType(NSString *type)
@@ -498,60 +285,44 @@ void Pasteboard::clear(const String& type)
     if (!cocoaType)
         return;
 
-    // FIXME: Should write this with @{} syntax.
-    RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
-    [representations.get() setValue:0 forKey:cocoaType.get()];
-    m_frame->editor().client()->writeDataToPasteboard(representations.get());
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(cocoaType.get(), String());
 }
 
 void Pasteboard::clear()
 {
-    m_frame->editor().client()->writeDataToPasteboard(@{});
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(String(), String());
 }
 
 String Pasteboard::readString(const String& type)
 {
-    RetainPtr<NSString> cocoaType = cocoaTypeFromHTMLClipboardType(type);
+    PasteboardStrategy& strategy = *platformStrategies()->pasteboardStrategy();
+
+    int numberOfItems = strategy.getPasteboardItemsCount();
+
+    if (!numberOfItems)
+        return String();
 
     // Grab the value off the pasteboard corresponding to the cocoaType.
-    RetainPtr<NSArray> pasteboardItem = m_frame->editor().client()->readDataFromPasteboard(cocoaType.get(), 0);
-
-    if ([pasteboardItem.get() count] == 0)
-        return String();
+    RetainPtr<NSString> cocoaType = cocoaTypeFromHTMLClipboardType(type);
 
     NSString *cocoaValue = nil;
 
-    if ([cocoaType.get() isEqualToString:(NSString *)kUTTypeURL]) {
-        id value = [pasteboardItem.get() objectAtIndex:0];
-        if (![value isKindOfClass:[NSURL class]]) {
-            ASSERT([value isKindOfClass:[NSURL class]]);
-            return String();
-        }
-        NSURL* absoluteURL = (NSURL*)value;
-
-        if (absoluteURL)
-            cocoaValue = [absoluteURL absoluteString];
-    } else if ([cocoaType.get() isEqualToString:(NSString *)kUTTypeText]) {
-        id value = [pasteboardItem.get() objectAtIndex:0];
-        if (![value isKindOfClass:[NSString class]]) {
-            ASSERT([value isKindOfClass:[NSString class]]);
-            return String();
-        }
-
-        cocoaValue = [(NSString *)value precomposedStringWithCanonicalMapping];
+    if ([cocoaType isEqualToString:(NSString *)kUTTypeURL]) {
+        URL url = strategy.readURLFromPasteboard(0, kUTTypeURL);
+        if (!url.isNull())
+            cocoaValue = [(NSURL *)url absoluteString];
+    } else if ([cocoaType isEqualToString:(NSString *)kUTTypeText]) {
+        String value = strategy.readStringFromPasteboard(0, kUTTypeText);
+        if (!value.isNull())
+            cocoaValue = [(NSString *)value precomposedStringWithCanonicalMapping];;
     } else if (cocoaType) {
-        ASSERT([pasteboardItem.get() count] == 1);
-        id value = [pasteboardItem.get() objectAtIndex:0];
-        if (![value isKindOfClass:[NSData class]]) {
-            ASSERT([value isKindOfClass:[NSData class]]);
-            return String();
-        }
-        cocoaValue = [[[NSString alloc] initWithData:(NSData *)value encoding:NSUTF8StringEncoding] autorelease];
+        if (RefPtr<SharedBuffer> buffer = strategy.readBufferFromPasteboard(0, cocoaType.get()))
+            cocoaValue = [[[NSString alloc] initWithData:buffer->createNSData().get() encoding:NSUTF8StringEncoding] autorelease];
     }
 
     // Enforce changeCount ourselves for security. We check after reading instead of before to be
     // sure it doesn't change between our testing the change count and accessing the data.
-    if (cocoaValue && m_changeCount == m_frame->editor().client()->pasteboardChangeCount())
+    if (cocoaValue && m_changeCount == platformStrategies()->pasteboardStrategy()->changeCount())
         return cocoaValue;
 
     return String();
@@ -583,19 +354,8 @@ bool Pasteboard::writeString(const String& type, const String& data)
     if (!cocoaType)
         return false;
 
-    NSString *cocoaData = data;
-    RetainPtr<NSObject> value;
+    platformStrategies()->pasteboardStrategy()->writeToPasteboard(type, data);
 
-    if ([cocoaType.get() isEqualToString:(NSString *)kUTTypeURL])
-        value = adoptNS([[NSURL alloc] initWithString:cocoaData]);
-    else {
-        // Every other type we handle goes on the pasteboard as a string.
-        value = cocoaData;
-    }
-
-    RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
-    [representations.get() setValue:value.get() forKey:cocoaType.get()];
-    m_frame->editor().client()->writeDataToPasteboard(representations.get());
     return true;
 }
 
@@ -605,7 +365,7 @@ Vector<String> Pasteboard::types()
 
     // Enforce changeCount ourselves for security. We check after reading instead of before to be
     // sure it doesn't change between our testing the change count and accessing the data.
-    if (m_changeCount != m_frame->editor().client()->pasteboardChangeCount())
+    if (m_changeCount != platformStrategies()->pasteboardStrategy()->changeCount())
         return Vector<String>();
 
     ListHashSet<String> result;

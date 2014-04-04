@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,11 +41,10 @@
 #import "FrameLoaderClient.h"
 #import "HitTestResult.h"
 #import "HTMLAnchorElement.h"
-#import "HTMLConverter.h"
 #import "htmlediting.h"
 #import "HTMLNames.h"
 #import "Image.h"
-#import "KURL.h"
+#import "URL.h"
 #import "LegacyWebArchive.h"
 #import "LoaderNSURLExtras.h"
 #import "MIMETypeRegistry.h"
@@ -71,6 +70,24 @@ const char* const WebURLNamePboardType = "public.url-name";
 const char WebSmartPastePboardType[] = "NeXT smart paste pasteboard type";
 const char WebURLPboardType[] = "public.url";
 const char WebURLsWithTitlesPboardType[] = "WebURLsWithTitlesPboardType";
+
+// Making this non-inline so that WebKit 2's decoding doesn't have to include SharedBuffer.h.
+PasteboardWebContent::PasteboardWebContent()
+{
+}
+
+PasteboardWebContent::~PasteboardWebContent()
+{
+}
+
+// Making this non-inline so that WebKit 2's decoding doesn't have to include Image.h.
+PasteboardImage::PasteboardImage()
+{
+}
+
+PasteboardImage::~PasteboardImage()
+{
+}
 
 static const Vector<String> writableTypesForURL()
 {
@@ -383,7 +400,7 @@ void Pasteboard::read(PasteboardWebContentReader& reader)
     }
 
     if (types.contains(String(NSURLPboardType))) {
-        KURL url = strategy.url(m_pasteboardName);
+        URL url = strategy.url(m_pasteboardName);
         String title = strategy.stringForType(WebURLNamePboardType, m_pasteboardName);
         if (!url.isNull() && reader.readURL(url, title))
             return;

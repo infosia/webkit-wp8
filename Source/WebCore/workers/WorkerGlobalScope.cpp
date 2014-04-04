@@ -11,24 +11,21 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
 
 #include "config.h"
-
-#if ENABLE(WORKERS)
-
 #include "WorkerGlobalScope.h"
 
 #include "ActiveDOMObject.h"
@@ -39,15 +36,14 @@
 #include "ErrorEvent.h"
 #include "Event.h"
 #include "EventException.h"
+#include "ExceptionCode.h"
 #include "InspectorConsoleInstrumentation.h"
-#include "KURL.h"
 #include "MessagePort.h"
 #include "NotImplemented.h"
 #include "ScheduledAction.h"
-#include "ScriptCallStack.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "SecurityOrigin.h"
+#include "URL.h"
 #include "WorkerInspectorController.h"
 #include "WorkerLocation.h"
 #include "WorkerNavigator.h"
@@ -56,13 +52,15 @@
 #include "WorkerThread.h"
 #include "WorkerThreadableLoader.h"
 #include "XMLHttpRequestException.h"
+#include <bindings/ScriptValue.h>
+#include <inspector/ScriptCallStack.h>
 #include <wtf/RefPtr.h>
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
 #include "NotificationCenter.h"
 #endif
 
-#include "ExceptionCode.h"
+using namespace Inspector;
 
 namespace WebCore {
 
@@ -75,23 +73,21 @@ public:
 
     virtual void performTask(ScriptExecutionContext *context)
     {
-        ASSERT_WITH_SECURITY_IMPLICATION(context->isWorkerGlobalScope());
-        WorkerGlobalScope* workerGlobalScope = static_cast<WorkerGlobalScope*>(context);
         // Notify parent that this context is closed. Parent is responsible for calling WorkerThread::stop().
-        workerGlobalScope->thread()->workerReportingProxy().workerGlobalScopeClosed();
+        toWorkerGlobalScope(context)->thread().workerReportingProxy().workerGlobalScopeClosed();
     }
 
     virtual bool isCleanupTask() const { return true; }
 };
 
-WorkerGlobalScope::WorkerGlobalScope(const KURL& url, const String& userAgent, PassOwnPtr<GroupSettings> settings, WorkerThread* thread, PassRefPtr<SecurityOrigin> topOrigin)
+WorkerGlobalScope::WorkerGlobalScope(const URL& url, const String& userAgent, std::unique_ptr<GroupSettings> settings, WorkerThread& thread, PassRefPtr<SecurityOrigin> topOrigin)
     : m_url(url)
     , m_userAgent(userAgent)
-    , m_groupSettings(settings)
+    , m_groupSettings(std::move(settings))
     , m_script(adoptPtr(new WorkerScriptController(this)))
     , m_thread(thread)
 #if ENABLE(INSPECTOR)
-    , m_workerInspectorController(adoptPtr(new WorkerInspectorController(this)))
+    , m_workerInspectorController(std::make_unique<WorkerInspectorController>(*this))
 #endif
     , m_closing(false)
     , m_eventQueue(*this)
@@ -102,13 +98,13 @@ WorkerGlobalScope::WorkerGlobalScope(const KURL& url, const String& userAgent, P
 
 WorkerGlobalScope::~WorkerGlobalScope()
 {
-    ASSERT(currentThread() == thread()->threadID());
+    ASSERT(currentThread() == thread().threadID());
 
     // Make sure we have no observers.
     notifyObserversOfStop();
 
     // Notify proxy that we are going away. This can free the WorkerThread object, so do not access it after this.
-    thread()->workerReportingProxy().workerGlobalScopeDestroyed();
+    thread().workerReportingProxy().workerGlobalScopeDestroyed();
 }
 
 void WorkerGlobalScope::applyContentSecurityPolicyFromString(const String& policy, ContentSecurityPolicy::HeaderType contentSecurityPolicyType)
@@ -117,22 +113,17 @@ void WorkerGlobalScope::applyContentSecurityPolicyFromString(const String& polic
     contentSecurityPolicy()->didReceiveHeader(policy, contentSecurityPolicyType);
 }
 
-ScriptExecutionContext* WorkerGlobalScope::scriptExecutionContext() const
-{
-    return const_cast<WorkerGlobalScope*>(this);
-}
-
-KURL WorkerGlobalScope::completeURL(const String& url) const
+URL WorkerGlobalScope::completeURL(const String& url) const
 {
     // Always return a null URL when passed a null string.
-    // FIXME: Should we change the KURL constructor to have this behavior?
+    // FIXME: Should we change the URL constructor to have this behavior?
     if (url.isNull())
-        return KURL();
+        return URL();
     // Always use UTF-8 in Workers.
-    return KURL(m_url, url);
+    return URL(m_url, url);
 }
 
-String WorkerGlobalScope::userAgent(const KURL&) const
+String WorkerGlobalScope::userAgent(const URL&) const
 {
     return m_userAgent;
 }
@@ -187,7 +178,7 @@ bool WorkerGlobalScope::hasPendingActivity() const
 
 void WorkerGlobalScope::postTask(PassOwnPtr<Task> task)
 {
-    thread()->runLoop().postTask(task);
+    thread().runLoop().postTask(task);
 }
 
 int WorkerGlobalScope::setTimeout(PassOwnPtr<ScheduledAction> action, int timeout)
@@ -199,13 +190,6 @@ void WorkerGlobalScope::clearTimeout(int timeoutId)
 {
     DOMTimer::removeById(scriptExecutionContext(), timeoutId);
 }
-
-#if ENABLE(INSPECTOR)
-void WorkerGlobalScope::clearInspector()
-{
-    m_workerInspectorController.clear();
-}
-#endif
 
 int WorkerGlobalScope::setInterval(PassOwnPtr<ScheduledAction> action, int timeout)
 {
@@ -222,22 +206,19 @@ void WorkerGlobalScope::importScripts(const Vector<String>& urls, ExceptionCode&
     ASSERT(contentSecurityPolicy());
     ec = 0;
     Vector<String>::const_iterator urlsEnd = urls.end();
-    Vector<KURL> completedURLs;
+    Vector<URL> completedURLs;
     for (Vector<String>::const_iterator it = urls.begin(); it != urlsEnd; ++it) {
-        const KURL& url = scriptExecutionContext()->completeURL(*it);
+        const URL& url = scriptExecutionContext()->completeURL(*it);
         if (!url.isValid()) {
             ec = SYNTAX_ERR;
             return;
         }
         completedURLs.append(url);
     }
-    Vector<KURL>::const_iterator end = completedURLs.end();
+    Vector<URL>::const_iterator end = completedURLs.end();
 
-    for (Vector<KURL>::const_iterator it = completedURLs.begin(); it != end; ++it) {
+    for (Vector<URL>::const_iterator it = completedURLs.begin(); it != end; ++it) {
         RefPtr<WorkerScriptLoader> scriptLoader(WorkerScriptLoader::create());
-#if PLATFORM(BLACKBERRY)
-        scriptLoader->setTargetType(ResourceRequest::TargetIsScript);
-#endif
         scriptLoader->loadSynchronously(scriptExecutionContext(), *it, AllowCrossOriginRequests);
 
         // If the fetching attempt failed, throw a NETWORK_ERR exception and abort all these steps.
@@ -248,7 +229,7 @@ void WorkerGlobalScope::importScripts(const Vector<String>& urls, ExceptionCode&
 
         InspectorInstrumentation::scriptImported(scriptExecutionContext(), scriptLoader->identifier(), scriptLoader->script());
 
-        ScriptValue exception;
+        Deprecated::ScriptValue exception;
         m_script->evaluate(ScriptSourceCode(scriptLoader->script(), scriptLoader->responseURL()), &exception);
         if (!exception.hasNoValue()) {
             m_script->setException(exception);
@@ -264,7 +245,7 @@ EventTarget* WorkerGlobalScope::errorEventTarget()
 
 void WorkerGlobalScope::logExceptionToConsole(const String& errorMessage, const String& sourceURL, int lineNumber, int columnNumber, PassRefPtr<ScriptCallStack>)
 {
-    thread()->workerReportingProxy().postExceptionToWorkerObject(errorMessage, lineNumber, columnNumber, sourceURL);
+    thread().workerReportingProxy().postExceptionToWorkerObject(errorMessage, lineNumber, columnNumber, sourceURL);
 }
 
 void WorkerGlobalScope::addConsoleMessage(MessageSource source, MessageLevel level, const String& message, unsigned long requestIdentifier)
@@ -274,7 +255,7 @@ void WorkerGlobalScope::addConsoleMessage(MessageSource source, MessageLevel lev
         return;
     }
 
-    thread()->workerReportingProxy().postConsoleMessageToWorkerObject(source, level, message, 0, 0, String());
+    thread().workerReportingProxy().postConsoleMessageToWorkerObject(source, level, message, 0, 0, String());
     addMessageToWorkerConsole(source, level, message, String(), 0, 0, 0, 0, requestIdentifier);
 }
 
@@ -285,7 +266,7 @@ void WorkerGlobalScope::addMessage(MessageSource source, MessageLevel level, con
         return;
     }
 
-    thread()->workerReportingProxy().postConsoleMessageToWorkerObject(source, level, message, lineNumber, columnNumber, sourceURL);
+    thread().workerReportingProxy().postConsoleMessageToWorkerObject(source, level, message, lineNumber, columnNumber, sourceURL);
     addMessageToWorkerConsole(source, level, message, sourceURL, lineNumber, columnNumber, callStack, state, requestIdentifier);
 }
 
@@ -293,29 +274,19 @@ void WorkerGlobalScope::addMessageToWorkerConsole(MessageSource source, MessageL
 {
     ASSERT(isContextThread());
     if (callStack)
-        InspectorInstrumentation::addMessageToConsole(this, source, LogMessageType, level, message, callStack, requestIdentifier);
+        InspectorInstrumentation::addMessageToConsole(this, source, MessageType::Log, level, message, callStack, requestIdentifier);
     else
-        InspectorInstrumentation::addMessageToConsole(this, source, LogMessageType, level, message, sourceURL, lineNumber, columnNumber, state, requestIdentifier);
+        InspectorInstrumentation::addMessageToConsole(this, source, MessageType::Log, level, message, sourceURL, lineNumber, columnNumber, state, requestIdentifier);
 }
 
 bool WorkerGlobalScope::isContextThread() const
 {
-    return currentThread() == thread()->threadID();
+    return currentThread() == thread().threadID();
 }
 
 bool WorkerGlobalScope::isJSExecutionForbidden() const
 {
     return m_script->isExecutionForbidden();
-}
-
-EventTargetData* WorkerGlobalScope::eventTargetData()
-{
-    return &m_eventTargetData;
-}
-
-EventTargetData& WorkerGlobalScope::ensureEventTargetData()
-{
-    return m_eventTargetData;
 }
 
 WorkerGlobalScope::Observer::Observer(WorkerGlobalScope* context)
@@ -370,6 +341,16 @@ WorkerEventQueue& WorkerGlobalScope::eventQueue() const
     return m_eventQueue;
 }
 
-} // namespace WebCore
+#if ENABLE(SUBTLE_CRYPTO)
+bool WorkerGlobalScope::wrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&)
+{
+    return false;
+}
 
-#endif // ENABLE(WORKERS)
+bool WorkerGlobalScope::unwrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&)
+{
+    return false;
+}
+#endif // ENABLE(SUBTLE_CRYPTO)
+
+} // namespace WebCore

@@ -43,6 +43,7 @@ CustomIndexedSetter
 CustomIsReachable
 CustomNamedGetter
 CustomNamedSetter
+CustomProxyToJSObject
 CustomPutFunction
 CustomReturn
 CustomSetter
@@ -57,7 +58,7 @@ EnabledAtRuntime=*
 EnabledBySetting=*
 EnforceRange
 EventTarget
-GenerateIsReachable=|Impl|ImplContext|ImplDocument|ImplElementRoot|ImplFrame|ImplOwnerNodeRoot
+GenerateIsReachable=|Impl|ImplWebGLRenderingContext|ImplDocument|ImplElementRoot|ImplFrame|ImplOwnerNodeRoot
 GetterRaisesException
 GlobalContext=DOMWindow|WorkerGlobalScope|SharedWorkerGlobalScope|DedicatedWorkerGlobalScope
 Immutable
@@ -78,23 +79,28 @@ JSCustomPushEventHandlerScope
 JSCustomToNativeObject
 JSGenerateToJSObject
 JSGenerateToNativeObject
-JSInlineGetOwnPropertySlot
 JSLegacyParent=*
 JSNoStaticTables
 JSWindowEventListener
 MasqueradesAsUndefined
 NamedConstructor=*
+NewImpurePropertyFiresWatchpoints
 NoInterfaceObject
+Nondeterministic
 NotEnumerable
+NotDeletable
 ObjCCustomImplementation
+ObjCExplicitAtomicString
 ObjCLegacyUnnamedParameters
 ObjCPolymorphic
 ObjCProtocol
+OperationsNotDeletable
 PassContext
 RaisesException
 Reflect=*
 Replaceable
 ReplaceableConstructor
+ReportExtraMemoryCost
 ReturnNewObject
 SetterRaisesException
 SkipVTableValidation
@@ -105,3 +111,6 @@ TreatReturnedNullStringAs=Null|Undefined
 TreatUndefinedAs=NullString
 TypedArray=*
 URL
+
+# PLATFORM(IOS)
+AppleCopyright

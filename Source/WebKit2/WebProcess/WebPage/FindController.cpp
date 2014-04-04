@@ -35,9 +35,9 @@
 #include <WebCore/DocumentMarkerController.h>
 #include <WebCore/FloatQuad.h>
 #include <WebCore/FocusController.h>
-#include <WebCore/Frame.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/GraphicsContext.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/Page.h>
 #include <WebCore/PluginDocument.h>
 
@@ -201,22 +201,23 @@ void FindController::findStringMatches(const String& string, FindOptions options
 
 bool FindController::getFindIndicatorBitmapAndRect(Frame* frame, ShareableBitmap::Handle& handle, IntRect& selectionRect)
 {
-    selectionRect = enclosingIntRect(frame->selection().bounds());
+    selectionRect = enclosingIntRect(frame->selection().selectionBounds());
 
     // Selection rect can be empty for matches that are currently obscured from view.
     if (selectionRect.isEmpty())
         return false;
 
     IntSize backingStoreSize = selectionRect.size();
-    backingStoreSize.scale(m_webPage->corePage()->deviceScaleFactor());
+    float deviceScaleFactor = m_webPage->corePage()->deviceScaleFactor();
+    backingStoreSize.scale(deviceScaleFactor);
 
     // Create a backing store and paint the find indicator text into it.
     RefPtr<ShareableBitmap> findIndicatorTextBackingStore = ShareableBitmap::createShareable(backingStoreSize, ShareableBitmap::SupportsAlpha);
     if (!findIndicatorTextBackingStore)
         return false;
 
-    OwnPtr<GraphicsContext> graphicsContext = findIndicatorTextBackingStore->createGraphicsContext();
-    graphicsContext->scale(FloatSize(m_webPage->corePage()->deviceScaleFactor(), m_webPage->corePage()->deviceScaleFactor()));
+    auto graphicsContext = findIndicatorTextBackingStore->createGraphicsContext();
+    graphicsContext->scale(FloatSize(deviceScaleFactor, deviceScaleFactor));
 
     IntRect paintRect = selectionRect;
     paintRect.move(frame->view()->frameRect().x(), frame->view()->frameRect().y());
@@ -387,7 +388,6 @@ void FindController::didMoveToWebPage(PageOverlay*, WebPage*)
 static const float shadowOffsetX = 0.0;
 static const float shadowOffsetY = 1.0;
 static const float shadowBlurRadius = 2.0;
-static const float whiteFrameThickness = 1.0;
 
 static const float overlayBackgroundRed = 0.1;
 static const float overlayBackgroundGreen = 0.1;
@@ -428,7 +428,7 @@ void FindController::drawRect(PageOverlay* /*pageOverlay*/, GraphicsContext& gra
         return;
 
     if (Frame* selectedFrame = frameWithSelection(m_webPage->corePage())) {
-        IntRect findIndicatorRect = selectedFrame->view()->contentsToWindow(enclosingIntRect(selectedFrame->selection().bounds()));
+        IntRect findIndicatorRect = selectedFrame->view()->contentsToWindow(enclosingIntRect(selectedFrame->selection().selectionBounds()));
 
         if (findIndicatorRect != m_findIndicatorRect)
             hideFindIndicator();

@@ -47,23 +47,21 @@ ProcessLauncher::ProcessLauncher(Client* client, const LaunchOptions& launchOpti
     processLauncherWorkQueue()->dispatch(bind(&ProcessLauncher::launchProcess, this));
 }
 
-void ProcessLauncher::didFinishLaunchingProcess(PlatformProcessIdentifier processIdentifier, CoreIPC::Connection::Identifier identifier)
+void ProcessLauncher::didFinishLaunchingProcess(PlatformProcessIdentifier processIdentifier, IPC::Connection::Identifier identifier)
 {
     m_processIdentifier = processIdentifier;
     m_isLaunching = false;
     
     if (!m_client) {
         // FIXME: Make Identifier a move-only object and release port rights/connections in the destructor.
-#if PLATFORM(MAC)
+#if OS(DARWIN)
         if (identifier.port)
             mach_port_mod_refs(mach_task_self(), identifier.port, MACH_PORT_RIGHT_RECEIVE, -1);
 
-#if HAVE(XPC)
         if (identifier.xpcConnection) {
             xpc_release(identifier.xpcConnection);
             identifier.xpcConnection = 0;
         }
-#endif
 #endif
         return;
     }
@@ -89,6 +87,10 @@ const char* ProcessLauncher::processTypeAsString(ProcessType processType)
 #if ENABLE(NETWORK_PROCESS)
     case NetworkProcess:
         return "networkprocess";
+#endif
+#if ENABLE(DATABASE_PROCESS)
+    case DatabaseProcess:
+        return "databaseprocess";
 #endif
     }
 
@@ -117,6 +119,12 @@ bool ProcessLauncher::getProcessTypeFromString(const char* string, ProcessType& 
     }
 #endif
 
+#if ENABLE(DATABASE_PROCESS)
+    if (!strcmp(string, "databaseprocess")) {
+        processType = DatabaseProcess;
+        return true;
+    }
+#endif
     return false;
 }
 

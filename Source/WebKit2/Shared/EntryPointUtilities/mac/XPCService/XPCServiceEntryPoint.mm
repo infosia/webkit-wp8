@@ -25,8 +25,6 @@
 
 #import "config.h"
 
-#if HAVE(XPC)
-
 #import "XPCServiceEntryPoint.h"
 
 extern "C" mach_port_t xpc_dictionary_copy_mach_send(xpc_object_t, const char*);
@@ -37,9 +35,9 @@ XPCServiceInitializerDelegate::~XPCServiceInitializerDelegate()
 {
 }
 
-bool XPCServiceInitializerDelegate::getConnectionIdentifier(CoreIPC::Connection::Identifier& identifier)
+bool XPCServiceInitializerDelegate::getConnectionIdentifier(IPC::Connection::Identifier& identifier)
 {
-    identifier = CoreIPC::Connection::Identifier(xpc_dictionary_copy_mach_send(m_initializerMessage, "server-port"), m_connection);
+    identifier = IPC::Connection::Identifier(xpc_dictionary_copy_mach_send(m_initializerMessage, "server-port"), m_connection);
     return true;
 }
 
@@ -65,5 +63,3 @@ bool XPCServiceInitializerDelegate::getExtraInitializationData(HashMap<String, S
 }
 
 } // namespace WebKit
-
-#endif // HAVE(XPC)

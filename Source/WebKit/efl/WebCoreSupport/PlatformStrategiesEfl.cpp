@@ -37,7 +37,7 @@ using namespace WebCore;
 
 void PlatformStrategiesEfl::initialize()
 {
-    DEFINE_STATIC_LOCAL(PlatformStrategiesEfl, platformStrategies, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(PlatformStrategiesEfl, platformStrategies, ());
     setPlatformStrategies(&platformStrategies);
 }
 
@@ -76,43 +76,38 @@ SharedWorkerStrategy* PlatformStrategiesEfl::createSharedWorkerStrategy()
     return this;
 }
 
-VisitedLinkStrategy* PlatformStrategiesEfl::createVisitedLinkStrategy()
-{
-    return this;
-}
-
 StorageStrategy* PlatformStrategiesEfl::createStorageStrategy()
 {
     return this;
 }
 
 // CookiesStrategy
-String PlatformStrategiesEfl::cookiesForDOM(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url)
+String PlatformStrategiesEfl::cookiesForDOM(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     return WebCore::cookiesForDOM(session, firstParty, url);
 }
 
-void PlatformStrategiesEfl::setCookiesFromDOM(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url, const String& cookieString)
+void PlatformStrategiesEfl::setCookiesFromDOM(const NetworkStorageSession& session, const URL& firstParty, const URL& url, const String& cookieString)
 {
     WebCore::setCookiesFromDOM(session, firstParty, url, cookieString);
 }
 
-bool PlatformStrategiesEfl::cookiesEnabled(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url)
+bool PlatformStrategiesEfl::cookiesEnabled(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     return WebCore::cookiesEnabled(session, firstParty, url);
 }
 
-String PlatformStrategiesEfl::cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url)
+String PlatformStrategiesEfl::cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     return WebCore::cookieRequestHeaderFieldValue(session, firstParty, url);
 }
 
-bool PlatformStrategiesEfl::getRawCookies(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url, Vector<Cookie>& rawCookies)
+bool PlatformStrategiesEfl::getRawCookies(const NetworkStorageSession& session, const URL& firstParty, const URL& url, Vector<Cookie>& rawCookies)
 {
     return WebCore::getRawCookies(session, firstParty, url, rawCookies);
 }
 
-void PlatformStrategiesEfl::deleteCookie(const NetworkStorageSession& session, const KURL& url, const String& cookieName)
+void PlatformStrategiesEfl::deleteCookie(const NetworkStorageSession& session, const URL& url, const String& cookieName)
 {
     WebCore::deleteCookie(session, url, cookieName);
 }
@@ -155,15 +150,4 @@ void PlatformStrategiesEfl::getPluginInfo(const Page*, Vector<PluginInfo>& outPl
 #else
     UNUSED_PARAM(outPlugins);
 #endif
-}
-
-// VisitedLinkStrategy
-bool PlatformStrategiesEfl::isLinkVisited(Page* page, LinkHash hash, const KURL&, const AtomicString&)
-{
-    return page->group().isLinkVisited(hash);
-}
-
-void PlatformStrategiesEfl::addVisitedLink(Page* page, LinkHash hash)
-{
-    page->group().addVisitedLinkHash(hash);
 }

@@ -21,7 +21,7 @@
 #ifndef SVGFEImageElement_h
 #define SVGFEImageElement_h
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "CachedImageClient.h"
 #include "CachedResourceHandle.h"
 #include "ImageBuffer.h"
@@ -34,7 +34,7 @@
 
 namespace WebCore {
 
-class SVGFEImageElement FINAL : public SVGFilterPrimitiveStandardAttributes,
+class SVGFEImageElement final : public SVGFilterPrimitiveStandardAttributes,
                                 public SVGURIReference,
                                 public SVGExternalResourcesRequired,
                                 public CachedImageClient {
@@ -47,19 +47,19 @@ private:
     SVGFEImageElement(const QualifiedName&, Document&);
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual void notifyFinished(CachedResource*);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual void notifyFinished(CachedResource*) override;
 
-    virtual void addSubresourceAttributeURLs(ListHashSet<KURL>&) const;
-    virtual PassRefPtr<FilterEffect> build(SVGFilterBuilder*, Filter*);
+    virtual void addSubresourceAttributeURLs(ListHashSet<URL>&) const override;
+    virtual PassRefPtr<FilterEffect> build(SVGFilterBuilder*, Filter*) override;
 
     void clearResourceReferences();
     void requestImageResource();
 
-    virtual void buildPendingResource();
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
+    virtual void buildPendingResource() override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGFEImageElement)
         DECLARE_ANIMATED_PRESERVEASPECTRATIO(PreserveAspectRatio, preserveAspectRatio)
@@ -72,5 +72,5 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)
 #endif

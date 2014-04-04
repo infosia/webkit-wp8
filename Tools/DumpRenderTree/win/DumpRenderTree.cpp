@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -296,43 +296,6 @@ static const wstring& fontsPath()
     return path;
 }
 
-static void addQTDirToPATH()
-{
-    static LPCWSTR pathEnvironmentVariable = L"PATH";
-    static LPCWSTR quickTimeKeyName = L"Software\\Apple Computer, Inc.\\QuickTime";
-    static LPCWSTR quickTimeSysDir = L"QTSysDir";
-    static bool initialized;
-
-    if (initialized)
-        return;
-    initialized = true;
-
-    // Get the QuickTime dll directory from the registry. The key can be in either HKLM or HKCU.
-    WCHAR qtPath[MAX_PATH];
-    DWORD qtPathBufferLen = sizeof(qtPath);
-    DWORD keyType;
-    HRESULT result = SHGetValue(HKEY_LOCAL_MACHINE, quickTimeKeyName, quickTimeSysDir, &keyType, (LPVOID)qtPath, &qtPathBufferLen);
-    if (result != ERROR_SUCCESS || !qtPathBufferLen || keyType != REG_SZ) {
-        qtPathBufferLen = sizeof(qtPath);
-        result = SHGetValue(HKEY_CURRENT_USER, quickTimeKeyName, quickTimeSysDir, &keyType, (LPVOID)qtPath, &qtPathBufferLen);
-        if (result != ERROR_SUCCESS || !qtPathBufferLen || keyType != REG_SZ)
-            return;
-    }
-
-    // Read the current PATH.
-    DWORD pathSize = GetEnvironmentVariableW(pathEnvironmentVariable, 0, 0);
-    Vector<WCHAR> oldPath(pathSize);
-    if (!GetEnvironmentVariableW(pathEnvironmentVariable, oldPath.data(), oldPath.size()))
-        return;
-
-    // And add the QuickTime dll.
-    wstring newPath;
-    newPath.append(qtPath);
-    newPath.append(L";");
-    newPath.append(oldPath.data(), oldPath.size());
-    SetEnvironmentVariableW(pathEnvironmentVariable, newPath.data());
-}
-
 #ifdef DEBUG_ALL
 #define WEBKITDLL TEXT("WebKit_debug.dll")
 #else
@@ -394,10 +357,6 @@ static void initialize()
     if (SUCCEEDED(WebKitCreateInstance(CLSID_WebTextRenderer, 0, IID_IWebTextRenderer, (void**)&textRenderer)))
         for (int i = 0; i < ARRAYSIZE(fontsToInstall); ++i)
             textRenderer->registerPrivateFont(wstring(resourcesPath + fontsToInstall[i]).c_str());
-
-    // Add the QuickTime dll directory to PATH or QT 7.6 will fail to initialize on systems
-    // linked with older versions of qtmlclientlib.dll.
-    addQTDirToPATH();
 
     // Register a host window
     WNDCLASSEX wcex;
@@ -813,11 +772,6 @@ static bool shouldLogHistoryDelegates(const char* pathOrURL)
     return strstr(pathOrURL, "/globalhistory/") || strstr(pathOrURL, "\\globalhistory\\");
 }
 
-static bool shouldOpenWebInspector(const char* pathOrURL)
-{
-    return strstr(pathOrURL, "/inspector/") || strstr(pathOrURL, "\\inspector\\");
-}
-
 static bool shouldDumpAsText(const char* pathOrURL)
 {
     return strstr(pathOrURL, "/dumpAsText/") || strstr(pathOrURL, "\\dumpAsText\\");
@@ -872,8 +826,8 @@ static void resetDefaultsToConsistentValues(IWebPreferences* preferences)
     preferences->setShouldPrintBackgrounds(TRUE);
     preferences->setCacheModel(WebCacheModelDocumentBrowser);
     preferences->setLoadsImagesAutomatically(TRUE);
-    preferences->setSeamlessIFramesEnabled(TRUE);
     preferences->setTextAreasAreResizable(TRUE);
+    preferences->setCSSRegionsEnabled(TRUE);
 
     if (persistentUserStyleSheetLocation) {
         Vector<wchar_t> urlCharacters(CFStringGetLength(persistentUserStyleSheetLocation.get()));
@@ -902,6 +856,8 @@ static void resetDefaultsToConsistentValues(IWebPreferences* preferences)
 #if USE(CG)
         prefsPrivate->setAcceleratedCompositingEnabled(TRUE);
 #endif
+        prefsPrivate->setMockScrollbarsEnabled(TRUE);
+        prefsPrivate->setScreenFontSubstitutionEnabled(TRUE);
     }
     setAlwaysAcceptCookies(false);
 
@@ -1106,11 +1062,9 @@ static void runTest(const string& inputLine)
 
     resetWebViewToConsistentStateBeforeTesting();
 
-    if (shouldEnableDeveloperExtras(pathOrURL.c_str())) {
+    if (shouldEnableDeveloperExtras(pathOrURL.c_str()))
         gTestRunner->setDeveloperExtrasEnabled(true);
-        if (shouldOpenWebInspector(pathOrURL.c_str()))
-            gTestRunner->showWebInspector();
-    }
+
     if (shouldDumpAsText(pathOrURL.c_str())) {
         gTestRunner->setDumpAsText(true);
         gTestRunner->setGeneratePixelResults(false);
@@ -1201,8 +1155,8 @@ WindowToWebViewMap& windowToWebViewMap()
 
 IWebView* createWebViewAndOffscreenWindow(HWND* webViewWindow)
 {
-    unsigned maxViewWidth = TestRunner::viewWidth;
-    unsigned maxViewHeight = TestRunner::viewHeight;
+    int maxViewWidth = TestRunner::viewWidth;
+    int maxViewHeight = TestRunner::viewHeight;
     HWND hostWindow = CreateWindowEx(WS_EX_TOOLWINDOW, kDumpRenderTreeClassName, TEXT("DumpRenderTree"), WS_POPUP,
       -maxViewWidth, -maxViewHeight, maxViewWidth, maxViewHeight, 0, 0, GetModuleHandle(0), 0);
 
@@ -1306,7 +1260,7 @@ static LONG WINAPI exceptionFilter(EXCEPTION_POINTERS*)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(int argc, const char* argv[])
+int main(int argc, const char* argv[])
 {
     // Cygwin calls ::SetErrorMode(SEM_FAILCRITICALERRORS), which we will inherit. This is bad for
     // testing/debugging, as it causes the post-mortem debugger not to be invoked. We reset the
@@ -1468,4 +1422,9 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(int argc, cons
     shutDownWebKit();
 
     return 0;
+}
+
+extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(int argc, const char* argv[])
+{
+    return main(argc, argv);
 }

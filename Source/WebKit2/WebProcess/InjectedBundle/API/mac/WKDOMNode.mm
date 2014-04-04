@@ -24,11 +24,9 @@
  */
 
 #import "config.h"
-
-#if defined(__LP64__) && defined(__clang__)
-
-#import "WKDOMNode.h"
 #import "WKDOMNodePrivate.h"
+
+#if WK_API_ENABLED
 
 #import "InjectedBundleNodeHandle.h"
 #import "WKBundleAPICast.h"
@@ -128,4 +126,4 @@
 
 @end
 
-#endif // defined(__LP64__) && defined(__clang__)
+#endif // WK_API_ENABLED

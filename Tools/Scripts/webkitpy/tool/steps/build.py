@@ -46,9 +46,10 @@ class Build(AbstractStep):
     def build(self, build_style):
         environment = self._tool.copy_current_environment()
         environment.disable_gcc_smartquotes()
+        environment.disable_jhbuild_VT100_output()
         env = environment.to_dictionary()
 
-        build_webkit_command = self._tool.port().build_webkit_command(build_style=build_style)
+        build_webkit_command = self._tool.deprecated_port().build_webkit_command(build_style=build_style)
         self._tool.executive.run_and_throw_if_fail(build_webkit_command, self._options.quiet,
             cwd=self._tool.scm().checkout_root, env=env)
 

@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,8 +32,9 @@
 #include "DOMWindow.h"
 #include "Event.h"
 #include "MessagePort.h"
-#include "ScriptValue.h"
 #include "SerializedScriptValue.h"
+#include <bindings/ScriptValue.h>
+#include <memory>
 #include <runtime/ArrayBuffer.h>
 
 namespace WebCore {
@@ -43,7 +44,7 @@ class EventTarget;
 struct MessageEventInit : public EventInit {
     MessageEventInit();
 
-    ScriptValue data;
+    Deprecated::ScriptValue data;
     String origin;
     String lastEventId;
     RefPtr<EventTarget> source;
@@ -56,13 +57,13 @@ public:
     {
         return adoptRef(new MessageEvent);
     }
-    static PassRefPtr<MessageEvent> create(PassOwnPtr<MessagePortArray> ports, const ScriptValue& data = ScriptValue(), const String& origin = String(), const String& lastEventId = String(), PassRefPtr<EventTarget> source = 0)
+    static PassRefPtr<MessageEvent> create(std::unique_ptr<MessagePortArray> ports, const Deprecated::ScriptValue& data = Deprecated::ScriptValue(), const String& origin = String(), const String& lastEventId = String(), PassRefPtr<EventTarget> source = 0)
     {
-        return adoptRef(new MessageEvent(data, origin, lastEventId, source, ports));
+        return adoptRef(new MessageEvent(data, origin, lastEventId, source, std::move(ports)));
     }
-    static PassRefPtr<MessageEvent> create(PassOwnPtr<MessagePortArray> ports, PassRefPtr<SerializedScriptValue> data, const String& origin = String(), const String& lastEventId = String(), PassRefPtr<EventTarget> source = 0)
+    static PassRefPtr<MessageEvent> create(std::unique_ptr<MessagePortArray> ports, PassRefPtr<SerializedScriptValue> data, const String& origin = String(), const String& lastEventId = String(), PassRefPtr<EventTarget> source = 0)
     {
-        return adoptRef(new MessageEvent(data, origin, lastEventId, source, ports));
+        return adoptRef(new MessageEvent(data, origin, lastEventId, source, std::move(ports)));
     }
     static PassRefPtr<MessageEvent> create(const String& data, const String& origin = String())
     {
@@ -82,8 +83,8 @@ public:
     }
     virtual ~MessageEvent();
 
-    void initMessageEvent(const AtomicString& type, bool canBubble, bool cancelable, const ScriptValue& data, const String& origin, const String& lastEventId, DOMWindow* source, PassOwnPtr<MessagePortArray>);
-    void initMessageEvent(const AtomicString& type, bool canBubble, bool cancelable, PassRefPtr<SerializedScriptValue> data, const String& origin, const String& lastEventId, DOMWindow* source, PassOwnPtr<MessagePortArray>);
+    void initMessageEvent(const AtomicString& type, bool canBubble, bool cancelable, const Deprecated::ScriptValue& data, const String& origin, const String& lastEventId, DOMWindow* source, std::unique_ptr<MessagePortArray>);
+    void initMessageEvent(const AtomicString& type, bool canBubble, bool cancelable, PassRefPtr<SerializedScriptValue> data, const String& origin, const String& lastEventId, DOMWindow* source, std::unique_ptr<MessagePortArray>);
 
     const String& origin() const { return m_origin; }
     const String& lastEventId() const { return m_lastEventId; }
@@ -97,7 +98,7 @@ public:
     MessagePort* messagePort();
     void initMessageEvent(const AtomicString& type, bool canBubble, bool cancelable, PassRefPtr<SerializedScriptValue> data, const String& origin, const String& lastEventId, DOMWindow* source, MessagePort*);
 
-    virtual EventInterface eventInterface() const;
+    virtual EventInterface eventInterface() const override;
 
     enum DataType {
         DataTypeScriptValue,
@@ -107,7 +108,7 @@ public:
         DataTypeArrayBuffer
     };
     DataType dataType() const { return m_dataType; }
-    const ScriptValue& dataAsScriptValue() const { ASSERT(m_dataType == DataTypeScriptValue); return m_dataAsScriptValue; }
+    const Deprecated::ScriptValue& dataAsScriptValue() const { ASSERT(m_dataType == DataTypeScriptValue); return m_dataAsScriptValue; }
     PassRefPtr<SerializedScriptValue> dataAsSerializedScriptValue() const { ASSERT(m_dataType == DataTypeSerializedScriptValue); return m_dataAsSerializedScriptValue; }
     String dataAsString() const { ASSERT(m_dataType == DataTypeString); return m_dataAsString; }
     Blob* dataAsBlob() const { ASSERT(m_dataType == DataTypeBlob); return m_dataAsBlob.get(); }
@@ -116,15 +117,15 @@ public:
 private:
     MessageEvent();
     MessageEvent(const AtomicString&, const MessageEventInit&);
-    MessageEvent(const ScriptValue& data, const String& origin, const String& lastEventId, PassRefPtr<EventTarget> source, PassOwnPtr<MessagePortArray>);
-    MessageEvent(PassRefPtr<SerializedScriptValue> data, const String& origin, const String& lastEventId, PassRefPtr<EventTarget> source, PassOwnPtr<MessagePortArray>);
+    MessageEvent(const Deprecated::ScriptValue& data, const String& origin, const String& lastEventId, PassRefPtr<EventTarget> source, std::unique_ptr<MessagePortArray>);
+    MessageEvent(PassRefPtr<SerializedScriptValue> data, const String& origin, const String& lastEventId, PassRefPtr<EventTarget> source, std::unique_ptr<MessagePortArray>);
 
     explicit MessageEvent(const String& data, const String& origin);
     explicit MessageEvent(PassRefPtr<Blob> data, const String& origin);
     explicit MessageEvent(PassRefPtr<ArrayBuffer> data, const String& origin);
 
     DataType m_dataType;
-    ScriptValue m_dataAsScriptValue;
+    Deprecated::ScriptValue m_dataAsScriptValue;
     RefPtr<SerializedScriptValue> m_dataAsSerializedScriptValue;
     String m_dataAsString;
     RefPtr<Blob> m_dataAsBlob;
@@ -132,7 +133,7 @@ private:
     String m_origin;
     String m_lastEventId;
     RefPtr<EventTarget> m_source;
-    OwnPtr<MessagePortArray> m_ports;
+    std::unique_ptr<MessagePortArray> m_ports;
 };
 
 } // namespace WebCore

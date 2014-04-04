@@ -32,6 +32,14 @@
 #include <WebCore/RenderSnapshottedPlugIn.h>
 #include <wtf/Forward.h>
 
+namespace API {
+class Object;
+
+template<> struct ClientTraits<WKBundlePageUIClientBase> {
+    typedef std::tuple<WKBundlePageUIClientV0, WKBundlePageUIClientV1, WKBundlePageUIClientV2> Versions;
+};
+}
+
 namespace WebCore {
 class GraphicsContext;
 class HitTestResult;
@@ -40,29 +48,23 @@ class IntRect;
 
 namespace WebKit {
 
-class APIObject;
 class WebFrame;
 class WebPage;
 class WebSecurityOrigin;
 
-class InjectedBundlePageUIClient : public APIClient<WKBundlePageUIClient, kWKBundlePageUIClientCurrentVersion> {
+class InjectedBundlePageUIClient : public API::Client<WKBundlePageUIClientBase> {
 public:
     void willAddMessageToConsole(WebPage*, const String& message, int32_t lineNumber);
     void willSetStatusbarText(WebPage*, const String&);
     void willRunJavaScriptAlert(WebPage*, const String&, WebFrame*);
     void willRunJavaScriptConfirm(WebPage*, const String&, WebFrame*);
     void willRunJavaScriptPrompt(WebPage*, const String&, const String&, WebFrame*);
-    void mouseDidMoveOverElement(WebPage*, const WebCore::HitTestResult&, WebEvent::Modifiers, RefPtr<APIObject>& userData);
+    void mouseDidMoveOverElement(WebPage*, const WebCore::HitTestResult&, WebEvent::Modifiers, RefPtr<API::Object>& userData);
     void pageDidScroll(WebPage*);
-
-    bool shouldPaintCustomOverhangArea();
-    void paintCustomOverhangArea(WebPage*, WebCore::GraphicsContext*, const WebCore::IntRect&, const WebCore::IntRect&, const WebCore::IntRect&);
 
     String shouldGenerateFileForUpload(WebPage*, const String& originalFilePath);
     String generateFileForUpload(WebPage*, const String& originalFilePath);
     
-    bool shouldRubberBandInDirection(WebPage*, WKScrollDirection) const;
-
     WKBundlePageUIElementVisibility statusBarIsVisible(WebPage*);
     WKBundlePageUIElementVisibility menuBarIsVisible(WebPage*);
     WKBundlePageUIElementVisibility toolbarsAreVisible(WebPage*);

@@ -43,6 +43,7 @@
 #import <objc/runtime.h>
 #import <sysexits.h>
 #import <wtf/HashSet.h>
+#import <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 
@@ -127,7 +128,7 @@ template<typename T> void FullscreenWindowTracker::windowHidden(T window)
 
 static FullscreenWindowTracker& fullscreenWindowTracker()
 {
-    DEFINE_STATIC_LOCAL(FullscreenWindowTracker, fullscreenWindowTracker, ());
+    static NeverDestroyed<FullscreenWindowTracker> fullscreenWindowTracker;
     return fullscreenWindowTracker;
 }
 
@@ -189,11 +190,11 @@ static void carbonWindowHidden(WindowRef window)
 static bool openCFURLRef(CFURLRef url, int32_t& status, CFURLRef* launchedURL)
 {
     String launchedURLString;
-    if (!PluginProcess::shared().openURL(KURL(url).string(), status, launchedURLString))
+    if (!PluginProcess::shared().openURL(URL(url).string(), status, launchedURLString))
         return false;
 
     if (!launchedURLString.isNull() && launchedURL)
-        *launchedURL = KURL(ParsedURLString, launchedURLString).createCFURL().leakRef();
+        *launchedURL = URL(ParsedURLString, launchedURLString).createCFURL().leakRef();
     return true;
 }
 
@@ -208,17 +209,13 @@ static unsigned modalCount = 0;
 
 static void beginModal()
 {
-#if COMPILER(CLANG)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
     // Make sure to make ourselves the front process
     ProcessSerialNumber psn;
     GetCurrentProcess(&psn);
     SetFrontProcess(&psn);
-#if COMPILER(CLANG)
 #pragma clang diagnostic pop
-#endif
 
     if (!modalCount++)
         setModal(true);
@@ -293,7 +290,7 @@ static NSRunningApplication *replacedNSWorkspace_launchApplicationAtURL_options_
         }
     }
 
-    if (PluginProcess::shared().launchApplicationAtURL(KURL(url).string(), arguments)) {
+    if (PluginProcess::shared().launchApplicationAtURL(URL(url).string(), arguments)) {
         if (error)
             *error = nil;
         return nil;
@@ -441,7 +438,7 @@ void PluginProcess::platformInitializeProcess(const ChildProcessInitializationPa
 
     // FIXME: Workaround for Java not liking its plugin process to be supressed - <rdar://problem/14267843>
     if (m_pluginBundleIdentifier == "com.oracle.java.JavaAppletPlugin")
-        incrementActiveTaskCount();
+        (new UserActivity("com.oracle.java.JavaAppletPlugin"))->start();
 }
 
 void PluginProcess::initializeProcessName(const ChildProcessInitializationParameters& parameters)
@@ -491,6 +488,12 @@ void PluginProcess::initializeSandbox(const ChildProcessInitializationParameters
     [[NSUserDefaults standardUserDefaults] registerDefaults:defaults.get()];
 
     ChildProcess::initializeSandbox(parameters, sandboxParameters);
+}
+
+
+void PluginProcess::stopRunLoop()
+{
+    ChildProcess::stopNSAppRunLoop();
 }
 
 } // namespace WebKit

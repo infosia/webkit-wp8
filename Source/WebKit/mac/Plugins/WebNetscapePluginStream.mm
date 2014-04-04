@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -80,7 +80,7 @@ private:
 typedef HashMap<NPStream*, NPP> StreamMap;
 static StreamMap& streams()
 {
-    DEFINE_STATIC_LOCAL(StreamMap, staticStreams, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(StreamMap, staticStreams, ());
     return staticStreams;
 }
 
@@ -231,7 +231,7 @@ void WebNetscapePluginStream::startStream(NSURL *url, long long expectedContentL
     if (headers) {
         unsigned len = [headers length];
         m_headers = (char*) malloc(len + 1);
-        [headers getBytes:m_headers];
+        [headers getBytes:m_headers length:len];
         m_headers[len] = 0;
         m_stream.headers = m_headers;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2011 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,12 +28,13 @@
 #define EventSenderProxy_h
 
 #include <wtf/Deque.h>
+#include <wtf/HashMap.h>
+#include <wtf/Vector.h>
 
-#if PLATFORM(QT)
-#include <QEvent>
-#include <QTouchEvent>
-#elif PLATFORM(GTK)
+#if PLATFORM(GTK)
+#include <WebCore/GUniquePtrGtk.h>
 #include <gdk/gdk.h>
+#include <wtf/HashSet.h>
 #elif PLATFORM(EFL)
 #include <WebKit2/EWebKit2.h>
 #endif
@@ -59,6 +60,7 @@ public:
     void mouseUp(unsigned button, WKEventModifiers);
     void mouseMoveTo(double x, double y);
     void mouseScrollBy(int x, int y);
+    void mouseScrollByWithWheelAndMomentumPhases(int x, int y, int phase, int momentum);
     void continuousMouseScrollBy(int x, int y, bool paged);
 
     void leapForward(int milliseconds);
@@ -86,18 +88,15 @@ private:
     double currentEventTime() { return m_time; }
     void updateClickCountForButton(int button);
 
-#if PLATFORM(QT) || PLATFORM(GTK) || PLATFORM(EFL)
+#if PLATFORM(GTK) || PLATFORM(EFL)
     void replaySavedEvents();
 #endif
 
-#if PLATFORM(QT)
-#if ENABLE(TOUCH_EVENTS)
-    void sendTouchEvent(QEvent::Type);
-#endif
-    void sendOrQueueEvent(QEvent*);
-#elif PLATFORM(GTK)
+#if PLATFORM(GTK)
     void sendOrQueueEvent(GdkEvent*);
     GdkEvent* createMouseButtonEvent(GdkEventType, unsigned button, WKEventModifiers);
+    GUniquePtr<GdkEvent> createTouchEvent(GdkEventType, int id);
+    void sendUpdatedTouchEvents();
 #elif PLATFORM(EFL)
     void sendOrQueueEvent(const WTREvent&);
     void dispatchEvent(const WTREvent&);
@@ -113,20 +112,13 @@ private:
     double m_clickTime;
     WKPoint m_clickPosition;
     WKEventMouseButton m_clickButton;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     int eventNumber;
 #elif PLATFORM(GTK)
     Deque<WTREventQueueItem> m_eventQueue;
     unsigned m_mouseButtonCurrentlyDown;
-#elif PLATFORM(QT)
-    Qt::MouseButtons m_mouseButtons;
-
-#if ENABLE(TOUCH_EVENTS)
-    QList<QTouchEvent::TouchPoint> m_touchPoints;
-    Qt::KeyboardModifiers m_touchModifiers;
-    QPoint m_touchPointRadius;
-    bool m_touchActive;
-#endif
+    Vector<GUniquePtr<GdkEvent>> m_touchEvents;
+    HashSet<int> m_updatedTouchEvents;
 #elif PLATFORM(EFL)
     Deque<WTREvent> m_eventQueue;
     WKEventMouseButton m_mouseButton;

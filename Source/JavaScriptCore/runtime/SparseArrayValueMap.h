@@ -32,7 +32,6 @@
 #include "PutDirectIndexMode.h"
 #include "WriteBarrier.h"
 #include <wtf/HashMap.h>
-#include <wtf/Platform.h>
 
 namespace JSC {
 
@@ -57,7 +56,7 @@ public:
     typedef JSCell Base;
     
 private:
-    typedef HashMap<uint64_t, SparseArrayEntry, WTF::IntHash<uint64_t>, WTF::UnsignedWithZeroKeyHashTraits<uint64_t> > Map;
+    typedef HashMap<uint64_t, SparseArrayEntry, WTF::IntHash<uint64_t>, WTF::UnsignedWithZeroKeyHashTraits<uint64_t>> Map;
 
     enum Flags {
         Normal = 0,
@@ -70,7 +69,7 @@ private:
     
     void finishCreation(VM&);
 
-    static const unsigned StructureFlags = OverridesVisitChildren | JSCell::StructureFlags;
+    static const unsigned StructureFlags = OverridesVisitChildren | StructureIsImmortal | JSCell::StructureFlags;
 
 public:
     DECLARE_EXPORT_INFO;

@@ -38,14 +38,14 @@ namespace WebCore {
     JSC::Bindings::Instance* pluginInstance(HTMLElement&);
     JSC::JSObject* pluginScriptObject(JSC::ExecState*, JSHTMLElement*);
 
-    JSC::JSValue pluginElementPropertyGetter(JSC::ExecState*, JSC::JSValue, JSC::PropertyName);
+    JSC::EncodedJSValue pluginElementPropertyGetter(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
     bool pluginElementCustomGetOwnPropertySlot(JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&, JSHTMLElement*);
     bool pluginElementCustomPut(JSC::ExecState*, JSC::PropertyName, JSC::JSValue, JSHTMLElement*, JSC::PutPropertySlot&);
     JSC::CallType pluginElementGetCallData(JSHTMLElement*, JSC::CallData&);
 
     template <class Type, class Base> bool pluginElementCustomGetOwnPropertySlot(JSC::ExecState* exec, JSC::PropertyName propertyName, JSC::PropertySlot& slot, Type* element)
     {
-        if (!element->globalObject()->world()->isNormal()) {
+        if (!element->globalObject()->world().isNormal()) {
             if (JSC::getStaticValueSlot<Type, Base>(exec, *Type::info()->staticPropHashTable, element, propertyName, slot))
                 return true;
 

@@ -40,8 +40,6 @@
 #include <algorithm>
 #include <wtf/CurrentTime.h>
 
-using namespace std;
-
 // Allow a little more than 60fps to make sure we can at least hit that frame rate.
 #define MinimumAnimationInterval 0.015
 #define MinimumThrottledAnimationInterval 10
@@ -202,7 +200,7 @@ void ScriptedAnimationController::scheduleAnimation()
         animationInterval = MinimumThrottledAnimationInterval;
 #endif
 
-    double scheduleDelay = max<double>(animationInterval - (monotonicallyIncreasingTime() - m_lastAnimationFrameTimeMonotonic), 0);
+    double scheduleDelay = std::max<double>(animationInterval - (monotonicallyIncreasingTime() - m_lastAnimationFrameTimeMonotonic), 0);
     m_animationTimer.startOneShot(scheduleDelay);
 #else
     if (FrameView* frameView = m_document->view())
@@ -211,7 +209,7 @@ void ScriptedAnimationController::scheduleAnimation()
 }
 
 #if USE(REQUEST_ANIMATION_FRAME_TIMER)
-void ScriptedAnimationController::animationTimerFired(Timer<ScriptedAnimationController>*)
+void ScriptedAnimationController::animationTimerFired(Timer<ScriptedAnimationController>&)
 {
     m_lastAnimationFrameTimeMonotonic = monotonicallyIncreasingTime();
     serviceScriptedAnimations(m_lastAnimationFrameTimeMonotonic);

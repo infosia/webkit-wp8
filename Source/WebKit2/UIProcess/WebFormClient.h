@@ -32,16 +32,23 @@
 #include <wtf/Forward.h>
 #include <wtf/Vector.h>
 
+namespace API {
+class Object;
+
+template<> struct ClientTraits<WKPageFormClientBase> {
+    typedef std::tuple<WKPageFormClientV0> Versions;
+};
+}
+
 namespace WebKit {
 
-class APIObject;
 class WebPageProxy;
 class WebFrameProxy;
 class WebFormSubmissionListenerProxy;
 
-class WebFormClient : public APIClient<WKPageFormClient, kWKPageFormClientCurrentVersion> {
+class WebFormClient : public API::Client<WKPageFormClientBase> {
 public:
-    bool willSubmitForm(WebPageProxy*, WebFrameProxy*, WebFrameProxy*, const Vector<std::pair<String, String>>& textFieldValues, APIObject* userData, WebFormSubmissionListenerProxy*); 
+    bool willSubmitForm(WebPageProxy*, WebFrameProxy*, WebFrameProxy*, const Vector<std::pair<String, String>>& textFieldValues, API::Object* userData, WebFormSubmissionListenerProxy*);
 };
 
 } // namespace WebKit

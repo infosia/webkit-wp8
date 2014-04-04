@@ -23,64 +23,148 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
-#include "RemoteLayerTreeHost.h"
+#import "config.h"
+#import "RemoteLayerTreeHost.h"
 
-#include "RemoteLayerTreeHostMessages.h"
-#include "RemoteLayerTreeTransaction.h"
-#include "WebPageProxy.h"
-#include "WebProcessProxy.h"
-#include <WebCore/GraphicsLayer.h>
+#import "RemoteLayerTreeDrawingAreaProxy.h"
+#import "RemoteLayerTreePropertyApplier.h"
+#import "RemoteLayerTreeTransaction.h"
+#import "ShareableBitmap.h"
+#import "WebPageProxy.h"
+#import "WebProcessProxy.h"
+#import <WebCore/PlatformLayer.h>
+#import <WebCore/WebCoreCALayerExtras.h>
+#import <WebKitSystemInterface.h>
+
+#import <QuartzCore/QuartzCore.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-RemoteLayerTreeHost::RemoteLayerTreeHost(WebPageProxy* webPageProxy)
-    : m_webPageProxy(webPageProxy)
+RemoteLayerTreeHost::RemoteLayerTreeHost(RemoteLayerTreeDrawingAreaProxy& drawingArea)
+    : m_drawingArea(drawingArea)
     , m_rootLayer(nullptr)
+    , m_isDebugLayerTreeHost(false)
 {
-    m_webPageProxy->process()->addMessageReceiver(Messages::RemoteLayerTreeHost::messageReceiverName(), m_webPageProxy->pageID(), this);
 }
 
 RemoteLayerTreeHost::~RemoteLayerTreeHost()
 {
-    m_webPageProxy->process()->removeMessageReceiver(Messages::RemoteLayerTreeHost::messageReceiverName(), m_webPageProxy->pageID());
 }
 
-void RemoteLayerTreeHost::notifyAnimationStarted(const GraphicsLayer*, double time)
+bool RemoteLayerTreeHost::updateLayerTree(const RemoteLayerTreeTransaction& transaction, float indicatorScaleFactor)
 {
-}
-
-void RemoteLayerTreeHost::notifyFlushRequired(const GraphicsLayer*)
-{
-}
-
-void RemoteLayerTreeHost::paintContents(const GraphicsLayer*, GraphicsContext&, GraphicsLayerPaintingPhase, const IntRect&)
-{
-}
-
-void RemoteLayerTreeHost::commit(const RemoteLayerTreeTransaction& transaction)
-{
-    GraphicsLayer* rootLayer = getOrCreateLayer(transaction.rootLayerID());
-    if (m_rootLayer != rootLayer) {
-        m_rootLayer = rootLayer;
-        m_webPageProxy->setAcceleratedCompositingRootLayer(m_rootLayer);
+    for (const auto& createdLayer : transaction.createdLayers()) {
+        const RemoteLayerTreeTransaction::LayerProperties* properties = transaction.changedLayerProperties().get(createdLayer.layerID);
+        createLayer(createdLayer, properties);
     }
 
-#ifndef NDEBUG
-    // FIXME: Apply the transaction instead of dumping it to stderr.
-    transaction.dump();
-#endif
+    bool rootLayerChanged = false;
+    LayerOrView *rootLayer = getLayer(transaction.rootLayerID());
+    if (m_rootLayer != rootLayer) {
+        m_rootLayer = rootLayer;
+        rootLayerChanged = true;
+    }
+
+    for (auto& changedLayer : transaction.changedLayerProperties()) {
+        auto layerID = changedLayer.key;
+        const RemoteLayerTreeTransaction::LayerProperties& properties = *changedLayer.value;
+
+        LayerOrView *layer = getLayer(layerID);
+        ASSERT(layer);
+
+        RemoteLayerTreePropertyApplier::RelatedLayerMap relatedLayers;
+        if (properties.changedProperties & RemoteLayerTreeTransaction::ChildrenChanged) {
+            for (auto& child : properties.children)
+                relatedLayers.set(child, getLayer(child));
+        }
+
+        if (properties.changedProperties & RemoteLayerTreeTransaction::MaskLayerChanged && properties.maskLayerID)
+            relatedLayers.set(properties.maskLayerID, getLayer(properties.maskLayerID));
+
+        if (m_isDebugLayerTreeHost) {
+            RemoteLayerTreePropertyApplier::applyProperties(layer, this, properties, relatedLayers);
+
+            if (properties.changedProperties & RemoteLayerTreeTransaction::BorderWidthChanged)
+                asLayer(layer).borderWidth = properties.borderWidth / indicatorScaleFactor;
+            asLayer(layer).masksToBounds = false;
+        } else
+            RemoteLayerTreePropertyApplier::applyProperties(layer, this, properties, relatedLayers);
+    }
+
+    for (auto& destroyedLayer : transaction.destroyedLayers())
+        layerWillBeRemoved(destroyedLayer);
+
+    return rootLayerChanged;
 }
 
-GraphicsLayer* RemoteLayerTreeHost::getOrCreateLayer(uint64_t layerID)
+LayerOrView *RemoteLayerTreeHost::getLayer(GraphicsLayer::PlatformLayerID layerID) const
 {
-    auto addResult = m_layers.add(layerID, nullptr);
-    if (addResult.isNewEntry)
-        addResult.iterator->value = GraphicsLayer::create(0, this);
+    if (!layerID)
+        return nil;
 
-    return addResult.iterator->value.get();
+    return m_layers.get(layerID).get();
 }
+
+void RemoteLayerTreeHost::layerWillBeRemoved(WebCore::GraphicsLayer::PlatformLayerID layerID)
+{
+    m_animationDelegates.remove(layerID);
+    m_layers.remove(layerID);
+}
+
+void RemoteLayerTreeHost::animationDidStart(WebCore::GraphicsLayer::PlatformLayerID layerID, double startTime)
+{
+    m_drawingArea.acceleratedAnimationDidStart(layerID, startTime);
+}
+
+static NSString* const WKLayerIDPropertyKey = @"WKLayerID";
+
+void RemoteLayerTreeHost::setLayerID(CALayer *layer, WebCore::GraphicsLayer::PlatformLayerID layerID)
+{
+    [layer setValue:[NSNumber numberWithUnsignedLongLong:layerID] forKey:WKLayerIDPropertyKey];
+}
+
+WebCore::GraphicsLayer::PlatformLayerID RemoteLayerTreeHost::layerID(CALayer* layer)
+{
+    return [[layer valueForKey:WKLayerIDPropertyKey] unsignedLongLongValue];
+}
+
+#if !PLATFORM(IOS)
+LayerOrView *RemoteLayerTreeHost::createLayer(const RemoteLayerTreeTransaction::LayerCreationProperties& properties, const RemoteLayerTreeTransaction::LayerProperties*)
+{
+    RetainPtr<CALayer>& layer = m_layers.add(properties.layerID, nullptr).iterator->value;
+
+    ASSERT(!layer);
+
+    switch (properties.type) {
+    case PlatformCALayer::LayerTypeLayer:
+    case PlatformCALayer::LayerTypeWebLayer:
+    case PlatformCALayer::LayerTypeRootLayer:
+    case PlatformCALayer::LayerTypeSimpleLayer:
+    case PlatformCALayer::LayerTypeTiledBackingLayer:
+    case PlatformCALayer::LayerTypePageTiledBackingLayer:
+    case PlatformCALayer::LayerTypeTiledBackingTileLayer:
+        layer = adoptNS([[CALayer alloc] init]);
+        break;
+    case PlatformCALayer::LayerTypeTransformLayer:
+        layer = adoptNS([[CATransformLayer alloc] init]);
+        break;
+    case PlatformCALayer::LayerTypeCustom:
+        if (!m_isDebugLayerTreeHost)
+            layer = WKMakeRenderLayer(properties.hostingContextID);
+        else
+            layer = adoptNS([[CALayer alloc] init]);
+        break;
+    default:
+        ASSERT_NOT_REACHED();
+    }
+
+    [layer web_disableAllActions];
+    setLayerID(layer.get(), properties.layerID);
+
+    return layer.get();
+}
+#endif
 
 } // namespace WebKit

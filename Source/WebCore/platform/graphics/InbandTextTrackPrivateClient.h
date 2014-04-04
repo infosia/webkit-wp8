@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,8 +27,7 @@
 #define InbandTextTrackPrivateClient_h
 
 #include "Color.h"
-#include <wtf/RefCounted.h>
-#include <wtf/text/WTFString.h>
+#include "TrackPrivateBase.h"
 
 #if ENABLE(VIDEO_TRACK)
 
@@ -131,7 +130,7 @@ private:
 
 class WebVTTCueData;
 
-class InbandTextTrackPrivateClient {
+class InbandTextTrackPrivateClient : public TrackPrivateBaseClient {
 public:
     virtual ~InbandTextTrackPrivateClient() { }
 
@@ -140,11 +139,6 @@ public:
     virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) = 0;
 
     virtual void parseWebVTTCueData(InbandTextTrackPrivate*, const char* data, unsigned length) = 0;
-
-    virtual void labelChanged(InbandTextTrackPrivate*, const String&) = 0;
-    virtual void languageChanged(InbandTextTrackPrivate*, const String&) = 0;
-
-    virtual void willRemoveTextTrackPrivate(InbandTextTrackPrivate*) = 0;
 };
 
 } // namespace WebCore

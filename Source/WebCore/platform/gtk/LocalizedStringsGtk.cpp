@@ -15,10 +15,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,17 +29,16 @@
  */
 
 #include "config.h"
-
 #include "LocalizedStrings.h"
-#include <wtf/gobject/GOwnPtr.h>
+
 #include "IntSize.h"
 #include "NotImplemented.h"
-#include <wtf/MathExtras.h>
-#include <wtf/text/CString.h>
-#include <wtf/text/WTFString.h>
-
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
+#include <wtf/MathExtras.h>
+#include <wtf/gobject/GUniquePtr.h>
+#include <wtf/text/CString.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -544,9 +543,8 @@ String unknownFileSizeText()
 
 String imageTitle(const String& filename, const IntSize& size)
 {
-    GOwnPtr<gchar> string(g_strdup_printf(C_("Title string for images", "%s  (%dx%d pixels)"),
-                                          filename.utf8().data(),
-                                          size.width(), size.height()));
+    GUniquePtr<gchar> string(g_strdup_printf(C_("Title string for images", "%s  (%dx%d pixels)"),
+        filename.utf8().data(), size.width(), size.height()));
 
     return String::fromUTF8(string.get());
 }
@@ -668,21 +666,21 @@ String localizedMediaTimeDescription(float time)
     seconds %= 60;
 
     if (days) {
-        GOwnPtr<gchar> string(g_strdup_printf("%d days %d hours %d minutes %d seconds", days, hours, minutes, seconds));
+        GUniquePtr<gchar> string(g_strdup_printf("%d days %d hours %d minutes %d seconds", days, hours, minutes, seconds));
         return String::fromUTF8(string.get());
     }
 
     if (hours) {
-        GOwnPtr<gchar> string(g_strdup_printf("%d hours %d minutes %d seconds", hours, minutes, seconds));
+        GUniquePtr<gchar> string(g_strdup_printf("%d hours %d minutes %d seconds", hours, minutes, seconds));
         return String::fromUTF8(string.get());
     }
 
     if (minutes) {
-        GOwnPtr<gchar> string(g_strdup_printf("%d minutes %d seconds", minutes, seconds));
+        GUniquePtr<gchar> string(g_strdup_printf("%d minutes %d seconds", minutes, seconds));
         return String::fromUTF8(string.get());
     }
 
-    GOwnPtr<gchar> string(g_strdup_printf("%d seconds", seconds));
+    GUniquePtr<gchar> string(g_strdup_printf("%d seconds", seconds));
     return String::fromUTF8(string.get());
 }
 #endif  // ENABLE(VIDEO)

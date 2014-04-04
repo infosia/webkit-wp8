@@ -33,7 +33,8 @@
 #include "EditingCallbacks.h"
 #include "EventSender.h"
 #include "GCController.h"
-#include "KURL.h"
+#include "JSRetainPtr.h"
+#include "URL.h"
 #include "NotImplemented.h"
 #include "TestRunner.h"
 #include "TextInputController.h"
@@ -95,11 +96,20 @@ Evas_Object* DumpRenderTreeChrome::createNewWindow()
     return newView;
 }
 
+static bool shouldUseTiledBackingStore()
+{
+    const char* useTiledBackingStore = getenv("DRT_USE_TILED_BACKING_STORE");
+    return useTiledBackingStore && *useTiledBackingStore == '1';
+}
+
 Evas_Object* DumpRenderTreeChrome::createView() const
 {
     Evas_Object* view = drtViewAdd(m_evas);
     if (!view)
         return 0;
+
+    if (shouldUseTiledBackingStore())
+        ewk_view_setting_tiled_backing_store_enabled_set(view, EINA_TRUE);
 
     ewk_view_theme_set(view, TEST_THEME_DIR "/default.edj");
 
@@ -322,7 +332,6 @@ void DumpRenderTreeChrome::resetDefaultsToConsistentValues()
     DumpRenderTreeSupportEfl::setCSSRegionsEnabled(mainView(), true);
     DumpRenderTreeSupportEfl::setShouldTrackVisitedLinks(false);
     DumpRenderTreeSupportEfl::setTracksRepaints(mainFrame(), false);
-    DumpRenderTreeSupportEfl::setSeamlessIFramesEnabled(true);
     DumpRenderTreeSupportEfl::setWebAudioEnabled(mainView(), false);
 
     // Reset capacities for the memory cache for dead objects.
@@ -337,14 +346,14 @@ void DumpRenderTreeChrome::resetDefaultsToConsistentValues()
 
 static String pathSuitableForTestResult(const char* uriString)
 {
-    KURL uri = KURL(ParsedURLString, uriString);
+    URL uri = URL(ParsedURLString, uriString);
     if (uri.isEmpty())
         return "(null)";
 
     if (!uri.isLocalFile())
         return uri.string();
 
-    KURL mainFrameURL = KURL(ParsedURLString, ewk_frame_uri_get(browser->mainFrame()));
+    URL mainFrameURL = URL(ParsedURLString, ewk_frame_uri_get(browser->mainFrame()));
     if (mainFrameURL.isEmpty())
         mainFrameURL = DumpRenderTreeSupportEfl::provisionalURL(browser->mainFrame());
 
@@ -555,7 +564,7 @@ void DumpRenderTreeChrome::onWillSendRequest(void*, Evas_Object*, void* eventInf
         return;
     }
 
-    KURL url = KURL(ParsedURLString, messages->request->url);
+    URL url = URL(ParsedURLString, messages->request->url);
 
     if (url.isValid()
         && url.protocolIsInHTTPFamily()
@@ -800,7 +809,7 @@ void DumpRenderTreeChrome::onResponseReceived(void*, Evas_Object*, void* eventIn
 
     if (!done && gTestRunner->dumpResourceResponseMIMETypes()) {
         printf("%s has MIME type %s\n",
-               KURL(ParsedURLString, response->url).lastPathComponent().utf8().data(),
+               URL(ParsedURLString, response->url).lastPathComponent().utf8().data(),
                response->mime_type);
     }
 }

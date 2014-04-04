@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2001 Peter Kelly (pmk@post.com)
- *  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009 Apple Inc. All Rights Reserved.
+ *  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2013 Apple Inc. All Rights Reserved.
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -23,7 +23,6 @@
 #include "BeforeUnloadEvent.h"
 #include "Event.h"
 #include "Frame.h"
-#include "InspectorCounters.h"
 #include "JSEvent.h"
 #include "JSEventTarget.h"
 #include "JSMainThreadExecState.h"
@@ -32,6 +31,7 @@
 #include "WorkerGlobalScope.h"
 #include <runtime/ExceptionHelpers.h>
 #include <runtime/JSLock.h>
+#include <runtime/VMEntryScope.h>
 #include <wtf/Ref.h>
 #include <wtf/RefCountedLeakCounter.h>
 
@@ -39,27 +39,21 @@ using namespace JSC;
 
 namespace WebCore {
 
-JSEventListener::JSEventListener(JSObject* function, JSObject* wrapper, bool isAttribute, DOMWrapperWorld* isolatedWorld)
+JSEventListener::JSEventListener(JSObject* function, JSObject* wrapper, bool isAttribute, DOMWrapperWorld& isolatedWorld)
     : EventListener(JSEventListenerType)
     , m_wrapper(wrapper)
     , m_isAttribute(isAttribute)
-    , m_isolatedWorld(isolatedWorld)
+    , m_isolatedWorld(&isolatedWorld)
 {
     if (wrapper) {
-        JSC::Heap::writeBarrier(wrapper, function);
-        m_jsFunction = JSC::PassWeak<JSC::JSObject>(function);
+        JSC::Heap::heap(wrapper)->writeBarrier(wrapper, function);
+        m_jsFunction = JSC::Weak<JSC::JSObject>(function);
     } else
         ASSERT(!function);
-#if ENABLE(INSPECTOR)
-    ThreadLocalInspectorCounters::current().incrementCounter(ThreadLocalInspectorCounters::JSEventListenerCounter);
-#endif
 }
 
 JSEventListener::~JSEventListener()
 {
-#if ENABLE(INSPECTOR)
-    ThreadLocalInspectorCounters::current().decrementCounter(ThreadLocalInspectorCounters::JSEventListenerCounter);
-#endif
 }
 
 JSObject* JSEventListener::initializeJSFunction(ScriptExecutionContext*) const
@@ -88,16 +82,16 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
     if (!jsFunction)
         return;
 
-    JSDOMGlobalObject* globalObject = toJSDOMGlobalObject(scriptExecutionContext, m_isolatedWorld.get());
+    JSDOMGlobalObject* globalObject = toJSDOMGlobalObject(scriptExecutionContext, *m_isolatedWorld);
     if (!globalObject)
         return;
 
     if (scriptExecutionContext->isDocument()) {
         JSDOMWindow* window = jsCast<JSDOMWindow*>(globalObject);
-        if (!window->impl()->isCurrentlyDisplayedInFrame())
+        if (!window->impl().isCurrentlyDisplayedInFrame())
             return;
         // FIXME: Is this check needed for other contexts?
-        ScriptController& script = window->impl()->frame()->script();
+        ScriptController& script = window->impl().frame()->script();
         if (!script.canExecuteScripts(AboutToExecuteScript) || script.isPaused())
             return;
     }
@@ -123,7 +117,7 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
         globalObject->setCurrentEvent(event);
 
         VM& vm = globalObject->vm();
-        DynamicGlobalObjectScope globalObjectScope(vm, vm.dynamicGlobalObject ? vm.dynamicGlobalObject : globalObject);
+        VMEntryScope entryScope(vm, vm.entryScope ? vm.entryScope->globalObject() : globalObject);
 
         InspectorInstrumentationCookie cookie = JSMainThreadExecState::instrumentFunctionCall(scriptExecutionContext, callType, callData);
 
@@ -132,17 +126,15 @@ void JSEventListener::handleEvent(ScriptExecutionContext* scriptExecutionContext
             ? JSMainThreadExecState::call(exec, handleEventFunction, callType, callData, thisValue, args)
             : JSC::call(exec, handleEventFunction, callType, callData, thisValue, args);
 
-        InspectorInstrumentation::didCallFunction(cookie);
+        InspectorInstrumentation::didCallFunction(cookie, scriptExecutionContext);
 
         globalObject->setCurrentEvent(savedEvent);
 
-#if ENABLE(WORKERS)
         if (scriptExecutionContext->isWorkerGlobalScope()) {
             bool terminatorCausedException = (exec->hadException() && isTerminatedExecutionException(exec->exception()));
             if (terminatorCausedException || vm.watchdog.didFire())
-                static_cast<WorkerGlobalScope*>(scriptExecutionContext)->script()->forbidExecution();
+                toWorkerGlobalScope(scriptExecutionContext)->script()->forbidExecution();
         }
-#endif
 
         if (exec->hadException()) {
             event->target()->uncaughtExceptionInEventHandler();

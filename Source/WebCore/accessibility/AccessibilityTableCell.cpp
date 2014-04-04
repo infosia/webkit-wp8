@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -30,11 +30,12 @@
 #include "AccessibilityTableCell.h"
 
 #include "AXObjectCache.h"
+#include "AccessibilityTable.h"
+#include "AccessibilityTableRow.h"
+#include "HTMLElement.h"
 #include "HTMLNames.h"
 #include "RenderObject.h"
 #include "RenderTableCell.h"
-
-using namespace std;
 
 namespace WebCore {
     
@@ -67,8 +68,8 @@ bool AccessibilityTableCell::computeAccessibilityIsIgnored() const
     
     return false;
 }
-   
-AccessibilityObject* AccessibilityTableCell::parentTable() const
+
+AccessibilityTable* AccessibilityTableCell::parentTable() const
 {
     if (!m_renderer || !m_renderer->isTableCell())
         return 0;
@@ -82,7 +83,7 @@ AccessibilityObject* AccessibilityTableCell::parentTable() const
     // By using only get() implies that the AXTable must be created before AXTableCells. This should
     // always be the case when AT clients access a table.
     // https://bugs.webkit.org/show_bug.cgi?id=42652    
-    return axObjectCache()->get(toRenderTableCell(m_renderer)->table());
+    return toAccessibilityTable(axObjectCache()->get(toRenderTableCell(m_renderer)->table()));
 }
     
 bool AccessibilityTableCell::isTableCell() const
@@ -106,7 +107,112 @@ AccessibilityRole AccessibilityTableCell::determineAccessibilityRole()
     return CellRole;
 }
     
-void AccessibilityTableCell::rowIndexRange(pair<unsigned, unsigned>& rowRange)
+bool AccessibilityTableCell::isTableHeaderCell() const
+{
+    return node() && node()->hasTagName(thTag);
+}
+
+bool AccessibilityTableCell::isTableCellInSameRowGroup(AccessibilityTableCell* otherTableCell)
+{
+    Node* parentNode = node();
+    for ( ; parentNode; parentNode = parentNode->parentNode()) {
+        if (parentNode->hasTagName(theadTag) || parentNode->hasTagName(tbodyTag) || parentNode->hasTagName(tfootTag))
+            break;
+    }
+    
+    Node* otherParentNode = otherTableCell->node();
+    for ( ; otherParentNode; otherParentNode = otherParentNode->parentNode()) {
+        if (otherParentNode->hasTagName(theadTag) || otherParentNode->hasTagName(tbodyTag) || otherParentNode->hasTagName(tfootTag))
+            break;
+    }
+    
+    return otherParentNode == parentNode;
+}
+
+
+bool AccessibilityTableCell::isTableCellInSameColGroup(AccessibilityTableCell* tableCell)
+{
+    std::pair<unsigned, unsigned> colRange;
+    columnIndexRange(colRange);
+    
+    std::pair<unsigned, unsigned> otherColRange;
+    tableCell->columnIndexRange(otherColRange);
+    
+    if (colRange.first <= (otherColRange.first + otherColRange.second))
+        return true;
+    return false;
+}
+    
+String AccessibilityTableCell::expandedTextValue() const
+{
+    return getAttribute(abbrAttr);
+}
+    
+bool AccessibilityTableCell::supportsExpandedTextValue() const
+{
+    return isTableHeaderCell() && hasAttribute(abbrAttr);
+}
+    
+void AccessibilityTableCell::columnHeaders(AccessibilityChildrenVector& headers)
+{
+    AccessibilityTable* parent = parentTable();
+    if (!parent)
+        return;
+
+    // Choose columnHeaders as the place where the "headers" attribute is reported.
+    ariaElementsFromAttribute(headers, headersAttr);
+    // If the headers attribute returned valid values, then do not further search for column headers.
+    if (!headers.isEmpty())
+        return;
+    
+    std::pair<unsigned, unsigned> rowRange;
+    rowIndexRange(rowRange);
+    
+    std::pair<unsigned, unsigned> colRange;
+    columnIndexRange(colRange);
+    
+    for (unsigned row = 0; row < rowRange.first; row++) {
+        AccessibilityTableCell* tableCell = parent->cellForColumnAndRow(colRange.first, row);
+        if (tableCell == this || headers.contains(tableCell))
+            continue;
+
+        std::pair<unsigned, unsigned> childRowRange;
+        tableCell->rowIndexRange(childRowRange);
+            
+        const AtomicString& scope = tableCell->getAttribute(scopeAttr);
+        if (scope == "col" || tableCell->isTableHeaderCell())
+            headers.append(tableCell);
+        else if (scope == "colgroup" && isTableCellInSameColGroup(tableCell))
+            headers.append(tableCell);
+    }
+}
+    
+void AccessibilityTableCell::rowHeaders(AccessibilityChildrenVector& headers)
+{
+    AccessibilityTable* parent = parentTable();
+    if (!parent)
+        return;
+
+    std::pair<unsigned, unsigned> rowRange;
+    rowIndexRange(rowRange);
+
+    std::pair<unsigned, unsigned> colRange;
+    columnIndexRange(colRange);
+
+    for (unsigned column = 0; column < colRange.first; column++) {
+        AccessibilityTableCell* tableCell = parent->cellForColumnAndRow(column, rowRange.first);
+        if (tableCell == this || headers.contains(tableCell))
+            continue;
+        
+        const AtomicString& scope = tableCell->getAttribute(scopeAttr);
+        if (scope == "row")
+            headers.append(tableCell);
+        else if (scope == "rowgroup" && isTableCellInSameRowGroup(tableCell))
+            headers.append(tableCell);
+    }
+}
+    
+void AccessibilityTableCell::rowIndexRange(std::pair<unsigned, unsigned>& rowRange)
 {
     if (!m_renderer || !m_renderer->isTableCell())
         return;
@@ -133,7 +239,7 @@ void AccessibilityTableCell::rowIndexRange(pair<unsigned, unsigned>& rowRange)
     rowRange.first += rowOffset;
 }
     
-void AccessibilityTableCell::columnIndexRange(pair<unsigned, unsigned>& columnRange)
+void AccessibilityTableCell::columnIndexRange(std::pair<unsigned, unsigned>& columnRange)
 {
     if (!m_renderer || !m_renderer->isTableCell())
         return;

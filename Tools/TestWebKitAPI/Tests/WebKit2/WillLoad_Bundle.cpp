@@ -44,8 +44,8 @@ private:
     {
         WKRetainPtr<WKMutableDictionaryRef> messageBody = adoptWK(WKMutableDictionaryCreate());
 
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("URLRequestReturn").get(), request);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("UserDataReturn").get(), userData);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("URLRequestReturn").get(), request);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("UserDataReturn").get(), userData);
 
         WKBundlePostMessage(InjectedBundleController::shared().bundle(), Util::toWK("WillLoadURLRequestReturn").get(), messageBody.get());
     }
@@ -54,28 +54,28 @@ private:
     {
         WKRetainPtr<WKMutableDictionaryRef> messageBody = adoptWK(WKMutableDictionaryCreate());
 
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("URLRequestReturn").get(), request);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("DataReturn").get(), data);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("MIMETypeReturn").get(), MIMEType);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("EncodingNameReturn").get(), encodingName);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("UnreachableURLReturn").get(), unreachableURL);
-        WKDictionaryAddItem(messageBody.get(), Util::toWK("UserDataReturn").get(), userData);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("URLRequestReturn").get(), request);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("DataReturn").get(), data);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("MIMETypeReturn").get(), MIMEType);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("EncodingNameReturn").get(), encodingName);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("UnreachableURLReturn").get(), unreachableURL);
+        WKDictionarySetItem(messageBody.get(), Util::toWK("UserDataReturn").get(), userData);
 
         WKBundlePostMessage(InjectedBundleController::shared().bundle(), Util::toWK("WillLoadDataRequestReturn").get(), messageBody.get());
 
     }
 
-    virtual void didCreatePage(WKBundleRef, WKBundlePageRef bundlePage) OVERRIDE
+    virtual void didCreatePage(WKBundleRef, WKBundlePageRef bundlePage) override
     {
-        WKBundlePageLoaderClient pageLoaderClient;
+        WKBundlePageLoaderClientV6 pageLoaderClient;
         memset(&pageLoaderClient, 0, sizeof(pageLoaderClient));
         
-        pageLoaderClient.version = 6;
-        pageLoaderClient.clientInfo = this;
+        pageLoaderClient.base.version = 6;
+        pageLoaderClient.base.clientInfo = this;
         pageLoaderClient.willLoadURLRequest = willLoadURLRequest;
         pageLoaderClient.willLoadDataRequest = willLoadDataRequest;
         
-        WKBundlePageSetPageLoaderClient(bundlePage, &pageLoaderClient);
+        WKBundlePageSetPageLoaderClient(bundlePage, &pageLoaderClient.base);
     }
 };
 

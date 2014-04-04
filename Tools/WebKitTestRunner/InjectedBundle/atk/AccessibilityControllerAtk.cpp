@@ -28,13 +28,15 @@
 #include "config.h"
 #include "AccessibilityController.h"
 
+#if HAVE(ACCESSIBILITY)
+
 #include "InjectedBundle.h"
 #include "InjectedBundlePage.h"
 
 #include <WebKit2/WKBundlePagePrivate.h>
 #include <atk/atk.h>
 #include <cstdio>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/StringBuilder.h>
 
 namespace WTR {
@@ -54,7 +56,7 @@ void AccessibilityController::logAccessibilityEvents()
 
     // Ensure the Atk interface types are registered, otherwise
     // the AtkDocument signal handlers below won't get registered.
-    GObject* dummyAxObject = G_OBJECT(g_object_new(ATK_TYPE_OBJECT, 0));
+    GObject* dummyAxObject = G_OBJECT(g_object_new(ATK_TYPE_OBJECT, nullptr));
     AtkObject* dummyNoOpAxObject = atk_no_op_object_new(dummyAxObject);
     g_object_unref(G_OBJECT(dummyNoOpAxObject));
     g_object_unref(dummyAxObject);
@@ -62,13 +64,13 @@ void AccessibilityController::logAccessibilityEvents()
 
 void AccessibilityController::resetToConsistentState()
 {
-    m_globalNotificationHandler = 0;
+    m_globalNotificationHandler = nullptr;
 }
 
 static AtkObject* childElementById(AtkObject* parent, const char* id)
 {
     if (!ATK_IS_OBJECT(parent))
-        return 0;
+        return nullptr;
 
     bool parentFound = false;
     AtkAttributeSet* attributeSet = atk_object_get_attributes(parent);
@@ -92,24 +94,30 @@ static AtkObject* childElementById(AtkObject* parent, const char* id)
             return result;
     }
 
-    return 0;
+    return nullptr;
 }
 
 PassRefPtr<AccessibilityUIElement> AccessibilityController::accessibleElementById(JSStringRef id)
 {
     AtkObject* root = ATK_OBJECT(WKAccessibilityRootObject(InjectedBundle::shared().page()->page()));
     if (!root)
-        return 0;
+        return nullptr;
 
     size_t bufferSize = JSStringGetMaximumUTF8CStringSize(id);
-    GOwnPtr<gchar> idBuffer(static_cast<gchar*>(g_malloc(bufferSize)));
+    GUniquePtr<gchar> idBuffer(static_cast<gchar*>(g_malloc(bufferSize)));
     JSStringGetUTF8CString(id, idBuffer.get(), bufferSize);
 
     AtkObject* result = childElementById(root, idBuffer.get());
     if (ATK_IS_OBJECT(result))
         return AccessibilityUIElement::create(result);
 
-    return 0;
+    return nullptr;
+}
+
+JSRetainPtr<JSStringRef> AccessibilityController::platformName()
+{
+    JSRetainPtr<JSStringRef> platformName(Adopt, JSStringCreateWithUTF8CString("atk"));
+    return platformName;
 }
 
 PassRefPtr<AccessibilityUIElement> AccessibilityController::rootElement()
@@ -128,4 +136,28 @@ PassRefPtr<AccessibilityUIElement> AccessibilityController::focusedElement()
     return AccessibilityUIElement::create(static_cast<AtkObject*>(root));
 }
 
+bool AccessibilityController::addNotificationListener(JSValueRef functionCallback)
+{
+    if (!functionCallback)
+        return false;
+
+    // Only one global notification listener.
+    if (!m_globalNotificationHandler)
+        m_globalNotificationHandler = AccessibilityNotificationHandler::create();
+    m_globalNotificationHandler->setNotificationFunctionCallback(functionCallback);
+
+    return true;
+}
+
+bool AccessibilityController::removeNotificationListener()
+{
+    // Programmers should not be trying to remove a listener that's already removed.
+    ASSERT(m_globalNotificationHandler);
+
+    m_globalNotificationHandler = nullptr;
+    return false;
+}
+
 } // namespace WTR
+
+#endif // HAVE(ACCESSIBILITY)

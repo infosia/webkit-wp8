@@ -112,8 +112,6 @@ class PerfTestsRunner(object):
                 help="Upload the generated JSON file to the specified server when --output-json-path is present."),
             optparse.make_option("--webkit-test-runner", "-2", action="store_true",
                 help="Use WebKitTestRunner rather than DumpRenderTree."),
-            optparse.make_option("--replay", dest="replay", action="store_true", default=False,
-                help="Run replay tests."),
             optparse.make_option("--force", dest="use_skipped_list", action="store_false", default=True,
                 help="Run all tests, including the ones in the Skipped list."),
             optparse.make_option("--profile", action="store_true",
@@ -127,15 +125,13 @@ class PerfTestsRunner(object):
                 help="Alternative DumpRenderTree binary to use"),
             optparse.make_option("--repeat", default=1, type="int",
                 help="Specify number of times to run test set (default: 1)."),
-            optparse.make_option("--test-runner-count", default=DEFAULT_TEST_RUNNER_COUNT, type="int",
+            optparse.make_option("--test-runner-count", default=-1, type="int",
                 help="Specify number of times to invoke test runner for each performance test."),
             ]
         return optparse.OptionParser(option_list=(perf_option_list)).parse_args(args)
 
     def _collect_tests(self):
         test_extensions = ['.html', '.svg']
-        if self._options.replay:
-            test_extensions.append('.replay')
 
         def _is_test_file(filesystem, dirname, filename):
             return filesystem.splitext(filename)[1] in test_extensions
@@ -156,16 +152,28 @@ class PerfTestsRunner(object):
         skipped_directories = set(['.svn', 'resources'])
         test_files = find_files.find(filesystem, self._base_path, paths, skipped_directories, _is_test_file)
         tests = []
+
+        test_runner_count = DEFAULT_TEST_RUNNER_COUNT
+        if self._options.test_runner_count > 0:
+            test_runner_count = self._options.test_runner_count
+        elif self._options.profile:
+            test_runner_count = 1
+
         for path in test_files:
             relative_path = filesystem.relpath(path, self._base_path).replace('\\', '/')
             if self._options.use_skipped_list and self._port.skips_perf_test(relative_path) and filesystem.normpath(relative_path) not in paths:
                 continue
-            test = PerfTestFactory.create_perf_test(self._port, relative_path, path, test_runner_count=self._options.test_runner_count)
+            test = PerfTestFactory.create_perf_test(self._port, relative_path, path, test_runner_count=test_runner_count)
             tests.append(test)
 
         return tests
 
     def run(self):
+        if "Debug" == self._port.get_option("configuration"):
+            _log.warning("""****************************************************
+* WARNING: run-perf-tests is running in DEBUG mode *
+****************************************************""")
+
         if not self._port.check_build(needs_http=False):
             _log.error("Build not up to date for %s" % self._port._path_to_driver())
             return self.EXIT_CODE_BAD_BUILD
@@ -256,25 +264,25 @@ class PerfTestsRunner(object):
             if value:
                 contents[key] = value
 
-        for test, metrics in self._results:
-            for metric_name, iteration_values in metrics.iteritems():
-                if not isinstance(iteration_values, list):  # We can't reports results without individual measurements.
-                    continue
-
-                tests = contents['tests']
-                path = test.test_name_without_file_extension().split('/')
-                for i in range(0, len(path)):
-                    is_last_token = i + 1 == len(path)
-                    url = view_source_url('PerformanceTests/' + (test.test_name() if is_last_token else '/'.join(path[0:i + 1])))
-                    tests.setdefault(path[i], {'url': url})
-                    current_test = tests[path[i]]
-                    if is_last_token:
-                        current_test.setdefault('metrics', {})
-                        assert metric_name not in current_test['metrics']
-                        current_test['metrics'][metric_name] = {'current': iteration_values}
-                    else:
-                        current_test.setdefault('tests', {})
-                        tests = current_test['tests']
+        for metric in self._results:
+            tests = contents['tests']
+            path = metric.path()
+            for i in range(0, len(path)):
+                is_last_token = i + 1 == len(path)
+                url = view_source_url('PerformanceTests/' + '/'.join(path[0:i + 1]))
+                tests.setdefault(path[i], {'url': url})
+                current_test = tests[path[i]]
+                if is_last_token:
+                    current_test['url'] = view_source_url('PerformanceTests/' + metric.test_file_name())
+                    current_test.setdefault('metrics', {})
+                    assert metric.name() not in current_test['metrics']
+                    test_results = {'current': metric.grouped_iteration_values()}
+                    if metric.aggregator():
+                        test_results['aggregators'] = [metric.aggregator()]
+                    current_test['metrics'][metric.name()] = test_results
+                else:
+                    current_test.setdefault('tests', {})
+                    tests = current_test['tests']
 
         return contents
 
@@ -308,7 +316,10 @@ class PerfTestsRunner(object):
         return None
 
     def _upload_json(self, test_results_server, json_path, host_path="/api/report", file_uploader=FileUploader):
-        url = "https://%s%s" % (test_results_server, host_path)
+        hypertext_protocol = ''
+        if not test_results_server.startswith('http'):
+            hypertext_protocol = 'https://'
+        url = hypertext_protocol + test_results_server + host_path
         uploader = file_uploader(url, 120)
         try:
             response = uploader.upload_single_text_file(self._host.filesystem, 'application/json', json_path)
@@ -343,7 +354,7 @@ class PerfTestsRunner(object):
             start_time = time.time()
             metrics = test.run(self._options.time_out_ms)
             if metrics:
-                self._results.append((test, metrics))
+                self._results += metrics
             else:
                 failures += 1
                 _log.error('FAILED')

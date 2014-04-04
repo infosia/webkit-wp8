@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,9 +36,8 @@
 #include <WebKitSystemInterface/WebKitSystemInterface.h>
 #endif
 
-#include <wtf/platform.h>
 #include <WebCore/BString.h>
-#include <WebCore/KURL.h>
+#include <WebCore/URL.h>
 #include <WebCore/LocalizedStrings.h>
 #include <WebCore/ResourceHandle.h>
 #include <shlobj.h>
@@ -226,7 +225,7 @@ WebURLResponse* WebURLResponse::createInstance()
 {
     WebURLResponse* instance = new WebURLResponse();
     // fake an http response - so it has the IWebHTTPURLResponse interface
-    instance->m_response = ResourceResponse(KURL(ParsedURLString, "http://"), String(), 0, String(), String());
+    instance->m_response = ResourceResponse(WebCore::URL(ParsedURLString, "http://"), String(), 0, String(), String());
     instance->AddRef();
     return instance;
 }

@@ -26,8 +26,6 @@
 #ifndef DFGNodeFlags_h
 #define DFGNodeFlags_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include <wtf/PrintStream.h>
@@ -68,7 +66,7 @@ namespace JSC { namespace DFG {
 
 #define NodeRelevantToOSR                0x4000
 
-#define NodeExitsForward                 0x8000
+#define NodeIsFlushed                    0x8000 // Used by Graph::computeIsFlushed(), will tell you which local nodes are backwards-reachable from a Flush.
 
 typedef uint32_t NodeFlags;
 

@@ -29,7 +29,6 @@
  */
 
 #include "config.h"
-
 #include "WebKitBlobBuilder.h"
 
 #include "Blob.h"
@@ -38,7 +37,6 @@
 #include "File.h"
 #include "HistogramSupport.h"
 #include "LineEnding.h"
-#include "ScriptCallStack.h"
 #include "TextEncoding.h"
 #include <runtime/ArrayBuffer.h>
 #include <runtime/ArrayBufferView.h>
@@ -46,6 +44,7 @@
 #include <wtf/Vector.h>
 #include <wtf/text/AtomicString.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringView.h>
 
 namespace WebCore {
 
@@ -73,7 +72,7 @@ Vector<char>& BlobBuilder::getBuffer()
 
 void BlobBuilder::append(const String& text, const String& endingType)
 {
-    CString utf8Text = UTF8Encoding().encode(text.characters(), text.length(), EntitiesForUnencodables);
+    CString utf8Text = UTF8Encoding().encode(text, EntitiesForUnencodables);
 
     Vector<char>& buffer = getBuffer();
     size_t oldSize = buffer.size();
@@ -122,11 +121,6 @@ void BlobBuilder::append(Blob* blob)
         file->captureSnapshot(snapshotSize, snapshotModificationTime);
 
         m_size += snapshotSize;
-#if ENABLE(FILE_SYSTEM)
-        if (!file->fileSystemURL().isEmpty())
-            m_items.append(BlobDataItem(file->fileSystemURL(), 0, snapshotSize, snapshotModificationTime));
-        else
-#endif
         m_items.append(BlobDataItem(file->path(), 0, snapshotSize, snapshotModificationTime));
     } else {
         long long blobSize = static_cast<long long>(blob->size());
@@ -145,11 +139,11 @@ void BlobBuilder::appendBytesData(const void* data, size_t length)
 
 PassRefPtr<Blob> BlobBuilder::getBlob(const String& contentType)
 {
-    OwnPtr<BlobData> blobData = BlobData::create();
+    auto blobData = std::make_unique<BlobData>();
     blobData->setContentType(Blob::normalizedContentType(contentType));
     blobData->swapItems(m_items);
 
-    RefPtr<Blob> blob = Blob::create(blobData.release(), m_size);
+    RefPtr<Blob> blob = Blob::create(std::move(blobData), m_size);
 
     // After creating a blob from the current blob data, we do not need to keep the data around any more. Instead, we only
     // need to keep a reference to the URL of the blob just created.

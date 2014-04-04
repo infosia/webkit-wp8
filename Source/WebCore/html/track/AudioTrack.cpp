@@ -37,51 +37,48 @@
 
 #include "AudioTrackList.h"
 #include "Event.h"
-#include "ExceptionCode.h"
 #include "HTMLMediaElement.h"
-#include "TrackBase.h"
 
 namespace WebCore {
 
 const AtomicString& AudioTrack::alternativeKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, alternative, ("alternative", AtomicString::ConstructFromLiteral));
     return alternative;
 }
 
 const AtomicString& AudioTrack::descriptionKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, description, ("description", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, description, ("description", AtomicString::ConstructFromLiteral));
     return description;
 }
 
 const AtomicString& AudioTrack::mainKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, main, ("main", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, main, ("main", AtomicString::ConstructFromLiteral));
     return main;
 }
 
 const AtomicString& AudioTrack::mainDescKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, mainDesc, ("main-desc", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, mainDesc, ("main-desc", AtomicString::ConstructFromLiteral));
     return mainDesc;
 }
 
 const AtomicString& AudioTrack::translationKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, translation, ("translation", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, translation, ("translation", AtomicString::ConstructFromLiteral));
     return translation;
 }
 
 const AtomicString& AudioTrack::commentaryKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, commentary, ("commentary", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, commentary, ("commentary", AtomicString::ConstructFromLiteral));
     return commentary;
 }
 
 AudioTrack::AudioTrack(AudioTrackClient* client, PassRefPtr<AudioTrackPrivate> trackPrivate)
-    : TrackBase(TrackBase::AudioTrack, trackPrivate->label(), trackPrivate->language())
-    , m_id(trackPrivate->id())
+    : TrackBase(TrackBase::AudioTrack, trackPrivate->id(), trackPrivate->label(), trackPrivate->language())
     , m_enabled(trackPrivate->enabled())
     , m_client(client)
     , m_private(trackPrivate)
@@ -145,6 +142,7 @@ void AudioTrack::setEnabled(const bool enabled)
         return;
 
     m_enabled = enabled;
+    m_private->setEnabled(enabled);
 
     if (m_client)
         m_client->audioTrackEnabledChanged(this);
@@ -153,13 +151,36 @@ void AudioTrack::setEnabled(const bool enabled)
 size_t AudioTrack::inbandTrackIndex()
 {
     ASSERT(m_private);
-    return m_private->audioTrackIndex();
+    return m_private->trackIndex();
 }
 
-void AudioTrack::willRemoveAudioTrackPrivate(AudioTrackPrivate* trackPrivate)
+void AudioTrack::enabledChanged(AudioTrackPrivate* trackPrivate, bool enabled)
 {
-    UNUSED_PARAM(trackPrivate);
-    ASSERT(trackPrivate == m_private);
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setEnabled(enabled);
+}
+
+void AudioTrack::idChanged(TrackPrivateBase* trackPrivate, const AtomicString& id)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setId(id);
+}
+
+void AudioTrack::labelChanged(TrackPrivateBase* trackPrivate, const AtomicString& label)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLabel(label);
+}
+
+void AudioTrack::languageChanged(TrackPrivateBase* trackPrivate, const AtomicString& language)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
+    setLanguage(language);
+}
+
+void AudioTrack::willRemove(TrackPrivateBase* trackPrivate)
+{
+    ASSERT_UNUSED(trackPrivate, trackPrivate == m_private);
     mediaElement()->removeAudioTrack(this);
 }
 

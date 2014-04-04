@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextPathElement.h"
 
 #include "Attribute.h"
@@ -73,7 +71,7 @@ void SVGTextPathElement::clearResourceReferences()
 
 bool SVGTextPathElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         supportedAttributes.add(SVGNames::startOffsetAttr);
@@ -123,21 +121,21 @@ void SVGTextPathElement::svgAttributeChanged(const QualifiedName& attrName)
     if (attrName == SVGNames::startOffsetAttr)
         updateRelativeLengthsInformation();
 
-    if (RenderObject* object = renderer())
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(object);
+    if (auto renderer = this->renderer())
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
-RenderElement* SVGTextPathElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGTextPathElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGTextPath(*this);
+    return createRenderer<RenderSVGTextPath>(*this, std::move(style));
 }
 
-bool SVGTextPathElement::childShouldCreateRenderer(const Node* child) const
+bool SVGTextPathElement::childShouldCreateRenderer(const Node& child) const
 {
-    if (child->isTextNode()
-        || child->hasTagName(SVGNames::aTag)
-        || child->hasTagName(SVGNames::trefTag)
-        || child->hasTagName(SVGNames::tspanTag))
+    if (child.isTextNode()
+        || child.hasTagName(SVGNames::aTag)
+        || child.hasTagName(SVGNames::trefTag)
+        || child.hasTagName(SVGNames::tspanTag))
         return true;
 
     return false;
@@ -160,10 +158,10 @@ void SVGTextPathElement::buildPendingResource()
         return;
 
     String id;
-    Element* target = SVGURIReference::targetElementFromIRIString(href(), &document(), &id);
+    Element* target = SVGURIReference::targetElementFromIRIString(href(), document(), &id);
     if (!target) {
         // Do not register as pending if we are already pending this resource.
-        if (document().accessSVGExtensions()->isElementPendingResource(this, id))
+        if (document().accessSVGExtensions()->isPendingResource(this, id))
             return;
 
         if (!id.isEmpty()) {
@@ -177,17 +175,17 @@ void SVGTextPathElement::buildPendingResource()
     }
 }
 
-Node::InsertionNotificationRequest SVGTextPathElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGTextPathElement::insertedInto(ContainerNode& rootParent)
 {
     SVGTextContentElement::insertedInto(rootParent);
     buildPendingResource();
     return InsertionDone;
 }
 
-void SVGTextPathElement::removedFrom(ContainerNode* rootParent)
+void SVGTextPathElement::removedFrom(ContainerNode& rootParent)
 {
     SVGTextContentElement::removedFrom(rootParent);
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         clearResourceReferences();
 }
 
@@ -198,5 +196,3 @@ bool SVGTextPathElement::selfHasRelativeLengths() const
 }
 
 }
-
-#endif // ENABLE(SVG)

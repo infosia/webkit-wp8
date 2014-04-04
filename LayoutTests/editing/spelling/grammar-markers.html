@@ -1,9 +1,7 @@
 <!DOCTYPE html>
 <html>
-<head>
-<script src="../../resources/js-test-pre.js"></script>
-</head>
 <body>
+<script src="../../resources/js-test-pre.js"></script>
 <div id="source" contenteditable="true" spellcheck="false">You has the right.</div>
 <div id="target" contenteditable="true" spellcheck="true"></div>
 
@@ -20,7 +18,7 @@ if (window.testRunner)
 
 function verifyGrammarMarker(destination, ungrammaticalPhrase)
 {
-    if (window.internals && internals.hasGrammarMarker(document, destination.innerHTML.indexOf(ungrammaticalPhrase), ungrammaticalPhrase.length)) {
+    if (window.internals && internals.hasGrammarMarker(destination.innerHTML.indexOf(ungrammaticalPhrase), ungrammaticalPhrase.length)) {
         testPassed("ungrammatical phrase '" + ungrammaticalPhrase + "' on '" + destination.innerHTML + "'");
         return true;
     } else

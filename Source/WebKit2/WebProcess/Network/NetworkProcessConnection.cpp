@@ -36,6 +36,7 @@
 #include <WebCore/CachedResource.h>
 #include <WebCore/MemoryCache.h>
 #include <WebCore/ResourceBuffer.h>
+#include <WebCore/SessionID.h>
 
 #if ENABLE(NETWORK_PROCESS)
 
@@ -43,9 +44,9 @@ using namespace WebCore;
 
 namespace WebKit {
 
-NetworkProcessConnection::NetworkProcessConnection(CoreIPC::Connection::Identifier connectionIdentifier)
+NetworkProcessConnection::NetworkProcessConnection(IPC::Connection::Identifier connectionIdentifier)
 {
-    m_connection = CoreIPC::Connection::createClientConnection(connectionIdentifier, this, RunLoop::main());
+    m_connection = IPC::Connection::createClientConnection(connectionIdentifier, this, RunLoop::main());
     m_connection->open();
 }
 
@@ -53,7 +54,7 @@ NetworkProcessConnection::~NetworkProcessConnection()
 {
 }
 
-void NetworkProcessConnection::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
+void NetworkProcessConnection::didReceiveMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder)
 {
     if (decoder.messageReceiverName() == Messages::WebResourceLoader::messageReceiverName()) {
         if (WebResourceLoader* webResourceLoader = WebProcess::shared().webResourceLoadScheduler().webResourceLoaderForIdentifier(decoder.destinationID()))
@@ -65,24 +66,25 @@ void NetworkProcessConnection::didReceiveMessage(CoreIPC::Connection* connection
     didReceiveNetworkProcessConnectionMessage(connection, decoder);
 }
 
-void NetworkProcessConnection::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder, OwnPtr<CoreIPC::MessageEncoder>& replyEncoder)
+void NetworkProcessConnection::didReceiveSyncMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder, std::unique_ptr<IPC::MessageEncoder>& replyEncoder)
 {
     ASSERT_NOT_REACHED();
 }
 
-void NetworkProcessConnection::didClose(CoreIPC::Connection*)
+void NetworkProcessConnection::didClose(IPC::Connection*)
 {
     // The NetworkProcess probably crashed.
     WebProcess::shared().networkProcessConnectionClosed(this);
 }
 
-void NetworkProcessConnection::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
+void NetworkProcessConnection::didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference, IPC::StringReference)
 {
 }
 
-void NetworkProcessConnection::didCacheResource(const ResourceRequest& request, const ShareableResource::Handle& handle)
+#if ENABLE(SHAREABLE_RESOURCE)
+void NetworkProcessConnection::didCacheResource(const ResourceRequest& request, const ShareableResource::Handle& handle, SessionID sessionID)
 {
-    CachedResource* resource = memoryCache()->resourceForRequest(request);
+    CachedResource* resource = memoryCache()->resourceForRequest(request, sessionID);
     if (!resource)
         return;
     
@@ -94,6 +96,7 @@ void NetworkProcessConnection::didCacheResource(const ResourceRequest& request, 
 
     resource->tryReplaceEncodedData(buffer.release());
 }
+#endif
 
 } // namespace WebKit
 

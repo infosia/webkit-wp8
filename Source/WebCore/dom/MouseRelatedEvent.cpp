@@ -23,7 +23,6 @@
 #include "config.h"
 #include "MouseRelatedEvent.h"
 
-#include "DOMWindow.h"
 #include "Document.h"
 #include "Frame.h"
 #include "FrameView.h"
@@ -48,8 +47,12 @@ static LayoutSize contentsScrollOffset(AbstractView* abstractView)
     FrameView* frameView = frame->view();
     if (!frameView)
         return LayoutSize();
+#if !PLATFORM(IOS)
     float scaleFactor = frame->pageZoomFactor() * frame->frameScaleFactor();
     return LayoutSize(frameView->scrollX() / scaleFactor, frameView->scrollY() / scaleFactor);
+#else
+    return LayoutSize(frameView->actualScrollX(), frameView->actualScrollY());
+#endif
 }
 
 MouseRelatedEvent::MouseRelatedEvent(const AtomicString& eventType, bool canBubble, bool cancelable, double timestamp, PassRefPtr<AbstractView> abstractView,
@@ -71,7 +74,11 @@ MouseRelatedEvent::MouseRelatedEvent(const AtomicString& eventType, bool canBubb
     Frame* frame = view() ? view()->frame() : 0;
     if (frame && !isSimulated) {
         if (FrameView* frameView = frame->view()) {
+#if !PLATFORM(IOS)
             scrollPosition = frameView->scrollPosition();
+#else
+            scrollPosition = frameView->actualScrollPosition();
+#endif
             adjustedPageLocation = frameView->windowToContents(windowLocation);
             float scaleFactor = 1 / (frame->pageZoomFactor() * frame->frameScaleFactor());
             if (scaleFactor != 1.0f) {
@@ -201,6 +208,8 @@ int MouseRelatedEvent::layerY()
 
 int MouseRelatedEvent::offsetX()
 {
+    if (isSimulated())
+        return 0;
     if (!m_hasCachedRelativePosition)
         computeRelativePosition();
     return roundToInt(m_offsetLocation.x());
@@ -208,6 +217,8 @@ int MouseRelatedEvent::offsetX()
 
 int MouseRelatedEvent::offsetY()
 {
+    if (isSimulated())
+        return 0;
     if (!m_hasCachedRelativePosition)
         computeRelativePosition();
     return roundToInt(m_offsetLocation.y());

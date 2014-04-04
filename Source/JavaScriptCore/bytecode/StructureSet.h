@@ -30,7 +30,6 @@
 #include "SpeculatedType.h"
 #include "Structure.h"
 #include "DumpContext.h"
-#include <stdio.h>
 #include <wtf/CommaPrinter.h>
 #include <wtf/Vector.h>
 
@@ -46,6 +45,7 @@ public:
     
     StructureSet(Structure* structure)
     {
+        ASSERT(structure);
         m_structures.append(structure);
     }
     
@@ -56,6 +56,7 @@ public:
     
     void add(Structure* structure)
     {
+        ASSERT(structure);
         ASSERT(!contains(structure));
         m_structures.append(structure);
     }
@@ -112,6 +113,15 @@ public:
     bool isSupersetOf(const StructureSet& other) const
     {
         return other.isSubsetOf(*this);
+    }
+    
+    bool overlaps(const StructureSet& other) const
+    {
+        for (size_t i = 0; i < m_structures.size(); ++i) {
+            if (other.contains(m_structures[i]))
+                return true;
+        }
+        return false;
     }
     
     size_t size() const { return m_structures.size(); }

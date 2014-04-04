@@ -33,7 +33,7 @@
 
 void webkitWebViewLoadChanged(WebKitWebView*, WebKitLoadEvent);
 void webkitWebViewLoadFailed(WebKitWebView*, WebKitLoadEvent, const char* failingURI, GError*);
-void webkitWebViewLoadFailedWithTLSErrors(WebKitWebView*, const char* failingURI, GError *, GTlsCertificateFlags, GTlsCertificate*);
+void webkitWebViewLoadFailedWithTLSErrors(WebKitWebView*, const char* failingURI, GError*, GTlsCertificateFlags, GTlsCertificate*);
 void webkitWebViewSetEstimatedLoadProgress(WebKitWebView*, double estimatedLoadProgress);
 void webkitWebViewSetTitle(WebKitWebView*, const CString&);
 void webkitWebViewUpdateURI(WebKitWebView*);
@@ -55,7 +55,7 @@ void webKitWebViewDidReceiveSnapshot(WebKitWebView*, uint64_t callbackID, WebKit
 void webkitWebViewRemoveLoadingWebResource(WebKitWebView*, uint64_t resourceIdentifier);
 bool webkitWebViewEnterFullScreen(WebKitWebView*);
 bool webkitWebViewLeaveFullScreen(WebKitWebView*);
-void webkitWebViewPopulateContextMenu(WebKitWebView*, WebKit::ImmutableArray* proposedMenu, WebKit::WebHitTestResult*);
+void webkitWebViewPopulateContextMenu(WebKitWebView*, API::Array* proposedMenu, WebKit::WebHitTestResult*);
 void webkitWebViewSubmitFormRequest(WebKitWebView*, WebKitFormSubmissionRequest*);
 void webkitWebViewHandleAuthenticationChallenge(WebKitWebView*, WebKit::AuthenticationChallengeProxy*);
 void webkitWebViewInsecureContentDetected(WebKitWebView*, WebKitInsecureContentEvent);

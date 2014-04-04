@@ -10,7 +10,7 @@
 # 2.  Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution.
-# 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+# 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 #     its contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission.
 #
@@ -61,33 +61,12 @@ compositing/iframes/iframe-size-from-zero.html
 compositing/iframes/iframe-src-change.html
 
 # Flakey on Snow Leopard Intel WebKit2 Release Tests
-# <https://bugs.webkit.org/show_bug.cgi?id=57638>
-inspector/styles/styles-add-blank-property.html
-
-# Flakey on Snow Leopard Intel WebKit2 Release Tests
 # https://bugs.webkit.org/show_bug.cgi?id=58183
 editing/execCommand/convert-style-elements-to-spans.html
 
 # Flakey on Snow Leopard Intel WebKit2 Release Tests
 # https://bugs.webkit.org/show_bug.cgi?id=60648
 fast/frames/flattening/frameset-flattening-subframesets.html
-
-# Time out on Snow Leopard Intel WebKit2 Release Tests
-# https://bugs.webkit.org/show_bug.cgi?id=63325
-http/tests/inspector/extensions-headers.html
-http/tests/inspector/extensions-network-redirect.html
-
-# Inspector only supports evaluation in content script world with v8, see https://bugs.webkit.org/show_bug.cgi?id=85709
-inspector/extensions/extensions-eval-content-script.html
-inspector/extensions/extensions-audits-content-script.html
-
-# A bunch of inspector tests time out on Lion Intel Debug WebKit2 testers.
-# https://bugs.webkit.org/show_bug.cgi?id=81601
-http/tests/inspector/console-cross-origin-iframe-logging.html
-inspector/debugger/script-formatter-breakpoints.html
-inspector/elements/edit-dom-actions.html
-inspector/extensions/extensions-events.html
-inspector/styles/styles-computed-trace.html
 
 # WebKitTestRunner needs overridePreference for non-boolean values
 # (zero-font-size.html passes because overridePreference does not work)
@@ -196,12 +175,11 @@ http/tests/security/setDomainRelaxationForbiddenForURLScheme.html
 # <https://bugs.webkit.org/show_bug.cgi?id=42777>
 fast/loader/non-deferred-substitute-load.html
 
-# WebKitTestRunner needs to print history delegate information
-# <https://bugs.webkit.org/show_bug.cgi?id=42704>
-http/tests/globalhistory/history-delegate-basic-302-redirect.html
-http/tests/globalhistory/history-delegate-basic-refresh-redirect.html
-http/tests/globalhistory/history-delegate-basic-title.html
+# WebKitTestRunner needs testRunner.removeAllVisitedLinks
 http/tests/globalhistory/history-delegate-basic-visited-links.html
+
+# WebKit2 passes the wrong source URL for client redirects
+http/tests/globalhistory/history-delegate-basic-refresh-redirect.html
 
 # transitions/default-timing-function.html failing on WebKit2 since it was added
 # <https://bugs.webkit.org/show_bug.cgi?id=56531>
@@ -211,10 +189,6 @@ transitions/default-timing-function.html
 # http://webkit.org/b/46714
 plugins/geturlnotify-during-document-teardown.html
 plugins/open-and-close-window-with-plugin.html
-
-# Sometimes fails
-# http://webkit.org/b/56530
-http/tests/inspector/resource-har-conversion.html
 
 platform/mac/accessibility/search-predicate.html
 
@@ -243,10 +217,6 @@ fast/events/blur-focus-window-should-blur-focus-element.html
 fast/selectors/selection-window-inactive.html
 fast/dom/Window/window-focus-self.html
 
-# WebKit2 needs an implementation of InspectorClient::overrideDeviceMetrics() and
-# autoZoomPageToFitWidth().
-inspector/styles/override-screen-size.html
-
 # css3-conditionals support is not yet enabled.
 webkit.org/b/86146 css3/supports.html
 webkit.org/b/104822 css3/supports-cssom.html
@@ -269,6 +239,8 @@ storage/domstorage/storage-close-database-on-idle.html
 plugins/npruntime/embed-property-iframe-equality.html
 
 webkit.org/b/105952 fast/loader/submit-form-while-parsing-2.html [ Pass Failure ]
+
+webkit.org/b/127683 http/tests/navigation/new-window-redirect-history.html [ Crash ]
 
 ### END OF (1) Classified failures with bug reports
 ########################################
@@ -321,7 +293,6 @@ http/tests/loading/cross-origin-XHR-willLoadRequest.html
 # WebKit2 needs showModalDialog
 fast/events/scroll-event-during-modal-dialog.html
 fast/harness/show-modal-dialog.html
-inspector/console/console-long-eval-crash.html
 
 # WebKit2 needs to support synchronous creation of about:blank/data:url frames
 fast/dom/HTMLDocument/hasFocus.html
@@ -530,32 +501,10 @@ platform/mac/fast/loader/non-html-load-event.html
 plugins/embed-attributes-style.html
 plugins/plugin-initiate-popup-window.html
 storage/websql/open-database-while-transaction-in-progress.html
-svg/custom/clip-path-referencing-use2.svg
 svg/hixie/cascade/002.xml
 tables/mozilla_expected_failures/bugs/bug8499.html
 transitions/font-family-during-transition.html
 
-# Unexplained back/forward list failures
-fast/loader/frame-location-change-not-added-to-history.html
-fast/loader/frame-src-change-added-to-history.html
-fast/loader/frame-src-change-not-added-to-history.html
-http/tests/history/redirect-200-refresh-0-seconds.pl
-http/tests/history/redirect-js-document-location-before-load.html
-http/tests/history/redirect-js-form-submit-before-load.html
-http/tests/history/redirect-js-location-assign-before-load.html
-http/tests/history/redirect-js-location-before-load.html
-http/tests/history/redirect-js-location-href-before-load.html
-http/tests/history/redirect-js-location-replace-0-seconds.html
-http/tests/history/redirect-js-location-replace-2-seconds.html
-http/tests/history/redirect-js-location-replace-before-load.html
-http/tests/history/redirect-meta-refresh-0-seconds.html
-http/tests/navigation/anchor-frames.html
-http/tests/navigation/document-location-script.html
-http/tests/navigation/location-replace-adds-history-item.html
-http/tests/navigation/multiple-back-forward-entries.html
-http/tests/navigation/new-window-redirect-history.html
-http/tests/navigation/post-basic.html
-http/tests/navigation/post-goback1.html
 
 # [WK2] http/tests/navigation/anchor-frames-cross-origin.html fails.
 # https://bugs.webkit.org/show_bug.cgi?id=83581
@@ -617,11 +566,6 @@ fast/workers/storage/open-database-creation-callback-sync.html
 fast/workers/storage/open-database-inputs-sync.html
 fast/workers/storage/sql-exception-codes-sync.html
 storage/websql/multiple-databases-garbage-collection.html
-
-# Unknown failures after enabling inspector tests
-inspector/timeline/timeline-paint.html
-inspector/timeline/timeline-script-tag-1.html
-inspector/debugger/open-close-open.html
 
 # Crashes the WebProcess
 editing/pasteboard/copy-standalone-image.html
@@ -733,9 +677,9 @@ fast/forms/file/file-input-change-event.html
 fast/forms/file/file-input-reset.html
 fast/forms/file/get-file-upload.html
 fast/forms/file/input-file-re-render.html
-fast/forms/file/input-file-entries.html
 fast/forms/file/recover-file-input-in-unposted-form.html
 fast/forms/file/selected-files-from-history-state.html
+fast/workers/worker-copy-shared-blob-url.html
 http/tests/local/fileapi/file-last-modified-after-delete.html
 http/tests/local/fileapi/file-last-modified.html
 http/tests/local/fileapi/send-dragged-file.html

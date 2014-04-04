@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,14 +24,15 @@
  */
 
 #include "config.h"
+#include "InsertListCommand.h"
+
 #include "Element.h"
 #include "ElementTraversal.h"
-#include "InsertListCommand.h"
 #include "ExceptionCodePlaceholder.h"
 #include "htmlediting.h"
 #include "HTMLElement.h"
 #include "HTMLNames.h"
-#include "TextIterator.h"
+#include "Range.h"
 #include "VisibleUnits.h"
 
 namespace WebCore {
@@ -55,7 +56,7 @@ PassRefPtr<HTMLElement> InsertListCommand::insertList(Document& document, Type t
 
 HTMLElement* InsertListCommand::fixOrphanedListChild(Node* node)
 {
-    RefPtr<HTMLElement> listElement = createUnorderedListElement(&document());
+    RefPtr<HTMLElement> listElement = createUnorderedListElement(document());
     insertNodeBefore(listElement, node);
     removeNode(node);
     appendNode(node, listElement);
@@ -129,7 +130,7 @@ void InsertListCommand::doApply()
     if (visibleEnd != visibleStart && isStartOfParagraph(visibleEnd, CanSkipOverEditingBoundary))
         setEndingSelection(VisibleSelection(visibleStart, visibleEnd.previous(CannotCrossEditingBoundary), endingSelection().isDirectional()));
 
-    const QualifiedName& listTag = (m_type == OrderedList) ? olTag : ulTag;
+    auto& listTag = (m_type == OrderedList) ? olTag : ulTag;
     if (endingSelection().isRange()) {
         VisibleSelection selection = selectionForParagraphIteration(endingSelection());
         ASSERT(selection.isRange());
@@ -191,7 +192,7 @@ void InsertListCommand::doApply()
     doApplyForSingleParagraph(false, listTag, endingSelection().firstRange().get());
 }
 
-void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const QualifiedName& listTag, Range* currentSelection)
+void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const HTMLQualifiedName& listTag, Range* currentSelection)
 {
     // FIXME: This will produce unexpected results for a selection that starts just before a
     // table and ends inside the first cell, selectionForParagraphIteration should probably
@@ -206,9 +207,10 @@ void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const Qu
             listNode = fixOrphanedListChild(listChildNode);
             listNode = mergeWithNeighboringLists(listNode);
         }
-        if (!listNode->hasTagName(listTag))
+        if (!listNode->hasTagName(listTag)) {
             // listChildNode will be removed from the list and a list of type m_type will be created.
             switchListType = true;
+        }
 
         // If the list is of the desired type, and we are not removing the list, then exit early.
         if (!switchListType && forceCreateList)
@@ -219,7 +221,7 @@ void InsertListCommand::doApplyForSingleParagraph(bool forceCreateList, const Qu
             bool rangeStartIsInList = visiblePositionBeforeNode(listNode.get()) == currentSelection->startPosition();
             bool rangeEndIsInList = visiblePositionAfterNode(listNode.get()) == currentSelection->endPosition();
 
-            RefPtr<HTMLElement> newList = createHTMLElement(&document(), listTag);
+            RefPtr<HTMLElement> newList = createHTMLElement(document(), listTag);
             insertNodeBefore(newList, listNode);
 
             Node* firstChildInList = enclosingListChild(VisiblePosition(firstPositionInNode(listNode.get())).deepEquivalent().deprecatedNode(), listNode.get());
@@ -276,12 +278,12 @@ void InsertListCommand::unlistifyParagraph(const VisiblePosition& originalStart,
     }
     // When removing a list, we must always create a placeholder to act as a point of insertion
     // for the list content being removed.
-    RefPtr<Element> placeholder = createBreakElement(&document());
+    RefPtr<Element> placeholder = createBreakElement(document());
     RefPtr<Element> nodeToInsert = placeholder;
     // If the content of the list item will be moved into another list, put it in a list item
     // so that we don't create an orphaned list child.
     if (enclosingList(listNode)) {
-        nodeToInsert = createListItemElement(&document());
+        nodeToInsert = createListItemElement(document());
         appendNode(placeholder, nodeToInsert);
     }
 
@@ -338,8 +340,8 @@ PassRefPtr<HTMLElement> InsertListCommand::listifyParagraph(const VisiblePositio
         return 0;
 
     // Check for adjoining lists.
-    RefPtr<HTMLElement> listItemElement = createListItemElement(&document());
-    RefPtr<HTMLElement> placeholder = createBreakElement(&document());
+    RefPtr<HTMLElement> listItemElement = createListItemElement(document());
+    RefPtr<HTMLElement> placeholder = createBreakElement(document());
     appendNode(placeholder, listItemElement);
 
     // Place list item into adjoining lists.
@@ -352,7 +354,7 @@ PassRefPtr<HTMLElement> InsertListCommand::listifyParagraph(const VisiblePositio
         insertNodeAt(listItemElement, positionBeforeNode(nextList));
     else {
         // Create the list.
-        listElement = createHTMLElement(&document(), listTag);
+        listElement = createHTMLElement(document(), listTag);
         appendNode(listItemElement, listElement);
 
         if (start == end && isBlock(start.deepEquivalent().deprecatedNode())) {

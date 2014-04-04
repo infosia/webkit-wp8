@@ -37,7 +37,7 @@
 #include "EventListener.h"
 #include "EventNames.h"
 #include "EventTarget.h"
-#include "KURL.h"
+#include "URL.h"
 #include "WebSocketChannel.h"
 #include "WebSocketChannelClient.h"
 #include <wtf/Forward.h>
@@ -50,15 +50,15 @@ namespace WebCore {
 class Blob;
 class ThreadableWebSocketChannel;
 
-class WebSocket : public RefCounted<WebSocket>, public EventTarget, public ActiveDOMObject, public WebSocketChannelClient {
+class WebSocket final : public RefCounted<WebSocket>, public EventTargetWithInlineData, public ActiveDOMObject, public WebSocketChannelClient {
 public:
     static void setIsAvailable(bool);
     static bool isAvailable();
     static const char* subProtocolSeperator();
-    static PassRefPtr<WebSocket> create(ScriptExecutionContext*);
-    static PassRefPtr<WebSocket> create(ScriptExecutionContext*, const String& url, ExceptionCode&);
-    static PassRefPtr<WebSocket> create(ScriptExecutionContext*, const String& url, const String& protocol, ExceptionCode&);
-    static PassRefPtr<WebSocket> create(ScriptExecutionContext*, const String& url, const Vector<String>& protocols, ExceptionCode&);
+    static PassRefPtr<WebSocket> create(ScriptExecutionContext&);
+    static PassRefPtr<WebSocket> create(ScriptExecutionContext&, const String& url, ExceptionCode&);
+    static PassRefPtr<WebSocket> create(ScriptExecutionContext&, const String& url, const String& protocol, ExceptionCode&);
+    static PassRefPtr<WebSocket> create(ScriptExecutionContext&, const String& url, const Vector<String>& protocols, ExceptionCode&);
     virtual ~WebSocket();
 
     enum State {
@@ -81,7 +81,7 @@ public:
     void close(ExceptionCode& ec) { close(WebSocketChannel::CloseEventCodeNotSpecified, String(), ec); }
     void close(int code, ExceptionCode& ec) { close(code, String(), ec); }
 
-    const KURL& url() const;
+    const URL& url() const;
     State readyState() const;
     unsigned long bufferedAmount() const;
 
@@ -97,35 +97,33 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(close);
 
     // EventTarget functions.
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
+    virtual EventTargetInterface eventTargetInterface() const override;
+    virtual ScriptExecutionContext* scriptExecutionContext() const override;
 
     using RefCounted<WebSocket>::ref;
     using RefCounted<WebSocket>::deref;
 
     // WebSocketChannelClient functions.
-    virtual void didConnect() OVERRIDE;
-    virtual void didReceiveMessage(const String& message) OVERRIDE;
-    virtual void didReceiveBinaryData(PassOwnPtr<Vector<char> >) OVERRIDE;
-    virtual void didReceiveMessageError() OVERRIDE;
-    virtual void didUpdateBufferedAmount(unsigned long bufferedAmount) OVERRIDE;
-    virtual void didStartClosingHandshake() OVERRIDE;
-    virtual void didClose(unsigned long unhandledBufferedAmount, ClosingHandshakeCompletionStatus, unsigned short code, const String& reason) OVERRIDE;
+    virtual void didConnect() override;
+    virtual void didReceiveMessage(const String& message) override;
+    virtual void didReceiveBinaryData(PassOwnPtr<Vector<char>>) override;
+    virtual void didReceiveMessageError() override;
+    virtual void didUpdateBufferedAmount(unsigned long bufferedAmount) override;
+    virtual void didStartClosingHandshake() override;
+    virtual void didClose(unsigned long unhandledBufferedAmount, ClosingHandshakeCompletionStatus, unsigned short code, const String& reason) override;
 
 private:
-    explicit WebSocket(ScriptExecutionContext*);
+    explicit WebSocket(ScriptExecutionContext&);
 
     // ActiveDOMObject functions.
-    virtual void contextDestroyed() OVERRIDE;
-    virtual bool canSuspend() const OVERRIDE;
-    virtual void suspend(ReasonForSuspension) OVERRIDE;
-    virtual void resume() OVERRIDE;
-    virtual void stop() OVERRIDE;
+    virtual void contextDestroyed() override;
+    virtual bool canSuspend() const override;
+    virtual void suspend(ReasonForSuspension) override;
+    virtual void resume() override;
+    virtual void stop() override;
 
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
     size_t getFramingOverhead(size_t payloadSize);
 
@@ -137,8 +135,7 @@ private:
     RefPtr<ThreadableWebSocketChannel> m_channel;
 
     State m_state;
-    KURL m_url;
-    EventTargetData m_eventTargetData;
+    URL m_url;
     unsigned long m_bufferedAmount;
     unsigned long m_bufferedAmountAfterClose;
     BinaryType m_binaryType;

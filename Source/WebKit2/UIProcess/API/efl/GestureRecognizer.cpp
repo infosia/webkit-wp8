@@ -31,6 +31,7 @@
 #include "EwkView.h"
 #include "NotImplemented.h"
 #include "WKSharedAPICast.h"
+#include "WKViewEfl.h"
 
 #if ENABLE(TOUCH_EVENTS)
 
@@ -40,10 +41,7 @@ namespace WebKit {
 
 class GestureHandler {
 public:
-    static PassOwnPtr<GestureHandler> create(EwkView* ewkView)
-    {
-        return adoptPtr(new GestureHandler(ewkView));
-    }
+    explicit GestureHandler(EwkView*);
     ~GestureHandler();
 
     EwkView* view() { return m_ewkView; }
@@ -53,7 +51,7 @@ public:
     void handleDoubleTap(const IntPoint&);
     void handleTapAndHold(const IntPoint&);
     void handlePanStarted(const IntPoint&);
-    void handlePan(const IntPoint&);
+    void handlePan(const IntPoint&, double timestamp);
     void handlePanFinished();
     void handleFlick(const IntSize&);
     void handlePinchStarted(const Vector<IntPoint>&);
@@ -61,8 +59,6 @@ public:
     void handlePinchFinished();
 
 private:
-    explicit GestureHandler(EwkView*);
-
     static Eina_Bool panAnimatorCallback(void*);
     static Eina_Bool flickAnimatorCallback(void*);
 
@@ -120,9 +116,51 @@ void GestureHandler::reset()
     }
 }
 
-void GestureHandler::handleSingleTap(const IntPoint&)
+void GestureHandler::handleSingleTap(const IntPoint& position)
 {
-    notImplemented();
+    Evas* evas = evas_object_evas_get(m_ewkView->evasObject());
+    ASSERT(evas);
+
+    // Send mouse move, down and up event to create fake click event.
+    Evas_Event_Mouse_Move mouseMove;
+    mouseMove.buttons = 0;
+    mouseMove.prev.output.x = mouseMove.prev.canvas.x = position.x();
+    mouseMove.prev.output.y = mouseMove.prev.canvas.y = position.y();
+    mouseMove.cur.output.x = mouseMove.cur.canvas.x = position.x();
+    mouseMove.cur.output.y = mouseMove.cur.canvas.y = position.y();
+    mouseMove.data = 0;
+    mouseMove.modifiers = const_cast<Evas_Modifier*>(evas_key_modifier_get(evas));
+    mouseMove.locks = const_cast<Evas_Lock*>(evas_key_lock_get(evas));
+    mouseMove.timestamp = ecore_loop_time_get();
+    mouseMove.event_flags = EVAS_EVENT_FLAG_NONE;
+    mouseMove.dev = 0;
+    WKViewSendMouseMoveEvent(m_ewkView->wkView(), &mouseMove);
+
+    Evas_Event_Mouse_Down mouseDown;
+    mouseDown.button = 1;
+    mouseDown.output.x = mouseDown.canvas.x = position.x();
+    mouseDown.output.y = mouseDown.canvas.y = position.y();
+    mouseDown.data = 0;
+    mouseDown.modifiers = const_cast<Evas_Modifier*>(evas_key_modifier_get(evas));
+    mouseDown.locks = const_cast<Evas_Lock*>(evas_key_lock_get(evas));
+    mouseDown.flags = EVAS_BUTTON_NONE;
+    mouseDown.timestamp = ecore_loop_time_get();
+    mouseDown.event_flags = EVAS_EVENT_FLAG_NONE;
+    mouseDown.dev = 0;
+    WKViewSendMouseDownEvent(m_ewkView->wkView(), &mouseDown);
+
+    Evas_Event_Mouse_Up mouseUp;
+    mouseUp.button = 1;
+    mouseUp.output.x = mouseUp.canvas.x = position.x();
+    mouseUp.output.y = mouseUp.canvas.y = position.y();
+    mouseUp.data = 0;
+    mouseUp.modifiers = const_cast<Evas_Modifier*>(evas_key_modifier_get(evas));
+    mouseUp.locks = const_cast<Evas_Lock*>(evas_key_lock_get(evas));
+    mouseUp.flags = EVAS_BUTTON_NONE;
+    mouseUp.timestamp = ecore_loop_time_get();
+    mouseUp.event_flags = EVAS_EVENT_FLAG_NONE;
+    mouseUp.dev = 0;
+    WKViewSendMouseUpEvent(m_ewkView->wkView(), &mouseUp);
 }
 
 void GestureHandler::handleDoubleTap(const IntPoint&)
@@ -155,13 +193,13 @@ void GestureHandler::handlePanStarted(const IntPoint& point)
     m_lastPoint = m_currentPoint = point;
 }
 
-void GestureHandler::handlePan(const IntPoint& point)
+void GestureHandler::handlePan(const IntPoint& point, double timestamp)
 {
     m_currentPoint = point;
     m_isCurrentPointUpdated = true;
 
     // Save current point to use to calculate offset of flick.
-    HistoryItem item = { m_currentPoint, ecore_time_get() };
+    HistoryItem item = { m_currentPoint, timestamp };
     if (m_history.size() < m_history.capacity())
         m_history.uncheckedAppend(item);
     else {
@@ -239,7 +277,7 @@ const int GestureRecognizer::s_squaredPanThreshold = 100;
 
 GestureRecognizer::GestureRecognizer(EwkView* ewkView)
     : m_recognizerFunction(&GestureRecognizer::noGesture)
-    , m_gestureHandler(GestureHandler::create(ewkView))
+    , m_gestureHandler(std::make_unique<GestureHandler>(ewkView))
     , m_tapAndHoldTimer(0)
     , m_doubleTapTimer(0)
 {
@@ -257,7 +295,7 @@ void GestureRecognizer::processTouchEvent(WKTouchEventRef eventRef)
         return;
     }
 
-    (this->*m_recognizerFunction)(type, WKTouchEventGetTouchPoints(eventRef));
+    (this->*m_recognizerFunction)(eventRef);
 }
 
 Eina_Bool GestureRecognizer::doubleTapTimerCallback(void* data)
@@ -314,18 +352,31 @@ static inline Vector<IntPoint> createVectorWithWKArray(WKArrayRef array, size_t 
     return points;
 }
 
-void GestureRecognizer::noGesture(WKEventType type, WKArrayRef touchPoints)
+void GestureRecognizer::noGesture(WKTouchEventRef eventRef)
 {
-    switch (type) {
-    case kWKEventTypeTouchStart:
-        m_gestureHandler->reset();
-
-        m_recognizerFunction = &GestureRecognizer::singleTapGesture;
-        m_firstPressedPoint = toIntPoint(getPointAtIndex(touchPoints, 0));
-        ASSERT(!m_tapAndHoldTimer);
-        m_tapAndHoldTimer = ecore_timer_add(s_tapAndHoldTimeoutInSeconds, tapAndHoldTimerCallback, this);
-        m_doubleTapTimer = ecore_timer_add(s_doubleTapTimeoutInSeconds, doubleTapTimerCallback, this);
+    switch (WKTouchEventGetType(eventRef)) {
+    case kWKEventTypeTouchStart: {
+        WKArrayRef touchPoints = WKTouchEventGetTouchPoints(eventRef);
+        switch (WKArrayGetSize(touchPoints)) {
+        case 1:
+            m_gestureHandler->reset();
+            m_recognizerFunction = &GestureRecognizer::singleTapGesture;
+            m_firstPressedPoint = toIntPoint(getPointAtIndex(touchPoints, 0));
+            ASSERT(!m_tapAndHoldTimer);
+            m_tapAndHoldTimer = ecore_timer_add(s_tapAndHoldTimeoutInSeconds, tapAndHoldTimerCallback, this);
+            m_doubleTapTimer = ecore_timer_add(s_doubleTapTimeoutInSeconds, doubleTapTimerCallback, this);
+            break;
+        case 2:
+            m_recognizerFunction = &GestureRecognizer::pinchGesture;
+            m_gestureHandler->handlePinchStarted(createVectorWithWKArray(touchPoints, 2));
+            break;
+        default:
+            // There's no defined gesture when we touch three or more points.
+            notImplemented();
+            break;
+        }
         break;
+    }
     case kWKEventTypeTouchMove:
     case kWKEventTypeTouchEnd:
         break;
@@ -335,9 +386,11 @@ void GestureRecognizer::noGesture(WKEventType type, WKArrayRef touchPoints)
     }
 }
 
-void GestureRecognizer::singleTapGesture(WKEventType type, WKArrayRef touchPoints)
+void GestureRecognizer::singleTapGesture(WKTouchEventRef eventRef)
 {
-    switch (type) {
+    WKArrayRef touchPoints = WKTouchEventGetTouchPoints(eventRef);
+
+    switch (WKTouchEventGetType(eventRef)) {
     case kWKEventTypeTouchStart:
         stopTapTimers();
         m_recognizerFunction = &GestureRecognizer::pinchGesture;
@@ -371,9 +424,11 @@ void GestureRecognizer::singleTapGesture(WKEventType type, WKArrayRef touchPoint
     }
 }
 
-void GestureRecognizer::doubleTapGesture(WKEventType type, WKArrayRef touchPoints)
+void GestureRecognizer::doubleTapGesture(WKTouchEventRef eventRef)
 {
-    switch (type) {
+    WKArrayRef touchPoints = WKTouchEventGetTouchPoints(eventRef);
+
+    switch (WKTouchEventGetType(eventRef)) {
     case kWKEventTypeTouchStart: {
         if (m_doubleTapTimer) {
             ecore_timer_del(m_doubleTapTimer);
@@ -408,15 +463,17 @@ void GestureRecognizer::doubleTapGesture(WKEventType type, WKArrayRef touchPoint
     }
 }
 
-void GestureRecognizer::panGesture(WKEventType type, WKArrayRef touchPoints)
+void GestureRecognizer::panGesture(WKTouchEventRef eventRef)
 {
-    switch (type) {
+    WKArrayRef touchPoints = WKTouchEventGetTouchPoints(eventRef);
+
+    switch (WKTouchEventGetType(eventRef)) {
     case kWKEventTypeTouchStart:
         m_recognizerFunction = &GestureRecognizer::pinchGesture;
         m_gestureHandler->handlePinchStarted(createVectorWithWKArray(touchPoints, 2));
         break;
     case kWKEventTypeTouchMove:
-        m_gestureHandler->handlePan(toIntPoint(getPointAtIndex(touchPoints, 0)));
+        m_gestureHandler->handlePan(toIntPoint(getPointAtIndex(touchPoints, 0)), WKTouchEventGetTimestamp(eventRef));
         break;
     case kWKEventTypeTouchEnd:
         m_gestureHandler->handlePanFinished();
@@ -428,12 +485,13 @@ void GestureRecognizer::panGesture(WKEventType type, WKArrayRef touchPoints)
     }
 }
 
-void GestureRecognizer::pinchGesture(WKEventType type, WKArrayRef touchPoints)
+void GestureRecognizer::pinchGesture(WKTouchEventRef eventRef)
 {
+    WKArrayRef touchPoints = WKTouchEventGetTouchPoints(eventRef);
     size_t numberOfTouchPoints = WKArrayGetSize(touchPoints);
     ASSERT(numberOfTouchPoints >= 2);
 
-    switch (type) {
+    switch (WKTouchEventGetType(eventRef)) {
     case kWKEventTypeTouchMove: {
         m_gestureHandler->handlePinch(createVectorWithWKArray(touchPoints, 2));
         break;

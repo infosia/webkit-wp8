@@ -93,6 +93,8 @@ TestRunner::TestRunner()
     , m_policyDelegatePermissive(false)
     , m_globalFlag(false)
     , m_customFullScreenBehavior(false)
+    , m_databaseDefaultQuota(-1)
+    , m_databaseMaxQuota(-1)
     , m_userStyleSheetEnabled(false)
     , m_userStyleSheetLocation(adoptWK(WKStringCreateWithUTF8CString("")))
 {
@@ -264,12 +266,6 @@ long long TestRunner::applicationCacheDiskUsageForOrigin(JSStringRef origin)
     return WKBundleGetAppCacheUsageForOrigin(InjectedBundle::shared().bundle(), toWK(origin).get());
 }
 
-void TestRunner::setApplicationCacheOriginQuota(unsigned long long bytes)
-{
-    WKRetainPtr<WKStringRef> origin(AdoptWK, WKStringCreateWithUTF8CString("http://127.0.0.1:8000"));
-    WKBundleSetApplicationCacheOriginQuota(InjectedBundle::shared().bundle(), origin.get(), bytes);
-}
-
 void TestRunner::disallowIncreaseForApplicationCacheQuota()
 {
     m_disallowIncreaseForApplicationCacheQuota = true;
@@ -378,6 +374,7 @@ void TestRunner::setValueForUser(JSContextRef context, JSValueRef element, JSStr
 
 void TestRunner::setAudioResult(JSContextRef context, JSValueRef data)
 {
+    // FIXME (123058): Use a JSC API to get buffer contents once such is exposed.
     WKRetainPtr<WKDataRef> audioData(AdoptWK, WKBundleCreateWKDataFromUInt8Array(InjectedBundle::shared().bundle(), context, data));
     InjectedBundle::shared().setAudioResult(audioData.get());
     m_whatToDump = Audio;
@@ -415,11 +412,11 @@ void TestRunner::closeWebInspector()
 #endif // ENABLE(INSPECTOR)
 }
 
-void TestRunner::evaluateInWebInspector(long callID, JSStringRef script)
+void TestRunner::evaluateInWebInspector(JSStringRef script)
 {
 #if ENABLE(INSPECTOR)
     WKRetainPtr<WKStringRef> scriptWK = toWK(script);
-    WKBundleInspectorEvaluateScriptForTest(WKBundlePageGetInspector(InjectedBundle::shared().page()->page()), callID, scriptWK.get());
+    WKBundleInspectorEvaluateScriptForTest(WKBundlePageGetInspector(InjectedBundle::shared().page()->page()), scriptWK.get());
 #endif // ENABLE(INSPECTOR)
 }
 
@@ -488,21 +485,12 @@ void TestRunner::setDefersLoading(bool shouldDeferLoading)
 
 void TestRunner::setPageVisibility(JSStringRef state)
 {
-    WKPageVisibilityState visibilityState = kWKPageVisibilityStateVisible;
-
-    if (JSStringIsEqualToUTF8CString(state, "hidden"))
-        visibilityState = kWKPageVisibilityStateHidden;
-    else if (JSStringIsEqualToUTF8CString(state, "prerender"))
-        visibilityState = kWKPageVisibilityStatePrerender;
-    else if (JSStringIsEqualToUTF8CString(state, "unloaded"))
-        visibilityState = kWKPageVisibilityStateUnloaded;
-
-    InjectedBundle::shared().setVisibilityState(visibilityState, false);
+    InjectedBundle::shared().setHidden(JSStringIsEqualToUTF8CString(state, "hidden") || JSStringIsEqualToUTF8CString(state, "prerender"));
 }
 
 void TestRunner::resetPageVisibility()
 {
-    InjectedBundle::shared().setVisibilityState(kWKPageVisibilityStateVisible, true);
+    InjectedBundle::shared().setHidden(false);
 }
 
 typedef WTF::HashMap<unsigned, JSValueRef> CallbackMap;

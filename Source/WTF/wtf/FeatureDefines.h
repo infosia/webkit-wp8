@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -52,12 +52,10 @@
 /* FIXME: Move out the PLATFORM specific rules into platform specific files. */
 
 /* --------- Apple IOS (but not MAC) port --------- */
-/* PLATFORM(IOS) is a specialization of PLATFORM(MAC). */
-/* PLATFORM(MAC) is always enabled when PLATFORM(IOS) is enabled. */
 #if PLATFORM(IOS)
 
-#if !defined(ENABLE_8BIT_TEXTRUN)
-#define ENABLE_8BIT_TEXTRUN 1
+#if !defined(ENABLE_ASYNC_SCROLLING)
+#define ENABLE_ASYNC_SCROLLING 1
 #endif
 
 #if !defined(ENABLE_CONTEXT_MENUS)
@@ -66,6 +64,10 @@
 
 #if !defined(ENABLE_CSS_IMAGE_SET)
 #define ENABLE_CSS_IMAGE_SET 1
+#endif
+
+#if !defined(ENABLE_CURSOR_SUPPORT)
+#define ENABLE_CURSOR_SUPPORT 0
 #endif
 
 #if !defined(ENABLE_DISK_IMAGE_CACHE)
@@ -84,16 +86,24 @@
 #define ENABLE_ICONDATABASE 0
 #endif
 
-#if !defined(ENABLE_IOS_GESTURE_EVENTS)
-#define ENABLE_IOS_GESTURE_EVENTS 1
-#endif
-
 #if !defined(ENABLE_LETTERPRESS)
 #define ENABLE_LETTERPRESS 1
 #endif
 
+#if !defined(ENABLE_IOS_AUTOCORRECT_AND_AUTOCAPITALIZE)
+#define ENABLE_IOS_AUTOCORRECT_AND_AUTOCAPITALIZE 1
+#endif
+
+#if !defined(ENABLE_IOS_GESTURE_EVENTS)
+#define ENABLE_IOS_GESTURE_EVENTS 1
+#endif
+
 #if !defined(ENABLE_IOS_TEXT_AUTOSIZING)
 #define ENABLE_IOS_TEXT_AUTOSIZING 1
+#endif
+
+#if !defined(ENABLE_IOS_TOUCH_EVENTS)
+#define ENABLE_IOS_TOUCH_EVENTS 1
 #endif
 
 #if !defined(ENABLE_METER_ELEMENT)
@@ -112,8 +122,8 @@
 #define ENABLE_POINTER_LOCK 0
 #endif
 
-#if !defined(ENABLE_REPAINT_THROTTLING)
-#define ENABLE_REPAINT_THROTTLING 0
+#if !defined(ENABLE_REMOTE_INSPECTOR)
+#define ENABLE_REMOTE_INSPECTOR 1
 #endif
 
 #if !defined(ENABLE_RESPECT_EXIF_ORIENTATION)
@@ -122,6 +132,10 @@
 
 #if !defined(ENABLE_TEXT_CARET)
 #define ENABLE_TEXT_CARET 0
+#endif
+
+#if !defined(ENABLE_TEXT_SELECTION)
+#define ENABLE_TEXT_SELECTION 0
 #endif
 
 #if !defined(ENABLE_TOUCH_EVENTS)
@@ -143,11 +157,7 @@
 #endif /* PLATFORM(IOS) */
 
 /* --------- Apple MAC port (not IOS) --------- */
-#if PLATFORM(MAC) && !PLATFORM(IOS)
-
-#if !defined(ENABLE_8BIT_TEXTRUN)
-#define ENABLE_8BIT_TEXTRUN 1
-#endif
+#if PLATFORM(MAC)
 
 #if !defined(ENABLE_CSS_IMAGE_SET)
 #define ENABLE_CSS_IMAGE_SET 1
@@ -174,8 +184,10 @@
 #define ENABLE_FULLSCREEN_API 1
 #endif
 
-#if !defined(ENABLE_GESTURE_EVENTS)
-#define ENABLE_GESTURE_EVENTS 1
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 10100
+#if !defined(ENABLE_REMOTE_INSPECTOR)
+#define ENABLE_REMOTE_INSPECTOR 1
+#endif
 #endif
 
 #if !defined(ENABLE_RUBBER_BANDING)
@@ -186,10 +198,8 @@
 #define ENABLE_SMOOTH_SCROLLING 1
 #endif
 
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
-#if !defined(ENABLE_THREADED_SCROLLING)
-#define ENABLE_THREADED_SCROLLING 1
-#endif
+#if !defined(ENABLE_ASYNC_SCROLLING)
+#define ENABLE_ASYNC_SCROLLING 1
 #endif
 
 #if ENABLE(VIDEO)
@@ -222,7 +232,11 @@
 #define ENABLE_INPUT_TYPE_COLOR_POPOVER 1
 #endif
 
-#endif /* PLATFORM(MAC) && !PLATFORM(IOS) */
+#if !defined(ENABLE_MEDIA_SOURCE)
+#define ENABLE_MEDIA_SOURCE 1
+#endif
+
+#endif /* PLATFORM(MAC) */
 
 /* --------- Apple Windows port --------- */
 #if PLATFORM(WIN) && !OS(WINCE) && !PLATFORM(WIN_CAIRO)
@@ -269,10 +283,6 @@
 #define ENABLE_VIEW_MODE_CSS_MEDIA 0
 #endif
 
-#if !defined(ENABLE_WEBGL)
-#define ENABLE_WEBGL 1
-#endif
-
 #endif /* PLATFORM(WIN_CAIRO) */
 
 /* --------- EFL port (Unix) --------- */
@@ -297,37 +307,17 @@
 #endif
 #endif
 
+#if !defined(ENABLE_SUBPIXEL_LAYOUT)
+#define ENABLE_SUBPIXEL_LAYOUT 1
+#endif
+
 #endif /* PLATFORM(GTK) */
-
-/* --------- Qt port (Unix, Windows, Mac, WinCE) --------- */
-#if PLATFORM(QT)
-
-#if OS(UNIX)
-#if !defined(ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH)
-#define ENABLE_PLUGIN_PACKAGE_SIMPLE_HASH 1
-#endif
-#endif
-
-#endif /* PLATFORM(QT) */
-
-/* --------- Blackberry port (QNX) --------- */
-#if PLATFORM(BLACKBERRY)
-
-#if !defined(ENABLE_BLACKBERRY_CREDENTIAL_PERSIST)
-#define ENABLE_BLACKBERRY_CREDENTIAL_PERSIST 1
-#endif
-
-#endif /* PLATFORM(BLACKBERRY) */
 
 /* ENABLE macro defaults for WebCore */
 /* Do not use PLATFORM() tests in this section ! */
 
 #if !defined(ENABLE_3D_RENDERING)
 #define ENABLE_3D_RENDERING 0
-#endif
-
-#if !defined(ENABLE_8BIT_TEXTRUN)
-#define ENABLE_8BIT_TEXTRUN 0
 #endif
 
 #if !defined(ENABLE_ACCELERATED_2D_CANVAS)
@@ -402,10 +392,6 @@
 #define ENABLE_CSS_IMAGE_SET 0
 #endif
 
-#if !defined(ENABLE_CSS_SHADERS)
-#define ENABLE_CSS_SHADERS 0
-#endif
-
 #if !defined(ENABLE_CSS_STICKY_POSITION)
 #define ENABLE_CSS_STICKY_POSITION 0
 #endif
@@ -414,8 +400,8 @@
 #define ENABLE_CSS_TRANSFORMS_ANIMATIONS_TRANSITIONS_UNPREFIXED 0
 #endif
 
-#if !defined(ENABLE_CSS_VARIABLES)
-#define ENABLE_CSS_VARIABLES 0
+#if !defined(ENABLE_CURSOR_SUPPORT)
+#define ENABLE_CURSOR_SUPPORT 1
 #endif
 
 #if !defined(ENABLE_CUSTOM_SCHEME_HANDLER)
@@ -446,16 +432,8 @@
 #define ENABLE_DEVICE_ORIENTATION 0
 #endif
 
-#if !defined(ENABLE_DIRECTORY_UPLOAD)
-#define ENABLE_DIRECTORY_UPLOAD 0
-#endif
-
 #if !defined(ENABLE_DOWNLOAD_ATTRIBUTE)
 #define ENABLE_DOWNLOAD_ATTRIBUTE 0
-#endif
-
-#if !defined(ENABLE_DRAGGABLE_REGION)
-#define ENABLE_DRAGGABLE_REGION 0
 #endif
 
 #if !defined(ENABLE_DRAG_SUPPORT)
@@ -472,10 +450,6 @@
 
 #if !defined(ENABLE_FAST_MOBILE_SCROLLING)
 #define ENABLE_FAST_MOBILE_SCROLLING 0
-#endif
-
-#if !defined(ENABLE_FILE_SYSTEM)
-#define ENABLE_FILE_SYSTEM 0
 #endif
 
 #if !defined(ENABLE_FILTERS)
@@ -502,14 +476,6 @@
 #define ENABLE_GEOLOCATION 0
 #endif
 
-#if !defined(ENABLE_GESTURE_EVENTS)
-#define ENABLE_GESTURE_EVENTS 0
-#endif
-
-#if !defined(ENABLE_GLIB_SUPPORT)
-#define ENABLE_GLIB_SUPPORT 0
-#endif
-
 #if !defined(ENABLE_HIDDEN_PAGE_DOM_TIMER_THROTTLING)
 #define ENABLE_HIDDEN_PAGE_DOM_TIMER_THROTTLING 0
 #endif
@@ -520,10 +486,6 @@
 
 #if !defined(ENABLE_ICONDATABASE)
 #define ENABLE_ICONDATABASE 1
-#endif
-
-#if !defined(ENABLE_IFRAME_SEAMLESS)
-#define ENABLE_IFRAME_SEAMLESS 1
 #endif
 
 #if !defined(ENABLE_IMAGE_DECODER_DOWN_SAMPLING)
@@ -580,10 +542,6 @@
 #define ENABLE_INSPECTOR 1
 #endif
 
-#if !defined(ENABLE_JAVASCRIPT_DEBUGGER)
-#define ENABLE_JAVASCRIPT_DEBUGGER 1
-#endif
-
 #if !defined(ENABLE_JAVASCRIPT_I18N_API)
 #define ENABLE_JAVASCRIPT_I18N_API 0
 #endif
@@ -600,8 +558,8 @@
 #define ENABLE_LEGACY_VENDOR_PREFIXES 0
 #endif
 
-#if !defined(ENABLE_LEGACY_VIEWPORT_ADAPTION)
-#define ENABLE_LEGACY_VIEWPORT_ADAPTION 0
+#if !defined(ENABLE_LETTERPRESS)
+#define ENABLE_LETTERPRESS 0
 #endif
 
 #if !defined(ENABLE_LINK_PREFETCH)
@@ -614,6 +572,10 @@
 
 #if !defined(ENABLE_MEDIA_CAPTURE)
 #define ENABLE_MEDIA_CAPTURE 0
+#endif
+
+#if !defined(ENABLE_MEDIA_CONTROLS_SCRIPT)
+#define ENABLE_MEDIA_CONTROLS_SCRIPT 0
 #endif
 
 #if !defined(ENABLE_MEDIA_SOURCE)
@@ -714,8 +676,8 @@
 #define ENABLE_QUOTA 0
 #endif
 
-#if !defined(ENABLE_REPAINT_THROTTLING)
-#define ENABLE_REPAINT_THROTTLING 0
+#if !defined(ENABLE_REMOTE_INSPECTOR)
+#define ENABLE_REMOTE_INSPECTOR 0
 #endif
 
 #if !defined(ENABLE_REQUEST_ANIMATION_FRAME)
@@ -732,10 +694,6 @@
 
 #if !defined(ENABLE_SCRIPTED_SPEECH)
 #define ENABLE_SCRIPTED_SPEECH 0
-#endif
-
-#if !defined(ENABLE_SHADOW_DOM)
-#define ENABLE_SHADOW_DOM 0
 #endif
 
 #if !defined(ENABLE_SHARED_WORKERS)
@@ -758,26 +716,16 @@
 #define ENABLE_SQL_DATABASE 1
 #endif
 
-#if !defined(ENABLE_STYLE_SCOPED)
-#define ENABLE_STYLE_SCOPED 0
-#endif
-
 #if !defined(ENABLE_SUBPIXEL_LAYOUT)
 #define ENABLE_SUBPIXEL_LAYOUT 0
 #endif
 
-#if !defined(ENABLE_SVG)
-#define ENABLE_SVG 1
-#endif
-
-#if ENABLE(SVG)
 #if !defined(ENABLE_SVG_FONTS)
 #define ENABLE_SVG_FONTS 1
 #endif
-#endif
 
 #if !defined(ENABLE_TEMPLATE_ELEMENT)
-#define ENABLE_TEMPLATE_ELEMENT 0
+#define ENABLE_TEMPLATE_ELEMENT 1
 #endif
 
 #if !defined(ENABLE_TEXT_AUTOSIZING)
@@ -788,12 +736,12 @@
 #define ENABLE_TEXT_CARET 1
 #endif
 
-#if !defined(ENABLE_THREADED_HTML_PARSER)
-#define ENABLE_THREADED_HTML_PARSER 0
+#if !defined(ENABLE_TEXT_SELECTION)
+#define ENABLE_TEXT_SELECTION 1
 #endif
 
-#if !defined(ENABLE_THREADED_SCROLLING)
-#define ENABLE_THREADED_SCROLLING 0
+#if !defined(ENABLE_ASYNC_SCROLLING)
+#define ENABLE_ASYNC_SCROLLING 0
 #endif
 
 #if !defined(ENABLE_TOUCH_EVENTS)
@@ -820,10 +768,6 @@
 #define ENABLE_VIEWPORT 0
 #endif
 
-#if !defined(ENABLE_VIEWSOURCE_ATTRIBUTE)
-#define ENABLE_VIEWSOURCE_ATTRIBUTE 1
-#endif
-
 #if !defined(ENABLE_VIEW_MODE_CSS_MEDIA)
 #define ENABLE_VIEW_MODE_CSS_MEDIA 1
 #endif
@@ -840,6 +784,10 @@
 #define ENABLE_WEB_AUDIO 0
 #endif
 
+#if !defined(ENABLE_WEB_REPLAY)
+#define ENABLE_WEB_REPLAY 0
+#endif
+
 #if !defined(ENABLE_WEB_SOCKETS)
 #define ENABLE_WEB_SOCKETS 1
 #endif
@@ -848,8 +796,8 @@
 #define ENABLE_WEB_TIMING 0
 #endif
 
-#if !defined(ENABLE_WORKERS)
-#define ENABLE_WORKERS 0
+#if !defined(ENABLE_WILL_REVEAL_EDGE_EVENTS)
+#define ENABLE_WILL_REVEAL_EDGE_EVENTS 1
 #endif
 
 #if !defined(ENABLE_XHR_TIMEOUT)
@@ -866,16 +814,16 @@
 #error "ENABLE(SATURATED_LAYOUT_ARITHMETIC) requires ENABLE(SUBPIXEL_LAYOUT)"
 #endif
 
-#if ENABLE(SVG_FONTS) && !ENABLE(SVG)
-#error "ENABLE(SVG_FONTS) requires ENABLE(SVG)"
-#endif
-
 #if ENABLE(VIDEO_TRACK) && !ENABLE(VIDEO)
 #error "ENABLE(VIDEO_TRACK) requires ENABLE(VIDEO)"
 #endif
 
-#if ENABLE(CSS_SHADERS) && !ENABLE(WEBGL)
-#error "ENABLE(CSS_SHADERS) requires ENABLE(WEBGL)"
+#if ENABLE(REMOTE_INSPECTOR) && !ENABLE(INSPECTOR)
+#error "ENABLE(REMOTE_INSPECTOR) requires ENABLE(INSPECTOR)"
+#endif
+
+#if ENABLE(IOS_TOUCH_EVENTS) && !ENABLE(TOUCH_EVENTS)
+#error "ENABLE(IOS_TOUCH_EVENTS) requires ENABLE(TOUCH_EVENTS)"
 #endif
 
 #endif /* WTF_FeatureDefines_h */

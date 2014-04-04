@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -38,9 +38,10 @@
 #include "JSGlobalObject.h"
 #include "JSLock.h"
 #include "LLIntData.h"
+#include "StructureIDTable.h"
 #include "WriteBarrier.h"
+#include <mutex>
 #include <wtf/dtoa.h>
-#include <wtf/LLVMHeaders.h>
 #include <wtf/Threading.h>
 #include <wtf/dtoa/cached-powers.h>
 
@@ -48,59 +49,33 @@ using namespace WTF;
 
 namespace JSC {
 
-#if OS(DARWIN)
-static pthread_once_t initializeThreadingKeyOnce = PTHREAD_ONCE_INIT;
-#endif
-
-static void initializeThreadingOnce()
-{
-    WTF::double_conversion::initialize();
-    WTF::initializeThreading();
-    GlobalJSLock::initialize();
-    Options::initialize();
-    if (Options::recordGCPauseTimes())
-        HeapStatistics::initialize();
-#if ENABLE(WRITE_BARRIER_PROFILING)
-    WriteBarrierCounters::initialize();
-#endif
-#if ENABLE(ASSEMBLER)
-    ExecutableAllocator::initializeAllocator();
-#endif
-    JSStack::initializeThreading();
-#if ENABLE(LLINT)
-    LLInt::initialize();
-#endif
-#if HAVE(LLVM)
-    bool ftl = false;
-    bool disassembler = false;
-#if ENABLE(FTL_JIT)
-    ftl = true;
-#endif
-#if USE(LLVM_DISASSEMBLER)
-    disassembler = true;
-#endif
-    if (ftl)
-        LLVMLinkInMCJIT();
-    if (ftl || disassembler)
-        LLVMInitializeNativeTarget();
-    if (ftl)
-        LLVMInitializeX86AsmPrinter();
-    if (disassembler)
-        LLVMInitializeX86Disassembler();
-#endif // HAVE(LLVM)
-}
-
 void initializeThreading()
 {
-#if OS(DARWIN)
-    pthread_once(&initializeThreadingKeyOnce, initializeThreadingOnce);
-#else
-    static bool initializedThreading = false;
-    if (!initializedThreading) {
-        initializeThreadingOnce();
-        initializedThreading = true;
-    }
+    static std::once_flag initializeThreadingOnceFlag;
+
+    std::call_once(initializeThreadingOnceFlag, []{
+        WTF::double_conversion::initialize();
+        WTF::initializeThreading();
+        GlobalJSLock::initialize();
+        Options::initialize();
+        if (Options::recordGCPauseTimes())
+            HeapStatistics::initialize();
+#if ENABLE(WRITE_BARRIER_PROFILING)
+        WriteBarrierCounters::initialize();
 #endif
+#if ENABLE(ASSEMBLER)
+        ExecutableAllocator::initializeAllocator();
+#endif
+        JSStack::initializeThreading();
+#if ENABLE(LLINT)
+        LLInt::initialize();
+#endif
+#ifndef NDEBUG
+        DisallowGC::initialize();
+#endif
+        WTFThreadData& threadData = wtfThreadData();
+        threadData.setSavedLastStackTop(threadData.stack().origin());
+    });
 }
 
 } // namespace JSC

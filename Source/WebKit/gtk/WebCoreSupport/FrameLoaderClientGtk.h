@@ -14,10 +14,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -77,7 +77,7 @@ namespace WebKit {
         virtual void dispatchDidHandleOnloadEvents();
         virtual void dispatchDidReceiveServerRedirectForProvisionalLoad();
         virtual void dispatchDidCancelClientRedirect();
-        virtual void dispatchWillPerformClientRedirect(const WebCore::KURL&, double, double);
+        virtual void dispatchWillPerformClientRedirect(const WebCore::URL&, double, double);
         virtual void dispatchDidChangeLocationWithinPage();
         virtual void dispatchDidNavigateWithinPage();
         virtual void dispatchDidPushStateWithinPage();
@@ -98,37 +98,31 @@ namespace WebKit {
         virtual WebCore::Frame* dispatchCreatePage(const WebCore::NavigationAction&);
         virtual void dispatchShow();
 
-        virtual void dispatchDecidePolicyForResponse(WebCore::FramePolicyFunction, const WebCore::ResourceResponse&, const WebCore::ResourceRequest&);
-        virtual void dispatchDecidePolicyForNewWindowAction(WebCore::FramePolicyFunction, const WebCore::NavigationAction&, const WebCore::ResourceRequest&, WTF::PassRefPtr<WebCore::FormState>, const WTF::String& frameName);
-        virtual void dispatchDecidePolicyForNavigationAction(WebCore::FramePolicyFunction, const WebCore::NavigationAction&, const WebCore::ResourceRequest&, WTF::PassRefPtr<WebCore::FormState>);
+        virtual void dispatchDecidePolicyForResponse(const WebCore::ResourceResponse&, const WebCore::ResourceRequest&, WebCore::FramePolicyFunction);
+        virtual void dispatchDecidePolicyForNewWindowAction(const WebCore::NavigationAction&, const WebCore::ResourceRequest&, WTF::PassRefPtr<WebCore::FormState>, const WTF::String& frameName, WebCore::FramePolicyFunction);
+        virtual void dispatchDecidePolicyForNavigationAction(const WebCore::NavigationAction&, const WebCore::ResourceRequest&, WTF::PassRefPtr<WebCore::FormState>, WebCore::FramePolicyFunction);
         virtual void cancelPolicyCheck();
 
         virtual void dispatchUnableToImplementPolicy(const WebCore::ResourceError&);
 
         virtual void dispatchWillSendSubmitEvent(WTF::PassRefPtr<WebCore::FormState>) { }
-        virtual void dispatchWillSubmitForm(WebCore::FramePolicyFunction, WTF::PassRefPtr<WebCore::FormState>);
+        virtual void dispatchWillSubmitForm(WTF::PassRefPtr<WebCore::FormState>, WebCore::FramePolicyFunction);
 
         virtual void revertToProvisionalState(WebCore::DocumentLoader*) { }
         virtual void setMainDocumentError(WebCore::DocumentLoader*, const WebCore::ResourceError&);
 
-        virtual void postProgressStartedNotification();
-        virtual void postProgressEstimateChangedNotification();
-        virtual void postProgressFinishedNotification();
-
-        virtual PassRefPtr<WebCore::Frame> createFrame(const WebCore::KURL& url, const WTF::String& name, WebCore::HTMLFrameOwnerElement* ownerElement,
+        virtual PassRefPtr<WebCore::Frame> createFrame(const WebCore::URL& url, const WTF::String& name, WebCore::HTMLFrameOwnerElement* ownerElement,
                                    const WTF::String& referrer, bool allowsScrolling, int marginWidth, int marginHeight);
-        virtual PassRefPtr<WebCore::Widget> createPlugin(const WebCore::IntSize&, WebCore::HTMLPlugInElement*, const WebCore::KURL&, const WTF::Vector<WTF::String>&, const WTF::Vector<WTF::String>&, const WTF::String&, bool);
+        virtual PassRefPtr<WebCore::Widget> createPlugin(const WebCore::IntSize&, WebCore::HTMLPlugInElement*, const WebCore::URL&, const WTF::Vector<WTF::String>&, const WTF::Vector<WTF::String>&, const WTF::String&, bool);
         virtual void recreatePlugin(WebCore::Widget*) { }
         virtual void redirectDataToPlugin(WebCore::Widget* pluginWidget);
-        virtual PassRefPtr<WebCore::Widget> createJavaAppletWidget(const WebCore::IntSize&, WebCore::HTMLAppletElement*, const WebCore::KURL& baseURL, const WTF::Vector<WTF::String>& paramNames, const WTF::Vector<WTF::String>& paramValues);
+        virtual PassRefPtr<WebCore::Widget> createJavaAppletWidget(const WebCore::IntSize&, WebCore::HTMLAppletElement*, const WebCore::URL& baseURL, const WTF::Vector<WTF::String>& paramNames, const WTF::Vector<WTF::String>& paramValues);
         virtual WTF::String overrideMediaType() const;
-        virtual void dispatchDidClearWindowObjectInWorld(WebCore::DOMWrapperWorld*);
-        virtual void documentElementAvailable();
-        virtual void didPerformFirstNavigation() const;
+        virtual void dispatchDidClearWindowObjectInWorld(WebCore::DOMWrapperWorld&);
 
         virtual void registerForIconNotification(bool);
 
-        virtual WebCore::ObjectContentType objectContentType(const WebCore::KURL&, const WTF::String& mimeType, bool shouldPreferPlugInsForImages);
+        virtual WebCore::ObjectContentType objectContentType(const WebCore::URL&, const WTF::String& mimeType, bool shouldPreferPlugInsForImages);
 
         virtual void setMainFrameDocumentReady(bool);
 
@@ -143,11 +137,10 @@ namespace WebKit {
         virtual void updateGlobalHistory();
         virtual void updateGlobalHistoryRedirectLinks();
         virtual bool shouldGoToHistoryItem(WebCore::HistoryItem*) const;
-        virtual bool shouldStopLoadingForHistoryItem(WebCore::HistoryItem*) const;
 
         virtual void didDisplayInsecureContent();
-        virtual void didRunInsecureContent(WebCore::SecurityOrigin*, const WebCore::KURL&);
-        virtual void didDetectXSS(const WebCore::KURL&, bool didBlockEntirePage);
+        virtual void didRunInsecureContent(WebCore::SecurityOrigin*, const WebCore::URL&);
+        virtual void didDetectXSS(const WebCore::URL&, bool didBlockEntirePage);
 
         virtual WebCore::ResourceError cancelledError(const WebCore::ResourceRequest&);
         virtual WebCore::ResourceError blockedError(const WebCore::ResourceRequest&);
@@ -174,9 +167,9 @@ namespace WebKit {
         virtual void prepareForDataSourceReplacement();
 
         virtual WTF::PassRefPtr<WebCore::DocumentLoader> createDocumentLoader(const WebCore::ResourceRequest&, const WebCore::SubstituteData&);
-        virtual void setTitle(const WebCore::StringWithDirection& title, const WebCore::KURL&);
+        virtual void setTitle(const WebCore::StringWithDirection& title, const WebCore::URL&);
 
-        virtual WTF::String userAgent(const WebCore::KURL&);
+        virtual WTF::String userAgent(const WebCore::URL&);
 
         virtual void savePlatformDataToCachedFrame(WebCore::CachedFrame*);
         virtual void transitionToCommittedFromCachedFrame(WebCore::CachedFrame*);

@@ -21,9 +21,9 @@
  */
 
 #include "config.h"
+#include "SVGAltGlyphElement.h"
 
 #if ENABLE(SVG_FONTS)
-#include "SVGAltGlyphElement.h"
 
 #include "ExceptionCode.h"
 #include "RenderInline.h"
@@ -75,22 +75,22 @@ const AtomicString& SVGAltGlyphElement::format() const
     return fastGetAttribute(SVGNames::formatAttr);
 }
 
-bool SVGAltGlyphElement::childShouldCreateRenderer(const Node* child) const
+bool SVGAltGlyphElement::childShouldCreateRenderer(const Node& child) const
 {
-    if (child->isTextNode())
+    if (child.isTextNode())
         return true;
     return false;
 }
 
-RenderElement* SVGAltGlyphElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGAltGlyphElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGTSpan(*this);
+    return createRenderer<RenderSVGTSpan>(*this, std::move(style));
 }
 
 bool SVGAltGlyphElement::hasValidGlyphElements(Vector<String>& glyphNames) const
 {
     String target;
-    Element* element = targetElementFromIRIString(getAttribute(XLinkNames::hrefAttr), &document(), &target);
+    Element* element = targetElementFromIRIString(getAttribute(XLinkNames::hrefAttr), document(), &target);
     if (!element)
         return false;
 
@@ -108,4 +108,4 @@ bool SVGAltGlyphElement::hasValidGlyphElements(Vector<String>& glyphNames) const
 
 }
 
-#endif // ENABLE(SVG)
+#endif

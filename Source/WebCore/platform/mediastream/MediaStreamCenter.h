@@ -34,36 +34,34 @@
 
 #if ENABLE(MEDIA_STREAM)
 
+#include "MediaStreamSource.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
-class MediaStreamComponent;
-class MediaStreamDescriptor;
-class MediaStreamSourcesQueryClient;
+class MediaConstraints;
+class MediaStreamCreationClient;
+class MediaStreamSourceStates;
 class MediaStreamTrackSourcesRequestClient;
 
 class MediaStreamCenter {
 public:
     virtual ~MediaStreamCenter();
 
-    static MediaStreamCenter& instance();
+    static MediaStreamCenter& shared();
+    static void setSharedStreamCenter(MediaStreamCenter*);
 
-    virtual void queryMediaStreamSources(PassRefPtr<MediaStreamSourcesQueryClient>) = 0;
+    virtual void validateRequestConstraints(PassRefPtr<MediaStreamCreationClient>, PassRefPtr<MediaConstraints> audioConstraints, PassRefPtr<MediaConstraints> videoConstraints) = 0;
 
-    // Calls from the DOM objects to notify the platform
+    virtual void createMediaStream(PassRefPtr<MediaStreamCreationClient>, PassRefPtr<MediaConstraints> audioConstraints, PassRefPtr<MediaConstraints> videoConstraints) = 0;
+
     virtual bool getMediaStreamTrackSources(PassRefPtr<MediaStreamTrackSourcesRequestClient>) = 0;
-    virtual void didSetMediaStreamTrackEnabled(MediaStreamDescriptor*, MediaStreamComponent*) = 0;
-    virtual bool didAddMediaStreamTrack(MediaStreamDescriptor*, MediaStreamComponent*) = 0;
-    virtual bool didRemoveMediaStreamTrack(MediaStreamDescriptor*, MediaStreamComponent*) = 0;
-    virtual void didStopLocalMediaStream(MediaStreamDescriptor*) = 0;
-    virtual void didCreateMediaStream(MediaStreamDescriptor*) = 0;
 
 protected:
     MediaStreamCenter();
 
-    void endLocalMediaStream(MediaStreamDescriptor*);
+    static MediaStreamCenter& platformCenter();
 };
 
 } // namespace WebCore

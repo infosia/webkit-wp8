@@ -20,13 +20,16 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 // This all-in-one cpp file cuts down on template bloat to allow us to build our Windows release build.
 
 #include "HTMLElementFactory.cpp"
 #include "HTMLEntityTable.cpp"
+#if ENABLE(WEBGL)
+#include "JSANGLEInstancedArrays.cpp"
+#endif
 #include "JSAbstractWorker.cpp"
 #include "JSAttr.cpp"
 #include "JSBarProp.cpp"
@@ -38,12 +41,13 @@
 #include "JSCanvasRenderingContext.cpp"
 #include "JSCanvasRenderingContext2D.cpp"
 #if ENABLE(WEBGL)
-#include "JSEXTDrawBuffers.cpp"
 #include "JSEXTTextureFilterAnisotropic.cpp"
 #include "JSOESElementIndexUint.cpp"
 #include "JSOESStandardDerivatives.cpp"
 #include "JSOESTextureFloat.cpp"
+#include "JSOESTextureFloatLinear.cpp"
 #include "JSOESTextureHalfFloat.cpp"
+#include "JSOESTextureHalfFloatLinear.cpp"
 #include "JSOESVertexArrayObject.cpp"
 #include "JSWebGLActiveInfo.cpp"
 #include "JSWebGLBuffer.cpp"
@@ -55,6 +59,7 @@
 #include "JSWebGLDebugRendererInfo.cpp"
 #include "JSWebGLDebugShaders.cpp"
 #include "JSWebGLDepthTexture.cpp"
+#include "JSWebGLDrawBuffers.cpp"
 #include "JSWebGLFramebuffer.cpp"
 #include "JSWebGLLoseContext.cpp"
 #include "JSWebGLProgram.cpp"
@@ -72,9 +77,9 @@
 #include "JSClientRectList.cpp"
 #include "JSClipboard.cpp"
 #include "JSCloseEvent.cpp"
+#include "JSCommandLineAPIHost.cpp"
 #include "JSComment.cpp"
 #include "JSCompositionEvent.cpp"
-#include "JSConsole.cpp"
 #include "JSCoordinates.cpp"
 #include "JSCounter.cpp"
 #include "JSCrypto.cpp"
@@ -83,7 +88,6 @@
 #include "JSCSSFontFaceLoadEvent.cpp"
 #endif
 #include "JSCSSFontFaceRule.cpp"
-#include "JSCSSHostRule.cpp"
 #include "JSCSSImportRule.cpp"
 #include "JSCSSMediaRule.cpp"
 #include "JSCSSPageRule.cpp"
@@ -104,18 +108,12 @@
 #include "JSDataTransferItemList.cpp"
 #include "JSDedicatedWorkerGlobalScope.cpp"
 #include "JSDeviceOrientationEvent.cpp"
-#include "JSDirectoryEntry.cpp"
-#include "JSDirectoryEntrySync.cpp"
-#include "JSDirectoryReader.cpp"
-#include "JSDirectoryReaderSync.cpp"
 #include "JSDocument.cpp"
 #include "JSDocumentFragment.cpp"
 #include "JSDocumentType.cpp"
 #include "JSDOMApplicationCache.cpp"
 #include "JSDOMCoreException.cpp"
 #include "JSDOMError.cpp"
-#include "JSDOMFileSystem.cpp"
-#include "JSDOMFileSystemSync.cpp"
 #include "JSDOMFormData.cpp"
 #include "JSDOMImplementation.cpp"
 #include "JSDOMMimeType.cpp"
@@ -137,31 +135,17 @@
 #include "JSElement.cpp"
 #include "JSEntity.cpp"
 #include "JSEntityReference.cpp"
-#include "JSEntriesCallback.cpp"
-#include "JSEntry.cpp"
-#include "JSEntryArray.cpp"
-#include "JSEntryArraySync.cpp"
-#include "JSEntrySync.cpp"
-#include "JSEntryCallback.cpp"
-#include "JSErrorCallback.cpp"
 #include "JSErrorEvent.cpp"
 #include "JSEvent.cpp"
 #include "JSEventException.cpp"
 #include "JSEventSource.cpp"
 #include "JSEventTarget.cpp"
 #include "JSFile.cpp"
-#include "JSFileCallback.cpp"
-#include "JSFileEntry.cpp"
-#include "JSFileEntrySync.cpp"
 #include "JSFileError.cpp"
 #include "JSFileException.cpp"
 #include "JSFileList.cpp"
 #include "JSFileReader.cpp"
 #include "JSFileReaderSync.cpp"
-#include "JSFileSystemCallback.cpp"
-#include "JSFileWriter.cpp"
-#include "JSFileWriterCallback.cpp"
-#include "JSFileWriterSync.cpp"
 #include "JSFocusEvent.cpp"
 #if ENABLE(FONT_LOAD_EVENTS)
 #include "JSFontLoader.cpp"
@@ -182,7 +166,6 @@
 #include "JSHTMLButtonElement.cpp"
 #include "JSHTMLCanvasElement.cpp"
 #include "JSHTMLCollection.cpp"
-#include "JSHTMLContentElement.cpp"
 #include "JSHTMLDataListElement.cpp"
 #include "JSHTMLDetailsElement.cpp"
 #include "JSHTMLDirectoryElement.cpp"
@@ -257,24 +240,21 @@
 #include "JSIDBRequest.cpp"
 #include "JSIDBTransaction.cpp"
 #include "JSImageData.cpp"
-#include "JSInjectedScriptHost.cpp"
 #include "JSInspectorFrontendHost.cpp"
-#include "JSJavaScriptCallFrame.cpp"
 #include "JSKeyboardEvent.cpp"
 #include "JSLocation.cpp"
 #include "JSMediaController.cpp"
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+#include "JSMediaControlsHost.cpp"
+#include "UserAgentScriptsData.cpp"
+#endif
 #include "JSMediaError.cpp"
 #include "JSMediaList.cpp"
 #include "JSMediaQueryList.cpp"
 #include "JSMediaQueryListListener.cpp"
-#if ENABLE(MEDIA_SOURCE)
-#include "JSWebKitMediaSource.cpp"
-#endif
 #include "JSMessageChannel.cpp"
 #include "JSMessageEvent.cpp"
 #include "JSMessagePort.cpp"
-#include "JSMetadata.cpp"
-#include "JSMetadataCallback.cpp"
 #include "JSMouseEvent.cpp"
 #include "JSMutationEvent.cpp"
 #include "JSMutationObserver.cpp"
@@ -308,13 +288,8 @@
 #include "JSScreen.cpp"
 #include "JSScriptProfile.cpp"
 #include "JSScriptProfileNode.cpp"
-#include "JSShadowRoot.cpp"
 #include "JSSharedWorker.cpp"
 #include "JSSharedWorkerGlobalScope.cpp"
-#if ENABLE(MEDIA_SOURCE)
-#include "JSWebKitSourceBuffer.cpp"
-#include "JSWebKitSourceBufferList.cpp"
-#endif
 #include "JSSQLError.cpp"
 #include "JSSQLException.cpp"
 #include "JSSQLResultSet.cpp"
@@ -487,14 +462,20 @@
 #if ENABLE(VIDEO_TRACK)
 #include "JSAudioTrack.cpp"
 #include "JSAudioTrackList.cpp"
+#include "JSDataCue.cpp"
 #include "JSHTMLTrackElement.cpp"
 #include "JSTextTrack.cpp"
 #include "JSTextTrackCue.cpp"
 #include "JSTextTrackCueList.cpp"
 #include "JSTextTrackList.cpp"
 #include "JSTrackEvent.cpp"
+#include "JSVTTCue.cpp"
 #include "JSVideoTrack.cpp"
 #include "JSVideoTrackList.cpp"
+#if ENABLE(WEBVTT_REGIONS)
+#include "JSVTTRegion.cpp"
+#include "JSVTTRegionList.cpp"
+#endif
 #endif
 #include "JSTimeRanges.cpp"
 #include "JSTouch.cpp"
@@ -506,9 +487,6 @@
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
 #include "JSWebKitAnimationEvent.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSFilterRule.cpp"
-#endif
 #if ENABLE(CSS_FILTERS)
 #include "JSWebKitCSSFilterValue.cpp"
 #endif
@@ -516,9 +494,6 @@
 #include "JSWebKitCSSKeyframesRule.cpp"
 #include "JSWebKitCSSTransformValue.cpp"
 #include "JSWebKitCSSMatrix.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSMixFunctionValue.cpp"
-#endif
 #include "JSWebKitCSSRegionRule.cpp"
 #include "JSWebKitNamedFlow.cpp"
 #include "JSWebKitPoint.cpp"

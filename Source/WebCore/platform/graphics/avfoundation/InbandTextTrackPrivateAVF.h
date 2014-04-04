@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -43,12 +43,11 @@ public:
 
 class InbandTextTrackPrivateAVF : public InbandTextTrackPrivate {
 public:
+    virtual ~InbandTextTrackPrivateAVF();
 
-    ~InbandTextTrackPrivateAVF();
+    virtual void setMode(InbandTextTrackPrivate::Mode) override;
 
-    virtual void setMode(InbandTextTrackPrivate::Mode) OVERRIDE;
-
-    virtual int textTrackIndex() const OVERRIDE { return m_index; }
+    virtual int trackIndex() const override { return m_index; }
     void setTextTrackIndex(int index) { m_index = index; }
 
     virtual void disconnect();
@@ -56,15 +55,20 @@ public:
     bool hasBeenReported() const { return m_hasBeenReported; }
     void setHasBeenReported(bool reported) { m_hasBeenReported = reported; }
 
-    void processCue(CFArrayRef, double);
-    void resetCueValues();
+    virtual void processCue(CFArrayRef, double);
+    virtual void resetCueValues();
 
     void beginSeeking();
     void endSeeking() { m_seeking = false; }
     bool seeking() const { return m_seeking; }
     
-    virtual bool isLegacyClosedCaptionsTrack() const = 0;
-
+    enum Category {
+        LegacyClosedCaption,
+        OutOfBand,
+        InBand
+    };
+    virtual Category textTrackCategory() const = 0;
+    
 protected:
     InbandTextTrackPrivateAVF(AVFInbandTrackParent*);
 
@@ -73,7 +77,7 @@ protected:
     double m_currentCueStartTime;
     double m_currentCueEndTime;
 
-    Vector<RefPtr<GenericCueData> > m_cues;
+    Vector<RefPtr<GenericCueData>> m_cues;
     AVFInbandTrackParent* m_owner;
 
     enum PendingCueStatus {

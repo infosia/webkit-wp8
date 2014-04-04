@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,10 +36,10 @@ class RuntimeObject : public JSDestructibleObject {
 public:
     typedef JSDestructibleObject Base;
 
-    static RuntimeObject* create(ExecState* exec, JSGlobalObject* globalObject, Structure* structure, PassRefPtr<Instance> instance)
+    static RuntimeObject* create(VM& vm, Structure* structure, PassRefPtr<Instance> instance)
     {
-        RuntimeObject* object = new (NotNull, allocateCell<RuntimeObject>(*exec->heap())) RuntimeObject(exec, globalObject, structure, instance);
-        object->finishCreation(globalObject);
+        RuntimeObject* object = new (NotNull, allocateCell<RuntimeObject>(vm.heap)) RuntimeObject(vm, structure, instance);
+        object->finishCreation(vm);
         return object;
     }
 
@@ -62,7 +62,7 @@ public:
 
     DECLARE_INFO;
 
-    static ObjectPrototype* createPrototype(ExecState*, JSGlobalObject* globalObject)
+    static ObjectPrototype* createPrototype(VM&, JSGlobalObject* globalObject)
     {
         return globalObject->objectPrototype();
     }
@@ -73,14 +73,14 @@ public:
     }
 
 protected:
-    RuntimeObject(ExecState*, JSGlobalObject*, Structure*, PassRefPtr<Instance>);
-    void finishCreation(JSGlobalObject*);
+    RuntimeObject(VM&, Structure*, PassRefPtr<Instance>);
+    void finishCreation(VM&);
     static const unsigned StructureFlags = OverridesGetOwnPropertySlot | OverridesGetPropertyNames | Base::StructureFlags;
 
 private:
-    static JSValue fallbackObjectGetter(ExecState*, JSValue, PropertyName);
-    static JSValue fieldGetter(ExecState*, JSValue, PropertyName);
-    static JSValue methodGetter(ExecState*, JSValue, PropertyName);
+    static EncodedJSValue fallbackObjectGetter(ExecState*, JSObject*, EncodedJSValue, PropertyName);
+    static EncodedJSValue fieldGetter(ExecState*, JSObject*, EncodedJSValue, PropertyName);
+    static EncodedJSValue methodGetter(ExecState*, JSObject*, EncodedJSValue, PropertyName);
 
     RefPtr<Instance> m_instance;
 };

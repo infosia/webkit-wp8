@@ -1,7 +1,7 @@
 /*
  * This file is part of the theme implementation for form controls in WebCore.
  *
- * Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2012 Apple Computer, Inc.
+ * Copyright (C) 2005, 2006, 2007, 2008, 2009, 2010, 2012 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,6 +23,7 @@
 #ifndef RenderTheme_h
 #define RenderTheme_h
 
+#include "ControlStates.h"
 #if USE(NEW_THEME)
 #include "Theme.h"
 #else
@@ -39,6 +40,7 @@ class CSSStyleSheet;
 class Element;
 class FileList;
 class HTMLInputElement;
+class Icon;
 class PopupMenu;
 class RenderMenuList;
 #if ENABLE(METER_ELEMENT)
@@ -72,13 +74,12 @@ public:
     // metrics and defaults given the contents of the style.  This includes sophisticated operations like
     // selection of control size based off the font, the disabling of appearance when certain other properties like
     // "border" are set, or if the appearance is not supported by the theme.
-    void adjustStyle(StyleResolver*, RenderStyle*, Element*,  bool UAHasAppearance,
-                     const BorderData&, const FillLayer&, const Color& backgroundColor);
+    void adjustStyle(StyleResolver&, RenderStyle&, Element*,  bool UAHasAppearance, const BorderData&, const FillLayer&, const Color& backgroundColor);
 
     // This method is called to paint the widget as a background of the RenderObject.  A widget's foreground, e.g., the
     // text of a button, is always rendered by the engine itself.  The boolean return value indicates
     // whether the CSS border/background should also be painted.
-    bool paint(RenderObject*, const PaintInfo&, const IntRect&);
+    bool paint(RenderObject*, ControlStates*, const PaintInfo&, const IntRect&);
     bool paintBorderOnly(RenderObject*, const PaintInfo&, const IntRect&);
     bool paintDecorations(RenderObject*, const PaintInfo&, const IntRect&);
 
@@ -91,10 +92,15 @@ public:
     virtual String extraQuirksStyleSheet() { return String(); }
     virtual String extraPlugInsStyleSheet() { return String(); }
 #if ENABLE(VIDEO)
+    virtual String mediaControlsStyleSheet() { return String(); }
     virtual String extraMediaControlsStyleSheet() { return String(); }
+    virtual String mediaControlsScript() { return String(); }
 #endif
 #if ENABLE(FULLSCREEN_API)
     virtual String extraFullScreenStyleSheet() { return String(); }
+#endif
+#if ENABLE(IMAGE_CONTROLS)
+    virtual String imageControlsStyleSheet() const { return String(); }
 #endif
 
     // A method to obtain the baseline position for a "leaf" control.  This will only be used if a baseline
@@ -121,7 +127,7 @@ public:
 
     // This method is called whenever a relevant state changes on a particular themed object, e.g., the mouse becomes pressed
     // or a control becomes disabled.
-    virtual bool stateChanged(RenderObject*, ControlState) const;
+    virtual bool stateChanged(RenderObject*, ControlStates::States) const;
 
     // This method is called whenever the theme changes on the system in order to flush cached resources from the
     // old theme.
@@ -236,7 +242,12 @@ public:
     virtual String fileListDefaultLabel(bool multipleFilesAllowed) const;
     virtual String fileListNameForWidth(const FileList*, const Font&, int width, bool multipleFilesAllowed) const;
 
-    virtual bool shouldOpenPickerWithF4Key() const;
+    enum FileUploadDecorations { SingleFile, MultipleFiles };
+    virtual bool paintFileUploadIconDecorations(RenderObject* /*inputRenderer*/, RenderObject* /*buttonRenderer*/, const PaintInfo&, const IntRect&, Icon*, FileUploadDecorations) { return true; }
+
+#if ENABLE(IMAGE_CONTROLS)
+    virtual IntSize imageControlsButtonSize(const RenderObject*) const { return IntSize(); }
+#endif
 
 protected:
     // The platform selection color.
@@ -271,17 +282,27 @@ protected:
     virtual bool paintInnerSpinButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 #endif
 
+    virtual bool paintCheckboxDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintRadioDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+
     virtual void adjustTextFieldStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintTextField(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintTextFieldDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustTextAreaStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintTextArea(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintTextAreaDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustMenuListStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintMenuList(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintMenuListDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintMenuListButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintMenuListButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+
+    virtual bool paintPushButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintSquareButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
 #if ENABLE(METER_ELEMENT)
     virtual void adjustMeterStyle(StyleResolver*, RenderStyle*, Element*) const;
@@ -303,18 +324,20 @@ protected:
 
     virtual void adjustSliderThumbStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSliderThumb(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintSliderThumbDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustSearchFieldStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchField(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual bool paintSearchFieldDecorations(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustSearchFieldCancelButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchFieldCancelButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
-    virtual void adjustSearchFieldDecorationStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintSearchFieldDecoration(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual void adjustSearchFieldDecorationPartStyle(StyleResolver*, RenderStyle*, Element*) const;
+    virtual bool paintSearchFieldDecorationPart(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
-    virtual void adjustSearchFieldResultsDecorationStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintSearchFieldResultsDecoration(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+    virtual void adjustSearchFieldResultsDecorationPartStyle(StyleResolver*, RenderStyle*, Element*) const;
+    virtual bool paintSearchFieldResultsDecorationPart(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
     virtual void adjustSearchFieldResultsButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchFieldResultsButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
@@ -342,9 +365,13 @@ protected:
 
     virtual bool paintSnapshottedPluginOverlay(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
 
+#if ENABLE(IMAGE_CONTROLS)
+    virtual bool paintImageControlsButton(RenderObject*, const PaintInfo&, const IntRect&) { return true; }
+#endif
+
 public:
-    // Methods for state querying
-    ControlStates controlStatesForRenderer(const RenderObject* o) const;
+    void updateControlStatesForRenderer(const RenderObject*, ControlStates*) const;
+    ControlStates::States extractControlStatesForRenderer(const RenderObject*) const;
     bool isActive(const RenderObject*) const;
     bool isChecked(const RenderObject*) const;
     bool isIndeterminate(const RenderObject*) const;

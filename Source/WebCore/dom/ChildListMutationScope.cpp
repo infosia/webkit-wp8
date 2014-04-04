@@ -33,13 +33,9 @@
 #include "ChildListMutationScope.h"
 
 #include "DocumentFragment.h"
-#include "Element.h"
 #include "MutationObserverInterestGroup.h"
 #include "MutationRecord.h"
-#include "Node.h"
 #include "StaticNodeList.h"
-#include <wtf/HashMap.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/StdLibExtras.h>
 
 namespace WebCore {
@@ -47,14 +43,14 @@ namespace WebCore {
 typedef HashMap<ContainerNode*, ChildListMutationAccumulator*> AccumulatorMap;
 static AccumulatorMap& accumulatorMap()
 {
-    DEFINE_STATIC_LOCAL(AccumulatorMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(AccumulatorMap, map, ());
     return map;
 }
 
-ChildListMutationAccumulator::ChildListMutationAccumulator(ContainerNode& target, PassOwnPtr<MutationObserverInterestGroup> observers)
+ChildListMutationAccumulator::ChildListMutationAccumulator(ContainerNode& target, std::unique_ptr<MutationObserverInterestGroup> observers)
     : m_target(target)
-    , m_lastAdded(0)
-    , m_observers(observers)
+    , m_lastAdded(nullptr)
+    , m_observers(std::move(observers))
 {
 }
 

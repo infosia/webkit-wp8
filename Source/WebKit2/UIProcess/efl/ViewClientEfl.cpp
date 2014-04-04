@@ -52,11 +52,7 @@ void ViewClientEfl::didChangeContentsSize(WKViewRef, WKSize size, const void* cl
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage()))
-#if USE(ACCELERATED_COMPOSITING)
-        ewkView->pageViewportController()->didChangeContentsSize(toIntSize(size));
-#else
-        { }
-#endif
+        ewkView->pageViewportController().didChangeContentsSize(toIntSize(size));
     else
         ewkView->scheduleUpdateDisplay();
 
@@ -90,6 +86,10 @@ void ViewClientEfl::webProcessCrashed(WKViewRef, WKURLRef url, const void* clien
 
 void ViewClientEfl::webProcessDidRelaunch(WKViewRef viewRef, const void* clientInfo)
 {
+    // WebProcess just relaunched and the underlying scene from the view is not set to active by default, which
+    // means from that point on we would only get a blank screen, hence we set it to active here to avoid that.
+    WKViewSetIsActive(viewRef, true);
+
     if (const char* themePath = toEwkView(clientInfo)->themePath())
         WKViewSetThemePath(viewRef, adoptWK(WKStringCreateWithUTF8CString(themePath)).get());
 }
@@ -98,9 +98,7 @@ void ViewClientEfl::didChangeContentsPosition(WKViewRef, WKPoint position, const
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
-        ewkView->pageViewportController()->pageDidRequestScroll(toIntPoint(position));
-#endif
+        ewkView->pageViewportController().pageDidRequestScroll(toIntPoint(position));
         return;
     }
 
@@ -111,9 +109,7 @@ void ViewClientEfl::didRenderFrame(WKViewRef, WKSize contentsSize, WKRect covere
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
-        ewkView->pageViewportController()->didRenderFrame(toIntSize(contentsSize), toIntRect(coveredRect));
-#endif
+        ewkView->pageViewportController().didRenderFrame(toIntSize(contentsSize), toIntRect(coveredRect));
         return;
     }
 
@@ -124,9 +120,7 @@ void ViewClientEfl::didCompletePageTransition(WKViewRef, const void* clientInfo)
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
-        ewkView->pageViewportController()->pageTransitionViewportReady();
-#endif
+        ewkView->pageViewportController().pageTransitionViewportReady();
         return;
     }
 
@@ -137,10 +131,8 @@ void ViewClientEfl::didChangeViewportAttributes(WKViewRef, WKViewportAttributesR
 {
     EwkView* ewkView = toEwkView(clientInfo);
     if (WKPageUseFixedLayout(ewkView->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
         // FIXME: pageViewportController should accept WKViewportAttributesRef.
-        ewkView->pageViewportController()->didChangeViewportAttributes(toImpl(attributes)->originalAttributes());
-#endif
+        ewkView->pageViewportController().didChangeViewportAttributes(toImpl(attributes)->originalAttributes());
         return;
     }
     ewkView->scheduleUpdateDisplay();
@@ -166,15 +158,28 @@ void ViewClientEfl::doneWithTouchEvent(WKViewRef, WKTouchEventRef event, bool wa
 }
 #endif
 
+#if ENABLE(INPUT_TYPE_COLOR)
+void ViewClientEfl::showColorPicker(WKViewRef, WKStringRef colorString, WKColorPickerResultListenerRef listener, const void* clientInfo)
+{
+    WebCore::Color color = WebCore::Color(WebKit::toWTFString(colorString));
+    toEwkView(clientInfo)->requestColorPicker(listener, color);
+}
+
+void ViewClientEfl::endColorPicker(WKViewRef, const void* clientInfo)
+{
+    toEwkView(clientInfo)->dismissColorPicker();
+}
+#endif
+
 ViewClientEfl::ViewClientEfl(EwkView* view)
     : m_view(view)
 {
     ASSERT(m_view);
 
-    WKViewClient viewClient;
-    memset(&viewClient, 0, sizeof(WKViewClient));
-    viewClient.version = kWKViewClientCurrentVersion;
-    viewClient.clientInfo = this;
+    WKViewClientV0 viewClient;
+    memset(&viewClient, 0, sizeof(WKViewClientV0));
+    viewClient.base.version = 0;
+    viewClient.base.clientInfo = this;
     viewClient.didChangeContentsSize = didChangeContentsSize;
     viewClient.didFindZoomableArea = didFindZoomableArea;
     viewClient.viewNeedsDisplay = viewNeedsDisplay;
@@ -189,12 +194,26 @@ ViewClientEfl::ViewClientEfl(EwkView* view)
     viewClient.doneWithTouchEvent = doneWithTouchEvent;
 #endif
 
-    WKViewSetViewClient(m_view->wkView(), &viewClient);
+    WKViewSetViewClient(m_view->wkView(), &viewClient.base);
+
+#if ENABLE(INPUT_TYPE_COLOR)
+    WKColorPickerClientV0 colorPickerClient;
+    memset(&colorPickerClient, 0, sizeof(WKColorPickerClientV0));
+    colorPickerClient.base.version = 0;
+    colorPickerClient.base.clientInfo = this;
+    colorPickerClient.showColorPicker = showColorPicker;
+    colorPickerClient.endColorPicker = endColorPicker;
+    WKViewSetColorPickerClient(m_view->wkView(), &colorPickerClient.base);
+#endif
 }
 
 ViewClientEfl::~ViewClientEfl()
 {
     WKViewSetViewClient(m_view->wkView(), 0);
+
+#if ENABLE(INPUT_TYPE_COLOR)
+    WKViewSetColorPickerClient(m_view->wkView(), 0);
+#endif
 }
 
 } // namespace WebKit

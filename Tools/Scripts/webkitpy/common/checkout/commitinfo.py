@@ -62,6 +62,9 @@ class CommitInfo(object):
     def author_email(self):
         return self._changelog_data["author_email"]
 
+    def bug_description(self):
+        return self._changelog_data["bug_description"]
+
     def reviewer(self):
         return self._changelog_data["reviewer"]  # May be None
 
@@ -78,6 +81,7 @@ class CommitInfo(object):
             "author_email": self.author_email(),
             "reviewer_text": self.reviewer_text(),
             "changed_files": self.changed_files(),
+            "bug_description": self.bug_description(),
         }
 
     def responsible_parties(self):
@@ -94,7 +98,7 @@ class CommitInfo(object):
         string += "  %s\n" % urls.view_revision_url(self.revision())
         string += "  Bug: %s (%s)\n" % (self.bug_id(), bugs.bug_url_for_bug_id(self.bug_id()))
         author_line = "\"%s\" <%s>" % (self.author_name(), self.author_email())
-        string += "  Author: %s\n" % (self.author() or author_line)
-        string += "  Reviewer: %s\n" % (self.reviewer() or self.reviewer_text())
-        string += "  Committer: %s" % self.committer()
+        string += "  Author: %s\n" % unicode(self.author() or author_line)
+        string += "  Reviewer: %s\n" % unicode(self.reviewer() or self.reviewer_text())
+        string += "  Committer: %s" % unicode(self.committer())
         return string

@@ -23,6 +23,7 @@
 #define SVGAltGlyphElement_h
 
 #if ENABLE(SVG_FONTS)
+
 #include "SVGTextPositioningElement.h"
 #include "SVGURIReference.h"
 #include <wtf/Vector.h>
@@ -31,7 +32,7 @@ namespace WebCore {
 
 class SVGGlyphElement;
 
-class SVGAltGlyphElement FINAL : public SVGTextPositioningElement,
+class SVGAltGlyphElement final : public SVGTextPositioningElement,
                                  public SVGURIReference {
 public:
     static PassRefPtr<SVGAltGlyphElement> create(const QualifiedName&, Document&);
@@ -46,17 +47,17 @@ public:
 private:
     SVGAltGlyphElement(const QualifiedName&, Document&);
 
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
-    virtual bool childShouldCreateRenderer(const Node*) const;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGAltGlyphElement)
         DECLARE_ANIMATED_STRING(Href, href)
     END_DECLARE_ANIMATED_PROPERTIES
 };
 
-ELEMENT_TYPE_CASTS(SVGAltGlyphElement)
+NODE_TYPE_CASTS(SVGAltGlyphElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
+#endif
 #endif

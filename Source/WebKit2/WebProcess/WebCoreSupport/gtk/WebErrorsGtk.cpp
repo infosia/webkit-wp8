@@ -28,7 +28,7 @@
 #include "config.h"
 #include "WebErrors.h"
 
-#include "WebError.h"
+#include "APIError.h"
 #include <WebCore/ErrorsGtk.h>
 #include <WebCore/ResourceError.h>
 #include <WebCore/ResourceRequest.h>
@@ -75,9 +75,9 @@ ResourceError pluginWillHandleLoadError(const ResourceResponse& response)
     return WebCore::pluginWillHandleLoadError(response);
 }
 
-WebCore::ResourceError internalError(const WebCore::KURL& url)
+WebCore::ResourceError internalError(const WebCore::URL& url)
 {
-    return ResourceError(WebError::webKitErrorDomain(), kWKErrorInternal, url.string(), _("Internal error"));
+    return ResourceError(API::Error::webKitErrorDomain(), kWKErrorInternal, url.string(), _("Internal error"));
 }
 
 } // namespace WebKit

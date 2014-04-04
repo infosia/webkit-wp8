@@ -41,21 +41,17 @@
 #include "FileError.h"
 #include "FileReaderLoader.h"
 #include "Frame.h"
-#include "FrameLoader.h"
-#include "FrameLoaderClient.h"
 #include "InspectorInstrumentation.h"
 #include "Logging.h"
 #include "Page.h"
 #include "ProgressTracker.h"
 #include "ResourceRequest.h"
-#include "ScriptCallStack.h"
 #include "ScriptExecutionContext.h"
 #include "Settings.h"
 #include "SocketStreamError.h"
 #include "SocketStreamHandle.h"
 #include "WebSocketChannelClient.h"
 #include "WebSocketHandshake.h"
-
 #include <runtime/ArrayBuffer.h>
 #include <wtf/Deque.h>
 #include <wtf/FastMalloc.h>
@@ -65,8 +61,6 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
-
-using namespace std;
 
 namespace WebCore {
 
@@ -99,7 +93,7 @@ WebSocketChannel::~WebSocketChannel()
 {
 }
 
-void WebSocketChannel::connect(const KURL& url, const String& protocol)
+void WebSocketChannel::connect(const URL& url, const String& protocol)
 {
     LOG(Network, "WebSocketChannel %p connect()", this);
     ASSERT(!m_handle);
@@ -200,7 +194,7 @@ void WebSocketChannel::fail(const String& reason)
     ASSERT(!m_suspended);
     if (m_document) {
         InspectorInstrumentation::didReceiveWebSocketFrameError(m_document, m_identifier, reason);
-        m_document->addConsoleMessage(NetworkMessageSource, ErrorMessageLevel, "WebSocket connection to '" + m_handshake->url().stringCenterEllipsizedToLength() + "' failed: " + reason);
+        m_document->addConsoleMessage(MessageSource::Network, MessageLevel::Error, "WebSocket connection to '" + m_handshake->url().stringCenterEllipsizedToLength() + "' failed: " + reason);
     }
 
     // Hybi-10 specification explicitly states we must not continue to handle incoming data
@@ -243,12 +237,9 @@ void WebSocketChannel::resume()
         m_resumeTimer.startOneShot(0);
 }
 
-void WebSocketChannel::willOpenSocketStream(SocketStreamHandle* handle)
+void WebSocketChannel::willOpenSocketStream(SocketStreamHandle*)
 {
     LOG(Network, "WebSocketChannel %p willOpenSocketStream()", this);
-    ASSERT(handle);
-    if (m_document->frame())
-        m_document->frame()->loader().client().dispatchWillOpenSocketStream(handle);
 }
 
 void WebSocketChannel::didOpenSocketStream(SocketStreamHandle* handle)
@@ -337,7 +328,7 @@ void WebSocketChannel::didFailSocketStream(SocketStreamHandle* handle, const Soc
         else
             message = "WebSocket network error: " + error.localizedDescription();
         InspectorInstrumentation::didReceiveWebSocketFrameError(m_document, m_identifier, message);
-        m_document->addConsoleMessage(NetworkMessageSource, ErrorMessageLevel, message);
+        m_document->addConsoleMessage(MessageSource::Network, MessageLevel::Error, message);
     }
     m_shouldDiscardReceivedData = true;
     handle->disconnect();
@@ -577,7 +568,7 @@ bool WebSocketChannel::processFrame()
             // make sure that the member variables are in a consistent state before
             // the handler is invoked.
             // Vector<char>::swap() is used here to clear m_continuousFrameData.
-            OwnPtr<Vector<char> > continuousFrameData = adoptPtr(new Vector<char>);
+            OwnPtr<Vector<char>> continuousFrameData = adoptPtr(new Vector<char>);
             m_continuousFrameData.swap(*continuousFrameData);
             m_hasContinuousFrame = false;
             if (m_continuousFrameOpCode == WebSocketFrame::OpCodeText) {
@@ -618,7 +609,7 @@ bool WebSocketChannel::processFrame()
 
     case WebSocketFrame::OpCodeBinary:
         if (frame.final) {
-            OwnPtr<Vector<char> > binaryData = adoptPtr(new Vector<char>(frame.payloadLength));
+            OwnPtr<Vector<char>> binaryData = adoptPtr(new Vector<char>(frame.payloadLength));
             memcpy(binaryData->data(), frame.payload, frame.payloadLength);
             skipBuffer(frameEnd - m_buffer.data());
             m_client->didReceiveBinaryData(binaryData.release());

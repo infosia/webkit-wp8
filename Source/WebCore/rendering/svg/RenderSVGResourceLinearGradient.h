@@ -21,16 +21,15 @@
 #ifndef RenderSVGResourceLinearGradient_h
 #define RenderSVGResourceLinearGradient_h
 
-#if ENABLE(SVG)
 #include "LinearGradientAttributes.h"
 #include "RenderSVGResourceGradient.h"
 #include "SVGLinearGradientElement.h"
 
 namespace WebCore {
 
-class RenderSVGResourceLinearGradient FINAL : public RenderSVGResourceGradient {
+class RenderSVGResourceLinearGradient final : public RenderSVGResourceGradient {
 public:
-    explicit RenderSVGResourceLinearGradient(SVGLinearGradientElement&);
+    RenderSVGResourceLinearGradient(SVGLinearGradientElement&, PassRef<RenderStyle>);
     virtual ~RenderSVGResourceLinearGradient();
 
     SVGLinearGradientElement& linearGradientElement() const { return toSVGLinearGradientElement(RenderSVGResourceGradient::gradientElement()); }
@@ -40,21 +39,20 @@ public:
 
     virtual SVGUnitTypes::SVGUnitType gradientUnits() const { return m_attributes.gradientUnits(); }
     virtual void calculateGradientTransform(AffineTransform& transform) { transform = m_attributes.gradientTransform(); }
-    virtual bool collectGradientAttributes() OVERRIDE;
+    virtual bool collectGradientAttributes() override;
     virtual void buildGradient(GradientData*) const;
 
     FloatPoint startPoint(const LinearGradientAttributes&) const;
     FloatPoint endPoint(const LinearGradientAttributes&) const;
 
 private:
-    void gradientElement() const WTF_DELETED_FUNCTION;
+    void gradientElement() const = delete;
 
-    virtual const char* renderName() const OVERRIDE { return "RenderSVGResourceLinearGradient"; }
+    virtual const char* renderName() const override { return "RenderSVGResourceLinearGradient"; }
 
     LinearGradientAttributes m_attributes;
 };
 
 }
 
-#endif
 #endif

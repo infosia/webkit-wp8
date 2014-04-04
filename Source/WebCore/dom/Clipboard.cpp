@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,16 +41,15 @@ namespace WebCore {
 
 #if ENABLE(DRAG_SUPPORT)
 
-class DragImageLoader FINAL : private CachedImageClient {
-    WTF_MAKE_FAST_ALLOCATED;
+class DragImageLoader final : private CachedImageClient {
+    WTF_MAKE_NONCOPYABLE(DragImageLoader); WTF_MAKE_FAST_ALLOCATED;
 public:
-    static PassOwnPtr<DragImageLoader> create(Clipboard*);
+    explicit DragImageLoader(Clipboard*);
     void startLoading(CachedResourceHandle<CachedImage>&);
     void stopLoading(CachedResourceHandle<CachedImage>&);
 
 private:
-    DragImageLoader(Clipboard*);
-    virtual void imageChanged(CachedImage*, const IntRect*) OVERRIDE;
+    virtual void imageChanged(CachedImage*, const IntRect*) override;
     Clipboard* m_clipboard;
 };
 
@@ -242,7 +241,7 @@ void Clipboard::setDragImage(Element* element, int x, int y)
     m_dragImage = image;
     if (m_dragImage) {
         if (!m_dragImageLoader)
-            m_dragImageLoader = DragImageLoader::create(this);
+            m_dragImageLoader = std::make_unique<DragImageLoader>(this);
         m_dragImageLoader->startLoading(m_dragImage);
     }
 
@@ -266,7 +265,7 @@ void Clipboard::updateDragImage()
     m_pasteboard->setDragImage(computedImage, computedHotSpot);
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 
 DragImageRef Clipboard::createDragImage(IntPoint& location) const
 {
@@ -277,18 +276,14 @@ DragImageRef Clipboard::createDragImage(IntPoint& location) const
 
     if (m_dragImageElement) {
         if (Frame* frame = m_dragImageElement->document().frame())
-            return frame->nodeImage(m_dragImageElement.get());
+            return createDragImageForNode(*frame, *m_dragImageElement);
     }
 
-    return 0; // We do not have enough information to create a drag image, use the default icon.
+    // We do not have enough information to create a drag image, use the default icon.
+    return nullptr;
 }
 
 #endif
-
-PassOwnPtr<DragImageLoader> DragImageLoader::create(Clipboard* clipboard)
-{
-    return adoptPtr(new DragImageLoader(clipboard));
-}
 
 DragImageLoader::DragImageLoader(Clipboard* clipboard)
     : m_clipboard(clipboard)

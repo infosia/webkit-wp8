@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,7 +31,7 @@
 #include "CodeBlock.h"
 #include "DFGBasicBlock.h"
 #include "GetByIdStatus.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "PutByIdStatus.h"
 #include "StringObject.h"
 
@@ -159,16 +159,10 @@ void InPlaceAbstractState::initialize()
             continue;
         if (block->bytecodeBegin != m_graph.m_plan.osrEntryBytecodeIndex)
             continue;
-        for (size_t i = 0; i < m_graph.m_plan.mustHandleValues.size(); ++i) {
-            AbstractValue value;
-            value.setMostSpecific(m_graph, m_graph.m_plan.mustHandleValues[i]);
-            int operand = m_graph.m_plan.mustHandleValues.operandForIndex(i);
+        for (size_t i = 0; i < m_graph.m_mustHandleAbstractValues.size(); ++i) {
+            AbstractValue value = m_graph.m_mustHandleAbstractValues[i];
+            int operand = m_graph.m_mustHandleAbstractValues.operandForIndex(i);
             block->valuesAtHead.operand(operand).merge(value);
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-            dataLogF("    Initializing Block #%u, operand r%d, to ", blockIndex, operand);
-            block->valuesAtHead.operand(operand).dump(WTF::dataFile());
-            dataLogF("\n");
-#endif
         }
         block->cfaShouldRevisit = true;
     }
@@ -204,17 +198,11 @@ bool InPlaceAbstractState::endBasicBlock(MergeMode mergeMode)
         switch (m_graph.m_form) {
         case ThreadedCPS: {
             for (size_t argument = 0; argument < block->variablesAtTail.numberOfArguments(); ++argument) {
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-                dataLogF("        Merging state for argument %zu.\n", argument);
-#endif
                 AbstractValue& destination = block->valuesAtTail.argument(argument);
                 changed |= mergeStateAtTail(destination, m_variables.argument(argument), block->variablesAtTail.argument(argument));
             }
             
             for (size_t local = 0; local < block->variablesAtTail.numberOfLocals(); ++local) {
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-                dataLogF("        Merging state for local %zu.\n", local);
-#endif
                 AbstractValue& destination = block->valuesAtTail.local(local);
                 changed |= mergeStateAtTail(destination, m_variables.local(local), block->variablesAtTail.local(local));
             }
@@ -241,10 +229,6 @@ bool InPlaceAbstractState::endBasicBlock(MergeMode mergeMode)
     
     ASSERT(mergeMode != DontMerge || !changed);
     
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-    dataLogF("        Branch direction = %s\n", branchDirectionToString(m_branchDirection));
-#endif
-    
     reset();
     
     if (mergeMode != MergeToSuccessors)
@@ -270,20 +254,11 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
     if (node->variableAccessData()->isCaptured()) {
         // If it's captured then we know that whatever value was stored into the variable last is the
         // one we care about. This is true even if the variable at tail is dead, which might happen if
-        // the last thing we did to the variable was a GetLocal and then ended up now using the
+        // the last thing we did to the variable was a GetLocal and then ended up not using the
         // GetLocal's result.
         
         source = inVariable;
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLogF("          Transfering ");
-        source.dump(WTF::dataFile());
-        dataLogF(" from last access due to captured variable.\n");
-#endif
     } else {
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLogF("          It's live, node @%u.\n", node->index());
-#endif
-    
         switch (node->op()) {
         case Phi:
         case SetArgument:
@@ -291,21 +266,11 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
         case Flush:
             // The block transfers the value from head to tail.
             source = inVariable;
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-            dataLogF("          Transfering ");
-            source.dump(WTF::dataFile());
-            dataLogF(" from head to tail.\n");
-#endif
             break;
             
         case GetLocal:
             // The block refines the value with additional speculations.
             source = forNode(node);
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-            dataLogF("          Refining to ");
-            source.dump(WTF::dataFile());
-            dataLogF("\n");
-#endif
             break;
             
         case SetLocal:
@@ -320,11 +285,6 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
                     source.filter(SpecDouble);
                 }
             }
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-            dataLogF("          Setting to ");
-            source.dump(WTF::dataFile());
-            dataLogF("\n");
-#endif
             break;
         
         default:
@@ -336,9 +296,6 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
     if (destination == source) {
         // Abstract execution did not change the output value of the variable, for this
         // basic block, on this iteration.
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLogF("          Not changed!\n");
-#endif
         return false;
     }
     
@@ -346,9 +303,6 @@ bool InPlaceAbstractState::mergeStateAtTail(AbstractValue& destination, Abstract
     // this variable after execution of this basic block. Update the state, and return
     // true to indicate that the fixpoint must go on!
     destination = source;
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-    dataLogF("          Changed!\n");
-#endif
     return true;
 }
 
@@ -409,25 +363,16 @@ inline bool InPlaceAbstractState::mergeToSuccessors(BasicBlock* basicBlock)
     switch (terminal->op()) {
     case Jump: {
         ASSERT(basicBlock->cfaBranchDirection == InvalidBranchDirection);
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLog("        Merging to block ", *terminal->takenBlock(), ".\n");
-#endif
-        return merge(basicBlock, terminal->takenBlock());
+        return merge(basicBlock, terminal->targetBlock());
     }
         
     case Branch: {
         ASSERT(basicBlock->cfaBranchDirection != InvalidBranchDirection);
         bool changed = false;
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLog("        Merging to block ", *terminal->takenBlock(), ".\n");
-#endif
         if (basicBlock->cfaBranchDirection != TakeFalse)
-            changed |= merge(basicBlock, terminal->takenBlock());
-#if DFG_ENABLE(DEBUG_PROPAGATION_VERBOSE)
-        dataLog("        Merging to block ", *terminal->notTakenBlock(), ".\n");
-#endif
+            changed |= merge(basicBlock, terminal->branchData()->taken.block);
         if (basicBlock->cfaBranchDirection != TakeTrue)
-            changed |= merge(basicBlock, terminal->notTakenBlock());
+            changed |= merge(basicBlock, terminal->branchData()->notTaken.block);
         return changed;
     }
         
@@ -436,9 +381,9 @@ inline bool InPlaceAbstractState::mergeToSuccessors(BasicBlock* basicBlock)
         // we're not. However I somehow doubt that this will ever be a big deal.
         ASSERT(basicBlock->cfaBranchDirection == InvalidBranchDirection);
         SwitchData* data = terminal->switchData();
-        bool changed = merge(basicBlock, data->fallThrough);
+        bool changed = merge(basicBlock, data->fallThrough.block);
         for (unsigned i = data->cases.size(); i--;)
-            changed |= merge(basicBlock, data->cases[i].target);
+            changed |= merge(basicBlock, data->cases[i].target.block);
         return changed;
     }
         

@@ -34,7 +34,8 @@
 #include "NetscapePlugin.h"
 #include "PluginProcess.h"
 #include "WebKit2Initialize.h"
-#include <WebCore/RunLoop.h>
+#include <libgen.h>
+#include <wtf/RunLoop.h>
 #if PLATFORM(GTK)
 #include <gtk/gtk.h>
 #if PLATFORM(X11) && defined(GDK_WINDOWING_X11)

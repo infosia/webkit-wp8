@@ -27,7 +27,7 @@
 #include "NamePrototype.h"
 
 #include "Error.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -52,22 +52,22 @@ NamePrototype::NamePrototype(ExecState* exec, Structure* structure)
 {
 }
 
-void NamePrototype::finishCreation(ExecState* exec)
+void NamePrototype::finishCreation(VM& vm)
 {
-    Base::finishCreation(exec->vm());
+    Base::finishCreation(vm);
     ASSERT(inherits(info()));
 }
 
 bool NamePrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot &slot)
 {
-    return getStaticFunctionSlot<Base>(exec, ExecState::privateNamePrototypeTable(exec), jsCast<NamePrototype*>(object), propertyName, slot);
+    return getStaticFunctionSlot<Base>(exec, ExecState::privateNamePrototypeTable(exec->vm()), jsCast<NamePrototype*>(object), propertyName, slot);
 }
 
 // ------------------------------ Functions ---------------------------
 
 EncodedJSValue JSC_HOST_CALL privateNameProtoFuncToString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.isObject())
         return throwVMTypeError(exec);
 

@@ -25,12 +25,9 @@
 
 #import "BrowserWindowController.h"
 
-@interface WK2BrowserWindowController : BrowserWindowController<BrowserController> {
-    WKContextRef _context;
-    WKPageGroupRef _pageGroup;
-    WKView *_webView;
-}
+#if WK_API_ENABLED
 
-- (id)initWithContext:(WKContextRef)context pageGroup:(WKPageGroupRef)pageGroup;
-
+@interface WK2BrowserWindowController : BrowserWindowController <BrowserController>
 @end
+
+#endif // WK_API_ENABLED

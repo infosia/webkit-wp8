@@ -48,7 +48,7 @@ private:
     virtual bool decodeDouble(double&);
     virtual bool decodeString(String&);
 
-    OwnPtr<CoreIPC::ArgumentDecoder> m_decoder;
+    IPC::ArgumentDecoder m_decoder;
 };
 
 } // namespace WebKit

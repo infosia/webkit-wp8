@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -36,7 +36,7 @@
 #include "DumpRenderTree.h"
 #include "JSRetainPtr.h"
 #include <atk/atk.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 
 #if PLATFORM(GTK)
 #include "WebCoreSupport/DumpRenderTreeSupportGtk.h"
@@ -56,6 +56,7 @@ static guint activeDescendantChangedListenerId = 0;
 static guint childrenChangedListenerId = 0;
 static guint propertyChangedListenerId = 0;
 static guint visibleDataChangedListenerId = 0;
+static guint loadCompleteListenerId = 0;
 static NotificationHandlersMap notificationHandlers;
 static AccessibilityNotificationHandler* globalNotificationHandler = 0;
 
@@ -78,7 +79,7 @@ static void printAccessibilityEvent(AtkObject* accessible, const gchar* signalNa
     if (!objectName || *objectName == '\0')
         objectName = "(No name)";
 
-    GOwnPtr<gchar> signalNameAndValue(signalValue ? g_strdup_printf("%s = %s", signalName, signalValue) : g_strdup(signalName));
+    GUniquePtr<gchar> signalNameAndValue(signalValue ? g_strdup_printf("%s = %s", signalName, signalValue) : g_strdup(signalName));
     printf("Accessibility object emitted \"%s\" / Name: \"%s\" / Role: %d\n", signalNameAndValue.get(), objectName, objectRole);
 }
 
@@ -93,35 +94,37 @@ static gboolean axObjectEventListener(GSignalInvocationHint *signalHint, guint n
         return true;
 
     GSignalQuery signalQuery;
-    GOwnPtr<gchar> signalName;
-    GOwnPtr<gchar> signalValue;
+    GUniquePtr<gchar> signalName;
+    GUniquePtr<gchar> signalValue;
     String notificationName;
 
     g_signal_query(signalHint->signal_id, &signalQuery);
 
     if (!g_strcmp0(signalQuery.signal_name, "state-change")) {
-        signalName.set(g_strdup_printf("state-change:%s", g_value_get_string(&paramValues[1])));
-        signalValue.set(g_strdup_printf("%d", g_value_get_boolean(&paramValues[2])));
+        signalName.reset(g_strdup_printf("state-change:%s", g_value_get_string(&paramValues[1])));
+        signalValue.reset(g_strdup_printf("%d", g_value_get_boolean(&paramValues[2])));
         if (!g_strcmp0(g_value_get_string(&paramValues[1]), "checked"))
             notificationName = "CheckedStateChanged";
         else if (!g_strcmp0(g_value_get_string(&paramValues[1]), "invalid-entry"))
             notificationName = "AXInvalidStatusChanged";
-        else if (!g_strcmp0(g_value_get_string(&paramValues[1]), "layout-complete"))
-            notificationName = "AXLayoutComplete";
     } else if (!g_strcmp0(signalQuery.signal_name, "focus-event")) {
-        signalName.set(g_strdup("focus-event"));
-        signalValue.set(g_strdup_printf("%d", g_value_get_boolean(&paramValues[1])));
+        signalName.reset(g_strdup("focus-event"));
+        signalValue.reset(g_strdup_printf("%d", g_value_get_boolean(&paramValues[1])));
         if (g_value_get_boolean(&paramValues[1]))
             notificationName = "AXFocusedUIElementChanged";
     } else if (!g_strcmp0(signalQuery.signal_name, "children-changed")) {
-        signalName.set(g_strdup("children-changed"));
-        signalValue.set(g_strdup_printf("%d", g_value_get_uint(&paramValues[1])));
+        const gchar* childrenChangedDetail = g_quark_to_string(signalHint->detail);
+        signalName.reset(g_strdup_printf("children-changed:%s", childrenChangedDetail));
+        signalValue.reset(g_strdup_printf("%d", g_value_get_uint(&paramValues[1])));
+        notificationName = !g_strcmp0(childrenChangedDetail, "add") ? "AXChildrenAdded" : "AXChildrenRemoved";
     } else if (!g_strcmp0(signalQuery.signal_name, "property-change")) {
-        signalName.set(g_strdup_printf("property-change:%s", g_quark_to_string(signalHint->detail)));
+        signalName.reset(g_strdup_printf("property-change:%s", g_quark_to_string(signalHint->detail)));
         if (!g_strcmp0(g_quark_to_string(signalHint->detail), "accessible-value"))
             notificationName = "AXValueChanged";
-    } else
-        signalName.set(g_strdup(signalQuery.signal_name));
+    } else if (!g_strcmp0(signalQuery.signal_name, "load-complete"))
+        notificationName = "AXLoadComplete";
+    else
+        signalName.reset(g_strdup(signalQuery.signal_name));
 
     if (loggingAccessibilityEvents)
         printAccessibilityEvent(accessible, signalName.get(), signalValue.get());
@@ -178,6 +181,7 @@ void connectAccessibilityCallbacks()
     childrenChangedListenerId = atk_add_global_event_listener(axObjectEventListener, "ATK:AtkObject:children-changed");
     propertyChangedListenerId = atk_add_global_event_listener(axObjectEventListener, "ATK:AtkObject:property-change");
     visibleDataChangedListenerId = atk_add_global_event_listener(axObjectEventListener, "ATK:AtkObject:visible-data-changed");
+    loadCompleteListenerId = atk_add_global_event_listener(axObjectEventListener, "ATK:AtkDocument:load-complete");
 
     // Ensure the Atk interface types are registered, otherwise
     // the AtkDocument signal handlers below won't get registered.
@@ -217,6 +221,10 @@ bool disconnectAccessibilityCallbacks()
     if (visibleDataChangedListenerId) {
         atk_remove_global_event_listener(visibleDataChangedListenerId);
         visibleDataChangedListenerId = 0;
+    }
+    if (loadCompleteListenerId) {
+        atk_remove_global_event_listener(loadCompleteListenerId);
+        loadCompleteListenerId = 0;
     }
 
     return true;

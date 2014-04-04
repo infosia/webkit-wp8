@@ -20,7 +20,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEBlendElement.h"
 
 #include "Attribute.h"
@@ -58,7 +58,7 @@ PassRefPtr<SVGFEBlendElement> SVGFEBlendElement::create(const QualifiedName& tag
 
 bool SVGFEBlendElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::modeAttr);
         supportedAttributes.add(SVGNames::inAttr);
@@ -144,4 +144,4 @@ PassRefPtr<FilterEffect> SVGFEBlendElement::build(SVGFilterBuilder* filterBuilde
 
 }
 
-#endif // ENABLE(SVG)
+#endif

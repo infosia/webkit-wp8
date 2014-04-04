@@ -37,10 +37,9 @@ namespace WebCore {
 
 String pageVisibilityStateString(PageVisibilityState state)
 {
-    DEFINE_STATIC_LOCAL(const String, visible, (ASCIILiteral("visible")));
-    DEFINE_STATIC_LOCAL(const String, hidden, (ASCIILiteral("hidden")));
-    DEFINE_STATIC_LOCAL(const String, prerender, (ASCIILiteral("prerender")));
-    DEFINE_STATIC_LOCAL(const String, unloaded, (ASCIILiteral("unloaded")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const String, visible, (ASCIILiteral("visible")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const String, hidden, (ASCIILiteral("hidden")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const String, prerender, (ASCIILiteral("prerender")));
 
     switch (state) {
     case PageVisibilityStateVisible:
@@ -49,8 +48,6 @@ String pageVisibilityStateString(PageVisibilityState state)
         return hidden;
     case PageVisibilityStatePrerender:
         return prerender;
-    case PageVisibilityStateUnloaded:
-        return unloaded;
     }
 
     ASSERT_NOT_REACHED();

@@ -38,6 +38,19 @@ class CodeBlock;
 namespace DFG {
 
 #if ENABLE(DFG_JIT)
+struct OSREntryReshuffling {
+    OSREntryReshuffling() { }
+    
+    OSREntryReshuffling(int fromOffset, int toOffset)
+        : fromOffset(fromOffset)
+        , toOffset(toOffset)
+    {
+    }
+    
+    int fromOffset;
+    int toOffset;
+};
+
 struct OSREntryData {
     unsigned m_bytecodeIndex;
     unsigned m_machineCodeOffset;
@@ -45,6 +58,8 @@ struct OSREntryData {
     // Use bitvectors here because they tend to only require one word.
     BitVector m_localsForcedDouble;
     BitVector m_localsForcedMachineInt;
+    Vector<OSREntryReshuffling> m_reshufflings;
+    BitVector m_machineStackUsed;
 };
 
 inline unsigned getOSREntryDataBytecodeIndex(OSREntryData* osrEntryData)
@@ -52,6 +67,8 @@ inline unsigned getOSREntryDataBytecodeIndex(OSREntryData* osrEntryData)
     return osrEntryData->m_bytecodeIndex;
 }
 
+// Returns a pointer to a data buffer that the OSR entry thunk will recognize and
+// parse. If this returns null, it means 
 void* prepareOSREntry(ExecState*, CodeBlock*, unsigned bytecodeIndex);
 #else
 inline void* prepareOSREntry(ExecState*, CodeBlock*, unsigned) { return 0; }

@@ -115,10 +115,9 @@ class WTFAtomicStringPrinter(StringPrinter):
 class WTFCStringPrinter(StringPrinter):
     "Print a WTF::CString"
     def to_string(self):
-        # The CString holds a buffer, which is a refptr to a WTF::CStringBuffer.
-        data = self.val['m_buffer']['m_ptr']['m_data'].cast(gdb.lookup_type('char').pointer())
+        string = (self.val['m_buffer']['m_ptr'] + 1).cast(gdb.lookup_type('char').pointer())
         length = self.val['m_buffer']['m_ptr']['m_length']
-        return ''.join([chr((data + i).dereference()) for i in range(length)])
+        return lstring_to_string(string, length)
 
 
 class WTFStringImplPrinter(StringPrinter):
@@ -164,7 +163,34 @@ class JSCJSStringPrinter(StringPrinter):
         if self.val['m_length'] == 0:
             return ''
 
-        return WTFStringImplPrinter(self.val['m_value']).to_string()
+        return WTFStringPrinter(self.val['m_value']).to_string()
+
+
+class WebCoreLayoutUnitPrinter:
+    "Print a WebCore::LayoutUnit"
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        return "%gpx (%d)" % (self.val['m_value'] / 64.0, self.val['m_value'])
+
+
+class WebCoreLayoutSizePrinter:
+    "Print a WebCore::LayoutSize"
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        return 'LayoutSize(%s, %s)' % (WebCoreLayoutUnitPrinter(self.val['m_width']).to_string(), WebCoreLayoutUnitPrinter(self.val['m_height']).to_string())
+
+
+class WebCoreLayoutPointPrinter:
+    "Print a WebCore::LayoutPoint"
+    def __init__(self, val):
+        self.val = val
+
+    def to_string(self):
+        return 'LayoutPoint(%s, %s)' % (WebCoreLayoutUnitPrinter(self.val['m_x']).to_string(), WebCoreLayoutUnitPrinter(self.val['m_y']).to_string())
 
 
 class WebCoreQualifiedNamePrinter(StringPrinter):
@@ -272,6 +298,9 @@ def add_pretty_printers():
         (re.compile("^WTF::CString$"), WTFCStringPrinter),
         (re.compile("^WTF::String$"), WTFStringPrinter),
         (re.compile("^WTF::StringImpl$"), WTFStringImplPrinter),
+        (re.compile("^WebCore::LayoutUnit$"), WebCoreLayoutUnitPrinter),
+        (re.compile("^WebCore::LayoutPoint$"), WebCoreLayoutPointPrinter),
+        (re.compile("^WebCore::LayoutSize$"), WebCoreLayoutSizePrinter),
         (re.compile("^WebCore::QualifiedName$"), WebCoreQualifiedNamePrinter),
         (re.compile("^JSC::Identifier$"), JSCIdentifierPrinter),
         (re.compile("^JSC::JSString$"), JSCJSStringPrinter),

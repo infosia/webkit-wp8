@@ -21,7 +21,6 @@
 #ifndef SVGSymbolElement_h
 #define SVGSymbolElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedPreserveAspectRatio.h"
 #include "SVGAnimatedRect.h"
@@ -31,7 +30,7 @@
 
 namespace WebCore {
 
-class SVGSymbolElement FINAL : public SVGElement,
+class SVGSymbolElement final : public SVGElement,
                                public SVGExternalResourcesRequired,
                                public SVGFitToViewBox {
 public:
@@ -40,14 +39,14 @@ public:
 private:
     SVGSymbolElement(const QualifiedName&, Document&);
 
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool supportsFocus() const override { return true; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 
-    virtual bool selfHasRelativeLengths() const;
+    virtual bool selfHasRelativeLengths() const override;
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGSymbolElement)
         DECLARE_ANIMATED_BOOLEAN(ExternalResourcesRequired, externalResourcesRequired)
@@ -58,5 +57,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

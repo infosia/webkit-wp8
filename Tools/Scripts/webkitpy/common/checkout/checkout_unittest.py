@@ -136,9 +136,10 @@ Second part of this complicated change by me, Tor Arne Vestb\u00f8!
 
         mock_scm = MockSCM()
         mock_scm.run = mock_run
-        mock_scm.script_path = real_scm.script_path
 
+        real_checkout = Checkout(real_scm)
         checkout = Checkout(mock_scm)
+        checkout.script_path = real_checkout.script_path
         checkout.modified_changelogs = lambda git_commit, changed_files=None: self.changelogs
         commit_message = checkout.commit_message_for_this_commit(git_commit=None, return_stderr=True)
         # Throw away the first line - a warning about unknown VCS root.
@@ -191,6 +192,7 @@ class CheckoutTest(unittest.TestCase):
         checkout.changelog_entries_for_revision = lambda revision, changed_files=None: [ChangeLogEntry(_changelog1entry1)]
         commitinfo = checkout.commit_info_for_revision(4)
         self.assertEqual(commitinfo.bug_id(), 36629)
+        self.assertEqual(commitinfo.bug_description(), "Unreviewed build fix to un-break webkit-patch land.")
         self.assertEqual(commitinfo.author_name(), u"Tor Arne Vestb\u00f8")
         self.assertEqual(commitinfo.author_email(), "vestbo@webkit.org")
         self.assertIsNone(commitinfo.reviewer_text())
@@ -206,6 +208,7 @@ class CheckoutTest(unittest.TestCase):
             ],
             'reviewer_text': None,
             'author_name': u'Tor Arne Vestb\xf8',
+            'bug_description': 'Unreviewed build fix to un-break webkit-patch land.',
         })
 
         checkout.changelog_entries_for_revision = lambda revision, changed_files=None: []
@@ -252,7 +255,7 @@ class CheckoutTest(unittest.TestCase):
     def test_apply_patch(self):
         checkout = self._make_checkout()
         checkout._executive = MockExecutive(should_log=True)
-        checkout._scm.script_path = lambda script: script
+        checkout.script_path = lambda script: script
         mock_patch = Mock()
         mock_patch.contents = lambda: "foo"
         mock_patch.reviewer = lambda: None

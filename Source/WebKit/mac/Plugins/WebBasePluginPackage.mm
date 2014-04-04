@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -29,7 +29,6 @@
 #import <WebKit/WebBasePluginPackage.h>
 
 #import <algorithm>
-#import <WebCore/RunLoop.h>
 #import <WebCore/WebCoreObjCExtras.h>
 #import <WebKit/WebKitNSStringExtras.h>
 #import <WebKit/WebNetscapePluginPackage.h>
@@ -38,6 +37,7 @@
 #import <wtf/Assertions.h>
 #import <wtf/MainThread.h>
 #import <wtf/ObjcRuntimeExtras.h>
+#import <wtf/RunLoop.h>
 #import <wtf/Vector.h>
 #import <wtf/text/CString.h>
 
@@ -66,9 +66,11 @@ using namespace WebCore;
 
 + (void)initialize
 {
+#if !PLATFORM(IOS)
     JSC::initializeThreading();
     WTF::initializeMainThreadToProcessMainThread();
-    WebCore::RunLoop::initializeMainRunLoop();
+    RunLoop::initializeMainRunLoop();
+#endif
     WebCoreObjCFinalizeOnMainThread(self);
 }
 
@@ -102,6 +104,7 @@ static NSString *pathByResolvingSymlinksAndAliases(NSString *thePath)
 {
     NSString *newPath = [thePath stringByResolvingSymlinksInPath];
 
+#if !PLATFORM(IOS)
     FSRef fref;
     OSStatus err;
 
@@ -120,6 +123,7 @@ static NSString *pathByResolvingSymlinksAndAliases(NSString *thePath)
         newPath = [(NSURL *)URL path];
         CFRelease(URL);
     }
+#endif
 
     return newPath;
 }
@@ -162,12 +166,8 @@ static NSString *pathByResolvingSymlinksAndAliases(NSString *thePath)
     
     NSDictionary *pList = nil;
     NSData *data = [NSData dataWithContentsOfFile:pListPath];
-    if (data) {
-        pList = [NSPropertyListSerialization propertyListFromData:data
-                                                 mutabilityOption:NSPropertyListImmutable
-                                                           format:nil
-                                                 errorDescription:nil];
-    }
+    if (data)
+        pList = [NSPropertyListSerialization propertyListWithData:data options:kCFPropertyListImmutable format:nil error:nil];
     
     return pList;
 }

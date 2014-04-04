@@ -27,7 +27,8 @@
 #include <WebCore/FileSystem.h>
 #include <WebCore/NetworkingContext.h>
 #include <WebCore/ResourceHandle.h>
-#include <WebCore/RunLoop.h>
+#include <sys/socket.h>
+#include <wtf/RunLoop.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
@@ -110,7 +111,7 @@ void ProcessLauncher::launchProcess()
         close(sockets[0]);
         m_processIdentifier = pid;
         // We've finished launching the process, message back to the main run loop.
-        RunLoop::main()->dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, pid, sockets[1]));
+        RunLoop::main().dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, pid, sockets[1]));
     } else {
         ASSERT_NOT_REACHED();
         return;

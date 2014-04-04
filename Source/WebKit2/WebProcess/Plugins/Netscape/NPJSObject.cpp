@@ -31,12 +31,11 @@
 #include "JSNPObject.h"
 #include "NPRuntimeObjectMap.h"
 #include "NPRuntimeUtilities.h"
-#include <JavaScriptCore/JSCJSValueInlines.h>
+#include <JavaScriptCore/JSCInlines.h>
 #include <JavaScriptCore/JSCellInlines.h>
 #include <JavaScriptCore/JSLock.h>
 #include <JavaScriptCore/JSObject.h>
 #include <JavaScriptCore/StrongInlines.h>
-#include <JavaScriptCore/StructureInlines.h>
 #include <WebCore/Frame.h>
 #include <WebCore/IdentifierRep.h>
 #include <wtf/text/WTFString.h>
@@ -192,7 +191,7 @@ bool NPJSObject::setProperty(NPIdentifier propertyName, const NPVariant* value)
 
     JSValue jsValue = m_objectMap->convertNPVariantToJSValue(exec, m_objectMap->globalObject(), *value);
     if (identifierRep->isString()) {
-        PutPropertySlot slot;
+        PutPropertySlot slot(m_jsObject.get());
         m_jsObject->methodTable()->put(m_jsObject.get(), exec, identifierFromIdentifierRep(exec, identifierRep), jsValue, slot);
     } else
         m_jsObject->methodTable()->putByIndex(m_jsObject.get(), exec, identifierRep->number(), jsValue, false);

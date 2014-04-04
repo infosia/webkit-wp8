@@ -27,12 +27,14 @@
 #ifndef InternalSettings_h
 #define InternalSettings_h
 
+// FIXME (121927): This include should not be needed.
+#include <wtf/text/AtomicStringHash.h>
+
 #include "EditingBehaviorTypes.h"
+#include "FontGenericFamilies.h"
 #include "IntSize.h"
 #include "InternalSettingsGenerated.h"
 #include <wtf/PassRefPtr.h>
-#include <wtf/RefCounted.h>
-#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -52,15 +54,17 @@ public:
 
         bool m_originalCSSExclusionsEnabled;
         bool m_originalCSSShapesEnabled;
-        bool m_originalCSSVariablesEnabled;
-#if ENABLE(SHADOW_DOM)
-        bool m_originalShadowDOMEnabled;
-        bool m_originalAuthorShadowDOMForAnyElementEnabled;
-#endif
-#if ENABLE(STYLE_SCOPED)
-        bool m_originalStyleScoped;
-#endif
         EditingBehaviorType m_originalEditingBehavior;
+
+        // Initially empty, only used if changed by a test.
+        ScriptFontFamilyMap m_standardFontFamilies;
+        ScriptFontFamilyMap m_fixedFontFamilies;
+        ScriptFontFamilyMap m_serifFontFamilies;
+        ScriptFontFamilyMap m_sansSerifFontFamilies;
+        ScriptFontFamilyMap m_cursiveFontFamilies;
+        ScriptFontFamilyMap m_fantasyFontFamilies;
+        ScriptFontFamilyMap m_pictographFontFamilies;
+
 #if ENABLE(TEXT_AUTOSIZING)
         bool m_originalTextAutosizingEnabled;
         IntSize m_originalTextAutosizingWindowSizeOverride;
@@ -82,6 +86,8 @@ public:
         bool m_originalTimeWithoutMouseMovementBeforeHidingControls;
         bool m_useLegacyBackgroundSizeShorthandBehavior;
         bool m_autoscrollForDragAndDropEnabled;
+        bool m_pluginReplacementEnabled;
+        bool m_shouldConvertPositionStyleOnCopy;
     };
 
     static PassRefPtr<InternalSettings> create(Page* page)
@@ -97,9 +103,6 @@ public:
     void setMockScrollbarsEnabled(bool enabled, ExceptionCode&);
     void setUsesOverlayScrollbars(bool enabled, ExceptionCode&);
     void setTouchEventEmulationEnabled(bool enabled, ExceptionCode&);
-    void setShadowDOMEnabled(bool enabled, ExceptionCode&);
-    void setAuthorShadowDOMForAnyElementEnabled(bool);
-    void setStyleScopedEnabled(bool);
     void setStandardFontFamily(const String& family, const String& script, ExceptionCode&);
     void setSerifFontFamily(const String& family, const String& script, ExceptionCode&);
     void setSansSerifFontFamily(const String& family, const String& script, ExceptionCode&);
@@ -113,8 +116,6 @@ public:
     void setMediaTypeOverride(const String& mediaType, ExceptionCode&);
     void setCSSExclusionsEnabled(bool enabled, ExceptionCode&);
     void setCSSShapesEnabled(bool enabled, ExceptionCode&);
-    void setCSSVariablesEnabled(bool enabled, ExceptionCode&);
-    bool cssVariablesEnabled(ExceptionCode&);
     void setCanStartMedia(bool, ExceptionCode&);
     void setEditingBehavior(const String&, ExceptionCode&);
     void setShouldDisplayTrackKind(const String& kind, bool enabled, ExceptionCode&);
@@ -127,6 +128,11 @@ public:
     void setTimeWithoutMouseMovementBeforeHidingControls(double time, ExceptionCode&);
     void setUseLegacyBackgroundSizeShorthandBehavior(bool enabled, ExceptionCode&);
     void setAutoscrollForDragAndDropEnabled(bool enabled, ExceptionCode&);
+    void setFontFallbackPrefersPictographs(bool preferPictographs, ExceptionCode&);
+    void setPluginReplacementEnabled(bool);
+    void setBackgroundShouldExtendBeyondPage(bool hasExtendedBackground, ExceptionCode&);
+    void setShouldConvertPositionStyleOnCopy(bool convert, ExceptionCode&);
+
 
 private:
     explicit InternalSettings(Page*);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,22 +35,33 @@ namespace JSC {
 
 class JSFunction;
 class ScriptExecutable;
+class SlotVisitor;
 class VM;
+struct InlineCallFrame;
 
 namespace DFG {
 
 class DesiredWriteBarrier {
 public:
-    enum Type { ConstantType, InlineCallFrameExecutableType, InlineCallFrameCalleeType };
+    enum Type {
+        ConstantType,
+        InlineCallFrameExecutableType,
+    };
     DesiredWriteBarrier(Type, CodeBlock*, unsigned index, JSCell* owner);
+    DesiredWriteBarrier(Type, CodeBlock*, InlineCallFrame*, JSCell* owner);
 
     void trigger(VM&);
+    
+    void visitChildren(SlotVisitor&);
 
 private:
     JSCell* m_owner;
     Type m_type;
     CodeBlock* m_codeBlock;
-    unsigned m_index;
+    union {
+        unsigned index;
+        InlineCallFrame* inlineCallFrame;
+    } m_which;
 };
 
 class DesiredWriteBarriers {
@@ -63,23 +74,24 @@ public:
         m_barriers.append(DesiredWriteBarrier(type, codeBlock, index, owner));
         return m_barriers.last();
     }
+    DesiredWriteBarrier& add(DesiredWriteBarrier::Type type, CodeBlock* codeBlock, InlineCallFrame* inlineCallFrame, JSCell* owner)
+    {
+        m_barriers.append(DesiredWriteBarrier(type, codeBlock, inlineCallFrame, owner));
+        return m_barriers.last();
+    }
 
     void trigger(VM&);
+    
+    void visitChildren(SlotVisitor&);
 
 private:
     Vector<DesiredWriteBarrier> m_barriers;
 };
 
-inline void initializeLazyWriteBarrierForInlineCallFrameExecutable(DesiredWriteBarriers& barriers, WriteBarrier<ScriptExecutable>& barrier, CodeBlock* codeBlock, unsigned index, JSCell* owner, ScriptExecutable* value)
+inline void initializeLazyWriteBarrierForInlineCallFrameExecutable(DesiredWriteBarriers& barriers, WriteBarrier<ScriptExecutable>& barrier, CodeBlock* codeBlock, InlineCallFrame* inlineCallFrame, JSCell* owner, ScriptExecutable* value)
 {
-    DesiredWriteBarrier& desiredBarrier = barriers.add(DesiredWriteBarrier::InlineCallFrameExecutableType, codeBlock, index, owner);
+    DesiredWriteBarrier& desiredBarrier = barriers.add(DesiredWriteBarrier::InlineCallFrameExecutableType, codeBlock, inlineCallFrame, owner);
     barrier = WriteBarrier<ScriptExecutable>(desiredBarrier, value);
-}
-
-inline void initializeLazyWriteBarrierForInlineCallFrameCallee(DesiredWriteBarriers& barriers, WriteBarrier<JSFunction>& barrier, CodeBlock* codeBlock, unsigned index, JSCell* owner, JSFunction* value)
-{
-    DesiredWriteBarrier& desiredBarrier = barriers.add(DesiredWriteBarrier::InlineCallFrameCalleeType, codeBlock, index, owner);
-    barrier = WriteBarrier<JSFunction>(desiredBarrier, value);
 }
 
 inline void initializeLazyWriteBarrierForConstant(DesiredWriteBarriers& barriers, WriteBarrier<Unknown>& barrier, CodeBlock* codeBlock, unsigned index, JSCell* owner, JSValue value)

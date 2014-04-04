@@ -32,7 +32,6 @@
 #include <Ecore.h>
 #include <WebCore/IntPoint.h>
 #include <WebKit2/WKEventEfl.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/Vector.h>
 
 class EwkView;
@@ -43,18 +42,13 @@ class GestureHandler;
 
 class GestureRecognizer {
 public:
-    static PassOwnPtr<GestureRecognizer> create(EwkView* ewkView)
-    {
-        return adoptPtr(new GestureRecognizer(ewkView));
-    }
+    explicit GestureRecognizer(EwkView*);
     ~GestureRecognizer();
 
     void processTouchEvent(WKTouchEventRef);
     void reset();
 
 private:
-    explicit GestureRecognizer(EwkView*);
-
     static Eina_Bool doubleTapTimerCallback(void*);
     static Eina_Bool tapAndHoldTimerCallback(void*);
 
@@ -62,11 +56,11 @@ private:
     bool exceedsDoubleTapThreshold(const WebCore::IntPoint& first, const WebCore::IntPoint& last) const;
 
     // State functions.
-    void noGesture(WKEventType, WKArrayRef);
-    void singleTapGesture(WKEventType, WKArrayRef);
-    void doubleTapGesture(WKEventType, WKArrayRef);
-    void panGesture(WKEventType, WKArrayRef);
-    void pinchGesture(WKEventType, WKArrayRef);
+    void noGesture(WKTouchEventRef);
+    void singleTapGesture(WKTouchEventRef);
+    void doubleTapGesture(WKTouchEventRef);
+    void panGesture(WKTouchEventRef);
+    void pinchGesture(WKTouchEventRef);
 
     void stopTapTimers();
 
@@ -75,10 +69,10 @@ private:
     static const int s_squaredDoubleTapThreshold;
     static const int s_squaredPanThreshold;
 
-    typedef void (GestureRecognizer::*RecognizerFunction)(WKEventType, WKArrayRef);
+    typedef void (GestureRecognizer::*RecognizerFunction)(WKTouchEventRef);
     RecognizerFunction m_recognizerFunction;
 
-    OwnPtr<WebKit::GestureHandler> m_gestureHandler;
+    std::unique_ptr<WebKit::GestureHandler> m_gestureHandler;
     Ecore_Timer* m_tapAndHoldTimer;
     Ecore_Timer* m_doubleTapTimer;
     WebCore::IntPoint m_firstPressedPoint;

@@ -14,7 +14,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -37,6 +37,7 @@
 #include "IntRect.h"
 #include "PixelDumpSupportCairo.h"
 #include "RefPtrCairo.h"
+#include "RefPtrEfl.h"
 #include "WebCoreSupport/DumpRenderTreeSupportEfl.h"
 #include "ewk_view.h"
 
@@ -53,8 +54,13 @@ PassRefPtr<BitmapContext> createBitmapContextFromWebView(bool, bool, bool, bool 
     RefPtr<cairo_surface_t> surface = adoptRef(cairo_image_surface_create(CAIRO_FORMAT_ARGB32, rect.w, rect.h));
     RefPtr<cairo_t> context = adoptRef(cairo_create(surface.get()));
 
-    if (!ewk_view_paint(privateData, context.get(), &rect))
+    RefPtr<Evas_Object> screenshot = ewk_view_screenshot_contents_get(browser->mainView(), &rect, 1);
+    if (!screenshot)
         return 0;
+
+    uint8_t* pixels = static_cast<uint8_t*>(evas_object_image_data_get(screenshot.get(), false));
+    RefPtr<cairo_surface_t> sourceSurface = adoptRef(cairo_image_surface_create_for_data(pixels, CAIRO_FORMAT_ARGB32, rect.w, rect.h, rect.w * 4));
+    cairo_set_source_surface(context.get(), sourceSurface.get(), 0, 0);
 
     if (DumpRenderTreeSupportEfl::isTrackingRepaints(mainFrame)) {
         cairo_push_group(context.get());

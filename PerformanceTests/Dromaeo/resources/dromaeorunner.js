@@ -1,11 +1,9 @@
 (function(){
+     var ITERATION_COUNT = 5;
      var DRT  = {
          baseURL: "./resources/dromaeo/web/index.html",
 
          setup: function(testName) {
-             var ITERATION_COUNT = 5;
-             PerfTestRunner.prepareToMeasureValuesAsync({dromaeoIterationCount: ITERATION_COUNT, doNotMeasureMemoryUsage: true, doNotIgnoreInitialRun: true, unit: 'runs/s'});
-
              var iframe = document.createElement("iframe");
              var url = DRT.baseURL + "?" + testName + '&numTests=' + ITERATION_COUNT;
              iframe.setAttribute("src", url);
@@ -33,14 +31,19 @@
                  });
          },
 
+         testObject: function(name) {
+             return {customIterationCount: ITERATION_COUNT, doNotMeasureMemoryUsage: true, doNotIgnoreInitialRun: true, unit: 'runs/s',
+                name: name, continueTesting: !!name};
+         },
+
          start: function() {
              DRT.targetWindow.postMessage({ name: "dromaeo:start" } , "*");
          },
 
          progress: function(message) {
-             var score = message.status.score;
-             if (score)
-                 DRT.log(score.name + ': [' + score.times.join(', ') + ']');
+            var score = message.status.score;
+            if (score)
+                PerfTestRunner.reportValues(this.testObject(score.name), score.times);
          },
 
          teardown: function(data) {
@@ -55,8 +58,7 @@
                  }
              }
 
-             for (var i = 0; i < times.length; ++i)
-                 PerfTestRunner.measureValueAsync(1 / times[i]);
+             PerfTestRunner.reportValues(this.testObject(), times.map(function (time) { return 1 / time; }));
          },
 
          targetDelegateOf: function(functionName) {

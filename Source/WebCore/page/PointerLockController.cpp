@@ -37,14 +37,9 @@
 
 namespace WebCore {
 
-PointerLockController::PointerLockController(Page* page)
+PointerLockController::PointerLockController(Page& page)
     : m_page(page)
 {
-}
-
-PassOwnPtr<PointerLockController> PointerLockController::create(Page* page)
-{
-    return adoptPtr(new PointerLockController(page));
 }
 
 void PointerLockController::requestPointerLock(Element* target)
@@ -56,7 +51,7 @@ void PointerLockController::requestPointerLock(Element* target)
 
     if (target->document().isSandboxed(SandboxPointerLock)) {
         // FIXME: This message should be moved off the console once a solution to https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-        target->document().addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, "Blocked pointer lock on an element because the element's frame is sandboxed and the 'allow-pointer-lock' permission is not set.");
+        target->document().addConsoleMessage(MessageSource::Security, MessageLevel::Error, ASCIILiteral("Blocked pointer lock on an element because the element's frame is sandboxed and the 'allow-pointer-lock' permission is not set."));
         enqueueEvent(eventNames().webkitpointerlockerrorEvent, target);
         return;
     }
@@ -68,7 +63,7 @@ void PointerLockController::requestPointerLock(Element* target)
         }
         enqueueEvent(eventNames().webkitpointerlockchangeEvent, target);
         m_element = target;
-    } else if (m_page->chrome().client().requestPointerLock()) {
+    } else if (m_page.chrome().client().requestPointerLock()) {
         m_lockPending = true;
         m_element = target;
     } else {
@@ -78,7 +73,7 @@ void PointerLockController::requestPointerLock(Element* target)
 
 void PointerLockController::requestPointerUnlock()
 {
-    return m_page->chrome().client().requestPointerUnlock();
+    return m_page.chrome().client().requestPointerUnlock();
 }
 
 void PointerLockController::elementRemoved(Element* element)

@@ -26,7 +26,7 @@
 #include "JSFunction.h"
 #include "JSString.h"
 #include "ObjectPrototype.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -50,22 +50,22 @@ const ClassInfo BooleanPrototype::s_info = { "Boolean", &BooleanObject::s_info, 
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(BooleanPrototype);
 
-BooleanPrototype::BooleanPrototype(ExecState* exec, Structure* structure)
-    : BooleanObject(exec->vm(), structure)
+BooleanPrototype::BooleanPrototype(VM& vm, Structure* structure)
+    : BooleanObject(vm, structure)
 {
 }
 
-void BooleanPrototype::finishCreation(ExecState* exec, JSGlobalObject*)
+void BooleanPrototype::finishCreation(VM& vm, JSGlobalObject*)
 {
-    Base::finishCreation(exec->vm());
-    setInternalValue(exec->vm(), jsBoolean(false));
+    Base::finishCreation(vm);
+    setInternalValue(vm, jsBoolean(false));
 
     ASSERT(inherits(info()));
 }
 
 bool BooleanPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot &slot)
 {
-    return getStaticFunctionSlot<BooleanObject>(exec, ExecState::booleanPrototypeTable(exec), jsCast<BooleanPrototype*>(object), propertyName, slot);
+    return getStaticFunctionSlot<BooleanObject>(exec, ExecState::booleanPrototypeTable(exec->vm()), jsCast<BooleanPrototype*>(object), propertyName, slot);
 }
 
 // ------------------------------ Functions ---------------------------
@@ -73,7 +73,7 @@ bool BooleanPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, Pro
 EncodedJSValue JSC_HOST_CALL booleanProtoFuncToString(ExecState* exec)
 {
     VM* vm = &exec->vm();
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (thisValue == jsBoolean(false))
         return JSValue::encode(vm->smallStrings.falseString());
 
@@ -92,7 +92,7 @@ EncodedJSValue JSC_HOST_CALL booleanProtoFuncToString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL booleanProtoFuncValueOf(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (thisValue.isBoolean())
         return JSValue::encode(thisValue);
 

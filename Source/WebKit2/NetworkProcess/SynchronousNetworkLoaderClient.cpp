@@ -52,14 +52,14 @@ SynchronousNetworkLoaderClient::~SynchronousNetworkLoaderClient()
     ASSERT(!m_delayedReply);
 }
 
-void SynchronousNetworkLoaderClient::willSendRequest(NetworkResourceLoader* loader, ResourceRequest& proposedRequest, const ResourceResponse& redirectResponse)
+void SynchronousNetworkLoaderClient::willSendRequest(NetworkResourceLoader* loader, ResourceRequest& proposedRequest, const ResourceResponse& /* redirectResponse */)
 {
     // FIXME: This needs to be fixed to follow the redirect correctly even for cross-domain requests.
     // This includes at least updating host records, and comparing the current request instead of the original request here.
     if (!protocolHostAndPortAreEqual(m_originalRequest.url(), proposedRequest.url())) {
         ASSERT(m_error.isNull());
         m_error = SynchronousLoaderClient::platformBadResponseError();
-        proposedRequest = 0;
+        proposedRequest = ResourceRequest();
     }
     
     m_currentRequest = proposedRequest;
@@ -81,14 +81,14 @@ void SynchronousNetworkLoaderClient::didReceiveResponse(NetworkResourceLoader*, 
     m_response = response;
 }
 
-void SynchronousNetworkLoaderClient::didReceiveBuffer(NetworkResourceLoader*, SharedBuffer* buffer, int encodedDataLength)
+void SynchronousNetworkLoaderClient::didReceiveBuffer(NetworkResourceLoader*, SharedBuffer* buffer, int /* encodedDataLength */)
 {
     // FIXME: There's a potential performance improvement here by preallocating a SharedMemory region
     // of the expected content length to avoid a copy when we send it to the WebProcess on completion.
     // It's unclear if the potential complexities of that approach are worth it.
     
     if (!m_responseData)
-        m_responseData = adoptPtr(new Vector<uint8_t>);
+        m_responseData = adoptPtr(new Vector<char>);
 
     m_responseData->append(buffer->data(), buffer->size());
 }
@@ -108,15 +108,12 @@ void SynchronousNetworkLoaderClient::sendDelayedReply()
 {
     ASSERT(m_delayedReply);
 
-    uint8_t* bytes = m_responseData ? m_responseData->data() : 0;
-    size_t size = m_responseData ? m_responseData->size() : 0;
-
     if (m_response.isNull()) {
         ASSERT(!m_error.isNull());
         //platformSynthesizeErrorResponse();
     }
 
-    m_delayedReply->send(m_error, m_response, CoreIPC::DataReference(bytes, size));
+    m_delayedReply->send(m_error, m_response, m_responseData ? *m_responseData : Vector<char>());
     m_delayedReply = nullptr;
 }
 

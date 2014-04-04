@@ -33,6 +33,10 @@
 #include <WebCore/InspectorController.h>
 #include <WebCore/Page.h>
 
+#if ENABLE(REMOTE_INSPECTOR)
+#include "WebProcess.h"
+#endif
+
 using namespace WebCore;
 
 namespace WebKit {
@@ -43,9 +47,9 @@ void WebInspectorClient::inspectorDestroyed()
     delete this;
 }
 
-WebCore::InspectorFrontendChannel* WebInspectorClient::openInspectorFrontend(InspectorController*)
+WebCore::InspectorFrontendChannel* WebInspectorClient::openInspectorFrontend(InspectorController* controller)
 {
-    WebPage* inspectorPage = m_page->inspector()->createInspectorPage();
+    WebPage* inspectorPage = controller->isUnderTest() ? m_page->inspector()->createInspectorPageForTest() : m_page->inspector()->createInspectorPage();
     ASSERT_UNUSED(inspectorPage, inspectorPage);
     return this;
 }
@@ -67,6 +71,13 @@ void WebInspectorClient::didResizeMainFrame(Frame*)
         m_page->inspector()->updateDockingAvailability();
 }
 
+#if ENABLE(REMOTE_INSPECTOR)
+pid_t WebInspectorClient::parentProcessIdentifier() const
+{
+    return WebProcess::shared().presenterApplicationPid();
+}
+#endif
+
 void WebInspectorClient::highlight()
 {
     if (!m_highlightOverlay) {
@@ -85,6 +96,18 @@ void WebInspectorClient::hideHighlight()
     if (m_highlightOverlay)
         m_page->uninstallPageOverlay(m_highlightOverlay, true);
 }
+
+#if PLATFORM(IOS)
+void WebInspectorClient::showInspectorIndication()
+{
+    m_page->showInspectorIndication();
+}
+
+void WebInspectorClient::hideInspectorIndication()
+{
+    m_page->hideInspectorIndication();
+}
+#endif
 
 bool WebInspectorClient::sendMessageToFrontend(const String& message)
 {
@@ -134,7 +157,7 @@ void WebInspectorClient::didMoveToWebPage(PageOverlay*, WebPage*)
 
 void WebInspectorClient::drawRect(PageOverlay*, WebCore::GraphicsContext& context, const WebCore::IntRect& /*dirtyRect*/)
 {
-    m_page->corePage()->inspectorController()->drawHighlight(context);
+    m_page->corePage()->inspectorController().drawHighlight(context);
 }
 
 bool WebInspectorClient::mouseEvent(PageOverlay*, const WebMouseEvent&)

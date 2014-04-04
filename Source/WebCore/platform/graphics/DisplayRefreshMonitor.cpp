@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,7 +28,6 @@
 #if USE(REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR)
 
 #include "DisplayRefreshMonitor.h"
-
 #include <wtf/CurrentTime.h>
 #include <wtf/Ref.h>
 
@@ -60,11 +59,9 @@ DisplayRefreshMonitor::DisplayRefreshMonitor(PlatformDisplayID displayID)
     , m_previousFrameDone(true)
     , m_unscheduledFireCount(0)
     , m_displayID(displayID)
-#if PLATFORM(MAC)
+    , m_clientsToBeNotified(nullptr)
+#if PLATFORM(COCOA)
     , m_displayLink(0)
-#endif
-#if PLATFORM(BLACKBERRY)
-    , m_animationClient(0)
 #endif
 {
 }
@@ -82,6 +79,8 @@ void DisplayRefreshMonitor::addClient(DisplayRefreshMonitorClient* client)
 
 bool DisplayRefreshMonitor::removeClient(DisplayRefreshMonitorClient* client)
 {
+    if (m_clientsToBeNotified)
+        m_clientsToBeNotified->remove(client);
     return m_clients.remove(client);
 }
 
@@ -90,7 +89,7 @@ void DisplayRefreshMonitor::displayDidRefresh()
     double monotonicAnimationStartTime;
     {
         MutexLocker lock(m_mutex);
-         if (!m_scheduled)
+        if (!m_scheduled)
             ++m_unscheduledFireCount;
         else
             m_unscheduledFireCount = 0;
@@ -102,11 +101,27 @@ void DisplayRefreshMonitor::displayDidRefresh()
     // The call back can cause all our clients to be unregistered, so we need to protect
     // against deletion until the end of the method.
     Ref<DisplayRefreshMonitor> protect(*this);
-    
-    Vector<DisplayRefreshMonitorClient*> clients;
-    copyToVector(m_clients, clients);
-    for (size_t i = 0; i < clients.size(); ++i)
-        clients[i]->fireDisplayRefreshIfNeeded(monotonicAnimationStartTime);
+
+    // Copy the hash table and remove clients from it one by one so we don't notify
+    // any client twice, but can respond to removal of clients during the delivery process.
+    HashSet<DisplayRefreshMonitorClient*> clientsToBeNotified = m_clients;
+    m_clientsToBeNotified = &clientsToBeNotified;
+    while (!clientsToBeNotified.isEmpty()) {
+        // Take a random client out of the set. Ordering doesn't matter.
+        // FIXME: Would read more cleanly if HashSet had a take function.
+        auto it = clientsToBeNotified.begin();
+        DisplayRefreshMonitorClient* client = *it;
+        clientsToBeNotified.remove(it);
+
+        client->fireDisplayRefreshIfNeeded(monotonicAnimationStartTime);
+
+        // This checks if this function was reentered. In that case, stop iterating
+        // since it's not safe to use the set any more.
+        if (m_clientsToBeNotified != &clientsToBeNotified)
+            break;
+    }
+    if (m_clientsToBeNotified == &clientsToBeNotified)
+        m_clientsToBeNotified = nullptr;
 
     {
         MutexLocker lock(m_mutex);
@@ -118,7 +133,7 @@ void DisplayRefreshMonitor::displayDidRefresh()
 
 DisplayRefreshMonitorManager* DisplayRefreshMonitorManager::sharedManager()
 {
-    DEFINE_STATIC_LOCAL(DisplayRefreshMonitorManager, manager, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(DisplayRefreshMonitorManager, manager, ());
     return &manager;
 }
 

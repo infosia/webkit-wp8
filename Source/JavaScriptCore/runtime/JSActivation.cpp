@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,7 +32,7 @@
 #include "Arguments.h"
 #include "Interpreter.h"
 #include "JSFunction.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 using namespace std;
 
@@ -58,7 +58,7 @@ void JSActivation::visitChildren(JSCell* cell, SlotVisitor& visitor)
 
 inline bool JSActivation::symbolTableGet(PropertyName propertyName, PropertySlot& slot)
 {
-    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.publicName());
+    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.uid());
     if (entry.isNull())
         return false;
 
@@ -72,7 +72,7 @@ inline bool JSActivation::symbolTableGet(PropertyName propertyName, PropertySlot
 
 inline bool JSActivation::symbolTableGet(PropertyName propertyName, PropertyDescriptor& descriptor)
 {
-    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.publicName());
+    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.uid());
     if (entry.isNull())
         return false;
 
@@ -89,7 +89,7 @@ inline bool JSActivation::symbolTablePut(ExecState* exec, PropertyName propertyN
     VM& vm = exec->vm();
     ASSERT(!Heap::heap(value) || Heap::heap(value) == Heap::heap(this));
     
-    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.publicName());
+    SymbolTableEntry entry = symbolTable()->inlineGet(propertyName.uid());
     if (entry.isNull())
         return false;
     if (entry.isReadOnly()) {
@@ -136,7 +136,7 @@ inline bool JSActivation::symbolTablePutWithAttributes(VM& vm, PropertyName prop
     WriteBarrierBase<Unknown>* reg;
     {
         ConcurrentJITLocker locker(symbolTable()->m_lock);
-        SymbolTable::Map::iterator iter = symbolTable()->find(locker, propertyName.publicName());
+        SymbolTable::Map::iterator iter = symbolTable()->find(locker, propertyName.uid());
         if (iter == symbolTable()->end(locker))
             return false;
         SymbolTableEntry& entry = iter->value;
@@ -210,25 +210,25 @@ JSValue JSActivation::toThis(JSCell*, ExecState* exec, ECMAMode ecmaMode)
     return exec->globalThisValue();
 }
 
-JSValue JSActivation::argumentsGetter(ExecState*, JSValue slotBase, PropertyName)
+EncodedJSValue JSActivation::argumentsGetter(ExecState*, JSObject* slotBase, EncodedJSValue, PropertyName)
 {
     JSActivation* activation = jsCast<JSActivation*>(slotBase);
     CallFrame* callFrame = CallFrame::create(reinterpret_cast<Register*>(activation->m_registers));
     ASSERT(!activation->isTornOff() && (callFrame->codeBlock()->usesArguments() || callFrame->codeBlock()->usesEval()));
     if (activation->isTornOff() || !(callFrame->codeBlock()->usesArguments() || callFrame->codeBlock()->usesEval()))
-        return jsUndefined();
+        return JSValue::encode(jsUndefined());
 
-    int argumentsRegister = callFrame->codeBlock()->argumentsRegister();
-    if (JSValue arguments = callFrame->uncheckedR(argumentsRegister).jsValue())
-        return arguments;
-    int realArgumentsRegister = unmodifiedArgumentsRegister(argumentsRegister);
+    VirtualRegister argumentsRegister = callFrame->codeBlock()->argumentsRegister();
+    if (JSValue arguments = callFrame->uncheckedR(argumentsRegister.offset()).jsValue())
+        return JSValue::encode(arguments);
+    int realArgumentsRegister = unmodifiedArgumentsRegister(argumentsRegister).offset();
 
     JSValue arguments = JSValue(Arguments::create(callFrame->vm(), callFrame));
-    callFrame->uncheckedR(argumentsRegister) = arguments;
+    callFrame->uncheckedR(argumentsRegister.offset()) = arguments;
     callFrame->uncheckedR(realArgumentsRegister) = arguments;
     
     ASSERT(callFrame->uncheckedR(realArgumentsRegister).jsValue().inherits(Arguments::info()));
-    return callFrame->uncheckedR(realArgumentsRegister).jsValue();
+    return JSValue::encode(callFrame->uncheckedR(realArgumentsRegister).jsValue());
 }
 
 } // namespace JSC

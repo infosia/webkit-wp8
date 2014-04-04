@@ -33,8 +33,8 @@
 
 #if ENABLE(MEDIA_SOURCE)
 
-#include "KURL.h"
-#include "MediaSourceBase.h"
+#include "MediaSource.h"
+#include "URL.h"
 #include <wtf/MainThread.h>
 
 namespace WebCore {
@@ -42,33 +42,33 @@ namespace WebCore {
 MediaSourceRegistry& MediaSourceRegistry::registry()
 {
     ASSERT(isMainThread());
-    DEFINE_STATIC_LOCAL(MediaSourceRegistry, instance, ());
+    static NeverDestroyed<MediaSourceRegistry> instance;
     return instance;
 }
 
-void MediaSourceRegistry::registerURL(SecurityOrigin*, const KURL& url, URLRegistrable* registrable)
+void MediaSourceRegistry::registerURL(SecurityOrigin*, const URL& url, URLRegistrable* registrable)
 {
     ASSERT(&registrable->registry() == this);
     ASSERT(isMainThread());
 
-    MediaSourceBase* source = static_cast<MediaSourceBase*>(registrable);
+    MediaSource* source = static_cast<MediaSource*>(registrable);
     source->addedToRegistry();
     m_mediaSources.set(url.string(), source);
 }
 
-void MediaSourceRegistry::unregisterURL(const KURL& url)
+void MediaSourceRegistry::unregisterURL(const URL& url)
 {
     ASSERT(isMainThread());
-    HashMap<String, RefPtr<MediaSourceBase> >::iterator iter = m_mediaSources.find(url.string());
+    HashMap<String, RefPtr<MediaSource>>::iterator iter = m_mediaSources.find(url.string());
     if (iter == m_mediaSources.end())
         return;
 
-    RefPtr<MediaSourceBase> source = iter->value;
+    RefPtr<MediaSource> source = iter->value;
     m_mediaSources.remove(iter);
     source->removedFromRegistry();
 }
 
-URLRegistrable* MediaSourceRegistry::lookup(const String& url)
+URLRegistrable* MediaSourceRegistry::lookup(const String& url) const
 {
     ASSERT(isMainThread());
     return m_mediaSources.get(url);
@@ -76,7 +76,7 @@ URLRegistrable* MediaSourceRegistry::lookup(const String& url)
 
 MediaSourceRegistry::MediaSourceRegistry()
 {
-    HTMLMediaSource::setRegistry(this);
+    MediaSource::setRegistry(this);
 }
 
 } // namespace WebCore

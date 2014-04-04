@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,20 +26,17 @@
  */
 
 #include "config.h"
-
-#if ENABLE(WORKERS)
-
 #include "WorkerScriptController.h"
 
 #include "JSDOMBinding.h"
 #include "JSDedicatedWorkerGlobalScope.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "WebCoreJSClientData.h"
 #include "WorkerGlobalScope.h"
 #include "WorkerObjectProxy.h"
 #include "WorkerScriptDebugServer.h"
 #include "WorkerThread.h"
+#include <bindings/ScriptValue.h>
 #include <heap/StrongInlines.h>
 #include <interpreter/Interpreter.h>
 #include <runtime/Completion.h>
@@ -116,7 +113,7 @@ void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode)
     if (isExecutionForbidden())
         return;
 
-    ScriptValue exception;
+    Deprecated::ScriptValue exception;
     evaluate(sourceCode, &exception);
     if (exception.jsValue()) {
         JSLockHolder lock(vm());
@@ -124,7 +121,7 @@ void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode)
     }
 }
 
-void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode, ScriptValue* exception)
+void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode, Deprecated::ScriptValue* exception)
 {
     if (isExecutionForbidden())
         return;
@@ -135,7 +132,7 @@ void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode, Script
     JSLockHolder lock(exec);
 
     JSValue evaluationException;
-    JSC::evaluate(exec, sourceCode.jsSourceCode(), m_workerGlobalScopeWrapper.get(), &evaluationException);
+    JSC::evaluate(exec, sourceCode.jsSourceCode(), m_workerGlobalScopeWrapper->globalThis(), &evaluationException);
 
     if ((evaluationException && isTerminatedExecutionException(evaluationException)) ||  m_workerGlobalScopeWrapper->vm().watchdog.didFire()) {
         forbidExecution();
@@ -148,13 +145,13 @@ void WorkerScriptController::evaluate(const ScriptSourceCode& sourceCode, Script
         int columnNumber = 0;
         String sourceURL = sourceCode.url().string();
         if (m_workerGlobalScope->sanitizeScriptError(errorMessage, lineNumber, columnNumber, sourceURL, sourceCode.cachedScript()))
-            *exception = ScriptValue(*m_vm, exec->vm().throwException(exec, createError(exec, errorMessage.impl())));
+            *exception = Deprecated::ScriptValue(*m_vm, exec->vm().throwException(exec, createError(exec, errorMessage.impl())));
         else
-            *exception = ScriptValue(*m_vm, evaluationException);
+            *exception = Deprecated::ScriptValue(*m_vm, evaluationException);
     }
 }
 
-void WorkerScriptController::setException(const ScriptValue& exception)
+void WorkerScriptController::setException(const Deprecated::ScriptValue& exception)
 {
     m_workerGlobalScopeWrapper->globalExec()->vm().throwException(m_workerGlobalScopeWrapper->globalExec(), exception.jsValue());
 }
@@ -203,9 +200,7 @@ void WorkerScriptController::attachDebugger(JSC::Debugger* debugger)
 
 void WorkerScriptController::detachDebugger(JSC::Debugger* debugger)
 {
-    debugger->detach(m_workerGlobalScopeWrapper->globalObject());
+    debugger->detach(m_workerGlobalScopeWrapper->globalObject(), JSC::Debugger::TerminatingDebuggingSession);
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)

@@ -19,7 +19,6 @@
  */
 
 #include "config.h"
-#if ENABLE(SVG)
 #include "SVGTitleElement.h"
 
 #include "Document.h"
@@ -38,21 +37,22 @@ PassRefPtr<SVGTitleElement> SVGTitleElement::create(const QualifiedName& tagName
     return adoptRef(new SVGTitleElement(tagName, document));
 }
 
-Node::InsertionNotificationRequest SVGTitleElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGTitleElement::insertedInto(ContainerNode& rootParent)
 {
     SVGElement::insertedInto(rootParent);
-    if (!rootParent->inDocument())
+    if (!rootParent.inDocument())
         return InsertionDone;
+    // FIXME: It's possible to register SVGTitleElement to an HTMLDocument.
     if (firstChild())
         // FIXME: does SVG have a title text direction?
         document().setTitleElement(StringWithDirection(textContent(), LTR), this);
     return InsertionDone;
 }
 
-void SVGTitleElement::removedFrom(ContainerNode* rootParent)
+void SVGTitleElement::removedFrom(ContainerNode& rootParent)
 {
     SVGElement::removedFrom(rootParent);
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         document().removeTitle(this);
 }
 
@@ -65,5 +65,3 @@ void SVGTitleElement::childrenChanged(const ChildChange& change)
 }
 
 }
-
-#endif // ENABLE(SVG)

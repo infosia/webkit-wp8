@@ -30,17 +30,20 @@
 #ifndef BasicShapeFunctions_h
 #define BasicShapeFunctions_h
 
+#include "BasicShapes.h"
 #include <wtf/PassRefPtr.h>
 
 namespace WebCore {
 
-class BasicShape;
 class CSSBasicShape;
+class CSSPrimitiveValue;
 class CSSValue;
 class RenderStyle;
 
-PassRefPtr<CSSValue> valueForBasicShape(const BasicShape*);
+PassRefPtr<CSSValue> valueForBasicShape(const RenderStyle*, const BasicShape*);
 PassRefPtr<BasicShape> basicShapeForValue(const RenderStyle*, const RenderStyle* rootStyle, const CSSBasicShape*);
 
+float floatValueForCenterCoordinate(const BasicShapeCenterCoordinate&, float);
 }
+
 #endif

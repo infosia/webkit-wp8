@@ -29,11 +29,9 @@
 
 #include "HTMLElement.h"
 #include "HTMLNames.h"
-#include "RenderObject.h"
+#include "RenderElement.h"
 #include "RenderStyle.h"
 #include "Text.h"
-#include "TextIterator.h"
-#include "VisiblePosition.h"
 #include "VisibleUnits.h"
 #include "htmlediting.h"
 
@@ -108,7 +106,7 @@ void ApplyBlockElementCommand::formatSelection(const VisiblePosition& startOfSel
     if (isAtUnsplittableElement(start)) {
         RefPtr<Element> blockquote = createBlockElement();
         insertNodeAt(blockquote, start);
-        RefPtr<Element> placeholder = createBreakElement(&document());
+        RefPtr<Element> placeholder = createBreakElement(document());
         appendNode(placeholder, blockquote);
         setEndingSelection(VisibleSelection(positionBeforeNode(placeholder.get()), DOWNSTREAM, endingSelection().isDirectional()));
         return;
@@ -127,6 +125,14 @@ void ApplyBlockElementCommand::formatSelection(const VisiblePosition& startOfSel
 
         rangeForParagraphSplittingTextNodesIfNeeded(endOfCurrentParagraph, start, end);
         endOfCurrentParagraph = end;
+
+        // FIXME: endOfParagraph can errornously return a position at the beginning of a block element
+        // when the position passed into endOfParagraph is at the beginning of a block.
+        // Work around this bug here because too much of the existing code depends on the current behavior of endOfParagraph.
+        if (start == end && startOfBlock(start) != endOfBlock(start) && !isEndOfBlock(end) && start == startOfParagraph(endOfBlock(start))) {
+            endOfCurrentParagraph = endOfBlock(end);
+            end = endOfCurrentParagraph.deepEquivalent();
+        }
 
         Position afterEnd = end.next();
         Node* enclosingCell = enclosingNodeOfType(start, &isTableCell);
@@ -182,7 +188,7 @@ RenderStyle* ApplyBlockElementCommand::renderStyleOfEnclosingTextNode(const Posi
     if (!renderer)
         return 0;
 
-    return renderer->style();
+    return &renderer->style();
 }
 
 void ApplyBlockElementCommand::rangeForParagraphSplittingTextNodesIfNeeded(const VisiblePosition& endOfCurrentParagraph, Position& start, Position& end)
@@ -282,9 +288,9 @@ VisiblePosition ApplyBlockElementCommand::endOfNextParagrahSplittingTextNodesIfN
     return Position(text.get(), position.offsetInContainerNode() - 1);
 }
 
-PassRefPtr<Element> ApplyBlockElementCommand::createBlockElement() const
+PassRefPtr<Element> ApplyBlockElementCommand::createBlockElement()
 {
-    RefPtr<Element> element = createHTMLElement(&document(), m_tagName);
+    RefPtr<Element> element = createHTMLElement(document(), m_tagName);
     if (m_inlineStyle.length())
         element->setAttribute(styleAttr, m_inlineStyle);
     return element.release();

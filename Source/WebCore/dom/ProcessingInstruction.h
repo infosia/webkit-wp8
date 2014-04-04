@@ -32,7 +32,7 @@ namespace WebCore {
 class StyleSheet;
 class CSSStyleSheet;
 
-class ProcessingInstruction FINAL : public CharacterData, private CachedStyleSheetClient {
+class ProcessingInstruction final : public CharacterData, private CachedStyleSheetClient {
 public:
     static PassRefPtr<ProcessingInstruction> create(Document&, const String& target, const String& data);
     virtual ~ProcessingInstruction();
@@ -41,7 +41,7 @@ public:
 
     void setCreatedByParser(bool createdByParser) { m_createdByParser = createdByParser; }
 
-    virtual void finishParsingChildren();
+    virtual void finishParsingChildren() override;
 
     const String& localHref() const { return m_localHref; }
     StyleSheet* sheet() const { return m_sheet.get(); }
@@ -56,23 +56,23 @@ private:
     friend class CharacterData;
     ProcessingInstruction(Document&, const String& target, const String& data);
 
-    virtual String nodeName() const;
-    virtual NodeType nodeType() const;
-    virtual PassRefPtr<Node> cloneNode(bool deep);
+    virtual String nodeName() const override;
+    virtual NodeType nodeType() const override;
+    virtual PassRefPtr<Node> cloneNode(bool deep) override;
 
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
     void checkStyleSheet();
-    virtual void setCSSStyleSheet(const String& href, const KURL& baseURL, const String& charset, const CachedCSSStyleSheet*);
+    virtual void setCSSStyleSheet(const String& href, const URL& baseURL, const String& charset, const CachedCSSStyleSheet*) override;
 #if ENABLE(XSLT)
-    virtual void setXSLStyleSheet(const String& href, const KURL& baseURL, const String& sheet);
+    virtual void setXSLStyleSheet(const String& href, const URL& baseURL, const String& sheet) override;
 #endif
 
     bool isLoading() const;
-    virtual bool sheetLoaded();
+    virtual bool sheetLoaded() override;
 
-    virtual void addSubresourceAttributeURLs(ListHashSet<KURL>&) const;
+    virtual void addSubresourceAttributeURLs(ListHashSet<URL>&) const override;
 
     void parseStyleSheet(const String& sheet);
 
@@ -91,11 +91,12 @@ private:
 #endif
 };
 
-inline ProcessingInstruction* toProcessingInstruction(Node* node)
+inline bool isProcessingInstruction(const Node& node)
 {
-    ASSERT_WITH_SECURITY_IMPLICATION(!node || node->nodeType() == Node::PROCESSING_INSTRUCTION_NODE);
-    return static_cast<ProcessingInstruction*>(node);
+    return node.nodeType() == Node::PROCESSING_INSTRUCTION_NODE;
 }
+
+NODE_TYPE_CASTS(ProcessingInstruction)
 
 } //namespace
 

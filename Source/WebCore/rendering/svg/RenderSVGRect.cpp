@@ -26,17 +26,14 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGRect.h"
 
 #include "SVGNames.h"
-#include "SVGRectElement.h"
 
 namespace WebCore {
 
-RenderSVGRect::RenderSVGRect(SVGRectElement& element)
-    : RenderSVGShape(element)
+RenderSVGRect::RenderSVGRect(SVGRectElement& element, PassRef<RenderStyle> style)
+    : RenderSVGShape(element, std::move(style))
     , m_usePathFallback(false)
 {
 }
@@ -58,15 +55,15 @@ void RenderSVGRect::updateShapeFromElement()
     m_innerStrokeRect = FloatRect();
     m_outerStrokeRect = FloatRect();
 
+    SVGLengthContext lengthContext(&rectElement());
     // Fallback to RenderSVGShape if rect has rounded corners or a non-scaling stroke.
-    if (rectElement().hasAttribute(SVGNames::rxAttr) || rectElement().hasAttribute(SVGNames::ryAttr) || hasNonScalingStroke()) {
+    if (rectElement().rx().value(lengthContext) > 0 || rectElement().ry().value(lengthContext) > 0 || hasNonScalingStroke()) {
         RenderSVGShape::updateShapeFromElement();
         m_usePathFallback = true;
         return;
-    } else
-        m_usePathFallback = false;
+    }
 
-    SVGLengthContext lengthContext(&rectElement());
+    m_usePathFallback = false;
     FloatSize boundingBoxSize(rectElement().width().value(lengthContext), rectElement().height().value(lengthContext));
     if (boundingBoxSize.isEmpty())
         return;
@@ -78,7 +75,7 @@ void RenderSVGRect::updateShapeFromElement()
     m_innerStrokeRect = m_fillBoundingBox;
     m_outerStrokeRect = m_fillBoundingBox;
 
-    if (style()->svgStyle()->hasStroke()) {
+    if (style().svgStyle().hasStroke()) {
         float strokeWidth = this->strokeWidth();
         m_innerStrokeRect.inflate(-strokeWidth / 2);
         m_outerStrokeRect.inflate(strokeWidth / 2);
@@ -88,7 +85,7 @@ void RenderSVGRect::updateShapeFromElement()
 
 #if USE(CG)
     // CoreGraphics can inflate the stroke by 1px when drawing a rectangle with antialiasing disabled at non-integer coordinates, we need to compensate.
-    if (style()->svgStyle()->shapeRendering() == SR_CRISPEDGES)
+    if (style().svgStyle().shapeRendering() == SR_CRISPEDGES)
         m_strokeBoundingBox.inflate(1);
 #endif
 }
@@ -118,7 +115,7 @@ void RenderSVGRect::fillShape(GraphicsContext* context) const
 
 void RenderSVGRect::strokeShape(GraphicsContext* context) const
 {
-    if (!style()->svgStyle()->hasVisibleStroke())
+    if (!style().svgStyle().hasVisibleStroke())
         return;
 
     if (m_usePathFallback) {
@@ -150,5 +147,3 @@ bool RenderSVGRect::shapeDependentFillContains(const FloatPoint& point, const Wi
 }
 
 }
-
-#endif // ENABLE(SVG)

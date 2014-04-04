@@ -29,9 +29,9 @@
 #import "ChildProcess.h"
 #import "CommandLine.h"
 #import "WebKit2Initialize.h"
-#import <WebCore/RunLoop.h>
 #import <WebKitSystemInterface.h>
 #import <sysexits.h>
+#import <wtf/RunLoop.h>
 
 namespace WebKit {
 
@@ -47,11 +47,12 @@ public:
     virtual void installSignalHandlers();
     virtual void doPreInitializationWork();
 
-    virtual bool getConnectionIdentifier(CoreIPC::Connection::Identifier& identifier);
+    virtual bool getConnectionIdentifier(IPC::Connection::Identifier& identifier);
     virtual bool getClientIdentifier(String& clientIdentifier);
     virtual bool getClientProcessName(String& clientProcessName);
     virtual bool getExtraInitializationData(HashMap<String, String>& extraInitializationData);
 
+    virtual void startRunLoop();
     virtual void doPostRunWork();
 
 protected:
@@ -89,7 +90,7 @@ int ChildProcessMain(int argc, char** argv)
         ChildProcessType::shared().initialize(parameters);
     }
 
-    WebCore::RunLoop::run();
+    delegate.startRunLoop();
 
     @autoreleasepool {
         delegate.doPostRunWork();

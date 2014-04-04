@@ -35,11 +35,8 @@
 #import <WebCore/TextGranularity.h>
 #import <WebKit/WebFrame.h>
 #import <WebKit/WebHTMLView.h>
-#import <WebKit/WebTypesInternal.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/Vector.h>
-
-#if PLATFORM(IOS)
 
 #import <UIKit/UIKit.h>
 
@@ -265,6 +262,11 @@ AccessibilityUIElement AccessibilityUIElement::ariaFlowToElementAtIndex(unsigned
     return 0;
 }
 
+AccessibilityUIElement AccessibilityUIElement::ariaControlsElementAtIndex(unsigned index)
+{
+    return 0;
+}
+
 AccessibilityUIElement AccessibilityUIElement::disclosedRowAtIndex(unsigned index)
 {
     return 0;
@@ -471,6 +473,12 @@ JSStringRef AccessibilityUIElement::roleDescription()
     return JSStringCreateWithCharacters(0, 0);
 }
 
+JSStringRef AccessibilityUIElement::computedRoleString()
+{
+    // FIXME: implement
+    return JSStringCreateWithCharacters(0, 0);
+}
+
 JSStringRef AccessibilityUIElement::title()
 {
     return JSStringCreateWithCharacters(0, 0);
@@ -555,6 +563,12 @@ bool AccessibilityUIElement::isExpanded() const
 
 bool AccessibilityUIElement::isChecked() const
 {
+    return false;
+}
+
+bool AccessibilityUIElement::isIndeterminate() const
+{
+    // FIXME: implement
     return false;
 }
 
@@ -645,6 +659,11 @@ JSStringRef AccessibilityUIElement::columnIndexRange()
 AccessibilityUIElement AccessibilityUIElement::cellForColumnAndRow(unsigned col, unsigned row)
 {
     return AccessibilityUIElement([m_element accessibilityElementForRow:row andColumn:col]);
+}
+
+void AccessibilityUIElement::scrollToMakeVisible()
+{
+    // FIXME: implement
 }
 
 JSStringRef AccessibilityUIElement::selectedTextRange()
@@ -797,10 +816,22 @@ void AccessibilityUIElement::removeSelection()
     // FIXME: implement
 }
 
-AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly)
+unsigned AccessibilityUIElement::uiElementCountForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
 {
     // FIXME: implement
     return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
+{
+    // FIXME: implement
+    return 0;
+}
+
+JSStringRef AccessibilityUIElement::selectTextWithCriteria(JSContextRef context, JSStringRef ambiguityResolution, JSValueRef searchStrings, JSStringRef replacementString)
+{
+    // FIXME: Implement.
+    return nullptr;
 }
 
 double AccessibilityUIElement::numberAttributeValue(JSStringRef attribute)
@@ -808,4 +839,34 @@ double AccessibilityUIElement::numberAttributeValue(JSStringRef attribute)
     // FIXME: implement
     return 0;
 }
-#endif // PLATFORM(IOS)
+
+JSStringRef AccessibilityUIElement::classList() const
+{
+    // FIXME: implement
+    return nullptr;
+}
+
+void AccessibilityUIElement::uiElementArrayAttributeValue(JSStringRef, Vector<AccessibilityUIElement>&) const
+{
+    // FIXME: implement
+}
+
+void AccessibilityUIElement::columnHeaders(Vector<AccessibilityUIElement>&) const
+{
+    // FIXME: implement
+}
+
+void AccessibilityUIElement::rowHeaders(Vector<AccessibilityUIElement>&) const
+{
+    // FIXME: implement
+}
+
+unsigned AccessibilityUIElement::selectedChildrenCount() const
+{
+    return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::selectedChildAtIndex(unsigned) const
+{
+    return 0;
+}

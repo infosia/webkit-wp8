@@ -50,7 +50,7 @@ void WKViewSetSize(WKViewRef viewRef, WKSize size)
     toImpl(viewRef)->setSize(toIntSize(size));
 }
 
-void WKViewSetViewClient(WKViewRef viewRef, const WKViewClient* client)
+void WKViewSetViewClient(WKViewRef viewRef, const WKViewClientBase* client)
 {
     toImpl(viewRef)->initializeClient(client);
 }
@@ -169,20 +169,10 @@ void WKViewResumeActiveDOMObjectsAndAnimations(WKViewRef viewRef)
     toImpl(viewRef)->resumeActiveDOMObjectsAndAnimations();
 }
 
-void WKViewSetShowsAsSource(WKViewRef viewRef, bool flag)
-{
-    toImpl(viewRef)->setShowsAsSource(flag);
-}
-
-bool WKViewGetShowsAsSource(WKViewRef viewRef)
-{
-    return toImpl(viewRef)->showsAsSource();
-}
-
 bool WKViewExitFullScreen(WKViewRef viewRef)
 {
 #if ENABLE(FULLSCREEN_API)
-    return toImpl(viewRef)->exitFullScreen();
+    return toImpl(viewRef)->requestExitFullScreen();
 #else
     UNUSED_PARAM(viewRef);
     return false;

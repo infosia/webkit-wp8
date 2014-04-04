@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFELightElement.h"
 
 #include "Attribute.h"
@@ -71,11 +71,11 @@ SVGFELightElement::SVGFELightElement(const QualifiedName& tagName, Document& doc
 
 SVGFELightElement* SVGFELightElement::findLightElement(const SVGElement* svgElement)
 {
-    for (auto child = childrenOfType<SVGElement>(svgElement).begin(), end = childrenOfType<SVGElement>(svgElement).end(); child != end; ++child) {
-        if (isSVGFEDistantLightElement(*child) || isSVGFEPointLightElement(*child) || isSVGFESpotLightElement(*child))
-            return static_cast<SVGFELightElement*>(const_cast<SVGElement*>(&*child));
+    for (auto& child : childrenOfType<SVGElement>(*svgElement)) {
+        if (isSVGFEDistantLightElement(child) || isSVGFEPointLightElement(child) || isSVGFESpotLightElement(child))
+            return static_cast<SVGFELightElement*>(const_cast<SVGElement*>(&child));
     }
-    return 0;
+    return nullptr;
 }
 
 PassRefPtr<LightSource> SVGFELightElement::findLightSource(const SVGElement* svgElement)
@@ -88,7 +88,7 @@ PassRefPtr<LightSource> SVGFELightElement::findLightSource(const SVGElement* svg
 
 bool SVGFELightElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::azimuthAttr);
         supportedAttributes.add(SVGNames::elevationAttr);
@@ -214,11 +214,11 @@ void SVGFELightElement::childrenChanged(const ChildChange& change)
     ContainerNode* parent = parentNode();
     if (!parent)
         return;
-    RenderObject* renderer = parent->renderer();
+    RenderElement* renderer = parent->renderer();
     if (renderer && renderer->isSVGResourceFilterPrimitive())
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
 }
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

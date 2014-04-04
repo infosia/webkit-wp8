@@ -10,6 +10,8 @@
 
 #include <tchar.h>
 
+#include <algorithm>
+
 #include "libEGL/Surface.h"
 
 #include "common/debug.h"
@@ -309,6 +311,15 @@ bool Surface::checkForOutOfDateSwapChain()
     int clientHeight = client.bottom - client.top;
     bool sizeDirty = clientWidth != getWidth() || clientHeight != getHeight();
 
+    if (IsIconic(getWindowHandle()))
+    {
+        // The window is automatically resized to 150x22 when it's minimized, but the swapchain shouldn't be resized
+        // because that's not a useful size to render to.
+        sizeDirty = false;
+    }
+
+    bool wasDirty = (mSwapIntervalDirty || sizeDirty);
+
     if (mSwapIntervalDirty)
     {
         resetSwapChain(clientWidth, clientHeight);
@@ -318,7 +329,7 @@ bool Surface::checkForOutOfDateSwapChain()
         resizeSwapChain(clientWidth, clientHeight);
     }
 
-    if (mSwapIntervalDirty || sizeDirty)
+    if (wasDirty)
     {
         if (static_cast<egl::Surface*>(getCurrentDrawSurface()) == this)
         {

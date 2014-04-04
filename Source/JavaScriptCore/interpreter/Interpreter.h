@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -59,7 +59,8 @@ namespace JSC {
     struct CallFrameClosure;
     struct HandlerInfo;
     struct Instruction;
-    
+    struct ProtoCallFrame;
+
     enum DebugHookID {
         WillExecuteProgram,
         DidExecuteProgram,
@@ -156,13 +157,13 @@ namespace JSC {
             : vm(currentVM)
             , oldCallFrame(currentVM.topCallFrame) 
         {
-            ASSERT(!callFrame->hasHostCallFrameFlag());
+            ASSERT(!callFrame->isVMEntrySentinel());
             currentVM.topCallFrame = callFrame;
         }
         
         ~TopCallFrameSetter() 
         {
-            ASSERT(!oldCallFrame->hasHostCallFrameFlag());
+            ASSERT(!oldCallFrame->isVMEntrySentinel());
             vm.topCallFrame = oldCallFrame;
         }
     private:
@@ -176,8 +177,17 @@ namespace JSC {
         {
             ASSERT(vm);
             ASSERT(callFrame);
-            ASSERT(!callFrame->hasHostCallFrameFlag());
+            ASSERT(!callFrame->isVMEntrySentinel());
             vm->topCallFrame = callFrame;
+        }
+        
+        enum VMEntrySentinelOKTag { VMEntrySentinelOK };
+        ALWAYS_INLINE NativeCallFrameTracer(VM* vm, CallFrame* callFrame, VMEntrySentinelOKTag)
+        {
+            ASSERT(vm);
+            ASSERT(callFrame);
+            if (!callFrame->isVMEntrySentinel())
+                vm->topCallFrame = callFrame;
         }
     };
 
@@ -189,14 +199,6 @@ namespace JSC {
         friend class VM;
 
     public:
-        class ErrorHandlingMode {
-        public:
-            JS_EXPORT_PRIVATE ErrorHandlingMode(ExecState*);
-            JS_EXPORT_PRIVATE ~ErrorHandlingMode();
-        private:
-            Interpreter& m_interpreter;
-        };
-
         Interpreter(VM &);
         ~Interpreter();
         
@@ -236,10 +238,8 @@ namespace JSC {
         
         SamplingTool* sampler() { return m_sampler.get(); }
 
-        bool isInErrorHandlingMode() { return m_errorHandlingModeReentry; }
-
         NEVER_INLINE HandlerInfo* unwind(CallFrame*&, JSValue&);
-        NEVER_INLINE void debug(CallFrame*, DebugHookID, int firstLine, int lastLine, int column);
+        NEVER_INLINE void debug(CallFrame*, DebugHookID);
         JSString* stackTraceAsString(ExecState*, Vector<StackFrame>);
 
         static EncodedJSValue JSC_HOST_CALL constructWithErrorConstructor(ExecState*);
@@ -256,8 +256,8 @@ namespace JSC {
     private:
         enum ExecutionFlag { Normal, InitializeAndReturn };
 
-        CallFrameClosure prepareForRepeatCall(FunctionExecutable*, CallFrame*, JSFunction*, int argumentCountIncludingThis, JSScope*);
-        void endRepeatCall(CallFrameClosure&);
+        CallFrameClosure prepareForRepeatCall(FunctionExecutable*, CallFrame*, ProtoCallFrame*, JSFunction*, int argumentCountIncludingThis, JSScope*, JSValue*);
+
         JSValue execute(CallFrameClosure&);
 
         void getStackTrace(Vector<StackFrame>& results, size_t maxStackSize = std::numeric_limits<size_t>::max());
@@ -285,8 +285,8 @@ namespace JSC {
     };
 
     JSValue eval(CallFrame*);
-    CallFrame* loadVarargs(CallFrame*, JSStack*, JSValue thisValue, JSValue arguments, int firstFreeRegister);
-
+    CallFrame* sizeFrameForVarargs(CallFrame*, JSStack*, JSValue, int, uint32_t firstVarArgOffset);
+    void loadVarargs(CallFrame*, CallFrame*, JSValue, JSValue, uint32_t firstVarArgOffset);
 } // namespace JSC
 
 #endif // Interpreter_h

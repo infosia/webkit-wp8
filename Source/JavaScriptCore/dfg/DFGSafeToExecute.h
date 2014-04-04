@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,8 +25,6 @@
 
 #ifndef DFGSafeToExecute_h
 #define DFGSafeToExecute_h
-
-#include <wtf/Platform.h>
 
 #if ENABLE(DFG_JIT)
 
@@ -59,8 +57,10 @@ public:
         case StringUse:
         case StringObjectUse:
         case StringOrStringObjectUse:
+        case NotStringVarUse:
         case NotCellUse:
         case OtherUse:
+        case MiscUse:
         case MachineIntUse:
             return;
             
@@ -116,21 +116,19 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case ToThis:
     case CreateThis:
     case GetCallee:
-    case SetCallee:
     case GetLocal:
     case SetLocal:
-    case MovHintAndCheck:
     case MovHint:
     case ZombieHint:
     case GetArgument:
     case Phantom:
+    case HardPhantom:
     case Upsilon:
     case Phi:
     case Flush:
     case PhantomLocal:
     case GetLocalUnlinked:
     case SetArgument:
-    case InlineStart:
     case BitAnd:
     case BitOr:
     case BitXor:
@@ -152,10 +150,13 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case ArithMin:
     case ArithMax:
     case ArithSqrt:
+    case ArithSin:
+    case ArithCos:
     case ValueAdd:
     case GetById:
     case GetByIdFlush:
     case PutById:
+    case PutByIdFlush:
     case PutByIdDirect:
     case CheckStructure:
     case CheckExecutable:
@@ -165,7 +166,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case ArrayifyToStructure:
     case GetScope:
     case GetMyScope:
-    case SetMyScope:
     case SkipTopScope:
     case SkipScope:
     case GetClosureRegisters:
@@ -173,7 +173,7 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case PutClosureVar:
     case GetGlobalVar:
     case PutGlobalVar:
-    case GlobalVarWatchpoint:
+    case VariableWatchpoint:
     case VarInjectionWatchpoint:
     case CheckFunction:
     case AllocationProfileWatchpoint:
@@ -186,7 +186,6 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case CompareEq:
     case CompareEqConstant:
     case CompareStrictEq:
-    case CompareStrictEqConstant:
     case Call:
     case Construct:
     case NewObject:
@@ -195,6 +194,8 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case NewArrayBuffer:
     case NewRegexp:
     case Breakpoint:
+    case ProfileWillCall:
+    case ProfileDidCall:
     case CheckHasInstance:
     case InstanceOf:
     case IsUndefined:
@@ -242,6 +243,17 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
     case LoopHint:
     case Int52ToDouble:
     case Int52ToValue:
+    case StoreBarrier:
+    case StoreBarrierWithNullCheck:
+    case InvalidationPoint:
+    case NotifyWrite:
+    case FunctionReentryWatchpoint:
+    case TypedArrayWatchpoint:
+    case CheckInBounds:
+    case ConstantStoragePointer:
+    case Check:
+    case MultiGetByOffset:
+    case MultiPutByOffset:
         return true;
         
     case GetByVal:
@@ -255,7 +267,8 @@ bool safeToExecute(AbstractStateType& state, Graph& graph, Node* node)
         
     case GetTypedArrayByteOffset:
         return !(state.forNode(node->child1()).m_type & ~(SpecTypedArrayView));
-        
+            
+    case PutByValDirect:
     case PutByVal:
     case PutByValAlias:
         return node->arrayMode().modeForPut().alreadyChecked(

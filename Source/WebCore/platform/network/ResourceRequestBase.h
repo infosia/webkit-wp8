@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2003, 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2006 Samuel Weinig <sam.weinig@gmail.com>
  * Copyright (C) 2009, 2012 Google Inc. All rights reserved.
  *
@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -30,7 +30,7 @@
 
 #include "FormData.h"
 #include "HTTPHeaderMap.h"
-#include "KURL.h"
+#include "URL.h"
 #include "ResourceLoadPriority.h"
 
 #include <wtf/OwnPtr.h>
@@ -64,8 +64,8 @@ namespace WebCore {
         bool isNull() const;
         bool isEmpty() const;
 
-        const KURL& url() const;
-        void setURL(const KURL& url);
+        const URL& url() const;
+        void setURL(const URL& url);
 
         void removeCredentials();
 
@@ -75,8 +75,8 @@ namespace WebCore {
         double timeoutInterval() const; // May return 0 when using platform default.
         void setTimeoutInterval(double timeoutInterval);
         
-        const KURL& firstPartyForCookies() const;
-        void setFirstPartyForCookies(const KURL& firstPartyForCookies);
+        const URL& firstPartyForCookies() const;
+        void setFirstPartyForCookies(const URL& firstPartyForCookies);
         
         const String& httpMethod() const;
         void setHTTPMethod(const String& httpMethod);
@@ -139,8 +139,19 @@ namespace WebCore {
         bool reportRawHeaders() const { return m_reportRawHeaders; }
         void setReportRawHeaders(bool reportRawHeaders) { m_reportRawHeaders = reportRawHeaders; }
 
+#if ENABLE(INSPECTOR)
+        // Whether this request should be hidden from the Inspector.
+        bool hiddenFromInspector() const { return m_hiddenFromInspector; }
+        void setHiddenFromInspector(bool hiddenFromInspector) { m_hiddenFromInspector = hiddenFromInspector; }
+#endif
+
         static double defaultTimeoutInterval(); // May return 0 when using platform default.
         static void setDefaultTimeoutInterval(double);
+
+#if PLATFORM(IOS)
+        static bool defaultAllowCookies();
+        static void setDefaultAllowCookies(bool);
+#endif
 
         static bool compare(const ResourceRequest&, const ResourceRequest&);
 
@@ -154,16 +165,23 @@ namespace WebCore {
             , m_reportUploadProgress(false)
             , m_reportLoadTiming(false)
             , m_reportRawHeaders(false)
+#if ENABLE(INSPECTOR)
+            , m_hiddenFromInspector(false)
+#endif
             , m_priority(ResourceLoadPriorityLow)
         {
         }
 
-        ResourceRequestBase(const KURL& url, ResourceRequestCachePolicy policy)
+        ResourceRequestBase(const URL& url, ResourceRequestCachePolicy policy)
             : m_url(url)
-            , m_cachePolicy(policy)
             , m_timeoutInterval(s_defaultTimeoutInterval)
             , m_httpMethod(ASCIILiteral("GET"))
+            , m_cachePolicy(policy)
+#if !PLATFORM(IOS)
             , m_allowCookies(true)
+#else
+            , m_allowCookies(ResourceRequestBase::defaultAllowCookies())
+#endif
             , m_resourceRequestUpdated(true)
             , m_platformRequestUpdated(false)
             , m_resourceRequestBodyUpdated(true)
@@ -171,6 +189,9 @@ namespace WebCore {
             , m_reportUploadProgress(false)
             , m_reportLoadTiming(false)
             , m_reportRawHeaders(false)
+#if ENABLE(INSPECTOR)
+            , m_hiddenFromInspector(false)
+#endif
             , m_priority(ResourceLoadPriorityLow)
         {
         }
@@ -181,15 +202,14 @@ namespace WebCore {
         // The ResourceRequest subclass may "shadow" this method to compare platform specific fields
         static bool platformCompare(const ResourceRequest&, const ResourceRequest&) { return true; }
 
-        KURL m_url;
-
-        ResourceRequestCachePolicy m_cachePolicy;
+        URL m_url;
         double m_timeoutInterval; // 0 is a magic value for platform default on platforms that have one.
-        KURL m_firstPartyForCookies;
+        URL m_firstPartyForCookies;
         String m_httpMethod;
         HTTPHeaderMap m_httpHeaderFields;
         Vector<String> m_responseContentDispositionEncodingFallbackArray;
         RefPtr<FormData> m_httpBody;
+        ResourceRequestCachePolicy m_cachePolicy : 3;
         bool m_allowCookies : 1;
         mutable bool m_resourceRequestUpdated : 1;
         mutable bool m_platformRequestUpdated : 1;
@@ -198,12 +218,18 @@ namespace WebCore {
         bool m_reportUploadProgress : 1;
         bool m_reportLoadTiming : 1;
         bool m_reportRawHeaders : 1;
-        ResourceLoadPriority m_priority;
+#if ENABLE(INSPECTOR)
+        bool m_hiddenFromInspector : 1;
+#endif
+        ResourceLoadPriority m_priority : 4;
 
     private:
         const ResourceRequest& asResourceRequest() const;
 
         static double s_defaultTimeoutInterval;
+#if PLATFORM(IOS)
+        static bool s_defaultAllowCookies;
+#endif
     };
 
     bool equalIgnoringHeaderFields(const ResourceRequestBase&, const ResourceRequestBase&);
@@ -215,11 +241,11 @@ namespace WebCore {
         WTF_MAKE_NONCOPYABLE(CrossThreadResourceRequestDataBase); WTF_MAKE_FAST_ALLOCATED;
     public:
         CrossThreadResourceRequestDataBase() { }
-        KURL m_url;
+        URL m_url;
 
         ResourceRequestCachePolicy m_cachePolicy;
         double m_timeoutInterval;
-        KURL m_firstPartyForCookies;
+        URL m_firstPartyForCookies;
 
         String m_httpMethod;
         OwnPtr<CrossThreadHTTPHeaderMapData> m_httpHeaders;
@@ -230,7 +256,9 @@ namespace WebCore {
     };
     
     unsigned initializeMaximumHTTPConnectionCountPerHost();
-
+#if PLATFORM(IOS)
+    void initializeHTTPConnectionSettingsOnStartup();
+#endif
 } // namespace WebCore
 
 #endif // ResourceRequestBase_h

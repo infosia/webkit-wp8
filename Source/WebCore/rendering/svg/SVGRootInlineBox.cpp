@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
- * Copyright (C) 2006 Apple Computer Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
  * Copyright (C) 2011 Torch Mobile (Beijing) CO. Ltd. All rights reserved.
@@ -24,9 +24,7 @@
 #include "config.h"
 #include "SVGRootInlineBox.h"
 
-#if ENABLE(SVG)
 #include "GraphicsContext.h"
-#include "RenderSVGInlineText.h"
 #include "RenderSVGText.h"
 #include "SVGInlineFlowBox.h"
 #include "SVGInlineTextBox.h"
@@ -36,12 +34,23 @@
 
 namespace WebCore {
 
+SVGRootInlineBox::SVGRootInlineBox(RenderSVGText& renderSVGText)
+    : RootInlineBox(renderSVGText)
+    , m_logicalHeight(0)
+{
+}
+
+RenderSVGText& SVGRootInlineBox::renderSVGText()
+{
+    return toRenderSVGText(blockFlow());
+}
+
 void SVGRootInlineBox::paint(PaintInfo& paintInfo, const LayoutPoint&, LayoutUnit, LayoutUnit)
 {
     ASSERT(paintInfo.phase == PaintPhaseForeground || paintInfo.phase == PaintPhaseSelection);
     ASSERT(!paintInfo.context->paintingDisabled());
 
-    bool isPrinting = renderer().document().printing();
+    bool isPrinting = renderSVGText().document().printing();
     bool hasSelection = !isPrinting && selectionState() != RenderObject::SelectionNone;
 
     PaintInfo childPaintInfo(paintInfo);
@@ -54,7 +63,7 @@ void SVGRootInlineBox::paint(PaintInfo& paintInfo, const LayoutPoint&, LayoutUni
         }
     }
 
-    SVGRenderingContext renderingContext(&renderer(), paintInfo, SVGRenderingContext::SaveGraphicsContext);
+    SVGRenderingContext renderingContext(renderSVGText(), paintInfo, SVGRenderingContext::SaveGraphicsContext);
     if (renderingContext.isRenderingPrepared()) {
         for (InlineBox* child = firstChild(); child; child = child->nextOnLine()) {
             if (child->isSVGInlineTextBox())
@@ -67,7 +76,7 @@ void SVGRootInlineBox::paint(PaintInfo& paintInfo, const LayoutPoint&, LayoutUni
 
 void SVGRootInlineBox::computePerCharacterLayoutInformation()
 {
-    RenderSVGText* textRoot = toRenderSVGText(&block());
+    RenderSVGText* textRoot = toRenderSVGText(&blockFlow());
     ASSERT(textRoot);
 
     Vector<SVGTextLayoutAttributes*>& layoutAttributes = textRoot->layoutAttributes();
@@ -162,7 +171,7 @@ void SVGRootInlineBox::layoutChildBoxes(InlineFlowBox* start, FloatRect* childRe
 
 void SVGRootInlineBox::layoutRootBox(const FloatRect& childRect)
 {
-    RenderBlock& parentBlock = block();
+    RenderSVGText& parentBlock = renderSVGText();
 
     // Finally, assign the root block position, now that all content is laid out.
     LayoutRect boundingRect = enclosingLayoutRect(childRect);
@@ -242,9 +251,9 @@ static inline void findFirstAndLastAttributesInVector(Vector<SVGTextLayoutAttrib
     unsigned attributesSize = attributes.size();
     for (unsigned i = 0; i < attributesSize; ++i) {
         SVGTextLayoutAttributes* current = attributes[i];
-        if (!first && firstContext == current->context())
+        if (!first && firstContext == &current->context())
             first = current;
-        if (!last && lastContext == current->context())
+        if (!last && lastContext == &current->context())
             last = current;
         if (first && last)
             break;
@@ -301,5 +310,3 @@ void SVGRootInlineBox::reorderValueLists(Vector<SVGTextLayoutAttributes*>& attri
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

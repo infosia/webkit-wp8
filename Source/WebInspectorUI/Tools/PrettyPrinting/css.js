@@ -3,7 +3,7 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
 
   if (!parserConfig.propertyKeywords) parserConfig = CodeMirror.resolveMode("text/css");
 
-  var indentUnit = config.indentUnit,
+  var indentUnit = config.indentUnit || config.tabSize || 2,
       hooks = parserConfig.hooks || {},
       atMediaTypes = parserConfig.atMediaTypes || {},
       atMediaFeatures = parserConfig.atMediaFeatures || {},
@@ -37,7 +37,7 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
       stream.match(/^\s*\w*/);
       return ret("keyword", "important");
     }
-    else if (/\d/.test(ch)) {
+    else if (/\d/.test(ch) || ch == "." && stream.eat(/\d/)) {
       stream.eatWhile(/[\w.%]/);
       return ret("number", "unit");
     }
@@ -259,8 +259,13 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
       }
       else if (type == "}") {
         if (context == "interpolation") style = "operator";
-        state.stack.pop();
-        if (context == "propertyValue") state.stack.pop();
+        // Pop off end of array until { is reached
+        while(state.stack.length){
+          var removed = state.stack.pop();
+          if(removed.indexOf("{") > -1 || removed == "block" || removed == "rule"){
+            break;
+          }
+        }
       }
       else if (type == "interpolation") state.stack.push("interpolation");
       else if (type == "@media") state.stack.push("@media");
@@ -278,11 +283,13 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
         else state.stack.push("(");
       }
       else if (type == ")") {
-        if (context == "propertyValue") {
-          // In @mediaType( without closing ; after propertyValue
-          state.stack.pop();
+        // Pop off end of array until ( is reached
+        while(state.stack.length){
+          var removed = state.stack.pop();
+          if(removed.indexOf("(") > -1){
+            break;
+          }
         }
-        state.stack.pop();
       }
       else if (type == ":" && state.lastToken == "property") state.stack.push("propertyValue");
       else if (context == "propertyValue" && type == ";") state.stack.pop();
@@ -370,7 +377,7 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
     "font-weight", "grid-cell", "grid-column", "grid-column-align",
     "grid-column-sizing", "grid-column-span", "grid-columns", "grid-flow",
     "grid-row", "grid-row-align", "grid-row-sizing", "grid-row-span",
-    "grid-rows", "grid-template", "hanging-punctuation", "height", "hyphens",
+    "grid-rows", "grid-template-areas", "hanging-punctuation", "height", "hyphens",
     "icon", "image-orientation", "image-rendering", "image-resolution",
     "inline-box-align", "justify-content", "left", "letter-spacing",
     "line-break", "line-height", "line-stacking", "line-stacking-ruby",
@@ -601,6 +608,11 @@ CodeMirror.defineMode("css", function(config, parserConfig) {
           return ["variable", "variable-definition"];
         }
         return ["variable", "variable"];
+      },
+      ",": function(stream, state) {
+        if (state.stack[state.stack.length - 1] == "propertyValue" && stream.match(/^ *\$/, false)) {
+          return ["operator", ";"];
+        }
       },
       "/": function(stream, state) {
         if (stream.eat("/")) {

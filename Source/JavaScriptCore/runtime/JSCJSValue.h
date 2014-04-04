@@ -97,6 +97,15 @@ union EncodedValueDescriptor {
 #endif
 };
 
+#define TagOffset (OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.tag))
+#define PayloadOffset (OBJECT_OFFSETOF(EncodedValueDescriptor, asBits.payload))
+
+#if USE(JSVALUE64)
+#define CellPayloadOffset 0
+#else
+#define CellPayloadOffset PayloadOffset
+#endif
+
 enum WhichValueWord {
     TagWord,
     PayloadWord
@@ -278,6 +287,9 @@ public:
     // converted to Int52s and back again.
     static const unsigned numberOfInt52Bits = 52;
     static const unsigned int52ShiftAmount = 12;
+    
+    static ptrdiff_t offsetOfPayload() { return OBJECT_OFFSETOF(JSValue, u.asBits.payload); }
+    static ptrdiff_t offsetOfTag() { return OBJECT_OFFSETOF(JSValue, u.asBits.tag); }
 
 private:
     template <class T> JSValue(WriteBarrierBase<T>);

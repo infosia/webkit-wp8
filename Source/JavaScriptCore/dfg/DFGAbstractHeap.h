@@ -26,8 +26,6 @@
 #ifndef DFGAbstractHeap_h
 #define DFGAbstractHeap_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "VirtualRegister.h"
@@ -55,7 +53,10 @@ namespace JSC { namespace DFG {
     macro(JSArrayBufferView_length) \
     macro(JSArrayBufferView_mode) \
     macro(JSArrayBufferView_vector) \
-    macro(JSCell_structure) \
+    macro(JSCell_structureID) \
+    macro(JSCell_indexingType) \
+    macro(JSCell_typeInfoFlags) \
+    macro(JSCell_typeInfoType) \
     macro(JSFunction_executable) \
     macro(JSFunction_scopeChain) \
     macro(JSObject_butterfly) \
@@ -68,9 +69,12 @@ namespace JSC { namespace DFG {
     macro(Variables) \
     macro(TypedArrayProperties) \
     macro(GCState) \
+    macro(BarrierState) \
     macro(RegExpState) \
     macro(InternalState) \
     macro(Absolute) \
+    /* Use this for writes only, to indicate that this may fire watchpoints. Usually this is never directly written but instead we test to see if a node clobbers this; it just so happens that you have to write world to clobber it. */\
+    macro(Watchpoint_fire) \
     /* Use this for reads only, just to indicate that if the world got clobbered, then this operation will not work. */\
     macro(MiscFields) \
     /* Use this for writes only, just to indicate that hoisting the node is invalid. This works because we don't hoist anything that has any side effects at all. */\
@@ -113,7 +117,7 @@ public:
         
         Payload(VirtualRegister operand)
             : m_isTop(false)
-            , m_value(static_cast<int>(operand))
+            , m_value(operand.offset())
         {
         }
         

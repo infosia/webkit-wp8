@@ -51,7 +51,7 @@ class VoidCallback;
 
 class NotificationCenter : public RefCounted<NotificationCenter>, public ActiveDOMObject {
 public:
-    static PassRefPtr<NotificationCenter> create(ScriptExecutionContext*, NotificationClient*);
+    static PassRef<NotificationCenter> create(ScriptExecutionContext*, NotificationClient*);
 
 #if ENABLE(LEGACY_NOTIFICATIONS)
     PassRefPtr<Notification> createNotification(const String& iconURI, const String& title, const String& body, ExceptionCode& ec)
@@ -75,13 +75,13 @@ private:
     NotificationCenter(ScriptExecutionContext*, NotificationClient*);
 
     // ActiveDOMObject
-    virtual void stop() OVERRIDE;
+    virtual void stop() override;
 
     class NotificationRequestCallback : public RefCounted<NotificationRequestCallback> {
     public:
         static PassRefPtr<NotificationRequestCallback> createAndStartTimer(NotificationCenter*, PassRefPtr<VoidCallback>);
         void startTimer();
-        void timerFired(Timer<NotificationRequestCallback>*);
+        void timerFired(Timer<NotificationRequestCallback>&);
     private:
         NotificationRequestCallback(NotificationCenter*, PassRefPtr<VoidCallback>);
 
@@ -93,7 +93,7 @@ private:
     void requestTimedOut(NotificationRequestCallback*);
 
     NotificationClient* m_client;
-    HashSet<RefPtr<NotificationRequestCallback> > m_callbacks;
+    HashSet<RefPtr<NotificationRequestCallback>> m_callbacks;
 };
 
 } // namespace WebCore

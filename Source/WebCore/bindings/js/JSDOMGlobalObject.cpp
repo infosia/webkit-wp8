@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -30,11 +30,8 @@
 #include "Document.h"
 #include "JSDOMWindow.h"
 #include "JSEventListener.h"
-
-#if ENABLE(WORKERS)
 #include "JSWorkerGlobalScope.h"
 #include "WorkerGlobalScope.h"
-#endif
 
 using namespace JSC;
 
@@ -47,6 +44,7 @@ JSDOMGlobalObject::JSDOMGlobalObject(VM& vm, Structure* structure, PassRefPtr<DO
     , m_currentEvent(0)
     , m_world(world)
 {
+    ASSERT(m_world);
 }
 
 void JSDOMGlobalObject::destroy(JSCell* cell)
@@ -58,22 +56,28 @@ void JSDOMGlobalObject::finishCreation(VM& vm)
 {
     Base::finishCreation(vm);
     ASSERT(inherits(info()));
+
+#if ENABLE(REMOTE_INSPECTOR)
+    setRemoteDebuggingEnabled(false);
+#endif
 }
 
 void JSDOMGlobalObject::finishCreation(VM& vm, JSObject* thisValue)
 {
     Base::finishCreation(vm, thisValue);
     ASSERT(inherits(info()));
+
+#if ENABLE(REMOTE_INSPECTOR)
+    setRemoteDebuggingEnabled(false);
+#endif
 }
 
 ScriptExecutionContext* JSDOMGlobalObject::scriptExecutionContext() const
 {
     if (inherits(JSDOMWindowBase::info()))
         return jsCast<const JSDOMWindowBase*>(this)->scriptExecutionContext();
-#if ENABLE(WORKERS)
     if (inherits(JSWorkerGlobalScopeBase::info()))
         return jsCast<const JSWorkerGlobalScopeBase*>(this)->scriptExecutionContext();
-#endif
     ASSERT_NOT_REACHED();
     return 0;
 }
@@ -115,29 +119,25 @@ JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext* scriptExecutionCo
     if (scriptExecutionContext->isDocument())
         return toJSDOMGlobalObject(toDocument(scriptExecutionContext), exec);
 
-#if ENABLE(WORKERS)
     if (scriptExecutionContext->isWorkerGlobalScope())
-        return static_cast<WorkerGlobalScope*>(scriptExecutionContext)->script()->workerGlobalScopeWrapper();
-#endif
+        return toWorkerGlobalScope(scriptExecutionContext)->script()->workerGlobalScopeWrapper();
 
     ASSERT_NOT_REACHED();
     return 0;
 }
 
-JSDOMGlobalObject* toJSDOMGlobalObject(Document* document, DOMWrapperWorld* world)
+JSDOMGlobalObject* toJSDOMGlobalObject(Document* document, DOMWrapperWorld& world)
 {
     return toJSDOMWindow(document->frame(), world);
 }
 
-JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext* scriptExecutionContext, DOMWrapperWorld* world)
+JSDOMGlobalObject* toJSDOMGlobalObject(ScriptExecutionContext* scriptExecutionContext, DOMWrapperWorld& world)
 {
     if (scriptExecutionContext->isDocument())
         return toJSDOMGlobalObject(toDocument(scriptExecutionContext), world);
 
-#if ENABLE(WORKERS)
     if (scriptExecutionContext->isWorkerGlobalScope())
-        return static_cast<WorkerGlobalScope*>(scriptExecutionContext)->script()->workerGlobalScopeWrapper();
-#endif
+        return toWorkerGlobalScope(scriptExecutionContext)->script()->workerGlobalScopeWrapper();
 
     ASSERT_NOT_REACHED();
     return 0;

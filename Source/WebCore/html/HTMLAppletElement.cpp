@@ -75,12 +75,12 @@ bool HTMLAppletElement::rendererIsNeeded(const RenderStyle& style)
     return HTMLPlugInImageElement::rendererIsNeeded(style);
 }
 
-RenderElement* HTMLAppletElement::createRenderer(RenderArena&, RenderStyle& style)
+RenderPtr<RenderElement> HTMLAppletElement::createElementRenderer(PassRef<RenderStyle> style)
 {
     if (!canEmbedJava())
-        return RenderElement::createFor(*this, style);
+        return RenderElement::createFor(*this, std::move(style));
 
-    return RenderEmbeddedObject::createForApplet(*this);
+    return RenderEmbeddedObject::createForApplet(*this, std::move(style));
 }
 
 RenderWidget* HTMLAppletElement::renderWidgetForJSBindings() const
@@ -99,6 +99,9 @@ void HTMLAppletElement::updateWidget(PluginCreationOption pluginCreationOption)
     if (!isFinishedParsingChildren())
         return;
 
+#if PLATFORM(IOS)
+    UNUSED_PARAM(pluginCreationOption);
+#else
     // FIXME: It's sadness that we have this special case here.
     //        See http://trac.webkit.org/changeset/25128 and
     //        plugins/netscape-plugin-setwindow-size.html
@@ -110,10 +113,10 @@ void HTMLAppletElement::updateWidget(PluginCreationOption pluginCreationOption)
 
     RenderEmbeddedObject* renderer = renderEmbeddedObject();
 
-    LayoutUnit contentWidth = renderer->style()->width().isFixed() ? LayoutUnit(renderer->style()->width().value()) :
-        renderer->width() - renderer->borderAndPaddingWidth();
-    LayoutUnit contentHeight = renderer->style()->height().isFixed() ? LayoutUnit(renderer->style()->height().value()) :
-        renderer->height() - renderer->borderAndPaddingHeight();
+    LayoutUnit contentWidth = renderer->style().width().isFixed() ? LayoutUnit(renderer->style().width().value()) :
+        renderer->width() - renderer->horizontalBorderAndPaddingExtent();
+    LayoutUnit contentHeight = renderer->style().height().isFixed() ? LayoutUnit(renderer->style().height().value()) :
+        renderer->height() - renderer->verticalBorderAndPaddingExtent();
 
     Vector<String> paramNames;
     Vector<String> paramValues;
@@ -148,19 +151,19 @@ void HTMLAppletElement::updateWidget(PluginCreationOption pluginCreationOption)
         paramValues.append(mayScript.string());
     }
 
-    auto paramChildren = childrenOfType<HTMLParamElement>(this);
-    for (auto param = paramChildren.begin(), end = paramChildren.end(); param != end; ++param) {
-        if (param->name().isEmpty())
+    for (auto& param : childrenOfType<HTMLParamElement>(*this)) {
+        if (param.name().isEmpty())
             continue;
 
-        paramNames.append(param->name());
-        paramValues.append(param->value());
+        paramNames.append(param.name());
+        paramValues.append(param.value());
     }
 
     Frame* frame = document().frame();
     ASSERT(frame);
 
-    renderer->setWidget(frame->loader().subframeLoader().createJavaAppletWidget(roundedIntSize(LayoutSize(contentWidth, contentHeight)), this, paramNames, paramValues));
+    renderer->setWidget(frame->loader().subframeLoader().createJavaAppletWidget(roundedIntSize(LayoutSize(contentWidth, contentHeight)), *this, paramNames, paramValues));
+#endif // !PLATFORM(IOS)
 }
 
 bool HTMLAppletElement::canEmbedJava() const

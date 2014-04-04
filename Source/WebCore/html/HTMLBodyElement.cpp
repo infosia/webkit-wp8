@@ -35,7 +35,7 @@
 #include "HTMLNames.h"
 #include "HTMLParserIdioms.h"
 #include "Page.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 
 namespace WebCore {
 
@@ -68,14 +68,14 @@ bool HTMLBodyElement::isPresentationAttribute(const QualifiedName& name) const
     return HTMLElement::isPresentationAttribute(name);
 }
 
-void HTMLBodyElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStylePropertySet* style)
+void HTMLBodyElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (name == backgroundAttr) {
         String url = stripLeadingAndTrailingHTMLSpaces(value);
         if (!url.isEmpty()) {
-            RefPtr<CSSImageValue> imageValue = CSSImageValue::create(document().completeURL(url).string());
-            imageValue->setInitiator(localName());
-            style->setProperty(CSSProperty(CSSPropertyBackgroundImage, imageValue.release()));
+            auto imageValue = CSSImageValue::create(document().completeURL(url).string());
+            imageValue.get().setInitiator(localName());
+            style.setProperty(CSSProperty(CSSPropertyBackgroundImage, std::move(imageValue)));
         }
     } else if (name == marginwidthAttr || name == leftmarginAttr) {
         addHTMLLengthToStyle(style, CSSPropertyMarginRight, value);
@@ -151,28 +151,38 @@ void HTMLBodyElement::parseAttribute(const QualifiedName& name, const AtomicStri
         document().setWindowAttributeEventListener(eventNames().onlineEvent, name, value);
     else if (name == onofflineAttr)
         document().setWindowAttributeEventListener(eventNames().offlineEvent, name, value);
+#if ENABLE(WILL_REVEAL_EDGE_EVENTS)
+    else if (name == onwebkitwillrevealbottomAttr)
+        document().setWindowAttributeEventListener(eventNames().webkitwillrevealbottomEvent, name, value);
+    else if (name == onwebkitwillrevealleftAttr)
+        document().setWindowAttributeEventListener(eventNames().webkitwillrevealleftEvent, name, value);
+    else if (name == onwebkitwillrevealrightAttr)
+        document().setWindowAttributeEventListener(eventNames().webkitwillrevealrightEvent, name, value);
+    else if (name == onwebkitwillrevealtopAttr)
+        document().setWindowAttributeEventListener(eventNames().webkitwillrevealtopEvent, name, value);
+#endif
     else
         HTMLElement::parseAttribute(name, value);
 }
 
-Node::InsertionNotificationRequest HTMLBodyElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLBodyElement::insertedInto(ContainerNode& insertionPoint)
 {
     HTMLElement::insertedInto(insertionPoint);
-    if (!insertionPoint->inDocument())
+    if (!insertionPoint.inDocument())
         return InsertionDone;
 
     // FIXME: It's surprising this is web compatible since it means a marginwidth and marginheight attribute can
     // magically appear on the <body> of all documents embedded through <iframe> or <frame>.
     // FIXME: Perhaps this code should be in attach() instead of here.
     Element* ownerElement = document().ownerElement();
-    if (ownerElement && isHTMLFrameElementBase(ownerElement)) {
-        HTMLFrameElementBase* ownerFrameElement = toHTMLFrameElementBase(ownerElement);
-        int marginWidth = ownerFrameElement->marginWidth();
+    if (ownerElement && isHTMLFrameElementBase(*ownerElement)) {
+        HTMLFrameElementBase& ownerFrameElement = toHTMLFrameElementBase(*ownerElement);
+        int marginWidth = ownerFrameElement.marginWidth();
         if (marginWidth != -1)
-            setAttribute(marginwidthAttr, String::number(marginWidth));
-        int marginHeight = ownerFrameElement->marginHeight();
+            setIntegralAttribute(marginwidthAttr, marginWidth);
+        int marginHeight = ownerFrameElement.marginHeight();
         if (marginHeight != -1)
-            setAttribute(marginheightAttr, String::number(marginHeight));
+            setIntegralAttribute(marginheightAttr, marginHeight);
     }
 
     return InsertionDone;
@@ -185,63 +195,12 @@ bool HTMLBodyElement::isURLAttribute(const Attribute& attribute) const
 
 bool HTMLBodyElement::supportsFocus() const
 {
-    return rendererIsEditable() || HTMLElement::supportsFocus();
+    return hasEditableStyle() || HTMLElement::supportsFocus();
 }
 
-String HTMLBodyElement::aLink() const
+static int adjustForZoom(int value, Frame& frame)
 {
-    return getAttribute(alinkAttr);
-}
-
-void HTMLBodyElement::setALink(const String& value)
-{
-    setAttribute(alinkAttr, value);
-}
-
-String HTMLBodyElement::bgColor() const
-{
-    return getAttribute(bgcolorAttr);
-}
-
-void HTMLBodyElement::setBgColor(const String& value)
-{
-    setAttribute(bgcolorAttr, value);
-}
-
-String HTMLBodyElement::link() const
-{
-    return getAttribute(linkAttr);
-}
-
-void HTMLBodyElement::setLink(const String& value)
-{
-    setAttribute(linkAttr, value);
-}
-
-String HTMLBodyElement::text() const
-{
-    return getAttribute(textAttr);
-}
-
-void HTMLBodyElement::setText(const String& value)
-{
-    setAttribute(textAttr, value);
-}
-
-String HTMLBodyElement::vLink() const
-{
-    return getAttribute(vlinkAttr);
-}
-
-void HTMLBodyElement::setVLink(const String& value)
-{
-    setAttribute(vlinkAttr, value);
-}
-
-static int adjustForZoom(int value, Document* document)
-{
-    Frame* frame = document->frame();
-    float zoomFactor = frame->pageZoomFactor() * frame->frameScaleFactor();
+    float zoomFactor = frame.pageZoomFactor() * frame.frameScaleFactor();
     if (zoomFactor == 1)
         return value;
     // Needed because of truncation (rather than rounding) when scaling up.
@@ -252,11 +211,18 @@ static int adjustForZoom(int value, Document* document)
 
 int HTMLBodyElement::scrollLeft()
 {
-    if (!document().inQuirksMode())
-        return 0;
     document().updateLayoutIgnorePendingStylesheets();
-    FrameView* view = document().view();
-    return view ? adjustForZoom(view->scrollX(), &document()) : 0;
+    Frame* frame = document().frame();
+    if (!frame)
+        return 0;
+    FrameView* view = frame->view();
+    if (!view)
+        return 0;
+#if PLATFORM(IOS)
+    return adjustForZoom(view->actualScrollX(), *frame);
+#else
+    return adjustForZoom(view->scrollX(), *frame);
+#endif
 }
 
 void HTMLBodyElement::setScrollLeft(int scrollLeft)
@@ -273,11 +239,18 @@ void HTMLBodyElement::setScrollLeft(int scrollLeft)
 
 int HTMLBodyElement::scrollTop()
 {
-    if (!document().inQuirksMode())
-        return 0;
     document().updateLayoutIgnorePendingStylesheets();
-    FrameView* view = document().view();
-    return view ? adjustForZoom(view->scrollY(), &document()) : 0;
+    Frame* frame = document().frame();
+    if (!frame)
+        return 0;
+    FrameView* view = frame->view();
+    if (!view)
+        return 0;
+#if PLATFORM(IOS)
+    return adjustForZoom(view->actualScrollY(), *frame);
+#else
+    return adjustForZoom(view->scrollY(), *frame);
+#endif
 }
 
 void HTMLBodyElement::setScrollTop(int scrollTop)
@@ -296,19 +269,29 @@ int HTMLBodyElement::scrollHeight()
 {
     // Update the document's layout.
     document().updateLayoutIgnorePendingStylesheets();
-    FrameView* view = document().view();
-    return view ? adjustForZoom(view->contentsHeight(), &document()) : 0;
+    Frame* frame = document().frame();
+    if (!frame)
+        return 0;
+    FrameView* view = frame->view();
+    if (!view)
+        return 0;
+    return adjustForZoom(view->contentsHeight(), *frame);
 }
 
 int HTMLBodyElement::scrollWidth()
 {
     // Update the document's layout.
     document().updateLayoutIgnorePendingStylesheets();
-    FrameView* view = document().view();
-    return view ? adjustForZoom(view->contentsWidth(), &document()) : 0;
+    Frame* frame = document().frame();
+    if (!frame)
+        return 0;
+    FrameView* view = frame->view();
+    if (!view)
+        return 0;
+    return adjustForZoom(view->contentsWidth(), *frame);
 }
 
-void HTMLBodyElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) const
+void HTMLBodyElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     HTMLElement::addSubresourceAttributeURLs(urls);
 

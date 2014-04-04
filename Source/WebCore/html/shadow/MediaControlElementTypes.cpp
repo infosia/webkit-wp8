@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -38,7 +38,7 @@
 #include "MouseEvent.h"
 #include "RenderMedia.h"
 #include "RenderMediaControlElements.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 
 namespace WebCore {
 
@@ -46,22 +46,15 @@ using namespace HTMLNames;
 
 class Event;
 
-// FIXME: These constants may need to be tweaked to better match the seeking in the QuickTime plug-in.
-static const double cSkipRepeatDelay = 0.1;
-static const double cSkipTime = 0.2;
-static const double cScanRepeatDelay = 1.5;
-static const double cScanMaximumRate = 8;
-
-HTMLMediaElement* toParentMediaElement(Node* node)
+HTMLMediaElement* parentMediaElement(Node* node)
 {
     if (!node)
-        return 0;
+        return nullptr;
     Node* mediaNode = node->shadowHost();
     if (!mediaNode)
         mediaNode = node;
-    if (!mediaNode || !mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
-        return 0;
-
+    if (!mediaNode->isElementNode() || !toElement(mediaNode)->isMediaElement())
+        return nullptr;
     return toHTMLMediaElement(mediaNode);
 }
 
@@ -93,7 +86,7 @@ void MediaControlElement::show()
 
 bool MediaControlElement::isShowing() const
 {
-    const StylePropertySet* propertySet = m_element->inlineStyle();
+    const StyleProperties* propertySet = m_element->inlineStyle();
     // Following the code from show() and hide() above, we only have
     // to check for the presense of inline display.
     return (!propertySet || !propertySet->getPropertyCSSValue(CSSPropertyDisplay));
@@ -105,7 +98,7 @@ void MediaControlElement::setDisplayType(MediaControlElementType displayType)
         return;
 
     m_displayType = displayType;
-    if (RenderObject* object = m_element->renderer())
+    if (auto object = m_element->renderer())
         object->repaint();
 }
 
@@ -169,9 +162,6 @@ void MediaControlMuteButtonElement::updateDisplayType()
 
 MediaControlSeekButtonElement::MediaControlSeekButtonElement(Document& document, MediaControlElementType displayType)
     : MediaControlInputElement(document, displayType)
-    , m_actionOnStop(Nothing)
-    , m_seekType(Skip)
-    , m_seekTimer(this, &MediaControlSeekButtonElement::seekTimerFired)
 {
 }
 
@@ -189,60 +179,11 @@ void MediaControlSeekButtonElement::setActive(bool flag, bool pause)
         return;
 
     if (flag)
-        startTimer();
+        mediaController()->beginScanning(isForwardButton() ? MediaControllerInterface::Forward : MediaControllerInterface::Backward);
     else
-        stopTimer();
+        mediaController()->endScanning();
 
     MediaControlInputElement::setActive(flag, pause);
-}
-
-void MediaControlSeekButtonElement::startTimer()
-{
-    m_seekType = mediaController()->supportsScanning() ? Scan : Skip;
-
-    if (m_seekType == Skip) {
-        // Seeking by skipping requires the video to be paused during seeking.
-        m_actionOnStop = mediaController()->paused() ? Nothing : Play;
-        mediaController()->pause();
-    } else {
-        // Seeking by scanning requires the video to be playing during seeking.
-        m_actionOnStop = mediaController()->paused() ? Pause : Nothing;
-        mediaController()->play();
-        mediaController()->setPlaybackRate(nextRate());
-    }
-
-    m_seekTimer.start(0, m_seekType == Skip ? cSkipRepeatDelay : cScanRepeatDelay);
-}
-
-void MediaControlSeekButtonElement::stopTimer()
-{
-    if (m_seekType == Scan)
-        mediaController()->setPlaybackRate(mediaController()->defaultPlaybackRate());
-
-    if (m_actionOnStop == Play)
-        mediaController()->play();
-    else if (m_actionOnStop == Pause)
-        mediaController()->pause();
-
-    if (m_seekTimer.isActive())
-        m_seekTimer.stop();
-}
-
-double MediaControlSeekButtonElement::nextRate() const
-{
-    double rate = std::min(cScanMaximumRate, fabs(mediaController()->playbackRate() * 2));
-    if (!isForwardButton())
-        rate *= -1;
-    return rate;
-}
-
-void MediaControlSeekButtonElement::seekTimerFired(Timer<MediaControlSeekButtonElement>*)
-{
-    if (m_seekType == Skip) {
-        double skipTime = isForwardButton() ? cSkipTime : -cSkipTime;
-        mediaController()->setCurrentTime(mediaController()->currentTime() + skipTime, IGNORE_EXCEPTION);
-    } else
-        mediaController()->setPlaybackRate(nextRate());
 }
 
 // ----------------------------
@@ -256,10 +197,10 @@ MediaControlVolumeSliderElement::MediaControlVolumeSliderElement(Document& docum
 void MediaControlVolumeSliderElement::defaultEventHandler(Event* event)
 {
     // Left button is 0. Rejects mouse events not from left button.
-    if (event->isMouseEvent() && static_cast<MouseEvent*>(event)->button())
+    if (event->isMouseEvent() && toMouseEvent(event)->button())
         return;
 
-    if (!attached())
+    if (!renderer())
         return;
 
     MediaControlInputElement::defaultEventHandler(event);
@@ -277,7 +218,7 @@ void MediaControlVolumeSliderElement::defaultEventHandler(Event* event)
 
 bool MediaControlVolumeSliderElement::willRespondToMouseMoveEvents()
 {
-    if (!attached())
+    if (!renderer())
         return false;
 
     return MediaControlInputElement::willRespondToMouseMoveEvents();
@@ -285,7 +226,7 @@ bool MediaControlVolumeSliderElement::willRespondToMouseMoveEvents()
 
 bool MediaControlVolumeSliderElement::willRespondToMouseClickEvents()
 {
-    if (!attached())
+    if (!renderer())
         return false;
 
     return MediaControlInputElement::willRespondToMouseClickEvents();

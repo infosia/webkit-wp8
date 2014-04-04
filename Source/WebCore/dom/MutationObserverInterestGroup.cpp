@@ -34,12 +34,10 @@
 
 #include "MutationObserverRegistration.h"
 #include "MutationRecord.h"
-#include "Node.h"
-#include "QualifiedName.h"
 
 namespace WebCore {
 
-PassOwnPtr<MutationObserverInterestGroup> MutationObserverInterestGroup::createIfNeeded(Node& target, MutationObserver::MutationType type, MutationRecordDeliveryOptions oldValueFlag, const QualifiedName* attributeName)
+std::unique_ptr<MutationObserverInterestGroup> MutationObserverInterestGroup::createIfNeeded(Node& target, MutationObserver::MutationType type, MutationRecordDeliveryOptions oldValueFlag, const QualifiedName* attributeName)
 {
     ASSERT((type == MutationObserver::Attributes && attributeName) || !attributeName);
     HashMap<MutationObserver*, MutationRecordDeliveryOptions> observers;
@@ -47,7 +45,7 @@ PassOwnPtr<MutationObserverInterestGroup> MutationObserverInterestGroup::createI
     if (observers.isEmpty())
         return nullptr;
 
-    return adoptPtr(new MutationObserverInterestGroup(observers, oldValueFlag));
+    return std::make_unique<MutationObserverInterestGroup>(observers, oldValueFlag);
 }
 
 MutationObserverInterestGroup::MutationObserverInterestGroup(HashMap<MutationObserver*, MutationRecordDeliveryOptions>& observers, MutationRecordDeliveryOptions oldValueFlag)

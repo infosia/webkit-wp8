@@ -52,7 +52,7 @@ public:
     };
 
     struct SubimageCacheEntryTraits : WTF::GenericHashTraits<SubimageCacheEntry> {
-        typedef HashTraits<RetainPtr<CGImageRef> > ImageTraits;
+        typedef HashTraits<RetainPtr<CGImageRef>> ImageTraits;
 
         static const bool emptyValueIsZero = true;
 
@@ -88,7 +88,7 @@ public:
     void clearImage(CGImageRef);
 
 private:
-    void invalidateCacheTimerFired(DeferrableOneShotTimer<SubimageCacheWithTimer>*);
+    void invalidateCacheTimerFired(DeferrableOneShotTimer<SubimageCacheWithTimer>&);
 
     HashCountedSet<CGImageRef> m_images;
     SubimageCache m_cache;

@@ -28,17 +28,19 @@
 
 #include "WebEvent.h"
 
-#if PLATFORM(MAC)
+#if USE(APPKIT)
 #include <wtf/RetainPtr.h>
 OBJC_CLASS NSView;
-#elif PLATFORM(QT)
-#include <qevent.h>
-#elif PLATFORM(GTK)
-#include <GOwnPtrGtk.h>
-typedef union _GdkEvent GdkEvent;
-#elif PLATFORM(EFL)
+#endif
+
+#if PLATFORM(EFL)
 #include <Evas.h>
 #include <WebCore/AffineTransform.h>
+#endif
+
+#if PLATFORM(GTK)
+#include <WebCore/GUniquePtrGtk.h>
+typedef union _GdkEvent GdkEvent;
 #endif
 
 namespace WebKit {
@@ -47,8 +49,6 @@ class NativeWebMouseEvent : public WebMouseEvent {
 public:
 #if USE(APPKIT)
     NativeWebMouseEvent(NSEvent *, NSView *);
-#elif PLATFORM(QT)
-    explicit NativeWebMouseEvent(QMouseEvent*, const QTransform& fromItemTransform, int eventClickCount);
 #elif PLATFORM(GTK)
     NativeWebMouseEvent(const NativeWebMouseEvent&);
     NativeWebMouseEvent(GdkEvent*, int);
@@ -60,21 +60,19 @@ public:
 
 #if USE(APPKIT)
     NSEvent* nativeEvent() const { return m_nativeEvent.get(); }
-#elif PLATFORM(QT)
-    const QMouseEvent* nativeEvent() const { return m_nativeEvent; }
 #elif PLATFORM(GTK)
     const GdkEvent* nativeEvent() const { return m_nativeEvent.get(); }
 #elif PLATFORM(EFL)
     const void* nativeEvent() const { return m_nativeEvent; }
+#elif PLATFORM(IOS)
+    const void* nativeEvent() const { return 0; }
 #endif
 
 private:
 #if USE(APPKIT)
     RetainPtr<NSEvent> m_nativeEvent;
-#elif PLATFORM(QT)
-    QMouseEvent* m_nativeEvent;
 #elif PLATFORM(GTK)
-    GOwnPtr<GdkEvent> m_nativeEvent;
+    GUniquePtr<GdkEvent> m_nativeEvent;
 #elif PLATFORM(EFL)
     const void* m_nativeEvent;
 #endif

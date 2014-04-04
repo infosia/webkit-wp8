@@ -31,14 +31,16 @@
 #include "CodeBlock.h"
 #include "DFGCommon.h"
 #include "DFGPlan.h"
+#include "JSCInlines.h"
+#include "ProfilerDatabase.h"
 
 namespace JSC { namespace DFG {
 
-JITFinalizer::JITFinalizer(Plan& plan, PassRefPtr<JITCode> jitCode, PassOwnPtr<LinkBuffer> linkBuffer, MacroAssembler::Label arityCheck)
+JITFinalizer::JITFinalizer(Plan& plan, PassRefPtr<JITCode> jitCode, PassOwnPtr<LinkBuffer> linkBuffer, MacroAssemblerCodePtr withArityCheck)
     : Finalizer(plan)
     , m_jitCode(jitCode)
     , m_linkBuffer(linkBuffer)
-    , m_arityCheck(arityCheck)
+    , m_withArityCheck(withArityCheck)
 {
 }
 
@@ -46,10 +48,16 @@ JITFinalizer::~JITFinalizer()
 {
 }
 
+size_t JITFinalizer::codeSize()
+{
+    return m_linkBuffer->size();
+}
+
 bool JITFinalizer::finalize()
 {
-    m_jitCode->initializeCodeRef(m_linkBuffer->finalizeCodeWithoutDisassembly());
-    m_plan.codeBlock->setJITCode(m_jitCode, MacroAssemblerCodePtr());
+    m_jitCode->initializeCodeRef(
+        m_linkBuffer->finalizeCodeWithoutDisassembly(), MacroAssemblerCodePtr());
+    m_plan.codeBlock->setJITCode(m_jitCode);
     
     finalizeCommon();
     
@@ -58,9 +66,10 @@ bool JITFinalizer::finalize()
 
 bool JITFinalizer::finalizeFunction()
 {
-    MacroAssemblerCodePtr withArityCheck = m_linkBuffer->locationOf(m_arityCheck);
-    m_jitCode->initializeCodeRef(m_linkBuffer->finalizeCodeWithoutDisassembly());
-    m_plan.codeBlock->setJITCode(m_jitCode, withArityCheck);
+    RELEASE_ASSERT(!m_withArityCheck.isEmptyValue());
+    m_jitCode->initializeCodeRef(
+        m_linkBuffer->finalizeCodeWithoutDisassembly(), m_withArityCheck);
+    m_plan.codeBlock->setJITCode(m_jitCode);
     
     finalizeCommon();
     
@@ -75,6 +84,9 @@ void JITFinalizer::finalizeCommon()
     
     if (m_plan.compilation)
         m_plan.vm.m_perBytecodeProfiler->addCompilation(m_plan.compilation);
+    
+    if (!m_plan.willTryToTierUp)
+        m_plan.codeBlock->baselineVersion()->m_didFailFTLCompilation = true;
 }
 
 } } // namespace JSC::DFG

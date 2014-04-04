@@ -27,9 +27,8 @@
 #ifndef RenderSVGResourceFilterPrimitive_h
 #define RenderSVGResourceFilterPrimitive_h
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 
-#include "RenderSVGHiddenContainer.h"
 #include "RenderSVGResourceFilter.h"
 
 namespace WebCore {
@@ -37,9 +36,9 @@ namespace WebCore {
 class FilterEffect;
 class SVGFilterPrimitiveStandardAttributes;
 
-class RenderSVGResourceFilterPrimitive FINAL : public RenderSVGHiddenContainer {
+class RenderSVGResourceFilterPrimitive final : public RenderSVGHiddenContainer {
 public:
-    explicit RenderSVGResourceFilterPrimitive(SVGFilterPrimitiveStandardAttributes&);
+    RenderSVGResourceFilterPrimitive(SVGFilterPrimitiveStandardAttributes&, PassRef<RenderStyle>);
     SVGFilterPrimitiveStandardAttributes& filterPrimitiveElement() const;
 
     virtual void styleDidChange(StyleDifference, const RenderStyle*);
@@ -58,11 +57,11 @@ public:
         static_cast<RenderSVGResourceFilter*>(filter)->primitiveAttributeChanged(this, attribute);
     }
 private:
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG) && ENABLE(FILTERS)
+#endif // ENABLE(FILTERS)
 
 #endif // RenderSVGResourceFilterPrimitive_h

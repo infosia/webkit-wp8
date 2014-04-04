@@ -27,19 +27,17 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "RenderSVGResourceFilterPrimitive.h"
 
-#include "RenderSVGResource.h"
 #include "SVGFEImage.h"
-#include "SVGFilter.h"
 #include "SVGFilterPrimitiveStandardAttributes.h"
 #include "SVGNames.h"
 
 namespace WebCore {
 
-RenderSVGResourceFilterPrimitive::RenderSVGResourceFilterPrimitive(SVGFilterPrimitiveStandardAttributes& filterPrimitiveElement)
-    : RenderSVGHiddenContainer(filterPrimitiveElement)
+RenderSVGResourceFilterPrimitive::RenderSVGResourceFilterPrimitive(SVGFilterPrimitiveStandardAttributes& filterPrimitiveElement, PassRef<RenderStyle> style)
+    : RenderSVGHiddenContainer(filterPrimitiveElement, std::move(style))
 {
 }
 
@@ -60,21 +58,21 @@ void RenderSVGResourceFilterPrimitive::styleDidChange(StyleDifference diff, cons
     if (diff == StyleDifferenceEqual || !oldStyle)
         return;
 
-    const SVGRenderStyle* newStyle = this->style()->svgStyle();
+    const SVGRenderStyle& newStyle = style().svgStyle();
     if (filterPrimitiveElement().hasTagName(SVGNames::feFloodTag)) {
-        if (newStyle->floodColor() != oldStyle->svgStyle()->floodColor())
-            toRenderSVGFilter(filter)->primitiveAttributeChanged(this, SVGNames::flood_colorAttr);
-        if (newStyle->floodOpacity() != oldStyle->svgStyle()->floodOpacity())
-            toRenderSVGFilter(filter)->primitiveAttributeChanged(this, SVGNames::flood_opacityAttr);
+        if (newStyle.floodColor() != oldStyle->svgStyle().floodColor())
+            toRenderSVGResourceFilter(filter)->primitiveAttributeChanged(this, SVGNames::flood_colorAttr);
+        if (newStyle.floodOpacity() != oldStyle->svgStyle().floodOpacity())
+            toRenderSVGResourceFilter(filter)->primitiveAttributeChanged(this, SVGNames::flood_opacityAttr);
     } else if (filterPrimitiveElement().hasTagName(SVGNames::feDiffuseLightingTag) || filterPrimitiveElement().hasTagName(SVGNames::feSpecularLightingTag)) {
-        if (newStyle->lightingColor() != oldStyle->svgStyle()->lightingColor())
-            toRenderSVGFilter(filter)->primitiveAttributeChanged(this, SVGNames::lighting_colorAttr);
+        if (newStyle.lightingColor() != oldStyle->svgStyle().lightingColor())
+            toRenderSVGResourceFilter(filter)->primitiveAttributeChanged(this, SVGNames::lighting_colorAttr);
     }
 }
 
 FloatRect RenderSVGResourceFilterPrimitive::determineFilterPrimitiveSubregion(FilterEffect* effect)
 {
-    SVGFilter* filter = static_cast<SVGFilter*>(effect->filter());
+    SVGFilter* filter = toSVGFilter(&(effect->filter()));
     ASSERT(filter);
 
     // FETile, FETurbulence, FEFlood don't have input effects, take the filter region as unite rect.
@@ -117,4 +115,4 @@ FloatRect RenderSVGResourceFilterPrimitive::determineFilterPrimitiveSubregion(Fi
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG) && ENABLE(FILTERS)
+#endif // ENABLE(FILTERS)

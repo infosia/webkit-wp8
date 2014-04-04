@@ -29,6 +29,7 @@
 #if ENABLE(DFG_JIT)
 
 #include "CodeBlockWithJITType.h"
+#include "JSCInlines.h"
 #include <wtf/Assertions.h>
 #include <wtf/BitVector.h>
 
@@ -78,7 +79,7 @@ public:
         // Validate that all local variables at the head of the root block are dead.
         BasicBlock* root = m_graph.block(0);
         for (unsigned i = 0; i < root->variablesAtHead.numberOfLocals(); ++i)
-            V_EQUAL((static_cast<VirtualRegister>(localToOperand(i)), 0), static_cast<Node*>(0), root->variablesAtHead.local(i));
+            V_EQUAL((virtualRegisterForLocal(i), root), static_cast<Node*>(0), root->variablesAtHead.local(i));
         
         // Validate ref counts and uses.
         for (BlockIndex blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex) {
@@ -182,6 +183,18 @@ public:
                 else
                     V_EQUAL((node), node->refCount(), 1);
             }
+            
+            for (size_t i = 0 ; i < block->size() - 1; ++i) {
+                Node* node = block->at(i);
+                VALIDATE((node), !node->isTerminal());
+            }
+            
+            for (size_t i = 0; i < block->size(); ++i) {
+                Node* node = block->at(i);
+                
+                if (node->hasStructure())
+                    VALIDATE((node), !!node->structure());
+            }
         }
         
         switch (m_graph.m_form) {
@@ -191,7 +204,7 @@ public:
             break;
             
         case SSA:
-            // FIXME: Implement SSA verification.
+            validateSSA();
             break;
         }
     }
@@ -245,10 +258,7 @@ private:
                         edge->op() == SetLocal
                         || edge->op() == SetArgument
                         || edge->op() == Flush
-                        || edge->op() == Phi
-                        || edge->op() == ZombieHint
-                        || edge->op() == MovHint
-                        || edge->op() == MovHintAndCheck);
+                        || edge->op() == Phi);
                     
                     if (phisInThisBlock.contains(edge.node()))
                         continue;
@@ -257,9 +267,6 @@ private:
                         VALIDATE(
                             (node, edge),
                             edge->op() == SetLocal
-                            || edge->op() == ZombieHint
-                            || edge->op() == MovHint
-                            || edge->op() == MovHintAndCheck
                             || edge->op() == SetArgument
                             || edge->op() == Flush);
                         
@@ -292,9 +299,6 @@ private:
                         VALIDATE(
                             (local, block->predecessors[k], prevNode),
                             prevNode->op() == SetLocal
-                            || prevNode->op() == MovHint
-                            || prevNode->op() == MovHintAndCheck
-                            || prevNode->op() == ZombieHint
                             || prevNode->op() == SetArgument
                             || prevNode->op() == Phi);
                         if (prevNode == edge.node()) {
@@ -317,17 +321,17 @@ private:
                 block->variablesAtHead.numberOfLocals());
             
             for (size_t i = 0; i < block->variablesAtHead.numberOfArguments(); ++i) {
-                VALIDATE((static_cast<VirtualRegister>(argumentToOperand(i)), block), !block->variablesAtHead.argument(i) || block->variablesAtHead.argument(i)->hasVariableAccessData(m_graph));
+                VALIDATE((virtualRegisterForArgument(i), block), !block->variablesAtHead.argument(i) || block->variablesAtHead.argument(i)->hasVariableAccessData(m_graph));
                 if (m_graph.m_form == ThreadedCPS)
-                    VALIDATE((static_cast<VirtualRegister>(argumentToOperand(i)), block), !block->variablesAtTail.argument(i) || block->variablesAtTail.argument(i)->hasVariableAccessData(m_graph));
+                    VALIDATE((virtualRegisterForArgument(i), block), !block->variablesAtTail.argument(i) || block->variablesAtTail.argument(i)->hasVariableAccessData(m_graph));
                 
                 getLocalPositions.argument(i) = notSet;
                 setLocalPositions.argument(i) = notSet;
             }
             for (size_t i = 0; i < block->variablesAtHead.numberOfLocals(); ++i) {
-                VALIDATE((static_cast<VirtualRegister>(localToOperand(i)), block), !block->variablesAtHead.local(i) || block->variablesAtHead.local(i)->hasVariableAccessData(m_graph));
+                VALIDATE((virtualRegisterForLocal(i), block), !block->variablesAtHead.local(i) || block->variablesAtHead.local(i)->hasVariableAccessData(m_graph));
                 if (m_graph.m_form == ThreadedCPS)
-                    VALIDATE((static_cast<VirtualRegister>(localToOperand(i)), block), !block->variablesAtTail.local(i) || block->variablesAtTail.local(i)->hasVariableAccessData(m_graph));
+                    VALIDATE((virtualRegisterForLocal(i), block), !block->variablesAtTail.local(i) || block->variablesAtTail.local(i)->hasVariableAccessData(m_graph));
 
                 getLocalPositions.local(i) = notSet;
                 setLocalPositions.local(i) = notSet;
@@ -350,6 +354,7 @@ private:
                     case Phantom:
                         if (m_graph.m_form == LoadStore && !j)
                             break;
+                        FALLTHROUGH;
                     default:
                         VALIDATE((node, edge), !phisInThisBlock.contains(edge.node()));
                         break;
@@ -389,18 +394,52 @@ private:
             
             for (size_t i = 0; i < block->variablesAtHead.numberOfArguments(); ++i) {
                 checkOperand(
-                    block, getLocalPositions, setLocalPositions, argumentToOperand(i));
+                    block, getLocalPositions, setLocalPositions, virtualRegisterForArgument(i));
             }
             for (size_t i = 0; i < block->variablesAtHead.numberOfLocals(); ++i) {
                 checkOperand(
-                    block, getLocalPositions, setLocalPositions, localToOperand(i));
+                    block, getLocalPositions, setLocalPositions, virtualRegisterForLocal(i));
+            }
+        }
+    }
+    
+    void validateSSA()
+    {
+        // FIXME: Add more things here.
+        // https://bugs.webkit.org/show_bug.cgi?id=123471
+        
+        for (BlockIndex blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex) {
+            BasicBlock* block = m_graph.block(blockIndex);
+            if (!block)
+                continue;
+            
+            unsigned nodeIndex = 0;
+            for (; nodeIndex < block->size() && !block->at(nodeIndex)->origin.isSet(); nodeIndex++) { }
+            
+            VALIDATE((block), nodeIndex < block->size());
+            
+            for (; nodeIndex < block->size(); nodeIndex++)
+                VALIDATE((block->at(nodeIndex)), block->at(nodeIndex)->origin.isSet());
+            
+            for (unsigned nodeIndex = 0; nodeIndex < block->size(); ++nodeIndex) {
+                Node* node = block->at(nodeIndex);
+                switch (node->op()) {
+                case Phi:
+                    VALIDATE((node), !node->origin.isSet());
+                    break;
+                    
+                default:
+                    // FIXME: Add more things here.
+                    // https://bugs.webkit.org/show_bug.cgi?id=123471
+                    break;
+                }
             }
         }
     }
     
     void checkOperand(
         BasicBlock* block, Operands<size_t>& getLocalPositions,
-        Operands<size_t>& setLocalPositions, int operand)
+        Operands<size_t>& setLocalPositions, VirtualRegister operand)
     {
         if (getLocalPositions.operand(operand) == notSet)
             return;
@@ -432,23 +471,23 @@ private:
     void reportValidationContext(VirtualRegister local, BasicBlock* block)
     {
         if (!block) {
-            dataLog("r", static_cast<int>(local), " in null Block ");
+            dataLog("r", local, " in null Block ");
             return;
         }
 
-        dataLog("r", static_cast<int>(local), " in Block ", *block);
+        dataLog("r", local, " in Block ", *block);
     }
     
     void reportValidationContext(
         VirtualRegister local, BasicBlock* sourceBlock, BasicBlock* destinationBlock)
     {
-        dataLog("r", static_cast<int>(local), " in Block ", *sourceBlock, " -> ", *destinationBlock);
+        dataLog("r", local, " in Block ", *sourceBlock, " -> ", *destinationBlock);
     }
     
     void reportValidationContext(
         VirtualRegister local, BasicBlock* sourceBlock, Node* prevNode)
     {
-        dataLog(prevNode, " for r", static_cast<int>(local), " in Block ", *sourceBlock);
+        dataLog(prevNode, " for r", local, " in Block ", *sourceBlock);
     }
     
     void reportValidationContext(Node* node, BasicBlock* block)

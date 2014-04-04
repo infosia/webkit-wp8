@@ -19,17 +19,16 @@
  */
 
 #include "config.h"
+
+#if USE(SOUP)
+
 #include "ResourceResponse.h"
 
-#include <wtf/gobject/GOwnPtr.h>
 #include "HTTPParsers.h"
 #include "MIMETypeRegistry.h"
-#include "SoupURIUtils.h"
 #include <wtf/text/CString.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/WTFString.h>
-
-using namespace std;
 
 namespace WebCore {
 
@@ -60,7 +59,7 @@ SoupMessage* ResourceResponse::toSoupMessage() const
 
 void ResourceResponse::updateFromSoupMessage(SoupMessage* soupMessage)
 {
-    m_url = soupURIToKURL(soup_message_get_uri(soupMessage));
+    m_url = URL(soup_message_get_uri(soupMessage));
 
     m_httpStatusCode = soupMessage->status_code;
     setHTTPStatusText(soupMessage->reason_phrase);
@@ -102,3 +101,5 @@ void ResourceResponse::updateFromSoupMessageHeaders(const SoupMessageHeaders* me
     setSuggestedFilename(filenameFromHTTPContentDisposition(httpHeaderField("Content-Disposition")));}
 
 }
+
+#endif

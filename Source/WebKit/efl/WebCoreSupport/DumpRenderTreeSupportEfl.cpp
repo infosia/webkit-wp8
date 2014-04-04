@@ -2,6 +2,7 @@
     Copyright (C) 2011 ProFUSION embedded systems
     Copyright (C) 2011 Samsung Electronics
     Copyright (C) 2012 Intel Corporation. All rights reserved.
+    Copyright (C) 2013 Apple Inc. All rights reserved.
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -58,9 +59,10 @@
 #include <RuntimeEnabledFeatures.h>
 #include <SchemeRegistry.h>
 #include <ScriptController.h>
-#include <ScriptValue.h>
 #include <Settings.h>
 #include <TextIterator.h>
+#include <VisibleSelection.h>
+#include <bindings/ScriptValue.h>
 #include <bindings/js/GCController.h>
 #include <history/HistoryItem.h>
 #include <wtf/HashMap.h>
@@ -197,7 +199,7 @@ WebCore::IntRect DumpRenderTreeSupportEfl::selectionRectangle(const Evas_Object*
 {
     DRT_SUPPORT_FRAME_GET_OR_RETURN(ewkFrame, frame, WebCore::IntRect());
 
-    return enclosingIntRect(frame->selection().bounds());
+    return enclosingIntRect(frame->selection().selectionBounds());
 }
 
 // Compare with "WebKit/Tools/DumpRenderTree/mac/FrameLoadDelegate.mm
@@ -220,13 +222,13 @@ String DumpRenderTreeSupportEfl::suitableDRTFrameName(const Evas_Object* ewkFram
     return String("frame (anonymous)");
 }
 
-const WebCore::KURL DumpRenderTreeSupportEfl::provisionalURL(const Evas_Object* ewkFrame)
+const WebCore::URL DumpRenderTreeSupportEfl::provisionalURL(const Evas_Object* ewkFrame)
 {
-    DRT_SUPPORT_FRAME_GET_OR_RETURN(ewkFrame, frame, WebCore::KURL());
+    DRT_SUPPORT_FRAME_GET_OR_RETURN(ewkFrame, frame, WebCore::URL());
 
     WebCore::DocumentLoader* provisionalDocumentLoader = frame->loader().provisionalDocumentLoader();
     if (!provisionalDocumentLoader)
-        return WebCore::KURL();
+        return WebCore::URL();
 
     return provisionalDocumentLoader->url();
 }
@@ -269,7 +271,7 @@ void DumpRenderTreeSupportEfl::addUserScript(const Evas_Object* ewkView, const S
 {
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    page->group().addUserScriptToWorld(WebCore::mainThreadNormalWorld(), sourceCode, WebCore::KURL(),
+    page->group().addUserScriptToWorld(WebCore::mainThreadNormalWorld(), sourceCode, WebCore::URL(),
                                        Vector<String>(), Vector<String>(), runAtStart ? WebCore::InjectAtDocumentStart : WebCore::InjectAtDocumentEnd,
                                        allFrames ? WebCore::InjectInAllFrames : WebCore::InjectInTopFrameOnly);
 }
@@ -285,7 +287,7 @@ void DumpRenderTreeSupportEfl::addUserStyleSheet(const Evas_Object* ewkView, con
 {
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    page->group().addUserStyleSheetToWorld(WebCore::mainThreadNormalWorld(), sourceCode, WebCore::KURL(), Vector<String>(), Vector<String>(), allFrames ? WebCore::InjectInAllFrames : WebCore::InjectInTopFrameOnly);
+    page->group().addUserStyleSheetToWorld(WebCore::mainThreadNormalWorld(), sourceCode, WebCore::URL(), Vector<String>(), Vector<String>(), allFrames ? WebCore::InjectInAllFrames : WebCore::InjectInTopFrameOnly);
 }
 
 void DumpRenderTreeSupportEfl::clearUserStyleSheets(const Evas_Object* ewkView)
@@ -320,16 +322,7 @@ void DumpRenderTreeSupportEfl::setCSSRegionsEnabled(const Evas_Object* ewkView, 
 {
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    WebCore::RuntimeEnabledFeatures::setCSSRegionsEnabled(enabled);
-}
-
-void DumpRenderTreeSupportEfl::setSeamlessIFramesEnabled(bool enabled)
-{
-#if ENABLE(IFRAME_SEAMLESS)
-    WebCore::RuntimeEnabledFeatures::setSeamlessIFramesEnabled(enabled);
-#else
-    UNUSED_PARAM(enabled);
-#endif
+    WebCore::RuntimeEnabledFeatures::sharedFeatures().setCSSRegionsEnabled(enabled);
 }
 
 void DumpRenderTreeSupportEfl::setWebAudioEnabled(Evas_Object* ewkView, bool enabled)
@@ -389,7 +382,7 @@ Eina_List* DumpRenderTreeSupportEfl::trackedRepaintRects(const Evas_Object* ewkF
     if (!frame->view())
         return 0;
 
-    const Vector<WebCore::IntRect>& repaintRects = frame->view()->trackedRepaintRects();
+    const Vector<WebCore::FloatRect>& repaintRects = frame->view()->trackedRepaintRects();
     size_t count = repaintRects.size();
     Eina_List* rectList = 0;
 
@@ -413,7 +406,7 @@ void DumpRenderTreeSupportEfl::garbageCollectorCollectOnAlternateThread(bool wai
 
 size_t DumpRenderTreeSupportEfl::javaScriptObjectsCount()
 {
-    return WebCore::JSDOMWindow::commonVM()->heap.objectCount();
+    return WebCore::JSDOMWindow::commonVM().heap.objectCount();
 }
 
 void DumpRenderTreeSupportEfl::setDeadDecodedDataDeletionInterval(double interval)
@@ -460,16 +453,14 @@ bool DumpRenderTreeSupportEfl::isTargetItem(const Ewk_History_Item* ewkHistoryIt
     return historyItem->isTargetItem();
 }
 
-void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView, long callId, const String& script)
+void DumpRenderTreeSupportEfl::evaluateInWebInspector(const Evas_Object* ewkView, const String& script)
 {
 #if ENABLE(INSPECTOR)
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page);
 
-    if (page->inspectorController())
-        page->inspectorController()->evaluateForTestInFrontend(callId, script);
+    page->inspectorController().evaluateForTestInFrontend(script);
 #else
     UNUSED_PARAM(ewkView);
-    UNUSED_PARAM(callId);
     UNUSED_PARAM(script);
 #endif
 }
@@ -487,7 +478,7 @@ void DumpRenderTreeSupportEfl::evaluateScriptInIsolatedWorld(const Evas_Object* 
         anyWorldGlobalObject = static_cast<WebCore::JSDOMWindowShell*>(globalObjectObj)->window();
 
     // Comment from mac: Get the frame from the global object we've settled on.
-    WebCore::Frame* globalFrame = anyWorldGlobalObject->impl()->frame();
+    WebCore::Frame* globalFrame = anyWorldGlobalObject->impl().frame();
     if (!globalFrame)
         return;
 
@@ -510,7 +501,7 @@ void DumpRenderTreeSupportEfl::evaluateScriptInIsolatedWorld(const Evas_Object* 
 
     // The code below is only valid for JSC, V8 specific code is to be added
     // when V8 will be supported in EFL port. See Qt implemenation.
-    proxy.executeScriptInWorld(scriptWorld.get(), script, true);
+    proxy.executeScriptInWorld(*scriptWorld, script, true);
 }
 
 JSGlobalContextRef DumpRenderTreeSupportEfl::globalContextRefForFrame(const Evas_Object* ewkFrame)
@@ -639,14 +630,15 @@ bool DumpRenderTreeSupportEfl::selectedRange(Evas_Object* ewkView, int* start, i
     DRT_SUPPRT_PAGE_GET_OR_RETURN(ewkView, page, false);
 
     WebCore::Frame& frame = page->focusController().focusedOrMainFrame();
-    RefPtr<WebCore::Range> range = frame.selection().toNormalizedRange().get();
+    const WebCore::VisibleSelection& selection = frame.selection().selection();
+    RefPtr<WebCore::Range> range = selection.toNormalizedRange().get();
     if (!range)
         return false;
 
-    WebCore::Element* selectionRoot = frame.selection().rootEditableElement();
+    WebCore::Element* selectionRoot = selection.rootEditableElement();
     WebCore::Element* scope = selectionRoot ? selectionRoot : frame.document()->documentElement();
 
-    RefPtr<WebCore::Range> testRange = WebCore::Range::create(&scope->document(), scope, 0, range->startContainer(), range->startOffset());
+    RefPtr<WebCore::Range> testRange = WebCore::Range::create(scope->document(), scope, 0, range->startContainer(), range->startOffset());
     *start = WebCore::TextIterator::rangeLength(testRange.get());
 
     WebCore::ExceptionCode ec;

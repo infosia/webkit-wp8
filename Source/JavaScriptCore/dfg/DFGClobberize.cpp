@@ -28,7 +28,7 @@
 
 #if ENABLE(DFG_JIT)
 
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -36,6 +36,14 @@ bool doesWrites(Graph& graph, Node* node)
 {
     NoOpClobberize addRead;
     CheckClobberize addWrite;
+    clobberize(graph, node, addRead, addWrite);
+    return addWrite.result();
+}
+
+bool writesOverlap(Graph& graph, Node* node, AbstractHeap heap)
+{
+    NoOpClobberize addRead;
+    AbstractHeapOverlaps addWrite(heap);
     clobberize(graph, node, addRead, addWrite);
     return addWrite.result();
 }

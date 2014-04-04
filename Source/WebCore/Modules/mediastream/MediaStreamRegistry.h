@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2011 Google Inc. All rights reserved.
+ * Copyright (C) 2013 Nokia Corporation and/or its subsidiary(-ies).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,23 +35,22 @@
 
 namespace WebCore {
 
-class KURL;
+class URL;
 class MediaStream;
-class MediaStreamDescriptor;
 
-class MediaStreamRegistry : public URLRegistry {
+class MediaStreamRegistry final : public URLRegistry {
 public:
     // Returns a single instance of MediaStreamRegistry.
     static MediaStreamRegistry& registry();
 
     // Registers a blob URL referring to the specified stream data.
-    virtual void registerURL(SecurityOrigin*, const KURL&, URLRegistrable*) OVERRIDE;
-    virtual void unregisterURL(const KURL&) OVERRIDE;
+    virtual void registerURL(SecurityOrigin*, const URL&, URLRegistrable*) override;
+    virtual void unregisterURL(const URL&) override;
 
-    MediaStreamDescriptor* lookupMediaStreamDescriptor(const String& url);
+    virtual URLRegistrable* lookup(const String&) const override;
 
 private:
-    HashMap<String, RefPtr<MediaStreamDescriptor> > m_streamDescriptors;
+    HashMap<String, RefPtr<MediaStream>> m_mediaStreams;
 };
 
 } // namespace WebCore

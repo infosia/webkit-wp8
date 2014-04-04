@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,19 +29,20 @@
 #if ENABLE(DFG_JIT)
 
 #include "CCallHelpers.h"
-#include "CallFrameInlines.h"
 #include "CodeBlock.h"
 #include "DFGDisassembler.h"
 #include "DFGGraph.h"
+#include "DFGInlineCacheWrapper.h"
 #include "DFGJITCode.h"
 #include "DFGOSRExitCompilationInfo.h"
 #include "DFGRegisterBank.h"
-#include "DFGRegisterSet.h"
 #include "FPRInfo.h"
 #include "GPRInfo.h"
 #include "JITCode.h"
+#include "JITInlineCacheGenerator.h"
 #include "LinkBuffer.h"
 #include "MacroAssembler.h"
+#include "TempRegisterSet.h"
 
 namespace JSC {
 
@@ -77,184 +78,21 @@ struct CallLinkRecord {
     FunctionPtr m_function;
 };
 
-class CallBeginToken {
-public:
-    CallBeginToken()
-#if !ASSERT_DISABLED
-        : m_registered(false)
-        , m_exceptionCheckIndex(std::numeric_limits<unsigned>::max())
-#endif
-    {
-    }
-    
-    ~CallBeginToken()
-    {
-        ASSERT(m_registered || !m_codeOrigin.isSet());
-        ASSERT(m_codeOrigin.isSet() == (m_exceptionCheckIndex != std::numeric_limits<unsigned>::max()));
-    }
-    
-    void set(CodeOrigin codeOrigin, unsigned index)
-    {
-#if !ASSERT_DISABLED
-        ASSERT(m_registered || !m_codeOrigin.isSet());
-        ASSERT(m_codeOrigin.isSet() == (m_exceptionCheckIndex != std::numeric_limits<unsigned>::max()));
-        m_codeOrigin = codeOrigin;
-        m_registered = false;
-        m_exceptionCheckIndex = index;
-#else
-        UNUSED_PARAM(codeOrigin);
-        UNUSED_PARAM(index);
-#endif
-    }
-    
-    void registerWithExceptionCheck(CodeOrigin codeOrigin, unsigned index)
-    {
-#if !ASSERT_DISABLED
-        ASSERT(m_codeOrigin == codeOrigin);
-        if (m_registered)
-            return;
-        ASSERT(m_exceptionCheckIndex == index);
-        m_registered = true;
-#else
-        UNUSED_PARAM(codeOrigin);
-        UNUSED_PARAM(index);
-#endif
-    }
-
-#if !ASSERT_DISABLED
-    const CodeOrigin& codeOrigin() const
-    {
-        return m_codeOrigin;
-    }
-#endif
-    
-private:
-#if !ASSERT_DISABLED
-    CodeOrigin m_codeOrigin;
-    bool m_registered;
-    unsigned m_exceptionCheckIndex;
-#endif
-};
-
-// === CallExceptionRecord ===
-//
-// A record of a call out from JIT code that might throw an exception.
-// Calls that might throw an exception also record the Jump taken on exception
-// (unset if not present) and code origin used to recover handler/source info.
-struct CallExceptionRecord {
-    CallExceptionRecord(MacroAssembler::Call call, CodeOrigin codeOrigin)
-        : m_call(call)
-        , m_codeOrigin(codeOrigin)
-    {
-    }
-
-    CallExceptionRecord(MacroAssembler::Call call, MacroAssembler::Jump exceptionCheck, CodeOrigin codeOrigin)
-        : m_call(call)
-        , m_exceptionCheck(exceptionCheck)
-        , m_codeOrigin(codeOrigin)
-    {
-    }
-
-    MacroAssembler::Call m_call;
-    MacroAssembler::Jump m_exceptionCheck;
-    CodeOrigin m_codeOrigin;
-};
-
-struct PropertyAccessRecord {
-    enum RegisterMode { RegistersFlushed, RegistersInUse };
-    
-#if USE(JSVALUE64)
-    PropertyAccessRecord(
-        CodeOrigin codeOrigin,
-        MacroAssembler::DataLabelPtr structureImm,
-        MacroAssembler::PatchableJump structureCheck,
-        MacroAssembler::ConvertibleLoadLabel propertyStorageLoad,
-        MacroAssembler::DataLabelCompact loadOrStore,
-        SlowPathGenerator* slowPathGenerator,
-        MacroAssembler::Label done,
-        int8_t baseGPR,
-        int8_t valueGPR,
-        const RegisterSet& usedRegisters,
-        RegisterMode registerMode = RegistersInUse)
-#elif USE(JSVALUE32_64)
-    PropertyAccessRecord(
-        CodeOrigin codeOrigin,
-        MacroAssembler::DataLabelPtr structureImm,
-        MacroAssembler::PatchableJump structureCheck,
-        MacroAssembler::ConvertibleLoadLabel propertyStorageLoad,
-        MacroAssembler::DataLabelCompact tagLoadOrStore,
-        MacroAssembler::DataLabelCompact payloadLoadOrStore,
-        SlowPathGenerator* slowPathGenerator,
-        MacroAssembler::Label done,
-        int8_t baseGPR,
-        int8_t valueTagGPR,
-        int8_t valueGPR,
-        const RegisterSet& usedRegisters,
-        RegisterMode registerMode = RegistersInUse)
-#endif
-        : m_codeOrigin(codeOrigin)
-        , m_structureImm(structureImm)
-        , m_structureCheck(structureCheck)
-        , m_propertyStorageLoad(propertyStorageLoad)
-#if USE(JSVALUE64)
-        , m_loadOrStore(loadOrStore)
-#elif USE(JSVALUE32_64)
-        , m_tagLoadOrStore(tagLoadOrStore)
-        , m_payloadLoadOrStore(payloadLoadOrStore)
-#endif
-        , m_slowPathGenerator(slowPathGenerator)
-        , m_done(done)
-        , m_baseGPR(baseGPR)
-#if USE(JSVALUE32_64)
-        , m_valueTagGPR(valueTagGPR)
-#endif
-        , m_valueGPR(valueGPR)
-        , m_usedRegisters(usedRegisters)
-        , m_registerMode(registerMode)
-    {
-    }
-
-    CodeOrigin m_codeOrigin;
-    MacroAssembler::DataLabelPtr m_structureImm;
-    MacroAssembler::PatchableJump m_structureCheck;
-    MacroAssembler::ConvertibleLoadLabel m_propertyStorageLoad;
-#if USE(JSVALUE64)
-    MacroAssembler::DataLabelCompact m_loadOrStore;
-#elif USE(JSVALUE32_64)
-    MacroAssembler::DataLabelCompact m_tagLoadOrStore;
-    MacroAssembler::DataLabelCompact m_payloadLoadOrStore;
-#endif
-    SlowPathGenerator* m_slowPathGenerator;
-    MacroAssembler::Label m_done;
-    int8_t m_baseGPR;
-#if USE(JSVALUE32_64)
-    int8_t m_valueTagGPR;
-#endif
-    int8_t m_valueGPR;
-    RegisterSet m_usedRegisters;
-    RegisterMode m_registerMode;
-};
-
 struct InRecord {
     InRecord(
-        CodeOrigin codeOrigin, MacroAssembler::PatchableJump jump,
-        SlowPathGenerator* slowPathGenerator, int8_t baseGPR, int8_t resultGPR,
-        const RegisterSet& usedRegisters)
-        : m_codeOrigin(codeOrigin)
-        , m_jump(jump)
+        MacroAssembler::PatchableJump jump, MacroAssembler::Label done,
+        SlowPathGenerator* slowPathGenerator, StructureStubInfo* stubInfo)
+        : m_jump(jump)
+        , m_done(done)
         , m_slowPathGenerator(slowPathGenerator)
-        , m_baseGPR(baseGPR)
-        , m_resultGPR(resultGPR)
-        , m_usedRegisters(usedRegisters)
+        , m_stubInfo(stubInfo)
     {
     }
     
-    CodeOrigin m_codeOrigin;
     MacroAssembler::PatchableJump m_jump;
+    MacroAssembler::Label m_done;
     SlowPathGenerator* m_slowPathGenerator;
-    int8_t m_baseGPR;
-    int8_t m_resultGPR;
-    RegisterSet m_usedRegisters;
+    StructureStubInfo* m_stubInfo;
 };
 
 // === JITCompiler ===
@@ -278,15 +116,6 @@ public:
 
     // Accessors for properties.
     Graph& graph() { return m_graph; }
-    
-    void addLazily(Watchpoint* watchpoint, WatchpointSet* set)
-    {
-        m_graph.watchpoints().addLazily(watchpoint, set);
-    }
-    void addLazily(Watchpoint* watchpoint, InlineWatchpointSet& set)
-    {
-        m_graph.watchpoints().addLazily(watchpoint, set);
-    }
     
     // Methods to set labels for the disassembler.
     void setStartOfCode()
@@ -324,28 +153,11 @@ public:
         m_disassembler->setEndOfCode(labelIgnoringWatchpoints());
     }
     
-    unsigned currentCodeOriginIndex() const
+    void emitStoreCodeOrigin(CodeOrigin codeOrigin)
     {
-        return m_currentCodeOriginIndex;
-    }
-    
-    // Get a token for beginning a call, and set the current code origin index in
-    // the call frame. For each beginCall() there must be at least one exception
-    // check, and all of the exception checks must have the same CodeOrigin as the
-    // beginCall().
-    void beginCall(CodeOrigin codeOrigin, CallBeginToken& token)
-    {
-        unsigned index = m_exceptionChecks.size();
+        unsigned index = m_jitCode->common.addCodeOrigin(codeOrigin);
         unsigned locationBits = CallFrame::Location::encodeAsCodeOriginIndex(index);
         store32(TrustedImm32(locationBits), tagFor(static_cast<VirtualRegister>(JSStack::ArgumentCount)));
-        token.set(codeOrigin, index);
-    }
-
-    // Notify the JIT of a call that does not require linking.
-    void notifyCall(Call functionCall, CodeOrigin codeOrigin, CallBeginToken& token)
-    {
-        token.registerWithExceptionCheck(codeOrigin, m_exceptionChecks.size());
-        m_exceptionChecks.append(CallExceptionRecord(functionCall, codeOrigin));
     }
 
     // Add a call out from JIT code, without an exception check.
@@ -356,57 +168,62 @@ public:
         return functionCall;
     }
     
-    void prepareForExceptionCheck()
+    void exceptionCheck(Jump jumpToHandler)
     {
-        move(TrustedImm32(m_exceptionChecks.size()), GPRInfo::nonPreservedNonReturnGPR);
+        m_exceptionChecks.append(jumpToHandler);
+    }
+    
+    void exceptionCheck()
+    {
+        m_exceptionChecks.append(emitExceptionCheck());
     }
 
-    // Add a call out from JIT code, with an exception check.
-    void addExceptionCheck(Call functionCall, CodeOrigin codeOrigin, CallBeginToken& token)
+    void exceptionCheckWithCallFrameRollback()
     {
-        prepareForExceptionCheck();
-        token.registerWithExceptionCheck(codeOrigin, m_exceptionChecks.size());
-        m_exceptionChecks.append(CallExceptionRecord(functionCall, emitExceptionCheck(), codeOrigin));
+        m_exceptionChecksWithCallFrameRollback.append(emitExceptionCheck());
     }
-    
+
     // Add a call out from JIT code, with a fast exception check that tests if the return value is zero.
-    void addFastExceptionCheck(Call functionCall, CodeOrigin codeOrigin, CallBeginToken& token)
+    void fastExceptionCheck()
     {
-        prepareForExceptionCheck();
-        Jump exceptionCheck = branchTestPtr(Zero, GPRInfo::returnValueGPR);
-        token.registerWithExceptionCheck(codeOrigin, m_exceptionChecks.size());
-        m_exceptionChecks.append(CallExceptionRecord(functionCall, exceptionCheck, codeOrigin));
+        m_exceptionChecks.append(branchTestPtr(Zero, GPRInfo::returnValueGPR));
     }
     
-    void appendExitInfo(MacroAssembler::JumpList jumpsToFail = MacroAssembler::JumpList())
+    OSRExitCompilationInfo& appendExitInfo(MacroAssembler::JumpList jumpsToFail = MacroAssembler::JumpList())
     {
         OSRExitCompilationInfo info;
         info.m_failureJumps = jumpsToFail;
         m_exitCompilationInfo.append(info);
+        return m_exitCompilationInfo.last();
     }
 
 #if USE(JSVALUE32_64)
-    void* addressOfDoubleConstant(Node* node)
-    {
-        ASSERT(m_graph.isNumberConstant(node));
-        unsigned constantIndex = node->constantNumber();
-        return &(codeBlock()->constantRegister(FirstConstantRegisterIndex + constantIndex));
-    }
+    void* addressOfDoubleConstant(Node*);
 #endif
 
-    void addPropertyAccess(const PropertyAccessRecord& record)
+    void addGetById(const JITGetByIdGenerator& gen, SlowPathGenerator* slowPath)
     {
-        m_propertyAccesses.append(record);
+        m_getByIds.append(InlineCacheWrapper<JITGetByIdGenerator>(gen, slowPath));
     }
     
+    void addPutById(const JITPutByIdGenerator& gen, SlowPathGenerator* slowPath)
+    {
+        m_putByIds.append(InlineCacheWrapper<JITPutByIdGenerator>(gen, slowPath));
+    }
+
     void addIn(const InRecord& record)
     {
         m_ins.append(record);
     }
-
-    void addJSCall(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo::CallType callType, GPRReg callee, CodeOrigin codeOrigin)
+    
+    unsigned currentJSCallIndex() const
     {
-        m_jsCalls.append(JSCallRecord(fastCall, slowCall, targetToCheck, callType, callee, codeOrigin));
+        return m_jsCalls.size();
+    }
+
+    void addJSCall(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo* info)
+    {
+        m_jsCalls.append(JSCallRecord(fastCall, slowCall, targetToCheck, info));
     }
     
     void addWeakReference(JSCell* target)
@@ -427,10 +244,31 @@ public:
         addWeakReference(weakPtr);
         return result;
     }
-    
+
+    template<typename T>
+    Jump branchWeakStructure(RelationalCondition cond, T left, Structure* weakStructure)
+    {
+#if USE(JSVALUE64)
+        Jump result = branch32(cond, left, TrustedImm32(weakStructure->id()));
+        addWeakReference(weakStructure);
+        return result;
+#else
+        return branchWeakPtr(cond, left, weakStructure);
+#endif
+    }
+
+    template<typename T>
+    Jump branchStructurePtr(RelationalCondition cond, T left, Structure* structure)
+    {
+#if USE(JSVALUE64)
+        return branch32(cond, left, TrustedImm32(structure->id()));
+#else
+        return branchPtr(cond, left, TrustedImmPtr(structure));
+#endif
+    }
+
     void noticeOSREntry(BasicBlock& basicBlock, JITCompiler::Label blockHead, LinkBuffer& linkBuffer)
     {
-#if DFG_ENABLE(OSR_ENTRY)
         // OSR entry is not allowed into blocks deemed unreachable by control flow analysis.
         if (!basicBlock.cfaHasVisited)
             return;
@@ -452,7 +290,10 @@ public:
             if (!node || !node->shouldGenerate())
                 entry->m_expectedValues.local(local).makeHeapTop();
             else {
-                switch (node->variableAccessData()->flushFormat()) {
+                VariableAccessData* variable = node->variableAccessData();
+                entry->m_machineStackUsed.set(variable->machineLocal().toLocal());
+                
+                switch (variable->flushFormat()) {
                 case FlushedDouble:
                     entry->m_localsForcedDouble.set(local);
                     break;
@@ -462,13 +303,16 @@ public:
                 default:
                     break;
                 }
+                
+                if (variable->local() != variable->machineLocal()) {
+                    entry->m_reshufflings.append(
+                        OSREntryReshuffling(
+                            variable->local().offset(), variable->machineLocal().offset()));
+                }
             }
         }
-#else
-        UNUSED_PARAM(basicBlock);
-        UNUSED_PARAM(blockHead);
-        UNUSED_PARAM(linkBuffer);
-#endif
+        
+        entry->m_reshufflings.shrinkToFit();
     }
     
     PassRefPtr<JITCode> jitCode() { return m_jitCode; }
@@ -498,38 +342,33 @@ private:
     // Vector of calls out from JIT code, including exception handler information.
     // Count of the number of CallRecords with exception handlers.
     Vector<CallLinkRecord> m_calls;
-    Vector<CallExceptionRecord> m_exceptionChecks;
+    JumpList m_exceptionChecks;
+    JumpList m_exceptionChecksWithCallFrameRollback;
     
     Vector<Label> m_blockHeads;
 
     struct JSCallRecord {
-        JSCallRecord(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo::CallType callType, GPRReg callee, CodeOrigin codeOrigin)
+        JSCallRecord(Call fastCall, Call slowCall, DataLabelPtr targetToCheck, CallLinkInfo* info)
             : m_fastCall(fastCall)
             , m_slowCall(slowCall)
             , m_targetToCheck(targetToCheck)
-            , m_callType(callType)
-            , m_callee(callee)
-            , m_codeOrigin(codeOrigin)
+            , m_info(info)
         {
         }
         
         Call m_fastCall;
         Call m_slowCall;
         DataLabelPtr m_targetToCheck;
-        CallLinkInfo::CallType m_callType;
-        GPRReg m_callee;
-        CodeOrigin m_codeOrigin;
+        CallLinkInfo* m_info;
     };
     
-    Vector<PropertyAccessRecord, 4> m_propertyAccesses;
+    Vector<InlineCacheWrapper<JITGetByIdGenerator>, 4> m_getByIds;
+    Vector<InlineCacheWrapper<JITPutByIdGenerator>, 4> m_putByIds;
     Vector<InRecord, 4> m_ins;
     Vector<JSCallRecord, 4> m_jsCalls;
-    Vector<OSRExitCompilationInfo> m_exitCompilationInfo;
-    Vector<Vector<Label> > m_exitSiteLabels;
-    unsigned m_currentCodeOriginIndex;
+    SegmentedVector<OSRExitCompilationInfo, 4> m_exitCompilationInfo;
+    Vector<Vector<Label>> m_exitSiteLabels;
     
-    Call m_callStackCheck;
-    Call m_callArityCheck;
     Call m_callArityFixup;
     Label m_arityCheck;
     OwnPtr<SpeculativeJIT> m_speculative;

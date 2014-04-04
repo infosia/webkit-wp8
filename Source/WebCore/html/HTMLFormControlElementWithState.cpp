@@ -43,16 +43,16 @@ HTMLFormControlElementWithState::~HTMLFormControlElementWithState()
 {
 }
 
-Node::InsertionNotificationRequest HTMLFormControlElementWithState::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLFormControlElementWithState::insertedInto(ContainerNode& insertionPoint)
 {
-    if (insertionPoint->inDocument() && !containingShadowRoot())
+    if (insertionPoint.inDocument() && !containingShadowRoot())
         document().formController().registerFormElementWithState(this);
     return HTMLFormControlElement::insertedInto(insertionPoint);
 }
 
-void HTMLFormControlElementWithState::removedFrom(ContainerNode* insertionPoint)
+void HTMLFormControlElementWithState::removedFrom(ContainerNode& insertionPoint)
 {
-    if (insertionPoint->inDocument() && !containingShadowRoot() && !insertionPoint->containingShadowRoot())
+    if (insertionPoint.inDocument() && !containingShadowRoot() && !insertionPoint.containingShadowRoot())
         document().formController().unregisterFormElementWithState(this);
     HTMLFormControlElement::removedFrom(insertionPoint);
 }
@@ -64,20 +64,10 @@ bool HTMLFormControlElementWithState::shouldAutocomplete() const
     return form()->shouldAutocomplete();
 }
 
-void HTMLFormControlElementWithState::notifyFormStateChanged()
-{
-    Frame* frame = document().frame();
-    if (!frame)
-        return;
-
-    if (Page* page = frame->page())
-        page->chrome().client().formStateDidChange(this);
-}
-
 bool HTMLFormControlElementWithState::shouldSaveAndRestoreFormControlState() const
 {
     // We don't save/restore control state in a form with autocomplete=off.
-    return attached() && shouldAutocomplete();
+    return inDocument() && shouldAutocomplete();
 }
 
 FormControlState HTMLFormControlElementWithState::saveFormControlState() const

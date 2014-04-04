@@ -27,6 +27,7 @@
 #include "JSStorage.h"
 
 #include "Storage.h"
+#include <runtime/IdentifierInlines.h>
 #include <runtime/PropertyNameArray.h>
 #include <wtf/text/WTFString.h>
 
@@ -42,18 +43,18 @@ bool JSStorage::canGetItemsForName(ExecState* exec, Storage* impl, PropertyName 
     return result;
 }
 
-JSValue JSStorage::nameGetter(ExecState* exec, JSValue slotBase, PropertyName propertyName)
+EncodedJSValue JSStorage::nameGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    JSStorage* thisObj = jsCast<JSStorage*>(asObject(slotBase));
-        
-    JSValue prototype = asObject(slotBase)->prototype();
-    if (prototype.isObject() && asObject(prototype)->hasProperty(exec, propertyName))
-        return asObject(prototype)->get(exec, propertyName);
- 
+    JSStorage* thisObject = jsCast<JSStorage*>(slotBase);
+    JSValue prototype = thisObject->prototype();
+    PropertySlot slot(thisObject);
+    if (prototype.isObject() && asObject(prototype)->getPropertySlot(exec, propertyName, slot))
+        return JSValue::encode(slot.getValue(exec, propertyName));
+
     ExceptionCode ec = 0;
-    JSValue result = jsStringOrNull(exec, thisObj->impl()->getItem(propertyNameToString(propertyName), ec));
+    JSValue result = jsStringOrNull(exec, thisObject->impl().getItem(propertyNameToString(propertyName), ec));
     setDOMException(exec, ec);
-    return result;
+    return JSValue::encode(result);
 }
 
 bool JSStorage::deleteProperty(JSCell* cell, ExecState* exec, PropertyName propertyName)
@@ -67,7 +68,7 @@ bool JSStorage::deleteProperty(JSCell* cell, ExecState* exec, PropertyName prope
         return false;
         
     JSValue prototype = thisObject->prototype();
-    if (prototype.isObject() && asObject(prototype)->hasProperty(exec, propertyName))
+    if (prototype.isObject() && asObject(prototype)->getPropertySlot(exec, propertyName, slot))
         return false;
 
     ExceptionCode ec = 0;
@@ -107,17 +108,17 @@ bool JSStorage::putDelegate(ExecState* exec, PropertyName propertyName, JSValue 
     PropertySlot slot(this);
     if (getStaticValueSlot<JSStorage, Base>(exec, *s_info.propHashTable(exec), this, propertyName, slot))
         return false;
-        
+
     JSValue prototype = this->prototype();
-    if (prototype.isObject() && asObject(prototype)->hasProperty(exec, propertyName))
+    if (prototype.isObject() && asObject(prototype)->getPropertySlot(exec, propertyName, slot))
         return false;
-    
+
     String stringValue = value.toString(exec)->value(exec);
     if (exec->hadException())
         return true;
     
     ExceptionCode ec = 0;
-    impl()->setItem(propertyNameToString(propertyName), stringValue, ec);
+    impl().setItem(propertyNameToString(propertyName), stringValue, ec);
     setDOMException(exec, ec);
 
     return true;

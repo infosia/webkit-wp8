@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -60,16 +60,18 @@ void RuntimeArray::destroy(JSCell* cell)
     static_cast<RuntimeArray*>(cell)->RuntimeArray::~RuntimeArray();
 }
 
-JSValue RuntimeArray::lengthGetter(ExecState*, JSValue slotBase, PropertyName)
+EncodedJSValue RuntimeArray::lengthGetter(ExecState* exec, JSObject*, EncodedJSValue thisValue, PropertyName)
 {
-    RuntimeArray* thisObj = static_cast<RuntimeArray*>(asObject(slotBase));
-    return jsNumber(thisObj->getLength());
+    RuntimeArray* thisObject = jsDynamicCast<RuntimeArray*>(JSValue::decode(thisValue));
+    if (!thisObject)
+        return throwVMTypeError(exec);
+    return JSValue::encode(jsNumber(thisObject->getLength()));
 }
 
-JSValue RuntimeArray::indexGetter(ExecState* exec, JSValue slotBase, unsigned index)
+EncodedJSValue RuntimeArray::indexGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, unsigned index)
 {
-    RuntimeArray* thisObj = static_cast<RuntimeArray*>(asObject(slotBase));
-    return thisObj->getConcreteArray()->valueAt(exec, index);
+    RuntimeArray* thisObj = jsCast<RuntimeArray*>(slotBase);
+    return JSValue::encode(thisObj->getConcreteArray()->valueAt(exec, index));
 }
 
 void RuntimeArray::getOwnPropertyNames(JSObject* object, ExecState* exec, PropertyNameArray& propertyNames, EnumerationMode mode)

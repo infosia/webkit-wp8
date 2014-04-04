@@ -47,7 +47,7 @@ void PluginControllerProxy::pluginFocusOrWindowFocusChanged(bool pluginHasFocusA
 
 void PluginControllerProxy::setComplexTextInputState(PluginComplexTextInputState pluginComplexTextInputState)
 {
-    m_connection->connection()->send(Messages::PluginProxy::SetComplexTextInputState(pluginComplexTextInputState), m_pluginInstanceID, CoreIPC::DispatchMessageEvenWhenWaitingForSyncReply);
+    m_connection->connection()->send(Messages::PluginProxy::SetComplexTextInputState(pluginComplexTextInputState), m_pluginInstanceID, IPC::DispatchMessageEvenWhenWaitingForSyncReply);
 }
 
 mach_port_t PluginControllerProxy::compositingRenderServerPort()
@@ -107,6 +107,10 @@ void PluginControllerProxy::windowAndViewFramesChanged(const IntRect& windowFram
 void PluginControllerProxy::windowVisibilityChanged(bool isVisible)
 {
     m_plugin->windowVisibilityChanged(isVisible);
+    if (isVisible)
+        m_connection->pluginDidBecomeVisible(m_pluginInstanceID);
+    else
+        m_connection->pluginDidBecomeHidden(m_pluginInstanceID);
 }
 
 void PluginControllerProxy::sendComplexTextInput(const String& textInput)
@@ -139,12 +143,12 @@ void PluginControllerProxy::updateLayerHostingContext(LayerHostingMode layerHost
     }
 
     switch (layerHostingMode) {
-        case LayerHostingModeDefault:
+        case LayerHostingMode::InProcess:
             m_layerHostingContext = LayerHostingContext::createForPort(PluginProcess::shared().compositingRenderServerPort());
             break;
-#if HAVE(LAYER_HOSTING_IN_WINDOW_SERVER)
-        case LayerHostingModeInWindowServer:
-            m_layerHostingContext = LayerHostingContext::createForWindowServer();
+#if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
+        case LayerHostingMode::OutOfProcess:
+            m_layerHostingContext = LayerHostingContext::createForExternalHostingProcess();
             break;
 #endif
     }

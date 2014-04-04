@@ -76,7 +76,7 @@ void PageLoadClientEfl::didFailLoadWithErrorForFrame(WKPageRef, WKFrameRef frame
         return;
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
-    OwnPtr<EwkError> ewkError = EwkError::create(error);
+    auto ewkError = std::make_unique<EwkError>(error);
     view->smartCallback<LoadError>().call(ewkError.get());
     view->smartCallback<LoadFinished>().call();
 }
@@ -107,7 +107,7 @@ void PageLoadClientEfl::didFailProvisionalLoadWithErrorForFrame(WKPageRef, WKFra
         return;
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
-    OwnPtr<EwkError> ewkError = EwkError::create(error);
+    auto ewkError = std::make_unique<EwkError>(error);
     view->smartCallback<ProvisionalLoadFailed>().call(ewkError.get());
 }
 
@@ -118,9 +118,7 @@ void PageLoadClientEfl::didCommitLoadForFrame(WKPageRef, WKFrameRef frame, WKTyp
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
     if (WKPageUseFixedLayout(view->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
-        view->pageViewportController()->didCommitLoad();
-#endif
+        view->pageViewportController().didCommitLoad();
         return;
     }
 
@@ -162,10 +160,10 @@ PageLoadClientEfl::PageLoadClientEfl(EwkView* view)
     WKPageRef pageRef = m_view->wkPage();
     ASSERT(pageRef);
 
-    WKPageLoaderClient loadClient;
+    WKPageLoaderClientV3 loadClient;
     memset(&loadClient, 0, sizeof(WKPageLoaderClient));
-    loadClient.version = kWKPageLoaderClientCurrentVersion;
-    loadClient.clientInfo = this;
+    loadClient.base.version = 3;
+    loadClient.base.clientInfo = this;
     loadClient.didReceiveTitleForFrame = didReceiveTitleForFrame;
     loadClient.didStartProgress = didChangeProgress;
     loadClient.didChangeProgress = didChangeProgress;
@@ -179,7 +177,7 @@ PageLoadClientEfl::PageLoadClientEfl(EwkView* view)
     loadClient.didChangeBackForwardList = didChangeBackForwardList;
     loadClient.didSameDocumentNavigationForFrame = didSameDocumentNavigationForFrame;
     loadClient.didReceiveAuthenticationChallengeInFrame = didReceiveAuthenticationChallengeInFrame;
-    WKPageSetPageLoaderClient(pageRef, &loadClient);
+    WKPageSetPageLoaderClient(pageRef, &loadClient.base);
 }
 
 } // namespace WebKit

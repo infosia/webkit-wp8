@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -36,10 +36,10 @@
 #import <JavaScriptCore/InitializeThreading.h>
 #import <WebCore/ArchiveResource.h>
 #import <WebCore/LegacyWebArchive.h>
-#import <WebCore/RunLoop.h>
 #import <WebCore/ThreadCheck.h>
 #import <WebCore/WebCoreObjCExtras.h>
 #import <wtf/MainThread.h>
+#import <wtf/RunLoop.h>
 
 using namespace WebCore;
 
@@ -58,7 +58,7 @@ static NSString * const WebSubframeArchivesKey = @"WebSubframeArchives";
     RefPtr<LegacyWebArchive> coreArchive;
 }
 
-- (id)initWithCoreArchive:(PassRefPtr<LegacyWebArchive>)coreArchive;
+- (instancetype)initWithCoreArchive:(PassRefPtr<LegacyWebArchive>)coreArchive;
 - (LegacyWebArchive*)coreArchive;
 - (void)setCoreArchive:(PassRefPtr<LegacyWebArchive>)newCoreArchive;
 @end
@@ -67,13 +67,15 @@ static NSString * const WebSubframeArchivesKey = @"WebSubframeArchives";
 
 + (void)initialize
 {
+#if !PLATFORM(IOS)
     JSC::initializeThreading();
     WTF::initializeMainThreadToProcessMainThread();
-    WebCore::RunLoop::initializeMainRunLoop();
+    RunLoop::initializeMainRunLoop();
+#endif
     WebCoreObjCFinalizeOnMainThread(self);
 }
 
-- (id)init
+- (instancetype)init
 {
     self = [super init];
     if (!self)
@@ -82,7 +84,7 @@ static NSString * const WebSubframeArchivesKey = @"WebSubframeArchives";
     return self;
 }
 
-- (id)initWithCoreArchive:(PassRefPtr<LegacyWebArchive>)_coreArchive
+- (instancetype)initWithCoreArchive:(PassRefPtr<LegacyWebArchive>)_coreArchive
 {
     self = [super init];
     if (!self || !_coreArchive) {
@@ -121,7 +123,7 @@ static NSString * const WebSubframeArchivesKey = @"WebSubframeArchives";
 
 @implementation WebArchive
 
-- (id)init
+- (instancetype)init
 {
     WebCoreThreadViolationCheckRoundTwo();
 
@@ -144,7 +146,7 @@ static BOOL isArrayOfClass(id object, Class elementClass)
     return YES;
 }
 
-- (id)initWithMainResource:(WebResource *)mainResource subresources:(NSArray *)subresources subframeArchives:(NSArray *)subframeArchives
+- (instancetype)initWithMainResource:(WebResource *)mainResource subresources:(NSArray *)subresources subframeArchives:(NSArray *)subframeArchives
 {
     WebCoreThreadViolationCheckRoundTwo();
 
@@ -176,13 +178,13 @@ static BOOL isArrayOfClass(id object, Class elementClass)
     
     RefPtr<ArchiveResource> coreMainResource = mainResource ? [mainResource _coreResource] : 0;
 
-    Vector<PassRefPtr<ArchiveResource> > coreResources;
+    Vector<PassRefPtr<ArchiveResource>> coreResources;
     NSEnumerator *enumerator = [subresources objectEnumerator];
     WebResource *subresource;
     while ((subresource = [enumerator nextObject]) != nil)
         coreResources.append([subresource _coreResource]);
 
-    Vector<PassRefPtr<LegacyWebArchive> > coreArchives;
+    Vector<PassRefPtr<LegacyWebArchive>> coreArchives;
     enumerator = [subframeArchives objectEnumerator];
     WebArchive *subframeArchive;
     while ((subframeArchive = [enumerator nextObject]) != nil)
@@ -197,7 +199,7 @@ static BOOL isArrayOfClass(id object, Class elementClass)
     return self;
 }
 
-- (id)initWithData:(NSData *)data
+- (instancetype)initWithData:(NSData *)data
 {
     WebCoreThreadViolationCheckRoundTwo();
 
@@ -227,7 +229,7 @@ static BOOL isArrayOfClass(id object, Class elementClass)
     return self;
 }
 
-- (id)initWithCoder:(NSCoder *)decoder
+- (instancetype)initWithCoder:(NSCoder *)decoder
 {    
     WebResource *mainResource = nil;
     NSArray *subresources = nil;
@@ -295,7 +297,7 @@ static BOOL isArrayOfClass(id object, Class elementClass)
         if (!coreArchive)
             _private->cachedSubresources = [[NSArray alloc] init];
         else {
-            const Vector<RefPtr<ArchiveResource> >& subresources(coreArchive->subresources());
+            const Vector<RefPtr<ArchiveResource>>& subresources(coreArchive->subresources());
             NSMutableArray *mutableArray = [[NSMutableArray alloc] initWithCapacity:subresources.size()];
             _private->cachedSubresources = mutableArray;
             for (unsigned i = 0; i < subresources.size(); ++i) {
@@ -323,7 +325,7 @@ static BOOL isArrayOfClass(id object, Class elementClass)
         if (!coreArchive)
             _private->cachedSubframeArchives = [[NSArray alloc] init];
         else {
-            const Vector<RefPtr<Archive> >& subframeArchives(coreArchive->subframeArchives());
+            const Vector<RefPtr<Archive>>& subframeArchives(coreArchive->subframeArchives());
             NSMutableArray *mutableArray = [[NSMutableArray alloc] initWithCapacity:subframeArchives.size()];
             _private->cachedSubframeArchives = mutableArray;
             for (unsigned i = 0; i < subframeArchives.size(); ++i) {

@@ -23,7 +23,7 @@
 #ifndef SVGFilterElement_h
 #define SVGFilterElement_h
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedEnumeration.h"
 #include "SVGAnimatedInteger.h"
@@ -36,7 +36,7 @@
 
 namespace WebCore {
 
-class SVGFilterElement FINAL : public SVGElement,
+class SVGFilterElement final : public SVGElement,
                                public SVGURIReference,
                                public SVGExternalResourcesRequired {
 public:
@@ -47,17 +47,17 @@ public:
 private:
     SVGFilterElement(const QualifiedName&, Document&);
 
-    virtual bool needsPendingResourceHandling() const { return false; }
+    virtual bool needsPendingResourceHandling() const override { return false; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual void childrenChanged(const ChildChange&) override;
 
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&) OVERRIDE;
-    virtual bool childShouldCreateRenderer(const Node*) const OVERRIDE;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
 
-    virtual bool selfHasRelativeLengths() const;
+    virtual bool selfHasRelativeLengths() const override;
 
     static const AtomicString& filterResXIdentifier();
     static const AtomicString& filterResYIdentifier();
@@ -76,7 +76,7 @@ private:
     END_DECLARE_ANIMATED_PROPERTIES
 };
 
-ELEMENT_TYPE_CASTS(SVGFilterElement)
+NODE_TYPE_CASTS(SVGFilterElement)
 
 }
 

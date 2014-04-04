@@ -24,11 +24,9 @@
 #include "Attr.h"
 
 #include "ExceptionCode.h"
-#include "HTMLNames.h"
 #include "ScopedEventQueue.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "StyledElement.h"
-#include "Text.h"
 #include "TextNodeTraversal.h"
 #include "XMLNSNames.h"
 #include <wtf/text/AtomicString.h>
@@ -39,21 +37,19 @@ namespace WebCore {
 using namespace HTMLNames;
 
 Attr::Attr(Element* element, const QualifiedName& name)
-    : ContainerNode(&element->document())
+    : ContainerNode(element->document())
     , m_element(element)
     , m_name(name)
     , m_ignoreChildrenChanged(0)
-    , m_specified(true)
 {
 }
 
 Attr::Attr(Document& document, const QualifiedName& name, const AtomicString& standaloneValue)
-    : ContainerNode(&document)
+    : ContainerNode(document)
     , m_element(0)
     , m_name(name)
     , m_standaloneValue(standaloneValue)
     , m_ignoreChildrenChanged(0)
-    , m_specified(true)
 {
 }
 
@@ -121,18 +117,19 @@ void Attr::setValue(const AtomicString& value)
     createTextChild();
     m_ignoreChildrenChanged--;
 
-    invalidateNodeListCachesInAncestors(&m_name, m_element);
+    invalidateNodeListAndCollectionCachesInAncestors(&m_name, m_element);
 }
 
 void Attr::setValue(const AtomicString& value, ExceptionCode&)
 {
+    AtomicString oldValue = this->value();
     if (m_element)
-        m_element->willModifyAttribute(qualifiedName(), this->value(), value);
+        m_element->willModifyAttribute(qualifiedName(), oldValue, value);
 
     setValue(value);
 
     if (m_element)
-        m_element->didModifyAttribute(qualifiedName(), value);
+        m_element->didModifyAttribute(qualifiedName(), oldValue, value);
 }
 
 void Attr::setNodeValue(const String& v, ExceptionCode& ec)
@@ -164,14 +161,15 @@ void Attr::childrenChanged(const ChildChange&)
     if (m_ignoreChildrenChanged > 0)
         return;
 
-    invalidateNodeListCachesInAncestors(&qualifiedName(), m_element);
+    invalidateNodeListAndCollectionCachesInAncestors(&qualifiedName(), m_element);
 
     StringBuilder valueBuilder;
     TextNodeTraversal::appendContents(this, valueBuilder);
 
+    AtomicString oldValue = value();
     AtomicString newValue = valueBuilder.toAtomicString();
     if (m_element)
-        m_element->willModifyAttribute(qualifiedName(), value(), newValue);
+        m_element->willModifyAttribute(qualifiedName(), oldValue, newValue);
 
     if (m_element)
         elementAttribute().setValue(newValue);
@@ -179,21 +177,21 @@ void Attr::childrenChanged(const ChildChange&)
         m_standaloneValue = newValue;
 
     if (m_element)
-        m_element->attributeChanged(qualifiedName(), newValue);
+        m_element->attributeChanged(qualifiedName(), oldValue, newValue);
 }
 
 bool Attr::isId() const
 {
-    return qualifiedName().matches(document().idAttributeName());
+    return qualifiedName().matches(HTMLNames::idAttr);
 }
 
 CSSStyleDeclaration* Attr::style()
 {
     // This function only exists to support the Obj-C bindings.
     if (!m_element || !m_element->isStyledElement())
-        return 0;
-    m_style = MutableStylePropertySet::create();
-    static_cast<StyledElement*>(m_element)->collectStyleForPresentationAttribute(qualifiedName(), value(), m_style.get());
+        return nullptr;
+    m_style = MutableStyleProperties::create();
+    toStyledElement(m_element)->collectStyleForPresentationAttribute(qualifiedName(), value(), *m_style);
     return m_style->ensureCSSStyleDeclaration();
 }
 

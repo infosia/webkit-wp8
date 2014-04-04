@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,8 +27,6 @@
 #ifndef WorkerThread_h
 #define WorkerThread_h
 
-#if ENABLE(WORKERS)
-
 #include "ContentSecurityPolicy.h"
 #include "GroupSettings.h"
 #include "WorkerRunLoop.h"
@@ -39,7 +37,7 @@
 
 namespace WebCore {
 
-    class KURL;
+    class URL;
     class NotificationClient;
     class SecurityOrigin;
     class WorkerGlobalScope;
@@ -71,10 +69,10 @@ namespace WebCore {
 #endif
 
     protected:
-        WorkerThread(const KURL&, const String& userAgent, const GroupSettings*,  const String& sourceCode, WorkerLoaderProxy&, WorkerReportingProxy&, WorkerThreadStartMode, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType, const SecurityOrigin* topOrigin);
+        WorkerThread(const URL&, const String& userAgent, const GroupSettings*,  const String& sourceCode, WorkerLoaderProxy&, WorkerReportingProxy&, WorkerThreadStartMode, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType, const SecurityOrigin* topOrigin);
 
         // Factory method for creating a new worker context for the thread.
-        virtual PassRefPtr<WorkerGlobalScope> createWorkerGlobalScope(const KURL&, const String& userAgent, PassOwnPtr<GroupSettings>, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType, PassRefPtr<SecurityOrigin> topOrigin) = 0;
+        virtual PassRefPtr<WorkerGlobalScope> createWorkerGlobalScope(const URL&, const String& userAgent, std::unique_ptr<GroupSettings>, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType, PassRefPtr<SecurityOrigin> topOrigin) = 0;
 
         // Executes the event loop for the worker thread. Derived classes can override to perform actions before/after entering the event loop.
         virtual void runEventLoop();
@@ -102,8 +100,6 @@ namespace WebCore {
     };
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)
 
 #endif // WorkerThread_h
 

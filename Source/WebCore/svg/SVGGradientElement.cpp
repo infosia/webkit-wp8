@@ -20,11 +20,9 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGGradientElement.h"
 
-#include "Attribute.h"
+#include "ElementIterator.h"
 #include "RenderSVGHiddenContainer.h"
 #include "RenderSVGPath.h"
 #include "RenderSVGResourceLinearGradient.h"
@@ -65,7 +63,7 @@ SVGGradientElement::SVGGradientElement(const QualifiedName& tagName, Document& d
 
 bool SVGGradientElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -123,7 +121,7 @@ void SVGGradientElement::svgAttributeChanged(const QualifiedName& attrName)
     SVGElementInstance::InvalidationGuard invalidationGuard(this);
     
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
     
 void SVGGradientElement::childrenChanged(const ChildChange& change)
@@ -134,24 +132,19 @@ void SVGGradientElement::childrenChanged(const ChildChange& change)
         return;
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
 Vector<Gradient::ColorStop> SVGGradientElement::buildStops()
 {
     Vector<Gradient::ColorStop> stops;
-
     float previousOffset = 0.0f;
-    for (Node* n = firstChild(); n; n = n->nextSibling()) {
-        SVGElement* element = n->isSVGElement() ? toSVGElement(n) : 0;
-        if (!element || !element->isGradientStop())
-            continue;
 
-        SVGStopElement* stop = toSVGStopElement(element);
-        Color color = stop->stopColorIncludingOpacity();
+    for (auto& stop : childrenOfType<SVGStopElement>(*this)) {
+        Color color = stop.stopColorIncludingOpacity();
 
         // Figure out right monotonic offset
-        float offset = stop->offset();
+        float offset = stop.offset();
         offset = std::min(std::max(previousOffset, offset), 1.0f);
         previousOffset = offset;
 
@@ -166,6 +159,9 @@ Vector<Gradient::ColorStop> SVGGradientElement::buildStops()
     return stops;
 }
 
+bool isSVGGradientElement(const Node& node)
+{
+    return node.hasTagName(SVGNames::radialGradientTag) || node.hasTagName(SVGNames::linearGradientTag);
 }
 
-#endif // ENABLE(SVG)
+}

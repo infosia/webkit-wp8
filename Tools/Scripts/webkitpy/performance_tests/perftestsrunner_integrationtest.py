@@ -43,36 +43,7 @@ from webkitpy.performance_tests.perftestsrunner import PerfTestsRunner
 
 
 class EventTargetWrapperTestData:
-    text = """Running 20 times
-Ignoring warm-up run (1502)
-1504
-1505
-1510
-1504
-1507
-1509
-1510
-1487
-1488
-1472
-1472
-1488
-1473
-1472
-1475
-1487
-1486
-1486
-1475
-1471
-
-Time:
-values 1486, 1471, 1510, 1505, 1478, 1490 ms
-avg 1490 ms
-median 1488 ms
-stdev 15.13935 ms
-min 1471 ms
-max 1510 ms
+    text = """:Time -> [1486, 1471, 1510, 1505, 1478, 1490] ms
 """
 
     output = """Running Bindings/event-target-wrapper.html (1 of 2)
@@ -87,16 +58,7 @@ Finished: 0.1 s
 
 
 class SomeParserTestData:
-    text = """Running 20 times
-Ignoring warm-up run (1115)
-
-Time:
-values 1080, 1120, 1095, 1101, 1104 ms
-avg 1100 ms
-median 1101 ms
-stdev 14.50861 ms
-min 1080 ms
-max 1120 ms
+    text = """:Time -> [1080, 1120, 1095, 1101, 1104] ms
 """
 
     output = """Running Parser/some-parser.html (2 of 2)
@@ -111,32 +73,11 @@ Finished: 0.1 s
 
 
 class MemoryTestData:
-    text = """Running 20 times
-Ignoring warm-up run (1115)
+    text = """:Time -> [1080, 1120, 1095, 1101, 1104] ms
 
-Time:
-values 1080, 1120, 1095, 1101, 1104 ms
-avg 1100 ms
-median 1101 ms
-stdev 14.50861 ms
-min 1080 ms
-max 1120 ms
+:JSHeap -> [825000, 811000, 848000, 837000, 829000] bytes
 
-JS Heap:
-values 825000, 811000, 848000, 837000, 829000 bytes
-avg 830000 bytes
-median 829000 bytes
-stdev 13784.04875 bytes
-min 811000 bytes
-max 848000 bytes
-
-Malloc:
-values 529000, 511000, 548000, 536000, 521000 bytes
-avg 529000 bytes
-median 529000 bytes
-stdev 14124.44689 bytes
-min 511000 bytes
-max 548000 bytes
+:Malloc -> [529000, 511000, 548000, 536000, 521000] bytes
 """
 
     output = """Running 1 tests
@@ -153,6 +94,35 @@ Finished: 0.1 s
     results = {'current': [[1080, 1120, 1095, 1101, 1104]] * 4}
     js_heap_results = {'current': [[825000, 811000, 848000, 837000, 829000]] * 4}
     malloc_results = {'current': [[529000, 511000, 548000, 536000, 521000]] * 4}
+
+
+class TestWithSubtestsData:
+    text = """subtest:Time -> [1, 2, 3, 4, 5] ms
+total-test:Time:Total -> [1, 2, 3, 4, 5] ms
+total-test/subsubtest:Time -> [1, 2, 3, 4, 5] ms
+:Time -> [1080, 1120, 1095, 1101, 1104] ms
+"""
+
+    output = """Running 1 tests
+Running Parser/test-with-subtests.html (1 of 1)
+RESULT Parser: test-with-subtests: Time= 1100.0 ms
+median= 1101.0 ms, stdev= 13.31402 ms, min= 1080.0 ms, max= 1120.0 ms
+Finished: 0.1 s
+"""
+
+    results = {'url': 'http://trac.webkit.org/browser/trunk/PerformanceTests/Parser/test-with-subtests.html',
+        'metrics': {'Time': {'current': [[1080.0, 1120.0, 1095.0, 1101.0, 1104.0]] * 4}},
+        'tests': {
+            'subtest': {
+                'url': 'http://trac.webkit.org/browser/trunk/PerformanceTests/Parser/test-with-subtests.html',
+                'metrics': {'Time': {'current': [[1.0, 2.0, 3.0, 4.0, 5.0]] * 4}}},
+            'total-test': {
+                'url': 'http://trac.webkit.org/browser/trunk/PerformanceTests/Parser/test-with-subtests.html',
+                'metrics': {'Time': {'current': [[1.0, 2.0, 3.0, 4.0, 5.0]] * 4, "aggregators": ["Total"]}},
+                'tests': {
+                    'subsubtest':
+                        {'url': 'http://trac.webkit.org/browser/trunk/PerformanceTests/Parser/test-with-subtests.html',
+                        'metrics': {'Time': {'current': [[1.0, 2.0, 3.0, 4.0, 5.0]] * 4}}}}}}}
 
 
 class TestDriver:
@@ -176,6 +146,8 @@ class TestDriver:
             text = SomeParserTestData.text
         elif driver_input.test_name.endswith('memory-test.html'):
             text = MemoryTestData.text
+        elif driver_input.test_name.endswith('test-with-subtests.html'):
+            text = TestWithSubtestsData.text
         return DriverOutput(text, '', '', '', crash=crash, timeout=timeout)
 
     def start(self):
@@ -281,6 +253,24 @@ class MainTest(unittest.TestCase):
         self.assertEqual(parser_tests['memory-test']['metrics']['Time'], MemoryTestData.results)
         self.assertEqual(parser_tests['memory-test']['metrics']['JSHeap'], MemoryTestData.js_heap_results)
         self.assertEqual(parser_tests['memory-test']['metrics']['Malloc'], MemoryTestData.malloc_results)
+
+    def test_run_test_with_subtests(self):
+        runner, port = self.create_runner_and_setup_results_template()
+        runner._timestamp = 123456789
+        port.host.filesystem.write_text_file(runner._base_path + '/Parser/test-with-subtests.html', 'some content')
+
+        output = OutputCapture()
+        output.capture_output()
+        try:
+            unexpected_result_count = runner.run()
+        finally:
+            stdout, stderr, log = output.restore_output()
+
+        self.assertEqual(unexpected_result_count, 0)
+        self.assertEqual(self._normalize_output(log), TestWithSubtestsData.output + '\nMOCK: user.open_url: file://...\n')
+        parser_tests = self._load_output_json(runner)[0]['tests']['Parser']['tests']
+        self.maxDiff = None
+        self.assertEqual(parser_tests['test-with-subtests'], TestWithSubtestsData.results)
 
     def _test_run_with_json_output(self, runner, filesystem, upload_succeeds=False, results_shown=True, expected_exit_code=0, repeat=1, compare_logs=True):
         filesystem.write_text_file(runner._base_path + '/Parser/some-parser.html', 'some content')

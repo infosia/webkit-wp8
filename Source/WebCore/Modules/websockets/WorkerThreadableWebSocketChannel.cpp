@@ -30,7 +30,7 @@
 
 #include "config.h"
 
-#if ENABLE(WEB_SOCKETS) && ENABLE(WORKERS)
+#if ENABLE(WEB_SOCKETS)
 
 #include "WorkerThreadableWebSocketChannel.h"
 
@@ -66,7 +66,7 @@ WorkerThreadableWebSocketChannel::~WorkerThreadableWebSocketChannel()
         m_bridge->disconnect();
 }
 
-void WorkerThreadableWebSocketChannel::connect(const KURL& url, const String& protocol)
+void WorkerThreadableWebSocketChannel::connect(const URL& url, const String& protocol)
 {
     if (m_bridge)
         m_bridge->connect(url, protocol);
@@ -160,7 +160,7 @@ WorkerThreadableWebSocketChannel::Peer::~Peer()
         m_mainWebSocketChannel->disconnect();
 }
 
-void WorkerThreadableWebSocketChannel::Peer::connect(const KURL& url, const String& protocol)
+void WorkerThreadableWebSocketChannel::Peer::connect(const URL& url, const String& protocol)
 {
     ASSERT(isMainThread());
     if (!m_mainWebSocketChannel)
@@ -283,13 +283,13 @@ void WorkerThreadableWebSocketChannel::Peer::didReceiveMessage(const String& mes
     m_loaderProxy.postTaskForModeToWorkerGlobalScope(createCallbackTask(&workerGlobalScopeDidReceiveMessage, m_workerClientWrapper, message), m_taskMode);
 }
 
-static void workerGlobalScopeDidReceiveBinaryData(ScriptExecutionContext* context, PassRefPtr<ThreadableWebSocketChannelClientWrapper> workerClientWrapper, PassOwnPtr<Vector<char> > binaryData)
+static void workerGlobalScopeDidReceiveBinaryData(ScriptExecutionContext* context, PassRefPtr<ThreadableWebSocketChannelClientWrapper> workerClientWrapper, PassOwnPtr<Vector<char>> binaryData)
 {
     ASSERT_UNUSED(context, context->isWorkerGlobalScope());
     workerClientWrapper->didReceiveBinaryData(binaryData);
 }
 
-void WorkerThreadableWebSocketChannel::Peer::didReceiveBinaryData(PassOwnPtr<Vector<char> > binaryData)
+void WorkerThreadableWebSocketChannel::Peer::didReceiveBinaryData(PassOwnPtr<Vector<char>> binaryData)
 {
     ASSERT(isMainThread());
     m_loaderProxy.postTaskForModeToWorkerGlobalScope(createCallbackTask(&workerGlobalScopeDidReceiveBinaryData, m_workerClientWrapper, binaryData), m_taskMode);
@@ -347,7 +347,7 @@ void WorkerThreadableWebSocketChannel::Peer::didReceiveMessageError()
 WorkerThreadableWebSocketChannel::Bridge::Bridge(PassRefPtr<ThreadableWebSocketChannelClientWrapper> workerClientWrapper, PassRefPtr<WorkerGlobalScope> workerGlobalScope, const String& taskMode)
     : m_workerClientWrapper(workerClientWrapper)
     , m_workerGlobalScope(workerGlobalScope)
-    , m_loaderProxy(m_workerGlobalScope->thread()->workerLoaderProxy())
+    , m_loaderProxy(m_workerGlobalScope->thread().workerLoaderProxy())
     , m_taskMode(taskMode)
     , m_peer(0)
 {
@@ -369,7 +369,7 @@ public:
     }
 
     virtual ~WorkerGlobalScopeDidInitializeTask() { }
-    virtual void performTask(ScriptExecutionContext* context) OVERRIDE
+    virtual void performTask(ScriptExecutionContext* context) override
     {
         ASSERT_UNUSED(context, context->isWorkerGlobalScope());
         if (m_workerClientWrapper->failedWebSocketChannelCreation()) {
@@ -380,7 +380,7 @@ public:
         } else
             m_workerClientWrapper->didCreateWebSocketChannel(m_peer);
     }
-    virtual bool isCleanupTask() const OVERRIDE { return true; }
+    virtual bool isCleanupTask() const override { return true; }
 
 private:
     WorkerGlobalScopeDidInitializeTask(WorkerThreadableWebSocketChannel::Peer* peer,
@@ -428,7 +428,7 @@ void WorkerThreadableWebSocketChannel::Bridge::initialize()
         m_workerClientWrapper->setFailedWebSocketChannelCreation();
 }
 
-void WorkerThreadableWebSocketChannel::mainThreadConnect(ScriptExecutionContext* context, Peer* peer, const KURL& url, const String& protocol)
+void WorkerThreadableWebSocketChannel::mainThreadConnect(ScriptExecutionContext* context, Peer* peer, const URL& url, const String& protocol)
 {
     ASSERT(isMainThread());
     ASSERT_UNUSED(context, context->isDocument());
@@ -437,7 +437,7 @@ void WorkerThreadableWebSocketChannel::mainThreadConnect(ScriptExecutionContext*
     peer->connect(url, protocol);
 }
 
-void WorkerThreadableWebSocketChannel::Bridge::connect(const KURL& url, const String& protocol)
+void WorkerThreadableWebSocketChannel::Bridge::connect(const URL& url, const String& protocol)
 {
     ASSERT(m_workerClientWrapper);
     if (!m_peer)
@@ -454,7 +454,7 @@ void WorkerThreadableWebSocketChannel::mainThreadSend(ScriptExecutionContext* co
     peer->send(message);
 }
 
-void WorkerThreadableWebSocketChannel::mainThreadSendArrayBuffer(ScriptExecutionContext* context, Peer* peer, PassOwnPtr<Vector<char> > data)
+void WorkerThreadableWebSocketChannel::mainThreadSendArrayBuffer(ScriptExecutionContext* context, Peer* peer, PassOwnPtr<Vector<char>> data)
 {
     ASSERT(isMainThread());
     ASSERT_UNUSED(context, context->isDocument());
@@ -464,7 +464,7 @@ void WorkerThreadableWebSocketChannel::mainThreadSendArrayBuffer(ScriptExecution
     peer->send(*arrayBuffer);
 }
 
-void WorkerThreadableWebSocketChannel::mainThreadSendBlob(ScriptExecutionContext* context, Peer* peer, const KURL& url, const String& type, long long size)
+void WorkerThreadableWebSocketChannel::mainThreadSendBlob(ScriptExecutionContext* context, Peer* peer, const URL& url, const String& type, long long size)
 {
     ASSERT(isMainThread());
     ASSERT_UNUSED(context, context->isDocument());
@@ -493,7 +493,7 @@ ThreadableWebSocketChannel::SendResult WorkerThreadableWebSocketChannel::Bridge:
     if (!m_workerClientWrapper || !m_peer)
         return ThreadableWebSocketChannel::SendFail;
     // ArrayBuffer isn't thread-safe, hence the content of ArrayBuffer is copied into Vector<char>.
-    OwnPtr<Vector<char> > data = adoptPtr(new Vector<char>(byteLength));
+    OwnPtr<Vector<char>> data = adoptPtr(new Vector<char>(byteLength));
     if (binaryData.byteLength())
         memcpy(data->data(), static_cast<const char*>(binaryData.data()) + byteOffset, byteLength);
     setMethodNotCompleted();
@@ -645,7 +645,7 @@ void WorkerThreadableWebSocketChannel::Bridge::waitForMethodCompletion()
 {
     if (!m_workerGlobalScope)
         return;
-    WorkerRunLoop& runLoop = m_workerGlobalScope->thread()->runLoop();
+    WorkerRunLoop& runLoop = m_workerGlobalScope->thread().runLoop();
     MessageQueueWaitResult result = MessageQueueMessageReceived;
     ThreadableWebSocketChannelClientWrapper* clientWrapper = m_workerClientWrapper.get();
     while (m_workerGlobalScope && clientWrapper && !clientWrapper->syncMethodDone() && result != MessageQueueTerminated) {

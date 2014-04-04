@@ -26,14 +26,14 @@
 #ifndef ArgumentCodersCF_h
 #define ArgumentCodersCF_h
 
+#include <Security/SecCertificate.h>
 #include <wtf/RetainPtr.h>
 
-#if USE(SECURITY_FRAMEWORK)
-#include <Security/SecCertificate.h>
+#if HAVE(SEC_KEYCHAIN)
 #include <Security/SecKeychainItem.h>
 #endif
 
-namespace CoreIPC {
+namespace IPC {
 
 class ArgumentEncoder;
 class ArgumentDecoder;
@@ -74,11 +74,11 @@ bool decode(ArgumentDecoder&, RetainPtr<CFTypeRef>& result);
 void encode(ArgumentEncoder&, CFURLRef);
 bool decode(ArgumentDecoder&, RetainPtr<CFURLRef>& result);
 
-#if USE(SECURITY_FRAMEWORK)
 // SecCertificateRef
 void encode(ArgumentEncoder&, SecCertificateRef);
 bool decode(ArgumentDecoder&, RetainPtr<SecCertificateRef>& result);
 
+#if HAVE(SEC_KEYCHAIN)
 // SecKeychainItemRef
 void encode(ArgumentEncoder&, SecKeychainItemRef);
 bool decode(ArgumentDecoder&, RetainPtr<SecKeychainItemRef>& result);
@@ -86,6 +86,6 @@ bool decode(ArgumentDecoder&, RetainPtr<SecKeychainItemRef>& result);
 
 CFTypeRef tokenNullTypeRef();
 
-} // namespace CoreIPC
+} // namespace IPC
 
 #endif // ArgumentCodersCF_h

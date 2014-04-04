@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGPathElement.h"
 
 #include "Attribute.h"
@@ -84,7 +82,7 @@ END_REGISTER_ANIMATED_PROPERTIES
 
 inline SVGPathElement::SVGPathElement(const QualifiedName& tagName, Document& document)
     : SVGGraphicsElement(tagName, document)
-    , m_pathByteStream(SVGPathByteStream::create())
+    , m_pathByteStream(std::make_unique<SVGPathByteStream>())
     , m_pathSegList(PathSegUnalteredRole)
     , m_isAnimValObserved(false)
 {
@@ -215,7 +213,7 @@ PassRefPtr<SVGPathSegCurvetoQuadraticSmoothRel> SVGPathElement::createSVGPathSeg
 
 bool SVGPathElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -278,7 +276,7 @@ void SVGPathElement::svgAttributeChanged(const QualifiedName& attrName)
     }
 
     if (renderer)
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
 void SVGPathElement::invalidateMPathDependencies()
@@ -286,22 +284,21 @@ void SVGPathElement::invalidateMPathDependencies()
     // <mpath> can only reference <path> but this dependency is not handled in
     // markForLayoutAndParentResourceInvalidation so we update any mpath dependencies manually.
     if (HashSet<SVGElement*>* dependencies = document().accessSVGExtensions()->setOfElementsReferencingTarget(this)) {
-        HashSet<SVGElement*>::iterator end = dependencies->end();
-        for (HashSet<SVGElement*>::iterator it = dependencies->begin(); it != end; ++it) {
-            if ((*it)->hasTagName(SVGNames::mpathTag))
-                toSVGMPathElement(*it)->targetPathChanged();
+        for (auto* element : *dependencies) {
+            if (element->hasTagName(SVGNames::mpathTag))
+                toSVGMPathElement(element)->targetPathChanged();
         }
     }
 }
 
-Node::InsertionNotificationRequest SVGPathElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGPathElement::insertedInto(ContainerNode& rootParent)
 {
     SVGGraphicsElement::insertedInto(rootParent);
     invalidateMPathDependencies();
     return InsertionDone;
 }
 
-void SVGPathElement::removedFrom(ContainerNode* rootParent)
+void SVGPathElement::removedFrom(ContainerNode& rootParent)
 {
     SVGGraphicsElement::removedFrom(rootParent);
     invalidateMPathDependencies();
@@ -388,7 +385,7 @@ void SVGPathElement::pathSegListChanged(SVGPathSegRole role, ListModification li
         return;
 
     renderer->setNeedsShapeUpdate();
-    RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+    RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
 FloatRect SVGPathElement::getBBox(StyleUpdateStrategy styleUpdateStrategy)
@@ -405,12 +402,10 @@ FloatRect SVGPathElement::getBBox(StyleUpdateStrategy styleUpdateStrategy)
     return renderer->path().boundingRect();
 }
 
-RenderElement* SVGPathElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGPathElement::createElementRenderer(PassRef<RenderStyle> style)
 {
     // By default, any subclass is expected to do path-based drawing
-    return new (arena) RenderSVGPath(*this);
+    return createRenderer<RenderSVGPath>(*this, std::move(style));
 }
 
 }
-
-#endif // ENABLE(SVG)

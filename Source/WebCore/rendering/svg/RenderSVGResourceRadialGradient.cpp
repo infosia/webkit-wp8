@@ -20,19 +20,14 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceRadialGradient.h"
-
-#include "RadialGradientAttributes.h"
-#include "SVGRadialGradientElement.h"
 
 namespace WebCore {
 
 RenderSVGResourceType RenderSVGResourceRadialGradient::s_resourceType = RadialGradientResourceType;
 
-RenderSVGResourceRadialGradient::RenderSVGResourceRadialGradient(SVGRadialGradientElement& element)
-    : RenderSVGResourceGradient(element)
+RenderSVGResourceRadialGradient::RenderSVGResourceRadialGradient(SVGRadialGradientElement& element, PassRef<RenderStyle> style)
+    : RenderSVGResourceGradient(element, std::move(style))
 {
 }
 
@@ -79,5 +74,3 @@ void RenderSVGResourceRadialGradient::buildGradient(GradientData* gradientData) 
 }
 
 }
-
-#endif

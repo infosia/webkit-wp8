@@ -1,62 +1,95 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
 <html>
-<head>
-<script src="../../resources/js-test-pre.js"></script>
-</head>
-<body>
-<script>
-description("Tests RTCPeerConnection createAnswer.");
+    <head>
+        <script src="../../resources/js-test-pre.js"></script>
+    </head>
+    <body>
+        <script>
+            description("Tests RTCPeerConnection createAnswer.");
 
-var pc = null;
+            var pc = null;
 
-function requestFailed3(reason)
-{
-    testFailed('createAnswer request failed.');
+            function requestSucceeded5(sd)
+            {
+                testPassed('createAnswer request succeeded.');
 
-    finishJSTest();
-}
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
 
-function requestSucceeded3()
-{
-    testPassed('createAnswer request succeeded.');
+                finishJSTest();
+            }
 
-    finishJSTest();
-}
+            function requestSucceeded4(sd)
+            {
+                testPassed('createAnswer request succeeded.');
 
-function requestFailed2(reason)
-{
-    testFailed('setRemoteDescription request failed.');
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
 
-    finishJSTest();
-}
+                shouldNotThrow('pc.createAnswer(requestSucceeded5, requestFailed1, {requestIdentity:"no"});');
+            }
 
-function requestSucceeded2()
-{
-    testPassed('setRemoteDescription request succeeded.');
+            function requestSucceeded3(sd)
+            {
+                finishJSTest();
+                testPassed('createAnswer request succeeded.');
 
-    shouldNotThrow('pc.createAnswer(requestSucceeded3, requestFailed3);');
-}
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
 
-function requestFailed1()
-{
-    testPassed('createOffer request failed.');
+                shouldNotThrow('pc.createAnswer(requestSucceeded4, requestFailed1, {requestIdentity:"yes"});');
+            }
 
-    sessionDescription = new RTCSessionDescription({type:"answer", sdp:"remote"});
-    shouldNotThrow('pc.setRemoteDescription(sessionDescription, requestSucceeded2, requestFailed2);');
-}
+            function requestFailed2(reason)
+            {
+                testPassed('createAnswer request failed.');
 
-function requestSucceeded1(sd)
-{
-    testFailed('createOffer request succeeded.');
-    finishJSTest();
-}
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createAnswer argument."');
+                shouldNotThrow('pc.createAnswer(requestSucceeded3, requestFailed1, {requestIdentity:"ifconfigured"});');
+            }
 
-pc = new webkitRTCPeerConnection(null, null);
-pc.createOffer(requestSucceeded1, requestFailed1);
+            function requestSucceeded2()
+            {
+                testFailed('createAnswer request succeeded.');
 
-window.jsTestIsAsync = true;
-window.successfullyParsed = true;
-</script>
-<script src="../../resources/js-test-post.js"></script>
-</body>
+                finishJSTest();
+            }
+
+            function requestFailed1(reason)
+            {
+                testFailed('createAnswer request failed.');
+
+                finishJSTest();
+            }
+
+            function requestSucceeded1()
+            {
+                testPassed('createAnswer request succeeded.');
+
+                sessionDescription = new RTCSessionDescription({type:"offer", sdp:"remote"});
+                shouldNotThrow('pc.setRemoteDescription(sessionDescription, setDescriptionSucceeded, setDescriptionFailed);');
+            }
+
+            function setDescriptionFailed()
+            {
+                testFailed('setRemoteDescription failed.');
+
+                finishJSTest();
+            }
+
+            function setDescriptionSucceeded()
+            {
+                testPassed('setRemoteDescription succeeded.');
+                shouldThrow('pc.createAnswer(requestSucceeded2, requestFailed2, {});');
+            }
+
+            pc = new webkitRTCPeerConnection({iceServers:[{urls:'stun:foo.com'}]});
+            shouldNotThrow('pc.createAnswer(requestSucceeded1, requestFailed1);');
+
+            window.jsTestIsAsync = true;
+            window.successfullyParsed = true;
+        </script>
+        <script src="../../resources/js-test-post.js"></script>
+    </body>
 </html>

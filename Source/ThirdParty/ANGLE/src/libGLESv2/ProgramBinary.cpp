@@ -34,6 +34,11 @@ std::string str(int i)
     return buffer;
 }
 
+static rx::D3DWorkaroundType DiscardWorkaround(bool usesDiscard)
+{
+    return (usesDiscard ? rx::ANGLE_D3D_WORKAROUND_SM3_OPTIMIZER : rx::ANGLE_D3D_WORKAROUND_NONE);
+}
+
 UniformLocation::UniformLocation(const std::string &name, unsigned int element, unsigned int index) 
     : name(name), element(element), index(index)
 {
@@ -1622,9 +1627,19 @@ bool ProgramBinary::load(InfoLog &infoLog, const void *binary, GLsizei length)
         return false;
     }
 
-    int version = 0;
-    stream.read(&version);
-    if (version != VERSION_DWORD)
+    int majorVersion = 0;
+    int minorVersion = 0;
+    stream.read(&majorVersion);
+    stream.read(&minorVersion);
+    if (majorVersion != ANGLE_MAJOR_VERSION || minorVersion != ANGLE_MINOR_VERSION)
+    {
+        infoLog.append("Invalid program binary version.");
+        return false;
+    }
+
+    unsigned char commitString[ANGLE_COMMIT_HASH_SIZE];
+    stream.read(commitString, ANGLE_COMMIT_HASH_SIZE);
+    if (memcmp(commitString, ANGLE_COMMIT_HASH, sizeof(unsigned char) * ANGLE_COMMIT_HASH_SIZE) != 0)
     {
         infoLog.append("Invalid program binary version.");
         return false;
@@ -1646,6 +1661,8 @@ bool ProgramBinary::load(InfoLog &infoLog, const void *binary, GLsizei length)
         mLinkedAttribute[i].name = name;
         stream.read(&mSemanticIndex[i]);
     }
+
+    initAttributesByLayout();
 
     for (unsigned int i = 0; i < MAX_TEXTURE_IMAGE_UNITS; ++i)
     {
@@ -1789,7 +1806,9 @@ bool ProgramBinary::save(void* binary, GLsizei bufSize, GLsizei *length)
     BinaryOutputStream stream;
 
     stream.write(GL_PROGRAM_BINARY_ANGLE);
-    stream.write(VERSION_DWORD);
+    stream.write(ANGLE_MAJOR_VERSION);
+    stream.write(ANGLE_MINOR_VERSION);
+    stream.write(ANGLE_COMMIT_HASH, ANGLE_COMMIT_HASH_SIZE);
     stream.write(ANGLE_COMPILE_OPTIMIZATION_LEVEL);
 
     for (unsigned int i = 0; i < MAX_VERTEX_ATTRIBS; ++i)
@@ -1960,13 +1979,13 @@ bool ProgramBinary::link(InfoLog &infoLog, const AttributeBindings &attributeBin
 
     if (success)
     {
-        mVertexExecutable = mRenderer->compileToExecutable(infoLog, vertexHLSL.c_str(), rx::SHADER_VERTEX);
-        mPixelExecutable = mRenderer->compileToExecutable(infoLog, pixelHLSL.c_str(), rx::SHADER_PIXEL);
+        mVertexExecutable = mRenderer->compileToExecutable(infoLog, vertexHLSL.c_str(), rx::SHADER_VERTEX, DiscardWorkaround(vertexShader->mUsesDiscardRewriting));
+        mPixelExecutable = mRenderer->compileToExecutable(infoLog, pixelHLSL.c_str(), rx::SHADER_PIXEL, DiscardWorkaround(fragmentShader->mUsesDiscardRewriting));
 
         if (usesGeometryShader())
         {
             std::string geometryHLSL = generateGeometryShaderHLSL(registers, packing, fragmentShader, vertexShader);
-            mGeometryExecutable = mRenderer->compileToExecutable(infoLog, geometryHLSL.c_str(), rx::SHADER_GEOMETRY);
+            mGeometryExecutable = mRenderer->compileToExecutable(infoLog, geometryHLSL.c_str(), rx::SHADER_GEOMETRY, rx::ANGLE_D3D_WORKAROUND_NONE);
         }
 
         if (!mVertexExecutable || !mPixelExecutable || (usesGeometryShader() && !mGeometryExecutable))
@@ -2052,6 +2071,8 @@ bool ProgramBinary::linkAttributes(InfoLog &infoLog, const AttributeBindings &at
             mSemanticIndex[attributeIndex++] = index++;
         }
     }
+
+    initAttributesByLayout();
 
     return true;
 }
@@ -2579,40 +2600,41 @@ struct AttributeSorter
     AttributeSorter(const int (&semanticIndices)[MAX_VERTEX_ATTRIBS])
         : originalIndices(semanticIndices)
     {
-        for (int i = 0; i < MAX_VERTEX_ATTRIBS; i++)
-        {
-            indices[i] = i;
-        }
-
-        std::sort(&indices[0], &indices[MAX_VERTEX_ATTRIBS], *this);
     }
 
     bool operator()(int a, int b)
     {
-        return originalIndices[a] == -1 ? false : originalIndices[a] < originalIndices[b];
+        if (originalIndices[a] == -1) return false;
+        if (originalIndices[b] == -1) return true;
+        return (originalIndices[a] < originalIndices[b]);
     }
 
-    int indices[MAX_VERTEX_ATTRIBS];
     const int (&originalIndices)[MAX_VERTEX_ATTRIBS];
 };
 
+void ProgramBinary::initAttributesByLayout()
+{
+    for (int i = 0; i < MAX_VERTEX_ATTRIBS; i++)
+    {
+        mAttributesByLayout[i] = i;
+    }
+
+    std::sort(&mAttributesByLayout[0], &mAttributesByLayout[MAX_VERTEX_ATTRIBS], AttributeSorter(mSemanticIndex));
+}
+
 void ProgramBinary::sortAttributesByLayout(rx::TranslatedAttribute attributes[MAX_VERTEX_ATTRIBS], int sortedSemanticIndices[MAX_VERTEX_ATTRIBS]) const
 {
-    AttributeSorter sorter(mSemanticIndex);
-
-    int oldIndices[MAX_VERTEX_ATTRIBS];
     rx::TranslatedAttribute oldTranslatedAttributes[MAX_VERTEX_ATTRIBS];
 
     for (int i = 0; i < MAX_VERTEX_ATTRIBS; i++)
     {
-        oldIndices[i] = mSemanticIndex[i];
         oldTranslatedAttributes[i] = attributes[i];
     }
 
     for (int i = 0; i < MAX_VERTEX_ATTRIBS; i++)
     {
-        int oldIndex = sorter.indices[i];
-        sortedSemanticIndices[i] = oldIndices[oldIndex];
+        int oldIndex = mAttributesByLayout[i];
+        sortedSemanticIndices[i] = mSemanticIndex[oldIndex];
         attributes[i] = oldTranslatedAttributes[oldIndex];
     }
 }

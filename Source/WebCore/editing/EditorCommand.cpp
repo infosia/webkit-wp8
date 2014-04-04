@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,8 +29,6 @@
 #include "Editor.h"
 
 #include "CSSComputedStyleDeclaration.h"
-#include "CSSPropertyNames.h"
-#include "CSSValueKeywords.h"
 #include "CSSValueList.h"
 #include "Chrome.h"
 #include "CreateLinkCommand.h"
@@ -56,7 +54,7 @@
 #include "Scrollbar.h"
 #include "Settings.h"
 #include "Sound.h"
-#include "StylePropertySet.h"
+#include "StyleProperties.h"
 #include "TypingCommand.h"
 #include "UnlinkCommand.h"
 #include "UserTypingGestureIndicator.h"
@@ -100,7 +98,7 @@ static Frame* targetFrame(Frame& frame, Event* event)
     return node->document().frame();
 }
 
-static bool applyCommandToFrame(Frame& frame, EditorCommandSource source, EditAction action, StylePropertySet* style)
+static bool applyCommandToFrame(Frame& frame, EditorCommandSource source, EditAction action, StyleProperties* style)
 {
     // FIXME: We don't call shouldApplyStyle when the source is DOM; is there a good reason for that?
     switch (source) {
@@ -118,14 +116,14 @@ static bool applyCommandToFrame(Frame& frame, EditorCommandSource source, EditAc
 
 static bool executeApplyStyle(Frame& frame, EditorCommandSource source, EditAction action, CSSPropertyID propertyID, const String& propertyValue)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(propertyID, propertyValue);
     return applyCommandToFrame(frame, source, action, style.get());
 }
 
 static bool executeApplyStyle(Frame& frame, EditorCommandSource source, EditAction action, CSSPropertyID propertyID, CSSValueID propertyValue)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(propertyID, propertyValue);
     return applyCommandToFrame(frame, source, action, style.get());
 }
@@ -142,7 +140,7 @@ static bool executeToggleStyleInList(Frame& frame, EditorCommandSource source, E
     RefPtr<CSSValue> selectedCSSValue = selectionStyle->style()->getPropertyCSSValue(propertyID);
     String newStyle = ASCIILiteral("none");
     if (selectedCSSValue->isValueList()) {
-        RefPtr<CSSValueList> selectedCSSValueList = static_cast<CSSValueList*>(selectedCSSValue.get());
+        RefPtr<CSSValueList> selectedCSSValueList = toCSSValueList(selectedCSSValue.get());
         if (!selectedCSSValueList->removeAll(value))
             selectedCSSValueList->append(value);
         if (selectedCSSValueList->length())
@@ -152,7 +150,7 @@ static bool executeToggleStyleInList(Frame& frame, EditorCommandSource source, E
         newStyle = value->cssText();
 
     // FIXME: We shouldn't be having to convert new style into text.  We should have setPropertyCSSValue.
-    RefPtr<MutableStylePropertySet> newMutableStyle = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> newMutableStyle = MutableStyleProperties::create();
     newMutableStyle->setProperty(propertyID, newStyle);
     return applyCommandToFrame(frame, source, action, newMutableStyle.get());
 }
@@ -175,7 +173,7 @@ static bool executeToggleStyle(Frame& frame, EditorCommandSource source, EditAct
 
 static bool executeApplyParagraphStyle(Frame& frame, EditorCommandSource source, EditAction action, CSSPropertyID propertyID, const String& propertyValue)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(propertyID, propertyValue);
     // FIXME: We don't call shouldApplyStyle when the source is DOM; is there a good reason for that?
     switch (source) {
@@ -217,8 +215,8 @@ static bool expandSelectionToGranularity(Frame& frame, TextGranularity granulari
         return false;
     if (newRange->collapsed(IGNORE_EXCEPTION))
         return false;
-    RefPtr<Range> oldRange = frame.selection().selection().toNormalizedRange();
-    EAffinity affinity = frame.selection().affinity();
+    RefPtr<Range> oldRange = selection.toNormalizedRange();
+    EAffinity affinity = selection.affinity();
     if (!frame.editor().client()->shouldChangeSelectedRange(oldRange.get(), newRange.get(), affinity, false))
         return false;
     frame.selection().setSelectedRange(newRange.get(), affinity, true);
@@ -253,16 +251,14 @@ static unsigned verticalScrollDistance(Frame& frame)
     Element* focusedElement = frame.document()->focusedElement();
     if (!focusedElement)
         return 0;
-    RenderObject* renderer = focusedElement->renderer();
+    auto renderer = focusedElement->renderer();
     if (!renderer || !renderer->isBox())
         return 0;
-    RenderStyle* style = renderer->style();
-    if (!style)
-        return 0;
-    if (!(style->overflowY() == OSCROLL || style->overflowY() == OAUTO || focusedElement->rendererIsEditable()))
+    const RenderStyle& style = renderer->style();
+    if (!(style.overflowY() == OSCROLL || style.overflowY() == OAUTO || focusedElement->hasEditableStyle()))
         return 0;
     int height = std::min<int>(toRenderBox(renderer)->clientHeight(), frame.view()->visibleHeight());
-    return static_cast<unsigned>(max(max<int>(height * Scrollbar::minFractionToStepWhenPaging(), height - Scrollbar::maxOverlapBetweenPages()), 1));
+    return static_cast<unsigned>(std::max(std::max<int>(height * Scrollbar::minFractionToStepWhenPaging(), height - Scrollbar::maxOverlapBetweenPages()), 1));
 }
 
 static RefPtr<Range> unionDOMRanges(Range* a, Range* b)
@@ -270,7 +266,7 @@ static RefPtr<Range> unionDOMRanges(Range* a, Range* b)
     Range* start = a->compareBoundaryPoints(Range::START_TO_START, b, ASSERT_NO_EXCEPTION) <= 0 ? a : b;
     Range* end = a->compareBoundaryPoints(Range::END_TO_END, b, ASSERT_NO_EXCEPTION) <= 0 ? b : a;
 
-    return Range::create(&a->ownerDocument(), start->startContainer(), start->startOffset(), end->endContainer(), end->endOffset());
+    return Range::create(a->ownerDocument(), start->startContainer(), start->startOffset(), end->endContainer(), end->endOffset());
 }
 
 // Execute command functions
@@ -306,6 +302,14 @@ static bool executeCut(Frame& frame, Event*, EditorCommandSource source, const S
     return true;
 }
 
+#if PLATFORM(IOS)
+static bool executeClearText(Frame& frame, Event*, EditorCommandSource, const String&)
+{
+    frame.editor().clearText();
+    return true;
+}
+#endif
+
 static bool executeDefaultParagraphSeparator(Frame& frame, Event*, EditorCommandSource, const String& value)
 {
     if (equalIgnoringCase(value, "div"))
@@ -329,7 +333,7 @@ static bool executeDelete(Frame& frame, Event*, EditorCommandSource source, cons
     case CommandFromDOMWithUserInterface:
         // If the current selection is a caret, delete the preceding character. IE performs forwardDelete, but we currently side with Firefox.
         // Doesn't scroll to make the selection visible, or modify the kill ring (this time, siding with IE, not Firefox).
-        TypingCommand::deleteKeyPressed(frame.document(), frame.selection().granularity() == WordGranularity ? TypingCommand::SmartDelete : 0);
+        TypingCommand::deleteKeyPressed(*frame.document(), frame.selection().granularity() == WordGranularity ? TypingCommand::SmartDelete : 0);
         return true;
     }
     ASSERT_NOT_REACHED();
@@ -412,7 +416,7 @@ static bool executeDeleteWordForward(Frame& frame, Event*, EditorCommandSource, 
 
 static bool executeFindString(Frame& frame, Event*, EditorCommandSource, const String& value)
 {
-    return frame.editor().findString(value, true, false, true, false);
+    return frame.editor().findString(value, CaseInsensitive | WrapAround);
 }
 
 static bool executeFontName(Frame& frame, Event*, EditorCommandSource source, const String& value)
@@ -466,7 +470,7 @@ static bool executeForwardDelete(Frame& frame, Event*, EditorCommandSource sourc
         // Doesn't scroll to make the selection visible, or modify the kill ring.
         // ForwardDelete is not implemented in IE or Firefox, so this behavior is only needed for
         // backward compatibility with ourselves, and for consistency with Delete.
-        TypingCommand::forwardDeleteKeyPressed(frame.document());
+        TypingCommand::forwardDeleteKeyPressed(*frame.document());
         return true;
     }
     ASSERT_NOT_REACHED();
@@ -501,7 +505,7 @@ static bool executeInsertHorizontalRule(Frame& frame, Event*, EditorCommandSourc
 
 static bool executeInsertHTML(Frame& frame, Event*, EditorCommandSource, const String& value)
 {
-    return executeInsertFragment(frame, createFragmentFromMarkup(frame.document(), value, ""));
+    return executeInsertFragment(frame, createFragmentFromMarkup(*frame.document(), value, ""));
 }
 
 static bool executeInsertImage(Frame& frame, Event*, EditorCommandSource, const String& value)
@@ -522,7 +526,7 @@ static bool executeInsertLineBreak(Frame& frame, Event* event, EditorCommandSour
         // Doesn't scroll to make the selection visible, or modify the kill ring.
         // InsertLineBreak is not implemented in IE or Firefox, so this behavior is only needed for
         // backward compatibility with ourselves, and for consistency with other commands.
-        TypingCommand::insertLineBreak(frame.document(), 0);
+        TypingCommand::insertLineBreak(*frame.document(), 0);
         return true;
     }
     ASSERT_NOT_REACHED();
@@ -537,7 +541,7 @@ static bool executeInsertNewline(Frame& frame, Event* event, EditorCommandSource
 
 static bool executeInsertNewlineInQuotedContent(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    TypingCommand::insertParagraphSeparatorInQuotedContent(frame.document());
+    TypingCommand::insertParagraphSeparatorInQuotedContent(*frame.document());
     return true;
 }
 
@@ -550,7 +554,7 @@ static bool executeInsertOrderedList(Frame& frame, Event*, EditorCommandSource, 
 
 static bool executeInsertParagraph(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    TypingCommand::insertParagraphSeparator(frame.document(), 0);
+    TypingCommand::insertParagraphSeparator(*frame.document(), 0);
     return true;
 }
 
@@ -561,7 +565,7 @@ static bool executeInsertTab(Frame& frame, Event* event, EditorCommandSource, co
 
 static bool executeInsertText(Frame& frame, Event*, EditorCommandSource, const String& value)
 {
-    TypingCommand::insertText(frame.document(), value, 0);
+    TypingCommand::insertText(*frame.document(), value, 0);
     return true;
 }
 
@@ -594,7 +598,7 @@ static bool executeJustifyRight(Frame& frame, Event*, EditorCommandSource source
 
 static bool executeMakeTextWritingDirectionLeftToRight(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(CSSPropertyUnicodeBidi, CSSValueEmbed);
     style->setProperty(CSSPropertyDirection, CSSValueLtr);
     frame.editor().applyStyle(style.get(), EditActionSetWritingDirection);
@@ -603,7 +607,7 @@ static bool executeMakeTextWritingDirectionLeftToRight(Frame& frame, Event*, Edi
 
 static bool executeMakeTextWritingDirectionNatural(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(CSSPropertyUnicodeBidi, CSSValueNormal);
     frame.editor().applyStyle(style.get(), EditActionSetWritingDirection);
     return true;
@@ -611,7 +615,7 @@ static bool executeMakeTextWritingDirectionNatural(Frame& frame, Event*, EditorC
 
 static bool executeMakeTextWritingDirectionRightToLeft(Frame& frame, Event*, EditorCommandSource, const String&)
 {
-    RefPtr<MutableStylePropertySet> style = MutableStylePropertySet::create();
+    RefPtr<MutableStyleProperties> style = MutableStyleProperties::create();
     style->setProperty(CSSPropertyUnicodeBidi, CSSValueEmbed);
     style->setProperty(CSSPropertyDirection, CSSValueRtl);
     frame.editor().applyStyle(style.get(), EditActionSetWritingDirection);
@@ -925,7 +929,7 @@ static bool executePaste(Frame& frame, Event*, EditorCommandSource source, const
     return true;
 }
 
-#if PLATFORM(GTK) || PLATFORM(QT)
+#if PLATFORM(GTK)
 
 static bool executePasteGlobalSelection(Frame& frame, Event*, EditorCommandSource source, const String&)
 {
@@ -1241,13 +1245,29 @@ static bool enableCaretInEditableText(Frame& frame, Event* event, EditorCommandS
 
 static bool enabledCopy(Frame& frame, Event*, EditorCommandSource)
 {
+#if !PLATFORM(IOS)
     return frame.editor().canDHTMLCopy() || frame.editor().canCopy();
+#else
+    return frame.editor().canCopy();
+#endif
 }
 
 static bool enabledCut(Frame& frame, Event*, EditorCommandSource)
 {
+#if !PLATFORM(IOS)
     return frame.editor().canDHTMLCut() || frame.editor().canCut();
+#else
+    return frame.editor().canCut();
+#endif
 }
+
+#if PLATFORM(IOS)
+static bool enabledClearText(Frame& frame, Event*, EditorCommandSource)
+{
+    UNUSED_PARAM(frame);
+    return false;
+}
+#endif
 
 static bool enabledInEditableText(Frame& frame, Event* event, EditorCommandSource)
 {
@@ -1277,7 +1297,8 @@ static bool enabledInEditableTextOrCaretBrowsing(Frame& frame, Event* event, Edi
 
 static bool enabledInRichlyEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isCaretOrRange() && frame.selection().isContentRichlyEditable() && frame.selection().rootEditableElement();
+    const VisibleSelection& selection = frame.selection().selection();
+    return selection.isCaretOrRange() && selection.isContentRichlyEditable() && selection.rootEditableElement();
 }
 
 static bool enabledPaste(Frame& frame, Event*, EditorCommandSource)
@@ -1287,12 +1308,12 @@ static bool enabledPaste(Frame& frame, Event*, EditorCommandSource)
 
 static bool enabledRangeInEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isRange() && frame.selection().isContentEditable();
+    return frame.selection().isRange() && frame.selection().selection().isContentEditable();
 }
 
 static bool enabledRangeInRichlyEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isRange() && frame.selection().isContentRichlyEditable();
+    return frame.selection().isRange() && frame.selection().selection().isContentRichlyEditable();
 }
 
 static bool enabledRedo(Frame& frame, Event*, EditorCommandSource)
@@ -1603,12 +1624,15 @@ static const CommandMap& createCommandMap()
         { "Yank", { executeYank, supportedFromMenuOrKeyBinding, enabledInEditableText, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
         { "YankAndSelect", { executeYankAndSelect, supportedFromMenuOrKeyBinding, enabledInEditableText, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
 
-#if PLATFORM(GTK) || PLATFORM(QT)
+#if PLATFORM(GTK)
         { "PasteGlobalSelection", { executePasteGlobalSelection, supportedFromMenuOrKeyBinding, enabledPaste, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
 #endif
 
 #if PLATFORM(MAC)
         { "TakeFindStringFromSelection", { executeTakeFindStringFromSelection, supportedFromMenuOrKeyBinding, enabledTakeFindStringFromSelection, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
+#endif
+#if PLATFORM(IOS)
+        { "ClearText", { executeClearText, supported, enabledClearText, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
 #endif
     };
 

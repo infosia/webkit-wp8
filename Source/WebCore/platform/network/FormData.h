@@ -20,7 +20,7 @@
 #ifndef FormData_h
 #define FormData_h
 
-#include "KURL.h"
+#include "URL.h"
 #include <wtf/Forward.h>
 #include <wtf/RefCounted.h>
 #include <wtf/Vector.h>
@@ -30,6 +30,7 @@ namespace WebCore {
 
 class Document;
 class FormDataList;
+class KeyedEncoder;
 class TextEncoding;
 
 class FormDataElement {
@@ -38,13 +39,10 @@ public:
     explicit FormDataElement(const Vector<char>& array) : m_type(data), m_data(array) { }
 
 #if ENABLE(BLOB)
-    FormDataElement(const String& filename, long long fileStart, long long fileLength, double expectedFileModificationTime, bool shouldGenerateFile) : m_type(encodedFile), m_filename(filename), m_fileStart(fileStart), m_fileLength(fileLength), m_expectedFileModificationTime(expectedFileModificationTime), m_shouldGenerateFile(shouldGenerateFile) { }
-    explicit FormDataElement(const KURL& blobURL) : m_type(encodedBlob), m_url(blobURL) { }
+    FormDataElement(const String& filename, long long fileStart, long long fileLength, double expectedFileModificationTime, bool shouldGenerateFile) : m_type(encodedFile), m_filename(filename), m_fileStart(fileStart), m_fileLength(fileLength), m_expectedFileModificationTime(expectedFileModificationTime), m_shouldGenerateFile(shouldGenerateFile), m_ownsGeneratedFile(false) { }
+    explicit FormDataElement(const URL& blobURL) : m_type(encodedBlob), m_url(blobURL) { }
 #else
-    FormDataElement(const String& filename, bool shouldGenerateFile) : m_type(encodedFile), m_filename(filename), m_shouldGenerateFile(shouldGenerateFile) { }
-#endif
-#if ENABLE(FILE_SYSTEM)
-    FormDataElement(const KURL& url, long long start, long long length, double expectedFileModificationTime) : m_type(encodedURL), m_url(url), m_fileStart(start), m_fileLength(length), m_expectedFileModificationTime(expectedFileModificationTime), m_shouldGenerateFile(false) { }
+    FormDataElement(const String& filename, bool shouldGenerateFile) : m_type(encodedFile), m_filename(filename), m_shouldGenerateFile(shouldGenerateFile), m_ownsGeneratedFile(false) { }
 #endif
 
     enum Type {
@@ -53,20 +51,18 @@ public:
 #if ENABLE(BLOB)
         , encodedBlob
 #endif
-#if ENABLE(FILE_SYSTEM)
-        , encodedURL
-#endif
     } m_type;
     Vector<char> m_data;
     String m_filename;
 #if ENABLE(BLOB)
-    KURL m_url; // For Blob or URL.
+    URL m_url; // For Blob or URL.
     long long m_fileStart;
     long long m_fileLength;
     double m_expectedFileModificationTime;
 #endif
     String m_generatedFilename;
     bool m_shouldGenerateFile;
+    bool m_ownsGeneratedFile;
 };
 
 inline bool operator==(const FormDataElement& a, const FormDataElement& b)
@@ -85,10 +81,6 @@ inline bool operator==(const FormDataElement& a, const FormDataElement& b)
         return a.m_url == b.m_url;
 #else
         return a.m_filename == b.m_filename;
-#endif
-#if ENABLE(FILE_SYSTEM)
-    if (a.m_type == FormDataElement::encodedURL)
-        return a.m_url == b.m_url;
 #endif
 
     return true;
@@ -113,23 +105,24 @@ public:
     static PassRefPtr<FormData> create(const Vector<char>&);
     static PassRefPtr<FormData> create(const FormDataList&, const TextEncoding&, EncodingType = FormURLEncoded);
     static PassRefPtr<FormData> createMultiPart(const FormDataList&, const TextEncoding&, Document*);
-    PassRefPtr<FormData> copy() const;
-    PassRefPtr<FormData> deepCopy() const;
     ~FormData();
 
+    // FIXME: Both these functions perform a deep copy of m_elements, but differ in handling of other data members.
+    // How much of that is intentional? We need better names that explain the difference.
+    PassRefPtr<FormData> copy() const;
+    PassRefPtr<FormData> deepCopy() const;
+
     void encode(Encoder&) const;
+    void encode(KeyedEncoder&) const;
     static PassRefPtr<FormData> decode(Decoder&);
 
     void appendData(const void* data, size_t);
     void appendFile(const String& filePath, bool shouldGenerateFile = false);
 #if ENABLE(BLOB)
     void appendFileRange(const String& filename, long long start, long long length, double expectedModificationTime, bool shouldGenerateFile = false);
-    void appendBlob(const KURL& blobURL);
+    void appendBlob(const URL& blobURL);
 #endif
-#if ENABLE(FILE_SYSTEM)
-    void appendURL(const KURL&);
-    void appendURLRange(const KURL&, long long start, long long length, double expectedModificationTime);
-#endif
+    char* expandDataStore(size_t);
 
     void flatten(Vector<char>&) const; // omits files
     String flattenToString() const; // omits files
@@ -173,10 +166,12 @@ private:
 
     void appendKeyValuePairItems(const FormDataList&, const TextEncoding&, bool isMultiPartForm, Document*, EncodingType = FormURLEncoded);
 
+    bool hasGeneratedFiles() const;
+    bool hasOwnedGeneratedFiles() const;
+
     Vector<FormDataElement> m_elements;
 
     int64_t m_identifier;
-    bool m_hasGeneratedFiles;
     bool m_alwaysStream;
     Vector<char> m_boundary;
     bool m_containsPasswordData;

@@ -28,26 +28,26 @@
 
 namespace WebCore {
 
-class HTMLIFrameElement FINAL : public HTMLFrameElementBase {
+class HTMLIFrameElement final : public HTMLFrameElementBase {
 public:
     static PassRefPtr<HTMLIFrameElement> create(const QualifiedName&, Document&);
-
-    bool shouldDisplaySeamlessly() const;
 
 private:
     HTMLIFrameElement(const QualifiedName&, Document&);
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
-    virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStylePropertySet*) OVERRIDE;
+#if PLATFORM(IOS)
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const override { return false; }
+#endif
 
-    virtual bool rendererIsNeeded(const RenderStyle&);
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual bool isPresentationAttribute(const QualifiedName&) const override;
+    virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStyleProperties&) override;
 
-    virtual void didRecalcStyle(Style::Change) OVERRIDE;
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 };
 
-ELEMENT_TYPE_CASTS(HTMLIFrameElement)
+NODE_TYPE_CASTS(HTMLIFrameElement)
 
 } // namespace WebCore
 

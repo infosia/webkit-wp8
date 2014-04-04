@@ -83,6 +83,7 @@ function testExpected(testFuncString, expected, comparison)
         case '!=':  success = observed != expected; break;
         case '==': success = observed == expected; break;
         case '===': success = observed === expected; break;
+        case 'instanceof': success = observed instanceof expected; break;
     }
 
     reportExpected(success, testFuncString, comparison, expected, observed)
@@ -200,6 +201,11 @@ function waitForEventAndTest(eventName, testFuncString, endit)
     }
 
     mediaElement.addEventListener(eventName, _eventCallback, true);
+}
+
+function waitForEventOn(element, eventName, func, endit, oneTimeOnly)
+{
+    waitForEvent(eventName, func, endit, oneTimeOnly, element);
 }
 
 function testDOMException(testString, exceptionString)

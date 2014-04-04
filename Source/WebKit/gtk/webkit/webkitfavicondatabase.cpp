@@ -35,8 +35,8 @@
 #include "webkitwebframe.h"
 #include <glib/gi18n-lib.h>
 #include <wtf/MainThread.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
 /**
@@ -82,7 +82,7 @@ public:
 
     // Called when an icon is requested while the initial import is
     // going on.
-    virtual void didImportIconURLForPageURL(const String& URL) { };
+    virtual void didImportIconURLForPageURL(const String& /* URL */) { };
 
     // Called whenever a retained icon is read from database.
     virtual void didImportIconDataForPageURL(const String& URL)
@@ -96,7 +96,7 @@ public:
         webkitFaviconDatabaseProcessPendingIconsForURI(database, URL);
     }
 
-    virtual void didChangeIconForPageURL(const String& URL)
+    virtual void didChangeIconForPageURL(const String& /* URL */)
     {
         // Called when the the favicon for a particular URL changes.
         // It does not mean that the new icon data is available yet.
@@ -184,11 +184,11 @@ static guint webkit_favicon_database_signals[LAST_SIGNAL] = { 0, };
 
 G_DEFINE_TYPE(WebKitFaviconDatabase, webkit_favicon_database, G_TYPE_OBJECT)
 
-typedef Vector<OwnPtr<PendingIconRequest> > PendingIconRequestVector;
+typedef Vector<std::unique_ptr<PendingIconRequest>> PendingIconRequestVector;
 typedef HashMap<String, PendingIconRequestVector*> PendingIconRequestMap;
 
 struct _WebKitFaviconDatabasePrivate {
-    GOwnPtr<gchar> path;
+    GUniquePtr<gchar> path;
     IconDatabaseClientGtk iconDatabaseClient;
     PendingIconRequestMap pendingIconRequests;
     bool importFinished;
@@ -315,7 +315,7 @@ const gchar* webkit_favicon_database_get_path(WebKitFaviconDatabase* database)
     return database->priv->path.get();
 }
 
-static void webkitFaviconDatabaseClose(WebKitFaviconDatabase* database)
+static void webkitFaviconDatabaseClose(WebKitFaviconDatabase*)
 {
     if (iconDatabase().isEnabled()) {
         iconDatabase().setEnabled(false);
@@ -345,7 +345,7 @@ void webkit_favicon_database_set_path(WebKitFaviconDatabase* database, const gch
 
     database->priv->importFinished = false;
     if (!path || !path[0]) {
-        database->priv->path.set(0);
+        database->priv->path.reset();
         iconDatabase().setEnabled(false);
         return;
     }
@@ -358,7 +358,7 @@ void webkit_favicon_database_set_path(WebKitFaviconDatabase* database, const gch
         return;
     }
 
-    database->priv->path.set(g_strdup(path));
+    database->priv->path.reset(g_strdup(path));
 }
 
 /**
@@ -386,7 +386,7 @@ gchar* webkit_favicon_database_get_favicon_uri(WebKitFaviconDatabase* database, 
     return g_strdup(iconURI.utf8().data());
 }
 
-static GdkPixbuf* getIconPixbufSynchronously(WebKitFaviconDatabase* database, const String& pageURL, const IntSize& iconSize)
+static GdkPixbuf* getIconPixbufSynchronously(WebKitFaviconDatabase*, const String& pageURL, const IntSize& iconSize)
 {
     ASSERT(isMainThread());
 
@@ -470,14 +470,21 @@ static void getIconPixbufCancelled(void* userData)
     if (!icons)
         return;
 
-    size_t itemIndex = icons->find(request);
-    if (itemIndex != notFound)
-        icons->remove(itemIndex);
+    size_t itemIndex = 0;
+    for (auto& item : *icons) {
+        if (item.get() == request) {
+            icons->remove(itemIndex);
+            break;
+        }
+
+        itemIndex++;
+    }
+
     if (icons->isEmpty())
         webkitfavicondatabaseDeleteRequests(database, icons, pageURL);
 }
 
-static void webkitFaviconDatabaseGetIconPixbufCancelled(GCancellable* cancellable, PendingIconRequest* request)
+static void webkitFaviconDatabaseGetIconPixbufCancelled(GCancellable*, PendingIconRequest* request)
 {
     // Handle cancelled in a in idle since it might be called from any thread.
     callOnMainThread(getIconPixbufCancelled, request);
@@ -536,7 +543,7 @@ void webkit_favicon_database_get_favicon_pixbuf(WebKitFaviconDatabase* database,
     // Register icon request before asking for the icon to avoid race conditions.
     PendingIconRequestVector* icons = webkitFaviconDatabaseGetOrCreateRequests(database, pageURL);
     ASSERT(icons);
-    icons->append(adoptPtr(request));
+    icons->append(std::unique_ptr<PendingIconRequest>(request));
 
     // We ask for the icon directly. If we don't get the icon data now,
     // we'll be notified later (even if the database is still importing icons).
@@ -566,7 +573,7 @@ void webkit_favicon_database_get_favicon_pixbuf(WebKitFaviconDatabase* database,
  *
  * Since: 1.8
  */
-GdkPixbuf* webkit_favicon_database_get_favicon_pixbuf_finish(WebKitFaviconDatabase* database, GAsyncResult* result, GError** error)
+GdkPixbuf* webkit_favicon_database_get_favicon_pixbuf_finish(WebKitFaviconDatabase*, GAsyncResult* result, GError** error)
 {
     GSimpleAsyncResult* simpleResult = G_SIMPLE_ASYNC_RESULT(result);
     g_return_val_if_fail(g_simple_async_result_get_source_tag(simpleResult) == webkit_favicon_database_get_favicon_pixbuf, 0);

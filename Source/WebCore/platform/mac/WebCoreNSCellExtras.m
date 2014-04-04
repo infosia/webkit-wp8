@@ -26,7 +26,7 @@
 #import "config.h"
 #import "WebCoreNSCellExtras.h"
 
-#if !BUTTON_CELL_DRAW_WITH_FRAME_DRAWS_FOCUS_RING
+#if !PLATFORM(IOS)
 
 @implementation NSCell (WebCoreFocusRingDrawing)
 
@@ -43,4 +43,5 @@
 
 @end
 
-#endif // !BUTTON_CELL_DRAW_WITH_FRAME_DRAWS_FOCUS_RING
+#endif // !PLATFORM(IOS)
+

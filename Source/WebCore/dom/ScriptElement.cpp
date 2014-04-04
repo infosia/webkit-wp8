@@ -24,42 +24,34 @@
 #include "config.h"
 #include "ScriptElement.h"
 
-#include "CachedScript.h"
 #include "CachedResourceLoader.h"
 #include "CachedResourceRequest.h"
+#include "CachedScript.h"
 #include "ContentSecurityPolicy.h"
 #include "CrossOriginAccessControl.h"
 #include "CurrentScriptIncrementer.h"
-#include "Document.h"
-#include "DocumentParser.h"
 #include "Event.h"
 #include "Frame.h"
 #include "FrameLoader.h"
 #include "HTMLNames.h"
 #include "HTMLParserIdioms.h"
-#include "HTMLScriptElement.h"
 #include "IgnoreDestructiveWriteCountIncrementer.h"
 #include "MIMETypeRegistry.h"
 #include "Page.h"
-#include "ScriptCallStack.h"
+#include "SVGNames.h"
+#include "SVGScriptElement.h"
 #include "ScriptController.h"
 #include "ScriptRunner.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "ScriptableDocumentParser.h"
 #include "SecurityOrigin.h"
 #include "Settings.h"
-#include "Text.h"
 #include "TextNodeTraversal.h"
+#include <bindings/ScriptValue.h>
+#include <inspector/ScriptCallStack.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringBuilder.h>
 #include <wtf/text/StringHash.h>
-#include <wtf/text/TextPosition.h>
-
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#include "SVGScriptElement.h"
-#endif
 
 namespace WebCore {
 
@@ -80,7 +72,7 @@ ScriptElement::ScriptElement(Element* element, bool parserInserted, bool already
 {
     ASSERT(m_element);
     if (parserInserted && m_element->document().scriptableDocumentParser() && !m_element->document().isInDocumentWrite())
-        m_startLineNumber = m_element->document().scriptableDocumentParser()->lineNumber();
+        m_startLineNumber = m_element->document().scriptableDocumentParser()->textPosition().m_line;
 }
 
 ScriptElement::~ScriptElement()
@@ -88,9 +80,9 @@ ScriptElement::~ScriptElement()
     stopLoadRequest();
 }
 
-void ScriptElement::insertedInto(ContainerNode* insertionPoint)
+void ScriptElement::insertedInto(ContainerNode& insertionPoint)
 {
-    if (insertionPoint->inDocument() && !m_parserInserted)
+    if (insertionPoint.inDocument() && !m_parserInserted)
         prepareScript(); // FIXME: Provide a real starting line number here.
 }
 
@@ -124,7 +116,7 @@ static bool isLegacySupportedJavaScriptLanguage(const String& language)
 
     // FIXME: This function is not HTML5 compliant. These belong in the MIME registry as "text/javascript<version>" entries.
     typedef HashSet<String, CaseFoldingHash> LanguageSet;
-    DEFINE_STATIC_LOCAL(LanguageSet, languages, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(LanguageSet, languages, ());
     if (languages.isEmpty()) {
         languages.add("javascript");
         languages.add("javascript");
@@ -251,10 +243,10 @@ bool ScriptElement::prepareScript(const TextPosition& scriptStartPosition, Legac
 
 bool ScriptElement::requestScript(const String& sourceUrl)
 {
-    RefPtr<Document> originalDocument = &m_element->document();
+    Ref<Document> originalDocument(m_element->document());
     if (!m_element->dispatchBeforeLoadEvent(sourceUrl))
         return false;
-    if (!m_element->inDocument() || &m_element->document() != originalDocument)
+    if (!m_element->inDocument() || &m_element->document() != &originalDocument.get())
         return false;
     if (!m_element->document().contentSecurityPolicy()->allowScriptNonce(m_element->fastGetAttribute(HTMLNames::nonceAttr), m_element->document().url(), m_startLineNumber, m_element->document().completeURL(sourceUrl)))
         return false;
@@ -299,15 +291,15 @@ void ScriptElement::executeScript(const ScriptSourceCode& sourceCode)
 
 #if ENABLE(NOSNIFF)
     if (m_isExternalScript && m_cachedScript && !m_cachedScript->mimeTypeAllowedByNosniff()) {
-        m_element->document().addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, "Refused to execute script from '" + m_cachedScript->url().stringCenterEllipsizedToLength() + "' because its MIME type ('" + m_cachedScript->mimeType() + "') is not executable, and strict MIME type checking is enabled.");
+        m_element->document().addConsoleMessage(MessageSource::Security, MessageLevel::Error, "Refused to execute script from '" + m_cachedScript->url().stringCenterEllipsizedToLength() + "' because its MIME type ('" + m_cachedScript->mimeType() + "') is not executable, and strict MIME type checking is enabled.");
         return;
     }
 #endif
 
-    RefPtr<Document> document = &m_element->document();
+    Ref<Document> document(m_element->document());
     if (Frame* frame = document->frame()) {
-        IgnoreDestructiveWriteCountIncrementer ignoreDesctructiveWriteCountIncrementer(m_isExternalScript ? document.get() : 0);
-        CurrentScriptIncrementer currentScriptIncrementer(document.get(), m_element);
+        IgnoreDestructiveWriteCountIncrementer ignoreDesctructiveWriteCountIncrementer(m_isExternalScript ? &document.get() : 0);
+        CurrentScriptIncrementer currentScriptIncrementer(&document.get(), m_element);
 
         // Create a script from the script element node, using the script
         // block's source and the script block's type.
@@ -355,8 +347,8 @@ void ScriptElement::notifyFinished(CachedResource* resource)
         && !m_cachedScript->passesAccessControlCheck(m_element->document().securityOrigin())) {
 
         dispatchErrorEvent();
-        DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Cross-origin script load denied by Cross-Origin Resource Sharing policy.")));
-        m_element->document().addConsoleMessage(JSMessageSource, ErrorMessageLevel, consoleMessage);
+        DEPRECATED_DEFINE_STATIC_LOCAL(String, consoleMessage, (ASCIILiteral("Cross-origin script load denied by Cross-Origin Resource Sharing policy.")));
+        m_element->document().addConsoleMessage(MessageSource::JS, MessageLevel::Error, consoleMessage);
         return;
     }
 
@@ -399,10 +391,8 @@ ScriptElement* toScriptElementIfPossible(Element* element)
     if (isHTMLScriptElement(element))
         return toHTMLScriptElement(element);
 
-#if ENABLE(SVG)
     if (isSVGScriptElement(element))
         return toSVGScriptElement(element);
-#endif
 
     return 0;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,18 +26,24 @@
 #include "config.h"
 #include "DFGGraph.h"
 
+#if ENABLE(DFG_JIT)
+
+#include "BytecodeLivenessAnalysisInlines.h"
 #include "CodeBlock.h"
 #include "CodeBlockWithJITType.h"
 #include "DFGClobberSet.h"
 #include "DFGJITCode.h"
 #include "DFGVariableAccessDataDump.h"
+#include "FullBytecodeLiveness.h"
 #include "FunctionExecutableDump.h"
+#include "JIT.h"
+#include "JSActivation.h"
+#include "MaxFrameExtentForSlowPathCall.h"
 #include "OperandsInlines.h"
-#include "Operations.h"
+#include "JSCInlines.h"
+#include "StackAlignment.h"
 #include <wtf/CommaPrinter.h>
 #include <wtf/ListDump.h>
-
-#if ENABLE(DFG_JIT)
 
 namespace JSC { namespace DFG {
 
@@ -54,13 +60,20 @@ Graph::Graph(VM& vm, Plan& plan, LongLivedState& longLivedState)
     , m_codeBlock(m_plan.codeBlock.get())
     , m_profiledBlock(m_codeBlock->alternative())
     , m_allocator(longLivedState.m_allocator)
+    , m_mustHandleAbstractValues(OperandsLike, plan.mustHandleValues)
+    , m_inlineCallFrames(adoptPtr(new InlineCallFrameSet()))
     , m_hasArguments(false)
+    , m_nextMachineLocal(0)
+    , m_machineCaptureStart(std::numeric_limits<int>::max())
     , m_fixpointState(BeforeFixpoint)
     , m_form(LoadStore)
     , m_unificationState(LocallyUnified)
     , m_refCountState(EverythingIsLive)
 {
     ASSERT(m_profiledBlock);
+    
+    for (unsigned i = m_mustHandleAbstractValues.size(); i--;)
+        m_mustHandleAbstractValues[i].setMostSpecific(*this, plan.mustHandleValues[i]);
 }
 
 Graph::~Graph()
@@ -84,11 +97,11 @@ bool Graph::dumpCodeOrigin(PrintStream& out, const char* prefix, Node* previousN
     if (!previousNode)
         return false;
     
-    if (previousNode->codeOrigin.inlineCallFrame == currentNode->codeOrigin.inlineCallFrame)
+    if (previousNode->origin.semantic.inlineCallFrame == currentNode->origin.semantic.inlineCallFrame)
         return false;
     
-    Vector<CodeOrigin> previousInlineStack = previousNode->codeOrigin.inlineStack();
-    Vector<CodeOrigin> currentInlineStack = currentNode->codeOrigin.inlineStack();
+    Vector<CodeOrigin> previousInlineStack = previousNode->origin.semantic.inlineStack();
+    Vector<CodeOrigin> currentInlineStack = currentNode->origin.semantic.inlineStack();
     unsigned commonSize = std::min(previousInlineStack.size(), currentInlineStack.size());
     unsigned indexOfDivergence = commonSize;
     for (unsigned i = 0; i < commonSize; ++i) {
@@ -121,7 +134,7 @@ bool Graph::dumpCodeOrigin(PrintStream& out, const char* prefix, Node* previousN
 
 int Graph::amountOfNodeWhiteSpace(Node* node)
 {
-    return (node->codeOrigin.inlineDepth() - 1) * 2;
+    return (node->origin.semantic.inlineDepth() - 1) * 2;
 }
 
 void Graph::printNodeWhiteSpace(PrintStream& out, Node* node)
@@ -187,10 +200,12 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, SpeculationDump(node->prediction()));
     if (node->hasArrayMode())
         out.print(comma, node->arrayMode());
+    if (node->hasArithMode())
+        out.print(comma, node->arithMode());
     if (node->hasVarNumber())
         out.print(comma, node->varNumber());
     if (node->hasRegisterPointer())
-        out.print(comma, "global", globalObjectFor(node->codeOrigin)->findRegisterIndex(node->registerPointer()), "(", RawPointer(node->registerPointer()), ")");
+        out.print(comma, "global", globalObjectFor(node->origin.semantic)->findRegisterIndex(node->registerPointer()), "(", RawPointer(node->registerPointer()), ")");
     if (node->hasIdentifier())
         out.print(comma, "id", node->identifierNumber(), "{", identifiers()[node->identifierNumber()], "}");
     if (node->hasStructureSet())
@@ -230,21 +245,52 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, "id", storageAccessData.identifierNumber, "{", identifiers()[storageAccessData.identifierNumber], "}");
         out.print(", ", static_cast<ptrdiff_t>(storageAccessData.offset));
     }
+    if (node->hasMultiGetByOffsetData()) {
+        MultiGetByOffsetData& data = node->multiGetByOffsetData();
+        out.print(comma, "id", data.identifierNumber, "{", identifiers()[data.identifierNumber], "}");
+        for (unsigned i = 0; i < data.variants.size(); ++i)
+            out.print(comma, inContext(data.variants[i], context));
+    }
+    if (node->hasMultiPutByOffsetData()) {
+        MultiPutByOffsetData& data = node->multiPutByOffsetData();
+        out.print(comma, "id", data.identifierNumber, "{", identifiers()[data.identifierNumber], "}");
+        for (unsigned i = 0; i < data.variants.size(); ++i)
+            out.print(comma, inContext(data.variants[i], context));
+    }
     ASSERT(node->hasVariableAccessData(*this) == node->hasLocal(*this));
     if (node->hasVariableAccessData(*this)) {
-        VariableAccessData* variableAccessData = node->variableAccessData();
-        int operand = variableAccessData->operand();
-        if (operandIsArgument(operand))
-            out.print(comma, "arg", operandToArgument(operand), "(", VariableAccessDataDump(*this, variableAccessData), ")");
-        else
-            out.print(comma, "loc", operandToLocal(operand), "(", VariableAccessDataDump(*this, variableAccessData), ")");
+        VariableAccessData* variableAccessData = node->tryGetVariableAccessData();
+        if (variableAccessData) {
+            VirtualRegister operand = variableAccessData->local();
+            if (operand.isArgument())
+                out.print(comma, "arg", operand.toArgument(), "(", VariableAccessDataDump(*this, variableAccessData), ")");
+            else
+                out.print(comma, "loc", operand.toLocal(), "(", VariableAccessDataDump(*this, variableAccessData), ")");
+            
+            operand = variableAccessData->machineLocal();
+            if (operand.isValid()) {
+                if (operand.isArgument())
+                    out.print(comma, "machine:arg", operand.toArgument());
+                else
+                    out.print(comma, "machine:loc", operand.toLocal());
+            }
+        }
     }
     if (node->hasUnlinkedLocal()) {
-        int operand = node->unlinkedLocal();
-        if (operandIsArgument(operand))
-            out.print(comma, "arg", operandToArgument(operand));
+        VirtualRegister operand = node->unlinkedLocal();
+        if (operand.isArgument())
+            out.print(comma, "arg", operand.toArgument());
         else
-            out.print(comma, "loc", operandToLocal(operand));
+            out.print(comma, "loc", operand.toLocal());
+    }
+    if (node->hasUnlinkedMachineLocal()) {
+        VirtualRegister operand = node->unlinkedMachineLocal();
+        if (operand.isValid()) {
+            if (operand.isArgument())
+                out.print(comma, "machine:arg", operand.toArgument());
+            else
+                out.print(comma, "machine:loc", operand.toLocal());
+        }
     }
     if (node->hasConstantBuffer()) {
         out.print(comma);
@@ -262,6 +308,12 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, "^", node->phi()->index());
     if (node->hasExecutionCounter())
         out.print(comma, RawPointer(node->executionCounter()));
+    if (node->hasVariableWatchpointSet())
+        out.print(comma, RawPointer(node->variableWatchpointSet()));
+    if (node->hasTypedArray())
+        out.print(comma, inContext(JSValue(node->typedArray()), context));
+    if (node->hasStoragePointer())
+        out.print(comma, RawPointer(node->storagePointer()));
     if (op == JSConstant) {
         out.print(comma, "$", node->constantNumber());
         JSValue value = valueOfJSConstant(node);
@@ -269,16 +321,16 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
     }
     if (op == WeakJSConstant)
         out.print(comma, RawPointer(node->weakConstant()), " (", inContext(*node->weakConstant()->structure(), context), ")");
-    if (node->isBranch() || node->isJump())
-        out.print(comma, "T:", *node->takenBlock());
+    if (node->isJump())
+        out.print(comma, "T:", *node->targetBlock());
     if (node->isBranch())
-        out.print(comma, "F:", *node->notTakenBlock());
+        out.print(comma, "T:", node->branchData()->taken, ", F:", node->branchData()->notTaken);
     if (node->isSwitch()) {
         SwitchData* data = node->switchData();
         out.print(comma, data->kind);
         for (unsigned i = 0; i < data->cases.size(); ++i)
-            out.print(comma, inContext(data->cases[i].value, context), ":", *data->cases[i].target);
-        out.print(comma, "default:", *data->fallThrough);
+            out.print(comma, inContext(data->cases[i].value, context), ":", data->cases[i].target);
+        out.print(comma, "default:", data->fallThrough);
     }
     ClobberSet reads;
     ClobberSet writes;
@@ -287,13 +339,15 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
         out.print(comma, "R:", sortedListDump(reads.direct(), ","));
     if (!writes.isEmpty())
         out.print(comma, "W:", sortedListDump(writes.direct(), ","));
-    out.print(comma, "bc#", node->codeOrigin.bytecodeIndex);
+    out.print(comma, "bc#", node->origin.semantic.bytecodeIndex);
+    if (node->origin.semantic != node->origin.forExit)
+        out.print(comma, "exit: ", node->origin.forExit);
     
     out.print(")");
 
     if (!skipped) {
-        if (node->hasVariableAccessData(*this))
-            out.print("  predicting ", SpeculationDump(node->variableAccessData()->prediction()));
+        if (node->hasVariableAccessData(*this) && node->tryGetVariableAccessData())
+            out.print("  predicting ", SpeculationDump(node->tryGetVariableAccessData()->prediction()));
         else if (node->hasHeapPrediction())
             out.print("  predicting ", SpeculationDump(node->getHeapPrediction()));
     }
@@ -303,7 +357,7 @@ void Graph::dump(PrintStream& out, const char* prefix, Node* node, DumpContext* 
 
 void Graph::dumpBlockHeader(PrintStream& out, const char* prefix, BasicBlock* block, PhiNodeDumpMode phiNodeDumpMode, DumpContext* context)
 {
-    out.print(prefix, "Block ", *block, " (", inContext(block->at(0)->codeOrigin, context), "): ", block->isReachable ? "" : "(skipped)", block->isOSRTarget ? " (OSR target)" : "", "\n");
+    out.print(prefix, "Block ", *block, " (", inContext(block->at(0)->origin.semantic, context), "): ", block->isReachable ? "" : "(skipped)", block->isOSRTarget ? " (OSR target)" : "", "\n");
     out.print(prefix, "  Predecessors:");
     for (size_t i = 0; i < block->predecessors.size(); ++i)
         out.print(" ", *block->predecessors[i]);
@@ -369,6 +423,7 @@ void Graph::dumpBlockHeader(PrintStream& out, const char* prefix, BasicBlock* bl
 void Graph::dump(PrintStream& out, DumpContext* context)
 {
     DumpContext myContext;
+    myContext.graph = this;
     if (!context)
         context = &myContext;
     
@@ -398,7 +453,6 @@ void Graph::dump(PrintStream& out, DumpContext* context)
             
         case SSA: {
             RELEASE_ASSERT(block->ssa);
-            out.print("  Flush format: ", block->ssa->flushFormatAtHead, "\n");
             out.print("  Availability: ", block->ssa->availabilityAtHead, "\n");
             out.print("  Live: ", nodeListDump(block->ssa->liveAtHead), "\n");
             out.print("  Values: ", nodeMapDump(block->ssa->valuesAtHead, context), "\n");
@@ -424,7 +478,6 @@ void Graph::dump(PrintStream& out, DumpContext* context)
             
         case SSA: {
             RELEASE_ASSERT(block->ssa);
-            out.print("  Flush format: ", block->ssa->flushFormatAtTail, "\n");
             out.print("  Availability: ", block->ssa->availabilityAtTail, "\n");
             out.print("  Live: ", nodeListDump(block->ssa->liveAtTail), "\n");
             out.print("  Values: ", nodeMapDump(block->ssa->valuesAtTail, context), "\n");
@@ -619,7 +672,203 @@ void Graph::initializeNodeOwners()
             block->at(nodeIndex)->misc.owner = block;
     }
 }
+
+void Graph::clearFlagsOnAllNodes(NodeFlags flags)
+{
+    for (BlockIndex blockIndex = numBlocks(); blockIndex--;) {
+        BasicBlock* block = m_blocks[blockIndex].get();
+        if (!block)
+            continue;
+        for (unsigned phiIndex = block->phis.size(); phiIndex--;)
+            block->phis[phiIndex]->clearFlags(flags);
+        for (unsigned nodeIndex = block->size(); nodeIndex--;)
+            block->at(nodeIndex)->clearFlags(flags);
+    }
+}
+
+FullBytecodeLiveness& Graph::livenessFor(CodeBlock* codeBlock)
+{
+    HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>>::iterator iter = m_bytecodeLiveness.find(codeBlock);
+    if (iter != m_bytecodeLiveness.end())
+        return *iter->value;
     
+    std::unique_ptr<FullBytecodeLiveness> liveness = std::make_unique<FullBytecodeLiveness>();
+    codeBlock->livenessAnalysis().computeFullLiveness(*liveness);
+    FullBytecodeLiveness& result = *liveness;
+    m_bytecodeLiveness.add(codeBlock, std::move(liveness));
+    return result;
+}
+
+FullBytecodeLiveness& Graph::livenessFor(InlineCallFrame* inlineCallFrame)
+{
+    return livenessFor(baselineCodeBlockFor(inlineCallFrame));
+}
+
+bool Graph::isLiveInBytecode(VirtualRegister operand, CodeOrigin codeOrigin)
+{
+    for (;;) {
+        VirtualRegister reg = VirtualRegister(
+            operand.offset() - codeOrigin.stackOffset());
+        
+        if (operand.offset() < codeOrigin.stackOffset() + JSStack::CallFrameHeaderSize) {
+            if (reg.isArgument()) {
+                RELEASE_ASSERT(reg.offset() < JSStack::CallFrameHeaderSize);
+                
+                if (!codeOrigin.inlineCallFrame->isClosureCall)
+                    return false;
+                
+                if (reg.offset() == JSStack::Callee)
+                    return true;
+                if (reg.offset() == JSStack::ScopeChain)
+                    return true;
+                
+                return false;
+            }
+            
+            return livenessFor(codeOrigin.inlineCallFrame).operandIsLive(
+                reg.offset(), codeOrigin.bytecodeIndex);
+        }
+        
+        InlineCallFrame* inlineCallFrame = codeOrigin.inlineCallFrame;
+        if (!inlineCallFrame)
+            break;
+
+        // Arguments are always live. This would be redundant if it wasn't for our
+        // op_call_varargs inlining.
+        // FIXME: 'this' might not be live, but we don't have a way of knowing.
+        // https://bugs.webkit.org/show_bug.cgi?id=128519
+        if (reg.isArgument()
+            && static_cast<size_t>(reg.toArgument()) < inlineCallFrame->arguments.size())
+            return true;
+        
+        codeOrigin = inlineCallFrame->caller;
+    }
+    
+    return true;
+}
+
+unsigned Graph::frameRegisterCount()
+{
+    unsigned result = m_nextMachineLocal + std::max(m_parameterSlots, static_cast<unsigned>(maxFrameExtentForSlowPathCallInRegisters));
+    return roundLocalRegisterCountForFramePointerOffset(result);
+}
+
+unsigned Graph::stackPointerOffset()
+{
+    return virtualRegisterForLocal(frameRegisterCount() - 1).offset();
+}
+
+unsigned Graph::requiredRegisterCountForExit()
+{
+    unsigned count = JIT::frameRegisterCountFor(m_profiledBlock);
+    for (InlineCallFrameSet::iterator iter = m_inlineCallFrames->begin(); !!iter; ++iter) {
+        InlineCallFrame* inlineCallFrame = *iter;
+        CodeBlock* codeBlock = baselineCodeBlockForInlineCallFrame(inlineCallFrame);
+        unsigned requiredCount = VirtualRegister(inlineCallFrame->stackOffset).toLocal() + 1 + JIT::frameRegisterCountFor(codeBlock);
+        count = std::max(count, requiredCount);
+    }
+    return count;
+}
+
+unsigned Graph::requiredRegisterCountForExecutionAndExit()
+{
+    return std::max(frameRegisterCount(), requiredRegisterCountForExit());
+}
+
+JSActivation* Graph::tryGetActivation(Node* node)
+{
+    if (!node->hasConstant())
+        return 0;
+    return jsDynamicCast<JSActivation*>(valueOfJSConstant(node));
+}
+
+WriteBarrierBase<Unknown>* Graph::tryGetRegisters(Node* node)
+{
+    JSActivation* activation = tryGetActivation(node);
+    if (!activation)
+        return 0;
+    if (!activation->isTornOff())
+        return 0;
+    return activation->registers();
+}
+
+JSArrayBufferView* Graph::tryGetFoldableView(Node* node)
+{
+    if (!node->hasConstant())
+        return 0;
+    JSArrayBufferView* view = jsDynamicCast<JSArrayBufferView*>(valueOfJSConstant(node));
+    if (!view)
+        return 0;
+    if (!watchpoints().isStillValid(view))
+        return 0;
+    return view;
+}
+
+JSArrayBufferView* Graph::tryGetFoldableView(Node* node, ArrayMode arrayMode)
+{
+    if (arrayMode.typedArrayType() == NotTypedArray)
+        return 0;
+    return tryGetFoldableView(node);
+}
+
+JSArrayBufferView* Graph::tryGetFoldableViewForChild1(Node* node)
+{
+    return tryGetFoldableView(child(node, 0).node(), node->arrayMode());
+}
+
+void Graph::visitChildren(SlotVisitor& visitor)
+{
+    for (BlockIndex blockIndex = numBlocks(); blockIndex--;) {
+        BasicBlock* block = this->block(blockIndex);
+        if (!block)
+            continue;
+        
+        for (unsigned nodeIndex = 0; nodeIndex < block->size(); ++nodeIndex) {
+            Node* node = block->at(nodeIndex);
+            
+            switch (node->op()) {
+            case JSConstant:
+            case WeakJSConstant:
+                visitor.appendUnbarrieredReadOnlyValue(valueOfJSConstant(node));
+                break;
+                
+            case CheckFunction:
+                visitor.appendUnbarrieredReadOnlyPointer(node->function());
+                break;
+                
+            case CheckExecutable:
+                visitor.appendUnbarrieredReadOnlyPointer(node->executable());
+                break;
+                
+            case CheckStructure:
+                for (unsigned i = node->structureSet().size(); i--;)
+                    visitor.appendUnbarrieredReadOnlyPointer(node->structureSet()[i]);
+                break;
+                
+            case StructureTransitionWatchpoint:
+            case NewObject:
+            case ArrayifyToStructure:
+            case NewStringObject:
+                visitor.appendUnbarrieredReadOnlyPointer(node->structure());
+                break;
+                
+            case PutStructure:
+            case PhantomPutStructure:
+            case AllocatePropertyStorage:
+            case ReallocatePropertyStorage:
+                visitor.appendUnbarrieredReadOnlyPointer(
+                    node->structureTransitionData().previousStructure);
+                visitor.appendUnbarrieredReadOnlyPointer(
+                    node->structureTransitionData().newStructure);
+                break;
+                
+            default:
+                break;
+            }
+        }
+    }
+}
+
 } } // namespace JSC::DFG
 
-#endif
+#endif // ENABLE(DFG_JIT)

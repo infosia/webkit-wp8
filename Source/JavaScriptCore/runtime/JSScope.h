@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All Rights Reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,6 +31,7 @@
 namespace JSC {
 
 class ScopeChainIterator;
+class VariableWatchpointSet;
 
 enum ResolveMode {
     ThrowIfNotFound,
@@ -52,6 +53,9 @@ enum ResolveType {
     // Lexical scope didn't prove anything -- probably because of a 'with' scope.
     Dynamic
 };
+
+const char* resolveModeName(ResolveMode mode);
+const char* resolveTypeName(ResolveType type);
 
 inline ResolveType makeType(ResolveType type, bool needsVarInjectionChecks)
 {
@@ -95,10 +99,12 @@ inline bool needsVarInjectionChecks(ResolveType type)
 }
 
 struct ResolveOp {
-    ResolveOp(ResolveType type, size_t depth, Structure* structure, uintptr_t operand)
+    ResolveOp(ResolveType type, size_t depth, Structure* structure, JSActivation* activation, VariableWatchpointSet* watchpointSet, uintptr_t operand)
         : type(type)
         , depth(depth)
         , structure(structure)
+        , activation(activation)
+        , watchpointSet(watchpointSet)
         , operand(operand)
     {
     }
@@ -106,6 +112,8 @@ struct ResolveOp {
     ResolveType type;
     size_t depth;
     Structure* structure;
+    JSActivation* activation;
+    VariableWatchpointSet* watchpointSet;
     uintptr_t operand;
 };
 
@@ -215,7 +223,7 @@ inline JSGlobalObject* JSScope::globalObject()
 
 inline VM* JSScope::vm()
 { 
-    return Heap::heap(this)->vm();
+    return MarkedBlock::blockFor(this)->vm();
 }
 
 inline Register& Register::operator=(JSScope* scope)

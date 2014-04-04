@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -40,8 +40,6 @@
 #include "IntRect.h"
 #include "RenderListBox.h"
 #include "RenderObject.h"
-
-using namespace std;
 
 namespace WebCore {
 
@@ -222,7 +220,7 @@ int AccessibilityListBoxOption::listBoxOptionIndex() const
     if (!selectElement) 
         return -1;
     
-    const Vector<HTMLElement*>& listItems = selectElement->listItems();
+    const auto& listItems = selectElement->listItems();
     unsigned length = listItems.size();
     for (unsigned i = 0; i < length; i++)
         if (listItems[i] == m_optionElement)

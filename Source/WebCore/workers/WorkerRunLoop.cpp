@@ -30,8 +30,6 @@
  
 #include "config.h"
 
-#if ENABLE(WORKERS)
-
 #include "ScriptExecutionContext.h"
 #include "SharedTimer.h"
 #include "ThreadGlobalData.h"
@@ -78,9 +76,9 @@ public:
         return m_defaultMode;
     }
 
-    bool operator()(const OwnPtr<WorkerRunLoop::Task>& task) const
+    bool operator()(const WorkerRunLoop::Task& task) const
     {
-        return m_defaultMode || m_mode == task->mode();
+        return m_defaultMode || m_mode == task.mode();
     }
 
 private:
@@ -148,14 +146,13 @@ MessageQueueWaitResult WorkerRunLoop::runInMode(WorkerGlobalScope* context, cons
 MessageQueueWaitResult WorkerRunLoop::runInMode(WorkerGlobalScope* context, const ModePredicate& predicate, WaitMode waitMode)
 {
     ASSERT(context);
-    ASSERT(context->thread());
-    ASSERT(context->thread()->threadID() == currentThread());
+    ASSERT(context->thread().threadID() == currentThread());
 
     double absoluteTime = 0.0;
     if (waitMode == WaitForMessage)
         absoluteTime = (predicate.isDefaultMode() && m_sharedTimer->isActive()) ? m_sharedTimer->fireTime() : MessageQueue<Task>::infiniteTime();
     MessageQueueWaitResult result;
-    OwnPtr<WorkerRunLoop::Task> task = m_messageQueue.waitForMessageFilteredWithTimeout(result, predicate, absoluteTime);
+    auto task = m_messageQueue.waitForMessageFilteredWithTimeout(result, predicate, absoluteTime);
 
     // If the context is closing, don't execute any further JavaScript tasks (per section 4.1.1 of the Web Workers spec).  However, there may be implementation cleanup tasks in the queue, so keep running through it.
 
@@ -179,12 +176,11 @@ MessageQueueWaitResult WorkerRunLoop::runInMode(WorkerGlobalScope* context, cons
 void WorkerRunLoop::runCleanupTasks(WorkerGlobalScope* context)
 {
     ASSERT(context);
-    ASSERT(context->thread());
-    ASSERT(context->thread()->threadID() == currentThread());
+    ASSERT(context->thread().threadID() == currentThread());
     ASSERT(m_messageQueue.killed());
 
     while (true) {
-        OwnPtr<WorkerRunLoop::Task> task = m_messageQueue.tryGetMessageIgnoringKilled();
+        auto task = m_messageQueue.tryGetMessageIgnoringKilled();
         if (!task)
             return;
         task->performTask(*this, context);
@@ -211,15 +207,14 @@ void WorkerRunLoop::postTaskForMode(PassOwnPtr<ScriptExecutionContext::Task> tas
     m_messageQueue.append(Task::create(task, mode.isolatedCopy()));
 }
 
-PassOwnPtr<WorkerRunLoop::Task> WorkerRunLoop::Task::create(PassOwnPtr<ScriptExecutionContext::Task> task, const String& mode)
+std::unique_ptr<WorkerRunLoop::Task> WorkerRunLoop::Task::create(PassOwnPtr<ScriptExecutionContext::Task> task, const String& mode)
 {
-    return adoptPtr(new Task(task, mode));
+    return std::unique_ptr<Task>(new Task(task, mode));
 }
 
 void WorkerRunLoop::Task::performTask(const WorkerRunLoop& runLoop, ScriptExecutionContext* context)
 {
-    WorkerGlobalScope* workerGlobalScope = static_cast<WorkerGlobalScope*>(context);
-    if ((!workerGlobalScope->isClosing() && !runLoop.terminated()) || m_task->isCleanupTask())
+    if ((!toWorkerGlobalScope(context)->isClosing() && !runLoop.terminated()) || m_task->isCleanupTask())
         m_task->performTask(context);
 }
 
@@ -230,5 +225,3 @@ WorkerRunLoop::Task::Task(PassOwnPtr<ScriptExecutionContext::Task> task, const S
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)

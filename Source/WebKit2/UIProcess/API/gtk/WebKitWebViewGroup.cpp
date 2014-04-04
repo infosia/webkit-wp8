@@ -20,7 +20,8 @@
 #include "config.h"
 #include "WebKitWebViewGroup.h"
 
-#include "ImmutableArray.h"
+#include "APIArray.h"
+#include "APIString.h"
 #include "WebKitPrivate.h"
 #include "WebKitSettingsPrivate.h"
 #include "WebKitWebViewGroupPrivate.h"
@@ -65,6 +66,19 @@ struct _WebKitWebViewGroupPrivate {
 };
 
 WEBKIT_DEFINE_TYPE(WebKitWebViewGroup, webkit_web_view_group, G_TYPE_OBJECT)
+
+static inline WebCore::UserContentInjectedFrames toWebCoreUserContentInjectedFrames(WebKitInjectedContentFrames kitFrames)
+{
+    switch (kitFrames) {
+    case WEBKIT_INJECTED_CONTENT_FRAMES_ALL:
+        return WebCore::InjectInAllFrames;
+    case WEBKIT_INJECTED_CONTENT_FRAMES_TOP_ONLY:
+        return WebCore::InjectInTopFrameOnly;
+    default:
+        ASSERT_NOT_REACHED();
+        return WebCore::InjectInAllFrames;
+    }
+}
 
 static void webkitWebViewGroupSetProperty(GObject* object, guint propId, const GValue* value, GParamSpec* paramSpec)
 {
@@ -223,20 +237,17 @@ void webkit_web_view_group_set_settings(WebKitWebViewGroup* group, WebKitSetting
     g_object_notify(G_OBJECT(group), "settings");
 }
 
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_INJECTED_CONTENT_FRAMES_ALL, WebCore::InjectInAllFrames);
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_INJECTED_CONTENT_FRAMES_TOP_ONLY, WebCore::InjectInTopFrameOnly);
-
-static PassRefPtr<ImmutableArray> toImmutableArray(const char* const* list)
+static PassRefPtr<API::Array> toAPIArray(const char* const* list)
 {
     if (!list)
         return 0;
 
-    Vector<RefPtr<APIObject> > entries;
+    Vector<RefPtr<API::Object> > entries;
     while (*list) {
-        entries.append(WebString::createFromUTF8String(*list));
+        entries.append(API::String::createFromUTF8String(*list));
         list++;
     }
-    return ImmutableArray::adopt(entries);
+    return API::Array::create(std::move(entries));
 }
 
 /**
@@ -260,8 +271,8 @@ void webkit_web_view_group_add_user_style_sheet(WebKitWebViewGroup* group, const
     g_return_if_fail(WEBKIT_IS_WEB_VIEW_GROUP(group));
     g_return_if_fail(source);
 
-    RefPtr<ImmutableArray> webWhitelist = toImmutableArray(whitelist);
-    RefPtr<ImmutableArray> webBlacklist = toImmutableArray(blacklist);
+    RefPtr<API::Array> webWhitelist = toAPIArray(whitelist);
+    RefPtr<API::Array> webBlacklist = toAPIArray(blacklist);
 
     // We always use UserStyleUserLevel to match the behavior of WKPageGroupAddUserStyleSheet.
     group->priv->pageGroup->addUserStyleSheet(
@@ -269,7 +280,7 @@ void webkit_web_view_group_add_user_style_sheet(WebKitWebViewGroup* group, const
         String::fromUTF8(baseURI),
         webWhitelist.get(),
         webBlacklist.get(),
-        static_cast<WebCore::UserContentInjectedFrames>(injectedFrames),
+        toWebCoreUserContentInjectedFrames(injectedFrames),
         WebCore::UserStyleUserLevel);
 }
 

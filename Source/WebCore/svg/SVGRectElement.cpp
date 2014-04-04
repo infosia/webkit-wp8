@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGRectElement.h"
 
 #include "Attribute.h"
@@ -73,7 +71,7 @@ PassRefPtr<SVGRectElement> SVGRectElement::create(const QualifiedName& tagName, 
 
 bool SVGRectElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -138,12 +136,12 @@ void SVGRectElement::svgAttributeChanged(const QualifiedName& attrName)
 
     if (isLengthAttribute) {
         renderer->setNeedsShapeUpdate();
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     if (SVGLangSpace::isKnownAttribute(attrName) || SVGExternalResourcesRequired::isKnownAttribute(attrName)) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -160,11 +158,9 @@ bool SVGRectElement::selfHasRelativeLengths() const
         || ry().isRelative();
 }
 
-RenderElement* SVGRectElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGRectElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGRect(*this);
+    return createRenderer<RenderSVGRect>(*this, std::move(style));
 }
 
 }
-
-#endif // ENABLE(SVG)

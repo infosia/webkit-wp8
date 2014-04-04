@@ -31,14 +31,12 @@ namespace JSC {
     public:
         typedef InternalFunction Base;
 
-        static NumberConstructor* create(ExecState* exec, JSGlobalObject* globalObject, Structure* structure, NumberPrototype* numberPrototype)
+        static NumberConstructor* create(VM& vm, Structure* structure, NumberPrototype* numberPrototype)
         {
-            NumberConstructor* constructor = new (NotNull, allocateCell<NumberConstructor>(*exec->heap())) NumberConstructor(globalObject, structure);
-            constructor->finishCreation(exec, numberPrototype);
+            NumberConstructor* constructor = new (NotNull, allocateCell<NumberConstructor>(vm.heap)) NumberConstructor(vm, structure);
+            constructor->finishCreation(vm, numberPrototype);
             return constructor;
         }
-
-        static void put(JSCell*, ExecState*, PropertyName, JSValue, PutPropertySlot&);
 
         static bool getOwnPropertySlot(JSObject*, ExecState*, PropertyName, PropertySlot&);
         JSValue getValueProperty(ExecState*, int token) const;
@@ -53,11 +51,11 @@ namespace JSC {
         enum { NaNValue, NegInfinity, PosInfinity, MaxValue, MinValue };
 
     protected:
-        void finishCreation(ExecState*, NumberPrototype*);
+        void finishCreation(VM&, NumberPrototype*);
         static const unsigned StructureFlags = OverridesGetOwnPropertySlot | ImplementsHasInstance | InternalFunction::StructureFlags;
 
     private:
-        NumberConstructor(JSGlobalObject*, Structure*);
+        NumberConstructor(VM&, Structure*);
         static ConstructType getConstructData(JSCell*, ConstructData&);
         static CallType getCallData(JSCell*, CallData&);
     };

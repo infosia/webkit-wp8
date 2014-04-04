@@ -35,7 +35,7 @@
 #include "WebPageGroupProxy.h"
 #include "WebProcess.h"
 #include <WebCore/DOMWindow.h>
-#include <WebCore/Frame.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/Page.h>
 #include <WebCore/PageGroup.h>
 #include <WebCore/Storage.h>
@@ -71,7 +71,7 @@ StorageAreaMap::StorageAreaMap(StorageNamespaceImpl* storageNamespace, PassRefPt
         WebProcess::shared().parentProcessConnection()->send(Messages::StorageManager::CreateLocalStorageMap(m_storageMapID, storageNamespace->storageNamespaceID(), SecurityOriginData::fromSecurityOrigin(m_securityOrigin.get())), 0);
     else
         WebProcess::shared().parentProcessConnection()->send(Messages::StorageManager::CreateSessionStorageMap(m_storageMapID, storageNamespace->storageNamespaceID(), SecurityOriginData::fromSecurityOrigin(m_securityOrigin.get())), 0);
-    WebProcess::shared().addMessageReceiver(Messages::StorageAreaMap::messageReceiverName(), m_storageMapID, this);
+    WebProcess::shared().addMessageReceiver(Messages::StorageAreaMap::messageReceiverName(), m_storageMapID, *this);
 }
 
 StorageAreaMap::~StorageAreaMap()

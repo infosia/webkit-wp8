@@ -124,6 +124,31 @@ shouldBe("Math.floor(-Number.MAX_VALUE)", "-Number.MAX_VALUE");
 shouldBe("Math.floor(Infinity)", "Infinity");
 shouldBe("Math.floor(-Infinity)", "-Infinity");
 
+shouldBe("Math.hypot.length","2");
+shouldBe("Math.hypot(NaN)", "NaN");
+shouldBe("Math.hypot()", "0");
+shouldBe("Math.hypot(-0)", "0");
+shouldBe("Math.hypot(0)", "0");
+shouldBe("Math.hypot(-Infinity)", "Infinity");
+shouldBe("Math.hypot(Infinity)", "Infinity");
+shouldBe("Math.hypot(-3)", "3");
+shouldBe("Math.hypot(3, 4)", "5");
+shouldBe("Math.hypot(1, NaN, Infinity)", "Infinity");
+shouldBe("Math.hypot(3, 4, 5)", "7.0710678118654755");
+shouldBe("Math.hypot(3, 4, '5')", "7.0710678118654755");
+shouldBe("Math.hypot(-3, -4)", "5");
+shouldBe("Math.hypot(3, -Infinity)", "Infinity");
+shouldBe("Math.hypot(3, NaN)", "NaN");
+shouldBe("Math.hypot(NaN, 3)", "NaN");
+shouldBe("Math.hypot(0, NaN)", "NaN");
+shouldBe("Math.hypot(NaN, 0)", "NaN");
+shouldThrow("Math.hypot(NaN, {valueOf:function(){throw \"err\"}})","'err'");
+shouldThrow("Math.hypot(NaN, NaN, {valueOf:function(){throw \"err\"}})","'err'");
+sideEffect = 0;
+shouldThrow("Math.hypot({valueOf:function(){throw \"error1\"}}, {valueOf:function(){sideEffect = 1}})", "'error1'");
+shouldBe('sideEffect', '0');
+shouldBe("Math.hypot(3, 4, 'foo')", "NaN");
+
 shouldBe("Math.log(NaN)", "NaN");
 shouldBe("Math.log(0)", "-Infinity");
 shouldBe("Math.log(-0)", "-Infinity");
@@ -139,6 +164,13 @@ shouldBe("Math.max(NaN,1)", "NaN");
 shouldBe("Math.max(0)", "0");
 shouldBe("Math.max(-0)", "-0");
 shouldBe("Math.max(-0, 0)", "0");
+shouldThrow("Math.max(NaN, {valueOf:function(){throw \"err\"}})","'err'");
+shouldThrow("Math.max(NaN, NaN, {valueOf:function(){throw \"err\"}})","'err'");
+shouldBe("Math.max(-0, NaN, 0)", "NaN");
+shouldBe("Math.max(-0, NaN, 0, NaN)", "NaN");
+sideEffect = 0;
+shouldThrow("Math.max({valueOf:function(){throw \"error1\"}}, {valueOf:function(){sideEffect = 1}})", "'error1'")
+shouldBe('sideEffect', '0');
 
 shouldBe("Math.min()", "Infinity");
 shouldBe("Math.min(NaN)", "NaN");
@@ -146,6 +178,13 @@ shouldBe("Math.min(NaN,1)", "NaN");
 shouldBe("Math.min(0)", "0");
 shouldBe("Math.min(-0)", "-0");
 shouldBe("Math.min(-0, 0)", "-0");
+shouldThrow("Math.min(NaN, {valueOf:function(){throw \"err\"}})","'err'");
+shouldThrow("Math.min(NaN, NaN, {valueOf:function(){throw \"err\"}})","'err'");
+shouldBe("Math.min(-0, NaN, 0)", "NaN");
+shouldBe("Math.min(-0, NaN, 0, NaN)", "NaN");
+sideEffect = 0;
+shouldThrow("Math.min({valueOf:function(){throw \"error1\"}}, {valueOf:function(){sideEffect = 1}})", "'error1'")
+shouldBe('sideEffect', '0');
 
 shouldBe("Math.pow(NaN, NaN)", "NaN");
 shouldBe("Math.pow(NaN, 0)", "1");
@@ -234,6 +273,108 @@ shouldBe("Math.tan(0)", "0");
 shouldBe("Math.tan(-0)", "-0");
 shouldBe("Math.tan(Infinity)", "NaN");
 shouldBe("Math.tan(-Infinity)", "NaN");
+
+
+shouldBe("Math.acosh(NaN)", "NaN");
+shouldBe("Math.acosh(0)", "NaN");
+shouldBe("Math.acosh(0.5)", "NaN");
+shouldBe("Math.acosh(-1)", "NaN");
+shouldBe("Math.acosh(Infinity)", "Infinity");
+shouldBe("Math.acosh(-Infinity)", "NaN");
+
+
+shouldBe("Math.asinh(NaN)", "NaN");
+shouldBe("Math.asinh(0)", "0");
+shouldBe("Math.asinh(-0)", "-0");
+shouldBe("Math.asinh(Infinity)", "Infinity");
+shouldBe("Math.asinh(-Infinity)", "-Infinity");
+
+shouldBe("Math.atanh(NaN)", "NaN");
+shouldBe("Math.atanh(0)", "0");
+shouldBe("Math.atanh(-0)", "-0");
+shouldBe("Math.atanh(-1)", "-Infinity");
+shouldBe("Math.atanh(1)", "Infinity");
+shouldBe("Math.atanh(Infinity)", "NaN");
+shouldBe("Math.atanh(-Infinity)", "NaN");
+
+shouldBe("Math.cbrt(NaN)", "NaN");
+shouldBe("Math.cbrt(0)", "0");
+shouldBe("Math.cbrt(-0)", "-0");
+shouldBe("Math.cbrt(8)", "2");
+shouldBe("Math.cbrt(-8)", "-2");
+shouldBe("Math.cbrt(Infinity)", "Infinity");
+shouldBe("Math.cbrt(-Infinity)", "-Infinity");
+
+shouldBe("Math.cosh(NaN)", "NaN");
+shouldBe("Math.cosh(0)", "1");
+shouldBe("Math.cosh(-0)", "1");
+shouldBe("Math.cosh(Infinity)", "Infinity");
+shouldBe("Math.cosh(-Infinity)", "Infinity");
+
+shouldBe("Math.expm1(NaN)", "NaN");
+shouldBe("Math.expm1(0)", "0");
+shouldBe("Math.expm1(-0)", "-0");
+shouldBe("Math.expm1(Infinity)", "Infinity");
+shouldBe("Math.expm1(-Infinity)", "-1");
+
+shouldBe("Math.fround(NaN)", "NaN");
+shouldBe("Math.fround(0)", "0");
+shouldBe("Math.fround(-0)", "-0");
+shouldBe("Math.fround(Infinity)", "Infinity");
+shouldBe("Math.fround(-Infinity)", "-Infinity");
+
+shouldBe("Math.log1p(NaN)", "NaN");
+shouldBe("Math.log1p(0)", "0");
+shouldBe("Math.log1p(-0)", "-0");
+shouldBe("Math.log1p(Infinity)", "Infinity");
+shouldBe("Math.log1p(-1)", "-Infinity");
+shouldBe("Math.log1p(-Infinity)", "NaN");
+
+shouldBe("Math.log10(NaN)", "NaN");
+shouldBe("Math.log10(0)", "-Infinity");
+shouldBe("Math.log10(-0)", "-Infinity");
+shouldBe("Math.log10(10)", "1");
+shouldBe("Math.log10(-1)", "NaN");
+shouldBe("Math.log10(-Infinity)", "NaN");
+shouldBe("Math.log10(Infinity)", "Infinity");
+shouldBe("Math.log10(1)", "0");
+
+shouldBe("Math.log2(NaN)", "NaN");
+shouldBe("Math.log2(0)", "-Infinity");
+shouldBe("Math.log2(-0)", "-Infinity");
+shouldBe("Math.log2(2)", "1");
+shouldBe("Math.log2(-1)", "NaN");
+shouldBe("Math.log2(-Infinity)", "NaN");
+shouldBe("Math.log2(Infinity)", "Infinity");
+shouldBe("Math.log2(1)", "0");
+
+shouldBe("Math.asinh(NaN)", "NaN");
+shouldBe("Math.asinh(0)", "0");
+shouldBe("Math.asinh(-0)", "-0");
+shouldBe("Math.asinh(Infinity)", "Infinity");
+shouldBe("Math.asinh(-Infinity)", "-Infinity");
+
+shouldBe("Math.sinh(NaN)", "NaN");
+shouldBe("Math.sinh(0)", "0");
+shouldBe("Math.sinh(-0)", "-0");
+shouldBe("Math.sinh(Infinity)", "Infinity");
+shouldBe("Math.sinh(-Infinity)", "-Infinity");
+
+shouldBe("Math.tanh(NaN)", "NaN");
+shouldBe("Math.tanh(0)", "0");
+shouldBe("Math.tanh(-0)", "-0");
+shouldBe("Math.tanh(Infinity)", "1");
+shouldBe("Math.tanh(-Infinity)", "-1");
+
+shouldBe("Math.trunc(NaN)", "NaN");
+shouldBe("Math.trunc(0)", "0");
+shouldBe("Math.trunc(-0)", "-0");
+shouldBe("Math.trunc(Infinity)", "Infinity");
+shouldBe("Math.trunc(-Infinity)", "-Infinity");
+shouldBe("Math.trunc(-0.5)", "-0");
+shouldBe("Math.trunc(0.5)", "0");
+shouldBe("Math.trunc(0xFFFFFFFF * 2 + 0.5)", "0xFFFFFFFF * 2");
+
 
 var __Math = Math;
 shouldBeTrue("delete Math;");

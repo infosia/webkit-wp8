@@ -23,14 +23,37 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if defined(__LP64__) && defined(__clang__)
-
 #import <WebKit2/WKWebProcessPlugInBrowserContextController.h>
 
-@interface WKWebProcessPlugInBrowserContextController (Private)
+#if WK_API_ENABLED
 
-@property(readonly) WKBundlePageRef _bundlePageRef;
+#import <WebKit2/WKBase.h>
+
+@class WKBrowsingContextHandle;
+@class _WKRemoteObjectRegistry;
+@protocol WKWebProcessPlugInFormDelegatePrivate;
+
+@interface WKWebProcessPlugInBrowserContextController (WKPrivate)
+
+@property (nonatomic, readonly) WKBundlePageRef _bundlePageRef;
+
+@property (nonatomic, readonly) WKBrowsingContextHandle *handle;
+
+@property (nonatomic, readonly) _WKRemoteObjectRegistry *_remoteObjectRegistry;
+
+@property (weak, setter=_setFormDelegate:) id <WKWebProcessPlugInFormDelegatePrivate> _formDelegate;
+
++ (instancetype)lookUpBrowsingContextFromHandle:(WKBrowsingContextHandle *)handle;
 
 @end
 
-#endif // defined(__LP64__) && defined(__clang__)
+@class WKRemoteObjectRegistry;
+
+@interface WKWebProcessPlugInBrowserContextController (WKToBeRemoved)
+
+@property (nonatomic, readonly) WKRemoteObjectRegistry *remoteObjectRegistry;
+@end;
+
+
+
+#endif // WK_API_ENABLED

@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -43,6 +43,10 @@
 
 #if PLATFORM(WIN)
 #include "MD5.h"
+#elif PLATFORM(IOS)
+#include <MobileCoreServices/UTCoreTypes.h>
+#define COMMON_DIGEST_FOR_OPENSSL
+#include <CommonCrypto/CommonDigest.h>
 #elif PLATFORM(MAC)
 #include <LaunchServices/UTCoreTypes.h>
 #define COMMON_DIGEST_FOR_OPENSSL
@@ -81,7 +85,7 @@ void computeMD5HashStringForBitmapContext(BitmapContext* context, char hashStrin
     MD5_CTX md5Context;
     MD5_Init(&md5Context);
     unsigned char* bitmapData = static_cast<unsigned char*>(CGBitmapContextGetData(bitmapContext));
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if ((CGBitmapContextGetBitmapInfo(bitmapContext) & kCGBitmapByteOrderMask) == kCGBitmapByteOrder32Big) {
         for (unsigned row = 0; row < pixelsHigh; row++) {
             uint32_t buffer[pixelsWide];

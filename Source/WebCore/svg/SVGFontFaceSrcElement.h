@@ -27,7 +27,7 @@ namespace WebCore {
 
 class CSSValueList;
 
-class SVGFontFaceSrcElement FINAL : public SVGElement {
+class SVGFontFaceSrcElement final : public SVGElement {
 public:
     static PassRefPtr<SVGFontFaceSrcElement> create(const QualifiedName&, Document&);
 
@@ -36,11 +36,11 @@ public:
 private:
     SVGFontFaceSrcElement(const QualifiedName&, Document&);
     
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE { return false; }
+    virtual void childrenChanged(const ChildChange&) override;
+    virtual bool rendererIsNeeded(const RenderStyle&) override { return false; }
 };
 
-ELEMENT_TYPE_CASTS(SVGFontFaceSrcElement)
+NODE_TYPE_CASTS(SVGFontFaceSrcElement)
 
 } // namespace WebCore
 

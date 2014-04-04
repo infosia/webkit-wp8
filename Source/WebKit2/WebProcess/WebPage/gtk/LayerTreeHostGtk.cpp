@@ -40,10 +40,10 @@
 #include <GL/gl.h>
 #endif
 
-#include <WebCore/Frame.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/GLContext.h>
 #include <WebCore/GraphicsLayerTextureMapper.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/Page.h>
 #include <WebCore/Settings.h>
 #include <wtf/CurrentTime.h>
@@ -168,6 +168,11 @@ void LayerTreeHostGtk::invalidate()
 {
     ASSERT(m_isValid);
 
+    // This can trigger destruction of GL objects so let's make sure that
+    // we have the right active context
+    if (m_context)
+        m_context->makeContextCurrent();
+
     cancelPendingLayerFlush();
     m_rootLayer = nullptr;
     m_nonCompositedContentLayer = nullptr;
@@ -264,7 +269,7 @@ void LayerTreeHostGtk::setPageOverlayNeedsDisplay(PageOverlay* pageOverlay, cons
     scheduleLayerFlush();
 }
 
-void LayerTreeHostGtk::notifyAnimationStarted(const WebCore::GraphicsLayer*, double time)
+void LayerTreeHostGtk::notifyAnimationStarted(const WebCore::GraphicsLayer*, double /* time */)
 {
 }
 
@@ -272,17 +277,16 @@ void LayerTreeHostGtk::notifyFlushRequired(const WebCore::GraphicsLayer*)
 {
 }
 
-void LayerTreeHostGtk::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const IntRect& clipRect)
+void LayerTreeHostGtk::paintContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, GraphicsLayerPaintingPhase, const FloatRect& clipRect)
 {
-    if (graphicsLayer == m_nonCompositedContentLayer) {
-        m_webPage->drawRect(graphicsContext, clipRect);
+    if (graphicsLayer == m_nonCompositedContentLayer.get()) {
+        m_webPage->drawRect(graphicsContext, enclosingIntRect(clipRect));
         return;
     }
 
-    PageOverlayLayerMap::iterator end = m_pageOverlayLayers.end();
-    for (PageOverlayLayerMap::iterator it = m_pageOverlayLayers.begin(); it != end; ++it) {
-        if (it->value == graphicsLayer) {
-            m_webPage->drawPageOverlay(it->key, graphicsContext, clipRect);
+    for (auto& pageOverlayLayer : m_pageOverlayLayers) {
+        if (pageOverlayLayer.value.get() == graphicsLayer) {
+            m_webPage->drawPageOverlay(pageOverlayLayer.key, graphicsContext, enclosingIntRect(clipRect));
             break;
         }
     }
@@ -305,6 +309,7 @@ void LayerTreeHostGtk::layerFlushTimerFired()
         const double targetFPS = 60;
         double nextFlush = std::max((1 / targetFPS) - (currentTime() - m_lastFlushTime), 0.0);
         m_layerFlushTimerCallbackId = g_timeout_add_full(GDK_PRIORITY_EVENTS, nextFlush * 1000.0, reinterpret_cast<GSourceFunc>(layerFlushTimerFiredCallback), this, 0);
+        g_source_set_name_by_id(m_layerFlushTimerCallbackId, "[WebKit] layerFlushTimerFiredCallback");
     }
 }
 
@@ -374,7 +379,7 @@ void LayerTreeHostGtk::flushAndRenderLayers()
 
 void LayerTreeHostGtk::createPageOverlayLayer(PageOverlay* pageOverlay)
 {
-    OwnPtr<GraphicsLayer> layer = GraphicsLayer::create(graphicsLayerFactory(), this);
+    std::unique_ptr<GraphicsLayer> layer = GraphicsLayer::create(graphicsLayerFactory(), this);
 #ifndef NDEBUG
     layer->setName("LayerTreeHost page overlay content");
 #endif
@@ -386,12 +391,12 @@ void LayerTreeHostGtk::createPageOverlayLayer(PageOverlay* pageOverlay)
     layer->setShowRepaintCounter(m_webPage->corePage()->settings().showRepaintCounter());
 
     m_rootLayer->addChild(layer.get());
-    m_pageOverlayLayers.add(pageOverlay, layer.release());
+    m_pageOverlayLayers.add(pageOverlay, std::move(layer));
 }
 
 void LayerTreeHostGtk::destroyPageOverlayLayer(PageOverlay* pageOverlay)
 {
-    OwnPtr<GraphicsLayer> layer = m_pageOverlayLayers.take(pageOverlay);
+    std::unique_ptr<GraphicsLayer> layer = m_pageOverlayLayers.take(pageOverlay);
     ASSERT(layer);
 
     layer->removeFromParent();
@@ -403,8 +408,10 @@ void LayerTreeHostGtk::scheduleLayerFlush()
         return;
 
     // We use a GLib timer because otherwise GTK+ event handling during dragging can starve WebCore timers, which have a lower priority.
-    if (!m_layerFlushTimerCallbackId)
+    if (!m_layerFlushTimerCallbackId) {
         m_layerFlushTimerCallbackId = g_timeout_add_full(GDK_PRIORITY_EVENTS, 0, reinterpret_cast<GSourceFunc>(layerFlushTimerFiredCallback), this, 0);
+        g_source_set_name_by_id(m_layerFlushTimerCallbackId, "[WebKit] layerFlushTimerFiredCallback");
+    }
 }
 
 void LayerTreeHostGtk::setLayerFlushSchedulingEnabled(bool layerFlushingEnabled)

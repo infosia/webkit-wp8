@@ -62,6 +62,12 @@ private:
 
     virtual void close();
 
+#if PLATFORM(IOS)
+    virtual unsigned current() override;
+    virtual void setCurrent(unsigned newCurrent) override;
+    virtual bool clearAllPageCaches() override;
+#endif
+
     WebPage* m_page;
     HashSet<uint64_t> m_associatedItemIDs;
 };

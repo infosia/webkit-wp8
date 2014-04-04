@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -51,10 +51,6 @@ class SimpleFontData;
 typedef cairo_glyph_t GlyphBufferGlyph;
 #elif USE(WINGDI)
 typedef wchar_t GlyphBufferGlyph;
-#elif PLATFORM(QT)
-typedef quint32 GlyphBufferGlyph;
-#elif PLATFORM(BLACKBERRY)
-typedef unsigned GlyphBufferGlyph;
 #else
 typedef Glyph GlyphBufferGlyph;
 #endif
@@ -72,19 +68,6 @@ public:
     void setWidth(CGFloat width) { this->CGSize::width = width; }
     CGFloat width() const { return this->CGSize::width; }
     CGFloat height() const { return this->CGSize::height; }
-};
-#elif PLATFORM(QT)
-struct GlyphBufferAdvance : public QPointF {
-public:
-    GlyphBufferAdvance() : QPointF() { }
-    GlyphBufferAdvance(const QPointF& advance)
-        : QPointF(advance)
-    {
-    }
-
-    void setWidth(qreal width) { QPointF::setX(width); }
-    qreal width() const { return QPointF::x(); }
-    qreal height() const { return QPointF::y(); }
 };
 #else
 typedef FloatSize GlyphBufferAdvance;
@@ -139,16 +122,6 @@ public:
 #endif
     }
 
-    void add(const GlyphBuffer* glyphBuffer, int from, int len)
-    {
-        m_glyphs.append(glyphBuffer->glyphs(from), len);
-        m_advances.append(glyphBuffer->advances(from), len);
-        m_fontData.append(glyphBuffer->m_fontData.data() + from, len);
-#if PLATFORM(WIN)
-        m_offsets.append(glyphBuffer->m_offsets.data() + from, len);
-#endif
-    }
-
     void add(Glyph glyph, const SimpleFontData* font, float width, const FloatSize* offset = 0)
     {
         m_fontData.append(font);
@@ -164,8 +137,6 @@ public:
 #if USE(CG)
         CGSize advance = { width, 0 };
         m_advances.append(advance);
-#elif PLATFORM(QT)
-        m_advances.append(QPointF(width, 0));
 #else
         m_advances.append(FloatSize(width, 0));
 #endif

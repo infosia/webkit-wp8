@@ -51,6 +51,12 @@ inline void SlotVisitor::appendUnbarrieredPointer(T** slot)
     internalAppend(slot, cell);
 }
 
+template<typename T>
+inline void SlotVisitor::appendUnbarrieredReadOnlyPointer(T* cell)
+{
+    internalAppend(0, cell);
+}
+
 ALWAYS_INLINE void SlotVisitor::append(JSValue* slot)
 {
     ASSERT(slot);
@@ -61,6 +67,11 @@ ALWAYS_INLINE void SlotVisitor::appendUnbarrieredValue(JSValue* slot)
 {
     ASSERT(slot);
     internalAppend(slot, *slot);
+}
+
+ALWAYS_INLINE void SlotVisitor::appendUnbarrieredReadOnlyValue(JSValue value)
+{
+    internalAppend(0, value);
 }
 
 ALWAYS_INLINE void SlotVisitor::append(JSCell** slot)
@@ -97,14 +108,24 @@ ALWAYS_INLINE void SlotVisitor::internalAppend(void* from, JSCell* cell)
 #if ENABLE(GC_VALIDATION)
     validate(cell);
 #endif
-    if (Heap::testAndSetMarked(cell) || !cell->structure())
+    if (Heap::testAndSetMarked(cell) || !cell->structure()) {
+        ASSERT(cell->structure());
         return;
+    }
 
+    cell->setMarked();
     m_bytesVisited += MarkedBlock::blockFor(cell)->cellSize();
-    m_visitCount++;
         
     MARK_LOG_CHILD(*this, cell);
 
+    unconditionallyAppend(cell);
+}
+
+ALWAYS_INLINE void SlotVisitor::unconditionallyAppend(JSCell* cell)
+{
+    ASSERT(Heap::isMarked(cell));
+    m_visitCount++;
+        
     // Should never attempt to mark something that is zapped.
     ASSERT(!cell->isZapped());
         
@@ -114,6 +135,12 @@ ALWAYS_INLINE void SlotVisitor::internalAppend(void* from, JSCell* cell)
 template<typename T> inline void SlotVisitor::append(WriteBarrierBase<T>* slot)
 {
     internalAppend(slot, *slot->slot());
+}
+
+template<typename Iterator> inline void SlotVisitor::append(Iterator begin, Iterator end)
+{
+    for (auto it = begin; it != end; ++it)
+        append(&*it);
 }
 
 ALWAYS_INLINE void SlotVisitor::appendValues(WriteBarrierBase<Unknown>* barriers, size_t count)
@@ -163,7 +190,7 @@ inline TriState SlotVisitor::containsOpaqueRootTriState(void* root)
 {
     if (m_opaqueRoots.contains(root))
         return TrueTriState;
-    MutexLocker locker(m_shared.m_opaqueRootsLock);
+    std::lock_guard<std::mutex> lock(m_shared.m_opaqueRootsMutex);
     if (m_shared.m_opaqueRoots.contains(root))
         return TrueTriState;
     return MixedTriState;
@@ -212,22 +239,31 @@ inline void SlotVisitor::donateAndDrain()
 inline void SlotVisitor::copyLater(JSCell* owner, CopyToken token, void* ptr, size_t bytes)
 {
     ASSERT(bytes);
-    m_bytesCopied += bytes;
-
     CopiedBlock* block = CopiedSpace::blockFor(ptr);
     if (block->isOversize()) {
         m_shared.m_copiedSpace->pin(block);
         return;
     }
 
-    if (block->isPinned())
-        return;
+    ASSERT(heap()->m_storageSpace.contains(block));
 
-    block->reportLiveBytes(owner, token, bytes);
+    SpinLockHolder locker(&block->workListLock());
+    if (heap()->operationInProgress() == FullCollection || block->shouldReportLiveBytes(locker, owner)) {
+        m_bytesCopied += bytes;
+        block->reportLiveBytes(locker, owner, token, bytes);
+    }
 }
     
-inline void SlotVisitor::reportExtraMemoryUsage(size_t size)
+inline void SlotVisitor::reportExtraMemoryUsage(JSCell* owner, size_t size)
 {
+#if ENABLE(GGC)
+    // We don't want to double-count the extra memory that was reported in previous collections.
+    if (heap()->operationInProgress() == EdenCollection && Heap::isRemembered(owner))
+        return;
+#else
+    UNUSED_PARAM(owner);
+#endif
+
     size_t* counter = &m_shared.m_vm->heap.m_extraMemoryUsage;
     
 #if ENABLE(COMPARE_AND_SWAP)
@@ -239,6 +275,21 @@ inline void SlotVisitor::reportExtraMemoryUsage(size_t size)
 #else
     (*counter) += size;
 #endif
+}
+
+inline Heap* SlotVisitor::heap() const
+{
+    return &sharedData().m_vm->heap;
+}
+
+inline VM& SlotVisitor::vm()
+{
+    return *sharedData().m_vm;
+}
+
+inline const VM& SlotVisitor::vm() const
+{
+    return *sharedData().m_vm;
 }
 
 } // namespace JSC

@@ -27,6 +27,7 @@
 #include "NamedNodeMap.h"
 #include "NodeRareData.h"
 #include "PseudoElement.h"
+#include "RenderElement.h"
 #include "ShadowRoot.h"
 #include "StyleInheritedData.h"
 #include <wtf/OwnPtr.h>
@@ -35,7 +36,7 @@ namespace WebCore {
 
 class ElementRareData : public NodeRareData {
 public:
-    static PassOwnPtr<ElementRareData> create(RenderObject* renderer) { return adoptPtr(new ElementRareData(renderer)); }
+    static PassOwnPtr<ElementRareData> create(RenderElement* renderer) { return adoptPtr(new ElementRareData(renderer)); }
 
     ~ElementRareData();
 
@@ -62,9 +63,6 @@ public:
     bool isInCanvasSubtree() const { return m_isInCanvasSubtree; }
     void setIsInCanvasSubtree(bool value) { m_isInCanvasSubtree = value; }
 
-    bool isInsideRegion() const { return m_isInsideRegion; }
-    void setIsInsideRegion(bool value) { m_isInsideRegion = value; }
-
     RegionOversetState regionOversetState() const { return m_regionOversetState; }
     void setRegionOversetState(RegionOversetState state) { m_regionOversetState = state; }
 
@@ -73,19 +71,13 @@ public:
     void setContainsFullScreenElement(bool value) { m_containsFullScreenElement = value; }
 #endif
 
-    bool childrenAffectedByHover() const { return m_childrenAffectedByHover; }
-    void setChildrenAffectedByHover(bool value) { m_childrenAffectedByHover = value; }
     bool childrenAffectedByActive() const { return m_childrenAffectedByActive; }
     void setChildrenAffectedByActive(bool value) { m_childrenAffectedByActive = value; }
     bool childrenAffectedByDrag() const { return m_childrenAffectedByDrag; }
     void setChildrenAffectedByDrag(bool value) { m_childrenAffectedByDrag = value; }
 
-    bool childrenAffectedByFirstChildRules() const { return m_childrenAffectedByFirstChildRules; }
-    void setChildrenAffectedByFirstChildRules(bool value) { m_childrenAffectedByFirstChildRules = value; }
     bool childrenAffectedByLastChildRules() const { return m_childrenAffectedByLastChildRules; }
     void setChildrenAffectedByLastChildRules(bool value) { m_childrenAffectedByLastChildRules = value; }
-    bool childrenAffectedByDirectAdjacentRules() const { return m_childrenAffectedByDirectAdjacentRules; }
-    void setChildrenAffectedByDirectAdjacentRules(bool value) { m_childrenAffectedByDirectAdjacentRules = value; }
     bool childrenAffectedByForwardPositionalRules() const { return m_childrenAffectedByForwardPositionalRules; }
     void setChildrenAffectedByForwardPositionalRules(bool value) { m_childrenAffectedByForwardPositionalRules = value; }
     bool childrenAffectedByBackwardPositionalRules() const { return m_childrenAffectedByBackwardPositionalRules; }
@@ -101,10 +93,10 @@ public:
     void setAttributeMap(PassOwnPtr<NamedNodeMap> attributeMap) { m_attributeMap = attributeMap; }
 
     RenderStyle* computedStyle() const { return m_computedStyle.get(); }
-    void setComputedStyle(PassRefPtr<RenderStyle> computedStyle) { m_computedStyle = computedStyle; }
+    void setComputedStyle(PassRef<RenderStyle> computedStyle) { m_computedStyle = std::move(computedStyle); }
 
     ClassList* classList() const { return m_classList.get(); }
-    void setClassList(OwnPtr<ClassList> classList) { m_classList = std::move(classList); }
+    void setClassList(std::unique_ptr<ClassList> classList) { m_classList = std::move(classList); }
     void clearClassListValueForQuirksMode()
     {
         if (!m_classList)
@@ -113,7 +105,7 @@ public:
     }
 
     DatasetDOMStringMap* dataset() const { return m_dataset.get(); }
-    void setDataset(PassOwnPtr<DatasetDOMStringMap> dataset) { m_dataset = dataset; }
+    void setDataset(std::unique_ptr<DatasetDOMStringMap> dataset) { m_dataset = std::move(dataset); }
 
     LayoutSize minimumSizeForResizing() const { return m_minimumSizeForResizing; }
     void setMinimumSizeForResizing(LayoutSize size) { m_minimumSizeForResizing = size; }
@@ -121,10 +113,8 @@ public:
     IntSize savedLayerScrollOffset() const { return m_savedLayerScrollOffset; }
     void setSavedLayerScrollOffset(IntSize size) { m_savedLayerScrollOffset = size; }
 
-#if ENABLE(SVG)
     bool hasPendingResources() const { return m_hasPendingResources; }
     void setHasPendingResources(bool has) { m_hasPendingResources = has; }
-#endif
 
 private:
     short m_tabIndex;
@@ -136,37 +126,32 @@ private:
 #if ENABLE(FULLSCREEN_API)
     unsigned m_containsFullScreenElement : 1;
 #endif
-#if ENABLE(SVG)
     unsigned m_hasPendingResources : 1;
-#endif
     unsigned m_childrenAffectedByHover : 1;
     unsigned m_childrenAffectedByActive : 1;
     unsigned m_childrenAffectedByDrag : 1;
     // Bits for dynamic child matching.
     // We optimize for :first-child and :last-child. The other positional child selectors like nth-child or
     // *-child-of-type, we will just give up and re-evaluate whenever children change at all.
-    unsigned m_childrenAffectedByFirstChildRules : 1;
     unsigned m_childrenAffectedByLastChildRules : 1;
-    unsigned m_childrenAffectedByDirectAdjacentRules : 1;
     unsigned m_childrenAffectedByForwardPositionalRules : 1;
     unsigned m_childrenAffectedByBackwardPositionalRules : 1;
 
-    unsigned m_isInsideRegion : 1;
     RegionOversetState m_regionOversetState;
 
     LayoutSize m_minimumSizeForResizing;
     IntSize m_savedLayerScrollOffset;
     RefPtr<RenderStyle> m_computedStyle;
 
-    OwnPtr<DatasetDOMStringMap> m_dataset;
-    OwnPtr<ClassList> m_classList;
+    std::unique_ptr<DatasetDOMStringMap> m_dataset;
+    std::unique_ptr<ClassList> m_classList;
     RefPtr<ShadowRoot> m_shadowRoot;
     OwnPtr<NamedNodeMap> m_attributeMap;
 
     RefPtr<PseudoElement> m_beforePseudoElement;
     RefPtr<PseudoElement> m_afterPseudoElement;
 
-    explicit ElementRareData(RenderObject*);
+    explicit ElementRareData(RenderElement*);
     void releasePseudoElement(PseudoElement*);
 };
 
@@ -175,7 +160,7 @@ inline IntSize defaultMinimumSizeForResizing()
     return IntSize(LayoutUnit::max(), LayoutUnit::max());
 }
 
-inline ElementRareData::ElementRareData(RenderObject* renderer)
+inline ElementRareData::ElementRareData(RenderElement* renderer)
     : NodeRareData(renderer)
     , m_tabIndex(0)
     , m_childIndex(0)
@@ -186,18 +171,13 @@ inline ElementRareData::ElementRareData(RenderObject* renderer)
 #if ENABLE(FULLSCREEN_API)
     , m_containsFullScreenElement(false)
 #endif
-#if ENABLE(SVG)
     , m_hasPendingResources(false)
-#endif
     , m_childrenAffectedByHover(false)
     , m_childrenAffectedByActive(false)
     , m_childrenAffectedByDrag(false)
-    , m_childrenAffectedByFirstChildRules(false)
     , m_childrenAffectedByLastChildRules(false)
-    , m_childrenAffectedByDirectAdjacentRules(false)
     , m_childrenAffectedByForwardPositionalRules(false)
     , m_childrenAffectedByBackwardPositionalRules(false)
-    , m_isInsideRegion(false)
     , m_regionOversetState(RegionUndefined)
     , m_minimumSizeForResizing(defaultMinimumSizeForResizing())
 {
@@ -224,19 +204,16 @@ inline void ElementRareData::setAfterPseudoElement(PassRefPtr<PseudoElement> pse
 
 inline void ElementRareData::resetComputedStyle()
 {
-    setComputedStyle(0);
+    m_computedStyle = nullptr;
     setStyleAffectedByEmpty(false);
     setChildIndex(0);
 }
 
 inline void ElementRareData::resetDynamicRestyleObservations()
 {
-    setChildrenAffectedByHover(false);
     setChildrenAffectedByActive(false);
     setChildrenAffectedByDrag(false);
-    setChildrenAffectedByFirstChildRules(false);
     setChildrenAffectedByLastChildRules(false);
-    setChildrenAffectedByDirectAdjacentRules(false);
     setChildrenAffectedByForwardPositionalRules(false);
     setChildrenAffectedByBackwardPositionalRules(false);
 }

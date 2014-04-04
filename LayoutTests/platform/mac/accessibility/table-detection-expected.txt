@@ -7,7 +7,7 @@ AXRoleDescription: table
 AXChildren: <array of size 5>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {62, 48}
+AXSize: NSSize: {62, 47}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -33,6 +33,8 @@ AXVisibleCells: <array of size 4>
 AXColumnHeaderUIElements: <array of size 2>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 2
 AXElementBusy: 0
 
 
@@ -47,7 +49,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {68, 28}
+AXSize: NSSize: {68, 29}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -73,6 +75,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -86,7 +90,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {28, 20}
+AXSize: NSSize: {28, 21}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -118,7 +122,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {58, 22}
+AXSize: NSSize: {58, 23}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -144,6 +148,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -157,7 +163,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {58, 22}
+AXSize: NSSize: {58, 23}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -183,6 +189,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -196,7 +204,7 @@ AXRoleDescription: table
 AXChildren: <array of size 5>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {58, 42}
+AXSize: NSSize: {58, 43}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -222,6 +230,8 @@ AXVisibleCells: <array of size 4>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 2
 AXElementBusy: 0
 
 
@@ -236,7 +246,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {58, 22}
+AXSize: NSSize: {58, 23}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -262,6 +272,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -275,7 +287,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {26, 18}
+AXSize: NSSize: {26, 19}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -307,7 +319,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {26, 18}
+AXSize: NSSize: {26, 19}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -339,7 +351,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {53, 18}
+AXSize: NSSize: {53, 19}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -365,6 +377,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -378,7 +392,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {769, 25}
+AXSize: NSSize: {769, 27}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -410,7 +424,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {130, 13}
+AXSize: NSSize: {130, 19}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -448,7 +462,7 @@ AXRoleDescription: table
 AXChildren: <array of size 4>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {64, 26}
+AXSize: NSSize: {64, 27}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -474,6 +488,8 @@ AXVisibleCells: <array of size 2>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 1
 AXElementBusy: 0
 
 
@@ -487,7 +503,7 @@ AXRoleDescription: table
 AXChildren: <array of size 5>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {62, 48}
+AXSize: NSSize: {62, 49}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -513,6 +529,8 @@ AXVisibleCells: <array of size 4>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 2
 AXElementBusy: 0
 
 
@@ -527,7 +545,7 @@ AXRoleDescription: group
 AXChildren: <array of size 1>
 AXHelp: 
 AXParent: <AXGroup>
-AXSize: NSSize: {28, 20}
+AXSize: NSSize: {28, 21}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -586,6 +604,8 @@ AXVisibleCells: <array of size 6>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 3
 AXElementBusy: 0
 
 
@@ -601,7 +621,7 @@ AXRoleDescription: table
 AXChildren: <array of size 6>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {64, 70}
+AXSize: NSSize: {64, 71}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -627,6 +647,8 @@ AXVisibleCells: <array of size 6>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 3
 AXElementBusy: 0
 
 
@@ -642,7 +664,7 @@ AXRoleDescription: table
 AXChildren: <array of size 5>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {62, 46}
+AXSize: NSSize: {62, 47}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -668,6 +690,8 @@ AXVisibleCells: <array of size 4>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 2
 AXElementBusy: 0
 
 
@@ -682,7 +706,7 @@ AXRoleDescription: table
 AXChildren: <array of size 26>
 AXHelp: 
 AXParent: <AXTable>
-AXSize: NSSize: {32, 530}
+AXSize: NSSize: {32, 531}
 AXTitle: 
 AXDescription: 
 AXValue: 
@@ -708,6 +732,8 @@ AXVisibleCells: <array of size 24>
 AXColumnHeaderUIElements: <array of size 0>
 AXRowHeaderUIElements: <array of size 0>
 AXHeader: <AXTable>
+AXColumnCount: 1
+AXRowCount: 24
 AXElementBusy: 0
 
 
@@ -735,4 +761,46 @@ asdf
 asdf
 asdf
 asdf
+
+This should be a table even though it uses table-row-group for it's display type.
+
+AXRole: AXTable
+AXSubrole: (null)
+AXRoleDescription: table
+AXChildren: <array of size 5>
+AXHelp: 
+AXParent: <AXTable>
+AXSize: NSSize: {84, 47}
+AXTitle: 
+AXDescription: 
+AXValue: 
+AXFocused: 0
+AXEnabled: 1
+AXWindow: <AXTable>
+AXSelectedTextMarkerRange: (null)
+AXStartTextMarker: <AXTable>
+AXEndTextMarker: <AXTable>
+AXVisited: 0
+AXLinkedUIElements: (null)
+AXSelected: 0
+AXBlockQuoteLevel: 0
+AXTopLevelUIElement: <AXTable>
+AXLanguage: 
+AXDOMIdentifier: 
+AXDOMClassList: <array of size 0>
+AXRows: <array of size 2>
+AXVisibleRows: <array of size 2>
+AXColumns: <array of size 2>
+AXVisibleColumns: <array of size 2>
+AXVisibleCells: <array of size 4>
+AXColumnHeaderUIElements: <array of size 2>
+AXRowHeaderUIElements: <array of size 1>
+AXHeader: <AXTable>
+AXColumnCount: 2
+AXRowCount: 2
+AXElementBusy: 0
+
+
+head	head2
+asdf	asdf
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2009, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2006, 2007, 2008, 2009, 2013, 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2007-2009 Torch Mobile, Inc.
  * Copyright (C) 2010, 2011 Research In Motion Limited. All rights reserved.
  *
@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -30,7 +30,6 @@
 
 /* Include compiler specific macros */
 #include <wtf/Compiler.h>
-
 
 /* ==== PLATFORM handles OS, operating environment, graphics API, and
    CPU. This macro will be phased out in favor of platform adaptation
@@ -69,6 +68,7 @@
 /* CPU(HPPA) - HP PA-RISC */
 #if defined(__hppa__) || defined(__hppa64__)
 #define WTF_CPU_HPPA 1
+#define WTF_CPU_BIG_ENDIAN 1
 #endif
 
 /* CPU(IA64) - Itanium / IA-64 */
@@ -124,23 +124,6 @@
 #define WTF_CPU_SH4 1
 #endif
 
-/* CPU(SPARC32) - SPARC 32-bit */
-#if defined(__sparc) && !defined(__arch64__) || defined(__sparcv8)
-#define WTF_CPU_SPARC32 1
-#define WTF_CPU_BIG_ENDIAN 1
-#endif
-
-/* CPU(SPARC64) - SPARC 64-bit */
-#if defined(__sparc__) && defined(__arch64__) || defined (__sparcv9)
-#define WTF_CPU_SPARC64 1
-#define WTF_CPU_BIG_ENDIAN 1
-#endif
-
-/* CPU(SPARC) - any SPARC, true for CPU(SPARC32) and CPU(SPARC64) */
-#if CPU(SPARC32) || CPU(SPARC64)
-#define WTF_CPU_SPARC 1
-#endif
-
 /* CPU(S390X) - S390 64-bit */
 #if defined(__s390x__)
 #define WTF_CPU_S390X 1
@@ -168,6 +151,11 @@
 #define WTF_CPU_X86_64 1
 #endif
 
+/* CPU(ARM64) - Apple */
+#if (defined(__arm64__) && defined(__APPLE__)) || defined(__aarch64__)
+#define WTF_CPU_ARM64 1
+#endif
+
 /* CPU(ARM) - ARM, any version*/
 #define WTF_ARM_ARCH_AT_LEAST(N) (CPU(ARM) && WTF_ARM_ARCH_VERSION >= N)
 
@@ -181,7 +169,7 @@
 #define WTF_CPU_ARM_HARDFP 1
 #endif
 
-#if defined(__ARMEB__) || (COMPILER(RVCT) && defined(__BIG_ENDIAN))
+#if defined(__ARMEB__)
 #define WTF_CPU_BIG_ENDIAN 1
 
 #elif !defined(__ARM_EABI__) \
@@ -220,9 +208,13 @@
 #define WTF_ARM_ARCH_VERSION 6
 
 #elif defined(__ARM_ARCH_7A__) \
+    || defined(__ARM_ARCH_7K__) \
     || defined(__ARM_ARCH_7R__) \
     || defined(__ARM_ARCH_7S__)
 #define WTF_ARM_ARCH_VERSION 7
+
+#elif defined(__ARM_ARCH_8__)
+#define WTF_ARM_ARCH_VERSION 8
 
 /* MSVC sets _M_ARM */
 #elif defined(_M_ARM)
@@ -263,6 +255,7 @@
 #elif defined(__ARM_ARCH_6T2__) \
     || defined(__ARM_ARCH_7__) \
     || defined(__ARM_ARCH_7A__) \
+    || defined(__ARM_ARCH_7K__) \
     || defined(__ARM_ARCH_7M__) \
     || defined(__ARM_ARCH_7R__) \
     || defined(__ARM_ARCH_7S__)
@@ -307,7 +300,7 @@
 #define WTF_CPU_ARM_NEON 1
 #endif
 
-#if CPU(ARM_NEON) && (!COMPILER(GCC) || GCC_VERSION_AT_LEAST(4, 7, 0))
+#if CPU(ARM_NEON)
 // All NEON intrinsics usage can be disabled by this macro.
 #define HAVE_ARM_NEON_INTRINSICS 1
 #endif
@@ -316,13 +309,17 @@
 #define WTF_CPU_ARM_VFP 1
 #endif
 
+#if defined(__ARM_ARCH_7K__)
+#define WTF_CPU_APPLE_ARMV7K 1
+#endif
+
 #if defined(__ARM_ARCH_7S__)
 #define WTF_CPU_APPLE_ARMV7S 1
 #endif
 
 #endif /* ARM */
 
-#if CPU(ARM) || CPU(MIPS) || CPU(SH4) || CPU(SPARC)
+#if CPU(ARM) || CPU(MIPS) || CPU(SH4)
 #define WTF_CPU_NEEDS_ALIGNED_ACCESS 1
 #endif
 
@@ -351,19 +348,6 @@
 #define WTF_OS_IOS 1
 #elif OS(DARWIN) && defined(TARGET_OS_MAC) && TARGET_OS_MAC
 #define WTF_OS_MAC_OS_X 1
-
-/* FIXME: These can be removed after sufficient time has passed since the removal of BUILDING_ON / TARGETING macros. */
-
-#define ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MIN_REQUIRED 0 / 0
-#define ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MAX_ALLOWED 0 / 0
-
-#define BUILDING_ON_LEOPARD ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MIN_REQUIRED
-#define BUILDING_ON_SNOW_LEOPARD ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MIN_REQUIRED
-#define BUILDING_ON_LION ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MIN_REQUIRED
-
-#define TARGETING_LEOPARD ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MAX_ALLOWED
-#define TARGETING_SNOW_LEOPARD ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MAX_ALLOWED
-#define TARGETING_LION ERROR_PLEASE_COMPARE_WITH_MAC_OS_X_VERSION_MAX_ALLOWED
 #endif
 
 /* OS(FREEBSD) - FreeBSD */
@@ -389,11 +373,6 @@
 /* OS(OPENBSD) - OpenBSD */
 #ifdef __OpenBSD__
 #define WTF_OS_OPENBSD 1
-#endif
-
-/* OS(QNX) - QNX */
-#if defined(__QNXNTO__)
-#define WTF_OS_QNX 1
 #endif
 
 /* OS(SOLARIS) - Solaris */
@@ -422,7 +401,6 @@
     || OS(LINUX)            \
     || OS(NETBSD)           \
     || OS(OPENBSD)          \
-    || OS(QNX)              \
     || OS(SOLARIS)          \
     || defined(unix)        \
     || defined(__unix)      \
@@ -433,52 +411,40 @@
 /* Operating environments */
 
 /* FIXME: these are all mixes of OS, operating environment and policy choices. */
-/* PLATFORM(QT) */
 /* PLATFORM(EFL) */
 /* PLATFORM(GTK) */
-/* PLATFORM(BLACKBERRY) */
 /* PLATFORM(MAC) */
+/* PLATFORM(IOS) */
+/* PLATFORM(IOS_SIMULATOR) */
 /* PLATFORM(WIN) */
-#if defined(BUILDING_QT__)
-#define WTF_PLATFORM_QT 1
-#elif defined(BUILDING_EFL__)
+#if defined(BUILDING_EFL__)
 #define WTF_PLATFORM_EFL 1
 #elif defined(BUILDING_GTK__)
 #define WTF_PLATFORM_GTK 1
-#elif defined(BUILDING_BLACKBERRY__)
-#define WTF_PLATFORM_BLACKBERRY 1
-#elif OS(DARWIN)
+#elif OS(MAC_OS_X)
 #define WTF_PLATFORM_MAC 1
+#elif OS(IOS)
+#define WTF_PLATFORM_IOS 1
+#if defined(TARGET_IPHONE_SIMULATOR) && TARGET_IPHONE_SIMULATOR
+#define WTF_PLATFORM_IOS_SIMULATOR 1
+#endif
 #elif OS(WINDOWS)
 #define WTF_PLATFORM_WIN 1
 #endif
 
-/* PLATFORM(IOS) */
-/* FIXME: this is sometimes used as an OS switch and sometimes for higher-level things */
-#if (defined(TARGET_OS_EMBEDDED) && TARGET_OS_EMBEDDED) || (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
-#define WTF_PLATFORM_IOS 1
-#endif
-
-/* PLATFORM(IOS_SIMULATOR) */
-#if defined(TARGET_IPHONE_SIMULATOR) && TARGET_IPHONE_SIMULATOR
-#define WTF_PLATFORM_IOS 1
-#define WTF_PLATFORM_IOS_SIMULATOR 1
+/* PLATFORM(COCOA) */
+#if PLATFORM(MAC) || PLATFORM(IOS)
+#define WTF_PLATFORM_COCOA 1
 #endif
 
 /* Graphics engines */
 
 /* USE(CG) and PLATFORM(CI) */
-#if PLATFORM(MAC) || PLATFORM(IOS) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
+#if PLATFORM(COCOA) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_CG 1
 #endif
-#if PLATFORM(MAC) || PLATFORM(IOS) || (PLATFORM(WIN) && USE(CG))
+#if PLATFORM(COCOA) || (PLATFORM(WIN) && USE(CG))
 #define WTF_USE_CA 1
-#endif
-
-#if PLATFORM(BLACKBERRY)
-#define WTF_USE_LOW_QUALITY_IMAGE_INTERPOLATION 1
-#define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_DITHERING 1
-#define WTF_USE_LOW_QUALITY_IMAGE_NO_JPEG_FANCY_UPSAMPLING 1
 #endif
 
 #if PLATFORM(GTK)
@@ -488,8 +454,6 @@
 #define WTF_USE_HARFBUZZ 1
 #define WTF_USE_SOUP 1
 #define WTF_USE_WEBP 1
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#define GST_API_VERSION_1 1
 #endif
 
 /* On Windows, use QueryPerformanceCounter by default */
@@ -497,65 +461,59 @@
 #define WTF_USE_QUERY_PERFORMANCE_COUNTER  1
 #endif
 
-#if OS(WINCE) && !PLATFORM(QT)
-#define NOSHLWAPI      /* shlwapi.h not available on WinCe */
+#if PLATFORM(COCOA)
 
-/* MSDN documentation says these functions are provided with uspce.lib.  But we cannot find this file. */
-#define __usp10__      /* disable "usp10.h" */
+#define WTF_USE_CF 1
+#define WTF_USE_FOUNDATION 1
 
-#define _INC_ASSERT    /* disable "assert.h" */
-#define assert(x)
-
-#endif  /* OS(WINCE) && !PLATFORM(QT) */
-
-#if !USE(WCHAR_UNICODE)
-#define WTF_USE_ICU_UNICODE 1
 #endif
 
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(COCOA)
+#define HAVE_OUT_OF_PROCESS_LAYER_HOSTING 1
+#endif
+
+#if PLATFORM(MAC)
+
+#define WTF_USE_APPKIT 1
+#define HAVE_RUNLOOP_TIMER 1
+#define HAVE_SEC_IDENTITY 1
+#define HAVE_SEC_KEYCHAIN 1
+
 #if CPU(X86_64)
 #define WTF_USE_PLUGIN_HOST_PROCESS 1
 #endif
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
-#define WTF_USE_SCROLLBAR_PAINTER 1
-#define HAVE_XPC 1
-#endif
-#define WTF_USE_CF 1
-#define HAVE_READLINE 1
-#define HAVE_RUNLOOP_TIMER 1
-#if __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
-#define HAVE_LAYER_HOSTING_IN_WINDOW_SERVER 1
-#endif
-#define WTF_USE_APPKIT 1
-#define WTF_USE_SECURITY_FRAMEWORK 1
 
 /* OS X defines a series of platform macros for debugging. */
 /* Some of them are really annoying because they use common names (e.g. check()). */
 /* Disable those macros so that we are not limited in how we name methods and functions. */
 #undef __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES
 #define __ASSERT_MACROS_DEFINE_VERSIONS_WITHOUT_UNDERSCORES 0
-#endif /* PLATFORM(MAC) && !PLATFORM(IOS) */
 
-#if PLATFORM(IOS)
-#define DONT_FINALIZE_ON_MAIN_THREAD 1
-#endif
+#endif /* PLATFORM(MAC) */
 
-#if PLATFORM(QT) && OS(DARWIN)
-#define WTF_USE_CF 1
-#endif
-
-#if OS(DARWIN) && !PLATFORM(GTK) && !PLATFORM(QT)
+#if OS(DARWIN) && !PLATFORM(GTK)
 #define ENABLE_PURGEABLE_MEMORY 1
 #endif
 
 #if PLATFORM(IOS)
+
+#define DONT_FINALIZE_ON_MAIN_THREAD 1
 #define HAVE_READLINE 1
-#define WTF_USE_APPKIT 0
-#define WTF_USE_CF 1
 #define WTF_USE_CFNETWORK 1
 #define WTF_USE_NETWORK_CFDATA_ARRAY_CALLBACK 1
-#define WTF_USE_SECURITY_FRAMEWORK 0
+#define WTF_USE_UIKIT_EDITING 1
 #define WTF_USE_WEB_THREAD 1
+#define WTF_USE_QUICK_LOOK 1
+
+#if CPU(ARM64)
+#define ENABLE_JIT_CONSTANT_BLINDING 0
+#endif
+
+#if CPU(ARM_NEON)
+#undef HAVE_ARM_NEON_INTRINSICS
+#define HAVE_ARM_NEON_INTRINSICS 0
+#endif
+
 #endif /* PLATFORM(IOS) */
 
 #if PLATFORM(WIN) && !USE(WINGDI)
@@ -566,19 +524,20 @@
 #define WTF_USE_CFNETWORK 1
 #endif
 
-#if USE(CFNETWORK) || PLATFORM(MAC) || PLATFORM(IOS)
+#if USE(CFNETWORK) || PLATFORM(COCOA)
 #define WTF_USE_CFURLCACHE 1
 #endif
 
 #if !defined(HAVE_ACCESSIBILITY)
-#if PLATFORM(IOS) || PLATFORM(MAC) || PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(WIN) || PLATFORM(GTK) || PLATFORM(EFL)
 #define HAVE_ACCESSIBILITY 1
 #endif
 #endif /* !defined(HAVE_ACCESSIBILITY) */
 
 #if OS(UNIX)
 #define HAVE_ERRNO_H 1
-#define HAVE_MMAP 1   
+#define HAVE_LANGINFO_H 1
+#define HAVE_MMAP 1
 #define HAVE_SIGNAL_H 1
 #define HAVE_STRINGS_H 1
 #define HAVE_SYS_PARAM_H 1
@@ -586,16 +545,12 @@
 #define WTF_USE_PTHREADS 1
 #endif /* OS(UNIX) */
 
-#if OS(UNIX) && !OS(QNX)
-#define HAVE_LANGINFO_H 1
-#endif
-
 #if (OS(FREEBSD) || OS(OPENBSD)) && !defined(__GLIBC__)
 #define HAVE_PTHREAD_NP_H 1
 #endif
 
 #if !defined(HAVE_VASPRINTF)
-#if !COMPILER(MSVC) && !COMPILER(RVCT) && !COMPILER(MINGW) && !(COMPILER(GCC) && OS(QNX))
+#if !COMPILER(MSVC) && !COMPILER(MINGW)
 #define HAVE_VASPRINTF 1
 #endif
 #endif
@@ -619,33 +574,28 @@
 #define HAVE_MADV_FREE_REUSE 1
 #define HAVE_MERGESORT 1
 #define HAVE_PTHREAD_SETNAME_NP 1
+#define HAVE_READLINE 1
 #define HAVE_SYS_TIMEB_H 1
 #define WTF_USE_ACCELERATE 1
 
 #if !PLATFORM(IOS)
 #define HAVE_HOSTED_CORE_ANIMATION 1
-#endif /* !PLATFORM(IOS) */
+#endif
 
 #endif /* OS(DARWIN) */
 
 #if OS(WINDOWS) && !OS(WINCE)
+
 #define HAVE_SYS_TIMEB_H 1
 #define HAVE_ALIGNED_MALLOC 1
 #define HAVE_ISDEBUGGERPRESENT 1
 
-#if !PLATFORM(QT)
 #include <WTF/WTFHeaderDetection.h>
-#endif
 
 #endif
 
 #if OS(WINDOWS)
 #define HAVE_VIRTUALALLOC 1
-#endif
-
-#if OS(QNX)
-#define HAVE_MADV_FREE_REUSE 1
-#define HAVE_MADV_FREE 1
 #endif
 
 /* ENABLE macro defaults */
@@ -655,24 +605,8 @@
 /* Include feature macros */
 #include <wtf/FeatureDefines.h>
 
-#if PLATFORM(QT)
-/* We must not customize the global operator new and delete for the Qt port. */
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#if !OS(UNIX)
-#define USE_SYSTEM_MALLOC 1
-#endif
-#endif
-
-#if PLATFORM(EFL)
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#endif
-
 #if OS(WINDOWS)
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 0
-#endif
-
-#if !defined(ENABLE_GLOBAL_FASTMALLOC_NEW)
-#define ENABLE_GLOBAL_FASTMALLOC_NEW 1
+#define USE_SYSTEM_MALLOC 1
 #endif
 
 #define ENABLE_DEBUG_WITH_BREAKPOINT 0
@@ -692,7 +626,7 @@
 #if (CPU(X86_64) && (OS(UNIX) || OS(WINDOWS))) \
     || (CPU(IA64) && !CPU(IA64_32)) \
     || CPU(ALPHA) \
-    || CPU(SPARC64) \
+    || CPU(ARM64) \
     || CPU(S390X) \
     || CPU(PPC64)
 #define WTF_USE_JSVALUE64 1
@@ -701,26 +635,24 @@
 #endif
 #endif /* !defined(WTF_USE_JSVALUE64) && !defined(WTF_USE_JSVALUE32_64) */
 
-/* Disable the JIT on versions of GCC prior to 4.1 */
-#if !defined(ENABLE_JIT) && COMPILER(GCC) && !GCC_VERSION_AT_LEAST(4, 1, 0)
+/* Disable the JITs if we're forcing the cloop to be enabled */
+#if defined(ENABLE_LLINT_C_LOOP) && ENABLE_LLINT_C_LOOP
 #define ENABLE_JIT 0
+#define ENABLE_DFG_JIT 0
+#define ENABLE_FTL_JIT 0
 #endif
 
-#if !defined(ENABLE_JIT) && CPU(SH4) && PLATFORM(QT)
-#define ENABLE_JIT 1
-#endif
-
-/* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms. */
+/* The JIT is enabled by default on all x86, x86-64, ARM & MIPS platforms except ARMv7k and Windows. */
 #if !defined(ENABLE_JIT) \
-    && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(MIPS)) \
-    && (OS(DARWIN) || !COMPILER(GCC) || GCC_VERSION_AT_LEAST(4, 1, 0)) \
+    && (CPU(X86) || CPU(X86_64) || CPU(ARM) || CPU(ARM64) || CPU(MIPS)) \
+    && !CPU(APPLE_ARMV7K)                                                           \
     && !OS(WINCE) \
-    && !(OS(QNX) && !PLATFORM(QT)) /* We use JIT in QNX Qt */
+    && !(OS(WINDOWS) && CPU(X86_64))
 #define ENABLE_JIT 1
 #endif
 
 /* Do we have LLVM? */
-#if !defined(HAVE_LLVM) && PLATFORM(MAC) && ENABLE(FTL_JIT) && CPU(X86_64)
+#if !defined(HAVE_LLVM) && OS(DARWIN) && !PLATFORM(EFL) && !PLATFORM(GTK) && ENABLE(FTL_JIT) && (CPU(X86_64) || CPU(ARM64))
 #define HAVE_LLVM 1
 #endif
 
@@ -728,16 +660,28 @@
 #define ENABLE_FTL_JIT 1
 #endif
 
+/* The FTL *does not* work on 32-bit platforms. Disable it even if someone asked us to enable it. */
+#if USE(JSVALUE32_64)
+#undef ENABLE_FTL_JIT
+#define ENABLE_FTL_JIT 0
+#endif
+
+/* The FTL is disabled on the iOS simulator, mostly for simplicity. */
+#if PLATFORM(IOS_SIMULATOR)
+#undef ENABLE_FTL_JIT
+#define ENABLE_FTL_JIT 0
+#endif
+
 /* If possible, try to enable the LLVM disassembler. This is optional and we can
    fall back on UDis86 if necessary. */
-#if !defined(WTF_USE_LLVM_DISASSEMBLER) && HAVE(LLVM) && (CPU(X86_64) || CPU(X86))
+#if !defined(WTF_USE_LLVM_DISASSEMBLER) && HAVE(LLVM) && (CPU(X86_64) || CPU(X86) || CPU(ARM64))
 #define WTF_USE_LLVM_DISASSEMBLER 1
 #endif
 
 /* If possible, try to enable a disassembler. This is optional. We proceed in two
    steps: first we try to find some disassembler that we can use, and then we
    decide if the high-level disassembler API can be enabled. */
-#if !defined(WTF_USE_UDIS86) && ENABLE(JIT) && (PLATFORM(MAC) || (PLATFORM(QT) && OS(LINUX))) \
+#if !defined(WTF_USE_UDIS86) && ENABLE(JIT) && ((OS(DARWIN) && !PLATFORM(EFL) && !PLATFORM(GTK)) || (OS(LINUX) && (PLATFORM(EFL) || PLATFORM(GTK)))) \
     && (CPU(X86) || CPU(X86_64))
 #define WTF_USE_UDIS86 1
 #endif
@@ -746,7 +690,15 @@
 #define ENABLE_DISASSEMBLER 1
 #endif
 
-#if !defined(ENABLE_DISASSEMBLER) && (USE(UDIS86) || USE(ARMV7_DISASSEMBLER))
+#if !defined(WTF_USE_ARM64_DISASSEMBLER) && ENABLE(JIT) && PLATFORM(IOS) && CPU(ARM64) && !USE(LLVM_DISASSEMBLER)
+#define WTF_USE_ARM64_DISASSEMBLER 1
+#endif
+
+#if !defined(WTF_USE_ARMV7_DISASSEMBLER) && ENABLE(JIT) && PLATFORM(IOS) && CPU(ARM_THUMB2)
+#define WTF_USE_ARMV7_DISASSEMBLER 1
+#endif
+
+#if !defined(ENABLE_DISASSEMBLER) && (USE(UDIS86) || USE(ARMV7_DISASSEMBLER) || USE(ARM64_DISASSEMBLER))
 #define ENABLE_DISASSEMBLER 1
 #endif
 
@@ -754,19 +706,19 @@
    low-level interpreter. */
 #if !defined(ENABLE_LLINT) \
     && ENABLE(JIT) \
-    && (OS(DARWIN) || OS(LINUX)) \
-    && (PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(GTK) || PLATFORM(QT)) \
-    && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2) || CPU(ARM_TRADITIONAL) || CPU(MIPS) || CPU(SH4))
+    && (OS(DARWIN) || OS(LINUX) || OS(FREEBSD) || OS(WINDOWS)) \
+    && ((OS(DARWIN) && !PLATFORM(EFL)) || PLATFORM(GTK) || PLATFORM(WIN)) \
+    && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2) || CPU(ARM_TRADITIONAL) || CPU(ARM64) || CPU(MIPS) || CPU(SH4))
 #define ENABLE_LLINT 1
 #endif
 
 #if !defined(ENABLE_DFG_JIT) && ENABLE(JIT) && !COMPILER(MSVC)
-/* Enable the DFG JIT on X86 and X86_64.  Only tested on Mac and GNU/Linux. */
-#if (CPU(X86) || CPU(X86_64)) && (OS(DARWIN) || OS(LINUX))
+/* Enable the DFG JIT on X86 and X86_64.  Only tested on Mac, GNU/Linux and FreeBSD. */
+#if (CPU(X86) || CPU(X86_64)) && (OS(DARWIN) || OS(LINUX) || OS(FREEBSD))
 #define ENABLE_DFG_JIT 1
 #endif
 /* Enable the DFG JIT on ARMv7.  Only tested on iOS and Qt/GTK+ Linux. */
-#if CPU(ARM_THUMB2) && (PLATFORM(IOS) || PLATFORM(BLACKBERRY) || PLATFORM(QT) || PLATFORM(GTK))
+#if (CPU(ARM_THUMB2) || CPU(ARM64)) && (PLATFORM(IOS) || PLATFORM(GTK) || PLATFORM(EFL))
 #define ENABLE_DFG_JIT 1
 #endif
 /* Enable the DFG JIT on ARM, MIPS and SH4. */
@@ -779,7 +731,7 @@
    values get stored to atomically. This is trivially true on 64-bit platforms,
    but not true at all on 32-bit platforms where values are composed of two
    separate sub-values. */
-#if PLATFORM(MAC) && ENABLE(DFG_JIT) && USE(JSVALUE64)
+#if OS(DARWIN) && !PLATFORM(EFL) && !PLATFORM(GTK) && ENABLE(DFG_JIT) && USE(JSVALUE64)
 #define ENABLE_CONCURRENT_JIT 1
 #endif
 
@@ -799,21 +751,14 @@
 #error You have to have at least one execution model enabled to build JSC
 #endif
 
-/* Profiling of types and values used by JIT code. DFG_JIT depends on it, but you
-   can enable it manually with DFG turned off if you want to use it as a standalone
-   profiler. In that case, you probably want to also enable VERBOSE_VALUE_PROFILE
-   below. */
-#if !defined(ENABLE_VALUE_PROFILER) && ENABLE(DFG_JIT)
-#define ENABLE_VALUE_PROFILER 1
-#endif
-
-#if !defined(ENABLE_VERBOSE_VALUE_PROFILE) && ENABLE(VALUE_PROFILER)
-#define ENABLE_VERBOSE_VALUE_PROFILE 0
-#endif
-
-#if !defined(ENABLE_SIMPLE_HEAP_PROFILING)
-#define ENABLE_SIMPLE_HEAP_PROFILING 0
-#endif
+/* Generational collector for JSC */
+#if !defined(ENABLE_GGC)
+#if CPU(X86_64) || CPU(X86) || CPU(ARM_THUMB2) || CPU(ARM64)
+#define ENABLE_GGC 1
+#else
+#define ENABLE_GGC 0
+#endif // CPU(X86_64)
+#endif // !defined(ENABLE_GGC)
 
 /* Counts uses of write barriers using sampling counters. Be sure to also
    set ENABLE_SAMPLING_COUNTERS to 1. */
@@ -851,12 +796,12 @@
 #endif
 
 /* Configure the interpreter */
-#if COMPILER(GCC) || (COMPILER(RVCT) && defined(__GNUC__))
+#if COMPILER(GCC)
 #define HAVE_COMPUTED_GOTO 1
 #endif
 
 /* Determine if we need to enable Computed Goto Opcodes or not: */
-#if HAVE(COMPUTED_GOTO) && ENABLE(LLINT)
+#if HAVE(COMPUTED_GOTO) || !ENABLE(LLINT_C_LOOP)
 #define ENABLE_COMPUTED_GOTO_OPCODES 1
 #endif
 
@@ -864,7 +809,7 @@
 #define ENABLE_REGEXP_TRACING 0
 
 /* Yet Another Regex Runtime - turned on by default for JIT enabled ports. */
-#if !defined(ENABLE_YARR_JIT) && (ENABLE(JIT) || ENABLE(LLINT_C_LOOP)) && !(OS(QNX) && PLATFORM(QT))
+#if !defined(ENABLE_YARR_JIT) && (ENABLE(JIT) || ENABLE(LLINT_C_LOOP))
 #define ENABLE_YARR_JIT 1
 
 /* Setting this flag compares JIT results with interpreter results. */
@@ -882,6 +827,16 @@
 #endif
 #endif
 
+/* If the Disassembler is enabled, then the Assembler must be enabled as well: */
+#if ENABLE(DISASSEMBLER)
+#if defined(ENABLE_ASSEMBLER) && !ENABLE_ASSEMBLER
+#error "Cannot enable the Disassembler without enabling the Assembler"
+#else
+#undef ENABLE_ASSEMBLER
+#define ENABLE_ASSEMBLER 1
+#endif
+#endif
+
 /* Pick which allocator to use; we only need an executable allocator if the assembler is compiled in.
    On x86-64 we use a single fixed mmap, on other platforms we mmap on demand. */
 #if ENABLE(ASSEMBLER)
@@ -892,9 +847,13 @@
 #endif
 #endif
 
-/* Accelerated compositing */
-#if PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
-#define WTF_USE_ACCELERATED_COMPOSITING 1
+/* CSS Selector JIT Compiler */
+#if !defined(ENABLE_CSS_SELECTOR_JIT)
+#if CPU(X86_64) && ENABLE(JIT) && (OS(DARWIN) || PLATFORM(GTK) || PLATFORM(EFL))
+#define ENABLE_CSS_SELECTOR_JIT 1
+#else
+#define ENABLE_CSS_SELECTOR_JIT 0
+#endif
 #endif
 
 #if ENABLE(WEBGL) && !defined(WTF_USE_3D_GRAPHICS)
@@ -905,11 +864,15 @@
 #define WTF_USE_OPENGL 1
 #define WTF_USE_OPENGL_ES_2 1
 #define WTF_USE_EGL 1
-#define WTF_USE_GRAPHICS_SURFACE 1
 #endif
 
-/* Qt always uses Texture Mapper */
-#if PLATFORM(QT)
+#if ENABLE(VIDEO) && PLATFORM(WIN_CAIRO)
+#define WTF_USE_GLIB 1
+#define WTF_USE_GSTREAMER 1
+#define GST_API_VERSION_1 1
+#endif
+
+#if PLATFORM(WIN_CAIRO)
 #define WTF_USE_TEXTURE_MAPPER 1
 #endif
 
@@ -918,11 +881,7 @@
 #endif
 
 /* Compositing on the UI-process in WebKit2 */
-#if USE(3D_GRAPHICS) && PLATFORM(QT)
-#define WTF_USE_COORDINATED_GRAPHICS 1
-#endif
-
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if PLATFORM(COCOA)
 #define WTF_USE_PROTECTION_SPACE_AUTH_CALLBACK 1
 #endif
 
@@ -933,11 +892,11 @@
 #define WTF_USE_CROSS_PLATFORM_CONTEXT_MENUS 1
 #endif
 
-#if PLATFORM(MAC) && HAVE(ACCESSIBILITY)
+#if PLATFORM(COCOA) && HAVE(ACCESSIBILITY)
 #define WTF_USE_ACCESSIBILITY_CONTEXT_MENUS 1
 #endif
 
-#if CPU(ARM_THUMB2)
+#if CPU(ARM_THUMB2) || CPU(ARM64)
 #define ENABLE_BRANCH_COMPACTION 1
 #endif
 
@@ -953,11 +912,15 @@
 #include <wtf/gobject/GTypedefs.h>
 #endif
 
+#if PLATFORM(EFL)
+#include <wtf/efl/EflTypedefs.h>
+#endif
+
 /* FIXME: This define won't be needed once #27551 is fully landed. However, 
    since most ports try to support sub-project independence, adding new headers
    to WTF causes many ports to break, and so this way we can address the build
    breakages one port at a time. */
-#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(MAC) || PLATFORM(QT) || (PLATFORM(WIN) && (defined(_MSC_VER) && _MSC_VER >= 1600)))
+#if !defined(WTF_USE_EXPORT_MACROS) && (PLATFORM(COCOA) || PLATFORM(WIN))
 #define WTF_USE_EXPORT_MACROS 1
 #endif
 
@@ -965,7 +928,7 @@
 #define WTF_USE_EXPORT_MACROS_FOR_TESTING 1
 #endif
 
-#if (PLATFORM(QT) && !OS(DARWIN) && !OS(WINDOWS)) || PLATFORM(GTK) || PLATFORM(EFL)
+#if PLATFORM(GTK) || PLATFORM(EFL)
 #define WTF_USE_UNIX_DOMAIN_SOCKETS 1
 #endif
 
@@ -973,13 +936,11 @@
 #define WTF_USE_IMLANG_FONT_LINK2 1
 #endif
 
-#if !defined(ENABLE_COMPARE_AND_SWAP) && (OS(WINDOWS) || (COMPILER(GCC) && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2))))
+#if !defined(ENABLE_COMPARE_AND_SWAP) && (OS(WINDOWS) || (COMPILER(GCC) && (CPU(X86) || CPU(X86_64) || CPU(ARM_THUMB2) || CPU(ARM64))))
 #define ENABLE_COMPARE_AND_SWAP 1
 #endif
 
-#define ENABLE_OBJECT_MARK_LOGGING 0
-
-#if !defined(ENABLE_PARALLEL_GC) && !ENABLE(OBJECT_MARK_LOGGING) && (PLATFORM(MAC) || PLATFORM(IOS) || PLATFORM(QT) || PLATFORM(BLACKBERRY) || PLATFORM(GTK)) && ENABLE(COMPARE_AND_SWAP)
+#if !defined(ENABLE_PARALLEL_GC) && !ENABLE(OBJECT_MARK_LOGGING) && (OS(DARWIN) || PLATFORM(EFL) || PLATFORM(GTK)) && ENABLE(COMPARE_AND_SWAP)
 #define ENABLE_PARALLEL_GC 1
 #endif
 
@@ -991,72 +952,68 @@
 #define ENABLE_BINDING_INTEGRITY 1
 #endif
 
-#if PLATFORM(MAC) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+#if PLATFORM(COCOA)
 #define WTF_USE_AVFOUNDATION 1
 #endif
 
 #if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080)
 #define WTF_USE_COREMEDIA 1
+#define HAVE_AVFOUNDATION_VIDEO_OUTPUT 1
 #endif
 
-#if (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 50000) || (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG)) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080)
 #define HAVE_AVFOUNDATION_MEDIA_SELECTION_GROUP 1
 #endif
 
-#if (PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000) || ((PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090)
 #define HAVE_AVFOUNDATION_LEGIBLE_OUTPUT_SUPPORT 1
-#endif
-
-#if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 70000) || ((PLATFORM(MAC) || (OS(WINDOWS) && USE(CG))) && !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090)
 #define HAVE_MEDIA_ACCESSIBILITY_FRAMEWORK 1
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
+#if (PLATFORM(IOS) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 60000) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090)
+#define HAVE_AVFOUNDATION_LOADER_DELEGATE 1
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#define WTF_USE_VIDEOTOOLBOX 1
+#endif
+
+#if PLATFORM(COCOA) || PLATFORM(GTK) || (PLATFORM(WIN) && !USE(WINGDI) && !PLATFORM(WIN_CAIRO))
 #define WTF_USE_REQUEST_ANIMATION_FRAME_TIMER 1
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #define WTF_USE_REQUEST_ANIMATION_FRAME_DISPLAY_MONITOR 1
 #endif
 
-#if PLATFORM(MAC) && (PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070)
-#define HAVE_INVERTED_WHEEL_EVENTS 1
-#endif
-
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
 #define WTF_USE_COREAUDIO 1
 #endif
 
-#if !defined(WTF_USE_ZLIB) && !PLATFORM(QT)
+#if !defined(WTF_USE_ZLIB)
 #define WTF_USE_ZLIB 1
 #endif
 
-#if PLATFORM(QT)
-#include <qglobal.h>
-#if defined(QT_OPENGL_ES_2) && !defined(WTF_USE_OPENGL_ES_2)
-#define WTF_USE_OPENGL_ES_2 1
-#endif
-#endif
-
-#if PLATFORM(IOS) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080)
+#if PLATFORM(COCOA)
 #define WTF_USE_CONTENT_FILTERING 1
 #endif
 
 
 #define WTF_USE_GRAMMAR_CHECKING 1
 
-#if PLATFORM(IOS) || PLATFORM(MAC) || PLATFORM(BLACKBERRY) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(EFL)
 #define WTF_USE_UNIFIED_TEXT_CHECKING 1
 #endif
-#if !PLATFORM(IOS) && PLATFORM(MAC)
+#if PLATFORM(MAC)
 #define WTF_USE_AUTOMATIC_TEXT_REPLACEMENT 1
 #endif
 
-#if !PLATFORM(IOS) && (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070)
+#if PLATFORM(MAC)
 /* Some platforms provide UI for suggesting autocorrection. */
 #define WTF_USE_AUTOCORRECTION_PANEL 1
 #endif
-#if PLATFORM(IOS) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1070)
+
+#if PLATFORM(COCOA)
 /* Some platforms use spelling and autocorrection markers to provide visual cue. On such platform, if word with marker is edited, we need to remove the marker. */
 #define WTF_USE_MARKER_REMOVAL_UPON_EDITING 1
 #endif
@@ -1065,8 +1022,41 @@
 #define WTF_USE_PLATFORM_TEXT_TRACK_MENU 1
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(IOS)
+#if PLATFORM(COCOA)
 #define WTF_USE_AUDIO_SESSION 1
+#endif
+
+#if PLATFORM(COCOA) && !PLATFORM(IOS_SIMULATOR)
+#define WTF_USE_IOSURFACE 1
+#endif
+
+#if PLATFORM(GTK) || PLATFORM(EFL)
+#undef ENABLE_OPENTYPE_VERTICAL
+#define ENABLE_OPENTYPE_VERTICAL 1
+#endif
+
+#if PLATFORM(COCOA)
+#define ENABLE_CSS3_TEXT_DECORATION_SKIP_INK 1
+#endif
+
+#if COMPILER(MSVC)
+#undef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
+#undef _HAS_EXCEPTIONS
+#define _HAS_EXCEPTIONS 1
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#define HAVE_NS_ACTIVITY 1
+#endif
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 10100
+#define WTF_USE_ASYNC_NSTEXTINPUTCLIENT 1
+#endif
+
+#if (OS(DARWIN) && USE(CG)) || USE(FREETYPE) || (PLATFORM(WIN) && (USE(CG) || USE(CAIRO)))
+#undef ENABLE_OPENTYPE_MATH
+#define ENABLE_OPENTYPE_MATH 1
 #endif
 
 #endif /* WTF_Platform_h */

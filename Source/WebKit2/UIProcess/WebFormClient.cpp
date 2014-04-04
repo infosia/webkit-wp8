@@ -26,24 +26,23 @@
 #include "config.h"
 #include "WebFormClient.h"
 
+#include "APIString.h"
 #include "ImmutableDictionary.h"
 #include "WKAPICast.h"
-#include "WebString.h"
-#include <wtf/text/WTFString.h>
 
 namespace WebKit {
 
-bool WebFormClient::willSubmitForm(WebPageProxy* page, WebFrameProxy* frame, WebFrameProxy* sourceFrame, const Vector<std::pair<String, String>>& textFieldValues, APIObject* userData, WebFormSubmissionListenerProxy* listener)
+bool WebFormClient::willSubmitForm(WebPageProxy* page, WebFrameProxy* frame, WebFrameProxy* sourceFrame, const Vector<std::pair<String, String>>& textFieldValues, API::Object* userData, WebFormSubmissionListenerProxy* listener)
 {
     if (!m_client.willSubmitForm)
         return false;
 
     ImmutableDictionary::MapType map;
     for (size_t i = 0; i < textFieldValues.size(); ++i)
-        map.set(textFieldValues[i].first, WebString::create(textFieldValues[i].second));
-    RefPtr<ImmutableDictionary> textFieldsMap = ImmutableDictionary::adopt(map);
+        map.set(textFieldValues[i].first, API::String::create(textFieldValues[i].second));
+    RefPtr<ImmutableDictionary> textFieldsMap = ImmutableDictionary::create(std::move(map));
 
-    m_client.willSubmitForm(toAPI(page), toAPI(frame), toAPI(sourceFrame), toAPI(textFieldsMap.get()), toAPI(userData), toAPI(listener), m_client.clientInfo);
+    m_client.willSubmitForm(toAPI(page), toAPI(frame), toAPI(sourceFrame), toAPI(textFieldsMap.get()), toAPI(userData), toAPI(listener), m_client.base.clientInfo);
     return true;
 }
 

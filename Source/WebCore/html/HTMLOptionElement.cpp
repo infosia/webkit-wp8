@@ -43,8 +43,6 @@
 #include "StyleResolver.h"
 #include "Text.h"
 #include <wtf/Ref.h>
-#include <wtf/Vector.h>
-#include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
 
@@ -96,7 +94,7 @@ void HTMLOptionElement::didAttachRenderers()
     // manually cache the value. This happens if our parent doesn't have a
     // renderer like <optgroup> or if it doesn't allow children like <select>.
     if (!m_style && parentNode()->renderStyle())
-        updateNonRenderStyle();
+        updateNonRenderStyle(*parentNode()->renderStyle());
 }
 
 void HTMLOptionElement::willDetachRenderers()
@@ -196,8 +194,8 @@ void HTMLOptionElement::parseAttribute(const QualifiedName& name, const AtomicSt
         m_disabled = !value.isNull();
         if (oldDisabled != m_disabled) {
             didAffectSelector(AffectedSelectorDisabled | AffectedSelectorEnabled);
-            if (renderer() && renderer()->style()->hasAppearance())
-                renderer()->theme()->stateChanged(renderer(), EnabledState);
+            if (renderer() && renderer()->style().hasAppearance())
+                renderer()->theme().stateChanged(renderer(), ControlStates::EnabledState);
         }
     } else if (name == selectedAttr) {
         // FIXME: This doesn't match what the HTML specification says.
@@ -271,7 +269,7 @@ HTMLDataListElement* HTMLOptionElement::ownerDataListElement() const
 {
     for (ContainerNode* parent = parentNode(); parent ; parent = parent->parentNode()) {
         if (parent->hasTagName(datalistTag))
-            return static_cast<HTMLDataListElement*>(parent);
+            return toHTMLDataListElement(parent);
     }
     return 0;
 }
@@ -302,9 +300,9 @@ void HTMLOptionElement::setLabel(const String& label)
     setAttribute(labelAttr, label);
 }
 
-void HTMLOptionElement::updateNonRenderStyle()
+void HTMLOptionElement::updateNonRenderStyle(RenderStyle& parentStyle)
 {
-    m_style = document().ensureStyleResolver().styleForElement(this);
+    m_style = document().ensureStyleResolver().styleForElement(this, &parentStyle);
 }
 
 RenderStyle* HTMLOptionElement::nonRendererStyle() const
@@ -312,11 +310,11 @@ RenderStyle* HTMLOptionElement::nonRendererStyle() const
     return m_style.get();
 }
 
-PassRefPtr<RenderStyle> HTMLOptionElement::customStyleForRenderer()
+PassRefPtr<RenderStyle> HTMLOptionElement::customStyleForRenderer(RenderStyle& parentStyle)
 {
     // styleForRenderer is called whenever a new style should be associated
     // with an Element so now is a good time to update our cached style.
-    updateNonRenderStyle();
+    updateNonRenderStyle(parentStyle);
     return m_style;
 }
 
@@ -324,8 +322,8 @@ void HTMLOptionElement::didRecalcStyle(Style::Change)
 {
     // FIXME: This is nasty, we ask our owner select to repaint even if the new
     // style is exactly the same.
-    if (HTMLSelectElement* select = ownerSelectElement()) {
-        if (RenderObject* renderer = select->renderer())
+    if (auto select = ownerSelectElement()) {
+        if (auto renderer = select->renderer())
             renderer->repaint();
     }
 }
@@ -346,11 +344,11 @@ bool HTMLOptionElement::isDisabledFormControl() const
     if (!parentNode() || !parentNode()->isHTMLElement())
         return false;
 
-    HTMLElement* parentElement = static_cast<HTMLElement*>(parentNode());
-    return isHTMLOptGroupElement(parentElement) && parentElement->isDisabledFormControl();
+    HTMLElement& parentElement = toHTMLElement(*parentNode());
+    return isHTMLOptGroupElement(parentElement) && parentElement.isDisabledFormControl();
 }
 
-Node::InsertionNotificationRequest HTMLOptionElement::insertedInto(ContainerNode* insertionPoint)
+Node::InsertionNotificationRequest HTMLOptionElement::insertedInto(ContainerNode& insertionPoint)
 {
     if (HTMLSelectElement* select = ownerSelectElement()) {
         select->setRecalcListItems();

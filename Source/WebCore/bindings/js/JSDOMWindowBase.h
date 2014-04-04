@@ -45,7 +45,7 @@ namespace WebCore {
     public:
         void updateDocument();
 
-        DOMWindow* impl() const { return m_impl.get(); }
+        DOMWindow& impl() const { return *m_impl; }
         ScriptExecutionContext* scriptExecutionContext() const;
 
         // Called just before removing this window from the JSDOMWindowShell.
@@ -63,15 +63,15 @@ namespace WebCore {
         static bool supportsProfiling(const JSC::JSGlobalObject*);
         static bool supportsRichSourceInfo(const JSC::JSGlobalObject*);
         static bool shouldInterruptScript(const JSC::JSGlobalObject*);
+        static bool shouldInterruptScriptBeforeTimeout(const JSC::JSGlobalObject*);
         static bool javaScriptExperimentsEnabled(const JSC::JSGlobalObject*);
-
-        static void queueTaskToEventLoop(const JSC::JSGlobalObject*, JSC::GlobalObjectMethodTable::QueueTaskToEventLoopCallbackFunctionPtr, PassRefPtr<JSC::TaskContext>);
+        static void queueTaskToEventLoop(const JSC::JSGlobalObject*, PassRefPtr<JSC::Microtask>);
         
         void printErrorMessage(const String&) const;
 
         JSDOMWindowShell* shell() const;
 
-        static JSC::VM* commonVM();
+        static JSC::VM& commonVM();
 
     private:
         RefPtr<DOMWindow> m_impl;
@@ -85,7 +85,7 @@ namespace WebCore {
     JSC::JSValue toJS(JSC::ExecState*, DOMWindow*);
 
     // Returns JSDOMWindow or 0
-    JSDOMWindow* toJSDOMWindow(Frame*, DOMWrapperWorld*);
+    JSDOMWindow* toJSDOMWindow(Frame*, DOMWrapperWorld&);
     JSDOMWindow* toJSDOMWindow(JSC::JSValue);
 
 } // namespace WebCore

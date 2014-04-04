@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -31,11 +31,10 @@
 #ifndef NavigationScheduler_h
 #define NavigationScheduler_h
 
+#include "FrameLoaderTypes.h"
 #include "Timer.h"
 #include <wtf/Forward.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 
 namespace WebCore {
@@ -68,14 +67,15 @@ class NavigationScheduler {
     WTF_MAKE_NONCOPYABLE(NavigationScheduler);
 
 public:
-    explicit NavigationScheduler(Frame*);
+    explicit NavigationScheduler(Frame&);
     ~NavigationScheduler();
 
     bool redirectScheduledDuringLoad();
     bool locationChangePending();
 
     void scheduleRedirect(double delay, const String& url);
-    void scheduleLocationChange(SecurityOrigin*, const String& url, const String& referrer, bool lockHistory = true, bool lockBackForwardList = true);
+    void scheduleLocationChange(SecurityOrigin*, const String& url, const String& referrer, LockHistory = LockHistory::Yes,
+        LockBackForwardList = LockBackForwardList::Yes);
     void scheduleFormSubmission(PassRefPtr<FormSubmission>);
     void scheduleRefresh();
     void scheduleHistoryNavigation(int steps);
@@ -89,14 +89,14 @@ private:
     bool shouldScheduleNavigation() const;
     bool shouldScheduleNavigation(const String& url) const;
 
-    void timerFired(Timer<NavigationScheduler>*);
-    void schedule(PassOwnPtr<ScheduledNavigation>);
+    void timerFired(Timer<NavigationScheduler>&);
+    void schedule(std::unique_ptr<ScheduledNavigation>);
 
-    static bool mustLockBackForwardList(Frame* targetFrame);
+    static LockBackForwardList mustLockBackForwardList(Frame& targetFrame);
 
-    Frame* m_frame;
+    Frame& m_frame;
     Timer<NavigationScheduler> m_timer;
-    OwnPtr<ScheduledNavigation> m_redirect;
+    std::unique_ptr<ScheduledNavigation> m_redirect;
 };
 
 } // namespace WebCore

@@ -33,11 +33,12 @@
 #include "InjectedBundleDOMWindowExtension.h"
 #include "InjectedBundleNavigationAction.h"
 #include "InjectedBundleUserMessageCoders.h"
-#include "PlatformCertificateInfo.h"
+#include "NavigationActionData.h"
 #include "PluginView.h"
 #include "WebBackForwardListProxy.h"
 #include "WebContextMessages.h"
 #include "WebCoreArgumentCoders.h"
+#include "WebDocumentLoader.h"
 #include "WebErrors.h"
 #include "WebEvent.h"
 #include "WebFrame.h"
@@ -51,11 +52,12 @@
 #include "WebProcessProxyMessages.h"
 #include <JavaScriptCore/APICast.h>
 #include <JavaScriptCore/JSObject.h>
+#include <WebCore/AXObjectCache.h>
+#include <WebCore/CertificateInfo.h>
 #include <WebCore/Chrome.h>
 #include <WebCore/DOMWrapperWorld.h>
 #include <WebCore/DocumentLoader.h>
 #include <WebCore/FormState.h>
-#include <WebCore/Frame.h>
 #include <WebCore/FrameLoadRequest.h>
 #include <WebCore/FrameLoader.h>
 #include <WebCore/FrameView.h>
@@ -64,6 +66,7 @@
 #include <WebCore/HistoryController.h>
 #include <WebCore/HistoryItem.h>
 #include <WebCore/MIMETypeRegistry.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/MouseEvent.h>
 #include <WebCore/NotImplemented.h>
 #include <WebCore/Page.h>
@@ -77,6 +80,7 @@
 #include <WebCore/UIEventWithKeyState.h>
 #include <WebCore/Widget.h>
 #include <WebCore/WindowFeatures.h>
+#include <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 
@@ -86,6 +90,7 @@ WebFrameLoaderClient::WebFrameLoaderClient()
     : m_frame(0)
     , m_hasSentResponseToPluginView(false)
     , m_didCompletePageTransitionAlready(false)
+    , m_frameHasCustomContentProvider(false)
     , m_frameCameFromPageCache(false)
 {
 }
@@ -105,17 +110,17 @@ void WebFrameLoaderClient::frameLoaderDestroyed()
     m_frame->deref();
 }
 
+bool WebFrameLoaderClient::hasHTMLView() const
+{
+    return !m_frameHasCustomContentProvider;
+}
+
 bool WebFrameLoaderClient::hasWebView() const
 {
     return m_frame->page();
 }
 
 void WebFrameLoaderClient::makeRepresentation(DocumentLoader*)
-{
-    notImplemented();
-}
-
-void WebFrameLoaderClient::forceLayout()
 {
     notImplemented();
 }
@@ -136,7 +141,7 @@ void WebFrameLoaderClient::detachedFromParent2()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didRemoveFrameFromHierarchy(webPage, m_frame, userData);
@@ -275,15 +280,15 @@ void WebFrameLoaderClient::dispatchDidReceiveServerRedirectForProvisionalLoad()
     if (!webPage)
         return;
 
-    DocumentLoader* provisionalLoader = m_frame->coreFrame()->loader().provisionalDocumentLoader();
-    const String& url = provisionalLoader->url().string();
-    RefPtr<APIObject> userData;
+    WebDocumentLoader& documentLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().provisionalDocumentLoader());
+    const String& url = documentLoader.url().string();
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didReceiveServerRedirectForProvisionalLoadForFrame(webPage, m_frame, userData);
 
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidReceiveServerRedirectForProvisionalLoadForFrame(m_frame->frameID(), url, InjectedBundleUserMessageEncoder(userData.get())));
+    webPage->send(Messages::WebPageProxy::DidReceiveServerRedirectForProvisionalLoadForFrame(m_frame->frameID(), documentLoader.navigationID(), url, InjectedBundleUserMessageEncoder(userData.get())));
 }
 
 void WebFrameLoaderClient::dispatchDidCancelClientRedirect()
@@ -296,7 +301,7 @@ void WebFrameLoaderClient::dispatchDidCancelClientRedirect()
     webPage->injectedBundleLoaderClient().didCancelClientRedirectForFrame(webPage, m_frame);
 }
 
-void WebFrameLoaderClient::dispatchWillPerformClientRedirect(const KURL& url, double interval, double fireDate)
+void WebFrameLoaderClient::dispatchWillPerformClientRedirect(const URL& url, double interval, double fireDate)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
@@ -312,7 +317,7 @@ void WebFrameLoaderClient::dispatchDidChangeLocationWithinPage()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didSameDocumentNavigationForFrame(webPage, m_frame, SameDocumentNavigationAnchorNavigation, userData);
@@ -327,7 +332,7 @@ void WebFrameLoaderClient::dispatchDidPushStateWithinPage()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didSameDocumentNavigationForFrame(webPage, m_frame, SameDocumentNavigationSessionStatePush, userData);
@@ -342,7 +347,7 @@ void WebFrameLoaderClient::dispatchDidReplaceStateWithinPage()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didSameDocumentNavigationForFrame(webPage, m_frame, SameDocumentNavigationSessionStateReplace, userData);
@@ -357,7 +362,7 @@ void WebFrameLoaderClient::dispatchDidPopStateWithinPage()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didSameDocumentNavigationForFrame(webPage, m_frame, SameDocumentNavigationSessionStatePop, userData);
@@ -391,17 +396,17 @@ void WebFrameLoaderClient::dispatchDidStartProvisionalLoad()
     webPage->findController().hideFindUI();
     webPage->sandboxExtensionTracker().didStartProvisionalLoad(m_frame);
 
-    DocumentLoader* provisionalLoader = m_frame->coreFrame()->loader().provisionalDocumentLoader();
-    const String& url = provisionalLoader->url().string();
-    RefPtr<APIObject> userData;
+    WebDocumentLoader& provisionalLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().provisionalDocumentLoader());
+    const String& url = provisionalLoader.url().string();
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didStartProvisionalLoadForFrame(webPage, m_frame, userData);
 
-    String unreachableURL = provisionalLoader->unreachableURL().string();
+    String unreachableURL = provisionalLoader.unreachableURL().string();
 
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidStartProvisionalLoadForFrame(m_frame->frameID(), url, unreachableURL, InjectedBundleUserMessageEncoder(userData.get())));
+    webPage->send(Messages::WebPageProxy::DidStartProvisionalLoadForFrame(m_frame->frameID(), provisionalLoader.navigationID(), url, unreachableURL, InjectedBundleUserMessageEncoder(userData.get())));
 }
 
 void WebFrameLoaderClient::dispatchDidReceiveTitle(const StringWithDirection& title)
@@ -410,7 +415,7 @@ void WebFrameLoaderClient::dispatchDidReceiveTitle(const StringWithDirection& ti
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     // FIXME: use direction of title.
@@ -431,8 +436,8 @@ void WebFrameLoaderClient::dispatchDidCommitLoad()
     if (!webPage)
         return;
 
-    const ResourceResponse& response = m_frame->coreFrame()->loader().documentLoader()->response();
-    RefPtr<APIObject> userData;
+    WebDocumentLoader& documentLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().documentLoader());
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didCommitLoadForFrame(webPage, m_frame, userData);
@@ -441,8 +446,7 @@ void WebFrameLoaderClient::dispatchDidCommitLoad()
 
     // Notify the UIProcess.
 
-    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), response.mimeType(), m_frame->coreFrame()->loader().loadType(), PlatformCertificateInfo(response), InjectedBundleUserMessageEncoder(userData.get())));
-
+    webPage->send(Messages::WebPageProxy::DidCommitLoadForFrame(m_frame->frameID(), documentLoader.navigationID(), documentLoader.response().mimeType(), m_frameHasCustomContentProvider, m_frame->coreFrame()->loader().loadType(), CertificateInfo(documentLoader.response()), InjectedBundleUserMessageEncoder(userData.get())));
     webPage->didCommitLoad(m_frame);
 }
 
@@ -452,7 +456,7 @@ void WebFrameLoaderClient::dispatchDidFailProvisionalLoad(const ResourceError& e
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didFailProvisionalLoadWithErrorForFrame(webPage, m_frame, error, userData);
@@ -460,7 +464,8 @@ void WebFrameLoaderClient::dispatchDidFailProvisionalLoad(const ResourceError& e
     webPage->sandboxExtensionTracker().didFailProvisionalLoad(m_frame);
 
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidFailProvisionalLoadForFrame(m_frame->frameID(), error, InjectedBundleUserMessageEncoder(userData.get())));
+    WebDocumentLoader& provisionalLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().provisionalDocumentLoader());
+    webPage->send(Messages::WebPageProxy::DidFailProvisionalLoadForFrame(m_frame->frameID(), provisionalLoader.navigationID(), error, InjectedBundleUserMessageEncoder(userData.get())));
     
     // If we have a load listener, notify it.
     if (WebFrame::LoadListener* loadListener = m_frame->loadListener())
@@ -473,13 +478,14 @@ void WebFrameLoaderClient::dispatchDidFailLoad(const ResourceError& error)
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didFailLoadWithErrorForFrame(webPage, m_frame, error, userData);
 
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidFailLoadForFrame(m_frame->frameID(), error, InjectedBundleUserMessageEncoder(userData.get())));
+    WebDocumentLoader& documentLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().documentLoader());
+    webPage->send(Messages::WebPageProxy::DidFailLoadForFrame(m_frame->frameID(), documentLoader.navigationID(), error, InjectedBundleUserMessageEncoder(userData.get())));
 
     // If we have a load listener, notify it.
     if (WebFrame::LoadListener* loadListener = m_frame->loadListener())
@@ -492,7 +498,7 @@ void WebFrameLoaderClient::dispatchDidFinishDocumentLoad()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didFinishDocumentLoadForFrame(webPage, m_frame, userData);
@@ -507,13 +513,15 @@ void WebFrameLoaderClient::dispatchDidFinishLoad()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundleLoaderClient().didFinishLoadForFrame(webPage, m_frame, userData);
 
+    WebDocumentLoader& documentLoader = static_cast<WebDocumentLoader&>(*m_frame->coreFrame()->loader().documentLoader());
+
     // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DidFinishLoadForFrame(m_frame->frameID(), InjectedBundleUserMessageEncoder(userData.get())));
+    webPage->send(Messages::WebPageProxy::DidFinishLoadForFrame(m_frame->frameID(), documentLoader.navigationID(), InjectedBundleUserMessageEncoder(userData.get())));
 
     // If we have a load listener, notify it.
     if (WebFrame::LoadListener* loadListener = m_frame->loadListener())
@@ -541,7 +549,7 @@ void WebFrameLoaderClient::dispatchDidLayout(LayoutMilestones milestones)
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     if (milestones & DidFirstLayout) {
         // FIXME: We should consider removing the old didFirstLayout API since this is doing double duty with the
@@ -602,7 +610,7 @@ Frame* WebFrameLoaderClient::dispatchCreatePage(const NavigationAction& navigati
         return 0;
 
     // Just call through to the chrome client.
-    Page* newPage = webPage->corePage()->chrome().createWindow(m_frame->coreFrame(), FrameLoadRequest(m_frame->coreFrame()->document()->securityOrigin()), WindowFeatures(), navigationAction);
+    Page* newPage = webPage->corePage()->chrome().createWindow(m_frame->coreFrame(), FrameLoadRequest(m_frame->coreFrame()->document()->securityOrigin(), navigationAction.resourceRequest()), WindowFeatures(), navigationAction);
     if (!newPage)
         return 0;
     
@@ -618,33 +626,37 @@ void WebFrameLoaderClient::dispatchShow()
     webPage->show();
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForResponse(FramePolicyFunction function, const ResourceResponse& response, const ResourceRequest& request)
+void WebFrameLoaderClient::dispatchDecidePolicyForResponse(const ResourceResponse& response, const ResourceRequest& request, FramePolicyFunction function)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
         return;
 
     if (!request.url().string()) {
-        (m_frame->coreFrame()->loader().policyChecker().*function)(PolicyUse);
+        function(PolicyUse);
         return;
     }
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     WKBundlePagePolicyAction policy = webPage->injectedBundlePolicyClient().decidePolicyForResponse(webPage, m_frame, response, request, userData);
     if (policy == WKBundlePagePolicyActionUse) {
-        (m_frame->coreFrame()->loader().policyChecker().*function)(PolicyUse);
+        function(PolicyUse);
         return;
     }
 
-    uint64_t listenerID = m_frame->setUpPolicyListener(function);
+    bool canShowMIMEType = webPage->canShowMIMEType(response.mimeType());
+
+    uint64_t listenerID = m_frame->setUpPolicyListener(std::move(function));
     bool receivedPolicyAction;
     uint64_t policyAction;
     uint64_t downloadID;
 
     // Notify the UIProcess.
-    if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForResponseSync(m_frame->frameID(), response, request, listenerID, InjectedBundleUserMessageEncoder(userData.get())), Messages::WebPageProxy::DecidePolicyForResponseSync::Reply(receivedPolicyAction, policyAction, downloadID)))
+    // FIXME (126021): It is not good to change IPC behavior conditionally, and SpinRunLoopWhileWaitingForReply was known to cause trouble in other similar cases.
+    unsigned syncSendFlags = (WebCore::AXObjectCache::accessibilityEnabled()) ? IPC::SpinRunLoopWhileWaitingForReply : 0;
+    if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForResponseSync(m_frame->frameID(), response, request, canShowMIMEType, listenerID, InjectedBundleUserMessageEncoder(userData.get())), Messages::WebPageProxy::DecidePolicyForResponseSync::Reply(receivedPolicyAction, policyAction, downloadID), std::chrono::milliseconds::max(), syncSendFlags))
         return;
 
     // We call this synchronously because CFNetwork can only convert a loading connection to a download from its didReceiveResponse callback.
@@ -652,60 +664,86 @@ void WebFrameLoaderClient::dispatchDecidePolicyForResponse(FramePolicyFunction f
         m_frame->didReceivePolicyDecision(listenerID, static_cast<PolicyAction>(policyAction), downloadID);
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(FramePolicyFunction function, const NavigationAction& navigationAction, const ResourceRequest& request, PassRefPtr<FormState> formState, const String& frameName)
+void WebFrameLoaderClient::dispatchDecidePolicyForNewWindowAction(const NavigationAction& navigationAction, const ResourceRequest& request, PassRefPtr<FormState> formState, const String& frameName, FramePolicyFunction function)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     RefPtr<InjectedBundleNavigationAction> action = InjectedBundleNavigationAction::create(m_frame, navigationAction, formState);
 
     // Notify the bundle client.
     WKBundlePagePolicyAction policy = webPage->injectedBundlePolicyClient().decidePolicyForNewWindowAction(webPage, m_frame, action.get(), request, frameName, userData);
     if (policy == WKBundlePagePolicyActionUse) {
-        (m_frame->coreFrame()->loader().policyChecker().*function)(PolicyUse);
+        function(PolicyUse);
         return;
     }
 
 
-    uint64_t listenerID = m_frame->setUpPolicyListener(function);
+    uint64_t listenerID = m_frame->setUpPolicyListener(std::move(function));
 
-    // Notify the UIProcess.
-    webPage->send(Messages::WebPageProxy::DecidePolicyForNewWindowAction(m_frame->frameID(), action->navigationType(), action->modifiers(), action->mouseButton(), request, frameName, listenerID, InjectedBundleUserMessageEncoder(userData.get())));
+    NavigationActionData navigationActionData;
+    navigationActionData.navigationType = action->navigationType();
+    navigationActionData.modifiers = action->modifiers();
+    navigationActionData.mouseButton = action->mouseButton();
+
+    webPage->send(Messages::WebPageProxy::DecidePolicyForNewWindowAction(m_frame->frameID(), navigationActionData, request, frameName, listenerID, InjectedBundleUserMessageEncoder(userData.get())));
 }
 
-void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(FramePolicyFunction function, const NavigationAction& navigationAction, const ResourceRequest& request, PassRefPtr<FormState> formState)
+void WebFrameLoaderClient::dispatchDecidePolicyForNavigationAction(const NavigationAction& navigationAction, const ResourceRequest& request, PassRefPtr<FormState> prpFormState, FramePolicyFunction function)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
         return;
 
     // Always ignore requests with empty URLs. 
-    if (request.isEmpty()) { 
-        (m_frame->coreFrame()->loader().policyChecker().*function)(PolicyIgnore); 
-        return; 
+    if (request.isEmpty()) {
+        function(PolicyIgnore);
+        return;
     }
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
+    RefPtr<FormState> formState = prpFormState;
 
     RefPtr<InjectedBundleNavigationAction> action = InjectedBundleNavigationAction::create(m_frame, navigationAction, formState);
 
     // Notify the bundle client.
     WKBundlePagePolicyAction policy = webPage->injectedBundlePolicyClient().decidePolicyForNavigationAction(webPage, m_frame, action.get(), request, userData);
     if (policy == WKBundlePagePolicyActionUse) {
-        (m_frame->coreFrame()->loader().policyChecker().*function)(PolicyUse);
+        function(PolicyUse);
         return;
     }
     
-    uint64_t listenerID = m_frame->setUpPolicyListener(function);
+    uint64_t listenerID = m_frame->setUpPolicyListener(std::move(function));
     bool receivedPolicyAction;
     uint64_t policyAction;
     uint64_t downloadID;
 
+    RefPtr<WebFrame> originatingFrame;
+    switch (action->navigationType()) {
+    case NavigationTypeLinkClicked:
+        originatingFrame = action->hitTestResult()->frame();
+        break;
+    case NavigationTypeFormSubmitted:
+    case NavigationTypeFormResubmitted:
+        if (formState)
+            originatingFrame = WebFrame::fromCoreFrame(*formState->sourceDocument()->frame());
+        break;
+    case NavigationTypeBackForward:
+    case NavigationTypeReload:
+    case NavigationTypeOther:
+        break;
+    }
+
+    NavigationActionData navigationActionData;
+    navigationActionData.navigationType = action->navigationType();
+    navigationActionData.modifiers = action->modifiers();
+    navigationActionData.mouseButton = action->mouseButton();
+
     // Notify the UIProcess.
-    if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForNavigationAction(m_frame->frameID(), action->navigationType(), action->modifiers(), action->mouseButton(), request, listenerID, InjectedBundleUserMessageEncoder(userData.get())), Messages::WebPageProxy::DecidePolicyForNavigationAction::Reply(receivedPolicyAction, policyAction, downloadID)))
+    if (!webPage->sendSync(Messages::WebPageProxy::DecidePolicyForNavigationAction(m_frame->frameID(), navigationActionData, originatingFrame ? originatingFrame->frameID() : 0, navigationAction.resourceRequest(), request, listenerID, InjectedBundleUserMessageEncoder(userData.get())), Messages::WebPageProxy::DecidePolicyForNavigationAction::Reply(receivedPolicyAction, policyAction, downloadID)))
         return;
 
     // We call this synchronously because WebCore cannot gracefully handle a frame load without a synchronous navigation policy reply.
@@ -724,7 +762,7 @@ void WebFrameLoaderClient::dispatchUnableToImplementPolicy(const ResourceError& 
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Notify the bundle client.
     webPage->injectedBundlePolicyClient().unableToImplementPolicy(webPage, m_frame, error, userData);
@@ -742,14 +780,13 @@ void WebFrameLoaderClient::dispatchWillSendSubmitEvent(PassRefPtr<FormState> prp
     RefPtr<FormState> formState = prpFormState;
     HTMLFormElement* form = formState->form();
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(formState->sourceDocument()->frame()->loader().client());
-    WebFrame* sourceFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    WebFrame* sourceFrame = WebFrame::fromCoreFrame(*formState->sourceDocument()->frame());
     ASSERT(sourceFrame);
 
     webPage->injectedBundleFormClient().willSendSubmitEvent(webPage, form, m_frame, sourceFrame, formState->textFieldValues());
 }
 
-void WebFrameLoaderClient::dispatchWillSubmitForm(FramePolicyFunction function, PassRefPtr<FormState> prpFormState)
+void WebFrameLoaderClient::dispatchWillSubmitForm(PassRefPtr<FormState> prpFormState, FramePolicyFunction function)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
@@ -760,17 +797,16 @@ void WebFrameLoaderClient::dispatchWillSubmitForm(FramePolicyFunction function, 
     
     HTMLFormElement* form = formState->form();
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(formState->sourceDocument()->frame()->loader().client());
-    WebFrame* sourceFrame = webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    WebFrame* sourceFrame = WebFrame::fromCoreFrame(*formState->sourceDocument()->frame());
     ASSERT(sourceFrame);
 
     const Vector<std::pair<String, String>>& values = formState->textFieldValues();
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
     webPage->injectedBundleFormClient().willSubmitForm(webPage, form, m_frame, sourceFrame, values, userData);
 
 
-    uint64_t listenerID = m_frame->setUpPolicyListener(function);
+    uint64_t listenerID = m_frame->setUpPolicyListener(std::move(function));
 
     webPage->send(Messages::WebPageProxy::WillSubmitForm(m_frame->frameID(), sourceFrame->frameID(), values, listenerID, InjectedBundleUserMessageEncoder(userData.get())));
 }
@@ -786,48 +822,8 @@ void WebFrameLoaderClient::setMainDocumentError(DocumentLoader*, const ResourceE
         return;
     
     m_pluginView->manualLoadDidFail(error);
-    m_pluginView = 0;
+    m_pluginView = nullptr;
     m_hasSentResponseToPluginView = false;
-}
-
-void WebFrameLoaderClient::willChangeEstimatedProgress()
-{
-    notImplemented();
-}
-
-void WebFrameLoaderClient::didChangeEstimatedProgress()
-{
-    notImplemented();
-}
-
-void WebFrameLoaderClient::postProgressStartedNotification()
-{
-    if (WebPage* webPage = m_frame->page()) {
-        if (m_frame->isMainFrame())
-            webPage->send(Messages::WebPageProxy::DidStartProgress());
-    }
-}
-
-void WebFrameLoaderClient::postProgressEstimateChangedNotification()
-{
-    if (WebPage* webPage = m_frame->page()) {
-        if (m_frame->isMainFrame()) {
-            double progress = webPage->corePage()->progress().estimatedProgress();
-            webPage->send(Messages::WebPageProxy::DidChangeProgress(progress));
-        }
-    }
-}
-
-void WebFrameLoaderClient::postProgressFinishedNotification()
-{
-    if (WebPage* webPage = m_frame->page()) {
-        if (m_frame->isMainFrame()) {
-            // Notify the bundle client.
-            webPage->injectedBundleLoaderClient().didFinishProgress(webPage);
-
-            webPage->send(Messages::WebPageProxy::DidFinishProgress());
-        }
-    }
 }
 
 void WebFrameLoaderClient::setMainFrameDocumentReady(bool)
@@ -852,6 +848,10 @@ void WebFrameLoaderClient::didChangeTitle(DocumentLoader*)
 
 void WebFrameLoaderClient::committedLoad(DocumentLoader* loader, const char* data, int length)
 {
+    // If we're loading a custom representation, we don't want to hand off the data to WebCore.
+    if (m_frameHasCustomContentProvider)
+        return;
+
     if (!m_pluginView)
         loader->commitData(data, length);
 
@@ -878,8 +878,19 @@ void WebFrameLoaderClient::committedLoad(DocumentLoader* loader, const char* dat
 
 void WebFrameLoaderClient::finishedLoading(DocumentLoader* loader)
 {
-    if (!m_pluginView)
+    if (!m_pluginView) {
+        if (m_frameHasCustomContentProvider) {
+            WebPage* webPage = m_frame->page();
+            if (!webPage)
+                return;
+
+            RefPtr<ResourceBuffer> mainResourceData = loader->mainResourceData();
+            IPC::DataReference dataReference(reinterpret_cast<const uint8_t*>(mainResourceData ? mainResourceData->data() : 0), mainResourceData ? mainResourceData->size() : 0);
+            webPage->send(Messages::WebPageProxy::DidFinishLoadingDataForCustomContentProvider(loader->response().suggestedFilename(), dataReference));
+        }
+
         return;
+    }
 
     // If we just received an empty response without any data, we won't have sent a response to the plug-in view.
     // Make sure to do this before calling manualLoadDidFinishLoading.
@@ -892,7 +903,7 @@ void WebFrameLoaderClient::finishedLoading(DocumentLoader* loader)
     }
 
     m_pluginView->manualLoadDidFinishLoading();
-    m_pluginView = 0;
+    m_pluginView = nullptr;
     m_hasSentResponseToPluginView = false;
 }
 
@@ -909,6 +920,7 @@ void WebFrameLoaderClient::updateGlobalHistory()
     // FIXME: use direction of title.
     data.title = loader->title().string();
     data.originalRequest = loader->originalRequestCopy();
+    data.response = loader->response();
 
     WebProcess::shared().parentProcessConnection()->send(Messages::WebProcessProxy::DidNavigateWithNavigationData(webPage->pageID(), data, m_frame->frameID()), 0);
 }
@@ -949,26 +961,14 @@ bool WebFrameLoaderClient::shouldGoToHistoryItem(HistoryItem* item) const
     }
 
     RefPtr<InjectedBundleBackForwardListItem> bundleItem = InjectedBundleBackForwardListItem::create(item);
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     // Ask the bundle client first
     bool shouldGoToBackForwardListItem = webPage->injectedBundleLoaderClient().shouldGoToBackForwardListItem(webPage, bundleItem.get(), userData);
     if (!shouldGoToBackForwardListItem)
         return false;
-    
-    if (webPage->willGoToBackForwardItemCallbackEnabled()) {
-        webPage->send(Messages::WebPageProxy::WillGoToBackForwardListItem(itemID, InjectedBundleUserMessageEncoder(userData.get())));
-        return true;
-    }
-    
-    if (!webPage->sendSync(Messages::WebPageProxy::ShouldGoToBackForwardListItem(itemID), Messages::WebPageProxy::ShouldGoToBackForwardListItem::Reply(shouldGoToBackForwardListItem)))
-        return false;
-    
-    return shouldGoToBackForwardListItem;
-}
 
-bool WebFrameLoaderClient::shouldStopLoadingForHistoryItem(HistoryItem*) const
-{
+    webPage->send(Messages::WebPageProxy::WillGoToBackForwardListItem(itemID, InjectedBundleUserMessageEncoder(userData.get())));
     return true;
 }
 
@@ -978,33 +978,33 @@ void WebFrameLoaderClient::didDisplayInsecureContent()
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     webPage->injectedBundleLoaderClient().didDisplayInsecureContentForFrame(webPage, m_frame, userData);
 
     webPage->send(Messages::WebPageProxy::DidDisplayInsecureContentForFrame(m_frame->frameID(), InjectedBundleUserMessageEncoder(userData.get())));
 }
 
-void WebFrameLoaderClient::didRunInsecureContent(SecurityOrigin*, const KURL&)
+void WebFrameLoaderClient::didRunInsecureContent(SecurityOrigin*, const URL&)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     webPage->injectedBundleLoaderClient().didRunInsecureContentForFrame(webPage, m_frame, userData);
 
     webPage->send(Messages::WebPageProxy::DidRunInsecureContentForFrame(m_frame->frameID(), InjectedBundleUserMessageEncoder(userData.get())));
 }
 
-void WebFrameLoaderClient::didDetectXSS(const KURL&, bool)
+void WebFrameLoaderClient::didDetectXSS(const URL&, bool)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
         return;
 
-    RefPtr<APIObject> userData;
+    RefPtr<API::Object> userData;
 
     webPage->injectedBundleLoaderClient().didDetectXSSForFrame(webPage, m_frame, userData);
 
@@ -1048,21 +1048,14 @@ ResourceError WebFrameLoaderClient::pluginWillHandleLoadError(const ResourceResp
 
 bool WebFrameLoaderClient::shouldFallBack(const ResourceError& error)
 {
-    DEFINE_STATIC_LOCAL(const ResourceError, cancelledError, (this->cancelledError(ResourceRequest())));
-    DEFINE_STATIC_LOCAL(const ResourceError, pluginWillHandleLoadError, (this->pluginWillHandleLoadError(ResourceResponse())));
+    static NeverDestroyed<const ResourceError> cancelledError(this->cancelledError(ResourceRequest()));
+    static NeverDestroyed<const ResourceError> pluginWillHandleLoadError(this->pluginWillHandleLoadError(ResourceResponse()));
 
-    if (error.errorCode() == cancelledError.errorCode() && error.domain() == cancelledError.domain())
+    if (error.errorCode() == cancelledError.get().errorCode() && error.domain() == cancelledError.get().domain())
         return false;
 
-    if (error.errorCode() == pluginWillHandleLoadError.errorCode() && error.domain() == pluginWillHandleLoadError.domain())
+    if (error.errorCode() == pluginWillHandleLoadError.get().errorCode() && error.domain() == pluginWillHandleLoadError.get().domain())
         return false;
-
-#if PLATFORM(QT)
-    DEFINE_STATIC_LOCAL(const ResourceError, errorInterruptedForPolicyChange, (this->interruptedForPolicyChangeError(ResourceRequest())));
-
-    if (error.errorCode() == errorInterruptedForPolicyChange.errorCode() && error.domain() == errorInterruptedForPolicyChange.domain())
-        return false;
-#endif
 
     return true;
 }
@@ -1153,12 +1146,12 @@ void WebFrameLoaderClient::prepareForDataSourceReplacement()
     notImplemented();
 }
 
-PassRefPtr<DocumentLoader> WebFrameLoaderClient::createDocumentLoader(const ResourceRequest& request, const SubstituteData& data)
+PassRefPtr<DocumentLoader> WebFrameLoaderClient::createDocumentLoader(const ResourceRequest& request, const SubstituteData& substituteData)
 {
-    return DocumentLoader::create(request, data);
+    return m_frame->page()->createDocumentLoader(*m_frame->coreFrame(), request, substituteData);
 }
 
-void WebFrameLoaderClient::setTitle(const StringWithDirection& title, const KURL& url)
+void WebFrameLoaderClient::setTitle(const StringWithDirection& title, const URL& url)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage || !webPage->pageGroup()->isVisibleToHistoryClient())
@@ -1169,7 +1162,7 @@ void WebFrameLoaderClient::setTitle(const StringWithDirection& title, const KURL
         title.string(), url.string(), m_frame->frameID()), 0);
 }
 
-String WebFrameLoaderClient::userAgent(const KURL&)
+String WebFrameLoaderClient::userAgent(const URL&)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
@@ -1184,6 +1177,9 @@ void WebFrameLoaderClient::savePlatformDataToCachedFrame(CachedFrame*)
 
 void WebFrameLoaderClient::transitionToCommittedFromCachedFrame(CachedFrame*)
 {
+    const ResourceResponse& response = m_frame->coreFrame()->loader().documentLoader()->response();
+    m_frameHasCustomContentProvider = m_frame->isMainFrame() && m_frame->page()->shouldUseCustomContentProviderForResponse(response);
+    m_frameCameFromPageCache = true;
 }
 
 void WebFrameLoaderClient::transitionToCommittedForNewPage()
@@ -1191,19 +1187,26 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
     WebPage* webPage = m_frame->page();
 
     Color backgroundColor = webPage->drawsTransparentBackground() ? Color::transparent : Color::white;
-    bool isMainFrame = webPage->mainWebFrame() == m_frame;
+    bool isMainFrame = m_frame->isMainFrame();
     bool isTransparent = !webPage->drawsBackground();
     bool shouldUseFixedLayout = isMainFrame && webPage->useFixedLayout();
     bool shouldDisableScrolling = isMainFrame && !webPage->mainFrameIsScrollable();
     bool shouldHideScrollbars = shouldUseFixedLayout || shouldDisableScrolling;
-    IntRect currentFixedVisibleContentRect = m_frame->coreFrame()->view() ? m_frame->coreFrame()->view()->fixedVisibleContentRect() : IntRect();
+    IntRect fixedVisibleContentRect;
 
+#if USE(TILED_BACKING_STORE)
+    if (m_frame->coreFrame()->view())
+        fixedVisibleContentRect = m_frame->coreFrame()->view()->fixedVisibleContentRect();
+#endif
+
+    const ResourceResponse& response = m_frame->coreFrame()->loader().documentLoader()->response();
+    m_frameHasCustomContentProvider = isMainFrame && webPage->shouldUseCustomContentProviderForResponse(response);
     m_frameCameFromPageCache = false;
 
     ScrollbarMode defaultScrollbarMode = shouldHideScrollbars ? ScrollbarAlwaysOff : ScrollbarAuto;
 
     m_frame->coreFrame()->createView(webPage->size(), backgroundColor, isTransparent,
-        IntSize(), currentFixedVisibleContentRect, shouldUseFixedLayout,
+        IntSize(), fixedVisibleContentRect, shouldUseFixedLayout,
         defaultScrollbarMode, /* lock */ shouldHideScrollbars, defaultScrollbarMode, /* lock */ shouldHideScrollbars);
 
     if (int minimumLayoutWidth = webPage->minimumLayoutSize().width()) {
@@ -1215,7 +1218,13 @@ void WebFrameLoaderClient::transitionToCommittedForNewPage()
 
     m_frame->coreFrame()->view()->setProhibitsScrolling(shouldDisableScrolling);
     m_frame->coreFrame()->view()->setVisualUpdatesAllowedByClient(!webPage->shouldExtendIncrementalRenderingSuppression());
-    
+#if PLATFORM(COCOA)
+    m_frame->coreFrame()->view()->setExposedRect(webPage->drawingArea()->exposedRect());
+#endif
+#if PLATFORM(IOS)
+    m_frame->coreFrame()->view()->setDelegatesScrolling(true);
+#endif
+
     if (webPage->scrollPinningBehavior() != DoNotPin)
         m_frame->coreFrame()->view()->setScrollPinningBehavior(webPage->scrollPinningBehavior());
 
@@ -1251,12 +1260,19 @@ void WebFrameLoaderClient::dispatchDidBecomeFrameset(bool value)
     webPage->send(Messages::WebPageProxy::FrameDidBecomeFrameSet(m_frame->frameID(), value));
 }
 
+bool WebFrameLoaderClient::canCachePage() const
+{
+    // We cannot cache frames that have custom representations because they are
+    // rendered in the UIProcess.
+    return !m_frameHasCustomContentProvider;
+}
+
 void WebFrameLoaderClient::convertMainResourceLoadToDownload(DocumentLoader *documentLoader, const ResourceRequest& request, const ResourceResponse& response)
 {
     m_frame->convertMainResourceLoadToDownload(documentLoader, request, response);
 }
 
-PassRefPtr<Frame> WebFrameLoaderClient::createFrame(const KURL& url, const String& name, HTMLFrameOwnerElement* ownerElement,
+PassRefPtr<Frame> WebFrameLoaderClient::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement* ownerElement,
                                                     const String& referrer, bool /*allowsScrolling*/, int /*marginWidth*/, int /*marginHeight*/)
 {
     WebPage* webPage = m_frame->page();
@@ -1283,7 +1299,7 @@ PassRefPtr<Frame> WebFrameLoaderClient::createFrame(const KURL& url, const Strin
     return coreSubframe;
 }
 
-PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugInElement* pluginElement, const KURL& url, const Vector<String>& paramNames, const Vector<String>& paramValues, const String& mimeType, bool loadManually)
+PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugInElement* pluginElement, const URL& url, const Vector<String>& paramNames, const Vector<String>& paramValues, const String& mimeType, bool loadManually)
 {
     ASSERT(paramNames.size() == paramValues.size());
     ASSERT(m_frame->page());
@@ -1295,7 +1311,7 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugIn
     parameters.mimeType = mimeType;
     parameters.isFullFramePlugin = loadManually;
     parameters.shouldUseManualLoader = parameters.isFullFramePlugin && !m_frameCameFromPageCache;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     parameters.layerHostingMode = m_frame->page()->layerHostingMode();
 #endif
 
@@ -1323,6 +1339,7 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize&, HTMLPlugIn
 
     return PluginView::create(pluginElement, plugin.release(), parameters);
 #else
+    UNUSED_PARAM(pluginElement);
     return 0;
 #endif
 }
@@ -1337,6 +1354,8 @@ void WebFrameLoaderClient::recreatePlugin(Widget* widget)
     String newMIMEType;
     RefPtr<Plugin> plugin = m_frame->page()->createPlugin(m_frame, pluginView->pluginElement(), pluginView->initialParameters(), newMIMEType);
     pluginView->recreateAndInitialize(plugin.release());
+#else
+    UNUSED_PARAM(widget);
 #endif
 }
 
@@ -1346,9 +1365,28 @@ void WebFrameLoaderClient::redirectDataToPlugin(Widget* pluginWidget)
         m_pluginView = static_cast<PluginView*>(pluginWidget);
 }
 
-PassRefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& pluginSize, HTMLAppletElement* appletElement, const KURL&, const Vector<String>& paramNames, const Vector<String>& paramValues)
+#if ENABLE(WEBGL)
+WebCore::WebGLLoadPolicy WebFrameLoaderClient::webGLPolicyForURL(const String& url) const
 {
-    RefPtr<Widget> plugin = createPlugin(pluginSize, appletElement, KURL(), paramNames, paramValues, appletElement->serviceType(), false);
+    if (WebPage* webPage = m_frame->page())
+        return webPage->webGLPolicyForURL(m_frame, url);
+
+    return WebGLAllowCreation;
+}
+
+WebCore::WebGLLoadPolicy WebFrameLoaderClient::resolveWebGLPolicyForURL(const String& url) const
+{
+    if (WebPage* webPage = m_frame->page())
+        return webPage->resolveWebGLPolicyForURL(m_frame, url);
+
+    return WebGLAllowCreation;
+}
+#endif // ENABLE(WEBGL)
+
+PassRefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& pluginSize, HTMLAppletElement* appletElement, const URL&, const Vector<String>& paramNames, const Vector<String>& paramValues)
+{
+#if ENABLE(NETSCAPE_PLUGIN_API)
+    RefPtr<Widget> plugin = createPlugin(pluginSize, appletElement, URL(), paramNames, paramValues, appletElement->serviceType(), false);
     if (!plugin) {
         if (WebPage* webPage = m_frame->page()) {
             String frameURLString = m_frame->coreFrame()->loader().documentLoader()->responseURL().string();
@@ -1357,10 +1395,17 @@ PassRefPtr<Widget> WebFrameLoaderClient::createJavaAppletWidget(const IntSize& p
         }
     }
     return plugin.release();
+#else
+    UNUSED_PARAM(pluginSize);
+    UNUSED_PARAM(appletElement);
+    UNUSED_PARAM(paramNames);
+    UNUSED_PARAM(paramValues);
+    return 0;
+#endif
 }
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-PassRefPtr<Widget> WebFrameLoaderClient::createMediaPlayerProxyPlugin(const IntSize&, HTMLMediaElement*, const KURL&, const Vector<String>&, const Vector<String>&, const String&)
+PassRefPtr<Widget> WebFrameLoaderClient::createMediaPlayerProxyPlugin(const IntSize&, HTMLMediaElement*, const URL&, const Vector<String>&, const Vector<String>&, const String&)
 {
     notImplemented();
     return 0;
@@ -1390,7 +1435,7 @@ static bool pluginSupportsExtension(const PluginData& pluginData, const String& 
     return false;
 }
 
-ObjectContentType WebFrameLoaderClient::objectContentType(const KURL& url, const String& mimeTypeIn, bool shouldPreferPlugInsForImages)
+ObjectContentType WebFrameLoaderClient::objectContentType(const URL& url, const String& mimeTypeIn, bool shouldPreferPlugInsForImages)
 {
     // FIXME: This should be merged with WebCore::FrameLoader::defaultObjectContentType when the plugin code
     // is consolidated.
@@ -1441,7 +1486,7 @@ String WebFrameLoaderClient::overrideMediaType() const
     return String();
 }
 
-void WebFrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld* world)
+void WebFrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& world)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
@@ -1456,7 +1501,7 @@ void WebFrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld* 
 }
 
 
-void WebFrameLoaderClient::dispatchGlobalObjectAvailable(DOMWrapperWorld* world)
+void WebFrameLoaderClient::dispatchGlobalObjectAvailable(DOMWrapperWorld& world)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)
@@ -1492,22 +1537,12 @@ void WebFrameLoaderClient::dispatchWillDestroyGlobalObjectForDOMWindowExtension(
     webPage->injectedBundleLoaderClient().willDestroyGlobalObjectForDOMWindowExtension(webPage, extension);
 }
 
-void WebFrameLoaderClient::documentElementAvailable()
-{
-    notImplemented();
-}
-
-void WebFrameLoaderClient::didPerformFirstNavigation() const
-{
-    notImplemented();
-}
-
 void WebFrameLoaderClient::registerForIconNotification(bool /*listen*/)
 {
     notImplemented();
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     
 RemoteAXObjectRef WebFrameLoaderClient::accessibilityRemoteObject() 
 {
@@ -1527,7 +1562,7 @@ NSCachedURLResponse* WebFrameLoaderClient::willCacheResponse(DocumentLoader*, un
     return webPage->injectedBundleResourceLoadClient().shouldCacheResponse(webPage, m_frame, identifier) ? response : nil;
 }
 
-#endif // PLATFORM(MAC)
+#endif // PLATFORM(COCOA)
 
 bool WebFrameLoaderClient::shouldAlwaysUsePluginDocument(const String& /*mimeType*/) const
 {
@@ -1551,7 +1586,7 @@ void WebFrameLoaderClient::didChangeScrollOffset()
     if (!m_frame->coreFrame()->view())
         return;
 
-    webPage->didChangeScrollOffsetForMainFrame();
+    webPage->updateMainFrameScrollOffsetPinning();
 }
 
 bool WebFrameLoaderClient::allowScript(bool enabledPerSettings)
@@ -1575,7 +1610,7 @@ bool WebFrameLoaderClient::allowScript(bool enabledPerSettings)
     return true;
 }
 
-bool WebFrameLoaderClient::shouldForceUniversalAccessFromLocalURL(const WebCore::KURL& url)
+bool WebFrameLoaderClient::shouldForceUniversalAccessFromLocalURL(const WebCore::URL& url)
 {
     WebPage* webPage = m_frame->page();
     if (!webPage)

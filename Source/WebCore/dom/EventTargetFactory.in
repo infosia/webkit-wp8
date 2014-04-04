@@ -4,12 +4,11 @@ AudioNode conditional=WEB_AUDIO
 AudioContext conditional=WEB_AUDIO
 AudioTrackList conditional=VIDEO_TRACK
 BatteryManager conditional=BATTERY_STATUS
-DedicatedWorkerGlobalScope conditional=WORKERS
+DedicatedWorkerGlobalScope
 DOMApplicationCache
 DOMWindow
 EventSource
 FileReader conditional=BLOB
-FileWriter conditional=FILE_SYSTEM
 FontLoader conditional=FONT_LOAD_EVENTS
 IDBDatabase conditional=INDEXED_DATABASE
 IDBOpenDBRequest conditional=INDEXED_DATABASE
@@ -34,16 +33,14 @@ SourceBuffer conditional=MEDIA_SOURCE
 SourceBufferList conditional=MEDIA_SOURCE
 SpeechRecognition conditional=SCRIPTED_SPEECH
 SpeechSynthesisUtterance conditional=SPEECH_SYNTHESIS
-SVGElementInstance conditional=SVG
+SVGElementInstance
 TextTrack conditional=VIDEO_TRACK
 TextTrackCue conditional=VIDEO_TRACK
 TextTrackList conditional=VIDEO_TRACK
 VideoTrackList conditional=VIDEO_TRACK
-WebKitMediaSource conditional=MEDIA_SOURCE
 WebKitNamedFlow
-WebKitSourceBufferList conditional=MEDIA_SOURCE
 WebSocket conditional=WEB_SOCKETS
-Worker conditional=WORKERS
+Worker
 XMLHttpRequest
 XMLHttpRequestUpload
 

@@ -26,8 +26,6 @@
 #ifndef DFGOSRExitCompiler_h
 #define DFGOSRExitCompiler_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "AssemblyHelpers.h"
@@ -76,7 +74,7 @@ private:
 };
 
 extern "C" {
-void DFG_OPERATION compileOSRExit(ExecState*) WTF_INTERNAL;
+void JIT_OPERATION compileOSRExit(ExecState*) WTF_INTERNAL;
 }
 
 } } // namespace JSC::DFG

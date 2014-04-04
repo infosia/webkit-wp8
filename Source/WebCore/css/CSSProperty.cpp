@@ -1,6 +1,6 @@
 /**
  * (C) 1999-2003 Lars Knoll (knoll@kde.org)
- * Copyright (C) 2004, 2005, 2006 Apple Computer, Inc.
+ * Copyright (C) 2004, 2005, 2006 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,10 +25,7 @@
 #include "RenderStyleConstants.h"
 #include "StylePropertyShorthand.h"
 
-#if ENABLE(CSS_VARIABLES)
-#include "CSSVariableValue.h"
-#endif
-
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/StringBuilder.h>
 
 namespace WebCore {
@@ -54,7 +51,7 @@ void CSSProperty::wrapValueInCommaSeparatedList()
 {
     RefPtr<CSSValue> value = m_value.release();
     m_value = CSSValueList::createCommaSeparated();
-    static_cast<CSSValueList*>(m_value.get())->append(value.release());
+    toCSSValueList(m_value.get())->append(value.release());
 }
 
 enum LogicalBoxSide { BeforeSide, EndSide, AfterSide, StartSide };
@@ -177,7 +174,7 @@ static CSSPropertyID resolveToPhysicalProperty(WritingMode writingMode, LogicalE
 static const StylePropertyShorthand& borderDirections()
 {
     static const CSSPropertyID properties[4] = { CSSPropertyBorderTop, CSSPropertyBorderRight, CSSPropertyBorderBottom, CSSPropertyBorderLeft };
-    DEFINE_STATIC_LOCAL(StylePropertyShorthand, borderDirections, (CSSPropertyBorder, properties, WTF_ARRAY_LENGTH(properties)));
+    static NeverDestroyed<StylePropertyShorthand> borderDirections(CSSPropertyBorder, properties, WTF_ARRAY_LENGTH(properties));
     return borderDirections;
 }
 
@@ -258,6 +255,41 @@ CSSPropertyID CSSProperty::resolveDirectionAwareProperty(CSSPropertyID propertyI
     }
     default:
         return propertyID;
+    }
+}
+
+bool CSSProperty::isDirectionAwareProperty(CSSPropertyID propertyID)
+{
+    switch (propertyID) {
+    case CSSPropertyWebkitBorderEndColor:
+    case CSSPropertyWebkitBorderEndStyle:
+    case CSSPropertyWebkitBorderEndWidth:
+    case CSSPropertyWebkitBorderStartColor:
+    case CSSPropertyWebkitBorderStartStyle:
+    case CSSPropertyWebkitBorderStartWidth:
+    case CSSPropertyWebkitBorderBeforeColor:
+    case CSSPropertyWebkitBorderBeforeStyle:
+    case CSSPropertyWebkitBorderBeforeWidth:
+    case CSSPropertyWebkitBorderAfterColor:
+    case CSSPropertyWebkitBorderAfterStyle:
+    case CSSPropertyWebkitBorderAfterWidth:
+    case CSSPropertyWebkitMarginEnd:
+    case CSSPropertyWebkitMarginStart:
+    case CSSPropertyWebkitMarginBefore:
+    case CSSPropertyWebkitMarginAfter:
+    case CSSPropertyWebkitPaddingEnd:
+    case CSSPropertyWebkitPaddingStart:
+    case CSSPropertyWebkitPaddingBefore:
+    case CSSPropertyWebkitPaddingAfter:
+    case CSSPropertyWebkitLogicalWidth:
+    case CSSPropertyWebkitLogicalHeight:
+    case CSSPropertyWebkitMinLogicalWidth:
+    case CSSPropertyWebkitMinLogicalHeight:
+    case CSSPropertyWebkitMaxLogicalWidth:
+    case CSSPropertyWebkitMaxLogicalHeight:
+        return true;
+    default:
+        return false;
     }
 }
 

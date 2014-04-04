@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,8 +26,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(WORKERS)
 
 #include "WorkerScriptLoader.h"
 
@@ -57,7 +55,7 @@ WorkerScriptLoader::~WorkerScriptLoader()
 {
 }
 
-void WorkerScriptLoader::loadSynchronously(ScriptExecutionContext* scriptExecutionContext, const KURL& url, CrossOriginRequestPolicy crossOriginRequestPolicy)
+void WorkerScriptLoader::loadSynchronously(ScriptExecutionContext* scriptExecutionContext, const URL& url, CrossOriginRequestPolicy crossOriginRequestPolicy)
 {
     m_url = url;
 
@@ -72,10 +70,10 @@ void WorkerScriptLoader::loadSynchronously(ScriptExecutionContext* scriptExecuti
     options.crossOriginRequestPolicy = crossOriginRequestPolicy;
     options.sendLoadCallbacks = SendCallbacks;
 
-    WorkerThreadableLoader::loadResourceSynchronously(static_cast<WorkerGlobalScope*>(scriptExecutionContext), *request, *this, options);
+    WorkerThreadableLoader::loadResourceSynchronously(toWorkerGlobalScope(scriptExecutionContext), *request, *this, options);
 }
     
-void WorkerScriptLoader::loadAsynchronously(ScriptExecutionContext* scriptExecutionContext, const KURL& url, CrossOriginRequestPolicy crossOriginRequestPolicy, WorkerScriptLoaderClient* client)
+void WorkerScriptLoader::loadAsynchronously(ScriptExecutionContext* scriptExecutionContext, const URL& url, CrossOriginRequestPolicy crossOriginRequestPolicy, WorkerScriptLoaderClient* client)
 {
     ASSERT(client);
     m_client = client;
@@ -95,7 +93,7 @@ void WorkerScriptLoader::loadAsynchronously(ScriptExecutionContext* scriptExecut
     m_threadableLoader = ThreadableLoader::create(scriptExecutionContext, this, *request, options);
 }
 
-const KURL& WorkerScriptLoader::responseURL() const
+const URL& WorkerScriptLoader::responseURL() const
 {
     ASSERT(!failed());
     return m_responseURL;
@@ -105,9 +103,6 @@ PassOwnPtr<ResourceRequest> WorkerScriptLoader::createResourceRequest()
 {
     OwnPtr<ResourceRequest> request = adoptPtr(new ResourceRequest(m_url));
     request->setHTTPMethod("GET");
-#if PLATFORM(BLACKBERRY)
-    request->setTargetType(m_targetType);
-#endif
     return request.release();
 }
     
@@ -189,5 +184,3 @@ void WorkerScriptLoader::notifyFinished()
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)

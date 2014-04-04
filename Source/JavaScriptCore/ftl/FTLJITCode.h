@@ -26,14 +26,16 @@
 #ifndef FTLJITCode_h
 #define FTLJITCode_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(FTL_JIT)
 
 #include "DFGCommonData.h"
+#include "FTLDataSection.h"
 #include "FTLOSRExit.h"
+#include "FTLStackMaps.h"
+#include "FTLUnwindInfo.h"
 #include "JITCode.h"
-#include <wtf/LLVMHeaders.h>
+#include "LLVMAPI.h"
+#include <wtf/RefCountedArray.h>
 
 namespace JSC { namespace FTL {
 
@@ -42,18 +44,21 @@ public:
     JITCode();
     ~JITCode();
     
-    CodePtr addressForCall();
-    void* executableAddressAtOffset(size_t offset);
-    void* dataAddressAtOffset(size_t offset);
-    unsigned offsetOf(void* pointerIntoCode);
-    size_t size();
-    bool contains(void*);
+    CodePtr addressForCall(VM&, ExecutableBase*, ArityCheckMode, RegisterPreservationMode) override;
+    void* executableAddressAtOffset(size_t offset) override;
+    void* dataAddressAtOffset(size_t offset) override;
+    unsigned offsetOf(void* pointerIntoCode) override;
+    size_t size() override;
+    bool contains(void*) override;
     
     void initializeExitThunks(CodeRef);
     void addHandle(PassRefPtr<ExecutableMemoryHandle>);
-    void initializeCode(CodeRef entrypoint);
+    void addDataSection(PassRefPtr<DataSection>);
+    void initializeArityCheckEntrypoint(CodeRef);
+    void initializeAddressForCall(CodePtr);
     
-    const Vector<RefPtr<ExecutableMemoryHandle> >& handles() const { return m_handles; }
+    const Vector<RefPtr<ExecutableMemoryHandle>>& handles() const { return m_handles; }
+    const Vector<RefPtr<DataSection>>& dataSections() const { return m_dataSections; }
     
     CodePtr exitThunks();
     
@@ -62,10 +67,14 @@ public:
     
     DFG::CommonData common;
     SegmentedVector<OSRExit, 8> osrExit;
+    StackMaps stackmaps;
+    UnwindInfo unwindInfo;
     
 private:
-    Vector<RefPtr<ExecutableMemoryHandle> > m_handles;
-    CodeRef m_entrypoint;
+    Vector<RefPtr<DataSection>> m_dataSections;
+    Vector<RefPtr<ExecutableMemoryHandle>> m_handles;
+    CodePtr m_addressForCall;
+    CodeRef m_arityCheckEntrypoint;
     CodeRef m_exitThunks;
 };
 

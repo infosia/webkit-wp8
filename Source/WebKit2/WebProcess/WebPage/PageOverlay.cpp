@@ -28,9 +28,9 @@
 
 #include "WebPage.h"
 #include "WebProcess.h"
-#include <WebCore/Frame.h>
 #include <WebCore/FrameView.h>
 #include <WebCore/GraphicsContext.h>
+#include <WebCore/MainFrame.h>
 #include <WebCore/Page.h>
 #include <WebCore/ScrollbarTheme.h>
 #include <wtf/CurrentTime.h>
@@ -189,6 +189,11 @@ void PageOverlay::fadeAnimationTimerFired()
             m_webPage->uninstallPageOverlay(this, false);
         }
     }
+}
+
+void PageOverlay::clear()
+{
+    m_webPage->drawingArea()->clearPageOverlay(this);
 }
 
 } // namespace WebKit

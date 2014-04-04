@@ -26,6 +26,7 @@
 #ifndef PlugInAutoStartProvider_h
 #define PlugInAutoStartProvider_h
 
+#include <functional>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
@@ -33,9 +34,12 @@
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
+namespace API {
+class Array;
+}
+
 namespace WebKit {
 
-class ImmutableArray;
 class ImmutableDictionary;
 class WebContext;
 
@@ -52,13 +56,16 @@ public:
 
     PassRefPtr<ImmutableDictionary> autoStartOriginsTableCopy() const;
     void setAutoStartOriginsTable(ImmutableDictionary&);
-    void setAutoStartOriginsArray(ImmutableArray&);
+    void setAutoStartOriginsFilteringOutEntriesAddedAfterTime(ImmutableDictionary&, double time);
+    void setAutoStartOriginsArray(API::Array&);
 
     PlugInAutoStartOriginHash autoStartOriginHashesCopy() const;
     const PlugInAutoStartOrigins& autoStartOrigins() const { return m_autoStartOrigins; }
 
 private:
     WebContext* m_context;
+
+    void setAutoStartOriginsTableWithItemsPassingTest(ImmutableDictionary&, std::function<bool(double expirationTimestamp)>);
 
     typedef HashMap<String, PlugInAutoStartOriginHash, CaseFoldingHash> AutoStartTable;
     AutoStartTable m_autoStartTable;

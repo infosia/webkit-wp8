@@ -55,7 +55,12 @@ AXStyleTextMarkerRangeForTextMarker
 AXLengthForTextMarkerRange
 AXBoundsForRange
 AXStringForRange
+AXUIElementCountForSearchPredicate
 AXUIElementsForSearchPredicate
+AXEndTextMarkerForBounds
+AXStartTextMarkerForBounds
+AXLineTextMarkerRangeForTextMarker
+AXSelectTextWithCriteria
 
 ----------------------
 {{-1.000000, -1.000000}, {59.000000, 18.000000}}

@@ -25,7 +25,7 @@
 
 #import "config.h"
 
-#if ENABLE(FULLSCREEN_API)
+#if ENABLE(FULLSCREEN_API) && !PLATFORM(IOS)
 
 #import "WebCoreFullScreenWindow.h"
 
@@ -42,7 +42,6 @@
     [self setAcceptsMouseMovedEvents:YES];
     [self setReleasedWhenClosed:NO];
     [self setHasShadow:NO];
-    [self setMovable:NO];
 
     return self;
 }

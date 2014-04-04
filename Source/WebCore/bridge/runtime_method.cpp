@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -43,7 +43,7 @@ const ClassInfo RuntimeMethod::s_info = { "RuntimeMethod", &InternalFunction::s_
 
 RuntimeMethod::RuntimeMethod(JSGlobalObject* globalObject, Structure* structure, Method* method)
     // Callers will need to pass in the right global object corresponding to this native object "method".
-    : InternalFunction(globalObject, structure)
+    : InternalFunction(globalObject->vm(), structure)
     , m_method(method)
 {
 }
@@ -54,11 +54,12 @@ void RuntimeMethod::finishCreation(VM& vm, const String& ident)
     ASSERT(inherits(info()));
 }
 
-JSValue RuntimeMethod::lengthGetter(ExecState*, JSValue slotBase, PropertyName)
+EncodedJSValue RuntimeMethod::lengthGetter(ExecState* exec, JSObject*, EncodedJSValue thisValue, PropertyName)
 {
-    RuntimeMethod* thisObj = static_cast<RuntimeMethod*>(asObject(slotBase));
-
-    return jsNumber(thisObj->m_method->numParameters());
+    RuntimeMethod* thisObject = jsDynamicCast<RuntimeMethod*>(JSValue::decode(thisValue));
+    if (!thisObject)
+        return throwVMTypeError(exec);
+    return JSValue::encode(jsNumber(thisObject->m_method->numParameters()));
 }
 
 bool RuntimeMethod::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot &slot)
@@ -81,7 +82,7 @@ static EncodedJSValue JSC_HOST_CALL callRuntimeMethod(ExecState* exec)
 
     RefPtr<Instance> instance;
 
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (thisValue.inherits(RuntimeObject::info())) {
         RuntimeObject* runtimeObject = static_cast<RuntimeObject*>(asObject(thisValue));
         instance = runtimeObject->getInternalInstance();
@@ -90,7 +91,7 @@ static EncodedJSValue JSC_HOST_CALL callRuntimeMethod(ExecState* exec)
     } else {
         // Calling a runtime object of a plugin element?
         if (thisValue.inherits(JSHTMLElement::info()))
-            instance = pluginInstance(*jsCast<JSHTMLElement*>(asObject(thisValue))->impl());
+            instance = pluginInstance(jsCast<JSHTMLElement*>(asObject(thisValue))->impl());
         if (!instance)
             return throwVMTypeError(exec);
     }

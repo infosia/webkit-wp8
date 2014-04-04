@@ -26,11 +26,16 @@
 #ifndef WebArchive_h
 #define WebArchive_h
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 
 #include "APIObject.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
+
+namespace API {
+class Array;
+class Data;
+}
 
 namespace WebCore {
 class LegacyWebArchive;
@@ -39,40 +44,38 @@ class Range;
 
 namespace WebKit {
 
-class ImmutableArray;
 class WebArchiveResource;
-class WebData;
 
-class WebArchive : public TypedAPIObject<APIObject::TypeWebArchive> {
+class WebArchive : public API::ObjectImpl<API::Object::Type::WebArchive> {
 public:
     virtual ~WebArchive();
 
-    static PassRefPtr<WebArchive> create(WebArchiveResource* mainResource, ImmutableArray* subresources, ImmutableArray* subframeArchives);
-    static PassRefPtr<WebArchive> create(WebData*);
+    static PassRefPtr<WebArchive> create(WebArchiveResource* mainResource, PassRefPtr<API::Array> subresources, PassRefPtr<API::Array> subframeArchives);
+    static PassRefPtr<WebArchive> create(API::Data*);
     static PassRefPtr<WebArchive> create(PassRefPtr<WebCore::LegacyWebArchive>);
     static PassRefPtr<WebArchive> create(WebCore::Range*);
 
     WebArchiveResource* mainResource();
-    ImmutableArray* subresources();
-    ImmutableArray* subframeArchives();
+    API::Array* subresources();
+    API::Array* subframeArchives();
 
-    PassRefPtr<WebData> data();
+    PassRefPtr<API::Data> data();
 
     WebCore::LegacyWebArchive* coreLegacyWebArchive();
 
 private:
-    WebArchive(WebArchiveResource* mainResource, ImmutableArray* subresources, ImmutableArray* subframeArchives);
-    WebArchive(WebData*);
+    WebArchive(WebArchiveResource* mainResource, PassRefPtr<API::Array> subresources, PassRefPtr<API::Array> subframeArchives);
+    WebArchive(API::Data*);
     WebArchive(PassRefPtr<WebCore::LegacyWebArchive>);
 
     RefPtr<WebCore::LegacyWebArchive> m_legacyWebArchive;
     RefPtr<WebArchiveResource> m_cachedMainResource;
-    RefPtr<ImmutableArray> m_cachedSubresources;
-    RefPtr<ImmutableArray> m_cachedSubframeArchives;
+    RefPtr<API::Array> m_cachedSubresources;
+    RefPtr<API::Array> m_cachedSubframeArchives;
 };
 
 } // namespace WebKit
 
-#endif // PLATFORM(MAC)
+#endif // PLATFORM(COCOA)
 
 #endif // WebArchive_h

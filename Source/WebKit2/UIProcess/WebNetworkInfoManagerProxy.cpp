@@ -49,14 +49,14 @@ WebNetworkInfoManagerProxy::WebNetworkInfoManagerProxy(WebContext* context)
     : WebContextSupplement(context)
     , m_isUpdating(false)
 {
-    WebContextSupplement::context()->addMessageReceiver(Messages::WebNetworkInfoManagerProxy::messageReceiverName(), this);
+    WebContextSupplement::context()->addMessageReceiver(Messages::WebNetworkInfoManagerProxy::messageReceiverName(), *this);
 }
 
 WebNetworkInfoManagerProxy::~WebNetworkInfoManagerProxy()
 {
 }
 
-void WebNetworkInfoManagerProxy::initializeProvider(const WKNetworkInfoProvider* provider)
+void WebNetworkInfoManagerProxy::initializeProvider(const WKNetworkInfoProviderBase* provider)
 {
     m_provider.initialize(provider);
 }
@@ -83,12 +83,12 @@ void WebNetworkInfoManagerProxy::processDidClose(WebProcessProxy*)
 
 void WebNetworkInfoManagerProxy::refWebContextSupplement()
 {
-    APIObject::ref();
+    API::Object::ref();
 }
 
 void WebNetworkInfoManagerProxy::derefWebContextSupplement()
 {
-    APIObject::deref();
+    API::Object::deref();
 }
 
 void WebNetworkInfoManagerProxy::startUpdating()

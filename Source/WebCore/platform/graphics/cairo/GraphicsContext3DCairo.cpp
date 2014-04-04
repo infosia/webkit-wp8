@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -83,6 +83,7 @@ GraphicsContext3D::GraphicsContext3D(GraphicsContext3D::Attributes attributes, H
     , m_compiler(isGLES2Compliant() ? SH_ESSL_OUTPUT : SH_GLSL_OUTPUT)
     , m_attrs(attributes)
     , m_texture(0)
+    , m_compositorTexture(0)
     , m_fbo(0)
     , m_depthStencilBuffer(0)
     , m_multisampleFBO(0)
@@ -158,7 +159,11 @@ GraphicsContext3D::~GraphicsContext3D()
         return;
 
     makeContextCurrent();
-    ::glDeleteTextures(1, &m_texture);
+    if (m_texture)
+        ::glDeleteTextures(1, &m_texture);
+    if (m_compositorTexture)
+        ::glDeleteTextures(1, &m_compositorTexture);
+
     if (m_attrs.antialias) {
         ::glDeleteRenderbuffers(1, &m_multisampleColorBuffer);
         if (m_attrs.stencil || m_attrs.depth)
@@ -301,12 +306,10 @@ bool GraphicsContext3D::isGLES2Compliant() const
 #endif
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 PlatformLayer* GraphicsContext3D::platformLayer() const
 {
     return m_private.get();
 }
-#endif
 
 } // namespace WebCore
 

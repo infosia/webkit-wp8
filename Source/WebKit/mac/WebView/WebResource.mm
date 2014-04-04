@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -38,13 +38,13 @@
 #import <wtf/PassRefPtr.h>
 #import <WebCore/ArchiveResource.h>
 #import <WebCore/LegacyWebArchive.h>
-#import <WebCore/RunLoop.h>
 #import <WebCore/RuntimeApplicationChecks.h>
 #import <WebCore/TextEncoding.h>
 #import <WebCore/ThreadCheck.h>
 #import <WebCore/WebCoreObjCExtras.h>
 #import <WebCore/WebCoreURLResponse.h>
 #import <wtf/MainThread.h>
+#import <wtf/RunLoop.h>
 
 using namespace WebCore;
 
@@ -59,25 +59,27 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
 @public
     ArchiveResource* coreResource;
 }
-- (id)initWithCoreResource:(PassRefPtr<ArchiveResource>)coreResource;
+- (instancetype)initWithCoreResource:(PassRefPtr<ArchiveResource>)coreResource;
 @end
 
 @implementation WebResourcePrivate
 
 + (void)initialize
 {
+#if !PLATFORM(IOS)
     JSC::initializeThreading();
     WTF::initializeMainThreadToProcessMainThread();
-    WebCore::RunLoop::initializeMainRunLoop();
+    RunLoop::initializeMainRunLoop();
+#endif
     WebCoreObjCFinalizeOnMainThread(self);
 }
 
-- (id)init
+- (instancetype)init
 {
     return [super init];
 }
 
-- (id)initWithCoreResource:(PassRefPtr<ArchiveResource>)passedResource
+- (instancetype)initWithCoreResource:(PassRefPtr<ArchiveResource>)passedResource
 {
     self = [super init];
     if (!self)
@@ -108,7 +110,7 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
 
 @implementation WebResource
 
-- (id)init
+- (instancetype)init
 {
     self = [super init];
     if (!self)
@@ -117,12 +119,12 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
     return self;
 }
 
-- (id)initWithData:(NSData *)data URL:(NSURL *)URL MIMEType:(NSString *)MIMEType textEncodingName:(NSString *)textEncodingName frameName:(NSString *)frameName
+- (instancetype)initWithData:(NSData *)data URL:(NSURL *)URL MIMEType:(NSString *)MIMEType textEncodingName:(NSString *)textEncodingName frameName:(NSString *)frameName
 {
     return [self _initWithData:data URL:URL MIMEType:MIMEType textEncodingName:textEncodingName frameName:frameName response:nil copyData:YES];
 }
 
-- (id)initWithCoder:(NSCoder *)decoder
+- (instancetype)initWithCoder:(NSCoder *)decoder
 {
     WebCoreThreadViolationCheckRoundTwo();
 
@@ -254,7 +256,11 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
 
 - (NSString *)description
 {
+#if !PLATFORM(IOS)
     return [NSString stringWithFormat:@"<%@ %@>", [self className], [self URL]];
+#else
+    return [NSString stringWithFormat:@"<%@ %@>", NSStringFromClass([self class]), [self URL]];
+#endif
 }
 
 @end
@@ -348,6 +354,7 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
     return suggestedFilename;
 }
 
+#if !PLATFORM(IOS)
 - (NSFileWrapper *)_fileWrapperRepresentation
 {
     NSFileWrapper *wrapper = [[[NSFileWrapper alloc] initRegularFileWithContents:[self data]] autorelease];
@@ -357,6 +364,7 @@ static NSString * const WebResourceResponseKey =          @"WebResourceResponse"
     [wrapper setPreferredFilename:filename];
     return wrapper;
 }
+#endif
 
 - (NSURLResponse *)_response
 {

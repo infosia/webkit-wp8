@@ -20,7 +20,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFETileElement.h"
 
 #include "Attribute.h"
@@ -54,7 +54,7 @@ PassRefPtr<SVGFETileElement> SVGFETileElement::create(const QualifiedName& tagNa
 
 bool SVGFETileElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty())
         supportedAttributes.add(SVGNames::inAttr);
     return supportedAttributes.contains<SVGAttributeHashTranslator>(attrName);
@@ -106,4 +106,4 @@ PassRefPtr<FilterEffect> SVGFETileElement::build(SVGFilterBuilder* filterBuilder
 
 }
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

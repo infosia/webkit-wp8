@@ -24,26 +24,15 @@
 #ifndef KeyboardEvent_h
 #define KeyboardEvent_h
 
-#include "EventDispatchMediator.h"
+#include "KeypressCommand.h"
 #include "UIEventWithKeyState.h"
+#include <memory>
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class EventDispatcher;
 class Node;
 class PlatformKeyboardEvent;
-
-#if PLATFORM(MAC)
-struct KeypressCommand {
-    KeypressCommand() { }
-    explicit KeypressCommand(const String& commandName) : commandName(commandName) { ASSERT(isASCIILower(commandName[0U])); }
-    KeypressCommand(const String& commandName, const String& text) : commandName(commandName), text(text) { ASSERT(commandName == "insertText:"); }
-
-    String commandName; // Actually, a selector name - it may have a trailing colon, and a name that can be different from an editor command name.
-    String text;
-};
-#endif
 
 struct KeyboardEventInit : public UIEventInit {
     KeyboardEventInit();
@@ -98,15 +87,18 @@ public:
     
     const PlatformKeyboardEvent* keyEvent() const { return m_keyEvent.get(); }
 
-    int keyCode() const; // key code for keydown and keyup, character for keypress
-    int charCode() const; // character code for keypress, 0 for keydown and keyup
+    virtual int keyCode() const override; // key code for keydown and keyup, character for keypress
+    virtual int charCode() const override; // character code for keypress, 0 for keydown and keyup
 
-    virtual EventInterface eventInterface() const;
-    virtual bool isKeyboardEvent() const;
-    virtual int which() const;
+    virtual EventInterface eventInterface() const override;
+    virtual bool isKeyboardEvent() const override;
+    virtual int which() const override;
 
-#if PLATFORM(MAC)
-    // We only have this need to store keypress command info on the Mac.
+#if PLATFORM(COCOA)
+    bool handledByInputMethod() const { return m_handledByInputMethod; }
+    const Vector<KeypressCommand>& keypressCommands() const { return m_keypressCommands; }
+
+    // The non-const version is still needed for WebKit1, which doesn't construct a complete KeyboardEvent with interpreted commands yet.
     Vector<KeypressCommand>& keypressCommands() { return m_keypressCommands; }
 #endif
 
@@ -115,26 +107,21 @@ private:
     KeyboardEvent(const PlatformKeyboardEvent&, AbstractView*);
     KeyboardEvent(const AtomicString&, const KeyboardEventInit&);
 
-    OwnPtr<PlatformKeyboardEvent> m_keyEvent;
+    std::unique_ptr<PlatformKeyboardEvent> m_keyEvent;
     String m_keyIdentifier;
     unsigned m_location;
     bool m_altGraphKey : 1;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Commands that were sent by AppKit when interpreting the event. Doesn't include input method commands.
+    bool m_handledByInputMethod;
     Vector<KeypressCommand> m_keypressCommands;
 #endif
 };
 
-KeyboardEvent* findKeyboardEvent(Event*);
+EVENT_TYPE_CASTS(KeyboardEvent)
 
-class KeyboardEventDispatchMediator : public EventDispatchMediator {
-public:
-    static PassRefPtr<KeyboardEventDispatchMediator> create(PassRefPtr<KeyboardEvent>);
-private:
-    explicit KeyboardEventDispatchMediator(PassRefPtr<KeyboardEvent>);
-    virtual bool dispatchEvent(EventDispatcher*) const OVERRIDE;
-};
+KeyboardEvent* findKeyboardEvent(Event*);
 
 } // namespace WebCore
 

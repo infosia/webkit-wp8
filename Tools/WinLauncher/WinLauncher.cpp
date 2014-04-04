@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008, 2013 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006, 2008, 2013 Apple Inc.  All rights reserved.
  * Copyright (C) 2009, 2011 Brent Fulgham.  All rights reserved.
  * Copyright (C) 2009, 2010, 2011 Appcelerator, Inc. All rights reserved.
  * Copyright (C) 2013 Alex Christensen. All rights reserved.
@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,6 +33,7 @@
 #include "DOMDefaultImpl.h"
 #include "PrintWebUIDelegate.h"
 #include "WinLauncherLibResource.h"
+#include "WinLauncherReplace.h"
 #include <WebKit/WebKitCOMAPI.h>
 #include <wtf/ExportMacros.h>
 #include <wtf/Platform.h>
@@ -41,15 +42,21 @@
 #include <CoreFoundation/CFRunLoop.h>
 #endif
 
+#if USE(GLIB)
+#include <glib.h>
+#endif
+
 #include <algorithm>
 #include <assert.h>
 #include <comip.h>
 #include <commctrl.h>
 #include <commdlg.h>
 #include <comutil.h>
+#include <dbghelp.h>
 #include <functional>
 #include <objbase.h>
 #include <shellapi.h>
+#include <shlobj.h>
 #include <shlwapi.h>
 #include <string>
 #include <vector>
@@ -70,6 +77,7 @@ typedef _com_ptr_t<_com_IIID<IWebPreferences, &__uuidof(IWebPreferences)>> IWebP
 typedef _com_ptr_t<_com_IIID<IWebPreferencesPrivate, &__uuidof(IWebPreferencesPrivate)>> IWebPreferencesPrivatePtr;
 typedef _com_ptr_t<_com_IIID<IWebView, &__uuidof(IWebView)>> IWebViewPtr;
 typedef _com_ptr_t<_com_IIID<IWebViewPrivate, &__uuidof(IWebViewPrivate)>> IWebViewPrivatePtr;
+typedef _com_ptr_t<_com_IIID<IWebCache, &__uuidof(IWebCache)>> IWebCachePtr;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -180,7 +188,8 @@ HRESULT WinLauncherWebHost::didFailProvisionalLoadWithError(IWebView*, IWebError
     if (FAILED(hr))
         errorDescription = L"Failed to load page and to localize error description.";
 
-    ::MessageBoxW(0, static_cast<LPCWSTR>(errorDescription), L"Error", MB_APPLMODAL | MB_OK);
+    if (_wcsicmp(errorDescription, L"Cancelled"))
+        ::MessageBoxW(0, static_cast<LPCWSTR>(errorDescription), L"Error", MB_APPLMODAL | MB_OK);
 
     return S_OK;
 }
@@ -382,6 +391,21 @@ BOOL WINAPI DllMain(HINSTANCE dllInstance, DWORD reason, LPVOID)
     return TRUE;
 }
 
+static bool getAppDataFolder(_bstr_t& directory)
+{
+    wchar_t appDataDirectory[MAX_PATH];
+    if (FAILED(SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, 0, 0, appDataDirectory)))
+        return false;
+
+    wchar_t executablePath[MAX_PATH];
+    ::GetModuleFileNameW(0, executablePath, MAX_PATH);
+    ::PathRemoveExtensionW(executablePath);
+
+    directory = _bstr_t(appDataDirectory) + L"\\" + ::PathFindFileNameW(executablePath);
+
+    return true;
+}
+
 static bool setToDefaultPreferences()
 {
     HRESULT hr = gStandardPreferences->QueryInterface(IID_IWebPreferencesPrivate, reinterpret_cast<void**>(&gPrefsPrivate.GetInterfacePtr()));
@@ -408,12 +432,59 @@ static bool setToDefaultPreferences()
     return true;
 }
 
+static bool setCacheFolder()
+{
+    IWebCachePtr webCache;
 
-#if USE(CF)
-extern "C" void _CFRunLoopSetWindowsMessageQueueMask(CFRunLoopRef, uint32_t, CFStringRef);
+    HRESULT hr = WebKitCreateInstance(CLSID_WebCache, 0, __uuidof(webCache), reinterpret_cast<void**>(&webCache.GetInterfacePtr()));
+    if (FAILED(hr))
+        return false;
+
+    _bstr_t appDataFolder;
+    if (!getAppDataFolder(appDataFolder))
+        return false;
+
+    appDataFolder += L"\\cache";
+    webCache->setCacheFolder(appDataFolder);
+
+    return true;
+}
+
+void createCrashReport(EXCEPTION_POINTERS* exceptionPointers)
+{
+    _bstr_t directory;
+
+    if (!getAppDataFolder(directory))
+        return;
+
+    if (::SHCreateDirectoryEx(0, directory, 0) != ERROR_SUCCESS
+        && ::GetLastError() != ERROR_FILE_EXISTS
+        && ::GetLastError() != ERROR_ALREADY_EXISTS)
+        return;
+
+    std::wstring fileName = directory + L"\\CrashReport.dmp";
+    HANDLE miniDumpFile = ::CreateFile(fileName.c_str(), GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+
+    if (miniDumpFile && miniDumpFile != INVALID_HANDLE_VALUE) {
+
+        MINIDUMP_EXCEPTION_INFORMATION mdei;
+        mdei.ThreadId = ::GetCurrentThreadId();
+        mdei.ExceptionPointers  = exceptionPointers;
+        mdei.ClientPointers = 0;
+
+#ifdef _DEBUG
+        MINIDUMP_TYPE dumpType = MiniDumpWithFullMemory;
+#else
+        MINIDUMP_TYPE dumpType = MiniDumpNormal;
 #endif
 
-extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HINSTANCE, LPTSTR, int nCmdShow)
+        ::MiniDumpWriteDump(::GetCurrentProcess(), ::GetCurrentProcessId(), miniDumpFile, dumpType, &mdei, 0, 0);
+        ::CloseHandle(miniDumpFile);
+        processCrashReport(fileName.c_str());
+    }
+}
+
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow)
 {
 #ifdef _CRTDBG_MAP_ALLOC
     _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
@@ -507,6 +578,9 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
     if (FAILED(hr))
         goto exit;
 
+    if (!setCacheFolder())
+        goto exit;
+
     gWebHost = new WinLauncherWebHost();
     gWebHost->AddRef();
     hr = gWebView->setFrameLoadDelegate(gWebHost);
@@ -539,8 +613,7 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
         if (FAILED(hr))
             goto exit;
 
-        _bstr_t defaultHTML(L"<p style=\"background-color: #00FF00\">Testing</p><img id=\"webkit logo\" src=\"http://webkit.org/images/icon-gold.png\" alt=\"Face\"><div style=\"border: solid blue; background: white;\" contenteditable=\"true\">div with blue border</div><ul><li>foo<li>bar<li>baz</ul>");
-        frame->loadHTMLString(defaultHTML.GetBSTR(), 0);
+        frame->loadHTMLString(_bstr_t(defaultHTML).GetBSTR(), 0);
     }
 
     hr = gWebViewPrivate->setTransparent(usesLayeredWebView());
@@ -568,18 +641,23 @@ extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE, HIN
     if (requestedURL.length())
         loadURL(requestedURL.GetBSTR());
 
+#pragma warning(disable:4509)
+
     // Main message loop:
+    __try {
+        while (GetMessage(&msg, 0, 0, 0)) {
 #if USE(CF)
-    _CFRunLoopSetWindowsMessageQueueMask(CFRunLoopGetMain(), QS_ALLINPUT | QS_ALLPOSTMESSAGE, kCFRunLoopDefaultMode);
-    CFRunLoopRun();
-#else
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+            CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true);
 #endif
+            if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            }
+#if USE(GLIB)
+            g_main_context_iteration(0, false);
+#endif
+        }
+    } __except(createCrashReport(GetExceptionInformation()), EXCEPTION_EXECUTE_HANDLER) { }
 
 exit:
     gPrintDelegate->Release();
@@ -882,7 +960,7 @@ LRESULT CALLBACK EditProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
             strPtr[strLen] = 0;
             _bstr_t bstr(strPtr);
-            loadURL(bstr);
+            loadURL(bstr.GetBSTR());
 
             return 0;
         } 
@@ -931,14 +1009,15 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-static void loadURL(BSTR urlBStr)
+static void loadURL(BSTR passedURL)
 {
-    if (urlBStr && urlBStr[0] && (PathFileExists(urlBStr) || PathIsUNC(urlBStr))) {
+    _bstr_t urlBStr(passedURL);
+    if (!!urlBStr && (::PathFileExists(urlBStr) || ::PathIsUNC(urlBStr))) {
         TCHAR fileURL[INTERNET_MAX_URL_LENGTH];
         DWORD fileURLLength = sizeof(fileURL)/sizeof(fileURL[0]);
 
-        if (SUCCEEDED(UrlCreateFromPath(urlBStr, fileURL, &fileURLLength, 0)))
-            SysReAllocString(&urlBStr, fileURL);
+        if (SUCCEEDED(::UrlCreateFromPath(urlBStr, fileURL, &fileURLLength, 0)))
+            urlBStr = fileURL;
     }
 
     IWebFramePtr frame;
@@ -951,7 +1030,7 @@ static void loadURL(BSTR urlBStr)
     if (FAILED(hr))
         return;
 
-    hr = request->initWithURL(wcsstr(urlBStr, L"://") ? urlBStr : _bstr_t(L"http://") + urlBStr, WebURLRequestUseProtocolCachePolicy, 60);
+    hr = request->initWithURL(wcsstr(static_cast<wchar_t*>(urlBStr), L"://") ? urlBStr : _bstr_t(L"http://") + urlBStr, WebURLRequestUseProtocolCachePolicy, 60);
     if (FAILED(hr))
         return;
 
@@ -965,4 +1044,9 @@ static void loadURL(BSTR urlBStr)
         return;
 
     SetFocus(gViewWindow);
+}
+
+extern "C" __declspec(dllexport) int WINAPI dllLauncherEntryPoint(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpstrCmdLine, int nCmdShow)
+{
+    return wWinMain(hInstance, hPrevInstance, lpstrCmdLine, nCmdShow);
 }

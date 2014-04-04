@@ -22,8 +22,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGMaskElement.h"
 
 #include "Attribute.h"
@@ -79,7 +77,7 @@ PassRefPtr<SVGMaskElement> SVGMaskElement::create(const QualifiedName& tagName, 
 
 bool SVGMaskElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGTests::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -143,7 +141,7 @@ void SVGMaskElement::svgAttributeChanged(const QualifiedName& attrName)
         updateRelativeLengthsInformation();
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
 void SVGMaskElement::childrenChanged(const ChildChange& change)
@@ -154,12 +152,12 @@ void SVGMaskElement::childrenChanged(const ChildChange& change)
         return;
 
     if (RenderObject* object = renderer())
-        object->setNeedsLayout(true);
+        object->setNeedsLayout();
 }
 
-RenderElement* SVGMaskElement::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> SVGMaskElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderSVGResourceMasker(*this);
+    return createRenderer<RenderSVGResourceMasker>(*this, std::move(style));
 }
 
 bool SVGMaskElement::selfHasRelativeLengths() const
@@ -171,5 +169,3 @@ bool SVGMaskElement::selfHasRelativeLengths() const
 }
 
 }
-
-#endif // ENABLE(SVG)

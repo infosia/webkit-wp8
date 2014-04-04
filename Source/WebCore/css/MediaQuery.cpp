@@ -16,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -72,23 +72,20 @@ String MediaQuery::serialize() const
     return result.toString();
 }
 
-static bool expressionCompare(const OwnPtr<MediaQueryExp>& a, const OwnPtr<MediaQueryExp>& b)
-{
-    return codePointCompare(a->serialize(), b->serialize()) < 0;
-}
-
-MediaQuery::MediaQuery(Restrictor r, const String& mediaType, PassOwnPtr<ExpressionVector> exprs)
+MediaQuery::MediaQuery(Restrictor r, const String& mediaType, std::unique_ptr<ExpressionVector> exprs)
     : m_restrictor(r)
     , m_mediaType(mediaType.lower())
-    , m_expressions(exprs)
+    , m_expressions(std::move(exprs))
     , m_ignored(false)
 {
     if (!m_expressions) {
-        m_expressions = adoptPtr(new ExpressionVector);
+        m_expressions = std::make_unique<ExpressionVector>();
         return;
     }
 
-    std::sort(m_expressions->begin(), m_expressions->end(), expressionCompare);
+    std::sort(m_expressions->begin(), m_expressions->end(), [](const std::unique_ptr<MediaQueryExp>& a, const std::unique_ptr<MediaQueryExp>& b) {
+        return codePointCompare(a->serialize(), b->serialize()) < 0;
+    });
 
     // remove all duplicated expressions
     String key;
@@ -108,12 +105,12 @@ MediaQuery::MediaQuery(Restrictor r, const String& mediaType, PassOwnPtr<Express
 MediaQuery::MediaQuery(const MediaQuery& o)
     : m_restrictor(o.m_restrictor)
     , m_mediaType(o.m_mediaType)
-    , m_expressions(adoptPtr(new ExpressionVector(o.m_expressions->size())))
+    , m_expressions(std::make_unique<ExpressionVector>(o.m_expressions->size()))
     , m_ignored(o.m_ignored)
     , m_serializationCache(o.m_serializationCache)
 {
     for (unsigned i = 0; i < m_expressions->size(); ++i)
-        (*m_expressions)[i] = o.m_expressions->at(i)->copy();
+        (*m_expressions)[i] = std::move(o.m_expressions->at(i)->copy());
 }
 
 MediaQuery::~MediaQuery()

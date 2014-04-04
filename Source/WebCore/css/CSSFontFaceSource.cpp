@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -115,9 +115,9 @@ PassRefPtr<SimpleFontData> CSSFontFaceSource::getFontData(const FontDescription&
     unsigned hashKey = (fontDescription.computedPixelSize() + 1) << 5 | fontDescription.widthVariant() << 3
                        | (fontDescription.orientation() == Vertical ? 4 : 0) | (syntheticBold ? 2 : 0) | (syntheticItalic ? 1 : 0);
 
-    RefPtr<SimpleFontData>& fontData = m_fontDataTable.add(hashKey, nullptr).iterator->value;
+    RefPtr<SimpleFontData> fontData = m_fontDataTable.add(hashKey, nullptr).iterator->value;
     if (fontData)
-        return fontData; // No release, because fontData is a reference to a RefPtr that is held in the m_fontDataTable.
+        return fontData.release();
 
     // If we are still loading, then we let the system pick a font.
     if (isLoaded()) {
@@ -139,16 +139,14 @@ PassRefPtr<SimpleFontData> CSSFontFaceSource::getFontData(const FontDescription&
                 if (!m_externalSVGFontElement)
                     return 0;
 
-                auto fontFaceChildren = childrenOfType<SVGFontFaceElement>(m_externalSVGFontElement.get());
-                auto firstFontFace = fontFaceChildren.begin();
-                if (firstFontFace != fontFaceChildren.end()) {
+                if (auto firstFontFace = childrenOfType<SVGFontFaceElement>(*m_externalSVGFontElement).first()) {
                     if (!m_svgFontFaceElement) {
                         // We're created using a CSS @font-face rule, that means we're not associated with a SVGFontFaceElement.
                         // Use the imported <font-face> tag as referencing font-face element for these cases.
-                        m_svgFontFaceElement = &*firstFontFace;
+                        m_svgFontFaceElement = firstFontFace;
                     }
 
-                    fontData = SimpleFontData::create(SVGFontData::create(&*firstFontFace), fontDescription.computedPixelSize(), syntheticBold, syntheticItalic);
+                    fontData = SimpleFontData::create(std::make_unique<SVGFontData>(firstFontFace), fontDescription.computedPixelSize(), syntheticBold, syntheticItalic);
                 }
             } else
 #endif
@@ -164,7 +162,7 @@ PassRefPtr<SimpleFontData> CSSFontFaceSource::getFontData(const FontDescription&
 #if ENABLE(SVG_FONTS)
             // In-Document SVG Fonts
             if (m_svgFontFaceElement)
-                fontData = SimpleFontData::create(SVGFontData::create(m_svgFontFaceElement.get()), fontDescription.computedPixelSize(), syntheticBold, syntheticItalic);
+                fontData = SimpleFontData::create(std::make_unique<SVGFontData>(m_svgFontFaceElement.get()), fontDescription.computedPixelSize(), syntheticBold, syntheticItalic);
 #endif
         }
     } else {
@@ -178,7 +176,7 @@ PassRefPtr<SimpleFontData> CSSFontFaceSource::getFontData(const FontDescription&
         fontData = SimpleFontData::create(temporaryFont->platformData(), true, true);
     }
 
-    return fontData; // No release, because fontData is a reference to a RefPtr that is held in the m_fontDataTable.
+    return fontData.release();
 }
 
 #if ENABLE(SVG_FONTS)

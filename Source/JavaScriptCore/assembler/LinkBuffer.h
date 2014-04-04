@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2009, 2010, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,6 +33,7 @@
 
 #define GLOBAL_THUNK_ID reinterpret_cast<void*>(static_cast<intptr_t>(-1))
 #define REGEXP_CODE_ID reinterpret_cast<void*>(static_cast<intptr_t>(-2))
+#define CSS_CODE_ID reinterpret_cast<void*>(static_cast<intptr_t>(-3))
 
 #include "JITCompilationEffort.h"
 #include "MacroAssembler.h"
@@ -42,6 +43,7 @@
 
 namespace JSC {
 
+class CodeBlock;
 class VM;
 
 // LinkBuffer:
@@ -83,7 +85,9 @@ public:
 #if ENABLE(BRANCH_COMPACTION)
         , m_initialSize(0)
 #endif
+        , m_didAllocate(false)
         , m_code(0)
+        , m_storage(masm->m_assembler.buffer().storage())
         , m_assembler(masm)
         , m_vm(&vm)
 #ifndef NDEBUG
@@ -93,13 +97,30 @@ public:
         linkCode(ownerUID, effort);
     }
 
+    LinkBuffer(VM& vm, MacroAssembler* masm, void* code, size_t size)
+        : m_size(size)
+#if ENABLE(BRANCH_COMPACTION)
+        , m_initialSize(0)
+#endif
+        , m_didAllocate(false)
+        , m_code(code)
+        , m_storage(masm->m_assembler.buffer().storage())
+        , m_assembler(masm)
+        , m_vm(&vm)
+#ifndef NDEBUG
+        , m_completed(false)
+#endif
+    {
+        linkCode(0, JITCompilationCanFail);
+    }
+
     ~LinkBuffer()
     {
     }
     
     bool didFailToAllocate() const
     {
-        return !m_executableMemory;
+        return !m_didAllocate;
     }
 
     bool isValid() const
@@ -114,6 +135,11 @@ public:
         ASSERT(call.isFlagSet(Call::Linkable));
         call.m_label = applyOffset(call.m_label);
         MacroAssembler::linkCall(code(), call, function);
+    }
+    
+    void link(Call call, CodeLocationLabel label)
+    {
+        link(call, FunctionPtr(label.executableAddress()));
     }
     
     void link(Jump jump, CodeLocationLabel label)
@@ -141,6 +167,11 @@ public:
     }
 
     // These methods are used to obtain handles to allow the code to be relinked / repatched later.
+    
+    CodeLocationLabel entrypoint()
+    {
+        return CodeLocationLabel(code());
+    }
 
     CodeLocationCall locationOf(Call call)
     {
@@ -209,8 +240,8 @@ public:
     // finalizeCodeWithoutDisassembly() directly if you have your own way of
     // displaying disassembly.
     
-    CodeRef finalizeCodeWithoutDisassembly();
-    CodeRef finalizeCodeWithDisassembly(const char* format, ...) WTF_ATTRIBUTE_PRINTF(2, 3);
+    JS_EXPORT_PRIVATE CodeRef finalizeCodeWithoutDisassembly();
+    JS_EXPORT_PRIVATE CodeRef finalizeCodeWithDisassembly(const char* format, ...) WTF_ATTRIBUTE_PRINTF(2, 3);
 
     CodePtr trampolineAt(Label label)
     {
@@ -222,16 +253,25 @@ public:
         return m_code;
     }
     
-    size_t debugSize()
+    size_t size()
     {
         return m_size;
     }
 
 private:
+#if ENABLE(BRANCH_COMPACTION)
+    int executableOffsetFor(int location)
+    {
+        if (!location)
+            return 0;
+        return bitwise_cast<int32_t*>(m_storage->m_data.begin())[location / sizeof(int32_t) - 1];
+    }
+#endif
+    
     template <typename T> T applyOffset(T src)
     {
 #if ENABLE(BRANCH_COMPACTION)
-        src.m_offset -= m_assembler->executableOffsetFor(src.m_offset);
+        src.m_offset -= executableOffsetFor(src.m_offset);
 #endif
         return src;
     }
@@ -241,8 +281,15 @@ private:
     {
         return m_code;
     }
+    
+    void allocate(size_t initialSize, void* ownerUID, JITCompilationEffort);
+    void shrink(size_t newSize);
 
-    void linkCode(void* ownerUID, JITCompilationEffort);
+    JS_EXPORT_PRIVATE void linkCode(void* ownerUID, JITCompilationEffort);
+#if ENABLE(BRANCH_COMPACTION)
+    template <typename InstructionType>
+    void copyCompactAndLinkCode(void* ownerUID, JITCompilationEffort);
+#endif
 
     void performFinalization();
 
@@ -259,7 +306,9 @@ private:
 #if ENABLE(BRANCH_COMPACTION)
     size_t m_initialSize;
 #endif
+    bool m_didAllocate;
     void* m_code;
+    RefPtr<AssemblerData> m_storage;
     MacroAssembler* m_assembler;
     VM* m_vm;
 #ifndef NDEBUG
@@ -271,6 +320,11 @@ private:
     (UNLIKELY((condition))                                              \
      ? ((linkBufferReference).finalizeCodeWithDisassembly dataLogFArgumentsForHeading) \
      : (linkBufferReference).finalizeCodeWithoutDisassembly())
+
+bool shouldShowDisassemblyFor(CodeBlock*);
+
+#define FINALIZE_CODE_FOR(codeBlock, linkBufferReference, dataLogFArgumentsForHeading)  \
+    FINALIZE_CODE_IF(shouldShowDisassemblyFor(codeBlock), linkBufferReference, dataLogFArgumentsForHeading)
 
 // Use this to finalize code, like so:
 //
@@ -289,10 +343,10 @@ private:
 // is true, so you can hide expensive disassembly-only computations inside there.
 
 #define FINALIZE_CODE(linkBufferReference, dataLogFArgumentsForHeading)  \
-    FINALIZE_CODE_IF(Options::showDisassembly(), linkBufferReference, dataLogFArgumentsForHeading)
+    FINALIZE_CODE_IF(JSC::Options::showDisassembly(), linkBufferReference, dataLogFArgumentsForHeading)
 
 #define FINALIZE_DFG_CODE(linkBufferReference, dataLogFArgumentsForHeading)  \
-    FINALIZE_CODE_IF((Options::showDisassembly() || Options::showDFGDisassembly()), linkBufferReference, dataLogFArgumentsForHeading)
+    FINALIZE_CODE_IF((JSC::Options::showDisassembly() || Options::showDFGDisassembly()), linkBufferReference, dataLogFArgumentsForHeading)
 
 } // namespace JSC
 

@@ -31,15 +31,20 @@
 
 #include "WKBase.h"
 #include "WebKit2Initialize.h"
-#include <WebCore/RunLoop.h>
+#include <WebCore/SoupNetworkSession.h>
 #include <WebKit2/NetworkProcess.h>
-#include <error.h>
 #include <runtime/InitializeThreading.h>
 #include <stdlib.h>
 #include <wtf/MainThread.h>
+#include <wtf/RunLoop.h>
+#include <wtf/gobject/GRefPtr.h>
 
 #if PLATFORM(EFL)
 #include <Ecore.h>
+#endif
+
+#if USE(SOUP)
+#include <libsoup/soup.h>
 #endif
 
 using namespace WebCore;
@@ -61,16 +66,30 @@ WK_EXPORT int NetworkProcessMain(int argc, char* argv[])
 
     InitializeWebKit2();
 
-    // FIXME: handle proxy settings.
+    SoupNetworkSession::defaultSession().setupHTTPProxyFromEnvironment();
 
     int socket = atoi(argv[1]);
 
     WebKit::ChildProcessInitializationParameters parameters;
-    parameters.connectionIdentifier = int(socket);
+    parameters.connectionIdentifier = socket;
 
     NetworkProcess::shared().initialize(parameters);
 
+#if USE(SOUP)
+    // Despite using system CAs to validate certificates we're
+    // accepting invalid certificates by default. New API will be
+    // added later to let client accept/discard invalid certificates.
+    SoupNetworkSession::defaultSession().setSSLPolicy(SoupNetworkSession::SSLUseSystemCAFile);
+#endif
+
     RunLoop::run();
+
+#if USE(SOUP)
+    if (SoupCache* soupCache = SoupNetworkSession::defaultSession().cache()) {
+        soup_cache_flush(soupCache);
+        soup_cache_dump(soupCache);
+    }
+#endif
 
     return 0;
 }

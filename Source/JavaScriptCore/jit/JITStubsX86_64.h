@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -44,83 +44,6 @@
 namespace JSC {
 
 #if COMPILER(GCC)
-
-// These ASSERTs remind you that, if you change the layout of JITStackFrame, you
-// need to change the assembly trampolines below to match.
-COMPILE_ASSERT(offsetof(struct JITStackFrame, callFrame) == 0x58, JITStackFrame_callFrame_offset_matches_ctiTrampoline);
-COMPILE_ASSERT(offsetof(struct JITStackFrame, code) == 0x48, JITStackFrame_code_offset_matches_ctiTrampoline);
-COMPILE_ASSERT(offsetof(struct JITStackFrame, savedRBX) == 0x78, JITStackFrame_stub_argument_space_matches_ctiTrampoline);
-
-asm (
-".text\n"
-".globl " SYMBOL_STRING(ctiTrampoline) "\n"
-HIDE_SYMBOL(ctiTrampoline) "\n"
-SYMBOL_STRING(ctiTrampoline) ":" "\n"
-    "pushq %rbp" "\n"
-    "movq %rsp, %rbp" "\n"
-    "pushq %r12" "\n"
-    "pushq %r13" "\n"
-    "pushq %r14" "\n"
-    "pushq %r15" "\n"
-    "pushq %rbx" "\n"
-    // Form the JIT stubs area
-    "pushq %r9" "\n"
-    "pushq %r8" "\n"
-    "pushq %rcx" "\n"
-    "pushq %rdx" "\n"
-    "pushq %rsi" "\n"
-    "pushq %rdi" "\n"
-    "subq $0x48, %rsp" "\n"
-    "movq $512, %r12" "\n"
-    "movq $0xFFFF000000000000, %r14" "\n"
-    "movq $0xFFFF000000000002, %r15" "\n"
-    "movq %rdx, %r13" "\n"
-    "call *%rdi" "\n"
-    "addq $0x78, %rsp" "\n"
-    "popq %rbx" "\n"
-    "popq %r15" "\n"
-    "popq %r14" "\n"
-    "popq %r13" "\n"
-    "popq %r12" "\n"
-    "popq %rbp" "\n"
-    "ret" "\n"
-".globl " SYMBOL_STRING(ctiTrampolineEnd) "\n"
-HIDE_SYMBOL(ctiTrampolineEnd) "\n"
-SYMBOL_STRING(ctiTrampolineEnd) ":" "\n"
-);
-
-asm (
-".globl " SYMBOL_STRING(ctiVMThrowTrampoline) "\n"
-HIDE_SYMBOL(ctiVMThrowTrampoline) "\n"
-SYMBOL_STRING(ctiVMThrowTrampoline) ":" "\n"
-    "movq %rsp, %rdi" "\n"
-    "call " LOCAL_REFERENCE(cti_vm_throw) "\n"
-    "int3" "\n"
-);
-
-asm (
-".globl " SYMBOL_STRING(ctiVMHandleException) "\n"
-HIDE_SYMBOL(ctiVMHandleException) "\n"
-SYMBOL_STRING(ctiVMHandleException) ":" "\n"
-    "movq %r13, %rdi" "\n"
-    "call " LOCAL_REFERENCE(cti_vm_handle_exception) "\n"
-    // When cti_vm_handle_exception returns, rax has callFrame and rdx has handler address
-    "jmp *%rdx" "\n"
-);
-
-asm (
-".globl " SYMBOL_STRING(ctiOpThrowNotCaught) "\n"
-HIDE_SYMBOL(ctiOpThrowNotCaught) "\n"
-SYMBOL_STRING(ctiOpThrowNotCaught) ":" "\n"
-    "addq $0x78, %rsp" "\n"
-    "popq %rbx" "\n"
-    "popq %r15" "\n"
-    "popq %r14" "\n"
-    "popq %r13" "\n"
-    "popq %r12" "\n"
-    "popq %rbp" "\n"
-    "ret" "\n"
-);
 
 #if USE(MASM_PROBE)
 asm (
@@ -171,7 +94,6 @@ SYMBOL_STRING(ctiMasmProbeTrampoline) ":" "\n"
     "movq %rcx, " STRINGIZE_VALUE_OF(PROBE_CPU_EAX_OFFSET) "(%rbp)" "\n"
     "movq 6 * " STRINGIZE_VALUE_OF(PTR_SIZE) "(%rax), %rcx" "\n"
     "movq %rcx, " STRINGIZE_VALUE_OF(PROBE_CPU_ESP_OFFSET) "(%rbp)" "\n"
-    "movq %rcx, " STRINGIZE_VALUE_OF(PROBE_JIT_STACK_FRAME_OFFSET) "(%rbp)" "\n"
 
     "movq %r8, " STRINGIZE_VALUE_OF(PROBE_CPU_R8_OFFSET) "(%rbp)" "\n"
     "movq %r9, " STRINGIZE_VALUE_OF(PROBE_CPU_R9_OFFSET) "(%rbp)" "\n"
@@ -290,15 +212,6 @@ SYMBOL_STRING(ctiMasmProbeTrampolineEnd) ":" "\n"
 #endif // USE(MASM_PROBE)
 
 #endif // COMPILER(GCC)
-
-#if COMPILER(MSVC)
-
-// These ASSERTs remind you that, if you change the layout of JITStackFrame, you
-// need to change the assembly trampolines in JITStubsMSVC64.asm to match.
-COMPILE_ASSERT(offsetof(struct JITStackFrame, code) % 16 == 0x0, JITStackFrame_maintains_16byte_stack_alignment);
-COMPILE_ASSERT(offsetof(struct JITStackFrame, savedRBX) == 0x58, JITStackFrame_stub_argument_space_matches_ctiTrampoline);
-
-#endif // COMPILER(MSVC)
 
 } // namespace JSC
 

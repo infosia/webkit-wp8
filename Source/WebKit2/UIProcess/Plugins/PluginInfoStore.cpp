@@ -29,7 +29,7 @@
 #if ENABLE(NETSCAPE_PLUGIN_API)
 
 #include "PluginModuleInfo.h"
-#include <WebCore/KURL.h>
+#include <WebCore/URL.h>
 #include <WebCore/MIMETypeRegistry.h>
 #include <algorithm>
 #include <wtf/ListHashSet.h>
@@ -63,20 +63,12 @@ static void addFromVector(T& hashSet, const U& vector)
         hashSet.add(vector[i]);
 }
 
-// We use a ListHashSet so that plugins will be loaded from the additional plugins directories first
-// (which in turn means those plugins will be preferred if two plugins claim the same MIME type).
-#if OS(WINDOWS)
-typedef ListHashSet<String, 32, CaseFoldingHash> PathHashSet;
-#else
-typedef ListHashSet<String, 32> PathHashSet;
-#endif
-
 void PluginInfoStore::loadPluginsIfNecessary()
 {
     if (m_pluginListIsUpToDate)
         return;
 
-    PathHashSet uniquePluginPaths;
+    ListHashSet<String, 32> uniquePluginPaths;
 
     // First, load plug-ins from the additional plug-ins directories specified.
     for (size_t i = 0; i < m_additionalPluginsDirectories.size(); ++i)
@@ -92,9 +84,8 @@ void PluginInfoStore::loadPluginsIfNecessary()
 
     m_plugins.clear();
 
-    PathHashSet::const_iterator end = uniquePluginPaths.end();
-    for (PathHashSet::const_iterator it = uniquePluginPaths.begin(); it != end; ++it)
-        loadPlugin(m_plugins, *it);
+    for (const auto& pluginPath : uniquePluginPaths)
+        loadPlugin(m_plugins, pluginPath);
 
     m_pluginListIsUpToDate = true;
 
@@ -167,7 +158,7 @@ PluginModuleInfo PluginInfoStore::findPluginForExtension(const String& extension
     return PluginModuleInfo();
 }
 
-static inline String pathExtension(const KURL& url)
+static inline String pathExtension(const URL& url)
 {
     String extension;
     String filename = url.lastPathComponent();
@@ -180,15 +171,10 @@ static inline String pathExtension(const KURL& url)
     return extension;
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 PluginModuleLoadPolicy PluginInfoStore::defaultLoadPolicyForPlugin(const PluginModuleInfo&)
 {
     return PluginModuleLoadNormally;
-}
-
-String PluginInfoStore::getMIMETypeForExtension(const String& extension)
-{
-    return MIMETypeRegistry::getMIMETypeForExtension(extension);
 }
     
 PluginModuleInfo PluginInfoStore::findPluginWithBundleIdentifier(const String&)
@@ -199,7 +185,7 @@ PluginModuleInfo PluginInfoStore::findPluginWithBundleIdentifier(const String&)
 
 #endif
 
-PluginModuleInfo PluginInfoStore::findPlugin(String& mimeType, const KURL& url, PluginData::AllowedPluginTypes allowedPluginTypes)
+PluginModuleInfo PluginInfoStore::findPlugin(String& mimeType, const URL& url, PluginData::AllowedPluginTypes allowedPluginTypes)
 {
     loadPluginsIfNecessary();
     
@@ -218,7 +204,7 @@ PluginModuleInfo PluginInfoStore::findPlugin(String& mimeType, const KURL& url, 
             return plugin;
         
         // Finally, try to get the MIME type from the extension in a platform specific manner and use that.
-        String extensionMimeType = getMIMETypeForExtension(extension);
+        String extensionMimeType = MIMETypeRegistry::getMIMETypeForExtension(extension);
         if (!extensionMimeType.isNull()) {
             PluginModuleInfo plugin = findPluginForMIMEType(extensionMimeType, allowedPluginTypes);
             if (!plugin.path.isNull()) {

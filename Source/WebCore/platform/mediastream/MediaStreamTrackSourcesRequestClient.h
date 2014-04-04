@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,32 +36,28 @@ namespace WebCore {
 
 class TrackSourceInfo : public RefCounted<TrackSourceInfo> {
 public:
-    enum SourceKind { NoSource, Audio, Video };
-    enum VideoFacingMode { None, User, Environment, Left, Right };
+    enum SourceKind { Audio, Video };
 
-    static PassRefPtr<TrackSourceInfo> create(const AtomicString& id, SourceKind kind, const AtomicString& label, VideoFacingMode facing)
+    static PassRefPtr<TrackSourceInfo> create(const AtomicString& id, SourceKind kind, const AtomicString& label)
     {
-        return adoptRef(new TrackSourceInfo(id, kind, label, facing));
+        return adoptRef(new TrackSourceInfo(id, kind, label));
     }
 
     const AtomicString& id() const { return m_id; }
     const AtomicString& label() const { return m_label; }
     SourceKind kind() const { return m_kind; }
-    VideoFacingMode facing() const { return m_facing; }
 
 private:
-    TrackSourceInfo(const AtomicString& id, SourceKind kind, const AtomicString& label, VideoFacingMode facing)
+    TrackSourceInfo(const AtomicString& id, SourceKind kind, const AtomicString& label)
         : m_id(id)
         , m_kind(kind)
         , m_label(label)
-        , m_facing(facing)
     {
     }
     
     AtomicString m_id;
     SourceKind m_kind;
     AtomicString m_label;
-    VideoFacingMode m_facing;
 };
 
 class MediaStreamTrackSourcesRequestClient : public RefCounted<MediaStreamTrackSourcesRequestClient> {

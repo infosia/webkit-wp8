@@ -31,7 +31,6 @@
 #include "ScriptWrappable.h"
 #include "ThreadableLoaderClient.h"
 #include "XMLHttpRequestProgressEventThrottle.h"
-#include <wtf/OwnPtr.h>
 #include <wtf/text/AtomicStringHash.h>
 #include <wtf/text/StringBuilder.h>
 
@@ -51,10 +50,10 @@ class SharedBuffer;
 class TextResourceDecoder;
 class ThreadableLoader;
 
-class XMLHttpRequest : public ScriptWrappable, public RefCounted<XMLHttpRequest>, public EventTarget, private ThreadableLoaderClient, public ActiveDOMObject {
+class XMLHttpRequest final : public ScriptWrappable, public RefCounted<XMLHttpRequest>, public EventTargetWithInlineData, private ThreadableLoaderClient, public ActiveDOMObject {
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    static PassRefPtr<XMLHttpRequest> create(ScriptExecutionContext*);
+    static PassRefPtr<XMLHttpRequest> create(ScriptExecutionContext&);
     ~XMLHttpRequest();
 
     // These exact numeric values are important because JS expects them.
@@ -82,19 +81,19 @@ public:
     virtual void didTimeout();
 #endif
 
-    virtual EventTargetInterface eventTargetInterface() const;
-    virtual ScriptExecutionContext* scriptExecutionContext() const;
+    virtual EventTargetInterface eventTargetInterface() const override { return XMLHttpRequestEventTargetInterfaceType; }
+    virtual ScriptExecutionContext* scriptExecutionContext() const override { return ActiveDOMObject::scriptExecutionContext(); }
 
-    const KURL& url() const { return m_url; }
-    String statusText(ExceptionCode&) const;
-    int status(ExceptionCode&) const;
+    const URL& url() const { return m_url; }
+    String statusText() const;
+    int status() const;
     State readyState() const;
     bool withCredentials() const { return m_includeCredentials; }
     void setWithCredentials(bool, ExceptionCode&);
-    void open(const String& method, const KURL&, ExceptionCode&);
-    void open(const String& method, const KURL&, bool async, ExceptionCode&);
-    void open(const String& method, const KURL&, bool async, const String& user, ExceptionCode&);
-    void open(const String& method, const KURL&, bool async, const String& user, const String& password, ExceptionCode&);
+    void open(const String& method, const URL&, ExceptionCode&);
+    void open(const String& method, const URL&, bool async, ExceptionCode&);
+    void open(const String& method, const URL&, bool async, const String& user, ExceptionCode&);
+    void open(const String& method, const URL&, bool async, const String& user, const String& password, ExceptionCode&);
     void send(ExceptionCode&);
     void send(Document*, ExceptionCode&);
     void send(const String&, ExceptionCode&);
@@ -106,10 +105,11 @@ public:
     void setRequestHeader(const AtomicString& name, const String& value, ExceptionCode&);
     void overrideMimeType(const String& override);
     bool doneWithoutErrors() const { return !m_error && m_state == DONE; }
-    String getAllResponseHeaders(ExceptionCode&) const;
-    String getResponseHeader(const AtomicString& name, ExceptionCode&) const;
+    String getAllResponseHeaders() const;
+    String getResponseHeader(const AtomicString& name) const;
     String responseText(ExceptionCode&);
     String responseTextIgnoringResponseType() const { return m_responseBuilder.toStringPreserveCapacity(); }
+    String responseMIMEType() const;
     Document* responseXML(ExceptionCode&);
     Document* optionalResponseXML() const { return m_responseDocument.get(); }
     Blob* responseBlob();
@@ -122,7 +122,7 @@ public:
     bool responseCacheIsValid() const { return m_responseCacheIsValid; }
     void didCacheResponseJSON();
 
-    void sendFromInspector(PassRefPtr<FormData>, ExceptionCode&);
+    void sendForInspectorXHRReplay(PassRefPtr<FormData>, ExceptionCode&);
 
     // Expose HTTP validation methods for other untrusted requests.
     static bool isAllowedHTTPMethod(const String&);
@@ -137,7 +137,7 @@ public:
     JSC::ArrayBuffer* responseArrayBuffer();
     JSC::ArrayBuffer* optionalResponseArrayBuffer() const { return m_responseArrayBuffer.get(); }
 
-    void setLastSendLineNumber(unsigned lineNumber) { m_lastSendLineNumber = lineNumber; }
+    void setLastSendLineAndColumnNumber(unsigned lineNumber, unsigned columnNumber);
     void setLastSendURL(const String& url) { m_lastSendURL = url; }
 
     XMLHttpRequestUpload* upload();
@@ -158,19 +158,17 @@ public:
     using RefCounted<XMLHttpRequest>::deref;
 
 private:
-    XMLHttpRequest(ScriptExecutionContext*);
+    explicit XMLHttpRequest(ScriptExecutionContext&);
 
     // ActiveDOMObject
-    virtual void contextDestroyed() OVERRIDE;
-    virtual bool canSuspend() const OVERRIDE;
-    virtual void suspend(ReasonForSuspension) OVERRIDE;
-    virtual void resume() OVERRIDE;
-    virtual void stop() OVERRIDE;
+    virtual void contextDestroyed() override;
+    virtual bool canSuspend() const override;
+    virtual void suspend(ReasonForSuspension) override;
+    virtual void resume() override;
+    virtual void stop() override;
 
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
     Document* document() const;
     SecurityOrigin* securityOrigin() const;
@@ -179,14 +177,13 @@ private:
     bool usesDashboardBackwardCompatibilityMode() const;
 #endif
 
-    virtual void didSendData(unsigned long long bytesSent, unsigned long long totalBytesToBeSent);
-    virtual void didReceiveResponse(unsigned long identifier, const ResourceResponse&);
-    virtual void didReceiveData(const char* data, int dataLength);
-    virtual void didFinishLoading(unsigned long identifier, double finishTime);
-    virtual void didFail(const ResourceError&);
-    virtual void didFailRedirectCheck();
+    virtual void didSendData(unsigned long long bytesSent, unsigned long long totalBytesToBeSent) override;
+    virtual void didReceiveResponse(unsigned long identifier, const ResourceResponse&) override;
+    virtual void didReceiveData(const char* data, int dataLength) override;
+    virtual void didFinishLoading(unsigned long identifier, double finishTime) override;
+    virtual void didFail(const ResourceError&) override;
+    virtual void didFailRedirectCheck() override;
 
-    String responseMIMEType() const;
     bool responseIsXML() const;
 
     bool initSend(ExceptionCode&);
@@ -211,9 +208,11 @@ private:
 
     bool shouldDecodeResponse() const { return m_responseTypeCode < FirstBinaryResponseType; }
 
-    OwnPtr<XMLHttpRequestUpload> m_upload;
+    void dispatchErrorEvents(const AtomicString&);
 
-    KURL m_url;
+    std::unique_ptr<XMLHttpRequestUpload> m_upload;
+
+    URL m_url;
     String m_method;
     HTTPHeaderMap m_requestHeaders;
     RefPtr<FormData> m_requestEntityBody;
@@ -234,11 +233,11 @@ private:
     RefPtr<TextResourceDecoder> m_decoder;
 
     StringBuilder m_responseBuilder;
-    mutable bool m_createdDocument;
-    mutable RefPtr<Document> m_responseDocument;
+    bool m_createdDocument;
+    RefPtr<Document> m_responseDocument;
     
     RefPtr<SharedBuffer> m_binaryResponseBuilder;
-    mutable RefPtr<JSC::ArrayBuffer> m_responseArrayBuffer;
+    RefPtr<JSC::ArrayBuffer> m_responseArrayBuffer;
 
     bool m_error;
 
@@ -251,10 +250,9 @@ private:
     long long m_receivedLength;
 
     unsigned m_lastSendLineNumber;
+    unsigned m_lastSendColumnNumber;
     String m_lastSendURL;
     ExceptionCode m_exceptionCode;
-
-    EventTargetData m_eventTargetData;
 
     XMLHttpRequestProgressEventThrottle m_progressEventThrottle;
 

@@ -32,6 +32,11 @@
 #include <gst/gst.h>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
+#include <wtf/gobject/GMainLoopSource.h>
+
+#if ENABLE(MEDIA_SOURCE)
+#include "MediaSourceGStreamer.h"
+#endif
 
 typedef struct _GstBuffer GstBuffer;
 typedef struct _GstMessage GstMessage;
@@ -39,7 +44,9 @@ typedef struct _GstElement GstElement;
 
 namespace WebCore {
 
+class AudioTrackPrivateGStreamer;
 class InbandTextTrackPrivateGStreamer;
+class VideoTrackPrivateGStreamer;
 
 class MediaPlayerPrivateGStreamer : public MediaPlayerPrivateGStreamerBase {
 public:
@@ -53,7 +60,7 @@ public:
 
     void load(const String &url);
 #if ENABLE(MEDIA_SOURCE)
-    void load(const String& url, PassRefPtr<MediaSource>);
+    void load(const String& url, MediaSourcePrivateClient*);
 #endif
     void commitLoad();
     void cancelLoad();
@@ -75,7 +82,7 @@ public:
     void setPreload(MediaPlayer::Preload);
     void fillTimerFired(Timer<MediaPlayerPrivateGStreamer>*);
 
-    PassRefPtr<TimeRanges> buffered() const;
+    std::unique_ptr<PlatformTimeRanges> buffered() const;
     float maxTimeSeekable() const;
     bool didLoadingProgress() const;
     unsigned totalBytes() const;
@@ -88,11 +95,13 @@ public:
     void loadingFailed(MediaPlayer::NetworkState);
 
     void videoChanged();
+    void videoCapsChanged();
     void audioChanged();
     void notifyPlayerOfVideo();
+    void notifyPlayerOfVideoCaps();
     void notifyPlayerOfAudio();
 
-#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+#if ENABLE(VIDEO_TRACK)
     void textChanged();
     void notifyPlayerOfText();
 
@@ -115,12 +124,11 @@ private:
     static PassOwnPtr<MediaPlayerPrivateInterface> create(MediaPlayer*);
 
     static void getSupportedTypes(HashSet<String>&);
-    static MediaPlayer::SupportsType supportsType(const String& type, const String& codecs, const KURL&);
+    static MediaPlayer::SupportsType supportsType(const MediaEngineSupportParameters&);
 
     static bool isAvailable();
 
-    void updateAudioSink();
-    void createAudioSink();
+    GstElement* createAudioSink();
 
     float playbackPosition() const;
 
@@ -135,6 +143,13 @@ private:
 
     void setDownloadBuffering();
     void processBufferingStats(GstMessage*);
+#if ENABLE(VIDEO_TRACK)
+    void processTableOfContents(GstMessage*);
+    void processTableOfContentsEntry(GstTocEntry*, GstTocEntry* parent);
+#endif
+    bool doSeek(gint64 position, float rate, GstSeekFlags seekType);
+    void updatePlaybackRate();
+
 
     virtual String engineDescription() const { return "GStreamer"; }
     virtual bool isLiveStream() const { return m_isStreaming; }
@@ -142,7 +157,7 @@ private:
 private:
     GRefPtr<GstElement> m_playBin;
     GRefPtr<GstElement> m_source;
-#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
+#if ENABLE(VIDEO_TRACK)
     GRefPtr<GstElement> m_textAppSink;
     GRefPtr<GstPad> m_textAppSinkPad;
 #endif
@@ -161,6 +176,7 @@ private:
     bool m_canFallBackToLastFinishedSeekPositon;
     bool m_buffering;
     float m_playbackRate;
+    float m_lastPlaybackRate;
     bool m_errorOccured;
     mutable gfloat m_mediaDuration;
     bool m_downloadFinished;
@@ -174,19 +190,25 @@ private:
     bool m_volumeAndMuteInitialized;
     bool m_hasVideo;
     bool m_hasAudio;
-    guint m_audioTimerHandler;
-    guint m_textTimerHandler;
-    guint m_videoTimerHandler;
-    guint m_readyTimerHandler;
-    GRefPtr<GstElement> m_webkitAudioSink;
+    GMainLoopSource m_audioTimerHandler;
+    GMainLoopSource m_textTimerHandler;
+    GMainLoopSource m_videoTimerHandler;
+    GMainLoopSource m_videoCapsTimerHandler;
+    GMainLoopSource m_readyTimerHandler;
     mutable long m_totalBytes;
-    KURL m_url;
+    URL m_url;
     bool m_preservesPitch;
     GstState m_requestedState;
     GRefPtr<GstElement> m_autoAudioSink;
     bool m_missingPlugins;
-#if ENABLE(VIDEO_TRACK) && defined(GST_API_VERSION_1)
-    Vector<RefPtr<InbandTextTrackPrivateGStreamer> > m_textTracks;
+#if ENABLE(VIDEO_TRACK)
+    Vector<RefPtr<AudioTrackPrivateGStreamer>> m_audioTracks;
+    Vector<RefPtr<InbandTextTrackPrivateGStreamer>> m_textTracks;
+    Vector<RefPtr<VideoTrackPrivateGStreamer>> m_videoTracks;
+    RefPtr<InbandTextTrackPrivate> m_chaptersTrack;
+#endif
+#if ENABLE(MEDIA_SOURCE)
+    RefPtr<MediaSourcePrivateClient> m_mediaSource;
 #endif
 };
 }

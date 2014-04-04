@@ -45,9 +45,9 @@ DetailsMarkerControl::DetailsMarkerControl(Document& document)
 {
 }
 
-RenderElement* DetailsMarkerControl::createRenderer(RenderArena& arena, RenderStyle&)
+RenderPtr<RenderElement> DetailsMarkerControl::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new (arena) RenderDetailsMarker(*this);
+    return createRenderer<RenderDetailsMarker>(*this, std::move(style));
 }
 
 bool DetailsMarkerControl::rendererIsNeeded(const RenderStyle& style)
@@ -57,15 +57,13 @@ bool DetailsMarkerControl::rendererIsNeeded(const RenderStyle& style)
 
 const AtomicString& DetailsMarkerControl::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, pseudId, ("-webkit-details-marker", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, pseudId, ("-webkit-details-marker", AtomicString::ConstructFromLiteral));
     return pseudId;
 }
 
 HTMLSummaryElement* DetailsMarkerControl::summaryElement()
 {
-    Element* element = shadowHost();
-    ASSERT_WITH_SECURITY_IMPLICATION(!element || element->hasTagName(summaryTag));
-    return static_cast<HTMLSummaryElement*>(element);
+    return toHTMLSummaryElement(shadowHost());
 }
 
 }

@@ -21,7 +21,6 @@
 #ifndef SVGSVGElement_h
 #define SVGSVGElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedLength.h"
 #include "SVGAnimatedPreserveAspectRatio.h"
@@ -40,7 +39,7 @@ class SVGViewSpec;
 class SVGViewElement;
 class SMILTimeContainer;
 
-class SVGSVGElement FINAL : public SVGGraphicsElement,
+class SVGSVGElement final : public SVGGraphicsElement,
                             public SVGExternalResourcesRequired,
                             public SVGFitToViewBox,
                             public SVGZoomAndPan {
@@ -50,8 +49,8 @@ public:
     using SVGGraphicsElement::ref;
     using SVGGraphicsElement::deref;
 
-    virtual bool isValid() const { return SVGTests::isValid(); }
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool isValid() const override { return SVGTests::isValid(); }
+    virtual bool supportsFocus() const override { return true; }
 
     // 'SVGSVGElement' functions
     const AtomicString& contentScriptType() const;
@@ -123,7 +122,7 @@ public:
 
     void setupInitialView(const String& fragmentIdentifier, Element* anchorNode);
 
-    Element* getElementById(const AtomicString&);
+    Element* getElementById(const String&);
 
     bool widthAttributeEstablishesViewport() const;
     bool heightAttributeEstablishesViewport() const;
@@ -137,19 +136,19 @@ private:
     SVGSVGElement(const QualifiedName&, Document&);
     virtual ~SVGSVGElement();
 
-    virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
+    virtual void didMoveToNewDocument(Document* oldDocument) override;
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
 
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
-    virtual RenderElement* createRenderer(RenderArena&, RenderStyle&);
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
-    virtual bool selfHasRelativeLengths() const;
+    virtual bool selfHasRelativeLengths() const override;
 
     void inheritViewAttributes(SVGViewElement*);
 
@@ -170,10 +169,10 @@ private:
         DECLARE_ANIMATED_PRESERVEASPECTRATIO(PreserveAspectRatio, preserveAspectRatio)
     END_DECLARE_ANIMATED_PROPERTIES
 
-    virtual void documentWillSuspendForPageCache();
-    virtual void documentDidResumeFromPageCache();
+    virtual void documentWillSuspendForPageCache() override;
+    virtual void documentDidResumeFromPageCache() override;
 
-    virtual AffineTransform localCoordinateSpaceTransform(SVGLocatable::CTMScope) const;
+    virtual AffineTransform localCoordinateSpaceTransform(SVGLocatable::CTMScope) const override;
 
     bool m_useCurrentView;
     SVGZoomAndPanType m_zoomAndPan;
@@ -182,9 +181,8 @@ private:
     RefPtr<SVGViewSpec> m_viewSpec;
 };
 
-ELEMENT_TYPE_CASTS(SVGSVGElement)
+NODE_TYPE_CASTS(SVGSVGElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

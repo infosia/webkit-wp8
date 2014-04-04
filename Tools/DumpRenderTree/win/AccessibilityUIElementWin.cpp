@@ -286,6 +286,11 @@ JSStringRef AccessibilityUIElement::roleDescription()
     return 0;
 }
 
+JSStringRef AccessibilityUIElement::computedRoleString()
+{
+    return 0;
+}
+
 JSStringRef AccessibilityUIElement::title()
 {
     if (!m_element)
@@ -324,7 +329,15 @@ JSStringRef AccessibilityUIElement::language()
 
 JSStringRef AccessibilityUIElement::helpText() const
 {
-    return 0;
+    if (!m_element)
+        return JSStringCreateWithCharacters(0, 0);
+
+    BSTR helpTextBSTR;
+    if (FAILED(m_element->get_accHelp(self(), &helpTextBSTR)) || !helpTextBSTR)
+        return JSStringCreateWithCharacters(0, 0);
+    wstring helpText(helpTextBSTR, SysStringLen(helpTextBSTR));
+    ::SysFreeString(helpTextBSTR);
+    return JSStringCreateWithCharacters(helpText.data(), helpText.length());
 }
 
 double AccessibilityUIElement::x()
@@ -441,6 +454,12 @@ bool AccessibilityUIElement::isChecked() const
         return false;
 
     return vState.lVal & STATE_SYSTEM_CHECKED;
+}
+
+bool AccessibilityUIElement::isIndeterminate() const
+{
+    // FIXME: implement
+    return false;
 }
 
 JSStringRef AccessibilityUIElement::orientation() const
@@ -584,7 +603,17 @@ bool AccessibilityUIElement::attributedStringRangeIsMisspelled(unsigned, unsigne
     return false;
 }
 
-AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly)
+unsigned AccessibilityUIElement::uiElementCountForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
+{
+    return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::uiElementForSearchPredicate(JSContextRef context, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly)
+{
+    return 0;
+}
+
+JSStringRef AccessibilityUIElement::selectTextWithCriteria(JSContextRef context, JSStringRef ambiguityResolution, JSValueRef searchStrings, JSStringRef replacementString)
 {
     return 0;
 }
@@ -667,6 +696,11 @@ AccessibilityUIElement AccessibilityUIElement::ariaOwnsElementAtIndex(unsigned i
 }
 
 AccessibilityUIElement AccessibilityUIElement::ariaFlowToElementAtIndex(unsigned index)
+{
+    return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::ariaControlsElementAtIndex(unsigned index)
 {
     return 0;
 }
@@ -838,4 +872,26 @@ JSStringRef AccessibilityUIElement::classList() const
 {
     // FIXME: implement
     return 0;
+}
+
+unsigned AccessibilityUIElement::selectedChildrenCount() const
+{
+    // FIXME: implement
+    return 0;
+}
+
+AccessibilityUIElement AccessibilityUIElement::selectedChildAtIndex(unsigned) const
+{
+    // FIXME: implement
+    return 0;
+}
+
+void AccessibilityUIElement::columnHeaders(Vector<AccessibilityUIElement>&) const
+{
+    // FIXME: implement
+}
+
+void AccessibilityUIElement::rowHeaders(Vector<AccessibilityUIElement>&) const
+{
+    // FIXME: implement
 }

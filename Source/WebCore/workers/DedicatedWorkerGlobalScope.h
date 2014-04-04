@@ -31,8 +31,6 @@
 #ifndef DedicatedWorkerGlobalScope_h
 #define DedicatedWorkerGlobalScope_h
 
-#if ENABLE(WORKERS)
-
 #include "ContentSecurityPolicy.h"
 #include "MessagePort.h"
 #include "WorkerGlobalScope.h"
@@ -44,16 +42,16 @@ namespace WebCore {
     class DedicatedWorkerGlobalScope : public WorkerGlobalScope {
     public:
         typedef WorkerGlobalScope Base;
-        static PassRefPtr<DedicatedWorkerGlobalScope> create(const KURL&, const String& userAgent, PassOwnPtr<GroupSettings>, DedicatedWorkerThread*, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType contentSecurityPolicyType, PassRefPtr<SecurityOrigin> topOrigin);
+        static PassRefPtr<DedicatedWorkerGlobalScope> create(const URL&, const String& userAgent, std::unique_ptr<GroupSettings>, DedicatedWorkerThread&, const String& contentSecurityPolicy, ContentSecurityPolicy::HeaderType contentSecurityPolicyType, PassRefPtr<SecurityOrigin> topOrigin);
         virtual ~DedicatedWorkerGlobalScope();
 
-        virtual bool isDedicatedWorkerGlobalScope() const OVERRIDE { return true; }
+        virtual bool isDedicatedWorkerGlobalScope() const override { return true; }
 
         // Overridden to allow us to check our pending activity after executing imported script.
-        virtual void importScripts(const Vector<String>& urls, ExceptionCode&) OVERRIDE;
+        virtual void importScripts(const Vector<String>& urls, ExceptionCode&) override;
 
         // EventTarget
-        virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
+        virtual EventTargetInterface eventTargetInterface() const override;
 
         void postMessage(PassRefPtr<SerializedScriptValue>, const MessagePortArray*, ExceptionCode&);
         // Needed for Objective-C bindings (see bug 28774).
@@ -61,14 +59,12 @@ namespace WebCore {
 
         DEFINE_ATTRIBUTE_EVENT_LISTENER(message);
 
-        DedicatedWorkerThread* thread();
+        DedicatedWorkerThread& thread();
 
     private:
-        DedicatedWorkerGlobalScope(const KURL&, const String& userAgent, PassOwnPtr<GroupSettings>, DedicatedWorkerThread*, PassRefPtr<SecurityOrigin> topOrigin);
+        DedicatedWorkerGlobalScope(const URL&, const String& userAgent, std::unique_ptr<GroupSettings>, DedicatedWorkerThread&, PassRefPtr<SecurityOrigin> topOrigin);
     };
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)
 
 #endif // DedicatedWorkerGlobalScope_h

@@ -35,8 +35,8 @@
 #include "JSEventListener.h"
 #include "JSMessagePortCustom.h"
 #include "MessagePort.h"
-#include <runtime/Error.h>
 #include <runtime/JSArrayBuffer.h>
+#include <runtime/Error.h>
 #include <wtf/text/AtomicString.h>
 
 using namespace JSC;
@@ -60,7 +60,7 @@ void JSMessagePort::visitChildren(JSCell* cell, SlotVisitor& visitor)
 
 JSC::JSValue JSMessagePort::postMessage(JSC::ExecState* exec)
 {
-    return handlePostMessage(exec, impl());
+    return handlePostMessage(exec, &impl());
 }
 
 void fillMessagePortArray(JSC::ExecState* exec, JSC::JSValue value, MessagePortArray& portArray, ArrayBufferArray& arrayBuffers)

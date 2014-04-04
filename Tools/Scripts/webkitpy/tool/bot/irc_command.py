@@ -147,20 +147,6 @@ class Restart(IRCCommand):
         tool.irc().post("Restarting...")
         raise TerminateQueue()
 
-
-class RollChromiumDEPS(IRCCommand):
-    usage_string = "roll-chromium-deps REVISION"
-    help_string = "Rolls WebKit's Chromium DEPS to the given revision???"
-
-    def execute(self, nick, args, tool, sheriff):
-        if not len(args):
-            return self.usage(nick)
-        tool.irc().post("%s: Will roll Chromium DEPS to %s" % (nick, ' '.join(args)))
-        tool.irc().post("%s: Rolling Chromium DEPS to %s" % (nick, ' '.join(args)))
-        tool.irc().post("%s: Rolled Chromium DEPS to %s" % (nick, ' '.join(args)))
-        tool.irc().post("%s: Thank You" % nick)
-
-
 class Rollout(IRCCommand):
     usage_string = "rollout SVN_REVISION [SVN_REVISIONS] REASON"
     help_string = "Opens a rollout bug, CCing author + reviewer, and attaching the reverse-diff of the given revisions marked as commit-queue=?."
@@ -216,7 +202,7 @@ class Rollout(IRCCommand):
 
     def _update_working_copy(self, tool):
         tool.scm().discard_local_changes()
-        tool.executive.run_and_throw_if_fail(tool.port().update_webkit_command(), quiet=True, cwd=tool.scm().checkout_root)
+        tool.executive.run_and_throw_if_fail(tool.deprecated_port().update_webkit_command(), quiet=True, cwd=tool.scm().checkout_root)
 
     def _check_diff_failure(self, error_log, tool):
         if not error_log:
@@ -305,7 +291,6 @@ visible_commands = {
     "hi": Hi,
     "ping": PingPong,
     "restart": Restart,
-    "roll-chromium-deps": RollChromiumDEPS,
     "rollout": Rollout,
     "whois": Whois,
     "yt?": YouThere,

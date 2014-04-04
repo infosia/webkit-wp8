@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,12 +25,11 @@
 
 #include "config.h"
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "PlatformCALayerWinInternal.h"
 
 #include "Font.h"
 #include "FontCache.h"
+#include "GraphicsContext.h"
 #include "PlatformCALayer.h"
 #include "TextRun.h"
 #include <QuartzCore/CACFLayer.h>
@@ -83,7 +82,7 @@ void PlatformCALayerWinInternal::displayCallback(CACFLayerRef caLayer, CGContext
         // smaller than the layer bounds (e.g. tiled layers)
         CGRect clipBounds = CGContextGetClipBoundingBox(context);
         IntRect clip(enclosingIntRect(clipBounds));
-        owner()->owner()->platformCALayerPaintContents(graphicsContext, clip);
+        owner()->owner()->platformCALayerPaintContents(owner(), graphicsContext, clip);
     }
 #ifndef NDEBUG
     else {
@@ -99,7 +98,7 @@ void PlatformCALayerWinInternal::displayCallback(CACFLayerRef caLayer, CGContext
     if (owner()->owner()->platformCALayerShowRepaintCounter(owner())) {
         FontCachePurgePreventer fontCachePurgePreventer;
 
-        String text = String::number(owner()->owner()->platformCALayerIncrementRepaintCount());
+        String text = String::number(owner()->owner()->platformCALayerIncrementRepaintCount(owner()));
 
         CGContextSaveGState(context);
 
@@ -331,7 +330,7 @@ void PlatformCALayerWinInternal::setBounds(const FloatRect& rect)
 
 void PlatformCALayerWinInternal::setFrame(const FloatRect& rect)
 {
-    CGRect oldFrame = owner()->frame();
+    CGRect oldFrame = CACFLayerGetFrame(owner()->platformLayer());
     if (CGRectEqualToRect(rect, oldFrame))
         return;
 
@@ -488,5 +487,3 @@ void PlatformCALayerWinInternal::drawTile(CACFLayerRef tile, CGContextRef contex
 
     CGContextRestoreGState(context);
 }
-
-#endif // USE(ACCELERATED_COMPOSITING)

@@ -26,7 +26,7 @@
 #include "JSString.h"
 #include "JSStringBuilder.h"
 #include "ObjectPrototype.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "StringRecursionChecker.h"
 
 namespace JSC {
@@ -49,21 +49,21 @@ const ClassInfo ErrorPrototype::s_info = { "Error", &ErrorInstance::s_info, 0, E
 @end
 */
 
-ErrorPrototype::ErrorPrototype(ExecState* exec, Structure* structure)
-    : ErrorInstance(exec->vm(), structure)
+ErrorPrototype::ErrorPrototype(VM& vm, Structure* structure)
+    : ErrorInstance(vm, structure)
 {
 }
 
-void ErrorPrototype::finishCreation(ExecState* exec, JSGlobalObject*)
+void ErrorPrototype::finishCreation(VM& vm, JSGlobalObject*)
 {
-    Base::finishCreation(exec->vm(), "");
+    Base::finishCreation(vm, "");
     ASSERT(inherits(info()));
-    putDirect(exec->vm(), exec->propertyNames().name, jsNontrivialString(exec, String(ASCIILiteral("Error"))), DontEnum);
+    putDirect(vm, vm.propertyNames->name, jsNontrivialString(&vm, String(ASCIILiteral("Error"))), DontEnum);
 }
 
 bool ErrorPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot &slot)
 {
-    return getStaticFunctionSlot<ErrorInstance>(exec, ExecState::errorPrototypeTable(exec), jsCast<ErrorPrototype*>(object), propertyName, slot);
+    return getStaticFunctionSlot<ErrorInstance>(exec, ExecState::errorPrototypeTable(exec->vm()), jsCast<ErrorPrototype*>(object), propertyName, slot);
 }
 
 // ------------------------------ Functions ---------------------------
@@ -72,7 +72,7 @@ bool ErrorPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, Prope
 EncodedJSValue JSC_HOST_CALL errorProtoFuncToString(ExecState* exec)
 {
     // 1. Let O be the this value.
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
 
     // 2. If Type(O) is not Object, throw a TypeError exception.
     if (!thisValue.isObject())

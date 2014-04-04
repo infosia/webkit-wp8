@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
- * Copyright (C) 2006 Apple Computer Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
  *
@@ -23,15 +23,11 @@
 #include "config.h"
 #include "SVGInlineFlowBox.h"
 
-#if ENABLE(SVG)
 #include "DocumentMarkerController.h"
 #include "GraphicsContext.h"
-#include "RenderSVGInlineText.h"
 #include "RenderedDocumentMarker.h"
 #include "SVGInlineTextBox.h"
 #include "SVGRenderingContext.h"
-
-using namespace std;
 
 namespace WebCore {
 
@@ -54,11 +50,11 @@ void SVGInlineFlowBox::paint(PaintInfo& paintInfo, const LayoutPoint&, LayoutUni
     ASSERT(paintInfo.phase == PaintPhaseForeground || paintInfo.phase == PaintPhaseSelection);
     ASSERT(!paintInfo.context->paintingDisabled());
 
-    SVGRenderingContext renderingContext(&renderer(), paintInfo, SVGRenderingContext::SaveGraphicsContext);
+    SVGRenderingContext renderingContext(renderer(), paintInfo, SVGRenderingContext::SaveGraphicsContext);
     if (renderingContext.isRenderingPrepared()) {
         for (InlineBox* child = firstChild(); child; child = child->nextOnLine()) {
             if (child->isSVGInlineTextBox())
-                computeTextMatchMarkerRectForRenderer(&toRenderSVGInlineText(toSVGInlineTextBox(child)->renderer()));
+                computeTextMatchMarkerRectForRenderer(&(toSVGInlineTextBox(child)->renderer()));
 
             child->paint(paintInfo, LayoutPoint(), 0, 0);
         }
@@ -84,8 +80,7 @@ void SVGInlineFlowBox::computeTextMatchMarkerRectForRenderer(RenderSVGInlineText
     if (!textNode.inDocument())
         return;
 
-    RenderStyle* style = textRenderer->style();
-    ASSERT(style);
+    RenderStyle& style = textRenderer->style();
 
     AffineTransform fragmentTransform;
     Vector<DocumentMarker*> markers = textRenderer->document().markers().markersFor(&textNode);
@@ -105,8 +100,8 @@ void SVGInlineFlowBox::computeTextMatchMarkerRectForRenderer(RenderSVGInlineText
 
             SVGInlineTextBox* textBox = toSVGInlineTextBox(box);
 
-            int markerStartPosition = max<int>(marker->startOffset() - textBox->start(), 0);
-            int markerEndPosition = min<int>(marker->endOffset() - textBox->start(), textBox->len());
+            int markerStartPosition = std::max<int>(marker->startOffset() - textBox->start(), 0);
+            int markerEndPosition = std::min<int>(marker->endOffset() - textBox->start(), textBox->len());
 
             if (markerStartPosition >= markerEndPosition)
                 continue;
@@ -124,7 +119,7 @@ void SVGInlineFlowBox::computeTextMatchMarkerRectForRenderer(RenderSVGInlineText
                 if (!textBox->mapStartEndPositionsIntoFragmentCoordinates(fragment, fragmentStartPosition, fragmentEndPosition))
                     continue;
 
-                FloatRect fragmentRect = textBox->selectionRectForTextFragment(fragment, fragmentStartPosition, fragmentEndPosition, style);
+                FloatRect fragmentRect = textBox->selectionRectForTextFragment(fragment, fragmentStartPosition, fragmentEndPosition, &style);
                 fragment.buildFragmentTransform(fragmentTransform);
                 if (!fragmentTransform.isIdentity())
                     fragmentRect = fragmentTransform.mapRect(fragmentRect);
@@ -138,5 +133,3 @@ void SVGInlineFlowBox::computeTextMatchMarkerRectForRenderer(RenderSVGInlineText
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

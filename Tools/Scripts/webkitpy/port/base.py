@@ -1,4 +1,5 @@
 # Copyright (C) 2010 Google Inc. All rights reserved.
+# Copyright (C) 2013 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -50,8 +51,9 @@ except ImportError:
 from webkitpy.common import find_files
 from webkitpy.common import read_checksum_from_png
 from webkitpy.common.memoized import memoized
+from webkitpy.common.prettypatch import PrettyPatch
 from webkitpy.common.system import path
-from webkitpy.common.system.executive import Executive, ScriptError
+from webkitpy.common.system.executive import ScriptError
 from webkitpy.common.system.systemhost import SystemHost
 from webkitpy.common.webkit_finder import WebKitFinder
 from webkitpy.layout_tests.models.test_configuration import TestConfiguration
@@ -95,7 +97,7 @@ class Port(object):
     def __init__(self, host, port_name, options=None, **kwargs):
 
         # This value may be different from cls.port_name by having version modifiers
-        # and other fields appended to it (for example, 'qt-arm' or 'mac-wk2').
+        # and other fields appended to it (for example, 'mac-wk2' or 'win').
         self._name = port_name
 
         # These are default values that should be overridden in a subclasses.
@@ -115,6 +117,7 @@ class Port(object):
         self._filesystem = host.filesystem
         self._webkit_finder = WebKitFinder(host.filesystem)
         self._config = port_config.Config(self._executive, self._filesystem, self.port_name)
+        self.pretty_patch = PrettyPatch(self._executive, self.path_from_webkit_base(), self._filesystem)
 
         self._helper = None
         self._http_server = None
@@ -122,25 +125,6 @@ class Port(object):
         self._image_differ = None
         self._server_process_constructor = server_process.ServerProcess  # overridable for testing
         self._http_lock = None  # FIXME: Why does this live on the port object?
-
-        # Python's Popen has a bug that causes any pipes opened to a
-        # process that can't be executed to be leaked.  Since this
-        # code is specifically designed to tolerate exec failures
-        # to gracefully handle cases where wdiff is not installed,
-        # the bug results in a massive file descriptor leak. As a
-        # workaround, if an exec failure is ever experienced for
-        # wdiff, assume it's not available.  This will leak one
-        # file descriptor but that's better than leaking each time
-        # wdiff would be run.
-        #
-        # http://mail.python.org/pipermail/python-list/
-        #    2008-August/505753.html
-        # http://bugs.python.org/issue3210
-        self._wdiff_available = None
-
-        # FIXME: prettypatch.py knows this path, why is it copied here?
-        self._pretty_patch_path = self.path_from_webkit_base("Websites", "bugs.webkit.org", "PrettyPatch", "prettify.rb")
-        self._pretty_patch_available = None
 
         if not hasattr(options, 'configuration') or not options.configuration:
             self.set_option_default('configuration', self.default_configuration())
@@ -171,16 +155,6 @@ class Port(object):
         # We want to wait for at least 3 seconds, but if we are really slow, we want to be slow on cleanup as
         # well (for things like ASAN, Valgrind, etc.)
         return 3.0 * float(self.get_option('time_out_ms', '0')) / self.default_timeout_ms()
-
-    def wdiff_available(self):
-        if self._wdiff_available is None:
-            self._wdiff_available = self.check_wdiff(logging=False)
-        return self._wdiff_available
-
-    def pretty_patch_available(self):
-        if self._pretty_patch_available is None:
-            self._pretty_patch_available = self.check_pretty_patch(logging=False)
-        return self._pretty_patch_available
 
     def should_retry_crashes(self):
         return False
@@ -279,46 +253,6 @@ class Port(object):
             _log.error("ImageDiff was not found at %s" % image_diff_path)
             return False
         return True
-
-    def check_pretty_patch(self, logging=True):
-        """Checks whether we can use the PrettyPatch ruby script."""
-        try:
-            _ = self._executive.run_command(['ruby', '--version'])
-        except OSError, e:
-            if e.errno in [errno.ENOENT, errno.EACCES, errno.ECHILD]:
-                if logging:
-                    _log.warning("Ruby is not installed; can't generate pretty patches.")
-                    _log.warning('')
-                return False
-
-        if not self._filesystem.exists(self._pretty_patch_path):
-            if logging:
-                _log.warning("Unable to find %s; can't generate pretty patches." % self._pretty_patch_path)
-                _log.warning('')
-            return False
-
-        return True
-
-    def check_wdiff(self, logging=True):
-        if not self._path_to_wdiff():
-            # Don't need to log here since this is the port choosing not to use wdiff.
-            return False
-
-        try:
-            _ = self._executive.run_command([self._path_to_wdiff(), '--help'])
-        except OSError:
-            if logging:
-                message = self._wdiff_missing_message()
-                if message:
-                    for line in message.splitlines():
-                        _log.warning('    ' + line)
-                        _log.warning('')
-            return False
-
-        return True
-
-    def _wdiff_missing_message(self):
-        return 'wdiff is not installed; please install it to generate word-by-word diffs.'
 
     def check_httpd(self):
         if self._uses_apache():
@@ -566,6 +500,9 @@ class Port(object):
 
     def reference_files(self, test_name):
         """Return a list of expectation (== or !=) and filename pairs"""
+
+        if self.get_option('treat_ref_tests_as_pixel_tests'):
+            return []
 
         reftest_list = self._get_reftest_list(test_name)
         if not reftest_list:
@@ -899,8 +836,6 @@ class Port(object):
             'WEBKIT_TESTFONTS',
             'WEBKIT_OUTPUTDIR',
 
-            # Chromium:
-            'CHROME_DEVEL_SANDBOX',
         ]
         for variable in variables_to_copy:
             self._copy_value_from_environ_if_set(clean_env, variable)
@@ -923,10 +858,15 @@ class Port(object):
         """Return a newly created Driver subclass for starting/stopping the test driver."""
         return driver.DriverProxy(self, worker_number, self._driver_class(), pixel_tests=self.get_option('pixel_tests'), no_timeout=no_timeout)
 
-    def start_helper(self):
+    def start_helper(self, pixel_tests=False):
         """If a port needs to reconfigure graphics settings or do other
         things to ensure a known test configuration, it should override this
         method."""
+        pass
+
+    def reset_preferences(self):
+        """If a port needs to reset platform-specific persistent preference
+        storage, it should override this method."""
         pass
 
     def start_http_server(self, additional_dirs=None, number_of_servers=None):
@@ -1089,89 +1029,11 @@ class Port(object):
 
         # We use LayoutTest directory here because webkit_base isn't a part of WebKit repository in Chromium port
         # where turnk isn't checked out as a whole.
-        return [('WebKit', self.layout_tests_dir())]
+        repository_paths = [('WebKit', self.layout_tests_dir())]
+        if self.get_option('additional_repository_name') and self.get_option('additional_repository_path'):
+            repository_paths += [(self._options.additional_repository_name, self._options.additional_repository_path)]
+        return repository_paths
 
-    _WDIFF_DEL = '##WDIFF_DEL##'
-    _WDIFF_ADD = '##WDIFF_ADD##'
-    _WDIFF_END = '##WDIFF_END##'
-
-    def _format_wdiff_output_as_html(self, wdiff):
-        wdiff = cgi.escape(wdiff)
-        wdiff = wdiff.replace(self._WDIFF_DEL, "<span class=del>")
-        wdiff = wdiff.replace(self._WDIFF_ADD, "<span class=add>")
-        wdiff = wdiff.replace(self._WDIFF_END, "</span>")
-        html = "<head><style>.del { background: #faa; } "
-        html += ".add { background: #afa; }</style></head>"
-        html += "<pre>%s</pre>" % wdiff
-        return html
-
-    def _wdiff_command(self, actual_filename, expected_filename):
-        executable = self._path_to_wdiff()
-        return [executable,
-                "--start-delete=%s" % self._WDIFF_DEL,
-                "--end-delete=%s" % self._WDIFF_END,
-                "--start-insert=%s" % self._WDIFF_ADD,
-                "--end-insert=%s" % self._WDIFF_END,
-                actual_filename,
-                expected_filename]
-
-    @staticmethod
-    def _handle_wdiff_error(script_error):
-        # Exit 1 means the files differed, any other exit code is an error.
-        if script_error.exit_code != 1:
-            raise script_error
-
-    def _run_wdiff(self, actual_filename, expected_filename):
-        """Runs wdiff and may throw exceptions.
-        This is mostly a hook for unit testing."""
-        # Diffs are treated as binary as they may include multiple files
-        # with conflicting encodings.  Thus we do not decode the output.
-        command = self._wdiff_command(actual_filename, expected_filename)
-        wdiff = self._executive.run_command(command, decode_output=False,
-            error_handler=self._handle_wdiff_error)
-        return self._format_wdiff_output_as_html(wdiff)
-
-    def wdiff_text(self, actual_filename, expected_filename):
-        """Returns a string of HTML indicating the word-level diff of the
-        contents of the two filenames. Returns an empty string if word-level
-        diffing isn't available."""
-        if not self.wdiff_available():
-            return ""
-        try:
-            # It's possible to raise a ScriptError we pass wdiff invalid paths.
-            return self._run_wdiff(actual_filename, expected_filename)
-        except OSError, e:
-            if e.errno in [errno.ENOENT, errno.EACCES, errno.ECHILD]:
-                # Silently ignore cases where wdiff is missing.
-                self._wdiff_available = False
-                return ""
-            raise
-
-    # This is a class variable so we can test error output easily.
-    _pretty_patch_error_html = "Failed to run PrettyPatch, see error log."
-
-    def pretty_patch_text(self, diff_path):
-        if self._pretty_patch_available is None:
-            self._pretty_patch_available = self.check_pretty_patch(logging=False)
-        if not self._pretty_patch_available:
-            return self._pretty_patch_error_html
-        command = ("ruby", "-I", self._filesystem.dirname(self._pretty_patch_path),
-                   self._pretty_patch_path, diff_path)
-        try:
-            # Diffs are treated as binary (we pass decode_output=False) as they
-            # may contain multiple files of conflicting encodings.
-            return self._executive.run_command(command, decode_output=False)
-        except OSError, e:
-            # If the system is missing ruby log the error and stop trying.
-            self._pretty_patch_available = False
-            _log.error("Failed to run PrettyPatch (%s): %s" % (command, e))
-            return self._pretty_patch_error_html
-        except ScriptError, e:
-            # If ruby failed to run for some reason, log the command
-            # output and stop trying.
-            self._pretty_patch_available = False
-            _log.error("Failed to run PrettyPatch (%s):\n%s" % (command, e.message_with_output()))
-            return self._pretty_patch_error_html
 
     def default_configuration(self):
         return self._config.default_configuration()
@@ -1226,7 +1088,7 @@ class Port(object):
             if self._is_arch_based():
                 return 'archlinux-httpd.conf'
         # All platforms use apache2 except for CYGWIN (and Mac OS X Tiger and prior, which we no longer support).
-        return "apache2-httpd.conf"
+        return 'apache' + self._apache_version() + '-httpd.conf'
 
     def _path_to_apache_config_file(self):
         """Returns the full path to the apache configuration file.
@@ -1304,16 +1166,6 @@ class Port(object):
 
         This is needed only by ports that use the http_server.py module."""
         raise NotImplementedError('Port._path_to_lighttpd_php')
-
-    @memoized
-    def _path_to_wdiff(self):
-        """Returns the full path to the wdiff binary, or None if it is not available.
-
-        This is likely used only by wdiff_text()"""
-        for path in ("/usr/bin/wdiff", "/usr/bin/dwdiff"):
-            if self._filesystem.exists(path):
-                return path
-        return None
 
     def _webkit_baseline_path(self, platform):
         """Return the  full path to the top of the baseline tree for a
@@ -1410,11 +1262,7 @@ class Port(object):
     # to use for all port configurations (including architectures, graphics types, etc).
     def _port_flag_for_scripts(self):
         # This is overrriden by ports which need a flag passed to scripts to distinguish the use of that port.
-        # For example --qt on linux, since a user might have both Gtk and Qt libraries installed.
         return None
-
-    def tooling_flag(self):
-        return "--port=%s%s" % (self.port_name, '-wk2' if self.get_option('webkit_test_runner') else '')
 
     # This is modeled after webkitdirs.pm argumentsForConfiguration() from old-run-webkit-tests
     def _arguments_for_configuration(self):
@@ -1441,11 +1289,8 @@ class Port(object):
         environment.disable_gcc_smartquotes()
         env = environment.to_dictionary()
 
-        # FIXME: We build both DumpRenderTree and WebKitTestRunner for
-        # WebKitTestRunner runs because DumpRenderTree still includes
-        # the DumpRenderTreeSupport module and the TestNetscapePlugin.
-        # These two projects should be factored out into their own
-        # projects.
+        # FIXME: We build both DumpRenderTree and WebKitTestRunner for WebKitTestRunner runs because
+        # DumpRenderTree includes TestNetscapePlugin. It should be factored out into its own project.
         try:
             self._run_script("build-dumprendertree", args=self._build_driver_flags(), env=env)
             if self.get_option('webkit_test_runner'):
@@ -1536,56 +1381,10 @@ class Port(object):
 
     def _wk2_port_name(self):
         # By current convention, the WebKit2 name is always mac-wk2, win-wk2, not mac-leopard-wk2, etc,
-        # except for Qt because WebKit2 is only supported by Qt 5.0 (therefore: qt-5.0-wk2).
         return "%s-wk2" % self.port_name
 
-    # We might need to pass scm into this function for scm.checkout_root
-    @staticmethod
-    def script_shell_command(script_name):
-        script_path = os.path.join("Tools", "Scripts", script_name)
-        return Executive.shell_command_for_script(script_path)
-
-    def make_args(self):
-        args = "--makeargs=\"-j%s\"" % self._executive.cpu_count()
-        if "MAKEFLAGS" in os.environ:
-            args = "--makeargs=\"%s\"" % os.environ["MAKEFLAGS"]
-        return args
-
-    def update_webkit_command(self, non_interactive=False):
-        return self.script_shell_command("update-webkit")
-
-    def check_webkit_style_command(self):
-        return self.script_shell_command("check-webkit-style")
-
-    def prepare_changelog_command(self):
-        return self.script_shell_command("prepare-ChangeLog")
-
-    def build_webkit_command(self, build_style=None):
-        command = self.script_shell_command("build-webkit")
-        if build_style == "debug":
-            command.append("--debug")
-        if build_style == "release":
-            command.append("--release")
-        return command
-
-    def run_javascriptcore_tests_command(self):
-        return self.script_shell_command("run-javascriptcore-tests")
-
-    def run_webkit_unit_tests_command(self):
-        return None
-
-    def run_webkit_tests_command(self):
-        return self.script_shell_command("run-webkit-tests")
-
-    def run_python_unittests_command(self):
-        return self.script_shell_command("test-webkitpy")
-
-    def run_perl_unittests_command(self):
-        return self.script_shell_command("test-webkitperl")
-
-    def run_bindings_tests_command(self):
-        return self.script_shell_command("run-bindings-tests")
-
+    def logging_patterns_to_strip(self):
+        return []
 
 class VirtualTestSuite(object):
     def __init__(self, name, base, args, tests=None):

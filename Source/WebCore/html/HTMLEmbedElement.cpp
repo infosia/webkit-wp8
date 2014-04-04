@@ -83,7 +83,7 @@ bool HTMLEmbedElement::isPresentationAttribute(const QualifiedName& name) const
     return HTMLPlugInImageElement::isPresentationAttribute(name);
 }
 
-void HTMLEmbedElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStylePropertySet* style)
+void HTMLEmbedElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (name == hiddenAttr) {
         if (equalIgnoringCase(value, "yes") || equalIgnoringCase(value, "true")) {
@@ -105,9 +105,10 @@ void HTMLEmbedElement::parseAttribute(const QualifiedName& name, const AtomicStr
         m_url = stripLeadingAndTrailingHTMLSpaces(value);
     else if (name == srcAttr) {
         m_url = stripLeadingAndTrailingHTMLSpaces(value);
+        document().updateStyleIfNeeded();
         if (renderer() && isImageType()) {
             if (!m_imageLoader)
-                m_imageLoader = adoptPtr(new HTMLImageLoader(this));
+                m_imageLoader = adoptPtr(new HTMLImageLoader(*this));
             m_imageLoader->updateFromElementIgnoringPreviousError();
         }
     } else
@@ -119,8 +120,7 @@ void HTMLEmbedElement::parametersForPlugin(Vector<String>& paramNames, Vector<St
     if (!hasAttributes())
         return;
 
-    for (unsigned i = 0; i < attributeCount(); ++i) {
-        const Attribute& attribute = attributeAt(i);
+    for (const Attribute& attribute : attributesIterator()) {
         paramNames.append(attribute.localName().string());
         paramValues.append(attribute.value().string());
     }
@@ -170,9 +170,8 @@ void HTMLEmbedElement::updateWidget(PluginCreationOption pluginCreationOption)
     if (!renderer()) // Do not load the plugin if beforeload removed this element or its renderer.
         return;
 
-    SubframeLoader& loader = document().frame()->loader().subframeLoader();
     // FIXME: beforeLoad could have detached the renderer!  Just like in the <object> case above.
-    loader.requestObject(this, m_url, getNameAttribute(), m_serviceType, paramNames, paramValues);
+    requestObject(m_url, m_serviceType, paramNames, paramValues);
 }
 
 bool HTMLEmbedElement::rendererIsNeeded(const RenderStyle& style)
@@ -186,7 +185,7 @@ bool HTMLEmbedElement::rendererIsNeeded(const RenderStyle& style)
     if (p && p->hasTagName(objectTag)) {
         if (!p->renderer())
             return false;
-        if (!static_cast<HTMLObjectElement*>(p)->useFallbackContent()) {
+        if (!toHTMLObjectElement(p)->useFallbackContent()) {
             ASSERT(!p->renderer()->isEmbeddedObject());
             return false;
         }
@@ -211,7 +210,7 @@ const AtomicString& HTMLEmbedElement::imageSourceURL() const
     return getAttribute(srcAttr);
 }
 
-void HTMLEmbedElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) const
+void HTMLEmbedElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     HTMLPlugInImageElement::addSubresourceAttributeURLs(urls);
 

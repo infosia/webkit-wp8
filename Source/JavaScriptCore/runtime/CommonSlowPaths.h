@@ -29,8 +29,11 @@
 #include "CodeBlock.h"
 #include "CodeSpecializationKind.h"
 #include "ExceptionHelpers.h"
+#include "JSStackInlines.h"
 #include "NameInstance.h"
-#include <wtf/Platform.h>
+#include "StackAlignment.h"
+#include "VM.h"
+#include <wtf/StdLibExtras.h>
 
 #if ENABLE(JIT) || ENABLE(LLINT)
 
@@ -45,6 +48,12 @@ namespace JSC {
 
 namespace CommonSlowPaths {
 
+struct ArityCheckData {
+    unsigned paddedStackSpace;
+    void* thunkToCall;
+    void* returnPC;
+};
+
 ALWAYS_INLINE int arityCheckFor(ExecState* exec, JSStack* stack, CodeSpecializationKind kind)
 {
     JSFunction* callee = jsCast<JSFunction*>(exec->callee());
@@ -52,15 +61,14 @@ ALWAYS_INLINE int arityCheckFor(ExecState* exec, JSStack* stack, CodeSpecializat
     CodeBlock* newCodeBlock = callee->jsExecutable()->codeBlockFor(kind);
     int argumentCountIncludingThis = exec->argumentCountIncludingThis();
     
-    // This ensures enough space for the worst case scenario of zero arguments passed by the caller.
-    if (!stack->grow(exec->registers() - newCodeBlock->numParameters() - newCodeBlock->m_numCalleeRegisters))
-        return -1;
-    
     ASSERT(argumentCountIncludingThis < newCodeBlock->numParameters());
-    
-    // Too few arguments, return the number of missing arguments so the caller can
-    // grow the frame in place and fill in undefined values for the missing args.
-    return(newCodeBlock->numParameters() - argumentCountIncludingThis);
+    int missingArgumentCount = newCodeBlock->numParameters() - argumentCountIncludingThis;
+    int neededStackSpace = missingArgumentCount + 1; // Allow space to save the original return PC.
+    int paddedStackSpace = WTF::roundUpToMultipleOf(stackAlignmentRegisters(), neededStackSpace);
+
+    if (!stack->ensureCapacityFor(exec->registers() - paddedStackSpace))
+        return -1;
+    return paddedStackSpace / stackAlignmentRegisters();
 }
 
 inline bool opIn(ExecState* exec, JSValue propName, JSValue baseVal)
@@ -96,10 +104,10 @@ struct Instruction;
 // warnings, or worse, a change in the ABI used to return these types.
 struct SlowPathReturnType {
     void* a;
-    ExecState* b;
+    void* b;
 };
 
-inline SlowPathReturnType encodeResult(void* a, ExecState* b)
+inline SlowPathReturnType encodeResult(void* a, void* b)
 {
     SlowPathReturnType result;
     result.a = a;
@@ -107,7 +115,7 @@ inline SlowPathReturnType encodeResult(void* a, ExecState* b)
     return result;
 }
 
-inline void decodeResult(SlowPathReturnType result, void*& a, ExecState*& b)
+inline void decodeResult(SlowPathReturnType result, void*& a, void*& b)
 {
     a = result.a;
     b = result.b;
@@ -119,12 +127,12 @@ typedef int64_t SlowPathReturnType;
 typedef union {
     struct {
         void* a;
-        ExecState* b;
+        void* b;
     } pair;
     int64_t i;
 } SlowPathReturnTypeEncoding;
 
-inline SlowPathReturnType encodeResult(void* a, ExecState* b)
+inline SlowPathReturnType encodeResult(void* a, void* b)
 {
     SlowPathReturnTypeEncoding u;
     u.pair.a = a;
@@ -132,7 +140,7 @@ inline SlowPathReturnType encodeResult(void* a, ExecState* b)
     return u.i;
 }
 
-inline void decodeResult(SlowPathReturnType result, void*& a, ExecState*& b)
+inline void decodeResult(SlowPathReturnType result, void*& a, void*& b)
 {
     SlowPathReturnTypeEncoding u;
     u.i = result;
@@ -151,9 +159,14 @@ SLOW_PATH_DECL(name) WTF_INTERNAL
     
 SLOW_PATH_HIDDEN_DECL(slow_path_call_arityCheck);
 SLOW_PATH_HIDDEN_DECL(slow_path_construct_arityCheck);
+SLOW_PATH_HIDDEN_DECL(slow_path_touch_entry);
 SLOW_PATH_HIDDEN_DECL(slow_path_create_arguments);
 SLOW_PATH_HIDDEN_DECL(slow_path_create_this);
+SLOW_PATH_HIDDEN_DECL(slow_path_enter);
+SLOW_PATH_HIDDEN_DECL(slow_path_get_callee);
 SLOW_PATH_HIDDEN_DECL(slow_path_to_this);
+SLOW_PATH_HIDDEN_DECL(slow_path_captured_mov);
+SLOW_PATH_HIDDEN_DECL(slow_path_new_captured_func);
 SLOW_PATH_HIDDEN_DECL(slow_path_not);
 SLOW_PATH_HIDDEN_DECL(slow_path_eq);
 SLOW_PATH_HIDDEN_DECL(slow_path_neq);
@@ -175,6 +188,7 @@ SLOW_PATH_HIDDEN_DECL(slow_path_mod);
 SLOW_PATH_HIDDEN_DECL(slow_path_lshift);
 SLOW_PATH_HIDDEN_DECL(slow_path_rshift);
 SLOW_PATH_HIDDEN_DECL(slow_path_urshift);
+SLOW_PATH_HIDDEN_DECL(slow_path_unsigned);
 SLOW_PATH_HIDDEN_DECL(slow_path_bitand);
 SLOW_PATH_HIDDEN_DECL(slow_path_bitor);
 SLOW_PATH_HIDDEN_DECL(slow_path_bitxor);

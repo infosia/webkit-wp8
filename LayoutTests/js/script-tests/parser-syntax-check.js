@@ -241,6 +241,19 @@ invalid("var a = :)");
 valid  ("var a = a in b in c instanceof d");
 invalid("var a = b ? c, b");
 invalid("const a = b : c");
+valid("const a = 7; eval(''); a++");
+valid("const a = 7; eval(''); a--");
+valid("const a = 7; with({}) a++");
+valid("const a = 7; with({}) a--");
+valid("const a = 7; eval(''); a+=1");
+valid("const a = 7; eval(''); a-=1");
+valid("const a = 7; with({}) a+=1");
+valid("const a = 7; with({}) a-=1");
+valid("const a = 7; eval(''); a=1");
+valid("const a = 7; eval(''); a=1");
+valid("const a = 7; with({}) a=1");
+valid("const a = 7; with({}) a=1");
+
 
 debug  ("for statement");
 
@@ -284,13 +297,14 @@ valid  ("for ((a, b) in c) break");
 invalid("for (a ? b : c in c) break");
 valid  ("for ((a ? b : c) in c) break");
 valid  ("for (var a in b in c) break");
-invalid("for (var a = 5 += 6 in b) break");
+valid("for (var a = 5 += 6 in b) break");
+valid("for (var a = debug('should not be hit') in b) break");
 invalid("for (var a += 5 in b) break");
 invalid("for (var a = in b) break");
 invalid("for (var a, b in b) break");
 invalid("for (var a = -6, b in b) break");
 invalid("for (var a, b = 8 in b) break");
-invalid("for (var a = (b in c) in d) break");
+valid("for (var a = (b in c) in d) break");
 invalid("for (var a = (b in c in d) break");
 invalid("for (var (a) in b) { }");
 valid  ("for (var a = 7, b = c < d >= d ; f()[6]++ ; --i()[1]++ ) {}");
@@ -368,6 +382,103 @@ valid("({a: 1 || 1}.a = 1)");
 
 invalid("var a.b = c");
 invalid("var a.b;");
+
+valid("for (of of of){}")
+valid("for (of; of; of){}")
+valid("for (var of of of){}")
+valid("for (var of; of; of){}")
+invalid("for (var of.of of of){}")
+invalid("for (var of[of] of of){}")
+valid("for (of.of of of){}")
+valid("for (of[of] of of){}")
+valid("for (var [of] of of){}")
+valid("for (var {of} of of){}")
+valid("for (of in of){}")
+valid("for (var of in of){}")
+invalid("for (var of.of in of){}")
+valid("for (of.of in of){}")
+valid("for (of[of] in of){}")
+invalid("for (var of[of] in of){}")
+valid("for (var [of] in of){}")
+valid("for (var {of} in of){}")
+valid("for ([of] in of){}")
+valid("for ({of} in of){}")
+
+
+invalid("for (of of of of){}")
+invalid("for (of of; of; of){}")
+invalid("for (of of []; of; of){}")
+invalid("for (of of){}")
+invalid("for (var of of){}")
+invalid("for (of of in of){}")
+invalid("for (of in){}")
+invalid("for (var of in){}")
+
+debug("spread operator")
+valid("foo(...bar)")
+valid("o.foo(...bar)")
+valid("o[foo](...bar)")
+valid("new foo(...bar)")
+valid("new o.foo(...bar)")
+valid("new o[foo](...bar)")
+invalid("foo(...)")
+invalid("o.foo(...)")
+invalid("o[foo](...)")
+invalid("foo(bar...)")
+invalid("o.foo(bar...)")
+invalid("o[foo](bar...)")
+invalid("foo(a,...bar)")
+invalid("o.foo(a,...bar)")
+invalid("o[foo](a,...bar)")
+invalid("foo(...bar, a)")
+invalid("o.foo(...bar, a)")
+invalid("o[foo](...bar, a)")
+valid("[...bar]")
+valid("[a, ...bar]")
+valid("[...bar, a]")
+valid("[...bar,,,,]")
+valid("[,,,,...bar]")
+valid("({1: x})")
+valid("({1: x}=1)")
+valid("({1: x}=null)")
+valid("({1: x})")
+valid("({1: x}=1)")
+valid("({1: x}=null)")
+valid("({a: b}=null)")
+valid("'use strict'; ({1: x})")
+valid("'use strict'; ({1: x}=1)")
+valid("'use strict'; ({1: x}=null)")
+valid("'use strict'; ({a: b}=null)")
+valid("var {1:x}=1")
+valid("[x]=1")
+valid("var [x]=1")
+valid("({[x]: 1})")
+valid("delete ({a}=1)")
+valid("delete ({a:a}=1)")
+valid("({a}=1)()")
+valid("({a:a}=1)()")
+valid("({a}=1)=1")
+valid("({a:a}=1)=1")
+valid("({a}=1=1)")
+valid("({a:a}=1=1)")
+invalid("({get [x](){}})")
+invalid("({set [x](){}})")
+invalid("({[...x]: 1})")
+valid("( function(){ return this || eval('this'); }().x = 'y' )");
+invalid("function(){ return this || eval('this'); }().x = 'y'");
+invalid("1 % +");
+invalid("1 % -");
+invalid("1 % typeof");
+invalid("1 % void");
+invalid("1 % !");
+invalid("1 % ~");
+invalid("1 % delete");
+invalid("1 % ++");
+invalid("1 % --");
+invalid("1 % \n++");
+invalid("1 % \n--");
+
+
 
 try { eval("a.b.c = {};"); } catch(e1) { e=e1; shouldBe("e.line", "1") }
 foo = 'FAIL';

@@ -10,7 +10,6 @@
   <script>
     if (window.internals) {
       internals.settings.setForceCompositingMode(true);
-      internals.settings.setAcceleratedCompositingForScrollableFramesEnabled(true);
       internals.settings.setCompositedScrollingForFramesEnabled(true);
     }
     function doTest()
@@ -18,7 +17,7 @@
       if (window.testRunner) {
         testRunner.dumpAsText(false);
         if (window.internals)
-          document.getElementById("result").innerText = window.internals.nonFastScrollableRects(document).length ? "FAIL" : "PASS";
+          document.getElementById("result").innerText = window.internals.nonFastScrollableRects().length ? "FAIL" : "PASS";
       }
     }
     window.addEventListener("load", doTest, false);

@@ -33,7 +33,7 @@
 #include "DFGInsertionSet.h"
 #include "DFGPhase.h"
 #include "DFGVariableAccessDataDump.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include <wtf/HashMap.h>
 
 namespace JSC { namespace DFG {
@@ -127,20 +127,20 @@ public:
                     if (!iter->value.m_structure && !iter->value.m_arrayModeIsValid)
                         break;
 
-                    CodeOrigin codeOrigin = node->codeOrigin;
+                    NodeOrigin origin = node->origin;
                     
                     Node* getLocal = insertionSet.insertNode(
-                        indexInBlock + 1, variable->prediction(), GetLocal, codeOrigin,
+                        indexInBlock + 1, variable->prediction(), GetLocal, origin,
                         OpInfo(variable), Edge(node));
                     if (iter->value.m_structure) {
                         insertionSet.insertNode(
-                            indexInBlock + 1, SpecNone, CheckStructure, codeOrigin,
+                            indexInBlock + 1, SpecNone, CheckStructure, origin,
                             OpInfo(m_graph.addStructureSet(iter->value.m_structure)),
                             Edge(getLocal, CellUse));
                     } else if (iter->value.m_arrayModeIsValid) {
                         ASSERT(iter->value.m_arrayModeHoistingOkay);
                         insertionSet.insertNode(
-                            indexInBlock + 1, SpecNone, CheckArray, codeOrigin,
+                            indexInBlock + 1, SpecNone, CheckArray, origin,
                             OpInfo(iter->value.m_arrayMode.asWord()),
                             Edge(getLocal, CellUse));
                     } else
@@ -163,33 +163,22 @@ public:
                     if (!iter->value.m_structure && !iter->value.m_arrayModeIsValid)
                         break;
 
-                    // First insert a dead SetLocal to tell OSR that the child's value should
-                    // be dropped into this bytecode variable if the CheckStructure decides
-                    // to exit.
-                    
-                    CodeOrigin codeOrigin = node->codeOrigin;
+                    NodeOrigin origin = node->origin;
                     Edge child1 = node->child1();
                     
-                    insertionSet.insertNode(
-                        indexInBlock, SpecNone, SetLocal, codeOrigin, OpInfo(variable), child1);
-
-                    // Use NodeExitsForward to indicate that we should exit to the next
-                    // bytecode instruction rather than reexecuting the current one.
-                    Node* newNode = 0;
                     if (iter->value.m_structure) {
-                        newNode = insertionSet.insertNode(
-                            indexInBlock, SpecNone, CheckStructure, codeOrigin,
+                        insertionSet.insertNode(
+                            indexInBlock, SpecNone, CheckStructure, origin,
                             OpInfo(m_graph.addStructureSet(iter->value.m_structure)),
                             Edge(child1.node(), CellUse));
                     } else if (iter->value.m_arrayModeIsValid) {
                         ASSERT(iter->value.m_arrayModeHoistingOkay);
-                        newNode = insertionSet.insertNode(
-                            indexInBlock, SpecNone, CheckArray, codeOrigin,
+                        insertionSet.insertNode(
+                            indexInBlock, SpecNone, CheckArray, origin,
                             OpInfo(iter->value.m_arrayMode.asWord()),
                             Edge(child1.node(), CellUse));
                     } else
                         RELEASE_ASSERT_NOT_REACHED();
-                    newNode->mergeFlags(NodeExitsForward);
                     changed = true;
                     break;
                 }
@@ -228,9 +217,6 @@ private:
                 switch (node->op()) {
                 case CheckStructure:
                 case StructureTransitionWatchpoint: {
-                    // We currently rely on the fact that we're the only ones who would
-                    // insert these nodes with NodeExitsForward.
-                    RELEASE_ASSERT(!(node->flags() & NodeExitsForward));
                     Node* child = node->child1().node();
                     if (child->op() != GetLocal)
                         break;
@@ -249,6 +235,7 @@ private:
                 case ReallocatePropertyStorage:
                 case GetButterfly:
                 case GetByVal:
+                case PutByValDirect:
                 case PutByVal:
                 case PutByValAlias:
                 case GetArrayLength:
@@ -256,6 +243,10 @@ private:
                 case GetIndexedPropertyStorage:
                 case GetTypedArrayByteOffset:
                 case Phantom:
+                case HardPhantom:
+                case MovHint:
+                case MultiGetByOffset:
+                case MultiPutByOffset:
                     // Don't count these uses.
                     break;
                     
@@ -328,9 +319,6 @@ private:
                 Node* node = block->at(indexInBlock);
                 switch (node->op()) {
                 case CheckArray: {
-                    // We currently rely on the fact that we're the only ones who would
-                    // insert these nodes with NodeExitsForward.
-                    RELEASE_ASSERT(!(node->flags() & NodeExitsForward));
                     Node* child = node->child1().node();
                     if (child->op() != GetLocal)
                         break;
@@ -350,11 +338,16 @@ private:
                 case ReallocatePropertyStorage:
                 case GetButterfly:
                 case GetByVal:
+                case PutByValDirect:
                 case PutByVal:
                 case PutByValAlias:
                 case GetArrayLength:
                 case GetIndexedPropertyStorage:
                 case Phantom:
+                case HardPhantom:
+                case MovHint:
+                case MultiGetByOffset:
+                case MultiPutByOffset:
                     // Don't count these uses.
                     break;
                     

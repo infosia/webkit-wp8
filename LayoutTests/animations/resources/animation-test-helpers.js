@@ -147,17 +147,12 @@ function parseFilterImage(s)
 
 function parseFilterFunctionList(s)
 {
-    var reg = /\)*\s*(blur|brightness|contrast|custom|drop\-shadow|grayscale|hue\-rotate|invert|opacity|saturate|sepia|url)\(/
+    var reg = /\)*\s*(blur|brightness|contrast|drop\-shadow|grayscale|hue\-rotate|invert|opacity|saturate|sepia|url)\(/
     var matches = s.split(reg);
 
     // First item must be empty. All other items are of functionName, functionValue.
     if (!matches || matches.shift() != "")
         return null;
-
-    // RegEx above can not handle deprecated custom() function
-    var customPos = matches.indexOf("custom");
-    if (customPos >= 0 && matches[customPos+1] === "")
-        return parseDeprecatedCustomFilterFunction(s);
 
     // Odd items are the function name, even items the function value.
     if (!matches.length || matches.length % 2)
@@ -172,36 +167,10 @@ function parseFilterFunctionList(s)
             // FIXME: Support parsing of drop-shadow.
             functionList.push(functionValue);
             continue;
-        } else if (functionName == "custom") {
-            var filterParams;
-            if (!window.getCustomFilterParameters)
-                throw new Error("getCustomFilterParameters not found. Did you include custom-filter-parser.js?");
-            var filterParams = getCustomFilterParameters(functionValue);
-            if (!filterParams) {
-                console.error("Error on parsing custom filter parameters ", functionValue);
-                return null;
-            }
-            functionList.push(filterParams);
-            continue;
         }
         functionList.push(parseFloat(functionValue));
     }
     return functionList;
-}
-
-// FIXME: Remove function and caller when we removed the deprecated syntax of
-// the custom filter function.
-function parseDeprecatedCustomFilterFunction(s)
-{
-    var filterResult = s.match(/(\w+)\((.+)\)/);
-    var filterParams = filterResult[2];
-
-    if (filterResult[1] != "custom")
-        return null;
-
-    if (!window.getCustomFilterParameters)
-        throw new Error("getCustomFilterParameters not found. Did you include custom-filter-parser.js?");
-    return ["custom", getCustomFilterParameters(filterParams)];
 }
 
 function parseBasicShape(s)
@@ -212,17 +181,22 @@ function parseBasicShape(s)
 
     var matches;
     switch (shapeFunction[1]) {
-    case "rectangle":
-        matches = s.match("rectangle\\((.*)\\s*,\\s*(.*)\\s*,\\s*(.*)\\,\\s*(.*)\\)");
+    case "inset":
+        matches = s.match("inset\\((.*)\\s+(.*)\\s+(.*)\\s+(.*)\\s+round\\s+(.*)\\s+(.*)\\s+(.*)\\s+(.*)\\s+/\\s+(.*)\\s+(.*)\\s+(.*)\\s+(.*)\\)");
         break;
     case "circle":
-        matches = s.match("circle\\((.*)\\s*,\\s*(.*)\\s*,\\s*(.*)\\)");
+        matches = s.match("circle\\((.*)\\s+at\\s+(.*)\\s+(.*)\\)");
         break;
     case "ellipse":
-        matches = s.match("ellipse\\((.*)\\s*,\\s*(.*)\\s*,\\s*(.*)\\,\\s*(.*)\\)");
+        matches = s.match("ellipse\\((.*)\\s+(.*)\\s+at\\s+(.*)\\s+(.*)\\)");
         break;
     case "polygon":
-        matches = s.match("polygon\\(nonzero, (.*)\\s+(.*)\\s*,\\s*(.*)\\s+(.*)\\s*,\\s*(.*)\\s+(.*)\\s*,\\s*(.*)\\s+(.*)\\)");
+        matches = s.match("polygon\\(\\s*(.*)\\s*\\)");
+        matches = matches[1].split(/\s*,\s*/);
+        matches = matches.map(function(match) {
+            return match.split(/\s+/);
+        });
+        matches = Array.prototype.concat.apply([s], matches);
         break;
     default:
         return null;
@@ -232,13 +206,21 @@ function parseBasicShape(s)
         return null;
 
     matches.shift();
+    var i = 0;
+    if (shapeFunction[1] == "polygon")
+        i++; // skip nonzero|evenodd below
 
     // Normalize percentage values.
-    for (var i = 0; i < matches.length; ++i) {
-        var param = matches[i];
-        matches[i] = parseFloat(matches[i]);
-        if (param.indexOf('%') != -1)
-            matches[i] = matches[i] / 100;
+    for (; i < matches.length; ++i) {
+        var param = parseFloat(matches[i]);
+
+        if (isNaN(param))
+            continue;
+
+        if (matches[i].indexOf('%') != -1)
+            matches[i] = param / 100;
+        else
+            matches[i] = param;
     }
 
     return {"shape": shapeFunction[1], "params": matches};
@@ -289,13 +271,6 @@ function compareFilterFunctions(computedValue, expectedValue, tolerance)
             console.error("Filter functions do not match.");
             return false;
         }
-        if (actual[i] == "custom") {
-            if (!customFilterParameterMatch(actual[i+1], expected[i+1], tolerance)) {
-                console.error("Custom filter parameters do not match.");
-                return false;
-            }
-            continue;
-        }
         if (!isCloseEnough(actual[i+1], expected[i+1], tolerance)) {
             console.error("Filter function values do not match.");
             return false;
@@ -309,56 +284,16 @@ function basicShapeParametersMatch(paramList1, paramList2, tolerance)
     if (paramList1.shape != paramList2.shape
         || paramList1.params.length != paramList2.params.length)
         return false;
-    for (var i = 0; i < paramList1.params.length; ++i) {
+    var i = 0;
+    for (; i < paramList1.params.length; ++i) {
         var param1 = paramList1.params[i], 
             param2 = paramList2.params[i];
+        if (param1 === param2)
+            continue;
         var match = isCloseEnough(param1, param2, tolerance);
         if (!match)
             return false;
     }
-    return true;
-}
-
-function customFilterParameterMatch(param1, param2, tolerance)
-{
-    if (param1.type != "parameter") {
-        // Checking for shader uris and other keywords. They need to be exactly the same.
-        return (param1.type == param2.type && param1.value == param2.value);
-    }
-
-    if (param1.name != param2.name || param1.value.length != param2.value.length)
-        return false;
-
-    for (var j = 0; j < param1.value.length; ++j) {
-        var val1 = param1.value[j],
-            val2 = param2.value[j];
-        if (val1.type != val2.type)
-            return false;
-        switch (val1.type) {
-        case "function":
-            if (val1.name != val2.name)
-                return false;
-            if (val1.arguments.length != val2.arguments.length) {
-                console.error("Arguments length mismatch: ", val1.arguments.length, "/", val2.arguments.length);
-                return false;
-            }
-            for (var t = 0; t < val1.arguments.length; ++t) {
-                if (val1.arguments[t].type != "number" || val2.arguments[t].type != "number")
-                    return false;
-                if (!isCloseEnough(val1.arguments[t].value, val2.arguments[t].value, tolerance))
-                    return false;
-            }
-            break;
-        case "number":
-            if (!isCloseEnough(val1.value, val2.value, tolerance))
-                return false;
-            break;
-        default:
-            console.error("Unsupported parameter type ", val1.type);
-            return false;
-        }
-    }
-
     return true;
 }
 
@@ -460,6 +395,7 @@ function getPropertyValue(property, elementId, iframeId)
                || property == "webkitFilter"
                || property == "webkitClipPath"
                || property == "webkitShapeInside"
+               || property == "webkitShapeOutside"
                || !property.indexOf("webkitTransform")) {
         computedValue = window.getComputedStyle(element)[property.split(".")[0]];
     } else {
@@ -492,7 +428,7 @@ function comparePropertyValue(property, computedValue, expectedValue, tolerance)
         var filterParameters = parseFilterFunctionList(computedValue);
         var filter2Parameters = parseFilterFunctionList(expectedValue);
         result = compareFilterFunctions(filterParameters, filter2Parameters, tolerance);
-    } else if (property == "webkitClipPath" || property == "webkitShapeInside") {
+    } else if (property == "webkitClipPath" || property == "webkitShapeInside" || property == "webkitShapeOutside") {
         var clipPathParameters = parseBasicShape(computedValue);
         var clipPathParameters2 = parseBasicShape(expectedValue);
         if (!clipPathParameters || !clipPathParameters2)
@@ -510,9 +446,12 @@ function comparePropertyValue(property, computedValue, expectedValue, tolerance)
     return result;
 }
 
-function endTest()
+function endTest(finishCallback)
 {
     document.getElementById('result').innerHTML = result;
+
+    if (finishCallback)
+        finishCallback();
 
     if (window.testRunner)
         testRunner.notifyDone();
@@ -524,13 +463,13 @@ function checkExpectedValueCallback(expected, index)
 }
 
 var testStarted = false;
-function startTest(expected, callback)
+function startTest(expected, startCallback, finishCallback)
 {
     if (testStarted) return;
     testStarted = true;
 
-    if (callback)
-        callback();
+    if (startCallback)
+        startCallback();
 
     var maxTime = 0;
 
@@ -551,15 +490,17 @@ function startTest(expected, callback)
     }
 
     if (maxTime > 0)
-        window.setTimeout(endTest, maxTime * 1000 + 50);
+        window.setTimeout(function () {
+            endTest(finishCallback);
+        }, maxTime * 1000 + 50);
     else
-        endTest();
+        endTest(finishCallback);
 }
 
 var result = "";
 var hasPauseAnimationAPI;
 
-function runAnimationTest(expected, callback, event, disablePauseAnimationAPI, doPixelTest)
+function runAnimationTest(expected, startCallback, event, disablePauseAnimationAPI, doPixelTest, finishCallback)
 {
     hasPauseAnimationAPI = 'internals' in window;
     if (disablePauseAnimationAPI)
@@ -576,10 +517,10 @@ function runAnimationTest(expected, callback, event, disablePauseAnimationAPI, d
     
     var target = document;
     if (event == undefined)
-        waitForAnimationToStart(target, function() { startTest(expected, callback); });
+        waitForAnimationToStart(target, function() { startTest(expected, startCallback, finishCallback); });
     else if (event == "load")
         window.addEventListener(event, function() {
-            startTest(expected, callback);
+            startTest(expected, startCallback, finishCallback);
         }, false);
 }
 

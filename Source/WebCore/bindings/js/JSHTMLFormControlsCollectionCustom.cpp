@@ -30,6 +30,7 @@
 #include "JSRadioNodeList.h"
 #include "Node.h"
 #include "RadioNodeList.h"
+#include <runtime/IdentifierInlines.h>
 #include <wtf/Vector.h>
 #include <wtf/text/AtomicString.h>
 
@@ -41,15 +42,15 @@ static JSValue getNamedItems(ExecState* exec, JSHTMLFormControlsCollection* coll
 {
     Vector<Ref<Element>> namedItems;
     const AtomicString& name = propertyNameToAtomicString(propertyName);
-    collection->impl()->namedItems(name, namedItems);
+    collection->impl().namedItems(name, namedItems);
 
     if (namedItems.isEmpty())
         return jsUndefined();
     if (namedItems.size() == 1)
         return toJS(exec, collection->globalObject(), &namedItems[0].get());
 
-    ASSERT(collection->impl()->type() == FormControls);
-    return toJS(exec, collection->globalObject(), collection->impl()->ownerNode()->radioNodeList(name).get());
+    ASSERT(collection->impl().type() == FormControls);
+    return toJS(exec, collection->globalObject(), collection->impl().ownerNode().radioNodeList(name).get());
 }
 
 bool JSHTMLFormControlsCollection::canGetItemsForName(ExecState*, HTMLFormControlsCollection* collection, PropertyName propertyName)
@@ -57,10 +58,10 @@ bool JSHTMLFormControlsCollection::canGetItemsForName(ExecState*, HTMLFormContro
     return collection->hasNamedItem(propertyNameToAtomicString(propertyName));
 }
 
-JSValue JSHTMLFormControlsCollection::nameGetter(ExecState* exec, JSValue slotBase, PropertyName propertyName)
+EncodedJSValue JSHTMLFormControlsCollection::nameGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    JSHTMLFormControlsCollection* thisObj = jsCast<JSHTMLFormControlsCollection*>(asObject(slotBase));
-    return getNamedItems(exec, thisObj, propertyName);
+    JSHTMLFormControlsCollection* thisObj = jsCast<JSHTMLFormControlsCollection*>(slotBase);
+    return JSValue::encode(getNamedItems(exec, thisObj, propertyName));
 }
 
 JSValue JSHTMLFormControlsCollection::namedItem(ExecState* exec)

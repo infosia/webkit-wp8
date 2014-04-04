@@ -34,24 +34,10 @@ class StyleSheet;
 template<typename T> class EventSender;
 typedef EventSender<HTMLStyleElement> StyleEventSender;
 
-class HTMLStyleElement FINAL : public HTMLElement {
+class HTMLStyleElement final : public HTMLElement {
 public:
     static PassRefPtr<HTMLStyleElement> create(const QualifiedName&, Document&, bool createdByParser);
     virtual ~HTMLStyleElement();
-
-#if ENABLE(STYLE_SCOPED)
-    bool scoped() const;
-    void setScoped(bool);
-    Element* scopingElement() const;
-    bool isRegisteredAsScoped() const
-    {
-        // Note: We cannot rely on the 'scoped' attribute still being present when this method is invoked.
-        // Therefore we cannot rely on scoped()!
-        if (m_scopedStyleRegistrationState == NotRegistered)
-            return false;
-        return true;
-    }
-#endif
 
     CSSStyleSheet* sheet() const { return m_styleSheetOwner.sheet(); }
 
@@ -65,41 +51,26 @@ private:
     HTMLStyleElement(const QualifiedName&, Document&, bool createdByParser);
 
     // overload from HTMLElement
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual InsertionNotificationRequest insertedInto(ContainerNode*) OVERRIDE;
-    virtual void removedFrom(ContainerNode*) OVERRIDE;
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
+    virtual void childrenChanged(const ChildChange&) override;
 
-    virtual void finishParsingChildren();
+    virtual void finishParsingChildren() override;
 
     virtual bool isLoading() const { return m_styleSheetOwner.isLoading(); }
-    virtual bool sheetLoaded() { return m_styleSheetOwner.sheetLoaded(&document()); }
-    virtual void notifyLoadedSheetAndAllCriticalSubresources(bool errorOccurred);
-    virtual void startLoadingDynamicSheet() { m_styleSheetOwner.startLoadingDynamicSheet(&document()); }
+    virtual bool sheetLoaded() override { return m_styleSheetOwner.sheetLoaded(document()); }
+    virtual void notifyLoadedSheetAndAllCriticalSubresources(bool errorOccurred) override;
+    virtual void startLoadingDynamicSheet() override { m_styleSheetOwner.startLoadingDynamicSheet(document()); }
 
-    virtual void addSubresourceAttributeURLs(ListHashSet<KURL>&) const;
-
-#if ENABLE(STYLE_SCOPED)
-    void scopedAttributeChanged(bool);
-    void registerWithScopingNode(bool);
-    void unregisterWithScopingNode(ContainerNode*);
-#endif
+    virtual void addSubresourceAttributeURLs(ListHashSet<URL>&) const override;
 
     InlineStyleSheetOwner m_styleSheetOwner;
     bool m_firedLoad;
     bool m_loadedSheet;
-
-#if ENABLE(STYLE_SCOPED)
-    enum ScopedStyleRegistrationState {
-        NotRegistered,
-        RegisteredAsScoped,
-        RegisteredInShadowRoot
-    };
-    ScopedStyleRegistrationState m_scopedStyleRegistrationState;
-#endif
 };
 
-ELEMENT_TYPE_CASTS(HTMLStyleElement)
+NODE_TYPE_CASTS(HTMLStyleElement)
 
 } //namespace
 

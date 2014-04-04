@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -59,16 +59,6 @@
 
 namespace WebCore {
 
-class WidgetPrivate {
-public:
-    WidgetPrivate()
-        : previousVisibleRect(NSZeroRect)
-    {
-    }
-
-    NSRect previousVisibleRect;
-};
-
 static void safeRemoveFromSuperview(NSView *view)
 {
     // If the the view is the first responder, then set the window's first responder to nil so
@@ -86,14 +76,12 @@ static void safeRemoveFromSuperview(NSView *view)
 }
 
 Widget::Widget(NSView *view)
-    : m_data(new WidgetPrivate)
 {
     init(view);
 }
 
 Widget::~Widget()
 {
-    delete m_data;
 }
 
 // FIXME: Should move this to Chrome; bad layering that this knows about Frame.
@@ -165,6 +153,7 @@ void Widget::setFrameRect(const IntRect& rect)
     m_frame = rect;
 
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
+
     NSView *outerView = getOuterView();
     if (!outerView)
         return;
@@ -173,15 +162,12 @@ void Widget::setFrameRect(const IntRect& rect)
     // code, which can deref it.
     Ref<Widget> protect(*this);
 
-    NSRect visibleRect = [outerView visibleRect];
-    NSRect f = rect;
-    if (!NSEqualRects(f, [outerView frame])) {
-        [outerView setFrame:f];
-        [outerView setNeedsDisplay:NO];
-    } else if (!NSEqualRects(visibleRect, m_data->previousVisibleRect) && [outerView respondsToSelector:@selector(visibleRectDidChange)])
-        [outerView visibleRectDidChange];
+    NSRect frame = rect;
+    if (!NSEqualRects(frame, outerView.frame)) {
+        outerView.frame = frame;
+        outerView.needsDisplay = NO;
+    }
 
-    m_data->previousVisibleRect = visibleRect;
     END_BLOCK_OBJC_EXCEPTIONS;
 }
 
@@ -346,7 +332,6 @@ void Widget::setPlatformWidget(NSView *widget)
         return;
 
     m_widget = widget;
-    m_data->previousVisibleRect = NSZeroRect;
 }
 
 } // namespace WebCore

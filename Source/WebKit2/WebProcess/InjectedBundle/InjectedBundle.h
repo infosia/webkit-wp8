@@ -33,11 +33,8 @@
 #include <WebCore/UserContentTypes.h>
 #include <WebCore/UserScriptTypes.h>
 #include <wtf/PassRefPtr.h>
+#include <wtf/RetainPtr.h>
 #include <wtf/text/WTFString.h>
-
-#if PLATFORM(QT)
-#include <QLibrary>
-#endif
 
 #if PLATFORM(GTK)
 typedef struct _GModule GModule;
@@ -47,51 +44,58 @@ typedef struct _GModule GModule;
 #include <Eina.h>
 #endif
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 OBJC_CLASS NSBundle;
+OBJC_CLASS NSMutableDictionary;
+OBJC_CLASS WKWebProcessBundleParameters;
 #endif
 
-namespace CoreIPC {
-    class ArgumentDecoder;
-    class Connection;
+namespace API {
+class Array;
+class Data;
+}
+
+namespace IPC {
+class ArgumentDecoder;
+class Connection;
+class DataReference;
 }
 
 namespace WebKit {
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 typedef NSBundle *PlatformBundle;
-#elif PLATFORM(QT)
-typedef QLibrary PlatformBundle;
 #elif PLATFORM(GTK)
 typedef ::GModule* PlatformBundle;
 #elif PLATFORM(EFL)
 typedef Eina_Module* PlatformBundle;
 #endif
 
-class ImmutableArray;
 class InjectedBundleScriptWorld;
 class WebCertificateInfo;
 class WebConnection;
-class WebData;
 class WebFrame;
 class WebPage;
 class WebPageGroupProxy;
+struct WebProcessCreationParameters;
 
-class InjectedBundle : public TypedAPIObject<APIObject::TypeBundle> {
+class InjectedBundle : public API::ObjectImpl<API::Object::Type::Bundle> {
 public:
-    static PassRefPtr<InjectedBundle> create(const String& path)
+    static PassRefPtr<InjectedBundle> create(const WebProcessCreationParameters& parameters)
     {
-        return adoptRef(new InjectedBundle(path));
+        return adoptRef(new InjectedBundle(parameters));
     }
     ~InjectedBundle();
 
-    bool load(APIObject* initializationUserData);
+    bool load(API::Object* initializationUserData);
     void setSandboxExtension(PassRefPtr<SandboxExtension> sandboxExtension) { m_sandboxExtension = sandboxExtension; }
 
+    void setBundleParameter(const String& key, const IPC::DataReference&);
+
     // API
-    void initializeClient(WKBundleClient*);
-    void postMessage(const String&, APIObject*);
-    void postSynchronousMessage(const String&, APIObject*, RefPtr<APIObject>& returnData);
+    void initializeClient(const WKBundleClientBase*);
+    void postMessage(const String&, API::Object*);
+    void postSynchronousMessage(const String&, API::Object*, RefPtr<API::Object>& returnData);
 
     WebConnection* webConnectionToUIProcess() const;
 
@@ -125,11 +129,11 @@ public:
     void setWebNotificationPermission(WebPage*, const String& originString, bool allowed);
     void removeAllWebNotificationPermissions(WebPage*);
     uint64_t webNotificationID(JSContextRef, JSValueRef);
-    PassRefPtr<WebData> createWebDataFromUint8Array(JSContextRef, JSValueRef);
+    PassRefPtr<API::Data> createWebDataFromUint8Array(JSContextRef, JSValueRef);
 
     // UserContent API
-    void addUserScript(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& source, const String& url, ImmutableArray* whitelist, ImmutableArray* blacklist, WebCore::UserScriptInjectionTime, WebCore::UserContentInjectedFrames);
-    void addUserStyleSheet(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& source, const String& url, ImmutableArray* whitelist, ImmutableArray* blacklist, WebCore::UserContentInjectedFrames);
+    void addUserScript(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& source, const String& url, API::Array* whitelist, API::Array* blacklist, WebCore::UserScriptInjectionTime, WebCore::UserContentInjectedFrames);
+    void addUserStyleSheet(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& source, const String& url, API::Array* whitelist, API::Array* blacklist, WebCore::UserContentInjectedFrames);
     void removeUserScript(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& url);
     void removeUserStyleSheet(WebPageGroupProxy*, InjectedBundleScriptWorld*, const String& url);
     void removeUserScripts(WebPageGroupProxy*, InjectedBundleScriptWorld*);
@@ -147,7 +151,7 @@ public:
     uint64_t appCacheUsageForOrigin(const String& origin);
     void setApplicationCacheOriginQuota(const String& origin, uint64_t);
     void resetApplicationCacheOriginQuota(const String& origin);
-    PassRefPtr<ImmutableArray> originsWithApplicationCache();
+    PassRefPtr<API::Array> originsWithApplicationCache();
 
     // Garbage collection API
     void garbageCollectJavaScriptObjects();
@@ -158,8 +162,8 @@ public:
     void didCreatePage(WebPage*);
     void willDestroyPage(WebPage*);
     void didInitializePageGroup(WebPageGroupProxy*);
-    void didReceiveMessage(const String&, APIObject*);
-    void didReceiveMessageToPage(WebPage*, const String&, APIObject*);
+    void didReceiveMessage(const String&, API::Object*);
+    void didReceiveMessageToPage(WebPage*, const String&, API::Object*);
 
     static void reportException(JSContextRef, JSValueRef exception);
 
@@ -167,14 +171,18 @@ public:
 
     void setTabKeyCyclesThroughElements(WebPage*, bool enabled);
     void setSerialLoadingEnabled(bool);
-    void setShadowDOMEnabled(bool);
     void setCSSRegionsEnabled(bool);
     void setCSSCompositingEnabled(bool);
-    void setSeamlessIFramesEnabled(bool);
     void dispatchPendingLoadRequests();
 
+#if PLATFORM(COCOA) && WK_API_ENABLED
+    WKWebProcessBundleParameters *bundleParameters();
+#endif
+
 private:
-    explicit InjectedBundle(const String&);
+    explicit InjectedBundle(const WebProcessCreationParameters&);
+
+    void platformInitialize(const WebProcessCreationParameters&);
 
     String m_path;
     PlatformBundle m_platformBundle; // This is leaked right now, since we never unload the bundle/module.
@@ -182,6 +190,10 @@ private:
     RefPtr<SandboxExtension> m_sandboxExtension;
 
     InjectedBundleClient m_client;
+
+#if PLATFORM(COCOA) && WK_API_ENABLED
+    RetainPtr<WKWebProcessBundleParameters> m_bundleParameters;
+#endif
 };
 
 } // namespace WebKit

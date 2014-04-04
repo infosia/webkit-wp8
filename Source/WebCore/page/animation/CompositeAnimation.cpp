@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -35,7 +35,7 @@
 #include "ImplicitAnimation.h"
 #include "KeyframeAnimation.h"
 #include "Logging.h"
-#include "RenderObject.h"
+#include "RenderElement.h"
 #include "RenderStyle.h"
 #include <wtf/text/CString.h>
 
@@ -80,7 +80,7 @@ void CompositeAnimation::clearRenderer()
     }
 }
 
-void CompositeAnimation::updateTransitions(RenderObject* renderer, RenderStyle* currentStyle, RenderStyle* targetStyle)
+void CompositeAnimation::updateTransitions(RenderElement* renderer, RenderStyle* currentStyle, RenderStyle* targetStyle)
 {
     // If currentStyle is null or there are no old or new transitions, just skip it
     if (!currentStyle || (!targetStyle->transitions() && m_transitions.isEmpty()))
@@ -148,7 +148,6 @@ void CompositeAnimation::updateTransitions(RenderObject* renderer, RenderStyle* 
                     // list. In this case, the latter one overrides the earlier one, so we
                     // behave as though this is a running animation being replaced.
                     if (!implAnim->isTargetPropertyEqual(prop, targetStyle)) {
-#if USE(ACCELERATED_COMPOSITING)
                         // For accelerated animations we need to return a new RenderStyle with the _current_ value
                         // of the property, so that restarted transitions use the correct starting point.
                         if (CSSPropertyAnimation::animationOfPropertyIsAccelerated(prop) && implAnim->isAccelerated()) {
@@ -157,7 +156,6 @@ void CompositeAnimation::updateTransitions(RenderObject* renderer, RenderStyle* 
 
                             implAnim->blendPropertyValueInStyle(prop, modifiedCurrentStyle.get());
                         }
-#endif
                         LOG(Animations, "Removing existing ImplicitAnimation %p for property %s", implAnim, getPropertyName(prop));
                         animationController()->animationWillBeRemoved(implAnim);
                         m_transitions.remove(prop);
@@ -203,7 +201,7 @@ void CompositeAnimation::updateTransitions(RenderObject* renderer, RenderStyle* 
         m_transitions.remove(toBeRemoved[j]);
 }
 
-void CompositeAnimation::updateKeyframeAnimations(RenderObject* renderer, RenderStyle* currentStyle, RenderStyle* targetStyle)
+void CompositeAnimation::updateKeyframeAnimations(RenderElement* renderer, RenderStyle* currentStyle, RenderStyle* targetStyle)
 {
     // Nothing to do if we don't have any animations, and didn't have any before
     if (m_keyframeAnimations.isEmpty() && !targetStyle->hasAnimations())
@@ -228,7 +226,7 @@ void CompositeAnimation::updateKeyframeAnimations(RenderObject* renderer, Render
         // Toss the animation order map.
         m_keyframeAnimationOrderMap.clear();
 
-        DEFINE_STATIC_LOCAL(const AtomicString, none, ("none", AtomicString::ConstructFromLiteral));
+        DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, none, ("none", AtomicString::ConstructFromLiteral));
         
         // Now mark any still active animations as active and add any new animations.
         if (targetStyle->animations()) {
@@ -295,13 +293,13 @@ void CompositeAnimation::updateKeyframeAnimations(RenderObject* renderer, Render
         m_keyframeAnimations.remove(animsToBeRemoved[j]);
 }
 
-PassRefPtr<RenderStyle> CompositeAnimation::animate(RenderObject* renderer, RenderStyle* currentStyle, RenderStyle* targetStyle)
+PassRef<RenderStyle> CompositeAnimation::animate(RenderElement& renderer, RenderStyle* currentStyle, RenderStyle& targetStyle)
 {
     RefPtr<RenderStyle> resultStyle;
 
     // We don't do any transitions if we don't have a currentStyle (on startup).
-    updateTransitions(renderer, currentStyle, targetStyle);
-    updateKeyframeAnimations(renderer, currentStyle, targetStyle);
+    updateTransitions(&renderer, currentStyle, &targetStyle);
+    updateKeyframeAnimations(&renderer, currentStyle, &targetStyle);
     m_keyframeAnimations.checkConsistency();
 
     if (currentStyle) {
@@ -311,7 +309,7 @@ PassRefPtr<RenderStyle> CompositeAnimation::animate(RenderObject* renderer, Rend
             CSSPropertyTransitionsMap::const_iterator end = m_transitions.end();
             for (CSSPropertyTransitionsMap::const_iterator it = m_transitions.begin(); it != end; ++it) {
                 if (ImplicitAnimation* anim = it->value.get())
-                    anim->animate(this, renderer, currentStyle, targetStyle, resultStyle);
+                    anim->animate(this, &renderer, currentStyle, &targetStyle, resultStyle);
             }
         }
     }
@@ -321,10 +319,10 @@ PassRefPtr<RenderStyle> CompositeAnimation::animate(RenderObject* renderer, Rend
     for (Vector<AtomicStringImpl*>::const_iterator it = m_keyframeAnimationOrderMap.begin(); it != m_keyframeAnimationOrderMap.end(); ++it) {
         RefPtr<KeyframeAnimation> keyframeAnim = m_keyframeAnimations.get(*it);
         if (keyframeAnim)
-            keyframeAnim->animate(this, renderer, currentStyle, targetStyle, resultStyle);
+            keyframeAnim->animate(this, &renderer, currentStyle, &targetStyle, resultStyle);
     }
 
-    return resultStyle ? resultStyle.release() : targetStyle;
+    return resultStyle ? resultStyle.releaseNonNull() : targetStyle;
 }
 
 PassRefPtr<RenderStyle> CompositeAnimation::getAnimatedStyle() const
@@ -475,14 +473,14 @@ void CompositeAnimation::resumeOverriddenImplicitAnimations(CSSPropertyID proper
     }
 }
 
-bool CompositeAnimation::isAnimatingProperty(CSSPropertyID property, bool acceleratedOnly, bool isRunningNow) const
+bool CompositeAnimation::isAnimatingProperty(CSSPropertyID property, bool acceleratedOnly, AnimationBase::RunningState runningState) const
 {
     if (!m_keyframeAnimations.isEmpty()) {
         m_keyframeAnimations.checkConsistency();
         AnimationNameMap::const_iterator animationsEnd = m_keyframeAnimations.end();
         for (AnimationNameMap::const_iterator it = m_keyframeAnimations.begin(); it != animationsEnd; ++it) {
             KeyframeAnimation* anim = it->value.get();
-            if (anim && anim->isAnimatingProperty(property, acceleratedOnly, isRunningNow))
+            if (anim && anim->isAnimatingProperty(property, acceleratedOnly, runningState))
                 return true;
         }
     }
@@ -491,7 +489,7 @@ bool CompositeAnimation::isAnimatingProperty(CSSPropertyID property, bool accele
         CSSPropertyTransitionsMap::const_iterator transitionsEnd = m_transitions.end();
         for (CSSPropertyTransitionsMap::const_iterator it = m_transitions.begin(); it != transitionsEnd; ++it) {
             ImplicitAnimation* anim = it->value.get();
-            if (anim && anim->isAnimatingProperty(property, acceleratedOnly, isRunningNow))
+            if (anim && anim->isAnimatingProperty(property, acceleratedOnly, runningState))
                 return true;
         }
     }

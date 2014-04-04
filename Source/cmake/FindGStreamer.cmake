@@ -20,6 +20,7 @@
 #  gstreamer-audio:      GSTREAMER_AUDIO_INCLUDE_DIRS and GSTREAMER_AUDIO_LIBRARIES
 #  gstreamer-fft:        GSTREAMER_FFT_INCLUDE_DIRS and GSTREAMER_FFT_LIBRARIES
 #  gstreamer-pbutils:    GSTREAMER_PBUTILS_INCLUDE_DIRS and GSTREAMER_PBUTILS_LIBRARIES
+#  gstreamer-tag:        GSTREAMER_TAG_INCLUDE_DIRS and GSTREAMER_TAG_LIBRARIES
 #  gstreamer-video:      GSTREAMER_VIDEO_INCLUDE_DIRS and GSTREAMER_VIDEO_LIBRARIES
 #
 # Copyright (C) 2012 Raphael Kubo da Costa <rakuco@webkit.org>
@@ -53,8 +54,7 @@ find_package(PkgConfig)
 #   _header is the component's header, relative to the gstreamer-1.0 directory (eg. "gst/gst.h").
 #   _library is the component's library name (eg. "gstreamer-1.0" or "gstvideo-1.0")
 macro(FIND_GSTREAMER_COMPONENT _component_prefix _pkgconfig_name _header _library)
-    # FIXME: The QUIET keyword can be used once we require CMake 2.8.2.
-    pkg_check_modules(PC_${_component_prefix} ${_pkgconfig_name})
+    pkg_check_modules(PC_${_component_prefix} QUIET ${_pkgconfig_name})
 
     find_path(${_component_prefix}_INCLUDE_DIRS
         NAMES ${_header}
@@ -74,7 +74,7 @@ endmacro()
 
 # 1.1. Find headers and libraries
 FIND_GSTREAMER_COMPONENT(GSTREAMER gstreamer-1.0 gst/gst.h gstreamer-1.0)
-FIND_GSTREAMER_COMPONENT(GSTREAMER_BASE gstreamer-base-1.0 gst/gst.h gstbase-1.0)
+FIND_GSTREAMER_COMPONENT(GSTREAMER_BASE gstreamer-base-1.0 gst/base/gstadapter.h gstbase-1.0)
 
 # 1.2. Check GStreamer version
 if (GSTREAMER_INCLUDE_DIRS)
@@ -94,17 +94,8 @@ if (GSTREAMER_INCLUDE_DIRS)
     endif ()
 endif ()
 
-# FIXME: With CMake 2.8.3 we can just pass GSTREAMER_VERSION to FIND_PACKAGE_HANDLE_STANDARD_ARGS as VERSION_VAR
-#        and remove the version check here (GSTREAMER_FIND_VERSION would be passed to FIND_PACKAGE).
-set(VERSION_OK TRUE)
-if (GSTREAMER_FIND_VERSION_EXACT)
-    if (NOT(("${GSTREAMER_FIND_VERSION}" VERSION_EQUAL "${GSTREAMER_VERSION}")))
-        set(VERSION_OK FALSE)
-    endif ()
-else ()
-    if ("${GSTREAMER_VERSION}" VERSION_LESS "${GSTREAMER_FIND_VERSION}")
-        set(VERSION_OK FALSE)
-    endif ()
+if ("${GStreamer_FIND_VERSION}" VERSION_GREATER "${GSTREAMER_VERSION}")
+    message(FATAL_ERROR "Required version (" ${GStreamer_FIND_VERSION} ") is higher than found version (" ${GSTREAMER_VERSION} ")")
 endif ()
 
 # -------------------------
@@ -115,12 +106,13 @@ FIND_GSTREAMER_COMPONENT(GSTREAMER_APP gstreamer-app-1.0 gst/app/gstappsink.h gs
 FIND_GSTREAMER_COMPONENT(GSTREAMER_AUDIO gstreamer-audio-1.0 gst/audio/audio.h gstaudio-1.0)
 FIND_GSTREAMER_COMPONENT(GSTREAMER_FFT gstreamer-fft-1.0 gst/fft/gstfft.h gstfft-1.0)
 FIND_GSTREAMER_COMPONENT(GSTREAMER_PBUTILS gstreamer-pbutils-1.0 gst/pbutils/pbutils.h gstpbutils-1.0)
+FIND_GSTREAMER_COMPONENT(GSTREAMER_TAG gstreamer-tag-1.0 gst/tag/tag.h gsttag-1.0)
 FIND_GSTREAMER_COMPONENT(GSTREAMER_VIDEO gstreamer-video-1.0 gst/video/video.h gstvideo-1.0)
 
 # ------------------------------------------------
 # 3. Process the COMPONENTS passed to FIND_PACKAGE
 # ------------------------------------------------
-set(_GSTREAMER_REQUIRED_VARS GSTREAMER_INCLUDE_DIRS GSTREAMER_LIBRARIES VERSION_OK GSTREAMER_BASE_INCLUDE_DIRS GSTREAMER_BASE_LIBRARIES)
+set(_GSTREAMER_REQUIRED_VARS GSTREAMER_INCLUDE_DIRS GSTREAMER_LIBRARIES GSTREAMER_VERSION GSTREAMER_BASE_INCLUDE_DIRS GSTREAMER_BASE_LIBRARIES)
 
 foreach (_component ${GStreamer_FIND_COMPONENTS})
     set(_gst_component "GSTREAMER_${_component}")
@@ -130,4 +122,24 @@ foreach (_component ${GStreamer_FIND_COMPONENTS})
 endforeach ()
 
 include(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(GStreamer DEFAULT_MSG ${_GSTREAMER_REQUIRED_VARS})
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(GStreamer REQUIRED_VARS _GSTREAMER_REQUIRED_VARS
+                                            VERSION_VAR   GSTREAMER_VERSION)
+
+mark_as_advanced(
+    GSTREAMER_APP_INCLUDE_DIRS
+    GSTREAMER_APP_LIBRARIES
+    GSTREAMER_AUDIO_INCLUDE_DIRS
+    GSTREAMER_AUDIO_LIBRARIES
+    GSTREAMER_BASE_INCLUDE_DIRS
+    GSTREAMER_BASE_LIBRARIES
+    GSTREAMER_FFT_INCLUDE_DIRS
+    GSTREAMER_FFT_LIBRARIES
+    GSTREAMER_INCLUDE_DIRS
+    GSTREAMER_LIBRARIES
+    GSTREAMER_PBUTILS_INCLUDE_DIRS
+    GSTREAMER_PBUTILS_LIBRARIES
+    GSTREAMER_TAG_INCLUDE_DIRS
+    GSTREAMER_TAG_LIBRARIES
+    GSTREAMER_VIDEO_INCLUDE_DIRS
+    GSTREAMER_VIDEO_LIBRARIES
+)

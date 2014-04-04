@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -36,7 +36,6 @@
 #include "FrameLoaderClient.h"
 #include "FrameLoaderStateMachine.h"
 #include "FrameView.h"
-#include "PlaceholderDocument.h"
 #include "PluginDocument.h"
 #include "RawDataDocumentParser.h"
 #include "ScriptController.h"
@@ -47,6 +46,10 @@
 #include "SinkDocument.h"
 #include "TextResourceDecoder.h"
 #include <wtf/Ref.h>
+
+#if PLATFORM(IOS)
+#include "PDFDocument.h"
+#endif
 
 namespace WebCore {
 
@@ -79,12 +82,8 @@ void DocumentWriter::replaceDocument(const String& source, Document* ownerDocume
 
         // FIXME: This should call DocumentParser::appendBytes instead of append
         // to support RawDataDocumentParsers.
-        if (DocumentParser* parser = m_frame->document()->parser()) {
-            parser->pinToMainThread();
-            // Because we're pinned to the main thread we don't need to worry about
-            // passing ownership of the source string.
+        if (DocumentParser* parser = m_frame->document()->parser())
             parser->append(source.impl());
-        }
     }
 
     end();
@@ -100,24 +99,28 @@ void DocumentWriter::clear()
 
 void DocumentWriter::begin()
 {
-    begin(KURL());
+    begin(URL());
 }
 
-PassRefPtr<Document> DocumentWriter::createDocument(const KURL& url)
+PassRefPtr<Document> DocumentWriter::createDocument(const URL& url)
 {
-    if (!m_frame->loader().stateMachine()->isDisplayingInitialEmptyDocument() && m_frame->loader().client().shouldAlwaysUsePluginDocument(m_mimeType))
+    if (!m_frame->loader().stateMachine().isDisplayingInitialEmptyDocument() && m_frame->loader().client().shouldAlwaysUsePluginDocument(m_mimeType))
         return PluginDocument::create(m_frame, url);
+#if PLATFORM(IOS)
+    if (equalIgnoringCase(m_mimeType, "application/pdf"))
+        return PDFDocument::create(m_frame, url);
+#endif
     if (!m_frame->loader().client().hasHTMLView())
-        return PlaceholderDocument::create(m_frame, url);
-    return DOMImplementation::createDocument(m_mimeType, m_frame, url, m_frame->inViewSourceMode());
+        return Document::createNonRenderedPlaceholder(m_frame, url);
+    return DOMImplementation::createDocument(m_mimeType, m_frame, url);
 }
 
-void DocumentWriter::begin(const KURL& urlReference, bool dispatch, Document* ownerDocument)
+void DocumentWriter::begin(const URL& urlReference, bool dispatch, Document* ownerDocument)
 {
     // We grab a local copy of the URL because it's easy for callers to supply
     // a URL that will be deallocated during the execution of this function.
     // For example, see <https://bugs.webkit.org/show_bug.cgi?id=66360>.
-    KURL url = urlReference;
+    URL url = urlReference;
 
     // Create a new document before clearing the frame, because it may need to
     // inherit an aliased security context.
@@ -130,7 +133,7 @@ void DocumentWriter::begin(const KURL& urlReference, bool dispatch, Document* ow
 
     // FIXME: Do we need to consult the content security policy here about blocked plug-ins?
 
-    bool shouldReuseDefaultView = m_frame->loader().stateMachine()->isDisplayingInitialEmptyDocument() && m_frame->document()->isSecureTransitionTo(url);
+    bool shouldReuseDefaultView = m_frame->loader().stateMachine().isDisplayingInitialEmptyDocument() && m_frame->document()->isSecureTransitionTo(url);
     if (shouldReuseDefaultView)
         document->takeDOMWindowFrom(m_frame->document());
     else
@@ -219,7 +222,7 @@ void DocumentWriter::addData(const char* bytes, size_t length)
         CRASH();
 
     ASSERT(m_parser);
-    m_parser->appendBytes(this, bytes, length);
+    m_parser->appendBytes(*this, bytes, length);
 }
 
 void DocumentWriter::end()
@@ -239,7 +242,7 @@ void DocumentWriter::end()
     if (!m_parser)
         return;
     // FIXME: m_parser->finish() should imply m_parser->flush().
-    m_parser->flush(this);
+    m_parser->flush(*this);
     if (!m_parser)
         return;
     m_parser->finish();

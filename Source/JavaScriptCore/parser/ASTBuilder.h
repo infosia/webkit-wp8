@@ -26,6 +26,7 @@
 #ifndef ASTBuilder_h
 #define ASTBuilder_h
 
+#include "BuiltinNames.h"
 #include "NodeConstructors.h"
 #include "SyntaxChecker.h"
 #include <utility>
@@ -90,6 +91,7 @@ public:
         UnaryExprContext(ASTBuilder&) {}
     };
 
+
     typedef SyntaxChecker FunctionBodyBuilder;
 
     typedef ExpressionNode* Expression;
@@ -107,7 +109,10 @@ public:
     typedef CaseClauseNode* Clause;
     typedef ConstDeclNode* ConstDeclList;
     typedef std::pair<ExpressionNode*, BinaryOpInfo> BinaryOperand;
-    
+    typedef RefPtr<DeconstructionPatternNode> DeconstructionPattern;
+    typedef RefPtr<ArrayPatternNode> ArrayPattern;
+    typedef RefPtr<ObjectPatternNode> ObjectPattern;
+    typedef RefPtr<BindingNode> BindingPattern;
     static const bool CreatesAST = true;
     static const bool NeedsFreeVariableInfo = true;
     static const bool CanUseFunctionCache = true;
@@ -226,6 +231,13 @@ public:
         return node;
     }
 
+    ExpressionNode* createSpreadExpression(const JSTokenLocation& location, ExpressionNode* expression, const JSTextPosition& start, const JSTextPosition& divot, const JSTextPosition& end)
+    {
+        auto node = new (m_vm) SpreadExpressionNode(location, expression);
+        setExceptionLocation(node, start, divot, end);
+        return node;
+    }
+
     ExpressionNode* createRegExp(const JSTokenLocation& location, const Identifier& pattern, const Identifier& flags, const JSTextPosition& start)
     {
         if (Yarr::checkSyntax(pattern.string()))
@@ -272,17 +284,17 @@ public:
         return result;
     }
 
-    FunctionBodyNode* createFunctionBody(const JSTokenLocation& startLocation, const JSTokenLocation& endLocation, unsigned startColumn, bool inStrictContext)
+    FunctionBodyNode* createFunctionBody(const JSTokenLocation& startLocation, const JSTokenLocation& endLocation, unsigned startColumn, unsigned endColumn, bool inStrictContext)
     {
-        return FunctionBodyNode::create(m_vm, startLocation, endLocation, startColumn, inStrictContext);
+        return FunctionBodyNode::create(m_vm, startLocation, endLocation, startColumn, endColumn, inStrictContext);
     }
 
-    void setFunctionStart(FunctionBodyNode* body, int functionStart)
+    void setFunctionNameStart(FunctionBodyNode* body, int functionNameStart)
     {
-        body->setFunctionStart(functionStart);
+        body->setFunctionNameStart(functionNameStart);
     }
     
-    template <bool> PropertyNode* createGetterOrSetterProperty(const JSTokenLocation& location, PropertyNode::Type type, const Identifier* name, ParameterNode* params, FunctionBodyNode* body, unsigned openBraceOffset, unsigned closeBraceOffset, int bodyStartLine, int bodyEndLine, unsigned bodyStartColumn)
+    NEVER_INLINE PropertyNode* createGetterOrSetterProperty(const JSTokenLocation& location, PropertyNode::Type type, bool, const Identifier* name, ParameterNode* params, FunctionBodyNode* body, unsigned openBraceOffset, unsigned closeBraceOffset, int bodyStartLine, int bodyEndLine, unsigned bodyStartColumn)
     {
         ASSERT(name);
         body->setLoc(bodyStartLine, bodyEndLine, location.startOffset, location.lineStartOffset);
@@ -290,7 +302,7 @@ public:
         return new (m_vm) PropertyNode(m_vm, *name, new (m_vm) FuncExprNode(location, m_vm->propertyNames->nullIdentifier, body, m_sourceCode->subExpression(openBraceOffset, closeBraceOffset, bodyStartLine, bodyStartColumn), params), type);
     }
     
-    template <bool> PropertyNode* createGetterOrSetterProperty(VM*, const JSTokenLocation& location, PropertyNode::Type type, double name, ParameterNode* params, FunctionBodyNode* body, unsigned openBraceOffset, unsigned closeBraceOffset, int bodyStartLine, int bodyEndLine, unsigned bodyStartColumn)
+    NEVER_INLINE PropertyNode* createGetterOrSetterProperty(VM*, const JSTokenLocation& location, PropertyNode::Type type, bool, double name, ParameterNode* params, FunctionBodyNode* body, unsigned openBraceOffset, unsigned closeBraceOffset, int bodyStartLine, int bodyEndLine, unsigned bodyStartColumn)
     {
         body->setLoc(bodyStartLine, bodyEndLine, location.startOffset, location.lineStartOffset);
         return new (m_vm) PropertyNode(m_vm, name, new (m_vm) FuncExprNode(location, m_vm->propertyNames->nullIdentifier, body, m_sourceCode->subExpression(openBraceOffset, closeBraceOffset, bodyStartLine, bodyStartColumn), params), type);
@@ -301,21 +313,22 @@ public:
     ArgumentListNode* createArgumentsList(const JSTokenLocation& location, ExpressionNode* arg) { return new (m_vm) ArgumentListNode(location, arg); }
     ArgumentListNode* createArgumentsList(const JSTokenLocation& location, ArgumentListNode* args, ExpressionNode* arg) { return new (m_vm) ArgumentListNode(location, args, arg); }
 
-    template <bool> PropertyNode* createProperty(const Identifier* propertyName, ExpressionNode* node, PropertyNode::Type type)
+    PropertyNode* createProperty(const Identifier* propertyName, ExpressionNode* node, PropertyNode::Type type, bool)
     {
         if (node->isFuncExprNode())
             static_cast<FuncExprNode*>(node)->body()->setInferredName(*propertyName);
         return new (m_vm) PropertyNode(m_vm, *propertyName, node, type);
     }
-    template <bool> PropertyNode* createProperty(VM*, double propertyName, ExpressionNode* node, PropertyNode::Type type) { return new (m_vm) PropertyNode(m_vm, propertyName, node, type); }
+    PropertyNode* createProperty(VM*, double propertyName, ExpressionNode* node, PropertyNode::Type type, bool) { return new (m_vm) PropertyNode(m_vm, propertyName, node, type); }
+    PropertyNode* createProperty(VM*, ExpressionNode* propertyName, ExpressionNode* node, PropertyNode::Type type, bool) { return new (m_vm) PropertyNode(m_vm, propertyName, node, type); }
     PropertyListNode* createPropertyList(const JSTokenLocation& location, PropertyNode* property) { return new (m_vm) PropertyListNode(location, property); }
     PropertyListNode* createPropertyList(const JSTokenLocation& location, PropertyNode* property, PropertyListNode* tail) { return new (m_vm) PropertyListNode(location, property, tail); }
 
     ElementNode* createElementList(int elisions, ExpressionNode* expr) { return new (m_vm) ElementNode(elisions, expr); }
     ElementNode* createElementList(ElementNode* elems, int elisions, ExpressionNode* expr) { return new (m_vm) ElementNode(elems, elisions, expr); }
 
-    ParameterNode* createFormalParameterList(const Identifier& ident) { return new (m_vm) ParameterNode(ident); }
-    ParameterNode* createFormalParameterList(ParameterNode* list, const Identifier& ident) { return new (m_vm) ParameterNode(list, ident); }
+    ParameterNode* createFormalParameterList(DeconstructionPattern pattern) { return new (m_vm) ParameterNode(pattern); }
+    ParameterNode* createFormalParameterList(ParameterNode* list, DeconstructionPattern pattern) { return new (m_vm) ParameterNode(list, pattern); }
 
     CaseClauseNode* createClause(ExpressionNode* expr, JSC::SourceElements* statements) { return new (m_vm) CaseClauseNode(expr, statements); }
     ClauseListNode* createClauseList(CaseClauseNode* clause) { return new (m_vm) ClauseListNode(clause); }
@@ -361,20 +374,41 @@ public:
         return result;
     }
 
-    StatementNode* createForInLoop(const JSTokenLocation& location, const Identifier* ident, ExpressionNode* iter, StatementNode* statements, const JSTextPosition& start, const JSTextPosition& divot, const JSTextPosition& end, int startLine, int endLine)
-    {
-        ForInNode* result = new (m_vm) ForInNode(m_vm, location, *ident, iter, statements, start);
-        result->setLoc(startLine, endLine, location.startOffset, location.lineStartOffset);
-        setExceptionLocation(result, start, divot + 1, end);
-        return result;
-    }
-
     StatementNode* createForInLoop(const JSTokenLocation& location, ExpressionNode* lhs, ExpressionNode* iter, StatementNode* statements, const JSTextPosition& eStart, const JSTextPosition& eDivot, const JSTextPosition& eEnd, int start, int end)
     {
         ForInNode* result = new (m_vm) ForInNode(location, lhs, iter, statements);
         result->setLoc(start, end, location.startOffset, location.lineStartOffset);
         setExceptionLocation(result, eStart, eDivot, eEnd);
         return result;
+    }
+    
+    StatementNode* createForInLoop(const JSTokenLocation& location, PassRefPtr<DeconstructionPatternNode> pattern, ExpressionNode* iter, StatementNode* statements, const JSTextPosition& eStart, const JSTextPosition& eDivot, const JSTextPosition& eEnd, int start, int end)
+    {
+        ForInNode* result = new (m_vm) ForInNode(m_vm, location, pattern.get(), iter, statements);
+        result->setLoc(start, end, location.startOffset, location.lineStartOffset);
+        setExceptionLocation(result, eStart, eDivot, eEnd);
+        return result;
+    }
+    
+    StatementNode* createForOfLoop(const JSTokenLocation& location, ExpressionNode* lhs, ExpressionNode* iter, StatementNode* statements, const JSTextPosition& eStart, const JSTextPosition& eDivot, const JSTextPosition& eEnd, int start, int end)
+    {
+        ForOfNode* result = new (m_vm) ForOfNode(location, lhs, iter, statements);
+        result->setLoc(start, end, location.startOffset, location.lineStartOffset);
+        setExceptionLocation(result, eStart, eDivot, eEnd);
+        return result;
+    }
+    
+    StatementNode* createForOfLoop(const JSTokenLocation& location, PassRefPtr<DeconstructionPatternNode> pattern, ExpressionNode* iter, StatementNode* statements, const JSTextPosition& eStart, const JSTextPosition& eDivot, const JSTextPosition& eEnd, int start, int end)
+    {
+        ForOfNode* result = new (m_vm) ForOfNode(m_vm, location, pattern.get(), iter, statements);
+        result->setLoc(start, end, location.startOffset, location.lineStartOffset);
+        setExceptionLocation(result, eStart, eDivot, eEnd);
+        return result;
+    }
+
+    bool isBindingNode(const DeconstructionPattern& pattern)
+    {
+        return pattern->isBindingNode();
     }
 
     StatementNode* createEmptyStatement(const JSTokenLocation& location) { return new (m_vm) EmptyStatementNode(location); }
@@ -515,7 +549,8 @@ public:
     {
         if (m_vm->propertyNames->arguments == *ident)
             usesArguments();
-        m_scope.m_varDeclarations->data.append(std::make_pair(ident, attrs));
+        ASSERT(ident->impl()->isAtomic());
+        m_scope.m_varDeclarations->data.append(std::make_pair(*ident, attrs));
     }
 
     ExpressionNode* combineCommaNodes(const JSTokenLocation& location, ExpressionNode* list, ExpressionNode* init)
@@ -610,11 +645,46 @@ public:
         return result;
     }
     
-    const Identifier& getName(Property property) const { return property->name(); }
+    const Identifier* getName(Property property) const { return property->name(); }
     PropertyNode::Type getType(Property property) const { return property->type(); }
 
     bool isResolve(ExpressionNode* expr) const { return expr->isResolveNode(); }
 
+    ExpressionNode* createDeconstructingAssignment(const JSTokenLocation& location, PassRefPtr<DeconstructionPatternNode> pattern, ExpressionNode* initializer)
+    {
+        return new (m_vm) DeconstructingAssignmentNode(location, pattern.get(), initializer);
+    }
+    
+    ArrayPattern createArrayPattern(const JSTokenLocation&)
+    {
+        return ArrayPatternNode::create(m_vm);
+    }
+    
+    void appendArrayPatternSkipEntry(ArrayPattern node, const JSTokenLocation& location)
+    {
+        node->appendIndex(location, 0);
+    }
+
+    void appendArrayPatternEntry(ArrayPattern node, const JSTokenLocation& location, DeconstructionPattern pattern)
+    {
+        node->appendIndex(location, pattern.get());
+    }
+    
+    ObjectPattern createObjectPattern(const JSTokenLocation&)
+    {
+        return ObjectPatternNode::create(m_vm);
+    }
+    
+    void appendObjectPatternEntry(ObjectPattern node, const JSTokenLocation& location, bool wasString, const Identifier& identifier, DeconstructionPattern pattern)
+    {
+        node->appendEntry(location, identifier, wasString, pattern.get());
+    }
+    
+    BindingPattern createBindingLocation(const JSTokenLocation&, const Identifier& boundProperty, const JSTextPosition& start, const JSTextPosition& end)
+    {
+        return BindingNode::create(m_vm, boundProperty, start, end);
+    }
+    
 private:
     struct Scope {
         Scope(VM* vm)
@@ -656,8 +726,8 @@ private:
     Scope m_scope;
     Vector<BinaryOperand, 10, UnsafeVectorOverflow> m_binaryOperandStack;
     Vector<AssignmentInfo, 10, UnsafeVectorOverflow> m_assignmentInfoStack;
-    Vector<pair<int, int>, 10, UnsafeVectorOverflow> m_binaryOperatorStack;
-    Vector<pair<int, JSTextPosition>, 10, UnsafeVectorOverflow> m_unaryTokenStack;
+    Vector<std::pair<int, int>, 10, UnsafeVectorOverflow> m_binaryOperatorStack;
+    Vector<std::pair<int, JSTextPosition>, 10, UnsafeVectorOverflow> m_unaryTokenStack;
     int m_evalCount;
 };
 
@@ -824,9 +894,9 @@ ExpressionNode* ASTBuilder::makeFunctionCallNode(const JSTokenLocation& location
     ASSERT(func->isDotAccessorNode());
     DotAccessorNode* dot = static_cast<DotAccessorNode*>(func);
     FunctionCallDotNode* node;
-    if (dot->identifier() == m_vm->propertyNames->call)
+    if (dot->identifier() == m_vm->propertyNames->builtinNames().callPublicName() || dot->identifier() == m_vm->propertyNames->builtinNames().callPrivateName())
         node = new (m_vm) CallFunctionCallDotNode(location, dot->base(), dot->identifier(), args, divot, divotStart, divotEnd);
-    else if (dot->identifier() == m_vm->propertyNames->apply)
+    else if (dot->identifier() == m_vm->propertyNames->builtinNames().applyPublicName() || dot->identifier() == m_vm->propertyNames->builtinNames().applyPrivateName())
         node = new (m_vm) ApplyFunctionCallDotNode(location, dot->base(), dot->identifier(), args, divot, divotStart, divotEnd);
     else
         node = new (m_vm) FunctionCallDotNode(location, dot->base(), dot->identifier(), args, divot, divotStart, divotEnd);
@@ -834,7 +904,7 @@ ExpressionNode* ASTBuilder::makeFunctionCallNode(const JSTokenLocation& location
     return node;
 }
 
-ExpressionNode* ASTBuilder::makeBinaryNode(const JSTokenLocation& location, int token, pair<ExpressionNode*, BinaryOpInfo> lhs, pair<ExpressionNode*, BinaryOpInfo> rhs)
+ExpressionNode* ASTBuilder::makeBinaryNode(const JSTokenLocation& location, int token, std::pair<ExpressionNode*, BinaryOpInfo> lhs, std::pair<ExpressionNode*, BinaryOpInfo> rhs)
 {
     switch (token) {
     case OR:

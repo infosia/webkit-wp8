@@ -42,7 +42,7 @@ namespace WebCore {
 
 using namespace HTMLNames;
 
-class KeygenSelectElement FINAL : public HTMLSelectElement {
+class KeygenSelectElement final : public HTMLSelectElement {
 public:
     static PassRefPtr<KeygenSelectElement> create(Document& document)
     {
@@ -53,12 +53,12 @@ protected:
     KeygenSelectElement(Document& document)
         : HTMLSelectElement(selectTag, document, 0)
     {
-        DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-keygen-select", AtomicString::ConstructFromLiteral));
+        DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-keygen-select", AtomicString::ConstructFromLiteral));
         setPseudo(pseudoId);
     }
 
 private:
-    virtual PassRefPtr<Element> cloneElementWithoutAttributesAndChildren()
+    virtual PassRefPtr<Element> cloneElementWithoutAttributesAndChildren() override
     {
         return create(document());
     }
@@ -112,7 +112,7 @@ bool HTMLKeygenElement::appendFormData(FormDataList& encoded_values, bool)
 
 const AtomicString& HTMLKeygenElement::formControlType() const
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, keygen, ("keygen", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, keygen, ("keygen", AtomicString::ConstructFromLiteral));
     return keygen;
 }
 

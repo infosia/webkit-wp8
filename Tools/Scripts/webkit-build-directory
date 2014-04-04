@@ -1,6 +1,7 @@
-#!/usr/bin/perl
+#!/usr/bin/perl -w
 
 # Copyright (C) 2010 Google Inc. All rights reserved.
+# Copyright (C) 2013 Apple Inc. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -11,7 +12,7 @@
 # 2.  Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution. 
-# 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+# 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 #     its contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission. 
 #
@@ -46,10 +47,8 @@ Usage: $programName [options]
   -h|--help             Show this help message
   --top-level           Show the top-level build directory
 
-  --blackberry          Find the build directory for the BlackBerry port on Mac/Linux
   --efl                 Find the build directory for the EFL port
   --gtk                 Find the build directory for the GTK+ port
-  --qt                  Find the build directory for the Qt port
   --wincairo            Find the build directory for using Cairo (rather than CoreGraphics) on Windows
   --wince               Find the build directory for the WinCE port
 

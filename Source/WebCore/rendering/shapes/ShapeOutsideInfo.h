@@ -37,40 +37,56 @@
 
 namespace WebCore {
 
-class RenderBlock;
+class RenderBlockFlow;
 class RenderBox;
 class FloatingObject;
 
-class ShapeOutsideInfo FINAL : public ShapeInfo<RenderBox>, public MappedInfo<RenderBox, ShapeOutsideInfo> {
+class ShapeOutsideInfo final : public ShapeInfo<RenderBox>, public MappedInfo<RenderBox, ShapeOutsideInfo> {
 public:
+    ShapeOutsideInfo(const RenderBox& renderer)
+        : ShapeInfo<RenderBox>(renderer)
+        , m_lineOverlapsShape(false)
+    {
+    }
+
+    static bool isEnabledFor(const RenderBox&);
+
     LayoutUnit leftMarginBoxDelta() const { return m_leftMarginBoxDelta; }
     LayoutUnit rightMarginBoxDelta() const { return m_rightMarginBoxDelta; }
+    bool lineOverlapsShape() const { return m_lineOverlapsShape; }
 
-    void updateDeltasForContainingBlockLine(const RenderBlock*, const FloatingObject*, LayoutUnit lineTop, LayoutUnit lineHeight);
+    void updateDeltasForContainingBlockLine(const RenderBlockFlow&, const FloatingObject&, LayoutUnit lineTop, LayoutUnit lineHeight);
 
-    static PassOwnPtr<ShapeOutsideInfo> createInfo(const RenderBox* renderer) { return adoptPtr(new ShapeOutsideInfo(renderer)); }
-    static bool isEnabledFor(const RenderBox*);
-
-    virtual bool lineOverlapsShapeBounds() const OVERRIDE
+    virtual bool lineOverlapsShapeBounds() const override
     {
-        return (logicalLineTop() < shapeLogicalBottom() && shapeLogicalTop() < logicalLineBottom())
-            || logicalLineTop() == shapeLogicalTop(); // case of zero height line or zero height shape
+        return computedShape().lineOverlapsShapeMarginBounds(m_referenceBoxLineTop, m_lineHeight);
     }
 
 protected:
-    virtual LayoutRect computedShapeLogicalBoundingBox() const OVERRIDE { return computedShape()->shapeMarginLogicalBoundingBox(); }
-    virtual ShapeValue* shapeValue() const OVERRIDE;
-    virtual void getIntervals(LayoutUnit lineTop, LayoutUnit lineHeight, SegmentList& segments) const OVERRIDE
+    virtual CSSBoxType referenceBox() const override
     {
-        return computedShape()->getExcludedIntervals(lineTop, lineHeight, segments);
+        if (shapeValue()->cssBox() == BoxMissing) {
+            if (shapeValue()->type() == ShapeValue::Image)
+                return ContentBox;
+            return MarginBox;
+        }
+        return shapeValue()->cssBox();
     }
 
 private:
-    ShapeOutsideInfo(const RenderBox* renderer) : ShapeInfo<RenderBox>(renderer) { }
+    virtual LayoutRect computedShapeLogicalBoundingBox() const override { return computedShape().shapeMarginLogicalBoundingBox(); }
+    virtual ShapeValue* shapeValue() const override;
+    virtual void getIntervals(LayoutUnit lineTop, LayoutUnit lineHeight, SegmentList& segments) const override
+    {
+        return computedShape().getExcludedIntervals(lineTop, lineHeight, segments);
+    }
+
+    virtual const RenderStyle& styleForWritingMode() const override;
 
     LayoutUnit m_leftMarginBoxDelta;
     LayoutUnit m_rightMarginBoxDelta;
-    LayoutUnit m_lineTop;
+    LayoutUnit m_borderBoxLineTop;
+    bool m_lineOverlapsShape;
 };
 
 }

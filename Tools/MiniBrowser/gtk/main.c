@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include "cmakeconfig.h"
 
 #include "BrowserWindow.h"
 #include <errno.h>
@@ -60,10 +62,8 @@ static void createBrowserWindow(const gchar *uri, WebKitSettings *webkitSettings
     GtkWidget *mainWindow = browser_window_new(WEBKIT_WEB_VIEW(webView), NULL);
     gchar *url = argumentToURL(uri);
 
-    if (webkitSettings) {
+    if (webkitSettings)
         webkit_web_view_set_settings(WEBKIT_WEB_VIEW(webView), webkitSettings);
-        g_object_unref(webkitSettings);
-    }
 
     browser_window_load_uri(BROWSER_WINDOW(mainWindow), url);
     g_free(url);
@@ -240,6 +240,13 @@ aboutURISchemeRequestCallback(WebKitURISchemeRequest *request, gpointer userData
 int main(int argc, char *argv[])
 {
     gtk_init(&argc, &argv);
+    g_setenv("WEBKIT_INJECTED_BUNDLE_PATH", WEBKIT_INJECTED_BUNDLE_PATH, FALSE);
+
+    const gchar *multiprocess = g_getenv("MINIBROWSER_MULTIPROCESS");
+    if (multiprocess && *multiprocess) {
+        webkit_web_context_set_process_model(webkit_web_context_get_default(),
+            WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES);
+    }
 
     GOptionContext *context = g_option_context_new(NULL);
     g_option_context_add_main_entries(context, commandLineOptions, 0);
@@ -248,10 +255,8 @@ int main(int argc, char *argv[])
     WebKitSettings *webkitSettings = webkit_settings_new();
     webkit_settings_set_enable_developer_extras(webkitSettings, TRUE);
     webkit_settings_set_enable_webgl(webkitSettings, TRUE);
-    if (!addSettingsGroupToContext(context, webkitSettings)) {
-        g_object_unref(webkitSettings);
-        webkitSettings = 0;
-    }
+    if (!addSettingsGroupToContext(context, webkitSettings))
+        g_clear_object(&webkitSettings);
 
     GError *error = 0;
     if (!g_option_context_parse(context, &argc, &argv, &error)) {
@@ -262,8 +267,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     g_option_context_free (context);
-
-    g_setenv("WEBKIT_INJECTED_BUNDLE_PATH", WEBKIT_INJECTED_BUNDLE_PATH, FALSE);
 
     // Enable the favicon database, by specifying the default directory.
     webkit_web_context_set_favicon_database_directory(webkit_web_context_get_default(), NULL);
@@ -277,6 +280,8 @@ int main(int argc, char *argv[])
             createBrowserWindow(uriArguments[i], webkitSettings);
     } else
         createBrowserWindow("http://www.webkitgtk.org/", webkitSettings);
+
+    g_clear_object(&webkitSettings);
 
     gtk_main();
 

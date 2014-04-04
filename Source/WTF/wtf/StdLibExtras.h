@@ -27,20 +27,23 @@
 #ifndef WTF_StdLibExtras_h
 #define WTF_StdLibExtras_h
 
+#include <chrono>
 #include <memory>
 #include <wtf/Assertions.h>
 #include <wtf/CheckedArithmetic.h>
 
-// Use these to declare and define a static local variable (static T;) so that
-//  it is leaked so that its destructors are not called at exit. Using this
-//  macro also allows workarounds a compiler bug present in Apple's version of GCC 4.0.1.
-#ifndef DEFINE_STATIC_LOCAL
+// This was used to declare and define a static local variable (static T;) so that
+//  it was leaked so that its destructors were not called at exit. Using this
+//  macro also allowed to workaround a compiler bug present in Apple's version of GCC 4.0.1.
+//
+// Newly written code should use static NeverDestroyed<T> instead.
+#ifndef DEPRECATED_DEFINE_STATIC_LOCAL
 #if COMPILER(GCC) && defined(__APPLE_CC__) && __GNUC__ == 4 && __GNUC_MINOR__ == 0 && __GNUC_PATCHLEVEL__ == 1
-#define DEFINE_STATIC_LOCAL(type, name, arguments) \
+#define DEPRECATED_DEFINE_STATIC_LOCAL(type, name, arguments) \
     static type* name##Ptr = new type arguments; \
     type& name = *name##Ptr
 #else
-#define DEFINE_STATIC_LOCAL(type, name, arguments) \
+#define DEPRECATED_DEFINE_STATIC_LOCAL(type, name, arguments) \
     static type& name = *new type arguments
 #endif
 #endif
@@ -85,27 +88,27 @@
  */
 #if (CPU(ARM) || CPU(MIPS)) && COMPILER(GCC)
 template<typename Type>
-bool isPointerTypeAlignmentOkay(Type* ptr)
+inline bool isPointerTypeAlignmentOkay(Type* ptr)
 {
     return !(reinterpret_cast<intptr_t>(ptr) % __alignof__(Type));
 }
 
 template<typename TypePtr>
-TypePtr reinterpret_cast_ptr(void* ptr)
+inline TypePtr reinterpret_cast_ptr(void* ptr)
 {
     ASSERT(isPointerTypeAlignmentOkay(reinterpret_cast<TypePtr>(ptr)));
     return reinterpret_cast<TypePtr>(ptr);
 }
 
 template<typename TypePtr>
-TypePtr reinterpret_cast_ptr(const void* ptr)
+inline TypePtr reinterpret_cast_ptr(const void* ptr)
 {
     ASSERT(isPointerTypeAlignmentOkay(reinterpret_cast<TypePtr>(ptr)));
     return reinterpret_cast<TypePtr>(ptr);
 }
 #else
 template<typename Type>
-bool isPointerTypeAlignmentOkay(Type*)
+inline bool isPointerTypeAlignmentOkay(Type*)
 {
     return true;
 }
@@ -155,6 +158,11 @@ inline size_t bitCount(unsigned bits)
     bits = bits - ((bits >> 1) & 0x55555555);
     bits = (bits & 0x33333333) + ((bits >> 2) & 0x33333333);
     return (((bits + (bits >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
+}
+
+inline size_t bitCount(uint64_t bits)
+{
+    return bitCount(static_cast<unsigned>(bits)) + bitCount(static_cast<unsigned>(bits >> 32));
 }
 
 // Macro that returns a compile time constant with the length of an array, but gives an error if passed a non-array.
@@ -305,78 +313,84 @@ inline void* operator new(size_t, NotNullTag, void* location)
     return location;
 }
 
+#if (COMPILER(GCC) && !COMPILER(CLANG) && !GCC_VERSION_AT_LEAST(4, 8, 1))
+
+// Work-around for Pre-C++11 syntax in MSVC 2010, and prior as well as GCC < 4.8.1.
+namespace std {
+    template<class T> struct is_trivially_destructible {
+        static const bool value = std::has_trivial_destructor<T>::value;
+    };
+}
+#endif
 
 // This adds various C++14 features for versions of the STL that may not yet have them.
 namespace std {
-    template<class T> struct _Unique_if {
-        typedef unique_ptr<T> _Single_object;
-    };
+// MSVC 2013 supports std::make_unique already.
+#if !defined(_MSC_VER) || _MSC_VER < 1800
+template<class T> struct _Unique_if {
+    typedef unique_ptr<T> _Single_object;
+};
 
-    template<class T> struct _Unique_if<T[]> {
-        typedef unique_ptr<T[]> _Unknown_bound;
-    };
+template<class T> struct _Unique_if<T[]> {
+    typedef unique_ptr<T[]> _Unknown_bound;
+};
 
-    template<class T, size_t N> struct _Unique_if<T[N]> {
-        typedef void _Known_bound;
-    };
+template<class T, size_t N> struct _Unique_if<T[N]> {
+    typedef void _Known_bound;
+};
 
-#if COMPILER_SUPPORTS(CXX_VARIADIC_TEMPLATES)
-    template<class T, class... Args> typename _Unique_if<T>::_Single_object
-    make_unique(Args&&... args)
-    {
-        return unique_ptr<T>(new T(std::forward<Args>(args)...));
-    }
-#else
-    template<class T> typename _Unique_if<T>::_Single_object
-    make_unique()
-    {
-        return unique_ptr<T>(new T);
-    }
+template<class T, class... Args> inline typename _Unique_if<T>::_Single_object
+make_unique(Args&&... args)
+{
+    return unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
-    template<class T, class A1> typename _Unique_if<T>::_Single_object
-    make_unique(A1&& a1)
-    {
-        return unique_ptr<T>(new T(std::forward<A1>(a1)));
-    }
+template<class T> inline typename _Unique_if<T>::_Unknown_bound
+make_unique(size_t n)
+{
+    typedef typename remove_extent<T>::type U;
+    return unique_ptr<T>(new U[n]());
+}
 
-    template<class T, class A1, class A2> typename _Unique_if<T>::_Single_object
-    make_unique(A1&& a1, A1&& a2)
-    {
-        return unique_ptr<T>(new T(std::forward<A1>(a1), std::forward<A2>(a2)));
-    }
+template<class T, class... Args> typename _Unique_if<T>::_Known_bound
+make_unique(Args&&...) = delete;
 #endif
 
-    template<class T> typename _Unique_if<T>::_Unknown_bound
-    make_unique(size_t n)
+// Compile-time integer sequences
+// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3658.html
+// (Note that we only implement index_sequence, and not the more generic integer_sequence).
+template<size_t... indexes> struct index_sequence {
+    static size_t size() { return sizeof...(indexes); }
+};
+
+template<size_t currentIndex, size_t...indexes> struct make_index_sequence_helper;
+
+template<size_t...indexes> struct make_index_sequence_helper<0, indexes...> {
+    typedef std::index_sequence<indexes...> type;
+};
+
+template<size_t currentIndex, size_t...indexes> struct make_index_sequence_helper {
+    typedef typename make_index_sequence_helper<currentIndex - 1, currentIndex - 1, indexes...>::type type;
+};
+
+template<size_t length> struct make_index_sequence : public make_index_sequence_helper<length>::type { };
+
+#if COMPILER_SUPPORTS(CXX_USER_LITERALS)
+// These literals are available in C++14, so once we require C++14 compilers we can get rid of them here.
+// (User-literals need to have a leading underscore so we add it here - the "real" literals don't have underscores).
+namespace literals {
+namespace chrono_literals {
+    CONSTEXPR inline chrono::seconds operator"" _s(unsigned long long s)
     {
-        typedef typename remove_extent<T>::type U;
-        return unique_ptr<T>(new U[n]());
+        return chrono::seconds(static_cast<chrono::seconds::rep>(s));
     }
-    
-#if COMPILER_SUPPORTS(CXX_VARIADIC_TEMPLATES)
-    template<class T, class... Args> typename _Unique_if<T>::_Known_bound
-    make_unique(Args&&...) = delete;
-#endif
 
-#if COMPILER_SUPPORTS(CXX_VARIADIC_TEMPLATES)
-    // Compile-time integer sequences
-    // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2013/n3658.html
-    // (Note that we only implement index_sequence, and not the more generic integer_sequence).
-    template<size_t... indexes> struct index_sequence {
-        static size_t size() { return sizeof...(indexes); }
-    };
-
-    template<size_t currentIndex, size_t...indexes> struct make_index_sequence_helper;
-
-    template<size_t...indexes> struct make_index_sequence_helper<0, indexes...> {
-        typedef std::index_sequence<indexes...> type;
-    };
-
-    template<size_t currentIndex, size_t...indexes> struct make_index_sequence_helper {
-        typedef typename make_index_sequence_helper<currentIndex - 1, currentIndex - 1, indexes...>::type type;
-    };
-
-    template<size_t length> struct make_index_sequence : public make_index_sequence_helper<length>::type { };
+    CONSTEXPR chrono::milliseconds operator"" _ms(unsigned long long ms)
+    {
+        return chrono::milliseconds(static_cast<chrono::milliseconds::rep>(ms));
+    }
+}
+}
 #endif
 }
 
@@ -390,5 +404,10 @@ using WTF::tryBinarySearch;
 using WTF::approximateBinarySearch;
 using WTF::bitwise_cast;
 using WTF::safeCast;
+
+#if COMPILER_SUPPORTS(CXX_USER_LITERALS)
+// We normally don't want to bring in entire std namespaces, but literals are an exception.
+using namespace std::literals::chrono_literals;
+#endif
 
 #endif // WTF_StdLibExtras_h

@@ -27,7 +27,6 @@
 #define StructureStubClearingWatchpoint_h
 
 #include "Watchpoint.h"
-#include <wtf/Platform.h>
 
 #if ENABLE(JIT)
 
@@ -69,7 +68,7 @@ public:
         OwnPtr<StructureStubClearingWatchpoint>& head);
 
 protected:
-    void fireInternal();
+    virtual void fireInternal() override;
 
 private:
     WatchpointsOnStructureStubInfo& m_holder;

@@ -1,7 +1,7 @@
 /*
  * This file is part of the WebKit project.
  *
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
  * Copyright (C) 2007 Holger Hans Peter Freyther
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
@@ -38,6 +38,7 @@
 #include <Eina.h>
 #include <cairo.h>
 #include <wtf/efl/RefPtrEfl.h>
+#include <wtf/efl/UniquePtrEfl.h>
 
 namespace WebCore {
 
@@ -141,10 +142,10 @@ public:
     virtual bool paintMenuList(RenderObject*, const PaintInfo&, const IntRect&);
 
     virtual void adjustMenuListButtonStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintMenuListButton(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual bool paintMenuListButtonDecorations(RenderObject*, const PaintInfo&, const IntRect&);
 
-    virtual void adjustSearchFieldResultsDecorationStyle(StyleResolver*, RenderStyle*, Element*) const;
-    virtual bool paintSearchFieldResultsDecoration(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual void adjustSearchFieldResultsDecorationPartStyle(StyleResolver*, RenderStyle*, Element*) const;
+    virtual bool paintSearchFieldResultsDecorationPart(RenderObject*, const PaintInfo&, const IntRect&);
 
     virtual void adjustSearchFieldStyle(StyleResolver*, RenderStyle*, Element*) const;
     virtual bool paintSearchField(RenderObject*, const PaintInfo&, const IntRect&);
@@ -163,12 +164,12 @@ public:
     virtual void adjustSliderThumbSize(RenderStyle*, Element*) const;
 
 #if ENABLE(DATALIST_ELEMENT)
-    virtual IntSize sliderTickSize() const OVERRIDE;
-    virtual int sliderTickOffsetFromTrackCenter() const OVERRIDE;
-    virtual LayoutUnit sliderTickSnappingThreshold() const OVERRIDE;
+    virtual IntSize sliderTickSize() const override;
+    virtual int sliderTickOffsetFromTrackCenter() const override;
+    virtual LayoutUnit sliderTickSnappingThreshold() const override;
 #endif
 
-    virtual bool supportsDataListUI(const AtomicString&) const OVERRIDE;
+    virtual bool supportsDataListUI(const AtomicString&) const override;
 
     virtual bool paintSliderThumb(RenderObject*, const PaintInfo&, const IntRect&);
 
@@ -205,10 +206,10 @@ public:
     virtual bool paintMediaCurrentTime(RenderObject*, const PaintInfo&, const IntRect&);
 #endif
 #if ENABLE(VIDEO_TRACK)
-    virtual bool supportsClosedCaptioning() const OVERRIDE;
-    virtual bool paintMediaToggleClosedCaptionsButton(RenderObject*, const PaintInfo&, const IntRect&) OVERRIDE;
+    virtual bool supportsClosedCaptioning() const override;
+    virtual bool paintMediaToggleClosedCaptionsButton(RenderObject*, const PaintInfo&, const IntRect&) override;
 #endif
-    virtual bool shouldShowPlaceholderWhenFocused() const OVERRIDE { return true; }
+    virtual bool shouldShowPlaceholderWhenFocused() const override { return true; }
 
     void setThemePath(const String&);
     String themePath() const;
@@ -228,7 +229,7 @@ private:
 
     void applyPartDescriptionsFrom(const String& themePath);
 
-    void applyEdjeStateFromForm(Evas_Object*, ControlStates, bool);
+    void applyEdjeStateFromForm(Evas_Object*, const ControlStates*, bool);
     void applyEdjeRTLState(Evas_Object*, RenderObject*, FormType, const IntRect&);
     bool paintThemePart(RenderObject*, FormType, const PaintInfo&, const IntRect&);
 
@@ -251,7 +252,7 @@ private:
 
     String m_themePath;
     // Order so that the canvas gets destroyed at last.
-    OwnPtr<Ecore_Evas> m_canvas;
+    EflUniquePtr<Ecore_Evas> m_canvas;
     RefPtr<Evas_Object> m_edje;
 
     bool m_supportsSelectionForegroundColor;
@@ -278,7 +279,7 @@ private:
 
     private:
         // Order so that the canvas gets destroyed at last.
-        OwnPtr<Ecore_Evas> m_canvas;
+        EflUniquePtr<Ecore_Evas> m_canvas;
         RefPtr<Evas_Object> m_edje;
         RefPtr<cairo_surface_t> m_surface;
     };

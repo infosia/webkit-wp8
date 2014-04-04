@@ -66,18 +66,22 @@ public:
     unsigned lineno() const { return m_lineNumber; }
     unsigned colno() const { return m_columnNumber; }
 
-    virtual EventInterface eventInterface() const;
+    virtual EventInterface eventInterface() const override;
 
 private:
     ErrorEvent();
     ErrorEvent(const String& message, const String& fileName, unsigned lineNumber, unsigned columnNumber);
     ErrorEvent(const AtomicString&, const ErrorEventInit&);
 
+    virtual bool isErrorEvent() const override;
+
     String m_message;
     String m_fileName;
     unsigned m_lineNumber;
     unsigned m_columnNumber;
 };
+
+EVENT_TYPE_CASTS(ErrorEvent)
 
 } // namespace WebCore
 

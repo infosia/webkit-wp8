@@ -26,12 +26,16 @@
 #ifndef DFGCommonData_h
 #define DFGCommonData_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
+#include "CodeBlockJettisoningWatchpoint.h"
+#include "DFGJumpReplacement.h"
+#include "InlineCallFrameSet.h"
 #include "JSCell.h"
+#include "ProfiledCodeBlockJettisoningWatchpoint.h"
 #include "ProfilerCompilation.h"
+#include "SymbolTable.h"
+#include <wtf/Bag.h>
 #include <wtf/Noncopyable.h>
 
 namespace JSC {
@@ -66,19 +70,49 @@ struct WeakReferenceTransition {
 class CommonData {
     WTF_MAKE_NONCOPYABLE(CommonData);
 public:
-    CommonData() { }
+    CommonData()
+        : isStillValid(true)
+        , machineCaptureStart(std::numeric_limits<int>::max())
+        , frameRegisterCount(std::numeric_limits<unsigned>::max())
+        , requiredRegisterCountForExit(std::numeric_limits<unsigned>::max())
+    { }
     
     void notifyCompilingStructureTransition(Plan&, CodeBlock*, Node*);
+    unsigned addCodeOrigin(CodeOrigin codeOrigin);
     
     void shrinkToFit();
+    
+    bool invalidate(); // Returns true if we did invalidate, or false if the code block was already invalidated.
+    
+    unsigned requiredRegisterCountForExecutionAndExit() const
+    {
+        return std::max(frameRegisterCount, requiredRegisterCountForExit);
+    }
 
+    OwnPtr<InlineCallFrameSet> inlineCallFrames;
+    Vector<CodeOrigin, 0, UnsafeVectorOverflow> codeOrigins;
+    
     Vector<Identifier> dfgIdentifiers;
     Vector<WeakReferenceTransition> transitions;
-    Vector<WriteBarrier<JSCell> > weakReferences;
+    Vector<WriteBarrier<JSCell>> weakReferences;
+    SegmentedVector<CodeBlockJettisoningWatchpoint, 1, 0> watchpoints;
+    SegmentedVector<ProfiledCodeBlockJettisoningWatchpoint, 1, 0> profiledWatchpoints;
+    Vector<JumpReplacement> jumpReplacements;
     
     RefPtr<Profiler::Compilation> compilation;
     bool livenessHasBeenProved; // Initialized and used on every GC.
     bool allTransitionsHaveBeenMarked; // Initialized and used on every GC.
+    bool isStillValid;
+    
+    int machineCaptureStart;
+    std::unique_ptr<SlowArgument[]> slowArguments;
+
+#if USE(JSVALUE32_64)
+    std::unique_ptr<Bag<double>> doubleConstants;
+#endif
+    
+    unsigned frameRegisterCount;
+    unsigned requiredRegisterCountForExit;
 };
 
 } } // namespace JSC::DFG

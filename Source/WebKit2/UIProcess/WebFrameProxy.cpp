@@ -44,7 +44,6 @@ namespace WebKit {
 
 WebFrameProxy::WebFrameProxy(WebPageProxy* page, uint64_t frameID)
     : m_page(page)
-    , m_loadState(LoadStateFinished)
     , m_isFrameSet(false)
     , m_frameID(frameID)
 {
@@ -74,6 +73,14 @@ bool WebFrameProxy::isMainFrame() const
     return this == m_page->mainFrame();
 }
 
+void WebFrameProxy::loadURL(const String& url)
+{
+    if (!m_page)
+        return;
+
+    m_page->process().send(Messages::WebPage::LoadURLInFrame(url, m_frameID), m_page->pageID());
+}
+
 void WebFrameProxy::stopLoading() const
 {
     if (!m_page)
@@ -82,7 +89,7 @@ void WebFrameProxy::stopLoading() const
     if (!m_page->isValid())
         return;
 
-    m_page->process()->send(Messages::WebPage::StopLoadingFrame(m_frameID), m_page->pageID());
+    m_page->process().send(Messages::WebPage::StopLoadingFrame(m_frameID), m_page->pageID());
 }
     
 bool WebFrameProxy::canProvideSource() const
@@ -119,31 +126,23 @@ bool WebFrameProxy::isDisplayingPDFDocument() const
 
 void WebFrameProxy::didStartProvisionalLoad(const String& url)
 {
-    ASSERT(m_provisionalURL.isEmpty());
-    m_loadState = LoadStateProvisional;
-    m_provisionalURL = url;
+    m_frameLoadState.didStartProvisionalLoad(url);
 }
 
 void WebFrameProxy::didReceiveServerRedirectForProvisionalLoad(const String& url)
 {
-    ASSERT(m_loadState == LoadStateProvisional);
-    m_provisionalURL = url;
+    m_frameLoadState.didReceiveServerRedirectForProvisionalLoad(url);
 }
 
 void WebFrameProxy::didFailProvisionalLoad()
 {
-    ASSERT(m_loadState == LoadStateProvisional);
-    m_loadState = LoadStateFinished;
-    m_provisionalURL = String();
-    m_unreachableURL = m_lastUnreachableURL;
+    m_frameLoadState.didFailProvisionalLoad();
 }
 
-void WebFrameProxy::didCommitLoad(const String& contentType, const PlatformCertificateInfo& certificateInfo)
+void WebFrameProxy::didCommitLoad(const String& contentType, const WebCore::CertificateInfo& certificateInfo)
 {
-    ASSERT(m_loadState == LoadStateProvisional);
-    m_loadState = LoadStateCommitted;
-    m_url = m_provisionalURL;
-    m_provisionalURL = String();
+    m_frameLoadState.didCommitLoad();
+
     m_title = String();
     m_MIMEType = contentType;
     m_isFrameSet = false;
@@ -152,21 +151,17 @@ void WebFrameProxy::didCommitLoad(const String& contentType, const PlatformCerti
 
 void WebFrameProxy::didFinishLoad()
 {
-    ASSERT(m_loadState == LoadStateCommitted);
-    ASSERT(m_provisionalURL.isEmpty());
-    m_loadState = LoadStateFinished;
+    m_frameLoadState.didFinishLoad();
 }
 
 void WebFrameProxy::didFailLoad()
 {
-    ASSERT(m_loadState == LoadStateCommitted);
-    ASSERT(m_provisionalURL.isEmpty());
-    m_loadState = LoadStateFinished;
+    m_frameLoadState.didFailLoad();
 }
 
 void WebFrameProxy::didSameDocumentNavigation(const String& url)
 {
-    m_url = url;
+    m_frameLoadState.didSameDocumentNotification(url);
 }
 
 void WebFrameProxy::didChangeTitle(const String& title)
@@ -220,7 +215,7 @@ void WebFrameProxy::getMainResourceData(PassRefPtr<DataCallback> callback)
     m_page->getMainResourceDataOfFrame(this, callback);
 }
 
-void WebFrameProxy::getResourceData(WebURL* resourceURL, PassRefPtr<DataCallback> callback)
+void WebFrameProxy::getResourceData(API::URL* resourceURL, PassRefPtr<DataCallback> callback)
 {
     if (!m_page) {
         callback->invalidate();
@@ -232,8 +227,7 @@ void WebFrameProxy::getResourceData(WebURL* resourceURL, PassRefPtr<DataCallback
 
 void WebFrameProxy::setUnreachableURL(const String& unreachableURL)
 {
-    m_lastUnreachableURL = m_unreachableURL;
-    m_unreachableURL = unreachableURL;
+    m_frameLoadState.setUnreachableURL(unreachableURL);
 }
 
 } // namespace WebKit

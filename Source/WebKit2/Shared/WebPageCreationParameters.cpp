@@ -30,13 +30,10 @@
 
 namespace WebKit {
 
-void WebPageCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
+void WebPageCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << viewSize;
-    encoder << isActive;
-    encoder << isFocused;
-    encoder << isVisible;
-    encoder << isInWindow;
+    encoder << viewState;
 
     encoder << store;
     encoder.encodeEnum(drawingAreaType);
@@ -54,32 +51,35 @@ void WebPageCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
     encoder << userAgent;
     encoder << sessionState;
     encoder << highestUsedBackForwardItemID;
+    encoder << visitedLinkTableID;
     encoder << canRunBeforeUnloadConfirmPanel;
     encoder << canRunModal;
     encoder << deviceScaleFactor;
+    encoder << topContentInset;
     encoder << mediaVolume;
     encoder << mayStartMediaWhenInWindow;
     encoder << minimumLayoutSize;
     encoder << autoSizingShouldExpandToViewHeight;
     encoder.encodeEnum(scrollPinningBehavior);
-
-#if PLATFORM(MAC)
+    encoder << backgroundExtendsBeyondPage;
     encoder.encodeEnum(layerHostingMode);
+
+#if ENABLE(REMOTE_INSPECTOR)
+    encoder << allowsRemoteInspection;
+#endif
+#if PLATFORM(MAC)
     encoder << colorSpace;
+#endif
+#if PLATFORM(IOS)
+    encoder << viewportScreenSize;
 #endif
 }
 
-bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPageCreationParameters& parameters)
+bool WebPageCreationParameters::decode(IPC::ArgumentDecoder& decoder, WebPageCreationParameters& parameters)
 {
     if (!decoder.decode(parameters.viewSize))
         return false;
-    if (!decoder.decode(parameters.isActive))
-        return false;
-    if (!decoder.decode(parameters.isFocused))
-        return false;
-    if (!decoder.decode(parameters.isVisible))
-        return false;
-    if (!decoder.decode(parameters.isInWindow))
+    if (!decoder.decode(parameters.viewState))
         return false;
     if (!decoder.decode(parameters.store))
         return false;
@@ -113,11 +113,15 @@ bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPag
         return false;
     if (!decoder.decode(parameters.highestUsedBackForwardItemID))
         return false;
+    if (!decoder.decode(parameters.visitedLinkTableID))
+        return false;
     if (!decoder.decode(parameters.canRunBeforeUnloadConfirmPanel))
         return false;
     if (!decoder.decode(parameters.canRunModal))
         return false;
     if (!decoder.decode(parameters.deviceScaleFactor))
+        return false;
+    if (!decoder.decode(parameters.topContentInset))
         return false;
     if (!decoder.decode(parameters.mediaVolume))
         return false;
@@ -129,13 +133,26 @@ bool WebPageCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebPag
         return false;
     if (!decoder.decodeEnum(parameters.scrollPinningBehavior))
         return false;
-    
-#if PLATFORM(MAC)
+    if (!decoder.decode(parameters.backgroundExtendsBeyondPage))
+        return false;
     if (!decoder.decodeEnum(parameters.layerHostingMode))
         return false;
+
+#if ENABLE(REMOTE_INSPECTOR)
+    if (!decoder.decode(parameters.allowsRemoteInspection))
+        return false;
+#endif
+
+#if PLATFORM(MAC)
     if (!decoder.decode(parameters.colorSpace))
         return false;
 #endif
+
+#if PLATFORM(IOS)
+    if (!decoder.decode(parameters.viewportScreenSize))
+        return false;
+#endif
+
 
     return true;
 }

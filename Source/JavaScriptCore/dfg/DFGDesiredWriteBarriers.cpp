@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,13 +24,12 @@
  */
 
 #include "config.h"
+#include "DFGDesiredWriteBarriers.h"
 
 #if ENABLE(DFG_JIT)
 
-#include "DFGDesiredWriteBarriers.h"
-
 #include "CodeBlock.h"
-#include "JSCJSValueInlines.h"
+#include "JSCInlines.h"
 
 namespace JSC { namespace DFG {
 
@@ -38,35 +37,52 @@ DesiredWriteBarrier::DesiredWriteBarrier(Type type, CodeBlock* codeBlock, unsign
     : m_owner(owner)
     , m_type(type)
     , m_codeBlock(codeBlock)
-    , m_index(index)
 {
+    m_which.index = index;
+}
+
+DesiredWriteBarrier::DesiredWriteBarrier(Type type, CodeBlock* codeBlock, InlineCallFrame* inlineCallFrame, JSCell* owner)
+    : m_owner(owner)
+    , m_type(type)
+    , m_codeBlock(codeBlock)
+{
+    m_which.inlineCallFrame = inlineCallFrame;
 }
 
 void DesiredWriteBarrier::trigger(VM& vm)
 {
     switch (m_type) {
     case ConstantType: {
-        WriteBarrier<Unknown>& barrier = m_codeBlock->constants()[m_index];
+        WriteBarrier<Unknown>& barrier = m_codeBlock->constants()[m_which.index];
         barrier.set(vm, m_owner, barrier.get());
-        break;
+        return;
     }
 
     case InlineCallFrameExecutableType: {
-        InlineCallFrame& inlineCallFrame = m_codeBlock->inlineCallFrames()[m_index];
-        WriteBarrier<ScriptExecutable>& executable = inlineCallFrame.executable;
+        InlineCallFrame* inlineCallFrame = m_which.inlineCallFrame;
+        WriteBarrier<ScriptExecutable>& executable = inlineCallFrame->executable;
         executable.set(vm, m_owner, executable.get());
-        break;
-    }
+        return;
+    } }
+    RELEASE_ASSERT_NOT_REACHED();
+}
 
-    case InlineCallFrameCalleeType: {
-        InlineCallFrame& inlineCallFrame = m_codeBlock->inlineCallFrames()[m_index];
-        ASSERT(!!inlineCallFrame.callee);
-        WriteBarrier<JSFunction>& callee = inlineCallFrame.callee;
-        callee.set(vm, m_owner, callee.get());
-        break;
+void DesiredWriteBarrier::visitChildren(SlotVisitor& visitor)
+{
+    switch (m_type) {
+    case ConstantType: {
+        WriteBarrier<Unknown>& barrier = m_codeBlock->constants()[m_which.index];
+        visitor.append(&barrier);
+        return;
     }
-
-    }
+        
+    case InlineCallFrameExecutableType: {
+        InlineCallFrame* inlineCallFrame = m_which.inlineCallFrame;
+        WriteBarrier<ScriptExecutable>& executable = inlineCallFrame->executable;
+        visitor.append(&executable);
+        return;
+    } }
+    RELEASE_ASSERT_NOT_REACHED();
 }
 
 DesiredWriteBarriers::DesiredWriteBarriers()
@@ -81,6 +97,12 @@ void DesiredWriteBarriers::trigger(VM& vm)
 {
     for (unsigned i = 0; i < m_barriers.size(); i++)
         m_barriers[i].trigger(vm);
+}
+
+void DesiredWriteBarriers::visitChildren(SlotVisitor& visitor)
+{
+    for (unsigned i = 0; i < m_barriers.size(); i++)
+        m_barriers[i].visitChildren(visitor);
 }
 
 } } // namespace JSC::DFG

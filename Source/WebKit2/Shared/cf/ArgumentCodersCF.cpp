@@ -32,13 +32,13 @@
 #include <WebCore/CFURLExtras.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 #import <Foundation/Foundation.h>
 #endif
 
 using namespace WebCore;
 
-namespace CoreIPC {
+namespace IPC {
 
 CFTypeRef tokenNullTypeRef()
 {
@@ -56,8 +56,8 @@ enum CFType {
     CFNumber,
     CFString,
     CFURL,
-#if USE(SECURITY_FRAMEWORK)
     SecCertificate,
+#if HAVE(SEC_KEYCHAIN)
     SecKeychainItem,
 #endif
     Null,
@@ -90,9 +90,9 @@ static CFType typeFromCFTypeRef(CFTypeRef type)
         return CFString;
     if (typeID == CFURLGetTypeID())
         return CFURL;
-#if USE(SECURITY_FRAMEWORK)
     if (typeID == SecCertificateGetTypeID())
         return SecCertificate;
+#if HAVE(SEC_KEYCHAIN)
     if (typeID == SecKeychainItemGetTypeID())
         return SecKeychainItem;
 #endif
@@ -133,10 +133,10 @@ void encode(ArgumentEncoder& encoder, CFTypeRef typeRef)
     case CFURL:
         encode(encoder, static_cast<CFURLRef>(typeRef));
         return;
-#if USE(SECURITY_FRAMEWORK)
     case SecCertificate:
         encode(encoder, (SecCertificateRef)typeRef);
         return;
+#if HAVE(SEC_KEYCHAIN)
     case SecKeychainItem:
         encode(encoder, (SecKeychainItemRef)typeRef);
         return;
@@ -216,7 +216,6 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFTypeRef>& result)
         result = adoptCF(url.leakRef());
         return true;
     }
-#if USE(SECURITY_FRAMEWORK)
     case SecCertificate: {
         RetainPtr<SecCertificateRef> certificate;
         if (!decode(decoder, certificate))
@@ -224,6 +223,7 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFTypeRef>& result)
         result = adoptCF(certificate.leakRef());
         return true;
     }
+#if HAVE(SEC_KEYCHAIN)
     case SecKeychainItem: {
         RetainPtr<SecKeychainItemRef> keychainItem;
         if (!decode(decoder, keychainItem))
@@ -299,12 +299,12 @@ void encode(ArgumentEncoder& encoder, CFDataRef data)
     CFIndex length = CFDataGetLength(data);
     const UInt8* bytePtr = CFDataGetBytePtr(data);
 
-    encoder << CoreIPC::DataReference(bytePtr, length);
+    encoder << IPC::DataReference(bytePtr, length);
 }
 
 bool decode(ArgumentDecoder& decoder, RetainPtr<CFDataRef>& result)
 {
-    CoreIPC::DataReference dataReference;
+    IPC::DataReference dataReference;
     if (!decoder.decode(dataReference))
         return false;
 
@@ -384,7 +384,7 @@ void encode(ArgumentEncoder& encoder, CFNumberRef number)
     ASSERT_UNUSED(result, result);
 
     encoder.encodeEnum(numberType);
-    encoder << CoreIPC::DataReference(buffer);
+    encoder << IPC::DataReference(buffer);
 }
 
 static size_t sizeForNumberType(CFNumberType numberType)
@@ -441,7 +441,7 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFNumberRef>& result)
     if (!decoder.decodeEnum(numberType))
         return false;
 
-    CoreIPC::DataReference dataReference;
+    IPC::DataReference dataReference;
     if (!decoder.decode(dataReference))
         return false;
 
@@ -472,7 +472,7 @@ void encode(ArgumentEncoder& encoder, CFStringRef string)
     ASSERT(numConvertedBytes == length);
 
     encoder.encodeEnum(encoding);
-    encoder << CoreIPC::DataReference(buffer);
+    encoder << IPC::DataReference(buffer);
 }
 
 bool decode(ArgumentDecoder& decoder, RetainPtr<CFStringRef>& result)
@@ -484,7 +484,7 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFStringRef>& result)
     if (!CFStringIsEncodingAvailable(encoding))
         return false;
     
-    CoreIPC::DataReference dataReference;
+    IPC::DataReference dataReference;
     if (!decoder.decode(dataReference))
         return false;
 
@@ -505,7 +505,7 @@ void encode(ArgumentEncoder& encoder, CFURLRef url)
 
     URLCharBuffer urlBytes;
     getURLBytes(url, urlBytes);
-    CoreIPC::DataReference dataReference(reinterpret_cast<const uint8_t*>(urlBytes.data()), urlBytes.size());
+    IPC::DataReference dataReference(reinterpret_cast<const uint8_t*>(urlBytes.data()), urlBytes.size());
     encoder << dataReference;
 }
 
@@ -520,11 +520,11 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFURLRef>& result)
             return false;
     }
 
-    CoreIPC::DataReference urlBytes;
+    IPC::DataReference urlBytes;
     if (!decoder.decode(urlBytes))
         return false;
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
     // FIXME: Move this to ArgumentCodersCFMac.mm and change this file back to be C++
     // instead of Objective-C++.
     if (urlBytes.isEmpty()) {
@@ -539,7 +539,6 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<CFURLRef>& result)
     return result;
 }
 
-#if USE(SECURITY_FRAMEWORK)
 void encode(ArgumentEncoder& encoder, SecCertificateRef certificate)
 {
     RetainPtr<CFDataRef> data = adoptCF(SecCertificateCopyData(certificate));
@@ -556,6 +555,7 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<SecCertificateRef>& result)
     return true;
 }
 
+#if HAVE(SEC_KEYCHAIN)
 void encode(ArgumentEncoder& encoder, SecKeychainItemRef keychainItem)
 {
     CFDataRef data;
@@ -568,7 +568,7 @@ void encode(ArgumentEncoder& encoder, SecKeychainItemRef keychainItem)
 bool decode(ArgumentDecoder& decoder, RetainPtr<SecKeychainItemRef>& result)
 {
     RetainPtr<CFDataRef> data;
-    if (!CoreIPC::decode(decoder, data))
+    if (!IPC::decode(decoder, data))
         return false;
 
     SecKeychainItemRef item;
@@ -580,4 +580,4 @@ bool decode(ArgumentDecoder& decoder, RetainPtr<SecKeychainItemRef>& result)
 }
 #endif
 
-} // namespace CoreIPC
+} // namespace IPC

@@ -47,7 +47,7 @@ PassRefPtr<WebApplicationCacheManagerProxy> WebApplicationCacheManagerProxy::cre
 WebApplicationCacheManagerProxy::WebApplicationCacheManagerProxy(WebContext* context)
     : WebContextSupplement(context)
 {
-    context->addMessageReceiver(Messages::WebApplicationCacheManagerProxy::messageReceiverName(), this);
+    context->addMessageReceiver(Messages::WebApplicationCacheManagerProxy::messageReceiverName(), *this);
 }
 
 WebApplicationCacheManagerProxy::~WebApplicationCacheManagerProxy()
@@ -72,12 +72,12 @@ bool WebApplicationCacheManagerProxy::shouldTerminate(WebProcessProxy*) const
 
 void WebApplicationCacheManagerProxy::refWebContextSupplement()
 {
-    APIObject::ref();
+    API::Object::ref();
 }
 
 void WebApplicationCacheManagerProxy::derefWebContextSupplement()
 {
-    APIObject::deref();
+    API::Object::deref();
 }
 
 void WebApplicationCacheManagerProxy::getApplicationCacheOrigins(PassRefPtr<ArrayCallback> prpCallback)

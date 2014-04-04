@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,7 +27,7 @@
 #include "PlatformCookieJar.h"
 
 #include "Cookie.h"
-#include "KURL.h"
+#include "URL.h"
 #include "NetworkingContext.h"
 #include "ResourceHandle.h"
 #include <windows.h>
@@ -36,7 +36,7 @@
 
 namespace WebCore {
 
-void setCookiesFromDOM(const NetworkStorageSession&, const KURL&, const KURL& url, const String& value)
+void setCookiesFromDOM(const NetworkStorageSession&, const URL&, const URL& url, const String& value)
 {
     // FIXME: Deal with firstParty argument.
     String str = url.string();
@@ -44,7 +44,7 @@ void setCookiesFromDOM(const NetworkStorageSession&, const KURL&, const KURL& ur
     InternetSetCookie(str.charactersWithNullTermination().data(), 0, val.charactersWithNullTermination().data());
 }
 
-String cookiesForDOM(const NetworkStorageSession&, const KURL&, const KURL& url)
+String cookiesForDOM(const NetworkStorageSession&, const URL&, const URL& url)
 {
     // FIXME: Deal with firstParty argument.
 
@@ -65,25 +65,25 @@ String cookiesForDOM(const NetworkStorageSession&, const KURL&, const KURL& url)
     return String::adopt(buffer);
 }
 
-String cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const KURL& firstParty, const KURL& url)
+String cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     // FIXME: include HttpOnly cookie
     return cookiesForDOM(session.context(), firstParty, url);
 }
 
-bool cookiesEnabled(const NetworkStorageSession& session, const KURL& /*firstParty*/, const KURL& /*url*/)
+bool cookiesEnabled(const NetworkStorageSession& session, const URL& /*firstParty*/, const URL& /*url*/)
 {
     return true;
 }
 
-bool getRawCookies(const NetworkStorageSession& session, const KURL& /*firstParty*/, const KURL& /*url*/, Vector<Cookie>& rawCookies)
+bool getRawCookies(const NetworkStorageSession& session, const URL& /*firstParty*/, const URL& /*url*/, Vector<Cookie>& rawCookies)
 {
     // FIXME: Not yet implemented
     rawCookies.clear();
     return false; // return true when implemented
 }
 
-void deleteCookie(const NetworkStorageSession&, const KURL&, const String&)
+void deleteCookie(const NetworkStorageSession&, const URL&, const String&)
 {
     // FIXME: Not yet implemented
 }

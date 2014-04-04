@@ -43,27 +43,21 @@ namespace WebKit {
 
 class SynchronousNetworkLoaderClient : public NetworkLoaderClient {
 public:
-    static PassOwnPtr<NetworkLoaderClient> create(const WebCore::ResourceRequest& originalRequest, PassRefPtr<Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply> reply)
-    {
-        return adoptPtr(new SynchronousNetworkLoaderClient(originalRequest, reply));
-    }
-    
-    virtual ~SynchronousNetworkLoaderClient() OVERRIDE;
+    SynchronousNetworkLoaderClient(const WebCore::ResourceRequest& originalRequest, PassRefPtr<Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply>);
+    virtual ~SynchronousNetworkLoaderClient() override;
 
-    virtual bool isSynchronous() OVERRIDE { return true; }
+    virtual bool isSynchronous() override { return true; }
 
 private:
-    SynchronousNetworkLoaderClient(const WebCore::ResourceRequest& originalRequest, PassRefPtr<Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply>);
-
-    virtual void willSendRequest(NetworkResourceLoader*, WebCore::ResourceRequest& proposedRequest, const WebCore::ResourceResponse& redirectResponse) OVERRIDE;
+    virtual void willSendRequest(NetworkResourceLoader*, WebCore::ResourceRequest& proposedRequest, const WebCore::ResourceResponse& redirectResponse) override;
 #if USE(PROTECTION_SPACE_AUTH_CALLBACK)
-    virtual void canAuthenticateAgainstProtectionSpace(NetworkResourceLoader*, const WebCore::ProtectionSpace&) OVERRIDE;
+    virtual void canAuthenticateAgainstProtectionSpace(NetworkResourceLoader*, const WebCore::ProtectionSpace&) override;
 #endif
-    virtual void didReceiveResponse(NetworkResourceLoader*, const WebCore::ResourceResponse&) OVERRIDE;
-    virtual void didReceiveBuffer(NetworkResourceLoader*, WebCore::SharedBuffer*, int encodedDataLength) OVERRIDE;
-    virtual void didSendData(NetworkResourceLoader*, unsigned long long bytesSent, unsigned long long totalBytesToBeSent) OVERRIDE { }
-    virtual void didFinishLoading(NetworkResourceLoader*, double finishTime) OVERRIDE;
-    virtual void didFail(NetworkResourceLoader*, const WebCore::ResourceError&) OVERRIDE;
+    virtual void didReceiveResponse(NetworkResourceLoader*, const WebCore::ResourceResponse&) override;
+    virtual void didReceiveBuffer(NetworkResourceLoader*, WebCore::SharedBuffer*, int encodedDataLength) override;
+    virtual void didSendData(NetworkResourceLoader*, unsigned long long /* bytesSent */, unsigned long long /* totalBytesToBeSent */) override { }
+    virtual void didFinishLoading(NetworkResourceLoader*, double finishTime) override;
+    virtual void didFail(NetworkResourceLoader*, const WebCore::ResourceError&) override;
 
     void sendDelayedReply();
 
@@ -72,8 +66,7 @@ private:
     RefPtr<Messages::NetworkConnectionToWebProcess::PerformSynchronousLoad::DelayedReply> m_delayedReply;
     WebCore::ResourceResponse m_response;
     WebCore::ResourceError m_error;
-    OwnPtr<Vector<uint8_t>> m_responseData;
-
+    OwnPtr<Vector<char>> m_responseData;
 };
 
 } // namespace WebKit

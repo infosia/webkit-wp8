@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -54,7 +54,7 @@
 #import "ResourceBuffer.h"
 #import "RuntimeApplicationChecks.h"
 #import "Sound.h"
-#import "StylePropertySet.h"
+#import "StyleProperties.h"
 #import "Text.h"
 #import "TypingCommand.h"
 #import "UUID.h"
@@ -100,7 +100,7 @@ void Editor::pasteWithPasteboard(Pasteboard* pasteboard, bool allowPlainText)
 bool Editor::insertParagraphSeparatorInQuotedContent()
 {
     // FIXME: Why is this missing calls to canEdit, canEditRichly, etc.?
-    TypingCommand::insertParagraphSeparatorInQuotedContent(m_frame.document());
+    TypingCommand::insertParagraphSeparatorInQuotedContent(document());
     revealSelectionAfterEditingOperation();
     return true;
 }
@@ -118,7 +118,7 @@ static RenderStyle* styleForSelectionStart(Frame* frame, Node *&nodeToRemove)
 
     RefPtr<EditingStyle> typingStyle = frame->selection().typingStyle();
     if (!typingStyle || !typingStyle->style())
-        return position.deprecatedNode()->renderer()->style();
+        return &position.deprecatedNode()->renderer()->style();
 
     RefPtr<Element> styleElement = frame->document()->createElement(spanTag, false);
 
@@ -130,7 +130,7 @@ static RenderStyle* styleForSelectionStart(Frame* frame, Node *&nodeToRemove)
     position.deprecatedNode()->parentNode()->appendChild(styleElement, ASSERT_NO_EXCEPTION);
 
     nodeToRemove = styleElement.get();
-    return styleElement->renderer() ? styleElement->renderer()->style() : 0;
+    return styleElement->renderer() ? &styleElement->renderer()->style() : 0;
 }
 
 const SimpleFontData* Editor::fontForSelection(bool& hasMultipleFonts) const
@@ -159,11 +159,11 @@ const SimpleFontData* Editor::fontForSelection(bool& hasMultipleFonts) const
         // In the loop below, n should eventually match pastEnd and not become nil, but we've seen at least one
         // unreproducible case where this didn't happen, so check for null also.
         for (Node* node = startNode; node && node != pastEnd; node = NodeTraversal::next(node)) {
-            RenderObject* renderer = node->renderer();
+            auto renderer = node->renderer();
             if (!renderer)
                 continue;
             // FIXME: Are there any node types that have renderers, but that we should be skipping?
-            const SimpleFontData* primaryFont = renderer->style()->font().primaryFont();
+            const SimpleFontData* primaryFont = renderer->style().font().primaryFont();
             if (!font)
                 font = primaryFont;
             else if (font != primaryFont) {
@@ -239,7 +239,7 @@ NSDictionary* Editor::fontAttributesForSelectionStart() const
 
 bool Editor::canCopyExcludingStandaloneImages()
 {
-    FrameSelection& selection = m_frame.selection();
+    const VisibleSelection& selection = m_frame.selection().selection();
     return selection.isRange() && !selection.isInPasswordField();
 }
 
@@ -259,7 +259,7 @@ void Editor::takeFindStringFromSelection()
 void Editor::readSelectionFromPasteboard(const String& pasteboardName)
 {
     Pasteboard pasteboard(pasteboardName);
-    if (m_frame.selection().isContentRichlyEditable())
+    if (m_frame.selection().selection().isContentRichlyEditable())
         pasteWithPasteboard(&pasteboard, true);
     else
         pasteAsPlainTextWithPasteboard(pasteboard);
@@ -269,6 +269,8 @@ void Editor::readSelectionFromPasteboard(const String& pasteboardName)
 // This was left in a bad state when selectedTextForClipboard was added. Need to look over clients and fix this.
 String Editor::stringSelectionForPasteboard()
 {
+    if (!canCopy())
+        return "";
     String text = selectedText();
     text.replace(noBreakSpace, ' ');
     return text;
@@ -276,6 +278,8 @@ String Editor::stringSelectionForPasteboard()
 
 String Editor::stringSelectionForPasteboardWithImageAltText()
 {
+    if (!canCopy())
+        return "";
     String text = selectedTextForClipboard();
     text.replace(noBreakSpace, ' ');
     return text;
@@ -294,17 +298,12 @@ PassRefPtr<Range> Editor::adjustedSelectionRange()
     RefPtr<Range> range = selectedRange();
     Node* commonAncestor = range->commonAncestorContainer(IGNORE_EXCEPTION);
     ASSERT(commonAncestor);
-    Node* enclosingAnchor = enclosingNodeWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
+    auto* enclosingAnchor = enclosingElementWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
     if (enclosingAnchor && comparePositions(firstPositionInOrBeforeNode(range->startPosition().anchorNode()), range->startPosition()) >= 0)
         range->setStart(enclosingAnchor, 0, IGNORE_EXCEPTION);
     return range;
 }
-
-static NSAttributedString *attributedStringForRange(Range& range)
-{
-    return [adoptNS([[WebHTMLConverter alloc] initWithDOMRange:kit(&range)]) attributedString];
-}
-
+    
 static PassRefPtr<SharedBuffer> dataInRTFDFormat(NSAttributedString *string)
 {
     NSUInteger length = [string length];
@@ -324,15 +323,17 @@ PassRefPtr<SharedBuffer> Editor::dataSelectionForPasteboard(const String& pasteb
     // which is only used to support OS X services.
 
     // FIXME: Does this function really need to use adjustedSelectionRange()? Because writeSelectionToPasteboard() just uses selectedRange().
+    if (!canCopy())
+        return nullptr;
 
     if (pasteboardType == WebArchivePboardType)
         return selectionInWebArchiveFormat();
 
     if (pasteboardType == String(NSRTFDPboardType))
-       return dataInRTFDFormat(attributedStringForRange(*adjustedSelectionRange()));
+       return dataInRTFDFormat(attributedStringFromRange(*adjustedSelectionRange()));
 
     if (pasteboardType == String(NSRTFPboardType)) {
-        NSAttributedString* attributedString = attributedStringForRange(*adjustedSelectionRange());
+        NSAttributedString* attributedString = attributedStringFromRange(*adjustedSelectionRange());
         // FIXME: Why is this attachment character stripping needed here, but not needed in writeSelectionToPasteboard?
         if ([attributedString containsAttachments])
             attributedString = attributedStringByStrippingAttachmentCharacters(attributedString);
@@ -344,7 +345,7 @@ PassRefPtr<SharedBuffer> Editor::dataSelectionForPasteboard(const String& pasteb
 
 void Editor::writeSelectionToPasteboard(Pasteboard& pasteboard)
 {
-    NSAttributedString *attributedString = attributedStringForRange(*selectedRange());
+    NSAttributedString *attributedString = attributedStringFromRange(*selectedRange());
 
     PasteboardWebContent content;
     content.canSmartCopyOrDelete = canSmartCopyOrDelete();
@@ -359,8 +360,8 @@ void Editor::writeSelectionToPasteboard(Pasteboard& pasteboard)
 
 static void getImage(Element& imageElement, RefPtr<Image>& image, CachedImage*& cachedImage)
 {
-    RenderObject* renderer = imageElement.renderer();
-    if (!renderer || !renderer->isImage())
+    auto renderer = imageElement.renderer();
+    if (!renderer || !renderer->isRenderImage())
         return;
 
     CachedImage* tentativeCachedImage = toRenderImage(renderer)->cachedImage();
@@ -386,7 +387,7 @@ String Editor::plainTextFromPasteboard(const PasteboardPlainText& text)
     String string = text.text;
 
     // FIXME: It's not clear this is 100% correct since we know -[NSURL URLWithString:] does not handle
-    // all the same cases we handle well in the KURL code for creating an NSURL.
+    // all the same cases we handle well in the URL code for creating an NSURL.
     if (text.isURL)
         string = client()->userVisibleString([NSURL URLWithString:string]);
 
@@ -394,7 +395,7 @@ String Editor::plainTextFromPasteboard(const PasteboardPlainText& text)
     return [(NSString *)string precomposedStringWithCanonicalMapping];
 }
 
-void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElement, const KURL& url, const String& title)
+void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElement, const URL& url, const String& title)
 {
     PasteboardImage pasteboardImage;
 
@@ -413,7 +414,7 @@ void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElemen
     pasteboard.write(pasteboardImage);
 }
 
-class Editor::WebContentReader FINAL : public PasteboardWebContentReader {
+class Editor::WebContentReader final : public PasteboardWebContentReader {
 public:
     Frame& frame;
     Range& context;
@@ -437,7 +438,7 @@ private:
     virtual bool readRTFD(PassRefPtr<SharedBuffer>) override;
     virtual bool readRTF(PassRefPtr<SharedBuffer>) override;
     virtual bool readImage(PassRefPtr<SharedBuffer>, const String& type) override;
-    virtual bool readURL(const KURL&, const String& title) override;
+    virtual bool readURL(const URL&, const String& title) override;
     virtual bool readPlainText(const String&) override;
 };
 
@@ -446,7 +447,7 @@ bool Editor::WebContentReader::readWebArchive(PassRefPtr<SharedBuffer> buffer)
     if (!frame.document())
         return false;
 
-    RefPtr<LegacyWebArchive> archive = LegacyWebArchive::create(KURL(), buffer.get());
+    RefPtr<LegacyWebArchive> archive = LegacyWebArchive::create(URL(), buffer.get());
     if (!archive)
         return false;
 
@@ -462,7 +463,7 @@ bool Editor::WebContentReader::readWebArchive(PassRefPtr<SharedBuffer> buffer)
             loader->addAllArchiveResources(archive.get());
 
         String markupString = String::fromUTF8(mainResource->data()->data(), mainResource->data()->size());
-        fragment = createFragmentFromMarkup(frame.document(), markupString, mainResource->url(), DisallowScriptingAndPluginContent);
+        fragment = createFragmentFromMarkup(*frame.document(), markupString, mainResource->url(), DisallowScriptingAndPluginContent);
         return true;
     }
 
@@ -480,14 +481,18 @@ bool Editor::WebContentReader::readFilenames(const Vector<String>& paths)
     if (!size)
         return false;
 
-    fragment = frame.document()->createDocumentFragment();
+    if (!frame.document())
+        return false;
+    Document& document = *frame.document();
+
+    fragment = document.createDocumentFragment();
 
     for (size_t i = 0; i < size; i++) {
         String text = paths[i];
         text = frame.editor().client()->userVisibleString([NSURL fileURLWithPath:text]);
 
-        RefPtr<HTMLElement> paragraph = createDefaultParagraphElement(frame.document());
-        paragraph->appendChild(frame.document()->createTextNode(text));
+        RefPtr<HTMLElement> paragraph = createDefaultParagraphElement(document);
+        paragraph->appendChild(document.createTextNode(text));
         fragment->appendChild(paragraph.release());
     }
 
@@ -510,7 +515,11 @@ bool Editor::WebContentReader::readHTML(const String& string)
     if (stringOmittingMicrosoftPrefix.isEmpty())
         return false;
 
-    fragment = createFragmentFromMarkup(frame.document(), stringOmittingMicrosoftPrefix, emptyString(), DisallowScriptingAndPluginContent);
+    if (!frame.document())
+        return false;
+    Document& document = *frame.document();
+
+    fragment = createFragmentFromMarkup(document, stringOmittingMicrosoftPrefix, emptyString(), DisallowScriptingAndPluginContent);
     return fragment;
 }
 
@@ -531,13 +540,13 @@ bool Editor::WebContentReader::readImage(PassRefPtr<SharedBuffer> buffer, const 
     ASSERT(type.contains('/'));
     String typeAsFilenameWithExtension = type;
     typeAsFilenameWithExtension.replace('/', '.');
-    KURL imageURL = KURL(KURL(), "webkit-fake-url://" + createCanonicalUUIDString() + '/' + typeAsFilenameWithExtension);
+    URL imageURL = URL::fakeURLWithRelativePart(typeAsFilenameWithExtension);
 
     fragment = frame.editor().createFragmentForImageResourceAndAddResource(ArchiveResource::create(buffer, imageURL, type, emptyString(), emptyString()));
     return fragment;
 }
 
-bool Editor::WebContentReader::readURL(const KURL& url, const String& title)
+bool Editor::WebContentReader::readURL(const URL& url, const String& title)
 {
     if (url.string().isEmpty())
         return false;
@@ -556,7 +565,7 @@ bool Editor::WebContentReader::readPlainText(const String& text)
     if (!allowPlainText)
         return false;
 
-    fragment = createFragmentFromText(&context, [text precomposedStringWithCanonicalMapping]);
+    fragment = createFragmentFromText(context, [text precomposedStringWithCanonicalMapping]);
     if (!fragment)
         return false;
 
@@ -579,10 +588,10 @@ PassRefPtr<DocumentFragment> Editor::createFragmentForImageResourceAndAddResourc
     if (!resource)
         return nullptr;
 
-    RefPtr<Element> imageElement = m_frame.document()->createElement(HTMLNames::imgTag, false);
+    RefPtr<Element> imageElement = document().createElement(HTMLNames::imgTag, false);
     imageElement->setAttribute(HTMLNames::srcAttr, resource->url().string());
 
-    RefPtr<DocumentFragment> fragment = m_frame.document()->createDocumentFragment();
+    RefPtr<DocumentFragment> fragment = document().createDocumentFragment();
     fragment->appendChild(imageElement.release());
 
     // FIXME: The code in createFragmentAndAddResources calls setDefersLoading(true). Don't we need that here?
@@ -594,7 +603,7 @@ PassRefPtr<DocumentFragment> Editor::createFragmentForImageResourceAndAddResourc
 
 PassRefPtr<DocumentFragment> Editor::createFragmentAndAddResources(NSAttributedString *string)
 {
-    if (!m_frame.page() || !m_frame.document() || !m_frame.document()->isHTMLDocument())
+    if (!m_frame.page() || !document().isHTMLDocument())
         return nullptr;
 
     if (!string)

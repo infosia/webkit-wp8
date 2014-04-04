@@ -27,62 +27,46 @@
 #include "config.h"
 #include "WebFrameNetworkingContext.h"
 
+#include "SessionTracker.h"
 #include "WebFrame.h"
 #include "WebPage.h"
+#include <WebCore/SessionID.h>
 #include <WebCore/Settings.h>
+#include <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 
 namespace WebKit {
 
-static NetworkStorageSession* privateSession;
-
-void WebFrameNetworkingContext::ensurePrivateBrowsingSession()
+void WebFrameNetworkingContext::ensurePrivateBrowsingSession(SessionID sessionID)
 {
     ASSERT(isMainThread());
 
-    if (privateSession)
+    if (SessionTracker::session(sessionID))
         return;
 
-    privateSession = NetworkStorageSession::createPrivateBrowsingSession().leakPtr();
-}
-
-void WebFrameNetworkingContext::destroyPrivateBrowsingSession()
-{
-    ASSERT(isMainThread());
-
-    delete privateSession;
-    privateSession = 0;
+    SessionTracker::setSession(sessionID, NetworkStorageSession::createPrivateBrowsingSession(String::number(sessionID.sessionID())));
 }
 
 WebFrameNetworkingContext::WebFrameNetworkingContext(WebFrame* frame)
     : FrameNetworkingContext(frame->coreFrame())
-    , m_initiatingPageID(0)
 {
-    if (WebPage* page = frame->page())
-        m_initiatingPageID = page->pageID();
 }
 
 NetworkStorageSession& WebFrameNetworkingContext::storageSession() const
 {
-    if (frame() && frame()->settings().privateBrowsingEnabled())
-        return *privateSession;
+    if (frame() && frame()->page()->usesEphemeralSession())
+        return *SessionTracker::session(SessionID::legacyPrivateSessionID());
 
     return NetworkStorageSession::defaultStorageSession();
-}
-
-uint64_t WebFrameNetworkingContext::initiatingPageID() const
-{
-    return m_initiatingPageID;
 }
 
 WebFrameLoaderClient* WebFrameNetworkingContext::webFrameLoaderClient() const
 {
     if (!frame())
-        return 0;
+        return nullptr;
 
     return toWebFrameLoaderClient(frame()->loader().client());
 }
 
 }
-

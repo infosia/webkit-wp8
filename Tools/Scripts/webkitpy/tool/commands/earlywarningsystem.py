@@ -31,6 +31,7 @@ import logging
 from optparse import make_option
 
 from webkitpy.common.config.committers import CommitterList
+from webkitpy.common.config.ports import DeprecatedPort
 from webkitpy.common.system.filesystem import FileSystem
 from webkitpy.common.system.executive import ScriptError
 from webkitpy.tool.bot.earlywarningsystemtask import EarlyWarningSystemTask, EarlyWarningSystemTaskDelegate
@@ -65,6 +66,9 @@ class AbstractEarlyWarningSystem(AbstractReviewQueue, EarlyWarningSystemTaskDele
         return "New failing tests:\n%s" % "\n".join(unexpected_failures)
 
     def _post_reject_message_on_bug(self, tool, patch, status_id, extra_message_text=None):
+        if not extra_message_text:
+            return  # Don't comment on Bugzilla if we don't have failing tests.
+
         results_link = tool.status_server.results_url_for_status(status_id)
         message = "Attachment %s did not pass %s (%s):\nOutput: %s" % (patch.id(), self.name, self.port_name, results_link)
         if extra_message_text:
@@ -91,10 +95,7 @@ class AbstractEarlyWarningSystem(AbstractReviewQueue, EarlyWarningSystemTaskDele
             if results_archive:
                 self._upload_results_archive_for_patch(patch, results_archive)
             self._did_fail(patch)
-            # FIXME: We're supposed to be able to raise e again here and have
-            # one of our base classes mark the patch as fail, but there seems
-            # to be an issue with the exit_code.
-            return False
+            raise e
 
     # EarlyWarningSystemDelegate methods
 
@@ -102,7 +103,7 @@ class AbstractEarlyWarningSystem(AbstractReviewQueue, EarlyWarningSystemTaskDele
         return self.name
 
     def run_command(self, command):
-        self.run_webkit_patch(command + [self._port.tooling_flag()])
+        self.run_webkit_patch(command + [self._deprecated_port.flag()])
 
     def command_passed(self, message, patch):
         pass

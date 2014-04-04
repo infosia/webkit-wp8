@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,41 +30,33 @@
 
 #include "DFGOperations.h"
 #include "DFGOSRExitCompilerCommon.h"
-#include "Operations.h"
+#include "DFGSpeculativeJIT.h"
+#include "JSCInlines.h"
+#include "VirtualRegister.h"
+
 #include <wtf/DataLog.h>
 
 namespace JSC { namespace DFG {
 
 void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecovery>& operands, SpeculationRecovery* recovery)
 {
-    // 1) Pro-forma stuff.
-#if DFG_ENABLE(DEBUG_VERBOSE)
-    dataLogF("OSR exit for (");
-    for (CodeOrigin codeOrigin = exit.m_codeOrigin; ; codeOrigin = codeOrigin.inlineCallFrame->caller) {
-        dataLogF("bc#%u", codeOrigin.bytecodeIndex);
-        if (!codeOrigin.inlineCallFrame)
-            break;
-        dataLogF(" -> %p ", codeOrigin.inlineCallFrame->executable.get());
-    }
-    dataLogF(")  ");
-    dataLog(operands);
-#endif
+    m_jit.jitAssertTagsInPlace();
 
+    // 1) Pro-forma stuff.
     if (Options::printEachOSRExit()) {
         SpeculationFailureDebugInfo* debugInfo = new SpeculationFailureDebugInfo;
         debugInfo->codeBlock = m_jit.codeBlock();
+        debugInfo->kind = exit.m_kind;
+        debugInfo->bytecodeOffset = exit.m_codeOrigin.bytecodeIndex;
         
         m_jit.debugCall(debugOperationPrintSpeculationFailure, debugInfo);
     }
     
-#if DFG_ENABLE(JIT_BREAK_ON_SPECULATION_FAILURE)
-    m_jit.breakpoint();
-#endif
-    
-#if DFG_ENABLE(SUCCESS_STATS)
-    static SamplingCounter counter("SpeculationFailure");
-    m_jit.emitCount(counter);
-#endif
+    // Need to ensure that the stack pointer accounts for the worst-case stack usage at exit.
+    m_jit.addPtr(
+        CCallHelpers::TrustedImm32(
+            -m_jit.codeBlock()->jitCode()->dfgCommon()->requiredRegisterCountForExit * sizeof(Register)),
+        CCallHelpers::framePointerRegister, CCallHelpers::stackPointerRegister);
     
     // 2) Perform speculation recovery. This only comes into play when an operation
     //    starts mutating state before verifying the speculation it has already made.
@@ -111,8 +103,13 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                 scratch1 = AssemblyHelpers::selectScratchGPR(usedRegister);
                 scratch2 = AssemblyHelpers::selectScratchGPR(usedRegister, scratch1);
                 
+#if CPU(ARM64)
+                m_jit.pushToSave(scratch1);
+                m_jit.pushToSave(scratch2);
+#else
                 m_jit.push(scratch1);
                 m_jit.push(scratch2);
+#endif
                 
                 GPRReg value;
                 if (exit.m_jsValueSource.isAddress()) {
@@ -121,15 +118,20 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                 } else
                     value = exit.m_jsValueSource.gpr();
                 
-                m_jit.loadPtr(AssemblyHelpers::Address(value, JSCell::structureOffset()), scratch1);
-                m_jit.storePtr(scratch1, arrayProfile->addressOfLastSeenStructure());
-                m_jit.load8(AssemblyHelpers::Address(scratch1, Structure::indexingTypeOffset()), scratch1);
+                m_jit.load32(AssemblyHelpers::Address(value, JSCell::structureIDOffset()), scratch1);
+                m_jit.store32(scratch1, arrayProfile->addressOfLastSeenStructureID());
+                m_jit.load8(AssemblyHelpers::Address(value, JSCell::indexingTypeOffset()), scratch1);
                 m_jit.move(AssemblyHelpers::TrustedImm32(1), scratch2);
                 m_jit.lshift32(scratch1, scratch2);
                 m_jit.or32(scratch2, AssemblyHelpers::AbsoluteAddress(arrayProfile->addressOfArrayModes()));
                 
+#if CPU(ARM64)
+                m_jit.popToRestore(scratch2);
+                m_jit.popToRestore(scratch1);
+#else
                 m_jit.pop(scratch2);
                 m_jit.pop(scratch1);
+#endif
             }
         }
         
@@ -154,11 +156,11 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     // definitely in a well-known spot in the scratch buffer regardless of whether it had
     // originally been in a register or spilled. This allows us to decouple "where was
     // the variable" from "how was it represented". Consider that the
-    // AlreadyInJSStackAsUnboxedInt32 recovery: it tells us that the value is in a
-    // particular place and that that place holds an unboxed int32. We have three different
-    // places that a value could be (stack, displaced, register) and a bunch of different
-    // ways of representing a value. The number of recoveries is three * a bunch. The code
-    // below means that we have to have three + a bunch cases rather than three * a bunch.
+    // Int32DisplacedInJSStack recovery: it tells us that the value is in a
+    // particular place and that that place holds an unboxed int32. We have two different
+    // places that a value could be (displaced, register) and a bunch of different
+    // ways of representing a value. The number of recoveries is two * a bunch. The code
+    // below means that we have to have two + a bunch cases rather than two * a bunch.
     // Once we have loaded the value from wherever it was, the reboxing is the same
     // regardless of its location. Likewise, before we do the reboxing, the way we get to
     // the value (i.e. where we load it from) is the same regardless of its type. Because
@@ -194,9 +196,9 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         switch (recovery.technique()) {
         case InGPR:
         case UnboxedInt32InGPR:
-        case UInt32InGPR:
         case UnboxedInt52InGPR:
         case UnboxedStrictInt52InGPR:
+        case UnboxedCellInGPR:
             m_jit.store64(recovery.gpr(), scratch + index);
             break;
             
@@ -205,7 +207,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // And voila, all FPRs are free to reuse.
+    // And voila, all GPRs are free to reuse.
     
     // 5) Save all state from FPRs into the scratch buffer.
     
@@ -225,16 +227,17 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     
     // Now, all FPRs are also free.
     
-    // 5) Save all state from the stack into the scratch buffer. For simplicity we
+    // 6) Save all state from the stack into the scratch buffer. For simplicity we
     //    do this even for state that's already in the right place on the stack.
     //    It makes things simpler later.
 
     for (size_t index = 0; index < operands.size(); ++index) {
         const ValueRecovery& recovery = operands[index];
-        int operand = operands.operandForIndex(index);
         
         switch (recovery.technique()) {
         case DisplacedInJSStack:
+        case CellDisplacedInJSStack:
+        case BooleanDisplacedInJSStack:
         case Int32DisplacedInJSStack:
         case DoubleDisplacedInJSStack:
         case Int52DisplacedInJSStack:
@@ -243,19 +246,12 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             m_jit.store64(GPRInfo::regT0, scratch + index);
             break;
             
-        case AlreadyInJSStackAsUnboxedInt32:
-        case AlreadyInJSStackAsUnboxedDouble:
-        case AlreadyInJSStackAsUnboxedInt52:
-            m_jit.load64(AssemblyHelpers::addressFor(operand), GPRInfo::regT0);
-            m_jit.store64(GPRInfo::regT0, scratch + index);
-            break;
-            
         default:
             break;
         }
     }
     
-    // 6) Do all data format conversions and store the results into the stack.
+    // 7) Do all data format conversions and store the results into the stack.
     
     bool haveArguments = false;
     
@@ -265,12 +261,14 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         
         switch (recovery.technique()) {
         case InGPR:
+        case UnboxedCellInGPR:
         case DisplacedInJSStack:
+        case CellDisplacedInJSStack:
+        case BooleanDisplacedInJSStack:
             m_jit.load64(scratch + index, GPRInfo::regT0);
             m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
             break;
             
-        case AlreadyInJSStackAsUnboxedInt32:
         case UnboxedInt32InGPR:
         case Int32DisplacedInJSStack:
             m_jit.load64(scratch + index, GPRInfo::regT0);
@@ -279,7 +277,6 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
             break;
             
-        case AlreadyInJSStackAsUnboxedInt52:
         case UnboxedInt52InGPR:
         case Int52DisplacedInJSStack:
             m_jit.load64(scratch + index, GPRInfo::regT0);
@@ -296,14 +293,6 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
             break;
             
-        case UInt32InGPR:
-            m_jit.load64(scratch + index, GPRInfo::regT0);
-            m_jit.zeroExtend32ToPtr(GPRInfo::regT0, GPRInfo::regT0);
-            m_jit.boxInt52(GPRInfo::regT0, GPRInfo::regT0, GPRInfo::regT1, FPRInfo::fpRegT0);
-            m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
-            break;
-            
-        case AlreadyInJSStackAsUnboxedDouble:
         case InFPR:
         case DoubleDisplacedInJSStack:
             m_jit.move(AssemblyHelpers::TrustedImmPtr(scratch + index), GPRInfo::regT0);
@@ -320,6 +309,11 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
             
         case ArgumentsThatWereNotCreated:
             haveArguments = true;
+            // We can't restore this yet but we can make sure that the stack appears
+            // sane.
+            m_jit.store64(
+                AssemblyHelpers::TrustedImm64(JSValue::encode(JSValue())),
+                AssemblyHelpers::addressFor(operand));
             break;
             
         default:
@@ -327,7 +321,7 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         }
     }
     
-    // 7) Adjust the old JIT's execute counter. Since we are exiting OSR, we know
+    // 8) Adjust the old JIT's execute counter. Since we are exiting OSR, we know
     //    that all new calls into this code will go to the new JIT, so the execute
     //    counter only affects call frames that performed OSR exit and call frames
     //    that were still executing the old JIT at the time of another call frame's
@@ -365,68 +359,26 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     
     handleExitCounts(m_jit, exit);
     
-    // 8) Reify inlined call frames.
+    // 9) Reify inlined call frames.
     
     reifyInlinedCallFrames(m_jit, exit);
     
-    // 9) Create arguments if necessary and place them into the appropriate aliased
-    //    registers.
+    // 10) Create arguments if necessary and place them into the appropriate aliased
+    //     registers.
     
     if (haveArguments) {
-        HashSet<InlineCallFrame*, DefaultHash<InlineCallFrame*>::Hash,
-            NullableHashTraits<InlineCallFrame*> > didCreateArgumentsObject;
+        ArgumentsRecoveryGenerator argumentsRecovery;
 
         for (size_t index = 0; index < operands.size(); ++index) {
             const ValueRecovery& recovery = operands[index];
             if (recovery.technique() != ArgumentsThatWereNotCreated)
                 continue;
-            int operand = operands.operandForIndex(index);
-            // Find the right inline call frame.
-            InlineCallFrame* inlineCallFrame = 0;
-            for (InlineCallFrame* current = exit.m_codeOrigin.inlineCallFrame;
-                 current;
-                 current = current->caller.inlineCallFrame) {
-                if (current->stackOffset <= operand) {
-                    inlineCallFrame = current;
-                    break;
-                }
-            }
-
-            if (!m_jit.baselineCodeBlockFor(inlineCallFrame)->usesArguments())
-                continue;
-            int argumentsRegister = m_jit.argumentsRegisterFor(inlineCallFrame);
-            if (didCreateArgumentsObject.add(inlineCallFrame).isNewEntry) {
-                // We know this call frame optimized out an arguments object that
-                // the baseline JIT would have created. Do that creation now.
-                if (inlineCallFrame) {
-                    m_jit.addPtr(AssemblyHelpers::TrustedImm32(inlineCallFrame->stackOffset * sizeof(EncodedJSValue)), GPRInfo::callFrameRegister, GPRInfo::regT0);
-                    m_jit.setupArguments(GPRInfo::regT0);
-                } else
-                    m_jit.setupArgumentsExecState();
-                m_jit.move(
-                    AssemblyHelpers::TrustedImmPtr(
-                        bitwise_cast<void*>(operationCreateArguments)),
-                    GPRInfo::nonArgGPR0);
-                m_jit.call(GPRInfo::nonArgGPR0);
-                m_jit.store64(GPRInfo::returnValueGPR, AssemblyHelpers::addressFor(argumentsRegister));
-                m_jit.store64(
-                    GPRInfo::returnValueGPR,
-                    AssemblyHelpers::addressFor(unmodifiedArgumentsRegister(argumentsRegister)));
-                m_jit.move(GPRInfo::returnValueGPR, GPRInfo::regT0); // no-op move on almost all platforms.
-            }
-
-            m_jit.load64(AssemblyHelpers::addressFor(argumentsRegister), GPRInfo::regT0);
-            m_jit.store64(GPRInfo::regT0, AssemblyHelpers::addressFor(operand));
+            argumentsRecovery.generateFor(
+                operands.operandForIndex(index), exit.m_codeOrigin, m_jit);
         }
     }
-    
-    // 10) Load the result of the last bytecode operation into regT0.
-    
-    if (exit.m_lastSetOperand != std::numeric_limits<int>::max())
-        m_jit.load64(AssemblyHelpers::addressFor(exit.m_lastSetOperand), GPRInfo::cachedResultRegister);
-    
-    // 11) And finish.
-    
+
+    // 12) And finish.
     adjustAndJumpToTarget(m_jit, exit);
 }
 

@@ -26,8 +26,6 @@
 #ifndef FTLExitThunkGenerator_h
 #define FTLExitThunkGenerator_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(FTL_JIT)
 
 #include "CCallHelpers.h"
@@ -43,6 +41,7 @@ public:
     ~ExitThunkGenerator();
     
     void emitThunk(unsigned index);
+    void emitThunks();
     
     bool didThings() const { return m_didThings; }
 

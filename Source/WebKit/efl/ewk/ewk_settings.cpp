@@ -2,6 +2,7 @@
     Copyright (C) 2009-2010 ProFUSION embedded systems
     Copyright (C) 2009-2010 Samsung Electronics
     Copyright (C) 2012 Intel Corporation
+    Copyright (C) 2013 Apple Inc. All rights reserved.
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Library General Public
@@ -32,8 +33,7 @@
 #include "IconDatabase.h"
 #include "Image.h"
 #include "IntSize.h"
-#include "KURL.h"
-#include "LocalFileSystem.h"
+#include "URL.h"
 #include "MemoryCache.h"
 #include "PageCache.h"
 #include "RuntimeEnabledFeatures.h"
@@ -134,7 +134,7 @@ void ewk_settings_local_storage_database_origin_clear(const char* url)
 {
     EINA_SAFETY_ON_NULL_RETURN(url);
 
-    const WebCore::KURL kurl(WebCore::KURL(), WTF::String::fromUTF8(url));
+    const WebCore::URL kurl(WebCore::URL(), WTF::String::fromUTF8(url));
     WebCore::StorageTracker::tracker().deleteOrigin(WebCore::SecurityOrigin::create(kurl).get());
 }
 
@@ -143,6 +143,8 @@ void ewk_settings_web_database_path_set(const char* path)
 #if ENABLE(SQL_DATABASE)
     WebCore::DatabaseManager::manager().setDatabaseDirectoryPath(WTF::String::fromUTF8(path));
     eina_stringshare_replace(&s_webDatabasePath, path);
+#else
+    UNUSED_PARAM(path);
 #endif
 }
 
@@ -209,24 +211,12 @@ Eina_Bool ewk_settings_icon_database_clear(void)
     return true;
 }
 
-cairo_surface_t* ewk_settings_icon_database_icon_surface_get(const char* url)
-{
-    EINA_SAFETY_ON_NULL_RETURN_VAL(url, 0);
-
-    WebCore::KURL kurl(WebCore::KURL(), WTF::String::fromUTF8(url));
-    RefPtr<cairo_surface_t> icon = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
-    if (!icon)
-        ERR("no icon for url %s", url);
-
-    return icon.get();
-}
-
 Evas_Object* ewk_settings_icon_database_icon_object_get(const char* url, Evas* canvas)
 {
     EINA_SAFETY_ON_NULL_RETURN_VAL(url, 0);
     EINA_SAFETY_ON_NULL_RETURN_VAL(canvas, 0);
 
-    WebCore::KURL kurl(WebCore::KURL(), WTF::String::fromUTF8(url));
+    WebCore::URL kurl(WebCore::URL(), WTF::String::fromUTF8(url));
     RefPtr<cairo_surface_t> surface = WebCore::iconDatabase().synchronousNativeIconForPageURL(kurl.string(), WebCore::IntSize(16, 16));
 
     if (!surface) {
@@ -254,23 +244,13 @@ void ewk_settings_object_cache_enable_set(Eina_Bool enable)
 
 Eina_Bool ewk_settings_shadow_dom_enable_get()
 {
-#if ENABLE(SHADOW_DOM)
-    return WebCore::RuntimeEnabledFeatures::shadowDOMEnabled();
-#else
     return false;
-#endif
 }
 
 Eina_Bool ewk_settings_shadow_dom_enable_set(Eina_Bool enable)
 {
-#if ENABLE(SHADOW_DOM)
-    enable = !!enable;
-    WebCore::RuntimeEnabledFeatures::setShadowDOMEnabled(enable);
-    return true;
-#else
     UNUSED_PARAM(enable);
     return false;
-#endif
 }
 
 unsigned ewk_settings_page_cache_capacity_get()
@@ -311,18 +291,17 @@ void ewk_settings_memory_cache_clear()
 
     // FastMalloc has lock-free thread specific caches that can only be cleared from the thread itself.
     WebCore::StorageThread::releaseFastMallocFreeMemoryInAllThreads();
-#if ENABLE(WORKERS)
     WebCore::WorkerThread::releaseFastMallocFreeMemoryInAllThreads();
-#endif
     WTF::releaseFastMallocFreeMemory();
 }
 
 void ewk_settings_repaint_throttling_set(double deferredRepaintDelay, double initialDeferredRepaintDelayDuringLoading, double maxDeferredRepaintDelayDuringLoading, double deferredRepaintDelayIncrementDuringLoading)
 {
-    WebCore::FrameView::setRepaintThrottlingDeferredRepaintDelay(deferredRepaintDelay);
-    WebCore::FrameView::setRepaintThrottlingnInitialDeferredRepaintDelayDuringLoading(initialDeferredRepaintDelayDuringLoading);
-    WebCore::FrameView::setRepaintThrottlingMaxDeferredRepaintDelayDuringLoading(maxDeferredRepaintDelayDuringLoading);
-    WebCore::FrameView::setRepaintThrottlingDeferredRepaintDelayIncrementDuringLoading(deferredRepaintDelayIncrementDuringLoading);
+    // FIXME: EFL should switch to layer flush throttling.
+    UNUSED_PARAM(deferredRepaintDelay);
+    UNUSED_PARAM(initialDeferredRepaintDelayDuringLoading);
+    UNUSED_PARAM(maxDeferredRepaintDelayDuringLoading);
+    UNUSED_PARAM(deferredRepaintDelayIncrementDuringLoading);
 }
 
 /**
@@ -350,11 +329,7 @@ const char* ewk_settings_default_user_agent_get()
  */
 void ewk_settings_file_system_path_set(const char* path)
 {
-#if ENABLE(FILE_SYSTEM)
-    WebCore::LocalFileSystem::initializeLocalFileSystem(String::fromUTF8(path));
-#else
     UNUSED_PARAM(path);
-#endif
 }
 
 void ewk_settings_application_cache_path_set(const char* path)

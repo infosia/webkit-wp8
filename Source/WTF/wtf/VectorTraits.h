@@ -27,8 +27,6 @@
 #include <utility>
 #include <memory>
 
-using std::pair;
-
 namespace WTF {
 
     class AtomicString;
@@ -39,7 +37,6 @@ namespace WTF {
     template<typename T>
     struct VectorTraitsBase<false, T>
     {
-        static const bool needsDestruction = true;
         static const bool needsInitialization = true;
         static const bool canInitializeWithMemset = false;
         static const bool canMoveWithMemcpy = false;
@@ -51,7 +48,6 @@ namespace WTF {
     template<typename T>
     struct VectorTraitsBase<true, T>
     {
-        static const bool needsDestruction = false;
         static const bool needsInitialization = false;
         static const bool canInitializeWithMemset = false;
         static const bool canMoveWithMemcpy = true;
@@ -73,24 +69,23 @@ namespace WTF {
     // We know OwnPtr and RefPtr are simple enough that initializing to 0 and moving with memcpy
     // (and then not destructing the original) will totally work
     template<typename P>
-    struct VectorTraits<RefPtr<P> > : SimpleClassVectorTraits { };
+    struct VectorTraits<RefPtr<P>> : SimpleClassVectorTraits { };
 
     template<typename P>
-    struct VectorTraits<OwnPtr<P> > : SimpleClassVectorTraits { };
+    struct VectorTraits<OwnPtr<P>> : SimpleClassVectorTraits { };
 
     template<typename P>
-    struct VectorTraits<Ref<P> > : SimpleClassVectorTraits { };
+    struct VectorTraits<Ref<P>> : SimpleClassVectorTraits { };
 
     template<>
     struct VectorTraits<AtomicString> : SimpleClassVectorTraits { };
 
     template<typename First, typename Second>
-    struct VectorTraits<std::pair<First, Second> >
+    struct VectorTraits<std::pair<First, Second>>
     {
         typedef VectorTraits<First> FirstTraits;
         typedef VectorTraits<Second> SecondTraits;
 
-        static const bool needsDestruction = FirstTraits::needsDestruction || SecondTraits::needsDestruction;
         static const bool needsInitialization = FirstTraits::needsInitialization || SecondTraits::needsInitialization;
         static const bool canInitializeWithMemset = FirstTraits::canInitializeWithMemset && SecondTraits::canInitializeWithMemset;
         static const bool canMoveWithMemcpy = FirstTraits::canMoveWithMemcpy && SecondTraits::canMoveWithMemcpy;

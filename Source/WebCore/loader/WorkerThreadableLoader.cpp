@@ -29,9 +29,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(WORKERS)
-
 #include "WorkerThreadableLoader.h"
 
 #include "Document.h"
@@ -49,8 +46,6 @@
 #include <wtf/OwnPtr.h>
 #include <wtf/Vector.h>
 
-using namespace std;
-
 namespace WebCore {
 
 static const char loadResourceSynchronouslyMode[] = "loadResourceSynchronouslyMode";
@@ -58,7 +53,7 @@ static const char loadResourceSynchronouslyMode[] = "loadResourceSynchronouslyMo
 WorkerThreadableLoader::WorkerThreadableLoader(WorkerGlobalScope* workerGlobalScope, ThreadableLoaderClient* client, const String& taskMode, const ResourceRequest& request, const ThreadableLoaderOptions& options)
     : m_workerGlobalScope(workerGlobalScope)
     , m_workerClientWrapper(ThreadableLoaderClientWrapper::create(client))
-    , m_bridge(*(new MainThreadBridge(m_workerClientWrapper, m_workerGlobalScope->thread()->workerLoaderProxy(), taskMode, request, options, workerGlobalScope->url().strippedForUseAsReferrer())))
+    , m_bridge(*(new MainThreadBridge(m_workerClientWrapper, m_workerGlobalScope->thread().workerLoaderProxy(), taskMode, request, options, workerGlobalScope->url().strippedForUseAsReferrer())))
 {
 }
 
@@ -69,7 +64,7 @@ WorkerThreadableLoader::~WorkerThreadableLoader()
 
 void WorkerThreadableLoader::loadResourceSynchronously(WorkerGlobalScope* workerGlobalScope, const ResourceRequest& request, ThreadableLoaderClient& client, const ThreadableLoaderOptions& options)
 {
-    WorkerRunLoop& runLoop = workerGlobalScope->thread()->runLoop();
+    WorkerRunLoop& runLoop = workerGlobalScope->thread().runLoop();
 
     // Create a unique mode just for this synchronous resource load.
     String mode = loadResourceSynchronouslyMode;
@@ -115,7 +110,7 @@ void WorkerThreadableLoader::MainThreadBridge::mainThreadCreateLoader(ScriptExec
     // FIXME: If the a site requests a local resource, then this will return a non-zero value but the sync path
     // will return a 0 value.  Either this should return 0 or the other code path should do a callback with
     // a failure.
-    thisPtr->m_mainThreadLoader = DocumentThreadableLoader::create(document, thisPtr, *request, options);
+    thisPtr->m_mainThreadLoader = DocumentThreadableLoader::create(*document, *thisPtr, *request, options);
     ASSERT(thisPtr->m_mainThreadLoader);
 }
 
@@ -190,7 +185,7 @@ void WorkerThreadableLoader::MainThreadBridge::didReceiveResponse(unsigned long 
     m_loaderProxy.postTaskForModeToWorkerGlobalScope(createCallbackTask(&workerGlobalScopeDidReceiveResponse, m_workerClientWrapper, identifier, response), m_taskMode);
 }
 
-static void workerGlobalScopeDidReceiveData(ScriptExecutionContext* context, RefPtr<ThreadableLoaderClientWrapper> workerClientWrapper, PassOwnPtr<Vector<char> > vectorData)
+static void workerGlobalScopeDidReceiveData(ScriptExecutionContext* context, RefPtr<ThreadableLoaderClientWrapper> workerClientWrapper, PassOwnPtr<Vector<char>> vectorData)
 {
     ASSERT_UNUSED(context, context->isWorkerGlobalScope());
     workerClientWrapper->didReceiveData(vectorData->data(), vectorData->size());
@@ -198,7 +193,7 @@ static void workerGlobalScopeDidReceiveData(ScriptExecutionContext* context, Ref
 
 void WorkerThreadableLoader::MainThreadBridge::didReceiveData(const char* data, int dataLength)
 {
-    OwnPtr<Vector<char> > vector = adoptPtr(new Vector<char>(dataLength)); // needs to be an OwnPtr for usage with createCallbackTask.
+    OwnPtr<Vector<char>> vector = adoptPtr(new Vector<char>(dataLength)); // needs to be an OwnPtr for usage with createCallbackTask.
     memcpy(vector->data(), data, dataLength);
     m_loaderProxy.postTaskForModeToWorkerGlobalScope(createCallbackTask(&workerGlobalScopeDidReceiveData, m_workerClientWrapper, vector.release()), m_taskMode);
 }
@@ -248,5 +243,3 @@ void WorkerThreadableLoader::MainThreadBridge::didFailRedirectCheck()
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(WORKERS)

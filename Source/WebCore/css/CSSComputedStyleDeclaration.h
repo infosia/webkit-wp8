@@ -32,19 +32,14 @@ class CSSPrimitiveValue;
 class CSSValueList;
 class Color;
 class FilterOperations;
-class MutableStylePropertySet;
+class MutableStyleProperties;
 class Node;
 class RenderObject;
 class RenderStyle;
 class SVGPaint;
 class ShadowData;
-class StylePropertySet;
+class StyleProperties;
 class StylePropertyShorthand;
-
-#if ENABLE(CSS_SHADERS)
-class CustomFilterNumberParameter;
-class CustomFilterParameter;
-#endif
 
 enum EUpdateLayout { DoNotUpdateLayout = false, UpdateLayout = true };
 
@@ -57,14 +52,14 @@ public:
     PassRefPtr<CSSValue> propertyValue(CSSPropertyID, EUpdateLayout = UpdateLayout) const;
 
     // Helper methods for HTML editing.
-    PassRefPtr<MutableStylePropertySet> copyPropertiesInSet(const CSSPropertyID* set, unsigned length) const;
-    PassRefPtr<MutableStylePropertySet> copyProperties() const;
+    PassRef<MutableStyleProperties> copyPropertiesInSet(const CSSPropertyID* set, unsigned length) const;
+    PassRef<MutableStyleProperties> copyProperties() const;
     PassRefPtr<CSSPrimitiveValue> getFontSizeCSSValuePreferringKeyword() const;
     bool useFixedFontDefaultSize() const;
     bool propertyMatches(CSSPropertyID, const CSSValue*) const;
 
 #if ENABLE(CSS_FILTERS)
-    static PassRefPtr<CSSValue> valueForFilter(const RenderObject*, const RenderStyle*, const FilterOperations&, AdjustPixelValuesForComputedStyle = AdjustPixelValues);
+    static PassRef<CSSValue> valueForFilter(const RenderStyle*, const FilterOperations&, AdjustPixelValuesForComputedStyle = AdjustPixelValues);
 #endif
 
 private:
@@ -74,10 +69,8 @@ private:
     // on Elements, but right now editing creates these for text nodes. We should fix that.
     Node* styledNode() const;
 
-#if ENABLE(SVG)
     PassRefPtr<CSSValue> svgPropertyValue(CSSPropertyID, EUpdateLayout) const;
     PassRefPtr<SVGPaint> adjustSVGPaintForCurrentColor(PassRefPtr<SVGPaint>, RenderStyle*) const;
-#endif
 
     static PassRefPtr<CSSValue> valueForShadow(const ShadowData*, CSSPropertyID, const RenderStyle*, AdjustPixelValuesForComputedStyle = AdjustPixelValues);
     PassRefPtr<CSSPrimitiveValue> currentColorOrValidColor(RenderStyle*, const Color&) const;
@@ -100,8 +93,8 @@ public:
     }
     virtual ~CSSComputedStyleDeclaration();
 
-    virtual void ref() OVERRIDE;
-    virtual void deref() OVERRIDE;
+    virtual void ref() override;
+    virtual void deref() override;
 
     String getPropertyValue(CSSPropertyID) const;
 
@@ -109,22 +102,22 @@ private:
     CSSComputedStyleDeclaration(PassRefPtr<Node>, bool allowVisitedStyle, const String&);
 
     // CSSOM functions. Don't make these public.
-    virtual CSSRule* parentRule() const;
-    virtual unsigned length() const;
-    virtual String item(unsigned index) const;
-    virtual PassRefPtr<CSSValue> getPropertyCSSValue(const String& propertyName);
-    virtual String getPropertyValue(const String& propertyName);
-    virtual String getPropertyPriority(const String& propertyName);
-    virtual String getPropertyShorthand(const String& propertyName);
-    virtual bool isPropertyImplicit(const String& propertyName);
-    virtual void setProperty(const String& propertyName, const String& value, const String& priority, ExceptionCode&);
-    virtual String removeProperty(const String& propertyName, ExceptionCode&);
-    virtual String cssText() const;
-    virtual void setCssText(const String&, ExceptionCode&);
-    virtual PassRefPtr<CSSValue> getPropertyCSSValueInternal(CSSPropertyID);
-    virtual String getPropertyValueInternal(CSSPropertyID);
-    virtual void setPropertyInternal(CSSPropertyID, const String& value, bool important, ExceptionCode&);
-    virtual PassRefPtr<MutableStylePropertySet> copyProperties() const OVERRIDE;
+    virtual CSSRule* parentRule() const override;
+    virtual unsigned length() const override;
+    virtual String item(unsigned index) const override;
+    virtual PassRefPtr<CSSValue> getPropertyCSSValue(const String& propertyName) override;
+    virtual String getPropertyValue(const String& propertyName) override;
+    virtual String getPropertyPriority(const String& propertyName) override;
+    virtual String getPropertyShorthand(const String& propertyName) override;
+    virtual bool isPropertyImplicit(const String& propertyName) override;
+    virtual void setProperty(const String& propertyName, const String& value, const String& priority, ExceptionCode&) override;
+    virtual String removeProperty(const String& propertyName, ExceptionCode&) override;
+    virtual String cssText() const override;
+    virtual void setCssText(const String&, ExceptionCode&) override;
+    virtual PassRefPtr<CSSValue> getPropertyCSSValueInternal(CSSPropertyID) override;
+    virtual String getPropertyValueInternal(CSSPropertyID) override;
+    virtual void setPropertyInternal(CSSPropertyID, const String& value, bool important, ExceptionCode&) override;
+    virtual PassRef<MutableStyleProperties> copyProperties() const override;
 
     PassRefPtr<CSSValue> getPropertyCSSValue(CSSPropertyID, EUpdateLayout = UpdateLayout) const;
 

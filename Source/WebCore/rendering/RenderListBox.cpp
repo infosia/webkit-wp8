@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2007, 2008, 2011 Apple Inc. All rights reserved.
+ * Copyright (C) 2006, 2007, 2008, 2011, 2014 Apple Inc. All rights reserved.
  *               2009 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -61,8 +61,6 @@
 #include <math.h>
 #include <wtf/StackStats.h>
 
-using namespace std;
-
 namespace WebCore {
 
 using namespace HTMLNames;
@@ -82,8 +80,8 @@ const int defaultSize = 4;
 // widget, but I'm not sure this is right for the new control.
 const int baselineAdjustment = 7;
 
-RenderListBox::RenderListBox(HTMLSelectElement& element)
-    : RenderBlockFlow(&element)
+RenderListBox::RenderListBox(HTMLSelectElement& element, PassRef<RenderStyle> style)
+    : RenderBlockFlow(element, std::move(style))
     , m_optionsChanged(true)
     , m_scrollToRevealSelectionAfterLayout(false)
     , m_inAutoscroll(false)
@@ -116,7 +114,7 @@ void RenderListBox::updateFromElement()
         for (int i = 0; i < size; ++i) {
             HTMLElement* element = listItems[i];
             String text;
-            Font itemFont = style()->font();
+            Font itemFont = style().font();
             if (isHTMLOptionElement(element))
                 text = toHTMLOptionElement(element)->textIndentedToRespectGroupLabel();
             else if (isHTMLOptGroupElement(element)) {
@@ -133,7 +131,7 @@ void RenderListBox::updateFromElement()
                 TextRun textRun = constructTextRun(this, itemFont, text, style(), TextRun::AllowTrailingExpansion);
                 textRun.disableRoundingHacks();
                 float textWidth = itemFont.width(textRun);
-                width = max(width, textWidth);
+                width = std::max(width, textWidth);
             }
         }
         m_optionsWidth = static_cast<int>(ceilf(width));
@@ -143,11 +141,6 @@ void RenderListBox::updateFromElement()
 
         setNeedsLayoutAndPrefWidthsRecalc();
     }
-}
-
-bool RenderListBox::canBeReplacedWithInlineRunIn() const
-{
-    return false;
 }
 
 void RenderListBox::selectionChanged()
@@ -172,7 +165,7 @@ void RenderListBox::layout()
     if (m_vBar) {
         bool enabled = numVisibleItems() < numItems();
         m_vBar->setEnabled(enabled);
-        m_vBar->setSteps(1, max(1, numVisibleItems() - 1), itemHeight());
+        m_vBar->setSteps(1, std::max(1, numVisibleItems() - 1), itemHeight());
         m_vBar->setProportion(numVisibleItems(), numItems());
         if (!enabled) {
             scrollToOffsetWithoutAnimation(VerticalScrollbar, 0);
@@ -200,7 +193,7 @@ void RenderListBox::computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, L
     maxLogicalWidth = m_optionsWidth + 2 * optionsSpacingHorizontal;
     if (m_vBar)
         maxLogicalWidth += m_vBar->width();
-    if (!style()->width().isPercent())
+    if (!style().width().isPercent())
         minLogicalWidth = maxLogicalWidth;
 }
 
@@ -211,22 +204,22 @@ void RenderListBox::computePreferredLogicalWidths()
     m_minPreferredLogicalWidth = 0;
     m_maxPreferredLogicalWidth = 0;
 
-    if (style()->width().isFixed() && style()->width().value() > 0)
-        m_minPreferredLogicalWidth = m_maxPreferredLogicalWidth = adjustContentBoxLogicalWidthForBoxSizing(style()->width().value());
+    if (style().width().isFixed() && style().width().value() > 0)
+        m_minPreferredLogicalWidth = m_maxPreferredLogicalWidth = adjustContentBoxLogicalWidthForBoxSizing(style().width().value());
     else
         computeIntrinsicLogicalWidths(m_minPreferredLogicalWidth, m_maxPreferredLogicalWidth);
 
-    if (style()->minWidth().isFixed() && style()->minWidth().value() > 0) {
-        m_maxPreferredLogicalWidth = max(m_maxPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style()->minWidth().value()));
-        m_minPreferredLogicalWidth = max(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style()->minWidth().value()));
+    if (style().minWidth().isFixed() && style().minWidth().value() > 0) {
+        m_maxPreferredLogicalWidth = std::max(m_maxPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().minWidth().value()));
+        m_minPreferredLogicalWidth = std::max(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().minWidth().value()));
     }
 
-    if (style()->maxWidth().isFixed()) {
-        m_maxPreferredLogicalWidth = min(m_maxPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style()->maxWidth().value()));
-        m_minPreferredLogicalWidth = min(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style()->maxWidth().value()));
+    if (style().maxWidth().isFixed()) {
+        m_maxPreferredLogicalWidth = std::min(m_maxPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().maxWidth().value()));
+        m_minPreferredLogicalWidth = std::min(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().maxWidth().value()));
     }
 
-    LayoutUnit toAdd = borderAndPaddingWidth();
+    LayoutUnit toAdd = horizontalBorderAndPaddingExtent();
     m_minPreferredLogicalWidth += toAdd;
     m_maxPreferredLogicalWidth += toAdd;
                                 
@@ -237,7 +230,7 @@ int RenderListBox::size() const
 {
     int specifiedSize = selectElement().size();
     if (specifiedSize > 1)
-        return max(minSize, specifiedSize);
+        return std::max(minSize, specifiedSize);
 
     return defaultSize;
 }
@@ -245,7 +238,7 @@ int RenderListBox::size() const
 int RenderListBox::numVisibleItems() const
 {
     // Only count fully visible rows. But don't return 0 even if only part of a row shows.
-    return max<int>(1, (contentHeight() + rowSpacing) / itemHeight());
+    return std::max<int>(1, (contentHeight() + rowSpacing) / itemHeight());
 }
 
 int RenderListBox::numItems() const
@@ -260,7 +253,7 @@ LayoutUnit RenderListBox::listHeight() const
 
 void RenderListBox::computeLogicalHeight(LayoutUnit, LayoutUnit logicalTop, LogicalExtentComputedValues& computedValues) const
 {
-    LayoutUnit height = itemHeight() * size() - rowSpacing + borderAndPaddingHeight();
+    LayoutUnit height = itemHeight() * size() - rowSpacing + verticalBorderAndPaddingExtent();
     RenderBox::computeLogicalHeight(height, logicalTop, computedValues);
 }
 
@@ -278,7 +271,7 @@ LayoutRect RenderListBox::itemBoundingBoxRect(const LayoutPoint& additionalOffse
     
 void RenderListBox::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
 {
-    if (style()->visibility() != VISIBLE)
+    if (style().visibility() != VISIBLE)
         return;
     
     int listItemsSize = numItems();
@@ -321,7 +314,7 @@ void RenderListBox::paintObject(PaintInfo& paintInfo, const LayoutPoint& paintOf
 
 void RenderListBox::addFocusRingRects(Vector<IntRect>& rects, const LayoutPoint& additionalOffset, const RenderLayerModelObject* paintContainer)
 {
-    if (!isSpatialNavigationEnabled(&frame()))
+    if (!selectElement().allowsNonContiguousSelection())
         return RenderBlockFlow::addFocusRingRects(rects, additionalOffset, paintContainer);
 
     // Focus the last selected item.
@@ -352,7 +345,7 @@ void RenderListBox::paintScrollbar(PaintInfo& paintInfo, const LayoutPoint& pain
             m_vBar->width(),
             height() - (borderTop() + borderBottom()));
         m_vBar->setFrameRect(scrollRect);
-        m_vBar->paint(paintInfo.context, paintInfo.rect);
+        m_vBar->paint(paintInfo.context, pixelSnappedIntRect(paintInfo.rect));
     }
 }
 
@@ -385,7 +378,7 @@ void RenderListBox::paintItemForeground(PaintInfo& paintInfo, const LayoutPoint&
 
     RenderStyle* itemStyle = listItemElement->renderStyle();
     if (!itemStyle)
-        itemStyle = style();
+        itemStyle = &style();
 
     if (itemStyle->visibility() == HIDDEN)
         return;
@@ -398,20 +391,20 @@ void RenderListBox::paintItemForeground(PaintInfo& paintInfo, const LayoutPoint&
         itemText = toHTMLOptGroupElement(listItemElement)->groupLabelText();
     applyTextTransform(style(), itemText, ' ');
 
-    Color textColor = listItemElement->renderStyle() ? listItemElement->renderStyle()->visitedDependentColor(CSSPropertyColor) : style()->visitedDependentColor(CSSPropertyColor);
+    Color textColor = listItemElement->renderStyle() ? listItemElement->renderStyle()->visitedDependentColor(CSSPropertyColor) : style().visitedDependentColor(CSSPropertyColor);
     if (isOptionElement && toHTMLOptionElement(listItemElement)->selected()) {
         if (frame().selection().isFocusedAndActive() && document().focusedElement() == &selectElement())
-            textColor = theme()->activeListBoxSelectionForegroundColor();
+            textColor = theme().activeListBoxSelectionForegroundColor();
         // Honor the foreground color for disabled items
         else if (!listItemElement->isDisabledFormControl() && !selectElement().isDisabledFormControl())
-            textColor = theme()->inactiveListBoxSelectionForegroundColor();
+            textColor = theme().inactiveListBoxSelectionForegroundColor();
     }
 
     ColorSpace colorSpace = itemStyle->colorSpace();
     paintInfo.context->setFillColor(textColor, colorSpace);
 
     TextRun textRun(itemText, 0, 0, TextRun::AllowTrailingExpansion, itemStyle->direction(), isOverride(itemStyle->unicodeBidi()), true, TextRun::NoRounding);
-    Font itemFont = style()->font();
+    Font itemFont = style().font();
     LayoutRect r = itemBoundingBoxRect(paintOffset, listIndex);
     r.move(itemOffsetForAlignment(textRun, itemStyle, itemFont, r));
 
@@ -434,15 +427,15 @@ void RenderListBox::paintItemBackground(PaintInfo& paintInfo, const LayoutPoint&
     Color backColor;
     if (isHTMLOptionElement(listItemElement) && toHTMLOptionElement(listItemElement)->selected()) {
         if (frame().selection().isFocusedAndActive() && document().focusedElement() == &selectElement())
-            backColor = theme()->activeListBoxSelectionBackgroundColor();
+            backColor = theme().activeListBoxSelectionBackgroundColor();
         else
-            backColor = theme()->inactiveListBoxSelectionBackgroundColor();
+            backColor = theme().inactiveListBoxSelectionBackgroundColor();
     } else
-        backColor = listItemElement->renderStyle() ? listItemElement->renderStyle()->visitedDependentColor(CSSPropertyBackgroundColor) : style()->visitedDependentColor(CSSPropertyBackgroundColor);
+        backColor = listItemElement->renderStyle() ? listItemElement->renderStyle()->visitedDependentColor(CSSPropertyBackgroundColor) : style().visitedDependentColor(CSSPropertyBackgroundColor);
 
     // Draw the background for this list box item
     if (!listItemElement->renderStyle() || listItemElement->renderStyle()->visibility() != HIDDEN) {
-        ColorSpace colorSpace = listItemElement->renderStyle() ? listItemElement->renderStyle()->colorSpace() : style()->colorSpace();
+        ColorSpace colorSpace = listItemElement->renderStyle() ? listItemElement->renderStyle()->colorSpace() : style().colorSpace();
         LayoutRect itemRect = itemBoundingBoxRect(paintOffset, listIndex);
         itemRect.intersect(controlClipRect(paintOffset));
         paintInfo.context->fillRect(pixelSnappedIntRect(itemRect), backColor, colorSpace);
@@ -502,7 +495,7 @@ void RenderListBox::panScroll(const IntPoint& panStartMousePosition)
     int yDelta = lastKnownMousePosition.y() - panStartMousePosition.y();
 
     // If the point is too far from the center we limit the speed
-    yDelta = max<int>(min<int>(yDelta, maxSpeed), -maxSpeed);
+    yDelta = std::max<int>(std::min<int>(yDelta, maxSpeed), -maxSpeed);
     
     if (abs(yDelta) < iconRadius) // at the center we let the space for the icon
         return;
@@ -594,14 +587,14 @@ bool RenderListBox::listIndexIsVisible(int index)
     return index >= m_indexOffset && index < m_indexOffset + numVisibleItems();
 }
 
-bool RenderListBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Node**)
+bool RenderListBox::scroll(ScrollDirection direction, ScrollGranularity granularity, float multiplier, Element**, RenderBox*, const IntPoint&)
 {
     return ScrollableArea::scroll(direction, granularity, multiplier);
 }
 
-bool RenderListBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Node**)
+bool RenderListBox::logicalScroll(ScrollLogicalDirection direction, ScrollGranularity granularity, float multiplier, Element**)
 {
-    return ScrollableArea::scroll(logicalToPhysical(direction, style()->isHorizontalWritingMode(), style()->isFlippedBlocksWritingMode()), granularity, multiplier);
+    return ScrollableArea::scroll(logicalToPhysical(direction, style().isHorizontalWritingMode(), style().isFlippedBlocksWritingMode()), granularity, multiplier);
 }
 
 void RenderListBox::valueChanged(unsigned listIndex)
@@ -637,7 +630,7 @@ void RenderListBox::scrollTo(int newOffset)
 
 LayoutUnit RenderListBox::itemHeight() const
 {
-    return style()->fontMetrics().height() + rowSpacing;
+    return style().fontMetrics().height() + rowSpacing;
 }
 
 int RenderListBox::verticalScrollbarWidth() const
@@ -655,7 +648,7 @@ int RenderListBox::scrollWidth() const
 
 int RenderListBox::scrollHeight() const
 {
-    return max(pixelSnappedClientHeight(), roundToInt(listHeight()));
+    return std::max(pixelSnappedClientHeight(), roundToInt(listHeight()));
 }
 
 int RenderListBox::scrollLeft() const
@@ -766,16 +759,6 @@ IntSize RenderListBox::contentsSize() const
     return IntSize(scrollWidth(), scrollHeight());
 }
 
-int RenderListBox::visibleHeight() const
-{
-    return height();
-}
-
-int RenderListBox::visibleWidth() const
-{
-    return width();
-}
-
 IntPoint RenderListBox::lastKnownMousePosition() const
 {
     return view().frameView().lastKnownMousePosition();
@@ -789,16 +772,6 @@ bool RenderListBox::isHandlingWheelEvent() const
 bool RenderListBox::shouldSuspendScrollAnimations() const
 {
     return view().frameView().shouldSuspendScrollAnimations();
-}
-
-bool RenderListBox::scrollbarsCanBeActive() const
-{
-    return view().frameView().scrollbarsCanBeActive();
-}
-
-bool RenderListBox::scrollbarAnimationsAreSuppressed() const
-{
-    return view().frameView().scrollbarAnimationsAreSuppressed();
 }
 
 ScrollableArea* RenderListBox::enclosingScrollableArea() const
@@ -815,11 +788,11 @@ IntRect RenderListBox::scrollableAreaBoundingBox() const
 PassRefPtr<Scrollbar> RenderListBox::createScrollbar()
 {
     RefPtr<Scrollbar> widget;
-    bool hasCustomScrollbarStyle = style()->hasPseudoStyle(SCROLLBAR);
+    bool hasCustomScrollbarStyle = style().hasPseudoStyle(SCROLLBAR);
     if (hasCustomScrollbarStyle)
         widget = RenderScrollbar::createCustomScrollbar(this, VerticalScrollbar, &selectElement());
     else {
-        widget = Scrollbar::createNativeScrollbar(this, VerticalScrollbar, theme()->scrollbarControlSizeForPart(ListboxPart));
+        widget = Scrollbar::createNativeScrollbar(this, VerticalScrollbar, theme().scrollbarControlSizeForPart(ListboxPart));
         didAddScrollbar(widget.get(), VerticalScrollbar);
     }
     view().frameView().addChild(widget.get());
@@ -852,10 +825,42 @@ void RenderListBox::setHasVerticalScrollbar(bool hasScrollbar)
         m_vBar->styleChanged();
 
     // Force an update since we know the scrollbars have changed things.
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+#if ENABLE(DASHBOARD_SUPPORT)
     if (document().hasAnnotatedRegions())
         document().setAnnotatedRegionsDirty(true);
 #endif
 }
 
+bool RenderListBox::scrolledToTop() const
+{
+    Scrollbar* vbar = verticalScrollbar();
+    if (!vbar)
+        return true;
+    
+    return vbar->value() <= 0;
+}
+
+bool RenderListBox::scrolledToBottom() const
+{
+    Scrollbar* vbar = verticalScrollbar();
+    if (!vbar)
+        return true;
+
+    return vbar->value() >= vbar->maximum();
+}
+
+bool RenderListBox::scrolledToLeft() const
+{
+    // We do not scroll horizontally in a select element, so always report
+    // that we are at the full extent of the scroll.
+    return true;
+}
+
+bool RenderListBox::scrolledToRight() const
+{
+    // We do not scroll horizontally in a select element, so always report
+    // that we are at the full extent of the scroll.
+    return true;
+}
+    
 } // namespace WebCore

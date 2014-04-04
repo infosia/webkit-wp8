@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,114 +28,160 @@
 
 #if ENABLE(FTL_JIT)
 
+#include "ArityCheckFailReturnThunks.h"
 #include "CCallHelpers.h"
-#include "CallFrameInlines.h"
 #include "CodeBlockWithJITType.h"
 #include "DFGCommon.h"
 #include "FTLJITCode.h"
+#include "JITOperations.h"
 #include "JITStubs.h"
+#include "LLVMAPI.h"
 #include "LinkBuffer.h"
-#include <wtf/LLVMHeaders.h>
+#include "JSCInlines.h"
+#include "ProfilerCompilation.h"
+#include "VirtualRegister.h"
 
 namespace JSC { namespace FTL {
 
 using namespace DFG;
 
-static void compileEntry(CCallHelpers& jit)
-{
-    jit.preserveReturnAddressAfterCall(GPRInfo::regT2);
-    jit.emitPutToCallFrameHeader(GPRInfo::regT2, JSStack::ReturnPC);
-    jit.emitPutImmediateToCallFrameHeader(jit.codeBlock(), JSStack::CodeBlock);
-}
-
 void link(State& state)
 {
-    CodeBlock* codeBlock = state.graph.m_codeBlock;
+    Graph& graph = state.graph;
+    CodeBlock* codeBlock = graph.m_codeBlock;
+    VM& vm = graph.m_vm;
     
     // LLVM will create its own jump tables as needed.
     codeBlock->clearSwitchJumpTables();
     
+    // FIXME: Need to know the real frame register count.
+    // https://bugs.webkit.org/show_bug.cgi?id=125727
+    state.jitCode->common.frameRegisterCount = 1000;
+    
+    state.jitCode->common.requiredRegisterCountForExit = graph.requiredRegisterCountForExit();
+    
+    if (!graph.m_inlineCallFrames->isEmpty())
+        state.jitCode->common.inlineCallFrames = std::move(graph.m_inlineCallFrames);
+    
     // Create the entrypoint. Note that we use this entrypoint totally differently
     // depending on whether we're doing OSR entry or not.
-    // FIXME: Except for OSR entry, this is a total kludge - LLVM should just use our
-    // calling convention.
-    // https://bugs.webkit.org/show_bug.cgi?id=113621
-    CCallHelpers jit(&state.graph.m_vm, codeBlock);
+    CCallHelpers jit(&vm, codeBlock);
     
     OwnPtr<LinkBuffer> linkBuffer;
     CCallHelpers::Label arityCheck;
-    switch (state.graph.m_plan.mode) {
-    case FTLMode: {
-        compileEntry(jit);
+
+    CCallHelpers::Address frame = CCallHelpers::Address(
+        CCallHelpers::stackPointerRegister, -static_cast<int32_t>(AssemblyHelpers::prologueStackPointerDelta()));
     
-        // This part is only necessary for functions. We currently only compile functions.
+    if (Profiler::Compilation* compilation = graph.compilation()) {
+        compilation->addDescription(
+            Profiler::OriginStack(),
+            toCString("Generated FTL JIT code for ", CodeBlockWithJITType(codeBlock, JITCode::FTLJIT), ", instruction count = ", graph.m_codeBlock->instructionCount(), ":\n"));
         
-        CCallHelpers::Label fromArityCheck = jit.label();
+        graph.m_dominators.computeIfNecessary(graph);
+        graph.m_naturalLoops.computeIfNecessary(graph);
         
-        // Plant a check that sufficient space is available in the JSStack.
-        // FIXME: https://bugs.webkit.org/show_bug.cgi?id=56291
-        jit.addPtr(
-            CCallHelpers::TrustedImm32(localToOperand(codeBlock->m_numCalleeRegisters) * sizeof(Register)),
-            GPRInfo::callFrameRegister, GPRInfo::regT1);
-        CCallHelpers::Jump stackCheck = jit.branchPtr(
-            CCallHelpers::Above,
-            CCallHelpers::AbsoluteAddress(state.graph.m_vm.interpreter->stack().addressOfEnd()),
-            GPRInfo::regT1);
-        CCallHelpers::Label fromStackCheck = jit.label();
+        const char* prefix = "    ";
         
-        jit.setupArgumentsExecState();
-        jit.move(
-            CCallHelpers::TrustedImmPtr(reinterpret_cast<void*>(state.generatedFunction)),
-            GPRInfo::nonArgGPR0);
-        jit.call(GPRInfo::nonArgGPR0);
-        jit.emitGetFromCallFrameHeaderPtr(JSStack::ReturnPC, GPRInfo::regT1);
-        jit.emitGetFromCallFrameHeaderPtr(JSStack::CallerFrame, GPRInfo::callFrameRegister);
-        jit.restoreReturnAddressBeforeReturn(GPRInfo::regT1);
-        jit.ret();
+        DumpContext dumpContext;
+        StringPrintStream out;
+        Node* lastNode = 0;
+        for (size_t blockIndex = 0; blockIndex < graph.numBlocks(); ++blockIndex) {
+            BasicBlock* block = graph.block(blockIndex);
+            if (!block)
+                continue;
+            
+            graph.dumpBlockHeader(out, prefix, block, Graph::DumpLivePhisOnly, &dumpContext);
+            compilation->addDescription(Profiler::OriginStack(), out.toCString());
+            out.reset();
+            
+            for (size_t nodeIndex = 0; nodeIndex < block->size(); ++nodeIndex) {
+                Node* node = block->at(nodeIndex);
+                if (!node->willHaveCodeGenOrOSR() && !Options::showAllDFGNodes())
+                    continue;
+                
+                Profiler::OriginStack stack;
+                
+                if (node->origin.semantic.isSet()) {
+                    stack = Profiler::OriginStack(
+                        *vm.m_perBytecodeProfiler, codeBlock, node->origin.semantic);
+                }
+                
+                if (graph.dumpCodeOrigin(out, prefix, lastNode, node, &dumpContext)) {
+                    compilation->addDescription(stack, out.toCString());
+                    out.reset();
+                }
+                
+                graph.dump(out, prefix, node, &dumpContext);
+                compilation->addDescription(stack, out.toCString());
+                out.reset();
+                
+                if (node->origin.semantic.isSet())
+                    lastNode = node;
+            }
+        }
         
-        stackCheck.link(&jit);
-        jit.move(CCallHelpers::stackPointerRegister, GPRInfo::argumentGPR0);
-        jit.poke(
-            GPRInfo::callFrameRegister,
-            OBJECT_OFFSETOF(struct JITStackFrame, callFrame) / sizeof(void*));
+        dumpContext.dump(out, prefix);
+        compilation->addDescription(Profiler::OriginStack(), out.toCString());
+        out.reset();
         
-        jit.store32(
-            CCallHelpers::TrustedImm32(CallFrame::Location::encodeAsBytecodeOffset(0)),
-            CCallHelpers::tagFor(static_cast<VirtualRegister>(JSStack::ArgumentCount)));
-        CCallHelpers::Call callStackCheck = jit.call();
-        // FIXME: need to make this call register with exception handling somehow. This is
-        // part of a bigger problem: FTL should be able to handle exceptions.
-        // https://bugs.webkit.org/show_bug.cgi?id=113622
-        jit.jump(fromStackCheck);
+        out.print("    Disassembly:\n");
+        for (unsigned i = 0; i < state.jitCode->handles().size(); ++i) {
+            if (state.codeSectionNames[i] != "__text")
+                continue;
+            
+                ExecutableMemoryHandle* handle = state.jitCode->handles()[i].get();
+                disassemble(
+                    MacroAssemblerCodePtr(handle->start()), handle->sizeInBytes(),
+                    "      ", out, LLVMSubset);
+        }
+        compilation->addDescription(Profiler::OriginStack(), out.toCString());
+        out.reset();
         
-        arityCheck = jit.label();
-        compileEntry(jit);
+        state.jitCode->common.compilation = compilation;
+    }
+    
+    switch (graph.m_plan.mode) {
+    case FTLMode: {
+        CCallHelpers::JumpList mainPathJumps;
+    
         jit.load32(
-            CCallHelpers::payloadFor(static_cast<VirtualRegister>(JSStack::ArgumentCount)),
+            frame.withOffset(sizeof(Register) * JSStack::ArgumentCount),
             GPRInfo::regT1);
-        jit.branch32(
+        mainPathJumps.append(jit.branch32(
             CCallHelpers::AboveOrEqual, GPRInfo::regT1,
-            CCallHelpers::TrustedImm32(codeBlock->numParameters()))
-            .linkTo(fromArityCheck, &jit);
-        jit.move(CCallHelpers::stackPointerRegister, GPRInfo::argumentGPR0);
-        jit.poke(
-            GPRInfo::callFrameRegister,
-            OBJECT_OFFSETOF(struct JITStackFrame, callFrame) / sizeof(void*));
+            CCallHelpers::TrustedImm32(codeBlock->numParameters())));
+        jit.emitFunctionPrologue();
+        jit.move(GPRInfo::callFrameRegister, GPRInfo::argumentGPR0);
         jit.store32(
             CCallHelpers::TrustedImm32(CallFrame::Location::encodeAsBytecodeOffset(0)),
-            CCallHelpers::tagFor(static_cast<VirtualRegister>(JSStack::ArgumentCount)));
+            CCallHelpers::tagFor(JSStack::ArgumentCount));
+        jit.storePtr(GPRInfo::callFrameRegister, &vm.topCallFrame);
         CCallHelpers::Call callArityCheck = jit.call();
+#if !ASSERT_DISABLED
         // FIXME: need to make this call register with exception handling somehow. This is
         // part of a bigger problem: FTL should be able to handle exceptions.
         // https://bugs.webkit.org/show_bug.cgi?id=113622
-        jit.branchTest32(CCallHelpers::Zero, GPRInfo::regT0).linkTo(fromArityCheck, &jit);
+        // Until then, use a JIT ASSERT.
+        jit.load64(vm.addressOfException(), GPRInfo::regT1);
+        jit.jitAssertIsNull(GPRInfo::regT1);
+#endif
+        jit.move(GPRInfo::returnValueGPR, GPRInfo::regT0);
+        jit.emitFunctionEpilogue();
+        mainPathJumps.append(jit.branchTest32(CCallHelpers::Zero, GPRInfo::regT0));
+        jit.emitFunctionPrologue();
+        jit.move(CCallHelpers::TrustedImmPtr(vm.arityCheckFailReturnThunks->returnPCsFor(vm, codeBlock->numParameters())), GPRInfo::regT7);
+        jit.loadPtr(CCallHelpers::BaseIndex(GPRInfo::regT7, GPRInfo::regT0, CCallHelpers::timesPtr()), GPRInfo::regT7);
         CCallHelpers::Call callArityFixup = jit.call();
-        jit.jump(fromArityCheck);
-        
-        linkBuffer = adoptPtr(new LinkBuffer(state.graph.m_vm, &jit, codeBlock, JITCompilationMustSucceed));
-        linkBuffer->link(callStackCheck, cti_stack_check);
-        linkBuffer->link(callArityCheck, codeBlock->m_isConstructor ? cti_op_construct_arityCheck : cti_op_call_arityCheck);
-        linkBuffer->link(callArityFixup, FunctionPtr((state.graph.m_vm.getCTIStub(arityFixup)).code().executableAddress()));
+        jit.emitFunctionEpilogue();
+        mainPathJumps.append(jit.jump());
+
+        linkBuffer = adoptPtr(new LinkBuffer(vm, &jit, codeBlock, JITCompilationMustSucceed));
+        linkBuffer->link(callArityCheck, codeBlock->m_isConstructor ? operationConstructArityCheck : operationCallArityCheck);
+        linkBuffer->link(callArityFixup, FunctionPtr((vm.getCTIStub(arityFixup)).code().executableAddress()));
+        linkBuffer->link(mainPathJumps, CodeLocationLabel(bitwise_cast<void*>(state.generatedFunction)));
+
+        state.jitCode->initializeAddressForCall(MacroAssemblerCodePtr(bitwise_cast<void*>(state.generatedFunction)));
         break;
     }
         
@@ -144,18 +190,14 @@ void link(State& state)
         // values into the scratch buffer. Everything should be good to go - at this
         // point we've even done the stack check. Basically we just have to make the
         // call to the LLVM-generated code.
-        jit.setupArgumentsExecState();
-        jit.move(
-            CCallHelpers::TrustedImmPtr(reinterpret_cast<void*>(state.generatedFunction)),
-            GPRInfo::nonArgGPR0);
-        jit.call(GPRInfo::nonArgGPR0);
-        jit.emitGetFromCallFrameHeaderPtr(JSStack::ReturnPC, GPRInfo::regT1);
-        jit.emitGetFromCallFrameHeaderPtr(JSStack::CallerFrame, GPRInfo::callFrameRegister);
-        jit.restoreReturnAddressBeforeReturn(GPRInfo::regT1);
-        jit.ret();
+        CCallHelpers::Label start = jit.label();
+        jit.emitFunctionEpilogue();
+        CCallHelpers::Jump mainPathJump = jit.jump();
         
-        linkBuffer = adoptPtr(new LinkBuffer(
-            state.graph.m_vm, &jit, codeBlock, JITCompilationMustSucceed));
+        linkBuffer = adoptPtr(new LinkBuffer(vm, &jit, codeBlock, JITCompilationMustSucceed));
+        linkBuffer->link(mainPathJump, CodeLocationLabel(bitwise_cast<void*>(state.generatedFunction)));
+
+        state.jitCode->initializeAddressForCall(linkBuffer->locationOf(start));
         break;
     }
         
@@ -164,10 +206,10 @@ void link(State& state)
         break;
     }
     
-    state.finalizer->initializeEntrypointLinkBuffer(linkBuffer.release());
-    state.finalizer->initializeFunction(state.generatedFunction);
-    state.finalizer->initializeArityCheck(arityCheck);
-    state.finalizer->initializeJITCode(state.jitCode);
+    state.finalizer->entrypointLinkBuffer = linkBuffer.release();
+    state.finalizer->function = state.generatedFunction;
+    state.finalizer->arityCheck = arityCheck;
+    state.finalizer->jitCode = state.jitCode;
 }
 
 } } // namespace JSC::FTL

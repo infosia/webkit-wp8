@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEImageElement.h"
 
 #include "Attr.h"
@@ -96,7 +96,7 @@ void SVGFEImageElement::buildPendingResource()
         return;
 
     String id;
-    Element* target = SVGURIReference::targetElementFromIRIString(href(), &document(), &id);
+    Element* target = SVGURIReference::targetElementFromIRIString(href(), document(), &id);
     if (!target) {
         if (id.isEmpty())
             requestImageResource();
@@ -115,7 +115,7 @@ void SVGFEImageElement::buildPendingResource()
 
 bool SVGFEImageElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -174,17 +174,17 @@ void SVGFEImageElement::svgAttributeChanged(const QualifiedName& attrName)
     ASSERT_NOT_REACHED();
 }
 
-Node::InsertionNotificationRequest SVGFEImageElement::insertedInto(ContainerNode* rootParent)
+Node::InsertionNotificationRequest SVGFEImageElement::insertedInto(ContainerNode& rootParent)
 {
     SVGFilterPrimitiveStandardAttributes::insertedInto(rootParent);
     buildPendingResource();
     return InsertionDone;
 }
 
-void SVGFEImageElement::removedFrom(ContainerNode* rootParent)
+void SVGFEImageElement::removedFrom(ContainerNode& rootParent)
 {
     SVGFilterPrimitiveStandardAttributes::removedFrom(rootParent);
-    if (rootParent->inDocument())
+    if (rootParent.inDocument())
         clearResourceReferences();
 }
 
@@ -196,20 +196,24 @@ void SVGFEImageElement::notifyFinished(CachedResource*)
     Element* parent = parentElement();
     ASSERT(parent);
 
-    if (!parent->hasTagName(SVGNames::filterTag) || !parent->renderer())
+    if (!parent->hasTagName(SVGNames::filterTag))
         return;
 
-    RenderSVGResource::markForLayoutAndParentResourceInvalidation(parent->renderer());
+    RenderElement* parentRenderer = parent->renderer();
+    if (!parentRenderer)
+        return;
+
+    RenderSVGResource::markForLayoutAndParentResourceInvalidation(*parentRenderer);
 }
 
 PassRefPtr<FilterEffect> SVGFEImageElement::build(SVGFilterBuilder*, Filter* filter)
 {
     if (m_cachedImage)
         return FEImage::createWithImage(filter, m_cachedImage->imageForRenderer(renderer()), preserveAspectRatio());
-    return FEImage::createWithIRIReference(filter, &document(), href(), preserveAspectRatio());
+    return FEImage::createWithIRIReference(filter, document(), href(), preserveAspectRatio());
 }
 
-void SVGFEImageElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) const
+void SVGFEImageElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     SVGFilterPrimitiveStandardAttributes::addSubresourceAttributeURLs(urls);
 
@@ -218,4 +222,4 @@ void SVGFEImageElement::addSubresourceAttributeURLs(ListHashSet<KURL>& urls) con
 
 }
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

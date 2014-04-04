@@ -45,12 +45,15 @@ public:
     }
 
 private:
-    virtual void didCreatePage(WKBundleRef, WKBundlePageRef bundlePage) OVERRIDE
+    virtual void didCreatePage(WKBundleRef, WKBundlePageRef bundlePage) override
     {
-        WKBundlePagePolicyClient policyClient;
+        WKBundlePagePolicyClientV0 policyClient;
         memset(&policyClient, 0, sizeof(policyClient));
+
+        policyClient.base.version = 0;
         policyClient.decidePolicyForNavigationAction = decidePolicyForNavigationAction;
-        WKBundlePageSetPolicyClient(bundlePage, &policyClient);
+        
+        WKBundlePageSetPolicyClient(bundlePage, &policyClient.base);
     }
 };
 

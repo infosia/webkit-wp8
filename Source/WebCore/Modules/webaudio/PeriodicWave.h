@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -30,8 +30,8 @@
 #define PeriodicWave_h
 
 #include "AudioArray.h"
+#include <memory>
 #include <runtime/Float32Array.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
@@ -89,7 +89,7 @@ private:
 
     // Creates tables based on numberOfComponents Fourier coefficients.
     void createBandLimitedTables(const float* real, const float* imag, unsigned numberOfComponents);
-    Vector<OwnPtr<AudioFloatArray> > m_bandLimitedTables;
+    Vector<std::unique_ptr<AudioFloatArray>> m_bandLimitedTables;
 };
 
 } // namespace WebCore

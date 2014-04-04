@@ -41,18 +41,15 @@
 #include "HTMLVideoElement.h"
 #include "HitTestLocation.h"
 #include "PseudoElement.h"
-#include "RenderBlock.h"
+#include "RenderBlockFlow.h"
 #include "RenderImage.h"
 #include "RenderInline.h"
 #include "Scrollbar.h"
 #include "ShadowRoot.h"
-#include "UserGestureIndicator.h"
-
-#if ENABLE(SVG)
 #include "SVGImageElement.h"
 #include "SVGNames.h"
+#include "UserGestureIndicator.h"
 #include "XLinkNames.h"
-#endif
 
 namespace WebCore {
 
@@ -95,7 +92,7 @@ HitTestResult::HitTestResult(const HitTestResult& other)
     , m_isOverWidget(other.isOverWidget())
 {
     // Only copy the NodeSet in case of rect hit test.
-    m_rectBasedTestResult = adoptPtr(other.m_rectBasedTestResult ? new NodeSet(*other.m_rectBasedTestResult) : 0);
+    m_rectBasedTestResult = other.m_rectBasedTestResult ? std::make_unique<NodeSet>(*other.m_rectBasedTestResult) : nullptr;
 }
 
 HitTestResult::~HitTestResult()
@@ -114,7 +111,7 @@ HitTestResult& HitTestResult::operator=(const HitTestResult& other)
     m_isOverWidget = other.isOverWidget();
 
     // Only copy the NodeSet in case of rect hit test.
-    m_rectBasedTestResult = adoptPtr(other.m_rectBasedTestResult ? new NodeSet(*other.m_rectBasedTestResult) : 0);
+    m_rectBasedTestResult = other.m_rectBasedTestResult ? std::make_unique<NodeSet>(*other.m_rectBasedTestResult) : nullptr;
 
     return *this;
 }
@@ -200,8 +197,8 @@ String HitTestResult::spellingToolTip(TextDirection& dir) const
     if (!marker)
         return String();
 
-    if (RenderObject* renderer = m_innerNonSharedNode->renderer())
-        dir = renderer->style()->direction();
+    if (auto renderer = m_innerNonSharedNode->renderer())
+        dir = renderer->style().direction();
     return marker->description();
 }
 
@@ -228,8 +225,8 @@ String HitTestResult::title(TextDirection& dir) const
         if (titleNode->isElementNode()) {
             String title = toElement(titleNode)->title();
             if (!title.isEmpty()) {
-                if (RenderObject* renderer = titleNode->renderer())
-                    dir = renderer->style()->direction();
+                if (auto renderer = titleNode->renderer())
+                    dir = renderer->style().direction();
                 return title;
             }
         }
@@ -243,13 +240,13 @@ String HitTestResult::innerTextIfTruncated(TextDirection& dir) const
         if (!truncatedNode->isElementNode())
             continue;
 
-        if (RenderObject* renderer = truncatedNode->renderer()) {
-            if (renderer->isRenderBlock()) {
-                RenderBlock* block = toRenderBlock(renderer);
-                if (block->style()->textOverflow()) {
+        if (auto renderer = toElement(truncatedNode)->renderer()) {
+            if (renderer->isRenderBlockFlow()) {
+                RenderBlockFlow* block = toRenderBlockFlow(renderer);
+                if (block->style().textOverflow()) {
                     for (RootInlineBox* line = block->firstRootBox(); line; line = line->nextRootBox()) {
                         if (line->hasEllipsisBox()) {
-                            dir = block->style()->direction();
+                            dir = block->style().direction();
                             return toElement(truncatedNode)->innerText();
                         }
                     }
@@ -293,9 +290,9 @@ Image* HitTestResult::image() const
     if (!m_innerNonSharedNode)
         return 0;
     
-    RenderObject* renderer = m_innerNonSharedNode->renderer();
-    if (renderer && renderer->isImage()) {
-        RenderImage* image = static_cast<WebCore::RenderImage*>(renderer);
+    auto renderer = m_innerNonSharedNode->renderer();
+    if (renderer && renderer->isRenderImage()) {
+        RenderImage* image = toRenderImage(renderer);
         if (image->cachedImage() && !image->cachedImage()->errorOccurred())
             return image->cachedImage()->imageForRenderer(image);
     }
@@ -310,57 +307,55 @@ IntRect HitTestResult::imageRect() const
     return m_innerNonSharedNode->renderBox()->absoluteContentQuad().enclosingBoundingBox();
 }
 
-KURL HitTestResult::absoluteImageURL() const
+URL HitTestResult::absoluteImageURL() const
 {
     if (!m_innerNonSharedNode)
-        return KURL();
+        return URL();
 
     if (!(m_innerNonSharedNode->renderer() && m_innerNonSharedNode->renderer()->isImage()))
-        return KURL();
+        return URL();
 
     AtomicString urlString;
     if (m_innerNonSharedNode->hasTagName(embedTag)
         || isHTMLImageElement(m_innerNonSharedNode.get())
         || isHTMLInputElement(m_innerNonSharedNode.get())
         || m_innerNonSharedNode->hasTagName(objectTag)
-#if ENABLE(SVG)
-        || isSVGImageElement(m_innerNonSharedNode.get())
-#endif
-       ) {
+        || isSVGImageElement(m_innerNonSharedNode.get())) 
+        {
         Element* element = toElement(m_innerNonSharedNode.get());
         urlString = element->imageSourceURL();
     } else
-        return KURL();
+        return URL();
 
     return m_innerNonSharedNode->document().completeURL(stripLeadingAndTrailingHTMLSpaces(urlString));
 }
 
-KURL HitTestResult::absolutePDFURL() const
+URL HitTestResult::absolutePDFURL() const
 {
     if (!m_innerNonSharedNode)
-        return KURL();
+        return URL();
 
     if (!m_innerNonSharedNode->hasTagName(embedTag) && !m_innerNonSharedNode->hasTagName(objectTag))
-        return KURL();
+        return URL();
 
     HTMLPlugInImageElement* element = toHTMLPlugInImageElement(m_innerNonSharedNode.get());
-    KURL url = m_innerNonSharedNode->document().completeURL(stripLeadingAndTrailingHTMLSpaces(element->url()));
+    URL url = m_innerNonSharedNode->document().completeURL(stripLeadingAndTrailingHTMLSpaces(element->url()));
     if (!url.isValid())
-        return KURL();
+        return URL();
 
     if (element->serviceType() == "application/pdf" || (element->serviceType().isEmpty() && url.path().lower().endsWith(".pdf")))
         return url;
-    return KURL();
+    return URL();
 }
 
-KURL HitTestResult::absoluteMediaURL() const
+URL HitTestResult::absoluteMediaURL() const
 {
 #if ENABLE(VIDEO)
     if (HTMLMediaElement* mediaElt = mediaElement())
         return mediaElt->currentSrc();
-    return KURL();
+    return URL();
 #else
-    return KURL();
+    return URL();
 #endif
 }
 
@@ -510,20 +505,18 @@ void HitTestResult::toggleMediaMuteState() const
 #endif
 }
 
-KURL HitTestResult::absoluteLinkURL() const
+URL HitTestResult::absoluteLinkURL() const
 {
     if (!m_innerURLElement)
-        return KURL();
+        return URL();
 
     AtomicString urlString;
     if (isHTMLAnchorElement(m_innerURLElement.get()) || isHTMLAreaElement(m_innerURLElement.get()) || m_innerURLElement->hasTagName(linkTag))
         urlString = m_innerURLElement->getAttribute(hrefAttr);
-#if ENABLE(SVG)
     else if (m_innerURLElement->hasTagName(SVGNames::aTag))
         urlString = m_innerURLElement->getAttribute(XLinkNames::hrefAttr);
-#endif
     else
-        return KURL();
+        return URL();
 
     return m_innerURLElement->document().completeURL(stripLeadingAndTrailingHTMLSpaces(urlString));
 }
@@ -535,10 +528,9 @@ bool HitTestResult::isLiveLink() const
 
     if (isHTMLAnchorElement(m_innerURLElement.get()))
         return toHTMLAnchorElement(m_innerURLElement.get())->isLiveLink();
-#if ENABLE(SVG)
+
     if (m_innerURLElement->hasTagName(SVGNames::aTag))
         return m_innerURLElement->isLink();
-#endif
 
     return false;
 }
@@ -578,7 +570,7 @@ bool HitTestResult::isContentEditable() const
     if (isHTMLInputElement(m_innerNonSharedNode.get()))
         return toHTMLInputElement(m_innerNonSharedNode.get())->isTextField();
 
-    return m_innerNonSharedNode->rendererIsEditable();
+    return m_innerNonSharedNode->hasEditableStyle();
 }
 
 bool HitTestResult::addNodeToRectBasedTestResult(Node* node, const HitTestRequest& request, const HitTestLocation& locationInContainer, const LayoutRect& rect)
@@ -645,14 +637,14 @@ void HitTestResult::append(const HitTestResult& other)
 const HitTestResult::NodeSet& HitTestResult::rectBasedTestResult() const
 {
     if (!m_rectBasedTestResult)
-        m_rectBasedTestResult = adoptPtr(new NodeSet);
+        m_rectBasedTestResult = std::make_unique<NodeSet>();
     return *m_rectBasedTestResult;
 }
 
 HitTestResult::NodeSet& HitTestResult::mutableRectBasedTestResult()
 {
     if (!m_rectBasedTestResult)
-        m_rectBasedTestResult = adoptPtr(new NodeSet);
+        m_rectBasedTestResult = std::make_unique<NodeSet>();
     return *m_rectBasedTestResult;
 }
 

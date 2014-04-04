@@ -34,76 +34,163 @@
 #if ENABLE(MEDIA_SOURCE)
 
 #include "ActiveDOMObject.h"
+#include "AudioTrack.h"
 #include "EventTarget.h"
 #include "ExceptionCode.h"
 #include "GenericEventQueue.h"
 #include "ScriptWrappable.h"
+#include "SourceBufferPrivateClient.h"
+#include "TextTrack.h"
 #include "Timer.h"
+#include "VideoTrack.h"
 #include <runtime/ArrayBufferView.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
+
+class AudioTrackList;
 class MediaSource;
 class SourceBufferPrivate;
+class TextTrackList;
 class TimeRanges;
+class VideoTrackList;
 
-class SourceBuffer : public RefCounted<SourceBuffer>, public ActiveDOMObject, public EventTarget, public ScriptWrappable {
+class SourceBuffer final : public RefCounted<SourceBuffer>, public ActiveDOMObject, public EventTargetWithInlineData, public ScriptWrappable, public SourceBufferPrivateClient, public AudioTrackClient, public VideoTrackClient, public TextTrackClient {
 public:
-    static PassRefPtr<SourceBuffer> create(PassOwnPtr<SourceBufferPrivate>, MediaSource*);
+    static PassRef<SourceBuffer> create(PassRef<SourceBufferPrivate>, MediaSource*);
 
     virtual ~SourceBuffer();
 
     // SourceBuffer.idl methods
     bool updating() const { return m_updating; }
     PassRefPtr<TimeRanges> buffered(ExceptionCode&) const;
+    const RefPtr<TimeRanges>& buffered() const;
     double timestampOffset() const;
     void setTimestampOffset(double, ExceptionCode&);
     void appendBuffer(PassRefPtr<ArrayBuffer> data, ExceptionCode&);
     void appendBuffer(PassRefPtr<ArrayBufferView> data, ExceptionCode&);
     void abort(ExceptionCode&);
+    void remove(double start, double end, ExceptionCode&);
 
     void abortIfUpdating();
     void removedFromMediaSource();
+    const MediaTime& highestPresentationEndTimestamp() const { return m_highestPresentationEndTimestamp; }
+
+#if ENABLE(VIDEO_TRACK)
+    VideoTrackList* videoTracks();
+    AudioTrackList* audioTracks();
+    TextTrackList* textTracks();
+#endif
+
+    bool hasCurrentTime() const;
+    bool hasFutureTime() const;
+    bool canPlayThrough();
+
+    bool active() const { return m_active; }
 
     // ActiveDOMObject interface
-    virtual bool hasPendingActivity() const OVERRIDE;
-    virtual void stop() OVERRIDE;
+    virtual bool hasPendingActivity() const override;
+    virtual void stop() override;
 
     // EventTarget interface
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE;
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
+    virtual ScriptExecutionContext* scriptExecutionContext() const override { return ActiveDOMObject::scriptExecutionContext(); }
+    virtual EventTargetInterface eventTargetInterface() const override { return SourceBufferEventTargetInterfaceType; }
 
     using RefCounted<SourceBuffer>::ref;
     using RefCounted<SourceBuffer>::deref;
 
 protected:
     // EventTarget interface
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
 private:
-    SourceBuffer(PassOwnPtr<SourceBufferPrivate>, MediaSource*);
+    SourceBuffer(PassRef<SourceBufferPrivate>, MediaSource*);
+
+    // SourceBufferPrivateClient
+    virtual void sourceBufferPrivateDidEndStream(SourceBufferPrivate*, const WTF::AtomicString&) override;
+    virtual void sourceBufferPrivateDidReceiveInitializationSegment(SourceBufferPrivate*, const InitializationSegment&) override;
+    virtual void sourceBufferPrivateDidReceiveSample(SourceBufferPrivate*, PassRefPtr<MediaSample>) override;
+    virtual bool sourceBufferPrivateHasAudio(const SourceBufferPrivate*) const override;
+    virtual bool sourceBufferPrivateHasVideo(const SourceBufferPrivate*) const override;
+    virtual void sourceBufferPrivateDidBecomeReadyForMoreSamples(SourceBufferPrivate*, AtomicString trackID) override;
+    virtual void sourceBufferPrivateSeekToTime(SourceBufferPrivate*, const MediaTime&);
+    virtual MediaTime sourceBufferPrivateFastSeekTimeForMediaTime(SourceBufferPrivate*, const MediaTime&, const MediaTime& negativeThreshold, const MediaTime& positiveThreshold);
+
+
+    // AudioTrackClient
+    virtual void audioTrackEnabledChanged(AudioTrack*) override;
+
+    // VideoTrackClient
+    virtual void videoTrackSelectedChanged(VideoTrack*) override;
+
+    // TextTrackClient
+    virtual void textTrackKindChanged(TextTrack*) override;
+    virtual void textTrackModeChanged(TextTrack*) override;
+    virtual void textTrackAddCues(TextTrack*, const TextTrackCueList*) override;
+    virtual void textTrackRemoveCues(TextTrack*, const TextTrackCueList*) override;
+    virtual void textTrackAddCue(TextTrack*, PassRefPtr<TextTrackCue>) override;
+    virtual void textTrackRemoveCue(TextTrack*, PassRefPtr<TextTrackCue>) override;
+
+    static const WTF::AtomicString& decodeError();
+    static const WTF::AtomicString& networkError();
 
     bool isRemoved() const;
     void scheduleEvent(const AtomicString& eventName);
 
     void appendBufferInternal(unsigned char*, unsigned, ExceptionCode&);
-    void appendBufferTimerFired(Timer<SourceBuffer>*);
+    void appendBufferTimerFired(Timer<SourceBuffer>&);
 
-    OwnPtr<SourceBufferPrivate> m_private;
+    void setActive(bool);
+
+    bool validateInitializationSegment(const InitializationSegment&);
+
+    struct TrackBuffer;
+    void provideMediaData(TrackBuffer&, AtomicString trackID);
+    void didDropSample();
+
+    void monitorBufferingRate();
+
+    void removeTimerFired(Timer<SourceBuffer>*);
+    void removeCodedFrames(const MediaTime& start, const MediaTime& end);
+
+    RefPtr<SourceBufferPrivate> m_private;
     MediaSource* m_source;
     GenericEventQueue m_asyncEventQueue;
-    EventTargetData m_eventTargetData;
 
     bool m_updating;
-    double m_timestampOffset;
 
     Vector<unsigned char> m_pendingAppendData;
     Timer<SourceBuffer> m_appendBufferTimer;
+
+    RefPtr<VideoTrackList> m_videoTracks;
+    RefPtr<AudioTrackList> m_audioTracks;
+    RefPtr<TextTrackList> m_textTracks;
+
+    Vector<AtomicString> m_videoCodecs;
+    Vector<AtomicString> m_audioCodecs;
+    Vector<AtomicString> m_textCodecs;
+
+    MediaTime m_timestampOffset;
+    MediaTime m_highestPresentationEndTimestamp;
+
+    HashMap<AtomicString, TrackBuffer> m_trackBufferMap;
+    bool m_receivedFirstInitializationSegment;
+    RefPtr<TimeRanges> m_buffered;
+    bool m_active;
+
+    enum AppendStateType { WaitingForSegment, ParsingInitSegment, ParsingMediaSegment };
+    AppendStateType m_appendState;
+
+    double m_timeOfBufferingMonitor;
+    double m_bufferedSinceLastMonitor;
+    double m_averageBufferRate;
+
+    MediaTime m_pendingRemoveStart;
+    MediaTime m_pendingRemoveEnd;
+    Timer<SourceBuffer> m_removeTimer;
 };
 
 } // namespace WebCore

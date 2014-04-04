@@ -85,10 +85,10 @@ public:
 private:
     FontLoader(Document*);
 
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
-    virtual EventTargetData* eventTargetData() OVERRIDE;
-    virtual EventTargetData& ensureEventTargetData() OVERRIDE;
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
+    virtual EventTargetData* eventTargetData() override;
+    virtual EventTargetData& ensureEventTargetData() override;
 
     void scheduleEvent(PassRefPtr<Event>);
     void firePendingEvents();
@@ -97,8 +97,8 @@ private:
     Document* m_document;
     EventTargetData m_eventTargetData;
     unsigned m_loadingCount;
-    Vector<RefPtr<Event> > m_pendingEvents;
-    Vector<RefPtr<VoidCallback> > m_callbacks;
+    Vector<RefPtr<Event>> m_pendingEvents;
+    Vector<RefPtr<VoidCallback>> m_callbacks;
     RefPtr<Event> m_loadingDoneEvent;
 };
 
