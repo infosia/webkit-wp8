@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -58,11 +58,11 @@ private:
     virtual void fired() = 0;
 
     // ActiveDOMObject
-    virtual bool hasPendingActivity() const FINAL OVERRIDE;
-    virtual void stop() FINAL OVERRIDE;
-    virtual bool canSuspend() const FINAL OVERRIDE;
-    virtual void suspend(ReasonForSuspension) FINAL OVERRIDE;
-    virtual void resume() FINAL OVERRIDE;
+    virtual bool hasPendingActivity() const final override;
+    virtual void stop() final override;
+    virtual bool canSuspend() const final override;
+    virtual void suspend(ReasonForSuspension) final override;
+    virtual void resume() final override;
 
     bool m_suspended;
 

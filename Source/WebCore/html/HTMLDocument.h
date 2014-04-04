@@ -33,8 +33,14 @@ class HTMLDocument : public Document, public CachedResourceClient {
 public:
     static PassRefPtr<HTMLDocument> create(Frame* frame, const URL& url)
     {
-        return adoptRef(new HTMLDocument(frame, url));
+        return adoptRef(new HTMLDocument(frame, url, HTMLDocumentClass));
     }
+
+    static PassRefPtr<HTMLDocument> createSynthesizedDocument(Frame* frame, const URL& url)
+    {
+        return adoptRef(new HTMLDocument(frame, url, HTMLDocumentClass, Synthesized));
+    }
+
     virtual ~HTMLDocument();
 
     int width();
@@ -45,9 +51,6 @@ public:
 
     String designMode() const;
     void setDesignMode(const String&);
-
-    Element* activeElement();
-    bool hasFocus();
 
     const AtomicString& bgColor() const;
     void setBgColor(const String&);
@@ -80,13 +83,15 @@ public:
     static bool isCaseSensitiveAttribute(const QualifiedName&);
 
 protected:
-    HTMLDocument(Frame*, const URL&, DocumentClassFlags = 0);
+    HTMLDocument(Frame*, const URL&, DocumentClassFlags = 0, unsigned constructionFlags = 0);
 
 private:
-    virtual PassRefPtr<Element> createElement(const AtomicString& tagName, ExceptionCode&);
+    virtual PassRefPtr<Element> createElement(const AtomicString& tagName, ExceptionCode&) override;
 
-    virtual bool isFrameSet() const;
-    virtual PassRefPtr<DocumentParser> createParser();
+    virtual bool isFrameSet() const override;
+    virtual PassRefPtr<DocumentParser> createParser() override;
+
+    virtual PassRefPtr<Document> cloneDocumentWithoutChildren() const override final;
 
     DocumentOrderedMap m_documentNamedItem;
     DocumentOrderedMap m_windowNamedItem;

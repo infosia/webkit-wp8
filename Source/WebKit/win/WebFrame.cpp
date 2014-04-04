@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -99,12 +99,12 @@
 #include <WebCore/TextIterator.h>
 #include <WebCore/JSDOMBinding.h>
 #include <WebCore/ScriptController.h>
-#include <WebCore/ScriptValue.h>
 #include <WebCore/SecurityOrigin.h>
 #include <JavaScriptCore/APICast.h>
 #include <JavaScriptCore/JSCJSValue.h>
 #include <JavaScriptCore/JSLock.h>
 #include <JavaScriptCore/JSObject.h>
+#include <bindings/ScriptValue.h>
 #include <wtf/MathExtras.h>
 
 #if USE(CG)
@@ -946,7 +946,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::firstLayoutDone(
     if (!coreFrame)
         return E_FAIL;
 
-    *result = coreFrame->loader().stateMachine()->firstLayoutDone();
+    *result = coreFrame->loader().stateMachine().firstLayoutDone();
     return S_OK;
 }
 
@@ -1076,8 +1076,8 @@ PassRefPtr<Frame> WebFrame::createSubframeWithOwnerElement(IWebView* webView, Pa
     webView->QueryInterface(&d->webView);
     d->webView->Release(); // don't hold the extra ref
 
-    HWND viewWindow;
-    d->webView->viewWindow((OLE_HANDLE*)&viewWindow);
+    OLE_HANDLE viewWindow;
+    d->webView->viewWindow(&viewWindow);
 
     this->AddRef(); // We release this ref in frameLoaderDestroyed()
     RefPtr<Frame> frame = Frame::create(page, ownerElement, new WebFrameLoaderClient(this));
@@ -1090,8 +1090,8 @@ void WebFrame::initWithWebView(IWebView* webView, Page* page)
     webView->QueryInterface(&d->webView);
     d->webView->Release(); // don't hold the extra ref
 
-    HWND viewWindow;
-    d->webView->viewWindow((OLE_HANDLE*)&viewWindow);
+    OLE_HANDLE viewWindow;
+    d->webView->viewWindow(&viewWindow);
 
     this->AddRef(); // We release this ref in frameLoaderDestroyed()
     d->frame = &page->mainFrame();
@@ -1113,29 +1113,12 @@ void WebFrame::invalidate()
 
 HRESULT WebFrame::inViewSourceMode(BOOL* flag)
 {
-    if (!flag) {
-        ASSERT_NOT_REACHED();
-        return E_POINTER;
-    }
-
-    *flag = FALSE;
-
-    Frame* coreFrame = core(this);
-    if (!coreFrame)
-        return E_FAIL;
-
-    *flag = coreFrame->inViewSourceMode() ? TRUE : FALSE;
-    return S_OK;
+    return E_NOTIMPL;
 }
 
 HRESULT WebFrame::setInViewSourceMode(BOOL flag)
 {
-    Frame* coreFrame = core(this);
-    if (!coreFrame)
-        return E_FAIL;
-
-    coreFrame->setInViewSourceMode(!!flag);
-    return S_OK;
+    return E_NOTIMPL;
 }
 
 HRESULT WebFrame::elementWithName(BSTR name, IDOMElement* form, IDOMElement** element)
@@ -1150,7 +1133,7 @@ HRESULT WebFrame::elementWithName(BSTR name, IDOMElement* form, IDOMElement** el
         for (unsigned int i = 0; i < elements.size(); i++) {
             if (!elements[i]->isFormControlElement())
                 continue;
-            HTMLFormControlElement* elt = static_cast<HTMLFormControlElement*>(elements[i]);
+            HTMLFormControlElement* elt = toHTMLFormControlElement(elements[i]);
             // Skip option elements, other duds
             if (elt->name() == targetName) {
                 *element = DOMElement::createInstance(elt);
@@ -1383,7 +1366,7 @@ HRESULT WebFrame::searchForLabelsBeforeElement(const BSTR* labels, unsigned cLab
     bool resultIsInCellAbove;
     String label = coreFrame->searchForLabelsBeforeElement(labelStrings, coreElement, &resultDistance, &resultIsInCellAbove);
     
-    *result = SysAllocStringLen(label.characters(), label.length());
+    *result = BString(label).release();
     if (label.length() && !*result)
         return E_OUTOFMEMORY;
     if (outResultDistance)
@@ -1421,7 +1404,7 @@ HRESULT WebFrame::matchLabelsAgainstElement(const BSTR* labels, int cLabels, IDO
 
     String label = coreFrame->matchLabelsAgainstElement(labelStrings, coreElement);
     
-    *result = SysAllocStringLen(label.characters(), label.length());
+    *result = BString(label).release();
     if (label.length() && !*result)
         return E_OUTOFMEMORY;
     return S_OK;
@@ -2012,7 +1995,7 @@ HRESULT STDMETHODCALLTYPE WebFrame::frameBounds(
     if (!view)
         return E_FAIL;
 
-    FloatRect bounds = view->visibleContentRect(ScrollableArea::IncludeScrollbars);
+    FloatRect bounds = view->visibleContentRectIncludingScrollbars();
     result->bottom = (LONG) bounds.height();
     result->right = (LONG) bounds.width();
     return S_OK;

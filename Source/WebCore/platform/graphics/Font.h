@@ -25,8 +25,10 @@
 #ifndef Font_h
 #define Font_h
 
+#include "DashArray.h"
 #include "FontDescription.h"
 #include "FontGlyphs.h"
+#include "Path.h"
 #include "SimpleFontData.h"
 #include "TextDirection.h"
 #include "TypesettingFeatures.h"
@@ -74,13 +76,24 @@ struct GlyphOverflow {
     bool computeBounds;
 };
 
+class GlyphToPathTranslator {
+public:
+    virtual bool containsMorePaths() = 0;
+    virtual Path nextPath() = 0;
+    virtual ~GlyphToPathTranslator() { }
+};
 
 class Font {
 public:
     Font();
-    Font(const FontDescription&, short letterSpacing, short wordSpacing);
+    Font(const FontDescription&, float letterSpacing, float wordSpacing);
     // This constructor is only used if the platform wants to start with a native font.
     Font(const FontPlatformData&, bool isPrinting, FontSmoothingMode = AutoSmoothing);
+
+    // FIXME: We should make this constructor platform-independent.
+#if PLATFORM(IOS)
+    Font(const FontPlatformData&, PassRefPtr<FontSelector>);
+#endif
     ~Font();
 
     Font(const Font&);
@@ -97,8 +110,11 @@ public:
     void update(PassRefPtr<FontSelector>) const;
 
     enum CustomFontNotReadyAction { DoNotPaintIfFontNotReady, UseFallbackIfFontNotReady };
-    void drawText(GraphicsContext*, const TextRun&, const FloatPoint&, int from = 0, int to = -1, CustomFontNotReadyAction = DoNotPaintIfFontNotReady) const;
+    float drawText(GraphicsContext*, const TextRun&, const FloatPoint&, int from = 0, int to = -1, CustomFontNotReadyAction = DoNotPaintIfFontNotReady) const;
+    void drawGlyphs(GraphicsContext*, const SimpleFontData*, const GlyphBuffer&, int from, int numGlyphs, const FloatPoint&) const;
     void drawEmphasisMarks(GraphicsContext*, const TextRun&, const AtomicString& mark, const FloatPoint&, int from = 0, int to = -1) const;
+
+    DashArray dashesForIntersectionsWithRect(const TextRun&, const FloatPoint& textOrigin, const FloatRect& lineExtents) const;
 
     float width(const TextRun&, HashSet<const SimpleFontData*>* fallbackFonts = 0, GlyphOverflow* = 0) const;
     float width(const TextRun&, int& charsConsumed, String& glyphName) const;
@@ -112,10 +128,10 @@ public:
 
     bool isSmallCaps() const { return m_fontDescription.smallCaps(); }
 
-    short wordSpacing() const { return m_wordSpacing; }
-    short letterSpacing() const { return m_letterSpacing; }
-    void setWordSpacing(short s) { m_wordSpacing = s; }
-    void setLetterSpacing(short s) { m_letterSpacing = s; }
+    float wordSpacing() const { return m_wordSpacing; }
+    float letterSpacing() const { return m_letterSpacing; }
+    void setWordSpacing(float s) { m_wordSpacing = s; }
+    void setLetterSpacing(float s) { m_letterSpacing = s; }
     bool isFixedPitch() const;
     bool isPrinterFont() const { return m_fontDescription.usePrinterFont(); }
     bool isSVGFont() const { return primaryFont()->isSVGFont(); }
@@ -138,6 +154,8 @@ public:
     float spaceWidth() const { return primaryFont()->spaceWidth() + m_letterSpacing; }
     float tabWidth(const SimpleFontData&, unsigned tabSize, float position) const;
     float tabWidth(unsigned tabSize, float position) const { return tabWidth(*primaryFont(), tabSize, position); }
+    bool hasValidAverageCharWidth() const;
+    bool fastAverageCharWidthIfAvailable(float &width) const; // returns true on success
 
     int emphasisMarkAscent(const AtomicString&) const;
     int emphasisMarkDescent(const AtomicString&) const;
@@ -149,7 +167,7 @@ public:
     {
         return glyphDataAndPageForCharacter(c, mirror, variant).first;
     }
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     const SimpleFontData* fontDataForCombiningCharacterSequence(const UChar*, size_t length, FontDataVariant) const;
 #endif
     std::pair<GlyphData, GlyphPage*> glyphDataAndPageForCharacter(UChar32 c, bool mirror, FontDataVariant variant) const
@@ -177,10 +195,9 @@ private:
 
     // Returns the initial in-stream advance.
     float getGlyphsAndAdvancesForSimpleText(const TextRun&, int from, int to, GlyphBuffer&, ForTextEmphasisOrNot = NotForTextEmphasis) const;
-    void drawSimpleText(GraphicsContext*, const TextRun&, const FloatPoint&, int from, int to) const;
+    float drawSimpleText(GraphicsContext*, const TextRun&, const FloatPoint&, int from, int to) const;
     void drawEmphasisMarksForSimpleText(GraphicsContext*, const TextRun&, const AtomicString& mark, const FloatPoint&, int from, int to) const;
-    void drawGlyphs(GraphicsContext*, const SimpleFontData*, const GlyphBuffer&, int from, int to, const FloatPoint&) const;
-    void drawGlyphBuffer(GraphicsContext*, const TextRun&, const GlyphBuffer&, const FloatPoint&) const;
+    void drawGlyphBuffer(GraphicsContext*, const TextRun&, const GlyphBuffer&, FloatPoint&) const;
     void drawEmphasisMarks(GraphicsContext*, const TextRun&, const GlyphBuffer&, const AtomicString&, const FloatPoint&) const;
     float floatWidthForSimpleText(const TextRun&, HashSet<const SimpleFontData*>* fallbackFonts = 0, GlyphOverflow* = 0) const;
     int offsetForPositionForSimpleText(const TextRun&, float position, bool includePartialGlyphs) const;
@@ -193,7 +210,7 @@ private:
 
     // Returns the initial in-stream advance.
     float getGlyphsAndAdvancesForComplexText(const TextRun&, int from, int to, GlyphBuffer&, ForTextEmphasisOrNot = NotForTextEmphasis) const;
-    void drawComplexText(GraphicsContext*, const TextRun&, const FloatPoint&, int from, int to) const;
+    float drawComplexText(GraphicsContext*, const TextRun&, const FloatPoint&, int from, int to) const;
     void drawEmphasisMarksForComplexText(GraphicsContext*, const TextRun&, const AtomicString& mark, const FloatPoint&, int from, int to) const;
     float floatWidthForComplexText(const TextRun&, HashSet<const SimpleFontData*>* fallbackFonts = 0, GlyphOverflow* = 0) const;
     int offsetForPositionForComplexText(const TextRun&, float position, bool includePartialGlyphs) const;
@@ -301,14 +318,15 @@ private:
 
     FontDescription m_fontDescription;
     mutable RefPtr<FontGlyphs> m_glyphs;
-    short m_letterSpacing;
-    short m_wordSpacing;
+    float m_letterSpacing;
+    float m_wordSpacing;
     mutable bool m_useBackslashAsYenSymbol;
     mutable unsigned m_typesettingFeatures : 2; // (TypesettingFeatures) Caches values computed from m_fontDescription.
 };
 
 void invalidateFontGlyphsCache();
 void pruneUnreferencedEntriesFromFontGlyphsCache();
+void clearWidthCaches();
 
 inline Font::~Font()
 {

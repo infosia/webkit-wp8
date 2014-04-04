@@ -35,13 +35,17 @@
 #include "RenderFlowThread.h"
 #include "RenderView.h"
 #include "VerticalPositionCache.h"
-#include <wtf/unicode/Unicode.h>
+#include <wtf/NeverDestroyed.h>
+
+#if PLATFORM(IOS)
+#include "Settings.h"
+#endif
 
 namespace WebCore {
     
 struct SameSizeAsRootInlineBox : public InlineFlowBox {
     unsigned variables[7];
-    void* pointers[4];
+    void* pointers[3];
 };
 
 COMPILE_ASSERT(sizeof(RootInlineBox) == sizeof(SameSizeAsRootInlineBox), RootInlineBox_should_stay_small);
@@ -49,11 +53,17 @@ COMPILE_ASSERT(sizeof(RootInlineBox) == sizeof(SameSizeAsRootInlineBox), RootInl
 typedef WTF::HashMap<const RootInlineBox*, std::unique_ptr<EllipsisBox>> EllipsisBoxMap;
 static EllipsisBoxMap* gEllipsisBoxMap = 0;
 
+typedef HashMap<const RootInlineBox*, RenderRegion*> ContainingRegionMap;
+static ContainingRegionMap& containingRegionMap()
+{
+    static NeverDestroyed<ContainingRegionMap> map;
+    return map;
+}
+
 RootInlineBox::RootInlineBox(RenderBlockFlow& block)
     : InlineFlowBox(block)
     , m_lineBreakPos(0)
     , m_lineBreakObj(nullptr)
-    , m_containingRegion(nullptr)
 {
     setIsHorizontal(block.isHorizontalWritingMode());
 }
@@ -61,6 +71,9 @@ RootInlineBox::RootInlineBox(RenderBlockFlow& block)
 RootInlineBox::~RootInlineBox()
 {
     detachEllipsisBox();
+
+    if (m_hasContainingRegion)
+        containingRegionMap().remove(this);
 }
 
 void RootInlineBox::detachEllipsisBox()
@@ -159,51 +172,14 @@ void RootInlineBox::paintEllipsisBox(PaintInfo& paintInfo, const LayoutPoint& pa
         ellipsisBox()->paint(paintInfo, paintOffset, lineTop, lineBottom);
 }
 
-#if PLATFORM(MAC)
-
-void RootInlineBox::addHighlightOverflow()
-{
-    Page* page = renderer().frame().page();
-    if (!page)
-        return;
-
-    // Highlight acts as a selection inflation.
-    FloatRect rootRect(0, selectionTop(), logicalWidth(), selectionHeight());
-    IntRect inflatedRect = enclosingIntRect(page->chrome().client().customHighlightRect(renderer().element(), renderer().style().highlight(), rootRect));
-    setOverflowFromLogicalRects(inflatedRect, inflatedRect, lineTop(), lineBottom());
-}
-
-void RootInlineBox::paintCustomHighlight(PaintInfo& paintInfo, const LayoutPoint& paintOffset, const AtomicString& highlightType)
-{
-    if (!paintInfo.shouldPaintWithinRoot(renderer()) || renderer().style().visibility() != VISIBLE || paintInfo.phase != PaintPhaseForeground)
-        return;
-
-    Page* page = renderer().frame().page();
-    if (!page)
-        return;
-
-    // Get the inflated rect so that we can properly hit test.
-    FloatRect rootRect(paintOffset.x() + x(), paintOffset.y() + selectionTop(), logicalWidth(), selectionHeight());
-    FloatRect inflatedRect = page->chrome().client().customHighlightRect(renderer().element(), highlightType, rootRect);
-    if (inflatedRect.intersects(paintInfo.rect))
-        page->chrome().client().paintCustomHighlight(renderer().element(), highlightType, rootRect, rootRect, false, true);
-}
-
-#endif
-
 void RootInlineBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset, LayoutUnit lineTop, LayoutUnit lineBottom)
 {
     // Check if we are in the correct region.
-    if (paintInfo.renderRegion && containingRegion() && containingRegion() != paintInfo.renderRegion)
+    if (paintInfo.renderNamedFlowFragment && m_hasContainingRegion && containingRegion() != reinterpret_cast<RenderRegion*>(paintInfo.renderNamedFlowFragment))
         return;
     
     InlineFlowBox::paint(paintInfo, paintOffset, lineTop, lineBottom);
     paintEllipsisBox(paintInfo, paintOffset, lineTop, lineBottom);
-#if PLATFORM(MAC)
-    const RenderStyle& lineStyle = this->lineStyle();
-    if (lineStyle.highlight() != nullAtom && !paintInfo.context->paintingDisabled())
-        paintCustomHighlight(paintInfo, paintOffset, lineStyle.highlight());
-#endif
 }
 
 bool RootInlineBox::nodeAtPoint(const HitTestRequest& request, HitTestResult& result, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, LayoutUnit lineTop, LayoutUnit lineBottom)
@@ -243,30 +219,41 @@ void RootInlineBox::childRemoved(InlineBox* box)
 RenderRegion* RootInlineBox::containingRegion() const
 {
 #ifndef NDEBUG
-    if (m_containingRegion) {
+    if (m_hasContainingRegion) {
         RenderFlowThread* flowThread = blockFlow().flowThreadContainingBlock();
         const RenderRegionList& regionList = flowThread->renderRegionList();
-        ASSERT(regionList.contains(m_containingRegion));
+        ASSERT(regionList.contains(containingRegionMap().get(this)));
     }
 #endif
-
-    return m_containingRegion;
+    return m_hasContainingRegion ? containingRegionMap().get(this) : nullptr;
 }
 
-void RootInlineBox::setContainingRegion(RenderRegion* region)
+void RootInlineBox::clearContainingRegion()
 {
     ASSERT(!isDirty());
     ASSERT(blockFlow().flowThreadContainingBlock());
-    m_containingRegion = region;
+
+    if (!m_hasContainingRegion)
+        return;
+
+    containingRegionMap().remove(this);
+    m_hasContainingRegion = false;
+}
+
+void RootInlineBox::setContainingRegion(RenderRegion& region)
+{
+    ASSERT(!isDirty());
+    ASSERT(blockFlow().flowThreadContainingBlock());
+
+    containingRegionMap().set(this, &region);
+    m_hasContainingRegion = true;
 }
 
 LayoutUnit RootInlineBox::alignBoxesInBlockDirection(LayoutUnit heightOfBlock, GlyphOverflowAndFallbackFontsMap& textBoxDataMap, VerticalPositionCache& verticalPositionCache)
 {
-#if ENABLE(SVG)
     // SVG will handle vertical alignment on its own.
     if (isSVGRootInlineBox())
         return 0;
-#endif
 
     LayoutUnit maxPositionTop = 0;
     LayoutUnit maxPositionBottom = 0;
@@ -321,14 +308,12 @@ LayoutUnit RootInlineBox::alignBoxesInBlockDirection(LayoutUnit heightOfBlock, G
     return heightOfBlock + maxHeight;
 }
 
-#if ENABLE(CSS3_TEXT_DECORATION)
 float RootInlineBox::maxLogicalTop() const
 {
     float maxLogicalTop = 0;
     computeMaxLogicalTop(maxLogicalTop);
     return maxLogicalTop;
 }
-#endif // CSS3_TEXT_DECORATION
 
 LayoutUnit RootInlineBox::beforeAnnotationsAdjustment() const
 {
@@ -343,12 +328,12 @@ LayoutUnit RootInlineBox::beforeAnnotationsAdjustment() const
             return result;
 
         // Annotations over this line may push us further down.
-        LayoutUnit highestAllowedPosition = prevRootBox() ? std::min(prevRootBox()->lineBottom(), lineTop()) + result : static_cast<LayoutUnit>(blockFlow().borderBefore());
+        LayoutUnit highestAllowedPosition = prevRootBox() ? std::min(prevRootBox()->lineBottom(), lineTop()) + result : blockFlow().borderBefore();
         result = computeOverAnnotationAdjustment(highestAllowedPosition);
     } else {
         // Annotations under this line may push us up.
         if (hasAnnotationsBefore())
-            result = computeUnderAnnotationAdjustment(prevRootBox() ? prevRootBox()->lineBottom() : static_cast<LayoutUnit>(blockFlow().borderBefore()));
+            result = computeUnderAnnotationAdjustment(prevRootBox() ? prevRootBox()->lineBottom() : blockFlow().borderBefore());
 
         if (!prevRootBox() || !prevRootBox()->hasAnnotationsAfter())
             return result;
@@ -693,7 +678,7 @@ RenderBlockFlow& RootInlineBox::blockFlow() const
 
 static bool isEditableLeaf(InlineBox* leaf)
 {
-    return leaf && leaf->renderer().node() && leaf->renderer().node()->rendererIsEditable();
+    return leaf && leaf->renderer().node() && leaf->renderer().node()->hasEditableStyle();
 }
 
 InlineBox* RootInlineBox::closestLeafChildForPoint(const IntPoint& pointInContents, bool onlyEditableLeaves)
@@ -748,6 +733,13 @@ BidiStatus RootInlineBox::lineBreakBidiStatus() const
 
 void RootInlineBox::setLineBreakInfo(RenderObject* obj, unsigned breakPos, const BidiStatus& status)
 {
+    // When setting lineBreakObj, the RenderObject must not be a RenderInline
+    // with no line boxes, otherwise all sorts of invariants are broken later.
+    // This has security implications because if the RenderObject does not
+    // point to at least one line box, then that RenderInline can be deleted
+    // later without resetting the lineBreakObj, leading to use-after-free.
+    ASSERT_WITH_SECURITY_IMPLICATION(!obj || obj->isText() || !(obj->isRenderInline() && obj->isBox() && !toRenderBox(obj)->inlineBoxWrapper()));
+
     m_lineBreakObj = obj;
     m_lineBreakPos = breakPos;
     m_lineBreakBidiStatusEor = status.eor;
@@ -966,7 +958,7 @@ LayoutUnit RootInlineBox::verticalPositionForBox(InlineBox* box, VerticalPositio
         else if (verticalAlign == TEXT_TOP)
             verticalPosition += renderer->baselinePosition(baselineType(), firstLine, lineDirection) - fontMetrics.ascent(baselineType());
         else if (verticalAlign == MIDDLE)
-            verticalPosition = (verticalPosition - static_cast<LayoutUnit>(fontMetrics.xHeight() / 2) - renderer->lineHeight(firstLine, lineDirection) / 2 + renderer->baselinePosition(baselineType(), firstLine, lineDirection)).round();
+            verticalPosition = (verticalPosition - LayoutUnit(fontMetrics.xHeight() / 2) - renderer->lineHeight(firstLine, lineDirection) / 2 + renderer->baselinePosition(baselineType(), firstLine, lineDirection)).round();
         else if (verticalAlign == TEXT_BOTTOM) {
             verticalPosition += fontMetrics.descent(baselineType());
             // lineHeight - baselinePosition is always 0 for replaced elements (except inline blocks), so don't bother wasting time in that case.

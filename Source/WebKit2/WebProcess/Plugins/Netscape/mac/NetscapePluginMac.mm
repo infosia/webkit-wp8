@@ -36,6 +36,8 @@
 #import <WebCore/GraphicsContext.h>
 #import <WebCore/NotImplemented.h>
 #import <WebKitSystemInterface.h>
+#import <wtf/NeverDestroyed.h>
+#import <wtf/text/StringView.h>
 
 using namespace WebCore;
 
@@ -170,8 +172,8 @@ NPError NetscapePlugin::popUpContextMenu(NPMenu* npMenu)
 
 mach_port_t NetscapePlugin::compositingRenderServerPort()
 {
-#if HAVE(LAYER_HOSTING_IN_WINDOW_SERVER)
-    if (m_layerHostingMode == LayerHostingModeInWindowServer)
+#if HAVE(OUT_OF_PROCESS_LAYER_HOSTING)
+    if (m_layerHostingMode == LayerHostingMode::OutOfProcess)
         return MACH_PORT_NULL;
 #endif
 
@@ -196,8 +198,7 @@ typedef HashMap<WindowRef, NetscapePlugin*> WindowMap;
 
 static WindowMap& windowMap()
 {
-    DEFINE_STATIC_LOCAL(WindowMap, windowMap, ());
-
+    static NeverDestroyed<WindowMap> windowMap;
     return windowMap;
 }
 #endif
@@ -963,7 +964,7 @@ uint64_t NetscapePlugin::pluginComplexTextInputIdentifier() const
 
 
 #ifndef NP_NO_CARBON
-static bool convertStringToKeyCodes(const String& string, ScriptCode scriptCode, Vector<UInt8>& keyCodes)
+static bool convertStringToKeyCodes(StringView string, ScriptCode scriptCode, Vector<UInt8>& keyCodes)
 {
     // Create the mapping.
     UnicodeMapping mapping;
@@ -973,27 +974,27 @@ static bool convertStringToKeyCodes(const String& string, ScriptCode scriptCode,
 
     mapping.unicodeEncoding = CreateTextEncoding(kTextEncodingUnicodeDefault, kTextEncodingDefaultVariant, kTextEncodingDefaultFormat);
     mapping.mappingVersion = kUnicodeUseLatestMapping;
-    
+
     // Create the converter
     UnicodeToTextInfo textInfo;
-    
+
     if (CreateUnicodeToTextInfo(&mapping, &textInfo) != noErr)
         return false;
-    
+
     ByteCount inputLength = string.length() * sizeof(UniChar);
     ByteCount inputRead;
     ByteCount outputLength;
     ByteCount maxOutputLength = string.length() * sizeof(UniChar);
 
     Vector<UInt8> outputData(maxOutputLength);
-    OSStatus status = ConvertFromUnicodeToText(textInfo, inputLength, string.characters(), kNilOptions, 0, 0, 0, 0, maxOutputLength, &inputRead, &outputLength, outputData.data());
+    OSStatus status = ConvertFromUnicodeToText(textInfo, inputLength, string.upconvertedCharacters(), kNilOptions, 0, 0, 0, 0, maxOutputLength, &inputRead, &outputLength, outputData.data());
     
     DisposeUnicodeToTextInfo(&textInfo);
     
     if (status != noErr)
         return false;
 
-    outputData.swap(keyCodes);
+    keyCodes = std::move(outputData);
     return true;
 }
 #endif
@@ -1034,8 +1035,8 @@ void NetscapePlugin::sendComplexTextInput(const String& textInput)
         EventRecord event = initializeEventRecord(keyDown);
         event.modifiers = 0;
 
-        for (size_t i = 0; i < keyCodes.size(); i++) {
-            event.message = keyCodes[i];
+        for (auto& keyCode : keyCodes) {
+            event.message = keyCode;
             NPP_HandleEvent(&event);
         }
         break;

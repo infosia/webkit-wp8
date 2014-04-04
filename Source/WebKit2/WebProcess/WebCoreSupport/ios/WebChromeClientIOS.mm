@@ -26,6 +26,8 @@
 #import "config.h"
 #import "WebChromeClient.h"
 
+#if PLATFORM(IOS)
+
 #import <WebCore/NotImplemented.h>
 #import "WebCoreArgumentCoders.h"
 #import "WebFrame.h"
@@ -34,7 +36,7 @@
 
 namespace WebKit {
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(IOS_TOUCH_EVENTS)
 void WebChromeClient::didPreventDefaultForEvent()
 {
     notImplemented();
@@ -51,9 +53,9 @@ void WebChromeClient::elementDidBlur(const WebCore::Node* node)
     m_page->elementDidBlur(const_cast<WebCore::Node*>(node));
 }
 
-void WebChromeClient::didReceiveMobileDocType()
+void WebChromeClient::didReceiveMobileDocType(bool isMobileDoctype)
 {
-    m_page->send(Messages::WebPageProxy::MainDocumentDidReceiveMobileDocType());
+    m_page->didReceiveMobileDocType(isMobileDoctype);
 }
 
 void WebChromeClient::setNeedsScrollNotifications(WebCore::Frame*, bool)
@@ -73,7 +75,7 @@ void WebChromeClient::clearContentChangeObservers(WebCore::Frame*)
 
 void WebChromeClient::notifyRevealedSelectionByScrollingFrame(WebCore::Frame*)
 {
-    notImplemented();
+    m_page->send(Messages::WebPageProxy::NotifyRevealedSelection());
 }
 
 bool WebChromeClient::isStopping()
@@ -121,4 +123,12 @@ void WebChromeClient::webAppOrientationsUpdated()
 {
     notImplemented();
 }
+
+void WebChromeClient::showPlaybackTargetPicker(bool hasVideo)
+{
+    m_page->send(Messages::WebPageProxy::ShowPlaybackTargetPicker(hasVideo, m_page->rectForElementAtInteractionLocation()));
+}
+
 } // namespace WebKit
+
+#endif // PLATFORM(IOS)

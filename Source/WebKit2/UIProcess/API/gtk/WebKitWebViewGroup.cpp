@@ -21,6 +21,7 @@
 #include "WebKitWebViewGroup.h"
 
 #include "APIArray.h"
+#include "APIString.h"
 #include "WebKitPrivate.h"
 #include "WebKitSettingsPrivate.h"
 #include "WebKitWebViewGroupPrivate.h"
@@ -65,6 +66,19 @@ struct _WebKitWebViewGroupPrivate {
 };
 
 WEBKIT_DEFINE_TYPE(WebKitWebViewGroup, webkit_web_view_group, G_TYPE_OBJECT)
+
+static inline WebCore::UserContentInjectedFrames toWebCoreUserContentInjectedFrames(WebKitInjectedContentFrames kitFrames)
+{
+    switch (kitFrames) {
+    case WEBKIT_INJECTED_CONTENT_FRAMES_ALL:
+        return WebCore::InjectInAllFrames;
+    case WEBKIT_INJECTED_CONTENT_FRAMES_TOP_ONLY:
+        return WebCore::InjectInTopFrameOnly;
+    default:
+        ASSERT_NOT_REACHED();
+        return WebCore::InjectInAllFrames;
+    }
+}
 
 static void webkitWebViewGroupSetProperty(GObject* object, guint propId, const GValue* value, GParamSpec* paramSpec)
 {
@@ -223,9 +237,6 @@ void webkit_web_view_group_set_settings(WebKitWebViewGroup* group, WebKitSetting
     g_object_notify(G_OBJECT(group), "settings");
 }
 
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_INJECTED_CONTENT_FRAMES_ALL, WebCore::InjectInAllFrames);
-COMPILE_ASSERT_MATCHING_ENUM(WEBKIT_INJECTED_CONTENT_FRAMES_TOP_ONLY, WebCore::InjectInTopFrameOnly);
-
 static PassRefPtr<API::Array> toAPIArray(const char* const* list)
 {
     if (!list)
@@ -233,7 +244,7 @@ static PassRefPtr<API::Array> toAPIArray(const char* const* list)
 
     Vector<RefPtr<API::Object> > entries;
     while (*list) {
-        entries.append(WebString::createFromUTF8String(*list));
+        entries.append(API::String::createFromUTF8String(*list));
         list++;
     }
     return API::Array::create(std::move(entries));
@@ -269,7 +280,7 @@ void webkit_web_view_group_add_user_style_sheet(WebKitWebViewGroup* group, const
         String::fromUTF8(baseURI),
         webWhitelist.get(),
         webBlacklist.get(),
-        static_cast<WebCore::UserContentInjectedFrames>(injectedFrames),
+        toWebCoreUserContentInjectedFrames(injectedFrames),
         WebCore::UserStyleUserLevel);
 }
 

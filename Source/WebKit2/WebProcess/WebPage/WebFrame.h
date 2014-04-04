@@ -58,7 +58,7 @@ class InjectedBundleRangeHandle;
 class InjectedBundleScriptWorld;
 class WebPage;
 
-class WebFrame : public API::TypedObject<API::Object::Type::BundleFrame> {
+class WebFrame : public API::ObjectImpl<API::Object::Type::BundleFrame> {
 public:
     static PassRefPtr<WebFrame> createWithCoreMainFrame(WebPage*, WebCore::Frame*);
     static PassRefPtr<WebFrame> createSubframe(WebPage*, const String& frameName, WebCore::HTMLFrameOwnerElement*);
@@ -68,6 +68,8 @@ public:
     void invalidate();
 
     WebPage* page() const;
+
+    static WebFrame* fromCoreFrame(WebCore::Frame&);
     WebCore::Frame* coreFrame() const { return m_coreFrame; }
 
     uint64_t frameID() const { return m_frameID; }
@@ -138,7 +140,7 @@ public:
     void setLoadListener(LoadListener* loadListener) { m_loadListener = loadListener; }
     LoadListener* loadListener() const { return m_loadListener; }
     
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     typedef bool (*FrameFilterFunction)(WKBundleFrameRef, WKBundleFrameRef subframe, void* context);
     RetainPtr<CFDataRef> webArchiveData(FrameFilterFunction, void* context);
 #endif

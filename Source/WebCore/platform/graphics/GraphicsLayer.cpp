@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,8 +24,6 @@
  */
 
 #include "config.h"
-
-#if USE(ACCELERATED_COMPOSITING)
 
 #include "GraphicsLayer.h"
 
@@ -49,7 +47,7 @@ namespace WebCore {
 typedef HashMap<const GraphicsLayer*, Vector<FloatRect>> RepaintMap;
 static RepaintMap& repaintRectMap()
 {
-    DEFINE_STATIC_LOCAL(RepaintMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(RepaintMap, map, ());
     return map;
 }
 
@@ -78,6 +76,9 @@ GraphicsLayer::GraphicsLayer(GraphicsLayerClient* client)
     , m_anchorPoint(0.5f, 0.5f, 0)
     , m_opacity(1)
     , m_zPosition(0)
+#if ENABLE(CSS_COMPOSITING)
+    , m_blendMode(BlendModeNormal)
+#endif
     , m_contentsOpaque(false)
     , m_preserves3D(false)
     , m_backfaceVisibility(true)
@@ -97,6 +98,8 @@ GraphicsLayer::GraphicsLayer(GraphicsLayerClient* client)
     , m_replicaLayer(0)
     , m_replicatedLayer(0)
     , m_repaintCount(0)
+    , m_customAppearance(NoCustomAppearance)
+    , m_customBehavior(NoCustomBehavior)
 {
 #ifndef NDEBUG
     if (m_client)
@@ -116,7 +119,6 @@ void GraphicsLayer::willBeDestroyed()
     if (m_client)
         m_client->verifyNotPainting();
 #endif
-
     if (m_replicaLayer)
         m_replicaLayer->setReplicatedLayer(0);
 
@@ -295,7 +297,7 @@ void GraphicsLayer::setReplicatedByLayer(GraphicsLayer* layer)
     m_replicaLayer = layer;
 }
 
-void GraphicsLayer::setOffsetFromRenderer(const IntSize& offset, ShouldSetNeedsDisplay shouldSetNeedsDisplay)
+void GraphicsLayer::setOffsetFromRenderer(const FloatSize& offset, ShouldSetNeedsDisplay shouldSetNeedsDisplay)
 {
     if (offset == m_offsetFromRenderer)
         return;
@@ -323,13 +325,13 @@ void GraphicsLayer::setBackgroundColor(const Color& color)
     m_backgroundColor = color;
 }
 
-void GraphicsLayer::paintGraphicsLayerContents(GraphicsContext& context, const IntRect& clip)
+void GraphicsLayer::paintGraphicsLayerContents(GraphicsContext& context, const FloatRect& clip)
 {
     if (m_client) {
-        IntSize offset = offsetFromRenderer();
+        FloatSize offset = offsetFromRenderer();
         context.translate(-offset);
 
-        IntRect clipRect(clip);
+        FloatRect clipRect(clip);
         clipRect.move(offset);
 
         m_client->paintContents(this, context, m_paintingPhase, clipRect);
@@ -613,7 +615,14 @@ void GraphicsLayer::dumpProperties(TextStream& ts, int indent, LayerTreeAsTextBe
         writeIndent(ts, indent + 1);
         ts << "(opacity " << m_opacity << ")\n";
     }
-    
+
+#if ENABLE(CSS_COMPOSITING)
+    if (m_blendMode != BlendModeNormal) {
+        writeIndent(ts, indent + 1);
+        ts << "(blendMode " << compositeOperatorName(CompositeSourceOver, m_blendMode) << ")\n";
+    }
+#endif
+
     if (m_usingTiledBacking) {
         writeIndent(ts, indent + 1);
         ts << "(usingTiledLayer " << m_usingTiledBacking << ")\n";
@@ -790,5 +799,3 @@ void showGraphicsLayerTree(const WebCore::GraphicsLayer* layer)
     fprintf(stderr, "%s\n", output.utf8().data());
 }
 #endif
-
-#endif // USE(ACCELERATED_COMPOSITING)

@@ -32,14 +32,6 @@
 #include <objc/objc.h>
 #endif
 
-#if PLATFORM(BLACKBERRY)
-namespace BlackBerry {
-namespace Platform {
-class String;
-}
-}
-#endif
-
 namespace WTF {
 
 class CString;
@@ -74,7 +66,7 @@ intptr_t charactersToIntPtr(const UChar*, size_t, bool* ok = 0); // ignores trai
 // It would be better if these were more consistent with the above functions instead.
 WTF_EXPORT_STRING_API double charactersToDouble(const LChar*, size_t, bool* ok = 0);
 WTF_EXPORT_STRING_API double charactersToDouble(const UChar*, size_t, bool* ok = 0);
-float charactersToFloat(const LChar*, size_t, bool* ok = 0);
+WTF_EXPORT_STRING_API float charactersToFloat(const LChar*, size_t, bool* ok = 0);
 WTF_EXPORT_STRING_API float charactersToFloat(const UChar*, size_t, bool* ok = 0);
 WTF_EXPORT_STRING_API float charactersToFloat(const LChar*, size_t, size_t& parsedLength);
 WTF_EXPORT_STRING_API float charactersToFloat(const UChar*, size_t, size_t& parsedLength);
@@ -120,6 +112,7 @@ public:
     WTF_EXPORT_STRING_API String(const char* characters);
 
     // Construct a string referencing an existing StringImpl.
+    String(StringImpl& impl) : m_impl(&impl) { }
     String(StringImpl* impl) : m_impl(impl) { }
     String(PassRefPtr<StringImpl> impl) : m_impl(impl) { }
     String(PassRef<StringImpl> impl) : m_impl(std::move(impl)) { }
@@ -164,13 +157,6 @@ public:
         return m_impl->length();
     }
 
-    const UChar* characters() const
-    {
-        if (!m_impl)
-            return 0;
-        return m_impl->characters();
-    }
-    
     const LChar* characters8() const
     {
         if (!m_impl)
@@ -189,11 +175,7 @@ public:
 
     // Return characters8() or characters16() depending on CharacterType.
     template <typename CharacterType>
-    inline const CharacterType* getCharacters() const;
-
-    // Like getCharacters() and upconvert if CharacterType is UChar on a 8bit string.
-    template <typename CharacterType>
-    inline const CharacterType* getCharactersWithUpconvert() const;
+    inline const CharacterType* characters() const;
 
     bool is8Bit() const { return m_impl->is8Bit(); }
 
@@ -291,6 +273,7 @@ public:
         { return m_impl ? m_impl->endsWith(s.impl(), caseSensitive) : s.isEmpty(); }
     bool endsWith(UChar character) const
         { return m_impl ? m_impl->endsWith(character) : false; }
+    bool endsWith(char character) const { return endsWith(static_cast<UChar>(character)); }
     template<unsigned matchLength>
     bool endsWith(const char (&prefix)[matchLength], bool caseSensitive = true) const
         { return m_impl ? m_impl->endsWith<matchLength>(prefix, caseSensitive) : !matchLength; }
@@ -302,7 +285,6 @@ public:
     WTF_EXPORT_STRING_API void append(const LChar*, unsigned length);
     WTF_EXPORT_STRING_API void append(const UChar*, unsigned length);
     WTF_EXPORT_STRING_API void insert(const String&, unsigned pos);
-    void insert(const UChar*, unsigned length, unsigned pos);
 
     String& replace(UChar a, UChar b) { if (m_impl) m_impl = m_impl->replace(a, b); return *this; }
     String& replace(UChar a, const String& b) { if (m_impl) m_impl = m_impl->replace(a, b.impl()); return *this; }
@@ -368,7 +350,7 @@ public:
     WTF_EXPORT_STRING_API int toIntStrict(bool* ok = 0, int base = 10) const;
     WTF_EXPORT_STRING_API unsigned toUIntStrict(bool* ok = 0, int base = 10) const;
     WTF_EXPORT_STRING_API int64_t toInt64Strict(bool* ok = 0, int base = 10) const;
-    uint64_t toUInt64Strict(bool* ok = 0, int base = 10) const;
+    WTF_EXPORT_STRING_API uint64_t toUInt64Strict(bool* ok = 0, int base = 10) const;
     intptr_t toIntPtrStrict(bool* ok = 0, int base = 10) const;
 
     WTF_EXPORT_STRING_API int toInt(bool* ok = 0) const;
@@ -412,11 +394,6 @@ public:
     // This conversion maps NULL to "", which loses the meaning of NULL, but we
     // need this mapping because AppKit crashes when passed nil NSStrings.
     operator NSString*() const { if (!m_impl) return @""; return *m_impl; }
-#endif
-
-#if PLATFORM(BLACKBERRY)
-    String(const BlackBerry::Platform::String&);
-    operator BlackBerry::Platform::String() const;
 #endif
 
     WTF_EXPORT_STRING_API static String make8BitFrom16BitSource(const UChar*, size_t);
@@ -530,30 +507,17 @@ String::String(const Vector<UChar, inlineCapacity, OverflowHandler>& vector)
 }
 
 template<>
-inline const LChar* String::getCharacters<LChar>() const
+inline const LChar* String::characters<LChar>() const
 {
     ASSERT(is8Bit());
     return characters8();
 }
 
 template<>
-inline const UChar* String::getCharacters<UChar>() const
+inline const UChar* String::characters<UChar>() const
 {
     ASSERT(!is8Bit());
     return characters16();
-}
-
-template<>
-inline const LChar* String::getCharactersWithUpconvert<LChar>() const
-{
-    ASSERT(is8Bit());
-    return characters8();
-}
-
-template<>
-inline const UChar* String::getCharactersWithUpconvert<UChar>() const
-{
-    return characters();
 }
 
 inline bool String::containsOnlyLatin1() const
@@ -597,12 +561,6 @@ inline bool codePointCompareLessThan(const String& a, const String& b)
     return codePointCompare(a.impl(), b.impl()) < 0;
 }
 
-template<size_t inlineCapacity>
-inline void append(Vector<UChar, inlineCapacity>& vector, const String& string)
-{
-    vector.append(string.characters(), string.length());
-}
-
 template<typename CharacterType>
 inline void appendNumber(Vector<CharacterType>& vector, unsigned char number)
 {
@@ -614,10 +572,12 @@ inline void appendNumber(Vector<CharacterType>& vector, unsigned char number)
     case 3:
         vector[vectorSize + 2] = number % 10 + '0';
         number /= 10;
+        FALLTHROUGH;
 
     case 2:
         vector[vectorSize + 1] = number % 10 + '0';
         number /= 10;
+        FALLTHROUGH;
 
     case 1:
         vector[vectorSize] = number % 10 + '0';
@@ -644,7 +604,7 @@ inline bool String::isAllSpecialCharacters() const
 
     if (is8Bit())
         return WTF::isAllSpecialCharacters<isSpecialCharacter, LChar>(characters8(), len);
-    return WTF::isAllSpecialCharacters<isSpecialCharacter, UChar>(characters(), len);
+    return WTF::isAllSpecialCharacters<isSpecialCharacter, UChar>(characters16(), len);
 }
 
 // StringHash is the default hash for String
@@ -673,7 +633,6 @@ using WTF::CString;
 using WTF::KeepTrailingZeros;
 using WTF::String;
 using WTF::emptyString;
-using WTF::append;
 using WTF::appendNumber;
 using WTF::charactersAreAllASCII;
 using WTF::charactersToIntStrict;

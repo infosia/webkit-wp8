@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimatedLength.h"
 
 #include "SVGAnimateElement.h"
@@ -35,7 +33,7 @@ SVGAnimatedLengthAnimator::SVGAnimatedLengthAnimator(SVGAnimationElement* animat
 
 static inline SVGLength& sharedSVGLength(SVGLengthMode mode, const String& valueAsString)
 {
-    DEFINE_STATIC_LOCAL(SVGLength, sharedLength, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(SVGLength, sharedLength, ());
     sharedLength.setValueAsString(valueAsString, mode, ASSERT_NO_EXCEPTION);
     return sharedLength;
 }
@@ -121,5 +119,3 @@ float SVGAnimatedLengthAnimator::calculateDistance(const String& fromString, con
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -1,3 +1,60 @@
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * gtest/GNUmakefile.am: Removed.
+        * leveldb/GNUmakefile.am: Removed.
+
+2014-03-25  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [EFL] Add ARM64 build support
+        https://bugs.webkit.org/show_bug.cgi?id=130506
+
+        Rubber stamped by Gyuyoung Kim.
+
+        * leveldb/port/atomic_pointer.h: Set ARCH_CPU_ARM_FAMILY when __aarch64__ is defined.
+
+2014-03-14  Landry Breuil  <landry@openbsd.org>
+
+        Fix leveldb build on OpenBSD/NetBSD by using the FreeBSD codepaths.
+        https://bugs.webkit.org/show_bug.cgi?id=129966
+
+        Reviewed by Andreas Kling.
+
+        * leveldb/GNUmakefile.am:
+        * leveldb/port/port_posix.h:
+
+2014-01-12  Andy Estes  <aestes@apple.com>
+
+        Fix the Mac build after r161777.
+
+        * gtest/xcode/Config/General.xcconfig: AspenFamily.xcconfig excludes
+        macosx from SUPPORTED_PLATFORMS, so add it back in ourselves.
+
+2014-01-11  David Kilzer  <ddkilzer@apple.com>
+
+        [iOS] Upstream gtest
+        <http://webkit.org/b/126811>
+
+        Reviewed by Mark Rowe.
+
+        * gtest/xcode/Config/General.xcconfig: Include iOS.xcconfig.
+        * gtest/xcode/Config/iOS.xcconfig: Added.
+        * gtest/xcode/gtest.xcodeproj/project.pbxproj: Add iOS.xcconfig.
+        Sort.
+
+2013-12-13  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Switch WebKit solution to Visual Studio 2013
+        https://bugs.webkit.org/show_bug.cgi?id=125192
+
+        Reviewed by Anders Carlsson.
+
+        * gtest/msvc/gtest-md.vcxproj: Update for VS2013
+
 2013-11-15  Roger Fong  <roger_fong@apple.com>
 
         Unreviewed, gtest project file cleanup.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008, 2013 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006, 2008, 2013 Apple Inc.  All rights reserved.
  * Copyright (C) 2009, 2011 Brent Fulgham.  All rights reserved.
  * Copyright (C) 2009, 2010, 2011 Appcelerator, Inc. All rights reserved.
  * Copyright (C) 2013 Alex Christensen. All rights reserved.
@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,6 +40,10 @@
 
 #if USE(CF)
 #include <CoreFoundation/CFRunLoop.h>
+#endif
+
+#if USE(GLIB)
+#include <glib.h>
 #endif
 
 #include <algorithm>
@@ -73,6 +77,7 @@ typedef _com_ptr_t<_com_IIID<IWebPreferences, &__uuidof(IWebPreferences)>> IWebP
 typedef _com_ptr_t<_com_IIID<IWebPreferencesPrivate, &__uuidof(IWebPreferencesPrivate)>> IWebPreferencesPrivatePtr;
 typedef _com_ptr_t<_com_IIID<IWebView, &__uuidof(IWebView)>> IWebViewPtr;
 typedef _com_ptr_t<_com_IIID<IWebViewPrivate, &__uuidof(IWebViewPrivate)>> IWebViewPrivatePtr;
+typedef _com_ptr_t<_com_IIID<IWebCache, &__uuidof(IWebCache)>> IWebCachePtr;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -386,6 +391,21 @@ BOOL WINAPI DllMain(HINSTANCE dllInstance, DWORD reason, LPVOID)
     return TRUE;
 }
 
+static bool getAppDataFolder(_bstr_t& directory)
+{
+    wchar_t appDataDirectory[MAX_PATH];
+    if (FAILED(SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, 0, 0, appDataDirectory)))
+        return false;
+
+    wchar_t executablePath[MAX_PATH];
+    ::GetModuleFileNameW(0, executablePath, MAX_PATH);
+    ::PathRemoveExtensionW(executablePath);
+
+    directory = _bstr_t(appDataDirectory) + L"\\" + ::PathFindFileNameW(executablePath);
+
+    return true;
+}
+
 static bool setToDefaultPreferences()
 {
     HRESULT hr = gStandardPreferences->QueryInterface(IID_IWebPreferencesPrivate, reinterpret_cast<void**>(&gPrefsPrivate.GetInterfacePtr()));
@@ -412,18 +432,32 @@ static bool setToDefaultPreferences()
     return true;
 }
 
+static bool setCacheFolder()
+{
+    IWebCachePtr webCache;
+
+    HRESULT hr = WebKitCreateInstance(CLSID_WebCache, 0, __uuidof(webCache), reinterpret_cast<void**>(&webCache.GetInterfacePtr()));
+    if (FAILED(hr))
+        return false;
+
+    _bstr_t appDataFolder;
+    if (!getAppDataFolder(appDataFolder))
+        return false;
+
+    appDataFolder += L"\\cache";
+    webCache->setCacheFolder(appDataFolder);
+
+    return true;
+}
+
 void createCrashReport(EXCEPTION_POINTERS* exceptionPointers)
 {
-    wchar_t appDataDirectory[MAX_PATH];
-    if (FAILED(SHGetFolderPathW(0, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, 0, 0, appDataDirectory)))
+    _bstr_t directory;
+
+    if (!getAppDataFolder(directory))
         return;
 
-    wchar_t executablePath[MAX_PATH];
-    ::GetModuleFileNameW(0, executablePath, MAX_PATH);
-    ::PathRemoveExtensionW(executablePath);
-
-    std::wstring directory = std::wstring(appDataDirectory) + L"\\" + PathFindFileNameW(executablePath);
-    if (::SHCreateDirectoryEx(0, directory.c_str(), 0) != ERROR_SUCCESS
+    if (::SHCreateDirectoryEx(0, directory, 0) != ERROR_SUCCESS
         && ::GetLastError() != ERROR_FILE_EXISTS
         && ::GetLastError() != ERROR_ALREADY_EXISTS)
         return;
@@ -544,6 +578,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow)
     if (FAILED(hr))
         goto exit;
 
+    if (!setCacheFolder())
+        goto exit;
+
     gWebHost = new WinLauncherWebHost();
     gWebHost->AddRef();
     hr = gWebView->setFrameLoadDelegate(gWebHost);
@@ -616,6 +653,9 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int nCmdShow)
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
+#if USE(GLIB)
+            g_main_context_iteration(0, false);
+#endif
         }
     } __except(createCrashReport(GetExceptionInformation()), EXCEPTION_EXECUTE_HANDLER) { }
 

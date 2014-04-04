@@ -27,6 +27,7 @@
 
 #include "QualifiedName.h"
 #include "HTMLNames.h"
+#include "SVGNames.h"
 #include "XLinkNames.h"
 #include "XMLNSNames.h"
 #include "XMLNames.h"
@@ -39,19 +40,13 @@
 #include "MathMLNames.h"
 #endif
 
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#endif
-
 namespace WebCore {
 
 static const int staticQualifiedNamesCount = HTMLNames::HTMLTagsCount + HTMLNames::HTMLAttrsCount
 #if ENABLE(MATHML)
     + MathMLNames::MathMLTagsCount + MathMLNames::MathMLAttrsCount
 #endif
-#if ENABLE(SVG)
     + SVGNames::SVGTagsCount + SVGNames::SVGAttrsCount
-#endif
     + XLinkNames::XLinkAttrsCount
     + XMLNSNames::XMLNSAttrsCount
     + XMLNames::XMLAttrsCount;
@@ -79,7 +74,7 @@ struct QNameComponentsTranslator {
 
 static inline QNameSet& qualifiedNameCache()
 {
-    DEFINE_STATIC_LOCAL(QNameSet, nameCache, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(QNameSet, nameCache, ());
     return nameCache;
 }
 
@@ -137,7 +132,7 @@ void QualifiedName::init()
 
 const QualifiedName& nullQName()
 {
-    DEFINE_STATIC_LOCAL(QualifiedName, nullName, (nullAtom, nullAtom, nullAtom));
+    DEPRECATED_DEFINE_STATIC_LOCAL(QualifiedName, nullName, (nullAtom, nullAtom, nullAtom));
     return nullName;
 }
 

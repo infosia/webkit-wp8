@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -91,8 +91,8 @@ PassRefPtr<cairo_surface_t> createCairoGLSurface(const IntSize& size, uint32_t& 
 }
 #endif
 
-ImageBuffer::ImageBuffer(const IntSize& size, float /* resolutionScale */, ColorSpace, RenderingMode renderingMode, bool& success)
-    : m_data(size)
+ImageBuffer::ImageBuffer(const FloatSize& size, float /* resolutionScale */, ColorSpace, RenderingMode renderingMode, bool& success)
+    : m_data(IntSize(size))
     , m_size(size)
     , m_logicalSize(size)
 {
@@ -153,7 +153,7 @@ void ImageBuffer::draw(GraphicsContext* destinationContext, ColorSpace styleColo
 }
 
 void ImageBuffer::drawPattern(GraphicsContext* context, const FloatRect& srcRect, const AffineTransform& patternTransform,
-                              const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator op, const FloatRect& destRect)
+    const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator op, const FloatRect& destRect, BlendMode)
 {
     RefPtr<Image> image = copyImage(DontCopyBackingStore);
     image->drawPattern(context, srcRect, patternTransform, phase, styleColorSpace, op, destRect);
@@ -406,7 +406,6 @@ void ImageBufferData::paintToTextureMapper(TextureMapper* textureMapper, const F
 }
 #endif
 
-#if USE(ACCELERATED_COMPOSITING)
 PlatformLayer* ImageBuffer::platformLayer() const
 {
 #if ENABLE(ACCELERATED_2D_CANVAS)
@@ -415,6 +414,5 @@ PlatformLayer* ImageBuffer::platformLayer() const
 #endif
     return 0;
 }
-#endif
 
 } // namespace WebCore

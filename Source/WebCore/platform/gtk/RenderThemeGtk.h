@@ -1,7 +1,7 @@
 /*
  * This file is part of the WebKit project.
  *
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
  * Copyright (C) 2007 Holger Hans Peter Freyther
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
@@ -44,7 +44,7 @@ public:
     static PassRefPtr<RenderTheme> create();
 
     // A method asking if the theme's controls actually care about redrawing when hovered.
-    virtual bool supportsHover(const RenderStyle* style) const { return true; }
+    virtual bool supportsHover(const RenderStyle*) const { return true; }
 
     // A method asking if the theme is able to draw the focus ring.
     virtual bool supportsFocusRing(const RenderStyle*) const;
@@ -82,12 +82,13 @@ public:
     virtual void systemFont(CSSValueID, FontDescription&) const;
     virtual Color systemColor(CSSValueID) const;
 
-    virtual bool popsMenuBySpaceOrReturn() const OVERRIDE { return true; }
+    virtual bool popsMenuBySpaceOrReturn() const override { return true; }
 
 #if ENABLE(VIDEO)
     virtual String extraMediaControlsStyleSheet();
     virtual String formatMediaControlsCurrentTime(float currentTime, float duration) const;
-    virtual bool supportsClosedCaptioning() const OVERRIDE { return true; }
+    virtual bool supportsClosedCaptioning() const override { return true; }
+    virtual String mediaControlsScript();
 
 #if ENABLE(FULLSCREEN_API)
     virtual String extraFullScreenStyleSheet();
@@ -174,6 +175,9 @@ protected:
     virtual bool paintMediaVolumeSliderTrack(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaVolumeSliderThumb(RenderObject*, const PaintInfo&, const IntRect&);
     virtual bool paintMediaCurrentTime(RenderObject*, const PaintInfo&, const IntRect&);
+#if ENABLE(VIDEO_TRACK)
+    virtual bool paintMediaToggleClosedCaptionsButton(RenderObject*, const PaintInfo&, const IntRect&);
+#endif
 #endif
 
 #if ENABLE(PROGRESS_ELEMENT)
@@ -189,7 +193,7 @@ protected:
     virtual bool paintInnerSpinButton(RenderObject*, const PaintInfo&, const IntRect&);
 
 private:
-    virtual String fileListNameForWidth(const FileList*, const Font&, int width, bool multipleFilesAllowed) const OVERRIDE;
+    virtual String fileListNameForWidth(const FileList*, const Font&, int width, bool multipleFilesAllowed) const override;
 
     void platformInit();
     static void setTextInputBorders(RenderStyle*);

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,6 +26,7 @@
 #include "config.h"
 #include "Settings.h"
 
+#include "AudioSession.h"
 #include "BackForwardController.h"
 #include "CachedResourceLoader.h"
 #include "CookieStorage.h"
@@ -45,6 +46,8 @@
 #include "StorageMap.h"
 #include "TextAutosizer.h"
 #include <limits>
+#include <wtf/NeverDestroyed.h>
+#include <wtf/StdLibExtras.h>
 
 namespace WebCore {
 
@@ -75,7 +78,7 @@ bool Settings::gShouldPaintNativeControls = true;
 bool Settings::gAVFoundationEnabled = false;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 bool Settings::gQTKitEnabled = true;
 #endif
 
@@ -92,6 +95,12 @@ bool Settings::gShouldUseHighResolutionTimers = true;
     
 bool Settings::gShouldRespectPriorityInCSSAttributeSetters = false;
 bool Settings::gLowPowerVideoAudioBufferSizeEnabled = false;
+
+#if PLATFORM(IOS)
+bool Settings::gNetworkDataUsageTrackingEnabled = false;
+bool Settings::gAVKitEnabled = false;
+bool Settings::gShouldOptOutOfNetworkStateObservation = false;
+#endif
 
 // NOTEs
 //  1) EditingMacBehavior comprises Tiger, Leopard, SnowLeopard and iOS builds, as well as QtWebKit when built on Mac;
@@ -116,11 +125,13 @@ static EditingBehaviorType editingBehaviorTypeForPlatform()
 
 #if PLATFORM(IOS)
 static const bool defaultFixedPositionCreatesStackingContext = true;
+static const bool defaultAcceleratedCompositingForFixedPositionEnabled = true;
 static const bool defaultMediaPlaybackAllowsInline = false;
 static const bool defaultMediaPlaybackRequiresUserGesture = true;
 static const bool defaultShouldRespectImageOrientation = true;
 #else
 static const bool defaultFixedPositionCreatesStackingContext = false;
+static const bool defaultAcceleratedCompositingForFixedPositionEnabled = false;
 static const bool defaultMediaPlaybackAllowsInline = true;
 static const bool defaultMediaPlaybackRequiresUserGesture = false;
 static const bool defaultShouldRespectImageOrientation = false;
@@ -135,11 +146,17 @@ static const bool defaultUnifiedTextCheckerEnabled = false;
 static const bool defaultSmartInsertDeleteEnabled = true;
 static const bool defaultSelectTrailingWhitespaceEnabled = false;
 
+// This amount of time must have elapsed before we will even consider scheduling a layout without a delay.
+// FIXME: For faster machines this value can really be lowered to 200. 250 is adequate, but a little high
+// for dual G5s. :)
+static const auto layoutScheduleThreshold = std::chrono::milliseconds(250);
+
 Settings::Settings(Page* page)
     : m_page(0)
     , m_mediaTypeOverride("screen")
     , m_fontGenericFamilies(std::make_unique<FontGenericFamilies>())
     , m_storageBlockingPolicy(SecurityOrigin::AllowAllStorage)
+    , m_layoutInterval(layoutScheduleThreshold)
 #if ENABLE(TEXT_AUTOSIZING)
     , m_textAutosizingFontScaleFactor(1)
 #if HACK_FORCE_TEXT_AUTOSIZING_ON_DESKTOP
@@ -154,25 +171,20 @@ Settings::Settings(Page* page)
     , m_isJavaEnabled(false)
     , m_isJavaEnabledForLocalFiles(true)
     , m_loadsImagesAutomatically(false)
-    , m_privateBrowsingEnabled(false)
     , m_areImagesEnabled(true)
     , m_arePluginsEnabled(false)
     , m_isScriptEnabled(false)
     , m_needsAdobeFrameReloadingQuirk(false)
     , m_usesPageCache(false)
     , m_fontRenderingMode(0)
-    , m_isCSSCustomFilterEnabled(false)
-#if ENABLE(CSS_STICKY_POSITION)
-    , m_cssStickyPositionEnabled(true)
-#endif
     , m_showTiledScrollingIndicator(false)
     , m_tiledBackingStoreEnabled(false)
+    , m_backgroundShouldExtendBeyondPage(false)
     , m_dnsPrefetchingEnabled(false)
 #if ENABLE(TOUCH_EVENTS)
     , m_touchEventEmulationEnabled(false)
 #endif
     , m_scrollingPerformanceLoggingEnabled(false)
-    , m_aggressiveTileRetentionEnabled(false)
     , m_timeWithoutMouseMovementBeforeHidingControls(3)
     , m_setImageLoadingSettingsTimer(this, &Settings::imageLoadingSettingsTimerFired)
 #if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
@@ -211,14 +223,14 @@ double Settings::hiddenPageDOMTimerAlignmentInterval()
     return gHiddenPageDOMTimerAlignmentInterval;
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 bool Settings::shouldEnableScreenFontSubstitutionByDefault()
 {
     return true;
 }
 #endif
 
-#if !PLATFORM(MAC) && !PLATFORM(BLACKBERRY)
+#if !PLATFORM(COCOA)
 void Settings::initializeDefaultFontFamilies()
 {
     // Other platforms can set up fonts from a client, but on Mac, we want it in WebCore to share code between WebKit1 and WebKit2.
@@ -376,7 +388,13 @@ void Settings::imageLoadingSettingsTimerFired(Timer<Settings>*)
 
 void Settings::setScriptEnabled(bool isScriptEnabled)
 {
+    if (m_isScriptEnabled == isScriptEnabled)
+        return;
+
     m_isScriptEnabled = isScriptEnabled;
+#if PLATFORM(IOS)
+    m_page->setNeedsRecalcStyleInAllFrames();
+#endif
     InspectorInstrumentation::scriptsEnabled(m_page, m_isScriptEnabled);
 }
 
@@ -405,15 +423,6 @@ void Settings::setPluginsEnabled(bool arePluginsEnabled)
 
     m_arePluginsEnabled = arePluginsEnabled;
     Page::refreshPlugins(false);
-}
-
-void Settings::setPrivateBrowsingEnabled(bool privateBrowsingEnabled)
-{
-    if (m_privateBrowsingEnabled == privateBrowsingEnabled)
-        return;
-
-    m_privateBrowsingEnabled = privateBrowsingEnabled;
-    m_page->privateBrowsingStateChanged();
 }
 
 void Settings::setUserStyleSheetLocation(const URL& userStyleSheetLocation)
@@ -463,14 +472,16 @@ double Settings::defaultDOMTimerAlignmentInterval()
     return gDefaultDOMTimerAlignmentInterval;
 }
 
-void Settings::setDOMTimerAlignmentInterval(double interval)
-{
-    m_page->setTimerAlignmentInterval(interval);
-}
-
 double Settings::domTimerAlignmentInterval() const
 {
     return m_page->timerAlignmentInterval();
+}
+
+void Settings::setLayoutInterval(std::chrono::milliseconds layoutInterval)
+{
+    // FIXME: It seems weird that this function may disregard the specified layout interval.
+    // We should either expose layoutScheduleThreshold or better communicate this invariant.
+    m_layoutInterval = std::max(layoutInterval, layoutScheduleThreshold);
 }
 
 void Settings::setUsesPageCache(bool usesPageCache)
@@ -556,6 +567,16 @@ void Settings::setTiledBackingStoreEnabled(bool enabled)
 #endif
 }
 
+void Settings::setBackgroundShouldExtendBeyondPage(bool shouldExtend)
+{
+    if (m_backgroundShouldExtendBeyondPage == shouldExtend)
+        return;
+
+    m_backgroundShouldExtendBeyondPage = shouldExtend;
+
+    m_page->mainFrame().view()->setBackgroundExtendsBeyondPage(shouldExtend);
+}
+
 #if USE(AVFOUNDATION)
 void Settings::setAVFoundationEnabled(bool enabled)
 {
@@ -567,7 +588,7 @@ void Settings::setAVFoundationEnabled(bool enabled)
 }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 void Settings::setQTKitEnabled(bool enabled)
 {
     if (gQTKitEnabled == enabled)
@@ -595,11 +616,6 @@ void Settings::setScrollingPerformanceLoggingEnabled(bool enabled)
 
     if (m_page->mainFrame().view())
         m_page->mainFrame().view()->setScrollingPerformanceLoggingEnabled(enabled);
-}
-    
-void Settings::setAggressiveTileRetentionEnabled(bool enabled)
-{
-    m_aggressiveTileRetentionEnabled = enabled;
 }
 
 void Settings::setMockScrollbarsEnabled(bool flag)
@@ -640,7 +656,7 @@ void Settings::setHiddenPageDOMTimerThrottlingEnabled(bool flag)
     if (m_hiddenPageDOMTimerThrottlingEnabled == flag)
         return;
     m_hiddenPageDOMTimerThrottlingEnabled = flag;
-    m_page->hiddenPageDOMTimerThrottlingStateChanged();
+    m_page->pageThrottler().hiddenPageDOMTimerThrottlingStateChanged();
 }
 #endif
 
@@ -667,5 +683,43 @@ void Settings::setLowPowerVideoAudioBufferSizeEnabled(bool flag)
 {
     gLowPowerVideoAudioBufferSizeEnabled = flag;
 }
+
+#if PLATFORM(IOS)
+void Settings::setAudioSessionCategoryOverride(unsigned sessionCategory)
+{
+    AudioSession::sharedSession().setCategoryOverride(static_cast<AudioSession::CategoryType>(sessionCategory));
+}
+
+unsigned Settings::audioSessionCategoryOverride()
+{
+    return AudioSession::sharedSession().categoryOverride();
+}
+
+void Settings::setNetworkDataUsageTrackingEnabled(bool trackingEnabled)
+{
+    gNetworkDataUsageTrackingEnabled = trackingEnabled;
+}
+
+bool Settings::networkDataUsageTrackingEnabled()
+{
+    return gNetworkDataUsageTrackingEnabled;
+}
+
+static String& sharedNetworkInterfaceNameGlobal()
+{
+    static NeverDestroyed<String> networkInterfaceName;
+    return networkInterfaceName;
+}
+
+void Settings::setNetworkInterfaceName(const String& networkInterfaceName)
+{
+    sharedNetworkInterfaceNameGlobal() = networkInterfaceName;
+}
+
+const String& Settings::networkInterfaceName()
+{
+    return sharedNetworkInterfaceNameGlobal();
+}
+#endif
 
 } // namespace WebCore

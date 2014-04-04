@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -215,6 +215,10 @@ private:
     // FIXME: Rename this function to something more semantic.
     bool passesFileCheck(const SecurityOrigin*) const;
     bool isThirdParty(const SecurityOrigin*) const;
+
+    // This method checks that the scheme for this origin is an HTTP-family
+    // scheme, e.g. HTTP and HTTPS.
+    bool isHTTPFamily() const { return m_protocol == "http" || m_protocol == "https"; }
     
     enum ShouldAllowFromThirdParty { AlwaysAllowFromThirdParty, MaybeAllowFromThirdParty };
     bool canAccessStorage(const SecurityOrigin*, ShouldAllowFromThirdParty = MaybeAllowFromThirdParty) const;

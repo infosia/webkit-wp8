@@ -3,6 +3,7 @@ DOM/TraverseChildNodes.html
 Interactive/SelectAll.html
 Interactive/CopyAll.html
 Interactive/DeletingInPasswordField.html
+Bindings/update-name-getter.html
 
 # Not enabled by default on some ports
 Mutation
@@ -82,9 +83,14 @@ Layout/RegionsAutoMaxHeight.html
 Layout/RegionsFixed.html
 Layout/RegionsFixedShort.html
 Layout/RegionsSelection.html
+Layout/RegionsSelectionMixedContent.html
+Layout/RegionsSelectAllMixedContent.html
 
 # https://bugs.webkit.org/show_bug.cgi?id=113811#c2
 Layout/LineLayoutJapanese.html
 
-# New DOM benchmark is not ready for the prime time yet.
-DoYouEvenBench
+# Don't run the interactive runner. We run Full.html
+DoYouEvenBench/InteractiveRunner.html
+
+# We skip Shapes tests for now: https://bugs.webkit.org/show_bug.cgi?id=128188
+Layout/Shapes

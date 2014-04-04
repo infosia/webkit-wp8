@@ -54,6 +54,7 @@
 #include "RenderListItem.h"
 #include "RenderTreeAsText.h"
 #include "RenderView.h"
+#include "SVGSMILElement.h"
 #include "ScriptController.h"
 #include "SubstituteData.h"
 #include "TextIterator.h"
@@ -77,9 +78,6 @@
 #include <glib/gi18n-lib.h>
 #include <wtf/text/CString.h>
 
-#if ENABLE(SVG)
-#include "SVGSMILElement.h"
-#endif
 
 /**
  * SECTION:webkitwebframe
@@ -923,7 +921,7 @@ static void draw_page_callback(GtkPrintOperation*, GtkPrintContext* gtkPrintCont
     corePrintContext->spoolPage(graphicsContext, pageNumber, pageWidth);
 }
 
-static void end_print_callback(GtkPrintOperation* op, GtkPrintContext* context, gpointer user_data)
+static void end_print_callback(GtkPrintOperation*, GtkPrintContext*, gpointer user_data)
 {
     PrintContext* printContext = reinterpret_cast<PrintContext*>(user_data);
     printContext->end();

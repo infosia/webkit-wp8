@@ -55,7 +55,7 @@ void computeMD5HashStringForCairoSurface(cairo_surface_t* surface, char hashStri
         md5Context.addBytes(bitmapData, 4 * pixelsWide);
         bitmapData += bytesPerRow;
     }
-    Vector<uint8_t, 16> hash;
+    MD5::Digest hash;
     md5Context.checksum(hash);
 
     snprintf(hashString, 33, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
@@ -108,7 +108,7 @@ static void paintRepaintRectOverlay(cairo_surface_t* surface, WKArrayRef repaint
 
 void TestInvocation::dumpPixelsAndCompareWithExpected(WKImageRef wkImage, WKArrayRef repaintRects)
 {
-#if USE(ACCELERATED_COMPOSITING) && PLATFORM(EFL)
+#if PLATFORM(EFL)
     UNUSED_PARAM(wkImage);
     cairo_surface_t* surface = WKImageCreateCairoSurface(TestController::shared().mainWebView()->windowSnapshotImage().get());
 #else

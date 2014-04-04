@@ -43,6 +43,26 @@ public:
     }
 };
 
+inline static WebCore::PlatformTouchPoint::State toPlatformTouchPointState(Evas_Touch_Point_State type)
+{
+    switch (type) {
+    case EVAS_TOUCH_POINT_UP:
+        return WebCore::PlatformTouchPoint::TouchReleased;
+    case EVAS_TOUCH_POINT_DOWN:
+        return WebCore::PlatformTouchPoint::TouchPressed;
+    case EVAS_TOUCH_POINT_MOVE:
+        return WebCore::PlatformTouchPoint::TouchMoved;
+    case EVAS_TOUCH_POINT_STILL:
+        return WebCore::PlatformTouchPoint::TouchStationary;
+    case EVAS_TOUCH_POINT_CANCEL:
+        return WebCore::PlatformTouchPoint::TouchCancelled;
+    }
+
+    ASSERT_NOT_REACHED();
+
+    return WebCore::PlatformTouchPoint::TouchCancelled;
+}
+
 class WebKitPlatformTouchEvent : public WebCore::PlatformTouchEvent {
 public:
     WebKitPlatformTouchEvent(const Eina_List* points, const WebCore::IntPoint& pos, Ewk_Touch_Event_Type action, unsigned modifiers)
@@ -81,7 +101,7 @@ public:
         EINA_LIST_FOREACH(points, list, item) {
             Ewk_Touch_Point* point = static_cast<Ewk_Touch_Point*>(item);
             WebCore::IntPoint pnt = WebCore::IntPoint(point->x - pos.x(), point->y - pos.y());
-            m_touchPoints.append(WebKitPlatformTouchPoint(point->id, pnt, static_cast<WebCore::PlatformTouchPoint::State>(point->state)));
+            m_touchPoints.append(WebKitPlatformTouchPoint(point->id, pnt, toPlatformTouchPointState(point->state)));
         }
     }
 };

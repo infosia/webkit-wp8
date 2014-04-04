@@ -26,8 +26,6 @@
 #ifndef DFGNodeFlags_h
 #define DFGNodeFlags_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include <wtf/PrintStream.h>
@@ -68,9 +66,7 @@ namespace JSC { namespace DFG {
 
 #define NodeRelevantToOSR                0x4000
 
-#define NodeExitsForward                 0x8000
-
-#define NodeIsStaticConstant            0x10000 // Used only by the parser, to determine if a constant arose statically and hence could be folded at parse-time.
+#define NodeIsFlushed                    0x8000 // Used by Graph::computeIsFlushed(), will tell you which local nodes are backwards-reachable from a Flush.
 
 typedef uint32_t NodeFlags;
 

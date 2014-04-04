@@ -82,7 +82,7 @@
 - (void)addInputString:(NSString *)str withFlags:(NSUInteger)flags;
 - (void)deleteFromInput;
 
-// Accelerated compositing; only called if USE(ACCELERATED_COMPOSITING) is defined
+// Accelerated compositing
 - (void)_webthread_webView:(WebView*)webView attachRootLayer:(id)rootLayer;
 - (void)webViewDidCommitCompositingLayerChanges:(WebView*)webView;
 
@@ -108,6 +108,8 @@
 - (BOOL)hasRichlyEditableSelection;
 - (BOOL)performsTwoStepPaste:(DOMDocumentFragment*)fragment;
 - (NSInteger)getPasteboardChangeCount;
+- (CGPoint)interactionLocation;
+- (void)showPlaybackTargetPicker:(BOOL)hasVideo fromRect:(CGRect)elementRect;
 
 - (BOOL)isUnperturbedDictationResultMarker:(id)metadataForMarker;
 - (void)webView:(WebView *)webView addMessageToConsole:(NSDictionary *)message withSource:(NSString *)source;

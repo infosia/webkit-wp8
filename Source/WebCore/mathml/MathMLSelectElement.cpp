@@ -28,8 +28,13 @@
 
 #if ENABLE(MATHML)
 
+#include "Event.h"
+#include "HTMLElement.h"
+#include "HTMLNames.h"
 #include "MathMLNames.h"
 #include "RenderMathMLRow.h"
+#include "SVGElement.h"
+#include "SVGNames.h"
 
 namespace WebCore {
 
@@ -46,9 +51,32 @@ PassRefPtr<MathMLSelectElement> MathMLSelectElement::create(const QualifiedName&
     return adoptRef(new MathMLSelectElement(tagName, document));
 }
 
-RenderElement* MathMLSelectElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> MathMLSelectElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderMathMLRow(*this, std::move(style));
+    return createRenderer<RenderMathMLRow>(*this, std::move(style));
+}
+
+//  We recognize the following values for the encoding attribute of the <semantics> element:
+//
+// - "MathML-Presentation", which is mentioned in the MathML 3 recommendation.
+// - "SVG1.1" which is mentioned in the W3C note.
+//   http://www.w3.org/Math/Documents/Notes/graphics.xml
+// - Other MIME Content-Types for MathML, SVG and HTML.
+//
+// We exclude "application/mathml+xml" which is ambiguous about whether it is Presentation or Content MathML. Authors must use a more explicit encoding value.
+bool MathMLSelectElement::isMathMLEncoding(const AtomicString& value)
+{
+    return value == "application/mathml-presentation+xml" || value == "MathML-Presentation";
+}
+
+bool MathMLSelectElement::isSVGEncoding(const AtomicString& value)
+{
+    return value == "image/svg+xml" || value == "SVG1.1";
+}
+
+bool MathMLSelectElement::isHTMLEncoding(const AtomicString& value)
+{
+    return value == "application/xhtml+xml" || value == "text/html";
 }
 
 bool MathMLSelectElement::childShouldCreateRenderer(const Node& child) const
@@ -68,44 +96,106 @@ void MathMLSelectElement::childrenChanged(const ChildChange& change)
     MathMLInlineContainerElement::childrenChanged(change);
 }
 
-void MathMLSelectElement::attributeChanged(const QualifiedName& name, const AtomicString& newValue, AttributeModificationReason reason)
+void MathMLSelectElement::attributeChanged(const QualifiedName& name, const AtomicString& oldValue, const AtomicString& newValue, AttributeModificationReason reason)
 {
-    if (hasLocalName(mactionTag) && (name == MathMLNames::actiontypeAttr || name == MathMLNames::selectionAttr))
+    if (hasTagName(mactionTag) && (name == MathMLNames::actiontypeAttr || name == MathMLNames::selectionAttr))
         updateSelectedChild();
 
-    MathMLInlineContainerElement::attributeChanged(name, newValue, reason);
+    MathMLInlineContainerElement::attributeChanged(name, oldValue, newValue, reason);
+}
+
+int MathMLSelectElement::getSelectedActionChildAndIndex(Element*& selectedChild)
+{
+    ASSERT(hasTagName(mactionTag));
+
+    // We "round up or down to the closest allowable value" of the selection attribute, as suggested by the MathML specification.
+    selectedChild = firstElementChild();
+    if (!selectedChild)
+        return 1;
+
+    int selection = fastGetAttribute(MathMLNames::selectionAttr).toInt();
+    int i;
+    for (i = 1; i < selection; i++) {
+        Element* nextChild = selectedChild->nextElementSibling();
+        if (!nextChild)
+            break;
+        selectedChild = nextChild;
+    }
+
+    return i;
+}
+
+Element* MathMLSelectElement::getSelectedActionChild()
+{
+    ASSERT(hasTagName(mactionTag));
+
+    Element* child = firstElementChild();
+    if (!child)
+        return child;
+
+    // The value of the actiontype attribute is case-sensitive.
+    const AtomicString& actiontype = fastGetAttribute(MathMLNames::actiontypeAttr);
+    if (actiontype == "statusline")
+        // FIXME: implement user interaction for the "statusline" action type (http://wkbug/124922).
+        { }
+    else if (actiontype == "tooltip")
+        // FIXME: implement user interaction for the "tooltip" action type (http://wkbug/124921).
+        { }
+    else {
+        // For the "toggle" action type or any unknown action type, we rely on the value of the selection attribute to determine the visible child.
+        getSelectedActionChildAndIndex(child);
+    }
+
+    return child;
+}
+
+Element* MathMLSelectElement::getSelectedSemanticsChild()
+{
+    ASSERT(hasTagName(semanticsTag));
+
+    Element* child = firstElementChild();
+    if (!child)
+        return child;
+
+    if (!child->isMathMLElement() || !toMathMLElement(child)->isPresentationMathML()) { 
+        // The first child is not a presentation MathML element. Hence we move to the second child and start searching an annotation child that could be displayed.
+        child = child->nextElementSibling();
+    } else if (!toMathMLElement(child)->isSemanticAnnotation()) {
+        // The first child is a presentation MathML but not an annotation, so we can just display it.
+        return child;
+    }
+    // Otherwise, the first child is an <annotation> or <annotation-xml> element. This is invalid, but some people use this syntax so we take care of this case too and start the search from this first child.
+
+    for ( ; child; child = child->nextElementSibling()) {
+        if (!child->isMathMLElement())
+            continue;
+
+        if (child->hasTagName(MathMLNames::annotationTag)) {
+            // If the <annotation> element has an src attribute then it is a reference to arbitrary binary data and it is not clear whether we can display it. Hence we just ignore the annotation.
+            if (child->hasAttribute(MathMLNames::srcAttr))
+                continue;
+            // Otherwise, we assume it is a text annotation that can always be displayed and we stop here.
+            return child;
+        }
+
+        if (child->hasTagName(MathMLNames::annotation_xmlTag)) {
+            // If the <annotation-xml> element has an src attribute then it is a reference to arbitrary binary data and it is not clear whether we can display it. Hence we just ignore the annotation.
+            if (child->hasAttribute(MathMLNames::srcAttr))
+                continue;
+            // If the <annotation-xml> element has an encoding attribute describing presentation MathML, SVG or HTML we assume the content can be displayed and we stop here.
+            const AtomicString& value = child->fastGetAttribute(MathMLNames::encodingAttr);
+            if (isMathMLEncoding(value) || isSVGEncoding(value) || isHTMLEncoding(value))
+                return child;
+        }
+    }
+
+    // We fallback to the first child.
+    return firstElementChild();
 }
 
 void MathMLSelectElement::updateSelectedChild()
 {
-    Element* newSelectedChild = firstElementChild();
-
-    if (newSelectedChild) {
-        if (hasLocalName(mactionTag)) {
-            // The value of the actiontype attribute is case-sensitive.
-            const AtomicString& actiontype = fastGetAttribute(MathMLNames::actiontypeAttr);
-            if (actiontype == "statusline")
-                // FIXME: implement user interaction for the "statusline" action type (http://wkbug/124922).
-                { }
-            else if (actiontype == "tooltip")
-                // FIXME: implement user interaction for the "tooltip" action type (http://wkbug/124921).
-                { }
-            else {
-                // FIXME: implement user interaction for the "toggle" action type (http://wkbug/120059).
-                // For the "toggle" action type or any unknown action type, we rely on the value of the selection attribute to determine the visible child.
-                int selection = fastGetAttribute(MathMLNames::selectionAttr).toInt();
-                for (int i = 1; i < selection; i++) {
-                    Element* nextChild = newSelectedChild->nextElementSibling();
-                    if (!nextChild)
-                        break;
-                    newSelectedChild = nextChild;
-                }
-            }
-        } else {
-            ASSERT(hasLocalName(semanticsTag));
-            // FIXME: implement Gecko's selection algorithm for <semantics> (http://wkbug/100626).
-        }
-    }
+    Element* newSelectedChild = hasTagName(mactionTag) ? getSelectedActionChild() : getSelectedSemanticsChild();
 
     if (m_selectedChild == newSelectedChild)
         return;
@@ -115,6 +205,38 @@ void MathMLSelectElement::updateSelectedChild()
 
     m_selectedChild = newSelectedChild;
     setNeedsStyleRecalc();
+}
+
+void MathMLSelectElement::defaultEventHandler(Event* event)
+{
+    if (event->type() == eventNames().clickEvent) {
+        if (fastGetAttribute(MathMLNames::actiontypeAttr) == "toggle") {
+            toggle();
+            event->setDefaultHandled();
+            return;
+        }
+    }
+
+    MathMLInlineContainerElement::defaultEventHandler(event);
+}
+
+bool MathMLSelectElement::willRespondToMouseClickEvents()
+{
+    return fastGetAttribute(MathMLNames::actiontypeAttr) == "toggle";
+}
+
+void MathMLSelectElement::toggle()
+{
+    // Select the successor of the currently selected child
+    // or the first child if the currently selected child is the last.
+    Element* selectedChild;
+    int newSelectedChildIndex = getSelectedActionChildAndIndex(selectedChild) + 1;
+    if (!selectedChild || !selectedChild->nextElementSibling())
+        newSelectedChildIndex = 1;
+
+    // We update the attribute value of the selection attribute.
+    // This will also call MathMLSelectElement::attributeChanged to update the selected child.
+    setAttribute(MathMLNames::selectionAttr, AtomicString::number(newSelectedChildIndex));
 }
 
 }

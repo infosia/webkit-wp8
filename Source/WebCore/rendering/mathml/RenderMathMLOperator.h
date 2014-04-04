@@ -28,87 +28,153 @@
 
 #if ENABLE(MATHML)
 
+#include "GlyphPage.h"
 #include "MathMLElement.h"
-#include "RenderMathMLBlock.h"
-#include <wtf/unicode/CharacterNames.h>
+#include "RenderMathMLToken.h"
 
 namespace WebCore {
     
-class RenderMathMLOperator FINAL : public RenderMathMLBlock {
+namespace MathMLOperatorDictionary {
+
+enum Form { Infix, Prefix, Postfix };
+enum Flag {
+    Accent = 0x1, // FIXME: This must be used to implement accentunder/accent on munderover (https://bugs.webkit.org/show_bug.cgi?id=124826).
+    Fence = 0x2, // This has no visual effect but allows to expose semantic information via the accessibility tree.
+    LargeOp = 0x4, // FIXME: This must be used to implement displaystyle (https://bugs.webkit.org/show_bug.cgi?id=118737)
+    MovableLimits = 0x8, // FIXME: This must be used to implement displaystyle  (https://bugs.webkit.org/show_bug.cgi?id=118737).
+    Separator = 0x10, // This has no visual effect but allows to expose semantic information via the accessibility tree.
+    Stretchy = 0x20,
+    Symmetric = 0x40
+};
+struct Entry {
+    UChar character;
+    Form form;
+    unsigned short lspace;
+    unsigned short rspace;
+    unsigned short flags;
+};
+
+}
+
+class RenderMathMLOperator final : public RenderMathMLToken {
 public:
     RenderMathMLOperator(MathMLElement&, PassRef<RenderStyle>);
-    RenderMathMLOperator(MathMLElement&, PassRef<RenderStyle>, UChar operatorChar);
+    RenderMathMLOperator(Document&, PassRef<RenderStyle>, const String& operatorString, MathMLOperatorDictionary::Form, MathMLOperatorDictionary::Flag);
 
-    MathMLElement& element() { return toMathMLElement(nodeForNonAnonymous()); }
-
-    void stretchToHeight(int pixelHeight);
-    int stretchHeight() { return m_stretchHeight; }
-    float expandedStretchHeight() const;
+    void stretchTo(LayoutUnit heightAboveBaseline, LayoutUnit depthBelowBaseline);
+    LayoutUnit stretchSize() const { return m_stretchHeightAboveBaseline + m_stretchDepthBelowBaseline; }
     
-    enum OperatorType { Default, Separator, Fence };
-    void setOperatorType(OperatorType type) { m_operatorType = type; }
-    OperatorType operatorType() const { return m_operatorType; }
-    void updateStyle();
+    bool hasOperatorFlag(MathMLOperatorDictionary::Flag flag) const { return m_operatorFlags & flag; }
+
+    void updateStyle() override final;
 
     void paint(PaintInfo&, const LayoutPoint&);
 
-    struct StretchyCharacter {
-        UChar character;
-        UChar topGlyph;
-        UChar extensionGlyph;
-        UChar bottomGlyph;
-        UChar middleGlyph;
-    };
-
-    virtual void updateFromElement() OVERRIDE;
+    void updateTokenContent(const String& operatorString);
+    void updateTokenContent() override final;
+    void updateOperatorProperties();
 
 private:
-    virtual const char* renderName() const OVERRIDE { return isAnonymous() ? "RenderMathMLOperator (anonymous)" : "RenderMathMLOperator"; }
-    virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle) OVERRIDE;
-    virtual void paintChildren(PaintInfo& forSelf, const LayoutPoint&, PaintInfo& forChild, bool usePrintRect) OVERRIDE;
-    virtual bool isRenderMathMLOperator() const OVERRIDE { return true; }
-    virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const OVERRIDE;
-    virtual void computePreferredLogicalWidths() OVERRIDE;
-    virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const OVERRIDE;
-    virtual int firstLineBaseline() const OVERRIDE;
-    virtual RenderMathMLOperator* unembellishedOperator() OVERRIDE { return this; }
+    virtual const char* renderName() const override { return isAnonymous() ? "RenderMathMLOperator (anonymous)" : "RenderMathMLOperator"; }
+    virtual void paintChildren(PaintInfo& forSelf, const LayoutPoint&, PaintInfo& forChild, bool usePrintRect) override;
+    virtual bool isRenderMathMLOperator() const override { return true; }
+    bool isFencedOperator() { return isAnonymous(); }
+    // The following operators are invisible: U+2061 FUNCTION APPLICATION, U+2062 INVISIBLE TIMES, U+2063 INVISIBLE SEPARATOR, U+2064 INVISIBLE PLUS.
+    bool isInvisibleOperator() const { return 0x2061 <= m_operator && m_operator <= 0x2064; }
+    virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const override;
+    virtual void computePreferredLogicalWidths() override;
+    virtual void computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit logicalTop, LogicalExtentComputedValues&) const override;
+    virtual int firstLineBaseline() const override;
+    virtual RenderMathMLOperator* unembellishedOperator() override { return this; }
+    void rebuildTokenContent(const String& operatorString);
+    void updateFromElement() override;
 
     bool shouldAllowStretching(UChar& characterForStretching);
-    StretchyCharacter* findAcceptableStretchyCharacter(UChar);
 
-    FloatRect glyphBoundsForCharacter(UChar);
-    float glyphHeightForCharacter(UChar);
-    float advanceForCharacter(UChar);
+    FloatRect boundsForGlyph(const GlyphData&);
+    float heightForGlyph(const GlyphData&);
+    float advanceForGlyph(const GlyphData&);
 
-    enum CharacterPaintTrimming {
+    // FIXME: DrawSizeVariant is not implemented yet.
+    enum DrawMode {
+        DrawNormal, DrawSizeVariant, DrawGlyphAssembly
+    };
+    class StretchyData {
+    public:
+        DrawMode mode() const { return m_mode; }
+        GlyphData variant() const { return m_data[0]; }
+        GlyphData top() const { return m_data[0]; }
+        GlyphData extension() const { return m_data[1]; }
+        GlyphData bottom() const { return m_data[2]; }
+        GlyphData middle() const { return m_data[3]; }
+
+        void setNormalMode()
+        {
+            m_mode = DrawNormal;
+        }
+        void setSizeVariantMode(const GlyphData& variant)
+        {
+            m_mode = DrawSizeVariant;
+            m_data[0] = variant;
+        }
+        void setGlyphAssemblyMode(const GlyphData& top, const GlyphData& extension, const GlyphData& bottom, const GlyphData& middle)
+        {
+            m_mode = DrawGlyphAssembly;
+            m_data[0] = top;
+            m_data[1] = extension;
+            m_data[2] = bottom;
+            m_data[3] = middle;
+        }
+        StretchyData()
+            : m_mode(DrawNormal) { }
+        StretchyData(const StretchyData& data)
+        {
+            switch (data.m_mode) {
+            case DrawNormal:
+                setNormalMode();
+                break;
+            case DrawSizeVariant:
+                setSizeVariantMode(data.variant());
+                break;
+            case DrawGlyphAssembly:
+                setGlyphAssemblyMode(data.top(), data.extension(), data.bottom(), data.middle());
+                break;
+            }
+        }
+    private:
+        DrawMode m_mode;
+        // FIXME: For OpenType fonts with a MATH table all the glyphs are from the same font, so we would only need to store the glyph indices here.
+        GlyphData m_data[4];
+    };
+    StretchyData findStretchyData(UChar, float* maximumGlyphWidth);
+    
+    enum GlyphPaintTrimming {
         TrimTop,
         TrimBottom,
         TrimTopAndBottom,
     };
 
-    LayoutRect paintCharacter(PaintInfo&, UChar, const LayoutPoint& origin, CharacterPaintTrimming);
+    LayoutRect paintGlyph(PaintInfo&, const GlyphData&, const LayoutPoint& origin, GlyphPaintTrimming);
     void fillWithExtensionGlyph(PaintInfo&, const LayoutPoint& from, const LayoutPoint& to);
 
-    int m_stretchHeight;
-    bool m_isStretched;
+    LayoutUnit m_stretchHeightAboveBaseline;
+    LayoutUnit m_stretchDepthBelowBaseline;
 
     UChar m_operator;
-    OperatorType m_operatorType;
-    StretchyCharacter* m_stretchyCharacter;
+    StretchyData m_stretchyData;
+    MathMLOperatorDictionary::Form m_operatorForm;
+    unsigned short m_operatorFlags;
+    LayoutUnit m_leadingSpace;
+    LayoutUnit m_trailingSpace;
+    LayoutUnit m_minSize;
+    LayoutUnit m_maxSize;
+
+    void setOperatorFlagFromAttribute(MathMLOperatorDictionary::Flag, const QualifiedName&);
+    void setOperatorPropertiesFromOpDictEntry(const MathMLOperatorDictionary::Entry*);
+    void SetOperatorProperties();
 };
 
-RENDER_OBJECT_TYPE_CASTS(RenderMathMLOperator, isRenderMathMLOperator());
-
-template<> inline bool isRendererOfType<const RenderMathMLOperator>(const RenderObject& renderer) { return renderer.isRenderMathMLOperator(); }
-
-inline UChar convertHyphenMinusToMinusSign(UChar glyph)
-{
-    // When rendered as a mathematical operator, minus glyph should be larger.
-    if (glyph == hyphenMinus)
-        return minusSign;
-    
-    return glyph;
-}
+RENDER_OBJECT_TYPE_CASTS(RenderMathMLOperator, isRenderMathMLOperator())
 
 }
 

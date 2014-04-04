@@ -35,6 +35,7 @@
 
 #include "URLRegistry.h"
 #include <wtf/HashMap.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/text/StringHash.h>
 
@@ -43,15 +44,16 @@ namespace WebCore {
 class URL;
 class MediaSource;
 
-class MediaSourceRegistry FINAL : public URLRegistry {
+class MediaSourceRegistry final : public URLRegistry {
+    friend class NeverDestroyed<MediaSourceRegistry>;
 public:
     // Returns a single instance of MediaSourceRegistry.
     static MediaSourceRegistry& registry();
 
     // Registers a blob URL referring to the specified media source.
-    virtual void registerURL(SecurityOrigin*, const URL&, URLRegistrable*) OVERRIDE;
-    virtual void unregisterURL(const URL&) OVERRIDE;
-    virtual URLRegistrable* lookup(const String&) const OVERRIDE;
+    virtual void registerURL(SecurityOrigin*, const URL&, URLRegistrable*) override;
+    virtual void unregisterURL(const URL&) override;
+    virtual URLRegistrable* lookup(const String&) const override;
 
 private:
     MediaSourceRegistry();

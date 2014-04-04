@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2006 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) 2006 Zack Rusin <zack@kde.org>
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2008 INdT - Instituto Nokia de Tecnologia
  * Copyright (C) 2009-2010 ProFUSION embedded systems
  * Copyright (C) 2009-2010 Samsung Electronics
@@ -17,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,6 +40,7 @@
 #include "TextCheckerClient.h"
 #include <wtf/Deque.h>
 #include <wtf/Forward.h>
+#include <wtf/text/StringView.h>
 
 struct Ewk_Should_Insert_Node_Event {
     WebCore::Node* node;
@@ -135,9 +136,9 @@ public:
     virtual bool shouldEraseMarkersAfterChangeSelection(TextCheckingType) const;
     virtual void ignoreWordInSpellDocument(const String&);
     virtual void learnWord(const String&);
-    virtual void checkSpellingOfString(const UChar*, int length, int* misspellingLocation, int* misspellingLength);
+    virtual void checkSpellingOfString(StringView, int* misspellingLocation, int* misspellingLength);
     virtual String getAutoCorrectSuggestionForMisspelledWord(const String& misspelledWord);
-    virtual void checkGrammarOfString(const UChar*, int length, WTF::Vector<GrammarDetail>&, int* badGrammarLocation, int* badGrammarLength);
+    virtual void checkGrammarOfString(StringView, WTF::Vector<GrammarDetail>&, int* badGrammarLocation, int* badGrammarLength);
     virtual void updateSpellingUIWithGrammarString(const String&, const GrammarDetail&);
     virtual void updateSpellingUIWithMisspelledWord(const String&);
     virtual void showSpellingUI(bool show);
@@ -147,7 +148,7 @@ public:
     virtual void setInputMethodState(bool enabled);
     virtual void requestCheckingOfString(WTF::PassRefPtr<WebCore::TextCheckingRequest>) { }
 #if USE(UNIFIED_TEXT_CHECKING)
-    virtual void checkTextOfParagraph(const UChar*, int, TextCheckingTypeMask, Vector<TextCheckingResult>&) { }
+    virtual Vector<TextCheckingResult> checkTextOfParagraph(StringView, TextCheckingTypeMask) { return Vector<TextCheckingResult>(); }
 #endif
     virtual TextCheckerClient* textChecker() { return this; }
 

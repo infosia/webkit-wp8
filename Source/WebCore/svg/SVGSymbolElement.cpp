@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGSymbolElement.h"
 
 #include "RenderSVGHiddenContainer.h"
@@ -56,7 +54,7 @@ PassRefPtr<SVGSymbolElement> SVGSymbolElement::create(const QualifiedName& tagNa
 
 bool SVGSymbolElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -101,11 +99,9 @@ bool SVGSymbolElement::selfHasRelativeLengths() const
     return hasAttribute(SVGNames::viewBoxAttr);
 }
 
-RenderElement* SVGSymbolElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGSymbolElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGHiddenContainer(*this, std::move(style));
+    return createRenderer<RenderSVGHiddenContainer>(*this, std::move(style));
 }
 
 }
-
-#endif // ENABLE(SVG)

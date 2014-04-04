@@ -31,12 +31,14 @@
 #import "InitializeThreading.h"
 #import "RemoteInspectorConstants.h"
 #import "RemoteInspectorDebuggable.h"
-#import <notify.h>
-#import <xpc/xpc.h>
+#import "RemoteInspectorDebuggableConnection.h"
 #import <Foundation/Foundation.h>
+#import <notify.h>
+#import <wtf/NeverDestroyed.h>
 #import <wtf/Assertions.h>
 #import <wtf/MainThread.h>
 #import <wtf/text/WTFString.h>
+#import <xpc/xpc.h>
 
 #if PLATFORM(IOS)
 #import <wtf/ios/WebCoreThread.h>
@@ -56,6 +58,13 @@ static void dispatchAsyncOnQueueSafeForAnyDebuggable(void (^block)())
     dispatch_async(dispatch_get_main_queue(), block);
 }
 
+bool RemoteInspector::startEnabled = true;
+
+void RemoteInspector::startDisabled()
+{
+    RemoteInspector::startEnabled = false;
+}
+
 RemoteInspector& RemoteInspector::shared()
 {
     static NeverDestroyed<RemoteInspector> shared;
@@ -64,14 +73,16 @@ RemoteInspector& RemoteInspector::shared()
     dispatch_once(&once, ^{
         JSC::initializeThreading();
         WTF::initializeMainThread();
-        shared.get().start();
+        if (RemoteInspector::startEnabled)
+            shared.get().start();
     });
 
     return shared;
 }
 
 RemoteInspector::RemoteInspector()
-    : m_nextAvailableIdentifier(1)
+    : m_xpcQueue(dispatch_queue_create("com.apple.JavaScriptCore.remote-inspector-xpc", DISPATCH_QUEUE_SERIAL))
+    , m_nextAvailableIdentifier(1)
     , m_notifyToken(0)
     , m_enabled(false)
     , m_hasActiveDebugSession(false)
@@ -90,7 +101,7 @@ unsigned RemoteInspector::nextAvailableIdentifier()
 
 void RemoteInspector::registerDebuggable(RemoteInspectorDebuggable* debuggable)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     unsigned identifier = nextAvailableIdentifier();
     debuggable->setIdentifier(identifier);
@@ -104,7 +115,7 @@ void RemoteInspector::registerDebuggable(RemoteInspectorDebuggable* debuggable)
 
 void RemoteInspector::unregisterDebuggable(RemoteInspectorDebuggable* debuggable)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     unsigned identifier = debuggable->identifier();
     if (!identifier)
@@ -122,7 +133,7 @@ void RemoteInspector::unregisterDebuggable(RemoteInspectorDebuggable* debuggable
 
 void RemoteInspector::updateDebuggable(RemoteInspectorDebuggable* debuggable)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     unsigned identifier = debuggable->identifier();
     if (!identifier)
@@ -131,13 +142,12 @@ void RemoteInspector::updateDebuggable(RemoteInspectorDebuggable* debuggable)
     auto result = m_debuggableMap.set(identifier, std::make_pair(debuggable, debuggable->info()));
     ASSERT_UNUSED(result, !result.isNewEntry);
 
-    if (debuggable->remoteDebuggingAllowed())
-        pushListingSoon();
+    pushListingSoon();
 }
 
 void RemoteInspector::sendMessageToRemoteFrontend(unsigned identifier, const String& message)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (!m_xpcConnection)
         return;
@@ -155,16 +165,27 @@ void RemoteInspector::sendMessageToRemoteFrontend(unsigned identifier, const Str
     m_xpcConnection->sendMessage(WIRRawDataMessage, userInfo);
 }
 
+void RemoteInspector::setupFailed(unsigned identifier)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    m_connectionMap.remove(identifier);
+
+    updateHasActiveDebugSession();
+
+    pushListingSoon();
+}
+
 void RemoteInspector::start()
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (m_enabled)
         return;
 
     m_enabled = true;
 
-    notify_register_dispatch(WIRServiceAvailableNotification, &m_notifyToken, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(int) {
+    notify_register_dispatch(WIRServiceAvailableNotification, &m_notifyToken, m_xpcQueue, ^(int) {
         RemoteInspector::shared().setupXPCConnectionIfNeeded();
     });
 
@@ -173,7 +194,7 @@ void RemoteInspector::start()
 
 void RemoteInspector::stop()
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (!m_enabled)
         return;
@@ -198,16 +219,16 @@ void RemoteInspector::stop()
 
 void RemoteInspector::setupXPCConnectionIfNeeded()
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if (m_xpcConnection)
         return;
 
-    xpc_connection_t connection = xpc_connection_create_mach_service(WIRXPCMachPortName, dispatch_get_main_queue(), 0);
+    xpc_connection_t connection = xpc_connection_create_mach_service(WIRXPCMachPortName, m_xpcQueue, 0);
     if (!connection)
         return;
 
-    m_xpcConnection = std::make_unique<RemoteInspectorXPCConnection>(connection, this);
+    m_xpcConnection = adoptRef(new RemoteInspectorXPCConnection(connection, m_xpcQueue, this));
     m_xpcConnection->sendMessage(@"syn", nil); // Send a simple message to initialize the XPC connection.
     xpc_release(connection);
 
@@ -218,7 +239,7 @@ void RemoteInspector::setupXPCConnectionIfNeeded()
 
 void RemoteInspector::xpcConnectionReceivedMessage(RemoteInspectorXPCConnection*, NSString *messageName, NSDictionary *userInfo)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
 
     if ([messageName isEqualToString:WIRPermissionDenied]) {
         stop();
@@ -241,9 +262,13 @@ void RemoteInspector::xpcConnectionReceivedMessage(RemoteInspectorXPCConnection*
         NSLog(@"Unrecognized RemoteInspector XPC Message: %@", messageName);
 }
 
-void RemoteInspector::xpcConnectionFailed(RemoteInspectorXPCConnection*)
+void RemoteInspector::xpcConnectionFailed(RemoteInspectorXPCConnection* connection)
 {
-    MutexLocker locker(m_lock);
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    ASSERT(connection == m_xpcConnection);
+    if (connection != m_xpcConnection)
+        return;
 
     m_pushScheduled = false;
 
@@ -253,10 +278,8 @@ void RemoteInspector::xpcConnectionFailed(RemoteInspectorXPCConnection*)
 
     updateHasActiveDebugSession();
 
-    if (m_xpcConnection) {
-        m_xpcConnection->close();
-        m_xpcConnection = nullptr;
-    }
+    // The connection will close itself.
+    m_xpcConnection = nullptr;
 }
 
 void RemoteInspector::xpcConnectionUnhandledMessage(RemoteInspectorXPCConnection*, xpc_object_t)
@@ -276,6 +299,7 @@ NSDictionary *RemoteInspector::listingForDebuggable(const RemoteInspectorDebugga
     case RemoteInspectorDebuggable::JavaScript: {
         NSString *name = debuggableInfo.name;
         [debuggableDetails setObject:name forKey:WIRTitleKey];
+        [debuggableDetails setObject:WIRTypeJavaScript forKey:WIRTypeKey];
         break;
     }
     case RemoteInspectorDebuggable::Web: {
@@ -283,6 +307,7 @@ NSDictionary *RemoteInspector::listingForDebuggable(const RemoteInspectorDebugga
         NSString *title = debuggableInfo.name;
         [debuggableDetails setObject:url forKey:WIRURLKey];
         [debuggableDetails setObject:title forKey:WIRTitleKey];
+        [debuggableDetails setObject:WIRTypeWeb forKey:WIRTypeKey];
         break;
     }
     default:
@@ -295,6 +320,11 @@ NSDictionary *RemoteInspector::listingForDebuggable(const RemoteInspectorDebugga
 
     if (debuggableInfo.hasLocalDebugger)
         [debuggableDetails setObject:@YES forKey:WIRHasLocalDebuggerKey];
+
+    if (debuggableInfo.hasParentProcess()) {
+        NSString *parentApplicationIdentifier = [NSString stringWithFormat:@"PID:%lu", (unsigned long)debuggableInfo.parentProcessIdentifier];
+        [debuggableDetails setObject:parentApplicationIdentifier forKey:WIRHostApplicationIdentifierKey];
+    }
 
     return debuggableDetails;
 }
@@ -331,8 +361,8 @@ void RemoteInspector::pushListingSoon()
         return;
 
     m_pushScheduled = true;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.02 * NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        MutexLocker locker(m_lock);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.2 * NSEC_PER_SEC), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        std::lock_guard<std::mutex> lock(m_mutex);
         if (m_pushScheduled)
             pushListingNow();
     });
@@ -449,13 +479,16 @@ void RemoteInspector::receivedIndicateMessage(NSDictionary *userInfo)
     BOOL indicateEnabled = [[userInfo objectForKey:WIRIndicateEnabledKey] boolValue];
 
     dispatchAsyncOnQueueSafeForAnyDebuggable(^{
-        MutexLocker locker(m_lock);
+        RemoteInspectorDebuggable* debuggable = nullptr;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
 
-        auto it = m_debuggableMap.find(identifier);
-        if (it == m_debuggableMap.end())
-            return;
+            auto it = m_debuggableMap.find(identifier);
+            if (it == m_debuggableMap.end())
+                return;
 
-        RemoteInspectorDebuggable* debuggable = it->value.first;
+            debuggable = it->value.first;
+        }
         debuggable->setIndicating(indicateEnabled);
     });
 }

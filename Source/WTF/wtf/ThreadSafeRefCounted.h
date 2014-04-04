@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -59,11 +59,10 @@
 #ifndef ThreadSafeRefCounted_h
 #define ThreadSafeRefCounted_h
 
-#include <wtf/Platform.h>
-
-#include <wtf/Atomics.h>
+#include <atomic>
 #include <wtf/DynamicAnnotations.h>
-#include <wtf/ThreadingPrimitives.h>
+#include <wtf/FastMalloc.h>
+#include <wtf/Noncopyable.h>
 
 namespace WTF {
 
@@ -78,7 +77,7 @@ public:
 
     void ref()
     {
-        atomicIncrement(&m_refCount);
+        ++m_refCount;
     }
 
     bool hasOneRef()
@@ -88,7 +87,7 @@ public:
 
     int refCount() const
     {
-        return static_cast<int const volatile&>(m_refCount);
+        return m_refCount;
     }
 
 protected:
@@ -96,7 +95,7 @@ protected:
     bool derefBase()
     {
         WTF_ANNOTATE_HAPPENS_BEFORE(&m_refCount);
-        if (atomicDecrement(&m_refCount) <= 0) {
+        if (--m_refCount <= 0) {
             WTF_ANNOTATE_HAPPENS_AFTER(&m_refCount);
             return true;
         }
@@ -105,7 +104,7 @@ protected:
     }
 
 private:
-    int m_refCount;
+    std::atomic<int> m_refCount;
 };
 
 template<class T> class ThreadSafeRefCounted : public ThreadSafeRefCountedBase {

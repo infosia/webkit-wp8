@@ -1,5 +1,5 @@
-/*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ /*
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,8 +26,6 @@
 #ifndef DFGClobberize_h
 #define DFGClobberize_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGAbstractHeap.h"
@@ -35,6 +33,15 @@
 #include "DFGGraph.h"
 
 namespace JSC { namespace DFG {
+
+template<typename ReadFunctor, typename WriteFunctor>
+void clobberizeForAllocation(ReadFunctor& read, WriteFunctor& write)
+{
+    read(GCState);
+    read(BarrierState);
+    write(GCState);
+    write(BarrierState);
+}
 
 template<typename ReadFunctor, typename WriteFunctor>
 void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write)
@@ -53,7 +60,7 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     //   versions of those nodes that backward-exit instead, but I'm not convinced
     //   of the soundness.
     //
-    // - Some nodes lie, and claim that they do not read the JSCell_structure.
+    // - Some nodes lie, and claim that they do not read the JSCell_structureID, JSCell_typeInfoFlags, etc.
     //   These are nodes that use the structure in a way that does not depend on
     //   things that change under structure transitions.
     //
@@ -72,13 +79,17 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     //   small hacking.
     
     if (edgesUseStructure(graph, node))
-        read(JSCell_structure);
+        read(JSCell_structureID);
     
     switch (node->op()) {
     case JSConstant:
     case WeakJSConstant:
     case Identity:
     case Phantom:
+    case HardPhantom:
+    case Breakpoint:
+    case ProfileWillCall:
+    case ProfileDidCall:
     case BitAnd:
     case BitOr:
     case BitXor:
@@ -105,7 +116,6 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case StringCharCodeAt:
     case StringFromCharCode:
     case CompareEqConstant:
-    case CompareStrictEqConstant:
     case CompareStrictEq:
     case IsUndefined:
     case IsBoolean:
@@ -116,10 +126,13 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case ExtractOSREntryLocal:
     case Int52ToDouble:
     case Int52ToValue:
+    case CheckInBounds:
     case ConstantStoragePointer:
+    case UInt32ToNumber:
+    case DoubleAsInt32:
+    case Check:
         return;
         
-    case MovHintAndCheck:
     case MovHint:
     case ZombieHint:
     case Upsilon:
@@ -127,7 +140,6 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case Flush:
     case PhantomLocal:
     case SetArgument:
-    case Breakpoint:
     case PhantomArguments:
     case Jump:
     case Branch:
@@ -157,30 +169,19 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
 
     case CreateActivation:
     case CreateArguments:
+        clobberizeForAllocation(read, write);
         write(SideState);
         write(Watchpoint_fire);
-        read(GCState);
-        write(GCState);
         return;
         
     case FunctionReentryWatchpoint:
         read(Watchpoint_fire);
         return;
 
-    // These are forward-exiting nodes that assume that the subsequent instruction
-    // is a MovHint, and they try to roll forward over this MovHint in their
-    // execution. This makes hoisting them impossible without additional magic. We
-    // may add such magic eventually, but just not yet.
-    case UInt32ToNumber:
-    case DoubleAsInt32:
-        write(SideState);
-        return;
-        
     case ToThis:
     case CreateThis:
         read(MiscFields);
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
 
     case VarInjectionWatchpoint:
@@ -194,6 +195,7 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case GetById:
     case GetByIdFlush:
     case PutById:
+    case PutByIdFlush:
     case PutByIdDirect:
     case ArrayPush:
     case ArrayPop:
@@ -203,24 +205,10 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case In:
     case GetMyArgumentsLengthSafe:
     case GetMyArgumentByValSafe:
+    case ValueAdd:
         read(World);
         write(World);
         return;
-        
-    case ValueAdd:
-        switch (node->binaryUseKind()) {
-        case Int32Use:
-        case NumberUse:
-        case MachineIntUse:
-            return;
-        case UntypedUse:
-            read(World);
-            write(World);
-            return;
-        default:
-            RELEASE_ASSERT_NOT_REACHED();
-            return;
-        }
         
     case GetCallee:
         read(AbstractHeap(Variables, JSStack::Callee));
@@ -424,32 +412,41 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         
     case CheckStructure:
     case StructureTransitionWatchpoint:
-    case CheckArray:
-    case CheckHasInstance:
     case InstanceOf:
-        read(JSCell_structure);
+        read(JSCell_structureID);
         return;
-        
+
+    case CheckArray:
+        read(JSCell_indexingType);
+        read(JSCell_typeInfoType);
+        read(JSCell_structureID);
+        return;
+
+    case CheckHasInstance:
+        read(JSCell_typeInfoFlags);
+        return;
+
     case CheckExecutable:
         read(JSFunction_executable);
         return;
         
     case PutStructure:
     case PhantomPutStructure:
-        write(JSCell_structure);
+        write(JSCell_structureID);
+        write(JSCell_typeInfoType);
+        write(JSCell_typeInfoFlags);
+        write(JSCell_indexingType);
         return;
         
     case AllocatePropertyStorage:
         write(JSObject_butterfly);
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
         
     case ReallocatePropertyStorage:
         read(JSObject_butterfly);
         write(JSObject_butterfly);
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
         
     case GetButterfly:
@@ -458,12 +455,13 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         
     case Arrayify:
     case ArrayifyToStructure:
-        read(JSCell_structure);
+        read(JSCell_structureID);
+        read(JSCell_indexingType);
         read(JSObject_butterfly);
-        write(JSCell_structure);
+        write(JSCell_structureID);
+        write(JSCell_indexingType);
         write(JSObject_butterfly);
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
         
     case GetIndexedPropertyStorage:
@@ -481,6 +479,24 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         
     case GetByOffset:
         read(AbstractHeap(NamedProperties, graph.m_storageAccessData[node->storageAccessDataIndex()].identifierNumber));
+        return;
+        
+    case MultiGetByOffset:
+        read(JSCell_structureID);
+        read(JSObject_butterfly);
+        read(AbstractHeap(NamedProperties, node->multiGetByOffsetData().identifierNumber));
+        return;
+        
+    case MultiPutByOffset:
+        read(JSCell_structureID);
+        read(JSObject_butterfly);
+        write(AbstractHeap(NamedProperties, node->multiPutByOffsetData().identifierNumber));
+        if (node->multiPutByOffsetData().writesStructures())
+            write(JSCell_structureID);
+        if (node->multiPutByOffsetData().reallocatesStorage()) {
+            write(JSObject_butterfly);
+            clobberizeForAllocation(read, write);
+        }
         return;
         
     case PutByOffset:
@@ -550,15 +566,13 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
     case NewFunctionNoCheck:
     case NewFunction:
     case NewFunctionExpression:
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
         
     case NewTypedArray:
+        clobberizeForAllocation(read, write);
         switch (node->child1().useKind()) {
         case Int32Use:
-            read(GCState);
-            write(GCState);
             return;
         case UntypedUse:
             read(World);
@@ -583,26 +597,13 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         }
         return;
         
+    case CompareEq:
     case CompareLess:
     case CompareLessEq:
     case CompareGreater:
     case CompareGreaterEq:
-        if (graph.isPredictedNumerical(node))
+        if (!node->isBinaryUseKind(UntypedUse))
             return;
-        read(World);
-        write(World);
-        return;
-        
-    case CompareEq:
-        if (graph.isPredictedNumerical(node)
-            || node->isBinaryUseKind(StringUse)
-            || node->isBinaryUseKind(StringIdentUse))
-            return;
-        
-        if ((node->child1().useKind() == ObjectUse || node->child1().useKind() == ObjectOrOtherUse)
-            && (node->child2().useKind() == ObjectUse || node->child2().useKind() == ObjectOrOtherUse))
-            return;
-        
         read(World);
         write(World);
         return;
@@ -633,7 +634,7 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         return;
         
     case GetMyArgumentsLength:
-        read(AbstractHeap(Variables, graph.argumentsRegisterFor(node->codeOrigin)));
+        read(AbstractHeap(Variables, graph.argumentsRegisterFor(node->origin.semantic)));
         read(AbstractHeap(Variables, JSStack::ArgumentCount));
         return;
         
@@ -642,19 +643,24 @@ void clobberize(Graph& graph, Node* node, ReadFunctor& read, WriteFunctor& write
         return;
         
     case CheckArgumentsNotCreated:
-        read(AbstractHeap(Variables, graph.argumentsRegisterFor(node->codeOrigin)));
+        read(AbstractHeap(Variables, graph.argumentsRegisterFor(node->origin.semantic)));
         return;
 
     case ThrowReferenceError:
         write(SideState);
-        read(GCState);
-        write(GCState);
+        clobberizeForAllocation(read, write);
         return;
         
     case CountExecution:
     case CheckWatchdogTimer:
         read(InternalState);
         write(InternalState);
+        return;
+
+    case StoreBarrier:
+    case StoreBarrierWithNullCheck:
+        read(BarrierState);
+        write(BarrierState);
         return;
         
     case LastNodeType:

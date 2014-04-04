@@ -39,8 +39,8 @@
 #include <glib/gi18n-lib.h>
 #include <glib/gstdio.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
 #ifdef ERROR
@@ -67,7 +67,7 @@ public:
     DownloadClient(WebKitDownload*);
 
     virtual void didReceiveResponse(ResourceHandle*, const ResourceResponse&);
-    virtual void didReceiveData(ResourceHandle*, const char*, int, int);
+    virtual void didReceiveData(ResourceHandle*, const char*, unsigned, int);
     virtual void didReceiveBuffer(ResourceHandle*, PassRefPtr<SharedBuffer> buffer, int encodedLength);
     virtual void didFinishLoading(ResourceHandle*, double);
     virtual void didFail(ResourceHandle*, const ResourceError&);
@@ -464,7 +464,7 @@ static gboolean webkit_download_open_stream_for_uri(WebKitDownload* download, co
 
     WebKitDownloadPrivate* priv = download->priv;
     GRefPtr<GFile> file = adoptGRef(g_file_new_for_uri(uri));
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
 
     if (append)
         priv->outputStream = g_file_append_to(file.get(), G_FILE_CREATE_NONE, NULL, &error.outPtr());
@@ -477,7 +477,9 @@ static gboolean webkit_download_open_stream_for_uri(WebKitDownload* download, co
     }
 
     GRefPtr<GFileInfo> info = adoptGRef(g_file_info_new());
-    g_file_info_set_attribute_string(info.get(), "metadata::download-uri", webkit_download_get_uri(download));
+    const char* uri_string = webkit_download_get_uri(download);
+    g_file_info_set_attribute_string(info.get(), "metadata::download-uri", uri_string);
+    g_file_info_set_attribute_string(info.get(), "xattr::xdg.origin.url", uri_string);
     g_file_set_attributes_async(file.get(), info.get(), G_FILE_QUERY_INFO_NONE, G_PRIORITY_DEFAULT, 0, 0, 0);
 
     return TRUE;
@@ -703,7 +705,7 @@ void webkit_download_set_destination_uri(WebKitDownload* download, const gchar* 
 
         GRefPtr<GFile> src = adoptGRef(g_file_new_for_uri(priv->destinationURI));
         GRefPtr<GFile> dest = adoptGRef(g_file_new_for_uri(destination_uri));
-        GOwnPtr<GError> error;
+        GUniqueOutPtr<GError> error;
 
         g_file_move(src.get(), dest.get(), G_FILE_COPY_BACKUP, 0, 0, 0, &error.outPtr());
 
@@ -863,7 +865,7 @@ static void webkit_download_received_data(WebKitDownload* download, const gchar*
     ASSERT(priv->outputStream);
 
     gsize bytes_written;
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
 
     g_output_stream_write_all(G_OUTPUT_STREAM(priv->outputStream),
                               data, length, &bytes_written, NULL, &error.outPtr());
@@ -941,12 +943,12 @@ void DownloadClient::didReceiveResponse(ResourceHandle*, const ResourceResponse&
     }
 }
 
-void DownloadClient::didReceiveData(ResourceHandle*, const char* data, int length, int encodedDataLength)
+void DownloadClient::didReceiveData(ResourceHandle*, const char* /* data */, unsigned /* length */, int /* encodedDataLength */)
 {
     ASSERT_NOT_REACHED();
 }
 
-void DownloadClient::didReceiveBuffer(ResourceHandle*, PassRefPtr<SharedBuffer> buffer, int encodedLength)
+void DownloadClient::didReceiveBuffer(ResourceHandle*, PassRefPtr<SharedBuffer> buffer, int /* encodedLength */)
 {
     // This pattern is suggested by SharedBuffer.h.
     const char* segment;

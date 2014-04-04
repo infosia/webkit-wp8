@@ -38,7 +38,7 @@ class Array;
 
 namespace WebKit {
 
-class WebOpenPanelParameters : public API::TypedObject<API::Object::Type::OpenPanelParameters> {
+class WebOpenPanelParameters : public API::ObjectImpl<API::Object::Type::OpenPanelParameters> {
 public:
     static PassRefPtr<WebOpenPanelParameters> create(const WebCore::FileChooserSettings&);
     ~WebOpenPanelParameters();
@@ -47,7 +47,7 @@ public:
     PassRefPtr<API::Array> acceptMIMETypes() const;
     PassRefPtr<API::Array> selectedFileNames() const;
 #if ENABLE(MEDIA_CAPTURE)
-    String capture() const;
+    bool capture() const;
 #endif
 
 private:

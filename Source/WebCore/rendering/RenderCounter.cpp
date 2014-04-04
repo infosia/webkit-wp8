@@ -44,13 +44,13 @@ namespace WebCore {
 using namespace HTMLNames;
 
 typedef HashMap<AtomicString, RefPtr<CounterNode>> CounterMap;
-typedef HashMap<const RenderObject*, OwnPtr<CounterMap>> CounterMaps;
+typedef HashMap<const RenderObject*, std::unique_ptr<CounterMap>> CounterMaps;
 
 static CounterNode* makeCounterNode(RenderObject*, const AtomicString& identifier, bool alwaysCreateCounter);
 
 static CounterMaps& counterMaps()
 {
-    DEFINE_STATIC_LOCAL(CounterMaps, staticCounterMaps, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(CounterMaps, staticCounterMaps, ());
     return staticCounterMaps;
 }
 
@@ -324,7 +324,7 @@ static CounterNode* makeCounterNode(RenderObject* object, const AtomicString& id
         nodeMap = counterMaps().get(element);
     else {
         nodeMap = new CounterMap;
-        counterMaps().set(element, adoptPtr(nodeMap));
+        counterMaps().set(element, std::unique_ptr<CounterMap>(nodeMap));
         element->setHasCounterNodeMap(true);
     }
     nodeMap->set(identifier, newNode);
@@ -560,7 +560,7 @@ void RenderCounter::rendererSubtreeAttached(RenderObject* renderer)
         node = node->parentNode();
     else
         node = renderer->generatingNode();
-    if (node && !node->attached())
+    if (node && !node->renderer())
         return; // No need to update if the parent is not attached yet
     for (RenderObject* descendant = renderer; descendant; descendant = descendant->nextInPreOrder(renderer))
         updateCounters(descendant);
@@ -569,7 +569,7 @@ void RenderCounter::rendererSubtreeAttached(RenderObject* renderer)
 void RenderCounter::rendererStyleChanged(RenderObject* renderer, const RenderStyle* oldStyle, const RenderStyle* newStyle)
 {
     Node* node = renderer->generatingNode();
-    if (!node || !node->attached())
+    if (!node || !node->renderer())
         return; // cannot have generated content or if it can have, it will be handled during attaching
     const CounterDirectiveMap* newCounterDirectives;
     const CounterDirectiveMap* oldCounterDirectives;

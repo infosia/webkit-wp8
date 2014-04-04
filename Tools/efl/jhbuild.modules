@@ -77,6 +77,7 @@
   <autotools id="fonts"
              skip-autogen="true">
     <branch module="downloads/mrobinson/webkitgtk-test-fonts/webkitgtk-test-fonts-0.0.3.tar.gz" version="0.0.3"
+            checkoutdir="webkitgtk-test-fonts"
             repo="github.com"
             hash="sha256:4a0a01f00855997cdcc7201f164b33a4e4144e8eadf40a5e542a1c448e035de5"
             md5sum="10e74de1a8ba961d9037994d427b1dd2" size="16981642">
@@ -102,9 +103,9 @@
     <dependencies>
       <dep package="libffi"/>
     </dependencies>
-    <branch module="/pub/GNOME/sources/glib/2.36/glib-2.36.0.tar.xz" version="2.36.0"
+    <branch module="/pub/GNOME/sources/glib/2.38/glib-2.38.0.tar.xz" version="2.38.0"
             repo="ftp.gnome.org"
-            hash="sha256:455a8abe8692c5174bcc7ffa15b96a7521a2f2f9fb47594405927c35cb9bb227"/>
+            hash="sha256:7513a7de5e814ccb48206340a8773ea523d6a7bf04dc74565de69b899bc2ff32"/>
   </autotools>
 
   <autotools id="glib-networking">
@@ -133,6 +134,7 @@
             repo="freedesktop.org"
             hash="sha256:fa2a1c6eea654d9fce7a4b1220f10c99cdec848dccaf1625c01f076b31382335"
             md5sum="77e15a92006ddc2adbb06f840d591c0e">
+      <patch file="fontconfig-C-11-requires-a-space-between-literal-and-identifier.patch" strip="1"/>
     </branch>
   </autotools>
 
@@ -249,9 +251,9 @@
             md5sum="d21e59631022d6fbdfa0e19b6b2ff93a">
     </branch>
     <dependencies>
-        <deb package="ecore"/>
-        <deb package="eina"/>
-        <deb package="eet"/>
+        <dep package="ecore"/>
+        <dep package="eina"/>
+        <dep package="eet"/>
     </dependencies>
   </autotools>
 
@@ -264,10 +266,10 @@
             md5sum="7f2cbea027fba8b58c41aaacfe68c155">
     </branch>
     <dependencies>
-        <deb package="edje"/>
-        <deb package="eina"/>
-        <deb package="eet"/>
-        <deb package="ecore"/>
+        <dep package="edje"/>
+        <dep package="eina"/>
+        <dep package="eet"/>
+        <dep package="ecore"/>
     </dependencies>
   </autotools>
 
@@ -340,9 +342,9 @@
   <autotools id="atk"
              autogen-sh="configure"
              autogenargs="--disable-introspection">
-    <branch module="pub/GNOME/sources/atk/2.10/atk-2.10.0.tar.xz" version="2.10.0"
+    <branch module="pub/GNOME/sources/atk/2.11/atk-2.11.92.tar.xz" version="2.11.92"
             repo="ftp.gnome.org"
-            hash="sha256:636917a5036bc851d8491194645d284798ec118919a828be5e713b6ecc5b50b0"/>
+            hash="sha256:71e9880f1b704dfd98806643b8dc66a5df4fcef155cf5944184d8e8f66dac689"/>
   </autotools>
 
 </moduleset>

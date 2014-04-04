@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEMorphologyElement.h"
 
 #include "Attribute.h"
@@ -60,13 +60,13 @@ PassRefPtr<SVGFEMorphologyElement> SVGFEMorphologyElement::create(const Qualifie
 
 const AtomicString& SVGFEMorphologyElement::radiusXIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGRadiusX", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGRadiusX", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
 const AtomicString& SVGFEMorphologyElement::radiusYIdentifier()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGRadiusY", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, s_identifier, ("SVGRadiusY", AtomicString::ConstructFromLiteral));
     return s_identifier;
 }
 
@@ -79,7 +79,7 @@ void SVGFEMorphologyElement::setRadius(float x, float y)
 
 bool SVGFEMorphologyElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::inAttr);
         supportedAttributes.add(SVGNames::operatorAttr);
@@ -176,4 +176,4 @@ PassRefPtr<FilterEffect> SVGFEMorphologyElement::build(SVGFilterBuilder* filterB
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

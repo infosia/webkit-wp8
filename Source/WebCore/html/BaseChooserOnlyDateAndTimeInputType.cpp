@@ -31,6 +31,7 @@
 #include "HTMLDivElement.h"
 #include "HTMLInputElement.h"
 #include "Page.h"
+#include "RenderElement.h"
 #include "ScriptController.h"
 #include "ShadowRoot.h"
 
@@ -53,12 +54,15 @@ void BaseChooserOnlyDateAndTimeInputType::handleDOMActivateEvent(Event*)
     DateTimeChooserParameters parameters;
     if (!element().setupDateTimeChooserParameters(parameters))
         return;
+#if !PLATFORM(IOS)
+    // FIXME: Is this correct? Why don't we do this on iOS?
     m_dateTimeChooser = element().document().page()->chrome().openDateTimeChooser(this, parameters);
+#endif
 }
 
 void BaseChooserOnlyDateAndTimeInputType::createShadowSubtree()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, valueContainerPseudo, ("-webkit-date-and-time-value", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, valueContainerPseudo, ("-webkit-date-and-time-value", AtomicString::ConstructFromLiteral));
 
     RefPtr<HTMLDivElement> valueContainer = HTMLDivElement::create(element().document());
     valueContainer->setPseudo(valueContainerPseudo);

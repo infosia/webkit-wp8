@@ -28,6 +28,7 @@
 
 #if ENABLE(REMOTE_INSPECTOR)
 
+#include "InspectorAgentBase.h"
 #include "InspectorFrontendChannel.h"
 #include "JSGlobalObject.h"
 #include "RemoteInspector.h"
@@ -47,23 +48,25 @@ String JSGlobalObjectDebuggable::name() const
     return name.isEmpty() ? ASCIILiteral("JSContext") : name;
 }
 
-void JSGlobalObjectDebuggable::connect(InspectorFrontendChannel*)
+void JSGlobalObjectDebuggable::connect(InspectorFrontendChannel* frontendChannel)
 {
-    // FIXME: Implement.
-    // Create an InspectorController, InspectorFrontend, InspectorBackend, and Agents.
-    // "InspectorController::connectFrontend".
+    JSLockHolder locker(&m_globalObject.vm());
+
+    m_globalObject.inspectorController().connectFrontend(frontendChannel);
 }
 
 void JSGlobalObjectDebuggable::disconnect()
 {
-    // FIXME: Implement.
-    // "InspectorController::disconnectFrontend".
+    JSLockHolder locker(&m_globalObject.vm());
+
+    m_globalObject.inspectorController().disconnectFrontend(InspectorDisconnectReason::InspectorDestroyed);
 }
 
-void JSGlobalObjectDebuggable::dispatchMessageFromRemoteFrontend(const String&)
+void JSGlobalObjectDebuggable::dispatchMessageFromRemoteFrontend(const String& message)
 {
-    // FIXME: Implement.
-    // "InspectorController::dispatchMessageFromFrontend"
+    JSLockHolder locker(&m_globalObject.vm());
+
+    m_globalObject.inspectorController().dispatchMessageFromFrontend(message);
 }
 
 } // namespace JSC

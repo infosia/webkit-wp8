@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE, INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -55,7 +55,7 @@ private:
 };
 
 template <typename... Arguments>
-class AsyncRequestImpl FINAL : public AsyncRequest {
+class AsyncRequestImpl final : public AsyncRequest {
 public:
     static PassRefPtr<AsyncRequest> create(std::function<void (Arguments...)> completionHandler)
     {
@@ -86,7 +86,7 @@ private:
         ASSERT(m_completionHandler);
     }
 
-    virtual void clearCompletionHandler() OVERRIDE
+    virtual void clearCompletionHandler() override
     {
         m_completionHandler = nullptr;
     }

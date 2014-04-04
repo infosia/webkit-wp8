@@ -28,13 +28,12 @@
 #ifndef RenderSVGRect_h
 #define RenderSVGRect_h
 
-#if ENABLE(SVG)
 #include "RenderSVGPath.h"
 #include "SVGRectElement.h"
 
 namespace WebCore {
 
-class RenderSVGRect FINAL : public RenderSVGShape {
+class RenderSVGRect final : public RenderSVGShape {
 public:
     RenderSVGRect(SVGRectElement&, PassRef<RenderStyle>);
     virtual ~RenderSVGRect();
@@ -42,7 +41,7 @@ public:
     SVGRectElement& rectElement() const;
 
 private:
-    void graphicsElement() const WTF_DELETED_FUNCTION;
+    void graphicsElement() const = delete;
 
     virtual const char* renderName() const { return "RenderSVGRect"; }
 
@@ -61,5 +60,4 @@ private:
 
 }
 
-#endif // ENABLE(SVG)
 #endif

@@ -35,7 +35,7 @@
 #include "JSArray.h"
 #include "JSFunction.h"
 #include "Interpreter.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "ResultType.h"
 #include "SamplingTool.h"
 #include "SlowPathCall.h"
@@ -211,18 +211,16 @@ void JIT::emitRightShift(Instruction* currentInstruction, bool isUnsigned)
                 urshift32(Imm32(shift), regT0);
             else
                 rshift32(Imm32(shift), regT0);
-        } else if (isUnsigned) // signed right shift by zero is simply toInt conversion
-            addSlowCase(branch32(LessThan, regT0, TrustedImm32(0)));
+        }
         emitStoreInt32(dst, regT0, dst == op1);
     } else {
         emitLoad2(op1, regT1, regT0, op2, regT3, regT2);
         if (!isOperandConstantImmediateInt(op1))
             addSlowCase(branch32(NotEqual, regT1, TrustedImm32(JSValue::Int32Tag)));
         addSlowCase(branch32(NotEqual, regT3, TrustedImm32(JSValue::Int32Tag)));
-        if (isUnsigned) {
+        if (isUnsigned)
             urshift32(regT2, regT0);
-            addSlowCase(branch32(LessThan, regT0, TrustedImm32(0)));
-        } else
+        else
             rshift32(regT2, regT0);
         emitStoreInt32(dst, regT0, dst == op1);
     }
@@ -247,15 +245,12 @@ void JIT::emitRightShiftSlowCase(Instruction* currentInstruction, Vector<SlowCas
                     urshift32(Imm32(shift), regT0);
                 else
                     rshift32(Imm32(shift), regT0);
-            } else if (isUnsigned) // signed right shift by zero is simply toInt conversion
-                failures.append(branch32(LessThan, regT0, TrustedImm32(0)));
+            }
             move(TrustedImm32(JSValue::Int32Tag), regT1);
             emitStoreInt32(dst, regT0, false);
             emitJumpSlowToHot(jump(), OPCODE_LENGTH(op_rshift));
             failures.link(this);
         }
-        if (isUnsigned && !shift)
-            linkSlowCase(iter); // failed to box in hot path
     } else {
         // op1 = regT1:regT0
         // op2 = regT3:regT2
@@ -267,10 +262,9 @@ void JIT::emitRightShiftSlowCase(Instruction* currentInstruction, Vector<SlowCas
                 emitLoadDouble(op1, fpRegT0);
                 failures.append(branch32(NotEqual, regT3, TrustedImm32(JSValue::Int32Tag))); // op2 is not an int
                 failures.append(branchTruncateDoubleToInt32(fpRegT0, regT0));
-                if (isUnsigned) {
+                if (isUnsigned)
                     urshift32(regT2, regT0);
-                    failures.append(branch32(LessThan, regT0, TrustedImm32(0)));
-                } else
+                else
                     rshift32(regT2, regT0);
                 move(TrustedImm32(JSValue::Int32Tag), regT1);
                 emitStoreInt32(dst, regT0, false);
@@ -280,8 +274,6 @@ void JIT::emitRightShiftSlowCase(Instruction* currentInstruction, Vector<SlowCas
         }
 
         linkSlowCase(iter); // int32 check - op2 is not an int
-        if (isUnsigned)
-            linkSlowCase(iter); // Can't represent unsigned result as an immediate
     }
 
     JITSlowPathCall slowPathCall(this, currentInstruction, isUnsigned ? slow_path_urshift : slow_path_rshift);
@@ -310,6 +302,27 @@ void JIT::emit_op_urshift(Instruction* currentInstruction)
 void JIT::emitSlow_op_urshift(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
 {
     emitRightShiftSlowCase(currentInstruction, iter, true);
+}
+
+void JIT::emit_op_unsigned(Instruction* currentInstruction)
+{
+    int result = currentInstruction[1].u.operand;
+    int op1 = currentInstruction[2].u.operand;
+    
+    emitLoad(op1, regT1, regT0);
+    
+    addSlowCase(branch32(NotEqual, regT1, TrustedImm32(JSValue::Int32Tag)));
+    addSlowCase(branch32(LessThan, regT0, TrustedImm32(0)));
+    emitStoreInt32(result, regT0, result == op1);
+}
+
+void JIT::emitSlow_op_unsigned(Instruction* currentInstruction, Vector<SlowCaseEntry>::iterator& iter)
+{
+    linkSlowCase(iter);
+    linkSlowCase(iter);
+    
+    JITSlowPathCall slowPathCall(this, currentInstruction, slow_path_unsigned);
+    slowPathCall.call();
 }
 
 // BitAnd (&)
@@ -729,7 +742,6 @@ void JIT::emitBinaryDoubleOp(OpcodeID opcodeID, int dst, int op1, int op2, Opera
                 emitLoadDouble(op1, fpRegT1);
                 divDouble(fpRegT0, fpRegT1);
 
-#if ENABLE(VALUE_PROFILER)
                 // Is the result actually an integer? The DFG JIT would really like to know. If it's
                 // not an integer, we increment a count. If this together with the slow case counter
                 // are below threshold then the DFG JIT will compile this division with a specualtion
@@ -753,9 +765,6 @@ void JIT::emitBinaryDoubleOp(OpcodeID opcodeID, int dst, int op1, int op2, Opera
                 add32(TrustedImm32(1), AbsoluteAddress(&m_codeBlock->specialFastCaseProfileForBytecodeOffset(m_bytecodeOffset)->m_counter));
                 emitStoreDouble(dst, fpRegT1);
                 isInteger.link(this);
-#else
-                emitStoreDouble(dst, fpRegT1);
-#endif
                 break;
             }
             case op_jless:
@@ -833,7 +842,6 @@ void JIT::emitBinaryDoubleOp(OpcodeID opcodeID, int dst, int op1, int op2, Opera
             case op_div: {
                 emitLoadDouble(op2, fpRegT2);
                 divDouble(fpRegT2, fpRegT0);
-#if ENABLE(VALUE_PROFILER)
                 // Is the result actually an integer? The DFG JIT would really like to know. If it's
                 // not an integer, we increment a count. If this together with the slow case counter
                 // are below threshold then the DFG JIT will compile this division with a specualtion
@@ -857,9 +865,6 @@ void JIT::emitBinaryDoubleOp(OpcodeID opcodeID, int dst, int op1, int op2, Opera
                 add32(TrustedImm32(1), AbsoluteAddress(&m_codeBlock->specialFastCaseProfileForBytecodeOffset(m_bytecodeOffset)->m_counter));
                 emitStoreDouble(dst, fpRegT0);
                 isInteger.link(this);
-#else
-                emitStoreDouble(dst, fpRegT0);
-#endif
                 break;
             }
             case op_jless:
@@ -911,9 +916,7 @@ void JIT::emit_op_mul(Instruction* currentInstruction)
     int op2 = currentInstruction[3].u.operand;
     OperandTypes types = OperandTypes::fromInt(currentInstruction[4].u.operand);
 
-#if ENABLE(VALUE_PROFILER)
     m_codeBlock->addSpecialFastCaseProfile(m_bytecodeOffset);
-#endif
 
     JumpList notInt32Op1;
     JumpList notInt32Op2;
@@ -956,12 +959,10 @@ void JIT::emitSlow_op_mul(Instruction* currentInstruction, Vector<SlowCaseEntry>
     emitJumpSlowToHot(jump(), OPCODE_LENGTH(op_mul));
 
     negZero.link(this);
-#if ENABLE(VALUE_PROFILER)
     // We only get here if we have a genuine negative zero. Record this,
     // so that the speculative JIT knows that we failed speculation
     // because of a negative zero.
     add32(TrustedImm32(1), AbsoluteAddress(&m_codeBlock->specialFastCaseProfileForBytecodeOffset(m_bytecodeOffset)->m_counter));
-#endif
     overflow.link(this);
 
     if (!supportsFloatingPoint()) {
@@ -992,9 +993,7 @@ void JIT::emit_op_div(Instruction* currentInstruction)
     int op2 = currentInstruction[3].u.operand;
     OperandTypes types = OperandTypes::fromInt(currentInstruction[4].u.operand);
 
-#if ENABLE(VALUE_PROFILER)
     m_codeBlock->addSpecialFastCaseProfile(m_bytecodeOffset);
-#endif
 
     if (!supportsFloatingPoint()) {
         addSlowCase(jump());
@@ -1015,7 +1014,6 @@ void JIT::emit_op_div(Instruction* currentInstruction)
     convertInt32ToDouble(regT0, fpRegT0);
     convertInt32ToDouble(regT2, fpRegT1);
     divDouble(fpRegT1, fpRegT0);
-#if ENABLE(VALUE_PROFILER)
     // Is the result actually an integer? The DFG JIT would really like to know. If it's
     // not an integer, we increment a count. If this together with the slow case counter
     // are below threshold then the DFG JIT will compile this division with a specualtion
@@ -1038,9 +1036,6 @@ void JIT::emit_op_div(Instruction* currentInstruction)
     notInteger.link(this);
     add32(TrustedImm32(1), AbsoluteAddress(&m_codeBlock->specialFastCaseProfileForBytecodeOffset(m_bytecodeOffset)->m_counter));
     emitStoreDouble(dst, fpRegT0);
-#else
-    emitStoreDouble(dst, fpRegT0);
-#endif
     end.append(jump());
 
     // Double divide.

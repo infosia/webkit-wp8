@@ -20,7 +20,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFECompositeElement.h"
 
 #include "Attribute.h"
@@ -66,7 +66,7 @@ PassRefPtr<SVGFECompositeElement> SVGFECompositeElement::create(const QualifiedN
 
 bool SVGFECompositeElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::inAttr);
         supportedAttributes.add(SVGNames::in2Attr);
@@ -189,4 +189,4 @@ PassRefPtr<FilterEffect> SVGFECompositeElement::build(SVGFilterBuilder* filterBu
 
 }
 
-#endif // ENABLE(SVG)
+#endif

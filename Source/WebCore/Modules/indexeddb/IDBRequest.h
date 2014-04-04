@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -86,25 +86,24 @@ public:
     // IDBCallbacks
     virtual void onError(PassRefPtr<IDBDatabaseError>);
     virtual void onSuccess(PassRefPtr<DOMStringList>);
-    virtual void onSuccess(PassRefPtr<IDBCursorBackend>, PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer>);
+    virtual void onSuccess(PassRefPtr<IDBCursorBackend>);
     virtual void onSuccess(PassRefPtr<IDBKey>);
     virtual void onSuccess(PassRefPtr<SharedBuffer>);
     virtual void onSuccess(PassRefPtr<SharedBuffer>, PassRefPtr<IDBKey>, const IDBKeyPath&);
     virtual void onSuccess(int64_t);
     virtual void onSuccess();
     virtual void onSuccess(PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer>);
-    virtual void onSuccessWithPrefetch(const Vector<RefPtr<IDBKey>>&, const Vector<RefPtr<IDBKey>>&, const Vector<RefPtr<SharedBuffer>>&) { ASSERT_NOT_REACHED(); } // Not implemented. Callback should not reach the renderer side.
 
     // ActiveDOMObject
-    virtual bool hasPendingActivity() const OVERRIDE;
+    virtual bool hasPendingActivity() const override;
 
     // EventTarget
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE;
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE FINAL { return ActiveDOMObject::scriptExecutionContext(); }
-    virtual void uncaughtExceptionInEventHandler() OVERRIDE FINAL;
+    virtual EventTargetInterface eventTargetInterface() const override;
+    virtual ScriptExecutionContext* scriptExecutionContext() const override final { return ActiveDOMObject::scriptExecutionContext(); }
+    virtual void uncaughtExceptionInEventHandler() override final;
 
     using EventTarget::dispatchEvent;
-    virtual bool dispatchEvent(PassRefPtr<Event>) OVERRIDE;
+    virtual bool dispatchEvent(PassRefPtr<Event>) override;
 
     void transactionDidFinishAndDispatch();
 
@@ -120,7 +119,7 @@ protected:
     void enqueueEvent(PassRefPtr<Event>);
     virtual bool shouldEnqueueEvent() const;
     void onSuccessInternal(PassRefPtr<SerializedScriptValue>);
-    void onSuccessInternal(const ScriptValue&);
+    void onSuccessInternal(const Deprecated::ScriptValue&);
 
     RefPtr<IDBAny> m_result;
     unsigned short m_errorCode;
@@ -133,14 +132,14 @@ protected:
 
 private:
     // ActiveDOMObject
-    virtual void stop() OVERRIDE;
+    virtual void stop() override;
 
     // EventTarget
-    virtual void refEventTarget() OVERRIDE FINAL { ref(); }
-    virtual void derefEventTarget() OVERRIDE FINAL { deref(); }
+    virtual void refEventTarget() override final { ref(); }
+    virtual void derefEventTarget() override final { deref(); }
 
     PassRefPtr<IDBCursor> getResultCursor();
-    void setResultCursor(PassRefPtr<IDBCursor>, PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, const ScriptValue&);
+    void setResultCursor(PassRefPtr<IDBCursor>, PassRefPtr<IDBKey>, PassRefPtr<IDBKey> primaryKey, const Deprecated::ScriptValue&);
 
     RefPtr<IDBAny> m_source;
     const IDBDatabaseBackend::TaskType m_taskType;
@@ -155,7 +154,7 @@ private:
     RefPtr<IDBCursor> m_pendingCursor;
     RefPtr<IDBKey> m_cursorKey;
     RefPtr<IDBKey> m_cursorPrimaryKey;
-    ScriptValue m_cursorValue;
+    Deprecated::ScriptValue m_cursorValue;
     bool m_didFireUpgradeNeededEvent;
     bool m_preventPropagation;
 

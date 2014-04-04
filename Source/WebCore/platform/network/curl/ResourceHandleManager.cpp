@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2004, 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
  * Copyright (C) 2007 Holger Hans Peter Freyther
@@ -21,10 +21,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,6 +36,8 @@
 
 #include "config.h"
 #include "ResourceHandleManager.h"
+
+#if USE(CURL)
 
 #include "CredentialStorage.h"
 #include "CurlCacheManager.h"
@@ -128,9 +130,9 @@ static char* cookieJarPath()
 }
 
 static Mutex* sharedResourceMutex(curl_lock_data data) {
-    DEFINE_STATIC_LOCAL(Mutex, cookieMutex, ());
-    DEFINE_STATIC_LOCAL(Mutex, dnsMutex, ());
-    DEFINE_STATIC_LOCAL(Mutex, shareMutex, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Mutex, cookieMutex, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Mutex, dnsMutex, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Mutex, shareMutex, ());
 
     switch (data) {
         case CURL_LOCK_DATA_COOKIE:
@@ -322,6 +324,13 @@ static bool isAppendableHeader(const String &key)
     return false;
 }
 
+static void removeLeadingAndTrailingQuotes(String& value)
+{
+    unsigned length = value.length();
+    if (value.startsWith('"') && value.endsWith('"') && length > 1)
+        value = value.substring(1, length-2);
+}
+
 static bool getProtectionSpace(CURL* h, const ResourceResponse& response, ProtectionSpace& protectionSpace)
 {
     CURLcode err;
@@ -348,11 +357,14 @@ static bool getProtectionSpace(CURL* h, const ResourceResponse& response, Protec
 
     String realm;
 
-    String authHeader = response.httpHeaderField("WWW-Authenticate");
+    const String authHeader = response.httpHeaderField("WWW-Authenticate");
     const String realmString = "realm=";
     int realmPos = authHeader.find(realmString);
-    if (realmPos > 0)
+    if (realmPos > 0) {
         realm = authHeader.substring(realmPos + realmString.length());
+        realm = realm.left(realm.find(','));
+        removeLeadingAndTrailingQuotes(realm);
+    }
 
     ProtectionSpaceServerType serverType = ProtectionSpaceServerHTTP;
     if (protocol == "https")
@@ -704,11 +716,6 @@ static void setupFormData(ResourceHandle* job, CURLoption sizeOption, struct cur
             expectedSizeOfCurlOffT = sizeof(int);
     }
 
-#if COMPILER(MSVC)
-    // work around compiler error in Visual Studio 2005.  It can't properly
-    // handle math with 64-bit constant declarations.
-#pragma warning(disable: 4307)
-#endif
     static const long long maxCurlOffT = (1LL << (expectedSizeOfCurlOffT * 8 - 1)) - 1;
     // Obtain the total size of the form data
     curl_off_t size = 0;
@@ -843,8 +850,9 @@ void ResourceHandleManager::dispatchSynchronousJob(ResourceHandle* job)
     // curl_easy_perform blocks until the transfert is finished.
     CURLcode ret =  curl_easy_perform(handle->m_handle);
 
-    if (ret != 0) {
+    if (ret != CURLE_OK) {
         ResourceError error(String(handle->m_url), ret, String(handle->m_url), String(curl_easy_strerror(ret)));
+        error.setSSLErrors(handle->m_sslErrors);
         handle->client()->didFail(job, error);
     }
 
@@ -961,6 +969,7 @@ void ResourceHandleManager::initializeHandle(ResourceHandle* job)
     curl_easy_setopt(d->m_handle, CURLOPT_DNS_CACHE_TIMEOUT, 60 * 5); // 5 minutes
     curl_easy_setopt(d->m_handle, CURLOPT_PROTOCOLS, allowedProtocols);
     curl_easy_setopt(d->m_handle, CURLOPT_REDIR_PROTOCOLS, allowedProtocols);
+    setSSLClientCertificate(job);
 
     if (ignoreSSLErrors)
         curl_easy_setopt(d->m_handle, CURLOPT_SSL_VERIFYPEER, false);
@@ -1078,3 +1087,5 @@ void ResourceHandleManager::cancel(ResourceHandle* job)
 }
 
 } // namespace WebCore
+
+#endif

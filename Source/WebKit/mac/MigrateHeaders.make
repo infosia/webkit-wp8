@@ -10,7 +10,7 @@
 # 2.  Redistributions in binary form must reproduce the above copyright
 #     notice, this list of conditions and the following disclaimer in the
 #     documentation and/or other materials provided with the distribution. 
-# 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+# 3.  Neither the name of Apple Inc. ("Apple") nor the names of
 #     its contributors may be used to endorse or promote products derived
 #     from this software without specific prior written permission. 
 #
@@ -177,11 +177,13 @@ all : \
     $(PUBLIC_HEADERS_DIR)/DOMUIEvent.h \
     $(PUBLIC_HEADERS_DIR)/DOMViews.h \
     $(PUBLIC_HEADERS_DIR)/DOMWheelEvent.h \
+    $(INTERNAL_HEADERS_DIR)/DOMWheelEventInternal.h \
     $(PUBLIC_HEADERS_DIR)/DOMXPath.h \
     $(PUBLIC_HEADERS_DIR)/DOMXPathException.h \
     $(PUBLIC_HEADERS_DIR)/DOMXPathExpression.h \
     $(PUBLIC_HEADERS_DIR)/DOMXPathNSResolver.h \
     $(PUBLIC_HEADERS_DIR)/DOMXPathResult.h \
+    $(PUBLIC_HEADERS_DIR)/WebKitAvailability.h \
     $(PUBLIC_HEADERS_DIR)/WebScriptObject.h \
     $(PUBLIC_HEADERS_DIR)/npapi.h \
     $(PUBLIC_HEADERS_DIR)/npfunctions.h \
@@ -189,20 +191,115 @@ all : \
     $(PUBLIC_HEADERS_DIR)/nptypes.h \
 #
 
-REPLACE_RULES = -e s/\<WebCore/\<WebKit/ -e s/DOMDOMImplementation/DOMImplementation/
-HEADER_MIGRATE_CMD = sed $(REPLACE_RULES) $< > $@
+ifneq ($(filter iphoneos iphonesimulator, $(PLATFORM_NAME)), )
+all : \
+    $(PUBLIC_HEADERS_DIR)/DOMGestureEvent.h \
+    $(PRIVATE_HEADERS_DIR)/DOMHTMLTextAreaElementPrivate.h \
+    $(PUBLIC_HEADERS_DIR)/DOMTouch.h \
+    $(PUBLIC_HEADERS_DIR)/DOMTouchEvent.h \
+    $(PUBLIC_HEADERS_DIR)/DOMTouchList.h \
+    $(PRIVATE_HEADERS_DIR)/DOMUIKitExtensions.h \
+    $(PRIVATE_HEADERS_DIR)/KeyEventCodesIOS.h \
+    $(PRIVATE_HEADERS_DIR)/MediaPlayerProxy.h \
+    $(PRIVATE_HEADERS_DIR)/PluginData.h \
+    $(PRIVATE_HEADERS_DIR)/ScrollTypes.h \
+    $(PRIVATE_HEADERS_DIR)/SystemMemory.h \
+    $(PRIVATE_HEADERS_DIR)/WAKAppKitStubs.h \
+    $(PRIVATE_HEADERS_DIR)/WAKResponder.h \
+    $(PRIVATE_HEADERS_DIR)/WAKScrollView.h \
+    $(PRIVATE_HEADERS_DIR)/WAKView.h \
+    $(PRIVATE_HEADERS_DIR)/WAKViewPrivate.h \
+    $(PRIVATE_HEADERS_DIR)/WAKWindow.h \
+    $(PRIVATE_HEADERS_DIR)/WKContentObservation.h \
+    $(PRIVATE_HEADERS_DIR)/WKGraphics.h \
+    $(PRIVATE_HEADERS_DIR)/WKTypes.h \
+    $(PRIVATE_HEADERS_DIR)/WKUtilities.h \
+    $(PRIVATE_HEADERS_DIR)/WKView.h \
+    $(PRIVATE_HEADERS_DIR)/WebAutocapitalize.h \
+    $(PRIVATE_HEADERS_DIR)/WebCoreFrameView.h \
+    $(PRIVATE_HEADERS_DIR)/WebCoreThread.h \
+    $(PRIVATE_HEADERS_DIR)/WebCoreThreadMessage.h \
+    $(PRIVATE_HEADERS_DIR)/WebCoreThreadRun.h \
+    $(PRIVATE_HEADERS_DIR)/WebEvent.h \
+    $(PRIVATE_HEADERS_DIR)/WebEventRegion.h
+
+
+# Special case WAKScrollView.h, which contains the protocol named
+# <WebCoreFrameScrollView> and shouldn't be changed by the default rule.
+$(PRIVATE_HEADERS_DIR)/WAKScrollView.h : WAKScrollView.h MigrateHeaders.make
+	cat $< > $@
+
+endif
+
+WEBCORE_HEADER_REPLACE_RULES = -e s/\<WebCore/\<WebKit/ -e s/DOMDOMImplementation/DOMImplementation/
+WEBCORE_HEADER_MIGRATE_CMD = sed $(WEBCORE_HEADER_REPLACE_RULES) $< > $@
+
+ifeq ($(filter iphoneos iphonesimulator, $(PLATFORM_NAME)), )
+PUBLIC_HEADER_CHECK_CMD = @if grep -q "AVAILABLE.*TBD" "$<"; then line=$$(awk "/AVAILABLE.*TBD/ { print FNR; exit }" "$<" ); echo "$<:$$line: error: A class within a public header has unspecified availability."; false; fi
+else
+PUBLIC_HEADER_CHECK_CMD =
+endif
 
 $(PUBLIC_HEADERS_DIR)/DOM% : DOMDOM% MigrateHeaders.make
-	$(HEADER_MIGRATE_CMD)
+	$(PUBLIC_HEADER_CHECK_CMD)
+	$(WEBCORE_HEADER_MIGRATE_CMD)
 
 $(PRIVATE_HEADERS_DIR)/DOM% : DOMDOM% MigrateHeaders.make
-	$(HEADER_MIGRATE_CMD)
+	$(WEBCORE_HEADER_MIGRATE_CMD)
 
 $(PUBLIC_HEADERS_DIR)/% : % MigrateHeaders.make
-	$(HEADER_MIGRATE_CMD)
+	$(PUBLIC_HEADER_CHECK_CMD)
+	$(WEBCORE_HEADER_MIGRATE_CMD)
 
 $(PRIVATE_HEADERS_DIR)/% : % MigrateHeaders.make
-	$(HEADER_MIGRATE_CMD)
+	$(WEBCORE_HEADER_MIGRATE_CMD)
 
 $(INTERNAL_HEADERS_DIR)/% : % MigrateHeaders.make
-	$(HEADER_MIGRATE_CMD)
+	$(WEBCORE_HEADER_MIGRATE_CMD)
+
+# Migration of WebKit2 headers to WebKit
+
+WEBKIT2_HEADERS = \
+    WKBackForwardList.h \
+    WKBackForwardListItem.h \
+    WKBackForwardListItemPrivate.h \
+    WKBackForwardListPrivate.h \
+    WKFoundation.h \
+    WKFrameInfo.h \
+    WKHistoryDelegatePrivate.h \
+    WKNavigation.h \
+    WKNavigationAction.h \
+    WKNavigationDelegate.h \
+    WKNavigationResponse.h \
+    WKPreferences.h \
+    WKProcessPool.h \
+    WKProcessPoolPrivate.h \
+    WKUIDelegate.h \
+    WKUIDelegatePrivate.h \
+    WKWebView.h \
+    WKWebViewConfiguration.h \
+    WKWebViewConfigurationPrivate.h \
+    WKWebViewPrivate.h \
+    _WKActivatedElementInfo.h \
+    _WKElementAction.h \
+    _WKProcessPoolConfiguration.h \
+    _WKThumbnailView.h \
+    _WKVisitedLinkProvider.h \
+    _WKVisitedLinkProviderPrivate.h \
+#
+
+WEBKIT2_PUBLIC_HEADERS = $(addprefix $(PUBLIC_HEADERS_DIR)/, $(filter $(WEBKIT2_HEADERS),$(notdir $(wildcard $(WEBKIT2_FRAMEWORKS_DIR)/WebKit2.framework/Headers/*))))
+WEBKIT2_PRIVATE_HEADERS = $(addprefix $(PRIVATE_HEADERS_DIR)/, $(filter $(WEBKIT2_HEADERS),$(notdir $(wildcard $(WEBKIT2_FRAMEWORKS_DIR)/WebKit2.framework/PrivateHeaders/*))))
+
+ifeq ($(PLATFORM_NAME), macosx)
+all : $(WEBKIT2_PUBLIC_HEADERS) $(WEBKIT2_PRIVATE_HEADERS)
+endif
+
+WEBKIT2_HEADER_REPLACE_RULES = -e s/\<WebKit2/\<WebKit/ -e /$\#.*\<WebKit\\/WK.*Ref\\.h\>/d
+WEBKIT2_HEADER_MIGRATE_CMD = sed $(WEBKIT2_HEADER_REPLACE_RULES) $< > $@
+
+$(PUBLIC_HEADERS_DIR)/% : $(WEBKIT2_FRAMEWORKS_DIR)/WebKit2.framework/Headers/% MigrateHeaders.make
+	$(WEBKIT2_HEADER_MIGRATE_CMD)
+
+$(PRIVATE_HEADERS_DIR)/% : $(WEBKIT2_FRAMEWORKS_DIR)/WebKit2.framework/PrivateHeaders/% MigrateHeaders.make
+	$(WEBKIT2_HEADER_MIGRATE_CMD)

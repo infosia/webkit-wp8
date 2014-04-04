@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGPolyElement.h"
 
 #include "Attribute.h"
@@ -67,7 +65,7 @@ SVGPolyElement::SVGPolyElement(const QualifiedName& tagName, Document& document)
 
 bool SVGPolyElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -118,12 +116,12 @@ void SVGPolyElement::svgAttributeChanged(const QualifiedName& attrName)
 
     if (attrName == SVGNames::pointsAttr) {
         renderer->setNeedsShapeUpdate();
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     if (SVGLangSpace::isKnownAttribute(attrName) || SVGExternalResourcesRequired::isKnownAttribute(attrName)) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -165,5 +163,3 @@ bool isSVGPolyElement(const Node& node)
 }
 
 }
-
-#endif // ENABLE(SVG)

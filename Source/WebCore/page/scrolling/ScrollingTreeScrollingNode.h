@@ -26,7 +26,7 @@
 #ifndef ScrollingTreeScrollingNode_h
 #define ScrollingTreeScrollingNode_h
 
-#if ENABLE(THREADED_SCROLLING)
+#if ENABLE(ASYNC_SCROLLING)
 
 #include "IntRect.h"
 #include "ScrollTypes.h"
@@ -42,24 +42,30 @@ class ScrollingStateScrollingNode;
 
 class ScrollingTreeScrollingNode : public ScrollingTreeNode {
 public:
-    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree&, ScrollingNodeID);
     virtual ~ScrollingTreeScrollingNode();
 
-    virtual void updateBeforeChildren(ScrollingStateNode*) OVERRIDE;
+    virtual void updateBeforeChildren(const ScrollingStateNode&) override;
 
     // FIXME: We should implement this when we support ScrollingTreeScrollingNodes as children.
-    virtual void parentScrollPositionDidChange(const IntRect& /*viewportRect*/, const FloatSize& /*cumulativeDelta*/) OVERRIDE { }
+    virtual void parentScrollPositionDidChange(const FloatRect& /*viewportRect*/, const FloatSize& /*cumulativeDelta*/) override { }
 
     virtual void handleWheelEvent(const PlatformWheelEvent&) = 0;
-    virtual void setScrollPosition(const IntPoint&) = 0;
+    virtual void setScrollPosition(const FloatPoint&) = 0;
+    virtual void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&) = 0;
 
-    MainThreadScrollingReasons shouldUpdateScrollLayerPositionOnMainThread() const { return m_shouldUpdateScrollLayerPositionOnMainThread; }
+    virtual void updateLayersAfterViewportChange(const FloatRect& viewportRect, double scale) = 0;
+    virtual void updateLayersAfterDelegatedScroll(const FloatPoint&) { }
+
+    SynchronousScrollingReasons synchronousScrollingReasons() const { return m_synchronousScrollingReasons; }
+    bool shouldUpdateScrollLayerPositionSynchronously() const { return m_synchronousScrollingReasons; }
 
 protected:
-    ScrollingTreeScrollingNode(ScrollingTree&, ScrollingNodeID);
+    ScrollingTreeScrollingNode(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
 
-    const IntRect& viewportRect() const { return m_viewportRect; }
+    const FloatPoint& scrollPosition() const { return m_scrollPosition; }
+    const FloatSize& viewportSize() const { return m_viewportSize; }
     const IntSize& totalContentsSize() const { return m_totalContentsSize; }
+    const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
 
     // If the totalContentsSize changes in the middle of a rubber-band, we still want to use the old totalContentsSize for the sake of
     // computing the stretchAmount(). Using the old value will keep the animation smooth. When there is no rubber-band in progress at
@@ -69,15 +75,13 @@ protected:
 
     float frameScaleFactor() const { return m_frameScaleFactor; }
 
-    ScrollElasticity horizontalScrollElasticity() const { return m_horizontalScrollElasticity; }
-    ScrollElasticity verticalScrollElasticity() const { return m_verticalScrollElasticity; }
+    ScrollElasticity horizontalScrollElasticity() const { return m_scrollableAreaParameters.horizontalScrollElasticity; }
+    ScrollElasticity verticalScrollElasticity() const { return m_scrollableAreaParameters.verticalScrollElasticity; }
 
-    bool hasEnabledHorizontalScrollbar() const { return m_hasEnabledHorizontalScrollbar; }
-    bool hasEnabledVerticalScrollbar() const { return m_hasEnabledVerticalScrollbar; }
+    bool hasEnabledHorizontalScrollbar() const { return m_scrollableAreaParameters.hasEnabledHorizontalScrollbar; }
+    bool hasEnabledVerticalScrollbar() const { return m_scrollableAreaParameters.hasEnabledVerticalScrollbar; }
 
-    bool canHaveScrollbars() const { return m_horizontalScrollbarMode != ScrollbarAlwaysOff || m_verticalScrollbarMode != ScrollbarAlwaysOff; }
-
-    const IntPoint& scrollOrigin() const { return m_scrollOrigin; }
+    bool canHaveScrollbars() const { return m_scrollableAreaParameters.horizontalScrollbarMode != ScrollbarAlwaysOff || m_scrollableAreaParameters.verticalScrollbarMode != ScrollbarAlwaysOff; }
 
     int headerHeight() const { return m_headerHeight; }
     int footerHeight() const { return m_footerHeight; }
@@ -85,32 +89,27 @@ protected:
     ScrollBehaviorForFixedElements scrollBehaviorForFixedElements() const { return m_behaviorForFixed; }
 
 private:
-    IntRect m_viewportRect;
+    FloatSize m_viewportSize;
     IntSize m_totalContentsSize;
     IntSize m_totalContentsSizeForRubberBand;
+    FloatPoint m_scrollPosition;
     IntPoint m_scrollOrigin;
     
-    float m_frameScaleFactor;
-
-    MainThreadScrollingReasons m_shouldUpdateScrollLayerPositionOnMainThread;
-
-    ScrollElasticity m_horizontalScrollElasticity;
-    ScrollElasticity m_verticalScrollElasticity;
+    ScrollableAreaParameters m_scrollableAreaParameters;
     
-    bool m_hasEnabledHorizontalScrollbar;
-    bool m_hasEnabledVerticalScrollbar;
-
-    ScrollbarMode m_horizontalScrollbarMode;
-    ScrollbarMode m_verticalScrollbarMode;
+    float m_frameScaleFactor;
 
     int m_headerHeight;
     int m_footerHeight;
 
+    SynchronousScrollingReasons m_synchronousScrollingReasons;
     ScrollBehaviorForFixedElements m_behaviorForFixed;
 };
 
+SCROLLING_NODE_TYPE_CASTS(ScrollingTreeScrollingNode, isScrollingNode());
+
 } // namespace WebCore
 
-#endif // ENABLE(THREADED_SCROLLING)
+#endif // ENABLE(ASYNC_SCROLLING)
 
 #endif // ScrollingTreeScrollingNode_h

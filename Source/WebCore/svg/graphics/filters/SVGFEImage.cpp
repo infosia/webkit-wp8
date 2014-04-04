@@ -22,7 +22,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEImage.h"
 
 #include "AffineTransform.h"
@@ -67,7 +67,7 @@ PassRefPtr<FEImage> FEImage::createWithIRIReference(Filter* filter, Document& do
 
 void FEImage::determineAbsolutePaintRect()
 {
-    SVGFilter* svgFilter = toSVGFilter(filter());
+    SVGFilter* svgFilter = toSVGFilter(&(filter()));
 
     FloatRect paintRect = svgFilter->absoluteTransform().mapRect(filterPrimitiveSubregion());
     FloatRect srcRect;
@@ -104,7 +104,7 @@ void FEImage::platformApplySoftware()
     if (!resultImage)
         return;
 
-    SVGFilter* svgFilter = toSVGFilter(filter());
+    SVGFilter* svgFilter = toSVGFilter(&(filter()));
     FloatRect destRect = svgFilter->absoluteTransform().mapRect(filterPrimitiveSubregion());
 
     FloatRect srcRect;
@@ -128,13 +128,12 @@ void FEImage::platformApplySoftware()
         SVGElement* contextNode = toSVGElement(renderer->element());
         if (contextNode->hasRelativeLengths()) {
             SVGLengthContext lengthContext(contextNode);
-            float width = 0;
-            float height = 0;
+            FloatSize viewportSize;
 
             // If we're referencing an element with percentage units, eg. <rect with="30%"> those values were resolved against the viewport.
             // Build up a transformation that maps from the viewport space to the filter primitive subregion.
-            if (lengthContext.determineViewport(width, height))
-                resultImage->context()->concatCTM(makeMapBetweenRects(FloatRect(0, 0, width, height), destRect));
+            if (lengthContext.determineViewport(viewportSize))
+                resultImage->context()->concatCTM(makeMapBetweenRects(FloatRect(FloatPoint(), viewportSize), destRect));
         }
 
         AffineTransform contentTransformation;
@@ -151,7 +150,7 @@ void FEImage::dump()
 
 TextStream& FEImage::externalRepresentation(TextStream& ts, int indent) const
 {
-    IntSize imageSize;
+    FloatSize imageSize;
     if (m_image)
         imageSize = m_image->size();
     else if (RenderObject* renderer = referencedRenderer())
@@ -166,4 +165,4 @@ TextStream& FEImage::externalRepresentation(TextStream& ts, int indent) const
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG) && ENABLE(FILTERS)
+#endif // ENABLE(FILTERS)

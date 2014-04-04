@@ -33,9 +33,9 @@
 
 namespace WebCore {
 
-class CryptoKeyDataRSAComponents FINAL : public CryptoKeyData {
+class CryptoKeyDataRSAComponents final : public CryptoKeyData {
 public:
-    ENUM_CLASS(Type) {
+    enum class Type {
         Public,
         Private
     };

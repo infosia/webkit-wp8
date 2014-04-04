@@ -57,11 +57,11 @@
 #import <WebCore/ProxyServer.h>
 #import <WebCore/SecurityOrigin.h>
 #import <WebCore/ScriptController.h>
-#import <WebCore/ScriptValue.h>
 #import <WebCore/UserGestureIndicator.h>
 #import <WebCore/npruntime_impl.h>
 #import <WebCore/runtime_object.h>
 #import <WebKitSystemInterface.h>
+#import <bindings/ScriptValue.h>
 #import <mach/mach.h>
 #import <utility>
 #import <wtf/RefCountedLeakCounter.h>
@@ -143,7 +143,7 @@ uint32_t NetscapePluginInstanceProxy::LocalObjectMap::idForObject(VM& vm, JSObje
 
     uint32_t objectID = 0;
     
-    HashMap<JSC::JSObject*, pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
+    HashMap<JSC::JSObject*, std::pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
     if (iter != m_jsObjectToIDMap.end())
         return iter->value.first;
     
@@ -159,7 +159,7 @@ uint32_t NetscapePluginInstanceProxy::LocalObjectMap::idForObject(VM& vm, JSObje
 
 void NetscapePluginInstanceProxy::LocalObjectMap::retain(JSC::JSObject* object)
 {
-    HashMap<JSC::JSObject*, pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
+    HashMap<JSC::JSObject*, std::pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
     ASSERT(iter != m_jsObjectToIDMap.end());
 
     iter->value.second = iter->value.second + 1;
@@ -167,7 +167,7 @@ void NetscapePluginInstanceProxy::LocalObjectMap::retain(JSC::JSObject* object)
 
 void NetscapePluginInstanceProxy::LocalObjectMap::release(JSC::JSObject* object)
 {
-    HashMap<JSC::JSObject*, pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
+    HashMap<JSC::JSObject*, std::pair<uint32_t, uint32_t>>::iterator iter = m_jsObjectToIDMap.find(object);
     ASSERT(iter != m_jsObjectToIDMap.end());
 
     ASSERT(iter->value.second > 0);
@@ -197,7 +197,7 @@ bool NetscapePluginInstanceProxy::LocalObjectMap::forget(uint32_t objectID)
         return true;
     }
 
-    HashMap<JSC::JSObject*, pair<uint32_t, uint32_t>>::iterator rIter = m_jsObjectToIDMap.find(iter->value.get());
+    HashMap<JSC::JSObject*, std::pair<uint32_t, uint32_t>>::iterator rIter = m_jsObjectToIDMap.find(iter->value.get());
 
     // If the object is being sent to plug-in right now, then it's not the time to forget.
     if (rIter->value.second != 1)
@@ -841,7 +841,7 @@ bool NetscapePluginInstanceProxy::getWindowNPObject(uint32_t& objectID)
     if (!frame->script().canExecuteScripts(NotAboutToExecuteScript))
         objectID = 0;
     else
-        objectID = m_localObjects.idForObject(*pluginWorld().vm(), frame->script().windowShell(pluginWorld())->window());
+        objectID = m_localObjects.idForObject(pluginWorld().vm(), frame->script().windowShell(pluginWorld())->window());
         
     return true;
 }
@@ -853,7 +853,7 @@ bool NetscapePluginInstanceProxy::getPluginElementNPObject(uint32_t& objectID)
         return false;
     
     if (JSObject* object = frame->script().jsObjectForPluginElement([m_pluginView element]))
-        objectID = m_localObjects.idForObject(*pluginWorld().vm(), object);
+        objectID = m_localObjects.idForObject(pluginWorld().vm(), object);
     else
         objectID = 0;
     
@@ -883,7 +883,7 @@ bool NetscapePluginInstanceProxy::evaluate(uint32_t objectID, const String& scri
         return false;
 
     JSLockHolder lock(pluginWorld().vm());
-    Strong<JSGlobalObject> globalObject(*pluginWorld().vm(), frame->script().globalObject(pluginWorld()));
+    Strong<JSGlobalObject> globalObject(pluginWorld().vm(), frame->script().globalObject(pluginWorld()));
     ExecState* exec = globalObject->globalExec();
 
     UserGestureIndicator gestureIndicator(allowPopups ? DefinitelyProcessingUserGesture : PossiblyProcessingUserGesture);
@@ -1060,7 +1060,7 @@ bool NetscapePluginInstanceProxy::setProperty(uint32_t objectID, const Identifie
     JSLockHolder lock(exec);    
 
     JSValue value = demarshalValue(exec, valueData, valueLength);
-    PutPropertySlot slot;
+    PutPropertySlot slot(object);
     object->methodTable()->put(object, exec, propertyName, value, slot);
     
     exec->clearException();
@@ -1663,7 +1663,7 @@ void NetscapePluginInstanceProxy::privateBrowsingModeDidChange(bool isPrivateBro
 
 static String& globalExceptionString()
 {
-    DEFINE_STATIC_LOCAL(String, exceptionString, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, exceptionString, ());
     return exceptionString;
 }
 

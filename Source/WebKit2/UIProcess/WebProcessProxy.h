@@ -26,6 +26,7 @@
 #ifndef WebProcessProxy_h
 #define WebProcessProxy_h
 
+#include "APISession.h"
 #include "ChildProcessProxy.h"
 #include "MessageReceiverMap.h"
 #include "PlatformProcessIdentifier.h"
@@ -67,7 +68,7 @@ public:
     static PassRefPtr<WebProcessProxy> create(WebContext&);
     ~WebProcessProxy();
 
-    static WebProcessProxy* fromConnection(CoreIPC::Connection* connection)
+    static WebProcessProxy* fromConnection(IPC::Connection* connection)
     {
         return static_cast<WebProcessProxy*>(ChildProcessProxy::fromConnection(connection));
     }
@@ -77,13 +78,12 @@ public:
     WebContext& context() { return m_context.get(); }
 
     static WebPageProxy* webPage(uint64_t pageID);
-    PassRefPtr<WebPageProxy> createWebPage(PageClient&, WebPageGroup&);
+    PassRefPtr<WebPageProxy> createWebPage(PageClient&, const WebPageConfiguration&);
     void addExistingWebPage(WebPageProxy*, uint64_t pageID);
     void removeWebPage(uint64_t pageID);
-    Vector<WebPageProxy*> pages() const;
 
-    WebPageGroup* webPageGroup(uint64_t pageGroupID);
-    void addWebPageGroup(WebPageGroup&);
+    WTF::IteratorRange<WebPageProxyMap::const_iterator::Values> pages() const { return m_pageMap.values(); }
+    unsigned pageCount() const { return m_pageMap.size(); }
 
     WebBackForwardListItem* webBackForwardItem(uint64_t itemID) const;
 
@@ -101,6 +101,7 @@ public:
 
     void willAcquireUniversalFileReadSandboxExtension() { m_mayHaveUniversalFileReadSandboxExtension = true; }
     void assumeReadAccessToBaseURL(const String&);
+    bool hasAssumedReadAccessToURL(const WebCore::URL&) const;
 
     bool checkURLReceivedFromWebProcess(const String&);
     bool checkURLReceivedFromWebProcess(const WebCore::URL&);
@@ -109,15 +110,14 @@ public:
 
     DownloadProxy* createDownloadProxy();
 
-    void pageVisibilityChanged(WebPageProxy*);
+    void pageSuppressibilityChanged(WebPageProxy*);
     void pagePreferencesChanged(WebPageProxy*);
 
     void didSaveToPageCache();
     void releasePageCache();
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     bool allPagesAreProcessSuppressible() const;
-    static bool pageIsProcessSuppressible(WebPageProxy*);
     void updateProcessSuppressionState();
 #endif
 
@@ -126,21 +126,27 @@ public:
 
     void requestTermination();
 
+    RefPtr<API::Object> apiObjectByConvertingToHandles(API::Object*);
+
+    void windowServerConnectionStateChanged();
+
+    void updateProcessState();
+
 private:
     explicit WebProcessProxy(WebContext&);
 
     // From ChildProcessProxy
-    virtual void getLaunchOptions(ProcessLauncher::LaunchOptions&) OVERRIDE;
+    virtual void getLaunchOptions(ProcessLauncher::LaunchOptions&) override;
     void platformGetLaunchOptions(ProcessLauncher::LaunchOptions&);
-    virtual void connectionWillOpen(CoreIPC::Connection*) OVERRIDE;
-    virtual void connectionWillClose(CoreIPC::Connection*) OVERRIDE;
+    virtual void connectionWillOpen(IPC::Connection*) override;
+    virtual void connectionWillClose(IPC::Connection*) override;
 
     // Called when the web process has crashed or we know that it will terminate soon.
     // Will potentially cause the WebProcessProxy object to be freed.
     void disconnect();
 
-    // CoreIPC message handlers.
-    void addBackForwardItem(uint64_t itemID, const String& originalURLString, const String& urlString, const String& title, const CoreIPC::DataReference& backForwardData);
+    // IPC message handlers.
+    void addBackForwardItem(uint64_t itemID, const String& originalURLString, const String& urlString, const String& title, const IPC::DataReference& backForwardData);
     void didDestroyFrame(uint64_t);
     
     void shouldTerminate(bool& shouldTerminate);
@@ -159,20 +165,20 @@ private:
     void getDatabaseProcessConnection(PassRefPtr<Messages::WebProcessProxy::GetDatabaseProcessConnection::DelayedReply>);
 #endif
 
-    // CoreIPC::Connection::Client
+    // IPC::Connection::Client
     friend class WebConnectionToWebProcess;
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-    virtual void didReceiveSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, std::unique_ptr<CoreIPC::MessageEncoder>&) OVERRIDE;
-    virtual void didClose(CoreIPC::Connection*) OVERRIDE;
-    virtual void didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference messageReceiverName, CoreIPC::StringReference messageName) OVERRIDE;
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+    virtual void didReceiveSyncMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&) override;
+    virtual void didClose(IPC::Connection*) override;
+    virtual void didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference messageReceiverName, IPC::StringReference messageName) override;
 
     // ResponsivenessTimer::Client
-    void didBecomeUnresponsive(ResponsivenessTimer*) OVERRIDE;
-    void interactionOccurredWhileUnresponsive(ResponsivenessTimer*) OVERRIDE;
-    void didBecomeResponsive(ResponsivenessTimer*) OVERRIDE;
+    void didBecomeUnresponsive(ResponsivenessTimer*) override;
+    void interactionOccurredWhileUnresponsive(ResponsivenessTimer*) override;
+    void didBecomeResponsive(ResponsivenessTimer*) override;
 
     // ProcessLauncher::Client
-    virtual void didFinishLaunching(ProcessLauncher*, CoreIPC::Connection::Identifier) OVERRIDE;
+    virtual void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier) override;
 
     // History client
     void didNavigateWithNavigationData(uint64_t pageID, const WebNavigationDataStore&, uint64_t frameID);
@@ -181,8 +187,8 @@ private:
     void didUpdateHistoryTitle(uint64_t pageID, const String& title, const String& url, uint64_t frameID);
 
     // Implemented in generated WebProcessProxyMessageReceiver.cpp
-    void didReceiveWebProcessProxyMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-    void didReceiveSyncWebProcessProxyMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, std::unique_ptr<CoreIPC::MessageEncoder>&);
+    void didReceiveWebProcessProxyMessage(IPC::Connection*, IPC::MessageDecoder&);
+    void didReceiveSyncWebProcessProxyMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&);
 
     bool canTerminateChildProcess();
 
@@ -197,7 +203,6 @@ private:
     WebPageProxyMap m_pageMap;
     WebFrameProxyMap m_frameMap;
     WebBackForwardListItemMap m_backForwardListItemMap;
-    HashMap<uint64_t, WebPageGroup*> m_pageGroups;
 
     OwnPtr<DownloadProxyMap> m_downloadProxyMap;
 
@@ -205,12 +210,18 @@ private:
     CustomProtocolManagerProxy m_customProtocolManagerProxy;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     HashSet<uint64_t> m_processSuppressiblePages;
     bool m_processSuppressionEnabled;
 #endif
+
+    int m_numberOfTimesSuddenTerminationWasDisabled;
 };
-    
+
+#if !PLATFORM(IOS)
+inline void WebProcessProxy::updateProcessState() { }
+#endif
+
 } // namespace WebKit
 
 #endif // WebProcessProxy_h

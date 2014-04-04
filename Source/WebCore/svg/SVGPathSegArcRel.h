@@ -22,7 +22,6 @@
 #ifndef SVGPathSegArcRel_h
 #define SVGPathSegArcRel_h
 
-#if ENABLE(SVG)
 #include "SVGPathSegArc.h"
 
 namespace WebCore {
@@ -40,11 +39,10 @@ private:
     {
     }
 
-    virtual unsigned short pathSegType() const { return PATHSEG_ARC_REL; }
-    virtual String pathSegTypeAsLetter() const { return "a"; }
+    virtual unsigned short pathSegType() const override { return PATHSEG_ARC_REL; }
+    virtual String pathSegTypeAsLetter() const override { return "a"; }
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

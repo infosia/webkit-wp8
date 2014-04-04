@@ -204,7 +204,7 @@ void EditorClient::respondToChangedContents()
 }
 
 static WebKitWebView* viewSettingClipboard = 0;
-static void collapseSelection(GtkClipboard* clipboard, WebKitWebView* webView)
+static void collapseSelection(GtkClipboard*, WebKitWebView* webView)
 {
     if (viewSettingClipboard && viewSettingClipboard == webView)
         return;
@@ -216,7 +216,8 @@ static void collapseSelection(GtkClipboard* clipboard, WebKitWebView* webView)
     Frame& frame = corePage->focusController().focusedOrMainFrame();
 
     // Collapse the selection without clearing it
-    frame.selection().setBase(frame.selection().extent(), frame.selection().affinity());
+    const VisibleSelection& selection = frame.selection().selection();
+    frame.selection().setBase(selection.extent(), selection.affinity());
 }
 
 #if PLATFORM(X11)

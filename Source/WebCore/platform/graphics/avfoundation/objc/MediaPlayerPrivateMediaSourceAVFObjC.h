@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -31,9 +31,13 @@
 #include "MediaPlayerPrivate.h"
 #include "SourceBufferPrivateClient.h"
 #include <wtf/MediaTime.h>
+#include <wtf/Vector.h>
+#include <wtf/WeakPtr.h>
 
 OBJC_CLASS AVAsset;
+OBJC_CLASS AVSampleBufferAudioRenderer;
 OBJC_CLASS AVSampleBufferDisplayLayer;
+OBJC_CLASS AVSampleBufferRenderSynchronizer;
 
 typedef struct OpaqueCMTimebase* CMTimebaseRef;
 
@@ -52,103 +56,127 @@ public:
     void addDisplayLayer(AVSampleBufferDisplayLayer*);
     void removeDisplayLayer(AVSampleBufferDisplayLayer*);
 
-    virtual MediaPlayer::NetworkState networkState() const OVERRIDE;
-    virtual MediaPlayer::ReadyState readyState() const OVERRIDE;
+    void addAudioRenderer(AVSampleBufferAudioRenderer*);
+    void removeAudioRenderer(AVSampleBufferAudioRenderer*);
+
+    virtual MediaPlayer::NetworkState networkState() const override;
+    virtual MediaPlayer::ReadyState readyState() const override;
     void setReadyState(MediaPlayer::ReadyState);
     void setNetworkState(MediaPlayer::NetworkState);
 
     void seekInternal(double, double, double);
     void setLoadingProgresssed(bool flag) { m_loadingProgressed = flag; }
     void setHasAvailableVideoFrame(bool flag) { m_hasAvailableVideoFrame = flag; }
+    void durationChanged();
+
+    void effectiveRateChanged();
+    void sizeChanged();
+
+#if ENABLE(ENCRYPTED_MEDIA_V2)
+    virtual std::unique_ptr<CDMSession> createSession(const String&);
+    void keyNeeded(Uint8Array*);
+#endif
+
+    WeakPtr<MediaPlayerPrivateMediaSourceAVFObjC> createWeakPtr() { return m_weakPtrFactory.createWeakPtr(); }
 
 private:
     // MediaPlayerPrivateInterface
-    virtual void load(const String& url) OVERRIDE;
-    virtual void load(const String& url, PassRefPtr<HTMLMediaSource>) OVERRIDE;
-    virtual void cancelLoad() OVERRIDE;
+    virtual void load(const String& url) override;
+    virtual void load(const String& url, MediaSourcePrivateClient*) override;
+    virtual void cancelLoad() override;
 
-    virtual void prepareToPlay() OVERRIDE;
-    virtual PlatformMedia platformMedia() const OVERRIDE;
-#if USE(ACCELERATED_COMPOSITING)
-    virtual PlatformLayer* platformLayer() const OVERRIDE;
-#endif
+    virtual void prepareToPlay() override;
+    virtual PlatformMedia platformMedia() const override;
+    virtual PlatformLayer* platformLayer() const override;
 
-    virtual void play() OVERRIDE;
+    virtual void play() override;
     void playInternal();
 
-    virtual void pause() OVERRIDE;
+    virtual void pause() override;
     void pauseInternal();
 
-    virtual bool paused() const OVERRIDE;
+    virtual bool paused() const override;
 
-    virtual bool supportsScanning() const OVERRIDE;
+    virtual void setVolume(float volume) override;
+    virtual bool supportsMuting() const override { return true; }
+    virtual void setMuted(bool) override;
 
-    virtual IntSize naturalSize() const OVERRIDE;
+    virtual bool supportsScanning() const override;
 
-    virtual bool hasVideo() const OVERRIDE;
-    virtual bool hasAudio() const OVERRIDE;
+    virtual IntSize naturalSize() const override;
 
-    virtual void setVisible(bool) OVERRIDE;
+    virtual bool hasVideo() const override;
+    virtual bool hasAudio() const override;
 
-    virtual double durationDouble() const OVERRIDE;
-    virtual double currentTimeDouble() const OVERRIDE;
-    virtual double startTimeDouble() const OVERRIDE;
-    virtual double initialTime() const OVERRIDE;
+    virtual void setVisible(bool) override;
 
-    virtual void seekWithTolerance(double time, double negativeThreshold, double positiveThreshold) OVERRIDE;
-    virtual bool seeking() const OVERRIDE;
-    virtual void setRateDouble(double) OVERRIDE;
+    virtual double durationDouble() const override;
+    virtual double currentTimeDouble() const override;
+    virtual double startTimeDouble() const override;
+    virtual double initialTime() const override;
 
-    virtual PassRefPtr<TimeRanges> seekable() const OVERRIDE;
-    virtual double maxTimeSeekableDouble() const OVERRIDE;
-    virtual double minTimeSeekable() const OVERRIDE;
-    virtual PassRefPtr<TimeRanges> buffered() const OVERRIDE;
+    virtual void seekWithTolerance(double time, double negativeThreshold, double positiveThreshold) override;
+    virtual bool seeking() const override;
+    virtual void setRateDouble(double) override;
 
-    virtual bool didLoadingProgress() const OVERRIDE;
+    virtual std::unique_ptr<PlatformTimeRanges> seekable() const override;
+    virtual double maxTimeSeekableDouble() const override;
+    virtual double minTimeSeekable() const override;
+    virtual std::unique_ptr<PlatformTimeRanges> buffered() const override;
 
-    virtual void setSize(const IntSize&) OVERRIDE;
+    virtual bool didLoadingProgress() const override;
 
-    virtual void paint(GraphicsContext*, const IntRect&) OVERRIDE;
-    virtual void paintCurrentFrameInContext(GraphicsContext*, const IntRect&) OVERRIDE;
+    virtual void setSize(const IntSize&) override;
 
-    virtual bool hasAvailableVideoFrame() const OVERRIDE;
+    virtual void paint(GraphicsContext*, const IntRect&) override;
+    virtual void paintCurrentFrameInContext(GraphicsContext*, const IntRect&) override;
 
-#if USE(ACCELERATED_COMPOSITING)
-    virtual bool supportsAcceleratedRendering() const OVERRIDE;
+    virtual bool hasAvailableVideoFrame() const override;
+
+    virtual bool supportsAcceleratedRendering() const override;
     // called when the rendering system flips the into or out of accelerated rendering mode.
-    virtual void acceleratedRenderingStateChanged() OVERRIDE;
-#endif
+    virtual void acceleratedRenderingStateChanged() override;
 
-    virtual MediaPlayer::MovieLoadType movieLoadType() const OVERRIDE;
+    virtual MediaPlayer::MovieLoadType movieLoadType() const override;
 
-    virtual void prepareForRendering() OVERRIDE;
+    virtual void prepareForRendering() override;
 
-    virtual String engineDescription() const OVERRIDE;
+    virtual String engineDescription() const override;
 
-    virtual String languageOfPrimaryAudioTrack() const OVERRIDE;
+    virtual String languageOfPrimaryAudioTrack() const override;
 
-    virtual size_t extraMemoryCost() const OVERRIDE;
+    virtual size_t extraMemoryCost() const override;
+
+    virtual unsigned long totalVideoFrames() override;
+    virtual unsigned long droppedVideoFrames() override;
+    virtual unsigned long corruptedVideoFrames() override;
+    virtual double totalFrameDelay() override;
 
     void ensureLayer();
     void destroyLayer();
-    void durationChanged();
 
     // MediaPlayer Factory Methods
     static PassOwnPtr<MediaPlayerPrivateInterface> create(MediaPlayer*);
     static bool isAvailable();
     static void getSupportedTypes(HashSet<String>& types);
     static MediaPlayer::SupportsType supportsType(const MediaEngineSupportParameters&);
+    static bool supportsKeySystem(const String& keySystem, const String& mimeType);
 
     friend class MediaSourcePrivateAVFObjC;
 
     MediaPlayer* m_player;
-    RefPtr<HTMLMediaSource> m_mediaSource;
+    WeakPtrFactory<MediaPlayerPrivateMediaSourceAVFObjC> m_weakPtrFactory;
+    RefPtr<MediaSourcePrivateClient> m_mediaSource;
     RefPtr<MediaSourcePrivateAVFObjC> m_mediaSourcePrivate;
     RetainPtr<AVAsset> m_asset;
     RetainPtr<AVSampleBufferDisplayLayer> m_sampleBufferDisplayLayer;
-    std::unique_ptr<PlatformClockCM> m_clock;
+    Vector<RetainPtr<AVSampleBufferAudioRenderer>> m_sampleBufferAudioRenderers;
+    RetainPtr<AVSampleBufferRenderSynchronizer> m_synchronizer;
+    RetainPtr<id> m_timeJumpedObserver;
     MediaPlayer::NetworkState m_networkState;
     MediaPlayer::ReadyState m_readyState;
+    double m_rate;
+    bool m_playing;
     bool m_seeking;
     mutable bool m_loadingProgressed;
     bool m_hasAvailableVideoFrame;

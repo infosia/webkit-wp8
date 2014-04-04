@@ -187,9 +187,10 @@ struct HashAndUTF8CharactersTranslator {
 
         // If buffer contains only ASCII characters UTF-8 and UTF16 length are the same.
         if (buffer.utf16Length != buffer.length) {
-            const UChar* stringCharacters = string->characters();
+            if (string->is8Bit())
+                return equalLatin1WithUTF8(string->characters8(), buffer.characters, buffer.characters + buffer.length);
 
-            return equalUTF16WithUTF8(stringCharacters, stringCharacters + string->length(), buffer.characters, buffer.characters + buffer.length);
+            return equalUTF16WithUTF8(string->characters16(), buffer.characters, buffer.characters + buffer.length);
         }
 
         if (string->is8Bit()) {
@@ -281,28 +282,42 @@ struct SubstringLocation {
 };
 
 struct SubstringTranslator {
+    static void translate(StringImpl*& location, const SubstringLocation& buffer, unsigned hash)
+    {
+        location = &StringImpl::createSubstringSharingImpl(buffer.baseString, buffer.start, buffer.length).leakRef();
+        location->setHash(hash);
+        location->setIsAtomic(true);
+    }
+};
+
+struct SubstringTranslator8 : SubstringTranslator {
     static unsigned hash(const SubstringLocation& buffer)
     {
-        return StringHasher::computeHashAndMaskTop8Bits(buffer.baseString->characters() + buffer.start, buffer.length);
+        return StringHasher::computeHashAndMaskTop8Bits(buffer.baseString->characters8() + buffer.start, buffer.length);
     }
 
     static bool equal(StringImpl* const& string, const SubstringLocation& buffer)
     {
-        return WTF::equal(string, buffer.baseString->characters() + buffer.start, buffer.length);
+        return WTF::equal(string, buffer.baseString->characters8() + buffer.start, buffer.length);
+    }
+};
+
+struct SubstringTranslator16 : SubstringTranslator {
+    static unsigned hash(const SubstringLocation& buffer)
+    {
+        return StringHasher::computeHashAndMaskTop8Bits(buffer.baseString->characters16() + buffer.start, buffer.length);
     }
 
-    static void translate(StringImpl*& location, const SubstringLocation& buffer, unsigned hash)
+    static bool equal(StringImpl* const& string, const SubstringLocation& buffer)
     {
-        location = &StringImpl::create(buffer.baseString, buffer.start, buffer.length).leakRef();
-        location->setHash(hash);
-        location->setIsAtomic(true);
+        return WTF::equal(string, buffer.baseString->characters16() + buffer.start, buffer.length);
     }
 };
 
 PassRefPtr<StringImpl> AtomicString::add(StringImpl* baseString, unsigned start, unsigned length)
 {
     if (!baseString)
-        return 0;
+        return nullptr;
 
     if (!length || start >= baseString->length())
         return StringImpl::empty();
@@ -315,7 +330,9 @@ PassRefPtr<StringImpl> AtomicString::add(StringImpl* baseString, unsigned start,
     }
 
     SubstringLocation buffer = { baseString, start, length };
-    return addToStringTable<SubstringLocation, SubstringTranslator>(buffer);
+    if (baseString->is8Bit())
+        return addToStringTable<SubstringLocation, SubstringTranslator8>(buffer);
+    return addToStringTable<SubstringLocation, SubstringTranslator16>(buffer);
 }
     
 typedef HashTranslatorCharBuffer<LChar> LCharBuffer;
@@ -397,27 +414,44 @@ PassRefPtr<StringImpl> AtomicString::addSlowCase(StringImpl* string)
     return *addResult.iterator;
 }
 
+PassRefPtr<StringImpl> AtomicString::addSlowCase(AtomicStringTable* stringTable, StringImpl* string)
+{
+    if (!string->length())
+        return StringImpl::empty();
+
+    ASSERT_WITH_MESSAGE(!string->isAtomic(), "AtomicString should not hit the slow case if the string is already atomic.");
+
+    AtomicStringTableLocker locker;
+    HashSet<StringImpl*>::AddResult addResult = stringTable->table().add(string);
+
+    if (addResult.isNewEntry) {
+        ASSERT(*addResult.iterator == string);
+        string->setIsAtomic(true);
+    }
+
+    return *addResult.iterator;
+}
+
 template<typename CharacterType>
 static inline HashSet<StringImpl*>::iterator findString(const StringImpl* stringImpl)
 {
-    HashAndCharacters<CharacterType> buffer = { stringImpl->existingHash(), stringImpl->getCharacters<CharacterType>(), stringImpl->length() };
+    HashAndCharacters<CharacterType> buffer = { stringImpl->existingHash(), stringImpl->characters<CharacterType>(), stringImpl->length() };
     return stringTable().find<HashAndCharactersTranslator<CharacterType>>(buffer);
 }
 
-AtomicStringImpl* AtomicString::find(const StringImpl* stringImpl)
+AtomicStringImpl* AtomicString::findStringWithHash(const StringImpl& stringImpl)
 {
-    ASSERT(stringImpl);
-    ASSERT(stringImpl->existingHash());
+    ASSERT(stringImpl.existingHash());
 
-    if (!stringImpl->length())
+    if (!stringImpl.length())
         return static_cast<AtomicStringImpl*>(StringImpl::empty());
 
     AtomicStringTableLocker locker;
     HashSet<StringImpl*>::iterator iterator;
-    if (stringImpl->is8Bit())
-        iterator = findString<LChar>(stringImpl);
+    if (stringImpl.is8Bit())
+        iterator = findString<LChar>(&stringImpl);
     else
-        iterator = findString<UChar>(stringImpl);
+        iterator = findString<UChar>(&stringImpl);
     if (iterator == stringTable().end())
         return 0;
     return static_cast<AtomicStringImpl*>(*iterator);
@@ -447,6 +481,18 @@ AtomicString AtomicString::lower() const
     else
         returnValue.m_string = addSlowCase(lowerImpl.get());
     return returnValue;
+}
+
+AtomicStringImpl* AtomicString::findSlowCase(StringImpl& string)
+{
+    ASSERT_WITH_MESSAGE(!string.isAtomic(), "AtomicStringImpls should return from the fast case.");
+
+    AtomicStringTableLocker locker;
+    HashSet<StringImpl*>& atomicStringTable = stringTable();
+    auto iterator = atomicStringTable.find(&string);
+    if (iterator != atomicStringTable.end())
+        return static_cast<AtomicStringImpl*>(*iterator);
+    return nullptr;
 }
 
 AtomicString AtomicString::fromUTF8Internal(const char* charactersStart, const char* charactersEnd)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,7 +30,8 @@
 
 #include "DFGOperations.h"
 #include "DFGOSRExitCompilerCommon.h"
-#include "Operations.h"
+#include "DFGSpeculativeJIT.h"
+#include "JSCInlines.h"
 #include <wtf/DataLog.h>
 
 namespace JSC { namespace DFG {
@@ -41,9 +42,17 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     if (Options::printEachOSRExit()) {
         SpeculationFailureDebugInfo* debugInfo = new SpeculationFailureDebugInfo;
         debugInfo->codeBlock = m_jit.codeBlock();
+        debugInfo->kind = exit.m_kind;
+        debugInfo->bytecodeOffset = exit.m_codeOrigin.bytecodeIndex;
         
         m_jit.debugCall(debugOperationPrintSpeculationFailure, debugInfo);
     }
+    
+    // Need to ensure that the stack pointer accounts for the worst-case stack usage at exit.
+    m_jit.addPtr(
+        CCallHelpers::TrustedImm32(
+            -m_jit.codeBlock()->jitCode()->dfgCommon()->requiredRegisterCountForExit * sizeof(Register)),
+        CCallHelpers::framePointerRegister, CCallHelpers::stackPointerRegister);
     
     // 2) Perform speculation recovery. This only comes into play when an operation
     //    starts mutating state before verifying the speculation it has already made.
@@ -114,8 +123,8 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                 } else
                     value = exit.m_jsValueSource.payloadGPR();
                 
-                m_jit.loadPtr(AssemblyHelpers::Address(value, JSCell::structureOffset()), scratch1);
-                m_jit.storePtr(scratch1, arrayProfile->addressOfLastSeenStructure());
+                m_jit.loadPtr(AssemblyHelpers::Address(value, JSCell::structureIDOffset()), scratch1);
+                m_jit.storePtr(scratch1, arrayProfile->addressOfLastSeenStructureID());
                 m_jit.load8(AssemblyHelpers::Address(scratch1, Structure::indexingTypeOffset()), scratch1);
                 m_jit.move(AssemblyHelpers::TrustedImm32(1), scratch2);
                 m_jit.lshift32(scratch1, scratch2);
@@ -177,7 +186,6 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
         
         switch (recovery.technique()) {
         case UnboxedInt32InGPR:
-        case UInt32InGPR:
         case UnboxedBooleanInGPR:
         case UnboxedCellInGPR:
             m_jit.store32(
@@ -317,28 +325,6 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
                 AssemblyHelpers::payloadFor(operand));
             break;
             
-        case UInt32InGPR: {
-            m_jit.load32(
-                &bitwise_cast<EncodedValueDescriptor*>(scratch + index)->asBits.payload,
-                GPRInfo::regT0);
-            AssemblyHelpers::Jump positive = m_jit.branch32(
-                AssemblyHelpers::GreaterThanOrEqual,
-                GPRInfo::regT0, AssemblyHelpers::TrustedImm32(0));
-            m_jit.convertInt32ToDouble(GPRInfo::regT0, FPRInfo::fpRegT0);
-            m_jit.addDouble(
-                AssemblyHelpers::AbsoluteAddress(&AssemblyHelpers::twoToThe32),
-                FPRInfo::fpRegT0);
-            m_jit.storeDouble(FPRInfo::fpRegT0, AssemblyHelpers::addressFor(operand));
-            AssemblyHelpers::Jump done = m_jit.jump();
-            positive.link(&m_jit);
-            m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor(operand));
-            m_jit.store32(
-                AssemblyHelpers::TrustedImm32(JSValue::Int32Tag),
-                AssemblyHelpers::tagFor(operand));
-            done.link(&m_jit);
-            break;
-        }
-            
         case Constant:
             m_jit.store32(
                 AssemblyHelpers::TrustedImm32(recovery.constant().tag()),
@@ -409,71 +395,18 @@ void OSRExitCompiler::compileExit(const OSRExit& exit, const Operands<ValueRecov
     //     registers.
     
     if (haveArguments) {
-        HashSet<InlineCallFrame*, DefaultHash<InlineCallFrame*>::Hash,
-            NullableHashTraits<InlineCallFrame*>> didCreateArgumentsObject;
+        ArgumentsRecoveryGenerator argumentsRecovery;
 
         for (size_t index = 0; index < operands.size(); ++index) {
             const ValueRecovery& recovery = operands[index];
             if (recovery.technique() != ArgumentsThatWereNotCreated)
                 continue;
-            int operand = operands.operandForIndex(index);
-            // Find the right inline call frame.
-            InlineCallFrame* inlineCallFrame = 0;
-            for (InlineCallFrame* current = exit.m_codeOrigin.inlineCallFrame;
-                 current;
-                 current = current->caller.inlineCallFrame) {
-                if (current->stackOffset >= operand) {
-                    inlineCallFrame = current;
-                    break;
-                }
-            }
-
-            if (!m_jit.baselineCodeBlockFor(inlineCallFrame)->usesArguments())
-                continue;
-            VirtualRegister argumentsRegister = m_jit.baselineArgumentsRegisterFor(inlineCallFrame);
-            if (didCreateArgumentsObject.add(inlineCallFrame).isNewEntry) {
-                // We know this call frame optimized out an arguments object that
-                // the baseline JIT would have created. Do that creation now.
-                if (inlineCallFrame) {
-                    m_jit.setupArgumentsWithExecState(
-                        AssemblyHelpers::TrustedImmPtr(inlineCallFrame));
-                    m_jit.move(
-                        AssemblyHelpers::TrustedImmPtr(
-                            bitwise_cast<void*>(operationCreateInlinedArguments)),
-                        GPRInfo::nonArgGPR0);
-                } else {
-                    m_jit.setupArgumentsExecState();
-                    m_jit.move(
-                        AssemblyHelpers::TrustedImmPtr(
-                            bitwise_cast<void*>(operationCreateArguments)),
-                        GPRInfo::nonArgGPR0);
-                }
-                m_jit.call(GPRInfo::nonArgGPR0);
-                m_jit.store32(
-                    AssemblyHelpers::TrustedImm32(JSValue::CellTag),
-                    AssemblyHelpers::tagFor(argumentsRegister));
-                m_jit.store32(
-                    GPRInfo::returnValueGPR,
-                    AssemblyHelpers::payloadFor(argumentsRegister));
-                m_jit.store32(
-                    AssemblyHelpers::TrustedImm32(JSValue::CellTag),
-                    AssemblyHelpers::tagFor(unmodifiedArgumentsRegister(argumentsRegister)));
-                m_jit.store32(
-                    GPRInfo::returnValueGPR,
-                    AssemblyHelpers::payloadFor(unmodifiedArgumentsRegister(argumentsRegister)));
-                m_jit.move(GPRInfo::returnValueGPR, GPRInfo::regT0); // no-op move on almost all platforms.
-            }
-
-            m_jit.load32(AssemblyHelpers::payloadFor(argumentsRegister), GPRInfo::regT0);
-            m_jit.store32(
-                AssemblyHelpers::TrustedImm32(JSValue::CellTag),
-                AssemblyHelpers::tagFor(operand));
-            m_jit.store32(GPRInfo::regT0, AssemblyHelpers::payloadFor(operand));
+            argumentsRecovery.generateFor(
+                operands.operandForIndex(index), exit.m_codeOrigin, m_jit);
         }
     }
-    
-    // 11) And finish.
-    
+
+    // 12) And finish.
     adjustAndJumpToTarget(m_jit, exit);
 }
 

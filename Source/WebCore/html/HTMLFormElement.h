@@ -28,7 +28,11 @@
 #include "FormState.h"
 #include "FormSubmission.h"
 #include "HTMLElement.h"
-#include <wtf/OwnPtr.h>
+#include <memory>
+
+#if ENABLE(IOS_AUTOCORRECT_AND_AUTOCAPITALIZE)
+#include "Autocapitalize.h"
+#endif
 
 namespace WebCore {
 
@@ -40,7 +44,7 @@ class HTMLImageElement;
 class HTMLInputElement;
 class TextEncoding;
 
-class HTMLFormElement FINAL : public HTMLElement {
+class HTMLFormElement final : public HTMLElement {
 public:
     static PassRefPtr<HTMLFormElement> create(Document&);
     static PassRefPtr<HTMLFormElement> create(const QualifiedName&, Document&);
@@ -61,6 +65,15 @@ public:
 
     bool shouldAutocomplete() const;
 
+#if ENABLE(IOS_AUTOCORRECT_AND_AUTOCAPITALIZE)
+    bool autocorrect() const;
+    void setAutocorrect(bool);
+
+    WebAutocapitalizeType autocapitalizeType() const;
+    const AtomicString& autocapitalize() const;
+    void setAutocapitalize(const AtomicString&);
+#endif
+
     // FIXME: Should rename these two functions to say "form control" or "form-associated element" instead of "form element".
     void registerFormElement(FormAssociatedElement*);
     void removeFormElement(FormAssociatedElement*);
@@ -68,7 +81,7 @@ public:
     void registerImgElement(HTMLImageElement*);
     void removeImgElement(HTMLImageElement*);
 
-    bool prepareForSubmission(Event*);
+    void prepareForSubmission(Event*); // FIXME: This function doesn't only prepare, it sometimes calls sumbit() itself.
     void submit();
     void submitFromJavaScript();
     void reset();
@@ -91,7 +104,7 @@ public:
     String method() const;
     void setMethod(const String&);
 
-    virtual String target() const OVERRIDE;
+    virtual String target() const override;
 
     bool wasUserSubmitted() const;
 
@@ -111,21 +124,21 @@ public:
 private:
     HTMLFormElement(const QualifiedName&, Document&);
 
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
-    virtual InsertionNotificationRequest insertedInto(ContainerNode&) OVERRIDE;
-    virtual void removedFrom(ContainerNode&) OVERRIDE;
-    virtual void finishParsingChildren() OVERRIDE;
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
+    virtual void finishParsingChildren() override;
 
-    virtual void handleLocalEvents(Event&) OVERRIDE;
+    virtual void handleLocalEvents(Event&) override;
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual bool isURLAttribute(const Attribute&) const OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual bool isURLAttribute(const Attribute&) const override;
 
-    virtual void documentDidResumeFromPageCache() OVERRIDE;
+    virtual void documentDidResumeFromPageCache() override;
 
-    virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
+    virtual void didMoveToNewDocument(Document* oldDocument) override;
 
-    virtual void copyNonAttributePropertiesFromElement(const Element&) OVERRIDE;
+    virtual void copyNonAttributePropertiesFromElement(const Element&) override;
 
     void submit(Event*, bool activateSubmitButton, bool processingUserGesture, FormSubmissionTrigger);
 
@@ -148,7 +161,7 @@ private:
     typedef HashMap<RefPtr<AtomicStringImpl>, FormNamedItem*> PastNamesMap;
 
     FormSubmission::Attributes m_attributes;
-    OwnPtr<PastNamesMap> m_pastNamesMap;
+    std::unique_ptr<PastNamesMap> m_pastNamesMap;
 
     CheckedRadioButtons m_checkedRadioButtons;
 
@@ -159,7 +172,6 @@ private:
 
     bool m_wasUserSubmitted;
     bool m_isSubmittingOrPreparingForSubmission;
-    bool m_shouldSubmit;
 
     bool m_isInResetFunction;
 

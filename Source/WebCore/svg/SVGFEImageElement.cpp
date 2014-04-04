@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEImageElement.h"
 
 #include "Attr.h"
@@ -115,7 +115,7 @@ void SVGFEImageElement::buildPendingResource()
 
 bool SVGFEImageElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -196,10 +196,14 @@ void SVGFEImageElement::notifyFinished(CachedResource*)
     Element* parent = parentElement();
     ASSERT(parent);
 
-    if (!parent->hasTagName(SVGNames::filterTag) || !parent->renderer())
+    if (!parent->hasTagName(SVGNames::filterTag))
         return;
 
-    RenderSVGResource::markForLayoutAndParentResourceInvalidation(parent->renderer());
+    RenderElement* parentRenderer = parent->renderer();
+    if (!parentRenderer)
+        return;
+
+    RenderSVGResource::markForLayoutAndParentResourceInvalidation(*parentRenderer);
 }
 
 PassRefPtr<FilterEffect> SVGFEImageElement::build(SVGFilterBuilder*, Filter* filter)
@@ -218,4 +222,4 @@ void SVGFEImageElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) cons
 
 }
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

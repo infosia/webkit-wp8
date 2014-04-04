@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -46,8 +46,8 @@ public:
 private:
     AccessibilityObject* m_parent;
     
-    virtual AccessibilityObject* parentObject() const OVERRIDE;
-    virtual bool isAccessibilitySVGRoot() const OVERRIDE { return true; }
+    virtual AccessibilityObject* parentObject() const override;
+    virtual bool isAccessibilitySVGRoot() const override { return true; }
 };
 
 ACCESSIBILITY_OBJECT_TYPE_CASTS(AccessibilitySVGRoot, isAccessibilitySVGRoot())

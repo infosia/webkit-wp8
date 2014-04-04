@@ -13,7 +13,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,8 +32,8 @@
 #ifndef AVL_TREE_H_
 #define AVL_TREE_H_
 
+#include <array>
 #include <wtf/Assertions.h>
-#include <wtf/FixedArray.h>
 
 namespace WTF {
 
@@ -71,7 +71,7 @@ public:
     void reset() { for (unsigned i = 0; i < maxDepth; ++i) m_data[i] = false; }
 
 private:
-    FixedArray<bool, maxDepth> m_data;
+    std::array<bool, maxDepth> m_data;
 };
 
 // How to determine maxDepth:

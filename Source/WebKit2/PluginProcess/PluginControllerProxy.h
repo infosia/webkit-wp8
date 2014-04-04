@@ -38,7 +38,7 @@
 #include <wtf/Noncopyable.h>
 #include <wtf/RunLoop.h>
 
-namespace CoreIPC {
+namespace IPC {
     class DataReference;
 }
 
@@ -61,12 +61,12 @@ public:
     bool initialize(const PluginCreationParameters&);
     void destroy();
 
-    void didReceivePluginControllerProxyMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&);
-    void didReceiveSyncPluginControllerProxyMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, std::unique_ptr<CoreIPC::MessageEncoder>&);
+    void didReceivePluginControllerProxyMessage(IPC::Connection*, IPC::MessageDecoder&);
+    void didReceiveSyncPluginControllerProxyMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&);
 
     bool wantsWheelEvents() const;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     uint32_t remoteLayerClientID() const;
 #endif
 
@@ -95,14 +95,14 @@ private:
     virtual bool isAcceleratedCompositingEnabled();
     virtual void pluginProcessCrashed();
     virtual void willSendEventToPlugin();
-    virtual void didInitializePlugin() OVERRIDE;
-    virtual void didFailToInitializePlugin() OVERRIDE;
+    virtual void didInitializePlugin() override;
+    virtual void didFailToInitializePlugin() override;
 
-#if PLATFORM(MAC)
-    virtual void pluginFocusOrWindowFocusChanged(bool) OVERRIDE;
-    virtual void setComplexTextInputState(PluginComplexTextInputState) OVERRIDE;
-    virtual mach_port_t compositingRenderServerPort() OVERRIDE;
-    virtual void openPluginPreferencePane() OVERRIDE;
+#if PLATFORM(COCOA)
+    virtual void pluginFocusOrWindowFocusChanged(bool) override;
+    virtual void setComplexTextInputState(PluginComplexTextInputState) override;
+    virtual mach_port_t compositingRenderServerPort() override;
+    virtual void openPluginPreferencePane() override;
 #endif
 
     virtual float contentsScaleFactor();
@@ -124,11 +124,11 @@ private:
     void geometryDidChange(const WebCore::IntSize& pluginSize, const WebCore::IntRect& clipRect, const WebCore::AffineTransform& pluginToRootViewTransform, float contentsScaleFactor, const ShareableBitmap::Handle& backingStoreHandle);
     void didEvaluateJavaScript(uint64_t requestID, const String& result);
     void streamDidReceiveResponse(uint64_t streamID, const String& responseURLString, uint32_t streamLength, uint32_t lastModifiedTime, const String& mimeType, const String& headers);
-    void streamDidReceiveData(uint64_t streamID, const CoreIPC::DataReference& data);
+    void streamDidReceiveData(uint64_t streamID, const IPC::DataReference& data);
     void streamDidFinishLoading(uint64_t streamID);
     void streamDidFail(uint64_t streamID, bool wasCancelled);
     void manualStreamDidReceiveResponse(const String& responseURLString, uint32_t streamLength, uint32_t lastModifiedTime, const String& mimeType, const String& headers);
-    void manualStreamDidReceiveData(const CoreIPC::DataReference& data);
+    void manualStreamDidReceiveData(const IPC::DataReference& data);
     void manualStreamDidFinishLoading();
     void manualStreamDidFail(bool wasCancelled);
     void handleMouseEvent(const WebMouseEvent&, PassRefPtr<Messages::PluginControllerProxy::HandleMouseEvent::DelayedReply>);
@@ -146,7 +146,7 @@ private:
     void didUpdate();
     void getPluginScriptableNPObject(uint64_t& pluginScriptableNPObjectID);
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     void windowFocusChanged(bool);
     void windowAndViewFramesChanged(const WebCore::IntRect& windowFrameInScreenCoordinates, const WebCore::IntRect& viewFrameInWindowCoordinates);
     void windowVisibilityChanged(bool);
@@ -199,7 +199,7 @@ private:
     // Whether the plug-in has canceled the manual stream load.
     bool m_pluginCanceledManualStreamLoad;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Whether complex text input is enabled for this plug-in.
     bool m_isComplexTextInputEnabled;
 

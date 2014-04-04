@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -59,8 +59,6 @@
 #ifndef Threading_h
 #define Threading_h
 
-#include <wtf/Platform.h>
-
 #include <stdint.h>
 #include <wtf/Assertions.h>
 #include <wtf/Atomics.h>
@@ -68,12 +66,6 @@
 #include <wtf/Noncopyable.h>
 #include <wtf/ThreadSafeRefCounted.h>
 #include <wtf/ThreadingPrimitives.h>
-
-// For portability, we do not use thread-safe statics natively supported by some compilers (e.g. gcc).
-#define AtomicallyInitializedStatic(T, name) \
-    WTF::lockAtomicallyInitializedStaticMutex(); \
-    static T name; \
-    WTF::unlockAtomicallyInitializedStaticMutex();
 
 namespace WTF {
 
@@ -97,21 +89,19 @@ ThreadIdentifier createThreadInternal(ThreadFunction, void*, const char* threadN
 void initializeCurrentThreadInternal(const char* threadName);
 
 WTF_EXPORT_PRIVATE ThreadIdentifier currentThread();
+WTF_EXPORT_PRIVATE void setCurrentThreadQOSUtility();
+WTF_EXPORT_PRIVATE void changeThreadPriority(ThreadIdentifier, int);
 WTF_EXPORT_PRIVATE int waitForThreadCompletion(ThreadIdentifier);
 WTF_EXPORT_PRIVATE void detachThread(ThreadIdentifier);
-
-WTF_EXPORT_PRIVATE void yield();
-
-WTF_EXPORT_PRIVATE void lockAtomicallyInitializedStaticMutex();
-WTF_EXPORT_PRIVATE void unlockAtomicallyInitializedStaticMutex();
 
 } // namespace WTF
 
 using WTF::ThreadIdentifier;
 using WTF::createThread;
 using WTF::currentThread;
+using WTF::changeThreadPriority;
+using WTF::setCurrentThreadQOSUtility;
 using WTF::detachThread;
 using WTF::waitForThreadCompletion;
-using WTF::yield;
 
 #endif // Threading_h

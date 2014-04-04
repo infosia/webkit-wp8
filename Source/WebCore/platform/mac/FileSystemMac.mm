@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -67,6 +67,8 @@ String openTemporaryFile(const String& prefix, PlatformFileHandle& platformFileH
     return String::fromUTF8(temporaryFilePath.data());
 }
 
+#if !PLATFORM(IOS)
+
 void setMetadataURL(String& URLString, const String& referrer, const String& path)
 {
     NSURL *URL = URLWithUserTypedString(URLString, nil);
@@ -82,7 +84,6 @@ void setMetadataURL(String& URLString, const String& referrer, const String& pat
     });
 }
 
-#if !PLATFORM(IOS)
 bool canExcludeFromBackup()
 {
     return true;
@@ -94,6 +95,7 @@ bool excludeFromBackup(const String& path)
     CSBackupSetItemExcluded(pathAsURL(path).get(), TRUE, FALSE); 
     return true;
 }
+
 #endif
 
 } // namespace WebCore

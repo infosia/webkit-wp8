@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -215,8 +215,8 @@ static bool expandSelectionToGranularity(Frame& frame, TextGranularity granulari
         return false;
     if (newRange->collapsed(IGNORE_EXCEPTION))
         return false;
-    RefPtr<Range> oldRange = frame.selection().selection().toNormalizedRange();
-    EAffinity affinity = frame.selection().affinity();
+    RefPtr<Range> oldRange = selection.toNormalizedRange();
+    EAffinity affinity = selection.affinity();
     if (!frame.editor().client()->shouldChangeSelectedRange(oldRange.get(), newRange.get(), affinity, false))
         return false;
     frame.selection().setSelectedRange(newRange.get(), affinity, true);
@@ -255,7 +255,7 @@ static unsigned verticalScrollDistance(Frame& frame)
     if (!renderer || !renderer->isBox())
         return 0;
     const RenderStyle& style = renderer->style();
-    if (!(style.overflowY() == OSCROLL || style.overflowY() == OAUTO || focusedElement->rendererIsEditable()))
+    if (!(style.overflowY() == OSCROLL || style.overflowY() == OAUTO || focusedElement->hasEditableStyle()))
         return 0;
     int height = std::min<int>(toRenderBox(renderer)->clientHeight(), frame.view()->visibleHeight());
     return static_cast<unsigned>(std::max(std::max<int>(height * Scrollbar::minFractionToStepWhenPaging(), height - Scrollbar::maxOverlapBetweenPages()), 1));
@@ -301,6 +301,14 @@ static bool executeCut(Frame& frame, Event*, EditorCommandSource source, const S
         frame.editor().cut();
     return true;
 }
+
+#if PLATFORM(IOS)
+static bool executeClearText(Frame& frame, Event*, EditorCommandSource, const String&)
+{
+    frame.editor().clearText();
+    return true;
+}
+#endif
 
 static bool executeDefaultParagraphSeparator(Frame& frame, Event*, EditorCommandSource, const String& value)
 {
@@ -1237,13 +1245,29 @@ static bool enableCaretInEditableText(Frame& frame, Event* event, EditorCommandS
 
 static bool enabledCopy(Frame& frame, Event*, EditorCommandSource)
 {
+#if !PLATFORM(IOS)
     return frame.editor().canDHTMLCopy() || frame.editor().canCopy();
+#else
+    return frame.editor().canCopy();
+#endif
 }
 
 static bool enabledCut(Frame& frame, Event*, EditorCommandSource)
 {
+#if !PLATFORM(IOS)
     return frame.editor().canDHTMLCut() || frame.editor().canCut();
+#else
+    return frame.editor().canCut();
+#endif
 }
+
+#if PLATFORM(IOS)
+static bool enabledClearText(Frame& frame, Event*, EditorCommandSource)
+{
+    UNUSED_PARAM(frame);
+    return false;
+}
+#endif
 
 static bool enabledInEditableText(Frame& frame, Event* event, EditorCommandSource)
 {
@@ -1273,7 +1297,8 @@ static bool enabledInEditableTextOrCaretBrowsing(Frame& frame, Event* event, Edi
 
 static bool enabledInRichlyEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isCaretOrRange() && frame.selection().isContentRichlyEditable() && frame.selection().rootEditableElement();
+    const VisibleSelection& selection = frame.selection().selection();
+    return selection.isCaretOrRange() && selection.isContentRichlyEditable() && selection.rootEditableElement();
 }
 
 static bool enabledPaste(Frame& frame, Event*, EditorCommandSource)
@@ -1283,12 +1308,12 @@ static bool enabledPaste(Frame& frame, Event*, EditorCommandSource)
 
 static bool enabledRangeInEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isRange() && frame.selection().isContentEditable();
+    return frame.selection().isRange() && frame.selection().selection().isContentEditable();
 }
 
 static bool enabledRangeInRichlyEditableText(Frame& frame, Event*, EditorCommandSource)
 {
-    return frame.selection().isRange() && frame.selection().isContentRichlyEditable();
+    return frame.selection().isRange() && frame.selection().selection().isContentRichlyEditable();
 }
 
 static bool enabledRedo(Frame& frame, Event*, EditorCommandSource)
@@ -1605,6 +1630,9 @@ static const CommandMap& createCommandMap()
 
 #if PLATFORM(MAC)
         { "TakeFindStringFromSelection", { executeTakeFindStringFromSelection, supportedFromMenuOrKeyBinding, enabledTakeFindStringFromSelection, stateNone, valueNull, notTextInsertion, doNotAllowExecutionWhenDisabled } },
+#endif
+#if PLATFORM(IOS)
+        { "ClearText", { executeClearText, supported, enabledClearText, stateNone, valueNull, notTextInsertion, allowExecutionWhenDisabled } },
 #endif
     };
 

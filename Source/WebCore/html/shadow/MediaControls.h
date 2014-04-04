@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -93,9 +93,11 @@ class MediaControls : public HTMLDivElement {
     virtual void enteredFullscreen();
     virtual void exitedFullscreen();
 
-    virtual bool willRespondToMouseMoveEvents() OVERRIDE { return true; }
+#if !PLATFORM(IOS)
+    virtual bool willRespondToMouseMoveEvents() override { return true; }
+#endif
 
-    virtual void hideFullscreenControlsTimerFired(Timer<MediaControls>*);
+    virtual void hideFullscreenControlsTimerFired(Timer<MediaControls>&);
     virtual void startHideFullscreenControlsTimer();
     virtual void stopHideFullscreenControlsTimer();
 
@@ -110,7 +112,7 @@ class MediaControls : public HTMLDivElement {
 protected:
     explicit MediaControls(Document&);
 
-    virtual void defaultEventHandler(Event*);
+    virtual void defaultEventHandler(Event*) override;
 
     virtual bool containsRelatedTarget(Event*);
 
@@ -140,9 +142,9 @@ protected:
     bool m_isMouseOverControls;
 
 private:
-    virtual bool isMediaControls() const { return true; }
+    virtual bool isMediaControls() const override { return true; }
 
-    virtual const AtomicString& shadowPseudoId() const;
+    virtual const AtomicString& shadowPseudoId() const override;
 };
 
 inline MediaControls* toMediaControls(Node* node)

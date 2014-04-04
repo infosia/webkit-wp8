@@ -33,11 +33,11 @@ namespace WebCore {
 
 class ContainerNode;
 
-class EmptyNodeList FINAL : public NodeList {
+class EmptyNodeList final : public NodeList {
 public:
-    static PassRefPtr<EmptyNodeList> create(Node& owner)
+    static PassRef<EmptyNodeList> create(Node& owner)
     {
-        return adoptRef(new EmptyNodeList(owner));
+        return adoptRef(*new EmptyNodeList(owner));
     }
     virtual ~EmptyNodeList();
 
@@ -46,20 +46,21 @@ public:
 private:
     explicit EmptyNodeList(Node& owner) : m_owner(owner) { }
 
-    virtual unsigned length() const OVERRIDE { return 0; }
-    virtual Node* item(unsigned) const OVERRIDE { return nullptr; }
-    virtual Node* namedItem(const AtomicString&) const OVERRIDE { return nullptr; }
+    virtual unsigned length() const override { return 0; }
+    virtual Node* item(unsigned) const override { return nullptr; }
+    virtual Node* namedItem(const AtomicString&) const override { return nullptr; }
+    virtual size_t memoryCost() const override { return 0; }
 
-    virtual bool isEmptyNodeList() const OVERRIDE { return true; }
+    virtual bool isEmptyNodeList() const override { return true; }
 
     Ref<Node> m_owner;
 };
 
-class ChildNodeList FINAL : public NodeList {
+class ChildNodeList final : public NodeList {
 public:
-    static PassRefPtr<ChildNodeList> create(ContainerNode& parent)
+    static PassRef<ChildNodeList> create(ContainerNode& parent)
     {
-        return adoptRef(new ChildNodeList(parent));
+        return adoptRef(*new ChildNodeList(parent));
     }
 
     virtual ~ChildNodeList();
@@ -69,23 +70,26 @@ public:
     void invalidateCache();
 
     // For CollectionIndexCache
-    Node* collectionFirst() const;
+    Node* collectionBegin() const;
     Node* collectionLast() const;
-    Node* collectionTraverseForward(Node&, unsigned count, unsigned& traversedCount) const;
-    Node* collectionTraverseBackward(Node&, unsigned count) const;
+    Node* collectionEnd() const { return nullptr; }
+    void collectionTraverseForward(Node*&, unsigned count, unsigned& traversedCount) const;
+    void collectionTraverseBackward(Node*&, unsigned count) const;
     bool collectionCanTraverseBackward() const { return true; }
+    void willValidateIndexCache() const { }
 
 private:
     explicit ChildNodeList(ContainerNode& parent);
 
-    virtual unsigned length() const OVERRIDE;
-    virtual Node* item(unsigned index) const OVERRIDE;
-    virtual Node* namedItem(const AtomicString&) const OVERRIDE;
+    virtual unsigned length() const override;
+    virtual Node* item(unsigned index) const override;
+    virtual Node* namedItem(const AtomicString&) const override;
+    virtual size_t memoryCost() const override { return m_indexCache.memoryCost(); }
 
-    virtual bool isChildNodeList() const OVERRIDE { return true; }
+    virtual bool isChildNodeList() const override { return true; }
 
     Ref<ContainerNode> m_parent;
-    mutable CollectionIndexCache<ChildNodeList, Node> m_indexCache;
+    mutable CollectionIndexCache<ChildNodeList, Node*> m_indexCache;
 };
 
 } // namespace WebCore

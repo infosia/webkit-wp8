@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -46,17 +46,16 @@
 #include "Page.h"
 #include "PageCache.h"
 #include "PageGroup.h"
-#include "PlatformStrategies.h"
 #include "ScrollingCoordinator.h"
 #include "Settings.h"
-#include "VisitedLinkStrategy.h"
+#include "VisitedLinkStore.h"
 #include <wtf/text/CString.h>
 
 namespace WebCore {
 
-static inline void addVisitedLink(Page* page, const URL& url)
+static inline void addVisitedLink(Page& page, const URL& url)
 {
-    platformStrategies()->visitedLinkStrategy()->addVisitedLink(page, visitedLinkHash(url.string()));
+    page.visitedLinkStore().addVisitedLink(page, visitedLinkHash(url.string()));
 }
 
 HistoryController::HistoryController(Frame& frame)
@@ -110,7 +109,7 @@ void HistoryController::clearScrollPositionAndViewState()
 */
 void HistoryController::restoreScrollPositionAndViewState()
 {
-    if (!m_frame.loader().stateMachine()->committedFirstRealDocumentLoad())
+    if (!m_frame.loader().stateMachine().committedFirstRealDocumentLoad())
         return;
 
     ASSERT(m_currentItem);
@@ -127,6 +126,8 @@ void HistoryController::restoreScrollPositionAndViewState()
     // through to the client. It's currently used only for the PDF view on Mac.
     m_frame.loader().client().restoreViewState();
 
+    // Don't restore scroll point on iOS as FrameLoaderClient::restoreViewState() does that.
+#if !PLATFORM(IOS)
     // FIXME: There is some scrolling related work that needs to happen whenever a page goes into the
     // page cache and similar work that needs to occur when it comes out. This is where we do the work
     // that needs to happen when we exit, and the work that needs to happen when we enter is in
@@ -146,6 +147,7 @@ void HistoryController::restoreScrollPositionAndViewState()
                 view->setScrollPosition(m_currentItem->scrollPoint());
         }
     }
+#endif
 }
 
 void HistoryController::updateBackForwardListForFragmentScroll()
@@ -157,7 +159,7 @@ void HistoryController::saveDocumentState()
 {
     // FIXME: Reading this bit of FrameLoader state here is unfortunate.  I need to study
     // this more to see if we can remove this dependency.
-    if (m_frame.loader().stateMachine()->creatingInitialEmptyDocument())
+    if (m_frame.loader().stateMachine().creatingInitialEmptyDocument())
         return;
 
     // For a standard page load, we will have a previous item set, which will be used to
@@ -178,7 +180,7 @@ void HistoryController::saveDocumentState()
     Document* document = m_frame.document();
     ASSERT(document);
     
-    if (item->isCurrentDocument(document) && document->attached()) {
+    if (item->isCurrentDocument(document) && document->hasLivingRenderTree()) {
         LOG(Loading, "WebCoreLoading %s: saving form state to %p", m_frame.tree().uniqueName().string().utf8().data(), item);
         item->setDocumentState(document->formElementsState());
     }
@@ -228,7 +230,7 @@ void HistoryController::invalidateCurrentItemCachedPage()
     if (!pageCache()->get(currentItem()))
         return;
 
-    OwnPtr<CachedPage> cachedPage = pageCache()->take(currentItem());
+    std::unique_ptr<CachedPage> cachedPage = pageCache()->take(currentItem());
 
     // FIXME: This is a grotesque hack to fix <rdar://problem/4059059> Crash in RenderFlow::detach
     // Somehow the PageState object is not properly updated, and is holding onto a stale document.
@@ -250,7 +252,7 @@ bool HistoryController::shouldStopLoadingForHistoryItem(HistoryItem* targetItem)
     if (m_currentItem->shouldDoSameDocumentNavigationTo(targetItem))
         return false;
 
-    return m_frame.loader().client().shouldStopLoadingForHistoryItem(targetItem);
+    return true;
 }
 
 // Main funnel for navigating to a previous location (back/forward, non-search snap-back)
@@ -346,7 +348,7 @@ void HistoryController::updateForStandardLoad(HistoryUpdateType updateType)
 
     FrameLoader& frameLoader = m_frame.loader();
 
-    bool needPrivacy = m_frame.settings().privateBrowsingEnabled();
+    bool needPrivacy = m_frame.page()->usesEphemeralSession();
     const URL& historyURL = frameLoader.documentLoader()->urlForHistory();
 
     if (!frameLoader.documentLoader()->isClientRedirect()) {
@@ -369,7 +371,7 @@ void HistoryController::updateForStandardLoad(HistoryUpdateType updateType)
 
     if (!historyURL.isEmpty() && !needPrivacy) {
         if (Page* page = m_frame.page())
-            addVisitedLink(page, historyURL);
+            addVisitedLink(*page, historyURL);
 
         if (!frameLoader.documentLoader()->didCreateGlobalHistoryEntry() && frameLoader.documentLoader()->unreachableURL().isEmpty() && !m_frame.document()->url().isEmpty())
             frameLoader.client().updateGlobalHistoryRedirectLinks();
@@ -383,7 +385,7 @@ void HistoryController::updateForRedirectWithLockedBackForwardList()
         LOG(History, "WebCoreHistory: Updating History for redirect load in frame %s", m_frame.loader().documentLoader()->title().string().utf8().data());
 #endif
     
-    bool needPrivacy = m_frame.settings().privateBrowsingEnabled();
+    bool needPrivacy = m_frame.page()->usesEphemeralSession();
     const URL& historyURL = m_frame.loader().documentLoader()->urlForHistory();
 
     if (m_frame.loader().documentLoader()->isClientRedirect()) {
@@ -410,7 +412,7 @@ void HistoryController::updateForRedirectWithLockedBackForwardList()
 
     if (!historyURL.isEmpty() && !needPrivacy) {
         if (Page* page = m_frame.page())
-            addVisitedLink(page, historyURL);
+            addVisitedLink(*page, historyURL);
 
         if (!m_frame.loader().documentLoader()->didCreateGlobalHistoryEntry() && m_frame.loader().documentLoader()->unreachableURL().isEmpty() && !m_frame.document()->url().isEmpty())
             m_frame.loader().client().updateGlobalHistoryRedirectLinks();
@@ -431,12 +433,12 @@ void HistoryController::updateForClientRedirect()
         m_currentItem->clearScrollPoint();
     }
 
-    bool needPrivacy = m_frame.settings().privateBrowsingEnabled();
+    bool needPrivacy = m_frame.page()->usesEphemeralSession();
     const URL& historyURL = m_frame.loader().documentLoader()->urlForHistory();
 
     if (!historyURL.isEmpty() && !needPrivacy) {
         if (Page* page = m_frame.page())
-            addVisitedLink(page, historyURL);
+            addVisitedLink(*page, historyURL);
     }
 }
 
@@ -521,14 +523,14 @@ void HistoryController::updateForSameDocumentNavigation()
     if (m_frame.document()->url().isEmpty())
         return;
 
-    if (m_frame.settings().privateBrowsingEnabled())
+    if (m_frame.page()->usesEphemeralSession())
         return;
 
     Page* page = m_frame.page();
     if (!page)
         return;
 
-    addVisitedLink(page, m_frame.document()->url());
+    addVisitedLink(*page, m_frame.document()->url());
     m_frame.mainFrame().loader().history().recursiveUpdateForSameDocumentNavigation();
 
     if (m_currentItem) {
@@ -796,8 +798,6 @@ void HistoryController::updateBackForwardListClippedAtTarget(bool doClip)
 
     FrameLoader& frameLoader = m_frame.mainFrame().loader();
 
-    frameLoader.checkDidPerformFirstNavigation();
-
     RefPtr<HistoryItem> topItem = frameLoader.history().createItemTree(m_frame, doClip);
     LOG(BackForward, "WebCoreBackForward - Adding backforward item %p for frame %s", topItem.get(), m_frame.loader().documentLoader()->url().string().ascii().data());
     page->backForward().addItem(topItem.release());
@@ -847,12 +847,11 @@ void HistoryController::pushState(PassRefPtr<SerializedScriptValue> stateObject,
 
     page->backForward().addItem(topItem.release());
 
-    if (m_frame.settings().privateBrowsingEnabled())
+    if (m_frame.page()->usesEphemeralSession())
         return;
 
-    addVisitedLink(page, URL(ParsedURLString, urlString));
+    addVisitedLink(*page, URL(ParsedURLString, urlString));
     m_frame.loader().client().updateGlobalHistory();
-
 }
 
 void HistoryController::replaceState(PassRefPtr<SerializedScriptValue> stateObject, const String& title, const String& urlString)
@@ -867,12 +866,24 @@ void HistoryController::replaceState(PassRefPtr<SerializedScriptValue> stateObje
     m_currentItem->setFormData(0);
     m_currentItem->setFormContentType(String());
 
-    if (m_frame.settings().privateBrowsingEnabled())
+    if (m_frame.page()->usesEphemeralSession())
         return;
 
     ASSERT(m_frame.page());
-    addVisitedLink(m_frame.page(), URL(ParsedURLString, urlString));
+    addVisitedLink(*m_frame.page(), URL(ParsedURLString, urlString));
     m_frame.loader().client().updateGlobalHistory();
+}
+
+void HistoryController::replaceCurrentItem(HistoryItem* item)
+{
+    if (!item)
+        return;
+
+    m_previousItem = nullptr;
+    if (m_provisionalItem)
+        m_provisionalItem = item;
+    else
+        m_currentItem = item;
 }
 
 } // namespace WebCore

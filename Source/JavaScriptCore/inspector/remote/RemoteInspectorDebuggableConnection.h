@@ -31,15 +31,15 @@
 #import "InspectorFrontendChannel.h"
 #import "RemoteInspectorDebuggable.h"
 #import <dispatch/dispatch.h>
+#import <mutex>
 #import <wtf/RetainPtr.h>
-#import <wtf/Threading.h>
 #import <wtf/ThreadSafeRefCounted.h>
 
 OBJC_CLASS NSString;
 
 namespace Inspector {
 
-class RemoteInspectorDebuggableConnection FINAL : public ThreadSafeRefCounted<RemoteInspectorDebuggableConnection>, public InspectorFrontendChannel {
+class RemoteInspectorDebuggableConnection final : public ThreadSafeRefCounted<RemoteInspectorDebuggableConnection>, public InspectorFrontendChannel {
 public:
     RemoteInspectorDebuggableConnection(RemoteInspectorDebuggable*, NSString *connectionIdentifier, NSString *destination, RemoteInspectorDebuggable::DebuggableType);
     virtual ~RemoteInspectorDebuggableConnection();
@@ -54,19 +54,17 @@ public:
     void closeFromDebuggable();
 
     void sendMessageToBackend(NSString *);
-    virtual bool sendMessageToFrontend(const String&) OVERRIDE;
+    virtual bool sendMessageToFrontend(const String&) override;
 
 private:
-    void dispatchSyncOnDebuggable(void (^block)());
     void dispatchAsyncOnDebuggable(void (^block)());
 
     // This connection from the RemoteInspector singleton to the Debuggable
     // can be used on multiple threads. So any access to the debuggable
-    // itself must take this lock to ensure m_debuggable is valid.
-    Mutex m_debuggableLock;
+    // itself must take this mutex to ensure m_debuggable is valid.
+    std::mutex m_debuggableMutex;
 
     RemoteInspectorDebuggable* m_debuggable;
-    dispatch_queue_t m_queueForDebuggable;
     RetainPtr<NSString> m_connectionIdentifier;
     RetainPtr<NSString> m_destination;
     unsigned m_identifier;

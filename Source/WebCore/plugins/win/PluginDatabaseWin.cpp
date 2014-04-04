@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -257,20 +257,6 @@ static inline void addWindowsMediaPlayerPluginDirectory(Vector<String>& director
         directories.append(String(installationDirectoryStr, installationDirectorySize / sizeof(WCHAR) - 1));
 }
 
-static inline void addQuickTimePluginDirectory(Vector<String>& directories)
-{
-    DWORD type;
-    WCHAR installationDirectoryStr[_MAX_PATH];
-    DWORD installationDirectorySize = sizeof(installationDirectoryStr);
-
-    HRESULT result = getRegistryValue(HKEY_LOCAL_MACHINE, L"Software\\Apple Computer, Inc.\\QuickTime", L"InstallDir", &type, &installationDirectoryStr, &installationDirectorySize);
-
-    if (result == ERROR_SUCCESS && type == REG_SZ) {
-        String pluginDir = String(installationDirectoryStr, installationDirectorySize / sizeof(WCHAR) - 1) + "\\plugins";
-        directories.append(pluginDir);
-    }
-}
-
 static inline void addAdobeAcrobatPluginDirectory(Vector<String>& directories)
 {
     HKEY key;
@@ -414,7 +400,6 @@ Vector<String> PluginDatabase::defaultPluginDirectories()
 
     if (!ourDirectory.isNull())
         directories.append(ourDirectory);
-    addQuickTimePluginDirectory(directories);
     addAdobeAcrobatPluginDirectory(directories);
     addMozillaPluginDirectories(directories);
     addWindowsMediaPlayerPluginDirectory(directories);

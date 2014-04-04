@@ -44,7 +44,6 @@
 #include "URL.h"
 #include "Logging.h"
 #include "ResourceRequest.h"
-#include "ScriptCallStack.h"
 #include "ScriptExecutionContext.h"
 #include "SecurityOrigin.h"
 #include <wtf/CryptographicallyRandomNumber.h>
@@ -113,7 +112,7 @@ String WebSocketHandshake::getExpectedWebSocketAccept(const String& secWebSocket
     CString keyData = secWebSocketKey.ascii();
     sha1.addBytes(reinterpret_cast<const uint8_t*>(keyData.data()), keyData.length());
     sha1.addBytes(reinterpret_cast<const uint8_t*>(webSocketKeyGUID), strlen(webSocketKeyGUID));
-    Vector<uint8_t, SHA1::hashSize> hash;
+    SHA1::Digest hash;
     sha1.computeHash(hash);
     return base64Encode(hash.data(), SHA1::hashSize);
 }
@@ -237,8 +236,6 @@ CString WebSocketHandshake::clientHandshakeMessage() const
 ResourceRequest WebSocketHandshake::clientHandshakeRequest() const
 {
     // Keep the following consistent with clientHandshakeMessage().
-    // FIXME: do we need to store m_secWebSocketKey1, m_secWebSocketKey2 and
-    // m_key3 in the request?
     ResourceRequest request(m_url);
     request.setHTTPMethod("GET");
 

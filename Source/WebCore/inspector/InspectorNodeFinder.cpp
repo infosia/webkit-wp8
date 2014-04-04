@@ -13,7 +13,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -75,7 +75,7 @@ void InspectorNodeFinder::performSearch(Node* parentNode)
 void InspectorNodeFinder::searchUsingDOMTreeTraversal(Node* parentNode)
 {
     // Manual plain text search.
-    for (auto node = parentNode; node; node = NodeTraversal::next(node, parentNode)) {
+    for (auto* node = parentNode; node; node = NodeTraversal::next(node, parentNode)) {
         switch (node->nodeType()) {
         case Node::TEXT_NODE:
         case Node::COMMENT_NODE:
@@ -105,9 +105,9 @@ void InspectorNodeFinder::searchUsingDOMTreeTraversal(Node* parentNode)
 
 bool InspectorNodeFinder::matchesAttribute(const Attribute& attribute)
 {
-    if (attribute.localName().find(m_whitespaceTrimmedQuery) != notFound)
+    if (attribute.localName().string().findIgnoringCase(m_whitespaceTrimmedQuery) != notFound)
         return true;
-    return m_exactAttributeMatch ? attribute.value() == m_attributeQuery : attribute.value().find(m_attributeQuery) != notFound;
+    return m_exactAttributeMatch ? attribute.value() == m_attributeQuery : attribute.value().string().findIgnoringCase(m_attributeQuery) != notFound;
 }
 
 bool InspectorNodeFinder::matchesElement(const Element& element)
@@ -122,9 +122,8 @@ bool InspectorNodeFinder::matchesElement(const Element& element)
     if (!element.hasAttributes())
         return false;
 
-    unsigned numAttrs = element.attributeCount();
-    for (unsigned i = 0; i < numAttrs; ++i) {
-        if (matchesAttribute(element.attributeAt(i)))
+    for (const Attribute& attribute : element.attributesIterator()) {
+        if (matchesAttribute(attribute))
             return true;
     }
 
@@ -134,7 +133,7 @@ bool InspectorNodeFinder::matchesElement(const Element& element)
 void InspectorNodeFinder::searchUsingXPath(Node* parentNode)
 {
     ExceptionCode ec = 0;
-    RefPtr<XPathResult> result = parentNode->document().evaluate(m_whitespaceTrimmedQuery, parentNode, 0, XPathResult::ORDERED_NODE_SNAPSHOT_TYPE, 0, ec);
+    RefPtr<XPathResult> result = parentNode->document().evaluate(m_whitespaceTrimmedQuery, parentNode, nullptr, XPathResult::ORDERED_NODE_SNAPSHOT_TYPE, nullptr, ec);
     if (ec || !result)
         return;
 

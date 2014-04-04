@@ -20,7 +20,6 @@
 
 #ifndef SVGDocument_h
 #define SVGDocument_h
-#if ENABLE(SVG)
 
 #include "Document.h"
 #include "FloatPoint.h"
@@ -31,7 +30,7 @@ class DOMImplementation;
 class SVGElement;
 class SVGSVGElement;
 
-class SVGDocument FINAL : public Document {
+class SVGDocument final : public Document {
 public:
     static PassRefPtr<SVGDocument> create(Frame* frame, const URL& url)
     {
@@ -51,7 +50,9 @@ public:
 private:
     SVGDocument(Frame*, const URL&);
 
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
+
+    virtual PassRefPtr<Document> cloneDocumentWithoutChildren() const override;
 
     FloatPoint m_translate;
 };
@@ -63,7 +64,4 @@ DOCUMENT_TYPE_CASTS(SVGDocument)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGDocument_h
-
-// vim:ts=4:noet

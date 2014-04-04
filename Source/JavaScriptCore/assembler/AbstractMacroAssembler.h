@@ -29,6 +29,8 @@
 #include "AssemblerBuffer.h"
 #include "CodeLocation.h"
 #include "MacroAssemblerCodeRef.h"
+#include "Options.h"
+#include "WeakRandom.h"
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/Noncopyable.h>
 
@@ -61,6 +63,21 @@ inline bool isX86()
 #else
     return false;
 #endif
+}
+
+inline bool optimizeForARMv7s()
+{
+    return isARMv7s() && Options::enableArchitectureSpecificOptimizations();
+}
+
+inline bool optimizeForARM64()
+{
+    return isARM64() && Options::enableArchitectureSpecificOptimizations();
+}
+
+inline bool optimizeForX86()
+{
+    return isX86() && Options::enableArchitectureSpecificOptimizations();
 }
 
 class LinkBuffer;
@@ -123,7 +140,7 @@ public:
         {
             return Address(base, offset + additionalOffset);
         }
-
+        
         RegisterID base;
         int32_t offset;
     };
@@ -417,7 +434,7 @@ public:
 
     // DataLabel32:
     //
-    // A DataLabelPtr is used to refer to a location in the code containing a pointer to be
+    // A DataLabel32 is used to refer to a location in the code containing a 32-bit constant to be
     // patched after the code has been generated.
     class DataLabel32 {
         template<class TemplateAssemblerType>
@@ -676,7 +693,8 @@ public:
         
         JumpList(Jump jump)
         {
-            append(jump);
+            if (jump.isSet())
+                append(jump);
         }
 
         void link(AbstractMacroAssembler<AssemblerType>* masm)
@@ -823,6 +841,7 @@ protected:
     AbstractMacroAssembler()
         : m_randomSource(cryptographicallyRandomNumber())
     {
+        invalidateAllTempRegisters();
     }
 
     uint32_t random()

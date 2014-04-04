@@ -30,9 +30,13 @@
 #include <heap/Strong.h>
 #include <heap/StrongInlines.h>
 #include <interpreter/CallFrame.h>
-#include <runtime/Operations.h>
+#include <runtime/JSCInlines.h>
 #include <runtime/Uint8Array.h>
 #include <wtf/Forward.h>
+
+namespace Deprecated {
+class ScriptValue;
+}
 
 namespace WebCore {
 
@@ -46,7 +50,6 @@ class MediaKeyError;
 class MediaStream;
 class MediaStreamTrack;
 class Node;
-class ScriptValue;
 class SerializedScriptValue;
 class Storage;
 class TrackBase;
@@ -108,7 +111,7 @@ private:
     static void convertValue(JSC::ExecState*, JSC::JSValue, double& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, Dictionary& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, String& result);
-    static void convertValue(JSC::ExecState*, JSC::JSValue, ScriptValue& result);
+    static void convertValue(JSC::ExecState*, JSC::JSValue, Deprecated::ScriptValue& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, Vector<String>& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, RefPtr<SerializedScriptValue>& result);
     static void convertValue(JSC::ExecState*, JSC::JSValue, RefPtr<DOMWindow>& result);

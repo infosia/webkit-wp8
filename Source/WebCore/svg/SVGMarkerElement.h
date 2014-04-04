@@ -21,7 +21,6 @@
 #ifndef SVGMarkerElement_h
 #define SVGMarkerElement_h
 
-#if ENABLE(SVG)
 #include "SVGAnimatedAngle.h"
 #include "SVGAnimatedBoolean.h"
 #include "SVGAnimatedEnumeration.h"
@@ -94,7 +93,7 @@ struct SVGPropertyTraits<SVGMarkerOrientType> {
     }
 };
 
-class SVGMarkerElement FINAL : public SVGElement,
+class SVGMarkerElement final : public SVGElement,
                                public SVGExternalResourcesRequired,
                                public SVGFitToViewBox {
 public:
@@ -123,17 +122,17 @@ public:
 private:
     SVGMarkerElement(const QualifiedName&, Document&);
 
-    virtual bool needsPendingResourceHandling() const { return false; }
+    virtual bool needsPendingResourceHandling() const override { return false; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual void childrenChanged(const ChildChange&) override;
 
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual bool rendererIsNeeded(const RenderStyle&) { return true; }
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool rendererIsNeeded(const RenderStyle&) override { return true; }
 
-    virtual bool selfHasRelativeLengths() const;
+    virtual bool selfHasRelativeLengths() const override;
 
     void synchronizeOrientType();
 
@@ -169,5 +168,4 @@ NODE_TYPE_CASTS(SVGMarkerElement)
 
 }
 
-#endif
 #endif

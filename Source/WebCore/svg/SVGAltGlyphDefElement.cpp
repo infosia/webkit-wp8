@@ -19,7 +19,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(SVG_FONTS)
+#if ENABLE(SVG_FONTS)
 #include "SVGAltGlyphDefElement.h"
 
 #include "ElementIterator.h"
@@ -89,9 +89,7 @@ bool SVGAltGlyphDefElement::hasValidGlyphElements(Vector<String>& glyphNames) co
     bool fountFirstGlyphRef = false;
     bool foundFirstAltGlyphItem = false;
 
-    auto svgChildren = childrenOfType<SVGElement>(*this);
-    for (auto it = svgChildren.begin(), end = svgChildren.end(); it != end; ++it) {
-        const SVGElement& child = *it;
+    for (auto& child : childrenOfType<SVGElement>(*this)) {
         if (!foundFirstAltGlyphItem && isSVGGlyphRefElement(child)) {
             fountFirstGlyphRef = true;
             String referredGlyphName;

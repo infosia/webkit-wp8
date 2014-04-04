@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -402,7 +402,6 @@ Image* IconDatabase::defaultIcon(const IntSize& size)
     
     if (!m_defaultIconRecord) {
         m_defaultIconRecord = IconRecord::create("urlIcon");
-        m_defaultIconRecord->setMutexForVerifier(m_urlAndIconLock);
         loadDefaultIconRecord(m_defaultIconRecord.get());
     }
     
@@ -544,8 +543,6 @@ void IconDatabase::setIconDataForIconURL(PassRefPtr<SharedBuffer> dataOriginal, 
         return;
     
     RefPtr<SharedBuffer> data = dataOriginal ? dataOriginal->copy() : PassRefPtr<SharedBuffer>(0);
-    if (data)
-        data->setMutexForVerifier(m_urlAndIconLock);
     String iconURL = iconURLOriginal.isolatedCopy();
     
     Vector<String> pageURLs;
@@ -797,7 +794,6 @@ IconDatabase::IconDatabase()
     , m_removeIconsRequested(false)
     , m_iconURLImportComplete(false)
     , m_syncThreadHasWorkToDo(false)
-    , m_disabledSuddenTerminationForSyncThread(false)
     , m_retainOrReleaseIconRequested(false)
     , m_initialPruningComplete(false)
     , m_client(defaultClient())
@@ -838,14 +834,8 @@ void IconDatabase::wakeSyncThread()
 {
     MutexLocker locker(m_syncLock);
 
-    if (!m_disabledSuddenTerminationForSyncThread) {
-        m_disabledSuddenTerminationForSyncThread = true;
-        // The following is balanced by the call to enableSuddenTermination in the
-        // syncThreadMainLoop function.
-        // FIXME: It would be better to only disable sudden termination if we have
-        // something to write, not just if we have something to read.
-        disableSuddenTermination();
-    }
+    if (!m_disableSuddenTerminationWhileSyncThreadHasWorkToDo)
+        m_disableSuddenTerminationWhileSyncThreadHasWorkToDo = std::make_unique<SuddenTerminationDisabler>();
 
     m_syncThreadHasWorkToDo = true;
     m_syncCondition.signal();
@@ -869,22 +859,19 @@ void IconDatabase::scheduleOrDeferSyncTimer()
     if (m_scheduleOrDeferSyncTimerRequested)
         return;
 
-    // The following is balanced by the call to enableSuddenTermination in the
-    // syncTimerFired function.
-    disableSuddenTermination();
+    if (!m_disableSuddenTerminationWhileSyncTimerScheduled)
+        m_disableSuddenTerminationWhileSyncTimerScheduled = std::make_unique<SuddenTerminationDisabler>();
 
     m_scheduleOrDeferSyncTimerRequested = true;
     callOnMainThread(performScheduleOrDeferSyncTimerOnMainThread, this);
 }
 
-void IconDatabase::syncTimerFired(Timer<IconDatabase>*)
+void IconDatabase::syncTimerFired(Timer<IconDatabase>&)
 {
     ASSERT_NOT_SYNC_THREAD();
     wakeSyncThread();
 
-    // The following is balanced by the call to disableSuddenTermination in the
-    // scheduleOrDeferSyncTimer function.
-    enableSuddenTermination();
+    m_disableSuddenTerminationWhileSyncTimerScheduled.reset();
 }
 
 // ******************
@@ -905,7 +892,7 @@ String IconDatabase::databasePath() const
 
 String IconDatabase::defaultDatabaseFilename()
 {
-    DEFINE_STATIC_LOCAL(String, defaultDatabaseFilename, (ASCIILiteral("WebpageIcons.db")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, defaultDatabaseFilename, (ASCIILiteral("WebpageIcons.db")));
     return defaultDatabaseFilename.isolatedCopy();
 }
 
@@ -919,7 +906,6 @@ PassRefPtr<IconRecord> IconDatabase::getOrCreateIconRecord(const String& iconURL
         return icon;
 
     RefPtr<IconRecord> newIcon = IconRecord::create(iconURL);
-    newIcon->setMutexForVerifier(m_urlAndIconLock);
     m_iconURLToRecordMap.set(iconURL, newIcon.get());
 
     return newIcon.release();
@@ -1363,8 +1349,7 @@ void IconDatabase::syncThreadMainLoop()
 
     m_syncLock.lock();
 
-    bool shouldReenableSuddenTermination = m_disabledSuddenTerminationForSyncThread;
-    m_disabledSuddenTerminationForSyncThread = false;
+    std::unique_ptr<SuddenTerminationDisabler> disableSuddenTermination = std::move(m_disableSuddenTerminationWhileSyncThreadHasWorkToDo);
 
     // We'll either do any pending work on our first pass through the loop, or we'll terminate
     // without doing any work. Either way we're dealing with any currently-pending work.
@@ -1444,37 +1429,21 @@ void IconDatabase::syncThreadMainLoop()
         if (shouldStopThreadActivity())
             continue;
 
-        if (shouldReenableSuddenTermination) {
-            // The following is balanced by the call to disableSuddenTermination in the
-            // wakeSyncThread function. Any time we wait on the condition, we also have
-            // to enableSuddenTermation, after doing the next batch of work.
-            enableSuddenTermination();
-        }
+        disableSuddenTermination.reset();
 
         while (!m_syncThreadHasWorkToDo)
             m_syncCondition.wait(m_syncLock);
 
         m_syncThreadHasWorkToDo = false;
 
-        ASSERT(m_disabledSuddenTerminationForSyncThread);
-        shouldReenableSuddenTermination = true;
-        m_disabledSuddenTerminationForSyncThread = false;
+        ASSERT(m_disableSuddenTerminationWhileSyncThreadHasWorkToDo);
+        disableSuddenTermination = std::move(m_disableSuddenTerminationWhileSyncThreadHasWorkToDo);
     }
 
     m_syncLock.unlock();
     
     // Thread is terminating at this point
     cleanupSyncThread();
-
-    if (shouldReenableSuddenTermination) {
-        // The following is balanced by the call to disableSuddenTermination in the
-        // wakeSyncThread function. Any time we wait on the condition, we also have
-        // to enableSuddenTermation, after doing the next batch of work.
-        enableSuddenTermination();
-
-        MutexLocker locker(m_syncLock);
-        m_disabledSuddenTerminationForSyncThread = false;
-    }
 }
 
 void IconDatabase::performPendingRetainAndReleaseOperations()
@@ -1533,7 +1502,6 @@ bool IconDatabase::readFromDatabase()
     for (unsigned i = 0; i < icons.size(); ++i) {
         didAnyWork = true;
         RefPtr<SharedBuffer> imageData = getImageDataForIconURLFromSQLDatabase(icons[i]->iconURL());
-        imageData->setMutexForVerifier(m_urlAndIconLock);
 
         // Verify this icon still wants to be read from disk
         {
@@ -1712,19 +1680,11 @@ void IconDatabase::pruneUnretainedIcons()
         SQLiteStatement pageDeleteSQL(m_syncDB, "DELETE FROM PageURL WHERE rowid = (?);");
         pageDeleteSQL.prepare();
         for (size_t i = 0; i < numToDelete; ++i) {
-#if OS(WINDOWS)
-            LOG(IconDatabase, "Pruning page with rowid %I64i from disk", static_cast<long long>(pageIDsToDelete[i]));
-#else
             LOG(IconDatabase, "Pruning page with rowid %lli from disk", static_cast<long long>(pageIDsToDelete[i]));
-#endif
             pageDeleteSQL.bindInt64(1, pageIDsToDelete[i]);
             int result = pageDeleteSQL.step();
             if (result != SQLResultDone)
-#if OS(WINDOWS)
-                LOG_ERROR("Unabled to delete page with id %I64i from disk", static_cast<long long>(pageIDsToDelete[i]));
-#else
                 LOG_ERROR("Unabled to delete page with id %lli from disk", static_cast<long long>(pageIDsToDelete[i]));
-#endif
             pageDeleteSQL.reset();
             
             // If the thread was asked to terminate, we should commit what pruning we've done so far, figuring we can

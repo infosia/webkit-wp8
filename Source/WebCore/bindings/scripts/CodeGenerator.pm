@@ -555,14 +555,16 @@ sub GetterExpression
         return ($generator->WK_lcfirst($generator->AttributeNameForGetterAndSetter($attribute)));
     }
 
+    my $attributeType = $attribute->signature->type;
+
     my $functionName;
     if ($attribute->signature->extendedAttributes->{"URL"}) {
         $functionName = "getURLAttribute";
-    } elsif ($attribute->signature->type eq "boolean") {
+    } elsif ($attributeType eq "boolean") {
         $functionName = "fastHasAttribute";
-    } elsif ($attribute->signature->type eq "long") {
+    } elsif ($attributeType eq "long") {
         $functionName = "getIntegralAttribute";
-    } elsif ($attribute->signature->type eq "unsigned long") {
+    } elsif ($attributeType eq "unsigned long") {
         $functionName = "getUnsignedIntegralAttribute";
     } else {
         if ($contentAttributeName eq "WebCore::HTMLNames::idAttr") {
@@ -571,7 +573,7 @@ sub GetterExpression
         } elsif ($contentAttributeName eq "WebCore::HTMLNames::nameAttr") {
             $functionName = "getNameAttribute";
             $contentAttributeName = "";
-        } elsif ($generator->IsSVGAnimatedType($attribute)) {
+        } elsif ($generator->IsSVGAnimatedType($attributeType)) {
             $functionName = "getAttribute";
         } else {
             $functionName = "fastGetAttribute";
@@ -591,15 +593,19 @@ sub SetterExpression
         return ("set" . $generator->WK_ucfirst($generator->AttributeNameForGetterAndSetter($attribute)));
     }
 
+    my $attributeType = $attribute->signature->type;
+
     my $functionName;
-    if ($attribute->signature->type eq "boolean") {
+    if ($attributeType eq "boolean") {
         $functionName = "setBooleanAttribute";
-    } elsif ($attribute->signature->type eq "long") {
+    } elsif ($attributeType eq "long") {
         $functionName = "setIntegralAttribute";
-    } elsif ($attribute->signature->type eq "unsigned long") {
+    } elsif ($attributeType eq "unsigned long") {
         $functionName = "setUnsignedIntegralAttribute";
-    } else {
+    } elsif ($generator->IsSVGAnimatedType($attributeType)) {
         $functionName = "setAttribute";
+    } else {
+        $functionName = "setAttributeWithoutSynchronization";
     }
 
     return ($functionName, $contentAttributeName);

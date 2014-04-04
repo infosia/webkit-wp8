@@ -42,6 +42,7 @@
 #include "HTMLScriptElement.h"
 #include "HTMLTemplateElement.h"
 #include "NotImplemented.h"
+#include "SVGElement.h"
 #include "Text.h"
 
 namespace WebCore {
@@ -79,27 +80,27 @@ static inline bool isAllWhitespace(const String& string)
     return string.isAllSpecialCharacters<isHTMLSpace>();
 }
 
-static inline void executeTask(HTMLConstructionSiteTask& task)
+static inline void insert(HTMLConstructionSiteTask& task)
 {
 #if ENABLE(TEMPLATE_ELEMENT)
     if (task.parent->hasTagName(templateTag))
         task.parent = toHTMLTemplateElement(task.parent.get())->content();
 #endif
 
+    if (ContainerNode* parent = task.child->parentNode())
+        parent->parserRemoveChild(*task.child);
+
     if (task.nextChild)
         task.parent->parserInsertBefore(task.child.get(), task.nextChild.get());
     else
         task.parent->parserAppendChild(task.child.get());
+}
 
-    // JavaScript run from beforeload (or DOM Mutation or event handlers)
-    // might have removed the child, in which case we should not attach it.
+static inline void executeInsertTask(HTMLConstructionSiteTask& task)
+{
+    ASSERT(task.operation == HTMLConstructionSiteTask::Insert);
 
-    if (task.child->parentNode() && task.parent->attached() && !task.child->attached()) {
-        if (task.child->isElementNode())
-            Style::attachRenderTree(*toElement(task.child.get()));
-        else if (task.child->isTextNode())
-            Style::attachTextRenderer(*toText(task.child.get()));
-    }
+    insert(task);
 
     task.child->beginParsingChildren();
 
@@ -107,12 +108,58 @@ static inline void executeTask(HTMLConstructionSiteTask& task)
         task.child->finishParsingChildren();
 }
 
+static inline void executeReparentTask(HTMLConstructionSiteTask& task)
+{
+    ASSERT(task.operation == HTMLConstructionSiteTask::Reparent);
+
+    if (ContainerNode* parent = task.child->parentNode())
+        parent->parserRemoveChild(*task.child);
+
+    task.parent->parserAppendChild(task.child);
+}
+
+static inline void executeInsertAlreadyParsedChildTask(HTMLConstructionSiteTask& task)
+{
+    ASSERT(task.operation == HTMLConstructionSiteTask::InsertAlreadyParsedChild);
+
+    insert(task);
+}
+
+static inline void executeTakeAllChildrenTask(HTMLConstructionSiteTask& task)
+{
+    ASSERT(task.operation == HTMLConstructionSiteTask::TakeAllChildren);
+
+    task.parent->takeAllChildrenFrom(task.oldParent());
+    // Notice that we don't need to manually attach the moved children
+    // because takeAllChildrenFrom does that work for us.
+}
+
+static inline void executeTask(HTMLConstructionSiteTask& task)
+{
+    switch (task.operation) {
+    case HTMLConstructionSiteTask::Insert:
+        executeInsertTask(task);
+        return;
+    // All the cases below this point are only used by the adoption agency.
+    case HTMLConstructionSiteTask::InsertAlreadyParsedChild:
+        executeInsertAlreadyParsedChildTask(task);
+        return;
+    case HTMLConstructionSiteTask::Reparent:
+        executeReparentTask(task);
+        return;
+    case HTMLConstructionSiteTask::TakeAllChildren:
+        executeTakeAllChildrenTask(task);
+        return;
+    }
+    ASSERT_NOT_REACHED();
+}
+
 void HTMLConstructionSite::attachLater(ContainerNode* parent, PassRefPtr<Node> prpChild, bool selfClosing)
 {
     ASSERT(scriptingContentIsAllowed(m_parserContentPolicy) || !prpChild.get()->isElementNode() || !toScriptElementIfPossible(toElement(prpChild.get())));
     ASSERT(pluginContentIsAllowed(m_parserContentPolicy) || !prpChild->isPluginElement());
 
-    HTMLConstructionSiteTask task;
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::Insert);
     task.parent = parent;
     task.child = prpChild;
     task.selfClosing = selfClosing;
@@ -127,19 +174,18 @@ void HTMLConstructionSite::attachLater(ContainerNode* parent, PassRefPtr<Node> p
         task.parent = task.parent->parentNode();
 
     ASSERT(task.parent);
-    m_attachmentQueue.append(task);
+    m_taskQueue.append(task);
 }
 
 void HTMLConstructionSite::executeQueuedTasks()
 {
-    const size_t size = m_attachmentQueue.size();
+    const size_t size = m_taskQueue.size();
     if (!size)
         return;
 
     // Copy the task queue into a local variable in case executeTask
     // re-enters the parser.
-    AttachmentQueue queue;
-    queue.swap(m_attachmentQueue);
+    TaskQueue queue = std::move(m_taskQueue);
 
     for (size_t i = 0; i < size; ++i)
         executeTask(queue[i]);
@@ -197,7 +243,7 @@ void HTMLConstructionSite::dispatchDocumentElementAvailableIfNeeded()
 {
     ASSERT(m_document);
     if (m_document->frame() && !m_isParsingFragment)
-        m_document->frame()->loader().dispatchDocumentElementAvailable();
+        m_document->frame()->injectUserScripts(InjectAtDocumentStart);
 }
 
 void HTMLConstructionSite::insertHTMLHtmlStartTagBeforeHTML(AtomicHTMLToken* token)
@@ -476,7 +522,7 @@ void HTMLConstructionSite::insertForeignElement(AtomicHTMLToken* token, const At
 
 void HTMLConstructionSite::insertTextNode(const String& characters, WhitespaceMode whitespaceMode)
 {
-    HTMLConstructionSiteTask task;
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::Insert);
     task.parent = currentNode();
 
     if (shouldFosterParent())
@@ -520,6 +566,43 @@ void HTMLConstructionSite::insertTextNode(const String& characters, WhitespaceMo
 
         executeTask(task);
     }
+}
+
+void HTMLConstructionSite::reparent(HTMLElementStack::ElementRecord& newParent, HTMLElementStack::ElementRecord& child)
+{
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::Reparent);
+    task.parent = newParent.node();
+    task.child = child.element();
+    m_taskQueue.append(task);
+}
+
+void HTMLConstructionSite::reparent(HTMLElementStack::ElementRecord& newParent, HTMLStackItem& child)
+{
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::Reparent);
+    task.parent = newParent.node();
+    task.child = child.element();
+    m_taskQueue.append(task);
+}
+
+void HTMLConstructionSite::insertAlreadyParsedChild(HTMLStackItem& newParent, HTMLElementStack::ElementRecord& child)
+{
+    if (newParent.causesFosterParenting()) {
+        fosterParent(child.element());
+        return;
+    }
+
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::InsertAlreadyParsedChild);
+    task.parent = newParent.node();
+    task.child = child.element();
+    m_taskQueue.append(task);
+}
+
+void HTMLConstructionSite::takeAllChildren(HTMLStackItem& newParent, HTMLElementStack::ElementRecord& oldParent)
+{
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::TakeAllChildren);
+    task.parent = newParent.node();
+    task.child = oldParent.node();
+    m_taskQueue.append(task);
 }
 
 PassRefPtr<Element> HTMLConstructionSite::createElement(AtomicHTMLToken* token, const AtomicString& namespaceURI)
@@ -665,12 +748,12 @@ bool HTMLConstructionSite::shouldFosterParent() const
 
 void HTMLConstructionSite::fosterParent(PassRefPtr<Node> node)
 {
-    HTMLConstructionSiteTask task;
+    HTMLConstructionSiteTask task(HTMLConstructionSiteTask::Insert);
     findFosterSite(task);
     task.child = node;
     ASSERT(task.parent);
 
-    m_attachmentQueue.append(task);
+    m_taskQueue.append(task);
 }
 
 }

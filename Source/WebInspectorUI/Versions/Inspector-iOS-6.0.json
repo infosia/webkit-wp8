@@ -310,25 +310,6 @@
                 "hidden": true
             },
             {
-                "name": "canOverrideDeviceMetrics",
-                "description": "Checks whether <code>setDeviceMetricsOverride</code> can be invoked.",
-                "returns": [
-                    { "name": "result", "type": "boolean", "description": "If true, <code>setDeviceMetricsOverride</code> can safely be invoked on the agent." }
-                ],
-                "hidden": true
-            },
-            {
-                "name": "setDeviceMetricsOverride",
-                "description": "Overrides the values of device screen dimensions (window.screen.width, window.screen.height, window.innerWidth, window.innerHeight, and \"device-width\"/\"device-height\"-related CSS media query results) and the font scale factor.",
-                "parameters": [
-                    { "name": "width", "type": "integer", "description": "Overriding width value in pixels (minimum 0, maximum 10000000). 0 disables the override." },
-                    { "name": "height", "type": "integer", "description": "Overriding height value in pixels (minimum 0, maximum 10000000). 0 disables the override." },
-                    { "name": "fontScaleFactor", "type": "number", "description": "Overriding font scale factor value (must be positive). 1 disables the override." },
-                    { "name": "fitWindow", "type": "boolean", "description": "Whether a view that exceeds the available browser window area should be scaled down to fit." }
-                ],
-                "hidden": true
-            },
-            {
                 "name": "setShowPaintRects",
                 "description": "Requests that backend shows paint rectangles",
                 "parameters": [
@@ -560,12 +541,6 @@
                 ],
                 "description": "Enables console to refer to the node with given id via $x (see Command Line API for more details $x functions).",
                 "hidden": true
-            },
-            {
-                "name": "addInspectedHeapObject",
-                "parameters": [
-                    { "name": "heapObjectId", "type": "integer" }
-		]
             }
         ],
         "events": [
@@ -732,13 +707,6 @@
             {
                 "name": "disable",
                 "description": "Disables network tracking, prevents network events from being sent to the client."
-            },
-            {
-                "name": "setUserAgentOverride",
-                "description": "Allows overriding user agent with the given string.",
-                "parameters": [
-                    { "name": "userAgent", "type": "string", "description": "User agent to use." }
-                ]
             },
             {
                 "name": "setExtraHTTPHeaders",
@@ -1016,158 +984,6 @@
         ]
     },
     {
-        "domain": "IndexedDB",
-        "hidden": true,
-        "types": [
-            {
-                "id": "SecurityOriginWithDatabaseNames",
-                "type": "object",
-                "description": "Security origin with database names.",
-                "properties": [
-                    { "name": "securityOrigin", "type": "string", "description": "Security origin." },
-                    { "name": "databaseNames", "type": "array", "items": { "type": "string" }, "description": "Database names for this origin." }
-                ]
-            },
-            {
-                "id": "DatabaseWithObjectStores",
-                "type": "object",
-                "description": "Database with an array of object stores.",
-                "properties": [
-                    { "name": "name", "type": "string", "description": "Database name." },
-                    { "name": "version", "type": "string", "description": "Database version." },
-                    { "name": "objectStores", "type": "array", "items": { "$ref": "ObjectStore" }, "description": "Object stores in this database." }
-                ]
-            },
-            {
-                "id": "ObjectStore",
-                "type": "object",
-                "description": "Object store.",
-                "properties": [
-                    { "name": "name", "type": "string", "description": "Object store name." },
-                    { "name": "keyPath", "type": "string", "description": "Object store key path." },
-                    { "name": "indexes", "type": "array", "items": { "$ref": "ObjectStoreIndex" }, "description": "Indexes in this object store." }
-                ]
-            },
-            {
-                "id": "ObjectStoreIndex",
-                "type": "object",
-                "description": "Object store index.",
-                "properties": [
-                    { "name": "name", "type": "string", "description": "Index name." },
-                    { "name": "keyPath", "type": "string", "description": "Index key path." },
-                    { "name": "unique", "type": "boolean", "description": "If true, index is unique." },
-                    { "name": "multiEntry", "type": "boolean", "description": "If true, index allows multiple entries for a key." }
-                ]
-            },
-            {
-                "id": "Key",
-                "type": "object",
-                "description": "Key.",
-                "properties": [
-                    { "name": "type", "type": "string", "enum": ["number", "string", "date", "array"], "description": "Key type." },
-                    { "name": "number", "type": "number", "optional": true, "description": "Number value." },
-                    { "name": "string", "type": "string", "optional": true, "description": "String value." },
-                    { "name": "date", "type": "number", "optional": true, "description": "Date value." },
-                    { "name": "array", "type": "array", "optional": true, "items": { "$ref": "Key" }, "description": "Array value." }
-                ]
-            },
-            {
-                "id": "KeyRange",
-                "type": "object",
-                "description": "Key range.",
-                "properties": [
-                    { "name": "lower", "$ref": "Key", "optional": true, "description": "Lower bound." },
-                    { "name": "upper", "$ref": "Key", "optional": true, "description": "Upper bound." },
-                    { "name": "lowerOpen", "type": "boolean", "description": "If true lower bound is open." },
-                    { "name": "upperOpen", "type": "boolean", "description": "If true upper bound is open." }
-                ]
-            },
-            {
-                "id": "DataEntry",
-                "type": "object",
-                "description": "Key.",
-                "properties": [
-                    { "name": "key", "$ref": "Key", "description": "Key." },
-                    { "name": "primaryKey", "$ref": "Key", "description": "Primary key." },
-                    { "name": "value", "$ref": "Runtime.RemoteObject", "description": "Value." }
-                ]
-            }
-        ],
-        "commands": [
-            {
-                "name": "enable",
-                "description": "Enables events from backend."
-            },
-            {
-                "name": "disable",
-                "description": "Disables events from backend."
-            },
-            {
-                "name": "requestDatabaseNamesForFrame",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "frameId", "$ref": "Network.FrameId", "description": "Frame id." }
-                ],
-                "description": "Requests database names for given frame's security origin."
-            },
-            {
-                "name": "requestDatabase",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "frameId", "$ref": "Network.FrameId", "description": "Frame id." },
-                    { "name": "databaseName", "type": "string", "description": "Database name." }
-                ],
-                "description": "Requests database with given name in given frame."
-            },
-            {
-                "name": "requestData",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "frameId", "$ref": "Network.FrameId", "description": "Frame id." },
-                    { "name": "databaseName", "type": "string", "description": "Database name." },
-                    { "name": "objectStoreName", "type": "string", "description": "Object store name." },
-                    { "name": "indexName", "type": "string", "description": "Index name, empty string for object store data requests." },
-                    { "name": "skipCount", "type": "integer", "description": "Number of records to skip." },
-                    { "name": "pageSize", "type": "integer", "description": "Number of records to fetch." },
-                    { "name": "keyRange", "$ref": "KeyRange", "optional": true, "description": "Key range." }
-                ],
-                "description": "Requests data from object store or index."
-            }
-        ],
-        "events": [
-            {
-                "name": "databaseNamesLoaded",
-                "parameters": [
-                    { "name": "requestId", "type": "number", "description": "Request id." },
-                    { "name": "securityOriginWithDatabaseNames", "$ref": "SecurityOriginWithDatabaseNames", "description": "Frame with database names." }
-                ]
-            },
-            {
-                "name": "databaseLoaded",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "databaseWithObjectStores", "$ref": "DatabaseWithObjectStores", "description": "Database with an array of object stores." }
-                ]
-            },
-            {
-                "name": "objectStoreDataLoaded",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "objectStoreDataEntries", "type": "array", "items": { "$ref": "DataEntry" }, "description": "Array of object store data entries." },
-                    { "name": "hasMore", "type": "boolean", "description": "If true, there are more entries to fetch in the given range." }
-                ]
-            },
-            {
-                "name": "indexDataLoaded",
-                "parameters": [
-                    { "name": "requestId", "type": "integer", "description": "Request id." },
-                    { "name": "indexDataEntries", "type": "array", "items": { "$ref": "DataEntry" }, "description": "Array of index data entries." },
-                    { "name": "hasMore", "type": "boolean", "description": "If true, there are more entries to fetch in the given range." }
-                ]
-            }
-        ]
-    },
-    {
         "domain": "DOMStorage",
         "hidden": true,
         "types": [
@@ -1336,22 +1152,6 @@
                     { "name": "isNowOnline", "type": "boolean" }
                 ]
             }
-        ]
-    },
-    {
-        "domain": "FileSystem",
-        "hidden": true,
-        "commands": [
-            {
-                "name": "enable",
-                "description": "Enables events from backend."
-            },
-            {
-                "name": "disable",
-                "description": "Disables events from backend.."
-            }
-        ],
-        "events": [
         ]
     },
     {
@@ -2238,14 +2038,6 @@
         ],
         "commands": [
             {
-                "name": "causesRecompilation",
-                "returns": [
-                    { "name": "result", "type": "boolean", "description": "True if enabling debugger causes scripts recompilation." }
-                ],
-                "hidden": true,
-                "description": "Tells whether enabling debugger causes scripts recompilation."
-            },
-            {
                 "name": "supportsNativeBreakpoints",
                 "returns": [
                     { "name": "result", "type": "boolean", "description": "True if debugger supports native breakpoints." }
@@ -2341,26 +2133,6 @@
                     { "name": "result", "type": "array", "items": { "$ref": "Page.SearchMatch" }, "description": "List of search matches." }
                 ],
                 "description": "Searches for given string in script content."
-            },
-            {
-                "name": "canSetScriptSource",
-                "returns": [
-                    { "name": "result", "type": "boolean", "description": "True if <code>setScriptSource</code> is supported." }
-                ],
-                "description": "Tells whether <code>setScriptSource</code> is supported."
-            },
-            {
-                "name": "setScriptSource",
-                "parameters": [
-                    { "name": "scriptId", "$ref": "ScriptId", "description": "Id of the script to edit." },
-                    { "name": "scriptSource", "type": "string", "description": "New content of the script." },
-                    { "name": "preview", "type": "boolean", "optional": true, "description": " If true the change will not actually be applied. Preview mode may be used to get result description without actually modifying the code.", "hidden": true }
-                ],
-                "returns": [
-                    { "name": "callFrames", "type": "array", "optional": true, "items": { "$ref": "CallFrame"}, "description": "New stack trace in case editing has happened while VM was stopped." },
-                    { "name": "result", "type": "object", "optional": true, "description": "VM-specific description of the changes applied.", "hidden": true }
-                ],
-                "description": "Edits JavaScript source live."
             },
             {
                 "name": "getScriptSource",
@@ -2543,10 +2315,9 @@
                 "type": "object",
                 "description": "Profile header.",
                 "properties": [
-                    { "name": "typeId", "type": "string", "enum": ["CPU", "CSS", "HEAP"], "description": "Profile type name." },
+                    { "name": "typeId", "type": "string", "enum": ["CPU"], "description": "Profile type name." },
                     { "name": "title", "type": "string", "description": "Profile title." },
-                    { "name": "uid", "type": "integer", "description": "Unique identifier of the profile." },
-                    { "name": "maxJSObjectId", "type": "integer", "optional": true, "description": "Last seen JS object Id." }
+                    { "name": "uid", "type": "integer", "description": "Unique identifier of the profile." }
                 ]
             },
             {
@@ -2560,24 +2331,6 @@
             }
         ],
         "commands": [
-            {
-                "name": "causesRecompilation",
-                "returns": [
-                    { "name": "result", "type": "boolean" }
-                ]
-            },
-            {
-                "name": "isSampling",
-                "returns": [
-                    { "name": "result", "type": "boolean" }
-                ]
-            },
-            {
-                "name": "hasHeapProfiler",
-                "returns": [
-                    { "name": "result", "type": "boolean" }
-                ]
-            },
             {
                 "name": "enable"
             },
@@ -2615,22 +2368,6 @@
             },
             {
                 "name": "clearProfiles"
-            },
-            {
-                "name": "takeHeapSnapshot"
-            },
-            {
-                "name": "collectGarbage"
-            },
-            {
-                "name": "getObjectByHeapObjectId",
-                "parameters": [
-                    { "name": "objectId", "type": "integer" },
-                    { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects." }
-                ],
-                "returns": [
-                    { "name": "result", "$ref": "Runtime.RemoteObject", "description": "Evaluation result." }
-                ]
             }
         ],
         "events": [
@@ -2641,19 +2378,6 @@
                 ]
             },
             {
-                "name": "addHeapSnapshotChunk",
-                "parameters": [
-                    { "name": "uid", "type": "integer" },
-                    { "name": "chunk", "type": "string" }
-                ]
-            },
-            {
-                "name": "finishHeapSnapshot",
-                "parameters": [
-                    { "name": "uid", "type": "integer" }
-                ]
-            },
-            {
                 "name": "setRecordingProfile",
                 "parameters": [
                     { "name": "isProfiling", "type": "boolean" }
@@ -2661,13 +2385,6 @@
             },
             {
                 "name": "resetProfiles"
-            },
-            {
-                "name": "reportHeapSnapshotProgress",
-                "parameters": [
-                    { "name": "done", "type": "integer" },
-                    { "name": "total", "type": "integer" }
-                ]
             }
         ]
     },

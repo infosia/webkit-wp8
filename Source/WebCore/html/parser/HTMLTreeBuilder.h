@@ -34,8 +34,6 @@
 #include "HTMLParserOptions.h"
 #include "HTMLTokenizer.h"
 #include <wtf/Noncopyable.h>
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
@@ -57,14 +55,8 @@ class HTMLDocumentParser;
 class HTMLTreeBuilder {
     WTF_MAKE_NONCOPYABLE(HTMLTreeBuilder); WTF_MAKE_FAST_ALLOCATED;
 public:
-    static OwnPtr<HTMLTreeBuilder> create(HTMLDocumentParser& parser, HTMLDocument& document, ParserContentPolicy parserContentPolicy, bool reportErrors, const HTMLParserOptions& options)
-    {
-        return adoptPtr(new HTMLTreeBuilder(parser, document, parserContentPolicy, reportErrors, options));
-    }
-    static OwnPtr<HTMLTreeBuilder> create(HTMLDocumentParser& parser, DocumentFragment& fragment, Element* contextElement, ParserContentPolicy parserContentPolicy, const HTMLParserOptions& options)
-    {
-        return adoptPtr(new HTMLTreeBuilder(parser, fragment, contextElement, parserContentPolicy, options));
-    }
+    HTMLTreeBuilder(HTMLDocumentParser&, HTMLDocument&, ParserContentPolicy, const HTMLParserOptions&);
+    HTMLTreeBuilder(HTMLDocumentParser&, DocumentFragment&, Element* contextElement, ParserContentPolicy, const HTMLParserOptions&);
     ~HTMLTreeBuilder();
 
     const HTMLElementStack* openElements() const { return m_tree.openElements(); }
@@ -94,34 +86,36 @@ private:
     class ExternalCharacterTokenBuffer;
     // Represents HTML5 "insertion mode"
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/parsing.html#insertion-mode
-    enum InsertionMode {
-        InitialMode,
-        BeforeHTMLMode,
-        BeforeHeadMode,
-        InHeadMode,
-        InHeadNoscriptMode,
-        AfterHeadMode,
-        TemplateContentsMode,
-        InBodyMode,
-        TextMode,
-        InTableMode,
-        InTableTextMode,
-        InCaptionMode,
-        InColumnGroupMode,
-        InTableBodyMode,
-        InRowMode,
-        InCellMode,
-        InSelectMode,
-        InSelectInTableMode,
-        AfterBodyMode,
-        InFramesetMode,
-        AfterFramesetMode,
-        AfterAfterBodyMode,
-        AfterAfterFramesetMode,
+    enum class InsertionMode {
+        Initial,
+        BeforeHTML,
+        BeforeHead,
+        InHead,
+        InHeadNoscript,
+        AfterHead,
+        TemplateContents,
+        InBody,
+        Text,
+        InTable,
+        InTableText,
+        InCaption,
+        InColumnGroup,
+        InTableBody,
+        InRow,
+        InCell,
+        InSelect,
+        InSelectInTable,
+        AfterBody,
+        InFrameset,
+        AfterFrameset,
+        AfterAfterBody,
+        AfterAfterFrameset,
     };
 
-    HTMLTreeBuilder(HTMLDocumentParser&, HTMLDocument&, ParserContentPolicy, bool reportErrors, const HTMLParserOptions&);
-    HTMLTreeBuilder(HTMLDocumentParser&, DocumentFragment&, Element* contextElement, ParserContentPolicy, const HTMLParserOptions&);
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+    void insertPhoneNumberLink(const String&);
+    void linkifyPhoneNumbers(const String&);
+#endif
 
     void processToken(AtomicHTMLToken*);
 

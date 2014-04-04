@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003, 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2003, 2006 Apple Inc.  All rights reserved.
  *                     2006, 2008 Rob Buis <buis@kde.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,12 +34,12 @@
 #include "GraphicsContext.h"
 #include "IntRect.h"
 #include "StrokeStyleApplier.h"
-#include <ApplicationServices/ApplicationServices.h>
+#include <CoreGraphics/CoreGraphics.h>
 #include <wtf/MathExtras.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/text/WTFString.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "WebCoreSystemInterface.h"
 #endif
 
@@ -75,6 +75,11 @@ static inline CGContextRef scratchContext()
 
 Path::Path()
     : m_path(0)
+{
+}
+
+Path::Path(RetainPtr<CGMutablePathRef> p)
+    : m_path(p.leakRef())
 {
 }
 
@@ -255,7 +260,7 @@ void Path::addArcTo(const FloatPoint& p1, const FloatPoint& p2, float radius)
 
 void Path::platformAddPathForRoundedRect(const FloatRect& rect, const FloatSize& topLeftRadius, const FloatSize& topRightRadius, const FloatSize& bottomLeftRadius, const FloatSize& bottomRightRadius)
 {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     bool equalWidths = (topLeftRadius.width() == topRightRadius.width() && topRightRadius.width() == bottomLeftRadius.width() && bottomLeftRadius.width() == bottomRightRadius.width());
     bool equalHeights = (topLeftRadius.height() == bottomLeftRadius.height() && bottomLeftRadius.height() == topRightRadius.height() && topRightRadius.height() == bottomRightRadius.height());
 
@@ -294,6 +299,24 @@ void Path::addEllipse(const FloatRect& r)
     CGPathAddEllipseInRect(ensurePlatformPath(), 0, r);
 }
 
+void Path::addPath(const Path& path, const AffineTransform& transform)
+{
+    if (!path.platformPath())
+        return;
+
+    CGAffineTransform transformCG = transform;
+    // CG doesn't allow adding a path to itself. Optimize for the common case
+    // and copy the path for the self referencing case.
+    if (ensurePlatformPath() != path.platformPath()) {
+        CGPathAddPath(ensurePlatformPath(), &transformCG, path.platformPath());
+        return;
+    }
+    CGPathRef pathCopy = CGPathCreateCopy(path.platformPath());
+    CGPathAddPath(ensurePlatformPath(), &transformCG, path.platformPath());
+    CGPathRelease(pathCopy);
+}
+
+
 void Path::clear()
 {
     if (isNull())
@@ -319,9 +342,6 @@ FloatPoint Path::currentPoint() const
         return FloatPoint();
     return CGPathGetCurrentPoint(m_path);
 }
-
-// MARK: -
-// MARK: Path Management
 
 struct PathApplierInfo {
     void* info;

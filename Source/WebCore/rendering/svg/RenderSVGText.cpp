@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2006 Alexander Kellett <lypanov@kde.org>
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
@@ -25,11 +25,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGText.h"
 
-#include "FloatConversion.h"
 #include "FloatQuad.h"
 #include "FontCache.h"
 #include "GraphicsContext.h"
@@ -37,15 +34,14 @@
 #include "HitTestResult.h"
 #include "LayoutRepainter.h"
 #include "PointerEventsHitRules.h"
+#include "RenderIterator.h"
 #include "RenderSVGInlineText.h"
 #include "RenderSVGResource.h"
 #include "RenderSVGRoot.h"
 #include "SVGLengthList.h"
-#include "SVGRenderSupport.h"
 #include "SVGResourcesCache.h"
 #include "SVGRootInlineBox.h"
 #include "SVGTextElement.h"
-#include "SVGTextLayoutAttributesBuilder.h"
 #include "SVGTextRunRenderingContext.h"
 #include "SVGTransformList.h"
 #include "SVGURIReference.h"
@@ -80,24 +76,14 @@ bool RenderSVGText::isChildAllowed(const RenderObject& child, const RenderStyle&
     return child.isInline();
 }
 
-RenderSVGText* RenderSVGText::locateRenderSVGTextAncestor(RenderObject* start)
+RenderSVGText* RenderSVGText::locateRenderSVGTextAncestor(RenderObject& start)
 {
-    ASSERT(start);
-    while (start && !start->isSVGText())
-        start = start->parent();
-    if (!start || !start->isSVGText())
-        return 0;
-    return toRenderSVGText(start);
+    return lineageOfType<RenderSVGText>(start).first();
 }
 
-const RenderSVGText* RenderSVGText::locateRenderSVGTextAncestor(const RenderObject* start)
+const RenderSVGText* RenderSVGText::locateRenderSVGTextAncestor(const RenderObject& start)
 {
-    ASSERT(start);
-    while (start && !start->isSVGText())
-        start = start->parent();
-    if (!start || !start->isSVGText())
-        return 0;
-    return toRenderSVGText(start);
+    return lineageOfType<RenderSVGText>(start).first();
 }
 
 LayoutRect RenderSVGText::clippedOverflowRectForRepaint(const RenderLayerModelObject* repaintContainer) const
@@ -324,6 +310,11 @@ void RenderSVGText::subtreeTextDidChange(RenderSVGInlineText* text)
         ASSERT(!m_layoutAttributesBuilder.numberOfTextPositioningElements());
         return;
     }
+    // Text transforms can cause text change to be signaled during addChild before m_layoutAttributes has been updated.
+    if (!m_layoutAttributes.contains(text->layoutAttributes())) {
+        ASSERT(!text->everHadLayout());
+        return;
+    }
 
     // Always protect the cache before clearing text positioning elements when the cache will subsequently be rebuilt.
     FontCachePurgePreventer fontCachePurgePreventer;
@@ -420,7 +411,7 @@ void RenderSVGText::layout()
     ASSERT(childrenInline());
     LayoutUnit repaintLogicalTop = 0;
     LayoutUnit repaintLogicalBottom = 0;
-    clearFloats();
+    rebuildFloatingObjectSetFromIntrudingFloats();
     layoutInlineChildren(true, repaintLogicalTop, repaintLogicalBottom);
 
     if (m_needsReordering)
@@ -568,5 +559,3 @@ void RenderSVGText::updateFirstLetter()
 }
 
 }
-
-#endif // ENABLE(SVG)

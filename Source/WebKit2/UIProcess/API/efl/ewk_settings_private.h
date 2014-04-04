@@ -27,9 +27,10 @@
 #ifndef ewk_settings_private_h
 #define ewk_settings_private_h
 
-namespace WebKit {
-class WebPreferences;
-}
+#include "WKEinaSharedString.h"
+#include "WKRetainPtr.h"
+#include <WebKit2/WKBase.h>
+
 class EwkView;
 /**
  * \struct  Ewk_Settings
@@ -37,17 +38,21 @@ class EwkView;
  */
 class EwkSettings {
 public:
-    explicit EwkSettings(EwkView* viewImpl)
-        : m_view(viewImpl)
+    explicit EwkSettings(WKPreferencesRef preferences)
+        : m_preferences(preferences)
     {
-        ASSERT(m_view);
+        ASSERT(preferences);
+        m_defaultTextEncodingName = WKPreferencesCopyDefaultTextEncodingName(preferences);
     }
 
-    const WebKit::WebPreferences* preferences() const;
-    WebKit::WebPreferences* preferences();
+    WKPreferencesRef preferences() const { return m_preferences.get(); }
+
+    const char* defaultTextEncodingName() const;
+    void setDefaultTextEncodingName(const char*);
 
 private:
-    EwkView* m_view;
+    WKRetainPtr<WKPreferencesRef> m_preferences;
+    WKEinaSharedString m_defaultTextEncodingName;
 };
 
 #endif // ewk_settings_private_h

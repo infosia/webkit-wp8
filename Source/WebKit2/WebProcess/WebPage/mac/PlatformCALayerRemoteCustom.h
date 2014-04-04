@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,32 +26,31 @@
 #ifndef PlatformCALayerRemoteCustom_h
 #define PlatformCALayerRemoteCustom_h
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "PlatformCALayerRemote.h"
 
 namespace WebKit {
 
 class LayerHostingContext;
 
-class PlatformCALayerRemoteCustom FINAL : public PlatformCALayerRemote {
+class PlatformCALayerRemoteCustom final : public PlatformCALayerRemote {
     friend class PlatformCALayerRemote;
 public:
     virtual ~PlatformCALayerRemoteCustom();
 
-    virtual PlatformLayer* platformLayer() const OVERRIDE { return m_platformLayer.get(); }
+    virtual PlatformLayer* platformLayer() const override { return m_platformLayer.get(); }
 
-    virtual uint32_t hostingContextID() OVERRIDE;
+    virtual uint32_t hostingContextID() override;
+
+    virtual void setNeedsDisplay(const WebCore::FloatRect* dirtyRect = 0) override;
 
 private:
     PlatformCALayerRemoteCustom(PlatformLayer*, WebCore::PlatformCALayerClient* owner, RemoteLayerTreeContext*);
 
     std::unique_ptr<LayerHostingContext> m_layerHostingContext;
     RetainPtr<PlatformLayer> m_platformLayer;
+    bool m_providesContents;
 };
 
 } // namespace WebKit
-
-#endif // USE(ACCELERATED_COMPOSITING)
 
 #endif // PlatformCALayerRemoteCustom_h

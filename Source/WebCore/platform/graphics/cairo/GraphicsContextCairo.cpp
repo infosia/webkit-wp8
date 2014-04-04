@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2007 Alp Toker <alp@atoker.com>
  * Copyright (C) 2008, 2009 Dirk Schulze <krit@webkit.org>
  * Copyright (C) 2008 Nuanti Ltd.
@@ -17,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,7 +40,7 @@
 #include "DrawErrorUnderline.h"
 #include "FloatConversion.h"
 #include "FloatRect.h"
-#include "Font.h"
+#include "FloatRoundedRect.h"
 #include "GraphicsContextPlatformPrivateCairo.h"
 #include "IntRect.h"
 #include "NotImplemented.h"
@@ -175,13 +175,13 @@ static inline void shadowAndStrokeCurrentCairoPath(GraphicsContext* context)
 }
 
 GraphicsContext::GraphicsContext(cairo_t* cr)
-    : m_updatingControlTints(false),
-      m_transparencyCount(0)
+    : m_updatingControlTints(false)
+    , m_transparencyCount(0)
 {
     m_data = new GraphicsContextPlatformPrivateToplevel(new PlatformContextCairo(cr));
 }
 
-void GraphicsContext::platformInit(PlatformContextCairo* platformContext)
+void GraphicsContext::platformInit(PlatformContextCairo* platformContext, bool)
 {
     m_data = new GraphicsContextPlatformPrivate(platformContext);
     if (platformContext)
@@ -230,7 +230,7 @@ void GraphicsContext::restorePlatformState()
 }
 
 // Draws a filled rectangle with a stroked border.
-void GraphicsContext::drawRect(const IntRect& rect)
+void GraphicsContext::drawRect(const FloatRect& rect, float)
 {
     if (paintingDisabled())
         return;
@@ -332,7 +332,7 @@ static void drawLineOnCairoContext(GraphicsContext* graphicsContext, cairo_t* co
 }
 
 // This is only used to draw borders, so we should not draw shadows.
-void GraphicsContext::drawLine(const IntPoint& point1, const IntPoint& point2)
+void GraphicsContext::drawLine(const FloatPoint& point1, const FloatPoint& point2)
 {
     if (paintingDisabled())
         return;
@@ -460,7 +460,7 @@ void GraphicsContext::fillRect(const FloatRect& rect, const Color& color, ColorS
         return;
 
     if (hasShadow())
-        platformContext()->shadowBlur().drawRectShadow(this, rect, RoundedRect::Radii());
+        platformContext()->shadowBlur().drawRectShadow(this, FloatRoundedRect(rect));
 
     fillRectWithColor(platformContext()->cr(), rect, color);
 }
@@ -511,6 +511,8 @@ static inline void adjustFocusRingColor(Color& color)
 #if !PLATFORM(GTK)
     // Force the alpha to 50%.  This matches what the Mac does with outline rings.
     color.setRGB(makeRGBA(color.red(), color.green(), color.blue(), 127));
+#else
+    UNUSED_PARAM(color);
 #endif
 }
 
@@ -619,7 +621,7 @@ FloatRect GraphicsContext::computeLineBoundsForText(const FloatPoint& origin, fl
     return FloatRect(origin, FloatSize(width, strokeThickness()));
 }
 
-void GraphicsContext::drawLineForText(const FloatPoint& origin, float width, bool printing)
+void GraphicsContext::drawLineForText(const FloatPoint& origin, float width, bool printing, bool doubleUnderlines)
 {
     if (paintingDisabled())
         return;
@@ -634,11 +636,21 @@ void GraphicsContext::drawLineForText(const FloatPoint& origin, float width, boo
     ShadowBlur& shadow = platformContext()->shadowBlur();
     if (GraphicsContext* shadowContext = shadow.beginShadowLayer(this, lineExtents)) {
         drawLineOnCairoContext(this, shadowContext->platformContext()->cr(), origin, endPoint);
+        if (doubleUnderlines)
+            drawLineOnCairoContext(this, shadowContext->platformContext()->cr(), origin + FloatSize(0, strokeThickness() * 2), endPoint + FloatSize(0, strokeThickness() * 2));
         shadow.endShadowLayer(this);
     }
 
     drawLineOnCairoContext(this, cairoContext, origin, endPoint);
+    if (doubleUnderlines)
+        drawLineOnCairoContext(this, cairoContext, origin + FloatSize(0, strokeThickness() * 2), endPoint + FloatSize(0, strokeThickness() * 2));
     cairo_restore(cairoContext);
+}
+
+void GraphicsContext::drawLinesForText(const FloatPoint& point, const DashArray& widths, bool printing, bool doubleUnderlines)
+{
+    for (size_t i = 0; i < widths.size(); i += 2)
+        drawLineForText(FloatPoint(point.x() + widths[i], point.y()), widths[i+1] - widths[i], printing, doubleUnderlines);
 }
 
 void GraphicsContext::updateDocumentMarkerResources()
@@ -752,10 +764,8 @@ void GraphicsContext::setPlatformStrokeStyle(StrokeStyle strokeStyle)
         cairo_set_line_width(platformContext()->cr(), 0);
         break;
     case SolidStroke:
-#if ENABLE(CSS3_TEXT_DECORATION)
     case DoubleStroke:
     case WavyStroke: // FIXME: https://bugs.webkit.org/show_bug.cgi?id=94110 - Needs platform support.
-#endif // CSS3_TEXT_DECORATION
         cairo_set_dash(platformContext()->cr(), 0, 0, 0);
         break;
     case DottedStroke:
@@ -1008,7 +1018,7 @@ void GraphicsContext::scale(const FloatSize& size)
     m_data->scale(size);
 }
 
-void GraphicsContext::clipOut(const IntRect& r)
+void GraphicsContext::clipOut(const FloatRect& r)
 {
     if (paintingDisabled())
         return;
@@ -1024,39 +1034,31 @@ void GraphicsContext::clipOut(const IntRect& r)
     cairo_set_fill_rule(cr, savedFillRule);
 }
 
-static inline FloatPoint getPhase(const FloatRect& dest, const FloatRect& tile)
-{
-    FloatPoint phase = dest.location();
-    phase.move(-tile.x(), -tile.y());
-
-    return phase;
-}
-
-void GraphicsContext::fillRoundedRect(const IntRect& r, const IntSize& topLeft, const IntSize& topRight, const IntSize& bottomLeft, const IntSize& bottomRight, const Color& color, ColorSpace)
+void GraphicsContext::platformFillRoundedRect(const FloatRoundedRect& rect, const Color& color, ColorSpace)
 {
     if (paintingDisabled())
         return;
 
     if (hasShadow())
-        platformContext()->shadowBlur().drawRectShadow(this, r, RoundedRect::Radii(topLeft, topRight, bottomLeft, bottomRight));
+        platformContext()->shadowBlur().drawRectShadow(this, rect);
 
     cairo_t* cr = platformContext()->cr();
     cairo_save(cr);
     Path path;
-    path.addRoundedRect(r, topLeft, topRight, bottomLeft, bottomRight);
+    path.addRoundedRect(rect);
     appendWebCorePathToCairoContext(cr, path);
     setSourceRGBAFromColor(cr, color);
     cairo_fill(cr);
     cairo_restore(cr);
 }
 
-void GraphicsContext::fillRectWithRoundedHole(const IntRect& rect, const RoundedRect& roundedHoleRect, const Color& color, ColorSpace)
+void GraphicsContext::fillRectWithRoundedHole(const FloatRect& rect, const FloatRoundedRect& roundedHoleRect, const Color& color, ColorSpace)
 {
     if (paintingDisabled() || !color.isValid())
         return;
 
     if (this->mustUseShadowBlur())
-        platformContext()->shadowBlur().drawInsetShadow(this, rect, roundedHoleRect.rect(), roundedHoleRect.radii());
+        platformContext()->shadowBlur().drawInsetShadow(this, rect, roundedHoleRect);
 
     Path path;
     path.addRect(rect);

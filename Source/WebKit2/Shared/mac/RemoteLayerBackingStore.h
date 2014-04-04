@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,15 +26,12 @@
 #ifndef RemoteLayerBackingStore_h
 #define RemoteLayerBackingStore_h
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "ShareableBitmap.h"
 #include <WebCore/FloatRect.h>
+#include <WebCore/IOSurface.h>
 #include <WebCore/Region.h>
 
-#if USE(IOSURFACE)
-#include <IOSurface/IOSurface.h>
-#endif
+OBJC_CLASS CALayer;
 
 // FIXME: Make PlatformCALayerRemote.cpp Objective-C so we can include WebLayer.h here and share the typedef.
 namespace WebCore {
@@ -46,33 +43,34 @@ namespace WebKit {
 class PlatformCALayerRemote;
 
 class RemoteLayerBackingStore {
+    WTF_MAKE_NONCOPYABLE(RemoteLayerBackingStore);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
     RemoteLayerBackingStore();
+    ~RemoteLayerBackingStore();
 
-    void ensureBackingStore(PlatformCALayerRemote*, WebCore::IntSize, float scale, bool acceleratesDrawing);
+    void ensureBackingStore(PlatformCALayerRemote*, WebCore::IntSize, float scale, bool acceleratesDrawing, bool isOpaque);
 
     void setNeedsDisplay(const WebCore::IntRect);
     void setNeedsDisplay();
 
     bool display();
 
-    RetainPtr<CGImageRef> image() const;
-#if USE(IOSURFACE)
-    RetainPtr<IOSurfaceRef> surface() const { return m_frontSurface; }
-#endif
     WebCore::IntSize size() const { return m_size; }
     float scale() const { return m_scale; }
     bool acceleratesDrawing() const { return m_acceleratesDrawing; }
+    bool isOpaque() const { return m_isOpaque; }
 
     PlatformCALayerRemote* layer() const { return m_layer; }
 
-    void encode(CoreIPC::ArgumentEncoder&) const;
-    static bool decode(CoreIPC::ArgumentDecoder&, RemoteLayerBackingStore&);
+    void applyBackingStoreToLayer(CALayer *);
+
+    void encode(IPC::ArgumentEncoder&) const;
+    static bool decode(IPC::ArgumentDecoder&, RemoteLayerBackingStore&);
 
     void enumerateRectsBeingDrawn(CGContextRef, void (^)(CGRect));
 
-private:
-    bool hasFrontBuffer()
+    bool hasFrontBuffer() const
     {
 #if USE(IOSURFACE)
         if (m_acceleratesDrawing)
@@ -81,19 +79,28 @@ private:
         return !!m_frontBuffer;
     }
 
-    void drawInContext(WebCore::GraphicsContext&, CGImageRef frontImage);
+    void flush();
+
+private:
+    void drawInContext(WebCore::GraphicsContext&, CGImageRef backImage);
+    void clearBackingStore();
 
     PlatformCALayerRemote* m_layer;
 
     WebCore::IntSize m_size;
     float m_scale;
+    bool m_isOpaque;
 
     WebCore::Region m_dirtyRegion;
 
     RefPtr<ShareableBitmap> m_frontBuffer;
+    RefPtr<ShareableBitmap> m_backBuffer;
 #if USE(IOSURFACE)
-    RetainPtr<IOSurfaceRef> m_frontSurface;
+    RefPtr<WebCore::IOSurface> m_frontSurface;
+    RefPtr<WebCore::IOSurface> m_backSurface;
 #endif
+
+    RetainPtr<CGContextRef> m_frontContextPendingFlush;
 
     bool m_acceleratesDrawing;
 
@@ -101,7 +108,5 @@ private:
 };
 
 } // namespace WebKit
-
-#endif // USE(ACCELERATED_COMPOSITING)
 
 #endif // RemoteLayerBackingStore_h

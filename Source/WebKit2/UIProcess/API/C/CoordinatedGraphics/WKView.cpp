@@ -169,20 +169,10 @@ void WKViewResumeActiveDOMObjectsAndAnimations(WKViewRef viewRef)
     toImpl(viewRef)->resumeActiveDOMObjectsAndAnimations();
 }
 
-void WKViewSetShowsAsSource(WKViewRef viewRef, bool flag)
-{
-    toImpl(viewRef)->setShowsAsSource(flag);
-}
-
-bool WKViewGetShowsAsSource(WKViewRef viewRef)
-{
-    return toImpl(viewRef)->showsAsSource();
-}
-
 bool WKViewExitFullScreen(WKViewRef viewRef)
 {
 #if ENABLE(FULLSCREEN_API)
-    return toImpl(viewRef)->exitFullScreen();
+    return toImpl(viewRef)->requestExitFullScreen();
 #else
     UNUSED_PARAM(viewRef);
     return false;

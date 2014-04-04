@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -66,7 +66,7 @@ NSString *WebInspectorDidStopSearchingForNode = @"WebInspectorDidStopSearchingFo
 - (void)showWindow
 {
     if (Page* page = core(_webView))
-        page->inspectorController()->show();
+        page->inspectorController().show();
 }
 
 - (void)show:(id)sender
@@ -142,7 +142,7 @@ NSString *WebInspectorDidStopSearchingForNode = @"WebInspectorDidStopSearchingFo
 - (BOOL)isJavaScriptProfilingEnabled
 {
     if (Page* page = core(_webView))
-        return page->inspectorController()->profilerEnabled();
+        return page->inspectorController().profilerEnabled();
     return NO;
 }
 
@@ -152,7 +152,7 @@ NSString *WebInspectorDidStopSearchingForNode = @"WebInspectorDidStopSearchingFo
     if (!page)
         return;
 
-    page->inspectorController()->setProfilerEnabled(enabled);
+    page->inspectorController().setProfilerEnabled(enabled);
 }
 
 - (BOOL)isTimelineProfilingEnabled
@@ -169,7 +169,7 @@ NSString *WebInspectorDidStopSearchingForNode = @"WebInspectorDidStopSearchingFo
 - (void)close:(id)sender 
 {
     if (Page* page = core(_webView))
-        page->inspectorController()->close();
+        page->inspectorController().close();
 }
 
 - (void)attach:(id)sender
@@ -182,10 +182,10 @@ NSString *WebInspectorDidStopSearchingForNode = @"WebInspectorDidStopSearchingFo
     [_frontend detach];
 }
 
-- (void)evaluateInFrontend:(id)sender callId:(long)callId script:(NSString *)script
+- (void)evaluateInFrontend:(id)sender script:(NSString *)script
 {
     if (Page* page = core(_webView))
-        page->inspectorController()->evaluateForTestInFrontend(callId, script);
+        page->inspectorController().evaluateForTestInFrontend(script);
 }
 
 - (void)setFrontend:(WebInspectorFrontend *)frontend

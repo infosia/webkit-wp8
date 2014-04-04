@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,7 +32,6 @@
 #include "WebPreferenceKeysPrivate.h"
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <WebCore/CACFLayerTreeHost.h>
 #include <WebCore/COMPtr.h>
 #include <WebCore/FileSystem.h>
 #include <WebCore/Font.h>
@@ -48,6 +47,7 @@
 
 #if USE(CG)
 #include <CoreGraphics/CoreGraphics.h>
+#include <WebCore/CACFLayerTreeHost.h>
 #include <WebKitSystemInterface/WebKitSystemInterface.h>
 #endif
 
@@ -279,6 +279,8 @@ void WebPreferences::initializeDefaultSettings()
     CFDictionaryAddValue(defaults, CFSTR(WebKitRequestAnimationFrameEnabledPreferenceKey), kCFBooleanTrue);
 
     CFDictionaryAddValue(defaults, CFSTR(WebKitFullScreenEnabledPreferenceKey), kCFBooleanFalse);
+
+    CFDictionaryAddValue(defaults, CFSTR(WebKitRequestAnimationFrameEnabledPreferenceKey), kCFBooleanFalse);
 
     defaultSettings = defaults;
 }
@@ -1254,6 +1256,30 @@ HRESULT WebPreferences::unused6()
     return E_FAIL;
 }
 
+HRESULT WebPreferences::mockScrollbarsEnabled(BOOL* enabled)
+{
+    *enabled = boolValueForKey(WebKitMockScrollbarsEnabledPreferenceKey);
+    return S_OK;
+}
+
+HRESULT WebPreferences::setMockScrollbarsEnabled(BOOL enabled)
+{
+    setBoolValue(WebKitMockScrollbarsEnabledPreferenceKey, enabled);
+    return S_OK;
+}
+
+HRESULT WebPreferences::screenFontSubstitutionEnabled(BOOL* enabled)
+{
+    *enabled = boolValueForKey(WebKitScreenFontSubstitutionEnabledPreferenceKey);
+    return S_OK;
+}
+
+HRESULT WebPreferences::setScreenFontSubstitutionEnabled(BOOL enabled)
+{
+    setBoolValue(WebKitScreenFontSubstitutionEnabledPreferenceKey, enabled);
+    return S_OK;
+}
+
 HRESULT STDMETHODCALLTYPE WebPreferences::hyperlinkAuditingEnabled(
     /* [in] */ BOOL* enabled)
 {
@@ -1322,16 +1348,16 @@ HRESULT WebPreferences::setAllowContinuousSpellChecking(BOOL enabled)
     return S_OK;
 }
 
-HRESULT WebPreferences::areSeamlessIFramesEnabled(BOOL* enabled)
+HRESULT WebPreferences::unused7()
 {
-    *enabled = boolValueForKey(SeamlessIFramesPreferenceKey);
-    return S_OK;
+    ASSERT_NOT_REACHED();
+    return E_FAIL;
 }
 
-HRESULT WebPreferences::setSeamlessIFramesEnabled(BOOL enabled)
+HRESULT WebPreferences::unused8()
 {
-    setBoolValue(SeamlessIFramesPreferenceKey, enabled);
-    return S_OK;
+    ASSERT_NOT_REACHED();
+    return E_FAIL;
 }
 
 HRESULT WebPreferences::isDOMPasteAllowed(BOOL* enabled)
@@ -1550,15 +1576,12 @@ HRESULT WebPreferences::setAcceleratedCompositingEnabled(BOOL enabled)
 
 HRESULT WebPreferences::acceleratedCompositingEnabled(BOOL* enabled)
 {
-#if USE(ACCELERATED_COMPOSITING)
 #if USE(CA)
     *enabled = CACFLayerTreeHost::acceleratedCompositingAvailable() && boolValueForKey(WebKitAcceleratedCompositingEnabledPreferenceKey);
 #else
     *enabled = TRUE;
 #endif
-#else
-    *enabled = FALSE;
-#endif
+
     return S_OK;
 }
 
@@ -1781,3 +1804,14 @@ HRESULT WebPreferences::requestAnimationFrameEnabled(BOOL* enabled)
     return S_OK;
 }
 
+HRESULT WebPreferences::isInheritURIQueryComponentEnabled(BOOL* enabled)
+{
+    *enabled = boolValueForKey(WebKitEnableInheritURIQueryComponentPreferenceKey);
+    return S_OK;
+}
+
+HRESULT WebPreferences::setEnableInheritURIQueryComponent(BOOL enabled)
+{
+    setBoolValue(WebKitEnableInheritURIQueryComponentPreferenceKey, enabled);
+    return S_OK;
+}

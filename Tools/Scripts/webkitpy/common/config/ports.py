@@ -62,7 +62,6 @@ class DeprecatedPort(object):
     @staticmethod
     def port(port_name):
         ports = {
-            "gtk": GtkPort,
             "gtk-wk2": GtkWK2Port,
             "mac": MacPort,
             "mac-wk2": MacWK2Port,
@@ -71,7 +70,6 @@ class DeprecatedPort(object):
             "qt-wk2": QtWK2Port,
             "efl": EflPort,
             "efl-wk2": EflWK2Port,
-            "nix": NixPort,
         }
         default_port = {
             "Windows": WinPort,
@@ -141,23 +139,6 @@ class WinPort(DeprecatedPort):
 
     def run_bindings_tests_command(self):
         return None
-
-
-class GtkPort(DeprecatedPort):
-    port_flag_name = "gtk"
-
-    def build_webkit_command(self, build_style=None):
-        command = super(GtkPort, self).build_webkit_command(build_style=build_style)
-        command.append("--gtk")
-        command.append("--update-gtk")
-        command.append("--no-webkit2")
-        command.append(super(GtkPort, self).makeArgs())
-        return command
-
-    def run_webkit_tests_command(self):
-        command = super(GtkPort, self).run_webkit_tests_command()
-        command.append("--gtk")
-        return command
 
 
 class GtkWK2Port(DeprecatedPort):
@@ -231,15 +212,4 @@ class EflWK2Port(DeprecatedPort):
         command.append("--update-efl")
         command.append("--no-webkit1")
         command.append(super(EflWK2Port, self).makeArgs())
-        return command
-
-
-class NixPort(DeprecatedPort):
-    port_flag_name = "nix"
-
-    def build_webkit_command(self, build_style=None):
-        command = super(NixPort, self).build_webkit_command(build_style=build_style)
-        command.append("--nix")
-        command.append("--update-nix")
-        command.append(super(NixPort, self).makeArgs())
         return command

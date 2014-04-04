@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGScriptElement.h"
 
 #include "Attribute.h"
@@ -59,7 +57,7 @@ PassRefPtr<SVGScriptElement> SVGScriptElement::create(const QualifiedName& tagNa
 
 bool SVGScriptElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -76,10 +74,8 @@ void SVGScriptElement::parseAttribute(const QualifiedName& name, const AtomicStr
         return;
     }
 
-    if (name == SVGNames::typeAttr) {
-        setType(value);
+    if (name == SVGNames::typeAttr)
         return;
-    }
 
     if (name == HTMLNames::onerrorAttr) {
         setAttributeEventListener(eventNames().errorEvent, name, value);
@@ -143,16 +139,6 @@ void SVGScriptElement::finishParsingChildren()
     SVGExternalResourcesRequired::finishParsingChildren();
 }
 
-String SVGScriptElement::type() const
-{
-    return m_type;
-}
-
-void SVGScriptElement::setType(const String& type)
-{
-    m_type = type;
-}
-
 void SVGScriptElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 {
     SVGElement::addSubresourceAttributeURLs(urls);
@@ -172,7 +158,7 @@ String SVGScriptElement::charsetAttributeValue() const
 
 String SVGScriptElement::typeAttributeValue() const
 {
-    return type();
+    return getAttribute(SVGNames::typeAttr).string();
 }
 
 String SVGScriptElement::languageAttributeValue() const
@@ -210,6 +196,11 @@ PassRefPtr<Element> SVGScriptElement::cloneElementWithoutAttributesAndChildren()
     return adoptRef(new SVGScriptElement(tagQName(), document(), false, alreadyStarted()));
 }
 
+#ifndef NDEBUG
+bool SVGScriptElement::filterOutAnimatableAttribute(const QualifiedName& name) const
+{
+    return name == SVGNames::typeAttr;
 }
+#endif
 
-#endif // ENABLE(SVG)
+}

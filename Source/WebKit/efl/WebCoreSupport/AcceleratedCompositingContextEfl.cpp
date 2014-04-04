@@ -19,107 +19,168 @@
 
 #include "config.h"
 
-#if USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#if USE(TEXTURE_MAPPER_GL)
 
 #include "AcceleratedCompositingContextEfl.h"
-
-#include "FrameView.h"
-#include "GraphicsContext3D.h"
+#include "CairoUtilitiesEfl.h"
 #include "GraphicsLayerTextureMapper.h"
-#include "HostWindow.h"
 #include "MainFrame.h"
-#include "PageClientEfl.h"
+#include "PlatformContextCairo.h"
 #include "TextureMapperGL.h"
 #include "TextureMapperLayer.h"
+#include "ewk_private.h"
 #include "ewk_view_private.h"
+
+const double compositingFrameRate = 60;
 
 namespace WebCore {
 
-PassOwnPtr<AcceleratedCompositingContext> AcceleratedCompositingContext::create(HostWindow* hostWindow)
+AcceleratedCompositingContext::AcceleratedCompositingContext(Evas_Object* ewkView, Evas_Object* compositingObject)
+    : m_view(ewkView)
+    , m_compositingObject(compositingObject)
+    , m_rootLayer(nullptr)
+    , m_syncTimer(this, &AcceleratedCompositingContext::syncLayers)
+    , m_isAccelerated(true)
 {
-    OwnPtr<AcceleratedCompositingContext> context = adoptPtr(new AcceleratedCompositingContext);
-    if (!context->initialize(hostWindow))
-        return nullptr;
+    ASSERT(m_view);
+    ASSERT(m_compositingObject);
 
-    return context.release();
-}
+    Evas* evas = evas_object_evas_get(m_view);
+    const char* engine = ecore_evas_engine_name_get(ecore_evas_ecore_evas_get(evas));
+    if (!strncmp(engine, "opengl_x11", strlen("opengl_x11"))) {
+        m_evasGL = EflUniquePtr<Evas_GL>(evas_gl_new(evas_object_evas_get(m_view)));
+        if (m_evasGL)
+            m_evasGLContext = EvasGLContext::create(m_evasGL.get());
+    }
 
-AcceleratedCompositingContext::AcceleratedCompositingContext()
-    : m_view(0)
-    , m_rootTextureMapperLayer(0)
-{
+    if (!m_evasGLContext)
+        m_isAccelerated = false;
 }
 
 AcceleratedCompositingContext::~AcceleratedCompositingContext()
 {
 }
 
-bool AcceleratedCompositingContext::initialize(HostWindow* hostWindow)
+void AcceleratedCompositingContext::syncLayers(Timer<AcceleratedCompositingContext>*)
 {
-    m_view = hostWindow->platformPageClient()->view();
-    if (!m_view)
-        return false;
-
-    m_context3D = GraphicsContext3D::create(GraphicsContext3D::Attributes(), hostWindow, WebCore::GraphicsContext3D::RenderDirectlyToHostWindow);
-    if (!m_context3D)
-        return false;
-
-    return true;
+    ewk_view_mark_for_sync(m_view);
 }
 
-void AcceleratedCompositingContext::syncLayersNow()
+void AcceleratedCompositingContext::resize(const IntSize& size)
 {
-    if (m_rootGraphicsLayer)
-        m_rootGraphicsLayer->flushCompositingStateForThisLayerOnly();
-
-    EWKPrivate::corePage(m_view)->mainFrame().view()->flushCompositingStateIncludingSubframes();
-}
-
-void AcceleratedCompositingContext::renderLayers()
-{
-    if (!m_rootGraphicsLayer)
+    if (m_viewSize == size)
         return;
 
-    if (!m_context3D->makeContextCurrent())
+    m_viewSize = size;
+
+    if (!m_isAccelerated)
         return;
 
-    int width = 0;
-    int height = 0;
-    evas_object_geometry_get(m_view, 0, 0, &width, &height);
-    m_context3D->viewport(0, 0, width, height);
+    static Evas_GL_Config evasGLConfig = {
+        EVAS_GL_RGBA_8888,
+        EVAS_GL_DEPTH_BIT_8,
+        EVAS_GL_STENCIL_NONE,
+        EVAS_GL_OPTIONS_NONE,
+        EVAS_GL_MULTISAMPLE_NONE
+    };
 
-    m_textureMapper->beginPainting();
-    m_rootTextureMapperLayer->paint();
-    m_fpsCounter.updateFPSAndDisplay(m_textureMapper.get());
-    m_textureMapper->endPainting();
-}
-
-void AcceleratedCompositingContext::attachRootGraphicsLayer(GraphicsLayer* rootLayer)
-{
-    if (!rootLayer) {
-        m_rootGraphicsLayer = nullptr;
-        m_rootTextureMapperLayer = 0;
+    m_evasGLSurface = EvasGLSurface::create(m_evasGL.get(), &evasGLConfig, size);
+    if (!m_evasGLSurface) {
+        ERR("Failed to create a EvasGLSurface.");
         return;
     }
 
-    m_rootGraphicsLayer = WebCore::GraphicsLayer::create(0, 0);
-    m_rootTextureMapperLayer = toTextureMapperLayer(m_rootGraphicsLayer.get());
-    m_rootGraphicsLayer->addChild(rootLayer);
-    m_rootGraphicsLayer->setDrawsContent(false);
-    m_rootGraphicsLayer->setMasksToBounds(false);
-    m_rootGraphicsLayer->setSize(WebCore::IntSize(1, 1));
+    Evas_Native_Surface nativeSurface;
+    evas_gl_native_surface_get(m_evasGL.get(), m_evasGLSurface->surface(), &nativeSurface);
+    evas_object_image_native_surface_set(m_compositingObject, &nativeSurface);
 
-    m_textureMapper = TextureMapperGL::create();
-    m_rootTextureMapperLayer->setTextureMapper(m_textureMapper.get());
+    if (!evas_gl_make_current(m_evasGL.get(), m_evasGLSurface->surface(), m_evasGLContext->context())) {
+        ERR("Failed to evas_gl_make_current.");
+        return;
+    }
 
-    m_rootGraphicsLayer->flushCompositingStateForThisLayerOnly();
+    evas_gl_api_get(m_evasGL.get())->glViewport(0, 0, size.width(), size.height());
+    evas_gl_api_get(m_evasGL.get())->glClearColor(1, 1, 1, 1);
+    evas_gl_api_get(m_evasGL.get())->glClear(GL_COLOR_BUFFER_BIT);
 }
 
-GraphicsContext3D* AcceleratedCompositingContext::context()
+void AcceleratedCompositingContext::flushAndRenderLayers()
 {
-    return m_context3D.get();
+    MainFrame& frame = EWKPrivate::corePage(m_view)->mainFrame();
+    if (!frame.contentRenderer() || !frame.view())
+        return;
+    frame.view()->updateLayoutAndStyleIfNeededRecursive();
+
+    if (!flushPendingLayerChanges())
+        return;
+
+    if (m_isAccelerated)
+        paintToCurrentGLContext();
+    else
+        paintToGraphicsContext();
+}
+
+bool AcceleratedCompositingContext::flushPendingLayerChanges()
+{
+    if (!m_rootLayer)
+        return false;
+
+    m_rootLayer->flushCompositingStateForThisLayerOnly();
+    return EWKPrivate::corePage(m_view)->mainFrame().view()->flushCompositingStateIncludingSubframes();
+}
+
+void AcceleratedCompositingContext::paintToGraphicsContext()
+{
+    if (!m_textureMapper)
+        m_textureMapper = TextureMapper::create(TextureMapper::SoftwareMode);
+
+    RefPtr<cairo_surface_t> surface = createSurfaceForImage(m_compositingObject);
+    if (!surface)
+        return;
+
+    PlatformContextCairo platformContext(cairo_create(surface.get()));
+    GraphicsContext context(&platformContext);
+    m_textureMapper->setGraphicsContext(&context);
+
+    compositeLayers();
+}
+
+void AcceleratedCompositingContext::paintToCurrentGLContext()
+{
+    if (!m_textureMapper) {
+        m_textureMapper = TextureMapper::create(TextureMapper::OpenGLMode);
+        static_cast<TextureMapperGL*>(m_textureMapper.get())->setEnableEdgeDistanceAntialiasing(true);
+    }
+
+    if (!evas_gl_make_current(m_evasGL.get(), m_evasGLSurface->surface(), m_evasGLContext->context()))
+        return;
+
+    evas_gl_api_get(m_evasGL.get())->glViewport(0, 0, m_viewSize.width(), m_viewSize.height());
+    evas_gl_api_get(m_evasGL.get())->glClear(GL_COLOR_BUFFER_BIT);
+
+    compositeLayers();
+}
+
+void AcceleratedCompositingContext::compositeLayers()
+{
+    TextureMapperLayer* currentRootLayer = toTextureMapperLayer(m_rootLayer);
+    if (!currentRootLayer)
+        return;
+
+    currentRootLayer->setTextureMapper(m_textureMapper.get());
+    currentRootLayer->applyAnimationsRecursively();
+
+    m_textureMapper->beginPainting();
+    m_textureMapper->beginClip(TransformationMatrix(), FloatRect(FloatPoint(), m_viewSize));
+    currentRootLayer->paint();
+    m_fpsCounter.updateFPSAndDisplay(m_textureMapper.get());
+    m_textureMapper->endClip();
+    m_textureMapper->endPainting();
+
+    if (currentRootLayer->descendantsOrSelfHaveRunningAnimations() && !m_syncTimer.isActive())
+        m_syncTimer.startOneShot(1 / compositingFrameRate);
 }
 
 } // namespace WebCore
 
-#endif // USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#endif // USE(TEXTURE_MAPPER_GL)

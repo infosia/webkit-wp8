@@ -30,6 +30,7 @@
 #include "webkitwebinspectorprivate.h"
 #include "webkitwebview.h"
 #include "webkitwebviewprivate.h"
+#include <inspector/InspectorAgentBase.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 
@@ -37,7 +38,7 @@ using namespace WebCore;
 
 namespace WebKit {
 
-static void notifyWebViewDestroyed(WebKitWebView* webView, InspectorFrontendClient* inspectorFrontendClient)
+static void notifyWebViewDestroyed(WebKitWebView*, InspectorFrontendClient* inspectorFrontendClient)
 {
     inspectorFrontendClient->destroyInspectorWindow(true);
 }
@@ -49,13 +50,13 @@ public:
     virtual ~InspectorFrontendSettingsGtk() { }
 
 private:
-    virtual String getProperty(const String& name)
+    virtual String getProperty(const String& /* name */)
     {
         notImplemented();
         return String();
     }
 
-    virtual void setProperty(const String& name, const String& value)
+    virtual void setProperty(const String& /* name */, const String& /* value */)
     {
         notImplemented();
     }
@@ -83,7 +84,7 @@ void InspectorClient::inspectorDestroyed()
     delete this;
 }
 
-InspectorFrontendChannel* InspectorClient::openInspectorFrontend(InspectorController* controller)
+InspectorFrontendChannel* InspectorClient::openInspectorFrontend(InspectorController*)
 {
     // This g_object_get will ref the inspector. We're not doing an
     // unref if this method succeeds because the inspector object must
@@ -109,9 +110,9 @@ InspectorFrontendChannel* InspectorClient::openInspectorFrontend(InspectorContro
     gtk_widget_show(GTK_WIDGET(inspectorWebView));
 
     m_frontendPage = core(inspectorWebView);
-    OwnPtr<InspectorFrontendClient> frontendClient = adoptPtr(new InspectorFrontendClient(m_inspectedWebView, inspectorWebView, webInspector, m_frontendPage, this));
+    auto frontendClient = std::make_unique<InspectorFrontendClient>(m_inspectedWebView, inspectorWebView, webInspector, m_frontendPage, this);
     m_frontendClient = frontendClient.get();
-    m_frontendPage->inspectorController()->setInspectorFrontendClient(frontendClient.release());
+    m_frontendPage->inspectorController().setInspectorFrontendClient(std::move(frontendClient));
 
     // The inspector must be in it's own PageGroup to avoid deadlock while debugging.
     m_frontendPage->setGroupName("");
@@ -156,7 +157,7 @@ bool InspectorClient::sendMessageToFrontend(const String& message)
 }
 
 InspectorFrontendClient::InspectorFrontendClient(WebKitWebView* inspectedWebView, WebKitWebView* inspectorWebView, WebKitWebInspector* webInspector, Page* inspectorPage, InspectorClient* inspectorClient)
-    : InspectorFrontendClientLocal(core(inspectedWebView)->inspectorController(), inspectorPage, adoptPtr(new InspectorFrontendSettingsGtk()))
+    : InspectorFrontendClientLocal(&core(inspectedWebView)->inspectorController(), inspectorPage, std::make_unique<InspectorFrontendSettingsGtk>())
     , m_inspectorWebView(inspectorWebView)
     , m_inspectedWebView(inspectedWebView)
     , m_webInspector(webInspector)
@@ -189,7 +190,7 @@ void InspectorFrontendClient::destroyInspectorWindow(bool notifyInspectorControl
     }
 
     if (notifyInspectorController)
-        core(m_inspectedWebView)->inspectorController()->disconnectFrontend();
+        core(m_inspectedWebView)->inspectorController().disconnectFrontend(Inspector::InspectorDisconnectReason::InspectorDestroyed);
 
     if (m_inspectorClient)
         m_inspectorClient->releaseFrontendPage();
@@ -240,17 +241,17 @@ void InspectorFrontendClient::detachWindow()
     g_signal_emit_by_name(m_webInspector.get(), "detach-window", &handled);
 }
 
-void InspectorFrontendClient::setAttachedWindowHeight(unsigned height)
+void InspectorFrontendClient::setAttachedWindowHeight(unsigned /* height */)
 {
     notImplemented();
 }
 
-void InspectorFrontendClient::setAttachedWindowWidth(unsigned width)
+void InspectorFrontendClient::setAttachedWindowWidth(unsigned /* width */)
 {
     notImplemented();
 }
 
-void InspectorFrontendClient::setToolbarHeight(unsigned height)
+void InspectorFrontendClient::setToolbarHeight(unsigned /* height */)
 {
     notImplemented();
 }

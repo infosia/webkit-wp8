@@ -25,6 +25,7 @@
 
 #include "Chrome.h"
 #include "ChromeClient.h"
+#include "DashArray.h"
 #include "Document.h"
 #include "DocumentMarkerController.h"
 #include "Editor.h"
@@ -50,6 +51,7 @@
 #include "TextPaintStyle.h"
 #include "TextPainter.h"
 #include "break_lines.h"
+#include <stdio.h>
 #include <wtf/text/CString.h>
 
 namespace WebCore {
@@ -64,6 +66,71 @@ COMPILE_ASSERT(sizeof(InlineTextBox) == sizeof(SameSizeAsInlineTextBox), InlineT
 
 typedef WTF::HashMap<const InlineTextBox*, LayoutRect> InlineTextBoxOverflowMap;
 static InlineTextBoxOverflowMap* gTextBoxesWithOverflow;
+
+#if ENABLE(CSS3_TEXT_DECORATION_SKIP_INK)
+static bool compareTuples(std::pair<float, float> l, std::pair<float, float> r)
+{
+    return l.first < r.first;
+}
+
+static DashArray translateIntersectionPointsToSkipInkBoundaries(const DashArray& intersections, float dilationAmount, float totalWidth)
+{
+    ASSERT(!(intersections.size() % 2));
+    
+    // Step 1: Make pairs so we can sort based on range starting-point. We dilate the ranges in this step as well.
+    Vector<std::pair<float, float>> tuples;
+    for (auto i = intersections.begin(); i != intersections.end(); i++, i++)
+        tuples.append(std::make_pair(*i - dilationAmount, *(i + 1) + dilationAmount));
+    std::sort(tuples.begin(), tuples.end(), &compareTuples);
+
+    // Step 2: Deal with intersecting ranges.
+    Vector<std::pair<float, float>> intermediateTuples;
+    if (tuples.size() >= 2) {
+        intermediateTuples.append(*tuples.begin());
+        for (auto i = tuples.begin() + 1; i != tuples.end(); i++) {
+            float& firstEnd = intermediateTuples.last().second;
+            float secondStart = i->first;
+            float secondEnd = i->second;
+            if (secondStart <= firstEnd && secondEnd <= firstEnd) {
+                // Ignore this range completely
+            } else if (secondStart <= firstEnd)
+                firstEnd = secondEnd;
+            else
+                intermediateTuples.append(*i);
+        }
+    } else
+        intermediateTuples = tuples;
+
+    // Step 3: Output the space between the ranges, but only if the space warrants an underline.
+    float previous = 0;
+    DashArray result;
+    for (const auto& tuple : intermediateTuples) {
+        if (tuple.first - previous > dilationAmount) {
+            result.append(previous);
+            result.append(tuple.first);
+        }
+        previous = tuple.second;
+    }
+    if (totalWidth - previous > dilationAmount) {
+        result.append(previous);
+        result.append(totalWidth);
+    }
+    
+    return result;
+}
+
+static void drawSkipInkUnderline(TextPainter& textPainter, GraphicsContext& context, FloatPoint localOrigin, float underlineOffset, float width, bool isPrinting, bool doubleLines)
+{
+    FloatPoint adjustedLocalOrigin = localOrigin;
+    adjustedLocalOrigin.move(0, underlineOffset);
+    FloatRect underlineBoundingBox = context.computeLineBoundsForText(adjustedLocalOrigin, width, isPrinting);
+    DashArray intersections = textPainter.dashesForIntersectionsWithRect(underlineBoundingBox);
+    DashArray a = translateIntersectionPointsToSkipInkBoundaries(intersections, underlineBoundingBox.height(), width);
+
+    ASSERT(!(a.size() % 2));
+    context.drawLinesForText(adjustedLocalOrigin, a, isPrinting, doubleLines);
+}
+#endif
 
 InlineTextBox::~InlineTextBox()
 {
@@ -130,8 +197,8 @@ LayoutUnit InlineTextBox::selectionHeight() const
 
 bool InlineTextBox::isSelected(int startPos, int endPos) const
 {
-    LayoutUnit sPos = std::max<LayoutUnit>(startPos - m_start, 0);
-    LayoutUnit ePos = std::min<LayoutUnit>(endPos - m_start, m_len);
+    int sPos = std::max(startPos - m_start, 0);
+    int ePos = std::min(endPos - m_start, static_cast<int>(m_len));
     return (sPos < ePos);
 }
 
@@ -395,14 +462,30 @@ FloatSize InlineTextBox::applyShadowToGraphicsContext(GraphicsContext* context, 
     return extraOffset;
 }
 
-bool InlineTextBox::getEmphasisMarkPosition(const RenderStyle& style, TextEmphasisPosition& emphasisPosition) const
+static inline bool emphasisPositionHasNeitherLeftNorRight(TextEmphasisPosition emphasisPosition)
+{
+    return !(emphasisPosition & TextEmphasisPositionLeft) && !(emphasisPosition & TextEmphasisPositionRight);
+}
+
+bool InlineTextBox::emphasisMarkExistsAndIsAbove(const RenderStyle& style, bool& above) const
 {
     // This function returns true if there are text emphasis marks and they are suppressed by ruby text.
     if (style.textEmphasisMark() == TextEmphasisMarkNone)
         return false;
 
-    emphasisPosition = style.textEmphasisPosition();
-    if (emphasisPosition == TextEmphasisPositionUnder)
+    TextEmphasisPosition emphasisPosition = style.textEmphasisPosition();
+    ASSERT(!((emphasisPosition & TextEmphasisPositionOver) && (emphasisPosition & TextEmphasisPositionUnder)));
+    ASSERT(!((emphasisPosition & TextEmphasisPositionLeft) && (emphasisPosition & TextEmphasisPositionRight)));
+    
+    if (emphasisPositionHasNeitherLeftNorRight(emphasisPosition))
+        above = emphasisPosition & TextEmphasisPositionOver;
+    else if (style.isHorizontalWritingMode())
+        above = emphasisPosition & TextEmphasisPositionOver;
+    else
+        above = emphasisPosition & TextEmphasisPositionRight;
+    
+    if ((style.isHorizontalWritingMode() && (emphasisPosition & TextEmphasisPositionUnder))
+        || (!style.isHorizontalWritingMode() && (emphasisPosition & TextEmphasisPositionLeft)))
         return true; // Ruby text is always over, so it cannot suppress emphasis marks under.
 
     RenderBlock* containingBlock = renderer().containingBlock();
@@ -503,12 +586,6 @@ void InlineTextBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset, 
     // 1. Paint backgrounds behind text if needed. Examples of such backgrounds include selection
     // and composition underlines.
     if (paintInfo.phase != PaintPhaseSelection && paintInfo.phase != PaintPhaseTextClip && !isPrinting) {
-#if PLATFORM(MAC)
-        // Custom highlighters go behind everything else.
-        if (lineStyle.highlight() != nullAtom && !context->paintingDisabled())
-            paintCustomHighlight(adjustedPaintOffset, lineStyle.highlight());
-#endif
-
         if (containsComposition && !useCustomUnderlines)
             paintCompositionBackground(context, boxOrigin, lineStyle, font,
                 renderer().frame().editor().compositionStart(),
@@ -562,11 +639,11 @@ void InlineTextBox::paint(PaintInfo& paintInfo, const LayoutPoint& paintOffset, 
     }
 
     int emphasisMarkOffset = 0;
-    TextEmphasisPosition emphasisMarkPosition;
-    bool hasTextEmphasis = getEmphasisMarkPosition(lineStyle, emphasisMarkPosition);
+    bool emphasisMarkAbove;
+    bool hasTextEmphasis = emphasisMarkExistsAndIsAbove(lineStyle, emphasisMarkAbove);
     const AtomicString& emphasisMark = hasTextEmphasis ? lineStyle.textEmphasisMarkString() : nullAtom;
     if (!emphasisMark.isEmpty())
-        emphasisMarkOffset = emphasisMarkPosition == TextEmphasisPositionOver ? -font.fontMetrics().ascent() - font.emphasisMarkDescent(emphasisMark) : font.fontMetrics().descent() + font.emphasisMarkAscent(emphasisMark);
+        emphasisMarkOffset = emphasisMarkAbove ? -font.fontMetrics().ascent() - font.emphasisMarkDescent(emphasisMark) : font.fontMetrics().descent() + font.emphasisMarkAscent(emphasisMark);
 
     const ShadowData* textShadow = paintInfo.forceBlackText() ? 0 : lineStyle.textShadow();
 
@@ -732,23 +809,6 @@ void InlineTextBox::paintCompositionBackground(GraphicsContext* context, const F
     context->drawHighlightForText(font, constructTextRun(style, font), localOrigin, selHeight, c, style.colorSpace(), sPos, ePos);
 }
 
-#if PLATFORM(MAC)
-
-void InlineTextBox::paintCustomHighlight(const LayoutPoint& paintOffset, const AtomicString& type)
-{
-    Page* page = renderer().frame().page();
-    if (!page)
-        return;
-
-    const RootInlineBox& rootBox = root();
-    FloatRect rootRect(paintOffset.x() + rootBox.x(), paintOffset.y() + selectionTop(), rootBox.logicalWidth(), selectionHeight());
-    FloatRect textRect(paintOffset.x() + x(), rootRect.y(), logicalWidth(), rootRect.height());
-
-    page->chrome().client().paintCustomHighlight(renderer().textNode(), type, textRect, rootRect, true, false);
-}
-
-#endif
-
 static StrokeStyle textDecorationStyleToStrokeStyle(TextDecorationStyle decorationStyle)
 {
     StrokeStyle strokeStyle = SolidStroke;
@@ -756,7 +816,6 @@ static StrokeStyle textDecorationStyleToStrokeStyle(TextDecorationStyle decorati
     case TextDecorationStyleSolid:
         strokeStyle = SolidStroke;
         break;
-#if ENABLE(CSS3_TEXT_DECORATION)
     case TextDecorationStyleDouble:
         strokeStyle = DoubleStroke;
         break;
@@ -769,13 +828,11 @@ static StrokeStyle textDecorationStyleToStrokeStyle(TextDecorationStyle decorati
     case TextDecorationStyleWavy:
         strokeStyle = WavyStroke;
         break;
-#endif // CSS3_TEXT_DECORATION
     }
 
     return strokeStyle;
 }
 
-#if ENABLE(CSS3_TEXT_DECORATION)
 static int computeUnderlineOffset(const TextUnderlinePosition underlinePosition, const FontMetrics& fontMetrics, const InlineTextBox* inlineTextBox, const int textDecorationThickness)
 {
     // Compute the gap between the font and the underline. Use at least one
@@ -928,62 +985,12 @@ static void strokeWavyTextDecoration(GraphicsContext& context, FloatPoint& p1, F
     context.strokePath(path);
 }
 
-// Because finding the bounding box of an underline is structurally similar to finding
-// the bounding box of a strikethrough, we can pull out the computation and parameterize
-// by the location of the decoration (yOffset, underlineOffset, and doubleOffset).
-static FloatRect boundingBoxForSingleDecoration(GraphicsContext& context, float textDecorationThickness,
-    float width, FloatPoint localOrigin, TextDecorationStyle decorationStyle,
-    bool isPrinting, float yOffset, float underlineOffset, float doubleOffset)
-{
-    FloatRect boundingBox;
-
-    switch (decorationStyle) {
-    case TextDecorationStyleWavy: {
-        FloatPoint start(localOrigin.x(), localOrigin.y() + yOffset);
-        FloatPoint end = start + FloatSize(width, 0);
-        context.adjustLineToPixelBoundaries(start, end, textDecorationThickness, context.strokeStyle());
-
-        float controlPointDistance;
-        float step;
-        getWavyStrokeParameters(textDecorationThickness, controlPointDistance, step);
-
-        adjustStepToDecorationLength(step, controlPointDistance, width);
-
-        controlPointDistance += textDecorationThickness;
-        FloatPoint boundingBoxOrigin = start - FloatSize(0, controlPointDistance);
-        FloatSize boundingBoxSize = FloatSize(width, 2 * controlPointDistance);
-        boundingBox = FloatRect(boundingBoxOrigin, boundingBoxSize);
-        break;
-    }
-    default:
-        boundingBox = context.computeLineBoundsForText(localOrigin + FloatSize(0, underlineOffset), width, isPrinting);
-        if (decorationStyle == TextDecorationStyleDouble)
-            boundingBox.unite(context.computeLineBoundsForText(localOrigin + FloatSize(0, doubleOffset), width, isPrinting));
-    }
-    return boundingBox;
-}
-
-static FloatRect boundingBoxForAllActiveDecorations(InlineTextBox& inlineTextBox, GraphicsContext& context, TextDecoration decoration, float textDecorationThickness, float width, float doubleOffset, TextDecorationStyle decorationStyle, const FloatPoint localOrigin, const RenderStyle& lineStyle, bool isPrinting, int baseline)
-{
-    FloatRect boundingBox;
-    if (decoration & TextDecorationUnderline) {
-        int underlineOffset = computeUnderlineOffset(lineStyle.textUnderlinePosition(), lineStyle.fontMetrics(), &inlineTextBox, textDecorationThickness);
-        
-        boundingBox.unite(boundingBoxForSingleDecoration(context, textDecorationThickness, width, localOrigin, decorationStyle, isPrinting, underlineOffset + doubleOffset, underlineOffset, baseline + 1));
-    }
-    if (decoration & TextDecorationOverline)
-        boundingBox.unite(boundingBoxForSingleDecoration(context, textDecorationThickness, width, localOrigin, decorationStyle, isPrinting, -doubleOffset, 0, -doubleOffset));
-    if (decoration & TextDecorationLineThrough)
-        boundingBox.unite(boundingBoxForSingleDecoration(context, textDecorationThickness, width, localOrigin, decorationStyle, isPrinting, 2 * baseline / 3, 2 * baseline / 3, doubleOffset + 2 * baseline / 3));
-    return boundingBox;
-}
-#endif // CSS3_TEXT_DECORATION
-
 void InlineTextBox::paintDecoration(GraphicsContext& context, const FloatPoint& boxOrigin, TextDecoration decoration, TextDecorationStyle decorationStyle, const ShadowData* shadow, TextPainter& textPainter)
 {
-#if !ENABLE(CSS3_TEXT_DECORATION)
+#if !ENABLE(CSS3_TEXT_DECORATION_SKIP_INK)
     UNUSED_PARAM(textPainter);
 #endif
+
     // FIXME: We should improve this rule and not always just assume 1.
     const float textDecorationThickness = 1.f;
 
@@ -1007,23 +1014,11 @@ void InlineTextBox::paintDecoration(GraphicsContext& context, const FloatPoint& 
     
     // Use a special function for underlines to get the positioning exactly right.
     bool isPrinting = renderer().document().printing();
-#if !PLATFORM(IOS)
-    context.setStrokeThickness(textDecorationThickness);
-#else
-    // On iOS we want to draw crisp decorations. The function drawLineForText takes the context's
-    // strokeThickness and renders that at device pixel scale (i.e. a strokeThickness of 1 will
-    // produce a 1 device pixel line, so thinner on retina than non-retina). We will also scale
-    // our thickness based on the size of the font. Since our default size is 16px we'll use that
-    // as a scale reference.
-    float pageScale = 1;
-    if (Page* page = renderer().frame().page())
-        pageScale = page->pageScaleFactor();
 
     const float textDecorationBaseFontSize = 16;
     float fontSizeScaling = renderer().style().fontSize() / textDecorationBaseFontSize;
-    float strokeThickness = roundf(textDecorationThickness * fontSizeScaling * pageScale);
+    float strokeThickness = roundf(textDecorationThickness * fontSizeScaling);
     context.setStrokeThickness(strokeThickness);
-#endif
 
     bool linesAreOpaque = !isPrinting && (!(decoration & TextDecorationUnderline) || underline.alpha() == 255) && (!(decoration & TextDecorationOverline) || overline.alpha() == 255) && (!(decoration & TextDecorationLineThrough) || linethrough.alpha() == 255);
 
@@ -1067,90 +1062,56 @@ void InlineTextBox::paintDecoration(GraphicsContext& context, const FloatPoint& 
             setShadow = true;
             shadow = shadow->next();
         }
-
-#if ENABLE(CSS3_TEXT_DECORATION)
-        // Offset between lines - always non-zero, so lines never cross each other.
-        float doubleOffset = textDecorationThickness + 1;
         
-        bool clipDecorationToMask = lineStyle.textDecorationSkip() == TextDecorationSkipInk;
-        
-        GraphicsContextStateSaver stateSaver(context, false);
-        
-        if (clipDecorationToMask) {
-            const float skipInkGapWidth = 1;
+        float wavyOffset = 2.f;
 
-            stateSaver.save();
-
-            FloatRect underlineRect = boundingBoxForAllActiveDecorations(*this, context, decoration, textDecorationThickness, width, doubleOffset, decorationStyle, localOrigin, lineStyle, isPrinting, baseline);
-            IntRect enclosingDeviceRect = enclosingIntRect(underlineRect);
-            std::unique_ptr<ImageBuffer> imageBuffer = context.createCompatibleBuffer(enclosingDeviceRect.size());
-
-            if (imageBuffer.get()) {
-                GraphicsContext& maskContext = *imageBuffer->context();
-                maskContext.setFillColor(Color::black, ColorSpaceDeviceRGB);
-                maskContext.setLineJoin(RoundJoin);
-                maskContext.translate(FloatPoint() - enclosingDeviceRect.location());
-
-                maskContext.fillRect(enclosingDeviceRect);
-                maskContext.setCompositeOperation(CompositeClear);
-    
-                textPainter.paintTextInContext(maskContext, skipInkGapWidth);
-
-                context.clipToImageBuffer(imageBuffer.get(), enclosingDeviceRect);
-            }
-        }
-#endif // CSS3_TEXT_DECORATION
         context.setStrokeStyle(textDecorationStyleToStrokeStyle(decorationStyle));
         if (decoration & TextDecorationUnderline) {
             context.setStrokeColor(underline, colorSpace);
-#if ENABLE(CSS3_TEXT_DECORATION)
             TextUnderlinePosition underlinePosition = lineStyle.textUnderlinePosition();
             const int underlineOffset = computeUnderlineOffset(underlinePosition, lineStyle.fontMetrics(), this, textDecorationThickness);
 
             switch (decorationStyle) {
             case TextDecorationStyleWavy: {
-                FloatPoint start(localOrigin.x(), localOrigin.y() + underlineOffset + doubleOffset);
-                FloatPoint end(localOrigin.x() + width, localOrigin.y() + underlineOffset + doubleOffset);
+                FloatPoint start(localOrigin.x(), localOrigin.y() + underlineOffset + wavyOffset);
+                FloatPoint end(localOrigin.x() + width, localOrigin.y() + underlineOffset + wavyOffset);
                 strokeWavyTextDecoration(context, start, end, textDecorationThickness);
                 break;
             }
             default:
-                context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + underlineOffset), width, isPrinting);
-
-                if (decorationStyle == TextDecorationStyleDouble)
-                    context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + underlineOffset + doubleOffset), width, isPrinting);
+#if ENABLE(CSS3_TEXT_DECORATION_SKIP_INK)
+                if ((lineStyle.textDecorationSkip() == TextDecorationSkipInk || lineStyle.textDecorationSkip() == TextDecorationSkipAuto) && isHorizontal()) {
+                    if (!context.paintingDisabled()) {
+                        drawSkipInkUnderline(textPainter, context, localOrigin, underlineOffset, width, isPrinting, decorationStyle == TextDecorationStyleDouble);
+                    }
+                } else
+                    // FIXME: Need to support text-decoration-skip: none.
+#endif // CSS3_TEXT_DECORATION_SKIP_INK
+                    context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + underlineOffset), width, isPrinting, decorationStyle == TextDecorationStyleDouble);
             }
-#else
-            // Leave one pixel of white between the baseline and the underline.
-            context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + baseline + 1), width, isPrinting);
-#endif // CSS3_TEXT_DECORATION
         }
         if (decoration & TextDecorationOverline) {
             context.setStrokeColor(overline, colorSpace);
-#if ENABLE(CSS3_TEXT_DECORATION)
             switch (decorationStyle) {
             case TextDecorationStyleWavy: {
-                FloatPoint start(localOrigin.x(), localOrigin.y() - doubleOffset);
-                FloatPoint end(localOrigin.x() + width, localOrigin.y() - doubleOffset);
+                FloatPoint start(localOrigin.x(), localOrigin.y() - wavyOffset);
+                FloatPoint end(localOrigin.x() + width, localOrigin.y() - wavyOffset);
                 strokeWavyTextDecoration(context, start, end, textDecorationThickness);
                 break;
             }
             default:
-#endif // CSS3_TEXT_DECORATION
-                context.drawLineForText(localOrigin, width, isPrinting);
-#if ENABLE(CSS3_TEXT_DECORATION)
-                if (decorationStyle == TextDecorationStyleDouble)
-                    context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() - doubleOffset), width, isPrinting);
+#if ENABLE(CSS3_TEXT_DECORATION_SKIP_INK)
+                if ((lineStyle.textDecorationSkip() == TextDecorationSkipInk || lineStyle.textDecorationSkip() == TextDecorationSkipAuto) && isHorizontal()) {
+                    if (!context.paintingDisabled())
+                        drawSkipInkUnderline(textPainter, context, localOrigin, 0, width, isPrinting, decorationStyle == TextDecorationStyleDouble);
+                } else
+                    // FIXME: Need to support text-decoration-skip: none.
+#endif // CSS3_TEXT_DECORATION_SKIP_INK
+                    context.drawLineForText(localOrigin, width, isPrinting, decorationStyle == TextDecorationStyleDouble);
             }
-#endif // CSS3_TEXT_DECORATION
         }
-#if ENABLE(CSS3_TEXT_DECORATION)
-        if (clipDecorationToMask)
-            stateSaver.restore();
-#endif
         if (decoration & TextDecorationLineThrough) {
             context.setStrokeColor(linethrough, colorSpace);
-#if ENABLE(CSS3_TEXT_DECORATION)
             switch (decorationStyle) {
             case TextDecorationStyleWavy: {
                 FloatPoint start(localOrigin.x(), localOrigin.y() + 2 * baseline / 3);
@@ -1159,13 +1120,8 @@ void InlineTextBox::paintDecoration(GraphicsContext& context, const FloatPoint& 
                 break;
             }
             default:
-#endif // CSS3_TEXT_DECORATION
-                context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + 2 * baseline / 3), width, isPrinting);
-#if ENABLE(CSS3_TEXT_DECORATION)
-                if (decorationStyle == TextDecorationStyleDouble)
-                    context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + doubleOffset + 2 * baseline / 3), width, isPrinting);
+                context.drawLineForText(FloatPoint(localOrigin.x(), localOrigin.y() + 2 * baseline / 3), width, isPrinting, decorationStyle == TextDecorationStyleDouble);
             }
-#endif // CSS3_TEXT_DECORATION
         }
     } while (shadow);
 
@@ -1284,15 +1240,40 @@ void InlineTextBox::paintTextMatchMarker(GraphicsContext* pt, const FloatPoint& 
     
     // Optionally highlight the text
     if (renderer().frame().editor().markedTextMatchesAreHighlighted()) {
-        Color color = marker->activeMatch() ?
-            renderer().theme()->platformActiveTextSearchHighlightColor() :
-            renderer().theme()->platformInactiveTextSearchHighlightColor();
+        Color color = marker->activeMatch() ? renderer().theme().platformActiveTextSearchHighlightColor() : renderer().theme().platformInactiveTextSearchHighlightColor();
         GraphicsContextStateSaver stateSaver(*pt);
         updateGraphicsContext(*pt, TextPaintStyle(color, style.colorSpace())); // Don't draw text at all!
         pt->clip(FloatRect(boxOrigin.x(), boxOrigin.y() - deltaY, m_logicalWidth, selHeight));
         pt->drawHighlightForText(font, run, FloatPoint(boxOrigin.x(), boxOrigin.y() - deltaY), selHeight, color, style.colorSpace(), sPos, ePos);
     }
 }
+
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+void InlineTextBox::paintTelephoneNumberMarker(GraphicsContext* ctx, const FloatPoint& boxOrigin, DocumentMarker* marker, const RenderStyle& style, const Font& font)
+{
+    // FIXME: This is placeholder UI for development of the feature.
+
+    int startPosition = std::max<int>(marker->startOffset() - m_start, 0);
+    int endPosition = std::min<int>(marker->endOffset() - m_start, m_len);
+
+    if (m_truncation != cNoTruncation)
+        endPosition = std::min<int>(endPosition, m_truncation);
+
+    int deltaY = renderer().style().isFlippedLinesWritingMode() ? selectionBottom() - logicalBottom() : logicalTop() - selectionTop();
+    int selHeight = selectionHeight();
+    FloatPoint startPoint(boxOrigin.x(), boxOrigin.y() - deltaY);
+    TextRun run = constructTextRun(style, font);
+
+    IntRect markerRect = enclosingIntRect(font.selectionRectForText(run, startPoint, selHeight, startPosition, endPosition));
+
+    computeRectForReplacementMarker(marker, style, font);
+
+    Path outline;
+    outline.addRoundedRect(markerRect, FloatSize(4, 4));
+    ctx->setFillColor(Color(150, 150, 150, 255), ColorSpaceDeviceRGB);
+    ctx->fillPath(outline);
+}
+#endif // ENABLE(TELEPHONE_NUMBER_DETECTION)
 
 void InlineTextBox::computeRectForReplacementMarker(DocumentMarker* marker, const RenderStyle& style, const Font& font)
 {
@@ -1339,6 +1320,9 @@ void InlineTextBox::paintDocumentMarkers(GraphicsContext* pt, const FloatPoint& 
                     continue;
                 break;
             case DocumentMarker::TextMatch:
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+            case DocumentMarker::TelephoneNumber:
+#endif
                 if (!background)
                     continue;
                 break;
@@ -1377,6 +1361,11 @@ void InlineTextBox::paintDocumentMarkers(GraphicsContext* pt, const FloatPoint& 
             case DocumentMarker::Replacement:
                 computeRectForReplacementMarker(marker, style, font);
                 break;
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+            case DocumentMarker::TelephoneNumber:
+                paintTelephoneNumberMarker(pt, boxOrigin, marker, style, font);
+                break;
+#endif
             default:
                 ASSERT_NOT_REACHED();
         }

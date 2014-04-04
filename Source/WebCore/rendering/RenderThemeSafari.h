@@ -129,20 +129,15 @@ protected:
     virtual bool paintCapsLockIndicator(RenderObject*, const PaintInfo&, const IntRect&);
 
 #if ENABLE(VIDEO)
-    virtual bool paintMediaFullscreenButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaPlayButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaMuteButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSeekBackButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSeekForwardButton(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSliderTrack(RenderObject*, const PaintInfo&, const IntRect&);
-    virtual bool paintMediaSliderThumb(RenderObject*, const PaintInfo&, const IntRect&);
+    virtual String mediaControlsStyleSheet() override;
+    virtual String mediaControlsScript() override;
 #endif
 
 #if ENABLE(METER_ELEMENT)
-    virtual IntSize meterSizeForBounds(const RenderMeter*, const IntRect&) const OVERRIDE;
-    virtual bool supportsMeter(ControlPart) const OVERRIDE;
-    virtual void adjustMeterStyle(StyleResolver*, RenderStyle*, Element*) const OVERRIDE;
-    virtual bool paintMeter(RenderObject*, const PaintInfo&, const IntRect&) OVERRIDE;
+    virtual IntSize meterSizeForBounds(const RenderMeter*, const IntRect&) const override;
+    virtual bool supportsMeter(ControlPart) const override;
+    virtual void adjustMeterStyle(StyleResolver*, RenderStyle*, Element*) const override;
+    virtual bool paintMeter(RenderObject*, const PaintInfo&, const IntRect&) override;
 #endif
 
     virtual bool shouldShowPlaceholderWhenFocused() const { return true; }

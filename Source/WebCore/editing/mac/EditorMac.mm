@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -239,7 +239,7 @@ NSDictionary* Editor::fontAttributesForSelectionStart() const
 
 bool Editor::canCopyExcludingStandaloneImages()
 {
-    FrameSelection& selection = m_frame.selection();
+    const VisibleSelection& selection = m_frame.selection().selection();
     return selection.isRange() && !selection.isInPasswordField();
 }
 
@@ -259,7 +259,7 @@ void Editor::takeFindStringFromSelection()
 void Editor::readSelectionFromPasteboard(const String& pasteboardName)
 {
     Pasteboard pasteboard(pasteboardName);
-    if (m_frame.selection().isContentRichlyEditable())
+    if (m_frame.selection().selection().isContentRichlyEditable())
         pasteWithPasteboard(&pasteboard, true);
     else
         pasteAsPlainTextWithPasteboard(pasteboard);
@@ -269,6 +269,8 @@ void Editor::readSelectionFromPasteboard(const String& pasteboardName)
 // This was left in a bad state when selectedTextForClipboard was added. Need to look over clients and fix this.
 String Editor::stringSelectionForPasteboard()
 {
+    if (!canCopy())
+        return "";
     String text = selectedText();
     text.replace(noBreakSpace, ' ');
     return text;
@@ -276,6 +278,8 @@ String Editor::stringSelectionForPasteboard()
 
 String Editor::stringSelectionForPasteboardWithImageAltText()
 {
+    if (!canCopy())
+        return "";
     String text = selectedTextForClipboard();
     text.replace(noBreakSpace, ' ');
     return text;
@@ -294,17 +298,12 @@ PassRefPtr<Range> Editor::adjustedSelectionRange()
     RefPtr<Range> range = selectedRange();
     Node* commonAncestor = range->commonAncestorContainer(IGNORE_EXCEPTION);
     ASSERT(commonAncestor);
-    Node* enclosingAnchor = enclosingNodeWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
+    auto* enclosingAnchor = enclosingElementWithTag(firstPositionInNode(commonAncestor), HTMLNames::aTag);
     if (enclosingAnchor && comparePositions(firstPositionInOrBeforeNode(range->startPosition().anchorNode()), range->startPosition()) >= 0)
         range->setStart(enclosingAnchor, 0, IGNORE_EXCEPTION);
     return range;
 }
-
-static NSAttributedString *attributedStringForRange(Range& range)
-{
-    return [adoptNS([[WebHTMLConverter alloc] initWithDOMRange:kit(&range)]) attributedString];
-}
-
+    
 static PassRefPtr<SharedBuffer> dataInRTFDFormat(NSAttributedString *string)
 {
     NSUInteger length = [string length];
@@ -324,15 +323,17 @@ PassRefPtr<SharedBuffer> Editor::dataSelectionForPasteboard(const String& pasteb
     // which is only used to support OS X services.
 
     // FIXME: Does this function really need to use adjustedSelectionRange()? Because writeSelectionToPasteboard() just uses selectedRange().
+    if (!canCopy())
+        return nullptr;
 
     if (pasteboardType == WebArchivePboardType)
         return selectionInWebArchiveFormat();
 
     if (pasteboardType == String(NSRTFDPboardType))
-       return dataInRTFDFormat(attributedStringForRange(*adjustedSelectionRange()));
+       return dataInRTFDFormat(attributedStringFromRange(*adjustedSelectionRange()));
 
     if (pasteboardType == String(NSRTFPboardType)) {
-        NSAttributedString* attributedString = attributedStringForRange(*adjustedSelectionRange());
+        NSAttributedString* attributedString = attributedStringFromRange(*adjustedSelectionRange());
         // FIXME: Why is this attachment character stripping needed here, but not needed in writeSelectionToPasteboard?
         if ([attributedString containsAttachments])
             attributedString = attributedStringByStrippingAttachmentCharacters(attributedString);
@@ -344,7 +345,7 @@ PassRefPtr<SharedBuffer> Editor::dataSelectionForPasteboard(const String& pasteb
 
 void Editor::writeSelectionToPasteboard(Pasteboard& pasteboard)
 {
-    NSAttributedString *attributedString = attributedStringForRange(*selectedRange());
+    NSAttributedString *attributedString = attributedStringFromRange(*selectedRange());
 
     PasteboardWebContent content;
     content.canSmartCopyOrDelete = canSmartCopyOrDelete();
@@ -360,7 +361,7 @@ void Editor::writeSelectionToPasteboard(Pasteboard& pasteboard)
 static void getImage(Element& imageElement, RefPtr<Image>& image, CachedImage*& cachedImage)
 {
     auto renderer = imageElement.renderer();
-    if (!renderer || !renderer->isImage())
+    if (!renderer || !renderer->isRenderImage())
         return;
 
     CachedImage* tentativeCachedImage = toRenderImage(renderer)->cachedImage();
@@ -413,7 +414,7 @@ void Editor::writeImageToPasteboard(Pasteboard& pasteboard, Element& imageElemen
     pasteboard.write(pasteboardImage);
 }
 
-class Editor::WebContentReader FINAL : public PasteboardWebContentReader {
+class Editor::WebContentReader final : public PasteboardWebContentReader {
 public:
     Frame& frame;
     Range& context;
@@ -539,7 +540,7 @@ bool Editor::WebContentReader::readImage(PassRefPtr<SharedBuffer> buffer, const 
     ASSERT(type.contains('/'));
     String typeAsFilenameWithExtension = type;
     typeAsFilenameWithExtension.replace('/', '.');
-    URL imageURL = URL(URL(), "webkit-fake-url://" + createCanonicalUUIDString() + '/' + typeAsFilenameWithExtension);
+    URL imageURL = URL::fakeURLWithRelativePart(typeAsFilenameWithExtension);
 
     fragment = frame.editor().createFragmentForImageResourceAndAddResource(ArchiveResource::create(buffer, imageURL, type, emptyString(), emptyString()));
     return fragment;

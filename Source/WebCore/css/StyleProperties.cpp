@@ -32,7 +32,7 @@
 #include "PropertySetCSSStyleDeclaration.h"
 #include "StylePropertyShorthand.h"
 #include "StyleSheetContents.h"
-#include <wtf/BitArray.h>
+#include <bitset>
 #include <wtf/text/StringBuilder.h>
 
 #ifndef NDEBUG
@@ -50,9 +50,7 @@ static size_t sizeForImmutableStylePropertiesWithPropertyCount(unsigned count)
 
 static bool isInitialOrInherit(const String& value)
 {
-    DEFINE_STATIC_LOCAL(String, initial, ("initial"));
-    DEFINE_STATIC_LOCAL(String, inherit, ("inherit"));
-    return value.length() == 7 && (value == initial || value == inherit);
+    return value.length() == 7 && (value == "initial" || value == "inherit");
 }
 
 PassRef<ImmutableStyleProperties> ImmutableStyleProperties::create(const CSSProperty* properties, unsigned count, CSSParserMode cssParserMode)
@@ -159,12 +157,14 @@ String StyleProperties::getPropertyValue(CSSPropertyID propertyID) const
         return getShorthandValue(webkitFlexShorthand());
     case CSSPropertyWebkitFlexFlow:
         return getShorthandValue(webkitFlexFlowShorthand());
+#if ENABLE(CSS_GRID_LAYOUT)
     case CSSPropertyWebkitGridArea:
         return getShorthandValue(webkitGridAreaShorthand());
     case CSSPropertyWebkitGridColumn:
         return getShorthandValue(webkitGridColumnShorthand());
     case CSSPropertyWebkitGridRow:
         return getShorthandValue(webkitGridRowShorthand());
+#endif
     case CSSPropertyFont:
         return fontValue();
     case CSSPropertyMargin:
@@ -197,14 +197,12 @@ String StyleProperties::getPropertyValue(CSSPropertyID propertyID) const
         return getLayeredShorthandValue(webkitTransitionShorthand());
     case CSSPropertyWebkitAnimation:
         return getLayeredShorthandValue(webkitAnimationShorthand());
-#if ENABLE(SVG)
     case CSSPropertyMarker: {
         RefPtr<CSSValue> value = getPropertyCSSValue(CSSPropertyMarkerStart);
         if (value)
             return value->cssText();
         return String();
     }
-#endif
     case CSSPropertyBorderRadius:
         return get4Values(borderRadiusShorthand());
     default:
@@ -779,8 +777,8 @@ String StyleProperties::asText() const
     int repeatXPropertyIndex = -1;
     int repeatYPropertyIndex = -1;
 
-    BitArray<numCSSProperties> shorthandPropertyUsed;
-    BitArray<numCSSProperties> shorthandPropertyAppeared;
+    std::bitset<numCSSProperties> shorthandPropertyUsed;
+    std::bitset<numCSSProperties> shorthandPropertyAppeared;
 
     unsigned size = propertyCount();
     unsigned numDecls = 0;
@@ -810,12 +808,14 @@ String StyleProperties::asText() const
         case CSSPropertyBorderLeftWidth:
             if (!borderFallbackShorthandProperty)
                 borderFallbackShorthandProperty = CSSPropertyBorderWidth;
+            FALLTHROUGH;
         case CSSPropertyBorderTopStyle:
         case CSSPropertyBorderRightStyle:
         case CSSPropertyBorderBottomStyle:
         case CSSPropertyBorderLeftStyle:
             if (!borderFallbackShorthandProperty)
                 borderFallbackShorthandProperty = CSSPropertyBorderStyle;
+            FALLTHROUGH;
         case CSSPropertyBorderTopColor:
         case CSSPropertyBorderRightColor:
         case CSSPropertyBorderBottomColor:
@@ -824,13 +824,13 @@ String StyleProperties::asText() const
                 borderFallbackShorthandProperty = CSSPropertyBorderColor;
 
             // FIXME: Deal with cases where only some of border-(top|right|bottom|left) are specified.
-            if (!shorthandPropertyAppeared.get(CSSPropertyBorder - firstCSSProperty)) {
+            if (!shorthandPropertyAppeared.test(CSSPropertyBorder - firstCSSProperty)) {
                 value = borderPropertyValue(ReturnNullOnUncommonValues);
                 if (value.isNull())
                     shorthandPropertyAppeared.set(CSSPropertyBorder - firstCSSProperty);
                 else
                     shorthandPropertyID = CSSPropertyBorder;
-            } else if (shorthandPropertyUsed.get(CSSPropertyBorder - firstCSSProperty))
+            } else if (shorthandPropertyUsed.test(CSSPropertyBorder - firstCSSProperty))
                 shorthandPropertyID = CSSPropertyBorder;
             if (!shorthandPropertyID)
                 shorthandPropertyID = borderFallbackShorthandProperty;
@@ -925,9 +925,9 @@ String StyleProperties::asText() const
 
         unsigned shortPropertyIndex = shorthandPropertyID - firstCSSProperty;
         if (shorthandPropertyID) {
-            if (shorthandPropertyUsed.get(shortPropertyIndex))
+            if (shorthandPropertyUsed.test(shortPropertyIndex))
                 continue;
-            if (!shorthandPropertyAppeared.get(shortPropertyIndex) && value.isNull())
+            if (!shorthandPropertyAppeared.test(shortPropertyIndex) && value.isNull())
                 value = getPropertyValue(shorthandPropertyID);
             shorthandPropertyAppeared.set(shortPropertyIndex);
         }
@@ -1127,15 +1127,29 @@ bool MutableStyleProperties::removePropertiesInSet(const CSSPropertyID* set, uns
     return changed;
 }
 
-int StyleProperties::findPropertyIndex(CSSPropertyID propertyID) const
+int ImmutableStyleProperties::findPropertyIndex(CSSPropertyID propertyID) const
 {
     // Convert here propertyID into an uint16_t to compare it with the metadata's m_propertyID to avoid
     // the compiler converting it to an int multiple times in the loop.
     uint16_t id = static_cast<uint16_t>(propertyID);
-    for (int n = propertyCount() - 1 ; n >= 0; --n) {
-        if (id == propertyAt(n).propertyMetadata().m_propertyID)
+    for (int n = m_arraySize - 1 ; n >= 0; --n) {
+        if (metadataArray()[n].m_propertyID == id)
             return n;
     }
+
+    return -1;
+}
+
+int MutableStyleProperties::findPropertyIndex(CSSPropertyID propertyID) const
+{
+    // Convert here propertyID into an uint16_t to compare it with the metadata's m_propertyID to avoid
+    // the compiler converting it to an int multiple times in the loop.
+    uint16_t id = static_cast<uint16_t>(propertyID);
+    for (int n = m_propertyVector.size() - 1 ; n >= 0; --n) {
+        if (m_propertyVector.at(n).metadata().m_propertyID == id)
+            return n;
+    }
+
     return -1;
 }
 
@@ -1212,7 +1226,7 @@ CSSStyleDeclaration* MutableStyleProperties::ensureCSSStyleDeclaration()
         ASSERT(!m_cssomWrapper->parentElement());
         return m_cssomWrapper.get();
     }
-    m_cssomWrapper = adoptPtr(new PropertySetCSSStyleDeclaration(this));
+    m_cssomWrapper = std::make_unique<PropertySetCSSStyleDeclaration>(this);
     return m_cssomWrapper.get();
 }
 
@@ -1222,7 +1236,7 @@ CSSStyleDeclaration* MutableStyleProperties::ensureInlineCSSStyleDeclaration(Sty
         ASSERT(m_cssomWrapper->parentElement() == parentElement);
         return m_cssomWrapper.get();
     }
-    m_cssomWrapper = adoptPtr(new InlineCSSStyleDeclaration(this, parentElement));
+    m_cssomWrapper = std::make_unique<InlineCSSStyleDeclaration>(this, parentElement);
     return m_cssomWrapper.get();
 }
 

@@ -44,9 +44,10 @@ public:
 
     virtual ~HTMLTextFormControlElement();
 
+    void didEditInnerTextValue();
     void forwardEvent(Event*);
 
-    virtual InsertionNotificationRequest insertedInto(ContainerNode&) OVERRIDE;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
 
     // The derived class should return true if placeholder processing is needed.
     virtual bool supportsPlaceholder() const = 0;
@@ -71,14 +72,14 @@ public:
     PassRefPtr<Range> selection() const;
     String selectedText() const;
 
-    virtual void dispatchFormControlChangeEvent() OVERRIDE FINAL;
+    virtual void dispatchFormControlChangeEvent() override final;
 
     virtual int maxLength() const = 0;
     virtual String value() const = 0;
 
     virtual TextControlInnerTextElement* innerTextElement() const = 0;
 
-    void selectionChanged(bool userTriggered);
+    void selectionChanged(bool shouldFireSelectEvent);
     bool lastChangeWasUserEdit() const;
     void setInnerTextValue(const String&);
     String innerTextValue() const;
@@ -86,13 +87,21 @@ public:
     String directionForFormData() const;
 
     void setTextAsOfLastFormControlChangeEvent(const String& text) { m_textAsOfLastFormControlChangeEvent = text; }
+#if PLATFORM(IOS)
+    void hidePlaceholder();
+    void showPlaceholderIfNecessary();
+#endif
 
 protected:
     HTMLTextFormControlElement(const QualifiedName&, Document&, HTMLFormElement*);
     bool isPlaceholderEmpty() const;
     virtual void updatePlaceholderText() = 0;
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+
+    virtual void disabledStateChanged() override;
+    virtual void readOnlyAttributeChanged() override;
+    void updateInnerTextElementEditability();
 
     void cacheSelection(int start, int end, TextFieldSelectionDirection direction)
     {
@@ -104,7 +113,6 @@ protected:
     void restoreCachedSelection();
     bool hasCachedSelection() const { return m_cachedSelectionStart >= 0; }
 
-    virtual void defaultEventHandler(Event*) OVERRIDE;
     virtual void subtreeHasChanged() = 0;
 
     void setLastChangeWasNotUserEdit() { m_lastChangeWasUserEdit = false; }
@@ -116,9 +124,11 @@ private:
     int computeSelectionEnd() const;
     TextFieldSelectionDirection computeSelectionDirection() const;
 
-    virtual void dispatchFocusEvent(PassRefPtr<Element> oldFocusedElement, FocusDirection) OVERRIDE FINAL;
-    virtual void dispatchBlurEvent(PassRefPtr<Element> newFocusedElement) OVERRIDE FINAL;
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
+    virtual void dispatchFocusEvent(PassRefPtr<Element> oldFocusedElement, FocusDirection) override final;
+    virtual void dispatchBlurEvent(PassRefPtr<Element> newFocusedElement) override final;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
+
+    unsigned indexForPosition(const Position&) const;
 
     // Returns true if user-editable value is empty. Used to check placeholder visibility.
     virtual bool isEmptyValue() const = 0;

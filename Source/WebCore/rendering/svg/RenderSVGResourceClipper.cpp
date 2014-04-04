@@ -21,33 +21,21 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourceClipper.h"
 
-#include "AffineTransform.h"
 #include "ElementIterator.h"
-#include "FloatRect.h"
 #include "Frame.h"
 #include "FrameView.h"
-#include "GraphicsContext.h"
 #include "HitTestRequest.h"
 #include "HitTestResult.h"
-#include "ImageBuffer.h"
 #include "IntRect.h"
 #include "RenderObject.h"
-#include "RenderSVGResource.h"
 #include "RenderStyle.h"
 #include "RenderView.h"
-#include "SVGClipPathElement.h"
-#include "SVGElement.h"
-#include "SVGGraphicsElement.h"
 #include "SVGNames.h"
-#include "SVGRenderSupport.h"
 #include "SVGRenderingContext.h"
 #include "SVGResources.h"
 #include "SVGResourcesCache.h"
-#include "SVGUnitTypes.h"
 #include "SVGUseElement.h"
 
 namespace WebCore {
@@ -71,10 +59,9 @@ void RenderSVGResourceClipper::removeAllClientsFromCache(bool markForInvalidatio
     markAllClientsForInvalidation(markForInvalidation ? LayoutAndBoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourceClipper::removeClientFromCache(RenderObject* client, bool markForInvalidation)
+void RenderSVGResourceClipper::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
-    ASSERT(client);
-    m_clipper.remove(client);
+    m_clipper.remove(&client);
 
     markClientForInvalidation(client, markForInvalidation ? BoundariesInvalidation : ParentOnlyInvalidation);
 }
@@ -159,7 +146,7 @@ bool RenderSVGResourceClipper::applyClippingToContext(RenderElement& renderer, c
     }
 
     AffineTransform absoluteTransform;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(&renderer, absoluteTransform);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(renderer, absoluteTransform);
 
     if (shouldCreateClipData && !repaintRect.isEmpty()) {
         if (!SVGRenderingContext::createImageBuffer(repaintRect, absoluteTransform, clipperData->clipMaskImage, ColorSpaceDeviceRGB, Unaccelerated))
@@ -171,7 +158,7 @@ bool RenderSVGResourceClipper::applyClippingToContext(RenderElement& renderer, c
         maskContext->concatCTM(animatedLocalTransform);
 
         // clipPath can also be clipped by another clipPath.
-        SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(this);
+        SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(*this);
         RenderSVGResourceClipper* clipper;
         bool succeeded;
         if (resources && (clipper = resources->clipper())) {
@@ -220,9 +207,7 @@ bool RenderSVGResourceClipper::drawContentIntoMaskImage(ClipperData* clipperData
     view().frameView().setPaintBehavior(oldBehavior | PaintBehaviorRenderingSVGMask);
 
     // Draw all clipPath children into a global mask.
-    auto children = childrenOfType<SVGElement>(clipPathElement());
-    for (auto it = children.begin(), end = children.end(); it != end; ++it) {
-        SVGElement& child = *it;
+    for (auto& child : childrenOfType<SVGElement>(clipPathElement())) {
         auto renderer = child.renderer();
         if (!renderer)
             continue;
@@ -329,5 +314,3 @@ FloatRect RenderSVGResourceClipper::resourceBoundingBox(const RenderObject& obje
 }
 
 }
-
-#endif // ENABLE(SVG)

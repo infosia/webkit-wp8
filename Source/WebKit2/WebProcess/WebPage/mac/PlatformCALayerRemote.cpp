@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,9 +24,6 @@
  */
 
 #include "config.h"
-
-#if USE(ACCELERATED_COMPOSITING)
-
 #import "PlatformCALayerRemote.h"
 
 #import "PlatformCALayerRemoteCustom.h"
@@ -45,19 +42,8 @@
 #import <wtf/RetainPtr.h>
 
 using namespace WebCore;
-using namespace WebKit;
 
-static RemoteLayerTreeTransaction::LayerID generateLayerID()
-{
-    static RemoteLayerTreeTransaction::LayerID layerID;
-    return ++layerID;
-}
-
-static PlatformCALayerRemote* toPlatformCALayerRemote(PlatformCALayer* layer)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!layer || layer->isRemote());
-    return static_cast<PlatformCALayerRemote*>(layer);
-}
+namespace WebKit {
 
 PassRefPtr<PlatformCALayerRemote> PlatformCALayerRemote::create(LayerType layerType, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
 {
@@ -82,23 +68,38 @@ PassRefPtr<PlatformCALayerRemote> PlatformCALayerRemote::create(PlatformLayer *p
     return layer.release();
 }
 
+PassRefPtr<PlatformCALayerRemote> PlatformCALayerRemote::create(const PlatformCALayerRemote& other, WebCore::PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
+{
+    RefPtr<PlatformCALayerRemote> layer = adoptRef(new PlatformCALayerRemote(other, owner, context));
+
+    context->layerWasCreated(layer.get(), other.layerType());
+
+    return layer.release();
+}
+
 PlatformCALayerRemote::PlatformCALayerRemote(LayerType layerType, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
     : PlatformCALayer(layerType, owner)
-    , m_layerID(generateLayerID())
     , m_superlayer(nullptr)
     , m_maskLayer(nullptr)
     , m_acceleratesDrawing(false)
     , m_context(context)
 {
-    // FIXME: match all default values from CA.
-    setContentsScale(1);
+}
+
+PlatformCALayerRemote::PlatformCALayerRemote(const PlatformCALayerRemote& other, PlatformCALayerClient* owner, RemoteLayerTreeContext* context)
+    : PlatformCALayer(other.layerType(), owner)
+    , m_properties(other.m_properties)
+    , m_superlayer(nullptr)
+    , m_maskLayer(nullptr)
+    , m_acceleratesDrawing(other.acceleratesDrawing())
+    , m_context(context)
+{
 }
 
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::clone(PlatformCALayerClient* client) const
 {
-    RefPtr<PlatformCALayerRemote> clone = PlatformCALayerRemote::create(layerType(), client, m_context);
+    RefPtr<PlatformCALayerRemote> clone = PlatformCALayerRemote::create(*this, client, m_context);
 
-    clone->m_properties = m_properties;
     clone->m_properties.notePropertiesChanged(static_cast<RemoteLayerTreeTransaction::LayerChange>(m_properties.everChangedProperties & ~RemoteLayerTreeTransaction::BackingStoreChanged));
 
     return clone.release();
@@ -113,24 +114,23 @@ PlatformCALayerRemote::~PlatformCALayerRemote()
 
 void PlatformCALayerRemote::recursiveBuildTransaction(RemoteLayerTreeTransaction& transaction)
 {
-    if (m_properties.backingStore.display())
+    if (m_properties.backingStore && m_properties.backingStore->display())
         m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BackingStoreChanged);
 
     if (m_properties.changedProperties != RemoteLayerTreeTransaction::NoChange) {
         if (m_properties.changedProperties & RemoteLayerTreeTransaction::ChildrenChanged) {
             m_properties.children.clear();
-            for (auto layer : m_children)
-                m_properties.children.append(toPlatformCALayerRemote(layer.get())->layerID());
+            for (const auto& layer : m_children)
+                m_properties.children.append(layer->layerID());
         }
 
         if (m_layerType == LayerTypeCustom) {
-            RemoteLayerTreePropertyApplier::applyPropertiesToLayer(platformLayer(), m_properties, RemoteLayerTreePropertyApplier::RelatedLayerMap());
-            m_properties.changedProperties = RemoteLayerTreeTransaction::NoChange;
+            RemoteLayerTreePropertyApplier::applyProperties(platformLayer(), nullptr, m_properties, RemoteLayerTreePropertyApplier::RelatedLayerMap());
+            m_properties.resetChangedProperties();
             return;
         }
 
         transaction.layerPropertiesChanged(this, m_properties);
-        m_properties.changedProperties = RemoteLayerTreeTransaction::NoChange;
     }
 
     for (size_t i = 0; i < m_children.size(); ++i) {
@@ -145,11 +145,24 @@ void PlatformCALayerRemote::recursiveBuildTransaction(RemoteLayerTreeTransaction
 
 void PlatformCALayerRemote::animationStarted(CFTimeInterval beginTime)
 {
+    if (m_owner)
+        m_owner->platformCALayerAnimationStarted(beginTime);
 }
 
 void PlatformCALayerRemote::ensureBackingStore()
 {
-    m_properties.backingStore.ensureBackingStore(this, expandedIntSize(m_properties.size), m_properties.contentsScale, m_acceleratesDrawing);
+    if (!m_properties.backingStore)
+        m_properties.backingStore = std::make_unique<RemoteLayerBackingStore>();
+
+    updateBackingStore();
+}
+
+void PlatformCALayerRemote::updateBackingStore()
+{
+    if (!m_properties.backingStore)
+        return;
+
+    m_properties.backingStore->ensureBackingStore(this, expandedIntSize(m_properties.size), m_properties.contentsScale, m_acceleratesDrawing, m_properties.opaque);
 }
 
 void PlatformCALayerRemote::setNeedsDisplay(const FloatRect* rect)
@@ -157,12 +170,12 @@ void PlatformCALayerRemote::setNeedsDisplay(const FloatRect* rect)
     ensureBackingStore();
 
     if (!rect) {
-        m_properties.backingStore.setNeedsDisplay();
+        m_properties.backingStore->setNeedsDisplay();
         return;
     }
 
     // FIXME: Need to map this through contentsRect/etc.
-    m_properties.backingStore.setNeedsDisplay(enclosingIntRect(*rect));
+    m_properties.backingStore->setNeedsDisplay(enclosingIntRect(*rect));
 }
 
 void PlatformCALayerRemote::setContentsChanged()
@@ -256,18 +269,22 @@ void PlatformCALayerRemote::adoptSublayers(PlatformCALayer* source)
 
 void PlatformCALayerRemote::addAnimationForKey(const String& key, PlatformCAAnimation* animation)
 {
-    ASSERT_NOT_REACHED();
+    m_properties.addedAnimations.set(key, toPlatformCAAnimationRemote(animation)->properties());
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::AnimationsChanged);
+    
+    m_context->willStartAnimationOnLayer(this);
 }
 
 void PlatformCALayerRemote::removeAnimationForKey(const String& key)
 {
-    ASSERT_NOT_REACHED();
+    // FIXME: remove from m_properties.addedAnimations ?
+    m_properties.keyPathsOfAnimationsToRemove.add(key);
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::AnimationsChanged);
 }
 
 PassRefPtr<PlatformCAAnimation> PlatformCALayerRemote::animationForKey(const String& key)
 {
-    ASSERT_NOT_REACHED();
-
+    // FIXME: implement.
     return nullptr;
 }
 
@@ -293,6 +310,8 @@ void PlatformCALayerRemote::setOpaque(bool value)
 {
     m_properties.opaque = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::OpaqueChanged);
+
+    updateBackingStore();
 }
 
 FloatRect PlatformCALayerRemote::bounds() const
@@ -302,10 +321,16 @@ FloatRect PlatformCALayerRemote::bounds() const
 
 void PlatformCALayerRemote::setBounds(const FloatRect& value)
 {
+    if (value.size() == m_properties.size)
+        return;
+
     m_properties.size = value.size();
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::SizeChanged);
+    
+    if (requiresCustomAppearanceUpdateOnBoundsChange())
+        m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::CustomAppearanceChanged);
 
-    ensureBackingStore();
+    updateBackingStore();
 }
 
 FloatPoint3D PlatformCALayerRemote::position() const
@@ -315,6 +340,9 @@ FloatPoint3D PlatformCALayerRemote::position() const
 
 void PlatformCALayerRemote::setPosition(const FloatPoint3D& value)
 {
+    if (value == m_properties.position)
+        return;
+
     m_properties.position = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::PositionChanged);
 }
@@ -326,29 +354,32 @@ FloatPoint3D PlatformCALayerRemote::anchorPoint() const
 
 void PlatformCALayerRemote::setAnchorPoint(const FloatPoint3D& value)
 {
+    if (value == m_properties.anchorPoint)
+        return;
+
     m_properties.anchorPoint = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::AnchorPointChanged);
 }
 
 TransformationMatrix PlatformCALayerRemote::transform() const
 {
-    return m_properties.transform;
+    return m_properties.transform ? *m_properties.transform : TransformationMatrix();
 }
 
 void PlatformCALayerRemote::setTransform(const TransformationMatrix& value)
 {
-    m_properties.transform = value;
+    m_properties.transform = std::make_unique<TransformationMatrix>(value);
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::TransformChanged);
 }
 
 TransformationMatrix PlatformCALayerRemote::sublayerTransform() const
 {
-    return m_properties.sublayerTransform;
+    return m_properties.sublayerTransform ? *m_properties.sublayerTransform : TransformationMatrix();
 }
 
 void PlatformCALayerRemote::setSublayerTransform(const TransformationMatrix& value)
 {
-    m_properties.sublayerTransform = value;
+    m_properties.sublayerTransform = std::make_unique<TransformationMatrix>(value);
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::SublayerTransformChanged);
 }
 
@@ -382,6 +413,9 @@ bool PlatformCALayerRemote::masksToBounds() const
 
 void PlatformCALayerRemote::setMasksToBounds(bool value)
 {
+    if (value == m_properties.masksToBounds)
+        return;
+
     m_properties.masksToBounds = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::MasksToBoundsChanged);
 }
@@ -394,7 +428,7 @@ bool PlatformCALayerRemote::acceleratesDrawing() const
 void PlatformCALayerRemote::setAcceleratesDrawing(bool acceleratesDrawing)
 {
     m_acceleratesDrawing = acceleratesDrawing;
-    ensureBackingStore();
+    updateBackingStore();
 }
 
 CFTypeRef PlatformCALayerRemote::contents() const
@@ -437,12 +471,18 @@ void PlatformCALayerRemote::setBackgroundColor(const Color& value)
 
 void PlatformCALayerRemote::setBorderWidth(float value)
 {
+    if (value == m_properties.borderWidth)
+        return;
+
     m_properties.borderWidth = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BorderWidthChanged);
 }
 
 void PlatformCALayerRemote::setBorderColor(const Color& value)
 {
+    if (value == m_properties.borderColor)
+        return;
+
     m_properties.borderColor = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BorderColorChanged);
 }
@@ -461,7 +501,7 @@ void PlatformCALayerRemote::setOpacity(float value)
 #if ENABLE(CSS_FILTERS)
 void PlatformCALayerRemote::setFilters(const FilterOperations& filters)
 {
-    m_properties.filters = filters;
+    m_properties.filters = std::make_unique<FilterOperations>(filters);
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::FiltersChanged);
 }
 
@@ -504,13 +544,40 @@ void PlatformCALayerRemote::setContentsScale(float value)
     m_properties.contentsScale = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::ContentsScaleChanged);
 
-    ensureBackingStore();
+    updateBackingStore();
 }
 
 void PlatformCALayerRemote::setEdgeAntialiasingMask(unsigned value)
 {
     m_properties.edgeAntialiasingMask = value;
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::EdgeAntialiasingMaskChanged);
+}
+
+bool PlatformCALayerRemote::requiresCustomAppearanceUpdateOnBoundsChange() const
+{
+    return m_properties.customAppearance == GraphicsLayer::ScrollingShadow;
+}
+
+GraphicsLayer::CustomAppearance PlatformCALayerRemote::customAppearance() const
+{
+    return m_properties.customAppearance;
+}
+
+void PlatformCALayerRemote::updateCustomAppearance(GraphicsLayer::CustomAppearance customAppearance)
+{
+    m_properties.customAppearance = customAppearance;
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::CustomAppearanceChanged);
+}
+
+GraphicsLayer::CustomBehavior PlatformCALayerRemote::customBehavior() const
+{
+    return m_properties.customBehavior;
+}
+
+void PlatformCALayerRemote::updateCustomBehavior(GraphicsLayer::CustomBehavior customBehavior)
+{
+    m_properties.customBehavior = customBehavior;
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::CustomBehaviorChanged);
 }
 
 PassRefPtr<PlatformCALayer> PlatformCALayerRemote::createCompatibleLayer(PlatformCALayer::LayerType layerType, PlatformCALayerClient* client) const
@@ -520,7 +587,7 @@ PassRefPtr<PlatformCALayer> PlatformCALayerRemote::createCompatibleLayer(Platfor
 
 void PlatformCALayerRemote::enumerateRectsBeingDrawn(CGContextRef context, void (^block)(CGRect))
 {
-    m_properties.backingStore.enumerateRectsBeingDrawn(context, block);
+    m_properties.backingStore->enumerateRectsBeingDrawn(context, block);
 }
 
 uint32_t PlatformCALayerRemote::hostingContextID()
@@ -529,4 +596,4 @@ uint32_t PlatformCALayerRemote::hostingContextID()
     return 0;
 }
 
-#endif // USE(ACCELERATED_COMPOSITING)
+} // namespace WebKit

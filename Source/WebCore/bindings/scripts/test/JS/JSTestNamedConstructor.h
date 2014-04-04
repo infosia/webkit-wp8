@@ -68,8 +68,14 @@ private:
     TestNamedConstructor* m_impl;
 protected:
     JSTestNamedConstructor(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<TestNamedConstructor>);
-    void finishCreation(JSC::VM&);
-    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | Base::StructureFlags;
+
+    void finishCreation(JSC::VM& vm)
+    {
+        Base::finishCreation(vm);
+        ASSERT(inherits(info()));
+    }
+
+    static const unsigned StructureFlags = JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestNamedConstructorOwner : public JSC::WeakHandleOwner {
@@ -80,7 +86,7 @@ public:
 
 inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, TestNamedConstructor*)
 {
-    DEFINE_STATIC_LOCAL(JSTestNamedConstructorOwner, jsTestNamedConstructorOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSTestNamedConstructorOwner, jsTestNamedConstructorOwner, ());
     return &jsTestNamedConstructorOwner;
 }
 
@@ -104,6 +110,7 @@ public:
     }
 
     DECLARE_INFO;
+    static bool getOwnPropertySlot(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype)
     {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -112,7 +119,7 @@ public:
 private:
     JSTestNamedConstructorPrototype(JSC::VM& vm, JSC::JSGlobalObject*, JSC::Structure* structure) : JSC::JSNonFinalObject(vm, structure) { }
 protected:
-    static const unsigned StructureFlags = Base::StructureFlags;
+    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestNamedConstructorConstructor : public DOMConstructorObject {
@@ -166,7 +173,7 @@ private:
 
 // Attributes
 
-JSC::EncodedJSValue jsTestNamedConstructorConstructor(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestNamedConstructorConstructor(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
 
 } // namespace WebCore
 

@@ -30,6 +30,7 @@
 #if WK_API_ENABLED
 
 #import "APIArray.h"
+#import "APIString.h"
 #import "WKArray.h"
 #import "WKPageGroup.h"
 #import "WKPreferences.h"
@@ -38,7 +39,6 @@
 #import "WKStringCF.h"
 #import "WKURL.h"
 #import "WKURLCF.h"
-#import "WebString.h"
 #import <wtf/Vector.h>
 
 using namespace WebKit;
@@ -99,6 +99,16 @@ using namespace WebKit;
 - (void)setAllowsPlugIns:(BOOL)allowsPlugIns
 {
     WKPreferencesSetPluginsEnabled(WKPageGroupGetPreferences(toAPI(_pageGroup.get())), allowsPlugIns);
+}
+
+- (BOOL)privateBrowsingEnabled
+{
+    return WKPreferencesGetPrivateBrowsingEnabled(WKPageGroupGetPreferences(toAPI(_pageGroup.get())));
+}
+
+- (void)setPrivateBrowsingEnabled:(BOOL)enablePrivateBrowsing
+{
+    WKPreferencesSetPrivateBrowsingEnabled(WKPageGroupGetPreferences(toAPI(_pageGroup.get())), enablePrivateBrowsing);
 }
 
 static WKRetainPtr<WKArrayRef> createWKArray(NSArray *array)

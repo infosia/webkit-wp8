@@ -26,7 +26,7 @@
 #ifndef ScrollingTreeScrollingNodeMac_h
 #define ScrollingTreeScrollingNodeMac_h
 
-#if ENABLE(THREADED_SCROLLING)
+#if ENABLE(ASYNC_SCROLLING)
 
 #include "ScrollElasticityController.h"
 #include "ScrollbarThemeMac.h"
@@ -39,42 +39,47 @@ namespace WebCore {
 
 class ScrollingTreeScrollingNodeMac : public ScrollingTreeScrollingNode, private ScrollElasticityControllerClient {
 public:
-    ScrollingTreeScrollingNodeMac(ScrollingTree&, ScrollingNodeID);
+    static PassOwnPtr<ScrollingTreeScrollingNode> create(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
     virtual ~ScrollingTreeScrollingNodeMac();
 
 private:
+    ScrollingTreeScrollingNodeMac(ScrollingTree&, ScrollingNodeType, ScrollingNodeID);
+
     // ScrollingTreeNode member functions.
-    virtual void updateBeforeChildren(ScrollingStateNode*) OVERRIDE;
-    virtual void updateAfterChildren(ScrollingStateNode*) OVERRIDE;
-    virtual void handleWheelEvent(const PlatformWheelEvent&) OVERRIDE;
+    virtual void updateBeforeChildren(const ScrollingStateNode&) override;
+    virtual void updateAfterChildren(const ScrollingStateNode&) override;
+    virtual void handleWheelEvent(const PlatformWheelEvent&) override;
 
     // ScrollElasticityController member functions.
-    virtual bool allowsHorizontalStretching() OVERRIDE;
-    virtual bool allowsVerticalStretching() OVERRIDE;
-    virtual IntSize stretchAmount() OVERRIDE;
-    virtual bool pinnedInDirection(const FloatSize&) OVERRIDE;
-    virtual bool canScrollHorizontally() OVERRIDE;
-    virtual bool canScrollVertically() OVERRIDE;
-    virtual bool shouldRubberBandInDirection(ScrollDirection) OVERRIDE;
-    virtual IntPoint absoluteScrollPosition() OVERRIDE;
-    virtual void immediateScrollBy(const FloatSize&) OVERRIDE;
-    virtual void immediateScrollByWithoutContentEdgeConstraints(const FloatSize&) OVERRIDE;
-    virtual void startSnapRubberbandTimer() OVERRIDE;
-    virtual void stopSnapRubberbandTimer() OVERRIDE;
+    virtual bool allowsHorizontalStretching() override;
+    virtual bool allowsVerticalStretching() override;
+    virtual IntSize stretchAmount() override;
+    virtual bool pinnedInDirection(const FloatSize&) override;
+    virtual bool canScrollHorizontally() override;
+    virtual bool canScrollVertically() override;
+    virtual bool shouldRubberBandInDirection(ScrollDirection) override;
+    virtual IntPoint absoluteScrollPosition() override;
+    virtual void immediateScrollBy(const FloatSize&) override;
+    virtual void immediateScrollByWithoutContentEdgeConstraints(const FloatSize&) override;
+    virtual void startSnapRubberbandTimer() override;
+    virtual void stopSnapRubberbandTimer() override;
+    virtual void adjustScrollPositionToBoundsIfNecessary() override;
 
-    IntPoint scrollPosition() const;
-    void setScrollPosition(const IntPoint&);
-    void setScrollPositionWithoutContentEdgeConstraints(const IntPoint&);
+    FloatPoint scrollPosition() const;
+    virtual void setScrollPosition(const FloatPoint&) override;
+    virtual void setScrollPositionWithoutContentEdgeConstraints(const FloatPoint&) override;
 
-    void setScrollLayerPosition(const IntPoint&);
+    virtual void updateLayersAfterViewportChange(const FloatRect& viewportRect, double scale) override;
 
-    IntPoint minimumScrollPosition() const;
-    IntPoint maximumScrollPosition() const;
+    void setScrollLayerPosition(const FloatPoint&);
+
+    FloatPoint minimumScrollPosition() const;
+    FloatPoint maximumScrollPosition() const;
 
     void scrollBy(const IntSize&);
     void scrollByWithoutContentEdgeConstraints(const IntSize&);
 
-    void updateMainFramePinState(const IntPoint& scrollPosition);
+    void updateMainFramePinState(const FloatPoint& scrollPosition);
 
     void logExposedUnfilledArea();
 
@@ -82,17 +87,18 @@ private:
     RetainPtr<CFRunLoopTimerRef> m_snapRubberbandTimer;
 
     RetainPtr<CALayer> m_scrollLayer;
+    RetainPtr<CALayer> m_scrolledContentsLayer;
     RetainPtr<CALayer> m_counterScrollingLayer;
     RetainPtr<CALayer> m_headerLayer;
     RetainPtr<CALayer> m_footerLayer;
     RetainPtr<ScrollbarPainter> m_verticalScrollbarPainter;
     RetainPtr<ScrollbarPainter> m_horizontalScrollbarPainter;
-    IntPoint m_probableMainThreadScrollPosition;
+    FloatPoint m_probableMainThreadScrollPosition;
     bool m_lastScrollHadUnfilledPixels;
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(THREADED_SCROLLING)
+#endif // ENABLE(ASYNC_SCROLLING)
 
 #endif // ScrollingTreeScrollingNodeMac_h

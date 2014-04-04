@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,17 +32,18 @@
 #include "GraphicsContext.h"
 #include "GraphicsContextCG.h"
 #include "ImageData.h"
+#include "IntRect.h"
 #include "MIMETypeRegistry.h"
-#include <ApplicationServices/ApplicationServices.h>
 #include <math.h>
+#include <CoreGraphics/CoreGraphics.h>
+#include <ImageIO/ImageIO.h>
 #include <wtf/Assertions.h>
 #include <wtf/CheckedArithmetic.h>
 #include <wtf/MainThread.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/text/Base64.h>
 #include <wtf/text/WTFString.h>
-
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "WebCoreSystemInterface.h"
 #endif
 
@@ -50,11 +51,19 @@
 #include <IOSurface/IOSurface.h>
 #endif
 
+// CA uses ARGB32 for textures and ARGB32 -> ARGB32 resampling is optimized.
+#define USE_ARGB32 PLATFORM(IOS)
+
 namespace WebCore {
 
 #if USE(IOSURFACE_CANVAS_BACKING_STORE)
+#if PLATFORM(IOS)
+static const int maxIOSurfaceDimension = 2048;
+#else
 static const int maxIOSurfaceDimension = 4096;
+#endif
 
+// FIXME: Adopt WebCore::IOSurface.
 static RetainPtr<IOSurfaceRef> createIOSurface(const IntSize& size)
 {
     unsigned pixelFormat = 'BGRA';
@@ -70,8 +79,13 @@ static RetainPtr<IOSurfaceRef> createIOSurface(const IntSize& size)
     if (!allocSize)
         return 0;
 
-    const void *keys[6];
-    const void *values[6];
+#if !PLATFORM(IOS)
+    const void* keys[6];
+    const void* values[6];
+#else
+    const void* keys[7];
+    const void* values[7];
+#endif
     keys[0] = kIOSurfaceWidth;
     values[0] = CFNumberCreate(0, kCFNumberIntType, &width);
     keys[1] = kIOSurfaceHeight;
@@ -84,9 +98,14 @@ static RetainPtr<IOSurfaceRef> createIOSurface(const IntSize& size)
     values[4] = CFNumberCreate(0, kCFNumberLongType, &bytesPerRow);
     keys[5] = kIOSurfaceAllocSize;
     values[5] = CFNumberCreate(0, kCFNumberLongType, &allocSize);
+#if PLATFORM(IOS)
+    keys[6] = kIOSurfaceCacheMode;
+    int cacheMode = kIOMapWriteCombineCache;
+    values[6] = CFNumberCreate(0, kCFNumberIntType, &cacheMode);
+#endif
 
-    RetainPtr<CFDictionaryRef> dict = adoptCF(CFDictionaryCreate(0, keys, values, 6, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
-    for (unsigned i = 0; i < 6; i++)
+    RetainPtr<CFDictionaryRef> dict = adoptCF(CFDictionaryCreate(0, keys, values, WTF_ARRAY_LENGTH(values), &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks));
+    for (unsigned i = 0; i < WTF_ARRAY_LENGTH(values); ++i)
         CFRelease(values[i]);
 
     return adoptCF(IOSurfaceCreate(dict.get()));
@@ -105,8 +124,8 @@ static FloatSize scaleSizeToUserSpace(const FloatSize& logicalSize, const IntSiz
     return FloatSize(logicalSize.width() * xMagnification, logicalSize.height() * yMagnification);
 }
 
-ImageBuffer::ImageBuffer(const IntSize& size, float resolutionScale, ColorSpace imageColorSpace, RenderingMode renderingMode, bool& success)
-    : m_data(size) // NOTE: The input here isn't important as ImageBufferDataCG's constructor just ignores it.
+ImageBuffer::ImageBuffer(const FloatSize& size, float resolutionScale, ColorSpace imageColorSpace, RenderingMode renderingMode, bool& success)
+    : m_data(IntSize(size)) // NOTE: The input here isn't important as ImageBufferDataCG's constructor just ignores it.
     , m_logicalSize(size)
     , m_resolutionScale(resolutionScale)
 {
@@ -125,8 +144,10 @@ ImageBuffer::ImageBuffer(const IntSize& size, float resolutionScale, ColorSpace 
     if (m_size.width() <= 0 || m_size.height() <= 0)
         return;
 
+#if USE(IOSURFACE_CANVAS_BACKING_STORE)
     Checked<int, RecordOverflow> width = m_size.width();
     Checked<int, RecordOverflow> height = m_size.height();
+#endif
 
     // Prevent integer overflows
     m_data.m_bytesPerRow = 4 * Checked<unsigned, RecordOverflow>(m_data.m_backingStoreSize.width());
@@ -169,7 +190,11 @@ ImageBuffer::ImageBuffer(const IntSize& size, float resolutionScale, ColorSpace 
             return;
         ASSERT(!(reinterpret_cast<intptr_t>(m_data.m_data) & 3));
 
+#if USE_ARGB32
+        m_data.m_bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host;
+#else
         m_data.m_bitmapInfo = kCGImageAlphaPremultipliedLast;
+#endif
         cgContext = adoptCF(CGBitmapContextCreate(m_data.m_data, m_data.m_backingStoreSize.width(), m_data.m_backingStoreSize.height(), 8, m_data.m_bytesPerRow.unsafeGet(), m_data.m_colorSpace, m_data.m_bitmapInfo));
         // Create a live image that wraps the data.
         m_data.m_dataProvider = adoptCF(CGDataProviderCreateWithData(0, m_data.m_data, numBytes.unsafeGet(), releaseImageData));
@@ -212,23 +237,21 @@ static RetainPtr<CGImageRef> createCroppedImageIfNecessary(CGImageRef image, con
 PassRefPtr<Image> ImageBuffer::copyImage(BackingStoreCopy copyBehavior, ScaleBehavior scaleBehavior) const
 {
     RetainPtr<CGImageRef> image;
-    if (m_resolutionScale == 1 || scaleBehavior == Unscaled)
+    if (m_resolutionScale == 1 || scaleBehavior == Unscaled) {
         image = copyNativeImage(copyBehavior);
-    else {
+        image = createCroppedImageIfNecessary(image.get(), internalSize());
+    } else {
         image = copyNativeImage(DontCopyBackingStore);
         RetainPtr<CGContextRef> context = adoptCF(CGBitmapContextCreate(0, logicalSize().width(), logicalSize().height(), 8, 4 * logicalSize().width(), deviceRGBColorSpaceRef(), kCGImageAlphaPremultipliedLast));
         CGContextSetBlendMode(context.get(), kCGBlendModeCopy);
-        CGContextDrawImage(context.get(), CGRectMake(0, 0, m_data.m_backingStoreSize.width(), m_data.m_backingStoreSize.height()), image.get());
+        CGContextClipToRect(context.get(), FloatRect(FloatPoint::zero(), logicalSize()));
+        FloatSize imageSizeInUserSpace = scaleSizeToUserSpace(logicalSize(), m_data.m_backingStoreSize, internalSize());
+        CGContextDrawImage(context.get(), FloatRect(FloatPoint::zero(), imageSizeInUserSpace), image.get());
         image = adoptCF(CGBitmapContextCreateImage(context.get()));
     }
-    
-    image = createCroppedImageIfNecessary(image.get(), internalSize());
 
     if (!image)
-        return 0;
-
-    ASSERT(CGImageGetWidth(image.get()) == static_cast<size_t>(m_logicalSize.width()));
-    ASSERT(CGImageGetHeight(image.get()) == static_cast<size_t>(m_logicalSize.height()));
+        return nullptr;
 
     RefPtr<BitmapImage> bitmapImage = BitmapImage::create(image.get());
     bitmapImage->setSpaceSize(spaceSize());
@@ -278,10 +301,10 @@ void ImageBuffer::draw(GraphicsContext* destContext, ColorSpace styleColorSpace,
 
     FloatRect adjustedSrcRect = srcRect;
     adjustedSrcRect.scale(m_resolutionScale, m_resolutionScale);
-    destContext->drawNativeImage(image.get(), m_data.m_backingStoreSize, colorSpace, destRect, adjustedSrcRect, op, blendMode);
+    destContext->drawNativeImage(image.get(), m_data.m_backingStoreSize, colorSpace, destRect, adjustedSrcRect, 1, op, blendMode);
 }
 
-void ImageBuffer::drawPattern(GraphicsContext* destContext, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator op, const FloatRect& destRect)
+void ImageBuffer::drawPattern(GraphicsContext* destContext, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator op, const FloatRect& destRect, BlendMode blendMode)
 {
     FloatRect adjustedSrcRect = srcRect;
     adjustedSrcRect.scale(m_resolutionScale, m_resolutionScale);
@@ -289,14 +312,14 @@ void ImageBuffer::drawPattern(GraphicsContext* destContext, const FloatRect& src
     if (!m_context->isAcceleratedContext()) {
         if (destContext == m_context || destContext->isAcceleratedContext()) {
             RefPtr<Image> copy = copyImage(CopyBackingStore); // Drawing into our own buffer, need to deep copy.
-            copy->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect);
+            copy->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect, blendMode);
         } else {
             RefPtr<Image> imageForRendering = copyImage(DontCopyBackingStore);
-            imageForRendering->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect);
+            imageForRendering->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect, blendMode);
         }
     } else {
         RefPtr<Image> copy = copyImage(CopyBackingStore);
-        copy->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect);
+        copy->drawPattern(destContext, adjustedSrcRect, patternTransform, phase, styleColorSpace, op, destRect, blendMode);
     }
 }
 
@@ -375,7 +398,7 @@ void ImageBuffer::putByteArray(Multiply multiplied, Uint8ClampedArray* source, c
 
 static inline CFStringRef jpegUTI()
 {
-#if PLATFORM(WIN)
+#if PLATFORM(IOS) || PLATFORM(WIN)
     static const CFStringRef kUTTypeJPEG = CFSTR("public.jpeg");
 #endif
     return kUTTypeJPEG;
@@ -480,8 +503,8 @@ String ImageBuffer::toDataURL(const String& mimeType, const double* quality, Coo
         RetainPtr<CGContextRef> context = adoptCF(CGBitmapContextCreate(0, logicalSize().width(), logicalSize().height(), 8, 4 * logicalSize().width(), deviceRGBColorSpaceRef(), kCGImageAlphaPremultipliedLast));
         CGContextSetBlendMode(context.get(), kCGBlendModeCopy);
         CGContextClipToRect(context.get(), CGRectMake(0, 0, logicalSize().width(), logicalSize().height()));
-        FloatSize imageRectInUserBounds = scaleSizeToUserSpace(logicalSize(), m_data.m_backingStoreSize, internalSize());
-        CGContextDrawImage(context.get(), CGRectMake(0, 0, imageRectInUserBounds.width(), imageRectInUserBounds.height()), image.get());
+        FloatSize imageSizeInUserSpace = scaleSizeToUserSpace(logicalSize(), m_data.m_backingStoreSize, internalSize());
+        CGContextDrawImage(context.get(), CGRectMake(0, 0, imageSizeInUserSpace.width(), imageSizeInUserSpace.height()), image.get());
         image = adoptCF(CGBitmapContextCreateImage(context.get()));
     }
 

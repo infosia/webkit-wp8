@@ -26,6 +26,7 @@
 #ifndef RemoteLayerTreeTransaction_h
 #define RemoteLayerTreeTransaction_h
 
+#include "PlatformCAAnimationRemote.h"
 #include "RemoteLayerBackingStore.h"
 #include <WebCore/Color.h>
 #include <WebCore/FilterOperations.h>
@@ -34,9 +35,10 @@
 #include <WebCore/PlatformCALayer.h>
 #include <WebCore/TransformationMatrix.h>
 #include <wtf/HashMap.h>
+#include <wtf/HashSet.h>
 #include <wtf/text/WTFString.h>
 
-namespace CoreIPC {
+namespace IPC {
 class ArgumentDecoder;
 class ArgumentEncoder;
 }
@@ -47,9 +49,7 @@ class PlatformCALayerRemote;
 
 class RemoteLayerTreeTransaction {
 public:
-    typedef uint64_t LayerID;
-
-    enum LayerChange {
+    enum LayerChanges {
         NoChange = 0,
         NameChanged = 1 << 1,
         ChildrenChanged = 1 << 2,
@@ -76,16 +76,20 @@ public:
         TimeOffsetChanged = 1 << 23,
         BackingStoreChanged = 1 << 24,
         FiltersChanged = 1 << 25,
-        EdgeAntialiasingMaskChanged = 1 << 26
+        AnimationsChanged = 1 << 26,
+        EdgeAntialiasingMaskChanged = 1 << 27,
+        CustomAppearanceChanged = 1 << 28,
+        CustomBehaviorChanged = 1 << 29
     };
+    typedef unsigned LayerChange;
 
     struct LayerCreationProperties {
         LayerCreationProperties();
 
-        void encode(CoreIPC::ArgumentEncoder&) const;
-        static bool decode(CoreIPC::ArgumentDecoder&, LayerCreationProperties&);
+        void encode(IPC::ArgumentEncoder&) const;
+        static bool decode(IPC::ArgumentDecoder&, LayerCreationProperties&);
 
-        LayerID layerID;
+        WebCore::GraphicsLayer::PlatformLayerID layerID;
         WebCore::PlatformCALayer::LayerType type;
 
         uint32_t hostingContextID;
@@ -93,73 +97,131 @@ public:
 
     struct LayerProperties {
         LayerProperties();
+        LayerProperties(const LayerProperties& other);
 
-        void encode(CoreIPC::ArgumentEncoder&) const;
-        static bool decode(CoreIPC::ArgumentDecoder&, LayerProperties&);
+        void encode(IPC::ArgumentEncoder&) const;
+        static bool decode(IPC::ArgumentDecoder&, LayerProperties&);
 
-        void notePropertiesChanged(LayerChange layerChanges)
+        void notePropertiesChanged(LayerChange changeFlags)
         {
-            changedProperties = static_cast<LayerChange>(changedProperties | layerChanges);
-            everChangedProperties = static_cast<LayerChange>(everChangedProperties | layerChanges);
+            changedProperties |= changeFlags;
+            everChangedProperties |= changeFlags;
+        }
+
+        void resetChangedProperties()
+        {
+            changedProperties = RemoteLayerTreeTransaction::NoChange;
         }
 
         LayerChange changedProperties;
         LayerChange everChangedProperties;
 
         String name;
-        Vector<LayerID> children;
+        std::unique_ptr<WebCore::TransformationMatrix> transform;
+        std::unique_ptr<WebCore::TransformationMatrix> sublayerTransform;
+        Vector<WebCore::GraphicsLayer::PlatformLayerID> children;
+
+        HashMap<String, PlatformCAAnimationRemote::Properties> addedAnimations;
+        HashSet<String> keyPathsOfAnimationsToRemove;
+
         WebCore::FloatPoint3D position;
-        WebCore::FloatSize size;
-        WebCore::Color backgroundColor;
         WebCore::FloatPoint3D anchorPoint;
+        WebCore::FloatSize size;
+        WebCore::FloatRect contentsRect;
+        std::unique_ptr<RemoteLayerBackingStore> backingStore;
+        std::unique_ptr<WebCore::FilterOperations> filters;
+        WebCore::GraphicsLayer::PlatformLayerID maskLayerID;
+        double timeOffset;
+        float speed;
+        float contentsScale;
         float borderWidth;
-        WebCore::Color borderColor;
         float opacity;
-        WebCore::TransformationMatrix transform;
-        WebCore::TransformationMatrix sublayerTransform;
+        WebCore::Color backgroundColor;
+        WebCore::Color borderColor;
+        unsigned edgeAntialiasingMask;
+        WebCore::GraphicsLayer::CustomAppearance customAppearance;
+        WebCore::GraphicsLayer::CustomBehavior customBehavior;
+        WebCore::PlatformCALayer::FilterType minificationFilter;
+        WebCore::PlatformCALayer::FilterType magnificationFilter;
         bool hidden;
         bool geometryFlipped;
         bool doubleSided;
         bool masksToBounds;
         bool opaque;
-        LayerID maskLayerID;
-        WebCore::FloatRect contentsRect;
-        float contentsScale;
-        WebCore::PlatformCALayer::FilterType minificationFilter;
-        WebCore::PlatformCALayer::FilterType magnificationFilter;
-        float speed;
-        double timeOffset;
-        RemoteLayerBackingStore backingStore;
-        WebCore::FilterOperations filters;
-        unsigned edgeAntialiasingMask;
     };
 
     explicit RemoteLayerTreeTransaction();
     ~RemoteLayerTreeTransaction();
 
-    void encode(CoreIPC::ArgumentEncoder&) const;
-    static bool decode(CoreIPC::ArgumentDecoder&, RemoteLayerTreeTransaction&);
+    void encode(IPC::ArgumentEncoder&) const;
+    static bool decode(IPC::ArgumentDecoder&, RemoteLayerTreeTransaction&);
 
-    LayerID rootLayerID() const { return m_rootLayerID; }
-    void setRootLayerID(LayerID rootLayerID);
+    WebCore::GraphicsLayer::PlatformLayerID rootLayerID() const { return m_rootLayerID; }
+    void setRootLayerID(WebCore::GraphicsLayer::PlatformLayerID);
     void layerPropertiesChanged(PlatformCALayerRemote*, LayerProperties&);
     void setCreatedLayers(Vector<LayerCreationProperties>);
-    void setDestroyedLayerIDs(Vector<LayerID>);
+    void setDestroyedLayerIDs(Vector<WebCore::GraphicsLayer::PlatformLayerID>);
 
 #if !defined(NDEBUG) || !LOG_DISABLED
     WTF::CString description() const;
     void dump() const;
 #endif
 
-    Vector<LayerCreationProperties> createdLayers() const { return m_createdLayers; }
-    HashMap<LayerID, LayerProperties> changedLayers() const { return m_changedLayerProperties; }
-    Vector<LayerID> destroyedLayers() const { return m_destroyedLayerIDs; }
+    typedef HashMap<WebCore::GraphicsLayer::PlatformLayerID, std::unique_ptr<LayerProperties>> LayerPropertiesMap;
 
+    Vector<LayerCreationProperties> createdLayers() const { return m_createdLayers; }
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> destroyedLayers() const { return m_destroyedLayerIDs; }
+
+    Vector<RefPtr<PlatformCALayerRemote>>& changedLayers() { return m_changedLayers; }
+
+    const LayerPropertiesMap& changedLayerProperties() const { return m_changedLayerProperties; }
+    LayerPropertiesMap& changedLayerProperties() { return m_changedLayerProperties; }
+
+    WebCore::IntSize contentsSize() const { return m_contentsSize; }
+    void setContentsSize(const WebCore::IntSize& size) { m_contentsSize = size; };
+    
+    WebCore::Color pageExtendedBackgroundColor() const { return m_pageExtendedBackgroundColor; }
+    void setPageExtendedBackgroundColor(WebCore::Color color) { m_pageExtendedBackgroundColor = color; }
+
+    double pageScaleFactor() const { return m_pageScaleFactor; }
+    void setPageScaleFactor(double pageScaleFactor) { m_pageScaleFactor = pageScaleFactor; }
+    
+    void setLastVisibleContentRectUpdateID(uint64_t lastVisibleContentRectUpdateID) { m_lastVisibleContentRectUpdateID = lastVisibleContentRectUpdateID; }
+    uint64_t lastVisibleContentRectUpdateID() const { return m_lastVisibleContentRectUpdateID; }
+
+    bool scaleWasSetByUIProcess() const { return m_scaleWasSetByUIProcess; }
+    void setScaleWasSetByUIProcess(bool scaleWasSetByUIProcess) { m_scaleWasSetByUIProcess = scaleWasSetByUIProcess; }
+    
+    uint64_t renderTreeSize() const { return m_renderTreeSize; }
+    void setRenderTreeSize(uint64_t renderTreeSize) { m_renderTreeSize = renderTreeSize; }
+
+    double minimumScaleFactor() const { return m_minimumScaleFactor; }
+    void setMinimumScaleFactor(double scale) { m_minimumScaleFactor = scale; }
+
+    double maximumScaleFactor() const { return m_maximumScaleFactor; }
+    void setMaximumScaleFactor(double scale) { m_maximumScaleFactor = scale; }
+
+    bool allowsUserScaling() const { return m_allowsUserScaling; }
+    void setAllowsUserScaling(bool allowsUserScaling) { m_allowsUserScaling = allowsUserScaling; }
+    
 private:
-    LayerID m_rootLayerID;
-    HashMap<LayerID, LayerProperties> m_changedLayerProperties;
+    WebCore::GraphicsLayer::PlatformLayerID m_rootLayerID;
+    Vector<RefPtr<PlatformCALayerRemote>> m_changedLayers; // Only used in the Web process.
+    LayerPropertiesMap m_changedLayerProperties; // Only used in the UI process.
+
     Vector<LayerCreationProperties> m_createdLayers;
-    Vector<LayerID> m_destroyedLayerIDs;
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> m_destroyedLayerIDs;
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> m_videoLayerIDsPendingFullscreen;
+
+    WebCore::IntSize m_contentsSize;
+    WebCore::Color m_pageExtendedBackgroundColor;
+    double m_pageScaleFactor;
+    double m_minimumScaleFactor;
+    double m_maximumScaleFactor;
+    uint64_t m_lastVisibleContentRectUpdateID;
+    uint64_t m_renderTreeSize;
+    bool m_scaleWasSetByUIProcess;
+    bool m_allowsUserScaling;
 };
 
 } // namespace WebKit

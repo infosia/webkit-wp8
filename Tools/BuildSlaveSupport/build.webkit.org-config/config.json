@@ -13,18 +13,19 @@
                     { "name": "apple-mini-210", "platform": "mac-mountainlion"},
                     { "name": "apple-mini-218", "platform": "mac-mountainlion"},
                     
+                    { "name": "apple-mac-114",  "platform": "mac-mavericks"},
                     { "name": "apple-mini-129", "platform": "mac-mavericks"},
                     { "name": "apple-mini-130", "platform": "mac-mavericks"},
-                    { "name": "apple-macpro-5", "platform": "mac-mavericks" },
-                    { "name": "apple-macpro-8", "platform": "mac-mavericks" },
+                    { "name": "apple-mini-137", "platform": "mac-mavericks"},
+                    { "name": "apple-mini-138", "platform": "mac-mavericks"},
+                    { "name": "apple-mini-142", "platform": "mac-mavericks"},
+                    { "name": "apple-mini-178", "platform": "mac-mavericks"},
+                    { "name": "apple-mini-179", "platform": "mac-mavericks"},
+                    { "name": "apple-mini-180", "platform": "mac-mavericks"},
                     { "name": "apple-mini-211", "platform": "mac-mavericks" },
                     { "name": "apple-mini-212", "platform": "mac-mavericks" },
+                    { "name": "apple-mini-213", "platform": "mac-mavericks" },
                     
-                    { "name": "apple-seo-01", "platform": "mac-mavericks"},
-                    { "name": "apple-seo-02", "platform": "mac-mavericks"},
-                    { "name": "apple-seo-03", "platform": "mac-mavericks"},
-                    { "name": "apple-seo-06", "platform": "mac-mavericks"},
-
                     { "name": "apple-windows-1", "platform": "win"},
                     { "name": "apple-windows-2", "platform": "win"},
                     { "name": "apple-windows-3", "platform": "win"},
@@ -35,15 +36,16 @@
                     { "name": "gtk-linux-slave-1", "platform": "gtk"},
                     { "name": "gtk-linux-slave-2", "platform": "gtk"},
                     { "name": "gtk-linux-slave-3", "platform": "gtk"},
-                    { "name": "gtk-linux-slave-4", "platform": "gtk"},
+                    { "name": "gtk-linux-slave-5", "platform": "gtk"},
 
                     { "name": "wincairo-1", "platform": "wincairo" },
 
-                    { "name": "wince-1", "platform": "wince" },
-
                     { "name": "efl-linux-slave-1", "platform": "efl" },
                     { "name": "efl-linux-slave-2", "platform": "efl" },
-                    { "name": "efl-linux-slave-3", "platform": "efl" }
+                    { "name": "efl-linux-slave-3", "platform": "efl" },
+                    { "name": "efl-linux-szeged-slave-1", "platform": "efl" },
+                    { "name": "efl-linux-szeged-slave-2", "platform": "efl" },
+                    { "name": "efl-linux-szeged-slave-3", "platform": "efl" }
 
                   ],
 
@@ -85,19 +87,27 @@
                     { "name": "Apple Mavericks Debug (Build)", "type": "Build", "builddir": "mavericks-debug",
                       "platform": "mac-mavericks", "configuration": "debug", "architectures": ["x86_64"],
                       "triggers": ["mavericks-debug-tests-wk1", "mavericks-debug-tests-wk2"],
-                      "slavenames": ["apple-seo-01", "apple-seo-06"]
+                      "slavenames": ["apple-mini-178", "apple-mini-179"]
                     },
                     { "name": "Apple Mavericks Debug WK1 (Tests)", "type": "Test", "builddir": "mavericks-debug-tests-wk1",
                       "platform": "mac-mavericks", "configuration": "debug", "architectures": ["x86_64"],
-                      "slavenames": ["apple-seo-02", "apple-macpro-5"]
+                      "slavenames": ["apple-mini-137", "apple-mini-138"]
                     },
                     { "name": "Apple Mavericks Debug WK2 (Tests)", "type": "TestWebKit2", "builddir": "mavericks-debug-tests-wk2",
                       "platform": "mac-mavericks", "configuration": "debug", "architectures": ["x86_64"],
-                      "slavenames": ["apple-seo-03", "apple-macpro-8", "apple-mini-211"]
+                      "slavenames": ["apple-mini-142", "apple-mini-211"]
+                    },
+                    { "name": "Apple Mavericks LLINT CLoop (BuildAndTest)", "type": "BuildAndTestLLINTCLoop", "builddir": "mavericks-cloop-debug",
+                      "platform": "mac-mavericks", "configuration": "debug", "architectures": ["x86_64"],
+                      "slavenames": ["apple-mini-180"]
+                    },
+                    { "name": "Apple Mavericks 32-bit JSC (BuildAndTest)", "type": "BuildAndTest32bitJSC", "builddir": "mavericks-32bitJSC-debug",
+                      "platform": "mac-mavericks", "configuration": "debug", "architectures": ["x86_64"],
+                      "slavenames": ["apple-mac-114"]
                     },
                     { "name": "Apple Mavericks Release (Build)", "type": "Build", "builddir": "mavericks-release",
                       "platform": "mac-mavericks", "configuration": "release", "architectures": ["x86_64"],
-                      "triggers": ["mavericks-release-tests-wk1", "mavericks-release-tests-wk2"],
+                      "triggers": ["mavericks-release-tests-wk1", "mavericks-release-tests-wk2", "mavericks-release-perf"],
                       "slavenames": ["apple-mini-212"]
                     },
                     { "name": "Apple Mavericks Release WK1 (Tests)", "type": "Test", "builddir": "mavericks-release-tests-wk1",
@@ -108,6 +118,11 @@
                     { "name": "Apple Mavericks Release WK2 (Tests)", "type": "TestWebKit2", "builddir": "mavericks-release-tests-wk2",
                       "platform": "mac-mavericks", "configuration": "release", "architectures": ["x86_64"],
                       "slavenames": ["apple-mini-130"]
+                    },
+                    {
+                      "name": "Apple Mavericks Release (Perf)", "type": "DownloadAndPerfTest", "builddir": "mavericks-release-perf-tests",
+                      "platform": "mac-mavericks", "configuration": "release", "architectures": ["x86_64"],
+                      "slavenames": ["apple-mini-213"]
                     },
                     {
                       "name": "Apple MountainLion Release (Perf)", "type": "DownloadAndPerfTest", "builddir": "mountainlion-release-perf-tests",
@@ -142,30 +157,24 @@
                       "slavenames": ["gtk-linux-slave-1"]
                     },
                     {
-                      "name": "GTK Linux 64-bit Release", "type": "BuildAndTestWebKit2", "builddir": "gtk-linux-64-release",
+                      "name": "GTK Linux 64-bit Release", "type": "BuildAndTestWebKit2Only", "builddir": "gtk-linux-64-release",
                       "platform": "gtk", "configuration": "release", "architectures": ["x86_64"],
-                      "triggers": ["gtk-linux-64-release-tests-wk1"],
                       "slavenames": ["gtk-linux-slave-2"]
                     },
                     {
-                      "name": "GTK Linux 64-bit Debug WK1", "type": "BuildAndTestWebKit1Only", "builddir": "gtk-linux-64-debug-wk1",
+                      "name": "GTK Linux 64-bit Debug", "type": "BuildAndTestWebKit2Only", "builddir": "gtk-linux-64-debug",
                       "platform": "gtk", "configuration": "debug", "architectures": ["x86_64"],
                       "slavenames": ["gtk-linux-slave-3"]
                     },
                     {
-                      "name": "GTK Linux 64-bit Release WK1 (Tests)", "type": "Test", "builddir": "gtk-linux-64-release-tests-wk1",
-                      "platform": "gtk", "configuration": "release", "architectures": ["x86_64"],
-                      "slavenames": ["gtk-linux-slave-4"]
+                      "name": "GTK Linux ARM Release", "type": "BuildAndNonLayoutTest", "builddir": "gtk-linux-arm-release",
+                      "platform": "gtk", "configuration": "release", "architectures": ["armv7"],
+                      "slavenames": ["gtk-linux-slave-5"]
                     },
                     {
                       "name": "WinCairo Release", "type": "BuildAndNonLayoutTest", "builddir": "win-cairo-release",
                       "platform": "wincairo", "configuration": "release", "architectures": ["i386"],
                       "slavenames": ["wincairo-1"]
-                    },
-                    {
-                      "name": "WinCE Release (Build)", "type": "Build", "builddir": "wince-release",
-                      "platform": "wince", "configuration": "release", "architectures": ["i386"],
-                      "slavenames": ["wince-1"]
                     },
                     {
                       "name": "EFL Linux 64-bit Release WK1", "type": "BuildAndTestWebKit1Only", "builddir": "efl-linux-64-release-wk1",
@@ -181,19 +190,38 @@
                       "name": "EFL Linux 32-bit Release (Build)", "type": "Build", "builddir": "efl-linux-32-release",
                       "platform": "efl", "configuration": "release", "architectures": ["i386"],
                       "slavenames": ["efl-linux-slave-3"]
+                    },
+                    {
+                      "name": "EFL Linux ARMv7 Thumb2 Release (Build)", "type": "Build", "builddir": "efl-linux-armv7-thumb2-release",
+                      "platform": "efl", "configuration": "release", "architectures": ["armv7"],
+                      "SVNMirror": "svn://webkit.inf.u-szeged.hu/webkit/",
+                      "slavenames": ["efl-linux-szeged-slave-1"]
+                    },
+                    {
+                      "name": "EFL Linux ARMv7 Traditional Release (Build)", "type": "Build", "builddir": "efl-linux-armv7-traditional-release",
+                      "platform": "efl", "configuration": "release", "architectures": ["armv7"],
+                      "SVNMirror": "svn://webkit.inf.u-szeged.hu/webkit/",
+                      "slavenames": ["efl-linux-szeged-slave-2"]
+                    },
+                    {
+                      "name": "EFL Linux 64-bit Release WK2 (Perf)", "type": "BuildAndPerfTestWebKit2", "builddir": "efl-linux-64-release-wk2-perf",
+                      "platform": "efl", "configuration": "release", "architectures": ["x86_64"],
+                      "SVNMirror": "svn://webkit.inf.u-szeged.hu/webkit/",
+                      "slavenames": ["efl-linux-szeged-slave-3"]
                     }
                   ],
 
     "schedulers": [ { "type": "AnyBranchScheduler", "name": "trunk", "change_filter": "trunk_filter", "treeStableTimer": 45.0,
-                      "builderNames": ["GTK Linux 32-bit Release", "GTK Linux 64-bit Release", "GTK Linux 64-bit Debug WK1",
+                      "builderNames": ["GTK Linux 32-bit Release", "GTK Linux 64-bit Release", "GTK Linux 64-bit Debug", "GTK Linux ARM Release",
                                        "EFL Linux 64-bit Release WK1", "EFL Linux 64-bit Release WK2", "EFL Linux 32-bit Release (Build)",
-                                       "WinCairo Release", "WinCE Release (Build)"]
+                                       "EFL Linux ARMv7 Thumb2 Release (Build)", "EFL Linux ARMv7 Traditional Release (Build)",
+                                       "EFL Linux 64-bit Release WK2 (perf)", "WinCairo Release"]
                     },
                     { "type": "PlatformSpecificScheduler", "platform": "mac-mountainlion", "branch": "trunk", "treeStableTimer": 45.0,
                       "builderNames": ["Apple MountainLion Release (Build)", "Apple MountainLion Debug (Build)", "Apple MountainLion Release (32-bit Build)"]
                     },
                     { "type": "PlatformSpecificScheduler", "platform": "mac-mavericks", "branch": "trunk", "treeStableTimer": 45.0,
-                      "builderNames": ["Apple Mavericks Release (Build)", "Apple Mavericks Debug (Build)"]
+                      "builderNames": ["Apple Mavericks Release (Build)", "Apple Mavericks Debug (Build)", "Apple Mavericks LLINT CLoop (BuildAndTest)", "Apple Mavericks 32-bit JSC (BuildAndTest)"]
                     },
                     { "type": "PlatformSpecificScheduler", "platform": "win", "branch": "trunk", "treeStableTimer": 45.0,
                       "builderNames": ["Apple Win Release (Build)", "Apple Win Debug (Build)"]
@@ -228,14 +256,14 @@
                     { "type": "Triggerable", "name": "mavericks-debug-tests-wk2",
                       "builderNames": ["Apple Mavericks Debug WK2 (Tests)"]
                     },
+                    { "type": "Triggerable", "name": "mavericks-release-perf",
+                      "builderNames": ["Apple Mavericks Release (Perf)"]
+                    },
                     { "type": "Triggerable", "name": "win-release-tests",
                       "builderNames": ["Apple Win 7 Release (Tests)"]
                     },
                     { "type": "Triggerable", "name": "win-debug-tests",
                       "builderNames": ["Apple Win 7 Debug (Tests)"]
-                    },
-                    { "type": "Triggerable", "name": "gtk-linux-64-release-tests-wk1",
-                      "builderNames": ["GTK Linux 64-bit Release WK1 (Tests)"]
                     }
                   ]
 }

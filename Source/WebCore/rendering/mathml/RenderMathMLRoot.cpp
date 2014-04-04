@@ -74,6 +74,14 @@ RenderMathMLRoot::RenderMathMLRoot(Element& element, PassRef<RenderStyle> style)
 {
 }
 
+RenderMathMLRoot::RenderMathMLRoot(Document& document, PassRef<RenderStyle> style)
+    : RenderMathMLBlock(document, std::move(style))
+    , m_intrinsicPaddingBefore(0)
+    , m_intrinsicPaddingAfter(0)
+    , m_intrinsicPaddingStart(0)
+    , m_intrinsicPaddingEnd(0)
+{
+}
 LayoutUnit RenderMathMLRoot::paddingTop() const
 {
     LayoutUnit result = computedCSSPaddingTop();
@@ -163,7 +171,7 @@ void RenderMathMLRoot::addChild(RenderObject* newChild, RenderObject* beforeChil
     // Insert an implicit <mrow> for <mroot> as well as <msqrt>, to ensure firstChild() will have a box
     // to measure and store a glyph-based height for preferredLogicalHeightAfterSizing.
     if (!firstChild())
-        RenderMathMLBlock::addChild(RenderMathMLRow::createAnonymousWithParentRenderer(this));
+        RenderMathMLBlock::addChild(RenderMathMLRow::createAnonymousWithParentRenderer(*this).leakPtr());
     
     // An <mroot>'s index has { position: absolute }.
     if (newChild->style().position() == AbsolutePosition)
@@ -184,9 +192,8 @@ RenderBox* RenderMathMLRoot::index() const
 
 void RenderMathMLRoot::layout()
 {
-    auto boxChildren = childrenOfType<RenderBox>(*this);
-    for (auto box = boxChildren.begin(), end = boxChildren.end(); box != end; ++box)
-        box->layoutIfNeeded();
+    for (auto& box : childrenOfType<RenderBox>(*this))
+        box.layoutIfNeeded();
 
     int baseHeight = firstChild() && firstChild()->isBox() ? roundToInt(toRenderBox(firstChild())->logicalHeight()) : style().fontSize();
     int frontWidth = lroundf(gFrontWidthEms * style().fontSize());

@@ -35,23 +35,25 @@
 
 namespace WebCore {
 
+RoundedRect computeRoundedRectForBoxShape(CSSBoxType, const RenderBox&);
+
 class BoxShape : public Shape {
 public:
-    BoxShape(const FloatRoundedRect& bounds, float shapeMargin, float shapePadding);
+    BoxShape(const FloatRoundedRect& bounds)
+        : m_bounds(bounds)
+    {
+    }
 
-    virtual LayoutRect shapeMarginLogicalBoundingBox() const OVERRIDE { return static_cast<LayoutRect>(m_marginBounds.rect()); }
-    virtual LayoutRect shapePaddingLogicalBoundingBox() const OVERRIDE { return static_cast<LayoutRect>(m_paddingBounds.rect()); }
-    virtual bool isEmpty() const OVERRIDE { return m_bounds.isEmpty(); }
-    virtual void getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList&) const OVERRIDE;
-    virtual void getIncludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList&) const OVERRIDE;
-    virtual bool firstIncludedIntervalLogicalTop(LayoutUnit minLogicalIntervalTop, const LayoutSize& minLogicalIntervalSize, LayoutUnit&) const OVERRIDE;
+    virtual LayoutRect shapeMarginLogicalBoundingBox() const override;
+    virtual bool isEmpty() const override { return m_bounds.isEmpty(); }
+    virtual void getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList&) const override;
 
-    virtual void buildPath(Path&) const OVERRIDE;
+    virtual void buildDisplayPaths(DisplayPaths&) const override;
 
 private:
+    FloatRoundedRect shapeMarginBounds() const;
+
     FloatRoundedRect m_bounds;
-    FloatRoundedRect m_marginBounds;
-    FloatRoundedRect m_paddingBounds;
 };
 
 } // namespace WebCore

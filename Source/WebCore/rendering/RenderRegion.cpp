@@ -38,13 +38,13 @@
 #include "PaintInfo.h"
 #include "Range.h"
 #include "RenderBoxRegionInfo.h"
+#include "RenderInline.h"
 #include "RenderIterator.h"
 #include "RenderLayer.h"
 #include "RenderNamedFlowFragment.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderView.h"
 #include "StyleResolver.h"
-#include <wtf/StackStats.h>
 
 namespace WebCore {
 
@@ -53,9 +53,6 @@ RenderRegion::RenderRegion(Element& element, PassRef<RenderStyle> style, RenderF
     , m_flowThread(flowThread)
     , m_parentNamedFlowThread(0)
     , m_isValid(false)
-    , m_hasAutoLogicalHeight(false)
-    , m_hasComputedAutoHeight(false)
-    , m_computedAutoHeight(0)
 {
 }
 
@@ -64,9 +61,6 @@ RenderRegion::RenderRegion(Document& document, PassRef<RenderStyle> style, Rende
     , m_flowThread(flowThread)
     , m_parentNamedFlowThread(0)
     , m_isValid(false)
-    , m_hasAutoLogicalHeight(false)
-    , m_hasComputedAutoHeight(false)
-    , m_computedAutoHeight(0)
 {
 }
 
@@ -112,10 +106,11 @@ LayoutPoint RenderRegion::mapRegionPointIntoFlowThreadCoordinates(const LayoutPo
 
 VisiblePosition RenderRegion::positionForPoint(const LayoutPoint& point)
 {
-    if (!m_flowThread->firstChild()) // checking for empty region blocks.
+    ASSERT(m_flowThread);
+    if (!isValid() || !m_flowThread->firstChild()) // checking for empty region blocks.
         return RenderBlock::positionForPoint(point);
 
-    return toRenderBlock(m_flowThread->firstChild())->positionForPoint(mapRegionPointIntoFlowThreadCoordinates(point));
+    return m_flowThread->positionForPoint(mapRegionPointIntoFlowThreadCoordinates(point));
 }
 
 LayoutUnit RenderRegion::pageLogicalWidth() const
@@ -127,30 +122,12 @@ LayoutUnit RenderRegion::pageLogicalWidth() const
 LayoutUnit RenderRegion::pageLogicalHeight() const
 {
     ASSERT(m_flowThread);
-    if (hasComputedAutoHeight() && m_flowThread->inMeasureContentLayoutPhase()) {
-        ASSERT(hasAutoLogicalHeight());
-        return computedAutoHeight();
-    }
     return m_flowThread->isHorizontalWritingMode() ? contentHeight() : contentWidth();
-}
-
-// This method returns the maximum page size of a region with auto-height. This is the initial
-// height value for auto-height regions in the first layout phase of the parent named flow.
-LayoutUnit RenderRegion::maxPageLogicalHeight() const
-{
-    ASSERT(m_flowThread);
-    ASSERT(hasAutoLogicalHeight() && m_flowThread->inMeasureContentLayoutPhase());
-    return style().logicalMaxHeight().isUndefined() ? RenderFlowThread::maxLogicalHeight() : computeReplacedLogicalHeightUsing(style().logicalMaxHeight());
 }
 
 LayoutUnit RenderRegion::logicalHeightOfAllFlowThreadContent() const
 {
-    ASSERT(m_flowThread);
-    if (hasComputedAutoHeight() && m_flowThread->inMeasureContentLayoutPhase()) {
-        ASSERT(hasAutoLogicalHeight());
-        return computedAutoHeight();
-    }
-    return m_flowThread->isHorizontalWritingMode() ? contentHeight() : contentWidth();
+    return pageLogicalHeight();
 }
 
 LayoutRect RenderRegion::flowThreadPortionOverflowRect()
@@ -173,18 +150,11 @@ LayoutPoint RenderRegion::flowThreadPortionLocation() const
     return portionLocation;
 }
 
-RenderLayer* RenderRegion::regionContainerLayer() const
-{
-    ASSERT(parent() && parent()->isRenderNamedFlowFragmentContainer());
-    return toRenderBlockFlow(parent())->layer();
-}
-
 LayoutRect RenderRegion::overflowRectForFlowThreadPortion(const LayoutRect& flowThreadPortionRect, bool isFirstPortion, bool isLastPortion, OverflowType overflowType)
 {
     ASSERT(isValid());
 
-    bool isLastRegionWithRegionFragmentBreak = (isLastPortion && (style().regionFragment() == BreakRegionFragment));
-    if (hasOverflowClip() || isLastRegionWithRegionFragmentBreak)
+    if (shouldClipFlowThreadContent())
         return flowThreadPortionRect;
 
     LayoutRect flowThreadOverflow = overflowType == VisualOverflow ? visualOverflowRectForBox(m_flowThread) : layoutOverflowRectForBox(m_flowThread);
@@ -211,23 +181,6 @@ LayoutRect RenderRegion::overflowRectForFlowThreadPortion(const LayoutRect& flow
     return clipRect;
 }
 
-RegionOversetState RenderRegion::regionOversetState() const
-{
-    ASSERT(generatingElement());
-
-    if (!isValid())
-        return RegionUndefined;
-
-    return generatingElement()->regionOversetState();
-}
-
-void RenderRegion::setRegionOversetState(RegionOversetState state)
-{
-    ASSERT(generatingElement());
-
-    generatingElement()->setRegionOversetState(state);
-}
-
 LayoutUnit RenderRegion::pageLogicalTopForOffset(LayoutUnit /* offset */) const
 {
     return flowThread()->isHorizontalWritingMode() ? flowThreadPortionRect().y() : flowThreadPortionRect().x();
@@ -247,47 +200,11 @@ bool RenderRegion::isLastRegion() const
     return m_flowThread->lastRegion() == this;
 }
 
-void RenderRegion::incrementAutoLogicalHeightCount()
+bool RenderRegion::shouldClipFlowThreadContent() const
 {
-    ASSERT(isValid());
-    ASSERT(m_hasAutoLogicalHeight);
-
-    m_flowThread->incrementAutoLogicalHeightRegions();
+    return hasOverflowClip();
 }
 
-void RenderRegion::decrementAutoLogicalHeightCount()
-{
-    ASSERT(isValid());
-
-    m_flowThread->decrementAutoLogicalHeightRegions();
-}
-
-void RenderRegion::updateRegionHasAutoLogicalHeightFlag()
-{
-    ASSERT(m_flowThread);
-
-    if (!isValid())
-        return;
-
-    bool didHaveAutoLogicalHeight = m_hasAutoLogicalHeight;
-    m_hasAutoLogicalHeight = shouldHaveAutoLogicalHeight();
-    if (m_hasAutoLogicalHeight != didHaveAutoLogicalHeight) {
-        if (m_hasAutoLogicalHeight)
-            incrementAutoLogicalHeightCount();
-        else {
-            clearComputedAutoHeight();
-            decrementAutoLogicalHeightCount();
-        }
-    }
-}
-
-bool RenderRegion::shouldHaveAutoLogicalHeight() const
-{
-    bool hasSpecifiedEndpointsForHeight = style().logicalTop().isSpecified() && style().logicalBottom().isSpecified();
-    bool hasAnchoredEndpointsForHeight = isOutOfFlowPositioned() && hasSpecifiedEndpointsForHeight;
-    return style().logicalHeight().isAuto() && !hasAnchoredEndpointsForHeight;
-}
-    
 void RenderRegion::styleDidChange(StyleDifference diff, const RenderStyle* oldStyle)
 {
     RenderBlockFlow::styleDidChange(diff, oldStyle);
@@ -295,35 +212,8 @@ void RenderRegion::styleDidChange(StyleDifference diff, const RenderStyle* oldSt
     if (!m_flowThread)
         return;
 
-    updateRegionHasAutoLogicalHeightFlag();
-
     if (oldStyle && oldStyle->writingMode() != style().writingMode())
         m_flowThread->regionChangedWritingMode(this);
-}
-
-void RenderRegion::layoutBlock(bool relayoutChildren, LayoutUnit)
-{
-    StackStats::LayoutCheckPoint layoutCheckPoint;
-    RenderBlockFlow::layoutBlock(relayoutChildren);
-
-    if (isValid()) {
-        LayoutRect oldRegionRect(flowThreadPortionRect());
-        if (!isHorizontalWritingMode())
-            oldRegionRect = oldRegionRect.transposedRect();
-
-        if (m_flowThread->inOverflowLayoutPhase() || m_flowThread->inFinalLayoutPhase())
-            computeOverflowFromFlowThread();
-
-        if (hasAutoLogicalHeight() && m_flowThread->inMeasureContentLayoutPhase()) {
-            m_flowThread->invalidateRegions();
-            clearComputedAutoHeight();
-            return;
-        }
-
-        if (!isRenderRegionSet() && (oldRegionRect.width() != pageLogicalWidth() || oldRegionRect.height() != pageLogicalHeight()) && !m_flowThread->inFinalLayoutPhase())
-            // This can happen even if we are in the inConstrainedLayoutPhase and it will trigger a pathological layout of the flow thread.
-            m_flowThread->invalidateRegions();
-    }
 }
 
 void RenderRegion::computeOverflowFromFlowThread()
@@ -350,12 +240,12 @@ void RenderRegion::computeOverflowFromFlowThread()
     updateScrollInfoAfterLayout();
 }
 
-void RenderRegion::repaintFlowThreadContent(const LayoutRect& repaintRect, bool immediate)
+void RenderRegion::repaintFlowThreadContent(const LayoutRect& repaintRect)
 {
-    repaintFlowThreadContentRectangle(repaintRect, immediate, flowThreadPortionRect(), contentBoxRect().location());
+    repaintFlowThreadContentRectangle(repaintRect, flowThreadPortionRect(), contentBoxRect().location());
 }
 
-void RenderRegion::repaintFlowThreadContentRectangle(const LayoutRect& repaintRect, bool immediate, const LayoutRect& flowThreadPortionRect, const LayoutPoint& regionLocation, const LayoutRect* flowThreadPortionClipRect)
+void RenderRegion::repaintFlowThreadContentRectangle(const LayoutRect& repaintRect, const LayoutRect& flowThreadPortionRect, const LayoutPoint& regionLocation, const LayoutRect* flowThreadPortionClipRect)
 {
     ASSERT(isValid());
 
@@ -381,7 +271,7 @@ void RenderRegion::repaintFlowThreadContentRectangle(const LayoutRect& repaintRe
     flipForWritingMode(clippedRect);
     
     // Issue the repaint.
-    repaintRectangle(clippedRect, immediate);
+    repaintRectangle(clippedRect);
 }
 
 void RenderRegion::installFlowThread()
@@ -424,28 +314,12 @@ void RenderRegion::attachRegion()
 
     // Only after adding the region to the thread, the region is marked to be valid.
     m_flowThread->addRegionToThread(this);
-
-    // The region just got attached to the flow thread, lets check whether
-    // it has region styling rules associated.
-    // FIXME: Remove cast once attachRegion is moved to RenderNamedFlowFragment.
-    if (isRenderNamedFlowFragment())
-        toRenderNamedFlowFragment(this)->checkRegionStyle();
-
-    if (!isValid())
-        return;
-
-    m_hasAutoLogicalHeight = shouldHaveAutoLogicalHeight();
-    if (hasAutoLogicalHeight())
-        incrementAutoLogicalHeightCount();
 }
 
 void RenderRegion::detachRegion()
 {
-    if (m_flowThread) {
+    if (m_flowThread)
         m_flowThread->removeRegionFromThread(this);
-        if (hasAutoLogicalHeight())
-            decrementAutoLogicalHeightCount();
-    }
     m_flowThread = 0;
 }
 
@@ -460,11 +334,11 @@ RenderBoxRegionInfo* RenderRegion::setRenderBoxRegionInfo(const RenderBox* box, 
 {
     ASSERT(isValid());
 
-    OwnPtr<RenderBoxRegionInfo>& boxInfo = m_renderBoxRegionInfo.add(box, adoptPtr(new RenderBoxRegionInfo(logicalLeftInset, logicalRightInset, containingBlockChainIsInset))).iterator->value;
+    std::unique_ptr<RenderBoxRegionInfo>& boxInfo = m_renderBoxRegionInfo.add(box, std::make_unique<RenderBoxRegionInfo>(logicalLeftInset, logicalRightInset, containingBlockChainIsInset)).iterator->value;
     return boxInfo.get();
 }
 
-OwnPtr<RenderBoxRegionInfo> RenderRegion::takeRenderBoxRegionInfo(const RenderBox* box)
+std::unique_ptr<RenderBoxRegionInfo> RenderRegion::takeRenderBoxRegionInfo(const RenderBox* box)
 {
     return m_renderBoxRegionInfo.take(box);
 }
@@ -551,47 +425,11 @@ void RenderRegion::computePreferredLogicalWidths()
     setPreferredLogicalWidthsDirty(false);
 }
 
-void RenderRegion::getRanges(Vector<RefPtr<Range>>& rangeObjects) const
-{
-    const RenderNamedFlowThread& namedFlow = view().flowThreadController().ensureRenderFlowThreadWithName(style().regionThread());
-    namedFlow.getRanges(rangeObjects, this);
-}
-
-void RenderRegion::updateLogicalHeight()
-{
-    RenderBlockFlow::updateLogicalHeight();
-
-    if (!hasAutoLogicalHeight())
-        return;
-
-    // We want to update the logical height based on the computed auto-height
-    // only after the measure cotnent layout phase when all the
-    // auto logical height regions have a computed auto-height.
-    if (m_flowThread->inMeasureContentLayoutPhase())
-        return;
-
-    // There may be regions with auto logical height that during the prerequisite layout phase
-    // did not have the chance to layout flow thread content. Because of that, these regions do not
-    // have a computedAutoHeight and they will not be able to fragment any flow
-    // thread content.
-    if (!hasComputedAutoHeight())
-        return;
-
-    LayoutUnit newLogicalHeight = computedAutoHeight() + borderAndPaddingLogicalHeight();
-    ASSERT(newLogicalHeight < LayoutUnit::max() / 2);
-    if (newLogicalHeight > logicalHeight()) {
-        setLogicalHeight(newLogicalHeight);
-        // Recalculate position of the render block after new logical height is set.
-        // (needed in absolute positioning case with bottom alignment for example)
-        RenderBlockFlow::updateLogicalHeight();
-    }
-}
-
-void RenderRegion::adjustRegionBoundsFromFlowThreadPortionRect(const IntPoint& layerOffset, IntRect& regionBounds)
+void RenderRegion::adjustRegionBoundsFromFlowThreadPortionRect(const LayoutPoint& layerOffset, LayoutRect& regionBounds)
 {
     LayoutRect flippedFlowThreadPortionRect = flowThreadPortionRect();
     flowThread()->flipForWritingMode(flippedFlowThreadPortionRect);
-    regionBounds.moveBy(roundedIntPoint(flippedFlowThreadPortionRect.location()));
+    regionBounds.moveBy(flippedFlowThreadPortionRect.location());
 
     UNUSED_PARAM(layerOffset);
 }
@@ -633,28 +471,23 @@ void RenderRegion::ensureOverflowForBox(const RenderBox* box, RefPtr<RenderOverf
 
 LayoutRect RenderRegion::rectFlowPortionForBox(const RenderBox* box, const LayoutRect& rect) const
 {
-    RenderRegion* startRegion = 0;
-    RenderRegion* endRegion = 0;
-    m_flowThread->getRegionRangeForBox(box, startRegion, endRegion);
-
     LayoutRect mappedRect = m_flowThread->mapFromLocalToFlowThread(box, rect);
-    if (flowThread()->isHorizontalWritingMode()) {
-        if (this != startRegion)
-            mappedRect.shiftYEdgeTo(std::max<LayoutUnit>(logicalTopForFlowThreadContent(), mappedRect.y()));
 
-        if (this != endRegion)
-            mappedRect.setHeight(std::max<LayoutUnit>(0, std::min<LayoutUnit>(logicalBottomForFlowThreadContent() - mappedRect.y(), mappedRect.height())));
-    } else {
-        if (this != startRegion)
-            mappedRect.shiftXEdgeTo(std::max<LayoutUnit>(logicalTopForFlowThreadContent(), mappedRect.x()));
-            
-        if (this != endRegion)
-            mappedRect.setWidth(std::max<LayoutUnit>(0, std::min<LayoutUnit>(logicalBottomForFlowThreadContent() - mappedRect.x(), mappedRect.width())));
+    RenderRegion* startRegion = nullptr;
+    RenderRegion* endRegion = nullptr;
+    if (m_flowThread->getRegionRangeForBox(box, startRegion, endRegion)) {
+        if (flowThread()->isHorizontalWritingMode()) {
+            if (this != startRegion)
+                mappedRect.shiftYEdgeTo(std::max<LayoutUnit>(logicalTopForFlowThreadContent(), mappedRect.y()));
+            if (this != endRegion)
+                mappedRect.setHeight(std::max<LayoutUnit>(0, std::min<LayoutUnit>(logicalBottomForFlowThreadContent() - mappedRect.y(), mappedRect.height())));
+        } else {
+            if (this != startRegion)
+                mappedRect.shiftXEdgeTo(std::max<LayoutUnit>(logicalTopForFlowThreadContent(), mappedRect.x()));
+            if (this != endRegion)
+                mappedRect.setWidth(std::max<LayoutUnit>(0, std::min<LayoutUnit>(logicalBottomForFlowThreadContent() - mappedRect.x(), mappedRect.width())));
+        }
     }
-
-    bool isLastRegionWithRegionFragmentBreak = (isLastRegion() && (style().regionFragment() == BreakRegionFragment));
-    if (hasOverflowClip() || isLastRegionWithRegionFragmentBreak)
-        mappedRect.intersect(flowThreadPortionRect());
 
     return mappedRect.isEmpty() ? mappedRect : m_flowThread->mapFromFlowThreadToLocal(box, mappedRect);
 }
@@ -698,13 +531,23 @@ LayoutRect RenderRegion::layoutOverflowRectForBox(const RenderBox* box)
     return overflow->layoutOverflowRect();
 }
 
-LayoutRect RenderRegion::visualOverflowRectForBox(const RenderBox* box)
+LayoutRect RenderRegion::visualOverflowRectForBox(const RenderBoxModelObject* box)
 {
-    RefPtr<RenderOverflow> overflow;
-    ensureOverflowForBox(box, overflow, true);
-    
-    ASSERT(overflow);
-    return overflow->visualOverflowRect();
+    if (box->isRenderInline()) {
+        const RenderInline* inlineBox = toRenderInline(box);
+        return inlineBox->linesVisualOverflowBoundingBoxInRegion(this);
+    }
+
+    if (box->isBox()) {
+        RefPtr<RenderOverflow> overflow;
+        ensureOverflowForBox(toRenderBox(box), overflow, true);
+
+        ASSERT(overflow);
+        return overflow->visualOverflowRect();
+    }
+
+    ASSERT_NOT_REACHED();
+    return LayoutRect();
 }
 
 // FIXME: This doesn't work for writing modes.
@@ -728,7 +571,7 @@ LayoutRect RenderRegion::layoutOverflowRectForBoxForPropagation(const RenderBox*
     return rect;
 }
 
-LayoutRect RenderRegion::visualOverflowRectForBoxForPropagation(const RenderBox* box)
+LayoutRect RenderRegion::visualOverflowRectForBoxForPropagation(const RenderBoxModelObject* box)
 {
     LayoutRect rect = visualOverflowRectForBox(box);
     flowThread()->flipForWritingModeLocalCoordinates(rect);

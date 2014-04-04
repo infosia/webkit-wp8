@@ -18,11 +18,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextLayoutEngine.h"
 
-#include "RenderSVGInlineText.h"
 #include "RenderSVGTextPath.h"
 #include "SVGElement.h"
 #include "SVGInlineTextBox.h"
@@ -439,7 +436,8 @@ void SVGTextLayoutEngine::layoutTextOnLineOrPath(SVGInlineTextBox* textBox, Rend
     Vector<SVGTextMetrics>& visualMetricsValues = text->layoutAttributes()->textMetricsValues();
     ASSERT(!visualMetricsValues.isEmpty());
 
-    const UChar* characters = text->characters();
+    auto upconvertedCharacters = StringView(text->text()).upconvertedCharacters();
+    const UChar* characters = upconvertedCharacters;
     const Font& font = style->font();
 
     SVGTextLayoutEngineSpacing spacingLayout(font);
@@ -652,5 +650,3 @@ void SVGTextLayoutEngine::layoutTextOnLineOrPath(SVGInlineTextBox* textBox, Rend
 }
 
 }
-
-#endif // ENABLE(SVG)

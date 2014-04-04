@@ -29,11 +29,11 @@
 #if WK_API_ENABLED
 
 #import "APIArray.h"
+#import "APIData.h"
+#import "APINumber.h"
+#import "APIString.h"
 #import "MutableDictionary.h"
-#import "WKRemoteObjectInterfaceInternal.h"
-#import "WebData.h"
-#import "WebNumber.h"
-#import "WebString.h"
+#import "_WKRemoteObjectInterfaceInternal.h"
 #import <objc/runtime.h>
 #import <wtf/RetainPtr.h>
 #import <wtf/TemporaryChange.h>
@@ -146,6 +146,33 @@ static void encodeInvocation(WKRemoteObjectEncoder *encoder, NSInvocation *invoc
             break;
         }
 
+        // char
+        case 'c': {
+            char value;
+            [invocation getArgument:&value atIndex:i];
+
+            encodeToObjectStream(encoder, @(value));
+            break;
+        }
+
+        // bool
+        case 'B': {
+            BOOL value;
+            [invocation getArgument:&value atIndex:i];;
+
+            encodeToObjectStream(encoder, @(value));
+            break;
+        }
+
+        // NSInteger
+        case 'q': {
+            NSInteger value;
+            [invocation getArgument:&value atIndex:i];;
+
+            encodeToObjectStream(encoder, @(value));
+            break;
+        }
+
         // Objective-C object
         case '@': {
             id value;
@@ -175,7 +202,7 @@ static void encodeObject(WKRemoteObjectEncoder *encoder, id object)
     if (!objectClass)
         [NSException raise:NSInvalidArgumentException format:@"-classForCoder returned nil for %@", object];
 
-    encoder->_currentDictionary->set(classNameKey, WebString::create(class_getName(objectClass)));
+    encoder->_currentDictionary->set(classNameKey, API::String::create(class_getName(objectClass)));
 
     if ([object isKindOfClass:[NSInvocation class]]) {
         // We have to special case NSInvocation since we don't want to encode the target.
@@ -237,22 +264,22 @@ static NSString *escapeKey(NSString *key)
 
 - (void)encodeBytes:(const uint8_t *)bytes length:(NSUInteger)length forKey:(NSString *)key
 {
-    _currentDictionary->set(escapeKey(key), WebData::create(bytes, length));
+    _currentDictionary->set(escapeKey(key), API::Data::create(bytes, length));
 }
 
 - (void)encodeBool:(BOOL)value forKey:(NSString *)key
 {
-    _currentDictionary->set(escapeKey(key), WebBoolean::create(value));
+    _currentDictionary->set(escapeKey(key), API::Boolean::create(value));
 }
 
 - (void)encodeInt64:(int64_t)value forKey:(NSString *)key
 {
-    _currentDictionary->set(escapeKey(key), WebUInt64::create(value));
+    _currentDictionary->set(escapeKey(key), API::UInt64::create(value));
 }
 
 - (void)encodeDouble:(double)value forKey:(NSString *)key
 {
-    _currentDictionary->set(escapeKey(key), WebDouble::create(value));
+    _currentDictionary->set(escapeKey(key), API::Double::create(value));
 }
 
 - (BOOL)requiresSecureCoding
@@ -263,7 +290,7 @@ static NSString *escapeKey(NSString *key)
 @end
 
 @implementation WKRemoteObjectDecoder {
-    RetainPtr<WKRemoteObjectInterface> _interface;
+    RetainPtr<_WKRemoteObjectInterface> _interface;
 
     const ImmutableDictionary* _rootDictionary;
     const ImmutableDictionary* _currentDictionary;
@@ -274,7 +301,7 @@ static NSString *escapeKey(NSString *key)
     NSSet *_allowedClasses;
 }
 
-- (id)initWithInterface:(WKRemoteObjectInterface *)interface rootObjectDictionary:(const WebKit::ImmutableDictionary*)rootObjectDictionary
+- (id)initWithInterface:(_WKRemoteObjectInterface *)interface rootObjectDictionary:(const WebKit::ImmutableDictionary*)rootObjectDictionary
 {
     if (!(self = [super init]))
         return nil;
@@ -385,6 +412,27 @@ static void decodeInvocationArguments(WKRemoteObjectDecoder *decoder, NSInvocati
             break;
         }
 
+        // char
+        case 'c': {
+            char value = [decodeObjectFromObjectStream(decoder, [NSSet setWithObject:[NSNumber class]]) charValue];
+            [invocation setArgument:&value atIndex:i];
+            break;
+        }
+
+        // bool
+        case 'B': {
+            bool value = [decodeObjectFromObjectStream(decoder, [NSSet setWithObject:[NSNumber class]]) boolValue];
+            [invocation setArgument:&value atIndex:i];
+            break;
+        }
+
+        // NSInteger
+        case 'q': {
+            NSInteger value = [decodeObjectFromObjectStream(decoder, [NSSet setWithObject:[NSNumber class]]) integerValue];
+            [invocation setArgument:&value atIndex:i];
+            break;
+        }
+
         // Objective-C object
         case '@': {
             NSSet *allowedClasses = allowedArgumentClasses[i - 2].get();
@@ -434,7 +482,7 @@ static NSInvocation *decodeInvocation(WKRemoteObjectDecoder *decoder)
 
 static id decodeObject(WKRemoteObjectDecoder *decoder)
 {
-    WebString* classNameString = decoder->_currentDictionary->get<WebString>(classNameKey);
+    API::String* classNameString = decoder->_currentDictionary->get<API::String>(classNameKey);
     if (!classNameString)
         [NSException raise:NSInvalidUnarchiveOperationException format:@"Class name missing"];
 
@@ -449,7 +497,7 @@ static id decodeObject(WKRemoteObjectDecoder *decoder)
     if (objectClass == [NSInvocation class])
         return decodeInvocation(decoder);
 
-    RetainPtr<id> result = [objectClass allocWithZone:decoder.zone];
+    id result = [objectClass allocWithZone:decoder.zone];
     if (!result)
         [NSException raise:NSInvalidUnarchiveOperationException format:@"Class \"%s\" returned nil from +alloc while being decoded", className.data()];
 
@@ -461,7 +509,7 @@ static id decodeObject(WKRemoteObjectDecoder *decoder)
     if (!result)
         [NSException raise:NSInvalidUnarchiveOperationException format:@"Object of class \"%s\" returned nil from -awakeAfterUsingCoder: while being decoded", className.data()];
 
-    return [result.leakRef() autorelease];
+    return [result autorelease];
 }
 
 static id decodeObject(WKRemoteObjectDecoder *decoder, const ImmutableDictionary* dictionary, NSSet *allowedClasses)
@@ -481,7 +529,7 @@ static id decodeObject(WKRemoteObjectDecoder *decoder, const ImmutableDictionary
 
 - (BOOL)decodeBoolForKey:(NSString *)key
 {
-    const WebBoolean* value = _currentDictionary->get<WebBoolean>(escapeKey(key));
+    const API::Boolean* value = _currentDictionary->get<API::Boolean>(escapeKey(key));
     if (!value)
         return false;
     return value->value();
@@ -489,7 +537,7 @@ static id decodeObject(WKRemoteObjectDecoder *decoder, const ImmutableDictionary
 
 - (int64_t)decodeInt64ForKey:(NSString *)key
 {
-    const WebUInt64* value = _currentDictionary->get<WebUInt64>(escapeKey(key));
+    const API::UInt64* value = _currentDictionary->get<API::UInt64>(escapeKey(key));
     if (!value)
         return 0;
     return value->value();
@@ -497,7 +545,7 @@ static id decodeObject(WKRemoteObjectDecoder *decoder, const ImmutableDictionary
 
 - (double)decodeDoubleForKey:(NSString *)key
 {
-    const WebDouble* value = _currentDictionary->get<WebDouble>(escapeKey(key));
+    const API::Double* value = _currentDictionary->get<API::Double>(escapeKey(key));
     if (!value)
         return 0;
     return value->value();
@@ -505,9 +553,11 @@ static id decodeObject(WKRemoteObjectDecoder *decoder, const ImmutableDictionary
 
 - (const uint8_t *)decodeBytesForKey:(NSString *)key returnedLength:(NSUInteger *)length
 {
-    WebData* data = _currentDictionary->get<WebData>(escapeKey(key));
-    if (!data || !data->size())
+    auto* data = _currentDictionary->get<API::Data>(escapeKey(key));
+    if (!data || !data->size()) {
+        *length = 0;
         return nullptr;
+    }
 
     *length = data->size();
     return data->bytes();

@@ -22,7 +22,6 @@
 #ifndef SVGPathSegLinetoRel_h
 #define SVGPathSegLinetoRel_h
 
-#if ENABLE(SVG)
 #include "SVGPathSegWithContext.h"
 
 namespace WebCore {
@@ -40,11 +39,10 @@ private:
     {
     }
 
-    virtual unsigned short pathSegType() const { return PATHSEG_LINETO_REL; }
-    virtual String pathSegTypeAsLetter() const { return "l"; }
+    virtual unsigned short pathSegType() const override { return PATHSEG_LINETO_REL; }
+    virtual String pathSegTypeAsLetter() const override { return "l"; }
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

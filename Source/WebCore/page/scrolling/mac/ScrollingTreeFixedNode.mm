@@ -26,10 +26,11 @@
 #include "config.h"
 #include "ScrollingTreeFixedNode.h"
 
-#if ENABLE(THREADED_SCROLLING)
+#if ENABLE(ASYNC_SCROLLING)
 
 #include "ScrollingStateFixedNode.h"
 #include "ScrollingTree.h"
+#include <QuartzCore/CALayer.h>
 
 namespace WebCore {
 
@@ -39,7 +40,7 @@ PassOwnPtr<ScrollingTreeFixedNode> ScrollingTreeFixedNode::create(ScrollingTree&
 }
 
 ScrollingTreeFixedNode::ScrollingTreeFixedNode(ScrollingTree& scrollingTree, ScrollingNodeID nodeID)
-    : ScrollingTreeNode(scrollingTree, nodeID)
+    : ScrollingTreeNode(scrollingTree, FixedNode, nodeID)
 {
 }
 
@@ -47,15 +48,15 @@ ScrollingTreeFixedNode::~ScrollingTreeFixedNode()
 {
 }
 
-void ScrollingTreeFixedNode::updateBeforeChildren(ScrollingStateNode* stateNode)
+void ScrollingTreeFixedNode::updateBeforeChildren(const ScrollingStateNode& stateNode)
 {
-    ScrollingStateFixedNode* fixedStateNode = toScrollingStateFixedNode(stateNode);
+    const ScrollingStateFixedNode& fixedStateNode = toScrollingStateFixedNode(stateNode);
 
-    if (fixedStateNode->hasChangedProperty(ScrollingStateNode::ScrollLayer))
-        m_layer = fixedStateNode->platformScrollLayer();
+    if (fixedStateNode.hasChangedProperty(ScrollingStateNode::ScrollLayer))
+        m_layer = fixedStateNode.layer();
 
-    if (stateNode->hasChangedProperty(ScrollingStateFixedNode::ViewportConstraints))
-        m_constraints = fixedStateNode->viewportConstraints();
+    if (stateNode.hasChangedProperty(ScrollingStateFixedNode::ViewportConstraints))
+        m_constraints = fixedStateNode.viewportConstraints();
 }
 
 static inline CGPoint operator*(CGPoint& a, const CGSize& b)
@@ -63,7 +64,7 @@ static inline CGPoint operator*(CGPoint& a, const CGSize& b)
     return CGPointMake(a.x * b.width, a.y * b.height);
 }
 
-void ScrollingTreeFixedNode::parentScrollPositionDidChange(const IntRect& viewportRect, const FloatSize& cumulativeDelta)
+void ScrollingTreeFixedNode::parentScrollPositionDidChange(const FloatRect& viewportRect, const FloatSize& cumulativeDelta)
 {
     FloatPoint layerPosition = m_constraints.layerPositionForViewportRect(viewportRect);
     layerPosition -= cumulativeDelta;
@@ -85,4 +86,4 @@ void ScrollingTreeFixedNode::parentScrollPositionDidChange(const IntRect& viewpo
 
 } // namespace WebCore
 
-#endif // ENABLE(THREADED_SCROLLING)
+#endif // ENABLE(ASYNC_SCROLLING)

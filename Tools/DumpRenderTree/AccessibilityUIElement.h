@@ -31,7 +31,7 @@
 #include <wtf/Platform.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #ifdef __OBJC__
 typedef id PlatformUIElement;
 #else
@@ -53,7 +53,7 @@ typedef AtkObject* PlatformUIElement;
 typedef void* PlatformUIElement;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #ifdef __OBJC__
 typedef id NotificationHandler;
 #else
@@ -67,7 +67,7 @@ public:
     AccessibilityUIElement(const AccessibilityUIElement&);
     ~AccessibilityUIElement();
 
-    PlatformUIElement platformUIElement() { return m_element; }
+    PlatformUIElement platformUIElement() const { return m_element; }
 
     static JSObjectRef makeJSAccessibilityUIElement(JSContextRef, const AccessibilityUIElement&);
 
@@ -117,6 +117,7 @@ public:
     JSStringRef role();
     JSStringRef subrole();
     JSStringRef roleDescription();
+    JSStringRef computedRoleString();
     JSStringRef title();
     JSStringRef description();
     JSStringRef language();
@@ -147,6 +148,8 @@ public:
     void setSelectedChild(AccessibilityUIElement*) const;
     unsigned selectedChildrenCount() const;
     AccessibilityUIElement selectedChildAtIndex(unsigned) const;
+    void setSelectedChildAtIndex(unsigned) const;
+    void removeSelectionAtIndex(unsigned) const;
     
     bool isExpanded() const;
     bool isChecked() const;
@@ -154,6 +157,7 @@ public:
     bool isOffScreen() const;
     bool isCollapsed() const;
     bool isIgnored() const;
+    bool isIndeterminate() const;
     bool hasPopup() const;
     int hierarchicalLevel() const;
     double clickPointX();
@@ -178,6 +182,8 @@ public:
     JSStringRef columnIndexRange();
     int rowCount();
     int columnCount();
+    void rowHeaders(Vector<AccessibilityUIElement>& elements) const;
+    void columnHeaders(Vector<AccessibilityUIElement>& elements) const;
     
     // Tree/Outline specific attributes
     AccessibilityUIElement selectedRowAtIndex(unsigned);
@@ -188,6 +194,7 @@ public:
     // ARIA specific
     AccessibilityUIElement ariaOwnsElementAtIndex(unsigned);
     AccessibilityUIElement ariaFlowToElementAtIndex(unsigned);
+    AccessibilityUIElement ariaControlsElementAtIndex(unsigned);
 
     // ARIA Drag and Drop
     bool ariaIsGrabbed() const;
@@ -203,14 +210,23 @@ public:
     JSStringRef stringForRange(unsigned location, unsigned length);
     JSStringRef attributedStringForRange(unsigned location, unsigned length);
     bool attributedStringRangeIsMisspelled(unsigned location, unsigned length);
-    unsigned uiElementCountForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly);
-    AccessibilityUIElement uiElementForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly);
+    unsigned uiElementCountForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly);
+    AccessibilityUIElement uiElementForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly);
+    JSStringRef selectTextWithCriteria(JSContextRef, JSStringRef ambiguityResolution, JSValueRef searchStrings, JSStringRef replacementString);
 #if PLATFORM(IOS)
     void elementsForRange(unsigned location, unsigned length, Vector<AccessibilityUIElement>& elements);
     JSStringRef stringForSelection();
     void increaseTextSelection();
     void decreaseTextSelection();
     AccessibilityUIElement linkedElement();
+#endif
+
+#if PLATFORM(GTK) || PLATFORM(EFL)
+    // Text-specific
+    JSStringRef characterAtOffset(int offset);
+    JSStringRef wordAtOffset(int offset);
+    JSStringRef lineAtOffset(int offset);
+    JSStringRef sentenceAtOffset(int offset);
 #endif
 
     // Table-specific
@@ -221,6 +237,7 @@ public:
     AccessibilityUIElement verticalScrollbar() const;
 
     // Text markers.
+    AccessibilityTextMarkerRange lineTextMarkerRangeForTextMarker(AccessibilityTextMarker*);
     AccessibilityTextMarkerRange textMarkerRangeForElement(AccessibilityUIElement*);    
     AccessibilityTextMarkerRange textMarkerRangeForMarkers(AccessibilityTextMarker* startMarker, AccessibilityTextMarker* endMarker);
     AccessibilityTextMarker startTextMarkerForTextMarkerRange(AccessibilityTextMarkerRange*);
@@ -278,8 +295,10 @@ private:
     static JSClassRef getJSClass();
     PlatformUIElement m_element;
     
+#if PLATFORM(IOS) 
+    JSObjectRef m_notificationFunctionCallback;
+#elif PLATFORM(MAC)
     // A retained, platform specific object used to help manage notifications for this object.
-#if PLATFORM(MAC)
     NotificationHandler m_notificationHandler;
 #endif
 

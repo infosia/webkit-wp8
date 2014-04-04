@@ -41,6 +41,11 @@
 #include "JSSharedWorker.h"
 #endif
 
+#if ENABLE(IOS_TOUCH_EVENTS)
+#include "JSTouchConstructorIOS.h"
+#include "JSTouchListConstructorIOS.h"
+#endif
+
 #if ENABLE(WEB_AUDIO)
 #include "JSAudioContext.h"
 #endif
@@ -67,24 +72,24 @@ void JSDOMWindow::visitChildren(JSCell* cell, SlotVisitor& visitor)
 }
 
 template<NativeFunction nativeFunction, int length>
-EncodedJSValue nonCachingStaticFunctionGetter(ExecState* exec, EncodedJSValue, EncodedJSValue, PropertyName propertyName)
+EncodedJSValue nonCachingStaticFunctionGetter(ExecState* exec, JSObject*, EncodedJSValue, PropertyName propertyName)
 {
     return JSValue::encode(JSFunction::create(exec->vm(), exec->lexicalGlobalObject(), length, propertyName.publicName(), nativeFunction));
 }
 
-static EncodedJSValue childFrameGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName propertyName)
+static EncodedJSValue childFrameGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    return JSValue::encode(toJS(exec, jsCast<JSDOMWindow*>(JSValue::decode(slotBase))->impl().frame()->tree().scopedChild(propertyNameToAtomicString(propertyName))->document()->domWindow()));
+    return JSValue::encode(toJS(exec, jsCast<JSDOMWindow*>(slotBase)->impl().frame()->tree().scopedChild(propertyNameToAtomicString(propertyName))->document()->domWindow()));
 }
 
-static EncodedJSValue indexGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, unsigned index)
+static EncodedJSValue indexGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, unsigned index)
 {
-    return JSValue::encode(toJS(exec, jsCast<JSDOMWindow*>(JSValue::decode(slotBase))->impl().frame()->tree().scopedChild(index)->document()->domWindow()));
+    return JSValue::encode(toJS(exec, jsCast<JSDOMWindow*>(slotBase)->impl().frame()->tree().scopedChild(index)->document()->domWindow()));
 }
 
-static EncodedJSValue namedItemGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName propertyName)
+static EncodedJSValue namedItemGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    JSDOMWindowBase* thisObj = jsCast<JSDOMWindow*>(JSValue::decode(slotBase));
+    JSDOMWindowBase* thisObj = jsCast<JSDOMWindow*>(slotBase);
     Document* document = thisObj->impl().frame()->document();
 
     ASSERT(BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObj->impl()));
@@ -111,7 +116,7 @@ bool JSDOMWindow::getOwnPropertySlot(JSObject* object, ExecState* exec, Property
     // are not affected by properties changed on the Window or anything in its prototype chain.
     // This is consistent with the behavior of Firefox.
 
-    const HashEntry* entry;
+    const HashTableValue* entry;
 
     // We don't want any properties other than "close" and "closed" on a frameless window (i.e. one whose page got closed,
     // or whose iframe got removed).
@@ -339,7 +344,7 @@ void JSDOMWindow::put(JSCell* cell, ExecState* exec, PropertyName propertyName, 
         return;
     }
 
-    if (lookupPut<JSDOMWindow>(exec, propertyName, value, *s_info.propHashTable(exec), thisObject))
+    if (lookupPut(exec, propertyName, thisObject, value, *s_info.propHashTable(exec), slot))
         return;
 
     if (BindingSecurity::shouldAllowAccessToDOMWindow(exec, thisObject->impl()))
@@ -452,6 +457,18 @@ JSValue JSDOMWindow::image(ExecState* exec) const
     return getDOMConstructor<JSImageConstructor>(exec->vm(), this);
 }
 
+#if ENABLE(IOS_TOUCH_EVENTS)
+JSValue JSDOMWindow::touch(ExecState* exec) const
+{
+    return getDOMConstructor<JSTouchConstructor>(exec->vm(), this);
+}
+
+JSValue JSDOMWindow::touchList(ExecState* exec) const
+{
+    return getDOMConstructor<JSTouchListConstructor>(exec->vm(), this);
+}
+#endif
+
 // Custom functions
 
 JSValue JSDOMWindow::open(ExecState* exec)
@@ -479,7 +496,7 @@ public:
     {
     }
 
-    void dialogCreated(DOMWindow*);
+    void dialogCreated(DOMWindow&);
     JSValue returnValue() const;
 
 private:
@@ -487,9 +504,10 @@ private:
     RefPtr<Frame> m_frame;
 };
 
-inline void DialogHandler::dialogCreated(DOMWindow* dialog)
+inline void DialogHandler::dialogCreated(DOMWindow& dialog)
 {
-    m_frame = dialog->frame();
+    m_frame = dialog.frame();
+    
     // FIXME: This looks like a leak between the normal world and an isolated
     //        world if dialogArguments comes from an isolated world.
     JSDOMWindow* globalObject = toJSDOMWindow(m_frame.get(), normalWorld(m_exec->vm()));
@@ -509,11 +527,6 @@ inline JSValue DialogHandler::returnValue() const
     return slot.getValue(m_exec, identifier);
 }
 
-static void setUpDialog(DOMWindow* dialog, void* handler)
-{
-    static_cast<DialogHandler*>(handler)->dialogCreated(dialog);
-}
-
 JSValue JSDOMWindow::showModalDialog(ExecState* exec)
 {
     String urlString = valueToStringWithUndefinedOrNullCheck(exec, exec->argument(0));
@@ -525,7 +538,9 @@ JSValue JSDOMWindow::showModalDialog(ExecState* exec)
 
     DialogHandler handler(exec);
 
-    impl().showModalDialog(urlString, dialogFeaturesString, activeDOMWindow(exec), firstDOMWindow(exec), setUpDialog, &handler);
+    impl().showModalDialog(urlString, dialogFeaturesString, activeDOMWindow(exec), firstDOMWindow(exec), [&handler](DOMWindow& dialog) {
+        handler.dialogCreated(dialog);
+    });
 
     return handler.returnValue();
 }
@@ -579,7 +594,7 @@ JSValue JSDOMWindow::postMessage(ExecState* exec)
 JSValue JSDOMWindow::setTimeout(ExecState* exec)
 {
     ContentSecurityPolicy* contentSecurityPolicy = impl().document() ? impl().document()->contentSecurityPolicy() : 0;
-    OwnPtr<ScheduledAction> action = ScheduledAction::create(exec, currentWorld(exec), contentSecurityPolicy);
+    OwnPtr<ScheduledAction> action = ScheduledAction::create(exec, globalObject()->world(), contentSecurityPolicy);
     if (exec->hadException())
         return jsUndefined();
 
@@ -598,7 +613,7 @@ JSValue JSDOMWindow::setTimeout(ExecState* exec)
 JSValue JSDOMWindow::setInterval(ExecState* exec)
 {
     ContentSecurityPolicy* contentSecurityPolicy = impl().document() ? impl().document()->contentSecurityPolicy() : 0;
-    OwnPtr<ScheduledAction> action = ScheduledAction::create(exec, currentWorld(exec), contentSecurityPolicy);
+    OwnPtr<ScheduledAction> action = ScheduledAction::create(exec, globalObject()->world(), contentSecurityPolicy);
     if (exec->hadException())
         return jsUndefined();
     int delay = exec->argument(1).toInt32(exec);
@@ -623,7 +638,7 @@ JSValue JSDOMWindow::addEventListener(ExecState* exec)
     if (!listener.isObject())
         return jsUndefined();
 
-    impl().addEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)), exec->argument(2).toBoolean(exec));
+    impl().addEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, globalObject()->world()), exec->argument(2).toBoolean(exec));
     return jsUndefined();
 }
 
@@ -637,7 +652,7 @@ JSValue JSDOMWindow::removeEventListener(ExecState* exec)
     if (!listener.isObject())
         return jsUndefined();
 
-    impl().removeEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, currentWorld(exec)).get(), exec->argument(2).toBoolean(exec));
+    impl().removeEventListener(exec->argument(0).toString(exec)->value(exec), JSEventListener::create(asObject(listener), this, false, globalObject()->world()).get(), exec->argument(2).toBoolean(exec));
     return jsUndefined();
 }
 

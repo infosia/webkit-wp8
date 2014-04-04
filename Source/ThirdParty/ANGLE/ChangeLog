@@ -1,3 +1,142 @@
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * GNUmakefile.am: Removed.
+
+2014-03-14  Mark Rowe  <mrowe@apple.com>
+
+        Fix the production build.
+
+        Don't rely on USE_INTERNAL_SDK being set for the Production configuration since UseInternalSDK.xcconfig won't
+        be at the expected relative path when working from installed source.
+
+        * Configurations/Base.xcconfig:
+
+2014-03-13  Tim Horton  <timothy_horton@apple.com>
+
+        Fix relative paths to UseInternalSDK.xcconfig for ANGLE and WebKit/mac
+
+        Rubber-stamped by Mark Rowe.
+
+        One-too-few "..".
+
+        * Configurations/Base.xcconfig:
+
+2014-03-13  Radu Stavila  <stavila@adobe.com>
+
+        Webkit not building on XCode 5.1 due to garbage collection no longer being supported
+        https://bugs.webkit.org/show_bug.cgi?id=130087
+
+        Reviewed by Mark Rowe.
+
+        Disable garbage collection on macosx when not using internal SDK.
+
+        * Configurations/Base.xcconfig:
+
+2014-02-24  Dean Jackson  <dino@apple.com>
+
+        Unreviewed. This file should not be marked as executable (copied in from ANGLE).
+
+        * include/KHR/khrplatform.h:
+
+2014-02-23  David Kilzer  <ddkilzer@apple.com>
+
+        ANGLE: Stop using unsafe strcpy method
+        <http://webkit.org/b/129237>
+        <rdar://problem/11077580>
+
+        Reviewed by Dean Jackson.
+
+        * include/GLSLANG/ShaderLang.h:
+        - Drive-by fix for header documentation.
+
+        * src/compiler/translator/ShaderLang.cpp:
+        (ShGetInfoLog):
+        (ShGetObjectCode):
+        * src/libGLESv2/Program.cpp:
+        (gl::InfoLog::append):
+        - Switch to use strncpy(), and explicitly set NULL terminator at
+          the end of the buffer.
+
+2014-02-23  Brent Fulgham  <bfulgham@apple.com>
+
+        [WinCairo] Unreviewed build fix after r164565.
+
+        * ANGLE.vcxproj/libEGL.vcxproj: Use correct path to files.
+        * ANGLE.vcxproj/libGLESv2.vcxproj: Ditto.
+        * ANGLE.vcxproj/libGLESv2.vcxproj.filters: Ditto.
+        * ANGLE.vcxproj/preprocessor.vcxproj: Ditto.
+        * ANGLE.vcxproj/translator_common.vcxproj: Ditto.
+        * ANGLE.vcxproj/translator_common.vcxproj.filters: Ditto.
+        * ANGLE.vcxproj/translator_glsl.vcxproj: Ditto.
+        * ANGLE.vcxproj/translator_glsl.vcxproj.filters: Ditto.
+        * ANGLE.vcxproj/translator_hlsl.vcxproj: Ditto.
+        * ANGLE.vcxproj/translator_hlsl.vcxproj.filters: Ditto.
+
+2014-02-23  Dean Jackson  <dino@apple.com>
+
+        Missing files from previous commit.
+
+2014-02-23  Dean Jackson  <dino@apple.com>
+
+        Update ANGLE to 836bd2176e5607b14846cf1fbc5932dbc91318f4
+        https://bugs.webkit.org/show_bug.cgi?id=129232
+
+        Reviewed by Brent Fulgham.
+
+        I also reapplied some of our changes from previous updates, including disabling the clang deprecation
+        warnings in some files, adding the Apple note about license and defining YY_NO_INPUT.
+
+        Huge list of source changes omitted.
+
+2013-12-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Fix make distcheck.
+
+        * GNUmakefile.am:
+
+2013-12-17  Gustavo Noronha Silva  <gustavo.noronha@collabora.com>
+
+        [GTK] Some ANGLE headers missing from dist
+        https://bugs.webkit.org/show_bug.cgi?id=125782
+
+        Reviewed by Carlos Garcia Campos.
+
+        * GNUmakefile.am: add a few headers that were missing from the build,
+        causing build failures when the system headers were incompatible.
+
+2013-12-16  Alex Christensen  <achristensen@webkit.org>
+
+        Fixed Win64 build on VS2013.
+        https://bugs.webkit.org/show_bug.cgi?id=125753
+
+        Reviewed by Brent Fulgham.
+
+        * ANGLE.vcxproj/libGLESv2.vcxproj:
+        * ANGLE.vcxproj/preprocessor.vcxproj:
+        * ANGLE.vcxproj/translator_common.vcxproj:
+        * ANGLE.vcxproj/translator_glsl.vcxproj:
+        * ANGLE.vcxproj/translator_hlsl.vcxproj:
+        Added correct PlatformToolset for 64-bit builds.
+
+2013-12-13  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Unreviewed build fix after r160548
+
+        I missed the ANGLE files, since we aren't building these
+        on the Apple Windows port at the moment.
+
+        * ANGLE.vcxproj/libEGL.vcxproj: Update to VS2013
+        * ANGLE.vcxproj/libGLESv2.vcxproj: Ditto
+        * ANGLE.vcxproj/preprocessor.vcxproj: Ditto
+        * ANGLE.vcxproj/translator_common.vcxproj: Ditto
+        * ANGLE.vcxproj/translator_glsl.vcxproj: Ditto
+        * ANGLE.vcxproj/translator_hlsl.vcxproj: Ditto
+
 2013-12-06  Commit Queue  <commit-queue@webkit.org>
 
         Unreviewed, rolling out r159543.

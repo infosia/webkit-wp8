@@ -22,12 +22,14 @@
 
 #ifndef JSString_h
 #define JSString_h
+
 #include "CallFrame.h"
 #include "CommonIdentifiers.h"
 #include "Identifier.h"
 #include "PropertyDescriptor.h"
 #include "PropertySlot.h"
 #include "Structure.h"
+#include <array>
 
 namespace JSC {
 
@@ -156,7 +158,7 @@ namespace JSC {
 
         static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue proto)
         {
-            return Structure::create(vm, globalObject, proto, TypeInfo(StringType, OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero), info());
+            return Structure::create(vm, globalObject, proto, TypeInfo(StringType, StructureFlags), info());
         }
 
         static size_t offsetOfLength() { return OBJECT_OFFSETOF(JSString, m_length); }
@@ -174,6 +176,8 @@ namespace JSC {
         };
 
     protected:
+        static const unsigned StructureFlags = OverridesGetOwnPropertySlot | InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | StructureIsImmortal;
+
         friend class JSValue;
             
         bool isRope() const { return m_value.isNull(); }
@@ -322,7 +326,7 @@ namespace JSC {
             
         JS_EXPORT_PRIVATE JSString* getIndexSlowCase(ExecState*, unsigned);
 
-        mutable FixedArray<WriteBarrier<JSString>, s_maxInternalRopeLength> m_fibers;
+        mutable std::array<WriteBarrier<JSString>, s_maxInternalRopeLength> m_fibers;
     };
 
 
@@ -358,7 +362,7 @@ namespace JSC {
         UChar c = s.characterAt(offset);
         if (c <= maxSingleCharacterString)
             return vm->smallStrings.singleCharacterString(c);
-        return JSString::create(*vm, StringImpl::create(s.impl(), offset, 1));
+        return JSString::create(*vm, StringImpl::createSubstringSharingImpl(s.impl(), offset, 1));
     }
 
     inline JSString* jsNontrivialString(VM* vm, const String& s)
@@ -426,7 +430,7 @@ namespace JSC {
             if (c <= maxSingleCharacterString)
                 return vm->smallStrings.singleCharacterString(c);
         }
-        return JSString::createHasOtherOwner(*vm, StringImpl::create8(s.impl(), offset, length));
+        return JSString::createHasOtherOwner(*vm, StringImpl::createSubstringSharingImpl8(s.impl(), offset, length));
     }
 
     inline JSString* jsSubstring(VM* vm, const String& s, unsigned offset, unsigned length)
@@ -441,7 +445,7 @@ namespace JSC {
             if (c <= maxSingleCharacterString)
                 return vm->smallStrings.singleCharacterString(c);
         }
-        return JSString::createHasOtherOwner(*vm, StringImpl::create(s.impl(), offset, length));
+        return JSString::createHasOtherOwner(*vm, StringImpl::createSubstringSharingImpl(s.impl(), offset, length));
     }
 
     inline JSString* jsOwnedString(VM* vm, const String& s)
@@ -497,7 +501,7 @@ namespace JSC {
         return false;
     }
 
-    inline bool isJSString(JSValue v) { return v.isCell() && v.asCell()->classInfo() == JSString::info(); }
+    inline bool isJSString(JSValue v) { return v.isCell() && v.asCell()->type() == StringType; }
 
     // --- JSValue inlines ----------------------------
         

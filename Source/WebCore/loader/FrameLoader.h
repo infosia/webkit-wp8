@@ -13,7 +13,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -89,6 +89,9 @@ public:
     ~FrameLoader();
 
     void init();
+#if PLATFORM(IOS)
+    void initForSynthesizedDocument(const URL&);
+#endif
 
     Frame& frame() const { return m_frame; }
 
@@ -104,7 +107,7 @@ public:
 
     // FIXME: These are all functions which start loads. We have too many.
     void loadURLIntoChildFrame(const URL&, const String& referer, Frame*);
-    void loadFrameRequest(const FrameLoadRequest&, bool lockHistory, bool lockBackForwardList,  // Called by submitForm, calls loadPostRequest and loadURL.
+    void loadFrameRequest(const FrameLoadRequest&, LockHistory, LockBackForwardList,  // Called by submitForm, calls loadPostRequest and loadURL.
         PassRefPtr<Event>, PassRefPtr<FormState>, ShouldSendReferrer);
 
     void load(const FrameLoadRequest&);
@@ -114,13 +117,13 @@ public:
 #endif
     unsigned long loadResourceSynchronously(const ResourceRequest&, StoredCredentials, ClientCredentialPolicy, ResourceError&, ResourceResponse&, Vector<char>& data);
 
-    void changeLocation(SecurityOrigin*, const URL&, const String& referrer, bool lockHistory = true, bool lockBackForwardList = true, bool refresh = false);
-    void urlSelected(const URL&, const String& target, PassRefPtr<Event>, bool lockHistory, bool lockBackForwardList, ShouldSendReferrer);
+    void changeLocation(SecurityOrigin*, const URL&, const String& referrer, LockHistory = LockHistory::Yes,
+        LockBackForwardList = LockBackForwardList::Yes, bool refresh = false);
+    void urlSelected(const URL&, const String& target, PassRefPtr<Event>, LockHistory, LockBackForwardList, ShouldSendReferrer);
     void submitForm(PassRefPtr<FormSubmission>);
 
     void reload(bool endToEndReload = false);
     void reloadWithOverrideEncoding(const String& overrideEncoding);
-    void reloadWithOverrideURL(const URL& overrideUrl, bool endToEndReload = false);
 
     void open(CachedFrameBase&);
     void loadItem(HistoryItem*, FrameLoadType);
@@ -153,8 +156,10 @@ public:
     DocumentLoader* policyDocumentLoader() const { return m_policyDocumentLoader.get(); }
     DocumentLoader* provisionalDocumentLoader() const { return m_provisionalDocumentLoader.get(); }
     FrameState state() const { return m_state; }
-    static double timeOfLastCompletedLoad();
 
+#if PLATFORM(IOS)
+    RetainPtr<CFDictionaryRef> connectionProperties(ResourceLoader*);
+#endif
     const ResourceRequest& originalRequest() const;
     const ResourceRequest& initialRequest() const;
     void receivedMainResourceError(const ResourceError&);
@@ -211,7 +216,6 @@ public:
 
     void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&);
     void dispatchDidClearWindowObjectsInAllWorlds();
-    void dispatchDocumentElementAvailable();
 
     // The following sandbox flags will be forced, regardless of changes to
     // the sandbox attribute of any parent frames.
@@ -235,13 +239,14 @@ public:
     void finishedParsing();
     void checkCompleted();
 
-    void checkDidPerformFirstNavigation();
-
     bool isComplete() const;
 
     void commitProvisionalLoad();
 
-    FrameLoaderStateMachine* stateMachine() const { return &m_stateMachine; }
+    void setLoadsSynchronously(bool loadsSynchronously) { m_loadsSynchronously = loadsSynchronously; }
+    bool loadsSynchronously() const { return m_loadsSynchronously; }
+
+    FrameLoaderStateMachine& stateMachine() { return m_stateMachine; }
 
     Frame* findFrameForNavigation(const AtomicString& name, Document* activeDocument = 0);
 
@@ -251,7 +256,7 @@ public:
 
     void completed();
     bool allAncestorsAreComplete() const; // including this
-    void clientRedirected(const URL&, double delay, double fireDate, bool lockBackForwardList);
+    void clientRedirected(const URL&, double delay, double fireDate, LockBackForwardList);
     void clientRedirectCancelledOrFinished(bool cancelWithLoadInProgress);
 
     // FIXME: This is public because this asynchronous callback from the FrameLoaderClient
@@ -295,7 +300,7 @@ private:
 
     bool allChildrenAreComplete() const; // immediate children, not all descendants
 
-    void checkTimerFired(Timer<FrameLoader>*);
+    void checkTimerFired(Timer<FrameLoader>&);
     
     void loadSameDocumentItem(HistoryItem*);
     void loadDifferentDocumentItem(HistoryItem*, FrameLoadType, FormSubmissionCacheLoadPolicy);
@@ -313,10 +318,6 @@ private:
 
     SubstituteData defaultSubstituteDataForURL(const URL&);
 
-    static void callContinueLoadAfterNavigationPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
-    static void callContinueLoadAfterNewWindowPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, const String& frameName, const NavigationAction&, bool shouldContinue);
-    static void callContinueFragmentScrollAfterNavigationPolicy(void*, const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
-    
     bool handleBeforeUnloadEvent(Chrome&, FrameLoader* frameLoaderBeingNavigated);
 
     void continueLoadAfterNavigationPolicy(const ResourceRequest&, PassRefPtr<FormState>, bool shouldContinue);
@@ -341,20 +342,18 @@ private:
 
     void dispatchDidCommitLoad();
 
-    void urlSelected(const FrameLoadRequest&, PassRefPtr<Event>, bool lockHistory, bool lockBackForwardList, ShouldSendReferrer, ShouldReplaceDocumentIfJavaScriptURL);
+    void urlSelected(const FrameLoadRequest&, PassRefPtr<Event>, LockHistory, LockBackForwardList, ShouldSendReferrer, ShouldReplaceDocumentIfJavaScriptURL);
 
     void loadWithDocumentLoader(DocumentLoader*, FrameLoadType, PassRefPtr<FormState>); // Calls continueLoadAfterNavigationPolicy
     void load(DocumentLoader*);                                                         // Calls loadWithDocumentLoader   
 
     void loadWithNavigationAction(const ResourceRequest&, const NavigationAction&,      // Calls loadWithDocumentLoader
-        bool lockHistory, FrameLoadType, PassRefPtr<FormState>);
+        LockHistory, FrameLoadType, PassRefPtr<FormState>);
 
     void loadPostRequest(const ResourceRequest&, const String& referrer,                // Called by loadFrameRequest, calls loadWithNavigationAction
-        const String& frameName, bool lockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);
+        const String& frameName, LockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);
     void loadURL(const URL&, const String& referrer, const String& frameName,          // Called by loadFrameRequest, calls loadWithNavigationAction or dispatches to navigation policy delegate
-        bool lockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);                                                         
-
-    void reloadWithRequest(const ResourceRequest&, bool endToEndReload);
+        LockHistory, FrameLoadType, PassRefPtr<Event>, PassRefPtr<FormState>);
 
     bool shouldReload(const URL& currentURL, const URL& destinationURL);
 
@@ -432,11 +431,12 @@ private:
     Frame* m_opener;
     HashSet<Frame*> m_openedFrames;
 
-    bool m_didPerformFirstNavigation;
     bool m_loadingFromCachedPage;
     bool m_suppressOpenerInNewFrame;
-    
+
     bool m_currentNavigationHasShownBeforeUnloadConfirmPanel;
+
+    bool m_loadsSynchronously;
 
     SandboxFlags m_forcedSandboxFlags;
 

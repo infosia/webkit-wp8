@@ -20,7 +20,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFEOffsetElement.h"
 
 #include "Attribute.h"
@@ -57,7 +57,7 @@ PassRefPtr<SVGFEOffsetElement> SVGFEOffsetElement::create(const QualifiedName& t
 
 bool SVGFEOffsetElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::inAttr);
         supportedAttributes.add(SVGNames::dxAttr);
@@ -122,4 +122,4 @@ PassRefPtr<FilterEffect> SVGFEOffsetElement::build(SVGFilterBuilder* filterBuild
 
 }
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)

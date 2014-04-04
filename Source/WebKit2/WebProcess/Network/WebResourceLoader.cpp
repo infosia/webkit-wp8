@@ -28,7 +28,6 @@
 
 #if ENABLE(NETWORK_PROCESS)
 
-#include "CertificateInfo.h"
 #include "DataReference.h"
 #include "Logging.h"
 #include "NetworkProcessConnection.h"
@@ -36,6 +35,7 @@
 #include "WebCoreArgumentCoders.h"
 #include "WebErrors.h"
 #include "WebProcess.h"
+#include <WebCore/CertificateInfo.h>
 #include <WebCore/DocumentLoader.h>
 #include <WebCore/ResourceBuffer.h>
 #include <WebCore/ResourceError.h>
@@ -59,7 +59,7 @@ WebResourceLoader::~WebResourceLoader()
 {
 }
 
-CoreIPC::Connection* WebResourceLoader::messageSenderConnection()
+IPC::Connection* WebResourceLoader::messageSenderConnection()
 {
     return WebProcess::shared().networkConnection()->connection();
 }
@@ -106,7 +106,20 @@ void WebResourceLoader::didReceiveResponseWithCertificateInfo(const ResourceResp
     Ref<WebResourceLoader> protect(*this);
 
     ResourceResponse responseCopy(response);
+
+#if USE(QUICK_LOOK)
+    setUpQuickLookHandleIfNeeded(response);
+    if (QuickLookHandle* quickLookHandle = m_coreLoader->quickLookHandle())
+        responseCopy = ResourceResponse(quickLookHandle->nsResponse());
+#endif
+
+    // FIXME: This should use CertificateInfo to avoid the platform ifdefs. See https://bugs.webkit.org/show_bug.cgi?id=124724.
+#if PLATFORM(COCOA)
     responseCopy.setCertificateChain(certificateInfo.certificateChain());
+#elif USE(SOUP)
+    responseCopy.setSoupMessageCertificate(certificateInfo.certificate());
+    responseCopy.setSoupMessageTLSErrors(certificateInfo.tlsErrors());
+#endif
     m_coreLoader->didReceiveResponse(responseCopy);
 
     // If m_coreLoader becomes null as a result of the didReceiveResponse callback, we can't use the send function(). 
@@ -117,15 +130,29 @@ void WebResourceLoader::didReceiveResponseWithCertificateInfo(const ResourceResp
         send(Messages::NetworkResourceLoader::ContinueDidReceiveResponse());
 }
 
-void WebResourceLoader::didReceiveData(const CoreIPC::DataReference& data, int64_t encodedDataLength)
+void WebResourceLoader::didReceiveData(const IPC::DataReference& data, int64_t encodedDataLength)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didReceiveData of size %i for '%s'", (int)data.size(), m_coreLoader->url().string().utf8().data());
+
+#if USE(QUICK_LOOK)
+    if (QuickLookHandle* quickLookHandle = m_coreLoader->quickLookHandle()) {
+        RetainPtr<CFDataRef> rawData = adoptCF(CFDataCreateWithBytesNoCopy(0, data.data(), data.size(), kCFAllocatorNull));
+        if (quickLookHandle->didReceiveData(rawData.get()))
+            return;
+    }
+#endif
     m_coreLoader->didReceiveData(reinterpret_cast<const char*>(data.data()), data.size(), encodedDataLength, DataPayloadBytes);
 }
 
 void WebResourceLoader::didFinishResourceLoad(double finishTime)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didFinishResourceLoad for '%s'", m_coreLoader->url().string().utf8().data());
+
+#if USE(QUICK_LOOK)
+    QuickLookHandle* quickLookHandle = resourceLoader()->quickLookHandle();
+    if (quickLookHandle && quickLookHandle->didFinishLoading())
+        return;
+#endif
     m_coreLoader->didFinishLoading(finishTime);
 }
 
@@ -133,6 +160,10 @@ void WebResourceLoader::didFailResourceLoad(const ResourceError& error)
 {
     LOG(Network, "(WebProcess) WebResourceLoader::didFailResourceLoad for '%s'", m_coreLoader->url().string().utf8().data());
     
+#if USE(QUICK_LOOK)
+    if (QuickLookHandle *quickLookHandle = resourceLoader()->quickLookHandle())
+        quickLookHandle->didFail();
+#endif
     m_coreLoader->didFail(error);
 }
 

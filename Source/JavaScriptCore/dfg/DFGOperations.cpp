@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,7 @@
 #include "CommonSlowPaths.h"
 #include "CopiedSpaceInlines.h"
 #include "DFGDriver.h"
+#include "DFGJITCode.h"
 #include "DFGOSRExit.h"
 #include "DFGThunks.h"
 #include "DFGToFTLDeferredCompilationCallback.h"
@@ -50,7 +51,7 @@
 #include "JSNameScope.h"
 #include "NameInstance.h"
 #include "ObjectConstructor.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "Repatch.h"
 #include "StringConstructor.h"
 #include "TypedArrayInlines.h"
@@ -78,7 +79,7 @@ static inline void putByVal(ExecState* exec, JSValue baseValue, uint32_t index, 
             return;
         }
 
-        object->methodTable()->putByIndex(object, exec, index, value, strict);
+        object->methodTable(vm)->putByIndex(object, exec, index, value, strict);
         return;
     }
 
@@ -110,7 +111,7 @@ ALWAYS_INLINE static void JIT_OPERATION operationPutByValInternal(ExecState* exe
     }
 
     if (isName(property)) {
-        PutPropertySlot slot(strict);
+        PutPropertySlot slot(baseValue, strict);
         if (direct) {
             RELEASE_ASSERT(baseValue.isObject());
             asObject(baseValue)->putDirect(*vm, jsCast<NameInstance*>(property.asCell())->privateName(), value, slot);
@@ -122,7 +123,7 @@ ALWAYS_INLINE static void JIT_OPERATION operationPutByValInternal(ExecState* exe
     // Don't put to an object if toString throws an exception.
     Identifier ident(exec, property.toString(exec)->value(exec));
     if (!vm->exception()) {
-        PutPropertySlot slot(strict);
+        PutPropertySlot slot(baseValue, strict);
         if (direct) {
             RELEASE_ASSERT(baseValue.isObject());
             asObject(baseValue)->putDirect(*vm, jsCast<NameInstance*>(property.asCell())->privateName(), value, slot);
@@ -221,12 +222,12 @@ EncodedJSValue JIT_OPERATION operationToThisStrict(ExecState* exec, EncodedJSVal
 
 JSCell* JIT_OPERATION operationCreateThis(ExecState* exec, JSObject* constructor, int32_t inlineCapacity)
 {
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
 
 #if !ASSERT_DISABLED
     ConstructData constructData;
-    ASSERT(jsCast<JSFunction*>(constructor)->methodTable()->getConstructData(jsCast<JSFunction*>(constructor), constructData) == ConstructTypeJS);
+    ASSERT(jsCast<JSFunction*>(constructor)->methodTable(vm)->getConstructData(jsCast<JSFunction*>(constructor), constructData) == ConstructTypeJS);
 #endif
     
     return constructEmptyObject(exec, jsCast<JSFunction*>(constructor)->allocationProfile(exec, inlineCapacity)->structure());
@@ -278,8 +279,8 @@ static inline EncodedJSValue getByVal(ExecState* exec, JSCell* base, uint32_t in
 
 EncodedJSValue JIT_OPERATION operationGetByVal(ExecState* exec, EncodedJSValue encodedBase, EncodedJSValue encodedProperty)
 {
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
     
     JSValue baseValue = JSValue::decode(encodedBase);
     JSValue property = JSValue::decode(encodedProperty);
@@ -295,7 +296,7 @@ EncodedJSValue JIT_OPERATION operationGetByVal(ExecState* exec, EncodedJSValue e
             if (propertyAsUInt32 == propertyAsDouble)
                 return getByVal(exec, base, propertyAsUInt32);
         } else if (property.isString()) {
-            if (JSValue result = base->fastGetOwnProperty(exec, asString(property)->value(exec)))
+            if (JSValue result = base->fastGetOwnProperty(vm, asString(property)->value(exec)))
                 return JSValue::encode(result);
         }
     }
@@ -309,8 +310,8 @@ EncodedJSValue JIT_OPERATION operationGetByVal(ExecState* exec, EncodedJSValue e
 
 EncodedJSValue JIT_OPERATION operationGetByValCell(ExecState* exec, JSCell* base, EncodedJSValue encodedProperty)
 {
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
     
     JSValue property = JSValue::decode(encodedProperty);
 
@@ -322,7 +323,7 @@ EncodedJSValue JIT_OPERATION operationGetByValCell(ExecState* exec, JSCell* base
         if (propertyAsUInt32 == propertyAsDouble)
             return getByVal(exec, base, propertyAsUInt32);
     } else if (property.isString()) {
-        if (JSValue result = base->fastGetOwnProperty(exec, asString(property)->value(exec)))
+        if (JSValue result = base->fastGetOwnProperty(vm, asString(property)->value(exec)))
             return JSValue::encode(result);
     }
 
@@ -391,15 +392,15 @@ void JIT_OPERATION operationPutByValCellNonStrict(ExecState* exec, JSCell* cell,
 
 void JIT_OPERATION operationPutByValBeyondArrayBoundsStrict(ExecState* exec, JSObject* array, int32_t index, EncodedJSValue encodedValue)
 {
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
     
     if (index >= 0) {
         array->putByIndexInline(exec, index, JSValue::decode(encodedValue), true);
         return;
     }
     
-    PutPropertySlot slot(true);
+    PutPropertySlot slot(array, true);
     array->methodTable()->put(
         array, exec, Identifier::from(exec, index), JSValue::decode(encodedValue), slot);
 }
@@ -414,7 +415,7 @@ void JIT_OPERATION operationPutByValBeyondArrayBoundsNonStrict(ExecState* exec, 
         return;
     }
     
-    PutPropertySlot slot(false);
+    PutPropertySlot slot(array, false);
     array->methodTable()->put(
         array, exec, Identifier::from(exec, index), JSValue::decode(encodedValue), slot);
 }
@@ -431,7 +432,7 @@ void JIT_OPERATION operationPutDoubleByValBeyondArrayBoundsStrict(ExecState* exe
         return;
     }
     
-    PutPropertySlot slot(true);
+    PutPropertySlot slot(array, true);
     array->methodTable()->put(
         array, exec, Identifier::from(exec, index), jsValue, slot);
 }
@@ -448,7 +449,7 @@ void JIT_OPERATION operationPutDoubleByValBeyondArrayBoundsNonStrict(ExecState* 
         return;
     }
     
-    PutPropertySlot slot(false);
+    PutPropertySlot slot(array, false);
     array->methodTable()->put(
         array, exec, Identifier::from(exec, index), jsValue, slot);
 }
@@ -494,7 +495,7 @@ void JIT_OPERATION operationPutByValDirectBeyondArrayBoundsStrict(ExecState* exe
         return;
     }
     
-    PutPropertySlot slot(true);
+    PutPropertySlot slot(array, true);
     array->putDirect(exec->vm(), Identifier::from(exec, index), JSValue::decode(encodedValue), slot);
 }
 
@@ -508,7 +509,7 @@ void JIT_OPERATION operationPutByValDirectBeyondArrayBoundsNonStrict(ExecState* 
         return;
     }
     
-    PutPropertySlot slot(false);
+    PutPropertySlot slot(array, false);
     array->putDirect(exec->vm(), Identifier::from(exec, index), JSValue::decode(encodedValue), slot);
 }
 
@@ -823,6 +824,8 @@ size_t JIT_OPERATION operationIsFunction(EncodedJSValue value)
 
 JSCell* JIT_OPERATION operationTypeOf(ExecState* exec, JSCell* value)
 {
+    VM& vm = exec->vm();
+    NativeCallFrameTracer tracer(&vm, exec);
     return jsTypeStringForValue(exec, JSValue(value)).asCell();
 }
 
@@ -850,8 +853,9 @@ char* JIT_OPERATION operationReallocateButterflyToHavePropertyStorageWithInitial
     NativeCallFrameTracer tracer(&vm, exec);
 
     ASSERT(!object->structure()->outOfLineCapacity());
+    DeferGC deferGC(vm.heap);
     Butterfly* result = object->growOutOfLineStorage(vm, 0, initialOutOfLineCapacity);
-    object->setButterflyWithoutChangingStructure(result);
+    object->setButterflyWithoutChangingStructure(vm, result);
     return reinterpret_cast<char*>(result);
 }
 
@@ -860,8 +864,9 @@ char* JIT_OPERATION operationReallocateButterflyToGrowPropertyStorage(ExecState*
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
 
+    DeferGC deferGC(vm.heap);
     Butterfly* result = object->growOutOfLineStorage(vm, object->structure()->outOfLineCapacity(), newSize);
-    object->setButterflyWithoutChangingStructure(result);
+    object->setButterflyWithoutChangingStructure(vm, result);
     return reinterpret_cast<char*>(result);
 }
 
@@ -1035,8 +1040,8 @@ void JIT_OPERATION debugOperationPrintSpeculationFailure(ExecState* exec, void* 
     SpeculationFailureDebugInfo* debugInfo = static_cast<SpeculationFailureDebugInfo*>(debugInfoRaw);
     CodeBlock* codeBlock = debugInfo->codeBlock;
     CodeBlock* alternative = codeBlock->alternative();
-    dataLog(
-        "Speculation failure in ", *codeBlock, " with ");
+    dataLog("Speculation failure in ", *codeBlock);
+    dataLog(" @ exit #", vm->osrExitIndex, " (bc#", debugInfo->bytecodeOffset, ", ", exitKindToString(debugInfo->kind), ") with ");
     if (alternative) {
         dataLog(
             "executeCounter = ", alternative->jitExecuteCounter(),
@@ -1105,25 +1110,12 @@ extern "C" void JIT_OPERATION triggerReoptimizationNow(CodeBlock* codeBlock)
         return;
     }
 
-    optimizedCodeBlock->jettison(CountReoptimization);
+    optimizedCodeBlock->jettison(Profiler::JettisonDueToOSRExit, CountReoptimization);
 }
 
 #if ENABLE(FTL_JIT)
-void JIT_OPERATION triggerTierUpNow(ExecState* exec)
+static void triggerFTLReplacementCompile(VM* vm, CodeBlock* codeBlock, JITCode* jitCode)
 {
-    VM* vm = &exec->vm();
-    NativeCallFrameTracer tracer(vm, exec);
-    DeferGC deferGC(vm->heap);
-    CodeBlock* codeBlock = exec->codeBlock();
-    
-    JITCode* jitCode = codeBlock->jitCode()->dfg();
-    
-    if (Options::verboseOSR()) {
-        dataLog(
-            *codeBlock, ": Entered triggerTierUpNow with executeCounter = ",
-            jitCode->tierUpCounter, "\n");
-    }
-    
     if (codeBlock->baselineVersion()->m_didFailFTLCompilation) {
         if (Options::verboseOSR())
             dataLog("Deferring FTL-optimization of ", *codeBlock, " indefinitely because there was an FTL failure.\n");
@@ -1138,7 +1130,7 @@ void JIT_OPERATION triggerTierUpNow(ExecState* exec)
     }
     
     Worklist::State worklistState;
-    if (Worklist* worklist = vm->worklist.get()) {
+    if (Worklist* worklist = existingGlobalFTLWorklistOrNull()) {
         worklistState = worklist->completeAllReadyPlansForVM(
             *vm, CompilationKey(codeBlock->baselineVersion(), FTLMode));
     } else
@@ -1167,8 +1159,26 @@ void JIT_OPERATION triggerTierUpNow(ExecState* exec)
 
     // We need to compile the code.
     compile(
-        *vm, codeBlock->newReplacement().get(), FTLMode, UINT_MAX, Operands<JSValue>(),
-        ToFTLDeferredCompilationCallback::create(codeBlock), vm->ensureWorklist());
+        *vm, codeBlock->newReplacement().get(), codeBlock, FTLMode, UINT_MAX,
+        Operands<JSValue>(), ToFTLDeferredCompilationCallback::create(codeBlock));
+}
+
+void JIT_OPERATION triggerTierUpNow(ExecState* exec)
+{
+    VM* vm = &exec->vm();
+    NativeCallFrameTracer tracer(vm, exec);
+    DeferGC deferGC(vm->heap);
+    CodeBlock* codeBlock = exec->codeBlock();
+    
+    JITCode* jitCode = codeBlock->jitCode()->dfg();
+    
+    if (Options::verboseOSR()) {
+        dataLog(
+            *codeBlock, ": Entered triggerTierUpNow with executeCounter = ",
+            jitCode->tierUpCounter, "\n");
+    }
+    
+    triggerFTLReplacementCompile(vm, codeBlock, jitCode);
 }
 
 char* JIT_OPERATION triggerOSREntryNow(
@@ -1187,55 +1197,47 @@ char* JIT_OPERATION triggerOSREntryNow(
             jitCode->tierUpCounter, "\n");
     }
     
-    if (codeBlock->baselineVersion()->m_didFailFTLCompilation) {
-        if (Options::verboseOSR())
-            dataLog("Deferring FTL-optimization of ", *codeBlock, " indefinitely because there was an FTL failure.\n");
-        jitCode->dontOptimizeAnytimeSoon(codeBlock);
+    // - If we don't have an FTL code block, then try to compile one.
+    // - If we do have an FTL code block, then try to enter for a while.
+    // - If we couldn't enter for a while, then trigger OSR entry.
+    
+    triggerFTLReplacementCompile(vm, codeBlock, jitCode);
+
+    if (!codeBlock->hasOptimizedReplacement())
+        return 0;
+    
+    if (jitCode->osrEntryRetry < Options::ftlOSREntryRetryThreshold()) {
+        jitCode->osrEntryRetry++;
         return 0;
     }
     
-    if (!jitCode->checkIfOptimizationThresholdReached(codeBlock)) {
-        if (Options::verboseOSR())
-            dataLog("Choosing not to FTL-optimize ", *codeBlock, " yet.\n");
-        return 0;
-    }
-    
+    // It's time to try to compile code for OSR entry.
     Worklist::State worklistState;
-    if (Worklist* worklist = vm->worklist.get()) {
+    if (Worklist* worklist = existingGlobalFTLWorklistOrNull()) {
         worklistState = worklist->completeAllReadyPlansForVM(
             *vm, CompilationKey(codeBlock->baselineVersion(), FTLForOSREntryMode));
     } else
         worklistState = Worklist::NotKnown;
     
-    if (worklistState == Worklist::Compiling) {
-        ASSERT(!jitCode->osrEntryBlock);
-        jitCode->setOptimizationThresholdBasedOnCompilationResult(
-            codeBlock, CompilationDeferred);
+    if (worklistState == Worklist::Compiling)
         return 0;
-    }
     
     if (CodeBlock* entryBlock = jitCode->osrEntryBlock.get()) {
         void* address = FTL::prepareOSREntry(
             exec, codeBlock, entryBlock, bytecodeIndex, streamIndex);
-        if (address) {
-            jitCode->optimizeSoon(codeBlock);
+        if (address)
             return static_cast<char*>(address);
-        }
         
         FTL::ForOSREntryJITCode* entryCode = entryBlock->jitCode()->ftlForOSREntry();
         entryCode->countEntryFailure();
         if (entryCode->entryFailureCount() <
-            Options::ftlOSREntryFailureCountForReoptimization()) {
-            
-            jitCode->optimizeSoon(codeBlock);
+            Options::ftlOSREntryFailureCountForReoptimization())
             return 0;
-        }
         
         // OSR entry failed. Oh no! This implies that we need to retry. We retry
         // without exponential backoff and we only do this for the entry code block.
         jitCode->osrEntryBlock.clear();
-        
-        jitCode->optimizeAfterWarmUp(codeBlock);
+        jitCode->osrEntryRetry = 0;
         return 0;
     }
     
@@ -1246,45 +1248,26 @@ char* JIT_OPERATION triggerOSREntryNow(
         return 0;
     }
 
-    // The first order of business is to trigger a for-entry compile.
+    // We aren't compiling and haven't compiled anything for OSR entry. So, try to compile
+    // something.
     Operands<JSValue> mustHandleValues;
     jitCode->reconstruct(
         exec, codeBlock, CodeOrigin(bytecodeIndex), streamIndex, mustHandleValues);
-    CompilationResult forEntryResult = DFG::compile(
-        *vm, codeBlock->newReplacement().get(), FTLForOSREntryMode, bytecodeIndex,
-        mustHandleValues, ToFTLForOSREntryDeferredCompilationCallback::create(codeBlock),
-        vm->ensureWorklist());
+    RefPtr<CodeBlock> replacementCodeBlock = codeBlock->newReplacement();
+    CompilationResult forEntryResult = compile(
+        *vm, replacementCodeBlock.get(), codeBlock, FTLForOSREntryMode, bytecodeIndex,
+        mustHandleValues, ToFTLForOSREntryDeferredCompilationCallback::create(codeBlock));
     
-    // But we also want to trigger a replacement compile. Of course, we don't want to
-    // trigger it if we don't need to. Note that this is kind of weird because we might
-    // have just finished an FTL compile and that compile failed or was invalidated.
-    // But this seems uncommon enough that we sort of don't care. It's certainly sound
-    // to fire off another compile right now so long as we're not already compiling and
-    // we don't already have an optimized replacement. Note, we don't do this for
-    // obviously bad cases like global code, where we know that there is a slim chance
-    // of this code being invoked ever again.
-    CompilationKey keyForReplacement(codeBlock->baselineVersion(), FTLMode);
-    if (codeBlock->codeType() != GlobalCode
-        && !codeBlock->hasOptimizedReplacement()
-        && (!vm->worklist.get()
-            || vm->worklist->compilationState(keyForReplacement) == Worklist::NotKnown)) {
-        compile(
-            *vm, codeBlock->newReplacement().get(), FTLMode, UINT_MAX, Operands<JSValue>(),
-            ToFTLDeferredCompilationCallback::create(codeBlock), vm->ensureWorklist());
-    }
-    
-    if (forEntryResult != CompilationSuccessful)
+    if (forEntryResult != CompilationSuccessful) {
+        ASSERT(forEntryResult == CompilationDeferred || replacementCodeBlock->hasOneRef());
         return 0;
-    
+    }
+
     // It's possible that the for-entry compile already succeeded. In that case OSR
     // entry will succeed unless we ran out of stack. It's not clear what we should do.
     // We signal to try again after a while if that happens.
     void* address = FTL::prepareOSREntry(
         exec, codeBlock, jitCode->osrEntryBlock.get(), bytecodeIndex, streamIndex);
-    if (address)
-        jitCode->optimizeSoon(codeBlock);
-    else
-        jitCode->optimizeAfterWarmUp(codeBlock);
     return static_cast<char*>(address);
 }
 

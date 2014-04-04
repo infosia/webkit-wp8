@@ -24,12 +24,16 @@
  */
 
 #include "config.h"
-#include "WKContext.h"
 #include "WKContextPrivate.h"
 
+#include "APIClient.h"
+#include "APIDownloadClient.h"
+#include "APIHistoryClient.h"
+#include "APINavigationData.h"
+#include "APIURLRequest.h"
 #include "WKAPICast.h"
+#include "WKRetainPtr.h"
 #include "WebContext.h"
-#include "WebURLRequest.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
 #include <wtf/text/WTFString.h>
@@ -53,15 +57,19 @@
 #include "WebNetworkInfoManagerProxy.h"
 #endif
 
+namespace API {
+template<> struct ClientTraits<WKContextDownloadClientBase> {
+    typedef std::tuple<WKContextDownloadClientV0> Versions;
+};
+template<> struct ClientTraits<WKContextHistoryClientBase> {
+    typedef std::tuple<WKContextHistoryClientV0> Versions;
+};
+}
+
+using namespace WebCore;
 using namespace WebKit;
 
-extern "C" {
-// For binary compatibility with Safari 5.1. Should be removed eventually.
-WK_EXPORT void _WKContextSetAdditionalPluginsDirectory(WKContextRef context, WKStringRef pluginsDirectory);
-WK_EXPORT void _WKContextRegisterURLSchemeAsEmptyDocument(WKContextRef context, WKStringRef urlScheme);
-WK_EXPORT void _WKContextSetAlwaysUsesComplexTextCodePath(WKContextRef context, bool alwaysUseComplexTextCodePath);
-WK_EXPORT void _WKContextSetHTTPPipeliningEnabled(WKContextRef context, bool enabled);
-}
+typedef GenericAPICallback<WKDictionaryRef> DictionaryAPICallback;
 
 WKTypeID WKContextGetTypeID()
 {
@@ -92,12 +100,165 @@ void WKContextSetInjectedBundleClient(WKContextRef contextRef, const WKContextIn
 
 void WKContextSetHistoryClient(WKContextRef contextRef, const WKContextHistoryClientBase* wkClient)
 {
-    toImpl(contextRef)->initializeHistoryClient(wkClient);
+    class HistoryClient final : public API::Client<WKContextHistoryClientBase>, public API::HistoryClient {
+    public:
+        explicit HistoryClient(const WKContextHistoryClientBase* client)
+        {
+            initialize(client);
+        }
+
+    private:
+        virtual void didNavigateWithNavigationData(WebContext* context, WebPageProxy* page, const WebNavigationDataStore& navigationDataStore, WebFrameProxy* frame) override
+        {
+            if (!m_client.didNavigateWithNavigationData)
+                return;
+
+            RefPtr<API::NavigationData> navigationData = API::NavigationData::create(navigationDataStore);
+            m_client.didNavigateWithNavigationData(toAPI(context), toAPI(page), toAPI(navigationData.get()), toAPI(frame), m_client.base.clientInfo);
+        }
+
+        virtual void didPerformClientRedirect(WebContext* context, WebPageProxy* page, const String& sourceURL, const String& destinationURL, WebFrameProxy* frame) override
+        {
+            if (!m_client.didPerformClientRedirect)
+                return;
+
+            m_client.didPerformClientRedirect(toAPI(context), toAPI(page), toURLRef(sourceURL.impl()), toURLRef(destinationURL.impl()), toAPI(frame), m_client.base.clientInfo);
+        }
+
+        virtual void didPerformServerRedirect(WebContext* context, WebPageProxy* page, const String& sourceURL, const String& destinationURL, WebFrameProxy* frame) override
+        {
+            if (!m_client.didPerformServerRedirect)
+                return;
+
+            m_client.didPerformServerRedirect(toAPI(context), toAPI(page), toURLRef(sourceURL.impl()), toURLRef(destinationURL.impl()), toAPI(frame), m_client.base.clientInfo);
+        }
+
+        virtual void didUpdateHistoryTitle(WebContext* context, WebPageProxy* page, const String& title, const String& url, WebFrameProxy* frame) override
+        {
+            if (!m_client.didUpdateHistoryTitle)
+                return;
+
+            m_client.didUpdateHistoryTitle(toAPI(context), toAPI(page), toAPI(title.impl()), toURLRef(url.impl()), toAPI(frame), m_client.base.clientInfo);
+        }
+
+        virtual void populateVisitedLinks(WebContext* context) override
+        {
+            if (!m_client.populateVisitedLinks)
+                return;
+
+            m_client.populateVisitedLinks(toAPI(context), m_client.base.clientInfo);
+        }
+
+        virtual bool shouldTrackVisitedLinks() const
+        {
+            return m_client.populateVisitedLinks;
+        }
+    };
+    
+    toImpl(contextRef)->setHistoryClient(std::make_unique<HistoryClient>(wkClient));
 }
 
 void WKContextSetDownloadClient(WKContextRef contextRef, const WKContextDownloadClientBase* wkClient)
 {
-    toImpl(contextRef)->initializeDownloadClient(wkClient);
+    class DownloadClient final : public API::Client<WKContextDownloadClientBase>, public API::DownloadClient {
+    public:
+        explicit DownloadClient(const WKContextDownloadClientBase* client)
+        {
+            initialize(client);
+        }
+    private:
+        virtual void didStart(WebContext* webContext, DownloadProxy* downloadProxy) override
+        {
+            if (!m_client.didStart)
+                return;
+
+            m_client.didStart(toAPI(webContext), toAPI(downloadProxy), m_client.base.clientInfo);
+        }
+
+        virtual void didReceiveAuthenticationChallenge(WebContext* webContext, DownloadProxy* downloadProxy, AuthenticationChallengeProxy* authenticationChallengeProxy) override
+        {
+            if (!m_client.didReceiveAuthenticationChallenge)
+                return;
+
+            m_client.didReceiveAuthenticationChallenge(toAPI(webContext), toAPI(downloadProxy), toAPI(authenticationChallengeProxy), m_client.base.clientInfo);
+        }
+
+        virtual void didReceiveResponse(WebContext* webContext, DownloadProxy* downloadProxy, const ResourceResponse& response) override
+        {
+            if (!m_client.didReceiveResponse)
+                return;
+
+            m_client.didReceiveResponse(toAPI(webContext), toAPI(downloadProxy), toAPI(API::URLResponse::create(response).get()), m_client.base.clientInfo);
+        }
+
+        virtual void didReceiveData(WebContext* webContext, DownloadProxy* downloadProxy, uint64_t length) override
+        {
+            if (!m_client.didReceiveData)
+                return;
+
+            m_client.didReceiveData(toAPI(webContext), toAPI(downloadProxy), length, m_client.base.clientInfo);
+        }
+
+        virtual bool shouldDecodeSourceDataOfMIMEType(WebContext* webContext, DownloadProxy* downloadProxy, const String& mimeType) override
+        {
+            if (!m_client.shouldDecodeSourceDataOfMIMEType)
+                return true;
+
+            return m_client.shouldDecodeSourceDataOfMIMEType(toAPI(webContext), toAPI(downloadProxy), toAPI(mimeType.impl()), m_client.base.clientInfo);
+        }
+
+        virtual String decideDestinationWithSuggestedFilename(WebContext* webContext, DownloadProxy* downloadProxy, const String& filename, bool& allowOverwrite) override
+        {
+            if (!m_client.decideDestinationWithSuggestedFilename)
+                return String();
+
+            WKRetainPtr<WKStringRef> destination(AdoptWK, m_client.decideDestinationWithSuggestedFilename(toAPI(webContext), toAPI(downloadProxy), toAPI(filename.impl()), &allowOverwrite, m_client.base.clientInfo));
+            return toWTFString(destination.get());
+        }
+
+        virtual void didCreateDestination(WebContext* webContext, DownloadProxy* downloadProxy, const String& path) override
+        {
+            if (!m_client.didCreateDestination)
+                return;
+
+            m_client.didCreateDestination(toAPI(webContext), toAPI(downloadProxy), toAPI(path.impl()), m_client.base.clientInfo);
+        }
+
+        virtual void didFinish(WebContext* webContext, DownloadProxy* downloadProxy) override
+        {
+            if (!m_client.didFinish)
+                return;
+
+            m_client.didFinish(toAPI(webContext), toAPI(downloadProxy), m_client.base.clientInfo);
+        }
+
+        virtual void didFail(WebContext* webContext, DownloadProxy* downloadProxy, const ResourceError& error) override
+        {
+            if (!m_client.didFail)
+                return;
+
+            m_client.didFail(toAPI(webContext), toAPI(downloadProxy), toAPI(error), m_client.base.clientInfo);
+        }
+        
+        virtual void didCancel(WebContext* webContext, DownloadProxy* downloadProxy) override
+        {
+            if (!m_client.didCancel)
+                return;
+            
+            m_client.didCancel(toAPI(webContext), toAPI(downloadProxy), m_client.base.clientInfo);
+        }
+        
+        virtual void processDidCrash(WebContext* webContext, DownloadProxy* downloadProxy) override
+        {
+            if (!m_client.processDidCrash)
+                return;
+            
+            m_client.processDidCrash(toAPI(webContext), toAPI(downloadProxy), m_client.base.clientInfo);
+        }
+
+    };
+
+    toImpl(contextRef)->setDownloadClient(std::make_unique<DownloadClient>(wkClient));
 }
 
 void WKContextSetConnectionClient(WKContextRef contextRef, const WKContextConnectionClientBase* wkClient)
@@ -131,7 +292,11 @@ void WKContextGetGlobalStatistics(WKContextStatistics* statistics)
 
 void WKContextAddVisitedLink(WKContextRef contextRef, WKStringRef visitedURL)
 {
-    toImpl(contextRef)->addVisitedLink(toImpl(visitedURL)->string());
+    String visitedURLString = toImpl(visitedURL)->string();
+    if (visitedURLString.isEmpty())
+        return;
+
+    toImpl(contextRef)->visitedLinkProvider().addVisitedLinkHash(visitedLinkHash(visitedURLString));
 }
 
 void WKContextSetCacheModel(WKContextRef contextRef, WKCacheModel cacheModel)
@@ -192,6 +357,16 @@ void WKContextRegisterURLSchemeAsEmptyDocument(WKContextRef contextRef, WKString
 void WKContextRegisterURLSchemeAsSecure(WKContextRef contextRef, WKStringRef urlScheme)
 {
     toImpl(contextRef)->registerURLSchemeAsSecure(toImpl(urlScheme)->string());
+}
+
+void WKContextRegisterURLSchemeAsCachePartitioned(WKContextRef contextRef, WKStringRef urlScheme)
+{
+#if ENABLE(CACHE_PARTITIONING)
+    toImpl(contextRef)->registerURLSchemeAsCachePartitioned(toImpl(urlScheme)->string());
+#else
+    UNUSED_PARAM(contextRef);
+    UNUSED_PARAM(urlScheme);
+#endif
 }
 
 void WKContextSetDomainRelaxationForbiddenForURLScheme(WKContextRef contextRef, WKStringRef urlScheme)
@@ -351,12 +526,12 @@ void WKContextWarmInitialProcess(WKContextRef contextRef)
 
 void WKContextGetStatistics(WKContextRef contextRef, void* context, WKContextGetStatisticsFunction callback)
 {
-    toImpl(contextRef)->getStatistics(0xFFFFFFFF, DictionaryCallback::create(context, callback));
+    toImpl(contextRef)->getStatistics(0xFFFFFFFF, DictionaryAPICallback::create(context, callback));
 }
 
 void WKContextGetStatisticsWithOptions(WKContextRef contextRef, WKStatisticsOptions optionsMask, void* context, WKContextGetStatisticsFunction callback)
 {
-    toImpl(contextRef)->getStatistics(optionsMask, DictionaryCallback::create(context, callback));
+    toImpl(contextRef)->getStatistics(optionsMask, DictionaryAPICallback::create(context, callback));
 }
 
 void WKContextGarbageCollectJavaScriptObjects(WKContextRef contextRef)
@@ -391,6 +566,13 @@ void WKContextSetPlugInAutoStartOriginHashes(WKContextRef contextRef, WKDictiona
     toImpl(contextRef)->setPlugInAutoStartOriginHashes(*toImpl(dictionaryRef));
 }
 
+void WKContextSetPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(WKContextRef contextRef, WKDictionaryRef dictionaryRef, double time)
+{
+    if (!dictionaryRef)
+        return;
+    toImpl(contextRef)->setPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(*toImpl(dictionaryRef), time);
+}
+
 void WKContextSetPlugInAutoStartOrigins(WKContextRef contextRef, WKArrayRef arrayRef)
 {
     if (!arrayRef)
@@ -403,23 +585,7 @@ void WKContextSetInvalidMessageFunction(WKContextInvalidMessageFunction invalidM
     WebContext::setInvalidMessageCallback(invalidMessageFunction);
 }
 
-// Deprecated functions.
-void _WKContextSetAdditionalPluginsDirectory(WKContextRef context, WKStringRef pluginsDirectory)
+void WKContextSetMemoryCacheDisabled(WKContextRef contextRef, bool disabled)
 {
-    WKContextSetAdditionalPluginsDirectory(context, pluginsDirectory);
-}
-
-void _WKContextRegisterURLSchemeAsEmptyDocument(WKContextRef context, WKStringRef urlScheme)
-{
-    WKContextRegisterURLSchemeAsEmptyDocument(context, urlScheme);
-}
-
-void _WKContextSetAlwaysUsesComplexTextCodePath(WKContextRef context, bool alwaysUseComplexTextCodePath)
-{
-    WKContextSetAlwaysUsesComplexTextCodePath(context, alwaysUseComplexTextCodePath);
-}
-
-void _WKContextSetHTTPPipeliningEnabled(WKContextRef context, bool enabled)
-{
-    WKContextSetHTTPPipeliningEnabled(context, enabled);
+    toImpl(contextRef)->setMemoryCacheDisabled(disabled);
 }

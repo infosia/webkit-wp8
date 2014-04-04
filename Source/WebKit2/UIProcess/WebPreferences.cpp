@@ -34,54 +34,61 @@ namespace WebKit {
 
 // FIXME: Manipulating this variable is not thread safe.
 // Instead of tracking private browsing state as a boolean preference, we should let the client provide storage sessions explicitly.
-static unsigned privateBrowsingPageGroupCount;
+static unsigned privateBrowsingPageCount;
 
-WebPreferences::WebPreferences()
-{
-    platformInitializeStore();
-}
-
-WebPreferences::WebPreferences(const String& identifier)
+WebPreferences::WebPreferences(const String& identifier, const String& keyPrefix)
     : m_identifier(identifier)
+    , m_keyPrefix(keyPrefix)
 {
     platformInitializeStore();
 }
 
 WebPreferences::WebPreferences(const WebPreferences& other)
-    : m_store(other.m_store)
+    : m_keyPrefix(other.m_keyPrefix)
+    , m_store(other.m_store)
 {
     platformInitializeStore();
 }
 
 WebPreferences::~WebPreferences()
 {
-    ASSERT(m_pageGroups.isEmpty());
+    ASSERT(m_pages.isEmpty());
 }
 
-void WebPreferences::addPageGroup(WebPageGroup* pageGroup)
+PassRefPtr<WebPreferences> WebPreferences::copy() const
 {
-    bool didAddPageGroup = m_pageGroups.add(pageGroup).isNewEntry;
-    if (didAddPageGroup && privateBrowsingEnabled()) {
-        if (!privateBrowsingPageGroupCount)
+    return adoptRef(new WebPreferences(*this));
+}
+
+void WebPreferences::addPage(WebPageProxy& webPageProxy)
+{
+    ASSERT(!m_pages.contains(&webPageProxy));
+    m_pages.add(&webPageProxy);
+
+    if (privateBrowsingEnabled()) {
+        if (!privateBrowsingPageCount)
             WebContext::willStartUsingPrivateBrowsing();
-        ++privateBrowsingPageGroupCount;
+
+        ++privateBrowsingPageCount;
     }
 }
 
-void WebPreferences::removePageGroup(WebPageGroup* pageGroup)
+void WebPreferences::removePage(WebPageProxy& webPageProxy)
 {
-    bool didRemovePageGroup = m_pageGroups.remove(pageGroup);
-    if (didRemovePageGroup && privateBrowsingEnabled()) {
-        --privateBrowsingPageGroupCount;
-        if (!privateBrowsingPageGroupCount)
+    ASSERT(m_pages.contains(&webPageProxy));
+    m_pages.remove(&webPageProxy);
+
+    if (privateBrowsingEnabled()) {
+        --privateBrowsingPageCount;
+        if (!privateBrowsingPageCount)
             WebContext::willStopUsingPrivateBrowsing();
     }
 }
 
 void WebPreferences::update()
 {
-    for (HashSet<WebPageGroup*>::iterator it = m_pageGroups.begin(), end = m_pageGroups.end(); it != end; ++it)
-        (*it)->preferencesDidChange();
+    for (auto& webPageProxy : m_pages)
+        webPageProxy->preferencesDidChange();
 }
 
 void WebPreferences::updateStringValueForKey(const String& key, const String& value)
@@ -123,22 +130,22 @@ void WebPreferences::updatePrivateBrowsingValue(bool value)
 {
     platformUpdateBoolValueForKey(WebPreferencesKey::privateBrowsingEnabledKey(), value);
 
-    unsigned pageGroupsChanged = m_pageGroups.size();
-    if (!pageGroupsChanged)
+    unsigned pagesChanged = m_pages.size();
+    if (!pagesChanged)
         return;
 
     if (value) {
-        if (!privateBrowsingPageGroupCount)
+        if (!privateBrowsingPageCount)
             WebContext::willStartUsingPrivateBrowsing();
-        privateBrowsingPageGroupCount += pageGroupsChanged;
+        privateBrowsingPageCount += pagesChanged;
     }
 
     update(); // FIXME: Only send over the changed key and value.
 
     if (!value) {
-        ASSERT(privateBrowsingPageGroupCount >= pageGroupsChanged);
-        privateBrowsingPageGroupCount -= pageGroupsChanged;
-        if (!privateBrowsingPageGroupCount)
+        ASSERT(privateBrowsingPageCount >= pagesChanged);
+        privateBrowsingPageCount -= pagesChanged;
+        if (!privateBrowsingPageCount)
             WebContext::willStopUsingPrivateBrowsing();
     }
 }
@@ -161,9 +168,9 @@ FOR_EACH_WEBKIT_PREFERENCE(DEFINE_PREFERENCE_GETTER_AND_SETTERS)
 
 #undef DEFINE_PREFERENCE_GETTER_AND_SETTERS
 
-bool WebPreferences::anyPageGroupsAreUsingPrivateBrowsing()
+bool WebPreferences::anyPagesAreUsingPrivateBrowsing()
 {
-    return privateBrowsingPageGroupCount;
+    return privateBrowsingPageCount;
 }
 
 } // namespace WebKit

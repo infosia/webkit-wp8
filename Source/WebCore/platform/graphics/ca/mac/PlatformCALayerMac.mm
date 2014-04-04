@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,8 +25,6 @@
 
 #include "config.h"
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #import "PlatformCALayerMac.h"
 
 #import "AnimationUtilities.h"
@@ -34,10 +32,14 @@
 #import "GraphicsContext.h"
 #import "GraphicsLayerCA.h"
 #import "LengthFunctions.h"
+#import "PlatformCAAnimationMac.h"
 #import "PlatformCAFilters.h"
+#import "PlatformCAFiltersMac.h"
+#import "ScrollbarThemeMac.h"
 #import "SoftLinking.h"
 #import "TiledBacking.h"
 #import "TileController.h"
+#import "WebCoreCALayerExtras.h"
 #import "WebLayer.h"
 #import "WebTiledBackingLayer.h"
 #import <objc/objc-auto.h>
@@ -47,6 +49,13 @@
 #import <wtf/CurrentTime.h>
 #import <wtf/RetainPtr.h>
 
+#if PLATFORM(IOS)
+#import "WebCoreThread.h"
+#import "WebTiledLayer.h"
+#import <Foundation/NSGeometry.h>
+#import <QuartzCore/CATiledLayerPrivate.h>
+#endif
+
 SOFT_LINK_FRAMEWORK_OPTIONAL(AVFoundation)
 SOFT_LINK_CLASS(AVFoundation, AVPlayerLayer)
 
@@ -54,12 +63,12 @@ using namespace WebCore;
 
 PassRefPtr<PlatformCALayer> PlatformCALayerMac::create(LayerType layerType, PlatformCALayerClient* owner)
 {
-    return adoptRef(new PlatformCALayerMac(layerType, 0, owner));
+    return adoptRef(new PlatformCALayerMac(layerType, owner));
 }
 
 PassRefPtr<PlatformCALayer> PlatformCALayerMac::create(void* platformLayer, PlatformCALayerClient* owner)
 {
-    return adoptRef(new PlatformCALayerMac(LayerTypeCustom, static_cast<PlatformLayer*>(platformLayer), owner));
+    return adoptRef(new PlatformCALayerMac(static_cast<PlatformLayer*>(platformLayer), owner));
 }
 
 static NSString * const platformCALayerPointer = @"WKPlatformCALayer";
@@ -98,6 +107,9 @@ static double mediaTimeToCurrentTime(CFTimeInterval t)
 
 - (void)animationDidStart:(CAAnimation *)animation
 {
+#if PLATFORM(IOS)
+    WebThreadLock();
+#endif
     // hasNonZeroBeginTime is stored in a key in the animation
     bool hasNonZeroBeginTime = [[animation valueForKey:WKNonZeroBeginTimeFlag] boolValue];
     CFTimeInterval startTime;
@@ -141,31 +153,6 @@ void PlatformCALayerMac::setOwner(PlatformCALayerClient* owner)
         [static_cast<WebAnimationDelegate*>(m_delegate.get()) setOwner:this];        
 }
 
-static NSDictionary *nullActionsDictionary()
-{
-    NSNull *nullValue = [NSNull null];
-    NSDictionary *actions = [NSDictionary dictionaryWithObjectsAndKeys:
-                             nullValue, @"anchorPoint",
-                             nullValue, @"anchorPointZ",
-                             nullValue, @"backgroundColor",
-                             nullValue, @"borderColor",
-                             nullValue, @"borderWidth",
-                             nullValue, @"bounds",
-                             nullValue, @"contents",
-                             nullValue, @"contentsRect",
-                             nullValue, @"contentsScale",
-                             nullValue, @"cornerRadius",
-                             nullValue, @"opacity",
-                             nullValue, @"position",
-                             nullValue, @"shadowColor",
-                             nullValue, @"sublayerTransform",
-                             nullValue, @"sublayers",
-                             nullValue, @"transform",
-                             nullValue, @"zPosition",
-                             nil];
-    return actions;
-}
-
 static NSString *toCAFilterType(PlatformCALayer::FilterType type)
 {
     switch (type) {
@@ -176,54 +163,64 @@ static NSString *toCAFilterType(PlatformCALayer::FilterType type)
     }
 }
 
-PlatformCALayerMac::PlatformCALayerMac(LayerType layerType, PlatformLayer* layer, PlatformCALayerClient* owner)
-    : PlatformCALayer(layer ? LayerTypeCustom : layerType, owner)
+PlatformCALayerMac::PlatformCALayerMac(LayerType layerType, PlatformCALayerClient* owner)
+    : PlatformCALayer(layerType, owner)
+    , m_customAppearance(GraphicsLayer::NoCustomAppearance)
+    , m_customBehavior(GraphicsLayer::NoCustomBehavior)
+{
+    Class layerClass = Nil;
+    switch (layerType) {
+    case LayerTypeLayer:
+    case LayerTypeRootLayer:
+        layerClass = [CALayer class];
+        break;
+    case LayerTypeWebLayer:
+        layerClass = [WebLayer class];
+        break;
+    case LayerTypeSimpleLayer:
+    case LayerTypeTiledBackingTileLayer:
+        layerClass = [WebSimpleLayer class];
+        break;
+    case LayerTypeTransformLayer:
+        layerClass = [CATransformLayer class];
+        break;
+    case LayerTypeWebTiledLayer:
+        ASSERT_NOT_REACHED();
+        break;
+    case LayerTypeTiledBackingLayer:
+    case LayerTypePageTiledBackingLayer:
+        layerClass = [WebTiledBackingLayer class];
+        break;
+    case LayerTypeAVPlayerLayer:
+        layerClass = getAVPlayerLayerClass();
+        break;
+    case LayerTypeCustom:
+        break;
+    }
+
+    if (layerClass)
+        m_layer = adoptNS([[layerClass alloc] init]);
+    
+    commonInit();
+}
+
+PlatformCALayerMac::PlatformCALayerMac(PlatformLayer* layer, PlatformCALayerClient* owner)
+    : PlatformCALayer([layer isKindOfClass:getAVPlayerLayerClass()] ? LayerTypeAVPlayerLayer : LayerTypeCustom, owner)
+    , m_customAppearance(GraphicsLayer::NoCustomAppearance)
+    , m_customBehavior(GraphicsLayer::NoCustomBehavior)
+{
+    m_layer = layer;
+    commonInit();
+}
+
+void PlatformCALayerMac::commonInit()
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
-    if (layer) {
-        if ([layer isKindOfClass:getAVPlayerLayerClass()])
-            m_layerType = LayerTypeAVPlayerLayer;
-        m_layer = layer;
-    } else {
-        Class layerClass = Nil;
-        switch (layerType) {
-        case LayerTypeLayer:
-        case LayerTypeRootLayer:
-            layerClass = [CALayer class];
-            break;
-        case LayerTypeWebLayer:
-            layerClass = [WebLayer class];
-            break;
-        case LayerTypeSimpleLayer:
-        case LayerTypeTiledBackingTileLayer:
-            layerClass = [WebSimpleLayer class];
-            break;
-        case LayerTypeTransformLayer:
-            layerClass = [CATransformLayer class];
-            break;
-        case LayerTypeWebTiledLayer:
-            ASSERT_NOT_REACHED();
-            break;
-        case LayerTypeTiledBackingLayer:
-        case LayerTypePageTiledBackingLayer:
-            layerClass = [WebTiledBackingLayer class];
-            break;
-        case LayerTypeAVPlayerLayer:
-            layerClass = getAVPlayerLayerClass();
-            break;
-        case LayerTypeCustom:
-            break;
-        }
-
-        if (layerClass)
-            m_layer = adoptNS([[layerClass alloc] init]);
-    }
-    
     // Save a pointer to 'this' in the CALayer
     [m_layer.get() setValue:[NSValue valueWithPointer:this] forKey:platformCALayerPointer];
     
     // Clear all the implicit animations on the CALayer
-    [m_layer.get() setStyle:[NSDictionary dictionaryWithObject:nullActionsDictionary() forKey:@"actions"]];
+    [m_layer web_disableAllActions];
 
     // So that the scrolling thread's performance logging code can find all the tiles, mark this as being a tile.
     if (m_layerType == LayerTypeTiledBackingTileLayer)
@@ -233,9 +230,7 @@ PlatformCALayerMac::PlatformCALayerMac(LayerType layerType, PlatformLayer* layer
         WebTiledBackingLayer* tiledBackingLayer = static_cast<WebTiledBackingLayer*>(m_layer.get());
         TileController* tileController = [tiledBackingLayer createTileController:this];
 
-        m_customSublayers = adoptPtr(new PlatformCALayerList(1));
-        PlatformCALayer* tileCacheTileContainerLayer = tileController->tileContainerLayer();
-        (*m_customSublayers)[0] = tileCacheTileContainerLayer;
+        m_customSublayers = std::make_unique<PlatformCALayerList>(tileController->containerLayers());
     }
 
     END_BLOCK_OBJC_EXCEPTIONS
@@ -272,6 +267,7 @@ PassRefPtr<PlatformCALayer> PlatformCALayerMac::clone(PlatformCALayerClient* own
 #if ENABLE(CSS_FILTERS)
     newLayer->copyFiltersFrom(this);
 #endif
+    newLayer->updateCustomAppearance(customAppearance());
 
     if (type == LayerTypeAVPlayerLayer) {
         ASSERT([newLayer->platformLayer() isKindOfClass:getAVPlayerLayerClass()]);
@@ -398,12 +394,12 @@ void PlatformCALayerMac::addAnimationForKey(const String& key, PlatformCAAnimati
         [webAnimationDelegate setOwner:this];
     }
     
-    CAPropertyAnimation* propertyAnimation = static_cast<CAPropertyAnimation*>(animation->platformAnimation());
+    CAPropertyAnimation* propertyAnimation = static_cast<CAPropertyAnimation*>(toPlatformCAAnimationMac(animation)->platformAnimation());
     if (![propertyAnimation delegate])
         [propertyAnimation setDelegate:static_cast<id>(m_delegate.get())];
      
     BEGIN_BLOCK_OBJC_EXCEPTIONS
-    [m_layer.get() addAnimation:animation->m_animation.get() forKey:key];
+    [m_layer.get() addAnimation:propertyAnimation forKey:key];
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -419,7 +415,7 @@ PassRefPtr<PlatformCAAnimation> PlatformCALayerMac::animationForKey(const String
     CAPropertyAnimation* propertyAnimation = static_cast<CAPropertyAnimation*>([m_layer.get() animationForKey:key]);
     if (!propertyAnimation)
         return 0;
-    return PlatformCAAnimation::create(propertyAnimation);
+    return PlatformCAAnimationMac::create(propertyAnimation);
 }
 
 void PlatformCALayerMac::setMask(PlatformCALayer* layer)
@@ -450,6 +446,10 @@ void PlatformCALayerMac::setBounds(const FloatRect& value)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     [m_layer.get() setBounds:value];
+    
+    if (requiresCustomAppearanceUpdateOnBoundsChange())
+        updateCustomAppearance(m_customAppearance);
+
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -663,10 +663,6 @@ bool PlatformCALayerMac::filtersCanBeComposited(const FilterOperations& filters)
         const FilterOperation* filterOperation = filters.at(i);
         switch (filterOperation->type()) {
             case FilterOperation::REFERENCE:
-#if ENABLE(CSS_SHADERS)
-            case FilterOperation::CUSTOM:
-            case FilterOperation::VALIDATED_CUSTOM:
-#endif
                 return false;
             case FilterOperation::DROP_SHADOW:
                 // FIXME: For now we can only handle drop-shadow is if it's last in the list
@@ -679,6 +675,13 @@ bool PlatformCALayerMac::filtersCanBeComposited(const FilterOperations& filters)
     }
 
     return true;
+}
+#endif
+
+#if ENABLE(CSS_COMPOSITING)
+void PlatformCALayer::setBlendMode(BlendMode blendMode)
+{
+    PlatformCAFilters::setBlendingFiltersOnLayer(this, blendMode);
 }
 #endif
 
@@ -712,6 +715,16 @@ void PlatformCALayerMac::setContentsScale(float value)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     [m_layer.get() setContentsScale:value];
+#if PLATFORM(IOS)
+    [m_layer.get() setRasterizationScale:value];
+
+    if (m_layerType == LayerTypeWebTiledLayer) {
+        // This will invalidate all the tiles so we won't end up with stale tiles with the wrong scale in the wrong place,
+        // see <rdar://problem/9434765> for more information.
+        static NSDictionary *optionsDictionary = [[NSDictionary alloc] initWithObjectsAndKeys:[NSNumber numberWithBool:YES], kCATiledLayerRemoveImmediately, nil];
+        [(CATiledLayer *)m_layer.get() setNeedsDisplayInRect:[m_layer.get() bounds] levelOfDetail:0 options:optionsDictionary];
+    }
+#endif
     END_BLOCK_OBJC_EXCEPTIONS
 }
 
@@ -720,6 +733,31 @@ void PlatformCALayerMac::setEdgeAntialiasingMask(unsigned mask)
     BEGIN_BLOCK_OBJC_EXCEPTIONS
     [m_layer.get() setEdgeAntialiasingMask:mask];
     END_BLOCK_OBJC_EXCEPTIONS
+}
+
+bool PlatformCALayerMac::requiresCustomAppearanceUpdateOnBoundsChange() const
+{
+    return m_customAppearance == GraphicsLayer::ScrollingShadow;
+}
+
+void PlatformCALayerMac::updateCustomAppearance(GraphicsLayer::CustomAppearance appearance)
+{
+    m_customAppearance = appearance;
+
+#if ENABLE(RUBBER_BANDING)
+    switch (appearance) {
+    case GraphicsLayer::NoCustomAppearance:
+        ScrollbarThemeMac::removeOverhangAreaBackground(platformLayer());
+        ScrollbarThemeMac::removeOverhangAreaShadow(platformLayer());
+        break;
+    case GraphicsLayer::ScrollingOverhang:
+        ScrollbarThemeMac::setUpOverhangAreaBackground(platformLayer());
+        break;
+    case GraphicsLayer::ScrollingShadow:
+        ScrollbarThemeMac::setUpOverhangAreaShadow(platformLayer());
+        break;
+    }
+#endif
 }
 
 TiledBacking* PlatformCALayerMac::tiledBacking()
@@ -731,6 +769,58 @@ TiledBacking* PlatformCALayerMac::tiledBacking()
     return [tiledBackingLayer tiledBacking];
 }
 
+#if PLATFORM(IOS)
+bool PlatformCALayer::isWebLayer()
+{
+    BOOL result = NO;
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
+    result = [m_layer.get() isKindOfClass:[WebLayer self]];
+    END_BLOCK_OBJC_EXCEPTIONS
+    return result;
+}
+
+void PlatformCALayer::setBoundsOnMainThread(CGRect bounds)
+{
+    CALayer *layer = m_layer.get();
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BEGIN_BLOCK_OBJC_EXCEPTIONS
+        [layer setBounds:bounds];
+        END_BLOCK_OBJC_EXCEPTIONS
+    });
+}
+
+void PlatformCALayer::setPositionOnMainThread(CGPoint position)
+{
+    CALayer *layer = m_layer.get();
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BEGIN_BLOCK_OBJC_EXCEPTIONS
+        [layer setPosition:position];
+        END_BLOCK_OBJC_EXCEPTIONS
+    });
+}
+
+void PlatformCALayer::setAnchorPointOnMainThread(FloatPoint3D value)
+{
+    CALayer *layer = m_layer.get();
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BEGIN_BLOCK_OBJC_EXCEPTIONS
+        [layer setAnchorPoint:CGPointMake(value.x(), value.y())];
+        [layer setAnchorPointZ:value.z()];
+        END_BLOCK_OBJC_EXCEPTIONS
+    });
+}
+
+void PlatformCALayer::setTileSize(const IntSize& tileSize)
+{
+    if (m_layerType != LayerTypeWebTiledLayer)
+        return;
+
+    BEGIN_BLOCK_OBJC_EXCEPTIONS
+    [static_cast<WebTiledLayer*>(m_layer.get()) setTileSize:tileSize];
+    END_BLOCK_OBJC_EXCEPTIONS
+}
+#endif // PLATFORM(IOS)
+
 PassRefPtr<PlatformCALayer> PlatformCALayerMac::createCompatibleLayer(PlatformCALayer::LayerType layerType, PlatformCALayerClient* client) const
 {
     return PlatformCALayerMac::create(layerType, client);
@@ -740,5 +830,3 @@ void PlatformCALayerMac::enumerateRectsBeingDrawn(CGContextRef context, void (^b
 {
     wkCALayerEnumerateRectsBeingDrawnWithBlock(m_layer.get(), context, block);
 }
-
-#endif // USE(ACCELERATED_COMPOSITING)

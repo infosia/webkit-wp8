@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -78,7 +78,7 @@ void computeMD5HashStringForBitmapContext(BitmapContext* context, char hashStrin
         md5Context.addBytes(bitmapData, 4 * pixelsWide);
         bitmapData += bytesPerRow;
     }
-    Vector<uint8_t, 16> hash;
+    MD5::Digest hash;
     md5Context.checksum(hash);
 
     snprintf(hashString, 33, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",

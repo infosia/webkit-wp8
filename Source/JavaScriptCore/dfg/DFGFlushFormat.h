@@ -26,8 +26,6 @@
 #ifndef DFGFlushFormat_h
 #define DFGFlushFormat_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGNodeFlags.h"
@@ -46,6 +44,7 @@ enum FlushFormat {
     FlushedCell,
     FlushedBoolean,
     FlushedJSValue,
+    FlushedArguments,
     ConflictingFlush
 };
 
@@ -56,6 +55,7 @@ inline NodeFlags resultFor(FlushFormat format)
     case FlushedJSValue:
     case FlushedCell:
     case ConflictingFlush:
+    case FlushedArguments:
         return NodeResultJS;
     case FlushedInt32:
         return NodeResultInt32;
@@ -76,6 +76,7 @@ inline UseKind useKindFor(FlushFormat format)
     case DeadFlush:
     case FlushedJSValue:
     case ConflictingFlush:
+    case FlushedArguments:
         return UntypedUse;
     case FlushedCell:
         return CellUse;
@@ -110,6 +111,8 @@ inline DataFormat dataFormatFor(FlushFormat format)
         return DataFormatCell;
     case FlushedBoolean:
         return DataFormatBoolean;
+    case FlushedArguments:
+        return DataFormatArguments;
     }
     RELEASE_ASSERT_NOT_REACHED();
     return DataFormatDead;

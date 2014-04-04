@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,7 +37,7 @@ class MockMediaPlayerMediaSource;
 class MockSourceBufferPrivate;
 class TimeRanges;
 
-class MockMediaSourcePrivate FINAL : public MediaSourcePrivate {
+class MockMediaSourcePrivate final : public MediaSourcePrivate {
 public:
     static RefPtr<MockMediaSourcePrivate> create(MockMediaPlayerMediaSource*);
     virtual ~MockMediaSourcePrivate();
@@ -52,17 +52,27 @@ public:
     void seekToTime(const MediaTime&);
     MediaTime seekToTime(const MediaTime&, const MediaTime& negativeThreshold, const MediaTime& positiveThreshold);
 
+    unsigned long totalVideoFrames() const { return m_totalVideoFrames; }
+    unsigned long droppedVideoFrames() const  { return m_droppedVideoFrames; }
+    unsigned long corruptedVideoFrames() const { return m_corruptedVideoFrames; }
+    double totalFrameDelay() const { return m_totalFrameDelay; }
+
+    void incrementTotalVideoFrames() { ++m_totalVideoFrames; }
+    void incrementDroppedFrames() { ++m_droppedVideoFrames; }
+    void incrementCorruptedFrames() { ++m_corruptedVideoFrames; }
+    void incrementTotalFrameDelayBy(double delay) { m_totalFrameDelay += delay; }
+
 private:
     MockMediaSourcePrivate(MockMediaPlayerMediaSource*);
 
     // MediaSourcePrivate Overrides
-    virtual AddStatus addSourceBuffer(const ContentType&, RefPtr<SourceBufferPrivate>&) OVERRIDE;
-    virtual double duration() OVERRIDE;
-    virtual void setDuration(double) OVERRIDE;
-    virtual void markEndOfStream(EndOfStreamStatus) OVERRIDE;
-    virtual void unmarkEndOfStream() OVERRIDE;
-    virtual MediaPlayer::ReadyState readyState() const OVERRIDE;
-    virtual void setReadyState(MediaPlayer::ReadyState) OVERRIDE;
+    virtual AddStatus addSourceBuffer(const ContentType&, RefPtr<SourceBufferPrivate>&) override;
+    virtual double duration() override;
+    virtual void setDuration(double) override;
+    virtual void markEndOfStream(EndOfStreamStatus) override;
+    virtual void unmarkEndOfStream() override;
+    virtual MediaPlayer::ReadyState readyState() const override;
+    virtual void setReadyState(MediaPlayer::ReadyState) override;
 
     void sourceBufferPrivateDidChangeActiveState(MockSourceBufferPrivate*, bool active);
     void removeSourceBuffer(SourceBufferPrivate*);
@@ -74,6 +84,11 @@ private:
     Vector<RefPtr<MockSourceBufferPrivate>> m_sourceBuffers;
     Vector<MockSourceBufferPrivate*> m_activeSourceBuffers;
     bool m_isEnded;
+
+    unsigned long m_totalVideoFrames;
+    unsigned long m_droppedVideoFrames;
+    unsigned long m_corruptedVideoFrames;
+    double m_totalFrameDelay;
 };
 
 }

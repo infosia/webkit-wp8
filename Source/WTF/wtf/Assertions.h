@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,14 +36,9 @@
    Defining any of the symbols explicitly prevents this from having any effect.
 */
 
-#include <wtf/Platform.h>
-
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stddef.h>
-
-#if !COMPILER(MSVC)
-#include <inttypes.h>
-#endif
 
 #ifdef NDEBUG
 /* Disable ASSERT* macros in release mode. */
@@ -223,13 +218,7 @@ extern "C" {
 #define ASSERT_NOT_REACHED() ((void)0)
 #define NO_RETURN_DUE_TO_ASSERT
 
-#if COMPILER(INTEL) && !OS(WINDOWS) || COMPILER(RVCT)
-template<typename T>
-inline void assertUnused(T& x) { (void)x; }
-#define ASSERT_UNUSED(variable, assertion) (assertUnused(variable))
-#else
 #define ASSERT_UNUSED(variable, assertion) ((void)variable)
-#endif
 
 #ifdef ADDRESS_SANITIZER
 #define ASSERT_WITH_SECURITY_IMPLICATION(assertion) \
@@ -238,8 +227,10 @@ inline void assertUnused(T& x) { (void)x; }
          CRASH_WITH_SECURITY_IMPLICATION()) : \
         (void)0)
 
+#define ASSERT_WITH_SECURITY_IMPLICATION_DISABLED 0
 #else
 #define ASSERT_WITH_SECURITY_IMPLICATION(assertion) ((void)0)
+#define ASSERT_WITH_SECURITY_IMPLICATION_DISABLED 1
 #endif
 
 #else
@@ -278,6 +269,7 @@ inline void assertUnused(T& x) { (void)x; }
         (WTFReportAssertionFailure(__FILE__, __LINE__, WTF_PRETTY_FUNCTION, #assertion), \
          CRASH_WITH_SECURITY_IMPLICATION()) : \
         (void)0)
+#define ASSERT_WITH_SECURITY_IMPLICATION_DISABLED 0
 #endif
 
 /* ASSERT_WITH_MESSAGE */
@@ -296,13 +288,7 @@ while (0)
 /* ASSERT_WITH_MESSAGE_UNUSED */
 
 #if ASSERT_MSG_DISABLED
-#if COMPILER(INTEL) && !OS(WINDOWS) || COMPILER(RVCT)
-template<typename T>
-inline void assertWithMessageUnused(T& x) { (void)x; }
-#define ASSERT_WITH_MESSAGE_UNUSED(variable, assertion, ...) (assertWithMessageUnused(variable))
-#else
 #define ASSERT_WITH_MESSAGE_UNUSED(variable, assertion, ...) ((void)variable)
-#endif
 #else
 #define ASSERT_WITH_MESSAGE_UNUSED(variable, assertion, ...) do \
     if (!(assertion)) { \
@@ -335,10 +321,8 @@ while (0)
 #if COMPILER_SUPPORTS(C_STATIC_ASSERT)
 /* Unlike static_assert below, this also works in plain C code. */
 #define COMPILE_ASSERT(exp, name) _Static_assert((exp), #name)
-#elif COMPILER_SUPPORTS(CXX_STATIC_ASSERT)
-#define COMPILE_ASSERT(exp, name) static_assert((exp), #name)
 #else
-#define COMPILE_ASSERT(exp, name) typedef int dummy##name [(exp) ? 1 : -1]
+#define COMPILE_ASSERT(exp, name) static_assert((exp), #name)
 #endif
 #endif
 

@@ -2,7 +2,7 @@
  * Copyright (C) 2001 Peter Kelly (pmk@post.com)
  * Copyright (C) 2001 Tobias Anton (anton@stud.fbi.fh-darmstadt.de)
  * Copyright (C) 2006 Samuel Weinig (sam.weinig@gmail.com)
- * Copyright (C) 2003, 2004, 2005, 2006 Apple Computer, Inc.
+ * Copyright (C) 2003, 2004, 2005, 2006 Apple Inc.
  * Copyright (C) 2013 Samsung Electronics
  *
  * This library is free software; you can redistribute it and/or
@@ -29,7 +29,7 @@
 
 namespace WebCore {
 
-class BeforeUnloadEvent FINAL : public Event {
+class BeforeUnloadEvent final : public Event {
 public:
     virtual ~BeforeUnloadEvent();
 
@@ -41,21 +41,17 @@ public:
     String returnValue() const { return m_returnValue; }
     void setReturnValue(const String& returnValue) { m_returnValue = returnValue; }
 
-    virtual EventInterface eventInterface() const OVERRIDE { return BeforeUnloadEventInterfaceType; }
+    virtual EventInterface eventInterface() const override { return BeforeUnloadEventInterfaceType; }
 
 private:
     BeforeUnloadEvent();
 
-    virtual bool isBeforeUnloadEvent() const OVERRIDE;
+    virtual bool isBeforeUnloadEvent() const override;
 
     String m_returnValue;
 };
 
-inline BeforeUnloadEvent* toBeforeUnloadEvent(Event* event)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(!event || event->isBeforeUnloadEvent());
-    return static_cast<BeforeUnloadEvent*>(event);
-}
+EVENT_TYPE_CASTS(BeforeUnloadEvent)
 
 } // namespace WebCore
 

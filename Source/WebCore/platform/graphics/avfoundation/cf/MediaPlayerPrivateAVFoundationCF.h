@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -38,7 +38,7 @@ class MediaPlayerPrivateAVFoundationCF : public MediaPlayerPrivateAVFoundation {
 public:
     virtual ~MediaPlayerPrivateAVFoundationCF();
 
-    virtual void tracksChanged() OVERRIDE;
+    virtual void tracksChanged() override;
 
     static void registerMediaEngine(MediaEngineRegistrar);
 
@@ -78,14 +78,14 @@ private:
     virtual float rate() const;
     virtual void seekToTime(double time, double negativeTolerance, double positiveTolerance);
     virtual unsigned long long totalBytes() const;
-    virtual PassRefPtr<TimeRanges> platformBufferedTimeRanges() const;
+    virtual std::unique_ptr<PlatformTimeRanges> platformBufferedTimeRanges() const;
     virtual double platformMinTimeSeekable() const;
     virtual double platformMaxTimeSeekable() const;
     virtual float platformDuration() const;
     virtual float platformMaxTimeLoaded() const;
     virtual void beginLoadingMetadata();
     virtual void sizeChanged();
-    virtual bool requiresImmediateCompositing() const OVERRIDE;
+    virtual bool requiresImmediateCompositing() const override;
 
     virtual bool hasAvailableVideoFrame() const;
 
@@ -98,18 +98,18 @@ private:
     virtual bool hasContextRenderer() const;
     virtual bool hasLayerRenderer() const;
 
-    virtual void updateVideoLayerGravity() OVERRIDE;
+    virtual void updateVideoLayerGravity() override;
 
     virtual void contentsNeedsDisplay();
 
-    virtual String languageOfPrimaryAudioTrack() const OVERRIDE;
+    virtual String languageOfPrimaryAudioTrack() const override;
 
 #if HAVE(AVFOUNDATION_MEDIA_SELECTION_GROUP)
     void processMediaSelectionOptions();
 #endif
 
-    virtual void setCurrentTrack(InbandTextTrackPrivateAVF*) OVERRIDE;
-    virtual InbandTextTrackPrivateAVF* currentTrack() const OVERRIDE;
+    virtual void setCurrentTrack(InbandTextTrackPrivateAVF*) override;
+    virtual InbandTextTrackPrivateAVF* currentTrack() const override;
 
 #if !HAVE(AVFOUNDATION_LEGIBLE_OUTPUT_SUPPORT)
     void processLegacyClosedCaptionsTracks();

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
- * Copyright (C) 2006 Apple Computer Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
  *
@@ -23,10 +23,8 @@
 #include "config.h"
 #include "SVGInlineFlowBox.h"
 
-#if ENABLE(SVG)
 #include "DocumentMarkerController.h"
 #include "GraphicsContext.h"
-#include "RenderSVGInlineText.h"
 #include "RenderedDocumentMarker.h"
 #include "SVGInlineTextBox.h"
 #include "SVGRenderingContext.h"
@@ -135,5 +133,3 @@ void SVGInlineFlowBox::computeTextMatchMarkerRectForRenderer(RenderSVGInlineText
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

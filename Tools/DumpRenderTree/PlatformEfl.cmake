@@ -46,6 +46,7 @@ list(APPEND DumpRenderTree_INCLUDE_DIRECTORIES
     ${WEBKIT_DIR}/efl/WebCoreSupport
     ${WEBCORE_DIR}/platform/graphics/cairo
     ${WEBCORE_DIR}/platform/network/soup
+    ${WTF_DIR}/wtf/efl
     ${TOOLS_DIR}/DumpRenderTree/atk
     ${TOOLS_DIR}/DumpRenderTree/cairo
     ${TOOLS_DIR}/DumpRenderTree/efl
@@ -77,4 +78,4 @@ endif ()
 # FIXME: DOWNLOADED_FONTS_DIR should not hardcode the directory
 # structure. See <https://bugs.webkit.org/show_bug.cgi?id=81475>.
 add_definitions(-DFONTS_CONF_DIR="${TOOLS_DIR}/DumpRenderTree/gtk/fonts"
-                -DDOWNLOADED_FONTS_DIR="${CMAKE_SOURCE_DIR}/WebKitBuild/Dependencies/Source/webkitgtk-test-fonts-0.0.3")
+                -DDOWNLOADED_FONTS_DIR="${CMAKE_SOURCE_DIR}/WebKitBuild/Dependencies/Source/webkitgtk-test-fonts")

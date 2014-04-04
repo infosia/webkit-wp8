@@ -126,21 +126,6 @@ class Port(object):
         self._server_process_constructor = server_process.ServerProcess  # overridable for testing
         self._http_lock = None  # FIXME: Why does this live on the port object?
 
-        # Python's Popen has a bug that causes any pipes opened to a
-        # process that can't be executed to be leaked.  Since this
-        # code is specifically designed to tolerate exec failures
-        # to gracefully handle cases where wdiff is not installed,
-        # the bug results in a massive file descriptor leak. As a
-        # workaround, if an exec failure is ever experienced for
-        # wdiff, assume it's not available.  This will leak one
-        # file descriptor but that's better than leaking each time
-        # wdiff would be run.
-        #
-        # http://mail.python.org/pipermail/python-list/
-        #    2008-August/505753.html
-        # http://bugs.python.org/issue3210
-        self._wdiff_available = None
-
         if not hasattr(options, 'configuration') or not options.configuration:
             self.set_option_default('configuration', self.default_configuration())
         self._test_configuration = None
@@ -170,11 +155,6 @@ class Port(object):
         # We want to wait for at least 3 seconds, but if we are really slow, we want to be slow on cleanup as
         # well (for things like ASAN, Valgrind, etc.)
         return 3.0 * float(self.get_option('time_out_ms', '0')) / self.default_timeout_ms()
-
-    def wdiff_available(self):
-        if self._wdiff_available is None:
-            self._wdiff_available = self.check_wdiff(logging=False)
-        return self._wdiff_available
 
     def should_retry_crashes(self):
         return False
@@ -273,27 +253,6 @@ class Port(object):
             _log.error("ImageDiff was not found at %s" % image_diff_path)
             return False
         return True
-
-    def check_wdiff(self, logging=True):
-        if not self._path_to_wdiff():
-            # Don't need to log here since this is the port choosing not to use wdiff.
-            return False
-
-        try:
-            _ = self._executive.run_command([self._path_to_wdiff(), '--help'])
-        except OSError:
-            if logging:
-                message = self._wdiff_missing_message()
-                if message:
-                    for line in message.splitlines():
-                        _log.warning('    ' + line)
-                        _log.warning('')
-            return False
-
-        return True
-
-    def _wdiff_missing_message(self):
-        return 'wdiff is not installed; please install it to generate word-by-word diffs.'
 
     def check_httpd(self):
         if self._uses_apache():
@@ -541,6 +500,9 @@ class Port(object):
 
     def reference_files(self, test_name):
         """Return a list of expectation (== or !=) and filename pairs"""
+
+        if self.get_option('treat_ref_tests_as_pixel_tests'):
+            return []
 
         reftest_list = self._get_reftest_list(test_name)
         if not reftest_list:
@@ -1072,61 +1034,6 @@ class Port(object):
             repository_paths += [(self._options.additional_repository_name, self._options.additional_repository_path)]
         return repository_paths
 
-    _WDIFF_DEL = '##WDIFF_DEL##'
-    _WDIFF_ADD = '##WDIFF_ADD##'
-    _WDIFF_END = '##WDIFF_END##'
-
-    def _format_wdiff_output_as_html(self, wdiff):
-        wdiff = cgi.escape(wdiff)
-        wdiff = wdiff.replace(self._WDIFF_DEL, "<span class=del>")
-        wdiff = wdiff.replace(self._WDIFF_ADD, "<span class=add>")
-        wdiff = wdiff.replace(self._WDIFF_END, "</span>")
-        html = "<head><style>.del { background: #faa; } "
-        html += ".add { background: #afa; }</style></head>"
-        html += "<pre>%s</pre>" % wdiff
-        return html
-
-    def _wdiff_command(self, actual_filename, expected_filename):
-        executable = self._path_to_wdiff()
-        return [executable,
-                "--start-delete=%s" % self._WDIFF_DEL,
-                "--end-delete=%s" % self._WDIFF_END,
-                "--start-insert=%s" % self._WDIFF_ADD,
-                "--end-insert=%s" % self._WDIFF_END,
-                actual_filename,
-                expected_filename]
-
-    @staticmethod
-    def _handle_wdiff_error(script_error):
-        # Exit 1 means the files differed, any other exit code is an error.
-        if script_error.exit_code != 1:
-            raise script_error
-
-    def _run_wdiff(self, actual_filename, expected_filename):
-        """Runs wdiff and may throw exceptions.
-        This is mostly a hook for unit testing."""
-        # Diffs are treated as binary as they may include multiple files
-        # with conflicting encodings.  Thus we do not decode the output.
-        command = self._wdiff_command(actual_filename, expected_filename)
-        wdiff = self._executive.run_command(command, decode_output=False,
-            error_handler=self._handle_wdiff_error)
-        return self._format_wdiff_output_as_html(wdiff)
-
-    def wdiff_text(self, actual_filename, expected_filename):
-        """Returns a string of HTML indicating the word-level diff of the
-        contents of the two filenames. Returns an empty string if word-level
-        diffing isn't available."""
-        if not self.wdiff_available():
-            return ""
-        try:
-            # It's possible to raise a ScriptError we pass wdiff invalid paths.
-            return self._run_wdiff(actual_filename, expected_filename)
-        except OSError, e:
-            if e.errno in [errno.ENOENT, errno.EACCES, errno.ECHILD]:
-                # Silently ignore cases where wdiff is missing.
-                self._wdiff_available = False
-                return ""
-            raise
 
     def default_configuration(self):
         return self._config.default_configuration()
@@ -1181,7 +1088,7 @@ class Port(object):
             if self._is_arch_based():
                 return 'archlinux-httpd.conf'
         # All platforms use apache2 except for CYGWIN (and Mac OS X Tiger and prior, which we no longer support).
-        return "apache2-httpd.conf"
+        return 'apache' + self._apache_version() + '-httpd.conf'
 
     def _path_to_apache_config_file(self):
         """Returns the full path to the apache configuration file.
@@ -1259,16 +1166,6 @@ class Port(object):
 
         This is needed only by ports that use the http_server.py module."""
         raise NotImplementedError('Port._path_to_lighttpd_php')
-
-    @memoized
-    def _path_to_wdiff(self):
-        """Returns the full path to the wdiff binary, or None if it is not available.
-
-        This is likely used only by wdiff_text()"""
-        for path in ("/usr/bin/wdiff", "/usr/bin/dwdiff"):
-            if self._filesystem.exists(path):
-                return path
-        return None
 
     def _webkit_baseline_path(self, platform):
         """Return the  full path to the top of the baseline tree for a
@@ -1392,11 +1289,8 @@ class Port(object):
         environment.disable_gcc_smartquotes()
         env = environment.to_dictionary()
 
-        # FIXME: We build both DumpRenderTree and WebKitTestRunner for
-        # WebKitTestRunner runs because DumpRenderTree still includes
-        # the DumpRenderTreeSupport module and the TestNetscapePlugin.
-        # These two projects should be factored out into their own
-        # projects.
+        # FIXME: We build both DumpRenderTree and WebKitTestRunner for WebKitTestRunner runs because
+        # DumpRenderTree includes TestNetscapePlugin. It should be factored out into its own project.
         try:
             self._run_script("build-dumprendertree", args=self._build_driver_flags(), env=env)
             if self.get_option('webkit_test_runner'):

@@ -37,7 +37,6 @@
 #include "SecurityOrigin.h"
 #include "TransformSource.h"
 #include "XMLDocumentParser.h"
-#include "XSLStyleSheet.h"
 #include "XSLTExtensions.h"
 #include "XSLTUnicodeSort.h"
 #include "markup.h"
@@ -47,11 +46,10 @@
 #include <libxslt/xsltutils.h>
 #include <wtf/Assertions.h>
 #include <wtf/Vector.h>
-#include <wtf/text/CString.h>
 #include <wtf/text/StringBuffer.h>
 #include <wtf/unicode/UTF8.h>
 
-#if PLATFORM(MAC)
+#if OS(DARWIN) && !PLATFORM(EFL) && !PLATFORM(GTK)
 #include "SoftLinking.h"
 
 SOFT_LINK_LIBRARY(libxslt);
@@ -88,20 +86,20 @@ void XSLTProcessor::parseErrorFunc(void* userData, xmlError* error)
     MessageLevel level;
     switch (error->level) {
     case XML_ERR_NONE:
-        level = DebugMessageLevel;
+        level = MessageLevel::Debug;
         break;
     case XML_ERR_WARNING:
-        level = WarningMessageLevel;
+        level = MessageLevel::Warning;
         break;
     case XML_ERR_ERROR:
     case XML_ERR_FATAL:
     default:
-        level = ErrorMessageLevel;
+        level = MessageLevel::Error;
         break;
     }
 
     // xmlError->int2 is the column number of the error or 0 if N/A.
-    console->addMessage(XMLMessageSource, level, error->message, error->file, error->line, error->int2);
+    console->addMessage(MessageSource::XML, level, error->message, error->file, error->line, error->int2);
 }
 
 // FIXME: There seems to be no way to control the ctxt pointer for loading here, thus we have globals.

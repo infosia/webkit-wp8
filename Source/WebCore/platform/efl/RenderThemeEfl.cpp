@@ -30,6 +30,7 @@
 #include "CSSValueKeywords.h"
 #include "CairoUtilitiesEfl.h"
 #include "ExceptionCodePlaceholder.h"
+#include "FloatRoundedRect.h"
 #include "FontDescription.h"
 #include "GraphicsContext.h"
 #include "HTMLInputElement.h"
@@ -190,7 +191,7 @@ PassOwnPtr<RenderThemeEfl::ThemePartCacheEntry> RenderThemeEfl::ThemePartCacheEn
 
     OwnPtr<ThemePartCacheEntry> entry = adoptPtr(new ThemePartCacheEntry);
 
-    entry->m_canvas = adoptPtr(ecore_evas_buffer_new(size.width(), size.height()));
+    entry->m_canvas = EflUniquePtr<Ecore_Evas>(ecore_evas_buffer_new(size.width(), size.height()));
     if (!entry->canvas()) {
         EINA_LOG_ERR("ecore_evas_buffer_new(%d, %d) failed.", size.width(), size.height());
         return nullptr;
@@ -295,7 +296,7 @@ void RenderThemeEfl::clearThemePartCache()
 
 }
 
-void RenderThemeEfl::applyEdjeStateFromForm(Evas_Object* object, ControlStates states, bool haveBackground)
+void RenderThemeEfl::applyEdjeStateFromForm(Evas_Object* object, const ControlStates* states, bool haveBackground)
 {
     const char *signals[] = { // keep in sync with WebCore/platform/ThemeTypes.h
         "hovered",
@@ -313,7 +314,7 @@ void RenderThemeEfl::applyEdjeStateFromForm(Evas_Object* object, ControlStates s
     edje_object_signal_emit(object, "reset", "");
 
     for (size_t i = 0; i < WTF_ARRAY_LENGTH(signals); ++i) {
-        if (states & (1 << i))
+        if (states->states() & (1 << i))
             edje_object_signal_emit(object, signals[i], "");
     }
 
@@ -382,7 +383,8 @@ bool RenderThemeEfl::paintThemePart(RenderObject* object, FormType type, const P
         return false;
 
     bool haveBackgroundColor = isControlStyled(&object->style(), object->style().border(), *object->style().backgroundLayers(), Color::white);
-    applyEdjeStateFromForm(entry->edje(), controlStatesForRenderer(object), haveBackgroundColor);
+    ControlStates states(extractControlStatesForRenderer(object));
+    applyEdjeStateFromForm(entry->edje(), &states, haveBackgroundColor);
 
     applyEdjeRTLState(entry->edje(), object, type, rect);
 
@@ -495,7 +497,7 @@ bool RenderThemeEfl::loadTheme()
     ASSERT(!m_themePath.isEmpty());
 
     if (!canvas()) {
-        m_canvas = adoptPtr(ecore_evas_buffer_new(1, 1));
+        m_canvas = EflUniquePtr<Ecore_Evas>(ecore_evas_buffer_new(1, 1));
         _ASSERT_ON_RELEASE_RETURN_VAL(canvas(), false,
                 "Could not create canvas required by theme, things will not work properly.");
     }
@@ -798,7 +800,7 @@ bool RenderThemeEfl::paintSliderThumb(RenderObject* object, const PaintInfo& inf
 void RenderThemeEfl::adjustCheckboxStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustCheckboxStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustCheckboxStyle(styleResolver, style, element);
         return;
     }
 
@@ -821,7 +823,7 @@ bool RenderThemeEfl::paintCheckbox(RenderObject* object, const PaintInfo& info, 
 void RenderThemeEfl::adjustRadioStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustRadioStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustRadioStyle(styleResolver, style, element);
         return;
     }
 
@@ -844,7 +846,7 @@ bool RenderThemeEfl::paintRadio(RenderObject* object, const PaintInfo& info, con
 void RenderThemeEfl::adjustButtonStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustButtonStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustButtonStyle(styleResolver, style, element);
         return;
     }
 
@@ -861,7 +863,7 @@ bool RenderThemeEfl::paintButton(RenderObject* object, const PaintInfo& info, co
 void RenderThemeEfl::adjustMenuListStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustMenuListStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustMenuListStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, ComboBox);
@@ -900,7 +902,7 @@ bool RenderThemeEfl::paintMenuListButtonDecorations(RenderObject* object, const 
 void RenderThemeEfl::adjustTextFieldStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustTextFieldStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustTextFieldStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, TextField);
@@ -924,7 +926,7 @@ bool RenderThemeEfl::paintTextArea(RenderObject* object, const PaintInfo& info, 
 void RenderThemeEfl::adjustSearchFieldResultsButtonStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustSearchFieldResultsButtonStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustSearchFieldResultsButtonStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, SearchFieldResultsButton);
@@ -946,7 +948,7 @@ bool RenderThemeEfl::paintSearchFieldResultsButton(RenderObject* object, const P
 void RenderThemeEfl::adjustSearchFieldResultsDecorationPartStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustSearchFieldResultsDecorationPartStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustSearchFieldResultsDecorationPartStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, SearchFieldResultsDecoration);
@@ -968,7 +970,7 @@ bool RenderThemeEfl::paintSearchFieldResultsDecorationPart(RenderObject* object,
 void RenderThemeEfl::adjustSearchFieldCancelButtonStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustSearchFieldCancelButtonStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustSearchFieldCancelButtonStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, SearchFieldCancelButton);
@@ -992,7 +994,7 @@ bool RenderThemeEfl::paintSearchFieldCancelButton(RenderObject* object, const Pa
 void RenderThemeEfl::adjustSearchFieldStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustSearchFieldStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustSearchFieldStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, SearchField);
@@ -1008,7 +1010,7 @@ bool RenderThemeEfl::paintSearchField(RenderObject* object, const PaintInfo& inf
 void RenderThemeEfl::adjustInnerSpinButtonStyle(StyleResolver* styleResolver, RenderStyle* style, Element* element) const
 {
     if (!m_page && element && element->document().page()) {
-        static_cast<RenderThemeEfl*>(element->document().page()->theme())->adjustInnerSpinButtonStyle(styleResolver, style, element);
+        static_cast<RenderThemeEfl&>(element->document().page()->theme()).adjustInnerSpinButtonStyle(styleResolver, style, element);
         return;
     }
     adjustSizeConstraints(style, Spinner);
@@ -1028,11 +1030,8 @@ void RenderThemeEfl::systemFont(CSSValueID, FontDescription& fontDescription) co
 {
     // It was called by RenderEmbeddedObject::paintReplaced to render alternative string.
     // To avoid cairo_error while rendering, fontDescription should be passed.
-    DEFINE_STATIC_LOCAL(String, fontFace, (ASCIILiteral("Sans")));
-    float fontSize = defaultFontSize;
-
-    fontDescription.setOneFamily(fontFace);
-    fontDescription.setSpecifiedSize(fontSize);
+    fontDescription.setOneFamily("Sans");
+    fontDescription.setSpecifiedSize(defaultFontSize);
     fontDescription.setIsAbsoluteSize(true);
     fontDescription.setGenericFamily(FontDescription::NoFamily);
     fontDescription.setWeight(FontWeightNormal);
@@ -1245,7 +1244,7 @@ bool RenderThemeEfl::paintMediaSliderTrack(RenderObject* object, const PaintInfo
 bool RenderThemeEfl::paintMediaSliderThumb(RenderObject*, const PaintInfo& info, const IntRect& rect)
 {
     IntSize thumbRect(3, 3);
-    info.context->fillRoundedRect(rect, thumbRect, thumbRect, thumbRect, thumbRect, m_sliderThumbColor, ColorSpaceDeviceRGB);
+    info.context->fillRoundedRect(FloatRoundedRect(rect, thumbRect, thumbRect, thumbRect, thumbRect), m_sliderThumbColor, ColorSpaceDeviceRGB);
     return true;
 }
 

@@ -23,7 +23,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#if PLATFORM(IOS)
+#if TARGET_OS_IPHONE
 
 #import <CoreGraphics/CoreGraphics.h>
 #import <WebKit/WebFrame.h>
@@ -93,6 +93,7 @@ typedef enum {
 - (WebVisiblePosition *)previousUnperturbedDictationResultBoundaryFromPosition:(WebVisiblePosition *)position;
 - (WebVisiblePosition *)nextUnperturbedDictationResultBoundaryFromPosition:(WebVisiblePosition *)position;
 
+- (CGRect)elementRectAtPoint:(CGPoint)point;
 @end
 
-#endif // PLATFORM(IOS)
+#endif // TARGET_OS_IPHONE

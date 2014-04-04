@@ -20,9 +20,12 @@
 #include "config.h"
 #include "WebKitWebContext.h"
 
+#include "APIString.h"
+#include "WebBatteryManagerProxy.h"
 #include "WebCertificateInfo.h"
 #include "WebCookieManagerProxy.h"
 #include "WebGeolocationManagerProxy.h"
+#include "WebKitBatteryProvider.h"
 #include "WebKitCertificateInfoPrivate.h"
 #include "WebKitCookieManagerPrivate.h"
 #include "WebKitDownloadClient.h"
@@ -43,12 +46,13 @@
 #include <WebCore/FileSystem.h>
 #include <WebCore/IconDatabase.h>
 #include <WebCore/Language.h>
+#include <memory>
 #include <wtf/HashMap.h>
-#include <wtf/OwnPtr.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 
 using namespace WebKit;
@@ -61,8 +65,9 @@ using namespace WebKit;
  * The #WebKitWebContext manages all aspects common to all
  * #WebKitWebView<!-- -->s.
  *
- * You can define the #WebKitCacheModel with
- * webkit_web_context_set_cache_model(), depending on the needs of
+ * You can define the #WebKitCacheModel and #WebKitProcessModel with
+ * webkit_web_context_set_cache_model() and
+ * webkit_web_context_set_process_model(), depending on the needs of
  * your application. You can access the #WebKitCookieManager or the
  * #WebKitSecurityManager to specify the behaviour of your application
  * regarding cookies and security, using
@@ -81,6 +86,7 @@ using namespace WebKit;
 
 enum {
     DOWNLOAD_STARTED,
+    INITIALIZE_WEB_EXTENSIONS,
 
     LAST_SIGNAL
 };
@@ -133,25 +139,57 @@ struct _WebKitWebContextPrivate {
     GRefPtr<WebKitCookieManager> cookieManager;
     GRefPtr<WebKitFaviconDatabase> faviconDatabase;
     GRefPtr<WebKitSecurityManager> securityManager;
-    RefPtr<WebSoupRequestManagerProxy> requestManager;
+    RefPtr<WebSoupCustomProtocolRequestManager> requestManager;
     URISchemeHandlerMap uriSchemeHandlers;
     URISchemeRequestMap uriSchemeRequests;
 #if ENABLE(GEOLOCATION)
     RefPtr<WebKitGeolocationProvider> geolocationProvider;
 #endif
+#if ENABLE(BATTERY_STATUS)
+    RefPtr<WebKitBatteryProvider> batteryProvider;
+#endif
 #if ENABLE(SPELLCHECK)
-    OwnPtr<WebKitTextChecker> textChecker;
+    std::unique_ptr<WebKitTextChecker> textChecker;
 #endif
     CString faviconDatabaseDirectory;
     WebKitTLSErrorsPolicy tlsErrorsPolicy;
 
     HashMap<uint64_t, WebKitWebView*> webViews;
     GRefPtr<WebKitWebViewGroup> defaultWebViewGroup;
+
+    CString webExtensionsDirectory;
+    GRefPtr<GVariant> webExtensionsInitializationUserData;
 };
 
 static guint signals[LAST_SIGNAL] = { 0, };
 
 WEBKIT_DEFINE_TYPE(WebKitWebContext, webkit_web_context, G_TYPE_OBJECT)
+
+static inline WebKit::ProcessModel toProcessModel(WebKitProcessModel webKitProcessModel)
+{
+    switch (webKitProcessModel) {
+    case WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS:
+        return ProcessModelSharedSecondaryProcess;
+    case WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES:
+        return ProcessModelMultipleSecondaryProcesses;
+    default:
+        ASSERT_NOT_REACHED();
+        return ProcessModelSharedSecondaryProcess;
+    }
+}
+
+static inline WebKitProcessModel toWebKitProcessModel(WebKit::ProcessModel processModel)
+{
+    switch (processModel) {
+    case ProcessModelSharedSecondaryProcess:
+        return WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS;
+    case ProcessModelMultipleSecondaryProcesses:
+        return WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES;
+    default:
+        ASSERT_NOT_REACHED();
+        return WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS;
+    }
+}
 
 static void webkit_web_context_class_init(WebKitWebContextClass* webContextClass)
 {
@@ -172,6 +210,25 @@ static void webkit_web_context_class_init(WebKitWebContextClass* webContextClass
                      g_cclosure_marshal_VOID__OBJECT,
                      G_TYPE_NONE, 1,
                      WEBKIT_TYPE_DOWNLOAD);
+
+    /**
+     * WebKitWebContext::initialize-web-extensions:
+     * @context: the #WebKitWebContext
+     *
+     * This signal is emitted when a new web process is about to be
+     * launched. It signals the most appropriate moment to use
+     * webkit_web_context_set_web_extensions_initialization_user_data()
+     * and webkit_web_context_set_web_extensions_directory().
+     *
+     * Since: 2.4
+     */
+    signals[INITIALIZE_WEB_EXTENSIONS] =
+        g_signal_new("initialize-web-extensions",
+            G_TYPE_FROM_CLASS(gObjectClass),
+            G_SIGNAL_RUN_LAST,
+            0, nullptr, nullptr,
+            g_cclosure_marshal_VOID__VOID,
+            G_TYPE_NONE, 0);
 }
 
 static CString injectedBundleDirectory()
@@ -187,7 +244,7 @@ static CString injectedBundleDirectory()
 
 static CString injectedBundleFilename()
 {
-    GOwnPtr<char> bundleFilename(g_build_filename(injectedBundleDirectory().data(), "libwebkit2gtkinjectedbundle.so", NULL));
+    GUniquePtr<char> bundleFilename(g_build_filename(injectedBundleDirectory().data(), "libwebkit2gtkinjectedbundle.so", NULL));
     return bundleFilename.get();
 }
 
@@ -197,7 +254,7 @@ static gpointer createDefaultWebContext(gpointer)
     WebKitWebContextPrivate* priv = webContext->priv;
 
     priv->context = WebContext::create(WebCore::filenameToString(injectedBundleFilename().data()));
-    priv->requestManager = webContext->priv->context->supplement<WebSoupRequestManagerProxy>();
+    priv->requestManager = webContext->priv->context->supplement<WebSoupCustomProtocolRequestManager>();
     priv->context->setCacheModel(CacheModelPrimaryWebBrowser);
     priv->tlsErrorsPolicy = WEBKIT_TLS_ERRORS_POLICY_IGNORE;
 
@@ -207,6 +264,9 @@ static gpointer createDefaultWebContext(gpointer)
 
 #if ENABLE(GEOLOCATION)
     priv->geolocationProvider = WebKitGeolocationProvider::create(priv->context->supplement<WebGeolocationManagerProxy>());
+#endif
+#if ENABLE(BATTERY_STATUS)
+    priv->batteryProvider = WebKitBatteryProvider::create(priv->context->supplement<WebBatteryManagerProxy>());
 #endif
 #if ENABLE(SPELLCHECK)
     priv->textChecker = WebKitTextChecker::create();
@@ -321,7 +381,7 @@ typedef HashMap<DownloadProxy*, GRefPtr<WebKitDownload> > DownloadsMap;
 
 static DownloadsMap& downloadsMap()
 {
-    DEFINE_STATIC_LOCAL(DownloadsMap, downloads, ());
+    static NeverDestroyed<DownloadsMap> downloads;
     return downloads;
 }
 
@@ -407,9 +467,8 @@ void webkit_web_context_set_favicon_database_directory(WebKitWebContext* context
         : directoryPath.utf8();
 
     // Build the full path to the icon database file on disk.
-    GOwnPtr<gchar> faviconDatabasePath(g_build_filename(priv->faviconDatabaseDirectory.data(),
-                                                        WebCore::IconDatabase::defaultDatabaseFilename().utf8().data(),
-                                                        NULL));
+    GUniquePtr<gchar> faviconDatabasePath(g_build_filename(priv->faviconDatabaseDirectory.data(),
+        WebCore::IconDatabase::defaultDatabaseFilename().utf8().data(), nullptr));
 
     // Setting the path will cause the icon database to be opened.
     priv->context->setIconDatabasePath(WebCore::filenameToString(faviconDatabasePath.get()));
@@ -500,7 +559,7 @@ static void destroyPluginList(GList* plugins)
     g_list_free_full(plugins, g_object_unref);
 }
 
-static void webkitWebContextGetPluginThread(GTask* task, gpointer object, gpointer taskData, GCancellable*)
+static void webkitWebContextGetPluginThread(GTask* task, gpointer object, gpointer /* taskData */, GCancellable*)
 {
     Vector<PluginModuleInfo> plugins = WEBKIT_WEB_CONTEXT(object)->priv->context->pluginInfoStore().plugins();
     GList* returnValue = 0;
@@ -607,7 +666,7 @@ void webkit_web_context_register_uri_scheme(WebKitWebContext* context, const cha
 
     RefPtr<WebKitURISchemeHandler> handler = adoptRef(new WebKitURISchemeHandler(callback, userData, destroyNotify));
     context->priv->uriSchemeHandlers.set(String::fromUTF8(scheme), handler.get());
-    context->priv->requestManager->registerURIScheme(String::fromUTF8(scheme));
+    context->priv->requestManager->registerSchemeForCustomProtocol(String::fromUTF8(scheme));
 }
 
 /**
@@ -762,16 +821,40 @@ WebKitTLSErrorsPolicy webkit_web_context_get_tls_errors_policy(WebKitWebContext*
  * @directory: the directory to add
  *
  * Set the directory where WebKit will look for Web Extensions.
- * This method must be called before loading anything in this context, otherwise
- * it will not have any effect.
+ * This method must be called before loading anything in this context,
+ * otherwise it will not have any effect. You can connect to
+ * #WebKitWebContext::initialize-web-extensions to call this method
+ * before anything is loaded.
  */
 void webkit_web_context_set_web_extensions_directory(WebKitWebContext* context, const char* directory)
 {
     g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
     g_return_if_fail(directory);
 
-    // We pass the additional web extensions directory to the injected bundle as initialization user data.
-    context->priv->context->setInjectedBundleInitializationUserData(WebString::create(WebCore::filenameToString(directory)));
+    context->priv->webExtensionsDirectory = directory;
+}
+
+/**
+ * webkit_web_context_set_web_extensions_initialization_user_data:
+ * @context: a #WebKitWebContext
+ * @user_data: a #GVariant
+ *
+ * Set user data to be passed to Web Extensions on initialization.
+ * The data will be passed to the
+ * #WebKitWebExtensionInitializeWithUserDataFunction.
+ * This method must be called before loading anything in this context,
+ * otherwise it will not have any effect. You can connect to
+ * #WebKitWebContext::initialize-web-extensions to call this method
+ * before anything is loaded.
+ *
+ * Since: 2.4
+ */
+void webkit_web_context_set_web_extensions_initialization_user_data(WebKitWebContext* context, GVariant* userData)
+{
+    g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
+    g_return_if_fail(userData);
+
+    context->priv->webExtensionsInitializationUserData = userData;
 }
 
 /**
@@ -805,8 +888,8 @@ void webkit_web_context_prefetch_dns(WebKitWebContext* context, const char* host
     g_return_if_fail(hostname);
 
     ImmutableDictionary::MapType message;
-    message.set(String::fromUTF8("Hostname"), WebString::create(String::fromUTF8(hostname)));
-    context->priv->context->postMessageToInjectedBundle(String::fromUTF8("PrefetchDNS"), ImmutableDictionary::adopt(message).get());
+    message.set(String::fromUTF8("Hostname"), API::String::create(String::fromUTF8(hostname)));
+    context->priv->context->postMessageToInjectedBundle(String::fromUTF8("PrefetchDNS"), ImmutableDictionary::create(std::move(message)).get());
 }
 
 /**
@@ -827,6 +910,64 @@ void webkit_web_context_allow_tls_certificate_for_host(WebKitWebContext* context
 
     RefPtr<WebCertificateInfo> webCertificateInfo = WebCertificateInfo::create(webkitCertificateInfoGetCertificateInfo(info));
     context->priv->context->allowSpecificHTTPSCertificateForHost(webCertificateInfo.get(), String::fromUTF8(host));
+}
+
+/**
+ * webkit_web_context_set_process_model:
+ * @context: the #WebKitWebContext
+ * @process_model: a #WebKitProcessModel
+ *
+ * Specifies a process model for WebViews, which WebKit will use to
+ * determine how auxiliary processes are handled. The default setting
+ * (%WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS) is suitable for most
+ * applications which embed a small amount of WebViews, or are used to
+ * display documents which are considered safe — like local files.
+ *
+ * Applications which may potentially use a large amount of WebViews
+ * —for example a multi-tabbed web browser— may want to use
+ * %WEBKIT_PROCESS_MODEL_MULTIPLE_SECONDARY_PROCESSES, which will use
+ * one process per view most of the time, while still allowing for web
+ * views to share a process when needed (for example when different
+ * views interact with each other). Using this model, when a process
+ * hangs or crashes, only the WebViews using it stop working, while
+ * the rest of the WebViews in the application will still function
+ * normally.
+ *
+ * This method **must be called before any other functions**,
+ * as early as possible in your application. Calling it later will make
+ * your application crash.
+ *
+ * Since: 2.4
+ */
+void webkit_web_context_set_process_model(WebKitWebContext* context, WebKitProcessModel processModel)
+{
+    g_return_if_fail(WEBKIT_IS_WEB_CONTEXT(context));
+
+    ProcessModel newProcessModel(toProcessModel(processModel));
+
+    if (newProcessModel == context->priv->context->processModel())
+        return;
+
+    context->priv->context->setUsesNetworkProcess(newProcessModel == ProcessModelMultipleSecondaryProcesses);
+    context->priv->context->setProcessModel(newProcessModel);
+}
+
+/**
+ * webkit_web_context_get_process_model:
+ * @context: the #WebKitWebContext
+ *
+ * Returns the current process model. For more information about this value
+ * see webkit_web_context_set_process_model().
+ *
+ * Returns: the current #WebKitProcessModel
+ *
+ * Since: 2.4
+ */
+WebKitProcessModel webkit_web_context_get_process_model(WebKitWebContext* context)
+{
+    g_return_val_if_fail(WEBKIT_IS_WEB_CONTEXT(context), WEBKIT_PROCESS_MODEL_SHARED_SECONDARY_PROCESS);
+
+    return toWebKitProcessModel(context->priv->context->processModel());
 }
 
 WebKitDownload* webkitWebContextGetOrCreateDownload(DownloadProxy* downloadProxy)
@@ -859,6 +1000,14 @@ void webkitWebContextDownloadStarted(WebKitWebContext* context, WebKitDownload* 
     g_signal_emit(context, signals[DOWNLOAD_STARTED], 0, download);
 }
 
+GVariant* webkitWebContextInitializeWebExtensions(WebKitWebContext* context)
+{
+    g_signal_emit(context, signals[INITIALIZE_WEB_EXTENSIONS], 0);
+    return g_variant_new("(msmv)",
+        context->priv->webExtensionsDirectory.data(),
+        context->priv->webExtensionsInitializationUserData.get());
+}
+
 WebContext* webkitWebContextGetContext(WebKitWebContext* context)
 {
     g_assert(WEBKIT_IS_WEB_CONTEXT(context));
@@ -866,41 +1015,43 @@ WebContext* webkitWebContextGetContext(WebKitWebContext* context)
     return context->priv->context.get();
 }
 
-WebSoupRequestManagerProxy* webkitWebContextGetRequestManager(WebKitWebContext* context)
+WebSoupCustomProtocolRequestManager* webkitWebContextGetRequestManager(WebKitWebContext* context)
 {
     return context->priv->requestManager.get();
 }
 
-void webkitWebContextReceivedURIRequest(WebKitWebContext* context, WebKitURISchemeRequest* request)
+void webkitWebContextStartLoadingCustomProtocol(WebKitWebContext* context, uint64_t customProtocolID, API::URLRequest* urlRequest)
 {
-    String scheme(String::fromUTF8(webkit_uri_scheme_request_get_scheme(request)));
+    GRefPtr<WebKitURISchemeRequest> request = adoptGRef(webkitURISchemeRequestCreate(customProtocolID, context, urlRequest));
+    String scheme(String::fromUTF8(webkit_uri_scheme_request_get_scheme(request.get())));
     RefPtr<WebKitURISchemeHandler> handler = context->priv->uriSchemeHandlers.get(scheme);
     ASSERT(handler.get());
     if (!handler->hasCallback())
         return;
 
-    context->priv->uriSchemeRequests.set(webkitURISchemeRequestGetID(request), request);
-    handler->performCallback(request);
+    context->priv->uriSchemeRequests.set(customProtocolID, request.get());
+    handler->performCallback(request.get());
 }
 
-void webkitWebContextDidFailToLoadURIRequest(WebKitWebContext* context, uint64_t requestID)
+void webkitWebContextStopLoadingCustomProtocol(WebKitWebContext* context, uint64_t customProtocolID)
 {
-    GRefPtr<WebKitURISchemeRequest> request = context->priv->uriSchemeRequests.get(requestID);
+    GRefPtr<WebKitURISchemeRequest> request = context->priv->uriSchemeRequests.get(customProtocolID);
     if (!request.get())
         return;
     webkitURISchemeRequestCancel(request.get());
 }
 
-void webkitWebContextDidFinishURIRequest(WebKitWebContext* context, uint64_t requestID)
+void webkitWebContextDidFinishLoadingCustomProtocol(WebKitWebContext* context, uint64_t customProtocolID)
 {
-    context->priv->uriSchemeRequests.remove(requestID);
+    context->priv->uriSchemeRequests.remove(customProtocolID);
 }
 
-void webkitWebContextCreatePageForWebView(WebKitWebContext* context, WebKitWebView* webView, WebKitWebViewGroup* webViewGroup)
+void webkitWebContextCreatePageForWebView(WebKitWebContext* context, WebKitWebView* webView, WebKitWebViewGroup* webViewGroup, WebKitWebView* relatedView)
 {
     WebKitWebViewBase* webViewBase = WEBKIT_WEB_VIEW_BASE(webView);
     WebPageGroup* pageGroup = webViewGroup ? webkitWebViewGroupGetPageGroup(webViewGroup) : 0;
-    webkitWebViewBaseCreateWebPage(webViewBase, context->priv->context.get(), pageGroup);
+    WebPageProxy* relatedPage = relatedView ? webkitWebViewBaseGetPage(WEBKIT_WEB_VIEW_BASE(relatedView)) : nullptr;
+    webkitWebViewBaseCreateWebPage(webViewBase, context->priv->context.get(), pageGroup, relatedPage);
 
     WebPageProxy* page = webkitWebViewBaseGetPage(webViewBase);
     context->priv->webViews.set(page->pageID(), webView);

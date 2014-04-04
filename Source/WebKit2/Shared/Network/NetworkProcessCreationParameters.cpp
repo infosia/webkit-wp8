@@ -36,27 +36,34 @@ NetworkProcessCreationParameters::NetworkProcessCreationParameters()
 {
 }
 
-void NetworkProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
+void NetworkProcessCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << privateBrowsingEnabled;
     encoder.encodeEnum(cacheModel);
     encoder << diskCacheDirectory;
     encoder << diskCacheDirectoryExtensionHandle;
     encoder << shouldUseTestingNetworkSession;
-#if PLATFORM(MAC)
+#if ENABLE(CUSTOM_PROTOCOLS)
+    encoder << urlSchemesRegisteredForCustomProtocols;
+#endif
+#if PLATFORM(COCOA)
     encoder << parentProcessName;
     encoder << uiProcessBundleIdentifier;
     encoder << nsURLCacheMemoryCapacity;
     encoder << nsURLCacheDiskCapacity;
-#if ENABLE(CUSTOM_PROTOCOLS)
-    encoder << urlSchemesRegisteredForCustomProtocols;
-#endif
     encoder << httpProxy;
     encoder << httpsProxy;
 #endif
+#if USE(SOUP)
+    encoder << cookiePersistentStoragePath;
+    encoder << cookiePersistentStorageType;
+    encoder.encodeEnum(cookieAcceptPolicy);
+    encoder << ignoreTLSErrors;
+    encoder << languages;
+#endif
 }
 
-bool NetworkProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, NetworkProcessCreationParameters& result)
+bool NetworkProcessCreationParameters::decode(IPC::ArgumentDecoder& decoder, NetworkProcessCreationParameters& result)
 {
     if (!decoder.decode(result.privateBrowsingEnabled))
         return false;
@@ -68,7 +75,11 @@ bool NetworkProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder,
         return false;
     if (!decoder.decode(result.shouldUseTestingNetworkSession))
         return false;
-#if PLATFORM(MAC)
+#if ENABLE(CUSTOM_PROTOCOLS)
+    if (!decoder.decode(result.urlSchemesRegisteredForCustomProtocols))
+        return false;
+#endif
+#if PLATFORM(COCOA)
     if (!decoder.decode(result.parentProcessName))
         return false;
     if (!decoder.decode(result.uiProcessBundleIdentifier))
@@ -77,13 +88,22 @@ bool NetworkProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder,
         return false;
     if (!decoder.decode(result.nsURLCacheDiskCapacity))
         return false;
-#if ENABLE(CUSTOM_PROTOCOLS)
-    if (!decoder.decode(result.urlSchemesRegisteredForCustomProtocols))
-        return false;
-#endif
     if (!decoder.decode(result.httpProxy))
         return false;
     if (!decoder.decode(result.httpsProxy))
+        return false;
+#endif
+
+#if USE(SOUP)
+    if (!decoder.decode(result.cookiePersistentStoragePath))
+        return false;
+    if (!decoder.decode(result.cookiePersistentStorageType))
+        return false;
+    if (!decoder.decodeEnum(result.cookieAcceptPolicy))
+        return false;
+    if (!decoder.decode(result.ignoreTLSErrors))
+        return false;
+    if (!decoder.decode(result.languages))
         return false;
 #endif
 

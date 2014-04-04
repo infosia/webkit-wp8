@@ -18,8 +18,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAnimatedType.h"
 
 #include "SVGParserUtilities.h"
@@ -132,7 +130,7 @@ std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createInteger(std::unique_ptr<
     return animatedType;
 }
 
-std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createIntegerOptionalInteger(std::unique_ptr<pair<int, int>> integerOptionalInteger)
+std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createIntegerOptionalInteger(std::unique_ptr<std::pair<int, int>> integerOptionalInteger)
 {
     ASSERT(integerOptionalInteger);
     auto animatedType = std::make_unique<SVGAnimatedType>(AnimatedIntegerOptionalInteger);
@@ -172,7 +170,7 @@ std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createNumberList(std::unique_p
     return animatedType;
 }
 
-std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createNumberOptionalNumber(std::unique_ptr<pair<float, float>> numberOptionalNumber)
+std::unique_ptr<SVGAnimatedType> SVGAnimatedType::createNumberOptionalNumber(std::unique_ptr<std::pair<float, float>> numberOptionalNumber)
 {
     ASSERT(numberOptionalNumber);
     auto animatedType = std::make_unique<SVGAnimatedType>(AnimatedNumberOptionalNumber);
@@ -329,5 +327,3 @@ bool SVGAnimatedType::supportsAnimVal(AnimatedPropertyType type)
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

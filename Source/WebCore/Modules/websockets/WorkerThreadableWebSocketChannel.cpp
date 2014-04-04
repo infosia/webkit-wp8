@@ -347,7 +347,7 @@ void WorkerThreadableWebSocketChannel::Peer::didReceiveMessageError()
 WorkerThreadableWebSocketChannel::Bridge::Bridge(PassRefPtr<ThreadableWebSocketChannelClientWrapper> workerClientWrapper, PassRefPtr<WorkerGlobalScope> workerGlobalScope, const String& taskMode)
     : m_workerClientWrapper(workerClientWrapper)
     , m_workerGlobalScope(workerGlobalScope)
-    , m_loaderProxy(m_workerGlobalScope->thread()->workerLoaderProxy())
+    , m_loaderProxy(m_workerGlobalScope->thread().workerLoaderProxy())
     , m_taskMode(taskMode)
     , m_peer(0)
 {
@@ -369,7 +369,7 @@ public:
     }
 
     virtual ~WorkerGlobalScopeDidInitializeTask() { }
-    virtual void performTask(ScriptExecutionContext* context) OVERRIDE
+    virtual void performTask(ScriptExecutionContext* context) override
     {
         ASSERT_UNUSED(context, context->isWorkerGlobalScope());
         if (m_workerClientWrapper->failedWebSocketChannelCreation()) {
@@ -380,7 +380,7 @@ public:
         } else
             m_workerClientWrapper->didCreateWebSocketChannel(m_peer);
     }
-    virtual bool isCleanupTask() const OVERRIDE { return true; }
+    virtual bool isCleanupTask() const override { return true; }
 
 private:
     WorkerGlobalScopeDidInitializeTask(WorkerThreadableWebSocketChannel::Peer* peer,
@@ -645,7 +645,7 @@ void WorkerThreadableWebSocketChannel::Bridge::waitForMethodCompletion()
 {
     if (!m_workerGlobalScope)
         return;
-    WorkerRunLoop& runLoop = m_workerGlobalScope->thread()->runLoop();
+    WorkerRunLoop& runLoop = m_workerGlobalScope->thread().runLoop();
     MessageQueueWaitResult result = MessageQueueMessageReceived;
     ThreadableWebSocketChannelClientWrapper* clientWrapper = m_workerClientWrapper.get();
     while (m_workerGlobalScope && clientWrapper && !clientWrapper->syncMethodDone() && result != MessageQueueTerminated) {

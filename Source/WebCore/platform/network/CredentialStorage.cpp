@@ -36,20 +36,24 @@
 #include <wtf/MainThread.h>
 #include <wtf/StdLibExtras.h>
 
+#if PLATFORM(IOS)
+#include "WebCoreThread.h"
+#endif
+
 namespace WebCore {
 
 typedef HashMap<ProtectionSpace, Credential> ProtectionSpaceToCredentialMap;
 static ProtectionSpaceToCredentialMap& protectionSpaceToCredentialMap()
 {
     ASSERT(isMainThread());
-    DEFINE_STATIC_LOCAL(ProtectionSpaceToCredentialMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(ProtectionSpaceToCredentialMap, map, ());
     return map;
 }
 
 static HashSet<String>& originsWithCredentials()
 {
     ASSERT(isMainThread());
-    DEFINE_STATIC_LOCAL(HashSet<String>, set, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<String>, set, ());
     return set;
 }
 
@@ -57,7 +61,7 @@ typedef HashMap<String, ProtectionSpace> PathToDefaultProtectionSpaceMap;
 static PathToDefaultProtectionSpaceMap& pathToDefaultProtectionSpaceMap()
 {
     ASSERT(isMainThread());
-    DEFINE_STATIC_LOCAL(PathToDefaultProtectionSpaceMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(PathToDefaultProtectionSpaceMap, map, ());
     return map;
 }
 
@@ -93,6 +97,11 @@ void CredentialStorage::set(const Credential& credential, const ProtectionSpace&
     ASSERT(protectionSpace.isProxy() || url.isValid());
 
     protectionSpaceToCredentialMap().set(protectionSpace, credential);
+
+#if PLATFORM(IOS)
+    saveToPersistentStorage(protectionSpace, credential);
+#endif
+
     if (!protectionSpace.isProxy()) {
         originsWithCredentials().add(originStringFromURL(url));
 
@@ -162,6 +171,15 @@ Credential CredentialStorage::get(const URL& url)
         return Credential();
     return protectionSpaceToCredentialMap().get(iter->value);
 }
+
+#if PLATFORM(IOS)
+void CredentialStorage::clearCredentials()
+{
+    pathToDefaultProtectionSpaceMap().clear();
+    originsWithCredentials().clear();
+    protectionSpaceToCredentialMap().clear();
+}
+#endif
 
 void CredentialStorage::setPrivateMode(bool mode)
 {

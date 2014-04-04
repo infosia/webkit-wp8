@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
@@ -44,6 +44,10 @@ video:-webkit-full-page-media::-webkit-media-controls-panel {
     bottom: 0px;
 }
 
+video:-webkit-full-page-media::-webkit-media-controls-panel.no-video {
+    opacity: 1;
+}
+
 ::-webkit-media-controls {
     width: inherit;
     height: inherit;
@@ -67,6 +71,7 @@ audio::-webkit-media-controls-panel {
     bottom: 0;
     width: 100%;
     padding-top: 1px;
+    min-height: 25px;
     height: 25px;
     line-height: 25px;
     -webkit-user-select: none;
@@ -407,14 +412,7 @@ audio::-webkit-media-controls-timeline {
     margin: 0;
 
     border-radius: 4.5px;
-    background-color: black;
-    background-image: -webkit-gradient(
-        linear,
-        left top,
-        left bottom,
-        color-stop(0, rgba(7,  7,  7,  0.3)),
-        color-stop(1, rgba(37, 37, 37, 0.629))
-    );
+    background-color: rgb(74, 74, 74);
     box-shadow: inset -1px 0 0 rgba(0, 0, 0, .68), 0 1px rgba(255, 255, 255, .08);
 }
 video::-webkit-media-controls-timeline::-webkit-slider-thumb,

@@ -44,21 +44,16 @@
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
+#include "SVGNames.h"
+#include "SVGStyleElement.h"
 #include "ScriptElement.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "TextResourceDecoder.h"
 #include "TreeDepthLimit.h"
-#include "XMLErrors.h"
 #include <wtf/Ref.h>
 #include <wtf/StringExtras.h>
 #include <wtf/Threading.h>
 #include <wtf/Vector.h>
-
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#include "SVGStyleElement.h"
-#endif
 
 namespace WebCore {
 
@@ -166,9 +161,6 @@ void XMLDocumentParser::exitText()
     m_leafTextNode->appendData(toString(m_bufferedText.data(), m_bufferedText.size()), IGNORE_EXCEPTION);
     Vector<xmlChar> empty;
     m_bufferedText.swap(empty);
-
-    if (m_view && m_leafTextNode->parentNode() && m_leafTextNode->parentNode()->attached() && !m_leafTextNode->attached())
-        Style::attachTextRenderer(*m_leafTextNode);
 
     m_leafTextNode = 0;
 }
@@ -283,17 +275,16 @@ bool XMLDocumentParser::parseDocumentFragment(const String& chunk, DocumentFragm
     // FIXME: We need to implement the HTML5 XML Fragment parsing algorithm:
     // http://www.whatwg.org/specs/web-apps/current-work/multipage/the-xhtml-syntax.html#xml-fragment-parsing-algorithm
     // For now we have a hack for script/style innerHTML support:
-    if (contextElement && (contextElement->hasLocalName(HTMLNames::scriptTag) || contextElement->hasLocalName(HTMLNames::styleTag))) {
+    if (contextElement && (contextElement->hasLocalName(HTMLNames::scriptTag.localName()) || contextElement->hasLocalName(HTMLNames::styleTag.localName()))) {
         fragment.parserAppendChild(fragment.document().createTextNode(chunk));
         return true;
     }
 
     RefPtr<XMLDocumentParser> parser = XMLDocumentParser::create(fragment, contextElement, parserContentPolicy);
     bool wellFormed = parser->appendFragmentSource(chunk);
-    // Do not call finish().  Current finish() and doEnd() implementations touch the main Document/loader
-    // and can cause crashes in the fragment case.
+    // Do not call finish(). The finish() and doEnd() implementations touch the main document and loader and can cause crashes in the fragment case.
     parser->detach(); // Allows ~DocumentParser to assert it was detached before destruction.
-    return wellFormed; // appendFragmentSource()'s wellFormed is more permissive than wellFormed().
+    return wellFormed; // appendFragmentSource()'s wellFormed is more permissive than Document::wellFormed().
 }
 
 } // namespace WebCore

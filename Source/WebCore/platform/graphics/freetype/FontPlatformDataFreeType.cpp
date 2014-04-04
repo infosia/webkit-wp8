@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2006 Michael Emmel mike.emmel@gmail.com
  * Copyright (C) 2007, 2008 Alp Toker <alp@atoker.com>
  * Copyright (C) 2007 Holger Hans Peter Freyther
@@ -33,7 +33,7 @@
 #include FT_TRUETYPE_TABLES_H
 #include <wtf/text/WTFString.h>
 
-#if !PLATFORM(EFL) && !PLATFORM(NIX)
+#if !PLATFORM(EFL)
 #include <gdk/gdk.h>
 #endif
 

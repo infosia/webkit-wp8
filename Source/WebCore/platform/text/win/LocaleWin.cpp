@@ -107,7 +107,7 @@ static LCID WINAPI convertLocaleNameToLCID(LPCWSTR name, DWORD)
 {
     if (!name || !name[0])
         return LOCALE_USER_DEFAULT;
-    DEFINE_STATIC_LOCAL(NameToLCIDMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(NameToLCIDMap, map, ());
     ensureNameToLCIDMap(map);
     String localeName = String(name).replace('_', '-').lower();
     do {
@@ -523,7 +523,8 @@ void LocaleWin::initializeLocaleData()
     case NegativeFormatSpaceSignSuffix:
         negativeSuffix = " " + negativeSign;
         break;
-    case NegativeFormatSignPrefix: // Fall through.
+    case NegativeFormatSignPrefix:
+        FALLTHROUGH;
     default:
         negativePrefix = negativeSign;
         break;

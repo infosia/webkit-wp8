@@ -28,7 +28,6 @@
  */
 
 #include "config.h"
-
 #include "FlowThreadController.h"
 
 #include "NamedFlowCollection.h"
@@ -40,11 +39,6 @@
 #include <wtf/text/AtomicString.h>
 
 namespace WebCore {
-
-PassOwnPtr<FlowThreadController> FlowThreadController::create(RenderView* view)
-{
-    return adoptPtr(new FlowThreadController(view));
-}
 
 FlowThreadController::FlowThreadController(RenderView* view)
     : m_view(view)
@@ -61,7 +55,7 @@ FlowThreadController::~FlowThreadController()
 RenderNamedFlowThread& FlowThreadController::ensureRenderFlowThreadWithName(const AtomicString& name)
 {
     if (!m_renderNamedFlowThreadList)
-        m_renderNamedFlowThreadList = adoptPtr(new RenderNamedFlowThreadList());
+        m_renderNamedFlowThreadList = std::make_unique<RenderNamedFlowThreadList>();
     else {
         for (auto iter = m_renderNamedFlowThreadList->begin(), end = m_renderNamedFlowThreadList->end(); iter != end; ++iter) {
             RenderNamedFlowThread* flowRenderer = *iter;
@@ -247,6 +241,7 @@ void FlowThreadController::updateFlowThreadsIntoMeasureContentPhase()
         RenderNamedFlowThread* flowRenderer = *iter;
         ASSERT(flowRenderer->inFinalLayoutPhase());
 
+        flowRenderer->dispatchNamedFlowEvents();
         flowRenderer->setLayoutPhase(RenderFlowThread::LayoutPhaseMeasureContent);
     }
 }
@@ -264,20 +259,25 @@ void FlowThreadController::updateFlowThreadsIntoFinalPhase()
     }
 }
 
-#if USE(ACCELERATED_COMPOSITING)
-void FlowThreadController::updateRenderFlowThreadLayersIfNeeded()
+void FlowThreadController::updateFlowThreadsLayerToRegionMappingsIfNeeded()
 {
-    // Walk the flow chain in reverse order because RenderRegions might become RenderLayers for the following flow threads.
-    for (auto iter = m_renderNamedFlowThreadList->rbegin(), end = m_renderNamedFlowThreadList->rend(); iter != end; ++iter) {
+    for (auto iter = m_renderNamedFlowThreadList->begin(), end = m_renderNamedFlowThreadList->end(); iter != end; ++iter) {
         RenderNamedFlowThread* flowRenderer = *iter;
         flowRenderer->updateAllLayerToRegionMappingsIfNeeded();
     }
 }
-#endif
 
-bool FlowThreadController::isContentElementRegisteredWithAnyNamedFlow(const Element& contentElement) const
+void FlowThreadController::updateNamedFlowsLayerListsIfNeeded()
 {
-    return m_mapNamedFlowContentElement.contains(&contentElement);
+    for (auto iter = m_renderNamedFlowThreadList->begin(), end = m_renderNamedFlowThreadList->end(); iter != end; ++iter) {
+        RenderNamedFlowThread* flowRenderer = *iter;
+        flowRenderer->layer()->updateLayerListsIfNeeded();
+    }
+}
+
+static inline bool compareZIndex(RenderLayer* first, RenderLayer* second)
+{
+    return first->zIndex() < second->zIndex();
 }
 
 // Collect the fixed positioned layers that have the named flows as containing block
@@ -292,17 +292,27 @@ void FlowThreadController::collectFixedPositionedLayers(Vector<RenderLayer*>& fi
         if (!flowRenderer->hasRegions())
             continue;
 
-        // Iterate over the fixed positioned elements in the flow thread
-        TrackedRendererListHashSet* positionedDescendants = flowRenderer->positionedObjects();
-        if (positionedDescendants) {
-            for (auto it = positionedDescendants->begin(), end = positionedDescendants->end(); it != end; ++it) {
-                RenderBox* box = *it;
-                if (!box->fixedPositionedWithNamedFlowContainingBlock())
+        RenderLayer* flowThreadLayer = flowRenderer->layer();
+        if (Vector<RenderLayer*>* negZOrderList = flowThreadLayer->negZOrderList()) {
+            for (size_t i = 0, size = negZOrderList->size(); i < size; ++i) {
+                RenderLayer* currLayer = negZOrderList->at(i);
+                if (currLayer->renderer().style().position() != FixedPosition)
                     continue;
-                fixedPosLayers.append(box->layer());
+                fixedPosLayers.append(currLayer);
+            }
+        }
+
+        if (Vector<RenderLayer*>* posZOrderList = flowThreadLayer->posZOrderList()) {
+            for (size_t i = 0, size = posZOrderList->size(); i < size; ++i) {
+                RenderLayer* currLayer = posZOrderList->at(i);
+                if (currLayer->renderer().style().position() != FixedPosition)
+                    continue;
+                fixedPosLayers.append(currLayer);
             }
         }
     }
+
+    std::stable_sort(fixedPosLayers.begin(), fixedPosLayers.end(), compareZIndex);
 }
 
 #ifndef NDEBUG

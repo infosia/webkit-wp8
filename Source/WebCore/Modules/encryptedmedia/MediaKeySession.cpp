@@ -29,6 +29,7 @@
 #if ENABLE(ENCRYPTED_MEDIA_V2)
 
 #include "CDM.h"
+#include "CDMSession.h"
 #include "Event.h"
 #include "GenericEventQueue.h"
 #include "MediaKeyError.h"
@@ -43,7 +44,7 @@ PassRefPtr<MediaKeySession> MediaKeySession::create(ScriptExecutionContext* cont
 }
 
 MediaKeySession::MediaKeySession(ScriptExecutionContext* context, MediaKeys* keys, const String& keySystem)
-    : ContextDestructionObserver(context)
+    : ActiveDOMObject(context)
     , m_keys(keys)
     , m_keySystem(keySystem)
     , m_asyncEventQueue(*this)
@@ -67,7 +68,7 @@ void MediaKeySession::close()
 {
     if (m_session)
         m_session->releaseKeys();
-    m_session = 0;
+    m_session = nullptr;
     m_asyncEventQueue.cancelAllEvents();
 }
 
@@ -82,7 +83,7 @@ void MediaKeySession::generateKeyRequest(const String& mimeType, Uint8Array* ini
     m_keyRequestTimer.startOneShot(0);
 }
 
-void MediaKeySession::keyRequestTimerFired(Timer<MediaKeySession>*)
+void MediaKeySession::keyRequestTimerFired(Timer<MediaKeySession>&)
 {
     ASSERT(m_pendingKeyRequests.size());
     if (!m_session)
@@ -154,7 +155,7 @@ void MediaKeySession::update(Uint8Array* key, ExceptionCode& ec)
     m_addKeyTimer.startOneShot(0);
 }
 
-void MediaKeySession::addKeyTimerFired(Timer<MediaKeySession>*)
+void MediaKeySession::addKeyTimerFired(Timer<MediaKeySession>&)
 {
     ASSERT(m_pendingKeys.size());
     if (!m_session)
@@ -199,7 +200,7 @@ void MediaKeySession::addKeyTimerFired(Timer<MediaKeySession>*)
         }
 
         // 2.8. If any of the preceding steps in the task failed
-        if (!didStoreKey) {
+        if (errorCode) {
             // 2.8.1. Create a new MediaKeyError object with the following attributes:
             //        code = the appropriate MediaKeyError code
             //        systemCode = a Key System-specific value, if provided, and 0 otherwise

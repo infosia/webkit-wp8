@@ -69,7 +69,7 @@ enum AttachmentSide {
     AttachmentSideRight
 };
 
-class WebInspectorProxy : public API::TypedObject<API::Object::Type::Inspector>, public CoreIPC::MessageReceiver {
+class WebInspectorProxy : public API::ObjectImpl<API::Object::Type::Inspector>, public IPC::MessageReceiver {
 public:
     static PassRefPtr<WebInspectorProxy> create(WebPageProxy* page)
     {
@@ -134,8 +134,9 @@ public:
 
     static bool isInspectorPage(WebPageProxy&);
 
-    // Implemented the platform WebInspectorProxy file
+    // Provided by platform WebInspectorProxy implementations.
     String inspectorPageURL() const;
+    String inspectorTestPageURL() const;
     String inspectorBaseURL() const;
 
 #if ENABLE(INSPECTOR_SERVER)
@@ -149,9 +150,9 @@ public:
 private:
     explicit WebInspectorProxy(WebPageProxy*);
 
-    // CoreIPC::MessageReceiver
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-    virtual void didReceiveSyncMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&, std::unique_ptr<CoreIPC::MessageEncoder>&) OVERRIDE;
+    // IPC::MessageReceiver
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+    virtual void didReceiveSyncMessage(IPC::Connection*, IPC::MessageDecoder&, std::unique_ptr<IPC::MessageEncoder>&) override;
 
     WebPageProxy* platformCreateInspectorPage();
     void platformOpen();
@@ -173,6 +174,7 @@ private:
 
     // Called by WebInspectorProxy messages
     void createInspectorPage(uint64_t& inspectorPageID, WebPageCreationParameters&);
+    void createInspectorPageForTest(uint64_t& inspectorPageID, WebPageCreationParameters&);
     void didClose();
     void bringToFront();
     void attachAvailabilityChanged(bool);

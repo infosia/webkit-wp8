@@ -30,9 +30,10 @@ VPATH = \
     $(WebKit2)/PluginProcess/mac \
     $(WebKit2)/Shared/Plugins \
     $(WebKit2)/Shared \
-    $(WebKit2)/Shared/mac \
+    $(WebKit2)/Shared/API/Cocoa \
     $(WebKit2)/Shared/Authentication \
     $(WebKit2)/Shared/Network/CustomProtocols \
+    $(WebKit2)/Shared/mac \
     $(WebKit2)/WebProcess/ApplicationCache \
     $(WebKit2)/WebProcess/Cookies \
     $(WebKit2)/WebProcess/Databases/IndexedDB \
@@ -45,9 +46,11 @@ VPATH = \
     $(WebKit2)/WebProcess/OriginData \
     $(WebKit2)/WebProcess/Plugins \
     $(WebKit2)/WebProcess/ResourceCache \
+    $(WebKit2)/WebProcess/Scrolling \
     $(WebKit2)/WebProcess/Storage \
     $(WebKit2)/WebProcess/WebCoreSupport \
     $(WebKit2)/WebProcess/WebPage \
+    $(WebKit2)/WebProcess/ios \
     $(WebKit2)/WebProcess \
     $(WebKit2)/UIProcess \
     $(WebKit2)/UIProcess/Databases \
@@ -58,6 +61,7 @@ VPATH = \
     $(WebKit2)/UIProcess/Plugins \
     $(WebKit2)/UIProcess/Storage \
     $(WebKit2)/UIProcess/mac \
+    $(WebKit2)/UIProcess/ios \
 #
 
 MESSAGE_RECEIVERS = \
@@ -84,11 +88,19 @@ MESSAGE_RECEIVERS = \
     PluginProcessConnectionManager \
     PluginProcessProxy \
     PluginProxy \
-    RemoteLayerTreeHost \
+    RemoteLayerTreeDrawingAreaProxy \
+    RemoteObjectRegistry \
+    RemoteScrollingCoordinator \
     SecItemShim \
     SecItemShimProxy \
+    SmartMagnificationController \
     StorageAreaMap \
     StorageManager \
+    ViewGestureController \
+    ViewGestureGeometryCollector \
+    ViewUpdateDispatcher \
+    VisitedLinkProvider \
+    VisitedLinkTableController \
     WebApplicationCacheManager \
     WebApplicationCacheManagerProxy \
     WebConnection \
@@ -120,6 +132,8 @@ MESSAGE_RECEIVERS = \
     WebResourceCacheManager \
     WebResourceCacheManagerProxy \
     WebResourceLoader \
+    WebVideoFullscreenManager \
+    WebVideoFullscreenManagerProxy \
 #
 
 SCRIPTS = \

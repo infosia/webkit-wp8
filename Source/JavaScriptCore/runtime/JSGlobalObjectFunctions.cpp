@@ -26,7 +26,6 @@
 #include "JSGlobalObjectFunctions.h"
 
 #include "CallFrame.h"
-#include "CallFrameInlines.h"
 #include "Interpreter.h"
 #include "JSFunction.h"
 #include "JSGlobalObject.h"
@@ -35,7 +34,7 @@
 #include "Lexer.h"
 #include "LiteralParser.h"
 #include "Nodes.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "Parser.h"
 #include "StackVisitor.h"
 #include <wtf/dtoa.h>
@@ -64,7 +63,7 @@ static JSValue encode(ExecState* exec, const char* doNotEscape)
     for (size_t k = 0; k < cstr.length(); k++, p++) {
         char c = *p;
         if (c && strchr(doNotEscape, c))
-            builder.append(c);
+            builder.append(static_cast<LChar>(c));
         else {
             char tmp[4];
             snprintf(tmp, sizeof(tmp), "%%%02X", static_cast<unsigned char>(c));
@@ -129,10 +128,7 @@ static JSValue decode(ExecState* exec, const CharType* characters, int length, c
                 }
             }
             if (charLen && (u == 0 || u >= 128 || !strchr(doNotUnescape, u))) {
-                if (u < 256)
-                    builder.append(static_cast<LChar>(u));
-                else
-                    builder.append(u);
+                builder.append(u);
                 k += charLen;
                 continue;
             }
@@ -145,7 +141,6 @@ static JSValue decode(ExecState* exec, const CharType* characters, int length, c
 
 static JSValue decode(ExecState* exec, const char* doNotUnescape, bool strict)
 {
-    JSStringBuilder builder;
     String str = exec->argument(0).toString(exec)->value(exec);
     
     if (str.is8Bit())
@@ -164,6 +159,7 @@ bool isStrWhiteSpace(UChar c)
         case 0x000D:
         case 0x0020:
         case 0x00A0:
+        case 0x180E: // This character used to be in Zs category before Unicode 6.3, and EcmaScript says that we should keep treating it as such.
         case 0x2028:
         case 0x2029:
         case 0xFEFF:
@@ -189,7 +185,7 @@ static int parseDigit(unsigned short c, int radix)
     return digit;
 }
 
-double parseIntOverflow(const LChar* s, int length, int radix)
+double parseIntOverflow(const LChar* s, unsigned length, int radix)
 {
     double number = 0.0;
     double radixMultiplier = 1.0;
@@ -211,7 +207,7 @@ double parseIntOverflow(const LChar* s, int length, int radix)
     return number;
 }
 
-double parseIntOverflow(const UChar* s, int length, int radix)
+static double parseIntOverflow(const UChar* s, unsigned length, int radix)
 {
     double number = 0.0;
     double radixMultiplier = 1.0;
@@ -231,6 +227,13 @@ double parseIntOverflow(const UChar* s, int length, int radix)
     }
 
     return number;
+}
+
+static double parseIntOverflow(StringView string, int radix)
+{
+    if (string.is8Bit())
+        return parseIntOverflow(string.characters8(), string.length(), radix);
+    return parseIntOverflow(string.characters16(), string.length(), radix);
 }
 
 // ES5.1 15.1.2.2
@@ -308,9 +311,9 @@ static double parseInt(const String& s, const CharType* data, int radix)
     if (number >= mantissaOverflowLowerBound) {
         if (radix == 10) {
             size_t parsedLength;
-            number = parseDouble(s.characters() + firstDigitPosition, p - firstDigitPosition, parsedLength);
+            number = parseDouble(StringView(s).substring(firstDigitPosition, p - firstDigitPosition), parsedLength);
         } else if (radix == 2 || radix == 4 || radix == 8 || radix == 16 || radix == 32)
-            number = parseIntOverflow(s.substringSharingImpl(firstDigitPosition, p - firstDigitPosition).utf8().data(), p - firstDigitPosition, radix);
+            number = parseIntOverflow(StringView(s).substring(firstDigitPosition, p - firstDigitPosition), radix);
     }
 
     // 15. Return sign x number.
@@ -620,7 +623,7 @@ EncodedJSValue JSC_HOST_CALL globalFuncEscape(ExecState* exec)
         for (unsigned k = 0; k < str.length(); k++, c++) {
             int u = c[0];
             if (u && strchr(do_not_escape, static_cast<char>(u)))
-                builder.append(c, 1);
+                builder.append(*c);
             else {
                 char tmp[4];
                 snprintf(tmp, sizeof(tmp), "%%%02X", u);
@@ -639,7 +642,7 @@ EncodedJSValue JSC_HOST_CALL globalFuncEscape(ExecState* exec)
             snprintf(tmp, sizeof(tmp), "%%u%04X", u);
             builder.append(tmp);
         } else if (u != 0 && strchr(do_not_escape, static_cast<char>(u)))
-            builder.append(c, 1);
+            builder.append(*c);
         else {
             char tmp[4];
             snprintf(tmp, sizeof(tmp), "%%%02X", u);

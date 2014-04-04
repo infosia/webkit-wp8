@@ -30,6 +30,7 @@
 
 #if ENABLE(MATHML)
 
+#include "MathMLNames.h"
 #include "StyledElement.h"
 
 namespace WebCore {
@@ -41,22 +42,45 @@ public:
     int colSpan() const;
     int rowSpan() const;
 
+    bool isMathMLToken() const
+    {
+        return hasTagName(MathMLNames::miTag) || hasTagName(MathMLNames::mnTag) || hasTagName(MathMLNames::moTag) || hasTagName(MathMLNames::msTag) || hasTagName(MathMLNames::mtextTag);
+    }
+
+    bool isSemanticAnnotation() const
+    {
+        return hasTagName(MathMLNames::annotationTag) || hasTagName(MathMLNames::annotation_xmlTag);
+    }
+
+    virtual bool isPresentationMathML() const;
+
+    bool hasTagName(const MathMLQualifiedName& name) const { return hasLocalName(name.localName()); }
+
 protected:
     MathMLElement(const QualifiedName& tagName, Document&);
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
+    virtual void attributeChanged(const QualifiedName&, const AtomicString& oldValue, const AtomicString& newValue, AttributeModificationReason) override;
 
-private:    
-    virtual bool isPresentationAttribute(const QualifiedName&) const OVERRIDE;
-    virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStyleProperties&) OVERRIDE;
+    virtual bool isPresentationAttribute(const QualifiedName&) const override;
+    virtual void collectStyleForPresentationAttribute(const QualifiedName&, const AtomicString&, MutableStyleProperties&) override;
 
-    inline bool isMathMLToken() const;
+    bool isPhrasingContent(const Node&) const;
+    bool isFlowContent(const Node&) const;
+
+private:
+    virtual void updateSelectedChild() { }
 };
 
 void isMathMLElement(const MathMLElement&); // Catch unnecessary runtime check of type known at compile time.
 inline bool isMathMLElement(const Node& node) { return node.isMathMLElement(); }
 NODE_TYPE_CASTS(MathMLElement)
+
+inline bool Node::hasTagName(const MathMLQualifiedName& name) const
+{
+    return isMathMLElement() && toMathMLElement(*this).hasTagName(name);
+}
 
 }
 

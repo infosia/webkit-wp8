@@ -77,7 +77,7 @@ public:
     // IDBDatabaseBackend
     void createObjectStore(int64_t transactionId, int64_t objectStoreId, const String& name, const IDBKeyPath&, bool autoIncrement);
     void deleteObjectStore(int64_t transactionId, int64_t objectStoreId);
-    void createTransaction(int64_t transactionId, PassRefPtr<IDBDatabaseCallbacks>, const Vector<int64_t>& objectStoreIds, unsigned short mode);
+    void createTransaction(int64_t transactionId, PassRefPtr<IDBDatabaseCallbacks>, const Vector<int64_t>& objectStoreIds, IndexedDB::TransactionMode);
     void close(PassRefPtr<IDBDatabaseCallbacks>);
 
     void commit(int64_t transactionId);
@@ -118,8 +118,8 @@ public:
     const IDBDatabaseMetadata& metadata() const { return m_metadata; }
     void setCurrentVersion(uint64_t version) { m_metadata.version = version; }
 
-    bool hasPendingSecondHalfOpen() { return m_pendingSecondHalfOpen; }
-    void setPendingSecondHalfOpen(PassOwnPtr<IDBPendingOpenCall> pendingOpenCall) { m_pendingSecondHalfOpen = pendingOpenCall; }
+    bool hasPendingSecondHalfOpen() { return m_pendingSecondHalfOpen.get(); }
+    void setPendingSecondHalfOpen(std::unique_ptr<IDBPendingOpenCall> pendingOpenCall) { m_pendingSecondHalfOpen = std::move(pendingOpenCall); }
 
     IDBFactoryBackendInterface& factoryBackend() { return *m_factory; }
 
@@ -149,22 +149,23 @@ private:
     RefPtr<IDBFactoryBackendInterface> m_factory;
     Ref<IDBServerConnection> m_serverConnection;
 
-    OwnPtr<IDBTransactionCoordinator> m_transactionCoordinator;
+    std::unique_ptr<IDBTransactionCoordinator> m_transactionCoordinator;
     RefPtr<IDBTransactionBackend> m_runningVersionChangeTransaction;
 
     typedef HashMap<int64_t, IDBTransactionBackend*> TransactionMap;
     TransactionMap m_transactions;
 
-    Deque<OwnPtr<IDBPendingOpenCall>> m_pendingOpenCalls;
-    OwnPtr<IDBPendingOpenCall> m_pendingSecondHalfOpen;
+    Deque<std::unique_ptr<IDBPendingOpenCall>> m_pendingOpenCalls;
+    std::unique_ptr<IDBPendingOpenCall> m_pendingSecondHalfOpen;
 
-    Deque<OwnPtr<IDBPendingDeleteCall>> m_pendingDeleteCalls;
+    Deque<std::unique_ptr<IDBPendingDeleteCall>> m_pendingDeleteCalls;
     HashSet<RefPtr<IDBCallbacks>> m_deleteCallbacksWaitingCompletion;
 
     typedef ListHashSet<RefPtr<IDBDatabaseCallbacks>> DatabaseCallbacksSet;
     DatabaseCallbacksSet m_databaseCallbacksSet;
 
     bool m_closingConnection;
+    bool m_didOpenInternal;
 };
 
 } // namespace WebCore

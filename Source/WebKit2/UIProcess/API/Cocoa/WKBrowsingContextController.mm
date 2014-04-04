@@ -28,30 +28,37 @@
 
 #if WK_API_ENABLED
 
-#import "WeakObjCPtr.h"
+#import "APIData.h"
 #import "ObjCObjectGraph.h"
+#import "RemoteObjectRegistry.h"
+#import "RemoteObjectRegistryMessages.h"
 #import "WKBackForwardListInternal.h"
 #import "WKBackForwardListItemInternal.h"
-#import "WKErrorRecoveryAttempting.h"
-#import "WKFrame.h"
-#import "WKFramePolicyListener.h"
-#import "WKNSArray.h"
-#import "WKNSError.h"
-#import "WKNSURLAuthenticationChallenge.h"
-#import "WKNSURLExtras.h"
-#import "WKNSURLProtectionSpace.h"
-#import "WKRetainPtr.h"
-#import "WKURLRequestNS.h"
-#import "WKURLResponseNS.h"
-#import "WebContext.h"
-#import "WebData.h"
-#import "WebPageProxy.h"
-
 #import "WKBrowsingContextGroupInternal.h"
 #import "WKBrowsingContextHandleInternal.h"
 #import "WKBrowsingContextLoadDelegatePrivate.h"
 #import "WKBrowsingContextPolicyDelegate.h"
-#import "WKProcessGroupInternal.h"
+#import "WKErrorRecoveryAttempting.h"
+#import "WKFrame.h"
+#import "WKFramePolicyListener.h"
+#import "WKNSArray.h"
+#import "WKNSData.h"
+#import "WKNSError.h"
+#import "WKNSURLAuthenticationChallenge.h"
+#import "WKNSURLExtras.h"
+#import "WKNSURLProtectionSpace.h"
+#import "WKPagePolicyClientInternal.h"
+#import "WKProcessGroupPrivate.h"
+#import "WKRenderingProgressEventsInternal.h"
+#import "WKRetainPtr.h"
+#import "WKURLRequestNS.h"
+#import "WKURLResponseNS.h"
+#import "WeakObjCPtr.h"
+#import "WebCertificateInfo.h"
+#import "WebContext.h"
+#import "WebPageProxy.h"
+#import "_WKRemoteObjectRegistryInternal.h"
+#import <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 using namespace WebKit;
@@ -64,32 +71,52 @@ public:
     }
 
 private:
-    virtual void willChangeIsLoading() OVERRIDE
+    virtual void willChangeIsLoading() override
     {
         [m_controller willChangeValueForKey:@"loading"];
     }
 
-    virtual void didChangeIsLoading() OVERRIDE
+    virtual void didChangeIsLoading() override
     {
         [m_controller didChangeValueForKey:@"loading"];
     }
 
-    virtual void willChangeTitle() OVERRIDE
+    virtual void willChangeTitle() override
     {
         [m_controller willChangeValueForKey:@"title"];
     }
 
-    virtual void didChangeTitle() OVERRIDE
+    virtual void didChangeTitle() override
     {
         [m_controller didChangeValueForKey:@"title"];
     }
 
-    virtual void willChangeEstimatedProgress() OVERRIDE
+    virtual void willChangeActiveURL() override
+    {
+        [m_controller willChangeValueForKey:@"activeURL"];
+    }
+
+    virtual void didChangeActiveURL() override
+    {
+        [m_controller didChangeValueForKey:@"activeURL"];
+    }
+
+    virtual void willChangeHasOnlySecureContent() override
+    {
+        [m_controller willChangeValueForKey:@"hasOnlySecureContent"];
+    }
+
+    virtual void didChangeHasOnlySecureContent() override
+    {
+        [m_controller didChangeValueForKey:@"hasOnlySecureContent"];
+    }
+
+    virtual void willChangeEstimatedProgress() override
     {
         [m_controller willChangeValueForKey:@"estimatedProgress"];
     }
 
-    virtual void didChangeEstimatedProgress() OVERRIDE
+    virtual void didChangeEstimatedProgress() override
     {
         [m_controller didChangeValueForKey:@"estimatedProgress"];
     }
@@ -101,6 +128,7 @@ NSString * const WKActionIsMainFrameKey = @"WKActionIsMainFrameKey";
 NSString * const WKActionNavigationTypeKey = @"WKActionNavigationTypeKey";
 NSString * const WKActionMouseButtonKey = @"WKActionMouseButtonKey";
 NSString * const WKActionModifierFlagsKey = @"WKActionModifierFlagsKey";
+NSString * const WKActionOriginalURLRequestKey = @"WKActionOriginalURLRequestKey";
 NSString * const WKActionURLRequestKey = @"WKActionURLRequestKey";
 NSString * const WKActionURLResponseKey = @"WKActionURLResponseKey";
 NSString * const WKActionFrameNameKey = @"WKActionFrameNameKey";
@@ -113,57 +141,43 @@ static NSString * const frameErrorKey = @"WKBrowsingContextFrameErrorKey";
 @end
 
 @implementation WKBrowsingContextController {
-    API::ObjectStorage<WebPageProxy> _page;
+    RefPtr<WebPageProxy> _page;
     std::unique_ptr<PageLoadStateObserver> _pageLoadStateObserver;
 
     WeakObjCPtr<id <WKBrowsingContextLoadDelegate>> _loadDelegate;
     WeakObjCPtr<id <WKBrowsingContextPolicyDelegate>> _policyDelegate;
+    
+    RetainPtr<_WKRemoteObjectRegistry> _remoteObjectRegistry;
+}
+
+static HashMap<WebPageProxy*, WKBrowsingContextController *>& browsingContextControllerMap()
+{
+    static NeverDestroyed<HashMap<WebPageProxy*, WKBrowsingContextController *>> browsingContextControllerMap;
+    return browsingContextControllerMap;
 }
 
 - (void)dealloc
 {
+    ASSERT(browsingContextControllerMap().get(_page.get()) == self);
+    browsingContextControllerMap().remove(_page.get());
+
     _page->pageLoadState().removeObserver(*_pageLoadStateObserver);
-    _page->~WebPageProxy();
+
+    [_remoteObjectRegistry _invalidate];
 
     [super dealloc];
-}
-
-- (void)_finishInitialization
-{
-    _pageLoadStateObserver = std::make_unique<PageLoadStateObserver>(self);
-    _page->pageLoadState().addObserver(*_pageLoadStateObserver);
-}
-
-- (WKProcessGroup *)processGroup
-{
-    return wrapper(_page->process().context());
-}
-
-- (WKBrowsingContextGroup *)browsingContextGroup
-{
-    return wrapper(_page->pageGroup());
 }
 
 #pragma mark Loading
 
 + (void)registerSchemeForCustomProtocol:(NSString *)scheme
 {
-    if (!scheme)
-        return;
-
-    NSString *lowercaseScheme = [scheme lowercaseString];
-    [[WKBrowsingContextController customSchemes] addObject:lowercaseScheme];
-    [[NSNotificationCenter defaultCenter] postNotificationName:SchemeForCustomProtocolRegisteredNotificationName object:lowercaseScheme];
+    WebContext::registerGlobalURLSchemeAsHavingCustomProtocolHandlers(scheme);
 }
 
 + (void)unregisterSchemeForCustomProtocol:(NSString *)scheme
 {
-    if (!scheme)
-        return;
-
-    NSString *lowercaseScheme = [scheme lowercaseString];
-    [[WKBrowsingContextController customSchemes] removeObject:lowercaseScheme];
-    [[NSNotificationCenter defaultCenter] postNotificationName:SchemeForCustomProtocolUnregisteredNotificationName object:lowercaseScheme];
+    WebContext::unregisterGlobalURLSchemeAsHavingCustomProtocolHandlers(scheme);
 }
 
 - (void)loadRequest:(NSURLRequest *)request
@@ -173,13 +187,11 @@ static NSString * const frameErrorKey = @"WKBrowsingContextFrameErrorKey";
 
 - (void)loadRequest:(NSURLRequest *)request userData:(id)userData
 {
-    RefPtr<WebURLRequest> wkURLRequest = WebURLRequest::create(request);
-
     RefPtr<ObjCObjectGraph> wkUserData;
     if (userData)
         wkUserData = ObjCObjectGraph::create(userData);
 
-    _page->loadURLRequest(wkURLRequest.get(), wkUserData.get());
+    _page->loadRequest(request, wkUserData.get());
 }
 
 - (void)loadFileURL:(NSURL *)URL restrictToFilesWithin:(NSURL *)allowedDirectory
@@ -230,17 +242,18 @@ static void releaseNSData(unsigned char*, const void* data)
 
 - (void)loadData:(NSData *)data MIMEType:(NSString *)MIMEType textEncodingName:(NSString *)encodingName baseURL:(NSURL *)baseURL userData:(id)userData
 {
-    RefPtr<WebData> wkData;
+    RefPtr<API::Data> apiData;
     if (data) {
+        // FIXME: This should copy the data.
         [data retain];
-        wkData = WebData::createWithoutCopying((const unsigned char*)[data bytes], [data length], releaseNSData, data);
+        apiData = API::Data::createWithoutCopying((const unsigned char*)[data bytes], [data length], releaseNSData, data);
     }
 
     RefPtr<ObjCObjectGraph> wkUserData;
     if (userData)
         wkUserData = ObjCObjectGraph::create(userData);
 
-    _page->loadData(wkData.get(), MIMEType, encodingName, [baseURL _web_originalDataAsWTFString], wkUserData.get());
+    _page->loadData(apiData.get(), MIMEType, encodingName, [baseURL _web_originalDataAsWTFString], wkUserData.get());
 }
 
 - (void)stopLoading
@@ -258,6 +271,28 @@ static void releaseNSData(unsigned char*, const void* data)
     _page->reload(true);
 }
 
+- (NSString *)applicationNameForUserAgent
+{
+    const String& applicationName = _page->applicationNameForUserAgent();
+    return !applicationName ? nil : (NSString *)applicationName;
+}
+
+- (void)setApplicationNameForUserAgent:(NSString *)applicationNameForUserAgent
+{
+    _page->setApplicationNameForUserAgent(applicationNameForUserAgent);
+}
+
+- (NSString *)customUserAgent
+{
+    const String& customUserAgent = _page->customUserAgent();
+    return !customUserAgent ? nil : (NSString *)customUserAgent;
+}
+
+- (void)setCustomUserAgent:(NSString *)customUserAgent
+{
+    _page->setCustomUserAgent(customUserAgent);
+}
+
 #pragma mark Back/Forward
 
 - (void)goForward
@@ -267,7 +302,7 @@ static void releaseNSData(unsigned char*, const void* data)
 
 - (BOOL)canGoForward
 {
-    return _page->canGoForward();
+    return !!_page->backForwardList().forwardItem();
 }
 
 - (void)goBack
@@ -277,7 +312,7 @@ static void releaseNSData(unsigned char*, const void* data)
 
 - (BOOL)canGoBack
 {
-    return _page->canGoBack();
+    return !!_page->backForwardList().backItem();
 }
 
 - (void)goToBackForwardListItem:(WKBackForwardListItem *)item
@@ -288,6 +323,17 @@ static void releaseNSData(unsigned char*, const void* data)
 - (WKBackForwardList *)backForwardList
 {
     return wrapper(_page->backForwardList());
+}
+
+- (NSData *)sessionState
+{
+    return [wrapper(*_page->sessionStateData(nullptr, nullptr).leakRef()) autorelease];
+}
+
+- (void)restoreFromSessionState:(NSData *)sessionState
+{
+    [sessionState retain];
+    _page->restoreFromSessionStateData(API::Data::createWithoutCopying((const unsigned char*)sessionState.bytes, sessionState.length, releaseNSData, sessionState).get());
 }
 
 #pragma mark Active Load Introspection
@@ -317,9 +363,33 @@ static void releaseNSData(unsigned char*, const void* data)
     return [NSURL _web_URLWithWTFString:_page->pageLoadState().unreachableURL()];
 }
 
+- (BOOL)hasOnlySecureContent
+{
+    return _page->pageLoadState().hasOnlySecureContent();
+}
+
 - (double)estimatedProgress
 {
     return _page->estimatedProgress();
+}
+
+static inline LayoutMilestones layoutMilestones(WKRenderingProgressEvents events)
+{
+    LayoutMilestones milestones = 0;
+
+    if (events & WKRenderingProgressEventFirstLayout)
+        milestones |= DidFirstLayout;
+
+    if (events & WKRenderingProgressEventFirstPaintWithSignificantArea)
+        milestones |= DidHitRelevantRepaintedObjectsAreaThreshold;
+
+    return milestones;
+}
+
+- (void)setObservedRenderingProgressEvents:(WKRenderingProgressEvents)events
+{
+    _observedRenderingProgressEvents = events;
+    _page->listenForLayoutMilestones(layoutMilestones(events));
 }
 
 #pragma mark Active Document Introspection
@@ -327,6 +397,14 @@ static void releaseNSData(unsigned char*, const void* data)
 - (NSString *)title
 {
     return _page->pageLoadState().title();
+}
+
+- (NSArray *)certificateChain
+{
+    if (WebFrameProxy* mainFrame = _page->mainFrame())
+        return mainFrame->certificateInfo() ? (NSArray *)mainFrame->certificateInfo()->certificateInfo().certificateChain() : nil;
+
+    return nil;
 }
 
 #pragma mark Zoom
@@ -501,12 +579,30 @@ static void didChangeBackForwardList(WKPageRef page, WKBackForwardListItemRef ad
     [loadDelegate browsingContextControllerDidChangeBackForwardList:browsingContext addedItem:added removedItems:removed];
 }
 
+static void processDidCrash(WKPageRef page, const void* clientInfo)
+{
+    WKBrowsingContextController *browsingContext = (WKBrowsingContextController *)clientInfo;
+    auto loadDelegate = browsingContext->_loadDelegate.get();
+
+    if ([loadDelegate respondsToSelector:@selector(browsingContextControllerWebProcessDidCrash:)])
+        [(id <WKBrowsingContextLoadDelegatePrivate>)loadDelegate browsingContextControllerWebProcessDidCrash:browsingContext];
+}
+
+static void didLayout(WKPageRef page, WKLayoutMilestones milestones, WKTypeRef userData, const void* clientInfo)
+{
+    WKBrowsingContextController *browsingContext = (WKBrowsingContextController *)clientInfo;
+    auto loadDelegate = browsingContext->_loadDelegate.get();
+
+    if ([loadDelegate respondsToSelector:@selector(browsingContextController:renderingProgressDidChange:)])
+        [loadDelegate browsingContextController:browsingContext renderingProgressDidChange:renderingProgressEvents(milestones)];
+}
+
 static void setUpPageLoaderClient(WKBrowsingContextController *browsingContext, WebPageProxy& page)
 {
-    WKPageLoaderClientV3 loaderClient;
+    WKPageLoaderClientV4 loaderClient;
     memset(&loaderClient, 0, sizeof(loaderClient));
 
-    loaderClient.base.version = 3;
+    loaderClient.base.version = 4;
     loaderClient.base.clientInfo = browsingContext;
     loaderClient.didStartProvisionalLoadForFrame = didStartProvisionalLoadForFrame;
     loaderClient.didReceiveServerRedirectForProvisionalLoadForFrame = didReceiveServerRedirectForProvisionalLoadForFrame;
@@ -523,7 +619,11 @@ static void setUpPageLoaderClient(WKBrowsingContextController *browsingContext, 
     loaderClient.didFinishProgress = didFinishProgress;
     loaderClient.didChangeBackForwardList = didChangeBackForwardList;
 
-    page.initializeLoaderClient(&loaderClient.base);
+    loaderClient.processDidCrash = processDidCrash;
+
+    loaderClient.didLayout = didLayout;
+
+    WKPageSetPageLoaderClient(toAPI(&page), &loaderClient.base);
 }
 
 static WKPolicyDecisionHandler makePolicyDecisionBlock(WKFramePolicyListenerRef listener)
@@ -551,13 +651,13 @@ static WKPolicyDecisionHandler makePolicyDecisionBlock(WKFramePolicyListenerRef 
 
 static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, WebPageProxy& page)
 {
-    WKPagePolicyClientV1 policyClient;
+    WKPagePolicyClientInternal policyClient;
     memset(&policyClient, 0, sizeof(policyClient));
 
-    policyClient.base.version = 1;
+    policyClient.base.version = 2;
     policyClient.base.clientInfo = browsingContext;
 
-    policyClient.decidePolicyForNavigationAction = [](WKPageRef page, WKFrameRef frame, WKFrameNavigationType navigationType, WKEventModifiers modifiers, WKEventMouseButton mouseButton, WKFrameRef originatingFrame, WKURLRequestRef request, WKFramePolicyListenerRef listener, WKTypeRef userData, const void* clientInfo)
+    policyClient.decidePolicyForNavigationAction = [](WKPageRef page, WKFrameRef frame, WKFrameNavigationType navigationType, WKEventModifiers modifiers, WKEventMouseButton mouseButton, WKFrameRef originatingFrame, WKURLRequestRef originalRequest, WKURLRequestRef request, WKFramePolicyListenerRef listener, WKTypeRef userData, const void* clientInfo)
     {
         WKBrowsingContextController *browsingContext = (WKBrowsingContextController *)clientInfo;
         auto policyDelegate = browsingContext->_policyDelegate.get();
@@ -568,6 +668,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
                 WKActionNavigationTypeKey: @(navigationType),
                 WKActionModifierFlagsKey: @(modifiers),
                 WKActionMouseButtonKey: @(mouseButton),
+                WKActionOriginalURLRequestKey: adoptNS(WKURLRequestCopyNSURLRequest(originalRequest)).get(),
                 WKActionURLRequestKey: adoptNS(WKURLRequestCopyNSURLRequest(request)).get()
             };
 
@@ -619,7 +720,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
             WKFramePolicyListenerUse(listener);
     };
 
-    page.initializePolicyClient(&policyClient.base);
+    WKPageSetPagePolicyClient(toAPI(&page), &policyClient.base);
 }
 
 - (id <WKBrowsingContextLoadDelegate>)loadDelegate
@@ -634,7 +735,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
     if (loadDelegate)
         setUpPageLoaderClient(self, *_page);
     else
-        _page->initializeLoaderClient(nullptr);
+        WKPageSetPageLoaderClient(toAPI(_page.get()), nullptr);
 }
 
 - (id <WKBrowsingContextPolicyDelegate>)policyDelegate
@@ -649,7 +750,7 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
     if (policyDelegate)
         setUpPagePolicyClient(self, *_page);
     else
-        _page->initializePolicyClient(nullptr);
+        WKPageSetPagePolicyClient(toAPI(_page.get()), nullptr);
 }
 
 - (id <WKBrowsingContextHistoryDelegate>)historyDelegate
@@ -691,11 +792,26 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
     return YES;
 }
 
-#pragma mark WKObject protocol implementation
 
-- (API::Object&)_apiObject
+- (instancetype)_initWithPageRef:(WKPageRef)pageRef
 {
-    return *reinterpret_cast<API::Object*>(&_page);
+    if (!(self = [super init]))
+        return nil;
+
+    _page = toImpl(pageRef);
+
+    _pageLoadStateObserver = std::make_unique<PageLoadStateObserver>(self);
+    _page->pageLoadState().addObserver(*_pageLoadStateObserver);
+
+    ASSERT(!browsingContextControllerMap().contains(_page.get()));
+    browsingContextControllerMap().set(_page.get(), self);
+
+    return self;
+}
+
++ (WKBrowsingContextController *)_browsingContextControllerForPageRef:(WKPageRef)pageRef
+{
+    return browsingContextControllerMap().get(toImpl(pageRef));
 }
 
 @end
@@ -790,6 +906,21 @@ static void setUpPagePolicyClient(WKBrowsingContextController *browsingContext, 
 - (WKBrowsingContextHandle *)handle
 {
     return [[[WKBrowsingContextHandle alloc] _initWithPageID:_page->pageID()] autorelease];
+}
+
+- (_WKRemoteObjectRegistry *)_remoteObjectRegistry
+{
+    if (!_remoteObjectRegistry) {
+        _remoteObjectRegistry = [[_WKRemoteObjectRegistry alloc] _initWithMessageSender:*_page];
+        _page->process().context().addMessageReceiver(Messages::RemoteObjectRegistry::messageReceiverName(), _page->pageID(), [_remoteObjectRegistry remoteObjectRegistry]);
+    }
+
+    return _remoteObjectRegistry.get();
+}
+
+- (pid_t)processIdentifier
+{
+    return _page->processIdentifier();
 }
 
 @end

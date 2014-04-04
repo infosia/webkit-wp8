@@ -19,7 +19,8 @@ const regionNumberFillColor = "rgba(255, 255, 255, 0.9)";
 const regionNumberStrokeColor = "rgb(61, 127, 204)";
 
 // CSS Shapes highlight colors
-const shapeHighlightColor = "rgb(255, 105, 180)";
+const shapeHighlightColor = "rgba(96, 82, 127, 0.8)";
+const shapeMarginHighlightColor = "rgba(96, 82, 127, 0.6)";
 
 function drawPausedInDebuggerMessage(message)
 {
@@ -365,6 +366,7 @@ function _createElementTitle(elementInfo)
     builder.appendSpan("node-height", elementInfo.nodeHeight);
     builder.appendSpan("px", "px");
 
+    builder.appendPropertyIfNotNull("role-name", "Role", elementInfo.role);
     builder.appendPropertyIfNotNull("region-flow-name", "Region Flow", elementInfo.regionFlowInfo ? elementInfo.regionFlowInfo.name : null);
     builder.appendPropertyIfNotNull("content-flow-name", "Content Flow", elementInfo.contentFlowInfo ? elementInfo.contentFlowInfo.name : null);
 
@@ -562,9 +564,13 @@ function _drawRegionsHighlight(regions)
 }
 
 function _drawShapeHighlight(shapeInfo) {
-    if (shapeInfo.path)
-        drawPath(context, shapeInfo.path, shapeHighlightColor);
-    else
+    if (shapeInfo.marginShape)
+        drawPath(context, shapeInfo.marginShape, shapeMarginHighlightColor);
+
+    if (shapeInfo.shape)
+        drawPath(context, shapeInfo.shape, shapeHighlightColor);
+
+    if (!(shapeInfo.shape || shapeInfo.marginShape))
         drawOutlinedQuad(shapeInfo.bounds, shapeHighlightColor, shapeHighlightColor);
 }
 
@@ -631,16 +637,26 @@ function _drawFragmentHighlight(highlight)
     _drawRulers(highlight, rulerAtRight, rulerAtBottom);
 }
 
+function showPageIndication()
+{
+    document.body.classList.add("indicate");
+}
+
+function hidePageIndication()
+{
+    document.body.classList.remove("indicate");
+}
+
 function drawNodeHighlight(highlight)
 {
     context.save();
     context.translate(-highlight.scroll.x, -highlight.scroll.y);
 
     for (var i = 0; i < highlight.fragments.length; ++i)
-        _drawFragmentHighlight(highlight.fragments[i], highlight);
+        _drawFragmentHighlight(highlight.fragments[i]);
 
     if (highlight.elementInfo && highlight.elementInfo.regionFlowInfo)
-        _drawRegionsHighlight(highlight.elementInfo.regionFlowInfo.regions, highlight);
+        _drawRegionsHighlight(highlight.elementInfo.regionFlowInfo.regions);
 
     if (highlight.elementInfo && highlight.elementInfo.shapeOutsideInfo)
         _drawShapeHighlight(highlight.elementInfo.shapeOutsideInfo);

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -55,6 +55,10 @@
 
 #if ENABLE(PROXIMITY_EVENTS)
 #include "DeviceProximityController.h"
+#endif
+
+#if PLATFORM(IOS)
+#include "MemoryPressureHandler.h"
 #endif
 
 namespace WebCore {
@@ -103,7 +107,14 @@ static unsigned logCanCacheFrameDecision(Frame* frame, int indentLevel)
     unsigned rejectReasons = 0;
     if (!frame->loader().documentLoader()->mainDocumentError().isNull()) {
         PCLOG("   -Main document has an error");
+#if !PLATFORM(IOS)
         rejectReasons |= 1 << MainDocumentError;
+#else
+        if (frame->loader().documentLoader()->mainDocumentError().isCancellation() && frame->loader().documentLoader()->subresourceLoadersArePageCacheAcceptable())
+            PCLOG("    -But, it was a cancellation and all loaders during the cancel were loading images.");
+        else
+            rejectReasons |= 1 << MainDocumentError;
+#endif
     }
     if (frame->loader().documentLoader()->substituteData().isValid() && frame->loader().documentLoader()->substituteData().failingURL().isEmpty()) {
         PCLOG("   -Frame is an error page");
@@ -121,7 +132,12 @@ static unsigned logCanCacheFrameDecision(Frame* frame, int indentLevel)
     }
     if (frame->document()->domWindow() && frame->document()->domWindow()->hasEventListeners(eventNames().unloadEvent)) {
         PCLOG("   -Frame has an unload event listener");
+#if !PLATFORM(IOS)
         rejectReasons |= 1 << HasUnloadListener;
+#else
+        // iOS allows pages with unload event listeners to enter the page cache.
+        PCLOG("    -BUT iOS allows these pages to be cached.");
+#endif
     }
 #if ENABLE(SQL_DATABASE)
     if (DatabaseManager::manager().hasOpenDatabases(frame->document())) {
@@ -201,7 +217,7 @@ COMPILE_ASSERT(NumberOfReasonsPagesCannotBeInPageCache <= sizeof(unsigned)*8, Re
 static void logCanCachePageDecision(Page* page)
 {
     // Only bother logging for main frames that have actually loaded and have content.
-    if (page->mainFrame().loader().stateMachine()->creatingInitialEmptyDocument())
+    if (page->mainFrame().loader().stateMachine().creatingInitialEmptyDocument())
         return;
     URL currentURL = page->mainFrame().loader().documentLoader() ? page->mainFrame().loader().documentLoader()->url() : URL();
     if (currentURL.isEmpty())
@@ -215,15 +231,11 @@ static void logCanCachePageDecision(Page* page)
     if (frameRejectReasons)
         rejectReasons |= 1 << FrameCannotBeInPageCache;
     
-    if (!page->backForward().isActive()) {
-        PCLOG("   -The back/forward list is disabled or has 0 capacity");
-        rejectReasons |= 1 << DisabledBackForwardList;
-    }
     if (!page->settings().usesPageCache()) {
         PCLOG("   -Page settings says b/f cache disabled");
         rejectReasons |= 1 << DisabledPageCache;
     }
-#if ENABLE(DEVICE_ORIENTATION)
+#if ENABLE(DEVICE_ORIENTATION) && !PLATFORM(IOS)
     if (DeviceMotionController::isActiveAt(page)) {
         PCLOG("   -Page is using DeviceMotion");
         rejectReasons |= 1 << UsesDeviceMotion;
@@ -294,9 +306,7 @@ PageCache::PageCache()
     , m_size(0)
     , m_head(0)
     , m_tail(0)
-#if USE(ACCELERATED_COMPOSITING)
     , m_shouldClearBackingStores(false)
-#endif
 {
 }
     
@@ -312,12 +322,18 @@ bool PageCache::canCachePageContainingThisFrame(Frame* frame)
     Document* document = frame->document();
     
     return documentLoader
+#if !PLATFORM(IOS)
         && documentLoader->mainDocumentError().isNull()
+#else
+        && (documentLoader->mainDocumentError().isNull() || (documentLoader->mainDocumentError().isCancellation() && documentLoader->subresourceLoadersArePageCacheAcceptable()))
+#endif
         // Do not cache error pages (these can be recognized as pages with substitute data or unreachable URLs).
         && !(documentLoader->substituteData().isValid() && !documentLoader->substituteData().failingURL().isEmpty())
         && (!frameLoader.subframeLoader().containsPlugins() || frame->page()->settings().pageCacheSupportsPlugins())
         && (!document->url().protocolIs("https") || (!documentLoader->response().cacheControlContainsNoCache() && !documentLoader->response().cacheControlContainsNoStore()))
+#if !PLATFORM(IOS)
         && (!document->domWindow() || !document->domWindow()->hasEventListeners(eventNames().unloadEvent))
+#endif
 #if ENABLE(SQL_DATABASE)
         && !DatabaseManager::manager().hasOpenDatabases(document)
 #endif
@@ -343,7 +359,12 @@ bool PageCache::canCache(Page* page) const
 #if !defined(NDEBUG)
     logCanCachePageDecision(page);
 #endif
-    
+
+#if PLATFORM(IOS)
+    if (memoryPressureHandler().hasReceivedMemoryPressure())
+        return false;
+#endif
+
     // Cache the page, if possible.
     // Don't write to the cache if in the middle of a redirect, since we will want to
     // store the final page we end up on.
@@ -353,9 +374,8 @@ bool PageCache::canCache(Page* page) const
     
     return m_capacity > 0
         && canCachePageContainingThisFrame(&page->mainFrame())
-        && page->backForward().isActive()
         && page->settings().usesPageCache()
-#if ENABLE(DEVICE_ORIENTATION)
+#if ENABLE(DEVICE_ORIENTATION) && !PLATFORM(IOS)
         && !DeviceMotionController::isActiveAt(page)
         && !DeviceOrientationController::isActiveAt(page)
 #endif
@@ -366,6 +386,13 @@ bool PageCache::canCache(Page* page) const
             || loadType == FrameLoadTypeBack
             || loadType == FrameLoadTypeForward
             || loadType == FrameLoadTypeIndexedBackForward);
+}
+
+void PageCache::pruneToCapacityNow(int capacity)
+{
+    int savedCapacity = m_capacity;
+    setCapacity(capacity);
+    setCapacity(savedCapacity);
 }
 
 void PageCache::setCapacity(int capacity)
@@ -405,8 +432,6 @@ void PageCache::markPagesForFullStyleRecalc(Page* page)
     }
 }
 
-
-#if USE(ACCELERATED_COMPOSITING)
 void PageCache::markPagesForDeviceScaleChanged(Page* page)
 {
     for (HistoryItem* current = m_head; current; current = current->m_next) {
@@ -415,7 +440,6 @@ void PageCache::markPagesForDeviceScaleChanged(Page* page)
             cachedPage->markForDeviceScaleChanged();
     }
 }
-#endif
 
 #if ENABLE(VIDEO_TRACK)
 void PageCache::markPagesForCaptionPreferencesChanged()
@@ -438,19 +462,19 @@ void PageCache::add(PassRefPtr<HistoryItem> prpItem, Page& page)
     if (item->m_cachedPage)
         remove(item);
 
-    item->m_cachedPage = CachedPage::create(page);
+    item->m_cachedPage = std::make_unique<CachedPage>(page);
     addToLRUList(item);
     ++m_size;
     
     prune();
 }
 
-PassOwnPtr<CachedPage> PageCache::take(HistoryItem* item)
+std::unique_ptr<CachedPage> PageCache::take(HistoryItem* item)
 {
     if (!item)
         return nullptr;
 
-    OwnPtr<CachedPage> cachedPage = item->m_cachedPage.release();
+    std::unique_ptr<CachedPage> cachedPage = std::move(item->m_cachedPage);
 
     removeFromLRUList(item);
     --m_size;
@@ -465,7 +489,7 @@ PassOwnPtr<CachedPage> PageCache::take(HistoryItem* item)
         return nullptr;
     }
 
-    return cachedPage.release();
+    return cachedPage;
 }
 
 CachedPage* PageCache::get(HistoryItem* item)
@@ -489,7 +513,7 @@ void PageCache::remove(HistoryItem* item)
     if (!item || !item->m_cachedPage)
         return;
 
-    item->m_cachedPage.clear();
+    item->m_cachedPage = nullptr;
     removeFromLRUList(item);
     --m_size;
 

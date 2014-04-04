@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -39,6 +39,9 @@
 namespace JSC {
 
 struct SlowArgument {
+    WTF_MAKE_FAST_ALLOCATED;
+public:
+
     enum Status {
         Normal = 0,
         Captured = 1,
@@ -467,11 +470,14 @@ public:
     const SlowArgument* slowArguments() { return m_slowArguments.get(); }
     void setSlowArguments(std::unique_ptr<SlowArgument[]> slowArguments) { m_slowArguments = std::move(slowArguments); }
     
-    SymbolTable* clone(VM&);
+    SymbolTable* cloneCapturedNames(VM&);
 
     static void visitChildren(JSCell*, SlotVisitor&);
 
     DECLARE_EXPORT_INFO;
+
+protected:
+    static const unsigned StructureFlags = StructureIsImmortal | Base::StructureFlags;
 
 private:
     class WatchpointCleanup : public UnconditionalFinalizer {
@@ -480,7 +486,7 @@ private:
         virtual ~WatchpointCleanup();
         
     protected:
-        virtual void finalizeUnconditionally() OVERRIDE;
+        virtual void finalizeUnconditionally() override;
 
     private:
         SymbolTable* m_symbolTable;

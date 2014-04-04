@@ -74,7 +74,7 @@ unsigned CharacterData::parserAppendData(const String& string, unsigned offset, 
     // see <https://bugs.webkit.org/show_bug.cgi?id=29092>.
     // We need at least two characters look-ahead to account for UTF-16 surrogates.
     if (characterLengthLimit < characterLength) {
-        NonSharedCharacterBreakIterator it(string.characters() + offset, (characterLengthLimit + 2 > characterLength) ? characterLength : characterLengthLimit + 2);
+        NonSharedCharacterBreakIterator it(StringView(string).substring(offset, (characterLengthLimit + 2 > characterLength) ? characterLength : characterLengthLimit + 2));
         if (!isTextBreak(it, characterLengthLimit))
             characterLengthLimit = textBreakPreceding(it, characterLengthLimit);
     }
@@ -210,7 +210,7 @@ void CharacterData::setDataAndUpdate(const String& newData, unsigned offsetOfRep
 
 void CharacterData::dispatchModifiedEvent(const String& oldData)
 {
-    if (OwnPtr<MutationObserverInterestGroup> mutationRecipients = MutationObserverInterestGroup::createForCharacterDataMutation(*this))
+    if (std::unique_ptr<MutationObserverInterestGroup> mutationRecipients = MutationObserverInterestGroup::createForCharacterDataMutation(*this))
         mutationRecipients->enqueueMutationRecord(MutationRecord::createCharacterData(*this, oldData));
 
     if (!isInShadowTree()) {

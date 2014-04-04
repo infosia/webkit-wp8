@@ -28,7 +28,7 @@
 #include "WebOpenPanelParameters.h"
 
 #include "APIArray.h"
-#include "WebString.h"
+#include "APIString.h"
 #include <wtf/Vector.h>
 
 using namespace WebCore;
@@ -55,7 +55,7 @@ PassRefPtr<API::Array> WebOpenPanelParameters::acceptMIMETypes() const
 }
 
 #if ENABLE(MEDIA_CAPTURE)
-String WebOpenPanelParameters::capture() const
+bool WebOpenPanelParameters::capture() const
 {
     return m_settings.capture;
 }

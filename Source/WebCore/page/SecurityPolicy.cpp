@@ -46,7 +46,7 @@ typedef HashMap<String, OwnPtr<OriginAccessWhiteList>> OriginAccessMap;
 
 static OriginAccessMap& originAccessMap()
 {
-    DEFINE_STATIC_LOCAL(OriginAccessMap, originAccessMap, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(OriginAccessMap, originAccessMap, ());
     return originAccessMap;
 }
 
@@ -69,6 +69,9 @@ bool SecurityPolicy::shouldHideReferrer(const URL& url, const String& referrer)
 String SecurityPolicy::generateReferrerHeader(ReferrerPolicy referrerPolicy, const URL& url, const String& referrer)
 {
     if (referrer.isEmpty())
+        return String();
+
+    if (!protocolIsInHTTPFamily(referrer))
         return String();
 
     switch (referrerPolicy) {

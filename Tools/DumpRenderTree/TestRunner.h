@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -30,7 +30,6 @@
 #define TestRunner_h
 
 #include <JavaScriptCore/JSObjectRef.h>
-#include <JavaScriptCore/JSRetainPtr.h>
 #include <map>
 #include <set>
 #include <string>
@@ -119,6 +118,11 @@ public:
     void setSpatialNavigationEnabled(bool);
     void setScrollbarPolicy(JSStringRef orientation, JSStringRef policy);
     void startSpeechInput(JSContextRef inputElement);
+#if PLATFORM(IOS)
+    void setTelephoneNumberParsingEnabled(bool enable);
+    void setPagePaused(bool paused);
+#endif
+
     void setPageVisibility(const char*);
     void resetPageVisibility();
 
@@ -128,10 +132,6 @@ public:
 
 #if ENABLE(IOS_TEXT_AUTOSIZING)
     void setTextAutosizingEnabled(bool);
-#endif
-
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(WIN) || PLATFORM(EFL)
-    JSRetainPtr<JSStringRef> platformName() const;
 #endif
 
     // Legacy here refers to the old TestRunner API for handling web notifications, not the legacy web notification API.
@@ -307,7 +307,7 @@ public:
     void setDeveloperExtrasEnabled(bool);
     void showWebInspector();
     void closeWebInspector();
-    void evaluateInWebInspector(long callId, JSStringRef script);
+    void evaluateInWebInspector(JSStringRef script);
     void evaluateScriptInIsolatedWorld(unsigned worldID, JSObjectRef globalObject, JSStringRef script);
     void evaluateScriptInIsolatedWorldAndReturnValue(unsigned worldID, JSObjectRef globalObject, JSStringRef script);
 

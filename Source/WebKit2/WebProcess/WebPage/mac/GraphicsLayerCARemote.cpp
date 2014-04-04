@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,10 +24,8 @@
  */
 
 #include "config.h"
-
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "GraphicsLayerCARemote.h"
+#include "PlatformCAAnimationRemote.h"
 #include "PlatformCALayerRemote.h"
 
 using namespace WebCore;
@@ -55,6 +53,19 @@ PassRefPtr<PlatformCALayer> GraphicsLayerCARemote::createPlatformCALayer(Platfor
     return PlatformCALayerRemote::create(platformLayer, owner, m_context);
 }
 
+PassRefPtr<PlatformCAAnimation> GraphicsLayerCARemote::createPlatformCAAnimation(PlatformCAAnimation::AnimationType type, const String& keyPath)
+{
+    return PlatformCAAnimationRemote::create(type, keyPath);
 }
 
-#endif // USE(ACCELERATED_COMPOSITING)
+bool GraphicsLayerCARemote::addAnimation(const KeyframeValueList& valueList, const FloatSize& boxSize, const Animation* anim, const String& animationName, double timeOffset)
+{
+#if ENABLE(CSS_FILTERS)
+    if (valueList.property() == AnimatedPropertyWebkitFilter)
+        return false;
+#endif
+    
+    return GraphicsLayerCA::addAnimation(valueList, boxSize, anim, animationName, timeOffset);
+}
+
+} // namespace WebKit

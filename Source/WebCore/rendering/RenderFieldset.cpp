@@ -2,7 +2,7 @@
  * Copyright (C) 1999 Lars Knoll (knoll@kde.org)
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2000 Dirk Mueller (mueller@kde.org)
- * Copyright (C) 2004, 2005, 2006 Apple Computer, Inc.
+ * Copyright (C) 2004, 2005, 2006 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -54,7 +54,7 @@ void RenderFieldset::computePreferredLogicalWidths()
         if (legendMarginRight.isFixed())
             legendMinWidth += legendMarginRight.value();
 
-        m_minPreferredLogicalWidth = std::max(m_minPreferredLogicalWidth, legendMinWidth + borderAndPaddingWidth());
+        m_minPreferredLogicalWidth = std::max(m_minPreferredLogicalWidth, legendMinWidth + horizontalBorderAndPaddingExtent());
     }
 }
 
@@ -160,9 +160,9 @@ void RenderFieldset::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint
     }
 
     if (!boxShadowShouldBeAppliedToBackground(determineBackgroundBleedAvoidance(paintInfo.context)))
-        paintBoxShadow(paintInfo, paintRect, &style(), Normal);
+        paintBoxShadow(paintInfo, paintRect, style(), Normal);
     paintFillLayers(paintInfo, style().visitedDependentColor(CSSPropertyBackgroundColor), style().backgroundLayers(), paintRect);
-    paintBoxShadow(paintInfo, paintRect, &style(), Inset);
+    paintBoxShadow(paintInfo, paintRect, style(), Inset);
 
     if (!style().hasBorder())
         return;
@@ -176,15 +176,15 @@ void RenderFieldset::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint
     // https://bugs.webkit.org/show_bug.cgi?id=47236
     if (style().isHorizontalWritingMode()) {
         LayoutUnit clipTop = paintRect.y();
-        LayoutUnit clipHeight = std::max(static_cast<LayoutUnit>(style().borderTopWidth()), legend->height() - ((legend->height() - borderTop()) / 2));
+        LayoutUnit clipHeight = std::max<LayoutUnit>(style().borderTopWidth(), legend->height() - ((legend->height() - borderTop()) / 2));
         graphicsContext->clipOut(pixelSnappedIntRect(paintRect.x() + legend->x(), clipTop, legend->width(), clipHeight));
     } else {
         LayoutUnit clipLeft = paintRect.x();
-        LayoutUnit clipWidth = std::max(static_cast<LayoutUnit>(style().borderLeftWidth()), legend->width());
+        LayoutUnit clipWidth = std::max<LayoutUnit>(style().borderLeftWidth(), legend->width());
         graphicsContext->clipOut(pixelSnappedIntRect(clipLeft, paintRect.y() + legend->y(), clipWidth, legend->height()));
     }
 
-    paintBorder(paintInfo, paintRect, &style());
+    paintBorder(paintInfo, paintRect, style());
 }
 
 void RenderFieldset::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffset)

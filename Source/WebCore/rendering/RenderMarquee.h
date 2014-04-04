@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Apple Computer, Inc.
+ * Copyright (C) 2003 Apple Inc.
  *
  * Portions are Copyright (C) 1998 Netscape Communications Corporation.
  *
@@ -79,7 +79,7 @@ public:
     void updateMarqueePosition();
 
 private:
-    void timerFired(Timer<RenderMarquee>*);
+    void timerFired(Timer<RenderMarquee>&);
 
     RenderLayer* m_layer;
     int m_currentLoop;

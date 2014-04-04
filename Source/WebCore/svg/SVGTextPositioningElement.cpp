@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextPositioningElement.h"
 
 #include "Attribute.h"
@@ -57,7 +55,7 @@ SVGTextPositioningElement::SVGTextPositioningElement(const QualifiedName& tagNam
 
 bool SVGTextPositioningElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::xAttr);
         supportedAttributes.add(SVGNames::yAttr);
@@ -135,14 +133,14 @@ void SVGTextPositioningElement::svgAttributeChanged(const QualifiedName& attrNam
     if (updateRelativeLengths)
         updateRelativeLengthsInformation();
 
-    RenderObject* renderer = this->renderer();
+    auto renderer = this->renderer();
     if (!renderer)
         return;
 
     if (updateRelativeLengths || attrName == SVGNames::rotateAttr) {
-        if (RenderSVGText* textRenderer = RenderSVGText::locateRenderSVGTextAncestor(renderer))
-            textRenderer->setNeedsPositioningValuesUpdate();
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        if (auto* textAncestor = RenderSVGText::locateRenderSVGTextAncestor(*renderer))
+            textAncestor->setNeedsPositioningValuesUpdate();
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -173,5 +171,3 @@ SVGTextPositioningElement* SVGTextPositioningElement::elementFromRenderer(Render
 }
 
 }
-
-#endif // ENABLE(SVG)

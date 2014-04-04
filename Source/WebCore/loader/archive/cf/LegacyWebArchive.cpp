@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -51,6 +51,7 @@
 #include <wtf/ListHashSet.h>
 #include <wtf/RetainPtr.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
@@ -405,7 +406,7 @@ RetainPtr<CFDataRef> LegacyWebArchive::rawDataRepresentation()
     return plistData;
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 
 ResourceResponse LegacyWebArchive::createResourceResponseFromMacArchivedData(CFDataRef responseData)
 {
@@ -553,7 +554,7 @@ PassRefPtr<LegacyWebArchive> LegacyWebArchive::create(const String& markupString
 #if ENABLE(CACHE_PARTITIONING)
                 request.setCachePartition(frame->document()->topOrigin()->cachePartition());
 #endif
-                CachedResource* cachedResource = memoryCache()->resourceForRequest(request);
+                CachedResource* cachedResource = memoryCache()->resourceForRequest(request, frame->page()->sessionID());
                 if (cachedResource) {
                     ResourceBuffer* data = cachedResource->resourceBuffer();
                     resource = ArchiveResource::create(data ? data->sharedBuffer() : 0, subresourceURL, cachedResource->response());

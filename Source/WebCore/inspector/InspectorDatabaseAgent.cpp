@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -36,9 +36,7 @@
 #include "ExceptionCode.h"
 #include "ExceptionCodePlaceholder.h"
 #include "InspectorDatabaseResource.h"
-#include "InspectorFrontend.h"
-
-#include "InspectorValues.h"
+#include "InspectorWebFrontendDispatchers.h"
 #include "InstrumentingAgents.h"
 #include "SQLError.h"
 #include "SQLResultSet.h"
@@ -50,10 +48,12 @@
 #include "SQLTransactionErrorCallback.h"
 #include "SQLValue.h"
 #include "VoidCallback.h"
-
+#include <inspector/InspectorValues.h>
 #include <wtf/Vector.h>
 
-typedef WebCore::InspectorDatabaseBackendDispatcherHandler::ExecuteSQLCallback ExecuteSQLCallback;
+typedef Inspector::InspectorDatabaseBackendDispatcherHandler::ExecuteSQLCallback ExecuteSQLCallback;
+
+using namespace Inspector;
 
 namespace WebCore {
 
@@ -61,10 +61,10 @@ namespace {
 
 void reportTransactionFailed(ExecuteSQLCallback* requestCallback, SQLError* error)
 {
-    RefPtr<TypeBuilder::Database::Error> errorObject = TypeBuilder::Database::Error::create()
+    RefPtr<Inspector::TypeBuilder::Database::Error> errorObject = Inspector::TypeBuilder::Database::Error::create()
         .setMessage(error->message())
         .setCode(error->code());
-    requestCallback->sendSuccess(0, 0, errorObject.release());
+    requestCallback->sendSuccess(nullptr, nullptr, errorObject.release());
 }
 
 class StatementCallback : public SQLStatementCallback {
@@ -76,16 +76,16 @@ public:
 
     virtual ~StatementCallback() { }
 
-    virtual bool handleEvent(SQLTransaction*, SQLResultSet* resultSet)
+    virtual bool handleEvent(SQLTransaction*, SQLResultSet* resultSet) override
     {
         SQLResultSetRowList* rowList = resultSet->rows();
 
-        RefPtr<TypeBuilder::Array<String>> columnNames = TypeBuilder::Array<String>::create();
+        RefPtr<Inspector::TypeBuilder::Array<String>> columnNames = Inspector::TypeBuilder::Array<String>::create();
         const Vector<String>& columns = rowList->columnNames();
         for (size_t i = 0; i < columns.size(); ++i)
             columnNames->addItem(columns[i]);
 
-        RefPtr<TypeBuilder::Array<InspectorValue>> values = TypeBuilder::Array<InspectorValue>::create();
+        RefPtr<Inspector::TypeBuilder::Array<InspectorValue>> values = Inspector::TypeBuilder::Array<InspectorValue>::create();
         const Vector<SQLValue>& data = rowList->values();
         for (size_t i = 0; i < data.size(); ++i) {
             const SQLValue& value = rowList->values()[i];
@@ -95,7 +95,7 @@ public:
             case SQLValue::NullValue: values->addItem(InspectorValue::null()); break;
             }
         }
-        m_requestCallback->sendSuccess(columnNames.release(), values.release(), 0);
+        m_requestCallback->sendSuccess(columnNames.release(), values.release(), nullptr);
         return true;
     }
 
@@ -114,7 +114,7 @@ public:
 
     virtual ~StatementErrorCallback() { }
 
-    virtual bool handleEvent(SQLTransaction*, SQLError* error)
+    virtual bool handleEvent(SQLTransaction*, SQLError* error) override
     {
         reportTransactionFailed(m_requestCallback.get(), error);
         return true;  
@@ -135,7 +135,7 @@ public:
 
     virtual ~TransactionCallback() { }
 
-    virtual bool handleEvent(SQLTransaction* transaction)
+    virtual bool handleEvent(SQLTransaction* transaction) override
     {
         if (!m_requestCallback->isActive())
             return true;
@@ -163,7 +163,7 @@ public:
 
     virtual ~TransactionErrorCallback() { }
 
-    virtual bool handleEvent(SQLError* error)
+    virtual bool handleEvent(SQLError* error) override
     {
         reportTransactionFailed(m_requestCallback.get(), error);
         return true;
@@ -183,7 +183,7 @@ public:
 
     virtual ~TransactionSuccessCallback() { }
 
-    virtual bool handleEvent() { return false; }
+    virtual bool handleEvent() override { return false; }
 
 private:
     TransactionSuccessCallback() { }
@@ -211,7 +211,7 @@ void InspectorDatabaseAgent::clearResources()
 }
 
 InspectorDatabaseAgent::InspectorDatabaseAgent(InstrumentingAgents* instrumentingAgents)
-    : InspectorBaseAgent(ASCIILiteral("Database"), instrumentingAgents)
+    : InspectorAgentBase(ASCIILiteral("Database"), instrumentingAgents)
     , m_enabled(false)
 {
     m_instrumentingAgents->setInspectorDatabaseAgent(this);
@@ -219,16 +219,16 @@ InspectorDatabaseAgent::InspectorDatabaseAgent(InstrumentingAgents* instrumentin
 
 InspectorDatabaseAgent::~InspectorDatabaseAgent()
 {
-    m_instrumentingAgents->setInspectorDatabaseAgent(0);
+    m_instrumentingAgents->setInspectorDatabaseAgent(nullptr);
 }
 
-void InspectorDatabaseAgent::didCreateFrontendAndBackend(InspectorFrontendChannel* frontendChannel, InspectorBackendDispatcher* backendDispatcher)
+void InspectorDatabaseAgent::didCreateFrontendAndBackend(Inspector::InspectorFrontendChannel* frontendChannel, InspectorBackendDispatcher* backendDispatcher)
 {
     m_frontendDispatcher = std::make_unique<InspectorDatabaseFrontendDispatcher>(frontendChannel);
     m_backendDispatcher = InspectorDatabaseBackendDispatcher::create(backendDispatcher, this);
 }
 
-void InspectorDatabaseAgent::willDestroyFrontendAndBackend()
+void InspectorDatabaseAgent::willDestroyFrontendAndBackend(InspectorDisconnectReason)
 {
     m_frontendDispatcher = nullptr;
     m_backendDispatcher.clear();
@@ -254,14 +254,14 @@ void InspectorDatabaseAgent::disable(ErrorString*)
     m_enabled = false;
 }
 
-void InspectorDatabaseAgent::getDatabaseTableNames(ErrorString* error, const String& databaseId, RefPtr<TypeBuilder::Array<String>>& names)
+void InspectorDatabaseAgent::getDatabaseTableNames(ErrorString* error, const String& databaseId, RefPtr<Inspector::TypeBuilder::Array<String>>& names)
 {
     if (!m_enabled) {
         *error = "Database agent is not enabled";
         return;
     }
 
-    names = TypeBuilder::Array<String>::create();
+    names = Inspector::TypeBuilder::Array<String>::create();
 
     Database* database = databaseForId(databaseId);
     if (database) {
@@ -308,14 +308,14 @@ InspectorDatabaseResource* InspectorDatabaseAgent::findByFileName(const String& 
         if (it->value->database()->fileName() == fileName)
             return it->value.get();
     }
-    return 0;
+    return nullptr;
 }
 
 Database* InspectorDatabaseAgent::databaseForId(const String& databaseId)
 {
     DatabaseResourcesMap::iterator it = m_resources.find(databaseId);
     if (it == m_resources.end())
-        return 0;
+        return nullptr;
     return it->value->database();
 }
 

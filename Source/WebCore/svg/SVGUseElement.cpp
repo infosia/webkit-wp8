@@ -23,8 +23,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGUseElement.h"
 
 #include "CachedResourceLoader.h"
@@ -131,7 +129,7 @@ SVGElementInstance* SVGUseElement::animatedInstanceRoot() const
 
 bool SVGUseElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -225,14 +223,14 @@ void SVGUseElement::svgAttributeChanged(const QualifiedName& attrName)
 
     SVGElementInstance::InvalidationGuard invalidationGuard(this);
 
-    RenderObject* renderer = this->renderer();
+    auto renderer = this->renderer();
     if (attrName == SVGNames::xAttr
         || attrName == SVGNames::yAttr
         || attrName == SVGNames::widthAttr
         || attrName == SVGNames::heightAttr) {
         updateRelativeLengthsInformation();
         if (renderer)
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -257,9 +255,6 @@ void SVGUseElement::svgAttributeChanged(const QualifiedName& attrName)
         return;
     }
 
-    if (!renderer)
-        return;
-
     if (SVGLangSpace::isKnownAttribute(attrName)
         || SVGExternalResourcesRequired::isKnownAttribute(attrName)) {
         invalidateShadowTree();
@@ -269,11 +264,10 @@ void SVGUseElement::svgAttributeChanged(const QualifiedName& attrName)
     ASSERT_NOT_REACHED();
 }
 
-bool SVGUseElement::willRecalcStyle(Style::Change)
+void SVGUseElement::willAttachRenderers()
 {
-    if (!m_wasInsertedByParser && m_needsShadowTreeRecreation && renderer() && needsStyleRecalc())
+    if (m_needsShadowTreeRecreation)
         buildPendingResource();
-    return true;
 }
 
 #ifdef DUMP_INSTANCE_TREE
@@ -340,7 +334,7 @@ static bool isDisallowedElement(const Element& element)
     if (!element.isSVGElement())
         return true;
 
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, allowedElementTags, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, allowedElementTags, ());
     if (allowedElementTags.isEmpty()) {
         allowedElementTags.add(SVGNames::aTag);
         allowedElementTags.add(SVGNames::circleTag);
@@ -369,9 +363,8 @@ static bool isDisallowedElement(const Element& element)
 
 static bool subtreeContainsDisallowedElement(SVGElement& start)
 {
-    auto descendants = elementDescendants(start);
-    for (auto element = descendants.begin(), end = descendants.end(); element != end; ++element) {
-        if (isDisallowedElement(*element))
+    for (auto& element : descendantsOfType<Element>(start)) {
+        if (isDisallowedElement(element))
             return true;
     }
 
@@ -524,20 +517,20 @@ void SVGUseElement::buildShadowAndInstanceTree(SVGElement* target)
 #endif
 }
 
-RenderElement* SVGUseElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGUseElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGTransformableContainer(*this, std::move(style));
+    return createRenderer<RenderSVGTransformableContainer>(*this, std::move(style));
 }
 
-static bool isDirectReference(const Node* node)
+static bool isDirectReference(const SVGElement& element)
 {
-    return node->hasTagName(SVGNames::pathTag)
-           || node->hasTagName(SVGNames::rectTag)
-           || node->hasTagName(SVGNames::circleTag)
-           || node->hasTagName(SVGNames::ellipseTag)
-           || node->hasTagName(SVGNames::polygonTag)
-           || node->hasTagName(SVGNames::polylineTag)
-           || node->hasTagName(SVGNames::textTag);
+    return element.hasTagName(SVGNames::pathTag)
+        || element.hasTagName(SVGNames::rectTag)
+        || element.hasTagName(SVGNames::circleTag)
+        || element.hasTagName(SVGNames::ellipseTag)
+        || element.hasTagName(SVGNames::polygonTag)
+        || element.hasTagName(SVGNames::polylineTag)
+        || element.hasTagName(SVGNames::textTag);
 }
 
 void SVGUseElement::toClipPath(Path& path)
@@ -548,12 +541,12 @@ void SVGUseElement::toClipPath(Path& path)
     if (!n)
         return;
 
-    if (n->isSVGElement() && toSVGElement(n)->isSVGGraphicsElement()) {
-        if (!isDirectReference(n))
+    if (n->isSVGElement() && toSVGElement(*n).isSVGGraphicsElement()) {
+        if (!isDirectReference(toSVGElement(*n))) {
             // Spec: Indirect references are an error (14.3.5)
             document().accessSVGExtensions()->reportError("Not allowed to use indirect reference in <clip-path>");
-        else {
-            toSVGGraphicsElement(n)->toClipPath(path);
+        } else {
+            toSVGGraphicsElement(*n).toClipPath(path);
             // FIXME: Avoid manual resolution of x/y here. Its potentially harmful.
             SVGLengthContext lengthContext(this);
             path.translate(FloatSize(x().value(lengthContext), y().value(lengthContext)));
@@ -564,14 +557,17 @@ void SVGUseElement::toClipPath(Path& path)
 
 RenderElement* SVGUseElement::rendererClipChild() const
 {
-    Node* n = m_targetElementInstance ? m_targetElementInstance->shadowTreeElement() : 0;
-    if (!n)
-        return 0;
+    if (!m_targetElementInstance)
+        return nullptr;
 
-    if (n->isSVGElement() && isDirectReference(n))
-        return toSVGElement(n)->renderer();
+    auto* element = m_targetElementInstance->shadowTreeElement();
+    if (!element)
+        return nullptr;
 
-    return 0;
+    if (!isDirectReference(*element))
+        return nullptr;
+
+    return element->renderer();
 }
 
 void SVGUseElement::buildInstanceTree(SVGElement* target, SVGElementInstance* targetInstance, bool& foundProblem, bool foundUse)
@@ -606,19 +602,18 @@ void SVGUseElement::buildInstanceTree(SVGElement* target, SVGElementInstance* ta
     // is the SVGGElement object for the 'g', and then two child SVGElementInstance objects, each of which has
     // its correspondingElement that is an SVGRectElement object.
 
-    auto svgChildren = childrenOfType<SVGElement>(*target);
-    for (auto element = svgChildren.begin(), end = svgChildren.end(); element != end; ++element) {
+    for (auto& element : childrenOfType<SVGElement>(*target)) {
         // Skip any non-svg nodes or any disallowed element.
-        if (isDisallowedElement(*element))
+        if (isDisallowedElement(element))
             continue;
 
         // Create SVGElementInstance object, for both container/non-container nodes.
-        RefPtr<SVGElementInstance> instance = SVGElementInstance::create(this, 0, &*element);
+        RefPtr<SVGElementInstance> instance = SVGElementInstance::create(this, 0, &element);
         SVGElementInstance* instancePtr = instance.get();
         targetInstance->appendChild(instance.release());
 
         // Enter recursion, appending new instance tree nodes to the "instance" object.
-        buildInstanceTree(&*element, instancePtr, foundProblem, foundUse);
+        buildInstanceTree(&element, instancePtr, foundProblem, foundUse);
         if (foundProblem)
             return;
     }
@@ -664,8 +659,8 @@ static inline void removeDisallowedElementsFromSubtree(SVGElement& subtree)
 {
     ASSERT(!subtree.inDocument());
     Vector<Element*> toRemove;
-    auto it = elementDescendants(subtree).begin();
-    auto end = elementDescendants(subtree).end();
+    auto it = descendantsOfType<Element>(subtree).begin();
+    auto end = descendantsOfType<Element>(subtree).end();
     while (it != end) {
         if (isDisallowedElement(*it)) {
             toRemove.append(&*it);
@@ -891,10 +886,10 @@ SVGElementInstance* SVGUseElement::instanceForShadowTreeElement(Node* element, S
 
 void SVGUseElement::invalidateShadowTree()
 {
-    if (!renderer() || m_needsShadowTreeRecreation)
+    if (m_needsShadowTreeRecreation)
         return;
     m_needsShadowTreeRecreation = true;
-    setNeedsStyleRecalc();
+    setNeedsStyleRecalc(ReconstructRenderTree);
     invalidateDependentShadowTrees();
 }
 
@@ -999,5 +994,3 @@ void SVGUseElement::setCachedDocument(CachedResourceHandle<CachedSVGDocument> ca
 }
 
 }
-
-#endif // ENABLE(SVG)

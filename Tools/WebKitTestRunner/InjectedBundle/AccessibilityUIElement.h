@@ -35,7 +35,7 @@
 #include <wtf/Platform.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #ifdef __OBJC__
 typedef id PlatformUIElement;
 #else
@@ -50,7 +50,7 @@ typedef GRefPtr<AtkObject> PlatformUIElement;
 typedef void* PlatformUIElement;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #ifdef __OBJC__
 typedef id NotificationHandler;
 #else
@@ -113,6 +113,7 @@ public:
     JSRetainPtr<JSStringRef> role();
     JSRetainPtr<JSStringRef> subrole();
     JSRetainPtr<JSStringRef> roleDescription();
+    JSRetainPtr<JSStringRef> computedRoleString();
     JSRetainPtr<JSStringRef> title();
     JSRetainPtr<JSStringRef> description();
     JSRetainPtr<JSStringRef> language();
@@ -140,12 +141,15 @@ public:
     bool isSelectable() const;
     bool isMultiSelectable() const;
     void setSelectedChild(AccessibilityUIElement*) const;
+    void setSelectedChildAtIndex(unsigned) const;
+    void removeSelectionAtIndex(unsigned) const;
     unsigned selectedChildrenCount() const;
     PassRefPtr<AccessibilityUIElement> selectedChildAtIndex(unsigned) const;
     
     bool isValid() const;
     bool isExpanded() const;
     bool isChecked() const;
+    bool isIndeterminate() const;
     bool isVisible() const;
     bool isOffScreen() const;
     bool isCollapsed() const;
@@ -174,7 +178,9 @@ public:
     JSRetainPtr<JSStringRef> columnIndexRange();
     int rowCount();
     int columnCount();
-    
+    JSValueRef rowHeaders() const;
+    JSValueRef columnHeaders() const;
+
     // Tree/Outline specific attributes
     PassRefPtr<AccessibilityUIElement> selectedRowAtIndex(unsigned);
     PassRefPtr<AccessibilityUIElement> disclosedByRow();
@@ -184,6 +190,7 @@ public:
     // ARIA specific
     PassRefPtr<AccessibilityUIElement> ariaOwnsElementAtIndex(unsigned);
     PassRefPtr<AccessibilityUIElement> ariaFlowToElementAtIndex(unsigned);
+    PassRefPtr<AccessibilityUIElement> ariaControlsElementAtIndex(unsigned);
 
     // ARIA Drag and Drop
     bool ariaIsGrabbed() const;
@@ -199,8 +206,15 @@ public:
     JSRetainPtr<JSStringRef> stringForRange(unsigned location, unsigned length);
     JSRetainPtr<JSStringRef> attributedStringForRange(unsigned location, unsigned length);
     bool attributedStringRangeIsMisspelled(unsigned location, unsigned length);
-    unsigned uiElementCountForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly);
-    PassRefPtr<AccessibilityUIElement> uiElementForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly);
+    unsigned uiElementCountForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly);
+    PassRefPtr<AccessibilityUIElement> uiElementForSearchPredicate(JSContextRef, AccessibilityUIElement* startElement, bool isDirectionNext, JSValueRef searchKey, JSStringRef searchText, bool visibleOnly, bool immediateDescendantsOnly);
+    JSRetainPtr<JSStringRef> selectTextWithCriteria(JSContextRef, JSStringRef ambiguityResolution, JSValueRef searchStrings, JSStringRef replacementString);
+
+    // Text-specific
+    JSRetainPtr<JSStringRef> characterAtOffset(int offset);
+    JSRetainPtr<JSStringRef> wordAtOffset(int offset);
+    JSRetainPtr<JSStringRef> lineAtOffset(int offset);
+    JSRetainPtr<JSStringRef> sentenceAtOffset(int offset);
     
     // Table-specific
     PassRefPtr<AccessibilityUIElement> cellForColumnAndRow(unsigned column, unsigned row);
@@ -212,6 +226,7 @@ public:
     void scrollToMakeVisible();
     
     // Text markers.
+    PassRefPtr<AccessibilityTextMarkerRange> lineTextMarkerRangeForTextMarker(AccessibilityTextMarker*);
     PassRefPtr<AccessibilityTextMarkerRange> textMarkerRangeForElement(AccessibilityUIElement*);    
     PassRefPtr<AccessibilityTextMarkerRange> textMarkerRangeForMarkers(AccessibilityTextMarker* startMarker, AccessibilityTextMarker* endMarker);
     PassRefPtr<AccessibilityTextMarker> startTextMarkerForTextMarkerRange(AccessibilityTextMarkerRange*);
@@ -252,7 +267,7 @@ private:
     
     // A retained, platform specific object used to help manage notifications for this object.
 #if HAVE(ACCESSIBILITY)
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     NotificationHandler m_notificationHandler;
 
     void getLinkedUIElements(Vector<RefPtr<AccessibilityUIElement> >&);
@@ -261,7 +276,7 @@ private:
     void getUIElementsWithAttribute(JSStringRef, Vector<RefPtr<AccessibilityUIElement> >&) const;
 #endif
 
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(GTK) || PLATFORM(EFL)
     void getChildren(Vector<RefPtr<AccessibilityUIElement> >&);
     void getChildrenWithRange(Vector<RefPtr<AccessibilityUIElement> >&, unsigned location, unsigned length);
 #endif

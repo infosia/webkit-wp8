@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -24,10 +24,13 @@
  */
 
 #import "config.h"
+#import "PlatformPasteboard.h"
+
 #import "Color.h"
 #import "URL.h"
 #import "Image.h"
-#import "PlatformPasteboard.h"
+#import "Pasteboard.h"
+#import "SharedBuffer.h"
 #import "SoftLinking.h"
 
 SOFT_LINK_FRAMEWORK(UIKit)
@@ -152,12 +155,12 @@ void PlatformPasteboard::write(const PasteboardWebContent& content)
     RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
 
     if (content.dataInWebArchiveFormat)
-        [representations setValue:(NSData *)content.dataInWebArchiveFormat->createNSData() forKey:WebArchivePboardType];
+        [representations setValue:(NSData *)content.dataInWebArchiveFormat->createNSData().get() forKey:WebArchivePboardType];
 
     if (content.dataInRTFDFormat)
-        [representations setValue:content.dataInRTFDFormat->createNSData() forKey:(NSString *)kUTTypeRTFD];
+        [representations setValue:content.dataInRTFDFormat->createNSData().get() forKey:(NSString *)kUTTypeRTFD];
     if (content.dataInRTFFormat)
-        [representations setValue:content.dataInRTFFormat->createNSData() forKey:(NSString *)kUTTypeRTF];
+        [representations setValue:content.dataInRTFFormat->createNSData().get() forKey:(NSString *)kUTTypeRTF];
     [representations setValue:content.dataInStringFormat forKey:(NSString *)kUTTypeText];
     [m_pasteboard setItems:@[representations.get()]];
 }
@@ -166,7 +169,7 @@ void PlatformPasteboard::write(const PasteboardImage& pasteboardImage)
 {
     RetainPtr<NSMutableDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
     if (!pasteboardImage.resourceMIMEType.isNull()) {
-        [representations setObject:pasteboardImage.image->data()->createNSData() forKey:pasteboardImage.resourceMIMEType];
+        [representations setObject:pasteboardImage.resourceData->createNSData().get() forKey:pasteboardImage.resourceMIMEType];
         [representations setObject:(NSString *)pasteboardImage.url.url forKey:(NSString *)kUTTypeURL];
     }
     [m_pasteboard setItems:@[representations.get()]];
@@ -176,9 +179,10 @@ void PlatformPasteboard::write(const String& pasteboardType, const String& text)
 {
     RetainPtr<NSDictionary> representations = adoptNS([[NSMutableDictionary alloc] init]);
 
-    if (pasteboardType == String(kUTTypeURL))
-        [representations setValue:[adoptNS([NSURL alloc] initWithString:text]).get() forKey:pasteboardType];
-    else if (!pasteboardType.isNull())
+    if (pasteboardType == String(kUTTypeURL)) {
+        [representations setValue:adoptNS([[NSURL alloc] initWithString:text]).get() forKey:pasteboardType];
+        [representations setValue:text forKey:(NSString *)kUTTypeText];
+    } else if (!pasteboardType.isNull())
         [representations setValue:text forKey:pasteboardType];
     [m_pasteboard setItems:@[representations.get()]];
 }

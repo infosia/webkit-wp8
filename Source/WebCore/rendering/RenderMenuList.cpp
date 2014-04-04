@@ -93,11 +93,6 @@ RenderMenuList::~RenderMenuList()
 #endif
 }
 
-bool RenderMenuList::canBeReplacedWithInlineRunIn() const
-{
-    return false;
-}
-
 void RenderMenuList::createInnerBlock()
 {
     if (m_innerBlock) {
@@ -130,10 +125,10 @@ void RenderMenuList::adjustInnerStyle()
         innerStyle.setAlignSelf(AlignFlexStart);
     }
 
-    innerStyle.setPaddingLeft(Length(theme()->popupInternalPaddingLeft(&style()), Fixed));
-    innerStyle.setPaddingRight(Length(theme()->popupInternalPaddingRight(&style()), Fixed));
-    innerStyle.setPaddingTop(Length(theme()->popupInternalPaddingTop(&style()), Fixed));
-    innerStyle.setPaddingBottom(Length(theme()->popupInternalPaddingBottom(&style()), Fixed));
+    innerStyle.setPaddingLeft(Length(theme().popupInternalPaddingLeft(&style()), Fixed));
+    innerStyle.setPaddingRight(Length(theme().popupInternalPaddingRight(&style()), Fixed));
+    innerStyle.setPaddingTop(Length(theme().popupInternalPaddingTop(&style()), Fixed));
+    innerStyle.setPaddingBottom(Length(theme().popupInternalPaddingBottom(&style()), Fixed));
 
     if (document().page()->chrome().selectItemWritingDirectionIsNatural()) {
         // Items in the popup will not respect the CSS text-align and direction properties,
@@ -183,7 +178,7 @@ void RenderMenuList::addChild(RenderObject* newChild, RenderObject* beforeChild)
     ASSERT(m_innerBlock == firstChild());
 
     if (AXObjectCache* cache = document().existingAXObjectCache())
-        cache->childrenChanged(this);
+        cache->childrenChanged(this, newChild);
 }
 
 void RenderMenuList::removeChild(RenderObject& oldChild)
@@ -223,7 +218,7 @@ void RenderMenuList::updateOptionsWidth()
 
         String text = toHTMLOptionElement(element)->textIndentedToRespectGroupLabel();
         applyTextTransform(style(), text, ' ');
-        if (theme()->popupOptionSupportsTextIndent()) {
+        if (theme().popupOptionSupportsTextIndent()) {
             // Add in the option's text indent.  We can't calculate percentage values for now.
             float optionWidth = 0;
             if (RenderStyle* optionStyle = element->renderStyle())
@@ -324,7 +319,7 @@ LayoutRect RenderMenuList::controlClipRect(const LayoutPoint& additionalOffset) 
 
 void RenderMenuList::computeIntrinsicLogicalWidths(LayoutUnit& minLogicalWidth, LayoutUnit& maxLogicalWidth) const
 {
-    maxLogicalWidth = std::max(m_optionsWidth, theme()->minimumMenuListSize(&style())) + m_innerBlock->paddingLeft() + m_innerBlock->paddingRight();
+    maxLogicalWidth = std::max(m_optionsWidth, theme().minimumMenuListSize(&style())) + m_innerBlock->paddingLeft() + m_innerBlock->paddingRight();
     if (!style().width().isPercent())
         minLogicalWidth = maxLogicalWidth;
 }
@@ -349,7 +344,7 @@ void RenderMenuList::computePreferredLogicalWidths()
         m_minPreferredLogicalWidth = std::min(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().maxWidth().value()));
     }
 
-    LayoutUnit toAdd = borderAndPaddingWidth();
+    LayoutUnit toAdd = horizontalBorderAndPaddingExtent();
     m_minPreferredLogicalWidth += toAdd;
     m_maxPreferredLogicalWidth += toAdd;
 
@@ -436,7 +431,7 @@ void RenderMenuList::didUpdateActiveOption(int optionIndex)
 
     HTMLElement* listItem = selectElement().listItems()[listIndex];
     ASSERT(listItem);
-    if (listItem->attached()) {
+    if (listItem->renderer()) {
         if (AccessibilityMenuList* menuList = toAccessibilityMenuList(document().axObjectCache()->get(this)))
             menuList->didUpdateActiveOption(optionIndex);
     }

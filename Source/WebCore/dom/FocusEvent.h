@@ -56,11 +56,11 @@ public:
         return adoptRef(new FocusEvent(type, initializer));
     }
 
-    virtual EventTarget* relatedTarget() const OVERRIDE FINAL { return m_relatedTarget.get(); }
+    virtual EventTarget* relatedTarget() const override final { return m_relatedTarget.get(); }
     void setRelatedTarget(PassRefPtr<EventTarget> relatedTarget) { m_relatedTarget = relatedTarget; }
 
-    virtual EventInterface eventInterface() const;
-    virtual bool isFocusEvent() const;
+    virtual EventInterface eventInterface() const override;
+    virtual bool isFocusEvent() const override;
 
 private:
     FocusEvent();
@@ -70,17 +70,7 @@ private:
     RefPtr<EventTarget> m_relatedTarget;
 };
 
-inline FocusEvent* toFocusEvent(Event* event)
-{
-    ASSERT_WITH_SECURITY_IMPLICATION(event && event->isFocusEvent());
-    return static_cast<FocusEvent*>(event);
-}
-
-inline FocusEvent& toFocusEvent(Event& event)
-{
-    ASSERT(event.isFocusEvent());
-    return static_cast<FocusEvent&>(event);
-}
+EVENT_TYPE_CASTS(FocusEvent)
 
 } // namespace WebCore
 

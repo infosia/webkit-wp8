@@ -3,7 +3,7 @@
  *           (C) 1999 Antti Koivisto (koivisto@kde.org)
  *           (C) 2001 Peter Kelly (pmk@post.com)
  *           (C) 2001 Dirk Mueller (mueller@kde.org)
- * Copyright (C) 2004, 2005, 2006, 2008, 2010 Apple Inc. All rights reserved.
+ * Copyright (C) 2004, 2005, 2006, 2008, 2010, 2014 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -30,6 +30,7 @@
 #include "CSSValuePool.h"
 #include "ContentSecurityPolicy.h"
 #include "DOMTokenList.h"
+#include "HTMLElement.h"
 #include "HTMLParserIdioms.h"
 #include "InspectorInstrumentation.h"
 #include "PropertySetCSSStyleDeclaration.h"
@@ -48,7 +49,7 @@ struct PresentationAttributeCacheKey {
     PresentationAttributeCacheKey() : tagName(0) { }
     AtomicStringImpl* tagName;
     // Only the values need refcounting.
-    Vector<pair<AtomicStringImpl*, AtomicString>, 3> attributesAndValues;
+    Vector<std::pair<AtomicStringImpl*, AtomicString>, 3> attributesAndValues;
 };
 
 struct PresentationAttributeCacheEntry {
@@ -69,7 +70,7 @@ static bool operator!=(const PresentationAttributeCacheKey& a, const Presentatio
 
 static PresentationAttributeCache& presentationAttributeCache()
 {
-    DEFINE_STATIC_LOCAL(PresentationAttributeCache, cache, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(PresentationAttributeCache, cache, ());
     return cache;
 }
 
@@ -114,17 +115,17 @@ private:
 
 static PresentationAttributeCacheCleaner& presentationAttributeCacheCleaner()
 {
-    DEFINE_STATIC_LOCAL(PresentationAttributeCacheCleaner, cleaner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(PresentationAttributeCacheCleaner, cleaner, ());
     return cleaner;
 }
 
-void StyledElement::synchronizeStyleAttributeInternal() const
+void StyledElement::synchronizeStyleAttributeInternal(StyledElement* styledElement)
 {
-    ASSERT(elementData());
-    ASSERT(elementData()->m_styleAttributeIsDirty);
-    elementData()->m_styleAttributeIsDirty = false;
-    if (const StyleProperties* inlineStyle = this->inlineStyle())
-        const_cast<StyledElement*>(this)->setSynchronizedLazyAttribute(styleAttr, inlineStyle->asText());
+    ASSERT(styledElement->elementData());
+    ASSERT(styledElement->elementData()->styleAttributeIsDirty());
+    styledElement->elementData()->setStyleAttributeIsDirty(false);
+    if (const StyleProperties* inlineStyle = styledElement->inlineStyle())
+        styledElement->setSynchronizedLazyAttribute(styleAttr, inlineStyle->asText());
 }
 
 StyledElement::~StyledElement()
@@ -149,16 +150,16 @@ MutableStyleProperties& StyledElement::ensureMutableInlineStyle()
     return static_cast<MutableStyleProperties&>(*inlineStyle);
 }
 
-void StyledElement::attributeChanged(const QualifiedName& name, const AtomicString& newValue, AttributeModificationReason reason)
+void StyledElement::attributeChanged(const QualifiedName& name, const AtomicString& oldValue, const AtomicString& newValue, AttributeModificationReason reason)
 {
     if (name == styleAttr)
         styleAttributeChanged(newValue, reason);
     else if (isPresentationAttribute(name)) {
-        elementData()->m_presentationAttributeStyleIsDirty = true;
+        elementData()->setPresentationAttributeStyleIsDirty(true);
         setNeedsStyleRecalc(InlineStyleChange);
     }
 
-    Element::attributeChanged(name, newValue, reason);
+    Element::attributeChanged(name, oldValue, newValue, reason);
 }
 
 PropertySetCSSStyleDeclaration* StyledElement::inlineStyleCSSOMWrapper()
@@ -195,7 +196,7 @@ void StyledElement::styleAttributeChanged(const AtomicString& newStyleString, At
 {
     WTF::OrdinalNumber startLineNumber = WTF::OrdinalNumber::beforeFirst();
     if (document().scriptableDocumentParser() && !document().isInDocumentWrite())
-        startLineNumber = document().scriptableDocumentParser()->lineNumber();
+        startLineNumber = document().scriptableDocumentParser()->textPosition().m_line;
 
     if (newStyleString.isNull()) {
         if (PropertySetCSSStyleDeclaration* cssomWrapper = inlineStyleCSSOMWrapper())
@@ -204,7 +205,7 @@ void StyledElement::styleAttributeChanged(const AtomicString& newStyleString, At
     } else if (reason == ModifiedByCloning || document().contentSecurityPolicy()->allowInlineStyle(document().url(), startLineNumber))
         setInlineStyleFromString(newStyleString);
 
-    elementData()->m_styleAttributeIsDirty = false;
+    elementData()->setStyleAttributeIsDirty(false);
 
     setNeedsStyleRecalc(InlineStyleChange);
     InspectorInstrumentation::didInvalidateStyleAttr(&document(), this);
@@ -214,7 +215,7 @@ void StyledElement::inlineStyleChanged()
 {
     setNeedsStyleRecalc(InlineStyleChange);
     ASSERT(elementData());
-    elementData()->m_styleAttributeIsDirty = true;
+    elementData()->setStyleAttributeIsDirty(true);
     InspectorInstrumentation::didInvalidateStyleAttr(&document(), this);
 }
     
@@ -271,7 +272,7 @@ void StyledElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
         inlineStyle->addSubresourceStyleURLs(urls, &document().elementSheet().contents());
 }
 
-static inline bool attributeNameSort(const pair<AtomicStringImpl*, AtomicString>& p1, const pair<AtomicStringImpl*, AtomicString>& p2)
+static inline bool attributeNameSort(const std::pair<AtomicStringImpl*, AtomicString>& p1, const std::pair<AtomicStringImpl*, AtomicString>& p2)
 {
     // Sort based on the attribute name pointers. It doesn't matter what the order is as long as it is always the same. 
     return p1.first < p2.first;
@@ -285,9 +286,7 @@ void StyledElement::makePresentationAttributeCacheKey(PresentationAttributeCache
     // Interpretation of the size attributes on <input> depends on the type attribute.
     if (hasTagName(inputTag))
         return;
-    unsigned size = attributeCount();
-    for (unsigned i = 0; i < size; ++i) {
-        const Attribute& attribute = attributeAt(i);
+    for (const Attribute& attribute : attributesIterator()) {
         if (!isPresentationAttribute(attribute.name()))
             continue;
         if (!attribute.namespaceURI().isNull())
@@ -335,17 +334,14 @@ void StyledElement::rebuildPresentationAttributeStyle()
         presentationAttributeCacheCleaner().didHitPresentationAttributeCache();
     } else {
         style = MutableStyleProperties::create(isSVGElement() ? SVGAttributeMode : CSSQuirksMode);
-        unsigned size = attributeCount();
-        for (unsigned i = 0; i < size; ++i) {
-            const Attribute& attribute = attributeAt(i);
+        for (const Attribute& attribute : attributesIterator())
             collectStyleForPresentationAttribute(attribute.name(), attribute.value(), static_cast<MutableStyleProperties&>(*style));
-        }
     }
 
     // ShareableElementData doesn't store presentation attribute style, so make sure we have a UniqueElementData.
     UniqueElementData& elementData = ensureUniqueElementData();
 
-    elementData.m_presentationAttributeStyleIsDirty = false;
+    elementData.setPresentationAttributeStyleIsDirty(false);
     elementData.m_presentationAttributeStyle = style->isEmpty() ? 0 : style;
 
     if (!cacheHash || cacheIterator->value)

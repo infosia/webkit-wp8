@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -30,11 +30,13 @@
 #include "VM.h"
 
 #include "ArgList.h"
+#include "ArityCheckFailReturnThunks.h"
 #include "ArrayBufferNeuteringWatchpoint.h"
-#include "CallFrameInlines.h"
+#include "BuiltinExecutables.h"
 #include "CodeBlock.h"
 #include "CodeCache.h"
 #include "CommonIdentifiers.h"
+#include "CommonSlowPaths.h"
 #include "DFGLongLivedState.h"
 #include "DFGWorklist.h"
 #include "DebuggerActivation.h"
@@ -49,27 +51,35 @@
 #include "Identifier.h"
 #include "IncrementalSweeper.h"
 #include "Interpreter.h"
+#include "JITCode.h"
 #include "JSAPIValueWrapper.h"
 #include "JSActivation.h"
 #include "JSArray.h"
+#include "JSCInlines.h"
 #include "JSFunction.h"
 #include "JSGlobalObjectFunctions.h"
 #include "JSLock.h"
 #include "JSNameScope.h"
 #include "JSNotAnObject.h"
+#include "JSPromiseDeferred.h"
+#include "JSPromiseReaction.h"
 #include "JSPropertyNameIterator.h"
 #include "JSWithScope.h"
 #include "Lexer.h"
 #include "Lookup.h"
 #include "MapData.h"
 #include "Nodes.h"
+#include "Parser.h"
 #include "ParserArena.h"
+#include "ProfilerDatabase.h"
+#include "PropertyMapHashTable.h"
 #include "RegExpCache.h"
 #include "RegExpObject.h"
 #include "SimpleTypedArrayController.h"
 #include "SourceProviderCache.h"
 #include "StrictEvalActivation.h"
 #include "StrongInlines.h"
+#include "StructureInlines.h"
 #include "UnlinkedCodeBlock.h"
 #include "WeakMapData.h"
 #include <wtf/ProcessID.h>
@@ -77,6 +87,7 @@
 #include <wtf/StringPrintStream.h>
 #include <wtf/Threading.h>
 #include <wtf/WTFThreadData.h>
+#include <wtf/text/AtomicStringTable.h>
 
 #if ENABLE(DFG_JIT)
 #include "ConservativeRoots.h"
@@ -114,7 +125,6 @@ extern const HashTable stringConstructorTable;
 #if ENABLE(PROMISES)
 extern const HashTable promisePrototypeTable;
 extern const HashTable promiseConstructorTable;
-extern const HashTable promiseResolverPrototypeTable;
 #endif
 
 // Note: Platform.h will enforce that ENABLE(ASSEMBLER) is true if either
@@ -185,10 +195,9 @@ VM::VM(VMType vmType, HeapType heapType)
 #if ENABLE(PROMISES)
     , promisePrototypeTable(adoptPtr(new HashTable(JSC::promisePrototypeTable)))
     , promiseConstructorTable(adoptPtr(new HashTable(JSC::promiseConstructorTable)))
-    , promiseResolverPrototypeTable(adoptPtr(new HashTable(JSC::promiseResolverPrototypeTable)))
 #endif
-    , identifierTable(vmType == Default ? wtfThreadData().currentIdentifierTable() : createIdentifierTable())
-    , propertyNames(new CommonIdentifiers(this))
+    , m_atomicStringTable(vmType == Default ? wtfThreadData().atomicStringTable() : new AtomicStringTable)
+    , propertyNames(nullptr)
     , emptyList(new MarkedArgumentBuffer)
     , parserArena(adoptPtr(new ParserArena))
     , keywords(adoptPtr(new Keywords(*this)))
@@ -197,12 +206,10 @@ VM::VM(VMType vmType, HeapType heapType)
     , jsFinalObjectClassInfo(JSFinalObject::info())
     , sizeOfLastScratchBuffer(0)
     , entryScope(0)
-    , m_enabledProfiler(0)
     , m_regExpCache(new RegExpCache(this))
 #if ENABLE(REGEXP_TRACING)
     , m_rtTraceList(new RTTraceList())
 #endif
-    , exclusiveThread(0)
     , m_newStringsSinceLastHashCons(0)
 #if ENABLE(ASSEMBLER)
     , m_canUseAssembler(enableAssembler(executableAllocator))
@@ -216,20 +223,32 @@ VM::VM(VMType vmType, HeapType heapType)
 #if ENABLE(GC_VALIDATION)
     , m_initializingObjectClass(0)
 #endif
+    , m_stackPointerAtVMEntry(0)
     , m_stackLimit(0)
-#if USE(SEPARATE_C_AND_JS_STACK)
+#if ENABLE(LLINT_C_LOOP)
     , m_jsStackLimit(0)
+#endif
+#if ENABLE(FTL_JIT)
+    , m_ftlStackLimit(0)
+    , m_largestFTLStackSize(0)
 #endif
     , m_inDefineOwnProperty(false)
     , m_codeCache(CodeCache::create())
+    , m_enabledProfiler(nullptr)
+    , m_builtinExecutables(BuiltinExecutables::create(*this))
 {
     interpreter = new Interpreter(*this);
     StackBounds stack = wtfThreadData().stack();
-    setStackLimit(stack.recursionLimit());
+    updateReservedZoneSize(Options::reservedZoneSize());
+#if ENABLE(LLINT_C_LOOP)
+    interpreter->stack().setReservedZoneSize(Options::reservedZoneSize());
+#endif
+    setLastStackTop(stack.origin());
 
     // Need to be careful to keep everything consistent here
     JSLockHolder lock(this);
-    IdentifierTable* existingEntryIdentifierTable = wtfThreadData().setCurrentIdentifierTable(identifierTable);
+    AtomicStringTable* existingEntryAtomicStringTable = wtfThreadData().setCurrentAtomicStringTable(m_atomicStringTable);
+    propertyNames = new CommonIdentifiers(this);
     structureStructure.set(*this, Structure::createStructure(*this));
     structureRareDataStructure.set(*this, StructureRareData::createStructure(*this, 0, jsNull()));
     debuggerActivationStructure.set(*this, DebuggerActivation::createStructure(*this, 0, jsNull()));
@@ -258,14 +277,20 @@ VM::VM(VMType vmType, HeapType heapType)
     propertyTableStructure.set(*this, PropertyTable::createStructure(*this, 0, jsNull()));
     mapDataStructure.set(*this, MapData::createStructure(*this, 0, jsNull()));
     weakMapDataStructure.set(*this, WeakMapData::createStructure(*this, 0, jsNull()));
+#if ENABLE(PROMISES)
+    promiseDeferredStructure.set(*this, JSPromiseDeferred::createStructure(*this, 0, jsNull()));
+    promiseReactionStructure.set(*this, JSPromiseReaction::createStructure(*this, 0, jsNull()));
+#endif
     iterationTerminator.set(*this, JSFinalObject::create(*this, JSFinalObject::createStructure(*this, 0, jsNull(), 1)));
     smallStrings.initializeCommonStrings(*this);
 
-    wtfThreadData().setCurrentIdentifierTable(existingEntryIdentifierTable);
+    wtfThreadData().setCurrentAtomicStringTable(existingEntryAtomicStringTable);
 
 #if ENABLE(JIT)
     jitStubs = adoptPtr(new JITThunks());
+    arityCheckFailReturnThunks = std::make_unique<ArityCheckFailReturnThunks>();
 #endif
+    arityCheckData = std::make_unique<CommonSlowPaths::ArityCheckData>();
 
 #if ENABLE(FTL_JIT)
     ftlThunks = std::make_unique<FTL::Thunks>();
@@ -278,7 +303,7 @@ VM::VM(VMType vmType, HeapType heapType)
 #endif
 
     heap.notifyIsSafeToCollect();
-
+    
     LLInt::Data::performAssertions(*this);
     
     if (Options::enableProfiler()) {
@@ -312,9 +337,11 @@ VM::~VM()
 #if ENABLE(DFG_JIT)
     // Make sure concurrent compilations are done, but don't install them, since there is
     // no point to doing so.
-    if (worklist) {
-        worklist->waitUntilAllPlansForVMAreReady(*this);
-        worklist->removeAllReadyPlansForVM(*this);
+    for (unsigned i = DFG::numberOfWorklists(); i--;) {
+        if (DFG::Worklist* worklist = DFG::worklistForIndexOrNull(i)) {
+            worklist->waitUntilAllPlansForVMAreReady(*this);
+            worklist->removeAllReadyPlansForVM(*this);
+        }
     }
 #endif // ENABLE(DFG_JIT)
     
@@ -350,14 +377,13 @@ VM::~VM()
 #if ENABLE(PROMISES)
     promisePrototypeTable->deleteTable();
     promiseConstructorTable->deleteTable();
-    promiseResolverPrototypeTable->deleteTable();
 #endif
 
     delete emptyList;
 
     delete propertyNames;
     if (vmType != Default)
-        deleteIdentifierTable(identifierTable);
+        delete m_atomicStringTable;
 
     delete clientData;
     delete m_regExpCache;
@@ -460,8 +486,8 @@ NativeExecutable* VM::getHostFunction(NativeFunction function, Intrinsic intrins
 NativeExecutable* VM::getHostFunction(NativeFunction function, NativeFunction constructor)
 {
     return NativeExecutable::create(*this,
-        MacroAssemblerCodeRef::createLLIntCodeRef(llint_native_call_trampoline), function,
-        MacroAssemblerCodeRef::createLLIntCodeRef(llint_native_construct_trampoline), constructor,
+        adoptRef(new NativeJITCode(MacroAssemblerCodeRef::createLLIntCodeRef(llint_native_call_trampoline), JITCode::HostCallThunk)), function,
+        adoptRef(new NativeJITCode(MacroAssemblerCodeRef::createLLIntCodeRef(llint_native_construct_trampoline), JITCode::HostCallThunk)), constructor,
         NoIntrinsic);
 }
 
@@ -489,21 +515,23 @@ void VM::stopSampling()
     interpreter->stopSampling();
 }
 
-void VM::prepareToDiscardCode()
+void VM::waitForCompilationsToComplete()
 {
 #if ENABLE(DFG_JIT)
-    if (!worklist)
-        return;
-    
-    worklist->completeAllPlansForVM(*this);
-#endif
+    for (unsigned i = DFG::numberOfWorklists(); i--;) {
+        if (DFG::Worklist* worklist = DFG::worklistForIndexOrNull(i))
+            worklist->completeAllPlansForVM(*this);
+    }
+#endif // ENABLE(DFG_JIT)
 }
 
 void VM::discardAllCode()
 {
-    prepareToDiscardCode();
+    waitForCompilationsToComplete();
     m_codeCache->clear();
+    m_regExpCache->invalidateCode();
     heap.deleteAllCompiledCode();
+    heap.deleteAllUnlinkedFunctionCode();
     heap.reportAbandonedObjectGraph();
 }
 
@@ -543,7 +571,7 @@ struct StackPreservingRecompiler : public MarkedBlock::VoidFunctor {
 
 void VM::releaseExecutableMemory()
 {
-    prepareToDiscardCode();
+    waitForCompilationsToComplete();
     
     if (entryScope) {
         StackPreservingRecompiler recompiler;
@@ -631,6 +659,11 @@ static void appendSourceToError(CallFrame* callFrame, ErrorInstance* exception, 
     
 JSValue VM::throwException(ExecState* exec, JSValue error)
 {
+    if (Options::breakOnThrow()) {
+        dataLog("In call frame ", RawPointer(exec), " for code block ", *exec->codeBlock(), "\n");
+        CRASH();
+    }
+    
     ASSERT(exec == topCallFrame || exec == exec->lexicalGlobalObject()->globalExec() || exec == exec->vmEntryGlobalObject()->globalExec());
     
     Vector<StackFrame> stackTrace;
@@ -705,6 +738,87 @@ void VM:: clearExceptionStack()
     m_exceptionStack = RefCountedArray<StackFrame>();
 }
 
+void VM::setStackPointerAtVMEntry(void* sp)
+{
+    m_stackPointerAtVMEntry = sp;
+    updateStackLimit();
+}
+
+size_t VM::updateReservedZoneSize(size_t reservedZoneSize)
+{
+    size_t oldReservedZoneSize = m_reservedZoneSize;
+    m_reservedZoneSize = reservedZoneSize;
+
+    updateStackLimit();
+
+    return oldReservedZoneSize;
+}
+
+#if PLATFORM(WIN)
+// On Windows the reserved stack space consists of committed memory, a guard page, and uncommitted memory,
+// where the guard page is a barrier between committed and uncommitted memory.
+// When data from the guard page is read or written, the guard page is moved, and memory is committed.
+// This is how the system grows the stack.
+// When using the C stack on Windows we need to precommit the needed stack space.
+// Otherwise we might crash later if we access uncommitted stack memory.
+// This can happen if we allocate stack space larger than the page guard size (4K).
+// The system does not get the chance to move the guard page, and commit more memory,
+// and we crash if uncommitted memory is accessed.
+// The MSVC compiler fixes this by inserting a call to the _chkstk() function,
+// when needed, see http://support.microsoft.com/kb/100775.
+// By touching every page up to the stack limit with a dummy operation,
+// we force the system to move the guard page, and commit memory.
+
+static void preCommitStackMemory(void* stackLimit)
+{
+    const int pageSize = 4096;
+    for (volatile char* p = reinterpret_cast<char*>(&stackLimit); p > stackLimit; p -= pageSize) {
+        char ch = *p;
+        *p = ch;
+    }
+}
+#endif
+
+inline void VM::updateStackLimit()
+{
+#if PLATFORM(WIN)
+    void* lastStackLimit = m_stackLimit;
+#endif
+
+    if (m_stackPointerAtVMEntry) {
+        ASSERT(wtfThreadData().stack().isGrowingDownward());
+        char* startOfStack = reinterpret_cast<char*>(m_stackPointerAtVMEntry);
+#if ENABLE(FTL_JIT)
+        m_stackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize + m_largestFTLStackSize);
+        m_ftlStackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize + 2 * m_largestFTLStackSize);
+#else
+        m_stackLimit = wtfThreadData().stack().recursionLimit(startOfStack, Options::maxPerThreadStackUsage(), m_reservedZoneSize);
+#endif
+    } else {
+#if ENABLE(FTL_JIT)
+        m_stackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize + m_largestFTLStackSize);
+        m_ftlStackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize + 2 * m_largestFTLStackSize);
+#else
+        m_stackLimit = wtfThreadData().stack().recursionLimit(m_reservedZoneSize);
+#endif
+    }
+
+#if PLATFORM(WIN)
+    if (lastStackLimit != m_stackLimit)
+        preCommitStackMemory(m_stackLimit);
+#endif
+}
+
+#if ENABLE(FTL_JIT)
+void VM::updateFTLLargestStackSize(size_t stackSize)
+{
+    if (stackSize > m_largestFTLStackSize) {
+        m_largestFTLStackSize = stackSize;
+        updateStackLimit();
+    }
+}
+#endif
+
 void releaseExecutableMemory(VM& vm)
 {
     vm.releaseExecutableMemory();
@@ -721,20 +835,24 @@ void VM::gatherConservativeRoots(ConservativeRoots& conservativeRoots)
         }
     }
 }
-
-DFG::Worklist* VM::ensureWorklist()
-{
-    if (!DFG::enableConcurrentJIT())
-        return 0;
-    if (!worklist)
-        worklist = DFG::globalWorklist();
-    return worklist.get();
-}
 #endif
+
+void logSanitizeStack(VM* vm)
+{
+    if (Options::verboseSanitizeStack() && vm->topCallFrame) {
+        int dummy;
+        dataLog(
+            "Sanitizing stack with top call frame at ", RawPointer(vm->topCallFrame),
+            ", current stack pointer at ", RawPointer(&dummy), ", in ",
+            pointerDump(vm->topCallFrame->codeBlock()), " and last code origin = ",
+            vm->topCallFrame->codeOrigin(), "\n");
+    }
+}
 
 #if ENABLE(REGEXP_TRACING)
 void VM::addRegExpToTrace(RegExp* regExp)
 {
+    gcProtect(regExp);
     m_rtTraceList->add(regExp);
 }
 
@@ -745,14 +863,16 @@ void VM::dumpRegExpTrace()
     
     if (iter != m_rtTraceList->end()) {
         dataLogF("\nRegExp Tracing\n");
-        dataLogF("                                                            match()    matches\n");
-        dataLogF("Regular Expression                          JIT Address      calls      found\n");
-        dataLogF("----------------------------------------+----------------+----------+----------\n");
+        dataLogF("Regular Expression                              8 Bit          16 Bit        match()    Matches    Average\n");
+        dataLogF(" <Match only / Match>                         JIT Addr      JIT Address       calls      found   String len\n");
+        dataLogF("----------------------------------------+----------------+----------------+----------+----------+-----------\n");
     
         unsigned reCount = 0;
     
-        for (; iter != m_rtTraceList->end(); ++iter, ++reCount)
+        for (; iter != m_rtTraceList->end(); ++iter, ++reCount) {
             (*iter)->printTraceData();
+            gcUnprotect(*iter);
+        }
 
         dataLogF("%d Regular Expressions\n", reCount);
     }
@@ -764,5 +884,49 @@ void VM::dumpRegExpTrace()
 {
 }
 #endif
+
+void VM::registerWatchpointForImpureProperty(const Identifier& propertyName, Watchpoint* watchpoint)
+{
+    auto result = m_impurePropertyWatchpointSets.add(propertyName.string(), nullptr);
+    if (result.isNewEntry)
+        result.iterator->value = adoptRef(new WatchpointSet(IsWatched));
+    result.iterator->value->add(watchpoint);
+}
+
+void VM::addImpureProperty(const String& propertyName)
+{
+    if (RefPtr<WatchpointSet> watchpointSet = m_impurePropertyWatchpointSets.take(propertyName))
+        watchpointSet->fireAll();
+}
+
+class SetEnabledProfilerFunctor {
+public:
+    bool operator()(CodeBlock* codeBlock)
+    {
+        if (JITCode::isOptimizingJIT(codeBlock->jitType()))
+            codeBlock->jettison(Profiler::JettisonDueToLegacyProfiler);
+        return false;
+    }
+};
+
+void VM::setEnabledProfiler(LegacyProfiler* profiler)
+{
+    m_enabledProfiler = profiler;
+    if (m_enabledProfiler) {
+        waitForCompilationsToComplete();
+        SetEnabledProfilerFunctor functor;
+        heap.forEachCodeBlock(functor);
+    }
+}
+
+void sanitizeStackForVM(VM* vm)
+{
+    logSanitizeStack(vm);
+#if ENABLE(LLINT_C_LOOP)
+    vm->interpreter->stack().sanitizeStack();
+#else
+    sanitizeStackForVMImpl(vm);
+#endif
+}
 
 } // namespace JSC

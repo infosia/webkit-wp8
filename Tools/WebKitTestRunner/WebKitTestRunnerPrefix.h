@@ -24,12 +24,8 @@
  */
 
 #ifdef __OBJC__
-#include <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
 #endif
-
-#if defined(BUILDING_GTK__)
-#include "autotoolsconfig.h"
-#endif /* defined (BUILDING_GTK__) */
 
 #include <wtf/Platform.h>
 #include <WebKit2/WebKit2_C.h>

@@ -42,7 +42,8 @@ class RenderObject;
 class ShapeInsideInfo;
 
 class LayoutState {
-    WTF_MAKE_NONCOPYABLE(LayoutState);
+    WTF_MAKE_NONCOPYABLE(LayoutState); WTF_MAKE_FAST_ALLOCATED;
+
 public:
     LayoutState()
         : m_clipped(false)
@@ -54,9 +55,6 @@ public:
 #endif
         , m_columnInfo(nullptr)
         , m_lineGrid(nullptr)
-#if ENABLE(CSS_SHAPES)
-        , m_shapeInsideInfo(nullptr)
-#endif
         , m_pageLogicalHeight(0)
 #ifndef NDEBUG
         , m_renderer(nullptr)
@@ -86,16 +84,13 @@ public:
 
     LayoutSize layoutOffset() const { return m_layoutOffset; }
 
+    LayoutSize pageOffset() const { return m_pageOffset; }
+    void setLineGridPaginationOrigin(const LayoutSize& origin) { m_lineGridPaginationOrigin = origin; }
+    
     bool needsBlockDirectionLocationSetBeforeLayout() const { return m_lineGrid || (m_isPaginated && m_pageLogicalHeight); }
-
-#if ENABLE(CSS_SHAPES)
-    ShapeInsideInfo* shapeInsideInfo() const { return m_shapeInsideInfo; }
-#endif
 private:
     void propagateLineGridInfo(RenderBox*);
     void establishLineGrid(RenderBlockFlow*);
-
-    void computeLineGridPaginationOrigin(RenderBox*);
 
 public:
     // Do not add anything apart from bitfields until after m_columnInfo. See https://bugs.webkit.org/show_bug.cgi?id=100173
@@ -113,9 +108,6 @@ public:
     // The current line grid that we're snapping to and the offset of the start of the grid.
     RenderBlockFlow* m_lineGrid;
     std::unique_ptr<LayoutState> m_next;
-#if ENABLE(CSS_SHAPES)
-    ShapeInsideInfo* m_shapeInsideInfo;
-#endif
 
     // FIXME: Distinguish between the layout clip rect and the paint clip rect which may be larger,
     // e.g., because of composited scrolling.

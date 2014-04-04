@@ -48,6 +48,7 @@
 #include <WebCore/Page.h>
 #include <WebCore/RenderObject.h>
 #include <wtf/HashMap.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/text/WTFString.h>
 
 using namespace WebCore;
@@ -59,7 +60,7 @@ typedef HashMap<Node*, InjectedBundleNodeHandle*> DOMHandleCache;
 
 static DOMHandleCache& domHandleCache()
 {
-    DEFINE_STATIC_LOCAL(DOMHandleCache, cache, ());
+    static NeverDestroyed<DOMHandleCache> cache;
     return cache;
 }
 
@@ -225,40 +226,37 @@ PassRefPtr<InjectedBundleNodeHandle> InjectedBundleNodeHandle::htmlTableCellElem
 PassRefPtr<WebFrame> InjectedBundleNodeHandle::documentFrame()
 {
     if (!m_node->isDocumentNode())
-        return 0;
+        return nullptr;
 
     Frame* frame = static_cast<Document*>(m_node.get())->frame();
     if (!frame)
-        return 0;
+        return nullptr;
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(frame->loader().client());
-    return webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    return WebFrame::fromCoreFrame(*frame);
 }
 
 PassRefPtr<WebFrame> InjectedBundleNodeHandle::htmlFrameElementContentFrame()
 {
     if (!m_node->hasTagName(frameTag))
-        return 0;
+        return nullptr;
 
     Frame* frame = static_cast<HTMLFrameElement*>(m_node.get())->contentFrame();
     if (!frame)
-        return 0;
+        return nullptr;
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(frame->loader().client());
-    return webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    return WebFrame::fromCoreFrame(*frame);
 }
 
 PassRefPtr<WebFrame> InjectedBundleNodeHandle::htmlIFrameElementContentFrame()
 {
     if (!m_node->hasTagName(iframeTag))
-        return 0;
+        return nullptr;
 
     Frame* frame = toHTMLIFrameElement(m_node.get())->contentFrame();
     if (!frame)
-        return 0;
+        return nullptr;
 
-    WebFrameLoaderClient* webFrameLoaderClient = toWebFrameLoaderClient(frame->loader().client());
-    return webFrameLoaderClient ? webFrameLoaderClient->webFrame() : 0;
+    return WebFrame::fromCoreFrame(*frame);
 }
 
 } // namespace WebKit

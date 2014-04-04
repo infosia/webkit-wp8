@@ -26,14 +26,12 @@
 #ifndef FTLAbstractHeap_h
 #define FTLAbstractHeap_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(FTL_JIT)
 
 #include "FTLAbbreviations.h"
 #include "JSCJSValue.h"
+#include <array>
 #include <wtf/FastMalloc.h>
-#include <wtf/FixedArray.h>
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/OwnPtr.h>
@@ -139,7 +137,7 @@ private:
 
 class IndexedAbstractHeap {
 public:
-    IndexedAbstractHeap(LContext, AbstractHeap* parent, const char* heapName, size_t elementSize);
+    IndexedAbstractHeap(LContext, AbstractHeap* parent, const char* heapName, ptrdiff_t offset, size_t elementSize);
     ~IndexedAbstractHeap();
     
     const AbstractHeap& atAnyIndex() const { return m_heapForAnyIndex; }
@@ -168,10 +166,11 @@ private:
 
     AbstractHeap m_heapForAnyIndex;
     size_t m_heapNameLength;
+    ptrdiff_t m_offset;
     size_t m_elementSize;
     LValue m_scaleTerm;
     bool m_canShift;
-    FixedArray<AbstractField, 16> m_smallIndices;
+    std::array<AbstractField, 16> m_smallIndices;
     
     struct WithoutZeroOrOneHashTraits : WTF::GenericHashTraits<ptrdiff_t> {
         static void constructDeletedValue(ptrdiff_t& slot) { slot = 1; }

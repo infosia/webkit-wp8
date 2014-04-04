@@ -31,6 +31,7 @@
 #include "ChromeClient.h"
 #include "Cursor.h"
 #include "Filter.h"
+#include "Frame.h"
 #include "FrameLoaderClient.h"
 #include "FrameView.h"
 #include "Gradient.h"
@@ -41,6 +42,7 @@
 #include "PaintInfo.h"
 #include "Path.h"
 #include "PlatformMouseEvent.h"
+#include "RenderIterator.h"
 #include "RenderView.h"
 #include <wtf/StackStats.h>
 
@@ -48,7 +50,7 @@ namespace WebCore {
 
 RenderSnapshottedPlugIn::RenderSnapshottedPlugIn(HTMLPlugInImageElement& element, PassRef<RenderStyle> style)
     : RenderEmbeddedObject(element, std::move(style))
-    , m_snapshotResource(RenderImageResource::create())
+    , m_snapshotResource(std::make_unique<RenderImageResource>())
     , m_isPotentialMouseActivation(false)
 {
     m_snapshotResource->initialize(this);
@@ -85,7 +87,7 @@ void RenderSnapshottedPlugIn::updateSnapshot(PassRefPtr<Image> image)
     if (!image)
         return;
 
-    m_snapshotResource->setCachedImage(new CachedImage(image.get()));
+    m_snapshotResource->setCachedImage(new CachedImage(image.get(), view().frameView().frame().page()->sessionID()));
     repaint();
 }
 
@@ -102,10 +104,10 @@ void RenderSnapshottedPlugIn::paint(PaintInfo& paintInfo, const LayoutPoint& pai
     paintInfoForChild.phase = newPhase;
     paintInfoForChild.updateSubtreePaintRootForChildren(this);
 
-    for (RenderBox* child = firstChildBox(); child; child = child->nextSiblingBox()) {
-        LayoutPoint childPoint = flipForWritingModeForChild(child, paintOffset);
-        if (!child->hasSelfPaintingLayer() && !child->isFloating())
-            child->paint(paintInfoForChild, childPoint);
+    for (auto& child : childrenOfType<RenderBox>(*this)) {
+        LayoutPoint childPoint = flipForWritingModeForChild(&child, paintOffset);
+        if (!child.hasSelfPaintingLayer() && !child.isFloating())
+            child.paint(paintInfoForChild, childPoint);
     }
 
     RenderEmbeddedObject::paint(paintInfo, paintOffset);
@@ -123,10 +125,6 @@ void RenderSnapshottedPlugIn::paintSnapshot(PaintInfo& paintInfo, const LayoutPo
         return;
 
     GraphicsContext* context = paintInfo.context;
-#if PLATFORM(MAC)
-    if (style().highlight() != nullAtom && !context->paintingDisabled())
-        paintCustomHighlight(toPoint(paintOffset - location()), style().highlight(), true);
-#endif
 
     LayoutSize contentSize(cWidth, cHeight);
     LayoutPoint contentLocation = location() + paintOffset;
@@ -160,7 +158,7 @@ void RenderSnapshottedPlugIn::handleEvent(Event* event)
     if (!event->isMouseEvent())
         return;
 
-    MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
+    MouseEvent* mouseEvent = toMouseEvent(event);
 
     // If we're a snapshotted plugin, we want to make sure we activate on
     // clicks even if the page is preventing our default behaviour. Otherwise

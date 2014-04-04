@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -125,6 +125,7 @@ using namespace WebCore;
 
 - (void)download:(NSURLDownload *)download didReceiveAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
 {
+#if !PLATFORM(IOS)
     // Try previously stored credential first.
     if (![challenge previousFailureCount]) {
         NSURLCredential *credential = mac(CredentialStorage::get(core([challenge protectionSpace])));
@@ -144,15 +145,18 @@ using namespace WebCore;
 
         [[WebPanelAuthenticationHandler sharedHandler] startAuthentication:challenge window:window];
     }
+#endif
 }
 
 - (void)download:(NSURLDownload *)download didCancelAuthenticationChallenge:(NSURLAuthenticationChallenge *)challenge
 {
+#if !PLATFORM(IOS)
     if ([realDelegate respondsToSelector:@selector(download:didCancelAuthenticationChallenge:)]) {
         [realDelegate download:download didCancelAuthenticationChallenge:challenge];
     } else {
         [[WebPanelAuthenticationHandler sharedHandler] cancelAuthentication:challenge];
     }
+#endif
 }
 
 - (void)download:(NSURLDownload *)download didReceiveResponse:(NSURLResponse *)response
@@ -256,15 +260,6 @@ using namespace WebCore;
 {
     [self _setRealDelegate:delegate];
     return [super _initWithRequest:request delegate:_webInternal directory:directory];
-}
-
-- (void)connection:(NSURLConnection *)connection willStopBufferingData:(NSData *)data
-{
-    // NSURLConnection calls this method even if it is not implemented.
-    // This happens because NSURLConnection caches the results of respondsToSelector.
-    // Those results become invalid when the delegate of NSURLConnectionDelegateProxy is changed.
-    // This is a workaround since this problem needs to be fixed in NSURLConnectionDelegateProxy.
-    // <rdar://problem/3913270> NSURLConnection calls unimplemented delegate method in WebDownload
 }
 
 @end

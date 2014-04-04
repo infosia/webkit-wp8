@@ -22,7 +22,6 @@
 #ifndef SVGPathSegMovetoRel_h
 #define SVGPathSegMovetoRel_h
 
-#if ENABLE(SVG)
 #include "SVGPathSegWithContext.h"
 
 namespace WebCore {
@@ -40,11 +39,10 @@ private:
     {
     }
 
-    virtual unsigned short pathSegType() const { return PATHSEG_MOVETO_REL; }
-    virtual String pathSegTypeAsLetter() const { return "m"; }
+    virtual unsigned short pathSegType() const override { return PATHSEG_MOVETO_REL; }
+    virtual String pathSegTypeAsLetter() const override { return "m"; }
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

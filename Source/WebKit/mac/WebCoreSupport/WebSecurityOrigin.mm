@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -66,6 +66,13 @@ using namespace WebCore;
     return reinterpret_cast<SecurityOrigin*>(_private)->databaseIdentifier();
 }
 
+#if PLATFORM(IOS)
+- (NSString *)toString
+{
+    return reinterpret_cast<SecurityOrigin*>(_private)->toString();
+}
+#endif
+
 - (NSString *)stringValue
 {
     return reinterpret_cast<SecurityOrigin*>(_private)->toString();
@@ -82,11 +89,12 @@ using namespace WebCore;
     return reinterpret_cast<SecurityOrigin*>(_private)->port();
 }
 
+// FIXME: Overriding isEqual: without overriding hash will cause trouble if this ever goes into an NSSet or is the key in an NSDictionary,
+// since two equal objects could have different hashes.
 - (BOOL)isEqual:(id)anObject
 {
-    if (![anObject isMemberOfClass:[WebSecurityOrigin class]]) {
+    if (![anObject isMemberOfClass:[WebSecurityOrigin class]])
         return NO;
-    }
     
     return [self _core]->equal([anObject _core]);
 }

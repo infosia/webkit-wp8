@@ -17,6 +17,8 @@
 #include "config.h"
 #include "PlatformCookieJar.h"
 
+#if USE(CURL)
+
 #include "Cookie.h"
 #include "URL.h"
 #include "ResourceHandleManager.h"
@@ -326,4 +328,11 @@ void deleteAllCookies(const NetworkStorageSession&)
     // FIXME: Not yet implemented
 }
 
+void deleteAllCookiesModifiedAfterDate(const NetworkStorageSession&, double)
+{
+    // FIXME: Not yet implemented
 }
+
+}
+
+#endif

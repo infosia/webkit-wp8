@@ -14,10 +14,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -111,10 +111,6 @@ namespace WebKit {
         virtual void revertToProvisionalState(WebCore::DocumentLoader*) { }
         virtual void setMainDocumentError(WebCore::DocumentLoader*, const WebCore::ResourceError&);
 
-        virtual void postProgressStartedNotification();
-        virtual void postProgressEstimateChangedNotification();
-        virtual void postProgressFinishedNotification();
-
         virtual PassRefPtr<WebCore::Frame> createFrame(const WebCore::URL& url, const WTF::String& name, WebCore::HTMLFrameOwnerElement* ownerElement,
                                    const WTF::String& referrer, bool allowsScrolling, int marginWidth, int marginHeight);
         virtual PassRefPtr<WebCore::Widget> createPlugin(const WebCore::IntSize&, WebCore::HTMLPlugInElement*, const WebCore::URL&, const WTF::Vector<WTF::String>&, const WTF::Vector<WTF::String>&, const WTF::String&, bool);
@@ -123,8 +119,6 @@ namespace WebKit {
         virtual PassRefPtr<WebCore::Widget> createJavaAppletWidget(const WebCore::IntSize&, WebCore::HTMLAppletElement*, const WebCore::URL& baseURL, const WTF::Vector<WTF::String>& paramNames, const WTF::Vector<WTF::String>& paramValues);
         virtual WTF::String overrideMediaType() const;
         virtual void dispatchDidClearWindowObjectInWorld(WebCore::DOMWrapperWorld&);
-        virtual void documentElementAvailable();
-        virtual void didPerformFirstNavigation() const;
 
         virtual void registerForIconNotification(bool);
 
@@ -143,7 +137,6 @@ namespace WebKit {
         virtual void updateGlobalHistory();
         virtual void updateGlobalHistoryRedirectLinks();
         virtual bool shouldGoToHistoryItem(WebCore::HistoryItem*) const;
-        virtual bool shouldStopLoadingForHistoryItem(WebCore::HistoryItem*) const;
 
         virtual void didDisplayInsecureContent();
         virtual void didRunInsecureContent(WebCore::SecurityOrigin*, const WebCore::URL&);

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,12 +29,12 @@
 
 #include "JSWebGLRenderingContext.h"
 
-#include "EXTDrawBuffers.h"
+#include "ANGLEInstancedArrays.h"
 #include "EXTTextureFilterAnisotropic.h"
 #include "ExceptionCode.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
-#include "JSEXTDrawBuffers.h"
+#include "JSANGLEInstancedArrays.h"
 #include "JSEXTTextureFilterAnisotropic.h"
 #include "JSHTMLCanvasElement.h"
 #include "JSHTMLImageElement.h"
@@ -44,6 +44,7 @@
 #include "JSOESTextureFloat.h"
 #include "JSOESTextureFloatLinear.h"
 #include "JSOESTextureHalfFloat.h"
+#include "JSOESTextureHalfFloatLinear.h"
 #include "JSOESVertexArrayObject.h"
 #include "JSWebGLBuffer.h"
 #include "JSWebGLCompressedTextureATC.h"
@@ -52,6 +53,7 @@
 #include "JSWebGLDebugRendererInfo.h"
 #include "JSWebGLDebugShaders.h"
 #include "JSWebGLDepthTexture.h"
+#include "JSWebGLDrawBuffers.h"
 #include "JSWebGLFramebuffer.h"
 #include "JSWebGLLoseContext.h"
 #include "JSWebGLProgram.h"
@@ -67,6 +69,7 @@
 #include "OESTextureFloat.h"
 #include "OESTextureFloatLinear.h"
 #include "OESTextureHalfFloat.h"
+#include "OESTextureHalfFloatLinear.h"
 #include "OESVertexArrayObject.h"
 #include "WebGLBuffer.h"
 #include "WebGLCompressedTextureATC.h"
@@ -75,6 +78,7 @@
 #include "WebGLDebugRendererInfo.h"
 #include "WebGLDebugShaders.h"
 #include "WebGLDepthTexture.h"
+#include "WebGLDrawBuffers.h"
 #include "WebGLExtension.h"
 #include "WebGLFramebuffer.h"
 #include "WebGLGetInfo.h"
@@ -201,8 +205,6 @@ static JSValue toJS(ExecState* exec, JSDOMGlobalObject* globalObject, WebGLExten
     switch (extension->getName()) {
     case WebGLExtension::WebGLLoseContextName:
         return toJS(exec, globalObject, static_cast<WebGLLoseContext*>(extension));
-    case WebGLExtension::EXTDrawBuffersName:
-        return toJS(exec, globalObject, static_cast<EXTDrawBuffers*>(extension));
     case WebGLExtension::EXTTextureFilterAnisotropicName:
         return toJS(exec, globalObject, static_cast<EXTTextureFilterAnisotropic*>(extension));
     case WebGLExtension::OESStandardDerivativesName:
@@ -213,6 +215,8 @@ static JSValue toJS(ExecState* exec, JSDOMGlobalObject* globalObject, WebGLExten
         return toJS(exec, globalObject, static_cast<OESTextureFloatLinear*>(extension));
     case WebGLExtension::OESTextureHalfFloatName:
         return toJS(exec, globalObject, static_cast<OESTextureHalfFloat*>(extension));
+    case WebGLExtension::OESTextureHalfFloatLinearName:
+        return toJS(exec, globalObject, static_cast<OESTextureHalfFloatLinear*>(extension));
     case WebGLExtension::OESVertexArrayObjectName:
         return toJS(exec, globalObject, static_cast<OESVertexArrayObject*>(extension));
     case WebGLExtension::OESElementIndexUintName:
@@ -229,6 +233,10 @@ static JSValue toJS(ExecState* exec, JSDOMGlobalObject* globalObject, WebGLExten
         return toJS(exec, globalObject, static_cast<WebGLCompressedTextureS3TC*>(extension));
     case WebGLExtension::WebGLDepthTextureName:
         return toJS(exec, globalObject, static_cast<WebGLDepthTexture*>(extension));
+    case WebGLExtension::WebGLDrawBuffersName:
+        return toJS(exec, globalObject, static_cast<WebGLDrawBuffers*>(extension));
+    case WebGLExtension::ANGLEInstancedArraysName:
+        return toJS(exec, globalObject, static_cast<ANGLEInstancedArrays*>(extension));
     }
     ASSERT_NOT_REACHED();
     return jsNull();
@@ -457,7 +465,6 @@ static bool functionForUniform(DataFunctionToCall f)
     case f_uniform3v:
     case f_uniform4v:
         return true;
-        break;
     default: break;
     }
     return false;

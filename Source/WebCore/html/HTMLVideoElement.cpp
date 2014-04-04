@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -67,13 +67,13 @@ bool HTMLVideoElement::rendererIsNeeded(const RenderStyle& style)
     return HTMLElement::rendererIsNeeded(style); 
 }
 
-RenderElement* HTMLVideoElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> HTMLVideoElement::createElementRenderer(PassRef<RenderStyle> style)
 {
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     if (shouldUseVideoPluginProxy())
-        return HTMLMediaElement::createRenderer(arena, style);
+        return HTMLMediaElement::createElementRenderer(std::move(style));
 #endif
-    return new RenderVideo(*this, std::move(style));
+    return createRenderer<RenderVideo>(*this, std::move(style));
 }
 
 void HTMLVideoElement::didAttachRenderers()
@@ -86,10 +86,10 @@ void HTMLVideoElement::didAttachRenderers()
         updateDisplayState();
         if (shouldDisplayPosterImage()) {
             if (!m_imageLoader)
-                m_imageLoader = adoptPtr(new HTMLImageLoader(this));
+                m_imageLoader = std::make_unique<HTMLImageLoader>(*this);
             m_imageLoader->updateFromElement();
             if (renderer())
-                toRenderImage(renderer())->imageResource()->setCachedImage(m_imageLoader->image()); 
+                toRenderImage(renderer())->imageResource().setCachedImage(m_imageLoader->image());
         }
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
     }
@@ -125,14 +125,26 @@ void HTMLVideoElement::parseAttribute(const QualifiedName& name, const AtomicStr
 #endif
         if (shouldDisplayPosterImage()) {
             if (!m_imageLoader)
-                m_imageLoader = adoptPtr(new HTMLImageLoader(this));
+                m_imageLoader = std::make_unique<HTMLImageLoader>(*this);
             m_imageLoader->updateFromElementIgnoringPreviousError();
         } else {
             if (renderer())
-                toRenderImage(renderer())->imageResource()->setCachedImage(0); 
+                toRenderImage(renderer())->imageResource().setCachedImage(0);
         }
-    } else
-        HTMLMediaElement::parseAttribute(name, value);
+    }
+#if ENABLE(IOS_AIRPLAY)
+    else if (name == webkitwirelessvideoplaybackdisabledAttr)
+        mediaSession().setWirelessVideoPlaybackDisabled(*this, webkitWirelessVideoPlaybackDisabled());
+#endif
+    else {
+        HTMLMediaElement::parseAttribute(name, value);    
+
+#if PLATFORM(IOS) && ENABLE(IOS_AIRPLAY)
+        if (name == webkitairplayAttr)
+            mediaSession().setWirelessVideoPlaybackDisabled(*this, webkitWirelessVideoPlaybackDisabled());
+#endif
+    }
+
 }
 
 bool HTMLVideoElement::supportsFullscreen() const
@@ -144,6 +156,10 @@ bool HTMLVideoElement::supportsFullscreen() const
     if (!player() || !player()->supportsFullscreen())
         return false;
 
+#if PLATFORM(IOS)
+    // Fullscreen implemented by player.
+    return true;
+#else
 #if ENABLE(FULLSCREEN_API)
     // If the full screen API is enabled and is supported for the current element
     // do not require that the player has a video track to enter full screen.
@@ -155,6 +171,7 @@ bool HTMLVideoElement::supportsFullscreen() const
         return false;
 
     return page->chrome().client().supportsFullscreenForNode(this);
+#endif // PLATFORM(IOS)
 }
 
 unsigned HTMLVideoElement::videoWidth() const
@@ -171,20 +188,6 @@ unsigned HTMLVideoElement::videoHeight() const
     return player()->naturalSize().height();
 }
 
-unsigned HTMLVideoElement::width() const
-{
-    bool ok;
-    unsigned w = getAttribute(widthAttr).string().toUInt(&ok);
-    return ok ? w : 0;
-}
-    
-unsigned HTMLVideoElement::height() const
-{
-    bool ok;
-    unsigned h = getAttribute(heightAttr).string().toUInt(&ok);
-    return ok ? h : 0;
-}
-    
 bool HTMLVideoElement::isURLAttribute(const Attribute& attribute) const
 {
     return attribute.name() == posterAttr || HTMLMediaElement::isURLAttribute(attribute);
@@ -271,7 +274,7 @@ bool HTMLVideoElement::hasAvailableVideoFrame() const
 PassNativeImagePtr HTMLVideoElement::nativeImageForCurrentTime()
 {
     if (!player())
-        return 0;
+        return nullptr;
 
     return player()->nativeImageForCurrentTime();
 }
@@ -283,7 +286,7 @@ void HTMLVideoElement::webkitEnterFullscreen(ExceptionCode& ec)
 
     // Generate an exception if this isn't called in response to a user gesture, or if the 
     // element does not support fullscreen.
-    if ((userGestureRequiredForFullscreen() && !ScriptController::processingUserGesture()) || !supportsFullscreen()) {
+    if (!mediaSession().fullscreenPermitted(*this) || !supportsFullscreen()) {
         ec = INVALID_STATE_ERR;
         return;
     }
@@ -306,6 +309,18 @@ bool HTMLVideoElement::webkitDisplayingFullscreen()
 {
     return isFullscreen();
 }
+
+#if ENABLE(IOS_AIRPLAY)
+bool HTMLVideoElement::webkitWirelessVideoPlaybackDisabled() const
+{
+    return mediaSession().wirelessVideoPlaybackDisabled(*this);
+}
+
+void HTMLVideoElement::setWebkitWirelessVideoPlaybackDisabled(bool disabled)
+{
+    setBooleanAttribute(webkitwirelessvideoplaybackdisabledAttr, disabled);
+}
+#endif
 
 void HTMLVideoElement::didMoveToNewDocument(Document* oldDocument)
 {

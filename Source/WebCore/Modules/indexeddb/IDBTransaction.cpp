@@ -39,7 +39,6 @@
 #include "IDBOpenDBRequest.h"
 #include "IDBPendingTransactionMonitor.h"
 #include "Logging.h"
-#include "ScriptCallStack.h"
 #include "ScriptExecutionContext.h"
 
 namespace WebCore {
@@ -54,38 +53,38 @@ PassRefPtr<IDBTransaction> IDBTransaction::create(ScriptExecutionContext* contex
 
 PassRefPtr<IDBTransaction> IDBTransaction::create(ScriptExecutionContext* context, int64_t id, IDBDatabase* db, IDBOpenDBRequest* openDBRequest, const IDBDatabaseMetadata& previousMetadata)
 {
-    RefPtr<IDBTransaction> transaction(adoptRef(new IDBTransaction(context, id, Vector<String>(), IndexedDB::TransactionVersionChange, db, openDBRequest, previousMetadata)));
+    RefPtr<IDBTransaction> transaction(adoptRef(new IDBTransaction(context, id, Vector<String>(), IndexedDB::TransactionMode::VersionChange, db, openDBRequest, previousMetadata)));
     transaction->suspendIfNeeded();
     return transaction.release();
 }
 
 const AtomicString& IDBTransaction::modeReadOnly()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, readonly, ("readonly", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, readonly, ("readonly", AtomicString::ConstructFromLiteral));
     return readonly;
 }
 
 const AtomicString& IDBTransaction::modeReadWrite()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, readwrite, ("readwrite", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, readwrite, ("readwrite", AtomicString::ConstructFromLiteral));
     return readwrite;
 }
 
 const AtomicString& IDBTransaction::modeVersionChange()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, versionchange, ("versionchange", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, versionchange, ("versionchange", AtomicString::ConstructFromLiteral));
     return versionchange;
 }
 
 const AtomicString& IDBTransaction::modeReadOnlyLegacy()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, readonly, ("0", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, readonly, ("0", AtomicString::ConstructFromLiteral));
     return readonly;
 }
 
 const AtomicString& IDBTransaction::modeReadWriteLegacy()
 {
-    DEFINE_STATIC_LOCAL(AtomicString, readwrite, ("1", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, readwrite, ("1", AtomicString::ConstructFromLiteral));
     return readwrite;
 }
 
@@ -102,7 +101,7 @@ IDBTransaction::IDBTransaction(ScriptExecutionContext* context, int64_t id, cons
     , m_contextStopped(false)
     , m_previousMetadata(previousMetadata)
 {
-    if (mode == IndexedDB::TransactionVersionChange) {
+    if (mode == IndexedDB::TransactionMode::VersionChange) {
         // Not active until the callback.
         m_state = Inactive;
     }
@@ -193,6 +192,7 @@ void IDBTransaction::objectStoreDeleted(const String& name)
 
 void IDBTransaction::setActive(bool active)
 {
+    LOG(StorageAPI, "IDBTransaction::setActive(%s) for transaction id %lli", active ? "true" : "false", static_cast<long long>(m_id));
     ASSERT_WITH_MESSAGE(m_state != Finished, "A finished transaction tried to setActive(%s)", active ? "true" : "false");
     if (m_state == Finishing)
         return;
@@ -335,28 +335,25 @@ IndexedDB::TransactionMode IDBTransaction::stringToMode(const String& modeString
 {
     if (modeString.isNull()
         || modeString == IDBTransaction::modeReadOnly())
-        return IndexedDB::TransactionReadOnly;
+        return IndexedDB::TransactionMode::ReadOnly;
     if (modeString == IDBTransaction::modeReadWrite())
-        return IndexedDB::TransactionReadWrite;
+        return IndexedDB::TransactionMode::ReadWrite;
 
     ec = TypeError;
-    return IndexedDB::TransactionReadOnly;
+    return IndexedDB::TransactionMode::ReadOnly;
 }
 
 const AtomicString& IDBTransaction::modeToString(IndexedDB::TransactionMode mode)
 {
     switch (mode) {
-    case IndexedDB::TransactionReadOnly:
+    case IndexedDB::TransactionMode::ReadOnly:
         return IDBTransaction::modeReadOnly();
-        break;
 
-    case IndexedDB::TransactionReadWrite:
+    case IndexedDB::TransactionMode::ReadWrite:
         return IDBTransaction::modeReadWrite();
-        break;
 
-    case IndexedDB::TransactionVersionChange:
+    case IndexedDB::TransactionMode::VersionChange:
         return IDBTransaction::modeVersionChange();
-        break;
     }
 
     ASSERT_NOT_REACHED();

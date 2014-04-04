@@ -21,6 +21,7 @@
 #include "config.h"
 #include "JSattribute.h"
 
+#include "ScriptExecutionContext.h"
 #include "URL.h"
 #include "attribute.h"
 #include <runtime/JSString.h>
@@ -30,24 +31,19 @@ using namespace JSC;
 
 namespace WebCore {
 
-/* Hash table */
+/* Hash table for constructor */
 
-static const HashTableValue JSattributeTableValues[] =
-{
-    { "readonly", DontDelete | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsattributeReadonly), (intptr_t)0 },
-    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsattributeConstructor), (intptr_t)0 },
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSattributeConstructorTableIndex[1] = {
+    { -1, -1 },
 };
 
-static const HashTable JSattributeTable = { 4, 3, JSattributeTableValues, 0 };
-/* Hash table for constructor */
 
 static const HashTableValue JSattributeConstructorTableValues[] =
 {
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSattributeConstructorTable = { 1, 0, JSattributeConstructorTableValues, 0 };
+static const HashTable JSattributeConstructorTable = { 0, 0, false, JSattributeConstructorTableValues, 0, JSattributeConstructorTableIndex };
 const ClassInfo JSattributeConstructor::s_info = { "attributeConstructor", &Base::s_info, &JSattributeConstructorTable, 0, CREATE_METHOD_TABLE(JSattributeConstructor) };
 
 JSattributeConstructor::JSattributeConstructor(Structure* structure, JSDOMGlobalObject* globalObject)
@@ -70,12 +66,21 @@ bool JSattributeConstructor::getOwnPropertySlot(JSObject* object, ExecState* exe
 
 /* Hash table for prototype */
 
-static const HashTableValue JSattributePrototypeTableValues[] =
-{
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSattributePrototypeTableIndex[4] = {
+    { 1, -1 },
+    { 0, -1 },
+    { -1, -1 },
+    { -1, -1 },
 };
 
-static const HashTable JSattributePrototypeTable = { 1, 0, JSattributePrototypeTableValues, 0 };
+
+static const HashTableValue JSattributePrototypeTableValues[] =
+{
+    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsattributeConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
+    { "readonly", DontDelete | ReadOnly | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsattributeReadonly), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
+};
+
+static const HashTable JSattributePrototypeTable = { 2, 3, true, JSattributePrototypeTableValues, 0, JSattributePrototypeTableIndex };
 const ClassInfo JSattributePrototype::s_info = { "attributePrototype", &Base::s_info, &JSattributePrototypeTable, 0, CREATE_METHOD_TABLE(JSattributePrototype) };
 
 JSObject* JSattributePrototype::self(VM& vm, JSGlobalObject* globalObject)
@@ -83,18 +88,18 @@ JSObject* JSattributePrototype::self(VM& vm, JSGlobalObject* globalObject)
     return getDOMPrototype<JSattribute>(vm, globalObject);
 }
 
-const ClassInfo JSattribute::s_info = { "attribute", &Base::s_info, &JSattributeTable, 0 , CREATE_METHOD_TABLE(JSattribute) };
+bool JSattributePrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
+{
+    JSattributePrototype* thisObject = jsCast<JSattributePrototype*>(object);
+    return getStaticPropertySlot<JSattributePrototype, JSObject>(exec, JSattributePrototypeTable, thisObject, propertyName, slot);
+}
+
+const ClassInfo JSattribute::s_info = { "attribute", &Base::s_info, 0, 0 , CREATE_METHOD_TABLE(JSattribute) };
 
 JSattribute::JSattribute(Structure* structure, JSDOMGlobalObject* globalObject, PassRefPtr<attribute> impl)
     : JSDOMWrapper(structure, globalObject)
     , m_impl(impl.leakRef())
 {
-}
-
-void JSattribute::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
 }
 
 JSObject* JSattribute::createPrototype(VM& vm, JSGlobalObject* globalObject)
@@ -117,12 +122,21 @@ bool JSattribute::getOwnPropertySlot(JSObject* object, ExecState* exec, Property
 {
     JSattribute* thisObject = jsCast<JSattribute*>(object);
     ASSERT_GC_OBJECT_INHERITS(thisObject, info());
-    return getStaticValueSlot<JSattribute, Base>(exec, JSattributeTable, thisObject, propertyName, slot);
+    return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-EncodedJSValue jsattributeReadonly(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName)
+EncodedJSValue jsattributeReadonly(ExecState* exec, JSObject* slotBase, EncodedJSValue thisValue, PropertyName)
 {
-    JSattribute* castedThis = jsDynamicCast<JSattribute*>(JSValue::decode(slotBase));
+    JSattribute* castedThis = jsDynamicCast<JSattribute*>(JSValue::decode(thisValue));
+    UNUSED_PARAM(slotBase);
+    if (UNLIKELY(!castedThis)) {
+        if (jsDynamicCast<JSattributePrototype*>(slotBase)) {
+            ScriptExecutionContext* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(exec->lexicalGlobalObject())->scriptExecutionContext();
+            scriptExecutionContext->addConsoleMessage(MessageSource::JS, MessageLevel::Error, String("Deprecated attempt to access property 'readonly' on a non-attribute object."));
+            return JSValue::encode(jsUndefined());
+        }
+        return throwVMTypeError(exec, makeDOMBindingsTypeErrorString("The ", "attribute", ".", "readonly", " getter can only be used on instances of ", "attribute"));
+    }
     UNUSED_PARAM(exec);
     attribute& impl = castedThis->impl();
     JSValue result = jsStringWithCache(exec, impl.readonly());
@@ -130,9 +144,13 @@ EncodedJSValue jsattributeReadonly(ExecState* exec, EncodedJSValue slotBase, Enc
 }
 
 
-EncodedJSValue jsattributeConstructor(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName)
+EncodedJSValue jsattributeConstructor(ExecState* exec, JSObject* baseValue, EncodedJSValue thisValue, PropertyName)
 {
-    JSattribute* domObject = jsDynamicCast<JSattribute*>(JSValue::decode(slotBase));
+    UNUSED_PARAM(baseValue);
+    UNUSED_PARAM(thisValue);
+    JSattributePrototype* domObject = jsDynamicCast<JSattributePrototype*>(baseValue);
+    if (!domObject)
+        return throwVMTypeError(exec);
     return JSValue::encode(JSattribute::getConstructor(exec->vm(), domObject->globalObject()));
 }
 
@@ -150,7 +168,7 @@ bool JSattributeOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> hand
 
 void JSattributeOwner::finalize(JSC::Handle<JSC::Unknown> handle, void* context)
 {
-    JSattribute* jsattribute = jsCast<JSattribute*>(handle.get().asCell());
+    JSattribute* jsattribute = jsCast<JSattribute*>(handle.slot()->asCell());
     DOMWrapperWorld& world = *static_cast<DOMWrapperWorld*>(context);
     uncacheWrapper(world, &jsattribute->impl(), jsattribute);
     jsattribute->releaseImpl();
@@ -164,11 +182,11 @@ extern "C" { extern void (*const __identifier("??_7attribute@WebCore@@6B@")[])()
 extern "C" { extern void* _ZTVN7WebCore9attributeE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, attribute* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, attribute* impl)
 {
     if (!impl)
         return jsNull();
-    if (JSValue result = getExistingWrapper<JSattribute>(exec, impl))
+    if (JSValue result = getExistingWrapper<JSattribute>(globalObject, impl))
         return result;
 
 #if ENABLE(BINDING_INTEGRITY)
@@ -189,8 +207,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, attribu
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    ReportMemoryCost<attribute>::reportMemoryCost(exec, impl);
-    return createNewWrapper<JSattribute>(exec, globalObject, impl);
+    return createNewWrapper<JSattribute>(globalObject, impl);
 }
 
 attribute* toattribute(JSC::JSValue value)

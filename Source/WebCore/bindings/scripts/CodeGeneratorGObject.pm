@@ -47,9 +47,15 @@ my %baseTypeHash = ("Object" => 1, "Node" => 1, "NodeList" => 1, "NamedNodeMap" 
 
 # List of function parameters that are allowed to be NULL
 my $canBeNullParams = {
+    'webkit_dom_document_create_attribute_ns' => ['namespaceURI'],
+    'webkit_dom_document_create_element_ns' => ['namespaceURI'],
+    'webkit_dom_document_create_entity_reference' => ['name'],
     'webkit_dom_document_evaluate' => ['inResult', 'resolver'],
+    'webkit_dom_document_get_override_style' => ['pseudoElement'],
+    'webkit_dom_dom_implementation_create_document' => ['namespaceURI', 'doctype'],
+    'webkit_dom_dom_window_get_computed_style' => ['pseudoElement'],
+    'webkit_dom_element_set_attribute_ns' => ['namespaceURI'],
     'webkit_dom_node_insert_before' => ['refChild'],
-    'webkit_dom_dom_window_get_computed_style' => ['pseudoElement']
 };
 
 # Default constructor
@@ -304,6 +310,11 @@ sub SkipFunction {
         return 1;
     }
 
+    # Skip Console::profile() and Console::profileEnd() as they're not correctly generated for the moment.
+    if ($functionName eq "webkit_dom_console_profile" || $functionName eq "webkit_dom_console_profile_end") {
+        return 1;
+    }
+
     if ($function->signature->name eq "set" and $parentNode->extendedAttributes->{"TypedArray"}) {
         return 1;
     }
@@ -324,7 +335,7 @@ sub SkipFunction {
         return 1;
     }
 
-    if ($function->signature->name eq "timeEnd" || $function->signature->name eq "profile" || $function->signature->name eq "profileEnd") {
+    if ($function->signature->name eq "timeEnd") {
         return 1;
     }
 
@@ -401,41 +412,45 @@ sub IsGDOMClassType {
     return 1;
 }
 
-sub GetReadableProperties {
-    my $properties = shift;
-
-    my @result = ();
-
-    foreach my $property (@{$properties}) {
-        if (!SkipAttribute($property)) {
-            push(@result, $property);
-        }
-    }
-
-    return @result;
+sub IsPropertyReadable {
+    my $property = shift;
+    return !SkipAttribute($property);
 }
 
-sub GetWriteableProperties {
-    my $properties = shift;
-    my @result = ();
+sub IsPropertyWriteable {
+    my $property = shift;
 
-    foreach my $property (@{$properties}) {
-        my $gtype = GetGValueTypeName($property->signature->type);
-        my $hasGtypeSignature = ($gtype eq "boolean" || $gtype eq "float" || $gtype eq "double" ||
-                                 $gtype eq "uint64" || $gtype eq "ulong" || $gtype eq "long" || 
-                                 $gtype eq "uint" || $gtype eq "ushort" || $gtype eq "int8" ||
-                                 $gtype eq "uint8" || $gtype eq "uchar" || $gtype eq "char" ||
-                                 $gtype eq "string");
-        # FIXME: We are not generating setters for 'Replaceable'
-        # attributes now, but we should somehow.
-        my $replaceable = $property->signature->extendedAttributes->{"Replaceable"};
-        my $custom = $property->signature->extendedAttributes->{"CustomSetter"};
-        if (!$property->isReadOnly && $hasGtypeSignature && !$replaceable && !$custom) {
-            push(@result, $property);
-        }
+    if (!IsPropertyReadable($property)) {
+        return 0;
     }
 
-    return @result;
+    if ($property->isReadOnly) {
+        return 0;
+    }
+
+    my $gtype = GetGValueTypeName($property->signature->type);
+    my $hasGtypeSignature = $gtype eq "boolean" || $gtype eq "float" || $gtype eq "double" ||
+                            $gtype eq "int64" || $gtype eq "uint64" ||
+                            $gtype eq "long" || $gtype eq "ulong" ||
+                            $gtype eq "int" || $gtype eq "uint" ||
+                            $gtype eq "short" || $gtype eq "ushort" ||
+                            $gtype eq "int8" || $gtype eq "uint8" ||
+                            $gtype eq "char" || $gtype eq "uchar" ||
+                            $gtype eq "string";
+    if (!$hasGtypeSignature) {
+        return 0;
+    }
+
+    # FIXME: We are not generating setters for 'Replaceable' attributes now, but we should somehow.
+    if ($property->signature->extendedAttributes->{"Replaceable"}) {
+        return 0;
+    }
+
+    if ($property->signature->extendedAttributes->{"CustomSetter"}) {
+        return 0;
+    }
+
+    return 1;
 }
 
 sub GenerateConditionalWarning
@@ -497,15 +512,15 @@ sub GenerateProperty {
 
     my $gtype = GetGValueTypeName($propType);
     my $gparamflag = "WEBKIT_PARAM_READABLE";
-    my $writeable = !$attribute->isReadOnly;
+    my $writeable = IsPropertyWriteable($attribute);
 
     my $mutableString = "read-only";
     my $hasCustomSetter = $attribute->signature->extendedAttributes->{"CustomSetter"};
     if ($writeable && $hasCustomSetter) {
-        $mutableStringconst = "read-only (due to custom functions needed in webkitdom)";
+        $mutableString = "read-only (due to custom functions needed in webkitdom)";
     } elsif ($writeable) {
         $gparamflag = "WEBKIT_PARAM_READWRITE";
-        $mutableStringconst = "read-write";
+        $mutableString = "read-write";
     }
 
     my $convertFunction = "";
@@ -626,8 +641,8 @@ sub GenerateProperties {
 
     # Properties
     my $implContent = "";
-    my @readableProperties = GetReadableProperties($interface->attributes);
-    my @writeableProperties = GetWriteableProperties(\@readableProperties);
+    my @readableProperties = grep { IsPropertyReadable($_) } @{$interface->attributes};
+    my @writeableProperties = grep { IsPropertyWriteable($_) } @{$interface->attributes};
     my $numProperties = scalar @readableProperties;
 
     # Properties
@@ -639,45 +654,34 @@ enum {
 EOF
         push(@cBodyProperties, $implContent);
 
-        my $txtGetProp = << "EOF";
-static void ${lowerCaseIfaceName}_get_property(GObject* object, guint propertyId, GValue* value, GParamSpec* pspec)
-{
-    WebCore::JSMainThreadNullState state;
-EOF
-        push(@txtGetProps, $txtGetProp);
-        $txtGetProp = << "EOF";
-$conditionGuardStart
-    ${className}* self = WEBKIT_DOM_${clsCaps}(object);
-    $privFunction
-$conditionGuardEnd
-EOF
-        push(@txtGetProps, $txtGetProp);
-
-        $txtGetProp = << "EOF";
-    switch (propertyId) {
-EOF
-        push(@txtGetProps, $txtGetProp);
+        push(@txtGetProps, "static void ${lowerCaseIfaceName}_get_property(GObject* object, guint propertyId, GValue* value, GParamSpec* pspec)\n");
+        push(@txtGetProps, "{\n");
+        push(@txtGetProps, "    WebCore::JSMainThreadNullState state;\n");
+        push(@txtGetProps, "${conditionGuardStart}\n") if $conditionalString;
+        push(@txtGetProps, "    ${className}* self = WEBKIT_DOM_${clsCaps}(object);\n");
+        push(@txtGetProps, "    ${privFunction}\n");
+        if ($conditionalString) {
+            push(@txtGetProps, "#else\n");
+            push(@txtGetProps, "    UNUSED_PARAM(value);\n");
+            push(@txtGetProps, "${conditionGuardEnd}\n");
+        }
+        push(@txtGetProps, "\n");
+        push(@txtGetProps, "    switch (propertyId) {\n");
 
         if (scalar @writeableProperties > 0) {
-            my $txtSetProps = << "EOF";
-static void ${lowerCaseIfaceName}_set_property(GObject* object, guint propertyId, const GValue* value, GParamSpec* pspec)
-{
-    WebCore::JSMainThreadNullState state;
-EOF
-            push(@txtSetProps, $txtSetProps);
-
-            $txtSetProps = << "EOF";
-$conditionGuardStart
-    ${className}* self = WEBKIT_DOM_${clsCaps}(object);
-    $privFunction
-$conditionGuardEnd
-EOF
-            push(@txtSetProps, $txtSetProps);
-
-            $txtSetProps = << "EOF";
-    switch (propertyId) {
-EOF
-            push(@txtSetProps, $txtSetProps);
+            push(@txtSetProps, "static void ${lowerCaseIfaceName}_set_property(GObject* object, guint propertyId, const GValue* value, GParamSpec* pspec)\n");
+            push(@txtSetProps, "{\n");
+            push(@txtSetProps, "    WebCore::JSMainThreadNullState state;\n");
+            push(@txtSetProps, "${conditionGuardStart}\n") if $conditionalString;
+            push(@txtSetProps, "    ${className}* self = WEBKIT_DOM_${clsCaps}(object);\n");
+            push(@txtSetProps, "    ${privFunction}\n");
+            if ($conditionalString) {
+                push(@txtSetProps, "#else\n");
+                push(@txtSetProps, "    UNUSED_PARAM(value);\n");
+                push(@txtSetProps, "${conditionGuardEnd}\n");
+            }
+            push(@txtSetProps, "\n");
+            push(@txtSetProps, "    switch (propertyId) {\n");
         }
 
         foreach my $attribute (@readableProperties) {
@@ -780,6 +784,8 @@ EOF
             push(@cBodyProperties, "\n");
             push(@cBodyProperties, @txtInstallProps);
         }
+    } else {
+        push(@cBodyProperties, "    UNUSED_PARAM(requestClass);\n");
     }
     $implContent = << "EOF";
 }
@@ -795,6 +801,8 @@ EOF
     new (priv) ${className}Private();
 EOF
         push(@cBodyProperties, $implContent);
+    } else {
+        push(@cBodyProperties, "    UNUSED_PARAM(request);\n");
     }
     $implContent = << "EOF";
 }
@@ -899,7 +907,7 @@ sub ParamCanBeNull {
     my($functionName, $paramName) = @_;
 
     if (defined($functionName)) {
-        return scalar(grep(/$paramName/, @{$canBeNullParams->{$functionName}}));
+        return scalar(grep {$_ eq $paramName} @{$canBeNullParams->{$functionName}});
     }
     return 0;
 }
@@ -1042,9 +1050,8 @@ sub GenerateFunction {
     foreach my $param (@{$function->parameters}) {
         my $paramName = $param->name;
         my $paramIDLType = $param->type;
-        my $paramTypeIsPrimitive = $codeGenerator->IsPrimitiveType($paramIDLType);
-        my $paramIsGDOMType = IsGDOMClassType($paramIDLType);
-        if (!$paramTypeIsPrimitive) {
+        my $paramTypeIsPointer = !$codeGenerator->IsNonPointerType($paramIDLType);
+        if ($paramTypeIsPointer) {
             $gReturnMacro = GetGReturnMacro($paramName, $paramIDLType, $returnType, $functionName);
             push(@cBody, $gReturnMacro);
         }
@@ -1220,6 +1227,13 @@ EOF
 
     if ($conditionalString) {
         push(@cBody, "#else\n");
+
+        push(@cBody, "    UNUSED_PARAM(self);\n");
+        foreach my $param (@{$function->parameters}) {
+            push(@cBody, "    UNUSED_PARAM(" . $param->name . ");\n");
+        }
+        push(@cBody, "    UNUSED_PARAM(error);\n") if $raisesException;
+
         push(@cBody, @conditionalWarn) if scalar(@conditionalWarn);
         if ($returnType ne "void") {
             if ($codeGenerator->IsNonPointerType($functionSigType)) {
@@ -1233,6 +1247,13 @@ EOF
 
     if ($parentConditionalString) {
         push(@cBody, "#else\n");
+
+        push(@cBody, "    UNUSED_PARAM(self);\n");
+        foreach my $param (@{$function->parameters}) {
+            push(@cBody, "    UNUSED_PARAM(" . $param->name . ");\n");
+        }
+        push(@cBody, "    UNUSED_PARAM(error);\n") if $raisesException;
+
         push(@cBody, @parentConditionalWarn) if scalar(@parentConditionalWarn);
         if ($returnType ne "void") {
             if ($codeGenerator->IsNonPointerType($functionSigType)) {
@@ -1272,11 +1293,9 @@ sub GenerateFunctions {
             next TOP;
         }
 
-        if ($attribute->signature->name eq "type"
+        if ($attribute->signature->name eq "type") {
             # This will conflict with the get_type() function we define to return a GType
             # according to GObject conventions.  Skip this for now.
-            || $attribute->signature->name eq "URL"     # TODO: handle this
-            ) {
             next TOP;
         }
             
@@ -1451,27 +1470,44 @@ sub GenerateEventTargetIface {
     push(@cBodyProperties, "    if (ec) {\n        WebCore::ExceptionCodeDescription description(ec);\n");
     push(@cBodyProperties, "        g_set_error_literal(error, g_quark_from_string(\"WEBKIT_DOM\"), description.code, description.name);\n    }\n");
     push(@cBodyProperties, "    return result;\n");
-    push(@cBodyProperties, "#else\n") if $conditionalString;
-    push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
-    push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n") if $conditionalString;
+    if ($conditionalString) {
+        push(@cBodyProperties, "#else\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(target);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(event);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(error);\n");
+        push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
+        push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n");
+    }
     push(@cBodyProperties, "}\n\n");
 
     push(@cBodyProperties, "static gboolean webkit_dom_${decamelize}_add_event_listener(WebKitDOMEventTarget* target, const char* eventName, GClosure* handler, gboolean useCapture)\n{\n");
     push(@cBodyProperties, "#if ${conditionalString}\n") if $conditionalString;
     push(@cBodyProperties, "    WebCore::${interfaceName}* coreTarget = static_cast<WebCore::${interfaceName}*>(WEBKIT_DOM_OBJECT(target)->coreObject);\n");
     push(@cBodyProperties, "    return WebCore::GObjectEventListener::addEventListener(G_OBJECT(target), coreTarget, eventName, handler, useCapture);\n");
-    push(@cBodyProperties, "#else\n") if $conditionalString;
-    push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
-    push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n") if $conditionalString;
+    if ($conditionalString) {
+        push(@cBodyProperties, "#else\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(target);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(eventName);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(handler);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(useCapture);\n");
+        push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
+        push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n");
+    }
     push(@cBodyProperties, "}\n\n");
 
     push(@cBodyProperties, "static gboolean webkit_dom_${decamelize}_remove_event_listener(WebKitDOMEventTarget* target, const char* eventName, GClosure* handler, gboolean useCapture)\n{\n");
     push(@cBodyProperties, "#if ${conditionalString}\n") if $conditionalString;
     push(@cBodyProperties, "    WebCore::${interfaceName}* coreTarget = static_cast<WebCore::${interfaceName}*>(WEBKIT_DOM_OBJECT(target)->coreObject);\n");
     push(@cBodyProperties, "    return WebCore::GObjectEventListener::removeEventListener(G_OBJECT(target), coreTarget, eventName, handler, useCapture);\n");
-    push(@cBodyProperties, "#else\n") if $conditionalString;
-    push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
-    push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n") if $conditionalString;
+    if ($conditionalString) {
+        push(@cBodyProperties, "#else\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(target);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(eventName);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(handler);\n");
+        push(@cBodyProperties, "    UNUSED_PARAM(useCapture);\n");
+        push(@cBodyProperties, @conditionalWarn) if scalar(@conditionalWarn);
+        push(@cBodyProperties, "    return false;\n#endif // ${conditionalString}\n");
+    }
     push(@cBodyProperties, "}\n\n");
 
     push(@cBodyProperties, "static void webkit_dom_event_target_init(WebKitDOMEventTargetIface* iface)\n{\n");
@@ -1544,7 +1580,6 @@ EOF
 
     print PRIVHEADER $text;
     print PRIVHEADER "#if ${conditionalString}\n" if $conditionalString;
-    print PRIVHEADER map { "#include \"$_\"\n" } sort keys(%hdrPropIncludes);
     print PRIVHEADER "\n";
     $text = << "EOF";
 namespace WebKit {

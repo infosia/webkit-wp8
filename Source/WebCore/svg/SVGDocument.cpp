@@ -19,7 +19,6 @@
  */
 
 #include "config.h"
-#if ENABLE(SVG)
 #include "SVGDocument.h"
 
 #include "EventNames.h"
@@ -100,7 +99,9 @@ bool SVGDocument::childShouldCreateRenderer(const Node& child) const
     return true;
 }
 
+PassRefPtr<Document> SVGDocument::cloneDocumentWithoutChildren() const
+{
+    return create(nullptr, url());
 }
 
-// vim:ts=4:noet
-#endif // ENABLE(SVG)
+}

@@ -48,9 +48,9 @@
     void setToolbarHeight(float height);
 
     void moveWindowBy(float x, float y);
-    void setInjectedScriptForOrigin(DOMString origin, DOMString script);
 
     DOMString localizedStringsURL();
+    DOMString debuggableType();
 
     void copyText(DOMString text);
     void openInNewTab(DOMString url);
@@ -68,13 +68,6 @@
     [Custom] void recordActionTaken(unsigned long actionCode);
     [Custom] void recordPanelShown(unsigned long panelCode);
     [Custom] void recordSettingChanged(unsigned long settingChanged);
-
-    DOMString loadResourceSynchronously(DOMString url);
-
-    boolean supportsFileSystems();
-    void requestFileSystems();
-    void addFileSystem();
-    void removeFileSystem(DOMString fileSystemPath);
 
     boolean isUnderTest();
 

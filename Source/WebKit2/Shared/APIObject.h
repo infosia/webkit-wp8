@@ -26,16 +26,19 @@
 #ifndef APIObject_h
 #define APIObject_h
 
+#include <functional>
 #include <wtf/RefCounted.h>
+#include <wtf/RefPtr.h>
+#include <wtf/ThreadSafeRefCounted.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "WKFoundation.h"
 #ifdef __OBJC__
 #include "WKObject.h"
 #endif
 #endif
 
-#define DELEGATE_REF_COUNTING_TO_COCOA (PLATFORM(MAC) && WK_API_ENABLED)
+#define DELEGATE_REF_COUNTING_TO_COCOA (PLATFORM(COCOA) && WK_API_ENABLED)
 
 #if DELEGATE_REF_COUNTING_TO_COCOA
 OBJC_CLASS NSObject;
@@ -62,7 +65,10 @@ public:
         Data,
         Dictionary,
         Error,
+        FrameHandle,
         Image,
+        PageGroupData,
+        PageHandle,
         ProtectionSpace,
         RenderLayer,
         RenderObject,
@@ -124,6 +130,7 @@ public:
         PageGroup,
         PluginSiteDataManager,
         Preferences,
+        Session,
         TextChecker,
         Vibration,
         ViewportAttributes,
@@ -151,6 +158,7 @@ public:
         View,
 #if USE(SOUP)
         SoupRequestManager,
+        SoupCustomProtocolRequestManager,
 #endif
 #if PLATFORM(EFL)
         PopupMenuItem,
@@ -198,22 +206,22 @@ private:
 };
 
 template <Object::Type ArgumentType>
-class TypedObject : public Object {
+class ObjectImpl : public Object {
 public:
     static const Type APIType = ArgumentType;
 
-    virtual ~TypedObject()
+    virtual ~ObjectImpl()
     {
     }
 
 protected:
     friend class Object;
 
-    TypedObject()
+    ObjectImpl()
     {
     }
 
-    virtual Type type() const OVERRIDE { return APIType; }
+    virtual Type type() const override { return APIType; }
 
 #if DELEGATE_REF_COUNTING_TO_COCOA
     void* operator new(size_t size) { return newObject(size, APIType); }

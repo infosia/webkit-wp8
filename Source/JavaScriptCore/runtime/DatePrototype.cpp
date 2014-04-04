@@ -30,15 +30,9 @@
 #include "JSDateMath.h"
 #include "JSGlobalObject.h"
 #include "JSString.h"
-#include "JSStringBuilder.h"
 #include "Lookup.h"
 #include "ObjectPrototype.h"
-#include "Operations.h"
-
-#if !PLATFORM(MAC) && HAVE(LANGINFO_H)
-#include <langinfo.h>
-#endif
-
+#include "JSCInlines.h"
 #include <limits.h>
 #include <locale.h>
 #include <math.h>
@@ -47,6 +41,10 @@
 #include <wtf/Assertions.h>
 #include <wtf/MathExtras.h>
 #include <wtf/StringExtras.h>
+
+#if HAVE(LANGINFO_H)
+#include <langinfo.h>
+#endif
 
 #if HAVE(SYS_PARAM_H)
 #include <sys/param.h>
@@ -60,10 +58,12 @@
 #include <sys/timeb.h>
 #endif
 
-#if OS(DARWIN) && USE(CF)
-#include <CoreFoundation/CoreFoundation.h>
-#elif USE(ICU_UNICODE)
+#if !(OS(DARWIN) && USE(CF))
 #include <unicode/udat.h>
+#endif
+
+#if USE(CF)
+#include <CoreFoundation/CoreFoundation.h>
 #endif
 
 using namespace WTF;
@@ -162,36 +162,15 @@ static JSCell* formatLocaleDate(ExecState* exec, DateInstance*, double timeInMil
     else if (format != LocaleDate && !exec->argument(0).isUndefined())
         timeStyle = styleFromArgString(arg0String, timeStyle);
 
-    CFLocaleRef locale = CFLocaleCopyCurrent();
-    CFDateFormatterRef formatter = CFDateFormatterCreate(0, locale, dateStyle, timeStyle);
-    CFRelease(locale);
+    CFAbsoluteTime absoluteTime = floor(timeInMilliseconds / msPerSecond) - kCFAbsoluteTimeIntervalSince1970;
 
-    if (useCustomFormat) {
-        CFStringRef customFormatCFString = CFStringCreateWithCharacters(0, customFormatString.characters(), customFormatString.length());
-        CFDateFormatterSetFormat(formatter, customFormatCFString);
-        CFRelease(customFormatCFString);
-    }
-
-    CFStringRef string = CFDateFormatterCreateStringWithAbsoluteTime(0, formatter, floor(timeInMilliseconds / msPerSecond) - kCFAbsoluteTimeIntervalSince1970);
-
-    CFRelease(formatter);
-
-    // We truncate the string returned from CFDateFormatter if it's absurdly long (> 200 characters).
-    // That's not great error handling, but it just won't happen so it doesn't matter.
-    UChar buffer[200];
-    const size_t bufferLength = WTF_ARRAY_LENGTH(buffer);
-    size_t length = CFStringGetLength(string);
-    ASSERT(length <= bufferLength);
-    if (length > bufferLength)
-        length = bufferLength;
-    CFStringGetCharacters(string, CFRangeMake(0, length), buffer);
-
-    CFRelease(string);
-
-    return jsNontrivialString(exec, String(buffer, length));
+    auto formatter = adoptCF(CFDateFormatterCreate(kCFAllocatorDefault, adoptCF(CFLocaleCopyCurrent()).get(), dateStyle, timeStyle));
+    if (useCustomFormat)
+        CFDateFormatterSetFormat(formatter.get(), customFormatString.createCFString().get());
+    return jsNontrivialString(exec, adoptCF(CFDateFormatterCreateStringWithAbsoluteTime(kCFAllocatorDefault, formatter.get(), absoluteTime)).get());
 }
 
-#elif USE(ICU_UNICODE) && !UCONFIG_NO_FORMATTING
+#elif !UCONFIG_NO_FORMATTING
 
 static JSCell* formatLocaleDate(ExecState* exec, DateInstance*, double timeInMilliseconds, LocaleDateTimeFormat format)
 {
@@ -340,7 +319,7 @@ static JSCell* formatLocaleDate(ExecState* exec, DateInstance* dateObject, doubl
 
 static EncodedJSValue formateDateInstance(ExecState* exec, DateTimeFormat format, bool asUTCVariant)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -516,7 +495,7 @@ void DatePrototype::finishCreation(VM& vm, JSGlobalObject*)
 
 bool DatePrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyName propertyName, PropertySlot& slot)
 {
-    return getStaticFunctionSlot<JSObject>(exec, ExecState::dateTable(exec), jsCast<DatePrototype*>(object), propertyName, slot);
+    return getStaticFunctionSlot<JSObject>(exec, ExecState::dateTable(exec->vm()), jsCast<DatePrototype*>(object), propertyName, slot);
 }
 
 // Functions
@@ -535,7 +514,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToUTCString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncToISOString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
     
@@ -581,7 +560,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToTimeString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -591,7 +570,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleDateString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -601,7 +580,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleDateString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleTimeString(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -611,7 +590,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToLocaleTimeString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetTime(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -620,7 +599,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetTime(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetFullYear(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -634,7 +613,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetFullYear(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCFullYear(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -654,7 +633,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncToGMTString(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMonth(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -668,7 +647,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMonth(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMonth(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -682,7 +661,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMonth(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetDate(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -696,7 +675,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetDate(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCDate(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -710,7 +689,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCDate(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetDay(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -724,7 +703,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetDay(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCDay(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -738,7 +717,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCDay(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetHours(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -752,7 +731,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetHours(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCHours(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -766,7 +745,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCHours(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMinutes(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -780,7 +759,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMinutes(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMinutes(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -794,7 +773,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMinutes(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetSeconds(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -808,7 +787,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetSeconds(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCSeconds(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -822,7 +801,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCSeconds(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMilliSeconds(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -838,7 +817,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetMilliSeconds(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMilliseconds(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -854,7 +833,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetUTCMilliseconds(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetTimezoneOffset(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -868,7 +847,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetTimezoneOffset(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncSetTime(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -882,7 +861,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncSetTime(ExecState* exec)
 
 static EncodedJSValue setNewValueFromTimeArgs(ExecState* exec, int numArgsToUse, bool inputIsUTC)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -920,7 +899,7 @@ static EncodedJSValue setNewValueFromTimeArgs(ExecState* exec, int numArgsToUse,
 
 static EncodedJSValue setNewValueFromDateArgs(ExecState* exec, int numArgsToUse, bool inputIsUTC)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -1045,7 +1024,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncSetUTCFullYear(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncSetYear(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -1087,7 +1066,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncSetYear(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncGetYear(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     if (!thisValue.inherits(DateInstance::info()))
         return throwVMTypeError(exec);
 
@@ -1103,7 +1082,7 @@ EncodedJSValue JSC_HOST_CALL dateProtoFuncGetYear(ExecState* exec)
 
 EncodedJSValue JSC_HOST_CALL dateProtoFuncToJSON(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     JSObject* object = jsCast<JSObject*>(thisValue.toThis(exec, NotStrictMode));
     if (exec->hadException())
         return JSValue::encode(jsNull());

@@ -50,6 +50,8 @@ template <> void deleteOwnedPtr<WebCore::TextLayout>(WebCore::TextLayout* ptr)
 
 namespace WebCore {
 
+static PassRef<FontGlyphs> retrieveOrAddCachedFontGlyphs(const FontDescription&, PassRefPtr<FontSelector>);
+
 const uint8_t Font::s_roundingHackCharacterTable[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 1 /*\t*/, 1 /*\n*/, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     1 /*space*/, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 /*-*/, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 /*?*/,
@@ -60,6 +62,11 @@ const uint8_t Font::s_roundingHackCharacterTable[256] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
+
+static bool isDrawnWithSVGFont(const TextRun& run)
+{
+    return run.renderingContext();
+}
 
 static bool useBackslashAsYenSignForFamily(const AtomicString& family)
 {
@@ -107,7 +114,7 @@ Font::Font()
 {
 }
 
-Font::Font(const FontDescription& fd, short letterSpacing, short wordSpacing) 
+Font::Font(const FontDescription& fd, float letterSpacing, float wordSpacing)
     : m_fontDescription(fd)
     , m_letterSpacing(letterSpacing)
     , m_wordSpacing(wordSpacing)
@@ -116,6 +123,7 @@ Font::Font(const FontDescription& fd, short letterSpacing, short wordSpacing)
 {
 }
 
+// FIXME: We should make this constructor platform-independent.
 Font::Font(const FontPlatformData& fontData, bool isPrinterFont, FontSmoothingMode fontSmoothingMode)
     : m_glyphs(FontGlyphs::createForPlatformFont(fontData))
     , m_letterSpacing(0)
@@ -125,7 +133,31 @@ Font::Font(const FontPlatformData& fontData, bool isPrinterFont, FontSmoothingMo
 {
     m_fontDescription.setUsePrinterFont(isPrinterFont);
     m_fontDescription.setFontSmoothing(fontSmoothingMode);
+#if PLATFORM(IOS)
+    m_fontDescription.setSpecifiedSize(CTFontGetSize(fontData.font()));
+    m_fontDescription.setComputedSize(CTFontGetSize(fontData.font()));
+    m_fontDescription.setItalic(CTFontGetSymbolicTraits(fontData.font()) & kCTFontTraitItalic);
+    m_fontDescription.setWeight((CTFontGetSymbolicTraits(fontData.font()) & kCTFontTraitBold) ? FontWeightBold : FontWeightNormal);
+#endif
 }
+
+// FIXME: We should make this constructor platform-independent.
+#if PLATFORM(IOS)
+Font::Font(const FontPlatformData& fontData, PassRefPtr<FontSelector> fontSelector)
+    : m_glyphs(FontGlyphs::createForPlatformFont(fontData))
+    , m_letterSpacing(0)
+    , m_wordSpacing(0)
+    , m_typesettingFeatures(computeTypesettingFeatures())
+{
+    CTFontRef primaryFont = fontData.font();
+    m_fontDescription.setSpecifiedSize(CTFontGetSize(primaryFont));
+    m_fontDescription.setComputedSize(CTFontGetSize(primaryFont));
+    m_fontDescription.setItalic(CTFontGetSymbolicTraits(primaryFont) & kCTFontTraitItalic);
+    m_fontDescription.setWeight((CTFontGetSymbolicTraits(primaryFont) & kCTFontTraitBold) ? FontWeightBold : FontWeightNormal);
+    m_fontDescription.setUsePrinterFont(fontData.isPrinterFont());
+    m_glyphs = retrieveOrAddCachedFontGlyphs(m_fontDescription, fontSelector.get());
+}
+#endif
 
 Font::Font(const Font& other)
     : m_fontDescription(other.m_fontDescription)
@@ -207,13 +239,19 @@ static bool operator==(const FontGlyphsCacheKey& a, const FontGlyphsCacheKey& b)
 
 static FontGlyphsCache& fontGlyphsCache()
 {
-    DEFINE_STATIC_LOCAL(FontGlyphsCache, cache, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(FontGlyphsCache, cache, ());
     return cache;
 }
 
 void invalidateFontGlyphsCache()
 {
     fontGlyphsCache().clear();
+}
+
+void clearWidthCaches()
+{
+    for (auto it = fontGlyphsCache().begin(), end = fontGlyphsCache().end(); it != end; ++it)
+        it->value->glyphs.get().widthCache().clear();
 }
 
 static unsigned makeFontSelectorFlags(const FontDescription& description)
@@ -291,17 +329,22 @@ void Font::update(PassRefPtr<FontSelector> fontSelector) const
     m_typesettingFeatures = computeTypesettingFeatures();
 }
 
-void Font::drawText(GraphicsContext* context, const TextRun& run, const FloatPoint& point, int from, int to, CustomFontNotReadyAction customFontNotReadyAction) const
+float Font::drawText(GraphicsContext* context, const TextRun& run, const FloatPoint& point, int from, int to, CustomFontNotReadyAction customFontNotReadyAction) const
 {
     // Don't draw anything while we are using custom fonts that are in the process of loading,
     // except if the 'force' argument is set to true (in which case it will use a fallback
     // font).
     if (loadingCustomFonts() && customFontNotReadyAction == DoNotPaintIfFontNotReady)
-        return;
-    
+        return 0;
+
     to = (to == -1 ? run.length() : to);
 
-    if (codePath(run) != Complex)
+    CodePath codePathToUse = codePath(run);
+    // FIXME: Use the fast code path once it handles partial runs with kerning and ligatures. See http://webkit.org/b/100050
+    if (codePathToUse != Complex && typesettingFeatures() && (from || to != run.length()) && !isDrawnWithSVGFont(run))
+        codePathToUse = Complex;
+
+    if (codePathToUse != Complex)
         return drawSimpleText(context, run, point, from, to);
 
     return drawComplexText(context, run, point, from, to);
@@ -315,7 +358,12 @@ void Font::drawEmphasisMarks(GraphicsContext* context, const TextRun& run, const
     if (to < 0)
         to = run.length();
 
-    if (codePath(run) != Complex)
+    CodePath codePathToUse = codePath(run);
+    // FIXME: Use the fast code path once it handles partial runs with kerning and ligatures. See http://webkit.org/b/100050
+    if (codePathToUse != Complex && typesettingFeatures() && (from || to != run.length()) && !isDrawnWithSVGFont(run))
+        codePathToUse = Complex;
+
+    if (codePathToUse != Complex)
         drawEmphasisMarksForSimpleText(context, run, mark, point, from, to);
     else
         drawEmphasisMarksForComplexText(context, run, mark, point, from, to);
@@ -334,7 +382,7 @@ float Font::width(const TextRun& run, HashSet<const SimpleFontData*>* fallbackFo
     }
 
     bool hasKerningOrLigatures = typesettingFeatures() & (Kerning | Ligatures);
-    bool hasWordSpacingOrLetterSpacing = wordSpacing() | letterSpacing();
+    bool hasWordSpacingOrLetterSpacing = wordSpacing() || letterSpacing();
     float* cacheEntry = m_glyphs->widthCache().add(run, std::numeric_limits<float>::quiet_NaN(), hasKerningOrLigatures, hasWordSpacingOrLetterSpacing, glyphOverflow);
     if (cacheEntry && !std::isnan(*cacheEntry))
         return *cacheEntry;
@@ -357,8 +405,8 @@ float Font::width(const TextRun& run, HashSet<const SimpleFontData*>* fallbackFo
 float Font::width(const TextRun& run, int& charsConsumed, String& glyphName) const
 {
 #if ENABLE(SVG_FONTS)
-    if (TextRun::RenderingContext* renderingContext = run.renderingContext())
-        return renderingContext->floatWidthUsingSVGFont(*this, run, charsConsumed, glyphName);
+    if (isDrawnWithSVGFont(run))
+        return run.renderingContext()->floatWidthUsingSVGFont(*this, run, charsConsumed, glyphName);
 #endif
 
     charsConsumed = run.length();
@@ -366,7 +414,7 @@ float Font::width(const TextRun& run, int& charsConsumed, String& glyphName) con
     return width(run);
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 PassOwnPtr<TextLayout> Font::createLayout(RenderText*, float, bool) const
 {
     return nullptr;
@@ -383,11 +431,92 @@ float Font::width(TextLayout&, unsigned, unsigned, HashSet<const SimpleFontData*
 }
 #endif
 
+
+
+static const char* fontFamiliesWithInvalidCharWidth[] = {
+    "American Typewriter",
+    "Arial Hebrew",
+    "Chalkboard",
+    "Cochin",
+    "Corsiva Hebrew",
+    "Courier",
+    "Euphemia UCAS",
+    "Geneva",
+    "Gill Sans",
+    "Hei",
+    "Helvetica",
+    "Hoefler Text",
+    "InaiMathi",
+    "Kai",
+    "Lucida Grande",
+    "Marker Felt",
+    "Monaco",
+    "Mshtakan",
+    "New Peninim MT",
+    "Osaka",
+    "Raanana",
+    "STHeiti",
+    "Symbol",
+    "Times",
+    "Apple Braille",
+    "Apple LiGothic",
+    "Apple LiSung",
+    "Apple Symbols",
+    "AppleGothic",
+    "AppleMyungjo",
+    "#GungSeo",
+    "#HeadLineA",
+    "#PCMyungjo",
+    "#PilGi",
+};
+
+// For font families where any of the fonts don't have a valid entry in the OS/2 table
+// for avgCharWidth, fallback to the legacy webkit behavior of getting the avgCharWidth
+// from the width of a '0'. This only seems to apply to a fixed number of Mac fonts,
+// but, in order to get similar rendering across platforms, we do this check for
+// all platforms.
+bool Font::hasValidAverageCharWidth() const
+{
+    AtomicString family = firstFamily();
+    if (family.isEmpty())
+        return false;
+
+    // Internal fonts on OS X also have an invalid entry in the table for avgCharWidth.
+    // They are hidden by having a name that begins with a period, so simply search
+    // for that here rather than try to keep the list up to date.
+    if (family.startsWith('.') || family == "System Font")
+        return false;
+
+    static HashSet<AtomicString>* fontFamiliesWithInvalidCharWidthMap = 0;
+
+    if (!fontFamiliesWithInvalidCharWidthMap) {
+        fontFamiliesWithInvalidCharWidthMap = new HashSet<AtomicString>;
+
+        for (size_t i = 0; i < WTF_ARRAY_LENGTH(fontFamiliesWithInvalidCharWidth); ++i)
+            fontFamiliesWithInvalidCharWidthMap->add(AtomicString(fontFamiliesWithInvalidCharWidth[i]));
+    }
+
+    return !fontFamiliesWithInvalidCharWidthMap->contains(family);
+}
+
+bool Font::fastAverageCharWidthIfAvailable(float& width) const
+{
+    bool success = hasValidAverageCharWidth();
+    if (success)
+        width = roundf(primaryFont()->avgCharWidth()); // FIXME: primaryFont() might not correspond to firstFamily().
+    return success;
+}
+
 FloatRect Font::selectionRectForText(const TextRun& run, const FloatPoint& point, int h, int from, int to) const
 {
     to = (to == -1 ? run.length() : to);
 
-    if (codePath(run) != Complex)
+    CodePath codePathToUse = codePath(run);
+    // FIXME: Use the fast code path once it handles partial runs with kerning and ligatures. See http://webkit.org/b/100050
+    if (codePathToUse != Complex && typesettingFeatures() && (from || to != run.length()) && !isDrawnWithSVGFont(run))
+        codePathToUse = Complex;
+
+    if (codePathToUse != Complex)
         return selectionRectForSimpleText(run, point, h, from, to);
 
     return selectionRectForComplexText(run, point, h, from, to);
@@ -395,7 +524,8 @@ FloatRect Font::selectionRectForText(const TextRun& run, const FloatPoint& point
 
 int Font::offsetForPosition(const TextRun& run, float x, bool includePartialGlyphs) const
 {
-    if (codePath(run) != Complex)
+    // FIXME: Use the fast code path once it handles partial runs with kerning and ligatures. See http://webkit.org/b/100050
+    if (codePath(run) != Complex && (!typesettingFeatures() || isDrawnWithSVGFont(run)))
         return offsetForPositionForSimpleText(run, x, includePartialGlyphs);
 
     return offsetForPositionForComplexText(run, x, includePartialGlyphs);
@@ -462,7 +592,7 @@ Font::CodePath Font::codePath(const TextRun& run) const
         return s_codePath;
 
 #if ENABLE(SVG_FONTS)
-    if (run.renderingContext())
+    if (isDrawnWithSVGFont(run))
         return Simple;
 #endif
 

@@ -48,53 +48,54 @@
 
 namespace WebCore {
 
-class MediaConstraints;
 class MediaStreamTrack;
 class RTCConfiguration;
 class RTCDTMFSender;
 class RTCDataChannel;
-class RTCErrorCallback;
+class RTCPeerConnectionErrorCallback;
 class RTCSessionDescription;
 class RTCSessionDescriptionCallback;
 class RTCStatsCallback;
 class VoidCallback;
 
-class RTCPeerConnection FINAL : public RefCounted<RTCPeerConnection>, public ScriptWrappable, public RTCPeerConnectionHandlerClient, public EventTargetWithInlineData, public ActiveDOMObject, public MediaStream::Observer {
+class RTCPeerConnection final : public RefCounted<RTCPeerConnection>, public ScriptWrappable, public RTCPeerConnectionHandlerClient, public EventTargetWithInlineData, public ActiveDOMObject, public MediaStream::Observer {
 public:
-    static PassRefPtr<RTCPeerConnection> create(ScriptExecutionContext&, const Dictionary& rtcConfiguration, const Dictionary& mediaConstraints, ExceptionCode&);
+    static PassRefPtr<RTCPeerConnection> create(ScriptExecutionContext&, const Dictionary& rtcConfiguration, ExceptionCode&);
     ~RTCPeerConnection();
 
-    void createOffer(PassRefPtr<RTCSessionDescriptionCallback>, PassRefPtr<RTCErrorCallback>, const Dictionary& mediaConstraints, ExceptionCode&);
+    void createOffer(PassRefPtr<RTCSessionDescriptionCallback>, PassRefPtr<RTCPeerConnectionErrorCallback>, const Dictionary& offerOptions, ExceptionCode&);
 
-    void createAnswer(PassRefPtr<RTCSessionDescriptionCallback>, PassRefPtr<RTCErrorCallback>, const Dictionary& mediaConstraints, ExceptionCode&);
+    void createAnswer(PassRefPtr<RTCSessionDescriptionCallback>, PassRefPtr<RTCPeerConnectionErrorCallback>, const Dictionary& answerOptions, ExceptionCode&);
 
-    void setLocalDescription(PassRefPtr<RTCSessionDescription>, PassRefPtr<VoidCallback>, PassRefPtr<RTCErrorCallback>, ExceptionCode&);
+    void setLocalDescription(PassRefPtr<RTCSessionDescription>, PassRefPtr<VoidCallback>, PassRefPtr<RTCPeerConnectionErrorCallback>, ExceptionCode&);
     PassRefPtr<RTCSessionDescription> localDescription(ExceptionCode&);
 
-    void setRemoteDescription(PassRefPtr<RTCSessionDescription>, PassRefPtr<VoidCallback>, PassRefPtr<RTCErrorCallback>, ExceptionCode&);
+    void setRemoteDescription(PassRefPtr<RTCSessionDescription>, PassRefPtr<VoidCallback>, PassRefPtr<RTCPeerConnectionErrorCallback>, ExceptionCode&);
     PassRefPtr<RTCSessionDescription> remoteDescription(ExceptionCode&);
 
     String signalingState() const;
 
-    void updateIce(const Dictionary& rtcConfiguration, const Dictionary& mediaConstraints, ExceptionCode&);
+    void updateIce(const Dictionary& rtcConfiguration, ExceptionCode&);
 
-    void addIceCandidate(RTCIceCandidate*, PassRefPtr<VoidCallback>, PassRefPtr<RTCErrorCallback>, ExceptionCode&);
+    void addIceCandidate(RTCIceCandidate*, PassRefPtr<VoidCallback>, PassRefPtr<RTCPeerConnectionErrorCallback>, ExceptionCode&);
 
     String iceGatheringState() const;
 
     String iceConnectionState() const;
 
-    MediaStreamVector getLocalStreams() const;
+    RTCConfiguration* getConfiguration() const;
 
-    MediaStreamVector getRemoteStreams() const;
+    Vector<RefPtr<MediaStream>> getLocalStreams() const;
+
+    Vector<RefPtr<MediaStream>> getRemoteStreams() const;
 
     MediaStream* getStreamById(const String& streamId);
 
-    void addStream(PassRefPtr<MediaStream>, const Dictionary& mediaConstraints, ExceptionCode&);
+    void addStream(PassRefPtr<MediaStream>, ExceptionCode&);
 
     void removeStream(PassRefPtr<MediaStream>, ExceptionCode&);
 
-    void getStats(PassRefPtr<RTCStatsCallback> successCallback, PassRefPtr<MediaStreamTrack> selector);
+    void getStats(PassRefPtr<RTCStatsCallback> successCallback, PassRefPtr<RTCPeerConnectionErrorCallback>, PassRefPtr<MediaStreamTrack> selector);
 
     PassRefPtr<RTCDataChannel> createDataChannel(String label, const Dictionary& dataChannelDict, ExceptionCode&);
 
@@ -111,30 +112,30 @@ public:
     DEFINE_ATTRIBUTE_EVENT_LISTENER(datachannel);
 
     // RTCPeerConnectionHandlerClient
-    virtual void negotiationNeeded() OVERRIDE;
-    virtual void didGenerateIceCandidate(PassRefPtr<RTCIceCandidateDescriptor>) OVERRIDE;
-    virtual void didChangeSignalingState(SignalingState) OVERRIDE;
-    virtual void didChangeIceGatheringState(IceGatheringState) OVERRIDE;
-    virtual void didChangeIceConnectionState(IceConnectionState) OVERRIDE;
-    virtual void didAddRemoteStream(PassRefPtr<MediaStreamPrivate>) OVERRIDE;
-    virtual void didRemoveRemoteStream(MediaStreamPrivate*) OVERRIDE;
-    virtual void didAddRemoteDataChannel(std::unique_ptr<RTCDataChannelHandler>) OVERRIDE;
+    virtual void negotiationNeeded() override;
+    virtual void didGenerateIceCandidate(PassRefPtr<RTCIceCandidateDescriptor>) override;
+    virtual void didChangeSignalingState(SignalingState) override;
+    virtual void didChangeIceGatheringState(IceGatheringState) override;
+    virtual void didChangeIceConnectionState(IceConnectionState) override;
+    virtual void didAddRemoteStream(PassRefPtr<MediaStreamPrivate>) override;
+    virtual void didRemoveRemoteStream(MediaStreamPrivate*) override;
+    virtual void didAddRemoteDataChannel(std::unique_ptr<RTCDataChannelHandler>) override;
 
     // EventTarget
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE { return RTCPeerConnectionEventTargetInterfaceType; }
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE { return ActiveDOMObject::scriptExecutionContext(); }
+    virtual EventTargetInterface eventTargetInterface() const override { return RTCPeerConnectionEventTargetInterfaceType; }
+    virtual ScriptExecutionContext* scriptExecutionContext() const override { return ActiveDOMObject::scriptExecutionContext(); }
 
     // ActiveDOMObject
-    virtual void stop() OVERRIDE;
+    virtual void stop() override;
 
     // MediaStream::Observer
-    virtual void didAddOrRemoveTrack() OVERRIDE;
+    virtual void didAddOrRemoveTrack() override;
 
     using RefCounted<RTCPeerConnection>::ref;
     using RefCounted<RTCPeerConnection>::deref;
 
 private:
-    RTCPeerConnection(ScriptExecutionContext&, PassRefPtr<RTCConfiguration>, PassRefPtr<MediaConstraints>, ExceptionCode&);
+    RTCPeerConnection(ScriptExecutionContext&, PassRefPtr<RTCConfiguration>, ExceptionCode&);
 
     static PassRefPtr<RTCConfiguration> parseConfiguration(const Dictionary& configuration, ExceptionCode&);
     void scheduleDispatchEvent(PassRefPtr<Event>);
@@ -142,19 +143,22 @@ private:
     bool hasLocalStreamWithTrackId(const String& trackId);
 
     // EventTarget implementation.
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
     void changeSignalingState(SignalingState);
     void changeIceGatheringState(IceGatheringState);
     void changeIceConnectionState(IceConnectionState);
 
+    bool checkStateForLocalDescription(RTCSessionDescription*);
+    bool checkStateForRemoteDescription(RTCSessionDescription*);
+
     SignalingState m_signalingState;
     IceGatheringState m_iceGatheringState;
     IceConnectionState m_iceConnectionState;
 
-    MediaStreamVector m_localStreams;
-    MediaStreamVector m_remoteStreams;
+    Vector<RefPtr<MediaStream>> m_localStreams;
+    Vector<RefPtr<MediaStream>> m_remoteStreams;
 
     Vector<RefPtr<RTCDataChannel>> m_dataChannels;
 
@@ -162,6 +166,8 @@ private:
 
     Timer<RTCPeerConnection> m_scheduledEventTimer;
     Vector<RefPtr<Event>> m_scheduledEvents;
+
+    RefPtr<RTCConfiguration> m_configuration;
 
     bool m_stopped;
 };

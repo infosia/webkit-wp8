@@ -31,8 +31,10 @@
 namespace WebCore {
 class AffineTransform;
 class AuthenticationChallenge;
+class CertificateInfo;
 class Color;
 class Credential;
+class CubicBezierTimingFunction;
 class Cursor;
 class DatabaseDetails;
 class FilterOperations;
@@ -40,29 +42,38 @@ class FloatPoint;
 class FloatPoint3D;
 class FloatRect;
 class FloatSize;
+class FixedPositionViewportConstraints;
 class HTTPHeaderMap;
 class IDBKeyPath;
 class IntPoint;
 class IntRect;
 class IntSize;
 class KeyframeValueList;
-class URL;
+class LinearTimingFunction;
 class Notification;
 class ProtectionSpace;
+class Region;
 class ResourceError;
 class ResourceRequest;
 class ResourceResponse;
+class SessionID;
+class StepsTimingFunction;
+class StickyPositionViewportConstraints;
 class TextCheckingRequestData;
 class TransformationMatrix;
 class UserStyleSheet;
 class UserScript;
+class URL;
 struct CompositionUnderline;
 struct Cookie;
 struct DictationAlternative;
 struct DragSession;
 struct FileChooserSettings;
 struct IDBDatabaseMetadata;
+struct IDBGetResult;
 struct IDBIndexMetadata;
+struct IDBKeyData;
+struct IDBKeyRangeData;
 struct IDBObjectStoreMetadata;
 struct Length;
 struct GrammarDetail;
@@ -70,12 +81,13 @@ struct MimeClassInfo;
 struct PasteboardImage;
 struct PasteboardWebContent;
 struct PluginInfo;
+struct ScrollableAreaParameters;
 struct TextCheckingResult;
 struct ViewportAttributes;
 struct WindowFeatures;
 }
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 namespace WebCore {
 struct KeypressCommand;
 }
@@ -91,7 +103,7 @@ struct ViewportArguments;
 }
 #endif
 
-namespace CoreIPC {
+namespace IPC {
 
 template<> struct ArgumentCoder<WebCore::AffineTransform> {
     static void encode(ArgumentEncoder&, const WebCore::AffineTransform&);
@@ -101,6 +113,26 @@ template<> struct ArgumentCoder<WebCore::AffineTransform> {
 template<> struct ArgumentCoder<WebCore::TransformationMatrix> {
     static void encode(ArgumentEncoder&, const WebCore::TransformationMatrix&);
     static bool decode(ArgumentDecoder&, WebCore::TransformationMatrix&);
+};
+
+template<> struct ArgumentCoder<WebCore::LinearTimingFunction> {
+    static void encode(ArgumentEncoder&, const WebCore::LinearTimingFunction&);
+    static bool decode(ArgumentDecoder&, WebCore::LinearTimingFunction&);
+};
+
+template<> struct ArgumentCoder<WebCore::CubicBezierTimingFunction> {
+    static void encode(ArgumentEncoder&, const WebCore::CubicBezierTimingFunction&);
+    static bool decode(ArgumentDecoder&, WebCore::CubicBezierTimingFunction&);
+};
+
+template<> struct ArgumentCoder<WebCore::StepsTimingFunction> {
+    static void encode(ArgumentEncoder&, const WebCore::StepsTimingFunction&);
+    static bool decode(ArgumentDecoder&, WebCore::StepsTimingFunction&);
+};
+
+template<> struct ArgumentCoder<WebCore::CertificateInfo> {
+    static void encode(ArgumentEncoder&, const WebCore::CertificateInfo&);
+    static bool decode(ArgumentDecoder&, WebCore::CertificateInfo&);
 };
 
 template<> struct ArgumentCoder<WebCore::FloatPoint> {
@@ -150,6 +182,11 @@ template<> struct ArgumentCoder<WebCore::IntSize> {
     static bool decode(ArgumentDecoder&, WebCore::IntSize&);
 };
 
+template<> struct ArgumentCoder<WebCore::Region> {
+    static void encode(ArgumentEncoder&, const WebCore::Region&);
+    static bool decode(ArgumentDecoder&, WebCore::Region&);
+};
+
 template<> struct ArgumentCoder<WebCore::Length> {
     static void encode(ArgumentEncoder&, const WebCore::Length&);
     static bool decode(ArgumentDecoder&, WebCore::Length&);
@@ -196,7 +233,7 @@ template<> struct ArgumentCoder<WebCore::Cursor> {
 };
 
 template<> struct ArgumentCoder<WebCore::ResourceRequest> {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static const bool kShouldSerializeWebCoreData = false;
 #else
     static const bool kShouldSerializeWebCoreData = true;
@@ -216,7 +253,7 @@ template<> struct ArgumentCoder<WebCore::ResourceResponse> {
 };
 
 template<> struct ArgumentCoder<WebCore::ResourceError> {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static const bool kShouldSerializeWebCoreData = false;
 #else
     static const bool kShouldSerializeWebCoreData = true;
@@ -238,7 +275,7 @@ template<> struct ArgumentCoder<WebCore::Color> {
     static bool decode(ArgumentDecoder&, WebCore::Color&);
 };
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 template<> struct ArgumentCoder<WebCore::KeypressCommand> {
     static void encode(ArgumentEncoder&, const WebCore::KeypressCommand&);
     static bool decode(ArgumentDecoder&, WebCore::KeypressCommand&);
@@ -322,6 +359,21 @@ template<> struct ArgumentCoder<WebCore::UserScript> {
     static bool decode(ArgumentDecoder&, WebCore::UserScript&);
 };
 
+template<> struct ArgumentCoder<WebCore::ScrollableAreaParameters> {
+    static void encode(ArgumentEncoder&, const WebCore::ScrollableAreaParameters&);
+    static bool decode(ArgumentDecoder&, WebCore::ScrollableAreaParameters&);
+};
+
+template<> struct ArgumentCoder<WebCore::FixedPositionViewportConstraints> {
+    static void encode(ArgumentEncoder&, const WebCore::FixedPositionViewportConstraints&);
+    static bool decode(ArgumentDecoder&, WebCore::FixedPositionViewportConstraints&);
+};
+
+template<> struct ArgumentCoder<WebCore::StickyPositionViewportConstraints> {
+    static void encode(ArgumentEncoder&, const WebCore::StickyPositionViewportConstraints&);
+    static bool decode(ArgumentDecoder&, WebCore::StickyPositionViewportConstraints&);
+};
+
 #if ENABLE(CSS_FILTERS) && !USE(COORDINATED_GRAPHICS)
 template<> struct ArgumentCoder<WebCore::FilterOperations> {
     static void encode(ArgumentEncoder&, const WebCore::FilterOperations&);
@@ -335,9 +387,19 @@ template<> struct ArgumentCoder<WebCore::IDBDatabaseMetadata> {
     static bool decode(ArgumentDecoder&, WebCore::IDBDatabaseMetadata&);
 };
 
+template<> struct ArgumentCoder<WebCore::IDBGetResult> {
+    static void encode(ArgumentEncoder&, const WebCore::IDBGetResult&);
+    static bool decode(ArgumentDecoder&, WebCore::IDBGetResult&);
+};
+
 template<> struct ArgumentCoder<WebCore::IDBIndexMetadata> {
     static void encode(ArgumentEncoder&, const WebCore::IDBIndexMetadata&);
     static bool decode(ArgumentDecoder&, WebCore::IDBIndexMetadata&);
+};
+
+template<> struct ArgumentCoder<WebCore::IDBKeyData> {
+    static void encode(ArgumentEncoder&, const WebCore::IDBKeyData&);
+    static bool decode(ArgumentDecoder&, WebCore::IDBKeyData&);
 };
 
 template<> struct ArgumentCoder<WebCore::IDBKeyPath> {
@@ -345,12 +407,23 @@ template<> struct ArgumentCoder<WebCore::IDBKeyPath> {
     static bool decode(ArgumentDecoder&, WebCore::IDBKeyPath&);
 };
 
+template<> struct ArgumentCoder<WebCore::IDBKeyRangeData> {
+    static void encode(ArgumentEncoder&, const WebCore::IDBKeyRangeData&);
+    static bool decode(ArgumentDecoder&, WebCore::IDBKeyRangeData&);
+};
+
 template<> struct ArgumentCoder<WebCore::IDBObjectStoreMetadata> {
     static void encode(ArgumentEncoder&, const WebCore::IDBObjectStoreMetadata&);
     static bool decode(ArgumentDecoder&, WebCore::IDBObjectStoreMetadata&);
 };
-#endif
 
-} // namespace CoreIPC
+#endif // ENABLE(INDEXED_DATABASE)
+
+template<> struct ArgumentCoder<WebCore::SessionID> {
+    static void encode(ArgumentEncoder&, const WebCore::SessionID&);
+    static bool decode(ArgumentDecoder&, WebCore::SessionID&);
+};
+
+} // namespace IPC
 
 #endif // WebCoreArgumentCoders_h

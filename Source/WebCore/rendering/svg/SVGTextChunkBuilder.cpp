@@ -18,11 +18,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextChunkBuilder.h"
 
-#include "RenderSVGInlineText.h"
 #include "SVGElement.h"
 #include "SVGInlineTextBox.h"
 #include "SVGLengthContext.h"
@@ -35,7 +32,7 @@ SVGTextChunkBuilder::SVGTextChunkBuilder()
 
 void SVGTextChunkBuilder::transformationForTextBox(SVGInlineTextBox* textBox, AffineTransform& transform) const
 {
-    DEFINE_STATIC_LOCAL(const AffineTransform, s_identityTransform, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AffineTransform, s_identityTransform, ());
     if (!m_textBoxTransformations.contains(textBox)) {
         transform = s_identityTransform;
         return;
@@ -257,5 +254,3 @@ void SVGTextChunkBuilder::buildSpacingAndGlyphsTransform(bool isVerticalText, fl
 }
 
 }
-
-#endif // ENABLE(SVG)

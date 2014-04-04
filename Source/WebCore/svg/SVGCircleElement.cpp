@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGCircleElement.h"
 
 #include "Attribute.h"
@@ -67,7 +65,7 @@ PassRefPtr<SVGCircleElement> SVGCircleElement::create(const QualifiedName& tagNa
 
 bool SVGCircleElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -120,12 +118,12 @@ void SVGCircleElement::svgAttributeChanged(const QualifiedName& attrName)
 
     if (isLengthAttribute) {
         renderer->setNeedsShapeUpdate();
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     if (SVGLangSpace::isKnownAttribute(attrName) || SVGExternalResourcesRequired::isKnownAttribute(attrName)) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
@@ -139,11 +137,9 @@ bool SVGCircleElement::selfHasRelativeLengths() const
         || r().isRelative();
 }
 
-RenderElement* SVGCircleElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGCircleElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGEllipse(*this, std::move(style));
+    return createRenderer<RenderSVGEllipse>(*this, std::move(style));
 }
 
 }
-
-#endif // ENABLE(SVG)

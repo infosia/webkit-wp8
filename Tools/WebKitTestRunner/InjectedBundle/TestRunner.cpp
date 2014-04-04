@@ -412,11 +412,11 @@ void TestRunner::closeWebInspector()
 #endif // ENABLE(INSPECTOR)
 }
 
-void TestRunner::evaluateInWebInspector(long callID, JSStringRef script)
+void TestRunner::evaluateInWebInspector(JSStringRef script)
 {
 #if ENABLE(INSPECTOR)
     WKRetainPtr<WKStringRef> scriptWK = toWK(script);
-    WKBundleInspectorEvaluateScriptForTest(WKBundlePageGetInspector(InjectedBundle::shared().page()->page()), callID, scriptWK.get());
+    WKBundleInspectorEvaluateScriptForTest(WKBundlePageGetInspector(InjectedBundle::shared().page()->page()), scriptWK.get());
 #endif // ENABLE(INSPECTOR)
 }
 
@@ -485,21 +485,12 @@ void TestRunner::setDefersLoading(bool shouldDeferLoading)
 
 void TestRunner::setPageVisibility(JSStringRef state)
 {
-    WKPageVisibilityState visibilityState = kWKPageVisibilityStateVisible;
-
-    if (JSStringIsEqualToUTF8CString(state, "hidden"))
-        visibilityState = kWKPageVisibilityStateHidden;
-    else if (JSStringIsEqualToUTF8CString(state, "prerender"))
-        visibilityState = kWKPageVisibilityStatePrerender;
-    else if (JSStringIsEqualToUTF8CString(state, "unloaded"))
-        visibilityState = kWKPageVisibilityStateUnloaded;
-
-    InjectedBundle::shared().setVisibilityState(visibilityState, false);
+    InjectedBundle::shared().setHidden(JSStringIsEqualToUTF8CString(state, "hidden") || JSStringIsEqualToUTF8CString(state, "prerender"));
 }
 
 void TestRunner::resetPageVisibility()
 {
-    InjectedBundle::shared().setVisibilityState(kWKPageVisibilityStateVisible, true);
+    InjectedBundle::shared().setHidden(false);
 }
 
 typedef WTF::HashMap<unsigned, JSValueRef> CallbackMap;

@@ -26,37 +26,51 @@
 #ifndef RemoteLayerTreeHost_h
 #define RemoteLayerTreeHost_h
 
-#include "MessageReceiver.h"
+#include "LayerRepresentation.h"
 #include "RemoteLayerTreeTransaction.h"
 #include <WebCore/PlatformCALayer.h>
 #include <wtf/HashMap.h>
 #include <wtf/RetainPtr.h>
 
-OBJC_CLASS CALayer;
+OBJC_CLASS WKAnimationDelegate;
 
 namespace WebKit {
 
+class RemoteLayerTreeDrawingAreaProxy;
 class WebPageProxy;
 
-class RemoteLayerTreeHost : private CoreIPC::MessageReceiver {
+class RemoteLayerTreeHost {
 public:
-    explicit RemoteLayerTreeHost(WebPageProxy*);
-    ~RemoteLayerTreeHost();
+    explicit RemoteLayerTreeHost(RemoteLayerTreeDrawingAreaProxy&);
+    virtual ~RemoteLayerTreeHost();
+
+    LayerOrView *getLayer(WebCore::GraphicsLayer::PlatformLayerID) const;
+    LayerOrView *rootLayer() const { return m_rootLayer; }
+
+    static WebCore::GraphicsLayer::PlatformLayerID layerID(CALayer*);
+
+    // Returns true if the root layer changed.
+    bool updateLayerTree(const RemoteLayerTreeTransaction&, float indicatorScaleFactor  = 1);
+
+    void setIsDebugLayerTreeHost(bool flag) { m_isDebugLayerTreeHost = flag; }
+    bool isDebugLayerTreeHost() const { return m_isDebugLayerTreeHost; }
+
+    typedef HashMap<WebCore::GraphicsLayer::PlatformLayerID, RetainPtr<WKAnimationDelegate>> LayerAnimationDelegateMap;
+    LayerAnimationDelegateMap& animationDelegates() { return m_animationDelegates; }
+
+    void animationDidStart(WebCore::GraphicsLayer::PlatformLayerID, double startTime);
 
 private:
-    // CoreIPC::MessageReceiver.
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
+    LayerOrView *createLayer(const RemoteLayerTreeTransaction::LayerCreationProperties&, const RemoteLayerTreeTransaction::LayerProperties*);
+    static void setLayerID(CALayer *, WebCore::GraphicsLayer::PlatformLayerID);
 
-    // Message handlers.
-    void commit(const RemoteLayerTreeTransaction&);
+    void layerWillBeRemoved(WebCore::GraphicsLayer::PlatformLayerID);
 
-    CALayer *getLayer(RemoteLayerTreeTransaction::LayerID);
-    CALayer *createLayer(RemoteLayerTreeTransaction::LayerCreationProperties);
-
-    WebPageProxy* m_webPageProxy;
-
-    CALayer *m_rootLayer;
-    HashMap<RemoteLayerTreeTransaction::LayerID, RetainPtr<CALayer>> m_layers;
+    RemoteLayerTreeDrawingAreaProxy& m_drawingArea;
+    LayerOrView *m_rootLayer;
+    HashMap<WebCore::GraphicsLayer::PlatformLayerID, RetainPtr<LayerOrView>> m_layers;
+    HashMap<WebCore::GraphicsLayer::PlatformLayerID, RetainPtr<WKAnimationDelegate>> m_animationDelegates;
+    bool m_isDebugLayerTreeHost;
 };
 
 } // namespace WebKit

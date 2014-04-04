@@ -16,7 +16,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -47,6 +47,7 @@
 #include "MainFrame.h"
 #include "Page.h"
 #include "Settings.h"
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
@@ -203,7 +204,7 @@ void IconController::continueLoadWithDecision(IconLoadDecision iconLoadDecision)
     ASSERT(iconLoadDecision != IconLoadUnknown);
 
     //  FIXME (<rdar://problem/9168605>) - We should support in-memory-only private browsing icons in asynchronous icon database mode.
-    if (iconDatabase().supportsAsynchronousMode() && m_frame.page()->settings().privateBrowsingEnabled())
+    if (iconDatabase().supportsAsynchronousMode() && m_frame.page()->usesEphemeralSession())
         return;
 
     if (iconLoadDecision == IconLoadNo) {

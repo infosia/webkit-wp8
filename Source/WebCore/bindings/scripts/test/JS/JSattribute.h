@@ -66,8 +66,14 @@ private:
     attribute* m_impl;
 protected:
     JSattribute(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<attribute>);
-    void finishCreation(JSC::VM&);
-    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | Base::StructureFlags;
+
+    void finishCreation(JSC::VM& vm)
+    {
+        Base::finishCreation(vm);
+        ASSERT(inherits(info()));
+    }
+
+    static const unsigned StructureFlags = JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSattributeOwner : public JSC::WeakHandleOwner {
@@ -78,7 +84,7 @@ public:
 
 inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, attribute*)
 {
-    DEFINE_STATIC_LOCAL(JSattributeOwner, jsattributeOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSattributeOwner, jsattributeOwner, ());
     return &jsattributeOwner;
 }
 
@@ -102,6 +108,7 @@ public:
     }
 
     DECLARE_INFO;
+    static bool getOwnPropertySlot(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype)
     {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -110,7 +117,7 @@ public:
 private:
     JSattributePrototype(JSC::VM& vm, JSC::JSGlobalObject*, JSC::Structure* structure) : JSC::JSNonFinalObject(vm, structure) { }
 protected:
-    static const unsigned StructureFlags = Base::StructureFlags;
+    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSattributeConstructor : public DOMConstructorObject {
@@ -139,8 +146,8 @@ protected:
 
 // Attributes
 
-JSC::EncodedJSValue jsattributeReadonly(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
-JSC::EncodedJSValue jsattributeConstructor(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsattributeReadonly(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsattributeConstructor(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
 
 } // namespace WebCore
 

@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -127,23 +127,6 @@ bool WebFrameLoaderClient::hasWebView() const
 void WebFrameLoaderClient::makeRepresentation(DocumentLoader*)
 {
     notImplemented();
-}
-
-void WebFrameLoaderClient::forceLayout()
-{
-    Frame* frame = core(m_webFrame);
-    if (!frame)
-        return;
-
-    if (frame->document() && frame->document()->inPageCache())
-        return;
-
-    FrameView* view = frame->view();
-    if (!view)
-        return;
-
-    view->setNeedsLayout();
-    view->forceLayout(true);
 }
 
 void WebFrameLoaderClient::forceLayoutForNonHTML()
@@ -670,21 +653,21 @@ void WebFrameLoaderClient::setMainDocumentError(DocumentLoader*, const ResourceE
     m_hasSentResponseToPlugin = false;
 }
 
-void WebFrameLoaderClient::postProgressStartedNotification()
+void WebFrameLoaderClient::progressStarted(WebCore::Frame&)
 {
     static BSTR progressStartedName = SysAllocString(WebViewProgressStartedNotification);
     IWebNotificationCenter* notifyCenter = WebNotificationCenter::defaultCenterInternal();
     notifyCenter->postNotificationName(progressStartedName, static_cast<IWebView*>(m_webFrame->webView()), 0);
 }
 
-void WebFrameLoaderClient::postProgressEstimateChangedNotification()
+void WebFrameLoaderClient::progressEstimateChanged(WebCore::Frame&)
 {
     static BSTR progressEstimateChangedName = SysAllocString(WebViewProgressEstimateChangedNotification);
     IWebNotificationCenter* notifyCenter = WebNotificationCenter::defaultCenterInternal();
     notifyCenter->postNotificationName(progressEstimateChangedName, static_cast<IWebView*>(m_webFrame->webView()), 0);
 }
 
-void WebFrameLoaderClient::postProgressFinishedNotification()
+void WebFrameLoaderClient::progressFinished(WebCore::Frame&)
 {
     static BSTR progressFinishedName = SysAllocString(WebViewProgressFinishedNotification);
     IWebNotificationCenter* notifyCenter = WebNotificationCenter::defaultCenterInternal();
@@ -814,18 +797,13 @@ bool WebFrameLoaderClient::shouldGoToHistoryItem(HistoryItem*) const
     return true;
 }
 
-bool WebFrameLoaderClient::shouldStopLoadingForHistoryItem(HistoryItem*) const
-{
-    return true;
-}
-
 void WebFrameLoaderClient::updateGlobalHistoryItemForPage()
 {
     HistoryItem* historyItem = 0;
     WebView* webView = m_webFrame->webView();
 
     if (Page* page = webView->page()) {
-        if (!page->settings().privateBrowsingEnabled())
+        if (!page->usesEphemeralSession())
             historyItem = page->backForward().currentItem();
     }
 
@@ -1024,7 +1002,7 @@ void WebFrameLoaderClient::savePlatformDataToCachedFrame(CachedFrame* cachedFram
 
     ASSERT(coreFrame->loader().documentLoader() == cachedFrame->documentLoader());
 
-    cachedFrame->setCachedFramePlatformData(adoptPtr(new WebCachedFramePlatformData(static_cast<IWebDataSource*>(getWebDataSource(coreFrame->loader().documentLoader())))));
+    cachedFrame->setCachedFramePlatformData(std::make_unique<WebCachedFramePlatformData>(static_cast<IWebDataSource*>(getWebDataSource(coreFrame->loader().documentLoader()))));
 #else
     notImplemented();
 #endif
@@ -1189,11 +1167,11 @@ PassRefPtr<Widget> WebFrameLoaderClient::createPlugin(const IntSize& pluginSize,
             COMPtr<IWebEmbeddedView> view;
             HRESULT result = uiPrivate->embeddedViewWithArguments(webView, m_webFrame, argumentsBag.get(), &view);
             if (SUCCEEDED(result)) {
-                HWND parentWindow;
-                HRESULT hr = webView->viewWindow((OLE_HANDLE*)&parentWindow);
+                OLE_HANDLE parentWindow;
+                HRESULT hr = webView->viewWindow(&parentWindow);
                 ASSERT(SUCCEEDED(hr));
 
-                return EmbeddedWidget::create(view.get(), element, parentWindow, pluginSize);
+                return EmbeddedWidget::create(view.get(), element, reinterpret_cast<HWND>(parentWindow), pluginSize);
             }
         }
     }
@@ -1258,10 +1236,6 @@ String WebFrameLoaderClient::overrideMediaType() const
     return String();
 }
 
-void WebFrameLoaderClient::documentElementAvailable()
-{
-}
-
 void WebFrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& world)
 {
     Frame* coreFrame = core(m_webFrame);
@@ -1293,27 +1267,6 @@ void WebFrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& 
 void WebFrameLoaderClient::registerForIconNotification(bool listen)
 {
     m_webFrame->webView()->registerForIconNotification(listen);
-}
-
-void WebFrameLoaderClient::didPerformFirstNavigation() const
-{
-    COMPtr<IWebPreferences> preferences;
-    if (FAILED(m_webFrame->webView()->preferences(&preferences)))
-        return;
-
-    COMPtr<IWebPreferencesPrivate> preferencesPrivate(Query, preferences);
-    if (!preferencesPrivate)
-        return;
-    BOOL automaticallyDetectsCacheModel;
-    if (FAILED(preferencesPrivate->automaticallyDetectsCacheModel(&automaticallyDetectsCacheModel)))
-        return;
-
-    WebCacheModel cacheModel;
-    if (FAILED(preferences->cacheModel(&cacheModel)))
-        return;
-
-    if (automaticallyDetectsCacheModel && cacheModel < WebCacheModelDocumentBrowser)
-        preferences->setCacheModel(WebCacheModelDocumentBrowser);
 }
 
 PassRefPtr<FrameNetworkingContext> WebFrameLoaderClient::createNetworkingContext()

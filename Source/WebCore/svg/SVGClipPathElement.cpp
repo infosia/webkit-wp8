@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGClipPathElement.h"
 
 #include "Attribute.h"
@@ -59,7 +57,7 @@ PassRefPtr<SVGClipPathElement> SVGClipPathElement::create(const QualifiedName& t
 
 bool SVGClipPathElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -114,11 +112,9 @@ void SVGClipPathElement::childrenChanged(const ChildChange& change)
         object->setNeedsLayout();
 }
 
-RenderElement* SVGClipPathElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGClipPathElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGResourceClipper(*this, std::move(style));
+    return createRenderer<RenderSVGResourceClipper>(*this, std::move(style));
 }
 
 }
-
-#endif // ENABLE(SVG)

@@ -20,7 +20,6 @@
 #include "EWKTestView.h"
 
 #include <EWebKit.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/RefPtr.h>
 
 namespace EWKUnitTests {
@@ -29,11 +28,11 @@ EWKTestView::EWKTestView()
 {
 }
 
-bool EWKTestView::init(EwkViewType testViewType, int width, int height)
+bool EWKTestView::init(int width, int height)
 {
     m_webView = nullptr;
 
-    m_ecoreEvas = adoptPtr(ecore_evas_new(0, 0, 0, width, height, 0));
+    m_ecoreEvas = EflUniquePtr<Ecore_Evas>(ecore_evas_new(0, 0, 0, width, height, 0));
     if (!m_ecoreEvas)
         return false;
 
@@ -42,16 +41,7 @@ bool EWKTestView::init(EwkViewType testViewType, int width, int height)
     if (!evas)
         return false;
 
-    switch (testViewType) {
-    case SingleView:
-        m_webView = adoptRef(ewk_view_single_add(evas));
-        break;
-
-    case TiledView:
-        m_webView = adoptRef(ewk_view_tiled_add(evas));
-        break;
-    }
-
+    m_webView = adoptRef(ewk_view_add(evas));
     if (!m_webView)
         return false;
 

@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -38,7 +38,7 @@
 #include <wtf/Forward.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #ifdef __OBJC__ 
 #import <Foundation/Foundation.h>
 typedef id RemoteAXObjectRef;
@@ -49,9 +49,9 @@ typedef void* RemoteAXObjectRef;
 
 typedef class _jobject* jobject;
 
-#if PLATFORM(MAC) && !defined(__OBJC__)
-class NSCachedURLResponse;
-class NSView;
+#if PLATFORM(COCOA)
+OBJC_CLASS NSCachedURLResponse;
+OBJC_CLASS NSView;
 #endif
 
 namespace WebCore {
@@ -93,7 +93,6 @@ namespace WebCore {
 #endif
     class SecurityOrigin;
     class SharedBuffer;
-    class SocketStreamHandle;
     class StringWithDirection;
     class SubstituteData;
     class Widget;
@@ -115,7 +114,11 @@ namespace WebCore {
         virtual bool hasWebView() const = 0; // mainly for assertions
 
         virtual void makeRepresentation(DocumentLoader*) = 0;
-        virtual void forceLayout() = 0;
+        
+#if PLATFORM(IOS)
+        // Returns true if the client forced the layout.
+        virtual bool forceLayoutOnRestoreFromPageCache() = 0;
+#endif
         virtual void forceLayoutForNonHTML() = 0;
 
         virtual void setCopiesOnScroll() = 0;
@@ -132,6 +135,11 @@ namespace WebCore {
 #if USE(PROTECTION_SPACE_AUTH_CALLBACK)
         virtual bool canAuthenticateAgainstProtectionSpace(DocumentLoader*, unsigned long identifier, const ProtectionSpace&) = 0;
 #endif
+
+#if PLATFORM(IOS)
+        virtual RetainPtr<CFDictionaryRef> connectionProperties(DocumentLoader*, unsigned long identifier) = 0;
+#endif
+
         virtual void dispatchDidReceiveResponse(DocumentLoader*, unsigned long identifier, const ResourceResponse&) = 0;
         virtual void dispatchDidReceiveContentLength(DocumentLoader*, unsigned long identifier, int dataLength) = 0;
         virtual void dispatchDidFinishLoading(DocumentLoader*, unsigned long identifier) = 0;
@@ -179,13 +187,6 @@ namespace WebCore {
         virtual void revertToProvisionalState(DocumentLoader*) = 0;
         virtual void setMainDocumentError(DocumentLoader*, const ResourceError&) = 0;
 
-        // Maybe these should go into a ProgressTrackerClient some day
-        virtual void willChangeEstimatedProgress() { }
-        virtual void didChangeEstimatedProgress() { }
-        virtual void postProgressStartedNotification() = 0;
-        virtual void postProgressEstimateChangedNotification() = 0;
-        virtual void postProgressFinishedNotification() = 0;
-        
         virtual void setMainFrameDocumentReady(bool) = 0;
 
         virtual void startDownload(const ResourceRequest&, const String& suggestedName = String()) = 0;
@@ -200,7 +201,6 @@ namespace WebCore {
         virtual void updateGlobalHistoryRedirectLinks() = 0;
 
         virtual bool shouldGoToHistoryItem(HistoryItem*) const = 0;
-        virtual bool shouldStopLoadingForHistoryItem(HistoryItem*) const = 0;
         virtual void updateGlobalHistoryItemForPage() { }
 
         // This frame has set its opener to null, disowning it for the lifetime of the frame.
@@ -249,6 +249,9 @@ namespace WebCore {
         
         virtual void savePlatformDataToCachedFrame(CachedFrame*) = 0;
         virtual void transitionToCommittedFromCachedFrame(CachedFrame*) = 0;
+#if PLATFORM(IOS)
+        virtual void didRestoreFrameHierarchyForCachedFrame() = 0;
+#endif
         virtual void transitionToCommittedForNewPage() = 0;
 
         virtual void didSaveToPageCache() = 0;
@@ -277,12 +280,10 @@ namespace WebCore {
         virtual String overrideMediaType() const = 0;
 
         virtual void dispatchDidClearWindowObjectInWorld(DOMWrapperWorld&) = 0;
-        virtual void documentElementAvailable() = 0;
-        virtual void didPerformFirstNavigation() const = 0; // "Navigation" here means a transition from one page to another that ends up in the back/forward list.
 
         virtual void registerForIconNotification(bool listen = true) = 0;
-        
-#if PLATFORM(MAC)
+
+#if PLATFORM(COCOA)
         // Allow an accessibility object to retrieve a Frame parent if there's no PlatformWidget.
         virtual RemoteAXObjectRef accessibilityRemoteObject() = 0;
         virtual NSCachedURLResponse* willCacheResponse(DocumentLoader*, unsigned long identifier, NSCachedURLResponse*) const = 0;
@@ -311,8 +312,6 @@ namespace WebCore {
 
         virtual bool shouldPaintBrokenImage(const URL&) const { return true; }
 
-        virtual void dispatchWillOpenSocketStream(SocketStreamHandle*) { }
-
         virtual void dispatchGlobalObjectAvailable(DOMWrapperWorld&) { }
         virtual void dispatchWillDisconnectDOMWindowExtensionFromGlobalObject(DOMWindowExtension*) { }
         virtual void dispatchDidReconnectDOMWindowExtensionToGlobalObject(DOMWindowExtension*) { }
@@ -327,6 +326,8 @@ namespace WebCore {
         // Informs the embedder that a WebGL canvas inside this frame received a lost context
         // notification with the given GL_ARB_robustness guilt/innocence code (see Extensions3D.h).
         virtual void didLoseWebGLContext(int) { }
+        virtual WebGLLoadPolicy webGLPolicyForURL(const String&) const { return WebGLAllowCreation; }
+        virtual WebGLLoadPolicy resolveWebGLPolicyForURL(const String&) const { return WebGLAllowCreation; }
 #endif
 
         virtual void forcePageTransitionIfNeeded() { }

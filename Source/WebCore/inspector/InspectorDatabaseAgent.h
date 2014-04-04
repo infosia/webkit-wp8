@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -31,52 +31,50 @@
 
 #if ENABLE(INSPECTOR) && ENABLE(SQL_DATABASE)
 
-#include "InspectorBaseAgent.h"
-#include "InspectorFrontend.h"
+#include "InspectorWebAgentBase.h"
+#include "InspectorWebBackendDispatchers.h"
+#include "InspectorWebFrontendDispatchers.h"
 #include <wtf/HashMap.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/text/WTFString.h>
+
+namespace Inspector {
+class InspectorArray;
+}
 
 namespace WebCore {
 
 class Database;
-class InspectorArray;
 class InspectorDatabaseResource;
 class InstrumentingAgents;
 
 typedef String ErrorString;
 
-class InspectorDatabaseAgent : public InspectorBaseAgent, public InspectorDatabaseBackendDispatcherHandler {
+class InspectorDatabaseAgent : public InspectorAgentBase, public Inspector::InspectorDatabaseBackendDispatcherHandler {
 public:
-    static PassOwnPtr<InspectorDatabaseAgent> create(InstrumentingAgents* instrumentingAgents)
-    {
-        return adoptPtr(new InspectorDatabaseAgent(instrumentingAgents));
-    }
+    explicit InspectorDatabaseAgent(InstrumentingAgents*);
     ~InspectorDatabaseAgent();
 
-    virtual void didCreateFrontendAndBackend(InspectorFrontendChannel*, InspectorBackendDispatcher*) OVERRIDE;
-    virtual void willDestroyFrontendAndBackend() OVERRIDE;
+    virtual void didCreateFrontendAndBackend(Inspector::InspectorFrontendChannel*, Inspector::InspectorBackendDispatcher*) override;
+    virtual void willDestroyFrontendAndBackend(Inspector::InspectorDisconnectReason) override;
 
     void clearResources();
 
     // Called from the front-end.
-    virtual void enable(ErrorString*);
-    virtual void disable(ErrorString*);
-    virtual void getDatabaseTableNames(ErrorString*, const String& databaseId, RefPtr<TypeBuilder::Array<String>>& names);
-    virtual void executeSQL(ErrorString*, const String& databaseId, const String& query, PassRefPtr<ExecuteSQLCallback>);
+    virtual void enable(ErrorString*) override;
+    virtual void disable(ErrorString*) override;
+    virtual void getDatabaseTableNames(ErrorString*, const String& databaseId, RefPtr<Inspector::TypeBuilder::Array<String>>& names) override;
+    virtual void executeSQL(ErrorString*, const String& databaseId, const String& query, PassRefPtr<ExecuteSQLCallback>) override;
 
     // Called from the injected script.
     String databaseId(Database*);
 
     void didOpenDatabase(PassRefPtr<Database>, const String& domain, const String& name, const String& version);
 private:
-    explicit InspectorDatabaseAgent(InstrumentingAgents*);
-
     Database* databaseForId(const String& databaseId);
     InspectorDatabaseResource* findByFileName(const String& fileName);
 
-    std::unique_ptr<InspectorDatabaseFrontendDispatcher> m_frontendDispatcher;
-    RefPtr<InspectorDatabaseBackendDispatcher> m_backendDispatcher;
+    std::unique_ptr<Inspector::InspectorDatabaseFrontendDispatcher> m_frontendDispatcher;
+    RefPtr<Inspector::InspectorDatabaseBackendDispatcher> m_backendDispatcher;
     typedef HashMap<String, RefPtr<InspectorDatabaseResource>> DatabaseResourcesMap;
     DatabaseResourcesMap m_resources;
     bool m_enabled;

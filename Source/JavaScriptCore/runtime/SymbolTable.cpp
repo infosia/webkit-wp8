@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -30,7 +30,7 @@
 #include "SymbolTable.h"
 
 #include "JSDestructibleObject.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "SlotVisitorInlines.h"
 
 namespace JSC {
@@ -134,7 +134,7 @@ void SymbolTable::WatchpointCleanup::finalizeUnconditionally()
     }
 }
 
-SymbolTable* SymbolTable::clone(VM& vm)
+SymbolTable* SymbolTable::cloneCapturedNames(VM& vm)
 {
     SymbolTable* result = SymbolTable::create(vm);
     
@@ -142,10 +142,10 @@ SymbolTable* SymbolTable::clone(VM& vm)
     result->m_usesNonStrictEval = m_usesNonStrictEval;
     result->m_captureStart = m_captureStart;
     result->m_captureEnd = m_captureEnd;
-    
-    Map::iterator iter = m_map.begin();
-    Map::iterator end = m_map.end();
-    for (; iter != end; ++iter) {
+
+    for (auto iter = m_map.begin(), end = m_map.end(); iter != end; ++iter) {
+        if (!isCaptured(iter->value.getIndex()))
+            continue;
         result->m_map.add(
             iter->key,
             SymbolTableEntry(iter->value.getIndex(), iter->value.getAttributes()));

@@ -46,9 +46,7 @@ enum PrintColorAdjust {
 // - StyleDifferenceLayout - A full layout is required.
 enum StyleDifference {
     StyleDifferenceEqual,
-#if USE(ACCELERATED_COMPOSITING)
     StyleDifferenceRecompositeLayer,
-#endif
     StyleDifferenceRepaint,
     StyleDifferenceRepaintIfTextOrBorderOrOutline,
     StyleDifferenceRepaintLayer,
@@ -75,7 +73,6 @@ enum PseudoId {
     NOPSEUDO, FIRST_LINE, FIRST_LETTER, BEFORE, AFTER, SELECTION, FIRST_LINE_INHERITED, SCROLLBAR,
     // Internal IDs follow:
     SCROLLBAR_THUMB, SCROLLBAR_BUTTON, SCROLLBAR_TRACK, SCROLLBAR_TRACK_PIECE, SCROLLBAR_CORNER, RESIZER,
-    INPUT_LIST_BUTTON,
     AFTER_LAST_INTERNAL_PSEUDOID,
     FULL_SCREEN, FULL_SCREEN_DOCUMENT, FULL_SCREEN_ANCESTOR, ANIMATING_FULL_SCREEN_TRANSITION,
     FIRST_PUBLIC_PSEUDOID = FIRST_LINE,
@@ -214,6 +211,10 @@ enum EUserSelect {
 // CSS3 Image Values
 enum ObjectFit {
     ObjectFitFill, ObjectFitContain, ObjectFitCover, ObjectFitNone, ObjectFitScaleDown
+};
+
+enum AspectRatioType {
+    AspectRatioAuto, AspectRatioFromIntrinsic, AspectRatioFromDimensions, AspectRatioSpecified
 };
 
 // Word Break Values. Matches WinIE, rather than CSS3
@@ -369,12 +370,10 @@ inline TextDecoration& operator|= (TextDecoration& a, TextDecoration b) { return
 
 enum TextDecorationStyle {
     TextDecorationStyleSolid,
-#if ENABLE(CSS3_TEXT_DECORATION)
     TextDecorationStyleDouble,
     TextDecorationStyleDotted,
     TextDecorationStyleDashed,
     TextDecorationStyleWavy
-#endif // CSS3_TEXT_DECORATION
 };
 
 #if ENABLE(CSS3_TEXT)
@@ -387,10 +386,11 @@ enum TextJustify {
 };
 #endif // CSS3_TEXT
 
-#if ENABLE(CSS3_TEXT_DECORATION)
 enum TextDecorationSkipItems {
     TextDecorationSkipNone = 0,
-    TextDecorationSkipInk = 1 << 0
+    TextDecorationSkipInk = 1 << 0,
+    TextDecorationSkipObjects = 1 << 1,
+    TextDecorationSkipAuto = 1 << 2
 };
 typedef unsigned TextDecorationSkip;
 
@@ -398,8 +398,6 @@ enum TextUnderlinePosition {
     // FIXME: Implement support for 'under left' and 'under right' values.
     TextUnderlinePositionAuto = 0x1, TextUnderlinePositionAlphabetic = 0x2, TextUnderlinePositionUnder = 0x4
 };
-
-#endif
 
 enum EPageBreak {
     PBAUTO, PBALWAYS, PBAVOID
@@ -468,13 +466,15 @@ enum CursorVisibility {
 
 // The order of this enum must match the order of the display values in CSSValueKeywords.in.
 enum EDisplay {
-    INLINE, BLOCK, LIST_ITEM, RUN_IN, COMPACT, INLINE_BLOCK,
+    INLINE, BLOCK, LIST_ITEM, COMPACT, INLINE_BLOCK,
     TABLE, INLINE_TABLE, TABLE_ROW_GROUP,
     TABLE_HEADER_GROUP, TABLE_FOOTER_GROUP, TABLE_ROW,
     TABLE_COLUMN_GROUP, TABLE_COLUMN, TABLE_CELL,
     TABLE_CAPTION, BOX, INLINE_BOX,
     FLEX, INLINE_FLEX,
+#if ENABLE(CSS_GRID_LAYOUT)
     GRID, INLINE_GRID,
+#endif
     NONE
 };
 
@@ -505,7 +505,13 @@ enum TextEmphasisFill { TextEmphasisFillFilled, TextEmphasisFillOpen };
 
 enum TextEmphasisMark { TextEmphasisMarkNone, TextEmphasisMarkAuto, TextEmphasisMarkDot, TextEmphasisMarkCircle, TextEmphasisMarkDoubleCircle, TextEmphasisMarkTriangle, TextEmphasisMarkSesame, TextEmphasisMarkCustom };
 
-enum TextEmphasisPosition { TextEmphasisPositionOver, TextEmphasisPositionUnder };
+enum TextEmphasisPositions {
+    TextEmphasisPositionOver = 1 << 0,
+    TextEmphasisPositionUnder = 1 << 1,
+    TextEmphasisPositionLeft = 1 << 2,
+    TextEmphasisPositionRight = 1 << 3
+};
+typedef unsigned TextEmphasisPosition;
 
 enum TextOrientation { TextOrientationVerticalRight, TextOrientationUpright, TextOrientationSideways, TextOrientationSidewaysRight };
 
@@ -529,16 +535,10 @@ enum LineSnap { LineSnapNone, LineSnapBaseline, LineSnapContain };
 
 enum LineAlign { LineAlignNone, LineAlignEdges };
 
-enum WrapFlow { WrapFlowAuto, WrapFlowBoth, WrapFlowStart, WrapFlowEnd, WrapFlowMaximum, WrapFlowClear };
-
-enum WrapThrough { WrapThroughWrap, WrapThroughNone };
-
 enum RubyPosition { RubyPositionBefore, RubyPositionAfter };
 
+#if ENABLE(CSS_GRID_LAYOUT)
 enum GridAutoFlow { AutoFlowNone, AutoFlowColumn, AutoFlowRow };
-
-#if ENABLE(DRAGGABLE_REGION)
-enum DraggableRegionMode { DraggableRegionNone, DraggableRegionDrag, DraggableRegionNoDrag };
 #endif
 
 // Reasonable maximum to prevent insane font sizes from causing crashes on some platforms (such as Windows).
@@ -548,6 +548,11 @@ static const float maximumAllowedFontSize = 1000000.0f;
 enum TextIndentLine { TextIndentFirstLine, TextIndentEachLine };
 enum TextIndentType { TextIndentNormal, TextIndentHanging };
 #endif
+
+enum Isolation { IsolationAuto, IsolationIsolate };
+
+// Fill, Stroke, ViewBox are just used for SVG.
+enum CSSBoxType { BoxMissing = 0, MarginBox, BorderBox, PaddingBox, ContentBox, Fill, Stroke, ViewBox };
 
 } // namespace WebCore
 

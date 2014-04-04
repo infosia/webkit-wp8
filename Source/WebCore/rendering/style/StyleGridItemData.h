@@ -31,6 +31,7 @@
 #ifndef StyleGridItemData_h
 #define StyleGridItemData_h
 
+#if ENABLE(CSS_GRID_LAYOUT)
 
 #include "GridPosition.h"
 #include <wtf/PassRefPtr.h>
@@ -42,7 +43,7 @@ namespace WebCore {
 class StyleGridItemData : public RefCounted<StyleGridItemData> {
 public:
     static PassRef<StyleGridItemData> create() { return adoptRef(*new StyleGridItemData); }
-    PassRef<StyleGridItemData> copy() const { return adoptRef(*new StyleGridItemData(*this)); }
+    PassRef<StyleGridItemData> copy() const;
 
     bool operator==(const StyleGridItemData& o) const
     {
@@ -66,5 +67,7 @@ private:
 };
 
 } // namespace WebCore
+
+#endif /* ENABLE(CSS_GRID_LAYOUT) */
 
 #endif // StyleGridItemData_h

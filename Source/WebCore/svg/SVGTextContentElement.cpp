@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGTextContentElement.h"
 
 #include "CSSPropertyNames.h"
@@ -93,7 +91,7 @@ PassRefPtr<SVGAnimatedProperty> SVGTextContentElement::lookupOrCreateTextLengthW
 
 PassRefPtr<SVGAnimatedLength> SVGTextContentElement::textLengthAnimated()
 {
-    DEFINE_STATIC_LOCAL(SVGLength, defaultTextLength, (LengthModeOther));
+    DEPRECATED_DEFINE_STATIC_LOCAL(SVGLength, defaultTextLength, (LengthModeOther));
     if (m_specifiedTextLength == defaultTextLength)
         m_textLength.value.newValueSpecifiedUnits(LengthTypeNumber, getComputedTextLength(), ASSERT_NO_EXCEPTION);
 
@@ -211,7 +209,7 @@ void SVGTextContentElement::selectSubString(unsigned charnum, unsigned nchars, E
 
 bool SVGTextContentElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -233,7 +231,7 @@ void SVGTextContentElement::collectStyleForPresentationAttribute(const Qualified
     if (!isSupportedAttribute(name))
         SVGGraphicsElement::collectStyleForPresentationAttribute(name, value, style);
     else if (name.matches(XMLNames::spaceAttr)) {
-        DEFINE_STATIC_LOCAL(const AtomicString, preserveString, ("preserve", AtomicString::ConstructFromLiteral));
+        DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, preserveString, ("preserve", AtomicString::ConstructFromLiteral));
 
         if (value == preserveString)
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWhiteSpace, CSSValuePre);
@@ -274,8 +272,8 @@ void SVGTextContentElement::svgAttributeChanged(const QualifiedName& attrName)
     if (attrName == SVGNames::textLengthAttr)
         m_specifiedTextLength = m_textLength.value;
 
-    if (RenderObject* renderer = this->renderer())
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer);
+    if (auto renderer = this->renderer())
+        RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
 }
 
 bool SVGTextContentElement::selfHasRelativeLengths() const
@@ -304,5 +302,3 @@ SVGTextContentElement* SVGTextContentElement::elementFromRenderer(RenderObject* 
 }
 
 }
-
-#endif // ENABLE(SVG)

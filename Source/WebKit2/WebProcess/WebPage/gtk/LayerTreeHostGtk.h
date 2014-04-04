@@ -59,27 +59,27 @@ protected:
     virtual void setRootCompositingLayer(WebCore::GraphicsLayer*);
     virtual void scheduleLayerFlush();
     virtual void setLayerFlushSchedulingEnabled(bool layerFlushingEnabled);
-    virtual void pageBackgroundTransparencyChanged() OVERRIDE;
+    virtual void pageBackgroundTransparencyChanged() override;
 
 private:
     // LayerTreeHost.
     virtual const LayerTreeContext& layerTreeContext();
     virtual void setShouldNotifyAfterNextScheduledLayerFlush(bool);
 
-    virtual void setNonCompositedContentsNeedDisplay() OVERRIDE;
-    virtual void setNonCompositedContentsNeedDisplayInRect(const WebCore::IntRect&) OVERRIDE;
+    virtual void setNonCompositedContentsNeedDisplay() override;
+    virtual void setNonCompositedContentsNeedDisplayInRect(const WebCore::IntRect&) override;
     virtual void scrollNonCompositedContents(const WebCore::IntRect& scrollRect);
 
-    virtual void didInstallPageOverlay(PageOverlay*) OVERRIDE;
-    virtual void didUninstallPageOverlay(PageOverlay*) OVERRIDE;
-    virtual void setPageOverlayNeedsDisplay(PageOverlay*, const WebCore::IntRect&) OVERRIDE;
+    virtual void didInstallPageOverlay(PageOverlay*) override;
+    virtual void didUninstallPageOverlay(PageOverlay*) override;
+    virtual void setPageOverlayNeedsDisplay(PageOverlay*, const WebCore::IntRect&) override;
 
     virtual bool flushPendingLayerChanges();
 
     // GraphicsLayerClient
     virtual void notifyAnimationStarted(const WebCore::GraphicsLayer*, double time);
     virtual void notifyFlushRequired(const WebCore::GraphicsLayer*);
-    virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::IntRect& clipRect);
+    virtual void paintContents(const WebCore::GraphicsLayer*, WebCore::GraphicsContext&, WebCore::GraphicsLayerPaintingPhase, const WebCore::FloatRect& clipRect);
     virtual void didCommitChangesForLayer(const WebCore::GraphicsLayer*) const { }
 
     void createPageOverlayLayer(PageOverlay*);

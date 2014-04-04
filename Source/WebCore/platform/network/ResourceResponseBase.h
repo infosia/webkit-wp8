@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -141,17 +141,27 @@ protected:
     static bool platformCompare(const ResourceResponse&, const ResourceResponse&) { return true; }
 
     URL m_url;
-    String m_mimeType;
+    AtomicString m_mimeType;
     long long m_expectedContentLength;
-    String m_textEncodingName;
+    AtomicString m_textEncodingName;
     String m_suggestedFilename;
-    int m_httpStatusCode;
-    String m_httpStatusText;
+    AtomicString m_httpStatusText;
     HTTPHeaderMap m_httpHeaderFields;
-    bool m_wasCached : 1;
-    unsigned m_connectionID;
-    bool m_connectionReused : 1;
     RefPtr<ResourceLoadTiming> m_resourceLoadTiming;
+
+    int m_httpStatusCode;
+    unsigned m_connectionID;
+
+private:
+    mutable double m_cacheControlMaxAge;
+    mutable double m_age;
+    mutable double m_date;
+    mutable double m_expires;
+    mutable double m_lastModified;
+
+public:
+    bool m_wasCached : 1;
+    bool m_connectionReused : 1;
 
     bool m_isNull : 1;
     
@@ -169,12 +179,6 @@ private:
     mutable bool m_cacheControlContainsNoCache : 1;
     mutable bool m_cacheControlContainsNoStore : 1;
     mutable bool m_cacheControlContainsMustRevalidate : 1;
-    mutable double m_cacheControlMaxAge;
-
-    mutable double m_age;
-    mutable double m_date;
-    mutable double m_expires;
-    mutable double m_lastModified;
 };
 
 inline bool operator==(const ResourceResponse& a, const ResourceResponse& b) { return ResourceResponseBase::compare(a, b); }

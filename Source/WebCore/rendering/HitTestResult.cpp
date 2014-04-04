@@ -46,13 +46,10 @@
 #include "RenderInline.h"
 #include "Scrollbar.h"
 #include "ShadowRoot.h"
-#include "UserGestureIndicator.h"
-
-#if ENABLE(SVG)
 #include "SVGImageElement.h"
 #include "SVGNames.h"
+#include "UserGestureIndicator.h"
 #include "XLinkNames.h"
-#endif
 
 namespace WebCore {
 
@@ -95,7 +92,7 @@ HitTestResult::HitTestResult(const HitTestResult& other)
     , m_isOverWidget(other.isOverWidget())
 {
     // Only copy the NodeSet in case of rect hit test.
-    m_rectBasedTestResult = adoptPtr(other.m_rectBasedTestResult ? new NodeSet(*other.m_rectBasedTestResult) : 0);
+    m_rectBasedTestResult = other.m_rectBasedTestResult ? std::make_unique<NodeSet>(*other.m_rectBasedTestResult) : nullptr;
 }
 
 HitTestResult::~HitTestResult()
@@ -114,7 +111,7 @@ HitTestResult& HitTestResult::operator=(const HitTestResult& other)
     m_isOverWidget = other.isOverWidget();
 
     // Only copy the NodeSet in case of rect hit test.
-    m_rectBasedTestResult = adoptPtr(other.m_rectBasedTestResult ? new NodeSet(*other.m_rectBasedTestResult) : 0);
+    m_rectBasedTestResult = other.m_rectBasedTestResult ? std::make_unique<NodeSet>(*other.m_rectBasedTestResult) : nullptr;
 
     return *this;
 }
@@ -294,8 +291,8 @@ Image* HitTestResult::image() const
         return 0;
     
     auto renderer = m_innerNonSharedNode->renderer();
-    if (renderer && renderer->isImage()) {
-        RenderImage* image = static_cast<WebCore::RenderImage*>(renderer);
+    if (renderer && renderer->isRenderImage()) {
+        RenderImage* image = toRenderImage(renderer);
         if (image->cachedImage() && !image->cachedImage()->errorOccurred())
             return image->cachedImage()->imageForRenderer(image);
     }
@@ -323,10 +320,8 @@ URL HitTestResult::absoluteImageURL() const
         || isHTMLImageElement(m_innerNonSharedNode.get())
         || isHTMLInputElement(m_innerNonSharedNode.get())
         || m_innerNonSharedNode->hasTagName(objectTag)
-#if ENABLE(SVG)
-        || isSVGImageElement(m_innerNonSharedNode.get())
-#endif
-       ) {
+        || isSVGImageElement(m_innerNonSharedNode.get())) 
+        {
         Element* element = toElement(m_innerNonSharedNode.get());
         urlString = element->imageSourceURL();
     } else
@@ -518,10 +513,8 @@ URL HitTestResult::absoluteLinkURL() const
     AtomicString urlString;
     if (isHTMLAnchorElement(m_innerURLElement.get()) || isHTMLAreaElement(m_innerURLElement.get()) || m_innerURLElement->hasTagName(linkTag))
         urlString = m_innerURLElement->getAttribute(hrefAttr);
-#if ENABLE(SVG)
     else if (m_innerURLElement->hasTagName(SVGNames::aTag))
         urlString = m_innerURLElement->getAttribute(XLinkNames::hrefAttr);
-#endif
     else
         return URL();
 
@@ -535,10 +528,9 @@ bool HitTestResult::isLiveLink() const
 
     if (isHTMLAnchorElement(m_innerURLElement.get()))
         return toHTMLAnchorElement(m_innerURLElement.get())->isLiveLink();
-#if ENABLE(SVG)
+
     if (m_innerURLElement->hasTagName(SVGNames::aTag))
         return m_innerURLElement->isLink();
-#endif
 
     return false;
 }
@@ -578,7 +570,7 @@ bool HitTestResult::isContentEditable() const
     if (isHTMLInputElement(m_innerNonSharedNode.get()))
         return toHTMLInputElement(m_innerNonSharedNode.get())->isTextField();
 
-    return m_innerNonSharedNode->rendererIsEditable();
+    return m_innerNonSharedNode->hasEditableStyle();
 }
 
 bool HitTestResult::addNodeToRectBasedTestResult(Node* node, const HitTestRequest& request, const HitTestLocation& locationInContainer, const LayoutRect& rect)
@@ -645,14 +637,14 @@ void HitTestResult::append(const HitTestResult& other)
 const HitTestResult::NodeSet& HitTestResult::rectBasedTestResult() const
 {
     if (!m_rectBasedTestResult)
-        m_rectBasedTestResult = adoptPtr(new NodeSet);
+        m_rectBasedTestResult = std::make_unique<NodeSet>();
     return *m_rectBasedTestResult;
 }
 
 HitTestResult::NodeSet& HitTestResult::mutableRectBasedTestResult()
 {
     if (!m_rectBasedTestResult)
-        m_rectBasedTestResult = adoptPtr(new NodeSet);
+        m_rectBasedTestResult = std::make_unique<NodeSet>();
     return *m_rectBasedTestResult;
 }
 

@@ -29,13 +29,12 @@
 #include "config.h"
 #include "VisitedLinkState.h"
 
-#include "ElementTraversal.h"
+#include "ElementIterator.h"
 #include "Frame.h"
 #include "HTMLAnchorElement.h"
 #include "Page.h"
 #include "PageGroup.h"
-#include "PlatformStrategies.h"
-#include "VisitedLinkStrategy.h"
+#include "VisitedLinkStore.h"
 #include "XLinkNames.h"
 
 namespace WebCore {
@@ -53,11 +52,6 @@ inline static const AtomicString* linkAttribute(Element& element)
     return 0;
 }
 
-PassOwnPtr<VisitedLinkState> VisitedLinkState::create(Document& document)
-{
-    return adoptPtr(new VisitedLinkState(document));
-}
-
 VisitedLinkState::VisitedLinkState(Document& document)
     : m_document(document)
 {
@@ -67,9 +61,9 @@ void VisitedLinkState::invalidateStyleForAllLinks()
 {
     if (m_linksCheckedForVisitedState.isEmpty())
         return;
-    for (Element* element = ElementTraversal::firstWithin(&m_document); element; element = ElementTraversal::next(element)) {
-        if (element->isLink())
-            element->setNeedsStyleRecalc();
+    for (auto& element : descendantsOfType<Element>(m_document)) {
+        if (element.isLink())
+            element.setNeedsStyleRecalc();
     }
 }
 
@@ -86,9 +80,9 @@ void VisitedLinkState::invalidateStyleForLink(LinkHash linkHash)
 {
     if (!m_linksCheckedForVisitedState.contains(linkHash))
         return;
-    for (Element* element = ElementTraversal::firstWithin(&m_document); element; element = ElementTraversal::next(element)) {
-        if (linkHashForElement(m_document, *element) == linkHash)
-            element->setNeedsStyleRecalc();
+    for (auto& element : descendantsOfType<Element>(m_document)) {
+        if (linkHashForElement(m_document, element) == linkHash)
+            element.setNeedsStyleRecalc();
     }
 }
 
@@ -124,7 +118,10 @@ EInsideLink VisitedLinkState::determineLinkStateSlowCase(Element& element)
 
     m_linksCheckedForVisitedState.add(hash);
 
-    return platformStrategies()->visitedLinkStrategy()->isLinkVisited(page, hash, element.document().baseURL(), *attribute) ? InsideVisitedLink : InsideUnvisitedLink;
+    if (!page->visitedLinkStore().isLinkVisited(*page, hash, element.document().baseURL(), *attribute))
+        return InsideUnvisitedLink;
+
+    return InsideVisitedLink;
 }
 
-}
+} // namespace WebCore

@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -158,7 +158,8 @@ static PassRefPtr<DocumentFragment> documentFragmentFromDragData(DragData& dragD
 
 bool DragController::dragIsMove(FrameSelection& selection, DragData& dragData)
 {
-    return m_documentUnderMouse == m_dragInitiator && selection.isContentEditable() && selection.isRange() && !isCopyKeyDown(dragData);
+    const VisibleSelection& visibleSelection = selection.selection();
+    return m_documentUnderMouse == m_dragInitiator && visibleSelection.isContentEditable() && visibleSelection.isRange() && !isCopyKeyDown(dragData);
 }
 
 // FIXME: This method is poorly named.  We're just clearing the selection from the document this drag is exiting.
@@ -271,8 +272,8 @@ static HTMLInputElement* asFileInput(Node* node)
     HTMLInputElement* inputElement = node->toInputElement();
 
     // If this is a button inside of the a file input, move up to the file input.
-    if (inputElement && inputElement->isTextButton() && inputElement->treeScope().rootNode()->isShadowRoot())
-        inputElement = toShadowRoot(inputElement->treeScope().rootNode())->hostElement()->toInputElement();
+    if (inputElement && inputElement->isTextButton() && inputElement->treeScope().rootNode().isShadowRoot())
+        inputElement = toShadowRoot(inputElement->treeScope().rootNode()).hostElement()->toInputElement();
 
     return inputElement && inputElement->isFileUpload() ? inputElement : 0;
 }
@@ -405,7 +406,7 @@ DragOperation DragController::operationForLoad(DragData& dragData)
             pluginDocumentAcceptsDrags = pluginView->shouldAllowNavigationFromDrags();
     }
 
-    if (doc && (m_didInitiateDrag || (doc->isPluginDocument() && !pluginDocumentAcceptsDrags) || doc->rendererIsEditable()))
+    if (doc && (m_didInitiateDrag || (doc->isPluginDocument() && !pluginDocumentAcceptsDrags) || doc->hasEditableStyle()))
         return DragOperationNone;
     return dragOperation(dragData);
 }
@@ -413,12 +414,12 @@ DragOperation DragController::operationForLoad(DragData& dragData)
 static bool setSelectionToDragCaret(Frame* frame, VisibleSelection& dragCaret, RefPtr<Range>& range, const IntPoint& point)
 {
     frame->selection().setSelection(dragCaret);
-    if (frame->selection().isNone()) {
+    if (frame->selection().selection().isNone()) {
         dragCaret = frame->visiblePositionForPoint(point);
         frame->selection().setSelection(dragCaret);
         range = dragCaret.toNormalizedRange();
     }
-    return !frame->selection().isNone() && frame->selection().isContentEditable();
+    return !frame->selection().isNone() && frame->selection().selection().isContentEditable();
 }
 
 bool DragController::dispatchTextInputEventFor(Frame* innerFrame, DragData& dragData)
@@ -482,7 +483,7 @@ bool DragController::concludeEditDrag(DragData& dragData)
     VisibleSelection dragCaret = m_page.dragCaretController().caretPosition();
     m_page.dragCaretController().clear();
     RefPtr<Range> range = dragCaret.toNormalizedRange();
-    RefPtr<Element> rootEditableElement = innerFrame->selection().rootEditableElement();
+    RefPtr<Element> rootEditableElement = innerFrame->selection().selection().rootEditableElement();
 
     // For range to be null a WebKit client must have done something bad while
     // manually controlling drag behaviour
@@ -553,9 +554,9 @@ bool DragController::canProcessDrag(DragData& dragData)
         return true;
 
     if (result.innerNonSharedNode()->isPluginElement()) {
-        if (!toHTMLPlugInElement(result.innerNonSharedNode())->canProcessDrag() && !result.innerNonSharedNode()->rendererIsEditable())
+        if (!toHTMLPlugInElement(result.innerNonSharedNode())->canProcessDrag() && !result.innerNonSharedNode()->hasEditableStyle())
             return false;
-    } else if (!result.innerNonSharedNode()->rendererIsEditable())
+    } else if (!result.innerNonSharedNode()->hasEditableStyle())
         return false;
 
     if (m_didInitiateDrag && m_documentUnderMouse == m_dragInitiator && result.isSelected())
@@ -655,7 +656,7 @@ Element* DragController::draggableElement(const Frame* sourceFrame, Element* sta
 static CachedImage* getCachedImage(Element& element)
 {
     RenderObject* renderer = element.renderer();
-    if (!renderer || !renderer->isImage())
+    if (!renderer || !renderer->isRenderImage())
         return 0;
     RenderImage* image = toRenderImage(renderer);
     return image->cachedImage();
@@ -681,7 +682,7 @@ static void selectElement(Element& element)
 static IntPoint dragLocForDHTMLDrag(const IntPoint& mouseDraggedPoint, const IntPoint& dragOrigin, const IntPoint& dragImageOffset, bool isLinkImage)
 {
     // dragImageOffset is the cursor position relative to the lower-left corner of the image.
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // We add in the Y dimension because we are a flipped view, so adding moves the image down.
     const int yOffset = dragImageOffset.y();
 #else
@@ -696,11 +697,11 @@ static IntPoint dragLocForDHTMLDrag(const IntPoint& mouseDraggedPoint, const Int
 
 static IntPoint dragLocForSelectionDrag(Frame& src)
 {
-    IntRect draggingRect = enclosingIntRect(src.selection().bounds());
+    IntRect draggingRect = enclosingIntRect(src.selection().selectionBounds());
     int xpos = draggingRect.maxX();
     xpos = draggingRect.x() < xpos ? draggingRect.x() : xpos;
     int ypos = draggingRect.maxY();
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Deal with flipped coordinates on Mac
     ypos = draggingRect.y() > ypos ? draggingRect.y() : ypos;
 #else
@@ -765,10 +766,10 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
 
             src.editor().willWriteSelectionToPasteboard(selectionRange.get());
 
-            if (enclosingTextFormControl(src.selection().start()))
+            if (enclosingTextFormControl(src.selection().selection().start()))
                 clipboard.pasteboard().writePlainText(src.editor().selectedTextForClipboard(), Pasteboard::CannotSmartReplace);
             else {
-#if PLATFORM(MAC) || PLATFORM(EFL)
+#if PLATFORM(COCOA) || PLATFORM(EFL)
                 src.editor().writeSelectionToPasteboard(clipboard.pasteboard());
 #else
                 // FIXME: Convert all other platforms to match Mac and delete this.
@@ -812,11 +813,12 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
             // on the web page. This includes replacing newlines with spaces.
             src.editor().copyURL(linkURL, hitTestResult.textContent().simplifyWhiteSpace(), clipboard.pasteboard());
 
-        if (src.selection().isCaret() && src.selection().isContentEditable()) {
+        const VisibleSelection& sourceSelection = src.selection().selection();
+        if (sourceSelection.isCaret() && sourceSelection.isContentEditable()) {
             // a user can initiate a drag on a link without having any text
             // selected.  In this case, we should expand the selection to
             // the enclosing anchor element
-            Position pos = src.selection().base();
+            Position pos = sourceSelection.base();
             Node* node = enclosingAnchorElement(pos);
             if (node)
                 src.selection().setSelection(VisibleSelection::selectionFromContentsOfNode(node));
@@ -828,6 +830,8 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
             IntSize size = dragImageSize(dragImage);
             m_dragOffset = IntPoint(-size.width() / 2, -LinkDragBorderInset);
             dragLoc = IntPoint(mouseDraggedPoint.x() + m_dragOffset.x(), mouseDraggedPoint.y() + m_dragOffset.y());
+            // Later code expects the drag image to be scaled by device's scale factor.
+            dragImage = scaleDragImage(dragImage, FloatSize(m_page.deviceScaleFactor(), m_page.deviceScaleFactor()));
         }
         doSystemDrag(dragImage, dragLoc, mouseDraggedPoint, clipboard, src, true);
     } else if (state.type == DragSourceActionDHTML) {
@@ -848,11 +852,11 @@ bool DragController::startDrag(Frame& src, const DragState& state, DragOperation
     return startedDrag;
 }
 
-void DragController::doImageDrag(Element& element, const IntPoint& dragOrigin, const IntRect& rect, Clipboard& clipboard, Frame& frame, IntPoint& dragImageOffset)
+void DragController::doImageDrag(Element& element, const IntPoint& dragOrigin, const IntRect& layoutRect, Clipboard& clipboard, Frame& frame, IntPoint& dragImageOffset)
 {
     IntPoint mouseDownPoint = dragOrigin;
-    DragImageRef dragImage = 0;
-    IntPoint origin;
+    DragImageRef dragImage = nullptr;
+    IntPoint scaledOrigin;
 
     if (!element.renderer())
         return;
@@ -865,34 +869,32 @@ void DragController::doImageDrag(Element& element, const IntPoint& dragOrigin, c
     Image* image = getImage(element);
     if (image && image->size().height() * image->size().width() <= MaxOriginalImageArea
         && (dragImage = createDragImageFromImage(image, element.renderer() ? orientationDescription : ImageOrientationDescription()))) {
-        IntSize originalSize = rect.size();
-        origin = rect.location();
 
-        dragImage = fitDragImageToMaxSize(dragImage, rect.size(), maxDragImageSize());
+        dragImage = fitDragImageToMaxSize(dragImage, layoutRect.size(), maxDragImageSize());
+        IntSize fittedSize = dragImageSize(dragImage);
+
+        dragImage = scaleDragImage(dragImage, FloatSize(m_page.deviceScaleFactor(), m_page.deviceScaleFactor()));
         dragImage = dissolveDragImageToFraction(dragImage, DragImageAlpha);
-        IntSize newSize = dragImageSize(dragImage);
 
-        // Properly orient the drag image and orient it differently if it's smaller than the original
-        float scale = newSize.width() / (float)originalSize.width();
-        float dx = origin.x() - mouseDownPoint.x();
-        dx *= scale;
-        origin.setX((int)(dx + 0.5));
-#if PLATFORM(MAC)
-        //Compensate for accursed flipped coordinates in cocoa
-        origin.setY(origin.y() + originalSize.height());
+        // Properly orient the drag image and orient it differently if it's smaller than the original.
+        float scale = fittedSize.width() / (float)layoutRect.width();
+        float dx = scale * (layoutRect.x() - mouseDownPoint.x());
+        float originY = layoutRect.y();
+#if PLATFORM(COCOA)
+        // Compensate for accursed flipped coordinates in Cocoa.
+        originY += layoutRect.height();
 #endif
-        float dy = origin.y() - mouseDownPoint.y();
-        dy *= scale;
-        origin.setY((int)(dy + 0.5));
+        float dy = scale * (originY - mouseDownPoint.y());
+        scaledOrigin = IntPoint((int)(dx + 0.5), (int)(dy + 0.5));
     } else {
         if (CachedImage* cachedImage = getCachedImage(element)) {
             dragImage = createDragImageIconForCachedImageFilename(cachedImage->response().suggestedFilename());
             if (dragImage)
-                origin = IntPoint(DragIconRightInset - dragImageSize(dragImage).width(), DragIconBottomInset);
+                scaledOrigin = IntPoint(DragIconRightInset - dragImageSize(dragImage).width(), DragIconBottomInset);
         }
     }
 
-    dragImageOffset = mouseDownPoint + origin;
+    dragImageOffset = mouseDownPoint + scaledOrigin;
     doSystemDrag(dragImage, dragImageOffset, dragOrigin, clipboard, frame, false);
 
     deleteDragImage(dragImage);

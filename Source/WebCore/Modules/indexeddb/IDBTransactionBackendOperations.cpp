@@ -94,19 +94,46 @@ void GetOperation::perform(std::function<void()> completionCallback)
     RefPtr<GetOperation> operation(this);
     STANDARD_DATABASE_ERROR_CALLBACK;
 
-    m_transaction->database().serverConnection().get(*m_transaction, *this, operationCallback);
+    m_transaction->database().serverConnection().get(*m_transaction, *this, [this, operation, operationCallback](const IDBGetResult& result, PassRefPtr<IDBDatabaseError> prpError) {
+        RefPtr<IDBDatabaseError> error = prpError;
+
+        if (error)
+            m_callbacks->onError(error);
+        else {
+            if (!result.valueBuffer) {
+                if (result.keyData.isNull)
+                    m_callbacks->onSuccess();
+                else
+                    m_callbacks->onSuccess(result.keyData.maybeCreateIDBKey());
+            } else {
+                if (!result.keyData.isNull)
+                    m_callbacks->onSuccess(result.valueBuffer, result.keyData.maybeCreateIDBKey(), result.keyPath);
+                else
+                    m_callbacks->onSuccess(result.valueBuffer.get());
+            }
+        }
+
+        operationCallback(error.release());
+    });
 }
 
 void PutOperation::perform(std::function<void()> completionCallback)
 {
     LOG(StorageAPI, "PutOperation");
-    ASSERT(m_transaction->mode() != IndexedDB::TransactionReadOnly);
+    ASSERT(m_transaction->mode() != IndexedDB::TransactionMode::ReadOnly);
     ASSERT(m_indexIDs.size() == m_indexKeys.size());
 
-    RefPtr<PutOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
-
-    m_transaction->database().serverConnection().put(*m_transaction, *this, operationCallback);
+    m_transaction->database().serverConnection().put(*m_transaction, *this, [this, completionCallback](PassRefPtr<IDBKey> key, PassRefPtr<IDBDatabaseError> prpError) {
+        RefPtr<IDBDatabaseError> error = prpError;
+        if (key) {
+            ASSERT(!error);
+            m_callbacks->onSuccess(key);
+        } else {
+            ASSERT(error);
+            m_callbacks->onError(error);
+        }
+        completionCallback();
+    });
 }
 
 void SetIndexesReadyOperation::perform(std::function<void()> completionCallback)
@@ -124,9 +151,22 @@ void OpenCursorOperation::perform(std::function<void()> completionCallback)
     LOG(StorageAPI, "OpenCursorOperation");
 
     RefPtr<OpenCursorOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
+    auto callback = [this, operation, completionCallback](int64_t cursorID, PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer> valueBuffer, PassRefPtr<IDBDatabaseError> error) {
+        if (error) {
+            m_callbacks->onError(error);
+        } else if (!key) {
+            // If there's no error but also no key, then the cursor had no records.
+            m_callbacks->onSuccess(static_cast<SharedBuffer*>(0));
+        } else {
+            RefPtr<IDBCursorBackend> cursor = IDBCursorBackend::create(cursorID, m_cursorType, m_taskType, *m_transaction, m_objectStoreID);
+            cursor->updateCursorData(key.get(), primaryKey.get(), valueBuffer.get());
+            m_callbacks->onSuccess(cursor.release());
+        }
 
-    m_transaction->database().serverConnection().openCursor(*m_transaction, *this, operationCallback);
+        completionCallback();
+    };
+
+    m_transaction->database().serverConnection().openCursor(*m_transaction, *this, callback);
 }
 
 void CountOperation::perform(std::function<void()> completionCallback)
@@ -134,9 +174,15 @@ void CountOperation::perform(std::function<void()> completionCallback)
     LOG(StorageAPI, "CountOperation");
 
     RefPtr<CountOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
+    auto callback = [this, operation, completionCallback](int64_t count, PassRefPtr<IDBDatabaseError>) {
+        // FIXME: The LevelDB port never had an error condition for the count operation.
+        // We probably need to support an error for the count operation, breaking the LevelDB port.
+        m_callbacks->onSuccess(count);
 
-    m_transaction->database().serverConnection().count(*m_transaction, *this, operationCallback);
+        completionCallback();
+    };
+
+    m_transaction->database().serverConnection().count(*m_transaction, *this, callback);
 }
 
 void DeleteRangeOperation::perform(std::function<void()> completionCallback)
@@ -144,9 +190,16 @@ void DeleteRangeOperation::perform(std::function<void()> completionCallback)
     LOG(StorageAPI, "DeleteRangeOperation");
 
     RefPtr<DeleteRangeOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
+    auto callback = [this, operation, completionCallback](PassRefPtr<IDBDatabaseError> error) {
+        if (error)
+            m_callbacks->onError(error);
+        else
+            m_callbacks->onSuccess();
 
-    m_transaction->database().serverConnection().deleteRange(*m_transaction, *this, operationCallback);
+        completionCallback();
+    };
+
+    m_transaction->database().serverConnection().deleteRange(*m_transaction, *this, callback);
 }
 
 void ClearObjectStoreOperation::perform(std::function<void()> completionCallback)
@@ -154,9 +207,20 @@ void ClearObjectStoreOperation::perform(std::function<void()> completionCallback
     LOG(StorageAPI, "ClearObjectStoreOperation");
 
     RefPtr<ClearObjectStoreOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
 
-    m_transaction->database().serverConnection().clearObjectStore(*m_transaction, *this, operationCallback);
+    auto clearCallback = [this, operation, completionCallback](PassRefPtr<IDBDatabaseError> prpError) {
+        RefPtr<IDBDatabaseError> error = prpError;
+
+        if (error) {
+            m_callbacks->onError(error);
+            m_transaction->abort(error.release());
+        } else
+            m_callbacks->onSuccess();
+
+        completionCallback();
+    };
+
+    m_transaction->database().serverConnection().clearObjectStore(*m_transaction, *this, clearCallback);
 }
 
 void DeleteObjectStoreOperation::perform(std::function<void()> completionCallback)
@@ -173,8 +237,23 @@ void IDBDatabaseBackend::VersionChangeOperation::perform(std::function<void()> c
 {
     LOG(StorageAPI, "VersionChangeOperation");
 
+    uint64_t oldVersion = m_transaction->database().metadata().version;
     RefPtr<IDBDatabaseBackend::VersionChangeOperation> operation(this);
-    STANDARD_DATABASE_ERROR_CALLBACK;
+    ASSERT(static_cast<uint64_t>(m_version) > oldVersion || oldVersion == IDBDatabaseMetadata::NoIntVersion);
+
+    std::function<void(PassRefPtr<IDBDatabaseError>)> operationCallback = [oldVersion, operation, this, completionCallback](PassRefPtr<IDBDatabaseError> prpError) {
+        RefPtr<IDBDatabaseError> error = prpError;
+        if (error) {
+            m_callbacks->onError(error);
+            m_transaction->abort(error);
+        } else {
+            ASSERT(!m_transaction->database().hasPendingSecondHalfOpen());
+            m_transaction->database().setCurrentVersion(m_version);
+            m_transaction->database().setPendingSecondHalfOpen(std::make_unique<IDBPendingOpenCall>(*m_callbacks, *m_databaseCallbacks, m_transaction->id(), m_version));
+            m_callbacks->onUpgradeNeeded(oldVersion, &m_transaction->database(), m_transaction->database().metadata());
+        }
+        completionCallback();
+    };
 
     m_transaction->database().serverConnection().changeDatabaseVersion(*m_transaction, *this, operationCallback);
 }

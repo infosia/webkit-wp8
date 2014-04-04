@@ -18,13 +18,9 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             EXEC_PROGRAM("${CMAKE_CXX_COMPILER} -E -Wp,-dM - < /dev/null | grep '#define __VERSION__' | grep -E -o '[0-9]+\\.[0-9]+\\.?[0-9]+?'" OUTPUT_VARIABLE COMPILER_VERSION)
         endif ()
 
-        # Disable some optimizations on buggy compiler versions
-        # GCC 4.5.1 does not implement -ftree-sra correctly
-        if (${COMPILER_VERSION} STREQUAL "4.5.1")
-            set(OLD_COMPILE_FLAGS "-fno-tree-sra ${OLD_COMPILE_FLAGS}")
-        endif ()
-
-        if (NOT SHARED_CORE)
+        # For GTK+ we will rely on a linker script to deal with symbol visibility on
+        # production builds, we want all symbols visible for development builds.
+        if (NOT SHARED_CORE AND NOT ${PORT} STREQUAL "GTK")
             set(OLD_COMPILE_FLAGS "-fvisibility=hidden ${OLD_COMPILE_FLAGS}")
         endif ()
 
@@ -33,8 +29,6 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             set(OLD_COMPILE_FLAGS "-fPIC ${OLD_COMPILE_FLAGS}")
         endif ()
 
-        set(OLD_COMPILE_FLAGS "-fno-exceptions -fno-strict-aliasing ${OLD_COMPILE_FLAGS}")
-
         # Enable warnings by default
         if (NOT ${OPTION_IGNORECXX_WARNINGS})
             set(OLD_COMPILE_FLAGS "-Wall -Wextra -Wcast-align -Wformat-security -Wmissing-format-attribute -Wpointer-arith -Wundef -Wwrite-strings ${OLD_COMPILE_FLAGS}")
@@ -42,13 +36,9 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
 
         # Enable errors on warning
         if (OPTION_ENABLE_WERROR)
-            set(OLD_COMPILE_FLAGS "-Werror -Wno-error=unused-parameter ${OLD_COMPILE_FLAGS}")
-        endif ()
-
-        # Disable C++0x compat warnings for GCC >= 4.6.0 until we build
-        # cleanly with that.
-        if (NOT ${OPTION_IGNORECXX_WARNINGS} AND NOT ${COMPILER_VERSION} VERSION_LESS "4.6.0")
-            set(OLD_COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -Wno-c++0x-compat")
+            # FIXME: When we use -fno-tree-dce to support the jsCStack branch merge, build error occurs due to the uninitialization. Temporarily we set
+            # uninitialized as build warning in order to support the jsCStack merge. https://bugs.webkit.org/show_bug.cgi?id=127777.
+            set(OLD_COMPILE_FLAGS "-Werror -Wno-error=unused-parameter -Wno-error=uninitialized ${OLD_COMPILE_FLAGS}")
         endif ()
 
         set_target_properties(${_target} PROPERTIES
@@ -103,4 +93,26 @@ macro(ADD_SOURCE_WEBCORE_DERIVED_DEPENDENCIES _source _deps)
 
     ADD_SOURCE_DEPENDENCIES(${_source} ${_tmp})
     unset(_tmp)
+endmacro()
+
+macro(CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE library_name current revision age)
+    math(EXPR ${library_name}_VERSION_MAJOR "${current} - ${age}")
+    set(${library_name}_VERSION_MINOR ${age})
+    set(${library_name}_VERSION_PATCH ${revision})
+    set(${library_name}_VERSION ${${library_name}_VERSION_MAJOR}.${age}.${revision})
+endmacro()
+
+macro(POPULATE_LIBRARY_VERSION library_name)
+if (NOT DEFINED ${library_name}_VERSION_MAJOR)
+    set(${library_name}_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+endif ()
+if (NOT DEFINED ${library_name}_VERSION_MINOR)
+    set(${library_name}_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+endif ()
+if (NOT DEFINED ${library_name}_VERSION_PATCH)
+    set(${library_name}_VERSION_PATCH ${PROJECT_VERSION_PATCH})
+endif ()
+if (NOT DEFINED ${library_name}_VERSION)
+    set(${library_name}_VERSION ${PROJECT_VERSION})
+endif ()
 endmacro()

@@ -38,6 +38,7 @@ EWK2UnitTestBase::EWK2UnitTestBase()
     : m_ecoreEvas(0)
     , m_webView(0)
     , m_ewkViewClass(ewk2UnitTestBrowserViewSmartClass())
+    , m_multipleProcesses(false)
 {
     ewk_view_smart_class_set(&m_ewkViewClass);
 }
@@ -47,7 +48,7 @@ void EWK2UnitTestBase::SetUp()
     unsigned int width = environment->defaultWidth();
     unsigned int height = environment->defaultHeight();
 
-#if defined(WTF_USE_ACCELERATED_COMPOSITING) && defined(HAVE_ECORE_X)
+#if defined(HAVE_ECORE_X)
     const char* engine = "opengl_x11";
     m_ecoreEvas = ecore_evas_new(engine, 0, 0, width, height, 0);
     // Graceful fallback to software rendering if evas_gl engine is not available.
@@ -61,6 +62,9 @@ void EWK2UnitTestBase::SetUp()
     Evas_Smart* smart = evas_smart_class_new(&m_ewkViewClass.sc);
 
     Ewk_Context* newContext = ewk_context_new();
+    if (m_multipleProcesses)
+        ewk_context_process_model_set(newContext, EWK_PROCESS_MODEL_MULTIPLE_SECONDARY);
+
     Ewk_Page_Group* newPageGroup = ewk_page_group_create("UnitTest");
     m_webView = ewk_view_smart_add(evas, smart, newContext, newPageGroup);
 
@@ -93,7 +97,7 @@ class CallbackDataTimer {
 public:
     explicit CallbackDataTimer(double timeoutSeconds)
         : m_done(false)
-        , m_timer(timeoutSeconds >= 0 ? ecore_timer_add(timeoutSeconds, reinterpret_cast<Ecore_Task_Cb>(timeOutCallback), this) : 0)
+        , m_timer(timeoutSeconds >= 0 ? ecore_timer_add(timeoutSeconds, timeOutCallback, this) : nullptr)
         , m_didTimeOut(false)
     {
     }
@@ -110,7 +114,7 @@ public:
     {
         if (m_timer) {
             ecore_timer_del(m_timer);
-            m_timer = 0;
+            m_timer = nullptr;
         }
         m_done = true;
     }
@@ -123,7 +127,7 @@ protected:
     bool m_didTimeOut;
 
 private:
-    static bool timeOutCallback(void* userData)
+    static Eina_Bool timeOutCallback(void* userData)
     {
         CallbackDataTimer* data = static_cast<CallbackDataTimer*>(userData);
         data->setTimedOut();
@@ -133,7 +137,7 @@ private:
     void setTimedOut()
     {
         m_done = true;
-        m_timer = 0;
+        m_timer = nullptr;
         m_didTimeOut = true;
     }
 
@@ -233,6 +237,29 @@ bool EWK2UnitTestBase::waitUntilTrue(bool &flag, double timeoutSeconds)
         ecore_main_loop_iterate();
 
     return !data.didTimeOut();
+}
+
+Eina_List* EWK2UnitTestBase::waitUntilSpellingLanguagesLoaded(unsigned expectedLanguageCount, double timeoutValue)
+{
+    // Keep waiting until all languages has been loaded or leave afqter timeout.
+    // Languages are being loaded in the timer, we have to wait for them.
+    Eina_List* loadedLanguages = nullptr;
+    void* actual = nullptr;
+
+    CallbackDataExpectedValue<bool> data(true, timeoutValue);
+    while ((eina_list_count(loadedLanguages) != expectedLanguageCount) && !data.isDone()) {
+        if (loadedLanguages) {
+            // List has to be freed before acquiring new one.
+            actual = nullptr;
+            EINA_LIST_FREE(loadedLanguages, actual)
+                eina_stringshare_del(static_cast<const char*>(actual));
+        }
+
+        loadedLanguages = ewk_text_checker_spell_checking_languages_get();
+        ecore_main_loop_iterate();
+    }
+
+    return loadedLanguages;
 }
 
 void EWK2UnitTestBase::mouseClick(int x, int y, int button)

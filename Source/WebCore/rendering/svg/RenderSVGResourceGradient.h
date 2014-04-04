@@ -22,14 +22,11 @@
 #ifndef RenderSVGResourceGradient_h
 #define RenderSVGResourceGradient_h
 
-#if ENABLE(SVG)
-#include "AffineTransform.h"
-#include "FloatRect.h"
 #include "Gradient.h"
 #include "ImageBuffer.h"
 #include "RenderSVGResourceContainer.h"
 #include "SVGGradientElement.h"
-
+#include <memory>
 #include <wtf/HashMap.h>
 
 namespace WebCore {
@@ -47,17 +44,17 @@ class RenderSVGResourceGradient : public RenderSVGResourceContainer {
 public:
     SVGGradientElement& gradientElement() const { return static_cast<SVGGradientElement&>(RenderSVGResourceContainer::element()); }
 
-    virtual void removeAllClientsFromCache(bool markForInvalidation = true) OVERRIDE FINAL;
-    virtual void removeClientFromCache(RenderObject*, bool markForInvalidation = true) OVERRIDE FINAL;
+    virtual void removeAllClientsFromCache(bool markForInvalidation = true) override final;
+    virtual void removeClientFromCache(RenderElement&, bool markForInvalidation = true) override final;
 
-    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) OVERRIDE FINAL;
-    virtual void postApplyResource(RenderElement&, GraphicsContext*&, unsigned short resourceMode, const Path*, const RenderSVGShape*) OVERRIDE FINAL;
-    virtual FloatRect resourceBoundingBox(const RenderObject&) OVERRIDE FINAL { return FloatRect(); }
+    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) override final;
+    virtual void postApplyResource(RenderElement&, GraphicsContext*&, unsigned short resourceMode, const Path*, const RenderSVGShape*) override final;
+    virtual FloatRect resourceBoundingBox(const RenderObject&) override final { return FloatRect(); }
 
 protected:
     RenderSVGResourceGradient(SVGGradientElement&, PassRef<RenderStyle>);
 
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 
     void addStops(GradientData*, const Vector<Gradient::ColorStop>&) const;
 
@@ -70,7 +67,7 @@ protected:
 
 private:
     bool m_shouldCollectGradientAttributes : 1;
-    HashMap<RenderObject*, OwnPtr<GradientData>> m_gradientMap;
+    HashMap<RenderObject*, std::unique_ptr<GradientData>> m_gradientMap;
 
 #if USE(CG)
     GraphicsContext* m_savedContext;
@@ -80,5 +77,4 @@ private:
 
 }
 
-#endif
 #endif

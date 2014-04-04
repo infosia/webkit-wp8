@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2005, 2006 Apple Inc.  All rights reserved.
  * Copyright (C) 2008 Torch Mobile Inc. All rights reserved. (http://www.torchmobile.com/)
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -227,6 +227,32 @@ HistoryItemVector& BackForwardList::entries()
 {
     return m_entries;
 }
+
+#if PLATFORM(IOS)
+unsigned BackForwardList::current()
+{
+    return m_current;
+}
+
+void BackForwardList::setCurrent(unsigned newCurrent)
+{
+    m_current = newCurrent;
+}
+
+bool BackForwardList::clearAllPageCaches()
+{
+    bool didRemoveAtLeastOneItem = false;
+    unsigned length = m_entries.size();
+    for (unsigned i = 0; i < length; ++i) {
+        HistoryItem* item = m_entries[i].get();
+        if (item->isInPageCache()) {
+            didRemoveAtLeastOneItem = true;
+            pageCache()->remove(item);
+        }
+    }
+    return didRemoveAtLeastOneItem;
+}
+#endif
 
 void BackForwardList::close()
 {

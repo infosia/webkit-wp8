@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -77,7 +77,7 @@ HRTFDatabaseLoader::~HRTFDatabaseLoader()
     ASSERT(isMainThread());
 
     waitForLoaderThreadCompletion();
-    m_hrtfDatabase.clear();
+    m_hrtfDatabase = nullptr;
 
     // Remove ourself from the map.
     loaderMap().remove(m_databaseSampleRate);
@@ -96,7 +96,7 @@ void HRTFDatabaseLoader::load()
     ASSERT(!isMainThread());
     if (!m_hrtfDatabase.get()) {
         // Load the default HRTF database.
-        m_hrtfDatabase = HRTFDatabase::create(m_databaseSampleRate);
+        m_hrtfDatabase = std::make_unique<HRTFDatabase>(m_databaseSampleRate);
     }
 }
 

@@ -266,7 +266,8 @@ bool JSGenericTypedArrayView<Adaptor>::set(
             return false;
         // We could optimize this case. But right now, we don't.
         for (unsigned i = 0; i < length; ++i) {
-            if (!setIndexQuickly(exec, offset + i, object->get(exec, i)))
+            JSValue value = object->get(exec, i);
+            if (!setIndex(exec, offset + i, value))
                 return false;
         }
         return true;
@@ -383,19 +384,13 @@ void JSGenericTypedArrayView<Adaptor>::putByIndex(
     JSGenericTypedArrayView* thisObject = jsCast<JSGenericTypedArrayView*>(cell);
     
     if (propertyName > MAX_ARRAY_INDEX) {
-        PutPropertySlot slot(shouldThrow);
+        PutPropertySlot slot(JSValue(thisObject), shouldThrow);
         thisObject->methodTable()->put(
             thisObject, exec, Identifier::from(exec, propertyName), value, slot);
         return;
     }
     
-    if (!thisObject->canSetIndexQuickly(propertyName)) {
-        // Yes, really. Firefox returns without throwing anything if you store beyond
-        // the bounds.
-        return;
-    }
-    
-    thisObject->setIndexQuickly(exec, propertyName, value);
+    thisObject->setIndex(exec, propertyName, value);
 }
 
 template<typename Adaptor>
@@ -447,7 +442,7 @@ void JSGenericTypedArrayView<Adaptor>::visitChildren(JSCell* cell, SlotVisitor& 
     }
         
     case OversizeTypedArray: {
-        visitor.reportExtraMemoryUsage(thisObject->byteSize());
+        visitor.reportExtraMemoryUsage(thisObject, thisObject->byteSize());
         break;
     }
         
@@ -506,15 +501,16 @@ ArrayBuffer* JSGenericTypedArrayView<Adaptor>::slowDownAndWasteMemory(JSArrayBuf
     size_t size = thisObject->byteSize();
     
     if (thisObject->m_mode == FastTypedArray
-        && !thisObject->m_butterfly && size >= sizeof(IndexingHeader)) {
+        && !thisObject->butterfly() && size >= sizeof(IndexingHeader)) {
         ASSERT(thisObject->m_vector);
         // Reuse already allocated memory if at all possible.
-        thisObject->m_butterfly =
-            static_cast<IndexingHeader*>(thisObject->m_vector)->butterfly();
+        thisObject->m_butterfly.setWithoutWriteBarrier(
+            static_cast<IndexingHeader*>(thisObject->m_vector)->butterfly());
     } else {
-        thisObject->m_butterfly = Butterfly::createOrGrowArrayRight(
-            thisObject->m_butterfly, *heap->vm(), thisObject, thisObject->structure(),
-            thisObject->structure()->outOfLineCapacity(), false, 0, 0);
+        VM& vm = *heap->vm();
+        thisObject->m_butterfly.set(vm, thisObject, Butterfly::createOrGrowArrayRight(
+            thisObject->butterfly(), vm, thisObject, thisObject->structure(),
+            thisObject->structure()->outOfLineCapacity(), false, 0, 0));
     }
 
     RefPtr<ArrayBuffer> buffer;

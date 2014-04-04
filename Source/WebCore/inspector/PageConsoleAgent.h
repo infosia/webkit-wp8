@@ -31,34 +31,27 @@
 #ifndef PageConsoleAgent_h
 #define PageConsoleAgent_h
 
-#include "InspectorConsoleAgent.h"
-#include <wtf/PassOwnPtr.h>
+#include "WebConsoleAgent.h"
 
 #if ENABLE(INSPECTOR)
 
 namespace WebCore {
 
-class InspectorAgent;
 class InspectorDOMAgent;
 
-class PageConsoleAgent : public InspectorConsoleAgent {
+class PageConsoleAgent final : public WebConsoleAgent {
     WTF_MAKE_NONCOPYABLE(PageConsoleAgent);
+    WTF_MAKE_FAST_ALLOCATED;
 public:
-    static PassOwnPtr<PageConsoleAgent> create(InstrumentingAgents* instrumentingAgents, InspectorAgent* agent, InjectedScriptManager* injectedScriptManager, InspectorDOMAgent* domAgent)
-    {
-        return adoptPtr(new PageConsoleAgent(instrumentingAgents, agent, injectedScriptManager, domAgent));
-    }
-    virtual ~PageConsoleAgent();
+    PageConsoleAgent(WebInjectedScriptManager*, InspectorDOMAgent*);
+    virtual ~PageConsoleAgent() { }
 
-    virtual bool isWorkerAgent() OVERRIDE { return false; }
+    virtual bool isWorkerAgent() const override { return false; }
 
 private:
-    PageConsoleAgent(InstrumentingAgents*, InspectorAgent*, InjectedScriptManager*, InspectorDOMAgent*);
-    virtual void clearMessages(ErrorString*);
-    virtual void addInspectedNode(ErrorString*, int nodeId);
-    virtual bool developerExtrasEnabled();
+    virtual void clearMessages(ErrorString*) override;
+    virtual void addInspectedNode(ErrorString*, int nodeId) override;
 
-    InspectorAgent* m_inspectorAgent;
     InspectorDOMAgent* m_inspectorDOMAgent;
 };
 

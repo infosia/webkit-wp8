@@ -33,48 +33,58 @@
 
 #if ENABLE(INSPECTOR)
 
-#include "InspectorAgentRegistry.h"
-#include "InspectorBaseAgent.h"
+#include "InspectorInstrumentationCookie.h"
+#include "InspectorWebAgentBase.h"
+#include <inspector/InspectorAgentRegistry.h>
+#include <inspector/InspectorEnvironment.h>
 #include <wtf/FastMalloc.h>
 #include <wtf/Forward.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/RefPtr.h>
+#include <wtf/Vector.h>
+
+namespace Inspector {
+class InspectorBackendDispatcher;
+}
 
 namespace WebCore {
 
-class InjectedScriptManager;
-class InspectorBackendDispatcher;
-class InspectorFrontendChannel;
 class InspectorInstrumentation;
-class InspectorRuntimeAgent;
 class InstrumentingAgents;
+class WebInjectedScriptManager;
 class WorkerGlobalScope;
+class WorkerRuntimeAgent;
 
-class WorkerInspectorController {
+class WorkerInspectorController final : public Inspector::InspectorEnvironment {
     WTF_MAKE_NONCOPYABLE(WorkerInspectorController);
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    WorkerInspectorController(WorkerGlobalScope*);
+    explicit WorkerInspectorController(WorkerGlobalScope&);
     ~WorkerInspectorController();
 
     void connectFrontend();
-    void disconnectFrontend();
+    void disconnectFrontend(Inspector::InspectorDisconnectReason);
     void dispatchMessageFromFrontend(const String&);
-#if ENABLE(JAVASCRIPT_DEBUGGER)
     void resume();
-#endif
+
+    virtual bool developerExtrasEnabled() const override { return true; }
+    virtual bool canAccessInspectedScriptState(JSC::ExecState*) const override { return true; }
+    virtual Inspector::InspectorFunctionCallHandler functionCallHandler() const override;
+    virtual Inspector::InspectorEvaluateHandler evaluateHandler() const override;
+    virtual void willCallInjectedScriptFunction(JSC::ExecState*, const String& scriptName, int scriptLine) override;
+    virtual void didCallInjectedScriptFunction(JSC::ExecState*) override;
 
 private:
     friend InstrumentingAgents* instrumentationForWorkerGlobalScope(WorkerGlobalScope*);
 
-    WorkerGlobalScope* m_workerGlobalScope;
+    WorkerGlobalScope& m_workerGlobalScope;
     RefPtr<InstrumentingAgents> m_instrumentingAgents;
-    OwnPtr<InjectedScriptManager> m_injectedScriptManager;
-    InspectorRuntimeAgent* m_runtimeAgent;
-    InspectorAgentRegistry m_agents;
-    OwnPtr<InspectorFrontendChannel> m_frontendChannel;
-    RefPtr<InspectorBackendDispatcher> m_backendDispatcher;
+    std::unique_ptr<WebInjectedScriptManager> m_injectedScriptManager;
+    WorkerRuntimeAgent* m_runtimeAgent;
+    Inspector::InspectorAgentRegistry m_agents;
+    std::unique_ptr<InspectorFrontendChannel> m_frontendChannel;
+    RefPtr<Inspector::InspectorBackendDispatcher> m_backendDispatcher;
+    Vector<InspectorInstrumentationCookie, 2> m_injectedScriptInstrumentationCookies;
 };
 
 }

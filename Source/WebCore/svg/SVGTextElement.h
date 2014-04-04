@@ -21,29 +21,27 @@
 #ifndef SVGTextElement_h
 #define SVGTextElement_h
 
-#if ENABLE(SVG)
 #include "SVGTextPositioningElement.h"
 
 namespace WebCore {
 
-class SVGTextElement FINAL : public SVGTextPositioningElement {
+class SVGTextElement final : public SVGTextPositioningElement {
 public:
     static PassRefPtr<SVGTextElement> create(const QualifiedName&, Document&);
 
-    virtual AffineTransform animatedLocalTransform() const;
+    virtual AffineTransform animatedLocalTransform() const override;
 
 private:
     SVGTextElement(const QualifiedName&, Document&);
 
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool supportsFocus() const override { return true; }
 
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
 };
 
 NODE_TYPE_CASTS(SVGTextElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

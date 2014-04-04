@@ -28,6 +28,7 @@
 
 #include "AutoTableLayout.cpp"
 #include "BidiRun.cpp"
+#include "BorderEdge.cpp"
 #include "CounterNode.cpp"
 #include "EllipsisBox.cpp"
 #include "FilterEffectRenderer.cpp"
@@ -79,7 +80,6 @@
 #include "RenderMediaControls.cpp"
 #include "RenderMenuList.cpp"
 #include "RenderMeter.cpp"
-#include "RenderMultiColumnBlock.cpp"
 #include "RenderMultiColumnFlowThread.cpp"
 #include "RenderMultiColumnSet.cpp"
 #include "RenderObject.cpp"
@@ -109,12 +109,12 @@
 #include "RenderTextControlSingleLine.cpp"
 #include "RenderTextFragment.cpp"
 #include "RenderTextLineBoxes.cpp"
-#include "RenderTextTrackCue.cpp"
 #include "RenderTheme.cpp"
 #if PLATFORM(WIN)
 #include "RenderThemeWin.cpp"
 #endif
 #include "RenderTreeAsText.cpp"
+#include "RenderVTTCue.cpp"
 #include "RenderVideo.cpp"
 #include "RenderView.cpp"
 #include "RenderWidget.cpp"

@@ -41,6 +41,7 @@ from checkers.common import CarriageReturnChecker
 from checkers.changelog import ChangeLogChecker
 from checkers.cpp import CppChecker
 from checkers.cmake import CMakeChecker
+from checkers.featuredefines import FeatureDefinesChecker
 from checkers.js import JSChecker
 from checkers.jsonchecker import JSONChecker
 from checkers.jsonchecker import JSONContributorsChecker
@@ -145,8 +146,7 @@ _PATH_RULES_SPECIFIER = [
       "Source/WebCore/css/CSSParser.cpp"],
      ["-readability/naming"]),
 
-    ([# The GTK+ port uses the autotoolsconfig.h header in some C sources
-      # to serve the same purpose of config.h.
+    ([# The GTK+ port uses the cmakeconfig.h header directly in some C sources.
       "Tools/GtkLauncher/main.c"],
      ["-build/include_order"]),
 
@@ -174,11 +174,7 @@ _PATH_RULES_SPECIFIER = [
 
     ([# Header files in ForwardingHeaders have no header guards or
       # exceptional header guards (e.g., WebCore_FWD_Debugger_h).
-      "/ForwardingHeaders/",
-      # Nix platform API classes uses common names under Nix namespace
-      # so the include guards should also include the namespace to avoid
-      # name clashes.
-       "Source/Platform/nix"],
+      "/ForwardingHeaders/"],
      ["-build/header_guard"]),
     ([# assembler has lots of opcodes that use underscores, so
       # we don't check for underscores in that directory.
@@ -203,6 +199,7 @@ _PATH_RULES_SPECIFIER = [
       "Tools/MiniBrowser/efl/"],
      ["-readability/naming",
       "-readability/parameter_name",
+      "-runtime/ctype_function",
       "-whitespace/declaration",
       "-build/include_order"]),
 
@@ -316,7 +313,7 @@ _CMAKE_FILE_EXTENSION = 'cmake'
 # WebKit maintains some files in Mozilla style on purpose to ease
 # future merges.
 _SKIPPED_FILES_WITH_WARNING = [
-    "Source/WebKit/gtk/tests/",
+    "Tools/TestWebKitAPI/Tests/WebKitGtk/",
     # All WebKit*.h files in Source/WebKit2/UIProcess/API/gtk,
     # except those ending in ...Private.h are GTK+ API headers,
     # which differ greatly from WebKit coding style.
@@ -332,8 +329,6 @@ _SKIPPED_FILES_WITH_WARNING = [
 _SKIPPED_FILES_WITHOUT_WARNING = [
     "LayoutTests" + os.path.sep,
     "Source/ThirdParty/leveldb" + os.path.sep,
-    # Prevents this being recognized as a text file.
-    "Source/WebCore/GNUmakefile.features.am.in",
     ]
 
 # Extensions of files which are allowed to contain carriage returns.
@@ -359,6 +354,7 @@ def _all_categories():
     categories = categories.union(TestExpectationsChecker.categories)
     categories = categories.union(ChangeLogChecker.categories)
     categories = categories.union(PNGChecker.categories)
+    categories = categories.union(FeatureDefinesChecker.categories)
 
     # FIXME: Consider adding all of the pep8 categories.  Since they
     #        are not too meaningful for documentation purposes, for
@@ -508,6 +504,7 @@ class FileType:
     XML = 9
     XCODEPROJ = 10
     CMAKE = 11
+    FEATUREDEFINES = 12
 
 class CheckerDispatcher(object):
 
@@ -592,6 +589,8 @@ class CheckerDispatcher(object):
         elif ((not file_extension and os.path.join("Tools", "Scripts") in file_path) or
               file_extension in _TEXT_FILE_EXTENSIONS or os.path.basename(file_path) == 'TestExpectations'):
             return FileType.TEXT
+        elif os.path.basename(file_path) == "FeatureDefines.xcconfig":
+            return FileType.FEATUREDEFINES
         else:
             return FileType.NONE
 
@@ -641,6 +640,8 @@ class CheckerDispatcher(object):
                 checker = TextChecker(file_path, handle_style_error)
         elif file_type == FileType.WATCHLIST:
             checker = WatchListChecker(file_path, handle_style_error)
+        elif file_type == FileType.FEATUREDEFINES:
+            checker = FeatureDefinesChecker(file_path, handle_style_error)
         else:
             raise ValueError('Invalid file type "%(file_type)s": the only valid file types '
                              "are %(NONE)s, %(CPP)s, and %(TEXT)s."

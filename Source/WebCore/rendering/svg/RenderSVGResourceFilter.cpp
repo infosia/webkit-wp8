@@ -23,35 +23,26 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "RenderSVGResourceFilter.h"
 
-#include "AffineTransform.h"
 #include "ElementChildIterator.h"
 #include "FilterEffect.h"
 #include "FloatPoint.h"
-#include "FloatRect.h"
 #include "Frame.h"
 #include "GraphicsContext.h"
 #include "Image.h"
-#include "ImageBuffer.h"
 #include "ImageData.h"
 #include "IntRect.h"
 #include "Page.h"
-#include "RenderSVGResource.h"
 #include "RenderSVGResourceFilterPrimitive.h"
 #include "RenderView.h"
-#include "SVGElement.h"
-#include "SVGFilter.h"
-#include "SVGFilterElement.h"
 #include "SVGFilterPrimitiveStandardAttributes.h"
 #include "SVGNames.h"
 #include "SVGRenderingContext.h"
-#include "SVGUnitTypes.h"
 #include "Settings.h"
 #include "SourceAlpha.h"
 #include "SourceGraphic.h"
-#include <wtf/Vector.h>
 
 namespace WebCore {
 
@@ -73,55 +64,52 @@ void RenderSVGResourceFilter::removeAllClientsFromCache(bool markForInvalidation
     markAllClientsForInvalidation(markForInvalidation ? LayoutAndBoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourceFilter::removeClientFromCache(RenderObject* client, bool markForInvalidation)
+void RenderSVGResourceFilter::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
-    ASSERT(client);
-
-    if (FilterData* filterData = m_filter.get(client)) {
+    if (FilterData* filterData = m_filter.get(&client)) {
         if (filterData->savedContext)
             filterData->state = FilterData::MarkedForRemoval;
         else
-            m_filter.remove(client);
+            m_filter.remove(&client);
     }
 
     markClientForInvalidation(client, markForInvalidation ? BoundariesInvalidation : ParentOnlyInvalidation);
 }
 
-std::unique_ptr<SVGFilterBuilder> RenderSVGResourceFilter::buildPrimitives(SVGFilter* filter)
+std::unique_ptr<SVGFilterBuilder> RenderSVGResourceFilter::buildPrimitives(SVGFilter* filter) const
 {
     FloatRect targetBoundingBox = filter->targetBoundingBox();
 
     // Add effects to the builder
     auto builder = std::make_unique<SVGFilterBuilder>(SourceGraphic::create(filter), SourceAlpha::create(filter));
-    auto children = childrenOfType<SVGFilterPrimitiveStandardAttributes>(filterElement());
-    for (auto element = children.begin(), end = children.end(); element != end; ++element) {
-        RefPtr<FilterEffect> effect = element->build(builder.get(), filter);
+    for (auto& element : childrenOfType<SVGFilterPrimitiveStandardAttributes>(filterElement())) {
+        RefPtr<FilterEffect> effect = element.build(builder.get(), filter);
         if (!effect) {
             builder->clearEffects();
             return nullptr;
         }
-        builder->appendEffectToEffectReferences(effect, element->renderer());
-        element->setStandardAttributes(effect.get());
-        effect->setEffectBoundaries(SVGLengthContext::resolveRectangle<SVGFilterPrimitiveStandardAttributes>(&*element, filterElement().primitiveUnits(), targetBoundingBox));
-        effect->setOperatingColorSpace(element->renderer()->style().svgStyle().colorInterpolationFilters() == CI_LINEARRGB ? ColorSpaceLinearRGB : ColorSpaceDeviceRGB);
-        builder->add(element->result(), effect.release());
+        builder->appendEffectToEffectReferences(effect, element.renderer());
+        element.setStandardAttributes(effect.get());
+        effect->setEffectBoundaries(SVGLengthContext::resolveRectangle<SVGFilterPrimitiveStandardAttributes>(&element, filterElement().primitiveUnits(), targetBoundingBox));
+        effect->setOperatingColorSpace(element.renderer()->style().svgStyle().colorInterpolationFilters() == CI_LINEARRGB ? ColorSpaceLinearRGB : ColorSpaceDeviceRGB);
+        builder->add(element.result(), effect.release());
     }
     return builder;
 }
 
 bool RenderSVGResourceFilter::fitsInMaximumImageSize(const FloatSize& size, FloatSize& scale)
 {
-    bool matchesFilterSize = true;
-    if (size.width() > kMaxFilterSize) {
-        scale.setWidth(scale.width() * kMaxFilterSize / size.width());
-        matchesFilterSize = false;
-    }
-    if (size.height() > kMaxFilterSize) {
-        scale.setHeight(scale.height() * kMaxFilterSize / size.height());
-        matchesFilterSize = false;
-    }
+    FloatSize scaledSize(size);
+    scaledSize.scale(scale.width(), scale.height());
+    float scaledArea = scaledSize.width() * scaledSize.height();
 
-    return matchesFilterSize;
+    if (scaledArea <= FilterEffect::maxFilterArea())
+        return true;
+
+    // If area of scaled size is bigger than the upper limit, adjust the scale
+    // to fit.
+    scale.scale(sqrt(FilterEffect::maxFilterArea() / scaledArea));
+    return false;
 }
 
 bool RenderSVGResourceFilter::applyResource(RenderElement& renderer, const RenderStyle&, GraphicsContext*& context, unsigned short resourceMode)
@@ -145,7 +133,7 @@ bool RenderSVGResourceFilter::applyResource(RenderElement& renderer, const Rende
 
     // Determine absolute transformation matrix for filter. 
     AffineTransform absoluteTransform;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(&renderer, absoluteTransform);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(renderer, absoluteTransform);
     if (!absoluteTransform.isInvertible())
         return false;
 
@@ -264,7 +252,7 @@ void RenderSVGResourceFilter::postApplyResource(RenderElement& renderer, Graphic
 
     case FilterData::PaintingSource:
         if (!filterData->savedContext) {
-            removeClientFromCache(&renderer);
+            removeClientFromCache(renderer);
             return;
         }
 
@@ -316,8 +304,8 @@ void RenderSVGResourceFilter::primitiveAttributeChanged(RenderObject* object, co
 {
     SVGFilterPrimitiveStandardAttributes* primitve = static_cast<SVGFilterPrimitiveStandardAttributes*>(object->node());
 
-    for (auto it = m_filter.begin(), end = m_filter.end(); it != end; ++it) {
-        const auto &filterData = it->value;
+    for (const auto& objectFilterDataPair : m_filter) {
+        const auto& filterData = objectFilterDataPair.value;
         if (filterData->state != FilterData::Built)
             continue;
 
@@ -332,7 +320,7 @@ void RenderSVGResourceFilter::primitiveAttributeChanged(RenderObject* object, co
         builder->clearResultsRecursive(effect);
 
         // Repaint the image on the screen.
-        markClientForInvalidation(it->key, RepaintInvalidation);
+        markClientForInvalidation(*objectFilterDataPair.key, RepaintInvalidation);
     }
     markAllClientLayersForInvalidation();
 }

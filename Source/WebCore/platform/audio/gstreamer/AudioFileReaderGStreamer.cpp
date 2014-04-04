@@ -27,14 +27,13 @@
 
 #include <gio/gio.h>
 #include <gst/app/gstappsink.h>
+#include <gst/audio/audio.h>
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 #include <wtf/Noncopyable.h>
-#include <wtf/PassOwnPtr.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GMainLoopSource.h>
 #include <wtf/gobject/GRefPtr.h>
-
-#include <gst/audio/audio.h>
+#include <wtf/gobject/GUniquePtr.h>
 
 namespace WebCore {
 
@@ -107,13 +106,6 @@ static void onGStreamerDeinterleaveReadyCallback(GstElement*, AudioFileReader* r
 static void onGStreamerDecodebinPadAddedCallback(GstElement*, GstPad* pad, AudioFileReader* reader)
 {
     reader->plugDeinterleave(pad);
-}
-
-gboolean enteredMainLoopCallback(gpointer userData)
-{
-    AudioFileReader* reader = reinterpret_cast<AudioFileReader*>(userData);
-    reader->decodeAudioForBusCreation();
-    return FALSE;
 }
 
 AudioFileReader::AudioFileReader(const char* filePath)
@@ -204,8 +196,8 @@ GstFlowReturn AudioFileReader::handleSample(GstAppSink* sink)
 
 gboolean AudioFileReader::handleMessage(GstMessage* message)
 {
-    GOwnPtr<GError> error;
-    GOwnPtr<gchar> debug;
+    GUniqueOutPtr<GError> error;
+    GUniqueOutPtr<gchar> debug;
 
     switch (GST_MESSAGE_TYPE(message)) {
     case GST_MESSAGE_EOS:
@@ -342,9 +334,8 @@ PassRefPtr<AudioBus> AudioFileReader::createBus(float sampleRate, bool mixToMono
     m_loop = adoptGRef(g_main_loop_new(context.get(), FALSE));
 
     // Start the pipeline processing just after the loop is started.
-    GRefPtr<GSource> timeoutSource = adoptGRef(g_timeout_source_new(0));
-    g_source_attach(timeoutSource.get(), context.get());
-    g_source_set_callback(timeoutSource.get(), reinterpret_cast<GSourceFunc>(enteredMainLoopCallback), this, 0);
+    GMainLoopSource source;
+    source.schedule("[WebKit] AudioFileReader::decodeAudioForBusCreation", std::bind(&AudioFileReader::decodeAudioForBusCreation, this), G_PRIORITY_DEFAULT, nullptr, context.get());
 
     g_main_loop_run(m_loop.get());
     g_main_context_pop_thread_default(context.get());

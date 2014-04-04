@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -78,8 +78,8 @@ IDBRequest::IDBRequest(ScriptExecutionContext* context, PassRefPtr<IDBAny> sourc
     , m_source(source)
     , m_taskType(taskType)
     , m_hasPendingActivity(true)
-    , m_cursorType(IndexedDB::CursorKeyAndValue)
-    , m_cursorDirection(IndexedDB::CursorNext)
+    , m_cursorType(IndexedDB::CursorType::KeyAndValue)
+    , m_cursorDirection(IndexedDB::CursorDirection::Next)
     , m_cursorFinished(false)
     , m_pendingCursor(0)
     , m_didFireUpgradeNeededEvent(false)
@@ -90,7 +90,6 @@ IDBRequest::IDBRequest(ScriptExecutionContext* context, PassRefPtr<IDBAny> sourc
 
 IDBRequest::~IDBRequest()
 {
-    ASSERT(m_readyState == DONE || m_readyState == EarlyDeath || !scriptExecutionContext());
 }
 
 PassRefPtr<IDBAny> IDBRequest::result(ExceptionCode& ec) const
@@ -133,8 +132,8 @@ PassRefPtr<IDBTransaction> IDBRequest::transaction() const
 const String& IDBRequest::readyState() const
 {
     ASSERT(m_readyState == PENDING || m_readyState == DONE);
-    DEFINE_STATIC_LOCAL(AtomicString, pending, ("pending", AtomicString::ConstructFromLiteral));
-    DEFINE_STATIC_LOCAL(AtomicString, done, ("done", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, pending, ("pending", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, done, ("done", AtomicString::ConstructFromLiteral));
 
     if (m_readyState == PENDING)
         return pending;
@@ -213,14 +212,14 @@ PassRefPtr<IDBCursor> IDBRequest::getResultCursor()
     return 0;
 }
 
-void IDBRequest::setResultCursor(PassRefPtr<IDBCursor> cursor, PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey, const ScriptValue& value)
+void IDBRequest::setResultCursor(PassRefPtr<IDBCursor> cursor, PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey, const Deprecated::ScriptValue& value)
 {
     ASSERT(m_readyState == PENDING);
     m_cursorKey = key;
     m_cursorPrimaryKey = primaryKey;
     m_cursorValue = value;
 
-    if (m_cursorType == IndexedDB::CursorKeyOnly) {
+    if (m_cursorType == IndexedDB::CursorType::KeyOnly) {
         m_result = IDBAny::create(cursor);
         return;
     }
@@ -249,7 +248,7 @@ bool IDBRequest::shouldEnqueueEvent() const
 
 void IDBRequest::onError(PassRefPtr<IDBDatabaseError> error)
 {
-    LOG(StorageAPI, "IDBRequest::onError()");
+    LOG(StorageAPI, "IDBRequest::onError() (%s) '%s'", error->name().utf8().data(), error->message().utf8().data());
     if (!shouldEnqueueEvent())
         return;
 
@@ -275,27 +274,33 @@ void IDBRequest::onSuccess(PassRefPtr<DOMStringList> domStringList)
     enqueueEvent(createSuccessEvent());
 }
 
-void IDBRequest::onSuccess(PassRefPtr<IDBCursorBackend> backend, PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer> buffer)
+void IDBRequest::onSuccess(PassRefPtr<IDBCursorBackend> prpBackend)
 {
     LOG(StorageAPI, "IDBRequest::onSuccess(IDBCursor)");
     if (!shouldEnqueueEvent())
         return;
 
     DOMRequestState::Scope scope(m_requestState);
-    ScriptValue value = deserializeIDBValueBuffer(requestState(), buffer);
+
+    RefPtr<IDBCursorBackend> backend = prpBackend;
+    RefPtr<IDBKey> key = backend->key();
+    RefPtr<IDBKey> primaryKey = backend->primaryKey();
+
+    Deprecated::ScriptValue value = deserializeIDBValueBuffer(requestState(), backend->valueBuffer(), !!key);
+
     ASSERT(!m_pendingCursor);
     RefPtr<IDBCursor> cursor;
     switch (m_cursorType) {
-    case IndexedDB::CursorKeyOnly:
-        cursor = IDBCursor::create(backend, m_cursorDirection, this, m_source.get(), m_transaction.get());
+    case IndexedDB::CursorType::KeyOnly:
+        cursor = IDBCursor::create(backend.release(), m_cursorDirection, this, m_source.get(), m_transaction.get());
         break;
-    case IndexedDB::CursorKeyAndValue:
-        cursor = IDBCursorWithValue::create(backend, m_cursorDirection, this, m_source.get(), m_transaction.get());
+    case IndexedDB::CursorType::KeyAndValue:
+        cursor = IDBCursorWithValue::create(backend.release(), m_cursorDirection, this, m_source.get(), m_transaction.get());
         break;
     default:
         ASSERT_NOT_REACHED();
     }
-    setResultCursor(cursor, key, primaryKey, value);
+    setResultCursor(cursor, key.release(), primaryKey.release(), value);
 
     enqueueEvent(createSuccessEvent());
 }
@@ -321,7 +326,10 @@ void IDBRequest::onSuccess(PassRefPtr<SharedBuffer> valueBuffer)
         return;
 
     DOMRequestState::Scope scope(m_requestState);
-    ScriptValue value = deserializeIDBValueBuffer(requestState(), valueBuffer);
+
+    // FIXME: By not knowing whether or not the key is defined here, we don't know
+    // if a null valueBuffer means the value is null or the value is undefined.
+    Deprecated::ScriptValue value = deserializeIDBValueBuffer(requestState(), valueBuffer, true);
     onSuccessInternal(value);
 }
 
@@ -348,15 +356,22 @@ void IDBRequest::onSuccess(PassRefPtr<SharedBuffer> valueBuffer, PassRefPtr<IDBK
     ASSERT(keyPath == effectiveObjectStore(m_source)->keyPath());
 #endif
     DOMRequestState::Scope scope(m_requestState);
-    ScriptValue value = deserializeIDBValueBuffer(requestState(), valueBuffer);
+
+    // FIXME: By not knowing whether or not the key is defined here, we don't know
+    // if a null valueBuffer means the value is null or the value is undefined.
+    Deprecated::ScriptValue value = deserializeIDBValueBuffer(requestState(), valueBuffer, true);
 
     RefPtr<IDBKey> primaryKey = prpPrimaryKey;
+
+    if (!keyPath.isNull()) {
 #ifndef NDEBUG
-    RefPtr<IDBKey> expectedKey = createIDBKeyFromScriptValueAndKeyPath(requestState(), value, keyPath);
-    ASSERT(!expectedKey || expectedKey->isEqual(primaryKey.get()));
+        RefPtr<IDBKey> expectedKey = createIDBKeyFromScriptValueAndKeyPath(requestState()->exec(), value, keyPath);
+        ASSERT(!expectedKey || expectedKey->isEqual(primaryKey.get()));
 #endif
-    bool injected = injectIDBKeyIntoScriptValue(requestState(), primaryKey, value, keyPath);
-    ASSERT_UNUSED(injected, injected);
+        bool injected = injectIDBKeyIntoScriptValue(requestState(), primaryKey, value, keyPath);
+        ASSERT_UNUSED(injected, injected);
+    }
+
     onSuccessInternal(value);
 }
 
@@ -383,7 +398,7 @@ void IDBRequest::onSuccessInternal(PassRefPtr<SerializedScriptValue> value)
     return onSuccessInternal(deserializeIDBValue(requestState(), value));
 }
 
-void IDBRequest::onSuccessInternal(const ScriptValue& value)
+void IDBRequest::onSuccessInternal(const Deprecated::ScriptValue& value)
 {
     m_result = IDBAny::create(value);
     if (m_pendingCursor) {
@@ -395,12 +410,14 @@ void IDBRequest::onSuccessInternal(const ScriptValue& value)
 
 void IDBRequest::onSuccess(PassRefPtr<IDBKey> key, PassRefPtr<IDBKey> primaryKey, PassRefPtr<SharedBuffer> buffer)
 {
-    LOG(StorageAPI, "IDBRequest::onSuccess(key, primaryKey, value)");
+    LOG(StorageAPI, "IDBRequest::onSuccess(key, primaryKey, valueBuffer)");
     if (!shouldEnqueueEvent())
         return;
 
     DOMRequestState::Scope scope(m_requestState);
-    ScriptValue value = deserializeIDBValueBuffer(requestState(), buffer);
+
+    Deprecated::ScriptValue value = deserializeIDBValueBuffer(requestState(), buffer, !!key);
+
     ASSERT(m_pendingCursor);
     setResultCursor(m_pendingCursor.release(), key, primaryKey, value);
     enqueueEvent(createSuccessEvent());

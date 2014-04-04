@@ -39,8 +39,8 @@
 
 namespace WebCore {
 
-CachedScript::CachedScript(const ResourceRequest& resourceRequest, const String& charset)
-    : CachedResource(resourceRequest, Script)
+CachedScript::CachedScript(const ResourceRequest& resourceRequest, const String& charset, SessionID sessionID)
+    : CachedResource(resourceRequest, Script, sessionID)
     , m_decoder(TextResourceDecoder::create(ASCIILiteral("application/javascript"), charset))
 {
     // It's javascript we want.
@@ -73,8 +73,7 @@ const String& CachedScript::script()
     ASSERT(!isPurgeable());
 
     if (!m_script && m_data) {
-        m_script = m_decoder->decode(m_data->data(), encodedSize());
-        m_script.append(m_decoder->flush());
+        m_script = m_decoder->decodeAndFlush(m_data->data(), encodedSize());
         setDecodedSize(m_script.sizeInBytes());
     }
     m_decodedDataDeletionTimer.restart();

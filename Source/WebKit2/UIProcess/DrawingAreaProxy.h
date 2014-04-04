@@ -29,11 +29,13 @@
 
 #include "DrawingAreaInfo.h"
 #include "MessageReceiver.h"
-#include <WebCore/FloatPoint.h>
+#include <WebCore/FloatRect.h>
 #include <WebCore/IntRect.h>
 #include <WebCore/IntSize.h>
+#include <chrono>
 #include <stdint.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/RunLoop.h>
 
 namespace WebKit {
 
@@ -42,7 +44,7 @@ class CoordinatedLayerTreeHostProxy;
 class UpdateInfo;
 class WebPageProxy;
 
-class DrawingAreaProxy : public CoreIPC::MessageReceiver {
+class DrawingAreaProxy : public IPC::MessageReceiver {
     WTF_MAKE_NONCOPYABLE(DrawingAreaProxy);
 
 public:
@@ -53,8 +55,6 @@ public:
     virtual void deviceScaleFactorDidChange() = 0;
 
     // FIXME: These should be pure virtual.
-    virtual void layerHostingModeDidChange() { }
-
     virtual void setBackingStoreIsDiscardable(bool) { }
 
     virtual void waitForBackingStoreUpdateOnNextPaint() { }
@@ -62,13 +62,28 @@ public:
     const WebCore::IntSize& size() const { return m_size; }
     void setSize(const WebCore::IntSize&, const WebCore::IntSize&, const WebCore::IntSize& scrollOffset);
 
-    // The timeout, in seconds, we use when waiting for a DidUpdateGeometry message.
-    static const double didUpdateBackingStoreStateTimeout;
+    // The timeout we use when waiting for a DidUpdateGeometry message.
+    static constexpr std::chrono::milliseconds didUpdateBackingStoreStateTimeout() { return std::chrono::milliseconds(500); }
 
-    virtual void waitForPossibleGeometryUpdate(double = didUpdateBackingStoreStateTimeout) { }
+    virtual void waitForPossibleGeometryUpdate(std::chrono::milliseconds = didUpdateBackingStoreStateTimeout()) { }
 
     virtual void colorSpaceDidChange() { }
     virtual void minimumLayoutSizeDidChange() { }
+
+    virtual void adjustTransientZoom(double, WebCore::FloatPoint) { }
+    virtual void commitTransientZoom(double, WebCore::FloatPoint) { }
+
+#if PLATFORM(MAC)
+    virtual void setExposedRect(const WebCore::FloatRect&);
+    WebCore::FloatRect exposedRect() const { return m_exposedRect; }
+#endif
+#if PLATFORM(COCOA)
+    void exposedRectChangedTimerFired();
+#endif
+
+    virtual void updateDebugIndicator() { }
+    virtual void showDebugIndicator(bool) { }
+    virtual bool isShowingDebugIndicator() const { return false; }
 
 protected:
     explicit DrawingAreaProxy(DrawingAreaType, WebPageProxy*);
@@ -80,26 +95,33 @@ protected:
     WebCore::IntSize m_layerPosition;
     WebCore::IntSize m_scrollOffset;
 
+    // IPC::MessageReceiver
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+
 private:
     virtual void sizeDidChange() = 0;
 
-    // CoreIPC::MessageReceiver
-    virtual void didReceiveMessage(CoreIPC::Connection*, CoreIPC::MessageDecoder&) OVERRIDE;
-
-    // CoreIPC message handlers.
+    // Message handlers.
     // FIXME: These should be pure virtual.
     virtual void update(uint64_t /* backingStoreStateID */, const UpdateInfo&) { }
     virtual void didUpdateBackingStoreState(uint64_t /* backingStoreStateID */, const UpdateInfo&, const LayerTreeContext&) { }
-#if USE(ACCELERATED_COMPOSITING)
     virtual void enterAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
     virtual void exitAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const UpdateInfo&) { }
     virtual void updateAcceleratedCompositingMode(uint64_t /* backingStoreStateID */, const LayerTreeContext&) { }
-#endif
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual void didUpdateGeometry() { }
     virtual void intrinsicContentSizeDidChange(const WebCore::IntSize& newIntrinsicContentSize) { }
+
+#if PLATFORM(MAC)
+    RunLoop::Timer<DrawingAreaProxy> m_exposedRectChangedTimer;
+    WebCore::FloatRect m_exposedRect;
+    WebCore::FloatRect m_lastSentExposedRect;
+#endif // PLATFORM(MAC)
 #endif
 };
+
+#define DRAWING_AREA_PROXY_TYPE_CASTS(ToValueTypeName, predicate) \
+    TYPE_CASTS_BASE(ToValueTypeName, DrawingAreaProxy, value, value->predicate, value.predicate)
 
 } // namespace WebKit
 

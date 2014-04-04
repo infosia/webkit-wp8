@@ -20,7 +20,6 @@
 #ifndef SVGAnimatedType_h
 #define SVGAnimatedType_h
 
-#if ENABLE(SVG)
 #include "FloatRect.h"
 #include "SVGAngle.h"
 #include "SVGColor.h"
@@ -94,7 +93,7 @@ public:
         return *m_data.integer;
     }
 
-    const pair<int, int>& integerOptionalInteger() const
+    const std::pair<int, int>& integerOptionalInteger() const
     {
         ASSERT(m_type == AnimatedIntegerOptionalInteger);
         return *m_data.integerOptionalInteger;
@@ -124,7 +123,7 @@ public:
         return *m_data.numberList;
     }
 
-    const pair<float, float>& numberOptionalNumber() const
+    const std::pair<float, float>& numberOptionalNumber() const
     {
         ASSERT(m_type == AnimatedNumberOptionalNumber);
         return *m_data.numberOptionalNumber;
@@ -197,7 +196,7 @@ public:
         return *m_data.integer;
     }
 
-    pair<int, int>& integerOptionalInteger()
+    std::pair<int, int>& integerOptionalInteger()
     {
         ASSERT(m_type == AnimatedIntegerOptionalInteger);
         return *m_data.integerOptionalInteger;
@@ -227,7 +226,7 @@ public:
         return *m_data.numberList;
     }
 
-    pair<float, float>& numberOptionalNumber()
+    std::pair<float, float>& numberOptionalNumber()
     {
         ASSERT(m_type == AnimatedNumberOptionalNumber);
         return *m_data.numberOptionalNumber;
@@ -303,5 +302,4 @@ private:
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif // SVGAnimatedType_h

@@ -28,15 +28,19 @@
 
 #include "WebEvent.h"
 
-#if PLATFORM(MAC)
+#if USE(APPKIT)
 #include <wtf/RetainPtr.h>
 OBJC_CLASS NSView;
-#elif PLATFORM(GTK)
-#include <GOwnPtrGtk.h>
-typedef union _GdkEvent GdkEvent;
-#elif PLATFORM(EFL)
+#endif
+
+#if PLATFORM(EFL)
 #include <Evas.h>
 #include <WebCore/AffineTransform.h>
+#endif
+
+#if PLATFORM(GTK)
+#include <WebCore/GUniquePtrGtk.h>
+typedef union _GdkEvent GdkEvent;
 #endif
 
 namespace WebKit {
@@ -66,7 +70,7 @@ private:
 #if USE(APPKIT)
     RetainPtr<NSEvent> m_nativeEvent;
 #elif PLATFORM(GTK)
-    GOwnPtr<GdkEvent> m_nativeEvent;
+    GUniquePtr<GdkEvent> m_nativeEvent;
 #elif PLATFORM(EFL)
     const Evas_Event_Mouse_Wheel* m_nativeEvent;
 #endif

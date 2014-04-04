@@ -31,7 +31,7 @@
 #include "ContextDestructionObserver.h"
 #include "ExceptionCodePlaceholder.h"
 #include "NodeList.h"
-#include "ScriptValue.h"
+#include <bindings/ScriptValue.h>
 #include <runtime/ArrayBuffer.h>
 #include <runtime/Float32Array.h>
 #include <wtf/PassRefPtr.h>
@@ -50,19 +50,19 @@ class Element;
 class Frame;
 class InspectorFrontendChannelDummy;
 class InternalSettings;
+class MallocStatistics;
 class MemoryInfo;
 class Node;
 class Page;
 class Range;
 class ScriptExecutionContext;
-class ShadowRoot;
-class WebKitPoint;
-class MallocStatistics;
+class ScriptProfile;
 class SerializedScriptValue;
 class TimeRanges;
 class TypeConversions;
 
 typedef int ExceptionCode;
+typedef Vector<RefPtr<ScriptProfile>> ProfilesArray;
 
 class Internals : public RefCounted<Internals>
                 , public ContextDestructionObserver {
@@ -81,14 +81,9 @@ public:
 
     PassRefPtr<CSSComputedStyleDeclaration> computedStyleIncludingVisitedInfo(Node*, ExceptionCode&) const;
 
-#if ENABLE(SHADOW_DOM)
-    typedef ShadowRoot ShadowRootIfShadowDOMEnabledOrNode;
-#else
-    typedef Node ShadowRootIfShadowDOMEnabledOrNode;
-#endif
-    ShadowRootIfShadowDOMEnabledOrNode* ensureShadowRoot(Element* host, ExceptionCode&);
-    ShadowRootIfShadowDOMEnabledOrNode* createShadowRoot(Element* host, ExceptionCode&);
-    ShadowRootIfShadowDOMEnabledOrNode* shadowRoot(Element* host, ExceptionCode&);
+    Node* ensureShadowRoot(Element* host, ExceptionCode&);
+    Node* createShadowRoot(Element* host, ExceptionCode&);
+    Node* shadowRoot(Element* host, ExceptionCode&);
     String shadowRootType(const Node*, ExceptionCode&) const;
     Element* includerFor(Node*, ExceptionCode&);
     String shadowPseudoId(Element*, ExceptionCode&);
@@ -158,13 +153,6 @@ public:
     String rangeAsText(const Range*, ExceptionCode&);
 
     void setDelegatesScrolling(bool enabled, ExceptionCode&);
-#if ENABLE(TOUCH_ADJUSTMENT)
-    PassRefPtr<WebKitPoint> touchPositionAdjustedToBestClickableNode(long x, long y, long width, long height, ExceptionCode&);
-    Node* touchNodeAdjustedToBestClickableNode(long x, long y, long width, long height, ExceptionCode&);
-    PassRefPtr<WebKitPoint> touchPositionAdjustedToBestContextMenuNode(long x, long y, long width, long height, ExceptionCode&);
-    Node* touchNodeAdjustedToBestContextMenuNode(long x, long y, long width, long height, ExceptionCode&);
-    PassRefPtr<ClientRect> bestZoomableAreaForTouchPoint(long x, long y, long width, long height, ExceptionCode&);
-#endif
 
     int lastSpellCheckRequestSequence(ExceptionCode&);
     int lastSpellCheckProcessedSequence(ExceptionCode&);
@@ -181,7 +169,10 @@ public:
     void emitInspectorDidBeginFrame();
     void emitInspectorDidCancelFrame();
 
-    String parserMetaData(ScriptValue = ScriptValue());
+    String parserMetaData(Deprecated::ScriptValue = Deprecated::ScriptValue());
+
+    Node* findEditingDeleteButton();
+    void updateEditorUINowIfScheduled();
 
     bool hasSpellingMarker(int from, int length, ExceptionCode&);
     bool hasGrammarMarker(int from, int length, ExceptionCode&);
@@ -195,6 +186,8 @@ public:
 
     bool isOverwriteModeEnabled(ExceptionCode&);
     void toggleOverwriteModeEnabled(ExceptionCode&);
+
+    unsigned countMatchesForText(const String&, unsigned findOptions, const String& markMatches, ExceptionCode&);
 
     unsigned numberOfScrollableAreas(ExceptionCode&);
 
@@ -233,14 +226,18 @@ public:
     void insertAuthorCSS(const String&, ExceptionCode&) const;
     void insertUserCSS(const String&, ExceptionCode&) const;
 
-#if ENABLE(INSPECTOR)
+    const ProfilesArray& consoleProfiles() const;
+
     unsigned numberOfLiveNodes() const;
     unsigned numberOfLiveDocuments() const;
+
+#if ENABLE(INSPECTOR)
     Vector<String> consoleMessageArgumentCounts() const;
     PassRefPtr<DOMWindow> openDummyInspectorFrontend(const String& url);
     void closeDummyInspectorFrontend();
     void setInspectorResourcesDataSizeLimits(int maximumResourcesContentSize, int maximumSingleResourceContentSize, ExceptionCode&);
     void setJavaScriptProfilingEnabled(bool enabled, ExceptionCode&);
+    void setInspectorIsUnderTest(bool isUnderTest, ExceptionCode&);
 #endif
 
     String counterValue(Element*);
@@ -257,6 +254,8 @@ public:
 
     void setHeaderHeight(float);
     void setFooterHeight(float);
+
+    void setTopContentInset(float);
 
 #if ENABLE(FULLSCREEN_API)
     void webkitWillEnterFullScreenForElement(Element*);
@@ -331,6 +330,18 @@ public:
 #if ENABLE(MEDIA_SOURCE)
     void initializeMockMediaSource();
 #endif
+
+#if ENABLE(VIDEO)
+    void beginMediaSessionInterruption();
+    void endMediaSessionInterruption(const String&);
+    void applicationWillEnterForeground() const;
+    void applicationWillEnterBackground() const;
+    void setMediaSessionRestrictions(const String& mediaType, const String& restrictions, ExceptionCode&);
+    void postRemoteControlCommand(const String&, ExceptionCode&);
+#endif
+
+    void simulateSystemSleep() const;
+    void simulateSystemWake() const;
 
 private:
     explicit Internals(Document*);

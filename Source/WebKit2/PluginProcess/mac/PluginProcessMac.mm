@@ -43,6 +43,7 @@
 #import <objc/runtime.h>
 #import <sysexits.h>
 #import <wtf/HashSet.h>
+#import <wtf/NeverDestroyed.h>
 
 using namespace WebCore;
 
@@ -127,7 +128,7 @@ template<typename T> void FullscreenWindowTracker::windowHidden(T window)
 
 static FullscreenWindowTracker& fullscreenWindowTracker()
 {
-    DEFINE_STATIC_LOCAL(FullscreenWindowTracker, fullscreenWindowTracker, ());
+    static NeverDestroyed<FullscreenWindowTracker> fullscreenWindowTracker;
     return fullscreenWindowTracker;
 }
 
@@ -437,7 +438,7 @@ void PluginProcess::platformInitializeProcess(const ChildProcessInitializationPa
 
     // FIXME: Workaround for Java not liking its plugin process to be supressed - <rdar://problem/14267843>
     if (m_pluginBundleIdentifier == "com.oracle.java.JavaAppletPlugin")
-        incrementActiveTaskCount();
+        (new UserActivity("com.oracle.java.JavaAppletPlugin"))->start();
 }
 
 void PluginProcess::initializeProcessName(const ChildProcessInitializationParameters& parameters)

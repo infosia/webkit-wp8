@@ -21,8 +21,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGAElement.h"
 
 #include "Attr.h"
@@ -88,7 +86,7 @@ String SVGAElement::title() const
 
 bool SVGAElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGLangSpace::addSupportedAttributes(supportedAttributes);
@@ -139,12 +137,12 @@ void SVGAElement::svgAttributeChanged(const QualifiedName& attrName)
     }
 }
 
-RenderElement* SVGAElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGAElement::createElementRenderer(PassRef<RenderStyle> style)
 {
     if (parentNode() && parentNode()->isSVGElement() && toSVGElement(parentNode())->isTextContent())
-        return new RenderSVGInline(*this, std::move(style));
+        return createRenderer<RenderSVGInline>(*this, std::move(style));
 
-    return new RenderSVGTransformableContainer(*this, std::move(style));
+    return createRenderer<RenderSVGTransformableContainer>(*this, std::move(style));
 }
 
 void SVGAElement::defaultEventHandler(Event* event)
@@ -160,7 +158,7 @@ void SVGAElement::defaultEventHandler(Event* event)
             String url = stripLeadingAndTrailingHTMLSpaces(href());
 
             if (url[0] == '#') {
-                Element* targetElement = treeScope().getElementById(url.substring(1));
+                Element* targetElement = treeScope().getElementById(url.substringSharingImpl(1));
                 if (targetElement && isSVGSMILElement(*targetElement)) {
                     toSVGSMILElement(*targetElement).beginByLinkActivation();
                     event->setDefaultHandled();
@@ -179,7 +177,7 @@ void SVGAElement::defaultEventHandler(Event* event)
             Frame* frame = document().frame();
             if (!frame)
                 return;
-            frame->loader().urlSelected(document().completeURL(url), target, event, false, false, MaybeSendReferrer);
+            frame->loader().urlSelected(document().completeURL(url), target, event, LockHistory::No, LockBackForwardList::No, MaybeSendReferrer);
             return;
         }
     }
@@ -189,7 +187,7 @@ void SVGAElement::defaultEventHandler(Event* event)
 
 bool SVGAElement::supportsFocus() const
 {
-    if (rendererIsEditable())
+    if (hasEditableStyle())
         return SVGGraphicsElement::supportsFocus();
     return true;
 }
@@ -235,6 +233,9 @@ bool SVGAElement::childShouldCreateRenderer(const Node& child) const
     return SVGElement::childShouldCreateRenderer(child);
 }
 
-} // namespace WebCore
+bool SVGAElement::willRespondToMouseClickEvents()
+{ 
+    return isLink() || SVGGraphicsElement::willRespondToMouseClickEvents(); 
+}
 
-#endif // ENABLE(SVG)
+} // namespace WebCore

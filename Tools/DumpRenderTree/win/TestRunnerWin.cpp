@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -190,12 +190,6 @@ size_t TestRunner::webHistoryItemCount()
         return 0;
 
     return count;
-}
-
-JSRetainPtr<JSStringRef> TestRunner::platformName() const
-{
-    JSRetainPtr<JSStringRef> platformName(Adopt, JSStringCreateWithUTF8CString("win"));
-    return platformName;
 }
 
 void TestRunner::notifyDone()
@@ -716,11 +710,11 @@ void TestRunner::setWindowIsKey(bool flag)
     if (FAILED(webView->QueryInterface(&viewPrivate)))
         return;
 
-    HWND webViewWindow;
-    if (FAILED(viewPrivate->viewWindow((OLE_HANDLE*)&webViewWindow)))
+    OLE_HANDLE webViewWindow;
+    if (FAILED(viewPrivate->viewWindow(&webViewWindow)))
         return;
 
-    ::SendMessage(webViewWindow, flag ? WM_SETFOCUS : WM_KILLFOCUS, (WPARAM)::GetDesktopWindow(), 0);
+    ::SendMessage(reinterpret_cast<HWND>(webViewWindow), flag ? WM_SETFOCUS : WM_KILLFOCUS, (WPARAM)::GetDesktopWindow(), 0);
 }
 
 static const CFTimeInterval waitToDumpWatchdogInterval = 30.0;
@@ -979,7 +973,7 @@ void TestRunner::closeWebInspector()
     inspector->close();
 }
 
-void TestRunner::evaluateInWebInspector(long callId, JSStringRef script)
+void TestRunner::evaluateInWebInspector(JSStringRef script)
 {
     COMPtr<IWebView> webView;
     if (FAILED(frame->webView(&webView)))
@@ -997,7 +991,7 @@ void TestRunner::evaluateInWebInspector(long callId, JSStringRef script)
     if (!inspectorPrivate)
         return;
 
-    inspectorPrivate->evaluateInFrontend(callId, bstrT(script).GetBSTR());
+    inspectorPrivate->evaluateInFrontend(bstrT(script).GetBSTR());
 }
 
 typedef HashMap<unsigned, COMPtr<IWebScriptWorld> > WorldMap;

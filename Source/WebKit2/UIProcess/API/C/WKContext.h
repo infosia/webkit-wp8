@@ -47,6 +47,7 @@ typedef uint32_t WKCacheModel;
 typedef void (*WKContextPlugInAutoStartOriginHashesChangedCallback)(WKContextRef context, const void *clientInfo);
 typedef void (*WKContextNetworkProcessDidCrashCallback)(WKContextRef context, const void *clientInfo);
 typedef void (*WKContextPlugInInformationBecameAvailableCallback)(WKContextRef context, WKArrayRef plugIn, const void *clientInfo);
+typedef WKDataRef (*WKContextCopyWebCryptoMasterKeyCallback)(WKContextRef context, const void *clientInfo);
 
 typedef struct WKContextClientBase {
     int                                                                 version;
@@ -62,7 +63,19 @@ typedef struct WKContextClientV0 {
     WKContextPlugInInformationBecameAvailableCallback                   plugInInformationBecameAvailable;
 } WKContextClientV0;
 
-enum { kWKContextClientCurrentVersion WK_ENUM_DEPRECATED("Use an explicit version number instead") = 0 };
+typedef struct WKContextClientV1 {
+    WKContextClientBase                                                 base;
+
+    // Version 0.
+    WKContextPlugInAutoStartOriginHashesChangedCallback                 plugInAutoStartOriginHashesChanged;
+    WKContextNetworkProcessDidCrashCallback                             networkProcessDidCrash;
+    WKContextPlugInInformationBecameAvailableCallback                   plugInInformationBecameAvailable;
+
+    // Version 1.
+    WKContextCopyWebCryptoMasterKeyCallback                             copyWebCryptoMasterKey;
+} WKContextClientV1;
+
+enum { kWKContextClientCurrentVersion WK_ENUM_DEPRECATED("Use an explicit version number instead") = 1 };
 typedef struct WKContextClient {
     int                                                                 version;
     const void *                                                        clientInfo;
@@ -139,6 +152,7 @@ WK_EXPORT void WKContextSetJavaScriptGarbageCollectorTimerEnabled(WKContextRef c
 WK_EXPORT WKDictionaryRef WKContextCopyPlugInAutoStartOriginHashes(WKContextRef context);
 WK_EXPORT void WKContextSetPlugInAutoStartOriginHashes(WKContextRef context, WKDictionaryRef dictionary);
 WK_EXPORT void WKContextSetPlugInAutoStartOrigins(WKContextRef contextRef, WKArrayRef arrayRef);
+WK_EXPORT void WKContextSetPlugInAutoStartOriginsFilteringOutEntriesAddedAfterTime(WKContextRef contextRef, WKDictionaryRef dictionaryRef, double time);
 
 #ifdef __cplusplus
 }

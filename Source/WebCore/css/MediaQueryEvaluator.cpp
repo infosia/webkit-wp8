@@ -16,7 +16,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -55,8 +55,12 @@
 #include "StyleResolver.h"
 #include <wtf/HashMap.h>
 
-#if ENABLE(3D_RENDERING) && USE(ACCELERATED_COMPOSITING)
+#if ENABLE(3D_RENDERING)
 #include "RenderLayerCompositor.h"
+#endif
+
+#if PLATFORM(IOS)
+#include "WebCoreSystemInterface.h"
 #endif
 
 namespace WebCore {
@@ -130,7 +134,7 @@ bool MediaQueryEvaluator::eval(const MediaQuerySet* querySet, StyleResolver* sty
     if (!querySet)
         return true;
 
-    const Vector<OwnPtr<MediaQuery>>& queries = querySet->queryVector();
+    auto& queries = querySet->queryVector();
     if (!queries.size())
         return true; // empty query list evaluates to true
 
@@ -143,7 +147,7 @@ bool MediaQueryEvaluator::eval(const MediaQuerySet* querySet, StyleResolver* sty
             continue;
 
         if (mediaTypeMatch(query->mediaType())) {
-            const Vector<OwnPtr<MediaQueryExp>>& expressions = query->expressions();
+            auto& expressions = query->expressions();
             // iterate through expressions, stop if any of them eval to false
             // (AND semantics)
             size_t j = 0;
@@ -364,7 +368,6 @@ static bool device_heightMediaFeatureEval(CSSValue* value, RenderStyle* style, F
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         long height = sg.height();
-        InspectorInstrumentation::applyScreenHeightOverride(frame, &height);
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(static_cast<int>(height), length, op);
     }
     // ({,min-,max-}device-height)
@@ -379,7 +382,6 @@ static bool device_widthMediaFeatureEval(CSSValue* value, RenderStyle* style, Fr
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         long width = sg.width();
-        InspectorInstrumentation::applyScreenWidthOverride(frame, &width);
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(static_cast<int>(width), length, op);
     }
     // ({,min-,max-}device-width)
@@ -396,7 +398,7 @@ static bool heightMediaFeatureEval(CSSValue* value, RenderStyle* style, Frame* f
     if (value) {
         int height = view->layoutHeight();
         if (RenderView* renderView = frame->document()->renderView())
-            height = adjustForAbsoluteZoom(height, renderView);
+            height = adjustForAbsoluteZoom(height, *renderView);
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(height, length, op);
@@ -414,7 +416,7 @@ static bool widthMediaFeatureEval(CSSValue* value, RenderStyle* style, Frame* fr
     if (value) {
         int width = view->layoutWidth();
         if (RenderView* renderView = frame->document()->renderView())
-            width = adjustForAbsoluteZoom(width, renderView);
+            width = adjustForAbsoluteZoom(width, *renderView);
         RenderStyle* rootStyle = frame->document()->documentElement()->renderStyle();
         int length;
         return computeLength(value, !frame->document()->inQuirksMode(), style, rootStyle, length) && compareValue(width, length, op);
@@ -569,10 +571,8 @@ static bool transform_3dMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* f
 
 #if ENABLE(3D_RENDERING)
     bool threeDEnabled = false;
-#if USE(ACCELERATED_COMPOSITING)
     if (RenderView* view = frame->contentRenderer())
         threeDEnabled = view->compositor().canRender3DTransforms();
-#endif
 
     returnValueIfNoParameter = threeDEnabled;
     have3dRendering = threeDEnabled ? 1 : 0;
@@ -623,6 +623,22 @@ static bool view_modeMediaFeatureEval(CSSValue* value, RenderStyle*, Frame* fram
     return result;
 }
 #endif // ENABLE(VIEW_MODE_CSS_MEDIA)
+
+// FIXME: Find a better place for this function. Maybe ChromeClient?
+static inline bool isRunningOnIPhoneOrIPod()
+{
+#if PLATFORM(IOS)
+    static wkDeviceClass deviceClass = iosDeviceClass();
+    return deviceClass == wkDeviceClassiPhone || deviceClass == wkDeviceClassiPod;
+#else
+    return false;
+#endif
+}
+
+static bool video_playable_inlineMediaFeatureEval(CSSValue*, RenderStyle*, Frame* frame, MediaFeaturePrefix)
+{
+    return !isRunningOnIPhoneOrIPod() || frame->settings().mediaPlaybackAllowsInline();
+}
 
 enum PointerDeviceType { TouchPointer, MousePointer, NoPointer, UnknownPointer };
 

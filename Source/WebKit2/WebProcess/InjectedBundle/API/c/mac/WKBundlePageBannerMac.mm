@@ -26,6 +26,8 @@
 #include "config.h"
 #include "WKBundlePageBannerMac.h"
 
+#if !PLATFORM(IOS)
+
 #include "APIClient.h"
 #include "PageBanner.h"
 #include "WKAPICast.h"
@@ -54,12 +56,12 @@ public:
 
 private:
     // PageBanner::Client.
-    virtual void pageBannerDestroyed(PageBanner*) OVERRIDE
+    virtual void pageBannerDestroyed(PageBanner*) override
     {
         delete this;
     }
     
-    virtual bool mouseEvent(PageBanner* pageBanner, WebEvent::Type type, WebMouseEvent::Button button, const IntPoint& position) OVERRIDE
+    virtual bool mouseEvent(PageBanner* pageBanner, WebEvent::Type type, WebMouseEvent::Button button, const IntPoint& position) override
     {
         switch (type) {
         case WebEvent::MouseDown: {
@@ -108,3 +110,5 @@ CALayer * WKBundlePageBannerGetLayer(WKBundlePageBannerRef pageBanner)
 {
     return toImpl(pageBanner)->layer();
 }
+
+#endif // !PLATFORM(IOS)

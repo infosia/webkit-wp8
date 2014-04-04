@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -55,6 +55,7 @@ class URL;
 class PageURLRecord;
 class PageURLSnapshot;
 class SharedBuffer;
+class SuddenTerminationDisabler;
 
 #if ENABLE(ICONDATABASE)
 class SQLTransaction;
@@ -127,7 +128,7 @@ private:
 
     void wakeSyncThread();
     void scheduleOrDeferSyncTimer();
-    void syncTimerFired(Timer<IconDatabase>*);
+    void syncTimerFired(Timer<IconDatabase>&);
     
     Timer<IconDatabase> m_syncTimer;
     ThreadIdentifier m_syncThread;
@@ -141,6 +142,7 @@ private:
     void performScheduleOrDeferSyncTimer();
 
     bool m_scheduleOrDeferSyncTimerRequested;
+    std::unique_ptr<SuddenTerminationDisabler> m_disableSuddenTerminationWhileSyncTimerScheduled;
 
 // *** Any Thread ***
 public:
@@ -165,7 +167,7 @@ private:
     bool m_removeIconsRequested;
     bool m_iconURLImportComplete;
     bool m_syncThreadHasWorkToDo;
-    bool m_disabledSuddenTerminationForSyncThread;
+    std::unique_ptr<SuddenTerminationDisabler> m_disableSuddenTerminationWhileSyncThreadHasWorkToDo;
 
     Mutex m_urlAndIconLock;
     // Holding m_urlAndIconLock is required when accessing any of the following data structures or the objects they contain

@@ -26,10 +26,16 @@
 #import "config.h"
 #import "NetworkProcess.h"
 
-#if ENABLE(NETWORK_PROCESS)
+#if PLATFORM(IOS) && ENABLE(NETWORK_PROCESS)
 
+#import "NetworkProcessCreationParameters.h"
+#import <WebCore/CertificateInfo.h>
 #import <WebCore/NotImplemented.h>
 #import <WebCore/WebCoreThreadSystemInterface.h>
+
+@interface NSURLRequest (WKDetails)
++ (void)setAllowsSpecificHTTPSCertificate:(NSArray *)certificateChain forHost:(NSString *)host;
+@end
 
 using namespace WebCore;
 
@@ -37,9 +43,7 @@ namespace WebKit {
 
 void NetworkProcess::initializeProcess(const ChildProcessInitializationParameters&)
 {
-#if PLATFORM(IOS)
     InitWebCoreThreadSystemInterface();
-#endif // PLATFORM(IOS)
 }
 
 void NetworkProcess::initializeProcessName(const ChildProcessInitializationParameters&)
@@ -52,23 +56,18 @@ void NetworkProcess::initializeSandbox(const ChildProcessInitializationParameter
     notImplemented();
 }
 
-void NetworkProcess::platformSetCacheModel(CacheModel)
+void NetworkProcess::allowSpecificHTTPSCertificateForHost(const CertificateInfo& certificateInfo, const String& host)
 {
-    notImplemented();
-}
-
-void NetworkProcess::allowSpecificHTTPSCertificateForHost(const PlatformCertificateInfo&, const String&)
-{
-    notImplemented();
+    [NSURLRequest setAllowsSpecificHTTPSCertificate:(NSArray *)certificateInfo.certificateChain() forHost:host];
 }
 
 void NetworkProcess::clearCacheForAllOrigins(uint32_t)
 {
 }
 
-void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters&)
+void NetworkProcess::platformInitializeNetworkProcess(const NetworkProcessCreationParameters& parameters)
 {
-    notImplemented();
+    platformInitializeNetworkProcessCocoa(parameters);
 }
 
 void NetworkProcess::platformTerminate()
@@ -78,4 +77,4 @@ void NetworkProcess::platformTerminate()
 
 } // namespace WebKit
 
-#endif // ENABLE(NETWORK_PROCESS)
+#endif // PLATFORM(IOS) && ENABLE(NETWORK_PROCESS)

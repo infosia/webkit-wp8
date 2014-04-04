@@ -35,18 +35,13 @@ class HTMLMapElement;
 
 class RenderImage : public RenderReplaced {
 public:
-    explicit RenderImage(Element&, PassRef<RenderStyle>);
-    explicit RenderImage(Document&, PassRef<RenderStyle>);
+    RenderImage(Element&, PassRef<RenderStyle>, StyleImage* = nullptr, const float = 1.0f);
+    RenderImage(Document&, PassRef<RenderStyle>, StyleImage* = nullptr);
     virtual ~RenderImage();
 
-    // Create a RenderStyle for generated content by inheriting from a pseudo style.
-    static PassRef<RenderStyle> createStyleInheritingFromPseudoStyle(const RenderStyle&);
-
-    void setImageResource(PassOwnPtr<RenderImageResource>);
-
-    RenderImageResource* imageResource() { return m_imageResource.get(); }
-    const RenderImageResource* imageResource() const { return m_imageResource.get(); }
-    CachedImage* cachedImage() const { return m_imageResource ? m_imageResource->cachedImage() : 0; }
+    RenderImageResource& imageResource() { return *m_imageResource; }
+    const RenderImageResource& imageResource() const { return *m_imageResource; }
+    CachedImage* cachedImage() const { return imageResource().cachedImage(); }
 
     bool setImageSizeForAltText(CachedImage* newImage = 0);
 
@@ -54,11 +49,9 @@ public:
 
     HTMLMapElement* imageMap() const;
     void areaElementFocusChanged(HTMLAreaElement*);
-
-    void highQualityRepaintTimerFired(Timer<RenderImage>*);
     
 #if PLATFORM(IOS)
-    virtual void collectSelectionRects(Vector<SelectionRect>&, unsigned, unsigned) OVERRIDE;
+    virtual void collectSelectionRects(Vector<SelectionRect>&, unsigned, unsigned) override;
 #endif
 
     void setIsGeneratedContent(bool generated = true) { m_isGeneratedContent = generated; }
@@ -67,43 +60,51 @@ public:
 
     const String& altText() const { return m_altText; }
     void setAltText(const String& altText) { m_altText = altText; }
-    
+
+    inline void setImageDevicePixelRatio(float factor) { m_imageDevicePixelRatio = factor; }
+    float imageDevicePixelRatio() const { return m_imageDevicePixelRatio; }
+
+    void setHasShadowControls(bool hasShadowControls) { m_hasShadowControls = hasShadowControls; }
+
 protected:
-    virtual bool needsPreferredWidthsRecalculation() const OVERRIDE FINAL;
-    virtual RenderBox* embeddedContentBox() const OVERRIDE FINAL;
-    virtual void computeIntrinsicRatioInformation(FloatSize& intrinsicSize, double& intrinsicRatio, bool& isPercentageIntrinsicSize) const OVERRIDE FINAL;
-    virtual bool foregroundIsKnownToBeOpaqueInRect(const LayoutRect& localRect, unsigned maxDepthToTest) const OVERRIDE;
+    virtual bool needsPreferredWidthsRecalculation() const override final;
+    virtual RenderBox* embeddedContentBox() const override final;
+    virtual void computeIntrinsicRatioInformation(FloatSize& intrinsicSize, double& intrinsicRatio, bool& isPercentageIntrinsicSize) const override final;
+    virtual bool foregroundIsKnownToBeOpaqueInRect(const LayoutRect& localRect, unsigned maxDepthToTest) const override;
 
-    virtual void styleDidChange(StyleDifference, const RenderStyle*) OVERRIDE FINAL;
+    virtual void styleDidChange(StyleDifference, const RenderStyle*) override final;
 
-    virtual void imageChanged(WrappedImagePtr, const IntRect* = 0) OVERRIDE;
+    virtual void imageChanged(WrappedImagePtr, const IntRect* = 0) override;
 
-    void paintIntoRect(GraphicsContext*, const LayoutRect&);
-    virtual void paint(PaintInfo&, const LayoutPoint&) OVERRIDE FINAL;
-    virtual void layout() OVERRIDE;
+    void paintIntoRect(GraphicsContext*, const FloatRect&);
+    virtual void paint(PaintInfo&, const LayoutPoint&) override final;
+    virtual void layout() override;
 
-    virtual void intrinsicSizeChanged() OVERRIDE
+    virtual void intrinsicSizeChanged() override
     {
-        if (m_imageResource)
-            imageChanged(m_imageResource->imagePtr());
+        imageChanged(imageResource().imagePtr());
     }
 
 private:
-    virtual const char* renderName() const OVERRIDE { return "RenderImage"; }
+    virtual const char* renderName() const override { return "RenderImage"; }
 
-    virtual bool isImage() const OVERRIDE { return true; }
-    virtual bool isRenderImage() const OVERRIDE FINAL { return true; }
+    virtual bool canHaveChildren() const override;
 
-    virtual void paintReplaced(PaintInfo&, const LayoutPoint&) OVERRIDE;
+    virtual bool isImage() const override { return true; }
+    virtual bool isRenderImage() const override final { return true; }
 
-    virtual bool computeBackgroundIsKnownToBeObscured() OVERRIDE FINAL;
+    virtual void paintReplaced(PaintInfo&, const LayoutPoint&) override;
 
-    virtual LayoutUnit minimumReplacedHeight() const OVERRIDE;
+    virtual bool computeBackgroundIsKnownToBeObscured() override final;
 
-    virtual void notifyFinished(CachedResource*) OVERRIDE FINAL;
-    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) OVERRIDE FINAL;
+    virtual LayoutUnit minimumReplacedHeight() const override;
 
-    virtual bool boxShadowShouldBeAppliedToBackground(BackgroundBleedAvoidance, InlineFlowBox*) const OVERRIDE FINAL;
+    virtual void notifyFinished(CachedResource*) override final;
+    virtual bool nodeAtPoint(const HitTestRequest&, HitTestResult&, const HitTestLocation& locationInContainer, const LayoutPoint& accumulatedOffset, HitTestAction) override final;
+
+    virtual bool boxShadowShouldBeAppliedToBackground(BackgroundBleedAvoidance, InlineFlowBox*) const override final;
+
+    virtual bool shadowControlsNeedCustomLayoutMetrics() const { return false; }
 
     IntSize imageSizeForError(CachedImage*) const;
     void imageDimensionsChanged(bool imageSizeChanged, const IntRect* = 0);
@@ -112,13 +113,17 @@ private:
     void updateInnerContentRect();
 
     void paintAreaElementFocusRing(PaintInfo&);
+    
+    void layoutShadowControls(const LayoutSize& oldSize);
 
     // Text to display as long as the image isn't available.
     String m_altText;
-    OwnPtr<RenderImageResource> m_imageResource;
+    std::unique_ptr<RenderImageResource> m_imageResource;
     bool m_needsToSetSizeForAltText;
     bool m_didIncrementVisuallyNonEmptyPixelCount;
     bool m_isGeneratedContent;
+    bool m_hasShadowControls;
+    float m_imageDevicePixelRatio;
 
     friend class RenderImageScaleObserver;
 };

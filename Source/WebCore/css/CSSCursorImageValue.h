@@ -55,20 +55,18 @@ public:
     StyleImage* cachedImage(CachedResourceLoader*);
     StyleImage* cachedOrPendingImage(Document&);
 
-#if ENABLE(SVG)
     void removeReferencedElement(SVGElement*);
-#endif
 
     bool equals(const CSSCursorImageValue&) const;
 
 private:
     CSSCursorImageValue(PassRef<CSSValue> imageValue, bool hasHotSpot, const IntPoint& hotSpot);
 
-#if ENABLE(SVG)
+    void detachPendingImage();
+
     bool isSVGCursor() const;
     String cachedImageURL();
     void clearCachedImage();
-#endif
 
     Ref<CSSValue> m_imageValue;
 
@@ -77,9 +75,7 @@ private:
     RefPtr<StyleImage> m_image;
     bool m_accessedImage;
 
-#if ENABLE(SVG)
     HashSet<SVGElement*> m_referencedElements;
-#endif
 };
 
 CSS_VALUE_TYPE_CASTS(CSSCursorImageValue, isCursorImageValue())

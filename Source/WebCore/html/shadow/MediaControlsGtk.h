@@ -13,10 +13,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -42,19 +42,19 @@ public:
     // Called from port-specific parent create function to create custom controls.
     static PassRefPtr<MediaControlsGtk> createControls(Document&);
 
-    virtual void setMediaController(MediaControllerInterface*) OVERRIDE;
-    virtual void reset() OVERRIDE;
-    virtual void playbackStarted() OVERRIDE;
-    void changedMute() OVERRIDE;
-    virtual void updateCurrentTimeDisplay() OVERRIDE;
-    virtual void showVolumeSlider() OVERRIDE;
-    virtual void makeTransparent() OVERRIDE;
-    virtual void toggleClosedCaptionTrackList() OVERRIDE;
+    virtual void setMediaController(MediaControllerInterface*) override;
+    virtual void reset() override;
+    virtual void playbackStarted() override;
+    void changedMute() override;
+    virtual void updateCurrentTimeDisplay() override;
+    virtual void showVolumeSlider() override;
+    virtual void makeTransparent() override;
+    virtual void toggleClosedCaptionTrackList() override;
 
     void handleClickEvent(Event*);
 
 #if ENABLE(VIDEO_TRACK)
-    void createTextTrackDisplay() OVERRIDE;
+    void createTextTrackDisplay() override;
 #endif
 
 protected:

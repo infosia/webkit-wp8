@@ -23,6 +23,7 @@
 #import "config.h"
 #import "Font.h"
 
+#import "DashArray.h"
 #import "GlyphBuffer.h"
 #import "GraphicsContext.h"
 #import "Logging.h"
@@ -123,12 +124,12 @@ static void showLetterpressedGlyphsWithAdvances(const FloatPoint& point, const S
 
     [catalog drawGlyphs:glyphs atPositions:positions.data() inContext:context withFont:ctFont count:count stylePresetName:@"_UIKitNewLetterpressStyle" styleConfiguration:styleConfiguration foregroundColor:CGContextGetFillColorAsColor(context)];
 #else
-UNUSED_PARAM(point);
-UNUSED_PARAM(font);
-UNUSED_PARAM(context);
-UNUSED_PARAM(glyphs);
-UNUSED_PARAM(advances);
-UNUSED_PARAM(count);
+    UNUSED_PARAM(point);
+    UNUSED_PARAM(font);
+    UNUSED_PARAM(context);
+    UNUSED_PARAM(glyphs);
+    UNUSED_PARAM(advances);
+    UNUSED_PARAM(count);
 #endif
 }
 
@@ -178,7 +179,7 @@ static void showGlyphsWithAdvances(const FloatPoint& point, const SimpleFontData
     }
 }
 
-void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, const GlyphBuffer& glyphBuffer, int from, int numGlyphs, const FloatPoint& point) const
+void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, const GlyphBuffer& glyphBuffer, int from, int numGlyphs, const FloatPoint& anchorPoint) const
 {
     const FontPlatformData& platformData = font->platformData();
     if (!platformData.size())
@@ -220,11 +221,13 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
         changeFontSmoothing = true;
     }
 
+#if !PLATFORM(IOS)
     bool originalShouldUseFontSmoothing = false;
     if (changeFontSmoothing) {
         originalShouldUseFontSmoothing = wkCGContextGetShouldSmoothFonts(cgContext);
         CGContextSetShouldSmoothFonts(cgContext, shouldSmoothFonts);
     }
+#endif
 
 #if !PLATFORM(IOS)
     NSFont* drawFont;
@@ -245,9 +248,38 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
     CGContextSetFont(cgContext, platformData.cgFont());
 
     bool useLetterpressEffect = shouldUseLetterpressEffect(*context);
+    FloatPoint point = anchorPoint;
 #if PLATFORM(IOS)
     float fontSize = platformData.size();
     CGAffineTransform matrix = useLetterpressEffect || platformData.isColorBitmapFont() ? CGAffineTransformIdentity : CGAffineTransformMakeScale(fontSize, fontSize);
+    if (platformData.m_isEmoji) {
+        if (!context->emojiDrawingEnabled())
+            return;
+
+        // Mimic the positioining of non-bitmap glyphs, which are not subpixel-positioned.
+        point.setY(ceilf(point.y()));
+
+        // Emoji glyphs snap to the CSS pixel grid.
+        point.setX(floorf(point.x()));
+
+        // Emoji glyphs are offset one CSS pixel to the right.
+        point.move(1, 0);
+
+        // Emoji glyphs are offset vertically based on font size.
+        float y = point.y();
+        if (fontSize <= 15) {
+            // Undo Core Text's y adjustment.
+            static float yAdjustmentFactor = iosExecutableWasLinkedOnOrAfterVersion(wkIOSSystemVersion_6_0) ? .19 : .1;
+            point.setY(floorf(y - yAdjustmentFactor * (fontSize + 2) + 2));
+        } else {
+            if (fontSize < 26)
+                y -= .35f * fontSize - 10;
+
+            // Undo Core Text's y adjustment.
+            static float yAdjustment = iosExecutableWasLinkedOnOrAfterVersion(wkIOSSystemVersion_6_0) ? 3.8 : 2;
+            point.setY(floorf(y - yAdjustment));
+        }
+    }
 #else
     CGAffineTransform matrix = CGAffineTransformIdentity;
     if (drawFont && !platformData.isColorBitmapFont())
@@ -255,7 +287,7 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
 #endif
     matrix.b = -matrix.b;
     matrix.d = -matrix.d;
-    if (platformData.m_syntheticOblique && !useLetterpressEffect) {
+    if (platformData.m_syntheticOblique) {
         static float obliqueSkew = tanf(SYNTHETIC_OBLIQUE_ANGLE * piFloat / 180);
         if (platformData.orientation() == Vertical)
             matrix = CGAffineTransformConcat(matrix, CGAffineTransformMake(1, obliqueSkew, 0, 1, 0, 0));
@@ -302,7 +334,11 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
         // If shadows are ignoring transforms, then we haven't applied the Y coordinate flip yet, so down is negative.
         float shadowTextY = point.y() + shadowOffset.height() * (context->shadowsIgnoreTransforms() ? -1 : 1);
         showGlyphsWithAdvances(FloatPoint(shadowTextX, shadowTextY), font, cgContext, glyphBuffer.glyphs(from), static_cast<const CGSize*>(glyphBuffer.advances(from)), numGlyphs);
+#if !PLATFORM(IOS)
         if (syntheticBoldOffset)
+#else
+        if (syntheticBoldOffset && !platformData.m_isEmoji)
+#endif
             showGlyphsWithAdvances(FloatPoint(shadowTextX + syntheticBoldOffset, shadowTextY), font, cgContext, glyphBuffer.glyphs(from), static_cast<const CGSize*>(glyphBuffer.advances(from)), numGlyphs);
         context->setFillColor(fillColor, fillColorSpace);
     }
@@ -311,7 +347,11 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
         showLetterpressedGlyphsWithAdvances(point, font, cgContext, glyphBuffer.glyphs(from), static_cast<const CGSize*>(glyphBuffer.advances(from)), numGlyphs);
     else
         showGlyphsWithAdvances(point, font, cgContext, glyphBuffer.glyphs(from), static_cast<const CGSize*>(glyphBuffer.advances(from)), numGlyphs);
+#if !PLATFORM(IOS)
     if (syntheticBoldOffset)
+#else
+    if (syntheticBoldOffset && !platformData.m_isEmoji)
+#endif
         showGlyphsWithAdvances(FloatPoint(point.x() + syntheticBoldOffset, point.y()), font, cgContext, glyphBuffer.glyphs(from), static_cast<const CGSize*>(glyphBuffer.advances(from)), numGlyphs);
 
     if (hasSimpleShadow)
@@ -322,5 +362,177 @@ void Font::drawGlyphs(GraphicsContext* context, const SimpleFontData* font, cons
         CGContextSetShouldSmoothFonts(cgContext, originalShouldUseFontSmoothing);
 #endif
 }
+
+#if ENABLE(CSS3_TEXT_DECORATION_SKIP_INK)
+struct GlyphIterationState {
+    GlyphIterationState(CGPoint startingPoint, CGPoint currentPoint, CGFloat y1, CGFloat y2, CGFloat minX, CGFloat maxX)
+        : startingPoint(startingPoint)
+        , currentPoint(currentPoint)
+        , y1(y1)
+        , y2(y2)
+        , minX(minX)
+        , maxX(maxX)
+    {
+    }
+    CGPoint startingPoint;
+    CGPoint currentPoint;
+    CGFloat y1;
+    CGFloat y2;
+    CGFloat minX;
+    CGFloat maxX;
+};
+
+static bool findIntersectionPoint(float y, CGPoint p1, CGPoint p2, CGFloat& x)
+{
+    x = p1.x + (y - p1.y) * (p2.x - p1.x) / (p2.y - p1.y);
+    return (p1.y < y && p2.y > y) || (p1.y > y && p2.y < y);
+}
+
+static void updateX(GlyphIterationState& state, CGFloat x)
+{
+    state.minX = std::min(state.minX, x);
+    state.maxX = std::max(state.maxX, x);
+}
+
+// This function is called by CGPathApply and is therefore invoked for each
+// contour in a glyph. This function models each contours as a straight line
+// and calculates the intersections between each pseudo-contour and
+// two horizontal lines (the upper and lower bounds of an underline) found in
+// GlyphIterationState::y1 and GlyphIterationState::y2. It keeps track of the
+// leftmost and rightmost intersection in GlyphIterationState::minX and
+// GlyphIterationState::maxX.
+static void findPathIntersections(void* stateAsVoidPointer, const CGPathElement* e)
+{
+    auto& state = *static_cast<GlyphIterationState*>(stateAsVoidPointer);
+    bool doIntersection = false;
+    CGPoint point = CGPointZero;
+    switch (e->type) {
+    case kCGPathElementMoveToPoint:
+        state.startingPoint = e->points[0];
+        state.currentPoint = e->points[0];
+        break;
+    case kCGPathElementAddLineToPoint:
+        doIntersection = true;
+        point = e->points[0];
+        break;
+    case kCGPathElementAddQuadCurveToPoint:
+        doIntersection = true;
+        point = e->points[1];
+        break;
+    case kCGPathElementAddCurveToPoint:
+        doIntersection = true;
+        point = e->points[2];
+        break;
+    case kCGPathElementCloseSubpath:
+        doIntersection = true;
+        point = state.startingPoint;
+        break;
+    }
+    if (!doIntersection)
+        return;
+    CGFloat x;
+    if (findIntersectionPoint(state.y1, state.currentPoint, point, x))
+        updateX(state, x);
+    if (findIntersectionPoint(state.y2, state.currentPoint, point, x))
+        updateX(state, x);
+    if ((state.currentPoint.y >= state.y1 && state.currentPoint.y <= state.y2)
+        || (state.currentPoint.y <= state.y1 && state.currentPoint.y >= state.y2))
+        updateX(state, state.currentPoint.x);
+    state.currentPoint = point;
+}
+
+class MacGlyphToPathTranslator final : public GlyphToPathTranslator {
+public:
+    MacGlyphToPathTranslator(const GlyphBuffer& glyphBuffer, const FloatPoint& textOrigin)
+        : m_index(0)
+        , m_glyphBuffer(glyphBuffer)
+        , m_fontData(glyphBuffer.fontDataAt(m_index))
+        , m_translation(CGAffineTransformScale(CGAffineTransformMakeTranslation(textOrigin.x(), textOrigin.y()), 1, -1))
+    {
+        moveToNextValidGlyph();
+    }
+private:
+    virtual bool containsMorePaths() override
+    {
+        return m_index != m_glyphBuffer.size();
+    }
+    virtual Path nextPath() override;
+    void moveToNextValidGlyph();
+    void incrementIndex();
+
+    int m_index;
+    const GlyphBuffer& m_glyphBuffer;
+    const SimpleFontData* m_fontData;
+    CGAffineTransform m_translation;
+};
+
+Path MacGlyphToPathTranslator::nextPath()
+{
+    RetainPtr<CGPathRef> result = adoptCF(CTFontCreatePathForGlyph(m_fontData->platformData().ctFont(), m_glyphBuffer.glyphAt(m_index), &m_translation));
+    incrementIndex();
+    return adoptCF(CGPathCreateMutableCopy(result.get()));
+}
+
+void MacGlyphToPathTranslator::moveToNextValidGlyph()
+{
+    if (!m_fontData->isSVGFont())
+        return;
+    incrementIndex();
+}
+
+void MacGlyphToPathTranslator::incrementIndex()
+{
+    do {
+        GlyphBufferAdvance advance = m_glyphBuffer.advanceAt(m_index);
+        m_translation = CGAffineTransformTranslate(m_translation, advance.width(), advance.height());
+        ++m_index;
+        if (m_index >= m_glyphBuffer.size())
+            break;
+        m_fontData = m_glyphBuffer.fontDataAt(m_index);
+    } while (m_fontData->isSVGFont() && m_index < m_glyphBuffer.size());
+}
+
+DashArray Font::dashesForIntersectionsWithRect(const TextRun& run, const FloatPoint& textOrigin, const FloatRect& lineExtents) const
+{
+    if (loadingCustomFonts())
+        return DashArray();
+
+    GlyphBuffer glyphBuffer;
+    float deltaX;
+    if (codePath(run) != Font::Complex)
+        deltaX = getGlyphsAndAdvancesForSimpleText(run, 0, run.length(), glyphBuffer);
+    else
+        deltaX = getGlyphsAndAdvancesForComplexText(run, 0, run.length(), glyphBuffer);
+
+    if (!glyphBuffer.size())
+        return DashArray();
+    
+    // FIXME: Handle SVG + non-SVG interleaved runs
+    const SimpleFontData* fontData = glyphBuffer.fontDataAt(0);
+    std::unique_ptr<GlyphToPathTranslator> translator;
+    bool isSVG = false;
+    FloatPoint origin = FloatPoint(textOrigin.x() + deltaX, textOrigin.y());
+    if (!fontData->isSVGFont())
+        translator = std::move(std::make_unique<MacGlyphToPathTranslator>(glyphBuffer, origin));
+    else {
+        translator = std::move(run.renderingContext()->createGlyphToPathTranslator(*fontData, glyphBuffer, 0, run.length(), origin));
+        isSVG = true;
+    }
+    DashArray result;
+    for (int index = 0; translator->containsMorePaths(); ++index) {
+        GlyphIterationState info = GlyphIterationState(CGPointMake(0, 0), CGPointMake(0, 0), lineExtents.y(), lineExtents.y() + lineExtents.height(), lineExtents.x() + lineExtents.width(), lineExtents.x());
+        const SimpleFontData* localFontData = glyphBuffer.fontDataAt(index);
+        if (!localFontData || (!isSVG && localFontData->isSVGFont()) || (isSVG && localFontData != fontData))
+            break; // The advances will get all messed up if we do anything other than bail here.
+        Path path = translator->nextPath();
+        CGPathApply(path.platformPath(), &info, &findPathIntersections);
+        if (info.minX < info.maxX) {
+            result.append(info.minX - lineExtents.x());
+            result.append(info.maxX - lineExtents.x());
+        }
+    }
+    return result;
+}
+#endif
 
 }

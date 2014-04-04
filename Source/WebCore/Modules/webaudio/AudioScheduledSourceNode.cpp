@@ -35,6 +35,10 @@
 #include <algorithm>
 #include <wtf/MathExtras.h>
 
+#if PLATFORM(IOS)
+#include "ScriptController.h"
+#endif
+
 namespace WebCore {
 
 const double AudioScheduledSourceNode::UnknownTime = -1;
@@ -152,7 +156,7 @@ void AudioScheduledSourceNode::start(double when, ExceptionCode& ec)
 void AudioScheduledSourceNode::stop(double when, ExceptionCode& ec)
 {
     ASSERT(isMainThread());
-    if (!(m_playbackState == SCHEDULED_STATE || m_playbackState == PLAYING_STATE) || (m_endTime != UnknownTime)) {
+    if ((m_playbackState == UNSCHEDULED_STATE) || (m_endTime != UnknownTime)) {
         ec = INVALID_STATE_ERR;
         return;
     }

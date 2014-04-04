@@ -63,15 +63,15 @@ class ThreadableLoader;
 
 typedef int ExceptionCode;
 
-class Notification FINAL : public RefCounted<Notification>, public ActiveDOMObject, public EventTargetWithInlineData {
+class Notification final : public RefCounted<Notification>, public ActiveDOMObject, public EventTargetWithInlineData {
     WTF_MAKE_FAST_ALLOCATED;
 public:
     Notification();
 #if ENABLE(LEGACY_NOTIFICATIONS)
-    static PassRefPtr<Notification> create(const String& title, const String& body, const String& iconURI, ScriptExecutionContext*, ExceptionCode&, PassRefPtr<NotificationCenter> provider);
+    static PassRef<Notification> create(const String& title, const String& body, const String& iconURI, ScriptExecutionContext*, ExceptionCode&, PassRefPtr<NotificationCenter> provider);
 #endif
 #if ENABLE(NOTIFICATIONS)
-    static PassRefPtr<Notification> create(ScriptExecutionContext&, const String& title, const Dictionary& options);
+    static PassRef<Notification> create(ScriptExecutionContext&, const String& title, const Dictionary& options);
 #endif
     
     virtual ~Notification();
@@ -122,8 +122,8 @@ public:
     using RefCounted<Notification>::deref;
 
     // EventTarget interface
-    virtual EventTargetInterface eventTargetInterface() const OVERRIDE { return NotificationEventTargetInterfaceType; }
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE { return ActiveDOMObject::scriptExecutionContext(); }
+    virtual EventTargetInterface eventTargetInterface() const override { return NotificationEventTargetInterfaceType; }
+    virtual ScriptExecutionContext* scriptExecutionContext() const override { return ActiveDOMObject::scriptExecutionContext(); }
 
     void stopLoadingIcon();
 
@@ -149,17 +149,17 @@ private:
     void setBody(const String& body) { m_body = body; }
 
     // ActiveDOMObject interface
-    virtual void contextDestroyed() OVERRIDE;
+    virtual void contextDestroyed() override;
 
     // EventTarget interface
-    virtual void refEventTarget() OVERRIDE { ref(); }
-    virtual void derefEventTarget() OVERRIDE { deref(); }
+    virtual void refEventTarget() override { ref(); }
+    virtual void derefEventTarget() override { deref(); }
 
     void startLoadingIcon();
     void finishLoadingIcon();
 
 #if ENABLE(NOTIFICATIONS)
-    void taskTimerFired(Timer<Notification>*);
+    void taskTimerFired(Timer<Notification>&);
 #endif
 
     // Text notifications.

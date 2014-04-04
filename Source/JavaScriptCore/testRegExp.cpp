@@ -21,11 +21,10 @@
 #include "config.h"
 #include "RegExp.h"
 
-#include "APIShims.h"
 #include <wtf/CurrentTime.h>
 #include "InitializeThreading.h"
+#include "JSCInlines.h"
 #include "JSGlobalObject.h"
-#include "Operations.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -147,7 +146,7 @@ GlobalObject::GlobalObject(VM& vm, Structure* structure, const Vector<String>& a
 // be in a separate main function because the realMain function requires object
 // unwinding.
 
-#if COMPILER(MSVC) && !COMPILER(INTEL) && !defined(_DEBUG) && !OS(WINCE)
+#if COMPILER(MSVC) && !defined(_DEBUG) && !OS(WINCE)
 #define TRY       __try {
 #define EXCEPT(x) } __except (EXCEPTION_EXECUTE_HANDLER) { x; }
 #else
@@ -490,7 +489,7 @@ static void parseArguments(int argc, char** argv, CommandLine& options)
 int realMain(int argc, char** argv)
 {
     VM* vm = VM::create(LargeHeap).leakRef();
-    APIEntryShim shim(vm);
+    JSLockHolder locker(vm);
 
     CommandLine options;
     parseArguments(argc, argv, options);

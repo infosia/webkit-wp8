@@ -36,6 +36,7 @@ class CachedResourceLoader;
 class Document;
 class StyleCachedImageSet;
 class StyleImage;
+struct ResourceLoaderOptions;
 
 class CSSImageSetValue : public CSSValueList {
 public:
@@ -46,6 +47,7 @@ public:
     }
     ~CSSImageSetValue();
 
+    StyleCachedImageSet* cachedImageSet(CachedResourceLoader*, const ResourceLoaderOptions&);
     StyleCachedImageSet* cachedImageSet(CachedResourceLoader*);
 
     // Returns a StyleCachedImageSet if the best fit image has been cached already, otherwise a StylePendingImage.
@@ -71,6 +73,7 @@ private:
     CSSImageSetValue();
     CSSImageSetValue(const CSSImageSetValue& cloneFrom);
 
+    void detachPendingImage();
     void fillImageSet();
     static inline bool compareByScaleFactor(ImageWithScale first, ImageWithScale second) { return first.scaleFactor < second.scaleFactor; }
 

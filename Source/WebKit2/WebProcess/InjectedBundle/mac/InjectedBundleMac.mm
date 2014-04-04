@@ -26,10 +26,13 @@
 #import "config.h"
 #import "InjectedBundle.h"
 
+#import "APIData.h"
 #import "ObjCObjectGraph.h"
 #import "WKBundleAPICast.h"
 #import "WKBundleInitialize.h"
+#import "WKWebProcessBundleParameters.h"
 #import "WKWebProcessPlugInInternal.h"
+#import "WebProcessCreationParameters.h"
 #import <Foundation/NSBundle.h>
 #import <stdio.h>
 #import <wtf/RetainPtr.h>
@@ -41,6 +44,12 @@ using namespace WebCore;
 @interface NSBundle (WKAppDetails)
 - (CFBundleRef)_cfBundle;
 @end
+
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED == 1080
+@interface NSKeyedUnarchiver (WKDetails)
+- (void)setRequiresSecureCoding:(BOOL)b;
+@end
+#endif
 
 namespace WebKit {
 
@@ -55,7 +64,7 @@ bool InjectedBundle::load(API::Object* initializationUserData)
         m_sandboxExtension = 0;
     }
     
-    RetainPtr<CFStringRef> injectedBundlePathStr = adoptCF(CFStringCreateWithCharacters(0, reinterpret_cast<const UniChar*>(m_path.characters()), m_path.length()));
+    RetainPtr<CFStringRef> injectedBundlePathStr = m_path.createCFString();
     if (!injectedBundlePathStr) {
         WTFLogAlways("InjectedBundle::load failed - Could not create the path string.\n");
         return false;
@@ -122,6 +131,58 @@ bool InjectedBundle::load(API::Object* initializationUserData)
 
 void InjectedBundle::activateMacFontAscentHack()
 {
+}
+
+
+#if WK_API_ENABLED
+WKWebProcessBundleParameters *InjectedBundle::bundleParameters()
+{
+    ASSERT(m_bundleParameters);
+
+    return m_bundleParameters.get();
+}
+#endif
+
+void InjectedBundle::setBundleParameter(const String& key, const IPC::DataReference& value)
+{
+#if WK_API_ENABLED
+    auto bundleParameterData = adoptNS([[NSData alloc] initWithBytesNoCopy:const_cast<void*>(static_cast<const void*>(value.data())) length:value.size() freeWhenDone:NO]);
+
+    auto unarchiver = adoptNS([[NSKeyedUnarchiver alloc] initForReadingWithData:bundleParameterData.get()]);
+    [unarchiver setRequiresSecureCoding:YES];
+
+    id parameter = nil;
+    @try {
+        parameter = [unarchiver decodeObjectForKey:@"parameter"];
+    } @catch (NSException *exception) {
+        LOG_ERROR("Failed to decode bundle parameter: %@", exception);
+    }
+
+    [m_bundleParameters setParameter:parameter forKey:key];
+#endif
+}
+
+
+void InjectedBundle::platformInitialize(const WebProcessCreationParameters& parameters)
+{
+#if WK_API_ENABLED
+    if (!parameters.bundleParameterData)
+        return;
+
+    auto bundleParameterData = adoptNS([[NSData alloc] initWithBytesNoCopy:const_cast<void*>(static_cast<const void*>(parameters.bundleParameterData->bytes())) length:parameters.bundleParameterData->size() freeWhenDone:NO]);
+
+    auto unarchiver = adoptNS([[NSKeyedUnarchiver alloc] initForReadingWithData:bundleParameterData.get()]);
+    [unarchiver setRequiresSecureCoding:YES];
+
+    NSDictionary *dictionary = nil;
+    @try {
+        dictionary = [unarchiver.get() decodeObjectOfClass:[NSDictionary class] forKey:@"parameters"];
+    } @catch (NSException *exception) {
+        LOG_ERROR("Failed to decode bundle parameters: %@", exception);
+    }
+
+    m_bundleParameters = adoptNS([[WKWebProcessBundleParameters alloc] initWithDictionary:dictionary]);
+#endif
 }
 
 } // namespace WebKit

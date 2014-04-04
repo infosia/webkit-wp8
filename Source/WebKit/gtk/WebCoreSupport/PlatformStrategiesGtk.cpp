@@ -30,8 +30,8 @@ using namespace WebCore;
 
 void PlatformStrategiesGtk::initialize()
 {
-    DEFINE_STATIC_LOCAL(PlatformStrategiesGtk, platformStrategies, ());
-    setPlatformStrategies(&platformStrategies);
+    static NeverDestroyed<PlatformStrategiesGtk> platformStrategies;
+    setPlatformStrategies(&platformStrategies.get());
 }
 
 PlatformStrategiesGtk::PlatformStrategiesGtk()
@@ -75,11 +75,6 @@ StorageStrategy* PlatformStrategiesGtk::createStorageStrategy()
     return this;
 }
 
-VisitedLinkStrategy* PlatformStrategiesGtk::createVisitedLinkStrategy()
-{
-    return this;
-}
-
 // CookiesStrategy
 String PlatformStrategiesGtk::cookiesForDOM(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
@@ -117,7 +112,7 @@ void PlatformStrategiesGtk::refreshPlugins()
     PluginDatabase::installedPlugins()->refresh();
 }
 
-void PlatformStrategiesGtk::getPluginInfo(const Page* page, Vector<PluginInfo>& outPlugins)
+void PlatformStrategiesGtk::getPluginInfo(const Page*, Vector<PluginInfo>& outPlugins)
 {
     PluginDatabase* database = PluginDatabase::installedPlugins();
     const Vector<PluginPackage*> &plugins = database->plugins();
@@ -142,15 +137,4 @@ void PlatformStrategiesGtk::getPluginInfo(const Page* page, Vector<PluginInfo>& 
 
         outPlugins.append(pluginInfo);
     }
-}
-
-// VisitedLinkStrategy
-bool PlatformStrategiesGtk::isLinkVisited(Page* page, LinkHash hash, const URL&, const AtomicString&)
-{
-    return page->group().isLinkVisited(hash);
-}
-
-void PlatformStrategiesGtk::addVisitedLink(Page* page, LinkHash hash)
-{
-    page->group().addVisitedLinkHash(hash);
 }

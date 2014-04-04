@@ -24,6 +24,7 @@
 #include "config.h"
 #include "ewk_frame.h"
 
+#include "BackForwardController.h"
 #include "DocumentLoader.h"
 #include "DocumentMarkerController.h"
 #include "Editor.h"
@@ -53,7 +54,6 @@
 #include "ProgressTracker.h"
 #include "ResourceRequest.h"
 #include "ScriptController.h"
-#include "ScriptValue.h"
 #include "SharedBuffer.h"
 #include "SubstituteData.h"
 #include "WindowsKeyboardCodes.h"
@@ -65,6 +65,7 @@
 #include <Ecore_Input.h>
 #include <Eina.h>
 #include <Evas.h>
+#include <bindings/ScriptValue.h>
 #include <eina_safety_checks.h>
 #include <wtf/Assertions.h>
 #include <wtf/PassRefPtr.h>
@@ -613,9 +614,9 @@ Eina_Bool ewk_frame_navigate(Evas_Object* ewkFrame, int steps)
     EWK_FRAME_SD_GET_OR_RETURN(ewkFrame, smartData, false);
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame, false);
     WebCore::Page* page = smartData->frame->page();
-    if (!page->canGoBackOrForward(steps))
+    if (!page->backForward().canGoBackOrForward(steps))
         return false;
-    page->goBackOrForward(steps);
+    page->backForward().goBackOrForward(steps);
     return true;
 }
 
@@ -634,7 +635,7 @@ Eina_Bool ewk_frame_navigate_possible(Evas_Object* ewkFrame, int steps)
     EWK_FRAME_SD_GET_OR_RETURN(ewkFrame, smartData, false);
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame, false);
     WebCore::Page* page = smartData->frame->page();
-    return page->canGoBackOrForward(steps);
+    return page->backForward().canGoBackOrForward(steps);
 }
 
 float ewk_frame_page_zoom_get(const Evas_Object* ewkFrame)
@@ -818,7 +819,7 @@ Eina_Bool ewk_frame_visible_content_geometry_get(const Evas_Object* ewkFrame, Ei
     EWK_FRAME_SD_GET_OR_RETURN(ewkFrame, smartData, false);
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame, false);
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame->view(), false);
-    WebCore::IntRect rect = smartData->frame->view()->visibleContentRect(includeScrollbars ? WebCore::ScrollableArea::IncludeScrollbars : WebCore::ScrollableArea::ExcludeScrollbars);
+    WebCore::IntRect rect = includeScrollbars ? smartData->frame->view()->visibleContentRectIncludingScrollbars() : smartData->frame->view()->visibleContentRect();
     if (x)
         *x = rect.x();
     if (y)
@@ -1072,9 +1073,19 @@ Ewk_Text_Selection_Type ewk_frame_text_selection_type_get(const Evas_Object* ewk
     EWK_FRAME_SD_GET_OR_RETURN(ewkFrame, smartData, EWK_TEXT_SELECTION_NONE);
     EINA_SAFETY_ON_NULL_RETURN_VAL(smartData->frame, EWK_TEXT_SELECTION_NONE);
 
-    WebCore::FrameSelection& controller = smartData->frame->selection();
+    const WebCore::VisibleSelection& selection = smartData->frame->selection().selection();
 
-    return static_cast<Ewk_Text_Selection_Type>(controller.selectionType());
+    switch (selection.selectionType()) {
+    case WebCore::VisibleSelection::NoSelection:
+        return EWK_TEXT_SELECTION_NONE;
+    case WebCore::VisibleSelection::CaretSelection:
+        return EWK_TEXT_SELECTION_CARET;
+    case WebCore::VisibleSelection::RangeSelection:
+        return EWK_TEXT_SELECTION_RANGE;
+    }
+    ASSERT_NOT_REACHED();
+
+    return EWK_TEXT_SELECTION_NONE;
 }
 
 /* internal methods ****************************************************/
@@ -1272,19 +1283,6 @@ void ewk_frame_request_assign_identifier(Evas_Object* ewkFrame, const Ewk_Frame_
 void ewk_frame_response_received(Evas_Object* ewkFrame, Ewk_Frame_Resource_Response* response)
 {
     evas_object_smart_callback_call(ewkFrame, "resource,response,received", response);
-}
-
-/**
- * @internal
- * Reports that first navigation occurred
- *
- * @param ewkFrame Frame.
- *
- * Emits signal: "navigation,first"
- */
-void ewk_frame_did_perform_first_navigation(Evas_Object* ewkFrame)
-{
-    evas_object_smart_callback_call(ewkFrame, "navigation,first", 0);
 }
 
 /**

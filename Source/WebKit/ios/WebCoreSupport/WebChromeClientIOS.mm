@@ -33,6 +33,7 @@
 #import "WebFixedPositionContent.h"
 #import "WebFixedPositionContentInternal.h"
 #import "WebFormDelegate.h"
+#import "WebFrameIOS.h"
 #import "WebFrameInternal.h"
 #import "WebKitSystemInterface.h"
 #import "WebOpenPanelResultListener.h"
@@ -59,6 +60,10 @@
 #import <WebCore/ScrollingConstraints.h>
 #import <WebCore/WAKWindow.h>
 #import <WebCore/WebCoreThreadMessage.h>
+
+#if PLATFORM(IOS)
+#include "WebKitSystemInterface.h"
+#endif
 
 using namespace WebCore;
 
@@ -124,16 +129,17 @@ void WebChromeClientIOS::runOpenPanel(Frame*, PassRefPtr<FileChooser> chooser)
     [listener release];
 }
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(IOS_TOUCH_EVENTS)
 void WebChromeClientIOS::didPreventDefaultForEvent()
 {
     [[webView() _UIKitDelegateForwarder] webViewDidPreventDefaultForEvent:webView()];
 }
 #endif
 
-void WebChromeClientIOS::didReceiveMobileDocType()
+void WebChromeClientIOS::didReceiveMobileDocType(bool isMobileDoctype)
 {
-    [[webView() _UIKitDelegateForwarder] webViewDidReceiveMobileDocType:webView() ];
+    if (isMobileDoctype)
+        [[webView() _UIKitDelegateForwarder] webViewDidReceiveMobileDocType:webView()];
 }
 
 void WebChromeClientIOS::setNeedsScrollNotifications(WebCore::Frame* frame, bool flag)
@@ -162,7 +168,13 @@ static inline NSDictionary* dictionaryForViewportArguments(const WebCore::Viewpo
               @"maximum-scale":@(arguments.maxZoom),
               @"user-scalable":@(arguments.userZoom),
               @"width":@(arguments.width),
-              @"height":@(arguments.height) };
+              @"height":@(arguments.height),
+              @"minimal-ui":@(arguments.minimalUI) };
+}
+
+FloatSize WebChromeClientIOS::viewportScreenSize() const
+{
+    return FloatSize(WKGetViewportScreenSize());
 }
 
 void WebChromeClientIOS::dispatchViewportPropertiesDidChange(const WebCore::ViewportArguments& arguments) const
@@ -240,7 +252,6 @@ PassRefPtr<WebCore::SearchPopupMenu> WebChromeClientIOS::createSearchPopupMenu(W
     return adoptRef(new SearchPopupMenuIOS(client));
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void WebChromeClientIOS::attachRootGraphicsLayer(Frame*, GraphicsLayer* graphicsLayer)
 {
     // FIXME: for non-root frames we rely on RenderView positioning the root layer,
@@ -248,7 +259,6 @@ void WebChromeClientIOS::attachRootGraphicsLayer(Frame*, GraphicsLayer* graphics
     // Send the delegate message on the web thread to avoid <rdar://problem/8567677>
     [[webView() _UIKitDelegate] _webthread_webView:webView() attachRootLayer:graphicsLayer ? graphicsLayer->platformLayer() : 0];
 }
-#endif
 
 void WebChromeClientIOS::didFlushCompositingLayers()
 {
@@ -266,7 +276,7 @@ bool WebChromeClientIOS::fetchCustomFixedPositionLayoutRect(IntRect& rect)
     return false;
 }
 
-void WebChromeClientIOS::updateViewportConstrainedLayers(HashMap<PlatformLayer*, OwnPtr<ViewportConstraints> >& layerMap, HashMap<PlatformLayer*, PlatformLayer*>& stickyContainers)
+void WebChromeClientIOS::updateViewportConstrainedLayers(HashMap<PlatformLayer*, std::unique_ptr<ViewportConstraints>>& layerMap, HashMap<PlatformLayer*, PlatformLayer*>& stickyContainers)
 {
     [[webView() _fixedPositionContent] setViewportConstrainedLayers:layerMap stickyContainerMap:stickyContainers];
 }
@@ -302,6 +312,13 @@ void WebChromeClientIOS::focusedElementChanged(Element* element)
         return;
 
     CallFormDelegate(webView(), @selector(didFocusTextField:inFrame:), kit(inputElement), kit(inputElement->document().frame()));
+}
+
+void WebChromeClientIOS::showPlaybackTargetPicker(bool hasVideo)
+{
+    CGPoint point = [[webView() _UIKitDelegateForwarder] interactionLocation];
+    CGRect elementRect = [[webView() mainFrame] elementRectAtPoint:point];
+    [[webView() _UIKitDelegateForwarder] showPlaybackTargetPicker:hasVideo fromRect:elementRect];
 }
 
 #endif // PLATFORM(IOS)

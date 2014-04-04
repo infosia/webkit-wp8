@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -30,13 +30,10 @@
 
 #if OS(UNIX)
 #include <sys/utsname.h>
-#elif OS(WINDOWS)
-#include "SystemInfo.h"
 #endif
 
 namespace WebCore {
 
-#if OS(DARWIN) || OS(UNIX)
 static const char* cpuDescriptionForUAString()
 {
 #if CPU(PPC) || CPU(PPC64)
@@ -49,38 +46,16 @@ static const char* cpuDescriptionForUAString()
     return "Unknown";
 #endif
 }
-#endif
-
-static const char* platformForUAString()
-{
-#if PLATFORM(X11)
-    return "X11";
-#elif OS(WINDOWS)
-    return "";
-#elif PLATFORM(MAC)
-    return "Macintosh";
-#elif defined(GDK_WINDOWING_DIRECTFB)
-    return "DirectFB";
-#else
-    return "Unknown";
-#endif
-}
 
 static String platformVersionForUAString()
 {
-    DEFINE_STATIC_LOCAL(String, uaOSVersion, (String()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, uaOSVersion, (String()));
     if (!uaOSVersion.isEmpty())
         return uaOSVersion;
 
-#if OS(WINDOWS)
-    uaOSVersion = windowsVersionForUAString();
-#elif OS(DARWIN) || OS(UNIX)
     // We will always claim to be Safari in Mac OS X, since Safari in Linux triggers the iOS path on
     // some websites.
     uaOSVersion = String::format("%s Mac OS X", cpuDescriptionForUAString());
-#else
-    uaOSVersion = String("Unknown");
-#endif
     return uaOSVersion;
 }
 
@@ -94,10 +69,10 @@ String standardUserAgent(const String& applicationName, const String& applicatio
     // browsers that are "Safari" but not running on OS X are the Safari iOS browse. Getting this
     // wrong can cause sites to load the wrong JavaScript, CSS, or custom fonts. In some cases
     // sites won't load resources at all.
-    DEFINE_STATIC_LOCAL(const CString, uaVersion, (String::format("%i.%i", USER_AGENT_GTK_MAJOR_VERSION, USER_AGENT_GTK_MINOR_VERSION).utf8()));
-    DEFINE_STATIC_LOCAL(const String, staticUA, (String::format("Mozilla/5.0 (%s; %s) AppleWebKit/%s (KHTML, like Gecko) Safari/%s",
-                                                                platformForUAString(), platformVersionForUAString().utf8().data(),
-                                                                uaVersion.data(), uaVersion.data())));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const CString, uaVersion, (String::format("%i.%i", USER_AGENT_GTK_MAJOR_VERSION, USER_AGENT_GTK_MINOR_VERSION).utf8()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const String, staticUA, (String::format("Mozilla/5.0 (Macintosh; %s) AppleWebKit/%s (KHTML, like Gecko) Safari/%s Version/6.0",
+        platformVersionForUAString().utf8().data(), uaVersion.data(), uaVersion.data())));
+
     if (applicationName.isEmpty())
         return staticUA;
 

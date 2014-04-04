@@ -30,7 +30,7 @@
 #include <WebCore/ResourceRequest.h>
 #include <wtf/Noncopyable.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include <wtf/RetainPtr.h>
 
 OBJC_CLASS NSURLDownload;
@@ -40,13 +40,14 @@ OBJC_CLASS WKDownloadAsDelegate;
 #if PLATFORM(GTK) || PLATFORM(EFL)
 #include <WebCore/ResourceHandle.h>
 #include <WebCore/ResourceHandleClient.h>
+#include <memory>
 #endif
 
 #if USE(CFNETWORK)
 #include <CFNetwork/CFURLDownloadPriv.h>
 #endif
 
-namespace CoreIPC {
+namespace IPC {
     class DataReference;
 }
 
@@ -65,7 +66,7 @@ class DownloadManager;
 class SandboxExtension;
 class WebPage;
 
-class Download : public CoreIPC::MessageSender {
+class Download : public IPC::MessageSender {
     WTF_MAKE_NONCOPYABLE(Download);
 public:
     Download(DownloadManager&, uint64_t downloadID, const WebCore::ResourceRequest&);
@@ -86,8 +87,8 @@ public:
     void didCreateDestination(const String& path);
     void didFinish();
     void platformDidFinish();
-    void didFail(const WebCore::ResourceError&, const CoreIPC::DataReference& resumeData);
-    void didCancel(const CoreIPC::DataReference& resumeData);
+    void didFail(const WebCore::ResourceError&, const IPC::DataReference& resumeData);
+    void didCancel(const IPC::DataReference& resumeData);
     void didDecideDestination(const String&, bool allowOverwrite);
 
 #if USE(CFNETWORK)
@@ -105,9 +106,9 @@ public:
     void cancelAuthenticationChallenge(const WebCore::AuthenticationChallenge&);
 
 private:
-    // CoreIPC::MessageSender
-    virtual CoreIPC::Connection* messageSenderConnection() OVERRIDE;
-    virtual uint64_t messageSenderDestinationID() OVERRIDE;
+    // IPC::MessageSender
+    virtual IPC::Connection* messageSenderConnection() override;
+    virtual uint64_t messageSenderDestinationID() override;
 
     void platformInvalidate();
 
@@ -119,7 +120,7 @@ private:
 
     RefPtr<SandboxExtension> m_sandboxExtension;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<NSURLDownload> m_nsURLDownload;
     RetainPtr<WKDownloadAsDelegate> m_delegate;
 #endif
@@ -131,7 +132,7 @@ private:
     RefPtr<DownloadAuthenticationClient> m_authenticationClient;
 #endif
 #if PLATFORM(GTK) || PLATFORM(EFL)
-    OwnPtr<WebCore::ResourceHandleClient> m_downloadClient;
+    std::unique_ptr<WebCore::ResourceHandleClient> m_downloadClient;
     RefPtr<WebCore::ResourceHandle> m_resourceHandle;
 #endif
 };

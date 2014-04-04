@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -45,16 +45,16 @@ public:
     virtual ~BackForwardList();
 
     Page* page() { return m_page; }
-    
-    virtual void addItem(PassRefPtr<HistoryItem>) OVERRIDE;
+
+    virtual void addItem(PassRefPtr<HistoryItem>) override;
     void goBack();
     void goForward();
-    virtual void goToItem(HistoryItem*) OVERRIDE;
+    virtual void goToItem(HistoryItem*) override;
         
     HistoryItem* backItem();
     HistoryItem* currentItem();
     HistoryItem* forwardItem();
-    virtual HistoryItem* itemAtIndex(int) OVERRIDE;
+    virtual HistoryItem* itemAtIndex(int) override;
 
     void backListWithLimit(int, HistoryItemVector&);
     void forwardListWithLimit(int, HistoryItemVector&);
@@ -63,20 +63,25 @@ public:
     void setCapacity(int);
     bool enabled();
     void setEnabled(bool);
-    virtual int backListCount() OVERRIDE;
-    virtual int forwardListCount() OVERRIDE;
+    virtual int backListCount() override;
+    virtual int forwardListCount() override;
     bool containsItem(HistoryItem*);
 
-    virtual void close() OVERRIDE;
+    virtual void close() override;
     bool closed();
 
     void removeItem(HistoryItem*);
     HistoryItemVector& entries();
 
+#if PLATFORM(IOS)
+    virtual unsigned current() override;
+    virtual void setCurrent(unsigned newCurrent) override;
+
+    virtual bool clearAllPageCaches() override;
+#endif
+
 private:
     explicit BackForwardList(Page*);
-
-    virtual bool isActive() OVERRIDE { return enabled() && capacity(); }
 
     Page* m_page;
     HistoryItemVector m_entries;

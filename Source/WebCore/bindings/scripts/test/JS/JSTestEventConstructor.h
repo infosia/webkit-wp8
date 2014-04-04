@@ -68,8 +68,14 @@ private:
     TestEventConstructor* m_impl;
 protected:
     JSTestEventConstructor(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<TestEventConstructor>);
-    void finishCreation(JSC::VM&);
-    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | Base::StructureFlags;
+
+    void finishCreation(JSC::VM& vm)
+    {
+        Base::finishCreation(vm);
+        ASSERT(inherits(info()));
+    }
+
+    static const unsigned StructureFlags = JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestEventConstructorOwner : public JSC::WeakHandleOwner {
@@ -80,7 +86,7 @@ public:
 
 inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, TestEventConstructor*)
 {
-    DEFINE_STATIC_LOCAL(JSTestEventConstructorOwner, jsTestEventConstructorOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSTestEventConstructorOwner, jsTestEventConstructorOwner, ());
     return &jsTestEventConstructorOwner;
 }
 
@@ -104,6 +110,7 @@ public:
     }
 
     DECLARE_INFO;
+    static bool getOwnPropertySlot(JSC::JSObject*, JSC::ExecState*, JSC::PropertyName, JSC::PropertySlot&);
     static JSC::Structure* createStructure(JSC::VM& vm, JSC::JSGlobalObject* globalObject, JSC::JSValue prototype)
     {
         return JSC::Structure::create(vm, globalObject, prototype, JSC::TypeInfo(JSC::ObjectType, StructureFlags), info());
@@ -112,7 +119,7 @@ public:
 private:
     JSTestEventConstructorPrototype(JSC::VM& vm, JSC::JSGlobalObject*, JSC::Structure* structure) : JSC::JSNonFinalObject(vm, structure) { }
 protected:
-    static const unsigned StructureFlags = Base::StructureFlags;
+    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestEventConstructorConstructor : public DOMConstructorObject {
@@ -145,9 +152,9 @@ bool fillTestEventConstructorInit(TestEventConstructorInit&, JSDictionary&);
 
 // Attributes
 
-JSC::EncodedJSValue jsTestEventConstructorAttr1(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
-JSC::EncodedJSValue jsTestEventConstructorAttr2(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
-JSC::EncodedJSValue jsTestEventConstructorConstructor(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestEventConstructorAttr1(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestEventConstructorAttr2(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestEventConstructorConstructor(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
 
 } // namespace WebCore
 

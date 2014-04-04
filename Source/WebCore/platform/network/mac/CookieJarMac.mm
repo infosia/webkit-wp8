@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,6 +34,14 @@
 #import "URL.h"
 #import "NetworkStorageSession.h"
 #import "WebCoreSystemInterface.h"
+
+enum {
+    NSHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain = 3
+};
+
+@interface NSHTTPCookieStorage (Details)
+- (void)removeCookiesSinceDate:(NSDate *)date;
+@end
 
 namespace WebCore {
 
@@ -61,22 +69,22 @@ static RetainPtr<NSArray> filterCookies(NSArray *unfilteredCookies)
     return filteredCookies;
 }
 
-String cookiesForDOM(const NetworkStorageSession& session, const URL&, const URL& url)
+String cookiesForDOM(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
-    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), url);
+    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), firstParty, url);
     return [[NSHTTPCookie requestHeaderFieldsWithCookies:filterCookies(cookies).get()] objectForKey:@"Cookie"];
 
     END_BLOCK_OBJC_EXCEPTIONS;
     return String();
 }
 
-String cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const URL& /*firstParty*/, const URL& url)
+String cookieRequestHeaderFieldValue(const NetworkStorageSession& session, const URL& firstParty, const URL& url)
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
-    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), url);
+    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), firstParty, url);
     return [[NSHTTPCookie requestHeaderFieldsWithCookies:cookies] objectForKey:@"Cookie"];
 
     END_BLOCK_OBJC_EXCEPTIONS;
@@ -110,18 +118,18 @@ bool cookiesEnabled(const NetworkStorageSession& session, const URL& /*firstPart
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
     NSHTTPCookieAcceptPolicy cookieAcceptPolicy = static_cast<NSHTTPCookieAcceptPolicy>(wkGetHTTPCookieAcceptPolicy(session.cookieStorage().get()));
-    return cookieAcceptPolicy == NSHTTPCookieAcceptPolicyAlways || cookieAcceptPolicy == NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain;
+    return cookieAcceptPolicy == NSHTTPCookieAcceptPolicyAlways || cookieAcceptPolicy == NSHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain || cookieAcceptPolicy == NSHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain;
 
     END_BLOCK_OBJC_EXCEPTIONS;
     return false;
 }
 
-bool getRawCookies(const NetworkStorageSession& session, const URL& /*firstParty*/, const URL& url, Vector<Cookie>& rawCookies)
+bool getRawCookies(const NetworkStorageSession& session, const URL& firstParty, const URL& url, Vector<Cookie>& rawCookies)
 {
     rawCookies.clear();
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
-    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), url);
+    NSArray *cookies = wkHTTPCookiesForURL(session.cookieStorage().get(), firstParty, url);
     NSUInteger count = [cookies count];
     rawCookies.reserveCapacity(count);
     for (NSUInteger i = 0; i < count; ++i) {
@@ -139,9 +147,8 @@ void deleteCookie(const NetworkStorageSession& session, const URL& url, const St
 {
     BEGIN_BLOCK_OBJC_EXCEPTIONS;
 
-    NSURL *cookieURL = url;
     RetainPtr<CFHTTPCookieStorageRef> cookieStorage = session.cookieStorage();
-    NSArray *cookies = wkHTTPCookiesForURL(cookieStorage.get(), cookieURL);
+    NSArray *cookies = wkHTTPCookiesForURL(cookieStorage.get(), 0, url);
 
     NSString *cookieNameString = cookieName;
 
@@ -187,6 +194,15 @@ void deleteCookiesForHostname(const NetworkStorageSession& session, const String
 void deleteAllCookies(const NetworkStorageSession& session)
 {
     wkDeleteAllHTTPCookies(session.cookieStorage().get());
+}
+
+void deleteAllCookiesModifiedAfterDate(const NetworkStorageSession& session, double date)
+{
+    UNUSED_PARAM(session);
+
+    NSHTTPCookieStorage *cookieStorage = [NSHTTPCookieStorage sharedHTTPCookieStorage];
+    if ([cookieStorage respondsToSelector:@selector(removeCookiesSinceDate:)])
+        [cookieStorage removeCookiesSinceDate:[NSDate dateWithTimeIntervalSince1970:date]];
 }
 
 }

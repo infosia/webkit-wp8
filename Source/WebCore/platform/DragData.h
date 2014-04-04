@@ -10,17 +10,17 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef DragData_h
@@ -41,8 +41,7 @@
 #ifdef __OBJC__ 
 #import <Foundation/Foundation.h>
 #import <AppKit/NSDragging.h>
-// Use id instead of id <NSDraggingInfo> here due to clang ABI change. See <rdar://problem/14764114>.
-typedef id DragDataRef;
+typedef id <NSDraggingInfo> DragDataRef;
 #else
 typedef void* DragDataRef;
 #endif
@@ -55,10 +54,9 @@ namespace WebCore {
 class DataObjectGtk;
 }
 typedef WebCore::DataObjectGtk* DragDataRef;
-#elif PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(NIX)
+#elif PLATFORM(EFL) || PLATFORM(IOS)
 typedef void* DragDataRef;
 #endif
-
 
 namespace WebCore {
 
@@ -76,7 +74,7 @@ enum DragApplicationFlags {
 };
 
 #if PLATFORM(WIN)
-typedef HashMap<UINT, Vector<String>> DragDataMap;
+typedef HashMap<unsigned, Vector<String>> DragDataMap;
 #endif
 
 class DragData {

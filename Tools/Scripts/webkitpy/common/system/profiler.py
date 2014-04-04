@@ -148,7 +148,7 @@ class Perf(SingleFileOutputProfiler):
         self._wait_process = self._host.executive.popen(["wait", "%d" % pid], shell=True)
 
     def wrapper_arguments(self):
-        return [self._perf_path(), "record", "--call-graph", "--output", self._output_path]
+        return [self._perf_path(), "record", "-g", "--output", self._output_path]
 
     def _first_ten_lines_of_profile(self, perf_output):
         output_lines = re.finditer(r"^(?:( [^\n]*?)\s*\n)", perf_output, re.MULTILINE)
@@ -214,7 +214,7 @@ class IProfiler(SingleFileOutputProfiler):
         # FIXME: iprofiler requires us to pass the directory separately
         # from the basename of the file, with no control over the extension.
         fs = self._host.filesystem
-        cmd = ["iprofiler", "-timeprofiler", "-a", pid,
+        cmd = ["iprofiler", "-T", "0", "-timeprofiler", "-a", pid,
                 "-d", fs.dirname(self._output_path), "-o", fs.splitext(fs.basename(self._output_path))[0]]
         # FIXME: Consider capturing instead of letting instruments spam to stderr directly.
         self._profiler_process = self._host.executive.popen(cmd)

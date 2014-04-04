@@ -25,8 +25,9 @@
 
 #import <WebKit/WebDocumentPrivate.h>
 
-#if PLATFORM(IOS)
+#if TARGET_OS_IPHONE
 
+@class UIColor;
 @class UIPDFDocument;
 @protocol WebPDFViewPlaceholderDelegate;
 
@@ -162,6 +163,8 @@
  */
 - (CGPDFDocumentRef)cgPDFDocument;
 
+- (void)setBackgroundColor:(UIColor *)backgroundColor;
+
 @end
 
-#endif /* PLATFORM(IOS) */
+#endif /* TARGET_OS_IPHONE */

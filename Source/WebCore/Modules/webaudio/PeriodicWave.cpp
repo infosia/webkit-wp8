@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -36,7 +36,6 @@
 #include "OscillatorNode.h"
 #include "VectorMath.h"
 #include <algorithm>
-#include <wtf/OwnPtr.h>
 
 const unsigned PeriodicWaveSize = 4096; // This must be a power of two.
 const unsigned NumberOfRanges = 36; // There should be 3 * log2(PeriodicWaveSize) 1/3 octave ranges.
@@ -198,8 +197,7 @@ void PeriodicWave::createBandLimitedTables(const float* realData, const float* i
         realP[0] = 0;
 
         // Create the band-limited table.
-        OwnPtr<AudioFloatArray> table = adoptPtr(new AudioFloatArray(m_periodicWaveSize));
-        m_bandLimitedTables.append(table.release());
+        m_bandLimitedTables.append(std::make_unique<AudioFloatArray>(m_periodicWaveSize));
 
         // Apply an inverse FFT to generate the time-domain table data.
         float* data = m_bandLimitedTables[rangeIndex]->data();

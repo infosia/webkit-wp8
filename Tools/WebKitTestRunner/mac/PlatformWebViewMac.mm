@@ -109,6 +109,11 @@ enum {
     NSRect currentFrame = [self frame];
     return NSMakeRect(_fakeOrigin.x, _fakeOrigin.y, currentFrame.size.width, currentFrame.size.height);
 }
+@end
+
+@interface NSWindow (Details)
+
+- (void)_setWindowResolution:(CGFloat)resolution displayIfChanged:(BOOL)displayIfChanged;
 
 @end
 
@@ -119,6 +124,7 @@ PlatformWebView::PlatformWebView(WKContextRef contextRef, WKPageGroupRef pageGro
     , m_options(options)
 {
     WKRetainPtr<WKStringRef> useThreadedScrollingKey(AdoptWK, WKStringCreateWithUTF8CString("ThreadedScrolling"));
+    WKRetainPtr<WKStringRef> useRemoteLayerTreeKey(AdoptWK, WKStringCreateWithUTF8CString("RemoteLayerTree"));
     WKTypeRef useThreadedScrollingValue = options ? WKDictionaryGetItemForKey(options, useThreadedScrollingKey.get()) : NULL;
     bool useThreadedScrolling = useThreadedScrollingValue && WKBooleanGetValue(static_cast<WKBooleanRef>(useThreadedScrollingValue));
 
@@ -126,12 +132,17 @@ PlatformWebView::PlatformWebView(WKContextRef contextRef, WKPageGroupRef pageGro
     WKPreferencesRef preferences = WKPageGroupGetPreferences(pageGroupRef);
     WKPreferencesSetThreadedScrollingEnabled(preferences, useThreadedScrolling);
 
+    // FIXME: Not sure this is the best place for this; maybe we should have API to set this so we can do it from TestController?
+    WKTypeRef useRemoteLayerTreeValue = options ? WKDictionaryGetItemForKey(options, useRemoteLayerTreeKey.get()) : NULL;
+    if (useRemoteLayerTreeValue && WKBooleanGetValue(static_cast<WKBooleanRef>(useRemoteLayerTreeValue)))
+        [[NSUserDefaults standardUserDefaults] setValue:@YES forKey:@"WebKit2UseRemoteLayerTreeDrawingArea"];
+
     NSRect rect = NSMakeRect(0, 0, TestController::viewWidth, TestController::viewHeight);
     m_view = [[TestRunnerWKView alloc] initWithFrame:rect contextRef:contextRef pageGroupRef:pageGroupRef relatedToPage:relatedPage useThreadedScrolling:useThreadedScrolling];
     [m_view setWindowOcclusionDetectionEnabled:NO];
 
     NSRect windowRect = NSOffsetRect(rect, -10000, [(NSScreen *)[[NSScreen screens] objectAtIndex:0] frame].size.height - rect.size.height + 10000);
-    m_window = [[WebKitTestRunnerWindow alloc] initWithContentRect:windowRect styleMask:NSBorderlessWindowMask backing:_NSBackingStoreUnbuffered defer:YES];
+    m_window = [[WebKitTestRunnerWindow alloc] initWithContentRect:windowRect styleMask:NSBorderlessWindowMask backing:(NSBackingStoreType)_NSBackingStoreUnbuffered defer:YES];
     m_window.platformWebView = this;
     [m_window setColorSpace:[[NSScreen mainScreen] colorSpace]];
     [m_window setCollectionBehavior:NSWindowCollectionBehaviorStationary];
@@ -188,9 +199,7 @@ void PlatformWebView::setWindowFrame(WKRect frame)
 void PlatformWebView::didInitializeClients()
 {
     // Set a temporary 1x1 window frame to force a WindowAndViewFramesChanged notification. <rdar://problem/13380145>
-    WKRect wkFrame = windowFrame();
-    [m_window setFrame:NSMakeRect(0, 0, 1, 1) display:YES];
-    setWindowFrame(wkFrame);
+    forceWindowFramesChanged();
 }
 
 void PlatformWebView::addChromeInputField()
@@ -234,6 +243,27 @@ bool PlatformWebView::viewSupportsOptions(WKDictionaryRef options) const
     bool useThreadedScrolling = useThreadedScrollingValue && WKBooleanGetValue(static_cast<WKBooleanRef>(useThreadedScrollingValue));
 
     return useThreadedScrolling == [(TestRunnerWKView *)m_view useThreadedScrolling];
+}
+
+void PlatformWebView::changeWindowScaleIfNeeded(float newScale)
+{
+    CGFloat currentScale = [m_window backingScaleFactor];
+    if (currentScale == newScale)
+        return;
+    [m_window _setWindowResolution:newScale displayIfChanged:YES];
+    // Instead of re-constructing the current window, let's fake resize it to ensure that the scale change gets picked up.
+    forceWindowFramesChanged();
+    // Changing the scaling factor on the window does not trigger NSWindowDidChangeBackingPropertiesNotification. We need to send the notification manually.
+    RetainPtr<NSMutableDictionary> notificationUserInfo = [[NSMutableDictionary alloc] initWithCapacity:1];
+    [notificationUserInfo setObject:[NSNumber numberWithDouble:currentScale] forKey:NSBackingPropertyOldScaleFactorKey];
+    [[NSNotificationCenter defaultCenter] postNotificationName:NSWindowDidChangeBackingPropertiesNotification object:m_window userInfo:notificationUserInfo.get()];
+}
+
+void PlatformWebView::forceWindowFramesChanged()
+{
+    WKRect wkFrame = windowFrame();
+    [m_window setFrame:NSMakeRect(0, 0, 1, 1) display:YES];
+    setWindowFrame(wkFrame);
 }
 
 } // namespace WTR

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,8 +25,6 @@
 
 #ifndef DFGArrayMode_h
 #define DFGArrayMode_h
-
-#include <wtf/Platform.h>
 
 #if ENABLE(DFG_JIT)
 
@@ -110,6 +108,8 @@ IndexingType toIndexingShape(Array::Type);
 TypedArrayType toTypedArrayType(Array::Type);
 Array::Type toArrayType(TypedArrayType);
 
+bool permitsBoundsCheckLowering(Array::Type);
+
 class ArrayMode {
 public:
     ArrayMode()
@@ -171,17 +171,28 @@ public:
         return ArrayMode(type(), arrayClass(), speculation, conversion());
     }
     
-    ArrayMode withProfile(const ConcurrentJITLocker& locker, ArrayProfile* profile, bool makeSafe) const
+    ArrayMode withArrayClass(Array::Class arrayClass) const
+    {
+        return ArrayMode(type(), arrayClass, speculation(), conversion());
+    }
+    
+    ArrayMode withSpeculationFromProfile(const ConcurrentJITLocker& locker, ArrayProfile* profile, bool makeSafe) const
     {
         Array::Speculation mySpeculation;
-        Array::Class myArrayClass;
-        
+
         if (makeSafe)
             mySpeculation = Array::OutOfBounds;
         else if (profile->mayStoreToHole(locker))
             mySpeculation = Array::ToHole;
         else
             mySpeculation = Array::InBounds;
+        
+        return withSpeculation(mySpeculation);
+    }
+    
+    ArrayMode withProfile(const ConcurrentJITLocker& locker, ArrayProfile* profile, bool makeSafe) const
+    {
+        Array::Class myArrayClass;
         
         if (isJSArray()) {
             if (profile->usesOriginalArrayStructures(locker) && benefitsFromOriginalArray())
@@ -191,7 +202,7 @@ public:
         } else
             myArrayClass = arrayClass();
         
-        return ArrayMode(type(), myArrayClass, mySpeculation, conversion());
+        return withArrayClass(myArrayClass).withSpeculationFromProfile(locker, profile, makeSafe);
     }
     
     ArrayMode withType(Array::Type type) const
@@ -209,7 +220,7 @@ public:
         return ArrayMode(type, arrayClass(), speculation(), conversion);
     }
     
-    ArrayMode refine(SpeculatedType base, SpeculatedType index, SpeculatedType value = SpecNone, NodeFlags = 0) const;
+    ArrayMode refine(Graph&, Node*, SpeculatedType base, SpeculatedType index, SpeculatedType value = SpecNone, NodeFlags = 0) const;
     
     bool alreadyChecked(Graph&, Node*, AbstractValue&) const;
     
@@ -292,7 +303,17 @@ public:
     
     bool lengthNeedsStorage() const
     {
-        return isJSArray();
+        switch (type()) {
+        case Array::Undecided:
+        case Array::Int32:
+        case Array::Double:
+        case Array::Contiguous:
+        case Array::ArrayStorage:
+        case Array::SlowPutArrayStorage:
+            return true;
+        default:
+            return false;
+        }
     }
     
     ArrayMode modeForPut() const
@@ -341,6 +362,8 @@ public:
             return true;
         }
     }
+    
+    bool permitsBoundsCheckLowering() const;
     
     bool benefitsFromOriginalArray() const
     {

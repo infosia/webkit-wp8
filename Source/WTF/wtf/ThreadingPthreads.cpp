@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -44,8 +44,6 @@
 #include "ThreadFunctionInvocation.h"
 #include "ThreadIdentifierDataPthreads.h"
 #include "ThreadSpecific.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/WTFThreadData.h>
 #include <errno.h>
 
@@ -98,43 +96,29 @@ private:
 
 typedef HashMap<ThreadIdentifier, std::unique_ptr<PthreadState>> ThreadMap;
 
-static Mutex* atomicallyInitializedStaticMutex;
-
 void unsafeThreadWasDetached(ThreadIdentifier);
 void threadDidExit(ThreadIdentifier);
 void threadWasJoined(ThreadIdentifier);
 
 static Mutex& threadMapMutex()
 {
-    DEFINE_STATIC_LOCAL(Mutex, mutex, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Mutex, mutex, ());
     return mutex;
 }
 
-#if OS(QNX) && CPU(ARM_THUMB2)
-static void enableIEEE754Denormal()
-{
-    // Clear the ARM_VFP_FPSCR_FZ flag in FPSCR.
-    unsigned fpscr;
-    asm volatile("vmrs %0, fpscr" : "=r"(fpscr));
-    fpscr &= ~0x01000000u;
-    asm volatile("vmsr fpscr, %0" : : "r"(fpscr));
-}
-#endif
-
 void initializeThreading()
 {
-    if (atomicallyInitializedStaticMutex)
+    static bool isInitialized;
+
+    if (isInitialized)
         return;
 
-#if OS(QNX) && CPU(ARM_THUMB2)
-    enableIEEE754Denormal();
-#endif
+    isInitialized = true;
 
     WTF::double_conversion::initialize();
     // StringImpl::empty() does not construct its static string in a threadsafe fashion,
     // so ensure it has been initialized from here.
     StringImpl::empty();
-    atomicallyInitializedStaticMutex = new Mutex;
     threadMapMutex();
     initializeRandomNumberGenerator();
     ThreadIdentifierData::initializeOnce();
@@ -144,20 +128,9 @@ void initializeThreading()
     initializeDates();
 }
 
-void lockAtomicallyInitializedStaticMutex()
-{
-    ASSERT(atomicallyInitializedStaticMutex);
-    atomicallyInitializedStaticMutex->lock();
-}
-
-void unlockAtomicallyInitializedStaticMutex()
-{
-    atomicallyInitializedStaticMutex->unlock();
-}
-
 static ThreadMap& threadMap()
 {
-    DEFINE_STATIC_LOCAL(ThreadMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(ThreadMap, map, ());
     return map;
 }
 
@@ -200,7 +173,15 @@ ThreadIdentifier createThreadInternal(ThreadFunction entryPoint, void* data, con
 {
     auto invocation = std::make_unique<ThreadFunctionInvocation>(entryPoint, data);
     pthread_t threadHandle;
-    if (pthread_create(&threadHandle, 0, wtfThreadEntryPoint, invocation.get())) {
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+#if OS(MAC_OS_X) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000
+    pthread_attr_set_qos_class_np(&attr, QOS_CLASS_USER_INTERACTIVE, 0);
+#endif
+    int error = pthread_create(&threadHandle, &attr, wtfThreadEntryPoint, invocation.get());
+    pthread_attr_destroy(&attr);
+
+    if (error) {
         LOG_ERROR("Failed to create pthread at entry point %p with data %p", wtfThreadEntryPoint, invocation.get());
         return 0;
     }
@@ -216,8 +197,6 @@ void initializeCurrentThreadInternal(const char* threadName)
 {
 #if HAVE(PTHREAD_SETNAME_NP)
     pthread_setname_np(threadName);
-#elif OS(QNX)
-    pthread_setname_np(pthread_self(), threadName);
 #else
     UNUSED_PARAM(threadName);
 #endif
@@ -228,13 +207,38 @@ void initializeCurrentThreadInternal(const char* threadName)
     objc_registerThreadWithCollector();
 #endif
 
-#if OS(QNX) && CPU(ARM_THUMB2)
-    enableIEEE754Denormal();
-#endif
-
     ThreadIdentifier id = identifierByPthreadHandle(pthread_self());
     ASSERT(id);
     ThreadIdentifierData::initialize(id);
+}
+    
+void changeThreadPriority(ThreadIdentifier threadID, int delta)
+{
+    pthread_t pthreadHandle;
+    ASSERT(threadID);
+
+    {
+        MutexLocker locker(threadMapMutex());
+        pthreadHandle = pthreadHandleForIdentifierWithLockAlreadyHeld(threadID);
+        ASSERT(pthreadHandle);
+    }
+
+    int policy;
+    struct sched_param param;
+
+    if (pthread_getschedparam(pthreadHandle, &policy, &param))
+        return;
+
+    param.sched_priority += delta;
+
+    pthread_setschedparam(pthreadHandle, policy, &param);
+}
+
+void setCurrentThreadQOSUtility()
+{
+#if OS(MAC_OS_X) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000
+    pthread_set_qos_class_np(pthread_self(), QOS_CLASS_UTILITY, 0);
+#endif
 }
 
 int waitForThreadCompletion(ThreadIdentifier threadID)
@@ -301,11 +305,6 @@ void threadDidExit(ThreadIdentifier threadID)
 
     if (state->joinableState() != PthreadState::Joinable)
         threadMap().remove(threadID);
-}
-
-void yield()
-{
-    sched_yield();
 }
 
 ThreadIdentifier currentThread()

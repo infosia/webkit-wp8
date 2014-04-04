@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY UNIVERSITY OF SZEGED ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,6 +25,8 @@
 
 #include "config.h"
 
+#if USE(CURL)
+
 #include "SSLHandle.h"
 
 #include "ResourceHandleInternal.h"
@@ -33,15 +35,38 @@
 #include <openssl/ssl.h>
 #include <openssl/x509_vfy.h>
 #include <wtf/ListHashSet.h>
+#include <wtf/text/CString.h>
 
 namespace WebCore {
 
+typedef std::tuple<WTF::String, WTF::String> clientCertificate;
 static HashMap<String, ListHashSet<String>> allowedHosts;
+static HashMap<String, clientCertificate> allowedClientHosts;
 
 void allowsAnyHTTPSCertificateHosts(const String& host)
 {
     ListHashSet<String> certificates;
     allowedHosts.set(host, certificates);
+}
+
+void addAllowedClientCertificate(const String& host, const String& certificate, const String& key)
+{
+    clientCertificate clientInfo(certificate, key);
+    allowedClientHosts.set(host.lower(), clientInfo);
+}
+
+void setSSLClientCertificate(ResourceHandle* handle)
+{
+    String host = handle->firstRequest().url().host();
+    HashMap<String, clientCertificate>::iterator it = allowedClientHosts.find(host.lower());
+    if (it == allowedClientHosts.end())
+        return;
+
+    ResourceHandleInternal* d = handle->getInternal();
+    clientCertificate clientInfo = it->value;
+    curl_easy_setopt(d->m_handle, CURLOPT_SSLCERT, std::get<0>(clientInfo).utf8().data());
+    curl_easy_setopt(d->m_handle, CURLOPT_SSLCERTTYPE, "P12");
+    curl_easy_setopt(d->m_handle, CURLOPT_SSLCERTPASSWD, std::get<1>(clientInfo).utf8().data());
 }
 
 bool sslIgnoreHTTPSCertificate(const String& host, const ListHashSet<String>& certificates)
@@ -205,3 +230,5 @@ void setSSLVerifyOptions(ResourceHandle* handle)
 }
 
 }
+
+#endif

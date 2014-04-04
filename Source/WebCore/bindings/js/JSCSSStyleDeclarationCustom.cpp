@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,6 +36,7 @@
 #include "RuntimeEnabledFeatures.h"
 #include "Settings.h"
 #include "StyleProperties.h"
+#include <runtime/IdentifierInlines.h>
 #include <runtime/StringPrototype.h>
 #include <wtf/ASCIICType.h>
 #include <wtf/text/AtomicString.h>
@@ -189,7 +190,7 @@ static CSSPropertyInfo cssPropertyIDForJSCSSPropertyName(PropertyName propertyNa
 
     String stringForCache = String(propertyNameString);
     typedef HashMap<String, CSSPropertyInfo> CSSPropertyInfoMap;
-    DEFINE_STATIC_LOCAL(CSSPropertyInfoMap, propertyInfoCache, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(CSSPropertyInfoMap, propertyInfoCache, ());
     propertyInfo = propertyInfoCache.get(stringForCache);
     if (propertyInfo.propertyID)
         return propertyInfo;
@@ -303,9 +304,12 @@ static inline JSValue cssPropertyGetterPixelOrPosPrefix(ExecState* exec, JSCSSSt
     return getPropertyValueFallback(exec, thisObj, propertyID);
 }
 
-static EncodedJSValue cssPropertyGetterPixelOrPosPrefixCallback(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, unsigned propertyID)
+static EncodedJSValue cssPropertyGetterPixelOrPosPrefixCallback(ExecState* exec, JSObject*, EncodedJSValue thisValue, unsigned propertyID)
 {
-    return JSValue::encode(cssPropertyGetterPixelOrPosPrefix(exec, jsCast<JSCSSStyleDeclaration*>(JSValue::decode(slotBase)), propertyID));
+    JSCSSStyleDeclaration* thisObject = jsDynamicCast<JSCSSStyleDeclaration*>(JSValue::decode(thisValue));
+    if (!thisObject)
+        return throwVMTypeError(exec);
+    return JSValue::encode(cssPropertyGetterPixelOrPosPrefix(exec, thisObject, propertyID));
 }
 
 static inline JSValue cssPropertyGetter(ExecState* exec, JSCSSStyleDeclaration* thisObj, unsigned propertyID)
@@ -317,9 +321,12 @@ static inline JSValue cssPropertyGetter(ExecState* exec, JSCSSStyleDeclaration* 
     return getPropertyValueFallback(exec, thisObj, propertyID);
 }
 
-static EncodedJSValue cssPropertyGetterCallback(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, unsigned propertyID)
+static EncodedJSValue cssPropertyGetterCallback(ExecState* exec, JSObject*, EncodedJSValue thisValue, unsigned propertyID)
 {
-    return JSValue::encode(cssPropertyGetter(exec, jsCast<JSCSSStyleDeclaration*>(JSValue::decode(slotBase)), propertyID));
+    JSCSSStyleDeclaration* thisObject = jsDynamicCast<JSCSSStyleDeclaration*>(JSValue::decode(thisValue));
+    if (!thisObject)
+        return throwVMTypeError(exec);
+    return JSValue::encode(cssPropertyGetter(exec, thisObject, propertyID));
 }
 
 bool JSCSSStyleDeclaration::getOwnPropertySlotDelegate(ExecState*, PropertyName propertyIdentifier, PropertySlot& slot)
@@ -370,7 +377,7 @@ JSValue JSCSSStyleDeclaration::getPropertyCSSValue(ExecState* exec)
     if (!cssValue)
         return jsNull();
 
-    currentWorld(exec).m_cssValueRoots.add(cssValue.get(), root(&impl())); // Balanced by JSCSSValueOwner::finalize().
+    globalObject()->world().m_cssValueRoots.add(cssValue.get(), root(&impl())); // Balanced by JSCSSValueOwner::finalize().
     return toJS(exec, globalObject(), WTF::getPtr(cssValue));
 }
 

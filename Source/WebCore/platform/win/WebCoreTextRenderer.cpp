@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -31,7 +31,6 @@
 #include "GraphicsContext.h"
 #include "StringTruncator.h"
 #include "TextRun.h"
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 
@@ -51,7 +50,7 @@ static void doDrawTextAtPoint(GraphicsContext& context, const String& text, cons
 {
     FontCachePurgePreventer fontCachePurgePreventer;
 
-    TextRun run(text.characters(), text.length());
+    TextRun run(text);
 
     context.setFillColor(color, ColorSpaceDeviceRGB);
     if (isOneLeftToRightRun(run))
@@ -64,12 +63,12 @@ static void doDrawTextAtPoint(GraphicsContext& context, const String& text, cons
 
         int beforeWidth;
         if (underlinedIndex > 0) {
-            TextRun beforeRun(text.characters(), underlinedIndex);
+            TextRun beforeRun(StringView(text).substring(0, underlinedIndex));
             beforeWidth = font.width(beforeRun);
         } else
             beforeWidth = 0;
 
-        TextRun underlinedRun(text.characters() + underlinedIndex, 1);
+        TextRun underlinedRun(StringView(text).substring(underlinedIndex, 1));
         int underlinedWidth = font.width(underlinedRun);
 
         IntPoint underlinePoint(point);

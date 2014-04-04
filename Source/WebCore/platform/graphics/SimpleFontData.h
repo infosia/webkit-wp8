@@ -32,6 +32,7 @@
 #include "GlyphBuffer.h"
 #include "GlyphMetricsMap.h"
 #include "GlyphPageTreeNode.h"
+#include "OpenTypeMathData.h"
 #if ENABLE(OPENTYPE_VERTICAL)
 #include "OpenTypeVerticalData.h"
 #endif
@@ -40,11 +41,8 @@
 #include <wtf/PassOwnPtr.h>
 #include <wtf/text/StringHash.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "WebCoreSystemInterface.h"
-#endif
-
-#if PLATFORM(MAC)
 #include <wtf/RetainPtr.h>
 #endif
 
@@ -65,7 +63,7 @@ struct WidthIterator;
 enum FontDataVariant { AutoVariant, NormalVariant, SmallCapsVariant, EmphasisMarkVariant, BrokenIdeographVariant };
 enum Pitch { UnknownPitch, FixedPitch, VariablePitch };
 
-class SimpleFontData FINAL : public FontData {
+class SimpleFontData final : public FontData {
 public:
     class AdditionalFontData {
         WTF_MAKE_FAST_ALLOCATED;
@@ -95,6 +93,7 @@ public:
     static const SimpleFontData* systemFallback() { return reinterpret_cast<const SimpleFontData*>(-1); }
 
     const FontPlatformData& platformData() const { return m_platformData; }
+    const OpenTypeMathData* mathData() const;
 #if ENABLE(OPENTYPE_VERTICAL)
     const OpenTypeVerticalData* verticalData() const { return m_verticalData.get(); }
 #endif
@@ -158,8 +157,8 @@ public:
     Glyph zeroGlyph() const { return m_zeroGlyph; }
     void setZeroGlyph(Glyph zeroGlyph) { m_zeroGlyph = zeroGlyph; }
 
-    virtual const SimpleFontData* fontDataForCharacter(UChar32) const OVERRIDE;
-    virtual bool containsCharacters(const UChar*, int length) const OVERRIDE;
+    virtual const SimpleFontData* fontDataForCharacter(UChar32) const override;
+    virtual bool containsCharacters(const UChar*, int length) const override;
 
     Glyph glyphForCharacter(UChar32) const;
 
@@ -169,27 +168,31 @@ public:
     AdditionalFontData* fontData() const { return m_fontData.get(); }
     bool isSVGFont() const { return m_fontData != nullptr; }
 
-    virtual bool isCustomFont() const OVERRIDE { return m_isCustomFont; }
-    virtual bool isLoading() const OVERRIDE { return m_isLoading; }
-    virtual bool isSegmented() const OVERRIDE;
+    virtual bool isCustomFont() const override { return m_isCustomFont; }
+    virtual bool isLoading() const override { return m_isLoading; }
+    virtual bool isSegmented() const override;
 
     const GlyphData& missingGlyphData() const { return m_missingGlyphData; }
     void setMissingGlyphData(const GlyphData& glyphData) { m_missingGlyphData = glyphData; }
 
 #ifndef NDEBUG
-    virtual String description() const OVERRIDE;
+    virtual String description() const override;
 #endif
 
-#if PLATFORM(MAC)
+#if USE(APPKIT)
     const SimpleFontData* getCompositeFontReferenceFontData(NSFont *key) const;
     NSFont* getNSFont() const { return m_platformData.font(); }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(IOS)
+    CTFontRef getCTFont() const { return m_platformData.font(); }
+    bool shouldNotBeUsedForArabic() const { return m_shouldNotBeUsedForArabic; };
+#endif
+#if PLATFORM(COCOA)
     CFDictionaryRef getCFStringAttributes(TypesettingFeatures, FontOrientation) const;
 #endif
 
-#if PLATFORM(MAC) || USE(HARFBUZZ)
+#if PLATFORM(COCOA) || USE(HARFBUZZ)
     bool canRenderCombiningCharacterSequence(const UChar*, size_t) const;
 #endif
 
@@ -197,7 +200,7 @@ public:
     {
         if (isSVGFont())
             return false;
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED > 1080
+#if PLATFORM(IOS) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED > 1080)
         wkCTFontTransformOptions options = (typesettingFeatures & Kerning ? wkCTFontTransformApplyPositioning : 0) | (typesettingFeatures & Ligatures ? wkCTFontTransformApplyShaping : 0);
         return wkCTFontTransformGlyphs(m_platformData.ctFont(), glyphs, reinterpret_cast<CGSize*>(advances), glyphCount, options);
 #else
@@ -258,6 +261,7 @@ private:
 
     bool m_isTextOrientationFallback;
     bool m_isBrokenIdeographFallback;
+    mutable RefPtr<OpenTypeMathData> m_mathData;
 #if ENABLE(OPENTYPE_VERTICAL)
     RefPtr<OpenTypeVerticalData> m_verticalData;
 #endif
@@ -283,7 +287,7 @@ private:
         RefPtr<SimpleFontData> verticalRightOrientation;
         RefPtr<SimpleFontData> uprightOrientation;
         RefPtr<SimpleFontData> nonSyntheticItalic;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         mutable RetainPtr<CFMutableDictionaryRef> compositeFontReferences;
 #endif
 
@@ -300,11 +304,11 @@ private:
     float m_syntheticBoldOffset;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     mutable HashMap<unsigned, RetainPtr<CFDictionaryRef>> m_CFStringAttributes;
 #endif
 
-#if PLATFORM(MAC) || USE(HARFBUZZ)
+#if PLATFORM(COCOA) || USE(HARFBUZZ)
     mutable OwnPtr<HashMap<String, bool>> m_combiningCharacterSequenceSupport;
 #endif
 
@@ -314,6 +318,9 @@ private:
     mutable SCRIPT_CACHE m_scriptCache;
     mutable SCRIPT_FONTPROPERTIES* m_scriptFontProperties;
 #endif
+#endif
+#if PLATFORM(IOS)
+    bool m_shouldNotBeUsedForArabic;
 #endif
 };
 

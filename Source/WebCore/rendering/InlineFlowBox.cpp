@@ -49,13 +49,21 @@ struct SameSizeAsInlineFlowBox : public InlineBox {
 
 COMPILE_ASSERT(sizeof(InlineFlowBox) == sizeof(SameSizeAsInlineFlowBox), InlineFlowBox_should_stay_small);
 
-#ifndef NDEBUG
+#if !ASSERT_WITH_SECURITY_IMPLICATION_DISABLED
 
 InlineFlowBox::~InlineFlowBox()
 {
-    if (!m_hasBadChildList)
-        for (InlineBox* child = firstChild(); child; child = child->nextOnLine())
-            child->setHasBadParent();
+    setHasBadChildList();
+}
+
+void InlineFlowBox::setHasBadChildList()
+{
+    assertNotDeleted();
+    if (m_hasBadChildList)
+        return;
+    for (InlineBox* child = firstChild(); child; child = child->nextOnLine())
+        child->setHasBadParent();
+    m_hasBadChildList = true;
 }
 
 #endif
@@ -695,9 +703,8 @@ void InlineFlowBox::placeBoxesInBlockDirection(LayoutUnit top, LayoutUnit maxHei
                 }
             }
             if (curr->isInlineTextBox()) {
-                TextEmphasisPosition emphasisMarkPosition;
-                if (toInlineTextBox(curr)->getEmphasisMarkPosition(childLineStyle, emphasisMarkPosition)) {
-                    bool emphasisMarkIsOver = emphasisMarkPosition == TextEmphasisPositionOver;
+                bool emphasisMarkIsOver;
+                if (toInlineTextBox(curr)->emphasisMarkExistsAndIsAbove(childLineStyle, emphasisMarkIsOver)) {
                     if (emphasisMarkIsOver != childLineStyle.isFlippedLinesWritingMode())
                         hasAnnotationsBefore = true;
                     else
@@ -743,7 +750,6 @@ void InlineFlowBox::placeBoxesInBlockDirection(LayoutUnit top, LayoutUnit maxHei
     }
 }
 
-#if ENABLE(CSS3_TEXT_DECORATION)
 void InlineFlowBox::computeMaxLogicalTop(float& maxLogicalTop) const
 {
     for (InlineBox* curr = firstChild(); curr; curr = curr->nextOnLine()) {
@@ -760,7 +766,6 @@ void InlineFlowBox::computeMaxLogicalTop(float& maxLogicalTop) const
         maxLogicalTop = std::max<float>(maxLogicalTop, localMaxLogicalTop);
     }
 }
-#endif // CSS3_TEXT_DECORATION
 
 void InlineFlowBox::flipLinesInBlockDirection(LayoutUnit lineTop, LayoutUnit lineBottom)
 {
@@ -868,10 +873,10 @@ inline void InlineFlowBox::addTextBoxVisualOverflow(InlineTextBox* textBox, Glyp
     int leftGlyphOverflow = -strokeOverflow - leftGlyphEdge;
     int rightGlyphOverflow = strokeOverflow + rightGlyphEdge;
 
-    TextEmphasisPosition emphasisMarkPosition;
-    if (lineStyle.textEmphasisMark() != TextEmphasisMarkNone && textBox->getEmphasisMarkPosition(lineStyle, emphasisMarkPosition)) {
+    bool emphasisMarkIsAbove;
+    if (lineStyle.textEmphasisMark() != TextEmphasisMarkNone && textBox->emphasisMarkExistsAndIsAbove(lineStyle, emphasisMarkIsAbove)) {
         int emphasisMarkHeight = lineStyle.font().emphasisMarkHeight(lineStyle.textEmphasisMarkString());
-        if ((emphasisMarkPosition == TextEmphasisPositionOver) == (!lineStyle.isFlippedLinesWritingMode()))
+        if (emphasisMarkIsAbove == !lineStyle.isFlippedLinesWritingMode())
             topGlyphOverflow = std::min(topGlyphOverflow, -emphasisMarkHeight);
         else
             bottomGlyphOverflow = std::max(bottomGlyphOverflow, emphasisMarkHeight);
@@ -932,6 +937,9 @@ void InlineFlowBox::computeOverflow(LayoutUnit lineTop, LayoutUnit lineBottom, G
     // If we know we have no overflow, we can just bail.
     if (knownToHaveNoOverflow())
         return;
+
+    if (m_overflow)
+        m_overflow.clear();
 
     // Visual overflow just includes overflow for stuff we need to repaint ourselves.  Self-painting layers are ignored.
     // Layout overflow is used to determine scrolling extent, so it still includes child layers and also factors in
@@ -1222,8 +1230,8 @@ void InlineFlowBox::paintFillLayer(const PaintInfo& paintInfo, const Color& c, c
         }
         LayoutUnit stripX = rect.x() - (isHorizontal() ? logicalOffsetOnLine : LayoutUnit());
         LayoutUnit stripY = rect.y() - (isHorizontal() ? LayoutUnit() : logicalOffsetOnLine);
-        LayoutUnit stripWidth = isHorizontal() ? totalLogicalWidth : static_cast<LayoutUnit>(width());
-        LayoutUnit stripHeight = isHorizontal() ? static_cast<LayoutUnit>(height()) : totalLogicalWidth;
+        LayoutUnit stripWidth = isHorizontal() ? totalLogicalWidth : LayoutUnit(width());
+        LayoutUnit stripHeight = isHorizontal() ? LayoutUnit(height()) : totalLogicalWidth;
 
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
         paintInfo.context->clip(LayoutRect(rect.x(), rect.y(), width(), height()));
@@ -1234,11 +1242,11 @@ void InlineFlowBox::paintFillLayer(const PaintInfo& paintInfo, const Color& c, c
 void InlineFlowBox::paintBoxShadow(const PaintInfo& info, const RenderStyle& style, ShadowStyle shadowStyle, const LayoutRect& paintRect)
 {
     if ((!prevLineBox() && !nextLineBox()) || !parent())
-        renderer().paintBoxShadow(info, paintRect, &style, shadowStyle);
+        renderer().paintBoxShadow(info, paintRect, style, shadowStyle);
     else {
         // FIXME: We can do better here in the multi-line case. We want to push a clip so that the shadow doesn't
         // protrude incorrectly at the edges, and we want to possibly include shadows cast from the previous/following lines
-        renderer().paintBoxShadow(info, paintRect, &style, shadowStyle, includeLogicalLeftEdge(), includeLogicalRightEdge());
+        renderer().paintBoxShadow(info, paintRect, style, shadowStyle, includeLogicalLeftEdge(), includeLogicalRightEdge());
     }
 }
 
@@ -1335,7 +1343,7 @@ void InlineFlowBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&
     // The simple case is where we either have no border image or we are the only box for this object. In those
     // cases only a single call to draw is required.
     if (!hasBorderImage || (!prevLineBox() && !nextLineBox()))
-        renderer().paintBorder(paintInfo, paintRect, &lineStyle, BackgroundBleedNone, includeLogicalLeftEdge(), includeLogicalRightEdge());
+        renderer().paintBorder(paintInfo, paintRect, lineStyle, BackgroundBleedNone, includeLogicalLeftEdge(), includeLogicalRightEdge());
     else {
         // We have a border image that spans multiple lines.
         // We need to adjust tx and ty by the width of all previous lines.
@@ -1359,7 +1367,7 @@ void InlineFlowBox::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint&
         LayoutRect clipRect = clipRectForNinePieceImageStrip(this, borderImage, paintRect);
         GraphicsContextStateSaver stateSaver(*context);
         context->clip(clipRect);
-        renderer().paintBorder(paintInfo, LayoutRect(stripX, stripY, stripWidth, stripHeight), &lineStyle);
+        renderer().paintBorder(paintInfo, LayoutRect(stripX, stripY, stripWidth, stripHeight), lineStyle);
     }
 }
 
@@ -1411,7 +1419,7 @@ void InlineFlowBox::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffs
     // The simple case is where we are the only box for this object.  In those
     // cases only a single call to draw is required.
     if (!prevLineBox() && !nextLineBox()) {
-        renderer().paintNinePieceImage(paintInfo.context, LayoutRect(adjustedPaintOffset, frameRect.size()), &renderer().style(), maskNinePieceImage, compositeOp);
+        renderer().paintNinePieceImage(paintInfo.context, LayoutRect(adjustedPaintOffset, frameRect.size()), renderer().style(), maskNinePieceImage, compositeOp);
     } else {
         // We have a mask image that spans multiple lines.
         // We need to adjust _tx and _ty by the width of all previous lines.
@@ -1429,7 +1437,7 @@ void InlineFlowBox::paintMask(PaintInfo& paintInfo, const LayoutPoint& paintOffs
         LayoutRect clipRect = clipRectForNinePieceImageStrip(this, maskNinePieceImage, paintRect);
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
         paintInfo.context->clip(clipRect);
-        renderer().paintNinePieceImage(paintInfo.context, LayoutRect(stripX, stripY, stripWidth, stripHeight), &renderer().style(), maskNinePieceImage, compositeOp);
+        renderer().paintNinePieceImage(paintInfo.context, LayoutRect(stripX, stripY, stripWidth, stripHeight), renderer().style(), maskNinePieceImage, compositeOp);
     }
     
     if (pushTransparencyLayer)
@@ -1535,8 +1543,8 @@ LayoutUnit InlineFlowBox::computeOverAnnotationAdjustment(LayoutUnit allowedPosi
 
         if (curr->isInlineTextBox()) {
             const RenderStyle& childLineStyle = curr->lineStyle();
-            TextEmphasisPosition emphasisMarkPosition;
-            if (childLineStyle.textEmphasisMark() != TextEmphasisMarkNone && toInlineTextBox(curr)->getEmphasisMarkPosition(childLineStyle, emphasisMarkPosition) && emphasisMarkPosition == TextEmphasisPositionOver) {
+            bool emphasisMarkIsAbove;
+            if (childLineStyle.textEmphasisMark() != TextEmphasisMarkNone && toInlineTextBox(curr)->emphasisMarkExistsAndIsAbove(childLineStyle, emphasisMarkIsAbove) && emphasisMarkIsAbove) {
                 if (!childLineStyle.isFlippedLinesWritingMode()) {
                     int topOfEmphasisMark = curr->logicalTop() - childLineStyle.font().emphasisMarkHeight(childLineStyle.textEmphasisMarkString());
                     result = std::max(result, allowedPosition - topOfEmphasisMark);
@@ -1583,7 +1591,9 @@ LayoutUnit InlineFlowBox::computeUnderAnnotationAdjustment(LayoutUnit allowedPos
 
         if (curr->isInlineTextBox()) {
             const RenderStyle& childLineStyle = curr->lineStyle();
-            if (childLineStyle.textEmphasisMark() != TextEmphasisMarkNone && childLineStyle.textEmphasisPosition() == TextEmphasisPositionUnder) {
+            bool emphasisMarkIsAbove;
+            toInlineTextBox(curr)->emphasisMarkExistsAndIsAbove(childLineStyle, emphasisMarkIsAbove);
+            if (childLineStyle.textEmphasisMark() != TextEmphasisMarkNone && !emphasisMarkIsAbove) {
                 if (!childLineStyle.isFlippedLinesWritingMode()) {
                     LayoutUnit bottomOfEmphasisMark = curr->logicalBottom() + childLineStyle.font().emphasisMarkHeight(childLineStyle.textEmphasisMarkString());
                     result = std::max(result, bottomOfEmphasisMark - allowedPosition);
@@ -1666,15 +1676,16 @@ void InlineFlowBox::showLineTreeAndMark(const InlineBox* markedBox1, const char*
 
 void InlineFlowBox::checkConsistency() const
 {
+    assertNotDeleted();
+    ASSERT_WITH_SECURITY_IMPLICATION(!m_hasBadChildList);
 #ifdef CHECK_CONSISTENCY
-    ASSERT(!m_hasBadChildList);
-    const InlineBox* prev = 0;
-    for (const InlineBox* child = m_firstChild; child; child = child->nextOnLine()) {
+    const InlineBox* previousChild = nullptr;
+    for (const InlineBox* child = firstChild(); child; child = child->nextOnLine()) {
         ASSERT(child->parent() == this);
-        ASSERT(child->prevOnLine() == prev);
-        prev = child;
+        ASSERT(child->prevOnLine() == previousChild);
+        previousChild = child;
     }
-    ASSERT(prev == m_lastChild);
+    ASSERT(previousChild == m_lastChild);
 #endif
 }
 

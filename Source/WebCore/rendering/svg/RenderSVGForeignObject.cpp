@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2009 Google, Inc.
  * Copyright (C) Research In Motion Limited 2010. All rights reserved. 
  *
@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGForeignObject.h"
 
 #include "GraphicsContext.h"
@@ -209,5 +207,3 @@ const RenderObject* RenderSVGForeignObject::pushMappingToContainer(const RenderL
 }
 
 }
-
-#endif

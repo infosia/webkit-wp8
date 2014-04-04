@@ -33,6 +33,7 @@
 #include "NPRuntimeObjectMap.h"
 #include "NPRuntimeUtilities.h"
 #include <JavaScriptCore/Error.h>
+#include <JavaScriptCore/IdentifierInlines.h>
 #include <JavaScriptCore/JSGlobalObject.h>
 #include <JavaScriptCore/JSLock.h>
 #include <JavaScriptCore/ObjectPrototype.h>
@@ -417,9 +418,9 @@ void JSNPObject::getOwnPropertyNames(JSObject* object, ExecState* exec, Property
     npnMemFree(identifiers);
 }
 
-EncodedJSValue JSNPObject::propertyGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName propertyName)
+EncodedJSValue JSNPObject::propertyGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    JSNPObject* thisObj = jsCast<JSNPObject*>(JSValue::decode(slotBase));
+    JSNPObject* thisObj = jsCast<JSNPObject*>(slotBase);
     ASSERT_GC_OBJECT_INHERITS(thisObj, info());
     
     if (!thisObj->m_npObject)
@@ -453,9 +454,9 @@ EncodedJSValue JSNPObject::propertyGetter(ExecState* exec, EncodedJSValue slotBa
     return JSValue::encode(propertyValue);
 }
 
-EncodedJSValue JSNPObject::methodGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName propertyName)
+EncodedJSValue JSNPObject::methodGetter(ExecState* exec, JSObject* slotBase, EncodedJSValue, PropertyName propertyName)
 {
-    JSNPObject* thisObj = jsCast<JSNPObject*>(JSValue::decode(slotBase));
+    JSNPObject* thisObj = jsCast<JSNPObject*>(slotBase);
     ASSERT_GC_OBJECT_INHERITS(thisObj, info());
     
     if (!thisObj->m_npObject)

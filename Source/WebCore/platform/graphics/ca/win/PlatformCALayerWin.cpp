@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -25,13 +25,12 @@
 
 #include "config.h"
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "PlatformCALayerWin.h"
 
 #include "AbstractCACFLayerTreeHost.h"
 #include "Font.h"
 #include "GraphicsContext.h"
+#include "PlatformCAAnimationWin.h"
 #include "PlatformCALayerWinInternal.h"
 #include <QuartzCore/CoreAnimationCF.h>
 #include <WebKitSystemInterface/WebKitSystemInterface.h>
@@ -109,6 +108,8 @@ static void layoutSublayersProc(CACFLayerRef caLayer)
 
 PlatformCALayerWin::PlatformCALayerWin(LayerType layerType, PlatformLayer* layer, PlatformCALayerClient* owner)
     : PlatformCALayer(layer ? LayerTypeCustom : layerType, owner)
+    , m_customAppearance(GraphicsLayer::NoCustomAppearance)
+    , m_customBehavior(GraphicsLayer::NoCustomBehavior)
 {
     if (layer) {
         m_layer = layer;
@@ -284,7 +285,7 @@ void PlatformCALayerWin::addAnimationForKey(const String& key, PlatformCAAnimati
     // Add it to the animation list
     m_animations.add(key, animation);
 
-    CACFLayerAddAnimation(m_layer.get(), key.createCFString().get(), animation->platformAnimation());
+    CACFLayerAddAnimation(m_layer.get(), key.createCFString().get(), toPlatformCAAnimationWin(animation)->platformAnimation());
     setNeedsCommit();
 
     // Tell the host about it so we can fire the start animation event
@@ -674,5 +675,3 @@ PassRefPtr<PlatformCALayer> PlatformCALayerWin::createCompatibleLayer(PlatformCA
 {
     return PlatformCALayerWin::create(layerType, client);
 }
-
-#endif // USE(ACCELERATED_COMPOSITING)

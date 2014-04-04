@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -72,6 +72,10 @@ WebView *kit(WebCore::Page*);
 WebCore::EditableLinkBehavior core(WebKitEditableLinkBehavior);
 WebCore::TextDirectionSubmenuInclusionBehavior core(WebTextDirectionSubmenuInclusionBehavior);
 
+#if defined(__cplusplus) && PLATFORM(IOS)
+PassOwnPtr<Vector<Vector<String>>> vectorForDictationPhrasesArray(NSArray *);
+#endif
+
 WebView *getWebView(WebFrame *webFrame);
 
 @interface WebFramePrivate : NSObject {
@@ -84,6 +88,9 @@ WebView *getWebView(WebFrame *webFrame);
     BOOL includedInWebKitStatistics;
     RetainPtr<NSString> url;
     RetainPtr<NSString> provisionalURL;
+#if PLATFORM(IOS)
+    BOOL isCommitting;
+#endif    
 }
 @end
 
@@ -121,6 +128,13 @@ WebView *getWebView(WebFrame *webFrame);
 // should be used instead.
 - (WebDataSource *)_dataSource;
 
+#if PLATFORM(IOS)
++ (void)_createMainFrameWithSimpleHTMLDocumentWithPage:(WebCore::Page*)page frameView:(WebFrameView *)frameView style:(NSString *)style;
+
+- (BOOL)_isCommitting;
+- (void)_setIsCommitting:(BOOL)value;
+#endif
+
 - (BOOL)_needsLayout;
 - (void)_drawRect:(NSRect)rect contentsOnly:(BOOL)contentsOnly;
 - (BOOL)_getVisibleRect:(NSRect*)rect;
@@ -137,8 +151,13 @@ WebView *getWebView(WebFrame *webFrame);
 - (NSRect)_caretRectAtPosition:(const WebCore::Position&)pos affinity:(NSSelectionAffinity)affinity;
 - (NSRect)_firstRectForDOMRange:(DOMRange *)range;
 - (void)_scrollDOMRangeToVisible:(DOMRange *)range;
+#if PLATFORM(IOS)
+- (void)_scrollDOMRangeToVisible:(DOMRange *)range withInset:(CGFloat)inset;
+#endif
 
+#if !PLATFORM(IOS)
 - (DOMRange *)_rangeByAlteringCurrentSelection:(WebCore::FrameSelection::EAlteration)alteration direction:(WebCore::SelectionDirection)direction granularity:(WebCore::TextGranularity)granularity;
+#endif
 - (NSRange)_convertToNSRange:(WebCore::Range*)range;
 - (PassRefPtr<WebCore::Range>)_convertToDOMRange:(NSRange)nsrange;
 

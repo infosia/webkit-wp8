@@ -20,11 +20,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGDocumentExtensions.h"
 
-#include "Console.h"
 #include "DOMWindow.h"
 #include "Document.h"
 #include "EventListener.h"
@@ -133,17 +130,17 @@ void SVGDocumentExtensions::dispatchSVGLoadEventToOutermostSVGElements()
 static void reportMessage(Document* document, MessageLevel level, const String& message)
 {
     if (document->frame())
-        document->addConsoleMessage(RenderingMessageSource, level, message);
+        document->addConsoleMessage(MessageSource::Rendering, level, message);
 }
 
 void SVGDocumentExtensions::reportWarning(const String& message)
 {
-    reportMessage(m_document, WarningMessageLevel, "Warning: " + message);
+    reportMessage(m_document, MessageLevel::Warning, "Warning: " + message);
 }
 
 void SVGDocumentExtensions::reportError(const String& message)
 {
-    reportMessage(m_document, ErrorMessageLevel, "Error: " + message);
+    reportMessage(m_document, MessageLevel::Error, "Error: " + message);
 }
 
 void SVGDocumentExtensions::addPendingResource(const AtomicString& id, Element* element)
@@ -155,13 +152,13 @@ void SVGDocumentExtensions::addPendingResource(const AtomicString& id, Element* 
 
     auto result = m_pendingResources.add(id, nullptr);
     if (result.isNewEntry)
-        result.iterator->value = std::make_unique<SVGPendingElements>();
+        result.iterator->value = std::make_unique<PendingElements>();
     result.iterator->value->add(element);
 
     element->setHasPendingResources();
 }
 
-bool SVGDocumentExtensions::hasPendingResource(const AtomicString& id) const
+bool SVGDocumentExtensions::isIdOfPendingResource(const AtomicString& id) const
 {
     if (id.isEmpty())
         return false;
@@ -169,16 +166,14 @@ bool SVGDocumentExtensions::hasPendingResource(const AtomicString& id) const
     return m_pendingResources.contains(id);
 }
 
-bool SVGDocumentExtensions::isElementPendingResources(Element* element) const
+bool SVGDocumentExtensions::isElementWithPendingResources(Element* element) const
 {
     // This algorithm takes time proportional to the number of pending resources and need not.
     // If performance becomes an issue we can keep a counted set of elements and answer the question efficiently.
-
     ASSERT(element);
-
     auto end = m_pendingResources.end();
     for (auto it = m_pendingResources.begin(); it != end; ++it) {
-        SVGPendingElements* elements = it->value.get();
+        PendingElements* elements = it->value.get();
         ASSERT(elements);
 
         if (elements->contains(element))
@@ -187,11 +182,11 @@ bool SVGDocumentExtensions::isElementPendingResources(Element* element) const
     return false;
 }
 
-bool SVGDocumentExtensions::isElementPendingResource(Element* element, const AtomicString& id) const
+bool SVGDocumentExtensions::isPendingResource(Element* element, const AtomicString& id) const
 {
     ASSERT(element);
 
-    if (!hasPendingResource(id))
+    if (!isIdOfPendingResource(id))
         return false;
 
     return m_pendingResources.get(id)->contains(element);
@@ -199,7 +194,7 @@ bool SVGDocumentExtensions::isElementPendingResource(Element* element, const Ato
 
 void SVGDocumentExtensions::clearHasPendingResourcesIfPossible(Element* element)
 {
-    if (!isElementPendingResources(element))
+    if (!isElementWithPendingResources(element))
         element->clearHasPendingResources();
 }
 
@@ -212,7 +207,7 @@ void SVGDocumentExtensions::removeElementFromPendingResources(Element* element)
         Vector<AtomicString> toBeRemoved;
         auto end = m_pendingResources.end();
         for (auto it = m_pendingResources.begin(); it != end; ++it) {
-            SVGPendingElements* elements = it->value.get();
+            PendingElements* elements = it->value.get();
             ASSERT(elements);
             ASSERT(!elements->isEmpty());
 
@@ -234,7 +229,7 @@ void SVGDocumentExtensions::removeElementFromPendingResources(Element* element)
         Vector<AtomicString> toBeRemoved;
         auto end = m_pendingResourcesForRemoval.end();
         for (auto it = m_pendingResourcesForRemoval.begin(); it != end; ++it) {
-            SVGPendingElements* elements = it->value.get();
+            PendingElements* elements = it->value.get();
             ASSERT(elements);
             ASSERT(!elements->isEmpty());
 
@@ -250,13 +245,13 @@ void SVGDocumentExtensions::removeElementFromPendingResources(Element* element)
     }
 }
 
-std::unique_ptr<SVGDocumentExtensions::SVGPendingElements> SVGDocumentExtensions::removePendingResource(const AtomicString& id)
+std::unique_ptr<SVGDocumentExtensions::PendingElements> SVGDocumentExtensions::removePendingResource(const AtomicString& id)
 {
     ASSERT(m_pendingResources.contains(id));
     return m_pendingResources.take(id);
 }
 
-std::unique_ptr<SVGDocumentExtensions::SVGPendingElements> SVGDocumentExtensions::removePendingResourceForRemoval(const AtomicString& id)
+std::unique_ptr<SVGDocumentExtensions::PendingElements> SVGDocumentExtensions::removePendingResourceForRemoval(const AtomicString& id)
 {
     ASSERT(m_pendingResourcesForRemoval.contains(id));
     return m_pendingResourcesForRemoval.take(id);
@@ -269,17 +264,17 @@ void SVGDocumentExtensions::markPendingResourcesForRemoval(const AtomicString& i
 
     ASSERT(!m_pendingResourcesForRemoval.contains(id));
 
-    std::unique_ptr<SVGPendingElements> existing = m_pendingResources.take(id);
+    std::unique_ptr<PendingElements> existing = m_pendingResources.take(id);
     if (existing && !existing->isEmpty())
         m_pendingResourcesForRemoval.add(id, std::move(existing));
 }
 
-Element* SVGDocumentExtensions::removeElementFromPendingResourcesForRemoval(const AtomicString& id)
+Element* SVGDocumentExtensions::removeElementFromPendingResourcesForRemovalMap(const AtomicString& id)
 {
     if (id.isEmpty())
         return 0;
 
-    SVGPendingElements* resourceSet = m_pendingResourcesForRemoval.get(id);
+    PendingElements* resourceSet = m_pendingResourcesForRemoval.get(id);
     if (!resourceSet || resourceSet->isEmpty())
         return 0;
 
@@ -380,5 +375,3 @@ void SVGDocumentExtensions::unregisterSVGFontFaceElement(SVGFontFaceElement* ele
 #endif
 
 }
-
-#endif

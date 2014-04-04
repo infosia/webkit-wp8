@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,138 +24,12 @@
  */
 
 #import "config.h"
-#import "WKRemoteObjectRegistryInternal.h"
+#import "WKRemoteObjectRegistry.h"
 
 #if WK_API_ENABLED
 
-#import "Connection.h"
-#import "ImmutableDictionary.h"
-#import "MutableDictionary.h"
-#import "WKConnectionRef.h"
-#import "WKRemoteObject.h"
-#import "WKRemoteObjectCoder.h"
-#import "WKRemoteObjectInterface.h"
-#import "WKSharedAPICast.h"
-#import "WebConnection.h"
-
-const char* const messageName = "WKRemoteObjectRegistryMessage";
-
-const char* const encodedInvocationKey = "encodedInvocation";
-const char* const interfaceIdentifierKey = "interfaceIdentifier";
-
-NSString * const invocationKey = @"invocation";
-
-using namespace WebKit;
-
-@implementation WKRemoteObjectRegistry {
-    RefPtr<WebConnection> _connection;
-    RetainPtr<NSMapTable> _remoteObjectProxies;
-    HashMap<String, std::pair<RetainPtr<id>, RetainPtr<WKRemoteObjectInterface>>> _exportedObjects;
-}
-
-- (void)registerExportedObject:(id)object interface:(WKRemoteObjectInterface *)interface
-{
-    ASSERT(!_exportedObjects.contains(interface.identifier));
-    _exportedObjects.add(interface.identifier, std::make_pair<RetainPtr<id>, RetainPtr<WKRemoteObjectInterface>>(object, interface));
-}
-
-- (void)unregisterExportedObject:(id)object interface:(WKRemoteObjectInterface *)interface
-{
-    ASSERT(_exportedObjects.get(interface.identifier).first == object);
-    ASSERT(_exportedObjects.get(interface.identifier).second == interface);
-
-    _exportedObjects.remove(interface.identifier);
-}
-
-- (id)remoteObjectProxyWithInterface:(WKRemoteObjectInterface *)interface
-{
-    if (!_remoteObjectProxies)
-        _remoteObjectProxies = [NSMapTable strongToWeakObjectsMapTable];
-
-    if (id remoteObjectProxy = [_remoteObjectProxies objectForKey:interface.identifier])
-        return remoteObjectProxy;
-
-    RetainPtr<NSString> identifier = adoptNS([interface.identifier copy]);
-    RetainPtr<WKRemoteObject> remoteObject = adoptNS([[WKRemoteObject alloc] _initWithObjectRegistry:self interface:interface]);
-    [_remoteObjectProxies setObject:remoteObject.get() forKey:identifier.get()];
-
-    return [remoteObject.leakRef() autorelease];
-}
-
-- (void)_sendInvocation:(NSInvocation *)invocation interface:(WKRemoteObjectInterface *)interface
-{
-    RetainPtr<WKRemoteObjectEncoder> encoder = adoptNS([[WKRemoteObjectEncoder alloc] init]);
-    [encoder encodeObject:invocation forKey:invocationKey];
-
-    RefPtr<MutableDictionary> body = MutableDictionary::create();
-    body->set(interfaceIdentifierKey, WebString::create(interface.identifier));
-    body->set(encodedInvocationKey, [encoder rootObjectDictionary]);
-
-    [self _sendMessageWithBody:body.release()];
-}
-
-- (void)_sendMessageWithBody:(PassRefPtr<ImmutableDictionary>)body
-{
-    _connection->postMessage(messageName, body.get());
-}
+@implementation WKRemoteObjectRegistry
 
 @end
 
-@implementation WKRemoteObjectRegistry (WKPrivate)
-
-- (id)_initWithConnectionRef:(WKConnectionRef)connectionRef
-{
-    if (!(self = [super init]))
-        return nil;
-
-    _connection = toImpl(connectionRef);
-
-    return self;
-}
-
-- (BOOL)_handleMessageWithName:(WKStringRef)name body:(WKTypeRef)body
-{
-    if (toImpl(name)->string() != messageName)
-        return NO;
-
-    if (!toImpl(body) || toImpl(body)->type() != API::Object::Type::Dictionary)
-        return NO;
-
-    const ImmutableDictionary* dictionary = toImpl(static_cast<WKDictionaryRef>(body));
-
-    WebString* interfaceIdentifier = dictionary->get<WebString>(interfaceIdentifierKey);
-    if (!interfaceIdentifier)
-        return NO;
-
-    const ImmutableDictionary* encodedInvocation = dictionary->get<ImmutableDictionary>(encodedInvocationKey);
-    if (!encodedInvocationKey)
-        return NO;
-
-    [self _invokeMessageWithInterfaceIdentifier:interfaceIdentifier->string() encodedInvocation:encodedInvocation];
-    return YES;
-}
-
-- (void)_invokeMessageWithInterfaceIdentifier:(const String&)interfaceIdentifier encodedInvocation:(const ImmutableDictionary*)encodedInvocation
-{
-    auto interfaceAndObject = _exportedObjects.get(interfaceIdentifier);
-    if (!interfaceAndObject.second) {
-        NSLog(@"Did not find a registered object for the interface \"%@\"", (NSString *)interfaceIdentifier);
-        return;
-    }
-
-    RetainPtr<WKRemoteObjectDecoder> decoder = adoptNS([[WKRemoteObjectDecoder alloc] initWithInterface:interfaceAndObject.second.get() rootObjectDictionary:encodedInvocation]);
-
-    NSInvocation *invocation = nil;
-
-    @try {
-        invocation = [decoder decodeObjectOfClass:[NSInvocation class] forKey:invocationKey];
-    } @catch (NSException *exception) {
-        NSLog(@"Exception caught during decoding of message: %@", exception);
-    }
-
-    // FIXME: Invoke the invocation.
-}
-
-@end
-
-#endif // WK_API_ENABLED
+#endif

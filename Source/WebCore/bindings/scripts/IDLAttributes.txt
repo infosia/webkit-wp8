@@ -43,6 +43,7 @@ CustomIndexedSetter
 CustomIsReachable
 CustomNamedGetter
 CustomNamedSetter
+CustomProxyToJSObject
 CustomPutFunction
 CustomReturn
 CustomSetter
@@ -78,16 +79,18 @@ JSCustomPushEventHandlerScope
 JSCustomToNativeObject
 JSGenerateToJSObject
 JSGenerateToNativeObject
-JSInlineGetOwnPropertySlot
 JSLegacyParent=*
 JSNoStaticTables
 JSWindowEventListener
 MasqueradesAsUndefined
 NamedConstructor=*
+NewImpurePropertyFiresWatchpoints
 NoInterfaceObject
+Nondeterministic
 NotEnumerable
 NotDeletable
 ObjCCustomImplementation
+ObjCExplicitAtomicString
 ObjCLegacyUnnamedParameters
 ObjCPolymorphic
 ObjCProtocol
@@ -97,6 +100,7 @@ RaisesException
 Reflect=*
 Replaceable
 ReplaceableConstructor
+ReportExtraMemoryCost
 ReturnNewObject
 SetterRaisesException
 SkipVTableValidation
@@ -107,3 +111,6 @@ TreatReturnedNullStringAs=Null|Undefined
 TreatUndefinedAs=NullString
 TypedArray=*
 URL
+
+# PLATFORM(IOS)
+AppleCopyright

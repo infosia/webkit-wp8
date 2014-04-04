@@ -33,6 +33,7 @@
 #include "TimerEventBasedMock.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
+#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -42,31 +43,33 @@ class RTCVoidRequest;
 
 class SessionRequestNotifier : public MockNotifier {
 public:
-    SessionRequestNotifier(PassRefPtr<RTCSessionDescriptionRequest>, PassRefPtr<RTCSessionDescriptionDescriptor>);
+    SessionRequestNotifier(PassRefPtr<RTCSessionDescriptionRequest>, PassRefPtr<RTCSessionDescriptionDescriptor>, const String& = emptyString());
 
-    void fire() OVERRIDE;
+    void fire() override;
 
 private:
     RefPtr<RTCSessionDescriptionRequest> m_request;
     RefPtr<RTCSessionDescriptionDescriptor> m_descriptor;
+    String m_errorName;
 };
 
 class VoidRequestNotifier : public MockNotifier {
 public:
-    VoidRequestNotifier(PassRefPtr<RTCVoidRequest>, bool);
+    VoidRequestNotifier(PassRefPtr<RTCVoidRequest>, bool, const String& = emptyString());
 
-    void fire() OVERRIDE;
+    void fire() override;
 
 private:
     RefPtr<RTCVoidRequest> m_request;
     bool m_success;
+    String m_errorName;
 };
 
 class IceConnectionNotifier : public MockNotifier {
 public:
     IceConnectionNotifier(RTCPeerConnectionHandlerClient*, RTCPeerConnectionHandlerClient::IceConnectionState, RTCPeerConnectionHandlerClient::IceGatheringState);
 
-    void fire() OVERRIDE;
+    void fire() override;
 
 private:
     RTCPeerConnectionHandlerClient* m_client;
@@ -74,11 +77,22 @@ private:
     RTCPeerConnectionHandlerClient::IceGatheringState m_gatheringState;
 };
 
+class SignalingStateNotifier : public MockNotifier {
+public:
+    SignalingStateNotifier(RTCPeerConnectionHandlerClient*, RTCPeerConnectionHandlerClient::SignalingState);
+
+    void fire() override;
+
+private:
+    RTCPeerConnectionHandlerClient* m_client;
+    RTCPeerConnectionHandlerClient::SignalingState m_signalingState;
+};
+
 class RemoteDataChannelNotifier : public MockNotifier {
 public:
     RemoteDataChannelNotifier(RTCPeerConnectionHandlerClient*);
 
-    void fire() OVERRIDE;
+    void fire() override;
 
 private:
     RTCPeerConnectionHandlerClient* m_client;
@@ -88,7 +102,7 @@ class DataChannelStateNotifier : public MockNotifier {
 public:
     DataChannelStateNotifier(RTCDataChannelHandlerClient*, RTCDataChannelHandlerClient::ReadyState);
 
-    void fire() OVERRIDE;
+    void fire() override;
 
 private:
     RTCDataChannelHandlerClient* m_client;

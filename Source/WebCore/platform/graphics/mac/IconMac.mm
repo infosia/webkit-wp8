@@ -18,10 +18,13 @@
  *
  */
 
+#if !PLATFORM(IOS)
+
 #import "config.h"
 #import "Icon.h"
 
 #import "GraphicsContext.h"
+#import "IntRect.h"
 #import "LocalCurrentGraphicsContext.h"
 #import <wtf/PassRefPtr.h>
 #include <wtf/text/WTFString.h>
@@ -82,3 +85,5 @@ void Icon::paint(GraphicsContext* context, const IntRect& rect)
 }
 
 }
+
+#endif // !PLATFORM(IOS)

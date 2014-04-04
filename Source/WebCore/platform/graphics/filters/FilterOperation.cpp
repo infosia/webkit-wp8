@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,10 +29,7 @@
 #include "FilterOperation.h"
 
 #include "AnimationUtilities.h"
-
-#if ENABLE(SVG)
 #include "CachedSVGDocumentReference.h"
-#endif
 
 namespace WebCore {
 
@@ -47,12 +44,12 @@ ReferenceFilterOperation::~ReferenceFilterOperation()
 {
 }
 
-#if ENABLE(SVG)
-void ReferenceFilterOperation::setCachedSVGDocumentReference(PassOwnPtr<CachedSVGDocumentReference> cachedSVGDocumentReference)
+CachedSVGDocumentReference* ReferenceFilterOperation::getOrCreateCachedSVGDocumentReference()
 {
-    m_cachedSVGDocumentReference = cachedSVGDocumentReference;
+    if (!m_cachedSVGDocumentReference)
+        m_cachedSVGDocumentReference = std::make_unique<CachedSVGDocumentReference>(m_url);
+    return m_cachedSVGDocumentReference.get();
 }
-#endif
 
 PassRefPtr<FilterOperation> BasicColorMatrixFilterOperation::blend(const FilterOperation* from, double progress, bool blendToPassthrough)
 {
@@ -62,9 +59,17 @@ PassRefPtr<FilterOperation> BasicColorMatrixFilterOperation::blend(const FilterO
     if (blendToPassthrough)
         return BasicColorMatrixFilterOperation::create(WebCore::blend(m_amount, passthroughAmount(), progress), m_type);
         
-    const BasicColorMatrixFilterOperation* fromOp = static_cast<const BasicColorMatrixFilterOperation*>(from);
+    const BasicColorMatrixFilterOperation* fromOp = toBasicColorMatrixFilterOperation(from);
     double fromAmount = fromOp ? fromOp->amount() : passthroughAmount();
     return BasicColorMatrixFilterOperation::create(WebCore::blend(fromAmount, m_amount, progress), m_type);
+}
+
+inline bool BasicColorMatrixFilterOperation::operator==(const FilterOperation& o) const
+{
+    if (!isSameType(o))
+        return false;
+    const BasicColorMatrixFilterOperation& other = toBasicColorMatrixFilterOperation(o);
+    return m_amount == other.m_amount;
 }
 
 double BasicColorMatrixFilterOperation::passthroughAmount() const
@@ -90,9 +95,17 @@ PassRefPtr<FilterOperation> BasicComponentTransferFilterOperation::blend(const F
     if (blendToPassthrough)
         return BasicComponentTransferFilterOperation::create(WebCore::blend(m_amount, passthroughAmount(), progress), m_type);
         
-    const BasicComponentTransferFilterOperation* fromOp = static_cast<const BasicComponentTransferFilterOperation*>(from);
+    const BasicComponentTransferFilterOperation* fromOp = toBasicComponentTransferFilterOperation(from);
     double fromAmount = fromOp ? fromOp->amount() : passthroughAmount();
     return BasicComponentTransferFilterOperation::create(WebCore::blend(fromAmount, m_amount, progress), m_type);
+}
+
+inline bool BasicComponentTransferFilterOperation::operator==(const FilterOperation& o) const
+{
+    if (!isSameType(o))
+        return false;
+    const BasicComponentTransferFilterOperation& other = toBasicComponentTransferFilterOperation(o);
+    return m_amount == other.m_amount;
 }
 
 double BasicComponentTransferFilterOperation::passthroughAmount() const

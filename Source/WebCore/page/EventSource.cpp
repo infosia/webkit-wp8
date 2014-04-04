@@ -46,7 +46,6 @@
 #include "ResourceError.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
-#include "ScriptCallStack.h"
 #include "ScriptController.h"
 #include "ScriptExecutionContext.h"
 #include "SecurityOrigin.h"
@@ -170,7 +169,7 @@ void EventSource::scheduleReconnect()
     dispatchEvent(Event::create(eventNames().errorEvent, false, false));
 }
 
-void EventSource::connectTimerFired(Timer<EventSource>*)
+void EventSource::connectTimerFired(Timer<EventSource>&)
 {
     connect();
 }
@@ -228,7 +227,7 @@ void EventSource::didReceiveResponse(unsigned long, const ResourceResponse& resp
             message.append(charset);
             message.appendLiteral("\") that is not UTF-8. Aborting the connection.");
             // FIXME: We are missing the source line.
-            scriptExecutionContext()->addConsoleMessage(JSMessageSource, ErrorMessageLevel, message.toString());
+            scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, message.toString());
         }
     } else {
         // To keep the signal-to-noise ratio low, we only log 200-response with an invalid MIME type.
@@ -238,7 +237,7 @@ void EventSource::didReceiveResponse(unsigned long, const ResourceResponse& resp
             message.append(response.mimeType());
             message.appendLiteral("\") that is not \"text/event-stream\". Aborting the connection.");
             // FIXME: We are missing the source line.
-            scriptExecutionContext()->addConsoleMessage(JSMessageSource, ErrorMessageLevel, message.toString());
+            scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, message.toString());
         }
     }
 
@@ -256,7 +255,8 @@ void EventSource::didReceiveData(const char* data, int length)
     ASSERT(m_state == OPEN);
     ASSERT(m_requestInFlight);
 
-    append(m_receiveBuf, m_decoder->decode(data, length));
+    // FIXME: Need to call flush at some point.
+    append(m_receiveBuf, StringView(m_decoder->decode(data, length)));
     parseEventStream();
 }
 
@@ -290,7 +290,7 @@ void EventSource::didFail(const ResourceError& error)
 void EventSource::didFailAccessControlCheck(const ResourceError& error)
 {
     String message = makeString("EventSource cannot load ", error.failingURL(), ". ", error.localizedDescription());
-    scriptExecutionContext()->addConsoleMessage(JSMessageSource, ErrorMessageLevel, message);
+    scriptExecutionContext()->addConsoleMessage(MessageSource::JS, MessageLevel::Error, message);
 
     abortConnectionAttempt();
 }
@@ -336,6 +336,7 @@ void EventSource::parseEventStream()
                 break;
             case '\r':
                 m_discardTrailingNewline = true;
+                FALLTHROUGH;
             case '\n':
                 lineLength = i - bufPos;
                 break;

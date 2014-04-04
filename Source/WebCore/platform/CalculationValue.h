@@ -33,8 +33,7 @@
 
 #include "Length.h"
 #include "LengthFunctions.h"
-#include <wtf/OwnPtr.h>
-#include <wtf/PassOwnPtr.h>
+#include <memory>
 #include <wtf/RefCounted.h>
 #include <wtf/Vector.h>
 
@@ -83,7 +82,7 @@ protected:
 
 class CalculationValue : public RefCounted<CalculationValue> {
 public:
-    static PassRefPtr<CalculationValue> create(PassOwnPtr<CalcExpressionNode> value, CalculationPermittedValueRange);
+    static PassRefPtr<CalculationValue> create(std::unique_ptr<CalcExpressionNode> value, CalculationPermittedValueRange);
     float evaluate(float maxValue) const;
 
     bool operator==(const CalculationValue& o) const
@@ -95,13 +94,13 @@ public:
     const CalcExpressionNode* expression() const { return m_value.get(); }
 
 private:
-    CalculationValue(PassOwnPtr<CalcExpressionNode> value, CalculationPermittedValueRange range)
-        : m_value(value)
+    CalculationValue(std::unique_ptr<CalcExpressionNode> value, CalculationPermittedValueRange range)
+        : m_value(std::move(value))
         , m_isNonNegative(range == CalculationRangeNonNegative)
     {
     }
 
-    OwnPtr<CalcExpressionNode> m_value;
+    std::unique_ptr<CalcExpressionNode> m_value;
     bool m_isNonNegative;
 };
 
@@ -118,12 +117,12 @@ public:
         return m_value == o.m_value;
     }
 
-    virtual bool operator==(const CalcExpressionNode& o) const OVERRIDE
+    virtual bool operator==(const CalcExpressionNode& o) const override
     {
         return type() == o.type() && *this == static_cast<const CalcExpressionNumber&>(o);
     }
 
-    virtual float evaluate(float) const OVERRIDE
+    virtual float evaluate(float) const override
     {
         return m_value;
     }
@@ -153,12 +152,12 @@ public:
         return m_length == o.m_length;
     }
 
-    virtual bool operator==(const CalcExpressionNode& o) const OVERRIDE
+    virtual bool operator==(const CalcExpressionNode& o) const override
     {
         return type() == o.type() && *this == static_cast<const CalcExpressionLength&>(o);
     }
 
-    virtual float evaluate(float maxValue) const OVERRIDE
+    virtual float evaluate(float maxValue) const override
     {
         return floatValueForLength(m_length, maxValue);
     }
@@ -177,9 +176,9 @@ inline const CalcExpressionLength* toCalcExpressionLength(const CalcExpressionNo
 
 class CalcExpressionBinaryOperation : public CalcExpressionNode {
 public:
-    CalcExpressionBinaryOperation(PassOwnPtr<CalcExpressionNode> leftSide, PassOwnPtr<CalcExpressionNode> rightSide, CalcOperator op)
-        : m_leftSide(leftSide)
-        , m_rightSide(rightSide)
+    CalcExpressionBinaryOperation(std::unique_ptr<CalcExpressionNode> leftSide, std::unique_ptr<CalcExpressionNode> rightSide, CalcOperator op)
+        : m_leftSide(std::move(leftSide))
+        , m_rightSide(std::move(rightSide))
         , m_operator(op)
     {
         m_type = CalcExpressionNodeBinaryOperation;
@@ -190,20 +189,20 @@ public:
         return m_operator == o.m_operator && *m_leftSide == *o.m_leftSide && *m_rightSide == *o.m_rightSide;
     }
 
-    virtual bool operator==(const CalcExpressionNode& o) const OVERRIDE
+    virtual bool operator==(const CalcExpressionNode& o) const override
     {
         return type() == o.type() && *this == static_cast<const CalcExpressionBinaryOperation&>(o);
     }
 
-    virtual float evaluate(float) const OVERRIDE;
+    virtual float evaluate(float) const override;
 
     const CalcExpressionNode* leftSide() const { return m_leftSide.get(); }
     const CalcExpressionNode* rightSide() const { return m_rightSide.get(); }
     CalcOperator getOperator() const { return m_operator; }
 
 private:
-    OwnPtr<CalcExpressionNode> m_leftSide;
-    OwnPtr<CalcExpressionNode> m_rightSide;
+    std::unique_ptr<CalcExpressionNode> m_leftSide;
+    std::unique_ptr<CalcExpressionNode> m_rightSide;
     CalcOperator m_operator;
 };
 
@@ -228,12 +227,12 @@ public:
         return m_progress == o.m_progress && m_from == o.m_from && m_to == o.m_to;
     }
 
-    virtual bool operator==(const CalcExpressionNode& o) const OVERRIDE
+    virtual bool operator==(const CalcExpressionNode& o) const override
     {
         return type() == o.type() && *this == static_cast<const CalcExpressionBlendLength&>(o);
     }
 
-    virtual float evaluate(float maxValue) const OVERRIDE
+    virtual float evaluate(float maxValue) const override
     {
         return (1.0f - m_progress) * floatValueForLength(m_from, maxValue) + m_progress * floatValueForLength(m_to, maxValue);
     }

@@ -53,10 +53,6 @@ PageClientImpl::PageClientImpl(GtkWidget* viewWidget)
 {
 }
 
-PageClientImpl::~PageClientImpl()
-{
-}
-
 void PageClientImpl::getEditorCommandsForKeyEvent(const NativeWebKeyboardEvent& event, const AtomicString& eventType, Vector<WTF::String>& commandList)
 {
     ASSERT(eventType == eventNames().keydownEvent || eventType == eventNames().keypressEvent);
@@ -82,7 +78,7 @@ void PageClientImpl::displayView()
     notImplemented();
 }
 
-void PageClientImpl::scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& scrollOffset)
+void PageClientImpl::scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& /* scrollOffset */)
 {
     setViewNeedsDisplay(scrollRect);
 }
@@ -116,7 +112,7 @@ bool PageClientImpl::isViewInWindow()
     return webkitWebViewBaseIsInWindow(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
-void PageClientImpl::PageClientImpl::processDidCrash()
+void PageClientImpl::PageClientImpl::processDidExit()
 {
     notImplemented();
 }
@@ -147,7 +143,7 @@ void PageClientImpl::setCursor(const Cursor& cursor)
         gdk_window_set_cursor(window, newCursor);
 }
 
-void PageClientImpl::setCursorHiddenUntilMouseMoves(bool hiddenUntilMouseMoves)
+void PageClientImpl::setCursorHiddenUntilMouseMoves(bool /* hiddenUntilMouseMoves */)
 {
     notImplemented();
 }
@@ -189,7 +185,7 @@ FloatRect PageClientImpl::convertToUserSpace(const FloatRect& viewRect)
     return viewRect;
 }
 
-IntPoint PageClientImpl::screenToWindow(const IntPoint& point)
+IntPoint PageClientImpl::screenToRootView(const IntPoint& point)
 {
     IntPoint widgetPositionOnScreen = convertWidgetPointToScreenPoint(m_viewWidget, IntPoint());
     IntPoint result(point);
@@ -197,7 +193,7 @@ IntPoint PageClientImpl::screenToWindow(const IntPoint& point)
     return result;
 }
 
-IntRect PageClientImpl::windowToScreen(const IntRect& rect)
+IntRect PageClientImpl::rootViewToScreen(const IntRect& rect)
 {
     return IntRect(convertWidgetPointToScreenPoint(m_viewWidget, rect.location()), rect.size());
 }
@@ -232,12 +228,11 @@ PassRefPtr<WebColorPicker> PageClientImpl::createColorPicker(WebPageProxy*, cons
 }
 #endif
 
-void PageClientImpl::setFindIndicator(PassRefPtr<FindIndicator>, bool fadeOut, bool animate)
+void PageClientImpl::setFindIndicator(PassRefPtr<FindIndicator>, bool /* fadeOut */, bool /* animate */)
 {
     notImplemented();
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void PageClientImpl::enterAcceleratedCompositingMode(const LayerTreeContext&)
 {
     notImplemented();
@@ -252,7 +247,6 @@ void PageClientImpl::updateAcceleratedCompositingMode(const LayerTreeContext&)
 {
     notImplemented();
 }
-#endif // USE(ACCELERATED_COMPOSITING)
 
 void PageClientImpl::pageClosed()
 {
@@ -279,14 +273,9 @@ void PageClientImpl::handleDownloadRequest(DownloadProxy* download)
     webkitWebViewBaseHandleDownloadRequest(WEBKIT_WEB_VIEW_BASE(m_viewWidget), download);
 }
 
-bool PageClientImpl::isWindowVisible()
+void PageClientImpl::didCommitLoadForMainFrame(const String& /* mimeType */, bool /* useCustomContentProvider */ )
 {
-    return webkitWebViewBaseIsWindowVisible(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
-}
-
-void PageClientImpl::didCommitLoadForMainFrame()
-{
-    notImplemented();
+    webkitWebViewBaseResetClickCounter(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
 #if ENABLE(FULLSCREEN_API)
@@ -322,16 +311,70 @@ void PageClientImpl::exitFullScreen()
     webkitWebViewBaseExitFullScreen(WEBKIT_WEB_VIEW_BASE(m_viewWidget));
 }
 
-void PageClientImpl::beganEnterFullScreen(const IntRect& initialFrame, const IntRect& finalFrame)
+void PageClientImpl::beganEnterFullScreen(const IntRect& /* initialFrame */, const IntRect& /* finalFrame */)
 {
     notImplemented();
 }
 
-void PageClientImpl::beganExitFullScreen(const IntRect& initialFrame, const IntRect& finalFrame)
+void PageClientImpl::beganExitFullScreen(const IntRect& /* initialFrame */, const IntRect& /* finalFrame */)
 {
     notImplemented();
 }
 
 #endif // ENABLE(FULLSCREEN_API)
+
+void PageClientImpl::doneWithTouchEvent(const NativeWebTouchEvent& event, bool wasEventHandled)
+{
+    if (wasEventHandled)
+        return;
+
+    // Emulate pointer events if unhandled.
+    const GdkEvent* touchEvent = event.nativeEvent();
+
+    if (!touchEvent->touch.emulating_pointer)
+        return;
+
+    GUniquePtr<GdkEvent> pointerEvent;
+
+    if (touchEvent->type == GDK_TOUCH_UPDATE) {
+        pointerEvent.reset(gdk_event_new(GDK_MOTION_NOTIFY));
+        pointerEvent->motion.time = touchEvent->touch.time;
+        pointerEvent->motion.x = touchEvent->touch.x;
+        pointerEvent->motion.y = touchEvent->touch.y;
+        pointerEvent->motion.x_root = touchEvent->touch.x_root;
+        pointerEvent->motion.y_root = touchEvent->touch.y_root;
+        pointerEvent->motion.state = touchEvent->touch.state | GDK_BUTTON1_MASK;
+    } else {
+        switch (touchEvent->type) {
+        case GDK_TOUCH_END:
+            pointerEvent.reset(gdk_event_new(GDK_BUTTON_RELEASE));
+            pointerEvent->button.state = touchEvent->touch.state | GDK_BUTTON1_MASK;
+            break;
+        case GDK_TOUCH_BEGIN:
+            pointerEvent.reset(gdk_event_new(GDK_BUTTON_PRESS));
+            break;
+        default:
+            ASSERT_NOT_REACHED();
+        }
+
+        pointerEvent->button.button = 1;
+        pointerEvent->button.time = touchEvent->touch.time;
+        pointerEvent->button.x = touchEvent->touch.x;
+        pointerEvent->button.y = touchEvent->touch.y;
+        pointerEvent->button.x_root = touchEvent->touch.x_root;
+        pointerEvent->button.y_root = touchEvent->touch.y_root;
+    }
+
+    gdk_event_set_device(pointerEvent.get(), gdk_event_get_device(touchEvent));
+    gdk_event_set_source_device(pointerEvent.get(), gdk_event_get_source_device(touchEvent));
+    pointerEvent->any.window = GDK_WINDOW(g_object_ref(touchEvent->any.window));
+    pointerEvent->any.send_event = TRUE;
+
+    gtk_widget_event(m_viewWidget, pointerEvent.get());
+}
+
+void PageClientImpl::didFinishLoadingDataForCustomContentProvider(const String&, const IPC::DataReference&)
+{
+}
 
 } // namespace WebKit

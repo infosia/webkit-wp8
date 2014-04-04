@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGGradientElement.h"
 
 #include "ElementIterator.h"
@@ -65,7 +63,7 @@ SVGGradientElement::SVGGradientElement(const QualifiedName& tagName, Document& d
 
 bool SVGGradientElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGURIReference::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -140,15 +138,13 @@ void SVGGradientElement::childrenChanged(const ChildChange& change)
 Vector<Gradient::ColorStop> SVGGradientElement::buildStops()
 {
     Vector<Gradient::ColorStop> stops;
-
-    auto stopChildren = childrenOfType<SVGStopElement>(*this);
     float previousOffset = 0.0f;
 
-    for (auto stop = stopChildren.begin(), end = stopChildren.end(); stop != end; ++stop) {
-        Color color = stop->stopColorIncludingOpacity();
+    for (auto& stop : childrenOfType<SVGStopElement>(*this)) {
+        Color color = stop.stopColorIncludingOpacity();
 
         // Figure out right monotonic offset
-        float offset = stop->offset();
+        float offset = stop.offset();
         offset = std::min(std::max(previousOffset, offset), 1.0f);
         previousOffset = offset;
 
@@ -169,5 +165,3 @@ bool isSVGGradientElement(const Node& node)
 }
 
 }
-
-#endif // ENABLE(SVG)

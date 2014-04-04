@@ -33,13 +33,17 @@
 #ifndef InputType_h
 #define InputType_h
 
-#include "FeatureObserver.h"
 #include "HTMLTextFormControlElement.h"
+#include "RenderPtr.h"
 #include "StepRange.h"
 #include <wtf/FastMalloc.h>
 #include <wtf/Forward.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/RefPtr.h>
+
+#if PLATFORM(IOS)
+#include "DateComponents.h"
+#endif
 
 namespace WebCore {
 
@@ -232,7 +236,7 @@ public:
     // Miscellaneous functions
 
     virtual bool rendererIsNeeded();
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) const;
+    virtual RenderPtr<RenderElement> createInputRenderer(PassRef<RenderStyle>);
     virtual void addSearchResult();
     virtual void attach();
     virtual void detach();
@@ -243,9 +247,15 @@ public:
     virtual bool shouldRespectAlignAttribute();
     virtual FileList* files();
     virtual void setFiles(PassRefPtr<FileList>);
+#if ENABLE(DRAG_SUPPORT)
     // Should return true if the given DragData has more than one dropped files.
     virtual bool receiveDroppedFiles(const DragData&);
+#endif
     virtual Icon* icon() const;
+#if PLATFORM(IOS)
+    virtual String displayString() const;
+#endif
+
     // Should return true if the corresponding renderer for a type can display a suggested value.
     virtual bool canSetSuggestedValue();
     virtual bool shouldSendChangeEventAfterCheckedChanged();
@@ -294,6 +304,10 @@ public:
     // string. This should not be called for types without valueAsNumber.
     virtual String serialize(const Decimal&) const;
 
+#if PLATFORM(IOS)
+    virtual DateComponents::Type dateType() const;
+#endif
+
     virtual bool supportsIndeterminateAppearance() const;
 
     virtual bool supportsSelectionAPI() const;
@@ -310,7 +324,6 @@ protected:
     HTMLInputElement& element() const { return m_element; }
     Chrome* chrome() const;
     Decimal parseToNumberOrNaN(const String&) const;
-    void observeFeatureIfVisible(FeatureObserver::Feature) const;
 
 private:
     // Helper for stepUp()/stepDown(). Adds step value * count to the current value.

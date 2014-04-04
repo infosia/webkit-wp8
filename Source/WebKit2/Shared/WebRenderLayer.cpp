@@ -27,8 +27,8 @@
 #include "WebRenderLayer.h"
 
 #include "APIArray.h"
+#include "APIString.h"
 #include "WebPage.h"
-#include "WebString.h"
 #include <WebCore/Frame.h>
 #include <WebCore/FrameLoader.h>
 #include <WebCore/FrameLoaderClient.h>
@@ -85,7 +85,6 @@ WebRenderLayer::WebRenderLayer(RenderLayer* layer)
     m_renderer = WebRenderObject::create(&layer->renderer());
     m_isReflection = layer->isReflection();
 
-#if USE(ACCELERATED_COMPOSITING)
     if (layer->isComposited()) {
         RenderLayerBacking* backing = layer->backing();
         m_isClipping = backing->hasClippingLayer();
@@ -105,13 +104,10 @@ WebRenderLayer::WebRenderLayer(RenderLayer* layer)
             break;
         }
     } else {
-#endif
         m_isClipping = false;
         m_isClipped = false;
         m_compositingLayerType = None;
-#if USE(ACCELERATED_COMPOSITING)
     }
-#endif
 
     m_absoluteBoundingBox = layer->absoluteBoundingBox();
 

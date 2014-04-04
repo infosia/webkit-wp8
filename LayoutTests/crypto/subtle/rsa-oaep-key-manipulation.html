@@ -26,12 +26,12 @@ crypto.subtle.generateKey(algorithmKeyGen, extractable, ["encrypt", "decrypt", "
     keyPair = result;
     shouldBe("keyPair.toString()", "'[object KeyPair]'");
     shouldBe("keyPair.publicKey.type", "'public'");
-    shouldBe("keyPair.publicKey.algorithm.name", "'rsa-oaep'");
+    shouldBe("keyPair.publicKey.algorithm.name", "'RSA-OAEP'");
     shouldBe("keyPair.publicKey.algorithm.modulusLength", "2048");
     shouldBe("bytesToHexString(keyPair.publicKey.algorithm.publicExponent)", "'010001'");
     shouldBeUndefined("keyPair.publicKey.algorithm.hash");
     shouldBe("keyPair.privateKey.type", "'private'");
-    shouldBe("keyPair.privateKey.algorithm.name", "'rsa-oaep'");
+    shouldBe("keyPair.privateKey.algorithm.name", "'RSA-OAEP'");
     shouldBe("keyPair.privateKey.algorithm.modulusLength", "2048");
     shouldBe("bytesToHexString(keyPair.privateKey.algorithm.publicExponent)", "'010001'");
     shouldBeUndefined("keyPair.privateKey.algorithm.hash");
@@ -56,7 +56,8 @@ crypto.subtle.generateKey(algorithmKeyGen, extractable, ["encrypt", "decrypt", "
     jwkPublicKey = JSON.parse(bytesToASCIIString(jwkPublicKeyArray));
     shouldBe("jwkPublicKey.alg", "'RSA-OAEP'");
     shouldBe("jwkPublicKey.ext", "true");
-    shouldBe("jwkPublicKey.use", "'enc'");
+    shouldBe("jwkPublicKey.key_ops", "['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']");
+    shouldBe("jwkPublicKey.use", "undefined");
     shouldBe("jwkPublicKey.kty", "'RSA'");
     shouldBe("bytesToHexString(Base64URL.parse(jwkPublicKey.e))", "'010001'");
 
@@ -65,12 +66,12 @@ crypto.subtle.generateKey(algorithmKeyGen, extractable, ["encrypt", "decrypt", "
 }).then(function(result) {
     exportedPublicKey = result;
     shouldBe("exportedPublicKey.type", "'public'");
-    shouldBe("exportedPublicKey.algorithm.name", "'rsa-oaep'");
+    shouldBe("exportedPublicKey.algorithm.name", "'RSA-OAEP'");
     shouldBe("exportedPublicKey.algorithm.modulusLength", "2048");
     shouldBe("bytesToHexString(exportedPublicKey.algorithm.publicExponent)", "'010001'");
-    shouldBe("exportedPublicKey.algorithm.hash.name", "'sha-1'");
+    shouldBe("exportedPublicKey.algorithm.hash.name", "'SHA-1'");
     shouldBe("exportedPublicKey.extractable", "true");
-    shouldBe("exportedPublicKey.usages", "['encrypt','decrypt','wrapKey','unwrapKey']");
+    shouldBe("exportedPublicKey.usages", "['decrypt','encrypt','unwrapKey','wrapKey']");
 
     finishJSTest();
 });

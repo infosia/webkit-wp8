@@ -42,7 +42,7 @@ public:
     public:
         virtual ~Client() { }
         
-        virtual void didFinishLaunching(ProcessLauncher*, CoreIPC::Connection::Identifier) = 0;
+        virtual void didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier) = 0;
     };
     
     enum ProcessType {
@@ -61,7 +61,7 @@ public:
     struct LaunchOptions {
         ProcessType processType;
         HashMap<String, String> extraInitializationData;
-#if PLATFORM(MAC)
+#if OS(DARWIN)
         static const cpu_type_t MatchCurrentArchitecture = 0;
         cpu_type_t architecture;
         bool executableHeap;
@@ -92,7 +92,7 @@ private:
     ProcessLauncher(Client*, const LaunchOptions& launchOptions);
 
     void launchProcess();
-    void didFinishLaunchingProcess(PlatformProcessIdentifier, CoreIPC::Connection::Identifier);
+    void didFinishLaunchingProcess(PlatformProcessIdentifier, IPC::Connection::Identifier);
 
     void platformInvalidate();
 

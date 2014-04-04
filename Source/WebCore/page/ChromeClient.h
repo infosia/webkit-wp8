@@ -23,8 +23,6 @@
 #define ChromeClient_h
 
 #include "AXObjectCache.h"
-#include "ConsoleAPITypes.h"
-#include "ConsoleTypes.h"
 #include "Cursor.h"
 #include "FocusDirection.h"
 #include "FrameLoader.h"
@@ -34,11 +32,23 @@
 #include "PopupMenuClient.h"
 #include "RenderEmbeddedObject.h"
 #include "ScrollTypes.h"
+#include "ScrollingCoordinator.h"
 #include "SearchPopupMenu.h"
 #include "WebCoreKeyboardUIMode.h"
+#include <runtime/ConsoleTypes.h>
 #include <wtf/Forward.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/Vector.h>
+
+#if PLATFORM(IOS)
+#include "PlatformLayer.h"
+#define NSResponder WAKResponder
+#ifndef __OBJC__
+class WAKResponder;
+#else
+@class WAKResponder;
+#endif
+#endif
 
 #if ENABLE(SQL_DATABASE)
 #include "DatabaseDetails.h"
@@ -62,14 +72,15 @@ class Geolocation;
 class GraphicsContext3D;
 class GraphicsLayer;
 class GraphicsLayerFactory;
-class HitTestResult;
 class HTMLInputElement;
+class HitTestResult;
 class IntRect;
 class NavigationAction;
 class Node;
 class Page;
 class PopupMenuClient;
 class SecurityOrigin;
+class ViewportConstraints;
 class Widget;
 
 struct DateTimeChooserParameters;
@@ -145,9 +156,9 @@ public:
 
     // Methods used by HostWindow.
     virtual bool supportsImmediateInvalidation() { return false; }
-    virtual void invalidateRootView(const IntRect&, bool immediate) = 0;
-    virtual void invalidateContentsAndRootView(const IntRect&, bool immediate) = 0;
-    virtual void invalidateContentsForSlowScroll(const IntRect&, bool immediate) = 0;
+    virtual void invalidateRootView(const IntRect&) = 0;
+    virtual void invalidateContentsAndRootView(const IntRect&) = 0;
+    virtual void invalidateContentsForSlowScroll(const IntRect&) = 0;
     virtual void scroll(const IntSize&, const IntRect&, const IntRect&) = 0;
 #if USE(TILED_BACKING_STORE)
     virtual void delegatedScrollRequested(const IntPoint&) = 0;
@@ -156,17 +167,19 @@ public:
     virtual IntRect rootViewToScreen(const IntRect&) const = 0;
     virtual PlatformPageClient platformPageClient() const = 0;
     virtual void scrollbarsModeDidChange() const = 0;
+#if ENABLE(CURSOR_SUPPORT)
     virtual void setCursor(const Cursor&) = 0;
     virtual void setCursorHiddenUntilMouseMoves(bool) = 0;
+#endif
 #if ENABLE(REQUEST_ANIMATION_FRAME) && !USE(REQUEST_ANIMATION_FRAME_TIMER)
     virtual void scheduleAnimation() = 0;
 #endif
     // End methods used by HostWindow.
 
+    virtual FloatSize viewportScreenSize() const { return const_cast<ChromeClient*>(this)->windowRect().size(); }
     virtual void dispatchViewportPropertiesDidChange(const ViewportArguments&) const { }
 
     virtual void contentsSizeChanged(Frame*, const IntSize&) const = 0;
-    virtual void layoutUpdated(Frame*) const { }
     virtual void scrollRectIntoView(const IntRect&) const { }; // Currently only Mac has a non empty implementation.
 
     virtual bool shouldUnavailablePluginMessageBeButton(RenderEmbeddedObject::PluginUnavailabilityReason) const { return false; }
@@ -178,6 +191,8 @@ public:
     virtual void print(Frame*) = 0;
 
     virtual Color underlayColor() const { return Color(); }
+
+    virtual void pageExtendedBackgroundColorDidChange(Color) const { }
 
 #if ENABLE(SQL_DATABASE)
     virtual void exceededDatabaseQuota(Frame*, const String& databaseName, DatabaseDetails) = 0;
@@ -200,45 +215,67 @@ public:
     // the new cache.
     virtual void reachedApplicationCacheOriginQuota(SecurityOrigin*, int64_t totalSpaceNeeded) = 0;
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+#if ENABLE(DASHBOARD_SUPPORT)
     virtual void annotatedRegionsChanged();
 #endif
 
     virtual void populateVisitedLinks();
 
-    virtual FloatRect customHighlightRect(Node*, const AtomicString& type, const FloatRect& lineRect);
-    virtual void paintCustomHighlight(Node*, const AtomicString& type, const FloatRect& boxRect, const FloatRect& lineRect, bool behindText, bool entireLine);
-            
     virtual bool shouldReplaceWithGeneratedFileForUpload(const String& path, String& generatedFilename);
     virtual String generateReplacementFile(const String& path);
+
+#if ENABLE(IOS_TOUCH_EVENTS)
+    virtual void didPreventDefaultForEvent() = 0;
+#endif
+
+#if PLATFORM(IOS)
+    virtual void didReceiveMobileDocType(bool) = 0;
+    virtual void setNeedsScrollNotifications(Frame*, bool) = 0;
+    virtual void observedContentChange(Frame*) = 0;
+    virtual void clearContentChangeObservers(Frame*) = 0;
+    virtual void notifyRevealedSelectionByScrollingFrame(Frame*) = 0;
+
+    enum LayoutType { NormalLayout, Scroll };
+    virtual void didLayout(LayoutType = NormalLayout) = 0;
+    virtual void didStartOverflowScroll() = 0;
+    virtual void didEndOverflowScroll() = 0;
+
+    // FIXME: Remove this functionality. This functionality was added to workaround an issue (<rdar://problem/5973875>)
+    // where the unconfirmed text in a text area would be removed when a person clicks in the text area before a
+    // suggestion is shown. We should fix this issue in <rdar://problem/5975559>.
+    virtual void suppressFormNotifications() = 0;
+    virtual void restoreFormNotifications() = 0;
+
+    virtual void didFlushCompositingLayers() { }
+
+    virtual bool fetchCustomFixedPositionLayoutRect(IntRect&) { return false; }
+
+    virtual void updateViewportConstrainedLayers(HashMap<PlatformLayer*, std::unique_ptr<ViewportConstraints>>&, HashMap<PlatformLayer*, PlatformLayer*>&) { }
+
+    virtual void addOrUpdateScrollingLayer(Node*, PlatformLayer* scrollingLayer, PlatformLayer* contentsLayer, const IntSize& scrollSize, bool allowHorizontalScrollbar, bool allowVerticalScrollbar) = 0;
+    virtual void removeScrollingLayer(Node*, PlatformLayer* scrollingLayer, PlatformLayer* contentsLayer) = 0;
+
+    virtual void webAppOrientationsUpdated() = 0;
+    virtual void showPlaybackTargetPicker(bool hasVideo) = 0;
+#endif
 
 #if ENABLE(INPUT_TYPE_COLOR)
     virtual PassOwnPtr<ColorChooser> createColorChooser(ColorChooserClient*, const Color&) = 0;
 #endif
 
-#if ENABLE(DATE_AND_TIME_INPUT_TYPES)
+#if ENABLE(DATE_AND_TIME_INPUT_TYPES) && !PLATFORM(IOS)
     virtual PassRefPtr<DateTimeChooser> openDateTimeChooser(DateTimeChooserClient*, const DateTimeChooserParameters&) = 0;
 #endif
 
     virtual void runOpenPanel(Frame*, PassRefPtr<FileChooser>) = 0;
     // Asynchronous request to load an icon for specified filenames.
     virtual void loadIconForFiles(const Vector<String>&, FileIconLoader*) = 0;
-
-#if ENABLE(DIRECTORY_UPLOAD)
-    // Asychronous request to enumerate all files in a directory chosen by the user.
-    virtual void enumerateChosenDirectory(FileChooser*) = 0;
-#endif
-
-    // Notification that the given form element has changed. This function
-    // will be called frequently, so handling should be very fast.
-    virtual void formStateDidChange(const Node*) = 0;
         
     virtual void elementDidFocus(const Node*) { };
     virtual void elementDidBlur(const Node*) { };
     
     virtual bool shouldPaintEntireContents() const { return false; }
 
-#if USE(ACCELERATED_COMPOSITING)
     // Allows ports to customize the type of graphics layers created by this page.
     virtual GraphicsLayerFactory* graphicsLayerFactory() const { return 0; }
 
@@ -272,7 +309,8 @@ public:
     
     // Returns true if layer tree updates are disabled.
     virtual bool layerTreeStateIsFrozen() const { return false; }
-#endif
+
+    virtual PassRefPtr<ScrollingCoordinator> createScrollingCoordinator(Page*) const { return nullptr; }
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
     virtual GraphicsDeviceAdapter* graphicsDeviceAdapter() const { return 0; }
@@ -287,7 +325,6 @@ public:
     virtual bool supportsFullScreenForElement(const Element*, bool) { return false; }
     virtual void enterFullScreenForElement(Element*) { }
     virtual void exitFullScreenForElement(Element*) { }
-    virtual void fullScreenRendererChanged(RenderBox*) { }
     virtual void setRootFullScreenLayer(GraphicsLayer*) { }
 #endif
 
@@ -295,7 +332,7 @@ public:
     virtual IntRect visibleRectForTiledBackingStore() const { return IntRect(); }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual NSResponder *firstResponder() { return 0; }
     virtual void makeFirstResponder(NSResponder *) { }
     // Focuses on the containing view associated with this page.
@@ -369,11 +406,10 @@ public:
 
     virtual bool shouldUseTiledBackingForFrameView(const FrameView*) const { return false; }
 
-    // These methods are used to report pages that are performing
-    // some task that we consider to be "active", and so the user
-    // would likely want the page to remain running uninterrupted.
-    virtual void incrementActivePageCount() { }
-    virtual void decrementActivePageCount() { }
+#if ENABLE(SUBTLE_CRYPTO)
+    virtual bool wrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&) const { return false; }
+    virtual bool unwrapCryptoKey(const Vector<uint8_t>&, Vector<uint8_t>&) const { return false; }
+#endif
 
 protected:
     virtual ~ChromeClient() { }

@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -56,16 +56,17 @@
 #include "PolicyChecker.h"
 #include "ProgressTracker.h"
 #include "ResourceBuffer.h"
+#include "ResourceHandle.h"
 #include "SchemeRegistry.h"
 #include "SecurityPolicy.h"
 #include "Settings.h"
 #include "SubresourceLoader.h"
 #include "TextResourceDecoder.h"
 #include <wtf/Assertions.h>
+#include <wtf/NeverDestroyed.h>
 #include <wtf/Ref.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
-#include <wtf/unicode/Unicode.h>
 
 #if ENABLE(WEB_ARCHIVE) || ENABLE(MHTML)
 #include "ArchiveFactory.h"
@@ -77,22 +78,43 @@
 
 namespace WebCore {
 
-static void cancelAll(const ResourceLoaderSet& loaders)
+static void cancelAll(const ResourceLoaderMap& loaders)
 {
     Vector<RefPtr<ResourceLoader>> loadersCopy;
-    copyToVector(loaders, loadersCopy);
-    size_t size = loadersCopy.size();
-    for (size_t i = 0; i < size; ++i)
-        loadersCopy[i]->cancel();
+    copyValuesToVector(loaders, loadersCopy);
+    for (auto& loader : loadersCopy)
+        loader->cancel();
 }
 
-static void setAllDefersLoading(const ResourceLoaderSet& loaders, bool defers)
+static void setAllDefersLoading(const ResourceLoaderMap& loaders, bool defers)
 {
     Vector<RefPtr<ResourceLoader>> loadersCopy;
-    copyToVector(loaders, loadersCopy);
-    size_t size = loadersCopy.size();
-    for (size_t i = 0; i < size; ++i)
-        loadersCopy[i]->setDefersLoading(defers);
+    copyValuesToVector(loaders, loadersCopy);
+    for (auto& loader : loadersCopy)
+        loader->setDefersLoading(defers);
+}
+
+static bool areAllLoadersPageCacheAcceptable(const ResourceLoaderMap& loaders)
+{
+    Vector<RefPtr<ResourceLoader>> loadersCopy;
+    copyValuesToVector(loaders, loadersCopy);
+    for (auto& loader : loadersCopy) {
+        ResourceHandle* handle = loader->handle();
+        if (!handle)
+            return false;
+
+        if (!loader->frameLoader())
+            return false;
+
+        CachedResource* cachedResource = memoryCache()->resourceForURL(handle->firstRequest().url(), loader->frameLoader()->frame().page()->sessionID());
+        if (!cachedResource)
+            return false;
+
+        // All non-image loads will prevent the page from entering the PageCache.
+        if (!cachedResource->isImage())
+            return false;
+    }
+    return true;
 }
 
 DocumentLoader::DocumentLoader(const ResourceRequest& req, const SubstituteData& substituteData)
@@ -119,6 +141,7 @@ DocumentLoader::DocumentLoader(const ResourceRequest& req, const SubstituteData&
     , m_identifierForLoadWithoutResourceLoader(0)
     , m_dataLoadTimer(this, &DocumentLoader::handleSubstituteDataLoadNow)
     , m_waitingForContentPolicy(false)
+    , m_subresourceLoadersArePageCacheAcceptable(false)
     , m_applicationCacheHost(adoptPtr(new ApplicationCacheHost(this)))
 {
 }
@@ -256,7 +279,14 @@ void DocumentLoader::stopLoading()
     // (This can happen when there's a single XMLHttpRequest currently loading and stopLoading causes it
     // to stop loading. Because of this, we need to save it so we don't return early.
     bool loading = isLoading();
-    
+
+    // We may want to audit the existing subresource loaders when we are on a page which has completed
+    // loading but there are subresource loads during cancellation. This must be done before the
+    // frame->stopLoading() call, which may evict the CachedResources, which we rely on to check
+    // the type of the resource loads.
+    if (loading && m_committed && !mainResourceLoader() && !m_subresourceLoaders.isEmpty())
+        m_subresourceLoadersArePageCacheAcceptable = areAllLoadersPageCacheAcceptable(m_subresourceLoaders);
+
     if (m_committed) {
         // Attempt to stop the frame if the document loader is loading, or if it is done loading but
         // still  parsing. Failure to do so can cause a world leak.
@@ -327,13 +357,12 @@ void DocumentLoader::commitIfReady()
 
 bool DocumentLoader::isLoading() const
 {
-    // FIXME: This should always be enabled, but it seems to cause
+    // if (document() && document()->hasActiveParser())
+    //     return true;
+    // FIXME: The above code should be enabled, but it seems to cause
     // http/tests/security/feed-urls-from-remote.html to timeout on Mac WK1
     // see http://webkit.org/b/110554 and http://webkit.org/b/110401
-#if ENABLE(THREADED_HTML_PARSER)
-    if (document() && document()->hasActiveParser())
-        return true;
-#endif
+
     return isLoadingMainResource() || !m_subresourceLoaders.isEmpty() || !m_plugInStreamLoaders.isEmpty();
 }
 
@@ -381,6 +410,9 @@ void DocumentLoader::finishedLoading(double finishTime)
         const char* data = m_contentFilter->getReplacementData(length);
         if (data)
             dataReceived(m_mainResource.get(), data, length);
+
+        if (m_contentFilter->didBlockData())
+            setContentFilterForBlockedLoad(m_contentFilter);
     }
 #endif
 
@@ -409,7 +441,7 @@ void DocumentLoader::finishedLoading(double finishTime)
     if (!m_mainDocumentError.isNull())
         return;
     clearMainResourceLoader();
-    if (!frameLoader()->stateMachine()->creatingInitialEmptyDocument())
+    if (!frameLoader()->stateMachine().creatingInitialEmptyDocument())
         frameLoader()->checkLoadComplete();
 
     // If the document specified an application cache manifest, it violates the author's intent if we store it in the memory cache
@@ -455,10 +487,10 @@ void DocumentLoader::startDataLoadTimer()
 
 void DocumentLoader::handleSubstituteDataLoadSoon()
 {
-    if (m_deferMainResourceDataLoad)
-        startDataLoadTimer();
-    else
+    if (!m_deferMainResourceDataLoad || frameLoader()->loadsSynchronously())
         handleSubstituteDataLoadNow(0);
+    else
+        startDataLoadTimer();
 }
 
 void DocumentLoader::redirectReceived(CachedResource* resource, ResourceRequest& request, const ResourceResponse& redirectResponse)
@@ -572,8 +604,9 @@ void DocumentLoader::responseReceived(CachedResource* resource, const ResourceRe
     if (willLoadFallback)
         return;
 
-    DEFINE_STATIC_LOCAL(AtomicString, xFrameOptionHeader, ("x-frame-options", AtomicString::ConstructFromLiteral));
-    HTTPHeaderMap::const_iterator it = response.httpHeaderFields().find(xFrameOptionHeader);
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, xFrameOptionHeader, ("x-frame-options", AtomicString::ConstructFromLiteral));
+
+    auto it = response.httpHeaderFields().find(xFrameOptionHeader);
     if (it != response.httpHeaderFields().end()) {
         String content = it->value;
         ASSERT(m_mainResource);
@@ -582,7 +615,7 @@ void DocumentLoader::responseReceived(CachedResource* resource, const ResourceRe
         if (frameLoader()->shouldInterruptLoadForXFrameOptions(content, response.url(), identifier)) {
             InspectorInstrumentation::continueAfterXFrameOptionsDenied(m_frame, this, identifier, response);
             String message = "Refused to display '" + response.url().stringCenterEllipsizedToLength() + "' in a frame because it set 'X-Frame-Options' to '" + content + "'.";
-            frame()->document()->addConsoleMessage(SecurityMessageSource, ErrorMessageLevel, message, identifier);
+            frame()->document()->addConsoleMessage(MessageSource::Security, MessageLevel::Error, message, identifier);
             frame()->document()->enforceSandboxFlags(SandboxOrigin);
             if (HTMLFrameOwnerElement* ownerElement = frame()->ownerElement())
                 ownerElement->dispatchEvent(Event::create(eventNames().loadEvent, false, false));
@@ -603,10 +636,8 @@ void DocumentLoader::responseReceived(CachedResource* resource, const ResourceRe
     if (m_isLoadingMultipartContent) {
         setupForReplace();
         m_mainResource->clear();
-    } else if (response.isMultipart()) {
-        FeatureObserver::observe(m_frame->document(), FeatureObserver::MultipartMainResource);
+    } else if (response.isMultipart())
         m_isLoadingMultipartContent = true;
-    }
 
     m_response = response;
 
@@ -633,7 +664,7 @@ void DocumentLoader::responseReceived(CachedResource* resource, const ResourceRe
 #endif
 
 #if USE(CONTENT_FILTERING)
-    if (response.url().protocolIs("https") && ContentFilter::isEnabled())
+    if (response.url().protocolIsInHTTPFamily() && ContentFilter::isEnabled())
         m_contentFilter = ContentFilter::create(response);
 #endif
 
@@ -768,7 +799,7 @@ void DocumentLoader::commitData(const char* bytes, size_t length)
             m_frame->document()->securityOrigin()->grantLoadLocalResources();
         }
 
-        if (frameLoader()->stateMachine()->creatingInitialEmptyDocument())
+        if (frameLoader()->stateMachine().creatingInitialEmptyDocument())
             return;
         
 #if ENABLE(MHTML)
@@ -818,12 +849,6 @@ void DocumentLoader::dataReceived(CachedResource* resource, const char* data, in
     ASSERT_UNUSED(resource, resource == m_mainResource);
     ASSERT(!m_response.isNull());
 
-#if USE(CFNETWORK) || PLATFORM(MAC)
-    // Workaround for <rdar://problem/6060782>
-    if (m_response.isNull())
-        m_response = ResourceResponse(URL(), "text/html", 0, String(), String());
-#endif
-
     // There is a bug in CFNetwork where callbacks can be dispatched even when loads are deferred.
     // See <rdar://problem/6304600> for more details.
 #if !USE(CF)
@@ -844,6 +869,9 @@ void DocumentLoader::dataReceived(CachedResource* resource, const char* data, in
 
         data = m_contentFilter->getReplacementData(length);
         loadWasBlockedBeforeFinishing = m_contentFilter->didBlockData();
+
+        if (loadWasBlockedBeforeFinishing)
+            setContentFilterForBlockedLoad(m_contentFilter);
     }
 #endif
 
@@ -884,11 +912,8 @@ void DocumentLoader::checkLoadComplete()
 {
     if (!m_frame || isLoading())
         return;
-#if !ENABLE(THREADED_HTML_PARSER)
-    // This ASSERT triggers with the threaded HTML parser.
-    // See https://bugs.webkit.org/show_bug.cgi?id=110937
+
     ASSERT(this == frameLoader()->activeDocumentLoader());
-#endif
     m_frame->document()->domWindow()->finishedLoading();
 }
 
@@ -927,6 +952,12 @@ void DocumentLoader::detachFromFrame()
 void DocumentLoader::clearMainResourceLoader()
 {
     m_loadingMainResource = false;
+
+#if PLATFORM(IOS)
+    // FIXME: Remove PLATFORM(IOS)-guard once we upstream the iOS changes to ResourceRequest.h.
+    m_request.setMainResourceRequest(false);
+#endif
+
     if (this == frameLoader()->activeDocumentLoader())
         checkLoadComplete();
 }
@@ -1098,7 +1129,7 @@ void DocumentLoader::deliverSubstituteResourcesAfterDelay()
         m_substituteResourceDeliveryTimer.startOneShot(0);
 }
 
-void DocumentLoader::substituteResourceDeliveryTimerFired(Timer<DocumentLoader>*)
+void DocumentLoader::substituteResourceDeliveryTimerFired(Timer<DocumentLoader>&)
 {
     if (m_pendingSubstituteResources.isEmpty())
         return;
@@ -1256,6 +1287,14 @@ const String& DocumentLoader::responseMIMEType() const
     return m_response.mimeType();
 }
 
+#if PLATFORM(IOS)
+// FIXME: This method seems to violate the encapsulation of this class.
+void DocumentLoader::setResponseMIMEType(const String& responseMimeType)
+{
+    m_response.setMimeType(responseMimeType);
+}
+#endif
+
 const URL& DocumentLoader::unreachableURL() const
 {
     return m_substituteData.failingURL();
@@ -1300,14 +1339,18 @@ void DocumentLoader::addSubresourceLoader(ResourceLoader* loader)
     // if we are just starting the main resource load.
     if (!m_gotFirstByte)
         return;
-    ASSERT(!m_subresourceLoaders.contains(loader));
+    ASSERT(loader->identifier());
+    ASSERT(!m_subresourceLoaders.contains(loader->identifier()));
     ASSERT(!mainResourceLoader() || mainResourceLoader() != loader);
-    m_subresourceLoaders.add(loader);
+
+    m_subresourceLoaders.add(loader->identifier(), loader);
 }
 
 void DocumentLoader::removeSubresourceLoader(ResourceLoader* loader)
 {
-    if (!m_subresourceLoaders.remove(loader))
+    ASSERT(loader->identifier());
+
+    if (!m_subresourceLoaders.remove(loader->identifier()))
         return;
     checkLoadComplete();
     if (Frame* frame = m_frame)
@@ -1316,12 +1359,18 @@ void DocumentLoader::removeSubresourceLoader(ResourceLoader* loader)
 
 void DocumentLoader::addPlugInStreamLoader(ResourceLoader* loader)
 {
-    m_plugInStreamLoaders.add(loader);
+    ASSERT(loader->identifier());
+    ASSERT(!m_plugInStreamLoaders.contains(loader->identifier()));
+
+    m_plugInStreamLoaders.add(loader->identifier(), loader);
 }
 
 void DocumentLoader::removePlugInStreamLoader(ResourceLoader* loader)
 {
-    m_plugInStreamLoaders.remove(loader);
+    ASSERT(loader->identifier());
+    ASSERT(loader == m_plugInStreamLoaders.get(loader->identifier()));
+
+    m_plugInStreamLoaders.remove(loader->identifier());
     checkLoadComplete();
 }
 
@@ -1336,7 +1385,7 @@ bool DocumentLoader::maybeLoadEmpty()
     if (!shouldLoadEmpty && !frameLoader()->client().representationExistsForURLScheme(m_request.url().protocol()))
         return false;
 
-    if (m_request.url().isEmpty() && !frameLoader()->stateMachine()->creatingInitialEmptyDocument())
+    if (m_request.url().isEmpty() && !frameLoader()->stateMachine().creatingInitialEmptyDocument())
         m_request.setURL(blankURL());
     String mimeType = shouldLoadEmpty ? "text/html" : frameLoader()->client().generatedMIMETypeForURLScheme(m_request.url().protocol());
     m_response = ResourceResponse(m_request.url(), mimeType, 0, String(), String());
@@ -1380,9 +1429,13 @@ void DocumentLoader::startLoadingMainResource()
         return;
     }
 
+#if PLATFORM(IOS)
+    // FIXME: Remove PLATFORM(IOS)-guard once we upstream the iOS changes to ResourceRequest.h.
+    m_request.setMainResourceRequest(true);
+#endif
+
     ResourceRequest request(m_request);
-    DEFINE_STATIC_LOCAL(ResourceLoaderOptions, mainResourceLoadOptions,
-        (SendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, SkipSecurityCheck, UseDefaultOriginRestrictionsForType));
+    static NeverDestroyed<ResourceLoaderOptions> mainResourceLoadOptions(SendCallbacks, SniffContent, BufferData, AllowStoredCredentials, AskClientForAllCredentials, SkipSecurityCheck, UseDefaultOriginRestrictionsForType);
     CachedResourceRequest cachedResourceRequest(request, mainResourceLoadOptions);
     m_mainResource = m_cachedResourceLoader->requestMainResource(cachedResourceRequest);
     if (!m_mainResource) {
@@ -1442,8 +1495,12 @@ void DocumentLoader::clearMainResource()
 
 void DocumentLoader::subresourceLoaderFinishedLoadingOnePart(ResourceLoader* loader)
 {
-    m_multipartSubresourceLoaders.add(loader);
-    m_subresourceLoaders.remove(loader);
+    ASSERT(loader->identifier());
+    ASSERT(!m_multipartSubresourceLoaders.contains(loader->identifier()));
+    ASSERT(m_subresourceLoaders.contains(loader->identifier()));
+
+    m_multipartSubresourceLoaders.add(loader->identifier(), loader);
+    m_subresourceLoaders.remove(loader->identifier());
     checkLoadComplete();
     if (Frame* frame = m_frame)
         frame->loader().checkLoadComplete();    
@@ -1505,5 +1562,39 @@ void DocumentLoader::handledOnloadEvents()
     m_wasOnloadHandled = true;
     applicationCacheHost()->stopDeferringEvents();
 }
+
+#if USE(CONTENT_FILTERING)
+void DocumentLoader::setContentFilterForBlockedLoad(PassRefPtr<ContentFilter> contentFilter)
+{
+    ASSERT(!m_contentFilterForBlockedLoad);
+    ASSERT(contentFilter);
+    ASSERT(contentFilter->didBlockData());
+    m_contentFilterForBlockedLoad = contentFilter;
+}
+
+bool DocumentLoader::handleContentFilterRequest(const ResourceRequest& request)
+{
+    // FIXME: Remove PLATFORM(IOS)-guard once we upstream ContentFilterIOS.mm and
+    // implement ContentFilter::requestUnblockAndDispatchIfSuccessful() for Mac.
+#if PLATFORM(IOS)
+    if (!m_contentFilterForBlockedLoad)
+        return false;
+
+    if (!request.url().protocolIs(ContentFilter::scheme()))
+        return false;
+
+    if (equalIgnoringCase(request.url().host(), "unblock")) {
+        // Tell the FrameLoader to reload if the unblock is successful.
+        m_contentFilterForBlockedLoad->requestUnblockAndDispatchIfSuccessful(bind(&FrameLoader::reload, &(m_frame->loader()), false));
+        return true;
+    }
+
+    return false;
+#else
+    UNUSED_PARAM(request);
+    return false;
+#endif
+}
+#endif
 
 } // namespace WebCore

@@ -32,6 +32,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/install-plugins.h>
 #include <wtf/Forward.h>
+#include <wtf/gobject/GMainLoopSource.h>
 
 #if ENABLE(MEDIA_SOURCE)
 #include "MediaSourceGStreamer.h"
@@ -59,7 +60,7 @@ public:
 
     void load(const String &url);
 #if ENABLE(MEDIA_SOURCE)
-    void load(const String& url, PassRefPtr<HTMLMediaSource>);
+    void load(const String& url, MediaSourcePrivateClient*);
 #endif
     void commitLoad();
     void cancelLoad();
@@ -81,7 +82,7 @@ public:
     void setPreload(MediaPlayer::Preload);
     void fillTimerFired(Timer<MediaPlayerPrivateGStreamer>*);
 
-    PassRefPtr<TimeRanges> buffered() const;
+    std::unique_ptr<PlatformTimeRanges> buffered() const;
     float maxTimeSeekable() const;
     bool didLoadingProgress() const;
     unsigned totalBytes() const;
@@ -146,6 +147,9 @@ private:
     void processTableOfContents(GstMessage*);
     void processTableOfContentsEntry(GstTocEntry*, GstTocEntry* parent);
 #endif
+    bool doSeek(gint64 position, float rate, GstSeekFlags seekType);
+    void updatePlaybackRate();
+
 
     virtual String engineDescription() const { return "GStreamer"; }
     virtual bool isLiveStream() const { return m_isStreaming; }
@@ -172,6 +176,7 @@ private:
     bool m_canFallBackToLastFinishedSeekPositon;
     bool m_buffering;
     float m_playbackRate;
+    float m_lastPlaybackRate;
     bool m_errorOccured;
     mutable gfloat m_mediaDuration;
     bool m_downloadFinished;
@@ -185,11 +190,11 @@ private:
     bool m_volumeAndMuteInitialized;
     bool m_hasVideo;
     bool m_hasAudio;
-    guint m_audioTimerHandler;
-    guint m_textTimerHandler;
-    guint m_videoTimerHandler;
-    guint m_videoCapsTimerHandler;
-    guint m_readyTimerHandler;
+    GMainLoopSource m_audioTimerHandler;
+    GMainLoopSource m_textTimerHandler;
+    GMainLoopSource m_videoTimerHandler;
+    GMainLoopSource m_videoCapsTimerHandler;
+    GMainLoopSource m_readyTimerHandler;
     mutable long m_totalBytes;
     URL m_url;
     bool m_preservesPitch;
@@ -203,7 +208,7 @@ private:
     RefPtr<InbandTextTrackPrivate> m_chaptersTrack;
 #endif
 #if ENABLE(MEDIA_SOURCE)
-    RefPtr<HTMLMediaSource> m_mediaSource;
+    RefPtr<MediaSourcePrivateClient> m_mediaSource;
 #endif
 };
 }

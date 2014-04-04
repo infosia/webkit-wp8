@@ -14,7 +14,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -41,6 +41,7 @@
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
 #include "HTMLAppletElement.h"
+#include "HTMLAudioElement.h"
 #include "HTMLFrameElementBase.h"
 #include "HTMLNames.h"
 #include "HTMLObjectElement.h"
@@ -75,7 +76,7 @@ void SubframeLoader::clear()
     m_containsPlugins = false;
 }
 
-bool SubframeLoader::requestFrame(HTMLFrameOwnerElement& ownerElement, const String& urlString, const AtomicString& frameName, bool lockHistory, bool lockBackForwardList)
+bool SubframeLoader::requestFrame(HTMLFrameOwnerElement& ownerElement, const String& urlString, const AtomicString& frameName, LockHistory lockHistory, LockBackForwardList lockBackForwardList)
 {
     // Support for <frame src="javascript:string">
     URL scriptURL;
@@ -229,7 +230,7 @@ bool SubframeLoader::requestObject(HTMLPlugInImageElement& ownerElement, const S
     // If the plug-in element already contains a subframe, loadOrRedirectSubframe will re-use it. Otherwise,
     // it will create a new frame and set it as the RenderWidget's Widget, causing what was previously 
     // in the widget to be torn down.
-    return loadOrRedirectSubframe(ownerElement, completedURL, frameName, true, true);
+    return loadOrRedirectSubframe(ownerElement, completedURL, frameName, LockHistory::Yes, LockBackForwardList::Yes);
 }
 
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
@@ -242,7 +243,7 @@ PassRefPtr<Widget> SubframeLoader::loadMediaPlayerProxyPlugin(HTMLMediaElement& 
         completedURL = completeURL(url);
 
     if (!m_frame.document()->securityOrigin()->canDisplay(completedURL)) {
-        FrameLoader::reportLocalLoadFailed(m_frame, completedURL.string());
+        FrameLoader::reportLocalLoadFailed(&m_frame, completedURL.string());
         return nullptr;
     }
 
@@ -264,7 +265,7 @@ PassRefPtr<Widget> SubframeLoader::loadMediaPlayerProxyPlugin(HTMLMediaElement& 
 
     if (widget && renderer) {
         renderer->setWidget(widget);
-        renderer->node()->setNeedsStyleRecalc(SyntheticStyleChange);
+        renderer->frameOwnerElement().setNeedsStyleRecalc(SyntheticStyleChange);
     }
     m_containsPlugins = true;
 
@@ -319,13 +320,16 @@ PassRefPtr<Widget> SubframeLoader::createJavaAppletWidget(const IntSize& size, H
     return widget;
 }
 
-Frame* SubframeLoader::loadOrRedirectSubframe(HTMLFrameOwnerElement& ownerElement, const URL& url, const AtomicString& frameName, bool lockHistory, bool lockBackForwardList)
+Frame* SubframeLoader::loadOrRedirectSubframe(HTMLFrameOwnerElement& ownerElement, const URL& url, const AtomicString& frameName, LockHistory lockHistory, LockBackForwardList lockBackForwardList)
 {
     Frame* frame = ownerElement.contentFrame();
     if (frame)
         frame->navigationScheduler().scheduleLocationChange(m_frame.document()->securityOrigin(), url.string(), m_frame.loader().outgoingReferrer(), lockHistory, lockBackForwardList);
     else
         frame = loadSubframe(ownerElement, url, frameName, m_frame.loader().outgoingReferrer());
+
+    if (!frame)
+        return nullptr;
 
     ASSERT(ownerElement.contentFrame() == frame || !ownerElement.contentFrame());
     return ownerElement.contentFrame();
@@ -349,6 +353,9 @@ Frame* SubframeLoader::loadSubframe(HTMLFrameOwnerElement& ownerElement, const U
         FrameLoader::reportLocalLoadFailed(&m_frame, url.string());
         return nullptr;
     }
+
+    if (!SubframeLoadingDisabler::canLoadFrame(ownerElement))
+        return nullptr;
 
     String referrerToUse = SecurityPolicy::generateReferrerHeader(ownerElement.document().referrerPolicy(), url, referrer);
     RefPtr<Frame> frame = m_frame.loader().client().createFrame(url, name, &ownerElement, referrerToUse, allowsScrolling, marginWidth, marginHeight);
@@ -432,6 +439,13 @@ bool SubframeLoader::loadPlugin(HTMLPlugInImageElement& pluginElement, const URL
 
     IntSize contentSize = roundedIntSize(LayoutSize(renderer->contentWidth(), renderer->contentHeight()));
     bool loadManually = document()->isPluginDocument() && !m_containsPlugins && toPluginDocument(document())->shouldLoadPluginManually();
+
+#if PLATFORM(IOS)
+    // On iOS, we only tell the plugin to be in full page mode if the containing plugin document is the top level document.
+    if (document()->ownerElement())
+        loadManually = false;
+#endif
+
     RefPtr<Widget> widget = m_frame.loader().client().createPlugin(contentSize, &pluginElement, url, paramNames, paramValues, mimeType, loadManually);
 
     if (!widget) {
@@ -445,7 +459,7 @@ bool SubframeLoader::loadPlugin(HTMLPlugInImageElement& pluginElement, const URL
     m_containsPlugins = true;
  
 #if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
-    pluginElement->setNeedsStyleRecalc(SyntheticStyleChange);
+    pluginElement.setNeedsStyleRecalc(SyntheticStyleChange);
 #endif
     return true;
 }

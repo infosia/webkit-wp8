@@ -22,8 +22,6 @@
 #include "config.h"
 #include "SVGInlineTextBox.h"
 
-#if ENABLE(SVG)
-#include "FloatConversion.h"
 #include "FontCache.h"
 #include "Frame.h"
 #include "FrameView.h"
@@ -32,8 +30,6 @@
 #include "InlineFlowBox.h"
 #include "PointerEventsHitRules.h"
 #include "RenderBlock.h"
-#include "RenderSVGInlineText.h"
-#include "RenderSVGResource.h"
 #include "RenderSVGResourceSolidColor.h"
 #include "RenderView.h"
 #include "SVGRenderingContext.h"
@@ -61,12 +57,22 @@ SVGInlineTextBox::SVGInlineTextBox(RenderSVGInlineText& renderer)
 {
 }
 
-void SVGInlineTextBox::dirtyLineBoxes()
+void SVGInlineTextBox::dirtyOwnLineBoxes()
 {
     InlineTextBox::dirtyLineBoxes();
 
     // Clear the now stale text fragments
     clearTextFragments();
+}
+
+void SVGInlineTextBox::dirtyLineBoxes()
+{
+    dirtyOwnLineBoxes();
+
+    // And clear any following text fragments as the text on which they
+    // depend may now no longer exist, or glyph positions may be wrong
+    for (InlineTextBox* nextBox = nextTextBox(); nextBox; nextBox = nextBox->nextTextBox())
+        nextBox->dirtyOwnLineBoxes();
 }
 
 int SVGInlineTextBox::offsetForPosition(float, bool) const
@@ -299,16 +305,24 @@ void SVGInlineTextBox::paint(PaintInfo& paintInfo, const LayoutPoint&, LayoutUni
         if (decorations & TextDecorationOverline)
             paintDecoration(paintInfo.context, TextDecorationOverline, fragment);
 
-        // Fill text
-        if (hasFill) {
-            m_paintingResourceMode = ApplyToFillMode | ApplyToTextMode;
-            paintText(paintInfo.context, &style, selectionStyle, fragment, hasSelection, paintSelectedTextOnly);
-        }
-
-        // Stroke text
-        if (hasVisibleStroke) {
-            m_paintingResourceMode = ApplyToStrokeMode | ApplyToTextMode;
-            paintText(paintInfo.context, &style, selectionStyle, fragment, hasSelection, paintSelectedTextOnly);
+        Vector<PaintType> paintOrder = style.svgStyle().paintTypesForPaintOrder();
+        for (unsigned i = 0; i < paintOrder.size(); ++i) {
+            switch (paintOrder.at(i)) {
+            case PaintTypeFill:
+                if (!hasFill)
+                    continue;
+                m_paintingResourceMode = ApplyToFillMode | ApplyToTextMode;
+                paintText(paintInfo.context, &style, selectionStyle, fragment, hasSelection, paintSelectedTextOnly);
+                break;
+            case PaintTypeStroke:
+                if (!hasVisibleStroke)
+                    continue;
+                m_paintingResourceMode = ApplyToStrokeMode | ApplyToTextMode;
+                paintText(paintInfo.context, &style, selectionStyle, fragment, hasSelection, paintSelectedTextOnly);
+                break;
+            case PaintTypeMarkers:
+                continue;
+            }
         }
 
         // Spec: Line-through should be drawn after the text is filled and stroked; thus, the line-through is rendered on top of the text.
@@ -397,8 +411,7 @@ TextRun SVGInlineTextBox::constructTextRun(RenderStyle* style, const SVGTextFrag
 {
     ASSERT(style);
 
-    TextRun run(renderer().characters() + fragment.characterOffset
-                , fragment.length
+    TextRun run(StringView(renderer().text()).substring(fragment.characterOffset, fragment.length)
                 , 0 /* xPos, only relevant with allowTabs=true */
                 , 0 /* padding, only relevant for justified text, not relevant for SVG */
                 , TextRun::AllowTrailingExpansion
@@ -522,7 +535,7 @@ void SVGInlineTextBox::paintDecorationWithStyle(GraphicsContext* context, TextDe
 
     float scalingFactor = 1;
     Font scaledFont;
-    RenderSVGInlineText::computeNewScaledFontForStyle(&decorationRenderer, &decorationStyle, scalingFactor, scaledFont);
+    RenderSVGInlineText::computeNewScaledFontForStyle(decorationRenderer, decorationStyle, scalingFactor, scaledFont);
     ASSERT(scalingFactor);
 
     // The initial y value refers to overline position.
@@ -584,15 +597,17 @@ void SVGInlineTextBox::paintTextWithShadows(GraphicsContext* context, RenderStyl
 
         context->restore();
 
+        if (shadow) {
+            if (shadow->next())
+                context->restore();
+            else
+                context->clearShadow();
+        }
+
         restoreGraphicsContextAfterTextPainting(context, textRun);
 
         if (!shadow)
             break;
-
-        if (shadow->next())
-            context->restore();
-        else
-            context->clearShadow();
 
         shadow = shadow->next();
     } while (shadow);
@@ -684,5 +699,3 @@ bool SVGInlineTextBox::nodeAtPoint(const HitTestRequest& request, HitTestResult&
 }
 
 } // namespace WebCore
-
-#endif

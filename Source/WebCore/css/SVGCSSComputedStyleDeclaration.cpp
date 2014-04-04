@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "CSSComputedStyleDeclaration.h"
 
 #include "CSSPrimitiveValueMappings.h"
@@ -30,6 +28,41 @@
 #include "SVGPaint.h"
 
 namespace WebCore {
+
+static PassRefPtr<CSSValue> paintOrder(PaintOrder paintOrder)
+{
+    RefPtr<CSSValueList> paintOrderList = CSSValueList::createSpaceSeparated();
+    RefPtr<CSSValue> fill = CSSPrimitiveValue::createIdentifier(CSSValueFill);
+    RefPtr<CSSValue> stroke = CSSPrimitiveValue::createIdentifier(CSSValueStroke);
+    RefPtr<CSSValue> markers = CSSPrimitiveValue::createIdentifier(CSSValueMarkers);
+
+    switch (paintOrder) {
+    case PaintOrderNormal:
+        return CSSPrimitiveValue::createIdentifier(CSSValueNormal);
+    case PaintOrderFill:
+        paintOrderList->append(fill.release());
+        break;
+    case PaintOrderFillMarkers:
+        paintOrderList->append(fill.release());
+        paintOrderList->append(markers.release());
+        break;
+    case PaintOrderStroke:
+        paintOrderList->append(stroke.release());
+        break;
+    case PaintOrderStrokeMarkers:
+        paintOrderList->append(stroke.release());
+        paintOrderList->append(markers.release());
+        break;
+    case PaintOrderMarkers:
+        paintOrderList->append(markers.release());
+        break;
+    case PaintOrderMarkersStroke:
+        paintOrderList->append(markers.release());
+        paintOrderList->append(stroke.release());
+        break;
+    }
+    return paintOrderList.release();
+}
 
 static PassRefPtr<CSSPrimitiveValue> glyphOrientationToCSSPrimitiveValue(EGlyphOrientation orientation)
 {
@@ -194,6 +227,8 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::svgPropertyValue(CSSPropertyID prop
             return CSSPrimitiveValue::create(svgStyle.vectorEffect());
         case CSSPropertyMaskType:
             return CSSPrimitiveValue::create(svgStyle.maskType());
+        case CSSPropertyPaintOrder:
+            return paintOrder(svgStyle.paintOrder());
         case CSSPropertyMarker:
         case CSSPropertyEnableBackground:
         case CSSPropertyColorProfile:
@@ -209,7 +244,3 @@ PassRefPtr<CSSValue> ComputedStyleExtractor::svgPropertyValue(CSSPropertyID prop
 }
 
 }
-
-#endif // ENABLE(SVG)
-
-// vim:ts=4:noet

@@ -30,40 +30,108 @@
 #include "config.h"
 #include "BoxShape.h"
 
+#include "RenderBox.h"
 #include <wtf/MathExtras.h>
 
 namespace WebCore {
 
-BoxShape::BoxShape(const FloatRoundedRect& bounds, float shapeMargin, float shapePadding)
-    : Shape()
-    , m_bounds(bounds)
-    , m_marginBounds(bounds)
-    , m_paddingBounds(bounds)
+static inline LayoutUnit adjustRadiusForMarginBoxShape(LayoutUnit radius, LayoutUnit margin)
 {
-    if (shapeMargin > 0) {
-        m_marginBounds.inflate(shapeMargin);
-        m_marginBounds.expandRadii(shapeMargin);
+    // This algorithm is defined in the CSS Shapes specifcation
+    if (!margin)
+        return radius;
+
+    LayoutUnit ratio = radius / margin;
+    if (ratio < 1)
+        return radius + (margin * (1 + pow(ratio - 1, 3)));
+
+    return radius + margin;
+}
+
+static inline LayoutSize computeMarginBoxShapeRadius(const LayoutSize& radius, const LayoutSize& adjacentMargins)
+{
+    return LayoutSize(adjustRadiusForMarginBoxShape(radius.width(), adjacentMargins.width()),
+        adjustRadiusForMarginBoxShape(radius.height(), adjacentMargins.height()));
+}
+
+static inline RoundedRect::Radii computeMarginBoxShapeRadii(const RoundedRect::Radii& radii, const RenderBox& renderer)
+{
+    return RoundedRect::Radii(computeMarginBoxShapeRadius(radii.topLeft(), LayoutSize(renderer.marginLeft(), renderer.marginTop())),
+        computeMarginBoxShapeRadius(radii.topRight(), LayoutSize(renderer.marginRight(), renderer.marginTop())),
+        computeMarginBoxShapeRadius(radii.bottomLeft(), LayoutSize(renderer.marginLeft(), renderer.marginBottom())),
+        computeMarginBoxShapeRadius(radii.bottomRight(), LayoutSize(renderer.marginRight(), renderer.marginBottom())));
+}
+
+RoundedRect computeRoundedRectForBoxShape(CSSBoxType box, const RenderBox& renderer)
+{
+    const RenderStyle& style = renderer.style();
+    switch (box) {
+    case MarginBox: {
+        if (!style.hasBorderRadius())
+            return RoundedRect(renderer.marginBoxRect(), RoundedRect::Radii());
+
+        LayoutRect marginBox = renderer.marginBoxRect();
+        RoundedRect::Radii radii = computeMarginBoxShapeRadii(style.getRoundedBorderFor(renderer.borderBoxRect(), &(renderer.view())).radii(), renderer);
+        radii.scale(calcBorderRadiiConstraintScaleFor(marginBox, radii));
+        return RoundedRect(marginBox, radii);
     }
-    if (shapePadding > 0) {
-        m_paddingBounds.inflate(-shapePadding);
-        m_paddingBounds.expandRadii(-shapePadding);
+    case PaddingBox:
+        return style.getRoundedInnerBorderFor(renderer.borderBoxRect());
+    case ContentBox:
+        return style.getRoundedInnerBorderFor(renderer.borderBoxRect(),
+            renderer.paddingTop() + renderer.borderTop(), renderer.paddingBottom() + renderer.borderBottom(),
+            renderer.paddingLeft() + renderer.borderLeft(), renderer.paddingRight() + renderer.borderRight());
+    // fill, stroke, view-box compute to border-box for HTML elements.
+    case BorderBox:
+    case Fill:
+    case Stroke:
+    case ViewBox:
+    case BoxMissing:
+        return style.getRoundedBorderFor(renderer.borderBoxRect(), &(renderer.view()));
     }
+
+    ASSERT_NOT_REACHED();
+    return style.getRoundedBorderFor(renderer.borderBoxRect(), &(renderer.view()));
+}
+
+LayoutRect BoxShape::shapeMarginLogicalBoundingBox() const
+{
+    FloatRect marginBounds(m_bounds.rect());
+    if (shapeMargin() > 0)
+        marginBounds.inflate(shapeMargin());
+    return static_cast<LayoutRect>(marginBounds);
+}
+
+FloatRoundedRect BoxShape::shapeMarginBounds() const
+{
+    FloatRoundedRect marginBounds(m_bounds);
+    if (shapeMargin() > 0) {
+        marginBounds.inflate(shapeMargin());
+        marginBounds.expandRadii(shapeMargin());
+    }
+    return marginBounds;
 }
 
 void BoxShape::getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList& result) const
 {
-    if (m_marginBounds.isEmpty())
+    const FloatRoundedRect& marginBounds = shapeMarginBounds();
+    if (marginBounds.isEmpty() || !lineOverlapsShapeMarginBounds(logicalTop, logicalHeight))
         return;
 
     float y1 = logicalTop;
     float y2 = logicalTop + logicalHeight;
-    const FloatRect& rect = m_marginBounds.rect();
+    const FloatRect& rect = marginBounds.rect();
 
-    if (y2 <= rect.y() || y1 >= rect.maxY())
+    if (!marginBounds.isRounded()) {
+        result.append(LineSegment(rect.x(), rect.maxX()));
         return;
+    }
 
-    if (!m_marginBounds.isRounded()) {
-        result.append(LineSegment(m_marginBounds.rect().x(), m_marginBounds.rect().maxX()));
+    float topCornerMaxY = std::max<float>(marginBounds.topLeftCorner().maxY(), marginBounds.topRightCorner().maxY());
+    float bottomCornerMinY = std::min<float>(marginBounds.bottomLeftCorner().y(), marginBounds.bottomRightCorner().y());
+
+    if (y1 <= topCornerMaxY && y2 >= bottomCornerMinY) {
+        result.append(LineSegment(rect.x(), rect.maxX()));
         return;
     }
 
@@ -72,12 +140,12 @@ void BoxShape::getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHei
     float minXIntercept;
     float maxXIntercept;
 
-    if (m_marginBounds.xInterceptsAtY(y1, minXIntercept, maxXIntercept)) {
+    if (marginBounds.xInterceptsAtY(y1, minXIntercept, maxXIntercept)) {
         x1 = std::min<float>(x1, minXIntercept);
         x2 = std::max<float>(x2, maxXIntercept);
     }
 
-    if (m_marginBounds.xInterceptsAtY(y2, minXIntercept, maxXIntercept)) {
+    if (marginBounds.xInterceptsAtY(y2, minXIntercept, maxXIntercept)) {
         x1 = std::min<float>(x1, minXIntercept);
         x2 = std::max<float>(x2, maxXIntercept);
     }
@@ -86,33 +154,11 @@ void BoxShape::getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHei
     result.append(LineSegment(x1, x2));
 }
 
-void BoxShape::getIncludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList& result) const
+void BoxShape::buildDisplayPaths(DisplayPaths& paths) const
 {
-    if (m_paddingBounds.isEmpty())
-        return;
-
-    const FloatRect& rect = m_paddingBounds.rect();
-    if (logicalTop < rect.y() || logicalTop + logicalHeight > rect.maxY())
-        return;
-
-    // FIXME: this method is only a stub, https://bugs.webkit.org/show_bug.cgi?id=124605.
-
-    result.append(LineSegment(rect.x(), rect.maxX()));
-}
-
-bool BoxShape::firstIncludedIntervalLogicalTop(LayoutUnit minLogicalIntervalTop, const LayoutSize&, LayoutUnit& result) const
-{
-    // FIXME: this method is only a stub, https://bugs.webkit.org/show_bug.cgi?id=124606.
-
-    result = minLogicalIntervalTop;
-    return true;
-}
-
-void BoxShape::buildPath(Path& path) const
-{
-    const FloatRect& rect = m_bounds.rect();
-    const FloatRoundedRect::Radii& radii = m_bounds.radii();
-    path.addRoundedRect(rect, radii.topLeft(), radii.topRight(), radii.bottomLeft(), radii.bottomRight(), Path::PreferBezierRoundedRect);
+    paths.shape.addRoundedRect(m_bounds, Path::PreferBezierRoundedRect);
+    if (shapeMargin())
+        paths.marginShape.addRoundedRect(shapeMarginBounds(), Path::PreferBezierRoundedRect);
 }
 
 } // namespace WebCore

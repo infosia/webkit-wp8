@@ -27,11 +27,13 @@
 
 namespace WebCore {
 
+class ControlStates;
+
 class RenderElement : public RenderObject {
 public:
     virtual ~RenderElement();
 
-    static RenderElement* createFor(Element&, PassRef<RenderStyle>);
+    static RenderPtr<RenderElement> createFor(Element&, PassRef<RenderStyle>);
 
     bool hasInitializedStyle() const { return m_hasInitializedStyle; }
 
@@ -40,7 +42,7 @@ public:
 
     void initializeStyle();
 
-    virtual void setStyle(PassRef<RenderStyle>);
+    void setStyle(PassRef<RenderStyle>);
     // Called to update a style that is allowed to trigger animations.
     void setAnimatableStyle(PassRef<RenderStyle>);
 
@@ -99,7 +101,7 @@ public:
     void layoutIfNeeded() { if (needsLayout()) layout(); }
 
     // Return the renderer whose background style is used to paint the root background. Should only be called on the renderer for which isRoot() is true.
-    RenderElement* rendererForRootBackground();
+    RenderElement& rendererForRootBackground();
 
     // Used only by Element::pseudoStyleCacheIsInvalid to get a first line style based off of a
     // given new style, without accessing the cache.
@@ -108,6 +110,44 @@ public:
     // Updates only the local style ptr of the object. Does not update the state of the object,
     // and so only should be called when the style is known not to have changed (or from setStyle).
     void setStyleInternal(PassRef<RenderStyle> style) { m_style = std::move(style); }
+
+    // Repaint only if our old bounds and new bounds are different. The caller may pass in newBounds and newOutlineBox if they are known.
+    bool repaintAfterLayoutIfNeeded(const RenderLayerModelObject* repaintContainer, const LayoutRect& oldBounds, const LayoutRect& oldOutlineBox, const LayoutRect* newBoundsPtr = nullptr, const LayoutRect* newOutlineBoxPtr = nullptr);
+
+    bool borderImageIsLoadedAndCanBeRendered() const;
+
+    // Returns true if this renderer requires a new stacking context.
+    bool createsGroup() const { return isTransparent() || hasMask() || hasFilter() || hasBlendMode(); }
+
+    bool isTransparent() const { return style().opacity() < 1.0f; }
+    float opacity() const { return style().opacity(); }
+
+    bool visibleToHitTesting() const { return style().visibility() == VISIBLE && style().pointerEvents() != PE_NONE; }
+
+    bool hasBackground() const { return style().hasBackground(); }
+    bool hasMask() const { return style().hasMask(); }
+    bool hasClip() const { return isOutOfFlowPositioned() && style().hasClip(); }
+    bool hasClipOrOverflowClip() const { return hasClip() || hasOverflowClip(); }
+    bool hasClipPath() const { return style().clipPath(); }
+    bool hasHiddenBackface() const { return style().backfaceVisibility() == BackfaceVisibilityHidden; }
+
+#if ENABLE(CSS_FILTERS)
+    bool hasFilter() const { return style().hasFilter(); }
+#else
+    bool hasFilter() const { return false; }
+#endif
+
+#if ENABLE(CSS_COMPOSITING)
+    bool hasBlendMode() const { return style().hasBlendMode(); }
+#else
+    bool hasBlendMode() const { return false; }
+#endif
+
+    bool repaintForPausedImageAnimationsIfNeeded(const IntRect& visibleRect);
+    bool hasPausedImageAnimations() const { return m_hasPausedImageAnimations; }
+    void setHasPausedImageAnimations(bool b) { m_hasPausedImageAnimations = b; }
+
+    RenderNamedFlowThread* renderNamedFlowThreadWrapper();
 
 protected:
     enum BaseTypeFlags {
@@ -137,22 +177,27 @@ protected:
     virtual void styleWillChange(StyleDifference, const RenderStyle& newStyle);
     virtual void styleDidChange(StyleDifference, const RenderStyle* oldStyle);
 
-    virtual void insertedIntoTree() OVERRIDE;
-    virtual void willBeRemovedFromTree() OVERRIDE;
-    virtual void willBeDestroyed() OVERRIDE;
+    virtual void insertedIntoTree() override;
+    virtual void willBeRemovedFromTree() override;
+    virtual void willBeDestroyed() override;
 
     void setRenderInlineAlwaysCreatesLineBoxes(bool b) { m_renderInlineAlwaysCreatesLineBoxes = b; }
     bool renderInlineAlwaysCreatesLineBoxes() const { return m_renderInlineAlwaysCreatesLineBoxes; }
 
-private:
-    void node() const WTF_DELETED_FUNCTION;
-    void nonPseudoNode() const WTF_DELETED_FUNCTION;
-    void generatingNode() const WTF_DELETED_FUNCTION;
-    void isText() const WTF_DELETED_FUNCTION;
-    void isRenderElement() const WTF_DELETED_FUNCTION;
+    static bool hasControlStatesForRenderer(const RenderObject*);
+    static ControlStates* controlStatesForRenderer(const RenderObject*);
+    static void removeControlStatesForRenderer(const RenderObject*);
+    static void addControlStatesForRenderer(const RenderObject*, ControlStates*);
 
-    virtual RenderObject* firstChildSlow() const OVERRIDE FINAL { return firstChild(); }
-    virtual RenderObject* lastChildSlow() const OVERRIDE FINAL { return lastChild(); }
+private:
+    void node() const = delete;
+    void nonPseudoNode() const = delete;
+    void generatingNode() const = delete;
+    void isText() const = delete;
+    void isRenderElement() const = delete;
+
+    virtual RenderObject* firstChildSlow() const override final { return firstChild(); }
+    virtual RenderObject* lastChildSlow() const override final { return lastChild(); }
 
     bool shouldRepaintForStyleDifference(StyleDifference) const;
     bool hasImmediateNonWhitespaceTextChildOrBorderOrOutline() const;
@@ -166,12 +211,14 @@ private:
     StyleDifference adjustStyleDifference(StyleDifference, unsigned contextSensitiveProperties) const;
     RenderStyle* cachedFirstLineStyle() const;
 
+    virtual void newImageAnimationFrameAvailable(CachedImage&) final override;
+
     unsigned m_baseTypeFlags : 6;
     bool m_ancestorLineBoxDirty : 1;
     bool m_hasInitializedStyle : 1;
 
-    // Specific to RenderInline.
     bool m_renderInlineAlwaysCreatesLineBoxes : 1;
+    bool m_hasPausedImageAnimations : 1;
 
     RenderObject* m_firstChild;
     RenderObject* m_lastChild;
@@ -184,7 +231,7 @@ private:
     static bool s_noLongerAffectsParentBlock;
 };
 
-template <> inline bool isRendererOfType<const RenderElement>(const RenderObject& renderer) { return renderer.isRenderElement(); }
+RENDER_OBJECT_TYPE_CASTS(RenderElement, isRenderElement())
 
 inline RenderStyle& RenderElement::firstLineStyle() const
 {
@@ -248,8 +295,6 @@ inline bool RenderElement::isRenderInline() const
     return m_baseTypeFlags & RenderInlineFlag;
 }
 
-RENDER_OBJECT_TYPE_CASTS(RenderElement, isRenderElement())
-
 inline Element* RenderElement::generatingElement() const
 {
     if (parent() && isRenderNamedFlowFragment())
@@ -305,6 +350,18 @@ inline RenderElement* ContainerNode::renderer() const
 {
     return toRenderElement(Node::renderer());
 }
+
+inline int adjustForAbsoluteZoom(int value, const RenderElement& renderer)
+{
+    return adjustForAbsoluteZoom(value, renderer.style());
+}
+
+#if ENABLE(SUBPIXEL_LAYOUT)
+inline LayoutUnit adjustLayoutUnitForAbsoluteZoom(LayoutUnit value, const RenderElement& renderer)
+{
+    return adjustLayoutUnitForAbsoluteZoom(value, renderer.style());
+}
+#endif
 
 } // namespace WebCore
 

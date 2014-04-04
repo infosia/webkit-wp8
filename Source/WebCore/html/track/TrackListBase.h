@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -48,13 +48,13 @@ public:
 
     virtual unsigned length() const;
     virtual bool contains(TrackBase*) const;
-    virtual void remove(TrackBase*);
+    virtual void remove(TrackBase*, bool scheduleEvent = true);
 
     // EventTarget
     virtual EventTargetInterface eventTargetInterface() const = 0;
     using RefCounted<TrackListBase>::ref;
     using RefCounted<TrackListBase>::deref;
-    virtual ScriptExecutionContext* scriptExecutionContext() const OVERRIDE FINAL { return m_context; }
+    virtual ScriptExecutionContext* scriptExecutionContext() const override final { return m_context; }
 
     DEFINE_ATTRIBUTE_EVENT_LISTENER(addtrack);
     DEFINE_ATTRIBUTE_EVENT_LISTENER(change);
@@ -81,8 +81,8 @@ private:
     void scheduleTrackEvent(const AtomicString& eventName, PassRefPtr<TrackBase>);
 
     // EventTarget
-    virtual void refEventTarget() OVERRIDE FINAL { ref(); }
-    virtual void derefEventTarget() OVERRIDE FINAL { deref(); }
+    virtual void refEventTarget() override final { ref(); }
+    virtual void derefEventTarget() override final { deref(); }
 
     ScriptExecutionContext* m_context;
     HTMLMediaElement* m_element;

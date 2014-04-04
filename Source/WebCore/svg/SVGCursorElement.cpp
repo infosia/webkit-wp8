@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGCursorElement.h"
 
 #include "Attr.h"
@@ -68,7 +66,7 @@ SVGCursorElement::~SVGCursorElement()
 
 bool SVGCursorElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         SVGTests::addSupportedAttributes(supportedAttributes);
         SVGExternalResourcesRequired::addSupportedAttributes(supportedAttributes);
@@ -140,5 +138,3 @@ void SVGCursorElement::addSubresourceAttributeURLs(ListHashSet<URL>& urls) const
 }
 
 }
-
-#endif // ENABLE(SVG)

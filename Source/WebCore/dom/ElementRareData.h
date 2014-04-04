@@ -63,9 +63,6 @@ public:
     bool isInCanvasSubtree() const { return m_isInCanvasSubtree; }
     void setIsInCanvasSubtree(bool value) { m_isInCanvasSubtree = value; }
 
-    bool isInsideRegion() const { return m_isInsideRegion; }
-    void setIsInsideRegion(bool value) { m_isInsideRegion = value; }
-
     RegionOversetState regionOversetState() const { return m_regionOversetState; }
     void setRegionOversetState(RegionOversetState state) { m_regionOversetState = state; }
 
@@ -116,10 +113,8 @@ public:
     IntSize savedLayerScrollOffset() const { return m_savedLayerScrollOffset; }
     void setSavedLayerScrollOffset(IntSize size) { m_savedLayerScrollOffset = size; }
 
-#if ENABLE(SVG)
     bool hasPendingResources() const { return m_hasPendingResources; }
     void setHasPendingResources(bool has) { m_hasPendingResources = has; }
-#endif
 
 private:
     short m_tabIndex;
@@ -131,9 +126,7 @@ private:
 #if ENABLE(FULLSCREEN_API)
     unsigned m_containsFullScreenElement : 1;
 #endif
-#if ENABLE(SVG)
     unsigned m_hasPendingResources : 1;
-#endif
     unsigned m_childrenAffectedByHover : 1;
     unsigned m_childrenAffectedByActive : 1;
     unsigned m_childrenAffectedByDrag : 1;
@@ -144,7 +137,6 @@ private:
     unsigned m_childrenAffectedByForwardPositionalRules : 1;
     unsigned m_childrenAffectedByBackwardPositionalRules : 1;
 
-    unsigned m_isInsideRegion : 1;
     RegionOversetState m_regionOversetState;
 
     LayoutSize m_minimumSizeForResizing;
@@ -179,16 +171,13 @@ inline ElementRareData::ElementRareData(RenderElement* renderer)
 #if ENABLE(FULLSCREEN_API)
     , m_containsFullScreenElement(false)
 #endif
-#if ENABLE(SVG)
     , m_hasPendingResources(false)
-#endif
     , m_childrenAffectedByHover(false)
     , m_childrenAffectedByActive(false)
     , m_childrenAffectedByDrag(false)
     , m_childrenAffectedByLastChildRules(false)
     , m_childrenAffectedByForwardPositionalRules(false)
     , m_childrenAffectedByBackwardPositionalRules(false)
-    , m_isInsideRegion(false)
     , m_regionOversetState(RegionUndefined)
     , m_minimumSizeForResizing(defaultMinimumSizeForResizing())
 {

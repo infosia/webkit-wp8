@@ -100,10 +100,13 @@ JSObject* pluginScriptObject(ExecState* exec, JSHTMLElement* jsHTMLElement)
     return instance->createRuntimeObject(exec);
 }
     
-EncodedJSValue pluginElementPropertyGetter(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName propertyName)
+EncodedJSValue pluginElementPropertyGetter(ExecState* exec, JSObject*, EncodedJSValue thisValue, PropertyName propertyName)
 {
-    JSHTMLElement* element = jsCast<JSHTMLElement*>(JSValue::decode(slotBase));
-    JSObject* scriptObject = pluginScriptObject(exec, element);
+
+    JSHTMLElement* thisObject = jsDynamicCast<JSHTMLElement*>(JSValue::decode(thisValue));
+    if (!thisObject)
+        return throwVMTypeError(exec);
+    JSObject* scriptObject = pluginScriptObject(exec, thisObject);
     if (!scriptObject)
         return JSValue::encode(jsUndefined());
     
@@ -151,7 +154,7 @@ static EncodedJSValue JSC_HOST_CALL callPlugin(ExecState* exec)
     ASSERT(callType == CallTypeHost);
 
     // Call the object.
-    JSValue result = call(exec, scriptObject, callType, callData, exec->hostThisValue(), argumentList);
+    JSValue result = call(exec, scriptObject, callType, callData, exec->thisValue(), argumentList);
     return JSValue::encode(result);
 }
 

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2000 Harri Porten (porten@kde.org)
  *  Copyright (C) 2006 Jon Shier (jshier@iastate.edu)
- *  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reseved.
+ *  Copyright (C) 2003-2009, 2014 Apple Inc. All rights reseved.
  *  Copyright (C) 2006 Alexey Proskuryakov (ap@webkit.org)
  *
  *  This library is free software; you can redistribute it and/or
@@ -24,7 +24,6 @@
 #include "JSDOMWindowBase.h"
 
 #include "Chrome.h"
-#include "Console.h"
 #include "DOMWindow.h"
 #include "Frame.h"
 #include "InspectorController.h"
@@ -37,7 +36,14 @@
 #include "SecurityOrigin.h"
 #include "Settings.h"
 #include "WebCoreJSClientData.h"
+#include <runtime/Microtask.h>
 #include <wtf/MainThread.h>
+
+#if PLATFORM(IOS)
+#include "ChromeClient.h"
+#include "WebSafeGCActivityCallbackIOS.h"
+#include "WebSafeIncrementalSweeperIOS.h"
+#endif
 
 using namespace JSC;
 
@@ -96,7 +102,7 @@ void JSDOMWindowBase::printErrorMessage(const String& message) const
 
 bool JSDOMWindowBase::supportsProfiling(const JSGlobalObject* object)
 {
-#if !ENABLE(JAVASCRIPT_DEBUGGER) || !ENABLE(INSPECTOR)
+#if !ENABLE(INSPECTOR)
     UNUSED_PARAM(object);
     return false;
 #else
@@ -109,13 +115,13 @@ bool JSDOMWindowBase::supportsProfiling(const JSGlobalObject* object)
     if (!page)
         return false;
 
-    return page->inspectorController()->profilerEnabled();
-#endif
+    return page->inspectorController().profilerEnabled();
+#endif // ENABLE(INSPECTOR)
 }
 
 bool JSDOMWindowBase::supportsRichSourceInfo(const JSGlobalObject* object)
 {
-#if !ENABLE(JAVASCRIPT_DEBUGGER) || !ENABLE(INSPECTOR)
+#if !ENABLE(INSPECTOR)
     UNUSED_PARAM(object);
     return false;
 #else
@@ -128,7 +134,7 @@ bool JSDOMWindowBase::supportsRichSourceInfo(const JSGlobalObject* object)
     if (!page)
         return false;
 
-    bool enabled = page->inspectorController()->enabled();
+    bool enabled = page->inspectorController().enabled();
     ASSERT(enabled || !thisObject->debugger());
     ASSERT(enabled || !supportsProfiling(thisObject));
     return enabled;
@@ -165,7 +171,7 @@ bool JSDOMWindowBase::shouldInterruptScriptBeforeTimeout(const JSGlobalObject* o
         return true;
 
 #if PLATFORM(IOS)
-    if (page->chrome().client()->isStopping())
+    if (page->chrome().client().isStopping())
         return true;
 #endif
 
@@ -181,10 +187,10 @@ bool JSDOMWindowBase::javaScriptExperimentsEnabled(const JSGlobalObject* object)
     return frame->settings().javaScriptExperimentsEnabled();
 }
 
-void JSDOMWindowBase::queueTaskToEventLoop(const JSGlobalObject* object, GlobalObjectMethodTable::QueueTaskToEventLoopCallbackFunctionPtr functionPtr, PassRefPtr<TaskContext> taskContext)
+void JSDOMWindowBase::queueTaskToEventLoop(const JSGlobalObject* object, PassRefPtr<Microtask> task)
 {
     const JSDOMWindowBase* thisObject = static_cast<const JSDOMWindowBase*>(object);
-    thisObject->scriptExecutionContext()->postTask(JSGlobalObjectTask::create((JSDOMWindowBase*)thisObject, functionPtr, taskContext));
+    thisObject->scriptExecutionContext()->postTask(JSGlobalObjectTask::create((JSDOMWindowBase*)thisObject, task));
 }
 
 void JSDOMWindowBase::willRemoveFromWindowShell()
@@ -197,19 +203,31 @@ JSDOMWindowShell* JSDOMWindowBase::shell() const
     return m_shell;
 }
 
-VM* JSDOMWindowBase::commonVM()
+VM& JSDOMWindowBase::commonVM()
 {
     ASSERT(isMainThread());
 
-    static VM* vm = 0;
+    static VM* vm = nullptr;
     if (!vm) {
         ScriptController::initializeThreading();
         vm = VM::createLeaked(LargeHeap).leakRef();
-        vm->exclusiveThread = currentThread();
+#if !PLATFORM(IOS)
+        vm->setExclusiveThread(std::this_thread::get_id());
+#else
+        vm->heap.setFullActivityCallback(WebSafeFullGCActivityCallback::create(&vm->heap));
+#if ENABLE(GGC)
+        vm->heap.setEdenActivityCallback(WebSafeEdenGCActivityCallback::create(&vm->heap));
+#else
+        vm->heap.setEdenActivityCallback(vm->heap.fullActivityCallback());
+#endif
+        vm->heap.setIncrementalSweeper(WebSafeIncrementalSweeper::create(&vm->heap));
+        vm->makeUsableFromMultipleThreads();
+        vm->heap.machineThreads().addCurrentThread();
+#endif
         initNormalWorldClientData(vm);
     }
 
-    return vm;
+    return *vm;
 }
 
 // JSDOMGlobalObject* is ignored, accessing a window in any context will

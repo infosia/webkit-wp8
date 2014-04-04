@@ -20,13 +20,9 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGTransformableContainer.h"
 
-#include "SVGGraphicsElement.h"
 #include "SVGNames.h"
-#include "SVGRenderSupport.h"
 #include "SVGUseElement.h"
 
 namespace WebCore {
@@ -73,5 +69,3 @@ bool RenderSVGTransformableContainer::calculateLocalTransform()
 }
 
 }
-
-#endif // ENABLE(SVG)

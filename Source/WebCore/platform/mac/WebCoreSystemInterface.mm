@@ -1,5 +1,5 @@
 /*
- * Copyright 2006, 2007, 2008, 2009, 2010 Apple Computer, Inc. All rights reserved.
+ * Copyright 2006, 2007, 2008, 2009, 2010 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -105,10 +105,11 @@ CFReadStreamRef (*wkCreateCustomCFReadStream)(void *(*formCreate)(CFReadStreamRe
 void (*wkSetNSURLConnectionDefersCallbacks)(NSURLConnection *, BOOL);
 void (*wkSetNSURLRequestShouldContentSniff)(NSMutableURLRequest *, BOOL);
 unsigned (*wkInitializeMaximumHTTPConnectionCountPerHost)(unsigned preferredConnectionCount);
-int (*wkGetHTTPPipeliningPriority)(CFURLRequestRef);
-void (*wkSetHTTPPipeliningMaximumPriority)(int priority);
-void (*wkSetHTTPPipeliningPriority)(CFURLRequestRef, int priority);
-void (*wkSetHTTPPipeliningMinimumFastLanePriority)(int priority);
+int (*wkGetHTTPRequestPriority)(CFURLRequestRef);
+void (*wkSetHTTPRequestMaximumPriority)(int priority);
+void (*wkSetHTTPRequestPriority)(CFURLRequestRef, int priority);
+void (*wkSetHTTPRequestMinimumFastLanePriority)(int priority);
+void (*wkHTTPRequestEnablePipelining)(CFURLRequestRef);
 void (*wkSetCONNECTProxyForStream)(CFReadStreamRef, CFStringRef proxyHost, CFNumberRef proxyPort);
 void (*wkSetCONNECTProxyAuthorizationForStream)(CFReadStreamRef, CFStringRef proxyAuthorizationString);
 CFHTTPMessageRef (*wkCopyCONNECTProxyResponse)(CFReadStreamRef, CFURLRef responseURL, CFStringRef proxyHost, CFNumberRef proxyPort);
@@ -150,10 +151,8 @@ NSURL *(*wkAVAssetResolvedURL)(AVAsset*);
 
 NSCursor *(*wkCursor)(const char*);
 
-#if PLATFORM(MAC)
 NSArray *(*wkSpeechSynthesisGetVoiceIdentifiers)(void);
 NSString *(*wkSpeechSynthesisGetDefaultVoiceIdentifierForLocale)(NSLocale *);
-#endif
 
 void (*wkUnregisterUniqueIdForElement)(id element);
 void (*wkAccessibilityHandleFocusChanged)(void);
@@ -172,7 +171,7 @@ CFHTTPCookieStorageRef (*wkCopyHTTPCookieStorage)(CFURLStorageSessionRef);
 unsigned (*wkGetHTTPCookieAcceptPolicy)(CFHTTPCookieStorageRef);
 void (*wkSetHTTPCookieAcceptPolicy)(CFHTTPCookieStorageRef, unsigned);
 NSArray *(*wkHTTPCookies)(CFHTTPCookieStorageRef);
-NSArray *(*wkHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSURL *);
+NSArray *(*wkHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSURL *, NSURL *);
 void (*wkSetHTTPCookiesForURL)(CFHTTPCookieStorageRef, NSArray *, NSURL *, NSURL *);
 void (*wkDeleteAllHTTPCookies)(CFHTTPCookieStorageRef);
 void (*wkDeleteHTTPCookie)(CFHTTPCookieStorageRef, NSHTTPCookie *);
@@ -200,15 +199,6 @@ void (*wkCGPathAddRoundedRect)(CGMutablePathRef path, const CGAffineTransform* m
 
 void (*wkCFURLRequestAllowAllPostCaching)(CFURLRequestRef);
 
-#if USE(CONTENT_FILTERING)
-BOOL (*wkFilterIsManagedSession)(void);
-WebFilterEvaluator *(*wkFilterCreateInstance)(NSURLResponse *);
-BOOL (*wkFilterWasBlocked)(WebFilterEvaluator *);
-BOOL (*wkFilterIsBuffering)(WebFilterEvaluator *);
-NSData *(*wkFilterAddData)(WebFilterEvaluator *, NSData *);
-NSData *(*wkFilterDataComplete)(WebFilterEvaluator *);
-#endif
-
 #if !PLATFORM(IOS) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
 CGFloat (*wkNSElasticDeltaForTimeDelta)(CGFloat initialPosition, CGFloat initialVelocity, CGFloat elapsedTime);
 CGFloat (*wkNSElasticDeltaForReboundDelta)(CGFloat delta);
@@ -222,3 +212,8 @@ bool (*wkIsPublicSuffix)(NSString *host);
 #if ENABLE(CACHE_PARTITIONING)
 CFStringRef (*wkCachePartitionKey)(void);
 #endif
+
+int (*wkExernalDeviceTypeForPlayer)(AVPlayer *);
+NSString *(*wkExernalDeviceDisplayNameForPlayer)(AVPlayer *);
+
+bool (*wkQueryDecoderAvailability)(void);

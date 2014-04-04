@@ -46,7 +46,6 @@
 #include "Text.h"
 #include "TextPaintStyle.h"
 #include "break_lines.h"
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 namespace SimpleLineLayout {
@@ -90,11 +89,6 @@ static bool canUseForText(const RenderText& textRenderer, const SimpleFontData& 
 
 bool canUseFor(const RenderBlockFlow& flow)
 {
-#if !PLATFORM(MAC) && !PLATFORM(GTK) && !PLATFORM(EFL) && !PLATFORM(NIX)
-    // FIXME: Non-mac platforms are hitting ASSERT(run.charactersLength() >= run.length())
-    // https://bugs.webkit.org/show_bug.cgi?id=123338
-    return false;
-#else
     if (!flow.frame().settings().simpleLineLayoutEnabled())
         return false;
     if (!flow.firstChild())
@@ -122,14 +116,8 @@ bool canUseFor(const RenderBlockFlow& flow)
     if (flow.parent()->isTextControl() && toRenderTextControl(*flow.parent()).textFormControlElement().placeholderElement())
         return false;
     // These tests only works during layout. Outside layout this function may give false positives.
-    if (flow.view().layoutState()) {
-#if ENABLE(CSS_SHAPES)
-        if (flow.view().layoutState()->shapeInsideInfo())
-            return false;
-#endif
-        if (flow.view().layoutState()->m_columnInfo)
-            return false;
-    }
+    if (flow.view().layoutState() && flow.view().layoutState()->m_columnInfo)
+        return false;
     const RenderStyle& style = flow.style();
     if (style.textDecorationsInEffect() != TextDecorationNone)
         return false;
@@ -140,7 +128,7 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
     if (!style.textIndent().isZero())
         return false;
-    if (style.wordSpacing() || style.letterSpacing())
+    if (!style.wordSpacing().isZero() || style.letterSpacing())
         return false;
     if (style.textTransform() != TTNONE)
         return false;
@@ -164,10 +152,6 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
     if (style.textShadow())
         return false;
-#if ENABLE(CSS_SHAPES)
-    if (style.resolvedShapeInside())
-        return true;
-#endif
     if (style.textOverflow() || (flow.isAnonymousBlock() && flow.parent()->style().textOverflow()))
         return false;
     if (style.hasPseudoStyle(FIRST_LINE) || style.hasPseudoStyle(FIRST_LETTER))
@@ -186,10 +170,7 @@ bool canUseFor(const RenderBlockFlow& flow)
             return false;
     }
     if (textRenderer.isCombineText() || textRenderer.isCounter() || textRenderer.isQuote() || textRenderer.isTextFragment()
-#if ENABLE(SVG)
-        || textRenderer.isSVGInlineText()
-#endif
-        )
+        || textRenderer.isSVGInlineText())
         return false;
     if (style.font().codePath(TextRun(textRenderer.text())) != Font::Simple)
         return false;
@@ -204,7 +185,6 @@ bool canUseFor(const RenderBlockFlow& flow)
         return false;
 
     return true;
-#endif
 }
 
 struct Style {
@@ -415,7 +395,7 @@ void createTextRuns(Layout::RunVector& runs, unsigned& lineCount, RenderBlockFlo
 {
     const Style style(flow.style());
 
-    const CharacterType* text = textRenderer.text()->getCharacters<CharacterType>();
+    const CharacterType* text = textRenderer.text()->characters<CharacterType>();
     const unsigned textLength = textRenderer.textLength();
 
     LayoutUnit borderAndPaddingBefore = flow.borderAndPaddingBefore();

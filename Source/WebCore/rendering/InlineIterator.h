@@ -39,16 +39,18 @@ public:
     InlineIterator()
         : m_root(0)
         , m_renderer(0)
-        , m_pos(0)
         , m_nextBreakablePosition(-1)
+        , m_pos(0)
+        , m_refersToEndOfPreviousNode(false)
     {
     }
 
     InlineIterator(RenderElement* root, RenderObject* o, unsigned p)
         : m_root(root)
         , m_renderer(o)
-        , m_pos(p)
         , m_nextBreakablePosition(-1)
+        , m_pos(p)
+        , m_refersToEndOfPreviousNode(false)
     {
     }
 
@@ -61,18 +63,24 @@ public:
 
     void moveTo(RenderObject* object, unsigned offset, int nextBreak = -1)
     {
-        m_renderer = object;
-        m_pos = offset;
-        m_nextBreakablePosition = nextBreak;
+        setRenderer(object);
+        setOffset(offset);
+        setNextBreakablePosition(nextBreak);
     }
 
     RenderObject* renderer() const { return m_renderer; }
     void setRenderer(RenderObject* renderer) { m_renderer = renderer; }
     unsigned offset() const { return m_pos; }
+    void setOffset(unsigned position);
     RenderElement* root() const { return m_root; }
+    int nextBreakablePosition() const { return m_nextBreakablePosition; }
+    void setNextBreakablePosition(int position) { m_nextBreakablePosition = position; }
+    bool refersToEndOfPreviousNode() const { return m_refersToEndOfPreviousNode; }
+    void setRefersToEndOfPreviousNode();
 
     void fastIncrementInTextNode();
     void increment(InlineBidiResolver* = 0);
+    void fastDecrement();
     bool atEnd() const;
 
     inline bool atTextParagraphSeparator()
@@ -95,20 +103,25 @@ private:
     RenderElement* m_root;
     RenderObject* m_renderer;
 
-// FIXME: These should be private.
-public:
-    unsigned m_pos;
     int m_nextBreakablePosition;
+    unsigned m_pos;
+
+    // There are a couple places where we want to decrement an InlineIterator.
+    // Usually this take the form of decrementing m_pos; however, m_pos might be 0.
+    // However, we shouldn't ever need to decrement an InlineIterator more than
+    // once, so rather than implementing a decrement() function which traverses
+    // nodes, we can simply keep track of this state and handle it.
+    bool m_refersToEndOfPreviousNode;
 };
 
 inline bool operator==(const InlineIterator& it1, const InlineIterator& it2)
 {
-    return it1.m_pos == it2.m_pos && it1.renderer() == it2.renderer();
+    return it1.offset() == it2.offset() && it1.renderer() == it2.renderer();
 }
 
 inline bool operator!=(const InlineIterator& it1, const InlineIterator& it2)
 {
-    return it1.m_pos != it2.m_pos || it1.renderer() != it2.renderer();
+    return it1.offset() != it2.offset() || it1.renderer() != it2.renderer();
 }
 
 static inline UCharDirection embedCharFromDirection(TextDirection direction, EUnicodeBidi unicodeBidi)
@@ -320,6 +333,19 @@ inline void InlineIterator::fastIncrementInTextNode()
     m_pos++;
 }
 
+inline void InlineIterator::setOffset(unsigned position)
+{
+    ASSERT(position <= UINT_MAX - 10); // Sanity check
+    m_pos = position;
+}
+
+inline void InlineIterator::setRefersToEndOfPreviousNode()
+{
+    ASSERT(!m_pos);
+    ASSERT(!m_refersToEndOfPreviousNode);
+    m_refersToEndOfPreviousNode = true;
+}
+
 // FIXME: This is used by RenderBlock for simplified layout, and has nothing to do with bidi
 // it shouldn't use functions called bidiFirst and bidiNext.
 class InlineWalker {
@@ -364,6 +390,15 @@ inline void InlineIterator::increment(InlineBidiResolver* resolver)
     moveTo(bidiNextSkippingEmptyInlines(*m_root, m_renderer, resolver), 0);
 }
 
+inline void InlineIterator::fastDecrement()
+{
+    ASSERT(!refersToEndOfPreviousNode());
+    if (m_pos)
+        setOffset(m_pos - 1);
+    else
+        setRefersToEndOfPreviousNode();
+}
+
 inline bool InlineIterator::atEnd() const
 {
     return !m_renderer;
@@ -374,11 +409,7 @@ inline UChar InlineIterator::characterAt(unsigned index) const
     if (!m_renderer || !m_renderer->isText())
         return 0;
 
-    RenderText* text = toRenderText(m_renderer);
-    if (index >= text->textLength())
-        return 0;
-
-    return text->characterAt(index);
+    return toRenderText(m_renderer)->characterAt(index);
 }
 
 inline UChar InlineIterator::current() const
@@ -417,14 +448,11 @@ static inline bool isIsolatedInline(RenderObject* object)
     return object->isRenderInline() && isIsolated(object->style().unicodeBidi());
 }
 
-static inline RenderObject* containingIsolate(RenderObject* object, RenderObject* root)
+static inline RenderObject* highestContainingIsolateWithinRoot(RenderObject* object, RenderObject* root)
 {
     ASSERT(object);
     RenderObject* containingIsolateObject = 0;
     while (object && object != root) {
-        if (containingIsolateObject && !isIsolatedInline(object))
-            break;
-
         if (isIsolatedInline(object))
             containingIsolateObject = object;
 
@@ -496,9 +524,9 @@ public:
         // For now, if we enter an isolate between midpoints, we increment our current midpoint or else
         // we'll leave the isolate and ignore the content that follows.
         MidpointState<InlineIterator>& midpointState = resolver.midpointState();
-        if (midpointState.betweenMidpoints && midpointState.midpoints[midpointState.currentMidpoint].renderer() == &obj) {
-            midpointState.betweenMidpoints = false;
-            ++midpointState.currentMidpoint;
+        if (midpointState.betweenMidpoints() && midpointState.midpoints()[midpointState.currentMidpoint()].renderer() == &obj) {
+            midpointState.setBetweenMidpoints(false);
+            midpointState.incrementCurrentMidpoint();
         }
     }
 
@@ -515,7 +543,7 @@ inline void InlineBidiResolver::appendRun()
         // Initialize our state depending on if we're starting in the middle of such an inline.
         // FIXME: Could this initialize from this->inIsolate() instead of walking up the render tree?
         IsolateTracker isolateTracker(numberOfIsolateAncestors(m_sor));
-        int start = m_sor.m_pos;
+        int start = m_sor.offset();
         RenderObject* obj = m_sor.renderer();
         while (obj && obj != m_eor.renderer() && obj != endOfLine.renderer()) {
             if (isolateTracker.inIsolate())
@@ -527,10 +555,10 @@ inline void InlineBidiResolver::appendRun()
             obj = bidiNextSkippingEmptyInlines(*m_sor.root(), obj, &isolateTracker);
         }
         if (obj) {
-            unsigned pos = obj == m_eor.renderer() ? m_eor.m_pos : UINT_MAX;
-            if (obj == endOfLine.renderer() && endOfLine.m_pos <= pos) {
+            unsigned pos = obj == m_eor.renderer() ? m_eor.offset() : UINT_MAX;
+            if (obj == endOfLine.renderer() && endOfLine.offset() <= pos) {
                 m_reachedEndOfLine = true;
-                pos = endOfLine.m_pos;
+                pos = endOfLine.offset();
             }
             // It's OK to add runs for zero-length RenderObjects, just don't make the run larger than it should be
             int end = obj->length() ? pos + 1 : 0;

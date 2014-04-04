@@ -33,7 +33,7 @@
 #include "WebPageGroupProxy.h"
 #include "WebProcess.h"
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "ObjCObjectGraphCoders.h"
 #endif
 
@@ -58,7 +58,7 @@ public:
     {
     }
 
-    void encode(CoreIPC::ArgumentEncoder& encoder) const
+    void encode(IPC::ArgumentEncoder& encoder) const
     {
         API::Object::Type type = API::Object::Type::Null;
         if (baseEncode(encoder, *this, type))
@@ -80,7 +80,7 @@ public:
             encoder << pageGroup->pageGroupID();
             break;
         }
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         case API::Object::Type::ObjCObjectGraph: {
             ObjCObjectGraph* objectGraph = static_cast<ObjCObjectGraph*>(m_root);
             encoder << InjectedBundleObjCObjectGraphEncoder(objectGraph, WebProcess::shared());
@@ -113,7 +113,7 @@ public:
     {
     }
 
-    static bool decode(CoreIPC::ArgumentDecoder& decoder, InjectedBundleUserMessageDecoder& coder)
+    static bool decode(IPC::ArgumentDecoder& decoder, InjectedBundleUserMessageDecoder& coder)
     {
         API::Object::Type type = API::Object::Type::Null;
         if (!Base::baseDecode(decoder, coder, type))
@@ -144,7 +144,7 @@ public:
             coder.m_root = WebProcess::shared().webPageGroup(pageGroupData);
             break;
         }
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         case API::Object::Type::ObjCObjectGraph: {
             RefPtr<ObjCObjectGraph> objectGraph;
             InjectedBundleObjCObjectGraphDecoder objectGraphDecoder(objectGraph, WebProcess::shared());

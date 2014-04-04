@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -37,7 +37,6 @@
 #include "WebURLCredential.h"
 #include "WebURLResponse.h"
 
-#include <wtf/platform.h>
 #include <wtf/text/CString.h>
 
 #include <io.h>
@@ -57,11 +56,9 @@ using namespace WebCore;
 
 void WebDownload::init(ResourceHandle* handle, const ResourceRequest& request, const ResourceResponse& response, IWebDownloadDelegate* delegate)
 {
-    if (!handle)
-        return;
-
     // Stop previous request
-    handle->setDefersLoading(true);
+    if (handle)
+        handle->setDefersLoading(true);
 
     m_request.adoptRef(WebMutableURLRequest::createInstance(request));
 
@@ -183,7 +180,7 @@ void WebDownload::didReceiveResponse()
         if (suggestedFilename.isEmpty())
             suggestedFilename = pathGetFileName(response.url().string());
         suggestedFilename = decodeURLEscapeSequences(suggestedFilename);
-        BString suggestedFilenameBSTR(suggestedFilename.characters(), suggestedFilename.length());
+        BString suggestedFilenameBSTR(suggestedFilename);
         m_delegate->decideDestinationWithSuggestedFilename(this, suggestedFilenameBSTR);
     }
 }

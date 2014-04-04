@@ -12,7 +12,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -41,6 +41,14 @@
 #include "HTMLFormElement.h"
 #include "HTMLFrameOwnerElement.h"
 #include "SecurityOrigin.h"
+
+#if USE(QUICK_LOOK)
+#include "QuickLook.h"
+#endif
+
+#if USE(CONTENT_FILTERING)
+#include "ContentFilter.h"
+#endif
 
 namespace WebCore {
 
@@ -92,6 +100,23 @@ void PolicyChecker::checkNavigationPolicy(const ResourceRequest& request, Docume
     loader->setLastCheckedRequest(request);
 
     m_callback.set(request, formState.get(), std::move(function));
+
+#if USE(QUICK_LOOK)
+    // Always allow QuickLook-generated URLs based on the protocol scheme.
+    if (!request.isNull() && request.url().protocolIs(QLPreviewProtocol())) {
+        continueAfterNavigationPolicy(PolicyUse);
+        return;
+    }
+#endif
+
+#if USE(CONTENT_FILTERING)
+    if (DocumentLoader* documentLoader = m_frame.loader().documentLoader()) {
+        if (documentLoader->handleContentFilterRequest(request)) {
+            continueAfterNavigationPolicy(PolicyIgnore);
+            return;
+        }
+    }
+#endif
 
     m_delegateIsDecidingNavigationPolicy = true;
     m_frame.loader().client().dispatchDecidePolicyForNavigationAction(action, request, formState, [this](PolicyAction action) {

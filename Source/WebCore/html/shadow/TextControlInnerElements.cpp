@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -58,9 +58,9 @@ PassRefPtr<TextControlInnerContainer> TextControlInnerContainer::create(Document
     return adoptRef(new TextControlInnerContainer(document));
 }
     
-RenderElement* TextControlInnerContainer::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> TextControlInnerContainer::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderTextControlInnerContainer(*this, std::move(style));
+    return createRenderer<RenderTextControlInnerContainer>(*this, std::move(style));
 }
 
 TextControlInnerElement::TextControlInnerElement(Document& document)
@@ -74,7 +74,7 @@ PassRefPtr<TextControlInnerElement> TextControlInnerElement::create(Document& do
     return adoptRef(new TextControlInnerElement(document));
 }
 
-PassRefPtr<RenderStyle> TextControlInnerElement::customStyleForRenderer()
+PassRefPtr<RenderStyle> TextControlInnerElement::customStyleForRenderer(RenderStyle&)
 {
     RenderTextControlSingleLine* parentRenderer = toRenderTextControlSingleLine(shadowHost()->renderer());
     return parentRenderer->createInnerBlockStyle(&parentRenderer->style());
@@ -112,9 +112,9 @@ void TextControlInnerTextElement::defaultEventHandler(Event* event)
         HTMLDivElement::defaultEventHandler(event);
 }
 
-RenderElement* TextControlInnerTextElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> TextControlInnerTextElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderTextControlInnerBlock(*this, std::move(style));
+    return createRenderer<RenderTextControlInnerBlock>(*this, std::move(style));
 }
 
 RenderTextControlInnerBlock* TextControlInnerTextElement::renderer() const
@@ -122,7 +122,7 @@ RenderTextControlInnerBlock* TextControlInnerTextElement::renderer() const
     return toRenderTextControlInnerBlock(HTMLDivElement::renderer());
 }
 
-PassRefPtr<RenderStyle> TextControlInnerTextElement::customStyleForRenderer()
+PassRefPtr<RenderStyle> TextControlInnerTextElement::customStyleForRenderer(RenderStyle&)
 {
     RenderTextControl* parentRenderer = toRenderTextControl(shadowHost()->renderer());
     return parentRenderer->createInnerTextStyle(&parentRenderer->style());
@@ -142,9 +142,9 @@ PassRefPtr<SearchFieldResultsButtonElement> SearchFieldResultsButtonElement::cre
 
 const AtomicString& SearchFieldResultsButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, resultsId, ("-webkit-search-results-button", AtomicString::ConstructFromLiteral));
-    DEFINE_STATIC_LOCAL(AtomicString, resultsDecorationId, ("-webkit-search-results-decoration", AtomicString::ConstructFromLiteral));
-    DEFINE_STATIC_LOCAL(AtomicString, decorationId, ("-webkit-search-decoration", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, resultsId, ("-webkit-search-results-button", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, resultsDecorationId, ("-webkit-search-results-decoration", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, decorationId, ("-webkit-search-decoration", AtomicString::ConstructFromLiteral));
     Element* host = shadowHost();
     if (!host)
         return resultsId;
@@ -162,14 +162,16 @@ void SearchFieldResultsButtonElement::defaultEventHandler(Event* event)
 {
     // On mousedown, bring up a menu, if needed
     HTMLInputElement* input = toHTMLInputElement(shadowHost());
-    if (input && event->type() == eventNames().mousedownEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (input && event->type() == eventNames().mousedownEvent && event->isMouseEvent() && toMouseEvent(event)->button() == LeftButton) {
         input->focus();
         input->select();
+#if !PLATFORM(IOS)
         RenderSearchField* renderer = toRenderSearchField(input->renderer());
         if (renderer->popupIsVisible())
             renderer->hidePopup();
         else if (input->maxResults() > 0)
             renderer->showPopup();
+#endif
         event->setDefaultHandled();
     }
 
@@ -177,10 +179,12 @@ void SearchFieldResultsButtonElement::defaultEventHandler(Event* event)
         HTMLDivElement::defaultEventHandler(event);
 }
 
+#if !PLATFORM(IOS)
 bool SearchFieldResultsButtonElement::willRespondToMouseClickEvents()
 {
     return true;
 }
+#endif
 
 // ----------------------------
 
@@ -198,7 +202,7 @@ PassRefPtr<SearchFieldCancelButtonElement> SearchFieldCancelButtonElement::creat
 
 const AtomicString& SearchFieldCancelButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-search-cancel-button", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-search-cancel-button", AtomicString::ConstructFromLiteral));
     return pseudoId;
 }
 
@@ -220,7 +224,7 @@ void SearchFieldCancelButtonElement::defaultEventHandler(Event* event)
         return;
     }
 
-    if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && toMouseEvent(event)->button() == LeftButton) {
         if (renderer() && renderer()->visibleToHitTesting()) {
             if (Frame* frame = document().frame()) {
                 frame->eventHandler().setCapturingMouseEventsElement(this);
@@ -231,7 +235,7 @@ void SearchFieldCancelButtonElement::defaultEventHandler(Event* event)
         input->select();
         event->setDefaultHandled();
     }
-    if (event->type() == eventNames().mouseupEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mouseupEvent && event->isMouseEvent() && toMouseEvent(event)->button() == LeftButton) {
         if (m_capturing) {
             if (Frame* frame = document().frame()) {
                 frame->eventHandler().setCapturingMouseEventsElement(nullptr);
@@ -250,6 +254,7 @@ void SearchFieldCancelButtonElement::defaultEventHandler(Event* event)
         HTMLDivElement::defaultEventHandler(event);
 }
 
+#if !PLATFORM(IOS)
 bool SearchFieldCancelButtonElement::willRespondToMouseClickEvents()
 {
     const HTMLInputElement* input = toHTMLInputElement(shadowHost());
@@ -258,6 +263,7 @@ bool SearchFieldCancelButtonElement::willRespondToMouseClickEvents()
 
     return HTMLDivElement::willRespondToMouseClickEvents();
 }
+#endif
 
 // ----------------------------
 
@@ -307,7 +313,7 @@ void InputFieldSpeechButtonElement::defaultEventHandler(Event* event)
     }
 
     // On mouse down, select the text and set focus.
-    if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mousedownEvent && event->isMouseEvent() && toMouseEvent(event)->button() == LeftButton) {
         if (renderer() && renderer()->visibleToHitTesting()) {
             if (Frame* frame = document().frame()) {
                 frame->eventHandler().setCapturingMouseEventsElement(this);
@@ -320,7 +326,7 @@ void InputFieldSpeechButtonElement::defaultEventHandler(Event* event)
         event->setDefaultHandled();
     }
     // On mouse up, release capture cleanly.
-    if (event->type() == eventNames().mouseupEvent && event->isMouseEvent() && static_cast<MouseEvent*>(event)->button() == LeftButton) {
+    if (event->type() == eventNames().mouseupEvent && event->isMouseEvent() && toMouseEvent(event)->button() == LeftButton) {
         if (m_capturing && renderer() && renderer()->visibleToHitTesting()) {
             if (Frame* frame = document().frame()) {
                 frame->eventHandler().setCapturingMouseEventsElement(nullptr);
@@ -348,6 +354,7 @@ void InputFieldSpeechButtonElement::defaultEventHandler(Event* event)
         HTMLDivElement::defaultEventHandler(event);
 }
 
+#if !PLATFORM(IOS)
 bool InputFieldSpeechButtonElement::willRespondToMouseClickEvents()
 {
     const HTMLInputElement* input = toHTMLInputElement(shadowHost());
@@ -356,6 +363,7 @@ bool InputFieldSpeechButtonElement::willRespondToMouseClickEvents()
 
     return HTMLDivElement::willRespondToMouseClickEvents();
 }
+#endif
 
 void InputFieldSpeechButtonElement::setState(SpeechInputState state)
 {
@@ -453,7 +461,7 @@ void InputFieldSpeechButtonElement::stopSpeechInput()
 
 const AtomicString& InputFieldSpeechButtonElement::shadowPseudoId() const
 {
-    DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-input-speech-button", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, pseudoId, ("-webkit-input-speech-button", AtomicString::ConstructFromLiteral));
     return pseudoId;
 }
 

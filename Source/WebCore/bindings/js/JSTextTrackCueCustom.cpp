@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,8 +27,10 @@
 
 #if ENABLE(VIDEO_TRACK)
 
+#include "JSDataCue.h"
 #include "JSTextTrackCue.h"
 #include "JSTrackCustom.h"
+#include "JSVTTCue.h"
 #include "TextTrack.h"
 
 using namespace JSC;
@@ -37,7 +39,7 @@ namespace WebCore {
 
 bool JSTextTrackCueOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> handle, void*, SlotVisitor& visitor)
 {
-    JSTextTrackCue* jsTextTrackCue = jsCast<JSTextTrackCue*>(handle.get().asCell());
+    JSTextTrackCue* jsTextTrackCue = jsCast<JSTextTrackCue*>(handle.slot()->asCell());
     TextTrackCue& textTrackCue = jsTextTrackCue->impl();
 
     // If the cue is firing event listeners, its wrapper is reachable because
@@ -56,6 +58,29 @@ bool JSTextTrackCueOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown> h
     return visitor.containsOpaqueRoot(root(textTrackCue.track()));
 }
 
+JSValue toJS(ExecState*, JSDOMGlobalObject* globalObject, TextTrackCue* cue)
+{
+    if (!cue)
+        return jsNull();
+
+    JSObject* wrapper = getCachedWrapper(globalObject->world(), cue);
+
+    if (wrapper)
+        return wrapper;
+
+    // This switch will make more sense once we support DataCue
+    switch (cue->cueType()) {
+    case TextTrackCue::Data:
+        return CREATE_DOM_WRAPPER(globalObject, DataCue, cue);
+    case TextTrackCue::WebVTT:
+    case TextTrackCue::Generic:
+        return CREATE_DOM_WRAPPER(globalObject, VTTCue, cue);
+    default:
+        ASSERT_NOT_REACHED();
+        return jsNull();
+    }
+}
+
 void JSTextTrackCue::visitChildren(JSCell* cell, SlotVisitor& visitor)
 {
     JSTextTrackCue* jsTextTrackCue = jsCast<JSTextTrackCue*>(cell);
@@ -63,7 +88,7 @@ void JSTextTrackCue::visitChildren(JSCell* cell, SlotVisitor& visitor)
     COMPILE_ASSERT(StructureFlags & OverridesVisitChildren, OverridesVisitChildrenWithoutSettingFlag);
     ASSERT(jsTextTrackCue->structure()->typeInfo().overridesVisitChildren());
     Base::visitChildren(jsTextTrackCue, visitor);
-    
+
     // Mark the cue's track root if it has one.
     TextTrackCue& textTrackCue = jsTextTrackCue->impl();
     if (TextTrack* textTrack = textTrackCue.track())

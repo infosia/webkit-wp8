@@ -26,7 +26,6 @@
 #include "config.h"
 #include "SMILTimeContainer.h"
 
-#if ENABLE(SVG)
 #include "Document.h"
 #include "ElementIterator.h"
 #include "SVGNames.h"
@@ -226,9 +225,8 @@ void SMILTimeContainer::updateDocumentOrderIndexes()
 {
     unsigned timingElementCount = 0;
 
-    auto smilDescendants = descendantsOfType<SVGSMILElement>(*m_ownerSVGElement);
-    for (auto smilElement = smilDescendants.begin(), end = smilDescendants.end(); smilElement != end; ++smilElement)
-        smilElement->setDocumentOrderIndex(timingElementCount++);
+    for (auto& smilElement : descendantsOfType<SVGSMILElement>(*m_ownerSVGElement))
+        smilElement.setDocumentOrderIndex(timingElementCount++);
 
     m_documentOrderIndexesDirty = false;
 }
@@ -327,5 +325,3 @@ void SMILTimeContainer::updateAnimations(SMILTime elapsed, bool seekToTime)
 }
 
 }
-
-#endif // ENABLE(SVG)

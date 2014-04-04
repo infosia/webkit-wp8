@@ -48,18 +48,18 @@ class StyleResolver;
 class CSSFilterImageValue : public CSSImageGeneratorValue {
     friend class FilterSubimageObserverProxy;
 public:
-    static PassRef<CSSFilterImageValue> create(PassRefPtr<CSSValue> imageValue, PassRefPtr<CSSValue> filterValue)
+    static PassRef<CSSFilterImageValue> create(PassRef<CSSValue> imageValue, PassRef<CSSValue> filterValue)
     {
-        return adoptRef(*new CSSFilterImageValue(imageValue, filterValue));
+        return adoptRef(*new CSSFilterImageValue(std::move(imageValue), std::move(filterValue)));
     }
 
     ~CSSFilterImageValue();
 
     String customCSSText() const;
 
-    PassRefPtr<Image> image(RenderElement*, const IntSize&);
+    PassRefPtr<Image> image(RenderElement*, const FloatSize&);
     bool isFixedSize() const { return true; }
-    IntSize fixedSize(const RenderElement*);
+    FloatSize fixedSize(const RenderElement*);
 
     bool isPending() const;
     bool knownToBeOpaque(const RenderElement*) const;
@@ -99,7 +99,7 @@ private:
         }
 
         virtual ~FilterSubimageObserverProxy() { }
-        virtual void imageChanged(CachedImage*, const IntRect* = 0) OVERRIDE;
+        virtual void imageChanged(CachedImage*, const IntRect* = 0) override;
         void setReady(bool ready) { m_ready = ready; }
     private:
         CSSFilterImageValue* m_ownerValue;

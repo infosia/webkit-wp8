@@ -20,8 +20,6 @@
 #ifndef RenderSVGResourceMasker_h
 #define RenderSVGResourceMasker_h
 
-#if ENABLE(SVG)
-#include "FloatRect.h"
 #include "GraphicsContext.h"
 #include "ImageBuffer.h"
 #include "IntSize.h"
@@ -37,17 +35,17 @@ struct MaskerData {
     std::unique_ptr<ImageBuffer> maskImage;
 };
 
-class RenderSVGResourceMasker FINAL : public RenderSVGResourceContainer {
+class RenderSVGResourceMasker final : public RenderSVGResourceContainer {
 public:
     RenderSVGResourceMasker(SVGMaskElement&, PassRef<RenderStyle>);
     virtual ~RenderSVGResourceMasker();
 
     SVGMaskElement& maskElement() const { return toSVGMaskElement(RenderSVGResourceContainer::element()); }
 
-    virtual void removeAllClientsFromCache(bool markForInvalidation = true);
-    virtual void removeClientFromCache(RenderObject*, bool markForInvalidation = true);
-    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) OVERRIDE;
-    virtual FloatRect resourceBoundingBox(const RenderObject&) OVERRIDE;
+    virtual void removeAllClientsFromCache(bool markForInvalidation = true) override;
+    virtual void removeClientFromCache(RenderElement&, bool markForInvalidation = true) override;
+    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) override;
+    virtual FloatRect resourceBoundingBox(const RenderObject&) override;
 
     SVGUnitTypes::SVGUnitType maskUnits() const { return maskElement().maskUnits(); }
     SVGUnitTypes::SVGUnitType maskContentUnits() const { return maskElement().maskContentUnits(); }
@@ -56,9 +54,9 @@ public:
     static RenderSVGResourceType s_resourceType;
 
 private:
-    void element() const WTF_DELETED_FUNCTION;
+    void element() const = delete;
 
-    virtual const char* renderName() const OVERRIDE { return "RenderSVGResourceMasker"; }
+    virtual const char* renderName() const override { return "RenderSVGResourceMasker"; }
 
     bool drawContentIntoMaskImage(MaskerData*, ColorSpace, RenderObject*);
     void calculateMaskContentRepaintRect();
@@ -69,5 +67,4 @@ private:
 
 }
 
-#endif
 #endif

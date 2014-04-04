@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -92,7 +92,7 @@ HRTFKernel::HRTFKernel(AudioChannel* channel, size_t fftSize, float sampleRate)
         }
     }
 
-    m_fftFrame = adoptPtr(new FFTFrame(fftSize));
+    m_fftFrame = std::make_unique<FFTFrame>(fftSize);
     m_fftFrame->doPaddedFFT(impulseResponse, truncatedResponseLength);
 }
 
@@ -101,16 +101,16 @@ size_t HRTFKernel::fftSize() const
     return m_fftFrame->fftSize();
 }
 
-PassOwnPtr<AudioChannel> HRTFKernel::createImpulseResponse()
+std::unique_ptr<AudioChannel> HRTFKernel::createImpulseResponse()
 {
-    OwnPtr<AudioChannel> channel = adoptPtr(new AudioChannel(fftSize()));
+    auto channel = std::make_unique<AudioChannel>(fftSize());
     FFTFrame fftFrame(*m_fftFrame);
 
     // Add leading delay back in.
     fftFrame.addConstantGroupDelay(m_frameDelay);
     fftFrame.doInverseFFT(channel->mutableData());
 
-    return channel.release();
+    return channel;
 }
 
 // Interpolates two kernels with x: 0 -> 1 and returns the result.
@@ -131,8 +131,8 @@ PassRefPtr<HRTFKernel> HRTFKernel::createInterpolatedKernel(HRTFKernel* kernel1,
     
     float frameDelay = (1 - x) * kernel1->frameDelay() + x * kernel2->frameDelay();
     
-    OwnPtr<FFTFrame> interpolatedFrame = FFTFrame::createInterpolatedFrame(*kernel1->fftFrame(), *kernel2->fftFrame(), x);
-    return HRTFKernel::create(interpolatedFrame.release(), frameDelay, sampleRate1);
+    std::unique_ptr<FFTFrame> interpolatedFrame = FFTFrame::createInterpolatedFrame(*kernel1->fftFrame(), *kernel2->fftFrame(), x);
+    return HRTFKernel::create(std::move(interpolatedFrame), frameDelay, sampleRate1);
 }
 
 } // namespace WebCore

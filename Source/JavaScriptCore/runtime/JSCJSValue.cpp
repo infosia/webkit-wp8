@@ -172,7 +172,7 @@ void JSValue::putToPrimitive(ExecState* exec, PropertyName propertyName, JSValue
 void JSValue::putToPrimitiveByIndex(ExecState* exec, unsigned propertyName, JSValue value, bool shouldThrow)
 {
     if (propertyName > MAX_ARRAY_INDEX) {
-        PutPropertySlot slot(shouldThrow);
+        PutPropertySlot slot(*this, shouldThrow);
         putToPrimitive(exec, Identifier::from(exec, propertyName), value, slot);
         return;
     }
@@ -216,7 +216,7 @@ void JSValue::dumpInContext(PrintStream& out, DumpContext* context) const
             if (impl) {
                 if (impl->isAtomic())
                     out.print(" (atomic)");
-                if (impl->isIdentifier())
+                if (impl->isAtomic())
                     out.print(" (identifier)");
                 if (impl->isEmptyUnique())
                     out.print(" (unique)");
@@ -229,6 +229,9 @@ void JSValue::dumpInContext(PrintStream& out, DumpContext* context) const
             out.print("Cell: ", RawPointer(asCell()));
             out.print(" (", inContext(*asCell()->structure(), context), ")");
         }
+#if USE(JSVALUE64)
+        out.print(", ID: ", asCell()->structureID());
+#endif
     } else if (isTrue())
         out.print("True");
     else if (isFalse())

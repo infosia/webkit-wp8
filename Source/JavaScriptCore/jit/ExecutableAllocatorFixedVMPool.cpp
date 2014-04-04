@@ -24,8 +24,9 @@
  */
 
 #include "config.h"
-
 #include "ExecutableAllocator.h"
+
+#include "JSCInlines.h"
 
 #if ENABLE(EXECUTABLE_ALLOCATOR_FIXED)
 
@@ -44,7 +45,7 @@
 #include <stdio.h>
 #endif
 
-#if !PLATFORM(IOS) && PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 1090
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED < 1090
 // MADV_FREE_REUSABLE does not work for JIT memory on older OSes so use MADV_FREE in that case.
 #define WTF_USE_MADV_FREE_FOR_JIT_MEMORY 1
 #endif
@@ -76,13 +77,13 @@ public:
     virtual ~FixedVMPoolExecutableAllocator();
     
 protected:
-    virtual void* allocateNewSpace(size_t&) OVERRIDE
+    virtual void* allocateNewSpace(size_t&) override
     {
         // We're operating in a fixed pool, so new allocation is always prohibited.
         return 0;
     }
     
-    virtual void notifyNeedPage(void* page) OVERRIDE
+    virtual void notifyNeedPage(void* page) override
     {
 #if USE(MADV_FREE_FOR_JIT_MEMORY)
         UNUSED_PARAM(page);
@@ -91,7 +92,7 @@ protected:
 #endif
     }
     
-    virtual void notifyPageIsFree(void* page) OVERRIDE
+    virtual void notifyPageIsFree(void* page) override
     {
 #if USE(MADV_FREE_FOR_JIT_MEMORY)
         for (;;) {

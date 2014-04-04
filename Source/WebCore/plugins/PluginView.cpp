@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -61,7 +61,6 @@
 #include "RenderBox.h"
 #include "RenderObject.h"
 #include "ScriptController.h"
-#include "ScriptValue.h"
 #include "SecurityOrigin.h"
 #include "Settings.h"
 #include "UserGestureIndicator.h"
@@ -69,6 +68,7 @@
 #include "c_instance.h"
 #include "npruntime_impl.h"
 #include "runtime_root.h"
+#include <bindings/ScriptValue.h>
 #include <runtime/JSCJSValue.h>
 #include <runtime/JSLock.h>
 #include <wtf/ASCIICType.h>
@@ -467,7 +467,7 @@ void PluginView::performRequest(PluginRequest* request)
     
     // Executing a script can cause the plugin view to be destroyed, so we keep a reference to it.
     RefPtr<PluginView> protector(this);
-    ScriptValue result = m_parentFrame->script().executeScript(jsString, request->shouldAllowPopups());
+    Deprecated::ScriptValue result = m_parentFrame->script().executeScript(jsString, request->shouldAllowPopups());
 
     if (targetFrameName.isNull()) {
         String resultString;
@@ -833,7 +833,7 @@ PluginView::PluginView(Frame* parentFrame, const IntSize& size, PluginPackage* p
     , m_wmPrintHDC(0)
     , m_haveUpdatedPluginWidget(false)
 #endif
-#if PLATFORM(EFL) || PLATFORM(NIX)
+#if PLATFORM(EFL)
     , m_window(0)
 #endif
 #if defined(XP_MACOSX)
@@ -1354,7 +1354,7 @@ NPError PluginView::getValue(NPNVariable variable, void* value)
         Page* page = m_parentFrame->page();
         if (!page)
             return NPERR_GENERIC_ERROR;
-        *((NPBool*)value) = page->settings().privateBrowsingEnabled();
+        *((NPBool*)value) = page->usesEphemeralSession();
         return NPERR_NO_ERROR;
     }
 

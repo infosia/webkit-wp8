@@ -1,3 +1,67 @@
+2014-03-14  Maciej Stachowiak  <mjs@apple.com>
+
+        Replace "Apple Computer, Inc." with "Apple Inc." in copyright headers
+        https://bugs.webkit.org/show_bug.cgi?id=130276
+        <rdar://problem/16266927>
+
+        Reviewed by Simon Fraser.
+
+        * hosted/sunspider.html:
+        * hosted/versions.html:
+        * make-hosted:
+        * resources/TEMPLATE.html:
+        * resources/driver-TEMPLATE.html:
+        * resources/results-TEMPLATE.html:
+        * resources/sunspider-analyze-results.js:
+        * resources/sunspider-compare-results.js:
+        * resources/sunspider-standalone-compare.js:
+        * resources/sunspider-standalone-driver.js:
+        * sunspider:
+        * sunspider-compare-results:
+        * tests/sunspider-0.9.1/3d-morph.js:
+        * tests/sunspider-0.9.1/3d-raytrace.js:
+        * tests/sunspider-0.9.1/bitops-bitwise-and.js:
+        * tests/sunspider-0.9.1/math-cordic.js:
+        * tests/sunspider-0.9.1/string-tagcloud.js:
+        * tests/sunspider-0.9/3d-morph.js:
+        * tests/sunspider-0.9/3d-raytrace.js:
+        * tests/sunspider-0.9/bitops-bitwise-and.js:
+        * tests/sunspider-0.9/math-cordic.js:
+        * tests/sunspider-0.9/string-tagcloud.js:
+        * tests/sunspider-1.0.1/3d-morph.js:
+        * tests/sunspider-1.0.1/3d-raytrace.js:
+        * tests/sunspider-1.0.1/bitops-bitwise-and.js:
+        * tests/sunspider-1.0.1/math-cordic.js:
+        * tests/sunspider-1.0.1/string-tagcloud.js:
+        * tests/sunspider-1.0.2/3d-morph.js:
+        * tests/sunspider-1.0.2/3d-raytrace.js:
+        * tests/sunspider-1.0.2/bitops-bitwise-and.js:
+        * tests/sunspider-1.0.2/math-cordic.js:
+        * tests/sunspider-1.0.2/string-tagcloud.js:
+        * tests/sunspider-1.0/3d-morph.js:
+        * tests/sunspider-1.0/3d-raytrace.js:
+        * tests/sunspider-1.0/bitops-bitwise-and.js:
+        * tests/sunspider-1.0/math-cordic.js:
+        * tests/sunspider-1.0/string-tagcloud.js:
+
+2014-02-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, revert the accidental change from r163789.
+
+        * tests/v8-v6/v8-deltablue.js:
+
+2013-12-10  Filip Pizlo  <fpizlo@apple.com>
+
+        Get rid of forward exit on DoubleAsInt32
+        https://bugs.webkit.org/show_bug.cgi?id=125552
+
+        Reviewed by Oliver Hunt.
+        
+        Use SunSpider as a kind of spot-check for the
+        no-architecture-specific-optimization paths in the compiler.
+
+        * no-architecture-specific-optimizations.yaml: Added.
+
 2013-10-08  Geoffrey Garen  <ggaren@apple.com>
 
         Refined power management in SunSpider 1.0.2

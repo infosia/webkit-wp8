@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,13 +32,13 @@
 #include "ColorSpace.h"
 #include "FloatRect.h"
 #include "GraphicsContext.h"
-#if USE(ACCELERATED_COMPOSITING)
-#include "PlatformLayer.h"
-#endif
 #include "GraphicsTypes.h"
 #include "GraphicsTypes3D.h"
 #include "IntSize.h"
 #include "ImageBufferData.h"
+#include "PlatformLayer.h"
+#include <runtime/JSCInlines.h>
+#include <runtime/TypedArrayInlines.h>
 #include <runtime/Uint8ClampedArray.h>
 #include <wtf/Forward.h>
 #include <wtf/OwnPtr.h>
@@ -78,7 +78,7 @@ namespace WebCore {
         WTF_MAKE_NONCOPYABLE(ImageBuffer); WTF_MAKE_FAST_ALLOCATED;
     public:
         // Will return a null pointer on allocation failure.
-        static std::unique_ptr<ImageBuffer> create(const IntSize& size, float resolutionScale = 1, ColorSpace colorSpace = ColorSpaceDeviceRGB, RenderingMode renderingMode = Unaccelerated)
+        static std::unique_ptr<ImageBuffer> create(const FloatSize& size, float resolutionScale = 1, ColorSpace colorSpace = ColorSpaceDeviceRGB, RenderingMode renderingMode = Unaccelerated)
         {
             bool success = false;
             std::unique_ptr<ImageBuffer> buffer(new ImageBuffer(size, resolutionScale, colorSpace, renderingMode, success));
@@ -87,7 +87,7 @@ namespace WebCore {
             return buffer;
         }
 
-        static std::unique_ptr<ImageBuffer> createCompatibleBuffer(const IntSize&, float resolutionScale, ColorSpace, const GraphicsContext*, bool hasAlpha);
+        static std::unique_ptr<ImageBuffer> createCompatibleBuffer(const FloatSize&, float resolutionScale, ColorSpace, const GraphicsContext*, bool hasAlpha);
 
         ~ImageBuffer();
 
@@ -119,9 +119,7 @@ namespace WebCore {
 #else
         AffineTransform baseTransform() const { return AffineTransform(1, 0, 0, -1, 0, m_data.m_backingStoreSize.height()); }
 #endif
-#if USE(ACCELERATED_COMPOSITING)
         PlatformLayer* platformLayer() const;
-#endif
 
         // FIXME: current implementations of this method have the restriction that they only work
         // with textures that are RGB or RGBA format, and UNSIGNED_BYTE type.
@@ -143,7 +141,7 @@ namespace WebCore {
         void clip(GraphicsContext*, const FloatRect&) const;
 
         void draw(GraphicsContext*, ColorSpace, const FloatRect& destRect, const FloatRect& srcRect = FloatRect(0, 0, -1, -1), CompositeOperator = CompositeSourceOver, BlendMode = BlendModeNormal, bool useLowQualityScale = false);
-        void drawPattern(GraphicsContext*, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator, const FloatRect& destRect);
+        void drawPattern(GraphicsContext*, const FloatRect& srcRect, const AffineTransform& patternTransform, const FloatPoint& phase, ColorSpace styleColorSpace, CompositeOperator, const FloatRect& destRect, BlendMode = BlendModeNormal);
 
         inline void genericConvertToLuminanceMask();
 
@@ -162,7 +160,7 @@ namespace WebCore {
 
         // This constructor will place its success into the given out-variable
         // so that create() knows when it should return failure.
-        ImageBuffer(const IntSize&, float resolutionScale, ColorSpace, RenderingMode, bool& success);
+        ImageBuffer(const FloatSize&, float resolutionScale, ColorSpace, RenderingMode, bool& success);
     };
 
 #if USE(CG)

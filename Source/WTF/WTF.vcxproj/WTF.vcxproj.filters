@@ -84,6 +84,12 @@
     <ClCompile Include="..\wtf\text\cf\StringCF.cpp">
       <Filter>text</Filter>
     </ClCompile>
+    <ClCompile Include="..\wtf\text\cf\StringImplCF.cpp">
+      <Filter>text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\wtf\text\cf\StringViewCF.cpp">
+      <Filter>text</Filter>
+    </ClCompile>
     <ClCompile Include="..\wtf\win\MainThreadWin.cpp">
       <Filter>win</Filter>
     </ClCompile>
@@ -106,6 +112,9 @@
       <Filter>wtf</Filter>
     </ClCompile>
     <ClCompile Include="..\wtf\BitVector.cpp">
+      <Filter>wtf</Filter>
+    </ClCompile>
+    <ClCompile Include="..\wtf\CryptographicUtilities.cpp">
       <Filter>wtf</Filter>
     </ClCompile>
     <ClCompile Include="..\wtf\CryptographicallyRandomNumber.cpp">
@@ -225,9 +234,6 @@
     <ClCompile Include="..\wtf\gobject\GlibUtilities.cpp">
       <Filter>wtf\gobject</Filter>
     </ClCompile>
-    <ClCompile Include="..\wtf\gobject\GOwnPtr.cpp">
-      <Filter>wtf\gobject</Filter>
-    </ClCompile>
     <ClCompile Include="..\wtf\gobject\GRefPtr.cpp">
       <Filter>wtf\gobject</Filter>
     </ClCompile>
@@ -237,8 +243,9 @@
     <ClCompile Include="..\wtf\win\RunLoopWin.cpp">
       <Filter>win</Filter>
     </ClCompile>
-    <ClCompile Include="..\wtf\text\cf\StringImplCF.cpp">
-      <Filter>text</Filter>
+    <ClCompile Include="..\wtf\FastBitVector.cpp" />
+    <ClCompile Include="..\wtf\gobject\GMainLoopSource.cpp">
+      <Filter>wtf\gobject</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -299,6 +306,9 @@
     <ClInclude Include="..\wtf\text\IntegerToStringConversion.h">
       <Filter>text</Filter>
     </ClInclude>
+    <ClInclude Include="..\wtf\text\LChar.h">
+      <Filter>text</Filter>
+    </ClInclude>
     <ClInclude Include="..\wtf\text\StringBuffer.h">
       <Filter>text</Filter>
     </ClInclude>
@@ -317,6 +327,9 @@
     <ClInclude Include="..\wtf\text\StringOperators.h">
       <Filter>text</Filter>
     </ClInclude>
+    <ClInclude Include="..\wtf\text\StringView.h">
+      <Filter>wtf</Filter>
+    </ClInclude>
     <ClInclude Include="..\wtf\text\WTFString.h">
       <Filter>text</Filter>
     </ClInclude>
@@ -329,19 +342,10 @@
     <ClInclude Include="..\wtf\threadspecific.h">
       <Filter>wtf</Filter>
     </ClInclude>
-    <ClInclude Include="..\wtf\unicode\icu\UnicodeIcu.h">
-      <Filter>wtf\unicode\icu</Filter>
-    </ClInclude>
     <ClInclude Include="..\wtf\unicode\CharacterNames.h">
       <Filter>wtf\unicode</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\unicode\Collator.h">
-      <Filter>wtf\unicode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\unicode\Unicode.h">
-      <Filter>wtf\unicode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\unicode\UnicodeMacrosFromICU.h">
       <Filter>wtf\unicode</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\unicode\UTF8.h">
@@ -360,9 +364,6 @@
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\AVLTree.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\BitArray.h">
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\Bitmap.h">
@@ -390,6 +391,9 @@
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\Compiler.h">
+      <Filter>wtf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wtf\CryptographicUtilities.h">
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\CryptographicallyRandomNumber.h">
@@ -425,9 +429,6 @@
     <ClInclude Include="..\wtf\Encoder.h">
       <Filter>wtf</Filter>
     </ClInclude>
-    <ClInclude Include="..\wtf\EnumClass.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
     <ClInclude Include="..\wtf\FastBitVector.h">
       <Filter>wtf</Filter>
     </ClInclude>
@@ -435,9 +436,6 @@
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\FilePrintStream.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
-    <ClInclude Include="..\wtf\FixedArray.h">
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\Forward.h">
@@ -474,6 +472,12 @@
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\HexNumber.h">
+      <Filter>wtf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wtf\IteratorAdaptors.h">
+      <Filter>wtf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wtf\IteratorRange.h">
       <Filter>wtf</Filter>
     </ClInclude>
     <ClInclude Include="..\wtf\ListHashSet.h">
@@ -650,9 +654,6 @@
     <ClInclude Include="..\wtf\ThreadingPrimitives.h">
       <Filter>wtf</Filter>
     </ClInclude>
-    <ClInclude Include="..\wtf\ThreadRestrictionVerifier.h">
-      <Filter>wtf</Filter>
-    </ClInclude>
     <ClInclude Include="..\wtf\ValueCheck.h">
       <Filter>wtf</Filter>
     </ClInclude>
@@ -699,9 +700,6 @@
     <ClInclude Include="..\wtf\gobject\GMutexLocker.h">
       <Filter>wtf\gobject</Filter>
     </ClInclude>
-    <ClInclude Include="..\wtf\gobject\GOwnPtr.h">
-      <Filter>wtf\gobject</Filter>
-    </ClInclude>
     <ClInclude Include="..\wtf\gobject\GRefPtr.h">
       <Filter>wtf\gobject</Filter>
     </ClInclude>
@@ -716,6 +714,13 @@
     </ClInclude>
     <ClInclude Include="..\wtf\RunLoop.h">
       <Filter>wtf</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wtf\HashMethod.h" />
+    <ClInclude Include="..\wtf\gobject\GMainLoopSource.h">
+      <Filter>wtf\gobject</Filter>
+    </ClInclude>
+    <ClInclude Include="..\wtf\gobject\GUniquePtr.h">
+      <Filter>wtf\gobject</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

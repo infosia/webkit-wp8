@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2013 Google Inc. All rights reserved.
- * Copyright (C) 2013 Igalia S.L.
+ * Copyright (C) 2013, 2014 Igalia S.L.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -32,8 +32,9 @@
 #ifndef GridCoordinate_h
 #define GridCoordinate_h
 
+#if ENABLE(CSS_GRID_LAYOUT)
+
 #include <wtf/HashMap.h>
-#include <wtf/PassOwnPtr.h>
 #include <wtf/text/WTFString.h>
 
 namespace WebCore {
@@ -43,11 +44,6 @@ namespace WebCore {
 // span should include both |initialPositionIndex| and |finalPositionIndex| to be correct.
 class GridSpan {
 public:
-    static PassOwnPtr<GridSpan> create(size_t initialPosition, size_t finalPosition)
-    {
-        return adoptPtr(new GridSpan(initialPosition, finalPosition));
-    }
-
     GridSpan(size_t initialPosition, size_t finalPosition)
         : initialPositionIndex(initialPosition)
         , finalPositionIndex(finalPosition)
@@ -97,5 +93,7 @@ public:
 typedef HashMap<String, GridCoordinate> NamedGridAreaMap;
 
 } // namespace WebCore
+
+#endif /* ENABLE(CSS_GRID_LAYOUT) */
 
 #endif // GridCoordinate_h

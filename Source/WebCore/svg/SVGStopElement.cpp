@@ -19,8 +19,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGStopElement.h"
 
 #include "Attribute.h"
@@ -56,7 +54,7 @@ PassRefPtr<SVGStopElement> SVGStopElement::create(const QualifiedName& tagName, 
 
 bool SVGStopElement::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty())
         supportedAttributes.add(SVGNames::offsetAttr);
     return supportedAttributes.contains<SVGAttributeHashTranslator>(attrName);
@@ -89,20 +87,18 @@ void SVGStopElement::svgAttributeChanged(const QualifiedName& attrName)
 
     SVGElementInstance::InvalidationGuard invalidationGuard(this);
 
-    if (!renderer())
-        return;
-
     if (attrName == SVGNames::offsetAttr) {
-        RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer());
+        if (auto renderer = this->renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer);
         return;
     }
 
     ASSERT_NOT_REACHED();
 }
 
-RenderElement* SVGStopElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGStopElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGGradientStop(*this, std::move(style));
+    return createRenderer<RenderSVGGradientStop>(*this, std::move(style));
 }
 
 bool SVGStopElement::rendererIsNeeded(const RenderStyle&)
@@ -124,5 +120,3 @@ Color SVGStopElement::stopColorIncludingOpacity() const
 }
 
 }
-
-#endif // ENABLE(SVG)

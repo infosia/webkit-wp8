@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -37,7 +37,6 @@
 #include "SecurityOriginHash.h"
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
@@ -90,7 +89,6 @@ public:
 
     DatabaseDetails detailsForNameAndOrigin(const String&, SecurityOrigin*);
 
-    unsigned long long usageForDatabase(const String&, SecurityOrigin*);
     unsigned long long usageForOrigin(SecurityOrigin*);
     unsigned long long quotaForOrigin(SecurityOrigin*);
     void setQuota(SecurityOrigin*, unsigned long long);
@@ -100,6 +98,21 @@ public:
     bool deleteOrigin(SecurityOrigin*);
     bool deleteDatabase(SecurityOrigin*, const String& name);
 
+#if PLATFORM(IOS)
+    void removeDeletedOpenedDatabases();
+    static bool deleteDatabaseFileIfEmpty(const String&);
+
+    // MobileSafari will grab this mutex on the main thread before dispatching the task to 
+    // clean up zero byte database files.  Any operations to open new database will have to
+    // wait for that task to finish by waiting on this mutex.
+    static Mutex& openDatabaseMutex();
+    
+    static void emptyDatabaseFilesRemovalTaskWillBeScheduled();
+    static void emptyDatabaseFilesRemovalTaskDidFinish();
+    
+    void setDatabasesPaused(bool);
+#endif
+    
     void setClient(DatabaseManagerClient*);
 
     // From a secondary thread, must be thread safe with its data
@@ -138,7 +151,7 @@ private:
     typedef HashMap<RefPtr<SecurityOrigin>, DatabaseNameMap*> DatabaseOriginMap;
 
     Mutex m_openDatabaseMapGuard;
-    mutable OwnPtr<DatabaseOriginMap> m_openDatabaseMap;
+    mutable std::unique_ptr<DatabaseOriginMap> m_openDatabaseMap;
 
     // This lock protects m_database, m_originLockMap, m_databaseDirectoryPath, m_originsBeingDeleted, m_beingCreated, and m_beingDeleted.
     Mutex m_databaseGuard;

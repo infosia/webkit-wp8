@@ -92,7 +92,7 @@ static const char base64URLDecMap[128] = {
     0x31, 0x32, 0x33, nonAlphabet, nonAlphabet, nonAlphabet, nonAlphabet, nonAlphabet
 };
 
-inline void base64EncodeInternal(const char* data, unsigned len, Vector<char>& out, Base64EncodePolicy policy, const char* encodeMap)
+static inline void base64EncodeInternal(const char* data, unsigned len, Vector<char>& out, Base64EncodePolicy policy, const char (&encodeMap)[64])
 {
     out.clear();
     if (!len)
@@ -182,7 +182,7 @@ void base64URLEncode(const void* data, unsigned len, Vector<char>& out)
 }
 
 template<typename T>
-static inline bool base64DecodeInternal(const T* data, unsigned length, Vector<char>& out, Base64DecodePolicy policy, const char* decodeMap)
+static inline bool base64DecodeInternal(const T* data, unsigned length, Vector<char>& out, Base64DecodePolicy policy, const char (&decodeMap)[128])
 {
     out.clear();
     if (!length)
@@ -201,8 +201,7 @@ static inline bool base64DecodeInternal(const T* data, unsigned length, Vector<c
             if (policy == Base64FailOnInvalidCharacterOrExcessPadding && (length % 4 || equalsSignCount > 2))
                 return false;
         } else {
-            ASSERT(static_cast<size_t>(ch) < 128);
-            char decodedCharacter = decodeMap[ch];
+            char decodedCharacter = ch < WTF_ARRAY_LENGTH(decodeMap) ? decodeMap[ch] : nonAlphabet;
             if (decodedCharacter != nonAlphabet) {
                 if (equalsSignCount)
                     return false;
@@ -251,7 +250,10 @@ static inline bool base64DecodeInternal(const T* data, unsigned length, Vector<c
 
 bool base64Decode(const String& in, SignedOrUnsignedCharVectorAdapter out, Base64DecodePolicy policy)
 {
-    return base64DecodeInternal<UChar>(in.characters(), in.length(), out, policy, base64DecMap);
+    unsigned length = in.length();
+    if (!length || in.is8Bit())
+        return base64DecodeInternal(in.characters8(), length, out, policy, base64DecMap);
+    return base64DecodeInternal(in.characters16(), length, out, policy, base64DecMap);
 }
 
 bool base64Decode(const Vector<char>& in, SignedOrUnsignedCharVectorAdapter out, Base64DecodePolicy policy)
@@ -262,17 +264,20 @@ bool base64Decode(const Vector<char>& in, SignedOrUnsignedCharVectorAdapter out,
     if (in.size() > UINT_MAX)
         return false;
 
-    return base64DecodeInternal<char>(in.data(), in.size(), out, policy, base64DecMap);
+    return base64DecodeInternal(reinterpret_cast<const LChar*>(in.data()), in.size(), out, policy, base64DecMap);
 }
 
 bool base64Decode(const char* data, unsigned len, SignedOrUnsignedCharVectorAdapter out, Base64DecodePolicy policy)
 {
-    return base64DecodeInternal<char>(data, len, out, policy, base64DecMap);
+    return base64DecodeInternal(reinterpret_cast<const LChar*>(data), len, out, policy, base64DecMap);
 }
 
 bool base64URLDecode(const String& in, SignedOrUnsignedCharVectorAdapter out)
 {
-    return base64DecodeInternal<UChar>(in.characters(), in.length(), out, Base64FailOnInvalidCharacter, base64URLDecMap);
+    unsigned length = in.length();
+    if (!length || in.is8Bit())
+        return base64DecodeInternal(in.characters8(), length, out, Base64FailOnInvalidCharacter, base64URLDecMap);
+    return base64DecodeInternal(in.characters16(), length, out, Base64FailOnInvalidCharacter, base64URLDecMap);
 }
 
 bool base64URLDecode(const Vector<char>& in, SignedOrUnsignedCharVectorAdapter out)
@@ -283,12 +288,12 @@ bool base64URLDecode(const Vector<char>& in, SignedOrUnsignedCharVectorAdapter o
     if (in.size() > UINT_MAX)
         return false;
 
-    return base64DecodeInternal<char>(in.data(), in.size(), out, Base64FailOnInvalidCharacter, base64URLDecMap);
+    return base64DecodeInternal(reinterpret_cast<const LChar*>(in.data()), in.size(), out, Base64FailOnInvalidCharacter, base64URLDecMap);
 }
 
 bool base64URLDecode(const char* data, unsigned len, SignedOrUnsignedCharVectorAdapter out)
 {
-    return base64DecodeInternal<char>(data, len, out, Base64FailOnInvalidCharacter, base64URLDecMap);
+    return base64DecodeInternal(reinterpret_cast<const LChar*>(data), len, out, Base64FailOnInvalidCharacter, base64URLDecMap);
 }
 
 } // namespace WTF

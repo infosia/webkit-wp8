@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -35,6 +35,7 @@
 #include <math.h>
 #include <wtf/CurrentTime.h>
 #include <wtf/HashSet.h>
+#include <wtf/MainThread.h>
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -209,7 +210,7 @@ TimerBase::~TimerBase()
 
 void TimerBase::start(double nextFireInterval, double repeatInterval)
 {
-    ASSERT(m_thread == currentThread());
+    ASSERT(canAccessThreadLocalDataForThread(m_thread));
 
     m_repeatInterval = repeatInterval;
     setNextFireTime(monotonicallyIncreasingTime() + nextFireInterval);
@@ -217,7 +218,7 @@ void TimerBase::start(double nextFireInterval, double repeatInterval)
 
 void TimerBase::stop()
 {
-    ASSERT(m_thread == currentThread());
+    ASSERT(canAccessThreadLocalDataForThread(m_thread));
 
     m_repeatInterval = 0;
     setNextFireTime(0);
@@ -368,7 +369,7 @@ void TimerBase::updateHeapIfNeeded(double oldTime)
 
 void TimerBase::setNextFireTime(double newUnalignedTime)
 {
-    ASSERT(m_thread == currentThread());
+    ASSERT(canAccessThreadLocalDataForThread(m_thread));
     ASSERT(!m_wasDeleted);
 
     if (m_unalignedNextFireTime != newUnalignedTime)

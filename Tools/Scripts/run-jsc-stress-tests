@@ -86,6 +86,10 @@ if $numProcessors == 0
     $numProcessors = 1
 end
 
+if ENV["WEBKIT_TEST_CHILD_PROCESSES"]
+    $numProcessors = ENV["WEBKIT_TEST_CHILD_PROCESSES"].to_i
+end
+
 $jscPath = nil
 $enableFTL = false
 $outputDir = Pathname.new("results")
@@ -111,6 +115,7 @@ def usage
     puts "--shell-runner              Uses the shell-based test runner instead of the default make-based runner."
     puts "                            In general the shell runner is slower than the make runner."
     puts "--remote                    Specify a remote host on which to run tests."
+    puts "--child-processes    (-c)   Specify the number of child processes."
     puts "--help               (-h)   Print this message."
     exit 1
 end
@@ -124,6 +129,7 @@ GetoptLong.new(['--help', '-h', GetoptLong::NO_ARGUMENT],
                ['--force-vm-copy', GetoptLong::NO_ARGUMENT],
                ['--shell-runner', GetoptLong::NO_ARGUMENT],
                ['--remote', GetoptLong::REQUIRED_ARGUMENT],
+               ['--child-processes', '-c', GetoptLong::REQUIRED_ARGUMENT],
                ['--verbose', '-v', GetoptLong::NO_ARGUMENT]).each {
     | opt, arg |
     case opt
@@ -153,6 +159,8 @@ GetoptLong.new(['--help', '-h', GetoptLong::NO_ARGUMENT],
         $remote = true
         uri = URI("ftp://" + arg)
         $remoteUser, $remoteHost, $remotePort = uri.user, uri.host, uri.port
+    when '--child-processes'
+        $numProcessors = arg.to_i
     end
 }
 
@@ -171,6 +179,10 @@ end
 $numFailures = 0
 
 EAGER_OPTIONS = ["--thresholdForJITAfterWarmUp=10", "--thresholdForJITSoon=10", "--thresholdForOptimizeAfterWarmUp=20", "--thresholdForOptimizeAfterLongWarmUp=20", "--thresholdForOptimizeSoon=20", "--thresholdForFTLOptimizeAfterWarmUp=20", "--thresholdForFTLOptimizeSoon=20"]
+
+NO_FTL_OPTIONS = ["--useFTLJIT=false"]
+
+FTL_OPTIONS = ["--useFTLJIT=true", "--enableExperimentalFTLCoverage=true"]
 
 $runlist = []
 
@@ -238,6 +250,10 @@ def prefixCommand(prefix)
     "awk " + Shellwords.shellescape("{ printf #{(prefix + ': ').inspect}; print }")
 end
 
+def redirectAndPrefixCommand(prefix)
+    prefixCommand(prefix) + " 2>&1"
+end
+
 def pipeAndPrefixCommand(outputFilename, prefix)
     "tee " + Shellwords.shellescape(outputFilename.to_s) + " | " + prefixCommand(prefix)
 end
@@ -264,7 +280,7 @@ def simpleErrorHandler
         | outp, plan |
         outp.puts "if test -e #{plan.failFile}"
         outp.puts "then"
-        outp.puts "    (echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + prefixCommand(plan.name)
+        outp.puts "    (echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "else"
         outp.puts "    " + plan.successCommand
@@ -281,7 +297,7 @@ def diffErrorHandler(expectedFilename)
         
         outp.puts "if test -e #{plan.failFile}"
         outp.puts "then"
-        outp.puts "    (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + prefixCommand(plan.name)
+        outp.puts "    (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "elif test -e ../#{Shellwords.shellescape(expectedFilename)}"
         outp.puts "then"
@@ -290,11 +306,11 @@ def diffErrorHandler(expectedFilename)
         outp.puts "    then"
         outp.puts "    " + plan.successCommand
         outp.puts "    else"
-        outp.puts "        (echo \"DIFF FAILURE!\" && cat #{diffFilename}) | " + prefixCommand(plan.name)
+        outp.puts "        (echo \"DIFF FAILURE!\" && cat #{diffFilename}) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "        " + plan.failCommand
         outp.puts "    fi"
         outp.puts "else"
-        outp.puts "    (echo \"NO EXPECTATION!\" && cat #{outputFilename}) | " + prefixCommand(plan.name)
+        outp.puts "    (echo \"NO EXPECTATION!\" && cat #{outputFilename}) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "fi"
     }
@@ -309,11 +325,11 @@ def mozillaErrorHandler
 
         outp.puts "if test -e #{plan.failFile}"
         outp.puts "then"
-        outp.puts "    (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + prefixCommand(plan.name)
+        outp.puts "    (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "elif grep -i -q failed! #{outputFilename}"
         outp.puts "then"
-        outp.puts "    (echo Detected failures: && cat #{outputFilename}) | " + prefixCommand(plan.name)
+        outp.puts "    (echo Detected failures: && cat #{outputFilename}) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "else"
         outp.puts "    " + plan.successCommand
@@ -335,7 +351,7 @@ def mozillaFailErrorHandler
         outp.puts "then"
         outp.puts "    " + plan.successCommand
         outp.puts "else"
-        outp.puts "    (echo NOTICE: You made this test pass, but it was expected to fail) | " + prefixCommand(plan.name)
+        outp.puts "    (echo NOTICE: You made this test pass, but it was expected to fail) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "fi"
     }
@@ -354,17 +370,17 @@ def mozillaExit3ErrorHandler
         outp.puts "    then"
         outp.puts "        if grep -i -q failed! #{outputFilename}"
         outp.puts "        then"
-        outp.puts "            (echo Detected failures: && cat #{outputFilename}) | " + prefixCommand(plan.name)
+        outp.puts "            (echo Detected failures: && cat #{outputFilename}) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "            " + plan.failCommand
         outp.puts "        else"
         outp.puts "            " + plan.successCommand
         outp.puts "        fi"
         outp.puts "    else"
-        outp.puts "        (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + prefixCommand(plan.name)
+        outp.puts "        (cat #{outputFilename} && echo ERROR: Unexpected exit code: `cat #{plan.failFile}`) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "        " + plan.failCommand
         outp.puts "    fi"
         outp.puts "else"
-        outp.puts "    (cat #{outputFilename} && echo ERROR: Test expected to fail, but returned successfully) | " + prefixCommand(plan.name)
+        outp.puts "    (cat #{outputFilename} && echo ERROR: Test expected to fail, but returned successfully) | " + redirectAndPrefixCommand(plan.name)
         outp.puts "    " + plan.failCommand
         outp.puts "fi"
     }
@@ -504,7 +520,7 @@ def slow!
 end
 
 def run(kind, *options)
-    addRunCommand(kind, [pathToVM.to_s] + options + [$benchmark.to_s], silentOutputHandler, simpleErrorHandler)
+    addRunCommand(kind, [pathToVM.to_s] + NO_FTL_OPTIONS + options + [$benchmark.to_s], silentOutputHandler, simpleErrorHandler)
 end
 
 def runDefault
@@ -524,19 +540,23 @@ def runNoCJITValidatePhases
 end
 
 def runDefaultFTL
-    run("default-ftl", "--useExperimentalFTL=true")
+    run("default-ftl", *FTL_OPTIONS) if $enableFTL
 end
 
 def runFTLNoCJIT
-    run("ftl-no-cjit", "--enableConcurrentJIT=false", "--useExperimentalFTL=true")
+    run("ftl-no-cjit", "--enableConcurrentJIT=false", *FTL_OPTIONS) if $enableFTL
 end
 
 def runFTLNoCJITValidate
-    run("ftl-no-cjit-validate", "--enableConcurrentJIT=false", "--useExperimentalFTL=true", "--validateGraph=true")
+    run("ftl-no-cjit-validate", "--enableConcurrentJIT=false", "--validateGraph=true", *FTL_OPTIONS) if $enableFTL
+end
+
+def runFTLNoCJITNoInlineValidate
+    run("ftl-no-cjit-no-inline-validate", "--enableConcurrentJIT=false", "--validateGraph=true", "--maximumInliningDepth=1", "--maximumInliningDepthForMustInline=1", *FTL_OPTIONS) if $enableFTL
 end
 
 def runFTLNoCJITOSRValidation
-    run("ftl-no-cjit-osr-validation", "--enableConcurrentJIT=false", "--useExperimentalFTL=true", "--validateFTLOSRExitLiveness=true")
+    run("ftl-no-cjit-osr-validation", "--enableConcurrentJIT=false", "--validateFTLOSRExitLiveness=true", *FTL_OPTIONS) if $enableFTL
 end
 
 def runDFGEager
@@ -548,19 +568,35 @@ def runDFGEagerNoCJITValidate
 end
 
 def runFTLEager
-    run("ftl-eager", "--useExperimentalFTL=true", *EAGER_OPTIONS)
+    run("ftl-eager", *(FTL_OPTIONS + EAGER_OPTIONS)) if $enableFTL
 end
 
 def runFTLEagerNoCJITValidate
-    run("ftl-eager-no-cjit", "--useExperimentalFTL=true", "--enableConcurrentJIT=false", "--validateGraph=true", *EAGER_OPTIONS)
+    run("ftl-eager-no-cjit", "--enableConcurrentJIT=false", "--validateGraph=true", *(FTL_OPTIONS + EAGER_OPTIONS)) if $enableFTL
 end
 
 def runFTLEagerNoCJITOSRValidation
-    run("ftl-eager-no-cjit-osr-validation", "--useExperimentalFTL=true", "--enableConcurrentJIT=false", "--validateFTLOSRExitLiveness=true", *EAGER_OPTIONS)
+    run("ftl-eager-no-cjit-osr-validation", "--enableConcurrentJIT=false", "--validateFTLOSRExitLiveness=true", *(FTL_OPTIONS + EAGER_OPTIONS)) if $enableFTL
 end
 
 def runAlwaysTriggerCopyPhase
     run("always-trigger-copy-phase", "--minHeapUtilization=2.0", "--minCopiedBlockUtilization=2.0")
+end
+
+def runNoCJITNoASO
+    run("no-cjit-no-aso", "--enableConcurrentJIT=false", "--enableArchitectureSpecificOptimizations=false")
+end
+
+def runFTLNoCJITNoSimpleOpt
+    run("ftl-no-cjit-no-simple-opt", "--enableConcurrentJIT=false", "--llvmSimpleOpt=false", *FTL_OPTIONS) if $enableFTL
+end
+
+def runNoCJITNoAccessInlining
+    run("no-cjit-no-access-inlining", "--enableConcurrentJIT=false", "--enableAccessInlining=false")
+end
+
+def runFTLNoCJITNoAccessInlining
+    run("ftl-no-cjit-no-access-inlining", "--enableConcurrentJIT=false", "--enableAccessInlining=false", *FTL_OPTIONS) if $enableFTL
 end
 
 def defaultRun
@@ -570,23 +606,33 @@ def defaultRun
     runNoCJITValidatePhases
     runDFGEager
     runDFGEagerNoCJITValidate
-    if $enableFTL
-        runDefaultFTL
-        runFTLNoCJITValidate
-        runFTLNoCJITOSRValidation
-        runFTLEager
-        runFTLEagerNoCJITValidate
-        runFTLEagerNoCJITOSRValidation
-    end
+    runDefaultFTL
+    runFTLNoCJITValidate
+    runFTLNoCJITNoInlineValidate
+    runFTLEager
+    runFTLEagerNoCJITValidate
 end
 
 def defaultQuickRun
     runDefault
     runNoCJITValidate
-    if $enableFTL
-        runDefaultFTL
-        runFTLNoCJIT
-    end
+    runDefaultFTL
+    runFTLNoCJIT
+end
+
+def defaultSpotCheck
+    defaultQuickRun
+    runFTLNoCJITNoSimpleOpt
+    runFTLNoCJITOSRValidation
+    runNoCJITNoAccessInlining
+    runFTLNoCJITNoAccessInlining
+end
+
+# This is expected to not do eager runs because eager runs can have a lot of recompilations
+# for reasons that don't arise in the real world. It's used for tests that assert convergence
+# by counting recompilations.
+def defaultNoEagerRun
+    defaultQuickRun
 end
 
 def runProfiler
@@ -611,7 +657,7 @@ def runLayoutTest(kind, *options)
     prepareExtraRelativeFiles(["../#{testName}-expected.txt"], $benchmarkDirectory)
     prepareExtraAbsoluteFiles(LAYOUTTESTS_PATH, ["resources/standalone-pre.js", "resources/standalone-post.js"])
 
-    args = [pathToVM.to_s] + options +
+    args = [pathToVM.to_s] + NO_FTL_OPTIONS + options +
         [(Pathname.new("resources") + "standalone-pre.js").to_s,
          $benchmark.to_s,
          (Pathname.new("resources") + "standalone-post.js").to_s]
@@ -634,11 +680,30 @@ def runLayoutTestDFGEagerNoCJIT
     runLayoutTest("dfg-eager-no-cjit", "--enableConcurrentJIT=false", *EAGER_OPTIONS)
 end
 
-def defaultRunLayoutTest
+def runLayoutTestDefaultFTL
+    runLayoutTest("ftl", "--testTheFTL=true", *FTL_OPTIONS) if $enableFTL
+end
+
+def runLayoutTestFTLNoCJIT
+    runLayoutTest("ftl-no-cjit", "--testTheFTL=true", "--enableConcurrentJIT=false", *FTL_OPTIONS) if $enableFTL
+end
+
+def runLayoutTestFTLEagerNoCJIT
+    runLayoutTest("ftl-eager-no-cjit", "--testTheFTL=true", "--enableConcurrentJIT=false", *(FTL_OPTIONS + EAGER_OPTIONS)) if $enableFTL
+end
+
+def noFTLRunLayoutTest
     runLayoutTestDefault
     runLayoutTestNoLLInt
     runLayoutTestNoCJIT
     runLayoutTestDFGEagerNoCJIT
+end
+
+def defaultRunLayoutTest
+    noFTLRunLayoutTest
+    runLayoutTestDefaultFTL
+    runLayoutTestFTLNoCJIT
+    runLayoutTestFTLEagerNoCJIT
 end
 
 def prepareExtraRelativeFiles(extraFiles, destination)
@@ -674,7 +739,7 @@ def runMozillaTest(kind, mode, extraFiles, *options)
         kind = "mozilla"
     end
     prepareExtraRelativeFiles(extraFiles.map{|v| (Pathname("..") + v).to_s}, $collection)
-    args = [pathToVM.to_s] + options + extraFiles.map{|v| v.to_s} + [$benchmark.to_s]
+    args = [pathToVM.to_s] + NO_FTL_OPTIONS + options + extraFiles.map{|v| v.to_s} + [$benchmark.to_s]
     case mode
     when :normal
         errorHandler = mozillaErrorHandler
@@ -694,6 +759,10 @@ def runMozillaTestDefault(mode, *extraFiles)
     runMozillaTest(nil, mode, extraFiles)
 end
 
+def runMozillaTestDefaultFTL(mode, *extraFiles)
+    runMozillaTest("ftl", mode, extraFiles, *FTL_OPTIONS) if $enableFTL
+end
+
 def runMozillaTestLLInt(mode, *extraFiles)
     runMozillaTest("llint", mode, extraFiles, "--useJIT=false")
 end
@@ -706,11 +775,17 @@ def runMozillaTestDFGEagerNoCJITValidatePhases(mode, *extraFiles)
     runMozillaTest("dfg-eager-no-cjit-validate-phases", mode, extraFiles, "--enableConcurrentJIT=false", "--validateBytecode=true", "--validateGraphAtEachPhase=true", *EAGER_OPTIONS)
 end
 
+def runMozillaTestFTLEagerNoCJITValidatePhases(mode, *extraFiles)
+    runMozillaTest("ftl-eager-no-cjit-validate-phases", mode, extraFiles, "--enableConcurrentJIT=false", "--validateBytecode=true", "--validateGraphAtEachPhase=true", *(FTL_OPTIONS + EAGER_OPTIONS)) if $enableFTL
+end
+
 def defaultRunMozillaTest(mode, *extraFiles)
     runMozillaTestDefault(mode, *extraFiles)
     runMozillaTestLLInt(mode, *extraFiles)
     runMozillaTestBaselineJIT(mode, *extraFiles)
     runMozillaTestDFGEagerNoCJITValidatePhases(mode, *extraFiles)
+    runMozillaTestDefaultFTL(mode, *extraFiles)
+    runMozillaTestFTLEagerNoCJITValidatePhases(mode, *extraFiles)
 end
 
 def skip
@@ -1167,7 +1242,7 @@ def detectFailures
     raise if $bundle
 
     if $remote
-        output = sshRead("cd #{$remoteDirectory}/#{$outputDir.basename}/.runner && (ls test_fail_* 2> /dev/null || true)")
+        output = sshRead("cd #{$remoteDirectory}/#{$outputDir.basename}/.runner && find . -name \"test_fail_*\" -depth 1")
         output.split(/\n/).each {
             | line |
             next unless line =~ /test_fail_/

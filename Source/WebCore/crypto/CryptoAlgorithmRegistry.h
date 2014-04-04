@@ -42,6 +42,7 @@ class CryptoAlgorithm;
 
 class CryptoAlgorithmRegistry {
     WTF_MAKE_NONCOPYABLE(CryptoAlgorithmRegistry);
+    friend class NeverDestroyed<CryptoAlgorithmRegistry>;
 
 public:
     static CryptoAlgorithmRegistry& shared();
@@ -63,7 +64,8 @@ private:
     }
 
     void registerAlgorithm(const String& name, CryptoAlgorithmIdentifier, CryptoAlgorithmConstructor);
-    HashMap<String, CryptoAlgorithmIdentifier> m_nameToIdentifierMap;
+
+    HashMap<String, CryptoAlgorithmIdentifier, CaseFoldingHash> m_nameToIdentifierMap;
     HashMap<unsigned, String> m_identifierToNameMap;
     HashMap<unsigned, CryptoAlgorithmConstructor> m_identifierToConstructorMap;
 };

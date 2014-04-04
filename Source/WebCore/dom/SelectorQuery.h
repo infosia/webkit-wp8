@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,6 +28,7 @@
 
 #include "CSSSelectorList.h"
 #include "NodeList.h"
+#include "SelectorCompiler.h"
 #include <wtf/HashMap.h>
 #include <wtf/Vector.h>
 #include <wtf/text/AtomicStringHash.h>
@@ -45,15 +46,24 @@ class NodeList;
 
 class SelectorDataList {
 public:
-    void initialize(const CSSSelectorList&);
+    explicit SelectorDataList(const CSSSelectorList&);
     bool matches(Element&) const;
     RefPtr<NodeList> queryAll(ContainerNode& rootNode) const;
     Element* queryFirst(ContainerNode& rootNode) const;
 
 private:
     struct SelectorData {
-        SelectorData(const CSSSelector* selector, bool isFastCheckable) : selector(selector), isFastCheckable(isFastCheckable) { }
+        SelectorData(const CSSSelector* selector, bool isFastCheckable)
+            : selector(selector)
+            , isFastCheckable(isFastCheckable)
+        {
+        }
+
         const CSSSelector* selector;
+#if ENABLE(CSS_SELECTOR_JIT)
+        mutable JSC::MacroAssemblerCodeRef compiledSelectorCodeRef;
+        mutable SelectorCompilationStatus compilationStatus;
+#endif // ENABLE(CSS_SELECTOR_JIT)
         bool isFastCheckable;
     };
 
@@ -65,8 +75,22 @@ private:
     template <typename SelectorQueryTrait> void executeSingleClassNameSelectorData(const ContainerNode& rootNode, const SelectorData&, typename SelectorQueryTrait::OutputType&) const;
     template <typename SelectorQueryTrait> void executeSingleSelectorData(const ContainerNode& rootNode, const SelectorData&, typename SelectorQueryTrait::OutputType&) const;
     template <typename SelectorQueryTrait> void executeSingleMultiSelectorData(const ContainerNode& rootNode, typename SelectorQueryTrait::OutputType&) const;
+#if ENABLE(CSS_SELECTOR_JIT)
+    template <typename SelectorQueryTrait> void executeCompiledSimpleSelectorChecker(const ContainerNode& rootNode, SelectorCompiler::SimpleSelectorChecker, typename SelectorQueryTrait::OutputType&) const;
+#endif // ENABLE(CSS_SELECTOR_JIT)
 
     Vector<SelectorData> m_selectors;
+    mutable enum MatchType {
+        CompilableSingle,
+        CompilableSingleWithRootFilter,
+        CompiledSingle,
+        CompiledSingleWithRootFilter,
+        SingleSelector,
+        RightMostWithIdMatch,
+        TagNameMatch,
+        ClassNameMatch,
+        MultipleSelectorMatch,
+    } m_matchType;
 };
 
 class SelectorQuery {
@@ -74,25 +98,25 @@ class SelectorQuery {
     WTF_MAKE_FAST_ALLOCATED;
 
 public:
-    explicit SelectorQuery(const CSSSelectorList&);
+    explicit SelectorQuery(CSSSelectorList&&);
     bool matches(Element&) const;
     RefPtr<NodeList> queryAll(ContainerNode& rootNode) const;
     Element* queryFirst(ContainerNode& rootNode) const;
 
 private:
-    SelectorDataList m_selectors;
     CSSSelectorList m_selectorList;
+    SelectorDataList m_selectors;
 };
 
 class SelectorQueryCache {
     WTF_MAKE_FAST_ALLOCATED;
 
 public:
-    SelectorQuery* add(const AtomicString&, Document&, ExceptionCode&);
+    SelectorQuery* add(const String&, Document&, ExceptionCode&);
     void invalidate();
 
 private:
-    HashMap<AtomicString, std::unique_ptr<SelectorQuery>> m_entries;
+    HashMap<String, std::unique_ptr<SelectorQuery>> m_entries;
 };
 
 inline bool SelectorQuery::matches(Element& element) const

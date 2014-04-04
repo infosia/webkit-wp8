@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -32,8 +32,6 @@
 #include <algorithm>
 #include <wtf/CheckedArithmetic.h>
 #include <wtf/MathExtras.h>
-
-using namespace std;
 
 namespace WTF {
 
@@ -90,12 +88,12 @@ MediaTime MediaTime::createWithFloat(float floatTime, int32_t timeScale)
         return invalidTime();
     if (std::isinf(floatTime))
         return std::signbit(floatTime) ? negativeInfiniteTime() : positiveInfiniteTime();
-    if (floatTime > numeric_limits<int64_t>::max())
+    if (floatTime > std::numeric_limits<int64_t>::max())
         return positiveInfiniteTime();
-    if (floatTime < numeric_limits<int64_t>::min())
+    if (floatTime < std::numeric_limits<int64_t>::min())
         return negativeInfiniteTime();
 
-    while (floatTime * timeScale > numeric_limits<int64_t>::max())
+    while (floatTime * timeScale > std::numeric_limits<int64_t>::max())
         timeScale /= 2;
     return MediaTime(static_cast<int64_t>(floatTime * timeScale), timeScale, Valid);
 }
@@ -106,12 +104,12 @@ MediaTime MediaTime::createWithDouble(double doubleTime, int32_t timeScale)
         return invalidTime();
     if (std::isinf(doubleTime))
         return std::signbit(doubleTime) ? negativeInfiniteTime() : positiveInfiniteTime();
-    if (doubleTime > numeric_limits<int64_t>::max())
+    if (doubleTime > std::numeric_limits<int64_t>::max())
         return positiveInfiniteTime();
-    if (doubleTime < numeric_limits<int64_t>::min())
+    if (doubleTime < std::numeric_limits<int64_t>::min())
         return negativeInfiniteTime();
 
-    while (doubleTime * timeScale > numeric_limits<int64_t>::max())
+    while (doubleTime * timeScale > std::numeric_limits<int64_t>::max())
         timeScale /= 2;
     return MediaTime(static_cast<int64_t>(doubleTime * timeScale), timeScale, Valid);
 }

@@ -46,7 +46,6 @@
     macro(Number) \
     macro(Object) \
     macro(Promise) \
-    macro(PromiseResolver) \
     macro(RangeError) \
     macro(ReferenceError) \
     macro(RegExp) \
@@ -64,7 +63,6 @@
     macro(__lookupSetter__) \
     macro(add) \
     macro(anonymous) \
-    macro(apply) \
     macro(arguments) \
     macro(bind) \
     macro(buffer) \
@@ -74,9 +72,9 @@
     macro(bytecodeIndex) \
     macro(bytecodes) \
     macro(bytecodesID) \
-    macro(call) \
     macro(callee) \
     macro(caller) \
+    macro(cast) \
     macro(clear) \
     macro(compilationKind) \
     macro(compilations) \
@@ -112,7 +110,9 @@
     macro(instructionCount) \
     macro(isArray) \
     macro(isPrototypeOf) \
+    macro(isView) \
     macro(isWatchpoint) \
+    macro(jettisonReason) \
     macro(join) \
     macro(keys) \
     macro(lastIndex) \
@@ -204,24 +204,44 @@
     macro(with) \
     macro(yield)
 
-namespace JSC {
+#define JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(macro) \
+    macro(iterator) \
+    macro(iteratorNext) \
+    macro(resolve) \
+    macro(reject) \
+    macro(promise) \
+    macro(fulfillmentHandler) \
+    macro(rejectionHandler) \
+    macro(index) \
+    macro(values) \
+    macro(deferred) \
+    macro(countdownHolder) \
+    macro(Object) \
+    macro(TypeError) \
+    macro(undefined)
 
+namespace JSC {
+    
+    class BuiltinNames;
+    
     class CommonIdentifiers {
         WTF_MAKE_NONCOPYABLE(CommonIdentifiers); WTF_MAKE_FAST_ALLOCATED;
     private:
         CommonIdentifiers(VM*);
+        ~CommonIdentifiers();
         friend class VM;
-
+        
     public:
+        const BuiltinNames& builtinNames() const { return *m_builtinNames; }
         const Identifier nullIdentifier;
         const Identifier emptyIdentifier;
         const Identifier underscoreProto;
         const Identifier thisIdentifier;
         const Identifier useStrictIdentifier;
-        const Identifier iteratorPrivateName;
-        const Identifier iteratorNextPrivateName;
-        const Identifier hasNextIdentifier;
+    private:
+        std::unique_ptr<BuiltinNames> m_builtinNames;
 
+    public:
         
 #define JSC_IDENTIFIER_DECLARE_KEYWORD_NAME_GLOBAL(name) const Identifier name##Keyword;
         JSC_COMMON_IDENTIFIERS_EACH_KEYWORD(JSC_IDENTIFIER_DECLARE_KEYWORD_NAME_GLOBAL)
@@ -230,6 +250,13 @@ namespace JSC {
 #define JSC_IDENTIFIER_DECLARE_PROPERTY_NAME_GLOBAL(name) const Identifier name;
         JSC_COMMON_IDENTIFIERS_EACH_PROPERTY_NAME(JSC_IDENTIFIER_DECLARE_PROPERTY_NAME_GLOBAL)
 #undef JSC_IDENTIFIER_DECLARE_PROPERTY_NAME_GLOBAL
+
+#define JSC_IDENTIFIER_DECLARE_PRIVATE_PROPERTY_NAME_GLOBAL(name) const Identifier name##PrivateName;
+        JSC_COMMON_PRIVATE_IDENTIFIERS_EACH_PROPERTY_NAME(JSC_IDENTIFIER_DECLARE_PRIVATE_PROPERTY_NAME_GLOBAL)
+#undef JSC_IDENTIFIER_DECLARE_PRIVATE_PROPERTY_NAME_GLOBAL
+        
+        const Identifier* getPrivateName(const Identifier&) const;
+        Identifier getPublicName(const Identifier&) const;
     };
 
 } // namespace JSC

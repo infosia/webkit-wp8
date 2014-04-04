@@ -17,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -124,10 +124,6 @@ class FrameLoaderClientEfl : public FrameLoaderClient {
     virtual void revertToProvisionalState(DocumentLoader*) { }
     virtual void setMainDocumentError(DocumentLoader*, const ResourceError&);
 
-    virtual void postProgressStartedNotification();
-    virtual void postProgressEstimateChangedNotification();
-    virtual void postProgressFinishedNotification();
-
     virtual PassRefPtr<Frame> createFrame(const URL&, const String& name, HTMLFrameOwnerElement*,
                                const String& referrer, bool allowsScrolling, int marginWidth, int marginHeight);
 
@@ -136,9 +132,6 @@ class FrameLoaderClientEfl : public FrameLoaderClient {
     virtual void redirectDataToPlugin(Widget* pluginWidget);
     virtual PassRefPtr<Widget> createJavaAppletWidget(const IntSize&, HTMLAppletElement*, const URL& baseURL, const WTF::Vector<String>& paramNames, const WTF::Vector<String>& paramValues);
     virtual String overrideMediaType() const;
-    virtual void documentElementAvailable();
-
-    virtual void didPerformFirstNavigation() const;
 
     virtual void registerForIconNotification(bool);
 
@@ -157,7 +150,6 @@ class FrameLoaderClientEfl : public FrameLoaderClient {
     virtual void updateGlobalHistory();
     virtual void updateGlobalHistoryRedirectLinks();
     virtual bool shouldGoToHistoryItem(HistoryItem*) const;
-    virtual bool shouldStopLoadingForHistoryItem(HistoryItem*) const;
     virtual void didDisplayInsecureContent();
     virtual void didRunInsecureContent(SecurityOrigin*, const URL&);
     virtual void didDetectXSS(const URL&, bool didBlockEntirePage);

@@ -34,15 +34,20 @@
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "MachPort.h"
+
 #endif
 
 #if USE(SOUP)
 #include "HTTPCookieAcceptPolicy.h"
 #endif
 
-namespace CoreIPC {
+namespace API {
+class Data;
+}
+
+namespace IPC {
     class ArgumentDecoder;
     class ArgumentEncoder;
 }
@@ -52,8 +57,8 @@ namespace WebKit {
 struct WebProcessCreationParameters {
     WebProcessCreationParameters();
 
-    void encode(CoreIPC::ArgumentEncoder&) const;
-    static bool decode(CoreIPC::ArgumentDecoder&, WebProcessCreationParameters&);
+    void encode(IPC::ArgumentEncoder&) const;
+    static bool decode(IPC::ArgumentDecoder&, WebProcessCreationParameters&);
 
     String injectedBundlePath;
     SandboxExtension::Handle injectedBundlePathExtensionHandle;
@@ -78,11 +83,16 @@ struct WebProcessCreationParameters {
     Vector<String> urlSchemesRegisteredAsNoAccess;
     Vector<String> urlSchemesRegisteredAsDisplayIsolated;
     Vector<String> urlSchemesRegisteredAsCORSEnabled;
+#if ENABLE(CACHE_PARTITIONING)
+    Vector<String> urlSchemesRegisteredAsCachePartitioned;
+#endif
 #if ENABLE(CUSTOM_PROTOCOLS)
     Vector<String> urlSchemesRegisteredForCustomProtocols;
 #endif
 #if USE(SOUP)
+#if !ENABLE(CUSTOM_PROTOCOLS)
     Vector<String> urlSchemesRegistered;
+#endif
     String cookiePersistentStoragePath;
     uint32_t cookiePersistentStorageType;
     HTTPCookieAcceptPolicy cookieAcceptPolicy;
@@ -107,11 +117,11 @@ struct WebProcessCreationParameters {
 
     double defaultRequestTimeoutInterval;
 
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
     String uiProcessBundleIdentifier;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     pid_t presenterApplicationPid;
 
     bool accessibilityEnhancedUserInterfaceEnabled;
@@ -119,14 +129,18 @@ struct WebProcessCreationParameters {
     uint64_t nsURLCacheMemoryCapacity;
     uint64_t nsURLCacheDiskCapacity;
 
-    CoreIPC::MachPort acceleratedCompositingPort;
+    IPC::MachPort acceleratedCompositingPort;
 
     String uiProcessBundleResourcePath;
     SandboxExtension::Handle uiProcessBundleResourcePathExtensionHandle;
 
     bool shouldForceScreenFontSubstitution;
     bool shouldEnableKerningAndLigaturesByDefault;
-#endif // PLATFORM(MAC)
+    bool shouldEnableJIT;
+
+    RefPtr<API::Data> bundleParameterData;
+
+#endif // PLATFORM(COCOA)
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
     HashMap<String, bool> notificationPermissions;
@@ -138,6 +152,8 @@ struct WebProcessCreationParameters {
 
     HashMap<unsigned, double> plugInAutoStartOriginHashes;
     Vector<String> plugInAutoStartOrigins;
+
+    bool memoryCacheDisabled;
 };
 
 } // namespace WebKit

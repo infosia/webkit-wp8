@@ -26,8 +26,6 @@
 #ifndef JITToDFGDeferredCompilationCallback_h
 #define JITToDFGDeferredCompilationCallback_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DeferredCompilationCallback.h"
@@ -46,8 +44,8 @@ public:
 
     static PassRefPtr<JITToDFGDeferredCompilationCallback> create();
     
-    virtual void compilationDidBecomeReadyAsynchronously(CodeBlock*) OVERRIDE;
-    virtual void compilationDidComplete(CodeBlock*, CompilationResult) OVERRIDE;
+    virtual void compilationDidBecomeReadyAsynchronously(CodeBlock*) override;
+    virtual void compilationDidComplete(CodeBlock*, CompilationResult) override;
 };
 
 } // namespace JSC

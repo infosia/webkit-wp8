@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,13 +27,17 @@
 #define Color_h
 
 #include "AnimationUtilities.h"
+#include <unicode/uchar.h>
 #include <wtf/FastMalloc.h>
 #include <wtf/Forward.h>
-#include <wtf/unicode/Unicode.h>
+#include <wtf/text/LChar.h>
 
 #if USE(CG)
 #include "ColorSpace.h"
 typedef struct CGColor* CGColorRef;
+#if PLATFORM(IOS)
+typedef struct CGColorSpace* CGColorSpaceRef;
+#endif // PLATFORM(IOS)
 #endif
 
 #if PLATFORM(GTK)
@@ -118,6 +122,8 @@ public:
     Color light() const;
     Color dark() const;
 
+    bool isDark() const;
+
     // This is an implementation of Porter-Duff's "source-over" equation
     Color blend(const Color&) const;
     Color blendWithWhite() const;
@@ -145,6 +151,15 @@ public:
     static const RGBA32 gray = 0xFFA0A0A0;
     static const RGBA32 lightGray = 0xFFC0C0C0;
     static const RGBA32 transparent = 0x00000000;
+    static const RGBA32 cyan = 0xFF00FFFF;
+
+#if PLATFORM(IOS)
+    static const RGBA32 tap = 0x4D1A1A1A;
+
+    // FIXME: This color shouldn't be iOS-specific. Once we fix up its usage in InlineTextBox::paintCompositionBackground()
+    // we should move it outside the PLATFORM(IOS)-guard. See <https://bugs.webkit.org/show_bug.cgi?id=126296>.
+    static const RGBA32 compositionFill = 0x3CAFC0E3;
+#endif
 
 private:
     RGBA32 m_color;
@@ -200,6 +215,9 @@ inline uint16_t fastDivideBy255(uint16_t value)
 
 #if USE(CG)
 CGColorRef cachedCGColor(const Color&, ColorSpace);
+#if PLATFORM(IOS)
+CGColorRef createCGColorWithDeviceWhite(CGFloat white, CGFloat alpha);
+#endif // PLATFORM(IOS)
 #endif
 
 } // namespace WebCore

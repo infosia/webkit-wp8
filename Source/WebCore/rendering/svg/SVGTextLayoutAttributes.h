@@ -20,12 +20,10 @@
 #ifndef SVGTextLayoutAttributes_h
 #define SVGTextLayoutAttributes_h
 
-#if ENABLE(SVG)
 #include "SVGTextMetrics.h"
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/Vector.h>
-#include <wtf/text/WTFString.h>
 
 namespace WebCore {
 
@@ -77,5 +75,4 @@ inline SVGCharacterData::SVGCharacterData()
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

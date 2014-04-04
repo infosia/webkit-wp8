@@ -75,7 +75,7 @@
 #include "Page.h"
 #include "PageCache.h"
 #include "PageGroup.h"
-#include "RegularExpression.h"
+#include "RenderLayerCompositor.h"
 #include "RenderTableCell.h"
 #include "RenderText.h"
 #include "RenderTextControl.h"
@@ -83,16 +83,17 @@
 #include "RenderView.h"
 #include "RenderWidget.h"
 #include "RuntimeEnabledFeatures.h"
+#include "SVGDocument.h"
+#include "SVGDocumentExtensions.h"
 #include "SVGNames.h"
 #include "ScriptController.h"
 #include "ScriptSourceCode.h"
-#include "ScriptValue.h"
 #include "ScrollingCoordinator.h"
 #include "Settings.h"
 #include "StyleProperties.h"
-#include "TextIterator.h"
 #include "TextNodeTraversal.h"
 #include "TextResourceDecoder.h"
+#include "UserContentController.h"
 #include "UserContentURLPattern.h"
 #include "UserTypingGestureIndicator.h"
 #include "VisibleUnits.h"
@@ -104,26 +105,28 @@
 #include "markup.h"
 #include "npruntime_impl.h"
 #include "runtime_root.h"
+#include <bindings/ScriptValue.h>
 #include <wtf/PassOwnPtr.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/StdLibExtras.h>
+#include <yarr/RegularExpression.h>
 
-#if USE(ACCELERATED_COMPOSITING)
-#include "RenderLayerCompositor.h"
-#endif
-
-#if ENABLE(SVG)
-#include "SVGDocument.h"
-#include "SVGDocumentExtensions.h"
-#endif
 
 #if USE(TILED_BACKING_STORE)
 #include "TiledBackingStore.h"
 #endif
 
+#if PLATFORM(IOS)
+#include "WKContentObservation.h"
+#endif
+
 namespace WebCore {
 
 using namespace HTMLNames;
+
+#if PLATFORM(IOS)
+const unsigned scrollFrequency = 1000 / 60;
+#endif
 
 DEFINE_DEBUG_ONLY_GLOBAL(WTF::RefCountedLeakCounter, frameCounter, ("Frame"));
 
@@ -154,21 +157,25 @@ Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, FrameLoaderClient&
     : m_mainFrame(ownerElement ? page.mainFrame() : static_cast<MainFrame&>(*this))
     , m_page(&page)
     , m_settings(&page.settings())
-    , m_treeNode(this, parentFromOwnerElement(ownerElement))
+    , m_treeNode(*this, parentFromOwnerElement(ownerElement))
     , m_loader(*this, frameLoaderClient)
-    , m_navigationScheduler(this)
+    , m_navigationScheduler(*this)
     , m_ownerElement(ownerElement)
     , m_script(std::make_unique<ScriptController>(*this))
-    , m_editor(Editor::create(*this))
+    , m_editor(std::make_unique<Editor>(*this))
     , m_selection(adoptPtr(new FrameSelection(this)))
     , m_eventHandler(adoptPtr(new EventHandler(*this)))
     , m_animationController(std::make_unique<AnimationController>(*this))
+#if PLATFORM(IOS)
+    , m_overflowAutoScrollTimer(this, &Frame::overflowAutoScrollTimerFired)
+    , m_selectionChangeCallbacksDisabled(false)
+    , m_timersPausedCount(0)
+#endif
     , m_pageZoomFactor(parentPageZoomFactor(this))
     , m_textZoomFactor(parentTextZoomFactor(this))
 #if ENABLE(ORIENTATION_EVENTS)
     , m_orientation(0)
 #endif
-    , m_inViewSourceMode(false)
     , m_activeDOMObjectsAndAnimationsSuspendedCount(0)
 {
     AtomicString::init();
@@ -197,10 +204,17 @@ Frame::Frame(Page& page, HTMLFrameOwnerElement* ownerElement, FrameLoaderClient&
     frameCounter.increment();
 #endif
 
-    // Pause future ActiveDOMObjects if this frame is being created while the page is in a paused state.
+    // FIXME: We should reconcile the iOS and OpenSource code below.
     Frame* parent = parentFromOwnerElement(ownerElement);
+#if PLATFORM(IOS)
+    // Pause future timers if this frame is created when page is in pending state.
+    if (parent && parent->timersPaused())
+        setTimersPaused(true);
+#else
+    // Pause future ActiveDOMObjects if this frame is being created while the page is in a paused state.
     if (parent && parent->activeDOMObjectsAndAnimationsSuspended())
         suspendActiveDOMObjectsAndAnimations();
+#endif
 }
 
 PassRefPtr<Frame> Frame::create(Page* page, HTMLFrameOwnerElement* ownerElement, FrameLoaderClient* client)
@@ -223,9 +237,8 @@ Frame::~Frame()
 
     disconnectOwnerElement();
 
-    HashSet<FrameDestructionObserver*>::iterator stop = m_destructionObservers.end();
-    for (HashSet<FrameDestructionObserver*>::iterator it = m_destructionObservers.begin(); it != stop; ++it)
-        (*it)->frameDestroyed();
+    for (auto& observer : m_destructionObservers)
+        observer->frameDestroyed();
 
     if (!isMainFrame())
         m_mainFrame.selfOnlyDeref();
@@ -252,7 +265,7 @@ void Frame::setView(PassRefPtr<FrameView> view)
     // Prepare for destruction now, so any unload event handlers get run and the DOMWindow is
     // notified. If we wait until the view is destroyed, then things won't be hooked up enough for
     // these calls to work.
-    if (!view && m_doc && m_doc->attached() && !m_doc->inPageCache())
+    if (!view && m_doc && m_doc->hasLivingRenderTree() && !m_doc->inPageCache())
         m_doc->prepareForDestruction();
     
     if (m_view)
@@ -277,7 +290,7 @@ void Frame::setDocument(PassRefPtr<Document> newDocument)
 {
     ASSERT(!newDocument || newDocument->frame() == this);
 
-    if (m_doc && m_doc->attached() && !m_doc->inPageCache())
+    if (m_doc && m_doc->hasLivingRenderTree() && !m_doc->inPageCache())
         m_doc->prepareForDestruction();
 
     m_doc = newDocument.get();
@@ -299,13 +312,14 @@ void Frame::sendOrientationChangeEvent(int orientation)
 }
 #endif // ENABLE(ORIENTATION_EVENTS)
 
-static PassOwnPtr<RegularExpression> createRegExpForLabels(const Vector<String>& labels)
+static PassOwnPtr<JSC::Yarr::RegularExpression> createRegExpForLabels(const Vector<String>& labels)
 {
     // REVIEW- version of this call in FrameMac.mm caches based on the NSArray ptrs being
     // the same across calls.  We can't do that.
 
-    DEFINE_STATIC_LOCAL(RegularExpression, wordRegExp, ("\\w", TextCaseSensitive));
-    String pattern("(");
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSC::Yarr::RegularExpression, wordRegExp, ("\\w", TextCaseSensitive));
+    StringBuilder pattern;
+    pattern.append('(');
     unsigned int numLabels = labels.size();
     unsigned int i;
     for (i = 0; i < numLabels; i++) {
@@ -319,21 +333,21 @@ static PassOwnPtr<RegularExpression> createRegExpForLabels(const Vector<String>&
         }
 
         if (i)
-            pattern.append("|");
+            pattern.append('|');
         // Search for word boundaries only if label starts/ends with "word characters".
         // If we always searched for word boundaries, this wouldn't work for languages
         // such as Japanese.
         if (startsWithWordChar)
-            pattern.append("\\b");
+            pattern.appendLiteral("\\b");
         pattern.append(label);
         if (endsWithWordChar)
-            pattern.append("\\b");
+            pattern.appendLiteral("\\b");
     }
-    pattern.append(")");
-    return adoptPtr(new RegularExpression(pattern, TextCaseInsensitive));
+    pattern.append(')');
+    return adoptPtr(new JSC::Yarr::RegularExpression(pattern.toString(), TextCaseInsensitive));
 }
 
-String Frame::searchForLabelsAboveCell(RegularExpression* regExp, HTMLTableCellElement* cell, size_t* resultDistanceFromStartOfCell)
+String Frame::searchForLabelsAboveCell(JSC::Yarr::RegularExpression* regExp, HTMLTableCellElement* cell, size_t* resultDistanceFromStartOfCell)
 {
     HTMLTableCellElement* aboveCell = cell->cellAbove();
     if (aboveCell) {
@@ -362,7 +376,7 @@ String Frame::searchForLabelsAboveCell(RegularExpression* regExp, HTMLTableCellE
 
 String Frame::searchForLabelsBeforeElement(const Vector<String>& labels, Element* element, size_t* resultDistance, bool* resultIsInCellAbove)
 {
-    OwnPtr<RegularExpression> regExp(createRegExpForLabels(labels));
+    OwnPtr<JSC::Yarr::RegularExpression> regExp(createRegExpForLabels(labels));
     // We stop searching after we've seen this many chars
     const unsigned int charsSearchedThreshold = 500;
     // This is the absolute max we search.  We allow a little more slop than
@@ -432,10 +446,10 @@ static String matchLabelsAgainstString(const Vector<String>& labels, const Strin
     String mutableStringToMatch = stringToMatch;
 
     // Make numbers and _'s in field names behave like word boundaries, e.g., "address2"
-    replace(mutableStringToMatch, RegularExpression("\\d", TextCaseSensitive), " ");
+    replace(mutableStringToMatch, JSC::Yarr::RegularExpression("\\d", TextCaseSensitive), " ");
     mutableStringToMatch.replace('_', ' ');
     
-    OwnPtr<RegularExpression> regExp(createRegExpForLabels(labels));
+    OwnPtr<JSC::Yarr::RegularExpression> regExp(createRegExpForLabels(labels));
     // Use the largest match we can find in the whole string
     int pos;
     int length;
@@ -471,6 +485,172 @@ String Frame::matchLabelsAgainstElement(const Vector<String>& labels, Element* e
     
     return matchLabelsAgainstString(labels, element->getAttribute(idAttr));
 }
+
+#if ENABLE(IOS_TEXT_AUTOSIZING)
+float Frame::textAutosizingWidth() const
+{
+    return m_textAutosizingWidth;
+}
+
+void Frame::setTextAutosizingWidth(float width)
+{
+    m_textAutosizingWidth = width;
+}
+#endif
+
+#if PLATFORM(IOS)
+void Frame::scrollOverflowLayer(RenderLayer* layer, const IntRect& visibleRect, const IntRect& exposeRect)
+{
+    if (!layer)
+        return;
+
+    RenderBox* box = layer->renderBox();
+    if (!box)
+        return;
+
+    if (visibleRect.intersects(exposeRect))
+        return;
+
+    int x = layer->scrollXOffset();
+    int exposeLeft = exposeRect.x();
+    int exposeRight = exposeLeft + exposeRect.width();
+    int clientWidth = box->clientWidth();
+    if (exposeLeft <= 0)
+        x = std::max(0, x + exposeLeft - clientWidth / 2);
+    else if (exposeRight >= clientWidth)
+        x = std::min(box->scrollWidth() - clientWidth, x + clientWidth / 2);
+
+    int y = layer->scrollYOffset();
+    int exposeTop = exposeRect.y();
+    int exposeBottom = exposeTop + exposeRect.height();
+    int clientHeight = box->clientHeight();
+    if (exposeTop <= 0)
+        y = std::max(0, y + exposeTop - clientHeight / 2);
+    else if (exposeBottom >= clientHeight)
+        y = std::min(box->scrollHeight() - clientHeight, y + clientHeight / 2);
+
+    layer->scrollToOffset(IntSize(x, y));
+    selection().setCaretRectNeedsUpdate();
+    selection().updateAppearance();
+}
+
+void Frame::overflowAutoScrollTimerFired(Timer<Frame>*)
+{
+    if (!eventHandler().mousePressed() || checkOverflowScroll(PerformOverflowScroll) == OverflowScrollNone) {
+        if (m_overflowAutoScrollTimer.isActive())
+            m_overflowAutoScrollTimer.stop();
+    }
+}
+
+void Frame::startOverflowAutoScroll(const IntPoint& mousePosition)
+{
+    m_overflowAutoScrollPos = mousePosition;
+
+    if (m_overflowAutoScrollTimer.isActive())
+        return;
+
+    if (checkOverflowScroll(DoNotPerformOverflowScroll) == OverflowScrollNone)
+        return;
+
+    m_overflowAutoScrollTimer.startRepeating(scrollFrequency);
+    m_overflowAutoScrollDelta = 3;
+}
+
+int Frame::checkOverflowScroll(OverflowScrollAction action)
+{
+    Position extent = selection().selection().extent();
+    if (extent.isNull())
+        return OverflowScrollNone;
+
+    RenderObject* renderer = extent.deprecatedNode()->renderer();
+    if (!renderer)
+        return OverflowScrollNone;
+
+    FrameView* view = this->view();
+    if (!view)
+        return OverflowScrollNone;
+
+    RenderBlock* containingBlock = renderer->containingBlock();
+    if (!containingBlock || !containingBlock->hasOverflowClip())
+        return OverflowScrollNone;
+    RenderLayer* layer = containingBlock->layer();
+    ASSERT(layer);
+
+    IntRect visibleRect = IntRect(view->scrollX(), view->scrollY(), view->visibleWidth(), view->visibleHeight());
+    IntPoint position = m_overflowAutoScrollPos;
+    if (visibleRect.contains(position.x(), position.y()))
+        return OverflowScrollNone;
+
+    int scrollType = 0;
+    int deltaX = 0;
+    int deltaY = 0;
+    IntPoint selectionPosition;
+
+    // This constant will make the selection draw a little bit beyond the edge of the visible area.
+    // This prevents a visual glitch, in that you can fail to select a portion of a character that
+    // is being rendered right at the edge of the visible rectangle.
+    // FIXME: This probably needs improvement, and may need to take the font size into account.
+    static const int scrollBoundsAdjustment = 3;
+
+    // FIXME: Make a small buffer at the end of a visible rectangle so that autoscrolling works 
+    // even if the visible extends to the limits of the screen.
+    if (position.x() < visibleRect.x()) {
+        scrollType |= OverflowScrollLeft;
+        if (action == PerformOverflowScroll) {
+            deltaX -= static_cast<int>(m_overflowAutoScrollDelta);
+            selectionPosition.setX(view->scrollX() - scrollBoundsAdjustment);
+        }
+    } else if (position.x() > visibleRect.maxX()) {
+        scrollType |= OverflowScrollRight;
+        if (action == PerformOverflowScroll) {
+            deltaX += static_cast<int>(m_overflowAutoScrollDelta);
+            selectionPosition.setX(view->scrollX() + view->visibleWidth() + scrollBoundsAdjustment);
+        }
+    }
+
+    if (position.y() < visibleRect.y()) {
+        scrollType |= OverflowScrollUp;
+        if (action == PerformOverflowScroll) {
+            deltaY -= static_cast<int>(m_overflowAutoScrollDelta);
+            selectionPosition.setY(view->scrollY() - scrollBoundsAdjustment);
+        }
+    } else if (position.y() > visibleRect.maxY()) {
+        scrollType |= OverflowScrollDown;
+        if (action == PerformOverflowScroll) {
+            deltaY += static_cast<int>(m_overflowAutoScrollDelta);
+            selectionPosition.setY(view->scrollY() + view->visibleHeight() + scrollBoundsAdjustment);
+        }
+    }
+
+    if (action == PerformOverflowScroll && (deltaX || deltaY)) {
+        layer->scrollToOffset(IntSize(layer->scrollXOffset() + deltaX, layer->scrollYOffset() + deltaY));
+
+        // Handle making selection.
+        VisiblePosition visiblePosition(renderer->positionForPoint(selectionPosition));
+        if (visiblePosition.isNotNull()) {
+            VisibleSelection visibleSelection = selection().selection();
+            visibleSelection.setExtent(visiblePosition);
+            if (selection().granularity() != CharacterGranularity)
+                visibleSelection.expandUsingGranularity(selection().granularity());
+            if (selection().shouldChangeSelection(visibleSelection))
+                selection().setSelection(visibleSelection);
+        }
+
+        m_overflowAutoScrollDelta *= 1.02f; // Accelerate the scroll
+    }
+    return scrollType;
+}
+
+void Frame::setSelectionChangeCallbacksDisabled(bool selectionChangeCallbacksDisabled)
+{
+    m_selectionChangeCallbacksDisabled = selectionChangeCallbacksDisabled;
+}
+
+bool Frame::selectionChangeCallbacksDisabled() const
+{
+    return m_selectionChangeCallbacksDisabled;
+}
+#endif // PLATFORM(IOS)
 
 void Frame::setPrinting(bool printing, const FloatSize& pageSize, const FloatSize& originalPageSize, float maximumShrinkRatio, AdjustViewSizeOrNot shouldAdjustViewSize)
 {
@@ -527,16 +707,20 @@ void Frame::injectUserScripts(UserScriptInjectionTime injectionTime)
     if (!m_page)
         return;
 
-    if (loader().stateMachine()->creatingInitialEmptyDocument() && !settings().shouldInjectUserScriptsInInitialEmptyDocument())
+    if (loader().stateMachine().creatingInitialEmptyDocument() && !settings().shouldInjectUserScriptsInInitialEmptyDocument())
+        return;
+
+    const auto* userContentController = m_page->userContentController();
+    if (!userContentController)
         return;
 
     // Walk the hashtable. Inject by world.
-    const UserScriptMap* userScripts = m_page->group().userScripts();
+    const UserScriptMap* userScripts = userContentController->userScripts();
     if (!userScripts)
         return;
 
-    for (auto it = userScripts->begin(), end = userScripts->end(); it != end; ++it)
-        injectUserScriptsForWorld(*it->key.get(), *it->value, injectionTime);
+    for (const auto& worldAndUserScript : *userScripts)
+        injectUserScriptsForWorld(*worldAndUserScript.key, *worldAndUserScript.value, injectionTime);
 }
 
 void Frame::injectUserScriptsForWorld(DOMWrapperWorld& world, const UserScriptVector& userScripts, UserScriptInjectionTime injectionTime)
@@ -614,9 +798,8 @@ void Frame::willDetachPage()
     if (Frame* parent = tree().parent())
         parent->loader().checkLoadComplete();
 
-    HashSet<FrameDestructionObserver*>::iterator stop = m_destructionObservers.end();
-    for (HashSet<FrameDestructionObserver*>::iterator it = m_destructionObservers.begin(); it != stop; ++it)
-        (*it)->willDetachPage();
+    for (auto& observer : m_destructionObservers)
+        observer->willDetachPage();
 
     // FIXME: It's unclear as to why this is called more than once, but it is,
     // so page() could be NULL.
@@ -625,6 +808,11 @@ void Frame::willDetachPage()
 
     if (page() && page()->scrollingCoordinator() && m_view)
         page()->scrollingCoordinator()->willDestroyScrollableArea(m_view.get());
+
+#if PLATFORM(IOS)
+    if (WebThreadCountOfObservedContentModifiers() > 0 && m_page)
+        m_page->chrome().client().clearContentChangeObservers(this);
+#endif
 
     script().clearScriptObjects();
     script().updatePlatformScriptObjects();
@@ -710,7 +898,7 @@ PassRefPtr<Range> Frame::rangeForPoint(const IntPoint& framePoint)
 }
 
 void Frame::createView(const IntSize& viewportSize, const Color& backgroundColor, bool transparent,
-    const IntSize& fixedLayoutSize, const IntRect& fixedVisibleContentRect ,
+    const IntSize& fixedLayoutSize, const IntRect& fixedVisibleContentRect,
     bool useFixedLayout, ScrollbarMode horizontalScrollbarMode, bool horizontalLock,
     ScrollbarMode verticalScrollbarMode, bool verticalLock)
 {
@@ -728,7 +916,11 @@ void Frame::createView(const IntSize& viewportSize, const Color& backgroundColor
     if (isMainFrame) {
         frameView = FrameView::create(*this, viewportSize);
         frameView->setFixedLayoutSize(fixedLayoutSize);
+#if USE(TILED_BACKING_STORE)
         frameView->setFixedVisibleContentRect(fixedVisibleContentRect);
+#else
+        UNUSED_PARAM(fixedVisibleContentRect);
+#endif
         frameView->setUseFixedLayout(useFixedLayout);
     } else
         frameView = FrameView::create(*this);
@@ -770,7 +962,6 @@ void Frame::tiledBackingStorePaintBegin()
     if (!m_view)
         return;
     m_view->updateLayoutAndStyleIfNeededRecursive();
-    m_view->flushDeferredRepaints();
 }
 
 void Frame::tiledBackingStorePaint(GraphicsContext* context, const IntRect& rect)
@@ -787,7 +978,7 @@ void Frame::tiledBackingStorePaintEnd(const Vector<IntRect>& paintedArea)
     unsigned size = paintedArea.size();
     // Request repaint from the system
     for (unsigned n = 0; n < size; ++n)
-        m_page->chrome().invalidateContentsAndRootView(m_view->contentsToRootView(paintedArea[n]), false);
+        m_page->chrome().invalidateContentsAndRootView(m_view->contentsToRootView(paintedArea[n]));
 }
 
 IntRect Frame::tiledBackingStoreContentsRect()
@@ -814,17 +1005,12 @@ Color Frame::tiledBackingStoreBackgroundColor() const
 
 String Frame::layerTreeAsText(LayerTreeFlags flags) const
 {
-#if USE(ACCELERATED_COMPOSITING)
     document()->updateLayout();
 
     if (!contentRenderer())
         return String();
 
     return contentRenderer()->compositor().layerTreeAsText(flags);
-#else
-    UNUSED_PARAM(flags);
-    return String();
-#endif
 }
 
 String Frame::trackedRepaintRectsAsText() const
@@ -859,14 +1045,12 @@ void Frame::setPageAndTextZoomFactors(float pageZoomFactor, float textZoomFactor
 
     m_editor->dismissCorrectionPanelAsIgnored();
 
-#if ENABLE(SVG)
     // Respect SVGs zoomAndPan="disabled" property in standalone SVG documents.
     // FIXME: How to handle compound documents + zoomAndPan="disabled"? Needs SVG WG clarification.
     if (document->isSVGDocument()) {
         if (!toSVGDocument(document)->zoomAndPanEnabled())
             return;
     }
-#endif
 
     if (m_pageZoomFactor != pageZoomFactor) {
         if (FrameView* view = this->view()) {
@@ -938,7 +1122,6 @@ void Frame::resumeActiveDOMObjectsAndAnimations()
     }
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void Frame::deviceOrPageScaleFactorChanged()
 {
     for (RefPtr<Frame> child = tree().firstChild(); child; child = child->tree().nextSibling())
@@ -947,7 +1130,6 @@ void Frame::deviceOrPageScaleFactorChanged()
     if (RenderView* root = contentRenderer())
         root->compositor().deviceOrPageScaleFactorChanged();
 }
-#endif
 
 bool Frame::isURLAllowed(const URL& url) const
 {

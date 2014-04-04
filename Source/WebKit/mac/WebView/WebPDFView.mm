@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -25,6 +25,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+#if !PLATFORM(IOS)
 
 #import "WebPDFView.h"
 
@@ -131,8 +133,11 @@ extern "C" NSString *_NSPathForSystemFramework(NSString *framework);
 static void _applicationInfoForMIMEType(NSString *type, NSString **name, NSImage **image)
 {
     NSURL *appURL = nil;
-    
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     OSStatus error = LSCopyApplicationForMIMEType((CFStringRef)type, kLSRolesAll, (CFURLRef *)&appURL);
+#pragma clang diagnostic pop
     if (error != noErr)
         return;
     
@@ -1035,6 +1040,7 @@ static BOOL isFrameInRange(WebFrame *frame, DOMRange *range)
             PlatformKeyboardEvent pe = PlatformEventFactory::createPlatformKeyboardEvent(nsEvent);
             pe.disambiguateKeyDownEvent(PlatformEvent::RawKeyDown);
             event = KeyboardEvent::create(pe, 0);
+            break;
         }
         default:
             break;
@@ -1050,7 +1056,7 @@ static BOOL isFrameInRange(WebFrame *frame, DOMRange *range)
 
     // Call to the frame loader because this is where our security checks are made.
     Frame* frame = core([dataSource webFrame]);
-    frame->loader().loadFrameRequest(FrameLoadRequest(frame->document()->securityOrigin(), ResourceRequest(URL)), false, false, event.get(), 0, MaybeSendReferrer);
+    frame->loader().loadFrameRequest(FrameLoadRequest(frame->document()->securityOrigin(), ResourceRequest(URL)), LockHistory::No, LockBackForwardList::No, event.get(), 0, MaybeSendReferrer);
 }
 
 - (void)PDFViewOpenPDFInNativeApplication:(PDFView *)sender
@@ -1581,3 +1587,5 @@ static BOOL isFrameInRange(WebFrame *frame, DOMRange *range)
 }
 
 @end
+
+#endif // !PLATFORM(IOS)

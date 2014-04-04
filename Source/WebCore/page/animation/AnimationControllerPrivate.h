@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -29,6 +29,7 @@
 #ifndef AnimationControllerPrivate_h
 #define AnimationControllerPrivate_h
 
+#include "AnimationBase.h"
 #include "CSSPropertyNames.h"
 #include "Timer.h"
 #include <wtf/HashMap.h>
@@ -67,7 +68,7 @@ public:
     CompositeAnimation& ensureCompositeAnimation(RenderElement*);
     bool clear(RenderElement*);
 
-    void updateStyleIfNeededDispatcherFired(Timer<AnimationControllerPrivate>*);
+    void updateStyleIfNeededDispatcherFired(Timer<AnimationControllerPrivate>&);
     void startUpdateStyleIfNeededDispatcher();
     void addEventToDispatch(PassRefPtr<Element> element, const AtomicString& eventType, const String& name, double elapsedTime);
     void addElementChangeToDispatch(PassRef<Element>);
@@ -85,8 +86,8 @@ public:
     void resumeAnimationsForDocument(Document*);
     void startAnimationsIfNotSuspended(Document*);
 
-    bool isRunningAnimationOnRenderer(RenderElement*, CSSPropertyID, bool isRunningNow) const;
-    bool isRunningAcceleratedAnimationOnRenderer(RenderElement*, CSSPropertyID, bool isRunningNow) const;
+    bool isRunningAnimationOnRenderer(RenderElement*, CSSPropertyID, AnimationBase::RunningState) const;
+    bool isRunningAcceleratedAnimationOnRenderer(RenderElement*, CSSPropertyID, AnimationBase::RunningState) const;
 
     bool pauseAnimationAtTime(RenderElement*, const AtomicString& name, double t);
     bool pauseTransitionAtTime(RenderElement*, const String& property, double t);
@@ -113,7 +114,7 @@ public:
     void setAllowsNewAnimationsWhileSuspended(bool);
 
 private:
-    void animationTimerFired(Timer<AnimationControllerPrivate>*);
+    void animationTimerFired(Timer<AnimationControllerPrivate>&);
 
     void styleAvailable();
     void fireEventsAndUpdateStyle();

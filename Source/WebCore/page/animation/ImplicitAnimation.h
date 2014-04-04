@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -49,19 +49,19 @@ public:
     CSSPropertyID transitionProperty() const { return m_transitionProperty; }
     CSSPropertyID animatingProperty() const { return m_animatingProperty; }
 
-    virtual void onAnimationEnd(double elapsedTime) OVERRIDE;
-    virtual bool startAnimation(double timeOffset) OVERRIDE;
-    virtual void pauseAnimation(double timeOffset) OVERRIDE;
-    virtual void endAnimation() OVERRIDE;
+    virtual void onAnimationEnd(double elapsedTime) override;
+    virtual bool startAnimation(double timeOffset) override;
+    virtual void pauseAnimation(double timeOffset) override;
+    virtual void endAnimation() override;
 
-    virtual void animate(CompositeAnimation*, RenderElement*, const RenderStyle* currentStyle, RenderStyle* targetStyle, RefPtr<RenderStyle>& animatedStyle) OVERRIDE;
-    virtual void getAnimatedStyle(RefPtr<RenderStyle>& animatedStyle) OVERRIDE;
+    virtual void animate(CompositeAnimation*, RenderElement*, const RenderStyle* currentStyle, RenderStyle* targetStyle, RefPtr<RenderStyle>& animatedStyle) override;
+    virtual void getAnimatedStyle(RefPtr<RenderStyle>& animatedStyle) override;
     virtual void reset(RenderStyle* to);
 
     void setOverridden(bool);
-    virtual bool overridden() const OVERRIDE { return m_overridden; }
+    virtual bool overridden() const override { return m_overridden; }
 
-    virtual bool affectsProperty(CSSPropertyID) const OVERRIDE;
+    virtual bool affectsProperty(CSSPropertyID) const override;
 
     bool hasStyle() const { return m_fromStyle && m_toStyle; }
 
@@ -69,7 +69,7 @@ public:
 
     void blendPropertyValueInStyle(CSSPropertyID, RenderStyle*);
 
-    virtual double timeToNextService() OVERRIDE;
+    virtual double timeToNextService() override;
     
     bool active() const { return m_active; }
     void setActive(bool b) { m_active = b; }

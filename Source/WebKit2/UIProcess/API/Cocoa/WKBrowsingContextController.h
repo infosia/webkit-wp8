@@ -27,6 +27,7 @@
 #import <WebKit2/WKBrowsingContextGroup.h>
 #import <WebKit2/WKFoundation.h>
 #import <WebKit2/WKProcessGroup.h>
+#import <WebKit2/WKRenderingProgressEvents.h>
 
 #if WK_API_ENABLED
 
@@ -38,9 +39,6 @@
 
 WK_API_CLASS
 @interface WKBrowsingContextController : NSObject
-
-@property (readonly) WKProcessGroup *processGroup;
-@property (readonly) WKBrowsingContextGroup *browsingContextGroup;
 
 #pragma mark Delegates
 
@@ -85,6 +83,8 @@ WK_API_CLASS
 /* Reload the currently active URL, bypassing caches. */
 - (void)reloadFromOrigin;
 
+@property (copy) NSString *applicationNameForUserAgent;
+@property (copy) NSString *customUserAgent;
 
 #pragma mark Back/Forward
 
@@ -104,6 +104,9 @@ WK_API_CLASS
 
 @property(readonly) WKBackForwardList *backForwardList;
 
+@property (readonly) NSData *sessionState;
+- (void)restoreFromSessionState:(NSData *)sessionState;
+
 #pragma mark Active Load Introspection
 
 @property (readonly, getter=isLoading) BOOL loading;
@@ -121,11 +124,14 @@ WK_API_CLASS
 
 @property(readonly) double estimatedProgress;
 
+@property (nonatomic) WKRenderingProgressEvents observedRenderingProgressEvents;
+
 #pragma mark Active Document Introspection
 
 /* Title of the document associated with the active load. */
 @property(readonly) NSString *title;
 
+@property (readonly) NSArray *certificateChain;
 
 #pragma mark Zoom
 

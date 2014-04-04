@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,6 +28,7 @@
 #include "config.h"
 #include "WebView.h"
 
+#include "BackForwardController.h"
 #include "COMVariantSetter.h"
 #include "DOMCoreClasses.h"
 #include "FullscreenVideoController.h"
@@ -72,6 +73,7 @@
 #include <WebCore/AXObjectCache.h>
 #include <WebCore/ApplicationCacheStorage.h>
 #include <WebCore/BString.h>
+#include <WebCore/BackForwardController.h>
 #include <WebCore/BackForwardList.h>
 #include <WebCore/BitmapInfo.h>
 #include <WebCore/Chrome.h>
@@ -137,7 +139,6 @@
 #include <WebCore/RuntimeEnabledFeatures.h>
 #include <WebCore/SchemeRegistry.h>
 #include <WebCore/ScriptController.h>
-#include <WebCore/ScriptValue.h>
 #include <WebCore/Scrollbar.h>
 #include <WebCore/ScrollbarTheme.h>
 #include <WebCore/SecurityOrigin.h>
@@ -147,6 +148,7 @@
 #include <WebCore/SystemInfo.h>
 #include <WebCore/WindowMessageBroadcaster.h>
 #include <WebCore/WindowsTouch.h>
+#include <bindings/ScriptValue.h>
 #include <wtf/MainThread.h>
 
 #if USE(CG)
@@ -163,7 +165,7 @@
 #include <WebKitSystemInterface/WebKitSystemInterface.h> 
 #endif
 
-#if USE(ACCELERATED_COMPOSITING) && USE(CA)
+#if USE(CA)
 #include <WebCore/CACFLayerTreeHost.h>
 #include <WebCore/PlatformCALayer.h>
 #endif
@@ -221,6 +223,11 @@ static inline AtomicString toAtomicString(BSTR bstr)
 }
 
 static inline String toString(BSTR bstr)
+{
+    return String(bstr, SysStringLen(bstr));
+}
+
+static inline String toString(BString &bstr)
 {
     return String(bstr, SysStringLen(bstr));
 }
@@ -391,9 +398,7 @@ WebView::WebView()
     , m_lastPanY(0)
     , m_xOverpan(0)
     , m_yOverpan(0)
-#if USE(ACCELERATED_COMPOSITING)
     , m_isAcceleratedCompositing(false)
-#endif
     , m_nextDisplayIsSynchronous(false)
     , m_lastSetCursor(0)
     , m_usesLayeredWindow(false)
@@ -432,11 +437,8 @@ WebView::~WebView()
     ASSERT(!m_preferences);
     ASSERT(!m_viewWindow);
 
-#if USE(ACCELERATED_COMPOSITING)
 #if USE(CA)
     ASSERT(!m_layerTreeHost);
-#endif
-    ASSERT(!m_backingLayer);
 #endif
 
     WebViewCount--;
@@ -701,9 +703,7 @@ HRESULT STDMETHODCALLTYPE WebView::close()
 
     m_didClose = true;
 
-#if USE(ACCELERATED_COMPOSITING)
     setAcceleratedCompositing(false);
-#endif
 
     WebNotificationCenter::defaultCenterInternal()->postNotificationName(_bstr_t(WebViewWillCloseNotification).GetBSTR(), static_cast<IWebView*>(this), 0);
 
@@ -777,14 +777,12 @@ HRESULT STDMETHODCALLTYPE WebView::close()
 
 void WebView::repaint(const WebCore::IntRect& windowRect, bool contentChanged, bool immediate, bool repaintContentOnly)
 {
-#if USE(ACCELERATED_COMPOSITING)
     if (isAcceleratedCompositing()) {
         // The contentChanged, immediate, and repaintContentOnly parameters are all based on a non-
         // compositing painting/scrolling model.
         addToDirtyRegion(windowRect);
         return;
     }
-#endif
 
     if (!repaintContentOnly) {
         RECT rect = windowRect;
@@ -843,12 +841,10 @@ void WebView::addToDirtyRegion(const IntRect& dirtyRect)
     // but it was being hit during our layout tests, and is being investigated in
     // http://webkit.org/b/29350.
 
-#if USE(ACCELERATED_COMPOSITING)
     if (isAcceleratedCompositing()) {
         m_backingLayer->setNeedsDisplayInRect(dirtyRect);
         return;
     }
-#endif
 
     auto newRegion = adoptGDIObject(::CreateRectRgn(dirtyRect.x(), dirtyRect.y(),
         dirtyRect.maxX(), dirtyRect.maxY()));
@@ -859,9 +855,7 @@ void WebView::addToDirtyRegion(GDIObject<HRGN> newRegion)
 {
     m_needsDisplay = true;
 
-#if USE(ACCELERATED_COMPOSITING)
     ASSERT(!isAcceleratedCompositing());
-#endif
 
     LOCAL_GDI_COUNTER(0, __FUNCTION__);
 
@@ -880,14 +874,12 @@ void WebView::scrollBackingStore(FrameView* frameView, int dx, int dy, const Int
 {
     m_needsDisplay = true;
 
-#if USE(ACCELERATED_COMPOSITING)
     if (isAcceleratedCompositing()) {
         // FIXME: We should be doing something smarter here, like moving tiles around and painting
         // any newly-exposed tiles. <http://webkit.org/b/52714>
         m_backingLayer->setNeedsDisplayInRect(scrollViewRect);
         return;
     }
-#endif
 
     LOCAL_GDI_COUNTER(0, __FUNCTION__);
 
@@ -939,7 +931,7 @@ void WebView::sizeChanged(const IntSize& newSize)
     if (Frame* coreFrame = core(topLevelFrame()))
         coreFrame->view()->resize(newSize);
 
-#if USE(ACCELERATED_COMPOSITING) && USE(CA)
+#if USE(CA)
     if (m_layerTreeHost)
         m_layerTreeHost->resize();
     if (m_backingLayer) {
@@ -993,9 +985,7 @@ static void getUpdateRects(HRGN region, const IntRect& dirtyRect, Vector<IntRect
 
 void WebView::updateBackingStore(FrameView* frameView, HDC dc, bool backingStoreCompletelyDirty, WindowsToPaint windowsToPaint)
 {
-#if USE(ACCELERATED_COMPOSITING)
     ASSERT(!isAcceleratedCompositing());
-#endif
 
     LOCAL_GDI_COUNTER(0, __FUNCTION__);
 
@@ -1076,7 +1066,7 @@ void WebView::paint(HDC dc, LPARAM options)
 {
     LOCAL_GDI_COUNTER(0, __FUNCTION__);
 
-#if USE(ACCELERATED_COMPOSITING) && USE(CA)
+#if USE(CA)
     if (isAcceleratedCompositing() && !usesLayeredWindow()) {
         m_layerTreeHost->flushPendingLayerChangesNow();
         // Flushing might have taken us out of compositing mode.
@@ -1331,8 +1321,8 @@ bool WebView::canHandleRequest(const WebCore::ResourceRequest& request)
 
 String WebView::standardUserAgentWithApplicationName(const String& applicationName)
 {
-    DEFINE_STATIC_LOCAL(String, osVersion, (windowsVersionForUAString()));
-    DEFINE_STATIC_LOCAL(String, webKitVersion, (webKitVersionString()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, osVersion, (windowsVersionForUAString()));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, webKitVersion, (webKitVersionString()));
 
     return makeString("Mozilla/5.0 (", osVersion, ") AppleWebKit/", webKitVersion, " (KHTML, like Gecko)", applicationName.isEmpty() ? "" : " ", applicationName);
 }
@@ -2067,9 +2057,9 @@ bool WebView::keyDown(WPARAM virtualKeyCode, LPARAM keyData, bool systemKeyDown)
     // FIXME: This logic should probably be in EventHandler::defaultArrowEventHandler().
     // FIXME: Should check that other modifiers aren't pressed.
     if (virtualKeyCode == VK_RIGHT && keyEvent.ctrlKey())
-        return m_page->goForward();
+        return m_page->backForward().goForward();
     if (virtualKeyCode == VK_LEFT && keyEvent.ctrlKey())
-        return m_page->goBack();
+        return m_page->backForward().goBack();
 
     // Need to scroll the page if the arrow keys, pgup/dn, or home/end are hit.
     ScrollDirection direction;
@@ -2141,7 +2131,7 @@ void WebView::setShouldInvertColors(bool shouldInvertColors)
 
     m_shouldInvertColors = shouldInvertColors;
 
-#if USE(ACCELERATED_COMPOSITING) && USE(CA)
+#if USE(CA)
     if (m_layerTreeHost)
         m_layerTreeHost->setShouldInvertColors(shouldInvertColors);
 #endif
@@ -2380,15 +2370,13 @@ LRESULT CALLBACK WebView::WebViewWndProc(HWND hWnd, UINT message, WPARAM wParam,
         case WM_XP_THEMECHANGED:
             if (Frame* coreFrame = core(mainFrameImpl)) {
                 webView->deleteBackingStore();
-                coreFrame->page()->theme()->themeChanged();
+                coreFrame->page()->theme().themeChanged();
                 ScrollbarTheme::theme()->themeChanged();
                 RECT windowRect;
                 ::GetClientRect(hWnd, &windowRect);
                 ::InvalidateRect(hWnd, &windowRect, false);
-#if USE(ACCELERATED_COMPOSITING)
                 if (webView->isAcceleratedCompositing())
                     webView->m_backingLayer->setNeedsDisplay();
-#endif
            }
             break;
         case WM_MOUSEACTIVATE:
@@ -2772,6 +2760,7 @@ HRESULT STDMETHODCALLTYPE WebView::initWithFrame(
     pageClients.inspectorClient = m_inspectorClient;
 #endif // ENABLE(INSPECTOR)
     pageClients.loaderClientForMainFrame = new WebFrameLoaderClient;
+    pageClients.progressTrackerClient = static_cast<WebFrameLoaderClient*>(pageClients.loaderClientForMainFrame);
 
     m_page = new Page(pageClients);
     provideGeolocationTo(m_page, new WebGeolocationClient(this));
@@ -3083,7 +3072,7 @@ HRESULT STDMETHODCALLTYPE WebView::backForwardList(
     if (!m_useBackForwardList)
         return E_FAIL;
  
-    *list = WebBackForwardList::createInstance(static_cast<WebCore::BackForwardList*>(m_page->backForwardClient()));
+    *list = WebBackForwardList::createInstance(static_cast<WebCore::BackForwardList*>(m_page->backForward().client()));
 
     return S_OK;
 }
@@ -3098,14 +3087,14 @@ HRESULT STDMETHODCALLTYPE WebView::setMaintainsBackForwardList(
 HRESULT STDMETHODCALLTYPE WebView::goBack( 
     /* [retval][out] */ BOOL* succeeded)
 {
-    *succeeded = m_page->goBack();
+    *succeeded = m_page->backForward().goBack();
     return S_OK;
 }
 
 HRESULT STDMETHODCALLTYPE WebView::goForward( 
     /* [retval][out] */ BOOL* succeeded)
 {
-    *succeeded = m_page->goForward();
+    *succeeded = m_page->backForward().goForward();
     return S_OK;
 }
 
@@ -3189,7 +3178,7 @@ HRESULT STDMETHODCALLTYPE WebView::setApplicationNameForUserAgent(
 HRESULT STDMETHODCALLTYPE WebView::applicationNameForUserAgent( 
     /* [retval][out] */ BSTR* applicationName)
 {
-    *applicationName = SysAllocStringLen(m_applicationName.characters(), m_applicationName.length());
+    *applicationName = BString(m_applicationName).release();
     if (!*applicationName && m_applicationName.length())
         return E_OUTOFMEMORY;
     return S_OK;
@@ -3209,7 +3198,7 @@ HRESULT STDMETHODCALLTYPE WebView::customUserAgent(
     *userAgentString = 0;
     if (!m_userAgentOverridden)
         return S_OK;
-    *userAgentString = SysAllocStringLen(m_userAgentCustom.characters(), m_userAgentCustom.length());
+    *userAgentString = BString(m_userAgentCustom).release();
     if (!*userAgentString && m_userAgentCustom.length())
         return E_OUTOFMEMORY;
     return S_OK;
@@ -3621,7 +3610,7 @@ HRESULT STDMETHODCALLTYPE WebView::selectionRect(RECT* rc)
 {
     WebCore::Frame& frame = m_page->focusController().focusedOrMainFrame();
 
-    IntRect ir = enclosingIntRect(frame.selection().bounds());
+    IntRect ir = enclosingIntRect(frame.selection().selectionBounds());
     ir = frame.view()->convertToContainingWindow(ir);
     ir.move(-frame.view()->scrollOffset().width(), -frame.view()->scrollOffset().height());
     rc->left = ir.x();
@@ -3657,7 +3646,7 @@ HRESULT STDMETHODCALLTYPE WebView::groupName(
     if (!m_page)
         return S_OK;
     String groupNameString = m_page->groupName();
-    *groupName = SysAllocStringLen(groupNameString.characters(), groupNameString.length());
+    *groupName = BString(groupNameString).release();
     if (!*groupName && groupNameString.length())
         return E_OUTOFMEMORY;
     return S_OK;
@@ -3767,7 +3756,7 @@ HRESULT STDMETHODCALLTYPE WebView::selectedText(
         return E_FAIL;
 
     String frameSelectedText = focusedFrame->editor().selectedText();
-    *text = SysAllocStringLen(frameSelectedText.characters(), frameSelectedText.length());
+    *text = BString(frameSelectedText).release();
     if (!*text && frameSelectedText.length())
         return E_OUTOFMEMORY;
     return S_OK;
@@ -3916,7 +3905,7 @@ HRESULT STDMETHODCALLTYPE WebView::canGoBack(
         /* [in] */ IUnknown* /*sender*/,
         /* [retval][out] */ BOOL* result)
 {
-    *result = !!(m_page->backForwardClient()->backItem() && !m_page->defersLoading());
+    *result = !!(m_page->backForward().client()->backItem() && !m_page->defersLoading());
     return S_OK;
 }
     
@@ -3931,7 +3920,7 @@ HRESULT STDMETHODCALLTYPE WebView::canGoForward(
         /* [in] */ IUnknown* /*sender*/,
         /* [retval][out] */ BOOL* result)
 {
-    *result = !!(m_page->backForwardClient()->forwardItem() && !m_page->defersLoading());
+    *result = !!(m_page->backForward().client()->forwardItem() && !m_page->defersLoading());
     return S_OK;
 }
     
@@ -4789,11 +4778,6 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     RuntimeEnabledFeatures::sharedFeatures().setCSSRegionsEnabled(!!enabled);
 
-    hr = preferences->areSeamlessIFramesEnabled(&enabled);
-    if (FAILED(hr))
-        return hr;
-    RuntimeEnabledFeatures::sharedFeatures().setSeamlessIFramesEnabled(!!enabled);
-
     hr = preferences->privateBrowsingEnabled(&enabled);
     if (FAILED(hr))
         return hr;
@@ -4803,7 +4787,7 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
     else
         WebFrameNetworkingContext::destroyPrivateBrowsingSession();
 #endif
-    settings.setPrivateBrowsingEnabled(!!enabled);
+    m_page->enableLegacyPrivateBrowsing(!!enabled);
 
     hr = preferences->sansSerifFontFamily(&str);
     if (FAILED(hr))
@@ -4985,12 +4969,10 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     settings.setFrameFlatteningEnabled(enabled);
 
-#if USE(ACCELERATED_COMPOSITING)
     hr = prefsPrivate->acceleratedCompositingEnabled(&enabled);
     if (FAILED(hr))
         return hr;
     settings.setAcceleratedCompositingEnabled(enabled);
-#endif
 
     hr = prefsPrivate->showDebugBorders(&enabled);
     if (FAILED(hr))
@@ -5065,6 +5047,21 @@ HRESULT WebView::notifyPreferencesChanged(IWebNotification* notification)
         return hr;
     settings.setRequestAnimationFrameEnabled(enabled);
 
+    hr = prefsPrivate->mockScrollbarsEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setMockScrollbarsEnabled(enabled);
+
+    hr = prefsPrivate->isInheritURIQueryComponentEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setEnableInheritURIQueryComponent(enabled);
+
+    hr = prefsPrivate->screenFontSubstitutionEnabled(&enabled);
+    if (FAILED(hr))
+        return hr;
+    settings.setScreenFontSubstitutionEnabled(enabled);
+
     return S_OK;
 }
 
@@ -5122,19 +5119,13 @@ HRESULT STDMETHODCALLTYPE WebView::removeCustomDropTarget()
 HRESULT STDMETHODCALLTYPE WebView::setInViewSourceMode( 
         /* [in] */ BOOL flag)
 {
-    if (!m_mainFrame)
-        return E_FAIL;
-
-    return m_mainFrame->setInViewSourceMode(flag);
+    return E_NOTIMPL;
 }
     
 HRESULT STDMETHODCALLTYPE WebView::inViewSourceMode( 
         /* [retval][out] */ BOOL* flag)
 {
-    if (!m_mainFrame)
-        return E_FAIL;
-
-    return m_mainFrame->inViewSourceMode(flag);
+    return E_NOTIMPL;
 }
 
 HRESULT STDMETHODCALLTYPE WebView::viewWindow( 
@@ -5410,13 +5401,13 @@ HRESULT STDMETHODCALLTYPE WebView::loadBackForwardListFromOtherView(
     // It turns out the right combination of behavior is done with the back/forward load
     // type.  (See behavior matrix at the top of WebFramePrivate.)  So we copy all the items
     // in the back forward list, and go to the current one.
-    BackForwardClient* backForwardClient = m_page->backForwardClient();
+    BackForwardClient* backForwardClient = m_page->backForward().client();
     ASSERT(!backForwardClient->currentItem()); // destination list should be empty
 
     COMPtr<WebView> otherWebView;
     if (FAILED(otherView->QueryInterface(&otherWebView)))
         return E_FAIL;
-    BackForwardClient* otherBackForwardClient = otherWebView->m_page->backForwardClient();
+    BackForwardClient* otherBackForwardClient = otherWebView->m_page->backForward().client();
     if (!otherBackForwardClient->currentItem())
         return S_OK; // empty back forward list, bail
     
@@ -5586,7 +5577,7 @@ void WebView::resetIME(Frame* targetFrame)
 void WebView::updateSelectionForIME()
 {
     Frame& targetFrame = m_page->focusController().focusedOrMainFrame();
-    if (!targetFrame.editor().cancelCompositionIfSelectionIsInvalid())
+    if (targetFrame.editor().cancelCompositionIfSelectionIsInvalid())
         resetIME(&targetFrame);
 }
 
@@ -5841,7 +5832,7 @@ LRESULT WebView::onIMERequestReconvertString(Frame* targetFrame, RECONVERTSTRING
     reconvertString->dwStrLen = text.length();
     reconvertString->dwTargetStrLen = text.length();
     reconvertString->dwStrOffset = sizeof(RECONVERTSTRING);
-    memcpy(reconvertString + 1, text.characters(), text.length() * sizeof(UChar));
+    StringView(text).getCharactersWithUpconvert(reinterpret_cast<UChar*>(reconvertString + 1));
     return totalSize;
 }
 
@@ -5990,21 +5981,15 @@ HRESULT STDMETHODCALLTYPE WebView::elementFromJS(
 HRESULT STDMETHODCALLTYPE WebView::setCustomHTMLTokenizerTimeDelay(
     /* [in] */ double timeDelay)
 {
-    if (!m_page)
-        return E_FAIL;
-
-    m_page->setCustomHTMLTokenizerTimeDelay(timeDelay);
-    return S_OK;
+    ASSERT_NOT_REACHED();
+    return E_FAIL;
 }
 
 HRESULT STDMETHODCALLTYPE WebView::setCustomHTMLTokenizerChunkSize(
     /* [in] */ int chunkSize)
 {
-    if (!m_page)
-        return E_FAIL;
-
-    m_page->setCustomHTMLTokenizerChunkSize(chunkSize);
-    return S_OK;
+    ASSERT_NOT_REACHED();
+    return E_FAIL;
 }
 
 HRESULT STDMETHODCALLTYPE WebView::backingStore(
@@ -6292,7 +6277,7 @@ HRESULT WebView::setCanStartPlugins(BOOL canStartPlugins)
 
 void WebView::enterFullscreenForNode(Node* node)
 {
-#if ENABLE(VIDEO)
+#if ENABLE(VIDEO) && !USE(GSTREAMER)
     if (!isHTMLVideoElement(node) || !node->isElementNode())
         return;
 
@@ -6323,7 +6308,7 @@ void WebView::enterFullscreenForNode(Node* node)
 
 void WebView::exitFullscreen()
 {
-#if ENABLE(VIDEO)
+#if ENABLE(VIDEO) && !USE(GSTREAMER)
     if (!m_fullScreenVideoController)
         return;
     
@@ -6553,11 +6538,17 @@ void WebView::downloadURL(const URL& url)
 {
     // It's the delegate's job to ref the WebDownload to keep it alive - otherwise it will be
     // destroyed when this function returns.
+#if USE(CURL)
+    // For Curl we need to set the user agent, otherwise the download request gets the default Curl user agent string.
+    ResourceRequest request(url);
+    request.setHTTPUserAgent(userAgentForKURL(url));
+    COMPtr<WebDownload> download(AdoptCOM, WebDownload::createInstance(0, request, ResourceResponse(), m_downloadDelegate.get()));
+#else
     COMPtr<WebDownload> download(AdoptCOM, WebDownload::createInstance(url, m_downloadDelegate.get()));
+#endif
     download->start();
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void WebView::setRootChildLayer(GraphicsLayer* layer)
 {
     setAcceleratedCompositing(layer ? true : false);
@@ -6620,7 +6611,6 @@ void WebView::setAcceleratedCompositing(bool accelerated)
     }
 #endif
 }
-#endif
 
 #if PLATFORM(WIN) && USE(AVFOUNDATION)
 WebCore::GraphicsDeviceAdapter* WebView::graphicsDeviceAdapter() const
@@ -6732,7 +6722,6 @@ HRESULT WebView::nextDisplayIsSynchronous()
     return S_OK;
 }
 
-#if USE(ACCELERATED_COMPOSITING)
 void WebView::notifyAnimationStarted(const GraphicsLayer*, double)
 {
     // We never set any animations on our backing layer.
@@ -6744,7 +6733,7 @@ void WebView::notifyFlushRequired(const GraphicsLayer*)
     flushPendingGraphicsLayerChangesSoon();
 }
 
-void WebView::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const IntRect& inClip)
+void WebView::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const FloatRect& inClip)
 {
     Frame* frame = core(m_mainFrame);
     if (!frame)
@@ -6752,7 +6741,7 @@ void WebView::paintContents(const GraphicsLayer*, GraphicsContext& context, Grap
 
     context.save();
     context.clip(inClip);
-    frame->view()->paint(&context, inClip);
+    frame->view()->paint(&context, enclosingIntRect(inClip));
     context.restore();
 }
 
@@ -6775,8 +6764,6 @@ void WebView::flushPendingGraphicsLayerChanges()
 
     view->flushCompositingStateIncludingSubframes();
 }
-
-#endif
 
 class EnumTextMatches : public IEnumTextMatches
 {

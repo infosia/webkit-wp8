@@ -28,15 +28,18 @@
 
 namespace WebCore {
 
+static const int defaultTileWidth = 512;
+static const int defaultTileHeight = 512;
+
 class IntRect;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 class PlatformCALayer;
 #endif
 
 enum ScrollingModeIndication {
-    MainThreadScrollingBecauseOfStyleIndication,
-    MainThreadScrollingBecauseOfEventHandlersIndication,
-    ThreadedScrollingIndication
+    SynchronousScrollingBecauseOfStyleIndication,
+    SynchronousScrollingBecauseOfEventHandlersIndication,
+    AsyncScrollingIndication
 };
 
 class TiledBacking {
@@ -48,8 +51,6 @@ public:
     virtual bool tilesWouldChangeForVisibleRect(const FloatRect&) const = 0;
 
     virtual void setExposedRect(const FloatRect&) = 0;
-    virtual void setClipsToExposedRect(bool) = 0;
-    virtual bool clipsToExposedRect() = 0;
 
     virtual void prepopulateRect(const FloatRect&) = 0;
 
@@ -59,7 +60,6 @@ public:
         CoverageForVisibleArea = 0,
         CoverageForVerticalScrolling = 1 << 0,
         CoverageForHorizontalScrolling = 1 << 1,
-        CoverageForSlowScrolling = 1 << 2, // Indicates that we expect to paint a lot on scrolling.
         CoverageForScrolling = CoverageForVerticalScrolling | CoverageForHorizontalScrolling
     };
     typedef unsigned TileCoverage;
@@ -75,9 +75,6 @@ public:
     virtual void setScrollingPerformanceLoggingEnabled(bool) = 0;
     virtual bool scrollingPerformanceLoggingEnabled() const = 0;
     
-    virtual void setAggressivelyRetainsTiles(bool) = 0;
-    virtual bool aggressivelyRetainsTiles() const = 0;
-    
     virtual void setUnparentsOffscreenTiles(bool) = 0;
     virtual bool unparentsOffscreenTiles() const = 0;
     
@@ -91,12 +88,15 @@ public:
     virtual int leftMarginWidth() const = 0;
     virtual int rightMarginWidth() const = 0;
 
+    // Includes margins.
+    virtual IntRect bounds() const = 0;
+
     // Exposed for testing
     virtual IntRect tileCoverageRect() const = 0;
     virtual IntRect tileGridExtent() const = 0;
     virtual void setScrollingModeIndication(ScrollingModeIndication) = 0;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual PlatformCALayer* tiledScrollingIndicatorLayer() = 0;
 #endif
 };

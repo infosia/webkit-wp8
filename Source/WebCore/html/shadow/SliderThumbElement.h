@@ -41,8 +41,9 @@ namespace WebCore {
 
 class HTMLInputElement;
 class FloatPoint;
+class TouchEvent;
 
-class SliderThumbElement FINAL : public HTMLDivElement {
+class SliderThumbElement final : public HTMLDivElement {
 public:
     static PassRefPtr<SliderThumbElement> create(Document&);
 
@@ -51,25 +52,60 @@ public:
     HTMLInputElement* hostInput() const;
     void setPositionFromPoint(const LayoutPoint&);
 
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+    void handleTouchEvent(TouchEvent*);
+
+    void disabledAttributeChanged();
+#endif
+
 private:
     SliderThumbElement(Document&);
 
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual PassRefPtr<Element> cloneElementWithoutAttributesAndChildren() OVERRIDE;
-    virtual bool isDisabledFormControl() const OVERRIDE;
-    virtual bool matchesReadOnlyPseudoClass() const OVERRIDE;
-    virtual bool matchesReadWritePseudoClass() const OVERRIDE;
-    virtual Element* focusDelegate() OVERRIDE;
-    virtual void defaultEventHandler(Event*) OVERRIDE;
-    virtual bool willRespondToMouseMoveEvents() OVERRIDE;
-    virtual bool willRespondToMouseClickEvents() OVERRIDE;
-    virtual void willDetachRenderers() OVERRIDE;
-    virtual const AtomicString& shadowPseudoId() const OVERRIDE;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual PassRefPtr<Element> cloneElementWithoutAttributesAndChildren() override;
+    virtual bool isDisabledFormControl() const override;
+    virtual bool matchesReadOnlyPseudoClass() const override;
+    virtual bool matchesReadWritePseudoClass() const override;
+    virtual Element* focusDelegate() override;
+#if !PLATFORM(IOS)
+    virtual void defaultEventHandler(Event*) override;
+    virtual bool willRespondToMouseMoveEvents() override;
+    virtual bool willRespondToMouseClickEvents() override;
+#endif
+
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+    virtual void didAttachRenderers() override;
+#endif
+    virtual void willDetachRenderers() override;
+
+    virtual const AtomicString& shadowPseudoId() const override;
 
     void startDragging();
     void stopDragging();
 
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+    unsigned exclusiveTouchIdentifier() const;
+    void setExclusiveTouchIdentifier(unsigned);
+    void clearExclusiveTouchIdentifier();
+
+    void handleTouchStart(TouchEvent*);
+    void handleTouchMove(TouchEvent*);
+    void handleTouchEndAndCancel(TouchEvent*);
+
+    bool shouldAcceptTouchEvents();
+    void registerForTouchEvents();
+    void unregisterForTouchEvents();
+#endif
+
     bool m_inDragMode;
+
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+    // FIXME: Currently it is safe to use 0, but this may need to change
+    // if touch identifers change in the future and can be 0.
+    static const unsigned NoIdentifier = 0;
+    unsigned m_exclusiveTouchIdentifier;
+    bool m_isRegisteredAsTouchEventListener;
+#endif
 };
 
 inline PassRefPtr<SliderThumbElement> SliderThumbElement::create(Document& document)
@@ -79,25 +115,25 @@ inline PassRefPtr<SliderThumbElement> SliderThumbElement::create(Document& docum
 
 // --------------------------------
 
-class RenderSliderThumb FINAL : public RenderBlockFlow {
+class RenderSliderThumb final : public RenderBlockFlow {
 public:
     RenderSliderThumb(SliderThumbElement&, PassRef<RenderStyle>);
     void updateAppearance(RenderStyle* parentStyle);
 
 private:
-    virtual bool isSliderThumb() const;
+    virtual bool isSliderThumb() const override;
 };
 
 // --------------------------------
 
-class SliderContainerElement FINAL : public HTMLDivElement {
+class SliderContainerElement final : public HTMLDivElement {
 public:
     static PassRefPtr<SliderContainerElement> create(Document&);
 
 private:
     SliderContainerElement(Document&);
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual const AtomicString& shadowPseudoId() const;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual const AtomicString& shadowPseudoId() const override;
 };
 
 }

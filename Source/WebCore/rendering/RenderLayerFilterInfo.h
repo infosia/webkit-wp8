@@ -35,26 +35,22 @@
 
 #include "CachedResourceHandle.h"
 #include "CachedSVGDocumentClient.h"
-#include "CustomFilterProgramClient.h"
 #include "RenderLayer.h"
+#include <memory>
 
 namespace WebCore {
 
 class Element;
 
-class RenderLayer::FilterInfo
-#if ENABLE(CSS_SHADERS) && ENABLE(SVG)
-    FINAL : public CustomFilterProgramClient, public CachedSVGDocumentClient
-#elif ENABLE(CSS_SHADERS)
-    FINAL : public CustomFilterProgramClient
-#elif ENABLE(SVG)
-    FINAL : public CachedSVGDocumentClient
-#endif
+class RenderLayer::FilterInfo final : public CachedSVGDocumentClient
 {
 public:
     static FilterInfo& get(RenderLayer&);
     static FilterInfo* getIfExists(const RenderLayer&);
     static void remove(RenderLayer&);
+
+    explicit FilterInfo(RenderLayer&);
+    ~FilterInfo();
 
     const LayoutRect& dirtySourceRect() const { return m_dirtySourceRect; }
     void expandDirtySourceRect(const LayoutRect& rect) { m_dirtySourceRect.unite(rect); }
@@ -63,31 +59,15 @@ public:
     FilterEffectRenderer* renderer() const { return m_renderer.get(); }
     void setRenderer(PassRefPtr<FilterEffectRenderer>);
     
-#if ENABLE(CSS_SHADERS)
-    void updateCustomFilterClients(const FilterOperations&);
-    void removeCustomFilterClients();
-#endif
-
-#if ENABLE(SVG)
     void updateReferenceFilterClients(const FilterOperations&);
     void removeReferenceFilterClients();
-#endif
 
 private:
-    explicit FilterInfo(RenderLayer&);
-    ~FilterInfo();
-
     friend void WTF::deleteOwnedPtr<FilterInfo>(FilterInfo*);
 
-#if ENABLE(CSS_SHADERS)
-    virtual void notifyCustomFilterProgramLoaded(CustomFilterProgram*) OVERRIDE;
-#endif
+    virtual void notifyFinished(CachedResource*) override;
 
-#if ENABLE(SVG)
-    virtual void notifyFinished(CachedResource*) OVERRIDE;
-#endif
-
-    static HashMap<const RenderLayer*, OwnPtr<FilterInfo>>& map();
+    static HashMap<const RenderLayer*, std::unique_ptr<FilterInfo>>& map();
 
 #if PLATFORM(IOS)
 #pragma clang diagnostic push
@@ -103,14 +83,8 @@ private:
     RefPtr<FilterEffectRenderer> m_renderer;
     LayoutRect m_dirtySourceRect;
 
-#if ENABLE(CSS_SHADERS)
-    Vector<RefPtr<CustomFilterProgram>> m_cachedCustomFilterPrograms;
-#endif
-
-#if ENABLE(SVG)
     Vector<RefPtr<Element>> m_internalSVGReferences;
     Vector<CachedResourceHandle<CachedSVGDocument>> m_externalSVGReferences;
-#endif
 };
 
 } // namespace WebCore

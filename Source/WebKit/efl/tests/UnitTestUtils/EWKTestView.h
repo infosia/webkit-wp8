@@ -22,28 +22,23 @@
 #include "EWKTestConfig.h"
 #include <Ecore_Evas.h>
 #include <Evas.h>
-#include <wtf/OwnPtr.h>
 #include <wtf/efl/RefPtrEfl.h>
+#include <wtf/efl/UniquePtrEfl.h>
 
 namespace EWKUnitTests {
 
 class EWKTestView {
 public:
-    enum EwkViewType {
-        SingleView = 0,
-        TiledView
-    };
-
     EWKTestView();
 
     Evas_Object* webView() { return m_webView.get(); }
 
-    bool init(EwkViewType testViewType = TiledView, int width = Config::defaultViewWidth, int height = Config::defaultViewHeight);
+    bool init(int width = Config::defaultViewWidth, int height = Config::defaultViewHeight);
 private:
     EWKTestView(const EWKTestView&);
     EWKTestView& operator=(const EWKTestView&);
 
-    OwnPtr<Ecore_Evas> m_ecoreEvas;
+    EflUniquePtr<Ecore_Evas> m_ecoreEvas;
     RefPtr<Evas_Object> m_webView;
 };
 

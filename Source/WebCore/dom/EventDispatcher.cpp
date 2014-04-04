@@ -37,13 +37,10 @@
 #include "PseudoElement.h"
 #include "ScopedEventQueue.h"
 #include "ShadowRoot.h"
-#include "TouchEvent.h"
-
-#if ENABLE(SVG)
 #include "SVGElementInstance.h"
 #include "SVGNames.h"
 #include "SVGUseElement.h"
-#endif
+#include "TouchEvent.h"
 
 namespace WebCore {
 
@@ -100,7 +97,7 @@ public:
     EventContext* lastContextIfExists() { return m_path.isEmpty() ? 0 : m_path.last().get(); }
 
 private:
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     void updateTouchListsInEventPath(const TouchList*, TouchEventContext::TouchListType);
 #endif
 
@@ -114,14 +111,14 @@ public:
         , m_relatedNodeTreeScope(relatedNode.treeScope())
         , m_relatedNodeInCurrentTreeScope(nullptr)
         , m_currentTreeScope(nullptr)
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
         , m_touch(0)
         , m_touchListType(TouchEventContext::NotTouchList)
 #endif
     {
     }
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     EventRelatedNodeResolver(Touch& touch, TouchEventContext::TouchListType touchListType)
         : m_relatedNode(*touch.target()->toNode())
         , m_relatedNodeTreeScope(m_relatedNode.treeScope())
@@ -134,7 +131,7 @@ public:
     }
 #endif
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     Touch* touch() const { return m_touch; }
     TouchEventContext::TouchListType touchListType() const { return m_touchListType; }
 #endif
@@ -146,8 +143,8 @@ public:
             return m_relatedNodeInCurrentTreeScope;
 
         if (m_currentTreeScope) {
-            ASSERT(m_currentTreeScope->rootNode()->isShadowRoot());
-            ASSERT(&newTarget == toShadowRoot(m_currentTreeScope->rootNode())->hostElement());
+            ASSERT(m_currentTreeScope->rootNode().isShadowRoot());
+            ASSERT(&newTarget == toShadowRoot(m_currentTreeScope->rootNode()).hostElement());
             ASSERT(m_currentTreeScope->parentTreeScope() == &newTreeScope);
         }
 
@@ -168,7 +165,7 @@ private:
     const TreeScope& m_relatedNodeTreeScope;
     Node* m_relatedNodeInCurrentTreeScope;
     TreeScope* m_currentTreeScope;
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     Touch* m_touch;
     TouchEventContext::TouchListType m_touchListType;
 #endif
@@ -182,21 +179,19 @@ inline EventTarget& eventTargetRespectingTargetRules(Node& referenceNode)
         return *hostElement;
     }
 
-#if ENABLE(SVG)
     if (!referenceNode.isSVGElement() || !referenceNode.isInShadowTree())
         return referenceNode;
 
     // Spec: The event handling for the non-exposed tree works as if the referenced element had been textually included
     // as a deeply cloned child of the 'use' element, except that events are dispatched to the SVGElementInstance objects
-    Node* rootNode = referenceNode.treeScope().rootNode();
-    Element* shadowHostElement = rootNode->isShadowRoot() ? toShadowRoot(rootNode)->hostElement() : 0;
+    auto& rootNode = referenceNode.treeScope().rootNode();
+    Element* shadowHostElement = rootNode.isShadowRoot() ? toShadowRoot(rootNode).hostElement() : nullptr;
     // At this time, SVG nodes are not supported in non-<use> shadow trees.
     if (!shadowHostElement || !shadowHostElement->hasTagName(SVGNames::useTag))
         return referenceNode;
     SVGUseElement* useElement = toSVGUseElement(shadowHostElement);
     if (SVGElementInstance* instance = useElement->instanceForShadowTreeElement(&referenceNode))
         return *instance;
-#endif
 
     return referenceNode;
 }
@@ -213,7 +208,7 @@ void EventDispatcher::dispatchSimulatedClick(Element* element, Event* underlying
     if (element->isDisabledFormControl())
         return;
 
-    DEFINE_STATIC_LOCAL(HashSet<Element*>, elementsDispatchingSimulatedClicks, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<Element*>, elementsDispatchingSimulatedClicks, ());
     if (!elementsDispatchingSimulatedClicks.add(element).isNewEntry)
         return;
 
@@ -311,7 +306,7 @@ bool EventDispatcher::dispatchEvent(Node* origin, PassRefPtr<Event> prpEvent)
 
     if (EventTarget* relatedTarget = event->relatedTarget())
         eventPath.setRelatedTarget(*relatedTarget);
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     if (event->isTouchEvent())
         eventPath.updateTouchLists(*toTouchEvent(event.get()));
 #endif
@@ -371,7 +366,7 @@ static inline bool shouldEventCrossShadowBoundary(Event& event, ShadowRoot& shad
     // Changing this breaks existing sites.
     // See https://bugs.webkit.org/show_bug.cgi?id=52195 for details.
     const AtomicString& eventType = event.type();
-    bool targetIsInShadowRoot = targetNode && targetNode->treeScope().rootNode() == &shadowRoot;
+    bool targetIsInShadowRoot = targetNode && &targetNode->treeScope().rootNode() == &shadowRoot;
     return !targetIsInShadowRoot
         || !(eventType == eventNames().abortEvent
             || eventType == eventNames().changeEvent
@@ -394,7 +389,7 @@ EventPath::EventPath(Node& targetNode, Event& event)
     bool inDocument = targetNode.inDocument();
     bool isSVGElement = targetNode.isSVGElement();
     bool isMouseOrFocusEvent = event.isMouseEvent() || event.isFocusEvent();
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     bool isTouchEvent = event.isTouchEvent();
 #endif
     EventTarget* target = 0;
@@ -407,7 +402,7 @@ EventPath::EventPath(Node& targetNode, Event& event)
             EventTarget& currentTarget = eventTargetRespectingTargetRules(*node);
             if (isMouseOrFocusEvent)
                 m_path.append(std::make_unique<MouseOrFocusEventContext>(node, &currentTarget, target));
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
             else if (isTouchEvent)
                 m_path.append(std::make_unique<TouchEventContext>(node, &currentTarget, target));
 #endif
@@ -424,7 +419,7 @@ EventPath::EventPath(Node& targetNode, Event& event)
     }
 }
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
 static void addRelatedNodeResolversForTouchList(Vector<EventRelatedNodeResolver, 16>& touchTargetResolvers, TouchList* touchList, TouchEventContext::TouchListType type)
 {
     const size_t touchListSize = touchList->length();

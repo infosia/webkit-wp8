@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006 Apple Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -79,10 +79,10 @@ NSURLResponse *ResourceResponse::nsURLResponse() const
 }
 
 ResourceResponse::ResourceResponse(NSURLResponse* nsResponse)
-    : m_cfResponse([nsResponse _CFURLResponse])
-    , m_nsResponse(nsResponse)
-    , m_initLevel(Uninitialized)
+    : m_initLevel(Uninitialized)
     , m_platformResponseIsUpToDate(true)
+    , m_cfResponse([nsResponse _CFURLResponse])
+    , m_nsResponse(nsResponse)
 {
     m_isNull = !nsResponse;
 }
@@ -120,7 +120,7 @@ void ResourceResponse::platformLazyInit(InitLevel initLevel)
         // Workaround for <rdar://problem/8757088>, can be removed once that is fixed.
         unsigned textEncodingNameLength = m_textEncodingName.length();
         if (textEncodingNameLength >= 2 && m_textEncodingName[0U] == '"' && m_textEncodingName[textEncodingNameLength - 1] == '"')
-            m_textEncodingName = m_textEncodingName.substring(1, textEncodingNameLength - 2);
+            m_textEncodingName = m_textEncodingName.string().substring(1, textEncodingNameLength - 2);
 
         if ([m_nsResponse.get() isKindOfClass:[NSHTTPURLResponse class]]) {
             NSHTTPURLResponse *httpResponse = (NSHTTPURLResponse *)m_nsResponse.get();
@@ -174,7 +174,7 @@ bool ResourceResponse::platformCompare(const ResourceResponse& a, const Resource
 
 #endif // USE(CFNETWORK)
 
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
 
 void ResourceResponse::setCertificateChain(CFArrayRef certificateChain)
 {
@@ -190,7 +190,7 @@ RetainPtr<CFArrayRef> ResourceResponse::certificateChain() const
     return adoptCF(wkCopyNSURLResponseCertificateChain(nsURLResponse()));
 }
 
-#endif // PLATFORM(MAC) || USE(CFNETWORK)
+#endif // PLATFORM(COCOA) || USE(CFNETWORK)
 
 } // namespace WebCore
 

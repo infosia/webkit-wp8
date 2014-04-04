@@ -67,13 +67,8 @@ void RenderProgress::computeLogicalHeight(LayoutUnit logicalHeight, LayoutUnit l
         frame.setHeight(computedValues.m_extent);
     else
         frame.setWidth(computedValues.m_extent);
-    IntSize frameSize = theme()->progressBarRectForBounds(this, pixelSnappedIntRect(frame)).size();
+    IntSize frameSize = theme().progressBarRectForBounds(this, pixelSnappedIntRect(frame)).size();
     computedValues.m_extent = isHorizontalWritingMode() ? frameSize.height() : frameSize.width();
-}
-
-bool RenderProgress::canBeReplacedWithInlineRunIn() const
-{
-    return false;
 }
 
 double RenderProgress::animationProgress() const
@@ -87,7 +82,7 @@ bool RenderProgress::isDeterminate() const
             && HTMLProgressElement::InvalidPosition != position());
 }
 
-void RenderProgress::animationTimerFired(Timer<RenderProgress>*)
+void RenderProgress::animationTimerFired(Timer<RenderProgress>&)
 {
     repaint();
     if (!m_animationTimer.isActive() && m_animating)
@@ -96,8 +91,8 @@ void RenderProgress::animationTimerFired(Timer<RenderProgress>*)
 
 void RenderProgress::updateAnimationState()
 {
-    m_animationDuration = theme()->animationDurationForProgressBar(this);
-    m_animationRepeatInterval = theme()->animationRepeatIntervalForProgressBar(this);
+    m_animationDuration = theme().animationDurationForProgressBar(this);
+    m_animationRepeatInterval = theme().animationRepeatIntervalForProgressBar(this);
 
     bool animating = style().hasAppearance() && m_animationDuration > 0;
     if (animating == m_animating)

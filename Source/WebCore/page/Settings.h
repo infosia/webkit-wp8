@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,11 +34,12 @@
 #include "SecurityOrigin.h"
 #include "SettingsMacros.h"
 #include "Timer.h"
+#include <chrono>
+#include <unicode/uscript.h>
 #include <wtf/HashMap.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/AtomicString.h>
 #include <wtf/text/AtomicStringHash.h>
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 
@@ -145,7 +146,6 @@ public:
     //  - HTTP Cookies
     //  - Plug-ins (that support NPNVprivateModeBool)
     void setPrivateBrowsingEnabled(bool);
-    bool privateBrowsingEnabled() const { return m_privateBrowsingEnabled; }
 
     void setDNSPrefetchingEnabled(bool);
     bool dnsPrefetchingEnabled() const { return m_dnsPrefetchingEnabled; }
@@ -168,8 +168,10 @@ public:
     static void setDefaultDOMTimerAlignmentInterval(double);
     static double defaultDOMTimerAlignmentInterval();
 
-    void setDOMTimerAlignmentInterval(double);
     double domTimerAlignmentInterval() const;
+
+    void setLayoutInterval(std::chrono::milliseconds);
+    std::chrono::milliseconds layoutInterval() const { return m_layoutInterval; }
 
 #if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
     bool hiddenPageDOMTimerThrottlingEnabled() const { return m_hiddenPageDOMTimerThrottlingEnabled; }
@@ -182,17 +184,6 @@ public:
     void setFontRenderingMode(FontRenderingMode mode);
     FontRenderingMode fontRenderingMode() const;
 
-    void setCSSCustomFilterEnabled(bool enabled) { m_isCSSCustomFilterEnabled = enabled; }
-    bool isCSSCustomFilterEnabled() const { return m_isCSSCustomFilterEnabled; }
-
-#if ENABLE(CSS_STICKY_POSITION)
-    void setCSSStickyPositionEnabled(bool enabled) { m_cssStickyPositionEnabled = enabled; }
-    bool cssStickyPositionEnabled() const { return m_cssStickyPositionEnabled; }
-#else
-    void setCSSStickyPositionEnabled(bool) { }
-    bool cssStickyPositionEnabled() const { return false; }
-#endif
-
     void setShowTiledScrollingIndicator(bool);
     bool showTiledScrollingIndicator() const { return m_showTiledScrollingIndicator; }
 
@@ -204,12 +195,15 @@ public:
     void setTiledBackingStoreEnabled(bool);
     bool tiledBackingStoreEnabled() const { return m_tiledBackingStoreEnabled; }
 
+    void setBackgroundShouldExtendBeyondPage(bool);
+    bool backgroundShouldExtendBeyondPage() const { return m_backgroundShouldExtendBeyondPage; }
+
 #if USE(AVFOUNDATION)
     static void setAVFoundationEnabled(bool flag);
     static bool isAVFoundationEnabled() { return gAVFoundationEnabled; }
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static void setQTKitEnabled(bool flag);
     static bool isQTKitEnabled() { return gQTKitEnabled; }
 #endif
@@ -238,9 +232,6 @@ public:
 
     void setScrollingPerformanceLoggingEnabled(bool);
     bool scrollingPerformanceLoggingEnabled() { return m_scrollingPerformanceLoggingEnabled; }
-        
-    void setAggressiveTileRetentionEnabled(bool);
-    bool aggressiveTileRetentionEnabled() { return m_aggressiveTileRetentionEnabled; }
 
     static void setShouldRespectPriorityInCSSAttributeSetters(bool);
     static bool shouldRespectPriorityInCSSAttributeSetters();
@@ -264,6 +255,23 @@ public:
     static bool isVideoPluginProxyEnabled() { return gVideoPluginProxyEnabled; }
 #endif
 
+#if PLATFORM(IOS)
+    static void setAudioSessionCategoryOverride(unsigned);
+    static unsigned audioSessionCategoryOverride();
+
+    static void setNetworkDataUsageTrackingEnabled(bool);
+    static bool networkDataUsageTrackingEnabled();
+
+    static void setNetworkInterfaceName(const String&);
+    static const String& networkInterfaceName();
+
+    static void setAVKitEnabled(bool flag) { gAVKitEnabled = flag; }
+    static bool avKitEnabled() { return gAVKitEnabled; }
+
+    static void setShouldOptOutOfNetworkStateObservation(bool flag) { gShouldOptOutOfNetworkStateObservation = flag; }
+    static bool shouldOptOutOfNetworkStateObservation() { return gShouldOptOutOfNetworkStateObservation; }
+#endif
+
 private:
     explicit Settings(Page*);
 
@@ -276,6 +284,7 @@ private:
     URL m_userStyleSheetLocation;
     const std::unique_ptr<FontGenericFamilies> m_fontGenericFamilies;
     SecurityOrigin::StorageBlockingPolicy m_storageBlockingPolicy;
+    std::chrono::milliseconds m_layoutInterval;
 #if ENABLE(TEXT_AUTOSIZING)
     float m_textAutosizingFontScaleFactor;
     IntSize m_textAutosizingWindowSizeOverride;
@@ -288,26 +297,21 @@ private:
     bool m_isJavaEnabled : 1;
     bool m_isJavaEnabledForLocalFiles : 1;
     bool m_loadsImagesAutomatically : 1;
-    bool m_privateBrowsingEnabled : 1;
     bool m_areImagesEnabled : 1;
     bool m_arePluginsEnabled : 1;
     bool m_isScriptEnabled : 1;
     bool m_needsAdobeFrameReloadingQuirk : 1;
     bool m_usesPageCache : 1;
     unsigned m_fontRenderingMode : 1;
-    bool m_isCSSCustomFilterEnabled : 1;
-#if ENABLE(CSS_STICKY_POSITION)
-    bool m_cssStickyPositionEnabled : 1;
-#endif
     bool m_showTiledScrollingIndicator : 1;
     bool m_tiledBackingStoreEnabled : 1;
+    bool m_backgroundShouldExtendBeyondPage : 1;
     bool m_dnsPrefetchingEnabled : 1;
 
 #if ENABLE(TOUCH_EVENTS)
     bool m_touchEventEmulationEnabled : 1;
 #endif
     bool m_scrollingPerformanceLoggingEnabled : 1;
-    bool m_aggressiveTileRetentionEnabled : 1;
 
     double m_timeWithoutMouseMovementBeforeHidingControls;
 
@@ -329,7 +333,7 @@ private:
     static bool gAVFoundationEnabled;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     static bool gQTKitEnabled;
 #endif
         
@@ -343,6 +347,11 @@ private:
     static bool gShouldUseHighResolutionTimers;
 #endif
     static bool gShouldRespectPriorityInCSSAttributeSetters;
+#if PLATFORM(IOS)
+    static bool gNetworkDataUsageTrackingEnabled;
+    static bool gAVKitEnabled;
+    static bool gShouldOptOutOfNetworkStateObservation;
+#endif
 
     static double gHiddenPageDOMTimerAlignmentInterval;
 

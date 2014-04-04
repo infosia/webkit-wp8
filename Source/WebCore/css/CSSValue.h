@@ -96,28 +96,20 @@ public:
 #if ENABLE(CSS_FILTERS)
     bool isFilterImageValue() const { return m_classType == FilterImageClass; }
     bool isWebKitCSSFilterValue() const { return m_classType == WebKitCSSFilterClass; }
-#if ENABLE(CSS_SHADERS)
-    bool isWebKitCSSArrayFunctionValue() const { return m_classType == WebKitCSSArrayFunctionValueClass; }
-    bool isWebKitCSSMatFunctionValue() const { return m_classType == WebKitCSSMatFunctionValueClass; }
-    bool isWebKitCSSMixFunctionValue() const { return m_classType == WebKitCSSMixFunctionValueClass; }
-    bool isWebKitCSSShaderValue() const { return m_classType == WebKitCSSShaderClass; }
-#endif
 #endif // ENABLE(CSS_FILTERS)
-    bool isGridTemplateValue() const { return m_classType == GridTemplateClass; }
-#if ENABLE(SVG)
+#if ENABLE(CSS_GRID_LAYOUT)
+    bool isGridTemplateAreasValue() const { return m_classType == GridTemplateAreasClass; }
+    bool isGridLineNamesValue() const { return m_classType == GridLineNamesClass; }
+#endif
     bool isSVGColor() const { return m_classType == SVGColorClass || m_classType == SVGPaintClass; }
     bool isSVGPaint() const { return m_classType == SVGPaintClass; }
-    bool isWebKitCSSSVGDocumentValue() const { return m_classType == WebKitCSSSVGDocumentClass; }
-#endif
     bool isUnicodeRangeValue() const { return m_classType == UnicodeRangeClass; }
 
     bool isCSSOMSafe() const { return m_isCSSOMSafe; }
     bool isSubtypeExposedToCSSOM() const
     { 
         return isPrimitiveValue() 
-#if ENABLE(SVG)
             || isSVGColor()
-#endif
             || isValueList();
     }
 
@@ -168,15 +160,11 @@ protected:
         UnicodeRangeClass,
         LineBoxContainClass,
         CalculationClass,
-#if ENABLE(CSS_FILTERS) && ENABLE(CSS_SHADERS)
-        WebKitCSSShaderClass,
+#if ENABLE(CSS_GRID_LAYOUT)
+        GridTemplateAreasClass,
 #endif
-        GridTemplateClass,
-#if ENABLE(SVG)
         SVGColorClass,
         SVGPaintClass,
-        WebKitCSSSVGDocumentClass,
-#endif
 
         // List class types must appear after ValueListClass.
         ValueListClass,
@@ -185,13 +173,11 @@ protected:
 #endif
 #if ENABLE(CSS_FILTERS)
         WebKitCSSFilterClass,
-#if ENABLE(CSS_SHADERS)
-        WebKitCSSArrayFunctionValueClass,
-        WebKitCSSMatFunctionValueClass,
-        WebKitCSSMixFunctionValueClass,
-#endif
 #endif
         WebKitCSSTransformClass,
+#if ENABLE(CSS_GRID_LAYOUT)
+        GridLineNamesClass,
+#endif
         // Do not append non-list class types here.
     };
 

@@ -49,7 +49,7 @@ public:
 
 protected:
     CharacterData(Document& document, const String& text, ConstructionType type)
-        : Node(&document, type)
+        : Node(document, type)
         , m_data(!text.isNull() ? text : emptyString())
     {
         ASSERT(type == CreateOther || type == CreateText || type == CreateEditingText);
@@ -63,11 +63,11 @@ protected:
     void dispatchModifiedEvent(const String& oldValue);
 
 private:
-    virtual String nodeValue() const OVERRIDE FINAL;
-    virtual void setNodeValue(const String&, ExceptionCode&) OVERRIDE FINAL;
-    virtual bool isCharacterDataNode() const OVERRIDE FINAL { return true; }
-    virtual int maxCharacterOffset() const OVERRIDE FINAL;
-    virtual bool offsetInCharacters() const OVERRIDE FINAL;
+    virtual String nodeValue() const override final;
+    virtual void setNodeValue(const String&, ExceptionCode&) override final;
+    virtual bool isCharacterDataNode() const override final { return true; }
+    virtual int maxCharacterOffset() const override final;
+    virtual bool offsetInCharacters() const override final;
     void setDataAndUpdate(const String&, unsigned offsetOfReplacedData, unsigned oldLength, unsigned newLength);
     void checkCharDataOperation(unsigned offset, ExceptionCode&);
 

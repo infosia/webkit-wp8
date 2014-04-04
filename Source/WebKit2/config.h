@@ -24,15 +24,14 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */ 
 
-#if defined(BUILDING_WITH_CMAKE)
+#if defined(HAVE_CONFIG_H) && HAVE_CONFIG_H && defined(BUILDING_WITH_CMAKE)
 #include "cmakeconfig.h"
-#elif defined(BUILDING_GTK__)
-#include "autotoolsconfig.h"
 #endif
+
+#include <wtf/Platform.h>
 
 #include <runtime/JSExportMacros.h>
 #include <wtf/DisallowCType.h>
-#include <wtf/Platform.h>
 #include <wtf/ExportMacros.h>
 
 #ifdef __cplusplus
@@ -46,14 +45,6 @@
 #define EXTERN_C_BEGIN
 #define EXTERN_C_END
 #endif
-
-// For defining getters to a static value, where the getters have internal linkage
-#define DEFINE_STATIC_GETTER(type, name, arguments) \
-static const type& name() \
-{ \
-    DEFINE_STATIC_LOCAL(type, name##Value, arguments); \
-    return name##Value; \
-}
 
 #ifdef __cplusplus
 
@@ -78,13 +69,19 @@ static const type& name() \
 #define PLUGIN_ARCHITECTURE(ARCH) (defined PLUGIN_ARCHITECTURE_##ARCH && PLUGIN_ARCHITECTURE_##ARCH)
 
 #ifndef ENABLE_INSPECTOR_SERVER
-#if ENABLE(INSPECTOR) && (PLATFORM(GTK) || PLATFORM(EFL))
+#if ENABLE(INSPECTOR) && ENABLE(WEB_SOCKETS) && (PLATFORM(GTK) || PLATFORM(EFL))
 #define ENABLE_INSPECTOR_SERVER 1
 #endif
 #endif
 
 #ifndef ENABLE_SEC_ITEM_SHIM
-#if PLATFORM(MAC) && !PLATFORM(IOS)
+#if PLATFORM(MAC)
 #define ENABLE_SEC_ITEM_SHIM 1
+#endif
+#endif
+
+#ifndef HAVE_WINDOW_SERVER_OCCLUSION_NOTIFICATIONS
+#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+#define HAVE_WINDOW_SERVER_OCCLUSION_NOTIFICATIONS 1
 #endif
 #endif

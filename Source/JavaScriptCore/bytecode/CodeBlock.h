@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2009, 2010, 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  * Copyright (C) 2008 Cameron Zwarich <cwzwarich@uwaterloo.ca>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -56,7 +56,6 @@
 #include "HandlerInfo.h"
 #include "ObjectAllocationProfile.h"
 #include "Options.h"
-#include "Operations.h"
 #include "PutPropertySlot.h"
 #include "Instruction.h"
 #include "JITCode.h"
@@ -65,8 +64,8 @@
 #include "JumpTable.h"
 #include "LLIntCallLinkInfo.h"
 #include "LazyOperandValueProfile.h"
-#include "LineInfo.h"
 #include "ProfilerCompilation.h"
+#include "ProfilerJettisonReason.h"
 #include "RegExpObject.h"
 #include "StructureStubInfo.h"
 #include "UnconditionalFinalizer.h"
@@ -118,6 +117,7 @@ public:
     CodeBlockHash hash() const;
     bool hasHash() const;
     bool isSafeToComputeHash() const;
+    CString hashAsStringIfPossible() const;
     CString sourceCodeForTools() const; // Not quite the actual source we parsed; this will do things like prefix the source for a function with a reified signature.
     CString sourceCodeOnOneLine() const; // As sourceCodeForTools(), but replaces all whitespace runs with a single space.
     void dumpAssumingJITType(PrintStream&, JITCode::JITType) const;
@@ -132,6 +132,23 @@ public:
     CodeBlock* alternative() { return m_alternative.get(); }
     PassRefPtr<CodeBlock> releaseAlternative() { return m_alternative.release(); }
     void setAlternative(PassRefPtr<CodeBlock> alternative) { m_alternative = alternative; }
+
+    template <typename Functor> void forEachRelatedCodeBlock(Functor&& functor)
+    {
+        Functor f(std::forward<Functor>(functor));
+        Vector<CodeBlock*, 4> codeBlocks;
+        codeBlocks.append(this);
+
+        while (!codeBlocks.isEmpty()) {
+            CodeBlock* currentCodeBlock = codeBlocks.takeLast();
+            f(currentCodeBlock);
+
+            if (CodeBlock* alternative = currentCodeBlock->alternative())
+                codeBlocks.append(alternative);
+            if (CodeBlock* osrEntryBlock = currentCodeBlock->specialOSREntryBlockOrNull())
+                codeBlocks.append(osrEntryBlock);
+        }
+    }
     
     CodeSpecializationKind specializationKind() const
     {
@@ -147,7 +164,9 @@ public:
     void visitAggregate(SlotVisitor&);
 
     void dumpBytecode(PrintStream& = WTF::dataFile());
-    void dumpBytecode(PrintStream&, unsigned bytecodeOffset);
+    void dumpBytecode(
+        PrintStream&, unsigned bytecodeOffset,
+        const StubInfoMap& = StubInfoMap(), const CallLinkInfoMap& = CallLinkInfoMap());
     void printStructures(PrintStream&, const Instruction*);
     void printStructure(PrintStream&, const char* name, const Instruction*, int operand);
 
@@ -176,30 +195,32 @@ public:
     void expressionRangeForBytecodeOffset(unsigned bytecodeOffset, int& divot,
                                           int& startOffset, int& endOffset, unsigned& line, unsigned& column);
 
+    void getStubInfoMap(const ConcurrentJITLocker&, StubInfoMap& result);
+    void getStubInfoMap(StubInfoMap& result);
+    
+    void getCallLinkInfoMap(const ConcurrentJITLocker&, CallLinkInfoMap& result);
+    void getCallLinkInfoMap(CallLinkInfoMap& result);
+    
 #if ENABLE(JIT)
     StructureStubInfo* addStubInfo();
-    Bag<StructureStubInfo>::iterator begin() { return m_stubInfos.begin(); }
-    Bag<StructureStubInfo>::iterator end() { return m_stubInfos.end(); }
+    Bag<StructureStubInfo>::iterator stubInfoBegin() { return m_stubInfos.begin(); }
+    Bag<StructureStubInfo>::iterator stubInfoEnd() { return m_stubInfos.end(); }
 
     void resetStub(StructureStubInfo&);
     
-    void getStubInfoMap(const ConcurrentJITLocker&, StubInfoMap& result);
-
     ByValInfo& getByValInfo(unsigned bytecodeIndex)
     {
         return *(binarySearch<ByValInfo, unsigned>(m_byValInfos, m_byValInfos.size(), bytecodeIndex, getByValInfoBytecodeIndex));
     }
 
-    CallLinkInfo& getCallLinkInfo(ReturnAddressPtr returnAddress)
-    {
-        return *(binarySearch<CallLinkInfo, void*>(m_callLinkInfos, m_callLinkInfos.size(), returnAddress.value(), getCallLinkInfoReturnLocation));
-    }
+    CallLinkInfo* addCallLinkInfo();
+    Bag<CallLinkInfo>::iterator callLinkInfosBegin() { return m_callLinkInfos.begin(); }
+    Bag<CallLinkInfo>::iterator callLinkInfosEnd() { return m_callLinkInfos.end(); }
 
-    CallLinkInfo& getCallLinkInfo(unsigned bytecodeIndex)
-    {
-        ASSERT(!JITCode::isOptimizingJIT(jitType()));
-        return *(binarySearch<CallLinkInfo, unsigned>(m_callLinkInfos, m_callLinkInfos.size(), bytecodeIndex, getCallLinkInfoBytecodeIndex));
-    }
+    // This is a slow function call used primarily for compiling OSR exits in the case
+    // that there had been inlining. Chances are if you want to use this, you're really
+    // looking for a CallLinkInfoMap to amortize the cost of calling this.
+    CallLinkInfo* getCallLinkInfoForBytecodeIndex(unsigned bytecodeIndex);
 #endif // ENABLE(JIT)
 
     void unlinkIncomingCalls();
@@ -244,7 +265,7 @@ public:
 
     bool usesOpcode(OpcodeID);
 
-    unsigned instructionCount() { return m_instructions.size(); }
+    unsigned instructionCount() const { return m_instructions.size(); }
 
     int argumentIndexAfterCapture(size_t argument);
     
@@ -257,17 +278,15 @@ public:
     // Exactly equivalent to codeBlock->ownerExecutable()->newReplacementCodeBlockFor(codeBlock->specializationKind())
     PassRefPtr<CodeBlock> newReplacement();
     
-    void setJITCode(PassRefPtr<JITCode> code, MacroAssemblerCodePtr codeWithArityCheck)
+    void setJITCode(PassRefPtr<JITCode> code)
     {
         ASSERT(m_heap->isDeferred());
         m_heap->reportExtraMemoryCost(code->size());
         ConcurrentJITLocker locker(m_lock);
         WTF::storeStoreFence(); // This is probably not needed because the lock will also do something similar, but it's good to be paranoid.
         m_jitCode = code;
-        m_jitCodeWithArityCheck = codeWithArityCheck;
     }
     PassRefPtr<JITCode> jitCode() { return m_jitCode; }
-    MacroAssemblerCodePtr jitCodeWithArityCheck() { return m_jitCodeWithArityCheck; }
     JITCode::JITType jitType() const
     {
         JITCode* jitCode = m_jitCode.get();
@@ -277,12 +296,12 @@ public:
         return result;
     }
 
-#if ENABLE(JIT)
     bool hasBaselineJITProfiling() const
     {
         return jitType() == JITCode::BaselineJIT;
     }
     
+#if ENABLE(JIT)
     virtual CodeBlock* replacement() = 0;
 
     virtual DFG::CapabilityLevel capabilityLevelInternal() = 0;
@@ -298,7 +317,7 @@ public:
     bool hasOptimizedReplacement(); // the typeToReplace is my JITType
 #endif
 
-    void jettison(ReoptimizationMode = DontCountReoptimization);
+    void jettison(Profiler::JettisonReason, ReoptimizationMode = DontCountReoptimization);
     
     ScriptExecutable* ownerExecutable() const { return m_ownerExecutable.get(); }
 
@@ -308,7 +327,6 @@ public:
     void setThisRegister(VirtualRegister thisRegister) { m_thisRegister = thisRegister; }
     VirtualRegister thisRegister() const { return m_thisRegister; }
 
-    bool needsFullScopeChain() const { return m_unlinkedCode->needsFullScopeChain(); }
     bool usesEval() const { return m_unlinkedCode->usesEval(); }
 
     void setArgumentsRegister(VirtualRegister argumentsRegister)
@@ -335,21 +353,20 @@ public:
 
     VirtualRegister activationRegister() const
     {
-        ASSERT(needsFullScopeChain());
+        ASSERT(m_activationRegister.isValid());
         return m_activationRegister;
     }
 
     VirtualRegister uncheckedActivationRegister()
     {
-        if (!needsFullScopeChain())
-            return VirtualRegister();
-        return activationRegister();
+        return m_activationRegister;
     }
 
     bool usesArguments() const { return m_argumentsRegister.isValid(); }
 
     bool needsActivation() const
     {
+        ASSERT(m_activationRegister.isValid() == m_needsActivation);
         return m_needsActivation;
     }
     
@@ -394,23 +411,16 @@ public:
     size_t numberOfJumpTargets() const { return m_unlinkedCode->numberOfJumpTargets(); }
     unsigned jumpTarget(int index) const { return m_unlinkedCode->jumpTarget(index); }
 
-    void createActivation(CallFrame*);
-
     void clearEvalCache();
 
     String nameForRegister(VirtualRegister);
 
 #if ENABLE(JIT)
-    void setNumberOfByValInfos(size_t size) { m_byValInfos.grow(size); }
+    void setNumberOfByValInfos(size_t size) { m_byValInfos.resizeToFit(size); }
     size_t numberOfByValInfos() const { return m_byValInfos.size(); }
     ByValInfo& byValInfo(size_t index) { return m_byValInfos[index]; }
-
-    void setNumberOfCallLinkInfos(size_t size) { m_callLinkInfos.grow(size); }
-    size_t numberOfCallLinkInfos() const { return m_callLinkInfos.size(); }
-    CallLinkInfo& callLinkInfo(int index) { return m_callLinkInfos[index]; }
 #endif
 
-#if ENABLE(VALUE_PROFILER)
     unsigned numberOfArgumentValueProfiles()
     {
         ASSERT(m_numParameters >= 0);
@@ -429,13 +439,12 @@ public:
     ValueProfile* valueProfileForBytecodeOffset(int bytecodeOffset)
     {
         ValueProfile* result = binarySearch<ValueProfile, int>(
-                                                               m_valueProfiles, m_valueProfiles.size(), bytecodeOffset,
-                                                               getValueProfileBytecodeOffset<ValueProfile>);
+            m_valueProfiles, m_valueProfiles.size(), bytecodeOffset,
+            getValueProfileBytecodeOffset<ValueProfile>);
         ASSERT(result->m_bytecodeOffset != -1);
         ASSERT(instructions()[bytecodeOffset + opcodeLength(
-                                                            m_vm->interpreter->getOpcodeID(
-                                                                                           instructions()[
-                                                                                                          bytecodeOffset].u.opcode)) - 1].u.profile == result);
+            m_vm->interpreter->getOpcodeID(
+                instructions()[bytecodeOffset].u.opcode)) - 1].u.profile == result);
         return result;
     }
     SpeculatedType valueProfilePredictionForBytecodeOffset(const ConcurrentJITLocker& locker, int bytecodeOffset)
@@ -494,8 +503,8 @@ public:
     RareCaseProfile* specialFastCaseProfileForBytecodeOffset(int bytecodeOffset)
     {
         return tryBinarySearch<RareCaseProfile, int>(
-                                                     m_specialFastCaseProfiles, m_specialFastCaseProfiles.size(), bytecodeOffset,
-                                                     getRareCaseProfileBytecodeOffset);
+            m_specialFastCaseProfiles, m_specialFastCaseProfiles.size(), bytecodeOffset,
+            getRareCaseProfileBytecodeOffset);
     }
 
     bool likelyToTakeSpecialFastCase(int bytecodeOffset)
@@ -543,26 +552,10 @@ public:
     }
     ArrayProfile* getArrayProfile(unsigned bytecodeOffset);
     ArrayProfile* getOrAddArrayProfile(unsigned bytecodeOffset);
-#endif
 
     // Exception handling support
 
     size_t numberOfExceptionHandlers() const { return m_rareData ? m_rareData->m_exceptionHandlers.size() : 0; }
-    void allocateHandlers(const Vector<UnlinkedHandlerInfo>& unlinkedHandlers)
-    {
-        size_t count = unlinkedHandlers.size();
-        if (!count)
-            return;
-        createRareDataIfNecessary();
-        m_rareData->m_exceptionHandlers.resize(count);
-        for (size_t i = 0; i < count; ++i) {
-            m_rareData->m_exceptionHandlers[i].start = unlinkedHandlers[i].start;
-            m_rareData->m_exceptionHandlers[i].end = unlinkedHandlers[i].end;
-            m_rareData->m_exceptionHandlers[i].target = unlinkedHandlers[i].target;
-            m_rareData->m_exceptionHandlers[i].scopeDepth = unlinkedHandlers[i].scopeDepth;
-        }
-
-    }
     HandlerInfo& exceptionHandler(int index) { RELEASE_ASSERT(m_rareData); return m_rareData->m_exceptionHandlers[index]; }
 
     bool hasExpressionInfo() { return m_unlinkedCode->hasExpressionInfo(); }
@@ -597,11 +590,15 @@ public:
         ConcurrentJITLocker locker(m_lock);
         return m_exitProfile.add(locker, site);
     }
-        
+
+    bool hasExitSite(const ConcurrentJITLocker& locker, const DFG::FrequentExitSite& site) const
+    {
+        return m_exitProfile.hasExitSite(locker, site);
+    }
     bool hasExitSite(const DFG::FrequentExitSite& site) const
     {
         ConcurrentJITLocker locker(m_lock);
-        return m_exitProfile.hasExitSite(locker, site);
+        return hasExitSite(locker, site);
     }
 
     DFG::ExitProfile& exitProfile() { return m_exitProfile; }
@@ -609,11 +606,6 @@ public:
     CompressedLazyOperandValueProfileHolder& lazyOperandValueProfiles()
     {
         return m_lazyOperandValueProfiles;
-    }
-#else // ENABLE(DFG_JIT)
-    bool addFrequentExitSite(const DFG::FrequentExitSite&)
-    {
-        return false;
     }
 #endif // ENABLE(DFG_JIT)
 
@@ -694,15 +686,26 @@ public:
         return constantBufferAsVector(index).data();
     }
 
+    Heap* heap() const { return m_heap; }
     JSGlobalObject* globalObject() { return m_globalObject.get(); }
 
     JSGlobalObject* globalObjectFor(CodeOrigin);
 
     BytecodeLivenessAnalysis& livenessAnalysis()
     {
-        if (!m_livenessAnalysis)
-            m_livenessAnalysis = std::make_unique<BytecodeLivenessAnalysis>(this);
-        return *m_livenessAnalysis;
+        {
+            ConcurrentJITLocker locker(m_lock);
+            if (!!m_livenessAnalysis)
+                return *m_livenessAnalysis;
+        }
+        std::unique_ptr<BytecodeLivenessAnalysis> analysis =
+            std::make_unique<BytecodeLivenessAnalysis>(this);
+        {
+            ConcurrentJITLocker locker(m_lock);
+            if (!m_livenessAnalysis)
+                m_livenessAnalysis = std::move(analysis);
+            return *m_livenessAnalysis;
+        }
     }
     
     void validate();
@@ -738,9 +741,6 @@ public:
         LateShrink
     };
     void shrinkToFit(ShrinkMode);
-
-    void copyPostParseDataFrom(CodeBlock* alternative);
-    void copyPostParseDataFromAlternative();
 
     // Functions for controlling when JITting kicks in, in a mixed mode
     // execution world.
@@ -791,7 +791,7 @@ public:
     // When we observe a lot of speculation failures, we trigger a
     // reoptimization. But each time, we increase the optimization trigger
     // to avoid thrashing.
-    unsigned reoptimizationRetryCounter() const;
+    JS_EXPORT_PRIVATE unsigned reoptimizationRetryCounter() const;
     void countReoptimization();
 #if ENABLE(JIT)
     unsigned numberOfDFGCompiles();
@@ -884,29 +884,43 @@ public:
     unsigned numberOfDFGCompiles() { return 0; }
 #endif
 
-#if ENABLE(VALUE_PROFILER)
     bool shouldOptimizeNow();
     void updateAllValueProfilePredictions();
     void updateAllArrayPredictions();
     void updateAllPredictions();
-#else
-    bool updateAllPredictionsAndCheckIfShouldOptimizeNow() { return false; }
-    void updateAllValueProfilePredictions() { }
-    void updateAllArrayPredictions() { }
-    void updateAllPredictions() { }
-#endif
 
-#if ENABLE(VERBOSE_VALUE_PROFILE)
-    void dumpValueProfiles();
-#endif
-    
     unsigned frameRegisterCount();
+    int stackPointerOffset();
 
+    bool hasOpDebugForLineAndColumn(unsigned line, unsigned column);
+
+    bool hasDebuggerRequests() const { return m_debuggerRequests; }
+    void* debuggerRequestsAddress() { return &m_debuggerRequests; }
+
+    void addBreakpoint(unsigned numBreakpoints);
+    void removeBreakpoint(unsigned numBreakpoints)
+    {
+        ASSERT(m_numBreakpoints >= numBreakpoints);
+        m_numBreakpoints -= numBreakpoints;
+    }
+
+    enum SteppingMode {
+        SteppingModeDisabled,
+        SteppingModeEnabled
+    };
+    void setSteppingMode(SteppingMode);
+
+    void clearDebuggerRequests()
+    {
+        m_steppingMode = SteppingModeDisabled;
+        m_numBreakpoints = 0;
+    }
+    
     // FIXME: Make these remaining members private.
 
     int m_numCalleeRegisters;
     int m_numVars;
-    bool m_isConstructor;
+    bool m_isConstructor : 1;
     
     // This is intentionally public; it's the responsibility of anyone doing any
     // of the following to hold the lock:
@@ -926,10 +940,11 @@ public:
     // concurrent compilation threads finish what they're doing.
     mutable ConcurrentJITLock m_lock;
     
-    bool m_shouldAlwaysBeInlined;
-    bool m_allTransitionsHaveBeenMarked; // Initialized and used on every GC.
+    bool m_shouldAlwaysBeInlined; // Not a bitfield because the JIT wants to store to it.
+    bool m_allTransitionsHaveBeenMarked : 1; // Initialized and used on every GC.
     
-    bool m_didFailFTLCompilation;
+    bool m_didFailFTLCompilation : 1;
+    bool m_hasBeenCompiledWithFTL : 1;
 
     // Internal methods for use by validation code. It would be private if it wasn't
     // for the fact that we use it from anonymous namespaces.
@@ -937,8 +952,8 @@ public:
     NO_RETURN_DUE_TO_CRASH void endValidationDidFail();
 
 protected:
-    virtual void visitWeakReferences(SlotVisitor&) OVERRIDE;
-    virtual void finalizeUnconditionally() OVERRIDE;
+    virtual void visitWeakReferences(SlotVisitor&) override;
+    virtual void finalizeUnconditionally() override;
 
 #if ENABLE(DFG_JIT)
     void tallyFrequentExitSites();
@@ -959,9 +974,7 @@ private:
     ClosureCallStubRoutine* findClosureCallForReturnPC(ReturnAddressPtr);
 #endif
         
-#if ENABLE(VALUE_PROFILER)
     void updateAllPredictionsAndCountLiveness(unsigned& numberOfLiveNonArgumentValueProfiles, unsigned& numberOfSamplesInProfiles);
-#endif
 
     void setConstantRegisters(const Vector<WriteBarrier<Unknown>>& constants)
     {
@@ -971,7 +984,9 @@ private:
             m_constantRegisters[i].set(*m_vm, ownerExecutable(), constants[i].get());
     }
 
-    void dumpBytecode(PrintStream&, ExecState*, const Instruction* begin, const Instruction*&, const StubInfoMap& = StubInfoMap());
+    void dumpBytecode(
+        PrintStream&, ExecState*, const Instruction* begin, const Instruction*&,
+        const StubInfoMap& = StubInfoMap(), const CallLinkInfoMap& = CallLinkInfoMap());
 
     CString registerName(int r) const;
     void printUnaryOp(PrintStream&, ExecState*, int location, const Instruction*&, const char* op);
@@ -980,25 +995,15 @@ private:
     void printGetByIdOp(PrintStream&, ExecState*, int location, const Instruction*&);
     void printGetByIdCacheStatus(PrintStream&, ExecState*, int location, const StubInfoMap&);
     enum CacheDumpMode { DumpCaches, DontDumpCaches };
-    void printCallOp(PrintStream&, ExecState*, int location, const Instruction*&, const char* op, CacheDumpMode, bool& hasPrintedProfiling);
+    void printCallOp(PrintStream&, ExecState*, int location, const Instruction*&, const char* op, CacheDumpMode, bool& hasPrintedProfiling, const CallLinkInfoMap&);
     void printPutByIdOp(PrintStream&, ExecState*, int location, const Instruction*&, const char* op);
-    void printLocationAndOp(PrintStream& out, ExecState*, int location, const Instruction*&, const char* op)
-    {
-        out.printf("[%4d] %-17s ", location, op);
-    }
-
-    void printLocationOpAndRegisterOperand(PrintStream& out, ExecState* exec, int location, const Instruction*& it, const char* op, int operand)
-    {
-        printLocationAndOp(out, exec, location, it, op);
-        out.printf("%s", registerName(operand).data());
-    }
+    void printLocationAndOp(PrintStream&, ExecState*, int location, const Instruction*&, const char* op);
+    void printLocationOpAndRegisterOperand(PrintStream&, ExecState*, int location, const Instruction*& it, const char* op, int operand);
 
     void beginDumpProfiling(PrintStream&, bool& hasPrintedProfiling);
     void dumpValueProfiling(PrintStream&, const Instruction*&, bool& hasPrintedProfiling);
     void dumpArrayProfiling(PrintStream&, const Instruction*&, bool& hasPrintedProfiling);
-#if ENABLE(VALUE_PROFILER)
     void dumpRareCaseProfile(PrintStream&, const char* name, RareCaseProfile*, bool& hasPrintedProfiling);
-#endif
         
 #if ENABLE(DFG_JIT)
     bool shouldImmediatelyAssumeLivenessDuringScan()
@@ -1042,6 +1047,14 @@ private:
 #endif
     WriteBarrier<UnlinkedCodeBlock> m_unlinkedCode;
     int m_numParameters;
+    union {
+        unsigned m_debuggerRequests;
+        struct {
+            unsigned m_hasDebuggerStatement : 1;
+            unsigned m_steppingMode : 1;
+            unsigned m_numBreakpoints : 30;
+        };
+    };
     WriteBarrier<ScriptExecutable> m_ownerExecutable;
     VM* m_vm;
 
@@ -1066,11 +1079,10 @@ private:
     SentinelLinkedList<LLIntCallLinkInfo, BasicRawSentinelNode<LLIntCallLinkInfo>> m_incomingLLIntCalls;
 #endif
     RefPtr<JITCode> m_jitCode;
-    MacroAssemblerCodePtr m_jitCodeWithArityCheck;
 #if ENABLE(JIT)
     Bag<StructureStubInfo> m_stubInfos;
     Vector<ByValInfo> m_byValInfos;
-    Vector<CallLinkInfo> m_callLinkInfos;
+    Bag<CallLinkInfo> m_callLinkInfos;
     SentinelLinkedList<CallLinkInfo, BasicRawSentinelNode<CallLinkInfo>> m_incomingCalls;
 #endif
     OwnPtr<CompactJITCodeMap> m_jitCodeMap;
@@ -1080,18 +1092,15 @@ private:
     DFG::ExitProfile m_exitProfile;
     CompressedLazyOperandValueProfileHolder m_lazyOperandValueProfiles;
 #endif
-#if ENABLE(VALUE_PROFILER)
     Vector<ValueProfile> m_argumentValueProfiles;
     Vector<ValueProfile> m_valueProfiles;
     SegmentedVector<RareCaseProfile, 8> m_rareCaseProfiles;
     SegmentedVector<RareCaseProfile, 8> m_specialFastCaseProfiles;
     Vector<ArrayAllocationProfile> m_arrayAllocationProfiles;
     ArrayProfileVector m_arrayProfiles;
-#endif
     Vector<ObjectAllocationProfile> m_objectAllocationProfiles;
 
     // Constant Pool
-    Vector<Identifier> m_additionalIdentifiers;
     COMPILE_ASSERT(sizeof(Register) == sizeof(WriteBarrier<Unknown>), Register_must_be_same_size_as_WriteBarrier_Unknown);
     // TODO: This could just be a pointer to m_unlinkedCodeBlock's data, but the DFG mutates
     // it, so we're stuck with it for now.
@@ -1166,8 +1175,8 @@ public:
 
 #if ENABLE(JIT)
 protected:
-    virtual CodeBlock* replacement() OVERRIDE;
-    virtual DFG::CapabilityLevel capabilityLevelInternal() OVERRIDE;
+    virtual CodeBlock* replacement() override;
+    virtual DFG::CapabilityLevel capabilityLevelInternal() override;
 #endif
 };
 
@@ -1188,8 +1197,8 @@ public:
     
 #if ENABLE(JIT)
 protected:
-    virtual CodeBlock* replacement() OVERRIDE;
-    virtual DFG::CapabilityLevel capabilityLevelInternal() OVERRIDE;
+    virtual CodeBlock* replacement() override;
+    virtual DFG::CapabilityLevel capabilityLevelInternal() override;
 #endif
     
 private:
@@ -1210,8 +1219,8 @@ public:
     
 #if ENABLE(JIT)
 protected:
-    virtual CodeBlock* replacement() OVERRIDE;
-    virtual DFG::CapabilityLevel capabilityLevelInternal() OVERRIDE;
+    virtual CodeBlock* replacement() override;
+    virtual DFG::CapabilityLevel capabilityLevelInternal() override;
 #endif
 };
 
@@ -1283,12 +1292,55 @@ inline void CodeBlockSet::mark(void* candidateCodeBlock)
     // -1 + 1 = 0
     if (value + 1 <= 1)
         return;
-    
-    HashSet<CodeBlock*>::iterator iter = m_set.find(static_cast<CodeBlock*>(candidateCodeBlock));
-    if (iter == m_set.end())
+
+    CodeBlock* codeBlock = static_cast<CodeBlock*>(candidateCodeBlock); 
+    if (!m_oldCodeBlocks.contains(codeBlock) && !m_newCodeBlocks.contains(codeBlock))
+        return;
+
+    mark(codeBlock);
+}
+
+inline void CodeBlockSet::mark(CodeBlock* codeBlock)
+{
+    if (!codeBlock)
         return;
     
-    (*iter)->m_mayBeExecuting = true;
+    if (codeBlock->m_mayBeExecuting)
+        return;
+    
+    codeBlock->m_mayBeExecuting = true;
+    // We might not have cleared the marks for this CodeBlock, but we need to visit it.
+    codeBlock->m_visitAggregateHasBeenCalled = false;
+#if ENABLE(GGC)
+    m_currentlyExecuting.append(codeBlock);
+#endif
+}
+
+template <typename Functor> inline void ScriptExecutable::forEachCodeBlock(Functor&& functor)
+{
+    switch (type()) {
+    case ProgramExecutableType: {
+        jsCast<ProgramExecutable*>(this)->m_programCodeBlock->forEachRelatedCodeBlock(std::forward<Functor>(functor));
+        break;
+    }
+        
+    case EvalExecutableType: {
+        jsCast<EvalExecutable*>(this)->m_evalCodeBlock->forEachRelatedCodeBlock(std::forward<Functor>(functor));
+        break;
+    }
+        
+    case FunctionExecutableType: {
+        Functor f(std::forward<Functor>(functor));
+        FunctionExecutable* executable = jsCast<FunctionExecutable*>(this);
+        if (CodeBlock* codeBlock = executable->m_codeBlockForCall.get())
+            codeBlock->forEachRelatedCodeBlock(f);
+        if (CodeBlock* codeBlock = executable->m_codeBlockForConstruct.get())
+            codeBlock->forEachRelatedCodeBlock(f);
+        break;
+    }
+    default:
+        RELEASE_ASSERT_NOT_REACHED();
+    }
 }
 
 } // namespace JSC

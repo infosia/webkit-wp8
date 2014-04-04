@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -35,7 +35,6 @@
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
 #include <wtf/unicode/CharacterNames.h>
-#include <wtf/unicode/Unicode.h>
 
 #if ENABLE(OPENTYPE_VERTICAL)
 #include "OpenTypeVerticalData.h"
@@ -212,6 +211,14 @@ void GlyphPageTreeNode::initializePage(const FontData* fontData, unsigned pageNu
                     m_page = GlyphPage::createForMixedFontData(this);
                 else
                     m_page = GlyphPage::createForSingleFontData(this, static_cast<const SimpleFontData*>(fontData));
+#if PLATFORM(IOS)
+                // FIXME: Times New Roman contains Arabic glyphs, but Core Text doesn't know how to shape them. See <rdar://problem/9823975>.
+                // Once we have the fix for <rdar://problem/9823975> then remove this code together with SimpleFontData::shouldNotBeUsedForArabic()
+                // in <rdar://problem/12096835>.
+                if (pageNumber == 6 && static_cast<const SimpleFontData*>(fontData)->shouldNotBeUsedForArabic())
+                    haveGlyphs = false;
+                else
+#endif
                 haveGlyphs = fill(m_page.get(), 0, GlyphPage::size, buffer, bufferLength, static_cast<const SimpleFontData*>(fontData));
             } else {
                 m_page = GlyphPage::createForMixedFontData(this);

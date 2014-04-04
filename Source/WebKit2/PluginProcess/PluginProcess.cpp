@@ -50,18 +50,21 @@ namespace WebKit {
 
 PluginProcess& PluginProcess::shared()
 {
-    DEFINE_STATIC_LOCAL(PluginProcess, pluginProcess, ());
+    static NeverDestroyed<PluginProcess> pluginProcess;
     return pluginProcess;
 }
 
 PluginProcess::PluginProcess()
     : m_supportsAsynchronousPluginInitialization(false)
     , m_minimumLifetimeTimer(RunLoop::main(), this, &PluginProcess::minimumLifetimeTimerFired)
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     , m_compositingRenderServerPort(MACH_PORT_NULL)
 #endif
+    , m_connectionActivity("PluginProcess connection activity.")
+    , m_visiblePluginsActivity("Visible plugins from PluginProcess activity.")
 {
     NetscapePlugin::setSetExceptionFunction(WebProcessConnection::setGlobalException);
+    m_audioHardwareListener = AudioHardwareListener::create(*this);
 }
 
 PluginProcess::~PluginProcess()
@@ -121,19 +124,19 @@ bool PluginProcess::shouldTerminate()
     return m_webProcessConnections.isEmpty();
 }
 
-void PluginProcess::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
+void PluginProcess::didReceiveMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder)
 {
     didReceivePluginProcessMessage(connection, decoder);
 }
 
-void PluginProcess::didClose(CoreIPC::Connection*)
+void PluginProcess::didClose(IPC::Connection*)
 {
     // The UI process has crashed, just go ahead and quit.
     // FIXME: If the plug-in is spinning in the main loop, we'll never get this message.
     stopRunLoop();
 }
 
-void PluginProcess::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
+void PluginProcess::didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference, IPC::StringReference)
 {
 }
 
@@ -152,24 +155,32 @@ void PluginProcess::createWebProcessConnection()
 {
     bool didHaveAnyWebProcessConnections = !m_webProcessConnections.isEmpty();
 
-#if PLATFORM(MAC)
+#if OS(DARWIN)
     // Create the listening port.
     mach_port_t listeningPort;
     mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &listeningPort);
 
     // Create a listening connection.
-    RefPtr<WebProcessConnection> connection = WebProcessConnection::create(CoreIPC::Connection::Identifier(listeningPort));
+    RefPtr<WebProcessConnection> connection = WebProcessConnection::create(IPC::Connection::Identifier(listeningPort));
+
+    if (m_audioHardwareListener) {
+        if (m_audioHardwareListener->hardwareActivity() == WebCore::AudioHardwareActivityType::IsActive)
+            connection->audioHardwareDidBecomeActive();
+        else if (m_audioHardwareListener->hardwareActivity() == WebCore::AudioHardwareActivityType::IsInactive)
+            connection->audioHardwareDidBecomeInactive();
+    }
+
     m_webProcessConnections.append(connection.release());
 
-    CoreIPC::Attachment clientPort(listeningPort, MACH_MSG_TYPE_MAKE_SEND);
+    IPC::Attachment clientPort(listeningPort, MACH_MSG_TYPE_MAKE_SEND);
     parentProcessConnection()->send(Messages::PluginProcessProxy::DidCreateWebProcessConnection(clientPort, m_supportsAsynchronousPluginInitialization), 0);
 #elif USE(UNIX_DOMAIN_SOCKETS)
-    CoreIPC::Connection::SocketPair socketPair = CoreIPC::Connection::createPlatformConnection();
+    IPC::Connection::SocketPair socketPair = IPC::Connection::createPlatformConnection();
 
     RefPtr<WebProcessConnection> connection = WebProcessConnection::create(socketPair.server);
     m_webProcessConnections.append(connection.release());
 
-    CoreIPC::Attachment clientSocket(socketPair.client);
+    IPC::Attachment clientSocket(socketPair.client);
     parentProcessConnection()->send(Messages::PluginProcessProxy::DidCreateWebProcessConnection(clientSocket, m_supportsAsynchronousPluginInitialization), 0);
 #else
     notImplemented();
@@ -225,7 +236,7 @@ void PluginProcess::minimumLifetimeTimerFired()
     enableTermination();
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 void PluginProcess::initializeProcessName(const ChildProcessInitializationParameters&)
 {
 }
@@ -234,6 +245,28 @@ void PluginProcess::initializeSandbox(const ChildProcessInitializationParameters
 {
 }
 #endif
+
+void PluginProcess::pluginsForWebProcessDidBecomeVisible()
+{
+    m_visiblePluginsActivity.increment();
+}
+
+void PluginProcess::pluginsForWebProcessDidBecomeHidden()
+{
+    m_visiblePluginsActivity.decrement();
+}
+    
+void PluginProcess::audioHardwareDidBecomeActive()
+{
+    for (auto& connection : m_webProcessConnections)
+        connection->audioHardwareDidBecomeActive();
+}
+    
+void PluginProcess::audioHardwareDidBecomeInactive()
+{
+    for (auto& connection : m_webProcessConnections)
+        connection->audioHardwareDidBecomeInactive();
+}
 
 } // namespace WebKit
 

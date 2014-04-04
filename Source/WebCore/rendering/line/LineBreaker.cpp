@@ -25,6 +25,7 @@
 #include "config.h"
 #include "LineBreaker.h"
 
+#include "BreakingContextInlineHeaders.h"
 #include "RenderCombineText.h"
 
 namespace WebCore {
@@ -74,6 +75,66 @@ void LineBreaker::skipLeadingWhitespace(InlineBidiResolver& resolver, LineInfo& 
         resolver.increment();
     }
     resolver.commitExplicitEmbedding();
+}
+
+InlineIterator LineBreaker::nextLineBreak(InlineBidiResolver& resolver, LineInfo& lineInfo, RenderTextInfo& renderTextInfo, FloatingObject* lastFloatFromPreviousLine, unsigned consecutiveHyphenatedLines, WordMeasurements& wordMeasurements)
+{
+    return nextSegmentBreak(resolver, lineInfo, renderTextInfo, lastFloatFromPreviousLine, consecutiveHyphenatedLines, wordMeasurements);
+}
+
+InlineIterator LineBreaker::nextSegmentBreak(InlineBidiResolver& resolver, LineInfo& lineInfo, RenderTextInfo& renderTextInfo, FloatingObject* lastFloatFromPreviousLine, unsigned consecutiveHyphenatedLines, WordMeasurements& wordMeasurements)
+{
+    reset();
+
+    ASSERT(resolver.position().root() == &m_block);
+
+    bool appliedStartWidth = resolver.position().offset();
+
+    LineWidth width(m_block, lineInfo.isFirstLine(), requiresIndent(lineInfo.isFirstLine(), lineInfo.previousLineBrokeCleanly(), m_block.style()));
+
+    skipLeadingWhitespace(resolver, lineInfo, lastFloatFromPreviousLine, width);
+
+    if (resolver.position().atEnd())
+        return resolver.position();
+
+    BreakingContext context(*this, resolver, lineInfo, width, renderTextInfo, lastFloatFromPreviousLine, appliedStartWidth, m_block);
+
+    while (context.currentObject()) {
+        context.initializeForCurrentObject();
+        if (context.currentObject()->isBR()) {
+            context.handleBR(m_clear);
+        } else if (context.currentObject()->isOutOfFlowPositioned()) {
+            context.handleOutOfFlowPositioned(m_positionedObjects);
+        } else if (context.currentObject()->isFloating()) {
+            context.handleFloat();
+        } else if (context.currentObject()->isRenderInline()) {
+            context.handleEmptyInline();
+        } else if (context.currentObject()->isReplaced()) {
+            context.handleReplaced();
+        } else if (context.currentObject()->isText()) {
+            if (context.handleText(wordMeasurements, m_hyphenated, consecutiveHyphenatedLines)) {
+                // We've hit a hard text line break. Our line break iterator is updated, so go ahead and early return.
+                return context.lineBreak();
+            }
+        } else if (context.currentObject()->isLineBreakOpportunity())
+            context.commitLineBreakAtCurrentWidth(context.currentObject());
+        else
+            ASSERT_NOT_REACHED();
+
+        if (context.atEnd())
+            return context.handleEndOfLine();
+
+        context.commitAndUpdateLineBreakIfNeeded();
+
+        if (context.atEnd())
+            return context.handleEndOfLine();
+
+        context.increment();
+    }
+
+    context.clearLineBreakIfFitsOnLine(true);
+
+    return context.handleEndOfLine();
 }
 
 }

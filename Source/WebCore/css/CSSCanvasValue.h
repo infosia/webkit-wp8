@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -40,9 +40,9 @@ public:
 
     String customCSSText() const;
 
-    PassRefPtr<Image> image(RenderElement*, const IntSize&);
+    PassRefPtr<Image> image(RenderElement*, const FloatSize&);
     bool isFixedSize() const { return true; }
-    IntSize fixedSize(const RenderElement*);
+    FloatSize fixedSize(const RenderElement*);
 
     bool isPending() const { return false; }
     void loadSubimages(CachedResourceLoader*) { }
@@ -60,7 +60,7 @@ private:
 
     // NOTE: We put the CanvasObserver in a member instead of inheriting from it
     // to avoid adding a vptr to CSSCanvasValue.
-    class CanvasObserverProxy FINAL : public CanvasObserver {
+    class CanvasObserverProxy final : public CanvasObserver {
     public:
         explicit CanvasObserverProxy(CSSCanvasValue& ownerValue)
             : m_ownerValue(ownerValue)
@@ -72,15 +72,15 @@ private:
         }
 
     private:
-        virtual void canvasChanged(HTMLCanvasElement& canvas, const FloatRect& changedRect) OVERRIDE
+        virtual void canvasChanged(HTMLCanvasElement& canvas, const FloatRect& changedRect) override
         {
             m_ownerValue.canvasChanged(canvas, changedRect);
         }
-        virtual void canvasResized(HTMLCanvasElement& canvas) OVERRIDE
+        virtual void canvasResized(HTMLCanvasElement& canvas) override
         {
             m_ownerValue.canvasResized(canvas);
         }
-        virtual void canvasDestroyed(HTMLCanvasElement& canvas) OVERRIDE
+        virtual void canvasDestroyed(HTMLCanvasElement& canvas) override
         {
             m_ownerValue.canvasDestroyed(canvas);
         }

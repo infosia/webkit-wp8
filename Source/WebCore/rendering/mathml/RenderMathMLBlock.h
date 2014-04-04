@@ -44,7 +44,7 @@ public:
     RenderMathMLBlock(Element&, PassRef<RenderStyle>);
     RenderMathMLBlock(Document&, PassRef<RenderStyle>);
 
-    virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const OVERRIDE;
+    virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const override;
     
     // MathML defines an "embellished operator" as roughly an <mo> that may have subscripts,
     // superscripts, underscripts, overscripts, or a denominator (as in d/dx, where "d" is some
@@ -55,40 +55,37 @@ public:
     // https://bugs.webkit.org/show_bug.cgi?id=78617.
     virtual RenderMathMLOperator* unembellishedOperator() { return 0; }
     
-    virtual int baselinePosition(FontBaseline, bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const OVERRIDE;
+    virtual int baselinePosition(FontBaseline, bool firstLine, LineDirectionMode, LinePositionMode = PositionOnContainingLine) const override;
     
 #if ENABLE(DEBUG_MATH_LAYOUT)
     virtual void paint(PaintInfo&, const LayoutPoint&);
 #endif
     
     // Create a new RenderMathMLBlock, with a new style inheriting from this->style().
-    RenderMathMLBlock* createAnonymousMathMLBlock(EDisplay = FLEX);
-    
-    void setIgnoreInAccessibilityTree(bool flag) { m_ignoreInAccessibilityTree = flag; }
-    bool ignoreInAccessibilityTree() const { return m_ignoreInAccessibilityTree; }
+    RenderPtr<RenderMathMLBlock> createAnonymousMathMLBlock();
     
 private:
-    virtual bool isRenderMathMLBlock() const OVERRIDE FINAL { return true; }
-    virtual const char* renderName() const OVERRIDE;
-
-    bool m_ignoreInAccessibilityTree;
+    virtual bool isRenderMathMLBlock() const override final { return true; }
+    virtual const char* renderName() const override;
 };
 
-template<> inline bool isRendererOfType<const RenderMathMLBlock>(const RenderObject& renderer) { return renderer.isRenderMathMLBlock(); }
 RENDER_OBJECT_TYPE_CASTS(RenderMathMLBlock, isRenderMathMLBlock())
 
-class RenderMathMLTable FINAL : public RenderTable {
+class RenderMathMLTable final : public RenderTable {
 public:
     explicit RenderMathMLTable(Element& element, PassRef<RenderStyle> style)
         : RenderTable(element, std::move(style))
     {
     }
     
-    virtual int firstLineBaseline() const OVERRIDE;
+    virtual int firstLineBaseline() const override;
     
 private:
-    virtual const char* renderName() const OVERRIDE { return "RenderMathMLTable"; }
+    virtual bool isRenderMathMLTable() const override final { return true; }
+    virtual const char* renderName() const override { return "RenderMathMLTable"; }
 };
+
+RENDER_OBJECT_TYPE_CASTS(RenderMathMLTable, isRenderMathMLTable())
 
 // Parsing functions for MathML Length values
 bool parseMathMLLength(const String&, LayoutUnit&, const RenderStyle*, bool allowNegative = true);

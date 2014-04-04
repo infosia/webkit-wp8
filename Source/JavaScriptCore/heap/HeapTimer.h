@@ -31,14 +31,6 @@
 
 #if USE(CF)
 #include <CoreFoundation/CoreFoundation.h>
-#elif PLATFORM(BLACKBERRY)
-#include <BlackBerryPlatformTimer.h>
-#elif PLATFORM(EFL)
-#if USE(EO)
-typedef struct _Eo_Opaque Ecore_Timer;
-#else
-typedef struct _Ecore_Timer Ecore_Timer;
-#endif
 #endif
 
 namespace JSC {
@@ -68,10 +60,6 @@ protected:
     CFRunLoopTimerContext m_context;
 
     Mutex m_shutdownMutex;
-#elif PLATFORM(BLACKBERRY)
-    void timerDidFire();
-
-    BlackBerry::Platform::Timer<HeapTimer> m_timer;
 #elif PLATFORM(EFL)
     static bool timerEvent(void*);
     Ecore_Timer* add(double delay, void* agent);

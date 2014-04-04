@@ -26,8 +26,6 @@
 #ifndef DFGValueSource_h
 #define DFGValueSource_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGCommon.h"
@@ -122,7 +120,7 @@ public:
     explicit ValueSource(ValueSourceKind valueSourceKind)
         : m_kind(valueSourceKind)
     {
-        ASSERT(kind() == ArgumentsSource || kind() == SourceIsDead);
+        ASSERT(kind() == ArgumentsSource || kind() == SourceIsDead || kind() == ArgumentsSource);
     }
     
     explicit ValueSource(MinifiedID id)
@@ -159,6 +157,8 @@ public:
             return ValueSource(CellInJSStack, where);
         case FlushedBoolean:
             return ValueSource(BooleanInJSStack, where);
+        case FlushedArguments:
+            return ValueSource(ArgumentsSource);
         }
         RELEASE_ASSERT_NOT_REACHED();
         return ValueSource();

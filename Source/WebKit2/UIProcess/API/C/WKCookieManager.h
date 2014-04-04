@@ -35,7 +35,8 @@ extern "C" {
 enum {
     kWKHTTPCookieAcceptPolicyAlways = 0,
     kWKHTTPCookieAcceptPolicyNever = 1,
-    kWKHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain = 2
+    kWKHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain = 2,
+    kWKHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain = 3
 };
 typedef uint32_t WKHTTPCookieAcceptPolicy;
 
@@ -72,6 +73,7 @@ WK_EXPORT void WKCookieManagerGetHostnamesWithCookies(WKCookieManagerRef cookieM
 
 WK_EXPORT void WKCookieManagerDeleteCookiesForHostname(WKCookieManagerRef cookieManager, WKStringRef hostname);
 WK_EXPORT void WKCookieManagerDeleteAllCookies(WKCookieManagerRef cookieManager);
+WK_EXPORT void WKCookieManagerDeleteAllCookiesModifiedAfterDate(WKCookieManagerRef cookieManager, double);
 
 WK_EXPORT void WKCookieManagerSetHTTPCookieAcceptPolicy(WKCookieManagerRef cookieManager, WKHTTPCookieAcceptPolicy policy);
 typedef void (*WKCookieManagerGetHTTPCookieAcceptPolicyFunction)(WKHTTPCookieAcceptPolicy, WKErrorRef, void*);

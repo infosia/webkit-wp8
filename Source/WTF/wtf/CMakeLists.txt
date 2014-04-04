@@ -5,7 +5,6 @@ set(WTF_HEADERS
     Atomics.h
     Bag.h
     BagToHashMap.h
-    BitArray.h
     BitVector.h
     Bitmap.h
     BoundsCheckedPointer.h
@@ -14,6 +13,7 @@ set(WTF_HEADERS
     CompilationThread.h
     Compiler.h
     Compression.h
+    CryptographicUtilities.h
     CryptographicallyRandomNumber.h
     CurrentTime.h
     DataLog.h
@@ -29,7 +29,6 @@ set(WTF_HEADERS
     FastMalloc.h
     FeatureDefines.h
     FilePrintStream.h
-    FixedArray.h
     FlipBytes.h
     Forward.h
     FunctionDispatcher.h
@@ -40,10 +39,13 @@ set(WTF_HEADERS
     HashFunctions.h
     HashIterators.h
     HashMap.h
+    HashMethod.h
     HashSet.h
     HashTable.h
     HashTraits.h
     HexNumber.h
+    IteratorAdaptors.h
+    IteratorRange.h
     ListHashSet.h
     Locker.h
     MD5.h
@@ -91,6 +93,7 @@ set(WTF_HEADERS
     SaturatedArithmetic.h
     SegmentedVector.h
     StackBounds.h
+    StackStats.h
     StaticConstructors.h
     StdLibExtras.h
     StringExtras.h
@@ -101,7 +104,6 @@ set(WTF_HEADERS
     TCSpinLock.h
     TCSystemAlloc.h
     ThreadIdentifierDataPthreads.h
-    ThreadRestrictionVerifier.h
     ThreadSafeRefCounted.h
     ThreadSpecific.h
     Threading.h
@@ -131,9 +133,11 @@ set(WTF_HEADERS
     text/Base64.h
     text/CString.h
     text/IntegerToStringConversion.h
+    text/LChar.h
     text/StringBuffer.h
     text/StringHash.h
     text/StringImpl.h
+    text/StringView.h
     text/WTFString.h
 
     threads/BinarySemaphore.h
@@ -141,7 +145,6 @@ set(WTF_HEADERS
     unicode/CharacterNames.h
     unicode/Collator.h
     unicode/UTF8.h
-    unicode/Unicode.h
 )
 
 set(WTF_SOURCES
@@ -150,6 +153,7 @@ set(WTF_SOURCES
     BitVector.cpp
     CompilationThread.cpp
     Compression.cpp
+    CryptographicUtilities.cpp
     CryptographicallyRandomNumber.cpp
     CurrentTime.cpp
     DataLog.cpp
@@ -178,6 +182,7 @@ set(WTF_SOURCES
     RunLoop.cpp
     SHA1.cpp
     SixCharacterHash.cpp
+    StackStats.cpp
     StackBounds.cpp
     StringPrintStream.cpp
     TCSystemAlloc.cpp
@@ -222,30 +227,16 @@ set(WTF_LIBRARIES
     ${CMAKE_DL_LIBS}
 )
 
-if (WTF_USE_ICU_UNICODE)
-    list(APPEND WTF_HEADERS
-        unicode/icu/UnicodeIcu.h
-    )
-    list(APPEND WTF_SOURCES
-        unicode/icu/CollatorICU.cpp
-    )
-    list(APPEND WTF_INCLUDE_DIRECTORIES
-        ${ICU_INCLUDE_DIRS}
-    )
-    list(APPEND WTF_LIBRARIES
-        ${ICU_I18N_LIBRARIES}
-        ${ICU_LIBRARIES}
-    )
-elseif (WTF_USE_WCHAR_UNICODE)
-    list(APPEND WTF_HEADERS
-        unicode/wchar/UnicodeWchar.h
-    )
-    list(APPEND WTF_SOURCES
-        unicode/CollatorDefault.cpp
-
-        unicode/wchar/UnicodeWchar.cpp
-    )
-endif ()
+list(APPEND WTF_SOURCES
+    unicode/icu/CollatorICU.cpp
+)
+list(APPEND WTF_INCLUDE_DIRECTORIES
+    ${ICU_INCLUDE_DIRS}
+)
+list(APPEND WTF_LIBRARIES
+    ${ICU_I18N_LIBRARIES}
+    ${ICU_LIBRARIES}
+)
 
 if (WIN32)
     list(APPEND WTF_SOURCES

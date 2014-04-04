@@ -2,7 +2,7 @@
  * Copyright (C) 2004, 2005, 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) 2004, 2005 Rob Buis <buis@kde.org>
  * Copyright (C) 2005 Eric Seidel <eric@webkit.org>
- * Copyright (C) 2006 Apple Computer, Inc
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2009 Google, Inc.
  * Copyright (C) 2011 Renata Hodovan <reni@webkit.org>
  * Copyright (C) 2011 University of Szeged
@@ -26,25 +26,24 @@
 #ifndef RenderSVGPath_h
 #define RenderSVGPath_h
 
-#if ENABLE(SVG)
 #include "RenderSVGShape.h"
 
 namespace WebCore {
 
-class RenderSVGPath FINAL : public RenderSVGShape {
+class RenderSVGPath final : public RenderSVGShape {
 public:
     RenderSVGPath(SVGGraphicsElement&, PassRef<RenderStyle>);
     virtual ~RenderSVGPath();
 
 private:
-    virtual bool isSVGPath() const OVERRIDE { return true; }
+    virtual bool isSVGPath() const override { return true; }
     virtual const char* renderName() const { return "RenderSVGPath"; }
 
-    virtual void updateShapeFromElement() OVERRIDE;
+    virtual void updateShapeFromElement() override;
     FloatRect calculateUpdatedStrokeBoundingBox() const;
 
-    virtual void strokeShape(GraphicsContext*) const OVERRIDE;
-    virtual bool shapeDependentStrokeContains(const FloatPoint&) OVERRIDE;
+    virtual void strokeShape(GraphicsContext*) const override;
+    virtual bool shapeDependentStrokeContains(const FloatPoint&) override;
 
     bool shouldStrokeZeroLengthSubpath() const;
     Path* zeroLengthLinecapPath(const FloatPoint&) const;
@@ -58,5 +57,4 @@ RENDER_OBJECT_TYPE_CASTS(RenderSVGPath, isSVGPath())
 
 }
 
-#endif // ENABLE(SVG)
 #endif

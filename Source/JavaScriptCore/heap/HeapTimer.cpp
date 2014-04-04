@@ -26,10 +26,10 @@
 #include "config.h"
 #include "HeapTimer.h"
 
-#include "APIShims.h"
+#include "IncrementalSweeper.h"
 #include "JSObject.h"
 #include "JSString.h"
-
+#include "JSCInlines.h"
 #include <wtf/MainThread.h>
 #include <wtf/Threading.h>
 
@@ -85,43 +85,21 @@ void HeapTimer::timerDidFire(CFRunLoopTimerRef timer, void* context)
     }
 
     HeapTimer* heapTimer = 0;
-    if (vm->heap.activityCallback() && vm->heap.activityCallback()->m_timer.get() == timer)
-        heapTimer = vm->heap.activityCallback();
+    if (vm->heap.fullActivityCallback() && vm->heap.fullActivityCallback()->m_timer.get() == timer)
+        heapTimer = vm->heap.fullActivityCallback();
+    else if (vm->heap.edenActivityCallback() && vm->heap.edenActivityCallback()->m_timer.get() == timer)
+        heapTimer = vm->heap.edenActivityCallback();
     else if (vm->heap.sweeper()->m_timer.get() == timer)
         heapTimer = vm->heap.sweeper();
     else
         RELEASE_ASSERT_NOT_REACHED();
 
     {
-        APIEntryShim shim(vm);
+        JSLockHolder locker(vm);
         heapTimer->doWork();
     }
 
     apiLock->unlock();
-}
-
-#elif PLATFORM(BLACKBERRY)
-
-HeapTimer::HeapTimer(VM* vm)
-    : m_vm(vm)
-    , m_timer(this, &HeapTimer::timerDidFire)
-{
-    // FIXME: Implement HeapTimer for other threads.
-    if (WTF::isMainThread() && !m_timer.tryCreateClient())
-        CRASH();
-}
-
-HeapTimer::~HeapTimer()
-{
-}
-
-void HeapTimer::timerDidFire()
-{
-    doWork();
-}
-
-void HeapTimer::invalidate()
-{
 }
 
 #elif PLATFORM(EFL)
@@ -155,7 +133,7 @@ bool HeapTimer::timerEvent(void* info)
 {
     HeapTimer* agent = static_cast<HeapTimer*>(info);
     
-    APIEntryShim shim(agent->m_vm);
+    JSLockHolder locker(agent->m_vm);
     agent->doWork();
     agent->m_timer = 0;
     

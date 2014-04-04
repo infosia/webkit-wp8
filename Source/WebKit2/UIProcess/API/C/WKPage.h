@@ -41,6 +41,7 @@
 #include <WebKit2/WKPagePolicyClient.h>
 #include <WebKit2/WKPageUIClient.h>
 #include <WebKit2/WKPageVisibilityTypes.h>
+#include <WebKit2/WKSessionRef.h>
 
 #ifndef __cplusplus
 #include <stdbool.h>
@@ -154,8 +155,6 @@ WK_EXPORT WKSize WKPageFixedLayoutSize(WKPageRef page);
 
 WK_EXPORT void WKPageListenForLayoutMilestones(WKPageRef page, WKLayoutMilestones milestones);
 
-WK_EXPORT void WKPageSetVisibilityState(WKPageRef page, WKPageVisibilityState state, bool isInitialState);
-
 WK_EXPORT bool WKPageHasHorizontalScrollbar(WKPageRef page);
 WK_EXPORT bool WKPageHasVerticalScrollbar(WKPageRef page);
 
@@ -175,6 +174,9 @@ WK_EXPORT bool WKPageRubberBandsAtTop(WKPageRef);
 WK_EXPORT void WKPageSetRubberBandsAtTop(WKPageRef, bool rubberBandsAtTop);
 WK_EXPORT bool WKPageRubberBandsAtBottom(WKPageRef);
 WK_EXPORT void WKPageSetRubberBandsAtBottom(WKPageRef, bool rubberBandsAtBottom);
+
+WK_EXPORT void WKPageSetBackgroundExtendsBeyondPage(WKPageRef, bool backgroundExtendsBeyondPage);
+WK_EXPORT bool WKPageBackgroundExtendsBeyondPage(WKPageRef);
 
 WK_EXPORT bool WKPageCanDelete(WKPageRef page);
 WK_EXPORT bool WKPageHasSelectedRange(WKPageRef page);
@@ -197,6 +199,8 @@ WK_EXPORT void WKPageSetPageFormClient(WKPageRef page, const WKPageFormClientBas
 WK_EXPORT void WKPageSetPageLoaderClient(WKPageRef page, const WKPageLoaderClientBase* client);
 WK_EXPORT void WKPageSetPagePolicyClient(WKPageRef page, const WKPagePolicyClientBase* client);
 WK_EXPORT void WKPageSetPageUIClient(WKPageRef page, const WKPageUIClientBase* client);
+
+WK_EXPORT void WKPageSetSession(WKPageRef page, WKSessionRef session);
 
 typedef void (*WKPageRunJavaScriptFunction)(WKSerializedScriptValueRef, WKErrorRef, void*);
 WK_EXPORT void WKPageRunJavaScriptInMainFrame(WKPageRef page, WKStringRef script, void* context, WKPageRunJavaScriptFunction function);

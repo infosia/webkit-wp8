@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -1088,9 +1088,7 @@ static inline void getNPRect(const NSRect& nr, NPRect& npr)
             _pluginLayer = adoptNS((CALayer *)value);
 
             BOOL accleratedCompositingEnabled = false;
-#if USE(ACCELERATED_COMPOSITING)
             accleratedCompositingEnabled = [[[self webView] preferences] acceleratedCompositingEnabled];
-#endif
             if (accleratedCompositingEnabled) {
                 // FIXME: This code can be shared between WebHostedNetscapePluginView and WebNetscapePluginView.
                 // Since this layer isn't going to be inserted into a view, we need to create another layer and flip its geometry
@@ -2077,13 +2075,13 @@ static inline void getNPRect(const NSRect& nr, NPRect& npr)
             *(WKNBrowserContainerCheckFuncs **)value = browserContainerCheckFuncs();
             return NPERR_NO_ERROR;
         }
-#if USE(ACCELERATED_COMPOSITING)
+
         case WKNVSupportsCompositingCoreAnimationPluginsBool:
         {
             *(NPBool *)value = [[[self webView] preferences] acceleratedCompositingEnabled];
             return NPERR_NO_ERROR;
         }
-#endif
+
         default:
             break;
     }

@@ -21,8 +21,6 @@
 #ifndef SVGPolyElement_h
 #define SVGPolyElement_h
 
-#if ENABLE(SVG)
-
 #include "SVGAnimatedBoolean.h"
 #include "SVGExternalResourcesRequired.h"
 #include "SVGGraphicsElement.h"
@@ -44,14 +42,14 @@ protected:
     SVGPolyElement(const QualifiedName&, Document&);
 
 private:
-    virtual bool isValid() const { return SVGTests::isValid(); }
-    virtual bool supportsFocus() const OVERRIDE { return true; }
+    virtual bool isValid() const override { return SVGTests::isValid(); }
+    virtual bool supportsFocus() const override { return true; }
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE; 
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override; 
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
-    virtual bool supportsMarkers() const { return true; }
+    virtual bool supportsMarkers() const override { return true; }
 
     // Custom 'points' property
     static void synchronizePoints(SVGElement* contextElement);
@@ -70,7 +68,5 @@ bool isSVGPolyElement(const Node&);
 NODE_TYPE_CASTS(SVGPolyElement)
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)
 
 #endif

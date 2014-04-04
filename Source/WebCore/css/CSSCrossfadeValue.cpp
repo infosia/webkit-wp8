@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -44,13 +44,13 @@ static inline double blendFunc(double from, double to, double progress)
     return blend(from, to, progress);
 }
 
-static bool subimageKnownToBeOpaque(CSSValue* value, const RenderElement* renderer)
+static bool subimageKnownToBeOpaque(CSSValue& value, const RenderElement* renderer)
 {
-    if (value->isImageValue())
-        return toCSSImageValue(value)->knownToBeOpaque(renderer);
+    if (value.isImageValue())
+        return toCSSImageValue(value).knownToBeOpaque(renderer);
 
-    if (value->isImageGeneratorValue())
-        return static_cast<CSSImageGeneratorValue*>(value)->knownToBeOpaque(renderer);
+    if (value.isImageGeneratorValue())
+        return toCSSImageGeneratorValue(value).knownToBeOpaque(renderer);
 
     ASSERT_NOT_REACHED();
 
@@ -78,7 +78,7 @@ String CSSCrossfadeValue::customCSSText() const
     return result.toString();
 }
 
-IntSize CSSCrossfadeValue::fixedSize(const RenderElement* renderer)
+FloatSize CSSCrossfadeValue::fixedSize(const RenderElement* renderer)
 {
     float percentage = m_percentageValue->getFloatValue();
     float inversePercentage = 1 - percentage;
@@ -88,17 +88,17 @@ IntSize CSSCrossfadeValue::fixedSize(const RenderElement* renderer)
     CachedImage* cachedToImage = cachedImageForCSSValue(m_toValue.get(), cachedResourceLoader);
 
     if (!cachedFromImage || !cachedToImage)
-        return IntSize();
+        return FloatSize();
 
-    IntSize fromImageSize = cachedFromImage->imageForRenderer(renderer)->size();
-    IntSize toImageSize = cachedToImage->imageForRenderer(renderer)->size();
+    FloatSize fromImageSize = cachedFromImage->imageForRenderer(renderer)->size();
+    FloatSize toImageSize = cachedToImage->imageForRenderer(renderer)->size();
 
     // Rounding issues can cause transitions between images of equal size to return
     // a different fixed size; avoid performing the interpolation if the images are the same size.
     if (fromImageSize == toImageSize)
         return fromImageSize;
 
-    return IntSize(fromImageSize.width() * inversePercentage + toImageSize.width() * percentage,
+    return FloatSize(fromImageSize.width() * inversePercentage + toImageSize.width() * percentage,
         fromImageSize.height() * inversePercentage + toImageSize.height() * percentage);
 }
 
@@ -110,7 +110,7 @@ bool CSSCrossfadeValue::isPending() const
 
 bool CSSCrossfadeValue::knownToBeOpaque(const RenderElement* renderer) const
 {
-    return subimageKnownToBeOpaque(m_fromValue.get(), renderer) && subimageKnownToBeOpaque(m_toValue.get(), renderer);
+    return subimageKnownToBeOpaque(*m_fromValue, renderer) && subimageKnownToBeOpaque(*m_toValue, renderer);
 }
 
 void CSSCrossfadeValue::loadSubimages(CachedResourceLoader* cachedResourceLoader)
@@ -138,7 +138,7 @@ void CSSCrossfadeValue::loadSubimages(CachedResourceLoader* cachedResourceLoader
     m_crossfadeSubimageObserver.setReady(true);
 }
 
-PassRefPtr<Image> CSSCrossfadeValue::image(RenderElement* renderer, const IntSize& size)
+PassRefPtr<Image> CSSCrossfadeValue::image(RenderElement* renderer, const FloatSize& size)
 {
     if (size.isEmpty())
         return 0;

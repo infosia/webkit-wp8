@@ -27,6 +27,10 @@
 #include "FormAssociatedElement.h"
 #include "LabelableElement.h"
 
+#if ENABLE(IOS_AUTOCORRECT_AND_AUTOCAPITALIZE)
+#include "Autocapitalize.h"
+#endif
+
 namespace WebCore {
 
 class FormDataList;
@@ -50,7 +54,7 @@ public:
     void setFormMethod(const String&);
     bool formNoValidate() const;
 
-    void ancestorDisabledStateWasChanged();
+    void setAncestorDisabled(bool isDisabled);
 
     virtual void reset() { }
 
@@ -64,10 +68,10 @@ public:
     void dispatchChangeEvent();
     void dispatchFormControlInputEvent();
 
-    virtual bool isDisabledFormControl() const OVERRIDE;
+    virtual bool isDisabledFormControl() const override;
 
-    virtual bool isFocusable() const OVERRIDE;
-    virtual bool isEnumeratable() const OVERRIDE { return false; }
+    virtual bool isFocusable() const override;
+    virtual bool isEnumeratable() const override { return false; }
 
     bool isRequired() const;
 
@@ -79,19 +83,28 @@ public:
 
     // Override in derived classes to get the encoded name=value pair for submitting.
     // Return true for a successful control (see HTML4-17.13.2).
-    virtual bool appendFormData(FormDataList&, bool) OVERRIDE { return false; }
+    virtual bool appendFormData(FormDataList&, bool) override { return false; }
 
     virtual bool isSuccessfulSubmitButton() const { return false; }
     virtual bool isActivatedSubmit() const { return false; }
     virtual void setActivatedSubmit(bool) { }
 
-    virtual bool willValidate() const OVERRIDE;
+#if ENABLE(IOS_AUTOCORRECT_AND_AUTOCAPITALIZE)
+    bool autocorrect() const;
+    void setAutocorrect(bool);
+
+    WebAutocapitalizeType autocapitalizeType() const;
+    const AtomicString& autocapitalize() const;
+    void setAutocapitalize(const AtomicString&);
+#endif
+
+    virtual bool willValidate() const override;
     void updateVisibleValidationMessage();
     void hideVisibleValidationMessage();
     bool checkValidity(Vector<RefPtr<FormAssociatedElement>>* unhandledInvalidControls = 0);
     // This must be called when a validation constraint or control value is changed.
     void setNeedsValidityCheck();
-    virtual void setCustomValidity(const String&) OVERRIDE;
+    virtual void setCustomValidity(const String&) override;
 
     bool isReadOnly() const { return m_isReadOnly; }
     bool isDisabledOrReadOnly() const { return isDisabledFormControl() || m_isReadOnly; }
@@ -107,21 +120,25 @@ public:
 protected:
     HTMLFormControlElement(const QualifiedName& tagName, Document&, HTMLFormElement*);
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void requiredAttributeChanged();
+    bool disabledByAncestorFieldset() const { return m_disabledByAncestorFieldset; }
+
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
     virtual void disabledAttributeChanged();
-    virtual void didAttachRenderers() OVERRIDE;
-    virtual InsertionNotificationRequest insertedInto(ContainerNode&) OVERRIDE;
-    virtual void removedFrom(ContainerNode&) OVERRIDE;
-    virtual void didMoveToNewDocument(Document* oldDocument) OVERRIDE;
+    virtual void disabledStateChanged();
+    virtual void readOnlyAttributeChanged();
+    virtual void requiredAttributeChanged();
+    virtual void didAttachRenderers() override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
+    virtual void didMoveToNewDocument(Document* oldDocument) override;
 
-    virtual bool supportsFocus() const OVERRIDE;
-    virtual bool isKeyboardFocusable(KeyboardEvent*) const OVERRIDE;
-    virtual bool isMouseFocusable() const OVERRIDE;
+    virtual bool supportsFocus() const override;
+    virtual bool isKeyboardFocusable(KeyboardEvent*) const override;
+    virtual bool isMouseFocusable() const override;
 
-    virtual void didRecalcStyle(Style::Change) OVERRIDE;
+    virtual void didRecalcStyle(Style::Change) override;
 
-    virtual void dispatchBlurEvent(PassRefPtr<Element> newFocusedElement) OVERRIDE;
+    virtual void dispatchBlurEvent(PassRefPtr<Element> newFocusedElement) override;
 
     // This must be called any time the result of willValidate() has changed.
     void setNeedsWillValidateCheck();
@@ -130,31 +147,31 @@ protected:
     bool validationMessageShadowTreeContains(const Node&) const;
 
 private:
-    virtual void refFormAssociatedElement() OVERRIDE { ref(); }
-    virtual void derefFormAssociatedElement() OVERRIDE { deref(); }
+    virtual void refFormAssociatedElement() override { ref(); }
+    virtual void derefFormAssociatedElement() override { deref(); }
 
-    virtual bool isFormControlElement() const OVERRIDE { return true; }
-    virtual bool alwaysCreateUserAgentShadowRoot() const OVERRIDE { return true; }
+    virtual bool isFormControlElement() const override { return true; }
+    virtual bool alwaysCreateUserAgentShadowRoot() const override { return true; }
 
-    virtual short tabIndex() const OVERRIDE FINAL;
+    virtual short tabIndex() const override final;
 
-    virtual HTMLFormElement* virtualForm() const OVERRIDE;
-    virtual bool isDefaultButtonForForm() const OVERRIDE;
-    virtual bool isValidFormControlElement() OVERRIDE;
-    void updateAncestorDisabledState() const;
+    virtual HTMLFormElement* virtualForm() const override;
+    virtual bool isDefaultButtonForForm() const override;
+    virtual bool isValidFormControlElement() const override;
 
-    virtual HTMLElement& asHTMLElement() OVERRIDE FINAL { return *this; }
-    virtual const HTMLFormControlElement& asHTMLElement() const OVERRIDE FINAL { return *this; }
-    virtual HTMLFormControlElement* asFormNamedItem() OVERRIDE FINAL { return this; }
+    bool computeIsDisabledByFieldsetAncestor() const;
 
-    OwnPtr<ValidationMessage> m_validationMessage;
+    virtual HTMLElement& asHTMLElement() override final { return *this; }
+    virtual const HTMLFormControlElement& asHTMLElement() const override final { return *this; }
+    virtual HTMLFormControlElement* asFormNamedItem() override final { return this; }
+
+    std::unique_ptr<ValidationMessage> m_validationMessage;
     bool m_disabled : 1;
     bool m_isReadOnly : 1;
     bool m_isRequired : 1;
     bool m_valueMatchesRenderer : 1;
+    bool m_disabledByAncestorFieldset : 1;
 
-    enum AncestorDisabledState { AncestorDisabledStateUnknown, AncestorDisabledStateEnabled, AncestorDisabledStateDisabled };
-    mutable AncestorDisabledState m_ancestorDisabledState;
     enum DataListAncestorState { Unknown, InsideDataList, NotInsideDataList };
     mutable enum DataListAncestorState m_dataListAncestorState;
 
@@ -179,6 +196,8 @@ inline bool isHTMLFormControlElement(const Node& node) { return node.isElementNo
 template <> inline bool isElementOfType<const HTMLFormControlElement>(const Element& element) { return isHTMLFormControlElement(element); }
 
 NODE_TYPE_CASTS(HTMLFormControlElement)
+
+FORM_ASSOCIATED_ELEMENT_TYPE_CASTS(HTMLFormControlElement, isFormControlElement())
 
 } // namespace
 

@@ -27,25 +27,22 @@
 #include "JSAPIWrapperObject.h"
 
 #include "DelayedReleaseScope.h"
-#include "JSCJSValueInlines.h"
+#include "JSCInlines.h"
 #include "JSCallbackObject.h"
-#include "JSCellInlines.h"
 #include "JSVirtualMachineInternal.h"
-#include "SlotVisitorInlines.h"
 #include "Structure.h"
-#include "StructureInlines.h"
 
 #if JSC_OBJC_API_ENABLED
 
 class JSAPIWrapperObjectHandleOwner : public JSC::WeakHandleOwner {
 public:
-    virtual void finalize(JSC::Handle<JSC::Unknown>, void*) OVERRIDE;
-    virtual bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>, void* context, JSC::SlotVisitor&) OVERRIDE;
+    virtual void finalize(JSC::Handle<JSC::Unknown>, void*) override;
+    virtual bool isReachableFromOpaqueRoots(JSC::Handle<JSC::Unknown>, void* context, JSC::SlotVisitor&) override;
 };
 
 static JSAPIWrapperObjectHandleOwner* jsAPIWrapperObjectHandleOwner()
 {
-    DEFINE_STATIC_LOCAL(JSAPIWrapperObjectHandleOwner, jsWrapperObjectHandleOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSAPIWrapperObjectHandleOwner, jsWrapperObjectHandleOwner, ());
     return &jsWrapperObjectHandleOwner;
 }
 

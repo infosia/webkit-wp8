@@ -37,18 +37,18 @@ PluginProcessCreationParameters::PluginProcessCreationParameters()
 {
 }
 
-void PluginProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
+void PluginProcessCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder.encodeEnum(processType);
     encoder << supportsAsynchronousPluginInitialization;
     encoder << minimumLifetime;
     encoder << terminationTimeout;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     encoder << acceleratedCompositingPort;
 #endif
 }
 
-bool PluginProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, PluginProcessCreationParameters& result)
+bool PluginProcessCreationParameters::decode(IPC::ArgumentDecoder& decoder, PluginProcessCreationParameters& result)
 {
     if (!decoder.decodeEnum(result.processType))
         return false;
@@ -58,7 +58,7 @@ bool PluginProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, 
         return false;
     if (!decoder.decode(result.terminationTimeout))
         return false;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (!decoder.decode(result.acceleratedCompositingPort))
         return false;
 #endif

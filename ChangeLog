@@ -1,3 +1,1588 @@
+2014-04-02  Raphael Kubo da Costa  <raphael.kubo.da.costa@intel.com>
+
+        [GTK][CMake] Look for glx.h in OPENGL_INCLUDE_DIR.
+        https://bugs.webkit.org/show_bug.cgi?id=131095
+
+        Reviewed by Martin Robinson.
+
+        One needs to take into account OpenGL's include directory found via
+        find_package() when looking for glx.h, since if the former is a
+        non-standard location the latter will also be. If this is not it is
+        possible that OpenGL is found but GLX support is not properly detected.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2014-04-02  Martin Robinson  <mrobinson@igalia.com>
+
+        REGRESSION(r165704): [GTK] Inspector resources not correctly generated
+        https://bugs.webkit.org/show_bug.cgi?id=130343
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * CMakeLists.txt: Add a variable which points to the directory to store WebInspectorUI
+        derived sources.
+        * Source/cmake/WebKitFS.cmake: Generate WebInspectorUI derived sources directories.
+
+2014-04-01  Raphael Kubo da Costa  <raphael.kubo.da.costa@intel.com>
+
+        [CMake] Drop port check from FindEGL.cmake.
+        https://bugs.webkit.org/show_bug.cgi?id=131091
+
+        Reviewed by Gyuyoung Kim.
+
+        There is no reason to mark some variables as advanced only for the
+        GTK+ port.
+
+        * Source/cmake/FindEGL.cmake: Mark EGL_INCLUDE_DIR and EGL_LIBRARY
+        as advanced regardless of the port.
+
+2014-04-01  Dániel Bátyai  <dbatyai.u-szeged@partner.samsung.com>
+
+        Fix the !ENABLE(BATTERY_STATUS) build
+        https://bugs.webkit.org/show_bug.cgi?id=130183
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/OptionsEfl.cmake:
+
+2014-03-31  Raphael Kubo da Costa  <raphael.kubo.da.costa@intel.com>
+
+        [CMake][GTK] Do not expand variables twice in if() checks.
+        https://bugs.webkit.org/show_bug.cgi?id=130964
+
+        Reviewed by Martin Robinson.
+
+        In CMake, `if (${foo})' causes $foo to be evaluated first and its value
+        to be checked by the if clause. This is not what we want, and
+        configuration fails when, say, GLX support wasn't found as the if
+        clause is actually evaluated as `if (TRUE AND (OR TRUE))'.
+
+        * Source/cmake/OptionsGTK.cmake: Pass if (FOO) instead of if (${FOO})
+        where necessary.
+
+2014-03-31  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove scripts code only applicable to autotools
+        https://bugs.webkit.org/show_bug.cgi?id=130841
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/WebKitPackaging.cmake: No longer need to consider autotools files.
+
+2014-03-31  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Use PROJECT_VERSION_* instead of WEBKIT_*_VERSION
+        https://bugs.webkit.org/show_bug.cgi?id=130936
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/cmake/OptionsGTK.cmake: No longer emulate the Autotools macro names.
+
+2014-03-31  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Add support for GTK3 plugins
+        https://bugs.webkit.org/show_bug.cgi?id=130599
+
+        Reviewed by Martin Robinson.
+
+        * Source/cmake/OptionsGTK.cmake:
+
+2014-03-28  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        [EFL] Bump glib version from 2.36 to 2.38 
+        https://bugs.webkit.org/show_bug.cgi?id=130886
+
+        Reviewed by Csaba Osztrogonác.
+
+        * Source/cmake/OptionsEfl.cmake: Required glib-2.38 version.
+
+2014-03-26  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Remove shape-inside support
+        https://bugs.webkit.org/show_bug.cgi?id=130698
+
+        Reviewed by David Hyatt.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-03-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Remove the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=130717
+
+        Reviewed by Anders Carlsson.
+
+        * .gitignore: Remove references to autotools files.
+        * GNUmakefile.am: Removed.
+        * Source/autotools/CheckSystemAndBasicDependencies.m4: Removed.
+        * Source/autotools/CustomMacros.m4: Removed.
+        * Source/autotools/FindDependencies.m4: Removed.
+        * Source/autotools/PrintBuildConfiguration.m4: Removed.
+        * Source/autotools/ReadCommandLineArguments.m4: Removed.
+        * Source/autotools/SetupAutoconfHeader.m4: Removed.
+        * Source/autotools/SetupAutomake.m4: Removed.
+        * Source/autotools/SetupCompilerFlags.m4: Removed.
+        * Source/autotools/SetupLibtool.m4: Removed.
+        * Source/autotools/SetupWebKitFeatures.m4: Removed.
+        * Source/autotools/Versions.m4: Removed.
+        * Source/autotools/acinclude.m4: Removed.
+        * Source/autotools/dolt.m4: Removed.
+        * Source/autotools/gsettings.m4: Removed.
+        * Source/cmake/OptionsGTK.cmake:
+        * autogen.sh: Removed.
+        * configure.ac: Removed.
+
+2014-03-25  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        [EFL] Add ARM64 build support
+        https://bugs.webkit.org/show_bug.cgi?id=130506
+
+        Rubber stamped by Gyuyoung Kim.
+
+        * CMakeLists.txt: Set WTF_CPU_ARM64 when aarch64 is defined.
+
+2014-03-25  Michał Pakuła vel Rutka  <m.pakula@samsung.com>
+
+        [EFL][WK2] Add NETWORK_PROCESS build option
+        https://bugs.webkit.org/show_bug.cgi?id=130131
+
+        Reviewed by Gyuyoung Kim.
+
+        Add option to build EFL port with NETWORK_PROCESS set on. By default NETWORK_PROCESS is
+        set off.
+
+        * Source/cmake/OptionsEfl.cmake:
+
+2014-03-24  Brian Burg  <bburg@apple.com>
+
+        Web Replay: capture and replay keyboard events
+        https://bugs.webkit.org/show_bug.cgi?id=130314
+
+        Reviewed by Joseph Pecoraro.
+
+        * ManualTests/inspector/replay-keyboard-events.html: Added.
+
+2014-03-24  Sangyong Park  <sy302.park@gmail.com>
+
+        [EFL] Inspector page is not loaded.
+        https://bugs.webkit.org/show_bug.cgi?id=130661
+
+        Reviewed by Gyuyoung Kim.
+
+        Inspector page is not loaded, because some javascript files are not installed.
+        (InspectorJSBackendCommands.js, InspectorWebBackendCommands.js)
+
+        * Source/PlatformEfl.cmake:
+
+2014-03-20  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [EFL][GTK] Get CMake to find Freetype2 properly
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+
+        Reviewed by Martin Robinson.
+
+        Newer versions of CMake are not able to find Freetype2 correctly.
+        FindFreetype2.cmake checks for the version number in freetype.h header, since it seems that bug exists in
+        freetype2 repo, because a completely different version number is found in freetype2.pc.
+
+        * Source/cmake/FindFreetype2.cmake: Added.
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+
+2014-03-20  Brian Burg  <bburg@apple.com>
+
+        Web Replay: capture and replay mouse events
+        https://bugs.webkit.org/show_bug.cgi?id=129395
+
+        Reviewed by Joseph Pecoraro.
+
+        Create a manual test for capture/replay of mouse events.
+        Copy over the crypto-md5.js library from SunSpider.
+
+        * ManualTests/inspector/replay-mouse-events.html: Added.
+        * ManualTests/inspector/resources/crypto-md5.js: Added.
+
+2014-03-20  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][CMake] Add support for building with Clang
+        https://bugs.webkit.org/show_bug.cgi?id=130260
+
+        Reviewed by Martin Robinson.
+
+        * Source/PlatformGTK.cmake: Run the generate-gtkdoc script with the CFLAGS env set
+        to the list C compiler flags as constructed by CMake.
+        * Source/cmake/OptionsCommon.cmake: When building with Clang, use the -Qunused-arguments
+        compiler option to suppress verbose warnings about arguments that went unused by the driver.
+        * Source/cmake/OptionsGTK.cmake: Use -fno-omit-frame-pointer for both GCC and Clang.
+        -fno-tree-dce should be used only for GCC.
+        * Source/cmake/gtest/CMakeLists.txt: When building with Clang the GTest framework
+        should be built with GTEST_HAS_TR1_TUPLE macro defined to 0 to avoid build failures.
+
+2014-03-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r165962.
+        https://bugs.webkit.org/show_bug.cgi?id=130512
+
+        It broke the build (Requested by Ossy on #webkit).
+
+        Reverted changeset:
+
+        "[EFL][GTK] Get CMake to find Freetype2 properly"
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+        http://trac.webkit.org/changeset/165962
+
+2014-03-20  Thiago de Barros Lacerda  <thiago.lacerda@openbossa.org>
+
+        [EFL][GTK] Get CMake to find Freetype2 properly
+        https://bugs.webkit.org/show_bug.cgi?id=130150
+
+        Reviewed by Csaba Osztrogonác.
+
+        Newer versions of CMake are not able to find Freetype2 correctly.
+        FindFreetype2.cmake checks for the version number in freetype.h header, since it seems that bug exists in
+        freetype2 repo, because a completely different version number is found in freetype2.pc.
+
+        * Source/cmake/FindFreetype2.cmake: Added.
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+
+2014-03-17  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] human readable language code for tracks
+        https://bugs.webkit.org/show_bug.cgi?id=124514
+
+        Reviewed by Martin Robinson.
+
+        * Source/autotools/FindDependencies.m4: Add gstreamer-tag-1.0.
+        * Source/cmake/FindGStreamer.cmake: Same.
+        * Source/cmake/OptionsEfl.cmake: Same.
+        * Source/cmake/OptionsGTK.cmake: Same.
+
+2014-03-17  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] Credential storage is not enabled
+        https://bugs.webkit.org/show_bug.cgi?id=130149
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/OptionsGTK.cmake: Add an ENABLE_CREDENTIAL_STORAGE option to the configuration
+        and look libsecret when it's enabled.
+        * Source/cmakeconfig.h.cmake: Expose the ENABLE_CREDENTIAL_STORAGE option to the build.
+
+2014-03-17  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] Ensure that HAVE_GTK_UNIX_PRINTING is defined when appropriate
+        https://bugs.webkit.org/show_bug.cgi?id=130155
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/FindGTKUnixPrint.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake: Look for gtk+-unix-print and use it to turn on HAVE_GTK_UNIX_PRINTING.
+        * Source/cmakeconfig.h.cmake: Add the HAVE_GTK_UNIX_PRINTING define.
+
+2014-03-16  Kim Byung Jun  <bj1987.kim@samsung.com>
+
+        [EFL] Enable TOUCH_SLIDER macro.
+        https://bugs.webkit.org/show_bug.cgi?id=130186
+
+        Reviewed by Gyuyoung Kim.
+
+        * Source/cmake/OptionsEfl.cmake:
+
+2014-03-16  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][CMake] Build with -fno-rtti
+        https://bugs.webkit.org/show_bug.cgi?id=130261
+
+        Reviewed by Martin Robinson.
+
+        * Source/cmake/OptionsCommon.cmake: List the -fno-exceptions, -fno-strict-aliasing
+        and -fno-rtti options in the global CMAKE_C_FLAGS and CMAKE_CXX_FLAGS (-fno-rtti
+        is only listed in the latter). Replace -std=gnu++0x with the official -std=c++11 option.
+        * Source/cmake/WebKitHelpers.cmake: Stop -fno-exceptions and -fno-strict-aliasing
+        from being set through the WEBKIT_SET_EXTRA_COMPILER_FLAGS macro, they are now listed
+        in CMAKE_C_FLAGS and CMAKE_CXX_FLAGS.
+        * Source/cmake/gtest/CMakeLists.txt: Build GTest code with GTEST_HAS_RTTI macro defined to 0.
+
+2014-03-16  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] CMake doesn't find the include path for gstreamer-base
+        https://bugs.webkit.org/show_bug.cgi?id=130098
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/FindGStreamer.cmake: Look for a header in gstreamer-base instead of looking for gst/gst.h twice.
+
+2014-03-14  Maciej Stachowiak  <mjs@apple.com>
+
+        Replace "Apple Computer, Inc." with "Apple Inc." in copyright headers
+        https://bugs.webkit.org/show_bug.cgi?id=130276
+        <rdar://problem/16266927>
+
+        Reviewed by Simon Fraser.
+
+        * ManualTests/NPN_Invoke/Info.plist:
+        * ManualTests/NPN_Invoke/main.c:
+        * ManualTests/accessibility/resources/AppletTest.java:
+
+2014-03-14  Zan Dobersek  <zdobersek@igalia.com>
+
+        [CMake] Remove -fno-tree-sra workaround for GCC 4.5
+        https://bugs.webkit.org/show_bug.cgi?id=130258
+
+        Reviewed by Martin Robinson.
+
+        GCC compilers 4.7 and later are supported, so there's no need for disabling
+        the -ftree-sra optimization which was causing problems when enabled on GCC 4.5.
+
+        * Source/cmake/WebKitHelpers.cmake:
+
+2014-03-14  Landry Breuil  <landry@openbsd.org>
+
+        Add autotools boilerplate for proper os defines on OpenBSD/NetBSD/DragonFly
+        https://bugs.webkit.org/show_bug.cgi?id=129966
+
+        Reviewed by Andreas Kling.
+
+        * Source/autotools/CheckSystemAndBasicDependencies.m4:
+        * Source/autotools/SetupAutomake.m4:
+
+2014-03-13  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [CMake] Failure to link with older installations of WebP
+        https://bugs.webkit.org/show_bug.cgi?id=130195
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Fix the issue by using a temporary variable as the output parameter
+        to check_include_files(), setting WEBP_FOUND accordingly later.
+
+        * Source/cmake/FindWebP.cmake: Avoid reusing the WEBP_FOUND
+        variable in check_include_files(), as it will lead to misleading
+        results (will always be FALSE). Use a temporary variable instead
+        and explicitly set WEBP_FOUND to TRUE later if needed.
+
+2014-03-12  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] Changes to the bindings generator Perl modules do not trigger regeneration of bindings
+        https://bugs.webkit.org/show_bug.cgi?id=130170
+
+        Reviewed by Daniel Bates.
+
+        * Source/cmake/WebKitMacros.cmake: Add the Perl modules used in script generation to the dependency
+        list. We must check whether or not the specific one exists first, because the InjectedBundle uses a
+        fake "TestRunner" generator.
+
+2014-03-12  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK][CMAKE] Remove compile warnings about GTK+ deprecated API
+        https://bugs.webkit.org/show_bug.cgi?id=130014
+
+        Reviewed by Martin Robinson.
+
+        Set GDK_VERSION_MIN_REQUIRED to GDK_VERSION_3_6.
+
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-03-12  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMAKE] Too verbose build output
+        https://bugs.webkit.org/show_bug.cgi?id=130076
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/cmake/OptionsGTK.cmake: Generate a script which does the actual build. This
+        works around an issue where cmake --build doesn't support ninja's pretty printing.
+
+2014-03-10  Mario Sanchez Prada  <mario.prada@samsung.com>
+
+        [GTK] Add support for Geoclue2
+        https://bugs.webkit.org/show_bug.cgi?id=120185
+
+        Reviewed by Carlos Garcia Campos.
+
+        Patch by Anton Obzhirov <a.obzhirov@samsung.com> and Mario Sanchez Prada <mario.prada@samsung.com>
+
+        Add support for Geoclue2 using autotools.
+
+        * Source/autotools/FindDependencies.m4: Add support for handling
+        both Geoclue 1.0 and 2.0.
+        * Source/autotools/PrintBuildConfiguration.m4: Print the version
+        of geoclue that is being used.
+        * Source/autotools/SetupAutoconfHeader.m4: Define GEOCLUE_API_VERSION_2.
+        * Source/autotools/SetupAutomake.m4: Likewise, for AM_CONDITIONAL.
+        * Source/autotools/Versions.m4: Added minimum required version for Geoclue2.
+
+        Add support for Geoclue2 using CMake.
+
+        * Source/cmake/FindGeoClue2.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake:  Add support for handling Geoclue 1.0 and 2.0.
+        * Source/cmakeconfig.h.cmake: Define WTF_USE_GEOCLUE2.
+
+2014-03-10  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMAKE] gtk-doc HTML documentation is generated by default when building with CMake
+        https://bugs.webkit.org/show_bug.cgi?id=130016
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/PlatformGTK.cmake: Add two gtkdoc targets, one which builds HTML and one which
+        doesn't. Add the non-HTML version to the default target, but not the HTML version. The
+        HTML version will still run when building the distribution tarball.
+
+2014-03-10  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Clean up library linking
+        https://bugs.webkit.org/show_bug.cgi?id=129782
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/OptionsGTK.cmake: Add a macro to wrap all libraries in a list with --whole-archive
+        so that unused symbols are not dropped. This is useful when building up shared libraries
+        from convenience libraries.
+
+2014-03-08  Landry Breuil  <landry@openbsd.org>
+
+        Don't check for shm_open on librt on OpenBSD, lib doesnt exist.
+        https://bugs.webkit.org/show_bug.cgi?id=129973
+
+        Reviewed by Martin Robinson.
+
+        * Source/autotools/FindDependencies.m4:
+
+2014-03-06  Anders Carlsson  <andersca@apple.com>
+
+        Build WebKit2 before building WebKit
+        https://bugs.webkit.org/show_bug.cgi?id=129831
+        <rdar://problem/15920020>
+
+        Reviewed by Dan Bernstein.
+
+        * Source/Makefile:
+        * WebKit.xcworkspace/xcshareddata/xcschemes/All Source (target WebProcess).xcscheme:
+        * WebKit.xcworkspace/xcshareddata/xcschemes/All Source.xcscheme:
+
+2014-03-06  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r165193.
+        http://trac.webkit.org/changeset/165193
+        https://bugs.webkit.org/show_bug.cgi?id=129823
+
+        Not specifying libc++ as the stdlib for Clang through CXXFLAGS
+        env confuses libtool (Requested by zdobersek on #webkit).
+
+        * Source/autotools/SetupCompilerFlags.m4:
+
+2014-03-06  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK][Autotools] Default to libc++ when compiling with Clang
+        https://bugs.webkit.org/show_bug.cgi?id=129798
+
+        Reviewed by Anders Carlsson.
+
+        * Source/autotools/SetupCompilerFlags.m4: Default to using libc++ when compiling with the Clang
+        compiler. This is still overridable if -stdlib=* flag was set through CXXFLAGS, in case people
+        would for some reason still prefer libstdc++ (i.e. on setups where a functional libc++ is not yet available).
+
+2014-03-05  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] Ninja generator builds fail with "Argument list too long"
+        https://bugs.webkit.org/show_bug.cgi?id=129771
+
+        Reviewed by Daniel Bates.
+
+        * Source/cmake/OptionsCommon.cmake: Work around a bug in the Ninja CMake generator,
+        by forcing the use of response files.
+
+2014-03-05  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [CMake] Use thin archives if building on Linux for non-shared-core debug builds
+        https://bugs.webkit.org/show_bug.cgi?id=108330
+
+        Reviewed by Martin Robinson.
+
+        In order to get non-shared debug builds, this patch applied T option for
+        thin archives to the flags passed to ar when cmake based ports build on linux.
+        In addition, applied u option which avoids adding a file twice.
+
+        * Source/cmake/OptionsCommon.cmake: Moved archive options from OptionsGTK.cmake.
+        * Source/cmake/OptionsEfl.cmake:
+        Removed error messages for non-shared-core debug builds.
+        * Source/cmake/OptionsGTK.cmake: Moved archive options to OptionsCommon.cmake.
+
+2014-03-04  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Build the Udis86 disassembler
+        https://bugs.webkit.org/show_bug.cgi?id=129679
+
+        Reviewed by Michael Saboff.
+
+        * GNUmakefile.am: Add the Udis86_nosources variable.
+        * Source/cmake/OptionsGTK.cmake: Enable the Udis86 disassembler.
+
+2014-03-04  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] Simplify the GObject DOM bindings API break check into one step
+        https://bugs.webkit.org/show_bug.cgi?id=129571
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/PlatformGTK.cmake: We don't need to run the API break check before gtkdoc generation.
+        Add the check to 'make check.'
+
+2014-03-04  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] ENABLE_NAVIGATOR_CONTENT_UTILS is mistakenly enabled for the CMake build
+        https://bugs.webkit.org/show_bug.cgi?id=129502
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/cmake/OptionsGTK.cmake: Disable the option for GTK+.
+
+2014-03-03  Jozsef Berta  <jberta.u-szeged@partner.samsung.com>
+
+        [cmake] *Names.cpp file should be regenerated after touching StaticString.pm
+        https://bugs.webkit.org/show_bug.cgi?id=129031
+
+        Reviewed by Csaba Osztrogonác.
+
+        * Source/cmake/WebKitMacros.cmake: Added a call for make_names.pm dependencies in GENERATE_FONT_NAMES and GENERATE_DOM_NAMES macros.
+
+2014-03-03  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] WebKit2WebExtension GIR can't be used in vala
+        https://bugs.webkit.org/show_bug.cgi?id=127179
+
+        Reviewed by Martin Robinson.
+
+        Add a different pkg-config file for the web extensions API.
+
+        * Source/cmake/OptionsGTK.cmake:
+        * configure.ac:
+
+2014-03-02  Dirkjan Ochtman  <d.ochtman@activevideo.com>
+
+        Support ENABLE_ENCRYPTED_MEDIA in cmake builds
+        https://bugs.webkit.org/show_bug.cgi?id=129575
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/OptionsEfl.cmake:
+        Enabled ENABLE_ENCRYPTED_MEDIA{,_V2} usage.
+        * Source/cmake/OptionsGTK.cmake:
+        Enabled ENABLE_ENCRYPTED_MEDIA{,_V2} usage.
+        * Source/cmake/WebKitFeatures.cmake:
+        Enabled ENABLE_ENCRYPTED_MEDIA{,_V2} usage.
+        * Source/cmakeconfig.h.cmake:
+        Added ENABLE_ENCRYPTED_MEDIA{,_V2} flags.
+
+2014-02-27  Peter Molnar  <pmolnar.u-szeged@partner.samsung.com>
+
+        Enable support of X-Content-Type-Options: nosniff header for EFL
+        https://bugs.webkit.org/show_bug.cgi?id=128673
+
+        Reviewed by Gyuyoung Kim.
+
+        * Source/cmake/OptionsEfl.cmake:
+        Enabled NOSNIFF feature flag for EFL.
+
+2014-02-27  Koop Mast  <kwm@FreeBSD.org>
+
+        Fallback on checking for libz manualy if zlib.pc isn't available.
+        https://bugs.webkit.org/show_bug.cgi?id=127061
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/autotools/FindDependencies.m4:
+
+2014-02-25  Sergio Villar Senin  <svillar@igalia.com>
+
+        [CSS Grid Layout] Add ENABLE flag
+        https://bugs.webkit.org/show_bug.cgi?id=129153
+
+        Reviewed by Simon Fraser.
+
+        Added the ENABLE_CSS_GRID_LAYOUT feature flag to the cmake and
+        autotools build systems. The feature is disabled by default for
+        production builds.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-02-24  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] generate-gtkdoc should not generate documentation for source files for unbuilt source files
+        https://bugs.webkit.org/show_bug.cgi?id=128417
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/cmake/OptionsGTK.cmake: Define the paths to the pkgconfig files here, so that they
+        may one day be used in the webkitdom config file generation.
+
+2014-02-18  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        [EFL][CMake] Fix javascriptcore test failings by the jsCStack branch merge
+        https://bugs.webkit.org/show_bug.cgi?id=128961
+
+        Reviewed by Ryosuke Niwa.
+
+        Javascriptcore test on EFL port has been broken since the jsCStack branch merge.
+        For now we can fix almost tests by using "-fno-tree-dce option". Unfortunately,
+        EFL port needs not to check "uninitialized" build warning as error in order to
+        adjust the option to EFL port. This patch don't take it as error temporarily.
+
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/WebKitHelpers.cmake:
+
+2014-02-16  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] JavaScriptCore crashes in JSC::eval
+        https://bugs.webkit.org/show_bug.cgi?id=128434
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/OptionsGTK.cmake: Add -fno-omit-frame-pointer to the GTK+ CMake
+        port as well as -fno-tree-dce, like it is used in the autotools build.
+
+2014-02-17  ChangSeok Oh  <changseok.oh@collabora.com>
+
+        [GTK] MEDIA_CONTROLS_SCRIPT depends on VIDEO_TRACK
+        https://bugs.webkit.org/show_bug.cgi?id=128799
+
+        Reviewed by Philippe Normand.
+
+        MEDIA_CONTROLS_SCRIPT has a dependency on VIDEO_TRACK. So it causes a build break
+        if building with autotools. cmake system has enabled it as default. So I propose
+        enabling VIDEO_TRACK as well.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+
+2014-02-14  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r164090.
+        http://trac.webkit.org/changeset/164090
+        https://bugs.webkit.org/show_bug.cgi?id=128807
+
+        It broke the EFL build (Requested by Ossy on #webkit).
+
+        * Source/cmake/OptionsCommon.cmake:
+        * Source/cmake/OptionsEfl.cmake:
+
+2014-02-09  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] JavaScriptCore crashes in JSC::eval
+        https://bugs.webkit.org/show_bug.cgi?id=128434
+
+        Extend a fix for EFL to all ports that use GCC. Also include further fixes
+        that were applied only to the autotools build.
+
+        Reviewed by Gyuyoung Kim.
+
+        * Source/cmake/OptionsCommon.cmake: Add -fno-omit-frame-pointer to all ports as well
+        as -fno-tree-dce, which is necessary for GTK+.
+        * Source/cmake/OptionsEfl.cmake: The GCC flag additions are now in the common options file.
+
+2014-02-04  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK][CMake] Generate GObject DOM bindings .symbols files
+        https://bugs.webkit.org/show_bug.cgi?id=126210
+
+        Reviewed by Martin Robinson.
+
+        * Source/PlatformGTK.cmake: add checking DOM bindings API as a dependency
+        for documentation generation.
+
+2014-02-13  Xabier Rodriguez Calvar  <calvaris@igalia.com>
+
+        [GTK] MEDIA_CONTROLS_SCRIPT support
+        https://bugs.webkit.org/show_bug.cgi?id=123097
+
+        Reviewed by Jer Noble.
+
+        Part of the Autotools and CMake structure to build the media
+        controls script.
+
+        * Source/autotools/SetupWebKitFeatures.m4: Activated the media
+        controls script by default.
+        * Source/cmake/OptionsGTK.cmake: Activated the media controls
+        script by default.
+        * Source/cmake/WebKitFeatures.cmake: Created the option to
+        activate the controls script.
+        * Source/cmakeconfig.h.cmake: Created the define template the the
+        media controls script.
+
+2014-02-12  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GDB] Add .gdbinit to the list of files ignored by Git
+        https://bugs.webkit.org/show_bug.cgi?id=128455
+
+        Reviewed by Anders Carlsson.
+
+        * .gitignore: Ignore the .gdbinit file which can be used to perform WebKit-specific GDB initialization
+        when the debugger is launched in the repository's root directory. Also remove a Chromium-specific comment
+        that covers already removed entries.
+
+2014-02-11  Oliver Hunt  <oliver@apple.com>
+
+        Make it possible to implement JS builtins in JS
+        https://bugs.webkit.org/show_bug.cgi?id=127887
+
+        Reviewed by Michael Saboff.
+
+        * GNUmakefile.am:
+        * Source/cmake/gtest/CMakeLists.txt:
+
+2014-02-12  Ryan Lortie  <desrt@desrt.ca>
+
+        'ar T' is not portable and breaks the build on FreeBSD
+        https://bugs.webkit.org/show_bug.cgi?id=128596
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Create thin archives only if we are using GNU ar.
+
+        * Source/autotools/SetupLibtool.m4:
+
+2014-02-10  Krzysztof Wolanski  <k.wolanski@samsung.com>
+
+        Add the CSS_SHAPE_INSIDE to CMake feature list
+        https://bugs.webkit.org/show_bug.cgi?id=128530
+
+        Reviewed by Gyuyoung Kim.
+
+        CSS_SHAPE_INSIDE flag was added in r163333,
+        this patch is adding this flag to CMake feature list.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-02-09  Carlos Garnacho  <carlosg@gnome.org>
+
+        [GTK] Enable touch features
+        https://bugs.webkit.org/show_bug.cgi?id=98931
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/OptionsGTK.cmake: set ENABLE_TOUCH_EVENTS to 1 if building with GTK+.
+
+2014-02-06  Andreas Kling  <akling@apple.com>
+
+        Remove unused ENABLE(REPAINT_THROTTLING) flag.
+        <https://webkit.org/b/128329>
+
+        Reviewed by Antti Koivisto.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-02-06  Joseph Pecoraro  <pecoraro@apple.com>
+
+        [iOS] make should build WebKit2
+        https://bugs.webkit.org/show_bug.cgi?id=128351
+
+        Reviewed by Daniel Bates.
+
+        * Source/Makefile:
+
+2014-02-05  Andreas Kling  <akling@apple.com>
+
+        Remove ENABLE(DIRECTORY_UPLOAD).
+        <https://webkit.org/b/128275>
+
+        Rubber-stamped by Ryosuke Niwa.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/WebKitFeatures.cmake:
+
+2014-02-05  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Remove ENABLE(SVG) guards
+        https://bugs.webkit.org/show_bug.cgi?id=127991
+
+        Reviewed by Sam Weinig.
+
+        * Source/autotools/FindDependencies.m4:
+        * Source/autotools/PrintBuildConfiguration.m4:
+        * Source/autotools/ReadCommandLineArguments.m4:
+        * Source/autotools/SetupAutomake.m4:
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmake/OptionsGTK.cmake:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-02-04  Andreas Kling  <akling@apple.com>
+
+        Remove <iframe seamless> support.
+        <https://webkit.org/b/128213>
+
+        Rubber-stamped by Antti Koivisto.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-31  Benjamin Poulain  <bpoulain@apple.com>
+
+        Remove LEGACY_VIEWPORT_ADAPTION
+        https://bugs.webkit.org/show_bug.cgi?id=128028
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-31  Oliver Hunt  <oliver@apple.com>
+
+        Rollout r163195 and related patches
+
+        * GNUmakefile.am:
+        * Source/cmake/gtest/CMakeLists.txt:
+
+2014-01-29  Oliver Hunt  <oliver@apple.com>
+
+        Make it possible to implement JS builtins in JS
+        https://bugs.webkit.org/show_bug.cgi?id=127887
+
+        Reviewed by Michael Saboff.
+
+        CMake updates
+
+        * Source/cmake/gtest/CMakeLists.txt:
+
+2014-01-30  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Add support for building against GTK+ 2
+        https://bugs.webkit.org/show_bug.cgi?id=127959
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/OptionsGTK.cmake: Add a new option to use GTK 2 and make a variable holding the
+        library API version. When using GTK 2 do not build WebKit 2.
+
+2014-01-30  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Add a "make dist" target
+        https://bugs.webkit.org/show_bug.cgi?id=116378
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/PlatformGTK.cmake: A CMake support for executing the make-dist
+        script and then turning the tarfile into a LZMA compressed file.
+
+2014-01-30  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Only disable -ftree-dce optimization when compiling with GCC
+        https://bugs.webkit.org/show_bug.cgi?id=127911
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/autotools/SetupAutomake.m4: Define the COMPILER_GCC and COMPILER_CLANG Automake macros.
+        These can be used when compiler-specific flags have to be used. The latter one is not actually needed
+        at the moment, but is added for the sake of completeness.
+
+2014-01-30  Csaba Osztrogonác  <ossy@webkit.org>
+
+        [EFL] Fix the regression caused by the jsCStack branch merge
+        https://bugs.webkit.org/show_bug.cgi?id=127898
+
+        Reviewed by Zoltan Herczeg.
+
+        * Source/cmake/OptionsEfl.cmake: Build with -fno-omit-frame-pointer.
+
+2014-01-29  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Remove ENABLE(JAVASCRIPT_DEBUGGER) leftovers
+        https://bugs.webkit.org/show_bug.cgi?id=127845
+
+        Reviewed by Joseph Pecoraro.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+
+2014-01-29  Csaba Osztrogonác  <ossy@webkit.org>
+
+        Remove ENABLE(JAVASCRIPT_DEBUGGER) guards
+        https://bugs.webkit.org/show_bug.cgi?id=127840
+
+        Reviewed by Mark Lam.
+
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-25  Darin Adler  <darin@apple.com>
+
+        Get rid of ICU_UNICODE and WCHAR_UNICODE remnants
+        https://bugs.webkit.org/show_bug.cgi?id=127623
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/OptionsEfl.cmake: Removed ICU_UNICODE and WCHAR_UNICODE flags.
+        * Source/cmake/OptionsGTK.cmake: Ditto.
+        * Source/cmake/OptionsWinCE.cmake: Ditto.
+
+2014-01-23  Max Vujovic  <mvujovic@adobe.com>
+
+        Remove CSS Custom Filters code and tests
+        https://bugs.webkit.org/show_bug.cgi?id=127382
+
+        Reviewed by Simon Fraser.
+
+        * Source/autotools/FindDependencies.m4:
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-22  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] Add support for building the NetworkProcess
+        https://bugs.webkit.org/show_bug.cgi?id=127195
+
+        Reviewed by Daniel Bates.
+
+        * Source/cmake/OptionsGTK.cmake: Turn on the network process and give it
+        a name like the WebProcess.
+
+2014-01-20  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        [CMAKE] Remove Nix from CMake scripts
+        https://bugs.webkit.org/show_bug.cgi?id=127264
+
+        Reviewed by Anders Carlsson.
+
+        * CMakeLists.txt:
+        * Source/CMakeLists.txt:
+        * Source/cmake/FindEGL.cmake:
+        * Source/cmake/OptionsCommon.cmake:
+
+2014-01-18  Anders Carlsson  <andersca@apple.com>
+
+        Remove ENABLE_THREADED_HTML_PARSER defines everywhere
+        https://bugs.webkit.org/show_bug.cgi?id=127225
+
+        Reviewed by Andreas Kling.
+
+        This concludes the removal of over 8.8 million lines of threaded parser code.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+        * Source/cmake/WebKitFeatures.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-18  Lauro Neto  <lauro.neto@openbossa.org>
+
+        Remove Nix files from WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=127176
+
+        Reviewed by Anders Carlsson.
+
+        * Source/cmake/OptionsNix.cmake: Removed.
+
+2014-01-18  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Bump the minimum required Clang version to 3.3
+        https://bugs.webkit.org/show_bug.cgi?id=127178
+
+        Reviewed by Martin Robinson.
+
+        * Source/autotools/CheckSystemAndBasicDependencies.m4: Require Clang 3.3 or later when using the Clang compiler to
+        build the GTK port. Building with Clang 3.2 doesn't work anymore and there's no point in fixing that, as we should
+        support the latest two versions of Clang (3.3 and 3.4), just like we do with GCC (4.7 and 4.8).
+
+2014-01-14  Dan Bernstein  <mitz@apple.com>
+
+        Only use color in make output when it’s going to a terminal.
+
+        Reviewed by Mark Rowe.
+
+        * Makefile.shared:
+
+2014-01-13  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] Mark all dependency include paths and libraries as advanced variables
+        https://bugs.webkit.org/show_bug.cgi?id=126504
+
+        Reviewed by Daniel Bates.
+
+        * Source/cmake/FindATK.cmake: Mark result variable as advanced.
+        * Source/cmake/FindCairo.cmake: Ditto.
+        * Source/cmake/FindEGL.cmake: Ditto.
+        * Source/cmake/FindEnchant.cmake: Ditto.
+        * Source/cmake/FindGLIB.cmake: Ditto.
+        * Source/cmake/FindGStreamer.cmake: Ditto.
+        * Source/cmake/FindHarfBuzz.cmake: Ditto.
+        * Source/cmake/FindLibSoup.cmake: Ditto.
+
+2014-01-13  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] Add a 'check' target
+        https://bugs.webkit.org/show_bug.cgi?id=126770
+
+        Reviewed by Daniel Bates.
+
+        * Source/PlatformGTK.cmake: Add a 'check' target that calls run-gtk-tests.
+
+2014-01-13  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update NEWS and Versions.m4 for 2.3.4 release.
+
+        * Source/autotools/Versions.m4: Bump version numbers.
+
+2014-01-12  Sergio Correia  <sergio.correia@openbossa.org>
+
+        [EFL][WK2] Make API tests work again
+        https://bugs.webkit.org/show_bug.cgi?id=126769
+
+        Reviewed by Gyuyoung Kim.
+
+        The EFL and WK2 test binaries are currently being generated at *TestWebKitAPI/
+        [E]WebKit2, respectively, and this causes problems because the logic to find
+        where WebProcess is to look in the same directory of the running process and
+        then proceed to use LIBEXECDIR (typically /usr/loca/bin).
+
+        This patch introduces a WEBKIT_EXEC_PATH environment variable, inspired in the
+        Gtk port, which allows us to look for WebProcess initially in this directory,
+        if it's defined.
+
+        * Source/cmake/OptionsEfl.cmake: Define WEBKIT_EXEC_PATH, to be used by
+        [E]WebKit2 tests.
+
+2014-01-11  Dan Bernstein  <mitz@apple.com>
+
+        [Mac] xcodebuild color output is suppressed when using make
+        https://bugs.webkit.org/show_bug.cgi?id=126815
+
+        Reviewed by Anders Carlsson.
+
+        WHen using make, xcodebuild’s output is piped through a filter, which causes it not to
+        format its output with color and emphasis.
+
+        * Makefile.shared: Pass COLOR_DIAGNOSTICS=YES to xcodebuild to force color output on. Due to
+        xcodebuild limitations, this restores some of the formatting, but not all of it.
+
+2014-01-10  Benjamin Poulain  <bpoulain@apple.com>
+
+        Remove the BlackBerry port from trunk
+        https://bugs.webkit.org/show_bug.cgi?id=126715
+
+        Reviewed by Anders Carlsson.
+
+        * CMakeLists.txt:
+        * Source/cmake/OptionsCommon.cmake:
+
+2014-01-10  Tamas Gergely  <tgergely.u-szeged@partner.samsung.com>
+
+        [EFL][JSC] Enable udis86 disassembler on efl.
+        https://bugs.webkit.org/show_bug.cgi?id=125502
+
+        Reviewed by Michael Saboff.
+
+        Enable udis86 disassembler on efl and fix build warnings.
+
+        * Source/cmake/OptionsEfl.cmake:
+          Enable udis86 disassembler.
+
+2014-01-10  Benjamin Poulain  <bpoulain@apple.com>
+
+        Remove the BlackBerry port from trunk
+        https://bugs.webkit.org/show_bug.cgi?id=126715
+
+        Reviewed by Anders Carlsson.
+
+        * CMakeLists.txt:
+
+2014-01-09  Benjamin Poulain  <bpoulain@apple.com>
+
+        Remove the BlackBerry files outside WebCore
+        https://bugs.webkit.org/show_bug.cgi?id=126715
+
+        Reviewed by Anders Carlsson.
+
+        * ManualTests/blackberry: Removed.
+        * Source/cmake/OptionsBlackBerry.cmake: Removed.
+
+2014-01-08  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Specify the executable and library output locations in the build
+        https://bugs.webkit.org/show_bug.cgi?id=126671
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/OptionsGTK.cmake: Explicitly specify the output locations.
+
+2014-01-08  Dániel Bátyai  <dbatyai.u-szeged@partner.samsung.com>
+
+        [EFL] Make FTL buildable
+        https://bugs.webkit.org/show_bug.cgi?id=125777
+
+        Reviewed by Csaba Osztrogonác.
+
+        * Source/cmake/OptionsEfl.cmake:
+        * Source/cmakeconfig.h.cmake:
+
+2014-01-08  Alberto Garcia  <berto@igalia.com>
+
+        REGRESSION(r160304): [GTK] Disable libtool fast install
+        https://bugs.webkit.org/show_bug.cgi?id=126381
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Don't disable the libtool fast-install mode unconditionally by
+        default.
+
+        If the fast-install mode is disabled, binaries are generated ready
+        to use the libraries directly from the build tree. If we use the
+        GNU linker, those binaries are then relinked when they are
+        installed.
+
+        However, libtool fails to do it properly when an installation
+        prefix is set with DESTDIR, and ends up installing the libtool
+        wrappers instead of the actual binaries.
+
+        * Source/autotools/SetupLibtool.m4:
+
+2014-01-07  Gustavo Noronha Silva  <gustavo.noronha@collabora.com>
+
+        Unreviewed GTK/CMake build fix: use the correct location for docs-build.stamp
+        in output and dependencies declarations, so docs are not built needlessly
+        every build.
+
+        * Source/PlatformGTK.cmake:
+
+2014-01-04  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Move all GTK/GObject unit tests to Tools/TestWebKitAPI
+        https://bugs.webkit.org/show_bug.cgi?id=126342
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * GNUmakefile.am: Remove unused variable.
+        * Source/PlatformGTK.cmake: No longer include the old unit tests directories.
+
+2014-01-06  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] configure errors out when building with libc++
+        https://bugs.webkit.org/show_bug.cgi?id=126431
+
+        Reviewed by Martin Robinson.
+
+        Ease up the Clang and libstdc++ combination test to only fail if libstdc++ < 4.8.1 is actually used.
+        This allows for libc++ to be used as well. The test is moved into SetupCompilerFlags.m4 and is done
+        after the CXXFLAGS variable is properly set up, that is when all the C++ compiler options are determined.
+
+        * Source/autotools/CheckSystemAndBasicDependencies.m4:
+        * Source/autotools/SetupCompilerFlags.m4:
+
+2014-01-06  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] [GTK] Fix the build for the WebKitGTK+ developer configuration
+        https://bugs.webkit.org/show_bug.cgi?id=126505
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/FindGLIB.cmake: Add support for finding the gio-unix include directory location.
+        * Source/cmake/FindGUdev.cmake: Added.
+        * Source/cmake/FindGeoClue.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake: When gamepad is enabled look for gio-unix and GUdev. When
+        geolocation is enabled look for GeoClue.
+
+2014-01-06  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Use libc++ for C++11 on darwin
+        https://bugs.webkit.org/show_bug.cgi?id=126325
+
+        Reviewed by Martin Robinson.
+
+        * Source/autotools/SetupCompilerFlags.m4: Don't default to libstdc++ when compiling with Clang.
+        Instead, the compiler should determine itself what standard library to use, except on Darwin,
+        where libc++ should be enforced. The standard library of user's choosing can still be enforced
+        through the CXXFLAGS environment variable.
+
+2014-01-05  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Ensure that the autotools build and the CMake install the same files
+        https://bugs.webkit.org/show_bug.cgi?id=116379
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/PlatformGTK.cmake: Install the documentation.
+        * Source/cmake/OptionsCommon.cmake: Add a LIBEXEC variable for WebKit2 executables, and
+        don't use the default locations on GTK+. We will get them from the CMake-provided GNU installation
+        variables.
+        * Source/cmake/OptionsGTK.cmake: Setup the installation variables using the ones provided
+        by CMake's GNU installation directory support. Fix the definition of DATADIR. Always install
+        the jsc binary.
+
+2014-01-05  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Stop installing WebKit2 C API headers
+        https://bugs.webkit.org/show_bug.cgi?id=126489
+
+        Reviewed by Martin Robinson.
+
+        * GNUmakefile.am:
+
+2014-01-04  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Improve the way we locate gobject-introspection
+        https://bugs.webkit.org/show_bug.cgi?id=126452
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/FindGObjectIntrospection.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake: Load the new  FindGObjectIntrospection file.
+
+2014-01-04  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Fix the video and audio build
+        https://bugs.webkit.org/show_bug.cgi?id=126464
+
+        Reviewed by Philippe Normand.
+
+        * Source/cmake/OptionsGTK.cmake: GStreamer files look for USE(GSTREAMER) and USE(WEBAUDIO_GSTREAMER),
+        so define those when appropriate. Web audio is one by default in autotools, so turn it on for cmake
+        as well.
+
+2014-01-03  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] The forwarding headers generated by WebKitMacros.m4 are incompatible with the headers generated by generate-forwarding-headers.pl
+        https://bugs.webkit.org/show_bug.cgi?id=126361
+
+        Reviewed by Philippe Normand.
+
+        Make the forwarding headers generated by WebKitMacros.m4 compatible with the headers
+        generated by the WebKit2 forwarding headers generation script.
+
+        * Source/cmake/WebKitMacros.cmake: Try to convert absolute paths in the forwarding headers
+        to ones that are relative to the Source directory.
+
+2014-01-02  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        REGRESSION(r160304): [GTK] Disable libtool fast install
+        https://bugs.webkit.org/show_bug.cgi?id=126381
+
+        Reviewed by Martin Robinson.
+
+        After r160304 we are building some of our binaries that are
+        installed with the -no-fast-install ld flag. This makes that the
+        binaries are installed with the source code path hardcoded in
+        binary RPATH. Disabling fast install globally, the libtool script
+        always relinks the binaries right before being installed.
+
+        * Source/autotools/SetupLibtool.m4: Add AC_DISABLE_FAST_INSTALL.
+
+2014-01-02  Jaehun Lim  <ljaehun.lim@samsung.com>
+
+        [CMake][EFL] Fix some typos in OptionsEfl.cmake
+        https://bugs.webkit.org/show_bug.cgi?id=126376
+
+        Reviewed by Gyuyoung Kim.
+
+        * Source/cmake/WebKitFeatures.cmake: Correct a wrong word and remove comma(,).
+
+2013-12-30  Martin Robinson  <mrobinson@igalia.com>
+
+        [CMake] [GTK] Add support for GObject introspection
+        https://bugs.webkit.org/show_bug.cgi?id=126162
+
+        Reviewed by Daniel Bates.
+
+        * Source/PlatformGTK.cmake: Add a 'gir' target that builds all GIR files.
+        * Source/cmake/OptionsGTK.cmake: Add a macro for propagating typelib
+        targets to the Source level of the build.
+
+2013-12-29  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK][CMake] Translations must be built
+        https://bugs.webkit.org/show_bug.cgi?id=125513
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/PlatformGTK.cmake: Add the po subdirectory.
+
+2013-12-28  Giovanni Campagna  <gcampagna@src.gnome.org>
+
+        [GTK] Fix release builds with NetworkProcess enabled
+        https://bugs.webkit.org/show_bug.cgi?id=126247
+
+        Reviewed by Carlos Garcia Campos.
+
+        * Source/autotools/symbols.filter:
+
+2013-12-26  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Add a production build type
+        https://bugs.webkit.org/show_bug.cgi?id=126179
+
+        Reviewed by Daniel Bates.
+
+        * Source/PlatformGTK.cmake: When the API tests are enabled compile the WebKit GObject
+        API unit tests. The inclusion of these build files was inadvertently removed in an earlier
+        patch.
+        * Source/cmake/OptionsGTK.cmake: When in production mode turn off all tools and tests and
+        use the autotools linker script.
+
+2013-12-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Properly name the JavaScriptCore library
+        https://bugs.webkit.org/show_bug.cgi?id=126220
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/OptionsGTK.cmake: Set the JSC library name properly.
+
+2013-12-25  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Clean up generated sources directories
+        https://bugs.webkit.org/show_bug.cgi?id=126216
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/OptionsGTK.cmake: Pre-define the main derived sources directories
+        so that they definitions can be shared easily throughout the build system.
+
+2013-12-23  Jinwoo Song  <jinwoo7.song@samsung.com>
+
+        [EFL][CMAKE] Case insensitive string comparison of build type
+        https://bugs.webkit.org/show_bug.cgi?id=126153
+
+        Reviewed by Daniel Bates.
+
+        Compare CMAKE_BUILD_TYPE with "debug" ignoring case.
+
+        * Source/cmake/OptionsEfl.cmake:
+
+2013-12-23  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK] [CMake] Add support for generating gtkdoc
+        https://bugs.webkit.org/show_bug.cgi?id=116376
+
+        Reviewed by Martin Robinson.
+
+        * Source/PlatformGTK.cmake: Added. New custom target that depends on a custom command
+        which calls our generate-gtkdoc script. It uses a docs-build.stamp for simplicity,
+        like the autotools build.
+
+2013-12-23  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Build the WebKit2 GObject API tests
+        https://bugs.webkit.org/show_bug.cgi?id=125683
+
+        Reviewed by Daniel Bates.
+
+        * Source/PlatformGTK.cmake: Load the WebKit2 tests file if necessary.
+        * Source/cmake/FindATSPI.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake: Look for AT-SPI, but don't fail if it isn't found.
+
+2013-12-23  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Build the WebKit1 GObject API tests
+        https://bugs.webkit.org/show_bug.cgi?id=125684
+
+        Reviewed by Daniel Bates.
+
+        * Source/PlatformGTK.cmake: Added.
+
+2013-12-22  Martin Robinson  <mrobinson@igalia.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=125511
+
+        [GTK][CMake] libtool-compatible soversion calculation
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/OptionsGTK.cmake: Specify the appropriate libtool triples and use
+        the CALCULATE_LIBRARY_VERSIONS_FROM_LIBTOOL_TRIPLE macro to specify the library-specific
+        version information.
+        * Source/cmake/WebKitHelpers.cmake: Add some helpful macros.
+
+2013-12-23  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK] [CMake] Generate pkg-config files
+        https://bugs.webkit.org/show_bug.cgi?id=125685
+
+        Reviewed by Martin Robinson.
+
+        * Source/cmake/OptionsGTK.cmake: set variables used for filling in the values in the
+        pkg-config files.
+
+2013-12-23  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        [GTK] Build with network process unconditionally
+        https://bugs.webkit.org/show_bug.cgi?id=126128
+
+        Reviewed by Martin Robinson.
+
+        * Source/autotools/SetupAutomake.m4: Remove network process
+        conditional for Makefiles.
+        * Source/autotools/SetupWebKitFeatures.m4: Remove network process
+        feature.
+
+2013-12-18  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK][CMake] make libjavascriptcoregtk a public shared library again
+        https://bugs.webkit.org/show_bug.cgi?id=125512
+
+        Reviewed by Martin Robinson.
+
+        * CMakeLists.txt: make JavaScriptCore always be a shared library for the GTK+ port.
+        * Source/cmake/WebKitHelpers.cmake: make -fvisibility=hidden not be applied for GTK+,
+        visibility of some symbols is required for threading to be initialized properly by
+        WebKit2 processes, and we will rely on a linker script that will be added later on,
+        for production builds.
+
+2013-12-16  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Add support for building WebKit1
+        https://bugs.webkit.org/show_bug.cgi?id=116377
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/OptionsGTK.cmake: Turn off some features that do not build properly
+        for WebKit1 and stop using the version script which we haven't implemented yet. Turn
+        on WebKit1.
+
+2013-12-18  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK][CMake] Use thin archives if building on Linux, only way to get non-shared-core debug builds
+        https://bugs.webkit.org/show_bug.cgi?id=125951
+
+        Reviewed by Martin Robinson.
+
+        * Source/cmake/OptionsGTK.cmake: append T for thin archives to the flags passed to ar,
+        also use u, which is used in the autotools build (it avoids adding a file twice).
+
+2013-12-18  Gustavo Noronha Silva  <gns@gnome.org>
+
+        [GTK][CMake] Remove binary size optimizations we do not use in the autotools build
+        https://bugs.webkit.org/show_bug.cgi?id=125947
+
+        Reviewed by Martin Robinson.
+
+        * Source/cmake/OptionsGTK.cmake: remove the relevant flags.
+
+2013-12-18  Carlos Garcia Campos  <cgarcia@igalia.com>
+
+        Unreviewed. Update NEWS and Versions.m4 for 2.3.3 release.
+
+        * Source/autotools/Versions.m4: Bump version numbers.
+
+2013-12-12  Martin Robinson  <mrobinson@igalia.com>
+
+        [GTK] [CMake] Build the plugin process against GTK+ 2
+        https://bugs.webkit.org/show_bug.cgi?id=116374
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/cmake/FindGDK2.cmake: Added.
+        * Source/cmake/FindGTK2.cmake: Added.
+        * Source/cmake/OptionsGTK.cmake: Look for GTK2 and GDK2.
+        * Source/cmake/WebKitMacros.cmake: Abstract WebKit2 IPC generation here so it
+        can be shared between the WebKit2 library and the plugin process.
+
+2013-12-17  Simon Pena  <simon.pena@samsung.com>
+
+        [NIX] Enable full debug builds by having ar creating thin archives
+        https://bugs.webkit.org/show_bug.cgi?id=125850
+
+        Reviewed by Csaba Osztrogonác.
+
+        By default, CMake uses ar to generate libWebCore.a with cr parameters
+        (do not warn if the library has to be created, and replace existing
+        files in the archive). That results in a very large file, and ar fails
+        with sizes over 4GB.
+
+        Previously, debug builds on NIX were overriding CFLAGS in order to reduce
+        the size of the WebCore library. Once that ar creates thin archives, overriding
+        CFLAGS is no longer needed.
+
+        * Source/cmake/OptionsNix.cmake: Remove CFLAGS override for debug builds.
+
+2013-12-13  Joseph Pecoraro  <pecoraro@apple.com>
+
+        [GTK] Remove Warnings in building about duplicate INSPECTOR variables
+        https://bugs.webkit.org/show_bug.cgi?id=125710
+
+        Reviewed by Tim Horton.
+
+        * GNUmakefile.am:
+
+2013-12-13  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Add Inspector Code Generation to JavaScriptCore for Runtime Domain
+        https://bugs.webkit.org/show_bug.cgi?id=125595
+
+        Reviewed by Timothy Hatcher.
+
+        * GNUmakefile.am:
+
+2013-12-13  Zan Dobersek  <zdobersek@igalia.com>
+
+        [GTK] Remove the -Wno-c++11-extensions compiler option for Clang builds
+        https://bugs.webkit.org/show_bug.cgi?id=125639
+
+        Reviewed by Anders Carlsson.
+
+        * Source/autotools/SetupCompilerFlags.m4: The -Wno-c++11-extensions compiler option was in use
+        when building with Clang. It is now removed as the C++11 standard is enabled throughout the project.
+
+2013-12-11  Martin Robinson  <mrobinson@igalia.com> and Danilo Cesar Lemes de Paula  <danilo.cesar@collabora.co.uk>
+
+        Adding a .ycm_extra_conf file for webkitGtk
+        https://bugs.webkit.org/show_bug.cgi?id=119618
+
+        Reviewed by Gustavo Noronha Silva.
+
+        Added a YouCompleteMe flag discovery script for Vim and the GTK+ port. The script
+        read the GTK+ build files to determine dynamically what flags to compile a source
+        file with. This allows Vim to provide auto-complete for C++/C language. See
+        https://github.com/Valloric/YouCompleteMe for how to use this file.
+
+        * .gitignore: Ignore the YCM symlinks in the tree.
+
+2013-12-12  Zan Dobersek  <zdobersek@igalia.com>
+
+        Use of ar T option not supported by older binutils
+        https://bugs.webkit.org/show_bug.cgi?id=118732
+
+        Reviewed by Gustavo Noronha Silva.
+
+        * Source/autotools/SetupLibtool.m4: Make the AR_FLAGS value usable inside makefiles as an Automake variable.
+
+2013-12-11  Javier Fernandez  <jfernandez@igalia.com>
+
+        Arithmetic overflow when computing max-height CSS property with subpixel layout
+        https://bugs.webkit.org/show_bug.cgi?id=119273
+
+        Reviewed by Martin Robinson.
+
+        Enabled SATURATED_LAYOUT_ARITHMETIC for the gtk+ port.
+
+        * Source/autotools/SetupWebKitFeatures.m4:
+
+2013-12-10  Tamas Gergely  <tgergely.u-szeged@partner.samsung.com>
+
+        [CMAKE] Remove code that disables C++0x compat warnings for gcc-4.6 and above.
+        https://bugs.webkit.org/show_bug.cgi?id=125492
+
+        Reviewed by Zoltan Herczeg.
+
+        Remove the code that disables these warnings for GCC >= 4.6.0
+
+        * Source/cmake/WebKitHelpers.cmake:
+
+2013-12-10  Martin Robinson  <mrobinson@igalia.com>
+
+        Various fixes for the CMake GTK+ build
+
+        Reviewed by Gustavo Noronha.
+
+        * Source/cmake/OptionsGTK.cmake: Disable Quota support to maintain consistency with
+        autotools build.
+
 2013-12-09  Brian Holt  <brian.holt@samsung.com>
 
         [WK2][Gtk] Add support for ENABLE_NETWORK_PROCESS to the build system

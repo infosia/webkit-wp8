@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -38,19 +38,20 @@ namespace WebCore {
 
 SharedBuffer::SharedBuffer(CFDataRef cfData)
     : m_size(0)
-    , m_cfData(cfData)
+    , m_shouldUsePurgeableMemory(false)
 #if ENABLE(DISK_IMAGE_CACHE)
     , m_isMemoryMapped(false)
     , m_diskImageCacheId(DiskImageCache::invalidDiskCacheId)
     , m_notifyMemoryMappedCallback(nullptr)
     , m_notifyMemoryMappedCallbackData(nullptr)
 #endif
+    , m_cfData(cfData)
 {
 }
 
-// Mac is a CF platform but has an even more efficient version of this method,
-// so only use this version for non-Mac
-#if !PLATFORM(MAC)
+// Using Foundation allows for an even more efficient implementation of this function,
+// so only use this version for non-Foundation.
+#if !USE(FOUNDATION)
 RetainPtr<CFDataRef> SharedBuffer::createCFData()
 {
     if (m_cfData) {

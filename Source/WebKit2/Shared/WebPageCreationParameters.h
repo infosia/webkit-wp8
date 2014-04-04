@@ -29,21 +29,22 @@
 #include "DrawingAreaInfo.h"
 #include "LayerTreeContext.h"
 #include "SessionState.h"
-#include "ViewState.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebPageGroupData.h"
 #include "WebPreferencesStore.h"
 #include <WebCore/Color.h>
+#include <WebCore/FloatSize.h>
 #include <WebCore/IntSize.h>
 #include <WebCore/Pagination.h>
 #include <WebCore/ScrollTypes.h>
+#include <WebCore/ViewState.h>
 #include <wtf/text/WTFString.h>
 
 #if PLATFORM(MAC)
 #include "ColorSpaceData.h"
 #endif
 
-namespace CoreIPC {
+namespace IPC {
     class ArgumentDecoder;
     class ArgumentEncoder;
 }
@@ -51,12 +52,12 @@ namespace CoreIPC {
 namespace WebKit {
 
 struct WebPageCreationParameters {
-    void encode(CoreIPC::ArgumentEncoder&) const;
-    static bool decode(CoreIPC::ArgumentDecoder&, WebPageCreationParameters&);
+    void encode(IPC::ArgumentEncoder&) const;
+    static bool decode(IPC::ArgumentDecoder&, WebPageCreationParameters&);
 
     WebCore::IntSize viewSize;
 
-    ViewState::Flags viewState;
+    WebCore::ViewState::Flags viewState;
     
     WebPreferencesStore store;
     DrawingAreaType drawingAreaType;
@@ -84,10 +85,13 @@ struct WebPageCreationParameters {
     SessionState sessionState;
     uint64_t highestUsedBackForwardItemID;
 
+    uint64_t visitedLinkTableID;
     bool canRunBeforeUnloadConfirmPanel;
     bool canRunModal;
 
     float deviceScaleFactor;
+
+    float topContentInset;
     
     float mediaVolume;
     bool mayStartMediaWhenInWindow;
@@ -97,9 +101,19 @@ struct WebPageCreationParameters {
     
     WebCore::ScrollPinningBehavior scrollPinningBehavior;
 
-#if PLATFORM(MAC)
+    bool backgroundExtendsBeyondPage;
+
     LayerHostingMode layerHostingMode;
+
+#if ENABLE(REMOTE_INSPECTOR)
+    bool allowsRemoteInspection;
+#endif
+
+#if PLATFORM(MAC)
     ColorSpaceData colorSpace;
+#endif
+#if PLATFORM(IOS)
+    WebCore::FloatSize viewportScreenSize;
 #endif
 };
 

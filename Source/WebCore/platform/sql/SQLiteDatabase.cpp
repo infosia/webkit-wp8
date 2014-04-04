@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,6 +32,7 @@
 #include "SQLiteFileSystem.h"
 #include "SQLiteStatement.h"
 #include <sqlite3.h>
+#include <thread>
 #include <wtf/Threading.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
@@ -140,7 +141,7 @@ void SQLiteDatabase::interrupt()
         if (!m_db)
             return;
         sqlite3_interrupt(m_db);
-        yield();
+        std::this_thread::yield();
     }
 
     m_lockingMutex.unlock();
@@ -191,11 +192,7 @@ void SQLiteDatabase::setMaximumSize(int64_t size)
     SQLiteStatement statement(*this, "PRAGMA max_page_count = " + String::number(newMaxPageCount));
     statement.prepare();
     if (statement.step() != SQLResultRow)
-#if OS(WINDOWS)
-        LOG_ERROR("Failed to set maximum size of database to %I64i bytes", static_cast<long long>(size));
-#else
         LOG_ERROR("Failed to set maximum size of database to %lli bytes", static_cast<long long>(size));
-#endif
 
     enableAuthorizer(true);
 
@@ -507,6 +504,29 @@ bool SQLiteDatabase::turnOnIncrementalAutoVacuum()
         error = lastError();
         return (error == SQLITE_OK);
     }
+}
+
+static void destroyCollationFunction(void* arg)
+{
+    auto f = static_cast<std::function<int(int, const void*, int, const void*)>*>(arg);
+    delete f;
+}
+
+static int callCollationFunction(void* arg, int aLength, const void* a, int bLength, const void* b)
+{
+    auto f = static_cast<std::function<int(int, const void*, int, const void*)>*>(arg);
+    return (*f)(aLength, a, bLength, b);
+}
+
+void SQLiteDatabase::setCollationFunction(const String& collationName, std::function<int(int, const void*, int, const void*)> collationFunction)
+{
+    auto functionObject = new std::function<int(int, const void*, int, const void*)>(collationFunction);
+    sqlite3_create_collation_v2(m_db, collationName.utf8().data(), SQLITE_UTF8, functionObject, callCollationFunction, destroyCollationFunction);
+}
+
+void SQLiteDatabase::removeCollationFunction(const String& collationName)
+{
+    sqlite3_create_collation_v2(m_db, collationName.utf8().data(), SQLITE_UTF8, nullptr, nullptr, nullptr);
 }
 
 } // namespace WebCore

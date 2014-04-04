@@ -9,40 +9,99 @@
 
             var pc = null;
 
-            function requestFailed2(reason)
+            function requestSucceeded3(sd)
             {
-                testPassed('requestFailed was called.');
+                testPassed('createOffer request succeeded.');
+
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"offer"');
+                finishJSTest();
+            }
+
+            function requestFailed7(reason)
+            {
+                testPassed('createOffer request failed.');
 
                 errorReason = reason;
-                shouldBe('errorReason', '"TEST_ERROR"');
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
 
-                finishJSTest();
+                shouldNotThrow('pc.createOffer(requestSucceeded3, requestFailed1, {requestIdentity:"yes", offerToReceiveVideo:0, offerToReceiveAudio:0});');
+            }
+
+            function requestFailed6(reason)
+            {
+                testPassed('createOffer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
+
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed7, {requestIdentity:"yes", offerToReceiveVideo:0, offerToReceiveAudio:""});');
+            }
+
+            function requestFailed5(reason)
+            {
+                testPassed('createOffer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
+
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed6, {requestIdentity:"yes", offerToReceiveVideo:"", offerToReceiveAudio:0});');
+            }
+
+            function requestFailed4(reason)
+            {
+                testPassed('createOffer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
+
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed5, {offerToReceiveVideo:0, offerToReceiveAudio:0});');
+            }
+
+            function requestFailed3(reason)
+            {
+                testPassed('createOffer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
+
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed4, {requestIdentity:"yes", offerToReceiveVideo:0});');
+            }
+
+            function requestFailed2(reason)
+            {
+                testPassed('createOffer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createOffer argument."');
+
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed3, {requestIdentity:"yes", offerToReceiveAudio:0});');
             }
 
             function requestSucceeded2(sd)
             {
-                testFailed('requestSucceeded was called.');
+                testFailed('createOffer request succeeded.');
                 finishJSTest();
             }
 
             function requestFailed1()
             {
-                testFailed('requestFailed was called.');
+                testFailed('createOffer request failed.');
                 finishJSTest();
             }
 
             function requestSucceeded1(sd)
             {
-                testPassed('requestSucceeded was called.');
+                testPassed('createOffer request succeeded.');
 
                 sessionDescription = sd;
                 shouldBe('sessionDescription.type', '"offer"');
 
-                pc.createOffer(requestSucceeded2, requestFailed2, {mandatory:{"succeed":false}});
+                shouldThrow('pc.createOffer(requestSucceeded2, requestFailed2, {});');
             }
 
-            pc = new webkitRTCPeerConnection({iceServers:[]});
-            pc.createOffer(requestSucceeded1, requestFailed1, {mandatory:{"succeed":true}});
+            pc = new webkitRTCPeerConnection({iceServers:[{urls:'stun:foo.com'}]});
+            shouldNotThrow('pc.createOffer(requestSucceeded1, requestFailed1);');
 
             window.jsTestIsAsync = true;
             window.successfullyParsed = true;

@@ -31,7 +31,7 @@ namespace WebCore {
 class FormAssociatedElement;
 class HTMLCollection;
 
-class HTMLFieldSetElement FINAL : public HTMLFormControlElement {
+class HTMLFieldSetElement final : public HTMLFormControlElement {
 public:
     static PassRefPtr<HTMLFieldSetElement> create(const QualifiedName&, Document&, HTMLFormElement*);
 
@@ -42,20 +42,21 @@ public:
     unsigned length() const;
 
 protected:
-    virtual void disabledAttributeChanged() OVERRIDE;
 
 private:
     HTMLFieldSetElement(const QualifiedName&, Document&, HTMLFormElement*);
+    ~HTMLFieldSetElement();
 
-    virtual bool isEnumeratable() const OVERRIDE { return true; }
-    virtual bool supportsFocus() const OVERRIDE;
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual const AtomicString& formControlType() const OVERRIDE;
-    virtual bool recalcWillValidate() const OVERRIDE { return false; }
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
-    virtual bool areAuthorShadowsAllowed() const OVERRIDE { return false; }
+    virtual bool isEnumeratable() const override { return true; }
+    virtual bool supportsFocus() const override;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual const AtomicString& formControlType() const override;
+    virtual bool recalcWillValidate() const override { return false; }
+    virtual void disabledAttributeChanged() override;
+    virtual void disabledStateChanged() override;
+    virtual void childrenChanged(const ChildChange&) override;
+    virtual void didMoveToNewDocument(Document* oldDocument) override;
 
-    static void invalidateDisabledStateUnder(Element*);
     void refreshElementsIfNeeded() const;
 
     mutable Vector<FormAssociatedElement*> m_associatedElements;

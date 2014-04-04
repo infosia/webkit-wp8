@@ -29,14 +29,15 @@
 #define WebKitWebViewBasePrivate_h
 
 #include "WebContextMenuProxyGtk.h"
+#include "WebInspectorProxy.h"
 #include "WebKitPrivate.h"
 #include "WebKitWebViewBase.h"
 #include "WebPageProxy.h"
 
-WebKitWebViewBase* webkitWebViewBaseCreate(WebKit::WebContext*, WebKit::WebPageGroup*);
+WebKitWebViewBase* webkitWebViewBaseCreate(WebKit::WebContext*, WebKit::WebPageGroup*, WebKit::WebPageProxy*);
 GtkIMContext* webkitWebViewBaseGetIMContext(WebKitWebViewBase*);
 WebKit::WebPageProxy* webkitWebViewBaseGetPage(WebKitWebViewBase*);
-void webkitWebViewBaseCreateWebPage(WebKitWebViewBase*, WebKit::WebContext*, WebKit::WebPageGroup*);
+void webkitWebViewBaseCreateWebPage(WebKitWebViewBase*, WebKit::WebContext*, WebKit::WebPageGroup*, WebKit::WebPageProxy*);
 void webkitWebViewBaseSetTooltipText(WebKitWebViewBase*, const char*);
 void webkitWebViewBaseSetTooltipArea(WebKitWebViewBase*, const WebCore::IntRect&);
 void webkitWebViewBaseForwardNextKeyEvent(WebKitWebViewBase*);
@@ -45,7 +46,7 @@ void webkitWebViewBaseChildMoveResize(WebKitWebViewBase*, GtkWidget*, const WebC
 void webkitWebViewBaseEnterFullScreen(WebKitWebViewBase*);
 void webkitWebViewBaseExitFullScreen(WebKitWebViewBase*);
 void webkitWebViewBaseInitializeFullScreenClient(WebKitWebViewBase*, const WKFullScreenClientGtkBase*);
-void webkitWebViewBaseSetInspectorViewHeight(WebKitWebViewBase*, unsigned height);
+void webkitWebViewBaseSetInspectorViewSize(WebKitWebViewBase*, unsigned size);
 void webkitWebViewBaseSetActiveContextMenuProxy(WebKitWebViewBase*, WebKit::WebContextMenuProxyGtk*);
 WebKit::WebContextMenuProxyGtk* webkitWebViewBaseGetActiveContextMenuProxy(WebKitWebViewBase*);
 GdkEvent* webkitWebViewBaseTakeContextMenuEvent(WebKitWebViewBase*);
@@ -70,6 +71,7 @@ void webkitWebViewBaseHandleDownloadRequest(WebKitWebViewBase*, WebKit::Download
 
 void webkitWebViewBaseAddAuthenticationDialog(WebKitWebViewBase*, GtkWidget* authDialog);
 void webkitWebViewBaseCancelAuthenticationDialog(WebKitWebViewBase*);
-void webkitWebViewBaseAddWebInspector(WebKitWebViewBase*, GtkWidget* inspector);
+void webkitWebViewBaseAddWebInspector(WebKitWebViewBase*, GtkWidget* inspector, WebKit::AttachmentSide);
+void webkitWebViewBaseResetClickCounter(WebKitWebViewBase*);
 
 #endif // WebKitWebViewBasePrivate_h

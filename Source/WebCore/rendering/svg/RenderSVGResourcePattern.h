@@ -21,18 +21,14 @@
 #ifndef RenderSVGResourcePattern_h
 #define RenderSVGResourcePattern_h
 
-#if ENABLE(SVG)
-#include "AffineTransform.h"
-#include "FloatRect.h"
 #include "ImageBuffer.h"
 #include "Pattern.h"
 #include "PatternAttributes.h"
 #include "RenderSVGResourceContainer.h"
 #include "SVGPatternElement.h"
 #include "SVGUnitTypes.h"
-
+#include <memory>
 #include <wtf/HashMap.h>
-#include <wtf/OwnPtr.h>
 
 namespace WebCore {
 
@@ -43,24 +39,24 @@ public:
     AffineTransform transform;
 };
 
-class RenderSVGResourcePattern FINAL : public RenderSVGResourceContainer {
+class RenderSVGResourcePattern final : public RenderSVGResourceContainer {
 public:
     RenderSVGResourcePattern(SVGPatternElement&, PassRef<RenderStyle>);
     SVGPatternElement& patternElement() const;
 
-    virtual void removeAllClientsFromCache(bool markForInvalidation = true);
-    virtual void removeClientFromCache(RenderObject*, bool markForInvalidation = true);
+    virtual void removeAllClientsFromCache(bool markForInvalidation = true) override;
+    virtual void removeClientFromCache(RenderElement&, bool markForInvalidation = true) override;
 
-    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) OVERRIDE;
-    virtual void postApplyResource(RenderElement&, GraphicsContext*&, unsigned short resourceMode, const Path*, const RenderSVGShape*) OVERRIDE;
-    virtual FloatRect resourceBoundingBox(const RenderObject&) OVERRIDE { return FloatRect(); }
+    virtual bool applyResource(RenderElement&, const RenderStyle&, GraphicsContext*&, unsigned short resourceMode) override;
+    virtual void postApplyResource(RenderElement&, GraphicsContext*&, unsigned short resourceMode, const Path*, const RenderSVGShape*) override;
+    virtual FloatRect resourceBoundingBox(const RenderObject&) override { return FloatRect(); }
 
     virtual RenderSVGResourceType resourceType() const { return s_resourceType; }
     static RenderSVGResourceType s_resourceType;
 
 private:
-    void element() const WTF_DELETED_FUNCTION;
-    virtual const char* renderName() const OVERRIDE { return "RenderSVGResourcePattern"; }
+    void element() const = delete;
+    virtual const char* renderName() const override { return "RenderSVGResourcePattern"; }
 
     bool buildTileImageTransform(RenderObject*, const PatternAttributes&, const SVGPatternElement&, FloatRect& patternBoundaries, AffineTransform& tileImageTransform) const;
 
@@ -70,10 +66,9 @@ private:
 
     bool m_shouldCollectPatternAttributes : 1;
     PatternAttributes m_attributes;
-    HashMap<RenderObject*, OwnPtr<PatternData>> m_patternMap;
+    HashMap<RenderObject*, std::unique_ptr<PatternData>> m_patternMap;
 };
 
 }
 
-#endif
 #endif

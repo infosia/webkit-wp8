@@ -36,7 +36,7 @@
 #include "RoundedRect.h"
 #include "StyleImage.h"
 #include "WritingMode.h"
-#include <wtf/PassOwnPtr.h>
+#include <memory>
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -62,26 +62,27 @@ typedef Vector<LineSegment> SegmentList;
 
 class Shape {
 public:
-    static PassOwnPtr<Shape> createShape(const BasicShape*, const LayoutSize& logicalBoxSize, WritingMode, Length margin, Length padding);
-    static PassOwnPtr<Shape> createShape(const StyleImage*, float threshold, const LayoutSize& logicalBoxSize, WritingMode, Length margin, Length padding);
-    static PassOwnPtr<Shape> createShape(const RoundedRect&, WritingMode, Length margin, Length padding);
+    struct DisplayPaths {
+        Path shape;
+        Path marginShape;
+    };
+
+    static std::unique_ptr<Shape> createShape(const BasicShape*, const LayoutSize& logicalBoxSize, WritingMode, Length margin);
+    static std::unique_ptr<Shape> createRasterShape(Image*, float threshold, const LayoutRect& imageRect, const LayoutRect& marginRect, WritingMode, Length margin);
+    static std::unique_ptr<Shape> createBoxShape(const RoundedRect&, WritingMode, Length margin);
 
     virtual ~Shape() { }
 
     virtual LayoutRect shapeMarginLogicalBoundingBox() const = 0;
-    virtual LayoutRect shapePaddingLogicalBoundingBox() const = 0;
     virtual bool isEmpty() const = 0;
-    virtual void getIncludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList&) const = 0;
     virtual void getExcludedIntervals(LayoutUnit logicalTop, LayoutUnit logicalHeight, SegmentList&) const = 0;
-    virtual bool firstIncludedIntervalLogicalTop(LayoutUnit minLogicalIntervalTop, const LayoutSize& minLogicalIntervalSize, LayoutUnit& result) const = 0;
-    bool lineOverlapsShapeMarginBounds(LayoutUnit lineTop, LayoutUnit lineHeight) const { return lineOverlapsBoundingBox(lineTop, lineHeight, shapeMarginLogicalBoundingBox()); }
-    bool lineOverlapsShapePaddingBounds(LayoutUnit lineTop, LayoutUnit lineHeight) const { return lineOverlapsBoundingBox(lineTop, lineHeight, shapePaddingLogicalBoundingBox()); }
 
-    virtual void buildPath(Path&) const = 0;
+    bool lineOverlapsShapeMarginBounds(LayoutUnit lineTop, LayoutUnit lineHeight) const { return lineOverlapsBoundingBox(lineTop, lineHeight, shapeMarginLogicalBoundingBox()); }
+
+    virtual void buildDisplayPaths(DisplayPaths&) const = 0;
 
 protected:
     float shapeMargin() const { return m_margin; }
-    float shapePadding() const { return m_padding; }
 
 private:
     bool lineOverlapsBoundingBox(LayoutUnit lineTop, LayoutUnit lineHeight, const LayoutRect& rect) const
@@ -93,7 +94,6 @@ private:
 
     WritingMode m_writingMode;
     float m_margin;
-    float m_padding;
 };
 
 } // namespace WebCore

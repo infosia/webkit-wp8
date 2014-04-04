@@ -23,14 +23,11 @@
 // Set to a value > 0, to debug the resource cache.
 #define DEBUG_CYCLE_DETECTION 0
 
-#if ENABLE(SVG)
-#include "RenderElement.h"
-#include "RenderIterator.h"
+#include "RenderAncestorIterator.h"
 #include "RenderSVGResourceClipper.h"
 #include "RenderSVGResourceFilter.h"
 #include "RenderSVGResourceMarker.h"
 #include "RenderSVGResourceMasker.h"
-#include "SVGFilterElement.h"
 #include "SVGGradientElement.h"
 #include "SVGPatternElement.h"
 #include "SVGResources.h"
@@ -53,13 +50,13 @@ bool SVGResourcesCycleSolver::resourceContainsCycles(RenderElement& renderer) co
     // First operate on the resources of the given renderer.
     // <marker id="a"> <path marker-start="url(#b)"/> ...
     // <marker id="b" marker-start="url(#a)"/>
-    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(&renderer)) {
+    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(renderer)) {
         HashSet<RenderSVGResourceContainer*> resourceSet;
         resources->buildSetOfResources(resourceSet);
 
         // Walk all resources and check wheter they reference any resource contained in the resources set.
-        for (auto it = resourceSet.begin(), end = resourceSet.end(); it != end; ++it) {
-            if (m_allResources.contains(*it))
+        for (auto* resource : resourceSet) {
+            if (m_allResources.contains(resource))
                 return true;
         }
     }
@@ -67,24 +64,23 @@ bool SVGResourcesCycleSolver::resourceContainsCycles(RenderElement& renderer) co
     // Then operate on the child resources of the given renderer.
     // <marker id="a"> <path marker-start="url(#b)"/> ...
     // <marker id="b"> <path marker-start="url(#a)"/> ...
-    auto children = childrenOfType<RenderElement>(renderer);
-    for (auto child = children.begin(), end = children.end(); child != end; ++child) {
-        SVGResources* childResources = SVGResourcesCache::cachedResourcesForRenderObject(&*child);
+    for (auto& child : childrenOfType<RenderElement>(renderer)) {
+        SVGResources* childResources = SVGResourcesCache::cachedResourcesForRenderObject(child);
         if (!childResources)
             continue;
         
         // A child of the given 'resource' contains resources. 
-        HashSet<RenderSVGResourceContainer*> childSet;
-        childResources->buildSetOfResources(childSet);
+        HashSet<RenderSVGResourceContainer*> childResourceSet;
+        childResources->buildSetOfResources(childResourceSet);
 
         // Walk all child resources and check wheter they reference any resource contained in the resources set.
-        for (auto it = childSet.begin(), end = childSet.end(); it != end; ++it) {
-            if (m_allResources.contains(*it))
+        for (auto* resource : childResourceSet) {
+            if (m_allResources.contains(resource))
                 return true;
         }
 
         // Walk children recursively, stop immediately if we found a cycle
-        if (resourceContainsCycles(*child))
+        if (resourceContainsCycles(child))
             return true;
     }
 
@@ -106,44 +102,39 @@ void SVGResourcesCycleSolver::resolveCycles()
     ASSERT(!localResources.isEmpty());
 
     // Add all parent resource containers to the HashSet.
-    HashSet<RenderSVGResourceContainer*> parentResources;
-    auto parent = m_renderer.parent();
-    while (parent) {
-        if (parent->isSVGResourceContainer())
-            parentResources.add(parent->toRenderSVGResourceContainer());
-        parent = parent->parent();
-    }
+    HashSet<RenderSVGResourceContainer*> ancestorResources;
+    for (auto& resource : ancestorsOfType<RenderSVGResourceContainer>(m_renderer))
+        ancestorResources.add(&resource);
 
 #if DEBUG_CYCLE_DETECTION > 0
     fprintf(stderr, "\nDetecting wheter any resources references any of following objects:\n");
     {
         fprintf(stderr, "Local resources:\n");
-        for (auto it = localResources.begin(), end = localResources.end(); it != end; ++it)
-            fprintf(stderr, "|> %s: object=%p (node=%p)\n", (*it)->renderName(), *it, (*it)->node());
+        for (auto* resource : localResources)
+            fprintf(stderr, "|> %s: object=%p (node=%p)\n", resource->renderName(), resource, resource->node());
 
         fprintf(stderr, "Parent resources:\n");
-        for (auto it = parentResources.begin(), end = parentResources.end(); it != end; ++it)
-            fprintf(stderr, "|> %s: object=%p (node=%p)\n", (*it)->renderName(), *it, (*it)->node());
+        for (auto* resource : ancestorResources)
+            fprintf(stderr, "|> %s: object=%p (node=%p)\n", resource->renderName(), resource, resource->node());
     }
 #endif
 
     // Build combined set of local and parent resources.
     m_allResources = localResources;
-    for (auto it = parentResources.begin(), end = parentResources.end(); it != end; ++it)
-        m_allResources.add(*it);
+    for (auto* resource : ancestorResources)
+        m_allResources.add(resource);
 
     // If we're a resource, add ourselves to the HashSet.
     if (m_renderer.isSVGResourceContainer())
-        m_allResources.add(m_renderer.toRenderSVGResourceContainer());
+        m_allResources.add(&toRenderSVGResourceContainer(m_renderer));
 
     ASSERT(!m_allResources.isEmpty());
 
     // The job of this function is to determine wheter any of the 'resources' associated with the given 'renderer'
     // references us (or wheter any of its kids references us) -> that's a cycle, we need to find and break it.
-    for (auto it = localResources.begin(), end = localResources.end(); it != end; ++it) {
-        RenderSVGResourceContainer& resource = **it;
-        if (parentResources.contains(&resource) || resourceContainsCycles(resource))
-            breakCycle(resource);
+    for (auto* resource : localResources) {
+        if (ancestorResources.contains(resource) || resourceContainsCycles(*resource))
+            breakCycle(*resource);
     }
 
 #if DEBUG_CYCLE_DETECTION > 0
@@ -201,5 +192,3 @@ void SVGResourcesCycleSolver::breakCycle(RenderSVGResourceContainer& resourceLea
 }
 
 }
-
-#endif

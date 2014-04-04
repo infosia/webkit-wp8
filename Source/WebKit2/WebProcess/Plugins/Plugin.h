@@ -26,6 +26,7 @@
 #ifndef Plugin_h
 #define Plugin_h
 
+#include <WebCore/AudioHardwareListener.h>
 #include <WebCore/FindOptions.h>
 #include <WebCore/GraphicsLayer.h>
 #include <WebCore/URL.h>
@@ -35,7 +36,7 @@
 #include <wtf/RetainPtr.h>
 #include <wtf/Vector.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include "LayerHostingContext.h"
 
 OBJC_CLASS NSObject;
@@ -44,7 +45,7 @@ OBJC_CLASS PDFDocument;
 
 struct NPObject;
 
-namespace CoreIPC {
+namespace IPC {
     class ArgumentEncoder;
     class ArgumentDecoder;
 }
@@ -79,12 +80,12 @@ public:
         String mimeType;
         bool isFullFramePlugin;
         bool shouldUseManualLoader;
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         LayerHostingMode layerHostingMode;
 #endif
 
-        void encode(CoreIPC::ArgumentEncoder&) const;
-        static bool decode(CoreIPC::ArgumentDecoder&, Parameters&);
+        void encode(IPC::ArgumentEncoder&) const;
+        static bool decode(IPC::ArgumentDecoder&, Parameters&);
     };
 
     // Sets the active plug-in controller and initializes the plug-in.
@@ -125,7 +126,7 @@ public:
     // Tells the plug-in to draw itself into a bitmap, and return that.
     virtual PassRefPtr<ShareableBitmap> snapshot() = 0;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // If a plug-in is using the Core Animation drawing model, this returns its plug-in layer.
     virtual PlatformLayer* pluginLayer() = 0;
 #endif
@@ -218,7 +219,7 @@ public:
     // Get the NPObject that corresponds to the plug-in's scriptable object. Returns a retained object.
     virtual NPObject* pluginScriptableNPObject() = 0;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     // Tells the plug-in about window focus changes.
     virtual void windowFocusChanged(bool) = 0;
 
@@ -258,7 +259,7 @@ public:
     virtual WebCore::Scrollbar* horizontalScrollbar() = 0;
     virtual WebCore::Scrollbar* verticalScrollbar() = 0;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual RetainPtr<PDFDocument> pdfDocumentForPrinting() const { return 0; }
     virtual NSObject *accessibilityObject() const { return 0; }
 #endif
@@ -276,6 +277,8 @@ public:
     virtual bool performDictionaryLookupAtLocation(const WebCore::FloatPoint&) = 0;
 
     virtual String getSelectionString() const = 0;
+    
+    virtual WebCore::AudioHardwareActivityType audioHardwareActivity() const { return WebCore::AudioHardwareActivityType::Unknown; }
 
 protected:
     Plugin();

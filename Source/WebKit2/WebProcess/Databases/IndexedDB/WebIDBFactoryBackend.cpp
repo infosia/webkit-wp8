@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE, INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,6 +32,7 @@
 #include "WebIDBServerConnection.h"
 #include "WebProcess.h"
 #include "WebToDatabaseProcessConnection.h"
+#include <WebCore/DOMStringList.h>
 #include <WebCore/IDBCallbacks.h>
 #include <WebCore/IDBCursorBackend.h>
 #include <WebCore/IDBDatabaseCallbacks.h>
@@ -39,6 +40,7 @@
 #include <WebCore/NotImplemented.h>
 #include <WebCore/SecurityOrigin.h>
 #include <wtf/MainThread.h>
+#include <wtf/NeverDestroyed.h>
 
 #if ENABLE(INDEXED_DATABASE)
 #if ENABLE(DATABASE_PROCESS)
@@ -51,35 +53,86 @@ typedef HashMap<String, IDBDatabaseBackend*> IDBDatabaseBackendMap;
 
 static IDBDatabaseBackendMap& sharedDatabaseBackendMap()
 {
-    DEFINE_STATIC_LOCAL(IDBDatabaseBackendMap, databaseBackendMap, ());
+    static NeverDestroyed<IDBDatabaseBackendMap> databaseBackendMap;
     return databaseBackendMap;
+}
+
+static HashMap<String, HashSet<String>>& sharedRecentDatabaseNameMap()
+{
+    static NeverDestroyed<HashMap<String, HashSet<String>>> recentDatabaseNameMap;
+    return recentDatabaseNameMap;
+}
+
+static String combinedSecurityOriginIdentifier(const WebCore::SecurityOrigin& openingOrigin, const WebCore::SecurityOrigin& mainFrameOrigin)
+{
+    StringBuilder stringBuilder;
+
+    String originString = openingOrigin.toString();
+    if (originString == "null")
+        return String();
+    stringBuilder.append(originString);
+    stringBuilder.append("_");
+
+    originString = mainFrameOrigin.toString();
+    if (originString == "null")
+        return String();
+    stringBuilder.append(originString);
+
+    return stringBuilder.toString();
 }
 
 WebIDBFactoryBackend::WebIDBFactoryBackend(const String&)
 {
 }
 
-
 WebIDBFactoryBackend::~WebIDBFactoryBackend()
 {
 }
 
-void WebIDBFactoryBackend::getDatabaseNames(PassRefPtr<IDBCallbacks>, PassRefPtr<SecurityOrigin>, ScriptExecutionContext*, const String&)
+void WebIDBFactoryBackend::getDatabaseNames(PassRefPtr<IDBCallbacks> callbacks, const SecurityOrigin& openingOrigin, const SecurityOrigin& mainFrameOrigin, ScriptExecutionContext* context, const String&)
 {
-    LOG_ERROR("IDBFactory::getDatabaseNames is no longer exposed to the web as javascript API and should be removed. It will be once we move the Web Inspector away of of it.");
-    notImplemented();
+    LOG(IDB, "WebIDBFactoryBackend::getDatabaseNames");
+
+    String securityOriginIdentifier = combinedSecurityOriginIdentifier(openingOrigin, mainFrameOrigin);
+    if (securityOriginIdentifier.isEmpty()) {
+        callbacks->onError(IDBDatabaseError::create(IDBDatabaseException::InvalidAccessError, ASCIILiteral("Document is not allowed to use Indexed Databases")));
+        return;
+    }
+
+    auto recentNameIterator = sharedRecentDatabaseNameMap().find(securityOriginIdentifier);
+    if (recentNameIterator == sharedRecentDatabaseNameMap().end())
+        return;
+
+    RefPtr<DOMStringList> databaseNames = DOMStringList::create();
+
+    HashSet<String>& foundNames = recentNameIterator->value;
+    for (const String& name : foundNames)
+        databaseNames->append(name);
+
+    callbacks->onSuccess(databaseNames.release());
 }
 
 void WebIDBFactoryBackend::open(const String& databaseName, uint64_t version, int64_t transactionId, PassRefPtr<IDBCallbacks> callbacks, PassRefPtr<IDBDatabaseCallbacks> databaseCallbacks, const SecurityOrigin& openingOrigin, const SecurityOrigin& mainFrameOrigin)
 {
-    ASSERT(isMainThread());
-    LOG(StorageAPI, "WebIDBFactoryBackend::open");
+    ASSERT(RunLoop::isMain());
+    LOG(IDB, "WebIDBFactoryBackend::open");
 
     String databaseIdentifier = uniqueDatabaseIdentifier(databaseName, openingOrigin, mainFrameOrigin);
     if (databaseIdentifier.isNull()) {
         callbacks->onError(IDBDatabaseError::create(IDBDatabaseException::InvalidAccessError, "Document is not allowed to use Indexed Databases"));
         return;
     }
+
+    String securityOriginIdentifier = combinedSecurityOriginIdentifier(openingOrigin, mainFrameOrigin);
+    ASSERT(!securityOriginIdentifier.isEmpty());
+
+    auto recentNameIterator = sharedRecentDatabaseNameMap().find(securityOriginIdentifier);
+    if (recentNameIterator == sharedRecentDatabaseNameMap().end()) {
+        HashSet<String> names;
+        names.add(databaseName);
+        sharedRecentDatabaseNameMap().set(securityOriginIdentifier, names);
+    } else
+        recentNameIterator->value.add(databaseName);
 
     IDBDatabaseBackendMap::iterator it = sharedDatabaseBackendMap().find(databaseIdentifier);
 
@@ -94,9 +147,40 @@ void WebIDBFactoryBackend::open(const String& databaseName, uint64_t version, in
     databaseBackend->openConnection(callbacks, databaseCallbacks, transactionId, version);
 }
 
-void WebIDBFactoryBackend::deleteDatabase(const String&, PassRefPtr<IDBCallbacks>, PassRefPtr<SecurityOrigin>, ScriptExecutionContext*, const String&)
+void WebIDBFactoryBackend::deleteDatabase(const String& databaseName, const SecurityOrigin& openingOrigin, const SecurityOrigin& mainFrameOrigin, PassRefPtr<IDBCallbacks> callbacks, ScriptExecutionContext*, const String&)
 {
-    notImplemented();
+    ASSERT(RunLoop::isMain());
+    LOG(IDB, "WebIDBFactoryBackend::deleteDatabase");
+
+    String databaseIdentifier = uniqueDatabaseIdentifier(databaseName, openingOrigin, mainFrameOrigin);
+    if (databaseIdentifier.isNull()) {
+        callbacks->onError(IDBDatabaseError::create(IDBDatabaseException::InvalidAccessError, "Document is not allowed to use Indexed Databases"));
+        return;
+    }
+
+    String securityOriginIdentifier = combinedSecurityOriginIdentifier(openingOrigin, mainFrameOrigin);
+    ASSERT(!securityOriginIdentifier.isEmpty());
+
+    auto recentNameIterator = sharedRecentDatabaseNameMap().find(securityOriginIdentifier);
+    if (recentNameIterator != sharedRecentDatabaseNameMap().end()) {
+        recentNameIterator->value.remove(databaseName);
+        if (recentNameIterator->value.isEmpty())
+            sharedRecentDatabaseNameMap().remove(recentNameIterator);
+    }
+
+    // If there's already a connection to the database, delete it directly.
+    IDBDatabaseBackendMap::iterator it = sharedDatabaseBackendMap().find(databaseIdentifier);
+    if (it != sharedDatabaseBackendMap().end()) {
+        it->value->deleteDatabase(callbacks);
+        return;
+    }
+
+    RefPtr<IDBServerConnection> serverConnection = WebIDBServerConnection::create(databaseName, openingOrigin, mainFrameOrigin);
+    RefPtr<IDBDatabaseBackend> databaseBackend = IDBDatabaseBackend::create(databaseName, databaseIdentifier, this, *serverConnection);
+
+    sharedDatabaseBackendMap().set(databaseIdentifier, databaseBackend.get());
+    databaseBackend->deleteDatabase(callbacks);
+    sharedDatabaseBackendMap().remove(databaseIdentifier);
 }
 
 void WebIDBFactoryBackend::removeIDBDatabaseBackend(const String& identifier)

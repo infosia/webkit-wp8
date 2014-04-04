@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -36,7 +36,11 @@
 
 #if USE(CG)
 #include "ImageSourceCG.h"
+#if !PLATFORM(IOS)
 #include <ApplicationServices/ApplicationServices.h>
+#else
+#include <ImageIO/CGImageDestination.h>
+#endif
 #include <wtf/RetainPtr.h>
 #endif
 
@@ -183,6 +187,7 @@ static HashSet<String>* supportedImageMIMETypesForEncoding;
 static HashSet<String>* supportedJavaScriptMIMETypes;
 static HashSet<String>* supportedNonImageMIMETypes;
 static HashSet<String>* supportedMediaMIMETypes;
+static HashSet<String>* pdfMIMETypes;
 static HashSet<String>* pdfAndPostScriptMIMETypes;
 static HashSet<String>* unsupportedTextMIMETypes;
 
@@ -224,6 +229,34 @@ static void initializeSupportedImageMIMETypes()
     supportedImageMIMETypes->remove("application/pdf");
     supportedImageMIMETypes->remove("application/postscript");
 
+#if PLATFORM(IOS)
+    // Add malformed image mimetype for compatibility with Mail and to handle malformed mimetypes from the net
+    // These were removed for <rdar://problem/6564538> Re-enable UTI code in WebCore now that MobileCoreServices exists
+    // But Mail relies on at least image/tif reported as being supported (should be image/tiff).
+    // This can be removed when Mail addresses:
+    // <rdar://problem/7879510> Mail should use standard image mimetypes 
+    // and we fix sniffing so that it corrects items such as image/jpg -> image/jpeg.
+    static const char* malformedMIMETypes[] = {
+        // JPEG (image/jpeg)
+        "image/jpg", "image/jp_", "image/jpe_", "application/jpg", "application/x-jpg", "image/pipeg",
+        "image/vnd.switfview-jpeg", "image/x-xbitmap",
+        // GIF (image/gif)
+        "image/gi_",
+        // PNG (image/png)
+        "application/png", "application/x-png",
+        // TIFF (image/tiff)
+        "image/x-tif", "image/tif", "image/x-tiff", "application/tif", "application/x-tif", "application/tiff",
+        "application/x-tiff",
+        // BMP (image/bmp, image/x-bitmap)
+        "image/x-bmp", "image/x-win-bitmap", "image/x-windows-bmp", "image/ms-bmp", "image/x-ms-bmp",
+        "application/bmp", "application/x-bmp", "application/x-win-bitmap",
+    };
+    for (size_t i = 0; i < WTF_ARRAY_LENGTH(malformedMIMETypes); ++i) {
+        supportedImageMIMETypes->add(malformedMIMETypes[i]);
+        supportedImageResourceMIMETypes->add(malformedMIMETypes[i]);
+    }
+#endif
+
 #else
     // assume that all implementations at least support the following standard
     // image types:
@@ -254,7 +287,7 @@ static void initializeSupportedImageMIMETypesForEncoding()
     supportedImageMIMETypesForEncoding = new HashSet<String>;
 
 #if USE(CG)
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<CFArrayRef> supportedTypes = adoptCF(CGImageDestinationCopyTypeIdentifiers());
     CFIndex count = CFArrayGetCount(supportedTypes.get());
     for (CFIndex i = 0; i < count; i++) {
@@ -278,9 +311,6 @@ static void initializeSupportedImageMIMETypesForEncoding()
     supportedImageMIMETypesForEncoding->add("image/ico");
 #elif USE(CAIRO)
     supportedImageMIMETypesForEncoding->add("image/png");
-#elif PLATFORM(BLACKBERRY)
-    supportedImageMIMETypesForEncoding->add("image/png");
-    supportedImageMIMETypesForEncoding->add("image/jpeg");
 #endif
 }
 
@@ -310,15 +340,19 @@ static void initializeSupportedJavaScriptMIMETypes()
       supportedJavaScriptMIMETypes->add(types[i]);
 }
 
-static void initializePDFAndPostScriptMIMETypes()
+static void initializePDFMIMETypes()
 {
     const char* const types[] = {
         "application/pdf",
-        "text/pdf",
-        "application/postscript",
+        "text/pdf"
     };
     for (size_t i = 0; i < WTF_ARRAY_LENGTH(types); ++i)
-        pdfAndPostScriptMIMETypes->add(types[i]);
+        pdfMIMETypes->add(types[i]);
+}
+
+static void initializePostScriptMIMETypes()
+{
+    pdfAndPostScriptMIMETypes->add("application/postscript");
 }
 
 static void initializeSupportedNonImageMimeTypes()
@@ -331,13 +365,13 @@ static void initializeSupportedNonImageMimeTypes()
         "text/",
         "application/xml",
         "application/xhtml+xml",
+#if !PLATFORM(IOS)
         "application/vnd.wap.xhtml+xml",
         "application/rss+xml",
         "application/atom+xml",
-        "application/json",
-#if ENABLE(SVG)
-        "image/svg+xml",
 #endif
+        "application/json",
+        "image/svg+xml",
 #if ENABLE(FTPDIR)
         "application/x-ftp-directory",
 #endif
@@ -358,7 +392,7 @@ static void initializeSupportedNonImageMimeTypes()
 
 static MediaMIMETypeMap& mediaMIMETypeMap()
 {
-    DEFINE_STATIC_LOCAL(MediaMIMETypeMap, mediaMIMETypeForExtensionMap, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(MediaMIMETypeMap, mediaMIMETypeForExtensionMap, ());
 
     if (!mediaMIMETypeForExtensionMap.isEmpty())
         return mediaMIMETypeForExtensionMap;
@@ -440,7 +474,11 @@ static void initializeUnsupportedTextMIMETypes()
         "text/x-qif",
         "text/x-csv",
         "text/x-vcf",
+#if !PLATFORM(IOS)
         "text/rtf",
+#else
+        "text/vnd.sun.j2me.app-descriptor",
+#endif
     };
     for (size_t i = 0; i < WTF_ARRAY_LENGTH(types); ++i)
       unsupportedTextMIMETypes->add(types[i]);
@@ -458,8 +496,11 @@ static void initializeMIMETypeRegistry()
     supportedImageMIMETypes = new HashSet<String>;
     initializeSupportedImageMIMETypes();
 
-    pdfAndPostScriptMIMETypes = new HashSet<String>;
-    initializePDFAndPostScriptMIMETypes();
+    pdfMIMETypes = new HashSet<String>;
+    initializePDFMIMETypes();
+
+    pdfAndPostScriptMIMETypes = new HashSet<String>(*pdfMIMETypes);
+    initializePostScriptMIMETypes();
 
     unsupportedTextMIMETypes = new HashSet<String>;
     initializeUnsupportedTextMIMETypes();
@@ -628,6 +669,14 @@ HashSet<String>& MIMETypeRegistry::getSupportedMediaMIMETypes()
     return *supportedMediaMIMETypes;
 }
 
+
+HashSet<String>& MIMETypeRegistry::getPDFMIMETypes()
+{
+    if (!pdfMIMETypes)
+        initializeMIMETypeRegistry();
+    return *pdfMIMETypes;
+}
+
 HashSet<String>& MIMETypeRegistry::getPDFAndPostScriptMIMETypes()
 {
     if (!pdfAndPostScriptMIMETypes)
@@ -644,18 +693,18 @@ HashSet<String>& MIMETypeRegistry::getUnsupportedTextMIMETypes()
 
 const String& defaultMIMEType()
 {
-    DEFINE_STATIC_LOCAL(const String, defaultMIMEType, (ASCIILiteral("application/octet-stream")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const String, defaultMIMEType, (ASCIILiteral("application/octet-stream")));
     return defaultMIMEType;
 }
 
-#if !PLATFORM(BLACKBERRY) && !USE(CURL)
+#if !USE(CURL)
 String MIMETypeRegistry::getNormalizedMIMEType(const String& mimeType)
 {
     return mimeType;
 }
 #endif
 
-#if PLATFORM(BLACKBERRY) || USE(CURL)
+#if USE(CURL)
 typedef HashMap<String, String> MIMETypeAssociationMap;
 
 static const MIMETypeAssociationMap& mimeTypeAssociationMap()

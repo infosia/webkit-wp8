@@ -39,7 +39,7 @@
 #include <wtf/RunLoop.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/WTFString.h>
-#include <wtf/gobject/GOwnPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/gobject/GlibUtilities.h>
 
 #if OS(UNIX)
@@ -81,6 +81,8 @@ void ProcessLauncher::launchProcess()
         break;
     case PluginProcess:
         executablePath = executablePathOfPluginProcess();
+        if (m_launchOptions.extraInitializationData.contains("requires-gtk2"))
+            executablePath.append('2');
         pluginPath = m_launchOptions.extraInitializationData.get("plugin-path");
         realPluginPath = fileSystemRepresentation(pluginPath);
         break;
@@ -95,7 +97,7 @@ void ProcessLauncher::launchProcess()
     }
 
     realExecutablePath = fileSystemRepresentation(executablePath);
-    GOwnPtr<gchar> socket(g_strdup_printf("%d", sockets[0]));
+    GUniquePtr<gchar> socket(g_strdup_printf("%d", sockets[0]));
 
     unsigned nargs = 4; // size of the argv array for g_spawn_async()
 
@@ -122,7 +124,7 @@ void ProcessLauncher::launchProcess()
     argv[i++] = const_cast<char*>(realPluginPath.data());
     argv[i++] = 0;
 
-    GOwnPtr<GError> error;
+    GUniqueOutPtr<GError> error;
     if (!g_spawn_async(0, argv, 0, G_SPAWN_LEAVE_DESCRIPTORS_OPEN, childSetupFunction, GINT_TO_POINTER(sockets[1]), &pid, &error.outPtr())) {
         g_printerr("Unable to fork a new WebProcess: %s.\n", error->message);
         ASSERT_NOT_REACHED();
@@ -132,7 +134,7 @@ void ProcessLauncher::launchProcess()
     m_processIdentifier = pid;
 
     // We've finished launching the process, message back to the main run loop.
-    RunLoop::main()->dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, m_processIdentifier, sockets[1]));
+    RunLoop::main().dispatch(bind(&ProcessLauncher::didFinishLaunchingProcess, this, m_processIdentifier, sockets[1]));
 }
 
 void ProcessLauncher::terminateProcess()

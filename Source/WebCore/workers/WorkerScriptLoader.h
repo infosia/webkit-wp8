@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -65,15 +65,11 @@ namespace WebCore {
         bool failed() const { return m_failed; }
         unsigned long identifier() const { return m_identifier; }
 
-        virtual void didReceiveResponse(unsigned long /*identifier*/, const ResourceResponse&) OVERRIDE;
-        virtual void didReceiveData(const char* data, int dataLength) OVERRIDE;
-        virtual void didFinishLoading(unsigned long identifier, double) OVERRIDE;
-        virtual void didFail(const ResourceError&) OVERRIDE;
-        virtual void didFailRedirectCheck() OVERRIDE;
-
-#if PLATFORM(BLACKBERRY)
-        void setTargetType(ResourceRequest::TargetType targetType) { m_targetType = targetType; }
-#endif
+        virtual void didReceiveResponse(unsigned long /*identifier*/, const ResourceResponse&) override;
+        virtual void didReceiveData(const char* data, int dataLength) override;
+        virtual void didFinishLoading(unsigned long identifier, double) override;
+        virtual void didFail(const ResourceError&) override;
+        virtual void didFailRedirectCheck() override;
 
     private:
         friend class WTF::RefCounted<WorkerScriptLoader>;
@@ -94,9 +90,6 @@ namespace WebCore {
         bool m_failed;
         unsigned long m_identifier;
         bool m_finishing;
-#if PLATFORM(BLACKBERRY)
-        ResourceRequest::TargetType m_targetType;
-#endif
     };
 
 } // namespace WebCore

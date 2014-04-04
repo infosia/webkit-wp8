@@ -39,6 +39,7 @@
 #include "ExceptionCode.h"
 #include "Frame.h"
 #include "FrameLoader.h"
+#include "FrameView.h"
 #include "HTMLBRElement.h"
 #include "HTMLCollection.h"
 #include "HTMLDocument.h"
@@ -55,7 +56,6 @@
 #include "StyleProperties.h"
 #include "SubframeLoader.h"
 #include "Text.h"
-#include "TextIterator.h"
 #include "XMLNames.h"
 #include "markup.h"
 #include <wtf/NeverDestroyed.h>
@@ -91,28 +91,28 @@ bool HTMLElement::ieForbidsInsertHTML() const
     // This is also called from editing and assumed to be the list of tags
     // for which no end tag should be serialized. It's unclear if the list for
     // IE compat and the list for serialization sanity are the same.
-    if (hasLocalName(areaTag)
-        || hasLocalName(baseTag)
-        || hasLocalName(basefontTag)
-        || hasLocalName(brTag)
-        || hasLocalName(colTag)
-        || hasLocalName(embedTag)
-        || hasLocalName(frameTag)
-        || hasLocalName(hrTag)
-        || hasLocalName(imageTag)
-        || hasLocalName(imgTag)
-        || hasLocalName(inputTag)
-        || hasLocalName(isindexTag)
-        || hasLocalName(linkTag)
-        || hasLocalName(metaTag)
-        || hasLocalName(paramTag)
-        || hasLocalName(sourceTag)
-        || hasLocalName(wbrTag))
+    if (hasTagName(areaTag)
+        || hasTagName(baseTag)
+        || hasTagName(basefontTag)
+        || hasTagName(brTag)
+        || hasTagName(colTag)
+        || hasTagName(embedTag)
+        || hasTagName(frameTag)
+        || hasTagName(hrTag)
+        || hasTagName(imageTag)
+        || hasTagName(imgTag)
+        || hasTagName(inputTag)
+        || hasTagName(isindexTag)
+        || hasTagName(linkTag)
+        || hasTagName(metaTag)
+        || hasTagName(paramTag)
+        || hasTagName(sourceTag)
+        || hasTagName(wbrTag))
         return true;
     // FIXME: I'm not sure why dashboard mode would want to change the
     // serialization of <canvas>, that seems like a bad idea.
 #if ENABLE(DASHBOARD_SUPPORT)
-    if (hasLocalName(canvasTag)) {
+    if (hasTagName(canvasTag)) {
         Settings* settings = document().settings();
         if (settings && settings->usesDashboardBackwardCompatibilityMode())
             return true;
@@ -123,7 +123,7 @@ bool HTMLElement::ieForbidsInsertHTML() const
 
 static inline CSSValueID unicodeBidiAttributeForDirAuto(HTMLElement& element)
 {
-    if (element.hasLocalName(preTag) || element.hasLocalName(textareaTag))
+    if (element.hasTagName(preTag) || element.hasTagName(textareaTag))
         return CSSValueWebkitPlaintext;
     // FIXME: For bdo element, dir="auto" should result in "bidi-override isolate" but we don't support having multiple values in unicode-bidi yet.
     // See https://bugs.webkit.org/show_bug.cgi?id=73164.
@@ -134,7 +134,7 @@ unsigned HTMLElement::parseBorderWidthAttribute(const AtomicString& value) const
 {
     unsigned borderWidth = 0;
     if (value.isEmpty() || !parseHTMLNonNegativeInteger(value, borderWidth))
-        return hasLocalName(tableTag) ? 1 : borderWidth;
+        return hasTagName(tableTag) ? 1 : borderWidth;
     return borderWidth;
 }
 
@@ -162,6 +162,11 @@ bool HTMLElement::isPresentationAttribute(const QualifiedName& name) const
     return StyledElement::isPresentationAttribute(name);
 }
 
+static bool isLTROrRTLIgnoringCase(const AtomicString& dirAttributeValue)
+{
+    return equalIgnoringCase(dirAttributeValue, "rtl") || equalIgnoringCase(dirAttributeValue, "ltr");
+}
+
 void HTMLElement::collectStyleForPresentationAttribute(const QualifiedName& name, const AtomicString& value, MutableStyleProperties& style)
 {
     if (name == alignAttr) {
@@ -175,11 +180,17 @@ void HTMLElement::collectStyleForPresentationAttribute(const QualifiedName& name
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWordWrap, CSSValueBreakWord);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitNbspMode, CSSValueSpace);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitLineBreak, CSSValueAfterWhiteSpace);
+#if PLATFORM(IOS)
+            addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitTextSizeAdjust, CSSValueNone);
+#endif
         } else if (equalIgnoringCase(value, "plaintext-only")) {
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitUserModify, CSSValueReadWritePlaintextOnly);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWordWrap, CSSValueBreakWord);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitNbspMode, CSSValueSpace);
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitLineBreak, CSSValueAfterWhiteSpace);
+#if PLATFORM(IOS)
+            addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitTextSizeAdjust, CSSValueNone);
+#endif
         } else if (equalIgnoringCase(value, "false"))
             addPropertyToPresentationAttributeStyle(style, CSSPropertyWebkitUserModify, CSSValueReadOnly);
     } else if (name == hiddenAttr) {
@@ -194,7 +205,8 @@ void HTMLElement::collectStyleForPresentationAttribute(const QualifiedName& name
         if (equalIgnoringCase(value, "auto"))
             addPropertyToPresentationAttributeStyle(style, CSSPropertyUnicodeBidi, unicodeBidiAttributeForDirAuto(*this));
         else {
-            addPropertyToPresentationAttributeStyle(style, CSSPropertyDirection, value);
+            if (isLTROrRTLIgnoringCase(value))
+                addPropertyToPresentationAttributeStyle(style, CSSPropertyDirection, value);
             if (!hasTagName(bdiTag) && !hasTagName(bdoTag) && !hasTagName(outputTag))
                 addPropertyToPresentationAttributeStyle(style, CSSPropertyUnicodeBidi, CSSValueEmbed);
         }
@@ -277,7 +289,18 @@ static NEVER_INLINE void populateEventNameForAttributeLocalNameMap(HashMap<Atomi
         &ontouchstartAttr,
         &onvolumechangeAttr,
         &onwaitingAttr,
+#if ENABLE(WILL_REVEAL_EDGE_EVENTS)
+        &onwebkitwillrevealbottomAttr,
+        &onwebkitwillrevealleftAttr,
+        &onwebkitwillrevealrightAttr,
+        &onwebkitwillrevealtopAttr,
+#endif
         &onwheelAttr,
+#if ENABLE(IOS_GESTURE_EVENTS)
+        &ongesturechangeAttr,
+        &ongestureendAttr,
+        &ongesturestartAttr,
+#endif
 #if ENABLE(FULLSCREEN_API)
         &onwebkitfullscreenchangeAttr,
         &onwebkitfullscreenerrorAttr,
@@ -315,7 +338,7 @@ static NEVER_INLINE void populateEventNameForAttributeLocalNameMap(HashMap<Atomi
 
 void HTMLElement::parseAttribute(const QualifiedName& name, const AtomicString& value)
 {
-    if (isIdAttributeName(name) || name == classAttr || name == styleAttr)
+    if (name == HTMLNames::idAttr || name == HTMLNames::classAttr || name == HTMLNames::styleAttr)
         return StyledElement::parseAttribute(name, value);
 
     if (name == dirAttr)
@@ -355,7 +378,7 @@ void HTMLElement::setInnerHTML(const String& html, ExceptionCode& ec)
     if (RefPtr<DocumentFragment> fragment = createFragmentForInnerOuterHTML(html, this, AllowScriptingContent, ec)) {
         ContainerNode* container = this;
 #if ENABLE(TEMPLATE_ELEMENT)
-        if (hasLocalName(templateTag))
+        if (hasTagName(templateTag))
             container = toHTMLTemplateElement(this)->content();
 #endif
         replaceChildrenWithFragment(*container, fragment.release(), ec);
@@ -432,16 +455,27 @@ PassRefPtr<DocumentFragment> HTMLElement::textToFragment(const String& text, Exc
     return fragment;
 }
 
+static inline bool shouldProhibitSetInnerOuterText(const HTMLElement& element)
+{
+    return element.hasTagName(colTag)
+        || element.hasTagName(colgroupTag)
+        || element.hasTagName(framesetTag)
+        || element.hasTagName(headTag)
+        || element.hasTagName(htmlTag)
+        || element.hasTagName(tableTag)
+        || element.hasTagName(tbodyTag)
+        || element.hasTagName(tfootTag)
+        || element.hasTagName(theadTag)
+        || element.hasTagName(trTag);
+}
+
 void HTMLElement::setInnerText(const String& text, ExceptionCode& ec)
 {
     if (ieForbidsInsertHTML()) {
         ec = NO_MODIFICATION_ALLOWED_ERR;
         return;
     }
-    if (hasLocalName(colTag) || hasLocalName(colgroupTag) || hasLocalName(framesetTag) ||
-        hasLocalName(headTag) || hasLocalName(htmlTag) || hasLocalName(tableTag) || 
-        hasLocalName(tbodyTag) || hasLocalName(tfootTag) || hasLocalName(theadTag) ||
-        hasLocalName(trTag)) {
+    if (shouldProhibitSetInnerOuterText(*this)) {
         ec = NO_MODIFICATION_ALLOWED_ERR;
         return;
     }
@@ -461,7 +495,7 @@ void HTMLElement::setInnerText(const String& text, ExceptionCode& ec)
     // FIXME: Can the renderer be out of date here? Do we need to call updateStyleIfNeeded?
     // For example, for the contents of textarea elements that are display:none?
     auto r = renderer();
-    if (r && r->style().preserveNewline()) {
+    if ((r && r->style().preserveNewline()) || (inDocument() && isTextControlInnerTextElement())) {
         if (!text.contains('\r')) {
             replaceChildrenWithText(*this, text, ec);
             return;
@@ -486,10 +520,7 @@ void HTMLElement::setOuterText(const String& text, ExceptionCode& ec)
         ec = NO_MODIFICATION_ALLOWED_ERR;
         return;
     }
-    if (hasLocalName(colTag) || hasLocalName(colgroupTag) || hasLocalName(framesetTag) ||
-        hasLocalName(headTag) || hasLocalName(htmlTag) || hasLocalName(tableTag) || 
-        hasLocalName(tbodyTag) || hasLocalName(tfootTag) || hasLocalName(theadTag) ||
-        hasLocalName(trTag)) {
+    if (shouldProhibitSetInnerOuterText(*this)) {
         ec = NO_MODIFICATION_ALLOWED_ERR;
         return;
     }
@@ -644,7 +675,7 @@ bool HTMLElement::hasCustomFocusLogic() const
 
 bool HTMLElement::supportsFocus() const
 {
-    return Element::supportsFocus() || (rendererIsEditable() && parentNode() && !parentNode()->rendererIsEditable());
+    return Element::supportsFocus() || (hasEditableStyle() && parentNode() && !parentNode()->hasEditableStyle());
 }
 
 String HTMLElement::contentEditable() const
@@ -744,9 +775,8 @@ TranslateAttributeMode HTMLElement::translateAttributeMode() const
 
 bool HTMLElement::translate() const
 {
-    auto lineage = lineageOfType<HTMLElement>(*this);
-    for (auto element = lineage.begin(), end = lineage.end(); element != end; ++element) {
-        TranslateAttributeMode mode = element->translateAttributeMode();
+    for (auto& element : lineageOfType<HTMLElement>(*this)) {
+        TranslateAttributeMode mode = element.translateAttributeMode();
         if (mode == TranslateAttributeInherit)
             continue;
         ASSERT(mode == TranslateAttributeYes || mode == TranslateAttributeNo);
@@ -769,11 +799,11 @@ PassRefPtr<HTMLCollection> HTMLElement::children()
 
 bool HTMLElement::rendererIsNeeded(const RenderStyle& style)
 {
-    if (hasLocalName(noscriptTag)) {
+    if (hasTagName(noscriptTag)) {
         Frame* frame = document().frame();
         if (frame && frame->script().canExecuteScripts(NotAboutToExecuteScript))
             return false;
-    } else if (hasLocalName(noembedTag)) {
+    } else if (hasTagName(noembedTag)) {
         Frame* frame = document().frame();
         if (frame && frame->loader().subframeLoader().allowPlugins(NotAboutToInstantiatePlugin))
             return false;
@@ -781,10 +811,10 @@ bool HTMLElement::rendererIsNeeded(const RenderStyle& style)
     return StyledElement::rendererIsNeeded(style);
 }
 
-RenderElement* HTMLElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> HTMLElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    if (hasLocalName(wbrTag))
-        return new RenderLineBreak(*this, std::move(style));
+    if (hasTagName(wbrTag))
+        return createRenderer<RenderLineBreak>(*this, std::move(style));
     return RenderElement::createFor(*this, std::move(style));
 }
 
@@ -793,9 +823,9 @@ HTMLFormElement* HTMLElement::virtualForm() const
     return HTMLFormElement::findClosestFormAncestor(*this);
 }
 
-static inline bool elementAffectsDirectionality(const Node* node)
+static inline bool elementAffectsDirectionality(const Node& node)
 {
-    return node->isHTMLElement() && (node->hasTagName(bdiTag) || toHTMLElement(node)->hasAttribute(dirAttr));
+    return node.isHTMLElement() && (toHTMLElement(node).hasTagName(bdiTag) || toHTMLElement(node).fastHasAttribute(dirAttr));
 }
 
 static void setHasDirAutoFlagRecursively(Node* firstNode, bool flag, Node* lastNode = nullptr)
@@ -808,7 +838,7 @@ static void setHasDirAutoFlagRecursively(Node* firstNode, bool flag, Node* lastN
         if (node->selfOrAncestorHasDirAutoAttribute() == flag)
             return;
 
-        if (elementAffectsDirectionality(node)) {
+        if (elementAffectsDirectionality(*node)) {
             if (node == lastNode)
                 return;
             node = NodeTraversal::nextSkippingChildren(node, firstNode);
@@ -867,7 +897,7 @@ TextDirection HTMLElement::directionality(Node** strongDirectionalityTextNode) c
         // Skip elements with valid dir attribute
         if (node->isElementNode()) {
             AtomicString dirAttributeValue = toElement(node)->fastGetAttribute(dirAttr);
-            if (equalIgnoringCase(dirAttributeValue, "rtl") || equalIgnoringCase(dirAttributeValue, "ltr") || equalIgnoringCase(dirAttributeValue, "auto")) {
+            if (isLTROrRTLIgnoringCase(dirAttributeValue) || equalIgnoringCase(dirAttributeValue, "auto")) {
                 node = NodeTraversal::nextSkippingChildren(node, this);
                 continue;
             }
@@ -908,10 +938,9 @@ void HTMLElement::adjustDirectionalityIfNeededAfterChildAttributeChanged(Element
     setHasDirAutoFlagRecursively(child, false);
     if (!renderer() || renderer()->style().direction() == textDirection)
         return;
-    auto lineage = elementLineage(this);
-    for (auto elementToAdjust = lineage.begin(), end = lineage.end(); elementToAdjust != end; ++elementToAdjust) {
-        if (elementAffectsDirectionality(&*elementToAdjust)) {
-            elementToAdjust->setNeedsStyleRecalc();
+    for (auto& elementToAdjust : elementLineage(this)) {
+        if (elementAffectsDirectionality(elementToAdjust)) {
+            elementToAdjust.setNeedsStyleRecalc();
             return;
         }
     }
@@ -932,7 +961,7 @@ void HTMLElement::adjustDirectionalityIfNeededAfterChildrenChanged(Element* befo
     if (document().renderView() && (changeType == ElementRemoved || changeType == TextRemoved)) {
         Node* node = beforeChange ? beforeChange->nextSibling() : nullptr;
         for (; node; node = node->nextSibling()) {
-            if (elementAffectsDirectionality(node))
+            if (elementAffectsDirectionality(*node))
                 continue;
 
             setHasDirAutoFlagRecursively(node, false);
@@ -946,15 +975,14 @@ void HTMLElement::adjustDirectionalityIfNeededAfterChildrenChanged(Element* befo
     if (beforeChange)
         oldMarkedNode = changeType == ElementInserted ? ElementTraversal::nextSibling(beforeChange) : beforeChange->nextSibling();
 
-    while (oldMarkedNode && elementAffectsDirectionality(oldMarkedNode))
+    while (oldMarkedNode && elementAffectsDirectionality(*oldMarkedNode))
         oldMarkedNode = oldMarkedNode->nextSibling();
     if (oldMarkedNode)
         setHasDirAutoFlagRecursively(oldMarkedNode, false);
 
-    auto lineage = lineageOfType<HTMLElement>(*this);
-    for (auto elementToAdjust = lineage.begin(), end = lineage.end(); elementToAdjust != end; ++elementToAdjust) {
-        if (elementAffectsDirectionality(&*elementToAdjust)) {
-            elementToAdjust->calculateAndAdjustDirectionality();
+    for (auto& elementToAdjust : lineageOfType<HTMLElement>(*this)) {
+        if (elementAffectsDirectionality(elementToAdjust)) {
+            elementToAdjust.calculateAndAdjustDirectionality();
             return;
         }
     }
@@ -1072,6 +1100,21 @@ void HTMLElement::addHTMLColorToStyle(MutableStyleProperties& style, CSSProperty
         parsedColor.setRGB(parseColorStringWithCrazyLegacyRules(colorString));
 
     style.setProperty(propertyID, cssValuePool().createColorValue(parsedColor.rgb()));
+}
+
+bool HTMLElement::willRespondToMouseMoveEvents()
+{
+    return !isDisabledFormControl() && Element::willRespondToMouseMoveEvents();
+}
+
+bool HTMLElement::willRespondToMouseWheelEvents()
+{
+    return !isDisabledFormControl() && Element::willRespondToMouseWheelEvents();
+}
+
+bool HTMLElement::willRespondToMouseClickEvents()
+{
+    return !isDisabledFormControl() && Element::willRespondToMouseClickEvents();
 }
 
 } // namespace WebCore

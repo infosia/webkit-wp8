@@ -26,7 +26,7 @@
 #include "JSGlobalObject.h"
 #include "JSLock.h"
 #include "JSObject.h"
-
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -105,21 +105,24 @@ MarkedSpace::~MarkedSpace()
 {
     Free free(Free::FreeAll, this);
     forEachBlock(free);
+    ASSERT(!m_blocks.set().size());
 }
 
-struct LastChanceToFinalize : MarkedBlock::VoidFunctor {
-    void operator()(MarkedBlock* block) { block->lastChanceToFinalize(); }
+struct LastChanceToFinalize {
+    void operator()(MarkedAllocator& allocator) { allocator.lastChanceToFinalize(); }
 };
 
 void MarkedSpace::lastChanceToFinalize()
 {
     DelayedReleaseScope delayedReleaseScope(*this);
     stopAllocating();
-    forEachBlock<LastChanceToFinalize>();
+    forEachAllocator<LastChanceToFinalize>();
 }
 
 void MarkedSpace::sweep()
 {
+    if (Options::logGC())
+        dataLog("Eagerly sweeping...");
     m_heap->sweeper()->willFinishSweeping();
     forEachBlock<Sweep>();
 }
@@ -141,17 +144,29 @@ void MarkedSpace::resetAllocators()
     m_normalSpace.largeAllocator.reset();
     m_normalDestructorSpace.largeAllocator.reset();
     m_immortalStructureDestructorSpace.largeAllocator.reset();
+
+#if ENABLE(GGC)
+    m_blocksWithNewObjects.clear();
+#endif
 }
 
 void MarkedSpace::visitWeakSets(HeapRootVisitor& heapRootVisitor)
 {
     VisitWeakSet visitWeakSet(heapRootVisitor);
-    forEachBlock(visitWeakSet);
+    if (m_heap->operationInProgress() == EdenCollection) {
+        for (unsigned i = 0; i < m_blocksWithNewObjects.size(); ++i)
+            visitWeakSet(m_blocksWithNewObjects[i]);
+    } else
+        forEachBlock(visitWeakSet);
 }
 
 void MarkedSpace::reapWeakSets()
 {
-    forEachBlock<ReapWeakSet>();
+    if (m_heap->operationInProgress() == EdenCollection) {
+        for (unsigned i = 0; i < m_blocksWithNewObjects.size(); ++i)
+            m_blocksWithNewObjects[i]->reapWeakSet();
+    } else
+        forEachBlock<ReapWeakSet>();
 }
 
 template <typename Functor>
@@ -198,7 +213,6 @@ struct ResumeAllocatingFunctor {
 void MarkedSpace::resumeAllocating()
 {
     ASSERT(isIterating());
-    DelayedReleaseScope scope(*this);
     forEachAllocator<ResumeAllocatingFunctor>();
 }
 
@@ -303,6 +317,35 @@ void MarkedSpace::clearNewlyAllocated()
 #endif
 }
 
+#ifndef NDEBUG 
+struct VerifyMarkedOrRetired : MarkedBlock::VoidFunctor { 
+    void operator()(MarkedBlock* block)
+    {
+        switch (block->m_state) {
+        case MarkedBlock::Marked:
+        case MarkedBlock::Retired:
+            return;
+        default:
+            RELEASE_ASSERT_NOT_REACHED();
+        }
+    }
+}; 
+#endif 
+
+void MarkedSpace::clearMarks()
+{
+    if (m_heap->operationInProgress() == EdenCollection) {
+        for (unsigned i = 0; i < m_blocksWithNewObjects.size(); ++i)
+            m_blocksWithNewObjects[i]->clearMarks();
+    } else
+        forEachBlock<ClearMarks>();
+
+#ifndef NDEBUG
+    VerifyMarkedOrRetired verifyFunctor;
+    forEachBlock(verifyFunctor);
+#endif
+}
+
 void MarkedSpace::willStartIterating()
 {
     ASSERT(!isIterating());
@@ -313,6 +356,7 @@ void MarkedSpace::willStartIterating()
 void MarkedSpace::didFinishIterating()
 {
     ASSERT(isIterating());
+    DelayedReleaseScope scope(*this);
     resumeAllocating();
     m_isIterating = false;
 }

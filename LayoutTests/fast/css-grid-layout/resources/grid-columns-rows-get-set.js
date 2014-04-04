@@ -1,304 +1,144 @@
-description('Test that setting and getting grid-definition-columns and grid-definition-rows works as expected');
+description('Test that setting and getting grid-template-columns and grid-template-rows works as expected');
 
-debug("Test getting -webkit-grid-definition-columns and -webkit-grid-definition-rows set through CSS");
-var gridWithNoneElement = document.getElementById("gridWithNoneElement");
-shouldBe("getComputedStyle(gridWithNoneElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(gridWithNoneElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-var gridWithFixedElement = document.getElementById("gridWithFixedElement");
-shouldBe("getComputedStyle(gridWithFixedElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'10px'");
-shouldBe("getComputedStyle(gridWithFixedElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'15px'");
-
-var gridWithPercentElement = document.getElementById("gridWithPercentElement");
-shouldBe("getComputedStyle(gridWithPercentElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'53%'");
-shouldBe("getComputedStyle(gridWithPercentElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'27%'");
-
-var gridWithAutoElement = document.getElementById("gridWithAutoElement");
-shouldBe("getComputedStyle(gridWithAutoElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'auto'");
-shouldBe("getComputedStyle(gridWithAutoElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'auto'");
-
-var gridWithEMElement = document.getElementById("gridWithEMElement");
-shouldBe("getComputedStyle(gridWithEMElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'100px'");
-shouldBe("getComputedStyle(gridWithEMElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'150px'");
-
-var gridWithViewPortPercentageElement = document.getElementById("gridWithViewPortPercentageElement");
-shouldBe("getComputedStyle(gridWithViewPortPercentageElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'64px'");
-shouldBe("getComputedStyle(gridWithViewPortPercentageElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'60px'");
-
-var gridWithMinMax = document.getElementById("gridWithMinMax");
-shouldBe("getComputedStyle(gridWithMinMax, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(10%, 15px)'");
-shouldBe("getComputedStyle(gridWithMinMax, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(20px, 50%)'");
-
-var gridWithMinContent = document.getElementById("gridWithMinContent");
-shouldBe("getComputedStyle(gridWithMinContent, '').getPropertyValue('-webkit-grid-definition-columns')", "'-webkit-min-content'");
-shouldBe("getComputedStyle(gridWithMinContent, '').getPropertyValue('-webkit-grid-definition-rows')", "'-webkit-min-content'");
-
-var gridWithMaxContent = document.getElementById("gridWithMaxContent");
-shouldBe("getComputedStyle(gridWithMaxContent, '').getPropertyValue('-webkit-grid-definition-columns')", "'-webkit-max-content'");
-shouldBe("getComputedStyle(gridWithMaxContent, '').getPropertyValue('-webkit-grid-definition-rows')", "'-webkit-max-content'");
-
-var gridWithFraction = document.getElementById("gridWithFraction");
-shouldBe("getComputedStyle(gridWithFraction, '').getPropertyValue('-webkit-grid-definition-columns')", "'1fr'");
-shouldBe("getComputedStyle(gridWithFraction, '').getPropertyValue('-webkit-grid-definition-rows')", "'2fr'");
+debug("Test getting -webkit-grid-template-columns and -webkit-grid-template-rows set through CSS");
+testGridTemplatesValues(document.getElementById("gridWithNoneElement"), "none", "none");
+testGridTemplatesValues(document.getElementById("gridWithFixedElement"), "10px", "15px");
+testGridTemplatesValues(document.getElementById("gridWithPercentElement"), "424px", "162px");
+testGridTemplatesValues(document.getElementById("gridWithPercentWithoutSize"), "0px", "0px");
+testGridTemplatesValues(document.getElementById("gridWithPercentWithoutSizeWithChildren"), "7px", "11px");
+testGridTemplatesValues(document.getElementById("gridWithAutoElement"), "0px", "0px");
+testGridTemplatesValues(document.getElementById("gridWithAutoWithChildrenElement"), "7px", "11px");
+testGridTemplatesValues(document.getElementById("gridWithEMElement"), "100px", "150px");
+testGridTemplatesValues(document.getElementById("gridWithViewPortPercentageElement"), "64px", "60px");
+testGridTemplatesValues(document.getElementById("gridWithMinMaxElement"), "80px", "300px");
+testGridTemplatesValues(document.getElementById("gridWithMinContentElement"), "0px", "0px");
+testGridTemplatesValues(document.getElementById("gridWithMinContentWithChildrenElement"), "17px", "11px");
+testGridTemplatesValues(document.getElementById("gridWithMaxContentElement"), "0px", "0px");
+testGridTemplatesValues(document.getElementById("gridWithMaxContentWithChildrenElement"), "17px", "11px");
+testGridTemplatesValues(document.getElementById("gridWithFractionElement"), "800px", "600px");
+testGridTemplatesValues(document.getElementById("gridWithCalcElement"), "150px", "75px");
+testGridTemplatesValues(document.getElementById("gridWithCalcComplexElement"), "550px", "465px");
+testGridTemplatesValues(document.getElementById("gridWithCalcInsideMinMaxElement"), "minmax(10%, 15px)", "minmax(20px, 50%)", "80px", "300px");
+testGridTemplatesValues(document.getElementById("gridWithCalcComplexInsideMinMaxElement"), "minmax(10%, 415px)", "minmax(80px, 50%)", "415px", "300px");
 
 debug("");
-debug("Test getting wrong values for -webkit-grid-definition-columns and -webkit-grid-definition-rows through CSS (they should resolve to the default: 'none')");
+debug("Test getting wrong values for -webkit-grid-template-columns and -webkit-grid-template-rows through CSS (they should resolve to the default: 'none')");
 var gridWithFitContentElement = document.getElementById("gridWithFitContentElement");
-shouldBe("getComputedStyle(gridWithFitContentElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(gridWithFitContentElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+testGridTemplatesValues(gridWithFitContentElement, "none", "none");
 
 var gridWithFitAvailableElement = document.getElementById("gridWithFitAvailableElement");
-shouldBe("getComputedStyle(gridWithFitAvailableElement, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(gridWithFitAvailableElement, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+testGridTemplatesValues(gridWithFitAvailableElement, "none", "none");
 
 debug("");
 debug("Test the initial value");
 var element = document.createElement("div");
 document.body.appendChild(element);
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+testGridTemplatesValues(element, "none", "none");
 
 debug("");
-debug("Test getting and setting -webkit-grid-definition-columns and -webkit-grid-definition-rows through JS");
-element.style.webkitGridDefinitionColumns = "18px";
-element.style.webkitGridDefinitionRows = "66px";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'18px'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'66px'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "55%";
-element.style.webkitGridDefinitionRows = "40%";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'55%'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'40%'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "auto";
-element.style.webkitGridDefinitionRows = "auto";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'auto'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'auto'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "10vw";
-element.style.webkitGridDefinitionRows = "25vh";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'80px'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'150px'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "-webkit-min-content";
-element.style.webkitGridDefinitionRows = "-webkit-min-content";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'-webkit-min-content'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'-webkit-min-content'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "-webkit-max-content";
-element.style.webkitGridDefinitionRows = "-webkit-max-content";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'-webkit-max-content'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'-webkit-max-content'");
+debug("Test getting and setting -webkit-grid-template-columns and -webkit-grid-template-rows through JS");
+testGridTemplatesSetJSValues("18px", "66px");
+testGridTemplatesSetJSValues("55%", "40%", "440px", "240px");
+testGridTemplatesSetJSValues("auto", "auto", "0px", "0px");
+testGridTemplatesSetJSValues("10vw", "25vh", "80px", "150px");
+testGridTemplatesSetJSValues("-webkit-min-content", "-webkit-min-content", "0px", "0px");
+testGridTemplatesSetJSValues("-webkit-max-content", "-webkit-max-content", "0px", "0px");
 
 debug("");
-debug("Test getting and setting -webkit-grid-definition-columns and -webkit-grid-definition-rows to minmax() values through JS");
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "minmax(55%, 45px)";
-element.style.webkitGridDefinitionRows = "minmax(30px, 40%)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(55%, 45px)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(30px, 40%)'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.font = "10px Ahem";
-element.style.webkitGridDefinitionColumns = "minmax(22em, 8vh)";
-element.style.webkitGridDefinitionRows = "minmax(10vw, 5em)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(220px, 48px)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(80px, 50px)'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "minmax(-webkit-min-content, 8vh)";
-element.style.webkitGridDefinitionRows = "minmax(10vw, -webkit-min-content)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(-webkit-min-content, 48px)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(80px, -webkit-min-content)'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.font = "10px Ahem";
-element.style.webkitGridDefinitionColumns = "minmax(22em, -webkit-max-content)";
-element.style.webkitGridDefinitionRows = "minmax(-webkit-max-content, 5em)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(220px, -webkit-max-content)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(-webkit-max-content, 50px)'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.font = "10px Ahem";
-element.style.webkitGridDefinitionColumns = "minmax(22em, -webkit-max-content)";
-element.style.webkitGridDefinitionRows = "minmax(-webkit-max-content, 5em)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(220px, -webkit-max-content)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(-webkit-max-content, 50px)'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "minmax(-webkit-min-content, -webkit-max-content)";
-element.style.webkitGridDefinitionRows = "minmax(-webkit-max-content, -webkit-min-content)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'minmax(-webkit-min-content, -webkit-max-content)'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'minmax(-webkit-max-content, -webkit-min-content)'");
-
+debug("Test getting and setting -webkit-grid-template-columns and -webkit-grid-template-rows to minmax() values through JS");
+testGridTemplatesSetJSValues("minmax(55%, 45px)", "minmax(30px, 40%)", "440px", "240px");
+testGridTemplatesSetJSValues("minmax(22em, 8vh)", "minmax(10vw, 5em)", "220px", "80px");
+testGridTemplatesSetJSValues("minmax(-webkit-min-content, 8vh)", "minmax(10vw, -webkit-min-content)", "48px", "80px");
+testGridTemplatesSetJSValues("minmax(22em, -webkit-max-content)", "minmax(-webkit-max-content, 5em)", "220px", "50px");
+testGridTemplatesSetJSValues("minmax(-webkit-min-content, -webkit-max-content)", "minmax(-webkit-max-content, -webkit-min-content)", "0px", "0px");
 // Unit comparison should be case-insensitive.
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "3600Fr";
-element.style.webkitGridDefinitionRows = "154fR";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'3600fr'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'154fr'");
+testGridTemplatesSetJSValues("3600Fr", "154fR", "800px", "600px", "3600fr", "154fr");
 
 // Float values are allowed.
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "3.1459fr";
-element.style.webkitGridDefinitionRows = "2.718fr";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'3.1459fr'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'2.718fr'");
++testGridTemplatesSetJSValues("3.1459fr", "2.718fr", "800px", "600px");
 
 // A leading '+' is allowed.
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "+3fr";
-element.style.webkitGridDefinitionRows = "+4fr";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'3fr'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'4fr'");
+testGridTemplatesSetJSValues("+3fr", "+4fr", "800px", "600px", "3fr", "4fr");
 
 debug("");
-debug("Test setting grid-definition-columns and grid-definition-rows to bad values through JS");
-element = document.createElement("div");
-document.body.appendChild(element);
-// No comma.
-element.style.webkitGridDefinitionColumns = "minmax(10px 20px)";
-// Only 1 argument provided.
-element.style.webkitGridDefinitionRows = "minmax(10px)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+debug("Test getting and setting grid-template-columns and grid-template-rows to calc() values through JS");
+testGridTemplatesSetJSValues("calc(150px)", "calc(75px)", "150px", "75px");
+testGridTemplatesSetJSValues("calc(50% - 30px)", "calc(75px + 10%)", "370px", "135px");
+testGridTemplatesSetJSValues("minmax(25%, calc(30px))", "minmax(calc(75%), 40px)", "200px", "450px", "minmax(25%, calc(30px))", "minmax(calc(75%), 40px)");
+testGridTemplatesSetJSValues("minmax(10%, calc(30px + 10%))", "minmax(calc(25% - 50px), 200px)", "110px", "200px", "minmax(10%, calc(30px + 10%))", "minmax(calc(25% - 50px), 200px)");
 
-element = document.createElement("div");
-document.body.appendChild(element);
-// Nested minmax.
-element.style.webkitGridDefinitionColumns = "minmax(minmax(10px, 20px), 20px)";
-// Only 2 arguments are allowed.
-element.style.webkitGridDefinitionRows = "minmax(10px, 20px, 30px)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+debug("");
+debug("Test setting grid-template-columns and grid-template-rows to bad values through JS");
+// No comma and only 1 argument provided.
+testGridTemplatesSetBadJSValues("minmax(10px 20px)", "minmax(10px)")
+// Nested minmax and only 2 arguments are allowed.
+testGridTemplatesSetBadJSValues("minmax(minmax(10px, 20px), 20px)", "minmax(10px, 20px, 30px)");
+// No breadth value and no comma.
+testGridTemplatesSetBadJSValues("minmax()", "minmax(30px 30% 30em)");
 
-element = document.createElement("div");
-document.body.appendChild(element);
-// No breadth value.
-element.style.webkitGridDefinitionColumns = "minmax()";
-// No comma.
-element.style.webkitGridDefinitionRows = "minmax(30px 30% 30em)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
 // Auto is not allowed inside minmax.
-element.style.webkitGridDefinitionColumns = "minmax(auto, 8vh)";
-element.style.webkitGridDefinitionRows = "minmax(10vw, auto)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+testGridTemplatesSetBadJSValues("minmax(auto, 8vh)", "minmax(10vw, auto)");
+testGridTemplatesSetBadJSValues("-2fr", "3ffr");
+testGridTemplatesSetBadJSValues("-2.05fr", "+-3fr");
+testGridTemplatesSetBadJSValues("0fr", "1r");
+// A dimension doesn't allow spaces between the number and the unit.
+testGridTemplatesSetBadJSValues(".0000fr", "13 fr");
+testGridTemplatesSetBadJSValues("7.-fr", "-8,0fr");
 
 // Negative values are not allowed.
-element.style.webkitGridDefinitionColumns = "-1px";
-element.style.webkitGridDefinitionRows = "-6em";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element.style.webkitGridDefinitionColumns = "minmax(-1%, 32%)";
-element.style.webkitGridDefinitionRows = "minmax(2vw, -6em)";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "-2fr";
-element.style.webkitGridDefinitionRows = "3ffr";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "-2.05fr";
-element.style.webkitGridDefinitionRows = "+-3fr";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = "0fr";
-element.style.webkitGridDefinitionRows = "1r";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element = document.createElement("div");
-document.body.appendChild(element);
-element.style.webkitGridDefinitionColumns = ".0000fr";
-element.style.webkitGridDefinitionRows = "13 fr"; // A dimension doesn't allow spaces between the number and the unit.
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
-
-element.style.webkitGridDefinitionColumns = "7.-fr";
-element.style.webkitGridDefinitionRows = "-8,0fr";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+testGridTemplatesSetBadJSValues("-1px", "-6em");
+testGridTemplatesSetBadJSValues("minmax(-1%, 32%)", "minmax(2vw, -6em)");
+// Invalid expressions with calc
+testGridTemplatesSetBadJSValues("calc(16px 30px)", "calc(25px + auto)");
+testGridTemplatesSetBadJSValues("minmax(-webkit-min-content, calc())", "calc(10%(");
 
 debug("");
-debug("Test setting grid-definition-columns and grid-definition-rows back to 'none' through JS");
-element.style.webkitGridDefinitionColumns = "18px";
-element.style.webkitGridDefinitionRows = "66px";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'18px'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'66px'");
-element.style.webkitGridDefinitionColumns = "none";
-element.style.webkitGridDefinitionRows = "none";
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+debug("Test setting grid-template-columns and grid-template-rows back to 'none' through JS");
+testGridTemplatesSetJSValues("18px", "66px");
+testGridTemplatesSetJSValues("none", "none");
 
 function testInherit()
 {
     var parentElement = document.createElement("div");
     document.body.appendChild(parentElement);
-    parentElement.style.webkitGridDefinitionColumns = "50px 'last'";
-    parentElement.style.webkitGridDefinitionRows = "'first' 101%";
+    parentElement.style.font = "10px Ahem"; // Used to resolve em font consistently.
+    parentElement.style.webkitGridTemplateColumns = "50px (last)";
+    parentElement.style.webkitGridTemplateRows = "(first) 2em";
 
     element = document.createElement("div");
     parentElement.appendChild(element);
-    element.style.webkitGridDefinitionColumns = "inherit";
-    element.style.webkitGridDefinitionRows = "inherit";
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'50px last'");
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'first 101%'");
+    element.style.display = "-webkit-grid";
+    element.style.webkitGridTemplateColumns = "inherit";
+    element.style.webkitGridTemplateRows = "inherit";
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-columns')", "'50px (last)'");
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-rows')", "'(first) 20px'");
 
     document.body.removeChild(parentElement);
 }
 debug("");
-debug("Test setting grid-definition-columns and grid-definition-rows to 'inherit' through JS");
+debug("Test setting grid-template-columns and grid-template-rows to 'inherit' through JS");
 testInherit();
 
 function testInitial()
 {
     element = document.createElement("div");
     document.body.appendChild(element);
-    element.style.webkitGridDefinitionColumns = "150% 'last'";
-    element.style.webkitGridDefinitionRows = "'first' 1fr";
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'150% last'");
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'first 1fr'");
+    element.style.display = "-webkit-grid";
+    element.style.width = "300px";
+    element.style.height = "150px";
+    element.style.webkitGridTemplateColumns = "150% (last)";
+    element.style.webkitGridTemplateRows = "(first) 1fr";
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-columns')", "'450px (last)'");
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-rows')", "'(first) 150px'");
 
-    element.style.webkitGridDefinitionColumns = "initial";
-    element.style.webkitGridDefinitionRows = "initial";
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-columns')", "'none'");
-    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-definition-rows')", "'none'");
+    element.style.display = "-webkit-grid";
+    element.style.webkitGridTemplateColumns = "initial";
+    element.style.webkitGridTemplateRows = "initial";
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-columns')", "'none'");
+    shouldBe("getComputedStyle(element, '').getPropertyValue('-webkit-grid-template-rows')", "'none'");
 
     document.body.removeChild(element);
 }
 debug("");
-debug("Test setting grid-definition-columns and grid-definition-rows to 'initial' through JS");
+debug("Test setting grid-template-columns and grid-template-rows to 'initial' through JS");
 testInitial();

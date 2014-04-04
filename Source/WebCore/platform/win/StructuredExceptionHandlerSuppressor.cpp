@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,7 +27,9 @@
 
 #include "StructuredExceptionHandlerSuppressor.h"
 
+#if defined(_M_IX86)
 extern "C" int __stdcall exceptionHandlerThunk(); // Defined in makesafeseh.asm
+#endif
 
 static bool exceptionShouldTerminateProgram(int code)
 {
@@ -75,6 +77,7 @@ namespace WebCore {
 
 StructuredExceptionHandlerSuppressor::StructuredExceptionHandlerSuppressor(ExceptionRegistration& exceptionRegistration)
 {
+#if defined(_M_IX86)
     // Note: Windows requires that the EXCEPTION_REGISTRATION block (modeled here as our
     // ExceptionRegistration struct) be stack allocated. Therefore we instantiated it prior
     // to building this object so that Windows can still find it in stack memory when it
@@ -120,13 +123,19 @@ StructuredExceptionHandlerSuppressor::StructuredExceptionHandlerSuppressor(Excep
     __asm mov FS:[0], eax
 
     m_savedExceptionRegistration = registration;
+#else
+    // 64-bit x64 no longer needs dynamic modification of the exception handlers.
+#endif
 }
 
 StructuredExceptionHandlerSuppressor::~StructuredExceptionHandlerSuppressor()
 {
+#if defined(_M_IX86)
     // Restore the exception handler
     __asm mov eax, [m_savedExceptionRegistration]
     __asm mov FS:[0], eax
+#else
+#endif
 }
 
 #pragma warning(pop)

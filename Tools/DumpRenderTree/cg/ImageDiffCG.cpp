@@ -44,7 +44,9 @@
 #include <CoreGraphics/CGImage.h>
 #include <ImageIO/CGImageDestination.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(IOS)
+#include <MobileCoreServices/UTCoreTypes.h>
+#elif PLATFORM(MAC)
 #include <LaunchServices/UTCoreTypes.h>
 #endif
 
@@ -60,10 +62,6 @@ typedef float CGFloat;
 using namespace std;
 
 #if PLATFORM(WIN)
-static inline float strtof(const char *nptr, char **endptr)
-{
-    return strtod(nptr, endptr);
-}
 static const CFStringRef kUTTypePNG = CFSTR("public.png");
 #endif
 

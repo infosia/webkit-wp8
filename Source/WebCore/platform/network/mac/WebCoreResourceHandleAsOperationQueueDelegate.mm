@@ -77,7 +77,7 @@ using namespace WebCore;
 
 - (void)continueWillSendRequest:(NSURLRequest *)newRequest
 {
-    m_requestResult = [newRequest retain];
+    m_requestResult = newRequest;
     dispatch_semaphore_signal(m_semaphore);
 }
 
@@ -290,23 +290,6 @@ using namespace WebCore;
     });
 }
 
-- (void)connection:(NSURLConnection *)connection willStopBufferingData:(NSData *)data
-{
-    ASSERT(!isMainThread());
-    UNUSED_PARAM(connection);
-
-    LOG(Network, "Handle %p delegate connection:%p willStopBufferingData:%p", m_handle, connection, data);
-
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (!m_handle || !m_handle->client())
-            return;
-        // FIXME: If we get a resource with more than 2B bytes, this code won't do the right thing.
-        // However, with today's computers and networking speeds, this won't happen in practice.
-        // Could be an issue with a giant local file.
-        m_handle->client()->willStopBufferingData(m_handle, (const char*)[data bytes], static_cast<int>([data length]));
-    });
-}
-
 - (void)connection:(NSURLConnection *)connection didSendBodyData:(NSInteger)bytesWritten totalBytesWritten:(NSInteger)totalBytesWritten totalBytesExpectedToWrite:(NSInteger)totalBytesExpectedToWrite
 {
     ASSERT(!isMainThread());
@@ -364,15 +347,6 @@ using namespace WebCore;
 
     dispatch_async(dispatch_get_main_queue(), ^{
         if (!m_handle || !m_handle->client()) {
-            m_cachedResponseResult = nullptr;
-            dispatch_semaphore_signal(m_semaphore);
-            return;
-        }
-
-        // Workaround for <rdar://problem/6300990> Caching does not respect Vary HTTP header.
-        // FIXME: WebCore cache has issues with Vary, too (bug 58797, bug 71509).
-        if ([[cachedResponse response] isKindOfClass:[NSHTTPURLResponse class]]
-            && [[(NSHTTPURLResponse *)[cachedResponse response] allHeaderFields] objectForKey:@"Vary"]) {
             m_cachedResponseResult = nullptr;
             dispatch_semaphore_signal(m_semaphore);
             return;

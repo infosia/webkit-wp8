@@ -36,6 +36,7 @@
 #include "IDBDatabaseException.h"
 #include "IDBIndex.h"
 #include "IDBKey.h"
+#include "IDBKeyData.h"
 #include "IDBKeyPath.h"
 #include "IDBKeyRange.h"
 #include "IDBTransaction.h"
@@ -86,7 +87,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::get(ScriptExecutionContext* context, Pass
     return request.release();
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::get(ScriptExecutionContext* context, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::get(ScriptExecutionContext* context, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     RefPtr<IDBKeyRange> keyRange = IDBKeyRange::only(context, key, ec);
     if (ec)
@@ -94,54 +95,31 @@ PassRefPtr<IDBRequest> IDBObjectStore::get(ScriptExecutionContext* context, cons
     return get(context, keyRange.release(), ec);
 }
 
-static void generateIndexKeysForValue(DOMRequestState* requestState, const IDBIndexMetadata& indexMetadata, const ScriptValue& objectValue, IDBObjectStore::IndexKeys* indexKeys)
-{
-    ASSERT(indexKeys);
-    RefPtr<IDBKey> indexKey = createIDBKeyFromScriptValueAndKeyPath(requestState, objectValue, indexMetadata.keyPath);
-
-    if (!indexKey)
-        return;
-
-    if (!indexMetadata.multiEntry || indexKey->type() != IDBKey::ArrayType) {
-        if (!indexKey->isValid())
-            return;
-
-        indexKeys->append(indexKey);
-    } else {
-        ASSERT(indexMetadata.multiEntry);
-        ASSERT(indexKey->type() == IDBKey::ArrayType);
-        indexKey = IDBKey::createMultiEntryArray(indexKey->array());
-
-        for (size_t i = 0; i < indexKey->array().size(); ++i)
-            indexKeys->append(indexKey->array()[i]);
-    }
-}
-
-PassRefPtr<IDBRequest> IDBObjectStore::add(JSC::ExecState* state, ScriptValue& value, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::add(JSC::ExecState* state, Deprecated::ScriptValue& value, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     LOG(StorageAPI, "IDBObjectStore::add");
     return put(IDBDatabaseBackend::AddOnly, IDBAny::create(this), state, value, key, ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::add(JSC::ExecState* state, ScriptValue& value, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::add(JSC::ExecState* state, Deprecated::ScriptValue& value, ExceptionCode& ec)
 {
     LOG(StorageAPI, "IDBObjectStore::add");
     return put(IDBDatabaseBackend::AddOnly, IDBAny::create(this), state, value, static_cast<IDBKey*>(0), ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(JSC::ExecState* state, ScriptValue& value, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(JSC::ExecState* state, Deprecated::ScriptValue& value, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     LOG(StorageAPI, "IDBObjectStore::put");
     return put(IDBDatabaseBackend::AddOrUpdate, IDBAny::create(this), state, value, key, ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(JSC::ExecState* state, ScriptValue& value, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(JSC::ExecState* state, Deprecated::ScriptValue& value, ExceptionCode& ec)
 {
     LOG(StorageAPI, "IDBObjectStore::put");
     return put(IDBDatabaseBackend::AddOrUpdate, IDBAny::create(this), state, value, static_cast<IDBKey*>(0), ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, PassRefPtr<IDBAny> source, JSC::ExecState* state, ScriptValue& value, const ScriptValue& keyValue, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, PassRefPtr<IDBAny> source, JSC::ExecState* state, Deprecated::ScriptValue& value, const Deprecated::ScriptValue& keyValue, ExceptionCode& ec)
 {
     ScriptExecutionContext* context = scriptExecutionContextFromExecState(state);
     DOMRequestState requestState(context);
@@ -149,34 +127,30 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, 
     return put(putMode, source, state, value, key.release(), ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, PassRefPtr<IDBAny> source, JSC::ExecState* state, ScriptValue& value, PassRefPtr<IDBKey> prpKey, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, PassRefPtr<IDBAny> source, JSC::ExecState* state, Deprecated::ScriptValue& value, PassRefPtr<IDBKey> prpKey, ExceptionCode& ec)
 {
     RefPtr<IDBKey> key = prpKey;
     if (m_deleted) {
         ec = IDBDatabaseException::InvalidStateError;
-        return 0;
+        return nullptr;
     }
     if (!m_transaction->isActive()) {
         ec = IDBDatabaseException::TransactionInactiveError;
-        return 0;
+        return nullptr;
     }
     if (m_transaction->isReadOnly()) {
         ec = IDBDatabaseException::ReadOnlyError;
-        return 0;
+        return nullptr;
     }
 
-    // FIXME: Expose the JS engine exception state through ScriptState.
-    bool didThrow = false;
-    RefPtr<SerializedScriptValue> serializedValue = value.serialize(state, 0, 0, didThrow);
-    if (didThrow) {
-        // Setting an explicit ExceptionCode here would defer handling the already thrown exception.
-        return 0;
-    }
+    RefPtr<SerializedScriptValue> serializedValue = SerializedScriptValue::create(state, value.jsValue(), nullptr, nullptr);
+    if (state->hadException())
+        return nullptr;
 
-    if (serializedValue->blobURLs().size() > 0) {
+    if (serializedValue->hasBlobURLs()) {
         // FIXME: Add Blob/File/FileList support
         ec = IDBDatabaseException::DataCloneError;
-        return 0;
+        return nullptr;
     }
 
     const IDBKeyPath& keyPath = m_metadata.keyPath;
@@ -188,26 +162,26 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, 
 
     if (putMode != IDBDatabaseBackend::CursorUpdate && usesInLineKeys && key) {
         ec = IDBDatabaseException::DataError;
-        return 0;
+        return nullptr;
     }
     if (!usesInLineKeys && !hasKeyGenerator && !key) {
         ec = IDBDatabaseException::DataError;
-        return 0;
+        return nullptr;
     }
     if (usesInLineKeys) {
-        RefPtr<IDBKey> keyPathKey = createIDBKeyFromScriptValueAndKeyPath(&requestState, value, keyPath);
+        RefPtr<IDBKey> keyPathKey = createIDBKeyFromScriptValueAndKeyPath(requestState.exec(), value, keyPath);
         if (keyPathKey && !keyPathKey->isValid()) {
             ec = IDBDatabaseException::DataError;
-            return 0;
+            return nullptr;
         }
         if (!hasKeyGenerator && !keyPathKey) {
             ec = IDBDatabaseException::DataError;
-            return 0;
+            return nullptr;
         }
         if (hasKeyGenerator && !keyPathKey) {
             if (!canInjectIDBKeyIntoScriptValue(&requestState, value, keyPath)) {
                 ec = IDBDatabaseException::DataError;
-                return 0;
+                return nullptr;
             }
         }
         if (keyPathKey)
@@ -215,15 +189,23 @@ PassRefPtr<IDBRequest> IDBObjectStore::put(IDBDatabaseBackend::PutMode putMode, 
     }
     if (key && !key->isValid()) {
         ec = IDBDatabaseException::DataError;
-        return 0;
+        return nullptr;
     }
 
     Vector<int64_t> indexIds;
     Vector<IndexKeys> indexKeys;
     for (IDBObjectStoreMetadata::IndexMap::const_iterator it = m_metadata.indexes.begin(); it != m_metadata.indexes.end(); ++it) {
-        IndexKeys keys;
-        generateIndexKeysForValue(&requestState, it->value, value, &keys);
+        Vector<IDBKeyData> keyDatas;
+        generateIndexKeysForValue(requestState.exec(), it->value, value, keyDatas);
         indexIds.append(it->key);
+
+        // FIXME: Much of the Indexed DB code needs to use IDBKeyData directly to avoid wasteful conversions like this.
+        Vector<RefPtr<IDBKey>> keys;
+        for (auto& i : keyDatas) {
+            RefPtr<IDBKey> key = i.maybeCreateIDBKey();
+            if (key)
+                keys.append(key.release());
+        }
         indexKeys.append(keys);
     }
 
@@ -262,7 +244,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::deleteFunction(ScriptExecutionContext* co
     return request.release();
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::deleteFunction(ScriptExecutionContext* context, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::deleteFunction(ScriptExecutionContext* context, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     RefPtr<IDBKeyRange> keyRange = IDBKeyRange::only(context, key, ec);
     if (ec)
@@ -336,11 +318,17 @@ private:
             cursor->continueFunction(static_cast<IDBKey*>(0), ASSERT_NO_EXCEPTION);
 
             RefPtr<IDBKey> primaryKey = cursor->idbPrimaryKey();
-            ScriptValue value = cursor->value();
+            Deprecated::ScriptValue value = cursor->value();
 
-            IDBObjectStore::IndexKeys indexKeys;
-            generateIndexKeysForValue(request->requestState(), m_indexMetadata, value, &indexKeys);
+            Vector<IDBKeyData> indexKeyDatas;
+            generateIndexKeysForValue(request->requestState()->exec(), m_indexMetadata, value, indexKeyDatas);
 
+            Vector<RefPtr<IDBKey>> indexKeys;
+            for (auto& i : indexKeyDatas) {
+                RefPtr<IDBKey> key = i.maybeCreateIDBKey();
+                if (key)
+                    indexKeys.append(key.release());
+            }
             Vector<IDBObjectStore::IndexKeys, 1> indexKeysList;
             indexKeysList.append(indexKeys);
 
@@ -415,6 +403,7 @@ PassRefPtr<IDBIndex> IDBObjectStore::createIndex(ScriptExecutionContext* context
     if (ec)
         return 0;
 
+#if USE(LEVELDB)
     RefPtr<IDBRequest> indexRequest = openCursor(context, static_cast<IDBKeyRange*>(0), IDBCursor::directionNext(), IDBDatabaseBackend::PreemptiveTask, ec);
     ASSERT(!ec);
     if (ec)
@@ -424,6 +413,9 @@ PassRefPtr<IDBIndex> IDBObjectStore::createIndex(ScriptExecutionContext* context
     // This is kept alive by being the success handler of the request, which is in turn kept alive by the owning transaction.
     RefPtr<IndexPopulator> indexPopulator = IndexPopulator::create(backendDB(), m_transaction->id(), id(), metadata);
     indexRequest->setOnsuccess(indexPopulator);
+#else
+    ASSERT_UNUSED(context, context);
+#endif
 
     return index.release();
 }
@@ -502,7 +494,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* contex
     return openCursor(context, keyRange, IDBCursor::directionNext(), ec);
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     return openCursor(context, key, IDBCursor::directionNext(), ec);
 }
@@ -528,13 +520,13 @@ PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* contex
         return 0;
 
     RefPtr<IDBRequest> request = IDBRequest::create(context, IDBAny::create(this), m_transaction.get());
-    request->setCursorDetails(IndexedDB::CursorKeyAndValue, direction);
+    request->setCursorDetails(IndexedDB::CursorType::KeyAndValue, direction);
 
     backendDB()->openCursor(m_transaction->id(), id(), IDBIndexMetadata::InvalidId, range, direction, false, static_cast<IDBDatabaseBackend::TaskType>(taskType), request);
     return request.release();
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, const ScriptValue& key, const String& direction, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::openCursor(ScriptExecutionContext* context, const Deprecated::ScriptValue& key, const String& direction, ExceptionCode& ec)
 {
     RefPtr<IDBKeyRange> keyRange = IDBKeyRange::only(context, key, ec);
     if (ec)
@@ -558,7 +550,7 @@ PassRefPtr<IDBRequest> IDBObjectStore::count(ScriptExecutionContext* context, Pa
     return request.release();
 }
 
-PassRefPtr<IDBRequest> IDBObjectStore::count(ScriptExecutionContext* context, const ScriptValue& key, ExceptionCode& ec)
+PassRefPtr<IDBRequest> IDBObjectStore::count(ScriptExecutionContext* context, const Deprecated::ScriptValue& key, ExceptionCode& ec)
 {
     RefPtr<IDBKeyRange> keyRange = IDBKeyRange::only(context, key, ec);
     if (ec)

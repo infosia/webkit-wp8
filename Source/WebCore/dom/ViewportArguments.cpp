@@ -28,9 +28,6 @@
 #include "config.h"
 #include "ViewportArguments.h"
 
-#include "Chrome.h"
-#include "Console.h"
-#include "DOMWindow.h"
 #include "Document.h"
 #include "Frame.h"
 #include "IntSize.h"
@@ -39,7 +36,7 @@
 
 namespace WebCore {
 
-#if PLATFORM(BLACKBERRY) || PLATFORM(GTK)
+#if PLATFORM(GTK)
 const float ViewportArguments::deprecatedTargetDPI = 160;
 #endif
 
@@ -396,9 +393,28 @@ void setViewportFeature(const String& keyString, const String& valueString, Docu
         arguments->maxZoom = findScaleValue(keyString, valueString, document);
     else if (keyString == "user-scalable")
         arguments->userZoom = findUserScalableValue(keyString, valueString, document);
+#if PLATFORM(IOS)
+    else if (keyString == "minimal-ui")
+        arguments->minimalUI = true;
+#endif
     else
         reportViewportWarning(document, UnrecognizedViewportArgumentKeyError, keyString, String());
 }
+
+#if PLATFORM(IOS)
+void finalizeViewportArguments(ViewportArguments& arguments, const FloatSize& screenSize)
+{
+    if (arguments.width == ViewportArguments::ValueDeviceWidth)
+        arguments.width = screenSize.width();
+    else if (arguments.width == ViewportArguments::ValueDeviceHeight)
+        arguments.width = screenSize.height();
+
+    if (arguments.height == ViewportArguments::ValueDeviceWidth)
+        arguments.height = screenSize.width();
+    else if (arguments.height == ViewportArguments::ValueDeviceHeight)
+        arguments.height = screenSize.height();
+}
+#endif
 
 static const char* viewportErrorMessageTemplate(ViewportErrorCode errorCode)
 {
@@ -416,15 +432,15 @@ static MessageLevel viewportErrorMessageLevel(ViewportErrorCode errorCode)
 {
     switch (errorCode) {
     case TruncatedViewportArgumentValueError:
-        return WarningMessageLevel;
+        return MessageLevel::Warning;
     case UnrecognizedViewportArgumentKeyError:
     case UnrecognizedViewportArgumentValueError:
     case MaximumScaleTooLargeError:
-        return ErrorMessageLevel;
+        return MessageLevel::Error;
     }
 
     ASSERT_NOT_REACHED();
-    return ErrorMessageLevel;
+    return MessageLevel::Error;
 }
 
 void reportViewportWarning(Document* document, ViewportErrorCode errorCode, const String& replacement1, const String& replacement2)
@@ -443,7 +459,7 @@ void reportViewportWarning(Document* document, ViewportErrorCode errorCode, cons
         message.append(" Note that ';' is not a separator in viewport values. The list should be comma-separated.");
 
     // FIXME: This message should be moved off the console once a solution to https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-    document->addConsoleMessage(RenderingMessageSource, viewportErrorMessageLevel(errorCode), message);
+    document->addConsoleMessage(MessageSource::Rendering, viewportErrorMessageLevel(errorCode), message);
 }
 
 } // namespace WebCore

@@ -37,7 +37,7 @@ namespace WebCore {
 
 class RenderRubyRun;
 
-class RenderRubyBase FINAL : public RenderBlockFlow {
+class RenderRubyBase final : public RenderBlockFlow {
 public:
     RenderRubyBase(Document&, PassRef<RenderStyle>);
     virtual ~RenderRubyBase();
@@ -50,6 +50,7 @@ private:
     virtual bool isChildAllowed(const RenderObject&, const RenderStyle&) const;
     virtual ETextAlign textAlignmentForLine(bool endsWithSoftBreak) const;
     virtual void adjustInlineDirectionLineBounds(int expansionOpportunityCount, float& logicalLeft, float& logicalWidth) const;
+    void mergeChildrenWithBase(RenderRubyBase* toBlock);
 
     void moveChildren(RenderRubyBase* toBase, RenderObject* beforeChild = 0);
     void moveInlineChildren(RenderRubyBase* toBase, RenderObject* beforeChild = 0);

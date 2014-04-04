@@ -40,6 +40,7 @@
 
 
 #define WIRApplicationIdentifierKey             @"WIRApplicationIdentifierKey"
+#define WIRApplicationBundleIdentifierKey       @"WIRApplicationBundleIdentifierKey"
 #define WIRApplicationNameKey                   @"WIRApplicationNameKey"
 #define WIRIsApplicationProxyKey                @"WIRIsApplicationProxyKey"
 #define WIRHostApplicationIdentifierKey         @"WIRHostApplicationIdentifierKey"
@@ -66,6 +67,9 @@
 #define WIRListingKey                           @"WIRListingKey"
 #define WIRDestinationKey                       @"WIRDestinationKey"
 #define WIRConnectionDiedMessage                @"WIRConnectionDiedMessage"
+#define WIRTypeKey                              @"WIRTypeKey"
+#define WIRTypeJavaScript                       @"WIRTypeJavaScript"
+#define WIRTypeWeb                              @"WIRTypeWeb"
 
 // These definitions are shared with a Simulator webinspectord and
 // OS X process communicating with it.

@@ -31,7 +31,6 @@
 #include "WebPage.h"
 #include <WebCore/GraphicsLayerFactory.h>
 #include <WebCore/PlatformCALayer.h>
-#include <WebCore/Timer.h>
 #include <wtf/Vector.h>
 
 namespace WebKit {
@@ -39,14 +38,11 @@ namespace WebKit {
 class PlatformCALayerRemote;
 class WebPage;
 
+// FIXME: This class doesn't do much now. Roll into RemoteLayerTreeDrawingArea?
 class RemoteLayerTreeContext : public WebCore::GraphicsLayerFactory {
 public:
     explicit RemoteLayerTreeContext(WebPage*);
     ~RemoteLayerTreeContext();
-
-    void setRootLayer(WebCore::GraphicsLayer*);
-
-    void scheduleLayerFlush();
 
     void layerWasCreated(PlatformCALayerRemote*, WebCore::PlatformCALayer::LayerType);
     void layerWillBeDestroyed(PlatformCALayerRemote*);
@@ -56,28 +52,27 @@ public:
 
     LayerHostingMode layerHostingMode() const { return m_webPage->layerHostingMode(); }
 
-    void setIsFlushingSuspended(bool);
+    void flushOutOfTreeLayers();
+    void buildTransaction(RemoteLayerTreeTransaction&, WebCore::PlatformCALayer& rootLayer);
 
-    void forceRepaint();
+    // From the UI process
+    void animationDidStart(WebCore::GraphicsLayer::PlatformLayerID, double startTime);
+
+    void willStartAnimationOnLayer(PlatformCALayerRemote*);
 
 private:
     // WebCore::GraphicsLayerFactory
-    virtual std::unique_ptr<WebCore::GraphicsLayer> createGraphicsLayer(WebCore::GraphicsLayerClient*) OVERRIDE;
-
-    void layerFlushTimerFired(WebCore::Timer<RemoteLayerTreeContext>*);
-    void flushLayers();
+    virtual std::unique_ptr<WebCore::GraphicsLayer> createGraphicsLayer(WebCore::GraphicsLayerClient*) override;
 
     WebPage* m_webPage;
-    WebCore::Timer<RemoteLayerTreeContext> m_layerFlushTimer;
 
     RefPtr<PlatformCALayerRemote> m_rootLayer;
     Vector<WebCore::GraphicsLayer*> m_outOfTreeLayers;
 
     Vector<RemoteLayerTreeTransaction::LayerCreationProperties> m_createdLayers;
-    Vector<RemoteLayerTreeTransaction::LayerID> m_destroyedLayers;
-
-    bool m_isFlushingSuspended;
-    bool m_hasDeferredFlush;
+    Vector<WebCore::GraphicsLayer::PlatformLayerID> m_destroyedLayers;
+    
+    HashMap<WebCore::GraphicsLayer::PlatformLayerID, PlatformCALayerRemote*> m_layersAwaitingAnimationStart;
 };
 
 } // namespace WebKit

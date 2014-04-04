@@ -26,8 +26,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGShape.h"
 
 #include "FloatPoint.h"
@@ -36,10 +34,8 @@
 #include "HitTestRequest.h"
 #include "LayoutRepainter.h"
 #include "PointerEventsHitRules.h"
-#include "RenderSVGContainer.h"
 #include "RenderSVGResourceMarker.h"
 #include "RenderSVGResourceSolidColor.h"
-#include "SVGGraphicsElement.h"
 #include "SVGPathData.h"
 #include "SVGRenderingContext.h"
 #include "SVGResources.h"
@@ -47,19 +43,18 @@
 #include "SVGTransformList.h"
 #include "SVGURIReference.h"
 #include "StrokeStyleApplier.h"
-#include <wtf/MathExtras.h>
 #include <wtf/StackStats.h>
 
 namespace WebCore {
 
-class BoundingRectStrokeStyleApplier FINAL : public StrokeStyleApplier {
+class BoundingRectStrokeStyleApplier final : public StrokeStyleApplier {
 public:
     BoundingRectStrokeStyleApplier(const RenderSVGShape& renderer)
         : m_renderer(renderer)
     {
     }
 
-    virtual void strokeStyle(GraphicsContext* context) OVERRIDE
+    virtual void strokeStyle(GraphicsContext* context) override
     {
         SVGRenderSupport::applyStrokeStyleToContext(context, m_renderer.style(), m_renderer);
     }
@@ -82,8 +77,7 @@ RenderSVGShape::~RenderSVGShape()
 
 void RenderSVGShape::updateShapeFromElement()
 {
-    m_path.clear();
-    m_path = adoptPtr(new Path);
+    m_path = std::make_unique<Path>();
     ASSERT(RenderSVGShape::isEmpty());
 
     updatePathFromGraphicsElement(&graphicsElement(), path());
@@ -193,7 +187,7 @@ void RenderSVGShape::layout()
 
 Path* RenderSVGShape::nonScalingStrokePath(const Path* path, const AffineTransform& strokeTransform) const
 {
-    DEFINE_STATIC_LOCAL(Path, tempPath, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Path, tempPath, ());
 
     tempPath = *path;
     tempPath.transform(strokeTransform);
@@ -224,7 +218,7 @@ bool RenderSVGShape::shouldGenerateMarkerPositions() const
     if (!graphicsElement().supportsMarkers())
         return false;
 
-    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(this);
+    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(*this);
     if (!resources)
         return false;
 
@@ -261,22 +255,37 @@ void RenderSVGShape::strokeShape(const RenderStyle& style, GraphicsContext* cont
     }
 }
 
-void RenderSVGShape::fillAndStrokeShape(GraphicsContext* context)
+void RenderSVGShape::strokeShape(GraphicsContext* context)
 {
-    fillShape(style(), context);
-
     if (!style().svgStyle().hasVisibleStroke())
         return;
 
     GraphicsContextStateSaver stateSaver(*context, false);
-
     if (hasNonScalingStroke()) {
         AffineTransform nonScalingTransform = nonScalingStrokeTransform();
         if (!setupNonScalingStrokeContext(nonScalingTransform, stateSaver))
             return;
     }
-
     strokeShape(style(), context);
+}
+
+void RenderSVGShape::fillStrokeMarkers(PaintInfo& childPaintInfo)
+{
+    Vector<PaintType> paintOrder = style().svgStyle().paintTypesForPaintOrder();
+    for (unsigned i = 0; i < paintOrder.size(); ++i) {
+        switch (paintOrder.at(i)) {
+        case PaintTypeFill:
+            fillShape(style(), childPaintInfo.context);
+            break;
+        case PaintTypeStroke:
+            strokeShape(childPaintInfo.context);
+            break;
+        case PaintTypeMarkers:
+            if (!m_markerPositions.isEmpty())
+                drawMarkers(childPaintInfo);
+            break;
+        }
+    }
 }
 
 void RenderSVGShape::paint(PaintInfo& paintInfo, const LayoutPoint&)
@@ -301,9 +310,7 @@ void RenderSVGShape::paint(PaintInfo& paintInfo, const LayoutPoint&)
                 if (svgStyle.shapeRendering() == SR_CRISPEDGES)
                     childPaintInfo.context->setShouldAntialias(false);
 
-                fillAndStrokeShape(childPaintInfo.context);
-                if (!m_markerPositions.isEmpty())
-                    drawMarkers(childPaintInfo);
+                fillStrokeMarkers(childPaintInfo);
             }
         }
 
@@ -367,7 +374,7 @@ FloatRect RenderSVGShape::markerRect(float strokeWidth) const
 {
     ASSERT(!m_markerPositions.isEmpty());
 
-    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(this);
+    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(*this);
     ASSERT(resources);
 
     RenderSVGResourceMarker* markerStart = resources->markerStart();
@@ -443,7 +450,7 @@ void RenderSVGShape::drawMarkers(PaintInfo& paintInfo)
 {
     ASSERT(!m_markerPositions.isEmpty());
 
-    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(this);
+    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(*this);
     if (!resources)
         return;
 
@@ -476,5 +483,3 @@ void RenderSVGShape::processMarkerPositions()
 }
 
 }
-
-#endif // ENABLE(SVG)

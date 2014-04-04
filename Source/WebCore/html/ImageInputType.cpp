@@ -64,8 +64,8 @@ bool ImageInputType::appendFormData(FormDataList& encoding, bool) const
         return true;
     }
 
-    DEFINE_STATIC_LOCAL(String, dotXString, (ASCIILiteral(".x")));
-    DEFINE_STATIC_LOCAL(String, dotYString, (ASCIILiteral(".y")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, dotXString, (ASCIILiteral(".x")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, dotYString, (ASCIILiteral(".y")));
     encoding.appendData(name + dotXString, m_clickLocation.x());
     encoding.appendData(name + dotYString, m_clickLocation.y());
 
@@ -85,21 +85,25 @@ void ImageInputType::handleDOMActivateEvent(Event* event)
     if (element->isDisabledFormControl() || !element->form())
         return;
     element->setActivatedSubmit(true);
-    if (event->underlyingEvent() && event->underlyingEvent()->isMouseEvent()) {
-        MouseEvent* mouseEvent = static_cast<MouseEvent*>(event->underlyingEvent());
-        m_clickLocation = IntPoint(mouseEvent->offsetX(), mouseEvent->offsetY());
-    } else
-        m_clickLocation = IntPoint();
+
+    m_clickLocation = IntPoint();
+    if (event->underlyingEvent()) {
+        Event& underlyingEvent = *event->underlyingEvent();
+        if (underlyingEvent.isMouseEvent()) {
+            MouseEvent& mouseEvent = toMouseEvent(underlyingEvent);
+            if (!mouseEvent.isSimulated())
+                m_clickLocation = IntPoint(mouseEvent.offsetX(), mouseEvent.offsetY());
+        }
+    }
+
     element->form()->prepareForSubmission(event); // Event handlers can run.
     element->setActivatedSubmit(false);
     event->setDefaultHandled();
 }
 
-RenderElement* ImageInputType::createRenderer(PassRef<RenderStyle> style) const
+RenderPtr<RenderElement> ImageInputType::createInputRenderer(PassRef<RenderStyle> style)
 {
-    RenderImage* image = new RenderImage(element(), std::move(style));
-    image->setImageResource(RenderImageResource::create());
-    return image;
+    return createRenderer<RenderImage>(element(), std::move(style));
 }
 
 void ImageInputType::altAttributeChanged()
@@ -131,12 +135,12 @@ void ImageInputType::attach()
     if (imageLoader->hasPendingBeforeLoadEvent())
         return;
 
-    RenderImageResource* imageResource = renderer->imageResource();
-    imageResource->setCachedImage(imageLoader->image()); 
+    auto& imageResource = renderer->imageResource();
+    imageResource.setCachedImage(imageLoader->image());
 
     // If we have no image at all because we have no src attribute, set
     // image height and width for the alt text instead.
-    if (!imageLoader->image() && !imageResource->cachedImage())
+    if (!imageLoader->image() && !imageResource.cachedImage())
         renderer->setImageSizeForAltText();
 }
 
@@ -186,7 +190,7 @@ unsigned ImageInputType::height() const
     element->document().updateLayout();
 
     RenderBox* box = element->renderBox();
-    return box ? adjustForAbsoluteZoom(box->contentHeight(), box) : 0;
+    return box ? adjustForAbsoluteZoom(box->contentHeight(), *box) : 0;
 }
 
 unsigned ImageInputType::width() const
@@ -210,7 +214,7 @@ unsigned ImageInputType::width() const
     element->document().updateLayout();
 
     RenderBox* box = element->renderBox();
-    return box ? adjustForAbsoluteZoom(box->contentWidth(), box) : 0;
+    return box ? adjustForAbsoluteZoom(box->contentWidth(), *box) : 0;
 }
 
 } // namespace WebCore

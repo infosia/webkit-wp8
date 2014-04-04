@@ -35,15 +35,15 @@ StyleMultiColData::StyleMultiColData()
     , m_normalGap(true)
     , m_fill(RenderStyle::initialColumnFill())
     , m_columnSpan(false)
-    , m_breakBefore(RenderStyle::initialPageBreak())
-    , m_breakAfter(RenderStyle::initialPageBreak())
-    , m_breakInside(RenderStyle::initialPageBreak())
+    , m_breakBefore(RenderStyle::NonInheritedFlags::initialPageBreak())
+    , m_breakAfter(RenderStyle::NonInheritedFlags::initialPageBreak())
+    , m_breakInside(RenderStyle::NonInheritedFlags::initialPageBreak())
     , m_axis(RenderStyle::initialColumnAxis())
     , m_progression(RenderStyle::initialColumnProgression())
 {
 }
 
-StyleMultiColData::StyleMultiColData(const StyleMultiColData& o)
+inline StyleMultiColData::StyleMultiColData(const StyleMultiColData& o)
     : RefCounted<StyleMultiColData>()
     , m_width(o.m_width)
     , m_count(o.m_count)
@@ -61,6 +61,11 @@ StyleMultiColData::StyleMultiColData(const StyleMultiColData& o)
     , m_axis(o.m_axis)
     , m_progression(o.m_progression)
 {
+}
+
+PassRef<StyleMultiColData> StyleMultiColData::copy() const
+{
+    return adoptRef(*new StyleMultiColData(*this));
 }
 
 bool StyleMultiColData::operator==(const StyleMultiColData& o) const

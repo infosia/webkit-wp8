@@ -40,10 +40,9 @@ public:
     explicit TelephoneInputType(HTMLInputElement& element) : BaseTextInputType(element) { }
 
 private:
-    virtual void attach() OVERRIDE;
-    virtual const AtomicString& formControlType() const OVERRIDE;
-    virtual bool shouldRespectSpeechAttribute() OVERRIDE;
-    virtual bool isTelephoneField() const OVERRIDE;
+    virtual const AtomicString& formControlType() const override;
+    virtual bool shouldRespectSpeechAttribute() override;
+    virtual bool isTelephoneField() const override;
 };
 
 } // namespace WebCore

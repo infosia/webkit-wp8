@@ -29,9 +29,12 @@
 #import "ArgumentCoders.h"
 #import "MessageDecoder.h"
 #import "MessageEncoder.h"
+#import "PlatformCAAnimationRemote.h"
 #import "PlatformCALayerRemote.h"
 #import "WebCoreArgumentCoders.h"
+#import <QuartzCore/QuartzCore.h>
 #import <WebCore/TextStream.h>
+#import <WebCore/TimingFunction.h>
 #import <wtf/text/CString.h>
 #import <wtf/text/StringBuilder.h>
 
@@ -40,10 +43,13 @@ using namespace WebCore;
 namespace WebKit {
 
 RemoteLayerTreeTransaction::LayerCreationProperties::LayerCreationProperties()
+    : layerID(0)
+    , type(PlatformCALayer::LayerTypeLayer)
+    , hostingContextID(0)
 {
 }
 
-void RemoteLayerTreeTransaction::LayerCreationProperties::encode(CoreIPC::ArgumentEncoder& encoder) const
+void RemoteLayerTreeTransaction::LayerCreationProperties::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << layerID;
     encoder.encodeEnum(type);
@@ -52,7 +58,7 @@ void RemoteLayerTreeTransaction::LayerCreationProperties::encode(CoreIPC::Argume
         encoder << hostingContextID;
 }
 
-bool RemoteLayerTreeTransaction::LayerCreationProperties::decode(CoreIPC::ArgumentDecoder& decoder, LayerCreationProperties& result)
+bool RemoteLayerTreeTransaction::LayerCreationProperties::decode(IPC::ArgumentDecoder& decoder, LayerCreationProperties& result)
 {
     if (!decoder.decode(result.layerID))
         return false;
@@ -71,10 +77,73 @@ bool RemoteLayerTreeTransaction::LayerCreationProperties::decode(CoreIPC::Argume
 RemoteLayerTreeTransaction::LayerProperties::LayerProperties()
     : changedProperties(NoChange)
     , everChangedProperties(NoChange)
+    , anchorPoint(0.5, 0.5, 0)
+    , contentsRect(FloatPoint(), FloatSize(1, 1))
+    , maskLayerID(0)
+    , timeOffset(0)
+    , speed(1)
+    , contentsScale(1)
+    , borderWidth(0)
+    , opacity(1)
+    , backgroundColor(Color::transparent)
+    , borderColor(Color::black)
+    , edgeAntialiasingMask(kCALayerLeftEdge | kCALayerRightEdge | kCALayerBottomEdge | kCALayerTopEdge)
+    , customAppearance(GraphicsLayer::NoCustomAppearance)
+    , customBehavior(GraphicsLayer::NoCustomBehavior)
+    , minificationFilter(PlatformCALayer::FilterType::Linear)
+    , magnificationFilter(PlatformCALayer::FilterType::Linear)
+    , hidden(false)
+    , geometryFlipped(false)
+    , doubleSided(true)
+    , masksToBounds(false)
+    , opaque(false)
 {
 }
 
-void RemoteLayerTreeTransaction::LayerProperties::encode(CoreIPC::ArgumentEncoder& encoder) const
+RemoteLayerTreeTransaction::LayerProperties::LayerProperties(const LayerProperties& other)
+    : changedProperties(other.changedProperties)
+    , everChangedProperties(other.everChangedProperties)
+    , name(other.name)
+    , children(other.children)
+    , addedAnimations(other.addedAnimations)
+    , keyPathsOfAnimationsToRemove(other.keyPathsOfAnimationsToRemove)
+    , position(other.position)
+    , anchorPoint(other.anchorPoint)
+    , size(other.size)
+    , contentsRect(other.contentsRect)
+    , maskLayerID(other.maskLayerID)
+    , timeOffset(other.timeOffset)
+    , speed(other.speed)
+    , contentsScale(other.contentsScale)
+    , borderWidth(other.borderWidth)
+    , opacity(other.opacity)
+    , backgroundColor(other.backgroundColor)
+    , borderColor(other.borderColor)
+    , edgeAntialiasingMask(other.edgeAntialiasingMask)
+    , customAppearance(other.customAppearance)
+    , customBehavior(other.customBehavior)
+    , minificationFilter(other.minificationFilter)
+    , magnificationFilter(other.magnificationFilter)
+    , hidden(other.hidden)
+    , geometryFlipped(other.geometryFlipped)
+    , doubleSided(other.doubleSided)
+    , masksToBounds(other.masksToBounds)
+    , opaque(other.opaque)
+{
+    // FIXME: LayerProperties should reference backing store by ID, so that two layers can have the same backing store (for clones).
+    // FIXME: LayerProperties shouldn't be copyable; PlatformCALayerRemote::clone should copy the relevant properties.
+
+    if (other.transform)
+        transform = std::make_unique<TransformationMatrix>(*other.transform);
+
+    if (other.sublayerTransform)
+        sublayerTransform = std::make_unique<TransformationMatrix>(*other.sublayerTransform);
+
+    if (other.filters)
+        filters = std::make_unique<FilterOperations>(*other.filters);
+}
+
+void RemoteLayerTreeTransaction::LayerProperties::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder.encodeEnum(changedProperties);
 
@@ -83,6 +152,11 @@ void RemoteLayerTreeTransaction::LayerProperties::encode(CoreIPC::ArgumentEncode
 
     if (changedProperties & ChildrenChanged)
         encoder << children;
+
+    if (changedProperties & AnimationsChanged) {
+        encoder << addedAnimations;
+        encoder << keyPathsOfAnimationsToRemove;
+    }
 
     if (changedProperties & PositionChanged)
         encoder << position;
@@ -106,10 +180,10 @@ void RemoteLayerTreeTransaction::LayerProperties::encode(CoreIPC::ArgumentEncode
         encoder << opacity;
 
     if (changedProperties & TransformChanged)
-        encoder << transform;
+        encoder << *transform;
 
     if (changedProperties & SublayerTransformChanged)
-        encoder << sublayerTransform;
+        encoder << *sublayerTransform;
 
     if (changedProperties & HiddenChanged)
         encoder << hidden;
@@ -147,17 +221,26 @@ void RemoteLayerTreeTransaction::LayerProperties::encode(CoreIPC::ArgumentEncode
     if (changedProperties & TimeOffsetChanged)
         encoder << timeOffset;
 
-    if (changedProperties & BackingStoreChanged)
-        encoder << backingStore;
+    if (changedProperties & BackingStoreChanged) {
+        encoder << backingStore->hasFrontBuffer();
+        if (backingStore->hasFrontBuffer())
+            encoder << *backingStore;
+    }
 
     if (changedProperties & FiltersChanged)
-        encoder << filters;
+        encoder << *filters;
 
     if (changedProperties & EdgeAntialiasingMaskChanged)
         encoder << edgeAntialiasingMask;
+
+    if (changedProperties & CustomAppearanceChanged)
+        encoder.encodeEnum(customAppearance);
+
+    if (changedProperties & CustomBehaviorChanged)
+        encoder.encodeEnum(customBehavior);
 }
 
-bool RemoteLayerTreeTransaction::LayerProperties::decode(CoreIPC::ArgumentDecoder& decoder, LayerProperties& result)
+bool RemoteLayerTreeTransaction::LayerProperties::decode(IPC::ArgumentDecoder& decoder, LayerProperties& result)
 {
     if (!decoder.decodeEnum(result.changedProperties))
         return false;
@@ -171,10 +254,18 @@ bool RemoteLayerTreeTransaction::LayerProperties::decode(CoreIPC::ArgumentDecode
         if (!decoder.decode(result.children))
             return false;
 
-        for (auto layerID : result.children) {
+        for (auto& layerID : result.children) {
             if (!layerID)
                 return false;
         }
+    }
+
+    if (result.changedProperties & AnimationsChanged) {
+        if (!decoder.decode(result.addedAnimations))
+            return false;
+
+        if (!decoder.decode(result.keyPathsOfAnimationsToRemove))
+            return false;
     }
 
     if (result.changedProperties & PositionChanged) {
@@ -213,13 +304,19 @@ bool RemoteLayerTreeTransaction::LayerProperties::decode(CoreIPC::ArgumentDecode
     }
 
     if (result.changedProperties & TransformChanged) {
-        if (!decoder.decode(result.transform))
+        TransformationMatrix transform;
+        if (!decoder.decode(transform))
             return false;
+        
+        result.transform = std::make_unique<TransformationMatrix>(transform);
     }
 
     if (result.changedProperties & SublayerTransformChanged) {
-        if (!decoder.decode(result.sublayerTransform))
+        TransformationMatrix transform;
+        if (!decoder.decode(transform))
             return false;
+
+        result.sublayerTransform = std::make_unique<TransformationMatrix>(transform);
     }
 
     if (result.changedProperties & HiddenChanged) {
@@ -283,17 +380,37 @@ bool RemoteLayerTreeTransaction::LayerProperties::decode(CoreIPC::ArgumentDecode
     }
 
     if (result.changedProperties & BackingStoreChanged) {
-        if (!decoder.decode(result.backingStore))
+        bool hasFrontBuffer = false;
+        if (!decoder.decode(hasFrontBuffer))
             return false;
+        if (hasFrontBuffer) {
+            std::unique_ptr<RemoteLayerBackingStore> backingStore = std::make_unique<RemoteLayerBackingStore>();
+            if (!decoder.decode(*backingStore))
+                return false;
+            
+            result.backingStore = std::move(backingStore);
+        }
     }
 
     if (result.changedProperties & FiltersChanged) {
-        if (!decoder.decode(result.filters))
+        std::unique_ptr<FilterOperations> filters = std::make_unique<FilterOperations>();
+        if (!decoder.decode(*filters))
             return false;
+        result.filters = std::move(filters);
     }
 
     if (result.changedProperties & EdgeAntialiasingMaskChanged) {
         if (!decoder.decode(result.edgeAntialiasingMask))
+            return false;
+    }
+
+    if (result.changedProperties & CustomAppearanceChanged) {
+        if (!decoder.decodeEnum(result.customAppearance))
+            return false;
+    }
+
+    if (result.changedProperties & CustomBehaviorChanged) {
+        if (!decoder.decodeEnum(result.customBehavior))
             return false;
     }
 
@@ -308,15 +425,35 @@ RemoteLayerTreeTransaction::~RemoteLayerTreeTransaction()
 {
 }
 
-void RemoteLayerTreeTransaction::encode(CoreIPC::ArgumentEncoder& encoder) const
+void RemoteLayerTreeTransaction::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << m_rootLayerID;
     encoder << m_createdLayers;
-    encoder << m_changedLayerProperties;
+
+    encoder << static_cast<uint64_t>(m_changedLayers.size());
+
+    for (RefPtr<PlatformCALayerRemote> layer : m_changedLayers) {
+        encoder << layer->layerID();
+        encoder << layer->properties();
+    }
+    
     encoder << m_destroyedLayerIDs;
+    encoder << m_videoLayerIDsPendingFullscreen;
+
+    encoder << m_contentsSize;
+    encoder << m_pageExtendedBackgroundColor;
+    encoder << m_pageScaleFactor;
+    encoder << m_minimumScaleFactor;
+    encoder << m_maximumScaleFactor;
+
+    encoder << m_lastVisibleContentRectUpdateID;
+    encoder << m_renderTreeSize;
+
+    encoder << m_scaleWasSetByUIProcess;
+    encoder << m_allowsUserScaling;
 }
 
-bool RemoteLayerTreeTransaction::decode(CoreIPC::ArgumentDecoder& decoder, RemoteLayerTreeTransaction& result)
+bool RemoteLayerTreeTransaction::decode(IPC::ArgumentDecoder& decoder, RemoteLayerTreeTransaction& result)
 {
     if (!decoder.decode(result.m_rootLayerID))
         return false;
@@ -326,20 +463,64 @@ bool RemoteLayerTreeTransaction::decode(CoreIPC::ArgumentDecoder& decoder, Remot
     if (!decoder.decode(result.m_createdLayers))
         return false;
 
-    if (!decoder.decode(result.m_changedLayerProperties))
+    uint64_t numChangedLayerProperties;
+    if (!decoder.decode(numChangedLayerProperties))
         return false;
+
+    for (uint64_t i = 0; i < numChangedLayerProperties; ++i) {
+        GraphicsLayer::PlatformLayerID layerID;
+        if (!decoder.decode(layerID))
+            return false;
+
+        std::unique_ptr<LayerProperties> layerProperties = std::make_unique<LayerProperties>();
+        if (!decoder.decode(*layerProperties))
+            return false;
+
+        result.changedLayerProperties().set(layerID, std::move(layerProperties));
+    }
 
     if (!decoder.decode(result.m_destroyedLayerIDs))
         return false;
-    for (LayerID layerID : result.m_destroyedLayerIDs) {
+
+    for (auto& layerID : result.m_destroyedLayerIDs) {
         if (!layerID)
             return false;
     }
 
+    if (!decoder.decode(result.m_videoLayerIDsPendingFullscreen))
+        return false;
+
+    if (!decoder.decode(result.m_contentsSize))
+        return false;
+    
+    if (!decoder.decode(result.m_pageExtendedBackgroundColor))
+        return false;
+
+    if (!decoder.decode(result.m_pageScaleFactor))
+        return false;
+
+    if (!decoder.decode(result.m_minimumScaleFactor))
+        return false;
+
+    if (!decoder.decode(result.m_maximumScaleFactor))
+        return false;
+
+    if (!decoder.decode(result.m_lastVisibleContentRectUpdateID))
+        return false;
+
+    if (!decoder.decode(result.m_renderTreeSize))
+        return false;
+
+    if (!decoder.decode(result.m_scaleWasSetByUIProcess))
+        return false;
+
+    if (!decoder.decode(result.m_allowsUserScaling))
+        return false;
+
     return true;
 }
 
-void RemoteLayerTreeTransaction::setRootLayerID(LayerID rootLayerID)
+void RemoteLayerTreeTransaction::setRootLayerID(GraphicsLayer::PlatformLayerID rootLayerID)
 {
     ASSERT_ARG(rootLayerID, rootLayerID);
 
@@ -348,7 +529,7 @@ void RemoteLayerTreeTransaction::setRootLayerID(LayerID rootLayerID)
 
 void RemoteLayerTreeTransaction::layerPropertiesChanged(PlatformCALayerRemote* remoteLayer, RemoteLayerTreeTransaction::LayerProperties& properties)
 {
-    m_changedLayerProperties.set(remoteLayer->layerID(), properties);
+    m_changedLayers.append(remoteLayer);
 }
 
 void RemoteLayerTreeTransaction::setCreatedLayers(Vector<LayerCreationProperties> createdLayers)
@@ -356,7 +537,7 @@ void RemoteLayerTreeTransaction::setCreatedLayers(Vector<LayerCreationProperties
     m_createdLayers = std::move(createdLayers);
 }
 
-void RemoteLayerTreeTransaction::setDestroyedLayerIDs(Vector<LayerID> destroyedLayerIDs)
+void RemoteLayerTreeTransaction::setDestroyedLayerIDs(Vector<GraphicsLayer::PlatformLayerID> destroyedLayerIDs)
 {
     m_destroyedLayerIDs = std::move(destroyedLayerIDs);
 }
@@ -378,8 +559,15 @@ public:
     RemoteLayerTreeTextStream& operator<<(FloatPoint3D);
     RemoteLayerTreeTextStream& operator<<(Color);
     RemoteLayerTreeTextStream& operator<<(FloatRect);
-    RemoteLayerTreeTextStream& operator<<(const Vector<RemoteLayerTreeTransaction::LayerID>& layers);
+    RemoteLayerTreeTextStream& operator<<(const Vector<WebCore::GraphicsLayer::PlatformLayerID>&);
     RemoteLayerTreeTextStream& operator<<(const FilterOperations&);
+    RemoteLayerTreeTextStream& operator<<(const PlatformCAAnimationRemote::Properties&);
+    RemoteLayerTreeTextStream& operator<<(const RemoteLayerBackingStore&);
+    RemoteLayerTreeTextStream& operator<<(PlatformCAAnimation::AnimationType);
+    RemoteLayerTreeTextStream& operator<<(PlatformCAAnimation::FillModeType);
+    RemoteLayerTreeTextStream& operator<<(PlatformCAAnimation::ValueFunctionType);
+    RemoteLayerTreeTextStream& operator<<(const TimingFunction&);
+    RemoteLayerTreeTextStream& operator<<(const PlatformCAAnimationRemote::KeyframeValue&);
 
     void increaseIndent() { ++m_indent; }
     void decreaseIndent() { --m_indent; ASSERT(m_indent >= 0); }
@@ -389,6 +577,17 @@ public:
 private:
     int m_indent;
 };
+
+template <class T>
+static void dumpProperty(RemoteLayerTreeTextStream& ts, String name, T value)
+{
+    ts << "\n";
+    ts.increaseIndent();
+    ts.writeIndent();
+    ts << "(" << name << " ";
+    ts << value << ")";
+    ts.decreaseIndent();
+}
 
 RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const TransformationMatrix& transform)
 {
@@ -466,14 +665,6 @@ RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const FilterOpe
         case FilterOperation::DROP_SHADOW:
             ts << "drop shadow";
             break;
-#if ENABLE(CSS_SHADERS)
-        case FilterOperation::CUSTOM:
-            ts << "custom";
-            break;
-        case FilterOperation::VALIDATED_CUSTOM:
-            ts << "custom (validated)";
-            break;
-#endif
         case FilterOperation::PASSTHROUGH:
             ts << "passthrough";
             break;
@@ -485,6 +676,165 @@ RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const FilterOpe
         if (i < filters.size() - 1)
             ts << " ";
     }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(PlatformCAAnimation::AnimationType type)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+    switch (type) {
+    case PlatformCAAnimation::Basic: ts << "basic"; break;
+    case PlatformCAAnimation::Keyframe: ts << "keyframe"; break;
+    }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(PlatformCAAnimation::FillModeType type)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+    switch (type) {
+    case PlatformCAAnimation::NoFillMode: ts << "none"; break;
+    case PlatformCAAnimation::Forwards: ts << "forwards"; break;
+    case PlatformCAAnimation::Backwards: ts << "backwards"; break;
+    case PlatformCAAnimation::Both: ts << "both"; break;
+    }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(PlatformCAAnimation::ValueFunctionType type)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+    switch (type) {
+    case PlatformCAAnimation::NoValueFunction: ts << "none"; break;
+    case PlatformCAAnimation::RotateX: ts << "rotateX"; break;
+    case PlatformCAAnimation::RotateY: ts << "rotateY"; break;
+    case PlatformCAAnimation::RotateZ: ts << "rotateX"; break;
+    case PlatformCAAnimation::ScaleX: ts << "scaleX"; break;
+    case PlatformCAAnimation::ScaleY: ts << "scaleY"; break;
+    case PlatformCAAnimation::ScaleZ: ts << "scaleX"; break;
+    case PlatformCAAnimation::Scale: ts << "scale"; break;
+    case PlatformCAAnimation::TranslateX: ts << "translateX"; break;
+    case PlatformCAAnimation::TranslateY: ts << "translateY"; break;
+    case PlatformCAAnimation::TranslateZ: ts << "translateZ"; break;
+    case PlatformCAAnimation::Translate: ts << "translate"; break;
+    }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const PlatformCAAnimationRemote::KeyframeValue& value)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+
+    switch (value.keyframeType()) {
+    case PlatformCAAnimationRemote::KeyframeValue::NumberKeyType:
+        ts << "number=" << value.numberValue();
+        break;
+    case PlatformCAAnimationRemote::KeyframeValue::ColorKeyType:
+        ts << "color=";
+        ts << value.colorValue();
+        break;
+    case PlatformCAAnimationRemote::KeyframeValue::PointKeyType:
+        ts << "point=";
+        ts << value.pointValue();
+        break;
+    case PlatformCAAnimationRemote::KeyframeValue::TransformKeyType:
+        ts << "transform=";
+        ts << value.transformValue();
+        break;
+    }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const TimingFunction& timingFunction)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+    switch (timingFunction.type()) {
+    case TimingFunction::LinearFunction:
+        ts << "linear";
+        break;
+    case TimingFunction::CubicBezierFunction: {
+        const CubicBezierTimingFunction& cubicBezierFunction = static_cast<const CubicBezierTimingFunction&>(timingFunction);
+        ts << "cubic-bezier(" << cubicBezierFunction.x1() << ", " << cubicBezierFunction.y1() << ", " <<  cubicBezierFunction.x2() << ", " << cubicBezierFunction.y2() << ")";
+        break;
+    }
+    case TimingFunction::StepsFunction: {
+        const StepsTimingFunction& stepsFunction = static_cast<const StepsTimingFunction&>(timingFunction);
+        ts << "steps(" << stepsFunction.numberOfSteps() << ", " << (stepsFunction.stepAtStart() ? "start" : "end") << ")";
+        break;
+    }
+    }
+    return ts;
+}
+
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const PlatformCAAnimationRemote::Properties& animation)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+
+    ts << "type=";
+    ts << animation.animationType;
+    ts << " keyPath=";
+    ts << animation.keyPath;
+
+    if (animation.beginTime)
+        dumpProperty(ts, "beginTime", animation.beginTime);
+
+    if (animation.duration)
+        dumpProperty(ts, "duration", animation.duration);
+
+    if (animation.timeOffset)
+        dumpProperty(ts, "timeOffset", animation.timeOffset);
+
+    dumpProperty(ts, "repeatCount", animation.repeatCount);
+
+    if (animation.speed != 1)
+        dumpProperty(ts, "speed", animation.speed);
+
+    dumpProperty(ts, "fillMode", animation.fillMode);
+    dumpProperty(ts, "valueFunction", animation.valueFunction);
+
+    if (animation.autoReverses)
+        dumpProperty(ts, "autoReverses", animation.autoReverses);
+
+    if (!animation.removedOnCompletion)
+        dumpProperty(ts, "removedOnCompletion", animation.removedOnCompletion);
+
+    if (animation.additive)
+        dumpProperty(ts, "additive", animation.additive);
+
+    if (animation.reverseTimingFunctions)
+        dumpProperty(ts, "reverseTimingFunctions", animation.reverseTimingFunctions);
+
+    if (animation.hasNonZeroBeginTime)
+        dumpProperty(ts, "hasNonZeroBeginTime", animation.hasNonZeroBeginTime);
+
+    ts << "\n";
+    ts.increaseIndent();
+    ts.writeIndent();
+    ts << "(" << "keyframes";
+    ts.increaseIndent();
+
+    size_t maxFrames = std::max(animation.keyValues.size(), animation.keyTimes.size());
+    maxFrames = std::max(maxFrames, animation.timingFunctions.size());
+
+    for (size_t i = 0; i < maxFrames; ++i) {
+        ts << "\n";
+        ts.writeIndent();
+        ts << "(keyframe " << unsigned(i);
+        if (i < animation.keyTimes.size())
+            dumpProperty(ts, "time", animation.keyTimes[i]);
+
+        if (i < animation.timingFunctions.size() && animation.timingFunctions[i])
+            dumpProperty<const TimingFunction&>(ts, "timing function", *animation.timingFunctions[i]);
+
+        if (i < animation.keyValues.size())
+            dumpProperty(ts, "value", animation.keyValues[i]);
+
+        ts << ")";
+    }
+
+    ts.decreaseIndent();
+    ts.decreaseIndent();
+
     return ts;
 }
 
@@ -509,7 +859,7 @@ RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(FloatRect rect)
     return ts;
 }
 
-RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const Vector<RemoteLayerTreeTransaction::LayerID>& layers)
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const Vector<GraphicsLayer::PlatformLayerID>& layers)
 {
     RemoteLayerTreeTextStream& ts = *this;
 
@@ -522,24 +872,25 @@ RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const Vector<Re
     return ts;
 }
 
+RemoteLayerTreeTextStream& RemoteLayerTreeTextStream::operator<<(const RemoteLayerBackingStore& backingStore)
+{
+    RemoteLayerTreeTextStream& ts = *this;
+    ts << backingStore.size();
+    ts << " scale=" << backingStore.scale();
+    if (backingStore.isOpaque())
+        ts << " opaque";
+    if (backingStore.acceleratesDrawing())
+        ts << " accelerated";
+    return ts;
+}
+
 void RemoteLayerTreeTextStream::writeIndent()
 {
     for (int i = 0; i < m_indent; ++i)
         *this << "  ";
 }
 
-template <class T>
-static void dumpProperty(RemoteLayerTreeTextStream& ts, String name, T value)
-{
-    ts << "\n";
-    ts.increaseIndent();
-    ts.writeIndent();
-    ts << "(" << name << " ";
-    ts << value << ")";
-    ts.decreaseIndent();
-}
-
-static void dumpChangedLayers(RemoteLayerTreeTextStream& ts, const HashMap<RemoteLayerTreeTransaction::LayerID, RemoteLayerTreeTransaction::LayerProperties>& changedLayerProperties)
+static void dumpChangedLayers(RemoteLayerTreeTextStream& ts, const RemoteLayerTreeTransaction::LayerPropertiesMap& changedLayerProperties)
 {
     if (changedLayerProperties.isEmpty())
         return;
@@ -549,12 +900,12 @@ static void dumpChangedLayers(RemoteLayerTreeTextStream& ts, const HashMap<Remot
     ts << "(changed-layers";
 
     // Dump the layer properties sorted by layer ID.
-    Vector<RemoteLayerTreeTransaction::LayerID> layerIDs;
+    Vector<GraphicsLayer::PlatformLayerID> layerIDs;
     copyKeysToVector(changedLayerProperties, layerIDs);
     std::sort(layerIDs.begin(), layerIDs.end());
 
-    for (auto layerID : layerIDs) {
-        const RemoteLayerTreeTransaction::LayerProperties& layerProperties = changedLayerProperties.get(layerID);
+    for (auto& layerID : layerIDs) {
+        const RemoteLayerTreeTransaction::LayerProperties& layerProperties = *changedLayerProperties.get(layerID);
 
         ts << "\n";
         ts.increaseIndent();
@@ -562,82 +913,100 @@ static void dumpChangedLayers(RemoteLayerTreeTextStream& ts, const HashMap<Remot
         ts << "(layer " << layerID;
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::NameChanged)
-            dumpProperty<String>(ts, "name", layerProperties.name);
+            dumpProperty(ts, "name", layerProperties.name);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::ChildrenChanged)
-            dumpProperty<Vector<RemoteLayerTreeTransaction::LayerID>>(ts, "children", layerProperties.children);
+            dumpProperty<Vector<GraphicsLayer::PlatformLayerID>>(ts, "children", layerProperties.children);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::PositionChanged)
-            dumpProperty<FloatPoint3D>(ts, "position", layerProperties.position);
+            dumpProperty(ts, "position", layerProperties.position);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::SizeChanged)
-            dumpProperty<FloatSize>(ts, "size", layerProperties.size);
+            dumpProperty(ts, "size", layerProperties.size);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::AnchorPointChanged)
-            dumpProperty<FloatPoint3D>(ts, "anchorPoint", layerProperties.anchorPoint);
+            dumpProperty(ts, "anchorPoint", layerProperties.anchorPoint);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::BackgroundColorChanged)
-            dumpProperty<Color>(ts, "backgroundColor", layerProperties.backgroundColor);
+            dumpProperty(ts, "backgroundColor", layerProperties.backgroundColor);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::BorderColorChanged)
-            dumpProperty<Color>(ts, "borderColor", layerProperties.borderColor);
+            dumpProperty(ts, "borderColor", layerProperties.borderColor);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::BorderWidthChanged)
-            dumpProperty<float>(ts, "borderWidth", layerProperties.borderWidth);
+            dumpProperty(ts, "borderWidth", layerProperties.borderWidth);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::OpacityChanged)
-            dumpProperty<float>(ts, "opacity", layerProperties.opacity);
+            dumpProperty(ts, "opacity", layerProperties.opacity);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::TransformChanged)
-            dumpProperty<TransformationMatrix>(ts, "transform", layerProperties.transform);
+            dumpProperty(ts, "transform", layerProperties.transform ? *layerProperties.transform : TransformationMatrix());
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::SublayerTransformChanged)
-            dumpProperty<TransformationMatrix>(ts, "sublayerTransform", layerProperties.sublayerTransform);
+            dumpProperty(ts, "sublayerTransform", layerProperties.sublayerTransform ? *layerProperties.sublayerTransform : TransformationMatrix());
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::HiddenChanged)
-            dumpProperty<bool>(ts, "hidden", layerProperties.hidden);
+            dumpProperty(ts, "hidden", layerProperties.hidden);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::GeometryFlippedChanged)
-            dumpProperty<bool>(ts, "geometryFlipped", layerProperties.geometryFlipped);
+            dumpProperty(ts, "geometryFlipped", layerProperties.geometryFlipped);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::DoubleSidedChanged)
-            dumpProperty<bool>(ts, "doubleSided", layerProperties.doubleSided);
+            dumpProperty(ts, "doubleSided", layerProperties.doubleSided);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::MasksToBoundsChanged)
-            dumpProperty<bool>(ts, "masksToBounds", layerProperties.masksToBounds);
+            dumpProperty(ts, "masksToBounds", layerProperties.masksToBounds);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::OpaqueChanged)
-            dumpProperty<bool>(ts, "opaque", layerProperties.opaque);
+            dumpProperty(ts, "opaque", layerProperties.opaque);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::MaskLayerChanged)
-            dumpProperty<RemoteLayerTreeTransaction::LayerID>(ts, "maskLayer", layerProperties.maskLayerID);
+            dumpProperty(ts, "maskLayer", layerProperties.maskLayerID);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::ContentsRectChanged)
-            dumpProperty<FloatRect>(ts, "contentsRect", layerProperties.contentsRect);
+            dumpProperty(ts, "contentsRect", layerProperties.contentsRect);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::ContentsScaleChanged)
-            dumpProperty<float>(ts, "contentsScale", layerProperties.contentsScale);
+            dumpProperty(ts, "contentsScale", layerProperties.contentsScale);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::MinificationFilterChanged)
-            dumpProperty<PlatformCALayer::FilterType>(ts, "minificationFilter", layerProperties.minificationFilter);
+            dumpProperty(ts, "minificationFilter", layerProperties.minificationFilter);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::MagnificationFilterChanged)
-            dumpProperty<PlatformCALayer::FilterType>(ts, "magnificationFilter", layerProperties.magnificationFilter);
+            dumpProperty(ts, "magnificationFilter", layerProperties.magnificationFilter);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::SpeedChanged)
-            dumpProperty<float>(ts, "speed", layerProperties.speed);
+            dumpProperty(ts, "speed", layerProperties.speed);
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::TimeOffsetChanged)
-            dumpProperty<double>(ts, "timeOffset", layerProperties.timeOffset);
+            dumpProperty(ts, "timeOffset", layerProperties.timeOffset);
 
-        if (layerProperties.changedProperties & RemoteLayerTreeTransaction::BackingStoreChanged)
-            dumpProperty<IntSize>(ts, "backingStore", layerProperties.backingStore.size());
+        if (layerProperties.changedProperties & RemoteLayerTreeTransaction::BackingStoreChanged) {
+            if (const RemoteLayerBackingStore* backingStore = layerProperties.backingStore.get())
+                dumpProperty<const RemoteLayerBackingStore&>(ts, "backingStore", *backingStore);
+            else
+                dumpProperty(ts, "backingStore", "removed");
+        }
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::FiltersChanged)
-            dumpProperty<FilterOperations>(ts, "filters", layerProperties.filters);
+            dumpProperty(ts, "filters", layerProperties.filters ? *layerProperties.filters : FilterOperations());
+
+        if (layerProperties.changedProperties & RemoteLayerTreeTransaction::AnimationsChanged) {
+            for (const auto& keyValuePair : layerProperties.addedAnimations)
+                dumpProperty(ts, "animation " +  keyValuePair.key, keyValuePair.value);
+
+            for (const auto& name : layerProperties.keyPathsOfAnimationsToRemove)
+                dumpProperty(ts, "removed animation", name);
+        }
 
         if (layerProperties.changedProperties & RemoteLayerTreeTransaction::EdgeAntialiasingMaskChanged)
-            dumpProperty<unsigned>(ts, "edgeAntialiasingMask", layerProperties.edgeAntialiasingMask);
+            dumpProperty(ts, "edgeAntialiasingMask", layerProperties.edgeAntialiasingMask);
+
+        if (layerProperties.changedProperties & RemoteLayerTreeTransaction::CustomAppearanceChanged)
+            dumpProperty(ts, "customAppearance", layerProperties.customAppearance);
+
+        if (layerProperties.changedProperties & RemoteLayerTreeTransaction::CustomBehaviorChanged)
+            dumpProperty(ts, "customBehavior", layerProperties.customBehavior);
 
         ts << ")";
 
@@ -710,7 +1079,7 @@ CString RemoteLayerTreeTransaction::description() const
     dumpChangedLayers(ts, m_changedLayerProperties);
 
     if (!m_destroyedLayerIDs.isEmpty())
-        dumpProperty<Vector<RemoteLayerTreeTransaction::LayerID>>(ts, "destroyed-layers", m_destroyedLayerIDs);
+        dumpProperty<Vector<GraphicsLayer::PlatformLayerID>>(ts, "destroyed-layers", m_destroyedLayerIDs);
 
     ts << ")\n";
 

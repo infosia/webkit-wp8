@@ -27,10 +27,8 @@
 
 #import "WK1BrowserWindowController.h"
 #import "WK2BrowserWindowController.h"
-
+#import <WebKit/WebHistory.h>
 #import <WebKit2/WebKit2.h>
-#import <WebKit2/WKStringCF.h>
-#import <WebKit2/WKURLCF.h>
 
 static NSString *defaultURL = @"http://www.webkit.org/";
 
@@ -45,11 +43,7 @@ enum {
 {
     self = [super init];
     if (self) {
-#if WK_API_ENABLED
-        _processGroup = [[WKProcessGroup alloc] init];
-        _browsingContextGroup = [[WKBrowsingContextGroup alloc] initWithIdentifier:@"MiniBrowser"];
-#endif
-        _browserWindows = [[NSMutableSet alloc] init];
+        _browserWindowControllers = [[NSMutableSet alloc] init];
     }
 
     return self;
@@ -63,44 +57,35 @@ enum {
         controller = [[WK1BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
 #if WK_API_ENABLED
     else if ([sender tag] == WebKit2NewWindowTag)
-        controller = [[WK2BrowserWindowController alloc] initWithProcessGroup:_processGroup browsingContextGroup:_browsingContextGroup];
+        controller = [[WK2BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
 #endif
-
     if (!controller)
         return;
 
     [[controller window] makeKeyAndOrderFront:sender];
-    [_browserWindows addObject:[controller window]];
+    [_browserWindowControllers addObject:controller];
     
     [controller loadURLString:defaultURL];
 }
 
 - (void)browserWindowWillClose:(NSWindow *)window
 {
-    [_browserWindows removeObject:window];
+    [_browserWindowControllers removeObject:window.windowController];
 }
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
+    WebHistory *webHistory = [[WebHistory alloc] init];
+    [WebHistory setOptionalSharedHistory:webHistory];
+    [webHistory release];
+
     [self newWindow:self];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification
 {
-    for (NSWindow* window in _browserWindows) {
-        id delegate = [window delegate];
-        assert([delegate isKindOfClass:[BrowserWindowController class]]);
-        BrowserWindowController *controller = (BrowserWindowController *)delegate;
+    for (BrowserWindowController* controller in _browserWindowControllers)
         [controller applicationTerminating];
-    }
-
-#if WK_API_ENABLED
-    [_processGroup release];
-    _processGroup = nil;
-
-    [_browsingContextGroup release];
-    _browsingContextGroup = nil;
-#endif
 }
 
 - (BrowserWindowController *)frontmostBrowserWindowController
@@ -112,11 +97,11 @@ enum {
             continue;
 
         BrowserWindowController *controller = (BrowserWindowController *)delegate;
-        assert([_browserWindows containsObject:[controller window]]);
+        assert([_browserWindowControllers containsObject:controller]);
         return controller;
     }
 
-    return 0;
+    return nil;
 }
 
 - (IBAction)openDocument:(id)sender
@@ -135,20 +120,17 @@ enum {
         return;
     }
 
-#if WK_API_ENABLED
     NSOpenPanel *openPanel = [NSOpenPanel openPanel];
     [openPanel beginWithCompletionHandler:^(NSInteger result) {
         if (result != NSOKButton)
             return;
 
-        // FIXME: add a way to open in WK1 also.
-        BrowserWindowController *newBrowserWindowController = [[WK2BrowserWindowController alloc] initWithProcessGroup:_processGroup browsingContextGroup:_browsingContextGroup];
+        BrowserWindowController *newBrowserWindowController = [[WK1BrowserWindowController alloc] initWithWindowNibName:@"BrowserWindow"];
         [newBrowserWindowController.window makeKeyAndOrderFront:self];
 
         NSURL *url = [openPanel.URLs objectAtIndex:0];
         [newBrowserWindowController loadURLString:[url absoluteString]];
     }];
-#endif // WK_API_ENABLED
 }
 
 @end

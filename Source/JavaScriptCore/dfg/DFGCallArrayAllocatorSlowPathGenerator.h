@@ -26,8 +26,6 @@
 #ifndef DFGCallArrayAllocatorSlowPathGenerator_h
 #define DFGCallArrayAllocatorSlowPathGenerator_h
 
-#include <wtf/Platform.h>
-
 #if ENABLE(DFG_JIT)
 
 #include "DFGCommon.h"
@@ -54,7 +52,7 @@ public:
     }
 
 protected:
-    virtual void generateInternal(SpeculativeJIT* jit) OVERRIDE
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         linkFrom(jit);
         for (unsigned i = 0; i < m_plans.size(); ++i)
@@ -92,7 +90,7 @@ public:
     }
 
 protected:
-    virtual void generateInternal(SpeculativeJIT* jit) OVERRIDE
+    virtual void generateInternal(SpeculativeJIT* jit) override
     {
         linkFrom(jit);
         for (unsigned i = 0; i < m_plans.size(); ++i)

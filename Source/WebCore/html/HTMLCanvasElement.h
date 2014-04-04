@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -31,9 +31,10 @@
 #include "FloatRect.h"
 #include "HTMLElement.h"
 #include "IntSize.h"
+#include <memory>
 #include <wtf/Forward.h>
 
-#if USE(CG) || PLATFORM(NIX)
+#if USE(CG)
 #define DefaultInterpolationQuality InterpolationLow
 #else
 #define DefaultInterpolationQuality InterpolationDefault
@@ -60,7 +61,7 @@ public:
     virtual void canvasDestroyed(HTMLCanvasElement&) = 0;
 };
 
-class HTMLCanvasElement FINAL : public HTMLElement {
+class HTMLCanvasElement final : public HTMLElement {
 public:
     static PassRefPtr<HTMLCanvasElement> create(Document&);
     static PassRefPtr<HTMLCanvasElement> create(const QualifiedName&, Document&);
@@ -129,10 +130,6 @@ public:
 
     AffineTransform baseTransform() const;
 
-#if ENABLE(WEBGL)    
-    bool is3D() const;
-#endif
-
     void makeRenderingResultsAvailable();
     bool hasCreatedImageBuffer() const { return m_hasCreatedImageBuffer; }
 
@@ -143,13 +140,12 @@ public:
 private:
     HTMLCanvasElement(const QualifiedName&, Document&);
 
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual void willAttachRenderers() OVERRIDE;
-    virtual bool areAuthorShadowsAllowed() const OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual void willAttachRenderers() override;
 
-    virtual bool canContainRangeEndPoint() const OVERRIDE;
-    virtual bool canStartSelection() const OVERRIDE;
+    virtual bool canContainRangeEndPoint() const override;
+    virtual bool canStartSelection() const override;
 
     void reset();
 
@@ -162,11 +158,15 @@ private:
 
     bool paintsIntoCanvasBuffer() const;
 
+#if ENABLE(WEBGL)
+    bool is3D() const;
+#endif
+
     HashSet<CanvasObserver*> m_observers;
 
     IntSize m_size;
 
-    OwnPtr<CanvasRenderingContext> m_context;
+    std::unique_ptr<CanvasRenderingContext> m_context;
 
     bool m_rendererIsCanvas;
 
@@ -180,7 +180,7 @@ private:
     mutable bool m_hasCreatedImageBuffer;
     mutable bool m_didClearImageBuffer;
     mutable std::unique_ptr<ImageBuffer> m_imageBuffer;
-    mutable OwnPtr<GraphicsContextStateSaver> m_contextStateSaver;
+    mutable std::unique_ptr<GraphicsContextStateSaver> m_contextStateSaver;
     
     mutable RefPtr<Image> m_presentedImage;
     mutable RefPtr<Image> m_copiedImage; // FIXME: This is temporary for platforms that have to copy the image buffer to render (and for CSSCanvasValue).

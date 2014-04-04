@@ -79,7 +79,7 @@ void HTMLAreaElement::invalidateCachedRegion()
 bool HTMLAreaElement::mapMouseEvent(LayoutPoint location, const LayoutSize& size, HitTestResult& result)
 {
     if (m_lastSize != size) {
-        m_region = adoptPtr(new Path(getRegion(size)));
+        m_region = std::make_unique<Path>(getRegion(size));
         m_lastSize = size;
     }
 
@@ -91,7 +91,8 @@ bool HTMLAreaElement::mapMouseEvent(LayoutPoint location, const LayoutSize& size
     return true;
 }
 
-Path HTMLAreaElement::computePath(RenderElement* obj) const
+// FIXME: We should use RenderElement* instead of RenderObject* once we upstream iOS's DOMUIKitExtensions.{h, mm}.
+Path HTMLAreaElement::computePath(RenderObject* obj) const
 {
     if (!obj)
         return Path();
@@ -115,8 +116,9 @@ Path HTMLAreaElement::computePath(RenderElement* obj) const
     p.translate(toFloatSize(absPos));
     return p;
 }
-    
-LayoutRect HTMLAreaElement::computeRect(RenderElement* obj) const
+
+// FIXME: Use RenderElement* instead of RenderObject* once we upstream iOS's DOMUIKitExtensions.{h, mm}.
+LayoutRect HTMLAreaElement::computeRect(RenderObject* obj) const
 {
     return enclosingLayoutRect(computePath(obj).fastBoundingRect());
 }
@@ -218,7 +220,7 @@ void HTMLAreaElement::setFocus(bool shouldBeFocused)
         return;
 
     auto renderer = imageElement->renderer();
-    if (!renderer || !renderer->isImage())
+    if (!renderer || !renderer->isRenderImage())
         return;
 
     toRenderImage(renderer)->areaElementFocusChanged(this);

@@ -50,7 +50,7 @@ namespace WebCore {
 using namespace HTMLNames;
 
 // FIXME: Share more code with PluginDocumentParser.
-class MediaDocumentParser FINAL : public RawDataDocumentParser {
+class MediaDocumentParser final : public RawDataDocumentParser {
 public:
     static PassRefPtr<MediaDocumentParser> create(MediaDocument& document)
     {
@@ -64,7 +64,7 @@ private:
     {
     }
 
-    virtual void appendBytes(DocumentWriter&, const char*, size_t);
+    virtual void appendBytes(DocumentWriter&, const char*, size_t) override;
 
     void createDocumentStructure();
 
@@ -79,8 +79,8 @@ void MediaDocumentParser::createDocumentStructure()
     toHTMLHtmlElement(rootElement.get())->insertedByParser();
 
     if (document()->frame())
-        document()->frame()->loader().dispatchDocumentElementAvailable();
-        
+        document()->frame()->injectUserScripts(InjectAtDocumentStart);
+
     RefPtr<Element> body = document()->createElement(bodyTag, false);
     rootElement->appendChild(body, IGNORE_EXCEPTION);
 
@@ -91,6 +91,7 @@ void MediaDocumentParser::createDocumentStructure()
     m_mediaElement->setAttribute(autoplayAttr, "");
 
     m_mediaElement->setAttribute(nameAttr, "media");
+    m_mediaElement->setAttribute(styleAttr, "max-width: 100%; max-height: 100%;");
 
     RefPtr<Element> sourceElement = document()->createElement(sourceTag, false);
     HTMLSourceElement& source = toHTMLSourceElement(*sourceElement);
@@ -187,7 +188,7 @@ void MediaDocument::defaultEventHandler(Event* event)
         if (!video)
             return;
 
-        KeyboardEvent* keyboardEvent = static_cast<KeyboardEvent*>(event);
+        KeyboardEvent* keyboardEvent = toKeyboardEvent(event);
         if (keyboardEvent->keyIdentifier() == "U+0020") { // space
             if (video->paused()) {
                 if (video->canPlay())
@@ -209,7 +210,7 @@ void MediaDocument::mediaElementSawUnsupportedTracks()
     m_replaceMediaElementTimer.startOneShot(0);
 }
 
-void MediaDocument::replaceMediaElementTimerFired(Timer<MediaDocument>*)
+void MediaDocument::replaceMediaElementTimerFired(Timer<MediaDocument>&)
 {
     HTMLElement* htmlBody = body();
     if (!htmlBody)

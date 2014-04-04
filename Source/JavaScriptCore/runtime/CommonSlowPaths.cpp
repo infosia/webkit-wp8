@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,10 +29,12 @@
 #if ENABLE(JIT) || ENABLE(LLINT)
 
 #include "Arguments.h"
+#include "ArityCheckFailReturnThunks.h"
 #include "ArrayConstructor.h"
 #include "CallFrame.h"
 #include "CodeProfiling.h"
 #include "CommonSlowPathsExceptions.h"
+#include "ErrorHandlingScope.h"
 #include "GetterSetter.h"
 #include "HostCallReturnValue.h"
 #include "Interpreter.h"
@@ -49,7 +51,7 @@
 #include "LLIntExceptions.h"
 #include "LowLevelInterpreter.h"
 #include "ObjectConstructor.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 #include "StructureRareDataInlines.h"
 #include <wtf/StringPrintStream.h>
 
@@ -124,7 +126,6 @@ namespace JSC {
         END_IMPL();                       \
     } while (false)
 
-#if ENABLE(VALUE_PROFILER)
 #define RETURN_PROFILED(opcode, value) do {                  \
         JSValue rpPeturnValue = (value);                     \
         CHECK_EXCEPTION();                                   \
@@ -137,13 +138,6 @@ namespace JSC {
         pc[OPCODE_LENGTH(opcode) - 1].u.profile->m_buckets[0] = \
         JSValue::encode(value);                  \
     } while (false)
-
-#else // ENABLE(VALUE_PROFILER)
-#define RETURN_PROFILED(opcode, value) RETURN(value)
-
-#define PROFILE_VALUE(opcode, value) do { } while (false)
-
-#endif // ENABLE(VALUE_PROFILER)
 
 #define CALL_END_IMPL(exec, callTarget) RETURN_TWO((callTarget), (exec))
 
@@ -169,28 +163,47 @@ namespace JSC {
         CALL_END_IMPL(crExec, crCallTarget);                \
     } while (false)
 
+static CommonSlowPaths::ArityCheckData* setupArityCheckData(VM& vm, int slotsToAdd)
+{
+    CommonSlowPaths::ArityCheckData* result = vm.arityCheckData.get();
+    result->paddedStackSpace = slotsToAdd;
+#if ENABLE(JIT)
+    if (vm.canUseJIT()) {
+        result->thunkToCall = vm.getCTIStub(arityFixup).code().executableAddress();
+        result->returnPC = vm.arityCheckFailReturnThunks->returnPCFor(vm, slotsToAdd * stackAlignmentRegisters()).executableAddress();
+    } else
+#endif
+    {
+        result->thunkToCall = 0;
+        result->returnPC = 0;
+    }
+    return result;
+}
+
 SLOW_PATH_DECL(slow_path_call_arityCheck)
 {
     BEGIN();
-    int SlotsToAdd = CommonSlowPaths::arityCheckFor(exec, &vm.interpreter->stack(), CodeForCall);
-    if (SlotsToAdd < 0) {
+    int slotsToAdd = CommonSlowPaths::arityCheckFor(exec, &vm.interpreter->stack(), CodeForCall);
+    if (slotsToAdd < 0) {
         exec = exec->callerFrame();
+        ErrorHandlingScope errorScope(exec->vm());
         CommonSlowPaths::interpreterThrowInCaller(exec, createStackOverflowError(exec));
         RETURN_TWO(bitwise_cast<void*>(static_cast<uintptr_t>(1)), exec);
     }
-    RETURN_TWO(0, reinterpret_cast<ExecState*>(SlotsToAdd));
+    RETURN_TWO(0, setupArityCheckData(vm, slotsToAdd));
 }
 
 SLOW_PATH_DECL(slow_path_construct_arityCheck)
 {
     BEGIN();
-    int SlotsToAdd = CommonSlowPaths::arityCheckFor(exec, &vm.interpreter->stack(), CodeForConstruct);
-    if (SlotsToAdd < 0) {
+    int slotsToAdd = CommonSlowPaths::arityCheckFor(exec, &vm.interpreter->stack(), CodeForConstruct);
+    if (slotsToAdd < 0) {
         exec = exec->callerFrame();
+        ErrorHandlingScope errorScope(exec->vm());
         CommonSlowPaths::interpreterThrowInCaller(exec, createStackOverflowError(exec));
         RETURN_TWO(bitwise_cast<void*>(static_cast<uintptr_t>(1)), exec);
     }
-    RETURN_TWO(0, reinterpret_cast<ExecState*>(SlotsToAdd));
+    RETURN_TWO(0, setupArityCheckData(vm, slotsToAdd));
 }
 
 SLOW_PATH_DECL(slow_path_touch_entry)
@@ -238,7 +251,7 @@ SLOW_PATH_DECL(slow_path_to_this)
     BEGIN();
     JSValue v1 = OP(1).jsValue();
     if (v1.isCell())
-        pc[2].u.structure.set(exec->vm(), exec->codeBlock()->ownerExecutable(), v1.asCell()->structure());
+        pc[2].u.structure.set(vm, exec->codeBlock()->ownerExecutable(), v1.asCell()->structure(vm));
     else
         pc[2].u.structure.clear();
     RETURN(v1.toThis(exec, exec->codeBlock()->isStrictMode() ? StrictMode : NotStrictMode));
@@ -257,10 +270,7 @@ SLOW_PATH_DECL(slow_path_new_captured_func)
 {
     BEGIN();
     CodeBlock* codeBlock = exec->codeBlock();
-    ASSERT(
-        codeBlock->codeType() != FunctionCode
-        || !codeBlock->needsFullScopeChain()
-        || exec->uncheckedR(codeBlock->activationRegister().offset()).jsValue());
+    ASSERT(codeBlock->codeType() != FunctionCode || !codeBlock->needsActivation() || exec->hasActivation());
     JSValue value = JSFunction::create(vm, codeBlock->functionDecl(pc[2].u.operand), exec->scope());
     if (VariableWatchpointSet* set = pc[3].u.watchpointSet)
         set->notifyWrite(value);
@@ -417,7 +427,14 @@ SLOW_PATH_DECL(slow_path_urshift)
     BEGIN();
     uint32_t a = OP_C(2).jsValue().toUInt32(exec);
     uint32_t b = OP_C(3).jsValue().toUInt32(exec);
-    RETURN(jsNumber(a >> (b & 31)));
+    RETURN(jsNumber(static_cast<int32_t>(a >> (b & 31))));
+}
+
+SLOW_PATH_DECL(slow_path_unsigned)
+{
+    BEGIN();
+    uint32_t a = OP_C(2).jsValue().toUInt32(exec);
+    RETURN(jsNumber(a));
 }
 
 SLOW_PATH_DECL(slow_path_bitand)
@@ -506,6 +523,14 @@ SLOW_PATH_DECL(slow_path_to_primitive)
 {
     BEGIN();
     RETURN(OP_C(2).jsValue().toPrimitive(exec));
+}
+
+SLOW_PATH_DECL(slow_path_enter)
+{
+    BEGIN();
+    ScriptExecutable* ownerExecutable = exec->codeBlock()->ownerExecutable();
+    Heap::heap(ownerExecutable)->writeBarrier(ownerExecutable);
+    END();
 }
 
 } // namespace JSC

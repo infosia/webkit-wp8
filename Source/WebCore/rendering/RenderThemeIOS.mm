@@ -31,6 +31,7 @@
 #import "CSSValueKeywords.h"
 #import "DateComponents.h"
 #import "Document.h"
+#import "FloatRoundedRect.h"
 #import "Font.h"
 #import "FontCache.h"
 #import "Frame.h"
@@ -74,6 +75,12 @@ SOFT_LINK_FRAMEWORK(UIKit)
 SOFT_LINK_CLASS(UIKit, UIApplication)
 SOFT_LINK_CONSTANT(UIKit, UIContentSizeCategoryDidChangeNotification, CFStringRef)
 #define UIContentSizeCategoryDidChangeNotification getUIContentSizeCategoryDidChangeNotification()
+
+@interface WebCoreRenderThemeBundle : NSObject
+@end
+
+@implementation WebCoreRenderThemeBundle
+@end
 
 namespace WebCore {
 
@@ -309,7 +316,7 @@ FloatRect RenderThemeIOS::addRoundedBorderClip(RenderObject* box, GraphicsContex
     RoundedRect border = isChecked(box) ? style.getRoundedInnerBorderFor(rect) : style.getRoundedBorderFor(rect);
 
     if (border.isRounded())
-        context->clipRoundedRect(border);
+        context->clipRoundedRect(FloatRoundedRect(border));
     else
         context->clip(border.rect());
 
@@ -338,7 +345,7 @@ static CGPoint shortened(CGPoint start, CGPoint end, float width)
 {
     float x = end.x - start.x;
     float y = end.y - start.y;
-    float ratio = width / sqrtf(x * x + y * y);
+    float ratio = (!x && !y) ? 0 : width / sqrtf(x * x + y * y);
     return CGPointMake(start.x + x * ratio, start.y + y * ratio);
 }
 
@@ -450,7 +457,7 @@ bool RenderThemeIOS::paintRadioDecorations(RenderObject* box, const PaintInfo& p
         paintInfo.context->drawRaisedEllipse(clip, Color::white, ColorSpaceDeviceRGB, shadowColor(), ColorSpaceDeviceRGB);
 
         FloatSize radius(clip.width() / 2.0f, clip.height() / 2.0f);
-        paintInfo.context->clipRoundedRect(clip, radius, radius, radius, radius);
+        paintInfo.context->clipRoundedRect(FloatRoundedRect(clip, radius, radius, radius, radius));
     }
     FloatPoint bottomCenter(clip.x() + clip.width() / 2.0, clip.maxY());
     drawAxialGradient(cgContext, gradientWithName(ShadeGradient), clip.location(), FloatPoint(clip.x(), clip.maxY()), LinearInterpolation);
@@ -465,7 +472,7 @@ bool RenderThemeIOS::paintTextFieldDecorations(RenderObject* box, const PaintInf
 
     GraphicsContextStateSaver stateSaver(*paintInfo.context);
 
-    paintInfo.context->clipRoundedRect(style.getRoundedBorderFor(r));
+    paintInfo.context->clipRoundedRect(FloatRoundedRect(style.getRoundedBorderFor(rect)));
 
     // This gradient gets drawn black when printing.
     // Do not draw the gradient if there is no visible top border.
@@ -585,9 +592,9 @@ bool RenderThemeIOS::paintMenuListButtonDecorations(RenderObject* box, const Pai
 
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
 
-        paintInfo.context->clipRoundedRect(titleClip, 
+        paintInfo.context->clipRoundedRect(FloatRoundedRect(titleClip,
             FloatSize(valueForLength(style.borderTopLeftRadius().width(), rect.width()) - style.borderLeftWidth(), valueForLength(style.borderTopLeftRadius().height(), rect.height()) - style.borderTopWidth()), FloatSize(0, 0),
-            FloatSize(valueForLength(style.borderBottomLeftRadius().width(), rect.width()) - style.borderLeftWidth(), valueForLength(style.borderBottomLeftRadius().height(), rect.height()) - style.borderBottomWidth()), FloatSize(0, 0));
+            FloatSize(valueForLength(style.borderBottomLeftRadius().width(), rect.width()) - style.borderLeftWidth(), valueForLength(style.borderBottomLeftRadius().height(), rect.height()) - style.borderBottomWidth()), FloatSize(0, 0)));
 
         drawAxialGradient(cgContext, gradientWithName(ShadeGradient), titleClip.location(), FloatPoint(titleClip.x(), titleClip.maxY()), LinearInterpolation);
         drawAxialGradient(cgContext, gradientWithName(ShineGradient), FloatPoint(titleClip.x(), titleClip.maxY()), titleClip.location(), ExponentialInterpolation);
@@ -605,9 +612,9 @@ bool RenderThemeIOS::paintMenuListButtonDecorations(RenderObject* box, const Pai
     {
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
 
-        paintInfo.context->clipRoundedRect(buttonClip, 
+        paintInfo.context->clipRoundedRect(FloatRoundedRect(buttonClip,
             FloatSize(0, 0), FloatSize(valueForLength(style.borderTopRightRadius().width(), rect.width()) - style.borderRightWidth(), valueForLength(style.borderTopRightRadius().height(), rect.height()) - style.borderTopWidth()),
-            FloatSize(0, 0), FloatSize(valueForLength(style.borderBottomRightRadius().width(), rect.width()) - style.borderRightWidth(), valueForLength(style.borderBottomRightRadius().height(), rect.height()) - style.borderBottomWidth()));
+            FloatSize(0, 0), FloatSize(valueForLength(style.borderBottomRightRadius().width(), rect.width()) - style.borderRightWidth(), valueForLength(style.borderBottomRightRadius().height(), rect.height()) - style.borderBottomWidth())));
 
         paintInfo.context->fillRect(buttonClip, style.visitedDependentColor(CSSPropertyBorderTopColor), style.colorSpace());
 
@@ -716,7 +723,7 @@ bool RenderThemeIOS::paintSliderTrack(RenderObject* box, const PaintInfo& paintI
         GraphicsContextStateSaver stateSaver(*paintInfo.context);
 
         IntSize cornerSize(cornerWidth, cornerHeight);
-        RoundedRect innerBorder(trackClip, cornerSize, cornerSize, cornerSize, cornerSize);
+        FloatRoundedRect innerBorder(trackClip, cornerSize, cornerSize, cornerSize, cornerSize);
         paintInfo.context->clipRoundedRect(innerBorder);
 
         CGContextRef cgContext = paintInfo.context->platformContext();
@@ -832,7 +839,7 @@ bool RenderThemeIOS::paintProgressBar(RenderObject* renderer, const PaintInfo& p
 
     // 1.2) Draw top gradient on the upper half. It is supposed to overlay the fill from the background and darker the stroked path.
     FloatRect border(rect.x(), rect.y() + verticalOffset, rect.width(), progressBarHeight);
-    paintInfo.context->clipRoundedRect(border, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius);
+    paintInfo.context->clipRoundedRect(FloatRoundedRect(border, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius, roundedCornerRadius));
 
     float upperGradientHeight = progressBarHeight / 2.;
     RefPtr<Gradient> upperGradient = Gradient::create(FloatPoint(rect.x(), verticalRenderingPosition + 0.5), FloatPoint(rect.x(), verticalRenderingPosition + upperGradientHeight - 1.5));
@@ -986,7 +993,7 @@ bool RenderThemeIOS::paintFileUploadIconDecorations(RenderObject*, RenderObject*
 
         // Background picture frame and simple background icon with a gradient matching the button.
         Color backgroundImageColor = buttonRenderer ? Color(buttonRenderer->style().visitedDependentColor(CSSPropertyBackgroundColor).rgb()) : Color(206.0f, 206.0f, 206.0f);
-        paintInfo.context->fillRoundedRect(thumbnailPictureFrameRect, cornerSize, cornerSize, cornerSize, cornerSize, pictureFrameColor, ColorSpaceDeviceRGB);
+        paintInfo.context->fillRoundedRect(FloatRoundedRect(thumbnailPictureFrameRect, cornerSize, cornerSize, cornerSize, cornerSize), pictureFrameColor, ColorSpaceDeviceRGB);
         paintInfo.context->fillRect(thumbnailRect, backgroundImageColor, ColorSpaceDeviceRGB);
         {
             GraphicsContextStateSaver stateSaver2(*paintInfo.context);
@@ -1007,7 +1014,7 @@ bool RenderThemeIOS::paintFileUploadIconDecorations(RenderObject*, RenderObject*
     }
 
     // Foreground picture frame and icon.
-    paintInfo.context->fillRoundedRect(thumbnailPictureFrameRect, cornerSize, cornerSize, cornerSize, cornerSize, pictureFrameColor, ColorSpaceDeviceRGB);
+    paintInfo.context->fillRoundedRect(FloatRoundedRect(thumbnailPictureFrameRect, cornerSize, cornerSize, cornerSize, cornerSize), pictureFrameColor, ColorSpaceDeviceRGB);
     icon->paint(paintInfo.context, thumbnailRect);
 
     return false;
@@ -1078,18 +1085,18 @@ void RenderThemeIOS::systemFont(CSSValueID valueID, FontDescription& fontDescrip
     if (userTextSize != contentSizeCategory()) {
         userTextSize = contentSizeCategory();
 
-        headlineFont.setIsAbsoluteSize(false);
-        bodyFont.setIsAbsoluteSize(false);
-        subheadlineFont.setIsAbsoluteSize(false);
-        footnoteFont.setIsAbsoluteSize(false);
-        caption1Font.setIsAbsoluteSize(false);
-        caption2Font.setIsAbsoluteSize(false);
-        shortHeadlineFont.setIsAbsoluteSize(false);
-        shortBodyFont.setIsAbsoluteSize(false);
-        shortSubheadlineFont.setIsAbsoluteSize(false);
-        shortFootnoteFont.setIsAbsoluteSize(false);
-        shortCaption1Font.setIsAbsoluteSize(false);
-        tallBodyFont.setIsAbsoluteSize(false);
+        headlineFont.get().setIsAbsoluteSize(false);
+        bodyFont.get().setIsAbsoluteSize(false);
+        subheadlineFont.get().setIsAbsoluteSize(false);
+        footnoteFont.get().setIsAbsoluteSize(false);
+        caption1Font.get().setIsAbsoluteSize(false);
+        caption2Font.get().setIsAbsoluteSize(false);
+        shortHeadlineFont.get().setIsAbsoluteSize(false);
+        shortBodyFont.get().setIsAbsoluteSize(false);
+        shortSubheadlineFont.get().setIsAbsoluteSize(false);
+        shortFootnoteFont.get().setIsAbsoluteSize(false);
+        shortCaption1Font.get().setIsAbsoluteSize(false);
+        tallBodyFont.get().setIsAbsoluteSize(false);
     }
 
     FontDescription* cachedDesc;
@@ -1097,86 +1104,86 @@ void RenderThemeIOS::systemFont(CSSValueID valueID, FontDescription& fontDescrip
     CFStringRef textStyle;
     switch (valueID) {
     case CSSValueAppleSystemHeadline:
-        cachedDesc = &headlineFont;
+        cachedDesc = &headlineFont.get();
         textStyle = kCTUIFontTextStyleHeadline;
-        if (!headlineFont.isAbsoluteSize())
+        if (!headlineFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemBody:
-        cachedDesc = &bodyFont;
+        cachedDesc = &bodyFont.get();
         textStyle = kCTUIFontTextStyleBody;
-        if (!bodyFont.isAbsoluteSize())
+        if (!bodyFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemSubheadline:
-        cachedDesc = &subheadlineFont;
+        cachedDesc = &subheadlineFont.get();
         textStyle = kCTUIFontTextStyleSubhead;
-        if (!subheadlineFont.isAbsoluteSize())
+        if (!subheadlineFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemFootnote:
-        cachedDesc = &footnoteFont;
+        cachedDesc = &footnoteFont.get();
         textStyle = kCTUIFontTextStyleFootnote;
-        if (!footnoteFont.isAbsoluteSize())
+        if (!footnoteFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemCaption1:
-        cachedDesc = &caption1Font;
+        cachedDesc = &caption1Font.get();
         textStyle = kCTUIFontTextStyleCaption1;
-        if (!caption1Font.isAbsoluteSize())
+        if (!caption1Font.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemCaption2:
-        cachedDesc = &caption2Font;
+        cachedDesc = &caption2Font.get();
         textStyle = kCTUIFontTextStyleCaption2;
-        if (!caption2Font.isAbsoluteSize())
+        if (!caption2Font.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
 
     // Short version.
     case CSSValueAppleSystemShortHeadline:
-        cachedDesc = &shortHeadlineFont;
+        cachedDesc = &shortHeadlineFont.get();
         textStyle = kCTUIFontTextStyleShortHeadline;
-        if (!shortHeadlineFont.isAbsoluteSize())
+        if (!shortHeadlineFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemShortBody:
-        cachedDesc = &shortBodyFont;
+        cachedDesc = &shortBodyFont.get();
         textStyle = kCTUIFontTextStyleShortBody;
-        if (!shortBodyFont.isAbsoluteSize())
+        if (!shortBodyFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemShortSubheadline:
-        cachedDesc = &shortSubheadlineFont;
+        cachedDesc = &shortSubheadlineFont.get();
         textStyle = kCTUIFontTextStyleShortSubhead;
-        if (!shortSubheadlineFont.isAbsoluteSize())
+        if (!shortSubheadlineFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemShortFootnote:
-        cachedDesc = &shortFootnoteFont;
+        cachedDesc = &shortFootnoteFont.get();
         textStyle = kCTUIFontTextStyleShortFootnote;
-        if (!shortFootnoteFont.isAbsoluteSize())
+        if (!shortFootnoteFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
     case CSSValueAppleSystemShortCaption1:
-        cachedDesc = &shortCaption1Font;
+        cachedDesc = &shortCaption1Font.get();
         textStyle = kCTUIFontTextStyleShortCaption1;
-        if (!shortCaption1Font.isAbsoluteSize())
+        if (!shortCaption1Font.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
 
     // Tall version.
     case CSSValueAppleSystemTallBody:
-        cachedDesc = &tallBodyFont;
+        cachedDesc = &tallBodyFont.get();
         textStyle = kCTUIFontTextStyleTallBody;
-        if (!tallBodyFont.isAbsoluteSize())
+        if (!tallBodyFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateWithTextStyle(textStyle, userTextSize, 0));
         break;
 
     default:
         textStyle = kCTFontDescriptorTextStyleEmphasized;
-        cachedDesc = &systemFont;
-        if (!systemFont.isAbsoluteSize())
+        cachedDesc = &systemFont.get();
+        if (!systemFont.get().isAbsoluteSize())
             fontDescriptor = adoptCF(CTFontDescriptorCreateForUIType(kCTFontSystemFontType, 0, nullptr));
     }
 
@@ -1196,7 +1203,9 @@ void RenderThemeIOS::systemFont(CSSValueID valueID, FontDescription& fontDescrip
 String RenderThemeIOS::mediaControlsStyleSheet()
 {
 #if ENABLE(MEDIA_CONTROLS_SCRIPT)
-    return String(mediaControlsiOSUserAgentStyleSheet, sizeof(mediaControlsiOSUserAgentStyleSheet));
+    if (m_mediaControlsStyleSheet.isEmpty())
+        m_mediaControlsStyleSheet = [NSString stringWithContentsOfFile:[[NSBundle bundleForClass:[WebCoreRenderThemeBundle class]] pathForResource:@"mediaControlsiOS" ofType:@"css"] encoding:NSUTF8StringEncoding error:nil];
+    return m_mediaControlsStyleSheet;
 #else
     return emptyString();
 #endif
@@ -1205,7 +1214,13 @@ String RenderThemeIOS::mediaControlsStyleSheet()
 String RenderThemeIOS::mediaControlsScript()
 {
 #if ENABLE(MEDIA_CONTROLS_SCRIPT)
-    return String(mediaControlsAppleJavaScript, sizeof(mediaControlsAppleJavaScript));
+    if (m_mediaControlsScript.isEmpty()) {
+        StringBuilder scriptBuilder;
+        scriptBuilder.append([NSString stringWithContentsOfFile:[[NSBundle bundleForClass:[WebCoreRenderThemeBundle class]] pathForResource:@"mediaControlsApple" ofType:@"js"] encoding:NSUTF8StringEncoding error:nil]);
+        scriptBuilder.append([NSString stringWithContentsOfFile:[[NSBundle bundleForClass:[WebCoreRenderThemeBundle class]] pathForResource:@"mediaControlsiOS" ofType:@"js"] encoding:NSUTF8StringEncoding error:nil]);
+        m_mediaControlsScript = scriptBuilder.toString();
+    }
+    return m_mediaControlsScript;
 #else
     return emptyString();
 #endif

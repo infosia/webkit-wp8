@@ -26,12 +26,17 @@
 #ifndef WebArchiveResource_h
 #define WebArchiveResource_h
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 
 #include "APIObject.h"
 #include <wtf/Forward.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefPtr.h>
+
+namespace API {
+class Data;
+class URL;
+}
 
 namespace WebCore {
 class ArchiveResource;
@@ -39,18 +44,14 @@ class ArchiveResource;
 
 namespace WebKit {
 
-class WebData;
-class WebString;
-class WebURL;
-
-class WebArchiveResource : public API::TypedObject<API::Object::Type::WebArchiveResource> {
+class WebArchiveResource : public API::ObjectImpl<API::Object::Type::WebArchiveResource> {
 public:
     virtual ~WebArchiveResource();
 
-    static PassRefPtr<WebArchiveResource> create(WebData*, const String& URL, const String& MIMEType, const String& textEncoding);
+    static PassRefPtr<WebArchiveResource> create(API::Data*, const String& URL, const String& MIMEType, const String& textEncoding);
     static PassRefPtr<WebArchiveResource> create(PassRefPtr<WebCore::ArchiveResource>);
 
-    PassRefPtr<WebData> data();
+    PassRefPtr<API::Data> data();
     String URL();
     String MIMEType();
     String textEncoding();
@@ -58,7 +59,7 @@ public:
     WebCore::ArchiveResource* coreArchiveResource();
 
 private:
-    WebArchiveResource(WebData*, const String& URL, const String& MIMEType, const String& textEncoding);
+    WebArchiveResource(API::Data*, const String& URL, const String& MIMEType, const String& textEncoding);
     WebArchiveResource(PassRefPtr<WebCore::ArchiveResource>);
 
     RefPtr<WebCore::ArchiveResource> m_archiveResource;
@@ -66,6 +67,6 @@ private:
 
 } // namespace WebKit
 
-#endif // PLATFORM(MAC)
+#endif // PLATFORM(COCOA)
 
 #endif // WebArchiveResource_h

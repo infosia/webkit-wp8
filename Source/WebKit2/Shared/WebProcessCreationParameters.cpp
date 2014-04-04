@@ -26,6 +26,7 @@
 #include "config.h"
 #include "WebProcessCreationParameters.h"
 
+#include "APIData.h"
 #include "ArgumentCoders.h"
 
 namespace WebKit {
@@ -35,19 +36,21 @@ WebProcessCreationParameters::WebProcessCreationParameters()
     , shouldAlwaysUseComplexTextCodePath(false)
     , shouldUseFontSmoothing(true)
     , defaultRequestTimeoutInterval(INT_MAX)
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     , nsURLCacheMemoryCapacity(0)
     , nsURLCacheDiskCapacity(0)
     , shouldForceScreenFontSubstitution(false)
     , shouldEnableKerningAndLigaturesByDefault(false)
+    , shouldEnableJIT(false)
 #endif
 #if ENABLE(NETWORK_PROCESS)
     , usesNetworkProcess(false)
 #endif
+    , memoryCacheDisabled(false)
 {
 }
 
-void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) const
+void WebProcessCreationParameters::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << injectedBundlePath;
     encoder << injectedBundlePathExtensionHandle;
@@ -69,11 +72,16 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << urlSchemesRegisteredAsNoAccess;
     encoder << urlSchemesRegisteredAsDisplayIsolated;
     encoder << urlSchemesRegisteredAsCORSEnabled;
+#if ENABLE(CACHE_PARTITIONING)
+    encoder << urlSchemesRegisteredAsCachePartitioned;
+#endif
 #if ENABLE(CUSTOM_PROTOCOLS)
     encoder << urlSchemesRegisteredForCustomProtocols;
 #endif
 #if USE(SOUP)
+#if !ENABLE(CUSTOM_PROTOCOLS)
     encoder << urlSchemesRegistered;
+#endif
     encoder << cookiePersistentStoragePath;
     encoder << cookiePersistentStorageType;
     encoder.encodeEnum(cookieAcceptPolicy);
@@ -89,10 +97,10 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << textCheckerState;
     encoder << fullKeyboardAccessEnabled;
     encoder << defaultRequestTimeoutInterval;
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
     encoder << uiProcessBundleIdentifier;
 #endif
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     encoder << presenterApplicationPid;
     encoder << accessibilityEnhancedUserInterfaceEnabled;
     encoder << nsURLCacheMemoryCapacity;
@@ -102,6 +110,10 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
     encoder << uiProcessBundleResourcePathExtensionHandle;
     encoder << shouldForceScreenFontSubstitution;
     encoder << shouldEnableKerningAndLigaturesByDefault;
+    encoder << shouldEnableJIT;
+    encoder << !!bundleParameterData;
+    if (bundleParameterData)
+        encoder << bundleParameterData->dataReference();
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
@@ -114,9 +126,10 @@ void WebProcessCreationParameters::encode(CoreIPC::ArgumentEncoder& encoder) con
 
     encoder << plugInAutoStartOriginHashes;
     encoder << plugInAutoStartOrigins;
+    encoder << memoryCacheDisabled;
 }
 
-bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, WebProcessCreationParameters& parameters)
+bool WebProcessCreationParameters::decode(IPC::ArgumentDecoder& decoder, WebProcessCreationParameters& parameters)
 {
     if (!decoder.decode(parameters.injectedBundlePath))
         return false;
@@ -158,13 +171,19 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, Web
         return false;
     if (!decoder.decode(parameters.urlSchemesRegisteredAsCORSEnabled))
         return false;
+#if ENABLE(CACHE_PARTITIONING)
+    if (!decoder.decode(parameters.urlSchemesRegisteredAsCachePartitioned))
+        return false;
+#endif
 #if ENABLE(CUSTOM_PROTOCOLS)
     if (!decoder.decode(parameters.urlSchemesRegisteredForCustomProtocols))
         return false;
 #endif
 #if USE(SOUP)
+#if !ENABLE(CUSTOM_PROTOCOLS)
     if (!decoder.decode(parameters.urlSchemesRegistered))
         return false;
+#endif
     if (!decoder.decode(parameters.cookiePersistentStoragePath))
         return false;
     if (!decoder.decode(parameters.cookiePersistentStorageType))
@@ -194,12 +213,12 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, Web
         return false;
     if (!decoder.decode(parameters.defaultRequestTimeoutInterval))
         return false;
-#if PLATFORM(MAC) || USE(CFNETWORK)
+#if PLATFORM(COCOA) || USE(CFNETWORK)
     if (!decoder.decode(parameters.uiProcessBundleIdentifier))
         return false;
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     if (!decoder.decode(parameters.presenterApplicationPid))
         return false;
     if (!decoder.decode(parameters.accessibilityEnhancedUserInterfaceEnabled))
@@ -218,6 +237,20 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, Web
         return false;
     if (!decoder.decode(parameters.shouldEnableKerningAndLigaturesByDefault))
         return false;
+    if (!decoder.decode(parameters.shouldEnableJIT))
+        return false;
+
+    bool hasBundleParameterData;
+    if (!decoder.decode(hasBundleParameterData))
+        return false;
+
+    if (hasBundleParameterData) {
+        IPC::DataReference dataReference;
+        if (!decoder.decode(dataReference))
+            return false;
+
+        parameters.bundleParameterData = API::Data::create(dataReference.data(), dataReference.size());
+    }
 #endif
 
 #if ENABLE(NOTIFICATIONS) || ENABLE(LEGACY_NOTIFICATIONS)
@@ -233,6 +266,8 @@ bool WebProcessCreationParameters::decode(CoreIPC::ArgumentDecoder& decoder, Web
     if (!decoder.decode(parameters.plugInAutoStartOriginHashes))
         return false;
     if (!decoder.decode(parameters.plugInAutoStartOrigins))
+        return false;
+    if (!decoder.decode(parameters.memoryCacheDisabled))
         return false;
 
     return true;

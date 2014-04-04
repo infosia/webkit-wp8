@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,10 +26,7 @@
 #ifndef PlatformCALayer_h
 #define PlatformCALayer_h
 
-#if USE(ACCELERATED_COMPOSITING)
-
-#include "GraphicsContext.h"
-#include "PlatformCAAnimation.h"
+#include "GraphicsLayer.h"
 #include "PlatformCALayerClient.h"
 #include <QuartzCore/CABase.h>
 #include <wtf/CurrentTime.h>
@@ -43,14 +40,19 @@
 
 OBJC_CLASS AVPlayerLayer;
 
+#if PLATFORM(COCOA)
+typedef struct CGContext *CGContextRef;
+#endif
+
 namespace WebCore {
 
 class PlatformCALayer;
+class PlatformCAAnimation;
 
 typedef Vector<RefPtr<PlatformCALayer>> PlatformCALayerList;
 
 class PlatformCALayer : public RefCounted<PlatformCALayer> {
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     friend class PlatformCALayerMac;
 #elif PLATFORM(WIN)
     friend class PlatformCALayerWin;
@@ -80,6 +82,11 @@ public:
 
     virtual ~PlatformCALayer();
 
+    GraphicsLayer::PlatformLayerID layerID() const { return m_layerID; }
+
+    virtual bool isPlatformCALayerMac() const { return false; }
+    virtual bool isPlatformCALayerRemote() const { return false; }
+
     // This function passes the layer as a void* rather than a PlatformLayer because PlatformLayer
     // is defined differently for Obj C and C++. This allows callers from both languages.
     static PlatformCALayer* platformCALayer(void* platformLayer);
@@ -98,7 +105,6 @@ public:
     virtual void setContentsChanged() = 0;
 
     LayerType layerType() const { return m_layerType; }
-    virtual bool isRemote() const { return false; }
 
     virtual PlatformCALayer* superlayer() const = 0;
     virtual void removeFromSuperlayer() = 0;
@@ -176,6 +182,10 @@ public:
     virtual void copyFiltersFrom(const PlatformCALayer*) = 0;
 #endif
 
+#if ENABLE(CSS_COMPOSITING)
+    void setBlendMode(BlendMode);
+#endif
+
     virtual void setName(const String&) = 0;
 
     virtual void setSpeed(float) = 0;
@@ -186,6 +196,12 @@ public:
     virtual void setContentsScale(float) = 0;
 
     virtual void setEdgeAntialiasingMask(unsigned) = 0;
+    
+    virtual GraphicsLayer::CustomAppearance customAppearance() const = 0;
+    virtual void updateCustomAppearance(GraphicsLayer::CustomAppearance) = 0;
+
+    virtual GraphicsLayer::CustomBehavior customBehavior() const = 0;
+    virtual void updateCustomBehavior(GraphicsLayer::CustomBehavior) = 0;
 
     virtual TiledBacking* tiledBacking() = 0;
 
@@ -198,27 +214,32 @@ public:
 #endif // NDEBUG
 #endif // PLATFORM(WIN)
 
+#if PLATFORM(IOS)
+    bool isWebLayer();
+    void setBoundsOnMainThread(CGRect);
+    void setPositionOnMainThread(CGPoint);
+    void setAnchorPointOnMainThread(FloatPoint3D);
+    void setTileSize(const IntSize&);
+#endif
+
     virtual PassRefPtr<PlatformCALayer> createCompatibleLayer(LayerType, PlatformCALayerClient*) const = 0;
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     virtual void enumerateRectsBeingDrawn(CGContextRef, void (^block)(CGRect)) = 0;
 #endif
 
 protected:
-    PlatformCALayer(LayerType layerType, PlatformCALayerClient* owner)
-        : m_layerType(layerType)
-        , m_owner(owner)
-    {
+    PlatformCALayer(LayerType, PlatformCALayerClient* owner);
 
-    }
-
-    LayerType m_layerType;
+    const LayerType m_layerType;
+    const GraphicsLayer::PlatformLayerID m_layerID;
     RetainPtr<PlatformLayer> m_layer;
     PlatformCALayerClient* m_owner;
 };
 
-}
+#define PLATFORM_CALAYER_TYPE_CASTS(ToValueTypeName, predicate) \
+    TYPE_CASTS_BASE(ToValueTypeName, WebCore::PlatformCALayer, object, object->predicate, object.predicate)
 
-#endif // USE(ACCELERATED_COMPOSITING)
+} // namespace WebCore
 
 #endif // PlatformCALayer_h

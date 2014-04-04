@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -63,17 +63,17 @@ PassOwnPtr<ContextMenu> WebContextMenuClient::customizeMenu(PassOwnPtr<ContextMe
 
     ASSERT(uiDelegate);
 
-    HMENU nativeMenu = menu->platformContextMenu();
+    OLE_HANDLE nativeMenu = reinterpret_cast<OLE_HANDLE>(menu->platformContextMenu());
     COMPtr<WebElementPropertyBag> propertyBag;
     propertyBag.adoptRef(WebElementPropertyBag::createInstance(m_webView->page()->contextMenuController().hitTestResult()));
     // FIXME: We need to decide whether to do the default before calling this delegate method
-    if (FAILED(uiDelegate->contextMenuItemsForElement(m_webView, propertyBag.get(), (OLE_HANDLE)(ULONG64)nativeMenu, (OLE_HANDLE*)&nativeMenu))) {
-        ::DestroyMenu(nativeMenu);
+    if (FAILED(uiDelegate->contextMenuItemsForElement(m_webView, propertyBag.get(), nativeMenu, &nativeMenu))) {
+        ::DestroyMenu(reinterpret_cast<HMENU>(nativeMenu));
         return menu.release();
     }
     
-    OwnPtr<ContextMenu> customizedMenu = adoptPtr(new ContextMenu(nativeMenu));
-    ::DestroyMenu(nativeMenu);
+    OwnPtr<ContextMenu> customizedMenu = adoptPtr(new ContextMenu(reinterpret_cast<HMENU>(nativeMenu)));
+    ::DestroyMenu(reinterpret_cast<HMENU>(nativeMenu));
 
     return customizedMenu.release();
 }
@@ -121,7 +121,7 @@ void WebContextMenuClient::searchWithGoogle(const Frame* frame)
 
     if (Page* page = frame->page()) {
         UserGestureIndicator indicator(DefinitelyProcessingUserGesture);
-        page->mainFrame().loader().urlSelected(URL(ParsedURLString, url), String(), 0, false, false, MaybeSendReferrer);
+        page->mainFrame().loader().urlSelected(URL(ParsedURLString, url), String(), 0, LockHistory::No, LockBackForwardList::No, MaybeSendReferrer);
     }
 }
 

@@ -20,13 +20,13 @@
 #ifndef SVGAltGlyphDefElement_h
 #define SVGAltGlyphDefElement_h
 
-#if ENABLE(SVG) && ENABLE(SVG_FONTS)
+#if ENABLE(SVG_FONTS)
 #include "SVGElement.h"
 #include <wtf/Vector.h>
 
 namespace WebCore {
 
-class SVGAltGlyphDefElement FINAL : public SVGElement {
+class SVGAltGlyphDefElement final : public SVGElement {
 public:
     static PassRefPtr<SVGAltGlyphDefElement> create(const QualifiedName&, Document&);
 
@@ -35,7 +35,7 @@ public:
 private:
     SVGAltGlyphDefElement(const QualifiedName&, Document&);
 
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE { return false; }
+    virtual bool rendererIsNeeded(const RenderStyle&) override { return false; }
 };
 
 NODE_TYPE_CASTS(SVGAltGlyphDefElement)
@@ -44,4 +44,3 @@ NODE_TYPE_CASTS(SVGAltGlyphDefElement)
 
 #endif
 #endif
-

@@ -19,17 +19,13 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResourcePattern.h"
 
 #include "ElementIterator.h"
 #include "FrameView.h"
 #include "GraphicsContext.h"
-#include "PatternAttributes.h"
 #include "RenderSVGRoot.h"
 #include "SVGFitToViewBox.h"
-#include "SVGRenderSupport.h"
 #include "SVGRenderingContext.h"
 
 namespace WebCore {
@@ -54,10 +50,9 @@ void RenderSVGResourcePattern::removeAllClientsFromCache(bool markForInvalidatio
     markAllClientsForInvalidation(markForInvalidation ? RepaintInvalidation : ParentOnlyInvalidation);
 }
 
-void RenderSVGResourcePattern::removeClientFromCache(RenderObject* client, bool markForInvalidation)
+void RenderSVGResourcePattern::removeClientFromCache(RenderElement& client, bool markForInvalidation)
 {
-    ASSERT(client);
-    m_patternMap.remove(client);
+    m_patternMap.remove(&client);
     markClientForInvalidation(client, markForInvalidation ? RepaintInvalidation : ParentOnlyInvalidation);
 }
 
@@ -90,7 +85,7 @@ PatternData* RenderSVGResourcePattern::buildPattern(RenderObject* object, unsign
         return 0;
 
     AffineTransform absoluteTransformIgnoringRotation;
-    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(object, absoluteTransformIgnoringRotation);
+    SVGRenderingContext::calculateTransformationToOutermostCoordinateSystem(*object, absoluteTransformIgnoringRotation);
 
     // Ignore 2D rotation, as it doesn't affect the size of the tile.
     SVGRenderingContext::clear2DRotation(absoluteTransformIgnoringRotation);
@@ -111,7 +106,7 @@ PatternData* RenderSVGResourcePattern::buildPattern(RenderObject* object, unsign
         return 0;
 
     // Build pattern.
-    OwnPtr<PatternData> patternData = adoptPtr(new PatternData);
+    auto patternData = std::make_unique<PatternData>();
     patternData->pattern = Pattern::create(copiedImage, true, true);
 
     // Compute pattern space transformation.
@@ -134,7 +129,7 @@ PatternData* RenderSVGResourcePattern::buildPattern(RenderObject* object, unsign
     // Various calls above may trigger invalidations in some fringe cases (ImageBuffer allocation
     // failures in the SVG image cache for example). To avoid having our PatternData deleted by
     // removeAllClientsFromCache(), we only make it visible in the cache at the very end.
-    return m_patternMap.set(object, patternData.release()).iterator->value.get();
+    return m_patternMap.set(object, std::move(patternData)).iterator->value.get();
 }
 
 bool RenderSVGResourcePattern::applyResource(RenderElement& renderer, const RenderStyle& style, GraphicsContext*& context, unsigned short resourceMode)
@@ -265,9 +260,7 @@ std::unique_ptr<ImageBuffer> RenderSVGResourcePattern::createTileImage(const Pat
         contentTransformation = tileImageTransform;
 
     // Draw the content into the ImageBuffer.
-    auto children = childrenOfType<SVGElement>(*attributes.patternContentElement());
-    for (auto it = children.begin(), end = children.end(); it != end; ++it) {
-        const SVGElement& child = *it;
+    for (auto& child : childrenOfType<SVGElement>(*attributes.patternContentElement())) {
         if (!child.renderer())
             continue;
         if (child.renderer()->needsLayout())
@@ -279,5 +272,3 @@ std::unique_ptr<ImageBuffer> RenderSVGResourcePattern::createTileImage(const Pat
 }
 
 }
-
-#endif

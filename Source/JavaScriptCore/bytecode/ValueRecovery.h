@@ -34,7 +34,6 @@
 #include "JSCJSValue.h"
 #include "MacroAssembler.h"
 #include "VirtualRegister.h"
-#include <wtf/Platform.h>
 
 namespace JSC {
 
@@ -54,7 +53,6 @@ enum ValueRecoveryTechnique {
     InPair,
 #endif
     InFPR,
-    UInt32InGPR,
     // It's in the stack, but at a different location.
     DisplacedInJSStack,
     // It's in the stack, at a different location, and it's unboxed.
@@ -101,14 +99,6 @@ public:
             result.m_technique = UnboxedCellInGPR;
         else
             result.m_technique = InGPR;
-        result.m_source.gpr = gpr;
-        return result;
-    }
-    
-    static ValueRecovery uint32InGPR(MacroAssembler::RegisterID gpr)
-    {
-        ValueRecovery result;
-        result.m_technique = UInt32InGPR;
         result.m_source.gpr = gpr;
         return result;
     }
@@ -209,7 +199,7 @@ public:
     
     MacroAssembler::RegisterID gpr() const
     {
-        ASSERT(m_technique == InGPR || m_technique == UnboxedInt32InGPR || m_technique == UnboxedBooleanInGPR || m_technique == UInt32InGPR || m_technique == UnboxedInt52InGPR || m_technique == UnboxedStrictInt52InGPR || m_technique == UnboxedCellInGPR);
+        ASSERT(m_technique == InGPR || m_technique == UnboxedInt32InGPR || m_technique == UnboxedBooleanInGPR || m_technique == UnboxedInt52InGPR || m_technique == UnboxedStrictInt52InGPR || m_technique == UnboxedCellInGPR);
         return m_source.gpr;
     }
     
@@ -237,6 +227,27 @@ public:
     {
         ASSERT(m_technique == DisplacedInJSStack || m_technique == Int32DisplacedInJSStack || m_technique == DoubleDisplacedInJSStack || m_technique == CellDisplacedInJSStack || m_technique == BooleanDisplacedInJSStack || m_technique == Int52DisplacedInJSStack || m_technique == StrictInt52DisplacedInJSStack);
         return VirtualRegister(m_source.virtualReg);
+    }
+    
+    ValueRecovery withLocalsOffset(int offset) const
+    {
+        switch (m_technique) {
+        case DisplacedInJSStack:
+        case Int32DisplacedInJSStack:
+        case DoubleDisplacedInJSStack:
+        case CellDisplacedInJSStack:
+        case BooleanDisplacedInJSStack:
+        case Int52DisplacedInJSStack:
+        case StrictInt52DisplacedInJSStack: {
+            ValueRecovery result;
+            result.m_technique = m_technique;
+            result.m_source.virtualReg = m_source.virtualReg + offset;
+            return result;
+        }
+            
+        default:
+            return *this;
+        }
     }
     
     JSValue constant() const

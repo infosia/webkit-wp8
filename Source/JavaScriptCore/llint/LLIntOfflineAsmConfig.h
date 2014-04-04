@@ -29,12 +29,11 @@
 #include "LLIntCommon.h"
 #include <wtf/Assertions.h>
 #include <wtf/InlineASM.h>
-#include <wtf/Platform.h>
-
 
 #if ENABLE(LLINT_C_LOOP)
 #define OFFLINE_ASM_C_LOOP 1
 #define OFFLINE_ASM_X86 0
+#define OFFLINE_ASM_X86_WIN 0
 #define OFFLINE_ASM_ARM 0
 #define OFFLINE_ASM_ARMv7 0
 #define OFFLINE_ASM_ARMv7_TRADITIONAL 0
@@ -48,10 +47,16 @@
 
 #define OFFLINE_ASM_C_LOOP 0
 
-#if CPU(X86)
+#if CPU(X86) && !PLATFORM(WIN)
 #define OFFLINE_ASM_X86 1
 #else
 #define OFFLINE_ASM_X86 0
+#endif
+
+#if CPU(X86) && PLATFORM(WIN)
+#define OFFLINE_ASM_X86_WIN 1
+#else
+#define OFFLINE_ASM_X86_WIN 0
 #endif
 
 #ifdef __ARM_ARCH_7S__
@@ -136,12 +141,6 @@
 #define OFFLINE_ASM_BIG_ENDIAN 0
 #endif
 
-#if LLINT_OSR_TO_JIT
-#define OFFLINE_ASM_JIT_ENABLED 1
-#else
-#define OFFLINE_ASM_JIT_ENABLED 0
-#endif
-
 #if LLINT_EXECUTION_TRACING
 #define OFFLINE_ASM_EXECUTION_TRACING 1
 #else
@@ -154,16 +153,10 @@
 #define OFFLINE_ASM_ALWAYS_ALLOCATE_SLOW 0
 #endif
 
-#if ENABLE(JAVASCRIPT_DEBUGGER)
-#define OFFLINE_ASM_JAVASCRIPT_DEBUGGER 1
+#if ENABLE(GGC)
+#define OFFLINE_ASM_GGC 1
 #else
-#define OFFLINE_ASM_JAVASCRIPT_DEBUGGER 0
-#endif
-
-#if ENABLE(VALUE_PROFILER)
-#define OFFLINE_ASM_VALUE_PROFILER 1
-#else
-#define OFFLINE_ASM_VALUE_PROFILER 0
+#define OFFLINE_ASM_GGC 0
 #endif
 
 #endif // LLIntOfflineAsmConfig_h

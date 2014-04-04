@@ -21,7 +21,7 @@
 
 #include "config.h"
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "SVGFilterPrimitiveStandardAttributes.h"
 
 #include "Attribute.h"
@@ -66,7 +66,7 @@ SVGFilterPrimitiveStandardAttributes::SVGFilterPrimitiveStandardAttributes(const
 
 bool SVGFilterPrimitiveStandardAttributes::isSupportedAttribute(const QualifiedName& attrName)
 {
-    DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(HashSet<QualifiedName>, supportedAttributes, ());
     if (supportedAttributes.isEmpty()) {
         supportedAttributes.add(SVGNames::xAttr);
         supportedAttributes.add(SVGNames::yAttr);
@@ -142,9 +142,9 @@ void SVGFilterPrimitiveStandardAttributes::setStandardAttributes(FilterEffect* f
         filterEffect->setHasHeight(true);
 }
 
-RenderElement* SVGFilterPrimitiveStandardAttributes::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> SVGFilterPrimitiveStandardAttributes::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderSVGResourceFilterPrimitive(*this, std::move(style));
+    return createRenderer<RenderSVGResourceFilterPrimitive>(*this, std::move(style));
 }
 
 bool SVGFilterPrimitiveStandardAttributes::rendererIsNeeded(const RenderStyle& style)
@@ -165,13 +165,13 @@ void invalidateFilterPrimitiveParent(SVGElement* element)
     if (!parent)
         return;
 
-    RenderObject* renderer = parent->renderer();
+    RenderElement* renderer = parent->renderer();
     if (!renderer || !renderer->isSVGResourceFilterPrimitive())
         return;
 
-    RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer, false);
+    RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer, false);
 }
 
 }
 
-#endif // ENABLE(SVG)
+#endif

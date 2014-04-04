@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -59,6 +59,9 @@ NSURLRequest *ResourceRequest::nsURLRequest(HTTPBodyUpdatePolicy bodyPolicy) con
 
 ResourceRequest::ResourceRequest(NSURLRequest *nsRequest)
     : ResourceRequestBase()
+#if PLATFORM(IOS)
+    , m_mainResourceRequest(false)
+#endif
     , m_cfRequest([nsRequest _CFURLRequest])
     , m_nsRequest(nsRequest)
 {
@@ -66,8 +69,25 @@ ResourceRequest::ResourceRequest(NSURLRequest *nsRequest)
 
 void ResourceRequest::updateNSURLRequest()
 {
+#if PLATFORM(IOS)
+    // There is client code that extends NSURLRequest and expects to get back, in the delegate
+    // callbacks, an object of the same type that they passed into WebKit. To keep then running, we
+    // create an object of the same type and return that. See <rdar://9843582>.
+    // Also, developers really really want an NSMutableURLRequest so try to create an
+    // NSMutableURLRequest instead of NSURLRequest.
+    static Class nsURLRequestClass = [NSURLRequest class];
+    static Class nsMutableURLRequestClass = [NSMutableURLRequest class];
+    Class requestClass = [m_nsRequest.get() class];
+
+    if (!requestClass || requestClass == nsURLRequestClass)
+        requestClass = nsMutableURLRequestClass;
+
+    if (m_cfRequest)
+        m_nsRequest = adoptNS([[requestClass alloc] _initWithCFURLRequest:m_cfRequest.get()]);
+#else
     if (m_cfRequest)
         m_nsRequest = adoptNS([[NSURLRequest alloc] _initWithCFURLRequest:m_cfRequest.get()]);
+#endif
 }
 
 #else
@@ -88,8 +108,7 @@ void ResourceRequest::doUpdateResourceRequest()
         m_httpMethod = method;
     m_allowCookies = [m_nsRequest.get() HTTPShouldHandleCookies];
 
-    if (ResourceRequest::httpPipeliningEnabled())
-        m_priority = toResourceLoadPriority(wkGetHTTPPipeliningPriority([m_nsRequest.get() _CFURLRequest]));
+    m_priority = toResourceLoadPriority(wkGetHTTPRequestPriority([m_nsRequest.get() _CFURLRequest]));
 
     NSDictionary *headers = [m_nsRequest.get() allHTTPHeaderFields];
     NSEnumerator *e = [headers keyEnumerator];
@@ -108,9 +127,11 @@ void ResourceRequest::doUpdateResourceRequest()
     }
 
 #if ENABLE(CACHE_PARTITIONING)
-    NSString* cachePartition = [NSURLProtocol propertyForKey:(NSString *)wkCachePartitionKey() inRequest:m_nsRequest.get()];
-    if (cachePartition)
-        m_cachePartition = cachePartition;
+    if (m_nsRequest) {
+        NSString* cachePartition = [NSURLProtocol propertyForKey:(NSString *)wkCachePartitionKey() inRequest:m_nsRequest.get()];
+        if (cachePartition)
+            m_cachePartition = cachePartition;
+    }
 #endif
 }
 
@@ -143,7 +164,9 @@ void ResourceRequest::doUpdatePlatformRequest()
         nsRequest = [[NSMutableURLRequest alloc] initWithURL:url()];
 
     if (ResourceRequest::httpPipeliningEnabled())
-        wkSetHTTPPipeliningPriority([nsRequest _CFURLRequest], toHTTPPipeliningPriority(m_priority));
+        wkHTTPRequestEnablePipelining([nsRequest _CFURLRequest]);
+
+    wkSetHTTPRequestPriority([nsRequest _CFURLRequest], toPlatformRequestPriority(m_priority));
 
     [nsRequest setCachePolicy:(NSURLRequestCachePolicy)cachePolicy()];
     wkCFURLRequestAllowAllPostCaching([nsRequest _CFURLRequest]);
@@ -162,9 +185,8 @@ void ResourceRequest::doUpdatePlatformRequest()
     NSArray *oldHeaderFieldNames = [[nsRequest allHTTPHeaderFields] allKeys];
     for (unsigned i = [oldHeaderFieldNames count]; i != 0; --i)
         [nsRequest setValue:nil forHTTPHeaderField:[oldHeaderFieldNames objectAtIndex:i - 1]];
-    HTTPHeaderMap::const_iterator end = httpHeaderFields().end();
-    for (HTTPHeaderMap::const_iterator it = httpHeaderFields().begin(); it != end; ++it)
-        [nsRequest setValue:it->value forHTTPHeaderField:it->key];
+    for (const auto& header : httpHeaderFields())
+        [nsRequest setValue:header.value forHTTPHeaderField:header.key];
 
     NSMutableArray *encodingFallbacks = [NSMutableArray array];
     unsigned count = m_responseContentDispositionEncodingFallbackArray.size();
@@ -220,19 +242,28 @@ void ResourceRequest::doUpdatePlatformHTTPBody()
     m_nsRequest = adoptNS(nsRequest);
 }
 
-void ResourceRequest::updateFromDelegatePreservingOldHTTPBody(const ResourceRequest& delegateProvidedRequest)
+void ResourceRequest::updateFromDelegatePreservingOldProperties(const ResourceRequest& delegateProvidedRequest)
 {
     RefPtr<FormData> oldHTTPBody = httpBody();
+#if ENABLE(INSPECTOR)
+    bool isHiddenFromInspector = hiddenFromInspector();
+#endif
 
     *this = delegateProvidedRequest;
+
     setHTTPBody(oldHTTPBody.release());
+#if ENABLE(INSPECTOR)
+    setHiddenFromInspector(isHiddenFromInspector);
+#endif
 }
 
+#if !PLATFORM(IOS)
 void ResourceRequest::applyWebArchiveHackForMail()
 {
     // Hack because Mail checks for this property to detect data / archive loads
     [NSURLProtocol setProperty:@"" forKey:@"WebDataRequest" inRequest:(NSMutableURLRequest *)nsURLRequest(DoNotUpdateHTTPBody)];
 }
+#endif
 
 void ResourceRequest::setStorageSession(CFURLStorageSessionRef storageSession)
 {
@@ -242,6 +273,7 @@ void ResourceRequest::setStorageSession(CFURLStorageSessionRef storageSession)
     
 #endif // USE(CFNETWORK)
 
+#if !PLATFORM(IOS)
 static bool initQuickLookResourceCachingQuirks()
 {
     if (applicationIsSafari())
@@ -260,11 +292,16 @@ static bool initQuickLookResourceCachingQuirks()
     }
     return false;
 }
+#endif // !PLATFORM(IOS)
 
 bool ResourceRequest::useQuickLookResourceCachingQuirks()
 {
+#if !PLATFORM(IOS)
     static bool flag = initQuickLookResourceCachingQuirks();
     return flag;
+#else
+    return false;
+#endif // !PLATFORM(IOS)
 }
 
 } // namespace WebCore

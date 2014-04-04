@@ -27,18 +27,18 @@
 #define CryptoAlgorithmAesCbcParams_h
 
 #include "CryptoAlgorithmParameters.h"
-#include <wtf/FixedArray.h>
+#include <array>
 
 #if ENABLE(SUBTLE_CRYPTO)
 
 namespace WebCore {
 
-class CryptoAlgorithmAesCbcParams FINAL : public CryptoAlgorithmParameters {
+class CryptoAlgorithmAesCbcParams final : public CryptoAlgorithmParameters {
 public:
     // The initialization vector. MUST be 16 bytes.
-    FixedArray<char, 16> iv;
+    std::array<char, 16> iv;
 
-    virtual Class parametersClass() const OVERRIDE { return Class::AesCbcParams; }
+    virtual Class parametersClass() const override { return Class::AesCbcParams; }
 };
 
 CRYPTO_ALGORITHM_PARAMETERS_CASTS(AesCbcParams)

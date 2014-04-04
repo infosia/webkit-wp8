@@ -26,11 +26,8 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGPath.h"
 
-#include "SVGGraphicsElement.h"
 #include "SVGPathElement.h"
 #include "SVGSubpathData.h"
 
@@ -134,7 +131,7 @@ bool RenderSVGPath::shouldStrokeZeroLengthSubpath() const
 
 Path* RenderSVGPath::zeroLengthLinecapPath(const FloatPoint& linecapPosition) const
 {
-    DEFINE_STATIC_LOCAL(Path, tempPath, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(Path, tempPath, ());
 
     tempPath.clear();
     if (style().svgStyle().capStyle() == SquareCap)
@@ -163,5 +160,3 @@ void RenderSVGPath::updateZeroLengthSubpaths()
 }
 
 }
-
-#endif // ENABLE(SVG)

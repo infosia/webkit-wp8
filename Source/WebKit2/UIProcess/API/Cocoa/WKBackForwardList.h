@@ -23,32 +23,46 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <WebKit2/WKBackForwardListRef.h>
-
-#ifdef __OBJC__
-
-#import <WebKit2/WKBackForwardListItem.h>
 #import <WebKit2/WKFoundation.h>
 
 #if WK_API_ENABLED
 
+#import <WebKit2/WKBackForwardListItem.h>
+
+/*! @abstract A @link WKWebView @/link's list of previously-visited webpages that can be reached by
+ going back or forward.
+ */
 WK_API_CLASS
 @interface WKBackForwardList : NSObject
 
-@property (readonly) WKBackForwardListItem *currentItem;
-@property (readonly) WKBackForwardListItem *backItem;
-@property (readonly) WKBackForwardListItem *forwardItem;
+/*! @abstract The current item.
+ */
+@property (nonatomic, readonly) WKBackForwardListItem *currentItem;
 
+/*! @abstract The item right before the current item, or nil if there isn't one.
+ */
+@property (nonatomic, readonly) WKBackForwardListItem *backItem;
+
+/*! @abstract The item right after the current item, or nil if there isn't one.
+ */
+@property (nonatomic, readonly) WKBackForwardListItem *forwardItem;
+
+/*! @abstract Returns an entry the given distance from the current entry.
+ @param index Index of the desired list item relative to the current item; 0 is current item, -1 is back item, 1 is forward item, etc.
+ @result The entry the given distance from the current entry. If index exceeds the limits of the list, nil is returned.
+ */
 - (WKBackForwardListItem *)itemAtIndex:(NSInteger)index;
 
-@property (readonly) NSUInteger backListCount;
-@property (readonly) NSUInteger forwardListCount;
+/*! @abstract Returns the portion of the list before the current entry.
+ @discussion The entries are in the order that they were originally visited.
+ */
+@property (nonatomic, readonly) NSArray *backList;
 
-- (NSArray *)backListWithLimit:(NSUInteger)limit;
-- (NSArray *)forwardListWithLimit:(NSUInteger)limit;
+/*! @abstract Returns the portion of the list after the current entry.
+ @discussion The entries are in the order that they were originally visited.
+ */
+@property (nonatomic, readonly) NSArray *forwardList;
 
 @end
 
 #endif // WK_API_ENABLED
-
-#endif // defined(__OBJC__)

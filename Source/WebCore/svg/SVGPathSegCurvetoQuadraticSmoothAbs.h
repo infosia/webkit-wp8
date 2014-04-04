@@ -22,7 +22,6 @@
 #ifndef SVGPathSegCurvetoQuadraticSmoothAbs_h
 #define SVGPathSegCurvetoQuadraticSmoothAbs_h
 
-#if ENABLE(SVG)
 #include "SVGPathSegWithContext.h"
 
 namespace WebCore {
@@ -40,11 +39,10 @@ private:
     {
     }
 
-    virtual unsigned short pathSegType() const { return PATHSEG_CURVETO_QUADRATIC_SMOOTH_ABS; }
-    virtual String pathSegTypeAsLetter() const { return "T"; }
+    virtual unsigned short pathSegType() const override { return PATHSEG_CURVETO_QUADRATIC_SMOOTH_ABS; }
+    virtual String pathSegTypeAsLetter() const override { return "T"; }
 };
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

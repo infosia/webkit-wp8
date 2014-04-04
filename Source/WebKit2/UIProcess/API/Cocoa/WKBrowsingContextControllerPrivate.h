@@ -38,10 +38,13 @@ typedef NS_ENUM(NSUInteger, WKBrowsingContextPaginationMode) {
 };
 
 @class WKBrowsingContextHandle;
+@class _WKRemoteObjectRegistry;
 
 @interface WKBrowsingContextController (Private)
 
 @property (readonly) WKPageRef _pageRef;
+
+@property (readonly) BOOL hasOnlySecureContent;
 
 @property WKBrowsingContextPaginationMode paginationMode;
 
@@ -56,6 +59,10 @@ typedef NS_ENUM(NSUInteger, WKBrowsingContextPaginationMode) {
 @property (readonly) NSUInteger pageCount;
 
 @property (nonatomic, readonly) WKBrowsingContextHandle *handle;
+
+@property (nonatomic, readonly) _WKRemoteObjectRegistry *_remoteObjectRegistry;
+
+@property (nonatomic, readonly) pid_t processIdentifier;
 
 @end
 

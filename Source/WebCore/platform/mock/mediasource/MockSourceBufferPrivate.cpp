@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,18 +41,18 @@
 
 namespace WebCore {
 
-class MockMediaSample FINAL : public MediaSample {
+class MockMediaSample final : public MediaSample {
 public:
     static RefPtr<MockMediaSample> create(const MockSampleBox& box) { return adoptRef(new MockMediaSample(box)); }
     virtual ~MockMediaSample() { }
 
-    virtual MediaTime presentationTime() const OVERRIDE { return m_box.presentationTimestamp(); }
-    virtual MediaTime decodeTime() const OVERRIDE { return m_box.decodeTimestamp(); }
-    virtual MediaTime duration() const OVERRIDE { return m_box.duration(); }
-    virtual AtomicString trackID() const OVERRIDE { return m_id; }
+    virtual MediaTime presentationTime() const override { return m_box.presentationTimestamp(); }
+    virtual MediaTime decodeTime() const override { return m_box.decodeTimestamp(); }
+    virtual MediaTime duration() const override { return m_box.duration(); }
+    virtual AtomicString trackID() const override { return m_id; }
 
-    virtual SampleFlags flags() const OVERRIDE;
-    virtual PlatformSample platformSample() OVERRIDE;
+    virtual SampleFlags flags() const override;
+    virtual PlatformSample platformSample() override;
 
 protected:
     MockMediaSample(const MockSampleBox& box)
@@ -79,15 +79,15 @@ PlatformSample MockMediaSample::platformSample()
     return sample;
 }
 
-class MockMediaDescription FINAL : public MediaDescription {
+class MockMediaDescription final : public MediaDescription {
 public:
     static RefPtr<MockMediaDescription> create(const MockTrackBox& box) { return adoptRef(new MockMediaDescription(box)); }
     virtual ~MockMediaDescription() { }
 
-    virtual AtomicString codec() const OVERRIDE { return m_box.codec(); }
-    virtual bool isVideo() const OVERRIDE { return m_box.kind() == MockTrackBox::Video; }
-    virtual bool isAudio() const OVERRIDE { return m_box.kind() == MockTrackBox::Audio; }
-    virtual bool isText() const OVERRIDE { return m_box.kind() == MockTrackBox::Text; }
+    virtual AtomicString codec() const override { return m_box.codec(); }
+    virtual bool isVideo() const override { return m_box.kind() == MockTrackBox::Video; }
+    virtual bool isAudio() const override { return m_box.kind() == MockTrackBox::Audio; }
+    virtual bool isText() const override { return m_box.kind() == MockTrackBox::Text; }
 
 protected:
     MockMediaDescription(const MockTrackBox& box) : m_box(box) { }
@@ -216,6 +216,28 @@ void MockSourceBufferPrivate::setActive(bool isActive)
 {
     if (m_mediaSource)
         m_mediaSource->sourceBufferPrivateDidChangeActiveState(this, isActive);
+}
+
+void MockSourceBufferPrivate::enqueueSample(PassRefPtr<MediaSample> sample, AtomicString)
+{
+    if (!m_mediaSource || !sample)
+        return;
+
+    PlatformSample platformSample = sample->platformSample();
+    if (platformSample.type != PlatformSample::MockSampleBoxType)
+        return;
+
+    MockSampleBox* box = platformSample.sample.mockSampleBox;
+    if (!box)
+        return;
+
+    m_mediaSource->incrementTotalVideoFrames();
+    if (box->isCorrupted())
+        m_mediaSource->incrementCorruptedFrames();
+    if (box->isDropped())
+        m_mediaSource->incrementDroppedFrames();
+    if (box->isDelayed())
+        m_mediaSource->incrementTotalFrameDelayBy(1);
 }
 
 bool MockSourceBufferPrivate::hasVideo() const

@@ -39,8 +39,8 @@
 #include "WKCookieManager.h"
 #include "WKCredentialTypes.h"
 #include "WKPage.h"
-#include "WKPreferences.h"
-#include "WKPreferencesPrivate.h"
+#include "WKPreferencesRef.h"
+#include "WKPreferencesRefPrivate.h"
 #include "WKProtectionSpaceTypes.h"
 #include "WKResourceCacheManager.h"
 #include "WKSharedAPICast.h"
@@ -392,6 +392,8 @@ inline HTTPCookieAcceptPolicy toHTTPCookieAcceptPolicy(WKHTTPCookieAcceptPolicy 
         return HTTPCookieAcceptPolicyNever;
     case kWKHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain:
         return HTTPCookieAcceptPolicyOnlyFromMainDocumentDomain;
+    case kWKHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain:
+        return HTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain;
     }
 
     ASSERT_NOT_REACHED();
@@ -407,6 +409,8 @@ inline WKHTTPCookieAcceptPolicy toAPI(HTTPCookieAcceptPolicy policy)
         return kWKHTTPCookieAcceptPolicyNever;
     case HTTPCookieAcceptPolicyOnlyFromMainDocumentDomain:
         return kWKHTTPCookieAcceptPolicyOnlyFromMainDocumentDomain;
+    case HTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain:
+        return kWKHTTPCookieAcceptPolicyExclusivelyFromMainDocumentDomain;
     }
 
     ASSERT_NOT_REACHED();
@@ -471,6 +475,36 @@ inline PluginModuleLoadPolicy toPluginModuleLoadPolicy(WKPluginLoadPolicy plugin
     
     ASSERT_NOT_REACHED();
     return PluginModuleBlocked;
+}
+
+inline WebCore::WebGLLoadPolicy toWebGLLoadPolicy(WKWebGLLoadPolicy webGLLoadPolicy)
+{
+    switch (webGLLoadPolicy) {
+    case kWKWebGLLoadPolicyLoadNormally:
+        return WebCore::WebGLAllowCreation;
+    case kWKWebGLLoadPolicyBlocked:
+        return WebCore::WebGLBlockCreation;
+    case kWKWebGLLoadPolicyPending:
+        return WebCore::WebGLPendingCreation;
+    }
+    
+    ASSERT_NOT_REACHED();
+    return WebCore::WebGLAllowCreation;
+}
+
+inline WKWebGLLoadPolicy toAPI(WebCore::WebGLLoadPolicy webGLLoadPolicy)
+{
+    switch (webGLLoadPolicy) {
+    case WebCore::WebGLAllowCreation:
+        return kWKWebGLLoadPolicyLoadNormally;
+    case WebCore::WebGLBlockCreation:
+        return kWKWebGLLoadPolicyBlocked;
+    case WebCore::WebGLPendingCreation:
+        return kWKWebGLLoadPolicyPending;
+    }
+
+    ASSERT_NOT_REACHED();
+    return kWKWebGLLoadPolicyLoadNormally;
 }
 
 inline ProxyingRefPtr<WebGrammarDetail> toAPI(const WebCore::GrammarDetail& grammarDetail)

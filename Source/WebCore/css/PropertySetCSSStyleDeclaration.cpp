@@ -107,7 +107,7 @@ private:
     static bool s_shouldNotifyInspector;
     static bool s_shouldDeliver;
 
-    OwnPtr<MutationObserverInterestGroup> m_mutationRecipients;
+    std::unique_ptr<MutationObserverInterestGroup> m_mutationRecipients;
     RefPtr<MutationRecord> m_mutation;
 };
 
@@ -148,7 +148,8 @@ String PropertySetCSSStyleDeclaration::cssText() const
 void PropertySetCSSStyleDeclaration::setCssText(const String& text, ExceptionCode& ec)
 {
     StyleAttributeMutationScope mutationScope(this);
-    willMutate();
+    if (!willMutate())
+        return;
 
     ec = 0;
     // FIXME: Detect syntax errors and set ec.
@@ -206,9 +207,10 @@ void PropertySetCSSStyleDeclaration::setProperty(const String& propertyName, con
     if (!propertyID)
         return;
 
-    bool important = priority.find("important", 0, false) != notFound;
+    if (!willMutate())
+        return;
 
-    willMutate();
+    bool important = priority.find("important", 0, false) != notFound;
 
     ec = 0;
     bool changed = m_propertySet->setProperty(propertyID, value, important, contextStyleSheet());
@@ -229,7 +231,8 @@ String PropertySetCSSStyleDeclaration::removeProperty(const String& propertyName
     if (!propertyID)
         return String();
 
-    willMutate();
+    if (!willMutate())
+        return String();
 
     ec = 0;
     String result;
@@ -255,7 +258,8 @@ String PropertySetCSSStyleDeclaration::getPropertyValueInternal(CSSPropertyID pr
 void PropertySetCSSStyleDeclaration::setPropertyInternal(CSSPropertyID propertyID, const String& value, bool important, ExceptionCode& ec)
 { 
     StyleAttributeMutationScope mutationScope(this);
-    willMutate();
+    if (!willMutate())
+        return;
 
     ec = 0;
     bool changed = m_propertySet->setProperty(propertyID, value, important, contextStyleSheet());
@@ -274,7 +278,7 @@ CSSValue* PropertySetCSSStyleDeclaration::cloneAndCacheForCSSOM(CSSValue* intern
     // The map is here to maintain the object identity of the CSSValues over multiple invocations.
     // FIXME: It is likely that the identity is not important for web compatibility and this code should be removed.
     if (!m_cssomCSSValueClones)
-        m_cssomCSSValueClones = adoptPtr(new HashMap<CSSValue*, RefPtr<CSSValue>>);
+        m_cssomCSSValueClones = std::make_unique<HashMap<CSSValue*, RefPtr<CSSValue>>>();
     
     RefPtr<CSSValue>& clonedValue = m_cssomCSSValueClones->add(internalValue, RefPtr<CSSValue>()).iterator->value;
     if (!clonedValue)
@@ -318,20 +322,24 @@ void StyleRuleCSSStyleDeclaration::deref()
         delete this;
 }
 
-void StyleRuleCSSStyleDeclaration::willMutate()
+bool StyleRuleCSSStyleDeclaration::willMutate()
 {
-    if (m_parentRule && m_parentRule->parentStyleSheet())
-        m_parentRule->parentStyleSheet()->willMutateRules();
+    if (!m_parentRule || !m_parentRule->parentStyleSheet())
+        return false;
+    m_parentRule->parentStyleSheet()->willMutateRules();
+    return true;
 }
 
 void StyleRuleCSSStyleDeclaration::didMutate(MutationType type)
 {
+    ASSERT(m_parentRule);
+    ASSERT(m_parentRule->parentStyleSheet());
+
     if (type == PropertyChanged)
-        m_cssomCSSValueClones.clear();
+        m_cssomCSSValueClones = nullptr;
 
     // Style sheet mutation needs to be signaled even if the change failed. willMutate*/didMutate* must pair.
-    if (m_parentRule && m_parentRule->parentStyleSheet())
-        m_parentRule->parentStyleSheet()->didMutateRuleFromCSSStyleDeclaration();
+    m_parentRule->parentStyleSheet()->didMutateRuleFromCSSStyleDeclaration();
 }
 
 CSSStyleSheet* StyleRuleCSSStyleDeclaration::parentStyleSheet() const
@@ -351,7 +359,7 @@ void InlineCSSStyleDeclaration::didMutate(MutationType type)
     if (type == NoChanges)
         return;
 
-    m_cssomCSSValueClones.clear();
+    m_cssomCSSValueClones = nullptr;
 
     if (!m_parentElement)
         return;

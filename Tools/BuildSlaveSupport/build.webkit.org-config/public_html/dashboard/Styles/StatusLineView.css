@@ -29,11 +29,6 @@
     padding: 2px 0;
 }
 
-.status-line.linked,
-.status-line.linked * {
-    cursor: pointer;
-}
-
 .status-line .bubble {
     float: left;
     min-width: 24px;
@@ -48,6 +43,7 @@
     overflow: hidden;
     margin-top: 2px;
     margin-right: 6px;
+    text-decoration: none;
 }
 
 .status-line.neutral .bubble {
@@ -58,6 +54,10 @@
     background-color: rgb(76, 151, 61);
 }
 
+.status-line.unauthorized .bubble {
+    background-color: rgb(171, 61, 171);
+}
+
 .status-line .bubble.pictogram {
     padding: 0;
     max-width: 24px;
@@ -65,6 +65,10 @@
 
 .status-line.good .bubble.pictogram {
     background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><g transform="translate(20 30) rotate(-45 30 17)" shape-rendering="crispEdges" fill="white"><rect y="5" width="10" height="25"/><rect y="20" width="60" height="10"/></g></svg>');
+}
+
+.status-line.unauthorized .bubble.pictogram {
+    background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><clipPath id="top-semicircle"><rect x="0" y="0" width="100" height="37"/></clipPath><circle cx="50" cy="33" r="13" clip-path="url(#top-semicircle)" stroke="white" stroke-width="10" fill="none" /><rect x="24" y="38" width="52" height="39" fill="white"/></svg>');
 }
 
 .status-line.danger .bubble {
@@ -92,6 +96,7 @@
     text-transform: lowercase;
     line-height: 11px;
     padding-top: 1px;
+    display: block;
 }
 
 .status-line .message {
@@ -104,12 +109,9 @@
     color: inherit;
 }
 
-.status-line .message a:link {
-    text-decoration: none;
-}
-
-.status-line .message a:link:hover {
-    text-decoration: underline;
+.status-line .message .revision-number {
+    -webkit-user-select: auto;
+    cursor: text;
 }
 
 .status-line.no-label .message {
@@ -121,7 +123,9 @@
 }
 
 .status-line.neutral .label,
-.status-line.neutral .message {
+.status-line.neutral .message,
+.status-line.no-bubble .label,
+.status-line.no-bubble .message {
     color: rgb(145, 135, 95);
 }
 
@@ -140,6 +144,11 @@
     color: rgb(191, 67, 41);
 }
 
-.status-line.linked .label:hover {
-    text-decoration: underline;
+.status-line.unauthorized .label,
+.status-line.unauthorized .message {
+    color: rgb(171, 61, 171);
+}
+
+.status-line .bubble.popover-tracking:hover {
+    text-shadow: 0px 0px 5px rgba(255, 255, 255, 0.7)
 }

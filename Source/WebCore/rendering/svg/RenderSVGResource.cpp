@@ -21,14 +21,11 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "RenderSVGResource.h"
 
 #include "Frame.h"
 #include "FrameView.h"
 #include "RenderSVGResourceClipper.h"
-#include "RenderSVGResourceContainer.h"
 #include "RenderSVGResourceFilter.h"
 #include "RenderSVGResourceMasker.h"
 #include "RenderSVGResourceSolidColor.h"
@@ -86,6 +83,7 @@ static inline RenderSVGResource* requestPaintingResource(RenderSVGResourceMode m
     case SVGPaint::SVG_PAINTTYPE_URI_RGBCOLOR:
     case SVGPaint::SVG_PAINTTYPE_URI_RGBCOLOR_ICCCOLOR:
         color = applyToFill ? svgStyle.fillPaintColor() : svgStyle.strokePaintColor();
+        break;
     default:
         break;
     }
@@ -113,7 +111,7 @@ static inline RenderSVGResource* requestPaintingResource(RenderSVGResourceMode m
     }
 
     // If no resources are associated with the given renderer, return the color resource.
-    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(&renderer);
+    SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(renderer);
     if (!resources) {
         if (paintType == SVGPaint::SVG_PAINTTYPE_URI_NONE || !inheritColorFromParentStyleIfNeeded(renderer, applyToFill, color))
             return nullptr;
@@ -156,51 +154,49 @@ RenderSVGResourceSolidColor* RenderSVGResource::sharedSolidPaintingResource()
     return s_sharedSolidPaintingResource;
 }
 
-static inline void removeFromCacheAndInvalidateDependencies(RenderObject* object, bool needsLayout)
+static inline void removeFromCacheAndInvalidateDependencies(RenderElement& renderer, bool needsLayout)
 {
-    ASSERT(object);
-    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(object)) {
+    if (SVGResources* resources = SVGResourcesCache::cachedResourcesForRenderObject(renderer)) {
 #if ENABLE(FILTERS)
         if (RenderSVGResourceFilter* filter = resources->filter())
-            filter->removeClientFromCache(object);
+            filter->removeClientFromCache(renderer);
 #endif
         if (RenderSVGResourceMasker* masker = resources->masker())
-            masker->removeClientFromCache(object);
+            masker->removeClientFromCache(renderer);
 
         if (RenderSVGResourceClipper* clipper = resources->clipper())
-            clipper->removeClientFromCache(object);
+            clipper->removeClientFromCache(renderer);
     }
 
-    if (!object->node() || !object->node()->isSVGElement())
+    if (!renderer.element() || !renderer.element()->isSVGElement())
         return;
-    HashSet<SVGElement*>* dependencies = object->document().accessSVGExtensions()->setOfElementsReferencingTarget(toSVGElement(object->node()));
+    HashSet<SVGElement*>* dependencies = renderer.document().accessSVGExtensions()->setOfElementsReferencingTarget(toSVGElement(renderer.element()));
     if (!dependencies)
         return;
-    HashSet<SVGElement*>::iterator end = dependencies->end();
-    for (HashSet<SVGElement*>::iterator it = dependencies->begin(); it != end; ++it) {
-        if (RenderObject* renderer = (*it)->renderer())
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(renderer, needsLayout);
+    for (auto* element : *dependencies) {
+        if (auto* renderer = element->renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*renderer, needsLayout);
     }
 }
 
-void RenderSVGResource::markForLayoutAndParentResourceInvalidation(RenderObject* object, bool needsLayout)
+void RenderSVGResource::markForLayoutAndParentResourceInvalidation(RenderObject& object, bool needsLayout)
 {
-    ASSERT(object);
-    ASSERT(object->node());
+    ASSERT(object.node());
 
-    if (needsLayout && !object->documentBeingDestroyed())
-        object->setNeedsLayout();
+    if (needsLayout && !object.documentBeingDestroyed())
+        object.setNeedsLayout();
 
-    removeFromCacheAndInvalidateDependencies(object, needsLayout);
+    if (object.isRenderElement())
+        removeFromCacheAndInvalidateDependencies(toRenderElement(object), needsLayout);
 
     // Invalidate resources in ancestor chain, if needed.
-    RenderObject* current = object->parent();
+    auto current = object.parent();
     while (current) {
-        removeFromCacheAndInvalidateDependencies(current, needsLayout);
+        removeFromCacheAndInvalidateDependencies(*current, needsLayout);
 
         if (current->isSVGResourceContainer()) {
             // This will process the rest of the ancestors.
-            current->toRenderSVGResourceContainer()->removeAllClientsFromCache();
+            toRenderSVGResourceContainer(*current).removeAllClientsFromCache();
             break;
         }
 
@@ -209,6 +205,3 @@ void RenderSVGResource::markForLayoutAndParentResourceInvalidation(RenderObject*
 }
 
 }
-
-#endif
-

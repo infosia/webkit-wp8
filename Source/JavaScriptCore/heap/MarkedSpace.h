@@ -26,10 +26,10 @@
 #include "MarkedAllocator.h"
 #include "MarkedBlock.h"
 #include "MarkedBlockSet.h"
+#include <array>
 #include <wtf/PageAllocationAligned.h>
 #include <wtf/Bitmap.h>
 #include <wtf/DoublyLinkedList.h>
-#include <wtf/FixedArray.h>
 #include <wtf/HashSet.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/Vector.h>
@@ -46,7 +46,17 @@ class WeakGCHandle;
 class SlotVisitor;
 
 struct ClearMarks : MarkedBlock::VoidFunctor {
-    void operator()(MarkedBlock* block) { block->clearMarks(); }
+    void operator()(MarkedBlock* block)
+    {
+        block->clearMarks();
+    }
+};
+
+struct ClearRememberedSet : MarkedBlock::VoidFunctor {
+    void operator()(MarkedBlock* block)
+    {
+        block->clearRememberedSet();
+    }
 };
 
 struct Sweep : MarkedBlock::VoidFunctor {
@@ -105,8 +115,10 @@ public:
 
     void didAddBlock(MarkedBlock*);
     void didConsumeFreeList(MarkedBlock*);
+    void didAllocateInBlock(MarkedBlock*);
 
     void clearMarks();
+    void clearRememberedSet();
     void clearNewlyAllocated();
     void sweep();
     size_t objectCount();
@@ -137,8 +149,8 @@ private:
     static const size_t impreciseCount = impreciseCutoff / impreciseStep;
 
     struct Subspace {
-        FixedArray<MarkedAllocator, preciseCount> preciseAllocators;
-        FixedArray<MarkedAllocator, impreciseCount> impreciseAllocators;
+        std::array<MarkedAllocator, preciseCount> preciseAllocators;
+        std::array<MarkedAllocator, impreciseCount> impreciseAllocators;
         MarkedAllocator largeAllocator;
     };
 
@@ -150,6 +162,7 @@ private:
     size_t m_capacity;
     bool m_isIterating;
     MarkedBlockSet m_blocks;
+    Vector<MarkedBlock*> m_blocksWithNewObjects;
 
     DelayedReleaseScope* m_currentDelayedReleaseScope;
 };
@@ -231,20 +244,22 @@ inline void* MarkedSpace::allocateWithNormalDestructor(size_t bytes)
 
 template <typename Functor> inline typename Functor::ReturnType MarkedSpace::forEachBlock(Functor& functor)
 {
-    for (size_t i = 0; i < preciseCount; ++i) {
+    for (size_t i = 0; i < preciseCount; ++i)
         m_normalSpace.preciseAllocators[i].forEachBlock(functor);
-        m_normalDestructorSpace.preciseAllocators[i].forEachBlock(functor);
-        m_immortalStructureDestructorSpace.preciseAllocators[i].forEachBlock(functor);
-    }
-
-    for (size_t i = 0; i < impreciseCount; ++i) {
+    for (size_t i = 0; i < impreciseCount; ++i)
         m_normalSpace.impreciseAllocators[i].forEachBlock(functor);
-        m_normalDestructorSpace.impreciseAllocators[i].forEachBlock(functor);
-        m_immortalStructureDestructorSpace.impreciseAllocators[i].forEachBlock(functor);
-    }
-
     m_normalSpace.largeAllocator.forEachBlock(functor);
+
+    for (size_t i = 0; i < preciseCount; ++i)
+        m_normalDestructorSpace.preciseAllocators[i].forEachBlock(functor);
+    for (size_t i = 0; i < impreciseCount; ++i)
+        m_normalDestructorSpace.impreciseAllocators[i].forEachBlock(functor);
     m_normalDestructorSpace.largeAllocator.forEachBlock(functor);
+
+    for (size_t i = 0; i < preciseCount; ++i)
+        m_immortalStructureDestructorSpace.preciseAllocators[i].forEachBlock(functor);
+    for (size_t i = 0; i < impreciseCount; ++i)
+        m_immortalStructureDestructorSpace.impreciseAllocators[i].forEachBlock(functor);
     m_immortalStructureDestructorSpace.largeAllocator.forEachBlock(functor);
 
     return functor.returnValue();
@@ -262,9 +277,18 @@ inline void MarkedSpace::didAddBlock(MarkedBlock* block)
     m_blocks.add(block);
 }
 
-inline void MarkedSpace::clearMarks()
+inline void MarkedSpace::didAllocateInBlock(MarkedBlock* block)
 {
-    forEachBlock<ClearMarks>();
+#if ENABLE(GGC)
+    m_blocksWithNewObjects.append(block);
+#else
+    UNUSED_PARAM(block);
+#endif
+}
+
+inline void MarkedSpace::clearRememberedSet()
+{
+    forEachBlock<ClearRememberedSet>();
 }
 
 inline size_t MarkedSpace::objectCount()

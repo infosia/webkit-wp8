@@ -19,7 +19,7 @@
 #include "config.h"
 #include "AcceleratedCompositingContext.h"
 
-#if USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#if USE(TEXTURE_MAPPER_GL)
 
 #include "CairoUtilities.h"
 #include "FrameView.h"
@@ -314,7 +314,7 @@ void AcceleratedCompositingContext::resizeRootLayer(const IntSize& newSize)
     scheduleLayerFlush();
 }
 
-void AcceleratedCompositingContext::scrollNonCompositedContents(const IntRect& scrollRect, const IntSize& scrollOffset)
+void AcceleratedCompositingContext::scrollNonCompositedContents(const IntRect& scrollRect, const IntSize& /* scrollOffset */)
 {
     m_nonCompositedContentLayer->setNeedsDisplayInRect(scrollRect);
     scheduleLayerFlush();
@@ -387,7 +387,7 @@ void AcceleratedCompositingContext::layerFlushTimerFired()
     flushAndRenderLayers();
 }
 
-void AcceleratedCompositingContext::notifyAnimationStarted(const GraphicsLayer*, double time)
+void AcceleratedCompositingContext::notifyAnimationStarted(const GraphicsLayer*, double /* time */)
 {
 
 }
@@ -396,14 +396,14 @@ void AcceleratedCompositingContext::notifyFlushRequired(const GraphicsLayer*)
 
 }
 
-void AcceleratedCompositingContext::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const IntRect& rectToPaint)
+void AcceleratedCompositingContext::paintContents(const GraphicsLayer*, GraphicsContext& context, GraphicsLayerPaintingPhase, const FloatRect& rectToPaint)
 {
     context.save();
     context.clip(rectToPaint);
-    core(m_webView)->mainFrame().view()->paint(&context, rectToPaint);
+    core(m_webView)->mainFrame().view()->paint(&context, enclosingIntRect(rectToPaint));
     context.restore();
 }
 
 } // namespace WebKit
 
-#endif // USE(ACCELERATED_COMPOSITING) && USE(TEXTURE_MAPPER_GL)
+#endif // USE(TEXTURE_MAPPER_GL)

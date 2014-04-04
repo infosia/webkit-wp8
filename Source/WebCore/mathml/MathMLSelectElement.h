@@ -31,21 +31,31 @@
 
 namespace WebCore {
 
-class MathMLSelectElement FINAL : public MathMLInlineContainerElement {
+class MathMLSelectElement final : public MathMLInlineContainerElement {
 public:
     static PassRefPtr<MathMLSelectElement> create(const QualifiedName& tagName, Document&);
+    static bool isMathMLEncoding(const AtomicString& value);
+    static bool isSVGEncoding(const AtomicString& value);
+    static bool isHTMLEncoding(const AtomicString& value);
 
 private:
     MathMLSelectElement(const QualifiedName& tagName, Document&);
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
 
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
 
-    virtual void finishParsingChildren() OVERRIDE;
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
-    virtual void attributeChanged(const QualifiedName&, const AtomicString&, AttributeModificationReason = ModifiedDirectly) OVERRIDE;
+    virtual void finishParsingChildren() override;
+    virtual void childrenChanged(const ChildChange&) override;
+    virtual void attributeChanged(const QualifiedName&, const AtomicString& oldValue, const AtomicString& newValue, AttributeModificationReason = ModifiedDirectly) override;
+    virtual void defaultEventHandler(Event*) override;
+    virtual bool willRespondToMouseClickEvents() override;
 
-    void updateSelectedChild();
+    void toggle();
+    int getSelectedActionChildAndIndex(Element*& selectedChild);
+    Element* getSelectedActionChild();
+    Element* getSelectedSemanticsChild();
+
+    void updateSelectedChild() override;
     Element* m_selectedChild;
 };
 

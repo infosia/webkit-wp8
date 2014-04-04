@@ -58,7 +58,6 @@
 #include "Page.h"
 #include "PluginDatabase.h"
 #include "PluginView.h"
-#include "ProgressTracker.h"
 #include "RenderView.h"
 #include "RenderWidget.h"
 #include "ResourceHandle.h"
@@ -96,14 +95,55 @@
 #include <glib.h>
 #include <glib/gi18n-lib.h>
 #include <stdio.h>
-#include <wtf/gobject/GOwnPtr.h>
 #include <wtf/gobject/GRefPtr.h>
+#include <wtf/gobject/GUniquePtr.h>
 #include <wtf/text/CString.h>
 #include <wtf/text/StringConcatenate.h>
 
 using namespace WebCore;
 
 namespace WebKit {
+
+inline int toWebKitNetworkError(int errorCode)
+{
+    switch (errorCode) {
+    case NetworkErrorFailed:
+        return WEBKIT_NETWORK_ERROR_FAILED;
+    case NetworkErrorTransport:
+        return WEBKIT_NETWORK_ERROR_TRANSPORT;
+    case NetworkErrorUnknownProtocol:
+        return WEBKIT_NETWORK_ERROR_UNKNOWN_PROTOCOL;
+    case NetworkErrorCancelled:
+        return WEBKIT_NETWORK_ERROR_CANCELLED;
+    case NetworkErrorFileDoesNotExist:
+        return WEBKIT_NETWORK_ERROR_FILE_DOES_NOT_EXIST;
+    case PolicyErrorFailed:
+        return WEBKIT_POLICY_ERROR_FAILED;
+    case PolicyErrorCannotShowMimeType:
+        return WEBKIT_POLICY_ERROR_CANNOT_SHOW_MIME_TYPE;
+    case PolicyErrorCannotShowURL:
+        return WEBKIT_POLICY_ERROR_CANNOT_SHOW_URL;
+    case PolicyErrorFrameLoadInterruptedByPolicyChange:
+        return WEBKIT_POLICY_ERROR_FRAME_LOAD_INTERRUPTED_BY_POLICY_CHANGE;
+    case PolicyErrorCannotUseRestrictedPort:
+        return WEBKIT_POLICY_ERROR_CANNOT_USE_RESTRICTED_PORT;
+    case PluginErrorFailed:
+        return WEBKIT_PLUGIN_ERROR_FAILED;
+    case PluginErrorCannotFindPlugin:
+        return WEBKIT_PLUGIN_ERROR_CANNOT_FIND_PLUGIN;
+    case PluginErrorCannotLoadPlugin:
+        return WEBKIT_PLUGIN_ERROR_CANNOT_LOAD_PLUGIN;
+    case PluginErrorJavaUnavailable:
+        return WEBKIT_PLUGIN_ERROR_JAVA_UNAVAILABLE;
+    case PluginErrorConnectionCancelled:
+        return WEBKIT_PLUGIN_ERROR_CONNECTION_CANCELLED;
+    case PluginErrorWillHandleLoad:
+        return WEBKIT_PLUGIN_ERROR_WILL_HANDLE_LOAD;
+    default:
+        // This may be other type of error, which needs to be passed as-is.
+        return errorCode;
+    }
+}
 
 FrameLoaderClient::FrameLoaderClient(WebKitWebFrame* frame)
     : m_frame(frame)
@@ -124,7 +164,7 @@ FrameLoaderClient::~FrameLoaderClient()
 String FrameLoaderClient::userAgent(const URL& url)
 {
     WebKitWebSettings* settings = webkit_web_view_get_settings(getViewFromFrame(m_frame));
-    GOwnPtr<gchar> userAgentString(webkitWebSettingsUserAgentForURI(settings, url.string().utf8().data()));
+    GUniquePtr<gchar> userAgentString(webkitWebSettingsUserAgentForURI(settings, url.string().utf8().data()));
     return String::fromUTF8(userAgentString.get());
 }
 
@@ -186,7 +226,7 @@ void FrameLoaderClient::committedLoad(WebCore::DocumentLoader* loader, const cha
     }
 }
 
-bool FrameLoaderClient::shouldUseCredentialStorage(WebCore::DocumentLoader*, unsigned long  identifier)
+bool FrameLoaderClient::shouldUseCredentialStorage(WebCore::DocumentLoader*, unsigned long  /* identifier */)
 {
     return true;
 }
@@ -205,7 +245,7 @@ void FrameLoaderClient::dispatchDidReceiveAuthenticationChallenge(WebCore::Docum
     if (DumpRenderTreeSupportGtk::dumpRenderTreeModeEnabled()) {
         CString username;
         CString password;
-        GOwnPtr<gchar> identifierString(toString(identifier));
+        GUniquePtr<gchar> identifierString(toString(identifier));
         WebKitWebResource* webResource = webkit_web_view_get_resource(view, identifierString.get());
         if (!DumpRenderTreeSupportGtk::s_authenticationCallback || !DumpRenderTreeSupportGtk::s_authenticationCallback(username, password, webResource)) {
             challenge.authenticationClient()->receivedRequestToContinueWithoutCredential(challenge);
@@ -218,7 +258,7 @@ void FrameLoaderClient::dispatchDidReceiveAuthenticationChallenge(WebCore::Docum
 
 
     CredentialStorageMode credentialStorageMode;
-    if (core(view)->settings().privateBrowsingEnabled())
+    if (core(view)->usesEphemeralSession())
         credentialStorageMode = DisallowPersistentStorage;
     else
         credentialStorageMode = AllowPersistentStorage;
@@ -228,7 +268,7 @@ void FrameLoaderClient::dispatchDidReceiveAuthenticationChallenge(WebCore::Docum
     gtk_widget_show(authDialog);
 }
 
-void FrameLoaderClient::dispatchDidCancelAuthenticationChallenge(WebCore::DocumentLoader*, unsigned long  identifier, const AuthenticationChallenge&)
+void FrameLoaderClient::dispatchDidCancelAuthenticationChallenge(WebCore::DocumentLoader*, unsigned long /* identifier */, const AuthenticationChallenge&)
 {
     notImplemented();
 }
@@ -245,7 +285,7 @@ void FrameLoaderClient::dispatchWillSendRequest(WebCore::DocumentLoader* loader,
         networkResponse = adoptGRef(kitNew(redirectResponse));
 
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
     WebKitWebResource* webResource = webkit_web_view_get_resource(webView, identifierString.get());
     GRefPtr<WebKitNetworkRequest> networkRequest(adoptGRef(kitNew(request)));
 
@@ -271,7 +311,7 @@ void FrameLoaderClient::dispatchWillSendRequest(WebCore::DocumentLoader* loader,
 
 void FrameLoaderClient::assignIdentifierToInitialRequest(unsigned long identifier, WebCore::DocumentLoader* loader, const ResourceRequest& request)
 {
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
 
     WebKitWebResource* webResource = WEBKIT_WEB_RESOURCE(g_object_new(WEBKIT_TYPE_WEB_RESOURCE, "uri", request.url().string().utf8().data(), 0));
 
@@ -282,35 +322,6 @@ void FrameLoaderClient::assignIdentifierToInitialRequest(unsigned long identifie
     }
 
     webkit_web_view_add_resource(getViewFromFrame(m_frame), identifierString.get(), webResource);
-}
-
-void FrameLoaderClient::postProgressStartedNotification()
-{
-    WebKitWebView* webView = getViewFromFrame(m_frame);
-    g_signal_emit_by_name(webView, "load-started", m_frame);
-
-    g_object_notify(G_OBJECT(webView), "progress");
-}
-
-void FrameLoaderClient::postProgressEstimateChangedNotification()
-{
-    WebKitWebView* webView = getViewFromFrame(m_frame);
-    Page* corePage = core(webView);
-
-    g_signal_emit_by_name(webView, "load-progress-changed", lround(corePage->progress().estimatedProgress()*100));
-
-    g_object_notify(G_OBJECT(webView), "progress");
-}
-
-void FrameLoaderClient::postProgressFinishedNotification()
-{
-    WebKitWebView* webView = getViewFromFrame(m_frame);
-    WebKitWebViewPrivate* privateData = webView->priv;
-
-    // We can get a stopLoad() from dispose when the object is being
-    // destroyed, don't emit the signal in that case.
-    if (!privateData->disposing)
-        g_signal_emit_by_name(webView, "load-finished", m_frame);
 }
 
 void FrameLoaderClient::frameLoaderDestroyed()
@@ -330,7 +341,7 @@ void FrameLoaderClient::dispatchDidReceiveResponse(WebCore::DocumentLoader* load
     m_response = response;
 
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
     WebKitWebResource* webResource = webkit_web_view_get_resource(webView, identifierString.get());
     GRefPtr<WebKitNetworkResponse> networkResponse(adoptGRef(kitNew(response)));
 
@@ -517,8 +528,7 @@ PassRefPtr<Widget> FrameLoaderClient::createPlugin(const IntSize& pluginSize, HT
     return 0;
 }
 
-PassRefPtr<Frame> FrameLoaderClient::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement* ownerElement,
-                                                 const String& referrer, bool allowsScrolling, int marginWidth, int marginHeight)
+PassRefPtr<Frame> FrameLoaderClient::createFrame(const URL& url, const String& name, HTMLFrameOwnerElement* ownerElement, const String& referrer, bool /* allowsScrolling */, int /* marginWidth */, int /* marginHeight */)
 {
     ASSERT(m_frame);
     Frame* parentFrame = core(m_frame);
@@ -602,18 +612,6 @@ void FrameLoaderClient::dispatchDidClearWindowObjectInWorld(DOMWrapperWorld& wor
     // The Win port has an example of how we might do this.
 }
 
-void FrameLoaderClient::documentElementAvailable()
-{
-}
-
-void FrameLoaderClient::didPerformFirstNavigation() const
-{
-    WebKitCacheModel cacheModel = webkit_get_cache_model();
-    // If user agents do not determine the cache model, we use WEBKIT_CACHE_MODEL_WEB_BROWSER by default.
-    if (cacheModel == WEBKIT_CACHE_MODEL_DEFAULT)
-        webkit_set_cache_model(WEBKIT_CACHE_MODEL_WEB_BROWSER);
-}
-
 void FrameLoaderClient::registerForIconNotification(bool shouldRegister)
 {
     webkitWebViewRegisterForIconNotification(getViewFromFrame(m_frame), shouldRegister);
@@ -660,11 +658,6 @@ bool FrameLoaderClient::shouldGoToHistoryItem(HistoryItem* item) const
     // implementation would delegate the decision to a PolicyDelegate.
     // See mac implementation for example.
     return item != 0;
-}
-
-bool FrameLoaderClient::shouldStopLoadingForHistoryItem(HistoryItem* item) const
-{
-    return true;
 }
 
 void FrameLoaderClient::didDisplayInsecureContent()
@@ -925,7 +918,7 @@ bool FrameLoaderClient::canHandleRequest(const ResourceRequest&) const
     return true;
 }
 
-bool FrameLoaderClient::canShowMIMETypeAsHTML(const String& MIMEType) const
+bool FrameLoaderClient::canShowMIMETypeAsHTML(const String& /* MIMEType */) const
 {
     notImplemented();
     return false;
@@ -973,7 +966,7 @@ void FrameLoaderClient::prepareForDataSourceReplacement()
     notImplemented();
 }
 
-void FrameLoaderClient::setTitle(const StringWithDirection& title, const URL& url)
+void FrameLoaderClient::setTitle(const StringWithDirection& title, const URL&)
 {
     WebKitWebFramePrivate* frameData = m_frame->priv;
     g_free(frameData->title);
@@ -984,7 +977,7 @@ void FrameLoaderClient::setTitle(const StringWithDirection& title, const URL& ur
 void FrameLoaderClient::dispatchDidReceiveContentLength(WebCore::DocumentLoader*, unsigned long identifier, int dataLength)
 {
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
     WebKitWebResource* webResource = webkit_web_view_get_resource(webView, identifierString.get());
 
     g_signal_emit_by_name(webResource, "content-length-received", dataLength);
@@ -997,7 +990,7 @@ void FrameLoaderClient::dispatchDidFinishLoading(WebCore::DocumentLoader* loader
     static_cast<WebKit::DocumentLoader*>(loader)->decreaseLoadCount(identifier);
 
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
     WebKitWebResource* webResource = webkit_web_view_get_resource(webView, identifierString.get());
 
     // A NULL WebResource means the load has been interrupted, and
@@ -1030,7 +1023,7 @@ void FrameLoaderClient::dispatchDidFailLoading(WebCore::DocumentLoader* loader, 
     static_cast<WebKit::DocumentLoader*>(loader)->decreaseLoadCount(identifier);
 
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<gchar> identifierString(toString(identifier));
+    GUniquePtr<gchar> identifierString(toString(identifier));
     WebKitWebResource* webResource = webkit_web_view_get_resource(webView, identifierString.get());
 
     // A NULL WebResource means the load has been interrupted, and
@@ -1038,9 +1031,8 @@ void FrameLoaderClient::dispatchDidFailLoading(WebCore::DocumentLoader* loader, 
     if (!webResource)
         return;
 
-    GOwnPtr<GError> webError(g_error_new_literal(g_quark_from_string(error.domain().utf8().data()),
-                                                 error.errorCode(),
-                                                 error.localizedDescription().utf8().data()));
+    GUniquePtr<GError> webError(g_error_new_literal(g_quark_from_string(error.domain().utf8().data()),
+        toWebKitNetworkError(error.errorCode()), error.localizedDescription().utf8().data()));
 
     g_signal_emit_by_name(webResource, "load-failed", webError.get());
     g_signal_emit_by_name(m_frame, "resource-load-failed", webResource, webError.get());
@@ -1049,7 +1041,7 @@ void FrameLoaderClient::dispatchDidFailLoading(WebCore::DocumentLoader* loader, 
     webkitWebViewRemoveSubresource(webView, identifierString.get());
 }
 
-bool FrameLoaderClient::dispatchDidLoadResourceFromMemoryCache(WebCore::DocumentLoader*, const ResourceRequest&, const ResourceResponse&, int length)
+bool FrameLoaderClient::dispatchDidLoadResourceFromMemoryCache(WebCore::DocumentLoader*, const ResourceRequest&, const ResourceResponse&, int /* length */)
 {
     notImplemented();
     return false;
@@ -1068,9 +1060,10 @@ void FrameLoaderClient::dispatchDidFailLoad(const ResourceError& error)
     notifyStatus(m_frame, WEBKIT_LOAD_FAILED);
 
     WebKitWebView* webView = getViewFromFrame(m_frame);
-    GOwnPtr<GError> webError(g_error_new_literal(
+
+    GUniquePtr<GError> webError(g_error_new_literal(
         g_quark_from_string(error.domain().utf8().data()),
-        error.errorCode(),
+        toWebKitNetworkError(error.errorCode()),
         error.localizedDescription().utf8().data()));
     gboolean isHandled = false;
     g_signal_emit_by_name(webView, "load-error", m_frame, error.failingURL().utf8().data(), webError.get(), &isHandled);
@@ -1081,13 +1074,13 @@ void FrameLoaderClient::dispatchDidFailLoad(const ResourceError& error)
     m_loadingErrorPage = true;
 
     String content;
-    GOwnPtr<gchar> errorPath(g_build_filename(sharedResourcesPath().data(), "resources", "error.html", NULL));
+    GUniquePtr<gchar> errorPath(g_build_filename(sharedResourcesPath().data(), "resources", "error.html", NULL));
     GRefPtr<GFile> errorFile = adoptGRef(g_file_new_for_path(errorPath.get()));
 
     if (!errorFile)
         content = makeString("<html><body>", webError->message, "</body></html>");
     else {
-        GOwnPtr<gchar> fileContent;
+        GUniqueOutPtr<gchar> fileContent;
         if (!g_file_load_contents(errorFile.get(), 0, &fileContent.outPtr(), 0, 0, 0))
             content = makeString("<html><body>", webError->message, "</body></html>");
         else
@@ -1142,7 +1135,7 @@ ResourceError FrameLoaderClient::pluginWillHandleLoadError(const ResourceRespons
 
 bool FrameLoaderClient::shouldFallBack(const ResourceError& error)
 {
-    return !(error.isCancellation() || error.errorCode() == WEBKIT_POLICY_ERROR_FRAME_LOAD_INTERRUPTED_BY_POLICY_CHANGE || error.errorCode() == WEBKIT_PLUGIN_ERROR_WILL_HANDLE_LOAD);
+    return !(error.isCancellation() || error.errorCode() == PolicyErrorFrameLoadInterruptedByPolicyChange || error.errorCode() == PluginErrorWillHandleLoad);
 }
 
 bool FrameLoaderClient::canCachePage() const
@@ -1196,7 +1189,7 @@ void FrameLoaderClient::updateGlobalHistoryRedirectLinks()
     notImplemented();
 }
 
-void FrameLoaderClient::savePlatformDataToCachedFrame(CachedFrame* cachedFrame)
+void FrameLoaderClient::savePlatformDataToCachedFrame(CachedFrame*)
 {
 }
 
@@ -1223,7 +1216,7 @@ static void postCommitFrameViewSetup(WebKitWebFrame *frame)
 
 void FrameLoaderClient::transitionToCommittedFromCachedFrame(CachedFrame* cachedFrame)
 {
-    ASSERT(cachedFrame->view());
+    ASSERT_UNUSED(cachedFrame, cachedFrame->view());
 
     Frame* frame = core(m_frame);
     if (frame != &frame->page()->mainFrame())

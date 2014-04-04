@@ -66,9 +66,10 @@ public:
 
     virtual void doPreInitializationWork()
     {
-        // Remove the WebProcess shim from the DYLD_INSERT_LIBRARIES environment variable so any processes spawned by
-        // the WebProcess don't try to insert the shim and crash.
+        // Remove the WebProcess and SecItem shims from the DYLD_INSERT_LIBRARIES environment variable so any processes
+        // spawned by the WebProcess don't try to insert the shims and crash.
         EnvironmentUtilities::stripValuesEndingWithString("DYLD_INSERT_LIBRARIES", "/WebProcessShim.dylib");
+        EnvironmentUtilities::stripValuesEndingWithString("DYLD_INSERT_LIBRARIES", "/SecItemShim.dylib");
     
 #if USE(APPKIT)
         // Initialize AppKit.
@@ -85,7 +86,7 @@ public:
 #endif // PLATFORM(IOS)
     }
 
-    virtual bool getConnectionIdentifier(CoreIPC::Connection::Identifier& identifier)
+    virtual bool getConnectionIdentifier(IPC::Connection::Identifier& identifier)
     {
         String clientExecutable = m_commandLine["client-executable"];
         if (clientExecutable.isEmpty())
@@ -154,7 +155,7 @@ public:
         RetainPtr<NSURL> clientExecutableURL = adoptNS([[NSURL alloc] initFileURLWithPath:nsStringFromWebCoreString(clientExecutable)]);
         RetainPtr<CFURLRef> clientBundleURL = adoptCF(WKCopyBundleURLForExecutableURL((CFURLRef)clientExecutableURL.get()));
         RetainPtr<NSBundle> clientBundle = adoptNS([[NSBundle alloc] initWithURL:(NSURL *)clientBundleURL.get()]);
-        clientIdentifier = [clientBundle.get() bundleIdentifier];
+        clientIdentifier = [clientBundle bundleIdentifier];
         if (clientIdentifier.isEmpty())
             return false;
         return true;
@@ -175,7 +176,7 @@ public:
         return true;
     }
 
-    virtual void startRunLoop() OVERRIDE
+    virtual void startRunLoop() override
     {
 #if USE(APPKIT)
         ASSERT(NSApp);

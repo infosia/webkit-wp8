@@ -66,8 +66,14 @@ private:
     TestMediaQueryListListener* m_impl;
 protected:
     JSTestMediaQueryListListener(JSC::Structure*, JSDOMGlobalObject*, PassRefPtr<TestMediaQueryListListener>);
-    void finishCreation(JSC::VM&);
-    static const unsigned StructureFlags = JSC::OverridesGetOwnPropertySlot | JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | Base::StructureFlags;
+
+    void finishCreation(JSC::VM& vm)
+    {
+        Base::finishCreation(vm);
+        ASSERT(inherits(info()));
+    }
+
+    static const unsigned StructureFlags = JSC::InterceptsGetOwnPropertySlotByIndexEvenWhenLengthIsNotZero | JSC::OverridesGetOwnPropertySlot | Base::StructureFlags;
 };
 
 class JSTestMediaQueryListListenerOwner : public JSC::WeakHandleOwner {
@@ -78,7 +84,7 @@ public:
 
 inline JSC::WeakHandleOwner* wrapperOwner(DOMWrapperWorld&, TestMediaQueryListListener*)
 {
-    DEFINE_STATIC_LOCAL(JSTestMediaQueryListListenerOwner, jsTestMediaQueryListListenerOwner, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(JSTestMediaQueryListListenerOwner, jsTestMediaQueryListListenerOwner, ());
     return &jsTestMediaQueryListListenerOwner;
 }
 
@@ -143,7 +149,7 @@ protected:
 JSC::EncodedJSValue JSC_HOST_CALL jsTestMediaQueryListListenerPrototypeFunctionMethod(JSC::ExecState*);
 // Attributes
 
-JSC::EncodedJSValue jsTestMediaQueryListListenerConstructor(JSC::ExecState*, JSC::EncodedJSValue, JSC::EncodedJSValue, JSC::PropertyName);
+JSC::EncodedJSValue jsTestMediaQueryListListenerConstructor(JSC::ExecState*, JSC::JSObject*, JSC::EncodedJSValue, JSC::PropertyName);
 
 } // namespace WebCore
 

@@ -42,7 +42,6 @@
 #include "SimpleLineLayoutResolver.h"
 #include "Text.h"
 #include "TextPaintStyle.h"
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 namespace SimpleLineLayout {
@@ -54,9 +53,9 @@ static void paintDebugBorders(GraphicsContext& context, const LayoutRect& border
     GraphicsContextStateSaver stateSaver(context);
     context.setStrokeColor(Color(0, 255, 0), ColorSpaceDeviceRGB);
     context.setFillColor(Color::transparent, ColorSpaceDeviceRGB);
-    IntRect rect(pixelSnappedIntRect(borderRect));
-    rect.moveBy(flooredIntPoint(paintOffset));
-    context.drawRect(rect);
+    LayoutRect rect(borderRect);
+    rect.moveBy(paintOffset);
+    context.drawRect(pixelSnappedIntRect(rect));
 }
 
 void paintFlow(const RenderBlockFlow& flow, const Layout& layout, PaintInfo& paintInfo, const LayoutPoint& paintOffset)
@@ -80,9 +79,10 @@ void paintFlow(const RenderBlockFlow& flow, const Layout& layout, PaintInfo& pai
     GraphicsContextStateSaver stateSaver(context, textPaintStyle.strokeWidth > 0);
 
     updateGraphicsContext(context, textPaintStyle);
+    LayoutPoint adjustedPaintOffset = LayoutPoint(roundedForPainting(paintOffset, flow.document().deviceScaleFactor()));
 
     LayoutRect paintRect = paintInfo.rect;
-    paintRect.moveBy(-paintOffset);
+    paintRect.moveBy(-adjustedPaintOffset);
 
     auto resolver = runResolver(flow, layout);
     auto range = resolver.rangeForRect(paintRect);
@@ -92,9 +92,9 @@ void paintFlow(const RenderBlockFlow& flow, const Layout& layout, PaintInfo& pai
             continue;
         TextRun textRun(run.text());
         textRun.setTabSize(!style.collapseWhiteSpace(), style.tabSize());
-        context.drawText(font, textRun, run.baseline() + paintOffset);
+        context.drawText(font, textRun, run.baseline() + adjustedPaintOffset);
         if (debugBordersEnabled)
-            paintDebugBorders(context, run.rect(), paintOffset);
+            paintDebugBorders(context, run.rect(), adjustedPaintOffset);
     }
 }
 

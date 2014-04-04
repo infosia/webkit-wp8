@@ -21,16 +21,18 @@
 #ifndef Page_h
 #define Page_h
 
-#include "FeatureObserver.h"
 #include "FindOptions.h"
 #include "FrameLoaderTypes.h"
 #include "LayoutMilestones.h"
 #include "LayoutRect.h"
+#include "PageThrottler.h"
 #include "PageVisibilityState.h"
 #include "Pagination.h"
 #include "PlatformScreen.h"
 #include "Region.h"
+#include "SessionID.h"
 #include "Supplementable.h"
+#include "ViewState.h"
 #include "ViewportArguments.h"
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
@@ -44,7 +46,7 @@
 #include <sys/time.h> // For time_t structure.
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include <wtf/SchedulePair.h>
 #endif
 
@@ -60,6 +62,7 @@ class BackForwardClient;
 class Chrome;
 class ChromeClient;
 class ClientRectList;
+class Color;
 class ContextMenuClient;
 class ContextMenuController;
 class Document;
@@ -73,6 +76,7 @@ class FrameLoaderClient;
 class FrameSelection;
 class HaltablePlugin;
 class HistoryItem;
+class UserInputBridge;
 class InspectorClient;
 class InspectorController;
 class MainFrame;
@@ -88,21 +92,23 @@ class PluginData;
 class PluginViewBase;
 class PointerLockController;
 class ProgressTracker;
+class ProgressTrackerClient;
 class Range;
 class RenderObject;
 class RenderTheme;
+class ReplayController;
 class VisibleSelection;
 class ScrollableArea;
 class ScrollingCoordinator;
 class Settings;
 class StorageNamespace;
+class UserContentController;
 class ValidationMessageClient;
+class VisitedLinkStore;
 
 typedef uint64_t LinkHash;
 
 enum FindDirection { FindDirectionForward, FindDirectionBackward };
-
-float deviceScaleFactor(Frame*);
 
 class Page : public Supplementable<Page> {
     WTF_MAKE_NONCOPYABLE(Page);
@@ -128,9 +134,12 @@ public:
         DragClient* dragClient;
         InspectorClient* inspectorClient;
         PlugInClient* plugInClient;
+        ProgressTrackerClient* progressTrackerClient;
         RefPtr<BackForwardClient> backForwardClient;
         ValidationMessageClient* validationMessageClient;
         FrameLoaderClient* loaderClientForMainFrame;
+
+        RefPtr<VisitedLinkStore> visitedLinkStore;
     };
 
     explicit Page(PageClients&);
@@ -140,7 +149,7 @@ public:
 
     void setNeedsRecalcStyleInAllFrames();
 
-    RenderTheme* theme() const { return m_theme.get(); }
+    RenderTheme& theme() const { return *m_theme; }
 
     ViewportArguments viewportArguments() const;
 
@@ -158,14 +167,6 @@ public:
 
     bool openedByDOM() const;
     void setOpenedByDOM();
-
-    // DEPRECATED. Use backForward() instead of the following 6 functions.
-    BackForwardClient* backForwardClient() const;
-    bool goBack();
-    bool goForward();
-    bool canGoBackOrForward(int distance) const;
-    void goBackOrForward(int distance);
-    int getHistoryLength();
 
     void goToItem(HistoryItem*, FrameLoadType);
 
@@ -194,25 +195,27 @@ public:
 #if ENABLE(CONTEXT_MENUS)
     ContextMenuController& contextMenuController() const { return *m_contextMenuController; }
 #endif
+    UserInputBridge& userInputBridge() const { return *m_userInputBridge; }
+#if ENABLE(WEB_REPLAY)
+    ReplayController& replayController() const { return *m_replayController; }
+#endif
 #if ENABLE(INSPECTOR)
-    InspectorController* inspectorController() const { return m_inspectorController.get(); }
+    InspectorController& inspectorController() const { return *m_inspectorController; }
 #endif
 #if ENABLE(POINTER_LOCK)
-    PointerLockController* pointerLockController() const { return m_pointerLockController.get(); }
+    PointerLockController& pointerLockController() const { return *m_pointerLockController; }
 #endif
     ValidationMessageClient* validationMessageClient() const { return m_validationMessageClient; }
 
     ScrollingCoordinator* scrollingCoordinator();
 
     String scrollingStateTreeAsText();
-    String mainThreadScrollingReasonsAsText();
+    String synchronousScrollingReasonsAsText();
     PassRefPtr<ClientRectList> nonFastScrollableRects(const Frame*);
 
     Settings& settings() const { return *m_settings; }
     ProgressTracker& progress() const { return *m_progress; }
     BackForwardController& backForward() const { return *m_backForwardController; }
-
-    FeatureObserver* featureObserver() { return &m_featureObserver; }
 
 #if ENABLE(VIEW_MODE_CSS_MEDIA)
     enum ViewMode {
@@ -248,7 +251,7 @@ public:
     // NoMatchAfterUserSelection if there is no matching text after the user selection.
     enum { NoMatchAfterUserSelection = -1 };
     void findStringMatchingRanges(const String&, FindOptions, int maxCount, Vector<RefPtr<Range>>*, int& indexForSelection);
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     void addSchedulePair(PassRefPtr<SchedulePair>);
     void removeSchedulePair(PassRefPtr<SchedulePair>);
     SchedulePairHashSet* scheduledRunLoopPairs() { return m_scheduledRunLoopPairs.get(); }
@@ -275,6 +278,9 @@ public:
     float deviceScaleFactor() const { return m_deviceScaleFactor; }
     void setDeviceScaleFactor(float);
 
+    float topContentInset() const { return m_topContentInset; }
+    void setTopContentInset(float);
+
     bool shouldSuppressScrollbarAnimations() const { return m_suppressScrollbarAnimations; }
     void setShouldSuppressScrollbarAnimations(bool suppressAnimations);
     void lockAllOverlayScrollbarsToHidden(bool lockOverlayScrollbars);
@@ -289,44 +295,38 @@ public:
     unsigned pageCount() const;
 
     // Notifications when the Page starts and stops being presented via a native window.
-    void didMoveOnscreen();
-    void willMoveOffscreen();
-    bool isOnscreen() const { return m_isOnscreen; }
+    void setViewState(ViewState::Flags);
+    void setIsVisible(bool);
+    void setIsPrerender();
+    bool isVisible() const { return m_viewState & ViewState::IsVisible; }
 
     // Notification that this Page was moved into or out of a native window.
     void setIsInWindow(bool);
-    bool isInWindow() const { return m_isInWindow; }
+    bool isInWindow() const { return m_viewState & ViewState::IsInWindow; }
 
     void suspendScriptedAnimations();
     void resumeScriptedAnimations();
     bool scriptedAnimationsSuspended() const { return m_scriptedAnimationsSuspended; }
-    void setThrottled(bool);
 
     void userStyleSheetLocationChanged();
     const String& userStyleSheet() const;
 
     void dnsPrefetchingStateChanged();
     void storageBlockingStateChanged();
-    void privateBrowsingStateChanged();
 
     void setDebugger(JSC::Debugger*);
     JSC::Debugger* debugger() const { return m_debugger; }
 
     static void removeAllVisitedLinks();
 
-    static void allVisitedStateChanged(PageGroup*);
-    static void visitedStateChanged(PageGroup*, LinkHash visitedHash);
+    void invalidateStylesForAllLinks();
+    void invalidateStylesForLink(LinkHash);
 
     StorageNamespace* sessionStorage(bool optionalCreate = true);
     void setSessionStorage(PassRefPtr<StorageNamespace>);
 
-    void setCustomHTMLTokenizerTimeDelay(double);
-    bool hasCustomHTMLTokenizerTimeDelay() const { return m_customHTMLTokenizerTimeDelay != -1; }
-    double customHTMLTokenizerTimeDelay() const { ASSERT(m_customHTMLTokenizerTimeDelay != -1); return m_customHTMLTokenizerTimeDelay; }
-
-    void setCustomHTMLTokenizerChunkSize(int);
-    bool hasCustomHTMLTokenizerChunkSize() const { return m_customHTMLTokenizerChunkSize != -1; }
-    int customHTMLTokenizerChunkSize() const { ASSERT(m_customHTMLTokenizerChunkSize != -1); return m_customHTMLTokenizerChunkSize; }
+    bool hasCustomHTMLTokenizerTimeDelay() const;
+    double customHTMLTokenizerTimeDelay() const;
 
     void setMemoryCacheClientCallsEnabled(bool);
     bool areMemoryCacheClientCallsEnabled() const { return m_areMemoryCacheClientCallsEnabled; }
@@ -343,9 +343,6 @@ public:
 #if ENABLE(PAGE_VISIBILITY_API)
     PageVisibilityState visibilityState() const;
 #endif
-#if ENABLE(PAGE_VISIBILITY_API) || ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
-    void setVisibilityState(PageVisibilityState, bool);
-#endif
     void resumeAnimatingImages();
 
     void addLayoutMilestones(LayoutMilestones);
@@ -359,6 +356,8 @@ public:
 
     int headerHeight() const { return m_headerHeight; }
     int footerHeight() const { return m_footerHeight; }
+
+    Color pageExtendedBackgroundColor() const;
 
     bool isCountingRelevantRepaintedObjects() const;
     void startCountingRelevantRepaintedObjects();
@@ -385,14 +384,10 @@ public:
     void sawMediaEngine(const String& engineName);
     void resetSeenMediaEngines();
 
-    PageThrottler& pageThrottler() { return *m_pageThrottler; }
-    std::unique_ptr<PageActivityAssertionToken> createActivityToken();
+    PageThrottler& pageThrottler() { return m_pageThrottler; }
 
     PageConsole& console() { return *m_console; }
 
-#if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
-    void hiddenPageDOMTimerThrottlingStateChanged();
-#endif
 #if ENABLE(PAGE_VISIBILITY_API)
     void hiddenPageCSSAnimationSuspensionStateChanged();
 #endif
@@ -407,8 +402,22 @@ public:
     void setLastSpatialNavigationCandidateCount(unsigned count) { m_lastSpatialNavigationCandidatesCount = count; }
     unsigned lastSpatialNavigationCandidateCount() const { return m_lastSpatialNavigationCandidatesCount; }
 
+    void setUserContentController(UserContentController*);
+    UserContentController* userContentController() { return m_userContentController.get(); }
+
+    VisitedLinkStore& visitedLinkStore();
+
+    SessionID sessionID() const;
+    void setSessionID(SessionID);
+    void enableLegacyPrivateBrowsing(bool privateBrowsingEnabled);
+    bool usesEphemeralSession() const { return m_sessionID.isEphemeral(); }
+
 private:
     void initGroup();
+
+    void setIsInWindowInternal(bool);
+    void setIsVisibleInternal(bool);
+    void setIsVisuallyIdleInternal(bool);
 
 #if ASSERT_DISABLED
     void checkSubframeCountConsistency() const { }
@@ -426,13 +435,11 @@ private:
     void setMinimumTimerInterval(double);
     double minimumTimerInterval() const;
 
-    void setTimerAlignmentInterval(double);
-    double timerAlignmentInterval() const;
+    double timerAlignmentInterval() const { return m_timerAlignmentInterval; }
 
     Vector<Ref<PluginViewBase>> pluginViews();
 
-    void throttleTimers();
-    void unthrottleTimers();
+    void setTimerThrottlingEnabled(bool);
 
     const std::unique_ptr<Chrome> m_chrome;
     const std::unique_ptr<DragCaretController> m_dragCaretController;
@@ -444,11 +451,15 @@ private:
 #if ENABLE(CONTEXT_MENUS)
     const std::unique_ptr<ContextMenuController> m_contextMenuController;
 #endif
+    const std::unique_ptr<UserInputBridge> m_userInputBridge;
+#if ENABLE(WEB_REPLAY)
+    const std::unique_ptr<ReplayController> m_replayController;
+#endif
 #if ENABLE(INSPECTOR)
-    OwnPtr<InspectorController> m_inspectorController;
+    const std::unique_ptr<InspectorController> m_inspectorController;
 #endif
 #if ENABLE(POINTER_LOCK)
-    OwnPtr<PointerLockController> m_pointerLockController;
+    const std::unique_ptr<PointerLockController> m_pointerLockController;
 #endif
     RefPtr<ScrollingCoordinator> m_scrollingCoordinator;
 
@@ -466,8 +477,6 @@ private:
     PlugInClient* m_plugInClient;
     ValidationMessageClient* m_validationMessageClient;
 
-    FeatureObserver m_featureObserver;
-
     int m_subframeCount;
     String m_groupName;
     bool m_openedByDOM;
@@ -483,6 +492,8 @@ private:
     float m_pageScaleFactor;
     float m_deviceScaleFactor;
 
+    float m_topContentInset;
+
     bool m_suppressScrollbarAnimations;
 
     Pagination m_pagination;
@@ -497,9 +508,6 @@ private:
 
     JSC::Debugger* m_debugger;
 
-    double m_customHTMLTokenizerTimeDelay;
-    int m_customHTMLTokenizerChunkSize;
-
     bool m_canStartMedia;
 
     RefPtr<StorageNamespace> m_sessionStorage;
@@ -510,15 +518,12 @@ private:
 
     double m_minimumTimerInterval;
 
+    bool m_timerThrottlingEnabled;
     double m_timerAlignmentInterval;
 
     bool m_isEditable;
-    bool m_isOnscreen;
-    bool m_isInWindow;
-
-#if ENABLE(PAGE_VISIBILITY_API)
-    PageVisibilityState m_visibilityState;
-#endif
+    bool m_isPrerender;
+    ViewState::Flags m_viewState;
 
     LayoutMilestones m_requestedLayoutMilestones;
 
@@ -536,7 +541,7 @@ private:
     AlternativeTextClient* m_alternativeTextClient;
 
     bool m_scriptedAnimationsSuspended;
-    const std::unique_ptr<PageThrottler> m_pageThrottler;
+    PageThrottler m_pageThrottler;
     const std::unique_ptr<PageConsole> m_console;
 
 #if ENABLE(REMOTE_INSPECTOR)
@@ -548,6 +553,11 @@ private:
 
     unsigned m_lastSpatialNavigationCandidatesCount;
     unsigned m_framesHandlingBeforeUnloadEvent;
+
+    RefPtr<UserContentController> m_userContentController;
+    RefPtr<VisitedLinkStore> m_visitedLinkStore;
+
+    SessionID m_sessionID;
 };
 
 inline PageGroup& Page::group()

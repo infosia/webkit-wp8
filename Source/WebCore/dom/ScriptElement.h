@@ -35,7 +35,6 @@ class ScriptElement;
 class ScriptSourceCode;
 
 class ScriptElement : private CachedResourceClient {
-    WTF_MAKE_FAST_ALLOCATED;
 public:
     ScriptElement(Element*, bool createdByParser, bool isEvaluated);
     virtual ~ScriptElement();
@@ -80,7 +79,7 @@ private:
     bool requestScript(const String& sourceUrl);
     void stopLoadRequest();
 
-    virtual void notifyFinished(CachedResource*);
+    virtual void notifyFinished(CachedResource*) override;
 
     virtual String sourceAttributeValue() const = 0;
     virtual String charsetAttributeValue() const = 0;

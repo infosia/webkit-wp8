@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -52,6 +52,7 @@ WebGLTexture::WebGLTexture(WebGLRenderingContext* ctx)
     , m_needToUseBlackTexture(false)
     , m_isCompressed(false)
     , m_isFloatType(false)
+    , m_isHalfFloatType(false)
 {
     setObject(ctx->graphicsContext3D()->createTexture());
 }
@@ -240,7 +241,7 @@ bool WebGLTexture::needToUseBlackTexture(TextureExtensionFlag extensions) const
         return false;
     if (m_needToUseBlackTexture)
         return true;
-    if (m_isFloatType && !(extensions & TextureExtensionFloatLinearEnabled)) {
+    if ((m_isFloatType && !(extensions & TextureExtensionFloatLinearEnabled)) || (m_isHalfFloatType && !(extensions & TextureExtensionHalfFloatLinearEnabled))) {
         if (m_magFilter != GraphicsContext3D::NEAREST || (m_minFilter != GraphicsContext3D::NEAREST && m_minFilter != GraphicsContext3D::NEAREST_MIPMAP_NEAREST))
             return true;
     }
@@ -259,7 +260,7 @@ void WebGLTexture::setCompressed()
     ASSERT(object());
     m_isCompressed = true;
 }
-    
+
 void WebGLTexture::deleteObjectImpl(GraphicsContext3D* context3d, Platform3DObject object)
 {
     context3d->deleteTexture(object);
@@ -371,6 +372,18 @@ void WebGLTexture::update()
         for (size_t ii = 0; ii < m_info.size(); ++ii) {
             if (m_info[ii][0].type == GraphicsContext3D::FLOAT) {
                 m_isFloatType = true;
+                break;
+            }
+        }
+    }
+
+    m_isHalfFloatType = false;
+    if (m_isComplete)
+        m_isHalfFloatType = m_info[0][0].type == GraphicsContext3D::HALF_FLOAT_OES;
+    else {
+        for (size_t ii = 0; ii < m_info.size(); ++ii) {
+            if (m_info[ii][0].type == GraphicsContext3D::HALF_FLOAT_OES) {
+                m_isHalfFloatType = true;
                 break;
             }
         }

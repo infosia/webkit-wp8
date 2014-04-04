@@ -56,10 +56,12 @@
 #include "KeyboardEvent.h"
 #include "Logging.h"
 #include "MutationEvent.h"
+#include "NodeRenderStyle.h"
 #include "PlatformMouseEvent.h"
 #include "PlatformWheelEvent.h"
 #include "ProcessingInstruction.h"
 #include "ProgressEvent.h"
+#include "Range.h"
 #include "RenderBlock.h"
 #include "RenderBox.h"
 #include "RenderTextControl.h"
@@ -75,7 +77,7 @@
 #include "WheelEvent.h"
 #include "XMLNames.h"
 #include "htmlediting.h"
-#include <runtime/Operations.h>
+#include <runtime/JSCInlines.h>
 #include <runtime/VM.h>
 #include <wtf/RefCountedLeakCounter.h>
 #include <wtf/text/CString.h>
@@ -153,9 +155,10 @@ void Node::dumpStatistics()
                     result.iterator->value++;
 
                 if (ElementData* elementData = element->elementData()) {
-                    attributes += elementData->length();
+                    unsigned length = elementData->length();
+                    attributes += length;
                     ++elementsWithAttributeStorage;
-                    for (unsigned i = 0; i < elementData->length(); ++i) {
+                    for (unsigned i = 0; i < length; ++i) {
                         Attribute& attr = elementData->attributeAt(i);
                         if (attr.attr())
                             ++attributesWithAttr;
@@ -303,25 +306,23 @@ Node::~Node()
     if (hasRareData())
         clearRareData();
 
-    if (!isContainerNode()) {
-        if (Document* document = documentInternal())
-            willBeDeletedFrom(document);
-    }
+    if (!isContainerNode())
+        willBeDeletedFrom(document());
 
-    m_treeScope->selfOnlyDeref();
-
-    InspectorCounters::decrementCounter(InspectorCounters::NodeCounter);
+    document().decrementReferencingNodeCount();
 }
 
-void Node::willBeDeletedFrom(Document* document)
+void Node::willBeDeletedFrom(Document& document)
 {
-    if (hasEventTargetData())
+    if (hasEventTargetData()) {
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+        document.removeTouchEventListener(this, true);
+#endif
         clearEventTargetData();
-
-    if (document) {
-        if (AXObjectCache* cache = document->existingAXObjectCache())
-            cache->remove(this);
     }
+
+    if (AXObjectCache* cache = document.existingAXObjectCache())
+        cache->remove(this);
 }
 
 NodeRareData* Node::rareData() const
@@ -414,22 +415,22 @@ Node* Node::firstDescendant() const
     return n;
 }
 
-bool Node::insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode& ec, AttachBehavior attachBehavior)
+bool Node::insertBefore(PassRefPtr<Node> newChild, Node* refChild, ExceptionCode& ec)
 {
     if (!isContainerNode()) {
         ec = HIERARCHY_REQUEST_ERR;
         return false;
     }
-    return toContainerNode(this)->insertBefore(newChild, refChild, ec, attachBehavior);
+    return toContainerNode(this)->insertBefore(newChild, refChild, ec);
 }
 
-bool Node::replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode& ec, AttachBehavior attachBehavior)
+bool Node::replaceChild(PassRefPtr<Node> newChild, Node* oldChild, ExceptionCode& ec)
 {
     if (!isContainerNode()) {
         ec = HIERARCHY_REQUEST_ERR;
         return false;
     }
-    return toContainerNode(this)->replaceChild(newChild, oldChild, ec, attachBehavior);
+    return toContainerNode(this)->replaceChild(newChild, oldChild, ec);
 }
 
 bool Node::removeChild(Node* oldChild, ExceptionCode& ec)
@@ -441,13 +442,13 @@ bool Node::removeChild(Node* oldChild, ExceptionCode& ec)
     return toContainerNode(this)->removeChild(oldChild, ec);
 }
 
-bool Node::appendChild(PassRefPtr<Node> newChild, ExceptionCode& ec, AttachBehavior attachBehavior)
+bool Node::appendChild(PassRefPtr<Node> newChild, ExceptionCode& ec)
 {
     if (!isContainerNode()) {
         ec = HIERARCHY_REQUEST_ERR;
         return false;
     }
-    return toContainerNode(this)->appendChild(newChild, ec, attachBehavior);
+    return toContainerNode(this)->appendChild(newChild, ec);
 }
 
 void Node::remove(ExceptionCode& ec)
@@ -537,25 +538,27 @@ const AtomicString& Node::namespaceURI() const
 bool Node::isContentEditable(UserSelectAllTreatment treatment)
 {
     document().updateStyleIfNeeded();
-    return rendererIsEditable(Editable, treatment);
+    return hasEditableStyle(Editable, treatment);
 }
 
 bool Node::isContentRichlyEditable()
 {
     document().updateStyleIfNeeded();
-    return rendererIsEditable(RichlyEditable, UserSelectAllIsAlwaysNonEditable);
+    return hasEditableStyle(RichlyEditable, UserSelectAllIsAlwaysNonEditable);
 }
 
 void Node::inspect()
 {
 #if ENABLE(INSPECTOR)
     if (document().page())
-        document().page()->inspectorController()->inspect(this);
+        document().page()->inspectorController().inspect(this);
 #endif
 }
 
-bool Node::rendererIsEditable(EditableLevel editableLevel, UserSelectAllTreatment treatment) const
+bool Node::hasEditableStyle(EditableLevel editableLevel, UserSelectAllTreatment treatment) const
 {
+    if (!document().hasLivingRenderTree())
+        return false;
     if (document().frame() && document().frame()->page() && document().frame()->page()->isEditable() && !containingShadowRoot())
         return true;
 
@@ -567,34 +570,36 @@ bool Node::rendererIsEditable(EditableLevel editableLevel, UserSelectAllTreatmen
     // would fire in the middle of Document::setFocusedElement().
 
     for (const Node* node = this; node; node = node->parentNode()) {
-        if ((node->isHTMLElement() || node->isDocumentNode()) && node->renderer()) {
+        RenderStyle* style = node->isDocumentNode() ? node->renderStyle() : const_cast<Node*>(node)->computedStyle();
+        if (!style)
+            continue;
+        if (style->display() == NONE)
+            continue;
 #if ENABLE(USERSELECT_ALL)
-            // Elements with user-select: all style are considered atomic
-            // therefore non editable.
-            if (treatment == UserSelectAllIsAlwaysNonEditable && node->renderer()->style().userSelect() == SELECT_ALL)
-                return false;
-#else
-            UNUSED_PARAM(treatment);
-#endif
-            switch (node->renderer()->style().userModify()) {
-            case READ_ONLY:
-                return false;
-            case READ_WRITE:
-                return true;
-            case READ_WRITE_PLAINTEXT_ONLY:
-                return editableLevel != RichlyEditable;
-            }
-            ASSERT_NOT_REACHED();
+        // Elements with user-select: all style are considered atomic
+        // therefore non editable.
+        if (treatment == UserSelectAllIsAlwaysNonEditable && style->userSelect() == SELECT_ALL)
             return false;
+#else
+        UNUSED_PARAM(treatment);
+#endif
+        switch (style->userModify()) {
+        case READ_ONLY:
+            return false;
+        case READ_WRITE:
+            return true;
+        case READ_WRITE_PLAINTEXT_ONLY:
+            return editableLevel != RichlyEditable;
         }
+        ASSERT_NOT_REACHED();
+        return false;
     }
-
     return false;
 }
 
 bool Node::isEditableToAccessibility(EditableLevel editableLevel) const
 {
-    if (rendererIsEditable(editableLevel))
+    if (hasEditableStyle(editableLevel))
         return true;
 
     // FIXME: Respect editableLevel for ARIA editable elements.
@@ -667,14 +672,14 @@ void Node::derefEventTarget()
 void Node::setNeedsStyleRecalc(StyleChangeType changeType)
 {
     ASSERT(changeType != NoStyleChange);
-    if (!attached()) // changed compared to what?
+    if (!inRenderedDocument())
         return;
 
     StyleChangeType existingChangeType = styleChangeType();
     if (changeType > existingChangeType)
         setStyleChange(changeType);
 
-    if (existingChangeType == NoStyleChange)
+    if (existingChangeType == NoStyleChange || changeType == ReconstructRenderTree)
         markAncestorsWithChildNeedsStyleRecalc();
 }
 
@@ -716,10 +721,18 @@ bool Document::shouldInvalidateNodeListAndCollectionCaches(const QualifiedName* 
 
 void Document::invalidateNodeListAndCollectionCaches(const QualifiedName* attrName)
 {
-    for (HashSet<LiveNodeList*>::iterator it = m_listsInvalidatedAtDocument.begin(), end = m_listsInvalidatedAtDocument.end(); it != end; ++it)
-        (*it)->invalidateCache(attrName);
-    for (HashSet<HTMLCollection*>::iterator it = m_collectionsInvalidatedAtDocument.begin(), end = m_collectionsInvalidatedAtDocument.end(); it != end; ++it)
-        (*it)->invalidateCache(attrName);
+#if !ASSERT_DISABLED
+    m_inInvalidateNodeListAndCollectionCaches = true;
+#endif
+    HashSet<LiveNodeList*> lists = std::move(m_listsInvalidatedAtDocument);
+    for (auto* list : lists)
+        list->invalidateCacheForAttribute(attrName);
+    HashSet<HTMLCollection*> collections = std::move(m_collectionsInvalidatedAtDocument);
+    for (auto* collection : collections)
+        collection->invalidateCache(attrName);
+#if !ASSERT_DISABLED
+    m_inInvalidateNodeListAndCollectionCaches = false;
+#endif
 }
 
 void Node::invalidateNodeListAndCollectionCachesInAncestors(const QualifiedName* attrName, Element* attributeOwnerElement)
@@ -783,7 +796,7 @@ void Node::checkSetPrefix(const AtomicString& prefix, ExceptionCode& ec)
     // Attribute-specific checks are in Attr::setPrefix().
 }
 
-bool Node::isDescendantOf(const Node *other) const
+bool Node::isDescendantOf(const Node* other) const
 {
     // Return true if other is an ancestor of this, otherwise false
     if (!other || !other->hasChildNodes() || inDocument() != other->inDocument())
@@ -795,6 +808,18 @@ bool Node::isDescendantOf(const Node *other) const
             return true;
     }
     return false;
+}
+
+bool Node::isDescendantOrShadowDescendantOf(const Node* other) const
+{
+    if (!other) 
+        return false;
+    if (isDescendantOf(other))
+        return true;
+    const Node* shadowAncestorNode = deprecatedShadowAncestorNode();
+    if (!shadowAncestorNode)
+        return false;
+    return shadowAncestorNode == other || shadowAncestorNode->isDescendantOf(other);
 }
 
 bool Node::contains(const Node* node) const
@@ -884,9 +909,13 @@ Node* Node::pseudoAwareLastChild() const
     return lastChild();
 }
 
-RenderStyle* Node::virtualComputedStyle(PseudoId pseudoElementSpecifier)
+RenderStyle* Node::computedStyle(PseudoId pseudoElementSpecifier)
 {
-    return parentOrShadowHostNode() ? parentOrShadowHostNode()->computedStyle(pseudoElementSpecifier) : 0;
+    for (Node* node = this; node; node = node->parentOrShadowHostNode()) {
+        if (node->isElementNode())
+            return toElement(node)->computedStyle(pseudoElementSpecifier);
+    }
+    return nullptr;
 }
 
 int Node::maxCharacterOffset() const
@@ -899,7 +928,7 @@ int Node::maxCharacterOffset() const
 // is obviously misplaced.
 bool Node::canStartSelection() const
 {
-    if (rendererIsEditable())
+    if (hasEditableStyle())
         return true;
 
     if (renderer()) {
@@ -929,8 +958,8 @@ Node* Node::deprecatedShadowAncestorNode() const
 
 ShadowRoot* Node::containingShadowRoot() const
 {
-    ContainerNode* root = treeScope().rootNode();
-    return root && root->isShadowRoot() ? toShadowRoot(root) : 0;
+    ContainerNode& root = treeScope().rootNode();
+    return root.isShadowRoot() ? toShadowRoot(&root) : nullptr;
 }
 
 Node* Node::nonBoundaryShadowTreeRootNode()
@@ -989,13 +1018,13 @@ void Node::removedFrom(ContainerNode& insertionPoint)
     ASSERT(insertionPoint.inDocument() || isContainerNode());
     if (insertionPoint.inDocument())
         clearFlag(InDocumentFlag);
-    if (isInShadowTree() && !treeScope().rootNode()->isShadowRoot())
+    if (isInShadowTree() && !treeScope().rootNode().isShadowRoot())
         clearFlag(IsInShadowTreeFlag);
 }
 
 bool Node::isRootEditableElement() const
 {
-    return rendererIsEditable() && isElementNode() && (!parentNode() || !parentNode()->rendererIsEditable()
+    return hasEditableStyle() && isElementNode() && (!parentNode() || !parentNode()->hasEditableStyle()
         || !parentNode()->isElementNode() || hasTagName(bodyTag));
 }
 
@@ -1012,7 +1041,7 @@ Element* Node::rootEditableElement(EditableType editableType) const
 Element* Node::rootEditableElement() const
 {
     Element* result = 0;
-    for (Node* n = const_cast<Node*>(this); n && n->rendererIsEditable(); n = n->parentNode()) {
+    for (Node* n = const_cast<Node*>(this); n && n->hasEditableStyle(); n = n->parentNode()) {
         if (n->isElementNode())
             result = toElement(n);
         if (n->hasTagName(bodyTag))
@@ -1106,9 +1135,7 @@ bool Node::isDefaultNamespace(const AtomicString& namespaceURIMaybeEmpty) const
                 return elem->namespaceURI() == namespaceURI;
 
             if (elem->hasAttributes()) {
-                for (unsigned i = 0; i < elem->attributeCount(); i++) {
-                    const Attribute& attribute = elem->attributeAt(i);
-                    
+                for (const Attribute& attribute : elem->attributesIterator()) {
                     if (attribute.localName() == xmlnsAtom)
                         return attribute.value() == namespaceURI;
                 }
@@ -1190,8 +1217,7 @@ String Node::lookupNamespaceURI(const String &prefix) const
                 return elem->namespaceURI();
             
             if (elem->hasAttributes()) {
-                for (unsigned i = 0; i < elem->attributeCount(); i++) {
-                    const Attribute& attribute = elem->attributeAt(i);
+                for (const Attribute& attribute : elem->attributesIterator()) {
                     
                     if (attribute.prefix() == xmlnsAtom && attribute.localName() == prefix) {
                         if (!attribute.value().isEmpty())
@@ -1246,9 +1272,7 @@ String Node::lookupNamespacePrefix(const AtomicString &_namespaceURI, const Elem
     ASSERT(isElementNode());
     const Element* thisElement = toElement(this);
     if (thisElement->hasAttributes()) {
-        for (unsigned i = 0; i < thisElement->attributeCount(); i++) {
-            const Attribute& attribute = thisElement->attributeAt(i);
-            
+        for (const Attribute& attribute : thisElement->attributesIterator()) {
             if (attribute.prefix() == xmlnsAtom && attribute.value() == _namespaceURI
                 && originalElement->lookupNamespaceURI(attribute.localName()) == _namespaceURI)
                 return attribute.localName();
@@ -1281,7 +1305,7 @@ static void appendTextContent(const Node* node, bool convertBRsToNewlines, bool&
             content.append('\n');
             break;
         }
-    // Fall through.
+        FALLTHROUGH;
     case Node::ATTRIBUTE_NODE:
     case Node::ENTITY_NODE:
     case Node::ENTITY_REFERENCE_NODE:
@@ -1356,18 +1380,6 @@ bool Node::offsetInCharacters() const
     return false;
 }
 
-static inline unsigned short compareDetachedElementsPosition(Node* firstNode, Node* secondNode)
-{
-    // If the 2 nodes are not in the same tree, return the result of adding DOCUMENT_POSITION_DISCONNECTED,
-    // DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC, and either DOCUMENT_POSITION_PRECEDING or
-    // DOCUMENT_POSITION_FOLLOWING, with the constraint that this is to be consistent. Whether to return
-    // DOCUMENT_POSITION_PRECEDING or DOCUMENT_POSITION_FOLLOWING is implemented here via pointer
-    // comparison.
-    // See step 3 in http://www.w3.org/TR/2012/WD-dom-20121206/#dom-node-comparedocumentposition
-    unsigned short direction = (firstNode > secondNode) ? Node::DOCUMENT_POSITION_PRECEDING : Node::DOCUMENT_POSITION_FOLLOWING;
-    return Node::DOCUMENT_POSITION_DISCONNECTED | Node::DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | direction;
-}
-
 unsigned short Node::compareDocumentPosition(Node* otherNode)
 {
     // It is not clear what should be done if |otherNode| is 0.
@@ -1386,7 +1398,7 @@ unsigned short Node::compareDocumentPosition(Node* otherNode)
     // If either of start1 or start2 is null, then we are disconnected, since one of the nodes is
     // an orphaned attribute node.
     if (!start1 || !start2)
-        return compareDetachedElementsPosition(this, otherNode);
+        return DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC;
 
     Vector<Node*, 16> chain1;
     Vector<Node*, 16> chain2;
@@ -1399,14 +1411,12 @@ unsigned short Node::compareDocumentPosition(Node* otherNode)
         // We are comparing two attributes on the same node. Crawl our attribute map and see which one we hit first.
         Element* owner1 = attr1->ownerElement();
         owner1->synchronizeAllAttributes();
-        unsigned length = owner1->attributeCount();
-        for (unsigned i = 0; i < length; ++i) {
-            // If neither of the two determining nodes is a child node and nodeType is the same for both determining nodes, then an 
+        for (const Attribute& attribute : owner1->attributesIterator()) {
+            // If neither of the two determining nodes is a child node and nodeType is the same for both determining nodes, then an
             // implementation-dependent order between the determining nodes is returned. This order is stable as long as no nodes of
             // the same nodeType are inserted into or removed from the direct container. This would be the case, for example, 
             // when comparing two attributes of the same element, and inserting or removing additional attributes might change 
             // the order between existing attributes.
-            const Attribute& attribute = owner1->attributeAt(i);
             if (attr1->qualifiedName() == attribute.name())
                 return DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC | DOCUMENT_POSITION_FOLLOWING;
             if (attr2->qualifiedName() == attribute.name())
@@ -1422,7 +1432,7 @@ unsigned short Node::compareDocumentPosition(Node* otherNode)
     // comparing Attr nodes here, since they return false from inDocument() all the time (which seems like a bug).
     if (start1->inDocument() != start2->inDocument() ||
         &start1->treeScope() != &start2->treeScope())
-        return compareDetachedElementsPosition(this, otherNode);
+        return DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC;
 
     // We need to find a common ancestor container, and then compare the indices of the two immediate children.
     Node* current;
@@ -1436,7 +1446,7 @@ unsigned short Node::compareDocumentPosition(Node* otherNode)
 
     // If the two elements don't have a common root, they're not in the same tree.
     if (chain1[index1 - 1] != chain2[index2 - 1])
-        return compareDetachedElementsPosition(this, otherNode);
+        return DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC;
 
     // Walk the two chains backwards and look for the first difference.
     for (unsigned i = std::min(index1, index2); i; --i) {
@@ -1674,20 +1684,20 @@ void Node::showTreeForThisAcrossFrame() const
 
 void NodeListsNodeData::invalidateCaches(const QualifiedName* attrName)
 {
-    for (auto it = m_atomicNameCaches.begin(), end = m_atomicNameCaches.end(); it != end; ++it)
-        it->value->invalidateCache(attrName);
+    for (auto& atomicName : m_atomicNameCaches)
+        atomicName.value->invalidateCacheForAttribute(attrName);
 
-    for (auto it = m_nameCaches.begin(), end = m_nameCaches.end(); it != end; ++it)
-        it->value->invalidateCache(attrName);
+    for (auto& name : m_nameCaches)
+        name.value->invalidateCacheForAttribute(attrName);
 
-    for (auto it = m_cachedCollections.begin(), end = m_cachedCollections.end(); it != end; ++it)
-        it->value->invalidateCache(attrName);
+    for (auto& collection : m_cachedCollections)
+        collection.value->invalidateCache(attrName);
 
     if (attrName)
         return;
 
-    for (auto it = m_tagNodeListCacheNS.begin(), end = m_tagNodeListCacheNS.end(); it != end; ++it)
-        it->value->invalidateCache();
+    for (auto& tagNodeList : m_tagNodeListCacheNS)
+        tagNodeList.value->invalidateCacheForAttribute(nullptr);
 }
 
 void Node::getSubresourceURLs(ListHashSet<URL>& urls) const
@@ -1764,8 +1774,10 @@ void Node::didMoveToNewDocument(Document* oldDocument)
     }
 }
 
-static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eventType, PassRefPtr<EventListener> listener, bool useCapture)
+static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eventType, PassRefPtr<EventListener> prpListener, bool useCapture)
 {
+    RefPtr<EventListener> listener = prpListener;
+
     if (!targetNode->EventTarget::addEventListener(eventType, listener, useCapture))
         return false;
 
@@ -1774,6 +1786,28 @@ static inline bool tryAddEventListener(Node* targetNode, const AtomicString& eve
         targetNode->document().didAddWheelEventHandler();
     else if (eventNames().isTouchEventType(eventType))
         targetNode->document().didAddTouchEventHandler(targetNode);
+
+#if PLATFORM(IOS)
+    if (targetNode == &targetNode->document() && eventType == eventNames().scrollEvent)
+        targetNode->document().domWindow()->incrementScrollEventListenersCount();
+
+    // FIXME: Would it be sufficient to special-case this code for <body> and <frameset>?
+    //
+    // This code was added to address <rdar://problem/5846492> Onorientationchange event not working for document.body.
+    // Forward this call to addEventListener() to the window since these are window-only events.
+    if (eventType == eventNames().orientationchangeEvent || eventType == eventNames().resizeEvent)
+        targetNode->document().domWindow()->addEventListener(eventType, listener, useCapture);
+
+#if ENABLE(TOUCH_EVENTS)
+    if (eventNames().isTouchEventType(eventType))
+        targetNode->document().addTouchEventListener(targetNode);
+#endif
+#endif // PLATFORM(IOS)
+
+#if ENABLE(IOS_GESTURE_EVENTS) && ENABLE(TOUCH_EVENTS)
+    if (eventType == eventNames().gesturestartEvent || eventType == eventNames().gesturechangeEvent || eventType == eventNames().gestureendEvent)
+        targetNode->document().addTouchEventListener(targetNode);
+#endif
 
     return true;
 }
@@ -1795,6 +1829,27 @@ static inline bool tryRemoveEventListener(Node* targetNode, const AtomicString& 
     else if (eventNames().isTouchEventType(eventType))
         targetNode->document().didRemoveTouchEventHandler(targetNode);
 
+#if PLATFORM(IOS)
+    if (targetNode == &targetNode->document() && eventType == eventNames().scrollEvent)
+        targetNode->document().domWindow()->decrementScrollEventListenersCount();
+
+    // FIXME: Would it be sufficient to special-case this code for <body> and <frameset>? See <rdar://problem/15647823>.
+    // This code was added to address <rdar://problem/5846492> Onorientationchange event not working for document.body.
+    // Forward this call to removeEventListener() to the window since these are window-only events.
+    if (eventType == eventNames().orientationchangeEvent || eventType == eventNames().resizeEvent)
+        targetNode->document().domWindow()->removeEventListener(eventType, listener, useCapture);
+
+#if ENABLE(TOUCH_EVENTS)
+    if (eventNames().isTouchEventType(eventType))
+        targetNode->document().removeTouchEventListener(targetNode);
+#endif
+#endif // PLATFORM(IOS)
+
+#if ENABLE(IOS_GESTURE_EVENTS) && ENABLE(TOUCH_EVENTS)
+    if (eventType == eventNames().gesturestartEvent || eventType == eventNames().gesturechangeEvent || eventType == eventNames().gestureendEvent)
+        targetNode->document().removeTouchEventListener(targetNode);
+#endif
+
     return true;
 }
 
@@ -1807,7 +1862,7 @@ typedef HashMap<Node*, OwnPtr<EventTargetData>> EventTargetDataMap;
 
 static EventTargetDataMap& eventTargetDataMap()
 {
-    DEFINE_STATIC_LOCAL(EventTargetDataMap, map, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(EventTargetDataMap, map, ());
     return map;
 }
 
@@ -1965,7 +2020,7 @@ void Node::dispatchScopedEvent(PassRefPtr<Event> event)
 
 bool Node::dispatchEvent(PassRefPtr<Event> event)
 {
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
     if (event->isTouchEvent())
         return dispatchTouchEvent(adoptRef(toTouchEvent(event.leakRef())));
 #endif
@@ -1981,8 +2036,11 @@ void Node::dispatchSubtreeModifiedEvent()
 
     if (!document().hasListenerType(Document::DOMSUBTREEMODIFIED_LISTENER))
         return;
+    const AtomicString& subtreeModifiedEventName = eventNames().DOMSubtreeModifiedEvent;
+    if (!parentNode() && !hasEventListeners(subtreeModifiedEventName))
+        return;
 
-    dispatchScopedEvent(MutationEvent::create(eventNames().DOMSubtreeModifiedEvent, true));
+    dispatchScopedEvent(MutationEvent::create(subtreeModifiedEventName, true));
 }
 
 bool Node::dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEvent)
@@ -1994,7 +2052,7 @@ bool Node::dispatchDOMActivateEvent(int detail, PassRefPtr<Event> underlyingEven
     return event->defaultHandled();
 }
 
-#if ENABLE(TOUCH_EVENTS)
+#if ENABLE(TOUCH_EVENTS) && !PLATFORM(IOS)
 bool Node::dispatchTouchEvent(PassRefPtr<TouchEvent> event)
 {
     return EventDispatcher::dispatchEvent(this, event);
@@ -2033,9 +2091,9 @@ void Node::defaultEventHandler(Event* event)
     if (eventType == eventNames().keydownEvent || eventType == eventNames().keypressEvent) {
         if (event->isKeyboardEvent())
             if (Frame* frame = document().frame())
-                frame->eventHandler().defaultKeyboardEventHandler(static_cast<KeyboardEvent*>(event));
+                frame->eventHandler().defaultKeyboardEventHandler(toKeyboardEvent(event));
     } else if (eventType == eventNames().clickEvent) {
-        int detail = event->isUIEvent() ? static_cast<UIEvent*>(event)->detail() : 0;
+        int detail = event->isUIEvent() ? toUIEvent(event)->detail() : 0;
         if (dispatchDOMActivateEvent(detail, event))
             event->setDefaultHandled();
 #if ENABLE(CONTEXT_MENUS)
@@ -2047,11 +2105,10 @@ void Node::defaultEventHandler(Event* event)
     } else if (eventType == eventNames().textInputEvent) {
         if (event->eventInterface() == TextEventInterfaceType)
             if (Frame* frame = document().frame())
-                frame->eventHandler().defaultTextInputEventHandler(static_cast<TextEvent*>(event));
+                frame->eventHandler().defaultTextInputEventHandler(toTextEvent(event));
 #if ENABLE(PAN_SCROLLING)
     } else if (eventType == eventNames().mousedownEvent && event->isMouseEvent()) {
-        MouseEvent* mouseEvent = static_cast<MouseEvent*>(event);
-        if (mouseEvent->button() == MiddleButton) {
+        if (toMouseEvent(event)->button() == MiddleButton) {
             if (enclosingLinkEventParentOrSelf())
                 return;
 
@@ -2066,8 +2123,7 @@ void Node::defaultEventHandler(Event* event)
         }
 #endif
     } else if ((eventType == eventNames().wheelEvent || eventType == eventNames().mousewheelEvent) && event->eventInterface() == WheelEventInterfaceType) {
-        WheelEvent* wheelEvent = static_cast<WheelEvent*>(event);
-        
+
         // If we don't have a renderer, send the wheel event to the first node we find with a renderer.
         // This is needed for <option> and <optgroup> elements so that <select>s get a wheel scroll.
         Node* startNode = this;
@@ -2076,7 +2132,18 @@ void Node::defaultEventHandler(Event* event)
         
         if (startNode && startNode->renderer())
             if (Frame* frame = document().frame())
-                frame->eventHandler().defaultWheelEventHandler(startNode, wheelEvent);
+                frame->eventHandler().defaultWheelEventHandler(startNode, toWheelEvent(event));
+#if ENABLE(TOUCH_EVENTS) && PLATFORM(IOS)
+    } else if (event->eventInterface() == TouchEventInterfaceType && eventNames().isTouchEventType(eventType)) {
+        RenderObject* renderer = this->renderer();
+        while (renderer && (!renderer->isBox() || !toRenderBox(renderer)->canBeScrolledAndHasScrollableArea()))
+            renderer = renderer->parent();
+
+        if (renderer && renderer->node()) {
+            if (Frame* frame = document().frame())
+                frame->eventHandler().defaultTouchEventHandler(renderer->node(), toTouchEvent(event));
+        }
+#endif
     } else if (event->type() == eventNames().webkitEditableContentChangedEvent) {
         dispatchInputEvent();
     }
@@ -2084,58 +2151,33 @@ void Node::defaultEventHandler(Event* event)
 
 bool Node::willRespondToMouseMoveEvents()
 {
+    // FIXME: Why is the iOS code path different from the non-iOS code path?
+#if !PLATFORM(IOS)
     if (!isElementNode())
         return false;
     if (toElement(this)->isDisabledFormControl())
         return false;
+#endif
     return hasEventListeners(eventNames().mousemoveEvent) || hasEventListeners(eventNames().mouseoverEvent) || hasEventListeners(eventNames().mouseoutEvent);
 }
 
 bool Node::willRespondToMouseClickEvents()
 {
+    // FIXME: Why is the iOS code path different from the non-iOS code path?
+#if PLATFORM(IOS)
+    return isContentEditable() || hasEventListeners(eventNames().mouseupEvent) || hasEventListeners(eventNames().mousedownEvent) || hasEventListeners(eventNames().clickEvent);
+#else
     if (!isElementNode())
         return false;
     if (toElement(this)->isDisabledFormControl())
         return false;
     return isContentEditable(UserSelectAllIsAlwaysNonEditable) || hasEventListeners(eventNames().mouseupEvent) || hasEventListeners(eventNames().mousedownEvent) || hasEventListeners(eventNames().clickEvent) || hasEventListeners(eventNames().DOMActivateEvent);
-}
-
-bool Node::willRespondToTouchEvents()
-{
-#if ENABLE(TOUCH_EVENTS)
-    if (!isElementNode())
-        return false;
-    if (toElement(this)->isDisabledFormControl())
-        return false;
-    return hasEventListeners(eventNames().touchstartEvent) || hasEventListeners(eventNames().touchmoveEvent) || hasEventListeners(eventNames().touchcancelEvent) || hasEventListeners(eventNames().touchendEvent);
-#else
-    return false;
 #endif
 }
 
-// This is here so it can be inlined into Node::removedLastRef.
-// FIXME: Really? Seems like this could be inlined into Node::removedLastRef if it was in TreeScope.h.
-// FIXME: It also not seem important to inline this. Is this really hot?
-inline void TreeScope::removedLastRefToScope()
+bool Node::willRespondToMouseWheelEvents()
 {
-    ASSERT(!deletionHasBegun());
-    if (m_selfOnlyRefCount) {
-        // If removing a child removes the last self-only ref, we don't want the scope to be destroyed
-        // until after removeDetachedChildren returns, so we protect ourselves with an extra self-only ref.
-        selfOnlyRef();
-        dropChildren();
-#ifndef NDEBUG
-        // We need to do this right now since selfOnlyDeref() can delete this.
-        rootNode()->m_inRemovedLastRefFunction = false;
-#endif
-        selfOnlyDeref();
-    } else {
-#ifndef NDEBUG
-        rootNode()->m_inRemovedLastRefFunction = false;
-        beginDeletion();
-#endif
-        delete this;
-    }
+    return hasEventListeners(eventNames().mousewheelEvent);
 }
 
 // It's important not to inline removedLastRef, because we don't want to inline the code to
@@ -2145,8 +2187,8 @@ void Node::removedLastRef()
     // An explicit check for Document here is better than a virtual function since it is
     // faster for non-Document nodes, and because the call to removedLastRef that is inlined
     // at all deref call sites is smaller if it's a non-virtual function.
-    if (isTreeScope()) {
-        treeScope().removedLastRefToScope();
+    if (isDocumentNode()) {
+        toDocument(*this).removedLastRef();
         return;
     }
 
@@ -2199,6 +2241,11 @@ void Node::updateAncestorConnectedSubframeCountForInsertion() const
 
     for (Node* node = parentOrShadowHostNode(); node; node = node->parentOrShadowHostNode())
         node->incrementConnectedSubframeCount(count);
+}
+
+bool Node::inRenderedDocument() const
+{
+    return inDocument() && document().hasLivingRenderTree();
 }
 
 } // namespace WebCore

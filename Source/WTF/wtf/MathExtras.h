@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -41,18 +41,6 @@
 #if OS(OPENBSD)
 #include <sys/types.h>
 #include <machine/ieee.h>
-#endif
-
-#if OS(QNX)
-// FIXME: Look into a way to have cmath import its functions into both the standard and global
-// namespace. For now, we include math.h since the QNX cmath header only imports its functions
-// into the standard namespace.
-#include <math.h>
-// These macros from math.h conflict with the real functions in the std namespace.
-#undef signbit
-#undef isnan
-#undef isinf
-#undef isfinite
 #endif
 
 #ifndef M_PI
@@ -123,116 +111,6 @@ inline bool signbit(double x) { struct ieee_double *p = (struct ieee_double *)&x
 
 #if COMPILER(MSVC)
 
-#if _MSC_VER < 1800
-// We must not do 'num + 0.5' or 'num - 0.5' because they can cause precision loss.
-static double round(double num)
-{
-    double integer = ceil(num);
-    if (num > 0)
-        return integer - num > 0.5 ? integer - 1.0 : integer;
-    return integer - num >= 0.5 ? integer - 1.0 : integer;
-}
-static float roundf(float num)
-{
-    float integer = ceilf(num);
-    if (num > 0)
-        return integer - num > 0.5f ? integer - 1.0f : integer;
-    return integer - num >= 0.5f ? integer - 1.0f : integer;
-}
-
-inline long long llround(double num) { return static_cast<long long>(round(num)); }
-inline long long llroundf(float num) { return static_cast<long long>(roundf(num)); }
-inline long lround(double num) { return static_cast<long>(round(num)); }
-inline long lroundf(float num) { return static_cast<long>(roundf(num)); }
-inline double trunc(double num) { return num > 0 ? floor(num) : ceil(num); }
-
-inline double remainder(double numerator, double denominator)
-{
-    double result = fmod(numerator, denominator);
-    if (result > 0.5 * denominator)
-        return result - denominator;
-
-    return result;
-}
-
-inline double asinh(double d)
-{
-    return log(d + sqrt(d * d + 1.0));
-}
-
-inline double acosh(double d)
-{
-    return log(d + sqrt(d + 1) * sqrt(d - 1));
-}
-
-inline double atanh(double d)
-{
-    return (log((1.0 + d) / (1.0 - d))) / 2.0;
-}
-
-inline double expm1(double d)
-{
-    return exp(d) - 1.0;
-}
-
-inline double log1p(double d)
-{
-    return log(1.0 + d);
-}
-
-inline double cbrt(double d)
-{
-    return pow(d, 1.0 / 3.0);
-}
-
-#endif
-
-#endif
-
-#if COMPILER(GCC) && OS(QNX)
-// The stdlib on QNX doesn't contain long abs(long). See PR #104666.
-inline long long abs(long num) { return labs(num); }
-#endif
-
-#if COMPILER(MSVC)
-// MSVC's math.h does not currently supply log2 or log2f.
-inline double log2(double num)
-{
-    // This constant is roughly M_LN2, which is not provided by default on Windows.
-    return log(num) / 0.693147180559945309417232121458176568;
-}
-
-inline float log2f(float num)
-{
-    // This constant is roughly M_LN2, which is not provided by default on Windows.
-    return logf(num) / 0.693147180559945309417232121458176568f;
-}
-#endif
-
-#if COMPILER(MSVC)
-// The 64bit version of abs() is already defined in stdlib.h which comes with VC10
-#if COMPILER(MSVC9_OR_LOWER)
-inline long long abs(long long num) { return _abs64(num); }
-#endif
-
-#if _MSC_VER < 1800
-
-namespace std {
-
-inline bool isinf(double num) { return !_finite(num) && !_isnan(num); }
-inline bool isnan(double num) { return !!_isnan(num); }
-inline bool isfinite(double x) { return _finite(x); }
-inline bool signbit(double num) { return _copysign(1.0, num) < 0; }
-
-} // namespace std
-
-#endif
-
-inline double nextafter(double x, double y) { return _nextafter(x, y); }
-inline float nextafterf(float x, float y) { return x > y ? x - FLT_EPSILON : x + FLT_EPSILON; }
-
-inline double copysign(double x, double y) { return _copysign(x, y); }
-
 // Work around a bug in Win, where atan2(+-infinity, +-infinity) yields NaN instead of specific values.
 extern "C" inline double wtf_atan2(double x, double y)
 {
@@ -265,28 +143,6 @@ extern "C" inline double wtf_pow(double x, double y) { return y == 0 ? 1 : pow(x
 #define atan2(x, y) wtf_atan2(x, y)
 #define fmod(x, y) wtf_fmod(x, y)
 #define pow(x, y) wtf_pow(x, y)
-
-// MSVC's math functions do not bring lrint.
-inline long int lrint(double flt)
-{
-    int64_t intgr;
-#if CPU(X86)
-    __asm {
-        fld flt
-        fistp intgr
-    };
-#else
-    ASSERT(std::isfinite(flt));
-    double rounded = round(flt);
-    intgr = static_cast<int64_t>(rounded);
-    // If the fractional part is exactly 0.5, we need to check whether
-    // the rounded result is even. If it is not we need to add 1 to
-    // negative values and subtract one from positive values.
-    if ((fabs(intgr - flt) == 0.5) & intgr)
-        intgr -= ((intgr >> 62) | 1); // 1 with the sign of result, i.e. -1 or 1.
-#endif
-    return static_cast<long int>(intgr);
-}
 
 #endif // COMPILER(MSVC)
 

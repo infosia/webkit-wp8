@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -33,19 +33,25 @@
 #include "ErrorEvent.h"
 #include "MessagePort.h"
 #include "PublicURLManager.h"
-#include "ScriptCallStack.h"
 #include "Settings.h"
 #include "WorkerGlobalScope.h"
 #include "WorkerThread.h"
+#include <inspector/ScriptCallStack.h>
 #include <wtf/MainThread.h>
 #include <wtf/Ref.h>
 
 // FIXME: This is a layering violation.
 #include "JSDOMWindow.h"
 
+#if PLATFORM(IOS)
+#include "Document.h"
+#endif
+
 #if ENABLE(SQL_DATABASE)
 #include "DatabaseContext.h"
 #endif
+
+using namespace Inspector;
 
 namespace WebCore {
 
@@ -56,7 +62,7 @@ public:
         return adoptPtr(new ProcessMessagesSoonTask);
     }
 
-    virtual void performTask(ScriptExecutionContext* context)
+    virtual void performTask(ScriptExecutionContext* context) override
     {
         context->dispatchMessagePortEvents();
     }
@@ -111,10 +117,6 @@ ScriptExecutionContext::~ScriptExecutionContext()
         ASSERT((*iter)->scriptExecutionContext() == this);
         (*iter)->contextDestroyed();
     }
-#if ENABLE(BLOB)
-    if (m_publicURLManager)
-        m_publicURLManager->contextDestroyed();
-#endif
 }
 
 void ScriptExecutionContext::processMessagePortMessagesSoon()
@@ -144,7 +146,7 @@ void ScriptExecutionContext::createdMessagePort(MessagePort* port)
 {
     ASSERT(port);
     ASSERT((isDocument() && isMainThread())
-        || (isWorkerGlobalScope() && currentThread() == static_cast<WorkerGlobalScope*>(this)->thread()->threadID()));
+        || (isWorkerGlobalScope() && currentThread() == toWorkerGlobalScope(this)->thread().threadID()));
 
     m_messagePorts.add(port);
 }
@@ -153,7 +155,7 @@ void ScriptExecutionContext::destroyedMessagePort(MessagePort* port)
 {
     ASSERT(port);
     ASSERT((isDocument() && isMainThread())
-        || (isWorkerGlobalScope() && currentThread() == static_cast<WorkerGlobalScope*>(this)->thread()->threadID()));
+        || (isWorkerGlobalScope() && currentThread() == toWorkerGlobalScope(this)->thread().threadID()));
 
     m_messagePorts.remove(port);
 }
@@ -177,6 +179,13 @@ bool ScriptExecutionContext::canSuspendActiveDOMObjects()
 
 void ScriptExecutionContext::suspendActiveDOMObjects(ActiveDOMObject::ReasonForSuspension why)
 {
+#if PLATFORM(IOS)
+    if (m_activeDOMObjectsAreSuspended) {
+        ASSERT(m_reasonForSuspendingActiveDOMObjects == ActiveDOMObject::DocumentWillBePaused);
+        return;
+    }
+#endif
+
     // No protection against m_activeDOMObjects changing during iteration: suspend() shouldn't execute arbitrary JS.
     m_iteratingActiveDOMObjects = true;
     ActiveDOMObjectsSet::iterator activeObjectsEnd = m_activeDOMObjects.end();
@@ -290,8 +299,8 @@ void ScriptExecutionContext::reportException(const String& errorMessage, int lin
 {
     if (m_inDispatchErrorEvent) {
         if (!m_pendingExceptions)
-            m_pendingExceptions = adoptPtr(new Vector<OwnPtr<PendingException>>());
-        m_pendingExceptions->append(adoptPtr(new PendingException(errorMessage, lineNumber, columnNumber, sourceURL, callStack)));
+            m_pendingExceptions = std::make_unique<Vector<std::unique_ptr<PendingException>>>();
+        m_pendingExceptions->append(std::make_unique<PendingException>(errorMessage, lineNumber, columnNumber, sourceURL, callStack));
         return;
     }
 
@@ -302,11 +311,9 @@ void ScriptExecutionContext::reportException(const String& errorMessage, int lin
     if (!m_pendingExceptions)
         return;
 
-    for (size_t i = 0; i < m_pendingExceptions->size(); i++) {
-        PendingException* e = m_pendingExceptions->at(i).get();
-        logExceptionToConsole(e->m_errorMessage, e->m_sourceURL, e->m_lineNumber, e->m_columnNumber, e->m_callStack);
-    }
-    m_pendingExceptions.clear();
+    std::unique_ptr<Vector<std::unique_ptr<PendingException>>> pendingExceptions = std::move(m_pendingExceptions);
+    for (auto& exception : *pendingExceptions)
+        logExceptionToConsole(exception->m_errorMessage, exception->m_sourceURL, exception->m_lineNumber, exception->m_columnNumber, exception->m_callStack);
 }
 
 void ScriptExecutionContext::addConsoleMessage(MessageSource source, MessageLevel level, const String& message, const String& sourceURL, unsigned lineNumber, unsigned columnNumber, JSC::ExecState* state, unsigned long requestIdentifier)
@@ -319,6 +326,14 @@ bool ScriptExecutionContext::dispatchErrorEvent(const String& errorMessage, int 
     EventTarget* target = errorEventTarget();
     if (!target)
         return false;
+
+#if PLATFORM(IOS)
+    if (target == target->toDOMWindow() && isDocument()) {
+        Settings* settings = static_cast<Document*>(this)->settings();
+        if (settings && !settings->shouldDispatchJavaScriptWindowOnErrorEvents())
+            return false;
+    }
+#endif
 
     String message = errorMessage;
     int line = lineNumber;
@@ -346,7 +361,7 @@ int ScriptExecutionContext::circularSequentialID()
 PublicURLManager& ScriptExecutionContext::publicURLManager()
 {
     if (!m_publicURLManager)
-        m_publicURLManager = PublicURLManager::create();
+        m_publicURLManager = PublicURLManager::create(this);
     return *m_publicURLManager;
 }
 #endif
@@ -388,16 +403,12 @@ ScriptExecutionContext::Task::~Task()
 {
 }
 
-JSC::VM* ScriptExecutionContext::vm()
+JSC::VM& ScriptExecutionContext::vm()
 {
      if (isDocument())
         return JSDOMWindow::commonVM();
 
-    if (isWorkerGlobalScope())
-        return static_cast<WorkerGlobalScope*>(this)->script()->vm();
-
-    ASSERT_NOT_REACHED();
-    return 0;
+    return toWorkerGlobalScope(*this).script()->vm();
 }
 
 #if ENABLE(SQL_DATABASE)

@@ -29,19 +29,16 @@
  */
 
 #include "config.h"
-
-#if ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
-
 #include "InspectorDOMDebuggerAgent.h"
 
+#if ENABLE(INSPECTOR)
+
 #include "HTMLElement.h"
-#include "InspectorAgent.h"
 #include "InspectorDOMAgent.h"
-#include "InspectorDebuggerAgent.h"
-#include "InspectorFrontend.h"
 #include "InspectorInstrumentation.h"
-#include "InspectorValues.h"
+#include "InspectorWebFrontendDispatchers.h"
 #include "InstrumentingAgents.h"
+#include <inspector/InspectorValues.h>
 #include <wtf/text/WTFString.h>
 
 namespace {
@@ -61,15 +58,12 @@ const int domBreakpointDerivedTypeShift = 16;
 
 }
 
+using namespace Inspector;
+
 namespace WebCore {
 
-PassOwnPtr<InspectorDOMDebuggerAgent> InspectorDOMDebuggerAgent::create(InstrumentingAgents* instrumentingAgents, InspectorDOMAgent* domAgent, InspectorDebuggerAgent* debuggerAgent, InspectorAgent* inspectorAgent)
-{
-    return adoptPtr(new InspectorDOMDebuggerAgent(instrumentingAgents, domAgent, debuggerAgent, inspectorAgent));
-}
-
-InspectorDOMDebuggerAgent::InspectorDOMDebuggerAgent(InstrumentingAgents* instrumentingAgents, InspectorDOMAgent* domAgent, InspectorDebuggerAgent* debuggerAgent, InspectorAgent*)
-    : InspectorBaseAgent(ASCIILiteral("DOMDebugger"), instrumentingAgents)
+InspectorDOMDebuggerAgent::InspectorDOMDebuggerAgent(InstrumentingAgents* instrumentingAgents, InspectorDOMAgent* domAgent, InspectorDebuggerAgent* debuggerAgent)
+    : InspectorAgentBase(ASCIILiteral("DOMDebugger"), instrumentingAgents)
     , m_domAgent(domAgent)
     , m_debuggerAgent(debuggerAgent)
     , m_pauseInNextEventListener(false)
@@ -107,16 +101,16 @@ void InspectorDOMDebuggerAgent::didPause()
 
 void InspectorDOMDebuggerAgent::disable()
 {
-    m_instrumentingAgents->setInspectorDOMDebuggerAgent(0);
+    m_instrumentingAgents->setInspectorDOMDebuggerAgent(nullptr);
     clear();
 }
 
-void InspectorDOMDebuggerAgent::didCreateFrontendAndBackend(InspectorFrontendChannel*, InspectorBackendDispatcher* backendDispatcher)
+void InspectorDOMDebuggerAgent::didCreateFrontendAndBackend(Inspector::InspectorFrontendChannel*, InspectorBackendDispatcher* backendDispatcher)
 {
     m_backendDispatcher = InspectorDOMDebuggerBackendDispatcher::create(backendDispatcher, this);
 }
 
-void InspectorDOMDebuggerAgent::willDestroyFrontendAndBackend()
+void InspectorDOMDebuggerAgent::willDestroyFrontendAndBackend(InspectorDisconnectReason)
 {
     m_backendDispatcher.clear();
 
@@ -125,8 +119,8 @@ void InspectorDOMDebuggerAgent::willDestroyFrontendAndBackend()
 
 void InspectorDOMDebuggerAgent::discardAgent()
 {
-    m_debuggerAgent->setListener(0);
-    m_debuggerAgent = 0;
+    m_debuggerAgent->setListener(nullptr);
+    m_debuggerAgent = nullptr;
 }
 
 void InspectorDOMDebuggerAgent::discardBindings()
@@ -314,7 +308,7 @@ void InspectorDOMDebuggerAgent::descriptionForDOMEvent(Node* target, int breakpo
     if ((1 << breakpointType) & inheritableDOMBreakpointTypesMask) {
         // For inheritable breakpoint types, target node isn't always the same as the node that owns a breakpoint.
         // Target node may be unknown to frontend, so we need to push it first.
-        RefPtr<TypeBuilder::Runtime::RemoteObject> targetNodeObject = m_domAgent->resolveNode(target, InspectorDebuggerAgent::backtraceObjectGroup);
+        RefPtr<Inspector::TypeBuilder::Runtime::RemoteObject> targetNodeObject = m_domAgent->resolveNode(target, InspectorDebuggerAgent::backtraceObjectGroup);
         description->setValue("targetNode", targetNodeObject);
 
         // Find breakpoint owner node.
@@ -432,4 +426,4 @@ void InspectorDOMDebuggerAgent::clear()
 
 } // namespace WebCore
 
-#endif // ENABLE(INSPECTOR) && ENABLE(JAVASCRIPT_DEBUGGER)
+#endif // ENABLE(INSPECTOR)

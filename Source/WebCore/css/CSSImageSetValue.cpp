@@ -34,6 +34,7 @@
 #include "CachedResourceLoader.h"
 #include "CachedResourceRequest.h"
 #include "CachedResourceRequestInitiators.h"
+#include "CrossOriginAccessControl.h"
 #include "Document.h"
 #include "Page.h"
 #include "StyleCachedImageSet.h"
@@ -49,10 +50,18 @@ CSSImageSetValue::CSSImageSetValue()
 {
 }
 
+inline void CSSImageSetValue::detachPendingImage()
+{
+    if (m_imageSet && m_imageSet->isPendingImage())
+        toStylePendingImage(*m_imageSet).detachFromCSSValue();
+}
+
 CSSImageSetValue::~CSSImageSetValue()
 {
+    detachPendingImage();
+
     if (m_imageSet && m_imageSet->isCachedImageSet())
-        static_cast<StyleCachedImageSet*>(m_imageSet.get())->clearImageSetValue();
+        toStyleCachedImageSet(*m_imageSet).clearImageSetValue();
 }
 
 void CSSImageSetValue::fillImageSet()
@@ -92,7 +101,7 @@ CSSImageSetValue::ImageWithScale CSSImageSetValue::bestImageForScaleFactor()
     return image;
 }
 
-StyleCachedImageSet* CSSImageSetValue::cachedImageSet(CachedResourceLoader* loader)
+StyleCachedImageSet* CSSImageSetValue::cachedImageSet(CachedResourceLoader* loader, const ResourceLoaderOptions& options)
 {
     ASSERT(loader);
 
@@ -110,15 +119,23 @@ StyleCachedImageSet* CSSImageSetValue::cachedImageSet(CachedResourceLoader* load
         // All forms of scale should be included: Page::pageScaleFactor(), Frame::pageZoomFactor(),
         // and any CSS transforms. https://bugs.webkit.org/show_bug.cgi?id=81698
         ImageWithScale image = bestImageForScaleFactor();
-        CachedResourceRequest request(ResourceRequest(document->completeURL(image.imageURL)));
+        CachedResourceRequest request(ResourceRequest(document->completeURL(image.imageURL)), options);
         request.setInitiator(cachedResourceRequestInitiators().css);
+        if (options.requestOriginPolicy == PotentiallyCrossOriginEnabled)
+            updateRequestForAccessControl(request.mutableResourceRequest(), document->securityOrigin(), options.allowCredentials);
         if (CachedResourceHandle<CachedImage> cachedImage = loader->requestImage(request)) {
+            detachPendingImage();
             m_imageSet = StyleCachedImageSet::create(cachedImage.get(), image.scaleFactor, this);
             m_accessedBestFitImage = true;
         }
     }
 
-    return (m_imageSet && m_imageSet->isCachedImageSet()) ? static_cast<StyleCachedImageSet*>(m_imageSet.get()) : 0;
+    return (m_imageSet && m_imageSet->isCachedImageSet()) ? toStyleCachedImageSet(m_imageSet.get()) : nullptr;
+}
+
+StyleCachedImageSet* CSSImageSetValue::cachedImageSet(CachedResourceLoader* loader)
+{
+    return cachedImageSet(loader, CachedResourceLoader::defaultCachedResourceOptions());
 }
 
 StyleImage* CSSImageSetValue::cachedOrPendingImageSet(Document& document)
@@ -174,7 +191,7 @@ bool CSSImageSetValue::hasFailedOrCanceledSubresources() const
 {
     if (!m_imageSet || !m_imageSet->isCachedImageSet())
         return false;
-    CachedResource* cachedResource = static_cast<StyleCachedImageSet*>(m_imageSet.get())->cachedImage();
+    CachedResource* cachedResource = toStyleCachedImageSet(*m_imageSet).cachedImage();
     if (!cachedResource)
         return true;
     return cachedResource->loadFailedOrCanceled();

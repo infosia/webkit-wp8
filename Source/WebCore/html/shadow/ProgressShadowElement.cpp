@@ -61,16 +61,13 @@ ProgressInnerElement::ProgressInnerElement(Document& document)
 {
 }
 
-RenderElement* ProgressInnerElement::createRenderer(PassRef<RenderStyle> style)
+RenderPtr<RenderElement> ProgressInnerElement::createElementRenderer(PassRef<RenderStyle> style)
 {
-    return new RenderProgress(*this, std::move(style));
+    return createRenderer<RenderProgress>(*this, std::move(style));
 }
 
 bool ProgressInnerElement::rendererIsNeeded(const RenderStyle& style)
 {
-    if (progressElement()->hasAuthorShadowRoot())
-        return HTMLDivElement::rendererIsNeeded(style);
-
     RenderObject* progressRenderer = progressElement()->renderer();
     return progressRenderer && !progressRenderer->style().hasAppearance() && HTMLDivElement::rendererIsNeeded(style);    
 }

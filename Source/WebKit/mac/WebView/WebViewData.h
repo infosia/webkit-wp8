@@ -11,7 +11,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -36,7 +36,12 @@
 #import <wtf/HashMap.h>
 #import <wtf/PassOwnPtr.h>
 #import <wtf/RetainPtr.h>
+#import <wtf/ThreadingPrimitives.h>
 #import <wtf/text/WTFString.h>
+
+#if PLATFORM(IOS)
+#import "WebCaretChangeListener.h"
+#endif
 
 namespace WebCore {
 class AlternativeTextUIController;
@@ -66,11 +71,17 @@ class Page;
 @class WebIndicateLayer;
 #endif
 
+#if PLATFORM(IOS)
+@class WAKWindow;
+@class WebEvent;
+@class WebFixedPositionContent;
+#endif
+
 extern BOOL applicationIsTerminating;
 extern int pluginDatabaseClientCount;
 
-#if USE(ACCELERATED_COMPOSITING)
 class LayerFlushController;
+class WebViewGroup;
 
 class WebViewLayerFlushScheduler : public WebCore::LayerFlushScheduler {
 public:
@@ -78,7 +89,7 @@ public:
     virtual ~WebViewLayerFlushScheduler() { }
 
 private:
-    virtual void runLoopObserverCallback() OVERRIDE
+    virtual void runLoopObserverCallback() override
     {
         RefPtr<LayerFlushController> protector = m_flushController;
         WebCore::LayerFlushScheduler::runLoopObserverCallback();
@@ -105,13 +116,13 @@ private:
     WebView* m_webView;
     WebViewLayerFlushScheduler m_layerFlushScheduler;
 };
-#endif
 
 // FIXME: This should be renamed to WebViewData.
 @interface WebViewPrivate : NSObject {
 @public
     WebCore::Page* page;
-    
+    RefPtr<WebViewGroup> group;
+
     id UIDelegate;
     id UIDelegateForwarder;
     id resourceProgressDelegate;
@@ -125,6 +136,10 @@ private:
     id editingDelegateForwarder;
     id scriptDebugDelegate;
     id historyDelegate;
+#if PLATFORM(IOS)
+    id resourceProgressDelegateForwarder;
+    id formDelegateForwarder;
+#endif
 
     WebInspector *inspector;
     WebNodeHighlight *currentNodeHighlight;
@@ -140,6 +155,9 @@ private:
     
     WebPreferences *preferences;
     BOOL useSiteSpecificSpoofing;
+#if PLATFORM(IOS)
+    NSURL *userStyleSheetLocation;
+#endif
 
     NSWindow *hostWindow;
 
@@ -153,6 +171,9 @@ private:
     void *observationInfo;
     
     BOOL closed;
+#if PLATFORM(IOS)
+    BOOL closing;
+#endif
     BOOL shouldCloseWithWindow;
     BOOL mainFrameDocumentReady;
     BOOL drawsBackground;
@@ -161,7 +182,11 @@ private:
     BOOL becomingFirstResponderFromOutside;
     BOOL usesPageCache;
 
+#if !PLATFORM(IOS)
     NSColor *backgroundColor;
+#else
+    CGColorRef backgroundColor;
+#endif
 
     NSString *mediaStyle;
     
@@ -175,8 +200,29 @@ private:
     BOOL dashboardBehaviorAllowWheelScrolling;
 #endif
     
+#if PLATFORM(IOS)
+    BOOL isStopping;
+
+    id UIKitDelegate;
+    id UIKitDelegateForwarder;
+
+    id WebMailDelegate;
+
+    BOOL allowsMessaging;
+    NSMutableSet *_caretChangeListeners;
+    id <WebCaretChangeListener> _caretChangeListener;
+
+    CGSize fixedLayoutSize;
+    BOOL mainViewIsScrollingOrZooming;
+    int32_t didDrawTiles;
+    WTF::Mutex pendingFixedPositionLayoutRectMutex;
+    CGRect pendingFixedPositionLayoutRect;
+#endif
+
+#if !PLATFORM(IOS)
     // WebKit has both a global plug-in database and a separate, per WebView plug-in database. Dashboard uses the per WebView database.
     WebPluginDatabase *pluginDatabase;
+#endif
     
     HashMap<unsigned long, RetainPtr<id>> identifierMap;
 
@@ -186,16 +232,16 @@ private:
     BOOL shouldUpdateWhileOffscreen;
 
     BOOL includesFlattenedCompositingLayersWhenDrawingToBitmap;
-    
-#if USE(ACCELERATED_COMPOSITING)
+
     // When this flag is set, next time a WebHTMLView draws, it needs to temporarily disable screen updates
     // so that the NSView drawing is visually synchronized with CALayer updates.
     BOOL needsOneShotDrawingSynchronization;
     BOOL postsAcceleratedCompositingNotifications;
     RefPtr<LayerFlushController> layerFlushController;
-#endif
 
+#if !PLATFORM(IOS)
     NSPasteboard *insertionPasteboard;
+#endif
             
     NSSize lastLayoutSize;
 
@@ -232,11 +278,16 @@ private:
     int validationMessageTimerMagnification;
 
     float customDeviceScaleFactor;
+#if PLATFORM(IOS)
+    WebFixedPositionContent* _fixedPositionContent;
+#endif
 
 #if USE(DICTATION_ALTERNATIVES)
     OwnPtr<WebCore::AlternativeTextUIController> m_alternativeTextUIController;
 #endif
 
     RetainPtr<NSData> sourceApplicationAuditData;
+
+    BOOL _didPerformFirstNavigation;
 }
 @end

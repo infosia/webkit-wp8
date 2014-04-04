@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -38,17 +38,17 @@ using namespace JSC;
 
 namespace WebCore {
 
-static EncodedJSValue nonCachingStaticBackFunctionGetter(ExecState* exec, EncodedJSValue, EncodedJSValue, PropertyName propertyName)
+static EncodedJSValue nonCachingStaticBackFunctionGetter(ExecState* exec, JSObject*, EncodedJSValue, PropertyName propertyName)
 {
     return JSValue::encode(JSFunction::create(exec->vm(), exec->lexicalGlobalObject(), 0, propertyName.publicName(), jsHistoryPrototypeFunctionBack));
 }
 
-static EncodedJSValue nonCachingStaticForwardFunctionGetter(ExecState* exec, EncodedJSValue, EncodedJSValue, PropertyName propertyName)
+static EncodedJSValue nonCachingStaticForwardFunctionGetter(ExecState* exec, JSObject*, EncodedJSValue, PropertyName propertyName)
 {
     return JSValue::encode(JSFunction::create(exec->vm(), exec->lexicalGlobalObject(), 0, propertyName.publicName(), jsHistoryPrototypeFunctionForward));
 }
 
-static EncodedJSValue nonCachingStaticGoFunctionGetter(ExecState* exec, EncodedJSValue, EncodedJSValue, PropertyName propertyName)
+static EncodedJSValue nonCachingStaticGoFunctionGetter(ExecState* exec, JSObject*, EncodedJSValue, PropertyName propertyName)
 {
     return JSValue::encode(JSFunction::create(exec->vm(), exec->lexicalGlobalObject(), 1, propertyName.publicName(), jsHistoryPrototypeFunctionGo));
 }
@@ -66,7 +66,7 @@ bool JSHistory::getOwnPropertySlotDelegate(ExecState* exec, PropertyName propert
 
     // Check for the few functions that we allow, even when called cross-domain.
     // Make these read-only / non-configurable to prevent writes via defineProperty.
-    const HashEntry* entry = JSHistoryPrototype::info()->propHashTable(exec)->entry(exec, propertyName);
+    const HashTableValue* entry = JSHistoryPrototype::info()->propHashTable(exec)->entry(exec, propertyName);
     if (entry) {
         // Allow access to back(), forward() and go() from any frame.
         if (entry->attributes() & JSC::Function) {
@@ -161,7 +161,7 @@ JSValue JSHistory::pushState(ExecState* exec)
     }
 
     ExceptionCode ec = 0;
-    impl().stateObjectAdded(historyState.release(), title, url, History::StateObjectPush, ec);
+    impl().stateObjectAdded(historyState.release(), title, url, History::StateObjectType::Push, ec);
     setDOMException(exec, ec);
 
     m_state.clear();
@@ -187,7 +187,7 @@ JSValue JSHistory::replaceState(ExecState* exec)
     }
 
     ExceptionCode ec = 0;
-    impl().stateObjectAdded(historyState.release(), title, url, History::StateObjectReplace, ec);
+    impl().stateObjectAdded(historyState.release(), title, url, History::StateObjectType::Replace, ec);
     setDOMException(exec, ec);
 
     m_state.clear();

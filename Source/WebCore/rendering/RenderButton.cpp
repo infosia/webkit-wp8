@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 Apple Computer, Inc.
+ * Copyright (C) 2005 Apple Inc.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -56,7 +56,7 @@ HTMLFormControlElement& RenderButton::formControlElement() const
 
 bool RenderButton::canBeSelectionLeaf() const
 {
-    return formControlElement().rendererIsEditable();
+    return formControlElement().hasEditableStyle();
 }
 
 bool RenderButton::hasLineIfEmpty() const
@@ -112,14 +112,14 @@ void RenderButton::styleDidChange(StyleDifference diff, const RenderStyle* oldSt
     if (m_inner) // RenderBlock handled updating the anonymous block's style.
         setupInnerStyle(&m_inner->style());
 
-    if (!m_default && theme()->isDefault(this)) {
+    if (!m_default && theme().isDefault(this)) {
         if (!m_timer)
-            m_timer = adoptPtr(new Timer<RenderButton>(this, &RenderButton::timerFired));
+            m_timer = std::make_unique<Timer<RenderButton>>(this, &RenderButton::timerFired);
         m_timer->startRepeating(0.03);
         m_default = true;
-    } else if (m_default && !theme()->isDefault(this)) {
+    } else if (m_default && !theme().isDefault(this)) {
         m_default = false;
-        m_timer.clear();
+        m_timer = nullptr;
     }
 }
 
@@ -184,7 +184,7 @@ LayoutRect RenderButton::controlClipRect(const LayoutPoint& additionalOffset) co
     return LayoutRect(additionalOffset.x() + borderLeft(), additionalOffset.y() + borderTop(), width() - borderLeft() - borderRight(), height() - borderTop() - borderBottom());
 }
 
-void RenderButton::timerFired(Timer<RenderButton>*)
+void RenderButton::timerFired(Timer<RenderButton>&)
 {
     // FIXME Bug 25110: Ideally we would stop our timer when our Document
     // enters the page cache. But we currently have no way of being notified

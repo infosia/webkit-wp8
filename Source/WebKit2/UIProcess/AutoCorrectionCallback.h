@@ -26,9 +26,9 @@
 #ifndef AutoCorrectionCallback_h
 #define AutoCorrectionCallback_h
 
+#include "APIError.h"
 #include "GenericCallback.h"
 #include "WKAPICast.h"
-#include "WebError.h"
 #include <wtf/HashMap.h>
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
@@ -37,11 +37,11 @@ namespace WebKit {
 
 class AutocorrectionDataCallback : public CallbackBase {
 public:
-    typedef void (*CallbackFunction)(const Vector<WebCore::FloatRect>&, const String&, double, uint64_t, WKErrorRef, void*);
+    typedef std::function<void (bool, const Vector<WebCore::FloatRect>&, const String&, double, uint64_t)> CallbackFunction;
 
-    static PassRefPtr<AutocorrectionDataCallback> create(void* context, CallbackFunction callback)
+    static PassRefPtr<AutocorrectionDataCallback> create(CallbackFunction callback)
     {
-        return adoptRef(new AutocorrectionDataCallback(context, callback));
+        return adoptRef(new AutocorrectionDataCallback(callback));
     }
 
     virtual ~AutocorrectionDataCallback()
@@ -53,7 +53,7 @@ public:
     {
         ASSERT(m_callback);
 
-        m_callback(returnValue1, returnValue2, returnValue3, returnValue4, 0, context());
+        m_callback(false, returnValue1, returnValue2, returnValue3, returnValue4);
 
         m_callback = 0;
     }
@@ -62,17 +62,96 @@ public:
     {
         ASSERT(m_callback);
 
-        RefPtr<WebError> error = WebError::create();
-        m_callback(Vector<WebCore::FloatRect>(), String(), 0, 0, toAPI(error.get()), context());
+        m_callback(true, Vector<WebCore::FloatRect>(), String(), 0, 0);
 
         m_callback = 0;
     }
 
 private:
+    AutocorrectionDataCallback(CallbackFunction callback)
+        : m_callback(callback)
+    {
+        ASSERT(m_callback);
+    }
+    
+    CallbackFunction m_callback;
+};
 
-    AutocorrectionDataCallback(void* context, CallbackFunction callback)
-        : CallbackBase(context)
-        , m_callback(callback)
+class AutocorrectionContextCallback : public CallbackBase {
+public:
+    typedef std::function<void (bool, const String&, const String&, const String&, const String&, uint64_t, uint64_t)> CallbackFunction;
+
+    static PassRefPtr<AutocorrectionContextCallback> create(CallbackFunction callback)
+    {
+        return adoptRef(new AutocorrectionContextCallback(callback));
+    }
+
+    virtual ~AutocorrectionContextCallback()
+    {
+        ASSERT(!m_callback);
+    }
+
+    void performCallbackWithReturnValue(const String& returnValue1, const String& returnValue2, const String& returnValue3, const String& returnValue4, uint64_t returnValue5, uint64_t returnValue6)
+    {
+        ASSERT(m_callback);
+
+        m_callback(false, returnValue1, returnValue2, returnValue3, returnValue4, returnValue5, returnValue6);
+
+        m_callback = 0;
+    }
+
+    void invalidate()
+    {
+        ASSERT(m_callback);
+
+        m_callback(true, String(), String(), String(), String(), 0, 0);
+
+        m_callback = 0;
+    }
+
+private:
+    AutocorrectionContextCallback(CallbackFunction callback)
+        : m_callback(callback)
+    {
+        ASSERT(m_callback);
+    }
+    
+    CallbackFunction m_callback;
+};
+
+class DictationContextCallback : public CallbackBase {
+public:
+    typedef std::function<void (bool, const String&, const String&, const String&)> CallbackFunction;
+
+    static PassRefPtr<DictationContextCallback> create(CallbackFunction callback)
+    {
+        return adoptRef(new DictationContextCallback(callback));
+    }
+
+    virtual ~DictationContextCallback()
+    {
+        ASSERT(!m_callback);
+    }
+
+    void performCallbackWithReturnValue(const String& returnValue1, const String& returnValue2, const String& returnValue3)
+    {
+        ASSERT(m_callback);
+
+        m_callback(false, returnValue1, returnValue2, returnValue3);
+        m_callback = nullptr;
+    }
+
+    void invalidate()
+    {
+        ASSERT(m_callback);
+
+        m_callback(true, String(), String(), String());
+        m_callback = nullptr;
+    }
+    
+private:
+    DictationContextCallback(CallbackFunction callback)
+        : m_callback(callback)
     {
         ASSERT(m_callback);
     }

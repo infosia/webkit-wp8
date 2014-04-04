@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -29,55 +29,11 @@
 #ifndef IDBDatabaseMetadata_h
 #define IDBDatabaseMetadata_h
 
-#include "IDBKeyPath.h"
-#include <stdint.h>
-#include <wtf/HashMap.h>
-#include <wtf/text/StringHash.h>
-#include <wtf/text/WTFString.h>
+#include "IDBObjectStoreMetadata.h"
 
 #if ENABLE(INDEXED_DATABASE)
 
 namespace WebCore {
-
-struct IDBIndexMetadata {
-    IDBIndexMetadata() { }
-    IDBIndexMetadata(const String& name, int64_t id, const IDBKeyPath& keyPath, bool unique, bool multiEntry)
-        : name(name)
-        , id(id)
-        , keyPath(keyPath)
-        , unique(unique)
-        , multiEntry(multiEntry) { }
-    String name;
-    int64_t id;
-    IDBKeyPath keyPath;
-    bool unique;
-    bool multiEntry;
-
-    static const int64_t InvalidId = -1;
-};
-
-struct IDBObjectStoreMetadata {
-    IDBObjectStoreMetadata() { }
-    IDBObjectStoreMetadata(const String& name, int64_t id, const IDBKeyPath& keyPath, bool autoIncrement, int64_t maxIndexId)
-        : name(name)
-        , id(id)
-        , keyPath(keyPath)
-        , autoIncrement(autoIncrement)
-        , maxIndexId(maxIndexId)
-    {
-    }
-    String name;
-    int64_t id;
-    IDBKeyPath keyPath;
-    bool autoIncrement;
-    int64_t maxIndexId;
-
-    static const int64_t InvalidId = -1;
-
-    typedef HashMap<int64_t, IDBIndexMetadata> IndexMap;
-    IndexMap indexes;
-
-};
 
 struct IDBDatabaseMetadata {
 
@@ -96,8 +52,6 @@ struct IDBDatabaseMetadata {
         NoIntVersion = INT64_MAX,
         DefaultIntVersion = 0
     };
-
-    typedef HashMap<int64_t, IDBObjectStoreMetadata> ObjectStoreMap;
 
     IDBDatabaseMetadata()
         : id(0)
@@ -119,11 +73,13 @@ struct IDBDatabaseMetadata {
     uint64_t version;
     int64_t maxObjectStoreId;
 
+    typedef HashMap<int64_t, IDBObjectStoreMetadata> ObjectStoreMap;
     ObjectStoreMap objectStores;
+
+    IDBDatabaseMetadata isolatedCopy() const;
 };
 
-}
+} // namespace WebCore
 
 #endif // ENABLE(INDEXED_DATABASE)
-
 #endif // IDBDatabaseMetadata_h

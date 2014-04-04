@@ -34,13 +34,12 @@
 #include "URL.h"
 #include "PasteboardHelper.h"
 #include "RenderImage.h"
+#include "SVGElement.h"
+#include "SVGNames.h"
+#include "XLinkNames.h"
 #include "markup.h"
 #include <gtk/gtk.h>
 
-#if ENABLE(SVG)
-#include "SVGNames.h"
-#include "XLinkNames.h"
-#endif
 
 namespace WebCore {
 
@@ -195,10 +194,8 @@ static URL getURLForImageElement(Element& element)
     AtomicString urlString;
     if (isHTMLImageElement(element) || isHTMLInputElement(element))
         urlString = element.getAttribute(HTMLNames::srcAttr);
-#if ENABLE(SVG)
     else if (element.hasTagName(SVGNames::imageTag))
         urlString = element.getAttribute(XLinkNames::hrefAttr);
-#endif
     else if (element.hasTagName(HTMLNames::embedTag) || isHTMLObjectElement(element))
         urlString = element.imageSourceURL();
 
@@ -207,7 +204,7 @@ static URL getURLForImageElement(Element& element)
 
 void Pasteboard::writeImage(Element& element, const URL&, const String& title)
 {
-    if (!(element.renderer() && element.renderer()->isImage()))
+    if (!(element.renderer() && element.renderer()->isRenderImage()))
         return;
 
     RenderImage* renderer = toRenderImage(element.renderer());
@@ -302,7 +299,7 @@ bool Pasteboard::canSmartReplace()
 }
 
 #if ENABLE(DRAG_SUPPORT)
-void Pasteboard::setDragImage(DragImageRef, const IntPoint& hotSpot)
+void Pasteboard::setDragImage(DragImageRef, const IntPoint&)
 {
 }
 #endif

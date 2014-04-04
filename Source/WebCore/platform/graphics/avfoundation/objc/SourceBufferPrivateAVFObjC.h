@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -29,6 +29,7 @@
 #if ENABLE(MEDIA_SOURCE) && USE(AVFOUNDATION)
 
 #include "SourceBufferPrivate.h"
+#include <map>
 #include <wtf/Deque.h>
 #include <wtf/HashMap.h>
 #include <wtf/MediaTime.h>
@@ -39,7 +40,9 @@
 
 OBJC_CLASS AVAsset;
 OBJC_CLASS AVStreamDataParser;
+OBJC_CLASS AVSampleBufferAudioRenderer;
 OBJC_CLASS AVSampleBufferDisplayLayer;
+OBJC_CLASS NSData;
 OBJC_CLASS NSError;
 OBJC_CLASS NSObject;
 typedef struct opaqueCMSampleBuffer *CMSampleBufferRef;
@@ -54,7 +57,7 @@ class VideoTrackPrivate;
 class AudioTrackPrivateMediaSourceAVFObjC;
 class VideoTrackPrivateMediaSourceAVFObjC;
 
-class SourceBufferPrivateAVFObjC FINAL : public SourceBufferPrivate {
+class SourceBufferPrivateAVFObjC final : public SourceBufferPrivate {
 public:
     static RefPtr<SourceBufferPrivateAVFObjC> create(MediaSourcePrivateAVFObjC*);
     virtual ~SourceBufferPrivateAVFObjC();
@@ -66,6 +69,7 @@ public:
     void didFailToParseStreamDataWithError(NSError*);
     void didProvideMediaDataForTrackID(int trackID, CMSampleBufferRef, const String& mediaType, unsigned flags);
     void didReachEndOfTrackWithTrackID(int trackID, const String& mediaType);
+    void didProvideContentKeyRequestInitializationDataForTrackID(NSData*, int trackID);
 
     bool processCodedFrame(int trackID, CMSampleBufferRef, const String& mediaType);
 
@@ -77,30 +81,42 @@ public:
 
     void seekToTime(MediaTime);
     MediaTime fastSeekTimeForMediaTime(MediaTime, MediaTime negativeThreshold, MediaTime positiveThreshold);
+    IntSize naturalSize();
+
+    int protectedTrackID() const { return m_protectedTrackID; }
+    AVStreamDataParser* parser() const { return m_parser.get(); }
 
 private:
     explicit SourceBufferPrivateAVFObjC(MediaSourcePrivateAVFObjC*);
 
     // SourceBufferPrivate overrides
-    virtual void setClient(SourceBufferPrivateClient*) OVERRIDE;
-    virtual AppendResult append(const unsigned char* data, unsigned length) OVERRIDE;
-    virtual void abort() OVERRIDE;
-    virtual void removedFromMediaSource() OVERRIDE;
-    virtual MediaPlayer::ReadyState readyState() const OVERRIDE;
-    virtual void setReadyState(MediaPlayer::ReadyState) OVERRIDE;
-    virtual void evictCodedFrames() OVERRIDE;
-    virtual bool isFull() OVERRIDE;
-    virtual void flushAndEnqueueNonDisplayingSamples(Vector<RefPtr<MediaSample>>, AtomicString trackID) OVERRIDE;
-    virtual void enqueueSample(PassRefPtr<MediaSample>, AtomicString trackID) OVERRIDE;
-    virtual bool isReadyForMoreSamples() OVERRIDE;
-    virtual void setActive(bool) OVERRIDE;
+    virtual void setClient(SourceBufferPrivateClient*) override;
+    virtual AppendResult append(const unsigned char* data, unsigned length) override;
+    virtual void abort() override;
+    virtual void removedFromMediaSource() override;
+    virtual MediaPlayer::ReadyState readyState() const override;
+    virtual void setReadyState(MediaPlayer::ReadyState) override;
+    virtual void evictCodedFrames() override;
+    virtual bool isFull() override;
+    virtual void flushAndEnqueueNonDisplayingSamples(Vector<RefPtr<MediaSample>>, AtomicString trackID) override;
+    virtual void enqueueSample(PassRefPtr<MediaSample>, AtomicString trackID) override;
+    virtual bool isReadyForMoreSamples(AtomicString trackID) override;
+    virtual void setActive(bool) override;
+    virtual void notifyClientWhenReadyForMoreSamples(AtomicString trackID) override;
 
-    Vector<RefPtr<VideoTrackPrivate>> m_videoTracks;
-    Vector<RefPtr<AudioTrackPrivate>> m_audioTracks;
+    void flushAndEnqueueNonDisplayingSamples(Vector<RefPtr<MediaSample>>, AVSampleBufferAudioRenderer*);
+    void flushAndEnqueueNonDisplayingSamples(Vector<RefPtr<MediaSample>>, AVSampleBufferDisplayLayer*);
+
+    void didBecomeReadyForMoreSamples(int trackID);
+    void destroyRenderers();
+
+    Vector<RefPtr<VideoTrackPrivateMediaSourceAVFObjC>> m_videoTracks;
+    Vector<RefPtr<AudioTrackPrivateMediaSourceAVFObjC>> m_audioTracks;
 
     RetainPtr<AVStreamDataParser> m_parser;
     RetainPtr<AVAsset> m_asset;
     RetainPtr<AVSampleBufferDisplayLayer> m_displayLayer;
+    std::map<int, RetainPtr<AVSampleBufferAudioRenderer>> m_audioRenderers;
     RetainPtr<NSObject> m_delegate;
 
     MediaSourcePrivateAVFObjC* m_mediaSource;
@@ -108,6 +124,7 @@ private:
 
     bool m_parsingSucceeded;
     int m_enabledVideoTrackID;
+    int m_protectedTrackID;
 };
 
 }

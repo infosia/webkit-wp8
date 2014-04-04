@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,65 +26,84 @@
 #import "config.h"
 #import "RemoteLayerBackingStore.h"
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #import "ArgumentCoders.h"
 #import "MachPort.h"
 #import "PlatformCALayerRemote.h"
 #import "ShareableBitmap.h"
 #import "WebCoreArgumentCoders.h"
+#import <QuartzCore/QuartzCore.h>
 #import <WebCore/GraphicsContextCG.h>
+#import <WebCore/IOSurface.h>
+#import <WebCore/IOSurfacePool.h>
 #import <WebCore/WebLayer.h>
 
 #if USE(IOSURFACE)
 #import <mach/mach_port.h>
 #endif
 
-#if defined(__has_include) && __has_include(<ApplicationServices/ApplicationServicesPriv.h>)
-#import <ApplicationServices/ApplicationServicesPriv.h>
+#if __has_include(<QuartzCore/CALayerPrivate.h>)
+#import <QuartzCore/CALayerPrivate.h>
 #endif
 
-extern "C" {
-#if USE(IOSURFACE)
-CGContextRef CGIOSurfaceContextCreate(IOSurfaceRef, size_t, size_t, size_t, size_t, CGColorSpaceRef, CGBitmapInfo);
-#endif
-CGImageRef CGIOSurfaceContextCreateImage(CGContextRef);
-}
+@interface CALayer (Details)
+@property BOOL contentsOpaque;
+@end
 
 using namespace WebCore;
-using namespace WebKit;
+
+namespace WebKit {
 
 RemoteLayerBackingStore::RemoteLayerBackingStore()
     : m_layer(nullptr)
+    , m_isOpaque(false)
 {
 }
 
-void RemoteLayerBackingStore::ensureBackingStore(PlatformCALayerRemote* layer, IntSize size, float scale, bool acceleratesDrawing)
+RemoteLayerBackingStore::~RemoteLayerBackingStore()
 {
-    if (m_layer == layer && m_size == size && m_scale == scale && m_acceleratesDrawing == acceleratesDrawing)
+    clearBackingStore();
+}
+
+void RemoteLayerBackingStore::ensureBackingStore(PlatformCALayerRemote* layer, IntSize size, float scale, bool acceleratesDrawing, bool isOpaque)
+{
+    if (m_layer == layer && m_size == size && m_scale == scale && m_acceleratesDrawing == acceleratesDrawing && m_isOpaque == isOpaque)
         return;
 
     m_layer = layer;
     m_size = size;
     m_scale = scale;
     m_acceleratesDrawing = acceleratesDrawing;
+    m_isOpaque = isOpaque;
 
-#if USE(IOSURFACE)
-    m_frontSurface = nullptr;
-#endif
-    m_frontBuffer = nullptr;
+    clearBackingStore();
 }
 
-void RemoteLayerBackingStore::encode(CoreIPC::ArgumentEncoder& encoder) const
+void RemoteLayerBackingStore::clearBackingStore()
+{
+#if USE(IOSURFACE)
+    if (m_frontSurface)
+        IOSurfacePool::sharedPool().addSurface(m_frontSurface.get());
+    if (m_backSurface)
+        IOSurfacePool::sharedPool().addSurface(m_backSurface.get());
+
+    m_frontSurface = nullptr;
+    m_backSurface = nullptr;
+#endif
+    m_frontBuffer = nullptr;
+    m_backBuffer = nullptr;
+}
+
+void RemoteLayerBackingStore::encode(IPC::ArgumentEncoder& encoder) const
 {
     encoder << m_size;
     encoder << m_scale;
     encoder << m_acceleratesDrawing;
+    encoder << m_isOpaque;
 
 #if USE(IOSURFACE)
     if (m_acceleratesDrawing) {
-        mach_port_t port = IOSurfaceCreateMachPort(m_frontSurface.get());
-        encoder << CoreIPC::MachPort(port, MACH_MSG_TYPE_MOVE_SEND);
+        mach_port_t port = m_frontSurface->createMachPort();
+        encoder << IPC::MachPort(port, MACH_MSG_TYPE_MOVE_SEND);
         return;
     }
 #else
@@ -96,7 +115,7 @@ void RemoteLayerBackingStore::encode(CoreIPC::ArgumentEncoder& encoder) const
     encoder << handle;
 }
 
-bool RemoteLayerBackingStore::decode(CoreIPC::ArgumentDecoder& decoder, RemoteLayerBackingStore& result)
+bool RemoteLayerBackingStore::decode(IPC::ArgumentDecoder& decoder, RemoteLayerBackingStore& result)
 {
     if (!decoder.decode(result.m_size))
         return false;
@@ -107,12 +126,15 @@ bool RemoteLayerBackingStore::decode(CoreIPC::ArgumentDecoder& decoder, RemoteLa
     if (!decoder.decode(result.m_acceleratesDrawing))
         return false;
 
+    if (!decoder.decode(result.m_isOpaque))
+        return false;
+
 #if USE(IOSURFACE)
     if (result.m_acceleratesDrawing) {
-        CoreIPC::MachPort machPort;
+        IPC::MachPort machPort;
         if (!decoder.decode(machPort))
             return false;
-        result.m_frontSurface = adoptCF(IOSurfaceLookupFromMachPort(machPort.port()));
+        result.m_frontSurface = IOSurface::createFromMachPort(machPort.port(), ColorSpaceDeviceRGB);
         mach_port_deallocate(mach_task_self(), machPort.port());
         return true;
     }
@@ -138,55 +160,10 @@ void RemoteLayerBackingStore::setNeedsDisplay()
     setNeedsDisplay(IntRect(IntPoint(), m_size));
 }
 
-#if USE(IOSURFACE)
-static RetainPtr<CGContextRef> createIOSurfaceContext(IOSurfaceRef surface, IntSize size, CGColorSpaceRef colorSpace)
-{
-    if (!surface)
-        return nullptr;
-
-    CGBitmapInfo bitmapInfo = kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host;
-    size_t bitsPerComponent = 8;
-    size_t bitsPerPixel = 32;
-    return adoptCF(CGIOSurfaceContextCreate(surface, size.width(), size.height(), bitsPerComponent, bitsPerPixel, colorSpace, bitmapInfo));
-}
-
-static RetainPtr<IOSurfaceRef> createIOSurface(IntSize size)
-{
-    unsigned pixelFormat = 'BGRA';
-    unsigned bytesPerElement = 4;
-    int width = size.width();
-    int height = size.height();
-
-    size_t bytesPerRow = IOSurfaceAlignProperty(kIOSurfaceBytesPerRow, width * bytesPerElement);
-    ASSERT(bytesPerRow);
-
-    size_t allocSize = IOSurfaceAlignProperty(kIOSurfaceAllocSize, height * bytesPerRow);
-    ASSERT(allocSize);
-
-    NSDictionary *dict = @{
-        (id)kIOSurfaceWidth: @(width),
-        (id)kIOSurfaceHeight: @(height),
-        (id)kIOSurfacePixelFormat: @(pixelFormat),
-        (id)kIOSurfaceBytesPerElement: @(bytesPerElement),
-        (id)kIOSurfaceBytesPerRow: @(bytesPerRow),
-        (id)kIOSurfaceAllocSize: @(allocSize)
-    };
-
-    return adoptCF(IOSurfaceCreate((CFDictionaryRef)dict));
-}
-#endif // USE(IOSURFACE)
-
-RetainPtr<CGImageRef> RemoteLayerBackingStore::image() const
-{
-    if (!m_frontBuffer || m_acceleratesDrawing)
-        return nullptr;
-
-    // FIXME: Do we need Copy?
-    return m_frontBuffer->makeCGImageCopy();
-}
-
 bool RemoteLayerBackingStore::display()
 {
+    ASSERT(!m_frontContextPendingFlush);
+
     if (!m_layer)
         return false;
 
@@ -194,20 +171,16 @@ bool RemoteLayerBackingStore::display()
     // to note that our backing store has been cleared.
     if (!m_layer->owner() || !m_layer->owner()->platformCALayerDrawsContent()) {
         bool previouslyDrewContents = hasFrontBuffer();
-
-        m_frontBuffer = nullptr;
-#if USE(IOSURFACE)
-        m_frontSurface = nullptr;
-#endif
-
+        clearBackingStore();
         return previouslyDrewContents;
     }
 
     if (m_dirtyRegion.isEmpty() || m_size.isEmpty())
         return false;
 
+    IntRect layerBounds(IntPoint(), m_size);
     if (!hasFrontBuffer())
-        m_dirtyRegion.unite(IntRect(IntPoint(), m_size));
+        m_dirtyRegion.unite(layerBounds);
 
     if (m_layer->owner()->platformCALayerShowRepaintCounter(m_layer)) {
         IntRect indicatorRect(0, 0, 52, 27);
@@ -217,49 +190,60 @@ bool RemoteLayerBackingStore::display()
     FloatSize scaledSize = m_size;
     scaledSize.scale(m_scale);
     IntSize expandedScaledSize = expandedIntSize(scaledSize);
+    IntRect expandedScaledLayerBounds(IntPoint(), expandedScaledSize);
 
+    bool willPaintEntireBackingStore = m_dirtyRegion.contains(layerBounds);
 #if USE(IOSURFACE)
     if (m_acceleratesDrawing) {
-        RetainPtr<IOSurfaceRef> backSurface = createIOSurface(expandedScaledSize);
-        RetainPtr<CGContextRef> cgContext = createIOSurfaceContext(backSurface.get(), expandedScaledSize, sRGBColorSpaceRef());
-        GraphicsContext context(cgContext.get());
-        context.clearRect(FloatRect(FloatPoint(), expandedScaledSize));
+        std::swap(m_frontSurface, m_backSurface);
+
+        if (!m_frontSurface || m_frontSurface->isInUse()) {
+            if (m_frontSurface)
+                IOSurfacePool::sharedPool().addSurface(m_frontSurface.get());
+            m_frontSurface = IOSurface::create(expandedScaledSize, ColorSpaceDeviceRGB);
+        }
+
+        RetainPtr<CGImageRef> backImage;
+        if (m_backSurface && !willPaintEntireBackingStore)
+            backImage = m_backSurface->createImage();
+
+        GraphicsContext& context = m_frontSurface->ensureGraphicsContext();
+
+        if (!m_isOpaque)
+            context.clearRect(expandedScaledLayerBounds);
+
+#ifndef NDEBUG
+        if (m_isOpaque)
+            context.fillRect(expandedScaledLayerBounds, Color(255, 0, 0), ColorSpaceDeviceRGB);
+#endif
+
         context.scale(FloatSize(1, -1));
         context.translate(0, -expandedScaledSize.height());
+        drawInContext(context, backImage.get());
 
-        RetainPtr<CGContextRef> frontContext;
-        RetainPtr<CGImageRef> frontImage;
-        if (m_frontSurface) {
-            frontContext = createIOSurfaceContext(m_frontSurface.get(), expandedIntSize(m_size * m_scale), sRGBColorSpaceRef());
-            frontImage = adoptCF(CGIOSurfaceContextCreateImage(frontContext.get()));
-        }
-
-        drawInContext(context, frontImage.get());
-        m_frontSurface = backSurface;
-
-        // If our frontImage is derived from an IOSurface, we need to
-        // destroy the image before the CGContext it's derived from,
-        // so that the context doesn't make a CPU copy of the surface data.
-        if (frontImage) {
-            frontImage = nullptr;
-            ASSERT(frontContext);
-        }
+        m_frontSurface->clearGraphicsContext();
 
         return true;
     }
-#else
-    ASSERT(!m_acceleratesDrawing);
 #endif
 
-    RetainPtr<CGImageRef> frontImage = image();
-    m_frontBuffer = ShareableBitmap::createShareable(expandedScaledSize, ShareableBitmap::SupportsAlpha);
+    ASSERT(!m_acceleratesDrawing);
+
+    std::swap(m_frontBuffer, m_backBuffer);
+    if (!m_frontBuffer)
+        m_frontBuffer = ShareableBitmap::createShareable(expandedScaledSize, m_isOpaque ? ShareableBitmap::NoFlags : ShareableBitmap::SupportsAlpha);
     std::unique_ptr<GraphicsContext> context = m_frontBuffer->createGraphicsContext();
-    drawInContext(*context, frontImage.get());
+
+    RetainPtr<CGImageRef> backImage;
+    if (m_backBuffer && !willPaintEntireBackingStore)
+        backImage = m_backBuffer->makeCGImage();
+
+    drawInContext(*context, backImage.get());
     
     return true;
 }
 
-void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef frontImage)
+void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef backImage)
 {
     IntRect layerBounds(IntPoint(), m_size);
     IntRect scaledLayerBounds(IntPoint(), expandedIntSize(m_size * m_scale));
@@ -270,6 +254,7 @@ void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef
     // than webLayerWastedSpaceThreshold of the total dirty area, we'll repaint each rect separately.
     // Otherwise, repaint the entire bounding box of the dirty region.
     IntRect dirtyBounds = m_dirtyRegion.bounds();
+
     Vector<IntRect> dirtyRects = m_dirtyRegion.rects();
     if (dirtyRects.size() > webLayerMaxRectsToPaint || m_dirtyRegion.totalArea() > webLayerWastedSpaceThreshold * dirtyBounds.width() * dirtyBounds.height()) {
         dirtyRects.clear();
@@ -291,7 +276,7 @@ void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef
         cgPaintingRects[i] = enclosingIntRect(scaledPaintingRect);
     }
 
-    if (frontImage) {
+    if (backImage) {
         CGContextSaveGState(cgContext);
         CGContextSetBlendMode(cgContext, kCGBlendModeCopy);
 
@@ -301,7 +286,7 @@ void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef
 
         CGContextTranslateCTM(cgContext, 0, scaledLayerBounds.height());
         CGContextScaleCTM(cgContext, 1, -1);
-        CGContextDrawImage(cgContext, scaledLayerBounds, frontImage);
+        CGContextDrawImage(cgContext, scaledLayerBounds, backImage);
         CGContextRestoreGState(cgContext);
     }
 
@@ -332,7 +317,7 @@ void RemoteLayerBackingStore::drawInContext(GraphicsContext& context, CGImageRef
     m_dirtyRegion = Region();
     m_paintingRects.clear();
 
-    CGContextFlush(context.platformContext());
+    m_frontContextPendingFlush = context.platformContext();
 }
 
 void RemoteLayerBackingStore::enumerateRectsBeingDrawn(CGContextRef context, void (^block)(CGRect))
@@ -344,10 +329,33 @@ void RemoteLayerBackingStore::enumerateRectsBeingDrawn(CGContextRef context, voi
     inverseTransform = CGAffineTransformScale(inverseTransform, m_scale, -m_scale);
     inverseTransform = CGAffineTransformTranslate(inverseTransform, 0, -m_size.height());
 
-    for (auto rect : m_paintingRects) {
+    for (const auto& rect : m_paintingRects) {
         CGRect rectToDraw = CGRectApplyAffineTransform(rect, inverseTransform);
         block(rectToDraw);
     }
 }
 
-#endif // USE(ACCELERATED_COMPOSITING)
+void RemoteLayerBackingStore::applyBackingStoreToLayer(CALayer *layer)
+{
+    layer.contentsOpaque = m_isOpaque;
+
+#if USE(IOSURFACE)
+    if (acceleratesDrawing()) {
+        layer.contents = (id)m_frontSurface->surface();
+        return;
+    }
+#endif
+
+    ASSERT(!acceleratesDrawing());
+    layer.contents = (id)m_frontBuffer->makeCGImageCopy().get();
+}
+
+void RemoteLayerBackingStore::flush()
+{
+    if (m_frontContextPendingFlush) {
+        CGContextFlush(m_frontContextPendingFlush.get());
+        m_frontContextPendingFlush = nullptr;
+    }
+}
+
+} // namespace WebKit

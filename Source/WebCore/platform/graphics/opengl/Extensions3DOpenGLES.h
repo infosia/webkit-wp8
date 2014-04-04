@@ -32,13 +32,6 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#if OS(QNX)
-// See https://bugs.webkit.org/show_bug.cgi?id=91030.
-// Newer Khorons headers do define these with a PROC suffix, but older headers don't.
-#define PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMG PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMGPROC
-#define PFNGLRENDERBUFFERSTORAGEMULTISAMPLEIMG PFNGLRENDERBUFFERSTORAGEMULTISAMPLEIMGPROC
-#endif
-
 #ifndef GL_EXT_robustness
 /* reuse GL_NO_ERROR */
 #define GL_GUILTY_CONTEXT_RESET_EXT 0x8253
@@ -64,11 +57,6 @@ typedef void (GL_APIENTRYP PFNGLGETNUNIFORMFVEXTPROC) (GLuint program, GLint loc
 typedef void (GL_APIENTRYP PFNGLGETNUNIFORMIVEXTPROC) (GLuint program, GLint location, GC3Dsizei bufSize, GLint *params);
 #endif
 
-#if PLATFORM(NIX) && USE(OPENGL_ES_2) && !GL_IMG_multisampled_render_to_texture
-// on rPi, PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMG is called PFNGLCLIPPLANEXIMG.
-typedef PFNGLCLIPPLANEXIMG PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMG;
-#endif
-
 namespace WebCore {
 
 class Extensions3DOpenGLES : public Extensions3DOpenGLCommon {
@@ -81,7 +69,6 @@ public:
     // Extension3D methods
     virtual void blitFramebuffer(long srcX0, long srcY0, long srcX1, long srcY1, long dstX0, long dstY0, long dstX1, long dstY1, unsigned long mask, unsigned long filter);
     virtual void renderbufferStorageMultisample(unsigned long target, unsigned long samples, unsigned long internalformat, unsigned long width, unsigned long height);
-    virtual void copyTextureCHROMIUM(GC3Denum, Platform3DObject, Platform3DObject, GC3Dint, GC3Denum);
     virtual void insertEventMarkerEXT(const String&);
     virtual void pushGroupMarkerEXT(const String&);
     virtual void popGroupMarkerEXT(void);
@@ -91,6 +78,10 @@ public:
     virtual GC3Dboolean isVertexArrayOES(Platform3DObject);
     virtual void bindVertexArrayOES(Platform3DObject);
     virtual void drawBuffersEXT(GC3Dsizei, const GC3Denum*);
+
+    virtual void drawArraysInstanced(GC3Denum mode, GC3Dint first, GC3Dsizei count, GC3Dsizei primcount);
+    virtual void drawElementsInstanced(GC3Denum mode, GC3Dsizei count, GC3Denum type, long long offset, GC3Dsizei primcount);
+    virtual void vertexAttribDivisor(GC3Duint index, GC3Duint divisor);
 
     // EXT Robustness - reset
     virtual int getGraphicsResetStatusARB();
@@ -113,6 +104,7 @@ protected:
 
     bool m_supportsOESvertexArrayObject;
     bool m_supportsIMGMultisampledRenderToTexture;
+    bool m_supportsANGLEinstancedArrays;
 
     PFNGLFRAMEBUFFERTEXTURE2DMULTISAMPLEIMG m_glFramebufferTexture2DMultisampleIMG;
     PFNGLRENDERBUFFERSTORAGEMULTISAMPLEIMG m_glRenderbufferStorageMultisampleIMG;
@@ -124,6 +116,10 @@ protected:
     PFNGLREADNPIXELSEXTPROC m_glReadnPixelsEXT;
     PFNGLGETNUNIFORMFVEXTPROC m_glGetnUniformfvEXT;
     PFNGLGETNUNIFORMIVEXTPROC m_glGetnUniformivEXT;
+    PFNGLVERTEXATTRIBDIVISORANGLEPROC m_glVertexAttribDivisorANGLE;
+    PFNGLDRAWARRAYSINSTANCEDANGLEPROC m_glDrawArraysInstancedANGLE;
+    PFNGLDRAWELEMENTSINSTANCEDANGLEPROC m_glDrawElementsInstancedANGLE;
+
 
     OwnPtr<GraphicsContext3D::ContextLostCallback> m_contextLostCallback;
 };

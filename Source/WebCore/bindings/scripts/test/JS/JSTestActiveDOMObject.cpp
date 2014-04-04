@@ -24,6 +24,7 @@
 #include "ExceptionCode.h"
 #include "JSDOMBinding.h"
 #include "JSNode.h"
+#include "ScriptExecutionContext.h"
 #include "TestActiveDOMObject.h"
 #include <runtime/Error.h>
 #include <wtf/GetPtr.h>
@@ -34,22 +35,34 @@ namespace WebCore {
 
 /* Hash table */
 
-static const HashTableValue JSTestActiveDOMObjectTableValues[] =
-{
-    { "excitingAttr", DontDelete | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestActiveDOMObjectExcitingAttr), (intptr_t)0 },
-    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestActiveDOMObjectConstructor), (intptr_t)0 },
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSTestActiveDOMObjectTableIndex[4] = {
+    { 1, -1 },
+    { 0, -1 },
+    { -1, -1 },
+    { -1, -1 },
 };
 
-static const HashTable JSTestActiveDOMObjectTable = { 4, 3, JSTestActiveDOMObjectTableValues, 0 };
+
+static const HashTableValue JSTestActiveDOMObjectTableValues[] =
+{
+    { "constructor", DontEnum | ReadOnly, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestActiveDOMObjectConstructor), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
+    { "excitingAttr", DontDelete | ReadOnly | CustomAccessor, NoIntrinsic, (intptr_t)static_cast<PropertySlot::GetValueFunc>(jsTestActiveDOMObjectExcitingAttr), (intptr_t) static_cast<PutPropertySlot::PutValueFunc>(0) },
+};
+
+static const HashTable JSTestActiveDOMObjectTable = { 2, 3, true, JSTestActiveDOMObjectTableValues, 0, JSTestActiveDOMObjectTableIndex };
 /* Hash table for constructor */
+
+static const struct CompactHashIndex JSTestActiveDOMObjectConstructorTableIndex[1] = {
+    { -1, -1 },
+};
+
 
 static const HashTableValue JSTestActiveDOMObjectConstructorTableValues[] =
 {
     { 0, 0, NoIntrinsic, 0, 0 }
 };
 
-static const HashTable JSTestActiveDOMObjectConstructorTable = { 1, 0, JSTestActiveDOMObjectConstructorTableValues, 0 };
+static const HashTable JSTestActiveDOMObjectConstructorTable = { 0, 0, false, JSTestActiveDOMObjectConstructorTableValues, 0, JSTestActiveDOMObjectConstructorTableIndex };
 const ClassInfo JSTestActiveDOMObjectConstructor::s_info = { "TestActiveDOMObjectConstructor", &Base::s_info, &JSTestActiveDOMObjectConstructorTable, 0, CREATE_METHOD_TABLE(JSTestActiveDOMObjectConstructor) };
 
 JSTestActiveDOMObjectConstructor::JSTestActiveDOMObjectConstructor(Structure* structure, JSDOMGlobalObject* globalObject)
@@ -72,14 +85,21 @@ bool JSTestActiveDOMObjectConstructor::getOwnPropertySlot(JSObject* object, Exec
 
 /* Hash table for prototype */
 
-static const HashTableValue JSTestActiveDOMObjectPrototypeTableValues[] =
-{
-    { "excitingFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestActiveDOMObjectPrototypeFunctionExcitingFunction), (intptr_t)1 },
-    { "postMessage", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestActiveDOMObjectPrototypeFunctionPostMessage), (intptr_t)1 },
-    { 0, 0, NoIntrinsic, 0, 0 }
+static const struct CompactHashIndex JSTestActiveDOMObjectPrototypeTableIndex[4] = {
+    { 0, -1 },
+    { 1, -1 },
+    { -1, -1 },
+    { -1, -1 },
 };
 
-static const HashTable JSTestActiveDOMObjectPrototypeTable = { 4, 3, JSTestActiveDOMObjectPrototypeTableValues, 0 };
+
+static const HashTableValue JSTestActiveDOMObjectPrototypeTableValues[] =
+{
+    { "excitingFunction", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestActiveDOMObjectPrototypeFunctionExcitingFunction), (intptr_t) (1) },
+    { "postMessage", JSC::Function, NoIntrinsic, (intptr_t)static_cast<NativeFunction>(jsTestActiveDOMObjectPrototypeFunctionPostMessage), (intptr_t) (1) },
+};
+
+static const HashTable JSTestActiveDOMObjectPrototypeTable = { 2, 3, false, JSTestActiveDOMObjectPrototypeTableValues, 0, JSTestActiveDOMObjectPrototypeTableIndex };
 const ClassInfo JSTestActiveDOMObjectPrototype::s_info = { "TestActiveDOMObjectPrototype", &Base::s_info, &JSTestActiveDOMObjectPrototypeTable, 0, CREATE_METHOD_TABLE(JSTestActiveDOMObjectPrototype) };
 
 JSObject* JSTestActiveDOMObjectPrototype::self(VM& vm, JSGlobalObject* globalObject)
@@ -99,12 +119,6 @@ JSTestActiveDOMObject::JSTestActiveDOMObject(Structure* structure, JSDOMGlobalOb
     : JSDOMWrapper(structure, globalObject)
     , m_impl(impl.leakRef())
 {
-}
-
-void JSTestActiveDOMObject::finishCreation(VM& vm)
-{
-    Base::finishCreation(vm);
-    ASSERT(inherits(info()));
 }
 
 JSObject* JSTestActiveDOMObject::createPrototype(VM& vm, JSGlobalObject* globalObject)
@@ -130,9 +144,18 @@ bool JSTestActiveDOMObject::getOwnPropertySlot(JSObject* object, ExecState* exec
     return getStaticValueSlot<JSTestActiveDOMObject, Base>(exec, JSTestActiveDOMObjectTable, thisObject, propertyName, slot);
 }
 
-EncodedJSValue jsTestActiveDOMObjectExcitingAttr(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName)
+EncodedJSValue jsTestActiveDOMObjectExcitingAttr(ExecState* exec, JSObject* slotBase, EncodedJSValue thisValue, PropertyName)
 {
-    JSTestActiveDOMObject* castedThis = jsDynamicCast<JSTestActiveDOMObject*>(JSValue::decode(slotBase));
+    JSTestActiveDOMObject* castedThis = jsDynamicCast<JSTestActiveDOMObject*>(JSValue::decode(thisValue));
+    UNUSED_PARAM(slotBase);
+    if (UNLIKELY(!castedThis)) {
+        if (jsDynamicCast<JSTestActiveDOMObjectPrototype*>(slotBase)) {
+            ScriptExecutionContext* scriptExecutionContext = jsCast<JSDOMGlobalObject*>(exec->lexicalGlobalObject())->scriptExecutionContext();
+            scriptExecutionContext->addConsoleMessage(MessageSource::JS, MessageLevel::Error, String("Deprecated attempt to access property 'excitingAttr' on a non-TestActiveDOMObject object."));
+            return JSValue::encode(jsUndefined());
+        }
+        return throwVMTypeError(exec, makeDOMBindingsTypeErrorString("The ", "TestActiveDOMObject", ".", "excitingAttr", " getter can only be used on instances of ", "TestActiveDOMObject"));
+    }
     if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, castedThis->impl()))
         return JSValue::encode(jsUndefined());
     UNUSED_PARAM(exec);
@@ -142,9 +165,13 @@ EncodedJSValue jsTestActiveDOMObjectExcitingAttr(ExecState* exec, EncodedJSValue
 }
 
 
-EncodedJSValue jsTestActiveDOMObjectConstructor(ExecState* exec, EncodedJSValue slotBase, EncodedJSValue, PropertyName)
+EncodedJSValue jsTestActiveDOMObjectConstructor(ExecState* exec, JSObject* baseValue, EncodedJSValue thisValue, PropertyName)
 {
-    JSTestActiveDOMObject* domObject = jsDynamicCast<JSTestActiveDOMObject*>(JSValue::decode(slotBase));
+    UNUSED_PARAM(baseValue);
+    UNUSED_PARAM(thisValue);
+    JSTestActiveDOMObject* domObject = jsDynamicCast<JSTestActiveDOMObject*>(JSValue::decode(thisValue));
+    if (!domObject)
+        return throwVMTypeError(exec);
     if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, domObject->impl()))
         return JSValue::encode(jsUndefined());
     return JSValue::encode(JSTestActiveDOMObject::getConstructor(exec->vm(), domObject->globalObject()));
@@ -157,10 +184,10 @@ JSValue JSTestActiveDOMObject::getConstructor(VM& vm, JSGlobalObject* globalObje
 
 EncodedJSValue JSC_HOST_CALL jsTestActiveDOMObjectPrototypeFunctionExcitingFunction(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     JSTestActiveDOMObject* castedThis = jsDynamicCast<JSTestActiveDOMObject*>(thisValue);
-    if (!castedThis)
-        return throwVMTypeError(exec);
+    if (UNLIKELY(!castedThis))
+        return throwVMTypeError(exec, makeDOMBindingsTypeErrorString("Can only call ", "TestActiveDOMObject", ".", "excitingFunction", " on instances of ", "TestActiveDOMObject"));
     ASSERT_GC_OBJECT_INHERITS(castedThis, JSTestActiveDOMObject::info());
     if (!BindingSecurity::shouldAllowAccessToDOMWindow(exec, castedThis->impl()))
         return JSValue::encode(jsUndefined());
@@ -168,7 +195,7 @@ EncodedJSValue JSC_HOST_CALL jsTestActiveDOMObjectPrototypeFunctionExcitingFunct
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
     Node* nextChild(toNode(exec->argument(0)));
-    if (exec->hadException())
+    if (UNLIKELY(exec->hadException()))
         return JSValue::encode(jsUndefined());
     impl.excitingFunction(nextChild);
     return JSValue::encode(jsUndefined());
@@ -176,16 +203,16 @@ EncodedJSValue JSC_HOST_CALL jsTestActiveDOMObjectPrototypeFunctionExcitingFunct
 
 EncodedJSValue JSC_HOST_CALL jsTestActiveDOMObjectPrototypeFunctionPostMessage(ExecState* exec)
 {
-    JSValue thisValue = exec->hostThisValue();
+    JSValue thisValue = exec->thisValue();
     JSTestActiveDOMObject* castedThis = jsDynamicCast<JSTestActiveDOMObject*>(thisValue);
-    if (!castedThis)
-        return throwVMTypeError(exec);
+    if (UNLIKELY(!castedThis))
+        return throwVMTypeError(exec, makeDOMBindingsTypeErrorString("Can only call ", "TestActiveDOMObject", ".", "postMessage", " on instances of ", "TestActiveDOMObject"));
     ASSERT_GC_OBJECT_INHERITS(castedThis, JSTestActiveDOMObject::info());
     TestActiveDOMObject& impl = castedThis->impl();
     if (exec->argumentCount() < 1)
         return throwVMError(exec, createNotEnoughArgumentsError(exec));
     const String& message(exec->argument(0).isEmpty() ? String() : exec->argument(0).toString(exec)->value(exec));
-    if (exec->hadException())
+    if (UNLIKELY(exec->hadException()))
         return JSValue::encode(jsUndefined());
     impl.postMessage(message);
     return JSValue::encode(jsUndefined());
@@ -200,7 +227,7 @@ bool JSTestActiveDOMObjectOwner::isReachableFromOpaqueRoots(JSC::Handle<JSC::Unk
 
 void JSTestActiveDOMObjectOwner::finalize(JSC::Handle<JSC::Unknown> handle, void* context)
 {
-    JSTestActiveDOMObject* jsTestActiveDOMObject = jsCast<JSTestActiveDOMObject*>(handle.get().asCell());
+    JSTestActiveDOMObject* jsTestActiveDOMObject = jsCast<JSTestActiveDOMObject*>(handle.slot()->asCell());
     DOMWrapperWorld& world = *static_cast<DOMWrapperWorld*>(context);
     uncacheWrapper(world, &jsTestActiveDOMObject->impl(), jsTestActiveDOMObject);
     jsTestActiveDOMObject->releaseImpl();
@@ -214,11 +241,11 @@ extern "C" { extern void (*const __identifier("??_7TestActiveDOMObject@WebCore@@
 extern "C" { extern void* _ZTVN7WebCore19TestActiveDOMObjectE[]; }
 #endif
 #endif
-JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestActiveDOMObject* impl)
+JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, TestActiveDOMObject* impl)
 {
     if (!impl)
         return jsNull();
-    if (JSValue result = getExistingWrapper<JSTestActiveDOMObject>(exec, impl))
+    if (JSValue result = getExistingWrapper<JSTestActiveDOMObject>(globalObject, impl))
         return result;
 
 #if ENABLE(BINDING_INTEGRITY)
@@ -239,8 +266,7 @@ JSC::JSValue toJS(JSC::ExecState* exec, JSDOMGlobalObject* globalObject, TestAct
     // by adding the SkipVTableValidation attribute to the interface IDL definition
     RELEASE_ASSERT(actualVTablePointer == expectedVTablePointer);
 #endif
-    ReportMemoryCost<TestActiveDOMObject>::reportMemoryCost(exec, impl);
-    return createNewWrapper<JSTestActiveDOMObject>(exec, globalObject, impl);
+    return createNewWrapper<JSTestActiveDOMObject>(globalObject, impl);
 }
 
 TestActiveDOMObject* toTestActiveDOMObject(JSC::JSValue value)

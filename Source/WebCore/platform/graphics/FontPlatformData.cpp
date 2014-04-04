@@ -27,12 +27,20 @@
 #include <wtf/text/StringHash.h>
 #include <wtf/text/WTFString.h>
 
+#if OS(DARWIN) && USE(CG)
+#include "SharedBuffer.h"
+#include <CoreGraphics/CGFont.h>
+#endif
+
 namespace WebCore {
 
 FontPlatformData::FontPlatformData(WTF::HashTableDeletedValueType)
     : m_syntheticBold(false)
     , m_syntheticOblique(false)
     , m_orientation(Horizontal)
+#if PLATFORM(IOS)
+    , m_isEmoji(false)
+#endif
     , m_size(0)
     , m_widthVariant(RegularWidth)
 #if PLATFORM(WIN)
@@ -60,6 +68,9 @@ FontPlatformData::FontPlatformData()
     : m_syntheticBold(false)
     , m_syntheticOblique(false)
     , m_orientation(Horizontal)
+#if PLATFORM(IOS)
+    , m_isEmoji(false)
+#endif
     , m_size(0)
     , m_widthVariant(RegularWidth)
 #if OS(DARWIN)
@@ -85,6 +96,9 @@ FontPlatformData::FontPlatformData(float size, bool syntheticBold, bool syntheti
     : m_syntheticBold(syntheticBold)
     , m_syntheticOblique(syntheticOblique)
     , m_orientation(orientation)
+#if PLATFORM(IOS)
+    , m_isEmoji(false)
+#endif
     , m_size(size)
     , m_widthVariant(widthVariant)
 #if OS(DARWIN)
@@ -111,6 +125,9 @@ FontPlatformData::FontPlatformData(CGFontRef cgFont, float size, bool syntheticB
     : m_syntheticBold(syntheticBold)
     , m_syntheticOblique(syntheticOblique)
     , m_orientation(orientation)
+#if PLATFORM(IOS)
+    , m_isEmoji(false)
+#endif
     , m_size(size)
     , m_widthVariant(widthVariant)
     , m_font(0)
@@ -156,5 +173,15 @@ const FontPlatformData& FontPlatformData::operator=(const FontPlatformData& othe
 
     return platformDataAssign(other);
 }
+
+#if OS(DARWIN) && USE(CG)
+PassRefPtr<SharedBuffer> FontPlatformData::openTypeTable(uint32_t table) const
+{
+    if (CFDataRef data = CGFontCopyTableForTag(cgFont(), table))
+        return SharedBuffer::wrapCFData(data);
+    
+    return nullptr;
+}
+#endif
 
 }

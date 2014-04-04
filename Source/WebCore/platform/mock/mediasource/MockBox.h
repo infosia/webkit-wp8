@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -67,7 +67,7 @@ protected:
 // 4 bytes : 4CC : codec
 // 1 byte  : unsigned : kind
 // 
-class MockTrackBox FINAL : public MockBox {
+class MockTrackBox final : public MockBox {
 public:
     static const String& type();
     MockTrackBox(JSC::ArrayBuffer*);
@@ -94,7 +94,7 @@ protected:
 // 4 bytes : signed : duration time scale
 // N bytes : MockTrackBoxes : tracks
 //
-class MockInitializationBox FINAL : public MockBox {
+class MockInitializationBox final : public MockBox {
 public:
     static const String& type();
     MockInitializationBox(JSC::ArrayBuffer*);
@@ -118,7 +118,7 @@ protected:
 // 4 bytes : signed : track ID
 // 1 byte  : unsigned : flags
 //
-class MockSampleBox FINAL : public MockBox {
+class MockSampleBox final : public MockBox {
 public:
     static const String& type();
     MockSampleBox(JSC::ArrayBuffer*);
@@ -129,8 +129,16 @@ public:
     int32_t trackID() const { return m_trackID; }
     uint8_t flags() const { return m_flags; }
 
-    enum { IsSync = 1 << 0 };
+    enum {
+        IsSync = 1 << 0,
+        IsCorrupted = 1 << 1,
+        IsDropped = 1 << 2,
+        IsDelayed = 1 << 3,
+    };
     bool isSync() const { return m_flags & IsSync; }
+    bool isCorrupted() const { return m_flags & IsCorrupted; }
+    bool isDropped() const { return m_flags & IsDropped; }
+    bool isDelayed() const { return m_flags & IsDelayed; }
 
 protected:
     MediaTime m_presentationTimestamp;

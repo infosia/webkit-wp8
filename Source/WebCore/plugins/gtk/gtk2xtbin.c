@@ -65,6 +65,9 @@
 #include <X11/Intrinsic.h>
 #include <X11/StringDefs.h>
 
+// This is to suppress warnings about gdk_threads_leave and gdk_threads_enter.
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 /* uncomment this if you want debugging information about widget
    creation and destruction */
 #undef DEBUG_XTBIN
@@ -131,6 +134,8 @@ static gboolean
 xt_event_prepare (GSource*  source_data,
                    gint     *timeout)
 {   
+  UNUSED_PARAM(source_data);
+  UNUSED_PARAM(timeout);
   int mask;
 
   gdk_threads_enter();
@@ -143,6 +148,8 @@ xt_event_prepare (GSource*  source_data,
 static gboolean
 xt_event_check (GSource*  source_data)
 {
+  UNUSED_PARAM(source_data);
+
   gdk_threads_enter();
 
   if (xt_event_poll_fd.revents & G_IO_IN) {
@@ -161,6 +168,10 @@ xt_event_dispatch (GSource*  source_data,
                     GSourceFunc call_back,
                     gpointer  user_data)
 {
+  UNUSED_PARAM(source_data);
+  UNUSED_PARAM(call_back);
+  UNUSED_PARAM(user_data);
+
   XtAppContext ac;
   int i = 0;
 
@@ -689,6 +700,8 @@ xt_client_set_info (Widget xtplug, unsigned long flags)
 static void
 xt_client_handle_xembed_message(Widget w, XtPointer client_data, XEvent *event)
 {
+  UNUSED_PARAM(w);
+
   XtClient *xtplug = (XtClient*)client_data;
   switch (event->xclient.data.l[1])
   {
@@ -824,6 +837,8 @@ send_xembed_message (XtClient  *xtclient,
 static int             
 error_handler(Display *display, XErrorEvent *error)
 {
+  UNUSED_PARAM(display);
+
   trapped_error_code = error->error_code;
   return 0;
 }

@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -108,6 +108,21 @@ void AXComputedObjectAttributeCache::setIgnored(AXID id, AccessibilityObjectIncl
 bool AXObjectCache::gAccessibilityEnabled = false;
 bool AXObjectCache::gAccessibilityEnhancedUserInterfaceEnabled = false;
 
+void AXObjectCache::enableAccessibility()
+{
+    gAccessibilityEnabled = true;
+}
+
+void AXObjectCache::disableAccessibility()
+{
+    gAccessibilityEnabled = false;
+}
+
+void AXObjectCache::setEnhancedUserInterfaceAccessibility(bool flag)
+{
+    gAccessibilityEnhancedUserInterfaceEnabled = flag;
+}
+
 AXObjectCache::AXObjectCache(Document& document)
     : m_document(document)
     , m_notificationPostTimer(this, &AXObjectCache::notificationPostTimerFired)
@@ -118,12 +133,10 @@ AXObjectCache::~AXObjectCache()
 {
     m_notificationPostTimer.stop();
 
-    HashMap<AXID, RefPtr<AccessibilityObject>>::iterator end = m_objects.end();
-    for (HashMap<AXID, RefPtr<AccessibilityObject>>::iterator it = m_objects.begin(); it != end; ++it) {
-        AccessibilityObject* obj = (*it).value.get();
-        detachWrapper(obj);
-        obj->detach();
-        removeAXID(obj);
+    for (const auto& object : m_objects.values()) {
+        detachWrapper(object.get(), CacheDestroyed);
+        object->detach(CacheDestroyed);
+        removeAXID(object.get());
     }
 }
 
@@ -142,15 +155,12 @@ AccessibilityObject* AXObjectCache::focusedImageMapUIElement(HTMLAreaElement* ar
     if (!axRenderImage)
         return 0;
     
-    AccessibilityObject::AccessibilityChildrenVector imageChildren = axRenderImage->children();
-    unsigned count = imageChildren.size();
-    for (unsigned k = 0; k < count; ++k) {
-        AccessibilityObject* child = imageChildren[k].get();
+    for (const auto& child : axRenderImage->children()) {
         if (!child->isImageMapLink())
             continue;
         
-        if (toAccessibilityImageMapLink(child)->areaElement() == areaElement)
-            return child;
+        if (toAccessibilityImageMapLink(child.get())->areaElement() == areaElement)
+            return child.get();
     }    
     
     return 0;
@@ -244,7 +254,7 @@ bool nodeHasRole(Node* node, const String& role)
     if (!node || !node->isElementNode())
         return false;
 
-    return equalIgnoringCase(toElement(node)->getAttribute(roleAttr), role);
+    return equalIgnoringCase(toElement(node)->fastGetAttribute(roleAttr), role);
 }
 
 static PassRefPtr<AccessibilityObject> createFromRenderer(RenderObject* renderer)
@@ -272,10 +282,8 @@ static PassRefPtr<AccessibilityObject> createFromRenderer(RenderObject* renderer
         return AccessibilityMediaControl::create(renderer);
 #endif
 
-#if ENABLE(SVG)
     if (renderer->isSVGRoot())
         return AccessibilitySVGRoot::create(renderer);
-#endif
     
     // Search field buttons
     if (node && node->isElementNode() && toElement(node)->isSearchFieldCancelButtonElement())
@@ -493,8 +501,8 @@ void AXObjectCache::remove(AXID axID)
     if (!obj)
         return;
     
-    detachWrapper(obj);
-    obj->detach();
+    detachWrapper(obj, ElementDestroyed);
+    obj->detach(ElementDestroyed, this);
     removeAXID(obj);
     
     // finally remove the object
@@ -620,13 +628,51 @@ void AXObjectCache::updateCacheAfterNodeIsAttached(Node* node)
     get(node);
 }
 
-void AXObjectCache::childrenChanged(Node* node)
+void AXObjectCache::handleMenuOpened(Node* node)
 {
+    if (!node || !node->renderer() || !nodeHasRole(node, "menu"))
+        return;
+    
+    postNotification(getOrCreate(node), &document(), AXMenuOpened);
+}
+    
+void AXObjectCache::handleLiveRegionCreated(Node* node)
+{
+    if (!node || !node->renderer() || !node->isElementNode())
+        return;
+    
+    Element* element = toElement(node);
+    String liveRegionStatus = element->fastGetAttribute(aria_liveAttr);
+    if (liveRegionStatus.isEmpty()) {
+        const AtomicString& ariaRole = element->fastGetAttribute(roleAttr);
+        if (!ariaRole.isEmpty())
+            liveRegionStatus = AccessibilityObject::defaultLiveRegionStatusForRole(AccessibilityObject::ariaRoleToWebCoreRole(ariaRole));
+    }
+    
+    if (AccessibilityObject::liveRegionStatusIsEnabled(liveRegionStatus))
+        postNotification(getOrCreate(node), &document(), AXLiveRegionCreated);
+}
+    
+void AXObjectCache::childrenChanged(Node* node, Node* newChild)
+{
+    if (newChild) {
+        handleMenuOpened(newChild);
+        handleLiveRegionCreated(newChild);
+    }
+    
     childrenChanged(get(node));
 }
 
-void AXObjectCache::childrenChanged(RenderObject* renderer)
+void AXObjectCache::childrenChanged(RenderObject* renderer, RenderObject* newChild)
 {
+    if (!renderer)
+        return;
+    
+    if (newChild) {
+        handleMenuOpened(newChild->node());
+        handleLiveRegionCreated(newChild->node());
+    }
+    
     childrenChanged(get(renderer));
 }
 
@@ -638,15 +684,18 @@ void AXObjectCache::childrenChanged(AccessibilityObject* obj)
     obj->childrenChanged();
 }
     
-void AXObjectCache::notificationPostTimerFired(Timer<AXObjectCache>*)
+void AXObjectCache::notificationPostTimerFired(Timer<AXObjectCache>&)
 {
     Ref<Document> protectorForCacheOwner(m_document);
-
     m_notificationPostTimer.stop();
-
-    unsigned i = 0, count = m_notificationsToPost.size();
-    for (i = 0; i < count; ++i) {
-        AccessibilityObject* obj = m_notificationsToPost[i].first.get();
+    
+    // In DRT, posting notifications has a tendency to immediately queue up other notifications, which can lead to unexpected behavior
+    // when the notification list is cleared at the end. Instead copy this list at the start.
+    auto notifications = m_notificationsToPost;
+    m_notificationsToPost.clear();
+    
+    for (const auto& note : notifications) {
+        AccessibilityObject* obj = note.first.get();
         if (!obj->axObjectID())
             continue;
 
@@ -663,15 +712,22 @@ void AXObjectCache::notificationPostTimerFired(Timer<AXObjectCache>*)
                 ASSERT(!renderer->view().layoutState());
         }
 #endif
+
+        AXNotification notification = note.second;
         
-        AXNotification notification = m_notificationsToPost[i].second;
+        // Ensure that this menu really is a menu. We do this check here so that we don't have to create
+        // the axChildren when the menu is marked as opening.
+        if (notification == AXMenuOpened) {
+            obj->updateChildrenIfNecessary();
+            if (obj->roleValue() != MenuRole)
+                continue;
+        }
+        
         postPlatformNotification(obj, notification);
 
         if (notification == AXChildrenChanged && obj->parentObjectIfExists() && obj->lastKnownIsIgnoredValue() != obj->accessibilityIsIgnored())
             childrenChanged(obj->parentObject());
     }
-    
-    m_notificationsToPost.clear();
 }
     
 void AXObjectCache::postNotification(RenderObject* renderer, AXNotification notification, PostTarget postTarget, PostType postType)
@@ -742,8 +798,30 @@ void AXObjectCache::checkedStateChanged(Node* node)
     postNotification(node, AXObjectCache::AXCheckedStateChanged);
 }
 
+void AXObjectCache::handleMenuItemSelected(Node* node)
+{
+    if (!node)
+        return;
+    
+    if (!nodeHasRole(node, "menuitem") && !nodeHasRole(node, "menuitemradio") && !nodeHasRole(node, "menuitemcheckbox"))
+        return;
+    
+    if (!toElement(node)->focused() && !equalIgnoringCase(toElement(node)->fastGetAttribute(aria_selectedAttr), "true"))
+        return;
+    
+    postNotification(getOrCreate(node), &document(), AXMenuListItemSelected);
+}
+    
+void AXObjectCache::handleFocusedUIElementChanged(Node* oldNode, Node* newNode)
+{
+    handleMenuItemSelected(newNode);
+    platformHandleFocusedUIElementChanged(oldNode, newNode);
+}
+    
 void AXObjectCache::selectedChildrenChanged(Node* node)
 {
+    handleMenuItemSelected(node);
+    
     // postTarget is TargetObservableParent so that you can pass in any child of an element and it will go up the parent tree
     // to find the container which should send out the notification.
     postNotification(node, AXSelectedChildrenChanged, TargetObservableParent);
@@ -751,6 +829,9 @@ void AXObjectCache::selectedChildrenChanged(Node* node)
 
 void AXObjectCache::selectedChildrenChanged(RenderObject* renderer)
 {
+    if (renderer)
+        handleMenuItemSelected(renderer->node());
+
     // postTarget is TargetObservableParent so that you can pass in any child of an element and it will go up the parent tree
     // to find the container which should send out the notification.
     postNotification(renderer, AXSelectedChildrenChanged, TargetObservableParent);
@@ -843,7 +924,7 @@ void AXObjectCache::handleAttributeChanged(const QualifiedName& attrName, Elemen
     else if (attrName == aria_expandedAttr)
         handleAriaExpandedChange(element);
     else if (attrName == aria_hiddenAttr)
-        childrenChanged(element->parentNode());
+        childrenChanged(element->parentNode(), element);
     else if (attrName == aria_invalidAttr)
         postNotification(element, AXObjectCache::AXInvalidStatusChanged);
     else
@@ -977,10 +1058,19 @@ bool isNodeAriaVisible(Node* node)
     if (!node)
         return false;
     
-    if (!node->isElementNode())
-        return false;
+    // To determine if a node is ARIA visible, we need to check the parent hierarchy to see if anyone specifies
+    // aria-hidden explicitly.
+    for (Node* testNode = node; testNode; testNode = testNode->parentNode()) {
+        if (testNode->isElementNode()) {
+            const AtomicString& ariaHiddenValue = toElement(testNode)->fastGetAttribute(aria_hiddenAttr);
+            if (equalIgnoringCase(ariaHiddenValue, "false"))
+                return true;
+            if (equalIgnoringCase(ariaHiddenValue, "true"))
+                return false;
+        }
+    }
     
-    return equalIgnoringCase(toElement(node)->getAttribute(aria_hiddenAttr), "false");
+    return false;
 }
 
 AXAttributeCacheEnabler::AXAttributeCacheEnabler(AXObjectCache* cache)

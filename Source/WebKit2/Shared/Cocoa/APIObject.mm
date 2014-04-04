@@ -28,11 +28,13 @@
 
 #if WK_API_ENABLED
 
+#import "_WKDownloadInternal.h"
 #import "WKBackForwardListInternal.h"
 #import "WKBackForwardListItemInternal.h"
 #import "WKBrowsingContextControllerInternal.h"
 #import "WKBrowsingContextGroupInternal.h"
 #import "WKConnectionInternal.h"
+#import "_WKFrameHandleInternal.h"
 #import "WKNSArray.h"
 #import "WKNSData.h"
 #import "WKNSDictionary.h"
@@ -42,9 +44,14 @@
 #import "WKNSURLAuthenticationChallenge.h"
 #import "WKNSURLProtectionSpace.h"
 #import "WKNavigationDataInternal.h"
-#import "WKProcessGroupInternal.h"
+#import "WKProcessPoolInternal.h"
 #import "WKWebProcessPlugInBrowserContextControllerInternal.h"
+#import "WKWebProcessPlugInFrameInternal.h"
+#import "WKWebProcessPlugInHitTestResultInternal.h"
 #import "WKWebProcessPlugInInternal.h"
+#import "WKWebProcessPlugInNodeHandleInternal.h"
+#import "WKWebProcessPlugInPageGroupInternal.h"
+#import "WKWebProcessPlugInScriptWorldInternal.h"
 
 namespace API {
 
@@ -96,7 +103,7 @@ void* Object::newObject(size_t size, Type type)
         break;
 
     case Type::Context:
-        wrapper = [WKProcessGroup alloc];
+        wrapper = [WKProcessPool alloc];
         break;
 
     case Type::Data:
@@ -107,16 +114,20 @@ void* Object::newObject(size_t size, Type type)
         wrapper = [WKNSDictionary alloc];
         break;
 
+    case Type::Download:
+        wrapper = [_WKDownload alloc];
+        break;
+
     case Type::Error:
         wrapper = NSAllocateObject([WKNSError self], size, nullptr);
         break;
 
-    case Type::NavigationData:
-        wrapper = [WKNavigationData alloc];
+    case Type::FrameHandle:
+        wrapper = [_WKFrameHandle alloc];
         break;
 
-    case Type::Page:
-        wrapper = [WKBrowsingContextController alloc];
+    case Type::NavigationData:
+        wrapper = [WKNavigationData alloc];
         break;
 
     case Type::PageGroup:
@@ -133,6 +144,26 @@ void* Object::newObject(size_t size, Type type)
 
     case Type::URL:
         wrapper = NSAllocateObject([WKNSURL class], size, nullptr);
+        break;
+
+    case Type::BundleFrame:
+        wrapper = [WKWebProcessPlugInFrame alloc];
+        break;
+
+    case Type::BundleHitTestResult:
+        wrapper = [WKWebProcessPlugInHitTestResult alloc];
+        break;
+
+    case Type::BundleNodeHandle:
+        wrapper = [WKWebProcessPlugInNodeHandle alloc];
+        break;
+
+    case Type::BundlePageGroup:
+        wrapper = [WKWebProcessPlugInPageGroup alloc];
+        break;
+
+    case Type::BundleScriptWorld:
+        wrapper = [WKWebProcessPlugInScriptWorld alloc];
         break;
 
     default:

@@ -20,8 +20,6 @@
  */
 
 #include "config.h"
-
-#if ENABLE(SVG)
 #include "SVGLength.h"
 
 #include "CSSHelper.h"
@@ -31,9 +29,8 @@
 #include "FloatConversion.h"
 #include "SVGNames.h"
 #include "SVGParserUtilities.h"
-
 #include <wtf/MathExtras.h>
-#include <wtf/text/WTFString.h>
+#include <wtf/text/StringView.h>
 
 namespace WebCore {
 
@@ -226,7 +223,8 @@ void SVGLength::setValueAsString(const String& string, ExceptionCode& ec)
         return;
 
     float convertedNumber = 0;
-    const UChar* ptr = string.characters();
+    auto upconvertedCharacters = StringView(string).upconvertedCharacters();
+    const UChar* ptr = upconvertedCharacters;
     const UChar* end = ptr + string.length();
 
     if (!parseNumber(ptr, end, convertedNumber, false)) {
@@ -380,7 +378,7 @@ PassRefPtr<CSSPrimitiveValue> SVGLength::toCSSPrimitiveValue(const SVGLength& le
 SVGLengthMode SVGLength::lengthModeForAnimatedLengthAttribute(const QualifiedName& attrName)
 {
     typedef HashMap<QualifiedName, SVGLengthMode> LengthModeForLengthAttributeMap;
-    DEFINE_STATIC_LOCAL(LengthModeForLengthAttributeMap, s_lengthModeMap, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(LengthModeForLengthAttributeMap, s_lengthModeMap, ());
     
     if (s_lengthModeMap.isEmpty()) {
         s_lengthModeMap.set(SVGNames::xAttr, LengthModeWidth);
@@ -413,5 +411,3 @@ SVGLengthMode SVGLength::lengthModeForAnimatedLengthAttribute(const QualifiedNam
 }
 
 }
-
-#endif

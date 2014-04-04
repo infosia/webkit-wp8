@@ -563,6 +563,10 @@ enum FeatureToAnimate {
     // UIStateTransition always animates to 1. In case an animation is in progress this avoids a hard transition.
     [scrollbarPainter setUiStateTransitionProgress:1 - [scrollerImp uiStateTransitionProgress]];
 
+    // If the UI state transition is happening, then we are no longer moving the scrollbar on the scrolling thread.
+    if (_scrollbar->supportsUpdateOnSecondaryThread())
+        [scrollbarPainter setUsePresentationValue:NO];
+
     if (!_uiStateTransitionAnimation)
         _uiStateTransitionAnimation = adoptNS([[WebScrollbarPartAnimation alloc] initWithScrollbar:_scrollbar 
                                                                                 featureToAnimate:UIStateTransition
@@ -650,7 +654,7 @@ ScrollAnimatorMac::ScrollAnimatorMac(ScrollableArea* scrollableArea)
 
     m_scrollbarPainterControllerDelegate = adoptNS([[WebScrollbarPainterControllerDelegate alloc] initWithScrollableArea:scrollableArea]);
     m_scrollbarPainterController = [[[NSClassFromString(@"NSScrollerImpPair") alloc] init] autorelease];
-    [m_scrollbarPainterController setDelegate:m_scrollbarPainterControllerDelegate.get()];
+    [m_scrollbarPainterController setDelegate:(id)m_scrollbarPainterControllerDelegate.get()];
     [m_scrollbarPainterController setScrollerStyle:recommendedScrollerStyle()];
 }
 
@@ -731,6 +735,18 @@ FloatPoint ScrollAnimatorMac::adjustScrollPositionIfNecessary(const FloatPoint& 
     float newY = std::max<float>(std::min<float>(position.y(), m_scrollableArea->totalContentsSize().height() - m_scrollableArea->visibleHeight()), 0);
 
     return FloatPoint(newX, newY);
+}
+
+void ScrollAnimatorMac::adjustScrollPositionToBoundsIfNecessary()
+{
+    bool currentlyConstrainsToContentEdge = m_scrollableArea->constrainsScrollingToContentEdge();
+    m_scrollableArea->setConstrainsScrollingToContentEdge(true);
+
+    IntPoint currentScrollPosition = absoluteScrollPosition();
+    FloatPoint nearestPointWithinBounds = adjustScrollPositionIfNecessary(absoluteScrollPosition());
+    immediateScrollBy(nearestPointWithinBounds - currentScrollPosition);
+
+    m_scrollableArea->setConstrainsScrollingToContentEdge(currentlyConstrainsToContentEdge);
 }
 
 void ScrollAnimatorMac::immediateScrollTo(const FloatPoint& newPosition)
@@ -924,7 +940,7 @@ void ScrollAnimatorMac::didAddVerticalScrollbar(Scrollbar* scrollbar)
     ASSERT(!m_verticalScrollbarPainterDelegate);
     m_verticalScrollbarPainterDelegate = adoptNS([[WebScrollbarPainterDelegate alloc] initWithScrollbar:scrollbar]);
 
-    [painter setDelegate:m_verticalScrollbarPainterDelegate.get()];
+    [painter setDelegate:(id)m_verticalScrollbarPainterDelegate.get()];
     if (GraphicsLayer* layer = scrollbar->scrollableArea()->layerForVerticalScrollbar())
         [painter setLayer:layer->platformLayer()];
 
@@ -956,7 +972,7 @@ void ScrollAnimatorMac::didAddHorizontalScrollbar(Scrollbar* scrollbar)
     ASSERT(!m_horizontalScrollbarPainterDelegate);
     m_horizontalScrollbarPainterDelegate = adoptNS([[WebScrollbarPainterDelegate alloc] initWithScrollbar:scrollbar]);
 
-    [painter setDelegate:m_horizontalScrollbarPainterDelegate.get()];
+    [painter setDelegate:(id)m_horizontalScrollbarPainterDelegate.get()];
     if (GraphicsLayer* layer = scrollbar->scrollableArea()->layerForHorizontalScrollbar())
         [painter setLayer:layer->platformLayer()];
 
@@ -1217,7 +1233,7 @@ void ScrollAnimatorMac::stopSnapRubberbandTimer()
     m_snapRubberBandTimer.stop();
 }
 
-void ScrollAnimatorMac::snapRubberBandTimerFired(Timer<ScrollAnimatorMac>*)
+void ScrollAnimatorMac::snapRubberBandTimerFired(Timer<ScrollAnimatorMac>&)
 {
     m_scrollElasticityController.snapRubberBandTimerFired();
 }
@@ -1298,7 +1314,7 @@ void ScrollAnimatorMac::stopScrollbarPaintTimer()
     m_initialScrollbarPaintTimer.stop();
 }
 
-void ScrollAnimatorMac::initialScrollbarPaintTimerFired(Timer<ScrollAnimatorMac>*)
+void ScrollAnimatorMac::initialScrollbarPaintTimerFired(Timer<ScrollAnimatorMac>&)
 {
     // To force the scrollbars to flash, we have to call hide first. Otherwise, the ScrollbarPainterController
     // might think that the scrollbars are already showing and bail early.
@@ -1322,7 +1338,7 @@ void ScrollAnimatorMac::sendContentAreaScrolled(const FloatSize& delta)
         [m_scrollbarPainterController contentAreaScrolled];
 }
 
-void ScrollAnimatorMac::sendContentAreaScrolledTimerFired(Timer<ScrollAnimatorMac>*)
+void ScrollAnimatorMac::sendContentAreaScrolledTimerFired(Timer<ScrollAnimatorMac>&)
 {
     sendContentAreaScrolled(m_contentAreaScrolledTimerScrollDelta);
     m_contentAreaScrolledTimerScrollDelta = FloatSize();

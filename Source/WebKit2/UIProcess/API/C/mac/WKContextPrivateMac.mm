@@ -27,6 +27,8 @@
 #import "WKContextPrivateMac.h"
 
 #import "APIArray.h"
+#import "APINumber.h"
+#import "APIString.h"
 #import "ImmutableDictionary.h"
 #import "PluginInfoStore.h"
 #import "PluginInformation.h"
@@ -37,22 +39,10 @@
 #import "WKSharedAPICast.h"
 #import "WKStringCF.h"
 #import "WebContext.h"
-#import "WebNumber.h"
-#import "WebString.h"
 #import <WebKitSystemInterface.h>
 #import <wtf/RetainPtr.h>
 
 using namespace WebKit;
-
-bool WKContextGetProcessSuppressionEnabled(WKContextRef contextRef)
-{
-    return toImpl(contextRef)->processSuppressionEnabled();
-}
-
-void WKContextSetProcessSuppressionEnabled(WKContextRef contextRef, bool enabled)
-{
-    toImpl(contextRef)->setProcessSuppressionEnabled(enabled);
-}
 
 bool WKContextIsPlugInUpdateAvailable(WKContextRef contextRef, WKStringRef plugInBundleIdentifierRef)
 {
@@ -105,6 +95,17 @@ void WKContextResetHSTSHosts(WKContextRef context)
 }
 
 
+
+void WKContextRegisterSchemeForCustomProtocol(WKContextRef context, WKStringRef scheme)
+{
+    WebContext::registerGlobalURLSchemeAsHavingCustomProtocolHandlers(toWTFString(scheme));
+}
+
+void WKContextUnregisterSchemeForCustomProtocol(WKContextRef context, WKStringRef scheme)
+{
+    WebContext::unregisterGlobalURLSchemeAsHavingCustomProtocolHandlers(toWTFString(scheme));
+}
+
 /* DEPRECATED -  Please use constants from WKPluginInformation instead. */
 
 WKStringRef WKPlugInInfoPathKey()
@@ -135,4 +136,14 @@ WKStringRef WKPlugInInfoUpdatePastLastBlockedVersionIsKnownAvailableKey()
 WKStringRef WKPlugInInfoIsSandboxedKey()
 {
     return WKPluginInformationHasSandboxProfileKey();
+}
+
+bool WKContextShouldBlockWebGL()
+{
+    return WKShouldBlockWebGL();
+}
+
+bool WKContextShouldSuggestBlockWebGL()
+{
+    return WKShouldSuggestBlockingWebGL();
 }

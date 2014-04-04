@@ -110,6 +110,7 @@ private:
     bool store(ApplicationCacheGroup*, GroupStorageIDJournal*);
     bool store(ApplicationCache*, ResourceStorageIDJournal*);
     bool store(ApplicationCacheResource*, unsigned cacheStorageID);
+    bool deleteCacheGroupRecord(const String& manifestURL);
 
     bool ensureOriginRecord(const SecurityOrigin*);
     bool shouldStoreResourceAsFlatFile(ApplicationCacheResource*);
@@ -146,11 +147,11 @@ private:
     typedef HashMap<String, ApplicationCacheGroup*> CacheGroupMap;
     CacheGroupMap m_cachesInMemory; // Excludes obsolete cache groups.
 
-    friend ApplicationCacheStorage& cacheStorage();
+    friend class WTF::NeverDestroyed<ApplicationCacheStorage>;
 };
- 
+
 ApplicationCacheStorage& cacheStorage();
-    
+
 } // namespace WebCore
 
 #endif // ApplicationCacheStorage_h

@@ -26,16 +26,21 @@
 #ifndef RemoteLayerTreePropertyApplier_h
 #define RemoteLayerTreePropertyApplier_h
 
+#include "LayerRepresentation.h"
 #include "RemoteLayerTreeTransaction.h"
 #include <wtf/HashMap.h>
 
 namespace WebKit {
 
+class RemoteLayerTreeHost;
+
 class RemoteLayerTreePropertyApplier {
 public:
-    typedef HashMap<RemoteLayerTreeTransaction::LayerID, CALayer *> RelatedLayerMap;
-    static void applyPropertiesToLayer(CALayer *, RemoteLayerTreeTransaction::LayerProperties, RelatedLayerMap);
-    static void disableActionsForLayer(CALayer *);
+    typedef HashMap<WebCore::GraphicsLayer::PlatformLayerID, LayerOrView *> RelatedLayerMap;
+    static void applyProperties(CALayer *, RemoteLayerTreeHost*, const RemoteLayerTreeTransaction::LayerProperties&, const RelatedLayerMap&);
+#if PLATFORM(IOS)
+    static void applyProperties(UIView *, RemoteLayerTreeHost*, const RemoteLayerTreeTransaction::LayerProperties&, const RelatedLayerMap&);
+#endif
 };
 
 } // namespace WebKit

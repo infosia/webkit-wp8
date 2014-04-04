@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2012-2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,29 +28,69 @@
 
 #include "DrawingAreaProxy.h"
 #include "RemoteLayerTreeHost.h"
+#include <WebCore/FloatPoint.h>
 #include <WebCore/IntPoint.h>
 #include <WebCore/IntSize.h>
 
 namespace WebKit {
+
+class RemoteLayerTreeTransaction;
+class RemoteScrollingCoordinatorTransaction;
 
 class RemoteLayerTreeDrawingAreaProxy : public DrawingAreaProxy {
 public:
     explicit RemoteLayerTreeDrawingAreaProxy(WebPageProxy*);
     virtual ~RemoteLayerTreeDrawingAreaProxy();
 
-private:
-    virtual void sizeDidChange() OVERRIDE;
-    virtual void deviceScaleFactorDidChange() OVERRIDE;
-    virtual void didUpdateGeometry() OVERRIDE;
+    const RemoteLayerTreeHost& remoteLayerTreeHost() const { return m_remoteLayerTreeHost; }
 
+    void acceleratedAnimationDidStart(uint64_t layerID, double startTime);
+
+    void coreAnimationDidCommitLayers();
+
+private:
+    virtual void sizeDidChange() override;
+    virtual void deviceScaleFactorDidChange() override;
+    virtual void didUpdateGeometry() override;
+
+    WebCore::FloatRect scaledExposedRect() const;
+    void showDebugIndicator(bool);
+
+#if PLATFORM(MAC)
+    virtual void setExposedRect(const WebCore::FloatRect&) override;
+#endif
+
+    float indicatorScale(WebCore::IntSize contentsSize) const;
+    virtual void updateDebugIndicator() override;
+    void updateDebugIndicator(WebCore::IntSize contentsSize, bool rootLayerChanged, float scale);
+    void updateDebugIndicatorPosition();
+    
+    WebCore::FloatPoint indicatorLocation() const;
+
+    // IPC::MessageReceiver
+    virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
+
+    // Message handlers
+    void commitLayerTree(const RemoteLayerTreeTransaction&, const RemoteScrollingCoordinatorTransaction&);
+    
     void sendUpdateGeometry();
+
+    void scheduleCoreAnimationLayerCommitObserver();
 
     RemoteLayerTreeHost m_remoteLayerTreeHost;
     bool m_isWaitingForDidUpdateGeometry;
 
     WebCore::IntSize m_lastSentSize;
     WebCore::IntSize m_lastSentLayerPosition;
+
+    std::unique_ptr<RemoteLayerTreeHost> m_debugIndicatorLayerTreeHost;
+    RetainPtr<CALayer> m_tileMapHostLayer;
+    RetainPtr<CALayer> m_exposedRectIndicatorLayer;
+
+    RetainPtr<CFRunLoopObserverRef> m_layerCommitObserver;
 };
+
+DRAWING_AREA_PROXY_TYPE_CASTS(RemoteLayerTreeDrawingAreaProxy, type() == DrawingAreaTypeRemoteLayerTree);
 
 } // namespace WebKit
 

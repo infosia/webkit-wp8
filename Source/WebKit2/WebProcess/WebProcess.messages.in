@@ -27,11 +27,6 @@ messages -> WebProcess LegacyReceiver {
     # Create a new page.
     CreateWebPage(uint64_t newPageID, WebKit::WebPageCreationParameters pageCreationParameters)
 
-    # Visited link tracking.
-    SetVisitedLinkTable(WebKit::SharedMemory::Handle handle)
-    VisitedLinkStateChanged(Vector<WebCore::LinkHash> linkHashes)
-    AllVisitedLinkStateChanged()
-
     # Global preferences.
     SetShouldTrackVisitedLinks(bool shouldTrackVisitedLinks)
     SetCacheModel(uint32_t cacheModel)
@@ -42,6 +37,9 @@ messages -> WebProcess LegacyReceiver {
     RegisterURLSchemeAsNoAccess(String scheme)
     RegisterURLSchemeAsDisplayIsolated(String scheme)
     RegisterURLSchemeAsCORSEnabled(String scheme)
+#if ENABLE(CACHE_PARTITIONING)
+    RegisterURLSchemeAsCachePartitioned(String scheme)
+#endif
     SetDefaultRequestTimeoutInterval(double timeoutInterval)
     SetAlwaysUsesComplexTextCodePath(bool alwaysUseComplexText)
     SetShouldUseFontSmoothing(bool useFontSmoothing)
@@ -51,9 +49,9 @@ messages -> WebProcess LegacyReceiver {
     SetIgnoreTLSErrors(bool ignoreTLSErrors)
 #endif
 
-    // Private browsing session is per process. Individual pages or page groups may use the private session or the default one as appropriate.
-    EnsurePrivateBrowsingSession()
-    DestroyPrivateBrowsingSession()
+    // Legacy private browsing session is per process. Individual pages or page groups may use the private session or the default one as appropriate.
+    EnsurePrivateBrowsingSession(WebCore::SessionID sessionID)
+    DestroyPrivateBrowsingSession(WebCore::SessionID sessionID)
 
     # Plug-ins.
     DidAddPlugInAutoStartOriginHash(uint32_t hash, double expirationTime)
@@ -75,15 +73,19 @@ messages -> WebProcess LegacyReceiver {
     GarbageCollectJavaScriptObjects()
     SetJavaScriptGarbageCollectorTimerEnabled(bool enable)
 
-    PostInjectedBundleMessage(CoreIPC::DataReference messageData);
+    SetInjectedBundleParameter(String parameter, IPC::DataReference value);
+    PostInjectedBundleMessage(IPC::DataReference messageData);
 
     ReleasePageCache()
 
-#if PLATFORM(MAC)
-    SetProcessSuppressionEnabled(bool flag);
+    SetProcessSuppressionEnabled(bool flag)
+#if PLATFORM(COCOA)
+    SetQOS(int latencyQOS, int throughputQOS)
 #endif
 
-#if !ENABLE(NETWORK_PROCESS) && USE(SOUP)
-    AllowSpecificHTTPSCertificateForHost(WebKit::CertificateInfo certificate, String host)
+#if USE(SOUP)
+    AllowSpecificHTTPSCertificateForHost(WebCore::CertificateInfo certificate, String host)
 #endif
+
+    SetMemoryCacheDisabled(bool disabled);
 }

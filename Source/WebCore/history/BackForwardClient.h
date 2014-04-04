@@ -12,10 +12,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -49,9 +49,16 @@ public:
     virtual int backListCount() = 0;
     virtual int forwardListCount() = 0;
 
-    virtual bool isActive() = 0;
-
     virtual void close() = 0;
+
+#if PLATFORM(IOS)
+    // FIXME: These methods seem to violate the encapsulation of this class.
+    virtual unsigned current() = 0;
+    virtual void setCurrent(unsigned newCurrent) = 0;
+
+    // FIXME: Consider renaming this method once we upstream the iOS changes to WebView.mm.
+    virtual bool clearAllPageCaches() = 0;
+#endif
 
     // FIXME: Delete these once all callers are using BackForwardController
     // instead of calling this directly.

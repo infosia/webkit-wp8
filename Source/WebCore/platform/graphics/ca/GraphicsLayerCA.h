@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -26,10 +26,7 @@
 #ifndef GraphicsLayerCA_h
 #define GraphicsLayerCA_h
 
-#if USE(ACCELERATED_COMPOSITING)
-
 #include "GraphicsLayer.h"
-#include "Image.h"
 #include "PlatformCAAnimation.h"
 #include "PlatformCALayer.h"
 #include "PlatformCALayerClient.h"
@@ -44,6 +41,7 @@
 
 namespace WebCore {
 
+class Image;
 class TransformState;
 
 class GraphicsLayerCA : public GraphicsLayer, public PlatformCALayerClient {
@@ -56,9 +54,11 @@ public:
     GraphicsLayerCA(GraphicsLayerClient*);
     virtual ~GraphicsLayerCA();
 
-    virtual void initialize() OVERRIDE;
+    virtual void initialize() override;
 
     virtual void setName(const String&);
+
+    virtual PlatformLayerID primaryLayerID() const override;
 
     virtual PlatformLayer* platformLayer() const;
     virtual PlatformCALayer* platformCALayer() const { return primaryLayer(); }
@@ -103,36 +103,49 @@ public:
     virtual bool filtersCanBeComposited(const FilterOperations&);
 #endif
 
+#if ENABLE(CSS_COMPOSITING)
+    virtual void setBlendMode(BlendMode) override;
+#endif
+
     virtual void setNeedsDisplay();
-    virtual void setNeedsDisplayInRect(const FloatRect&);
+    virtual void setNeedsDisplayInRect(const FloatRect&, ShouldClipToLayer = ClipToLayer);
     virtual void setContentsNeedsDisplay();
     
-    virtual void setContentsRect(const IntRect&);
-    virtual void setContentsClippingRect(const IntRect&) OVERRIDE;
+    virtual void setContentsRect(const FloatRect&) override;
+    virtual void setContentsClippingRect(const FloatRect&) override;
     
     virtual void suspendAnimations(double time);
     virtual void resumeAnimations();
 
-    virtual bool addAnimation(const KeyframeValueList&, const IntSize& boxSize, const Animation*, const String& animationName, double timeOffset);
+    virtual bool addAnimation(const KeyframeValueList&, const FloatSize& boxSize, const Animation*, const String& animationName, double timeOffset);
     virtual void pauseAnimation(const String& animationName, double timeOffset);
     virtual void removeAnimation(const String& animationName);
 
     virtual void setContentsToImage(Image*);
     virtual void setContentsToMedia(PlatformLayer*);
+#if PLATFORM(IOS)
+    virtual PlatformLayer* contentsLayerForMedia() const override;
+#endif
     virtual void setContentsToCanvas(PlatformLayer*);
     virtual void setContentsToSolidColor(const Color&);
 
     virtual bool hasContentsLayer() const { return m_contentsLayer; }
     
-    virtual void setShowDebugBorder(bool) OVERRIDE;
-    virtual void setShowRepaintCounter(bool) OVERRIDE;
+    virtual void setShowDebugBorder(bool) override;
+    virtual void setShowRepaintCounter(bool) override;
 
     virtual void setDebugBackgroundColor(const Color&);
     virtual void setDebugBorder(const Color&, float borderWidth);
 
+    virtual void setCustomAppearance(CustomAppearance);
+    virtual void setCustomBehavior(CustomBehavior);
+
     virtual void layerDidDisplay(PlatformLayer*);
 
     virtual void setMaintainsPixelAlignment(bool);
+#if PLATFORM(IOS)
+    virtual FloatSize pixelAlignmentOffset() const override { return m_pixelAlignmentOffset; }
+#endif
     virtual void deviceOrPageScaleFactorChanged();
 
     struct CommitState {
@@ -148,17 +161,21 @@ public:
     virtual void flushCompositingState(const FloatRect&);
     virtual void flushCompositingStateForThisLayerOnly();
 
-    virtual bool visibleRectChangeRequiresFlush(const FloatRect& visibleRect) const OVERRIDE;
+    virtual bool visibleRectChangeRequiresFlush(const FloatRect& visibleRect) const override;
 
-    virtual TiledBacking* tiledBacking() const OVERRIDE;
+    virtual TiledBacking* tiledBacking() const override;
 
     bool allowTiledLayer() const { return m_allowTiledLayer; }
     virtual void setAllowTiledLayer(bool b);
 
 protected:
     virtual void setOpacityInternal(float);
+    
+    bool animationCanBeAccelerated(const KeyframeValueList&, const Animation*) const;
 
 private:
+    virtual bool isGraphicsLayerCA() const { return true; }
+
     virtual void willBeDestroyed();
 
     // PlatformCALayerClient overrides
@@ -167,7 +184,7 @@ private:
 
     virtual void platformCALayerAnimationStarted(CFTimeInterval beginTime);
     virtual CompositingCoordinatesOrientation platformCALayerContentsOrientation() const { return contentsOrientation(); }
-    virtual void platformCALayerPaintContents(PlatformCALayer*, GraphicsContext&, const IntRect& clip);
+    virtual void platformCALayerPaintContents(PlatformCALayer*, GraphicsContext&, const FloatRect& clip);
     virtual bool platformCALayerShowDebugBorders() const { return isShowingDebugBorder(); }
     virtual bool platformCALayerShowRepaintCounter(PlatformCALayer*) const;
     virtual int platformCALayerIncrementRepaintCount(PlatformCALayer*) { return incrementRepaintCount(); }
@@ -175,24 +192,31 @@ private:
     virtual bool platformCALayerContentsOpaque() const { return contentsOpaque(); }
     virtual bool platformCALayerDrawsContent() const { return drawsContent(); }
     virtual void platformCALayerLayerDidDisplay(PlatformLayer* layer) { return layerDidDisplay(layer); }
-    virtual void platformCALayerSetNeedsToRevalidateTiles() OVERRIDE;
-    virtual float platformCALayerDeviceScaleFactor() const OVERRIDE;
-    virtual float platformCALayerContentsScaleMultiplierForNewTiles(PlatformCALayer*) const OVERRIDE;
+    virtual void platformCALayerSetNeedsToRevalidateTiles() override;
+    virtual float platformCALayerDeviceScaleFactor() const override;
+    virtual float platformCALayerContentsScaleMultiplierForNewTiles(PlatformCALayer*) const override;
+    virtual bool platformCALayerShouldAggressivelyRetainTiles(PlatformCALayer*) const override;
+    virtual bool platformCALayerShouldTemporarilyRetainTileCohorts(PlatformCALayer*) const override;
 
-    virtual bool isCommittingChanges() const OVERRIDE { return m_isCommittingChanges; }
+    virtual bool isCommittingChanges() const override { return m_isCommittingChanges; }
 
     virtual double backingStoreMemoryEstimate() const;
 
-    virtual bool shouldRepaintOnSizeChange() const OVERRIDE;
+    virtual bool shouldRepaintOnSizeChange() const override;
 
     void updateOpacityOnLayer();
     
 #if ENABLE(CSS_FILTERS)
     void updateFilters();
 #endif
-    
+
+#if ENABLE(CSS_COMPOSITING)
+    void updateBlendMode();
+#endif
+
     virtual PassRefPtr<PlatformCALayer> createPlatformCALayer(PlatformCALayer::LayerType, PlatformCALayerClient* owner);
     virtual PassRefPtr<PlatformCALayer> createPlatformCALayer(PlatformLayer*, PlatformCALayerClient* owner);
+    virtual PassRefPtr<PlatformCAAnimation> createPlatformCAAnimation(PlatformCAAnimation::AnimationType, const String& keyPath);
 
     PlatformCALayer* primaryLayer() const { return m_structuralLayer.get() ? m_structuralLayer.get() : m_layer.get(); }
     PlatformCALayer* hostLayerForSublayers() const;
@@ -207,7 +231,7 @@ private:
     LayerMap* animatedLayerClones(AnimatedPropertyID) const;
 
     bool createAnimationFromKeyframes(const KeyframeValueList&, const Animation*, const String& animationName, double timeOffset);
-    bool createTransformAnimationsFromKeyframes(const KeyframeValueList&, const Animation*, const String& animationName, double timeOffset, const IntSize& boxSize);
+    bool createTransformAnimationsFromKeyframes(const KeyframeValueList&, const Animation*, const String& animationName, double timeOffset, const FloatSize& boxSize);
 #if ENABLE(CSS_FILTERS)
     bool createFilterAnimationsFromKeyframes(const KeyframeValueList&, const Animation*, const String& animationName, double timeOffset);
 #endif
@@ -222,8 +246,8 @@ private:
     bool setAnimationEndpoints(const KeyframeValueList&, const Animation*, PlatformCAAnimation*);
     bool setAnimationKeyframes(const KeyframeValueList&, const Animation*, PlatformCAAnimation*);
 
-    bool setTransformAnimationEndpoints(const KeyframeValueList&, const Animation*, PlatformCAAnimation*, int functionIndex, TransformOperation::OperationType, bool isMatrixAnimation, const IntSize& boxSize, Vector<TransformationMatrix>& matrixes);
-    bool setTransformAnimationKeyframes(const KeyframeValueList&, const Animation*, PlatformCAAnimation*, int functionIndex, TransformOperation::OperationType, bool isMatrixAnimation, const IntSize& boxSize, Vector<TransformationMatrix>& matrixes);
+    bool setTransformAnimationEndpoints(const KeyframeValueList&, const Animation*, PlatformCAAnimation*, int functionIndex, TransformOperation::OperationType, bool isMatrixAnimation, const FloatSize& boxSize, Vector<TransformationMatrix>& matrixes);
+    bool setTransformAnimationKeyframes(const KeyframeValueList&, const Animation*, PlatformCAAnimation*, int functionIndex, TransformOperation::OperationType, bool isMatrixAnimation, const FloatSize& boxSize, Vector<TransformationMatrix>& matrixes);
     
 #if ENABLE(CSS_FILTERS)
     bool setFilterAnimationEndpoints(const KeyframeValueList&, const Animation*, PlatformCAAnimation*, int functionIndex, int internalFilterPropertyIndex);
@@ -249,6 +273,10 @@ private:
     
     void setupContentsLayer(PlatformCALayer*);
     PlatformCALayer* contentsLayer() const { return m_contentsLayer.get(); }
+
+#if ENABLE(PLUGIN_PROXY_FOR_VIDEO)
+    bool mediaLayerMustBeUpdatedOnMainThread() const;
+#endif
 
     virtual void setReplicatedByLayer(GraphicsLayer*);
 
@@ -366,7 +394,9 @@ private:
     void updateVisibleRect(const FloatRect& oldVisibleRect);
     void updateTiles();
     void updateContentsScale(float pageScaleFactor);
-    
+    void updateCustomAppearance();
+    void updateCustomBehavior();
+
     enum StructuralLayerPurpose {
         NoStructuralLayer = 0,
         StructuralLayerForPreserves3D,
@@ -383,7 +413,7 @@ private:
     static void moveOrCopyLayerAnimation(MoveOrCopy, const String& animationIdentifier, PlatformCALayer *fromLayer, PlatformCALayer *toLayer);
     void moveOrCopyAnimations(MoveOrCopy, PlatformCALayer * fromLayer, PlatformCALayer * toLayer);
     
-    bool appendToUncommittedAnimations(const KeyframeValueList&, const TransformOperations*, const Animation*, const String& animationName, const IntSize& boxSize, int animationIndex, double timeOffset, bool isMatrixAnimation);
+    bool appendToUncommittedAnimations(const KeyframeValueList&, const TransformOperations*, const Animation*, const String& animationName, const FloatSize& boxSize, int animationIndex, double timeOffset, bool isMatrixAnimation);
 #if ENABLE(CSS_FILTERS)
     bool appendToUncommittedAnimations(const KeyframeValueList&, const FilterOperation*, const Animation*, const String& animationName, int animationIndex, double timeOffset);
 #endif
@@ -422,9 +452,12 @@ private:
         FiltersChanged = 1 << 27,
         TilingAreaChanged = 1 << 28,
         TilesAdded = 1 < 29,
-        DebugIndicatorsChanged = 1 << 30
+        DebugIndicatorsChanged = 1 << 30,
+        CustomAppearanceChanged = 1 << 31,
+        CustomBehaviorChanged = 1 << 32,
+        BlendModeChanged = 1 << 33
     };
-    typedef unsigned LayerChangeFlags;
+    typedef uint64_t LayerChangeFlags;
     enum ScheduleFlushOrNot { ScheduleFlush, DontScheduleFlush };
     void noteLayerPropertyChanged(LayerChangeFlags, ScheduleFlushOrNot = ScheduleFlush);
     void noteSublayersChanged(ScheduleFlushOrNot = ScheduleFlush);
@@ -520,9 +553,8 @@ private:
     bool m_isCommittingChanges;
 };
 
+GRAPHICSLAYER_TYPE_CASTS(GraphicsLayerCA, isGraphicsLayerCA());
+
 } // namespace WebCore
-
-
-#endif // USE(ACCELERATED_COMPOSITING)
 
 #endif // GraphicsLayerCA_h

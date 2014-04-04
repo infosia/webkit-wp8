@@ -33,61 +33,60 @@
 
 #if ENABLE(INSPECTOR)
 
-#include "InspectorAgentRegistry.h"
-#include "InspectorBaseAgent.h"
+#include "InspectorInstrumentationCookie.h"
+#include <inspector/InspectorAgentRegistry.h>
+#include <inspector/InspectorEnvironment.h>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/Noncopyable.h>
+#include <wtf/Vector.h>
 #include <wtf/text/WTFString.h>
+
+namespace Inspector {
+class InspectorAgent;
+class InspectorBackendDispatcher;
+class InspectorDebuggerAgent;
+class InspectorFrontendChannel;
+class InspectorObject;
+}
 
 namespace WebCore {
 
 class DOMWrapperWorld;
 class Frame;
 class GraphicsContext;
-class InjectedScriptManager;
-class InspectorAgent;
-class InspectorApplicationCacheAgent;
-class InspectorBackendDispatcher;
 class InspectorClient;
 class InspectorDOMAgent;
 class InspectorDOMDebuggerAgent;
-class InspectorDebuggerAgent;
-class InspectorFrontendChannel;
 class InspectorFrontendClient;
-class InspectorMemoryAgent;
-class InspectorObject;
 class InspectorOverlay;
 class InspectorPageAgent;
 class InspectorProfilerAgent;
 class InspectorResourceAgent;
 class InstrumentingAgents;
-class IntSize;
-class Page;
-class PostWorkerNotificationToFrontendTask;
 class Node;
-
+class Page;
+class WebInjectedScriptManager;
 struct Highlight;
 
-class InspectorController {
+class InspectorController final : public Inspector::InspectorEnvironment {
     WTF_MAKE_NONCOPYABLE(InspectorController);
     WTF_MAKE_FAST_ALLOCATED;
 public:
-    ~InspectorController();
+    InspectorController(Page&, InspectorClient*);
+    virtual ~InspectorController();
 
-    static PassOwnPtr<InspectorController> create(Page*, InspectorClient*);
     void inspectedPageDestroyed();
 
     bool enabled() const;
-    Page* inspectedPage() const;
+    Page& inspectedPage() const;
 
     void show();
     void close();
 
-    void setInspectorFrontendClient(PassOwnPtr<InspectorFrontendClient>);
+    void setInspectorFrontendClient(std::unique_ptr<InspectorFrontendClient>);
     bool hasInspectorFrontendClient() const;
     void didClearWindowObjectInWorld(Frame*, DOMWrapperWorld&);
-    void setInjectedScriptForOrigin(const String& origin, const String& source);
 
     void dispatchMessageFromFrontend(const String& message);
 
@@ -95,8 +94,8 @@ public:
     bool hasLocalFrontend() const;
     bool hasRemoteFrontend() const;
 
-    void connectFrontend(InspectorFrontendChannel*);
-    void disconnectFrontend();
+    void connectFrontend(Inspector::InspectorFrontendChannel*);
+    void disconnectFrontend(Inspector::InspectorDisconnectReason);
     void setProcessId(long);
 
 #if ENABLE(REMOTE_INSPECTOR)
@@ -111,17 +110,16 @@ public:
 
     void setIndicating(bool);
 
-    PassRefPtr<InspectorObject> buildObjectForHighlightedNode() const;
+    PassRefPtr<Inspector::InspectorObject> buildObjectForHighlightedNode() const;
 
-    bool isUnderTest();
-    void evaluateForTestInFrontend(long callId, const String& script);
+    bool isUnderTest() const { return m_isUnderTest; }
+    void setIsUnderTest(bool isUnderTest) { m_isUnderTest = isUnderTest; }
+    void evaluateForTestInFrontend(const String& script);
 
-#if ENABLE(JAVASCRIPT_DEBUGGER)
     bool profilerEnabled() const;
     void setProfilerEnabled(bool);
 
     void resume();
-#endif
 
     void setResourcesDataSizeLimitsFromInternals(int maximumResourcesContentSize, int maximumSingleResourceContentSize);
 
@@ -133,33 +131,35 @@ public:
     void willComposite();
     void didComposite();
 
-private:
-    InspectorController(Page*, InspectorClient*);
+    virtual bool developerExtrasEnabled() const override;
+    virtual bool canAccessInspectedScriptState(JSC::ExecState*) const override;
+    virtual Inspector::InspectorFunctionCallHandler functionCallHandler() const override;
+    virtual Inspector::InspectorEvaluateHandler evaluateHandler() const override;
+    virtual void willCallInjectedScriptFunction(JSC::ExecState*, const String& scriptName, int scriptLine) override;
+    virtual void didCallInjectedScriptFunction(JSC::ExecState*) override;
 
-    friend class PostWorkerNotificationToFrontendTask;
+private:
     friend InstrumentingAgents* instrumentationForPage(Page*);
 
     RefPtr<InstrumentingAgents> m_instrumentingAgents;
-    OwnPtr<InjectedScriptManager> m_injectedScriptManager;
-    OwnPtr<InspectorOverlay> m_overlay;
+    std::unique_ptr<WebInjectedScriptManager> m_injectedScriptManager;
+    std::unique_ptr<InspectorOverlay> m_overlay;
 
-    InspectorAgent* m_inspectorAgent;
+    Inspector::InspectorAgent* m_inspectorAgent;
     InspectorDOMAgent* m_domAgent;
     InspectorResourceAgent* m_resourceAgent;
     InspectorPageAgent* m_pageAgent;
-    InspectorMemoryAgent* m_memoryAgent;
-#if ENABLE(JAVASCRIPT_DEBUGGER)
-    InspectorDebuggerAgent* m_debuggerAgent;
+    Inspector::InspectorDebuggerAgent* m_debuggerAgent;
     InspectorDOMDebuggerAgent* m_domDebuggerAgent;
     InspectorProfilerAgent* m_profilerAgent;
-#endif
 
-    RefPtr<InspectorBackendDispatcher> m_inspectorBackendDispatcher;
-    OwnPtr<InspectorFrontendClient> m_inspectorFrontendClient;
-    InspectorFrontendChannel* m_inspectorFrontendChannel;
-    Page* m_page;
+    RefPtr<Inspector::InspectorBackendDispatcher> m_inspectorBackendDispatcher;
+    std::unique_ptr<InspectorFrontendClient> m_inspectorFrontendClient;
+    Inspector::InspectorFrontendChannel* m_inspectorFrontendChannel;
+    Page& m_page;
     InspectorClient* m_inspectorClient;
-    InspectorAgentRegistry m_agents;
+    Inspector::InspectorAgentRegistry m_agents;
+    Vector<InspectorInstrumentationCookie, 2> m_injectedScriptInstrumentationCookies;
     bool m_isUnderTest;
 
 #if ENABLE(REMOTE_INSPECTOR)

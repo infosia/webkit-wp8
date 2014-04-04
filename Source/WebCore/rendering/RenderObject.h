@@ -62,9 +62,6 @@ class RenderNamedFlowThread;
 class RenderTheme;
 class TransformState;
 class VisiblePosition;
-#if ENABLE(SVG)
-class RenderSVGResourceContainer;
-#endif
 #if PLATFORM(IOS)
 class SelectionRect;
 #endif
@@ -117,15 +114,11 @@ const int caretWidth = 2; // This value should be kept in sync with UIKit. See <
 const int caretWidth = 1;
 #endif
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+#if ENABLE(DASHBOARD_SUPPORT)
 struct AnnotatedRegionValue {
     bool operator==(const AnnotatedRegionValue& o) const
     {
-#if ENABLE(DASHBOARD_SUPPORT)
         return type == o.type && bounds == o.bounds && clip == o.clip && label == o.label;
-#else // ENABLE(DRAGGABLE_REGION)
-        return draggable == o.draggable && bounds == o.bounds;
-#endif
     }
     bool operator!=(const AnnotatedRegionValue& o) const
     {
@@ -133,13 +126,9 @@ struct AnnotatedRegionValue {
     }
 
     LayoutRect bounds;
-#if ENABLE(DASHBOARD_SUPPORT)
     String label;
     LayoutRect clip;
     int type;
-#else // ENABLE(DRAGGABLE_REGION)
-    bool draggable;
-#endif
 };
 #endif
 
@@ -149,6 +138,7 @@ const int showTreeCharacterOffset = 39;
 
 // Base class for all rendering tree objects.
 class RenderObject : public CachedImageClient {
+    WTF_MAKE_FAST_ALLOCATED;
     friend class RenderBlock;
     friend class RenderBlockFlow;
     friend class RenderElement;
@@ -159,7 +149,7 @@ public:
     explicit RenderObject(Node&);
     virtual ~RenderObject();
 
-    RenderTheme* theme() const;
+    RenderTheme& theme() const;
 
     virtual const char* renderName() const = 0;
 
@@ -226,8 +216,6 @@ public:
         return locateFlowThreadContainingBlock();
     }
 
-    RenderNamedFlowThread* renderNamedFlowThreadWrapper() const;
-
     // FIXME: The meaning of this function is unclear.
     virtual bool isEmpty() const { return !firstChildSlow(); }
 
@@ -289,8 +277,9 @@ public:
     void showRenderObject() const;
     // We don't make printedCharacters an optional parameter so that
     // showRenderObject can be called from gdb easily.
-    void showRenderObject(int printedCharacters) const;
-    void showRenderTreeAndMark(const RenderObject* markedObject1 = 0, const char* markedLabel1 = 0, const RenderObject* markedObject2 = 0, const char* markedLabel2 = 0, int depth = 0) const;
+    void showRenderObject(int) const;
+    void showRenderTreeAndMark(const RenderObject* = 0, const char* = 0, const RenderObject* = 0, const char* = 0, int = 0) const;
+    void showRegionsInformation(int&) const;
 #endif
 
 public:
@@ -369,7 +358,7 @@ public:
     bool isInFlowRenderFlowThread() const { return isRenderFlowThread() && !isOutOfFlowPositioned(); }
     bool isOutOfFlowRenderFlowThread() const { return isRenderFlowThread() && isOutOfFlowPositioned(); }
 
-    virtual bool isRenderMultiColumnBlock() const { return false; }
+    virtual bool isMultiColumnBlockFlow() const { return false; }
     virtual bool isRenderMultiColumnSet() const { return false; }
 
     virtual bool isRenderScrollbarPart() const { return false; }
@@ -414,6 +403,7 @@ public:
 
 #if ENABLE(MATHML)
     virtual bool isRenderMathMLBlock() const { return false; }
+    virtual bool isRenderMathMLTable() const { return false; }
     virtual bool isRenderMathMLOperator() const { return false; }
     virtual bool isRenderMathMLRow() const { return false; }
     virtual bool isRenderMathMLMath() const { return false; }
@@ -424,10 +414,10 @@ public:
     virtual bool isRenderMathMLSquareRoot() const { return false; }
     virtual bool isRenderMathMLScripts() const { return false; }
     virtual bool isRenderMathMLScriptsWrapper() const { return false; }
+    virtual bool isRenderMathMLToken() const { return false; }
     virtual bool isRenderMathMLUnderOver() const { return false; }
 #endif // ENABLE(MATHML)
 
-#if ENABLE(SVG)
     // FIXME: Until all SVG renders can be subclasses of RenderSVGModelObject we have
     // to add SVG renderer methods to RenderObject with an ASSERT_NOT_REACHED() default implementation.
     virtual bool isRenderSVGModelObject() const { return false; }
@@ -448,8 +438,6 @@ public:
     virtual bool isSVGResourceContainer() const { return false; }
     virtual bool isSVGResourceFilter() const { return false; }
     virtual bool isSVGResourceFilterPrimitive() const { return false; }
-
-    virtual RenderSVGResourceContainer* toRenderSVGResourceContainer();
 
     // FIXME: Those belong into a SVG specific base-class for all renderers (see above)
     // Unfortunately we don't have such a class yet, because it's not possible for all renderers
@@ -483,7 +471,6 @@ public:
     // coordinates instead of in repaint container coordinates.  Eventually the
     // rest of the rendering tree will move to a similar model.
     virtual bool nodeAtFloatPoint(const HitTestRequest&, HitTestResult&, const FloatPoint& pointInParent, HitTestAction);
-#endif
 
     bool hasAspectRatio() const { return isReplaced() && (isImage() || isVideo() || isCanvas()); }
     bool isAnonymous() const { return m_bitfields.isAnonymous(); }
@@ -526,7 +513,6 @@ public:
     bool isBox() const { return m_bitfields.isBox(); }
     bool isRenderView() const  { return m_bitfields.isBox() && m_bitfields.isTextOrRenderView(); }
     bool isInline() const { return m_bitfields.isInline(); } // inline object
-    bool isRunIn() const { return style().display() == RUN_IN; } // run-in object
     bool isDragging() const { return m_bitfields.isDragging(); }
     bool isReplaced() const { return m_bitfields.isReplaced(); } // a "replaced" element (see CSS)
     bool isHorizontalWritingMode() const { return m_bitfields.horizontalWritingMode(); }
@@ -541,9 +527,6 @@ public:
     };
     bool hasBoxDecorations() const { return m_bitfields.boxDecorationState() != NoBoxDecorations; }
     bool backgroundIsKnownToBeObscured();
-    bool borderImageIsLoadedAndCanBeRendered() const;
-    bool mustRepaintBackgroundOrBorder() const;
-    bool hasBackground() const { return style().hasBackground(); }
     bool hasEntirelyFixedBackground() const;
 
     bool needsLayout() const
@@ -568,26 +551,9 @@ public:
 
     bool isSelectionBorder() const;
 
-    bool hasClip() const { return isOutOfFlowPositioned() && style().hasClip(); }
     bool hasOverflowClip() const { return m_bitfields.hasOverflowClip(); }
-    bool hasClipOrOverflowClip() const { return hasClip() || hasOverflowClip(); }
 
     bool hasTransform() const { return m_bitfields.hasTransform(); }
-    bool hasMask() const { return style().hasMask(); }
-    bool hasClipPath() const { return style().clipPath(); }
-    bool hasHiddenBackface() const { return style().backfaceVisibility() == BackfaceVisibilityHidden; }
-
-#if ENABLE(CSS_FILTERS)
-    bool hasFilter() const { return style().hasFilter(); }
-#else
-    bool hasFilter() const { return false; }
-#endif
-
-#if ENABLE(CSS_COMPOSITING)
-    bool hasBlendMode() const { return style().hasBlendMode(); }
-#else
-    bool hasBlendMode() const { return false; }
-#endif
 
     inline bool preservesNewline() const;
 
@@ -669,7 +635,7 @@ public:
     // repaint and do not need a relayout
     virtual void updateFromElement() { }
 
-#if ENABLE(DASHBOARD_SUPPORT) || ENABLE(DRAGGABLE_REGION)
+#if ENABLE(DASHBOARD_SUPPORT)
     virtual void addAnnotatedRegions(Vector<AnnotatedRegionValue>&);
     void collectAnnotatedRegions(Vector<AnnotatedRegionValue>&);
 #endif
@@ -690,9 +656,7 @@ public:
     bool canContainFixedPositionObjects() const
     {
         return isRenderView() || (hasTransform() && isRenderBlock())
-#if ENABLE(SVG)
                 || isSVGForeignObject()
-#endif
                 || isOutOfFlowRenderFlowThread();
     }
 
@@ -760,17 +724,17 @@ public:
     RenderLayerModelObject* containerForRepaint() const;
     // Actually do the repaint of rect r for this object which has been computed in the coordinate space
     // of repaintContainer. If repaintContainer is 0, repaint via the view.
-    void repaintUsingContainer(const RenderLayerModelObject* repaintContainer, const IntRect&, bool immediate = false) const;
+    void repaintUsingContainer(const RenderLayerModelObject* repaintContainer, const LayoutRect&, bool shouldClipToLayer = true) const;
     
     // Repaint the entire object.  Called when, e.g., the color of a border changes, or when a border
     // style changes.
-    void repaint(bool immediate = false) const;
+    void repaint() const;
 
     // Repaint a specific subrectangle within a given object.  The rect |r| is in the object's coordinate space.
-    void repaintRectangle(const LayoutRect&, bool immediate = false) const;
+    void repaintRectangle(const LayoutRect&, bool shouldClipToLayer = true) const;
 
-    // Repaint only if our old bounds and new bounds are different. The caller may pass in newBounds and newOutlineBox if they are known.
-    bool repaintAfterLayoutIfNeeded(const RenderLayerModelObject* repaintContainer, const LayoutRect& oldBounds, const LayoutRect& oldOutlineBox, const LayoutRect* newBoundsPtr = 0, const LayoutRect* newOutlineBoxPtr = 0);
+    // Repaint a slow repaint object, which, at this time, means we are repainting an object with background-attachment:fixed.
+    void repaintSlowRepaintObject() const;
 
     bool checkForRepaintDuringLayout() const;
 
@@ -809,9 +773,6 @@ public:
     virtual unsigned int length() const { return 1; }
 
     bool isFloatingOrOutOfFlowPositioned() const { return (isFloating() || isOutOfFlowPositioned()); }
-
-    bool isTransparent() const { return style().opacity() < 1.0f; }
-    float opacity() const { return style().opacity(); }
 
     bool hasReflection() const { return m_bitfields.hasReflection(); }
 
@@ -885,17 +846,14 @@ public:
     virtual int previousOffsetForBackwardDeletion(int current) const;
     virtual int nextOffset(int current) const;
 
-    virtual void imageChanged(CachedImage*, const IntRect* = 0) OVERRIDE;
+    virtual void imageChanged(CachedImage*, const IntRect* = 0) override;
     virtual void imageChanged(WrappedImagePtr, const IntRect* = 0) { }
-    virtual bool willRenderImage(CachedImage*) OVERRIDE;
 
     void selectionStartEnd(int& spos, int& epos) const;
     
     void removeFromParent();
 
     AnimationController& animation() const;
-
-    bool visibleToHitTesting() const { return style().visibility() == VISIBLE && style().pointerEvents() != PE_NONE; }
 
     // Map points and quads through elements, potentially via 3d transforms. You should never need to call these directly; use
     // localToAbsolute/absoluteToLocal methods instead.
@@ -909,9 +867,6 @@ public:
     bool shouldUseTransformFromContainer(const RenderObject* container) const;
     void getTransformFromContainer(const RenderObject* container, const LayoutSize& offsetInContainer, TransformationMatrix&) const;
     
-    // return true if this object requires a new stacking context
-    bool createsGroup() const { return isTransparent() || hasMask() || hasFilter() || hasBlendMode(); } 
-    
     virtual void addFocusRingRects(Vector<IntRect>&, const LayoutPoint& /* additionalOffset */, const RenderLayerModelObject* /* paintContainer */ = 0) { };
 
     LayoutRect absoluteOutlineBounds() const
@@ -921,8 +876,7 @@ public:
 
     RespectImageOrientationEnum shouldRespectImageOrientation() const;
 
-    void drawLineForBoxSide(GraphicsContext*, int x1, int y1, int x2, int y2, BoxSide,
-                            Color, EBorderStyle, int adjbw1, int adjbw2, bool antialias = false);
+    void drawLineForBoxSide(GraphicsContext*, float x1, float y1, float x2, float y2, BoxSide, Color, EBorderStyle, float adjbw1, float adjbw2, bool antialias = false);
 protected:
     int columnNumberForOffset(int offset);
 
@@ -935,8 +889,6 @@ protected:
 
     void clearLayoutRootIfNeeded() const;
     virtual void willBeDestroyed();
-
-    virtual bool canBeReplacedWithInlineRunIn() const;
 
     virtual void insertedIntoTree();
     virtual void willBeRemovedFromTree();
@@ -1133,10 +1085,8 @@ inline void RenderObject::setNeedsLayout(MarkingBehavior markParents)
 
 inline bool RenderObject::preservesNewline() const
 {
-#if ENABLE(SVG)
     if (isSVGInlineText())
         return false;
-#endif
         
     return style().preserveNewline();
 }
@@ -1176,20 +1126,9 @@ inline bool RenderObject::backgroundIsKnownToBeObscured()
     return m_bitfields.boxDecorationState() == HasBoxDecorationsAndBackgroundIsKnownToBeObscured;
 }
 
-inline int adjustForAbsoluteZoom(int value, RenderObject* renderer)
-{
-    return adjustForAbsoluteZoom(value, &renderer->style());
-}
-
-#if ENABLE(SUBPIXEL_LAYOUT)
-inline LayoutUnit adjustLayoutUnitForAbsoluteZoom(LayoutUnit value, RenderObject* renderer)
-{
-    return adjustLayoutUnitForAbsoluteZoom(value, &renderer->style());
-}
-#endif
-
 #define RENDER_OBJECT_TYPE_CASTS(ToValueTypeName, predicate) \
-    TYPE_CASTS_BASE(ToValueTypeName, RenderObject, object, object->predicate, object.predicate)
+    template <> inline bool isRendererOfType<const ToValueTypeName>(const RenderObject& renderer) { return renderer.predicate; } \
+    TYPE_CASTS_BASE(ToValueTypeName, RenderObject, renderer, isRendererOfType<const ToValueTypeName>(*renderer), isRendererOfType<const ToValueTypeName>(renderer))
 
 } // namespace WebCore
 

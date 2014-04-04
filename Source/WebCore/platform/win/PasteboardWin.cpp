@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -51,6 +51,7 @@
 #include "markup.h"
 #include <wtf/WindowsExtras.h>
 #include <wtf/text/CString.h>
+#include <wtf/text/StringView.h>
 #include <wtf/win/GDIObject.h>
 
 namespace WebCore {
@@ -558,7 +559,7 @@ static String filesystemPathFromUrlOrTitle(const String& url, const String& titl
 
     if (!title.isEmpty()) {
         size_t len = std::min<size_t>(title.length(), fsPathMaxLengthExcludingExtension);
-        CopyMemory(fsPathBuffer, title.characters(), len * sizeof(UChar));
+        StringView(title).substring(0, len).getCharactersWithUpconvert(fsPathBuffer);
         fsPathBuffer[len] = 0;
         pathRemoveBadFSCharacters(fsPathBuffer, len);
     }
@@ -573,10 +574,10 @@ static String filesystemPathFromUrlOrTitle(const String& url, const String& titl
         String lastComponent = kurl.lastPathComponent();
         if (kurl.isLocalFile() || (!isLink && !lastComponent.isEmpty())) {
             len = std::min<DWORD>(fsPathMaxLengthExcludingExtension, lastComponent.length());
-            CopyMemory(fsPathBuffer, lastComponent.characters(), len * sizeof(UChar));
+            StringView(lastComponent).substring(0, len).getCharactersWithUpconvert(fsPathBuffer);
         } else {
             len = std::min<DWORD>(fsPathMaxLengthExcludingExtension, url.length());
-            CopyMemory(fsPathBuffer, url.characters(), len * sizeof(UChar));
+            StringView(url).substring(0, len).getCharactersWithUpconvert(fsPathBuffer);
         }
         fsPathBuffer[len] = 0;
         pathRemoveBadFSCharacters(fsPathBuffer, len);
@@ -672,7 +673,7 @@ void Pasteboard::writeURLToDataObject(const URL& kurl, const String& titleStr)
     fgd->fgd[0].nFileSizeLow = content.length();
 
     unsigned maxSize = std::min<unsigned>(fsPath.length(), WTF_ARRAY_LENGTH(fgd->fgd[0].cFileName));
-    CopyMemory(fgd->fgd[0].cFileName, fsPath.characters(), maxSize * sizeof(UChar));
+    StringView(fsPath).substring(0, maxSize).getCharactersWithUpconvert(fgd->fgd[0].cFileName);
     GlobalUnlock(urlFileDescriptor);
 
     char* fileContents = static_cast<char*>(GlobalLock(urlFileContent));
@@ -726,7 +727,7 @@ void Pasteboard::write(const PasteboardURL& pasteboardURL)
 
 void Pasteboard::writeImage(Element& element, const URL&, const String&)
 {
-    if (!(element.renderer() && element.renderer()->isImage()))
+    if (!(element.renderer() && element.renderer()->isRenderImage()))
         return;
 
     RenderImage* renderer = toRenderImage(element.renderer());
@@ -744,7 +745,7 @@ void Pasteboard::writeImage(Element& element, const URL&, const String&)
     auto resultBitmap = adoptGDIObject(::CreateCompatibleBitmap(dc, image->width(), image->height()));
     HGDIOBJ oldBitmap = ::SelectObject(compatibleDC.get(), resultBitmap.get());
 
-    BitmapInfo bmInfo = BitmapInfo::create(image->size());
+    BitmapInfo bmInfo = BitmapInfo::create(IntSize(image->size()));
 
     auto coreBitmap = adoptGDIObject(::CreateDIBSection(dc, &bmInfo, DIB_RGB_COLORS, 0, 0, 0));
     HGDIOBJ oldSource = ::SelectObject(sourceDC.get(), coreBitmap.get());
@@ -862,7 +863,7 @@ static CachedImage* getCachedImage(Element& element)
 {
     // Attempt to pull CachedImage from element
     RenderObject* renderer = element.renderer();
-    if (!renderer || !renderer->isImage()) 
+    if (!renderer || !renderer->isRenderImage())
         return 0;
 
     RenderImage* image = toRenderImage(renderer);
@@ -907,7 +908,7 @@ static HGLOBAL createGlobalImageFileDescriptor(const String& url, const String& 
     }
 
     int maxSize = std::min<int>(fsPath.length(), WTF_ARRAY_LENGTH(fgd->fgd[0].cFileName));
-    CopyMemory(fgd->fgd[0].cFileName, (LPCWSTR)fsPath.characters(), maxSize * sizeof(UChar));
+    StringView(fsPath).substring(0, maxSize).getCharactersWithUpconvert(fgd->fgd[0].cFileName);
     GlobalUnlock(memObj);
 
     return memObj;

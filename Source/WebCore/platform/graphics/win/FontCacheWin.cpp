@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -32,12 +32,13 @@
 #include "Font.h"
 #include "HWndDC.h"
 #include "SimpleFontData.h"
-#include "UnicodeRange.h"
 #include <mlang.h>
 #include <windows.h>
 #include <wtf/StdLibExtras.h>
 #include <wtf/text/StringHash.h>
+#include <wtf/text/StringView.h>
 #include <wtf/win/GDIObject.h>
+
 #if USE(CG)
 #include <ApplicationServices/ApplicationServices.h>
 #include <WebKitSystemInterface/WebKitSystemInterface.h>
@@ -201,7 +202,7 @@ PassRefPtr<SimpleFontData> FontCache::systemFallbackForCharacters(const FontDesc
         DWORD codePages = 0;
         langFontLink->GetCharCodePages(character, &codePages);
 
-        if (codePages && findCharUnicodeRange(character) == cRangeSetCJK) {
+        if (codePages && u_getIntPropertyValue(character, UCHAR_UNIFIED_IDEOGRAPH)) {
             // The CJK character may belong to multiple code pages. We want to
             // do font linking against a single one of them, preferring the default
             // code page for the user's locale.
@@ -277,7 +278,7 @@ PassRefPtr<SimpleFontData> FontCache::systemFallbackForCharacters(const FontDesc
 
         LOGFONT logFont;
         logFont.lfCharSet = DEFAULT_CHARSET;
-        memcpy(logFont.lfFaceName, linkedFonts->at(linkedFontIndex).characters(), linkedFonts->at(linkedFontIndex).length() * sizeof(WCHAR));
+        StringView(linkedFonts->at(linkedFontIndex)).getCharactersWithUpconvert(logFont.lfFaceName);
         logFont.lfFaceName[linkedFonts->at(linkedFontIndex).length()] = 0;
         EnumFontFamiliesEx(hdc, &logFont, linkedFontEnumProc, reinterpret_cast<LPARAM>(&hfont), 0);
         linkedFontIndex++;
@@ -308,7 +309,7 @@ PassRefPtr<SimpleFontData> FontCache::fontDataFromDescriptionAndLogFont(const Fo
 
 PassRefPtr<SimpleFontData> FontCache::getLastResortFallbackFont(const FontDescription& fontDescription, ShouldRetain shouldRetain)
 {
-    DEFINE_STATIC_LOCAL(AtomicString, fallbackFontName, ());
+    DEPRECATED_DEFINE_STATIC_LOCAL(AtomicString, fallbackFontName, ());
     if (!fallbackFontName.isEmpty())
         return getCachedFontData(fontDescription, fallbackFontName, false, shouldRetain);
 
@@ -447,9 +448,9 @@ static GDIObject<HFONT> createGDIFont(const AtomicString& family, LONG desiredWe
 
     LOGFONT logFont;
     logFont.lfCharSet = DEFAULT_CHARSET;
-    unsigned familyLength = min(family.length(), static_cast<unsigned>(LF_FACESIZE - 1));
-    memcpy(logFont.lfFaceName, family.characters(), familyLength * sizeof(UChar));
-    logFont.lfFaceName[familyLength] = 0;
+    StringView truncatedFamily = StringView(family).substring(0, static_cast<unsigned>(LF_FACESIZE - 1));
+    truncatedFamily.getCharactersWithUpconvert(logFont.lfFaceName);
+    logFont.lfFaceName[truncatedFamily.length()] = 0;
     logFont.lfPitchAndFamily = 0;
 
     MatchImprovingProcData matchData(desiredWeight, desiredItalic);
@@ -529,9 +530,9 @@ void FontCache::getTraitsInFamily(const AtomicString& familyName, Vector<unsigne
 
     LOGFONT logFont;
     logFont.lfCharSet = DEFAULT_CHARSET;
-    unsigned familyLength = min(familyName.length(), static_cast<unsigned>(LF_FACESIZE - 1));
-    memcpy(logFont.lfFaceName, familyName.characters(), familyLength * sizeof(UChar));
-    logFont.lfFaceName[familyLength] = 0;
+    StringView truncatedFamily = StringView(familyName).substring(0, static_cast<unsigned>(LF_FACESIZE - 1));
+    truncatedFamily.getCharactersWithUpconvert(logFont.lfFaceName);
+    logFont.lfFaceName[truncatedFamily.length()] = 0;
     logFont.lfPitchAndFamily = 0;
 
     TraitsInFamilyProcData procData(familyName);
@@ -588,4 +589,3 @@ PassOwnPtr<FontPlatformData> FontCache::createFontPlatformData(const FontDescrip
 }
 
 }
-

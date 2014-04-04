@@ -37,7 +37,7 @@
 #include "RenderStyle.h"
 #include "Shape.h"
 #include "ShapeValue.h"
-#include <wtf/OwnPtr.h>
+#include <memory>
 #include <wtf/Vector.h>
 
 namespace WebCore {
@@ -60,7 +60,7 @@ private:
     typedef HashMap<const KeyType*, std::unique_ptr<InfoType>> InfoMap;
     static InfoMap& infoMap()
     {
-        DEFINE_STATIC_LOCAL(InfoMap, staticInfoMap, ());
+        DEPRECATED_DEFINE_STATIC_LOCAL(InfoMap, staticInfoMap, ());
         return staticInfoMap;
     }
 };
@@ -71,35 +71,7 @@ class ShapeInfo {
 public:
     virtual ~ShapeInfo() { }
 
-    void setShapeSize(LayoutUnit logicalWidth, LayoutUnit logicalHeight)
-    {
-        BasicShape::ReferenceBox box = resolvedBox();
-        switch (box) {
-        case BasicShape::MarginBox:
-            logicalHeight += m_renderer.marginLogicalHeight();
-            logicalWidth += m_renderer.marginLogicalWidth();
-            break;
-        case BasicShape::BorderBox:
-            break;
-        case BasicShape::PaddingBox:
-            logicalHeight -= m_renderer.borderLogicalHeight();
-            logicalWidth -= m_renderer.borderLogicalWidth();
-            break;
-        case BasicShape::ContentBox:
-            logicalHeight -= m_renderer.borderAndPaddingLogicalHeight();
-            logicalWidth -= m_renderer.borderAndPaddingLogicalWidth();
-            break;
-        case BasicShape::None:
-            ASSERT_NOT_REACHED();
-            break;
-        }
-
-        LayoutSize newLogicalSize(logicalWidth, logicalHeight);
-        if (m_shapeLogicalSize == newLogicalSize)
-            return;
-        dirtyShapeSize();
-        m_shapeLogicalSize = newLogicalSize;
-    }
+    void setReferenceBoxLogicalSize(LayoutSize);
 
     SegmentList computeSegmentsForLine(LayoutUnit lineTop, LayoutUnit lineHeight) const;
 
@@ -110,18 +82,18 @@ public:
     LayoutUnit shapeLogicalWidth() const { return computedShapeLogicalBoundingBox().width(); }
     LayoutUnit shapeLogicalHeight() const { return computedShapeLogicalBoundingBox().height(); }
 
-    LayoutUnit logicalLineTop() const { return m_shapeLineTop + logicalTopOffset(); }
-    LayoutUnit logicalLineBottom() const { return m_shapeLineTop + m_lineHeight + logicalTopOffset(); }
-    LayoutUnit logicalLineBottom(LayoutUnit lineHeight) const { return m_shapeLineTop + lineHeight + logicalTopOffset(); }
+    LayoutUnit logicalLineTop() const { return m_referenceBoxLineTop + logicalTopOffset(); }
+    LayoutUnit logicalLineBottom() const { return m_referenceBoxLineTop + m_lineHeight + logicalTopOffset(); }
+    LayoutUnit logicalLineBottom(LayoutUnit lineHeight) const { return m_referenceBoxLineTop + lineHeight + logicalTopOffset(); }
 
-    LayoutUnit shapeContainingBlockLogicalHeight() const { return (m_renderer.style().boxSizing() == CONTENT_BOX) ? (m_shapeLogicalSize.height() + m_renderer.borderAndPaddingLogicalHeight()) : m_shapeLogicalSize.height(); }
+    LayoutUnit shapeContainingBlockLogicalHeight() const { return (m_renderer.style().boxSizing() == CONTENT_BOX) ? (m_referenceBoxLogicalSize.height() + m_renderer.borderAndPaddingLogicalHeight()) : m_referenceBoxLogicalSize.height(); }
 
     virtual bool lineOverlapsShapeBounds() const = 0;
 
-    void dirtyShapeSize() { m_shape.clear(); }
-    bool shapeSizeDirty() { return !m_shape.get(); }
+    void markShapeAsDirty() { m_shape = nullptr; }
+    bool isShapeDirty() { return !m_shape; }
     const RenderType& owner() const { return m_renderer; }
-    LayoutSize shapeSize() const { return m_shapeLogicalSize; }
+    LayoutSize referenceBoxLogicalSize() const { return m_referenceBoxLogicalSize; }
 
     LayoutRect computedShapePhysicalBoundingBox() const
     {
@@ -160,51 +132,24 @@ protected:
     {
     }
 
-    virtual BasicShape::ReferenceBox resolvedBox() const = 0;
+    virtual CSSBoxType referenceBox() const = 0;
     virtual LayoutRect computedShapeLogicalBoundingBox() const = 0;
     virtual ShapeValue* shapeValue() const = 0;
     virtual void getIntervals(LayoutUnit, LayoutUnit, SegmentList&) const = 0;
 
-    virtual WritingMode writingMode() const { return m_renderer.style().writingMode(); }
+    virtual const RenderStyle& styleForWritingMode() const = 0;
 
-    LayoutUnit logicalTopOffset() const
-    {
-        BasicShape::ReferenceBox box = resolvedBox();
-        switch (box) {
-        case BasicShape::MarginBox: return -m_renderer.marginBefore();
-        case BasicShape::BorderBox: return LayoutUnit();
-        case BasicShape::PaddingBox: return m_renderer.borderBefore();
-        case BasicShape::ContentBox: return m_renderer.borderAndPaddingBefore();
-        case BasicShape::None: break;
-        }
-        ASSERT_NOT_REACHED();
-        return LayoutUnit();
-    }
+    LayoutUnit logicalTopOffset() const;
+    LayoutUnit logicalLeftOffset() const;
 
-    LayoutUnit logicalLeftOffset() const
-    {
-        if (m_renderer.isRenderRegion())
-            return LayoutUnit();
-        BasicShape::ReferenceBox box = resolvedBox();
-        switch (box) {
-        case BasicShape::MarginBox: return -m_renderer.marginStart();
-        case BasicShape::BorderBox: return LayoutUnit();
-        case BasicShape::PaddingBox: return m_renderer.borderStart();
-        case BasicShape::ContentBox: return m_renderer.borderAndPaddingStart();
-        case BasicShape::None: break;
-        }
-        ASSERT_NOT_REACHED();
-        return LayoutUnit();
-    }
-
-    LayoutUnit m_shapeLineTop;
+    LayoutUnit m_referenceBoxLineTop;
     LayoutUnit m_lineHeight;
 
     const RenderType& m_renderer;
 
 private:
-    mutable OwnPtr<Shape> m_shape;
-    LayoutSize m_shapeLogicalSize;
+    mutable std::unique_ptr<Shape> m_shape;
+    LayoutSize m_referenceBoxLogicalSize;
 };
 
 bool checkShapeImageOrigin(Document&, CachedImage&);

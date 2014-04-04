@@ -45,7 +45,7 @@ ChildProcessProxy::~ChildProcessProxy()
     }
 }
 
-ChildProcessProxy* ChildProcessProxy::fromConnection(CoreIPC::Connection* connection)
+ChildProcessProxy* ChildProcessProxy::fromConnection(IPC::Connection* connection)
 {
     ASSERT(connection);
 
@@ -69,83 +69,88 @@ void ChildProcessProxy::terminate()
         m_processLauncher->terminateProcess();
 }
 
-bool ChildProcessProxy::sendMessage(std::unique_ptr<CoreIPC::MessageEncoder> encoder, unsigned messageSendFlags)
+ChildProcessProxy::State ChildProcessProxy::state() const
 {
-    // If we're waiting for the web process to launch, we need to stash away the messages so we can send them once we have
-    // a CoreIPC connection.
-    if (isLaunching()) {
+    if (m_processLauncher && m_processLauncher->isLaunching())
+        return ChildProcessProxy::State::Launching;
+
+    if (!m_connection)
+        return ChildProcessProxy::State::Terminated;
+
+    return ChildProcessProxy::State::Running;
+}
+
+bool ChildProcessProxy::sendMessage(std::unique_ptr<IPC::MessageEncoder> encoder, unsigned messageSendFlags)
+{
+    switch (state()) {
+    case State::Launching:
+        // If we're waiting for the child process to launch, we need to stash away the messages so we can send them once we have a connection.
         m_pendingMessages.append(std::make_pair(std::move(encoder), messageSendFlags));
         return true;
-    }
 
-    // If the web process has exited, connection will be null here.
-    if (!m_connection)
+    case State::Running:
+        return connection()->sendMessage(std::move(encoder), messageSendFlags);
+
+    case State::Terminated:
         return false;
-
-    return connection()->sendMessage(std::move(encoder), messageSendFlags);
-}
-
-void ChildProcessProxy::addMessageReceiver(CoreIPC::StringReference messageReceiverName, CoreIPC::MessageReceiver* messageReceiver)
-{
-    m_messageReceiverMap.addMessageReceiver(messageReceiverName, messageReceiver);
-}
-
-void ChildProcessProxy::addMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID, CoreIPC::MessageReceiver* messageReceiver)
-{
-    m_messageReceiverMap.addMessageReceiver(messageReceiverName, destinationID, messageReceiver);
-}
-
-void ChildProcessProxy::removeMessageReceiver(CoreIPC::StringReference messageReceiverName, uint64_t destinationID)
-{
-    m_messageReceiverMap.removeMessageReceiver(messageReceiverName, destinationID);
-}
-
-bool ChildProcessProxy::dispatchMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
-{
-    return m_messageReceiverMap.dispatchMessage(connection, decoder);
-}
-
-bool ChildProcessProxy::dispatchSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder, std::unique_ptr<CoreIPC::MessageEncoder>& replyEncoder)
-{
-    return m_messageReceiverMap.dispatchSyncMessage(connection, decoder, replyEncoder);
-}
-
-bool ChildProcessProxy::isLaunching() const
-{
-    if (m_processLauncher)
-        return m_processLauncher->isLaunching();
+    }
 
     return false;
 }
 
-void ChildProcessProxy::didFinishLaunching(ProcessLauncher*, CoreIPC::Connection::Identifier connectionIdentifier)
+void ChildProcessProxy::addMessageReceiver(IPC::StringReference messageReceiverName, IPC::MessageReceiver& messageReceiver)
+{
+    m_messageReceiverMap.addMessageReceiver(messageReceiverName, messageReceiver);
+}
+
+void ChildProcessProxy::addMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID, IPC::MessageReceiver& messageReceiver)
+{
+    m_messageReceiverMap.addMessageReceiver(messageReceiverName, destinationID, messageReceiver);
+}
+
+void ChildProcessProxy::removeMessageReceiver(IPC::StringReference messageReceiverName, uint64_t destinationID)
+{
+    m_messageReceiverMap.removeMessageReceiver(messageReceiverName, destinationID);
+}
+
+bool ChildProcessProxy::dispatchMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder)
+{
+    return m_messageReceiverMap.dispatchMessage(connection, decoder);
+}
+
+bool ChildProcessProxy::dispatchSyncMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder, std::unique_ptr<IPC::MessageEncoder>& replyEncoder)
+{
+    return m_messageReceiverMap.dispatchSyncMessage(connection, decoder, replyEncoder);
+}
+
+void ChildProcessProxy::didFinishLaunching(ProcessLauncher*, IPC::Connection::Identifier connectionIdentifier)
 {
     ASSERT(!m_connection);
 
-    m_connection = CoreIPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
-#if OS(DARWIN)
+    m_connection = IPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
+#if PLATFORM(MAC)
     m_connection->setShouldCloseConnectionOnMachExceptions();
 #endif
 
-    connectionWillOpen(m_connection.get());
-    m_connection->open();
-
     for (size_t i = 0; i < m_pendingMessages.size(); ++i) {
-        std::unique_ptr<CoreIPC::MessageEncoder> message = std::move(m_pendingMessages[i].first);
+        std::unique_ptr<IPC::MessageEncoder> message = std::move(m_pendingMessages[i].first);
         unsigned messageSendFlags = m_pendingMessages[i].second;
         m_connection->sendMessage(std::move(message), messageSendFlags);
     }
+
+    connectionWillOpen(m_connection.get());
+    m_connection->open();
 
     m_pendingMessages.clear();
 }
 
 void ChildProcessProxy::abortProcessLaunchIfNeeded()
 {
-    if (!isLaunching())
+    if (state() != State::Launching)
         return;
 
     m_processLauncher->invalidate();
-    m_processLauncher = 0;
+    m_processLauncher = nullptr;
 }
 
 void ChildProcessProxy::clearConnection()
@@ -159,11 +164,11 @@ void ChildProcessProxy::clearConnection()
     m_connection = nullptr;
 }
 
-void ChildProcessProxy::connectionWillOpen(CoreIPC::Connection*)
+void ChildProcessProxy::connectionWillOpen(IPC::Connection*)
 {
 }
 
-void ChildProcessProxy::connectionWillClose(CoreIPC::Connection*)
+void ChildProcessProxy::connectionWillClose(IPC::Connection*)
 {
 }
 

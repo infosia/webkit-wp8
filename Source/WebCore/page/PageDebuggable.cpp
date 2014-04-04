@@ -29,10 +29,16 @@
 #if ENABLE(REMOTE_INSPECTOR)
 
 #include "Document.h"
+#include "InspectorClient.h"
 #include "InspectorController.h"
 #include "InspectorForwarding.h"
 #include "MainFrame.h"
 #include "Page.h"
+#include <inspector/InspectorAgentBase.h>
+
+#if PLATFORM(IOS)
+#include "Settings.h"
+#endif
 
 using namespace Inspector;
 
@@ -62,31 +68,49 @@ String PageDebuggable::url() const
 
 bool PageDebuggable::hasLocalDebugger() const
 {
-    return m_page.inspectorController()->hasLocalFrontend();
+    return m_page.inspectorController().hasLocalFrontend();
+}
+
+pid_t PageDebuggable::parentProcessIdentifier() const
+{
+    if (InspectorClient* inspectorClient = m_page.inspectorController().inspectorClient())
+        return inspectorClient->parentProcessIdentifier();
+
+    return 0;
 }
 
 void PageDebuggable::connect(Inspector::InspectorFrontendChannel* channel)
 {
-    InspectorController* inspectorController = m_page.inspectorController();
-    inspectorController->setHasRemoteFrontend(true);
-    inspectorController->connectFrontend(reinterpret_cast<WebCore::InspectorFrontendChannel*>(channel));
+#if PLATFORM(IOS)
+    // On iOS there is no way to enable / disable developer extras.
+    // So toggle it on when we have a remote inspector connection.
+    m_page.settings().setDeveloperExtrasEnabled(true);
+#endif
+
+    InspectorController& inspectorController = m_page.inspectorController();
+    inspectorController.setHasRemoteFrontend(true);
+    inspectorController.connectFrontend(reinterpret_cast<WebCore::InspectorFrontendChannel*>(channel));
 }
 
 void PageDebuggable::disconnect()
 {
-    InspectorController* inspectorController = m_page.inspectorController();
-    inspectorController->disconnectFrontend();
-    inspectorController->setHasRemoteFrontend(false);
+    InspectorController& inspectorController = m_page.inspectorController();
+    inspectorController.disconnectFrontend(InspectorDisconnectReason::InspectorDestroyed);
+    inspectorController.setHasRemoteFrontend(false);
+
+#if PLATFORM(IOS)
+    m_page.settings().setDeveloperExtrasEnabled(false);
+#endif
 }
 
 void PageDebuggable::dispatchMessageFromRemoteFrontend(const String& message)
 {
-    m_page.inspectorController()->dispatchMessageFromFrontend(message);
+    m_page.inspectorController().dispatchMessageFromFrontend(message);
 }
 
 void PageDebuggable::setIndicating(bool indicating)
 {
-    m_page.inspectorController()->setIndicating(indicating);
+    m_page.inspectorController().setIndicating(indicating);
 }
 
 } // namespace WebCore

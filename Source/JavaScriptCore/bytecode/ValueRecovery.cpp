@@ -27,7 +27,7 @@
 #include "ValueRecovery.h"
 
 #include "CodeBlock.h"
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -82,9 +82,6 @@ void ValueRecovery::dumpInContext(PrintStream& out, DumpContext* context) const
         return;
     case UnboxedCellInGPR:
         out.print("cell(", gpr(), ")");
-        return;
-    case UInt32InGPR:
-        out.print("uint32(", gpr(), ")");
         return;
     case InFPR:
         out.print(fpr());

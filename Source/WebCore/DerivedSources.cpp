@@ -20,13 +20,16 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 // This all-in-one cpp file cuts down on template bloat to allow us to build our Windows release build.
 
 #include "HTMLElementFactory.cpp"
 #include "HTMLEntityTable.cpp"
+#if ENABLE(WEBGL)
+#include "JSANGLEInstancedArrays.cpp"
+#endif
 #include "JSAbstractWorker.cpp"
 #include "JSAttr.cpp"
 #include "JSBarProp.cpp"
@@ -38,13 +41,13 @@
 #include "JSCanvasRenderingContext.cpp"
 #include "JSCanvasRenderingContext2D.cpp"
 #if ENABLE(WEBGL)
-#include "JSEXTDrawBuffers.cpp"
 #include "JSEXTTextureFilterAnisotropic.cpp"
 #include "JSOESElementIndexUint.cpp"
 #include "JSOESStandardDerivatives.cpp"
 #include "JSOESTextureFloat.cpp"
 #include "JSOESTextureFloatLinear.cpp"
 #include "JSOESTextureHalfFloat.cpp"
+#include "JSOESTextureHalfFloatLinear.cpp"
 #include "JSOESVertexArrayObject.cpp"
 #include "JSWebGLActiveInfo.cpp"
 #include "JSWebGLBuffer.cpp"
@@ -56,6 +59,7 @@
 #include "JSWebGLDebugRendererInfo.cpp"
 #include "JSWebGLDebugShaders.cpp"
 #include "JSWebGLDepthTexture.cpp"
+#include "JSWebGLDrawBuffers.cpp"
 #include "JSWebGLFramebuffer.cpp"
 #include "JSWebGLLoseContext.cpp"
 #include "JSWebGLProgram.cpp"
@@ -73,9 +77,9 @@
 #include "JSClientRectList.cpp"
 #include "JSClipboard.cpp"
 #include "JSCloseEvent.cpp"
+#include "JSCommandLineAPIHost.cpp"
 #include "JSComment.cpp"
 #include "JSCompositionEvent.cpp"
-#include "JSConsole.cpp"
 #include "JSCoordinates.cpp"
 #include "JSCounter.cpp"
 #include "JSCrypto.cpp"
@@ -84,7 +88,6 @@
 #include "JSCSSFontFaceLoadEvent.cpp"
 #endif
 #include "JSCSSFontFaceRule.cpp"
-#include "JSCSSHostRule.cpp"
 #include "JSCSSImportRule.cpp"
 #include "JSCSSMediaRule.cpp"
 #include "JSCSSPageRule.cpp"
@@ -237,14 +240,13 @@
 #include "JSIDBRequest.cpp"
 #include "JSIDBTransaction.cpp"
 #include "JSImageData.cpp"
-#include "JSInjectedScriptHost.cpp"
 #include "JSInspectorFrontendHost.cpp"
-#include "JSJavaScriptCallFrame.cpp"
 #include "JSKeyboardEvent.cpp"
 #include "JSLocation.cpp"
 #include "JSMediaController.cpp"
 #if ENABLE(MEDIA_CONTROLS_SCRIPT)
 #include "JSMediaControlsHost.cpp"
+#include "UserAgentScriptsData.cpp"
 #endif
 #include "JSMediaError.cpp"
 #include "JSMediaList.cpp"
@@ -286,7 +288,6 @@
 #include "JSScreen.cpp"
 #include "JSScriptProfile.cpp"
 #include "JSScriptProfileNode.cpp"
-#include "JSShadowRoot.cpp"
 #include "JSSharedWorker.cpp"
 #include "JSSharedWorkerGlobalScope.cpp"
 #include "JSSQLError.cpp"
@@ -461,14 +462,20 @@
 #if ENABLE(VIDEO_TRACK)
 #include "JSAudioTrack.cpp"
 #include "JSAudioTrackList.cpp"
+#include "JSDataCue.cpp"
 #include "JSHTMLTrackElement.cpp"
 #include "JSTextTrack.cpp"
 #include "JSTextTrackCue.cpp"
 #include "JSTextTrackCueList.cpp"
 #include "JSTextTrackList.cpp"
 #include "JSTrackEvent.cpp"
+#include "JSVTTCue.cpp"
 #include "JSVideoTrack.cpp"
 #include "JSVideoTrackList.cpp"
+#if ENABLE(WEBVTT_REGIONS)
+#include "JSVTTRegion.cpp"
+#include "JSVTTRegionList.cpp"
+#endif
 #endif
 #include "JSTimeRanges.cpp"
 #include "JSTouch.cpp"
@@ -480,9 +487,6 @@
 #include "JSValidityState.cpp"
 #include "JSVoidCallback.cpp"
 #include "JSWebKitAnimationEvent.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSFilterRule.cpp"
-#endif
 #if ENABLE(CSS_FILTERS)
 #include "JSWebKitCSSFilterValue.cpp"
 #endif
@@ -490,9 +494,6 @@
 #include "JSWebKitCSSKeyframesRule.cpp"
 #include "JSWebKitCSSTransformValue.cpp"
 #include "JSWebKitCSSMatrix.cpp"
-#if ENABLE(CSS_SHADERS)
-#include "JSWebKitCSSMixFunctionValue.cpp"
-#endif
 #include "JSWebKitCSSRegionRule.cpp"
 #include "JSWebKitNamedFlow.cpp"
 #include "JSWebKitPoint.cpp"

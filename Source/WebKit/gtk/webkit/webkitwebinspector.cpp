@@ -107,7 +107,7 @@ static void webkit_web_inspector_set_property(GObject* object, guint prop_id, co
 
 static void webkit_web_inspector_get_property(GObject* object, guint prop_id, GValue* value, GParamSpec* pspec);
 
-static gboolean webkit_inspect_web_view_request_handled(GSignalInvocationHint* ihint, GValue* returnAccu, const GValue* handlerReturn, gpointer dummy)
+static gboolean webkit_inspect_web_view_request_handled(GSignalInvocationHint*, GValue* returnAccu, const GValue* handlerReturn, gpointer)
 {
     gboolean continueEmission = TRUE;
     gpointer newWebView = g_value_get_object(handlerReturn);
@@ -292,8 +292,7 @@ static void webkit_web_inspector_class_init(WebKitWebInspectorClass* klass)
     /**
     * WebKitWebInspector:javascript-profiling-enabled:
     *
-    * This is enabling JavaScript profiling in the Inspector. This means
-    * that Console.profiles will return the profiles.
+    * This is enabling JavaScript profiling in the Inspector.
     *
     * Since: 1.1.1
     */
@@ -351,12 +350,8 @@ static void webkit_web_inspector_set_property(GObject* object, guint prop_id, co
 
     switch(prop_id) {
     case PROP_JAVASCRIPT_PROFILING_ENABLED: {
-#if ENABLE(JAVASCRIPT_DEBUGGER)
         bool enabled = g_value_get_boolean(value);
-        priv->page->inspectorController()->setProfilerEnabled(enabled);
-#else
-        g_message("PROP_JAVASCRIPT_PROFILING_ENABLED is not work because of the javascript debugger is disabled\n");
-#endif
+        priv->page->inspectorController().setProfilerEnabled(enabled);
         break;
     }
     case PROP_TIMELINE_PROFILING_ENABLED: {
@@ -382,11 +377,7 @@ static void webkit_web_inspector_get_property(GObject* object, guint prop_id, GV
         g_value_set_string(value, priv->inspected_uri);
         break;
     case PROP_JAVASCRIPT_PROFILING_ENABLED:
-#if ENABLE(JAVASCRIPT_DEBUGGER)
-        g_value_set_boolean(value, priv->page->inspectorController()->profilerEnabled());
-#else
-        g_message("PROP_JAVASCRIPT_PROFILING_ENABLED is not work because of the javascript debugger is disabled\n");
-#endif
+        g_value_set_boolean(value, priv->page->inspectorController().profilerEnabled());
         break;
     case PROP_TIMELINE_PROFILING_ENABLED:
         g_message("PROP_TIMELINE_PROFILING_ENABLED has been deprecated\n");
@@ -491,7 +482,7 @@ void webkit_web_inspector_show(WebKitWebInspector* webInspector)
     if (!view)
         return;
 
-    priv->page->inspectorController()->show();
+    priv->page->inspectorController().show();
 }
 
 /**
@@ -508,7 +499,7 @@ void webkit_web_inspector_inspect_node(WebKitWebInspector* webInspector, WebKitD
     g_return_if_fail(WEBKIT_IS_WEB_INSPECTOR(webInspector));
     g_return_if_fail(WEBKIT_DOM_IS_NODE(node));
 
-    webInspector->priv->page->inspectorController()->inspect(core(node));
+    webInspector->priv->page->inspectorController().inspect(core(node));
 }
 
 /**
@@ -546,7 +537,7 @@ void webkit_web_inspector_inspect_coordinates(WebKitWebInspector* webInspector, 
     HitTestResult result(documentPoint);
 
     frame.contentRenderer()->layer()->hitTest(request, result);
-    priv->page->inspectorController()->inspect(result.innerNonSharedNode());
+    priv->page->inspectorController().inspect(result.innerNonSharedNode());
 }
 
 /**
@@ -562,14 +553,14 @@ void webkit_web_inspector_close(WebKitWebInspector* webInspector)
     g_return_if_fail(WEBKIT_IS_WEB_INSPECTOR(webInspector));
 
     WebKitWebInspectorPrivate* priv = webInspector->priv;
-    priv->page->inspectorController()->close();
+    priv->page->inspectorController().close();
 }
 
-void webkit_web_inspector_execute_script(WebKitWebInspector* webInspector, long callId, const gchar* script)
+void webkit_web_inspector_execute_script(WebKitWebInspector* webInspector, const gchar* script)
 {
     g_return_if_fail(WEBKIT_IS_WEB_INSPECTOR(webInspector));
     g_return_if_fail(script);
 
     WebKitWebInspectorPrivate* priv = webInspector->priv;
-    priv->page->inspectorController()->evaluateForTestInFrontend(callId, script);
+    priv->page->inspectorController().evaluateForTestInFrontend(script);
 }

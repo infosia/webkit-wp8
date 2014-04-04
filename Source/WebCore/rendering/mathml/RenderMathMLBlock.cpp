@@ -45,13 +45,11 @@ using namespace MathMLNames;
     
 RenderMathMLBlock::RenderMathMLBlock(Element& container, PassRef<RenderStyle> style)
     : RenderFlexibleBox(container, std::move(style))
-    , m_ignoreInAccessibilityTree(false)
 {
 }
 
 RenderMathMLBlock::RenderMathMLBlock(Document& document, PassRef<RenderStyle> style)
     : RenderFlexibleBox(document, std::move(style))
-    , m_ignoreInAccessibilityTree(false)
 {
 }
 
@@ -60,9 +58,9 @@ bool RenderMathMLBlock::isChildAllowed(const RenderObject& child, const RenderSt
     return child.node() && isElement(*child.node());
 }
 
-RenderMathMLBlock* RenderMathMLBlock::createAnonymousMathMLBlock(EDisplay display)
+RenderPtr<RenderMathMLBlock> RenderMathMLBlock::createAnonymousMathMLBlock()
 {
-    RenderMathMLBlock* newBlock = new RenderMathMLBlock(document(), RenderStyle::createAnonymousStyleWithDisplay(&style(), display));
+    RenderPtr<RenderMathMLBlock> newBlock = createRenderer<RenderMathMLBlock>(document(), RenderStyle::createAnonymousStyleWithDisplay(&style(), FLEX));
     newBlock->initializeStyle();
     return newBlock;
 }

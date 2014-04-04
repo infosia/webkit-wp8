@@ -20,7 +20,6 @@
 #ifndef SVGTextPathElement_h
 #define SVGTextPathElement_h
 
-#if ENABLE(SVG)
 #include "SVGNames.h"
 #include "SVGTextContentElement.h"
 #include "SVGURIReference.h"
@@ -97,7 +96,7 @@ struct SVGPropertyTraits<SVGTextPathSpacingType> {
     }
 };
 
-class SVGTextPathElement FINAL : public SVGTextContentElement,
+class SVGTextPathElement final : public SVGTextContentElement,
                                  public SVGURIReference {
 public:
     // Forward declare enumerations in the W3C naming scheme, for IDL generation.
@@ -119,19 +118,19 @@ private:
 
     void clearResourceReferences();
 
-    virtual void buildPendingResource();
-    virtual InsertionNotificationRequest insertedInto(ContainerNode&) OVERRIDE;
-    virtual void removedFrom(ContainerNode&) OVERRIDE;
+    virtual void buildPendingResource() override;
+    virtual InsertionNotificationRequest insertedInto(ContainerNode&) override;
+    virtual void removedFrom(ContainerNode&) override;
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
 
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE;
-    virtual bool rendererIsNeeded(const RenderStyle&);
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override;
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
 
-    virtual bool selfHasRelativeLengths() const;
+    virtual bool selfHasRelativeLengths() const override;
  
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGTextPathElement)
         DECLARE_ANIMATED_LENGTH(StartOffset, startOffset)
@@ -145,5 +144,4 @@ NODE_TYPE_CASTS(SVGTextPathElement)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
 #endif

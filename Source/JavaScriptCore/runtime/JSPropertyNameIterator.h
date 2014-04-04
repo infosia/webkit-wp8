@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission.
  *
@@ -31,7 +31,6 @@
 
 #include "JSObject.h"
 #include "JSString.h"
-#include "Operations.h"
 #include "PropertyNameArray.h"
 #include <memory>
 
@@ -55,7 +54,7 @@ namespace JSC {
        
         static Structure* createStructure(VM& vm, JSGlobalObject* globalObject, JSValue prototype)
         {
-            return Structure::create(vm, globalObject, prototype, TypeInfo(CompoundType, OverridesVisitChildren), info());
+            return Structure::create(vm, globalObject, prototype, TypeInfo(CompoundType, StructureFlags), info());
         }
 
         static void visitChildren(JSCell*, SlotVisitor&);
@@ -77,6 +76,8 @@ namespace JSC {
         DECLARE_EXPORT_INFO;
 
     protected:
+        static const unsigned StructureFlags = OverridesVisitChildren | StructureIsImmortal;
+
         void finishCreation(VM& vm, PropertyNameArrayData* propertyNameArrayData, JSObject* object)
         {
             Base::finishCreation(vm);
@@ -109,9 +110,9 @@ namespace JSC {
         return m_enumerationCache.get();
     }
     
-    inline void StructureRareData::setEnumerationCache(VM& vm, const Structure* owner, JSPropertyNameIterator* value)
+    inline void StructureRareData::setEnumerationCache(VM& vm, const Structure*, JSPropertyNameIterator* value)
     {
-        m_enumerationCache.set(vm, owner, value);
+        m_enumerationCache.set(vm, this, value);
     }
 
 } // namespace JSC

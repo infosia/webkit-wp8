@@ -13,7 +13,7 @@
  * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -34,11 +34,8 @@
 #include <wtf/RefCounted.h>
 #include <wtf/RefPtr.h>
 #include <wtf/Threading.h>
-#if PLATFORM(BLACKBERRY)
-#include <BlackBerryPlatformAnimationFrameRateController.h>
-#endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 typedef struct __CVDisplayLink *CVDisplayLinkRef;
 #endif
 
@@ -122,20 +119,18 @@ private:
     HashSet<DisplayRefreshMonitorClient*> m_clients;
     HashSet<DisplayRefreshMonitorClient*>* m_clientsToBeNotified;
 
-#if PLATFORM(BLACKBERRY)
-public:
-    void displayLinkFired();
-private:
-    DisplayAnimationClient *m_animationClient;
-    void startAnimationClient();
-    void stopAnimationClient();
-#endif
-
 #if PLATFORM(MAC)
 public:
     void displayLinkFired(double nowSeconds, double outputTimeSeconds);
 private:
     CVDisplayLinkRef m_displayLink;
+#endif
+
+#if PLATFORM(IOS)
+public:
+    void displayLinkFired(double nowSeconds);
+private:
+    void* m_displayLink;
 #endif
 };
 

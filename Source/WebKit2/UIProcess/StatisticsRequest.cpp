@@ -28,7 +28,6 @@
 
 #include "APIArray.h"
 #include "MutableDictionary.h"
-#include <wtf/Atomics.h>
 
 namespace WebKit {
 
@@ -45,9 +44,9 @@ StatisticsRequest::~StatisticsRequest()
 
 uint64_t StatisticsRequest::addOutstandingRequest()
 {
-    static int64_t uniqueRequestID;
+    static std::atomic<int64_t> uniqueRequestID;
 
-    uint64_t requestID = atomicIncrement(&uniqueRequestID);
+    uint64_t requestID = ++uniqueRequestID;
     m_outstandingRequests.add(requestID);
     return requestID;
 }
@@ -56,7 +55,7 @@ static void addToDictionaryFromHashMap(MutableDictionary* dictionary, const Hash
 {
     HashMap<String, uint64_t>::const_iterator end = map.end();
     for (HashMap<String, uint64_t>::const_iterator it = map.begin(); it != end; ++it)
-        dictionary->set(it->key, RefPtr<WebUInt64>(WebUInt64::create(it->value)).get());
+        dictionary->set(it->key, RefPtr<API::UInt64>(API::UInt64::create(it->value)).get());
 }
 
 static PassRefPtr<MutableDictionary> createDictionaryFromHashMap(const HashMap<String, uint64_t>& map)

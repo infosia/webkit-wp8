@@ -21,7 +21,7 @@
 #ifndef SVGFilterPrimitiveStandardAttributes_h
 #define SVGFilterPrimitiveStandardAttributes_h
 
-#if ENABLE(SVG) && ENABLE(FILTERS)
+#if ENABLE(FILTERS)
 #include "RenderSVGResourceFilter.h"
 #include "RenderSVGResourceFilterPrimitive.h"
 #include "SVGAnimatedLength.h"
@@ -49,28 +49,28 @@ protected:
     SVGFilterPrimitiveStandardAttributes(const QualifiedName&, Document&);
 
     bool isSupportedAttribute(const QualifiedName&);
-    virtual void parseAttribute(const QualifiedName&, const AtomicString&) OVERRIDE;
-    virtual void svgAttributeChanged(const QualifiedName&);
-    virtual void childrenChanged(const ChildChange&) OVERRIDE;
+    virtual void parseAttribute(const QualifiedName&, const AtomicString&) override;
+    virtual void svgAttributeChanged(const QualifiedName&) override;
+    virtual void childrenChanged(const ChildChange&) override;
 
     inline void invalidate()
     {
-        if (RenderObject* primitiveRenderer = renderer())
-            RenderSVGResource::markForLayoutAndParentResourceInvalidation(primitiveRenderer);
+        if (RenderElement* primitiveRenderer = renderer())
+            RenderSVGResource::markForLayoutAndParentResourceInvalidation(*primitiveRenderer);
     }
 
     inline void primitiveAttributeChanged(const QualifiedName& attribute)
     {
-        if (RenderObject* primitiveRenderer = renderer())
+        if (RenderElement* primitiveRenderer = renderer())
             static_cast<RenderSVGResourceFilterPrimitive*>(primitiveRenderer)->primitiveAttributeChanged(attribute);
     }
 
 private:
-    virtual bool isFilterEffect() const OVERRIDE { return true; }
+    virtual bool isFilterEffect() const override { return true; }
 
-    virtual RenderElement* createRenderer(PassRef<RenderStyle>) OVERRIDE;
-    virtual bool rendererIsNeeded(const RenderStyle&) OVERRIDE;
-    virtual bool childShouldCreateRenderer(const Node&) const OVERRIDE { return false; }
+    virtual RenderPtr<RenderElement> createElementRenderer(PassRef<RenderStyle>) override;
+    virtual bool rendererIsNeeded(const RenderStyle&) override;
+    virtual bool childShouldCreateRenderer(const Node&) const override { return false; }
 
     BEGIN_DECLARE_ANIMATED_PROPERTIES(SVGFilterPrimitiveStandardAttributes)
         DECLARE_ANIMATED_LENGTH(X, x)
@@ -93,5 +93,5 @@ NODE_TYPE_CASTS(SVGFilterPrimitiveStandardAttributes)
 
 } // namespace WebCore
 
-#endif // ENABLE(SVG)
+#endif // ENABLE(FILTERS)
 #endif

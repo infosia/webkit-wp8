@@ -76,7 +76,7 @@ void PageLoadClientEfl::didFailLoadWithErrorForFrame(WKPageRef, WKFrameRef frame
         return;
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
-    OwnPtr<EwkError> ewkError = EwkError::create(error);
+    auto ewkError = std::make_unique<EwkError>(error);
     view->smartCallback<LoadError>().call(ewkError.get());
     view->smartCallback<LoadFinished>().call();
 }
@@ -107,7 +107,7 @@ void PageLoadClientEfl::didFailProvisionalLoadWithErrorForFrame(WKPageRef, WKFra
         return;
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
-    OwnPtr<EwkError> ewkError = EwkError::create(error);
+    auto ewkError = std::make_unique<EwkError>(error);
     view->smartCallback<ProvisionalLoadFailed>().call(ewkError.get());
 }
 
@@ -118,9 +118,7 @@ void PageLoadClientEfl::didCommitLoadForFrame(WKPageRef, WKFrameRef frame, WKTyp
 
     EwkView* view = toPageLoadClientEfl(clientInfo)->view();
     if (WKPageUseFixedLayout(view->wkPage())) {
-#if USE(ACCELERATED_COMPOSITING)
         view->pageViewportController().didCommitLoad();
-#endif
         return;
     }
 

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2006 Oliver Hunt <ojh16@student.canterbury.ac.nz>
- * Copyright (C) 2006 Apple Computer Inc.
+ * Copyright (C) 2006 Apple Inc.
  * Copyright (C) 2007 Nikolas Zimmermann <zimmermann@kde.org>
  * Copyright (C) Research In Motion Limited 2010. All rights reserved.
  * Copyright (C) 2011 Torch Mobile (Beijing) CO. Ltd. All rights reserved.
@@ -24,9 +24,7 @@
 #include "config.h"
 #include "SVGRootInlineBox.h"
 
-#if ENABLE(SVG)
 #include "GraphicsContext.h"
-#include "RenderSVGInlineText.h"
 #include "RenderSVGText.h"
 #include "SVGInlineFlowBox.h"
 #include "SVGInlineTextBox.h"
@@ -312,5 +310,3 @@ void SVGRootInlineBox::reorderValueLists(Vector<SVGTextLayoutAttributes*>& attri
 }
 
 } // namespace WebCore
-
-#endif // ENABLE(SVG)

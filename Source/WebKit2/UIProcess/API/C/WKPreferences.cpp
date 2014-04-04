@@ -24,9 +24,9 @@
  */
 
 #include "config.h"
-#include "WKPreferences.h"
-#include "WKPreferencesPrivate.h"
 
+#include "WKPreferencesRef.h"
+#include "WKPreferencesRefPrivate.h"
 #include "WKAPICast.h"
 #include "WebContext.h"
 #include "WebPreferences.h"
@@ -43,19 +43,19 @@ WKTypeID WKPreferencesGetTypeID()
 
 WKPreferencesRef WKPreferencesCreate()
 {
-    RefPtr<WebPreferences> preferences = WebPreferences::create();
+    RefPtr<WebPreferences> preferences = WebPreferences::create(String(), "WebKit2.");
     return toAPI(preferences.release().leakRef());
 }
 
 WKPreferencesRef WKPreferencesCreateWithIdentifier(WKStringRef identifierRef)
 {
-    RefPtr<WebPreferences> preferences = WebPreferences::create(toWTFString(identifierRef));
+    RefPtr<WebPreferences> preferences = WebPreferences::create(toWTFString(identifierRef), "WebKit2.");
     return toAPI(preferences.release().leakRef());
 }
 
 WKPreferencesRef WKPreferencesCreateCopy(WKPreferencesRef preferencesRef)
 {
-    RefPtr<WebPreferences> preferences = WebPreferences::create(*toImpl(preferencesRef));
+    RefPtr<WebPreferences> preferences = toImpl(preferencesRef)->copy();
     return toAPI(preferences.release().leakRef());
 }
 
@@ -457,16 +457,6 @@ void WKPreferencesSetTiledScrollingIndicatorVisible(WKPreferencesRef preferences
 bool WKPreferencesGetTiledScrollingIndicatorVisible(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->tiledScrollingIndicatorVisible();
-}
-
-void WKPreferencesSetCSSCustomFilterEnabled(WKPreferencesRef preferencesRef, bool flag)
-{
-    toImpl(preferencesRef)->setCSSCustomFilterEnabled(flag);
-}
-
-bool WKPreferencesGetCSSCustomFilterEnabled(WKPreferencesRef preferencesRef)
-{
-    return toImpl(preferencesRef)->cssCustomFilterEnabled();
 }
 
 void WKPreferencesSetWebGLEnabled(WKPreferencesRef preferencesRef, bool flag)
@@ -1206,16 +1196,6 @@ bool WKPreferencesGetSimpleLineLayoutDebugBordersEnabled(WKPreferencesRef prefer
     return toImpl(preferencesRef)->simpleLineLayoutDebugBordersEnabled();
 }
 
-void WKPreferencesSetBackgroundShouldExtendBeyondPage(WKPreferencesRef preferencesRef, bool flag)
-{
-    toImpl(preferencesRef)->setBackgroundShouldExtendBeyondPage(flag);
-}
-
-bool WKPreferencesGetBackgroundShouldExtendBeyondPage(WKPreferencesRef preferencesRef)
-{
-    return toImpl(preferencesRef)->backgroundShouldExtendBeyondPage();
-}
-
 void WKPreferencesSetMediaStreamEnabled(WKPreferencesRef preferencesRef, bool enabled)
 {
     toImpl(preferencesRef)->setMediaStreamEnabled(enabled);
@@ -1224,16 +1204,6 @@ void WKPreferencesSetMediaStreamEnabled(WKPreferencesRef preferencesRef, bool en
 bool WKPreferencesGetMediaStreamEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->mediaStreamEnabled();
-}
-
-void WKPreferencesSetVideoPluginProxyEnabled(WKPreferencesRef preferencesRef, bool enabled)
-{
-    toImpl(preferencesRef)->setVideoPluginProxyEnabled(enabled);
-}
-
-bool WKPreferencesGetVideoPluginProxyEnabled(WKPreferencesRef preferencesRef)
-{
-    return toImpl(preferencesRef)->isVideoPluginProxyEnabled();
 }
 
 void WKPreferencesSetSpatialNavigationEnabled(WKPreferencesRef preferencesRef, bool enabled)
@@ -1254,4 +1224,44 @@ void WKPreferencesSetMediaSourceEnabled(WKPreferencesRef preferencesRef, bool en
 bool WKPreferencesGetMediaSourceEnabled(WKPreferencesRef preferencesRef)
 {
     return toImpl(preferencesRef)->mediaSourceEnabled();
+}
+
+void WKPreferencesSetViewGestureDebuggingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setViewGestureDebuggingEnabled(enabled);
+}
+
+bool WKPreferencesGetViewGestureDebuggingEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->viewGestureDebuggingEnabled();
+}
+
+void WKPreferencesSetShouldConvertPositionStyleOnCopy(WKPreferencesRef preferencesRef, bool convert)
+{
+    toImpl(preferencesRef)->setShouldConvertPositionStyleOnCopy(convert);
+}
+
+bool WKPreferencesGetShouldConvertPositionStyleOnCopy(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->shouldConvertPositionStyleOnCopy();
+}
+
+void WKPreferencesSetTelephoneNumberParsingEnabled(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setTelephoneNumberParsingEnabled(enabled);
+}
+
+bool WKPreferencesGetTelephoneNumberParsingEnabled(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->telephoneNumberParsingEnabled();
+}
+
+void WKPreferencesSetEnableInheritURIQueryComponent(WKPreferencesRef preferencesRef, bool enabled)
+{
+    toImpl(preferencesRef)->setEnableInheritURIQueryComponent(enabled);
+}
+
+bool WKPreferencesGetEnableInheritURIQueryComponent(WKPreferencesRef preferencesRef)
+{
+    return toImpl(preferencesRef)->enableInheritURIQueryComponent();
 }

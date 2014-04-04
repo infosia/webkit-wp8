@@ -39,6 +39,7 @@
 #include "PluginProcessConnectionMessages.h"
 #include "PluginProxyMessages.h"
 #include "WebProcessConnectionMessages.h"
+#include <WebCore/AudioHardwareListener.h>
 #include <unistd.h>
 #include <wtf/RunLoop.h>
 
@@ -46,7 +47,7 @@ using namespace WebCore;
 
 namespace WebKit {
 
-PassRefPtr<WebProcessConnection> WebProcessConnection::create(CoreIPC::Connection::Identifier connectionIdentifier)
+PassRefPtr<WebProcessConnection> WebProcessConnection::create(IPC::Connection::Identifier connectionIdentifier)
 {
     return adoptRef(new WebProcessConnection(connectionIdentifier));
 }
@@ -58,9 +59,9 @@ WebProcessConnection::~WebProcessConnection()
     ASSERT(!m_connection);
 }
     
-WebProcessConnection::WebProcessConnection(CoreIPC::Connection::Identifier connectionIdentifier)
+WebProcessConnection::WebProcessConnection(IPC::Connection::Identifier connectionIdentifier)
 {
-    m_connection = CoreIPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
+    m_connection = IPC::Connection::createServerConnection(connectionIdentifier, this, RunLoop::main());
     m_npRemoteObjectMap = NPRemoteObjectMap::create(m_connection.get());
 
     m_connection->setOnlySendMessagesAsDispatchWhenWaitingForSyncReplyWhenProcessingSuchAMessage(true);
@@ -91,6 +92,8 @@ void WebProcessConnection::removePluginControllerProxy(PluginControllerProxy* pl
         ASSERT(pluginControllerUniquePtr.get() == pluginController);
     }
 
+    pluginDidBecomeHidden(pluginController->pluginInstanceID());
+
     // Invalidate all objects related to this plug-in.
     if (plugin)
         m_npRemoteObjectMap->pluginDestroyed(plugin);
@@ -110,14 +113,14 @@ void WebProcessConnection::removePluginControllerProxy(PluginControllerProxy* pl
 
 void WebProcessConnection::setGlobalException(const String& exceptionString)
 {
-    CoreIPC::Connection* connection = ConnectionStack::shared().current();
+    IPC::Connection* connection = ConnectionStack::shared().current();
     if (!connection)
         return;
 
     connection->sendSync(Messages::PluginProcessConnection::SetException(exceptionString), Messages::PluginProcessConnection::SetException::Reply(), 0);
 }
 
-void WebProcessConnection::didReceiveMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder)
+void WebProcessConnection::didReceiveMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder)
 {
     ConnectionStack::CurrentConnectionPusher currentConnection(ConnectionStack::shared(), connection);
 
@@ -139,11 +142,8 @@ void WebProcessConnection::didReceiveMessage(CoreIPC::Connection* connection, Co
     pluginControllerProxy->didReceivePluginControllerProxyMessage(connection, decoder);
 }
 
-void WebProcessConnection::didReceiveSyncMessage(CoreIPC::Connection* connection, CoreIPC::MessageDecoder& decoder, std::unique_ptr<CoreIPC::MessageEncoder>& replyEncoder)
+void WebProcessConnection::didReceiveSyncMessage(IPC::Connection* connection, IPC::MessageDecoder& decoder, std::unique_ptr<IPC::MessageEncoder>& replyEncoder)
 {
-    // Force all timers to run at full speed when processing a synchronous message
-    ActivityAssertion activityAssertion(PluginProcess::shared());
-
     ConnectionStack::CurrentConnectionPusher currentConnection(ConnectionStack::shared(), connection);
 
     uint64_t destinationID = decoder.destinationID();
@@ -166,7 +166,7 @@ void WebProcessConnection::didReceiveSyncMessage(CoreIPC::Connection* connection
     pluginControllerProxy->didReceiveSyncPluginControllerProxyMessage(connection, decoder, replyEncoder);
 }
 
-void WebProcessConnection::didClose(CoreIPC::Connection*)
+void WebProcessConnection::didClose(IPC::Connection*)
 {
     // The web process crashed. Destroy all the plug-in controllers. Destroying the last plug-in controller
     // will cause the web process connection itself to be destroyed.
@@ -178,10 +178,14 @@ void WebProcessConnection::didClose(CoreIPC::Connection*)
         destroyPluginControllerProxy(pluginControllers[i]);
 }
 
-void WebProcessConnection::destroyPlugin(uint64_t pluginInstanceID, bool asynchronousCreationIncomplete)
+void WebProcessConnection::destroyPlugin(uint64_t pluginInstanceID, bool asynchronousCreationIncomplete, PassRefPtr<Messages::WebProcessConnection::DestroyPlugin::DelayedReply> reply)
 {
+    // We return immediately from this synchronous IPC. We want to make sure the plugin destruction is just about to start so audio playback
+    // will finish soon after returning. However we don't want to wait for destruction to complete fully as that may take a while.
+    reply->send();
+
     // Ensure we don't clamp any timers during destruction
-    ActivityAssertion activityAssertion(PluginProcess::shared());
+    ActivityAssertion activityAssertion(PluginProcess::shared().connectionActivity());
 
     PluginControllerProxy* pluginControllerProxy = m_pluginControllers.get(pluginInstanceID);
     
@@ -198,7 +202,7 @@ void WebProcessConnection::destroyPlugin(uint64_t pluginInstanceID, bool asynchr
     destroyPluginControllerProxy(pluginControllerProxy);
 }
 
-void WebProcessConnection::didReceiveInvalidMessage(CoreIPC::Connection*, CoreIPC::StringReference, CoreIPC::StringReference)
+void WebProcessConnection::didReceiveInvalidMessage(IPC::Connection*, IPC::StringReference, IPC::StringReference)
 {
     // FIXME: Implement.
 }
@@ -220,7 +224,7 @@ void WebProcessConnection::createPluginInternal(const PluginCreationParameters& 
         return;
 
     wantsWheelEvents = pluginControllerProxyPtr->wantsWheelEvents();
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     remoteLayerClientID = pluginControllerProxyPtr->remoteLayerClientID();
 #else
     UNUSED_PARAM(remoteLayerClientID);
@@ -230,7 +234,7 @@ void WebProcessConnection::createPluginInternal(const PluginCreationParameters& 
 void WebProcessConnection::createPlugin(const PluginCreationParameters& creationParameters, PassRefPtr<Messages::WebProcessConnection::CreatePlugin::DelayedReply> reply)
 {
     // Ensure we don't clamp any timers during initialization
-    ActivityAssertion activityAssertion(PluginProcess::shared());
+    ActivityAssertion activityAssertion(PluginProcess::shared().connectionActivity());
 
     PluginControllerProxy* pluginControllerProxy = m_pluginControllers.get(creationParameters.pluginInstanceID);
 
@@ -243,7 +247,7 @@ void WebProcessConnection::createPlugin(const PluginCreationParameters& creation
         }
         
         // If its initialization is complete then we need to respond to this message with the correct information about its creation.
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
         reply->send(true, pluginControllerProxy->wantsWheelEvents(), pluginControllerProxy->remoteLayerClientID());
 #else
         reply->send(true, pluginControllerProxy->wantsWheelEvents(), 0);
@@ -319,7 +323,39 @@ void WebProcessConnection::createPluginAsynchronously(const PluginCreationParame
 
     m_connection->sendSync(Messages::PluginProxy::DidCreatePlugin(wantsWheelEvents, remoteLayerClientID), Messages::PluginProxy::DidCreatePlugin::Reply(), creationParameters.pluginInstanceID);
 }
+    
+void WebProcessConnection::pluginDidBecomeVisible(unsigned pluginInstanceID)
+{
+    bool oldState = m_visiblePluginInstanceIDs.isEmpty();
+    
+    m_visiblePluginInstanceIDs.add(pluginInstanceID);
 
+    ASSERT(m_visiblePluginInstanceIDs.size() <= m_pluginControllers.size());
+    
+    if (oldState != m_visiblePluginInstanceIDs.isEmpty())
+        PluginProcess::shared().pluginsForWebProcessDidBecomeVisible();
+}
+
+void WebProcessConnection::pluginDidBecomeHidden(unsigned pluginInstanceID)
+{
+    bool oldState = m_visiblePluginInstanceIDs.isEmpty();
+    
+    m_visiblePluginInstanceIDs.remove(pluginInstanceID);
+    
+    if (oldState != m_visiblePluginInstanceIDs.isEmpty())
+        PluginProcess::shared().pluginsForWebProcessDidBecomeHidden();
+}
+    
+void WebProcessConnection::audioHardwareDidBecomeActive()
+{
+    m_connection->send(Messages::PluginProcessConnection::AudioHardwareDidBecomeActive(), 0);
+}
+
+void WebProcessConnection::audioHardwareDidBecomeInactive()
+{
+    m_connection->send(Messages::PluginProcessConnection::AudioHardwareDidBecomeInactive(), 0);
+}
+    
 } // namespace WebKit
 
 #endif // ENABLE(NETSCAPE_PLUGIN_API)

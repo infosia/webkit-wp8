@@ -27,7 +27,6 @@
 #include "TextRun.h"
 #include <wtf/HashSet.h>
 #include <wtf/Vector.h>
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 
@@ -43,6 +42,7 @@ public:
     WidthIterator(const Font*, const TextRun&, HashSet<const SimpleFontData*>* fallbackFonts = 0, bool accountForGlyphBounds = false, bool forTextEmphasis = false);
 
     unsigned advance(int to, GlyphBuffer*);
+    bool advanceOneCharacter(float& width, GlyphBuffer&);
 
     float maxGlyphBoundingBoxY() const { ASSERT(m_accountForGlyphBounds); return m_maxGlyphBoundingBoxY; }
     float minGlyphBoundingBoxY() const { ASSERT(m_accountForGlyphBounds); return m_minGlyphBoundingBoxY; }
@@ -60,7 +60,7 @@ public:
 
     static bool supportsTypesettingFeatures(const Font& font)
     {
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED > 1080
+#if PLATFORM(IOS) || (PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED > 1080)
         if (!font.isPrinterFont())
             return !font.typesettingFeatures();
 
@@ -80,8 +80,6 @@ public:
     float m_expansionPerOpportunity;
     bool m_isAfterExpansion;
     float m_finalRoundingWidth;
-    // An inline capacity of 10 catches around 2/3 of the cases. To catch 90% we would need 32.
-    Vector<int, 10> m_characterIndexOfGlyph;
 
 #if ENABLE(SVG_FONTS)
     String m_lastGlyphName;

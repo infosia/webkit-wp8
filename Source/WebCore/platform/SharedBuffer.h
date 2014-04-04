@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006 Apple Computer, Inc.  All rights reserved.
+ * Copyright (C) 2006 Apple Inc.  All rights reserved.
  * Copyright (C) Research In Motion Limited 2009-2010. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -11,10 +11,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -27,6 +27,7 @@
 #ifndef SharedBuffer_h
 #define SharedBuffer_h
 
+#include <runtime/ArrayBuffer.h>
 #include <wtf/Forward.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/RefCounted.h>
@@ -38,10 +39,10 @@
 #endif
 
 #if USE(SOUP)
-#include "GOwnPtrSoup.h"
+#include "GUniquePtrSoup.h"
 #endif
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 OBJC_CLASS NSData;
 #endif
 
@@ -52,9 +53,9 @@ class PurgeableBuffer;
 class SharedBuffer : public RefCounted<SharedBuffer> {
 public:
     static PassRefPtr<SharedBuffer> create() { return adoptRef(new SharedBuffer); }
-    static PassRefPtr<SharedBuffer> create(size_t size) { return adoptRef(new SharedBuffer(size)); }
-    static PassRefPtr<SharedBuffer> create(const char* c, int i) { return adoptRef(new SharedBuffer(c, i)); }
-    static PassRefPtr<SharedBuffer> create(const unsigned char* c, int i) { return adoptRef(new SharedBuffer(c, i)); }
+    static PassRefPtr<SharedBuffer> create(unsigned size) { return adoptRef(new SharedBuffer(size)); }
+    static PassRefPtr<SharedBuffer> create(const char* c, unsigned i) { return adoptRef(new SharedBuffer(c, i)); }
+    static PassRefPtr<SharedBuffer> create(const unsigned char* c, unsigned i) { return adoptRef(new SharedBuffer(c, i)); }
 
     static PassRefPtr<SharedBuffer> createWithContentsOfFile(const String& filePath);
 
@@ -66,7 +67,7 @@ public:
     
     ~SharedBuffer();
     
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
     // FIXME: This class exists as a temporary workaround so that code that does:
     // [buffer->createNSData() autorelease] will fail to compile.
     // Once both Mac and iOS builds with this change we can change the return type to be RetainPtr<NSData>,
@@ -99,6 +100,9 @@ public:
     // to be merged into a flat buffer. Use getSomeData() whenever possible
     // for better performance.
     const char* data() const;
+    // Creates an ArrayBuffer and copies this SharedBuffer's contents to that
+    // ArrayBuffer without merging segmented buffers into a flat buffer.
+    PassRefPtr<ArrayBuffer> createArrayBuffer() const;
 
     unsigned size() const;
 
@@ -138,6 +142,8 @@ public:
     //      }
     unsigned getSomeData(const char*& data, unsigned position = 0) const;
 
+    void shouldUsePurgeableMemory(bool use) { m_shouldUsePurgeableMemory = use; }
+
 #if ENABLE(DISK_IMAGE_CACHE)
     enum MemoryMappingState { QueuedForMapping, PreviouslyQueuedForMapping, SuccessAlreadyMapped, FailureCacheFull };
 
@@ -168,9 +174,9 @@ public:
 
 private:
     SharedBuffer();
-    explicit SharedBuffer(size_t);
-    SharedBuffer(const char*, int);
-    SharedBuffer(const unsigned char*, int);
+    explicit SharedBuffer(unsigned);
+    SharedBuffer(const char*, unsigned);
+    SharedBuffer(const unsigned char*, unsigned);
     
     // Calling this function will force internal segmented buffers
     // to be merged into a flat buffer. Use getSomeData() whenever possible
@@ -187,6 +193,7 @@ private:
 
     unsigned m_size;
     mutable Vector<char> m_buffer;
+    bool m_shouldUsePurgeableMemory;
     mutable OwnPtr<PurgeableBuffer> m_purgeableBuffer;
 #if USE(NETWORK_CFDATA_ARRAY_CALLBACK)
     mutable Vector<RetainPtr<CFDataRef>> m_dataArray;
@@ -208,7 +215,7 @@ private:
 
 #if USE(SOUP)
     explicit SharedBuffer(SoupBuffer*);
-    GOwnPtr<SoupBuffer> m_soupBuffer;
+    GUniquePtr<SoupBuffer> m_soupBuffer;
 #endif
 };
 

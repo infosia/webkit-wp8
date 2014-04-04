@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -32,6 +32,7 @@
 #include "CaptionUserPreferences.h"
 #include "Element.h"
 #include "HTMLMediaElement.h"
+#include "Logging.h"
 #include "MediaControlElements.h"
 #include "Page.h"
 #include "PageGroup.h"
@@ -42,19 +43,19 @@ namespace WebCore {
 
 const AtomicString& MediaControlsHost::automaticKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, automatic, ("automatic", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, automatic, ("automatic", AtomicString::ConstructFromLiteral));
     return automatic;
 }
 
 const AtomicString& MediaControlsHost::forcedOnlyKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, forcedOn, ("forced-only", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, forcedOn, ("forced-only", AtomicString::ConstructFromLiteral));
     return forcedOn;
 }
 
 const AtomicString& MediaControlsHost::alwaysOnKeyword()
 {
-    DEFINE_STATIC_LOCAL(const AtomicString, alwaysOn, ("always-on", AtomicString::ConstructFromLiteral));
+    DEPRECATED_DEFINE_STATIC_LOCAL(const AtomicString, alwaysOn, ("always-on", AtomicString::ConstructFromLiteral));
     return alwaysOn;
 }
 
@@ -148,6 +149,72 @@ void MediaControlsHost::updateTextTrackContainer()
         m_textTrackContainer->updateDisplay();
 }
 
+bool MediaControlsHost::mediaPlaybackAllowsInline() const
+{
+    return !m_mediaElement->mediaSession().requiresFullscreenForVideoPlayback(*m_mediaElement);
+}
+
+bool MediaControlsHost::supportsFullscreen()
+{
+    return m_mediaElement->supportsFullscreen();
+}
+
+bool MediaControlsHost::userGestureRequired() const
+{
+    return !m_mediaElement->mediaSession().playbackPermitted(*m_mediaElement);
+}
+
+String MediaControlsHost::externalDeviceDisplayName() const
+{
+#if ENABLE(IOS_AIRPLAY)
+    MediaPlayer* player = m_mediaElement->player();
+    if (!player) {
+        LOG(Media, "MediaControlsHost::externalDeviceDisplayName - returning \"\" because player is NULL");
+        return emptyString();
+    }
+    
+    String name = player->wirelessPlaybackTargetName();
+    LOG(Media, "MediaControlsHost::externalDeviceDisplayName - returning \"%s\"", name.utf8().data());
+    
+    return name;
+#else
+    return emptyString();
+#endif
+}
+
+String MediaControlsHost::externalDeviceType() const
+{
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, none, (ASCIILiteral("none")));
+    String type = none;
+    
+#if ENABLE(IOS_AIRPLAY)
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, airplay, (ASCIILiteral("airplay")));
+    DEPRECATED_DEFINE_STATIC_LOCAL(String, tvout, (ASCIILiteral("tvout")));
+    
+    MediaPlayer* player = m_mediaElement->player();
+    if (!player) {
+        LOG(Media, "MediaControlsHost::externalDeviceType - returning \"none\" because player is NULL");
+        return none;
+    }
+    
+    switch (player->wirelessPlaybackTargetType()) {
+    case MediaPlayer::TargetTypeNone:
+        type = none;
+        break;
+    case MediaPlayer::TargetTypeAirPlay:
+        type = airplay;
+        break;
+    case MediaPlayer::TargetTypeTVOut:
+        type = tvout;
+        break;
+    }
+#endif
+    
+    LOG(Media, "MediaControlsHost::externalDeviceType - returning \"%s\"", type.utf8().data());
+    
+    return type;
+}
+    
 }
 
 #endif

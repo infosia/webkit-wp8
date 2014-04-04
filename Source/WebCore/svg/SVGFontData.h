@@ -33,10 +33,10 @@ public:
     explicit SVGFontData(SVGFontFaceElement*);
     virtual ~SVGFontData() { }
 
-    virtual void initializeFontData(SimpleFontData*, float fontSize);
-    virtual float widthForSVGGlyph(Glyph, float fontSize) const;
-    virtual bool fillSVGGlyphPage(GlyphPage*, unsigned offset, unsigned length, UChar* buffer, unsigned bufferLength, const SimpleFontData*) const;
-    virtual bool applySVGGlyphSelection(WidthIterator&, GlyphData&, bool mirror, int currentCharacter, unsigned& advanceLength) const;
+    virtual void initializeFontData(SimpleFontData*, float fontSize) override;
+    virtual float widthForSVGGlyph(Glyph, float fontSize) const override;
+    virtual bool fillSVGGlyphPage(GlyphPage*, unsigned offset, unsigned length, UChar* buffer, unsigned bufferLength, const SimpleFontData*) const override;
+    virtual bool applySVGGlyphSelection(WidthIterator&, GlyphData&, bool mirror, int currentCharacter, unsigned& advanceLength) const override;
 
     SVGFontFaceElement* svgFontFaceElement() const { return m_svgFontFaceElement; }
 
@@ -51,8 +51,6 @@ public:
 private:
     bool fillBMPGlyphs(SVGFontElement*, GlyphPage* , unsigned offset, unsigned length, UChar* buffer, const SimpleFontData*) const;
     bool fillNonBMPGlyphs(SVGFontElement*, GlyphPage* , unsigned offset, unsigned length, UChar* buffer, const SimpleFontData*) const;
-
-    String createStringWithMirroredCharacters(const UChar* characters, unsigned length) const;
 
     // Ths SVGFontFaceElement is kept alive --
     // 1) in the external font case: by the CSSFontFaceSource, which holds a reference to the external SVG document

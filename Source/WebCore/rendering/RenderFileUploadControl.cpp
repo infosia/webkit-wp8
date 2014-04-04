@@ -73,11 +73,6 @@ HTMLInputElement& RenderFileUploadControl::inputElement() const
     return toHTMLInputElement(nodeForNonAnonymous());
 }
 
-bool RenderFileUploadControl::canBeReplacedWithInlineRunIn() const
-{
-    return false;
-}
-
 void RenderFileUploadControl::updateFromElement()
 {
     ASSERT(inputElement().isFileUpload());
@@ -187,7 +182,7 @@ void RenderFileUploadControl::paintObject(PaintInfo& paintInfo, const LayoutPoin
                 // Draw the file icon and decorations.
                 IntRect iconRect(iconX, iconY, iconWidth, iconHeight);
                 RenderTheme::FileUploadDecorations decorationsType = inputElement().files()->length() == 1 ? RenderTheme::SingleFile : RenderTheme::MultipleFiles;
-                theme()->paintFileUploadIconDecorations(this, buttonRenderer, paintInfo, iconRect, inputElement().icon(), decorationsType);
+                theme().paintFileUploadIconDecorations(this, buttonRenderer, paintInfo, iconRect, inputElement().icon(), decorationsType);
             }
 #else
             // Draw the file icon
@@ -211,7 +206,7 @@ void RenderFileUploadControl::computeIntrinsicLogicalWidths(LayoutUnit& minLogic
     RenderFileUploadControl* renderer = const_cast<RenderFileUploadControl*>(this);
     float minDefaultLabelWidth = defaultWidthNumChars * font.width(constructTextRun(renderer, font, characterAsString, style(), TextRun::AllowTrailingExpansion));
 
-    const String label = theme()->fileListDefaultLabel(inputElement().multiple());
+    const String label = theme().fileListDefaultLabel(inputElement().multiple());
     float defaultLabelWidth = font.width(constructTextRun(renderer, font, label, style(), TextRun::AllowTrailingExpansion));
     if (HTMLInputElement* button = uploadButton())
         if (RenderObject* buttonRenderer = button->renderer())
@@ -244,7 +239,7 @@ void RenderFileUploadControl::computePreferredLogicalWidths()
         m_minPreferredLogicalWidth = std::min(m_minPreferredLogicalWidth, adjustContentBoxLogicalWidthForBoxSizing(style().maxWidth().value()));
     }
 
-    int toAdd = borderAndPaddingWidth();
+    int toAdd = horizontalBorderAndPaddingExtent();
     m_minPreferredLogicalWidth += toAdd;
     m_maxPreferredLogicalWidth += toAdd;
 
@@ -278,7 +273,7 @@ String RenderFileUploadControl::fileTextValue() const
     if (inputElement().files()->length())
         return StringTruncator::rightTruncate(inputElement().displayString(), maxFilenameWidth(), style().font(), StringTruncator::EnableRoundingHacks);
 #endif
-    return theme()->fileListNameForWidth(inputElement().files(), style().font(), maxFilenameWidth(), inputElement().multiple());
+    return theme().fileListNameForWidth(inputElement().files(), style().font(), maxFilenameWidth(), inputElement().multiple());
 }
     
 } // namespace WebCore

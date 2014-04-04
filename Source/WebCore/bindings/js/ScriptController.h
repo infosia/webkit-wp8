@@ -30,13 +30,17 @@
 #include <wtf/RefPtr.h>
 #include <wtf/text/TextPosition.h>
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
 #include <wtf/RetainPtr.h>
 OBJC_CLASS WebScriptObject;
 OBJC_CLASS JSContext;
 #endif
 
 struct NPObject;
+
+namespace Deprecated {
+class ScriptValue;
+}
 
 namespace JSC {
     class JSGlobalObject;
@@ -53,7 +57,6 @@ namespace WebCore {
 class HTMLPlugInElement;
 class Frame;
 class ScriptSourceCode;
-class ScriptValue;
 class SecurityOrigin;
 class Widget;
 
@@ -94,9 +97,9 @@ public:
 
     static void getAllWorlds(Vector<Ref<DOMWrapperWorld>>&);
 
-    ScriptValue executeScript(const ScriptSourceCode&);
-    ScriptValue executeScript(const String& script, bool forceUserGesture = false);
-    ScriptValue executeScriptInWorld(DOMWrapperWorld&, const String& script, bool forceUserGesture = false);
+    Deprecated::ScriptValue executeScript(const ScriptSourceCode&);
+    Deprecated::ScriptValue executeScript(const String& script, bool forceUserGesture = false);
+    Deprecated::ScriptValue executeScriptInWorld(DOMWrapperWorld&, const String& script, bool forceUserGesture = false);
 
     // Returns true if argument is a JavaScript URL.
     bool executeIfJavaScriptURL(const URL&, ShouldReplaceDocumentIfJavaScriptURL shouldReplaceDocumentIfJavaScriptURL = ReplaceDocumentIfJavaScriptURL);
@@ -105,8 +108,8 @@ public:
     // Darwin is an exception to this rule: it is OK to call this function from any thread, even reentrantly.
     static void initializeThreading();
 
-    ScriptValue evaluate(const ScriptSourceCode&);
-    ScriptValue evaluateInWorld(const ScriptSourceCode&, DOMWrapperWorld&);
+    Deprecated::ScriptValue evaluate(const ScriptSourceCode&);
+    Deprecated::ScriptValue evaluateInWorld(const ScriptSourceCode&, DOMWrapperWorld&);
 
     WTF::TextPosition eventHandlerPosition() const;
 
@@ -145,11 +148,10 @@ public:
     PassRefPtr<JSC::Bindings::RootObject> createRootObject(void* nativeHandle);
 
 #if ENABLE(INSPECTOR)
-    static void setCaptureCallStackForUncaughtExceptions(bool);
     void collectIsolatedContexts(Vector<std::pair<JSC::ExecState*, SecurityOrigin*>>&);
 #endif
 
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     WebScriptObject* windowScriptObject();
     JSContext *javaScriptContext();
 #endif
@@ -185,7 +187,7 @@ private:
 #if ENABLE(NETSCAPE_PLUGIN_API)
     NPObject* m_windowScriptNPObject;
 #endif
-#if PLATFORM(MAC)
+#if PLATFORM(COCOA)
     RetainPtr<WebScriptObject> m_windowScriptObject;
 #endif
 };

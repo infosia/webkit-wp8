@@ -9,50 +9,83 @@
 
             var pc = null;
 
-            function requestFailed3(reason)
+            function requestSucceeded5(sd)
+            {
+                testPassed('createAnswer request succeeded.');
+
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
+
+                finishJSTest();
+            }
+
+            function requestSucceeded4(sd)
+            {
+                testPassed('createAnswer request succeeded.');
+
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
+
+                shouldNotThrow('pc.createAnswer(requestSucceeded5, requestFailed1, {requestIdentity:"no"});');
+            }
+
+            function requestSucceeded3(sd)
+            {
+                finishJSTest();
+                testPassed('createAnswer request succeeded.');
+
+                sessionDescription = sd;
+                shouldBe('sessionDescription.type', '"answer"');
+
+                shouldNotThrow('pc.createAnswer(requestSucceeded4, requestFailed1, {requestIdentity:"yes"});');
+            }
+
+            function requestFailed2(reason)
+            {
+                testPassed('createAnswer request failed.');
+
+                errorReason = reason;
+                shouldBe('errorReason.name', '"Invalid createAnswer argument."');
+                shouldNotThrow('pc.createAnswer(requestSucceeded3, requestFailed1, {requestIdentity:"ifconfigured"});');
+            }
+
+            function requestSucceeded2()
+            {
+                testFailed('createAnswer request succeeded.');
+
+                finishJSTest();
+            }
+
+            function requestFailed1(reason)
             {
                 testFailed('createAnswer request failed.');
 
                 finishJSTest();
             }
 
-            function requestSucceeded3()
+            function requestSucceeded1()
             {
                 testPassed('createAnswer request succeeded.');
 
+                sessionDescription = new RTCSessionDescription({type:"offer", sdp:"remote"});
+                shouldNotThrow('pc.setRemoteDescription(sessionDescription, setDescriptionSucceeded, setDescriptionFailed);');
+            }
+
+            function setDescriptionFailed()
+            {
+                testFailed('setRemoteDescription failed.');
+
                 finishJSTest();
             }
 
-            function requestFailed2(reason)
+            function setDescriptionSucceeded()
             {
-                testFailed('setRemoteDescription request failed.');
-
-                finishJSTest();
+                testPassed('setRemoteDescription succeeded.');
+                shouldThrow('pc.createAnswer(requestSucceeded2, requestFailed2, {});');
             }
 
-            function requestSucceeded2()
-            {
-                testPassed('setRemoteDescription request succeeded.');
-
-                shouldNotThrow('pc.createAnswer(requestSucceeded3, requestFailed3);');
-            }
-
-            function requestFailed1()
-            {
-                testPassed('createOffer request failed.');
-
-                sessionDescription = new RTCSessionDescription({type:"answer", sdp:"remote"});
-                shouldNotThrow('pc.setRemoteDescription(sessionDescription, requestSucceeded2, requestFailed2);');
-            }
-
-            function requestSucceeded1(sd)
-            {
-                testFailed('createOffer request succeeded.');
-                finishJSTest();
-            }
-
-            pc = new webkitRTCPeerConnection({iceServers:[]});
-            pc.createOffer(requestSucceeded1, requestFailed1);
+            pc = new webkitRTCPeerConnection({iceServers:[{urls:'stun:foo.com'}]});
+            shouldNotThrow('pc.createAnswer(requestSucceeded1, requestFailed1);');
 
             window.jsTestIsAsync = true;
             window.successfullyParsed = true;

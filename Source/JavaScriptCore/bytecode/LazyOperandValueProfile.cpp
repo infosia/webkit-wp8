@@ -26,9 +26,7 @@
 #include "config.h"
 #include "LazyOperandValueProfile.h"
 
-#if ENABLE(VALUE_PROFILER)
-
-#include "Operations.h"
+#include "JSCInlines.h"
 
 namespace JSC {
 
@@ -99,6 +97,4 @@ SpeculatedType LazyOperandValueProfileParser::prediction(
 }
 
 } // namespace JSC
-
-#endif // ENABLE(VALUE_PROFILER)
 

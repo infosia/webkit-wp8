@@ -38,6 +38,7 @@ class FloatingObject;
 class RenderBlockFlow;
 class RenderObject;
 class RenderRubyRun;
+class RenderStyle;
 
 struct LineSegment;
 
@@ -63,18 +64,17 @@ public:
     void addUncommittedWidth(float delta) { m_uncommittedWidth += delta; }
     void commit();
     void applyOverhang(RenderRubyRun*, RenderObject* startRenderer, RenderObject* endRenderer);
-    void fitBelowFloats();
+    void fitBelowFloats(bool isFirstLine = false);
     void setTrailingWhitespaceWidth(float collapsedWhitespace, float borderPaddingMargin = 0);
-
-#if ENABLE(CSS_SHAPES)
-    void updateCurrentShapeSegment();
-#endif
-
     bool shouldIndentText() const { return m_shouldIndentText == IndentText; }
 
 private:
     void computeAvailableWidthFromLeftAndRight();
     bool fitsOnLineExcludingTrailingCollapsedWhitespace() const;
+    void updateLineDimension(LayoutUnit newLineTop, LayoutUnit newLineWidth, float newLineLeft, float newLineRight);
+#if ENABLE(CSS_SHAPES)
+    void wrapNextToShapeOutside(bool isFirstLine);
+#endif
 
     RenderBlockFlow& m_block;
     float m_uncommittedWidth;
@@ -85,12 +85,11 @@ private:
     float m_left;
     float m_right;
     float m_availableWidth;
-#if ENABLE(CSS_SHAPES)
-    const LineSegment* m_segment;
-#endif
     bool m_isFirstLine;
     IndentTextOrNot m_shouldIndentText;
 };
+
+IndentTextOrNot requiresIndent(bool isFirstLine, bool isAfterHardLineBreak, const RenderStyle&);
 
 }
 

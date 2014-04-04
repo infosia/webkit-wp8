@@ -1100,9 +1100,6 @@ namespace JSC {
         }
 #endif
 
-#if OS(LINUX) && COMPILER(RVCT)
-        static __asm void cacheFlush(void* code, size_t);
-#else
         static void cacheFlush(void* code, size_t size)
         {
 #if OS(LINUX) && COMPILER(GCC)
@@ -1124,16 +1121,10 @@ namespace JSC {
             linuxPageFlush(current, end);
 #elif OS(WINCE)
             CacheRangeFlush(code, size, CACHE_SYNC_ALL);
-#elif OS(QNX) && ENABLE(ASSEMBLER_WX_EXCLUSIVE)
-            UNUSED_PARAM(code);
-            UNUSED_PARAM(size);
-#elif OS(QNX)
-            msync(code, size, MS_INVALIDATE_ICACHE);
 #else
 #error "The cacheFlush support is missing on this platform."
 #endif
         }
-#endif
 
     private:
         static ARMWord RM(int reg)

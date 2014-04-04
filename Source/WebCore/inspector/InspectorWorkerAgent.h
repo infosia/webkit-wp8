@@ -31,26 +31,30 @@
 #ifndef InspectorWorkerAgent_h
 #define InspectorWorkerAgent_h
 
-#include "InspectorBaseAgent.h"
+#include "InspectorWebAgentBase.h"
+#include "InspectorWebBackendDispatchers.h"
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 
-namespace WebCore {
+namespace Inspector {
 class InspectorObject;
 class InspectorWorkerFrontendDispatcher;
+}
+
+namespace WebCore {
 class InstrumentingAgents;
 class URL;
 class WorkerGlobalScopeProxy;
 
 typedef String ErrorString;
 
-class InspectorWorkerAgent : public InspectorBaseAgent, public InspectorWorkerBackendDispatcherHandler {
+class InspectorWorkerAgent : public InspectorAgentBase, public Inspector::InspectorWorkerBackendDispatcherHandler {
 public:
-    static PassOwnPtr<InspectorWorkerAgent> create(InstrumentingAgents*);
+    explicit InspectorWorkerAgent(InstrumentingAgents*);
     ~InspectorWorkerAgent();
 
-    virtual void didCreateFrontendAndBackend(InspectorFrontendChannel*, InspectorBackendDispatcher*) OVERRIDE;
-    virtual void willDestroyFrontendAndBackend() OVERRIDE;
+    virtual void didCreateFrontendAndBackend(Inspector::InspectorFrontendChannel*, Inspector::InspectorBackendDispatcher*) override;
+    virtual void willDestroyFrontendAndBackend(Inspector::InspectorDisconnectReason) override;
 
     // Called from InspectorInstrumentation
     bool shouldPauseDedicatedWorkerOnStart() const;
@@ -58,22 +62,21 @@ public:
     void workerGlobalScopeTerminated(WorkerGlobalScopeProxy*);
 
     // Called from InspectorBackendDispatcher
-    virtual void enable(ErrorString*);
-    virtual void disable(ErrorString*);
-    virtual void canInspectWorkers(ErrorString*, bool*);
-    virtual void connectToWorker(ErrorString*, int workerId);
-    virtual void disconnectFromWorker(ErrorString*, int workerId);
-    virtual void sendMessageToWorker(ErrorString*, int workerId, const RefPtr<InspectorObject>& message);
-    virtual void setAutoconnectToWorkers(ErrorString*, bool value);
+    virtual void enable(ErrorString*) override;
+    virtual void disable(ErrorString*) override;
+    virtual void canInspectWorkers(ErrorString*, bool*) override;
+    virtual void connectToWorker(ErrorString*, int workerId) override;
+    virtual void disconnectFromWorker(ErrorString*, int workerId) override;
+    virtual void sendMessageToWorker(ErrorString*, int workerId, const RefPtr<Inspector::InspectorObject>& message) override;
+    virtual void setAutoconnectToWorkers(ErrorString*, bool value) override;
 
 private:
-    InspectorWorkerAgent(InstrumentingAgents*);
     void createWorkerFrontendChannelsForExistingWorkers();
     void createWorkerFrontendChannel(WorkerGlobalScopeProxy*, const String& url);
     void destroyWorkerFrontendChannels();
 
-    std::unique_ptr<InspectorWorkerFrontendDispatcher> m_frontendDispatcher;
-    RefPtr<InspectorWorkerBackendDispatcher> m_backendDispatcher;
+    std::unique_ptr<Inspector::InspectorWorkerFrontendDispatcher> m_frontendDispatcher;
+    RefPtr<Inspector::InspectorWorkerBackendDispatcher> m_backendDispatcher;
     bool m_enabled;
     bool m_shouldPauseDedicatedWorkerOnStart;
 

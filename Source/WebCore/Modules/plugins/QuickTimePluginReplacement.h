@@ -10,10 +10,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY APPLE COMPUTER, INC. ``AS IS'' AND ANY
+ * THIS SOFTWARE IS PROVIDED BY APPLE INC. ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE COMPUTER, INC. OR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL APPLE INC. OR
  * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
  * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
  * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
@@ -28,7 +28,7 @@
 
 #include "PluginReplacement.h"
 #include "ScriptState.h"
-#include "ScriptValue.h"
+#include <bindings/ScriptObject.h>
 #include <wtf/RefCounted.h>
 #include <wtf/text/WTFString.h>
 
@@ -49,11 +49,11 @@ public:
     static PassRefPtr<PluginReplacement> create(HTMLPlugInElement&, const Vector<String>& paramNames, const Vector<String>& paramValues);
     ~QuickTimePluginReplacement();
 
-    virtual bool installReplacement(ShadowRoot*) OVERRIDE;
-    virtual JSC::JSObject* scriptObject() OVERRIDE { return m_scriptObject; }
+    virtual bool installReplacement(ShadowRoot*) override;
+    virtual JSC::JSObject* scriptObject() override { return m_scriptObject; }
 
-    virtual bool willCreateRenderer() OVERRIDE { return m_mediaElement; }
-    virtual RenderElement* createRenderer(HTMLPlugInElement&, PassRef<RenderStyle>) OVERRIDE;
+    virtual bool willCreateRenderer() override { return m_mediaElement; }
+    virtual RenderPtr<RenderElement> createElementRenderer(HTMLPlugInElement&, PassRef<RenderStyle>) override;
 
     unsigned long long movieSize() const;
     void postEvent(const String&);

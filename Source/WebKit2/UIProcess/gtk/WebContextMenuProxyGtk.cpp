@@ -53,13 +53,13 @@ static void contextMenuItemActivatedCallback(GtkAction* action, WebPageProxy* pa
     page->contextMenuItemSelected(item);
 }
 
-static void contextMenuItemVisibilityChanged(GtkAction* action, GParamSpec*, WebContextMenuProxyGtk* contextMenuProxy)
+static void contextMenuItemVisibilityChanged(GtkAction*, GParamSpec*, WebContextMenuProxyGtk* contextMenuProxy)
 {
     GtkMenu* menu = contextMenuProxy->gtkMenu();
     if (!menu)
         return;
 
-    GOwnPtr<GList> items(gtk_container_get_children(GTK_CONTAINER(menu)));
+    GUniquePtr<GList> items(gtk_container_get_children(GTK_CONTAINER(menu)));
     bool previousVisibleItemIsNotASeparator = false;
     GtkWidget* lastItemVisibleSeparator = 0;
     for (GList* iter = items.get(); iter; iter = g_list_next(iter)) {
@@ -138,7 +138,7 @@ void WebContextMenuProxyGtk::populate(const Vector<WebContextMenuItemData>& item
     }
 }
 
-void WebContextMenuProxyGtk::showContextMenu(const WebCore::IntPoint& position, const Vector<WebContextMenuItemData>& items)
+void WebContextMenuProxyGtk::showContextMenu(const WebCore::IntPoint& position, const Vector<WebContextMenuItemData>& items, const ContextMenuContextData&)
 {
     if (!items.isEmpty())
         populate(items);

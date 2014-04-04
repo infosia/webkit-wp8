@@ -54,6 +54,10 @@
 #include <wtf/text/CString.h>
 #include <wtf/Vector.h>
 
+#if USE(QUICK_LOOK)
+#include "QuickLook.h"
+#endif
+
 using namespace WTF;
 
 namespace WebCore {
@@ -117,10 +121,8 @@ static ResourceLoadPriority defaultPriorityForResourceType(CachedResource::Type 
     case CachedResource::XSLStyleSheet:
         return ResourceLoadPriorityHigh;
 #endif
-#if ENABLE(SVG)
     case CachedResource::SVGDocumentResource:
         return ResourceLoadPriorityLow;
-#endif
 #if ENABLE(LINK_PREFETCH)
     case CachedResource::LinkPrefetch:
         return ResourceLoadPriorityVeryLow;
@@ -130,57 +132,11 @@ static ResourceLoadPriority defaultPriorityForResourceType(CachedResource::Type 
 #if ENABLE(VIDEO_TRACK)
     case CachedResource::TextTrackResource:
         return ResourceLoadPriorityLow;
-#endif
-#if ENABLE(CSS_SHADERS)
-    case CachedResource::ShaderResource:
-        return ResourceLoadPriorityMedium;
 #endif
     }
     ASSERT_NOT_REACHED();
     return ResourceLoadPriorityLow;
 }
-
-#if PLATFORM(BLACKBERRY)
-static ResourceRequest::TargetType cachedResourceTypeToTargetType(CachedResource::Type type)
-{
-    switch (type) {
-    case CachedResource::MainResource:
-        return ResourceRequest::TargetIsMainFrame;
-    case CachedResource::CSSStyleSheet:
-#if ENABLE(XSLT)
-    case CachedResource::XSLStyleSheet:
-#endif
-        return ResourceRequest::TargetIsStyleSheet;
-    case CachedResource::Script: 
-        return ResourceRequest::TargetIsScript;
-    case CachedResource::FontResource:
-        return ResourceRequest::TargetIsFontResource;
-    case CachedResource::ImageResource:
-        return ResourceRequest::TargetIsImage;
-#if ENABLE(CSS_SHADERS)
-    case CachedResource::ShaderResource:
-#endif
-    case CachedResource::RawResource:
-        return ResourceRequest::TargetIsSubresource;    
-#if ENABLE(LINK_PREFETCH)
-    case CachedResource::LinkPrefetch:
-        return ResourceRequest::TargetIsPrefetch;
-    case CachedResource::LinkSubresource:
-        return ResourceRequest::TargetIsSubresource;
-#endif
-#if ENABLE(VIDEO_TRACK)
-    case CachedResource::TextTrackResource:
-        return ResourceRequest::TargetIsTextTrack;
-#endif
-#if ENABLE(SVG)
-    case CachedResource::SVGDocumentResource:
-        return ResourceRequest::TargetIsImage;
-#endif
-    }
-    ASSERT_NOT_REACHED();
-    return ResourceRequest::TargetIsSubresource;
-}
-#endif
 
 static double deadDecodedDataDeletionIntervalForResourceType(CachedResource::Type type)
 {
@@ -191,8 +147,9 @@ static double deadDecodedDataDeletionIntervalForResourceType(CachedResource::Typ
 
 DEFINE_DEBUG_ONLY_GLOBAL(RefCountedLeakCounter, cachedResourceLeakCounter, ("CachedResource"));
 
-CachedResource::CachedResource(const ResourceRequest& request, Type type)
+CachedResource::CachedResource(const ResourceRequest& request, Type type, SessionID sessionID)
     : m_resourceRequest(request)
+    , m_sessionID(sessionID)
     , m_loadPriority(defaultPriorityForResourceType(type))
     , m_responseTimestamp(currentTime())
     , m_decodedDataDeletionTimer(this, &CachedResource::decodedDataDeletionTimerFired, deadDecodedDataDeletionIntervalForResourceType(type))
@@ -224,6 +181,7 @@ CachedResource::CachedResource(const ResourceRequest& request, Type type)
     , m_proxyResource(0)
 {
     ASSERT(m_type == unsigned(type)); // m_type is a bitfield, so this tests careless updates of the enum.
+    ASSERT(sessionID.isValid());
 #ifndef NDEBUG
     cachedResourceLeakCounter.increment();
 #endif
@@ -243,7 +201,7 @@ CachedResource::~CachedResource()
     ASSERT(canDelete());
     ASSERT(!inCache());
     ASSERT(!m_deleted);
-    ASSERT(url().isNull() || memoryCache()->resourceForRequest(resourceRequest()) != this);
+    ASSERT(url().isNull() || memoryCache()->resourceForRequest(resourceRequest(), sessionID()) != this);
 
 #ifndef NDEBUG
     m_deleted = true;
@@ -306,9 +264,14 @@ void CachedResource::load(CachedResourceLoader* cachedResourceLoader, const Reso
     m_options = options;
     m_loading = true;
 
-#if PLATFORM(BLACKBERRY)
-    if (m_resourceRequest.targetType() == ResourceRequest::TargetIsUnspecified)
-        m_resourceRequest.setTargetType(cachedResourceTypeToTargetType(type()));
+#if USE(QUICK_LOOK)
+    if (!m_resourceRequest.isNull() && m_resourceRequest.url().protocolIs(QLPreviewProtocol())) {
+        // When QuickLook is invoked to convert a document, it returns a unique URL in the
+        // NSURLReponse for the main document. To make safeQLURLForDocumentURLAndResourceURL()
+        // work, we need to use the QL URL not the original URL.
+        const URL& documentURL = cachedResourceLoader->frame() ? cachedResourceLoader->frame()->loader().documentLoader()->response().url() : cachedResourceLoader->document()->url();
+        m_resourceRequest.setURL(safeQLURLForDocumentURLAndResourceURL(documentURL, url()));
+    }
 #endif
 
     if (!accept().isEmpty())
@@ -572,7 +535,7 @@ void CachedResource::destroyDecodedDataIfNeeded()
     m_decodedDataDeletionTimer.restart();
 }
 
-void CachedResource::decodedDataDeletionTimerFired(DeferrableOneShotTimer<CachedResource>*)
+void CachedResource::decodedDataDeletionTimerFired(DeferrableOneShotTimer<CachedResource>&)
 {
     destroyDecodedData();
 }
@@ -752,17 +715,15 @@ void CachedResource::updateResponseAfterRevalidation(const ResourceResponse& val
 
     // RFC2616 10.3.5
     // Update cached headers from the 304 response
-    const HTTPHeaderMap& newHeaders = validatingResponse.httpHeaderFields();
-    HTTPHeaderMap::const_iterator end = newHeaders.end();
-    for (HTTPHeaderMap::const_iterator it = newHeaders.begin(); it != end; ++it) {
+    for (const auto& header : validatingResponse.httpHeaderFields()) {
         // Entity headers should not be sent by servers when generating a 304
         // response; misconfigured servers send them anyway. We shouldn't allow
         // such headers to update the original request. We'll base this on the
         // list defined by RFC2616 7.1, with a few additions for extension headers
         // we care about.
-        if (!shouldUpdateHeaderAfterRevalidation(it->key))
+        if (!shouldUpdateHeaderAfterRevalidation(header.key))
             continue;
-        m_response.setHTTPHeaderField(it->key, it->value);
+        m_response.setHTTPHeaderField(header.key, header.value);
     }
 }
 
@@ -917,7 +878,7 @@ void CachedResource::CachedResourceCallback::cancel()
         m_callbackTimer.stop();
 }
 
-void CachedResource::CachedResourceCallback::timerFired(Timer<CachedResourceCallback>*)
+void CachedResource::CachedResourceCallback::timerFired(Timer<CachedResourceCallback>&)
 {
     m_resource->didAddClient(m_client);
 }
@@ -929,7 +890,7 @@ bool CachedResource::isUsingDiskImageCache() const
 }
 #endif
 
-#if PLATFORM(MAC)
+#if USE(FOUNDATION)
 void CachedResource::tryReplaceEncodedData(PassRefPtr<SharedBuffer> newBuffer)
 {
     if (!m_data)

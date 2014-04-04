@@ -10,7 +10,7 @@
  * 2.  Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution. 
- * 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+ * 3.  Neither the name of Apple Inc. ("Apple") nor the names of
  *     its contributors may be used to endorse or promote products derived
  *     from this software without specific prior written permission. 
  *
@@ -30,18 +30,17 @@
 #define GlyphMetricsMap_h
 
 #include "Glyph.h"
-#include <wtf/FixedArray.h>
+#include <array>
 #include <wtf/HashMap.h>
 #include <wtf/OwnPtr.h>
 #include <wtf/PassOwnPtr.h>
-#include <wtf/unicode/Unicode.h>
 
 namespace WebCore {
 
 const float cGlyphSizeUnknown = -1;
 
 template<class T> class GlyphMetricsMap {
-    WTF_MAKE_NONCOPYABLE(GlyphMetricsMap);
+    WTF_MAKE_NONCOPYABLE(GlyphMetricsMap); WTF_MAKE_FAST_ALLOCATED;
 public:
     GlyphMetricsMap() : m_filledPrimaryPage(false) { }
     T metricsForGlyph(Glyph glyph)
@@ -55,9 +54,11 @@ public:
     }
 
 private:
-    struct GlyphMetricsPage {
+    class GlyphMetricsPage {
+        WTF_MAKE_FAST_ALLOCATED;
+    public:
         static const size_t size = 256; // Usually covers Latin-1 in a single page.
-        FixedArray<T, size> m_metrics;
+        std::array<T, size> m_metrics;
 
         T metricsForGlyph(Glyph glyph) const { return m_metrics[glyph % size]; }
         void setMetricsForGlyph(Glyph glyph, const T& metrics)
