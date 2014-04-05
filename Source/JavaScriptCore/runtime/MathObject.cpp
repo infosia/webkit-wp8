@@ -31,6 +31,14 @@
 #include <wtf/RandomNumberSeed.h>
 #include <wtf/Vector.h>
 
+// pre-Android 4.4 doesn't have log2
+#if OS(ANDROID)
+double log2(double n)
+{
+    return log(n) / log(2);
+}
+#endif
+
 namespace JSC {
 
 STATIC_ASSERT_IS_TRIVIALLY_DESTRUCTIBLE(MathObject);

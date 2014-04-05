@@ -89,13 +89,19 @@ private:
 
 typedef OptionRange optionRange;
 
+#if OS(ANDROID)
+#define JSC_MAX_PER_THREAD_STACK_USAGE 1
+#else
+#define JSC_MAX_PER_THREAD_STACK_USAGE 4
+#endif
+
 #define JSC_OPTIONS(v) \
     v(bool, useLLInt,  true) \
     v(bool, useJIT,    true) \
     v(bool, useDFGJIT, true) \
     v(bool, useRegExpJIT, true) \
     \
-    v(unsigned, maxPerThreadStackUsage, 4 * MB) \
+    v(unsigned, maxPerThreadStackUsage, JSC_MAX_PER_THREAD_STACK_USAGE * MB) \
     v(unsigned, reservedZoneSize, 128 * KB) \
     v(unsigned, errorModeReservedZoneSize, 64 * KB) \
     \
