@@ -12,6 +12,10 @@ set(WEBKIT2_DIR "${CMAKE_SOURCE_DIR}/Source/WebKit2")
 set(THIRDPARTY_DIR "${CMAKE_SOURCE_DIR}/Source/ThirdParty")
 set(PLATFORM_DIR "${CMAKE_SOURCE_DIR}/Source/Platform")
 
+if (ANDROID)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-c++0x-compat") 
+endif ()
+
 set(TOOLS_DIR "${CMAKE_SOURCE_DIR}/Tools")
 
 set(DERIVED_SOURCES_DIR "${CMAKE_BINARY_DIR}/DerivedSources")
@@ -23,7 +27,9 @@ set(DERIVED_SOURCES_WEBINSPECTORUI_DIR "${CMAKE_BINARY_DIR}/DerivedSources/WebIn
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/Source/cmake")
 
-set(ENABLE_WEBCORE ON)
+if (NOT ANDROID)
+    set(ENABLE_WEBCORE ON)
+endif ()
 
 if (NOT DEFINED ENABLE_WEBKIT)
     set(ENABLE_WEBKIT ON)
@@ -41,7 +47,7 @@ include(WebKitFeatures)
 # -----------------------------------------------------------------------------
 # Determine which port will be built
 # -----------------------------------------------------------------------------
-set(ALL_PORTS Efl WinCE GTK)
+set(ALL_PORTS Efl WinCE GTK Android)
 set(PORT "NOPORT" CACHE STRING "choose which WebKit port to build (one of ${ALL_PORTS})")
 
 list(FIND ALL_PORTS ${PORT} RET)
@@ -54,6 +60,8 @@ string(TOLOWER ${PORT} WEBKIT_PORT_DIR)
 # -----------------------------------------------------------------------------
 # Find common packages (used by all ports)
 # -----------------------------------------------------------------------------
+if (NOT ANDROID)
+
 find_package(BISON 2.4.1 REQUIRED)
 find_package(FLEX 2.5.34 REQUIRED)
 
@@ -65,6 +73,8 @@ find_package(Perl 5.10.0 REQUIRED)
 
 find_package(PythonInterp 2.6.0 REQUIRED)
 find_package(Ruby 1.8.7)
+
+endif ()
 
 # -----------------------------------------------------------------------------
 # Determine the target processor
