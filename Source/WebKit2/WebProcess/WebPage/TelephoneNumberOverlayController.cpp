@@ -29,6 +29,7 @@
 #if ENABLE(TELEPHONE_NUMBER_DETECTION)
 
 #include "WebPage.h"
+#include <WebCore/NotImplemented.h>
 
 using namespace WebCore;
 
@@ -82,18 +83,6 @@ void TelephoneNumberOverlayController::didMoveToWebPage(PageOverlay*, WebPage*)
 {
 }
 
-Vector<IntRect> TelephoneNumberOverlayController::rectsForDrawing() const
-{
-    Vector<IntRect> result;
-    
-    // FIXME: This will choke if the range wraps around the edge of the view.
-    // What should we do in that case?
-    for (auto& range : m_currentSelectionRanges)
-        result.append(enclosingIntRect(range->boundingRect()));
-
-    return result;
-}
-
 void TelephoneNumberOverlayController::selectedTelephoneNumberRangesChanged(const Vector<RefPtr<Range>>& ranges)
 {
 #if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED > 1090
@@ -109,6 +98,19 @@ void TelephoneNumberOverlayController::selectedTelephoneNumberRangesChanged(cons
     UNUSED_PARAM(ranges);
 #endif
 }
+
+#if !PLATFORM(MAC)
+void TelephoneNumberOverlayController::drawRect(PageOverlay*, WebCore::GraphicsContext&, const WebCore::IntRect&)
+{
+    notImplemented();
+}
+
+bool TelephoneNumberOverlayController::mouseEvent(PageOverlay*, const WebMouseEvent&)
+{
+    notImplemented();
+    return false;
+}
+#endif
 
 } // namespace WebKit
 

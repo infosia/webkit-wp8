@@ -237,7 +237,6 @@ http/tests/security/redirect-BLOCKED-to-localURL.html
 http/tests/security/xss-DENIED-xsl-document-redirect.xml
 http/tests/security/xss-DENIED-xsl-external-entity-redirect.xml
 http/tests/xmlhttprequest/access-control-basic-whitelist-request-headers.html
-http/tests/xmlhttprequest/cross-origin-cookie-storage.html
 http/tests/xmlhttprequest/cross-origin-no-authorization.html
 http/tests/xmlhttprequest/logout.html
 http/tests/xmlhttprequest/redirect-cross-origin-tripmine.html
@@ -1842,3 +1841,4 @@ webkit.org/b/130189 fast/regions/assert-hit-test-image.html [ Failure ]
 
 # ENABLE(WEBVTT_REGIONS) is disabled
 webkit.org/b/109570 media/track/regions-webvtt [ Skip ]
+webkit.org/b/109570 media/track/w3c [ Skip ]

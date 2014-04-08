@@ -58,6 +58,7 @@ class WebPageProxy;
 @class _UIHighlightView;
 @class WebIOSEvent;
 @class WKActionSheetAssistant;
+@class WKFormInputSession;
 
 typedef void (^UIWKAutocorrectionCompletionHandler)(UIWKAutocorrectionRects *rectsForInput);
 typedef void (^UIWKAutocorrectionContextHandler)(UIWKAutocorrectionContext *autocorrectionContext);
@@ -96,6 +97,7 @@ struct WKAutoCorrectionData {
     RetainPtr<NSString> _markedText;
     RetainPtr<WKActionSheetAssistant> _actionSheetAssistant;
     RetainPtr<WKAirPlayRoutePicker> _airPlayRoutePicker;
+    RetainPtr<WKFormInputSession> _formInputSession;
 
     std::unique_ptr<WebKit::SmartMagnificationController> _smartMagnificationController;
 
@@ -123,13 +125,15 @@ struct WKAutoCorrectionData {
 @property (nonatomic, readonly) const WebKit::InteractionInformationAtPosition& positionInformation;
 @property (nonatomic, readonly) const WebKit::WKAutoCorrectionData& autocorrectionData;
 @property (nonatomic, readonly) const WebKit::AssistedNodeInformation& assistedNodeInformation;
+@property (nonatomic, readonly) UIWebFormAccessory *formAccessoryView;
+
 - (void)setupInteraction;
 - (void)cleanupInteraction;
 
 - (void)_webTouchEvent:(const WebKit::NativeWebTouchEvent&)touchEvent preventsNativeGestures:(BOOL)preventsDefault;
 - (void)_didGetTapHighlightForRequest:(uint64_t)requestID color:(const WebCore::Color&)color quads:(const Vector<WebCore::FloatQuad>&)highlightedQuads topLeftRadius:(const WebCore::IntSize&)topLeftRadius topRightRadius:(const WebCore::IntSize&)topRightRadius bottomLeftRadius:(const WebCore::IntSize&)bottomLeftRadius bottomRightRadius:(const WebCore::IntSize&)bottomRightRadius;
 
-- (void)_startAssistingNode:(const WebKit::AssistedNodeInformation&)information;
+- (void)_startAssistingNode:(const WebKit::AssistedNodeInformation&)information userObject:(NSObject <NSSecureCoding> *)userObject;
 - (void)_stopAssistingNode;
 - (void)_selectionChanged;
 - (void)_updateChangedSelection;

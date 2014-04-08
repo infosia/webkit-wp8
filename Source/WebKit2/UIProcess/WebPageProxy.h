@@ -1219,9 +1219,18 @@ private:
     void hidePopupMenu();
 
 #if ENABLE(CONTEXT_MENUS)
-    // Context Menu.
+    enum class ContextMenuClientEligibility {
+        EligibleForClient,
+        NotEligibleForClient
+    };
     void showContextMenu(const WebCore::IntPoint& menuLocation, const ContextMenuContextData&, const Vector<WebContextMenuItemData>&, IPC::MessageDecoder&);
-    void internalShowContextMenu(const WebCore::IntPoint& menuLocation, const ContextMenuContextData&, const Vector<WebContextMenuItemData>&, IPC::MessageDecoder&);
+    void internalShowContextMenu(const WebCore::IntPoint& menuLocation, const ContextMenuContextData&, const Vector<WebContextMenuItemData>&, ContextMenuClientEligibility, IPC::MessageDecoder*);
+#endif
+
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+#if PLATFORM(MAC)
+    void showTelephoneNumberMenu(const String& telephoneNumber, const WebCore::IntPoint&);
+#endif
 #endif
 
     // Search popup results
@@ -1326,7 +1335,7 @@ private:
 
     void didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color& color, const Vector<WebCore::FloatQuad>& geometries, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius);
 
-    void startAssistingNode(const AssistedNodeInformation&);
+    void startAssistingNode(const AssistedNodeInformation&, IPC::MessageDecoder&);
     void stopAssistingNode();
 
 #if ENABLE(INSPECTOR)

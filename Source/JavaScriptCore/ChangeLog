@@ -1,3 +1,165 @@
+2014-04-08  Filip Pizlo  <fpizlo@apple.com>
+
+        Unreviewed, fix a goofy assertion to fix debug.
+
+        * bytecode/PolymorphicPutByIdList.h:
+        (JSC::PutByIdAccess::isSetter):
+        (JSC::PutByIdAccess::oldStructure):
+        (JSC::PutByIdAccess::chain):
+        (JSC::PutByIdAccess::stubRoutine):
+        (JSC::PutByIdAccess::customSetter):
+
+2014-04-08  Filip Pizlo  <fpizlo@apple.com>
+
+        Fail silently if the LLVM dylib isn't found
+        https://bugs.webkit.org/show_bug.cgi?id=131385
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::compileInThreadImpl):
+        * llvm/InitializeLLVM.cpp:
+        (JSC::initializeLLVM):
+        * llvm/InitializeLLVM.h:
+        * llvm/InitializeLLVMPOSIX.cpp:
+        (JSC::initializeLLVMPOSIX):
+
+2014-04-07  Filip Pizlo  <fpizlo@apple.com>
+
+        Repatch should support setters and plant calls to them directly
+        https://bugs.webkit.org/show_bug.cgi?id=130750
+
+        Reviewed by Geoffrey Garen.
+        
+        All of the infrastructure was in place so this just enables setter optimization.
+        
+        This is a 12x speed-up on setter microbenchmarks. This is a 1% speed-up on Octane.
+
+        * bytecode/PolymorphicPutByIdList.cpp:
+        (JSC::PutByIdAccess::visitWeak):
+        * bytecode/PolymorphicPutByIdList.h:
+        (JSC::PutByIdAccess::setter):
+        (JSC::PutByIdAccess::customSetter): Deleted.
+        * bytecode/PutByIdStatus.cpp:
+        (JSC::PutByIdStatus::computeForStubInfo):
+        * jit/Repatch.cpp:
+        (JSC::toString):
+        (JSC::kindFor):
+        (JSC::customFor):
+        (JSC::generateByIdStub):
+        (JSC::tryCachePutByID):
+        (JSC::tryBuildPutByIdList):
+        * runtime/JSObject.cpp:
+        (JSC::JSObject::put):
+        * runtime/Lookup.h:
+        (JSC::putEntry):
+        * runtime/PutPropertySlot.h:
+        (JSC::PutPropertySlot::setCacheableSetter):
+        (JSC::PutPropertySlot::isCacheableSetter):
+        (JSC::PutPropertySlot::isCacheableCustom):
+        (JSC::PutPropertySlot::setCacheableCustomProperty): Deleted.
+        (JSC::PutPropertySlot::isCacheableCustomProperty): Deleted.
+        * tests/stress/setter.js: Added.
+        (foo):
+
+2014-04-07  Filip Pizlo  <fpizlo@apple.com>
+
+        Setters are just getters that take an extra argument and don't return a value
+        https://bugs.webkit.org/show_bug.cgi?id=131336
+
+        Reviewed by Geoffrey Garen.
+        
+        Other than that, they're totally the same thing.
+        
+        This isn't as dumb as it sounds.        
+
+        Most of the work in calling an accessor has to do with emitting the necessary checks for
+        figuring out whether we're calling the accessor we expected, followed by the boilerplate
+        needed for setting up a call inside of a stub. It makes sense for the code to be totally
+        common.
+
+        * jit/AssemblyHelpers.h:
+        (JSC::AssemblyHelpers::storeValue):
+        (JSC::AssemblyHelpers::moveTrustedValue):
+        * jit/CCallHelpers.h:
+        (JSC::CCallHelpers::setupResults):
+        * jit/Repatch.cpp:
+        (JSC::kindFor):
+        (JSC::customFor):
+        (JSC::generateByIdStub):
+        (JSC::tryCacheGetByID):
+        (JSC::tryBuildGetByIDList):
+        (JSC::tryCachePutByID):
+        (JSC::tryBuildPutByIdList):
+        (JSC::generateGetByIdStub): Deleted.
+        (JSC::emitCustomSetterStub): Deleted.
+        * runtime/JSCJSValue.h:
+        (JSC::JSValue::asValue):
+        * runtime/PutPropertySlot.h:
+        (JSC::PutPropertySlot::cachedOffset):
+
+2014-04-07  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: Hang in debuggable application after receiving WIRPermissionDenied
+        https://bugs.webkit.org/show_bug.cgi?id=131321
+
+        Reviewed by Mark Rowe.
+
+        * inspector/remote/RemoteInspector.mm:
+        (Inspector::RemoteInspector::xpcConnectionReceivedMessage):
+        Avoid attempting to take the same lock twice. Move the received message
+        lock grab after the WIRPermissionDenied branch, which takes the lock
+        inside RemoteInspector::stop.
+
+2014-04-07  Filip Pizlo  <fpizlo@apple.com>
+
+        Make it possible to disable some of the FTL's more interesting features
+        https://bugs.webkit.org/show_bug.cgi?id=131312
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::handleGetById):
+        (JSC::DFG::ByteCodeParser::handlePutById):
+        (JSC::DFG::ByteCodeParser::parse):
+        * runtime/Options.h:
+
+2014-04-04  Mark Lam  <mark.lam@apple.com>
+
+        Date object needs to check for ES5 15.9.1.14 TimeClip limit.
+        <https://webkit.org/b/131248>
+
+        Reviewed by Mark Hahnenberg.
+
+        The current Date object code does not adequately check for the ES5
+        15.9.1.14 TimeClip limit.  As a result, some calculations can underflow
+        / overflow and produce unexpected results.
+
+        For example, we were getting an assertion failure in
+        WTF::equivalentYearForDST() due int underflows in this function, which
+        in turn were due to an int overflow in WTF::msToYear().
+
+        This patch adds the needed checks, and adds some assertions to ensure
+        that the used values are sane.
+
+        The changes have no noticeable impact on benchmark results.
+
+        * runtime/DateConstructor.cpp:
+        (JSC::callDate):
+        * runtime/JSDateMath.cpp:
+        (JSC::localTimeOffset):
+        (JSC::gregorianDateTimeToMS):
+        (JSC::msToGregorianDateTime):
+        (JSC::parseDateFromNullTerminatedCharacters):
+        (JSC::parseDate):
+        * runtime/JSDateMath.h:
+        - parseDateFromNullTerminatedCharacters() does not need to be public.
+          Made it a static function.
+        * runtime/VM.cpp:
+        (JSC::VM::resetDateCache):
+        - Changed cachedDateStringValue to use std::numeric_limits<double>::quiet_NaN()
+          to be consistent with other Date code.
+
 2014-04-06  Csaba Osztrogonác  <ossy@webkit.org>
 
         Unreviewed speculative 32-bit buildfix after r166837.

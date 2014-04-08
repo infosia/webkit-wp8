@@ -330,6 +330,9 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
 #if PLATFORM(IOS)
     , m_requestingPlay(false)
 #endif
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    , m_mediaControlsDependOnPageScaleFactor(false)
+#endif
 #if ENABLE(VIDEO_TRACK)
     , m_tracksAreReady(true)
     , m_haveVisibleTextTrack(false)
@@ -366,7 +369,9 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tagName, Document& docum
 #else
     m_sendProgressEvents = false;
     if (!settings || settings->mediaPlaybackRequiresUserGesture()) {
-        m_mediaSession->addBehaviorRestriction(HTMLMediaSession::RequireUserGestureForRateChange);
+        // Allow autoplay in a MediaDocument that is not in an iframe.
+        if (document.ownerElement() || !document.isMediaDocument())
+            m_mediaSession->addBehaviorRestriction(HTMLMediaSession::RequireUserGestureForRateChange);
 #if ENABLE(IOS_AIRPLAY)
         m_mediaSession->addBehaviorRestriction(HTMLMediaSession::RequireUserGestureToShowPlaybackTargetPicker);
 #endif
@@ -449,6 +454,11 @@ void HTMLMediaElement::registerWithDocument(Document& document)
     document.registerForCaptionPreferencesChangedCallbacks(this);
 #endif
 
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    if (m_mediaControlsDependOnPageScaleFactor)
+        document.registerForPageScaleFactorChangedCallbacks(this);
+#endif
+
     addElementToDocumentMap(*this, document);
 }
 
@@ -467,6 +477,11 @@ void HTMLMediaElement::unregisterWithDocument(Document& document)
 
 #if ENABLE(VIDEO_TRACK)
     document.unregisterForCaptionPreferencesChangedCallbacks(this);
+#endif
+
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    if (m_mediaControlsDependOnPageScaleFactor)
+        document.unregisterForPageScaleFactorChangedCallbacks(this);
 #endif
 
     removeElementFromDocumentMap(*this, document);
@@ -3670,8 +3685,14 @@ void HTMLMediaElement::configureTextTrackGroup(const TrackGroup& group)
         }
     }
 
-    if (trackToEnable)
+    if (trackToEnable) {
         trackToEnable->setMode(TextTrack::showingKeyword());
+
+        // If user preferences indicate we should always display captions, make sure we reflect the
+        // proper status via the webkitClosedCaptionsVisible API call:
+        if (!webkitClosedCaptionsVisible() && closedCaptionsVisible() && displayMode == CaptionUserPreferences::AlwaysOn)
+            m_webkitLegacyClosedCaptionOverride = true;
+    }
 
     m_processingPreferenceChange = false;
 }
@@ -4208,6 +4229,14 @@ void HTMLMediaElement::mediaPlayerEngineUpdated(MediaPlayer*)
 
 #if ENABLE(MEDIA_SOURCE)
     m_droppedVideoFrames = 0;
+#endif
+
+#if PLATFORM(IOS)
+    if (!m_player)
+        return;
+    m_player->setVideoFullscreenFrame(m_videoFullscreenFrame);
+    m_player->setVideoFullscreenGravity(m_videoFullscreenGravity);
+    m_player->setVideoFullscreenLayer(m_videoFullscreenLayer.get());
 #endif
 }
 
@@ -5484,12 +5513,6 @@ void HTMLMediaElement::createMediaPlayer()
         enqueuePlaybackTargetAvailabilityChangedEvent(); // Ensure the event listener gets at least one event.
     }
 #endif
-    
-#if PLATFORM(IOS)
-    m_player->setVideoFullscreenFrame(m_videoFullscreenFrame);
-    m_player->setVideoFullscreenGravity(m_videoFullscreenGravity);
-    m_player->setVideoFullscreenLayer(m_videoFullscreenLayer.get());
-#endif
 }
 
 #if ENABLE(WEB_AUDIO)
@@ -5970,6 +5993,24 @@ void HTMLMediaElement::didAddUserAgentShadowRoot(ShadowRoot* root)
     JSC::call(exec, overlay, callType, callData, globalObject, argList);
     if (exec->hadException())
         exec->clearException();
+}
+
+void HTMLMediaElement::setMediaControlsDependOnPageScaleFactor(bool dependsOnPageScale)
+{
+    LOG(Media, "MediaElement::setMediaControlsDependPageScaleFactor = %s", boolString(dependsOnPageScale));
+    if (m_mediaControlsDependOnPageScaleFactor == dependsOnPageScale)
+        return;
+
+    m_mediaControlsDependOnPageScaleFactor = dependsOnPageScale;
+
+    if (m_mediaControlsDependOnPageScaleFactor)
+        document().registerForPageScaleFactorChangedCallbacks(this);
+    else
+        document().unregisterForPageScaleFactorChangedCallbacks(this);
+}
+
+void HTMLMediaElement::pageScaleFactorChanged()
+{
 }
 #endif // ENABLE(MEDIA_CONTROLS_SCRIPT)
 
