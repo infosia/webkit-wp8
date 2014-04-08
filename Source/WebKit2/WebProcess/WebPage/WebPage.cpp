@@ -263,6 +263,8 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 #endif
     , m_setCanStartMediaTimer(RunLoop::main(), this, &WebPage::setCanStartMediaTimerFired)
     , m_sendDidUpdateViewStateTimer(RunLoop::main(), this, &WebPage::didUpdateViewStateTimerFired)
+    , m_formClient(std::make_unique<API::InjectedBundle::FormClient>())
+    , m_uiClient(std::make_unique<API::InjectedBundle::PageUIClient>())
     , m_findController(this)
 #if ENABLE(INPUT_TYPE_COLOR)
     , m_activeColorChooser(0)
@@ -528,9 +530,14 @@ void WebPage::initializeInjectedBundleEditorClient(WKBundlePageEditorClientBase*
     m_editorClient.initialize(client);
 }
 
-void WebPage::initializeInjectedBundleFormClient(WKBundlePageFormClientBase* client)
+void WebPage::setInjectedBundleFormClient(std::unique_ptr<API::InjectedBundle::FormClient> formClient)
 {
-    m_formClient.initialize(client);
+    if (!formClient) {
+        m_formClient = std::make_unique<API::InjectedBundle::FormClient>();
+        return;
+    }
+
+    m_formClient = std::move(formClient);
 }
 
 void WebPage::initializeInjectedBundleLoaderClient(WKBundlePageLoaderClientBase* client)
@@ -562,9 +569,14 @@ void WebPage::initializeInjectedBundleResourceLoadClient(WKBundlePageResourceLoa
     m_resourceLoadClient.initialize(client);
 }
 
-void WebPage::initializeInjectedBundleUIClient(WKBundlePageUIClientBase* client)
+void WebPage::setInjectedBundleUIClient(std::unique_ptr<API::InjectedBundle::PageUIClient> uiClient)
 {
-    m_uiClient.initialize(client);
+    if (!uiClient) {
+        m_uiClient = std::make_unique<API::InjectedBundle::PageUIClient>();
+        return;
+    }
+
+    m_uiClient = std::move(uiClient);
 }
 
 #if ENABLE(FULLSCREEN_API)
@@ -873,11 +885,11 @@ void WebPage::close()
     m_contextMenuClient.initialize(0);
 #endif
     m_editorClient.initialize(0);
-    m_formClient.initialize(0);
+    m_formClient = std::unique_ptr<API::InjectedBundle::FormClient>();
     m_loaderClient.initialize(0);
     m_policyClient.initialize(0);
     m_resourceLoadClient.initialize(0);
-    m_uiClient.initialize(0);
+    m_uiClient = std::make_unique<API::InjectedBundle::PageUIClient>();
 #if ENABLE(FULLSCREEN_API)
     m_fullScreenClient.initialize(0);
 #endif
@@ -1608,7 +1620,7 @@ PassRefPtr<WebImage> WebPage::snapshotAtSize(const IntRect& rect, const IntSize&
 
 void WebPage::pageDidScroll()
 {
-    m_uiClient.pageDidScroll(this);
+    m_uiClient->pageDidScroll(this);
 
     send(Messages::WebPageProxy::PageDidScroll());
 }

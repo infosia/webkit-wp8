@@ -1,3 +1,52 @@
+2014-04-08  Mark Rowe  <mrowe@apple.com>
+
+        XPC services launched by Safari have wrong DYLD_FRAMEWORK_PATH set when launched via run-safari / debug-safari
+        <https://webkit.org/b/131388> / <rdar://problem/16291687>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * Scripts/webkitdirs.pm:
+        (runMacWebKitApp): Set __XPC_DYLD_FRAMEWORK_PATH to the absolute path to the built products directory.
+        (execMacWebKitAppForDebugging): Ditto.
+
+2014-04-08  Geoffrey Garen  <ggaren@apple.com>
+
+        Build bmalloc on iOS too
+        https://bugs.webkit.org/show_bug.cgi?id=131381
+
+        Reviewed by Andreas Kling.
+
+        * Scripts/build-webkit:
+
+2014-04-08  Brent Fulgham  <bfulgham@apple.com>
+
+        Unreviewed gardening: Prevent users from attempting
+        to build with known invalid cURL.
+
+        * Scripts/webkitdirs.pm:
+        (checkInstalledTools): Block build attempts with bad
+        Cygwin tool set.
+
+2014-04-07  Geoffrey Garen  <ggaren@apple.com>
+
+        Build bmalloc on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=131333
+
+        Reviewed by Mark Rowe.
+
+        * Scripts/build-webkit: Add the bmalloc target if we're on Mac.
+        (Note: Just testing Mac is not good enough because in this
+        script 'Mac' means 'Mac or iOS'.)
+
+2014-03-30  Filip Pizlo  <fpizlo@apple.com>
+
+        Move slow JSRegress tests out of the way so that they don't show up in run-jsc-benchmarks runs and also skip tests that are extremely long-running
+        https://bugs.webkit.org/show_bug.cgi?id=130951
+
+        Reviewed by Geoffrey Garen.
+
+        * Scripts/run-javascriptcore-tests:
+
 2014-04-06  Darin Adler  <darin@apple.com>
 
         Rework CSS calc logic, fixing some reference count mistakes in Length

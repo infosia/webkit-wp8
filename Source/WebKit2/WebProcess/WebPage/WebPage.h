@@ -26,6 +26,8 @@
 #ifndef WebPage_h
 #define WebPage_h
 
+#include "APIInjectedBundleFormClient.h"
+#include "APIInjectedBundlePageUIClient.h"
 #include "APIObject.h"
 #include "DrawingArea.h"
 #include "FindController.h"
@@ -33,12 +35,10 @@
 #include "ImageOptions.h"
 #include "InjectedBundlePageDiagnosticLoggingClient.h"
 #include "InjectedBundlePageEditorClient.h"
-#include "InjectedBundlePageFormClient.h"
 #include "InjectedBundlePageFullScreenClient.h"
 #include "InjectedBundlePageLoaderClient.h"
 #include "InjectedBundlePagePolicyClient.h"
 #include "InjectedBundlePageResourceLoadClient.h"
-#include "InjectedBundlePageUIClient.h"
 #include "MessageReceiver.h"
 #include "MessageSender.h"
 #include "TapHighlightController.h"
@@ -46,6 +46,7 @@
 #include "SandboxExtension.h"
 #include "ShareableBitmap.h"
 #include "WebUndoStep.h"
+#include <WebCore/ContextMenuItem.h>
 #include <WebCore/DictationAlternative.h>
 #include <WebCore/DragData.h>
 #include <WebCore/Editor.h>
@@ -115,6 +116,7 @@ namespace IPC {
 }
 
 namespace WebCore {
+    class DocumentLoader;
     class GraphicsContext;
     class Frame;
     class FrameView;
@@ -279,11 +281,11 @@ public:
     void initializeInjectedBundleContextMenuClient(WKBundlePageContextMenuClientBase*);
 #endif
     void initializeInjectedBundleEditorClient(WKBundlePageEditorClientBase*);
-    void initializeInjectedBundleFormClient(WKBundlePageFormClientBase*);
+    void setInjectedBundleFormClient(std::unique_ptr<API::InjectedBundle::FormClient>);
     void initializeInjectedBundleLoaderClient(WKBundlePageLoaderClientBase*);
     void initializeInjectedBundlePolicyClient(WKBundlePagePolicyClientBase*);
     void initializeInjectedBundleResourceLoadClient(WKBundlePageResourceLoadClientBase*);
-    void initializeInjectedBundleUIClient(WKBundlePageUIClientBase*);
+    void setInjectedBundleUIClient(std::unique_ptr<API::InjectedBundle::PageUIClient>);
 #if ENABLE(FULLSCREEN_API)
     void initializeInjectedBundleFullScreenClient(WKBundlePageFullScreenClientBase*);
 #endif
@@ -293,11 +295,11 @@ public:
     InjectedBundlePageContextMenuClient& injectedBundleContextMenuClient() { return m_contextMenuClient; }
 #endif
     InjectedBundlePageEditorClient& injectedBundleEditorClient() { return m_editorClient; }
-    InjectedBundlePageFormClient& injectedBundleFormClient() { return m_formClient; }
+    API::InjectedBundle::FormClient& injectedBundleFormClient() { return *m_formClient.get(); }
     InjectedBundlePageLoaderClient& injectedBundleLoaderClient() { return m_loaderClient; }
     InjectedBundlePagePolicyClient& injectedBundlePolicyClient() { return m_policyClient; }
     InjectedBundlePageResourceLoadClient& injectedBundleResourceLoadClient() { return m_resourceLoadClient; }
-    InjectedBundlePageUIClient& injectedBundleUIClient() { return m_uiClient; }
+    API::InjectedBundle::PageUIClient& injectedBundleUIClient() { return *m_uiClient.get(); }
     InjectedBundlePageDiagnosticLoggingClient& injectedBundleDiagnosticLoggingClient() { return m_logDiagnosticMessageClient; }
 #if ENABLE(FULLSCREEN_API)
     InjectedBundlePageFullScreenClient& injectedBundleFullScreenClient() { return m_fullScreenClient; }
@@ -776,6 +778,7 @@ public:
     
 #if ENABLE(TELEPHONE_NUMBER_DETECTION)
     TelephoneNumberOverlayController& telephoneNumberOverlayController();
+    void handleTelephoneNumberClick(const String& number, const WebCore::IntPoint&);
 #endif
 
 private:
@@ -1072,11 +1075,11 @@ private:
     InjectedBundlePageContextMenuClient m_contextMenuClient;
 #endif
     InjectedBundlePageEditorClient m_editorClient;
-    InjectedBundlePageFormClient m_formClient;
+    std::unique_ptr<API::InjectedBundle::FormClient> m_formClient;
     InjectedBundlePageLoaderClient m_loaderClient;
     InjectedBundlePagePolicyClient m_policyClient;
     InjectedBundlePageResourceLoadClient m_resourceLoadClient;
-    InjectedBundlePageUIClient m_uiClient;
+    std::unique_ptr<API::InjectedBundle::PageUIClient> m_uiClient;
 #if ENABLE(FULLSCREEN_API)
     InjectedBundlePageFullScreenClient m_fullScreenClient;
 #endif

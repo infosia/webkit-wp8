@@ -533,6 +533,11 @@ void MediaPlayerPrivateAVFoundationObjC::destroyVideoLayer()
 
     [m_videoLayer.get() setPlayer:nil];
 
+#if PLATFORM(IOS)
+    if (m_videoFullscreenLayer)
+        [m_videoLayer removeFromSuperlayer];
+#endif
+
     m_videoLayer = 0;
 }
 
@@ -912,7 +917,7 @@ void MediaPlayerPrivateAVFoundationObjC::platformPause()
 
     setDelayCallbacks(true);
     m_cachedRate = 0;
-    [m_avPlayer.get() setRate:nil];
+    [m_avPlayer.get() setRate:0];
     setDelayCallbacks(false);
 }
 
