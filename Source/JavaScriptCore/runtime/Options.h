@@ -90,9 +90,9 @@ private:
 typedef OptionRange optionRange;
 
 #if OS(ANDROID)
-#define JSC_MAX_PER_THREAD_STACK_USAGE 1
+#define JSC_OPTIONS_RESERVED_ZONE_SIZE_KB 64
 #else
-#define JSC_MAX_PER_THREAD_STACK_USAGE 4
+#define JSC_OPTIONS_RESERVED_ZONE_SIZE_KB 128
 #endif
 
 #define JSC_OPTIONS(v) \
@@ -101,8 +101,8 @@ typedef OptionRange optionRange;
     v(bool, useDFGJIT, true) \
     v(bool, useRegExpJIT, true) \
     \
-    v(unsigned, maxPerThreadStackUsage, JSC_MAX_PER_THREAD_STACK_USAGE * MB) \
-    v(unsigned, reservedZoneSize, 128 * KB) \
+    v(unsigned, maxPerThreadStackUsage, 4 * MB) \
+    v(unsigned, reservedZoneSize, JSC_OPTIONS_RESERVED_ZONE_SIZE_KB * KB) \
     v(unsigned, errorModeReservedZoneSize, 64 * KB) \
     \
     v(bool, crashIfCantAllocateJITMemory, false) \
