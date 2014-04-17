@@ -136,10 +136,8 @@ RenderLayerBacking::RenderLayerBacking(RenderLayer& layer)
 
         tiledBacking->setIsInWindow(page->isInWindow());
 
-        if (m_isMainFrameRenderViewLayer) {
-            tiledBacking->setExposedRect(renderer().frame().view()->exposedRect());
+        if (m_isMainFrameRenderViewLayer)
             tiledBacking->setUnparentsOffscreenTiles(true);
-        }
 
         tiledBacking->setScrollingPerformanceLoggingEnabled(page->settings().scrollingPerformanceLoggingEnabled());
         adjustTiledBackingCoverage();
@@ -2242,6 +2240,11 @@ void RenderLayerBacking::paintContents(const GraphicsLayer* graphicsLayer, Graph
 float RenderLayerBacking::pageScaleFactor() const
 {
     return compositor().pageScaleFactor();
+}
+
+float RenderLayerBacking::zoomedOutPageScaleFactor() const
+{
+    return compositor().zoomedOutPageScaleFactor();
 }
 
 float RenderLayerBacking::deviceScaleFactor() const

@@ -30,6 +30,7 @@
 #include "JSCJSValue.h"
 #include "JSCellInlines.h"
 #include "JSFunction.h"
+#include <wtf/text/StringImpl.h>
 
 namespace JSC {
 
@@ -65,7 +66,7 @@ inline double JSValue::asNumber() const
 
 inline JSValue jsNaN()
 {
-    return JSValue(QNaN);
+    return JSValue(PNaN);
 }
 
 inline JSValue::JSValue(char i)
@@ -301,6 +302,7 @@ ALWAYS_INLINE JSCell* JSValue::asCell() const
 
 ALWAYS_INLINE JSValue::JSValue(EncodeAsDoubleTag, double d)
 {
+    ASSERT(!isImpureNaN(d));
     u.asDouble = d;
 }
 
@@ -467,6 +469,7 @@ inline double reinterpretInt64ToDouble(int64_t value)
 
 ALWAYS_INLINE JSValue::JSValue(EncodeAsDoubleTag, double d)
 {
+    ASSERT(!isImpureNaN(d));
     u.asInt64 = reinterpretDoubleToInt64(d) + DoubleEncodeOffset;
 }
 
@@ -503,6 +506,15 @@ inline bool JSValue::isMachineInt() const
     double number = asDouble();
     if (number != number)
         return false;
+#if OS(WINDOWS) && CPU(X86)
+    // The VS Compiler for 32-bit builds generates a floating point error when attempting to cast
+    // from an infinity to a 64-bit integer. We leave this routine with the floating point error
+    // left in a register, causing undefined behavior in later floating point operations.
+    //
+    // To avoid this issue, we check for infinity here, and return false in that case.
+    if (std::isinf(number))
+        return false;
+#endif
     int64_t asInt64 = static_cast<int64_t>(number);
     if (asInt64 != number)
         return false;
@@ -608,7 +620,7 @@ inline bool JSValue::getPrimitiveNumber(ExecState* exec, double& number, JSValue
         return true;
     }
     ASSERT(isUndefined());
-    number = QNaN;
+    number = PNaN;
     value = *this;
     return true;
 }
@@ -738,7 +750,7 @@ ALWAYS_INLINE bool JSValue::equalSlowCaseInline(ExecState* exec, JSValue v1, JSV
         bool s1 = v1.isString();
         bool s2 = v2.isString();
         if (s1 && s2)
-            return asString(v1)->value(exec) == asString(v2)->value(exec);
+            return WTF::equal(*asString(v1)->value(exec).impl(), *asString(v2)->value(exec).impl());
 
         if (v1.isUndefinedOrNull()) {
             if (v2.isUndefinedOrNull())
@@ -800,7 +812,7 @@ ALWAYS_INLINE bool JSValue::strictEqualSlowCaseInline(ExecState* exec, JSValue v
     ASSERT(v1.isCell() && v2.isCell());
 
     if (v1.asCell()->isString() && v2.asCell()->isString())
-        return asString(v1)->value(exec) == asString(v2)->value(exec);
+        return WTF::equal(*asString(v1)->value(exec).impl(), *asString(v2)->value(exec).impl());
 
     return v1 == v2;
 }
@@ -835,7 +847,7 @@ inline TriState JSValue::pureStrictEqual(JSValue v1, JSValue v2)
         const StringImpl* v2String = asString(v2)->tryGetValueImpl();
         if (!v1String || !v2String)
             return MixedTriState;
-        return triState(WTF::equal(v1String, v2String));
+        return triState(WTF::equal(*v1String, *v2String));
     }
     
     return triState(v1 == v2);

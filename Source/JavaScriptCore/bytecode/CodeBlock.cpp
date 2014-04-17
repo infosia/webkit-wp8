@@ -37,7 +37,6 @@
 #include "DFGCommon.h"
 #include "DFGDriver.h"
 #include "DFGJITCode.h"
-#include "DFGNode.h"
 #include "DFGWorklist.h"
 #include "Debugger.h"
 #include "Interpreter.h"
@@ -1368,10 +1367,8 @@ void CodeBlock::dumpBytecode(
                 operand);
             break;
         }
-#if ENABLE(LLINT_C_LOOP)
         default:
             RELEASE_ASSERT_NOT_REACHED();
-#endif
     }
 
     dumpRareCaseProfile(out, "rare case: ", rareCaseProfileForBytecodeOffset(location), hasPrintedProfiling);
@@ -1587,7 +1584,7 @@ CodeBlock::CodeBlock(ScriptExecutable* ownerExecutable, UnlinkedCodeBlock* unlin
                 m_rareData->m_exceptionHandlers[i].target = handler.target;
                 m_rareData->m_exceptionHandlers[i].scopeDepth = nonLocalScopeDepth + handler.scopeDepth;
 #if ENABLE(JIT) && ENABLE(LLINT)
-                m_rareData->m_exceptionHandlers[i].nativeCode = CodeLocationLabel(MacroAssemblerCodePtr::createFromExecutableAddress(LLInt::getCodePtr(llint_op_catch)));
+                m_rareData->m_exceptionHandlers[i].nativeCode = CodeLocationLabel(MacroAssemblerCodePtr::createFromExecutableAddress(LLInt::getCodePtr(op_catch)));
 #endif
             }
         }

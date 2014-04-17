@@ -58,11 +58,11 @@ WebVideoFullscreenManagerProxy::~WebVideoFullscreenManagerProxy()
     m_page->process().removeMessageReceiver(Messages::WebVideoFullscreenManagerProxy::messageReceiverName(), m_page->pageID());
 }
 
-void WebVideoFullscreenManagerProxy::enterFullscreenWithID(uint32_t videoLayerID)
+void WebVideoFullscreenManagerProxy::enterFullscreenWithID(uint32_t videoLayerID, WebCore::IntRect initialRect)
 {
     ASSERT(videoLayerID);
     m_layerHost = WKMakeRenderLayer(videoLayerID);
-    enterFullscreen(*m_layerHost.get());
+    enterFullscreen(*m_layerHost.get(), initialRect);
 }
     
 void WebVideoFullscreenManagerProxy::setSeekableRangesVector(Vector<std::pair<double, double>>& ranges)
@@ -124,6 +124,16 @@ void WebVideoFullscreenManagerProxy::setVideoLayerFrame(WebCore::FloatRect frame
 void WebVideoFullscreenManagerProxy::setVideoLayerGravity(WebCore::WebVideoFullscreenModel::VideoGravity gravity)
 {
     m_page->send(Messages::WebVideoFullscreenManager::SetVideoLayerGravityEnum((unsigned)gravity), m_page->pageID());
+}
+    
+void WebVideoFullscreenManagerProxy::selectAudioMediaOption(uint64_t index)
+{
+    m_page->send(Messages::WebVideoFullscreenManager::SelectAudioMediaOption(index), m_page->pageID());
+}
+    
+void WebVideoFullscreenManagerProxy::selectLegibleMediaOption(uint64_t index)
+{
+    m_page->send(Messages::WebVideoFullscreenManager::SelectLegibleMediaOption(index), m_page->pageID());
 }
 
 } // namespace WebKit

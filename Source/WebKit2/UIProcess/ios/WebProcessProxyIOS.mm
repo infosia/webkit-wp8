@@ -28,7 +28,6 @@
 
 #if PLATFORM(IOS)
 
-#import <assertion/extension_private.h>
 #import <WebCore/NotImplemented.h>
 
 namespace WebKit {
@@ -70,7 +69,7 @@ void WebProcessProxy::updateProcessSuppressionState()
 {
     notImplemented();
 }
-
+    
 void WebProcessProxy::updateProcessState()
 {
 #if USE(XPC_SERVICES)
@@ -81,16 +80,18 @@ void WebProcessProxy::updateProcessState()
     if (!xpcConnection)
         return;
 
-    assertion_extension_state_t extensionState = ASSERTION_EXTENSION_STATE_BACKGROUND;
+    AssertionState assertionState = AssertionState::Background;
     for (const auto& page : m_pageMap.values()) {
         if (page->isInWindow()) {
-            extensionState = ASSERTION_EXTENSION_STATE_FOREGROUND;
+            assertionState = AssertionState::Foreground;
             break;
         }
     }
-
-    errno_t tabStateError = assertion_extension_set_state(xpcConnection, extensionState, NULL);
-    ASSERT_UNUSED(tabStateError, !tabStateError);
+    
+    if (!m_assertion)
+        m_assertion = std::make_unique<ProcessAssertion>(xpc_connection_get_pid(xpcConnection), assertionState);
+    else
+        m_assertion->setState(assertionState);
 #endif
 }
 

@@ -63,6 +63,10 @@ bool AccessibilityTableCell::computeAccessibilityIsIgnored() const
     if (decision == IgnoreObject)
         return true;
     
+    // Ignore anonymous table cells.
+    if (!node())
+        return true;
+        
     if (!isTableCell())
         return AccessibilityRenderObject::computeAccessibilityIsIgnored();
     
@@ -173,7 +177,7 @@ void AccessibilityTableCell::columnHeaders(AccessibilityChildrenVector& headers)
     
     for (unsigned row = 0; row < rowRange.first; row++) {
         AccessibilityTableCell* tableCell = parent->cellForColumnAndRow(colRange.first, row);
-        if (tableCell == this || headers.contains(tableCell))
+        if (!tableCell || tableCell == this || headers.contains(tableCell))
             continue;
 
         std::pair<unsigned, unsigned> childRowRange;
@@ -201,7 +205,7 @@ void AccessibilityTableCell::rowHeaders(AccessibilityChildrenVector& headers)
 
     for (unsigned column = 0; column < colRange.first; column++) {
         AccessibilityTableCell* tableCell = parent->cellForColumnAndRow(column, rowRange.first);
-        if (tableCell == this || headers.contains(tableCell))
+        if (!tableCell || tableCell == this || headers.contains(tableCell))
             continue;
         
         const AtomicString& scope = tableCell->getAttribute(scopeAttr);

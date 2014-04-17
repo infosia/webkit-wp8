@@ -195,6 +195,7 @@ set(WebKit2_SOURCES
     Shared/EditorState.cpp
     Shared/FontInfo.cpp
     Shared/ImmutableDictionary.cpp
+    Shared/LayerTreeContext.cpp
     Shared/MutableDictionary.cpp
     Shared/NavigationActionData.cpp
     Shared/OriginAndDatabases.cpp
@@ -543,6 +544,7 @@ set(WebKit2_SOURCES
     WebProcess/WebPage/LayerTreeHost.cpp
     WebProcess/WebPage/PageBanner.cpp
     WebProcess/WebPage/PageOverlay.cpp
+    WebProcess/WebPage/PageOverlayController.cpp
     WebProcess/WebPage/TapHighlightController.cpp
     WebProcess/WebPage/WebBackForwardListProxy.cpp
     WebProcess/WebPage/WebContextMenu.cpp

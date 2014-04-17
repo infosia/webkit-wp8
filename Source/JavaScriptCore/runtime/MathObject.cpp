@@ -109,7 +109,7 @@ void MathObject::finishCreation(VM& vm, JSGlobalObject* globalObject)
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "exp"), 1, mathProtoFuncExp, ExpIntrinsic, DontEnum | Function);
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "expm1"), 1, mathProtoFuncExpm1, NoIntrinsic, DontEnum | Function);
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "floor"), 1, mathProtoFuncFloor, FloorIntrinsic, DontEnum | Function);
-    putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "fround"), 1, mathProtoFuncFround, NoIntrinsic, DontEnum | Function);
+    putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "fround"), 1, mathProtoFuncFround, FRoundIntrinsic, DontEnum | Function);
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "hypot"), 2, mathProtoFuncHypot, NoIntrinsic, DontEnum | Function);
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "log"), 1, mathProtoFuncLog, LogIntrinsic, DontEnum | Function);
     putDirectNativeFunctionWithoutTransition(vm, globalObject, Identifier(&vm, "log10"), 1, mathProtoFuncLog10, NoIntrinsic, DontEnum | Function);
@@ -219,7 +219,7 @@ EncodedJSValue JSC_HOST_CALL mathProtoFuncMax(ExecState* exec)
     for (unsigned k = 0; k < argsCount; ++k) {
         double val = exec->uncheckedArgument(k).toNumber(exec);
         if (std::isnan(val)) {
-            result = QNaN;
+            result = PNaN;
         } else if (val > result || (!val && !result && !std::signbit(val)))
             result = val;
     }
@@ -233,7 +233,7 @@ EncodedJSValue JSC_HOST_CALL mathProtoFuncMin(ExecState* exec)
     for (unsigned k = 0; k < argsCount; ++k) {
         double val = exec->uncheckedArgument(k).toNumber(exec);
         if (std::isnan(val)) {
-            result = QNaN;
+            result = PNaN;
         } else if (val < result || (!val && !result && std::signbit(val)))
             result = val;
     }

@@ -1,3 +1,192 @@
+2014-04-16  Alexandru Chiculita  <achicu@adobe.com>
+
+        Improve performance of the RenderLayerCompositor::OverlapMap
+        https://bugs.webkit.org/show_bug.cgi?id=115063
+
+        Reviewed by Simon Fraser.
+
+        Testing the performance of computing the overlap of 5000 layers.
+
+        * Layout/layers_overlap_2d.html: Added. Using non-composited layers, to check
+        that the performance on the non-composited path is not changing with this patch.
+        * Layout/layers_overlap_3d.html: Added. Records the time to do the layout of 5000
+        non-overlapping 3D layers.
+
+2014-04-15  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Linking stylesheet instead of inline style definition has ruined ShapesRegions test
+        https://bugs.webkit.org/show_bug.cgi?id=131572
+
+        Reviewed by Rob Buis.
+
+        In r167022 I moved the common CSS selectors into RegionsShapes.css, then I linked it into the perf test
+        files, but the measurement results dropped down from about 400ms to 10ms. I realized it's caused by the
+        linked css rule, so I've put the selectors back into every test case, which fixes the test measurements.
+
+        * Layout/Shapes/resources/RegionsShapes.css: Removed.
+        * Layout/Shapes/resources/RegionsShapesContent.html:
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth400.html:
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth600.html:
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth800.html:
+        * Layout/Shapes/resources/RegionsShapesContentNoShapes.html:
+
+2014-04-14  Geoffrey Garen  <ggaren@apple.com>
+
+        MallocBench should scavenge explicitly instead of waiting
+        https://bugs.webkit.org/show_bug.cgi?id=131661
+
+        Reviewed by Andreas Kling.
+
+        * MallocBench/MallocBench.xcodeproj/project.pbxproj: Don't build mbmalloc
+        by default because it will overwrite any other mbmalloc you're working
+        with in the WebKitBuild directory.
+
+        * MallocBench/MallocBench/Benchmark.cpp:
+        (Benchmark::run): Scavenge explicitly instead of waiting. This is faster,
+        and it's the only way to get FastMalloc to scavenge. (That's a bug in
+        FastMalloc, but we don't want it to interfere with broader testing.)
+
+        * MallocBench/MallocBench/mbmalloc.cpp:
+        * MallocBench/MallocBench/mbmalloc.h: Added a scavenge implementation
+        for system malloc.
+
+2014-04-14  Geoffrey Garen  <ggaren@apple.com>
+
+        A few MallocBench record/replay fixes
+        https://bugs.webkit.org/show_bug.cgi?id=131627
+
+        Reviewed by Andreas Kling.
+
+        * MallocBench/MallocBench/Interpreter.cpp:
+        (Interpreter::run): Accept 0-sized allocations without asserting because
+        WebKit does that sometimes.
+
+        * MallocBench/MallocBench/flickr.ops:
+        * MallocBench/MallocBench/flickr_memory_warning.ops:
+        * MallocBench/MallocBench/reddit.ops:
+        * MallocBench/MallocBench/reddit_memory_warning.ops:
+        * MallocBench/MallocBench/theverge.ops:
+        * MallocBench/MallocBench/theverge_memory_warning.ops: Updated these
+        recordings because a bug in the recording mechanism caused one out of
+        every few thousand slot values to be bogus.
+
+2014-04-13  Geoffrey Garen  <ggaren@apple.com>
+
+        Added some website recordings to MallocBench -- taken from Membuster
+        https://bugs.webkit.org/show_bug.cgi?id=131601
+
+        Reviewed by Ryosuke Niwa.
+
+        Added flickr, reddit, and theverge -- each recorded from Membuster's
+        cache, with and without sending Safari a low memory warning.
+
+        * MallocBench/MallocBench.xcodeproj/project.pbxproj:
+        * MallocBench/MallocBench/Benchmark.cpp:
+        * MallocBench/MallocBench/flickr.cpp: Added.
+        (benchmark_flickr):
+        (benchmark_flickr_memory_warning):
+        * MallocBench/MallocBench/flickr.h: Added.
+        * MallocBench/MallocBench/flickr.ops: Added.
+        * MallocBench/MallocBench/flickr_memory_warning.ops: Added.
+        * MallocBench/MallocBench/reddit.cpp: Added.
+        (benchmark_reddit):
+        (benchmark_reddit_memory_warning):
+        * MallocBench/MallocBench/reddit.h: Added.
+        * MallocBench/MallocBench/reddit.ops: Added.
+        * MallocBench/MallocBench/reddit_memory_warning.ops: Added.
+        * MallocBench/MallocBench/theverge.cpp: Added.
+        (benchmark_theverge):
+        (benchmark_theverge_memory_warning):
+        * MallocBench/MallocBench/theverge.h: Added.
+        * MallocBench/MallocBench/theverge.ops: Added.
+        * MallocBench/MallocBench/theverge_memory_warning.ops: Added.
+
+2014-04-13  Geoffrey Garen  <ggaren@apple.com>
+
+        MallocBench record/replay should support realloc
+        https://bugs.webkit.org/show_bug.cgi?id=131598
+
+        Reviewed by Ryosuke Niwa.
+
+        * MallocBench/MallocBench.xcodeproj/project.pbxproj: Fixed some linkage
+        issues that caused us not to fully link to system malloc in the default
+        case. Also marked mbmalloc.dylib as required so the error message will
+        be clearer if we mess up.
+
+        * MallocBench/MallocBench/Interpreter.cpp:
+        (Interpreter::run):
+        * MallocBench/MallocBench/Interpreter.h: Added the realloc case, and
+        upgraded one-letter names to full words.
+
+2014-04-11  Dirk Schulze  <krit@webkit.org>
+
+        Optimize Canvas fill and drawImage with SourceIn, DestinationIn, SourceOut, and DestinationAtop using transparencyLayer.
+        https://bugs.webkit.org/show_bug.cgi?id=79659
+
+        Reviewed by Andreas Kling.
+
+        Add performance tests for real this time.
+
+        * Canvas/compositing-drawimage.html: Added.
+        * Canvas/compositing-fillRect.html: Added.
+
+
+2014-04-11  Dirk Schulze  <krit@webkit.org>
+
+        Optimize Canvas fill and drawImage with SourceIn, DestinationIn, SourceOut, and DestinationAtop using transparencyLayer.
+        https://bugs.webkit.org/show_bug.cgi?id=79659
+
+        Reviewed by Andreas Kling.
+
+        Add performance tests for fillRect() and drawImage() on composited contexts.
+
+        * Canvas/compositing-drawimage.html: Added.
+        * Canvas/compositing-fillRect.html: Added.
+
+2014-04-09  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Add no shapes version of RegionsShapes performance test
+        https://bugs.webkit.org/show_bug.cgi?id=131455
+        
+        Reviewed by Ryosuke Niwa.
+
+        This is a no shapes version of the RegionsShapes performance test. All the content
+        will wrap around the floating containers. This way we can compare the runtime/memory
+        usage of the RegionsShapes test with/without shapes. The test is skipped by default.
+
+        * Layout/Shapes/RegionsShapesNoShapes.html: Added.
+        * Layout/Shapes/resources/RegionsShapesContentNoShapes.html: Added.
+
+2014-04-09  Zoltan Horvath  <zoltan@webkit.org>
+
+        [CSS Shapes] Add no regions version of RegionsShapes performance test
+        https://bugs.webkit.org/show_bug.cgi?id=131442
+
+        Reviewed by Ryosuke Niwa.
+
+        We would like have a no regions version for RegionsShapes performance test. The new
+        test produces similar layout to RegionsShapes.html without using regions. It is helpful
+        for us to do further comparisons when necessary. This test is skipped by default.
+
+        * Layout/Shapes/RegionsShapesNoRegions.html: Added.
+        * Layout/Shapes/resources/RegionsShapes.css: Added.
+        (html, body):
+        (.shape):
+        (#circleShape):
+        (#imageShape):
+        (#insetShape):
+        (#roundedInsetShape):
+        (#triangleLeft):
+        (#triangleRight):
+        (#selfIntersectingStar):
+        (#region1):
+        (#region2):
+        (#region3):
+        * Layout/Shapes/resources/RegionsShapesContent.html:
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth400.html: Added.
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth600.html: Added.
+        * Layout/Shapes/resources/RegionsShapesContentNoRegionsWidth800.html: Added.
+
 2014-04-02  Geoffrey Garen  <ggaren@apple.com>
 
         Unreviewed.

@@ -21,7 +21,6 @@ list(APPEND WebCore_INCLUDE_DIRECTORIES
     "${WEBCORE_DIR}/platform/network/soup"
     "${WEBCORE_DIR}/platform/text/gtk"
     "${WEBCORE_DIR}/platform/text/icu"
-    "${WEBCORE_DIR}/plugins/gtk"
 )
 
 list(APPEND WebCore_SOURCES
@@ -140,6 +139,9 @@ list(APPEND WebCore_SOURCES
     platform/text/gtk/TextBreakIteratorInternalICUGtk.cpp
 
     platform/network/gtk/CredentialBackingStore.cpp
+
+    plugins/PluginPackageNone.cpp
+    plugins/PluginViewNone.cpp
 )
 
 list(APPEND WebCorePlatformGTK_SOURCES
@@ -252,34 +254,12 @@ if (WTF_USE_GEOCLUE2)
     )
 endif ()
 
-if (ENABLE_NETSCAPE_PLUGIN_API)
-    list(APPEND WebCore_SOURCES
-        plugins/PluginDatabase.cpp
-        plugins/PluginDebug.cpp
-        plugins/PluginPackage.cpp
-        plugins/PluginStream.cpp
-        plugins/PluginView.cpp
-    )
-
-    list(APPEND WebCorePlatformGTK_SOURCES
-        plugins/gtk/PluginPackageGtk.cpp
-        plugins/gtk/PluginViewGtk.cpp
-        plugins/gtk/gtk2xtbin.c
-
-        plugins/x11/PluginViewX11.cpp
-    )
-else ()
-    list(APPEND WebCore_SOURCES
-        plugins/PluginPackageNone.cpp
-        plugins/PluginViewNone.cpp
-    )
-endif ()
-
 list(APPEND WebCore_USER_AGENT_STYLE_SHEETS
     ${WEBCORE_DIR}/css/mediaControlsGtk.css
 )
 
 set(WebCore_USER_AGENT_SCRIPTS
+    ${WEBCORE_DIR}/English.lproj/mediaControlsLocalizedStrings.js
     ${WEBCORE_DIR}/Modules/mediacontrols/mediaControlsApple.js
     ${WEBCORE_DIR}/Modules/mediacontrols/mediaControlsGtk.js
 )
@@ -364,6 +344,16 @@ if (ENABLE_VIDEO)
         ${GSTREAMER_TAG_LIBRARIES}
         ${GSTREAMER_VIDEO_LIBRARIES}
     )
+
+    if (USE_GSTREAMER_MPEGTS)
+        list(APPEND WebCore_INCLUDE_DIRECTORIES
+            ${GSTREAMER_MPEGTS_INCLUDE_DIRS}
+        )
+
+        list(APPEND WebCore_LIBRARIES
+            ${GSTREAMER_MPEGTS_LIBRARIES}
+        )
+    endif ()
 endif ()
 
 if (ENABLE_WEB_AUDIO)
@@ -476,12 +466,17 @@ list(APPEND GObjectDOMBindings_SOURCES
 
 list(APPEND GObjectDOMBindings_IDL_FILES
     Modules/battery/BatteryManager.idl
+
     Modules/gamepad/Gamepad.idl
     Modules/gamepad/GamepadList.idl
+
     Modules/geolocation/Geolocation.idl
+
     Modules/mediasource/VideoPlaybackQuality.idl
+
     Modules/quota/StorageInfo.idl
     Modules/quota/StorageQuota.idl
+
     Modules/webdatabase/Database.idl
 
     css/CSSRule.idl

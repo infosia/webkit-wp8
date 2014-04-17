@@ -61,11 +61,11 @@ public:
                 m_graph.m_argumentPositions[i].mergeArgumentUnboxingAwareness();
             
             for (BlockIndex blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex)
-                fixupSetLocalsInBlock(m_graph.block(blockIndex));
+                fixupGetAndSetLocalsInBlock(m_graph.block(blockIndex));
         }
         
         for (BlockIndex blockIndex = 0; blockIndex < m_graph.numBlocks(); ++blockIndex)
-            fixupUntypedSetLocalsInBlock(m_graph.block(blockIndex));
+            injectTypeConversionsInBlock(m_graph.block(blockIndex));
         
         return true;
     }
@@ -79,8 +79,10 @@ private:
         m_block = block;
         for (m_indexInBlock = 0; m_indexInBlock < block->size(); ++m_indexInBlock) {
             m_currentNode = block->at(m_indexInBlock);
+            addPhantomsIfNecessary();
             fixupNode(m_currentNode);
         }
+        clearPhantomsAtEnd();
         m_insertionSet.execute(block);
     }
     
@@ -121,8 +123,10 @@ private:
                 node->convertToIdentity();
             else if (nodeCanSpeculateInt32(node->arithNodeFlags()))
                 node->setArithMode(Arith::CheckOverflow);
-            else
+            else {
                 node->setArithMode(Arith::DoOverflow);
+                node->setResult(NodeResultDouble);
+            }
             break;
         }
             
@@ -133,10 +137,11 @@ private:
                 break;
             }
             if (Node::shouldSpeculateNumberExpectingDefined(node->child1().node(), node->child2().node())) {
-                fixEdge<NumberUse>(node->child1());
-                fixEdge<NumberUse>(node->child2());
+                fixEdge<DoubleRepUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child2());
                 node->setOp(ArithAdd);
                 node->clearFlags(NodeMustGenerate | NodeClobbersWorld);
+                node->setResult(NodeResultDouble);
                 break;
             }
             
@@ -175,8 +180,9 @@ private:
         case ArithSub: {
             if (attemptToMakeIntegerAdd(node))
                 break;
-            fixEdge<NumberUse>(node->child1());
-            fixEdge<NumberUse>(node->child2());
+            fixEdge<DoubleRepUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child2());
+            node->setResult(NodeResultDouble);
             break;
         }
             
@@ -192,14 +198,16 @@ private:
                 break;
             }
             if (m_graph.negateShouldSpeculateMachineInt(node)) {
-                fixEdge<MachineIntUse>(node->child1());
+                fixEdge<Int52RepUse>(node->child1());
                 if (bytecodeCanIgnoreNegativeZero(node->arithNodeFlags()))
                     node->setArithMode(Arith::CheckOverflow);
                 else
                     node->setArithMode(Arith::CheckOverflowAndNegativeZero);
+                node->setResult(NodeResultInt52);
                 break;
             }
-            fixEdge<NumberUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child1());
+            node->setResult(NodeResultDouble);
             break;
         }
             
@@ -216,16 +224,18 @@ private:
                 break;
             }
             if (m_graph.mulShouldSpeculateMachineInt(node)) {
-                fixEdge<MachineIntUse>(node->child1());
-                fixEdge<MachineIntUse>(node->child2());
+                fixEdge<Int52RepUse>(node->child1());
+                fixEdge<Int52RepUse>(node->child2());
                 if (bytecodeCanIgnoreNegativeZero(node->arithNodeFlags()))
                     node->setArithMode(Arith::CheckOverflow);
                 else
                     node->setArithMode(Arith::CheckOverflowAndNegativeZero);
+                node->setResult(NodeResultInt52);
                 break;
             }
-            fixEdge<NumberUse>(node->child1());
-            fixEdge<NumberUse>(node->child2());
+            fixEdge<DoubleRepUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child2());
+            node->setResult(NodeResultDouble);
             break;
         }
 
@@ -244,29 +254,34 @@ private:
                         node->setArithMode(Arith::CheckOverflowAndNegativeZero);
                     break;
                 }
-                Edge child1 = node->child1();
-                Edge child2 = node->child2();
                 
-                injectInt32ToDoubleNode(node->child1());
-                injectInt32ToDoubleNode(node->child2());
+                // This will cause conversion nodes to be inserted later.
+                fixEdge<DoubleRepUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child2());
+                
+                // But we have to make sure that everything is phantom'd until after the
+                // DoubleAsInt32 node, which occurs after the Div/Mod node that the conversions
+                // will be insered on.
+                addRequiredPhantom(node->child1().node());
+                addRequiredPhantom(node->child2().node());
 
                 // We don't need to do ref'ing on the children because we're stealing them from
                 // the original division.
                 Node* newDivision = m_insertionSet.insertNode(
-                    m_indexInBlock, SpecDouble, *node);
+                    m_indexInBlock, SpecBytecodeDouble, *node);
+                newDivision->setResult(NodeResultDouble);
                 
                 node->setOp(DoubleAsInt32);
-                node->children.initialize(Edge(newDivision, KnownNumberUse), Edge(), Edge());
+                node->children.initialize(Edge(newDivision, DoubleRepUse), Edge(), Edge());
                 if (bytecodeCanIgnoreNegativeZero(node->arithNodeFlags()))
                     node->setArithMode(Arith::CheckOverflow);
                 else
                     node->setArithMode(Arith::CheckOverflowAndNegativeZero);
-                
-                m_insertionSet.insertNode(m_indexInBlock + 1, SpecNone, Phantom, node->origin, child1, child2);
                 break;
             }
-            fixEdge<NumberUse>(node->child1());
-            fixEdge<NumberUse>(node->child2());
+            fixEdge<DoubleRepUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child2());
+            node->setResult(NodeResultDouble);
             break;
         }
             
@@ -278,8 +293,9 @@ private:
                 fixEdge<Int32Use>(node->child2());
                 break;
             }
-            fixEdge<NumberUse>(node->child1());
-            fixEdge<NumberUse>(node->child2());
+            fixEdge<DoubleRepUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child2());
+            node->setResult(NodeResultDouble);
             break;
         }
             
@@ -289,14 +305,17 @@ private:
                 fixEdge<Int32Use>(node->child1());
                 break;
             }
-            fixEdge<NumberUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child1());
+            node->setResult(NodeResultDouble);
             break;
         }
             
         case ArithSqrt:
+        case ArithFRound:
         case ArithSin:
         case ArithCos: {
-            fixEdge<NumberUse>(node->child1());
+            fixEdge<DoubleRepUse>(node->child1());
+            node->setResult(NodeResultDouble);
             break;
         }
             
@@ -308,7 +327,7 @@ private:
             else if (node->child1()->shouldSpeculateInt32())
                 fixEdge<Int32Use>(node->child1());
             else if (node->child1()->shouldSpeculateNumber())
-                fixEdge<NumberUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child1());
             else if (node->child1()->shouldSpeculateString())
                 fixEdge<StringUse>(node->child1());
             break;
@@ -339,14 +358,14 @@ private:
             }
             if (enableInt52()
                 && Node::shouldSpeculateMachineInt(node->child1().node(), node->child2().node())) {
-                fixEdge<MachineIntUse>(node->child1());
-                fixEdge<MachineIntUse>(node->child2());
+                fixEdge<Int52RepUse>(node->child1());
+                fixEdge<Int52RepUse>(node->child2());
                 node->clearFlags(NodeMustGenerate | NodeClobbersWorld);
                 break;
             }
             if (Node::shouldSpeculateNumber(node->child1().node(), node->child2().node())) {
-                fixEdge<NumberUse>(node->child1());
-                fixEdge<NumberUse>(node->child2());
+                fixEdge<DoubleRepUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child2());
                 node->clearFlags(NodeMustGenerate | NodeClobbersWorld);
                 break;
             }
@@ -404,13 +423,13 @@ private:
             }
             if (enableInt52()
                 && Node::shouldSpeculateMachineInt(node->child1().node(), node->child2().node())) {
-                fixEdge<MachineIntUse>(node->child1());
-                fixEdge<MachineIntUse>(node->child2());
+                fixEdge<Int52RepUse>(node->child1());
+                fixEdge<Int52RepUse>(node->child2());
                 break;
             }
             if (Node::shouldSpeculateNumber(node->child1().node(), node->child2().node())) {
-                fixEdge<NumberUse>(node->child1());
-                fixEdge<NumberUse>(node->child2());
+                fixEdge<DoubleRepUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child2());
                 break;
             }
             if (node->child1()->shouldSpeculateStringIdent() && node->child2()->shouldSpeculateStringIdent()) {
@@ -503,7 +522,8 @@ private:
                 break;
             }
             
-            switch (node->arrayMode().type()) {
+            arrayMode = node->arrayMode();
+            switch (arrayMode.type()) {
             case Array::SelectUsingPredictions:
             case Array::Unprofiled:
             case Array::Undecided:
@@ -519,6 +539,30 @@ private:
             default:
                 fixEdge<KnownCellUse>(node->child1());
                 fixEdge<Int32Use>(node->child2());
+                break;
+            }
+            
+            switch (arrayMode.type()) {
+            case Array::Double:
+                if (!arrayMode.isOutOfBounds())
+                    node->setResult(NodeResultDouble);
+                break;
+                
+            case Array::Float32Array:
+            case Array::Float64Array:
+                node->setResult(NodeResultDouble);
+                break;
+                
+            case Array::Uint32Array:
+                if (node->shouldSpeculateInt32())
+                    break;
+                if (node->shouldSpeculateMachineInt() && enableInt52())
+                    node->setResult(NodeResultInt52);
+                else
+                    node->setResult(NodeResultDouble);
+                break;
+                
+            default:
                 break;
             }
             
@@ -561,14 +605,14 @@ private:
                 fixEdge<Int32Use>(child2);
                 fixEdge<Int32Use>(child3);
                 if (child3->prediction() & SpecInt52)
-                    fixEdge<MachineIntUse>(child3);
+                    fixEdge<Int52RepUse>(child3);
                 else
                     fixEdge<Int32Use>(child3);
                 break;
             case Array::Double:
                 fixEdge<KnownCellUse>(child1);
                 fixEdge<Int32Use>(child2);
-                fixEdge<RealNumberUse>(child3);
+                fixEdge<DoubleRepRealUse>(child3);
                 break;
             case Array::Int8Array:
             case Array::Int16Array:
@@ -582,15 +626,15 @@ private:
                 if (child3->shouldSpeculateInt32())
                     fixEdge<Int32Use>(child3);
                 else if (child3->shouldSpeculateMachineInt())
-                    fixEdge<MachineIntUse>(child3);
+                    fixEdge<Int52RepUse>(child3);
                 else
-                    fixEdge<NumberUse>(child3);
+                    fixEdge<DoubleRepUse>(child3);
                 break;
             case Array::Float32Array:
             case Array::Float64Array:
                 fixEdge<KnownCellUse>(child1);
                 fixEdge<Int32Use>(child2);
-                fixEdge<NumberUse>(child3);
+                fixEdge<DoubleRepUse>(child3);
                 break;
             case Array::Contiguous:
             case Array::ArrayStorage:
@@ -632,7 +676,7 @@ private:
                 fixEdge<Int32Use>(node->child2());
                 break;
             case Array::Double:
-                fixEdge<RealNumberUse>(node->child2());
+                fixEdge<DoubleRepRealUse>(node->child2());
                 break;
             case Array::Contiguous:
             case Array::ArrayStorage:
@@ -665,7 +709,7 @@ private:
             else if (node->child1()->shouldSpeculateInt32())
                 fixEdge<Int32Use>(node->child1());
             else if (node->child1()->shouldSpeculateNumber())
-                fixEdge<NumberUse>(node->child1());
+                fixEdge<DoubleRepUse>(node->child1());
 
             Node* logicalNot = node->child1().node();
             if (logicalNot->op() == LogicalNot) {
@@ -762,7 +806,7 @@ private:
                 break;
             case ALL_DOUBLE_INDEXING_TYPES:
                 for (unsigned operandIndex = 0; operandIndex < node->numChildren(); ++operandIndex)
-                    fixEdge<RealNumberUse>(m_graph.m_varArgChildren[node->firstChild() + operandIndex]);
+                    fixEdge<DoubleRepRealUse>(m_graph.m_varArgChildren[node->firstChild() + operandIndex]);
                 break;
             case ALL_CONTIGUOUS_INDEXING_TYPES:
             case ALL_ARRAY_STORAGE_INDEXING_TYPES:
@@ -938,7 +982,6 @@ private:
         }
 
         case Phantom:
-        case Identity:
         case Check: {
             switch (node->child1().useKind()) {
             case NumberUse:
@@ -963,16 +1006,19 @@ private:
         case CheckTierUpInLoop:
         case CheckTierUpAtReturn:
         case CheckTierUpAndOSREnter:
-        case Int52ToDouble:
-        case Int52ToValue:
         case InvalidationPoint:
         case CheckArray:
         case CheckInBounds:
         case ConstantStoragePointer:
         case DoubleAsInt32:
-        case Int32ToDouble:
         case ValueToInt32:
         case HardPhantom: // HardPhantom would be trivial to handle but anyway we assert that we won't see it here yet.
+        case DoubleRep:
+        case Int52Rep:
+        case ValueRep:
+        case DoubleConstant:
+        case Int52Constant:
+        case Identity: // This should have been cleaned up.
             // These are just nodes that we don't currently expect to see during fixup.
             // If we ever wanted to insert them prior to fixup, then we just have to create
             // fixup rules for them.
@@ -1070,34 +1116,6 @@ private:
             break;
 #endif
         }
-        
-        if (!node->containsMovHint())
-            DFG_NODE_DO_TO_CHILDREN(m_graph, node, observeUntypedEdge);
-        
-        if (node->isTerminal()) {
-            // Terminal nodes don't need post-phantoms, and inserting them would violate
-            // the current requirement that a terminal is the last thing in a block. We
-            // should eventually change that requirement but even if we did, this would
-            // still be a valid optimization. All terminals accept just one input, and
-            // if that input is a conversion node then no further speculations will be
-            // performed.
-            // FIXME: Get rid of this by allowing Phantoms after terminals.
-            // https://bugs.webkit.org/show_bug.cgi?id=126778
-            m_requiredPhantoms.resize(0);
-        // Since StoreBarriers are recursively fixed up so that their children look 
-        // identical to that of the node they're barrier-ing, we need to avoid adding
-        // any Phantoms when processing them because this would invalidate the 
-        // InsertionSet's invariant of inserting things in a monotonically increasing
-        // order. This should be okay anyways because StoreBarriers can't exit. 
-        } else
-            addPhantomsIfNecessary();
-    }
-    
-    void observeUntypedEdge(Node*, Edge& edge)
-    {
-        if (edge.useKind() != UntypedUse)
-            return;
-        fixEdge<UntypedUse>(edge);
     }
     
     template<UseKind useKind>
@@ -1342,7 +1360,7 @@ private:
         return true;
     }
     
-    void fixupSetLocalsInBlock(BasicBlock* block)
+    void fixupGetAndSetLocalsInBlock(BasicBlock* block)
     {
         if (!block)
             return;
@@ -1350,51 +1368,52 @@ private:
         m_block = block;
         for (m_indexInBlock = 0; m_indexInBlock < block->size(); ++m_indexInBlock) {
             Node* node = m_currentNode = block->at(m_indexInBlock);
-            if (node->op() != SetLocal)
+            if (node->op() != SetLocal && node->op() != GetLocal)
                 continue;
             
             VariableAccessData* variable = node->variableAccessData();
-            switch (variable->flushFormat()) {
-            case FlushedJSValue:
+            switch (node->op()) {
+            case GetLocal:
+                switch (variable->flushFormat()) {
+                case FlushedDouble:
+                    node->setResult(NodeResultDouble);
+                    break;
+                case FlushedInt52:
+                    node->setResult(NodeResultInt52);
+                    break;
+                default:
+                    break;
+                }
                 break;
-            case FlushedDouble:
-                fixEdge<NumberUse>(node->child1());
+                
+            case SetLocal:
+                switch (variable->flushFormat()) {
+                case FlushedJSValue:
+                    break;
+                case FlushedDouble:
+                    fixEdge<DoubleRepUse>(node->child1());
+                    break;
+                case FlushedInt32:
+                    fixEdge<Int32Use>(node->child1());
+                    break;
+                case FlushedInt52:
+                    fixEdge<Int52RepUse>(node->child1());
+                    break;
+                case FlushedCell:
+                    fixEdge<CellUse>(node->child1());
+                    break;
+                case FlushedBoolean:
+                    fixEdge<BooleanUse>(node->child1());
+                    break;
+                default:
+                    RELEASE_ASSERT_NOT_REACHED();
+                    break;
+                }
                 break;
-            case FlushedInt32:
-                fixEdge<Int32Use>(node->child1());
-                break;
-            case FlushedInt52:
-                fixEdge<MachineIntUse>(node->child1());
-                break;
-            case FlushedCell:
-                fixEdge<CellUse>(node->child1());
-                break;
-            case FlushedBoolean:
-                fixEdge<BooleanUse>(node->child1());
-                break;
+                
             default:
                 RELEASE_ASSERT_NOT_REACHED();
                 break;
-            }
-            addPhantomsIfNecessary();
-        }
-        m_insertionSet.execute(block);
-    }
-    
-    void fixupUntypedSetLocalsInBlock(BasicBlock* block)
-    {
-        if (!block)
-            return;
-        ASSERT(block->isReachable);
-        m_block = block;
-        for (m_indexInBlock = 0; m_indexInBlock < block->size(); ++m_indexInBlock) {
-            Node* node = m_currentNode = block->at(m_indexInBlock);
-            if (node->op() != SetLocal)
-                continue;
-            
-            if (node->child1().useKind() == UntypedUse) {
-                fixEdge<UntypedUse>(node->child1());
-                addPhantomsIfNecessary();
             }
         }
         m_insertionSet.execute(block);
@@ -1517,7 +1536,8 @@ private:
                 m_profitabilityChanged |= variable->mergeIsProfitableToUnbox(true);
             break;
         case NumberUse:
-        case RealNumberUse:
+        case DoubleRepUse:
+        case DoubleRepRealUse:
             if (variable->doubleFormatState() == UsingDoubleFormat)
                 m_profitabilityChanged |= variable->mergeIsProfitableToUnbox(true);
             break;
@@ -1526,7 +1546,7 @@ private:
                 || isBooleanSpeculation(variable->prediction()))
                 m_profitabilityChanged |= variable->mergeIsProfitableToUnbox(true);
             break;
-        case MachineIntUse:
+        case Int52RepUse:
             if (isMachineIntSpeculation(variable->prediction()))
                 m_profitabilityChanged |= variable->mergeIsProfitableToUnbox(true);
             break;
@@ -1546,92 +1566,10 @@ private:
         }
     }
     
-    // Set the use kind of the edge and perform any actions that need to be done for
-    // that use kind, like inserting intermediate conversion nodes. Never call this
-    // with useKind = UntypedUse explicitly; edges have UntypedUse implicitly and any
-    // edge that survives fixup and still has UntypedUse will have this method called
-    // from observeUntypedEdge(). Also, make sure that if you do change the type of an
-    // edge, you either call fixEdge() or perform the equivalent functionality
-    // yourself. Obviously, you should have a really good reason if you do the latter.
     template<UseKind useKind>
     void fixEdge(Edge& edge)
     {
-        if (isDouble(useKind)) {
-            if (edge->shouldSpeculateInt32ForArithmetic()) {
-                injectInt32ToDoubleNode(edge, useKind);
-                return;
-            }
-            
-            if (enableInt52() && edge->shouldSpeculateMachineInt()) {
-                // Make all double uses of int52 values have an intermediate Int52ToDouble.
-                // This is for the same reason as Int52ToValue (see below) except that
-                // Int8ToDouble will convert int52's that fit in an int32 into a double
-                // rather than trying to create a boxed int32 like Int52ToValue does.
-                
-                m_requiredPhantoms.append(edge.node());
-                Node* result = m_insertionSet.insertNode(
-                    m_indexInBlock, SpecInt52AsDouble, Int52ToDouble,
-                    m_currentNode->origin, Edge(edge.node(), NumberUse));
-                edge = Edge(result, useKind);
-                return;
-            }
-        }
-        
-        if (enableInt52() && useKind != MachineIntUse
-            && edge->shouldSpeculateMachineInt() && !edge->shouldSpeculateInt32()) {
-            // We make all non-int52 uses of int52 values have an intermediate Int52ToValue
-            // node to ensure that we handle this properly:
-            //
-            // a: SomeInt52
-            // b: ArithAdd(@a, ...)
-            // c: Call(..., @a)
-            // d: ArithAdd(@a, ...)
-            //
-            // Without an intermediate node and just labeling the uses, we will get:
-            //
-            // a: SomeInt52
-            // b: ArithAdd(Int52:@a, ...)
-            // c: Call(..., Untyped:@a)
-            // d: ArithAdd(Int52:@a, ...)
-            //
-            // And now the c->Untyped:@a edge will box the value of @a into a double. This
-            // is bad, because now the d->Int52:@a edge will either have to do double-to-int
-            // conversions, or will have to OSR exit unconditionally. Alternatively we could
-            // have the c->Untyped:@a edge box the value by copying rather than in-place.
-            // But these boxings are also costly so this wouldn't be great.
-            //
-            // The solution we use is to always have non-Int52 uses of predicted Int52's use
-            // an intervening Int52ToValue node:
-            //
-            // a: SomeInt52
-            // b: ArithAdd(Int52:@a, ...)
-            // x: Int52ToValue(Int52:@a)
-            // c: Call(..., Untyped:@x)
-            // d: ArithAdd(Int52:@a, ...)
-            //
-            // Note that even if we had multiple non-int52 uses of @a, the multiple
-            // Int52ToValue's would get CSE'd together. So the boxing would only happen once.
-            // At the same time, @a would continue to be represented as a native int52.
-            //
-            // An alternative would have been to insert ToNativeInt52 nodes on int52 uses of
-            // int52's. This would have handled the above example but would fall over for:
-            //
-            // a: SomeInt52
-            // b: Call(..., @a)
-            // c: ArithAdd(@a, ...)
-            //
-            // But the solution we use handles the above gracefully.
-            
-            m_requiredPhantoms.append(edge.node());
-            Node* result = m_insertionSet.insertNode(
-                m_indexInBlock, SpecInt52, Int52ToValue,
-                m_currentNode->origin, Edge(edge.node(), UntypedUse));
-            edge = Edge(result, useKind);
-            return;
-        }
-        
         observeUseKindOnNode<useKind>(edge.node());
-        
         edge.setUseKind(useKind);
     }
     
@@ -1651,9 +1589,9 @@ private:
         
         UseKind useKind;
         if (node->shouldSpeculateMachineInt())
-            useKind = MachineIntUse;
+            useKind = Int52RepUse;
         else if (node->shouldSpeculateNumber())
-            useKind = NumberUse;
+            useKind = DoubleRepUse;
         else if (node->shouldSpeculateBoolean())
             useKind = BooleanUse;
         else
@@ -1664,18 +1602,7 @@ private:
         observeUseKindOnNode(node, useKind);
         
         edge = Edge(newNode, KnownInt32Use);
-        m_requiredPhantoms.append(node);
-    }
-    
-    void injectInt32ToDoubleNode(Edge& edge, UseKind useKind = NumberUse)
-    {
-        m_requiredPhantoms.append(edge.node());
-        
-        Node* result = m_insertionSet.insertNode(
-            m_indexInBlock, SpecInt52AsDouble, Int32ToDouble,
-            m_currentNode->origin, Edge(edge.node(), NumberUse));
-        
-        edge = Edge(result, useKind);
+        addRequiredPhantom(node);
     }
     
     void truncateConstantToInt32(Edge& edge)
@@ -1732,9 +1659,10 @@ private:
         }
         
         if (m_graph.addShouldSpeculateMachineInt(node)) {
-            fixEdge<MachineIntUse>(node->child1());
-            fixEdge<MachineIntUse>(node->child2());
+            fixEdge<Int52RepUse>(node->child1());
+            fixEdge<Int52RepUse>(node->child2());
             node->setArithMode(Arith::CheckOverflow);
+            node->setResult(NodeResultInt52);
             return true;
         }
         
@@ -1858,20 +1786,198 @@ private:
         return true;
     }
     
+    void injectTypeConversionsInBlock(BasicBlock* block)
+    {
+        if (!block)
+            return;
+        ASSERT(block->isReachable);
+        m_block = block;
+        for (m_indexInBlock = 0; m_indexInBlock < block->size(); ++m_indexInBlock) {
+            m_currentNode = block->at(m_indexInBlock);
+            addPhantomsIfNecessary();
+            tryToRelaxRepresentation(m_currentNode);
+            DFG_NODE_DO_TO_CHILDREN(m_graph, m_currentNode, injectTypeConversionsForEdge);
+        }
+        clearPhantomsAtEnd();
+        m_insertionSet.execute(block);
+    }
+    
+    void tryToRelaxRepresentation(Node* node)
+    {
+        // Some operations may be able to operate more efficiently over looser representations.
+        // Identify those here. This avoids inserting a redundant representation conversion.
+        // Also, for some operations, like MovHint, this is a necessary optimization: inserting
+        // an otherwise-dead conversion just for a MovHint would break OSR's understanding of
+        // the IR.
+        
+        switch (node->op()) {
+        case MovHint:
+        case Phantom:
+        case Check:
+        case HardPhantom:
+            DFG_NODE_DO_TO_CHILDREN(m_graph, m_currentNode, fixEdgeRepresentation);
+            break;
+            
+        case ValueToInt32:
+            if (node->child1().useKind() == DoubleRepUse
+                && !node->child1()->hasDoubleResult()) {
+                node->child1().setUseKind(NumberUse);
+                break;
+            }
+            break;
+            
+        default:
+            break;
+        }
+    }
+    
+    void fixEdgeRepresentation(Node*, Edge& edge)
+    {
+        switch (edge.useKind()) {
+        case DoubleRepUse:
+        case DoubleRepRealUse:
+            if (edge->hasDoubleResult())
+                break;
+            
+            if (edge->hasInt52Result())
+                edge.setUseKind(Int52RepUse);
+            else if (edge.useKind() == DoubleRepUse)
+                edge.setUseKind(NumberUse);
+            break;
+            
+        case Int52RepUse:
+            // Nothing we can really do.
+            break;
+            
+        case UntypedUse:
+        case NumberUse:
+            if (edge->hasDoubleResult())
+                edge.setUseKind(DoubleRepUse);
+            else if (edge->hasInt52Result())
+                edge.setUseKind(Int52RepUse);
+            break;
+            
+        default:
+            break;
+        }
+    }
+    
+    void injectTypeConversionsForEdge(Node* node, Edge& edge)
+    {
+        ASSERT(node == m_currentNode);
+        
+        switch (edge.useKind()) {
+        case DoubleRepUse:
+        case DoubleRepRealUse: {
+            if (edge->hasDoubleResult())
+                break;
+            
+            addRequiredPhantom(edge.node());
+
+            Node* result;
+            if (edge->hasInt52Result()) {
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecInt52AsDouble, DoubleRep, node->origin,
+                    Edge(edge.node(), Int52RepUse));
+            } else {
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecBytecodeDouble, DoubleRep, node->origin,
+                    Edge(edge.node(), NumberUse));
+            }
+
+            edge.setNode(result);
+            break;
+        }
+            
+        case Int52RepUse: {
+            if (edge->hasInt52Result())
+                break;
+            
+            addRequiredPhantom(edge.node());
+
+            Node* result;
+            if (edge->hasDoubleResult()) {
+                // This will never happen.
+                dataLog("Found an Int52RepUse to a double result: ", node, " -> ", edge, "\n");
+                m_graph.dump();
+                RELEASE_ASSERT_NOT_REACHED();
+            } else if (edge->shouldSpeculateInt32ForArithmetic()) {
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecInt32, Int52Rep, node->origin,
+                    Edge(edge.node(), Int32Use));
+            } else {
+                // This is only here for dealing with constants.
+                if (edge->op() != JSConstant) {
+                    dataLog("Found an Int52RepUse on something that is neither Int32 nor a constant: ", node, " -> ", edge, "\n");
+                    m_graph.dump();
+                    RELEASE_ASSERT_NOT_REACHED();
+                }
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecMachineInt, Int52Constant, node->origin,
+                    OpInfo(edge->constantNumber()));
+            }
+
+            edge.setNode(result);
+            break;
+        }
+            
+        default: {
+            if (!edge->hasDoubleResult() && !edge->hasInt52Result())
+                break;
+            
+            addRequiredPhantom(edge.node());
+            
+            Node* result;
+            if (edge->hasDoubleResult()) {
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecBytecodeDouble, ValueRep, node->origin,
+                    Edge(edge.node(), DoubleRepUse));
+            } else {
+                result = m_insertionSet.insertNode(
+                    m_indexInBlock, SpecInt32 | SpecInt52AsDouble, ValueRep, node->origin,
+                    Edge(edge.node(), Int52RepUse));
+            }
+            
+            edge.setNode(result);
+            break;
+        } }
+    }
+    
+    void addRequiredPhantom(Node* node)
+    {
+        m_requiredPhantoms.append(node);
+    }
+
     void addPhantomsIfNecessary()
     {
         if (m_requiredPhantoms.isEmpty())
             return;
         
         for (unsigned i = m_requiredPhantoms.size(); i--;) {
+            Node* node = m_requiredPhantoms[i];
             m_insertionSet.insertNode(
-                m_indexInBlock + 1, SpecNone, Phantom, m_currentNode->origin,
-                Edge(m_requiredPhantoms[i], UntypedUse));
+                m_indexInBlock, SpecNone, Phantom, m_currentNode->origin,
+                node->defaultEdge());
         }
         
         m_requiredPhantoms.resize(0);
     }
-
+    
+    void clearPhantomsAtEnd()
+    {
+        // Terminal nodes don't need post-phantoms, and inserting them would violate
+        // the current requirement that a terminal is the last thing in a block. We
+        // should eventually change that requirement but even if we did, this would
+        // still be a valid optimization. All terminals accept just one input, and
+        // if that input is a conversion node then no further speculations will be
+        // performed.
+        
+        // FIXME: Get rid of this by allowing Phantoms after terminals.
+        // https://bugs.webkit.org/show_bug.cgi?id=126778
+        
+        m_requiredPhantoms.resize(0);
+    }
+    
     BasicBlock* m_block;
     unsigned m_indexInBlock;
     Node* m_currentNode;

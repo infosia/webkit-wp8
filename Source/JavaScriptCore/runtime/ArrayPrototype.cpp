@@ -94,6 +94,7 @@ const ClassInfo ArrayPrototype::s_info = {"Array", &JSArray::s_info, 0, ExecStat
   toString       arrayProtoFuncToString       DontEnum|Function 0
   toLocaleString arrayProtoFuncToLocaleString DontEnum|Function 0
   concat         arrayProtoFuncConcat         DontEnum|Function 1
+  fill           arrayProtoFuncFill           DontEnum|Function 1
   join           arrayProtoFuncJoin           DontEnum|Function 1
   pop            arrayProtoFuncPop            DontEnum|Function 0
   push           arrayProtoFuncPush           DontEnum|Function 1
@@ -146,7 +147,7 @@ bool ArrayPrototype::getOwnPropertySlot(JSObject* object, ExecState* exec, Prope
 // ------------------------------ Array Functions ----------------------------
 
 // Helper function
-static JSValue getProperty(ExecState* exec, JSObject* obj, unsigned index)
+static ALWAYS_INLINE JSValue getProperty(ExecState* exec, JSObject* obj, unsigned index)
 {
     PropertySlot slot(obj);
     if (!obj->getPropertySlot(exec, index, slot))
@@ -416,19 +417,35 @@ EncodedJSValue JSC_HOST_CALL arrayProtoFuncJoin(ExecState* exec)
 EncodedJSValue JSC_HOST_CALL arrayProtoFuncConcat(ExecState* exec)
 {
     JSValue thisValue = exec->thisValue().toThis(exec, StrictMode);
-    JSArray* arr = constructEmptyArray(exec, nullptr);
-    unsigned n = 0;
+    size_t argCount = exec->argumentCount();
     JSValue curArg = thisValue.toObject(exec);
+    Checked<unsigned, RecordOverflow> finalArraySize = 0;
+
+    for (size_t i = 0;;) {
+        if (JSArray* currentArray = jsDynamicCast<JSArray*>(curArg))
+            finalArraySize += currentArray->length();
+        else
+            finalArraySize++;
+        if (i == argCount)
+            break;
+        curArg = exec->uncheckedArgument(i);
+        ++i;
+    }
+
+    if (finalArraySize.hasOverflowed())
+        return JSValue::encode(throwOutOfMemoryError(exec));
+
+    JSArray* arr = constructEmptyArray(exec, nullptr, finalArraySize.unsafeGet());
     if (exec->hadException())
         return JSValue::encode(jsUndefined());
-    size_t i = 0;
-    size_t argCount = exec->argumentCount();
-    while (1) {
-        if (curArg.inherits(JSArray::info())) {
-            unsigned length = curArg.get(exec, exec->propertyNames().length).toUInt32(exec);
-            JSObject* curObject = curArg.toObject(exec);
+
+    curArg = thisValue.toObject(exec);
+    unsigned n = 0;
+    for (size_t i = 0;;) {
+        if (JSArray* currentArray = jsDynamicCast<JSArray*>(curArg)) {
+            unsigned length = currentArray->length();
             for (unsigned k = 0; k < length; ++k) {
-                JSValue v = getProperty(exec, curObject, k);
+                JSValue v = getProperty(exec, currentArray, k);
                 if (exec->hadException())
                     return JSValue::encode(jsUndefined());
                 if (v)

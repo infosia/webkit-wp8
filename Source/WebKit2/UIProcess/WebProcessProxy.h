@@ -58,7 +58,7 @@ class WebBackForwardListItem;
 class WebContext;
 class WebPageGroup;
 struct WebNavigationDataStore;
-
+    
 class WebProcessProxy : public ChildProcessProxy, ResponsivenessTimer::Client {
 public:
     typedef HashMap<uint64_t, RefPtr<WebBackForwardListItem>> WebBackForwardListItemMap;

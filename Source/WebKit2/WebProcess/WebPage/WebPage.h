@@ -29,7 +29,6 @@
 #include "APIInjectedBundleFormClient.h"
 #include "APIInjectedBundlePageUIClient.h"
 #include "APIObject.h"
-#include "DrawingArea.h"
 #include "FindController.h"
 #include "GeolocationPermissionRequestManager.h"
 #include "ImageOptions.h"
@@ -39,14 +38,13 @@
 #include "InjectedBundlePageLoaderClient.h"
 #include "InjectedBundlePagePolicyClient.h"
 #include "InjectedBundlePageResourceLoadClient.h"
+#include "LayerTreeHost.h"
 #include "MessageReceiver.h"
 #include "MessageSender.h"
-#include "TapHighlightController.h"
+#include "PageOverlayController.h"
 #include "Plugin.h"
 #include "SandboxExtension.h"
 #include "ShareableBitmap.h"
-#include "WebUndoStep.h"
-#include <WebCore/ContextMenuItem.h>
 #include <WebCore/DictationAlternative.h>
 #include <WebCore/DragData.h>
 #include <WebCore/Editor.h>
@@ -54,7 +52,6 @@
 #include <WebCore/IntRect.h>
 #include <WebCore/Page.h>
 #include <WebCore/PageVisibilityState.h>
-#include <WebCore/PlatformScreen.h>
 #include <WebCore/ScrollTypes.h>
 #include <WebCore/TextChecking.h>
 #include <WebCore/UserActivity.h>
@@ -94,8 +91,6 @@
 #endif
 
 #if PLATFORM(COCOA)
-#include "DictionaryPopupInfo.h"
-#include "LayerHostingContext.h"
 #include "ViewGestureGeometryCollector.h"
 #include <wtf/RetainPtr.h>
 OBJC_CLASS CALayer;
@@ -111,29 +106,29 @@ class Array;
 }
 
 namespace IPC {
-    class ArgumentDecoder;
-    class Connection;
+class ArgumentDecoder;
+class Connection;
 }
 
 namespace WebCore {
-    class DocumentLoader;
-    class GraphicsContext;
-    class Frame;
-    class FrameView;
-    class HTMLPlugInElement;
-    class IntPoint;
-    class KeyboardEvent;
-    class Page;
-    class PrintContext;
-    class Range;
-    class ResourceResponse;
-    class ResourceRequest;
-    class SharedBuffer;
-    class SubstituteData;
-    class TextCheckingRequest;
-    class VisibleSelection;
-    struct KeypressCommand;
-    struct TextCheckingResult;
+class DocumentLoader;
+class GraphicsContext;
+class Frame;
+class FrameView;
+class HTMLPlugInElement;
+class IntPoint;
+class KeyboardEvent;
+class Page;
+class PrintContext;
+class Range;
+class ResourceResponse;
+class ResourceRequest;
+class SharedBuffer;
+class SubstituteData;
+class TextCheckingRequest;
+class VisibleSelection;
+struct KeypressCommand;
+struct TextCheckingResult;
 }
 
 namespace WebKit {
@@ -161,6 +156,7 @@ class WebNotificationClient;
 class WebOpenPanelResultListener;
 class WebPageGroupProxy;
 class WebPopupMenu;
+class WebUndoStep;
 class WebVideoFullscreenManager;
 class WebWheelEvent;
 struct AssistedNodeInformation;
@@ -183,8 +179,6 @@ class WebTouchEvent;
 #if ENABLE(TELEPHONE_NUMBER_DETECTION)
 class TelephoneNumberOverlayController;
 #endif
-
-typedef Vector<RefPtr<PageOverlay>> PageOverlayList;
 
 class WebPage : public API::ObjectImpl<API::Object::Type::BundlePage>, public IPC::MessageReceiver, public IPC::MessageSender {
 public:
@@ -210,6 +204,8 @@ public:
     
     InjectedBundleBackForwardList* backForwardList();
     DrawingArea* drawingArea() const { return m_drawingArea.get(); }
+    const PageOverlayController& pageOverlayController() const { return m_pageOverlayController; }
+    PageOverlayController& pageOverlayController() { return m_pageOverlayController; }
 #if ENABLE(ASYNC_SCROLLING)
     WebCore::ScrollingCoordinator* scrollingCoordinator() const;
 #endif
@@ -221,7 +217,7 @@ public:
     bool scrollBy(uint32_t scrollDirection, uint32_t scrollGranularity);
 
     void centerSelectionInVisibleArea();
-    
+
 #if PLATFORM(COCOA)
     void willCommitLayerTree(RemoteLayerTreeTransaction&);
 #endif
@@ -241,7 +237,6 @@ public:
     // -- Called by the DrawingArea.
     // FIXME: We could genericize these into a DrawingArea client interface. Would that be beneficial?
     void drawRect(WebCore::GraphicsContext&, const WebCore::IntRect&);
-    void drawPageOverlay(PageOverlay*, WebCore::GraphicsContext&, const WebCore::IntRect&);
     void layoutIfNeeded();
 
     // -- Called from WebCore clients.
@@ -349,6 +344,7 @@ public:
     void windowScreenDidChange(uint64_t);
 
     void scalePage(double scale, const WebCore::IntPoint& origin);
+    void scalePageInViewCoordinates(double scale, WebCore::IntPoint centerInViewCoordinates);
     double pageScaleFactor() const;
 
     void setUseFixedLayout(bool);
@@ -358,7 +354,10 @@ public:
     void listenForLayoutMilestones(uint32_t /* LayoutMilestones */);
 
     void setSuppressScrollbarAnimations(bool);
-
+    
+    void setEnableVerticalRubberBanding(bool);
+    void setEnableHorizontalRubberBanding(bool);
+    
     void setBackgroundExtendsBeyondPage(bool);
 
     void setPaginationMode(uint32_t /* WebCore::Pagination::Mode */);
@@ -410,10 +409,8 @@ public:
 
     bool windowIsFocused() const;
     bool windowAndWebPageAreFocused() const;
-    void installPageOverlay(PassRefPtr<PageOverlay>, bool shouldFadeIn = false);
-    void uninstallPageOverlay(PageOverlay*, bool shouldFadeOut = false);
-    bool hasPageOverlay() const { return m_pageOverlays.size(); }
-    PageOverlayList& pageOverlays() { return m_pageOverlays; }
+    void installPageOverlay(PassRefPtr<PageOverlay>, PageOverlay::FadeMode = PageOverlay::FadeMode::DoNotFade);
+    void uninstallPageOverlay(PageOverlay*, PageOverlay::FadeMode = PageOverlay::FadeMode::DoNotFade);
 
 #if !PLATFORM(IOS)
     void setHeaderPageBanner(PassRefPtr<PageBanner>);
@@ -694,6 +691,7 @@ public:
 
 #if PLATFORM(IOS)
     void setViewportConfigurationMinimumLayoutSize(const WebCore::IntSize&);
+    void dynamicViewportSizeUpdate(const WebCore::IntSize& minimumLayoutSize, const WebCore::FloatRect& targetExposedContentRect, const WebCore::FloatRect& targetUnobscuredRect, double scale);
     void viewportConfigurationChanged();
     void updateVisibleContentRects(const VisibleContentRectUpdateInfo&);
     bool scaleWasSetByUIProcess() const { return m_scaleWasSetByUIProcess; }
@@ -701,6 +699,7 @@ public:
     void applicationWillResignActive();
     void applicationWillEnterForeground();
     void applicationDidBecomeActive();
+    void zoomToRect(WebCore::FloatRect, double minimumScale, double maximumScale);
 #endif
 
 #if PLATFORM(GTK) && USE(TEXTURE_MAPPER_GL)
@@ -780,6 +779,8 @@ public:
     TelephoneNumberOverlayController& telephoneNumberOverlayController();
     void handleTelephoneNumberClick(const String& number, const WebCore::IntPoint&);
 #endif
+
+    void didChangeScrollOffsetForFrame(WebCore::Frame*);
 
 private:
     WebPage(uint64_t pageID, const WebPageCreationParameters&);
@@ -1086,7 +1087,6 @@ private:
     InjectedBundlePageDiagnosticLoggingClient m_logDiagnosticMessageClient;
 
     FindController m_findController;
-    PageOverlayList m_pageOverlays;
 
 #if ENABLE(INSPECTOR)
     RefPtr<WebInspector> m_inspector;
@@ -1187,6 +1187,8 @@ private:
 #if ENABLE(TELEPHONE_NUMBER_DETECTION)
     RefPtr<TelephoneNumberOverlayController> m_telephoneNumberOverlayController;
 #endif
+
+    PageOverlayController m_pageOverlayController;
 };
 
 } // namespace WebKit

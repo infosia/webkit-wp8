@@ -47,12 +47,6 @@
 #import <WebCore/PlatformScreen.h>
 #import <WebCore/SharedBuffer.h>
 
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED == 1080
-@interface NSKeyedUnarchiver (WKDetails)
-- (void)setRequiresSecureCoding:(BOOL)b;
-@end
-#endif
-
 #define MESSAGE_CHECK(assertion) MESSAGE_CHECK_BASE(assertion, m_webView->_page->process().connection())
 
 @interface UIView (IPI)
@@ -88,15 +82,21 @@ void PageClientImpl::displayView()
     ASSERT_NOT_REACHED();
 }
 
+bool PageClientImpl::canScrollView()
+{
+    notImplemented();
+    return false;
+}
+
 void PageClientImpl::scrollView(const IntRect&, const IntSize&)
 {
     ASSERT_NOT_REACHED();
 }
 
-bool PageClientImpl::canScrollView()
+void PageClientImpl::requestScroll(const FloatPoint& scrollPosition, bool isProgrammaticScroll)
 {
-    notImplemented();
-    return false;
+    UNUSED_PARAM(isProgrammaticScroll);
+    [m_webView _scrollToContentOffset:scrollPosition];
 }
 
 IntSize PageClientImpl::viewSize()
@@ -368,6 +368,11 @@ void PageClientImpl::didCommitLayerTree(const RemoteLayerTreeTransaction& layerT
     [m_contentView _didCommitLayerTree:layerTreeTransaction];
 }
 
+void PageClientImpl::dynamicViewportUpdateChangedTarget(double newScale, const WebCore::FloatPoint& newScrollPosition)
+{
+    [m_webView _dynamicViewportUpdateChangedTargetToScale:newScale position:newScrollPosition];
+}
+
 void PageClientImpl::startAssistingNode(const AssistedNodeInformation& nodeInformation, API::Object* userData)
 {
     MESSAGE_CHECK(!userData || userData->type() == API::Object::Type::Data);
@@ -454,6 +459,11 @@ void PageClientImpl::didFinishLoadingDataForCustomContentProvider(const String& 
 {
     RetainPtr<NSData> data = adoptNS([[NSData alloc] initWithBytes:dataReference.data() length:dataReference.size()]);
     [m_webView _didFinishLoadingDataForCustomContentProviderWithSuggestedFilename:suggestedFilename data:data.get()];
+}
+
+void PageClientImpl::zoomToRect(FloatRect rect, double minimumScale, double maximumScale)
+{
+    [m_contentView _zoomToRect:rect withOrigin:rect.center() fitEntireRect:YES minimumScale:minimumScale maximumScale:maximumScale minimumScrollDistance:0];
 }
 
 } // namespace WebKit

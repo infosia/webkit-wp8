@@ -1,3 +1,115 @@
+2014-04-17  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Remove deprecated ewk_paint code.
+        https://bugs.webkit.org/show_bug.cgi?id=131266
+
+        Reviewed by Gyuyoung Kim.
+
+        ewk_paint related code was deprecated since r166637.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        * WebCoreSupport/ChromeClientEfl.cpp:
+        (WebCore::ChromeClientEfl::invalidateRootView): Deleted.
+        (WebCore::ChromeClientEfl::invalidateContentsAndRootView): Deleted.
+        (WebCore::ChromeClientEfl::invalidateContentsForSlowScroll): Deleted.
+        (WebCore::ChromeClientEfl::scroll): Deleted.
+        * WebCoreSupport/ChromeClientEfl.h:
+        * WebCoreSupport/InspectorClientEfl.cpp:
+        * ewk/ewk_paint_context.cpp: Removed.
+        * ewk/ewk_paint_context_private.h: Removed.
+        * ewk/ewk_view.cpp:
+        (_ewk_view_priv_del):
+        (_ewk_view_smart_calculate):
+        (ewk_view_smart_set):
+        (_ewk_view_repaints_resize): Deleted.
+        (_ewk_view_repaint_add): Deleted.
+        (_ewk_view_repaints_flush): Deleted.
+        (_ewk_view_smart_flush): Deleted.
+        (ewk_view_repaints_pop): Deleted.
+        (ewk_view_repaint_add): Deleted.
+        (ewk_view_paint): Deleted.
+        (ewk_view_paint_contents): Deleted.
+        (ewk_view_repaint): Deleted.
+        (ewk_view_scroll): Deleted.
+        (ewk_view_tiled_backing_store_invalidate): Deleted.
+        * ewk/ewk_view_private.h:
+
+2014-04-16  Jeongeun Kim  <je_julie.kim@samsung.com>
+
+        [EFL] Cleanup the build from unused parameters in WebKit-efl.
+        https://bugs.webkit.org/show_bug.cgi?id=131677.
+
+        Reviewed by Gyuyoung Kim.
+
+        Changed ASSERT to ASSERT_UNUSED if it's just used for ASSERT.
+
+        * ewk/ewk_view.cpp:
+        (ewk_view_scroll):
+
+2014-04-15  Hyowon Kim  <hw1008.kim@samsung.com>
+
+        [EFL] Fix problems with the pixel dump.
+        https://bugs.webkit.org/show_bug.cgi?id=131265
+
+        Reviewed by Gyuyoung Kim.
+
+        Painting and compositing paths of WebKit-EFL were totally modified from r166768.
+        However pixel dump codes still call deprecated functions like ewk_view_paint(),
+        which causes that nothing is drawn.
+
+        This patch adds new member functions to AcceleratedCompositingContext to support pixel dump.
+        One of new functions is AcceleratedCompositingContext::extractImageData(),
+        which replaces deprecated function calls. Besides the extractImageData() is invoked by
+        ewk_view_screenshot_contents_get() in order to take the visible content displayed on the EFL webview.
+
+        * WebCoreSupport/AcceleratedCompositingContextEfl.cpp:
+        (WebCore::AcceleratedCompositingContext::AcceleratedCompositingContext):
+        Create TextureMapper with a proper backend.
+        (WebCore::AcceleratedCompositingContext::flushPendingLayerChanges):
+        Revise a null check for m_rootLayer.
+        (WebCore::AcceleratedCompositingContext::paintToGraphicsContext):
+        Remove a creation check for TextureMapperGL.
+        (WebCore::AcceleratedCompositingContext::paintToCurrentGLContext):
+        Ditto.
+        (WebCore::AcceleratedCompositingContext::extractImageData):
+        Extract image data from the view and copy it to given Evas_Object.
+        (WebCore::AcceleratedCompositingContext::getImageData):
+        Get image data from the view and return it as cairo_surface_t on software mode.
+        (WebCore::AcceleratedCompositingContext::getImageDataGL):
+        Get image data from the view and return it as cairo_surface_t on GL mode.
+        * WebCoreSupport/AcceleratedCompositingContextEfl.h:
+        * WebCoreSupport/DumpRenderTreeSupportEfl.cpp:
+        (DumpRenderTreeSupportEfl::forcePaint): Repaint the entire webview before pixel dump.
+        * WebCoreSupport/DumpRenderTreeSupportEfl.h:
+        * ewk/ewk_view.cpp:
+        (ewk_view_mark_for_sync): Remove an unnecessary line.
+        (ewk_view_force_paint): Call flushAndRenderLayers().
+        (ewk_view_screenshot_contents_get): Remove 'scale' parameter and replace ewk_view_paint()
+        with AcceleratedCompositingContext::extractImageData().
+        * ewk/ewk_view.h:
+        * ewk/ewk_view_private.h:
+        * tests/test_ewk_view.cpp:
+        (TEST_F):
+
+2014-04-12  Youenn Fablet  <youenn.fablet@crf.canon.fr>
+
+        [SOUP] Libsoup internal credential setting should be controlled by loader decision
+        https://bugs.webkit.org/show_bug.cgi?id=130963
+
+        Reviewed by Darin Adler.
+
+        * WebCoreSupport/FrameLoaderClientEfl.cpp:
+        (WebCore::FrameLoaderClientEfl::shouldUseCredentialStorage): Similarly to GTK, let soup/loader layer handle when to use credential storage. Return always true  
+
+2014-04-08  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Unreviewed EFL build fix attempt since r166956
+
+        * WebCoreSupport/DragClientEfl.cpp: Rename Clipboard to DataTransfer.
+        (WebCore::DragClientEfl::willPerformDragSourceAction):
+        (WebCore::DragClientEfl::startDrag): Ditto.
+        * WebCoreSupport/DragClientEfl.h:
+
 2014-04-08  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
 
         Change NavigatorContentUtils client ownership from port side to NavigatorContentUtils

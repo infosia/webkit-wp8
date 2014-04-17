@@ -52,7 +52,6 @@
 #include "WebContextMenuItemData.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebFindClient.h"
-#include "WebFormClient.h"
 #include "WebFrameProxy.h"
 #include "WebPageContextMenuClient.h"
 #include "WebPageCreationParameters.h"
@@ -62,7 +61,6 @@
 #include "WebPopupMenuProxy.h"
 #include <WebCore/Color.h>
 #include <WebCore/DragActions.h>
-#include <WebCore/DragSession.h>
 #include <WebCore/HitTestResult.h>
 #include <WebCore/Page.h>
 #include <WebCore/PlatformScreen.h>
@@ -82,7 +80,6 @@
 
 #if ENABLE(DRAG_SUPPORT)
 #include <WebCore/DragActions.h>
-#include <WebCore/DragSession.h>
 #endif
 
 #if ENABLE(TOUCH_EVENTS)
@@ -105,6 +102,7 @@
 
 namespace API {
 class FindClient;
+class FormClient;
 class LoaderClient;
 class PolicyClient;
 class UIClient;
@@ -480,7 +478,7 @@ public:
     API::FindClient& findClient() { return *m_findClient; }
     void setFindClient(std::unique_ptr<API::FindClient>);
     void initializeFindMatchesClient(const WKPageFindMatchesClientBase*);
-    void initializeFormClient(const WKPageFormClientBase*);
+    void setFormClient(std::unique_ptr<API::FormClient>);
     void setLoaderClient(std::unique_ptr<API::LoaderClient>);
     void setPolicyClient(std::unique_ptr<API::PolicyClient>);
 
@@ -547,7 +545,8 @@ public:
     void setViewNeedsDisplay(const WebCore::IntRect&);
     void displayView();
     bool canScrollView();
-    void scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& scrollOffset);
+    void scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& scrollOffset); // FIXME: CoordinatedGraphics should use requestScroll().
+    void requestScroll(const WebCore::FloatPoint& scrollPosition, bool isProgrammaticScroll);
     
     void setDelegatesScrolling(bool delegatesScrolling) { m_delegatesScrolling = delegatesScrolling; }
     bool delegatesScrolling() const { return m_delegatesScrolling; }
@@ -576,6 +575,8 @@ public:
     bool updateVisibleContentRects(const VisibleContentRectUpdateInfo&);
     uint64_t nextVisibleContentRectUpdateID() const { return m_lastVisibleContentRectUpdate.updateID() + 1; }
     uint64_t lastVisibleContentRectUpdateID() const { return m_lastVisibleContentRectUpdate.updateID(); }
+
+    void dynamicViewportSizeUpdate(const WebCore::IntSize& minimumLayoutSize, const WebCore::FloatRect& targetExposedContentRect, const WebCore::FloatRect& targetUnobscuredRect, double targetScale);
     
     void setViewportConfigurationMinimumLayoutSize(const WebCore::IntSize&);
     void didCommitLayerTree(const WebKit::RemoteLayerTreeTransaction&);
@@ -607,6 +608,7 @@ public:
     void applicationWillEnterForeground();
     void applicationWillResignActive();
     void applicationDidBecomeActive();
+    void zoomToRect(WebCore::FloatRect, double minimumScale, double maximumScale);
 #endif
 
     const EditorState& editorState() const { return m_editorState; }
@@ -730,6 +732,7 @@ public:
     void setPageAndTextZoomFactors(double pageZoomFactor, double textZoomFactor);
 
     void scalePage(double scale, const WebCore::IntPoint& origin);
+    void scalePageInViewCoordinates(double scale, const WebCore::IntPoint& centerInViewCoordinates);
     double pageScaleFactor() const { return m_pageScaleFactor; }
 
     float deviceScaleFactor() const;
@@ -768,7 +771,12 @@ public:
 
     void setShouldUseImplicitRubberBandControl(bool shouldUseImplicitRubberBandControl) { m_shouldUseImplicitRubberBandControl = shouldUseImplicitRubberBandControl; }
     bool shouldUseImplicitRubberBandControl() const { return m_shouldUseImplicitRubberBandControl; }
-
+        
+    void setEnableVerticalRubberBanding(bool);
+    bool verticalRubberBandingIsEnabled() const;
+    void setEnableHorizontalRubberBanding(bool);
+    bool horizontalRubberBandingIsEnabled() const;
+        
     void setBackgroundExtendsBeyondPage(bool);
     bool backgroundExtendsBeyondPage() const;
 
@@ -849,9 +857,9 @@ public:
     void dragEntered(WebCore::DragData&, const String& dragStorageName = String());
     void dragUpdated(WebCore::DragData&, const String& dragStorageName = String());
     void dragExited(WebCore::DragData&, const String& dragStorageName = String());
-    void performDrag(WebCore::DragData&, const String& dragStorageName, const SandboxExtension::Handle&, const SandboxExtension::HandleArray&);
+    void performDragOperation(WebCore::DragData&, const String& dragStorageName, const SandboxExtension::Handle&, const SandboxExtension::HandleArray&);
 
-    void didPerformDragControllerAction(WebCore::DragSession);
+    void didPerformDragControllerAction(uint64_t dragOperation, bool mouseIsOverFileInput, unsigned numberOfItemsToBeAccepted);
     void dragEnded(const WebCore::IntPoint& clientPosition, const WebCore::IntPoint& globalPosition, uint64_t operation);
 #if PLATFORM(COCOA)
     void setDragImage(const WebCore::IntPoint& clientPosition, const ShareableBitmap::Handle& dragImageHandle, bool isLinkDrag);
@@ -901,8 +909,15 @@ public:
     FrameLoadState::State loadStateAtProcessExit() const { return m_loadStateAtProcessExit; }
 
 #if ENABLE(DRAG_SUPPORT)
-    WebCore::DragSession dragSession() const { return m_currentDragSession; }
-    void resetDragOperation() { m_currentDragSession = WebCore::DragSession(); }
+    WebCore::DragOperation currentDragOperation() const { return m_currentDragOperation; }
+    bool currentDragIsOverFileInput() const { return m_currentDragIsOverFileInput; }
+    unsigned currentDragNumberOfFilesToBeAccepted() const { return m_currentDragNumberOfFilesToBeAccepted; }
+    void resetCurrentDragInformation()
+    {
+        m_currentDragOperation = WebCore::DragOperationNone;
+        m_currentDragIsOverFileInput = false;
+        m_currentDragNumberOfFilesToBeAccepted = 0;
+    }
 #endif
 
     void preferencesDidChange();
@@ -1110,7 +1125,7 @@ private:
     void willSubmitForm(uint64_t frameID, uint64_t sourceFrameID, const Vector<std::pair<String, String>>& textFieldValues, uint64_t listenerID, IPC::MessageDecoder&);
 
     // UI client
-    void createNewPage(uint64_t frameID, const WebCore::ResourceRequest&, const WebCore::WindowFeatures&, uint32_t modifiers, int32_t mouseButton, uint64_t& newPageID, WebPageCreationParameters&);
+    void createNewPage(uint64_t frameID, const WebCore::ResourceRequest&, const WebCore::WindowFeatures&, const NavigationActionData&, uint64_t& newPageID, WebPageCreationParameters&);
     void showPage();
     void closePage(bool stopResponsivenessTimer);
     void runJavaScriptAlert(uint64_t frameID, const String&, RefPtr<Messages::WebPageProxy::RunJavaScriptAlert::DelayedReply>);
@@ -1333,6 +1348,7 @@ private:
 #if PLATFORM(IOS)
     WebCore::FloatSize viewportScreenSize();
 
+    void dynamicViewportUpdateChangedTarget(double newTargetScale, const WebCore::FloatPoint& newScrollPosition);
     void didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color& color, const Vector<WebCore::FloatQuad>& geometries, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius);
 
     void startAssistingNode(const AssistedNodeInformation&, IPC::MessageDecoder&);
@@ -1379,7 +1395,7 @@ private:
     PageClient& m_pageClient;
     std::unique_ptr<API::LoaderClient> m_loaderClient;
     std::unique_ptr<API::PolicyClient> m_policyClient;
-    WebFormClient m_formClient;
+    std::unique_ptr<API::FormClient> m_formClient;
     std::unique_ptr<API::UIClient> m_uiClient;
 #if PLATFORM(EFL)
     WebUIPopupMenuClient m_uiPopupMenuClient;
@@ -1573,7 +1589,11 @@ private:
     bool m_mainFrameHasCustomContentProvider;
 
 #if ENABLE(DRAG_SUPPORT)
-    WebCore::DragSession m_currentDragSession;
+    // Current drag destination details are delivered as an asynchronous response,
+    // so we preserve them to be used when the next dragging delegate call is made.
+    WebCore::DragOperation m_currentDragOperation;
+    bool m_currentDragIsOverFileInput;
+    unsigned m_currentDragNumberOfFilesToBeAccepted;
 #endif
 
     PageLoadState m_pageLoadState;
@@ -1596,6 +1616,9 @@ private:
     bool m_rubberBandsAtRight;
     bool m_rubberBandsAtTop;
     bool m_rubberBandsAtBottom;
+        
+    bool m_enableVerticalRubberBanding;
+    bool m_enableHorizontalRubberBanding;
 
     bool m_backgroundExtendsBeyondPage;
 

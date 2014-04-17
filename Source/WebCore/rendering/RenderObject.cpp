@@ -1566,6 +1566,10 @@ void RenderObject::handleDynamicFloatPositionChange()
 
 void RenderObject::removeAnonymousWrappersForInlinesIfNecessary()
 {
+    RenderBlock* parentBlock = toRenderBlock(parent());
+    if (!parentBlock->canCollapseAnonymousBlockChild())
+        return;
+
     // We have changed to floated or out-of-flow positioning so maybe all our parent's
     // children can be inline now. Bail if there are any block children left on the line,
     // otherwise we can proceed to stripping solitary anonymous wrappers from the inlines.
@@ -1579,7 +1583,6 @@ void RenderObject::removeAnonymousWrappersForInlinesIfNecessary()
         return;
 
     curr = parent()->firstChild();
-    RenderBlock* parentBlock = toRenderBlock(parent());
     while (curr) {
         RenderObject* next = curr->nextSibling();
         if (curr->isAnonymousBlock())
@@ -1932,6 +1935,9 @@ void RenderObject::insertedIntoTree()
 
     if (!isFloating() && parent()->childrenInline())
         parent()->dirtyLinesFromChangedChild(this);
+
+    if (RenderFlowThread* flowThread = parent()->flowThreadContainingBlock())
+        flowThread->flowThreadDescendantInserted(this);
 }
 
 void RenderObject::willBeRemovedFromTree()

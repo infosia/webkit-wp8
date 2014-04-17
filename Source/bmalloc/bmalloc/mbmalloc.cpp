@@ -25,12 +25,15 @@
 
 #include "bmalloc.h"
 
+#define EXPORT __attribute__((visibility("default")))
+
 extern "C" {
 
-void* mbmalloc(size_t);
-void mbfree(void*, size_t);
-void* mbrealloc(void*, size_t, size_t);
-
+EXPORT void* mbmalloc(size_t);
+EXPORT void mbfree(void*, size_t);
+EXPORT void* mbrealloc(void*, size_t, size_t);
+EXPORT void mbscavenge();
+    
 void* mbmalloc(size_t size)
 {
     return bmalloc::api::malloc(size);
@@ -44,6 +47,11 @@ void mbfree(void* p, size_t)
 void* mbrealloc(void* p, size_t, size_t size)
 {
     return bmalloc::api::realloc(p, size);
+}
+
+void mbscavenge()
+{
+    bmalloc::api::scavenge();
 }
 
 } // extern "C"

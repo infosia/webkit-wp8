@@ -37,6 +37,7 @@ class Credential;
 class CubicBezierTimingFunction;
 class Cursor;
 class DatabaseDetails;
+class FilterOperation;
 class FilterOperations;
 class FloatPoint;
 class FloatPoint3D;
@@ -67,7 +68,6 @@ class URL;
 struct CompositionUnderline;
 struct Cookie;
 struct DictationAlternative;
-struct DragSession;
 struct FileChooserSettings;
 struct IDBDatabaseMetadata;
 struct IDBGetResult;
@@ -339,11 +339,6 @@ template<> struct ArgumentCoder<WebCore::TextCheckingResult> {
     static bool decode(ArgumentDecoder&, WebCore::TextCheckingResult&);
 };
     
-template<> struct ArgumentCoder<WebCore::DragSession> {
-    static void encode(ArgumentEncoder&, const WebCore::DragSession&);
-    static bool decode(ArgumentDecoder&, WebCore::DragSession&);
-};
-
 template<> struct ArgumentCoder<WebCore::URL> {
     static void encode(ArgumentEncoder&, const WebCore::URL&);
     static bool decode(ArgumentDecoder&, WebCore::URL&);
@@ -379,6 +374,11 @@ template<> struct ArgumentCoder<WebCore::FilterOperations> {
     static void encode(ArgumentEncoder&, const WebCore::FilterOperations&);
     static bool decode(ArgumentDecoder&, WebCore::FilterOperations&);
 };
+    
+template<> struct ArgumentCoder<WebCore::FilterOperation> {
+    static void encode(ArgumentEncoder&, const WebCore::FilterOperation&);
+};
+bool decodeFilterOperation(ArgumentDecoder&, RefPtr<WebCore::FilterOperation>&);
 #endif
 
 #if ENABLE(INDEXED_DATABASE)

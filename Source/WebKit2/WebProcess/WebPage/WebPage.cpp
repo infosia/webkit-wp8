@@ -45,7 +45,6 @@
 #include "NetscapePlugin.h"
 #include "NotificationPermissionRequestManager.h"
 #include "PageBanner.h"
-#include "PageOverlay.h"
 #include "PluginProcessAttributes.h"
 #include "PluginProxy.h"
 #include "PluginView.h"
@@ -91,6 +90,7 @@
 #include "WebProcess.h"
 #include "WebProcessProxyMessages.h"
 #include "WebProgressTrackerClient.h"
+#include "WebUndoStep.h"
 #include <JavaScriptCore/APICast.h>
 #include <WebCore/ArchiveResource.h>
 #include <WebCore/Chrome.h>
@@ -101,7 +101,6 @@
 #include <WebCore/DocumentMarkerController.h>
 #include <WebCore/DragController.h>
 #include <WebCore/DragData.h>
-#include <WebCore/DragSession.h>
 #include <WebCore/ElementIterator.h>
 #include <WebCore/EventHandler.h>
 #include <WebCore/FocusController.h>
@@ -307,6 +306,7 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 #if ENABLE(WEBGL)
     , m_systemWebGLPolicy(WebGLAllowCreation)
 #endif
+    , m_pageOverlayController(*this)
 {
     ASSERT(m_pageID);
     // FIXME: This is a non-ideal location for this Setting and
@@ -340,6 +340,7 @@ WebPage::WebPage(uint64_t pageID, const WebPageCreationParameters& parameters)
 
     m_drawingArea = DrawingArea::create(this, parameters);
     m_drawingArea->setPaintingEnabled(false);
+    m_pageOverlayController.initialize();
 
 #if ENABLE(ASYNC_SCROLLING)
     m_useAsyncScrolling = parameters.store.getBoolValueForKey(WebPreferencesKey::threadedScrollingEnabledKey());
@@ -885,7 +886,7 @@ void WebPage::close()
     m_contextMenuClient.initialize(0);
 #endif
     m_editorClient.initialize(0);
-    m_formClient = std::unique_ptr<API::InjectedBundle::FormClient>();
+    m_formClient = std::make_unique<API::InjectedBundle::FormClient>();
     m_loaderClient.initialize(0);
     m_policyClient.initialize(0);
     m_resourceLoadClient.initialize(0);
@@ -1121,6 +1122,8 @@ void WebPage::setSize(const WebCore::IntSize& viewSize)
     if (view->useFixedLayout())
         sendViewportAttributesChanged();
 #endif
+
+    m_pageOverlayController.didChangeViewSize();
 }
 
 #if USE(TILED_BACKING_STORE)
@@ -1204,15 +1207,6 @@ void WebPage::drawRect(GraphicsContext& graphicsContext, const IntRect& rect)
     graphicsContext.clip(rect);
 
     m_mainFrame->coreFrame()->view()->paint(&graphicsContext, rect);
-}
-
-void WebPage::drawPageOverlay(PageOverlay* pageOverlay, GraphicsContext& graphicsContext, const IntRect& rect)
-{
-    ASSERT(pageOverlay);
-
-    GraphicsContextStateSaver stateSaver(graphicsContext);
-    graphicsContext.clip(rect);
-    pageOverlay->drawRect(graphicsContext, rect);
 }
 
 double WebPage::textZoomFactor() const
@@ -1305,12 +1299,23 @@ void WebPage::scalePage(double scale, const IntPoint& origin)
     send(Messages::WebPageProxy::PageScaleFactorDidChange(scale));
 }
 
+void WebPage::scalePageInViewCoordinates(double scale, IntPoint centerInViewCoordinates)
+{
+    if (scale == pageScaleFactor())
+        return;
+
+    IntPoint scrollPositionAtNewScale = mainFrameView()->rootViewToContents(-centerInViewCoordinates);
+    double scaleRatio = scale / pageScaleFactor();
+    scrollPositionAtNewScale.scale(scaleRatio, scaleRatio);
+    scalePage(scale, scrollPositionAtNewScale);
+}
+
 double WebPage::pageScaleFactor() const
 {
     PluginView* pluginView = pluginViewForFrame(&m_page->mainFrame());
     if (pluginView && pluginView->handlesPageScaleFactor())
         return pluginView->pageScaleFactor();
-    
+
     return m_page->pageScaleFactor();
 }
 
@@ -1337,6 +1342,8 @@ void WebPage::setDeviceScaleFactor(float scaleFactor)
 
     if (m_drawingArea->layerTreeHost())
         m_drawingArea->layerTreeHost()->deviceOrPageScaleFactorChanged();
+
+    m_pageOverlayController.didChangeDeviceScaleFactor();
 }
 
 float WebPage::deviceScaleFactor() const
@@ -1403,6 +1410,16 @@ void WebPage::setSuppressScrollbarAnimations(bool suppressAnimations)
 {
     m_page->setShouldSuppressScrollbarAnimations(suppressAnimations);
 }
+    
+void WebPage::setEnableVerticalRubberBanding(bool enableVerticalRubberBanding)
+{
+    m_page->setVerticalScrollElasticity(enableVerticalRubberBanding ? ScrollElasticityAllowed : ScrollElasticityNone);
+}
+    
+void WebPage::setEnableHorizontalRubberBanding(bool enableHorizontalRubberBanding)
+{
+    m_page->setHorizontalScrollElasticity(enableHorizontalRubberBanding ? ScrollElasticityAllowed : ScrollElasticityNone);
+}
 
 void WebPage::setBackgroundExtendsBeyondPage(bool backgroundExtendsBeyondPage)
 {
@@ -1452,37 +1469,14 @@ void WebPage::postInjectedBundleMessage(const String& messageName, IPC::MessageD
     injectedBundle->didReceiveMessageToPage(this, messageName, messageBody.get());
 }
 
-void WebPage::installPageOverlay(PassRefPtr<PageOverlay> pageOverlay, bool shouldFadeIn)
+void WebPage::installPageOverlay(PassRefPtr<PageOverlay> pageOverlay, PageOverlay::FadeMode fadeMode)
 {
-    RefPtr<PageOverlay> overlay = pageOverlay;
-    
-    if (m_pageOverlays.contains(overlay.get()))
-        return;
-
-    m_pageOverlays.append(overlay);
-    overlay->setPage(this);
-
-    if (shouldFadeIn)
-        overlay->startFadeInAnimation();
-
-    m_drawingArea->didInstallPageOverlay(overlay.get());
+    m_pageOverlayController.installPageOverlay(pageOverlay, fadeMode);
 }
 
-void WebPage::uninstallPageOverlay(PageOverlay* pageOverlay, bool shouldFadeOut)
+void WebPage::uninstallPageOverlay(PageOverlay* pageOverlay, PageOverlay::FadeMode fadeMode)
 {
-    size_t existingOverlayIndex = m_pageOverlays.find(pageOverlay);
-    if (existingOverlayIndex == notFound)
-        return;
-
-    if (shouldFadeOut) {
-        pageOverlay->startFadeOutAnimation();
-        return;
-    }
-
-    pageOverlay->setPage(0);
-    m_pageOverlays.remove(existingOverlayIndex);
-
-    m_drawingArea->didUninstallPageOverlay(pageOverlay);
+    m_pageOverlayController.uninstallPageOverlay(pageOverlay, fadeMode);
 }
 
 #if !PLATFORM(IOS)
@@ -1580,7 +1574,7 @@ PassRefPtr<WebImage> WebPage::snapshotAtSize(const IntRect& rect, const IntSize&
 
     float horizontalScaleFactor = static_cast<float>(bitmapSize.width()) / rect.width();
     float verticalScaleFactor = static_cast<float>(bitmapSize.height()) / rect.height();
-    float scaleFactor = std::min(horizontalScaleFactor, verticalScaleFactor);
+    float scaleFactor = std::max(horizontalScaleFactor, verticalScaleFactor);
 
     RefPtr<WebImage> snapshot = WebImage::create(bitmapSize, snapshotOptionsToImageOptions(options));
     if (!snapshot->bitmap())
@@ -1761,14 +1755,7 @@ void WebPage::mouseEvent(const WebMouseEvent& mouseEvent)
         return;
     }
 #endif
-    bool handled = false;
-    if (m_pageOverlays.size()) {
-        // Let the page overlay handle the event.
-        PageOverlayList::reverse_iterator end = m_pageOverlays.rend();
-        for (PageOverlayList::reverse_iterator it = m_pageOverlays.rbegin(); it != end; ++it)
-            if ((handled = (*it)->mouseEvent(mouseEvent)))
-                break;
-    }
+    bool handled = m_pageOverlayController.handleMouseEvent(mouseEvent);
 
 #if !PLATFORM(IOS)
     if (!handled && m_headerBanner)
@@ -1794,14 +1781,7 @@ void WebPage::mouseEvent(const WebMouseEvent& mouseEvent)
 
 void WebPage::mouseEventSyncForTesting(const WebMouseEvent& mouseEvent, bool& handled)
 {
-    handled = false;
-
-    if (m_pageOverlays.size()) {
-        PageOverlayList::reverse_iterator end = m_pageOverlays.rend();
-        for (PageOverlayList::reverse_iterator it = m_pageOverlays.rbegin(); it != end; ++it)
-            if ((handled = (*it)->mouseEvent(mouseEvent)))
-                break;
-    }
+    handled = m_pageOverlayController.handleMouseEvent(mouseEvent);
 #if !PLATFORM(IOS)
     if (!handled && m_headerBanner)
         handled = m_headerBanner->mouseEvent(mouseEvent);
@@ -1890,32 +1870,6 @@ void WebPage::keyEventSyncForTesting(const WebKeyboardEvent& keyboardEvent, bool
     handled = handleKeyEvent(keyboardEvent, m_page.get());
     if (!handled)
         handled = performDefaultBehaviorForKeyEvent(keyboardEvent);
-}
-
-WKTypeRef WebPage::pageOverlayCopyAccessibilityAttributeValue(WKStringRef attribute, WKTypeRef parameter)
-{
-    if (!m_pageOverlays.size())
-        return 0;
-    PageOverlayList::reverse_iterator end = m_pageOverlays.rend();
-    for (PageOverlayList::reverse_iterator it = m_pageOverlays.rbegin(); it != end; ++it) {
-        WKTypeRef value = (*it)->copyAccessibilityAttributeValue(attribute, parameter);
-        if (value)
-            return value;
-    }
-    return 0;
-}
-
-WKArrayRef WebPage::pageOverlayCopyAccessibilityAttributesNames(bool parameterizedNames)
-{
-    if (!m_pageOverlays.size())
-        return 0;
-    PageOverlayList::reverse_iterator end = m_pageOverlays.rend();
-    for (PageOverlayList::reverse_iterator it = m_pageOverlays.rbegin(); it != end; ++it) {
-        WKArrayRef value = (*it)->copyAccessibilityAttributeNames(parameterizedNames);
-        if (value)
-            return value;
-    }
-    return 0;
 }
 
 void WebPage::validateCommand(const String& commandName, uint64_t callbackID)
@@ -2548,9 +2502,9 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
     settings.setShowsToolTipOverTruncatedText(store.getBoolValueForKey(WebPreferencesKey::showsToolTipOverTruncatedTextKey()));
 
     settings.setAcceleratedCompositingForOverflowScrollEnabled(store.getBoolValueForKey(WebPreferencesKey::acceleratedCompositingForOverflowScrollEnabledKey()));
-    settings.setAcceleratedCompositingEnabled(store.getBoolValueForKey(WebPreferencesKey::acceleratedCompositingEnabledKey()) && LayerTreeHost::supportsAcceleratedCompositing());
-    settings.setAcceleratedDrawingEnabled(store.getBoolValueForKey(WebPreferencesKey::acceleratedDrawingEnabledKey()) && LayerTreeHost::supportsAcceleratedCompositing());
-    settings.setCanvasUsesAcceleratedDrawing(store.getBoolValueForKey(WebPreferencesKey::canvasUsesAcceleratedDrawingKey()) && LayerTreeHost::supportsAcceleratedCompositing());
+    settings.setAcceleratedCompositingEnabled(store.getBoolValueForKey(WebPreferencesKey::acceleratedCompositingEnabledKey()));
+    settings.setAcceleratedDrawingEnabled(store.getBoolValueForKey(WebPreferencesKey::acceleratedDrawingEnabledKey()));
+    settings.setCanvasUsesAcceleratedDrawing(store.getBoolValueForKey(WebPreferencesKey::canvasUsesAcceleratedDrawingKey()));
     settings.setShowDebugBorders(store.getBoolValueForKey(WebPreferencesKey::compositingBordersVisibleKey()));
     settings.setShowRepaintCounter(store.getBoolValueForKey(WebPreferencesKey::compositingRepaintCountersVisibleKey()));
     settings.setShowTiledScrollingIndicator(store.getBoolValueForKey(WebPreferencesKey::tiledScrollingIndicatorVisibleKey()));
@@ -2705,6 +2659,8 @@ void WebPage::updatePreferences(const WebPreferencesStore& store)
 
     if (m_drawingArea)
         m_drawingArea->updatePreferences(store);
+
+    m_pageOverlayController.didChangePreferences();
 }
 
 #if PLATFORM(COCOA)
@@ -2805,27 +2761,29 @@ bool WebPage::handleEditingKeyboardEvent(KeyboardEvent* evt)
 void WebPage::performDragControllerAction(uint64_t action, WebCore::DragData dragData)
 {
     if (!m_page) {
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(WebCore::DragSession()));
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(DragOperationNone, false, 0));
         DataObjectGtk* data = const_cast<DataObjectGtk*>(dragData.platformData());
         data->deref();
         return;
     }
 
     switch (action) {
-    case DragControllerActionEntered:
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(m_page->dragController().dragEntered(dragData)));
+    case DragControllerActionEntered: {
+        DragOperation resolvedDragOperation = m_page->dragController().dragEntered(dragData);
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(resolvedDragOperation, m_page->dragController().mouseIsOverFileInput(), m_page->dragController().numberOfItemsToBeAccepted()));
         break;
-
-    case DragControllerActionUpdated:
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(m_page->dragController().dragUpdated(dragData)));
+    }
+    case DragControllerActionUpdated: {
+        DragOperation resolvedDragOperation = m_page->dragController().dragEntered(dragData);
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(resolvedDragOperation, m_page->dragController().mouseIsOverFileInput(), m_page->dragController().numberOfItemsToBeAccepted()));
         break;
-
+    }
     case DragControllerActionExited:
         m_page->dragController().dragExited(dragData);
         break;
 
-    case DragControllerActionPerformDrag: {
-        m_page->dragController().performDrag(dragData);
+    case DragControllerActionPerformDragOperation: {
+        m_page->dragController().performDragOperation(dragData);
         break;
     }
 
@@ -2841,25 +2799,28 @@ void WebPage::performDragControllerAction(uint64_t action, WebCore::DragData dra
 void WebPage::performDragControllerAction(uint64_t action, WebCore::IntPoint clientPosition, WebCore::IntPoint globalPosition, uint64_t draggingSourceOperationMask, const String& dragStorageName, uint32_t flags, const SandboxExtension::Handle& sandboxExtensionHandle, const SandboxExtension::HandleArray& sandboxExtensionsHandleArray)
 {
     if (!m_page) {
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(WebCore::DragSession()));
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(DragOperationNone, false, 0));
         return;
     }
 
     DragData dragData(dragStorageName, clientPosition, globalPosition, static_cast<DragOperation>(draggingSourceOperationMask), static_cast<DragApplicationFlags>(flags));
     switch (action) {
-    case DragControllerActionEntered:
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(m_page->dragController().dragEntered(dragData)));
+    case DragControllerActionEntered: {
+        DragOperation resolvedDragOperation = m_page->dragController().dragEntered(dragData);
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(resolvedDragOperation, m_page->dragController().mouseIsOverFileInput(), m_page->dragController().numberOfItemsToBeAccepted()));
         break;
 
-    case DragControllerActionUpdated:
-        send(Messages::WebPageProxy::DidPerformDragControllerAction(m_page->dragController().dragUpdated(dragData)));
+    }
+    case DragControllerActionUpdated: {
+        DragOperation resolvedDragOperation = m_page->dragController().dragUpdated(dragData);
+        send(Messages::WebPageProxy::DidPerformDragControllerAction(resolvedDragOperation, m_page->dragController().mouseIsOverFileInput(), m_page->dragController().numberOfItemsToBeAccepted()));
         break;
-        
+    }
     case DragControllerActionExited:
         m_page->dragController().dragExited(dragData);
         break;
         
-    case DragControllerActionPerformDrag: {
+    case DragControllerActionPerformDragOperation: {
         ASSERT(!m_pendingDropSandboxExtension);
 
         m_pendingDropSandboxExtension = SandboxExtension::create(sandboxExtensionHandle);
@@ -2868,7 +2829,7 @@ void WebPage::performDragControllerAction(uint64_t action, WebCore::IntPoint cli
                 m_pendingDropExtensionsForFileUpload.append(extension);
         }
 
-        m_page->dragController().performDrag(dragData);
+        m_page->dragController().performDragOperation(dragData);
 
         // If we started loading a local file, the sandbox extension tracker would have adopted this
         // pending drop sandbox extension. If not, we'll play it safe and clear it.
@@ -3878,7 +3839,7 @@ void WebPage::recomputeShortCircuitHorizontalWheelEventsState()
 
 Frame* WebPage::mainFrame() const
 {
-    return m_page ? &m_page->mainFrame() : 0;
+    return m_page ? &m_page->mainFrame() : nullptr;
 }
 
 FrameView* WebPage::mainFrameView() const
@@ -3886,7 +3847,7 @@ FrameView* WebPage::mainFrameView() const
     if (Frame* frame = mainFrame())
         return frame->view();
     
-    return 0;
+    return nullptr;
 }
 
 void WebPage::setScrollingPerformanceLoggingEnabled(bool enabled)
@@ -4566,5 +4527,20 @@ TelephoneNumberOverlayController& WebPage::telephoneNumberOverlayController()
     return *m_telephoneNumberOverlayController;
 }
 #endif
+
+void WebPage::didChangeScrollOffsetForFrame(Frame* frame)
+{
+    m_pageOverlayController.didScrollFrame(frame);
+
+    if (!frame->isMainFrame())
+        return;
+
+    // If this is called when tearing down a FrameView, the WebCore::Frame's
+    // current FrameView will be null.
+    if (!frame->view())
+        return;
+
+    updateMainFrameScrollOffsetPinning();
+}
 
 } // namespace WebKit

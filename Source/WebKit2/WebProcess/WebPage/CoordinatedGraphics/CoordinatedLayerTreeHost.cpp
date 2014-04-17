@@ -69,12 +69,9 @@ CoordinatedLayerTreeHost::CoordinatedLayerTreeHost(WebPage* webPage)
     m_coordinator = std::make_unique<CompositingCoordinator>(webPage->corePage(), this);
 
     m_coordinator->createRootLayer(webPage->size());
-    m_layerTreeContext.coordinatedLayerID = toCoordinatedGraphicsLayer(m_coordinator->rootLayer())->id();
+    m_layerTreeContext.contextID = toCoordinatedGraphicsLayer(m_coordinator->rootLayer())->id();
 
     CoordinatedSurface::setFactory(createCoordinatedSurface);
-
-    if (webPage->hasPageOverlay())
-        createPageOverlayLayer();
 
     scheduleLayerFlush();
 }
@@ -115,7 +112,7 @@ void CoordinatedLayerTreeHost::setShouldNotifyAfterNextScheduledLayerFlush(bool 
 
 void CoordinatedLayerTreeHost::setRootCompositingLayer(WebCore::GraphicsLayer* graphicsLayer)
 {
-    m_coordinator->setRootCompositingLayer(graphicsLayer);
+    m_coordinator->setRootCompositingLayer(graphicsLayer, m_webPage->pageOverlayController().viewOverlayRootLayer());
 }
 
 void CoordinatedLayerTreeHost::invalidate()
@@ -158,37 +155,6 @@ void CoordinatedLayerTreeHost::sizeDidChange(const WebCore::IntSize& newSize)
     scheduleLayerFlush();
 }
 
-void CoordinatedLayerTreeHost::didInstallPageOverlay(PageOverlay* pageOverlay)
-{
-    ASSERT(!m_pageOverlay);
-    m_pageOverlay = pageOverlay;
-
-    createPageOverlayLayer();
-    scheduleLayerFlush();
-}
-
-void CoordinatedLayerTreeHost::didUninstallPageOverlay(PageOverlay*)
-{
-    m_pageOverlay = 0;
-
-    destroyPageOverlayLayer();
-    scheduleLayerFlush();
-}
-
-void CoordinatedLayerTreeHost::setPageOverlayNeedsDisplay(PageOverlay*, const WebCore::IntRect& rect)
-{
-    ASSERT(m_pageOverlayLayer);
-    m_pageOverlayLayer->setNeedsDisplayInRect(rect);
-    scheduleLayerFlush();
-}
-
-void CoordinatedLayerTreeHost::setPageOverlayOpacity(PageOverlay*, float value)
-{
-    ASSERT(m_pageOverlayLayer);
-    m_pageOverlayLayer->setOpacity(value);
-    scheduleLayerFlush();
-}
-
 void CoordinatedLayerTreeHost::setVisibleContentsRect(const FloatRect& rect, const FloatPoint& trajectoryVector)
 {
     m_coordinator->setVisibleContentsRect(rect, trajectoryVector);
@@ -207,10 +173,9 @@ void CoordinatedLayerTreeHost::purgeBackingStores()
     m_coordinator->purgeBackingStores();
 }
 
-void CoordinatedLayerTreeHost::didFlushRootLayer()
+void CoordinatedLayerTreeHost::didFlushRootLayer(const FloatRect& visibleContentRect)
 {
-    if (m_pageOverlayLayer)
-        m_pageOverlayLayer->flushCompositingStateForThisLayerOnly();
+    m_webPage->pageOverlayController().flushPageOverlayLayers(visibleContentRect);
 }
 
 void CoordinatedLayerTreeHost::performScheduledLayerFlush()
@@ -241,36 +206,8 @@ void CoordinatedLayerTreeHost::layerFlushTimerFired(Timer<CoordinatedLayerTreeHo
     performScheduledLayerFlush();
 }
 
-void CoordinatedLayerTreeHost::createPageOverlayLayer()
-{
-    ASSERT(!m_pageOverlayLayer);
-
-    m_pageOverlayLayer = GraphicsLayer::create(graphicsLayerFactory(), m_coordinator.get());
-#ifndef NDEBUG
-    m_pageOverlayLayer->setName("CompositingCoordinator page overlay content");
-#endif
-
-    m_pageOverlayLayer->setDrawsContent(true);
-    m_pageOverlayLayer->setSize(m_coordinator->rootLayer()->size());
-
-    m_coordinator->rootLayer()->addChild(m_pageOverlayLayer.get());
-}
-
-void CoordinatedLayerTreeHost::destroyPageOverlayLayer()
-{
-    ASSERT(m_pageOverlayLayer);
-    m_pageOverlayLayer->removeFromParent();
-    m_pageOverlayLayer = nullptr;
-}
-
 void CoordinatedLayerTreeHost::paintLayerContents(const GraphicsLayer* graphicsLayer, GraphicsContext& graphicsContext, const IntRect& clipRect)
 {
-    if (graphicsLayer == m_pageOverlayLayer.get()) {
-        // Overlays contain transparent contents and won't clear the context as part of their rendering, so we do it here.
-        graphicsContext.clearRect(clipRect);
-        m_webPage->drawPageOverlay(m_pageOverlay.get(), graphicsContext, clipRect);
-        return;
-    }
 }
 
 void CoordinatedLayerTreeHost::commitSceneState(const WebCore::CoordinatedGraphicsState& state)
@@ -287,8 +224,7 @@ PassRefPtr<CoordinatedSurface> CoordinatedLayerTreeHost::createCoordinatedSurfac
 void CoordinatedLayerTreeHost::deviceOrPageScaleFactorChanged()
 {
     m_coordinator->deviceOrPageScaleFactorChanged();
-    if (m_pageOverlayLayer)
-        m_pageOverlayLayer->deviceOrPageScaleFactorChanged();
+    m_webPage->pageOverlayController().didChangeDeviceScaleFactor();
 }
 
 void CoordinatedLayerTreeHost::pageBackgroundTransparencyChanged()

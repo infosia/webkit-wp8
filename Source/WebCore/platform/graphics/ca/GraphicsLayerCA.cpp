@@ -312,7 +312,7 @@ std::unique_ptr<GraphicsLayer> GraphicsLayer::create(GraphicsLayerFactory* facto
 
     graphicsLayer->initialize();
 
-    return std::move(graphicsLayer);
+    return graphicsLayer;
 }
 
 #if ENABLE(CSS_FILTERS)
@@ -387,19 +387,19 @@ void GraphicsLayerCA::willBeDestroyed()
     // We release our references to the PlatformCALayers here, but do not actively unparent them,
     // since that will cause a commit and break our batched commit model. The layers will
     // get released when the rootmost modified GraphicsLayerCA rebuilds its child layers.
-    
+
     // Clean up the layer.
     if (m_layer)
-        m_layer->setOwner(0);
+        m_layer->setOwner(nullptr);
     
     if (m_contentsLayer)
-        m_contentsLayer->setOwner(0);
+        m_contentsLayer->setOwner(nullptr);
 
     if (m_contentsClippingLayer)
-        m_contentsClippingLayer->setOwner(0);
+        m_contentsClippingLayer->setOwner(nullptr);
         
     if (m_structuralLayer)
-        m_structuralLayer->setOwner(0);
+        m_structuralLayer->setOwner(nullptr);
     
     removeCloneLayers();
 
@@ -1336,6 +1336,8 @@ void GraphicsLayerCA::commitLayerChangesBeforeSublayers(CommitState& commitState
         // Ensure that we cap layer depth in commitLayerChangesAfterSublayers().
         if (commitState.treeDepth > cMaxLayerTreeDepth)
             m_uncommittedChanges |= ChildrenChanged;
+
+        updateRootRelativeScale(transformFromRoot);
         return;
     }
 
@@ -2980,10 +2982,24 @@ GraphicsLayerCA::LayerMap* GraphicsLayerCA::animatedLayerClones(AnimatedProperty
 void GraphicsLayerCA::updateContentsScale(float pageScaleFactor)
 {
     float contentsScale = clampedContentsScaleForScale(m_rootRelativeScaleFactor * pageScaleFactor * deviceScaleFactor());
+
+    if (m_isPageTiledBackingLayer && tiledBacking()) {
+        float zoomedOutScale = m_client->zoomedOutPageScaleFactor() * deviceScaleFactor();
+        tiledBacking()->setZoomedOutContentsScale(zoomedOutScale);
+    }
+
     if (contentsScale == m_layer->contentsScale())
         return;
 
     m_layer->setContentsScale(contentsScale);
+
+    if (tiledBacking()) {
+        // Scale change may swap in a different set of tiles changing the custom child layers.
+        if (m_isPageTiledBackingLayer)
+            m_uncommittedChanges |= ChildrenChanged;
+        // Tiled backing repaints automatically on scale change.
+        return;
+    }
     if (drawsContent())
         m_layer->setNeedsDisplay();
 }
