@@ -1,3 +1,598 @@
+2014-04-18  Gabor Rapcsanyi  <rgabor@webkit.org>
+
+        Unreviewed. ARM64 buildfix after r167473.
+
+        * platform/audio/DenormalDisabler.h: Put back the MathExtras.h include.
+
+2014-04-18  Radu Stavila  <stavila@adobe.com>
+
+        [CSSRegions] Incorrect background paint on positioned element hover
+        https://bugs.webkit.org/show_bug.cgi?id=131617
+
+        Reviewed by Andrei Bucur.
+
+        When computing the repaint rect for absolute elements flowed into regions, the Y location of the
+        region within the flow thread must no longer be added to the repaint rect's location because absolute
+        positioned elements get pushed down through the regions by their absolute top. So adding the region's
+        position in the flow thread and then adding the element's absolute top would cause us to add
+        something twice.
+
+        Tests: fast/regions/repaint/repaint-absolute-pushed-to-next-region.html
+
+        * rendering/RenderBox.cpp:
+        (WebCore::RenderBox::computeRectForRepaint):
+
+2014-04-18  Philippe Normand  <pnormand@igalia.com>
+
+        Remove NETWORK_INFO support
+        https://bugs.webkit.org/show_bug.cgi?id=131841
+
+        Reviewed by Gyuyoung Kim.
+
+        * CMakeLists.txt:
+        * Modules/networkinfo/NavigatorNetworkInfoConnection.cpp: Removed.
+        * Modules/networkinfo/NavigatorNetworkInfoConnection.h: Removed.
+        * Modules/networkinfo/NavigatorNetworkInfoConnection.idl: Removed.
+        * Modules/networkinfo/NetworkInfo.cpp: Removed.
+        * Modules/networkinfo/NetworkInfo.h: Removed.
+        * Modules/networkinfo/NetworkInfoClient.h: Removed.
+        * Modules/networkinfo/NetworkInfoConnection.cpp: Removed.
+        * Modules/networkinfo/NetworkInfoConnection.h: Removed.
+        * Modules/networkinfo/NetworkInfoConnection.idl: Removed.
+        * Modules/networkinfo/NetworkInfoController.cpp: Removed.
+        * Modules/networkinfo/NetworkInfoController.h: Removed.
+        * PlatformEfl.cmake:
+        * dom/EventTargetFactory.in:
+        * platform/efl/NetworkInfoProviderEfl.cpp: Removed.
+        * platform/efl/NetworkInfoProviderEfl.h: Removed.
+        * testing/Internals.cpp:
+        (WebCore::Internals::setNetworkInformation): Deleted.
+        * testing/Internals.h:
+        * testing/Internals.idl:
+
+2014-04-17  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167478.
+        https://bugs.webkit.org/show_bug.cgi?id=131840
+
+        Broke multicol tests (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[New Multicolumn] Pagination mode messed up with non-inline
+        axis and reversed direction."
+        https://bugs.webkit.org/show_bug.cgi?id=131811
+        http://trac.webkit.org/changeset/167478
+
+2014-04-17  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Hook up screen.{availHeight, availWidth, height, width}
+        https://bugs.webkit.org/show_bug.cgi?id=131821
+        <rdar://problem/16413795>
+
+        Reviewed by Benjamin Poulain and Tim Horton.
+
+        Implement support for screen.{availHeight, availWidth, height, width} in WebKit2 for iOS.
+
+        Additionally substitute "screenSize" for "viewporScreenSize" to make the code more understandable.
+
+        * WebCore.exp.in: Export symbol for WebCore System Interface function
+        _wkGetViewportAvailableScreenSize.
+        * dom/Document.cpp:
+        (WebCore::Document::processViewport): Modified to call Chrome::screenSize(); formerly it
+        called ChromeClient::viewportScreenSize().
+        * page/Chrome.cpp:
+        (WebCore::Chrome::screenSize): Added; turns around and calls ChromeClient::screenSize().
+        (WebCore::Chrome::availableScreenSize): Added; turns around and calls ChromeClient::availableScreenSize().
+        * page/Chrome.h:
+        * page/ChromeClient.h:
+        (WebCore::ChromeClient::screenSize): Renamed; formerly named viewportScreenSize.
+        (WebCore::ChromeClient::availableScreenSize): Added; default implementation, which
+        returns the size of Chrome::windowRect().
+        * page/ViewportConfiguration.cpp:
+        (WebCore::ViewportConfiguration::textDocumentParameters):
+        * platform/HostWindow.h: Added declarations for availableScreenSize() and screenSize()
+        so that a caller (e.g. WebCore::screenRect()) can query for such screen information using
+        only the HostWindow interface. That is, a caller doesn't need to know about ChromeClient.
+        * platform/ios/PlatformScreenIOS.mm:
+        (WebCore::screenRect): Modified to query HostWindow::screenSize() when computing the
+        screen rectangle in WebKit2 for iOS.
+        (WebCore::screenAvailableRect): Modified to query HostWindow::availableScreenSize()
+        when computing the available screen rectangle in WebKit2 for iOS.
+        * platform/ios/WebCoreSystemInterfaceIOS.mm:
+        * platform/mac/WebCoreSystemInterface.h:
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        origin spoofing possible (HTTP Origin, postMessage event.origin) due to inappropriate URL escape sequence decoding
+        https://bugs.webkit.org/show_bug.cgi?id=131837
+        rdar://problem/15211936
+
+        Reviewed by Anders Carlsson and Dave Hyatt.
+
+        Tests: fast/dom/DOMURL/parsing.html
+               fast/dom/HTMLAnchorElement/anchor-element-href-parsing.html
+
+        * platform/URL.cpp:
+        (WebCore::URL::host): Removed unnecessary call to decodeURLEscapeSequences, which caused
+        problems and was not needed.
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Pagination mode messed up with non-inline axis and reversed direction.
+        https://bugs.webkit.org/show_bug.cgi?id=131811
+
+        Reviewed by Dean Jackson.
+
+        Added fast/multicol/newmulticol/compare-with-old-impl/BottomToTop-tb.html
+        
+        With block axis pagination mode, it is possible to set a column height that is not the same
+        as the available fill height for a block. The new multi-column code had the assumption that
+        the column height was the same as the amount of fill room you had available. This is not
+        the case.
+        
+        To correct the issue, I added a member variable to RenderMultiColumnSet that stores the
+        available column height as a separate variable from the computed column height. This allows
+        the pagination API to specify a different column height that is not the same as the view's
+        content height.
+
+        Even though it isn't involved in the solution, I also patched pageOrViewLogicalHeight on
+        RenderView to work with the new column code as well.
+
+        * rendering/RenderMultiColumnSet.cpp:
+        (WebCore::RenderMultiColumnSet::RenderMultiColumnSet):
+        (WebCore::RenderMultiColumnSet::setAndConstrainColumnHeight):
+        (WebCore::RenderMultiColumnSet::computeLogicalHeight):
+        * rendering/RenderMultiColumnSet.h:
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::pageOrViewLogicalHeight):
+
+2014-04-17  Anders Carlsson  <andersca@apple.com>
+
+        Build fix.
+
+        * svg/animation/SMILTime.h:
+
+2014-04-17  Bem Jones-Bey  <bjonesbe@adobe.com>
+
+        Unreviewed, rolling out r167384.
+
+        Sounds like this isn't the right fix, and causes generation to
+        run far too often.
+
+        Reverted changeset:
+
+        "Fix CodeGenerator.pm to only write files if the generated
+        content has changed"
+        https://bugs.webkit.org/show_bug.cgi?id=131756
+        http://trac.webkit.org/changeset/167384
+
+2014-04-17  Ryuan Choi  <ryuan.choi@samsung.com>
+
+        Remove unnecessary MathExtras.h includes
+        https://bugs.webkit.org/show_bug.cgi?id=131789
+
+        Reviewed by Anders Carlsson.
+
+        * platform/FileSystem.h:
+        * platform/Scrollbar.h:
+        * platform/animation/AnimationUtilities.h:
+        * platform/audio/DenormalDisabler.h:
+        * platform/graphics/Font.h:
+        * platform/graphics/IntPoint.h: Included cmath instad of MathExtras.h.
+        * platform/graphics/LayoutPoint.h:
+        * platform/graphics/cairo/GraphicsContextPlatformPrivateCairo.h:
+        * rendering/svg/SVGMarkerData.h:
+        * svg/animation/SMILTime.h:
+
+2014-04-16  Huang Dongsung  <luxtella@company100.net>
+
+        Make RenderLayerBacking get the timingFunction of the correct animation.
+        https://bugs.webkit.org/show_bug.cgi?id=100632
+
+        Reviewed by Simon Fraser.
+
+        When an element has multiple animations that have different timingFunctions,
+        the progress of each animation should be calculated using its respective
+        timingFunction. But at this point, the timingFunction of the first animation is
+        only used in RenderLayerBacking::startAnimation(), regardless of how many
+        animations the element has.
+
+        getAnimationFromStyleByName() was introduced in r89462 so that the
+        timingFunction of the correct animation searched by its name would be
+        used. This patch moves the function to KeyframeValue::timingFunction()
+        so that RenderLayerBacking reuses this method.
+
+        Test: animations/keyframe-multiple-timing-functions-transform.html
+
+        * page/animation/KeyframeAnimation.cpp:
+        (WebCore::KeyframeAnimation::fetchIntervalEndpointsForProperty):
+        * rendering/RenderLayerBacking.cpp:
+        (WebCore::RenderLayerBacking::startAnimation):
+        * rendering/style/KeyframeList.cpp:
+        (WebCore::KeyframeValue::timingFunction):
+        (WebCore):
+        * rendering/style/KeyframeList.h:
+        (WebCore):
+        (KeyframeValue):
+
+2014-04-17  Andreas Kling  <akling@apple.com>
+
+        Rollout: Add a way to cache never-changing IDL attributes in the wrapper.
+        <https://webkit.org/b/131759>
+
+        This behavior may be observable from the web, so we can't do it this way.
+
+        * bindings/scripts/CodeGeneratorJS.pm:
+        (GenerateImplementation):
+        * bindings/scripts/IDLAttributes.txt:
+        * bindings/scripts/test/*:
+        * dom/Element.idl:
+        * dom/Node.idl:
+
+2014-04-17  Andreas Kling  <akling@apple.com>
+
+        Cheesy Mountain Lion build fix.
+
+        * platform/MemoryPressureHandler.h:
+        (WebCore::MemoryPressureHandler::ReliefLogger::logString):
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column rules don't respect the specified stacking order.
+        https://bugs.webkit.org/show_bug.cgi?id=131804
+
+        Reviewed by Beth Dakin.
+
+        Added fast/multicol/newmulticol/compare_with_old_impl/column-rules-stacking.html
+
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::paintBoxDecorations):
+        * rendering/RenderBlockFlow.h:
+        Override paintBoxDecorations for block flows so that we can iterate over our column sets
+        and paint their rules just after painting our background and border. We can't wait until
+        the child column sets paint their backgrounds, since that is specified as being above negative
+        z-index children. We have to pretend that the column sets don't exist as
+        far as column rule painting is concerned.
+
+        * rendering/RenderMultiColumnSet.cpp:
+        (WebCore::RenderMultiColumnSet::paintObject): Deleted.
+        * rendering/RenderMultiColumnSet.h:
+        Turn paintObject in RenderMultiColumnSet into an override that doesn't paint anything.
+
+2014-04-17  Beth Dakin  <bdakin@apple.com>
+
+        Hit-testing is incorrect for plugins inside iframes when there is a 
+        topContentInset
+        https://bugs.webkit.org/show_bug.cgi?id=131826
+        -and corresponding-
+        <rdar://problem/16649996>
+
+        Reviewed by Tim Horton.
+
+        I missed one coordinate-conversion spot when getting hit-testing to work. Like 
+        headerHeight() which also manipulates the location of the root layer, 
+        topContentInset() has to be factored into all of these conversions.
+        * page/FrameView.cpp:
+        (WebCore::FrameView::convertFromRenderer):
+
+2014-04-17  Andreas Kling  <akling@apple.com>
+
+        Stub out MemoryPressureHandler::ReliefLogger on older OS X'es.
+
+        * platform/cocoa/MemoryPressureHandlerCocoa.mm:
+        (WebCore::MemoryPressureHandler::ReliefLogger::platformLog):
+        (WebCore::MemoryPressureHandler::ReliefLogger::platformMemoryUsage):
+
+2014-04-17  Dirk Schulze  <krit@webkit.org>
+
+        Remove CANVAS_PATH where possible
+        https://bugs.webkit.org/show_bug.cgi?id=131788
+
+        Reviewed by Dean Jackson.
+
+        Since Firefox and Chrome ship the same interoperable subset of Path2D soon, 
+        it is time to remove CANVAS_PATH where possible.
+
+        * html/canvas/CanvasRenderingContext2D.cpp:
+        (WebCore::CanvasRenderingContext2D::clip):
+        (WebCore::CanvasRenderingContext2D::isPointInStroke):
+        * html/canvas/CanvasRenderingContext2D.h:
+        * html/canvas/CanvasRenderingContext2D.idl:
+        * html/canvas/DOMPath.h:
+        * html/canvas/DOMPath.idl:
+
+2014-04-17  Brendan Long  <b.long@cablelabs.com>
+
+        [GStreamer] Store TrackPrivateBaseGStreamer's label and language as AtomicStrings
+        https://bugs.webkit.org/show_bug.cgi?id=130404
+
+        Reviewed by Philippe Normand.
+
+        No new tests, this just makes things more efficient.
+
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.cpp:
+        (WebCore::TrackPrivateBaseGStreamer::getLanguageCode):
+        (WebCore::TrackPrivateBaseGStreamer::getTag):
+        * platform/graphics/gstreamer/TrackPrivateBaseGStreamer.h:
+
+2014-04-17  Andreas Kling  <akling@apple.com>
+
+        Fix Cocoa build.
+
+        * platform/cocoa/MemoryPressureHandlerCocoa.mm:
+        (WebCore::MemoryPressureHandler::ReliefLogger::platformMemoryUsage):
+
+2014-04-17  Rik Cabanier  <cabanier@adobe.com>
+
+        [CSS Blending] Remove the -webkit- prefix for mix-blend-mode and isolation CSS properties
+        https://bugs.webkit.org/show_bug.cgi?id=131355
+
+        Reviewed by Dean Jackson.
+
+        Removed webkit prefix from mix-blend-mode and isolation. These properties
+        never shipped and their spec is now in CR.
+
+        Covered by existing tests.
+
+        * css/CSSComputedStyleDeclaration.cpp:
+        (WebCore::ComputedStyleExtractor::propertyValue):
+        * css/CSSParser.cpp:
+        (WebCore::isValidKeywordPropertyAndValue):
+        (WebCore::isKeywordPropertyID):
+        (WebCore::CSSParser::parseValue):
+        * css/CSSPropertyNames.in:
+        * css/DeprecatedStyleBuilder.cpp:
+        (WebCore::DeprecatedStyleBuilder::DeprecatedStyleBuilder):
+
+2014-04-17  David Kilzer  <ddkilzer@apple.com>
+
+        Tidy up isIsolatedInline() and highestContainingIsolateWithinRoot()
+        <http://webkit.org/b/131117>
+
+        Reviewed by Daniel Bates.
+
+        Based on review feedback for r166650.
+
+        * rendering/InlineIterator.h:
+        (WebCore::isIsolatedInline):
+        - Switch argument to a reference since it is never called with a
+          nullptr.
+        (WebCore::highestContainingIsolateWithinRoot):
+        - Switch first argument to a reference since it's never a
+          nullptr.
+        - Use nullptr for pointer initialization.
+        - Switch while() loop to for() loop. Pass reference to
+          isIsolatedInline().
+        (WebCore::numberOfIsolateAncestors):
+        - Switch while() loop to for() loop. Pass reference to
+          isIsolatedInline().
+        * rendering/RenderBlockLineLayout.cpp:
+        (WebCore::constructBidiRunsForSegment):
+        - Rename startObj to startObject.
+        - No longer need to pass the address of startObject here.
+
+2014-04-17  Andreas Kling  <akling@apple.com>
+
+        Log number of bytes reclaimed at each step of memory pressure relief.
+        <https://webkit.org/b/131751>
+
+        Reviewed by Antti Koivisto.
+
+        * platform/MemoryPressureHandler.h:
+        * platform/MemoryPressureHandler.cpp:
+        (WebCore::MemoryPressureHandler::ReliefLogger::platformLog):
+        (WebCore::MemoryPressureHandler::ReliefLogger::platformMemoryUsage):
+        (WebCore::MemoryPressureHandler::ReliefLogger::ReliefLogger):
+        (WebCore::MemoryPressureHandler::ReliefLogger::~ReliefLogger):
+        * platform/cocoa/MemoryPressureHandlerCocoa.mm:
+        (WebCore::MemoryPressureHandlerCocoa::ReliefLogger::platformMemoryUsage):
+        (WebCore::MemoryPressureHandlerCocoa::ReliefLogger::platformLog):
+
+            Add a simple RAII helper to check memory usage before and after
+            a block of code, and then dump the delta to system log.
+
+        (WebCore::MemoryPressureHandler::releaseMemory):
+        * platform/cocoa/MemoryPressureHandlerCocoa.mm:
+        (WebCore::MemoryPressureHandler::platformReleaseMemory):
+
+            Use ReliefLogger to annotate the various attempts to reduce
+            our memory footprint. This will help us understand the efficiency
+            of our current strategy.
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] columnNumberForOffset is not patched for new multicolumn code yet.
+        https://bugs.webkit.org/show_bug.cgi?id=131740
+
+        Reviewed by Enrica Casucci.
+        
+        I took the opportunity to clean this code up while adding support for the new columns.
+        columnNumberForOffset only applied for paginated RenderViews and was really about
+        pages and not columns. It also only returns an actual page number if the columns are
+        block progressed (e.g., right-to-left vertical Japanese books).
+        
+        Therefore I renamed columnNumberForOffset to pageNumberForBlockProgressionOffset and
+        moved it to RenderView.
+        
+        I also renamed the member variable of SelectionRect to be pageNumber instead of
+        columnNumber in order to make it more obvious that this isn't about columns per se
+        (since the fact that we implemented RenderView's pagination mode using columns is an
+        implementation detail).
+
+        * dom/Range.cpp:
+        (WebCore::coalesceSelectionRects):
+        (WebCore::Range::collectSelectionRects):
+        * platform/ios/SelectionRect.h:
+        (WebCore::SelectionRect::pageNumber):
+        (WebCore::SelectionRect::columnNumber): Deleted.
+        * rendering/RenderImage.cpp:
+        (WebCore::RenderImage::collectSelectionRects):
+        * rendering/RenderObject.cpp:
+        (WebCore::RenderObject::collectSelectionRects):
+        (WebCore::RenderObject::columnNumberForOffset): Deleted.
+        * rendering/RenderObject.h:
+        * rendering/RenderText.cpp:
+        (WebCore::RenderText::collectSelectionRects):
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::pageNumberForBlockProgressionOffset):
+        * rendering/RenderView.h:
+
+2014-04-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] A few final cleanups to the DataObject classes.
+        https://bugs.webkit.org/show_bug.cgi?id=131784
+
+        Reviewed by Anders Carlsson.
+
+        * platform/win/WCDataObject.cpp:
+        (WebCore::WCDataObject::clearData): Use 'last()' method.
+
+2014-04-15  Jer Noble  <jer.noble@apple.com>
+
+        Fullscreen media controls are unusable in pagination mode
+        https://bugs.webkit.org/show_bug.cgi?id=131705
+
+        Reviewed by Darin Adler.
+
+        When pagination mode is enabled, the full screen media will (depending on the width of the
+        pagination columns) overflow its column, and hit testing will be clipped to the column. In extreme
+        cases, where the column width < 0.5 * media element width, the media controls will be entirely
+        unclickable.
+
+        Rather than making the RenderFullScreen a child of the full screen element's parent's renderer,
+        make it a child of the RenderView, putting it outside of the columns entirely. Always create and
+        insert the fullscreenRenderer's placeholder, using it as the remembered insertion point for the
+        fullscreen element's renderer when we exit full screen.
+
+        Drive-by fix: don't wrap the full screen element's renderer in webkitWillEnterFullScreenForElement();
+        it will just be re-wrapped in createRendererIfNeeded().
+
+        * dom/Document.cpp:
+        (WebCore::Document::webkitWillEnterFullScreenForElement): Don't wrap the full screen element's renderer.
+        (WebCore::Document::setFullScreenRenderer): Call setPlaceholderStyle.
+        * rendering/RenderFullScreen.cpp:
+        (WebCore::RenderFullScreenPlaceholder::willBeDestroyed): Call clearPlaceholder.
+        (WebCore::RenderFullScreen::wrapRenderer): Make fullscreenRenderer a child of the view().
+        (WebCore::RenderFullScreen::unwrapRenderer): Return the children to the parent of the placeholder().
+        (WebCore::RenderFullScreen::clearPlaceholder): Renamed from setPlaceholder().
+        (WebCore::RenderFullScreen::ensurePlaceholder): Added. 
+        (WebCore::RenderFullScreen::setPlaceholderStyle): Renamed from createPlaceholder().
+        (WebCore::RenderFullScreen::setPlaceholder): Deleted.
+        (WebCore::RenderFullScreen::createPlaceholder): Deleted.
+        * rendering/RenderFullScreen.h:
+
+2014-04-16  Jer Noble  <jer.noble@apple.com>
+
+        [MSE] Multiple initialization segments with same codecs in tracks fail validation.
+        https://bugs.webkit.org/show_bug.cgi?id=131768
+
+        Additional initialization segments added to the same SourceBuffer with the same
+        codec values will fail validation. Update the validation check to add the correct
+        codec information for the initial segment, and check against the correct codecs during
+        the validation step.
+
+        Additionally, after validation, if successful update the Audio, Video, and TextTracks
+        for the SourceBuffer with the updated initialization segment information.
+
+        Reviewed by Eric Carlson.
+
+        Test: media/media-source/media-source-multiple-initialization-segments.html
+
+        * Modules/mediasource/SourceBuffer.cpp:
+        (WebCore::SourceBuffer::appendBufferTimerFired): m_source may have been cleared
+            as a result of the append, so check it before using.
+        (WebCore::SourceBuffer::sourceBufferPrivateDidEndStream): Call streamEndedWithError
+            instead of endOfStream as the latter is safe to call within an update.
+        (WebCore::SourceBuffer::sourceBufferPrivateDidReceiveInitializationSegment): Ditto.
+            Update the track lists if validation succeeds.
+        (WebCore::SourceBuffer::validateInitializationSegment): Switch the audio and video
+            codec checks.
+
+        Add the ability for Audio, Video, and InbandTextTracks to replace their private tracks:
+        * html/track/AudioTrack.cpp:
+        (WebCore::AudioTrack::AudioTrack): Call updateKindFromPrivate().
+        (WebCore::AudioTrack::setPrivate):
+        (WebCore::AudioTrack::updateKindFromPrivate): Split out from constructor.
+        * html/track/AudioTrack.h:
+        * html/track/InbandTextTrack.cpp:
+        (WebCore::InbandTextTrack::InbandTextTrack): Call updateKindFromPrivate().
+        (WebCore::InbandTextTrack::setPrivate):
+        (WebCore::InbandTextTrack::setMode): Split up into setModeInternal().
+        (WebCore::InbandTextTrack::setModeInternal): Broke out from setMode().
+        (WebCore::InbandTextTrack::updateKindFromPrivate): Split out from constructor.
+        * html/track/InbandTextTrack.h:
+        * html/track/TextTrack.h:
+        (WebCore::TextTrack::isInband): Added, returns false.
+        * html/track/VideoTrack.cpp:
+        (WebCore::VideoTrack::VideoTrack): Call updateKindFromPrivate().
+        (WebCore::VideoTrack::setPrivate):
+        (WebCore::VideoTrack::updateKindFromPrivate):  Split out from constructor.
+        * html/track/VideoTrack.h:
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column sets below spanners don't repaint properly.
+        https://bugs.webkit.org/show_bug.cgi?id=131778
+
+        Reviewed by Beth Dakin.
+
+        Added fast/repaint/spanner-with-margins.html.
+
+        * rendering/RenderBox.cpp:
+        (WebCore::RenderBox::computeRectForRepaint):
+        Turn off some code that was running for in-flow RenderFlowThreads that made no sense.
+        I'm not convinced the code is right for other types of RenderFlowThreads either,
+        but will leave that to the named flow thread experts. :)
+
+2014-04-17  Koji Ishii  <kojishi@gmail.com>
+
+        Catch up ruby and its tag omission rule changes in HTML5 CR Feb 2014
+        https://bugs.webkit.org/show_bug.cgi?id=131175
+
+        Reviewed by Darin Adler.
+
+        Tests: html5lib/resources/ruby.dat
+               html5lib/resources/tests19.dat
+
+        This patch makes WebKit HTML parser to match to the tag omission rules of HTML5 CR Feb 2014:
+        http://www.w3.org/TR/2014/CR-html5-20140204/syntax.html#syntax-tag-omission
+        with the support for two new elements (rb, rtc) which were also defined in the spec:
+        http://www.w3.org/TR/2014/CR-html5-20140204/text-level-semantics.html#the-rb-element
+        http://www.w3.org/TR/2014/CR-html5-20140204/text-level-semantics.html#the-rtc-element
+        to better support use cases presented by W3C I18N WG:
+        http://www.w3.org/TR/ruby-use-cases/
+
+        * html/HTMLTagNames.in: rb and rtc added as HTMLElement interfaces.
+        * html/parser/HTMLConstructionSite.cpp:
+        (WebCore::hasImpliedEndTag): the spec says rb and rtc have implied end tags.
+        * html/parser/HTMLTreeBuilder.cpp:
+        (WebCore::HTMLTreeBuilder::processStartTagForInBody): rb and rtc added. rt excludes rtc from its implied end tags.
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        Try to fix EFL and GTK builds.
+
+        * workers/WorkerGlobalScope.idl: Touch file to make it rebuild, assuming that
+        module dependencies aren't working right with CMake. Tweaked formatting quite a
+        bit while I was in here.
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] REGRESSION: Column set styles don't update when zooming etc.
+        https://bugs.webkit.org/show_bug.cgi?id=131777
+
+        Reviewed by Enrica Casucci.
+
+        Added fast/multicol/zoom-test.html
+
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::styleDidChange):
+        Put back in the code that propagates new styles to the flow thread and column sets
+        when styles change. This propagation was removed when the column span code landed.
+        This patch puts it back in but qualifies the types of objects that get styles
+        propagated to avoid accidentally propagating the wrong style to column spans.
+
 2014-04-17  Darin Adler  <darin@apple.com>
 
         Add separate flag for IndexedDatabase in workers since the current implementation is not threadsafe

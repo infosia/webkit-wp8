@@ -1,3 +1,116 @@
+2014-04-17  Filip Pizlo  <fpizlo@apple.com>
+
+        InlineCallFrameSet should be refcounted
+        https://bugs.webkit.org/show_bug.cgi?id=131829
+
+        Reviewed by Geoffrey Garen.
+        
+        And DFG::Plan should hold a ref to it. Previously it was owned by Graph until it
+        became owned by JITCode. Except that if we're "failing" to compile, JITCode may die.
+        Even as it dies, the GC may still want to scan the DFG::Plan, which leads to scanning
+        the DesiredWriteBarriers, which leads to scanning the InlineCallFrameSet.
+        
+        So, just make the darn thing refcounted.
+
+        * bytecode/InlineCallFrameSet.h:
+        * dfg/DFGArgumentsSimplificationPhase.cpp:
+        (JSC::DFG::ArgumentsSimplificationPhase::run):
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::InlineStackEntry::InlineStackEntry):
+        * dfg/DFGCommonData.h:
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::Graph):
+        (JSC::DFG::Graph::requiredRegisterCountForExit):
+        * dfg/DFGGraph.h:
+        * dfg/DFGJITCompiler.cpp:
+        (JSC::DFG::JITCompiler::link):
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::Plan):
+        * dfg/DFGPlan.h:
+        * dfg/DFGStackLayoutPhase.cpp:
+        (JSC::DFG::StackLayoutPhase::run):
+        * ftl/FTLFail.cpp:
+        (JSC::FTL::fail):
+        * ftl/FTLLink.cpp:
+        (JSC::FTL::link):
+
+2014-04-17  Filip Pizlo  <fpizlo@apple.com>
+
+        FTL::fail() should manage memory "correctly"
+        https://bugs.webkit.org/show_bug.cgi?id=131823
+        <rdar://problem/16384297>
+
+        Reviewed by Oliver Hunt.
+
+        * ftl/FTLFail.cpp:
+        (JSC::FTL::fail):
+
+2014-04-17  Filip Pizlo  <fpizlo@apple.com>
+
+        Prediction propagator should correctly model Int52s flowing through arguments
+        https://bugs.webkit.org/show_bug.cgi?id=131822
+        <rdar://problem/16641408>
+
+        Reviewed by Oliver Hunt.
+
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::propagate):
+        * tests/stress/int52-argument.js: Added.
+        (foo):
+        * tests/stress/int52-variable.js: Added.
+        (foo):
+
+2014-04-17  Filip Pizlo  <fpizlo@apple.com>
+
+        REGRESSION: ASSERT(!typeInfo().hasImpureGetOwnPropertySlot() || typeInfo().newImpurePropertyFiresWatchpoints()) on jquery tests
+        https://bugs.webkit.org/show_bug.cgi?id=131798
+
+        Reviewed by Alexey Proskuryakov.
+        
+        Some day, we will fix https://bugs.webkit.org/show_bug.cgi?id=131810 and some version
+        of this assertion can return. For now, it's not clear that the assertion is guarding
+        any truly undesirable behavior - so it should just go away and be replaced with a
+        FIXME.
+
+        * bytecode/GetByIdStatus.cpp:
+        (JSC::GetByIdStatus::computeForStubInfo):
+        * runtime/Structure.h:
+        (JSC::Structure::takesSlowPathInDFGForImpureProperty):
+
+2014-04-17  David Kilzer  <ddkilzer@apple.com>
+
+        Blind attempt to fix Windows build after r166837
+        <http://webkit.org/b/131246>
+
+        Hoping to fix this build error:
+
+            warning MSB8027: Two or more files with the name of GCLogging.cpp will produce outputs to the same location. This can lead to an incorrect build result.  The files involved are ..\heap\GCLogging.cpp, ..\heap\GCLogging.cpp.
+
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj: Fix copy-paste
+        boo-boo by changing the GCLogging.cpp ClCompile entry to a
+        GCLogging.h ClInclude entry.
+
+2014-04-16  Filip Pizlo  <fpizlo@apple.com>
+
+        AI for GetLocal should match the DFG backend, and in this case, the best way to do that is to get rid of the "exit if empty prediction" thing since it's a vestige of a time long gone
+        https://bugs.webkit.org/show_bug.cgi?id=131764
+
+        Reviewed by Geoffrey Garen.
+        
+        The attached test case can be made to not crash by deleting old code. It used to be
+        the case that the DFG needed empty prediction guards, for shady reasons. We fixed that
+        long ago. At this point, these guards just make life difficult. So get rid of them.
+
+        * dfg/DFGAbstractInterpreterInlines.h:
+        (JSC::DFG::AbstractInterpreter<AbstractStateType>::executeEffects):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * tests/stress/bug-131764.js: Added.
+        (test1):
+        (test2):
+
 2014-04-17  Darin Adler  <darin@apple.com>
 
         Add separate flag for IndexedDatabase in workers since the current implementation is not threadsafe

@@ -593,6 +593,7 @@ public:
     void getAutocorrectionContext(String& contextBefore, String& markedText, String& selectedText, String& contextAfter, uint64_t& location, uint64_t& length);
     void requestDictationContext(PassRefPtr<DictationContextCallback>);
     void replaceDictatedText(const String& oldText, const String& newText);
+    void replaceSelectedText(const String& oldText, const String& newText);
     void didReceivePositionInformation(const InteractionInformationAtPosition&);
     void getPositionInformation(const WebCore::IntPoint&, InteractionInformationAtPosition&);
     void requestPositionInformation(const WebCore::IntPoint&);
@@ -1346,7 +1347,9 @@ private:
 #endif // PLATFORM(MAC)
 
 #if PLATFORM(IOS)
-    WebCore::FloatSize viewportScreenSize();
+    WebCore::FloatSize screenSize();
+    WebCore::FloatSize availableScreenSize();
+
 
     void dynamicViewportUpdateChangedTarget(double newTargetScale, const WebCore::FloatPoint& newScrollPosition);
     void didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color& color, const Vector<WebCore::FloatQuad>& geometries, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius);

@@ -1,3 +1,189 @@
+2014-04-18  Philippe Normand  <pnormand@igalia.com>
+
+        Remove NETWORK_INFO support
+        https://bugs.webkit.org/show_bug.cgi?id=131841
+
+        Reviewed by Gyuyoung Kim.
+
+        * CMakeLists.txt:
+        * PlatformEfl.cmake:
+        * Shared/API/c/WKBase.h:
+        * Shared/APIObject.h:
+        * Shared/WebNetworkInfo.cpp: Removed.
+        * Shared/WebNetworkInfo.h: Removed.
+        * UIProcess/API/C/WKAPICast.h:
+        * UIProcess/API/C/WKContext.cpp:
+        (WKContextGetNetworkInfoManager): Deleted.
+        * UIProcess/API/C/WKContext.h:
+        * UIProcess/API/C/WKNetworkInfo.cpp: Removed.
+        * UIProcess/API/C/WKNetworkInfo.h: Removed.
+        * UIProcess/API/C/WKNetworkInfoManager.cpp: Removed.
+        * UIProcess/API/C/WKNetworkInfoManager.h: Removed.
+        * UIProcess/API/efl/ewk_context.cpp:
+        (EwkContext::EwkContext):
+        * UIProcess/API/efl/ewk_context_private.h:
+        * UIProcess/WebContext.cpp:
+        (WebKit::WebContext::WebContext):
+        * UIProcess/WebContext.h:
+        * UIProcess/WebNetworkInfoManagerProxy.cpp: Removed.
+        * UIProcess/WebNetworkInfoManagerProxy.h: Removed.
+        * UIProcess/WebNetworkInfoManagerProxy.messages.in: Removed.
+        * UIProcess/WebNetworkInfoProvider.cpp: Removed.
+        * UIProcess/WebNetworkInfoProvider.h: Removed.
+        * UIProcess/efl/NetworkInfoProvider.cpp: Removed.
+        * UIProcess/efl/NetworkInfoProvider.h: Removed.
+        * WebProcess/NetworkInfo/WebNetworkInfoManager.cpp: Removed.
+        * WebProcess/NetworkInfo/WebNetworkInfoManager.h: Removed.
+        * WebProcess/NetworkInfo/WebNetworkInfoManager.messages.in: Removed.
+        * WebProcess/WebCoreSupport/WebNetworkInfoClient.cpp: Removed.
+        * WebProcess/WebCoreSupport/WebNetworkInfoClient.h: Removed.
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::WebProcess):
+
+2014-04-17  Daniel Bates  <dabates@apple.com>
+
+        [iOS] Hook up screen.{availHeight, availWidth, height, width}
+        https://bugs.webkit.org/show_bug.cgi?id=131821
+        <rdar://problem/16413795>
+
+        Reviewed by Benjamin Poulain and Tim Horton.
+
+        Implement WebKit2-specific support infrastructure.
+
+        Additionally substitute "screenSize" for "viewporScreenSize" to make the code more understandable.
+
+        * Shared/WebPageCreationParameters.cpp:
+        (WebKit::WebPageCreationParameters::encode): Modified to encode the available screen size
+        creation parameter.
+        (WebKit::WebPageCreationParameters::decode): Modified to decode the available screen size
+        creation parameter.
+        * Shared/WebPageCreationParameters.h:
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::creationParameters): Initialize the available screen size
+        parameter.
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/ios/WebPageProxyIOS.mm:
+        (WebKit::WebPageProxy::screenSize): Renamed; formerly named viewportScreenSize.
+        (WebKit::WebPageProxy::availableScreenSize): Added.
+        * WebProcess/WebCoreSupport/WebChromeClient.cpp:
+        (WebKit::WebChromeClient::screenSize): Renamed; formerly named viewportScreenSize.
+        (WebKit::WebChromeClient::availableScreenSize): Added; turns around and calls WebPage::availableScreenSize().
+        * WebProcess/WebCoreSupport/WebChromeClient.h:
+        * WebProcess/WebCoreSupport/mac/WebSystemInterface.mm:
+        (InitWebCoreSystemInterface): Hook up WebKit System Interface function WKGetAvailableScreenSize.
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage): Initialize available screen size instance variable.
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::screenSize):
+        (WebKit::WebPage::availableScreenSize):
+
+2014-04-17  Anders Carlsson  <andersca@apple.com>
+
+        Remove unused API enums
+        https://bugs.webkit.org/show_bug.cgi?id=131836
+
+        Reviewed by Tim Horton.
+
+        * UIProcess/API/Cocoa/WKNavigationDelegate.h:
+        (NS_ENUM):
+        * UIProcess/Cocoa/NavigationState.mm:
+        (WebKit::NavigationState::PolicyClient::decidePolicyForNavigationAction):
+        (WebKit::NavigationState::PolicyClient::decidePolicyForResponse):
+
+2014-04-17  Brent Fulgham  <bfulgham@apple.com>
+
+        Make RenderLayerBacking get the timingFunction of the correct animation.
+        https://bugs.webkit.org/show_bug.cgi?id=100632
+
+        Reviewed by Simon Fraser.
+
+        * Shared/CoordinatedGraphics/CoordinatedGraphicsArgumentCoders.cpp:
+        (IPC::ArgumentCoder<GraphicsLayerAnimation>::decode): Update for new signatures for
+        FloatAnimationValue, TransformAnimationValue, etc.
+
+2014-04-17  Enrica Casucci  <enrica@apple.com>
+
+        [iOS WebKit2] support replacements for misspelled words.
+        https://bugs.webkit.org/show_bug.cgi?id=131827
+        <rdar://problem/16319657>
+
+        Reviewed by Benjamin Poulain.
+
+        This is the first part of the work to add support for replacements.
+        It handles _promptForReplace in canPerformAction to decide
+        whether to show the Replace button in the menu and add the
+        implementation of the replace action.
+
+        * Shared/EditorState.cpp:
+        (WebKit::EditorState::encode):
+        (WebKit::EditorState::decode):
+        * Shared/EditorState.h:
+        (WebKit::EditorState::EditorState):
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/ios/WKContentViewInteraction.mm:
+        (-[WKContentView selectedText]):
+        (-[WKContentView replaceText:withText:]):
+        (-[WKContentView _promptForReplace:]):
+        (-[WKContentView replace:]):
+        (-[WKContentView canPerformAction:withSender:]):
+        (-[WKContentView selectWordForReplacement]): This is called
+        by UIKit when the user taps on a mispelled word to select it.
+        * UIProcess/ios/WebPageProxyIOS.mm:
+        (WebKit::WebPageProxy::replaceSelectedText):
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+        (WebKit::WebPage::editorState):
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/WebPage.messages.in:
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::selectWithGesture): Removed m_shouldReturnWordForSelection.
+        We now return always the word corresponding to the caret selection or
+        the selected text up to a maximum of 200 characters.
+        (WebKit::WebPage::extendSelection):
+        (WebKit::WebPage::replaceSelectedText):
+
+2014-04-17  Tim Horton  <timothy_horton@apple.com>
+
+        [iOS] REGRESSION (r166975): WKPDFView is broken
+        https://bugs.webkit.org/show_bug.cgi?id=131828
+
+        Reviewed by Simon Fraser.
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (-[WKWebView _didCommitLayerTree:WebKit::]):
+        Bail from updating the scroll view parameters from the layer tree update
+        while it's being managed by a custom content view.
+        We'll get any changes again in the next commit after removing the custom
+        content view (and painting the new page) anyway, so this should be OK.
+
+2014-04-17  Pratik Solanki  <psolanki@apple.com>
+
+        _webProcessIdentifier should return 0 if the web process crashed
+        https://bugs.webkit.org/show_bug.cgi?id=131813
+        <rdar://problem/16650605>
+
+        Reviewed by Anders Carlsson.
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (-[WKWebView _hasWebProcess]):
+        * UIProcess/API/Cocoa/WKWebViewPrivate.h:
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        Remove use of deprecatedDeleteAllValues in NPRemoteObjectMap::pluginDestroyed
+        https://bugs.webkit.org/show_bug.cgi?id=122496
+
+        Reviewed by Brent Fulgham.
+
+        * Shared/Plugins/NPRemoteObjectMap.cpp:
+        (WebKit::NPRemoteObjectMap::pluginDestroyed): Use new-style code and write the
+        deprecatedDeleteAllValues function out using a loop. Might be nice to return here
+        and use unique_ptr instead some day, but I tried that before and got it wrong, so
+        lets do that another time.
+
 2014-04-17  Darin Adler  <darin@apple.com>
 
         Add separate flag for IndexedDatabase in workers since the current implementation is not threadsafe

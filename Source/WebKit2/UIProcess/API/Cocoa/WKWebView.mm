@@ -453,7 +453,8 @@ static CGFloat contentZoomScale(WKWebView* webView)
 
 - (void)_didCommitLayerTree:(const WebKit::RemoteLayerTreeTransaction&)layerTreeTransaction
 {
-    ASSERT(!_customContentView);
+    if (_customContentView)
+        return;
 
     if (_isAnimatingResize) {
         [_contentView layer].sublayerTransform = _resizeAnimationTransformAdjustments;
@@ -952,7 +953,7 @@ static inline void setViewportConfigurationMinimumLayoutSize(WebKit::WebPageProx
 
 - (pid_t)_webProcessIdentifier
 {
-    return _page->processIdentifier();
+    return _page->isValid() ? _page->processIdentifier() : 0;
 }
 
 - (NSData *)_sessionState

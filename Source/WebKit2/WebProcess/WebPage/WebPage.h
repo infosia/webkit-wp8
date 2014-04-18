@@ -437,7 +437,8 @@ public:
 #endif
 
 #if PLATFORM(IOS)
-    WebCore::FloatSize viewportScreenSize() const;
+    WebCore::FloatSize screenSize() const;
+    WebCore::FloatSize availableScreenSize() const;
     void viewportPropertiesDidChange(const WebCore::ViewportArguments&);
     void didReceiveMobileDocType(bool);
 
@@ -458,6 +459,7 @@ public:
     void elementDidBlur(WebCore::Node*);
     void requestDictationContext(uint64_t callbackID);
     void replaceDictatedText(const String& oldText, const String& newText);
+    void replaceSelectedText(const String& oldText, const String& newText);
     void requestAutocorrectionData(const String& textForAutocorrection, uint64_t callbackID);
     void applyAutocorrection(const String& correction, const String& originalText, uint64_t callbackID);
     void syncApplyAutocorrection(const String& correction, const String& originalText, bool& correctionApplied);
@@ -1146,7 +1148,6 @@ private:
     RefPtr<WebCore::Node> m_assistedNode;
     RefPtr<WebCore::Range> m_currentWordRange;
     RefPtr<WebCore::Node> m_interactionNode;
-    bool m_shouldReturnWordAtSelection;
     WebCore::IntPoint m_lastInteractionLocation;
 
     WebCore::ViewportConfiguration m_viewportConfiguration;
@@ -1154,7 +1155,8 @@ private:
     bool m_hasReceivedVisibleContentRectsAfterDidCommitLoad;
     bool m_scaleWasSetByUIProcess;
     bool m_userHasChangedPageScaleFactor;
-    WebCore::FloatSize m_viewportScreenSize;
+    WebCore::FloatSize m_screenSize;
+    WebCore::FloatSize m_availableScreenSize;
     WebCore::IntSize m_blockSelectionDesiredSize;
 #endif
 

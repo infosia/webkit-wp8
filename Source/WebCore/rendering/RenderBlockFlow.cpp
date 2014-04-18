@@ -1868,6 +1868,13 @@ void RenderBlockFlow::styleDidChange(StyleDifference diff, const RenderStyle* ol
 
     if (diff >= StyleDifferenceRepaint)
         invalidateLineLayoutPath();
+    
+    if (multiColumnFlowThread()) {
+        for (auto child = firstChildBox();
+             child && (child->isInFlowRenderFlowThread() || child->isRenderMultiColumnSet());
+             child = child->nextSiblingBox())
+            child->setStyle(RenderStyle::createAnonymousStyleWithDisplay(&style(), BLOCK));
+    }
 }
 
 void RenderBlockFlow::styleWillChange(StyleDifference diff, const RenderStyle& newStyle)
@@ -1987,6 +1994,20 @@ void RenderBlockFlow::repaintOverhangingFloats(bool paintAllDescendants)
             floatingObject->renderer().repaint();
             floatingObject->renderer().repaintOverhangingFloats(false);
         }
+    }
+}
+
+void RenderBlockFlow::paintBoxDecorations(PaintInfo& paintInfo, const LayoutPoint& point)
+{
+    RenderBlock::paintBoxDecorations(paintInfo, point);
+    
+    if (!multiColumnFlowThread() || !paintInfo.shouldPaintWithinRoot(*this))
+        return;
+    
+    // Iterate over our children and paint the column rules as needed.
+    for (auto& columnSet : childrenOfType<RenderMultiColumnSet>(*this)) {
+        LayoutPoint childPoint = columnSet.location() + flipForWritingModeForChild(&columnSet, point);
+        columnSet.paintColumnRules(paintInfo, childPoint);
     }
 }
 

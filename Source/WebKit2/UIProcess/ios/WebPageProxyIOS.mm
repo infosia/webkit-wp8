@@ -233,7 +233,12 @@ void WebPageProxy::replaceDictatedText(const String& oldText, const String& newT
 {
     m_process->send(Messages::WebPage::ReplaceDictatedText(oldText, newText), m_pageID);
 }
-    
+
+void WebPageProxy::replaceSelectedText(const String& oldText, const String& newText)
+{
+    m_process->send(Messages::WebPage::ReplaceSelectedText(oldText, newText), m_pageID);
+}
+
 void WebPageProxy::requestAutocorrectionData(const String& textForAutocorrection, PassRefPtr<AutocorrectionDataCallback> callback)
 {
     if (!isValid()) {
@@ -458,9 +463,14 @@ void WebPageProxy::blurAssistedNode()
     process().send(Messages::WebPage::BlurAssistedNode(), m_pageID);
 }
 
-FloatSize WebPageProxy::viewportScreenSize()
+FloatSize WebPageProxy::screenSize()
 {
-    return FloatSize(WKGetViewportScreenSize());
+    return FloatSize(WKGetScreenSize());
+}
+
+FloatSize WebPageProxy::availableScreenSize()
+{
+    return FloatSize(WKGetAvailableScreenSize());
 }
 
 void WebPageProxy::dynamicViewportUpdateChangedTarget(double newScale, const WebCore::FloatPoint& newScrollPosition)

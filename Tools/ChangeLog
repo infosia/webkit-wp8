@@ -1,3 +1,72 @@
+2014-04-18  Philippe Normand  <pnormand@igalia.com>
+
+        Remove NETWORK_INFO support
+        https://bugs.webkit.org/show_bug.cgi?id=131841
+
+        Reviewed by Gyuyoung Kim.
+
+        * Scripts/webkitperl/FeatureList.pm:
+
+2014-04-17  ChangSeok Oh  <changseok.oh@collabora.com>
+
+        [GTK] YouCompleteMe doesn't work for cmake build system.
+        https://bugs.webkit.org/show_bug.cgi?id=131591
+
+        Reviewed by Martin Robinson.
+
+        Add cmake build system support for YouCompleteMe. It should work regardless of
+        using make or ninja. In addition, autotools related code is removed since it's
+        not used anymore in WebKit.
+
+        * Scripts/webkitdirs.pm:
+        (generateBuildSystemFromCMakeProject):
+        * gtk/ycm_extra_conf.py:
+        (transform_relative_paths_to_absolute_paths):
+        (FlagsForFile):
+
+2014-04-17  Anders Carlsson  <andersca@apple.com>
+
+        Fix build.
+
+        * TestWebKitAPI/Tests/WebKit2Cocoa/Download.mm:
+        (-[DownloadNavigationDelegate webView:decidePolicyForNavigationAction:decisionHandler:]):
+        (-[ConvertResponseToDownloadNavigationDelegate webView:decidePolicyForNavigationResponse:decisionHandler:]):
+
+2014-04-17  Anders Carlsson  <andersca@apple.com>
+
+        Remove unused API enums
+        https://bugs.webkit.org/show_bug.cgi?id=131836
+
+        Reviewed by Tim Horton.
+
+        * MiniBrowser/mac/WK2BrowserWindowController.m:
+        (-[WK2BrowserWindowController webView:decidePolicyForNavigationResponse:decisionHandler:]):
+
+2014-04-16  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] A few final cleanups to the DataObject classes.
+        https://bugs.webkit.org/show_bug.cgi?id=131784
+
+        Reviewed by Anders Carlsson.
+
+        * DumpRenderTree/win/DRTDataObject.cpp:
+        (DRTDataObject::clearData): Use 'last()' method.
+        * DumpRenderTree/win/UIDelegate.cpp:
+        (DRTUndoStack::pop): Use 'takeLast()' method.
+
+2014-04-17  Andres Gomez  <agomez@igalia.com>
+
+        [Win] cygwin to keep installing curl 7.33.0-1 and subversion 1.7.14-1
+        https://bugs.webkit.org/show_bug.cgi?id=131365
+
+        Reviewed by Brent Fulgham.
+
+        The cygwin installer is now downloading the wanted versions for
+        the local installation given to the setup wizard.
+
+        * CygwinDownloader/cygwin-downloader.py:
+        * CygwinDownloader/cygwin-downloader.zip:
+
 2014-04-17  Adrian Perez de Castro  <aperez@igalia.com>
 
         [GTK] Make run-webkit-tests always use WKTR

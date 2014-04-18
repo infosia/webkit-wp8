@@ -1,3 +1,265 @@
+2014-04-18  Radu Stavila  <stavila@adobe.com>
+
+        [CSSRegions] Incorrect background paint on positioned element hover
+        https://bugs.webkit.org/show_bug.cgi?id=131617
+
+        Reviewed by Andrei Bucur.
+
+        Added test for the proper repainting of absolute positioned elements in regions when the
+        absolute top of the elements causes it to be pushed to the next region.
+
+        * fast/regions/repaint/repaint-absolute-pushed-to-next-region-expected.txt: Added.
+        * fast/regions/repaint/repaint-absolute-pushed-to-next-region.html: Added.
+
+2014-04-18  Philippe Normand  <pnormand@igalia.com>
+
+        Remove NETWORK_INFO support
+        https://bugs.webkit.org/show_bug.cgi?id=131841
+
+        Reviewed by Gyuyoung Kim.
+
+        * networkinformation/add-listener-from-callback-expected.txt: Removed.
+        * networkinformation/add-listener-from-callback.html: Removed.
+        * networkinformation/basic-all-types-of-events-expected.txt: Removed.
+        * networkinformation/basic-all-types-of-events.html: Removed.
+        * networkinformation/basic-operation-expected.txt: Removed.
+        * networkinformation/basic-operation.html: Removed.
+        * networkinformation/event-after-navigation-expected.txt: Removed.
+        * networkinformation/event-after-navigation.html: Removed.
+        * networkinformation/multiple-frames-expected.txt: Removed.
+        * networkinformation/multiple-frames.html: Removed.
+        * networkinformation/resources/event-after-navigation-new.html: Removed.
+        * networkinformation/script-tests/add-listener-from-callback.js: Removed.
+        * networkinformation/script-tests/basic-all-types-of-events.js: Removed.
+        * networkinformation/script-tests/basic-operation.js: Removed.
+        * networkinformation/script-tests/event-after-navigation.js: Removed.
+        * networkinformation/script-tests/multiple-frames.js: Removed.
+        * networkinformation/script-tests/updates.js: Removed.
+        * networkinformation/script-tests/window-property.js: Removed.
+        * networkinformation/updates-expected.txt: Removed.
+        * networkinformation/updates.html: Removed.
+        * networkinformation/window-property-expected.txt: Removed.
+        * networkinformation/window-property.html: Removed.
+
+2014-04-17  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167478.
+        https://bugs.webkit.org/show_bug.cgi?id=131840
+
+        Broke multicol tests (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[New Multicolumn] Pagination mode messed up with non-inline
+        axis and reversed direction."
+        https://bugs.webkit.org/show_bug.cgi?id=131811
+        http://trac.webkit.org/changeset/167478
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        hostname extraction from a URL should not decode percent-escape sequences
+        https://bugs.webkit.org/show_bug.cgi?id=131837
+        rdar://problem/15211936
+
+        Reviewed by Anders Carlsson and Dave Hyatt.
+
+        * fast/dom/DOMURL/parsing-expected.txt: Added.
+        * fast/dom/DOMURL/parsing.html: Added.
+        * fast/dom/HTMLAnchorElement/anchor-element-href-parsing-expected.txt: Added.
+        * fast/dom/HTMLAnchorElement/anchor-element-href-parsing.html: Added.
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Pagination mode messed up with non-inline axis and reversed direction.
+        https://bugs.webkit.org/show_bug.cgi?id=131811
+
+        Reviewed by Dean Jackson.
+
+        * fast/multicol/newmulticol/compare-with-old-impl/BottomToTop-tb-expected.html: Added.
+        * fast/multicol/newmulticol/compare-with-old-impl/BottomToTop-tb.html: Added.
+
+2014-04-16  Huang Dongsung  <luxtella@company100.net>
+
+        Make RenderLayerBacking get the timingFunction of the correct animation.
+        https://bugs.webkit.org/show_bug.cgi?id=100632
+
+        Reviewed by Simon Fraser.
+
+        When an element on a compositing layer has multiple animations that have
+        different timingFunctions, the progress of each animation should be
+        calculated using its respective timingFunction in Accelerated
+        Compositing.
+
+        * animations/keyframe-multiple-timing-functions-transform-expected.txt: Added.
+        * animations/keyframe-multiple-timing-functions-transform.html: Added.
+
+2014-04-17  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Unreviewed, EFL gardening. Remove duplicated test case in EFL WK2 TestExpectations.
+
+        * platform/efl-wk2/TestExpectations:
+
+2014-04-17  Gyuyoung Kim  <gyuyoung.kim@samsung.com>
+
+        Unreviewed, fix a test case path, which was moved to different folder.
+
+        * platform/efl/TestExpectations:
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column rules don't respect the specified stacking order.
+        https://bugs.webkit.org/show_bug.cgi?id=131804
+
+        Reviewed by Beth Dakin.
+
+        * fast/multicol/newmulticol/compare-with-old-impl/column-rules-stacking-expected.html: Added.
+        * fast/multicol/newmulticol/compare-with-old-impl/column-rules-stacking.html: Added.
+
+2014-04-17  Rik Cabanier  <cabanier@adobe.com>
+
+        [CSS Blending] Remove the -webkit- prefix for mix-blend-mode and isolation CSS properties
+        https://bugs.webkit.org/show_bug.cgi?id=131355
+
+        Reviewed by Dean Jackson.
+
+        Removed prefix from mix-blend-mode and isolation in layout tests.
+
+        * css3/compositing/blend-mode-accelerated-with-multiple-stacking-contexts.html:
+        * css3/compositing/blend-mode-ancestor-clipping-layer.html:
+        * css3/compositing/blend-mode-background.html:
+        * css3/compositing/blend-mode-blended-element-overlapping-composited-sibling-should-have-compositing-layer.html:
+        * css3/compositing/blend-mode-isolated-group-1.html:
+        * css3/compositing/blend-mode-isolated-group-2.html:
+        * css3/compositing/blend-mode-isolated-group-3.html:
+        * css3/compositing/blend-mode-layers.html:
+        * css3/compositing/blend-mode-parent-of-composited-blended-has-layer.html:
+        * css3/compositing/blend-mode-property-expected.txt:
+        * css3/compositing/blend-mode-property-parsing-expected.txt:
+        * css3/compositing/blend-mode-property-parsing-invalid-expected.txt:
+        * css3/compositing/blend-mode-reflection.html:
+        * css3/compositing/blend-mode-simple-composited.html:
+        * css3/compositing/blend-mode-simple.html:
+        * css3/compositing/blend-mode-transform-style-expected.txt:
+        * css3/compositing/blend-mode-transform-style.html:
+        * css3/compositing/blend-mode-with-accelerated-sibling.html:
+        * css3/compositing/blend-mode-with-composited-descendant-should-have-layer.html:
+        * css3/compositing/isolation-isolate-blended-child-expected.html:
+        * css3/compositing/isolation-isolate-blended-child.html:
+        * css3/compositing/isolation-parsing.html:
+        * css3/compositing/script-tests/blend-mode-property-parsing-invalid.js:
+        (testInvalidFilterRule):
+        * css3/compositing/script-tests/blend-mode-property-parsing.js:
+        (testBlendModeRule):
+        * css3/compositing/script-tests/blend-mode-property.js:
+        (testblendmode):
+        * css3/compositing/svg-blend-color-dodge.html:
+        * css3/compositing/svg-blend-color.html:
+        * css3/compositing/svg-blend-hard-light.html:
+        * css3/compositing/svg-blend-hue.html:
+        * css3/compositing/svg-blend-layer-blend.html:
+        * css3/compositing/svg-blend-layer-clip-path.html:
+        * css3/compositing/svg-blend-layer-filter.html:
+        * css3/compositing/svg-blend-layer-opacity.html:
+        * css3/compositing/svg-blend-layer-shadow.html:
+        * css3/compositing/svg-blend-luminosity.html:
+        * css3/compositing/svg-blend-multiply-alpha.html:
+        * css3/compositing/svg-blend-multiply.html:
+        * css3/compositing/svg-blend-saturation.html:
+        * css3/compositing/svg-blend-screen.html:
+        * css3/compositing/svg-blend-soft-light.html:
+        * css3/compositing/svg-isolation-default-expected.html:
+        * css3/compositing/svg-isolation-default.html:
+        * css3/compositing/svg-isolation-isolated-group-expected.html:
+        * css3/compositing/svg-isolation-isolated-group.html:
+        * fast/repaint/blend-mode-isolate-stacking-context.html:
+        * inspector-protocol/layers/layers-blending-compositing-reasons.html:
+        * transitions/blendmode-transitions-expected.txt:
+        * transitions/blendmode-transitions.html:
+
+2014-04-16  Jer Noble  <jer.noble@apple.com>
+
+        Fullscreen media controls are unusable in pagination mode
+        https://bugs.webkit.org/show_bug.cgi?id=131705
+
+        Reviewed by Darin Adler.
+
+        * fullscreen/full-screen-no-style-sharing-expected.txt: Rebaselined.
+        * fullscreen/video-cursor-auto-hide.html: Corrected test to move cursor
+            to the middle of the video element.
+
+2014-04-16  Jer Noble  <jer.noble@apple.com>
+
+        [MSE] Multiple initialization segments with same codecs in tracks fail validation.
+        https://bugs.webkit.org/show_bug.cgi?id=131768
+
+        Reviewed by Eric Carlson.
+
+        * media/media-source/media-source-multiple-initialization-segments-expected.txt: Added.
+        * media/media-source/media-source-multiple-initialization-segments.html: Added.
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column sets below spanners don't repaint properly.
+        https://bugs.webkit.org/show_bug.cgi?id=131778
+
+        Reviewed by Beth Dakin.
+
+        * fast/repaint/spanner-with-margin-expected.txt: Added.
+        * fast/repaint/spanner-with-margin.html: Added.
+
+2014-04-17  Eduardo Lima Mitev  <elima@igalia.com>
+
+        [GTK] [Gardening] Updates GTK test expectations
+
+        * platform/gtk/TestExpectations:
+          - Marked as flaky
+            - fast/frames/frame-programmatic-noresize.html
+            - fast/frames/frame-with-noresize-can-be-resized-after-removal-of-noresize.html
+            - fast/frames/frame-with-noresize-can-be-resized-after-setting-noResize-to-false.html
+          - Removed because are passing now
+            - fast/dom/gc-dom-tree-lifetime.html
+            - http/tests/loading/authentication-after-redirect-stores-wrong-credentials/authentication-after-redirect-stores-wrong-credentials.html
+            - editing/editability/ignored-content.html
+
+2014-04-17  Koji Ishii  <kojishi@gmail.com>
+
+        Catch up ruby and its tag omission rule changes in HTML5 CR Feb 2014
+        https://bugs.webkit.org/show_bug.cgi?id=131175
+
+        Reviewed by Darin Adler.
+
+        25 new test cases in 2 test files imported from pull requests to html5lib-tests,
+        with run- and expected-files generated.
+        All new tests pass with the changes included in this patch.
+
+        * html5lib/generated/run-ruby-data-expected.txt: Added.
+        * html5lib/generated/run-ruby-data.html: Added (generated by generate-test-wrappers.py)
+        * html5lib/generated/run-ruby-write-expected.txt: Added.
+        * html5lib/generated/run-ruby-write.html: Added (generated by generate-test-wrappers.py)
+        * html5lib/resources/ruby.dat: Added from https://github.com/darobin/html5lib-tests/pull/1
+        * html5lib/resources/tests19.dat: Updated from https://github.com/html5lib/html5lib-tests/pull/27
+
+2014-04-17  Alexey Proskuryakov  <ap@apple.com>
+
+        Don't skip inspector/dom/content-flow-list.html and inspector/dom/content-flow-content-removal.html.
+
+        First, they no longer crash/assert. They fail most of the time, but that's tracked as bug 129817.
+
+        Second, skipping was ineffective anyway, because we had a preceding [ Pass Failure ]
+        entry for the same files.
+
+        * TestExpectations:
+
+2014-04-17  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] REGRESSION: Column set styles don't update when zooming etc.
+        https://bugs.webkit.org/show_bug.cgi?id=131777
+
+        Reviewed by Enrica Casucci.
+
+        * fast/multicol/zoom-test-expected.html: Added.
+        * fast/multicol/zoom-test.html: Added.
+
 2014-04-17  Darin Adler  <darin@apple.com>
 
         Add separate flag for IndexedDatabase in workers since the current implementation is not threadsafe
