@@ -54,7 +54,10 @@
 #include "InspectorClient.h"
 #include "InspectorController.h"
 #include "InspectorInstrumentation.h"
+#include "Logging.h"
 #include "MainFrame.h"
+#include "MemoryCache.h"
+#include "MemoryPressureHandler.h"
 #include "OverflowEvent.h"
 #include "ProgressTracker.h"
 #include "RenderEmbeddedObject.h"
@@ -96,7 +99,6 @@
 #if PLATFORM(IOS)
 #include "DocumentLoader.h"
 #include "LegacyTileCache.h"
-#include "Logging.h"
 #include "MemoryCache.h"
 #include "MemoryPressureHandler.h"
 #include "SystemMemory.h"
@@ -193,8 +195,8 @@ FrameView::FrameView(Frame& frame)
     init();
 
     if (frame.isMainFrame()) {
-        ScrollableArea::setVerticalScrollElasticity(ScrollElasticityAllowed);
-        ScrollableArea::setHorizontalScrollElasticity(ScrollElasticityAllowed);
+        ScrollableArea::setVerticalScrollElasticity(m_frame->page() ? m_frame->page()->verticalScrollElasticity() : ScrollElasticityAllowed);
+        ScrollableArea::setHorizontalScrollElasticity(m_frame->page() ? m_frame->page()->horizontalScrollElasticity() : ScrollElasticityAllowed);
     }
 }
 
@@ -3446,16 +3448,14 @@ void FrameView::willPaintContents(GraphicsContext* context, const IntRect& dirty
 
     paintingState.isTopLevelPainter = !sCurrentPaintTimeStamp;
 
-#if PLATFORM(IOS)
-    // FIXME: Remove PLATFORM(IOS)-guard once we upstream the iOS changes to MemoryPressureHandler.h.
-    if (paintingState.isTopLevelPainter && memoryPressureHandler().hasReceivedMemoryPressure()) {
-        LOG(MemoryPressure, "Under memory pressure: %s", __PRETTY_FUNCTION__);
+    if (paintingState.isTopLevelPainter && memoryPressureHandler().isUnderMemoryPressure()) {
+        LOG(MemoryPressure, "Under memory pressure: %s", WTF_PRETTY_FUNCTION);
 
         // To avoid unnecessary image decoding, we don't prune recently-decoded live resources here since
         // we might need some live bitmaps on painting.
         memoryCache()->prune();
     }
-#endif
+
     if (paintingState.isTopLevelPainter)
         sCurrentPaintTimeStamp = monotonicallyIncreasingTime();
 
@@ -3490,13 +3490,10 @@ void FrameView::didPaintContents(GraphicsContext* context, const IntRect& dirtyR
     m_paintBehavior = paintingState.paintBehavior;
     m_lastPaintTime = monotonicallyIncreasingTime();
 
-#if PLATFORM(IOS)
     // Painting can lead to decoding of large amounts of bitmaps
     // If we are low on memory, wipe them out after the paint.
-    // FIXME: Remove PLATFORM(IOS)-guard once we upstream the iOS changes to MemoryPressureHandler.h.
-    if (paintingState.isTopLevelPainter && memoryPressureHandler().hasReceivedMemoryPressure())
+    if (paintingState.isTopLevelPainter && memoryPressureHandler().isUnderMemoryPressure())
         memoryCache()->pruneLiveResources(true);
-#endif
 
     // Regions may have changed as a result of the visibility/z-index of element changing.
 #if ENABLE(DASHBOARD_SUPPORT)
@@ -3811,7 +3808,7 @@ IntRect FrameView::convertFromRenderer(const RenderElement* renderer, const IntR
 
     // Convert from page ("absolute") to FrameView coordinates.
     if (!delegatesScrolling())
-        rect.moveBy(-scrollPosition() + IntPoint(0, headerHeight()));
+        rect.moveBy(-scrollPosition() + IntPoint(0, headerHeight() + topContentInset()));
 
     return rect;
 }
@@ -3836,7 +3833,7 @@ IntPoint FrameView::convertFromRenderer(const RenderElement* renderer, const Int
 
     // Convert from page ("absolute") to FrameView coordinates.
     if (!delegatesScrolling())
-        point.moveBy(-scrollPosition() + IntPoint(0, headerHeight()));
+        point.moveBy(-scrollPosition() + IntPoint(0, headerHeight() + topContentInset()));
     return point;
 }
 
@@ -4290,14 +4287,16 @@ void FrameView::setExposedRect(FloatRect exposedRect)
 {
     if (m_exposedRect == exposedRect)
         return;
-
     m_exposedRect = exposedRect;
 
     // FIXME: We should support clipping to the exposed rect for subframes as well.
-    if (m_frame->isMainFrame()) {
-        if (TiledBacking* tiledBacking = this->tiledBacking())
-            tiledBacking->setExposedRect(exposedRect);
-    }
+    if (!m_frame->isMainFrame())
+        return;
+    if (TiledBacking* tiledBacking = this->tiledBacking())
+        tiledBacking->setTiledScrollingIndicatorPosition(exposedRect.location());
+
+    if (auto* view = renderView())
+        view->compositor().scheduleLayerFlush(false /* canThrottle */);
 }
 
 } // namespace WebCore

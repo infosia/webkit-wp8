@@ -113,11 +113,14 @@ private:
     
     SpeculatedType speculatedDoubleTypeForPrediction(SpeculatedType value)
     {
+        SpeculatedType result = SpecDoubleReal;
+        if (value & SpecDoubleImpureNaN)
+            result |= SpecDoubleImpureNaN;
+        if (value & SpecDoublePureNaN)
+            result |= SpecDoublePureNaN;
         if (!isFullNumberSpeculation(value))
-            return SpecDouble;
-        if (value & SpecDoubleNaN)
-            return SpecDouble;
-        return SpecDoubleReal;
+            result |= SpecDoublePureNaN;
+        return result;
     }
 
     SpeculatedType speculatedDoubleTypeForPredictions(SpeculatedType left, SpeculatedType right)
@@ -144,7 +147,8 @@ private:
         case GetLocal: {
             VariableAccessData* variable = node->variableAccessData();
             SpeculatedType prediction = variable->prediction();
-            if (variable->shouldNeverUnbox() && (prediction & SpecInt52))
+            if ((variable->shouldNeverUnbox() || variable->local().isArgument())
+                && (prediction & SpecInt52))
                 prediction = (prediction | SpecInt52AsDouble) & ~SpecInt52;
             if (prediction)
                 changed |= mergePrediction(prediction);
@@ -216,7 +220,7 @@ private:
                     // left or right is definitely something other than a number.
                     changed |= mergePrediction(SpecString);
                 } else
-                    changed |= mergePrediction(SpecString | SpecInt32 | SpecDouble);
+                    changed |= mergePrediction(SpecString | SpecInt32 | SpecBytecodeDouble);
             }
             break;
         }
@@ -301,7 +305,7 @@ private:
                     && nodeCanSpeculateInt32(node->arithNodeFlags()))
                     changed |= mergePrediction(SpecInt32);
                 else
-                    changed |= mergePrediction(SpecDouble);
+                    changed |= mergePrediction(SpecBytecodeDouble);
             }
             break;
         }
@@ -315,15 +319,16 @@ private:
                     && nodeCanSpeculateInt32(node->arithNodeFlags()))
                     changed |= mergePrediction(SpecInt32);
                 else
-                    changed |= mergePrediction(SpecDouble);
+                    changed |= mergePrediction(SpecBytecodeDouble);
             }
             break;
         }
             
         case ArithSqrt:
+        case ArithFRound:
         case ArithSin:
         case ArithCos: {
-            changed |= setPrediction(SpecDouble);
+            changed |= setPrediction(SpecBytecodeDouble);
             break;
         }
             
@@ -369,7 +374,7 @@ private:
             
             if (node->child1()->shouldSpeculateFloat32Array()
                 || node->child1()->shouldSpeculateFloat64Array())
-                changed |= mergePrediction(SpecDouble);
+                changed |= mergePrediction(SpecFullDouble);
             else if (node->child1()->shouldSpeculateUint32Array()) {
                 if (isInt32Speculation(node->getHeapPrediction()))
                     changed |= mergePrediction(SpecInt32);
@@ -489,7 +494,6 @@ private:
         case PutByValAlias:
         case GetArrayLength:
         case GetTypedArrayByteOffset:
-        case Int32ToDouble:
         case DoubleAsInt32:
         case GetLocalUnlinked:
         case GetMyArgumentsLength:
@@ -503,11 +507,15 @@ private:
         case CheckTierUpAtReturn:
         case CheckTierUpAndOSREnter:
         case InvalidationPoint:
-        case Int52ToValue:
-        case Int52ToDouble:
         case CheckInBounds:
         case ValueToInt32:
-        case HardPhantom: {
+        case HardPhantom:
+        case DoubleRep:
+        case Int52Rep:
+        case ValueRep:
+        case DoubleConstant:
+        case Int52Constant:
+        case Identity: {
             // This node should never be visible at this stage of compilation. It is
             // inserted by fixup(), which follows this phase.
             RELEASE_ASSERT_NOT_REACHED();
@@ -532,10 +540,6 @@ private:
             
         case In:
             changed |= setPrediction(SpecBoolean);
-            break;
-
-        case Identity:
-            changed |= mergePrediction(node->child1()->prediction());
             break;
 
 #ifndef NDEBUG

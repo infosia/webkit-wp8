@@ -52,6 +52,7 @@
 #include "FrameView.h"
 #include "HTMLInputElement.h"
 #include "HTMLNames.h"
+#include "HTMLPlugInElement.h"
 #include "HTMLSelectElement.h"
 #include "HTMLTextAreaElement.h"
 #include "HistoryController.h"
@@ -110,11 +111,6 @@
 
 #if ENABLE(BATTERY_STATUS)
 #include "BatteryController.h"
-#endif
-
-#if ENABLE(NETWORK_INFO)
-#include "NetworkInfo.h"
-#include "NetworkInfoController.h"
 #endif
 
 #if ENABLE(PROXIMITY_EVENTS)
@@ -1259,23 +1255,6 @@ void Internals::setBatteryStatus(const String& eventType, bool charging, double 
 #endif
 }
 
-void Internals::setNetworkInformation(const String& eventType, double bandwidth, bool metered, ExceptionCode& ec)
-{
-    Document* document = contextDocument();
-    if (!document || !document->page()) {
-        ec = INVALID_ACCESS_ERR;
-        return;
-    }
-
-#if ENABLE(NETWORK_INFO)
-    NetworkInfoController::from(document->page())->didChangeNetworkInformation(eventType, NetworkInfo::create(bandwidth, metered));
-#else
-    UNUSED_PARAM(eventType);
-    UNUSED_PARAM(bandwidth);
-    UNUSED_PARAM(metered);
-#endif
-}
-
 void Internals::setDeviceProximity(const String& eventType, double value, double min, double max, ExceptionCode& ec)
 {
     Document* document = contextDocument();
@@ -1435,7 +1414,7 @@ unsigned Internals::countMatchesForText(const String& text, unsigned findOptions
         return 0;
 
     bool mark = markMatches == "mark";
-    return document->frame()->editor().countMatchesForText(text, nullptr, findOptions, std::numeric_limits<unsigned>::max(), mark, nullptr);
+    return document->frame()->editor().countMatchesForText(text, nullptr, findOptions, 1000, mark, nullptr);
 }
 
 const ProfilesArray& Internals::consoleProfiles() const
@@ -2214,7 +2193,17 @@ bool Internals::isPluginUnavailabilityIndicatorObscured(Element* element, Except
     RenderEmbeddedObject* embed = toRenderEmbeddedObject(renderer);
     return embed->isReplacementObscured();
 }
-
+    
+bool Internals::isPluginSnapshotted(Element* element, ExceptionCode& ec)
+{
+    if (!element) {
+        ec = INVALID_ACCESS_ERR;
+        return false;
+    }
+    HTMLPlugInElement* pluginElement = toHTMLPlugInElement(element);
+    return pluginElement->displayState() <= HTMLPlugInElement::DisplayingSnapshot;
+}
+    
 #if ENABLE(MEDIA_SOURCE)
 void Internals::initializeMockMediaSource()
 {

@@ -43,6 +43,7 @@
 #include "WKPagePolicyClientInternal.h"
 #include "WKPluginInformation.h"
 #include "WebBackForwardList.h"
+#include "WebFormClient.h"
 #include "WebPageMessages.h"
 #include "WebPageProxy.h"
 #include "WebProcessProxy.h"
@@ -521,6 +522,26 @@ void WKPageSetRubberBandsAtBottom(WKPageRef pageRef, bool rubberBandsAtBottom)
     toImpl(pageRef)->setRubberBandsAtBottom(rubberBandsAtBottom);
 }
 
+bool WKPageVerticalRubberBandingIsEnabled(WKPageRef pageRef)
+{
+    return toImpl(pageRef)->verticalRubberBandingIsEnabled();
+}
+
+void WKPageSetEnableVerticalRubberBanding(WKPageRef pageRef, bool enableVerticalRubberBanding)
+{
+    toImpl(pageRef)->setEnableVerticalRubberBanding(enableVerticalRubberBanding);
+}
+
+bool WKPageHorizontalRubberBandingIsEnabled(WKPageRef pageRef)
+{
+    return toImpl(pageRef)->horizontalRubberBandingIsEnabled();
+}
+
+void WKPageSetEnableHorizontalRubberBanding(WKPageRef pageRef, bool enableHorizontalRubberBanding)
+{
+    toImpl(pageRef)->setEnableHorizontalRubberBanding(enableHorizontalRubberBanding);
+}
+
 void WKPageSetBackgroundExtendsBeyondPage(WKPageRef pageRef, bool backgroundExtendsBeyondPage)
 {
     toImpl(pageRef)->setBackgroundExtendsBeyondPage(backgroundExtendsBeyondPage);
@@ -720,7 +741,7 @@ void WKPageSetPageFindMatchesClient(WKPageRef pageRef, const WKPageFindMatchesCl
 
 void WKPageSetPageFormClient(WKPageRef pageRef, const WKPageFormClientBase* wkClient)
 {
-    toImpl(pageRef)->initializeFormClient(wkClient);
+    toImpl(pageRef)->setFormClient(std::make_unique<WebFormClient>(wkClient));
 }
 
 void WKPageSetPageLoaderClient(WKPageRef pageRef, const WKPageLoaderClientBase* wkClient)
@@ -1119,7 +1140,7 @@ void WKPageSetPageUIClient(WKPageRef pageRef, const WKPageUIClientBase* wkClient
         }
 
     private:
-        virtual PassRefPtr<WebPageProxy> createNewPage(WebPageProxy* page, WebFrameProxy*, const ResourceRequest& resourceRequest, const WindowFeatures& windowFeatures, WebEvent::Modifiers modifiers, WebMouseEvent::Button button) override
+        virtual PassRefPtr<WebPageProxy> createNewPage(WebPageProxy* page, WebFrameProxy*, const ResourceRequest& resourceRequest, const WindowFeatures& windowFeatures, const NavigationActionData& navigationActionData) override
         {
             if (!m_client.base.version && !m_client.createNewPage_deprecatedForUseWithV0)
                 return 0;
@@ -1147,10 +1168,10 @@ void WKPageSetPageUIClient(WKPageRef pageRef, const WKPageUIClientBase* wkClient
             RefPtr<ImmutableDictionary> featuresMap = ImmutableDictionary::create(std::move(map));
 
             if (!m_client.base.version)
-                return adoptRef(toImpl(m_client.createNewPage_deprecatedForUseWithV0(toAPI(page), toAPI(featuresMap.get()), toAPI(modifiers), toAPI(button), m_client.base.clientInfo)));
+                return adoptRef(toImpl(m_client.createNewPage_deprecatedForUseWithV0(toAPI(page), toAPI(featuresMap.get()), toAPI(navigationActionData.modifiers), toAPI(navigationActionData.mouseButton), m_client.base.clientInfo)));
 
             RefPtr<API::URLRequest> request = API::URLRequest::create(resourceRequest);
-            return adoptRef(toImpl(m_client.createNewPage(toAPI(page), toAPI(request.get()), toAPI(featuresMap.get()), toAPI(modifiers), toAPI(button), m_client.base.clientInfo)));
+            return adoptRef(toImpl(m_client.createNewPage(toAPI(page), toAPI(request.get()), toAPI(featuresMap.get()), toAPI(navigationActionData.modifiers), toAPI(navigationActionData.mouseButton), m_client.base.clientInfo)));
         }
 
         virtual void showPage(WebPageProxy* page) override

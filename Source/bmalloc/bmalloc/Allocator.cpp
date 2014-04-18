@@ -51,6 +51,11 @@ Allocator::Allocator(Deallocator& deallocator)
 
 Allocator::~Allocator()
 {
+    scavenge();
+}
+    
+void Allocator::scavenge()
+{
     for (auto& allocator : m_smallAllocators)
         log(allocator);
     processSmallAllocatorLog();
@@ -137,7 +142,7 @@ void* Allocator::allocateSlowCase(size_t size)
 {
 IF_DEBUG(
     void* dummy;
-    ASSERT(!allocateFastCase(size, dummy));
+    BASSERT(!allocateFastCase(size, dummy));
 )
     if (size <= smallMax) {
         SmallAllocator& allocator = smallAllocatorFor(size);

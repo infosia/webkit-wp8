@@ -30,12 +30,12 @@
 
 #import "AssistedNodeInformation.h"
 #import "DataReference.h"
+#import "DrawingArea.h"
 #import "EditingRange.h"
 #import "EditorState.h"
 #import "GestureTypes.h"
 #import "InjectedBundleUserMessageCoders.h"
 #import "InteractionInformationAtPosition.h"
-#import "LayerTreeHost.h"
 #import "PluginView.h"
 #import "VisibleContentRectUpdateInfo.h"
 #import "WKAccessibilityWebPageObjectIOS.h"
@@ -111,9 +111,14 @@ void WebPage::platformPreferencesDidChange(const WebPreferencesStore&)
     notImplemented();
 }
 
-FloatSize WebPage::viewportScreenSize() const
+FloatSize WebPage::screenSize() const
 {
-    return m_viewportScreenSize;
+    return m_screenSize;
+}
+
+FloatSize WebPage::availableScreenSize() const
+{
+    return m_availableScreenSize;
 }
 
 void WebPage::viewportPropertiesDidChange(const ViewportArguments& viewportArguments)
@@ -537,6 +542,23 @@ void WebPage::selectWithGesture(const IntPoint& point, uint32_t granularity, uin
     SelectionFlags flags = None;
     GestureRecognizerState wkGestureState = static_cast<GestureRecognizerState>(gestureState);
     switch (static_cast<GestureType>(gestureType)) {
+    case GestureType::PhraseBoundary:
+    {
+        if (!frame.editor().hasComposition())
+            break;
+        RefPtr<Range> markedRange = frame.editor().compositionRange();
+        if (position < markedRange->startPosition())
+            position = markedRange->startPosition();
+        if (position > markedRange->endPosition())
+            position = markedRange->endPosition();
+        if (wkGestureState != GestureRecognizerState::Began)
+            flags = distanceBetweenPositions(markedRange->startPosition(), frame.selection().selection().start()) != distanceBetweenPositions(markedRange->startPosition(), position) ? PhraseBoundaryChanged : None;
+        else
+            flags = PhraseBoundaryChanged;
+        range = Range::create(*frame.document(), position, position);
+    }
+        break;
+
     case GestureType::OneFingerTap:
     {
         VisiblePosition result;
@@ -565,8 +587,6 @@ void WebPage::selectWithGesture(const IntPoint& point, uint32_t granularity, uin
         }
         if (result.isNotNull())
             range = Range::create(*frame.document(), result, result);
-        if (range)
-            m_shouldReturnWordAtSelection = true;
     }
         break;
 
@@ -640,7 +660,6 @@ void WebPage::selectWithGesture(const IntPoint& point, uint32_t granularity, uin
         frame.selection().setSelectedRange(range.get(), position.affinity(), true);
 
     send(Messages::WebPageProxy::GestureCallback(point, gestureType, gestureState, static_cast<uint32_t>(flags), callbackID));
-    m_shouldReturnWordAtSelection = false;
 }
 
 static PassRefPtr<Range> rangeForPosition(Frame* frame, const VisiblePosition& position, bool baseIsStart)
@@ -1194,12 +1213,11 @@ void WebPage::selectWithTwoTouches(const WebCore::IntPoint& from, const WebCore:
 
 void WebPage::extendSelection(uint32_t granularity)
 {
+    Frame& frame = m_page->focusController().focusedOrMainFrame();
     // For the moment we handle only WordGranularity.
-    if (granularity != WordGranularity)
+    if (granularity != WordGranularity || !frame.selection().isCaret())
         return;
 
-    Frame& frame = m_page->focusController().focusedOrMainFrame();
-    ASSERT(frame.selection().isCaret());
     VisiblePosition position = frame.selection().selection().start();
     frame.selection().setSelectedRange(wordRangeFromPosition(position).get(), position.affinity(), true);
 }
@@ -1254,6 +1272,18 @@ void WebPage::requestDictationContext(uint64_t callbackID)
     send(Messages::WebPageProxy::DictationContextCallback(selectedText, contextBefore, contextAfter, callbackID));
 }
 
+void WebPage::replaceSelectedText(const String& oldText, const String& newText)
+{
+    Frame& frame = m_page->focusController().focusedOrMainFrame();
+    if (!frame.selection().isRange())
+        return;
+
+    if (plainText(frame.selection().toNormalizedRange().get()) != oldText)
+        return;
+
+    frame.editor().insertText(newText, 0);
+}
+
 void WebPage::replaceDictatedText(const String& oldText, const String& newText)
 {
     Frame& frame = m_page->focusController().focusedOrMainFrame();
@@ -1274,8 +1304,11 @@ void WebPage::replaceDictatedText(const String& oldText, const String& newText)
     if (plainText(range.get()) != oldText)
         return;
 
+    // We don't want to notify the client that the selection has changed until we are done inserting the new text.
+    frame.editor().setIgnoreCompositionSelectionChange(true);
     frame.selection().setSelectedRange(range.get(), UPSTREAM, true);
     frame.editor().insertText(newText, 0);
+    frame.editor().setIgnoreCompositionSelectionChange(false);
 }
 
 void WebPage::requestAutocorrectionData(const String& textForAutocorrection, uint64_t callbackID)
@@ -1465,6 +1498,29 @@ void WebPage::getPositionInformation(const IntPoint& point, InteractionInformati
 
     info.point = point;
     info.nodeAtPositionIsAssistedNode = (hitNode == m_assistedNode);
+    if (m_assistedNode) {
+        Frame& frame = m_page->focusController().focusedOrMainFrame();
+        if (frame.editor().hasComposition()) {
+            const uint32_t kHitAreaWidth = 66;
+            const uint32_t kHitAreaHeight = 66;
+            FrameView& view = *frame.view();
+            IntPoint adjustedPoint(view.rootViewToContents(point));
+            IntPoint constrainedPoint = m_assistedNode ? constrainPoint(adjustedPoint, &frame, m_assistedNode.get()) : adjustedPoint;
+            VisiblePosition position = frame.visiblePositionForPoint(constrainedPoint);
+
+            RefPtr<Range> compositionRange = frame.editor().compositionRange();
+            if (position < compositionRange->startPosition())
+                position = compositionRange->startPosition();
+            else if (position > compositionRange->endPosition())
+                position = compositionRange->endPosition();
+            IntRect caretRect = view.contentsToRootView(position.absoluteCaretBounds());
+            float deltaX = abs(caretRect.x() + (caretRect.width() / 2) - point.x());
+            float deltaYFromTheTop = abs(caretRect.y() - point.y());
+            float deltaYFromTheBottom = abs(caretRect.y() + caretRect.height() - point.y());
+
+            info.isNearMarkedText = !(deltaX > kHitAreaWidth || deltaYFromTheTop > kHitAreaHeight || deltaYFromTheBottom > kHitAreaHeight);
+        }
+    }
     bool elementIsLinkOrImage = false;
     if (hitNode) {
         info.clickableElementName = hitNode->nodeName();
@@ -1706,15 +1762,125 @@ void WebPage::setViewportConfigurationMinimumLayoutSize(const IntSize& size)
     viewportConfigurationChanged();
 }
 
+void WebPage::dynamicViewportSizeUpdate(const IntSize& minimumLayoutSize, const FloatRect& targetExposedContentRect, const FloatRect& targetUnobscuredRect, double targetScale)
+{
+    // FIXME: this does not handle the cases where the content would change the content size or scroll position from JavaScript.
+    // To handle those cases, we would need to redo this computation on every change until the next visible content rect update.
+
+    FrameView& frameView = *m_page->mainFrame().view();
+    IntSize oldContentSize = frameView.contentsSize();
+
+    m_viewportConfiguration.setMinimumLayoutSize(minimumLayoutSize);
+    IntSize newLayoutSize = m_viewportConfiguration.layoutSize();
+    setFixedLayoutSize(newLayoutSize);
+    frameView.updateLayoutAndStyleIfNeededRecursive();
+
+    IntSize newContentSize = frameView.contentsSize();
+
+    double scale;
+    if (!m_userHasChangedPageScaleFactor)
+        scale = m_viewportConfiguration.initialScale();
+    else
+        scale = std::max(std::min(targetScale, m_viewportConfiguration.maximumScale()), m_viewportConfiguration.minimumScale());
+
+    FloatRect newUnobscuredContentRect = targetUnobscuredRect;
+    FloatRect newExposedContentRect = targetExposedContentRect;
+
+    if (scale != targetScale) {
+        // The target scale the UI is using cannot be reached by the content. We need to compute new targets based
+        // on the viewport constraint and report everything back to the UIProcess.
+
+        // 1) Compute a new unobscured rect centered around the original one.
+        double scaleDifference = targetScale / scale;
+        double newUnobscuredRectWidth = targetUnobscuredRect.width() * scaleDifference;
+        double newUnobscuredRectHeight = targetUnobscuredRect.height() * scaleDifference;
+        double newUnobscuredRectX = targetUnobscuredRect.x() - (newUnobscuredRectWidth - targetUnobscuredRect.width()) / 2;
+        double newUnobscuredRectY = targetUnobscuredRect.y() - (newUnobscuredRectHeight - targetUnobscuredRect.height()) / 2;
+        newUnobscuredContentRect = FloatRect(newUnobscuredRectX, newUnobscuredRectY, newUnobscuredRectWidth, newUnobscuredRectHeight);
+
+        // 2) Extend our new unobscuredRect by the obscured margins to get a new exposed rect.
+        double obscuredTopMargin = (targetUnobscuredRect.y() - targetExposedContentRect.y()) * scaleDifference;
+        double obscuredLeftMargin = (targetUnobscuredRect.x() - targetExposedContentRect.x()) * scaleDifference;
+        double obscuredBottomMargin = (targetExposedContentRect.maxY() - targetUnobscuredRect.maxY()) * scaleDifference;
+        double obscuredRightMargin = (targetExposedContentRect.maxX() - targetUnobscuredRect.maxX()) * scaleDifference;
+        newExposedContentRect = FloatRect(newUnobscuredRectX - obscuredLeftMargin,
+                                          newUnobscuredRectY - obscuredTopMargin,
+                                          newUnobscuredRectWidth + obscuredLeftMargin + obscuredRightMargin,
+                                          newUnobscuredRectHeight + obscuredTopMargin + obscuredBottomMargin);
+
+        // FIXME: Adjust the rects based on the content.
+    }
+
+    if (oldContentSize != newContentSize || scale != targetScale) {
+        // Snap the new unobscured rect back into the content rect.
+        newUnobscuredContentRect.setWidth(std::min(static_cast<float>(newContentSize.width()), newExposedContentRect.width()));
+        newUnobscuredContentRect.setHeight(std::min(static_cast<float>(newContentSize.height()), newExposedContentRect.height()));
+
+        if (oldContentSize != newContentSize) {
+            // If the content size has changed, keep the same relative position.
+            FloatPoint oldContentCenter = targetUnobscuredRect.center();
+            float relativeHorizontalPosition = oldContentCenter.x() / oldContentSize.width();
+            float relativeVerticalPosition =  oldContentCenter.y() / oldContentSize.height();
+            FloatPoint newRelativeContentCenter(relativeHorizontalPosition * newContentSize.width(), relativeVerticalPosition * newContentSize.height());
+            FloatPoint newUnobscuredContentRectCenter = newUnobscuredContentRect.center();
+            FloatPoint positionDelta(newRelativeContentCenter.x() - newUnobscuredContentRectCenter.x(), newRelativeContentCenter.y() - newUnobscuredContentRectCenter.y());
+            newUnobscuredContentRect.moveBy(positionDelta);
+            newExposedContentRect.moveBy(positionDelta);
+        }
+
+        // Make the top/bottom edges "sticky" within 1 pixel.
+        if (targetUnobscuredRect.maxY() > oldContentSize.height() - 1) {
+            float bottomVerticalPosition = newContentSize.height() - newUnobscuredContentRect.height();
+            newUnobscuredContentRect.setY(bottomVerticalPosition);
+            newExposedContentRect.setY(bottomVerticalPosition);
+        }
+        if (targetUnobscuredRect.y() < 1) {
+            newUnobscuredContentRect.setY(0);
+            newExposedContentRect.setY(0);
+        }
+
+        float horizontalAdjustment = 0;
+        if (newExposedContentRect.maxX() > newContentSize.width())
+            horizontalAdjustment -= newUnobscuredContentRect.maxX() - newContentSize.width();
+        float verticalAdjustment = 0;
+        if (newExposedContentRect.maxY() > newContentSize.height())
+            verticalAdjustment -= newUnobscuredContentRect.maxY() - newContentSize.height();
+        if (newExposedContentRect.x() < 0)
+            horizontalAdjustment += - newUnobscuredContentRect.x();
+        if (newExposedContentRect.y() < 0)
+            verticalAdjustment += - newUnobscuredContentRect.y();
+
+        FloatPoint adjustmentDelta(horizontalAdjustment, verticalAdjustment);
+        newUnobscuredContentRect.moveBy(adjustmentDelta);
+        newExposedContentRect.moveBy(adjustmentDelta);
+    }
+
+    frameView.setScrollVelocity(0, 0, 0, monotonicallyIncreasingTime());
+
+    IntRect roundedUnobscuredContentRect = roundedIntRect(newUnobscuredContentRect);
+    frameView.setScrollOffset(roundedUnobscuredContentRect.location());
+    frameView.setUnobscuredContentRect(roundedUnobscuredContentRect);
+    m_drawingArea->setExposedContentRect(newExposedContentRect);
+
+    if (scale == targetScale)
+        scalePage(scale, frameView.scrollPosition());
+
+    if (scale != targetScale || roundedIntPoint(targetUnobscuredRect.location()) != roundedUnobscuredContentRect.location())
+        send(Messages::WebPageProxy::DynamicViewportUpdateChangedTarget(scale, frameView.scrollPosition()));
+}
+
 void WebPage::viewportConfigurationChanged()
 {
     setFixedLayoutSize(m_viewportConfiguration.layoutSize());
 
+    double initialScale = m_viewportConfiguration.initialScale();
     double scale;
     if (m_userHasChangedPageScaleFactor)
         scale = std::max(std::min(pageScaleFactor(), m_viewportConfiguration.maximumScale()), m_viewportConfiguration.minimumScale());
     else
-        scale = m_viewportConfiguration.initialScale();
+        scale = initialScale;
+
+    m_page->setZoomedOutPageScaleFactor(initialScale);
 
     FrameView& frameView = *m_page->mainFrame().view();
     IntPoint scrollPosition = frameView.scrollPosition();
@@ -1827,6 +1993,11 @@ WebCore::WebGLLoadPolicy WebPage::resolveWebGLPolicyForURL(WebFrame*, const Stri
     return WKShouldBlockWebGL() ? WebGLBlockCreation : WebGLAllowCreation;
 }
 #endif
+
+void WebPage::zoomToRect(FloatRect rect, double minimumScale, double maximumScale)
+{
+    send(Messages::WebPageProxy::ZoomToRect(rect, minimumScale, maximumScale));
+}
 
 } // namespace WebKit
 

@@ -1051,7 +1051,7 @@
     <ClInclude Include="..\heap\EdenGCActivityCallback.h" />
     <ClInclude Include="..\heap\FullGCActivityCallback.h" />
     <ClInclude Include="..\heap\GCActivityCallback.h" />
-    <ClCompile Include="..\heap\GCLogging.cpp" />
+    <ClInclude Include="..\heap\GCLogging.h" />
     <ClInclude Include="..\heap\GCSegmentedArray.h" />
     <ClInclude Include="..\heap\GCSegmentedArrayInlines.h" />
     <ClInclude Include="..\heap\GCAssertions.h" />
@@ -1161,7 +1161,6 @@
     <ClInclude Include="..\jit\JITInlineCacheGenerator.h" />
     <ClInclude Include="..\jit\JITInlines.h" />
     <ClInclude Include="..\jit\JITOperations.h" />
-    <ClInclude Include="..\jit\JITOperationWrappers.h" />
     <ClInclude Include="..\jit\JITStubRoutine.h" />
     <ClInclude Include="..\jit\JITStubs.h" />
     <ClInclude Include="..\jit\JITStubsX86.h" />

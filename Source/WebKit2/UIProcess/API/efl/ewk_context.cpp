@@ -24,7 +24,6 @@
 #include "BatteryProvider.h"
 #include "ContextHistoryClientEfl.h"
 #include "DownloadManagerEfl.h"
-#include "NetworkInfoProvider.h"
 #include "RequestManagerClientEfl.h"
 #include "WKAPICast.h"
 #include "WKContextPrivate.h"
@@ -44,6 +43,7 @@
 #include <JavaScriptCore/JSContextRef.h>
 #include <WebCore/FileSystem.h>
 #include <WebCore/IconDatabase.h>
+#include <WebCore/Language.h>
 #include <wtf/HashMap.h>
 #include <wtf/NeverDestroyed.h>
 #include <wtf/text/WTFString.h>
@@ -69,9 +69,6 @@ EwkContext::EwkContext(WKContextRef context)
     , m_storageManager(std::make_unique<EwkStorageManager>(WKContextGetKeyValueStorageManager(context)))
 #if ENABLE(BATTERY_STATUS)
     , m_batteryProvider(BatteryProvider::create(context))
-#endif
-#if ENABLE(NETWORK_INFO)
-    , m_networkInfoProvider(NetworkInfoProvider::create(context))
 #endif
     , m_downloadManager(std::make_unique<DownloadManagerEfl>(context))
     , m_requestManagerClient(std::make_unique<RequestManagerClientEfl>(context))
@@ -564,4 +561,18 @@ void ewk_context_tls_error_policy_set(Ewk_Context* context, Ewk_TLS_Error_Policy
 {
     EWK_OBJ_GET_IMPL_OR_RETURN(const EwkContext, context, impl);
     impl->setIgnoreTLSErrors(tls_error_policy);
+}
+
+void ewk_context_preferred_languages_set(Eina_List* languages)
+{
+    Vector<String> preferredLanguages;
+    if (languages) {
+        Eina_List* l;
+        void* data;
+        EINA_LIST_FOREACH(languages, l, data)
+            preferredLanguages.append(String::fromUTF8(static_cast<char*>(data)).lower().replace("_", "-"));
+    }
+
+    WebCore::overrideUserPreferredLanguages(preferredLanguages);
+    WebCore::languageDidChange();
 }

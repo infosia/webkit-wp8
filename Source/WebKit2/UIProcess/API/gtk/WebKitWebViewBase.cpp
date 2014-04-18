@@ -777,9 +777,9 @@ static void webkitWebViewBaseDragDataReceived(GtkWidget* widget, GdkDragContext*
         return;
 
     DragData dragData(dataObject, position, convertWidgetPointToScreenPoint(widget, position), gdkDragActionToDragOperation(gdk_drag_context_get_actions(context)));
-    webViewBase->priv->pageProxy->resetDragOperation();
+    webViewBase->priv->pageProxy->resetCurrentDragInformation();
     webViewBase->priv->pageProxy->dragEntered(dragData);
-    DragOperation operation = webViewBase->priv->pageProxy->dragSession().operation;
+    DragOperation operation = webViewBase->priv->pageProxy->currentDragOperation();
     gdk_drag_status(context, dragOperationToSingleGdkDragAction(operation), time);
 }
 #endif // ENABLE(DRAG_SUPPORT)
@@ -823,7 +823,7 @@ static gboolean webkitWebViewBaseDragMotion(GtkWidget* widget, GdkDragContext* c
 
     DragData dragData(dataObject, position, convertWidgetPointToScreenPoint(widget, position), gdkDragActionToDragOperation(gdk_drag_context_get_actions(context)));
     webViewBase->priv->pageProxy->dragUpdated(dragData);
-    DragOperation operation = webViewBase->priv->pageProxy->dragSession().operation;
+    DragOperation operation = webViewBase->priv->pageProxy->currentDragOperation();
     gdk_drag_status(context, dragOperationToSingleGdkDragAction(operation), time);
     return TRUE;
 }
@@ -837,7 +837,7 @@ static void dragExitedCallback(GtkWidget* widget, DragData& dragData, bool dropH
 
     WebKitWebViewBase* webViewBase = WEBKIT_WEB_VIEW_BASE(widget);
     webViewBase->priv->pageProxy->dragExited(dragData);
-    webViewBase->priv->pageProxy->resetDragOperation();
+    webViewBase->priv->pageProxy->resetCurrentDragInformation();
 }
 
 static void webkitWebViewBaseDragLeave(GtkWidget* widget, GdkDragContext* context, guint /* time */)
@@ -856,7 +856,7 @@ static gboolean webkitWebViewBaseDragDrop(GtkWidget* widget, GdkDragContext* con
     DragData dragData(dataObject, position, convertWidgetPointToScreenPoint(widget, position), gdkDragActionToDragOperation(gdk_drag_context_get_actions(context)));
     SandboxExtension::Handle handle;
     SandboxExtension::HandleArray sandboxExtensionForUpload;
-    webViewBase->priv->pageProxy->performDrag(dragData, String(), handle, sandboxExtensionForUpload);
+    webViewBase->priv->pageProxy->performDragOperation(dragData, String(), handle, sandboxExtensionForUpload);
     gtk_drag_finish(context, TRUE, FALSE, time);
     return TRUE;
 }

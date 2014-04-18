@@ -1,3 +1,192 @@
+2014-04-14  Geoffrey Garen  <ggaren@apple.com>
+
+        MallocBench should scavenge explicitly instead of waiting
+        https://bugs.webkit.org/show_bug.cgi?id=131661
+
+        Reviewed by Andreas Kling.
+
+        Added explicit scavenge support to bmalloc. This isn't a memory win,
+        since bmalloc's per-thread cache is so small. But it makes testing
+        simpler.
+
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::~Allocator):
+        (bmalloc::Allocator::scavenge):
+        * bmalloc/Allocator.h:
+        * bmalloc/Cache.cpp:
+        (bmalloc::Cache::operator new):
+        (bmalloc::Cache::operator delete):
+        (bmalloc::Cache::Cache):
+        (bmalloc::Cache::scavenge):
+        * bmalloc/Cache.h:
+        * bmalloc/Deallocator.cpp:
+        (bmalloc::Deallocator::~Deallocator):
+        (bmalloc::Deallocator::scavenge):
+        * bmalloc/Deallocator.h: Factored existing scavenging code into helper
+        functions, for reuse.
+
+        * bmalloc/Heap.cpp:
+        (bmalloc::sleep):
+        (bmalloc::Heap::concurrentScavenge):
+        (bmalloc::Heap::scavenge):
+        (bmalloc::Heap::scavengeSmallPages):
+        (bmalloc::Heap::scavengeMediumPages):
+        (bmalloc::Heap::scavengeLargeRanges):
+        * bmalloc/Heap.h: Made scavenge sleep duration a parameter. Forced
+        scavenging -- in response to a benchmark or a low memory warning --
+        wants to complete as soon as possible, so its sleep duration is 0.
+
+        * bmalloc/bmalloc.h:
+        (bmalloc::api::scavenge):
+        * bmalloc/mbmalloc.cpp: Exported the scavenge API for MallocBench's use.
+
+2014-04-14  Geoffrey Garen  <ggaren@apple.com>
+
+        Use 4kB pages on Mac
+        https://bugs.webkit.org/show_bug.cgi?id=131658
+
+        Reviewed by Sam Weinig.
+
+        This reduces memory use a lot on Membuster:
+
+                                                                  base                      patch                                Δ
+                Execution Time:
+                    reddit_memory_warning                         18ms                       17ms                   ^ 1.06x faster
+                    flickr_memory_warning                         34ms                       36ms                   ! 1.06x slower
+                    theverge_memory_warning                       39ms                       41ms                   ! 1.05x slower
+
+                    <geometric mean>                              29ms                       29ms                   ! 1.02x slower
+                    <arithmetic mean>                             30ms                       31ms                   ! 1.03x slower
+                    <harmonic mean>                               27ms                       27ms                    ^ 1.0x faster
+
+                Peak Memory:
+                    reddit_memory_warning                     16,412kB                   16,436kB                    ! 1.0x bigger
+                    flickr_memory_warning                     30,120kB                   30,184kB                    ! 1.0x bigger
+                    theverge_memory_warning                   33,408kB                   33,420kB                    ! 1.0x bigger
+
+                    <geometric mean>                          25,466kB                   25,499kB                    ! 1.0x bigger
+                    <arithmetic mean>                         26,647kB                   26,680kB                    ! 1.0x bigger
+                    <harmonic mean>                           24,181kB                   24,214kB                    ! 1.0x bigger
+
+                Memory at End:
+                    reddit_memory_warning                      2,404kB                    1,920kB                  ^ 1.25x smaller
+                    flickr_memory_warning                      3,764kB                    3,072kB                  ^ 1.23x smaller
+                    theverge_memory_warning                    3,648kB                    3,132kB                  ^ 1.16x smaller
+
+                    <geometric mean>                           3,208kB                    2,644kB                  ^ 1.21x smaller
+                    <arithmetic mean>                          3,272kB                    2,708kB                  ^ 1.21x smaller
+                    <harmonic mean>                            3,139kB                    2,574kB                  ^ 1.22x smaller
+
+
+        * bmalloc.xcodeproj/project.pbxproj:
+        * bmalloc/BPlatform.h: Added.
+        * bmalloc/VMAllocate.h: Only use 16kB pages on iOS because the page size
+        is 4kB on Mac.
+
+2014-04-14  Alexey Proskuryakov  <ap@apple.com>
+
+        Fixed svn:ignore on bmalloc.xcodeproj, it had erroneous leading spaces.
+
+        * bmalloc.xcodeproj: Modified property svn:ignore.
+
+2014-04-13  Geoffrey Garen  <ggaren@apple.com>
+
+        Fixed some mbmalloc exports
+        https://bugs.webkit.org/show_bug.cgi?id=131599
+
+        Reviewed by Ryosuke Niwa.
+
+        * bmalloc.xcodeproj/project.pbxproj: Made some headers a private part
+        of the project, so we can call them from API.
+
+        * bmalloc/mbmalloc.cpp: Marked the mbmalloc functions with default
+        visibility, so they show up as exported in the .dylib.
+
+2014-04-09  Geoffrey Garen  <ggaren@apple.com>
+
+        Put bmalloc headers in the right place
+        https://bugs.webkit.org/show_bug.cgi?id=131464
+
+        Reviewed by Mark Rowe.
+
+        * Configurations/bmalloc.xcconfig: Set PRIVATE_HEADERS_FOLDER_PATH to
+        specify that we don't just want to dump all of our generically-named
+        headers into /usr/local/include.
+
+2014-04-08  Geoffrey Garen  <ggaren@apple.com>
+
+        Made bmalloc more #include friendly
+        https://bugs.webkit.org/show_bug.cgi?id=131386
+
+        Reviewed by Andreas Kling.
+
+        Marked a bunch of headers private so they can be used from client code
+        that #includes bmalloc.h.
+
+        Renamed ASSERT macros to BASSERT. This matches their header, which already
+        had to be renamed, and fixes conflicts with WTF's ASSERT macros.
+
+        * bmalloc.xcodeproj/project.pbxproj:
+        * bmalloc/Allocator.cpp:
+        (bmalloc::Allocator::allocateSlowCase):
+        * bmalloc/AsyncTask.h:
+        (bmalloc::Function>::runSlowCase):
+        * bmalloc/BAssert.h:
+        * bmalloc/BoundaryTag.h:
+        (bmalloc::BoundaryTag::setSize):
+        * bmalloc/BoundaryTagInlines.h:
+        (bmalloc::validate):
+        (bmalloc::BoundaryTag::init):
+        (bmalloc::BoundaryTag::deallocate):
+        (bmalloc::BoundaryTag::splitLarge):
+        (bmalloc::BoundaryTag::allocate):
+        * bmalloc/Chunk.h:
+        * bmalloc/Deallocator.cpp:
+        (bmalloc::Deallocator::processObjectLog):
+        (bmalloc::Deallocator::deallocateSlowCase):
+        * bmalloc/Deallocator.h:
+        (bmalloc::Deallocator::deallocateFastCase):
+        * bmalloc/FixedVector.h:
+        (bmalloc::Capacity>::operator):
+        (bmalloc::Capacity>::push):
+        (bmalloc::Capacity>::pop):
+        (bmalloc::Capacity>::shrink):
+        * bmalloc/Heap.cpp:
+        (bmalloc::Heap::allocateLarge):
+        * bmalloc/LargeChunk.h:
+        (bmalloc::LargeChunk::get):
+        (bmalloc::LargeChunk::endTag):
+        * bmalloc/Line.h:
+        (bmalloc::Line<Traits>::concurrentRef):
+        (bmalloc::Line<Traits>::deref):
+        * bmalloc/MediumAllocator.h:
+        (bmalloc::MediumAllocator::allocate):
+        * bmalloc/ObjectType.h:
+        (bmalloc::isSmall):
+        * bmalloc/Page.h:
+        (bmalloc::Page<Traits>::ref):
+        (bmalloc::Page<Traits>::deref):
+        * bmalloc/PerThread.h:
+        (bmalloc::PerThread<T>::getSlowCase):
+        * bmalloc/SegregatedFreeList.cpp:
+        (bmalloc::SegregatedFreeList::SegregatedFreeList):
+        (bmalloc::SegregatedFreeList::insert):
+        * bmalloc/SmallAllocator.h:
+        (bmalloc::SmallAllocator::allocate):
+        (bmalloc::SmallAllocator::refill):
+        * bmalloc/Syscall.h:
+        * bmalloc/VMAllocate.h:
+        (bmalloc::vmValidate):
+        (bmalloc::vmAllocate):
+        (bmalloc::vmDeallocatePhysicalPagesSloppy):
+        * bmalloc/Vector.h:
+        (bmalloc::Vector<T>::operator):
+        (bmalloc::Vector<T>::pop):
+        (bmalloc::Vector<T>::shrink):
+        * bmalloc/XLargeChunk.h:
+        (bmalloc::XLargeChunk::range):
+        (bmalloc::XLargeChunk::size):
+
 2014-04-08  Geoffrey Garen  <ggaren@apple.com>
 
         Removed an unused file.

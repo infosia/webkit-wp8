@@ -218,7 +218,8 @@
     macro(countdownHolder) \
     macro(Object) \
     macro(TypeError) \
-    macro(undefined)
+    macro(undefined) \
+    macro(BuiltinLog)
 
 namespace JSC {
     

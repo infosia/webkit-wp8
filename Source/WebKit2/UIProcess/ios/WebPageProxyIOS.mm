@@ -188,6 +188,11 @@ bool WebPageProxy::updateVisibleContentRects(const VisibleContentRectUpdateInfo&
     return true;
 }
 
+void WebPageProxy::dynamicViewportSizeUpdate(const IntSize& minimumLayoutSize, const FloatRect& targetExposedContentRect, const FloatRect& targetUnobscuredRect, double targetScale)
+{
+    m_process->send(Messages::WebPage::DynamicViewportSizeUpdate(minimumLayoutSize, targetExposedContentRect, targetUnobscuredRect, targetScale), m_pageID);
+}
+
 void WebPageProxy::setViewportConfigurationMinimumLayoutSize(const WebCore::IntSize& size)
 {
     m_process->send(Messages::WebPage::SetViewportConfigurationMinimumLayoutSize(size), m_pageID);
@@ -228,7 +233,12 @@ void WebPageProxy::replaceDictatedText(const String& oldText, const String& newT
 {
     m_process->send(Messages::WebPage::ReplaceDictatedText(oldText, newText), m_pageID);
 }
-    
+
+void WebPageProxy::replaceSelectedText(const String& oldText, const String& newText)
+{
+    m_process->send(Messages::WebPage::ReplaceSelectedText(oldText, newText), m_pageID);
+}
+
 void WebPageProxy::requestAutocorrectionData(const String& textForAutocorrection, PassRefPtr<AutocorrectionDataCallback> callback)
 {
     if (!isValid()) {
@@ -453,9 +463,19 @@ void WebPageProxy::blurAssistedNode()
     process().send(Messages::WebPage::BlurAssistedNode(), m_pageID);
 }
 
-FloatSize WebPageProxy::viewportScreenSize()
+FloatSize WebPageProxy::screenSize()
 {
-    return FloatSize(WKGetViewportScreenSize());
+    return FloatSize(WKGetScreenSize());
+}
+
+FloatSize WebPageProxy::availableScreenSize()
+{
+    return FloatSize(WKGetAvailableScreenSize());
+}
+
+void WebPageProxy::dynamicViewportUpdateChangedTarget(double newScale, const WebCore::FloatPoint& newScrollPosition)
+{
+    m_pageClient.dynamicViewportUpdateChangedTarget(newScale, newScrollPosition);
 }
 
 void WebPageProxy::didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color& color, const Vector<WebCore::FloatQuad>& highlightedQuads, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius)
@@ -538,6 +558,11 @@ void WebPageProxy::setAcceleratedCompositingRootLayer(LayerOrView* rootLayer)
 void WebPageProxy::showPlaybackTargetPicker(bool hasVideo, const IntRect& elementRect)
 {
     m_pageClient.showPlaybackTargetPicker(hasVideo, elementRect);
+}
+
+void WebPageProxy::zoomToRect(FloatRect rect, double minimumScale, double maximumScale)
+{
+    m_pageClient.zoomToRect(rect, minimumScale, maximumScale);
 }
 
 } // namespace WebKit

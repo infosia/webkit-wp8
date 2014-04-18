@@ -26,6 +26,7 @@
 #ifndef MemoryPressureHandler_h
 #define MemoryPressureHandler_h
 
+#include <atomic>
 #include <time.h>
 #include <wtf/FastMalloc.h>
 
@@ -58,15 +59,39 @@ public:
         m_lowMemoryHandler = handler;
     }
 
+    bool isUnderMemoryPressure() const { return m_underMemoryPressure; }
+
 #if PLATFORM(IOS)
     // FIXME: Can we share more of this with OpenSource?
     void installMemoryReleaseBlock(void (^releaseMemoryBlock)(), bool clearPressureOnMemoryRelease = true);
     void setReceivedMemoryPressure(MemoryPressureReason);
-    bool hasReceivedMemoryPressure();
     void clearMemoryPressure();
     bool shouldWaitForMemoryClearMessage();
     void respondToMemoryPressureIfNeeded();
 #endif
+
+    class ReliefLogger {
+    public:
+        explicit ReliefLogger(const char *log)
+            : m_logString(log)
+            , m_initialMemory(platformMemoryUsage())
+        {
+        }
+
+        ~ReliefLogger()
+        {
+            platformLog();
+        }
+
+        const char* logString() const { return m_logString; }
+
+    private:
+        size_t platformMemoryUsage();
+        void platformLog();
+
+        const char* m_logString;
+        size_t m_initialMemory;
+};
 
 private:
     void uninstall();
@@ -84,8 +109,9 @@ private:
     time_t m_lastRespondTime;
     LowMemoryHandler m_lowMemoryHandler;
 
+    std::atomic<bool> m_underMemoryPressure;
+
 #if PLATFORM(IOS)
-    uint32_t m_receivedMemoryPressure;
     uint32_t m_memoryPressureReason;
     bool m_clearPressureOnMemoryRelease;
     void (^m_releaseMemoryBlock)();

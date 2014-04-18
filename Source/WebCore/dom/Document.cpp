@@ -220,6 +220,7 @@
 #endif
 
 #if ENABLE(WEB_REPLAY)
+#include "WebReplayInputs.h"
 #include <replay/EmptyInputCursor.h>
 #endif
 
@@ -2944,7 +2945,7 @@ void Document::processViewport(const String& features, ViewportArguments::Type o
     // bounds checking and determining concrete values for ValueAuto which we already do in UIKit.
     // To maintain old behavior, we just need to update a few values, leaving Auto's for UIKit.
     if (Page* page = this->page())
-        finalizeViewportArguments(m_viewportArguments, page->chrome().client().viewportScreenSize());
+        finalizeViewportArguments(m_viewportArguments, page->chrome().screenSize());
 #endif
 
     updateViewportArguments();
@@ -3891,8 +3892,20 @@ String Document::lastModified() const
     // FIXME: If this document came from the file system, the HTML5
     // specificiation tells us to read the last modification date from the file
     // system.
-    if (!foundDate)
-        date.setMillisecondsSinceEpochForDateTime(currentTimeMS());
+    if (!foundDate) {
+        double fallbackDate = currentTimeMS();
+#if ENABLE(WEB_REPLAY)
+        InputCursor& cursor = inputCursor();
+        if (cursor.isCapturing())
+            cursor.appendInput<DocumentLastModifiedDate>(fallbackDate);
+        else if (cursor.isReplaying()) {
+            if (DocumentLastModifiedDate* input = cursor.fetchInput<DocumentLastModifiedDate>())
+                fallbackDate = input->fallbackValue();
+        }
+#endif
+        date.setMillisecondsSinceEpochForDateTime(fallbackDate);
+    }
+
     return String::format("%02d/%02d/%04d %02d:%02d:%02d", date.month() + 1, date.monthDay(), date.fullYear(), date.hour(), date.minute(), date.second());
 }
 
@@ -5352,9 +5365,6 @@ void Document::webkitWillEnterFullScreenForElement(Element* element)
         m_savedPlaceholderRenderStyle = RenderStyle::clone(&renderer->style());
     }
 
-    if (m_fullScreenElement != documentElement())
-        RenderFullScreen::wrapRenderer(renderer, renderer ? renderer->parent() : nullptr, *this);
-
     m_fullScreenElement->setContainsFullScreenElementOnAncestorsCrossingFrameBoundaries(true);
     
     recalcStyle(Style::Force);
@@ -5419,10 +5429,10 @@ void Document::setFullScreenRenderer(RenderFullScreen* renderer)
         return;
 
     if (renderer && m_savedPlaceholderRenderStyle) 
-        renderer->createPlaceholder(m_savedPlaceholderRenderStyle.releaseNonNull(), m_savedPlaceholderFrameRect);
+        renderer->setPlaceholderStyle(m_savedPlaceholderRenderStyle.releaseNonNull(), m_savedPlaceholderFrameRect);
     else if (renderer && m_fullScreenRenderer && m_fullScreenRenderer->placeholder()) {
         RenderBlock* placeholder = m_fullScreenRenderer->placeholder();
-        renderer->createPlaceholder(RenderStyle::clone(&placeholder->style()), placeholder->frameRect());
+        renderer->setPlaceholderStyle(RenderStyle::clone(&placeholder->style()), placeholder->frameRect());
     }
 
     if (m_fullScreenRenderer)

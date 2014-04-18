@@ -661,7 +661,7 @@ public:
     
     T takeLast()
     {
-        T result = last();
+        T result = std::move(last());
         removeLast();
         return result;
     }
@@ -1204,15 +1204,6 @@ inline void Vector<T, inlineCapacity, OverflowHandler>::checkConsistency()
     for (size_t i = 0; i < size(); ++i)
         ValueCheck<T>::checkConsistency(at(i));
 #endif
-}
-
-template<typename T, size_t inlineCapacity, typename OverflowHandler>
-void deprecatedDeleteAllValues(const Vector<T, inlineCapacity, OverflowHandler>& collection)
-{
-    typedef typename Vector<T, inlineCapacity, OverflowHandler>::const_iterator iterator;
-    iterator end = collection.end();
-    for (iterator it = collection.begin(); it != end; ++it)
-        delete *it;
 }
 
 template<typename T, size_t inlineCapacity, typename OverflowHandler>

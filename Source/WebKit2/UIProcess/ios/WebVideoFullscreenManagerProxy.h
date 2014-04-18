@@ -52,7 +52,7 @@ private:
     virtual void didReceiveMessage(IPC::Connection*, IPC::MessageDecoder&) override;
 
     // Translate to FullscreenInterface
-    virtual void enterFullscreenWithID(uint32_t);
+    virtual void enterFullscreenWithID(uint32_t, WebCore::IntRect initialRect);
     virtual void setSeekableRangesVector(Vector<std::pair<double, double>>&);
 
     // Fullscreen Observer
@@ -67,6 +67,8 @@ private:
     virtual void seekToTime(double) override;
     virtual void setVideoLayerFrame(WebCore::FloatRect) override;
     virtual void setVideoLayerGravity(WebCore::WebVideoFullscreenModel::VideoGravity) override;
+    virtual void selectAudioMediaOption(uint64_t) override;
+    virtual void selectLegibleMediaOption(uint64_t) override;
 
     WebPageProxy* m_page;
     RetainPtr<PlatformLayer> m_layerHost;

@@ -6,10 +6,13 @@ function createControls(root, video, host)
 function ControllerIOS(root, video, host)
 {
     this.hasWirelessPlaybackTargets = false;
+    this._pageScaleFactor = 1;
     Controller.call(this, root, video, host);
 
     this.updateWirelessTargetAvailable();
     this.updateWirelessPlaybackStatus();
+
+    host.controlsDependOnPageScaleFactor = true;
 };
 
 /* Enums */
@@ -64,18 +67,14 @@ ControllerIOS.prototype = {
         if (string)
             return string;
 
+        if (!this.localizedStrings)
+            this.localizedStrings = mediaControlsLocalizedStringsiOS();
+
         if (this.localizedStrings[s])
             return this.localizedStrings[s];
-        else
-            return s; // FIXME: LOG something if string not localized.
-    },
-    localizedStrings: {
-        // FIXME: Move localization to ext strings file <http://webkit.org/b/120956>
-        '##AIRPLAY_DEVICE_TYPE##': 'AirPlay',
-        '##AIRPLAY_DEVICE_NAME##': 'This video is playing on "##DEVICE_NAME##".',
 
-        '##TVOUT_DEVICE_TYPE##': 'TV Connected',
-        '##TVOUT_DEVICE_NAME##': 'This video is playing on the TV.',
+        console.error("Localized string \"" + s + "\" not found.");
+        return "LOCALIZED STRING NOT FOUND";
     },
 
     shouldHaveStartPlaybackButton: function() {
@@ -403,6 +402,25 @@ ControllerIOS.prototype = {
         this.video.webkitShowPlaybackTargetPicker();
         event.stopPropagation();
     },
+
+    get pageScaleFactor() {
+        return this._pageScaleFactor;
+    },
+
+    set pageScaleFactor(newScaleFactor) {
+        this._pageScaleFactor = newScaleFactor;
+
+        if (newScaleFactor) {
+            var scaleTransform = "scale(" + (1 / newScaleFactor) + ")";
+            if (this.controls.startPlaybackButton)
+                this.controls.startPlaybackButton.style.webkitTransform = scaleTransform;
+            if (this.controls.panel) {
+                this.controls.panel.style.width = (newScaleFactor * 100) + "%";
+                this.controls.panel.style.webkitTransform = scaleTransform;
+                this.updateProgress();
+            }
+        }
+    }
 };
 
 Object.create(Controller.prototype).extend(ControllerIOS.prototype);

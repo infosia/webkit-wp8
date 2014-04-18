@@ -33,10 +33,10 @@
 #include "CSSComputedStyleDeclaration.h"
 #include "CSSPropertyNames.h"
 #include "CachedResourceLoader.h"
-#include "Clipboard.h"
 #include "ClipboardEvent.h"
 #include "CompositionEvent.h"
 #include "CreateLinkCommand.h"
+#include "DataTransfer.h"
 #include "DeleteSelectionCommand.h"
 #include "DictationAlternative.h"
 #include "DictationCommand.h"
@@ -302,17 +302,17 @@ bool Editor::canEditRichly() const
 
 bool Editor::canDHTMLCut()
 {
-    return !m_frame.selection().selection().isInPasswordField() && !dispatchCPPEvent(eventNames().beforecutEvent, ClipboardNumb);
+    return !m_frame.selection().selection().isInPasswordField() && !dispatchCPPEvent(eventNames().beforecutEvent, DataTransferAccessPolicy::Numb);
 }
 
 bool Editor::canDHTMLCopy()
 {
-    return !m_frame.selection().selection().isInPasswordField() && !dispatchCPPEvent(eventNames().beforecopyEvent, ClipboardNumb);
+    return !m_frame.selection().selection().isInPasswordField() && !dispatchCPPEvent(eventNames().beforecopyEvent, DataTransferAccessPolicy::Numb);
 }
 
 bool Editor::canDHTMLPaste()
 {
-    return !dispatchCPPEvent(eventNames().beforepasteEvent, ClipboardNumb);
+    return !dispatchCPPEvent(eventNames().beforepasteEvent, DataTransferAccessPolicy::Numb);
 }
 
 bool Editor::canCut() const
@@ -734,7 +734,7 @@ bool Editor::tryDHTMLCopy()
     if (m_frame.selection().selection().isInPasswordField())
         return false;
 
-    return !dispatchCPPEvent(eventNames().copyEvent, ClipboardWritable);
+    return !dispatchCPPEvent(eventNames().copyEvent, DataTransferAccessPolicy::Writable);
 }
 
 bool Editor::tryDHTMLCut()
@@ -742,12 +742,12 @@ bool Editor::tryDHTMLCut()
     if (m_frame.selection().selection().isInPasswordField())
         return false;
     
-    return !dispatchCPPEvent(eventNames().cutEvent, ClipboardWritable);
+    return !dispatchCPPEvent(eventNames().cutEvent, DataTransferAccessPolicy::Writable);
 }
 
 bool Editor::tryDHTMLPaste()
 {
-    return !dispatchCPPEvent(eventNames().pasteEvent, ClipboardReadable);
+    return !dispatchCPPEvent(eventNames().pasteEvent, DataTransferAccessPolicy::Readable);
 }
 
 bool Editor::shouldInsertText(const String& text, Range* range, EditorInsertAction action) const
@@ -915,25 +915,25 @@ void Editor::ensureLastEditCommandHasCurrentSelectionIfOpenForMoreTyping()
 
 // Returns whether caller should continue with "the default processing", which is the same as 
 // the event handler NOT setting the return value to false
-bool Editor::dispatchCPPEvent(const AtomicString& eventType, ClipboardAccessPolicy policy)
+bool Editor::dispatchCPPEvent(const AtomicString& eventType, DataTransferAccessPolicy policy)
 {
     Node* target = findEventTargetFromSelection();
     if (!target)
         return true;
 
-    RefPtr<Clipboard> clipboard = Clipboard::createForCopyAndPaste(policy);
+    RefPtr<DataTransfer> dataTransfer = DataTransfer::createForCopyAndPaste(policy);
 
-    RefPtr<Event> event = ClipboardEvent::create(eventType, true, true, clipboard);
+    RefPtr<Event> event = ClipboardEvent::create(eventType, true, true, dataTransfer);
     target->dispatchEvent(event, IGNORE_EXCEPTION);
     bool noDefaultProcessing = event->defaultPrevented();
-    if (noDefaultProcessing && policy == ClipboardWritable) {
+    if (noDefaultProcessing && policy == DataTransferAccessPolicy::Writable) {
         OwnPtr<Pasteboard> pasteboard = Pasteboard::createForCopyAndPaste();
         pasteboard->clear();
-        pasteboard->writePasteboard(clipboard->pasteboard());
+        pasteboard->writePasteboard(dataTransfer->pasteboard());
     }
 
-    // invalidate clipboard here for security
-    clipboard->setAccessPolicy(ClipboardNumb);
+    // invalidate dataTransfer here for security
+    dataTransfer->setAccessPolicy(DataTransferAccessPolicy::Numb);
     
     return !noDefaultProcessing;
 }
@@ -1152,6 +1152,9 @@ Editor::Editor(Frame& frame)
     , m_editorUIUpdateTimer(this, &Editor::editorUIUpdateTimerFired)
     , m_editorUIUpdateTimerShouldCheckSpellingAndGrammar(false)
     , m_editorUIUpdateTimerWasTriggeredByDictation(false)
+#if ENABLE(TELEPHONE_NUMBER_DETECTION) && !PLATFORM(IOS)
+    , m_telephoneNumberDetectionUpdateTimer(this, &Editor::scanSelectionForTelephoneNumbers)
+#endif
 {
 }
 
@@ -1313,7 +1316,7 @@ void Editor::performCutOrCopy(EditorActionSpecifier action)
     }
 
     if (enclosingTextFormControl(m_frame.selection().selection().start()))
-        Pasteboard::createForCopyAndPaste()->writePlainText(selectedTextForClipboard(), canSmartCopyOrDelete() ? Pasteboard::CanSmartReplace : Pasteboard::CannotSmartReplace);
+        Pasteboard::createForCopyAndPaste()->writePlainText(selectedTextForDataTransfer(), canSmartCopyOrDelete() ? Pasteboard::CanSmartReplace : Pasteboard::CannotSmartReplace);
     else {
         HTMLImageElement* imageElement = nullptr;
         if (action == CopyAction)
@@ -1330,7 +1333,7 @@ void Editor::performCutOrCopy(EditorActionSpecifier action)
             writeSelectionToPasteboard(*Pasteboard::createForCopyAndPaste());
 #else
             // FIXME: Convert all other platforms to match Mac and delete this.
-            Pasteboard::createForCopyAndPaste()->writeSelection(*selection, canSmartCopyOrDelete(), m_frame, IncludeImageAltTextForClipboard);
+            Pasteboard::createForCopyAndPaste()->writeSelection(*selection, canSmartCopyOrDelete(), m_frame, IncludeImageAltTextForDataTransfer);
 #endif
         }
     }
@@ -2957,7 +2960,7 @@ String Editor::selectedText() const
     return selectedText(TextIteratorDefaultBehavior);
 }
 
-String Editor::selectedTextForClipboard() const
+String Editor::selectedTextForDataTransfer() const
 {
     if (m_frame.settings().selectionIncludesAltImageText())
         return selectedText(TextIteratorEmitsImageAltText);
@@ -3124,7 +3127,10 @@ bool Editor::findString(const String& target, FindOptions options)
         return false;
 
     m_frame.selection().setSelection(VisibleSelection(resultRange.get(), DOWNSTREAM));
-    m_frame.selection().revealSelection();
+
+    if (!(options & DoNotRevealSelection))
+        m_frame.selection().revealSelection();
+
     return true;
 }
 
@@ -3318,10 +3324,7 @@ void Editor::respondToChangedSelection(const VisibleSelection&, FrameSelection::
         client()->respondToChangedSelection(&m_frame);
 
 #if ENABLE(TELEPHONE_NUMBER_DETECTION) && !PLATFORM(IOS)
-    Vector<RefPtr<Range>> markedRanges;
-    scanSelectionForTelephoneNumbers(markedRanges);
-    if (client())
-        client()->selectedTelephoneNumberRangesChanged(markedRanges);
+    m_telephoneNumberDetectionUpdateTimer.startOneShot(0);
 #endif
 
     setStartNewKillRingSequence(true);
@@ -3337,7 +3340,7 @@ void Editor::respondToChangedSelection(const VisibleSelection&, FrameSelection::
 }
 
 #if ENABLE(TELEPHONE_NUMBER_DETECTION) && !PLATFORM(IOS)
-void Editor::scanSelectionForTelephoneNumbers(Vector<RefPtr<Range>>& markedRanges)
+void Editor::scanSelectionForTelephoneNumbers(Timer<Editor>&)
 {
     if (!TelephoneNumberDetector::isSupported())
         return;
@@ -3347,9 +3350,14 @@ void Editor::scanSelectionForTelephoneNumbers(Vector<RefPtr<Range>>& markedRange
 
     clearDataDetectedTelephoneNumbers();
 
+    Vector<RefPtr<Range>> markedRanges;
+
     RefPtr<Range> selectedRange = m_frame.selection().toNormalizedRange();
-    if (!selectedRange || selectedRange->startOffset() == selectedRange->endOffset())
+    if (!selectedRange || (selectedRange->startContainer() == selectedRange->endContainer() && selectedRange->startOffset() == selectedRange->endOffset())) {
+        if (client())
+            client()->selectedTelephoneNumberRangesChanged(markedRanges);
         return;
+    }
 
     // FIXME: This won't work if a phone number spans multiple chunks of text from the perspective of the TextIterator
     // (By a style change, image, line break, etc.)
@@ -3360,6 +3368,9 @@ void Editor::scanSelectionForTelephoneNumbers(Vector<RefPtr<Range>>& markedRange
 
         scanRangeForTelephoneNumbers(*textChunk.range(), textChunk.text(), markedRanges);
     }
+
+    if (client())
+        client()->selectedTelephoneNumberRangesChanged(markedRanges);
 }
 
 void Editor::scanRangeForTelephoneNumbers(Range& range, const StringView& stringView, Vector<RefPtr<Range>>& markedRanges)

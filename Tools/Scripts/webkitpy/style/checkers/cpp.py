@@ -1848,13 +1848,21 @@ def check_spacing(file_extension, clean_lines, line_number, error):
             error(line_number, 'whitespace/property', 4,
                   'Should not have spaces around = in property attributes.')
 
+    # Objective-C @synthesize lines.
+    is_objective_c_synthesize = search(r'^@synthesize', line)
+    if is_objective_c_synthesize:
+        # "prop=_varName" not "prop = _varName"
+        if search(r'(\s+=|=\s+)', line):
+            error(line_number, 'whitespace/property', 4,
+                  'Should not have spaces around = in property synthesis.')
+
     # Don't try to do spacing checks for operator methods
     line = sub(r'operator(==|!=|<|<<|<=|>=|>>|>|\+=|-=|\*=|/=|%=|&=|\|=|^=|<<=|>>=|/)\(', 'operator\(', line)
     # Don't try to do spacing checks for #include, #import, or #if statements at
     # minimum because it messes up checks for spacing around /
     if match(r'\s*#\s*(?:include|import|if)', line):
         return
-    if not is_objective_c_property and search(r'[\w.]=[\w.]', line):
+    if not is_objective_c_property and not is_objective_c_synthesize and search(r'[\w.]=[\w.]', line):
         error(line_number, 'whitespace/operators', 4,
               'Missing spaces around =')
 
@@ -1950,10 +1958,10 @@ def check_spacing(file_extension, clean_lines, line_number, error):
     # Next we will look for issues with function calls.
     check_spacing_for_function_call(line, line_number, error)
 
-    # Except after an opening paren, you should have spaces before your braces.
-    # And since you should never have braces at the beginning of a line, this is
-    # an easy test.
-    if search(r'[^ ({]{', line):
+    # Except after an opening paren (or ^, for blocks), you should have spaces
+    # before your braces. And since you should never have braces at the
+    # beginning of a line, this is an easy test.
+    if search(r'[^ ({\^]{', line):
         error(line_number, 'whitespace/braces', 5,
               'Missing space before {')
 
@@ -1963,10 +1971,12 @@ def check_spacing(file_extension, clean_lines, line_number, error):
               'Missing space before else')
 
     # You shouldn't have spaces before your brackets, except maybe after
-    # 'delete []' or 'new char * []'.
-    if search(r'\w\s+\[', line) and not search(r'delete\s+\[', line):
-        error(line_number, 'whitespace/braces', 5,
-              'Extra space before [')
+    # 'delete []' or 'new char * []'. Objective-C can't follow this rule
+    # because of method calls.
+    if file_extension != 'mm' and file_extension != 'm':
+        if search(r'\w\s+\[', line) and not search(r'delete\s+\[', line):
+            error(line_number, 'whitespace/braces', 5,
+                  'Extra space before [')
 
     # There should always be a single space in between braces on the same line.
     if search(r'\{\}', line):
@@ -2162,7 +2172,6 @@ def get_initial_spaces_for_line(clean_line):
     while initial_spaces < len(clean_line) and clean_line[initial_spaces] == ' ':
         initial_spaces += 1
     return initial_spaces
-
 
 def check_indentation_amount(clean_lines, line_number, error):
     line = clean_lines.elided[line_number]
@@ -2372,11 +2381,14 @@ def check_braces(clean_lines, line_number, error):
         # perfectly: we just don't complain if the last non-whitespace
         # character on the previous non-blank line is ';', ':', '{', '}',
         # ')', or ') const' and doesn't begin with 'if|for|while|switch|else'.
-        # We also allow '#' for #endif and '=' for array initialization.
+        # We also allow '#' for #endif and '=' for array initialization,
+        # and '- (' and '+ (' for Objective-C methods.
         previous_line = get_previous_non_blank_line(clean_lines, line_number)[0]
         if ((not search(r'[;:}{)=]\s*$|\)\s*((const|override)\s*)?(->\s*\S+)?\s*$', previous_line)
              or search(r'\b(if|for|while|switch|else|NS_ENUM)\b', previous_line))
-            and previous_line.find('#') < 0):
+            and previous_line.find('#') < 0
+            and previous_line.find('- (') != 0
+            and previous_line.find('+ (') != 0):
             error(line_number, 'whitespace/braces', 4,
                   'This { should be at the end of the previous line')
     elif (search(r'\)\s*(((const|override)\s*)*\s*)?{\s*$', line)
@@ -3620,7 +3632,7 @@ def check_for_include_what_you_use(filename, clean_lines, include_state, error):
 
 def process_line(filename, file_extension,
                  clean_lines, line, include_state, function_state,
-                 class_state, file_state, enum_state, error):
+                 class_state, file_state, enum_state, asm_state, error):
     """Processes a single line in the file.
 
     Args:
@@ -3637,6 +3649,7 @@ def process_line(filename, file_extension,
                   the state of things in the file.
       enum_state: A _EnumState instance which maintains an enum declaration
                   state.
+      asm_state: The state of inline ASM code.
       error: A callable to which errors are reported, which takes arguments:
              line number, error level, and message
 
@@ -3648,6 +3661,9 @@ def process_line(filename, file_extension,
         return
     if match(r'\s*\b__asm\b', raw_lines[line]):  # Ignore asm lines as they format differently.
         return
+    asm_state.process_line(raw_lines[line])
+    if asm_state.is_in_asm():  # Ignore further checks because asm blocks formatted differently.
+        return
     check_function_definition(filename, file_extension, clean_lines, line, function_state, error)
     check_pass_ptr_usage(clean_lines, line, function_state, error)
     check_for_leaky_patterns(clean_lines, line, function_state, error)
@@ -3658,6 +3674,21 @@ def process_line(filename, file_extension,
     check_for_non_standard_constructs(clean_lines, line, class_state, error)
     check_posix_threading(clean_lines, line, error)
     check_invalid_increment(clean_lines, line, error)
+
+
+class _InlineASMState(object):
+    """Stores the state for the inline asm codes."""
+    def __init__(self):
+        self._is_in_asm = False
+
+    def process_line(self, line):
+        if match(r'\s*asm\s+(volatile)?\(', line):
+            self._is_in_asm = True
+        elif search(r'\);$', line) and self._is_in_asm:  # Can not do more without a proper parser (or lexer).
+            self._is_in_asm = False
+
+    def is_in_asm(self):
+        return self._is_in_asm
 
 
 def _process_lines(filename, file_extension, lines, error, min_confidence):
@@ -3686,10 +3717,11 @@ def _process_lines(filename, file_extension, lines, error, min_confidence):
     clean_lines = CleansedLines(lines)
     file_state = _FileState(clean_lines, file_extension)
     enum_state = _EnumState()
+    asm_state = _InlineASMState()
     for line in xrange(clean_lines.num_lines()):
         process_line(filename, file_extension, clean_lines, line,
                      include_state, function_state, class_state, file_state,
-                     enum_state, error)
+                     enum_state, asm_state, error)
     class_state.check_finished(error)
 
     check_for_include_what_you_use(filename, clean_lines, include_state, error)

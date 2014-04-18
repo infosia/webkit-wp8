@@ -49,6 +49,8 @@ RemoteLayerTreeContext::RemoteLayerTreeContext(WebPage* webPage)
 
 RemoteLayerTreeContext::~RemoteLayerTreeContext()
 {
+    for (auto& layer : m_liveLayers.values())
+        layer->clearContext();
 }
 
 void RemoteLayerTreeContext::layerWasCreated(PlatformCALayerRemote* layer, PlatformCALayer::LayerType type)
@@ -61,27 +63,17 @@ void RemoteLayerTreeContext::layerWasCreated(PlatformCALayerRemote* layer, Platf
         creationProperties.hostingContextID = layer->hostingContextID();
 
     m_createdLayers.append(creationProperties);
+    m_liveLayers.add(layer->layerID(), layer);
 }
 
 void RemoteLayerTreeContext::layerWillBeDestroyed(PlatformCALayerRemote* layer)
 {
+    m_liveLayers.remove(layer->layerID());
+
     ASSERT(!m_destroyedLayers.contains(layer->layerID()));
     m_destroyedLayers.append(layer->layerID());
     
     m_layersAwaitingAnimationStart.remove(layer->layerID());
-}
-
-void RemoteLayerTreeContext::outOfTreeLayerWasAdded(GraphicsLayer* layer)
-{
-    ASSERT(!m_outOfTreeLayers.contains(layer));
-    m_outOfTreeLayers.append(layer);
-}
-
-void RemoteLayerTreeContext::outOfTreeLayerWillBeRemoved(GraphicsLayer* layer)
-{
-    size_t layerIndex = m_outOfTreeLayers.find(layer);
-    ASSERT(layerIndex != notFound);
-    m_outOfTreeLayers.remove(layerIndex);
 }
 
 void RemoteLayerTreeContext::backingStoreWasCreated(RemoteLayerBackingStore* backingStore)
@@ -97,12 +89,6 @@ void RemoteLayerTreeContext::backingStoreWillBeDestroyed(RemoteLayerBackingStore
 std::unique_ptr<GraphicsLayer> RemoteLayerTreeContext::createGraphicsLayer(GraphicsLayerClient* client)
 {
     return std::make_unique<GraphicsLayerCARemote>(client, this);
-}
-
-void RemoteLayerTreeContext::flushOutOfTreeLayers()
-{
-    for (const auto& layer : m_outOfTreeLayers)
-        layer->flushCompositingStateForThisLayerOnly();
 }
 
 void RemoteLayerTreeContext::buildTransaction(RemoteLayerTreeTransaction& transaction, PlatformCALayer& rootLayer)

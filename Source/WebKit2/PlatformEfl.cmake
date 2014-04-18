@@ -34,7 +34,6 @@ list(APPEND WebKit2_SOURCES
 
     Shared/cairo/ShareableBitmapCairo.cpp
 
-    Shared/efl/LayerTreeContextEfl.cpp
     Shared/efl/NativeWebKeyboardEventEfl.cpp
     Shared/efl/NativeWebTouchEventEfl.cpp
     Shared/efl/NativeWebWheelEventEfl.cpp
@@ -141,7 +140,6 @@ list(APPEND WebKit2_SOURCES
     UIProcess/efl/FindClientEfl.cpp
     UIProcess/efl/FormClientEfl.cpp
     UIProcess/efl/InputMethodContextEfl.cpp
-    UIProcess/efl/NetworkInfoProvider.cpp
     UIProcess/efl/PageLoadClientEfl.cpp
     UIProcess/efl/PagePolicyClientEfl.cpp
     UIProcess/efl/PageUIClientEfl.cpp

@@ -48,15 +48,11 @@ public:
     void layerWasCreated(PlatformCALayerRemote*, WebCore::PlatformCALayer::LayerType);
     void layerWillBeDestroyed(PlatformCALayerRemote*);
 
-    void outOfTreeLayerWasAdded(WebCore::GraphicsLayer*);
-    void outOfTreeLayerWillBeRemoved(WebCore::GraphicsLayer*);
-
     void backingStoreWasCreated(RemoteLayerBackingStore*);
     void backingStoreWillBeDestroyed(RemoteLayerBackingStore*);
 
     LayerHostingMode layerHostingMode() const { return m_webPage->layerHostingMode(); }
 
-    void flushOutOfTreeLayers();
     void buildTransaction(RemoteLayerTreeTransaction&, WebCore::PlatformCALayer& rootLayer);
 
     // From the UI process
@@ -72,11 +68,10 @@ private:
 
     WebPage* m_webPage;
 
-    Vector<WebCore::GraphicsLayer*> m_outOfTreeLayers;
-
     Vector<RemoteLayerTreeTransaction::LayerCreationProperties> m_createdLayers;
     Vector<WebCore::GraphicsLayer::PlatformLayerID> m_destroyedLayers;
 
+    HashMap<WebCore::GraphicsLayer::PlatformLayerID, PlatformCALayerRemote*> m_liveLayers;
     HashMap<WebCore::GraphicsLayer::PlatformLayerID, PlatformCALayerRemote*> m_layersAwaitingAnimationStart;
 
     RemoteLayerBackingStoreCollection m_backingStoreCollection;

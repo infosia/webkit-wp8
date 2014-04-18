@@ -49,7 +49,9 @@ public:
 
     void deallocateMediumLine(std::lock_guard<Mutex>&, MediumLine*);
     MediumLine* allocateMediumLine();
-
+    
+    void scavenge();
+    
 private:
     void deallocateLarge(void*);
     void deallocateXLarge(void*);
@@ -65,7 +67,7 @@ inline bool Deallocator::deallocateFastCase(void* object)
     if (!isSmallOrMedium(object))
         return false;
 
-    ASSERT(object);
+    BASSERT(object);
 
     if (m_objectLog.size() == m_objectLog.capacity())
         return false;

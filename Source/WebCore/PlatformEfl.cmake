@@ -77,7 +77,6 @@ list(APPEND WebCore_SOURCES
     platform/efl/LocalizedStringsEfl.cpp
     platform/efl/LoggingEfl.cpp
     platform/efl/MIMETypeRegistryEfl.cpp
-    platform/efl/NetworkInfoProviderEfl.cpp
     platform/efl/PasteboardEfl.cpp
     platform/efl/PlatformKeyboardEventEfl.cpp
     platform/efl/PlatformMouseEventEfl.cpp
@@ -193,6 +192,10 @@ endif ()
 
 if (ENABLE_NETSCAPE_PLUGIN_API)
     list(APPEND WebCore_SOURCES
+        plugins/PluginPackage.cpp
+        plugins/PluginView.cpp
+        plugins/npapi.cpp
+
         plugins/efl/PluginPackageEfl.cpp
         plugins/efl/PluginViewEfl.cpp
 

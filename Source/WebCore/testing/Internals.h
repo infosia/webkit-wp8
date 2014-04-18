@@ -197,8 +197,6 @@ public:
 
     void setBatteryStatus(const String& eventType, bool charging, double chargingTime, double dischargingTime, double level, ExceptionCode&);
 
-    void setNetworkInformation(const String& eventType, double bandwidth, bool metered, ExceptionCode&);
-
     void setDeviceProximity(const String& eventType, double value, double min, double max, ExceptionCode&);
 
     enum {
@@ -322,6 +320,7 @@ public:
 #endif
 
     bool isPluginUnavailabilityIndicatorObscured(Element*, ExceptionCode&);
+    bool isPluginSnapshotted(Element*, ExceptionCode&);
 
 #if ENABLE(MEDIA_SOURCE)
     void initializeMockMediaSource();

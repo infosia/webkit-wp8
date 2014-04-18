@@ -1321,7 +1321,7 @@ sub launcherPath()
 sub launcherName()
 {
     if (isGtk()) {
-        return "GtkLauncher";
+        return "MiniBrowser";
     } elsif (isAppleMacWebKit()) {
         return "Safari";
     } elsif (isAppleWinWebKit()) {
@@ -1422,7 +1422,7 @@ sub checkInstalledTools()
     # cURL 7.34.0 has a bug that prevents authentication with opensource.apple.com (and other things using SSL3).
     my $curlVer = `curl --version | grep "curl"`;
     chomp($curlVer);
-    if (!$? and $curlVer =~ /libcurl\/7\.33\.0/) {
+    if (!$? and $curlVer =~ /libcurl\/7\.34\.0/) {
         print "cURL version 7.34.0 has a bug that prevents authentication with SSL v2 or v3.\n";
         print "cURL 7.33.0 is known to work. The cURL projects is preparing an update to\n";
         print "correct this problem.\n\n";
@@ -1811,6 +1811,7 @@ sub generateBuildSystemFromCMakeProject
     my @args;
     push @args, "-DPORT=\"$port\"";
     push @args, "-DCMAKE_INSTALL_PREFIX=\"$prefixPath\"" if $prefixPath;
+    push @args, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" if isGtk();
     push @args, "-DSHARED_CORE=ON" if isEfl() && $ENV{"ENABLE_DRT"};
     if ($config =~ /release/i) {
         push @args, "-DCMAKE_BUILD_TYPE=Release";

@@ -209,27 +209,6 @@ NavigationState::PolicyClient::~PolicyClient()
 {
 }
 
-static WKNavigationType toWKNavigationType(WebCore::NavigationType navigationType)
-{
-    switch (navigationType) {
-    case WebCore::NavigationTypeLinkClicked:
-        return WKNavigationTypeLinkActivated;
-    case WebCore::NavigationTypeFormSubmitted:
-        return WKNavigationTypeFormSubmitted;
-    case WebCore::NavigationTypeBackForward:
-        return WKNavigationTypeBackForward;
-    case WebCore::NavigationTypeReload:
-        return WKNavigationTypeReload;
-    case WebCore::NavigationTypeFormResubmitted:
-        return WKNavigationTypeFormResubmitted;
-    case WebCore::NavigationTypeOther:
-        return WKNavigationTypeOther;
-    }
-
-    ASSERT_NOT_REACHED();
-    return WKNavigationTypeOther;
-}
-
 void NavigationState::PolicyClient::decidePolicyForNavigationAction(WebPageProxy*, WebFrameProxy* destinationFrame, const NavigationActionData& navigationActionData, WebFrameProxy* sourceFrame, const WebCore::ResourceRequest& originalRequest, const WebCore::ResourceRequest& request, RefPtr<WebFramePolicyListenerProxy> listener, API::Object* userData)
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationActionDecisionHandler) {
@@ -258,9 +237,10 @@ void NavigationState::PolicyClient::decidePolicyForNavigationAction(WebPageProxy
     [navigationAction setNavigationType:toWKNavigationType(navigationActionData.navigationType)];
     [navigationAction setRequest:request.nsURLRequest(WebCore::DoNotUpdateHTTPBody)];
     [navigationAction _setOriginalURL:originalRequest.url()];
+    [navigationAction _setUserInitiated:navigationActionData.isProcessingUserGesture];
 
-    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationAction:navigationAction.get() decisionHandler:[listener](WKNavigationPolicyDecision policyDecision) {
-        switch (policyDecision) {
+    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationAction:navigationAction.get() decisionHandler:[listener](WKNavigationActionPolicy actionPolicy) {
+        switch (actionPolicy) {
         case WKNavigationActionPolicyAllow:
             listener->use();
             break;
@@ -304,8 +284,8 @@ void NavigationState::PolicyClient::decidePolicyForResponse(WebPageProxy*, WebFr
     [navigationResponse setResponse:resourceResponse.nsURLResponse()];
     [navigationResponse setCanShowMIMEType:canShowMIMEType];
 
-    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationResponse:navigationResponse.get() decisionHandler:[listener](WKNavigationResponsePolicyDecision policyDecision) {
-        switch (policyDecision) {
+    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationResponse:navigationResponse.get() decisionHandler:[listener](WKNavigationResponsePolicy responsePolicy) {
+        switch (responsePolicy) {
         case WKNavigationResponsePolicyAllow:
             listener->use();
             break;

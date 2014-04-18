@@ -22,7 +22,7 @@
 
 messages -> WebPageProxy {
     # UI messages
-    CreateNewPage(uint64_t frameID, WebCore::ResourceRequest request, WebCore::WindowFeatures windowFeatures, uint32_t modifiers, int32_t mouseButton) -> (uint64_t newPageID, WebKit::WebPageCreationParameters newPageParameters)
+    CreateNewPage(uint64_t frameID, WebCore::ResourceRequest request, WebCore::WindowFeatures windowFeatures, WebKit::NavigationActionData navigationActionData) -> (uint64_t newPageID, WebKit::WebPageCreationParameters newPageParameters)
     ShowPage()
     ClosePage(bool stopResponsivenessTimer)
     RunJavaScriptAlert(uint64_t frameID, String message) -> () Delayed
@@ -168,6 +168,7 @@ messages -> WebPageProxy {
     SaveImageToLibrary(WebKit::SharedMemory::Handle handle, uint64_t size)
     DidUpdateBlockSelectionWithTouch(uint32_t touch, uint32_t flags, float growThreshold, float shrinkThreshold)
     ShowPlaybackTargetPicker(bool hasVideo, WebCore::IntRect elementRect)
+    ZoomToRect(WebCore::FloatRect rect, double minimumScale, double maximumScale)
 #endif
 #if PLATFORM(GTK)
     PrintFinishedCallback(WebCore::ResourceError error, uint64_t callbackID)
@@ -255,7 +256,7 @@ messages -> WebPageProxy {
 
     # Drag and drop messages
 #if ENABLE(DRAG_SUPPORT)
-    DidPerformDragControllerAction(WebCore::DragSession dragSession)
+    DidPerformDragControllerAction(uint64_t dragOperation, bool mouseIsOverFileInput, unsigned numberOfItemsToBeAccepted)
 #endif
 #if PLATFORM(COCOA) && ENABLE(DRAG_SUPPORT)
     SetDragImage(WebCore::IntPoint clientPosition, WebKit::ShareableBitmap::Handle dragImage, bool linkDrag)
@@ -316,6 +317,7 @@ messages -> WebPageProxy {
 #endif
 
 #if PLATFORM(IOS)
+    DynamicViewportUpdateChangedTarget(double newTargetScale, WebCore::FloatPoint newScrollPosition)
     DidGetTapHighlightGeometries(uint64_t requestID, WebCore::Color color, Vector<WebCore::FloatQuad> geometries, WebCore::IntSize topLeftRadius, WebCore::IntSize topRightRadius, WebCore::IntSize bottomLeftRadius, WebCore::IntSize bottomRightRadius)
 
     StartAssistingNode(WebKit::AssistedNodeInformation information, WebKit::InjectedBundleUserMessageEncoder userData) Variadic

@@ -1409,7 +1409,7 @@ bool RenderBox::backgroundHasOpaqueTopLayer() const
     if (hasOverflowClip() && fillLayer->attachment() == LocalBackgroundAttachment)
         return false;
 
-    if (fillLayer->hasOpaqueImage(this) && fillLayer->hasRepeatXY() && fillLayer->image()->canRender(this, style().effectiveZoom()))
+    if (fillLayer->hasOpaqueImage(*this) && fillLayer->hasRepeatXY() && fillLayer->image()->canRender(this, style().effectiveZoom()))
         return true;
 
     // If there is only one layer and no image, check whether the background color is opaque
@@ -1511,7 +1511,7 @@ void RenderBox::paintFillLayers(const PaintInfo& paintInfo, const Color& c, cons
             shouldDrawBackgroundInSeparateBuffer = true;
 
         // The clipOccludesNextLayers condition must be evaluated first to avoid short-circuiting.
-        if (curLayer->clipOccludesNextLayers(curLayer == fillLayer) && curLayer->hasOpaqueImage(this) && curLayer->image()->canRender(this, style().effectiveZoom()) && curLayer->hasRepeatXY() && curLayer->blendMode() == BlendModeNormal)
+        if (curLayer->clipOccludesNextLayers(curLayer == fillLayer) && curLayer->hasOpaqueImage(*this) && curLayer->image()->canRender(this, style().effectiveZoom()) && curLayer->hasRepeatXY() && curLayer->blendMode() == BlendModeNormal)
             break;
         curLayer = curLayer->next();
     }
@@ -2031,11 +2031,7 @@ void RenderBox::positionLineBox(InlineElementBox& box)
 
     if (isReplaced()) {
         setLocation(roundedLayoutPoint(box.topLeft()));
-        // m_inlineBoxWrapper should already be 0. Deleting it is a safeguard against security issues.
-        ASSERT(!m_inlineBoxWrapper);
-        if (m_inlineBoxWrapper)
-            deleteLineBoxWrapper();
-        m_inlineBoxWrapper = &box;
+        setInlineBoxWrapper(&box);
     }
 }
 
@@ -2111,8 +2107,15 @@ void RenderBox::computeRectForRepaint(const RenderLayerModelObject* repaintConta
     auto o = container(repaintContainer, &containerSkipped);
     if (!o)
         return;
+    
+    EPosition position = styleToUse.position();
 
-    if (o->isRenderFlowThread()) {
+    // This code isn't necessary for in-flow RenderFlowThreads.
+    // Don't add the location of the region in the flow thread for absolute positioned
+    // elements because their absolute position already pushes them down through
+    // the regions so adding this here and then adding the topLeft again would cause
+    // us to add the height twice.
+    if (o->isOutOfFlowRenderFlowThread() && position != AbsolutePosition) {
         RenderRegion* firstRegion = nullptr;
         RenderRegion* lastRegion = nullptr;
         if (toRenderFlowThread(o)->getRegionRangeForBox(this, firstRegion, lastRegion))
@@ -2124,8 +2127,6 @@ void RenderBox::computeRectForRepaint(const RenderLayerModelObject* repaintConta
 
     LayoutPoint topLeft = rect.location();
     topLeft.move(locationOffset());
-
-    EPosition position = styleToUse.position();
 
     // We are now in our parent container's coordinate space.  Apply our transform to obtain a bounding box
     // in the parent's coordinate space that encloses us.
@@ -2713,6 +2714,11 @@ LayoutUnit RenderBox::computeContentAndScrollbarLogicalHeightUsing(const Length&
 
 bool RenderBox::skipContainingBlockForPercentHeightCalculation(const RenderBox* containingBlock) const
 {
+    // Flow threads for multicol or paged overflow should be skipped. They are invisible to the DOM,
+    // and percent heights of children should be resolved against the multicol or paged container.
+    if (containingBlock->isInFlowRenderFlowThread())
+        return true;
+
     // For quirks mode and anonymous blocks, we skip auto-height containingBlocks when computing percentages.
     // For standards mode, we treat the percentage as auto if it has an auto-height containing block.
     if (!document().inQuirksMode() && !containingBlock->isAnonymousBlock())
