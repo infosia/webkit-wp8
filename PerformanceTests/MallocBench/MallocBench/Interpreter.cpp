@@ -40,7 +40,8 @@
 
 #include "mbmalloc.h"
 
-Interpreter::Interpreter(const char* fileName)
+Interpreter::Interpreter(const char* fileName, bool shouldFreeAllObjects)
+    : m_shouldFreeAllObjects(shouldFreeAllObjects)
 {
     m_fd = open(fileName, O_RDWR, S_IRUSR | S_IWUSR);
     if (m_fd == -1)
@@ -93,17 +94,21 @@ void Interpreter::run()
         for (size_t i = 0; i < opCount; ++i) {
             Op op = ops[i];
             switch (op.opcode) {
-            case op_a: {
+            case op_malloc: {
                 m_objects[op.slot] = { mbmalloc(op.size), op.size };
                 assert(m_objects[op.slot].object);
                 bzero(m_objects[op.slot].object, op.size);
                 break;
             }
-            case op_d: {
+            case op_free: {
                 assert(m_objects[op.slot].object);
-                assert(m_objects[op.slot].size);
                 mbfree(m_objects[op.slot].object, m_objects[op.slot].size);
                 m_objects[op.slot] = { 0, 0 };
+                break;
+            }
+            case op_realloc: {
+                assert(m_objects[op.slot].object);
+                m_objects[op.slot] = { mbrealloc(m_objects[op.slot].object, m_objects[op.slot].size, op.size), op.size };
                 break;
             }
             default: {
@@ -116,6 +121,9 @@ void Interpreter::run()
     }
 
     // A recording might not free all of its allocations.
+    if (!m_shouldFreeAllObjects)
+        return;
+
     for (size_t i = 0; i < m_objects.size(); ++i) {
         if (!m_objects[i].object)
             continue;

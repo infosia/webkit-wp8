@@ -1,3 +1,223 @@
+2014-04-18  Katie Madonna  <madonnk@gmail.com>
+
+        Web Inspector: add entries for probe samples in the JS/Events timeline UI
+        https://bugs.webkit.org/show_bug.cgi?id=131173
+
+        Reviewed by Timothy Hatcher.
+
+        Create probe sample fired entries for the JS/Events timeline UI.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Controllers/ProbeManager.js:
+        (WebInspector.ProbeManager.prototype.probeForIdentifier): Added.
+        * UserInterface/Controllers/TimelineManager.js: Added cases for probe sample recorded.
+        (WebInspector.TimelineManager.prototype.eventRecorded.processRecord):
+        (WebInspector.TimelineManager.prototype.eventRecorded):
+        * UserInterface/Images/TimelineRecordProbeSampled.svg: Added.
+        * UserInterface/Models/ScriptTimelineRecord.js: Create ProbeSampleRecorded record for ProbeSample case.
+        * UserInterface/Views/TimelineIcons.css:
+        (.probe-record .icon): Added.
+        * UserInterface/Views/TimelineRecordTreeElement.js:
+        (WebInspector.TimelineRecordTreeElement): Added case for probe sample recorded.
+
+2014-04-15  Timothy Hatcher  <timothy@apple.com>
+
+        Web Inspector: CodeMirror LICENSE is not properly added to combined files
+        https://bugs.webkit.org/show_bug.cgi?id=131674
+
+        Reviewed by Darin Adler.
+
+        * Scripts/copy-user-interface-resources.pl: Use $CODE_MIRROR_LICENSE instead
+        for CodeMirror.css and CodeMirror.js.
+
+2014-04-14  Jono Wells  <jonowells@apple.com>
+
+        Update to CodeMirror 4.0.
+        https://bugs.webkit.org/show_bug.cgi?id=130019
+
+        The CodeMirror 4.0 library adds multiple selections and the ability to
+        undo/redo selections. Selections are made by holding the Command (Cmd) key
+        and clicking into an editor, or by holding Option (Alt) and making a block
+        selection followed by entering a character or moving the cursor.
+
+        Reviewed by Timothy Hatcher.
+
+        * Scripts/update-codemirror-resources.rb:
+        * Scripts/update-pretty-printer.rb:
+        Update scripts to reflect updated locations for CodeMirror files.
+        No longer copies LESS mode file as this has been integrated into CSS mode
+        in CodeMirror 4.0.
+
+        * Tools/PrettyPrinting/codemirror.css:
+        * Tools/PrettyPrinting/codemirror.js:
+        * Tools/PrettyPrinting/css.js:
+        * Tools/PrettyPrinting/javascript.js:
+        * UserInterface/External/CodeMirror/clojure.js:
+        * UserInterface/External/CodeMirror/closebrackets.js:
+        * UserInterface/External/CodeMirror/codemirror.css:
+        * UserInterface/External/CodeMirror/codemirror.js:
+        * UserInterface/External/CodeMirror/coffeescript.js:
+        * UserInterface/External/CodeMirror/comment.js:
+        * UserInterface/External/CodeMirror/css.js:
+        * UserInterface/External/CodeMirror/htmlmixed.js:
+        * UserInterface/External/CodeMirror/javascript.js:
+        * UserInterface/External/CodeMirror/livescript.js:
+        * UserInterface/External/CodeMirror/matchbrackets.js:
+        * UserInterface/External/CodeMirror/overlay.js:
+        * UserInterface/External/CodeMirror/placeholder.js:
+        * UserInterface/External/CodeMirror/runmode.js:
+        * UserInterface/External/CodeMirror/sass.js:
+        * UserInterface/External/CodeMirror/searchcursor.js:
+        * UserInterface/External/CodeMirror/sql.js:
+        * UserInterface/External/CodeMirror/xml.js:
+        Update to CodeMirror 4.0.
+
+        * UserInterface/Main.html: Remove less.js which is now part of css.js.
+
+        * UserInterface/Views/CSSStyleDeclarationTextEditor.css:
+        * UserInterface/Views/CSSStyleDeclarationTextEditor.js:
+        (WebInspector.CSSStyleDeclarationTextEditor.prototype.):
+        (WebInspector.CSSStyleDeclarationTextEditor.prototype._createColorSwatches):
+        (WebInspector.CSSStyleDeclarationTextEditor.prototype._updateJumpToSymbolTrackingMode):
+        * UserInterface/Views/SyntaxHighlightingDefaultTheme.css:
+        Update styles to match CodeMirror changes. Update CSSStyleDeclarationTextEditor.js
+        to match CodeMirror API updates (doc.removeLine() has been removed, so
+        replaceRange() is used instead). Also the tokenTrackingController is now enabled in the
+        CSSStyleDeclarationTextEditor and SourceCodeTextEditor when the Option (Alt) key
+        is pressed instead of the Command (Cmd) key so as not to conflict with multiple
+        cursor placement in the CodeMirror update.
+
+2014-04-08  Brent Fulgham  <bfulgham@apple.com>
+
+        [Windows] Generate Optimized WebInspectorUI in Release Build
+        https://bugs.webkit.org/show_bug.cgi?id=120120
+
+        Reviewed by Timothy Hatcher.
+
+        * Scripts/copy-user-interface-resources.pl: Copied from Scripts/copy-user-interface-resources.sh.
+        * Scripts/copy-user-interface-resources.sh: Removed.
+        * Scripts/remove-console-asserts.pl:
+        * WebInspectorUI.vcxproj/WebInspectorUI.make: Added.
+        * WebInspectorUI.vcxproj/WebInspectorUI.vcxproj: Switch to Makefile style.
+        * WebInspectorUI.vcxproj/WebInspectorUI.vcxproj.filters: Ditto.
+        * WebInspectorUI.vcxproj/WebInspectorUIPostBuild.cmd: More work should
+        be done in the new build-webinspectorui.sh file.
+        * WebInspectorUI.vcxproj/build-webinspectorui.sh: Added.
+        * WebInspectorUI.xcodeproj/project.pbxproj:
+
+2014-04-08  Timothy Hatcher  <timothy@apple.com>
+
+        Fix corrupt APPLE_IMAGES_LICENSE.rtf after r165676.
+        https://bugs.webkit.org/show_bug.cgi?id=131384
+
+        Reviewed by Joseph Pecoraro.
+
+        * APPLE_IMAGES_LICENSE.rtf:
+
+2014-04-08  Timothy Hatcher  <timothy@apple.com>
+
+        Clean up old protocol JSON files to better match the latest
+        https://bugs.webkit.org/show_bug.cgi?id=131308
+
+        Reviewed by Joseph Pecoraro.
+
+        * Versions/Inspector-iOS-6.0.json:
+        * Versions/Inspector-iOS-7.0.json:
+
+2014-04-05  Brian J. Burg  <burg@cs.washington.edu>
+
+        Enable WEB_REPLAY for PLATFORM(MAC)
+        https://bugs.webkit.org/show_bug.cgi?id=130700
+
+        Reviewed by Timothy Hatcher.
+
+        If the ReplayAgent is available, then add an option to toggle between the
+        replay interface and normal Timeline interface from the timeline
+        sidebar panel. The option is available through a context menu item on the
+        sidebar panel's top navigation bar.
+
+        If web replay not available, just show the non-replay interface.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Base/Main.js: Add WebInspector.showReplayInterfaceSetting.
+        (WebInspector.loaded):
+
+        * UserInterface/Views/TimelineSidebarPanel.js: Unconditionally create the replay
+        interface elements, but only show them if showReplayInterfaceSetting is enabled.
+        (WebInspector.TimelineSidebarPanel.prototype._updateReplayInterfaceVisibility): Added
+        (WebInspector.TimelineSidebarPanel.prototype._contextMenuNavigationBarOrStatusBar.toggleReplayInterface): Added.
+        (WebInspector.TimelineSidebarPanel.prototype._contextMenuNavigationBarOrStatusBar): Added.
+
+2014-04-05  Brian J. Burg  <burg@cs.washington.edu>
+
+        Web Inspector: remove unused metrics and commands from the Timeline agent
+        https://bugs.webkit.org/show_bug.cgi?id=131184
+
+        Reviewed by Timothy Hatcher.
+
+        Remove the Memory domain from old protocol versions. Remove enum values
+        BeginFrame and CompositeLayers. Remove arguments to Timeline.start.
+        Remove miscellaneous Timeline commands that no longer exist and were never used.
+
+        * UserInterface/Protocol/Legacy/6.0/InspectorWebBackendCommands.js:
+        * UserInterface/Protocol/Legacy/7.0/InspectorWebBackendCommands.js:
+        * Versions/Inspector-iOS-6.0.json:
+        * Versions/Inspector-iOS-7.0.json:
+
+2014-04-03  Brian J. Burg  <burg@cs.washington.edu>
+
+        Web Inspector: hook up probe samples to TimelineAgent's records
+        https://bugs.webkit.org/show_bug.cgi?id=131127
+
+        Reviewed by Timothy Hatcher.
+
+        * UserInterface/Controllers/TimelineManager.js: Stub out a case for the ProbeSample record type.
+        (WebInspector.TimelineManager.prototype.eventRecorded.processRecord):
+        (WebInspector.TimelineManager.prototype.eventRecorded):
+
+2014-04-04  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: JSContext inspection Resource search throws exception
+        https://bugs.webkit.org/show_bug.cgi?id=131253
+
+        Reviewed by Timothy Hatcher.
+
+        Fail gracefully when none of the supported search backends are available.
+        In JSContext inspection the DOM and Page agents are unavailable.
+
+        * UserInterface/Views/ResourceSidebarPanel.js:
+        (WebInspector.ResourceSidebarPanel.prototype.performSearch):
+
+2014-04-04  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Web Inspector: JSContext inspection - TypeError: null is not an object (evaluating 'contentView.showSourceCode')
+        https://bugs.webkit.org/show_bug.cgi?id=129857
+
+        Reviewed by Timothy Hatcher.
+
+        When inspecting a JSContext, there is no main frame resource, so
+        attempting to show it was resulting in a runtime error.
+        Instead, check to see if there is a main frame resource, fallback
+        to selecting the first tree element.
+
+        * UserInterface/Base/Main.js:
+        (WebInspector.toggleConsoleView):
+        * UserInterface/Views/DebuggerSidebarPanel.js:
+        (WebInspector.DebuggerSidebarPanel.prototype.showDefaultContentView):
+        * UserInterface/Views/ResourceSidebarPanel.js:
+        (WebInspector.ResourceSidebarPanel.prototype.showDefaultContentView):
+
+2014-04-04  Ion Rosca  <rosca@adobe.com>
+
+        [CSS Blending] Add compositing reason for isolation.
+        https://bugs.webkit.org/show_bug.cgi?id=131153
+
+        Reviewed by Joseph Pecoraro.
+
+        * Localizations/en.lproj/localizedStrings.js:
+        * UserInterface/Views/LayerTreeSidebarPanel.js:
+        (WebInspector.LayerTreeSidebarPanel.prototype._populateListOfCompositingReasons):
+
 2014-04-02  Timothy Hatcher  <timothy@apple.com>
 
         Remove Input domain from the Web Inspector protocol.

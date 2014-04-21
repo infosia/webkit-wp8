@@ -477,8 +477,8 @@ public:
         virtual ~ErrorMessageCallback() { }
     };
 
-    void setContextLostCallback(PassOwnPtr<ContextLostCallback>);
-    void setErrorMessageCallback(PassOwnPtr<ErrorMessageCallback>);
+    void setContextLostCallback(std::unique_ptr<ContextLostCallback>);
+    void setErrorMessageCallback(std::unique_ptr<ErrorMessageCallback>);
 
     static PassRefPtr<GraphicsContext3D> create(Attributes, HostWindow*, RenderStyle = RenderOffscreen);
     static PassRefPtr<GraphicsContext3D> createForCurrentGLContext();
@@ -875,6 +875,10 @@ public:
     // getError in the order they were added.
     void synthesizeGLError(GC3Denum error);
 
+    // Read real OpenGL errors, and move them to the synthetic
+    // error list. Return true if at least one error is moved.
+    bool moveErrorsToSyntheticErrorList();
+
     // Support for extensions. Returns a non-null object, though not
     // all methods it contains may necessarily be supported on the
     // current hardware. Must call Extensions3D::supports() to
@@ -1085,8 +1089,9 @@ private:
             return filteredToActualUniformIndexMap.size();
         }
     };
-    std::unique_ptr<ActiveShaderSymbolCounts> m_shaderSymbolCount;
-
+    typedef HashMap<Platform3DObject, ActiveShaderSymbolCounts> ShaderProgramSymbolCountMap;
+    ShaderProgramSymbolCountMap m_shaderProgramSymbolCountMap;
+    
     String mappedSymbolName(Platform3DObject program, ANGLEShaderSymbolType, const String& name);
     String mappedSymbolName(Platform3DObject shaders[2], size_t count, const String& name);
     String originalSymbolName(Platform3DObject program, ANGLEShaderSymbolType, const String& name);
@@ -1142,7 +1147,7 @@ private:
     ListHashSet<GC3Denum> m_syntheticErrors;
 
     friend class GraphicsContext3DPrivate;
-    OwnPtr<GraphicsContext3DPrivate> m_private;
+    std::unique_ptr<GraphicsContext3DPrivate> m_private;
 };
 
 } // namespace WebCore

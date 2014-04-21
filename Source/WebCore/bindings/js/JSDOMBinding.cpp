@@ -63,6 +63,25 @@ const JSC::HashTable& getHashTableForGlobalData(VM& vm, const JSC::HashTable& st
     return DOMObjectHashTableMap::mapFor(vm).get(staticTable);
 }
 
+JSC::JSValue jsStringWithCache(JSC::ExecState* exec, const String& s)
+{
+    JSC::VM& vm = exec->vm();
+    StringImpl* stringImpl = s.impl();
+    if (!stringImpl || !stringImpl->length())
+        return jsEmptyString(&vm);
+
+    if (stringImpl->length() == 1) {
+        UChar singleCharacter = (*stringImpl)[0u];
+        if (singleCharacter <= JSC::maxSingleCharacterString)
+            return vm.smallStrings.singleCharacterString(static_cast<unsigned char>(singleCharacter));
+    }
+
+    auto addResult = vm.stringCache.add(stringImpl, nullptr);
+    if (addResult.isNewEntry)
+        addResult.iterator->value = JSC::jsString(&vm, String(stringImpl));
+    return JSC::JSValue(addResult.iterator->value.get());
+}
+
 JSValue jsStringOrNull(ExecState* exec, const String& s)
 {
     if (s.isNull())
@@ -527,18 +546,97 @@ bool BindingSecurity::shouldAllowAccessToNode(JSC::ExecState* state, Node* targe
     return target && canAccessDocument(state, &target->document());
 }
     
-String makeDOMBindingsTypeErrorStringInternal(const char* first, ...)
+static EncodedJSValue throwTypeError(JSC::ExecState& state, const String& errorMessage)
+{
+    return throwVMError(&state, createTypeError(&state, errorMessage));
+}
+
+static void appendArgumentMustBe(StringBuilder& builder, unsigned argumentIndex, const char* argumentName, const char* interfaceName, const char* functionName)
+{
+    builder.appendLiteral("Argument ");
+    builder.appendNumber(argumentIndex + 1);
+    builder.appendLiteral(" ('");
+    builder.append(argumentName);
+    builder.appendLiteral("') to ");
+    if (!functionName) {
+        builder.appendLiteral("the ");
+        builder.append(interfaceName);
+        builder.appendLiteral(" constructor");
+    } else {
+        builder.append(interfaceName);
+        builder.append('.');
+        builder.append(functionName);
+    }
+    builder.appendLiteral(" must be ");
+}
+
+JSC::EncodedJSValue reportDeprecatedGetterError(JSC::ExecState& state, const char* interfaceName, const char* attributeName)
+{
+    auto& context = *jsCast<JSDOMGlobalObject*>(state.lexicalGlobalObject())->scriptExecutionContext();
+    context.addConsoleMessage(MessageSource::JS, MessageLevel::Error, makeString("Deprecated attempt to access property '", attributeName, "' on a non-", interfaceName, " object."));
+    return JSValue::encode(jsUndefined());
+}
+
+JSC::EncodedJSValue throwArgumentMustBeEnumError(JSC::ExecState& state, unsigned argumentIndex, const char* argumentName, const char* functionInterfaceName, const char* functionName, const char* expectedValues)
 {
     StringBuilder builder;
-    const char* str = first;
-    va_list list;
-    va_start(list, first);
-    do {
-        builder.append(str);
-        str = va_arg(list, char*);
-    } while (str);
-    va_end(list);
-    return builder.toString();
+    appendArgumentMustBe(builder, argumentIndex, argumentName, functionInterfaceName, functionName);
+    builder.appendLiteral("one of: ");
+    builder.append(expectedValues);
+    return throwTypeError(state, builder.toString());
 }
-    
+
+JSC::EncodedJSValue throwArgumentMustBeFunctionError(JSC::ExecState& state, unsigned argumentIndex, const char* argumentName, const char* interfaceName, const char* functionName)
+{
+    StringBuilder builder;
+    appendArgumentMustBe(builder, argumentIndex, argumentName, interfaceName, functionName);
+    builder.appendLiteral("a function");
+    return throwTypeError(state, builder.toString());
+}
+
+JSC::EncodedJSValue throwArgumentTypeError(JSC::ExecState& state, unsigned argumentIndex, const char* argumentName, const char* functionInterfaceName, const char* functionName, const char* expectedType)
+{
+    StringBuilder builder;
+    appendArgumentMustBe(builder, argumentIndex, argumentName, functionInterfaceName, functionName);
+    builder.appendLiteral("an instance of ");
+    builder.append(expectedType);
+    return throwTypeError(state, builder.toString());
+}
+
+void throwArrayElementTypeError(JSC::ExecState& state)
+{
+    throwTypeError(state, "Invalid Array element type");
+}
+
+void throwAttributeTypeError(JSC::ExecState& state, const char* interfaceName, const char* attributeName, const char* expectedType)
+{
+    throwTypeError(state, makeString("The ", interfaceName, '.', attributeName, " attribute must be an instance of ", expectedType));
+}
+
+JSC::EncodedJSValue throwConstructorDocumentUnavailableError(JSC::ExecState& state, const char* interfaceName)
+{
+    // FIXME: This is confusing exception wording. Can we reword to be clearer and more specific?
+    return throwVMError(&state, createReferenceError(&state, makeString(interfaceName, " constructor associated document is unavailable")));
+}
+
+JSC::EncodedJSValue throwGetterTypeError(JSC::ExecState& state, const char* interfaceName, const char* attributeName)
+{
+    return throwTypeError(state, makeString("The ", interfaceName, '.', attributeName, " getter can only be used on instances of ", interfaceName));
+}
+
+void throwSequenceTypeError(JSC::ExecState& state)
+{
+    throwTypeError(state, "Value is not a sequence");
+}
+
+void throwSetterTypeError(JSC::ExecState& state, const char* interfaceName, const char* attributeName)
+{
+    throwTypeError(state, makeString("The ", interfaceName, '.', attributeName, " setter can only be used on instances of ", interfaceName));
+}
+
+EncodedJSValue throwThisTypeError(JSC::ExecState& state, const char* interfaceName, const char* functionName)
+{
+    return throwTypeError(state, makeString("Can only call ", interfaceName, '.', functionName, " on instances of ", interfaceName));
+}
+
 } // namespace WebCore

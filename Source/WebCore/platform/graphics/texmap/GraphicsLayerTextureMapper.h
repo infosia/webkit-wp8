@@ -76,7 +76,7 @@ public:
     virtual void flushCompositingState(const FloatRect&);
     virtual void flushCompositingStateForThisLayerOnly();
     virtual void setName(const String& name);
-    virtual bool hasContentsLayer() const { return m_contentsLayer; }
+    virtual bool usesContentsLayer() const { return m_contentsLayer; }
     virtual PlatformLayer* platformLayer() const { return m_contentsLayer; }
 
     inline int changeMask() const { return m_changeMask; }
@@ -160,7 +160,7 @@ private:
     };
     void notifyChange(ChangeMask);
 
-    OwnPtr<TextureMapperLayer> m_layer;
+    std::unique_ptr<TextureMapperLayer> m_layer;
     RefPtr<TextureMapperTiledBackingStore> m_compositedImage;
     NativeImagePtr m_compositedNativeImagePtr;
     RefPtr<TextureMapperBackingStore> m_backingStore;

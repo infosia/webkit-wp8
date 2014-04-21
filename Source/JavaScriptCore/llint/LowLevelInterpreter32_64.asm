@@ -192,14 +192,13 @@ macro doCallToJavaScript(makeCall)
         const temp4 = t6
     elsif SH4
         const entry = a0
-        const vmTopCallFrame = a1
+        const vm = a1
         const protoCallFrame = a2
-        const topOfStack = a3
 
         const previousCFR = t3
         const previousPC = lr
         const temp1 = t3 # Same as previousCFR
-        const temp2 = a3 # Same as topOfStack
+        const temp2 = a3
         const temp3 = t8
         const temp4 = t9
     end
@@ -291,7 +290,7 @@ macro doCallToJavaScript(makeCall)
     storei temp3, PayloadOffset + CodeBlock[sp, temp1, 8]
     btinz temp1, .copyHeaderLoop
 
-    loadi ProtoCallFrame::argCountAndCodeOriginValue[protoCallFrame], temp2
+    loadi PayloadOffset + ProtoCallFrame::argCountAndCodeOriginValue[protoCallFrame], temp2
     subi 1, temp2
     loadi ProtoCallFrame::paddedArgCount[protoCallFrame], temp3
     subi 1, temp3

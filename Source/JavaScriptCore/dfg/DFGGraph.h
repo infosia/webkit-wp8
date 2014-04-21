@@ -39,8 +39,6 @@
 #include "DFGNodeAllocator.h"
 #include "DFGPlan.h"
 #include "DFGScannable.h"
-#include "DFGVariadicFunction.h"
-#include "InlineCallFrameSet.h"
 #include "JSStack.h"
 #include "MethodOfGettingAValueProfile.h"
 #include <wtf/BitVector.h>
@@ -136,15 +134,13 @@ public:
         ASSERT(!child->misc.replacement);
     }
     
-#define DFG_DEFINE_ADD_NODE(templatePre, templatePost, typeParams, valueParamsComma, valueParams, valueArgs) \
-    templatePre typeParams templatePost Node* addNode(SpeculatedType type valueParamsComma valueParams) \
-    { \
-        Node* node = new (m_allocator) Node(valueArgs); \
-        node->predict(type); \
-        return node; \
+    template<typename... Params>
+    Node* addNode(SpeculatedType type, Params... params)
+    {
+        Node* node = new (m_allocator) Node(params...);
+        node->predict(type);
+        return node;
     }
-    DFG_VARIADIC_TEMPLATE_FUNCTION(DFG_DEFINE_ADD_NODE)
-#undef DFG_DEFINE_ADD_NODE
 
     void dethread();
     
@@ -705,7 +701,7 @@ public:
         return node->children.child(index);
     }
     
-    void voteNode(Node* node, unsigned ballot)
+    void voteNode(Node* node, unsigned ballot, float weight = 1)
     {
         switch (node->op()) {
         case ValueToInt32:
@@ -717,35 +713,35 @@ public:
         }
         
         if (node->op() == GetLocal)
-            node->variableAccessData()->vote(ballot);
+            node->variableAccessData()->vote(ballot, weight);
     }
     
-    void voteNode(Edge edge, unsigned ballot)
+    void voteNode(Edge edge, unsigned ballot, float weight = 1)
     {
-        voteNode(edge.node(), ballot);
+        voteNode(edge.node(), ballot, weight);
     }
     
-    void voteChildren(Node* node, unsigned ballot)
+    void voteChildren(Node* node, unsigned ballot, float weight = 1)
     {
         if (node->flags() & NodeHasVarArgs) {
             for (unsigned childIdx = node->firstChild();
                 childIdx < node->firstChild() + node->numChildren();
                 childIdx++) {
                 if (!!m_varArgChildren[childIdx])
-                    voteNode(m_varArgChildren[childIdx], ballot);
+                    voteNode(m_varArgChildren[childIdx], ballot, weight);
             }
             return;
         }
         
         if (!node->child1())
             return;
-        voteNode(node->child1(), ballot);
+        voteNode(node->child1(), ballot, weight);
         if (!node->child2())
             return;
-        voteNode(node->child2(), ballot);
+        voteNode(node->child2(), ballot, weight);
         if (!node->child3())
             return;
-        voteNode(node->child3(), ballot);
+        voteNode(node->child3(), ballot, weight);
     }
     
     template<typename T> // T = Node* or Edge
@@ -834,7 +830,6 @@ public:
     Bag<MultiGetByOffsetData> m_multiGetByOffsetData;
     Bag<MultiPutByOffsetData> m_multiPutByOffsetData;
     Vector<InlineVariableData, 4> m_inlineVariableData;
-    OwnPtr<InlineCallFrameSet> m_inlineCallFrames;
     HashMap<CodeBlock*, std::unique_ptr<FullBytecodeLiveness>> m_bytecodeLiveness;
     bool m_hasArguments;
     HashSet<ExecutableBase*> m_executablesWhoseArgumentsEscaped;

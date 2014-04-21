@@ -31,17 +31,19 @@
 #include "CookieStorageShimLibrary.h"
 #include "NetworkConnectionToWebProcess.h"
 #include "NetworkProcessConnection.h"
-#include <WebCore/SessionID.h>
 #include "WebCoreArgumentCoders.h"
 #include "WebProcess.h"
-#include <WebCore/URL.h>
+#include <WebCore/SessionID.h>
 #include <WebCore/SoftLinking.h>
+#include <WebCore/URL.h>
 #include <dlfcn.h>
 #include <wtf/MainThread.h>
 #include <wtf/RetainPtr.h>
+#include <wtf/RunLoop.h>
 #include <wtf/text/WTFString.h>
 
 typedef const struct _CFURLRequest* CFURLRequestRef;
+@class NSURLSessionTask;
 
 SOFT_LINK_FRAMEWORK(CFNetwork)
 SOFT_LINK(CFNetwork, CFURLRequestGetURL, CFURLRef, (CFURLRequestRef request), (request))
@@ -50,6 +52,9 @@ using namespace WebCore;
 
 @interface WKNSURLSessionLocal : NSObject
 - (CFDictionaryRef) _copyCookiesForRequestUsingAllAppropriateStorageSemantics:(CFURLRequestRef) request;
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+- (void)_getCookieHeadersForTask:(NSURLSessionTask*)task completionHandler:(void (^)(CFDictionaryRef))completionHandler;
+#endif
 @end
 
 namespace WebKit {
@@ -87,14 +92,19 @@ void CookieStorageShim::initialize()
     if (!__NSURLSessionLocalClass)
         return;
 
-    Method original = class_getInstanceMethod(__NSURLSessionLocalClass, @selector(_copyCookiesForRequestUsingAllAppropriateStorageSemantics:));
-    if (!original)
-        return;
+    if (Method original = class_getInstanceMethod(__NSURLSessionLocalClass, @selector(_copyCookiesForRequestUsingAllAppropriateStorageSemantics:))) {
+        Method replacement = class_getInstanceMethod([WKNSURLSessionLocal class], @selector(_copyCookiesForRequestUsingAllAppropriateStorageSemantics:));
+        ASSERT(replacement);
+        method_exchangeImplementations(original, replacement);
+    }
 
-    Method replacement = class_getInstanceMethod([WKNSURLSessionLocal class], @selector(_copyCookiesForRequestUsingAllAppropriateStorageSemantics:));
-    ASSERT(replacement);
-
-    method_exchangeImplementations(original, replacement);
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+    if (Method original = class_getInstanceMethod(__NSURLSessionLocalClass, @selector(_getCookieHeadersForTask:completionHandler:))) {
+        Method replacement = class_getInstanceMethod([WKNSURLSessionLocal class], @selector(_getCookieHeadersForTask:completionHandler:));
+        ASSERT(replacement);
+        method_exchangeImplementations(original, replacement);
+    }
+#endif
 }
 
 }
@@ -104,6 +114,22 @@ void CookieStorageShim::initialize()
 {
     return WebKit::webKitCookieStorageCopyRequestHeaderFieldsForURL(nullptr, CFURLRequestGetURL(request));
 }
+
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1090
+using CompletionHandlerBlock = void(^)(CFDictionaryRef);
+- (void)_getCookieHeadersForTask:(NSURLSessionTask*)task completionHandler:(CompletionHandlerBlock)completionHandler
+{
+    if (!completionHandler)
+        return;
+
+    RetainPtr<NSURLSessionTask> strongTask = task;
+    CompletionHandlerBlock completionHandlerCopy = [completionHandler copy];
+    RunLoop::main().dispatch([strongTask, completionHandlerCopy]{
+        completionHandlerCopy(WebKit::webKitCookieStorageCopyRequestHeaderFieldsForURL(nullptr, (CFURLRef)[[strongTask currentRequest] URL]));
+        [completionHandlerCopy release];
+    });
+}
+#endif
 @end
 
 #endif // ENABLE(NETWORK_PROCESS)

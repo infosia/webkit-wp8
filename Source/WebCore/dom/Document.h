@@ -35,12 +35,10 @@
 #include "DocumentStyleSheetCollection.h"
 #include "DocumentTiming.h"
 #include "FocusDirection.h"
-#include "HitTestRequest.h"
 #include "IconURL.h"
 #include "MutationObserver.h"
 #include "PageVisibilityState.h"
 #include "PlatformScreen.h"
-#include "QualifiedName.h"
 #include "ReferrerPolicy.h"
 #include "RenderPtr.h"
 #include "ScriptExecutionContext.h"
@@ -59,9 +57,12 @@
 #include <wtf/PassRefPtr.h>
 #include <wtf/WeakPtr.h>
 
+namespace JSC {
+class ExecState;
 #if ENABLE(WEB_REPLAY)
-#include <replay/InputCursor.h>
+class InputCursor;
 #endif
+}
 
 namespace WebCore {
 
@@ -88,7 +89,6 @@ class DocumentLoader;
 class DocumentMarkerController;
 class DocumentParser;
 class DocumentSharedObjectPool;
-class DocumentStyleSheetCollection;
 class DocumentType;
 class Element;
 class EntityReference;
@@ -109,6 +109,7 @@ class HTMLHeadElement;
 class HTMLIFrameElement;
 class HTMLImageElement;
 class HTMLMapElement;
+class HTMLMediaElement;
 class HTMLNameCollection;
 class HTMLScriptElement;
 class HitTestRequest;
@@ -129,6 +130,7 @@ class NodeIterator;
 class Page;
 class PlatformMouseEvent;
 class ProcessingInstruction;
+class QualifiedName;
 class Range;
 class RegisteredEventListener;
 class RenderView;
@@ -404,6 +406,7 @@ public:
     {
         return m_documentElement.get();
     }
+    static ptrdiff_t documentElementMemoryOffset() { return OBJECT_OFFSETOF(Document, m_documentElement); }
 
     Element* activeElement();
     bool hasFocus() const;
@@ -478,8 +481,8 @@ public:
     virtual URL baseURI() const override;
 
 #if ENABLE(WEB_REPLAY)
-    InputCursor& inputCursor() const { return *m_inputCursor; }
-    void setInputCursor(PassRefPtr<InputCursor> cursor) { m_inputCursor = cursor; }
+    JSC::InputCursor& inputCursor() const { return *m_inputCursor; }
+    void setInputCursor(PassRefPtr<JSC::InputCursor>);
 #endif
 
 #if ENABLE(PAGE_VISIBILITY_API)
@@ -559,8 +562,6 @@ public:
     void styleResolverChanged(StyleResolverUpdateFlag);
 
     void scheduleOptimizedStyleSheetUpdate();
-
-    void didAccessStyleResolver();
 
     void evaluateMediaQueryList();
 
@@ -755,7 +756,8 @@ public:
     // Updates for :target (CSS3 selector).
     void setCSSTarget(Element*);
     Element* cssTarget() const { return m_cssTarget; }
-    
+    static ptrdiff_t cssTargetMemoryOffset() { return OBJECT_OFFSETOF(Document, m_cssTarget); }
+
     void scheduleForcedStyleRecalc();
     void scheduleStyleRecalc();
     void unscheduleStyleRecalc();
@@ -1040,6 +1042,12 @@ public:
     void registerForCaptionPreferencesChangedCallbacks(Element*);
     void unregisterForCaptionPreferencesChangedCallbacks(Element*);
     void captionPreferencesChanged();
+#endif
+
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    void registerForPageScaleFactorChangedCallbacks(HTMLMediaElement*);
+    void unregisterForPageScaleFactorChangedCallbacks(HTMLMediaElement*);
+    void pageScaleFactorChanged();
 #endif
 
 #if ENABLE(PAGE_VISIBILITY_API)
@@ -1355,11 +1363,7 @@ private:
 
     void didAssociateFormControlsTimerFired(Timer<Document>&);
 
-    void styleResolverThrowawayTimerFired(DeferrableOneShotTimer<Document>&);
-
     unsigned m_referencingNodeCount;
-
-    DeferrableOneShotTimer<Document> m_styleResolverThrowawayTimer;
 
     std::unique_ptr<StyleResolver> m_styleResolver;
     bool m_didCalculateStyleResolver;
@@ -1537,6 +1541,10 @@ private:
     HashSet<Element*> m_captionPreferencesChangedElements;
 #endif
 
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    HashSet<HTMLMediaElement*> m_pageScaleFactorChangedElements;
+#endif
+
 #if ENABLE(PAGE_VISIBILITY_API)
     HashSet<Element*> m_visibilityStateCallbackElements;
 #endif
@@ -1687,7 +1695,7 @@ private:
 #endif
 
 #if ENABLE(WEB_REPLAY)
-    RefPtr<InputCursor> m_inputCursor;
+    RefPtr<JSC::InputCursor> m_inputCursor;
 #endif
 
     Timer<Document> m_didAssociateFormControlsTimer;

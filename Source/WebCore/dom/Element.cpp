@@ -61,6 +61,7 @@
 #include "NodeRenderStyle.h"
 #include "PlatformWheelEvent.h"
 #include "PointerLockController.h"
+#include "RenderLayer.h"
 #include "RenderNamedFlowFragment.h"
 #include "RenderRegion.h"
 #include "RenderTheme.h"
@@ -377,7 +378,7 @@ void Element::synchronizeAllAttributes() const
     }
 }
 
-inline void Element::synchronizeAttribute(const QualifiedName& name) const
+ALWAYS_INLINE void Element::synchronizeAttribute(const QualifiedName& name) const
 {
     if (!elementData())
         return;
@@ -393,7 +394,7 @@ inline void Element::synchronizeAttribute(const QualifiedName& name) const
     }
 }
 
-inline void Element::synchronizeAttribute(const AtomicString& localName) const
+ALWAYS_INLINE void Element::synchronizeAttribute(const AtomicString& localName) const
 {
     // This version of synchronizeAttribute() is streamlined for the case where you don't have a full QualifiedName,
     // e.g when called from DOM API.
@@ -798,16 +799,22 @@ void Element::setScrollLeft(int newLeft)
 {
     document().updateLayoutIgnorePendingStylesheets();
 
-    if (RenderBox* rend = renderBox())
-        rend->setScrollLeft(static_cast<int>(newLeft * rend->style().effectiveZoom()));
+    if (RenderBox* renderer = renderBox()) {
+        renderer->setScrollLeft(static_cast<int>(newLeft * renderer->style().effectiveZoom()));
+        if (auto* scrollableArea = renderer->layer())
+            scrollableArea->setScrolledProgrammatically(true);
+    }
 }
 
 void Element::setScrollTop(int newTop)
 {
     document().updateLayoutIgnorePendingStylesheets();
 
-    if (RenderBox* rend = renderBox())
-        rend->setScrollTop(static_cast<int>(newTop * rend->style().effectiveZoom()));
+    if (RenderBox* renderer = renderBox()) {
+        renderer->setScrollTop(static_cast<int>(newTop * renderer->style().effectiveZoom()));
+        if (auto* scrollableArea = renderer->layer())
+            scrollableArea->setScrolledProgrammatically(true);
+    }
 }
 
 int Element::scrollWidth()
@@ -2066,16 +2073,6 @@ void Element::setChildrenAffectedByDrag()
     ensureElementRareData().setChildrenAffectedByDrag(true);
 }
 
-void Element::setChildrenAffectedByFirstChildRules(Element* element)
-{
-    element->setChildrenAffectedByFirstChildRules();
-}
-
-void Element::setChildrenAffectedByDirectAdjacentRules(Element* element)
-{
-    element->setChildrenAffectedByDirectAdjacentRules();
-}
-
 void Element::setChildrenAffectedByForwardPositionalRules(Element* element)
 {
     element->ensureElementRareData().setChildrenAffectedByForwardPositionalRules(true);
@@ -2947,6 +2944,11 @@ void Element::setHasPendingResources()
 void Element::clearHasPendingResources()
 {
     ensureElementRareData().setHasPendingResources(false);
+}
+
+bool Element::canContainRangeEndPoint() const
+{
+    return !equalIgnoringCase(fastGetAttribute(roleAttr), "img");
 }
 
 } // namespace WebCore

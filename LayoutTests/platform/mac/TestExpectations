@@ -2,8 +2,6 @@
 #
 # See http://trac.webkit.org/wiki/TestExpectations for more information on this file.
 
-webkit.org/b/89812 fast/parser/parser-yield-timing.html [ Pass Failure ]
-
 # <rdar://problem/5647952> fast/events/mouseout-on-window.html needs mac DRT to issue mouse out events
 fast/events/mouseout-on-window.html [ Failure ]
 
@@ -370,6 +368,10 @@ webkit.org/b/103926 media/track/opera/track/webvtt/parsing-cue-data/tests/tree-b
 webkit.org/b/103926 media/track/opera/track/webvtt/rendering/adhoc/cue_font_size_transition.html [ Skip ]
 webkit.org/b/103926 media/track/opera/track/webvtt/rendering/adhoc/voice_with_evil_timestamp.html [ Skip ]
 
+# WebVTT tests don't work because they need more than a 800x600 snapshot.
+# They are also flakily failing on WebKit2, as snapshot sometimes has a black rectangle for video element instead of white one.
+webkit.org/b/131476 media/track/w3c/track/webvtt [ Skip ]
+
 # Tests for MediaSource API. Feature is not yet functional.
 # https://bugs.webkit.org/show_bug.cgi?id=64731
 http/tests/media/media-source/
@@ -432,9 +434,6 @@ webkit.org/b/81289 canvas/philip/tests/2d.line.cap.round.html [ Failure ]
 
 # Needs BatteryClient implementation.
 webkit.org/b/62698 batterystatus/
-
-#Network Information is not supported yet.
-webkit.org/b/73528 networkinformation
 
 # Proximity Events is not supported.
 proximity
@@ -499,6 +498,7 @@ webkit.org/b/85532 fast/sub-pixel/zoomed-image-tiles.html [ ImageOnlyFailure ]
 
 # No CORS support for media elements is implemented yet.
 http/tests/security/video-cross-origin-readback.html
+http/tests/security/video-cross-origin-accessfailure.html
 
 # media/audio-repaint.html sometimes fails on Lion Debug (Tests)
 webkit.org/b/84357 media/audio-repaint.html [ Failure ]
@@ -1139,6 +1139,8 @@ webkit.org/b/114280 svg/animations/smil-leak-element-instances-noBaseValRef.svg 
 webkit.org/b/114280 svg/animations/smil-leak-element-instances.svg [ Pass Failure ]
 webkit.org/b/114280 svg/animations/smil-leak-elements.svg [ Pass Failure ]
 
+webkit.org/b/131244 svg/as-image/svg-as-image-canvas.html [ Pass ImageOnlyFailure ]
+
 webkit.org/b/90363 [ Debug ] fast/overflow/lots-of-sibling-inline-boxes.html [ Failure Pass Timeout ]
 webkit.org/b/121452 fast/frames/lots-of-objects.html [ Pass Timeout ]
 webkit.org/b/121452 fast/frames/lots-of-iframes.html [ Pass Timeout ]
@@ -1241,8 +1243,6 @@ webkit.org/b/124373 [ MountainLion Release ] http/tests/security/frameNavigation
 
 webkit.org/b/124424 webgl/1.0.2/conformance/ogles/GL/tan/tan_001_to_006.html [ Pass Failure ]
 
-webkit.org/b/124593 fast/forms/form-associated-element-crash.html [ Pass Timeout ]
-
 webkit.org/b/121646 webaudio/delaynode-max-default-delay.html [ Pass Failure ]
 
 # These fast/forms/select tests open a pop-up menu (visible on screen even when using run-webkit-tests), and get stuck in its nested event loop.
@@ -1305,6 +1305,8 @@ webkit.org/b/128061 tables/mozilla_expected_failures/bugs/bug1055-2.html [ Failu
 webkit.org/b/128283 [ Debug ] transitions/shorthand-border-transitions.html [ Skip ]
 # Non-uniform scaling context.
 webkit.org/b/128081 fast/events/page-scaled-mouse-click-iframe.html
+# repaintRectsAsText reports different repaintrects on ML
+webkit.org/b/131887 fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncompositing-transform.html [ Failure ]
 # End of subpixel failures.
 
 webkit.org/b/35297 media/video-display-aspect-ratio.html [ Pass Failure ]
@@ -1346,3 +1348,18 @@ webkit.org/b/130953 compositing/columns/composited-rl-paginated-repaint.html [ P
 webkit.org/b/130971 media/track/track-remove-track.html [ Pass Crash Failure ]
 
 webkit.org/b/130972 transitions/3d/interrupted-transition.html [ Pass Failure Timeout ]
+
+webkit.org/b/130942 fast/preloader/document-write.html [ Pass Failure ]
+
+webkit.org/b/118153 compositing/repaint/positioned-movement.html [ Pass Failure ]
+
+webkit.org/b/131715 transitions/cancel-transition.html [ Pass Failure ]
+
+webkit.org/b/89153 http/tests/websocket/tests/hybi/workers/close.html [ Pass Failure ]
+
+webkit.org/b/131855 media/event-attributes.html [ Pass Failure ]
+
+[ MountainLion Mavericks ] fast/images/image-controls-basic.html [ WontFix ]
+
+webkit.org/b/131886 [ MountainLion ] webgl/1.0.2/conformance/textures/texture-size-limit.html [ Failure ]
+webkit.org/b/131886 [ MountainLion ] fast/canvas/webgl/webgl-compressed-texture-size-limit.html [ Failure ]

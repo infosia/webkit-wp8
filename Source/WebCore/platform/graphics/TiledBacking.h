@@ -50,7 +50,7 @@ public:
     virtual FloatRect visibleRect() const = 0;
     virtual bool tilesWouldChangeForVisibleRect(const FloatRect&) const = 0;
 
-    virtual void setExposedRect(const FloatRect&) = 0;
+    virtual void setTiledScrollingIndicatorPosition(const FloatPoint&) = 0;
 
     virtual void prepopulateRect(const FloatRect&) = 0;
 
@@ -87,6 +87,9 @@ public:
     virtual int bottomMarginHeight() const = 0;
     virtual int leftMarginWidth() const = 0;
     virtual int rightMarginWidth() const = 0;
+
+    virtual void setZoomedOutContentsScale(float) = 0;
+    virtual float zoomedOutContentsScale() const = 0;
 
     // Includes margins.
     virtual IntRect bounds() const = 0;

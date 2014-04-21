@@ -119,10 +119,8 @@ bool JSreadonly::getOwnPropertySlot(JSObject* object, ExecState* exec, PropertyN
     return Base::getOwnPropertySlot(thisObject, exec, propertyName, slot);
 }
 
-EncodedJSValue jsreadonlyConstructor(ExecState* exec, JSObject* baseValue, EncodedJSValue thisValue, PropertyName)
+EncodedJSValue jsreadonlyConstructor(ExecState* exec, JSObject* baseValue, EncodedJSValue, PropertyName)
 {
-    UNUSED_PARAM(baseValue);
-    UNUSED_PARAM(thisValue);
     JSreadonlyPrototype* domObject = jsDynamicCast<JSreadonlyPrototype*>(baseValue);
     if (!domObject)
         return throwVMTypeError(exec);
@@ -167,7 +165,9 @@ JSC::JSValue toJS(JSC::ExecState*, JSDOMGlobalObject* globalObject, readonly* im
 
 readonly* toreadonly(JSC::JSValue value)
 {
-    return value.inherits(JSreadonly::info()) ? &jsCast<JSreadonly*>(value)->impl() : 0;
+    if (auto* wrapper = jsDynamicCast<JSreadonly*>(value))
+        return &wrapper->impl();
+    return nullptr;
 }
 
 }

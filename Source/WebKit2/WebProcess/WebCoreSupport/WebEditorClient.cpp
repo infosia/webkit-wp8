@@ -27,12 +27,14 @@
 #include "WebEditorClient.h"
 
 #include "EditorState.h"
+#include "TelephoneNumberOverlayController.h"
 #include "WebCoreArgumentCoders.h"
 #include "WebFrame.h"
 #include "WebPage.h"
 #include "WebPageProxy.h"
 #include "WebPageProxyMessages.h"
 #include "WebProcess.h"
+#include "WebUndoStep.h"
 #include <WebCore/ArchiveResource.h>
 #include <WebCore/DocumentFragment.h>
 #include <WebCore/FocusController.h>
@@ -318,13 +320,12 @@ void WebEditorClient::textDidChangeInTextField(Element* element)
     if (!isHTMLInputElement(element))
         return;
 
-    if (!UserTypingGestureIndicator::processingUserTypingGesture() || UserTypingGestureIndicator::focusedElementAtGestureStart() != element)
-        return;
+    bool initiatedByUserTyping = UserTypingGestureIndicator::processingUserTypingGesture() && UserTypingGestureIndicator::focusedElementAtGestureStart() == element;
 
     WebFrame* webFrame = WebFrame::fromCoreFrame(*element->document().frame());
     ASSERT(webFrame);
 
-    m_page->injectedBundleFormClient().textDidChangeInTextField(m_page, toHTMLInputElement(element), webFrame);
+    m_page->injectedBundleFormClient().textDidChangeInTextField(m_page, toHTMLInputElement(element), webFrame, initiatedByUserTyping);
 }
 
 void WebEditorClient::textDidChangeInTextArea(Element* element)
@@ -360,6 +361,29 @@ static bool getActionTypeForKeyEvent(KeyboardEvent* event, WKInputFieldActionTyp
     return true;
 }
 
+static API::InjectedBundle::FormClient::InputFieldAction toInputFieldAction(WKInputFieldActionType action)
+{
+    switch (action) {
+    case WKInputFieldActionTypeMoveUp:
+        return API::InjectedBundle::FormClient::InputFieldAction::MoveUp;
+    case WKInputFieldActionTypeMoveDown:
+        return API::InjectedBundle::FormClient::InputFieldAction::MoveDown;
+    case WKInputFieldActionTypeCancel:
+        return API::InjectedBundle::FormClient::InputFieldAction::Cancel;
+    case WKInputFieldActionTypeInsertTab:
+        return API::InjectedBundle::FormClient::InputFieldAction::InsertTab;
+    case WKInputFieldActionTypeInsertNewline:
+        return API::InjectedBundle::FormClient::InputFieldAction::InsertNewline;
+    case WKInputFieldActionTypeInsertDelete:
+        return API::InjectedBundle::FormClient::InputFieldAction::InsertDelete;
+    case WKInputFieldActionTypeInsertBacktab:
+        return API::InjectedBundle::FormClient::InputFieldAction::InsertBacktab;
+    }
+
+    ASSERT_NOT_REACHED();
+    return API::InjectedBundle::FormClient::InputFieldAction::Cancel;
+}
+
 bool WebEditorClient::doTextFieldCommandFromEvent(Element* element, KeyboardEvent* event)
 {
     if (!isHTMLInputElement(element))
@@ -372,7 +396,7 @@ bool WebEditorClient::doTextFieldCommandFromEvent(Element* element, KeyboardEven
     WebFrame* webFrame = WebFrame::fromCoreFrame(*element->document().frame());
     ASSERT(webFrame);
 
-    return m_page->injectedBundleFormClient().shouldPerformActionInTextField(m_page, toHTMLInputElement(element), actionType, webFrame);
+    return m_page->injectedBundleFormClient().shouldPerformActionInTextField(m_page, toHTMLInputElement(element), toInputFieldAction(actionType), webFrame);
 }
 
 void WebEditorClient::textWillBeDeletedInTextField(Element* element)
@@ -383,7 +407,7 @@ void WebEditorClient::textWillBeDeletedInTextField(Element* element)
     WebFrame* webFrame = WebFrame::fromCoreFrame(*element->document().frame());
     ASSERT(webFrame);
 
-    m_page->injectedBundleFormClient().shouldPerformActionInTextField(m_page, toHTMLInputElement(element), WKInputFieldActionTypeInsertDelete, webFrame);
+    m_page->injectedBundleFormClient().shouldPerformActionInTextField(m_page, toHTMLInputElement(element), toInputFieldAction(WKInputFieldActionTypeInsertDelete), webFrame);
 }
 
 bool WebEditorClient::shouldEraseMarkersAfterChangeSelection(WebCore::TextCheckingType type) const
@@ -499,5 +523,12 @@ bool WebEditorClient::supportsGlobalSelection()
     return false;
 #endif
 }
+
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+void WebEditorClient::selectedTelephoneNumberRangesChanged(const Vector<RefPtr<Range>>& ranges)
+{
+    m_page->telephoneNumberOverlayController().selectedTelephoneNumberRangesChanged(ranges);
+}
+#endif
 
 } // namespace WebKit

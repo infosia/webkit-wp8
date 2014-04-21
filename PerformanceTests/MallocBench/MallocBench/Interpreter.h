@@ -30,16 +30,17 @@
 
 class Interpreter {
 public:
-    Interpreter(const char* fileName);
+    Interpreter(const char* fileName, bool shouldFreeAllObjects = true);
     ~Interpreter();
 
     void run();
 
 private:
-    enum Opcode { op_a, op_d };
+    enum Opcode { op_malloc, op_free, op_realloc };
     struct Op { Opcode opcode; size_t slot; size_t size; };
     struct Record { void* object; size_t size; };
 
+    bool m_shouldFreeAllObjects;
     int m_fd;
     size_t m_opCount;
     std::vector<Record> m_objects;

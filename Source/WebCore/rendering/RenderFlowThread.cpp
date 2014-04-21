@@ -95,13 +95,6 @@ void RenderFlowThread::removeFlowChildInfo(RenderObject* child)
         removeRenderBoxRegionInfo(toRenderBox(child));
 }
 
-void RenderFlowThread::addRegionToThread(RenderRegion* renderRegion)
-{
-    ASSERT(renderRegion);
-    m_regionList.add(renderRegion);
-    renderRegion->setIsValid(true);
-}
-
 void RenderFlowThread::removeRegionFromThread(RenderRegion* renderRegion)
 {
     ASSERT(renderRegion);
@@ -203,9 +196,6 @@ void RenderFlowThread::layout()
     RenderBlockFlow::layout();
 
     m_pageLogicalSizeChanged = false;
-
-    if (lastRegion())
-        lastRegion()->expandToEncompassFlowThreadContentsIfNeeded();
 
     // If there are children layers in the RenderFlowThread then we need to make sure that the
     // composited children layers will land in the right RenderRegions. Also, the parent RenderRegions
@@ -600,8 +590,13 @@ void RenderFlowThread::removeRenderBoxRegionInfo(RenderBox* box)
 
 void RenderFlowThread::logicalWidthChangedInRegionsForBlock(const RenderBlock* block, bool& relayoutChildren)
 {
-    if (!hasValidRegionInfo())
+    if (!hasValidRegionInfo()) {
+        // FIXME: Remove once we stop laying out flow threads without regions.
+        // If we had regions but don't any more, relayout the children because the code below
+        // can't properly detect this scenario.
+        relayoutChildren |= previousRegionCountChanged();
         return;
+    }
 
     auto it = m_regionRangeMap.find(block);
     if (it == m_regionRangeMap.end())
@@ -779,7 +774,9 @@ bool RenderFlowThread::getRegionRangeForBox(const RenderBox* box, RenderRegion*&
     do {
         if (cb->isUnsplittableForPagination())
             topMostUnsplittable = cb;
+        ASSERT(cb->parent());
         cb = cb->parent()->enclosingBox();
+        ASSERT(cb);
     } while (!cb->isRenderFlowThread());
 
     if (topMostUnsplittable) {

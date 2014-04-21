@@ -146,10 +146,6 @@ _PATH_RULES_SPECIFIER = [
       "Source/WebCore/css/CSSParser.cpp"],
      ["-readability/naming"]),
 
-    ([# The GTK+ port uses the cmakeconfig.h header directly in some C sources.
-      "Tools/GtkLauncher/main.c"],
-     ["-build/include_order"]),
-
     ([# The GTK+ APIs use GTK+ naming style, which includes
       # lower-cased, underscore-separated values, whitespace before
       # parens for function calls, and always having variable names.
@@ -261,6 +257,8 @@ _CPP_FILE_EXTENSIONS = [
     'c',
     'cpp',
     'h',
+    'mm',
+    'm',
     ]
 
 _JS_FILE_EXTENSION = 'js'
@@ -281,7 +279,6 @@ _TEXT_FILE_EXTENSIONS = [
     'html',
     'idl',
     'in',
-    'mm',
     'php',
     'pl',
     'pm',

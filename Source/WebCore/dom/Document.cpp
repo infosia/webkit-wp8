@@ -220,7 +220,9 @@
 #endif
 
 #if ENABLE(WEB_REPLAY)
+#include "WebReplayInputs.h"
 #include <replay/EmptyInputCursor.h>
+#include <replay/InputCursor.h>
 #endif
 
 using namespace WTF;
@@ -379,8 +381,6 @@ static void printNavigationErrorMessage(Frame* frame, const URL& activeURL, cons
 
 uint64_t Document::s_globalTreeVersion = 0;
 
-static const double timeBeforeThrowingAwayStyleResolverAfterLastUseInSeconds = 30;
-
 #if ENABLE(IOS_TEXT_AUTOSIZING)
 void TextAutoSizingTraits::constructDeletedValue(TextAutoSizingKey& slot)
 {
@@ -408,7 +408,6 @@ Document::Document(Frame* frame, const URL& url, unsigned documentClasses, unsig
     , m_touchEventsChangedTimer(this, &Document::touchEventsChangedTimerFired)
 #endif
     , m_referencingNodeCount(0)
-    , m_styleResolverThrowawayTimer(this, &Document::styleResolverThrowawayTimerFired, timeBeforeThrowingAwayStyleResolverAfterLastUseInSeconds)
     , m_didCalculateStyleResolver(false)
     , m_hasNodesWithPlaceholderStyle(false)
     , m_needsNotifyRemoveAllPendingStylesheet(false)
@@ -1757,7 +1756,7 @@ void Document::recalcStyle(Style::Change change)
 
     m_inStyleRecalc = true;
     {
-        PostAttachCallbackDisabler disabler(*this);
+        Style::PostResolutionCallbackDisabler disabler(*this);
         WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
 
         if (m_pendingStyleRecalcShouldForce)
@@ -2947,7 +2946,7 @@ void Document::processViewport(const String& features, ViewportArguments::Type o
     // bounds checking and determining concrete values for ValueAuto which we already do in UIKit.
     // To maintain old behavior, we just need to update a few values, leaving Auto's for UIKit.
     if (Page* page = this->page())
-        finalizeViewportArguments(m_viewportArguments, page->chrome().client().viewportScreenSize());
+        finalizeViewportArguments(m_viewportArguments, page->chrome().screenSize());
 #endif
 
     updateViewportArguments();
@@ -3894,8 +3893,20 @@ String Document::lastModified() const
     // FIXME: If this document came from the file system, the HTML5
     // specificiation tells us to read the last modification date from the file
     // system.
-    if (!foundDate)
-        date.setMillisecondsSinceEpochForDateTime(currentTimeMS());
+    if (!foundDate) {
+        double fallbackDate = currentTimeMS();
+#if ENABLE(WEB_REPLAY)
+        InputCursor& cursor = inputCursor();
+        if (cursor.isCapturing())
+            cursor.appendInput<DocumentLastModifiedDate>(fallbackDate);
+        else if (cursor.isReplaying()) {
+            if (DocumentLastModifiedDate* input = cursor.fetchInput<DocumentLastModifiedDate>())
+                fallbackDate = input->fallbackValue();
+        }
+#endif
+        date.setMillisecondsSinceEpochForDateTime(fallbackDate);
+    }
+
     return String::format("%02d/%02d/%04d %02d:%02d:%02d", date.month() + 1, date.monthDay(), date.fullYear(), date.hour(), date.minute(), date.second());
 }
 
@@ -4198,6 +4209,24 @@ void Document::captionPreferencesChanged()
 }
 #endif
 
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+void Document::registerForPageScaleFactorChangedCallbacks(HTMLMediaElement* element)
+{
+    m_pageScaleFactorChangedElements.add(element);
+}
+
+void Document::unregisterForPageScaleFactorChangedCallbacks(HTMLMediaElement* element)
+{
+    m_pageScaleFactorChangedElements.remove(element);
+}
+
+void Document::pageScaleFactorChanged()
+{
+    for (HTMLMediaElement* mediaElement : m_pageScaleFactorChangedElements)
+        mediaElement->pageScaleFactorChanged();
+}
+#endif
+
 void Document::setShouldCreateRenderers(bool f)
 {
     m_createRenderers = f;
@@ -4485,17 +4514,6 @@ void Document::sharedObjectPoolClearTimerFired(Timer<Document>&)
     m_sharedObjectPool = nullptr;
 }
 
-void Document::didAccessStyleResolver()
-{
-    m_styleResolverThrowawayTimer.restart();
-}
-
-void Document::styleResolverThrowawayTimerFired(DeferrableOneShotTimer<Document>&)
-{
-    ASSERT(!m_inStyleRecalc);
-    clearStyleResolver();
-}
-
 #if ENABLE(TELEPHONE_NUMBER_DETECTION)
 // FIXME: Find a better place for this functionality.
 bool Document::isTelephoneNumberParsingEnabled() const
@@ -4601,7 +4619,7 @@ void Document::initSecurityContext()
         // This can occur via document.implementation.createDocument().
         m_cookieURL = URL(ParsedURLString, emptyString());
         setSecurityOrigin(SecurityOrigin::createUnique());
-        setContentSecurityPolicy(ContentSecurityPolicy::create(this));
+        setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(this));
         return;
     }
 
@@ -4621,7 +4639,7 @@ void Document::initSecurityContext()
 #endif
 
     setSecurityOrigin(isSandboxed(SandboxOrigin) ? SecurityOrigin::createUnique() : SecurityOrigin::create(m_url));
-    setContentSecurityPolicy(ContentSecurityPolicy::create(this));
+    setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(this));
 
     if (Settings* settings = this->settings()) {
         if (!settings->webSecurityEnabled()) {
@@ -5067,12 +5085,7 @@ void Document::removeMediaCanStartListener(MediaCanStartListener* listener)
 
 MediaCanStartListener* Document::takeAnyMediaCanStartListener()
 {
-    HashSet<MediaCanStartListener*>::iterator slot = m_mediaCanStartListeners.begin();
-    if (slot == m_mediaCanStartListeners.end())
-        return nullptr;
-    MediaCanStartListener* listener = *slot;
-    m_mediaCanStartListeners.remove(slot);
-    return listener;
+    return m_mediaCanStartListeners.takeAny();
 }
 
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS)
@@ -5348,9 +5361,6 @@ void Document::webkitWillEnterFullScreenForElement(Element* element)
         m_savedPlaceholderRenderStyle = RenderStyle::clone(&renderer->style());
     }
 
-    if (m_fullScreenElement != documentElement())
-        RenderFullScreen::wrapRenderer(renderer, renderer ? renderer->parent() : nullptr, *this);
-
     m_fullScreenElement->setContainsFullScreenElementOnAncestorsCrossingFrameBoundaries(true);
     
     recalcStyle(Style::Force);
@@ -5415,10 +5425,10 @@ void Document::setFullScreenRenderer(RenderFullScreen* renderer)
         return;
 
     if (renderer && m_savedPlaceholderRenderStyle) 
-        renderer->createPlaceholder(m_savedPlaceholderRenderStyle.releaseNonNull(), m_savedPlaceholderFrameRect);
+        renderer->setPlaceholderStyle(m_savedPlaceholderRenderStyle.releaseNonNull(), m_savedPlaceholderFrameRect);
     else if (renderer && m_fullScreenRenderer && m_fullScreenRenderer->placeholder()) {
         RenderBlock* placeholder = m_fullScreenRenderer->placeholder();
-        renderer->createPlaceholder(RenderStyle::clone(&placeholder->style()), placeholder->frameRect());
+        renderer->setPlaceholderStyle(RenderStyle::clone(&placeholder->style()), placeholder->frameRect());
     }
 
     if (m_fullScreenRenderer)
@@ -6173,5 +6183,12 @@ bool Document::hasFocus() const
     }
     return false;
 }
+
+#if ENABLE(WEB_REPLAY)
+void Document::setInputCursor(PassRefPtr<InputCursor> cursor)
+{
+    m_inputCursor = cursor;
+}
+#endif
 
 } // namespace WebCore

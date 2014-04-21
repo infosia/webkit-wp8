@@ -48,7 +48,7 @@ class PlatformCALayer;
 class PlatformCAFilters {
 public:
     static void setFiltersOnLayer(PlatformLayer*, const FilterOperations&);
-    static void setBlendingFiltersOnLayer(PlatformCALayer*, const BlendMode);
+    static void setBlendingFiltersOnLayer(PlatformLayer*, const BlendMode);
     static int numAnimatedFilterProperties(FilterOperation::OperationType);
     static const char* animatedFilterPropertyName(FilterOperation::OperationType, int internalFilterPropertyIndex);
 
@@ -57,7 +57,8 @@ public:
 #endif
 
 #ifdef USE_CA_FILTERS
-    static RetainPtr<NSValue> colorMatrixValueForFilter(const FilterOperation&);
+    // A null operation indicates that we should make a "no-op" filter of the given type.
+    static RetainPtr<NSValue> colorMatrixValueForFilter(FilterOperation::OperationType, const FilterOperation*);
 #endif
 };
 

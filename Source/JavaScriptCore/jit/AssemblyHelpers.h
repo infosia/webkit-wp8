@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2011, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -75,6 +75,26 @@ public:
 #else
         store32(cell, address.withOffset(PayloadOffset));
         store32(TrustedImm32(JSValue::CellTag), address.withOffset(TagOffset));
+#endif
+    }
+    
+    void storeValue(JSValueRegs regs, Address address)
+    {
+#if USE(JSVALUE64)
+        store64(regs.gpr(), address);
+#else
+        store32(regs.payloadGPR(), address.withOffset(PayloadOffset));
+        store32(regs.tagGPR(), address.withOffset(TagOffset));
+#endif
+    }
+    
+    void moveTrustedValue(JSValue value, JSValueRegs regs)
+    {
+#if USE(JSVALUE64)
+        move(TrustedImm64(JSValue::encode(value)), regs.gpr());
+#else
+        move(TrustedImm32(value.tag()), regs.tagGPR());
+        move(TrustedImm32(value.payload()), regs.payloadGPR());
 #endif
     }
 
@@ -397,6 +417,8 @@ public:
     void jitAssertTagsInPlace() { }
     void jitAssertArgumentCountSane() { }
 #endif
+    
+    void purifyNaN(FPRReg);
 
     // These methods convert between doubles, and doubles boxed and JSValues.
 #if USE(JSVALUE64)
@@ -413,6 +435,11 @@ public:
         add64(GPRInfo::tagTypeNumberRegister, gpr);
         move64ToDouble(gpr, fpr);
         return fpr;
+    }
+    
+    void boxDouble(FPRReg fpr, JSValueRegs regs)
+    {
+        boxDouble(fpr, regs.gpr());
     }
     
     // Here are possible arrangements of source, target, scratch:
@@ -446,6 +473,11 @@ public:
     void unboxDouble(GPRReg tagGPR, GPRReg payloadGPR, FPRReg fpr, FPRReg scratchFPR)
     {
         moveIntsToDouble(payloadGPR, tagGPR, fpr, scratchFPR);
+    }
+    
+    void boxDouble(FPRReg fpr, JSValueRegs regs)
+    {
+        boxDouble(fpr, regs.tagGPR(), regs.payloadGPR());
     }
 #endif
     

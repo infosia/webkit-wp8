@@ -115,13 +115,11 @@ void NavigationState::setNavigationDelegate(id <WKNavigationDelegate> delegate)
     m_navigationDelegateMethods.webViewDidFinishNavigation = [delegate respondsToSelector:@selector(webView:didFinishNavigation:)];
     m_navigationDelegateMethods.webViewDidFailNavigationWithError = [delegate respondsToSelector:@selector(webView:didFailNavigation:withError:)];
 
+    m_navigationDelegateMethods.webViewNavigationDidFinishDocumentLoad = [delegate respondsToSelector:@selector(_webView:navigationDidFinishDocumentLoad:)];
     m_navigationDelegateMethods.webViewRenderingProgressDidChange = [delegate respondsToSelector:@selector(_webView:renderingProgressDidChange:)];
     m_navigationDelegateMethods.webViewCanAuthenticateAgainstProtectionSpace = [delegate respondsToSelector:@selector(_webView:canAuthenticateAgainstProtectionSpace:)];
     m_navigationDelegateMethods.webViewDidReceiveAuthenticationChallenge = [delegate respondsToSelector:@selector(_webView:didReceiveAuthenticationChallenge:)];
     m_navigationDelegateMethods.webViewWebProcessDidCrash = [delegate respondsToSelector:@selector(_webViewWebProcessDidCrash:)];
-
-    // FIXME: Remove this once no clients depend on it being called.
-    m_navigationDelegateMethods.webViewDidFinishLoadingNavigation = [delegate respondsToSelector:@selector(webView:didFinishLoadingNavigation:)];
 }
 
 RetainPtr<id <WKHistoryDelegatePrivate> > NavigationState::historyDelegate()
@@ -209,32 +207,27 @@ NavigationState::PolicyClient::~PolicyClient()
 {
 }
 
-static WKNavigationType toWKNavigationType(WebCore::NavigationType navigationType)
-{
-    switch (navigationType) {
-    case WebCore::NavigationTypeLinkClicked:
-        return WKNavigationTypeLinkActivated;
-    case WebCore::NavigationTypeFormSubmitted:
-        return WKNavigationTypeFormSubmitted;
-    case WebCore::NavigationTypeBackForward:
-        return WKNavigationTypeBackForward;
-    case WebCore::NavigationTypeReload:
-        return WKNavigationTypeReload;
-    case WebCore::NavigationTypeFormResubmitted:
-        return WKNavigationTypeFormResubmitted;
-    case WebCore::NavigationTypeOther:
-        return WKNavigationTypeOther;
-    }
-
-    ASSERT_NOT_REACHED();
-    return WKNavigationTypeOther;
-}
-
 void NavigationState::PolicyClient::decidePolicyForNavigationAction(WebPageProxy*, WebFrameProxy* destinationFrame, const NavigationActionData& navigationActionData, WebFrameProxy* sourceFrame, const WebCore::ResourceRequest& originalRequest, const WebCore::ResourceRequest& request, RefPtr<WebFramePolicyListenerProxy> listener, API::Object* userData)
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationActionDecisionHandler) {
-        // FIXME: <rdar://problem/15949822> Figure out what the "default delegate behavior" should be here.
-        listener->use();
+        if (!destinationFrame) {
+            listener->use();
+            return;
+        }
+
+        NSURLRequest *nsURLRequest = request.nsURLRequest(WebCore::DoNotUpdateHTTPBody);
+        if ([NSURLConnection canHandleRequest:nsURLRequest]) {
+            listener->use();
+            return;
+        }
+
+#if PLATFORM(MAC)
+        // A file URL shouldn't fall through to here, but if it did,
+        // it would be a security risk to open it.
+        if (![nsURLRequest.URL isFileURL])
+            [[NSWorkspace sharedWorkspace] openURL:nsURLRequest.URL];
+#endif
+        listener->ignore();
         return;
     }
 
@@ -258,9 +251,10 @@ void NavigationState::PolicyClient::decidePolicyForNavigationAction(WebPageProxy
     [navigationAction setNavigationType:toWKNavigationType(navigationActionData.navigationType)];
     [navigationAction setRequest:request.nsURLRequest(WebCore::DoNotUpdateHTTPBody)];
     [navigationAction _setOriginalURL:originalRequest.url()];
+    [navigationAction _setUserInitiated:navigationActionData.isProcessingUserGesture];
 
-    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationAction:navigationAction.get() decisionHandler:[listener](WKNavigationPolicyDecision policyDecision) {
-        switch (policyDecision) {
+    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationAction:navigationAction.get() decisionHandler:[listener](WKNavigationActionPolicy actionPolicy) {
+        switch (actionPolicy) {
         case WKNavigationActionPolicyAllow:
             listener->use();
             break;
@@ -269,7 +263,11 @@ void NavigationState::PolicyClient::decidePolicyForNavigationAction(WebPageProxy
             listener->ignore();
             break;
 
-        case WKNavigationActionPolicyDownload:
+// FIXME: Once we have a new enough compiler everywhere we don't need to ignore -Wswitch.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+        case _WKNavigationActionPolicyDownload:
+#pragma clang diagnostic pop
             listener->download();
             break;
         }
@@ -284,8 +282,22 @@ void NavigationState::PolicyClient::decidePolicyForNewWindowAction(WebPageProxy*
 void NavigationState::PolicyClient::decidePolicyForResponse(WebPageProxy*, WebFrameProxy* frame, const WebCore::ResourceResponse& resourceResponse, const WebCore::ResourceRequest& resourceRequest, bool canShowMIMEType, RefPtr<WebFramePolicyListenerProxy> listener, API::Object* userData)
 {
     if (!m_navigationState.m_navigationDelegateMethods.webViewDecidePolicyForNavigationResponseDecisionHandler) {
-        // FIXME: <rdar://problem/15949822> Figure out what the "default delegate behavior" should be here.
-        listener->use();
+        NSURL *url = resourceResponse.nsURLResponse().URL;
+        if ([url isFileURL]) {
+            BOOL isDirectory = NO;
+            BOOL exists = [[NSFileManager defaultManager] fileExistsAtPath:url.path isDirectory:&isDirectory];
+
+            if (exists && !isDirectory && canShowMIMEType)
+                listener->use();
+            else
+                listener->ignore();
+            return;
+        }
+
+        if (canShowMIMEType)
+            listener->use();
+        else
+            listener->ignore();
         return;
     }
 
@@ -293,15 +305,14 @@ void NavigationState::PolicyClient::decidePolicyForResponse(WebPageProxy*, WebFr
     if (!navigationDelegate)
         return;
 
-    // FIXME: Set up the navigation response object.
     auto navigationResponse = adoptNS([[WKNavigationResponse alloc] init]);
 
     [navigationResponse setFrame:adoptNS([[WKFrameInfo alloc] initWithWebFrameProxy:*frame]).get()];
     [navigationResponse setResponse:resourceResponse.nsURLResponse()];
     [navigationResponse setCanShowMIMEType:canShowMIMEType];
 
-    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationResponse:navigationResponse.get() decisionHandler:[listener](WKNavigationResponsePolicyDecision policyDecision) {
-        switch (policyDecision) {
+    [navigationDelegate webView:m_navigationState.m_webView decidePolicyForNavigationResponse:navigationResponse.get() decisionHandler:[listener](WKNavigationResponsePolicy responsePolicy) {
+        switch (responsePolicy) {
         case WKNavigationResponsePolicyAllow:
             listener->use();
             break;
@@ -310,7 +321,11 @@ void NavigationState::PolicyClient::decidePolicyForResponse(WebPageProxy*, WebFr
             listener->ignore();
             break;
 
-        case WKNavigationResponsePolicyBecomeDownload:
+// FIXME: Once we have a new enough compiler everywhere we don't need to ignore -Wswitch.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch"
+        case _WKNavigationResponsePolicyBecomeDownload:
+#pragma clang diagnostic pop
             listener->download();
             break;
         }
@@ -408,12 +423,31 @@ void NavigationState::LoaderClient::didCommitLoadForFrame(WebPageProxy*, WebFram
     [navigationDelegate webView:m_navigationState.m_webView didCommitNavigation:navigation];
 }
 
+void NavigationState::LoaderClient::didFinishDocumentLoadForFrame(WebPageProxy*, WebFrameProxy* webFrameProxy, uint64_t navigationID, API::Object*)
+{
+    if (!webFrameProxy->isMainFrame())
+        return;
+
+    if (!m_navigationState.m_navigationDelegateMethods.webViewNavigationDidFinishDocumentLoad)
+        return;
+
+    auto navigationDelegate = m_navigationState.m_navigationDelegate.get();
+    if (!navigationDelegate)
+        return;
+
+    WKNavigation *navigation = nil;
+    if (navigationID)
+        navigation = m_navigationState.m_navigations.get(navigationID).get();
+
+    [static_cast<id <WKNavigationDelegatePrivate>>(navigationDelegate.get()) _webView:m_navigationState.m_webView navigationDidFinishDocumentLoad:navigation];
+}
+
 void NavigationState::LoaderClient::didFinishLoadForFrame(WebPageProxy*, WebFrameProxy* webFrameProxy, uint64_t navigationID, API::Object*)
 {
     if (!webFrameProxy->isMainFrame())
         return;
 
-    if (!m_navigationState.m_navigationDelegateMethods.webViewDidFinishNavigation && !m_navigationState.m_navigationDelegateMethods.webViewDidFinishLoadingNavigation)
+    if (!m_navigationState.m_navigationDelegateMethods.webViewDidFinishNavigation)
         return;
 
     auto navigationDelegate = m_navigationState.m_navigationDelegate.get();
@@ -424,12 +458,6 @@ void NavigationState::LoaderClient::didFinishLoadForFrame(WebPageProxy*, WebFram
     WKNavigation *navigation = nil;
     if (navigationID)
         navigation = m_navigationState.m_navigations.get(navigationID).get();
-
-    // FIXME: Remove this once no clients depend on it being called.
-    if (m_navigationState.m_navigationDelegateMethods.webViewDidFinishLoadingNavigation) {
-        [static_cast<id>(navigationDelegate) webView:m_navigationState.m_webView didFinishLoadingNavigation:navigation];
-        return;
-    }
 
     [navigationDelegate webView:m_navigationState.m_webView didFinishNavigation:navigation];
 }

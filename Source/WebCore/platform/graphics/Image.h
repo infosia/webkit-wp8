@@ -33,7 +33,6 @@
 #include "FloatSize.h"
 #include "GraphicsTypes.h"
 #include "ImageOrientation.h"
-#include "IntRect.h"
 #include "NativeImagePtr.h"
 #include <wtf/PassRefPtr.h>
 #include <wtf/RefCounted.h>
@@ -115,7 +114,8 @@ public:
 
     // Animation begins whenever someone draws the image, so startAnimation() is not normally called.
     // It will automatically pause once all observers no longer want to render the image anywhere.
-    virtual void startAnimation(bool /*catchUpIfNecessary*/ = true) { }
+    enum CatchUpAnimation { DoNotCatchUp, CatchUp };
+    virtual void startAnimation(CatchUpAnimation = CatchUp) { }
     virtual void stopAnimation() {}
     virtual void resetAnimation() {}
     

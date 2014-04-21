@@ -26,6 +26,7 @@
 #ifndef Options_h
 #define Options_h
 
+#include "GCLogging.h"
 #include "JSExportMacros.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -165,8 +166,10 @@ typedef OptionRange optionRange;
     v(bool, llvmDisallowAVX, true) \
     v(bool, ftlCrashes, false) /* fool-proof way of checking that you ended up in the FTL. ;-) */\
     v(bool, clobberAllRegsInFTLICSlowPath, !ASSERT_DISABLED) \
-    v(bool, assumeAllRegsInFTLICAreLive, true) \
+    v(bool, assumeAllRegsInFTLICAreLive, false) \
     v(bool, enableAccessInlining, true) \
+    v(bool, enablePolyvariantDevirtualization, true) \
+    v(bool, enablePolymorphicAccessInlining, true) \
     \
     v(bool, enableConcurrentJIT, true) \
     v(unsigned, numberOfDFGCompilerThreads, computeNumberOfWorkerThreads(2, 2) - 1) \
@@ -226,7 +229,8 @@ typedef OptionRange optionRange;
     v(int32, evalThresholdMultiplier, 10) \
     \
     v(bool, randomizeExecutionCountsBetweenCheckpoints, false) \
-    v(int32, maximumExecutionCountsBetweenCheckpoints, 1000) \
+    v(int32, maximumExecutionCountsBetweenCheckpointsForBaseline, 1000) \
+    v(int32, maximumExecutionCountsBetweenCheckpointsForUpperTiers, 50000) \
     \
     v(unsigned, likelyToTakeSlowCaseMinimumCount, 100) \
     v(unsigned, couldTakeSlowCaseMinimumCount, 10) \
@@ -264,7 +268,7 @@ typedef OptionRange optionRange;
     v(bool, objectsAreImmortal, false) \
     v(bool, showObjectStatistics, false) \
     \
-    v(bool, logGC, false) \
+    v(gcLogLevel, logGC, GCLogging::None) \
     v(bool, disableGC, false) \
     v(unsigned, gcMaxHeapSize, 0) \
     v(bool, recordGCPauseTimes, false) \
@@ -309,6 +313,7 @@ private:
         doubleType,
         int32Type,
         optionRangeType,
+        gcLogLevelType,
     };
 
     // For storing for an option value:
@@ -319,6 +324,7 @@ private:
             double doubleVal;
             int32 int32Val;
             OptionRange optionRangeVal;
+            GCLogging::Level gcLogLevelVal;
         } u;
         bool didOverride;
     };

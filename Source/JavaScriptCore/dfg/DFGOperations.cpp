@@ -45,7 +45,6 @@
 #include "Interpreter.h"
 #include "JIT.h"
 #include "JITExceptions.h"
-#include "JITOperationWrappers.h"
 #include "JSActivation.h"
 #include "VM.h"
 #include "JSNameScope.h"
@@ -970,6 +969,11 @@ JSCell* JIT_OPERATION operationMakeRope2(ExecState* exec, JSString* left, JSStri
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
 
+    if (sumOverflows<int32_t>(left->length(), right->length())) {
+        throwOutOfMemoryError(exec);
+        return nullptr;
+    }
+
     return JSRopeString::create(vm, left, right);
 }
 
@@ -977,6 +981,11 @@ JSCell* JIT_OPERATION operationMakeRope3(ExecState* exec, JSString* a, JSString*
 {
     VM& vm = exec->vm();
     NativeCallFrameTracer tracer(&vm, exec);
+
+    if (sumOverflows<int32_t>(a->length(), b->length(), c->length())) {
+        throwOutOfMemoryError(exec);
+        return nullptr;
+    }
 
     return JSRopeString::create(vm, a, b, c);
 }

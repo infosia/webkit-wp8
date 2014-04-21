@@ -154,6 +154,14 @@ public:
     }
     LayoutUnit pageOrViewLogicalHeight() const;
 
+    // This method is used to assign a page number only when pagination modes have
+    // a block progression. This happens with vertical-rl books for example, but it
+    // doesn't happen for normal horizontal-tb books. This is a very specialized
+    // function and should not be mistaken for a general page number API.
+    unsigned pageNumberForBlockProgressionOffset(int offset) const;
+
+    unsigned pageCount() const;
+
     // FIXME: These functions are deprecated. No code should be added that uses these.
     int bestTruncatedAt() const { return m_legacyPrinting.m_bestTruncatedAt; }
     void setBestTruncatedAt(int y, RenderBoxModelObject* forRenderer, bool forcedBreak = false);
@@ -176,6 +184,7 @@ public:
     bool usesCompositing() const;
 
     IntRect unscaledDocumentRect() const;
+    LayoutRect unextendedBackgroundRect(RenderBox* backgroundRenderer) const;
     LayoutRect backgroundRect(RenderBox* backgroundRenderer) const;
 
     IntRect documentRect() const;
@@ -237,7 +246,7 @@ protected:
     virtual const RenderObject* pushMappingToContainer(const RenderLayerModelObject* ancestorToStopAt, RenderGeometryMap&) const override;
     virtual void mapAbsoluteToLocalPoint(MapCoordinatesFlags, TransformState&) const override;
     virtual bool requiresColumns(int desiredColumnCount) const override;
-    
+
 private:
     void initializeLayoutState(LayoutState&);
 

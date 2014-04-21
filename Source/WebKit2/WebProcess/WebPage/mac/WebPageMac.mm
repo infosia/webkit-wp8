@@ -30,6 +30,7 @@
 
 #import "AttributedString.h"
 #import "DataReference.h"
+#import "DictionaryPopupInfo.h"
 #import "EditingRange.h"
 #import "EditorState.h"
 #import "PDFKitImports.h"
@@ -63,6 +64,7 @@
 #import <WebCore/Page.h>
 #import <WebCore/PlatformKeyboardEvent.h>
 #import <WebCore/PluginDocument.h>
+#import <WebCore/RenderElement.h>
 #import <WebCore/RenderObject.h>
 #import <WebCore/RenderStyle.h>
 #import <WebCore/ResourceHandle.h>
@@ -993,6 +995,13 @@ WebCore::WebGLLoadPolicy WebPage::resolveWebGLPolicyForURL(WebFrame* frame, cons
     return WebGLAllowCreation;
 }
 #endif // ENABLE(WEBGL)
+
+#if ENABLE(TELEPHONE_NUMBER_DETECTION)
+void WebPage::handleTelephoneNumberClick(const String& number, const IntPoint& point)
+{
+    send(Messages::WebPageProxy::ShowTelephoneNumberMenu(number, point));
+}
+#endif
 
 } // namespace WebKit
 

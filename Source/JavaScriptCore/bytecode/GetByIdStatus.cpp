@@ -64,7 +64,7 @@ GetByIdStatus GetByIdStatus::computeFromLLInt(CodeBlock* profiledBlock, unsigned
 #if ENABLE(LLINT)
     Instruction* instruction = profiledBlock->instructions().begin() + bytecodeIndex;
     
-    if (instruction[0].u.opcode == LLInt::getOpcode(llint_op_get_array_length))
+    if (instruction[0].u.opcode == LLInt::getOpcode(op_get_array_length))
         return GetByIdStatus(NoInformation, false);
 
     Structure* structure = instruction[4].u.structure.get();
@@ -218,6 +218,13 @@ GetByIdStatus GetByIdStatus::computeForStubInfo(
             ASSERT(!list->at(listIndex).doesCalls());
             
             Structure* structure = list->at(listIndex).structure();
+            
+            // FIXME: We should assert that we never see a structure that
+            // hasImpureGetOwnPropertySlot() but for which we don't
+            // newImpurePropertyFiresWatchpoints(). We're not at a point where we can do
+            // that, yet.
+            // https://bugs.webkit.org/show_bug.cgi?id=131810
+            
             if (structure->takesSlowPathInDFGForImpureProperty())
                 return GetByIdStatus(TakesSlowPath, true);
             

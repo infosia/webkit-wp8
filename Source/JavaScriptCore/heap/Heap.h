@@ -100,7 +100,7 @@ public:
 
     JS_EXPORT_PRIVATE void addToRememberedSet(const JSCell*);
     static bool isWriteBarrierEnabled();
-    JS_EXPORT_PRIVATE void writeBarrier(const JSCell*);
+    void writeBarrier(const JSCell*);
     void writeBarrier(const JSCell*, JSValue);
     void writeBarrier(const JSCell*, JSCell*);
 
@@ -114,6 +114,8 @@ public:
     VM* vm() const { return m_vm; }
     MarkedSpace& objectSpace() { return m_objectSpace; }
     MachineThreads& machineThreads() { return m_machineThreads; }
+
+    const SlotVisitor& slotVisitor() const { return m_slotVisitor; }
 
     JS_EXPORT_PRIVATE GCActivityCallback* fullActivityCallback();
     JS_EXPORT_PRIVATE GCActivityCallback* edenActivityCallback();
@@ -222,6 +224,7 @@ private:
     friend class DeferGCForAWhile;
     friend class DelayedReleaseScope;
     friend class GCAwareJITStubRoutine;
+    friend class GCLogging;
     friend class HandleSet;
     friend class JITStubRoutine;
     friend class LLIntOffsetsExtractor;
@@ -261,11 +264,12 @@ private:
     void flushWriteBarrierBuffer();
     void stopAllocation();
 
-    void markRoots();
+    void markRoots(double gcStartTime);
     void gatherStackRoots(ConservativeRoots&, void** dummy);
     void gatherJSStackRoots(ConservativeRoots&);
     void gatherScratchBufferRoots(ConservativeRoots&);
     void clearLivenessData();
+    void visitExternalRememberedSet();
     void visitSmallStrings();
     void visitConservativeRoots(ConservativeRoots&);
     void visitCompilerWorklists();
@@ -279,7 +283,7 @@ private:
     void converge();
     void visitWeakHandles(HeapRootVisitor&);
     void clearRememberedSet(Vector<const JSCell*>&);
-    void updateObjectCounts();
+    void updateObjectCounts(double gcStartTime);
     void resetVisitors();
 
     void reapWeakHandles();

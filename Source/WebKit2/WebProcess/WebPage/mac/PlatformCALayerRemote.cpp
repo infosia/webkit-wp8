@@ -109,11 +109,18 @@ PlatformCALayerRemote::~PlatformCALayerRemote()
 {
     for (const auto& layer : m_children)
         toPlatformCALayerRemote(layer.get())->m_superlayer = nullptr;
-    m_context->layerWillBeDestroyed(this);
+
+    if (m_context)
+        m_context->layerWillBeDestroyed(this);
 }
 
 void PlatformCALayerRemote::recursiveBuildTransaction(RemoteLayerTreeTransaction& transaction)
 {
+    if (m_properties.backingStore && !owner()->platformCALayerDrawsContent()) {
+        m_properties.backingStore = nullptr;
+        m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BackingStoreChanged);
+    }
+
     if (m_properties.backingStore && m_properties.backingStore->display())
         m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BackingStoreChanged);
 
@@ -152,7 +159,7 @@ void PlatformCALayerRemote::animationStarted(CFTimeInterval beginTime)
 void PlatformCALayerRemote::ensureBackingStore()
 {
     if (!m_properties.backingStore)
-        m_properties.backingStore = std::make_unique<RemoteLayerBackingStore>();
+        m_properties.backingStore = std::make_unique<RemoteLayerBackingStore>(m_context);
 
     updateBackingStore();
 }
@@ -264,15 +271,26 @@ void PlatformCALayerRemote::replaceSublayer(PlatformCALayer* reference, Platform
 
 void PlatformCALayerRemote::adoptSublayers(PlatformCALayer* source)
 {
-    setSublayers(toPlatformCALayerRemote(source)->m_children);
+    PlatformCALayerList layersToMove = toPlatformCALayerRemote(source)->m_children;
+
+    if (const PlatformCALayerList* customLayers = source->customSublayers()) {
+        for (const auto& layer : *customLayers) {
+            size_t layerIndex = layersToMove.find(layer);
+            if (layerIndex != notFound)
+                layersToMove.remove(layerIndex);
+        }
+    }
+
+    setSublayers(layersToMove);
 }
 
 void PlatformCALayerRemote::addAnimationForKey(const String& key, PlatformCAAnimation* animation)
 {
     m_properties.addedAnimations.set(key, toPlatformCAAnimationRemote(animation)->properties());
     m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::AnimationsChanged);
-    
-    m_context->willStartAnimationOnLayer(this);
+
+    if (m_context)
+        m_context->willStartAnimationOnLayer(this);
 }
 
 void PlatformCALayerRemote::removeAnimationForKey(const String& key)
@@ -509,6 +527,14 @@ void PlatformCALayerRemote::copyFiltersFrom(const PlatformCALayer* sourceLayer)
 {
     ASSERT_NOT_REACHED();
 }
+
+#if ENABLE(CSS_COMPOSITING)
+void PlatformCALayerRemote::setBlendMode(BlendMode blendMode)
+{
+    m_properties.blendMode = blendMode;
+    m_properties.notePropertiesChanged(RemoteLayerTreeTransaction::BlendModeChanged);
+}
+#endif
 
 bool PlatformCALayerRemote::filtersCanBeComposited(const FilterOperations& filters)
 {

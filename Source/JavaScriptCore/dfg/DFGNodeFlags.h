@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012, 2013 Apple Inc. All rights reserved.
+ * Copyright (C) 2012, 2013, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,10 +38,11 @@ namespace JSC { namespace DFG {
 #define NodeResultMask                   0x0007
 #define NodeResultJS                     0x0001
 #define NodeResultNumber                 0x0002
-#define NodeResultInt32                  0x0003
-#define NodeResultInt52                  0x0004
-#define NodeResultBoolean                0x0005
-#define NodeResultStorage                0x0006
+#define NodeResultDouble                 0x0003
+#define NodeResultInt32                  0x0004
+#define NodeResultInt52                  0x0005
+#define NodeResultBoolean                0x0006
+#define NodeResultStorage                0x0007
                                 
 #define NodeMustGenerate                 0x0008 // set on nodes that have side effects, and may not trivially be removed by DCE.
 #define NodeHasVarArgs                   0x0010
@@ -52,21 +53,22 @@ namespace JSC { namespace DFG {
 #define NodeMayOverflow                  0x0080
 #define NodeMayNegZero                   0x0100
                                 
-#define NodeBytecodeBackPropMask         0x1E00
+#define NodeBytecodeBackPropMask         0x3E00
 #define NodeBytecodeUseBottom            0x0000
 #define NodeBytecodeUsesAsNumber         0x0200 // The result of this computation may be used in a context that observes fractional, or bigger-than-int32, results.
 #define NodeBytecodeNeedsNegZero         0x0400 // The result of this computation may be used in a context that observes -0.
 #define NodeBytecodeUsesAsOther          0x0800 // The result of this computation may be used in a context that distinguishes between NaN and other things (like undefined).
 #define NodeBytecodeUsesAsValue          (NodeBytecodeUsesAsNumber | NodeBytecodeNeedsNegZero | NodeBytecodeUsesAsOther)
 #define NodeBytecodeUsesAsInt            0x1000 // The result of this computation is known to be used in a context that prefers, but does not require, integer values.
+#define NodeBytecodeUsesAsArrayIndex     0x2000 // The result of this computation is known to be used in a context that strongly prefers integer values, to the point that we should avoid using doubles if at all possible.
 
 #define NodeArithFlagsMask               (NodeBehaviorMask | NodeBytecodeBackPropMask)
 
-#define NodeDoesNotExit                  0x2000 // This flag is negated to make it natural for the default to be that a node does exit.
+#define NodeDoesNotExit                  0x4000 // This flag is negated to make it natural for the default to be that a node does exit.
 
-#define NodeRelevantToOSR                0x4000
+#define NodeRelevantToOSR                0x8000
 
-#define NodeIsFlushed                    0x8000 // Used by Graph::computeIsFlushed(), will tell you which local nodes are backwards-reachable from a Flush.
+#define NodeIsFlushed                   0x10000 // Used by Graph::computeIsFlushed(), will tell you which local nodes are backwards-reachable from a Flush.
 
 typedef uint32_t NodeFlags;
 
@@ -112,6 +114,20 @@ static inline bool nodeCanSpeculateInt52(NodeFlags flags)
         return bytecodeCanIgnoreNegativeZero(flags);
     
     return true;
+}
+
+// FIXME: Get rid of this.
+// https://bugs.webkit.org/show_bug.cgi?id=131689
+static inline NodeFlags canonicalResultRepresentation(NodeFlags flags)
+{
+    switch (flags) {
+    case NodeResultDouble:
+    case NodeResultInt52:
+    case NodeResultStorage:
+        return flags;
+    default:
+        return NodeResultJS;
+    }
 }
 
 void dumpNodeFlags(PrintStream&, NodeFlags);

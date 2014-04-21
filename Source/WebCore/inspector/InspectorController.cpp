@@ -50,7 +50,6 @@
 #include "InspectorLayerTreeAgent.h"
 #include "InspectorOverlay.h"
 #include "InspectorPageAgent.h"
-#include "InspectorProfilerAgent.h"
 #include "InspectorReplayAgent.h"
 #include "InspectorResourceAgent.h"
 #include "InspectorTimelineAgent.h"
@@ -65,7 +64,9 @@
 #include "Page.h"
 #include "PageConsoleAgent.h"
 #include "PageDebuggerAgent.h"
+#include "PageProfilerAgent.h"
 #include "PageRuntimeAgent.h"
+#include "PageScriptDebugServer.h"
 #include "Settings.h"
 #include "WebInjectedScriptHost.h"
 #include "WebInjectedScriptManager.h"
@@ -132,8 +133,9 @@ InspectorController::InspectorController(Page& page, InspectorClient* inspectorC
     InspectorDOMStorageAgent* domStorageAgent = domStorageAgentPtr.get();
     m_agents.append(std::move(domStorageAgentPtr));
 
-    m_agents.append(std::make_unique<InspectorTimelineAgent>(m_instrumentingAgents.get(), pageAgent, InspectorTimelineAgent::PageInspector, inspectorClient));
-    m_agents.append(std::make_unique<InspectorApplicationCacheAgent>(m_instrumentingAgents.get(), pageAgent));
+    auto timelineAgentPtr = std::make_unique<InspectorTimelineAgent>(m_instrumentingAgents.get(), pageAgent, InspectorTimelineAgent::PageInspector, inspectorClient);
+    InspectorTimelineAgent* timelineAgent = timelineAgentPtr.get();
+    m_agents.append(std::move(timelineAgentPtr));
 
     auto resourceAgentPtr = std::make_unique<InspectorResourceAgent>(m_instrumentingAgents.get(), pageAgent, inspectorClient);
     m_resourceAgent = resourceAgentPtr.get();
@@ -152,12 +154,12 @@ InspectorController::InspectorController(Page& page, InspectorClient* inspectorC
     m_domDebuggerAgent = domDebuggerAgentPtr.get();
     m_agents.append(std::move(domDebuggerAgentPtr));
 
-    auto profilerAgentPtr = InspectorProfilerAgent::create(m_instrumentingAgents.get(), consoleAgent, &page, m_injectedScriptManager.get());
+    auto profilerAgentPtr = std::make_unique<PageProfilerAgent>(m_instrumentingAgents.get(), &page);
     m_profilerAgent = profilerAgentPtr.get();
     m_agents.append(std::move(profilerAgentPtr));
 
+    m_agents.append(std::make_unique<InspectorApplicationCacheAgent>(m_instrumentingAgents.get(), pageAgent));
     m_agents.append(std::make_unique<InspectorWorkerAgent>(m_instrumentingAgents.get()));
-
     m_agents.append(std::make_unique<InspectorLayerTreeAgent>(m_instrumentingAgents.get()));
 
     ASSERT(m_injectedScriptManager->commandLineAPIHost());
@@ -173,6 +175,8 @@ InspectorController::InspectorController(Page& page, InspectorClient* inspectorC
     }
 
     runtimeAgent->setScriptDebugServer(&m_debuggerAgent->scriptDebugServer());
+    timelineAgent->setPageScriptDebugServer(&m_debuggerAgent->scriptDebugServer());
+    m_profilerAgent->setScriptDebugServer(&m_debuggerAgent->scriptDebugServer());
 }
 
 InspectorController::~InspectorController()
@@ -394,35 +398,6 @@ void InspectorController::resume()
         ErrorString error;
         m_debuggerAgent->resume(&error);
     }
-}
-
-void InspectorController::setResourcesDataSizeLimitsFromInternals(int maximumResourcesContentSize, int maximumSingleResourceContentSize)
-{
-    m_resourceAgent->setResourcesDataSizeLimitsFromInternals(maximumResourcesContentSize, maximumSingleResourceContentSize);
-}
-
-void InspectorController::didBeginFrame()
-{
-    if (InspectorTimelineAgent* timelineAgent = m_instrumentingAgents->inspectorTimelineAgent())
-        timelineAgent->didBeginFrame();
-}
-
-void InspectorController::didCancelFrame()
-{
-    if (InspectorTimelineAgent* timelineAgent = m_instrumentingAgents->inspectorTimelineAgent())
-        timelineAgent->didCancelFrame();
-}
-
-void InspectorController::willComposite()
-{
-    if (InspectorTimelineAgent* timelineAgent = m_instrumentingAgents->inspectorTimelineAgent())
-        timelineAgent->willComposite();
-}
-
-void InspectorController::didComposite()
-{
-    if (InspectorTimelineAgent* timelineAgent = m_instrumentingAgents->inspectorTimelineAgent())
-        timelineAgent->didComposite();
 }
 
 bool InspectorController::developerExtrasEnabled() const

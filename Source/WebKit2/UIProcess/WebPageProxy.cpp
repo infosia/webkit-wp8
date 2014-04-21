@@ -29,6 +29,7 @@
 
 #include "APIArray.h"
 #include "APIFindClient.h"
+#include "APIFormClient.h"
 #include "APILoaderClient.h"
 #include "APIPolicyClient.h"
 #include "APIUIClient.h"
@@ -89,7 +90,6 @@
 #include "WebSecurityOrigin.h"
 #include <WebCore/DragController.h>
 #include <WebCore/DragData.h>
-#include <WebCore/DragSession.h>
 #include <WebCore/FloatRect.h>
 #include <WebCore/FocusDirection.h>
 #include <WebCore/MIMETypeRegistry.h>
@@ -257,6 +257,7 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, uin
     : m_pageClient(pageClient)
     , m_loaderClient(std::make_unique<API::LoaderClient>())
     , m_policyClient(std::make_unique<API::PolicyClient>())
+    , m_formClient(std::make_unique<API::FormClient>())
     , m_uiClient(std::make_unique<API::UIClient>())
     , m_findClient(std::make_unique<API::FindClient>())
     , m_process(process)
@@ -320,6 +321,12 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, uin
     , m_hasSpellDocumentTag(false)
     , m_pendingLearnOrIgnoreWordMessageCount(0)
     , m_mainFrameHasCustomContentProvider(false)
+#if ENABLE(DRAG_SUPPORT)
+    , m_currentDragOperation(DragOperationNone)
+    , m_currentDragIsOverFileInput(false)
+    , m_currentDragNumberOfFilesToBeAccepted(0)
+#endif
+    , m_pageLoadState(*this)
     , m_delegatesScrolling(false)
     , m_mainFrameHasHorizontalScrollbar(false)
     , m_mainFrameHasVerticalScrollbar(false)
@@ -333,6 +340,8 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, uin
     , m_rubberBandsAtRight(true)
     , m_rubberBandsAtTop(true)
     , m_rubberBandsAtBottom(true)
+    , m_enableVerticalRubberBanding(true)
+    , m_enableHorizontalRubberBanding(true)
     , m_backgroundExtendsBeyondPage(false)
     , m_shouldRecordNavigationSnapshots(false)
     , m_pageCount(0)
@@ -454,9 +463,14 @@ void WebPageProxy::setPolicyClient(std::unique_ptr<API::PolicyClient> policyClie
     m_policyClient = std::move(policyClient);
 }
 
-void WebPageProxy::initializeFormClient(const WKPageFormClientBase* formClient)
+void WebPageProxy::setFormClient(std::unique_ptr<API::FormClient> formClient)
 {
-    m_formClient.initialize(formClient);
+    if (!formClient) {
+        m_formClient = std::make_unique<API::FormClient>();
+        return;
+    }
+
+    m_formClient = std::move(formClient);
 }
 
 void WebPageProxy::setUIClient(std::unique_ptr<API::UIClient> uiClient)
@@ -608,7 +622,7 @@ void WebPageProxy::close()
 
     m_loaderClient = std::make_unique<API::LoaderClient>();
     m_policyClient = std::make_unique<API::PolicyClient>();
-    m_formClient.initialize(0);
+    m_formClient = std::make_unique<API::FormClient>();
     m_uiClient = std::make_unique<API::UIClient>();
 #if PLATFORM(EFL)
     m_uiPopupMenuClient.initialize(0);
@@ -1002,6 +1016,11 @@ void WebPageProxy::scrollView(const IntRect& scrollRect, const IntSize& scrollOf
     m_pageClient.scrollView(scrollRect, scrollOffset);
 }
 
+void WebPageProxy::requestScroll(const FloatPoint& scrollPosition, bool isProgrammaticScroll)
+{
+    m_pageClient.requestScroll(scrollPosition, isProgrammaticScroll);
+}
+
 void WebPageProxy::updateViewState(ViewState::Flags flagsToUpdate)
 {
     m_viewState &= ~flagsToUpdate;
@@ -1186,9 +1205,9 @@ void WebPageProxy::dragExited(DragData& dragData, const String& dragStorageName)
     performDragControllerAction(DragControllerActionExited, dragData, dragStorageName, sandboxExtensionHandle, sandboxExtensionHandleEmptyArray);
 }
 
-void WebPageProxy::performDrag(DragData& dragData, const String& dragStorageName, const SandboxExtension::Handle& sandboxExtensionHandle, const SandboxExtension::HandleArray& sandboxExtensionsForUpload)
+void WebPageProxy::performDragOperation(DragData& dragData, const String& dragStorageName, const SandboxExtension::Handle& sandboxExtensionHandle, const SandboxExtension::HandleArray& sandboxExtensionsForUpload)
 {
-    performDragControllerAction(DragControllerActionPerformDrag, dragData, dragStorageName, sandboxExtensionHandle, sandboxExtensionsForUpload);
+    performDragControllerAction(DragControllerActionPerformDragOperation, dragData, dragStorageName, sandboxExtensionHandle, sandboxExtensionsForUpload);
 }
 
 void WebPageProxy::performDragControllerAction(DragControllerAction action, DragData& dragData, const String& dragStorageName, const SandboxExtension::Handle& sandboxExtensionHandle, const SandboxExtension::HandleArray& sandboxExtensionsForUpload)
@@ -1205,9 +1224,13 @@ void WebPageProxy::performDragControllerAction(DragControllerAction action, Drag
 #endif
 }
 
-void WebPageProxy::didPerformDragControllerAction(WebCore::DragSession dragSession)
+void WebPageProxy::didPerformDragControllerAction(uint64_t dragOperation, bool mouseIsOverFileInput, unsigned numberOfItemsToBeAccepted)
 {
-    m_currentDragSession = dragSession;
+    MESSAGE_CHECK(dragOperation <= DragOperationDelete);
+
+    m_currentDragOperation = static_cast<DragOperation>(dragOperation);
+    m_currentDragIsOverFileInput = mouseIsOverFileInput;
+    m_currentDragNumberOfFilesToBeAccepted = numberOfItemsToBeAccepted;
 }
 
 #if PLATFORM(GTK)
@@ -1720,6 +1743,15 @@ void WebPageProxy::scalePage(double scale, const IntPoint& origin)
     m_process->send(Messages::WebPage::ScalePage(scale, origin), m_pageID);
 }
 
+void WebPageProxy::scalePageInViewCoordinates(double scale, const IntPoint& centerInViewCoordinates)
+{
+    if (!isValid())
+        return;
+
+    m_pageScaleFactor = scale;
+    m_process->send(Messages::WebPage::ScalePageInViewCoordinates(scale, centerInViewCoordinates), m_pageID);
+}
+
 void WebPageProxy::setIntrinsicDeviceScaleFactor(float scaleFactor)
 {
     if (m_intrinsicDeviceScaleFactor == scaleFactor)
@@ -1848,6 +1880,40 @@ bool WebPageProxy::rubberBandsAtBottom() const
 void WebPageProxy::setRubberBandsAtBottom(bool rubberBandsAtBottom)
 {
     m_rubberBandsAtBottom = rubberBandsAtBottom;
+}
+    
+void WebPageProxy::setEnableVerticalRubberBanding(bool enableVerticalRubberBanding)
+{
+    if (enableVerticalRubberBanding == m_enableVerticalRubberBanding)
+        return;
+
+    m_enableVerticalRubberBanding = enableVerticalRubberBanding;
+
+    if (!isValid())
+        return;
+    m_process->send(Messages::WebPage::SetEnableVerticalRubberBanding(enableVerticalRubberBanding), m_pageID);
+}
+    
+bool WebPageProxy::verticalRubberBandingIsEnabled() const
+{
+    return m_enableVerticalRubberBanding;
+}
+    
+void WebPageProxy::setEnableHorizontalRubberBanding(bool enableHorizontalRubberBanding)
+{
+    if (enableHorizontalRubberBanding == m_enableHorizontalRubberBanding)
+        return;
+
+    m_enableHorizontalRubberBanding = enableHorizontalRubberBanding;
+
+    if (!isValid())
+        return;
+    m_process->send(Messages::WebPage::SetEnableHorizontalRubberBanding(enableHorizontalRubberBanding), m_pageID);
+}
+    
+bool WebPageProxy::horizontalRubberBandingIsEnabled() const
+{
+    return m_enableHorizontalRubberBanding;
 }
 
 void WebPageProxy::setBackgroundExtendsBeyondPage(bool backgroundExtendsBeyondPage)
@@ -2348,7 +2414,7 @@ void WebPageProxy::didCommitLoadForFrame(uint64_t frameID, uint64_t navigationID
     m_loaderClient->didCommitLoadForFrame(this, frame, navigationID, userData.get());
 }
 
-void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, IPC::MessageDecoder& decoder)
+void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder& decoder)
 {
     RefPtr<API::Object> userData;
     WebContextUserMessageDecoder messageDecoder(userData, process());
@@ -2358,7 +2424,7 @@ void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, IPC::MessageD
     WebFrameProxy* frame = m_process->webFrame(frameID);
     MESSAGE_CHECK(frame);
 
-    m_loaderClient->didFinishDocumentLoadForFrame(this, frame, userData.get());
+    m_loaderClient->didFinishDocumentLoadForFrame(this, frame, navigationID, userData.get());
 }
 
 void WebPageProxy::didFinishLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder& decoder)
@@ -2676,18 +2742,18 @@ void WebPageProxy::willSubmitForm(uint64_t frameID, uint64_t sourceFrameID, cons
     MESSAGE_CHECK(sourceFrame);
 
     RefPtr<WebFormSubmissionListenerProxy> listener = frame->setUpFormSubmissionListenerProxy(listenerID);
-    if (!m_formClient.willSubmitForm(this, frame, sourceFrame, textFieldValues, userData.get(), listener.get()))
+    if (!m_formClient->willSubmitForm(this, frame, sourceFrame, textFieldValues, userData.get(), listener.get()))
         listener->continueSubmission();
 }
 
 // UIClient
 
-void WebPageProxy::createNewPage(uint64_t frameID, const ResourceRequest& request, const WindowFeatures& windowFeatures, uint32_t opaqueModifiers, int32_t opaqueMouseButton, uint64_t& newPageID, WebPageCreationParameters& newPageParameters)
+void WebPageProxy::createNewPage(uint64_t frameID, const ResourceRequest& request, const WindowFeatures& windowFeatures, const NavigationActionData& navigationActionData, uint64_t& newPageID, WebPageCreationParameters& newPageParameters)
 {
     WebFrameProxy* frame = m_process->webFrame(frameID);
     MESSAGE_CHECK(frame);
 
-    RefPtr<WebPageProxy> newPage = m_uiClient->createNewPage(this, frame, request, windowFeatures, static_cast<WebEvent::Modifiers>(opaqueModifiers), static_cast<WebMouseEvent::Button>(opaqueMouseButton));
+    RefPtr<WebPageProxy> newPage = m_uiClient->createNewPage(this, frame, request, windowFeatures, navigationActionData);
     if (!newPage) {
         newPageID = 0;
         return;
@@ -3156,10 +3222,9 @@ void WebPageProxy::editorStateChanged(const EditorState& editorState)
         m_pageClient.notifyInputContextAboutDiscardedComposition();
     }
 #elif PLATFORM(IOS)
-    if (!editorState.hasComposition) {
-        // We need to notify the client on iOS to make sure the selection is redrawn.
-        notifyRevealedSelection();
-    }
+    // We always need to notify the client on iOS to make sure the selection is redrawn,
+    // even during composition to support phrase boundary gesture.
+    notifyRevealedSelection();
 #elif PLATFORM(EFL) || PLATFORM(GTK)
     m_pageClient.updateTextInputState();
 #endif
@@ -3212,9 +3277,9 @@ void WebPageProxy::setFindIndicator(const FloatRect& selectionRectInWindowCoordi
     m_pageClient.setFindIndicator(findIndicator.release(), fadeOut, animate);
 }
 
-void WebPageProxy::didFindString(const String& string, uint32_t matchCount)
+void WebPageProxy::didFindString(const String& string, uint32_t matchCount, int32_t matchIndex)
 {
-    m_findClient->didFindString(this, string, matchCount);
+    m_findClient->didFindString(this, string, matchCount, matchIndex);
 }
 
 void WebPageProxy::didFindStringMatches(const String& string, Vector<Vector<WebCore::IntRect>> matchRects, int32_t firstIndexAfterSelection)
@@ -3334,17 +3399,17 @@ void WebPageProxy::hidePopupMenu()
 #if ENABLE(CONTEXT_MENUS)
 void WebPageProxy::showContextMenu(const IntPoint& menuLocation, const ContextMenuContextData& contextMenuContextData, const Vector<WebContextMenuItemData>& proposedItems, IPC::MessageDecoder& decoder)
 {
-    internalShowContextMenu(menuLocation, contextMenuContextData, proposedItems, decoder);
+    internalShowContextMenu(menuLocation, contextMenuContextData, proposedItems, ContextMenuClientEligibility::EligibleForClient, &decoder);
     
     // No matter the result of internalShowContextMenu, always notify the WebProcess that the menu is hidden so it starts handling mouse events again.
     m_process->send(Messages::WebPage::ContextMenuHidden(), m_pageID);
 }
 
-void WebPageProxy::internalShowContextMenu(const IntPoint& menuLocation, const ContextMenuContextData& contextMenuContextData, const Vector<WebContextMenuItemData>& proposedItems, IPC::MessageDecoder& decoder)
+void WebPageProxy::internalShowContextMenu(const IntPoint& menuLocation, const ContextMenuContextData& contextMenuContextData, const Vector<WebContextMenuItemData>& proposedItems, ContextMenuClientEligibility clientEligibility, IPC::MessageDecoder* decoder)
 {
     RefPtr<API::Object> userData;
     WebContextUserMessageDecoder messageDecoder(userData, process());
-    if (!decoder.decode(messageDecoder))
+    if (decoder && !decoder->decode(messageDecoder))
         return;
 
     m_activeContextMenuContextData = contextMenuContextData;
@@ -3364,7 +3429,7 @@ void WebPageProxy::internalShowContextMenu(const IntPoint& menuLocation, const C
     // Unless this is an image control, give the PageContextMenuClient one last swipe at changing the menu.
     Vector<WebContextMenuItemData> items;
     bool useProposedItems = true;
-    bool askClientToChangeMenu = true;
+    bool askClientToChangeMenu = clientEligibility == ContextMenuClientEligibility::EligibleForClient;
 #if ENABLE(IMAGE_CONTROLS)
     if (!contextMenuContextData.controlledImageHandle().isNull())
         askClientToChangeMenu = false;
@@ -3372,7 +3437,7 @@ void WebPageProxy::internalShowContextMenu(const IntPoint& menuLocation, const C
 
     if (askClientToChangeMenu && m_contextMenuClient.getContextMenuFromProposedMenu(this, proposedItems, items, contextMenuContextData.webHitTestResultData(), userData.get()))
         useProposedItems = false;
-    
+
     const Vector<WebContextMenuItemData>& itemsToShow = useProposedItems ? proposedItems : items;
     if (!m_contextMenuClient.showContextMenu(this, menuLocation, itemsToShow))
         m_activeContextMenu->showContextMenu(menuLocation, itemsToShow, contextMenuContextData);
@@ -3692,7 +3757,7 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
         break;
 
     case WebEvent::Wheel: {
-        ASSERT(!m_currentlyProcessedWheelEvents.isEmpty());
+        MESSAGE_CHECK(!m_currentlyProcessedWheelEvents.isEmpty());
 
         OwnPtr<Vector<NativeWebWheelEvent>> oldestCoalescedEvent = m_currentlyProcessedWheelEvents.takeFirst();
 
@@ -3716,10 +3781,10 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
     case WebEvent::Char: {
         LOG(KeyHandling, "WebPageProxy::didReceiveEvent: %s", webKeyboardEventTypeString(type));
 
-        NativeWebKeyboardEvent event = m_keyEventQueue.first();
-        MESSAGE_CHECK(type == event.type());
+        MESSAGE_CHECK(!m_keyEventQueue.isEmpty());
+        NativeWebKeyboardEvent event = m_keyEventQueue.takeFirst();
 
-        m_keyEventQueue.removeFirst();
+        MESSAGE_CHECK(type == event.type());
 
         if (!m_keyEventQueue.isEmpty())
             m_process->send(Messages::WebPage::KeyEvent(m_keyEventQueue.first()), m_pageID);
@@ -3737,9 +3802,10 @@ void WebPageProxy::didReceiveEvent(uint32_t opaqueType, bool handled)
     case WebEvent::TouchMove:
     case WebEvent::TouchEnd:
     case WebEvent::TouchCancel: {
-        QueuedTouchEvents queuedEvents = m_touchEventQueue.first();
+        MESSAGE_CHECK(!m_touchEventQueue.isEmpty());
+        QueuedTouchEvents queuedEvents = m_touchEventQueue.takeFirst();
+
         MESSAGE_CHECK(type == queuedEvents.forwardedEvent.type());
-        m_touchEventQueue.removeFirst();
 
         m_pageClient.doneWithTouchEvent(queuedEvents.forwardedEvent, handled);
         for (size_t i = 0; i < queuedEvents.deferredTouchEvents.size(); ++i) {
@@ -4125,6 +4191,7 @@ WebPageCreationParameters WebPageProxy::creationParameters()
     parameters.gapBetweenPages = m_gapBetweenPages;
     parameters.userAgent = userAgent();
     parameters.sessionState = SessionState(m_backForwardList->entries(), m_backForwardList->currentIndex());
+    parameters.sessionID = m_session->getID();
     parameters.highestUsedBackForwardItemID = WebBackForwardListItem::highedUsedItemID();
     parameters.visitedLinkTableID = m_visitedLinkProvider->identifier();
     parameters.canRunBeforeUnloadConfirmPanel = m_uiClient->canRunBeforeUnloadConfirmPanel();
@@ -4145,7 +4212,8 @@ WebPageCreationParameters WebPageProxy::creationParameters()
     parameters.colorSpace = m_pageClient.colorSpace();
 #endif
 #if PLATFORM(IOS)
-    parameters.viewportScreenSize = viewportScreenSize();
+    parameters.screenSize = screenSize();
+    parameters.availableScreenSize = availableScreenSize();
 #endif
 
     return parameters;

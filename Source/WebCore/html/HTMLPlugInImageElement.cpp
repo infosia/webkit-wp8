@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008, 2011, 2012 Apple Inc. All rights reserved.
+ * Copyright (C) 2008, 2011, 2012, 2014 Apple Inc. All rights reserved.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -121,6 +121,7 @@ HTMLPlugInImageElement::HTMLPlugInImageElement(const QualifiedName& tagName, Doc
     , m_plugInWasCreated(false)
     , m_deferredPromotionToPrimaryPlugIn(false)
     , m_snapshotDecision(SnapshotNotYetDecided)
+    , m_plugInDimensionsSpecified(false)
 {
     setHasCustomStyleResolveCallbacks();
 }
@@ -227,11 +228,12 @@ RenderPtr<RenderElement> HTMLPlugInImageElement::createElementRenderer(PassRef<R
 
 #if PLATFORM(IOS)
     if (ShadowRoot* shadowRoot = this->shadowRoot()) {
-        Element* shadowElement = toElement(shadowRoot->firstChild());
-        if (shadowElement && shadowElement->shadowPseudoId() == "-apple-youtube-shadow-iframe")
+        Node* shadowNode = shadowRoot->firstChild();
+        if (shadowNode && shadowNode->isElementNode() && toElement(*shadowNode).shadowPseudoId() == "-apple-youtube-shadow-iframe")
             return createRenderer<RenderBlockFlow>(*this, std::move(style));
     }
 #endif
+
     return HTMLPlugInElement::createElementRenderer(std::move(style));
 }
 
@@ -247,25 +249,32 @@ bool HTMLPlugInImageElement::willRecalcStyle(Style::Change)
 void HTMLPlugInImageElement::didAttachRenderers()
 {
     if (!isImageType()) {
-        queuePostAttachCallback(&HTMLPlugInImageElement::updateWidgetCallback, *this);
+        RefPtr<HTMLPlugInImageElement> element = this;
+        Style::queuePostResolutionCallback([element]{
+            element->updateWidgetIfNecessary();
+        });
         return;
     }
     if (!renderer() || useFallbackContent())
         return;
 
-    // Image load might complete synchronously and cause us to re-enter attach.
-    queuePostAttachCallback(&HTMLPlugInImageElement::startLoadingImageCallback, *this);
+    // Image load might complete synchronously and cause us to re-enter.
+    RefPtr<HTMLPlugInImageElement> element = this;
+    Style::queuePostResolutionCallback([element]{
+        element->startLoadingImage();
+    });
 }
 
 void HTMLPlugInImageElement::willDetachRenderers()
 {
     // FIXME: Because of the insanity that is HTMLPlugInImageElement::willRecalcStyle,
     // we can end up detaching during an attach() call, before we even have a
-    // renderer.  In that case, don't mark the widget for update.
+    // renderer. In that case, don't mark the widget for update.
     if (renderer() && !useFallbackContent()) {
         // Update the widget the next time we attach (detaching destroys the plugin).
         setNeedsWidgetUpdate(true);
     }
+
     HTMLPlugInElement::willDetachRenderers();
 }
 
@@ -296,13 +305,13 @@ void HTMLPlugInImageElement::finishParsingChildren()
 void HTMLPlugInImageElement::didMoveToNewDocument(Document* oldDocument)
 {
     if (m_needsDocumentActivationCallbacks) {
-        if (oldDocument)
-            oldDocument->unregisterForPageCacheSuspensionCallbacks(this);
+        oldDocument->unregisterForPageCacheSuspensionCallbacks(this);
         document().registerForPageCacheSuspensionCallbacks(this);
     }
 
     if (m_imageLoader)
         m_imageLoader->elementDidMoveToNewDocument();
+
     HTMLPlugInElement::didMoveToNewDocument(oldDocument);
 }
 
@@ -321,21 +330,11 @@ void HTMLPlugInImageElement::documentDidResumeFromPageCache()
     HTMLPlugInElement::documentDidResumeFromPageCache();
 }
 
-void HTMLPlugInImageElement::updateWidgetCallback(Node& node, unsigned)
-{
-    toHTMLPlugInImageElement(node).updateWidgetIfNecessary();
-}
-
 void HTMLPlugInImageElement::startLoadingImage()
 {
     if (!m_imageLoader)
-        m_imageLoader = adoptPtr(new HTMLImageLoader(*this));
+        m_imageLoader = std::make_unique<HTMLImageLoader>(*this);
     m_imageLoader->updateFromElement();
-}
-
-void HTMLPlugInImageElement::startLoadingImageCallback(Node& node, unsigned)
-{
-    toHTMLPlugInImageElement(node).startLoadingImage();
 }
 
 void HTMLPlugInImageElement::updateSnapshot(PassRefPtr<Image> image)
@@ -352,18 +351,6 @@ void HTMLPlugInImageElement::updateSnapshot(PassRefPtr<Image> image)
 
     if (renderer()->isEmbeddedObject())
         renderer()->repaint();
-}
-
-void HTMLPlugInImageElement::checkSnapshotStatus()
-{
-    if (!renderer()->isSnapshottedPlugIn()) {
-        if (displayState() == Playing)
-            checkSizeChangeForSnapshotting();
-        return;
-    }
-
-    // Notify the shadow root that the size changed so that we may update the overlay layout.
-    ensureUserAgentShadowRoot().dispatchEvent(Event::create(eventNames().resizeEvent, true, false));
 }
 
 static DOMWrapperWorld& plugInImageElementIsolatedWorld()
@@ -437,18 +424,18 @@ void HTMLPlugInImageElement::createShadowIFrameSubtree(const String& src)
     ShadowRoot& root = this->ensureUserAgentShadowRoot();
     root.appendChild(shadowElement, ASSERT_NO_EXCEPTION);
 
-    RefPtr<HTMLIFrameElement> iframeElement = HTMLIFrameElement::create(HTMLNames::iframeTag, document());
-    if (hasAttribute(HTMLNames::widthAttr))
-        iframeElement->setAttribute(HTMLNames::widthAttr, AtomicString("100%", AtomicString::ConstructFromLiteral));
-    if (hasAttribute(HTMLNames::heightAttr)) {
-        iframeElement->setAttribute(HTMLNames::styleAttr, AtomicString("max-height: 100%", AtomicString::ConstructFromLiteral));
-        iframeElement->setAttribute(HTMLNames::heightAttr, getAttribute(HTMLNames::heightAttr));
+    RefPtr<HTMLIFrameElement> iframeElement = HTMLIFrameElement::create(iframeTag, document());
+    if (hasAttribute(widthAttr))
+        iframeElement->setAttribute(widthAttr, AtomicString("100%", AtomicString::ConstructFromLiteral));
+    if (hasAttribute(heightAttr)) {
+        iframeElement->setAttribute(styleAttr, AtomicString("max-height: 100%", AtomicString::ConstructFromLiteral));
+        iframeElement->setAttribute(heightAttr, getAttribute(heightAttr));
     }
-    iframeElement->setAttribute(HTMLNames::srcAttr, src);
-    iframeElement->setAttribute(HTMLNames::frameborderAttr, AtomicString("0", AtomicString::ConstructFromLiteral));
+    iframeElement->setAttribute(srcAttr, src);
+    iframeElement->setAttribute(frameborderAttr, AtomicString("0", AtomicString::ConstructFromLiteral));
 
     // Disable frame flattening for this iframe.
-    iframeElement->setAttribute(HTMLNames::scrollingAttr, AtomicString("no", AtomicString::ConstructFromLiteral));
+    iframeElement->setAttribute(scrollingAttr, AtomicString("no", AtomicString::ConstructFromLiteral));
     shadowElement->appendChild(iframeElement, ASSERT_NO_EXCEPTION);
 }
 #endif
@@ -610,6 +597,60 @@ void HTMLPlugInImageElement::checkSizeChangeForSnapshotting()
         toPluginViewBase(widget)->beginSnapshottingRunningPlugin();
 }
 
+static inline bool is100Percent(Length length)
+{
+    return length.isPercentNotCalculated() && length.percent() == 100;
+}
+    
+static inline bool isSmallerThanTinySizingThreshold(const RenderEmbeddedObject& renderer)
+{
+    LayoutRect contentRect = renderer.contentBoxRect();
+    return contentRect.width() <= sizingTinyDimensionThreshold || contentRect.height() <= sizingTinyDimensionThreshold;
+}
+    
+bool HTMLPlugInImageElement::isTopLevelFullPagePlugin(const RenderEmbeddedObject& renderer) const
+{
+    Frame& frame = *document().frame();
+    if (!frame.isMainFrame())
+        return false;
+    
+    auto& style = renderer.style();
+    IntSize visibleSize = frame.view()->visibleSize();
+    LayoutRect contentRect = renderer.contentBoxRect();
+    int contentWidth = contentRect.width();
+    int contentHeight = contentRect.height();
+    return is100Percent(style.width()) && is100Percent(style.height()) && contentWidth * contentHeight > visibleSize.area() * sizingFullPageAreaRatioThreshold;
+}
+    
+void HTMLPlugInImageElement::checkSnapshotStatus()
+{
+    if (!renderer()->isSnapshottedPlugIn()) {
+        if (displayState() == Playing)
+            checkSizeChangeForSnapshotting();
+        return;
+    }
+    
+    // If width and height styles were previously not set and we've snapshotted the plugin we may need to restart the plugin so that its state can be updated appropriately.
+    if (!document().page()->settings().snapshotAllPlugIns() && displayState() <= DisplayingSnapshot && !m_plugInDimensionsSpecified) {
+        RenderSnapshottedPlugIn& renderer = toRenderSnapshottedPlugIn(*this->renderer());
+        if (!renderer.style().logicalWidth().isSpecified() && !renderer.style().logicalHeight().isSpecified())
+            return;
+        
+        m_plugInDimensionsSpecified = true;
+        if (isTopLevelFullPagePlugin(renderer)) {
+            m_snapshotDecision = NeverSnapshot;
+            restartSnapshottedPlugIn();
+        } else if (isSmallerThanTinySizingThreshold(renderer)) {
+            m_snapshotDecision = MaySnapshotWhenResized;
+            restartSnapshottedPlugIn();
+        }
+        return;
+    }
+    
+    // Notify the shadow root that the size changed so that we may update the overlay layout.
+    ensureUserAgentShadowRoot().dispatchEvent(Event::create(eventNames().resizeEvent, true, false));
+}
+    
 void HTMLPlugInImageElement::subframeLoaderWillCreatePlugIn(const URL& url)
 {
     LOG(Plugins, "%p Plug-in URL: %s", this, m_url.utf8().data());
@@ -693,28 +734,23 @@ void HTMLPlugInImageElement::subframeLoaderWillCreatePlugIn(const URL& url)
         m_snapshotDecision = NeverSnapshot;
         return;
     }
-
-    RenderBox* renderEmbeddedObject = toRenderBox(renderer());
-    Length styleWidth = renderEmbeddedObject->style().width();
-    Length styleHeight = renderEmbeddedObject->style().height();
-    LayoutRect contentBoxRect = renderEmbeddedObject->contentBoxRect();
-    int contentWidth = contentBoxRect.width();
-    int contentHeight = contentBoxRect.height();
-    int contentArea = contentWidth * contentHeight;
-    IntSize visibleViewSize = document().frame()->view()->visibleSize();
-    int visibleArea = visibleViewSize.width() * visibleViewSize.height();
-
-    if (inMainFrame && styleWidth.isPercent() && (styleWidth.percent() == 100)
-        && styleHeight.isPercent() && (styleHeight.percent() == 100)
-        && (static_cast<float>(contentArea) / visibleArea > sizingFullPageAreaRatioThreshold)) {
+    
+    auto& renderer = toRenderEmbeddedObject(*this->renderer());
+    LayoutRect contentRect = renderer.contentBoxRect();
+    int contentWidth = contentRect.width();
+    int contentHeight = contentRect.height();
+    
+    m_plugInDimensionsSpecified = renderer.style().logicalWidth().isSpecified() || renderer.style().logicalHeight().isSpecified();
+    
+    if (isTopLevelFullPagePlugin(renderer)) {
         LOG(Plugins, "%p Plug-in is top level full page, set to play", this);
         m_snapshotDecision = NeverSnapshot;
         return;
     }
 
-    if (contentWidth <= sizingTinyDimensionThreshold || contentHeight <= sizingTinyDimensionThreshold) {
+    if (isSmallerThanTinySizingThreshold(renderer)) {
         LOG(Plugins, "%p Plug-in is very small %dx%d, set to play", this, contentWidth, contentHeight);
-        m_sizeWhenSnapshotted = IntSize(contentBoxRect.width().toInt(), contentBoxRect.height().toInt());
+        m_sizeWhenSnapshotted = IntSize(contentWidth, contentHeight);
         m_snapshotDecision = MaySnapshotWhenResized;
         return;
     }
@@ -726,7 +762,7 @@ void HTMLPlugInImageElement::subframeLoaderWillCreatePlugIn(const URL& url)
         return;
     }
 
-    LOG(Plugins, "%p Plug-in from (%s, %s) is not auto-start, sized at %dx%d, set to wait for snapshot", this, document().page()->mainFrame().document()->baseURL().host().utf8().data(), url.host().utf8().data(), contentWidth, contentHeight);
+    LOG(Plugins, "%p Plug-in from (%s, %s) is not auto-start, sized at %dx%d, set to wait for snapshot", this, document().topDocument().baseURL().host().utf8().data(), url.host().utf8().data(), contentWidth, contentHeight);
     m_snapshotDecision = Snapshotted;
     setDisplayState(WaitingForSnapshot);
 }

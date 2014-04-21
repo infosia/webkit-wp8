@@ -31,6 +31,7 @@
 #include "ContextDestructionObserver.h"
 #include "ExceptionCodePlaceholder.h"
 #include "NodeList.h"
+#include "PageConsole.h"
 #include <bindings/ScriptValue.h>
 #include <runtime/ArrayBuffer.h>
 #include <runtime/Float32Array.h>
@@ -56,13 +57,11 @@ class Node;
 class Page;
 class Range;
 class ScriptExecutionContext;
-class ScriptProfile;
 class SerializedScriptValue;
 class TimeRanges;
 class TypeConversions;
 
 typedef int ExceptionCode;
-typedef Vector<RefPtr<ScriptProfile>> ProfilesArray;
 
 class Internals : public RefCounted<Internals>
                 , public ContextDestructionObserver {
@@ -166,9 +165,6 @@ public:
     PassRefPtr<NodeList> nodesFromRect(Document*, int x, int y, unsigned topPadding, unsigned rightPadding,
         unsigned bottomPadding, unsigned leftPadding, bool ignoreClipping, bool allowShadowContent, bool allowChildFrameContent, ExceptionCode&) const;
 
-    void emitInspectorDidBeginFrame();
-    void emitInspectorDidCancelFrame();
-
     String parserMetaData(Deprecated::ScriptValue = Deprecated::ScriptValue());
 
     Node* findEditingDeleteButton();
@@ -199,8 +195,6 @@ public:
     unsigned workerThreadCount() const;
 
     void setBatteryStatus(const String& eventType, bool charging, double chargingTime, double dischargingTime, double level, ExceptionCode&);
-
-    void setNetworkInformation(const String& eventType, double bandwidth, bool metered, ExceptionCode&);
 
     void setDeviceProximity(const String& eventType, double value, double min, double max, ExceptionCode&);
 
@@ -235,7 +229,6 @@ public:
     Vector<String> consoleMessageArgumentCounts() const;
     PassRefPtr<DOMWindow> openDummyInspectorFrontend(const String& url);
     void closeDummyInspectorFrontend();
-    void setInspectorResourcesDataSizeLimits(int maximumResourcesContentSize, int maximumSingleResourceContentSize, ExceptionCode&);
     void setJavaScriptProfilingEnabled(bool enabled, ExceptionCode&);
     void setInspectorIsUnderTest(bool isUnderTest, ExceptionCode&);
 #endif
@@ -326,6 +319,7 @@ public:
 #endif
 
     bool isPluginUnavailabilityIndicatorObscured(Element*, ExceptionCode&);
+    bool isPluginSnapshotted(Element*, ExceptionCode&);
 
 #if ENABLE(MEDIA_SOURCE)
     void initializeMockMediaSource();

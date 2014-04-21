@@ -347,11 +347,8 @@ bool CachedResourceLoader::canRequest(CachedResource::Type type, const URL& url,
     case CachedResource::Script:
         if (!shouldBypassMainWorldContentSecurityPolicy && !m_document->contentSecurityPolicy()->allowScriptFromSource(url))
             return false;
-
-        if (frame()) {
-            if (!frame()->loader().client().allowScriptFromSource(frame()->settings().isScriptEnabled(), url))
-                return false;
-        }
+        if (frame() && !frame()->settings().isScriptEnabled())
+            return false;
         break;
     case CachedResource::CSSStyleSheet:
         if (!shouldBypassMainWorldContentSecurityPolicy && !m_document->contentSecurityPolicy()->allowStyleFromSource(url))
@@ -451,7 +448,7 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::requestResource(Cache
         memoryCache()->remove(resource.get());
         FALLTHROUGH;
     case Load:
-        resource = loadResource(type, request, request.charset());
+        resource = loadResource(type, request);
         break;
     case Revalidate:
         resource = revalidateResource(request, resource.get());
@@ -514,13 +511,13 @@ CachedResourceHandle<CachedResource> CachedResourceLoader::revalidateResource(co
     return newResource;
 }
 
-CachedResourceHandle<CachedResource> CachedResourceLoader::loadResource(CachedResource::Type type, CachedResourceRequest& request, const String& charset)
+CachedResourceHandle<CachedResource> CachedResourceLoader::loadResource(CachedResource::Type type, CachedResourceRequest& request)
 {
     ASSERT(!memoryCache()->resourceForRequest(request.resourceRequest(), sessionID()));
 
     LOG(ResourceLoading, "Loading CachedResource for '%s'.", request.resourceRequest().url().stringCenterEllipsizedToLength().latin1().data());
 
-    CachedResourceHandle<CachedResource> resource = createResource(type, request.mutableResourceRequest(), charset, sessionID());
+    CachedResourceHandle<CachedResource> resource = createResource(type, request.mutableResourceRequest(), request.charset(), sessionID());
 
     if (!memoryCache()->add(resource.get()))
         resource->setOwningCachedResourceLoader(this);
@@ -678,9 +675,9 @@ void CachedResourceLoader::setImagesEnabled(bool enable)
     reloadImagesIfNotDeferred();
 }
 
-bool CachedResourceLoader::clientDefersImage(const URL& url) const
+bool CachedResourceLoader::clientDefersImage(const URL&) const
 {
-    return frame() && !frame()->loader().client().allowImage(m_imagesEnabled, url);
+    return !m_imagesEnabled;
 }
 
 bool CachedResourceLoader::shouldDeferImageLoad(const URL& url) const
