@@ -1,3 +1,188 @@
+2014-04-21  Gavin Barraclough  <baraclough@apple.com>
+
+        Don't use ProcessAssertion on simulator
+        https://bugs.webkit.org/show_bug.cgi?id=131950
+
+        Rubber stamped by Enrica Casucci
+
+        * UIProcess/Launcher/mac/ProcessLauncherMac.mm:
+        (WebKit::connectToService):
+        * UIProcess/ios/ProcessAssertion.h:
+
+2014-04-21  Enrica Casucci  <enrica@apple.com>
+
+        [iOS WebKit2] support replacements for misspelled words.
+        https://bugs.webkit.org/show_bug.cgi?id=131827
+        <rdar://problem/16319657>
+
+        Reviewed by Darin Adler.
+
+        This is the second a final piece to support replacements.
+        It adds some entrypoints used by the keyboard code to perform
+        replacement when reaching the edge of a word using backspace.
+        I've modified the behavior of replaceSelectedText to work both
+        with caret or range selections.
+
+        * Shared/EditorState.cpp:
+        (WebKit::EditorState::encode):
+        (WebKit::EditorState::decode):
+        * Shared/EditorState.h:
+        (WebKit::EditorState::EditorState):
+        * UIProcess/ios/WKContentViewInteraction.mm:
+        (-[WKContentView isReplaceAllowed]):
+        (-[WKContentView _characterBeforeCaretSelection]):
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::editorState):
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::replaceSelectedText):
+
+2014-04-21  Gavin Barraclough  <baraclough@apple.com>
+
+        Don't use ProcessAssertion on simulator
+        https://bugs.webkit.org/show_bug.cgi?id=131950
+
+        Rubber stamped by Benjamin Poulain
+
+        * UIProcess/ios/ProcessAssertion.mm:
+        (WebKit::ProcessAssertion::ProcessAssertion):
+        (WebKit::ProcessAssertion::setState):
+
+2014-04-21  Anders Carlsson  <andersca@apple.com>
+
+        Another build fix.
+
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.mm:
+        (WebKit::XPCServiceInitializerDelegate::checkEntitlements):
+
+2014-04-21  Anders Carlsson  <andersca@apple.com>
+
+        Build fix.
+
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.h:
+        (WebKit::XPCServiceInitializer):
+
+2014-04-21  Tim Horton  <timothy_horton@apple.com>
+
+        [iOS WebKit2] Implement CSS viewport units
+        https://bugs.webkit.org/show_bug.cgi?id=131863
+        <rdar://problem/16279088>
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (setMinimumLayoutSizeForMinimalUI):
+        (-[WKWebView _minimumLayoutSizeOverrideForMinimalUI]):
+        (-[WKWebView _setMinimumLayoutSizeOverrideForMinimalUI:]):
+        Add _setMinimumLayoutSizeOverrideForMinimalUI:, which pushes said size
+        down from the client to WebPageIOS, below.
+
+        * UIProcess/API/Cocoa/WKWebViewPrivate.h:
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/ios/WebPageProxyIOS.mm:
+        (WebKit::WebPageProxy::setMinimumLayoutSizeForMinimalUI):
+        * WebProcess/WebPage/WebPage.h:
+        * WebProcess/WebPage/WebPage.messages.in:
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::setMinimumLayoutSizeForMinimalUI):
+        (WebKit::WebPage::viewportConfigurationChanged):
+        Update FrameView's viewport size based on the minimum layout size for minimal UI (if we have it)
+        or the normal minimum layout size, scaled to the page's initial scale.
+
+2014-04-21  Benjamin Poulain  <bpoulain@apple.com>
+
+        [iOS][WK2] Fix the dynamic viewport update when the viewport's max-scale conflict with the transition
+        https://bugs.webkit.org/show_bug.cgi?id=131884
+
+        Reviewed by Darin Adler.
+
+        <rdar://problem/16667291>
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (-[WKWebView _beginAnimatedResizeWithUpdates:]):
+        It is fairly common to have a viewport configuration with min-scale=1 and max-scale=1.
+        Since we were only changing the minimumScale for the transition, the target scale was affected
+        by max-scale. This was breaking the transition from portrait to landscale.
+
+2014-04-21  Benjamin Poulain  <bpoulain@apple.com>
+
+        [iOS][WK2] Make dynamic viewport size update content aware
+        https://bugs.webkit.org/show_bug.cgi?id=131874
+
+        Reviewed by Tim Horton.
+
+        When possible, adjust the scroll position based on the content on dynamic viewport resize.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::WebPage):
+        (WebKit::WebPage::scalePage):
+        (WebKit::WebPage::pageDidScroll):
+        * WebProcess/WebPage/WebPage.h:
+        The scrolling heuristic are not invertible, especially the content heuristic. To have the right
+        behavior when doing resize without changing the page, we save the old scroll position and restore
+        it when the content size and scale is restored.
+
+        * WebProcess/WebPage/ios/WebPageIOS.mm:
+        (WebKit::WebPage::dynamicViewportSizeUpdate):
+        On dynamic update, start by finding what node is at the center of the screen. After the layout, put that
+        node back in the center.
+
+        (WebKit::WebPage::updateVisibleContentRects):
+
+2014-04-21  Anders Carlsson  <andersca@apple.com>
+
+        Need default WKNavigationDelegate behavior
+        https://bugs.webkit.org/show_bug.cgi?id=131944
+        <rdar://problem/15949822>
+
+        Reviewed by Dan Bernstein.
+
+        Port the WebKit1 default delegate behavior over.
+
+        * UIProcess/Cocoa/NavigationState.mm:
+        (WebKit::NavigationState::PolicyClient::decidePolicyForNavigationAction):
+        (WebKit::NavigationState::PolicyClient::decidePolicyForResponse):
+
+2014-04-21  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Expose WebPage::setDefersLoading
+        https://bugs.webkit.org/show_bug.cgi?id=131943
+
+        Reviewed by Anders Carlsson, but he doesn’t like this.
+
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextController.mm:
+        (-[WKWebProcessPlugInBrowserContextController _defersLoading]): Added this accessor.
+        (-[WKWebProcessPlugInBrowserContextController _setDefersLoading:]): Ditto.
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextControllerPrivate.h:
+        Declared new property _defersLoading.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::defersLoading): Added this getter.
+        * WebProcess/WebPage/WebPage.h:
+
+2014-04-21  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Remove unused WebKitSystemInterface functions
+        https://bugs.webkit.org/show_bug.cgi?id=131938
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebProcess/WebCoreSupport/mac/WebSystemInterface.mm:
+        (InitWebCoreSystemInterface):
+
+2014-04-21  Anders Carlsson  <andersca@apple.com>
+
+        Check the com.apple.security.network.client entitlement for all processes
+        https://bugs.webkit.org/show_bug.cgi?id=131942
+        <rdar://problem/12354188>
+
+        Reviewed by Dan Bernstein.
+
+        * NetworkProcess/EntryPoint/mac/XPCService/NetworkServiceEntryPoint.mm:
+        (WebKit::NetworkServiceInitializerDelegate::NetworkServiceInitializerDelegate):
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.h:
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.mm:
+        (WebKit::XPCServiceInitializerDelegate::checkEntitlements):
+
 2014-04-20  Dan Bernstein  <mitz@apple.com>
 
         [Cocoa] Remove interfaces in the To Be Removed groups

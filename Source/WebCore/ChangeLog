@@ -1,3 +1,120 @@
+2014-04-21  Enrica Casucci  <enrica@apple.com>
+
+        [iOS WebKit2] support replacements for misspelled words.
+        https://bugs.webkit.org/show_bug.cgi?id=131827
+        <rdar://problem/16319657>
+
+        Reviewed by Darin Adler.
+
+        Adds utility function to return the character before the current selection
+        and converts the nbsp to the space character.
+
+        * WebCore.exp.in:
+        * editing/VisibleUnits.cpp:
+        (WebCore::characterBeforePosition):
+        * editing/VisibleUnits.h:
+
+2014-04-21  Eric Carlson  <eric.carlson@apple.com>
+
+        [iOS] enable plug-in replacement
+        https://bugs.webkit.org/show_bug.cgi?id=131947
+
+        Reviewed by Jer Noble.
+
+        * bindings/generic/RuntimeEnabledFeatures.cpp:
+        (WebCore::RuntimeEnabledFeatures::RuntimeEnabledFeatures): initialize m_isPluginReplacementEnabled
+            to true on iOS.
+
+2014-04-21  Rik Cabanier  <cabanier@adobe.com>
+
+        [CSS Blending] Remove support for non-separable blend modes from mix-blend-mode
+        https://bugs.webkit.org/show_bug.cgi?id=131824
+
+        Reviewed by Dean Jackson.
+
+        Removed support for non-separable blend modes from the CSS parser.
+
+        Covered by existing tests
+
+        * css/CSSParser.cpp:
+        (WebCore::isValidKeywordPropertyAndValue):
+        * platform/graphics/ca/mac/PlatformCAFiltersMac.mm:
+        (PlatformCAFilters::setBlendingFiltersOnLayer):
+
+2014-04-21  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column set drawing under horizontal scrollbar.
+        https://bugs.webkit.org/show_bug.cgi?id=131812.
+
+        Reviewed by Sam Weinig.
+
+        Added fast/multicol/newmulticol/compare-with-old-impl/LeftToRight-tb.html.
+
+        * rendering/RenderBlockFlow.cpp:
+        (WebCore::RenderBlockFlow::layoutBlock):
+        (WebCore::RenderBlockFlow::checkForPaginationLogicalHeightChange):
+        * rendering/RenderBlockFlow.h:
+        Pass in relayoutChildren as a reference boolean to checkForPaginationLogicalHeightChange.
+        The new columns need to be able to set it to true if the amount of available column
+        height ever changes, so that the RenderFlowThread and the sets get a layout call.
+
+        * rendering/style/RenderStyle.cpp:
+        (WebCore::RenderStyle::setColumnStylesFromPaginationMode):
+        Make sure that the pagination mode is set up with an auto column-fill specified. You
+        don't ever want to balance when you set a pagination mode on the RenderView.
+
+2014-04-21  Tim Horton  <timothy_horton@apple.com>
+
+        [iOS WebKit2] Implement CSS viewport units
+        https://bugs.webkit.org/show_bug.cgi?id=131863
+        <rdar://problem/16279088>
+
+        Reviewed by Darin Adler.
+
+        * WebCore.exp.in:
+        * page/FrameView.cpp:
+        (WebCore::FrameView::setViewportSize):
+        * page/FrameView.h:
+        (WebCore::FrameView::viewportSize):
+        Add setViewportSize() and viewportSize().
+        If the viewport size changes, we have to do style recalc.
+        If we have an overridden viewport size, use it.
+
+        * rendering/RenderView.cpp:
+        (WebCore::RenderView::viewportSize):
+        * rendering/RenderView.h:
+        Get the size from FrameView.
+
+2014-04-21  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Remove unused WebKitSystemInterface functions
+        https://bugs.webkit.org/show_bug.cgi?id=131938
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebCore.exp.in:
+        * platform/ios/WebCoreSystemInterfaceIOS.mm:
+        * platform/mac/WebCoreSystemInterface.h:
+        * platform/mac/WebCoreSystemInterface.mm:
+
+2014-04-21  Andreas Kling  <akling@apple.com>
+
+        Move the JSString cache from DOMWrapperWorld to VM.
+        <https://webkit.org/b/131940>
+
+        Since there's no need for JSStrings to be world-specific, this patch
+        moves the string cache to JSC::VM. This makes jsStringWithCache()
+        a lot faster since it no longer has to jump through twenty-eleven
+        hoops to find the DOMWrapperWorld.
+
+        Reviewed by Geoff Garen.
+
+        * bindings/js/DOMWrapperWorld.cpp:
+        (WebCore::DOMWrapperWorld::clearWrappers):
+        * bindings/js/DOMWrapperWorld.h:
+        * bindings/js/JSDOMBinding.cpp:
+        (WebCore::jsStringWithCache):
+
 2014-04-21  David Hyatt  <hyatt@apple.com>
 
         [New Multicolumn] Column balancing is slow on float-multicol.html

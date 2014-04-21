@@ -628,10 +628,12 @@ private:
         case TypedArrayWatchpoint:
         case AllocationProfileWatchpoint:
             break;
-        case Unreachable:
-            RELEASE_ASSERT_NOT_REACHED();
-            break;
         default:
+            dataLog("Unrecognized node in FTL backend:\n");
+            m_graph.dump(WTF::dataFile(), "    ", m_node);
+            dataLog("\n");
+            dataLog("Full graph dump:\n");
+            m_graph.dump();
             RELEASE_ASSERT_NOT_REACHED();
             break;
         }
@@ -5889,6 +5891,8 @@ private:
         
         switch (node->op()) {
         case JSConstant:
+        case Int52Constant:
+        case DoubleConstant:
         case WeakJSConstant:
             exit.m_values[index] = ExitValue::constant(m_graph.valueOfJSConstant(node));
             return true;

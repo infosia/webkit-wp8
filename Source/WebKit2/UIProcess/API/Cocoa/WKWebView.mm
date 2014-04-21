@@ -100,6 +100,7 @@
     BOOL _isWaitingForNewLayerTreeAfterDidCommitLoad;
     BOOL _hasStaticMinimumLayoutSize;
     CGSize _minimumLayoutSizeOverride;
+    CGSize _minimumLayoutSizeOverrideForMinimalUI;
 
     UIEdgeInsets _obscuredInsets;
     bool _isChangingObscuredInsetsInteractively;
@@ -1269,6 +1270,18 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
         setViewportConfigurationMinimumLayoutSize(*_page, minimumLayoutSizeOverride);
 }
 
+- (CGSize)_minimumLayoutSizeOverrideForMinimalUI
+{
+    return _minimumLayoutSizeOverrideForMinimalUI;
+}
+
+- (void)_setMinimumLayoutSizeOverrideForMinimalUI:(CGSize)size
+{
+    _minimumLayoutSizeOverrideForMinimalUI = size;
+    if (!_isAnimatingResize)
+        _page->setMinimumLayoutSizeForMinimalUI(WebCore::IntSize(CGCeiling(size.width), CGCeiling(size.height)));
+}
+
 - (UIEdgeInsets)_obscuredInsets
 {
     return _obscuredInsets;
@@ -1337,6 +1350,7 @@ static inline WebKit::FindOptions toFindOptions(_WKFindOptions wkFindOptions)
 
     CGSize contentSizeInContentViewCoordinates = [_contentView bounds].size;
     [_scrollView setMinimumZoomScale:std::min(newBounds.size.width / contentSizeInContentViewCoordinates.width, [_scrollView minimumZoomScale])];
+    [_scrollView setMaximumZoomScale:std::max(newBounds.size.width / contentSizeInContentViewCoordinates.width, [_scrollView maximumZoomScale])];
 
     // Compute the new scale to keep the current content width in the scrollview.
     CGFloat oldWebViewWidthInContentViewCoordinates = oldBounds.size.width / contentZoomScale(self);

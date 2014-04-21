@@ -50,6 +50,7 @@
 #include <WebCore/Editor.h>
 #include <WebCore/FrameLoaderTypes.h>
 #include <WebCore/IntRect.h>
+#include <WebCore/IntSizeHash.h>
 #include <WebCore/Page.h>
 #include <WebCore/PageVisibilityState.h>
 #include <WebCore/ScrollTypes.h>
@@ -375,6 +376,7 @@ public:
 
     void stopLoading();
     void stopLoadingFrame(uint64_t frameID);
+    bool defersLoading() const;
     void setDefersLoading(bool deferLoading);
 
     void enterAcceleratedCompositingMode(WebCore::GraphicsLayer*);
@@ -693,6 +695,7 @@ public:
 
 #if PLATFORM(IOS)
     void setViewportConfigurationMinimumLayoutSize(const WebCore::IntSize&);
+    void setMinimumLayoutSizeForMinimalUI(const WebCore::IntSize&);
     void dynamicViewportSizeUpdate(const WebCore::IntSize& minimumLayoutSize, const WebCore::FloatRect& targetExposedContentRect, const WebCore::FloatRect& targetUnobscuredRect, double scale);
     void viewportConfigurationChanged();
     void updateVisibleContentRects(const VisibleContentRectUpdateInfo&);
@@ -1158,6 +1161,9 @@ private:
     WebCore::FloatSize m_screenSize;
     WebCore::FloatSize m_availableScreenSize;
     WebCore::IntSize m_blockSelectionDesiredSize;
+    WebCore::IntSize m_minimumLayoutSizeForMinimalUI;
+    bool m_inDynamicSizeUpdate;
+    HashMap<std::pair<WebCore::IntSize, double>, WebCore::IntPoint> m_dynamicSizeUpdateHistory;
 #endif
 
     WebInspectorClient* m_inspectorClient;
