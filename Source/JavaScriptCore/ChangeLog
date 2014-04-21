@@ -1,3 +1,443 @@
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Take block execution count estimates into account when voting double
+        https://bugs.webkit.org/show_bug.cgi?id=131906
+
+        Reviewed by Geoffrey Garen.
+        
+        This was a drama in three acts.
+        
+        Act I: Slurp in BasicBlock::executionCount and use it as a weight when counting the
+            number of uses of a variable that want double or non-double. Easy as pie. This
+            gave me a huge speed-up on FloatMM and a huge slow-down on basically everything
+            else.
+        
+        Act II: Realize that there were some programs where our previous double voting was
+            just on the edge of disaster and making it more precise tipped it over. In
+            particular, if you had an integer variable that would infrequently be used in a
+            computation that resulted in a variable that was frequently used as an array index,
+            the outer infrequentness would be the thing we'd use in the vote. So, an array
+            index would become double. We fix this by reviving global backwards propagation
+            and introducing the concept of ReallyWantsInt, which is used just for array
+            indices. Any variable transitively flagged as ReallyWantsInt will never be forced
+            double. We need that flag to be separate from UsedAsInt, since UsedAsInt needs to
+            be set in bitops for RageConversion but using it for double forcing is too much.
+            Basically, it's cheaper to have to convert a double to an int for a bitop than it
+            is to convert a double to an int for an array index; also a variable being used as
+            an array index is a much stronger hint that it ought to be an int. This recovered
+            performance on everything except programs that used FTL OSR entry.
+        
+        Act III: Realize that OSR entrypoint creation creates blocks that have NaN execution
+            count, which then completely pollutes the weighting - essentially all votes go
+            NaN. Fix this with some surgical defenses. Basically, any client of execution
+            counts should allow for them to be NaN and shouldn't completely fall off a cliff
+            when it happens.
+        
+        This is awesome. 75% speed-up on FloatMM. 11% speed-up on audio-dft. This leads to
+        7% speed-up on AsmBench and 2% speed-up on Kraken.
+
+        * CMakeLists.txt:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * dfg/DFGBackwardsPropagationPhase.cpp:
+        (JSC::DFG::BackwardsPropagationPhase::run):
+        (JSC::DFG::BackwardsPropagationPhase::propagate):
+        * dfg/DFGGraph.cpp:
+        (JSC::DFG::Graph::dumpBlockHeader):
+        * dfg/DFGGraph.h:
+        (JSC::DFG::Graph::voteNode):
+        (JSC::DFG::Graph::voteChildren):
+        * dfg/DFGNodeFlags.cpp:
+        (JSC::DFG::dumpNodeFlags):
+        * dfg/DFGNodeFlags.h:
+        * dfg/DFGOSREntrypointCreationPhase.cpp:
+        (JSC::DFG::OSREntrypointCreationPhase::run):
+        * dfg/DFGPlan.cpp:
+        (JSC::DFG::Plan::compileInThreadImpl):
+        * dfg/DFGPredictionPropagationPhase.cpp:
+        (JSC::DFG::PredictionPropagationPhase::doDoubleVoting):
+        (JSC::DFG::PredictionPropagationPhase::doRoundOfDoubleVoting):
+        * dfg/DFGVariableAccessData.cpp: Added.
+        (JSC::DFG::VariableAccessData::VariableAccessData):
+        (JSC::DFG::VariableAccessData::mergeIsCaptured):
+        (JSC::DFG::VariableAccessData::mergeShouldNeverUnbox):
+        (JSC::DFG::VariableAccessData::predict):
+        (JSC::DFG::VariableAccessData::mergeArgumentAwarePrediction):
+        (JSC::DFG::VariableAccessData::shouldUseDoubleFormatAccordingToVote):
+        (JSC::DFG::VariableAccessData::tallyVotesForShouldUseDoubleFormat):
+        (JSC::DFG::VariableAccessData::mergeDoubleFormatState):
+        (JSC::DFG::VariableAccessData::makePredictionForDoubleFormat):
+        (JSC::DFG::VariableAccessData::flushFormat):
+        * dfg/DFGVariableAccessData.h:
+        (JSC::DFG::VariableAccessData::vote):
+        (JSC::DFG::VariableAccessData::VariableAccessData): Deleted.
+        (JSC::DFG::VariableAccessData::mergeIsCaptured): Deleted.
+        (JSC::DFG::VariableAccessData::mergeShouldNeverUnbox): Deleted.
+        (JSC::DFG::VariableAccessData::predict): Deleted.
+        (JSC::DFG::VariableAccessData::mergeArgumentAwarePrediction): Deleted.
+        (JSC::DFG::VariableAccessData::shouldUseDoubleFormatAccordingToVote): Deleted.
+        (JSC::DFG::VariableAccessData::tallyVotesForShouldUseDoubleFormat): Deleted.
+        (JSC::DFG::VariableAccessData::mergeDoubleFormatState): Deleted.
+        (JSC::DFG::VariableAccessData::makePredictionForDoubleFormat): Deleted.
+        (JSC::DFG::VariableAccessData::flushFormat): Deleted.
+
+2014-04-21  Michael Saboff  <msaboff@apple.com>
+
+        REGRESSION(r167591): ARM64 and ARM traditional builds broken
+        https://bugs.webkit.org/show_bug.cgi?id=131935
+
+        Reviewed by Mark Hahnenberg.
+
+        Added store8(TrustedImm32, MacroAssembler::Address) to the ARM traditional and ARM64
+        macro assemblers.  Added a new test for the original patch.
+
+        * assembler/MacroAssemblerARM.h:
+        (JSC::MacroAssemblerARM::store8):
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::store8):
+        * tests/stress/dfg-create-arguments-inline-alloc.js: New test.
+
+2014-04-21  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Inline allocate Arguments objects in the DFG
+        https://bugs.webkit.org/show_bug.cgi?id=131897
+
+        Reviewed by Geoffrey Garen.
+
+        Many libraries/frameworks depend on the arguments object for overloaded API entry points. 
+        This is the first step to making Arguments fast(er). We'll duplicate the logic in Arguments::create 
+        for now and take the slow path for complicated cases like slow arguments, tearing off for strict mode, etc.
+
+        * dfg/DFGSpeculativeJIT.cpp:
+        (JSC::DFG::SpeculativeJIT::emitAllocateArguments):
+        * dfg/DFGSpeculativeJIT.h:
+        (JSC::DFG::SpeculativeJIT::emitAllocateDestructibleObject):
+        * dfg/DFGSpeculativeJIT32_64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * dfg/DFGSpeculativeJIT64.cpp:
+        (JSC::DFG::SpeculativeJIT::compile):
+        * runtime/Arguments.h:
+        (JSC::Arguments::offsetOfActivation):
+        (JSC::Arguments::offsetOfOverrodeLength):
+        (JSC::Arguments::offsetOfIsStrictMode):
+        (JSC::Arguments::offsetOfRegisterArray):
+        (JSC::Arguments::offsetOfCallee):
+        (JSC::Arguments::allocationSize):
+
+2014-04-20  Andreas Kling  <akling@apple.com>
+
+        Speed up jsStringWithCache() through WeakGCMap inlining.
+        <https://webkit.org/b/131923>
+
+        Always inline WeakGCMap::add() but move the slow garbage collecting
+        path out-of-line.
+
+        Reviewed by Darin Adler.
+
+        * runtime/WeakGCMap.h:
+        (JSC::WeakGCMap::add):
+        (JSC::WeakGCMap::gcMap):
+
+2014-04-20  László Langó  <llango.u-szeged@partner.samsung.com>
+
+        JavaScriptCore: ARM build fix after r167094.
+        https://bugs.webkit.org/show_bug.cgi?id=131612
+
+        Reviewed by Michael Saboff.
+
+        After r167094 there are many build errors on ARM like these:
+
+            /tmp/ccgtHRno.s:370: Error: invalid constant (425a) after fixup
+            /tmp/ccgtHRno.s:374: Error: invalid constant (426e) after fixup
+            /tmp/ccgtHRno.s:378: Error: invalid constant (4282) after fixup
+            /tmp/ccgtHRno.s:382: Error: invalid constant (4296) after fixup
+
+        Problem is caused by the wrong generated assembly like:
+            "\tmov r2, (" LOCAL_LABEL_STRING(llint_op_strcat) " - " LOCAL_LABEL_STRING(relativePCBase) ")\n" // /home/webkit/WebKit/Source/JavaScriptCore/llint/LowLevelInterpreter.asm:741
+
+        `mov` can only move 8 bit immediate, but not every constant fit into 8 bit. Clang converts
+        the mov to a single movw or a movw and a movt, depending on the immediate, but binutils doesn't.
+        Add a new ARM specific offline assembler instruction (`mvlbl`) for the following llint_entry
+        use case: move rn, (label1-label2) which is translated to movw and movt.
+
+        * llint/LowLevelInterpreter.asm:
+        * offlineasm/arm.rb:
+        * offlineasm/instructions.rb:
+
+2014-04-20  Csaba Osztrogonác  <ossy@webkit.org>
+
+        [ARM] Unreviewed build fix after r167336.
+
+        * assembler/MacroAssemblerARM.h:
+        (JSC::MacroAssemblerARM::branchAdd32):
+
+2014-04-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167501.
+        https://bugs.webkit.org/show_bug.cgi?id=131913
+
+        It broke DYEBench (Requested by mhahnenberg on #webkit).
+
+        Reverted changeset:
+
+        "Deleting properties poisons objects"
+        https://bugs.webkit.org/show_bug.cgi?id=131551
+        http://trac.webkit.org/changeset/167501
+
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        It should be OK to store new fields into objects that have no prototypes
+        https://bugs.webkit.org/show_bug.cgi?id=131905
+
+        Reviewed by Mark Hahnenberg.
+
+        * dfg/DFGByteCodeParser.cpp:
+        (JSC::DFG::ByteCodeParser::emitPrototypeChecks):
+        * tests/stress/put-by-id-transition-null-prototype.js: Added.
+        (foo):
+
+2014-04-19  Benjamin Poulain  <bpoulain@apple.com>
+
+        Make the CSS JIT compile for ARM64
+        https://bugs.webkit.org/show_bug.cgi?id=131834
+
+        Reviewed by Gavin Barraclough.
+
+        Extend the ARM64 MacroAssembler to support the code generation required by
+        the CSS JIT.
+
+        * assembler/MacroAssembler.h:
+        * assembler/MacroAssemblerARM64.h:
+        (JSC::MacroAssemblerARM64::addPtrNoFlags):
+        (JSC::MacroAssemblerARM64::or32):
+        (JSC::MacroAssemblerARM64::branchPtr):
+        (JSC::MacroAssemblerARM64::test32):
+        (JSC::MacroAssemblerARM64::branch):
+        * assembler/MacroAssemblerX86Common.h:
+        (JSC::MacroAssemblerX86Common::test32):
+
+2014-04-19  Andreas Kling  <akling@apple.com>
+
+        Two little shortcuts to the JSType.
+        <https://webkit.org/b/131896>
+
+        Tweak two sites that take the long road through JSCell::structure()->typeInfo()
+        to look at data that's already in JSCell::type().
+
+        Reviewed by Darin Adler.
+
+        * runtime/NameInstance.h:
+        (JSC::isName):
+        * runtime/NumberPrototype.cpp:
+        (JSC::toThisNumber):
+
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Make it easier to check if an integer sum would overflow
+        https://bugs.webkit.org/show_bug.cgi?id=131900
+
+        Reviewed by Darin Adler.
+
+        * dfg/DFGOperations.cpp:
+        * runtime/Operations.h:
+        (JSC::jsString):
+
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Address some feedback on https://bugs.webkit.org/show_bug.cgi?id=130684.
+
+        * dfg/DFGOperations.cpp:
+        * runtime/JSString.h:
+        (JSC::JSRopeString::RopeBuilder::append):
+
+2014-04-18  Mark Lam  <mark.lam@apple.com>
+
+        REGRESSION(r164205): WebKit crash @StructureIDTable::get.
+        <https://webkit.org/b/130539>
+
+        Reviewed by Geoffrey Garen.
+
+        prepareOSREntry() prepares for OSR entry by first copying the local var
+        values from the baseline frame to a scartch buffer, which is then used
+        to fill in the locals in their new position in the DFG frame.  Unfortunately,
+        prepareOSREntry() was using the DFG frame's frameRegisterCount as the frame
+        size of the baseline frame.  As a result, some values of locals in the
+        baseline frame were not saved off, and the DFG frame may get initialized
+        with random content that happened to be in the uninitialized (and possibly
+        unallocated) portions of the scratch buffer.
+
+        The fix is to use OSREntryData::m_expectedValues.numberOfLocals() as the
+        number of locals in the baseline frame that we want to copy to the scratch
+        buffer.
+
+        Note: osrEntryThunkGenerator() is expecting the DFG frameRegisterCount
+        at offset 0 in the scratch buffer.  So, we continue to write that value
+        there, not the baseline frame size.
+
+        * dfg/DFGOSREntry.cpp:
+        (JSC::DFG::prepareOSREntry):
+
+2014-04-18  Timothy Hatcher  <timothy@apple.com>
+
+        Web Inspector: Move InspectorProfilerAgent to JavaScriptCore
+        https://bugs.webkit.org/show_bug.cgi?id=131673
+
+        Passes existing profiler and inspector tests.
+
+        Reviewed by Joseph Pecoraro.
+
+        * CMakeLists.txt:
+        * DerivedSources.make:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj:
+        * JavaScriptCore.vcxproj/JavaScriptCore.vcxproj.filters:
+        * JavaScriptCore.xcodeproj/project.pbxproj:
+        * inspector/JSConsoleClient.cpp:
+        (Inspector::JSConsoleClient::JSConsoleClient):
+        (Inspector::JSConsoleClient::profile):
+        (Inspector::JSConsoleClient::profileEnd):
+        (Inspector::JSConsoleClient::count): Deleted.
+        * inspector/JSConsoleClient.h:
+        * inspector/JSGlobalObjectInspectorController.cpp:
+        (Inspector::JSGlobalObjectInspectorController::JSGlobalObjectInspectorController):
+        * inspector/agents/InspectorProfilerAgent.cpp: Added.
+        (Inspector::InspectorProfilerAgent::InspectorProfilerAgent):
+        (Inspector::InspectorProfilerAgent::~InspectorProfilerAgent):
+        (Inspector::InspectorProfilerAgent::addProfile):
+        (Inspector::InspectorProfilerAgent::createProfileHeader):
+        (Inspector::InspectorProfilerAgent::enable):
+        (Inspector::InspectorProfilerAgent::disable):
+        (Inspector::InspectorProfilerAgent::getUserInitiatedProfileName):
+        (Inspector::InspectorProfilerAgent::getProfileHeaders):
+        (Inspector::buildInspectorObject):
+        (Inspector::InspectorProfilerAgent::buildProfileInspectorObject):
+        (Inspector::InspectorProfilerAgent::getCPUProfile):
+        (Inspector::InspectorProfilerAgent::removeProfile):
+        (Inspector::InspectorProfilerAgent::reset):
+        (Inspector::InspectorProfilerAgent::didCreateFrontendAndBackend):
+        (Inspector::InspectorProfilerAgent::willDestroyFrontendAndBackend):
+        (Inspector::InspectorProfilerAgent::start):
+        (Inspector::InspectorProfilerAgent::stop):
+        (Inspector::InspectorProfilerAgent::setRecordingProfile):
+        (Inspector::InspectorProfilerAgent::startProfiling):
+        (Inspector::InspectorProfilerAgent::stopProfiling):
+        * inspector/agents/InspectorProfilerAgent.h: Added.
+        * inspector/agents/JSGlobalObjectProfilerAgent.cpp: Copied from Source/WebCore/inspector/ScriptProfile.idl.
+        (Inspector::JSGlobalObjectProfilerAgent::JSGlobalObjectProfilerAgent):
+        (Inspector::JSGlobalObjectProfilerAgent::profilingGlobalExecState):
+        * inspector/agents/JSGlobalObjectProfilerAgent.h: Copied from Source/WebCore/inspector/ScriptProfile.idl.
+        * inspector/protocol/Profiler.json: Renamed from Source/WebCore/inspector/protocol/Profiler.json.
+        * profiler/Profile.h:
+        * runtime/ConsoleClient.h:
+
+2014-04-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167527.
+        https://bugs.webkit.org/show_bug.cgi?id=131883
+
+        Broke 32-bit build (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[Mac] implement WebKitDataCue"
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+        http://trac.webkit.org/changeset/167527
+
+2014-04-18  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] implement WebKitDataCue
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+
+        Reviewed by Dean Jackson.
+
+        * Configurations/FeatureDefines.xcconfig: Define ENABLE_DATACUE_VALUE.
+
+2014-04-18  Filip Pizlo  <fpizlo@apple.com>
+
+        Actually address Mark's review feedback.
+
+        * dfg/DFGOSRExitCompilerCommon.cpp:
+        (JSC::DFG::handleExitCounts):
+
+2014-04-18  Filip Pizlo  <fpizlo@apple.com>
+
+        Options::maximumExecutionCountsBetweenCheckpoints() should be higher for DFG->FTL tier-up but the same for other tier-ups
+        https://bugs.webkit.org/show_bug.cgi?id=131850
+
+        Reviewed by Mark Hahnenberg.
+        
+        Templatize ExecutionCounter to allow for two different styles of calculating the
+        checkpoint threshold.
+        
+        Appears to be a slight speed-up on DYEBench.
+
+        * bytecode/CodeBlock.h:
+        (JSC::CodeBlock::llintExecuteCounter):
+        (JSC::CodeBlock::offsetOfJITExecuteCounter):
+        (JSC::CodeBlock::offsetOfJITExecutionActiveThreshold):
+        (JSC::CodeBlock::offsetOfJITExecutionTotalCount):
+        (JSC::CodeBlock::jitExecuteCounter):
+        * bytecode/ExecutionCounter.cpp:
+        (JSC::ExecutionCounter<countingVariant>::ExecutionCounter):
+        (JSC::ExecutionCounter<countingVariant>::forceSlowPathConcurrently):
+        (JSC::ExecutionCounter<countingVariant>::checkIfThresholdCrossedAndSet):
+        (JSC::ExecutionCounter<countingVariant>::setNewThreshold):
+        (JSC::ExecutionCounter<countingVariant>::deferIndefinitely):
+        (JSC::applyMemoryUsageHeuristics):
+        (JSC::applyMemoryUsageHeuristicsAndConvertToInt):
+        (JSC::ExecutionCounter<countingVariant>::hasCrossedThreshold):
+        (JSC::ExecutionCounter<countingVariant>::setThreshold):
+        (JSC::ExecutionCounter<countingVariant>::reset):
+        (JSC::ExecutionCounter<countingVariant>::dump):
+        (JSC::ExecutionCounter::ExecutionCounter): Deleted.
+        (JSC::ExecutionCounter::forceSlowPathConcurrently): Deleted.
+        (JSC::ExecutionCounter::checkIfThresholdCrossedAndSet): Deleted.
+        (JSC::ExecutionCounter::setNewThreshold): Deleted.
+        (JSC::ExecutionCounter::deferIndefinitely): Deleted.
+        (JSC::ExecutionCounter::applyMemoryUsageHeuristics): Deleted.
+        (JSC::ExecutionCounter::applyMemoryUsageHeuristicsAndConvertToInt): Deleted.
+        (JSC::ExecutionCounter::hasCrossedThreshold): Deleted.
+        (JSC::ExecutionCounter::setThreshold): Deleted.
+        (JSC::ExecutionCounter::reset): Deleted.
+        (JSC::ExecutionCounter::dump): Deleted.
+        * bytecode/ExecutionCounter.h:
+        (JSC::formattedTotalExecutionCount):
+        (JSC::ExecutionCounter::maximumExecutionCountsBetweenCheckpoints):
+        (JSC::ExecutionCounter::clippedThreshold):
+        (JSC::ExecutionCounter::formattedTotalCount): Deleted.
+        * dfg/DFGJITCode.h:
+        * dfg/DFGOSRExitCompilerCommon.cpp:
+        (JSC::DFG::handleExitCounts):
+        * llint/LowLevelInterpreter.asm:
+        * runtime/Options.h:
+
+2014-04-17  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Deleting properties poisons objects
+        https://bugs.webkit.org/show_bug.cgi?id=131551
+
+        Reviewed by Geoffrey Garen.
+
+        This is ~3% progression on Dromaeo with a ~6% progression on the jslib portion of Dromaeo in particular.
+
+        * runtime/Structure.cpp:
+        (JSC::Structure::Structure):
+        (JSC::Structure::materializePropertyMap): We now re-use deleted properties when materializing the property map.
+        (JSC::Structure::removePropertyTransition): We allow up to 5 deletes for a particular path through the tree of 
+        Structure transitions. After that, we convert to an uncacheable dictionary like we used to. We don't cache 
+        delete transitions, but we allow transitioning from them.
+        (JSC::Structure::changePrototypeTransition):
+        (JSC::Structure::despecifyFunctionTransition):
+        (JSC::Structure::attributeChangeTransition):
+        (JSC::Structure::toDictionaryTransition):
+        (JSC::Structure::preventExtensionsTransition):
+        (JSC::Structure::addPropertyWithoutTransition):
+        (JSC::Structure::removePropertyWithoutTransition):
+        (JSC::Structure::pin): Now does only what it says it does--marks the property table as pinned.
+        (JSC::Structure::pinAndPreventTransitions): More descriptive version of what the old pin() was doing.
+        * runtime/Structure.h:
+        * runtime/StructureInlines.h:
+        (JSC::Structure::checkOffsetConsistency): Rearranged variables to be more sensible.
+
 2014-04-17  Filip Pizlo  <fpizlo@apple.com>
 
         InlineCallFrameSet should be refcounted

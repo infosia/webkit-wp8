@@ -336,7 +336,7 @@ EventHandler::EventHandler(Frame& frame)
 #if ENABLE(CURSOR_SUPPORT)
     , m_cursorUpdateTimer(this, &EventHandler::cursorUpdateTimerFired)
 #endif
-    , m_autoscrollController(adoptPtr(new AutoscrollController))
+    , m_autoscrollController(std::make_unique<AutoscrollController>())
     , m_mouseDownMayStartAutoscroll(false)
     , m_mouseDownWasInSubframe(false)
 #if !ENABLE(IOS_TOUCH_EVENTS)
@@ -357,7 +357,7 @@ EventHandler::EventHandler(Frame& frame)
 #endif
     , m_mousePositionIsUnknown(true)
     , m_mouseDownTimestamp(0)
-    , m_recentWheelEventDeltaTracker(adoptPtr(new WheelEventDeltaTracker))
+    , m_recentWheelEventDeltaTracker(std::make_unique<WheelEventDeltaTracker>())
     , m_widgetIsLatched(false)
 #if PLATFORM(COCOA)
     , m_mouseDownView(nil)
@@ -2593,17 +2593,39 @@ bool EventHandler::handleWheelEvent(const PlatformWheelEvent& e)
             Widget* widget = toRenderWidget(target)->widget();
             if (widget && passWheelEventToWidget(e, widget)) {
                 m_isHandlingWheelEvent = false;
+                if (scrollableArea)
+                    scrollableArea->setScrolledProgrammatically(false);
                 return true;
             }
         }
 
         if (!element->dispatchWheelEvent(event)) {
             m_isHandlingWheelEvent = false;
+
+            if (scrollableArea && scrollableArea->isScrolledProgrammatically()) {
+                // Web developer is controlling scrolling. Don't attempt to latch ourselves:
+                clearLatchedState();
+                scrollableArea->setScrolledProgrammatically(false);
+            }
+
             return true;
         }
     }
 
+    if (scrollableArea)
+        scrollableArea->setScrolledProgrammatically(false);
+
     return platformCompleteWheelEvent(e, scrollableContainer, scrollableArea);
+}
+
+void EventHandler::clearLatchedState()
+{
+    m_latchedWheelEventElement = nullptr;
+#if PLATFORM(COCOA)
+    m_latchedScrollableContainer = nullptr;
+#endif
+    m_widgetIsLatched = false;
+    m_previousWheelScrolledElement = nullptr;
 }
 
 void EventHandler::defaultWheelEventHandler(Node* startNode, WheelEvent* wheelEvent)

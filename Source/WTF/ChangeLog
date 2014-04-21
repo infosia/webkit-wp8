@@ -1,3 +1,77 @@
+2014-04-21  Darin Adler  <darin@apple.com>
+
+        Add HashSet::takeAny
+        https://bugs.webkit.org/show_bug.cgi?id=131928
+
+        Reviewed by Benjamin Poulain.
+
+        * wtf/HashSet.h: Added an overload of take that takes an iterator,
+        and used it to implement both the existing take and new takeAny functions.
+
+2014-04-20  Andreas Kling  <akling@apple.com>
+
+        Speed up jsStringWithCache() through WeakGCMap inlining.
+        <https://webkit.org/b/131923>
+
+        Add HashMap::fastAdd(), which is the same as add() except we'll tell
+        the compiler to aggressively inline it.
+
+        Reviewed by Darin Adler.
+
+        * wtf/HashMap.h:
+        * wtf/HashTable.h:
+
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Make it easier to check if an integer sum would overflow
+        https://bugs.webkit.org/show_bug.cgi?id=131900
+
+        Reviewed by Darin Adler.
+
+        * wtf/CheckedArithmetic.h:
+        (WTF::checkedSum):
+        (WTF::sumOverflows):
+
+2014-04-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167527.
+        https://bugs.webkit.org/show_bug.cgi?id=131883
+
+        Broke 32-bit build (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[Mac] implement WebKitDataCue"
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+        http://trac.webkit.org/changeset/167527
+
+2014-04-18  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] implement WebKitDataCue
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+
+        Reviewed by Dean Jackson.
+
+        * wtf/FeatureDefines.h: Define ENABLE_DATACUE_VALUE.
+
+2014-04-18  Martin Robinson  <mrobinson@igalia.com>
+
+        Remove DynamicAnnotations.h?
+        https://bugs.webkit.org/show_bug.cgi?id=131754
+
+        Reviewed by Simon Fraser.
+
+        This file, which helped support tools like Valgrind was unused.
+
+        * WTF.vcxproj/WTF.vcxproj: Remove references to the files.
+        * WTF.vcxproj/WTF.vcxproj.filters: Remove references to the files.
+        * WTF.xcodeproj/project.pbxproj: Remove references to the files.
+        * wtf/CMakeLists.txt: Remove references to the files.
+        * wtf/DynamicAnnotations.cpp: Removed.
+        * wtf/DynamicAnnotations.h: Removed.
+        * wtf/ThreadSafeRefCounted.h: Remove references to the files.
+        * wtf/text/StringStatics.cpp: Remove references to the files.
+
 2014-04-18  Philippe Normand  <pnormand@igalia.com>
 
         Remove NETWORK_INFO support

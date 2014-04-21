@@ -326,6 +326,7 @@ WebPageProxy::WebPageProxy(PageClient& pageClient, WebProcessProxy& process, uin
     , m_currentDragIsOverFileInput(false)
     , m_currentDragNumberOfFilesToBeAccepted(0)
 #endif
+    , m_pageLoadState(*this)
     , m_delegatesScrolling(false)
     , m_mainFrameHasHorizontalScrollbar(false)
     , m_mainFrameHasVerticalScrollbar(false)
@@ -2413,7 +2414,7 @@ void WebPageProxy::didCommitLoadForFrame(uint64_t frameID, uint64_t navigationID
     m_loaderClient->didCommitLoadForFrame(this, frame, navigationID, userData.get());
 }
 
-void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, IPC::MessageDecoder& decoder)
+void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder& decoder)
 {
     RefPtr<API::Object> userData;
     WebContextUserMessageDecoder messageDecoder(userData, process());
@@ -2423,7 +2424,7 @@ void WebPageProxy::didFinishDocumentLoadForFrame(uint64_t frameID, IPC::MessageD
     WebFrameProxy* frame = m_process->webFrame(frameID);
     MESSAGE_CHECK(frame);
 
-    m_loaderClient->didFinishDocumentLoadForFrame(this, frame, userData.get());
+    m_loaderClient->didFinishDocumentLoadForFrame(this, frame, navigationID, userData.get());
 }
 
 void WebPageProxy::didFinishLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder& decoder)
@@ -3276,9 +3277,9 @@ void WebPageProxy::setFindIndicator(const FloatRect& selectionRectInWindowCoordi
     m_pageClient.setFindIndicator(findIndicator.release(), fadeOut, animate);
 }
 
-void WebPageProxy::didFindString(const String& string, uint32_t matchCount)
+void WebPageProxy::didFindString(const String& string, uint32_t matchCount, int32_t matchIndex)
 {
-    m_findClient->didFindString(this, string, matchCount);
+    m_findClient->didFindString(this, string, matchCount, matchIndex);
 }
 
 void WebPageProxy::didFindStringMatches(const String& string, Vector<Vector<WebCore::IntRect>> matchRects, int32_t firstIndexAfterSelection)

@@ -1,3 +1,430 @@
+2014-04-20  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Remove interfaces in the To Be Removed groups
+        https://bugs.webkit.org/show_bug.cgi?id=131925
+
+        Reviewed by Darin Adler.
+
+        * Shared/API/Cocoa/WKRemoteObjectInterface.h: Removed.
+        * Shared/API/Cocoa/WKRemoteObjectInterface.mm: Removed.
+        * Shared/API/Cocoa/WKRemoteObjectRegistry.h: Removed.
+        * Shared/API/Cocoa/WKRemoteObjectRegistry.mm: Removed.
+        * UIProcess/API/Cocoa/WKProcessPool.mm:
+        * UIProcess/API/Cocoa/WKProcessPoolConfiguration.h: Removed.
+        * UIProcess/API/Cocoa/WKProcessPoolConfiguration.mm: Removed.
+        * UIProcess/API/Cocoa/WKProcessPoolConfigurationPrivate.h: Removed.
+        * UIProcess/API/Cocoa/WKProcessPoolToBeRemoved.mm: Removed.
+        * UIProcess/API/Cocoa/_WKProcessPoolConfiguration.mm:
+        * WebKit2.xcodeproj/project.pbxproj:
+        * WebProcess/InjectedBundle/API/Cocoa/WKWebProcessPlugInBrowserContextControllerToBeRemoved.mm: Removed.
+        * WebProcess/InjectedBundle/API/mac/WKWebProcessPlugInBrowserContextControllerPrivate.h:
+
+2014-04-20  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Crash when setting a bundle parameter to nil
+        https://bugs.webkit.org/show_bug.cgi?id=131917
+
+        Reviewed by Sam Weinig.
+
+        * UIProcess/API/Cocoa/WKProcessPool.mm:
+        (-[WKProcessPool _setObject:forBundleParameter:]): If the object is nil, use
+        -[NSMutableDictionary removeObjectForKey:] rather than -setObject:forKey:.
+
+        * WebProcess/InjectedBundle/API/Cocoa/WKWebProcessBundleParameters.mm:
+        (-[WKWebProcessBundleParameters setParameter:forKey:]): Ditto.
+
+        * WebProcess/InjectedBundle/mac/InjectedBundleMac.mm:
+        (WebKit::InjectedBundle::setBundleParameter): Unrelatedly, create m_bundleParameters if
+        needed, as it may have not been created on intialization if no bundle parameters were set
+        at the time.
+
+2014-04-20  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Remove unused -webView:didFinishLoadingNavigation: delegate method
+        https://bugs.webkit.org/show_bug.cgi?id=131914
+
+        Reviewed by Sam Weinig.
+
+        * UIProcess/Cocoa/NavigationState.h: Removed flag from m_navigationDelegateMethods struct.
+        * UIProcess/Cocoa/NavigationState.mm:
+        (WebKit::NavigationState::setNavigationDelegate): Removed check for whether the method is
+        implemented.
+        (WebKit::NavigationState::LoaderClient::didFinishLoadForFrame): Stopped calling the method
+        if implemented.
+
+2014-04-19  Anders Carlsson  <andersca@apple.com>
+
+        Plug-in process crashes if NP_Initialize returns an error the second time it's called
+        https://bugs.webkit.org/show_bug.cgi?id=131903
+        <rdar://problem/14355462>
+
+        Reviewed by Sam Weinig.
+
+        * Shared/Plugins/Netscape/NetscapePluginModule.cpp:
+        (WebKit::NetscapePluginModule::decrementLoadCount):
+        Don't try to unload the plug-in if it hasn't been initialized.
+
+2014-04-19  Simon Fraser  <simon.fraser@apple.com>
+
+        [UI-side compositing] Implement blend modes
+        https://bugs.webkit.org/show_bug.cgi?id=131891
+        <rdar://problem/16490085>
+
+        Reviewed by Tim Horton.
+
+        Implement blend modes with UI-side compositing.
+        
+        PlatformCALayer::setBlendMode() becomes pure virtual, and overridden in
+        PlatformCALayerMac and PlatformCALayerRemote.
+        PlatformCAFilters::setBlendingFiltersOnLayer() now takes a raw platform
+        layer, so it can be called from the UI process on a CALayer*.
+        
+        Add BlendMode to LayerProperties, and initialize, encode and decode it,
+        as well as adding dumping support for blend modes.
+        
+        * Shared/mac/RemoteLayerTreePropertyApplier.mm:
+        (WebKit::applyPropertiesToLayer):
+        * Shared/mac/RemoteLayerTreeTransaction.h:
+        * Shared/mac/RemoteLayerTreeTransaction.mm:
+        (WebKit::RemoteLayerTreeTransaction::LayerProperties::LayerProperties):
+        (WebKit::RemoteLayerTreeTransaction::LayerProperties::encode):
+        (WebKit::RemoteLayerTreeTransaction::LayerProperties::decode):
+        (WebKit::RemoteLayerTreeTextStream::operator<<):
+        (WebKit::dumpChangedLayers):
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.cpp:
+        (WebKit::PlatformCALayerRemote::setBlendMode):
+        * WebProcess/WebPage/mac/PlatformCALayerRemote.h:
+
+2014-04-19  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Fix leak of UIScreenEdgePanGestureRecognizer in WKSwipeTransitionController
+        https://bugs.webkit.org/show_bug.cgi?id=131877
+
+        Reviewed by Darin Adler.
+
+        * UIProcess/ios/ViewGestureControllerIOS.mm:
+        (-[WKSwipeTransitionController gestureRecognizerForInteractiveTransition:WithTarget:action:]):
+
+2014-04-19  Dan Bernstein  <mitz@apple.com>
+
+        Don’t install a source file inside WebProcess.app.
+
+        * WebKit2.xcodeproj/project.pbxproj: Removed ViewUpdateDispatcher.messages.in from
+        WebProcess’s Copy Bundle Resources build phase.
+
+2014-04-19  Darin Adler  <darin@apple.com>
+
+        [Mac] WebView adjusts the cursor even when another window is in front
+        https://bugs.webkit.org/show_bug.cgi?id=131898
+        rdar://problem/14619911
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/API/mac/WKView.mm:
+        (-[WKView _setCursor:]): Deleted. Moved the code all into PageClientImpl, since none of it
+        interacts with anything special about a WKView.
+
+        * UIProcess/API/mac/WKViewInternal.h: Deleted the _setCursor: method.
+
+        * UIProcess/mac/PageClientImpl.mm:
+        (WebKit::PageClientImpl::setCursor): Added a check that the window is under the cursor
+        and do nothing if it's not.
+
+2014-04-19  Dan Bernstein  <mitz@apple.com>
+
+        Use XPC services in the iOS Simulator, but not in Mountain Lion
+        https://bugs.webkit.org/show_bug.cgi?id=131894
+
+        Reviewed by Anders Carlsson.
+
+        * Configurations/NetworkService.Development.xcconfig: Defined INFOPLIST_FILE for the
+        Simulator.
+        * Configurations/NetworkService.xcconfig: Ditto.
+        * Configurations/WebContentService.Development.xcconfig: Ditto.
+        * Configurations/WebContentService.xcconfig: Ditto.
+        * UIProcess/Launcher/mac/ProcessLauncherMac.mm:
+        (WebKit::systemDirectoryPath): Added this helper function that returns a slash-terminated
+        path to the System directory in the current runtime.
+        (WebKit::ProcessLauncher::launchProcess): Changed to use the above function to tell whether
+        a development version of WebKit2 is being used.
+        * WebKit2Prefix.h: Set WTF_USE_XPC_SERVICES to 1 when targeting the iOS Simulator, but not
+        when targeting Mountain Lion.
+
+2014-04-19  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Crash in -[WKWebProcessPlugInHitTestResult nodeHandle] when nodeHandle() is null
+        https://bugs.webkit.org/show_bug.cgi?id=131888
+
+        Reviewed by Jon Honeycutt.
+
+        * WebProcess/InjectedBundle/API/Cocoa/WKWebProcessPlugInHitTestResult.mm:
+        (-[WKWebProcessPlugInHitTestResult nodeHandle]): Added a null check.
+
+2014-04-19  Simon Fraser  <simon.fraser@apple.com>
+
+        [iOS WK2] Fuzzy layers on sites using perspective and transforms
+        https://bugs.webkit.org/show_bug.cgi?id=131873
+        <rdar://problem/16540576>
+
+        Reviewed by Sam Weinig.
+        
+        Always set rasterizationScale on CALayers in the UI process
+        (as we do for WK1) so that layers are rasterized taking the
+        device scale into account. We can do unconditionally; this
+        is benign on layers that CA doesn't rasterize.
+
+        * Shared/mac/RemoteLayerTreePropertyApplier.mm:
+        (WebKit::applyPropertiesToLayer):
+
+2014-04-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Use 'override' in GraphicsLayerCA
+        https://bugs.webkit.org/show_bug.cgi?id=131882
+
+        Reviewed by Tim Horton.
+        
+        Add an 'override'.
+
+        * WebProcess/WebPage/mac/GraphicsLayerCARemote.h:
+
+2014-04-19  Darin Adler  <darin@apple.com>
+
+        Assertion in WebPage::runModal accesses object after it may have been destroyed
+        https://bugs.webkit.org/show_bug.cgi?id=131875
+
+        Reviewed by Anders Carlsson.
+
+        * WebProcess/WebPage/WebPage.cpp:
+        (WebKit::WebPage::runModal): Ref the WebPage so it's still around so we can
+        check the m_isRunningModal flag.
+
+2014-04-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167527.
+        https://bugs.webkit.org/show_bug.cgi?id=131883
+
+        Broke 32-bit build (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[Mac] implement WebKitDataCue"
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+        http://trac.webkit.org/changeset/167527
+
+2014-04-18  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] implement WebKitDataCue
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+
+        Reviewed by Dean Jackson.
+
+        * Configurations/FeatureDefines.xcconfig: Define ENABLE_DATACUE_VALUE.
+
+2014-04-18  Anders Carlsson  <andersca@apple.com>
+
+        Keep the WebPageProxy alive for the lifetime of all PageLoadState::Transaction objects
+        https://bugs.webkit.org/show_bug.cgi?id=131872
+        <rdar://problem/15758414>
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/PageLoadState.cpp:
+        (WebKit::PageLoadState::PageLoadState):
+        (WebKit::PageLoadState::Transaction::Transaction):
+        (WebKit::PageLoadState::Transaction::~Transaction):
+        * UIProcess/PageLoadState.h:
+        (WebKit::PageLoadState::Transaction::Transaction): Deleted.
+        (WebKit::PageLoadState::Transaction::~Transaction): Deleted.
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::WebPageProxy):
+
+2014-04-18  Stephanie Lewis  <slewis@apple.com>
+
+        We shouldn’t create page throttlers for other pages than WebKit2 pages.
+        Part of <rdar://problem/16473045> Visibility state counters are often incorrect.
+        https://bugs.webkit.org/show_bug.cgi?id=131696
+
+        Reviewed by Gavin Barraclough.
+
+        Page throttlers were being created for SVG images and other page instances that
+        were not accurately tracking the states that enable and disable page throttling.
+        Make the throttler an unique ptr and only initialize it for WebKit2.
+
+        This also fixes  an inefficiency where we would throttle a new page on creation because 
+        we assumed it was visible even if that was not the case.
+
+        * WebProcess/Plugins/Netscape/NPRuntimeObjectMap.cpp: Check page throttler exists.
+        (WebKit::NPRuntimeObjectMap::evaluate):
+        * WebProcess/WebPage/WebPage.cpp: 
+        (WebKit::WebPage::WebPage): Initialize page throttler for WebKit2 views.
+        (WebKit::WebPage::mouseEvent): Check page throttler exists.
+        (WebKit::WebPage::wheelEvent): ditto
+        (WebKit::WebPage::keyEvent): ditto
+
+2014-04-18  Anders Carlsson  <andersca@apple.com>
+
+        Don't allow app sandboxed apps without the network client entitlement to launch the network process
+        https://bugs.webkit.org/show_bug.cgi?id=131868
+        <rdar://problem/12354188>
+
+        Reviewed by Dan Bernstein.
+
+        * NetworkProcess/EntryPoint/mac/XPCService/NetworkServiceEntryPoint.mm:
+        (WebKit::NetworkServiceInitializerDelegate::NetworkServiceInitializerDelegate):
+        Add a new delegate that implements checkEntitlements().
+
+        (NetworkServiceInitializer):
+        Pass the new delegate to XPCServiceInitializer.
+
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.h:
+        * Shared/EntryPointUtilities/mac/XPCService/XPCServiceEntryPoint.mm:
+        Call checkEntitlements.
+
+        (WebKit::XPCServiceInitializerDelegate::checkEntitlements):
+        Return true.
+
+        (WebKit::XPCServiceInitializerDelegate::hasEntitlement):
+        Helper function that returns whether a client has the given entitlement.
+
+        (WebKit::XPCServiceInitializerDelegate::isClientSandboxed):
+        Helper function that checks whether the client is sandboxed.
+
+2014-04-18  Alice Barraclough  <alice.barraclough@webkit.org>
+
+        Find on page - extend API by providing highlighted match index
+        https://bugs.webkit.org/show_bug.cgi?id=131776
+
+        Reviewed by Tim Horton.
+
+        * Shared/WebFindOptions.h: Add an option for determining match index.
+
+        Plumb through the API layers the addition of a parameter for match index.
+        * UIProcess/API/APIFindClient.h:
+        (API::FindClient::didFindString):
+        * UIProcess/API/C/WKPage.cpp:
+        (WKPageSetPageFindClient):
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (toFindOptions):
+        * UIProcess/API/Cocoa/WKWebViewPrivate.h:
+        (NS_OPTIONS):
+        * UIProcess/API/Cocoa/_WKFindDelegate.h:
+        * UIProcess/Cocoa/FindClient.h:
+        * UIProcess/Cocoa/FindClient.mm:
+        (WebKit::FindClient::setDelegate):
+        (WebKit::FindClient::didFindString):
+        * UIProcess/WebFindClient.cpp:
+        (WebKit::WebFindClient::didFindString):
+        * UIProcess/WebFindClient.h:
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::didFindString):
+        * UIProcess/WebPageProxy.h:
+        * UIProcess/WebPageProxy.messages.in:
+
+        The actual tracking of the match index is contained in FindController class.
+        * WebProcess/WebPage/FindController.cpp:
+        (WebKit::FindController::FindController): Start out as -1, understood to be an undefined index in this context.
+        (WebKit::FindController::updateFindUIAfterPageScroll): 
+            Perform the calculation of matchCount if the flag for DetermineMatchIndex is on.
+        If matchCount exceeds max, keep the match index undefined because otherwise the finding could advance
+        to a point where the index exceeds the match count, legitimately. If matchCount doesn't exceed the max, then make
+        sure the match index, which had been being incremented or decremented blindly back in findString(), is normalized
+        to be less than match count.
+        (WebKit::FindController::findString): 
+            If there is a user selection existing on the page, the next occurence of the string will be found after that
+        selection. In that case we still want the index to properly reflect its ordinal  position within the entire document.
+        Use findStringMatchingRanges to provide the match index, and set a flag that prevents the match index from being
+        blindly incremented or decremented later. After findString() is actually called on the page, increment or decrement
+        the find index under specific conditions. 
+        (WebKit::FindController::hideFindIndicator): Reset match index when find UI goes away.
+        * WebProcess/WebPage/FindController.h: Add m_foundStringMatchIndex to private variables.
+        * WebProcess/WebPage/ios/FindControllerIOS.mm:
+        (WebKit::FindController::hideFindIndicator): Reset match index when find UI goes away.
+
+2014-04-18  Joseph Pecoraro  <pecoraro@apple.com>
+
+        Correct some issues small issues in WK2 file upload InjectedBundle APIs
+        https://bugs.webkit.org/show_bug.cgi?id=131852
+
+        Reviewed by Dan Bernstein.
+
+        * WebProcess/InjectedBundle/API/APIInjectedBundlePageUIClient.h:
+        (API::InjectedBundle::PageUIClient::shouldGenerateFileForUpload):
+        The default return value, meaning no, should return the null string. The
+        result is checked later, and null string is a special value meaning no.
+
+        * WebProcess/InjectedBundle/InjectedBundlePageUIClient.cpp:
+        (WebKit::InjectedBundlePageUIClient::generateFileForUpload):
+        Pre-check for the correct client function we will use.
+
+2014-04-18  Andy Estes  <aestes@apple.com>
+
+        [iOS] REGRESSION (r167039): WebKit incorrectly sets a background process assertion state when displaying a PDF
+        https://bugs.webkit.org/show_bug.cgi?id=131860
+        <rdar://problem/16631282>
+
+        Reviewed by Tim Horton.
+
+        We were basing our process assertion state on whether or not the
+        process had a WKContentView in a window, but when displaying a PDF
+        we've removed the WKContentView from the window. Base this decision
+        instead on whether or not the WKWebView is in the window.
+
+        * UIProcess/API/Cocoa/WKWebView.mm:
+        (-[WKWebView didMoveToWindow]):
+        * UIProcess/ios/PageClientImplIOS.mm:
+        (WebKit::PageClientImpl::isViewInWindow):
+
+2014-04-18  Anders Carlsson  <andersca@apple.com>
+
+        Address a couple of review comments
+        https://bugs.webkit.org/show_bug.cgi?id=131856
+
+        Reviewed by Dan Bernstein.
+
+        * UIProcess/API/Cocoa/WKNavigationAction.h:
+        * UIProcess/API/Cocoa/WKNavigationDelegate.h:
+        * UIProcess/API/Cocoa/WKPreferences.h:
+        * UIProcess/API/Cocoa/WKProcessPoolPrivate.h:
+        * UIProcess/API/Cocoa/WKWebView.h:
+
+2014-04-18  Anders Carlsson  <andersca@apple.com>
+
+        Handle pluginOrigin being null
+        https://bugs.webkit.org/show_bug.cgi?id=131849
+        <rdar://problem/16655898>
+
+        Reviewed by Alexey Proskuryakov.
+
+        * WebProcess/WebProcess.cpp:
+        (WebKit::WebProcess::shouldPlugInAutoStartFromOrigin):
+
+2014-04-18  Dan Bernstein  <mitz@apple.com>
+
+        [Cocoa] Add a navigation delegate method corresponding to didFinishDocumentLoadForFrame for the main frame
+        https://bugs.webkit.org/show_bug.cgi?id=131847
+
+        Reviewed by Anders Carlsson.
+
+        * UIProcess/API/APILoaderClient.h:
+        (API::LoaderClient::didFinishDocumentLoadForFrame): Added a navigationID parameter.
+        * UIProcess/API/C/WKPage.cpp:
+        (WKPageSetPageLoaderClient): Updated for the above change in paramerers.
+        * UIProcess/API/Cocoa/WKNavigationDelegatePrivate.h: Declared new delegate method.
+        * UIProcess/Cocoa/NavigationState.h: Declare override of didFinishDocumentLoadForFrame.
+        * UIProcess/Cocoa/NavigationState.mm:
+        (WebKit::NavigationState::setNavigationDelegate): Initialize
+        webViewNavigationDidFinishDocumentLoad flag in the delegate methods struct.
+        (WebKit::NavigationState::LoaderClient::didFinishDocumentLoadForFrame): Added override
+        of the client function which calls the delegate.
+        * UIProcess/WebPageProxy.cpp:
+        (WebKit::WebPageProxy::didFinishDocumentLoadForFrame): Get and pass the navigation ID to
+        the client.
+        * UIProcess/WebPageProxy.h: Added navigationID parameter.
+        * UIProcess/WebPageProxy.messages.in: Ditto.
+        * WebProcess/WebCoreSupport/WebFrameLoaderClient.cpp:
+        (WebKit::WebFrameLoaderClient::dispatchDidFinishDocumentLoad): Get and send the navigation
+        ID to the UI process.
+
 2014-04-18  Philippe Normand  <pnormand@igalia.com>
 
         Remove NETWORK_INFO support

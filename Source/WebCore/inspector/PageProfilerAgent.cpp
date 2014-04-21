@@ -20,18 +20,33 @@
  * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
  * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Mutex.h"
-#include <thread>
+#include "config.h"
+#include "PageProfilerAgent.h"
 
-namespace bmalloc {
+#if ENABLE(INSPECTOR)
 
-void Mutex::lockSlowCase()
+#include "JSDOMWindow.h"
+#include "MainFrame.h"
+#include "Page.h"
+
+using namespace Inspector;
+
+namespace WebCore {
+
+PageProfilerAgent::PageProfilerAgent(InstrumentingAgents* instrumentingAgents, Page* page)
+    : WebProfilerAgent(instrumentingAgents)
+    , m_inspectedPage(page)
 {
-    while (!try_lock())
-        std::this_thread::yield();
 }
 
-} // namespace bmalloc
+JSC::ExecState* PageProfilerAgent::profilingGlobalExecState() const
+{
+    return toJSDOMWindow(&m_inspectedPage->mainFrame(), debuggerWorld())->globalExec();
+}
+
+} // namespace WebCore
+
+#endif // ENABLE(INSPECTOR)

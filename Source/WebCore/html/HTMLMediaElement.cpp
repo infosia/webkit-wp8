@@ -3714,6 +3714,9 @@ void HTMLMediaElement::setSelectedTextTrack(TextTrack* trackToSelect)
             else
                 track->setMode(TextTrack::showingKeyword());
         }
+    } else if (trackToSelect == TextTrack::captionMenuOffItem()) {
+        for (int i = 0, length = trackList->length(); i < length; ++i)
+            trackList->item(i)->setMode(TextTrack::disabledKeyword());
     }
 
     CaptionUserPreferences* captionPreferences = document().page() ? document().page()->group().captionPreferences() : 0;
@@ -4477,8 +4480,8 @@ void HTMLMediaElement::updatePlayState()
 
         if (hasMediaControls())
             mediaControls()->playbackStarted();
-        if (document().page())
-            m_activityToken = document().page()->pageThrottler().mediaActivityToken();
+        if (document().page() && document().page()->pageThrottler())
+            m_activityToken = document().page()->pageThrottler()->mediaActivityToken();
 
         startPlaybackProgressTimer();
         m_playing = true;

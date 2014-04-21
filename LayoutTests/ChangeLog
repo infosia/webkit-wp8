@@ -1,3 +1,409 @@
+2014-04-21  Alexey Proskuryakov  <ap@apple.com>
+
+        http/tests/cache/subresource-failover-to-network.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=131936
+
+        Reviewed by Brady Eidson.
+
+        The test was racy, because it was unintentionally queuing TestRunner operations
+        twice. Also, it failed to clean up its cookie.
+
+        Rewrote to not use TestRunner queuing, making the test work in browser.
+
+        * http/tests/cache/resources/subresource-failover-to-network.cgi:
+        * http/tests/cache/subresource-failover-to-network.html:
+
+2014-04-21  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Column balancing is slow on float-multicol.html
+        https://bugs.webkit.org/show_bug.cgi?id=131801
+
+        Reviewed by Enrica Casucci.
+
+        * fast/multicol/tall-float-expected.html: Added.
+        * fast/multicol/tall-float.html: Added.
+
+2014-04-21  David Hyatt  <hyatt@apple.com>
+
+        [New Multicolumn] Pagination mode messed up with non-inline axis and reversed direction.
+        https://bugs.webkit.org/show_bug.cgi?id=131811
+
+        Reviewed by Dean Jackson.
+
+        * fast/multicol/newmulticol/compare-with-old-impl/BottomToTop-tb-expected.html: Added.
+        * fast/multicol/newmulticol/compare-with-old-impl/BottomToTop-tb.html: Added.
+
+2014-04-21  Alexey Proskuryakov  <ap@apple.com>
+
+        REGRESSION (r167530): ASSERT(m_selfTime <= m_totalTime) on tests that run after certain Inspector tests
+        https://bugs.webkit.org/show_bug.cgi?id=131919
+
+        * TestExpectations: Skipping some Inspector tests, hopefully these are the ones that
+        cause trouble later.
+
+2014-04-21  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167584.
+        https://bugs.webkit.org/show_bug.cgi?id=131929
+
+        Broke Objective-C bindings test (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "Add Element.matches, the standard name for
+        webkitMatchesSelector"
+        https://bugs.webkit.org/show_bug.cgi?id=131922
+        http://trac.webkit.org/changeset/167584
+
+2014-04-20  Benjamin Poulain  <benjamin@webkit.org>
+
+        Compile the :root pseudo class and fix a related issue with :nth-child()
+        https://bugs.webkit.org/show_bug.cgi?id=131926
+
+        Reviewed by Andreas Kling.
+
+        Add more test coverage that would have caught the bug with :nth-child(n).
+
+        * fast/selectors/nth-child-on-root-expected.txt: Added.
+        * fast/selectors/nth-child-on-root.html: Added.
+
+2014-04-20  Benjamin Poulain  <benjamin@webkit.org>
+
+        Add Element.matches, the standard name for webkitMatchesSelector
+        https://bugs.webkit.org/show_bug.cgi?id=131922
+
+        Reviewed by Andreas Kling.
+
+        Update the tests to verify both Element.matches and Element.webkitMatchesSelector
+
+        * fast/dom/SelectorAPI/attrname-case-insensitive-expected.txt:
+        * fast/dom/SelectorAPI/attrname-case-insensitive.html:
+        * fast/dom/SelectorAPI/attrname-case-sensitive-expected.txt:
+        * fast/dom/SelectorAPI/attrname-case-sensitive.xhtml:
+        * fast/dom/SelectorAPI/caseID-almost-strict-expected.txt:
+        * fast/dom/SelectorAPI/caseID-almost-strict.html:
+        * fast/dom/SelectorAPI/caseID-expected.txt:
+        * fast/dom/SelectorAPI/caseID-strict-expected.txt:
+        * fast/dom/SelectorAPI/caseID-strict.html:
+        * fast/dom/SelectorAPI/caseID.html:
+        * fast/dom/SelectorAPI/caseTag-expected.txt:
+        * fast/dom/SelectorAPI/caseTag.html:
+        * fast/dom/SelectorAPI/caseTagX-expected.txt:
+        * fast/dom/SelectorAPI/caseTagX.xhtml:
+        * fast/dom/SelectorAPI/detached-element-expected.txt:
+        * fast/dom/SelectorAPI/not-supported-namespace-in-selector-expected.txt:
+        * fast/dom/SelectorAPI/not-supported-namespace-in-selector.html:
+        * fast/dom/SelectorAPI/script-tests/detached-element.js:
+        * fast/dom/SelectorAPI/script-tests/undefined-null-stringify.js:
+        * fast/dom/SelectorAPI/script-tests/viewless-document.js:
+        * fast/dom/SelectorAPI/undefined-null-stringify-expected.txt:
+        * fast/dom/SelectorAPI/viewless-document-expected.txt:
+        * fast/forms/radio/radio-live-validation-style-expected.txt:
+        * fast/forms/radio/radio-live-validation-style.html:
+        * fast/harness/results.html:
+
+2014-04-20  Alexey Proskuryakov  <ap@apple.com>
+
+        Expando properties on attribute nodes disappear
+        https://bugs.webkit.org/show_bug.cgi?id=88045
+
+        * TestExpectations:
+        * platform/efl/TestExpectations:
+        * platform/mac/TestExpectations:
+        * platform/win/TestExpectations:
+        Consolidated test expectations, because all ports are equally affected. Some
+        platforms accidentally start to pass this test sometimes, but there is no real fix yet.
+
+2014-04-20  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel rendering: RenderLayer's size is set using enclosingRect() which can result in cruft.
+        https://bugs.webkit.org/show_bug.cgi?id=131468
+
+        Reviewed by Darin Adler.
+
+        Layers marked opaque may not paint edge pixels, when RenderLayer bounds are non-integral and
+        get device pixel snapped.
+        For details see this: https://trac.webkit.org/r159463
+
+        * compositing/hidpi-non-simple-compositing-layer-with-fractional-size-and-background-expected.html: Added.
+        * compositing/hidpi-non-simple-compositing-layer-with-fractional-size-and-background.html: Added.
+
+2014-04-19  Darin Adler  <darin@apple.com>
+
+        Simple layout can get confused by coordinate overflow
+        https://bugs.webkit.org/show_bug.cgi?id=131890
+        rdar://problem/15558510
+
+        Reviewed by Andreas Kling.
+
+        * fast/css/simple-layout-overflow-expected.txt: Added.
+        * fast/css/simple-layout-overflow.html: Added.
+
+2014-04-19  Alexey Proskuryakov  <ap@apple.com>
+
+        Crashes in HTMLFormElement::submit.
+        https://bugs.webkit.org/show_bug.cgi?id=131910
+        <rdar://problem/15661790>
+
+        Reviewed by Anders Carlsson.
+
+        * fast/forms/form-submission-crash-2-expected.txt: Added.
+        * fast/forms/form-submission-crash-2.html: Added.
+        * fast/forms/form-submission-crash-expected.txt: Added.
+        * fast/forms/form-submission-crash.html: Added.
+
+2014-04-20  Antti Koivisto  <antti@apple.com>
+
+        Text bounding box computation for simple line layout is wrong
+        https://bugs.webkit.org/show_bug.cgi?id=131912
+
+        Reviewed by Andreas Kling.
+        
+        Some dumped RenderText sizes change in table related test. These are progressions,
+        the new results match the contained lines. There are no visual changes.
+
+        * platform/mac/fast/table/dynamic-caption-add-remove-before-child-expected.txt:
+        * platform/mac/fast/table/multiple-captions-display-expected.txt:
+        * platform/mac/tables/mozilla/marvin/body_col-expected.txt:
+        * platform/mac/tables/mozilla/marvin/x_th_valign_baseline-expected.txt:
+        * platform/mac/tables/mozilla/other/body_col-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug10140-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/bugs/bug10216-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/core/captions3-expected.txt:
+        * platform/mac/tables/mozilla_expected_failures/other/test4-expected.txt:
+
+2014-04-20  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167501.
+        https://bugs.webkit.org/show_bug.cgi?id=131913
+
+        It broke DYEBench (Requested by mhahnenberg on #webkit).
+
+        Reverted changeset:
+
+        "Deleting properties poisons objects"
+        https://bugs.webkit.org/show_bug.cgi?id=131551
+        http://trac.webkit.org/changeset/167501
+
+2014-04-19  Zalan Bujtas  <zalan@apple.com>
+
+        Subpixel rendering: RenderLayer's clipping should snap to device pixel boundaries.
+        https://bugs.webkit.org/show_bug.cgi?id=131466
+
+        Reviewed by Simon Fraser.
+
+        Fractional pixel clipping can produce cruft on RenderLayers. Since RenderLayer
+        sizing and painting are snapped, painting clip rect needs to be snapped the same way.
+
+        * fast/clip/clip-when-rect-has-fractional-pixel-value-expected.html: Added.
+        * fast/clip/clip-when-rect-has-fractional-pixel-value.html: Added.
+
+2014-04-19  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: grid rows are not recognized do to lack of explicit role="row", role="gridcell"
+        https://bugs.webkit.org/show_bug.cgi?id=131819
+
+        Reviewed by Darin Adler.
+
+        * accessibility/table-with-missing-aria-role-rows-expected.txt: Added.
+        * accessibility/table-with-missing-aria-role-rows.html: Added.
+
+2014-04-19  Chris Fleizach  <cfleizach@apple.com>
+
+        AX: Malformed tables exposing incorrect col and colSpans
+        https://bugs.webkit.org/show_bug.cgi?id=131796
+
+        Reviewed by Darin Adler.
+
+        * accessibility/table-incorrect-colspan-cell-expected.txt: Added.
+        * accessibility/table-incorrect-colspan-cell.html: Added.
+
+2014-04-19  Zalan Bujtas  <zalan@apple.com>
+
+       [Mac] Unreviewed gardening.
+
+        repaintRectsAsText() reports wrong subpixel dirty rects on hidpi.
+
+        * platform/mac/TestExpectations:
+
+2014-04-19  Andrei Bucur  <abucur@adobe.com>
+
+        [CSS Regions] Harden the layout in case there are no regions
+        https://bugs.webkit.org/show_bug.cgi?id=131517
+
+        Reviewed by Mihnea Ovidenie.
+
+        Add a test that verifies the content of a flow thread is updated when all
+        the regions are removed.
+
+        * fast/regions/simplified-layout-no-regions-expected.txt: Added.
+        * fast/regions/simplified-layout-no-regions.html: Added.
+
+2014-04-19  Darin Adler  <darin@apple.com>
+
+        Cleared executable bits on many .html and .txt files.
+
+2014-04-19  Zalan Bujtas  <zalan@apple.com>
+
+        https://bugs.webkit.org/show_bug.cgi?id=131594
+        Subpixel rendering: WK1: Wrong repaint rect is calculated when layer has non-compositing transform.
+
+        Reviewed by Simon Fraser.
+
+        We need to snap the repaint rect for transformed object the same way when we paint them.
+
+        Test: fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncompositing-transform.html
+
+        * fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncompositing-transform-expected.txt: Added.
+        * fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncompositing-transform.html: Added.
+
+2014-04-18  Dean Jackson  <dino@apple.com>
+
+        [WebGL] Two tests failing on Mountain Lion after r167520
+        https://bugs.webkit.org/show_bug.cgi?id=131886
+
+        Skip two failing tests.
+
+        * platform/mac/TestExpectations:
+
+2014-04-18  Timothy Hatcher  <timothy@apple.com>
+
+        Skip fast/dom/gc-attribute-node.html which is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=131885
+
+        * platform/mac/TestExpectations:
+
+2014-04-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Contents of directly composited image layers are sometimes missing
+        https://bugs.webkit.org/show_bug.cgi?id=131880
+
+        Reviewed by Tim Horton.
+        
+        Test that that shows the issue in Safari, but not in the test
+        runner because of timing issues, but maybe it will some day.
+
+        * compositing/images/update-content-rect-expected.html: Added.
+        * compositing/images/update-content-rect.html: Added.
+
+2014-04-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167527.
+        https://bugs.webkit.org/show_bug.cgi?id=131883
+
+        Broke 32-bit build (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[Mac] implement WebKitDataCue"
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+        http://trac.webkit.org/changeset/167527
+
+2014-04-18  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] implement WebKitDataCue
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+
+        Reviewed by Dean Jackson.
+
+        * http/tests/media/resources/hls: Added.
+        * http/tests/media/resources/hls/metadata: Added.
+        * http/tests/media/resources/hls/metadata/fileSequence0.ts: Added.
+        * http/tests/media/resources/hls/metadata/fileSequence1.ts: Added.
+        * http/tests/media/resources/hls/metadata/fileSequence2.ts: Added.
+        * http/tests/media/resources/hls/metadata/fileSequence3.ts: Added.
+        * http/tests/media/resources/hls/metadata/prog_index.m3u8: Added.
+        * http/tests/media/track-in-band-hls-metadata-expected.txt: Added.
+        * http/tests/media/track-in-band-hls-metadata.html: Added.
+        * media/track/track-datacue-value-expected.txt: Added.
+        * media/track/track-datacue-value.html: Added.
+        * platform/efl/TestExpectations: Skip the new tests.
+        * platform/gtk/TestExpectations: Ditto.
+        * platform/mac/js/dom/global-constructors-attributes-expected.txt: Update.
+        * platform/mac-mountainlion/js/dom/global-constructors-attributes-expected.txt: Update.
+        * platform/mac/TestExpectations: Skip DataCue test on all Mac versions. Skip HLS test on 
+            Mountain Lion.
+        * platform/win/TestExpectations: Skip the new tests.
+
+2014-04-18  Hans Muller  <hmuller@adobe.com>
+
+        [CSS Shapes] Add parsing support for gradients
+        https://bugs.webkit.org/show_bug.cgi?id=131444
+
+        Reviewed by Bem Jones-Bey.
+
+        * fast/shapes/parsing/parsing-shape-outside-expected.txt:
+        * fast/shapes/parsing/parsing-test-utils.js:
+        * fast/shapes/shape-outside-floats/shape-outside-linear-gradient-expected.html: Added.
+        * fast/shapes/shape-outside-floats/shape-outside-linear-gradient.html: Added.
+
+2014-04-18  Alexey Proskuryakov  <ap@apple.com>
+
+        [WK1] media/event-attributes.html is flaky
+        https://bugs.webkit.org/show_bug.cgi?id=131855
+
+        * platform/mac/TestExpectations: Marking as such.
+
+2014-04-17  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Deleting properties poisons objects
+        https://bugs.webkit.org/show_bug.cgi?id=131551
+
+        Reviewed by Geoffrey Garen.
+
+        New JS regress test. We're ~3.5x faster on this microbenchmark now.
+
+        * js/regress/delete-a-few-properties-then-get-by-id-expected.txt: Added.
+        * js/regress/delete-a-few-properties-then-get-by-id.html: Added.
+        * js/regress/script-tests/delete-a-few-properties-then-get-by-id.js: Added.
+        (MyObject):
+        (foo):
+
+2014-04-18  Alexey Proskuryakov  <ap@apple.com>
+
+        http/tests/multipart/policy-ignore-crash.php erroneously depends on http stack quirks
+        https://bugs.webkit.org/show_bug.cgi?id=131853
+
+        Reviewed by Brady Eidson.
+
+        * http/tests/multipart/policy-ignore-crash.php: Produce a nice multipart response
+        with boundaries on their own lines.
+
+2014-04-18  Simon Fraser  <simon.fraser@apple.com>
+
+        Worse animation performance on pages with 3D transforms
+        https://bugs.webkit.org/show_bug.cgi?id=131838
+        <rdar://problem/16428630&15705876>
+
+        Reviewed by Dean Jackson.
+        
+        Testcase having layers at various z translates which shows the bucketing
+        of contentsScale, and fix results affected by the patch.
+
+        * compositing/contents-scale/rounded-contents-scale-expected.txt: Added.
+        * compositing/contents-scale/rounded-contents-scale.html: Added.
+        * compositing/contents-scale/z-translate-expected.txt:
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-clamped-expected.txt:
+        * platform/mac-wk2/compositing/tiling/rotated-tiled-preserve3d-clamped-expected.txt:
+        * platform/mac/compositing/overflow/composited-scrolling-paint-phases-expected.txt:
+        * platform/mac/compositing/tiling/rotated-tiled-clamped-expected.txt:
+        * platform/mac/compositing/tiling/rotated-tiled-preserve3d-clamped-expected.txt:
+        * platform/mac/compositing/visible-rect/3d-transform-style-expected.txt:
+        * platform/mac/compositing/visible-rect/3d-transformed-expected.txt:
+        * platform/mac/compositing/visible-rect/nested-transform-expected.txt:
+
+2014-04-18  Radu Stavila  <stavila@adobe.com>
+
+        [CSS Regions] Content overflowing a transformed region is clipped
+        https://bugs.webkit.org/show_bug.cgi?id=116833
+
+        Reviewed by Mihnea Ovidenie.
+
+        Added test for overflow of content in 3d transformed regions.
+
+        * fast/regions/overflow-3dtransformed-region-expected.txt: Added.
+        * fast/regions/overflow-3dtransformed-region.html: Added.
+
 2014-04-18  Radu Stavila  <stavila@adobe.com>
 
         [CSSRegions] Incorrect background paint on positioned element hover

@@ -706,7 +706,7 @@ void WKPageSetPageFindClient(WKPageRef pageRef, const WKPageFindClientBase* wkCl
         }
 
     private:
-        virtual void didFindString(WebPageProxy* page, const String& string, uint32_t matchCount) override
+        virtual void didFindString(WebPageProxy* page, const String& string, uint32_t matchCount, int32_t matchIndex) override
         {
             if (!m_client.didFindString)
                 return;
@@ -786,7 +786,7 @@ void WKPageSetPageLoaderClient(WKPageRef pageRef, const WKPageLoaderClientBase* 
             m_client.didCommitLoadForFrame(toAPI(page), toAPI(frame), toAPI(userData), m_client.base.clientInfo);
         }
 
-        virtual void didFinishDocumentLoadForFrame(WebPageProxy* page, WebFrameProxy* frame, API::Object* userData) override
+        virtual void didFinishDocumentLoadForFrame(WebPageProxy* page, WebFrameProxy* frame, uint64_t, API::Object* userData) override
         {
             if (!m_client.didFinishDocumentLoadForFrame)
                 return;

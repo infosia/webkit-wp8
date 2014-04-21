@@ -1305,6 +1305,8 @@ webkit.org/b/128061 tables/mozilla_expected_failures/bugs/bug1055-2.html [ Failu
 webkit.org/b/128283 [ Debug ] transitions/shorthand-border-transitions.html [ Skip ]
 # Non-uniform scaling context.
 webkit.org/b/128081 fast/events/page-scaled-mouse-click-iframe.html
+# repaintRectsAsText reports different repaintrects on ML
+webkit.org/b/131887 fast/repaint/hidpi-wrong-repaint-rect-when-parent-has-noncompositing-transform.html [ Failure ]
 # End of subpixel failures.
 
 webkit.org/b/35297 media/video-display-aspect-ratio.html [ Pass Failure ]
@@ -1354,3 +1356,8 @@ webkit.org/b/118153 compositing/repaint/positioned-movement.html [ Pass Failure 
 webkit.org/b/131715 transitions/cancel-transition.html [ Pass Failure ]
 
 webkit.org/b/89153 http/tests/websocket/tests/hybi/workers/close.html [ Pass Failure ]
+
+webkit.org/b/131855 media/event-attributes.html [ Pass Failure ]
+
+webkit.org/b/131886 [ MountainLion ] webgl/1.0.2/conformance/textures/texture-size-limit.html [ Failure ]
+webkit.org/b/131886 [ MountainLion ] fast/canvas/webgl/webgl-compressed-texture-size-limit.html [ Failure ]

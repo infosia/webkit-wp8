@@ -819,7 +819,7 @@ public:
     void countStringMatches(const String&, FindOptions, unsigned maxMatchCount);
     void didCountStringMatches(const String&, uint32_t matchCount);
     void setFindIndicator(const WebCore::FloatRect& selectionRectInWindowCoordinates, const Vector<WebCore::FloatRect>& textRectsInSelectionRectCoordinates, float contentImageScaleFactor, const ShareableBitmap::Handle& contentImageHandle, bool fadeOut, bool animate);
-    void didFindString(const String&, uint32_t matchCount);
+    void didFindString(const String&, uint32_t matchCount, int32_t matchIndex);
     void didFailToFindString(const String&);
     void didFindStringMatches(const String&, Vector<Vector<WebCore::IntRect>> matchRects, int32_t firstIndexAfterSelection);
 
@@ -1100,7 +1100,7 @@ private:
     void didReceiveServerRedirectForProvisionalLoadForFrame(uint64_t frameID, uint64_t navigationID, const String&, IPC::MessageDecoder&);
     void didFailProvisionalLoadForFrame(uint64_t frameID, uint64_t navigationID, const WebCore::ResourceError&, IPC::MessageDecoder&);
     void didCommitLoadForFrame(uint64_t frameID, uint64_t navigationID, const String& mimeType, bool frameHasCustomContentProvider, uint32_t frameLoadType, const WebCore::CertificateInfo&, IPC::MessageDecoder&);
-    void didFinishDocumentLoadForFrame(uint64_t frameID, IPC::MessageDecoder&);
+    void didFinishDocumentLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder&);
     void didFinishLoadForFrame(uint64_t frameID, uint64_t navigationID, IPC::MessageDecoder&);
     void didFailLoadForFrame(uint64_t frameID, uint64_t navigationID, const WebCore::ResourceError&, IPC::MessageDecoder&);
     void didSameDocumentNavigationForFrame(uint64_t frameID, uint32_t sameDocumentNavigationType, const String&, IPC::MessageDecoder&);

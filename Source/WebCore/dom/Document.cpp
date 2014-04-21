@@ -222,6 +222,7 @@
 #if ENABLE(WEB_REPLAY)
 #include "WebReplayInputs.h"
 #include <replay/EmptyInputCursor.h>
+#include <replay/InputCursor.h>
 #endif
 
 using namespace WTF;
@@ -4618,7 +4619,7 @@ void Document::initSecurityContext()
         // This can occur via document.implementation.createDocument().
         m_cookieURL = URL(ParsedURLString, emptyString());
         setSecurityOrigin(SecurityOrigin::createUnique());
-        setContentSecurityPolicy(ContentSecurityPolicy::create(this));
+        setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(this));
         return;
     }
 
@@ -4638,7 +4639,7 @@ void Document::initSecurityContext()
 #endif
 
     setSecurityOrigin(isSandboxed(SandboxOrigin) ? SecurityOrigin::createUnique() : SecurityOrigin::create(m_url));
-    setContentSecurityPolicy(ContentSecurityPolicy::create(this));
+    setContentSecurityPolicy(std::make_unique<ContentSecurityPolicy>(this));
 
     if (Settings* settings = this->settings()) {
         if (!settings->webSecurityEnabled()) {
@@ -5084,12 +5085,7 @@ void Document::removeMediaCanStartListener(MediaCanStartListener* listener)
 
 MediaCanStartListener* Document::takeAnyMediaCanStartListener()
 {
-    HashSet<MediaCanStartListener*>::iterator slot = m_mediaCanStartListeners.begin();
-    if (slot == m_mediaCanStartListeners.end())
-        return nullptr;
-    MediaCanStartListener* listener = *slot;
-    m_mediaCanStartListeners.remove(slot);
-    return listener;
+    return m_mediaCanStartListeners.takeAny();
 }
 
 #if ENABLE(DEVICE_ORIENTATION) && PLATFORM(IOS)
@@ -6187,5 +6183,12 @@ bool Document::hasFocus() const
     }
     return false;
 }
+
+#if ENABLE(WEB_REPLAY)
+void Document::setInputCursor(PassRefPtr<InputCursor> cursor)
+{
+    m_inputCursor = cursor;
+}
+#endif
 
 } // namespace WebCore

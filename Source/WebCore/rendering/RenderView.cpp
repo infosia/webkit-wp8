@@ -295,7 +295,7 @@ LayoutUnit RenderView::pageOrViewLogicalHeight() const
     if (document().printing())
         return pageLogicalHeight();
     
-    if (hasColumns() && !style().hasInlineColumnAxis()) {
+    if ((hasColumns() || multiColumnFlowThread()) && !style().hasInlineColumnAxis()) {
         if (int pageLength = frameView().pagination().pageLength)
             return pageLength;
     }
@@ -634,7 +634,7 @@ void RenderView::computeRectForRepaint(const RenderLayerModelObject* repaintCont
         
     // Apply our transform if we have one (because of full page zooming).
     if (!repaintContainer && layer() && layer()->transform())
-        rect = layer()->transform()->mapRect(rect);
+        rect = LayoutRect(layer()->transform()->mapRect(pixelSnappedForPainting(rect, document().deviceScaleFactor())));
 }
 
 void RenderView::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
@@ -1255,6 +1255,20 @@ unsigned RenderView::pageNumberForBlockProgressionOffset(int offset) const
     }
 
     return columnNumber;
+}
+
+unsigned RenderView::pageCount() const
+{
+    const Pagination& pagination = frameView().frame().page()->pagination();
+    if (pagination.mode == Pagination::Unpaginated)
+        return 0;
+    
+    if (hasColumns())
+        return columnCount(columnInfo());
+    if (multiColumnFlowThread())
+        return multiColumnFlowThread()->columnCount();
+
+    return 0;
 }
 
 } // namespace WebCore
