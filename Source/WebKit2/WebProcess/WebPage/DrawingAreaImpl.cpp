@@ -251,7 +251,7 @@ void DrawingAreaImpl::setPaintingEnabled(bool paintingEnabled)
 
 void DrawingAreaImpl::updatePreferences(const WebPreferencesStore& store)
 {
-    m_webPage->corePage()->settings().setForceCompositingMode(store.getBoolValueForKey(WebPreferencesKey::forceCompositingModeKey()) && LayerTreeHost::supportsAcceleratedCompositing());
+    m_webPage->corePage()->settings().setForceCompositingMode(store.getBoolValueForKey(WebPreferencesKey::forceCompositingModeKey()));
 }
 
 void DrawingAreaImpl::layerHostDidFlushLayers()
@@ -657,12 +657,7 @@ void DrawingAreaImpl::display(UpdateInfo& updateInfo)
     for (size_t i = 0; i < rects.size(); ++i) {
         m_webPage->drawRect(*graphicsContext, rects[i]);
 
-        if (m_webPage->hasPageOverlay()) {
-            PageOverlayList& pageOverlays = m_webPage->pageOverlays();
-            PageOverlayList::iterator end = pageOverlays.end();
-            for (PageOverlayList::iterator it = pageOverlays.begin(); it != end; ++it)
-                m_webPage->drawPageOverlay(it->get(), *graphicsContext, rects[i]);
-        }
+        // FIXME: Draw page olverlays. https://bugs.webkit.org/show_bug.cgi?id=131433.
 
         updateInfo.updateRects.append(rects[i]);
     }

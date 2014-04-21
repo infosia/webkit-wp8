@@ -60,11 +60,11 @@ public:
 
         // When on the main thread (e.g. the document's thread), we need to make sure to
         // push the current ExecState on to the JSMainThreadExecState stack.
-        if (context->isDocument()) {
-            JSMainThreadExecState currentState(exec);
+        if (context->isDocument())
+            JSMainThreadExecState::runTask(exec, *m_task.get());
+        else
             m_task->run(exec);
-        } else
-            m_task->run(exec);
+        ASSERT(!exec->hadException());
     }
 
 private:

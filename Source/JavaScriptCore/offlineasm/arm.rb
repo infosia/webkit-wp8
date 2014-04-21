@@ -69,7 +69,9 @@ ARM_SCRATCH_FPR = SpecialRegister.new("d6")
 
 def armMoveImmediate(value, register)
     # Currently we only handle the simple cases, and fall back to mov/movt for the complex ones.
-    if value >= 0 && value < 256
+    if value.is_a? String
+      $asm.puts "mov #{register.armOperand}, (#{value})"
+    elsif value >= 0 && value < 256
         $asm.puts "mov #{register.armOperand}, \##{value}"
     elsif (~value) >= 0 && (~value) < 256
         $asm.puts "mvn #{register.armOperand}, \##{~value}"
@@ -106,6 +108,8 @@ class RegisterID
             "lr"
         when "sp"
             "sp"
+        when "pc"
+            "pc"
         else
             raise "Bad register #{name} for ARM at #{codeOriginString}"
         end
@@ -480,6 +484,9 @@ class Instruction
             else
                 $asm.puts "mov #{armFlippedOperands(operands)}"
             end
+        when "mvlbl"
+                $asm.puts "movw #{operands[1].armOperand}, \#:lower16:#{operands[0].value}"
+                $asm.puts "movt #{operands[1].armOperand}, \#:upper16:#{operands[0].value}"
         when "nop"
             $asm.puts "nop"
         when "bieq", "bpeq", "bbeq"

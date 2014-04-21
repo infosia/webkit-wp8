@@ -40,8 +40,13 @@
 		0FD81AC5154FB22E00983E72 /* FastBitVector.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FD81AC4154FB22E00983E72 /* FastBitVector.h */; settings = {ATTRIBUTES = (); }; };
 		0FDDBFA71666DFA300C55FEF /* StringPrintStream.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0FDDBFA51666DFA300C55FEF /* StringPrintStream.cpp */; };
 		0FDDBFA81666DFA300C55FEF /* StringPrintStream.h in Headers */ = {isa = PBXBuildFile; fileRef = 0FDDBFA61666DFA300C55FEF /* StringPrintStream.h */; };
+		14022F4118F5C3FC007FF0EB /* libbmalloc.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 14022F4018F5C3FC007FF0EB /* libbmalloc.a */; };
 		143F611F1565F0F900DB514A /* RAMSize.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 143F611D1565F0F900DB514A /* RAMSize.cpp */; };
 		143F61201565F0F900DB514A /* RAMSize.h in Headers */ = {isa = PBXBuildFile; fileRef = 143F611E1565F0F900DB514A /* RAMSize.h */; settings = {ATTRIBUTES = (); }; };
+		1447AEC618FCE57700B3D7FF /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1447AEC518FCE57700B3D7FF /* Foundation.framework */; };
+		1447AEC718FCE58000B3D7FF /* libWTF.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5D247B6214689B8600E78B76 /* libWTF.a */; };
+		1447AEC918FCE59400B3D7FF /* mbmalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1447AEC818FCE59400B3D7FF /* mbmalloc.cpp */; };
+		1447AECB18FCE5B900B3D7FF /* libicucore.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 1447AECA18FCE5B900B3D7FF /* libicucore.dylib */; };
 		1469419216EAAF6D0024E146 /* RunLoopTimer.h in Headers */ = {isa = PBXBuildFile; fileRef = 1469419016EAAF6D0024E146 /* RunLoopTimer.h */; settings = {ATTRIBUTES = (); }; };
 		1469419316EAAF6D0024E146 /* RunLoopTimerCF.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1469419116EAAF6D0024E146 /* RunLoopTimerCF.cpp */; };
 		1469419616EAAFF80024E146 /* SchedulePair.h in Headers */ = {isa = PBXBuildFile; fileRef = 1469419416EAAFF80024E146 /* SchedulePair.h */; };
@@ -140,8 +145,6 @@
 		A8A473B9151A825B004123FF /* utils.h in Headers */ = {isa = PBXBuildFile; fileRef = A8A47296151A825A004123FF /* utils.h */; };
 		A8A473BA151A825B004123FF /* dtoa.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8A47297151A825A004123FF /* dtoa.cpp */; };
 		A8A473BB151A825B004123FF /* dtoa.h in Headers */ = {isa = PBXBuildFile; fileRef = A8A47298151A825A004123FF /* dtoa.h */; };
-		A8A473BC151A825B004123FF /* DynamicAnnotations.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8A47299151A825A004123FF /* DynamicAnnotations.cpp */; };
-		A8A473BD151A825B004123FF /* DynamicAnnotations.h in Headers */ = {isa = PBXBuildFile; fileRef = A8A4729A151A825A004123FF /* DynamicAnnotations.h */; };
 		A8A473C0151A825B004123FF /* Encoder.h in Headers */ = {isa = PBXBuildFile; fileRef = A8A4729E151A825A004123FF /* Encoder.h */; };
 		A8A473C1151A825B004123FF /* ExportMacros.h in Headers */ = {isa = PBXBuildFile; fileRef = A8A4729F151A825A004123FF /* ExportMacros.h */; };
 		A8A473C3151A825B004123FF /* FastMalloc.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A8A472A1151A825A004123FF /* FastMalloc.cpp */; };
@@ -278,6 +281,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		1447AEC318FCE57000B3D7FF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5D247B5914689B8600E78B76 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5D247B6114689B8600E78B76;
+			remoteInfo = WTF;
+		};
 		65AFA28D1630B99E003D723C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5D247B5914689B8600E78B76 /* Project object */;
@@ -309,8 +319,13 @@
 		0FDDBFA51666DFA300C55FEF /* StringPrintStream.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StringPrintStream.cpp; sourceTree = "<group>"; };
 		0FDDBFA61666DFA300C55FEF /* StringPrintStream.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StringPrintStream.h; sourceTree = "<group>"; };
 		0FEC3EE4171B834700FDAC8D /* ByteSpinLock.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ByteSpinLock.h; sourceTree = "<group>"; };
+		14022F4018F5C3FC007FF0EB /* libbmalloc.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libbmalloc.a; path = libbmalloc.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		143F611D1565F0F900DB514A /* RAMSize.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RAMSize.cpp; sourceTree = "<group>"; };
 		143F611E1565F0F900DB514A /* RAMSize.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RAMSize.h; sourceTree = "<group>"; };
+		1447AEBE18FCE56900B3D7FF /* libmbmalloc.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libmbmalloc.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		1447AEC518FCE57700B3D7FF /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
+		1447AEC818FCE59400B3D7FF /* mbmalloc.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = mbmalloc.cpp; sourceTree = "<group>"; };
+		1447AECA18FCE5B900B3D7FF /* libicucore.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libicucore.dylib; path = /usr/lib/libicucore.dylib; sourceTree = "<absolute>"; };
 		1469419016EAAF6D0024E146 /* RunLoopTimer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = RunLoopTimer.h; sourceTree = "<group>"; };
 		1469419116EAAF6D0024E146 /* RunLoopTimerCF.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = RunLoopTimerCF.cpp; sourceTree = "<group>"; };
 		1469419416EAAFF80024E146 /* SchedulePair.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SchedulePair.h; sourceTree = "<group>"; };
@@ -319,6 +334,7 @@
 		1469419A16EAB10A0024E146 /* AutodrainedPool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AutodrainedPool.h; sourceTree = "<group>"; };
 		1469419B16EAB10A0024E146 /* AutodrainedPoolMac.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = AutodrainedPoolMac.mm; sourceTree = "<group>"; };
 		149EF16216BBFE0D000A4331 /* TriState.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TriState.h; sourceTree = "<group>"; };
+		14C8279718FDD73400E1800C /* mbmalloc.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; path = mbmalloc.xcconfig; sourceTree = "<group>"; };
 		14F3B0F615E45E4600210069 /* SaturatedArithmetic.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = SaturatedArithmetic.h; sourceTree = "<group>"; };
 		1A1D8B9B173186CE00141DA4 /* FunctionDispatcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FunctionDispatcher.h; sourceTree = "<group>"; };
 		1A1D8B9D1731879800141DA4 /* FunctionDispatcher.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FunctionDispatcher.cpp; sourceTree = "<group>"; };
@@ -419,8 +435,6 @@
 		A8A47296151A825A004123FF /* utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = utils.h; sourceTree = "<group>"; };
 		A8A47297151A825A004123FF /* dtoa.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = dtoa.cpp; sourceTree = "<group>"; };
 		A8A47298151A825A004123FF /* dtoa.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = dtoa.h; sourceTree = "<group>"; };
-		A8A47299151A825A004123FF /* DynamicAnnotations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DynamicAnnotations.cpp; sourceTree = "<group>"; };
-		A8A4729A151A825A004123FF /* DynamicAnnotations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DynamicAnnotations.h; sourceTree = "<group>"; };
 		A8A4729E151A825A004123FF /* Encoder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Encoder.h; sourceTree = "<group>"; };
 		A8A4729F151A825A004123FF /* ExportMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ExportMacros.h; sourceTree = "<group>"; };
 		A8A472A1151A825A004123FF /* FastMalloc.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = FastMalloc.cpp; sourceTree = "<group>"; };
@@ -557,16 +571,35 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		1447AEBB18FCE56900B3D7FF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1447AECB18FCE5B900B3D7FF /* libicucore.dylib in Frameworks */,
+				1447AEC718FCE58000B3D7FF /* libWTF.a in Frameworks */,
+				1447AEC618FCE57700B3D7FF /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5D247B5F14689B8600E78B76 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				14022F4118F5C3FC007FF0EB /* libbmalloc.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		14022F3F18F5C3E5007FF0EB /* Libraries */ = {
+			isa = PBXGroup;
+			children = (
+				14022F4018F5C3FC007FF0EB /* libbmalloc.a */,
+			);
+			name = Libraries;
+			sourceTree = "<group>";
+		};
 		1FA47C87152502DA00568D1B /* ios */ = {
 			isa = PBXGroup;
 			children = (
@@ -587,7 +620,10 @@
 		5D247B5714689B8600E78B76 = {
 			isa = PBXGroup;
 			children = (
+				1447AECA18FCE5B900B3D7FF /* libicucore.dylib */,
+				1447AEC518FCE57700B3D7FF /* Foundation.framework */,
 				5D247B6D14689C4700E78B76 /* Configurations */,
+				14022F3F18F5C3E5007FF0EB /* Libraries */,
 				5D247B6314689B8600E78B76 /* Products */,
 				5D247B7614689D7600E78B76 /* Source */,
 			);
@@ -597,6 +633,7 @@
 			isa = PBXGroup;
 			children = (
 				5D247B6214689B8600E78B76 /* libWTF.a */,
+				1447AEBE18FCE56900B3D7FF /* libmbmalloc.dylib */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -608,6 +645,7 @@
 				6541CAF41630DB26006D0DEC /* CopyWTFHeaders.xcconfig */,
 				5D247B7014689C4700E78B76 /* DebugRelease.xcconfig */,
 				44DEE74A152274BB00C6EC37 /* iOS.xcconfig */,
+				14C8279718FDD73400E1800C /* mbmalloc.xcconfig */,
 				5D247B7314689C4700E78B76 /* WTF.xcconfig */,
 			);
 			path = Configurations;
@@ -698,8 +736,6 @@
 				A8A47280151A825A004123FF /* DoublyLinkedList.h */,
 				A8A47297151A825A004123FF /* dtoa.cpp */,
 				A8A47298151A825A004123FF /* dtoa.h */,
-				A8A47299151A825A004123FF /* DynamicAnnotations.cpp */,
-				A8A4729A151A825A004123FF /* DynamicAnnotations.h */,
 				A8A4729E151A825A004123FF /* Encoder.h */,
 				A8A4729F151A825A004123FF /* ExportMacros.h */,
 				0F885E0E1845AE9F00F1E3FA /* FastBitVector.cpp */,
@@ -734,6 +770,7 @@
 				A70DA0831799F04D00529A9B /* ListDump.h */,
 				A8A472C1151A825A004123FF /* ListHashSet.h */,
 				A8A472C3151A825A004123FF /* Locker.h */,
+				1447AEC818FCE59400B3D7FF /* mbmalloc.cpp */,
 				A8A472CA151A825B004123FF /* MD5.cpp */,
 				A8A472CB151A825B004123FF /* MD5.h */,
 				A8A472C6151A825A004123FF /* MainThread.cpp */,
@@ -954,6 +991,13 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		1447AEBC18FCE56900B3D7FF /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5D247B6014689B8600E78B76 /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -1007,7 +1051,6 @@
 				A8A473B2151A825B004123FF /* double.h in Headers */,
 				A8A473A7151A825B004123FF /* DoublyLinkedList.h in Headers */,
 				A8A473BB151A825B004123FF /* dtoa.h in Headers */,
-				A8A473BD151A825B004123FF /* DynamicAnnotations.h in Headers */,
 				A8A473C0151A825B004123FF /* Encoder.h in Headers */,
 				A8A473C1151A825B004123FF /* ExportMacros.h in Headers */,
 				A8A473B4151A825B004123FF /* fast-dtoa.h in Headers */,
@@ -1140,6 +1183,24 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
+		1447AEBD18FCE56900B3D7FF /* mbmalloc */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1447AEC218FCE56900B3D7FF /* Build configuration list for PBXNativeTarget "mbmalloc" */;
+			buildPhases = (
+				1447AEBA18FCE56900B3D7FF /* Sources */,
+				1447AEBB18FCE56900B3D7FF /* Frameworks */,
+				1447AEBC18FCE56900B3D7FF /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1447AEC418FCE57000B3D7FF /* PBXTargetDependency */,
+			);
+			name = mbmalloc;
+			productName = mbmalloc;
+			productReference = 1447AEBE18FCE56900B3D7FF /* libmbmalloc.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
 		5D247B6114689B8600E78B76 /* WTF */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 5D247B6614689B8600E78B76 /* Build configuration list for PBXNativeTarget "WTF" */;
@@ -1180,6 +1241,7 @@
 			targets = (
 				5D247B6114689B8600E78B76 /* WTF */,
 				65AFA16F1630B977003D723C /* Copy WTF Headers */,
+				1447AEBD18FCE56900B3D7FF /* mbmalloc */,
 			);
 		};
 /* End PBXProject section */
@@ -1202,6 +1264,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		1447AEBA18FCE56900B3D7FF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1447AEC918FCE59400B3D7FF /* mbmalloc.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		5D247B5E14689B8600E78B76 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1231,7 +1301,6 @@
 				A8A473B0151A825B004123FF /* double-conversion.cc in Sources */,
 				A8A473BA151A825B004123FF /* dtoa.cpp in Sources */,
 				0F885E0F1845AEA900F1E3FA /* FastBitVector.cpp in Sources */,
-				A8A473BC151A825B004123FF /* DynamicAnnotations.cpp in Sources */,
 				A8A473B3151A825B004123FF /* fast-dtoa.cc in Sources */,
 				A8A473C3151A825B004123FF /* FastMalloc.cpp in Sources */,
 				A5BA15FA182435A600A82E69 /* AtomicStringCF.cpp in Sources */,
@@ -1290,6 +1359,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1447AEC418FCE57000B3D7FF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5D247B6114689B8600E78B76 /* WTF */;
+			targetProxy = 1447AEC318FCE57000B3D7FF /* PBXContainerItemProxy */;
+		};
 		65AFA28E1630B99E003D723C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 65AFA16F1630B977003D723C /* Copy WTF Headers */;
@@ -1298,6 +1372,27 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		1447AEBF18FCE56900B3D7FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 14C8279718FDD73400E1800C /* mbmalloc.xcconfig */;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		1447AEC018FCE56900B3D7FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 14C8279718FDD73400E1800C /* mbmalloc.xcconfig */;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		1447AEC118FCE56900B3D7FF /* Production */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 14C8279718FDD73400E1800C /* mbmalloc.xcconfig */;
+			buildSettings = {
+			};
+			name = Production;
+		};
 		5D247B6414689B8600E78B76 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5D247B7014689C4700E78B76 /* DebugRelease.xcconfig */;
@@ -1371,6 +1466,16 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		1447AEC218FCE56900B3D7FF /* Build configuration list for PBXNativeTarget "mbmalloc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1447AEBF18FCE56900B3D7FF /* Debug */,
+				1447AEC018FCE56900B3D7FF /* Release */,
+				1447AEC118FCE56900B3D7FF /* Production */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Production;
+		};
 		5D247B5C14689B8600E78B76 /* Build configuration list for PBXProject "WTF" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

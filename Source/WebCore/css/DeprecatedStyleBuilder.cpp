@@ -388,12 +388,12 @@ public:
             setValue(styleResolver->style(), Length());
         else if (primitiveValue->isLength()) {
             Length length = primitiveValue->computeLength<Length>(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom());
-            length.setQuirk(primitiveValue->isQuirkValue());
+            length.setHasQuirk(primitiveValue->isQuirkValue());
             setValue(styleResolver->style(), length);
         } else if (primitiveValue->isPercentage())
             setValue(styleResolver->style(), Length(primitiveValue->getDoubleValue(), Percent));
         else if (primitiveValue->isCalculatedPercentageWithLength())
-            setValue(styleResolver->style(), Length(primitiveValue->cssCalcValue()->toCalcValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom())));
+            setValue(styleResolver->style(), Length(primitiveValue->cssCalcValue()->createCalculationValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom())));
         else if (primitiveValue->isViewportPercentageLength())
             setValue(styleResolver->style(), primitiveValue->viewportPercentageLength());
     }
@@ -443,34 +443,34 @@ public:
             return;
 
         Length radiusWidth;
-        Length radiusHeight;
         if (pair->first()->isPercentage())
             radiusWidth = Length(pair->first()->getDoubleValue(), Percent);
         else if (pair->first()->isViewportPercentageLength())
             radiusWidth = Length(styleResolver->viewportPercentageValue(*pair->first(), pair->first()->getIntValue()), Fixed);
         else if (pair->first()->isCalculatedPercentageWithLength())
-            radiusWidth = Length((pair->first()->cssCalcValue()->toCalcValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom())));
+            radiusWidth = Length(pair->first()->cssCalcValue()->createCalculationValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom()));
         else
             radiusWidth = pair->first()->computeLength<Length>(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom());
+
+        Length radiusHeight;
         if (pair->second()->isPercentage())
             radiusHeight = Length(pair->second()->getDoubleValue(), Percent);
         else if (pair->second()->isViewportPercentageLength())
             radiusHeight = Length(styleResolver->viewportPercentageValue(*pair->second(), pair->second()->getIntValue()), Fixed);
         else if (pair->second()->isCalculatedPercentageWithLength())
-            radiusHeight = Length((pair->second()->cssCalcValue()->toCalcValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom())));
+            radiusHeight = Length(pair->second()->cssCalcValue()->createCalculationValue(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom()));
         else
             radiusHeight = pair->second()->computeLength<Length>(styleResolver->style(), styleResolver->rootElementStyle(), styleResolver->style()->effectiveZoom());
-        int width = radiusWidth.value();
-        int height = radiusHeight.value();
-        if (width < 0 || height < 0)
-            return;
-        if (!width)
-            radiusHeight = radiusWidth; // Null out the other value.
-        else if (!height)
-            radiusWidth = radiusHeight; // Null out the other value.
 
-        LengthSize size(radiusWidth, radiusHeight);
-        setValue(styleResolver->style(), size);
+        if (radiusWidth.isNegative() || radiusHeight.isNegative())
+            return;
+
+        if (radiusWidth.isZero() || radiusHeight.isZero()) {
+            radiusWidth.setValue(Fixed, 0);
+            radiusHeight.setValue(Fixed, 0);
+        }
+
+        setValue(styleResolver->style(), LengthSize(radiusWidth, radiusHeight));
     }
     static PropertyHandler createHandler()
     {
@@ -520,72 +520,60 @@ public:
         if (*(styleResolver->parentStyle()->*layersFunction)() == *(styleResolver->style()->*layersFunction)())
             return;
 
-        FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
-        FillLayer* prevChild = 0;
-        const FillLayer* currParent = (styleResolver->parentStyle()->*layersFunction)();
-        while (currParent && (currParent->*testFunction)()) {
-            if (!currChild) {
-                /* Need to make a new layer.*/
-                currChild = new FillLayer(fillLayerType);
-                prevChild->setNext(currChild);
+        auto* child = (styleResolver->style()->*accessLayersFunction)();
+        FillLayer* previousChild = nullptr;
+        for (auto* parent = (styleResolver->parentStyle()->*layersFunction)(); parent && (parent->*testFunction)(); parent = parent->next()) {
+            if (!child) {
+                previousChild->setNext(std::make_unique<FillLayer>(fillLayerType));
+                child = previousChild->next();
             }
-            (currChild->*setFunction)((currParent->*getFunction)());
-            prevChild = currChild;
-            currChild = prevChild->next();
-            currParent = currParent->next();
+            (child->*setFunction)((parent->*getFunction)());
+            previousChild = child;
+            child = previousChild->next();
         }
-
-        while (currChild) {
-            /* Reset any remaining layers to not have the property set. */
-            (currChild->*clearFunction)();
-            currChild = currChild->next();
-        }
+        for (; child; child = child->next())
+            (child->*clearFunction)();
     }
 
     static void applyInitialValue(CSSPropertyID, StyleResolver* styleResolver)
     {
         // Check for (single-layer) no-op before clearing anything.
         const FillLayer& layers = *(styleResolver->style()->*layersFunction)();
-        bool firstLayerHasValue = (layers.*testFunction)();
-        if (!layers.next() && (!firstLayerHasValue || (layers.*getFunction)() == (*initialFunction)(fillLayerType)))
+        if (!layers.next() && (!(layers.*testFunction)() || (layers.*getFunction)() == (*initialFunction)(fillLayerType)))
             return;
 
-        FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
-        (currChild->*setFunction)((*initialFunction)(fillLayerType));
-        for (currChild = currChild->next(); currChild; currChild = currChild->next())
-            (currChild->*clearFunction)();
+        FillLayer* child = (styleResolver->style()->*accessLayersFunction)();
+        (child->*setFunction)((*initialFunction)(fillLayerType));
+        for (child = child->next(); child; child = child->next())
+            (child->*clearFunction)();
     }
 
     static void applyValue(CSSPropertyID, StyleResolver* styleResolver, CSSValue* value)
     {
-        FillLayer* currChild = (styleResolver->style()->*accessLayersFunction)();
-        FillLayer* prevChild = 0;
+        FillLayer* child = (styleResolver->style()->*accessLayersFunction)();
+        FillLayer* previousChild = nullptr;
         if (value->isValueList()
 #if ENABLE(CSS_IMAGE_SET)
         && !value->isImageSetValue()
 #endif
         ) {
-            /* Walk each value and put it into a layer, creating new layers as needed. */
-            CSSValueList* valueList = toCSSValueList(value);
-            for (unsigned int i = 0; i < valueList->length(); i++) {
-                if (!currChild) {
-                    /* Need to make a new layer to hold this value */
-                    currChild = new FillLayer(fillLayerType);
-                    prevChild->setNext(currChild);
+            // Walk each value and put it into a layer, creating new layers as needed.
+            CSSValueList& valueList = toCSSValueList(*value);
+            for (unsigned i = 0; i < valueList.length(); i++) {
+                if (!child) {
+                    previousChild->setNext(std::make_unique<FillLayer>(fillLayerType));
+                    child = previousChild->next();
                 }
-                (styleResolver->styleMap()->*mapFillFunction)(propertyId, currChild, valueList->itemWithoutBoundsCheck(i));
-                prevChild = currChild;
-                currChild = currChild->next();
+                (styleResolver->styleMap()->*mapFillFunction)(propertyId, child, valueList.itemWithoutBoundsCheck(i));
+                previousChild = child;
+                child = child->next();
             }
         } else {
-            (styleResolver->styleMap()->*mapFillFunction)(propertyId, currChild, value);
-            currChild = currChild->next();
+            (styleResolver->styleMap()->*mapFillFunction)(propertyId, child, value);
+            child = child->next();
         }
-        while (currChild) {
-            /* Reset all remaining layers to not have the property set. */
-            (currChild->*clearFunction)();
-            currChild = currChild->next();
-        }
+        for (; child; child = child->next())
+            (child->*clearFunction)();
     }
 
     static PropertyHandler createHandler() { return PropertyHandler(&applyInheritValue, &applyInitialValue, &applyValue); }
@@ -883,9 +871,10 @@ public:
                 size = primitiveValue->computeLength<float>(styleResolver->parentStyle(), styleResolver->rootElementStyle(), 1.0, true);
             else if (primitiveValue->isPercentage())
                 size = (primitiveValue->getFloatValue() * parentSize) / 100.0f;
-            else if (primitiveValue->isCalculatedPercentageWithLength())
-                size = primitiveValue->cssCalcValue()->toCalcValue(styleResolver->parentStyle(), styleResolver->rootElementStyle())->evaluate(parentSize);
-            else if (primitiveValue->isViewportPercentageLength())
+            else if (primitiveValue->isCalculatedPercentageWithLength()) {
+                Ref<CalculationValue> calculationValue { primitiveValue->cssCalcValue()->createCalculationValue(styleResolver->parentStyle(), styleResolver->rootElementStyle()) };
+                size = calculationValue->evaluate(parentSize);
+            } else if (primitiveValue->isViewportPercentageLength())
                 size = valueForLength(primitiveValue->viewportPercentageLength(), 0, styleResolver->document().renderView());
             else
                 return;
@@ -2189,9 +2178,7 @@ public:
             CSSPrimitiveValue* primitiveValue = toCSSPrimitiveValue(value);
             if (primitiveValue->getValueID() == CSSValueAuto)
                 setValue(styleResolver->style(), 0);
-            else if (primitiveValue->getValueID() == CSSValueOutsideShape)
-                setValue(styleResolver->style(), ShapeValue::createOutsideValue());
-        } else if (value->isImageValue() || value->isImageSetValue()) {
+        } else if (value->isImageValue() || value->isImageGeneratorValue() || value->isImageSetValue()) {
             RefPtr<ShapeValue> shape = ShapeValue::createImageValue(styleResolver->styleImage(property, value));
             setValue(styleResolver->style(), shape.release());
         } else if (value->isValueList()) {
@@ -2487,8 +2474,8 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
     setPropertyHandler(CSSPropertyWebkitBackgroundOrigin, CSSPropertyBackgroundOrigin);
     setPropertyHandler(CSSPropertyWebkitBackgroundSize, CSSPropertyBackgroundSize);
 #if ENABLE(CSS_COMPOSITING)
-    setPropertyHandler(CSSPropertyWebkitMixBlendMode, ApplyPropertyDefault<BlendMode, &RenderStyle::blendMode, BlendMode, &RenderStyle::setBlendMode, BlendMode, &RenderStyle::initialBlendMode>::createHandler());
-    setPropertyHandler(CSSPropertyWebkitIsolation, ApplyPropertyDefault<Isolation, &RenderStyle::isolation, Isolation, &RenderStyle::setIsolation, Isolation, &RenderStyle::initialIsolation>::createHandler());
+    setPropertyHandler(CSSPropertyMixBlendMode, ApplyPropertyDefault<BlendMode, &RenderStyle::blendMode, BlendMode, &RenderStyle::setBlendMode, BlendMode, &RenderStyle::initialBlendMode>::createHandler());
+    setPropertyHandler(CSSPropertyIsolation, ApplyPropertyDefault<Isolation, &RenderStyle::isolation, Isolation, &RenderStyle::setIsolation, Isolation, &RenderStyle::initialIsolation>::createHandler());
 #endif
     setPropertyHandler(CSSPropertyWebkitBorderFit, ApplyPropertyDefault<EBorderFit, &RenderStyle::borderFit, EBorderFit, &RenderStyle::setBorderFit, EBorderFit, &RenderStyle::initialBorderFit>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBorderHorizontalSpacing, ApplyPropertyComputeLength<short, &RenderStyle::horizontalBorderSpacing, &RenderStyle::setHorizontalBorderSpacing, &RenderStyle::initialHorizontalBorderSpacing>::createHandler());
@@ -2500,9 +2487,9 @@ DeprecatedStyleBuilder::DeprecatedStyleBuilder()
 #endif
     setPropertyHandler(CSSPropertyWebkitBoxDirection, ApplyPropertyDefault<EBoxDirection, &RenderStyle::boxDirection, EBoxDirection, &RenderStyle::setBoxDirection, EBoxDirection, &RenderStyle::initialBoxDirection>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBoxFlex, ApplyPropertyDefault<float, &RenderStyle::boxFlex, float, &RenderStyle::setBoxFlex, float, &RenderStyle::initialBoxFlex>::createHandler());
-    setPropertyHandler(CSSPropertyWebkitBoxFlexGroup, ApplyPropertyDefault<unsigned int, &RenderStyle::boxFlexGroup, unsigned int, &RenderStyle::setBoxFlexGroup, unsigned int, &RenderStyle::initialBoxFlexGroup>::createHandler());
+    setPropertyHandler(CSSPropertyWebkitBoxFlexGroup, ApplyPropertyDefault<unsigned, &RenderStyle::boxFlexGroup, unsigned, &RenderStyle::setBoxFlexGroup, unsigned, &RenderStyle::initialBoxFlexGroup>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBoxLines, ApplyPropertyDefault<EBoxLines, &RenderStyle::boxLines, EBoxLines, &RenderStyle::setBoxLines, EBoxLines, &RenderStyle::initialBoxLines>::createHandler());
-    setPropertyHandler(CSSPropertyWebkitBoxOrdinalGroup, ApplyPropertyDefault<unsigned int, &RenderStyle::boxOrdinalGroup, unsigned int, &RenderStyle::setBoxOrdinalGroup, unsigned int, &RenderStyle::initialBoxOrdinalGroup>::createHandler());
+    setPropertyHandler(CSSPropertyWebkitBoxOrdinalGroup, ApplyPropertyDefault<unsigned, &RenderStyle::boxOrdinalGroup, unsigned, &RenderStyle::setBoxOrdinalGroup, unsigned, &RenderStyle::initialBoxOrdinalGroup>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBoxOrient, ApplyPropertyDefault<EBoxOrient, &RenderStyle::boxOrient, EBoxOrient, &RenderStyle::setBoxOrient, EBoxOrient, &RenderStyle::initialBoxOrient>::createHandler());
     setPropertyHandler(CSSPropertyWebkitBoxPack, ApplyPropertyDefault<EBoxPack, &RenderStyle::boxPack, EBoxPack, &RenderStyle::setBoxPack, EBoxPack, &RenderStyle::initialBoxPack>::createHandler());
     setPropertyHandler(CSSPropertyWebkitColorCorrection, ApplyPropertyDefault<ColorSpace, &RenderStyle::colorSpace, ColorSpace, &RenderStyle::setColorSpace, ColorSpace, &RenderStyle::initialColorSpace>::createHandler());

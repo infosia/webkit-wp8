@@ -51,12 +51,15 @@ enum Intrinsic {
     RegExpTestIntrinsic,
     StringPrototypeValueOfIntrinsic,
     IMulIntrinsic,
+    FRoundIntrinsic,
     ArrayIteratorNextValueIntrinsic,
     ArrayIteratorNextKeyIntrinsic,
     ArrayIteratorNextGenericIntrinsic,
     
     // Debugging intrinsics
-    DFGTrue
+    DFGTrueIntrinsic,
+    OSRExitIntrinsic,
+    IsFinalTierIntrinsic
 };
 
 } // namespace JSC

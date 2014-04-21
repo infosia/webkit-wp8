@@ -26,9 +26,11 @@
 #import "config.h"
 #import "TileGrid.h"
 
+#import "GraphicsContext.h"
 #import "LayerPool.h"
 #import "PlatformCALayer.h"
 #import "TileController.h"
+#import "WebLayer.h"
 #import <wtf/MainThread.h>
 
 #if PLATFORM(IOS)
@@ -36,11 +38,6 @@
 #endif
 
 namespace WebCore {
-
-enum TileValidationPolicyFlag {
-    PruneSecondaryTiles = 1 << 0,
-    UnparentAllTiles = 1 << 1
-};
 
 TileGrid::TileGrid(TileController& controller)
     : m_controller(controller)
@@ -122,6 +119,25 @@ void TileGrid::setNeedsDisplayInRect(const IntRect& rect)
         setTileNeedsDisplayInRect(it->key, it->value, repaintRectInTileCoords, m_primaryTileCoverageRect);
 }
 
+void TileGrid::dropTilesInRect(const IntRect& rect)
+{
+    if (m_tiles.isEmpty())
+        return;
+
+    FloatRect scaledRect(rect);
+    scaledRect.scale(m_scale);
+    IntRect dropRectInTileCoords(enclosingIntRect(scaledRect));
+
+    Vector<TileIndex> tilesToRemove;
+
+    for (auto& index : m_tiles.keys()) {
+        if (rectForTileIndex(index).intersects(dropRectInTileCoords))
+            tilesToRemove.append(index);
+    }
+
+    removeTiles(tilesToRemove);
+}
+
 void TileGrid::setTileNeedsDisplayInRect(const TileIndex& tileIndex, TileInfo& tileInfo, const IntRect& repaintRectInTileCoords, const IntRect& coverageRectInTileCoords)
 {
     PlatformCALayer* tileLayer = tileInfo.layer.get();
@@ -166,7 +182,6 @@ void TileGrid::updateTilerLayerProperties()
 bool TileGrid::tilesWouldChangeForVisibleRect(const FloatRect& newVisibleRect, const FloatRect& oldVisibleRect) const
 {
     FloatRect visibleRect = newVisibleRect;
-    visibleRect.intersect(scaledExposedRect());
 
     if (visibleRect.isEmpty())
         return false;
@@ -183,13 +198,6 @@ bool TileGrid::tilesWouldChangeForVisibleRect(const FloatRect& newVisibleRect, c
     IntRect coverageRect = rectForTileIndex(topLeft);
     coverageRect.unite(rectForTileIndex(bottomRight));
     return coverageRect != m_primaryTileCoverageRect;
-}
-
-FloatRect TileGrid::scaledExposedRect() const
-{
-    FloatRect scaledExposedRect = m_controller.exposedRect();
-    scaledExposedRect.scale(1 / m_scale);
-    return scaledExposedRect;
 }
 
 bool TileGrid::prepopulateRect(const FloatRect& rect)
@@ -288,31 +296,30 @@ unsigned TileGrid::blankPixelCount() const
     return TileController::blankPixelCountForTiles(tiles, m_controller.visibleRect(), IntPoint(0,0));
 }
 
-static inline void queueTileForRemoval(const TileGrid::TileIndex& tileIndex, const TileGrid::TileInfo& tileInfo, Vector<TileGrid::TileIndex>& tilesToRemove, TileController::RepaintCountMap& repaintCounts)
+void TileGrid::removeTiles(Vector<TileGrid::TileIndex>& toRemove)
 {
-    tileInfo.layer->removeFromSuperlayer();
-    repaintCounts.remove(tileInfo.layer.get());
-    tilesToRemove.append(tileIndex);
+    for (size_t i = 0; i < toRemove.size(); ++i) {
+        TileInfo tileInfo = m_tiles.take(toRemove[i]);
+        tileInfo.layer->removeFromSuperlayer();
+        m_tileRepaintCounts.remove(tileInfo.layer.get());
+#if !PLATFORM(IOS)
+        LayerPool::sharedPool()->addLayer(tileInfo.layer);
+#endif
+    }
 }
 
 void TileGrid::removeAllSecondaryTiles()
 {
     Vector<TileIndex> tilesToRemove;
 
-    for (TileMap::iterator it = m_tiles.begin(), end = m_tiles.end(); it != end; ++it) {
-        const TileInfo& tileInfo = it->value;
+    for (auto& entry : m_tiles) {
+        const TileInfo& tileInfo = entry.value;
         if (tileInfo.cohort == VisibleTileCohort)
             continue;
-
-        queueTileForRemoval(it->key, it->value, tilesToRemove, m_controller.repaintCountMap());
+        tilesToRemove.append(entry.key);
     }
 
-    for (size_t i = 0; i < tilesToRemove.size(); ++i) {
-        TileInfo tileInfo = m_tiles.take(tilesToRemove[i]);
-#if !PLATFORM(IOS)
-        LayerPool::sharedPool()->addLayer(tileInfo.layer);
-#endif
-    }
+    removeTiles(tilesToRemove);
 }
 
 void TileGrid::removeTilesInCohort(TileCohort cohort)
@@ -320,28 +327,20 @@ void TileGrid::removeTilesInCohort(TileCohort cohort)
     ASSERT(cohort != VisibleTileCohort);
     Vector<TileIndex> tilesToRemove;
 
-    for (TileMap::iterator it = m_tiles.begin(), end = m_tiles.end(); it != end; ++it) {
-        const TileInfo& tileInfo = it->value;
+    for (auto& entry : m_tiles) {
+        const TileInfo& tileInfo = entry.value;
         if (tileInfo.cohort != cohort)
             continue;
-
-        queueTileForRemoval(it->key, it->value, tilesToRemove, m_controller.repaintCountMap());
+        tilesToRemove.append(entry.key);
     }
 
-    for (size_t i = 0; i < tilesToRemove.size(); ++i) {
-        TileInfo tileInfo = m_tiles.take(tilesToRemove[i]);
-#if !PLATFORM(IOS)
-        LayerPool::sharedPool()->addLayer(tileInfo.layer);
-#endif
-    }
+    removeTiles(tilesToRemove);
 }
 
-void TileGrid::revalidateTiles(TileValidationPolicyFlags validationPolicy)
+void TileGrid::revalidateTiles(unsigned validationPolicy)
 {
     FloatRect visibleRect = m_controller.visibleRect();
     IntRect bounds = m_controller.bounds();
-
-    visibleRect.intersect(scaledExposedRect());
 
     if (visibleRect.isEmpty() || bounds.isEmpty())
         return;
@@ -439,21 +438,11 @@ void TileGrid::revalidateTiles(TileValidationPolicyFlags validationPolicy)
         getTileIndexRangeForRect(boundsInTileCoords, topLeftForBounds, bottomRightForBounds);
 
         Vector<TileIndex> tilesToRemove;
-        for (TileMap::iterator it = m_tiles.begin(), end = m_tiles.end(); it != end; ++it) {
-            const TileIndex& index = it->key;
-            if (index.y() < topLeftForBounds.y()
-                || index.y() > bottomRightForBounds.y()
-                || index.x() < topLeftForBounds.x()
-                || index.x() > bottomRightForBounds.x())
-                queueTileForRemoval(index, it->value, tilesToRemove, m_controller.repaintCountMap());
+        for (auto& index : m_tiles.keys()) {
+            if (index.y() < topLeftForBounds.y() || index.y() > bottomRightForBounds.y() || index.x() < topLeftForBounds.x() || index.x() > bottomRightForBounds.x())
+                tilesToRemove.append(index);
         }
-
-        for (size_t i = 0, size = tilesToRemove.size(); i < size; ++i) {
-            TileInfo tileInfo = m_tiles.take(tilesToRemove[i]);
-#if !PLATFORM(IOS)
-            LayerPool::sharedPool()->addLayer(tileInfo.layer);
-#endif
-        }
+        removeTiles(tilesToRemove);
     }
 
     m_controller.didRevalidateTiles();
@@ -542,9 +531,10 @@ IntRect TileGrid::ensureTilesForRect(const FloatRect& rect, CoverageType newTile
 
             bool shouldChangeTileLayerFrame = false;
 
-            if (!tileInfo.layer)
-                tileInfo.layer = m_controller.createTileLayer(tileRect);
-            else {
+            if (!tileInfo.layer) {
+                tileInfo.layer = m_controller.createTileLayer(tileRect, *this);
+                ASSERT(!m_tileRepaintCounts.contains(tileInfo.layer.get()));
+            } else {
                 // We already have a layer for this tile. Ensure that its size is correct.
                 FloatSize tileLayerSize(tileInfo.layer->bounds().size());
                 shouldChangeTileLayerFrame = tileLayerSize != FloatSize(tileRect.size());
@@ -608,7 +598,7 @@ IntRect TileGrid::tileCoverageRect() const
     return coverageRectInLayerCoords;
 }
 
-void TileGrid::drawTileMapContents(CGContextRef context, CGRect layerBounds)
+void TileGrid::drawTileMapContents(CGContextRef context, CGRect layerBounds) const
 {
     CGContextSetRGBFillColor(context, 0.3, 0.3, 0.3, 1);
     CGContextFillRect(context, layerBounds);
@@ -652,6 +642,69 @@ void TileGrid::drawTileMapContents(CGContextRef context, CGRect layerBounds)
         CGContextFillRect(context, frame);
         CGContextStrokeRect(context, frame);
     }
+}
+
+void TileGrid::platformCALayerPaintContents(PlatformCALayer* platformCALayer, GraphicsContext& context, const FloatRect&)
+{
+#if PLATFORM(IOS)
+    if (pthread_main_np())
+        WebThreadLock();
+#endif
+
+    {
+        GraphicsContextStateSaver stateSaver(context);
+
+        FloatPoint3D layerOrigin = platformCALayer->position();
+        context.translate(-layerOrigin.x(), -layerOrigin.y());
+        context.scale(FloatSize(m_scale, m_scale));
+
+        RepaintRectList dirtyRects = collectRectsToPaint(context.platformContext(), platformCALayer);
+        drawLayerContents(context.platformContext(), &m_controller.rootLayer(), dirtyRects);
+    }
+
+    int repaintCount = platformCALayerIncrementRepaintCount(platformCALayer);
+    if (m_controller.rootLayer().owner()->platformCALayerShowRepaintCounter(0))
+        drawRepaintIndicator(context.platformContext(), platformCALayer, repaintCount, cachedCGColor(m_controller.tileDebugBorderColor(), ColorSpaceDeviceRGB));
+
+    if (m_controller.scrollingPerformanceLoggingEnabled()) {
+        FloatRect visiblePart(platformCALayer->position().x(), platformCALayer->position().y(), platformCALayer->bounds().size().width(), platformCALayer->bounds().size().height());
+        visiblePart.intersect(m_controller.visibleRect());
+
+        if (repaintCount == 1 && !visiblePart.isEmpty())
+            WTFLogAlways("SCROLLING: Filled visible fresh tile. Time: %f Unfilled Pixels: %u\n", WTF::monotonicallyIncreasingTime(), blankPixelCount());
+    }
+}
+
+float TileGrid::platformCALayerDeviceScaleFactor() const
+{
+    return m_controller.rootLayer().owner()->platformCALayerDeviceScaleFactor();
+}
+
+bool TileGrid::platformCALayerShowDebugBorders() const
+{
+    return m_controller.rootLayer().owner()->platformCALayerShowDebugBorders();
+}
+
+bool TileGrid::platformCALayerShowRepaintCounter(PlatformCALayer*) const
+{
+    return m_controller.rootLayer().owner()->platformCALayerShowRepaintCounter(0);
+}
+
+bool TileGrid::platformCALayerContentsOpaque() const
+{
+    return m_controller.tilesAreOpaque();
+}
+
+int TileGrid::platformCALayerIncrementRepaintCount(PlatformCALayer* platformCALayer)
+{
+    int repaintCount = 0;
+
+    if (m_tileRepaintCounts.contains(platformCALayer))
+        repaintCount = m_tileRepaintCounts.get(platformCALayer);
+
+    m_tileRepaintCounts.set(platformCALayer, ++repaintCount);
+
+    return repaintCount;
 }
 
 #if PLATFORM(IOS)

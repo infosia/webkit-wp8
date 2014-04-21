@@ -135,19 +135,15 @@ public:
     void stroke();
     void clip(const String& winding = "nonzero");
 
-#if ENABLE(CANVAS_PATH)
     void fill(DOMPath*, const String& winding = "nonzero");
     void stroke(DOMPath*);
     void clip(DOMPath*, const String& winding = "nonzero");
-#endif
 
     bool isPointInPath(const float x, const float y, const String& winding = "nonzero");
     bool isPointInStroke(const float x, const float y);
 
-#if ENABLE(CANVAS_PATH)
     bool isPointInPath(DOMPath*, const float x, const float y, const String& winding = "nonzero");
     bool isPointInStroke(DOMPath*, const float x, const float y);
-#endif
 
     void clearRect(float x, float y, float width, float height);
     void fillRect(float x, float y, float width, float height);
@@ -304,6 +300,9 @@ private:
     void clearPathForDashboardBackwardCompatibilityMode();
 #endif
 
+    void beginCompositeLayer();
+    void endCompositeLayer();
+
     void fillInternal(const Path&, const String& winding);
     void strokeInternal(const Path&);
     void clipInternal(const Path&, const String& winding);
@@ -322,7 +321,6 @@ private:
 
     void inflateStrokeRect(FloatRect&) const;
 
-    template<class T> void fullCanvasCompositedFill(const T&);
     template<class T> void fullCanvasCompositedDrawImage(T*, ColorSpace, const FloatRect&, const FloatRect&, CompositeOperator);
 
     void prepareGradientForDashboard(CanvasGradient* gradient) const;

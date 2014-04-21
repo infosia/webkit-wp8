@@ -78,7 +78,6 @@
 #import <WebCore/ColorMac.h>
 #import <WebCore/DragController.h>
 #import <WebCore/DragData.h>
-#import <WebCore/DragSession.h>
 #import <WebCore/FloatRect.h>
 #import <WebCore/Image.h>
 #import <WebCore/IntRect.h>
@@ -1116,6 +1115,7 @@ static NSToolbarItem *toolbarItem(id <NSValidatedUserInterfaceItem> item)
                     _data->_page->handleMouseEvent(webEvent); \
                 } \
             }]; \
+            return; \
         } \
         NativeWebMouseEvent webEvent(theEvent, self); \
         _data->_page->handleMouseEvent(webEvent); \
@@ -1347,10 +1347,6 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
         completionHandler(NO, commands);
         return;
     }
-
-    // FIXME: Remove the special case for NSFlagsChanged once <rdar://16393434> is fixed.
-    if ([event type] == NSFlagsChanged)
-        return;
 
     LOG(TextInput, "-> handleEventByInputMethod:%p %@", event, event);
     [[self inputContext] handleEventByInputMethod:event completionHandler:^(BOOL handled) {
@@ -2240,7 +2236,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
 
-    _data->_page->resetDragOperation();
+    _data->_page->resetCurrentDragInformation();
     _data->_page->dragEntered(dragData, [[draggingInfo draggingPasteboard] name]);
     return NSDragOperationCopy;
 }
@@ -2252,10 +2248,9 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
     _data->_page->dragUpdated(dragData, [[draggingInfo draggingPasteboard] name]);
     
-    WebCore::DragSession dragSession = _data->_page->dragSession();
-    NSInteger numberOfValidItemsForDrop = dragSession.numberOfItemsToBeAccepted;
+    NSInteger numberOfValidItemsForDrop = _data->_page->currentDragNumberOfFilesToBeAccepted();
     NSDraggingFormation draggingFormation = NSDraggingFormationNone;
-    if (dragSession.mouseIsOverFileInput && numberOfValidItemsForDrop > 0)
+    if (_data->_page->currentDragIsOverFileInput() && numberOfValidItemsForDrop > 0)
         draggingFormation = NSDraggingFormationList;
 
     if ([draggingInfo numberOfValidItemsForDrop] != numberOfValidItemsForDrop)
@@ -2263,7 +2258,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     if ([draggingInfo draggingFormation] != draggingFormation)
         [draggingInfo setDraggingFormation:draggingFormation];
 
-    return dragSession.operation;
+    return _data->_page->currentDragOperation();
 }
 
 - (void)draggingExited:(id <NSDraggingInfo>)draggingInfo
@@ -2272,7 +2267,7 @@ static void extractUnderlines(NSAttributedString *string, Vector<CompositionUnde
     IntPoint global(globalPoint([draggingInfo draggingLocation], [self window]));
     DragData dragData(draggingInfo, client, global, static_cast<DragOperation>([draggingInfo draggingSourceOperationMask]), [self applicationFlags:draggingInfo]);
     _data->_page->dragExited(dragData, [[draggingInfo draggingPasteboard] name]);
-    _data->_page->resetDragOperation();
+    _data->_page->resetCurrentDragInformation();
 }
 
 - (BOOL)prepareForDragOperation:(id <NSDraggingInfo>)draggingInfo
@@ -2335,7 +2330,7 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
     SandboxExtension::HandleArray sandboxExtensionForUpload;
     createSandboxExtensionsForFileUpload([draggingInfo draggingPasteboard], sandboxExtensionForUpload);
 
-    _data->_page->performDrag(dragData, [[draggingInfo draggingPasteboard] name], sandboxExtensionHandle, sandboxExtensionForUpload);
+    _data->_page->performDragOperation(dragData, [[draggingInfo draggingPasteboard] name], sandboxExtensionHandle, sandboxExtensionForUpload);
 
     return YES;
 }
@@ -2778,13 +2773,6 @@ static void createSandboxExtensionsForFileUpload(NSPasteboard *pasteboard, Sandb
     _data->_needsViewFrameInWindowCoordinates = needsViewFrameInWindowCoordinates;
     if ([self window])
         [self _updateWindowAndViewFrames];
-}
-
-- (void)_setCursor:(NSCursor *)cursor
-{
-    if ([NSCursor currentCursor] == cursor)
-        return;
-    [cursor set];
 }
 
 - (void)_setUserInterfaceItemState:(NSString *)commandName enabled:(BOOL)isEnabled state:(int)newState
@@ -3874,13 +3862,13 @@ static NSString *pathWithUniqueFilenameForPath(NSString *path)
 
 - (void)setMagnification:(double)magnification centeredAtPoint:(NSPoint)point
 {
-    _data->_page->scalePage(magnification, roundedIntPoint(point));
+    _data->_page->scalePageInViewCoordinates(magnification, roundedIntPoint(point));
 }
 
 - (void)setMagnification:(double)magnification
 {
     FloatPoint viewCenter(NSMidX([self bounds]), NSMidY([self bounds]));
-    _data->_page->scalePage(magnification, roundedIntPoint(viewCenter));
+    _data->_page->scalePageInViewCoordinates(magnification, roundedIntPoint(viewCenter));
 }
 
 - (double)magnification

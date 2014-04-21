@@ -21,24 +21,24 @@ webkit.org/b/118301 fast/dom/timer-throttling-hidden-page.html [ Skip ]
 webkit.org/b/119094 fast/forms/color/input-color-onchange-event.html [ Crash Pass ]
 
 # This test will run slowly in debug mode, but is plenty fast in release.
-[ Debug ] js/regress/emscripten-memops.html [ Skip ]
+[ Debug ] js/slow-stress/emscripten-memops.html [ Skip ]
 
 # Skip tests for the old inspector UI that will be ported or removed soon.
 inspector-obsolete [ Skip ]
 
 webkit.org/b/112521 [ Release ] webaudio/javascriptaudionode.html [ Pass Failure ]
-webkit.org/b/112521 [ Debug ] webaudio/javascriptaudionode.html [ Pass Crash ]
-webkit.org/b/120148 [ Release ] webaudio/javascriptaudionode-upmix2-8channel-input.html [ Pass Failure ]
-webkit.org/b/120148 [ Debug ] webaudio/javascriptaudionode-upmix2-8channel-input.html [ Pass Crash ]
-webkit.org/b/120148 [ Release ] webaudio/javascriptaudionode-downmix8-2channel-input.html [ Pass Failure ]
-webkit.org/b/120148 [ Debug ] webaudio/javascriptaudionode-downmix8-2channel-input.html [ Pass Crash ]
+webkit.org/b/112521 [ Debug ] webaudio/javascriptaudionode.html [ Skip ]
+webkit.org/b/112521 [ Release ] webaudio/javascriptaudionode-upmix2-8channel-input.html [ Pass Failure ]
+webkit.org/b/112521 [ Debug ] webaudio/javascriptaudionode-upmix2-8channel-input.html [ Skip ]
+webkit.org/b/112521 [ Release ] webaudio/javascriptaudionode-downmix8-2channel-input.html [ Pass Failure ]
+webkit.org/b/112521 [ Debug ] webaudio/javascriptaudionode-downmix8-2channel-input.html [ Skip ]
+webkit.org/b/112521 [ Release ] webaudio/audioprocessingevent.html [ Pass Failure ]
+webkit.org/b/112521 [ Debug ] webaudio/audioprocessingevent.html [ Skip ]
 
 webkit.org/b/124342 fast/hidpi/image-srcset-svg-canvas.html [ ImageOnlyFailure ]
 webkit.org/b/124342 fast/hidpi/image-srcset-svg-canvas-2x.html [ ImageOnlyFailure ]
 webkit.org/b/124349 fast/hidpi/image-srcset-relative-svg-canvas-2x.html [ ImageOnlyFailure ]
 webkit.org/b/124349 fast/hidpi/image-srcset-relative-svg-canvas.html [ ImageOnlyFailure ]
-
-webaudio/javascriptaudionode-downmix8-2channel-input.html
 
 # The test frequently times out, and is just unsuccessful at detecting incorrect behavior when it passes.
 webkit.org/b/72698 media/audio-garbage-collect.html [ Skip ]
@@ -48,8 +48,6 @@ webkit.org/b/53990 fast/forms/search-event-delay.html [ Pass Failure ]
 # No port in WebKit already support getMediaStream, so we are skipping those for now.
 fast/mediastream/MediaStream-construct-with-ended-tracks.html [ Skip ]
 fast/mediastream/MediaStream-clone.html [ Skip ]
-
-webkit.org/b/126519 inspector/dom/highlight-shape-outside-margin.html [ Failure ]
 
 webkit.org/b/126142 css3/calc/transitions-dependent.html [ Pass Failure ]
 
@@ -90,10 +88,21 @@ webkit.org/b/129331 inspector-protocol/page/deny-X-FrameOption.html [ Pass Failu
 
 webkit.org/b/129639 inspector-protocol/dom/dom-search-crash.html [ Skip ]
 webkit.org/b/129642 inspector [ Skip ]
-webkit.org/b/129817 inspector/dom/content-flow-list.html [ Pass Failure ]
-webkit.org/b/129817 inspector/dom/content-flow-content-removal.html [ Pass Failure ]
+
+# These tests cause assertion failures in subsequent tests
+webkit.org/b/131919 inspector/dom [ Skip ]
+
+# Disabled the expectations because these tests are also skipped above.
+# webkit.org/b/129817 inspector/dom/content-flow-list.html [ Pass Failure ]
+# webkit.org/b/129817 inspector/dom/content-flow-content-removal.html [ Pass Failure ]
 
 # Collecting region's children in a named flow not supported yet
 webkit.org/b/74144 fast/regions/flow-body-in-html.html [ Skip ]
 webkit.org/b/74144 fast/regions/universal-selector-children-to-the-same-region.html [ Skip ]
 webkit.org/b/74144 fast/regions/region-content-flown-into-region.html [ Skip ]
+
+# Doesn't work yet, relies on network replay functionality (webkit.org/b/130728, webkit.org/b/129391)
+webkit.org/b/131318 http/tests/inspector/replay/document-last-modified-fallback-value.html [ Skip ]
+
+# Expando properties on attribute nodes disappear
+webkit.org/b/88045 fast/dom/gc-attribute-node.html [ Failure Pass ]

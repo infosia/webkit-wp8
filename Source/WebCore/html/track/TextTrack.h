@@ -94,6 +94,8 @@ public:
 
     virtual void setKind(const AtomicString&) override;
 
+    virtual AtomicString inBandMetadataTrackDispatchType() const { return emptyString(); }
+
     AtomicString mode() const { return m_mode; }
     virtual void setMode(const AtomicString&);
 
@@ -153,6 +155,8 @@ public:
 #if ENABLE(MEDIA_SOURCE)
     virtual void setLanguage(const AtomicString&) override;
 #endif
+
+    virtual bool isInband() const { return false; }
 
     using RefCounted<TrackBase>::ref;
     using RefCounted<TrackBase>::deref;

@@ -7,31 +7,38 @@
 var validShapeValues = [
     "none",
 
-    ["inset(10px)", "inset(10px 10px 10px 10px)", "inset(10px 10px 10px 10px round 0px 0px 0px 0px / 0px 0px 0px 0px)"],
-    ["inset(10px 9px)", "inset(10px 9px 10px 9px)", "inset(10px 9px 10px 9px round 0px 0px 0px 0px / 0px 0px 0px 0px)"],
-    ["inset(10px 9px 8px)", "inset(10px 9px 8px 9px)", "inset(10px 9px 8px 9px round 0px 0px 0px 0px / 0px 0px 0px 0px)"],
-    ["inset(10px 20px 30px 40px)", "inset(10px 20px 30px 40px)", "inset(10px 20px 30px 40px round 0px 0px 0px 0px / 0px 0px 0px 0px)"],
-    ["inset(10px round 9px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 9px 9px 9px 9px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 9px 9px 9px 9px)"],
-    ["inset(10px round 9px / 9px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 9px 9px 9px 9px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 9px 9px 9px 9px)"],
-    ["inset(10px round 9px / 8px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 8px 8px 8px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 8px 8px 8px)"],
-    ["inset(10px round 9px / 8px 7px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 8px 7px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 8px 7px)"],
-    ["inset(10px round 9px / 8px 7px 6px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 6px 7px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 6px 7px)"],
-    ["inset(10px round 9px / 8px 7px 6px 5px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 6px 5px)", "inset(10px 10px 10px 10px round 9px 9px 9px 9px / 8px 7px 6px 5px)"],
-    ["inset(10px round 9px 8px / 7px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 7px 7px 7px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 7px 7px 7px)"],
-    ["inset(10px round 9px 8px / 7px 6px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 7px 6px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 7px 6px)"],
-    ["inset(10px round 9px 8px / 7px 6px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 7px 6px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 7px 6px)"],
-    ["inset(10px round 9px 8px / 7px 6px 5px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 5px 6px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 5px 6px)"],
-    ["inset(10px round 9px 8px / 7px 6px 5px 4px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 5px 4px)", "inset(10px 10px 10px 10px round 9px 8px 9px 8px / 7px 6px 5px 4px)"],
-    ["inset(10px round 9px 8px 7px / 6px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 6px 6px 6px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 6px 6px 6px)"],
-    ["inset(10px round 9px 8px 7px / 6px 5px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 6px 5px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 6px 5px)"],
-    ["inset(10px round 9px 8px 7px / 6px 5px 4px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 4px 5px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 4px 5px)"],
-    ["inset(10px round 9px 8px 7px / 6px 5px 4px 3px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 4px 3px)", "inset(10px 10px 10px 10px round 9px 8px 7px 8px / 6px 5px 4px 3px)"],
-    ["inset(10px round 9px 8px 7px 6px / 5px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 5px 5px 5px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 5px 5px 5px)"],
-    ["inset(10px round 9px 8px 7px 6px / 5px 4px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 5px 4px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 5px 4px)"],
-    ["inset(10px round 9px 8px 7px 6px / 5px 4px 3px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 3px 4px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 3px 4px)"],
-    ["inset(10px round 9px 8px 7px 6px / 5px 4px 3px 2px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 3px 2px)", "inset(10px 10px 10px 10px round 9px 8px 7px 6px / 5px 4px 3px 2px)"],
-    ["inset(10px 20px 30px 40px round 5px 6px)", "inset(10px 20px 30px 40px round 5px 6px 5px 6px / 5px 6px 5px 6px)", "inset(10px 20px 30px 40px round 5px 6px 5px 6px / 5px 6px 5px 6px)"],
+    "inset(10px)",
+    "inset(10px 9px)",
+    "inset(10px 9px 8px)",
+    "inset(10px 20px 30px 40px)",
+    ["inset(10px 20px 30px 20px)", "inset(10px 20px 30px)"],
+    ["inset(10px 20px 10px 20px)", "inset(10px 20px)"],
+    "inset(10px round 9px)",
+    "inset(10px round 0px / 0px 10px)",
+    ["inset(10px round 9px / 9px)", "inset(10px round 9px)"],
+    "inset(10px round 9px / 8px)",
+    "inset(10px round 9px / 8px 7px)",
+    "inset(10px round 9px / 8px 7px 6px)",
+    "inset(10px round 9px / 8px 7px 6px 5px)",
+    "inset(10px round 9px 8px / 7px)",
+    "inset(10px round 9px 8px / 7px 6px)",
+    "inset(10px round 9px 8px / 7px 6px 5px)",
+    "inset(10px round 9px 8px / 7px 6px 5px 4px)",
+    "inset(10px round 9px 8px 7px / 6px)",
+    "inset(10px round 9px 8px 7px / 6px 5px)",
+    "inset(10px round 9px 8px 7px / 6px 5px 4px)",
+    "inset(10px round 9px 8px 7px / 6px 5px 4px 3px)",
+    "inset(10px round 9px 8px 7px 6px / 5px)",
+    "inset(10px round 9px 8px 7px 6px / 5px 4px)",
+    "inset(10px round 9px 8px 7px 6px / 5px 4px 3px)",
+    "inset(10px round 9px 8px 7px 6px / 5px 4px 3px 2px)",
+    ["inset(10px round 10px 20px 30px 20px)", "inset(10px round 10px 20px 30px)"],
+    ["inset(10px round 10px 20px 10px 20px)", "inset(10px round 10px 20px)"],
+    "inset(10px 20px 30px 40px round 5px 6px)",
     "inset(10px 20px 30px 40px round 5px 6px 7px 8px / 50px 60px 70px 80px)",
+    "inset(10px round 0px / 10px)",
+
+    ["inset(calc(25%*3 - 10in) 0 0 0)", "inset(calc(75% - 10in) 0px 0px)", "inset(calc(75% - 960px) 0px 0px)"],
 
     ["circle()", "circle(at 50% 50%)", "circle(closest-side at 50% 50%)"],
     ["circle(farthest-side)", "circle(farthest-side at 50% 50%)", "circle(farthest-side at 50% 50%)"],
@@ -71,6 +78,8 @@ var validShapeValues = [
     ["polygon(10px 20px, 30px 40px, 40px 50px)", "polygon(10px 20px, 30px 40px, 40px 50px)"],
     ["polygon(evenodd, 10px 20px, 30px 40px, 40px 50px)", "polygon(evenodd, 10px 20px, 30px 40px, 40px 50px)"],
     ["polygon(nonzero, 10px 20px, 30px 40px, 40px 50px)", "polygon(10px 20px, 30px 40px, 40px 50px)"],
+    ["polygon(10px calc(10in))", "polygon(10px calc(10in))", "polygon(10px 960px)"],
+    ["polygon(calc(10in) 10px)", "polygon(calc(10in) 10px)", "polygon(960px 10px)"],
 
     "content-box",
     "padding-box",
@@ -85,7 +94,10 @@ var validShapeValues = [
     ["content-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "content-box polygon(0px 0px, 10px 10px, 10px 0px)", "polygon(0px 0px, 10px 10px, 10px 0px) content-box"],
     ["padding-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "padding-box polygon(0px 0px, 10px 10px, 10px 0px)", "polygon(0px 0px, 10px 10px, 10px 0px) padding-box"],
     ["border-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "border-box polygon(0px 0px, 10px 10px, 10px 0px)", "polygon(0px 0px, 10px 10px, 10px 0px) border-box"],
-    ["margin-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "margin-box polygon(0px 0px, 10px 10px, 10px 0px)", "polygon(0px 0px, 10px 10px, 10px 0px) margin-box"]
+    ["margin-box polygon(nonzero, 0px 0px, 10px 10px, 10px 0px)", "margin-box polygon(0px 0px, 10px 10px, 10px 0px)", "polygon(0px 0px, 10px 10px, 10px 0px) margin-box"],
+
+    "linear-gradient(to right, red, blue)",
+    "radial-gradient(at 10px 20px, red 0%, blue 50%, green 95%)"
 ];
 
 // Invalid values for shape-outside. When an invalid shape value is specified, the
@@ -161,14 +173,14 @@ var validShapeLengths = [
     "3.5mm",
     "4pt",
     "4.5pc",
-    "5px"
+    "5px",
+    "120%"
 ];
 
 // Invalid length values for shape-margin and shape-padding.
 var invalidShapeLengths = [
     "-5px",
     "none",
-    "120%",
     "\'string\'"
 ];
 

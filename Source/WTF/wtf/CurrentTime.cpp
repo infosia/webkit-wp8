@@ -37,6 +37,7 @@
 #if OS(DARWIN)
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+#include <mutex>
 #include <sys/time.h>
 #elif OS(WINDOWS)
 
@@ -106,7 +107,11 @@ static double highResUpTime()
 
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
+#if defined(_M_IX86) || defined(__i386__)
     DWORD tickCount = GetTickCount();
+#else
+    ULONGLONG tickCount = GetTickCount64();
+#endif
 
     if (inited) {
         __int64 qpcElapsed = ((qpc.QuadPart - qpcLast.QuadPart) * 1000) / qpcFrequency.QuadPart;
@@ -267,12 +272,15 @@ double monotonicallyIncreasingTime()
 
 double monotonicallyIncreasingTime()
 {
-    // Based on listing #2 from Apple QA 1398.
+    // Based on listing #2 from Apple QA 1398, but modified to be thread-safe.
     static mach_timebase_info_data_t timebaseInfo;
-    if (!timebaseInfo.denom) {
+    static std::once_flag initializeTimerOnceFlag;
+    std::call_once(initializeTimerOnceFlag, [] {
         kern_return_t kr = mach_timebase_info(&timebaseInfo);
         ASSERT_UNUSED(kr, kr == KERN_SUCCESS);
-    }
+        ASSERT(timebaseInfo.denom);
+    });
+
     return (mach_absolute_time() * timebaseInfo.numer) / (1.0e9 * timebaseInfo.denom);
 }
 

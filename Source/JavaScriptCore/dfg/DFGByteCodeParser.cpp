@@ -1486,7 +1486,7 @@ bool ByteCodeParser::handleInlining(Node* callTargetNode, int resultOperand, con
     
 
     // Need to create a new basic block for the continuation at the caller.
-    RefPtr<BasicBlock> block = adoptRef(new BasicBlock(nextOffset, m_numArguments, m_numLocals, QNaN));
+    RefPtr<BasicBlock> block = adoptRef(new BasicBlock(nextOffset, m_numArguments, m_numLocals, PNaN));
 
     // Link the early returns to the basic block we're about to create.
     for (size_t i = 0; i < inlineStackEntry.m_unlinkedBlocks.size(); ++i) {
@@ -1706,8 +1706,28 @@ bool ByteCodeParser::handleIntrinsic(int resultOperand, Intrinsic intrinsic, int
         return true;
     }
         
-    case DFGTrue: {
+    case FRoundIntrinsic: {
+        if (argumentCountIncludingThis != 2)
+            return false;
+        VirtualRegister operand = virtualRegisterForArgument(1, registerOffset);
+        set(VirtualRegister(resultOperand), addToGraph(ArithFRound, get(operand)));
+        return true;
+    }
+        
+    case DFGTrueIntrinsic: {
         set(VirtualRegister(resultOperand), getJSConstantForValue(jsBoolean(true)));
+        return true;
+    }
+        
+    case OSRExitIntrinsic: {
+        addToGraph(ForceOSRExit);
+        set(VirtualRegister(resultOperand), constantUndefined());
+        return true;
+    }
+        
+    case IsFinalTierIntrinsic: {
+        set(VirtualRegister(resultOperand),
+            getJSConstantForValue(jsBoolean(Options::useFTLJIT() ? isFTL(m_graph.m_plan.mode) : true)));
         return true;
     }
         
@@ -1877,7 +1897,6 @@ Node* ByteCodeParser::emitPrototypeChecks(
         currentStructure = chain->at(i);
         base = cellConstantWithStructureCheck(currentObject, currentStructure);
     }
-    RELEASE_ASSERT(base);
     return base;
 }
 
@@ -1894,7 +1913,7 @@ void ByteCodeParser::handleGetById(
     }
     
     if (getByIdStatus.numVariants() > 1) {
-        if (!isFTL(m_graph.m_plan.mode)) {
+        if (!isFTL(m_graph.m_plan.mode) || !Options::enablePolymorphicAccessInlining()) {
             set(VirtualRegister(destinationOperand),
                 addToGraph(GetById, OpInfo(identifierNumber), OpInfo(prediction), base));
             return;
@@ -1979,7 +1998,8 @@ void ByteCodeParser::handlePutById(
     }
     
     if (putByIdStatus.numVariants() > 1) {
-        if (!isFTL(m_graph.m_plan.mode) || putByIdStatus.makesCalls()) {
+        if (!isFTL(m_graph.m_plan.mode) || putByIdStatus.makesCalls()
+            || !Options::enablePolymorphicAccessInlining()) {
             emitPutById(base, identifierNumber, value, putByIdStatus, isDirect);
             return;
         }
@@ -3254,8 +3274,9 @@ bool ByteCodeParser::parseBlock(unsigned limit)
         }
 
         case op_to_number: {
-            set(VirtualRegister(currentInstruction[1].u.operand),
-                addToGraph(Identity, Edge(get(VirtualRegister(currentInstruction[2].u.operand)), NumberUse)));
+            Node* node = get(VirtualRegister(currentInstruction[2].u.operand));
+            addToGraph(Phantom, Edge(node, NumberUse));
+            set(VirtualRegister(currentInstruction[1].u.operand), node);
             NEXT_OPCODE(op_to_number);
         }
             
@@ -3390,7 +3411,7 @@ ByteCodeParser::InlineStackEntry::InlineStackEntry(
         ASSERT(inlineCallFrameStart.isValid());
         ASSERT(callsiteBlockHead);
         
-        m_inlineCallFrame = byteCodeParser->m_graph.m_inlineCallFrames->add();
+        m_inlineCallFrame = byteCodeParser->m_graph.m_plan.inlineCallFrames->add();
         initializeLazyWriteBarrierForInlineCallFrameExecutable(
             byteCodeParser->m_graph.m_plan.writeBarriers,
             m_inlineCallFrame->executable,
@@ -3568,7 +3589,7 @@ void ByteCodeParser::parseCodeBlock()
                     m_currentBlock = m_graph.lastBlock();
                     m_currentBlock->bytecodeBegin = m_currentIndex;
                 } else {
-                    RefPtr<BasicBlock> block = adoptRef(new BasicBlock(m_currentIndex, m_numArguments, m_numLocals, QNaN));
+                    RefPtr<BasicBlock> block = adoptRef(new BasicBlock(m_currentIndex, m_numArguments, m_numLocals, PNaN));
                     m_currentBlock = block.get();
                     // This assertion checks two things:
                     // 1) If the bytecodeBegin is greater than currentIndex, then something has gone
@@ -3619,7 +3640,8 @@ bool ByteCodeParser::parse()
         dataLog("Parsing ", *m_codeBlock, "\n");
     
     m_dfgCodeBlock = m_graph.m_plan.profiledDFGCodeBlock.get();
-    if (isFTL(m_graph.m_plan.mode) && m_dfgCodeBlock) {
+    if (isFTL(m_graph.m_plan.mode) && m_dfgCodeBlock
+        && Options::enablePolyvariantDevirtualization()) {
         if (Options::enablePolyvariantCallInlining())
             CallLinkStatus::computeDFGStatuses(m_dfgCodeBlock, m_callContextMap);
         if (Options::enablePolyvariantByIdInlining())

@@ -93,6 +93,8 @@ public:
     virtual bool canScrollView() = 0;
     // Tell the view to scroll scrollRect by scrollOffset.
     virtual void scrollView(const WebCore::IntRect& scrollRect, const WebCore::IntSize& scrollOffset) = 0;
+    // Tell the view to scroll to the given position, and whether this was a programmatic scroll.
+    virtual void requestScroll(const WebCore::FloatPoint& scrollPosition, bool isProgrammaticScroll) = 0;
 
     // Return the size of the view the page is associated with.
     virtual WebCore::IntSize viewSize() = 0;
@@ -239,8 +241,9 @@ public:
     virtual void didGetTapHighlightGeometries(uint64_t requestID, const WebCore::Color&, const Vector<WebCore::FloatQuad>& highlightedQuads, const WebCore::IntSize& topLeftRadius, const WebCore::IntSize& topRightRadius, const WebCore::IntSize& bottomLeftRadius, const WebCore::IntSize& bottomRightRadius) = 0;
 
     virtual void didCommitLayerTree(const RemoteLayerTreeTransaction&) = 0;
+    virtual void dynamicViewportUpdateChangedTarget(double newScale, const WebCore::FloatPoint& newScrollPosition) = 0;
 
-    virtual void startAssistingNode(const AssistedNodeInformation&) = 0;
+    virtual void startAssistingNode(const AssistedNodeInformation&, API::Object* userData) = 0;
     virtual void stopAssistingNode() = 0;
     virtual void selectionDidChange() = 0;
     virtual bool interpretKeyEvent(const NativeWebKeyboardEvent&, bool isCharEvent) = 0;
@@ -248,6 +251,7 @@ public:
     virtual void saveImageToLibrary(PassRefPtr<WebCore::SharedBuffer>) = 0;
     virtual void didUpdateBlockSelectionWithTouch(uint32_t touch, uint32_t flags, float growThreshold, float shrinkThreshold) = 0;
     virtual void showPlaybackTargetPicker(bool hasVideo, const WebCore::IntRect& elementRect) = 0;
+    virtual void zoomToRect(WebCore::FloatRect, double minimumScale, double maximumScale) = 0;
 
 #if ENABLE(INSPECTOR)
     virtual void showInspectorIndication() = 0;

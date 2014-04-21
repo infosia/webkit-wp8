@@ -42,7 +42,7 @@
 #import "WebUIDelegate.h"
 #import "WebUIDelegatePrivate.h"
 #import "WebViewInternal.h"
-#import <WebCore/Clipboard.h>
+#import <WebCore/DataTransfer.h>
 #import <WebCore/DragData.h>
 #import <WebCore/Editor.h>
 #import <WebCore/EditorClient.h>
@@ -84,12 +84,12 @@ WebCore::DragSourceAction WebDragClient::dragSourceActionMaskForPoint(const IntP
     return (DragSourceAction)[[m_webView _UIDelegateForwarder] webView:m_webView dragSourceActionMaskForPoint:viewPoint];
 }
 
-void WebDragClient::willPerformDragSourceAction(WebCore::DragSourceAction action, const WebCore::IntPoint& mouseDownPoint, WebCore::Clipboard& clipboard)
+void WebDragClient::willPerformDragSourceAction(WebCore::DragSourceAction action, const WebCore::IntPoint& mouseDownPoint, WebCore::DataTransfer& dataTransfer)
 {
-    [[m_webView _UIDelegateForwarder] webView:m_webView willPerformDragSourceAction:(WebDragSourceAction)action fromPoint:mouseDownPoint withPasteboard:[NSPasteboard pasteboardWithName:clipboard.pasteboard().name()]];
+    [[m_webView _UIDelegateForwarder] webView:m_webView willPerformDragSourceAction:(WebDragSourceAction)action fromPoint:mouseDownPoint withPasteboard:[NSPasteboard pasteboardWithName:dataTransfer.pasteboard().name()]];
 }
 
-void WebDragClient::startDrag(DragImageRef dragImage, const IntPoint& at, const IntPoint& eventPos, Clipboard& clipboard, Frame& frame, bool linkDrag)
+void WebDragClient::startDrag(DragImageRef dragImage, const IntPoint& at, const IntPoint& eventPos, DataTransfer& dataTransfer, Frame& frame, bool linkDrag)
 {
     RetainPtr<WebHTMLView> htmlView = (WebHTMLView*)[[kit(&frame) frameView] documentView];
     if (![htmlView.get() isKindOfClass:[WebHTMLView class]])
@@ -100,10 +100,14 @@ void WebDragClient::startDrag(DragImageRef dragImage, const IntPoint& at, const 
     RetainPtr<WebHTMLView> topViewProtector = topHTMLView;
     
     [topHTMLView _stopAutoscrollTimer];
-    NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:clipboard.pasteboard().name()];
+    NSPasteboard *pasteboard = [NSPasteboard pasteboardWithName:dataTransfer.pasteboard().name()];
 
     NSImage *dragNSImage = dragImage.get();
     WebHTMLView *sourceHTMLView = htmlView.get();
+
+    IntSize size([dragNSImage size]);
+    size.scale(1 / frame.page()->deviceScaleFactor());
+    [dragNSImage setSize:size];
 
     id delegate = [m_webView UIDelegate];
     SEL selector = @selector(webView:dragImage:at:offset:event:pasteboard:source:slideBack:forView:);

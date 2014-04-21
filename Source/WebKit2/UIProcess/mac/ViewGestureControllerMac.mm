@@ -26,7 +26,7 @@
 #import "config.h"
 #import "ViewGestureController.h"
 
-#if !PLATFORM(IOS)
+#if PLATFORM(MAC)
 
 #import "NativeWebWheelEvent.h"
 #import "WebPageGroup.h"
@@ -73,8 +73,24 @@ static const float smartMagnificationPanScrollThreshold = 100;
 static const double swipeOverlayShadowOpacity = 0.66;
 static const double swipeOverlayShadowRadius = 3;
 
+static const CGFloat minimumHorizontalSwipeDistance = 15;
+static const float minimumScrollEventRatioForSwipe = 0.5;
+
 static const float swipeSnapshotRemovalRenderTreeSizeTargetFraction = 0.5;
 static const std::chrono::seconds swipeSnapshotRemovalWatchdogDuration = 3_s;
+
+@interface WKSwipeCancellationTracker : NSObject {
+@private
+    BOOL _isCancelled;
+}
+
+@property (nonatomic) BOOL isCancelled;
+
+@end
+
+@implementation WKSwipeCancellationTracker
+@synthesize isCancelled=_isCancelled;
+@end
 
 namespace WebKit {
 
@@ -86,14 +102,16 @@ ViewGestureController::ViewGestureController(WebPageProxy& webPageProxy)
     , m_visibleContentRectIsValid(false)
     , m_frameHandlesMagnificationGesture(false)
     , m_swipeTransitionStyle(SwipeTransitionStyle::Overlap)
-    
-    , m_hasPendingSwipe(false)
+    , m_pendingSwipeReason(PendingSwipeReason::None)
 {
     m_webPageProxy.process().addMessageReceiver(Messages::ViewGestureController::messageReceiverName(), m_webPageProxy.pageID(), *this);
 }
 
 ViewGestureController::~ViewGestureController()
 {
+    if (m_swipeCancellationTracker)
+        [m_swipeCancellationTracker setIsCancelled:YES];
+
     m_webPageProxy.process().removeMessageReceiver(Messages::ViewGestureController::messageReceiverName(), m_webPageProxy.pageID());
 }
 
@@ -197,6 +215,11 @@ void ViewGestureController::didCollectGeometryForSmartMagnificationGesture(Float
     double currentScaleFactor = m_webPageProxy.pageScaleFactor();
 
     FloatRect unscaledTargetRect = renderRect;
+
+    // If there was no usable element under the cursor, we'll scale towards the cursor instead.
+    if (unscaledTargetRect.isEmpty())
+        unscaledTargetRect.setLocation(origin);
+
     unscaledTargetRect.scale(1 / currentScaleFactor);
     unscaledTargetRect.inflateX(unscaledTargetRect.width() * smartMagnificationElementPadding);
     unscaledTargetRect.inflateY(unscaledTargetRect.height() * smartMagnificationElementPadding);
@@ -258,9 +281,40 @@ static bool scrollEventCanBecomeSwipe(NSEvent *event, WebPageProxy& webPageProxy
     return true;
 }
 
+bool ViewGestureController::deltaIsSufficientToBeginSwipe(NSEvent *event)
+{
+    if (m_pendingSwipeReason != PendingSwipeReason::InsufficientMagnitude)
+        return false;
+
+    m_cumulativeDeltaForPendingSwipe += FloatSize(event.scrollingDeltaX, event.scrollingDeltaY);
+
+    // If the cumulative delta is ever "too vertical", we will stop tracking this
+    // as a potential swipe until we get another "begin" event.
+    if (fabs(m_cumulativeDeltaForPendingSwipe.height()) >= fabs(m_cumulativeDeltaForPendingSwipe.width()) * minimumScrollEventRatioForSwipe) {
+        m_pendingSwipeReason = PendingSwipeReason::None;
+        return false;
+    }
+
+    if (fabs(m_cumulativeDeltaForPendingSwipe.width()) < minimumHorizontalSwipeDistance)
+        return false;
+
+    return true;
+}
+
 bool ViewGestureController::handleScrollWheelEvent(NSEvent *event)
 {
-    m_hasPendingSwipe = false;
+    if (event.phase == NSEventPhaseEnded) {
+        m_cumulativeDeltaForPendingSwipe = FloatSize();
+        m_pendingSwipeReason = PendingSwipeReason::None;
+    }
+
+    if (m_pendingSwipeReason == PendingSwipeReason::InsufficientMagnitude) {
+        if (deltaIsSufficientToBeginSwipe(event)) {
+            m_pendingSwipeReason = PendingSwipeReason::None;
+            trackSwipeGesture(event, m_pendingSwipeDirection);
+            return true;
+        }
+    }
 
     if (m_activeGestureType != ViewGestureType::None)
         return false;
@@ -270,9 +324,15 @@ bool ViewGestureController::handleScrollWheelEvent(NSEvent *event)
         return false;
 
     if (m_webPageProxy.willHandleHorizontalScrollEvents()) {
-        m_hasPendingSwipe = true;
+        m_pendingSwipeReason = PendingSwipeReason::WebCoreMayScroll;
         m_pendingSwipeDirection = direction;
         return false;
+    }
+
+    m_pendingSwipeReason = PendingSwipeReason::InsufficientMagnitude;
+    if (!deltaIsSufficientToBeginSwipe(event)) {
+        m_pendingSwipeDirection = direction;
+        return true;
     }
 
     trackSwipeGesture(event, direction);
@@ -282,14 +342,19 @@ bool ViewGestureController::handleScrollWheelEvent(NSEvent *event)
 
 void ViewGestureController::wheelEventWasNotHandledByWebCore(NSEvent *event)
 {
-    if (!m_hasPendingSwipe)
+    if (m_pendingSwipeReason != PendingSwipeReason::WebCoreMayScroll)
         return;
 
-    m_hasPendingSwipe = false;
+    m_pendingSwipeReason = PendingSwipeReason::None;
 
     SwipeDirection direction;
     if (!scrollEventCanBecomeSwipe(event, m_webPageProxy, direction))
         return;
+
+    if (!deltaIsSufficientToBeginSwipe(event)) {
+        m_pendingSwipeReason = PendingSwipeReason::InsufficientMagnitude;
+        return;
+    }
 
     trackSwipeGesture(event, m_pendingSwipeDirection);
 }
@@ -303,7 +368,15 @@ void ViewGestureController::trackSwipeGesture(NSEvent *event, SwipeDirection dir
     RefPtr<WebBackForwardListItem> targetItem = (direction == SwipeDirection::Left) ? m_webPageProxy.backForwardList().backItem() : m_webPageProxy.backForwardList().forwardItem();
     __block bool swipeCancelled = false;
 
+    ASSERT(!m_swipeCancellationTracker);
+    RetainPtr<WKSwipeCancellationTracker> swipeCancellationTracker = adoptNS([[WKSwipeCancellationTracker alloc] init]);
+    m_swipeCancellationTracker = swipeCancellationTracker;
+
     [event trackSwipeEventWithOptions:0 dampenAmountThresholdMin:minProgress max:maxProgress usingHandler:^(CGFloat progress, NSEventPhase phase, BOOL isComplete, BOOL *stop) {
+        if ([swipeCancellationTracker isCancelled]) {
+            *stop = YES;
+            return;
+        }
         if (phase == NSEventPhaseBegan)
             this->beginSwipeGesture(targetItem.get(), direction);
         CGFloat clampedProgress = std::min(std::max(progress, minProgress), maxProgress);
@@ -362,7 +435,7 @@ void ViewGestureController::beginSwipeGesture(WebBackForwardListItem* targetItem
 
     RefPtr<IOSurface> snapshot = ViewSnapshotStore::shared().snapshotAndRenderTreeSize(targetItem).first;
 
-    if (snapshot && snapshot->setIsPurgeable(false) == IOSurface::SurfaceState::Valid) {
+    if (snapshot && snapshot->setIsVolatile(false) == IOSurface::SurfaceState::Valid) {
         m_currentSwipeSnapshotSurface = snapshot;
         [m_swipeSnapshotLayer setContents:(id)snapshot->surface()];
     }
@@ -438,6 +511,9 @@ void ViewGestureController::handleSwipeGesture(WebBackForwardListItem* targetIte
 {
     ASSERT(m_activeGestureType == ViewGestureType::Swipe);
 
+    if (!m_webPageProxy.drawingArea())
+        return;
+
     double width;
     if (!m_customSwipeViews.isEmpty())
         width = m_currentSwipeCustomViewBounds.width();
@@ -464,6 +540,8 @@ void ViewGestureController::handleSwipeGesture(WebBackForwardListItem* targetIte
 void ViewGestureController::endSwipeGesture(WebBackForwardListItem* targetItem, bool cancelled)
 {
     ASSERT(m_activeGestureType == ViewGestureType::Swipe);
+
+    m_swipeCancellationTracker = nullptr;
 
     CALayer *rootLayer = m_webPageProxy.acceleratedCompositingRootLayer();
 
@@ -511,7 +589,7 @@ void ViewGestureController::removeSwipeSnapshot()
         return;
 
     if (m_currentSwipeSnapshotSurface)
-        m_currentSwipeSnapshotSurface->setIsPurgeable(true);
+        m_currentSwipeSnapshotSurface->setIsVolatile(true);
     m_currentSwipeSnapshotSurface = nullptr;
 
     for (const auto& layer : m_currentSwipeLiveLayers)

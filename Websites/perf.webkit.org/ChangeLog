@@ -1,3 +1,54 @@
+2014-04-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Build fix after r166479. 'bytes' is now abbreviated as 'B'.
+
+        * public/js/helper-classes.js:
+        (PerfTestRuns.smallerIsBetter):
+
+2014-04-08  Ryosuke Niwa  <rniwa@webkit.org>
+
+        Some CSS teaks.
+
+        * public/common.css:
+        (#title):
+        * public/index.html:
+        (#charts .pane):
+        (#charts .arrow):
+
+2014-04-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        WebKitPerfMonitor: There should be a way to add all metrics of a suite without also adding subtests
+        https://bugs.webkit.org/show_bug.cgi?id=131157
+
+        Reviewed by Andreas Kling.
+
+        Split "all metrics" into all metrics of a test suite and all subtests of the suite.
+        This allows, for example, adding all metrics such as Arithmetic and Geometric for
+        a given test suite without also adding its subtests.
+
+        * public/index.html:
+        (init.showCharts):
+        (init):
+
+2014-04-03  Ryosuke Niwa  <rniwa@webkit.org>
+
+        WebKitPerfMonitor: Tooltips cannot be pinned after using browser's back button
+        https://bugs.webkit.org/show_bug.cgi?id=131155
+
+        Reviewed by Andreas Kling.
+
+        The bug was caused by Chart.attach binding event listeners on plot container on each call.
+        This resulted in the click event handler toggling the visiblity of the tooltip twice upon
+        click when attach() has been called even number of times, keeping the tooltip invisible.
+
+        Fixed the bug by extracting the code to bind event listeners outside of Chart.attach as
+        a separate function, bindPlotEventHandlers, and calling it exactly once when Chart.attach
+        is called for the first time.
+
+        * public/index.html:
+        (Chart.attach):
+        (Chart..bindPlotEventHandlers):
+
 2014-04-03  Ryosuke Niwa  <rniwa@webkit.org>
 
         WebKitPerfMonitor: Tooltips can be cut off at the top

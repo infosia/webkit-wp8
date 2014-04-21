@@ -704,11 +704,6 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle* other, unsigned&) con
         return true;
 
 #if ENABLE(CSS_SHAPES)
-    // FIXME: The current spec is being reworked to remove dependencies between exclusions and affected 
-    // content. There's a proposal to use floats instead. In that case, wrap-shape should actually relayout 
-    // the parent container. For sure, I will have to revisit this code, but for now I've added this in order 
-    // to avoid having diff() == StyleDifferenceEqual where wrap-shapes actually differ.
-    // Tracking bug: https://bugs.webkit.org/show_bug.cgi?id=62991
     if (rareNonInheritedData->m_shapeOutside != other->rareNonInheritedData->m_shapeOutside)
         return true;
 #endif
@@ -932,7 +927,7 @@ const String& RenderStyle::contentAltText() const
     return rareNonInheritedData->m_altText;
 }
 
-inline bool requireTransformOrigin(const Vector<RefPtr<TransformOperation>>& transformOperations, RenderStyle::ApplyTransformOrigin applyOrigin)
+static inline bool requireTransformOrigin(const Vector<RefPtr<TransformOperation>>& transformOperations, RenderStyle::ApplyTransformOrigin applyOrigin)
 {
     // transform-origin brackets the transform with translate operations.
     // Optimize for the case where the only transform is a translation, since the transform-origin is irrelevant
@@ -940,9 +935,8 @@ inline bool requireTransformOrigin(const Vector<RefPtr<TransformOperation>>& tra
     if (applyOrigin != RenderStyle::IncludeTransformOrigin)
         return false;
 
-    unsigned size = transformOperations.size();
-    for (unsigned i = 0; i < size; ++i) {
-        TransformOperation::OperationType type = transformOperations[i]->type();
+    for (auto& operation : transformOperations) {
+        TransformOperation::OperationType type = operation->type();
         if (type != TransformOperation::TRANSLATE_X
             && type != TransformOperation::TRANSLATE_Y
             && type != TransformOperation::TRANSLATE 
@@ -950,28 +944,27 @@ inline bool requireTransformOrigin(const Vector<RefPtr<TransformOperation>>& tra
             && type != TransformOperation::TRANSLATE_3D)
             return true;
     }
-    
+
     return false;
 }
 
 void RenderStyle::applyTransform(TransformationMatrix& transform, const FloatRect& boundingBox, ApplyTransformOrigin applyOrigin) const
 {
-    const Vector<RefPtr<TransformOperation>>& transformOperations = rareNonInheritedData->m_transform->m_operations.operations();
-    bool applyTransformOrigin = requireTransformOrigin(transformOperations, applyOrigin);
-    
-    float offsetX = transformOriginX().type() == Percent ? boundingBox.x() : 0;
-    float offsetY = transformOriginY().type() == Percent ? boundingBox.y() : 0;
-    
+    auto& operations = rareNonInheritedData->m_transform->m_operations.operations();
+    bool applyTransformOrigin = requireTransformOrigin(operations, applyOrigin);
+
+    float offsetX = transformOriginX().isPercentNotCalculated() ? boundingBox.x() : 0;
+    float offsetY = transformOriginY().isPercentNotCalculated() ? boundingBox.y() : 0;
+
     if (applyTransformOrigin) {
         transform.translate3d(floatValueForLength(transformOriginX(), boundingBox.width()) + offsetX,
                               floatValueForLength(transformOriginY(), boundingBox.height()) + offsetY,
                               transformOriginZ());
     }
-    
-    unsigned size = transformOperations.size();
-    for (unsigned i = 0; i < size; ++i)
-        transformOperations[i]->apply(transform, boundingBox.size());
-    
+
+    for (auto& operation : operations)
+        operation->apply(transform, boundingBox.size());
+
     if (applyTransformOrigin) {
         transform.translate3d(-floatValueForLength(transformOriginX(), boundingBox.width()) - offsetX,
                               -floatValueForLength(transformOriginY(), boundingBox.height()) - offsetY,
@@ -1348,18 +1341,18 @@ int RenderStyle::computedLineHeight(RenderView* renderView) const
     return lh.value();
 }
 
-void RenderStyle::setWordSpacing(Length v)
+void RenderStyle::setWordSpacing(Length value)
 {
     float fontWordSpacing;
-    switch (v.type()) {
+    switch (value.type()) {
     case Auto:
         fontWordSpacing = 0;
-        FALLTHROUGH;
+        break;
     case Percent:
-        fontWordSpacing = v.getFloatValue() * font().spaceWidth() / 100;
+        fontWordSpacing = value.percent() * font().spaceWidth() / 100;
         break;
     case Fixed:
-        fontWordSpacing = v.getFloatValue();
+        fontWordSpacing = value.value();
         break;
     default:
         ASSERT_NOT_REACHED();
@@ -1367,7 +1360,7 @@ void RenderStyle::setWordSpacing(Length v)
         break;
     }
     inherited.access()->font.setWordSpacing(fontWordSpacing);
-    rareInheritedData.access()->wordSpacing = std::move(v);
+    rareInheritedData.access()->wordSpacing = std::move(value);
 }
 
 void RenderStyle::setLetterSpacing(float v) { inherited.access()->font.setLetterSpacing(v); }
@@ -1772,7 +1765,9 @@ void RenderStyle::setColumnStylesFromPaginationMode(const Pagination::Mode& pagi
 {
     if (paginationMode == Pagination::Unpaginated)
         return;
-        
+    
+    setColumnFill(ColumnFillAuto);
+    
     switch (paginationMode) {
     case Pagination::LeftToRightPaginated:
         setColumnAxis(HorizontalColumnAxis);

@@ -44,7 +44,6 @@ public:
         // The None value is defined by a null ShapeValue*
         Shape,
         Box,
-        Outside,
         Image
     };
 
@@ -58,11 +57,6 @@ public:
         return adoptRef(new ShapeValue(boxShape));
     }
 
-    static PassRefPtr<ShapeValue> createOutsideValue()
-    {
-        return adoptRef(new ShapeValue(Outside));
-    }
-
     static PassRefPtr<ShapeValue> createImageValue(PassRefPtr<StyleImage> image)
     {
         return adoptRef(new ShapeValue(image));
@@ -73,7 +67,16 @@ public:
     CSSBoxType cssBox() const { return m_cssBox; }
 
     StyleImage* image() const { return m_image.get(); }
-    bool isImageValid() const { return image() && image()->cachedImage() && image()->cachedImage()->hasImage(); }
+
+    bool isImageValid() const
+    {
+        if (!image())
+            return false;
+        if (image()->isCachedImage() || image()->isCachedImageSet())
+            return image()->cachedImage() && image()->cachedImage()->hasImage();
+        return image()->isGeneratedImage();
+    }
+
     void setImage(PassRefPtr<StyleImage> image)
     {
         ASSERT(type() == Image);

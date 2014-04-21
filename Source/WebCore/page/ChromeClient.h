@@ -176,7 +176,9 @@ public:
 #endif
     // End methods used by HostWindow.
 
-    virtual FloatSize viewportScreenSize() const { return const_cast<ChromeClient*>(this)->windowRect().size(); }
+    virtual FloatSize screenSize() const { return const_cast<ChromeClient*>(this)->windowRect().size(); }
+    virtual FloatSize availableScreenSize() const { return const_cast<ChromeClient*>(this)->windowRect().size(); }
+
     virtual void dispatchViewportPropertiesDidChange(const ViewportArguments&) const { }
 
     virtual void contentsSizeChanged(Frame*, const IntSize&) const = 0;
@@ -290,6 +292,8 @@ public:
     // Returns whether or not the client can render the composited layer,
     // regardless of the settings.
     virtual bool allowsAcceleratedCompositing() const { return true; }
+    // Supply a layer that will added as an overlay over other document layers (scrolling with the document).
+    virtual GraphicsLayer* documentOverlayLayerForFrame(Frame&) { return nullptr; }
 
     enum CompositingTrigger {
         ThreeDTransformTrigger = 1 << 0,

@@ -95,6 +95,7 @@
 
 #if ENABLE(WEB_REPLAY)
 #include "ReplayController.h"
+#include <replay/InputCursor.h>
 #endif
 
 namespace WebCore {
@@ -158,9 +159,12 @@ Page::Page(PageClients& pageClients)
     , m_areMemoryCacheClientCallsEnabled(true)
     , m_mediaVolume(1)
     , m_pageScaleFactor(1)
+    , m_zoomedOutPageScaleFactor(0)
     , m_deviceScaleFactor(1)
     , m_topContentInset(0)
     , m_suppressScrollbarAnimations(false)
+    , m_verticalScrollElasticity(ScrollElasticityAllowed)
+    , m_horizontalScrollElasticity(ScrollElasticityAllowed)
     , m_didLoadUserStyleSheet(false)
     , m_userStyleSheetModificationTime(0)
     , m_group(0)
@@ -184,7 +188,6 @@ Page::Page(PageClients& pageClients)
 #endif
     , m_alternativeTextClient(pageClients.alternativeTextClient)
     , m_scriptedAnimationsSuspended(false)
-    , m_pageThrottler(*this, PageInitialViewState)
     , m_console(std::make_unique<PageConsole>(*this))
 #if ENABLE(REMOTE_INSPECTOR)
     , m_inspectorDebuggable(std::make_unique<PageDebuggable>(*this))
@@ -195,7 +198,9 @@ Page::Page(PageClients& pageClients)
     , m_sessionID(SessionID::defaultSessionID())
 {
     ASSERT(m_editorClient);
-
+    
+    setTimerThrottlingEnabled(m_viewState & ViewState::IsVisuallyIdle);
+    
     if (m_visitedLinkStore)
         m_visitedLinkStore->addPage(*this);
 
@@ -690,6 +695,15 @@ void Page::setMediaVolume(float volume)
     }
 }
 
+void Page::setZoomedOutPageScaleFactor(float scale)
+{
+    if (m_zoomedOutPageScaleFactor == scale)
+        return;
+    m_zoomedOutPageScaleFactor = scale;
+
+    mainFrame().deviceOrPageScaleFactorChanged();
+}
+
 void Page::setPageScaleFactor(float scale, const IntPoint& origin)
 {
     Document* document = mainFrame().document();
@@ -730,6 +744,11 @@ void Page::setPageScaleFactor(float scale, const IntPoint& origin)
         if (!view->delegatesScrolling())
             view->setScrollPosition(origin);
     }
+
+#if ENABLE(MEDIA_CONTROLS_SCRIPT)
+    for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext())
+        frame->document()->pageScaleFactorChanged();
+#endif
 }
 
 void Page::setDeviceScaleFactor(float scaleFactor)
@@ -796,6 +815,28 @@ void Page::lockAllOverlayScrollbarsToHidden(bool lockOverlayScrollbars)
         }
     }
 }
+    
+void Page::setVerticalScrollElasticity(ScrollElasticity elasticity)
+{
+    if (m_verticalScrollElasticity == elasticity)
+        return;
+    
+    m_verticalScrollElasticity = elasticity;
+    
+    if (FrameView* view = mainFrame().view())
+        view->setVerticalScrollElasticity(elasticity);
+}
+    
+void Page::setHorizontalScrollElasticity(ScrollElasticity elasticity)
+{
+    if (m_horizontalScrollElasticity == elasticity)
+        return;
+    
+    m_horizontalScrollElasticity = elasticity;
+    
+    if (FrameView* view = mainFrame().view())
+        view->setHorizontalScrollElasticity(elasticity);
+}
 
 void Page::setPagination(const Pagination& pagination)
 {
@@ -817,7 +858,7 @@ unsigned Page::pageCount() const
         document->updateLayoutIgnorePendingStylesheets();
 
     RenderView* contentRenderer = mainFrame().contentRenderer();
-    return contentRenderer ? contentRenderer->columnCount(contentRenderer->columnInfo()) : 0;
+    return contentRenderer ? contentRenderer->pageCount() : 0;
 }
 
 void Page::setIsInWindow(bool isInWindow)
@@ -856,6 +897,8 @@ void Page::resumeScriptedAnimations()
 
 void Page::setIsVisuallyIdleInternal(bool isVisuallyIdle)
 {
+    setTimerThrottlingEnabled(isVisuallyIdle);
+    
     for (Frame* frame = &mainFrame(); frame; frame = frame->tree().traverseNext()) {
         if (frame->document())
             frame->document()->scriptedAnimationControllerSetThrottled(isVisuallyIdle);
@@ -1023,6 +1066,11 @@ double Page::minimumTimerInterval() const
     return m_minimumTimerInterval;
 }
 
+void Page::hiddenPageDOMTimerThrottlingStateChanged()
+{
+    setTimerThrottlingEnabled(m_viewState & ViewState::IsVisuallyIdle);
+}
+
 void Page::setTimerThrottlingEnabled(bool enabled)
 {
 #if ENABLE(HIDDEN_PAGE_DOM_TIMER_THROTTLING)
@@ -1112,6 +1160,12 @@ void Page::resumeAnimatingImages()
     }
 }
 
+void Page::createPageThrottler()
+{
+    ASSERT(!m_pageThrottler);
+    m_pageThrottler = std::make_unique<PageThrottler>(*this, m_viewState);
+}
+
 void Page::setViewState(ViewState::Flags viewState)
 {
     ViewState::Flags changed = m_viewState ^ viewState;
@@ -1120,7 +1174,8 @@ void Page::setViewState(ViewState::Flags viewState)
 
     m_viewState = viewState;
     m_focusController->setViewState(viewState);
-    m_pageThrottler.setViewState(viewState);
+    if (m_pageThrottler)
+        m_pageThrottler->setViewState(viewState);
 
     if (changed & ViewState::IsVisible)
         setIsVisibleInternal(viewState & ViewState::IsVisible);
@@ -1132,7 +1187,10 @@ void Page::setViewState(ViewState::Flags viewState)
 
 void Page::setIsVisible(bool isVisible)
 {
-    setViewState(isVisible ? m_viewState | ViewState::IsVisible : m_viewState & ~ViewState::IsVisible);
+    if (isVisible)
+        setViewState((m_viewState & ~ViewState::IsVisuallyIdle) | ViewState::IsVisible | ViewState::IsVisibleOrOccluded);
+    else
+        setViewState((m_viewState & ~(ViewState::IsVisible | ViewState::IsVisibleOrOccluded)) | ViewState::IsVisuallyIdle);
 }
 
 void Page::setIsVisibleInternal(bool isVisible)

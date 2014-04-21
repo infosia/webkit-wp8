@@ -53,16 +53,14 @@ public:
 
     void didClearMainFrameWindowObject();
 
-protected:
-    virtual void enable() override;
-    virtual void disable(bool isBeingDestroyed) override;
+    virtual PageScriptDebugServer& scriptDebugServer() override;
 
+protected:
     virtual String sourceMapURLForScript(const Script&) override;
 
 private:
     virtual void startListeningScriptDebugServer() override;
     virtual void stopListeningScriptDebugServer(bool isBeingDestroyed) override;
-    virtual PageScriptDebugServer& scriptDebugServer() override;
     virtual void muteConsole() override;
     virtual void unmuteConsole() override;
 
@@ -73,6 +71,7 @@ private:
 
     InspectorPageAgent* m_pageAgent;
     InspectorOverlay* m_overlay;
+    PageScriptDebugServer m_scriptDebugServer;
 };
 
 } // namespace WebCore

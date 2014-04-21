@@ -124,9 +124,6 @@
         unsigned long topPadding, unsigned long rightPadding, unsigned long bottomPadding, unsigned long leftPadding,
         boolean ignoreClipping, boolean allowShadowContent, boolean allowChildFrameContent);
 
-    void emitInspectorDidBeginFrame();
-    void emitInspectorDidCancelFrame();
-
     // Calling parserMetaData() with no arguments gets the metadata for the script of the current scope.
     DOMString parserMetaData(optional any func);
 
@@ -179,10 +176,6 @@
     [RaisesException] void setBatteryStatus(DOMString eventType, boolean charging, double chargingTime, double dischargingTime, double level);
 #endif
 
-#if defined(ENABLE_NETWORK_INFO) && ENABLE_NETWORK_INFO
-    [RaisesException] void setNetworkInformation(DOMString eventType, double bandwidth, boolean metered);
-#endif
-
 #if defined(ENABLE_PROXIMITY_EVENTS) && ENABLE_PROXIMITY_EVENTS
     [RaisesException] void setDeviceProximity(DOMString eventType, double value, double min, double max);
 #endif
@@ -197,7 +190,6 @@
     [Conditional=INSPECTOR] sequence<DOMString> consoleMessageArgumentCounts();
     [Conditional=INSPECTOR] DOMWindow openDummyInspectorFrontend(DOMString url);
     [Conditional=INSPECTOR] void closeDummyInspectorFrontend();
-    [Conditional=INSPECTOR, RaisesException] void setInspectorResourcesDataSizeLimits(long maximumResourcesContentSize, long maximumSingleResourceContentSize);
     [Conditional=INSPECTOR, RaisesException] void setJavaScriptProfilingEnabled(boolean creates);
     [Conditional=INSPECTOR, RaisesException] void setInspectorIsUnderTest(boolean isUnderTest);
 
@@ -275,6 +267,7 @@
 #endif
 
     [RaisesException] boolean isPluginUnavailabilityIndicatorObscured(Element element);
+    [RaisesException] boolean isPluginSnapshotted(Element element);
 
     [RaisesException] ClientRect selectionBounds();
     

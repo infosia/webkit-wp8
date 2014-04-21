@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 Apple Inc. All rights reserved.
+ * Copyright (C) 2009, 2014 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,6 +47,8 @@
 #include "GraphicsTypes.h"
 #endif
 
+namespace WebCore {
+
 enum LayerTreeAsTextBehaviorFlags {
     LayerTreeAsTextBehaviorNormal = 0,
     LayerTreeAsTextDebug = 1 << 0, // Dump extra debugging info like layer addresses.
@@ -57,8 +59,6 @@ enum LayerTreeAsTextBehaviorFlags {
     LayerTreeAsTextIncludeContentLayers = 1 << 5
 };
 typedef unsigned LayerTreeAsTextBehavior;
-
-namespace WebCore {
 
 class GraphicsContext;
 class GraphicsLayerFactory;
@@ -82,7 +82,7 @@ public:
     virtual PassOwnPtr<AnimationValue> clone() const = 0;
 
 protected:
-    AnimationValue(double keyTime, PassRefPtr<TimingFunction> timingFunction = 0)
+    AnimationValue(double keyTime, TimingFunction* timingFunction = nullptr)
         : m_keyTime(keyTime)
         , m_timingFunction(timingFunction)
     {
@@ -97,7 +97,7 @@ private:
 // FIXME: Should be moved to its own header file.
 class FloatAnimationValue : public AnimationValue {
 public:
-    static PassOwnPtr<FloatAnimationValue> create(double keyTime, float value, PassRefPtr<TimingFunction> timingFunction = 0)
+    static PassOwnPtr<FloatAnimationValue> create(double keyTime, float value, TimingFunction* timingFunction = nullptr)
     {
         return adoptPtr(new FloatAnimationValue(keyTime, value, timingFunction));
     }
@@ -110,7 +110,7 @@ public:
     float value() const { return m_value; }
 
 private:
-    FloatAnimationValue(double keyTime, float value, PassRefPtr<TimingFunction> timingFunction)
+    FloatAnimationValue(double keyTime, float value, TimingFunction* timingFunction)
         : AnimationValue(keyTime, timingFunction)
         , m_value(value)
     {
@@ -123,7 +123,7 @@ private:
 // FIXME: Should be moved to its own header file.
 class TransformAnimationValue : public AnimationValue {
 public:
-    static PassOwnPtr<TransformAnimationValue> create(double keyTime, const TransformOperations& value, PassRefPtr<TimingFunction> timingFunction = 0)
+    static PassOwnPtr<TransformAnimationValue> create(double keyTime, const TransformOperations& value, TimingFunction* timingFunction = nullptr)
     {
         return adoptPtr(new TransformAnimationValue(keyTime, value, timingFunction));
     }
@@ -136,7 +136,7 @@ public:
     const TransformOperations& value() const { return m_value; }
 
 private:
-    TransformAnimationValue(double keyTime, const TransformOperations& value, PassRefPtr<TimingFunction> timingFunction)
+    TransformAnimationValue(double keyTime, const TransformOperations& value, TimingFunction* timingFunction)
         : AnimationValue(keyTime, timingFunction)
         , m_value(value)
     {
@@ -150,7 +150,7 @@ private:
 // FIXME: Should be moved to its own header file.
 class FilterAnimationValue : public AnimationValue {
 public:
-    static PassOwnPtr<FilterAnimationValue> create(double keyTime, const FilterOperations& value, PassRefPtr<TimingFunction> timingFunction = 0)
+    static PassOwnPtr<FilterAnimationValue> create(double keyTime, const FilterOperations& value, TimingFunction* timingFunction = nullptr)
     {
         return adoptPtr(new FilterAnimationValue(keyTime, value, timingFunction));
     }
@@ -163,7 +163,7 @@ public:
     const FilterOperations& value() const { return m_value; }
 
 private:
-    FilterAnimationValue(double keyTime, const FilterOperations& value, PassRefPtr<TimingFunction> timingFunction)
+    FilterAnimationValue(double keyTime, const FilterOperations& value, TimingFunction* timingFunction)
         : AnimationValue(keyTime, timingFunction)
         , m_value(value)
     {
@@ -368,11 +368,11 @@ public:
     virtual void setContentsNeedsDisplay() { };
 
     // The tile phase is relative to the GraphicsLayer bounds.
-    virtual void setContentsTilePhase(const IntPoint& p) { m_contentsTilePhase = p; }
-    IntPoint contentsTilePhase() const { return m_contentsTilePhase; }
+    virtual void setContentsTilePhase(const FloatPoint& p) { m_contentsTilePhase = p; }
+    FloatPoint contentsTilePhase() const { return m_contentsTilePhase; }
 
-    virtual void setContentsTileSize(const IntSize& s) { m_contentsTileSize = s; }
-    IntSize contentsTileSize() const { return m_contentsTileSize; }
+    virtual void setContentsTileSize(const FloatSize& s) { m_contentsTileSize = s; }
+    FloatSize contentsTileSize() const { return m_contentsTileSize; }
     bool hasContentsTiling() const { return !m_contentsTileSize.isEmpty(); }
 
     // Set that the position/size of the contents (image or video).
@@ -408,7 +408,7 @@ public:
     // FIXME: webkit.org/b/109658
     // Should unify setContentsToMedia and setContentsToCanvas
     virtual void setContentsToPlatformLayer(PlatformLayer* layer) { setContentsToMedia(layer); }
-    virtual bool hasContentsLayer() const { return false; }
+    virtual bool usesContentsLayer() const { return false; }
 
     // Callback from the underlying graphics system to draw layer contents.
     void paintGraphicsLayerContents(GraphicsContext&, const FloatRect& clip);
@@ -610,8 +610,8 @@ protected:
 
     FloatRect m_contentsRect;
     FloatRect m_contentsClippingRect;
-    IntPoint m_contentsTilePhase;
-    IntSize m_contentsTileSize;
+    FloatPoint m_contentsTilePhase;
+    FloatSize m_contentsTileSize;
 
     int m_repaintCount;
     CustomAppearance m_customAppearance;

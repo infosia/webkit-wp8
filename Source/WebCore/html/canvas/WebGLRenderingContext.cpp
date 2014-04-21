@@ -40,6 +40,7 @@
 #include "FrameLoader.h"
 #include "FrameLoaderClient.h"
 #include "FrameView.h"
+#include "GraphicsContext.h"
 #include "HTMLCanvasElement.h"
 #include "HTMLImageElement.h"
 #include "HTMLVideoElement.h"
@@ -439,7 +440,7 @@ std::unique_ptr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasE
         LOG(WebGL, "Create a WebGL context that looks real, but will require a policy resolution if used.");
         std::unique_ptr<WebGLRenderingContext> renderingContext(new WebGLRenderingContext(canvas, attributes));
         renderingContext->suspendIfNeeded();
-        return std::move(renderingContext);
+        return renderingContext;
     }
 
     HostWindow* hostWindow = document.view()->root()->hostWindow();
@@ -457,7 +458,7 @@ std::unique_ptr<WebGLRenderingContext> WebGLRenderingContext::create(HTMLCanvasE
     std::unique_ptr<WebGLRenderingContext> renderingContext(new WebGLRenderingContext(canvas, context, attributes));
     renderingContext->suspendIfNeeded();
 
-    return std::move(renderingContext);
+    return renderingContext;
 }
 
 WebGLRenderingContext::WebGLRenderingContext(HTMLCanvasElement* passedCanvas, GraphicsContext3D::Attributes attributes)
@@ -588,8 +589,8 @@ void WebGLRenderingContext::initializeNewContext()
     m_context->viewport(0, 0, canvasSize.width(), canvasSize.height());
     m_context->scissor(0, 0, canvasSize.width(), canvasSize.height());
 
-    m_context->setContextLostCallback(adoptPtr(new WebGLRenderingContextLostCallback(this)));
-    m_context->setErrorMessageCallback(adoptPtr(new WebGLRenderingContextErrorMessageCallback(this)));
+    m_context->setContextLostCallback(std::make_unique<WebGLRenderingContextLostCallback>(this));
+    m_context->setErrorMessageCallback(std::make_unique<WebGLRenderingContextErrorMessageCallback>(this));
 }
 
 void WebGLRenderingContext::setupFlags()
@@ -1133,7 +1134,12 @@ void WebGLRenderingContext::bufferData(GC3Denum target, long long size, GC3Denum
         }
     }
 
+    m_context->moveErrorsToSyntheticErrorList();
     m_context->bufferData(target, static_cast<GC3Dsizeiptr>(size), usage);
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The bufferData function failed. Tell the buffer it doesn't have the data it thinks it does.
+        buffer->disassociateBufferData();
+    }
 }
 
 void WebGLRenderingContext::bufferData(GC3Denum target, ArrayBuffer* data, GC3Denum usage, ExceptionCode& ec)
@@ -1155,7 +1161,12 @@ void WebGLRenderingContext::bufferData(GC3Denum target, ArrayBuffer* data, GC3De
         }
     }
 
+    m_context->moveErrorsToSyntheticErrorList();
     m_context->bufferData(target, data->byteLength(), data->data(), usage);
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The bufferData function failed. Tell the buffer it doesn't have the data it thinks it does.
+        buffer->disassociateBufferData();
+    }
 }
 
 void WebGLRenderingContext::bufferData(GC3Denum target, ArrayBufferView* data, GC3Denum usage, ExceptionCode& ec)
@@ -1177,7 +1188,12 @@ void WebGLRenderingContext::bufferData(GC3Denum target, ArrayBufferView* data, G
         }
     }
 
+    m_context->moveErrorsToSyntheticErrorList();
     m_context->bufferData(target, data->byteLength(), data->baseAddress(), usage);
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The bufferData function failed. Tell the buffer it doesn't have the data it thinks it does.
+        buffer->disassociateBufferData();
+    }
 }
 
 void WebGLRenderingContext::bufferSubData(GC3Denum target, long long offset, ArrayBuffer* data, ExceptionCode& ec)
@@ -1201,7 +1217,12 @@ void WebGLRenderingContext::bufferSubData(GC3Denum target, long long offset, Arr
         }
     }
 
+    m_context->moveErrorsToSyntheticErrorList();
     m_context->bufferSubData(target, static_cast<GC3Dintptr>(offset), data->byteLength(), data->data());
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The bufferSubData function failed. Tell the buffer it doesn't have the data it thinks it does.
+        buffer->disassociateBufferData();
+    }
 }
 
 void WebGLRenderingContext::bufferSubData(GC3Denum target, long long offset, ArrayBufferView* data, ExceptionCode& ec)
@@ -1225,7 +1246,12 @@ void WebGLRenderingContext::bufferSubData(GC3Denum target, long long offset, Arr
         }
     }
 
+    m_context->moveErrorsToSyntheticErrorList();
     m_context->bufferSubData(target, static_cast<GC3Dintptr>(offset), data->byteLength(), data->baseAddress());
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The bufferSubData function failed. Tell the buffer it doesn't have the data it thinks it does.
+        buffer->disassociateBufferData();
+    }
 }
 
 GC3Denum WebGLRenderingContext::checkFramebufferStatus(GC3Denum target)
@@ -1353,8 +1379,15 @@ void WebGLRenderingContext::compressedTexImage2D(GC3Denum target, GC3Dint level,
             return;
         }
     }
-    graphicsContext3D()->compressedTexImage2D(target, level, internalformat, width, height,
-                                              border, data->byteLength(), data->baseAddress());
+    m_context->moveErrorsToSyntheticErrorList();
+    m_context->compressedTexImage2D(target, level, internalformat, width, height,
+        border, data->byteLength(), data->baseAddress());
+    if (m_context->moveErrorsToSyntheticErrorList()) {
+        // The compressedTexImage2D function failed. Tell the WebGLTexture it doesn't have the data for this level.
+        tex->markInvalid(target, level);
+        return;
+    }
+
     tex->setLevelInfo(target, level, internalformat, width, height, GraphicsContext3D::UNSIGNED_BYTE);
     tex->setCompressed();
 }
@@ -3212,7 +3245,7 @@ PassRefPtr<WebGLUniformLocation> WebGLRenderingContext::getUniformLocation(WebGL
         return nullptr;
 
     GC3Dint activeUniforms = 0;
-    m_context->getProgramiv(objectOrZero(program), GraphicsContext3D::ACTIVE_UNIFORMS, &activeUniforms);
+    m_context->getNonBuiltInActiveSymbolCount(objectOrZero(program), GraphicsContext3D::ACTIVE_UNIFORMS, &activeUniforms);
     for (GC3Dint i = 0; i < activeUniforms; i++) {
         ActiveInfo info;
         if (!m_context->getActiveUniform(objectOrZero(program), i, info))
@@ -3729,7 +3762,7 @@ void WebGLRenderingContext::texImage2DBase(GC3Denum target, GC3Dint level, GC3De
         // can not be cleared with texImage2D and must be cleared by binding to an fbo and calling
         // clear.
         if (isResourceSafe())
-            m_context->texImage2D(target, level, internalformat, width, height, border, format, type, 0);
+            m_context->texImage2D(target, level, internalformat, width, height, border, format, type, nullptr);
         else {
             bool succeed = m_context->texImage2DResourceSafe(target, level, internalformat, width, height,
                                                              border, format, type, m_unpackAlignment);
@@ -3738,8 +3771,14 @@ void WebGLRenderingContext::texImage2DBase(GC3Denum target, GC3Dint level, GC3De
         }
     } else {
         ASSERT(validateSettableTexFormat("texImage2D", internalformat));
+        m_context->moveErrorsToSyntheticErrorList();
         m_context->texImage2D(target, level, internalformat, width, height,
                               border, format, type, pixels);
+        if (m_context->moveErrorsToSyntheticErrorList()) {
+            // The texImage2D function failed. Tell the WebGLTexture it doesn't have the data for this level.
+            tex->markInvalid(target, level);
+            return;
+        }
     }
     tex->setLevelInfo(target, level, internalformat, width, height, type);
 }

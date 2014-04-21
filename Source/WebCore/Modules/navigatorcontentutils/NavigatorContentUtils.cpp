@@ -126,9 +126,9 @@ NavigatorContentUtils::~NavigatorContentUtils()
 {
 }
 
-PassRef<NavigatorContentUtils> NavigatorContentUtils::create(NavigatorContentUtilsClient* client)
+PassRef<NavigatorContentUtils> NavigatorContentUtils::create(std::unique_ptr<NavigatorContentUtilsClient> client)
 {
-    return adoptRef(*new NavigatorContentUtils(client));
+    return adoptRef(*new NavigatorContentUtils(std::move(client)));
 }
 
 void NavigatorContentUtils::registerProtocolHandler(Navigator* navigator, const String& scheme, const String& url, const String& title, ExceptionCode& ec)
@@ -136,11 +136,7 @@ void NavigatorContentUtils::registerProtocolHandler(Navigator* navigator, const 
     if (!navigator->frame())
         return;
 
-    Document* document = navigator->frame()->document();
-    if (!document)
-        return;
-
-    URL baseURL = document->baseURL();
+    URL baseURL = navigator->frame()->document()->baseURL();
 
     if (!verifyCustomHandlerURL(baseURL, url, ec))
         return;
@@ -178,11 +174,7 @@ String NavigatorContentUtils::isProtocolHandlerRegistered(Navigator* navigator, 
     if (!navigator->frame())
         return declined;
 
-    Document* document = navigator->frame()->document();
-    if (!document)
-        return declined;
-
-    URL baseURL = document->baseURL();
+    URL baseURL = navigator->frame()->document()->baseURL();
 
     if (!verifyCustomHandlerURL(baseURL, url, ec))
         return declined;
@@ -198,11 +190,7 @@ void NavigatorContentUtils::unregisterProtocolHandler(Navigator* navigator, cons
     if (!navigator->frame())
         return;
 
-    Document* document = navigator->frame()->document();
-    if (!document)
-        return;
-    
-    URL baseURL = document->baseURL();
+    URL baseURL = navigator->frame()->document()->baseURL();
 
     if (!verifyCustomHandlerURL(baseURL, url, ec))
         return;
@@ -219,9 +207,9 @@ const char* NavigatorContentUtils::supplementName()
     return "NavigatorContentUtils";
 }
 
-void provideNavigatorContentUtilsTo(Page* page, NavigatorContentUtilsClient* client)
+void provideNavigatorContentUtilsTo(Page* page, std::unique_ptr<NavigatorContentUtilsClient> client)
 {
-    RefCountedSupplement<Page, NavigatorContentUtils>::provideTo(page, NavigatorContentUtils::supplementName(), NavigatorContentUtils::create(client));
+    RefCountedSupplement<Page, NavigatorContentUtils>::provideTo(page, NavigatorContentUtils::supplementName(), NavigatorContentUtils::create(std::move(client)));
 }
 
 } // namespace WebCore
