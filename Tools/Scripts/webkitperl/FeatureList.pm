@@ -344,9 +344,6 @@ my @features = (
     { option => "netscape-plugin-api", desc => "Toggle Netscape Plugin API support",
       define => "ENABLE_NETSCAPE_PLUGIN_API", default => !isIOSWebKit(), value => \$netscapePluginAPISupport },
 
-    { option => "network-info", desc => "Toggle Network Info support",
-      define => "ENABLE_NETWORK_INFO", default => isEfl(), value => \$networkInfoSupport },
-
     { option => "nosniff", desc => "Toggle support for 'X-Content-Type-Options: nosniff'",
       define => "ENABLE_NOSNIFF", default => 0, value => \$nosniffSupport },
 
@@ -444,7 +441,7 @@ my @features = (
       define => "ENABLE_WEB_AUDIO", default => (isEfl() || isGtk()), value => \$webAudioSupport },
 
     { option => "web-replay", desc => "Toggle Web Replay support",
-      define => "ENABLE_WEB_REPLAY", default => 0, value => \$webReplaySupport },
+      define => "ENABLE_WEB_REPLAY", default => isAppleMacWebKit(), value => \$webReplaySupport },
 
     { option => "web-sockets", desc => "Toggle Web Sockets support",
       define => "ENABLE_WEB_SOCKETS", default => 1, value => \$webSocketsSupport },

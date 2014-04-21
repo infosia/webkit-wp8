@@ -237,6 +237,9 @@
     <ClCompile Include="..\heap\GCActivityCallback.cpp">
       <Filter>heap</Filter>
     </ClCompile>
+    <ClCompile Include="..\heap\GCLogging.cpp">
+      <Filter>heap</Filter>
+    </ClCompile>
     <ClCompile Include="..\heap\GCThread.cpp">
       <Filter>heap</Filter>
     </ClCompile>
@@ -319,6 +322,9 @@
       <Filter>inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\inspector\agents\InspectorDebuggerAgent.cpp">
+      <Filter>inspector</Filter>
+    </ClCompile>
+    <ClCompile Include="..\inspector\agents\InspectorProfilerAgent.cpp">
       <Filter>inspector</Filter>
     </ClCompile>
     <ClCompile Include="..\inspector\agents\InspectorRuntimeAgent.cpp">
@@ -1700,6 +1706,9 @@
     <ClInclude Include="..\heap\GCActivityCallback.h">
       <Filter>heap</Filter>
     </ClInclude>
+    <ClInclude Include="..\heap\GCLogging.h">
+      <Filter>heap</Filter>
+    </ClInclude>
     <ClInclude Include="..\heap\GCSegmentedArray.h">
       <Filter>heap</Filter>
     </ClInclude>
@@ -1866,6 +1875,9 @@
       <Filter>inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\inspector\agents\InspectorDebuggerAgent.h">
+      <Filter>inspector</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inspector\agents\InspectorProfilerAgent.h">
       <Filter>inspector</Filter>
     </ClInclude>
     <ClInclude Include="..\inspector\agents\InspectorRuntimeAgent.h">
@@ -3302,9 +3314,6 @@
     </ClInclude>
     <ClInclude Include="..\bytecode\InlineCallFrameSet.h">
       <Filter>bytecode</Filter>
-    </ClInclude>
-    <ClInclude Include="..\jit\JITOperationWrappers.h">
-      <Filter>jit</Filter>
     </ClInclude>
     <ClInclude Include="..\jit\JITOperations.h">
       <Filter>jit</Filter>

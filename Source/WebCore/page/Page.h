@@ -30,10 +30,12 @@
 #include "Pagination.h"
 #include "PlatformScreen.h"
 #include "Region.h"
+#include "ScrollTypes.h"
 #include "SessionID.h"
 #include "Supplementable.h"
 #include "ViewState.h"
 #include "ViewportArguments.h"
+#include <memory>
 #include <wtf/Forward.h>
 #include <wtf/HashMap.h>
 #include <wtf/HashSet.h>
@@ -256,7 +258,7 @@ public:
     void removeSchedulePair(PassRefPtr<SchedulePair>);
     SchedulePairHashSet* scheduledRunLoopPairs() { return m_scheduledRunLoopPairs.get(); }
 
-    OwnPtr<SchedulePairHashSet> m_scheduledRunLoopPairs;
+    std::unique_ptr<SchedulePairHashSet> m_scheduledRunLoopPairs;
 #endif
 
     const VisibleSelection& selection() const;
@@ -275,6 +277,9 @@ public:
     void setPageScaleFactor(float scale, const IntPoint& origin);
     float pageScaleFactor() const { return m_pageScaleFactor; }
 
+    void setZoomedOutPageScaleFactor(float);
+    float zoomedOutPageScaleFactor() const { return m_zoomedOutPageScaleFactor; }
+
     float deviceScaleFactor() const { return m_deviceScaleFactor; }
     void setDeviceScaleFactor(float);
 
@@ -284,7 +289,13 @@ public:
     bool shouldSuppressScrollbarAnimations() const { return m_suppressScrollbarAnimations; }
     void setShouldSuppressScrollbarAnimations(bool suppressAnimations);
     void lockAllOverlayScrollbarsToHidden(bool lockOverlayScrollbars);
+    
+    void setVerticalScrollElasticity(ScrollElasticity);
+    ScrollElasticity verticalScrollElasticity() const { return static_cast<ScrollElasticity>(m_verticalScrollElasticity); }
 
+    void setHorizontalScrollElasticity(ScrollElasticity);
+    ScrollElasticity horizontalScrollElasticity() const { return static_cast<ScrollElasticity>(m_horizontalScrollElasticity); }
+    
     // Page and FrameView both store a Pagination value. Page::pagination() is set only by API,
     // and FrameView::pagination() is set only by CSS. Page::pagination() will affect all
     // FrameViews in the page cache, but FrameView::pagination() only affects the current
@@ -384,7 +395,8 @@ public:
     void sawMediaEngine(const String& engineName);
     void resetSeenMediaEngines();
 
-    PageThrottler& pageThrottler() { return m_pageThrottler; }
+    PageThrottler* pageThrottler() { return m_pageThrottler.get(); }
+    void createPageThrottler();
 
     PageConsole& console() { return *m_console; }
 
@@ -439,6 +451,7 @@ private:
 
     Vector<Ref<PluginViewBase>> pluginViews();
 
+    void hiddenPageDOMTimerThrottlingStateChanged();
     void setTimerThrottlingEnabled(bool);
 
     const std::unique_ptr<Chrome> m_chrome;
@@ -490,11 +503,15 @@ private:
     float m_mediaVolume;
 
     float m_pageScaleFactor;
+    float m_zoomedOutPageScaleFactor;
     float m_deviceScaleFactor;
 
     float m_topContentInset;
 
     bool m_suppressScrollbarAnimations;
+    
+    unsigned m_verticalScrollElasticity : 2; // ScrollElasticity
+    unsigned m_horizontalScrollElasticity : 2; // ScrollElasticity    
 
     Pagination m_pagination;
 
@@ -541,7 +558,7 @@ private:
     AlternativeTextClient* m_alternativeTextClient;
 
     bool m_scriptedAnimationsSuspended;
-    PageThrottler m_pageThrottler;
+    std::unique_ptr<PageThrottler> m_pageThrottler;
     const std::unique_ptr<PageConsole> m_console;
 
 #if ENABLE(REMOTE_INSPECTOR)

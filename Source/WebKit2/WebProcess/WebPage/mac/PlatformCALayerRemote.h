@@ -124,6 +124,10 @@ public:
     virtual void copyFiltersFrom(const WebCore::PlatformCALayer*) override;
 #endif
 
+#if ENABLE(CSS_COMPOSITING)
+    virtual void setBlendMode(WebCore::BlendMode) override;
+#endif
+
     virtual void setName(const String&) override;
 
     virtual void setSpeed(float) override;
@@ -152,6 +156,8 @@ public:
     virtual uint32_t hostingContextID();
 
     RemoteLayerTreeTransaction::LayerProperties& properties() { return m_properties; }
+
+    void clearContext() { m_context = nullptr; }
 
 protected:
     PlatformCALayerRemote(WebCore::PlatformCALayer::LayerType, WebCore::PlatformCALayerClient* owner, RemoteLayerTreeContext* context);

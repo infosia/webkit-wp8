@@ -35,6 +35,7 @@
 #import "WKString.h"
 #import "WKStringCF.h"
 #import <WebCore/AXObjectCache.h>
+#import <WebCore/Document.h>
 #import <WebCore/FrameView.h>
 #import <WebCore/MainFrame.h>
 #import <WebCore/Page.h>
@@ -65,11 +66,14 @@ using namespace WebKit;
     if (!core.document())
         return nil;
     
-    AccessibilityObject* root = core.document()->axObjectCache()->rootObject();
-    if (!root)
+    WebCore::AXObjectCache* cache = core.document()->axObjectCache();
+    if (!cache)
         return nil;
     
-    return root->wrapper();
+    if (AccessibilityObject* root = cache->rootObject())
+        return root->wrapper();
+    
+    return nil;
 }
 
 - (void)setWebPage:(WebPage*)page

@@ -24,6 +24,7 @@
 #define JSCJSValue_h
 
 #include <math.h>
+#include "PureNaN.h"
 #include <stddef.h> // for size_t
 #include <stdint.h>
 #include <wtf/Assertions.h>
@@ -35,10 +36,6 @@
 #include <wtf/TriState.h>
 
 namespace JSC {
-
-// This is used a lot throughout JavaScriptCore for everything from value boxing to marking
-// values as being missing, so it is useful to have it abbreviated.
-#define QNaN (std::numeric_limits<double>::quiet_NaN())
 
 class AssemblyHelpers;
 class ExecState;
@@ -291,19 +288,6 @@ public:
     static ptrdiff_t offsetOfPayload() { return OBJECT_OFFSETOF(JSValue, u.asBits.payload); }
     static ptrdiff_t offsetOfTag() { return OBJECT_OFFSETOF(JSValue, u.asBits.tag); }
 
-private:
-    template <class T> JSValue(WriteBarrierBase<T>);
-
-    enum HashTableDeletedValueTag { HashTableDeletedValue };
-    JSValue(HashTableDeletedValueTag);
-
-    inline const JSValue asValue() const { return *this; }
-    JS_EXPORT_PRIVATE double toNumberSlowCase(ExecState*) const;
-    JS_EXPORT_PRIVATE JSString* toStringSlowCase(ExecState*) const;
-    JS_EXPORT_PRIVATE WTF::String toWTFStringSlowCase(ExecState*) const;
-    JS_EXPORT_PRIVATE JSObject* toObjectSlowCase(ExecState*, JSGlobalObject*) const;
-    JS_EXPORT_PRIVATE JSValue toThisSlowCase(ExecState*, ECMAMode) const;
-
 #if USE(JSVALUE32_64)
     /*
      * On 32-bit platforms USE(JSVALUE32_64) should be defined, and we use a NaN-encoded
@@ -415,6 +399,19 @@ private:
     #define ValueEmpty   0x0ll
     #define ValueDeleted 0x4ll
 #endif
+
+private:
+    template <class T> JSValue(WriteBarrierBase<T>);
+
+    enum HashTableDeletedValueTag { HashTableDeletedValue };
+    JSValue(HashTableDeletedValueTag);
+
+    inline const JSValue asValue() const { return *this; }
+    JS_EXPORT_PRIVATE double toNumberSlowCase(ExecState*) const;
+    JS_EXPORT_PRIVATE JSString* toStringSlowCase(ExecState*) const;
+    JS_EXPORT_PRIVATE WTF::String toWTFStringSlowCase(ExecState*) const;
+    JS_EXPORT_PRIVATE JSObject* toObjectSlowCase(ExecState*, JSGlobalObject*) const;
+    JS_EXPORT_PRIVATE JSValue toThisSlowCase(ExecState*, ECMAMode) const;
 
     EncodedValueDescriptor u;
 };

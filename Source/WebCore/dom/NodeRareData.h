@@ -108,7 +108,7 @@ public:
         {
             return DefaultHash<StringType>::Hash::hash(entry.second) + entry.first;
         }
-        static bool equal(const std::pair<unsigned char, StringType>& a, const std::pair<unsigned char, StringType>& b) { return a == b; }
+        static bool equal(const std::pair<unsigned char, StringType>& a, const std::pair<unsigned char, StringType>& b) { return a.first == b.first && DefaultHash<StringType>::Hash::equal(a.second, b.second); }
         static const bool safeToCompareToEmptyOrDeleted = DefaultHash<StringType>::Hash::safeToCompareToEmptyOrDeleted;
     };
 
@@ -120,7 +120,7 @@ public:
     template<typename T, typename ContainerType>
     PassRef<T> addCacheWithAtomicName(ContainerType& container, const AtomicString& name)
     {
-        NodeListAtomicNameCacheMap::AddResult result = m_atomicNameCaches.add(namedNodeListKey<T>(name), nullptr);
+        NodeListAtomicNameCacheMap::AddResult result = m_atomicNameCaches.fastAdd(namedNodeListKey<T>(name), nullptr);
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
@@ -132,7 +132,7 @@ public:
     template<typename T>
     PassRef<T> addCacheWithName(ContainerNode& node, const String& name)
     {
-        NodeListNameCacheMap::AddResult result = m_nameCaches.add(namedNodeListKey<T>(name), nullptr);
+        NodeListNameCacheMap::AddResult result = m_nameCaches.fastAdd(namedNodeListKey<T>(name), nullptr);
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
@@ -144,7 +144,7 @@ public:
     PassRef<TagNodeList> addCacheWithQualifiedName(ContainerNode& node, const AtomicString& namespaceURI, const AtomicString& localName)
     {
         QualifiedName name(nullAtom, localName, namespaceURI);
-        TagNodeListCacheNS::AddResult result = m_tagNodeListCacheNS.add(name, nullptr);
+        TagNodeListCacheNS::AddResult result = m_tagNodeListCacheNS.fastAdd(name, nullptr);
         if (!result.isNewEntry)
             return *result.iterator->value;
 
@@ -156,7 +156,7 @@ public:
     template<typename T, typename ContainerType>
     PassRef<T> addCachedCollection(ContainerType& container, CollectionType collectionType, const AtomicString& name)
     {
-        CollectionCacheMap::AddResult result = m_cachedCollections.add(namedCollectionKey(collectionType, name), nullptr);
+        CollectionCacheMap::AddResult result = m_cachedCollections.fastAdd(namedCollectionKey(collectionType, name), nullptr);
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 
@@ -168,7 +168,7 @@ public:
     template<typename T, typename ContainerType>
     PassRef<T> addCachedCollection(ContainerType& container, CollectionType collectionType)
     {
-        CollectionCacheMap::AddResult result = m_cachedCollections.add(namedCollectionKey(collectionType, starAtom), nullptr);
+        CollectionCacheMap::AddResult result = m_cachedCollections.fastAdd(namedCollectionKey(collectionType, starAtom), nullptr);
         if (!result.isNewEntry)
             return static_cast<T&>(*result.iterator->value);
 

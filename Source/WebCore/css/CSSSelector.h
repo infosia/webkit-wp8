@@ -78,88 +78,95 @@ namespace WebCore {
             ShadowDescendant,
         };
 
-        enum PseudoType {
-            PseudoUnknown = 0,
-            PseudoEmpty,
-            PseudoFirstChild,
-            PseudoFirstOfType,
-            PseudoLastChild,
-            PseudoLastOfType,
-            PseudoOnlyChild,
-            PseudoOnlyOfType,
-            PseudoFirstLine,
-            PseudoFirstLetter,
-            PseudoNthChild,
-            PseudoNthOfType,
-            PseudoNthLastChild,
-            PseudoNthLastOfType,
-            PseudoLink,
-            PseudoVisited,
-            PseudoAny,
-            PseudoAnyLink,
-            PseudoAutofill,
-            PseudoHover,
-            PseudoDrag,
-            PseudoFocus,
-            PseudoActive,
-            PseudoChecked,
-            PseudoEnabled,
-            PseudoFullPageMedia,
-            PseudoDefault,
-            PseudoDisabled,
-            PseudoOptional,
-            PseudoRequired,
-            PseudoReadOnly,
-            PseudoReadWrite,
-            PseudoValid,
-            PseudoInvalid,
-            PseudoIndeterminate,
-            PseudoTarget,
-            PseudoBefore,
-            PseudoAfter,
-            PseudoLang,
-            PseudoNot,
-            PseudoResizer,
-            PseudoRoot,
-            PseudoScope,
-            PseudoScrollbar,
-            PseudoScrollbarBack,
-            PseudoScrollbarButton,
-            PseudoScrollbarCorner,
-            PseudoScrollbarForward,
-            PseudoScrollbarThumb,
-            PseudoScrollbarTrack,
-            PseudoScrollbarTrackPiece,
-            PseudoWindowInactive,
-            PseudoCornerPresent,
-            PseudoDecrement,
-            PseudoIncrement,
-            PseudoHorizontal,
-            PseudoVertical,
-            PseudoStart,
-            PseudoEnd,
-            PseudoDoubleButton,
-            PseudoSingleButton,
-            PseudoNoButton,
-            PseudoSelection,
-            PseudoLeft,
-            PseudoRight,
-            PseudoFirst,
+        enum PseudoClassType {
+            PseudoClassUnknown = 0,
+            PseudoClassEmpty,
+            PseudoClassFirstChild,
+            PseudoClassFirstOfType,
+            PseudoClassLastChild,
+            PseudoClassLastOfType,
+            PseudoClassOnlyChild,
+            PseudoClassOnlyOfType,
+            PseudoClassNthChild,
+            PseudoClassNthOfType,
+            PseudoClassNthLastChild,
+            PseudoClassNthLastOfType,
+            PseudoClassLink,
+            PseudoClassVisited,
+            PseudoClassAny,
+            PseudoClassAnyLink,
+            PseudoClassAutofill,
+            PseudoClassHover,
+            PseudoClassDrag,
+            PseudoClassFocus,
+            PseudoClassActive,
+            PseudoClassChecked,
+            PseudoClassEnabled,
+            PseudoClassFullPageMedia,
+            PseudoClassDefault,
+            PseudoClassDisabled,
+            PseudoClassOptional,
+            PseudoClassRequired,
+            PseudoClassReadOnly,
+            PseudoClassReadWrite,
+            PseudoClassValid,
+            PseudoClassInvalid,
+            PseudoClassIndeterminate,
+            PseudoClassTarget,
+            PseudoClassLang,
+            PseudoClassNot,
+            PseudoClassRoot,
+            PseudoClassScope,
+            PseudoClassWindowInactive,
+            PseudoClassCornerPresent,
+            PseudoClassDecrement,
+            PseudoClassIncrement,
+            PseudoClassHorizontal,
+            PseudoClassVertical,
+            PseudoClassStart,
+            PseudoClassEnd,
+            PseudoClassDoubleButton,
+            PseudoClassSingleButton,
+            PseudoClassNoButton,
 #if ENABLE(FULLSCREEN_API)
-            PseudoFullScreen,
-            PseudoFullScreenDocument,
-            PseudoFullScreenAncestor,
-            PseudoAnimatingFullScreenTransition,
+            PseudoClassFullScreen,
+            PseudoClassFullScreenDocument,
+            PseudoClassFullScreenAncestor,
+            PseudoClassAnimatingFullScreenTransition,
 #endif
-            PseudoInRange,
-            PseudoOutOfRange,
-            PseudoUserAgentCustomElement,
-            PseudoWebKitCustomElement,
+            PseudoClassInRange,
+            PseudoClassOutOfRange,
 #if ENABLE(VIDEO_TRACK)
-            PseudoCue,
-            PseudoFuture,
-            PseudoPast,
+            PseudoClassFuture,
+            PseudoClassPast,
 #endif
+        };
+
+        enum PseudoElementType {
+            PseudoElementUnknown = 0,
+            PseudoElementAfter,
+            PseudoElementBefore,
+#if ENABLE(VIDEO_TRACK)
+            PseudoElementCue,
+#endif
+            PseudoElementFirstLetter,
+            PseudoElementFirstLine,
+            PseudoElementResizer,
+            PseudoElementScrollbar,
+            PseudoElementScrollbarButton,
+            PseudoElementScrollbarCorner,
+            PseudoElementScrollbarThumb,
+            PseudoElementScrollbarTrack,
+            PseudoElementScrollbarTrackPiece,
+            PseudoElementSelection,
+            PseudoElementUserAgentCustom,
+            PseudoElementWebKitCustom,
+        };
+
+        enum PagePseudoClassType {
+            PagePseudoClassFirst = 1,
+            PagePseudoClassLeft,
+            PagePseudoClassRight,
         };
 
         enum MarginBoxType {
@@ -181,13 +188,8 @@ namespace WebCore {
             RightBottomMarginBox,
         };
 
-        PseudoType pseudoType() const
-        {
-            return static_cast<PseudoType>(m_pseudoType);
-        }
-
-        static PseudoType parsePseudoElementType(const String&);
-        static PseudoId pseudoId(PseudoType);
+        static PseudoElementType parsePseudoElementType(const String&);
+        static PseudoId pseudoId(PseudoElementType);
 
         // Selectors are kept in an array by CSSSelectorList. The next component of the selector is
         // the next item in the array.
@@ -200,6 +202,8 @@ namespace WebCore {
         const AtomicString& argument() const { return m_hasRareData ? m_data.m_rareData->m_argument : nullAtom; }
         const CSSSelectorList* selectorList() const { return m_hasRareData ? m_data.m_rareData->m_selectorList.get() : 0; }
 
+        void setPseudoElementType(PseudoElementType pseudoElementType) { m_pseudoType = pseudoElementType; }
+        void setPagePseudoType(PagePseudoClassType pagePseudoType) { m_pseudoType = pagePseudoType; }
         void setValue(const AtomicString&);
         void setAttribute(const QualifiedName&, bool isCaseInsensitive);
         void setArgument(const AtomicString&);
@@ -207,6 +211,26 @@ namespace WebCore {
 
         bool parseNth() const;
         bool matchNth(int count) const;
+        int nthA() const;
+        int nthB() const;
+
+        PseudoClassType pseudoClassType() const
+        {
+            ASSERT(m_match == PseudoClass);
+            return static_cast<PseudoClassType>(m_pseudoType);
+        }
+
+        PseudoElementType pseudoElementType() const
+        {
+            ASSERT(m_match == PseudoElement);
+            return static_cast<PseudoElementType>(m_pseudoType);
+        }
+
+        PagePseudoClassType pagePseudoClassType() const
+        {
+            ASSERT(m_match == PagePseudoClass);
+            return static_cast<PagePseudoClassType>(m_pseudoType);
+        }
 
         bool matchesPseudoElement() const;
         bool isUnknownPseudoElement() const;
@@ -293,30 +317,34 @@ inline bool CSSSelector::matchesPseudoElement() const
 
 inline bool CSSSelector::isUnknownPseudoElement() const
 {
-    return m_match == PseudoElement && m_pseudoType == PseudoUnknown;
+    return m_match == PseudoElement && m_pseudoType == PseudoElementUnknown;
 }
 
 inline bool CSSSelector::isCustomPseudoElement() const
 {
-    return m_match == PseudoElement && (m_pseudoType == PseudoUserAgentCustomElement || m_pseudoType == PseudoWebKitCustomElement);
+    return m_match == PseudoElement && (m_pseudoType == PseudoElementUserAgentCustom || m_pseudoType == PseudoElementWebKitCustom);
+}
+
+static inline bool pseudoClassIsRelativeToSiblings(CSSSelector::PseudoClassType type)
+{
+    return type == CSSSelector::PseudoClassEmpty
+        || type == CSSSelector::PseudoClassFirstChild
+        || type == CSSSelector::PseudoClassFirstOfType
+        || type == CSSSelector::PseudoClassLastChild
+        || type == CSSSelector::PseudoClassLastOfType
+        || type == CSSSelector::PseudoClassOnlyChild
+        || type == CSSSelector::PseudoClassOnlyOfType
+        || type == CSSSelector::PseudoClassNthChild
+        || type == CSSSelector::PseudoClassNthOfType
+        || type == CSSSelector::PseudoClassNthLastChild
+        || type == CSSSelector::PseudoClassNthLastOfType;
 }
 
 inline bool CSSSelector::isSiblingSelector() const
 {
-    PseudoType type = pseudoType();
     return m_relation == DirectAdjacent
         || m_relation == IndirectAdjacent
-        || type == PseudoEmpty
-        || type == PseudoFirstChild
-        || type == PseudoFirstOfType
-        || type == PseudoLastChild
-        || type == PseudoLastOfType
-        || type == PseudoOnlyChild
-        || type == PseudoOnlyOfType
-        || type == PseudoNthChild
-        || type == PseudoNthOfType
-        || type == PseudoNthLastChild
-        || type == PseudoNthLastOfType;
+        || (m_match == CSSSelector::PseudoClass && pseudoClassIsRelativeToSiblings(pseudoClassType()));
 }
 
 inline bool CSSSelector::isAttributeSelector() const
@@ -350,7 +378,7 @@ inline void CSSSelector::setValue(const AtomicString& value)
 inline CSSSelector::CSSSelector()
     : m_relation(Descendant)
     , m_match(Unknown)
-    , m_pseudoType(PseudoUnknown)
+    , m_pseudoType(0)
     , m_parsedNth(false)
     , m_isLastInSelectorList(false)
     , m_isLastInTagHistory(true)
@@ -363,7 +391,7 @@ inline CSSSelector::CSSSelector()
 inline CSSSelector::CSSSelector(const QualifiedName& tagQName, bool tagIsForNamespaceRule)
     : m_relation(Descendant)
     , m_match(Tag)
-    , m_pseudoType(PseudoUnknown)
+    , m_pseudoType(0)
     , m_parsedNth(false)
     , m_isLastInSelectorList(false)
     , m_isLastInTagHistory(true)

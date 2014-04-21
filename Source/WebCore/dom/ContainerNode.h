@@ -33,6 +33,7 @@
 namespace WebCore {
 
 class FloatPoint;
+class QualifiedName;
 class RenderElement;
 
 typedef void (*NodeCallback)(Node&, unsigned);
@@ -79,7 +80,6 @@ private:
 };
 
 class ContainerNode : public Node {
-    friend class PostAttachCallbackDisabler;
 public:
     virtual ~ContainerNode();
 
@@ -140,9 +140,6 @@ public:
 protected:
     explicit ContainerNode(Document&, ConstructionType = CreateContainer);
 
-    static void queuePostAttachCallback(NodeCallback, Node&, unsigned = 0);
-    static bool postAttachCallbacksAreSuspended();
-
     template<class GenericNode, class GenericNodeContainer>
     friend void appendChildToContainer(GenericNode* child, GenericNodeContainer&);
 
@@ -156,10 +153,6 @@ protected:
 private:
     void removeBetween(Node* previousChild, Node* nextChild, Node& oldChild);
     void insertBeforeCommon(Node& nextChild, Node& oldChild);
-
-    static void dispatchPostAttachCallbacks();
-    static void suspendPostAttachCallbacks(Document&);
-    static void resumePostAttachCallbacks(Document&);
 
     bool getUpperLeftCorner(FloatPoint&) const;
     bool getLowerRightCorner(FloatPoint&) const;

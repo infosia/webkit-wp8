@@ -903,7 +903,6 @@ void CanvasRenderingContext2D::clip(const String& windingRuleString)
 #endif
 }
 
-#if ENABLE(CANVAS_PATH)
 void CanvasRenderingContext2D::fill(DOMPath* path, const String& windingRuleString)
 {
     fillInternal(path->path(), windingRuleString);
@@ -918,7 +917,6 @@ void CanvasRenderingContext2D::clip(DOMPath* path, const String& windingRuleStri
 {
     clipInternal(path->path(), windingRuleString);
 }
-#endif
 
 void CanvasRenderingContext2D::fillInternal(const Path& path, const String& windingRuleString)
 {
@@ -941,7 +939,9 @@ void CanvasRenderingContext2D::fillInternal(const Path& path, const String& wind
         c->setFillRule(newWindRule);
 
         if (isFullCanvasCompositeMode(state().m_globalComposite)) {
-            fullCanvasCompositedFill(path);
+            beginCompositeLayer();
+            c->fillPath(path);
+            endCompositeLayer();
             didDrawEntireCanvas();
         } else if (state().m_globalComposite == CompositeCopy) {
             clearCanvas();
@@ -970,11 +970,21 @@ void CanvasRenderingContext2D::strokeInternal(const Path& path)
         return;
 
     if (!path.isEmpty()) {
-        FloatRect dirtyRect = path.fastBoundingRect();
-        inflateStrokeRect(dirtyRect);
-
-        c->strokePath(path);
-        didDraw(dirtyRect);
+        if (isFullCanvasCompositeMode(state().m_globalComposite)) {
+            beginCompositeLayer();
+            c->strokePath(path);
+            endCompositeLayer();
+            didDrawEntireCanvas();
+        } else if (state().m_globalComposite == CompositeCopy) {
+            clearCanvas();
+            c->strokePath(path);
+            didDrawEntireCanvas();
+        } else {
+            FloatRect dirtyRect = path.fastBoundingRect();
+            inflateStrokeRect(dirtyRect);
+            c->strokePath(path);
+            didDraw(dirtyRect);
+        }
     }
 }
 
@@ -994,6 +1004,20 @@ void CanvasRenderingContext2D::clipInternal(const Path& path, const String& wind
     c->canvasClip(path, newWindRule);
 }
 
+inline void CanvasRenderingContext2D::beginCompositeLayer()
+{
+#if !USE(CAIRO)
+    drawingContext()->beginTransparencyLayer(1);
+#endif
+}
+
+inline void CanvasRenderingContext2D::endCompositeLayer()
+{
+#if !USE(CAIRO)
+    drawingContext()->endTransparencyLayer();    
+#endif
+}
+
 bool CanvasRenderingContext2D::isPointInPath(const float x, const float y, const String& windingRuleString)
 {
     return isPointInPathInternal(m_path, x, y, windingRuleString);
@@ -1004,7 +1028,6 @@ bool CanvasRenderingContext2D::isPointInStroke(const float x, const float y)
     return isPointInStrokeInternal(m_path, x, y);
 }
 
-#if ENABLE(CANVAS_PATH)
 bool CanvasRenderingContext2D::isPointInPath(DOMPath* path, const float x, const float y, const String& windingRuleString)
 {
     return isPointInPathInternal(path->path(), x, y, windingRuleString);
@@ -1014,7 +1037,6 @@ bool CanvasRenderingContext2D::isPointInStroke(DOMPath* path, const float x, con
 {
     return isPointInStrokeInternal(path->path(), x, y);
 }
-#endif
 
 bool CanvasRenderingContext2D::isPointInPathInternal(const Path& path, float x, float y, const String& windingRuleString)
 {
@@ -1116,7 +1138,9 @@ void CanvasRenderingContext2D::fillRect(float x, float y, float width, float hei
         c->fillRect(rect);
         didDrawEntireCanvas();
     } else if (isFullCanvasCompositeMode(state().m_globalComposite)) {
-        fullCanvasCompositedFill(rect);
+        beginCompositeLayer();
+        c->fillRect(rect);
+        endCompositeLayer();
         didDrawEntireCanvas();
     } else if (state().m_globalComposite == CompositeCopy) {
         clearCanvas();
@@ -1147,12 +1171,21 @@ void CanvasRenderingContext2D::strokeRect(float x, float y, float width, float h
         return;
 
     FloatRect rect(x, y, width, height);
-
-    FloatRect boundingRect = rect;
-    boundingRect.inflate(state().m_lineWidth / 2);
-
-    c->strokeRect(rect, state().m_lineWidth);
-    didDraw(boundingRect);
+    if (isFullCanvasCompositeMode(state().m_globalComposite)) {
+        beginCompositeLayer();
+        c->strokeRect(rect, state().m_lineWidth);
+        endCompositeLayer();
+        didDrawEntireCanvas();
+    } else if (state().m_globalComposite == CompositeCopy) {
+        clearCanvas();
+        c->strokeRect(rect, state().m_lineWidth);
+        didDrawEntireCanvas();
+    } else {
+        FloatRect boundingRect = rect;
+        boundingRect.inflate(state().m_lineWidth / 2);
+        c->strokeRect(rect, state().m_lineWidth);
+        didDraw(boundingRect);
+    }
 }
 
 void CanvasRenderingContext2D::setShadow(float width, float height, float blur)
@@ -1662,30 +1695,6 @@ template<class T> void  CanvasRenderingContext2D::fullCanvasCompositedDrawImage(
     drawImageToContext(image, buffer->context(), styleColorSpace, adjustedDest, src, CompositeSourceOver);
 
     compositeBuffer(buffer.get(), bufferRect, op);
-}
-
-template<class T> void CanvasRenderingContext2D::fullCanvasCompositedFill(const T& area)
-{
-    ASSERT(isFullCanvasCompositeMode(state().m_globalComposite));
-
-    IntRect bufferRect = calculateCompositingBufferRect(area, 0);
-    if (bufferRect.isEmpty()) {
-        clearCanvas();
-        return;
-    }
-
-    std::unique_ptr<ImageBuffer> buffer = createCompositingBuffer(bufferRect);
-    if (!buffer)
-        return;
-
-    Path path = transformAreaToDevice(area);
-    path.translate(FloatSize(-bufferRect.x(), -bufferRect.y()));
-
-    buffer->context()->setCompositeOperation(CompositeSourceOver);
-    modifiableState().m_fillStyle.applyFillColor(buffer->context());
-    buffer->context()->fillPath(path);
-
-    compositeBuffer(buffer.get(), bufferRect, state().m_globalComposite);
 }
 
 void CanvasRenderingContext2D::prepareGradientForDashboard(CanvasGradient* gradient) const
@@ -2315,16 +2324,27 @@ void CanvasRenderingContext2D::drawTextInternal(const String& text, float x, flo
 
     c->setTextDrawingMode(fill ? TextModeFill : TextModeStroke);
 
+    GraphicsContextStateSaver stateSaver(*c);
     if (useMaxWidth) {
-        GraphicsContextStateSaver stateSaver(*c);
         c->translate(location.x(), location.y());
         // We draw when fontWidth is 0 so compositing operations (eg, a "copy" op) still work.
         c->scale(FloatSize((fontWidth > 0 ? (width / fontWidth) : 0), 1));
-        c->drawBidiText(font, textRun, FloatPoint(0, 0), Font::UseFallbackIfFontNotReady);
-    } else
-        c->drawBidiText(font, textRun, location, Font::UseFallbackIfFontNotReady);
+        location = FloatPoint();
+    }
 
-    didDraw(textRect);
+    if (isFullCanvasCompositeMode(state().m_globalComposite)) {
+        beginCompositeLayer();
+        c->drawBidiText(font, textRun, location, Font::UseFallbackIfFontNotReady);
+        endCompositeLayer();
+        didDrawEntireCanvas();
+    } else if (state().m_globalComposite == CompositeCopy) {
+        clearCanvas();
+        c->drawBidiText(font, textRun, location, Font::UseFallbackIfFontNotReady);
+        didDrawEntireCanvas();
+    } else {
+        c->drawBidiText(font, textRun, location, Font::UseFallbackIfFontNotReady);
+        didDraw(textRect);
+    }
 }
 
 void CanvasRenderingContext2D::inflateStrokeRect(FloatRect& rect) const

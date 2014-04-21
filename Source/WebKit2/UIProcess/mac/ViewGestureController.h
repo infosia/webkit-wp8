@@ -41,6 +41,7 @@ OBJC_CLASS _UINavigationInteractiveTransitionBase;
 #else
 OBJC_CLASS NSEvent;
 OBJC_CLASS NSView;
+OBJC_CLASS WKSwipeCancellationTracker;
 #endif
 
 namespace WebCore {
@@ -60,7 +61,7 @@ public:
     
     enum class ViewGestureType {
         None,
-#if !PLATFORM(IOS)
+#if PLATFORM(MAC)
         Magnification,
         SmartMagnification,
 #endif
@@ -76,8 +77,14 @@ public:
         Left,
         Right
     };
+
+    enum class PendingSwipeReason {
+        None,
+        WebCoreMayScroll,
+        InsufficientMagnitude
+    };
     
-#if !PLATFORM(IOS)
+#if PLATFORM(MAC)
     double magnification() const;
 
     void handleMagnificationGesture(double scale, WebCore::FloatPoint origin);
@@ -105,7 +112,7 @@ private:
     void removeSwipeSnapshot();
     void swipeSnapshotWatchdogTimerFired(WebCore::Timer<ViewGestureController>*);
 
-#if !PLATFORM(IOS)
+#if PLATFORM(MAC)
     // Message handlers.
     void didCollectGeometryForMagnificationGesture(WebCore::FloatRect visibleContentBounds, bool frameHandlesMagnificationGesture);
     void didCollectGeometryForSmartMagnificationGesture(WebCore::FloatPoint origin, WebCore::FloatRect renderRect, WebCore::FloatRect visibleContentBounds, bool isReplacedElement, double viewportMinimumScale, double viewportMaximumScale);
@@ -118,6 +125,7 @@ private:
     void beginSwipeGesture(WebBackForwardListItem* targetItem, SwipeDirection);
     void handleSwipeGesture(WebBackForwardListItem* targetItem, double progress, SwipeDirection);
     void endSwipeGesture(WebBackForwardListItem* targetItem, bool cancelled);
+    bool deltaIsSufficientToBeginSwipe(NSEvent *);
 #endif
     
     WebPageProxy& m_webPageProxy;
@@ -129,7 +137,7 @@ private:
     RefPtr<WebCore::IOSurface> m_currentSwipeSnapshotSurface;
 #endif
 
-#if !PLATFORM(IOS)
+#if PLATFORM(MAC)
     double m_magnification;
     WebCore::FloatPoint m_magnificationOrigin;
 
@@ -141,6 +149,7 @@ private:
     bool m_visibleContentRectIsValid;
     bool m_frameHandlesMagnificationGesture;
 
+    RetainPtr<WKSwipeCancellationTracker> m_swipeCancellationTracker;
     RetainPtr<CALayer> m_swipeSnapshotLayer;
     Vector<RetainPtr<CALayer>> m_currentSwipeLiveLayers;
 
@@ -150,8 +159,9 @@ private:
 
     // If we need to wait for content to decide if it is going to consume
     // the scroll event that would have started a swipe, we'll fill these in.
-    bool m_hasPendingSwipe;
+    PendingSwipeReason m_pendingSwipeReason;
     SwipeDirection m_pendingSwipeDirection;
+    WebCore::FloatSize m_cumulativeDeltaForPendingSwipe;
 #else    
     UIView *m_liveSwipeView;
     RetainPtr<UIView> m_snapshotView;

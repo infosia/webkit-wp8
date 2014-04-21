@@ -33,7 +33,7 @@
 #import <WebCore/FileSystem.h>
 #import <WebKit2/_WKDownload.h>
 #import <WebKit2/_WKDownloadDelegate.h>
-#import <WebKit2/WKNavigationDelegate.h>
+#import <WebKit2/WKNavigationDelegatePrivate.h>
 #import <WebKit2/WKProcessPoolPrivate.h>
 #import <WebKit2/WKWebView.h>
 #import <WebKit2/WKWebViewConfiguration.h>
@@ -133,9 +133,9 @@ static void runTest(id <WKNavigationDelegate> navigationDelegate, id <_WKDownloa
 @end
 
 @implementation DownloadNavigationDelegate
-- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationPolicyDecision))decisionHandler
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
 {
-    decisionHandler(WKNavigationPolicyDecisionDownload);
+    decisionHandler(_WKNavigationActionPolicyDownload);
 }
 @end
 
@@ -148,9 +148,9 @@ TEST(_WKDownload, DownloadRequest)
 @end
 
 @implementation ConvertResponseToDownloadNavigationDelegate
-- (void)webView:(WKWebView *)webView decidePolicyForNavigationResponse:(WKNavigationResponse *)navigationResponse decisionHandler:(void (^)(WKNavigationResponsePolicyDecision))decisionHandler
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationResponse:(WKNavigationResponse *)navigationResponse decisionHandler:(void (^)(WKNavigationResponsePolicy))decisionHandler
 {
-    decisionHandler(WKNavigationResponsePolicyDecisionBecomeDownload);
+    decisionHandler(_WKNavigationResponsePolicyBecomeDownload);
 }
 @end
 

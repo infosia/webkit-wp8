@@ -51,6 +51,7 @@
 #include "StylePropertyShorthand.h"
 #include "StyleResolver.h"
 #include <algorithm>
+#include <memory>
 #include <wtf/MathExtras.h>
 #include <wtf/Noncopyable.h>
 #include <wtf/RefCounted.h>
@@ -144,7 +145,6 @@ static inline PassRefPtr<ShapeValue> blendFunc(const AnimationBase*, ShapeValue*
     if (!from || !to)
         return to;
 
-    // FIXME Bug 102723: Shape-inside should be able to animate a value of 'outside-shape' when shape-outside is set to a BasicShape
     if (from->type() != ShapeValue::Shape || to->type() != ShapeValue::Shape)
         return to;
 
@@ -766,15 +766,15 @@ public:
     PropertyWrapperVisitedAffectedColor(CSSPropertyID prop, Color (RenderStyle::*getter)() const, void (RenderStyle::*setter)(const Color&),
                                         Color (RenderStyle::*visitedGetter)() const, void (RenderStyle::*visitedSetter)(const Color&))
         : AnimationPropertyWrapperBase(prop)
-        , m_wrapper(adoptPtr(new PropertyWrapperColor(prop, getter, setter)))
-        , m_visitedWrapper(adoptPtr(new PropertyWrapperColor(prop, visitedGetter, visitedSetter)))
+        , m_wrapper(std::make_unique<PropertyWrapperColor>(prop, getter, setter))
+        , m_visitedWrapper(std::make_unique<PropertyWrapperColor>(prop, visitedGetter, visitedSetter))
     {
     }
     PropertyWrapperVisitedAffectedColor(CSSPropertyID prop, MaybeInvalidColorTag, Color (RenderStyle::*getter)() const, void (RenderStyle::*setter)(const Color&),
                                         Color (RenderStyle::*visitedGetter)() const, void (RenderStyle::*visitedSetter)(const Color&))
         : AnimationPropertyWrapperBase(prop)
-        , m_wrapper(adoptPtr(new PropertyWrapperMaybeInvalidColor(prop, getter, setter)))
-        , m_visitedWrapper(adoptPtr(new PropertyWrapperMaybeInvalidColor(prop, visitedGetter, visitedSetter)))
+        , m_wrapper(std::make_unique<PropertyWrapperMaybeInvalidColor>(prop, getter, setter))
+        , m_visitedWrapper(std::make_unique<PropertyWrapperMaybeInvalidColor>(prop, visitedGetter, visitedSetter))
     {
     }
     virtual bool equals(const RenderStyle* a, const RenderStyle* b) const
@@ -788,8 +788,8 @@ public:
     }
 
 private:
-    OwnPtr<AnimationPropertyWrapperBase> m_wrapper;
-    OwnPtr<AnimationPropertyWrapperBase> m_visitedWrapper;
+    std::unique_ptr<AnimationPropertyWrapperBase> m_wrapper;
+    std::unique_ptr<AnimationPropertyWrapperBase> m_visitedWrapper;
 };
 
 // Wrapper base class for an animatable property in a FillLayer
@@ -1080,10 +1080,8 @@ public:
     static CSSPropertyAnimationWrapperMap& instance()
     {
         // FIXME: This data is never destroyed. Maybe we should ref count it and toss it when the last AnimationController is destroyed?
-        DEPRECATED_DEFINE_STATIC_LOCAL(OwnPtr<CSSPropertyAnimationWrapperMap>, map, ());
-        if (!map)
-            map = adoptPtr(new CSSPropertyAnimationWrapperMap);
-        return *map;
+        static NeverDestroyed<CSSPropertyAnimationWrapperMap> map;
+        return map;
     }
 
     AnimationPropertyWrapperBase* wrapperForProperty(CSSPropertyID propertyID)
@@ -1116,10 +1114,12 @@ private:
         return m_propertyToIdMap[propertyID - firstCSSProperty];
     }
 
-    Vector<OwnPtr<AnimationPropertyWrapperBase>> m_propertyWrappers;
+    Vector<std::unique_ptr<AnimationPropertyWrapperBase>> m_propertyWrappers;
     unsigned char m_propertyToIdMap[numCSSProperties];
 
     static const unsigned char cInvalidPropertyWrapperIndex = UCHAR_MAX;
+
+    friend class WTF::NeverDestroyed<CSSPropertyAnimationWrapperMap>;
 };
 
 CSSPropertyAnimationWrapperMap::CSSPropertyAnimationWrapperMap()
@@ -1314,7 +1314,7 @@ CSSPropertyAnimationWrapperMap::CSSPropertyAnimationWrapperMap()
 
     for (unsigned i = 0; i < animatableLonghandPropertiesCount; ++i) {
         AnimationPropertyWrapperBase* wrapper = animatableLonghandPropertyWrappers[i];
-        m_propertyWrappers.uncheckedAppend(adoptPtr(wrapper));
+        m_propertyWrappers.uncheckedAppend(std::unique_ptr<AnimationPropertyWrapperBase>(wrapper));
         indexFromPropertyID(wrapper->property()) = i;
     }
 
@@ -1335,7 +1335,7 @@ CSSPropertyAnimationWrapperMap::CSSPropertyAnimationWrapperMap()
             longhandWrappers.uncheckedAppend(m_propertyWrappers[wrapperIndex].get());
         }
 
-        m_propertyWrappers.uncheckedAppend(adoptPtr(new ShorthandPropertyWrapper(propertyID, longhandWrappers)));
+        m_propertyWrappers.uncheckedAppend(std::make_unique<ShorthandPropertyWrapper>(propertyID, longhandWrappers));
         indexFromPropertyID(propertyID) = animatableLonghandPropertiesCount + i;
     }
 }

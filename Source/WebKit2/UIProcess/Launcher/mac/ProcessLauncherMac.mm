@@ -180,7 +180,7 @@ static void connectToService(const ProcessLauncher::LaunchOptions& launchOptions
     xpc_connection_set_event_handler(connection, ^(xpc_object_t event) { });
     xpc_connection_resume(connection);
 
-#if ENABLE(NETWORK_PROCESS)
+#if ENABLE(NETWORK_PROCESS) && !PLATFORM(IOS)
     // Leak a boost onto the NetworkProcess.
     if (launchOptions.processType == ProcessLauncher::NetworkProcess) {
         xpc_object_t preBootstrapMessage = xpc_dictionary_create(0, 0, 0);
@@ -501,12 +501,26 @@ static void createProcess(const ProcessLauncher::LaunchOptions& launchOptions, b
     RunLoop::main().dispatch(bind(didFinishLaunchingProcessFunction, that, processIdentifier, IPC::Connection::Identifier(listeningPort)));
 }
 
+static NSString *systemDirectoryPath()
+{
+    static NSString *path = [^{
+#if PLATFORM(IOS_SIMULATOR)
+        char *simulatorRoot = getenv("SIMULATOR_ROOT");
+        return simulatorRoot ? [NSString stringWithFormat:@"%s/System/", simulatorRoot] : @"/System/";
+#else
+        return @"/System/";
+#endif
+    }() copy];
+
+    return path;
+}
+
 void ProcessLauncher::launchProcess()
 {
     if (tryPreexistingProcess(m_launchOptions, this, &ProcessLauncher::didFinishLaunchingProcess))
         return;
 
-    bool isWebKitDevelopmentBuild = ![[[[NSBundle bundleWithIdentifier:@"com.apple.WebKit2"] bundlePath] stringByDeletingLastPathComponent] hasPrefix:@"/System/"];
+    bool isWebKitDevelopmentBuild = ![[[[NSBundle bundleWithIdentifier:@"com.apple.WebKit2"] bundlePath] stringByDeletingLastPathComponent] hasPrefix:systemDirectoryPath()];
 
     if (m_launchOptions.useXPC) {
         createService(m_launchOptions, isWebKitDevelopmentBuild, this, &ProcessLauncher::didFinishLaunchingProcess);

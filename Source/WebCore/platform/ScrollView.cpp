@@ -236,6 +236,24 @@ void ScrollView::setDelegatesScrolling(bool delegatesScrolling)
     delegatesScrollingDidChange();
 }
 
+IntPoint ScrollView::contentsScrollPosition() const
+{
+#if PLATFORM(IOS)
+    if (platformWidget())
+        return actualScrollPosition();
+#endif
+    return scrollPosition();
+}
+
+void ScrollView::setContentsScrollPosition(const IntPoint& position)
+{
+#if PLATFORM(IOS)
+    if (platformWidget())
+        setActualScrollPosition(position);
+#endif
+    setScrollPosition(position);
+}
+
 #if !PLATFORM(IOS)
 IntRect ScrollView::unobscuredContentRect(VisibleContentRectIncludesScrollbars scrollbarInclusion) const
 {
@@ -537,11 +555,9 @@ void ScrollView::windowResizerRectChanged()
     updateScrollbars(scrollOffset());
 }
 
-static const unsigned cMaxUpdateScrollbarsPass = 2;
-
 void ScrollView::updateScrollbars(const IntSize& desiredOffset)
 {
-    if (m_inUpdateScrollbars || prohibitsScrolling() || platformWidget())
+    if (m_inUpdateScrollbars || prohibitsScrolling() || platformWidget() || delegatesScrolling())
         return;
 
     bool hasOverlayScrollbars = (!m_horizontalScrollbar || m_horizontalScrollbar->isOverlayScrollbar()) && (!m_verticalScrollbar || m_verticalScrollbar->isOverlayScrollbar());
@@ -640,6 +656,7 @@ void ScrollView::updateScrollbars(const IntSize& desiredOffset)
             }
         }
 
+        const unsigned cMaxUpdateScrollbarsPass = 2;
         if ((sendContentResizedNotification || needAnotherPass) && m_updateScrollbarsPass < cMaxUpdateScrollbarsPass) {
             m_updateScrollbarsPass++;
             contentsResized();
@@ -1032,7 +1049,7 @@ static void positionScrollbarLayer(GraphicsLayer* graphicsLayer, Scrollbar* scro
 
     graphicsLayer->setSize(scrollbarRect.size());
 
-    if (graphicsLayer->hasContentsLayer()) {
+    if (graphicsLayer->usesContentsLayer()) {
         graphicsLayer->setContentsRect(IntRect(0, 0, scrollbarRect.width(), scrollbarRect.height()));
         return;
     }

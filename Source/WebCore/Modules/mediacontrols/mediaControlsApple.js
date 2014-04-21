@@ -99,47 +99,25 @@ Controller.prototype = {
         down: 40
     },
 
-    extend: function(child) {
+    extend: function(child)
+    {
         for (var property in this) {
             if (!child.hasOwnProperty(property))
                 child[property] = this[property];
         }
     },
 
-    // Localized string accessor
-    UIString: function(s){
-        if (this.localizedStrings[s])
-            return this.localizedStrings[s];
-        else
-            return s; // FIXME: log something if string not localized.
-    },
-    localizedStrings: {
-        // FIXME: Move localization to ext strings file <http://webkit.org/b/120956>
-        'Aborted': 'Aborted',
-        'Audio Playback': 'Audio Playback',
-        'Captions': 'Captions',
-        'Display Full Screen': 'Display Full Screen',
-        'Duration': 'Duration',
-        'Elapsed': 'Elapsed',
-        'Error': 'Error',
-        'Exit Full Screen': 'Exit Full Screen',
-        'Fast Forward': 'Fast Forward',
-        'Loading': 'Loading',
-        'Maximum Volume': 'Maximum Volume',
-        'Minimum Volume': 'Minimum Volume',
-        'Mute': 'Mute',
-        'Pause': 'Pause',
-        'Play': 'Play',
-        'Remaining': 'Remaining',
-        'Rewind': 'Rewind',
-        'Rewind %%sec%% Seconds': 'Rewind %%sec%% Seconds',
-        'Stalled': 'Stalled',
-        'Subtitles': 'Subtitles',
-        'Suspended': 'Suspended',
-        'Unmute': 'Unmute',
-        'Video Playback': 'Video Playback',
-        'Volume': 'Volume',
-        'Waiting': 'Waiting'
+    UIString: function(developmentString, replaceString, replacementString)
+    {
+        var localized = UIStringTable[developmentString];
+        if (replaceString && replacementString)
+            return localized.replace(replaceString, replacementString);
+
+        if (localized)
+            return localized;
+
+        console.error("Localization for string \"" + developmentString + "\" not found.");
+        return "LOCALIZED STRING NOT FOUND";
     },
 
     listenFor: function(element, eventName, handler, useCapture)
@@ -288,7 +266,7 @@ Controller.prototype = {
 
         var rewindButton = this.controls.rewindButton = document.createElement('button');
         rewindButton.setAttribute('pseudo', '-webkit-media-controls-rewind-button');
-        rewindButton.setAttribute('aria-label', this.UIString('Rewind %%sec%% Seconds').replace('%%sec%%', this.RewindAmount));
+        rewindButton.setAttribute('aria-label', this.UIString('Rewind ##sec## Seconds', '##sec##', this.RewindAmount));
         this.listenFor(rewindButton, 'click', this.handleRewindButtonClicked);
 
         var seekBackButton = this.controls.seekBackButton = document.createElement('button');

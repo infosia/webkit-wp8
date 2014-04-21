@@ -49,6 +49,7 @@ typedef NS_OPTIONS(NSUInteger, _WKFindOptions) {
     _WKFindOptionsShowOverlay = 1 << 5,
     _WKFindOptionsShowFindIndicator = 1 << 6,
     _WKFindOptionsShowHighlight = 1 << 7,
+    _WKFindOptionsDetermineMatchIndex = 1 << 8,
 };
 
 @class WKBrowsingContextHandle;
@@ -56,7 +57,7 @@ typedef NS_OPTIONS(NSUInteger, _WKFindOptions) {
 
 @protocol WKHistoryDelegatePrivate;
 @protocol _WKFindDelegate;
-@protocol _WKScriptMessageHandler;
+@protocol _WKFormDelegate;
 
 @interface WKWebView (WKPrivate)
 
@@ -93,16 +94,24 @@ typedef NS_OPTIONS(NSUInteger, _WKFindOptions) {
 
 #if TARGET_OS_IPHONE
 @property (nonatomic, setter=_setMinimumLayoutSizeOverride:) CGSize _minimumLayoutSizeOverride;
+@property (nonatomic, setter=_setMinimumLayoutSizeOverrideForMinimalUI:) CGSize _minimumLayoutSizeOverrideForMinimalUI;
 
 // Define the inset of the scrollview unusable by the web page.
 @property (nonatomic, setter=_setObscuredInsets:) UIEdgeInsets _obscuredInsets;
 
 @property (nonatomic, setter=_setBackgroundExtendsBeyondPage:) BOOL _backgroundExtendsBeyondPage;
 
+// FIXME: Remove these three properties once we expose WKWebViewContentProvider as API.
 @property (nonatomic, readonly, getter=_isDisplayingPDF) BOOL _displayingPDF;
+@property (nonatomic, readonly) NSData *_dataForDisplayedPDF;
+// FIXME: This can be removed once WKNavigation's response property is implemented.
+@property (nonatomic, readonly) NSString *_suggestedFilenameForDisplayedPDF;
 
 - (void)_beginInteractiveObscuredInsetsChange;
 - (void)_endInteractiveObscuredInsetsChange;
+
+- (void)_beginAnimatedResizeWithUpdates:(void (^)(void))updateBlock;
+- (void)_endAnimatedResize;
 
 - (void)_showInspectorIndication;
 - (void)_hideInspectorIndication;
@@ -139,6 +148,8 @@ typedef NS_OPTIONS(NSUInteger, _WKFindOptions) {
 - (void)_findString:(NSString *)string options:(_WKFindOptions)options maxCount:(NSUInteger)maxCount;
 - (void)_countStringMatches:(NSString *)string options:(_WKFindOptions)options maxCount:(NSUInteger)maxCount;
 - (void)_hideFindUI;
+
+@property (nonatomic, weak, setter=_setFormDelegate:) id <_WKFormDelegate> _formDelegate;
 
 @end
 

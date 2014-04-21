@@ -30,7 +30,7 @@
 #include "BlockExceptions.h"
 #include "Chrome.h"
 #include "ChromeClient.h"
-#include "Clipboard.h"
+#include "DataTransfer.h"
 #include "DragController.h"
 #include "EventNames.h"
 #include "FocusController.h"
@@ -680,13 +680,13 @@ bool EventHandler::eventActivatedView(const PlatformMouseEvent& event) const
 
 #if ENABLE(DRAG_SUPPORT)
 
-PassRefPtr<Clipboard> EventHandler::createDraggingClipboard() const
+PassRefPtr<DataTransfer> EventHandler::createDraggingDataTransfer() const
 {
     // Must be done before ondragstart adds types and data to the pboard,
     // also done for security, as it erases data from the last drag.
     OwnPtr<Pasteboard> pasteboard = Pasteboard::create(NSDragPboard);
     pasteboard->clear();
-    return Clipboard::createForDragAndDrop();
+    return DataTransfer::createForDragAndDrop();
 }
 
 #endif
@@ -799,10 +799,7 @@ void EventHandler::platformPrepareForWheelEvents(const PlatformWheelEvent& wheel
         isOverWidget = m_widgetIsLatched;
         m_recentWheelEventDeltaTracker->beginTrackingDeltas();
     } else if (wheelEvent.shouldResetLatching()) {
-        m_latchedWheelEventElement = nullptr;
-        m_latchedScrollableContainer = nullptr;
-        m_widgetIsLatched = false;
-        m_previousWheelScrolledElement = nullptr;
+        clearLatchedState();
         m_recentWheelEventDeltaTracker->endTrackingDeltas();
     }
     

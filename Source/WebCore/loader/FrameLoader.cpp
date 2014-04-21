@@ -378,6 +378,7 @@ void FrameLoader::submitForm(PassRefPtr<FormSubmission> submission)
         if (!m_frame.document()->contentSecurityPolicy()->allowFormAction(URL(submission->action())))
             return;
         m_isExecutingJavaScriptFormAction = true;
+        Ref<Frame> protect(m_frame);
         m_frame.script().executeIfJavaScriptURL(submission->action(), DoNotReplaceDocumentIfJavaScriptURL);
         m_isExecutingJavaScriptFormAction = false;
         return;
@@ -1145,8 +1146,8 @@ void FrameLoader::completed()
 
 void FrameLoader::started()
 {
-    if (m_frame.page())
-        m_activityAssertion = m_frame.page()->pageThrottler().pageLoadActivityToken();
+    if (m_frame.page() && m_frame.page()->pageThrottler())
+        m_activityAssertion = m_frame.page()->pageThrottler()->pageLoadActivityToken();
     for (Frame* frame = &m_frame; frame; frame = frame->tree().parent())
         frame->loader().m_isComplete = false;
 }
@@ -1757,7 +1758,7 @@ void FrameLoader::commitProvisionalLoad()
     // page cache. We could still preemptively prune the page cache while navigating to a cached page if capacity > 1.
     // See <rdar://problem/11779846> for more details.
     if (!cachedPage) {
-        if (memoryPressureHandler().hasReceivedMemoryPressure()) {
+        if (memoryPressureHandler().isUnderMemoryPressure()) {
             LOG(MemoryPressure, "Pruning page cache because under memory pressure at: %s", __PRETTY_FUNCTION__);
             LOG(PageCache, "Pruning page cache to 0 due to memory pressure");
             // Don't cache any page if we are under memory pressure.

@@ -32,15 +32,13 @@
 
 #include "BasicShapeFunctions.h"
 #include "BoxShape.h"
-#include "CachedImage.h"
-#include "FloatSize.h"
+#include "GraphicsContext.h"
 #include "ImageBuffer.h"
 #include "LengthFunctions.h"
 #include "PolygonShape.h"
 #include "RasterShape.h"
 #include "RectangleShape.h"
 #include "WindRule.h"
-#include <wtf/MathExtras.h>
 
 namespace WebCore {
 
@@ -92,7 +90,7 @@ static inline FloatSize physicalSizeToLogical(const FloatSize& size, WritingMode
     return size.transposedSize();
 }
 
-std::unique_ptr<Shape> Shape::createShape(const BasicShape* basicShape, const LayoutSize& logicalBoxSize, WritingMode writingMode, Length margin)
+std::unique_ptr<Shape> Shape::createShape(const BasicShape* basicShape, const LayoutSize& logicalBoxSize, WritingMode writingMode, float margin)
 {
     ASSERT(basicShape);
 
@@ -171,12 +169,12 @@ std::unique_ptr<Shape> Shape::createShape(const BasicShape* basicShape, const La
     }
 
     shape->m_writingMode = writingMode;
-    shape->m_margin = floatValueForLength(margin, 0);
+    shape->m_margin = margin;
 
     return shape;
 }
 
-std::unique_ptr<Shape> Shape::createRasterShape(Image* image, float threshold, const LayoutRect& imageR, const LayoutRect& marginR, WritingMode writingMode, Length margin)
+std::unique_ptr<Shape> Shape::createRasterShape(Image* image, float threshold, const LayoutRect& imageR, const LayoutRect& marginR, WritingMode writingMode, float margin)
 {
     IntRect imageRect = pixelSnappedIntRect(imageR);
     IntRect marginRect = pixelSnappedIntRect(marginR);
@@ -214,11 +212,11 @@ std::unique_ptr<Shape> Shape::createRasterShape(Image* image, float threshold, c
 
     auto rasterShape = std::make_unique<RasterShape>(std::move(intervals), marginRect.size());
     rasterShape->m_writingMode = writingMode;
-    rasterShape->m_margin = floatValueForLength(margin, 0);
+    rasterShape->m_margin = margin;
     return std::move(rasterShape);
 }
 
-std::unique_ptr<Shape> Shape::createBoxShape(const RoundedRect& roundedRect, WritingMode writingMode, Length margin)
+std::unique_ptr<Shape> Shape::createBoxShape(const RoundedRect& roundedRect, WritingMode writingMode, float margin)
 {
     ASSERT(roundedRect.rect().width() >= 0 && roundedRect.rect().height() >= 0);
 
@@ -226,7 +224,7 @@ std::unique_ptr<Shape> Shape::createBoxShape(const RoundedRect& roundedRect, Wri
     FloatRoundedRect bounds(rect, roundedRect.radii());
     auto shape = std::make_unique<BoxShape>(bounds);
     shape->m_writingMode = writingMode;
-    shape->m_margin = floatValueForLength(margin, 0);
+    shape->m_margin = margin;
 
     return std::move(shape);
 }

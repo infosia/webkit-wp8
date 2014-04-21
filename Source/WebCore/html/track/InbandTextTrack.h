@@ -48,8 +48,17 @@ public:
     virtual void setMode(const AtomicString&) override;
     size_t inbandTrackIndex();
 
+    virtual AtomicString inBandMetadataTrackDispatchType() const;
+
+    void setPrivate(PassRefPtr<InbandTextTrackPrivate>);
+
+    virtual bool isInband() const override { return true; }
+
 protected:
     InbandTextTrack(ScriptExecutionContext*, TextTrackClient*, PassRefPtr<InbandTextTrackPrivate>);
+
+    void setModeInternal(const AtomicString&);
+    void updateKindFromPrivate();
 
     RefPtr<InbandTextTrackPrivate> m_private;
 
@@ -60,10 +69,20 @@ private:
     virtual void languageChanged(TrackPrivateBase*, const AtomicString&) override;
     virtual void willRemove(TrackPrivateBase*) override;
 
+    virtual void addDataCue(InbandTextTrackPrivate*, double, double, const void*, unsigned) override { ASSERT_NOT_REACHED(); }
+
+    virtual void addGenericCue(InbandTextTrackPrivate*, PassRefPtr<GenericCueData>) override { ASSERT_NOT_REACHED(); }
+    virtual void updateGenericCue(InbandTextTrackPrivate*, GenericCueData*) override { ASSERT_NOT_REACHED(); }
+    virtual void removeGenericCue(InbandTextTrackPrivate*, GenericCueData*) override { ASSERT_NOT_REACHED(); }
+
+    virtual void parseWebVTTCueData(InbandTextTrackPrivate*, const char*, unsigned) override { ASSERT_NOT_REACHED(); }
+
 #if USE(PLATFORM_TEXT_TRACK_MENU)
     virtual InbandTextTrackPrivate* privateTrack() override { return m_private.get(); }
 #endif
 };
+
+TYPE_CASTS_BASE(InbandTextTrack, TextTrack, track, track->isInband(), track.isInband());
 
 } // namespace WebCore
 

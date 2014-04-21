@@ -1,3 +1,354 @@
+2014-04-21  Darin Adler  <darin@apple.com>
+
+        Add HashSet::takeAny
+        https://bugs.webkit.org/show_bug.cgi?id=131928
+
+        Reviewed by Benjamin Poulain.
+
+        * wtf/HashSet.h: Added an overload of take that takes an iterator,
+        and used it to implement both the existing take and new takeAny functions.
+
+2014-04-20  Andreas Kling  <akling@apple.com>
+
+        Speed up jsStringWithCache() through WeakGCMap inlining.
+        <https://webkit.org/b/131923>
+
+        Add HashMap::fastAdd(), which is the same as add() except we'll tell
+        the compiler to aggressively inline it.
+
+        Reviewed by Darin Adler.
+
+        * wtf/HashMap.h:
+        * wtf/HashTable.h:
+
+2014-04-19  Filip Pizlo  <fpizlo@apple.com>
+
+        Make it easier to check if an integer sum would overflow
+        https://bugs.webkit.org/show_bug.cgi?id=131900
+
+        Reviewed by Darin Adler.
+
+        * wtf/CheckedArithmetic.h:
+        (WTF::checkedSum):
+        (WTF::sumOverflows):
+
+2014-04-18  Commit Queue  <commit-queue@webkit.org>
+
+        Unreviewed, rolling out r167527.
+        https://bugs.webkit.org/show_bug.cgi?id=131883
+
+        Broke 32-bit build (Requested by ap on #webkit).
+
+        Reverted changeset:
+
+        "[Mac] implement WebKitDataCue"
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+        http://trac.webkit.org/changeset/167527
+
+2014-04-18  Eric Carlson  <eric.carlson@apple.com>
+
+        [Mac] implement WebKitDataCue
+        https://bugs.webkit.org/show_bug.cgi?id=131799
+
+        Reviewed by Dean Jackson.
+
+        * wtf/FeatureDefines.h: Define ENABLE_DATACUE_VALUE.
+
+2014-04-18  Martin Robinson  <mrobinson@igalia.com>
+
+        Remove DynamicAnnotations.h?
+        https://bugs.webkit.org/show_bug.cgi?id=131754
+
+        Reviewed by Simon Fraser.
+
+        This file, which helped support tools like Valgrind was unused.
+
+        * WTF.vcxproj/WTF.vcxproj: Remove references to the files.
+        * WTF.vcxproj/WTF.vcxproj.filters: Remove references to the files.
+        * WTF.xcodeproj/project.pbxproj: Remove references to the files.
+        * wtf/CMakeLists.txt: Remove references to the files.
+        * wtf/DynamicAnnotations.cpp: Removed.
+        * wtf/DynamicAnnotations.h: Removed.
+        * wtf/ThreadSafeRefCounted.h: Remove references to the files.
+        * wtf/text/StringStatics.cpp: Remove references to the files.
+
+2014-04-18  Philippe Normand  <pnormand@igalia.com>
+
+        Remove NETWORK_INFO support
+        https://bugs.webkit.org/show_bug.cgi?id=131841
+
+        Reviewed by Gyuyoung Kim.
+
+        * wtf/FeatureDefines.h:
+
+2014-04-17  Filip Pizlo  <fpizlo@apple.com>
+
+        Don't include CompilationThread.h from StringImpl.h
+        https://bugs.webkit.org/show_bug.cgi?id=131817
+
+        Reviewed by Simon Fraser.
+
+        * wtf/CompilationThread.h:
+        * wtf/StdLibExtras.h:
+        * wtf/text/StringImpl.h:
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        Use HashMap<unique_ptr> and Vector<unique_ptr> instead of deprecatedDeleteAllValues
+        https://bugs.webkit.org/show_bug.cgi?id=73757
+
+        Reviewed by Brent Fulgham.
+
+        * wtf/Vector.h:
+        (WTF::deprecatedDeleteAllValues): Deleted.
+
+2014-04-17  Darin Adler  <darin@apple.com>
+
+        Add separate flag for IndexedDatabase in workers since the current implementation is not threadsafe
+        https://bugs.webkit.org/show_bug.cgi?id=131785
+        rdar://problem/16003108
+
+        Reviewed by Brady Eidson.
+
+        * wtf/FeatureDefines.h: Added INDEXED_DATABASE_IN_WORKERS.
+
+2014-04-16  Simon Fraser  <simon.fraser@apple.com>
+
+        Don't include CryptographicallyRandomNumber.h in StringImpl.h
+        https://bugs.webkit.org/show_bug.cgi?id=131772
+
+        Reviewed by Sam Weinig.
+
+        * wtf/text/StringImpl.h:
+
+2014-04-16  Gavin Barraclough  <barraclough@apple.com>
+
+        Update to pthread QoS SPI
+        https://bugs.webkit.org/show_bug.cgi?id=131753
+
+        Rubber stamped by Benjamin Poulain
+
+        * wtf/ThreadingPthreads.cpp:
+        (WTF::setCurrentThreadQOSUtility):
+
+2014-04-14  Geoffrey Garen  <ggaren@apple.com>
+
+        WTF should have an optional mbmalloc target so we can benchmark FastMalloc
+        https://bugs.webkit.org/show_bug.cgi?id=131662
+
+        Reviewed by Darin Adler.
+
+        * WTF.xcodeproj/project.pbxproj: Added the target.
+        * wtf/mbmalloc.cpp: Added. Implements the libmbmalloc.dylib API required
+        by MallocBench.
+
+2014-04-16  Darin Adler  <darin@apple.com>
+
+        Make Vector::takeLast work with move-only types (and optimize for types where move is faster)
+        https://bugs.webkit.org/show_bug.cgi?id=131735
+
+        Reviewed by Alexey Proskuryakov.
+
+        * wtf/Vector.h:
+        (WTF::Vector::takeLast): Added a missing std::move. All the other take functions have it.
+
+2014-04-14  Mark Lam  <mark.lam@apple.com>
+
+        monotonicallyIncreasingTime() should only initialize its static timebaseInfo once.
+        <https://webkit.org/b/131630>
+
+        Reviewed by Filip Pizlo.
+
+        The current initialization of the static field is not thread safe.
+
+        * wtf/CurrentTime.cpp:
+        (WTF::monotonicallyIncreasingTime):
+
+2014-04-14  Benjamin Poulain  <benjamin@webkit.org>
+
+        [JSC] Improve the call site of string comparison in some hot path
+        https://bugs.webkit.org/show_bug.cgi?id=131605
+
+        Reviewed by Darin Adler.
+
+        * wtf/text/StringImpl.cpp:
+        (WTF::stringImplContentEqual):
+        Inline that function to reduce the call overhead for JSC.
+        This is only inlined twice, it is not catastrophic for our binary.
+
+2014-04-13  Andy Estes  <aestes@apple.com>
+
+        Relax adoption requirements of RefCounted objects that are NeverDestroyed
+        https://bugs.webkit.org/show_bug.cgi?id=131593
+
+        Reviewed by Dan Bernstein.
+
+        RefCounted objects that are created by NeverDestroyed<> won't have a
+        RefPtr adopting them, so call relaxAdoptionRequirements().
+
+        * wtf/NeverDestroyed.h:
+        (WTF::NeverDestroyed::NeverDestroyed):
+        (WTF::NeverDestroyed::MaybeRelax::MaybeRelax):
+
+2014-04-10  Brent Fulgham  <bfulgham@apple.com>
+
+        [Win] Clean up some 64-bit warnings from Visual Studio analyzer
+        https://bugs.webkit.org/show_bug.cgi?id=131514
+
+        Reviewed by Tim Horton.
+
+        * WTF.vcxproj/WTF.vcxproj: Use correct platform settings for
+        64-bit build.
+        * config.h: Ditto.
+        * wtf/CurrentTime.cpp:
+        (WTF::highResUpTime): Resolve warning about deprecated API.
+        * wtf/StackBounds.cpp:
+        (WTF::StackBounds::initialize): Silence warning about
+        an uninitialized variable.
+
+2014-04-09  Geoffrey Garen  <ggaren@apple.com>
+
+        Rolled back in r166972.
+
+        This time, we conditionally exclude linking against bmalloc in Production
+        builds. Production builds will not be able to link against bmalloc
+        until the Production build system has been updated to build bmalloc.
+
+            WTF should link against bmalloc
+            https://bugs.webkit.org/show_bug.cgi?id=131403
+
+            Reviewed by Mark Rowe.
+
+            * Configurations/WTF.xcconfig:
+            * WTF.xcodeproj/project.pbxproj:
+
+2014-04-09  Geoffrey Garen  <ggaren@apple.com>
+
+        Put bmalloc headers in the right place
+        https://bugs.webkit.org/show_bug.cgi?id=131464
+
+        Reviewed by Mark Rowe.
+
+        * wtf/FastMalloc.cpp: Use "<bmalloc/...>" syntax so we can find our
+        headers in <header-root>/usr/local/include/bmalloc/.
+
+2014-04-09  Geoffrey Garen  <ggaren@apple.com>
+
+        Rolled back out r166972.
+
+        The production buildbots are still broken because the build-root script
+        doesn't build bmalloc.
+
+        * WTF.xcodeproj/project.pbxproj:
+
+2014-04-09  Geoffrey Garen  <ggaren@apple.com>
+
+        Rolled back in r166972.
+
+        The iOS buildbot's scripts have been updated to build bmalloc, so the
+        build should now succeed on the bot.
+
+        Also renamed "Frameworks" to "Libraries" as suggested in a review comment.
+
+            WTF should link against bmalloc
+            https://bugs.webkit.org/show_bug.cgi?id=131403
+
+            Reviewed by Michael Saboff.
+
+            This is required to build successfullly with bmalloc enabled.
+
+            * WTF.xcodeproj/project.pbxproj:
+
+2014-04-08  Geoffrey Garen  <ggaren@apple.com>
+
+        Stop linking WTF against bmalloc.
+
+        Reviewed by Enrica Casucci.
+
+        This seems to have broken an iOS buildbot script. Disable it for now
+        until we can fix the script.
+
+        * WTF.xcodeproj/project.pbxproj:
+
+2014-04-08  Geoffrey Garen  <ggaren@apple.com>
+
+        WTF should link against bmalloc
+        https://bugs.webkit.org/show_bug.cgi?id=131403
+
+        Reviewed by Michael Saboff.
+
+        This is required to build successfullly with bmalloc enabled.
+
+        * WTF.xcodeproj/project.pbxproj:
+
+2014-04-08  Geoffrey Garen  <ggaren@apple.com>
+
+        Added a bmalloc back-end for FastMalloc
+        https://bugs.webkit.org/show_bug.cgi?id=131387
+
+        Reviewed by Andreas Kling.
+
+        We'll need to rethink some things if we adopt this back-end. For example,
+        fastMallocSize() and fastMallocGoodSize() are no longer real things. But,
+        this is enough to test for now.
+
+        * wtf/FastMalloc.cpp:
+        (WTF::fastMalloc):
+        (WTF::fastCalloc):
+        (WTF::fastRealloc):
+        (WTF::fastFree):
+        (WTF::fastMallocSize):
+        (WTF::fastMallocGoodSize):
+        (WTF::tryFastMalloc):
+        (WTF::tryFastRealloc):
+        (WTF::tryFastCalloc):
+        (WTF::releaseFastMallocFreeMemory):
+        (WTF::fastMallocStatistics):
+
+2014-04-08  Andres Gomez  <agomez@igalia.com>
+
+        [GTK] [EFL] Build fails with GCC < 4.8.x
+        https://bugs.webkit.org/show_bug.cgi?id=130585
+
+        Reviewed by Martin Robinson.
+
+        The behavior in lower versions of GCC seem to be related to
+        http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-active.html#2132.
+
+        Provided explicit casts for the failing ambiguous overloads.
+
+        * wtf/gtk/MainThreadGtk.cpp:
+        (WTF::scheduleDispatchFunctionsOnMainThread):
+        * wtf/gtk/RunLoopGtk.cpp:
+        (WTF::RunLoop::wakeUp): Provided lambda with a RefPtr instead of
+        ref and de-referring.
+
+2014-04-04  Mark Lam  <mark.lam@apple.com>
+
+        Date object needs to check for ES5 15.9.1.14 TimeClip limit.
+        <https://webkit.org/b/131248>
+
+        Reviewed by Mark Hahnenberg.
+
+        * wtf/DateMath.cpp:
+        - Moved the definition of maxECMAScriptTime to the .h file so that we
+          can use it in other files as well.
+        (WTF::msToYear):
+        - Removed a stale comment for parseDateFromNullTerminatedCharacters().
+        * wtf/DateMath.h:
+
+2014-04-04  Mark Hahnenberg  <mhahnenberg@apple.com>
+
+        Enhanced GC logging
+        https://bugs.webkit.org/show_bug.cgi?id=131246
+
+        Reviewed by Geoff Garen.
+
+        Remove OBJECT_MARK_LOGGING
+
+        * wtf/FeatureDefines.h:
+        * wtf/Platform.h:
+
 2014-04-03  Zsolt Borbely  <zsborbely.u-szeged@partner.samsung.com>
 
         [EFL] Enable CSS JIT again, it works fine after r166666.

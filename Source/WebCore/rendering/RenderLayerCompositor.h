@@ -80,7 +80,8 @@ enum {
     CompositingReasonBlendingWithCompositedDescendants      = 1 << 20,
     CompositingReasonPerspective                            = 1 << 21,
     CompositingReasonPreserve3D                             = 1 << 22,
-    CompositingReasonRoot                                   = 1 << 23
+    CompositingReasonRoot                                   = 1 << 23,
+    CompositingReasonIsolatesCompositedBlendingDescendants  = 1 << 24,
 };
 typedef unsigned CompositingReasons;
 
@@ -241,6 +242,8 @@ public:
     virtual float deviceScaleFactor() const override;
     virtual float contentsScaleMultiplierForNewTiles(const GraphicsLayer*) const override;
     virtual float pageScaleFactor() const override;
+    virtual float zoomedOutPageScaleFactor() const override;
+
     virtual void didCommitChangesForLayer(const GraphicsLayer*) const override;
     virtual void notifyFlushBeforeDisplayRefresh(const GraphicsLayer*) override;
 
@@ -361,6 +364,7 @@ private:
     bool layerHas3DContent(const RenderLayer&) const;
     bool isRunningAcceleratedTransformAnimation(RenderLayerModelObject&) const;
 
+    void appendOverlayLayers(Vector<GraphicsLayer*>&);
     bool hasAnyAdditionalCompositedLayers(const RenderLayer& rootLayer) const;
 
     void ensureRootLayer();

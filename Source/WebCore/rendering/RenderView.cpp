@@ -41,6 +41,7 @@
 #include "RenderLayer.h"
 #include "RenderLayerBacking.h"
 #include "RenderLayerCompositor.h"
+#include "RenderMultiColumnFlowThread.h"
 #include "RenderNamedFlowThread.h"
 #include "RenderSelectionInfo.h"
 #include "RenderWidget.h"
@@ -294,7 +295,7 @@ LayoutUnit RenderView::pageOrViewLogicalHeight() const
     if (document().printing())
         return pageLogicalHeight();
     
-    if (hasColumns() && !style().hasInlineColumnAxis()) {
+    if ((hasColumns() || multiColumnFlowThread()) && !style().hasInlineColumnAxis()) {
         if (int pageLength = frameView().pagination().pageLength)
             return pageLength;
     }
@@ -563,13 +564,13 @@ void RenderView::repaintViewRectangle(const LayoutRect& repaintRect) const
 
     frameView().addTrackedRepaintRect(pixelSnappedForPainting(repaintRect, document().deviceScaleFactor()));
 
-    // FIXME: convert all repaint rect dependencies to FloatRect/LayoutRect
-    IntRect pixelSnappedRect = pixelSnappedIntRect(repaintRect);
+    // FIXME: convert all repaint rect dependencies to FloatRect.
+    IntRect enclosingRect = enclosingIntRect(repaintRect);
     if (!m_accumulatedRepaintRegion) {
-        frameView().repaintContentRectangle(pixelSnappedRect);
+        frameView().repaintContentRectangle(enclosingRect);
         return;
     }
-    m_accumulatedRepaintRegion->unite(pixelSnappedRect);
+    m_accumulatedRepaintRegion->unite(enclosingRect);
 
     // Region will get slow if it gets too complex. Merge all rects so far to bounds if this happens.
     // FIXME: Maybe there should be a region type that does this automatically.
@@ -633,7 +634,7 @@ void RenderView::computeRectForRepaint(const RenderLayerModelObject* repaintCont
         
     // Apply our transform if we have one (because of full page zooming).
     if (!repaintContainer && layer() && layer()->transform())
-        rect = layer()->transform()->mapRect(rect);
+        rect = LayoutRect(layer()->transform()->mapRect(pixelSnappedForPainting(rect, document().deviceScaleFactor())));
 }
 
 void RenderView::absoluteRects(Vector<IntRect>& rects, const LayoutPoint& accumulatedOffset) const
@@ -960,11 +961,11 @@ bool RenderView::rootBackgroundIsEntirelyFixed() const
 
     return rootObject->rendererForRootBackground().hasEntirelyFixedBackground();
 }
-
-LayoutRect RenderView::backgroundRect(RenderBox* backgroundRenderer) const
+    
+LayoutRect RenderView::unextendedBackgroundRect(RenderBox* backgroundRenderer) const
 {
     if (!hasColumns())
-        return frameView().hasExtendedBackgroundRectForPainting() ? frameView().extendedBackgroundRectForPainting() : unscaledDocumentRect();
+        return unscaledDocumentRect();
 
     ColumnInfo* columnInfo = this->columnInfo();
     LayoutRect backgroundRect(0, 0, columnInfo->desiredColumnWidth(), columnInfo->columnHeight() * columnInfo->columnCount());
@@ -973,6 +974,14 @@ LayoutRect RenderView::backgroundRect(RenderBox* backgroundRenderer) const
     backgroundRenderer->flipForWritingMode(backgroundRect);
 
     return backgroundRect;
+}
+    
+LayoutRect RenderView::backgroundRect(RenderBox* backgroundRenderer) const
+{
+    if (!hasColumns() && frameView().hasExtendedBackgroundRectForPainting())
+        return frameView().extendedBackgroundRectForPainting();
+
+    return unextendedBackgroundRect(backgroundRenderer);
 }
 
 IntRect RenderView::documentRect() const
@@ -1036,9 +1045,7 @@ bool RenderView::shouldDisableLayoutStateForSubtree(RenderObject* renderer) cons
 
 IntSize RenderView::viewportSize() const
 {
-    // FIXME: viewportSize() is used to layout content from viewport units. On iOS, it should use the last stable
-    // unobscured rect. See <rdar://problem/16279088>.
-    return frameView().visibleContentRectIncludingScrollbars(ScrollableArea::LegacyIOSDocumentVisibleRect).size();
+    return frameView().viewportSize();
 }
 
 void RenderView::updateHitTestResult(HitTestResult& result, const LayoutPoint& point)
@@ -1214,6 +1221,52 @@ RenderView::RepaintRegionAccumulator::~RepaintRegionAccumulator()
     if (m_wasAccumulatingRepaintRegion)
         return;
     m_rootView->flushAccumulatedRepaintRegion();
+}
+
+unsigned RenderView::pageNumberForBlockProgressionOffset(int offset) const
+{
+    int columnNumber = 0;
+    const Pagination& pagination = frameView().frame().page()->pagination();
+    if (pagination.mode == Pagination::Unpaginated)
+        return columnNumber;
+    
+    bool progressionIsInline = false;
+    bool progressionIsReversed = false;
+    
+    if (hasColumns()) {
+        ColumnInfo* colInfo = columnInfo();
+        if (!colInfo)
+            return columnNumber;
+        progressionIsInline = colInfo->progressionIsInline();
+        progressionIsReversed = colInfo->progressionIsReversed();
+    } else if (multiColumnFlowThread()) {
+        progressionIsInline = multiColumnFlowThread()->progressionIsInline();
+        progressionIsReversed = multiColumnFlowThread()->progressionIsReversed();
+    } else
+        return columnNumber;
+    
+    if (!progressionIsInline) {
+        if (!progressionIsReversed)
+            columnNumber = (pagination.pageLength + pagination.gap - offset) / (pagination.pageLength + pagination.gap);
+        else
+            columnNumber = offset / (pagination.pageLength + pagination.gap);
+    }
+
+    return columnNumber;
+}
+
+unsigned RenderView::pageCount() const
+{
+    const Pagination& pagination = frameView().frame().page()->pagination();
+    if (pagination.mode == Pagination::Unpaginated)
+        return 0;
+    
+    if (hasColumns())
+        return columnCount(columnInfo());
+    if (multiColumnFlowThread())
+        return multiColumnFlowThread()->columnCount();
+
+    return 0;
 }
 
 } // namespace WebCore

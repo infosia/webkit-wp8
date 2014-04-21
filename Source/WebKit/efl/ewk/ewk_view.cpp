@@ -69,14 +69,12 @@
 #include "SessionID.h"
 #include "Settings.h"
 #include "SoupNetworkSession.h"
-#include "TiledBackingStore.h"
 #include "c_instance.h"
 #include "ewk_contextmenu_private.h"
 #include "ewk_frame.h"
 #include "ewk_frame_private.h"
 #include "ewk_history_private.h"
 #include "ewk_js_private.h"
-#include "ewk_paint_context_private.h"
 #include "ewk_private.h"
 #include "ewk_settings_private.h"
 #include "ewk_view_private.h"
@@ -108,10 +106,6 @@
 
 #if ENABLE(BATTERY_STATUS)
 #include "BatteryClientEfl.h"
-#endif
-
-#if ENABLE(NETWORK_INFO)
-#include "NetworkInfoClientEfl.h"
 #endif
 
 #if ENABLE(INPUT_TYPE_COLOR)
@@ -259,18 +253,10 @@ struct _Ewk_View_Private_Data {
 #if ENABLE(INPUT_TYPE_COLOR)
     WebCore::ColorChooserClient* colorChooserClient;
 #endif
-#if ENABLE(NAVIGATOR_CONTENT_UTILS) || ENABLE(CUSTOM_SCHEME_HANDLER)
-    OwnPtr<WebCore::NavigatorContentUtilsClientEfl> navigatorContentUtilsClient;
-#endif
     struct {
         Ewk_Menu menu;
         WebCore::PopupMenuClient* menuClient;
     } popup;
-    struct {
-        Eina_Rectangle* array;
-        size_t count;
-        size_t allocated;
-    } repaints;
     unsigned int imh; /**< input method hints */
     struct {
         bool viewCleared : 1;
@@ -422,51 +408,6 @@ static void _ewk_view_smart_changed(Ewk_View_Smart_Data* smartData)
         return;
     smartData->changed.any = true;
     evas_object_smart_changed(smartData->self);
-}
-
-static Eina_Bool _ewk_view_repaints_resize(Ewk_View_Private_Data* priv, size_t size)
-{
-    void* tmp = realloc(priv->repaints.array, size * sizeof(Eina_Rectangle));
-    if (!tmp) {
-        CRITICAL("could not realloc repaints array to %zu elements.", size);
-        return false;
-    }
-    priv->repaints.allocated = size;
-    priv->repaints.array = static_cast<Eina_Rectangle*>(tmp);
-    return true;
-}
-
-static void _ewk_view_repaint_add(Ewk_View_Private_Data* priv, Evas_Coord x, Evas_Coord y, Evas_Coord width, Evas_Coord height)
-{
-    size_t newSize = 0;
-
-    if (priv->repaints.allocated == priv->repaints.count)
-        newSize = priv->repaints.allocated + ewkViewRepaintsSizeStep;
-    else if (!priv->repaints.count && priv->repaints.allocated > ewkViewRepaintsSizeInitial)
-        newSize = ewkViewRepaintsSizeInitial;
-
-    if (newSize) {
-        if (!_ewk_view_repaints_resize(priv, newSize))
-            return;
-    }
-
-    Eina_Rectangle* rect = priv->repaints.array + priv->repaints.count;
-    priv->repaints.count++;
-
-    rect->x = x;
-    rect->y = y;
-    rect->w = width;
-    rect->h = height;
-
-    DBG("add repaint %d, %d+%dx%d", x, y, width, height);
-}
-
-static void _ewk_view_repaints_flush(Ewk_View_Private_Data* priv)
-{
-    priv->repaints.count = 0;
-    if (priv->repaints.allocated <= ewkViewRepaintsSizeMaximumFree)
-        return;
-    _ewk_view_repaints_resize(priv, ewkViewRepaintsSizeMaximumFree);
 }
 
 // Default Event Handling //////////////////////////////////////////////
@@ -674,10 +615,6 @@ static Ewk_View_Private_Data* _ewk_view_priv_new(Ewk_View_Smart_Data* smartData)
     WebCore::provideDeviceOrientationTo(priv->page.get(), new WebCore::DeviceOrientationClientEfl);
 #endif
 
-#if ENABLE(NETWORK_INFO)
-    WebCore::provideNetworkInfoTo(priv->page.get(), new WebCore::NetworkInfoClientEfl);
-#endif
-
 #if ENABLE(VIBRATION)
     WebCore::provideVibrationTo(priv->page.get(), new WebCore::VibrationClientEfl(smartData->self));
 #endif
@@ -687,8 +624,7 @@ static Ewk_View_Private_Data* _ewk_view_priv_new(Ewk_View_Smart_Data* smartData)
 #endif
 
 #if ENABLE(NAVIGATOR_CONTENT_UTILS)
-    priv->navigatorContentUtilsClient = WebCore::NavigatorContentUtilsClientEfl::create(smartData->self);
-    WebCore::provideNavigatorContentUtilsTo(priv->page.get(), priv->navigatorContentUtilsClient.get());
+    WebCore::provideNavigatorContentUtilsTo(priv->page.get(), std::make_unique<WebCore::NavigatorContentUtilsClientEfl>(smartData->self));
 #endif
 
 #if ENABLE(GEOLOCATION)
@@ -835,8 +771,6 @@ static void _ewk_view_priv_del(Ewk_View_Private_Data* priv)
         return;
 
     /* do not delete priv->main_frame */
-
-    free(priv->repaints.array);
 
     eina_stringshare_del(priv->settings.userAgent);
     eina_stringshare_del(priv->settings.userStylesheet);
@@ -1058,8 +992,6 @@ static void _ewk_view_smart_calculate(Evas_Object* ewkView)
         smartData->view.w = width;
         smartData->view.h = height;
 
-        _ewk_view_repaint_add(priv, 0, 0, width, height);
-
         // This callback is a good place e.g. to change fixed layout size (ewk_view_fixed_layout_size_set).
         evas_object_smart_callback_call(ewkView, "view,resized", 0);
     }
@@ -1131,12 +1063,6 @@ static Eina_Bool _ewk_view_smart_zoom_set(Ewk_View_Smart_Data* smartData, float 
     y = (height + smartData->view.h) * py - centerY;
     ewk_frame_scroll_set(smartData->main_frame, x, y);
     return result;
-}
-
-static void _ewk_view_smart_flush(Ewk_View_Smart_Data* smartData)
-{
-    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
-    _ewk_view_repaints_flush(priv);
 }
 
 static void _ewk_view_zoom_animated_mark_stop(Ewk_View_Smart_Data* smartData)
@@ -1317,7 +1243,6 @@ Eina_Bool ewk_view_smart_set(Ewk_View_Smart_Class* api)
     api->zoom_set = _ewk_view_smart_zoom_set;
     api->zoom_weak_set = _ewk_view_smart_zoom_weak_set;
     api->zoom_weak_smooth_scale_set = _ewk_view_smart_zoom_weak_smooth_scale_set;
-    api->flush = _ewk_view_smart_flush;
     api->disable_render = _ewk_view_smart_disable_render;
     api->enable_render = _ewk_view_smart_enable_render;
 
@@ -2666,56 +2591,6 @@ Ewk_View_Smart_Data* ewk_view_smart_data_get(const Evas_Object* ewkView)
 }
 
 /**
- * Gets the internal array of repaint requests.
- *
- * This array should not be modified anyhow. It should be processed
- * immediately as any further ewk_view call might change it, like
- * those that add repaints or flush them, so be sure that your code
- * does not call any of those while you process the repaints,
- * otherwise copy the array.
- *
- * @param priv private handle pointer of the view to get repaints.
- * @param count where to return the number of elements of returned array, may be @c 0.
- *
- * @return reference to array of requested repaints.
- *
- * @note this is not for general use but just for subclasses that want
- *       to define their own backing store.
- */
-const Eina_Rectangle* ewk_view_repaints_pop(Ewk_View_Private_Data* priv, size_t* count)
-{
-    if (count)
-        *count = 0;
-    EINA_SAFETY_ON_NULL_RETURN_VAL(priv, 0);
-    if (count)
-        *count = priv->repaints.count;
-
-    priv->repaints.count = 0;
-
-    return priv->repaints.array;
-}
-
-/**
- * Add a new repaint request to queue.
- *
- * The repaints are assumed to be relative to current viewport.
- *
- * @param priv private handle pointer of the view to add repaint request.
- * @param x horizontal position relative to current view port (scrolled).
- * @param y vertical position relative to current view port (scrolled).
- * @param width width of area to be repainted
- * @param height height of area to be repainted
- *
- * @note this is not for general use but just for subclasses that want
- *       to define their own backing store.
- */
-void ewk_view_repaint_add(Ewk_View_Private_Data* priv, Evas_Coord x, Evas_Coord y, Evas_Coord width, Evas_Coord height)
-{
-    EINA_SAFETY_ON_NULL_RETURN(priv);
-    _ewk_view_repaint_add(priv, x, y, width, height);
-}
-
-/**
  * Do layout if required, applied recursively.
  *
  * @param priv private handle pointer of the view to layout.
@@ -2733,95 +2608,6 @@ void ewk_view_layout_if_needed_recursive(Ewk_View_Private_Data* priv)
         return;
     }
     view->updateLayoutAndStyleIfNeededRecursive();
-}
-
-/* internal methods ****************************************************/
-/**
- * @internal
- * Paints using given graphics context the given area.
- *
- * This uses viewport relative area and will also handle scrollbars
- * and other extra elements. See ewk_view_paint_contents() for the
- * alternative function.
- *
- * @param priv the pointer to the private data of the view to use as paint source
- * @param cr the cairo context to use as paint destination, its state will
- *        be saved before operation and restored afterwards
- * @param area viewport relative geometry to paint
- *
- * @return @c EINA_TRUE on success or @c EINA_FALSE on failure
- *
- * @note This is an easy to use version, but internal structures are
- *       always created, then graphics context is clipped, then
- *       painted, restored and destroyed. This might not be optimum,
- *       so using @a Ewk_Paint_Context may be a better solutions
- *       for large number of operations.
- *
- * @see ewk_view_paint_contents()
- * @see ewk_paint_context_paint()
- *
- * @note This is not for general use but just for subclasses that want
- *       to define their own backing store.
-*/
-Eina_Bool ewk_view_paint(Ewk_View_Private_Data* priv, Ewk_Paint_Context* context, const Eina_Rectangle* area)
-{
-    EINA_SAFETY_ON_NULL_RETURN_VAL(priv, false);
-    EINA_SAFETY_ON_NULL_RETURN_VAL(context, false);
-    EINA_SAFETY_ON_NULL_RETURN_VAL(area, false);
-    WebCore::FrameView* view = priv->page->mainFrame().view();
-    EINA_SAFETY_ON_NULL_RETURN_VAL(view, false);
-
-    ewk_paint_context_save(context);
-    ewk_paint_context_clip(context, area);
-    ewk_paint_context_paint(context, view, area);
-    ewk_paint_context_restore(context);
-
-    return true;
-}
-
-/**
- * @internal
- * Paints just contents using given graphics context the given area.
- *
- * This uses absolute coordinates for area and will just handle
- * contents, no scrollbars or extras. See ewk_view_paint() for the
- * alternative solution.
- *
- * @param priv the pointer to the private data of the view to use as paint source
- * @param cr the cairo context to use as paint destination, its state will
- *        be saved before operation and restored afterwards
- * @param area absolute geometry to paint
- *
- * @return @c EINA_TRUE on success or @c EINA_FALSE on failure
- *
- * @note This is an easy to use version, but internal structures are
- *       always created, then graphics context is clipped, then
- *       painted, restored and destroyed. This might not be optimum,
- *       so using @a Ewk_Paint_Context may be a better solutions
- *       for large number of operations.
- *
- * @see ewk_view_paint()
- * @see ewk_paint_context_paint_contents()
- *
- * @note This is not for general use but just for subclasses that want
- *       to define their own backing store.
- */
-Eina_Bool ewk_view_paint_contents(Ewk_View_Private_Data* priv, Ewk_Paint_Context* context, const Eina_Rectangle* area)
-{
-    EINA_SAFETY_ON_NULL_RETURN_VAL(priv, false);
-    EINA_SAFETY_ON_NULL_RETURN_VAL(context, false);
-    EINA_SAFETY_ON_NULL_RETURN_VAL(area, false);
-    WebCore::FrameView* view = priv->page->mainFrame().view();
-    EINA_SAFETY_ON_NULL_RETURN_VAL(view, false);
-
-    view->updateLayoutAndStyleIfNeededRecursive();
-
-    ewk_paint_context_save(context);
-    ewk_paint_context_clip(context, area);
-    ewk_paint_context_paint_contents(context, view, area);
-    ewk_paint_context_restore(context);
-
-    return true;
 }
 
 /**
@@ -3510,27 +3296,6 @@ bool ewk_view_run_open_panel(Evas_Object* ewkView, Evas_Object* frame, Ewk_File_
         ERR("Canceled file selection, but selected filenames != 0. Free names before return.");
 
     return confirm;
-}
-
-void ewk_view_repaint(Evas_Object* ewkView, Evas_Coord x, Evas_Coord y, Evas_Coord width, Evas_Coord height)
-{
-    DBG("ewkView=%p, region=%d,%d + %dx%d", ewkView, x, y, width, height);
-    EWK_VIEW_SD_GET_OR_RETURN(ewkView, smartData);
-    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
-
-    _ewk_view_repaint_add(priv, x, y, width, height);
-    _ewk_view_smart_changed(smartData);
-}
-
-void ewk_view_scroll(Evas_Object* ewkView, const WebCore::IntSize& delta, const WebCore::IntRect& rectToScroll, const WebCore::IntRect&)
-{
-    ASSERT(!rectToScroll.isEmpty());
-    ASSERT(delta.width() || delta.height());
-
-    EWK_VIEW_SD_GET_OR_RETURN(ewkView, smartData);
-    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
-
-    ewk_view_mark_for_sync(ewkView);
 }
 
 /**
@@ -4416,11 +4181,18 @@ void ewk_view_root_graphics_layer_set(Evas_Object* ewkView, WebCore::GraphicsLay
 void ewk_view_mark_for_sync(Evas_Object* ewkView)
 {
     EWK_VIEW_SD_GET_OR_RETURN(ewkView, smartData);
-    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
 
     // Mark the image as "dirty" meaning it needs an update next time evas renders.
     // It will call the pixel get callback then.
     evas_object_image_pixels_dirty_set(smartData->image, true);
+}
+
+void ewk_view_force_paint(Evas_Object* ewkView)
+{
+    EWK_VIEW_SD_GET_OR_RETURN(ewkView, smartData);
+    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
+
+    priv->acceleratedCompositingContext->flushAndRenderLayers();
 }
 
 void ewk_view_cursor_set(Evas_Object* ewkView, const WebCore::Cursor& cursor)
@@ -4547,15 +4319,10 @@ Ewk_Context_Menu* ewk_view_context_menu_get(const Evas_Object* ewkView)
 #endif
 }
 
-Evas_Object* ewk_view_screenshot_contents_get(const Evas_Object* ewkView, const Eina_Rectangle* area, float scale)
+Evas_Object* ewk_view_screenshot_contents_get(const Evas_Object* ewkView, const Eina_Rectangle* area)
 {
     if (!area || !area->w || !area->h) {
         ERR("empty area is not allowed");
-        return 0;
-    }
-
-    if (scale < std::numeric_limits<float>::epsilon()) {
-        ERR("scale factor should be bigger than zero");
         return 0;
     }
 
@@ -4566,23 +4333,12 @@ Evas_Object* ewk_view_screenshot_contents_get(const Evas_Object* ewkView, const 
     EINA_SAFETY_ON_NULL_RETURN_VAL(canvas, 0);
 
     Evas_Object* screenshotImage = evas_object_image_add(canvas);
-    int surfaceWidth = area->w * scale;
-    int surfaceHeight = area->h * scale;
-    evas_object_image_size_set(screenshotImage, surfaceWidth, surfaceHeight);
-    evas_object_image_fill_set(screenshotImage, 0, 0, surfaceWidth, surfaceHeight);
-    evas_object_resize(screenshotImage, surfaceWidth, surfaceHeight);
+    evas_object_image_size_set(screenshotImage, area->w, area->h);
+    evas_object_image_fill_set(screenshotImage, 0, 0, area->w, area->h);
+    evas_object_resize(screenshotImage, area->w, area->h);
     evas_object_image_colorspace_set(screenshotImage, EVAS_COLORSPACE_ARGB8888);
-    evas_object_image_smooth_scale_set(screenshotImage, true);
 
-    Ewk_Paint_Context* context = ewk_paint_context_from_image_new(screenshotImage);
-    ewk_paint_context_save(context);
-    ewk_paint_context_scale(context, scale, scale);
-    ewk_paint_context_translate(context, -1 * area->x, -1 * area->y);
-
-    ewk_view_paint(priv, context, area);
-
-    ewk_paint_context_restore(context);
-    ewk_paint_context_free(context);
+    priv->acceleratedCompositingContext->extractImageData(screenshotImage, WebCore::IntRect(*area));
 
     return screenshotImage;
 }
@@ -4615,26 +4371,6 @@ Eina_Bool ewk_view_setting_tiled_backing_store_enabled_get(Evas_Object* ewkView)
     return false;
 #endif
 }
-
-#if USE(TILED_BACKING_STORE)
-/**
- * @internal
- * Invalidate given area to repaint. The backing store will mark tiles that are
- * in the area as dirty.
- *
- * @param ewkView View.
- * @param area Area to invalidate
- */
-void ewk_view_tiled_backing_store_invalidate(Evas_Object* ewkView, const WebCore::IntRect& area)
-{
-    EINA_SAFETY_ON_NULL_RETURN(ewkView);
-    EWK_VIEW_SD_GET_OR_RETURN(ewkView, smartData);
-    EWK_VIEW_PRIV_GET_OR_RETURN(smartData, priv);
-
-    if (priv->page->mainFrame().tiledBackingStore())
-        priv->page->mainFrame().tiledBackingStore()->invalidate(area);
-}
-#endif
 
 namespace EWKPrivate {
 

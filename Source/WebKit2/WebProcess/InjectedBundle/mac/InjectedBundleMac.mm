@@ -45,12 +45,6 @@ using namespace WebCore;
 - (CFBundleRef)_cfBundle;
 @end
 
-#if PLATFORM(MAC) && __MAC_OS_X_VERSION_MIN_REQUIRED == 1080
-@interface NSKeyedUnarchiver (WKDetails)
-- (void)setRequiresSecureCoding:(BOOL)b;
-@end
-#endif
-
 namespace WebKit {
 
 bool InjectedBundle::load(API::Object* initializationUserData)
@@ -153,10 +147,13 @@ void InjectedBundle::setBundleParameter(const String& key, const IPC::DataRefere
 
     id parameter = nil;
     @try {
-        parameter = [unarchiver decodeObjectForKey:@"parameter"];
+        parameter = [unarchiver decodeObjectOfClass:[NSObject class] forKey:@"parameter"];
     } @catch (NSException *exception) {
         LOG_ERROR("Failed to decode bundle parameter: %@", exception);
     }
+
+    if (!m_bundleParameters && parameter)
+        m_bundleParameters = adoptNS([[WKWebProcessBundleParameters alloc] initWithDictionary:[NSDictionary dictionary]]);
 
     [m_bundleParameters setParameter:parameter forKey:key];
 #endif

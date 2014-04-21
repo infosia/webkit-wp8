@@ -41,7 +41,6 @@
 #include "GetterSetter.h"
 #include "HostCallReturnValue.h"
 #include "JIT.h"
-#include "JITOperationWrappers.h"
 #include "JITToDFGDeferredCompilationCallback.h"
 #include "JSGlobalObjectFunctions.h"
 #include "JSNameScope.h"
@@ -52,6 +51,7 @@
 #include "JSCInlines.h"
 #include "Repatch.h"
 #include "RepatchBuffer.h"
+#include <wtf/InlineASM.h>
 
 namespace JSC {
 
@@ -912,7 +912,7 @@ size_t JIT_OPERATION operationCompareStringEq(ExecState* exec, JSCell* left, JSC
     VM* vm = &exec->vm();
     NativeCallFrameTracer tracer(vm, exec);
 
-    bool result = asString(left)->value(exec) == asString(right)->value(exec);
+    bool result = WTF::equal(*asString(left)->value(exec).impl(), *asString(right)->value(exec).impl());
 #if USE(JSVALUE64)
     return JSValue::encode(jsBoolean(result));
 #else
@@ -1873,6 +1873,17 @@ SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
 );
 
 #elif COMPILER(GCC) && CPU(MIPS)
+
+#if WTF_MIPS_PIC
+#define LOAD_FUNCTION_TO_T9(function) \
+        ".set noreorder" "\n" \
+        ".cpload $25" "\n" \
+        ".set reorder" "\n" \
+        "la $t9, " LOCAL_REFERENCE(function) "\n"
+#else
+#define LOAD_FUNCTION_TO_T9(function) "" "\n"
+#endif
+
 asm (
 ".text" "\n"
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"
@@ -1884,6 +1895,9 @@ SYMBOL_STRING(getHostCallReturnValue) ":" "\n"
 );
 
 #elif COMPILER(GCC) && CPU(SH4)
+
+#define SH4_SCRATCH_REGISTER "r11"
+
 asm (
 ".text" "\n"
 ".globl " SYMBOL_STRING(getHostCallReturnValue) "\n"

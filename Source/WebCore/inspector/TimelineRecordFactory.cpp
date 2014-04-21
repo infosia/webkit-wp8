@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2009 Google Inc. All rights reserved.
+ * Copyright (C) 2014 University of Washington.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -41,10 +42,12 @@
 #include "LayoutRect.h"
 #include "ResourceRequest.h"
 #include "ResourceResponse.h"
-#include "ScriptProfile.h"
 #include <inspector/InspectorValues.h>
+#include <inspector/ScriptBreakpoint.h>
 #include <inspector/ScriptCallStack.h>
 #include <inspector/ScriptCallStackFactory.h>
+#include <inspector/agents/InspectorProfilerAgent.h>
+#include <profiler/Profile.h>
 #include <wtf/CurrentTime.h>
 
 using namespace Inspector;
@@ -84,6 +87,14 @@ PassRefPtr<InspectorObject> TimelineRecordFactory::createFunctionCallData(const 
     RefPtr<InspectorObject> data = InspectorObject::create();
     data->setString("scriptName", scriptName);
     data->setNumber("scriptLine", scriptLine);
+    return data.release();
+}
+
+PassRefPtr<InspectorObject> TimelineRecordFactory::createProbeSampleData(const ScriptBreakpointAction& action, int hitCount)
+{
+    RefPtr<InspectorObject> data = InspectorObject::create();
+    data->setNumber(ASCIILiteral("probeId"), action.identifier);
+    data->setNumber(ASCIILiteral("hitCount"), hitCount);
     return data.release();
 }
 
@@ -253,9 +264,9 @@ void TimelineRecordFactory::appendLayoutRoot(InspectorObject* data, const FloatQ
     data->setArray("root", createQuad(quad));
 }
 
-void TimelineRecordFactory::appendProfile(InspectorObject* data, PassRefPtr<ScriptProfile> profile)
+void TimelineRecordFactory::appendProfile(InspectorObject* data, PassRefPtr<JSC::Profile> profile)
 {
-    data->setValue(ASCIILiteral("profile"), profile->buildInspectorObject());
+    data->setValue(ASCIILiteral("profile"), InspectorProfilerAgent::buildProfileInspectorObject(profile.get()));
 }
 
 } // namespace WebCore

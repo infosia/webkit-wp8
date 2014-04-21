@@ -1321,7 +1321,7 @@ sub launcherPath()
 sub launcherName()
 {
     if (isGtk()) {
-        return "GtkLauncher";
+        return "MiniBrowser";
     } elsif (isAppleMacWebKit()) {
         return "Safari";
     } elsif (isAppleWinWebKit()) {
@@ -1418,6 +1418,16 @@ sub checkInstalledTools()
     my $pythonVer = `python --version 2>&1`;
     die "You must have Python installed to build WebKit.\n" if ($?);
     die "Python 2.7.3 is not compatible with the WebKit build. Please downgrade to Python 2.6.8.\n" if ($pythonVer =~ /2\.7\.3/);
+
+    # cURL 7.34.0 has a bug that prevents authentication with opensource.apple.com (and other things using SSL3).
+    my $curlVer = `curl --version | grep "curl"`;
+    chomp($curlVer);
+    if (!$? and $curlVer =~ /libcurl\/7\.34\.0/) {
+        print "cURL version 7.34.0 has a bug that prevents authentication with SSL v2 or v3.\n";
+        print "cURL 7.33.0 is known to work. The cURL projects is preparing an update to\n";
+        print "correct this problem.\n\n";
+        die "Please install a working cURL and try again.\n";
+    }
 
     # MathML requires fonts that do not ship with Windows (at least through Windows 8). Warn the user if they are missing
     my @fonts = qw(STIXGeneral-Regular MathJax_Main-Regular);
@@ -1801,6 +1811,7 @@ sub generateBuildSystemFromCMakeProject
     my @args;
     push @args, "-DPORT=\"$port\"";
     push @args, "-DCMAKE_INSTALL_PREFIX=\"$prefixPath\"" if $prefixPath;
+    push @args, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON" if isGtk();
     push @args, "-DSHARED_CORE=ON" if isEfl() && $ENV{"ENABLE_DRT"};
     if ($config =~ /release/i) {
         push @args, "-DCMAKE_BUILD_TYPE=Release";
@@ -1999,6 +2010,7 @@ sub runMacWebKitApp($;$)
     my $productDir = productDir();
     print "Starting @{[basename($appPath)]} with DYLD_FRAMEWORK_PATH set to point to built WebKit in $productDir.\n";
     $ENV{DYLD_FRAMEWORK_PATH} = $productDir;
+    $ENV{__XPC_DYLD_FRAMEWORK_PATH} = File::Spec->rel2abs($productDir);
     $ENV{WEBKIT_UNSET_DYLD_FRAMEWORK_PATH} = "YES";
 
     setUpGuardMallocIfNeeded();
@@ -2034,6 +2046,7 @@ sub execMacWebKitAppForDebugging($)
 
     my $productDir = productDir();
     $ENV{DYLD_FRAMEWORK_PATH} = $productDir;
+    $ENV{__XPC_DYLD_FRAMEWORK_PATH} = File::Spec->rel2abs($productDir);
     $ENV{WEBKIT_UNSET_DYLD_FRAMEWORK_PATH} = "YES";
 
     setUpGuardMallocIfNeeded();

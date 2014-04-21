@@ -780,7 +780,7 @@ PassRef<RenderStyle> StyleResolver::styleForElement(Element* element, RenderStyl
         state.style()->setIsLink(true);
         EInsideLink linkState = state.elementLinkState();
         if (linkState != NotInsideLink) {
-            bool forceVisited = InspectorInstrumentation::forcePseudoState(element, CSSSelector::PseudoVisited);
+            bool forceVisited = InspectorInstrumentation::forcePseudoState(element, CSSSelector::PseudoClassVisited);
             if (forceVisited)
                 linkState = InsideVisitedLink;
         }
@@ -807,8 +807,6 @@ PassRef<RenderStyle> StyleResolver::styleForElement(Element* element, RenderStyl
     adjustRenderStyle(*state.style(), *state.parentStyle(), element);
 
     state.clear(); // Clear out for the next resolve.
-
-    document().didAccessStyleResolver();
 
     // Now return the style.
     return state.takeStyle();
@@ -866,8 +864,6 @@ PassRef<RenderStyle> StyleResolver::styleForKeyframe(const RenderStyle* elementS
         if (property != CSSPropertyWebkitAnimationTimingFunction)
             keyframeValue.addProperty(property);
     }
-
-    document().didAccessStyleResolver();
 
     return state.takeStyle();
 }
@@ -982,8 +978,6 @@ PassRefPtr<RenderStyle> StyleResolver::pseudoStyleForElement(Element* element, c
     // Start loading resources referenced by this style.
     loadPendingResources();
 
-    document().didAccessStyleResolver();
-
     // Now return the style.
     return state.takeStyle();
 }
@@ -1024,8 +1018,6 @@ PassRef<RenderStyle> StyleResolver::styleForPage(int pageIndex)
     // Start loading resources referenced by this style.
     loadPendingResources();
 
-    document().didAccessStyleResolver();
-
     // Now return the style.
     return m_state.takeStyle();
 }
@@ -1049,18 +1041,18 @@ static void addIntrinsicMargins(RenderStyle& style)
     const int intrinsicMargin = 2 * style.effectiveZoom();
 
     // FIXME: Using width/height alone and not also dealing with min-width/max-width is flawed.
-    // FIXME: Using "quirk" to decide the margin wasn't set is kind of lame.
+    // FIXME: Using "hasQuirk" to decide the margin wasn't set is kind of lame.
     if (style.width().isIntrinsicOrAuto()) {
-        if (style.marginLeft().quirk())
+        if (style.marginLeft().hasQuirk())
             style.setMarginLeft(Length(intrinsicMargin, Fixed));
-        if (style.marginRight().quirk())
+        if (style.marginRight().hasQuirk())
             style.setMarginRight(Length(intrinsicMargin, Fixed));
     }
 
     if (style.height().isAuto()) {
-        if (style.marginTop().quirk())
+        if (style.marginTop().hasQuirk())
             style.setMarginTop(Length(intrinsicMargin, Fixed));
-        if (style.marginBottom().quirk())
+        if (style.marginBottom().hasQuirk())
             style.setMarginBottom(Length(intrinsicMargin, Fixed));
     }
 }
@@ -1868,7 +1860,7 @@ static bool createGridTrackBreadth(CSSPrimitiveValue* primitiveValue, const Styl
         return false;
 
     if (primitiveValue->isLength())
-        workingLength.length().setQuirk(primitiveValue->isQuirkValue());
+        workingLength.length().setHasQuirk(primitiveValue->isQuirkValue());
 
     return true;
 }
@@ -3358,7 +3350,7 @@ bool StyleResolver::createFilterOperations(CSSValue* inValue, FilterOperations& 
             String cssUrl = primitiveValue.getStringValue();
             URL url = m_state.document().completeURL(cssUrl);
 
-            RefPtr<ReferenceFilterOperation> operation = ReferenceFilterOperation::create(cssUrl, url.fragmentIdentifier(), operationType);
+            RefPtr<ReferenceFilterOperation> operation = ReferenceFilterOperation::create(cssUrl, url.fragmentIdentifier());
             if (SVGURIReference::isExternalURIReference(cssUrl, m_state.document()))
                 state.filtersWithPendingSVGDocuments().append(operation);
 
@@ -3426,7 +3418,7 @@ bool StyleResolver::createFilterOperations(CSSValue* inValue, FilterOperations& 
             if (stdDeviation.isUndefined())
                 return false;
 
-            operations.operations().append(BlurFilterOperation::create(stdDeviation, operationType));
+            operations.operations().append(BlurFilterOperation::create(stdDeviation));
             break;
         }
         case WebKitCSSFilterValue::DropShadowFilterOperation: {
@@ -3452,7 +3444,7 @@ bool StyleResolver::createFilterOperations(CSSValue* inValue, FilterOperations& 
             if (item->color)
                 color = colorFromPrimitiveValue(item->color.get());
 
-            operations.operations().append(DropShadowFilterOperation::create(location, blur, color.isValid() ? color : Color::transparent, operationType));
+            operations.operations().append(DropShadowFilterOperation::create(location, blur, color.isValid() ? color : Color::transparent));
             break;
         }
         case WebKitCSSFilterValue::UnknownFilterOperation:

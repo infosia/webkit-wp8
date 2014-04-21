@@ -30,14 +30,9 @@
 #ifndef Shape_h
 #define Shape_h
 
-#include "BasicShapes.h"
 #include "LayoutRect.h"
 #include "Path.h"
-#include "RoundedRect.h"
-#include "StyleImage.h"
 #include "WritingMode.h"
-#include <memory>
-#include <wtf/Vector.h>
 
 namespace WebCore {
 
@@ -48,9 +43,13 @@ struct LineSegment {
     {
     }
 
-    LayoutUnit logicalLeft;
-    LayoutUnit logicalRight;
+    float logicalLeft;
+    float logicalRight;
 };
+
+class BasicShape;
+class Image;
+class RoundedRect;
 
 typedef Vector<LineSegment> SegmentList;
 
@@ -67,9 +66,9 @@ public:
         Path marginShape;
     };
 
-    static std::unique_ptr<Shape> createShape(const BasicShape*, const LayoutSize& logicalBoxSize, WritingMode, Length margin);
-    static std::unique_ptr<Shape> createRasterShape(Image*, float threshold, const LayoutRect& imageRect, const LayoutRect& marginRect, WritingMode, Length margin);
-    static std::unique_ptr<Shape> createBoxShape(const RoundedRect&, WritingMode, Length margin);
+    static std::unique_ptr<Shape> createShape(const BasicShape*, const LayoutSize& logicalBoxSize, WritingMode, float margin);
+    static std::unique_ptr<Shape> createRasterShape(Image*, float threshold, const LayoutRect& imageRect, const LayoutRect& marginRect, WritingMode, float margin);
+    static std::unique_ptr<Shape> createBoxShape(const RoundedRect&, WritingMode, float margin);
 
     virtual ~Shape() { }
 

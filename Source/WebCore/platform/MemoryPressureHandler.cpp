@@ -54,9 +54,9 @@ MemoryPressureHandler::MemoryPressureHandler()
     : m_installed(false)
     , m_lastRespondTime(0)
     , m_lowMemoryHandler(releaseMemory)
+    , m_underMemoryPressure(false)
 #if PLATFORM(IOS)
     // FIXME: Can we share more of this with OpenSource?
-    , m_receivedMemoryPressure(0)
     , m_memoryPressureReason(MemoryPressureReasonNone)
     , m_clearPressureOnMemoryRelease(true)
     , m_releaseMemoryBlock(0)
@@ -67,43 +67,66 @@ MemoryPressureHandler::MemoryPressureHandler()
 
 void MemoryPressureHandler::releaseMemory(bool critical)
 {
-    int savedPageCacheCapacity = pageCache()->capacity();
-    pageCache()->setCapacity(0);
-    pageCache()->setCapacity(savedPageCacheCapacity);
+    {
+        ReliefLogger log("Empty the PageCache");
+        int savedPageCacheCapacity = pageCache()->capacity();
+        pageCache()->setCapacity(0);
+        pageCache()->setCapacity(savedPageCacheCapacity);
+    }
 
-    fontCache()->purgeInactiveFontData();
+    {
+        ReliefLogger log("Purge inactive FontData");
+        fontCache()->purgeInactiveFontData();
+    }
 
-    memoryCache()->pruneToPercentage(0);
+    {
+        ReliefLogger log("Prune MemoryCache");
+        memoryCache()->pruneToPercentage(0);
+    }
 
-    cssValuePool().drain();
+    {
+        ReliefLogger log("Drain CSSValuePool");
+        cssValuePool().drain();
+    }
 
-    clearWidthCaches();
+    {
+        ReliefLogger log("Clear WidthCaches");
+        clearWidthCaches();
+    }
 
-    for (auto* document : Document::allDocuments())
-        document->clearStyleResolver();
+    {
+        ReliefLogger log("Discard StyleResolvers");
+        for (auto* document : Document::allDocuments())
+            document->clearStyleResolver();
+    }
 
-    gcController().discardAllCompiledCode();
+    {
+        ReliefLogger log("Discard all JIT-compiled code");
+        gcController().discardAllCompiledCode();
+    }
 
     platformReleaseMemory(critical);
 
-    // FastMalloc has lock-free thread specific caches that can only be cleared from the thread itself.
-    StorageThread::releaseFastMallocFreeMemoryInAllThreads();
-    WorkerThread::releaseFastMallocFreeMemoryInAllThreads();
+    {
+        ReliefLogger log("Release free FastMalloc memory");
+        // FastMalloc has lock-free thread specific caches that can only be cleared from the thread itself.
+        StorageThread::releaseFastMallocFreeMemoryInAllThreads();
+        WorkerThread::releaseFastMallocFreeMemoryInAllThreads();
 #if ENABLE(ASYNC_SCROLLING)
-    ScrollingThread::dispatch(bind(WTF::releaseFastMallocFreeMemory));
+        ScrollingThread::dispatch(bind(WTF::releaseFastMallocFreeMemory));
 #endif
-    WTF::releaseFastMallocFreeMemory();
+        WTF::releaseFastMallocFreeMemory();
+    }
 }
 
-#if !PLATFORM(MAC)
+#if !PLATFORM(COCOA)
 void MemoryPressureHandler::install() { }
 void MemoryPressureHandler::uninstall() { }
 void MemoryPressureHandler::holdOff(unsigned) { }
 void MemoryPressureHandler::respondToMemoryPressure() { }
-#endif
-
-#if !PLATFORM(COCOA)
 void MemoryPressureHandler::platformReleaseMemory(bool) { }
+void MemoryPressureHandler::ReliefLogger::platformLog() { }
+size_t MemoryPressureHandler::ReliefLogger::platformMemoryUsage() { return 0; }
 #endif
 
 } // namespace WebCore

@@ -2,19 +2,19 @@
 <html>
 <head>
 <style>
-html, body {
+body {
     padding: 0;
     margin: 0;
-}
-
-article {
-    -webkit-flow-into: article;
     text-align: justify;
     font-family: Palatino, Georgia, serif;
     font-size: 10px;
     -webkit-hyphens: auto;
     text-align: justify;
     line-height: 1.2em;
+}
+
+article {
+    -webkit-flow-into: article;
 }
 
 .regionColumns {
@@ -36,7 +36,6 @@ article {
     margin-left: 3%;
 }
 
-.page { width: 100%; }
 #region1 { width: 40%; }
 #region2 { width: 22%; }
 #region3 { width: 22%; }
@@ -58,7 +57,7 @@ article {
 
 #imageShape {
     float: left;
-    background: url("./Shapes/resources/shape.gif") no-repeat;
+    background-image: url("./Shapes/resources/shape.gif");
     -webkit-shape-outside: url("./Shapes/resources/shape.gif");
     -webkit-shape-margin: 2px;
     width: 200px;
@@ -127,7 +126,7 @@ article {
 </head>
 
 <body>
-<div class="page">
+<div>
   <div id="region1" class="regionColumns"></div>
   <div id="region2" class="regionColumns"></div>
   <div id="region3" class="regionColumns"></div>

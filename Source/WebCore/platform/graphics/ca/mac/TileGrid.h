@@ -28,6 +28,7 @@
 
 #include "IntPointHash.h"
 #include "IntRect.h"
+#include "PlatformCALayerClient.h"
 #include "Timer.h"
 #include <wtf/Deque.h>
 #include <wtf/HashMap.h>
@@ -36,11 +37,12 @@
 
 namespace WebCore {
 
+class GraphicsContext;
 class PlatformCALayer;
 class TileController;
 
-class TileGrid {
-    WTF_MAKE_NONCOPYABLE(TileGrid);
+class TileGrid : public PlatformCALayerClient {
+    WTF_MAKE_NONCOPYABLE(TileGrid); WTF_MAKE_FAST_ALLOCATED;
 public:
     TileGrid(TileController&);
     ~TileGrid();
@@ -52,16 +54,18 @@ public:
 
     void setNeedsDisplay();
     void setNeedsDisplayInRect(const IntRect&);
+    void dropTilesInRect(const IntRect&);
 
     void updateTilerLayerProperties();
 
     bool prepopulateRect(const FloatRect&);
 
-    typedef unsigned TileValidationPolicyFlags;
-    void revalidateTiles(TileValidationPolicyFlags);
+    enum TileValidationPolicyFlag {
+        PruneSecondaryTiles = 1 << 0,
+        UnparentAllTiles = 1 << 1
+    };
+    void revalidateTiles(unsigned validationPolicyFlags);
     bool tilesWouldChangeForVisibleRect(const FloatRect& newVisibleRect, const FloatRect& oldVisibleRect) const;
-
-    FloatRect scaledExposedRect() const;
 
     IntRect tileCoverageRect() const;
     IntRect extent() const;
@@ -69,7 +73,7 @@ public:
     double retainedTileBackingStoreMemory() const;
     unsigned blankPixelCount() const;
 
-    void drawTileMapContents(CGContextRef, CGRect layerBounds);
+    void drawTileMapContents(CGContextRef, CGRect layerBounds) const;
 
 #if PLATFORM(IOS)
     unsigned numberOfUnparentedTiles() const { return m_cohortList.size(); }
@@ -111,6 +115,17 @@ private:
     TileCohort newestTileCohort() const;
     TileCohort oldestTileCohort() const;
 
+    void removeTiles(Vector<TileGrid::TileIndex>& toRemove);
+
+    // PlatformCALayerClient
+    virtual void platformCALayerPaintContents(PlatformCALayer*, GraphicsContext&, const FloatRect&) override;
+    virtual bool platformCALayerShowDebugBorders() const override;
+    virtual bool platformCALayerShowRepaintCounter(PlatformCALayer*) const override;
+    virtual int platformCALayerIncrementRepaintCount(PlatformCALayer*) override;
+    virtual bool platformCALayerContentsOpaque() const override;
+    virtual bool platformCALayerDrawsContent() const override { return true; }
+    virtual float platformCALayerDeviceScaleFactor() const override;
+
     TileController& m_controller;
     Ref<PlatformCALayer> m_containerLayer;
 
@@ -134,6 +149,9 @@ private:
     TileCohortList m_cohortList;
 
     Timer<TileGrid> m_cohortRemovalTimer;
+
+    typedef HashMap<PlatformCALayer*, int> RepaintCountMap;
+    RepaintCountMap m_tileRepaintCounts;
 };
 
 }

@@ -372,10 +372,8 @@ public:
     void setChildrenAffectedByHover() { setFlag(ChildrenAffectedByHoverRulesFlag); }
     void setChildrenAffectedByActive();
     void setChildrenAffectedByDrag();
-    static void setChildrenAffectedByFirstChildRules(Element*);
     void setChildrenAffectedByFirstChildRules() { setFlag(ChildrenAffectedByFirstChildRulesFlag); }
     void setChildrenAffectedByLastChildRules() { setFlag(ChildrenAffectedByLastChildRulesFlag); }
-    static void setChildrenAffectedByDirectAdjacentRules(Element*);
     void setChildrenAffectedByDirectAdjacentRules() { setFlag(ChildrenAffectedByDirectAdjacentRulesFlag); }
     static void setChildrenAffectedByForwardPositionalRules(Element*);
     void setChildrenAffectedByForwardPositionalRules() { setChildrenAffectedByForwardPositionalRules(this); }
@@ -486,7 +484,7 @@ public:
     virtual bool isFrameElementBase() const { return false; }
     virtual bool isSearchFieldCancelButtonElement() const { return false; }
 
-    virtual bool canContainRangeEndPoint() const override { return true; }
+    virtual bool canContainRangeEndPoint() const override;
 
     // Used for disabled form elements; if true, prevents mouse events from being dispatched
     // to event listeners, and prevents DOMActivate events from being sent at all.
@@ -795,23 +793,6 @@ inline UniqueElementData& Element::ensureUniqueElementData()
         createUniqueElementData();
     return static_cast<UniqueElementData&>(*m_elementData);
 }
-
-class PostAttachCallbackDisabler {
-public:
-    explicit PostAttachCallbackDisabler(Document& document)
-        : m_document(document)
-    {
-        Element::suspendPostAttachCallbacks(m_document);
-    }
-
-    ~PostAttachCallbackDisabler()
-    {
-        Element::resumePostAttachCallbacks(m_document);
-    }
-
-private:
-    Document& m_document;
-};
 
 } // namespace WebCore
 
