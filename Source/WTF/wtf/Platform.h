@@ -27,7 +27,6 @@
 
 #ifndef WTF_Platform_h
 #define WTF_Platform_h
-#include <windows.h>
 
 /* Include compiler specific macros */
 #include <wtf/Compiler.h>
@@ -519,6 +518,7 @@
 #endif  /* OS(WINCE) && !PLATFORM(QT) */
 
 #if OS(WINDOWS_PHONE)
+#include <windows.h>
 #define NOSHLWAPI
 #define USE_SYSTEM_MALLOC 1
 #define WTF_USE_QUERY_PERFORMANCE_COUNTER 0
