@@ -28,6 +28,7 @@
 
 #ifndef VM_h
 #define VM_h
+#include <windows.h>
 
 #include "CachedTranscendentalFunction.h"
 #include "DateInstanceCache.h"
