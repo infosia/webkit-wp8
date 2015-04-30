@@ -40,10 +40,37 @@
 #endif
 
 #if OS(WINDOWS_PHONE)
-#include <thread>
+#include <atomic>
 #endif
 
-#if ENABLE(COMPARE_AND_SWAP)
+#if USE(STDTHREAD)
+
+struct TCMalloc_SpinLock {
+    void Lock() {
+         while (m_lock.exchange(true)) { }
+    }
+
+    void Unlock() {
+      m_lock = false;
+    }
+
+    // Report if we think the lock can be held by this thread.
+    // When the lock is truly held by the invoking thread
+    // we will always return true.
+    // Indended to be used as CHECK(lock.IsHeld());
+    bool IsHeld() const {
+        return m_lock;
+    }
+
+    void Init() { m_lock = false; }
+    void Finalize() { }
+
+    std::atomic<bool> m_lock;
+};
+
+#define SPINLOCK_INITIALIZER { 0 }
+
+#elif ENABLE(COMPARE_AND_SWAP)
 
 static void TCMalloc_SlowLock(unsigned* lockword);
 

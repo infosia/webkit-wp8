@@ -42,21 +42,17 @@ namespace JSC {
 
 const ClassInfo ExecutableBase::s_info = { "Executable", 0, 0, 0, CREATE_METHOD_TABLE(ExecutableBase) };
 
-#if ENABLE(JIT)
 void ExecutableBase::destroy(JSCell* cell)
 {
     static_cast<ExecutableBase*>(cell)->ExecutableBase::~ExecutableBase();
 }
-#endif
 
 void ExecutableBase::clearCode()
 {
-#if ENABLE(JIT)
     m_jitCodeForCall.clear();
     m_jitCodeForConstruct.clear();
     m_jitCodeForCallWithArityCheck = MacroAssemblerCodePtr();
     m_jitCodeForConstructWithArityCheck = MacroAssemblerCodePtr();
-#endif
     m_numParametersForCall = NUM_PARAMETERS_NOT_COMPILED;
     m_numParametersForConstruct = NUM_PARAMETERS_NOT_COMPILED;
 }
@@ -77,12 +73,10 @@ Intrinsic ExecutableBase::intrinsic() const
 
 const ClassInfo NativeExecutable::s_info = { "NativeExecutable", &ExecutableBase::s_info, 0, 0, CREATE_METHOD_TABLE(NativeExecutable) };
 
-#if ENABLE(JIT)
 void NativeExecutable::destroy(JSCell* cell)
 {
     static_cast<NativeExecutable*>(cell)->NativeExecutable::~NativeExecutable();
 }
-#endif
 
 #if ENABLE(DFG_JIT)
 Intrinsic NativeExecutable::intrinsic() const
@@ -107,12 +101,10 @@ static void jettisonCodeBlock(VM& vm, RefPtr<T>& codeBlock)
 
 const ClassInfo ScriptExecutable::s_info = { "ScriptExecutable", &ExecutableBase::s_info, 0, 0, CREATE_METHOD_TABLE(ScriptExecutable) };
 
-#if ENABLE(JIT)
 void ScriptExecutable::destroy(JSCell* cell)
 {
     static_cast<ScriptExecutable*>(cell)->ScriptExecutable::~ScriptExecutable();
 }
-#endif
 
 const ClassInfo EvalExecutable::s_info = { "EvalExecutable", &ScriptExecutable::s_info, 0, 0, CREATE_METHOD_TABLE(EvalExecutable) };
 

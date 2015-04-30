@@ -411,6 +411,8 @@ if (WTF_USE_ICU_UNICODE)
     )
     list(APPEND JavaScriptCore_LIBRARIES
         ${ICU_I18N_LIBRARIES}
+        ${ICU_LIBRARIES}
+        ${ICU_DATA_LIBRARIES}
     )
 endif ()
 
@@ -554,6 +556,23 @@ set(JavaScriptCore_FORWARDING_HEADERS_FILES
     API/WebKitAvailability.h
 )
 
+# used for install targets
+set(JavaScriptCore_PUBLIC_API_HEADERS
+	API/JSBase.h
+	API/JSContext.h
+	API/JSContextRef.h
+	API/JSExport.h
+	API/JSManagedValue.h
+	API/JSObjectRef.h
+	API/JSStringRef.h
+	API/JSStringRefCF.h
+	API/JSValue.h
+	API/JSValueRef.h
+	API/JSVirtualMachine.h
+	API/JavaScript.h
+	API/JavaScriptCore.h
+	API/WebKitAvailability.h
+)
 
 # GENERATOR 1-B: particular LUT creator (for 1 file only)
 GENERATE_HASH_LUT(${CMAKE_CURRENT_SOURCE_DIR}/parser/Keywords.table ${DERIVED_SOURCES_JAVASCRIPTCORE_DIR}/Lexer.lut.h)
@@ -625,7 +644,11 @@ WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
 WEBKIT_CREATE_FORWARDING_HEADERS(JavaScriptCore DIRECTORIES ${JavaScriptCore_FORWARDING_HEADERS_DIRECTORIES} FILES ${JavaScriptCore_FORWARDING_HEADERS_FILES})
 
 
-add_subdirectory(shell)
+if (SHARED_CORE AND EXPORT_ONLY_PUBLIC_SYMBOLS)
+	message(STATUS "jsc shell tool is skipped when SHARED_CORE and EXPORT_ONLY_PUBLIC_SYMBOLS are defined due to its dependency on private API")
+else ()
+    add_subdirectory(shell)
+endif ()
 
 WEBKIT_WRAP_SOURCELIST(${JavaScriptCore_SOURCES})
 include_directories(${JavaScriptCore_INCLUDE_DIRECTORIES})
@@ -634,12 +657,24 @@ add_library(JavaScriptCore ${JavaScriptCore_LIBRARY_TYPE} ${JavaScriptCore_HEADE
 target_link_libraries(JavaScriptCore ${JavaScriptCore_LIBRARIES})
 set_target_properties(JavaScriptCore PROPERTIES FOLDER "JavaScriptCore")
 set_target_properties(JavaScriptCore PROPERTIES LINK_INTERFACE_LIBRARIES "")
+#set_target_properties(JavaScriptCore PROPERTIES PUBLIC_HEADER ${JavaScriptCore_HEADERS})
 
 if (JavaScriptCore_OUTPUT_NAME)
     set_target_properties(JavaScriptCore PROPERTIES OUTPUT_NAME ${JavaScriptCore_OUTPUT_NAME})
 endif ()
 
 if (SHARED_CORE)
-    set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-    install(TARGETS JavaScriptCore DESTINATION "${LIB_INSTALL_DIR}")
+    # The conventional version numbers on shared library names with symlinks doesn't work on Android with Java's loadLibrary API.
+    if (NOT ANDROID)
+        set_target_properties(JavaScriptCore PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+    endif ()
 endif ()
+
+install(TARGETS JavaScriptCore 
+	LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
+	ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
+	PUBLIC_HEADER DESTINATION "${PUBLIC_HEADER_INSTALL_DIR}"
+)
+install(FILES ${JavaScriptCore_PUBLIC_API_HEADERS} DESTINATION "${PUBLIC_HEADER_INSTALL_DIR}/JavaScriptCore")
+
+	

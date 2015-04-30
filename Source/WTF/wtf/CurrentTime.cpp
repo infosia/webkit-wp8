@@ -212,7 +212,7 @@ double currentTime()
 
     ULONGLONG tickCountNow = GetTickCount64();
     DWORD elapsed = tickCountNow - lastTickCount;
-    double timeNow = lastTime + (double)elapsed / 1000.;
+    double timeNow = lastTime + (double)elapsed;
     if (elapsed >= 0x7FFFFFFF) {
         lastTime = timeNow;
         lastTickCount = tickCountNow;

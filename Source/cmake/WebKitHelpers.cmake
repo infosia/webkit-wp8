@@ -24,9 +24,33 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             set(OLD_COMPILE_FLAGS "-fno-tree-sra ${OLD_COMPILE_FLAGS}")
         endif ()
 
+        # EW: This code makes no sense to me. 
+        # It is calling -fvisibility=hidden for only NOT SHARED_CORE.
+        # Symbol visibility only makes sense for dynamic libraries.
+        # This implies to me that this block is essentially a no-op.
         if (NOT SHARED_CORE)
             set(OLD_COMPILE_FLAGS "-fvisibility=hidden ${OLD_COMPILE_FLAGS}")
         endif ()
+
+        # EW: Continuing from above, we need symbol visibility for dynamic libraries.
+        # According to the change log, the above hack was added because it was causing problems with dynamic libraries.
+        # My impression is that the above simply disabled it since it makes no sense for static libraries.
+        # My guess is that is caused problems because I found that certain things are relying on private API in JSCore
+        # which is a big-no-no.
+        # Generally exporting only public symbols should be done by default when building dynamic libraries.
+        # But it looks like the jsc shell tool and maybe the testapi program use private symbols,
+        # which this will break.
+        # So I'm adding an additional option, EXPORT_ONLY_PUBLIC_SYMBOLS.
+        # And I will case-out the jsc shell tool not to build when SHARED_CORE and EXPORT_ONLY_PUBLIC_SYMBOLS are defined.
+        if (EXPORT_ONLY_PUBLIC_SYMBOLS)
+            set(OLD_COMPILE_FLAGS "-fvisibility=hidden ${OLD_COMPILE_FLAGS}")
+        endif ()
+
+        # EW: This is generally a good idea. From the change log, it looks like the Mac project 
+        # and configure/Makefiles were updated to always do this.
+        # We should too.
+        set(OLD_COMPILE_FLAGS "-fvisibility-inlines-hidden ${OLD_COMPILE_FLAGS}")
+
 
         get_target_property(TARGET_TYPE ${_target} TYPE)
         if (${TARGET_TYPE} STREQUAL "STATIC_LIBRARY") # -fPIC is automatically added to shared libraries
@@ -51,7 +75,7 @@ macro(WEBKIT_SET_EXTRA_COMPILER_FLAGS _target)
             set(OLD_COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -Wno-c++0x-compat")
         endif ()
 
-        set(OLD_COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -std=gnu++0x")
+		#        set(OLD_COMPILE_FLAGS "${OLD_COMPILE_FLAGS} -std=gnu++0x")
 
         set_target_properties(${_target} PROPERTIES
             COMPILE_FLAGS "${OLD_COMPILE_FLAGS}")

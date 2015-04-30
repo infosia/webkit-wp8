@@ -224,6 +224,7 @@ set(WTF_LIBRARIES
 )
 
 if (WTF_USE_ICU_UNICODE)
+	message("in wtf WTF_USE_ICU_UNICODE")
     list(APPEND WTF_HEADERS
         unicode/icu/UnicodeIcu.h
     )
@@ -236,8 +237,10 @@ if (WTF_USE_ICU_UNICODE)
     list(APPEND WTF_LIBRARIES
         ${ICU_I18N_LIBRARIES}
         ${ICU_LIBRARIES}
+        ${ICU_DATA_LIBRARIES}
     )
 elseif (WTF_USE_WCHAR_UNICODE)
+	message("in wtf WTF_USE_WCHAR_UNICODE")
     list(APPEND WTF_HEADERS
         unicode/wchar/UnicodeWchar.h
     )

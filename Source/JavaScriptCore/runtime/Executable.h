@@ -85,12 +85,10 @@ namespace JSC {
     public:
         typedef JSCell Base;
 
-#if ENABLE(JIT)
         static const bool needsDestruction = true;
         static const bool hasImmortalStructure = true;
         static void destroy(JSCell*);
-#endif
-        
+
         CodeBlockHash hashFor(CodeSpecializationKind) const;
 
         bool isFunctionExecutable()
@@ -287,9 +285,7 @@ namespace JSC {
         }
 #endif
 
-#if ENABLE(JIT)
         static void destroy(JSCell*);
-#endif
 
         CodeBlockHash hashFor(CodeSpecializationKind) const;
 
@@ -365,9 +361,8 @@ namespace JSC {
         {
         }
 
-#if ENABLE(JIT)
         static void destroy(JSCell*);
-#endif
+
         
         CodeBlockHash hashFor(CodeSpecializationKind) const;
 

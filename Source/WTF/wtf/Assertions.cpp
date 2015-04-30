@@ -64,7 +64,7 @@
 #if OS(DARWIN) || (OS(LINUX) && !defined(__UCLIBC__))
 #include <cxxabi.h>
 #include <dlfcn.h>
-#include <execinfo.h>
+//#include <execinfo.h>
 #endif
 
 #if PLATFORM(BLACKBERRY)
@@ -135,10 +135,16 @@ static void vprintf_stderr_common(const char* format, va_list args)
                     if (!(wideBuffer[i] = buffer[i]))
                         break;
                 }
-                OutputDebugStringW(wideBuffer);
+// Problem: Windows Store/Phone doesn't allow OutputDebugString so we must remove it.
+#if defined(_DEBUG)
+				OutputDebugStringW(wideBuffer);
+#endif
                 free(wideBuffer);
 #else
-                OutputDebugStringA(buffer);
+// Problem: Windows Store/Phone doesn't allow OutputDebugString so we must remove it.
+#if defined(_DEBUG)
+				OutputDebugStringA(buffer);
+#endif
 #endif
                 free(buffer);
                 break;
@@ -240,7 +246,9 @@ void WTFReportArgumentAssertionFailure(const char* file, int line, const char* f
 void WTFGetBacktrace(void** stack, int* size)
 {
 #if OS(DARWIN) || (OS(LINUX) && !defined(__UCLIBC__))
-    *size = backtrace(stack, *size);
+//    *size = backtrace(stack, *size);
+    *size = 0;
+	
 #elif OS(WINDOWS) && !OS(WINCE) && !OS(WINDOWS_PHONE)
     // The CaptureStackBackTrace function is available in XP, but it is not defined
     // in the Windows Server 2003 R2 Platform SDK. So, we'll grab the function

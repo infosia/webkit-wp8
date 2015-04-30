@@ -124,14 +124,15 @@ inline bool signbit(double x) { struct ieee_double *p = (struct ieee_double *)&x
 #if COMPILER(MSVC)
 
 // We must not do 'num + 0.5' or 'num - 0.5' because they can cause precision loss.
-static double round(double num)
+// changed round and roundf to be inline to fix VS 2013 build issues http://stackoverflow.com/questions/18080625/qt-4-8-visual-studio-2013-compiling-error
+static inline double round(double num)
 {
     double integer = ceil(num);
     if (num > 0)
         return integer - num > 0.5 ? integer - 1.0 : integer;
     return integer - num >= 0.5 ? integer - 1.0 : integer;
 }
-static float roundf(float num)
+static inline float roundf(float num)
 {
     float integer = ceilf(num);
     if (num > 0)
@@ -179,7 +180,11 @@ namespace std {
 inline bool isinf(double num) { return !_finite(num) && !_isnan(num); }
 inline bool isnan(double num) { return !!_isnan(num); }
 inline bool isfinite(double x) { return _finite(x); }
+
+// only use inline signbit in older MS versions see http://stackoverflow.com/questions/18080625/qt-4-8-visual-studio-2013-compiling-error
+#if _MSC_VER < 1800
 inline bool signbit(double num) { return _copysign(1.0, num) < 0; }
+#endif
 
 } // namespace std
 

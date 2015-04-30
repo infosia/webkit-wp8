@@ -96,6 +96,48 @@
 #include <Ecore.h>
 #endif
 
+#if OS(WINDOWS_PHONE)
+#include <cstdarg>
+
+#define fprintf fprintfOverride
+#define printf printfOverride
+
+static void debugConsoleFormattedPrint(const char* format, va_list argumentList)
+{
+    int size = 100, sizeNeeded = -1;
+    std::string result(100, 0);
+    while (sizeNeeded > size || sizeNeeded == -1) {
+        sizeNeeded = vsnprintf(&result[0], size, format, argumentList);
+
+        if (sizeNeeded) {
+            if (sizeNeeded > size)
+                size = sizeNeeded + 1;
+            else if (sizeNeeded == -1) // On error, just double the size.
+                size *= 2;
+            result.resize(size);
+        }
+    }
+
+    OutputDebugStringA(result.c_str());
+}
+
+static void printfOverride(const char* format, ...)
+{
+    va_list argumentList;
+    va_start(argumentList, format);
+    debugConsoleFormattedPrint(format, argumentList);
+    va_end(argumentList);
+}
+
+static void fprintfOverride(FILE*, const char* format, ...)
+{
+    va_list argumentList;
+    va_start(argumentList, format);
+    debugConsoleFormattedPrint(format, argumentList);
+    va_end(argumentList);
+}
+#endif
+
 using namespace JSC;
 using namespace WTF;
 
@@ -305,13 +347,17 @@ static inline SourceCode jscSource(const char* utf8, const String& filename)
 EncodedJSValue JSC_HOST_CALL functionPrint(ExecState* exec)
 {
     for (unsigned i = 0; i < exec->argumentCount(); ++i) {
-        if (i)
+        if (i) {
             putchar(' ');
+//            OutputDebugStringA(" ");
+        }
 
+//        OutputDebugStringA(exec->argument(i).toString(exec)->value(exec).utf8().data());
         printf("%s", exec->argument(i).toString(exec)->value(exec).utf8().data());
     }
 
     putchar('\n');
+//    OutputDebugStringA("\n");
     fflush(stdout);
     return JSValue::encode(jsUndefined());
 }
@@ -508,7 +554,7 @@ int main(int argc, char** argv)
     fesetenv( &env );
 #endif
 
-#if OS(WINDOWS)
+#if OS(WINDOWS) && !OS(WINDOWS_PHONE)
 #if !OS(WINCE)
     // Cygwin calls ::SetErrorMode(SEM_FAILCRITICALERRORS), which we will inherit. This is bad for
     // testing/debugging, as it causes the post-mortem debugger not to be invoked. We reset the
@@ -598,6 +644,7 @@ static bool runWithScripts(GlobalObject* globalObject, const Vector<Script>& scr
         if (dump && !evaluationException)
             printf("End: %s\n", returnValue.toString(globalObject->globalExec())->value(globalObject->globalExec()).utf8().data());
         if (evaluationException) {
+//            OutputDebugStringA("Exception");
             printf("Exception: %s\n", evaluationException.toString(globalObject->globalExec())->value(globalObject->globalExec()).utf8().data());
             Identifier stackID(globalObject->globalExec(), "stack");
             JSValue stackValue = evaluationException.get(globalObject->globalExec(), stackID);
@@ -609,6 +656,47 @@ static bool runWithScripts(GlobalObject* globalObject, const Vector<Script>& scr
         globalObject->globalExec()->clearException();
     }
 
+#if ENABLE(SAMPLING_FLAGS)
+    SamplingFlags::stop();
+#endif
+#if ENABLE(SAMPLING_REGIONS)
+    SamplingRegion::dump();
+#endif
+    vm.dumpSampleData(globalObject->globalExec());
+#if ENABLE(SAMPLING_COUNTERS)
+    AbstractSamplingCounter::dump();
+#endif
+#if ENABLE(REGEXP_TRACING)
+    vm.dumpRegExpTrace();
+#endif
+    return success;
+}
+
+static bool runWithScriptString(GlobalObject* globalObject, const std::string& script, const std::string& fileName, std::string& exceptionString)
+{
+    VM& vm = globalObject->vm();
+
+#if ENABLE(SAMPLING_FLAGS)
+    SamplingFlags::start();
+#endif
+
+    vm.startSampling();
+
+    JSValue evaluationException;
+    JSValue returnValue = evaluate(globalObject->globalExec(), jscSource(script.c_str(), String::fromUTF8(fileName.c_str())), JSValue(), &evaluationException);
+    bool success = !evaluationException;
+    if (evaluationException) {
+        exceptionString = evaluationException.toString(globalObject->globalExec())->value(globalObject->globalExec()).utf8().data();
+        printf("Exception: %s\n", evaluationException.toString(globalObject->globalExec())->value(globalObject->globalExec()).utf8().data());
+        Identifier stackID(globalObject->globalExec(), "stack");
+        JSValue stackValue = evaluationException.get(globalObject->globalExec(), stackID);
+        if (!stackValue.isUndefinedOrNull())
+            printf("%s\n", stackValue.toString(globalObject->globalExec())->value(globalObject->globalExec()).utf8().data());
+    }
+
+    vm.stopSampling();
+    globalObject->globalExec()->clearException();
+ 
 #if ENABLE(SAMPLING_FLAGS)
     SamplingFlags::stop();
 #endif
@@ -824,6 +912,27 @@ int jscmain(int argc, char** argv)
     }
 
     return result;
+}
+
+int jscmainRepeatable(const std::string& script, const std::string& fileName, std::string& exceptionString)
+{
+    JSC::initializeThreading();
+
+    bool success;
+    static VM* vm = VM::create(LargeHeap).leakRef();
+
+    {
+        APIEntryShim shim(vm);
+        GlobalObject* globalObject = GlobalObject::create(*vm, GlobalObject::createStructure(*vm, jsNull()), Vector<String>());
+        success = runWithScriptString(globalObject, script, fileName, exceptionString);
+
+        bool protectCountIsZero = Heap::heap(globalObject)->unprotect(globalObject);
+        if (protectCountIsZero)
+            vm->heap.reportAbandonedObjectGraph();
+    }
+
+    return success ? 0 : 3;
+
 }
 
 static bool fillBufferWithContentsOfFile(const String& fileName, Vector<char>& buffer)

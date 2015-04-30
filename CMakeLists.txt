@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(WebKit)
-
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-c++0x-compat") 
 # -----------------------------------------------------------------------------
 # Default library type
 # -----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ set(DERIVED_SOURCES_WEBKIT2_DIR "${CMAKE_BINARY_DIR}/DerivedSources/WebKit2")
 
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/Source/cmake")
 
-set(ENABLE_WEBCORE ON)
+#set(ENABLE_WEBCORE ON)
 
 if (NOT DEFINED ENABLE_WEBKIT)
     set(ENABLE_WEBKIT ON)
@@ -39,12 +39,12 @@ include(WebKitFeatures)
 # -----------------------------------------------------------------------------
 # Determine which port will be built
 # -----------------------------------------------------------------------------
-set(ALL_PORTS Efl WinCE BlackBerry GTK)
+set(ALL_PORTS Efl WinCE BlackBerry GTK Android)
 set(PORT "NOPORT" CACHE STRING "choose which WebKit port to build (one of ${ALL_PORTS})")
 
 list(FIND ALL_PORTS ${PORT} RET)
 if (${RET} EQUAL -1)
-    message(FATAL_ERROR "Please choose which WebKit port to build (one of ${ALL_PORTS})")
+	#    message(FATAL_ERROR "Please choose which WebKit port to build (one of ${ALL_PORTS})")
 endif ()
 
 string(TOLOWER ${PORT} WEBKIT_PORT_DIR)
@@ -52,17 +52,18 @@ string(TOLOWER ${PORT} WEBKIT_PORT_DIR)
 # -----------------------------------------------------------------------------
 # Find common packages (used by all ports)
 # -----------------------------------------------------------------------------
-find_package(BISON 2.4.1 REQUIRED)
-find_package(FLEX 2.5.34 REQUIRED)
+##find_package(BISON 2.4.1 REQUIRED)
+#find_package(BISON 2.3.0 REQUIRED)
+#find_package(FLEX 2.5.34 REQUIRED)
 
 # TODO Enforce version requirement for gperf
-find_package(Gperf 3.0.1 REQUIRED)
+#find_package(Gperf 3.0.1 REQUIRED)
 
 # TODO Enforce version requirement for perl
-find_package(Perl 5.10.0 REQUIRED)
+#find_package(Perl 5.10.0 REQUIRED)
 
 find_package(PythonInterp 2.6.0 REQUIRED)
-find_package(Ruby 1.8.7)
+#find_package(Ruby 1.8.7)
 
 # -----------------------------------------------------------------------------
 # Determine the target processor
@@ -102,6 +103,9 @@ endif ()
 # Default library types
 # -----------------------------------------------------------------------------
 option(SHARED_CORE "build JavaScriptCore and WebCore as shared libraries")
+# EXPORT_ONLY_PUBLIC_SYMBOLS:ON for SHARED_CORE should be the default to minimize library size and chances of symbol clashes.
+# But it appears some things in this project are using private API in JavaScriptCore such as the jsc shell tool and maybe testapi.
+option(EXPORT_ONLY_PUBLIC_SYMBOLS "exports only public symbols for shared libraries, currently disables jsc shell tool")
 
 if (SHARED_CORE)
     set(JavaScriptCore_LIBRARY_TYPE SHARED)
